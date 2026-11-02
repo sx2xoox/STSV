@@ -21,7 +21,7 @@ import java.util.Optional;
 
 public final class StsvCommand implements TabExecutor {
 
-    private static final List<String> SUBS = List.of("give", "browse", "list", "info", "reload", "pack", "recipe", "fuel", "skin", "cosmetic", "wardrobe");
+    private static final List<String> SUBS = List.of("give", "browse", "list", "info", "reload", "pack", "recipe", "fuel", "skin", "cosmetic", "wardrobe", "boss");
     private final STSVPlugin plugin;
 
     public StsvCommand(STSVPlugin plugin) {
@@ -77,6 +77,7 @@ public final class StsvCommand implements TabExecutor {
             case "cosmetic" -> cosmetic(sender, args);
             case "wardrobe" -> wardrobe(sender, args);
             case "fuel" -> fuel(sender, args);
+            case "boss" -> boss(sender, args);
             default -> {
                 sender.sendMessage(Text.msg("<gray>명령어 목록"));
                 for (String line : List.of(
@@ -89,12 +90,42 @@ public final class StsvCommand implements TabExecutor {
                         "skin remove <dark_gray>- 손에 든 아이템의 스킨 해제",
                         "cosmetic give|take <플레이어> <치장> | cosmetic info [플레이어] <dark_gray>- 치장 지급/회수/상태",
                         "wardrobe create <이름> [반경] | delete <이름> | list <dark_gray>- 옷장 구역",
+                        "boss spawn <보스> | boss list | boss remove <dark_gray>- 보스 소환/목록/모두 제거",
                         "reload | pack")) {
                     sender.sendMessage(Text.mm(" <white>/" + label + " " + line));
                 }
             }
         }
         return true;
+    }
+
+    private void boss(CommandSender sender, String[] args) {
+        String sub = args.length > 1 ? args[1].toLowerCase(Locale.ROOT) : "";
+        switch (sub) {
+            case "spawn" -> {
+                if (!(sender instanceof Player p) || args.length < 3) {
+                    sender.sendMessage(Text.msg("<red>/stsv boss spawn <보스> <gray>(바라보는 곳에 소환)"));
+                    return;
+                }
+                org.bukkit.block.Block aim = p.getTargetBlockExact(24);
+                org.bukkit.Location at = aim != null ? aim.getLocation().add(0.5, 1, 0.5)
+                        : p.getLocation().add(p.getLocation().getDirection().setY(0).normalize().multiply(5));
+                at.setYaw(p.getLocation().getYaw() + 180);
+                plugin.bosses().spawn(args[2], at).ifPresentOrElse(
+                        b -> sender.sendMessage(Text.msg("<green>소환: <white>" + args[2])),
+                        () -> sender.sendMessage(Text.msg("<red>알 수 없는 보스: " + args[2])));
+            }
+            case "list" -> {
+                sender.sendMessage(Text.msg("<gray>보스 " + plugin.bosses().specs().size() + "종, 살아있는 보스 "
+                        + plugin.bosses().active().size() + "마리"));
+                for (dev.stsv.core.boss.BossSpec s : plugin.bosses().specs()) {
+                    sender.sendMessage(Text.mm(" <dark_gray>-</dark_gray> <white>" + s.id() + "</white> " + s.name()
+                            + " <gray>(체력 " + (int) s.health() + ", 패턴 " + String.join(", ", s.skills().keySet()) + ")"));
+                }
+            }
+            case "remove" -> sender.sendMessage(Text.msg("<gray>보스 " + plugin.bosses().removeAll() + "마리 제거"));
+            default -> sender.sendMessage(Text.msg("<red>/stsv boss <spawn|list|remove>"));
+        }
     }
 
     private void give(CommandSender sender, String[] args) {
@@ -319,6 +350,10 @@ public final class StsvCommand implements TabExecutor {
         if (args[0].equalsIgnoreCase("fuel") && args.length == 2) return filter(List.of("set", "remove", "list"), args[1]);
         if (args[0].equalsIgnoreCase("skin") && args.length == 2) return filter(List.of("remove"), args[1]);
         if (args[0].equalsIgnoreCase("wardrobe") && args.length == 2) return filter(List.of("create", "delete", "list"), args[1]);
+        if (args[0].equalsIgnoreCase("boss") && args.length == 2) return filter(List.of("spawn", "list", "remove"), args[1]);
+        if (args[0].equalsIgnoreCase("boss") && args.length == 3 && args[1].equalsIgnoreCase("spawn")) {
+            return filter(plugin.bosses().specs().stream().map(dev.stsv.core.boss.BossSpec::id).toList(), args[2]);
+        }
         if (args[0].equalsIgnoreCase("cosmetic")) {
             if (args.length == 2) return filter(List.of("give", "take", "info"), args[1]);
             if (args.length == 3) return filter(Bukkit.getOnlinePlayers().stream().map(Player::getName).toList(), args[2]);

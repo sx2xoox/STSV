@@ -31,7 +31,9 @@ def render_preview(json_path, png_path):
 def main():
     render = "--render" in sys.argv
     sys.path.insert(0, str(HERE))
-    from models.test_items import ALL
+    from models.test_items import ALL as ITEMS
+    from models import test_golem
+    ALL = {**ITEMS, **test_golem.ALL}
     import special
 
     for d in (CONTENT / "models", CONTENT / "textures", BUILD, PREVIEWS):
@@ -71,6 +73,16 @@ def main():
                   ("test_rug", 78, 0), ("tomato_mask", 100, 0)]
         scene(built, lineup, BUILD / "lineup.preview.json")
         render_preview(BUILD / "lineup.preview.json", PREVIEWS / "lineup.png")
+        # boss in its rest pose: every bone model placed at its pivot (bone space = assembly - pivot + 8)
+        golem = [(name, test_golem.PIVOTS[bone][0] - 8, test_golem.PIVOTS[bone][2] - 8, test_golem.PIVOTS[bone][1] - 8)
+                 for name, bone in test_golem.ASSEMBLY]
+        golem.append(("test_golem_rock", 40, -8, 0))
+        scene(built, golem, BUILD / "golem.preview.json")
+        render_preview(BUILD / "golem.preview.json", PREVIEWS / "test_golem.png")
+        alert = [(n.replace("body", "body_alert").replace("head", "head_alert") if n.endswith(("body", "head")) else n, *rest)
+                 for n, *rest in golem[:-1]]
+        scene(built, alert, BUILD / "golem_alert.preview.json")
+        render_preview(BUILD / "golem_alert.preview.json", PREVIEWS / "test_golem_phase2.png")
         armor_preview(BUILD / "armor.preview.json")
         render_preview(BUILD / "armor.preview.json", PREVIEWS / "armor_worn.png")
 

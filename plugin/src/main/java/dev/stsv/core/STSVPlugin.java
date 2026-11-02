@@ -1,5 +1,6 @@
 package dev.stsv.core;
 
+import dev.stsv.core.boss.BossModule;
 import dev.stsv.core.command.StsvCommand;
 import dev.stsv.core.command.WardrobeCommand;
 import dev.stsv.core.cosmetic.CosmeticModule;
@@ -33,6 +34,7 @@ public final class STSVPlugin extends JavaPlugin {
     private PackModule pack;
     private SkinModule skins;
     private CosmeticModule cosmetics;
+    private BossModule bosses;
     private ItemBrowser itemBrowser;
     private RecipeEditor recipeEditor;
 
@@ -53,6 +55,7 @@ public final class STSVPlugin extends JavaPlugin {
         modules.register(skins = new SkinModule());
         modules.register(cosmetics = new CosmeticModule());
         modules.register(new ItemEffectsModule());
+        modules.register(bosses = new BossModule());
         modules.register(pack = new PackModule());
         modules.enableAll();
 
@@ -88,6 +91,7 @@ public final class STSVPlugin extends JavaPlugin {
     public PackModule pack() { return pack; }
     public SkinModule skins() { return skins; }
     public CosmeticModule cosmetics() { return cosmetics; }
+    public BossModule bosses() { return bosses; }
     public ItemBrowser itemBrowser() { return itemBrowser; }
     public RecipeEditor recipeEditor() { return recipeEditor; }
 }

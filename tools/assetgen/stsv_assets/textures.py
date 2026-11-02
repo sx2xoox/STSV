@@ -425,7 +425,7 @@ def dev_stripe():
     return im
 
 
-def _dev_screen_frame(k):
+def _dev_screen_frame(k, ramp_name="test_teal"):
     """Teal screen with a bright scan line moving down (frame k of 8)."""
     im = _new()
     px = im.load()
@@ -435,12 +435,38 @@ def _dev_screen_frame(k):
             i = 3 if d == 0 else 2 if d in (1, 15) else 1
             if x in (0, 15) or y in (0, 15):
                 i = 0
-            px[x, y] = ramp("test_teal", i)
+            px[x, y] = ramp(ramp_name, i)
+    return im
+
+
+def _visor_frame(k, ramp_name="test_teal"):
+    """Eye strip for a 9x4 visor (texture rows 6..9, columns 3.5..12.5): two eyes, a blink on frame 7."""
+    im = _new()
+    px = im.load()
+    for y in range(S):
+        for x in range(S):
+            px[x, y] = ramp(ramp_name, 0 if y in (6, 9) else 1)
+    if k != 7:
+        for ex in (5, 9):
+            for (dx, dy) in ((0, 0), (1, 0), (0, 1), (1, 1)):
+                px[ex + dx, 7 + dy] = ramp(ramp_name, 3 if dy == 0 else 2)
     return im
 
 
 def dev_screen():
     return _dev_screen_frame(0)
+
+
+def dev_screen_alert():
+    return _dev_screen_frame(0, "ruby")
+
+
+def dev_visor():
+    return _visor_frame(0)
+
+
+def dev_visor_alert():
+    return _visor_frame(0, "ruby")
 
 
 def dev_fan():
@@ -747,6 +773,9 @@ SURFACES = {
     "dev_stripe": dev_stripe,
     "dev_screen": dev_screen,
     "dev_fan": dev_fan,
+    "dev_screen_alert": dev_screen_alert,
+    "dev_visor": dev_visor,
+    "dev_visor_alert": dev_visor_alert,
     "tomato_skin": tomato_skin,
     "eggplant_skin": eggplant_skin,
     "tomato_body": tomato_body,
@@ -771,6 +800,9 @@ SURFACES = {
 # SURFACES[name] must return the first frame (used for previews and validation).
 ANIMATED = {
     "dev_screen": (lambda: [_dev_screen_frame(k) for k in range(8)], 2),
+    "dev_screen_alert": (lambda: [_dev_screen_frame(k, "ruby") for k in range(8)], 1),
+    "dev_visor": (lambda: [_visor_frame(k) for k in range(8)], 6),
+    "dev_visor_alert": (lambda: [_visor_frame(k, "ruby") for k in range(8)], 6),
     "energy": (lambda: [_energy_frame(k) for k in range(8)], 2),
 }
 

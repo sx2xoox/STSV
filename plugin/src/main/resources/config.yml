@@ -55,3 +55,9 @@ cosmetics:
     custom-icons: true
     # 빈 칸을 유리판으로 채움 (배경을 끈 경우에 켜면 보기 좋음)
     filler: false
+
+bosses:
+  # 보스 모델이 보이는 거리 배율 (1.0 = 기본 엔티티 거리). 큰 보스는 멀리서도 보이게
+  view-range: 2.0
+  # 보스 모델이 판정보다 위/아래로 떠 보이면 조정 (블록, 위 = +)
+  rider-offset-adjust: 0.0
