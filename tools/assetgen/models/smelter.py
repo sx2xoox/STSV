@@ -73,10 +73,13 @@ def build() -> Model:
     m.box("roof_lip", (-0.5, 20, -0.5), (20.5, 21, 16.5), "steel_dark")
     m.box("roof_plate", (0, 21, 0), (20, 22, 16), "steel")
     m.box("roof_tier", (3, 22, 3), (17, 25, 13), "brick_soot")
-    m.box("chimney", (11, 25, 5), (16, 31, 10), "brick_soot", faces={"up": None})
+    m.box("chimney", (11, 25, 5), (16, 31, 10), "brick_soot", faces={"up": "opening"})
     m.box("chimney_band", (10.5, 27.5, 4.5), (16.5, 28.5, 10.5), "steel_dark")
-    m.box("chimney_crown", (10.5, 31, 4.5), (16.5, 32, 10.5), "steel", faces={"up": None})
-    m.box("chimney_hole", (11, 31.5, 5), (16, 31.6, 10), "opening", faces={"up": "opening"})
+    # crown = a real ring of four walls (an open box would be see-through from inside)
+    m.box("crown_n", (10.5, 31, 4.5), (16.5, 32, 5.5), "steel")
+    m.box("crown_s", (10.5, 31, 9.5), (16.5, 32, 10.5), "steel")
+    m.box("crown_w", (10.5, 31, 5.5), (11.5, 32, 9.5), "steel")
+    m.box("crown_e", (15.5, 31, 5.5), (16.5, 32, 9.5), "steel")
 
     # --- copper pipe & hopper -----------------------------------------------------------------
     m.group("pipe")

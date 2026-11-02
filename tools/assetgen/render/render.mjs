@@ -57,7 +57,7 @@ for (const el of M.elements) {
     g.setAttribute('position', new THREE.Float32BufferAttribute(idx.flatMap(i => c[i]), 3));
     g.setAttribute('uv', new THREE.Float32BufferAttribute(idx.flatMap(i => uv[i]), 2));
     const s = el.glow ? 1 : SHADE[f];
-    scene.add(new THREE.Mesh(g, new THREE.MeshBasicMaterial({ map: tex[face.texture], color: new THREE.Color(s, s, s), side: THREE.DoubleSide, alphaTest: 0.1 })));
+    scene.add(new THREE.Mesh(g, new THREE.MeshBasicMaterial({ map: tex[face.texture], color: new THREE.Color(s, s, s), side: THREE.FrontSide, alphaTest: 0.1 })));
   }
 }
 const center = box.getCenter(new THREE.Vector3());

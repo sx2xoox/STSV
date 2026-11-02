@@ -57,7 +57,7 @@ class Model:
         self._group = name
         return self
 
-    def box(self, name, frm, to, tex, faces=None, full_uv=(), glow=False, rotation=None, uv=None):
+    def box(self, name, frm, to, tex, faces=None, full_uv=(), glow=False, rotation=None, uv=None, side_v=None):
         """
         tex:      texture used on every face
         faces:    {face: texture | None}  override / remove faces (None = no face, e.g. hidden sides)
@@ -65,6 +65,7 @@ class Model:
         glow:     emits light (light_emission 15) and renders unshaded
         rotation: (axis, angle, origin)  axis in "xyz", angle in 22.5° steps between -45 and 45
         uv:       {face: [u1, v1, u2, v2]} explicit UVs
+        side_v:   (v1, v2) texture rows used on the four side faces (keeps e.g. a seam row off thin sides)
         """
         fs = {f: tex for f in FACES}
         if faces:
@@ -80,6 +81,7 @@ class Model:
         self.elements.append({
             "name": name, "group": self._group, "from": frm, "to": to, "faces": fs,
             "full_uv": set(full_uv), "glow": glow, "rotation": rotation, "uv": uv or {},
+            "side_v": side_v,
         })
         return self
 
@@ -100,6 +102,91 @@ class Model:
         return self
 
     # ------------------------------------------------------------------------------------------
+    # Validation: catches the classic in-game artefacts before they ship
+    # ------------------------------------------------------------------------------------------
+
+    # face -> (axis, outward sign)
+    _AXIS = {"west": (0, -1), "east": (0, 1), "down": (1, -1), "up": (1, 1), "north": (2, -1), "south": (2, 1)}
+
+    def validate(self):
+        """Returns a list of problems. Rotated elements are skipped (checked by eye in the preview)."""
+        problems = []
+        plain = [e for e in self.elements if not e["rotation"]]
+
+        def plane(e, f):
+            ax, sign = self._AXIS[f]
+            return ax, sign, (e["to"][ax] if sign > 0 else e["from"][ax])
+
+        for e in plain:
+            for f in FACES:
+                ax, sign, p = plane(e, f)
+                a1, a2 = [a for a in range(3) if a != ax]
+                # 1) a removed face must be completely covered from outside, else you can see into the box
+                #    (Minecraft draws faces one-sided, so the inside of a box is invisible)
+                if f not in e["faces"]:
+                    step = 0.25
+                    u = e["from"][a1] + step / 2
+                    while u < e["to"][a1]:
+                        v = e["from"][a2] + step / 2
+                        while v < e["to"][a2]:
+                            if not any(self._occupies_beyond(o, ax, sign, p, a1, u, a2, v) for o in plain if o is not e):
+                                problems.append(f"{e['name']}: '{f}' 면이 지워졌는데 가려지지 않음 → 안쪽이 투명하게 보임")
+                                break
+                            v += step
+                        else:
+                            u += step
+                            continue
+                        break
+                    continue
+                # 2) two visible faces on the same plane, same direction, overlapping -> flicker
+                for o in plain:
+                    if o is e or f not in o["faces"] or id(o) < id(e):
+                        continue
+                    _, _, q = plane(o, f)
+                    if abs(p - q) > 1e-6:
+                        continue
+                    ou = min(e["to"][a1], o["to"][a1]) - max(e["from"][a1], o["from"][a1])
+                    ov = min(e["to"][a2], o["to"][a2]) - max(e["from"][a2], o["from"][a2])
+                    if ou > 1e-6 and ov > 1e-6 and self._visible_overlap(plain, e, o, ax, sign, p, a1, a2):
+                        problems.append(f"{e['name']} / {o['name']}: '{f}' 면이 같은 위치에 겹침 → 깜빡임")
+
+        # 3) textures whose lines must continue across faces have to be mirror-symmetric,
+        #    because auto UV mirrors columns between top and north/east faces
+        for t in self.textures_used():
+            if t in T.ALIGNED:
+                im = T.SURFACES[t]()
+                for y in range(16):
+                    for x in range(8):
+                        if T.line_mask(t, im, x, y) != T.line_mask(t, im, 15 - x, y):
+                            problems.append(f"텍스처 '{t}' 의 이어지는 무늬가 좌우 대칭이 아님 → 면 사이에서 어긋남")
+                            break
+                    else:
+                        continue
+                    break
+        return problems
+
+    def _visible_overlap(self, plain, e, o, ax, sign, p, a1, a2, step=0.25):
+        """True if part of the shared face area is not hidden by a third element."""
+        u0, u1 = max(e["from"][a1], o["from"][a1]), min(e["to"][a1], o["to"][a1])
+        v0, v1 = max(e["from"][a2], o["from"][a2]), min(e["to"][a2], o["to"][a2])
+        u = u0 + step / 2
+        while u < u1:
+            v = v0 + step / 2
+            while v < v1:
+                if not any(self._occupies_beyond(t, ax, sign, p, a1, u, a2, v)
+                           for t in plain if t is not e and t is not o):
+                    return True
+                v += step
+            u += step
+        return False
+
+    @staticmethod
+    def _occupies_beyond(o, ax, sign, p, a1, u, a2, v):
+        if not (o["from"][a1] <= u <= o["to"][a1] and o["from"][a2] <= v <= o["to"][a2]):
+            return False
+        if sign > 0:
+            return o["from"][ax] <= p < o["to"][ax]
+        return o["from"][ax] < p <= o["to"][ax]
 
     def textures_used(self):
         seen = []
@@ -114,7 +201,10 @@ class Model:
             return e["uv"][f]
         if f in e["full_uv"]:
             return [0, 0, 16, 16]
-        return auto_uv(f, e["from"], e["to"])
+        uv = auto_uv(f, e["from"], e["to"])
+        if e.get("side_v") and f in ("north", "south", "east", "west"):
+            uv[1], uv[3] = e["side_v"]
+        return uv
 
     @staticmethod
     def _png(tex):
@@ -188,5 +278,8 @@ class Model:
         }
 
     def write(self, bbmodel_path, preview_path):
+        problems = self.validate()
+        if problems:
+            raise ValueError(f"모델 '{self.name}' 검사 실패:\n  - " + "\n  - ".join(problems))
         bbmodel_path.write_text(json.dumps(self.to_bbmodel()))
         preview_path.write_text(json.dumps(self.to_preview()))

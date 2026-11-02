@@ -305,16 +305,19 @@ def terracotta(seed=95):
 
 
 def fabric(seed=96):
-    """Woven cushion fabric."""
+    """Woven cushion fabric. The quilting seams sit on pixels 7-8 (mirror-symmetric) so they
+    line up across the top and side faces of a cushion."""
     rnd = random.Random(seed)
     im = _new()
     px = im.load()
     for y in range(S):
         for x in range(S):
             i = 2 if (x + y) % 2 else 1
-            if x % 8 == 0 or y % 8 == 0:
-                i = 0  # quilting seams
-            px[x, y] = ramp("fabric_red", _j(rnd, i, 0.08))
+            if x in (7, 8) or y in (7, 8):
+                i = 0  # quilting seams (the only pixels allowed to use the darkest step)
+            else:
+                i = max(1, _j(rnd, i, 0.08))
+            px[x, y] = ramp("fabric_red", i)
     return im
 
 
@@ -475,6 +478,18 @@ SURFACES = {
     "crystal": crystal,
     "magic": magic,
 }
+
+# Textures with lines that must continue from one face to the next (seams, bands).
+# The model validator requires these lines to be mirror-symmetric.
+ALIGNED = {"fabric"}
+
+
+def line_mask(name, im, x, y):
+    """True where the texture has its 'continuing' line (the darkest ramp step)."""
+    if name == "fabric":
+        return im.getpixel((x, y))[:3] == ramp("fabric_red", 0)[:3]
+    return False
+
 
 ICONS = {
     "gold_chunk": icon_gold_chunk,

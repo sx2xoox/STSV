@@ -4,3 +4,4 @@ __pycache__/
 .gradle/
 plugin/build/
 tools/assetgen/build/
+dist/

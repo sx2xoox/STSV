@@ -14,7 +14,7 @@ def build() -> Model:
     m.box("stretcher_l", (2.25, 2, 3.5), (3.25, 3, 12.5), "wood_dark_grain")
     m.box("stretcher_r", (12.75, 2, 3.5), (13.75, 3, 12.5), "wood_dark_grain")
     m.box("seat", (1.5, 7, 1.5), (14.5, 8.5, 14.5), "wood")
-    m.box("apron", (2, 6, 1.75), (14, 7, 2.25), "wood_dark_grain")
+    m.box("apron", (3.5, 6, 1.75), (12.5, 7, 2.25), "wood_dark_grain")  # between the legs
 
     m.group("back")
     m.box("post_l", (2, 8.5, 12.5), (3.5, 22, 14), "wood_dark_grain")
@@ -27,11 +27,12 @@ def build() -> Model:
 
     m.group("arms")
     for side, x in (("l", 1.5), ("r", 12.5)):
-        m.box(f"arm_{side}", (x, 13, 2), (x + 2, 14, 13), "wood_grain")
+        m.box(f"arm_{side}", (x, 13, 2), (x + 2, 14, 12.5), "wood_grain")  # stops at the back post
         m.box(f"arm_post_{side}", (x + 0.5, 8.5, 2.5), (x + 1.5, 13, 3.5), "wood_dark_grain")
 
     m.group("cushion")
-    m.box("cushion", (3.5, 8.5, 2.5), (12.5, 10, 12.5), "fabric")
+    # side_v keeps the horizontal seam rows (7-8) off the thin sides; the vertical seam continues down
+    m.box("cushion", (3.5, 8.5, 3), (12.5, 10, 13), "fabric", side_v=(2, 3.5))
     m.box("button", (7.5, 10, 7), (8.5, 10.25, 8), "brass")
 
     m.display = {

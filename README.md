@@ -27,6 +27,16 @@ cd plugin && ./gradlew build
 cd tools/assetgen && python3 build.py --render
 ```
 
+## 업데이트
+
+새 jar로 바꾸고 서버를 재시작하면 기본 콘텐츠(`contents/stsv`)도 자동으로 새 버전이 됩니다.
+**직접 수정한 파일은 덮어쓰지 않고** 콘솔에 알려줍니다.
+
+배포 전에 (콘텐츠 변경을 커밋한 다음) 아래를 실행해 이전 버전 기록을 갱신합니다:
+```bash
+python3 tools/content_history.py
+```
+
 ## 서버에서 콘텐츠 추가하기
 
 `plugins/STSV/contents/<팩 이름>/` 아래에 파일을 넣고 `/stsv reload` 하면 리소스팩까지 다시 만들어져 접속자에게 전송됩니다.

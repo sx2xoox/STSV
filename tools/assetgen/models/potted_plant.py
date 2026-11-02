@@ -10,9 +10,13 @@ def build() -> Model:
 
     m.group("pot")
     m.box("pot_foot", (5, 0, 5), (11, 1, 11), "terracotta")
-    m.box("pot_body", (4, 1, 4), (12, 7, 12), "terracotta", faces={"up": None})
-    m.box("pot_rim", (3.5, 7, 3.5), (12.5, 8.5, 12.5), "terracotta", faces={"up": None})
-    m.box("soil", (4.5, 7.6, 4.5), (11.5, 8, 11.5), "soil")
+    m.box("pot_body", (4, 1, 4), (12, 7, 12), "terracotta")
+    # rim = four real walls so the inside is visible when looking into the pot
+    m.box("rim_n", (3.5, 7, 3.5), (12.5, 8.5, 4.5), "terracotta")
+    m.box("rim_s", (3.5, 7, 11.5), (12.5, 8.5, 12.5), "terracotta")
+    m.box("rim_w", (3.5, 7, 4.5), (4.5, 8.5, 11.5), "terracotta")
+    m.box("rim_e", (11.5, 7, 4.5), (12.5, 8.5, 11.5), "terracotta")
+    m.box("soil", (4.5, 7, 4.5), (11.5, 8, 11.5), "soil")
 
     m.group("trunk")
     m.box("trunk", (7.25, 8, 7.25), (8.75, 14, 8.75), "wood_dark_grain")
