@@ -258,7 +258,8 @@ def wood_dark(seed=92):
 
 
 def leaves(seed=93):
-    """Clumped leaves with see-through gaps (cutout)."""
+    """Clumped leaves. Opaque: gaps are painted with the darkest step (depth) instead of holes,
+    because a leaf crown is a hollow box and real holes would show straight through it."""
     rnd = random.Random(seed)
     im = _new()
     px = im.load()
@@ -269,7 +270,7 @@ def leaves(seed=93):
             cx, cy = x % 4, y % 4
             i = n - 2 - (cx + cy) // 2
             if rnd.random() < 0.12:
-                px[x, y] = (0, 0, 0, 0)
+                px[x, y] = ramp("leaf", 0)
                 continue
             px[x, y] = ramp("leaf", _j(rnd, i, 0.25))
     return im
@@ -482,6 +483,16 @@ SURFACES = {
 # Textures with lines that must continue from one face to the next (seams, bands).
 # The model validator requires these lines to be mirror-symmetric.
 ALIGNED = {"fabric"}
+
+
+_ALPHA_CACHE = {}
+
+
+def has_transparency(name):
+    if name not in _ALPHA_CACHE:
+        im = SURFACES[name]()
+        _ALPHA_CACHE[name] = any(im.getpixel((x, y))[3] < 255 for y in range(S) for x in range(S))
+    return _ALPHA_CACHE[name]
 
 
 def line_mask(name, im, x, y):

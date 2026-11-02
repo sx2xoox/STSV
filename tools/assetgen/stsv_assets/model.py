@@ -150,6 +150,15 @@ class Model:
                     if ou > 1e-6 and ov > 1e-6 and self._visible_overlap(plain, e, o, ax, sign, p, a1, a2):
                         problems.append(f"{e['name']} / {o['name']}: '{f}' 면이 같은 위치에 겹침 → 깜빡임")
 
+        # 4) see-through pixels on a solid box show the background straight through the whole part
+        for e in self.elements:
+            thick = min(e["to"][a] - e["from"][a] for a in range(3))
+            for f, t in e["faces"].items():
+                if thick > 0.5 and T.has_transparency(t):
+                    problems.append(f"{e['name']}: 투명 픽셀이 있는 텍스처 '{t}' 를 두께 있는 상자에 사용 → 뒤가 뚫려 보임 "
+                                    "(투명 텍스처는 두께 0.5 이하의 판에만)")
+                    break
+
         # 3) textures whose lines must continue across faces have to be mirror-symmetric,
         #    because auto UV mirrors columns between top and north/east faces
         for t in self.textures_used():
