@@ -62,10 +62,12 @@ for (const el of M.elements) {
 }
 const center = box.getCenter(new THREE.Vector3());
 const radius = box.getSize(new THREE.Vector3()).length() / 2;
-const grid = new THREE.GridHelper(96, 6, 0x3a3f4a, 0x3a3f4a);
-grid.position.set(8, -0.01, 8);
-scene.add(grid);
-const views = [
+if (M.grid !== false) {
+  const grid = new THREE.GridHelper(96, 6, 0x3a3f4a, 0x3a3f4a);
+  grid.position.set(8, -0.01, 8);
+  scene.add(grid);
+}
+const views = M.views || [
   { x: 0, y: 0, w: 1000, h: 1000, az: 38, el: 24, k: 2.6 },
   { x: 1000, y: 0, w: 600, h: 500, az: 215, el: 24, k: 2.9 },
   { x: 1000, y: 500, w: 600, h: 500, az: 95, el: 42, k: 2.9 },

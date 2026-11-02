@@ -219,18 +219,160 @@ def lamp():
     return im
 
 
-def wood_plank(seed=91):
+def wood_plank(seed=91, ramp_name="wood"):
     rnd = random.Random(seed)
     im = _new()
     px = im.load()
     for y in range(S):
+        seam = 5 + 6 * ((y // 4) % 2)          # staggered plank ends
         for x in range(S):
             i = 2 if (y // 4) % 2 else 1
             if y % 4 == 3:
                 i = 0
             elif y % 4 == 0:
                 i += 1
-            px[x, y] = ramp("wood", _j(rnd, i, 0.15))
+            if x == seam and y % 4 != 3:
+                i = 0
+            px[x, y] = ramp(ramp_name, _j(rnd, i, 0.15))
+    return im
+
+
+def wood_grain(seed=89, ramp_name="wood"):
+    """Seamless lengthwise grain for thin parts (legs, posts, rails): plank seams look like noise there."""
+    rnd = random.Random(seed)
+    im = _new()
+    px = im.load()
+    lines = {x: rnd.choice((1, 1, 2, 2, 2, 0)) for x in range(S)}
+    for y in range(S):
+        for x in range(S):
+            px[x, y] = ramp(ramp_name, _j(rnd, lines[x], 0.06))
+    return im
+
+
+def wood_dark_grain(seed=90):
+    return wood_grain(seed, "wood_dark")
+
+
+def wood_dark(seed=92):
+    return wood_plank(seed, "wood_dark")
+
+
+def leaves(seed=93):
+    """Clumped leaves with see-through gaps (cutout)."""
+    rnd = random.Random(seed)
+    im = _new()
+    px = im.load()
+    n = size("leaf")
+    for y in range(S):
+        for x in range(S):
+            # clumps: brighter at the top-left of each 4x4 clump
+            cx, cy = x % 4, y % 4
+            i = n - 2 - (cx + cy) // 2
+            if rnd.random() < 0.12:
+                px[x, y] = (0, 0, 0, 0)
+                continue
+            px[x, y] = ramp("leaf", _j(rnd, i, 0.25))
+    return im
+
+
+def soil(seed=94):
+    rnd = random.Random(seed)
+    im = _new()
+    px = im.load()
+    for y in range(S):
+        for x in range(S):
+            i = rnd.choice((1, 1, 2, 2, 0))
+            px[x, y] = ramp("soil", i)
+            if rnd.random() < 0.05:
+                px[x, y] = ramp("stone", 2)  # pebbles
+    return im
+
+
+def terracotta(seed=95):
+    """Clay pot: plain clay with one painted band."""
+    rnd = random.Random(seed)
+    im = _new()
+    px = im.load()
+    for y in range(S):
+        for x in range(S):
+            i = 2
+            if y in (4, 5):
+                i = 3 if y == 4 else 1
+            elif y == 6 and x % 4 == 1:
+                i = 0  # painted dots under the band
+            px[x, y] = ramp("terracotta", _j(rnd, i, 0.12))
+    return im
+
+
+def fabric(seed=96):
+    """Woven cushion fabric."""
+    rnd = random.Random(seed)
+    im = _new()
+    px = im.load()
+    for y in range(S):
+        for x in range(S):
+            i = 2 if (x + y) % 2 else 1
+            if x % 8 == 0 or y % 8 == 0:
+                i = 0  # quilting seams
+            px[x, y] = ramp("fabric_red", _j(rnd, i, 0.08))
+    return im
+
+
+def stone_bricks(seed=97):
+    rnd = random.Random(seed)
+    im = _new()
+    px = im.load()
+    for y in range(S):
+        off = 4 * ((y // 8) % 2)
+        for x in range(S):
+            bx, by = (x + off) % 8, y % 8
+            if by == 7 or bx == 7:
+                px[x, y] = ramp("stone", 0)
+                continue
+            i = 2 + (1 if by == 0 or bx == 0 else 0) - (1 if by == 6 or bx == 6 else 0)
+            px[x, y] = ramp("stone", _j(rnd, i, 0.2))
+    return im
+
+
+def gold_trim(seed=98):
+    rnd = random.Random(seed)
+    im = _new()
+    px = im.load()
+    for y in range(S):
+        for x in range(S):
+            i = 2 if y % 4 else 3
+            if y % 4 == 3:
+                i = 0
+            px[x, y] = ramp("gold", _j(rnd, i, 0.08))
+    return im
+
+
+def crystal(seed=99):
+    """Faceted crystal: diagonal light bands."""
+    rnd = random.Random(seed)
+    im = _new()
+    px = im.load()
+    n = size("crystal")
+    for y in range(S):
+        for x in range(S):
+            band = ((x - y) % 8)
+            i = n - 1 if band == 0 else n - 2 if band in (1, 7) else 1 + (x + y) % 2
+            px[x, y] = ramp("crystal", _j(rnd, i, 0.1))
+    return im
+
+
+def magic(seed=100):
+    """Glowing core: bright center, sparkles."""
+    rnd = random.Random(seed)
+    im = _new()
+    px = im.load()
+    for y in range(S):
+        for x in range(S):
+            d = math.hypot(x - 7.5, y - 7.5)
+            i = 3 if d < 3 else 2 if d < 5.5 else 1 if d < 7.5 else 0
+            if rnd.random() < 0.06:
+                i = 3
+            px[x, y] = ramp("magic", i)
     return im
 
 
@@ -321,6 +463,17 @@ SURFACES = {
     "gauge": gauge,
     "lamp": lamp,
     "wood": wood_plank,
+    "wood_dark": wood_dark,
+    "wood_grain": wood_grain,
+    "wood_dark_grain": wood_dark_grain,
+    "leaves": leaves,
+    "soil": soil,
+    "terracotta": terracotta,
+    "fabric": fabric,
+    "stone_bricks": stone_bricks,
+    "gold_trim": gold_trim,
+    "crystal": crystal,
+    "magic": magic,
 }
 
 ICONS = {

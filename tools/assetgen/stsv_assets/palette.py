@@ -1,33 +1,87 @@
 """
-STSV shared palette. EVERY texture must take its colours from here.
+STSV palette v2: every ramp is GENERATED from a few numbers by one shared formula.
 
-Rules (see docs/ART_STYLE.md):
-  - each material is one ramp, ordered dark -> light, 3..6 steps
-  - neighbouring ramps share hue families so materials sit together (warm metals, cool steel, earthy stone)
-  - adding a colour = adding a ramp here, never hard-coding RGB in a generator
+Why: hand-picked ramps drift (each new material ends up with its own brightness steps and saturation).
+Here a material only chooses hue / chroma / lightness band; the formula applies the same rules to all:
+
+  1. Lightness ladder in OKLCH (perceptually even), so step i of leaves is as bright as step i of bricks.
+  2. Shared light colour: shadows lean towards blue-violet, highlights towards warm yellow (hue shift),
+     so unrelated objects look lit by the same sun.
+  3. Chroma fades at the extremes (dark shadows and bright highlights are less saturated).
+
+Targets were measured from vanilla 26.3 block textures (see docs/ART_STYLE.md):
+  natural materials  L 0.40-0.75, chroma 0.05-0.10   -> "vanilla-friendly" base
+  dyed / metals      chroma 0.11-0.16
+  gems / light       chroma 0.16-0.21                 -> reserved for ACCENT materials (fire, lamp, magic, gold)
 """
 
-PALETTE = {
-    # structural
-    "brick":   [(66, 24, 22), (98, 36, 30), (128, 50, 38), (156, 68, 50), (184, 94, 68)],
-    "soot":    [(30, 22, 22), (48, 34, 32), (70, 46, 40), (96, 60, 50)],
-    "mortar":  [(40, 34, 33), (56, 48, 46), (74, 64, 60)],
-    "steel":   [(26, 28, 32), (40, 43, 48), (56, 60, 66), (76, 81, 88), (104, 110, 118), (140, 146, 154)],
-    "stone":   [(64, 64, 68), (88, 88, 92), (112, 112, 116), (138, 138, 142)],
-    "wood":    [(52, 34, 22), (78, 52, 32), (104, 72, 44), (132, 94, 58)],
-    # metals & accents
-    "copper":  [(78, 38, 24), (120, 60, 34), (168, 90, 50), (206, 128, 76), (234, 170, 118)],
-    "brass":   [(110, 80, 32), (170, 130, 56), (212, 176, 92), (240, 214, 140)],
-    "gold":    [(128, 82, 18), (190, 140, 36), (244, 202, 74), (255, 242, 164)],
-    "hazard":  [(196, 150, 24), (236, 190, 40)],
-    "rubber":  [(16, 16, 18), (26, 26, 30), (38, 38, 44), (54, 54, 62)],
-    # light & heat
-    "fire":    [(56, 10, 8), (124, 26, 12), (196, 66, 16), (238, 134, 28), (255, 204, 76), (255, 244, 168)],
-    "lamp":    [(150, 90, 30), (230, 160, 60), (255, 220, 130), (255, 248, 210)],
-    # ui-ish details
-    "dial":    [(200, 194, 176), (230, 224, 206)],
-    "signal":  [(150, 24, 22), (196, 32, 28), (70, 150, 60)],
+from .color import oklch_to_rgb
+
+SHADOW_HUE = 285.0   # blue-violet
+LIGHT_HUE = 85.0     # warm yellow
+HUE_SHIFT = 10.0     # max degrees a ramp end rotates towards those hues
+
+# name: (hue, chroma, center lightness, lightness span, steps, accent)
+#   hue may be a (start, end) tuple for ramps that change colour along the ladder (fire)
+MATERIALS = {
+    # --- structural ---------------------------------------------------------------------------
+    "brick":       (36, 0.090, 0.54, 0.28, 5, False),
+    "soot":        (32, 0.035, 0.33, 0.20, 4, False),
+    "mortar":      (55, 0.015, 0.40, 0.12, 3, False),
+    "stone":       (95, 0.006, 0.58, 0.22, 4, False),
+    "steel":       (250, 0.014, 0.50, 0.40, 6, False),
+    "rubber":      (260, 0.010, 0.26, 0.14, 4, False),
+    # --- wood & nature -------------------------------------------------------------------------
+    "wood":        (72, 0.080, 0.60, 0.26, 4, False),   # oak-like
+    "wood_dark":   (62, 0.060, 0.42, 0.22, 4, False),   # spruce-like
+    "leaf":        (134, 0.118, 0.54, 0.32, 5, False),
+    "soil":        (55, 0.060, 0.42, 0.20, 4, False),
+    "terracotta":  (44, 0.090, 0.56, 0.24, 4, False),
+    "water":       (235, 0.090, 0.56, 0.26, 4, False),
+    "snow":        (240, 0.010, 0.92, 0.10, 3, False),
+    # --- metals & crafted -----------------------------------------------------------------------
+    "copper":      (42, 0.115, 0.60, 0.32, 5, False),
+    "brass":       (85, 0.100, 0.68, 0.30, 4, False),
+    "fabric_red":  (25, 0.140, 0.47, 0.24, 4, False),
+    "dial":        (90, 0.020, 0.88, 0.08, 2, False),
+    # --- accents (allowed to be loud: light sources, magic, valuables, warnings) ------------------
+    "gold":        (92, 0.160, 0.78, 0.32, 4, True),
+    "hazard":      (95, 0.160, 0.80, 0.10, 2, True),
+    "fire":        ((28, 100), 0.170, 0.62, 0.70, 6, True),
+    "lamp":        ((72, 98), 0.140, 0.80, 0.36, 4, True),
+    "crystal":     (300, 0.140, 0.60, 0.42, 5, True),
+    "magic":       ((296, 312), 0.180, 0.66, 0.30, 4, True),
+    "signal_red":  (28, 0.170, 0.52, 0.10, 2, True),
+    "signal_green": (145, 0.150, 0.62, 0.10, 2, True),
 }
+
+
+def _toward(h, target, amount):
+    d = (target - h + 540) % 360 - 180
+    return h + max(-abs(d), min(abs(d), amount)) * (1 if d >= 0 else -1)
+
+
+def build_ramp(hue, chroma, center, span, steps, accent=False):
+    out = []
+    for i in range(steps):
+        t = i / (steps - 1) if steps > 1 else 0.5
+        L = center + span * (t - 0.5)
+        if isinstance(hue, tuple):
+            h = hue[0] + (hue[1] - hue[0]) * t
+        else:
+            h = hue
+        edge = abs(t - 0.5) * 2                     # 0 at the middle, 1 at both ends
+        shift = HUE_SHIFT * edge * (0.5 if accent else 1.0)
+        h = _toward(h, LIGHT_HUE if t > 0.5 else SHADOW_HUE, shift)
+        c = chroma * (1 - 0.35 * edge)
+        if chroma < 0.02:                           # near-greys still pick up a hint of the light colour
+            c = max(c, 0.008)
+        out.append(oklch_to_rgb(L, c, h % 360))
+    return out
+
+
+PALETTE = {name: build_ramp(*spec) for name, spec in MATERIALS.items()}
+PALETTE["signal"] = PALETTE["signal_red"] + PALETTE["signal_green"][1:]  # [dark red, red, green]
 
 
 def ramp(name: str, i: int):

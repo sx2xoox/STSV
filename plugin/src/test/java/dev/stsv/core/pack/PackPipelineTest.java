@@ -25,16 +25,17 @@ class PackPipelineTest {
     private static final Path CONTENT = Path.of(System.getProperty("stsv.content"));
     private static final Set<Float> VANILLA_ANGLES = Set.of(-45f, -22.5f, 0f, 22.5f, 45f);
 
-    @Test
-    void smelterConvertsToAValidVanillaModel() throws Exception {
-        BBModelConverter.Result r = BBModelConverter.convert(CONTENT.resolve("stsv/models/smelter.bbmodel"), "stsv:item/smelter");
+    @org.junit.jupiter.params.ParameterizedTest
+    @org.junit.jupiter.params.provider.ValueSource(strings = {"smelter", "potted_plant", "chair", "crystal_shrine"})
+    void modelConvertsToAValidVanillaModel(String name) throws Exception {
+        BBModelConverter.Result r = BBModelConverter.convert(CONTENT.resolve("stsv/models/" + name + ".bbmodel"), "stsv:item/" + name);
         assertTrue(r.warnings().isEmpty(), "warnings: " + r.warnings());
 
         JsonObject model = r.model();
         JsonObject textures = model.getAsJsonObject("textures");
         assertEquals(r.textures().size() + 1, textures.size(), "every texture + particle referenced");
         for (Map.Entry<String, JsonElement> t : textures.entrySet()) {
-            String file = t.getValue().getAsString().replace("stsv:item/smelter/", "") + ".png";
+            String file = t.getValue().getAsString().replace("stsv:item/" + name + "/", "") + ".png";
             assertTrue(r.textures().containsKey(file), "missing texture file " + file);
         }
 
@@ -61,8 +62,8 @@ class PackPipelineTest {
                 assertTrue(textures.has(face.get("texture").getAsString().substring(1)), "unknown texture ref");
             }
         }
-        assertTrue(glows, "fire / lamp should emit light");
-        assertTrue(rotated, "door should be rotated");
+        assertEquals(Set.of("smelter", "crystal_shrine").contains(name), glows, "only light sources glow");
+        assertEquals(!name.equals("chair"), rotated, "rotated parts");
         assertTrue(model.has("display"));
     }
 
