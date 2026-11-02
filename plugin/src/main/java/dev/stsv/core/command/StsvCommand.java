@@ -21,7 +21,7 @@ import java.util.Optional;
 
 public final class StsvCommand implements TabExecutor {
 
-    private static final List<String> SUBS = List.of("give", "browse", "list", "info", "reload", "pack", "recipe", "fuel");
+    private static final List<String> SUBS = List.of("give", "browse", "list", "info", "reload", "pack", "recipe", "fuel", "skin", "cosmetic", "wardrobe");
     private final STSVPlugin plugin;
 
     public StsvCommand(STSVPlugin plugin) {
@@ -70,6 +70,12 @@ public final class StsvCommand implements TabExecutor {
                 if (sender instanceof Player p) plugin.pack().send(p);
             }
             case "recipe" -> recipe(sender, args);
+            case "skin" -> {
+                if (sender instanceof Player p && args.length > 1 && args[1].equalsIgnoreCase("remove")) plugin.skins().removeHeld(p);
+                else sender.sendMessage(Text.msg("<red>/stsv skin remove <gray>(손에 든 아이템의 스킨 해제)"));
+            }
+            case "cosmetic" -> cosmetic(sender, args);
+            case "wardrobe" -> wardrobe(sender, args);
             case "fuel" -> fuel(sender, args);
             default -> {
                 sender.sendMessage(Text.msg("<gray>명령어 목록"));
@@ -80,6 +86,9 @@ public final class StsvCommand implements TabExecutor {
                         "recipe create <id> <종류> [시간] [경험치] <dark_gray>- 레시피 편집기",
                         "recipe delete <id> | recipe list",
                         "fuel set <틱> | fuel remove | fuel list <dark_gray>- 손에 든 아이템의 화로 연료 시간",
+                        "skin remove <dark_gray>- 손에 든 아이템의 스킨 해제",
+                        "cosmetic give|take <플레이어> <치장> <dark_gray>- 치장 지급/회수",
+                        "wardrobe create <이름> [반경] | delete <이름> | list <dark_gray>- 옷장 구역",
                         "reload | pack")) {
                     sender.sendMessage(Text.mm(" <white>/" + label + " " + line));
                 }
@@ -181,6 +190,55 @@ public final class StsvCommand implements TabExecutor {
     }
 
     // ------------------------------------------------------------------------------------------
+    // /stsv cosmetic | wardrobe
+    // ------------------------------------------------------------------------------------------
+
+    private void cosmetic(CommandSender sender, String[] args) {
+        if (args.length < 4 || !(args[1].equalsIgnoreCase("give") || args[1].equalsIgnoreCase("take"))) {
+            sender.sendMessage(Text.msg("<red>/stsv cosmetic <give|take> <플레이어> <치장>"));
+            return;
+        }
+        Player target = Bukkit.getPlayerExact(args[2]);
+        Optional<CustomItem> c = plugin.content().item(args[3]).filter(i -> i.cosmetic() != null);
+        if (target == null || c.isEmpty()) {
+            sender.sendMessage(Text.msg("<red>플레이어 또는 치장을 찾을 수 없습니다."));
+            return;
+        }
+        boolean give = args[1].equalsIgnoreCase("give");
+        plugin.cosmetics().grant(target, c.get(), give);
+        sender.sendMessage(Text.msg("<green>" + target.getName() + " 에게 " + c.get().key().asString() + (give ? " 지급" : " 회수")));
+    }
+
+    private void wardrobe(CommandSender sender, String[] args) {
+        String action = args.length > 1 ? args[1].toLowerCase(Locale.ROOT) : "";
+        try {
+            switch (action) {
+                case "create" -> {
+                    if (!(sender instanceof Player p) || args.length < 3) {
+                        sender.sendMessage(Text.msg("<red>/stsv wardrobe create <이름> [반경=3] <gray>(지금 서 있는 곳 중심)"));
+                        return;
+                    }
+                    double r = args.length > 3 ? Double.parseDouble(args[3]) : 3;
+                    plugin.cosmetics().createZone(args[2], p.getLocation(), r);
+                    sender.sendMessage(Text.msg("<green>옷장 구역 '" + args[2] + "' 생성 (반경 " + r + ")"));
+                }
+                case "delete" -> sender.sendMessage(args.length > 2 && plugin.cosmetics().deleteZone(args[2])
+                        ? Text.msg("<green>삭제 완료") : Text.msg("<red>그런 구역이 없습니다."));
+                case "list" -> {
+                    sender.sendMessage(Text.msg("<gray>옷장 구역 " + plugin.cosmetics().zones().size() + "개"));
+                    plugin.cosmetics().zones().forEach((n, b) -> sender.sendMessage(Text.mm(" <dark_gray>-</dark_gray> <white>" + n
+                            + "</white> <gray>" + (int) b.getCenterX() + ", " + (int) b.getCenterY() + ", " + (int) b.getCenterZ())));
+                }
+                default -> sender.sendMessage(Text.msg("<red>/stsv wardrobe <create|delete|list>"));
+            }
+        } catch (NumberFormatException e) {
+            sender.sendMessage(Text.msg("<red>반경은 숫자여야 합니다."));
+        } catch (Exception e) {
+            sender.sendMessage(Text.msg("<red>" + e.getMessage()));
+        }
+    }
+
+    // ------------------------------------------------------------------------------------------
     // /stsv fuel ...
     // ------------------------------------------------------------------------------------------
 
@@ -246,6 +304,13 @@ public final class StsvCommand implements TabExecutor {
             if (args.length == 4 && args[1].equalsIgnoreCase("create")) return filter(RecipeEditor.TYPES, args[3]);
         }
         if (args[0].equalsIgnoreCase("fuel") && args.length == 2) return filter(List.of("set", "remove", "list"), args[1]);
+        if (args[0].equalsIgnoreCase("skin") && args.length == 2) return filter(List.of("remove"), args[1]);
+        if (args[0].equalsIgnoreCase("wardrobe") && args.length == 2) return filter(List.of("create", "delete", "list"), args[1]);
+        if (args[0].equalsIgnoreCase("cosmetic")) {
+            if (args.length == 2) return filter(List.of("give", "take"), args[1]);
+            if (args.length == 3) return filter(Bukkit.getOnlinePlayers().stream().map(Player::getName).toList(), args[2]);
+            if (args.length == 4) return filter(plugin.cosmetics().cosmetics().stream().map(i -> i.key().asString()).toList(), args[3]);
+        }
         if (args[0].equalsIgnoreCase("give")) {
             if (args.length == 2) return filter(Bukkit.getOnlinePlayers().stream().map(Player::getName).toList(), args[1]);
             if (args.length == 3) return filter(plugin.content().items().stream().map(i -> i.key().asString()).toList(), args[2]);

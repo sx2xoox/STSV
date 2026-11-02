@@ -59,6 +59,27 @@ class DefaultContentSyncTest {
     }
 
     @Test
+    void filesNoLongerShippedAreRemovedUnlessEdited(@TempDir Path dir) throws Exception {
+        DefaultContentSync.sync(dir, Map.of("stsv/old.yml", b("v1"), "stsv/mine.yml", b("v1"), "stsv/keep.yml", b("k")),
+                Map.of());
+        Files.writeString(dir.resolve("stsv/mine.yml"), "edited");
+        var r = DefaultContentSync.sync(dir, Map.of("stsv/keep.yml", b("k")), Map.of());
+        assertEquals(1, r.removed());
+        assertEquals(List.of("stsv/mine.yml"), r.kept());
+        assertEquals(false, Files.exists(dir.resolve("stsv/old.yml")));
+        assertEquals("edited", read(dir.resolve("stsv/mine.yml")));
+    }
+
+    @Test
+    void legacyFilesFromHistoryAreRemoved(@TempDir Path dir) throws Exception {
+        Files.createDirectories(dir.resolve("stsv"));
+        Files.writeString(dir.resolve("stsv/smelter.bbmodel"), "old shipped");
+        var history = Map.of("stsv/smelter.bbmodel", Set.of(DefaultContentSync.sha1(b("old shipped"))));
+        var r = DefaultContentSync.sync(dir, Map.of(), history);
+        assertEquals(1, r.removed());
+    }
+
+    @Test
     void deletedFilesComeBack(@TempDir Path dir) throws Exception {
         DefaultContentSync.sync(dir, Map.of("stsv/a.yml", b("v1")), Map.of());
         Files.delete(dir.resolve("stsv/a.yml"));

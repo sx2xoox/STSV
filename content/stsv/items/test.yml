@@ -1,0 +1,130 @@
+# ─────────────────────────────────────────────────────────────────────────────────────────────
+#  TEST 전용 아이템: 플러그인이 지원하는 모든 종류를 하나씩. 주황/회색 격자 = 테스트용 색.
+#  실제 콘텐츠를 만들 때는 이 파일을 참고해서 새 파일을 만드세요.
+# ─────────────────────────────────────────────────────────────────────────────────────────────
+
+# [가구] 2x2 크기 / 빛나는 애니메이션 화면 / 위에서 도는 팬(별도 회전 부품)
+test_machine:
+  material: paper
+  name: "<#f98f33>[TEST] 기계 <gray>(다칸·발광·애니메이션·회전)"
+  lore: ["<gray>2×2 가구. 화면이 움직이고 팬이 돕니다."]
+  model: test_machine
+  max-stack: 1
+  furniture:
+    cells: [[0, 0, 0], [1, 0, 0], [0, 1, 0], [1, 1, 0]]
+    solid: true
+    parts:
+      - model: test_fan_blade
+        position: [16, 31, 8]       # 모델 좌표 (16 = 1블록)
+        spin: { axis: y, rpm: 45 }
+
+# [가구] 앉을 수 있는 자리 2개
+test_bench:
+  material: paper
+  name: "<#f98f33>[TEST] 벤치 <gray>(앉기 2자리)"
+  lore: ["<gray>우클릭으로 앉기 (웅크리고 우클릭하면 안 앉음)."]
+  model: test_bench
+  furniture:
+    cells: [[0, 0, 0], [1, 0, 0]]
+    seats:
+      - { cell: [0, 0, 0], height: 0.5625 }
+      - { cell: [1, 0, 0], height: 0.5625 }
+
+# [가구] 지나갈 수 있는(충돌 없는) 가구
+test_rug:
+  material: paper
+  name: "<#f98f33>[TEST] 러그 <gray>(충돌 없음)"
+  model: test_rug
+  furniture:
+    cells: [[0, 0, 0]]
+    solid: false
+
+# [재료] 2D 아이템
+test_material:
+  material: paper
+  name: "<#f98f33>[TEST] 재료 <gray>(2D)"
+  texture: test_material
+
+# [연료] 석탄의 1.5배
+test_fuel:
+  material: coal
+  name: "<#f98f33>[TEST] 연료 <gray>(2400틱)"
+  texture: test_fuel
+  fuel: 2400
+
+# [음식] 3D 음식: 먹으면 신속 + 체력 회복, 접시를 돌려받음
+test_food:
+  material: paper
+  name: "<#f98f33>[TEST] 젤리 <gray>(3D 음식)"
+  lore: ["<gray>허기 6, 신속 10초, 체력 +4, 접시 반환"]
+  model: test_food
+  max-stack: 16
+  food:
+    nutrition: 6
+    saturation: 6
+    always-eat: true
+    seconds: 1.2
+    animation: eat
+    remainder: minecraft:bowl
+    cooldown: 3
+    heal: 4
+    effects:
+      - { effect: speed, seconds: 10, level: 1, chance: 1.0 }
+
+# [3D 무기] 검
+test_sword:
+  material: iron_sword
+  name: "<#f98f33>[TEST] 3D 검"
+  model: test_sword
+
+# [3D 도구] 낚싯대 (던지면 모양이 바뀜)
+test_rod:
+  material: fishing_rod
+  name: "<#f98f33>[TEST] 3D 낚싯대"
+  item-model: stsv:test_rod
+
+# [활] 당김 3단계
+test_bow:
+  material: bow
+  name: "<#f98f33>[TEST] 활 <gray>(당김 3단계)"
+  item-model: stsv:test_bow
+
+# [쇠뇌] 당김 3단계 + 화살/폭죽 장전
+test_crossbow:
+  material: crossbow
+  name: "<#f98f33>[TEST] 쇠뇌 <gray>(장전 상태)"
+  item-model: stsv:test_crossbow
+
+# [3D 방패] 막기 자세
+test_shield:
+  material: shield
+  name: "<#f98f33>[TEST] 3D 방패"
+  item-model: stsv:test_shield
+
+# [갑옷] 착용 모습 포함
+test_chestplate:
+  material: iron_chestplate
+  name: "<#f98f33>[TEST] 흉갑 <gray>(착용 모습)"
+  texture: test_chestplate
+  equipment: { slot: chest, asset: stsv:test }
+
+# [스킨북] 우클릭 → 가운데 칸에 검을 넣으면 3D 스킨으로 바뀜 (인챈트·내구도 유지)
+test_sword_skin:
+  material: paper
+  name: "<#c58cff>[TEST] 검 스킨북"
+  lore: ["<gray>모든 바닐라 검 + [TEST] 3D 검에 적용 가능"]
+  texture: test_skin_book
+  max-stack: 16
+  skin:
+    model: test_sword_skin
+    applies-to: ["#minecraft:swords", "stsv:test_sword"]
+    return-on-remove: true
+
+# [치장] 토마토 탈 (얼굴만 보임) — 옷장(/옷장)에서 미리보기·적용
+tomato_mask:
+  material: paper
+  name: "<#e21806>토마토 탈 <gray>(치장)"
+  lore: ["<gray>옷장에서 착용하는 치장입니다."]
+  model: tomato_mask
+  max-stack: 1
+  cosmetic: { slot: head }

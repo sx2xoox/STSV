@@ -29,3 +29,7 @@ furniture:
 editor:
   # /stsv recipe create 에서 네임스페이스 없이 id 를 쓰면 이 콘텐츠 팩에 저장됩니다
   namespace: stsv
+
+cosmetics:
+  # 치장을 본인 3인칭(F5) 화면에도 보여줍니다
+  show-to-self: true

@@ -18,6 +18,27 @@ from .palette import ramp
 
 S = 16
 
+# Colour theme: ramp name -> ramp name. Lets the same shapes be drawn in other colours
+# (e.g. the orange/grey test-only theme). Set with `with themed({...}):`.
+THEME = {}
+
+
+class themed:
+    def __init__(self, mapping):
+        self.mapping = mapping
+
+    def __enter__(self):
+        global THEME
+        self.prev, THEME = THEME, self.mapping
+
+    def __exit__(self, *exc):
+        global THEME
+        THEME = self.prev
+
+
+def _r(name, i):
+    return ramp(THEME.get(name, name), i)
+
 
 class Icon:
     def __init__(self, w=S, h=S):
@@ -78,7 +99,7 @@ class Icon:
     def image(self):
         im = Image.new("RGBA", (self.w, self.h), (0, 0, 0, 0))
         for (x, y), (r, i) in self.px.items():
-            im.putpixel((x, y), ramp(r, i))
+            im.putpixel((x, y), _r(r, i))
         return im
 
 
@@ -320,13 +341,13 @@ def _plate(im, rect, rows=None, trim_rows=(), trim_cols=(), rivets=True, skip=No
                 i = 4
             if y == y0 + r1 - 1 or x == x1 - 1:
                 i = 2
-            c = ramp("steel", i)
+            c = _r("steel", i)
             if ry in trim_rows or rx in trim_cols:
-                c = ramp("brass", 2 if i <= 3 else 3)
+                c = _r("brass", 2 if i <= 3 else 3)
             im.putpixel((x, y), c)
     if rivets and (x1 - x0) >= 4 and (r1 - r0) >= 4:
         for x, y in ((x0 + 1, y0 + r0 + 1), (x1 - 2, y0 + r0 + 1)):
-            im.putpixel((x, y), ramp("steel", 5))
+            im.putpixel((x, y), _r("steel", 5))
 
 
 def steel_humanoid():
@@ -362,3 +383,43 @@ def steel_humanoid_leggings():
     for f in ("right", "front", "left", "back"):
         _plate(im, LEG[f], rows=(0, 9), rivets=False)
     return im
+
+
+# ------------------------------------------------------------------------------------------------
+# Misc icons (drawn in whatever theme is active)
+# ------------------------------------------------------------------------------------------------
+
+def test_ingot():
+    return _mask_icon([
+        "...########..",
+        "..##########.",
+        ".############",
+        "############.",
+        "TTTTTTTTTTT..",
+    ], base="steel", trim="wood")
+
+
+def test_lump():
+    return _mask_icon([
+        "..####...",
+        ".#######.",
+        "#########",
+        "#######T.",
+        ".#####...",
+    ], base="steel", trim="wood")
+
+
+def skin_book():
+    """A book with a gem on the cover: 'skin book'."""
+    ic = Icon()
+    for y in range(2, 14):
+        for x in range(3, 13):
+            light = 3 if (x < 5 or y < 4) else 2
+            ic.put(x, y, "fabric_red", light)
+    for y in range(3, 14):
+        ic.put(12, y, "dial", 1)          # page edges
+    for y in range(2, 14):
+        ic.put(3, y, "wood", 2)           # spine
+    for (x, y, i) in ((7, 6, 3), (8, 6, 3), (7, 7, 2), (8, 7, 2), (6, 7, 2), (9, 7, 1), (7, 8, 1), (8, 8, 1)):
+        ic.put(x, y, "brass", i)          # gem
+    return ic.outline().image()

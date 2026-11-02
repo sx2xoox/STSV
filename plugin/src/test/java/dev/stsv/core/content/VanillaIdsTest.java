@@ -46,7 +46,8 @@ class VanillaIdsTest {
                     if (!(o instanceof String s) || o instanceof ConfigurationSection) continue;
                     String leaf = path.substring(path.lastIndexOf('.') + 1);
                     boolean idField = leaf.equals("material") || leaf.equals("input") || leaf.equals("result")
-                            || leaf.equals("item") || leaf.equals("ingredients") || path.contains(".keys.");
+                            || leaf.equals("item") || leaf.equals("ingredients") || leaf.equals("remainder")
+                            || path.contains(".keys.");
                     if (!idField || s.startsWith("#")) continue;
                     String id = s.toLowerCase(Locale.ROOT);
                     if (id.contains(":") && !id.startsWith("minecraft:")) continue; // custom item

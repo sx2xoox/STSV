@@ -21,7 +21,11 @@ import java.util.Set;
  */
 public final class DefaultContentSync {
 
-    public record Report(int installed, int updated, List<String> kept) {}
+    /**
+     * @param kept    files we would have updated or removed, but the owner edited them
+     * @param removed files that are no longer part of the default content and were deleted
+     */
+    public record Report(int installed, int updated, List<String> kept, int removed) {}
 
     private DefaultContentSync() {}
 
@@ -68,10 +72,29 @@ public final class DefaultContentSync {
             next.put(rel, newHash);
         }
 
+        // files we shipped before but no longer ship: delete them unless the owner edited them
+        int removed = 0;
+        java.util.Set<String> known = new java.util.TreeSet<>(manifest.keySet());
+        known.addAll(history.keySet());
+        for (String rel : known) {
+            if (bundled.containsKey(rel)) continue;
+            Path target = contentsDir.resolve(rel).normalize();
+            if (!target.startsWith(contentsDir) || !Files.isRegularFile(target)) continue;
+            String current = sha1(Files.readAllBytes(target));
+            boolean untouched = current.equals(manifest.get(rel))
+                    || history.getOrDefault(rel, Set.of()).contains(current);
+            if (untouched) {
+                Files.delete(target);
+                removed++;
+            } else {
+                kept.add(rel);
+            }
+        }
+
         StringBuilder sb = new StringBuilder();
         next.forEach((rel, hash) -> sb.append(hash).append(' ').append(rel).append('\n'));
         Files.writeString(manifestFile, sb.toString());
-        return new Report(installed, updated, kept);
+        return new Report(installed, updated, kept, removed);
     }
 
     public static String sha1(byte[] data) {

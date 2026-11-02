@@ -21,6 +21,13 @@ SHADOW_HUE = 285.0   # blue-violet
 LIGHT_HUE = 85.0     # warm yellow
 HUE_SHIFT = 10.0     # max degrees a ramp end rotates towards those hues
 
+# v3 "clean & vivid": the v2 ramps read muddy in game. Saturation is raised for every material,
+# shadows keep more of their colour, and texture noise is halved (textures.NOISE).
+CHROMA_BOOST = 1.35          # natural / structural materials
+ACCENT_CHROMA_BOOST = 1.15   # accents were already loud
+EDGE_CHROMA_FALLOFF = 0.18   # was 0.35: dark/light ends lose less colour
+MIN_LIGHTNESS = 0.24         # darkest step never goes below this (no muddy near-blacks)
+
 # name: (hue, chroma, center lightness, lightness span, steps, accent)
 #   hue may be a (start, end) tuple for ramps that change colour along the ladder (fire)
 MATERIALS = {
@@ -53,6 +60,13 @@ MATERIALS = {
     "magic":       ((296, 312), 0.180, 0.66, 0.30, 4, True),
     "signal_red":  (28, 0.170, 0.52, 0.10, 2, True),
     "signal_green": (145, 0.150, 0.62, 0.10, 2, True),
+    # --- vegetables (cosmetics) -----------------------------------------------------------------
+    "tomato":      (30, 0.170, 0.58, 0.30, 5, False),
+    # --- TEST-ONLY materials: "dev texture" colours, never used by real content -----------------
+    "test_orange": (55, 0.150, 0.70, 0.30, 4, True),
+    "test_grey":   (250, 0.012, 0.62, 0.30, 4, False),
+    "test_teal":   (195, 0.120, 0.64, 0.30, 4, True),
+    "test_purple": (305, 0.150, 0.58, 0.30, 4, True),
 }
 
 
@@ -73,10 +87,10 @@ def build_ramp(hue, chroma, center, span, steps, accent=False):
         edge = abs(t - 0.5) * 2                     # 0 at the middle, 1 at both ends
         shift = HUE_SHIFT * edge * (0.5 if accent else 1.0)
         h = _toward(h, LIGHT_HUE if t > 0.5 else SHADOW_HUE, shift)
-        c = chroma * (1 - 0.35 * edge)
+        c = chroma * (ACCENT_CHROMA_BOOST if accent else CHROMA_BOOST) * (1 - EDGE_CHROMA_FALLOFF * edge)
         if chroma < 0.02:                           # near-greys still pick up a hint of the light colour
-            c = max(c, 0.008)
-        out.append(oklch_to_rgb(L, c, h % 360))
+            c = max(c, 0.010)
+        out.append(oklch_to_rgb(max(L, MIN_LIGHTNESS), c, h % 360))
     return out
 
 

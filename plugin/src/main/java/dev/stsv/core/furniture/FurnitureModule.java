@@ -66,7 +66,8 @@ import java.util.UUID;
 public final class FurnitureModule implements StsvModule, Listener {
 
     private STSVPlugin plugin;
-    private NamespacedKey keyItem, keyCells, keyParts, keyOwner, keyYaw, keySeat;
+    private NamespacedKey keyItem, keyCells, keyParts, keyOwner, keyYaw, keySeat, keySpin;
+    private BukkitTask spinTask;
     private final Map<String, FurnitureBehavior> behaviors = new HashMap<>();
     private final Map<UUID, Preview> previews = new HashMap<>();
     private BukkitTask previewTask;
@@ -85,13 +86,17 @@ public final class FurnitureModule implements StsvModule, Listener {
         keyOwner = new NamespacedKey(plugin, "furniture_owner");
         keyYaw = new NamespacedKey(plugin, "furniture_yaw");
         keySeat = new NamespacedKey(plugin, "seat_of");
+        keySpin = new NamespacedKey(plugin, "spin");
         Bukkit.getPluginManager().registerEvents(this, plugin);
         previewTask = Bukkit.getScheduler().runTaskTimer(plugin, this::tickPreviews, 1L, 2L);
+        for (World w : Bukkit.getWorlds()) w.getEntitiesByClass(ItemDisplay.class).forEach(this::track);
+        spinTask = Bukkit.getScheduler().runTaskTimer(plugin, this::tickSpin, 1L, SPIN_STEP);
     }
 
     @Override
     public void disable() {
         if (previewTask != null) previewTask.cancel();
+        if (spinTask != null) spinTask.cancel();
         new ArrayList<>(previews.keySet()).forEach(this::clearPreview);
         for (World w : Bukkit.getWorlds()) {
             for (ItemDisplay d : w.getEntitiesByClass(ItemDisplay.class)) {
@@ -199,16 +204,25 @@ public final class FurnitureModule implements StsvModule, Listener {
         StringBuilder partData = new StringBuilder();
         for (Block b : plan.cells()) {
             if (spec.solid()) b.setType(Material.BARRIER, false);
-            Interaction hit = world.spawn(b.getLocation().add(0.5, -0.01, 0.5), Interaction.class, i -> {
-                // a hair bigger than the barrier so the entity, not the block, is what the crosshair hits
-                i.setInteractionWidth(1.02f);
-                i.setInteractionHeight(1.02f);
+            cellData.append(b.getX()).append(',').append(b.getY()).append(',').append(b.getZ()).append(';');
+        }
+        // click targets: as few interaction entities as possible, each exactly covering a k*k*h block of
+        // cells (never more than the furniture occupies, so clicks land exactly where they used to)
+        for (int[] prism : coverWithPrisms(plan.cells().stream().map(b -> new int[]{b.getX(), b.getY(), b.getZ()}).toList())) {
+            int x = prism[0], y = prism[1], z = prism[2], k = prism[3], h = prism[4];
+            Interaction hit = world.spawn(new Location(world, x + k / 2.0, y - 0.01, z + k / 2.0), Interaction.class, i -> {
+                // a hair bigger than the barriers so the entity, not the block, is what the crosshair hits
+                i.setInteractionWidth(k + 0.02f);
+                i.setInteractionHeight(h + 0.02f);
                 i.setResponsive(true);
                 i.setPersistent(true);
                 i.getPersistentDataContainer().set(keyOwner, PersistentDataType.STRING, display.getUniqueId().toString());
             });
-            cellData.append(b.getX()).append(',').append(b.getY()).append(',').append(b.getZ()).append(';');
             partData.append(hit.getUniqueId()).append(';');
+        }
+        for (FurnitureSpec.Part part : spec.parts()) {
+            ItemDisplay pe = spawnPart(display, plan, part);
+            partData.append(pe.getUniqueId()).append(';');
         }
         PersistentDataContainer pdc = display.getPersistentDataContainer();
         pdc.set(keyCells, PersistentDataType.STRING, cellData.toString());
@@ -219,15 +233,125 @@ public final class FurnitureModule implements StsvModule, Listener {
         return Optional.of(furniture);
     }
 
+    /**
+     * Greedy cover of the occupied blocks with square-based prisms [x, y, z, size, height]
+     * (interaction entities are axis-aligned with a square base). Every prism lies fully inside the
+     * cell set, so the click area is exactly the furniture's footprint.
+     */
+    static List<int[]> coverWithPrisms(List<int[]> cells) {
+        Set<Long> todo = new HashSet<>();
+        for (int[] c : cells) todo.add(pack(c[0], c[1], c[2]));
+        List<int[]> order = new ArrayList<>(cells);
+        order.sort(java.util.Comparator.<int[]>comparingInt(c -> c[1]).thenComparingInt(c -> c[0]).thenComparingInt(c -> c[2]));
+        List<int[]> out = new ArrayList<>();
+        for (int[] c : order) {
+            int x = c[0], y = c[1], z = c[2];
+            if (!todo.contains(pack(x, y, z))) continue;
+            int k = 1;
+            while (k < 4 && square(todo, x, y, z, k + 1)) k++;
+            int h = 1;
+            while (h < 8 && square(todo, x, y + h, z, k)) h++;
+            for (int dy = 0; dy < h; dy++)
+                for (int dx = 0; dx < k; dx++)
+                    for (int dz = 0; dz < k; dz++) todo.remove(pack(x + dx, y + dy, z + dz));
+            out.add(new int[]{x, y, z, k, h});
+        }
+        return out;
+    }
+
+    private static boolean square(Set<Long> todo, int x, int y, int z, int k) {
+        for (int dx = 0; dx < k; dx++)
+            for (int dz = 0; dz < k; dz++) if (!todo.contains(pack(x + dx, y, z + dz))) return false;
+        return true;
+    }
+
+    private static long pack(int x, int y, int z) {
+        return ((long) (x & 0x3FFFFFF) << 38) | ((long) (z & 0x3FFFFFF) << 12) | (y & 0xFFF);
+    }
+
+    /** Model-space position (16 = 1 block, cell (0,0,0) spans 0..16) -> world offset from the anchor block centre. */
+    static double[] modelToWorld(org.joml.Vector3f p, float yaw) {
+        double x = (p.x - 8) / 16.0, y = (p.y - 8) / 16.0, z = (p.z - 8) / 16.0;
+        double r = Math.toRadians(yaw);
+        double mx = -x, mz = -z; // same 180° flip as the cells (see rotate)
+        return new double[]{mx * Math.cos(r) - mz * Math.sin(r), y, mx * Math.sin(r) + mz * Math.cos(r)};
+    }
+
+    private ItemDisplay spawnPart(ItemDisplay owner, Plan plan, FurnitureSpec.Part part) {
+        double[] o = modelToWorld(part.position(), plan.yaw());
+        Location loc = plan.anchor().getLocation().add(0.5 + o[0], 0.5 + o[1], 0.5 + o[2]);
+        loc.setYaw(displayYaw(plan.yaw()));
+        return loc.getWorld().spawn(loc, ItemDisplay.class, d -> {
+            ItemStack it = new ItemStack(Material.PAPER);
+            it.editMeta(m -> m.setItemModel(part.model()));
+            d.setItemStack(it);
+            d.setItemDisplayTransform(ItemDisplay.ItemDisplayTransform.FIXED);
+            d.setViewRange((float) plugin.getConfig().getDouble("furniture.view-range", 1.0));
+            d.setPersistent(true);
+            if (part.spinAxis() != null && part.rpm() != 0) {
+                d.getPersistentDataContainer().set(keySpin, PersistentDataType.STRING, part.spinAxis() + ":" + part.rpm());
+            }
+        });
+    }
+
+    // spinning parts: the server only sends a new rotation every few ticks; the client interpolates
+    private final Set<UUID> spinning = new HashSet<>();
+    private static final int SPIN_STEP = 5;
+
+    private void tickSpin() {
+        if (spinning.isEmpty()) return;
+        for (java.util.Iterator<UUID> it = spinning.iterator(); it.hasNext(); ) {
+            Entity e = Bukkit.getEntity(it.next());
+            if (!(e instanceof ItemDisplay d) || !d.isValid()) {
+                it.remove();
+                continue;
+            }
+            String spec = d.getPersistentDataContainer().get(keySpin, PersistentDataType.STRING);
+            if (spec == null) {
+                it.remove();
+                continue;
+            }
+            String[] a = spec.split(":");
+            float rpm = Float.parseFloat(a[1]);
+            // angle from world time, never wrapped: consecutive rotations stay close, so interpolation is smooth
+            double angle = (d.getWorld().getGameTime() + SPIN_STEP) * rpm * 2 * Math.PI / 1200.0;
+            Quaternionf q = switch (a[0]) {
+                case "x" -> new Quaternionf().rotateX((float) angle);
+                case "z" -> new Quaternionf().rotateZ((float) angle);
+                default -> new Quaternionf().rotateY((float) angle);
+            };
+            Transformation t = d.getTransformation();
+            d.setInterpolationDelay(0);
+            d.setInterpolationDuration(SPIN_STEP);
+            d.setTransformation(new Transformation(t.getTranslation(), q, t.getScale(), t.getRightRotation()));
+        }
+    }
+
+    private void track(Entity e) {
+        if (e instanceof ItemDisplay d && d.getPersistentDataContainer().has(keySpin)) spinning.add(d.getUniqueId());
+    }
+
+    @EventHandler
+    public void onEntityAdd(com.destroystokyo.paper.event.entity.EntityAddToWorldEvent e) {
+        track(e.getEntity());
+    }
+
+    @EventHandler
+    public void onEntityRemove(com.destroystokyo.paper.event.entity.EntityRemoveFromWorldEvent e) {
+        spinning.remove(e.getEntity().getUniqueId());
+    }
+
     // ------------------------------------------------------------------------------------------
     // Lookup & removal
     // ------------------------------------------------------------------------------------------
 
+    /** Furniture occupying this block, found through the cell list stored on nearby furniture. */
     public Optional<Furniture> furnitureAt(Block block) {
         Location center = block.getLocation().add(0.5, 0.5, 0.5);
-        for (Interaction i : block.getWorld().getNearbyEntitiesByType(Interaction.class, center, 0.6)) {
-            Optional<Furniture> f = fromPart(i);
-            if (f.isPresent()) return f;
+        String me = block.getX() + "," + block.getY() + "," + block.getZ() + ";";
+        for (ItemDisplay d : block.getWorld().getNearbyEntitiesByType(ItemDisplay.class, center, 4.5)) {
+            String cells = d.getPersistentDataContainer().get(keyCells, PersistentDataType.STRING);
+            if (cells != null && (";" + cells).contains(";" + me)) return fromDisplay(d);
         }
         return Optional.empty();
     }

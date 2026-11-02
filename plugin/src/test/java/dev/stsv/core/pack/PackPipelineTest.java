@@ -25,15 +25,25 @@ class PackPipelineTest {
     private static final Path CONTENT = Path.of(System.getProperty("stsv.content"));
     private static final Set<Float> VANILLA_ANGLES = Set.of(-45f, -22.5f, 0f, 22.5f, 45f);
 
+    static java.util.stream.Stream<String> models() throws Exception {
+        return java.nio.file.Files.list(CONTENT.resolve("stsv/models"))
+                .map(p -> p.getFileName().toString()).filter(n -> n.endsWith(".bbmodel"))
+                .map(n -> n.replace(".bbmodel", "")).sorted();
+    }
+
+    private static final Set<String> GLOWING = Set.of("test_machine");
+    private static final Set<String> ROTATED = Set.of("test_sword", "test_sword_skin", "test_rod", "test_rod_cast");
+
     @org.junit.jupiter.params.ParameterizedTest
-    @org.junit.jupiter.params.provider.ValueSource(strings = {"smelter", "potted_plant", "chair", "crystal_shrine"})
+    @org.junit.jupiter.params.provider.MethodSource("models")
     void modelConvertsToAValidVanillaModel(String name) throws Exception {
         BBModelConverter.Result r = BBModelConverter.convert(CONTENT.resolve("stsv/models/" + name + ".bbmodel"), "stsv:item/" + name);
         assertTrue(r.warnings().isEmpty(), "warnings: " + r.warnings());
 
         JsonObject model = r.model();
         JsonObject textures = model.getAsJsonObject("textures");
-        assertEquals(r.textures().size() + 1, textures.size(), "every texture + particle referenced");
+        long pngs = r.textures().keySet().stream().filter(k -> k.endsWith(".png")).count();
+        assertEquals(pngs + 1, textures.size(), "every texture + particle referenced");
         for (Map.Entry<String, JsonElement> t : textures.entrySet()) {
             String file = t.getValue().getAsString().replace("stsv:item/" + name + "/", "") + ".png";
             assertTrue(r.textures().containsKey(file), "missing texture file " + file);
@@ -62,8 +72,8 @@ class PackPipelineTest {
                 assertTrue(textures.has(face.get("texture").getAsString().substring(1)), "unknown texture ref");
             }
         }
-        assertEquals(Set.of("smelter", "crystal_shrine").contains(name), glows, "only light sources glow");
-        assertEquals(!name.equals("chair"), rotated, "rotated parts");
+        assertEquals(GLOWING.contains(name), glows, "only light sources glow");
+        assertEquals(ROTATED.contains(name), rotated, "rotated parts");
         assertTrue(model.has("display"));
     }
 
@@ -76,10 +86,11 @@ class PackPipelineTest {
         assertTrue(a.warnings().isEmpty(), "warnings: " + a.warnings());
 
         Map<String, byte[]> files = unzip(a.zip());
-        assertTrue(files.containsKey("assets/stsv/models/item/smelter.json"));
-        assertTrue(files.containsKey("assets/stsv/textures/item/smelter/brick.png"));
-        assertTrue(files.containsKey("assets/stsv/models/item/gold_chunk.json"));
-        assertTrue(files.containsKey("assets/stsv/textures/item/gold_chunk.png"));
+        assertTrue(files.containsKey("assets/stsv/models/item/test_machine.json"));
+        assertTrue(files.containsKey("assets/stsv/items/model/test_fan_blade.json"), "every 3D model gets an item definition");
+        assertTrue(files.containsKey("assets/stsv/textures/item/test_machine/dev_screen.png.mcmeta"), "animated texture metadata");
+        assertTrue(files.containsKey("assets/stsv/models/item/test_material.json"));
+        assertTrue(files.containsKey("assets/stsv/textures/item/test_material.png"));
 
         JsonObject mcmeta = JsonParser.parseString(new String(files.get("pack.mcmeta"), StandardCharsets.UTF_8)).getAsJsonObject();
         assertEquals(97, mcmeta.getAsJsonObject("pack").get("min_format").getAsInt());

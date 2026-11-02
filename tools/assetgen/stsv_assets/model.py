@@ -52,6 +52,7 @@ class Model:
         self.elements = []
         self._group = "root"
         self.display = {}
+        self.front_gui_light = False   # true for flat-ish held items (lit from the front in the GUI)
 
     def group(self, name: str):
         self._group = name
@@ -216,9 +217,13 @@ class Model:
         return uv
 
     @staticmethod
-    def _png(tex):
+    def _png(tex, strip=False):
+        """strip=True returns all animation frames stacked vertically (for animated textures)."""
         buf = io.BytesIO()
-        T.SURFACES[tex]().save(buf, "PNG")
+        if strip and tex in T.ANIMATED:
+            T.animation_strip(tex).save(buf, "PNG")
+        else:
+            T.SURFACES[tex]().save(buf, "PNG")
         return buf.getvalue()
 
     def to_bbmodel(self) -> dict:
@@ -226,15 +231,16 @@ class Model:
         idx = {t: i for i, t in enumerate(tex_names)}
         textures = []
         for i, t in enumerate(tex_names):
+            frames, frame_time = (len(T.ANIMATED[t][0]()), T.ANIMATED[t][1]) if t in T.ANIMATED else (1, 1)
             textures.append({
                 "path": "", "name": f"{t}.png", "folder": "item", "namespace": "",
-                "id": str(i), "width": 16, "height": 16, "uv_width": 16, "uv_height": 16,
+                "id": str(i), "width": 16, "height": 16 * frames, "uv_width": 16, "uv_height": 16,
                 "particle": i == 0, "render_mode": "default", "render_sides": "auto",
-                "frame_time": 1, "frame_order_type": "loop", "frame_order": "", "frame_interpolate": False,
+                "frame_time": frame_time, "frame_order_type": "loop", "frame_order": "", "frame_interpolate": False,
                 "visible": True, "internal": True, "saved": False,
                 "uuid": str(uuid.uuid5(uuid.NAMESPACE_URL, f"{self.name}/tex/{t}")),
                 "relative_path": "",
-                "source": "data:image/png;base64," + base64.b64encode(self._png(t)).decode(),
+                "source": "data:image/png;base64," + base64.b64encode(self._png(t, strip=True)).decode(),
             })
         elements, groups = [], {}
         for e in self.elements:
@@ -268,7 +274,7 @@ class Model:
         } for g, kids in groups.items()]
         return {
             "meta": {"format_version": "4.10", "model_format": "java_block", "box_uv": False},
-            "name": self.name, "parent": "", "ambientocclusion": True, "front_gui_light": False,
+            "name": self.name, "parent": "", "ambientocclusion": True, "front_gui_light": self.front_gui_light,
             "visible_box": [1, 1, 0], "variable_placeholders": "", "variable_placeholder_buttons": [],
             "unhandled_root_fields": {}, "resolution": {"width": 16, "height": 16},
             "elements": elements, "outliner": outliner, "textures": textures,

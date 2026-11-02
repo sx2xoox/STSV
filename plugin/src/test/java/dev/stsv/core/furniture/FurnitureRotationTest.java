@@ -12,7 +12,7 @@ import static org.junit.jupiter.api.Assertions.assertEquals;
 class FurnitureRotationTest {
 
     private static final FurnitureSpec CARDINAL = new FurnitureSpec(List.of(), true, FurnitureSpec.Rotation.CARDINAL,
-            null, new Vector3f(), new Vector3f(1), -1, List.of());
+            null, new Vector3f(), new Vector3f(1), -1, List.of(), List.of());
 
     @Test
     void frontFacesThePlayer() {

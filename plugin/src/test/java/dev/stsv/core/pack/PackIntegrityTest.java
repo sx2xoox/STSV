@@ -113,12 +113,22 @@ class PackIntegrityTest {
                     String[] ref = split(sec.getString("item-model"));
                     if (!ref[0].equals("minecraft")) require(where, "assets/" + ref[0] + "/items/" + ref[1] + ".json");
                 }
+                if (sec.isString("skin.model")) requireItemModel(where, sec.getString("skin.model"));
+                for (Object part : sec.getList("furniture.parts", List.of())) {
+                    if (part instanceof Map<?, ?> m) requireItemModel(where, String.valueOf(m.get("model")));
+                }
                 if (sec.isConfigurationSection("equipment")) {
                     String[] ref = split(sec.getString("equipment.asset"));
                     require(where, "assets/" + ref[0] + "/equipment/" + ref[1] + ".json");
                 }
             }
         }
+    }
+
+    /** A bare name means a .bbmodel in the pack, reachable as item model "stsv:model/<name>". */
+    private void requireItemModel(String from, String ref) {
+        String[] id = ref.contains(":") ? split(ref) : new String[]{"stsv", "model/" + ref};
+        require(from, "assets/" + id[0] + "/items/" + id[1] + ".json");
     }
 
     private void requireModel(String from, String ref, Set<String> vanilla) {

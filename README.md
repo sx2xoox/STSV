@@ -65,6 +65,10 @@ contents/mypack/
 | `/stsv recipe create <id> <종류> [시간] [경험치]` | 레시피 편집기. 종류: shaped, shapeless, furnace, blasting, smoking, campfire, stonecutting |
 | `/stsv recipe delete <id>` / `list` | 편집기로 만든 레시피 삭제 / 목록 |
 | `/stsv fuel set <틱>` / `remove` / `list` | 손에 든 아이템의 화로 연료 시간 (석탄 = 1600틱) |
+| `/stsv skin remove` | 손에 든 아이템의 스킨 해제 (스킨북 반환) |
+| `/stsv wardrobe create <이름> [반경]` | 지금 위치에 옷장 구역 만들기 |
+| `/stsv cosmetic give <플레이어> <치장>` | 치장 지급 (OP는 모든 치장 사용 가능) |
+| `/옷장` | (플레이어) 옷장 구역에서 치장 미리보기, 적용 |
 | `/stsv reload` | 콘텐츠, 레시피, 리소스팩 다시 읽기 |
 
 ## 서버 설정

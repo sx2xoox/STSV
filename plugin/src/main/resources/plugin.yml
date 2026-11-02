@@ -7,9 +7,20 @@ authors: [STSV]
 commands:
   stsv:
     description: STSV 관리 명령어
-    usage: /stsv <give|browse|list|info|recipe|fuel|reload|pack>
+    usage: /stsv <give|browse|list|info|recipe|fuel|skin|cosmetic|wardrobe|reload|pack>
     permission: stsv.admin
+  wardrobe:
+    description: 옷장 (옷장 구역 안에서)
+    aliases: [옷장]
+    usage: /wardrobe
+    permission: stsv.wardrobe
 permissions:
+  stsv.wardrobe:
+    description: 옷장 사용
+    default: true
+  stsv.cosmetic.*:
+    description: 모든 치장 사용 가능
+    default: op
   stsv.admin:
     description: STSV 관리 명령어 사용
     default: op

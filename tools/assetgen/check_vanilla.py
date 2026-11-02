@@ -14,9 +14,8 @@ from pathlib import Path
 
 import special
 
-PAIRS = {"hunter_bow": "bow", "iron_crossbow": "crossbow", "angler_rod": "fishing_rod"}
-POSE_PARENTS = {"hunter_bow": "minecraft:item/bow", "iron_crossbow": "minecraft:item/crossbow",
-                "angler_rod": "minecraft:item/handheld_rod"}
+PAIRS = {"test_bow": "bow", "test_crossbow": "crossbow", "test_rod": "fishing_rod"}
+POSE_PARENTS = {"test_bow": "minecraft:item/bow", "test_crossbow": "minecraft:item/crossbow"}
 
 
 def normalise(node):
@@ -44,10 +43,27 @@ def main(vanilla: Path):
             print(f"OK  {name} == vanilla {vname} (속성/기준값/분기 동일)")
     # shield: vanilla uses a special renderer; the switch must still be using_item
     v = json.loads((vanilla / "items" / "shield.json").read_text())
-    if v["model"]["property"] != ours["knight_shield"]["model"]["property"]:
-        problems.append("knight_shield: 방어 전환 속성이 바닐라와 다름")
+    if v["model"]["property"] != ours["test_shield"]["model"]["property"]:
+        problems.append("test_shield: 방어 전환 속성이 바닐라와 다름")
     else:
-        print("OK  knight_shield 방어 전환 = vanilla (minecraft:using_item)")
+        print("OK  test_shield 방어 전환 = vanilla (minecraft:using_item)")
+    # 3D hand items: display transforms must equal the vanilla parents they replace
+    sys.path.insert(0, str(Path(__file__).parent))
+    from models.test_items import ALL
+    for name, vparent in (("test_sword", "handheld"), ("test_rod", "handheld_rod"), ("test_rod_cast", "handheld_rod")):
+        chain, d = vparent, {}
+        while chain:
+            j = json.loads((vanilla / "models" / "item" / f"{chain.split('/')[-1]}.json").read_text())
+            d = {**j.get("display", {}), **d}
+            chain = j.get("parent", "").replace("minecraft:", "").replace("item/", "") if "builtin" not in j.get("parent", "builtin") else ""
+        ours_d = ALL[name]().display
+        full = lambda t: {"rotation": t.get("rotation", [0, 0, 0]), "translation": t.get("translation", [0, 0, 0]),
+                          "scale": t.get("scale", [1, 1, 1])}  # vanilla omits default values
+        diff = [k for k in d if k in ours_d and full(ours_d[k]) != full(d[k])]
+        if diff:
+            problems.append(f"{name}: 손 자세가 바닐라 {vparent} 와 다름: {diff}")
+        else:
+            print(f"OK  {name} 손 자세 = vanilla {vparent} ({len(d)}개 시점 동일)")
     # every textured model must reach the vanilla pose parent
     for name, (_, parent) in special.TEXTURED_MODELS.items():
         chain, p = [name], parent

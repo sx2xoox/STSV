@@ -1,0 +1,6 @@
+{
+  "parent": "stsv:item/test_bow",
+  "textures": {
+    "layer0": "stsv:item/test_bow_pulling_2"
+  }
+}

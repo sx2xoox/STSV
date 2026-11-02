@@ -1,0 +1,6 @@
+{
+  "parent": "stsv:item/test_crossbow",
+  "textures": {
+    "layer0": "stsv:item/test_crossbow_arrow"
+  }
+}

@@ -1,22 +1,22 @@
 """
-Items with special motions (bow pull, crossbow charge, rod cast, shield block) and wearable armor.
+Items with special motions and wearables (TEST set). Motions are never re-invented: 2D models inherit
+the vanilla parent that defines the pose (minecraft:item/bow, crossbow), 3D models copy the vanilla
+display transforms, and every item definition mirrors the vanilla one property-for-property
+(check_vanilla.py verifies that).
 
-Strategy: never re-invent the motion. Each model inherits the vanilla parent that defines how the
-item is held and animated (minecraft:item/bow, crossbow, handheld_rod), and each item definition
-mirrors the vanilla one property-for-property (using_item, use_duration, crossbow/pull, charge_type,
-fishing_rod/cast). Only our textures/geometry differ. check_vanilla.py verifies the mirroring.
-
-Writes raw resource-pack files to content/stsv/assets/stsv/... (merged as-is by the plugin) and the
-shield geometry to content/stsv/models/*.bbmodel.
+Writes raw resource-pack files to content/stsv/assets/stsv/... (merged as-is by the plugin).
 """
 
 import json
 from pathlib import Path
 
 from stsv_assets import icons as I
-from stsv_assets.model import Model
 
 NS = "stsv"
+
+# test-only colour theme for the 2D icons (same shapes as the real ones, dev colours)
+TEST_THEME = {"wood": "test_orange", "wood_dark": "test_orange", "steel": "test_grey", "stone": "test_grey",
+              "brass": "test_teal", "fabric_red": "test_purple", "dial": "test_grey"}
 
 # vanilla shield display transforms (how a shield is held / blocks); our geometry uses the same space
 SHIELD_DISPLAY = {
@@ -44,117 +44,98 @@ def _model(t):
 def item_definitions():
     """Our item definitions, structured exactly like their vanilla counterparts."""
     return {
-        "hunter_bow": {"model": {
+        "test_bow": {"model": {
             "type": "minecraft:condition",
             "property": "minecraft:using_item",
-            "on_false": _model("hunter_bow"),
+            "on_false": _model("test_bow"),
             "on_true": {
                 "type": "minecraft:range_dispatch",
                 "property": "minecraft:use_duration",
                 "scale": 0.05,
                 "entries": [
-                    {"threshold": 0.65, "model": _model("hunter_bow_pulling_1")},
-                    {"threshold": 0.9, "model": _model("hunter_bow_pulling_2")},
+                    {"threshold": 0.65, "model": _model("test_bow_pulling_1")},
+                    {"threshold": 0.9, "model": _model("test_bow_pulling_2")},
                 ],
-                "fallback": _model("hunter_bow_pulling_0"),
+                "fallback": _model("test_bow_pulling_0"),
             },
         }},
-        "iron_crossbow": {"model": {
+        "test_crossbow": {"model": {
             "type": "minecraft:select",
             "property": "minecraft:charge_type",
             "cases": [
-                {"when": "arrow", "model": _model("iron_crossbow_arrow")},
-                {"when": "rocket", "model": _model("iron_crossbow_firework")},
+                {"when": "arrow", "model": _model("test_crossbow_arrow")},
+                {"when": "rocket", "model": _model("test_crossbow_firework")},
             ],
             "fallback": {
                 "type": "minecraft:condition",
                 "property": "minecraft:using_item",
-                "on_false": _model("iron_crossbow"),
+                "on_false": _model("test_crossbow"),
                 "on_true": {
                     "type": "minecraft:range_dispatch",
                     "property": "minecraft:crossbow/pull",
                     "entries": [
-                        {"threshold": 0.58, "model": _model("iron_crossbow_pulling_1")},
-                        {"threshold": 1.0, "model": _model("iron_crossbow_pulling_2")},
+                        {"threshold": 0.58, "model": _model("test_crossbow_pulling_1")},
+                        {"threshold": 1.0, "model": _model("test_crossbow_pulling_2")},
                     ],
-                    "fallback": _model("iron_crossbow_pulling_0"),
+                    "fallback": _model("test_crossbow_pulling_0"),
                 },
             },
         }},
-        "angler_rod": {"model": {
+        # 3D rod and shield: the models are .bbmodels (models/test_rod*.bbmodel, test_shield*.bbmodel)
+        "test_rod": {"model": {
             "type": "minecraft:condition",
             "property": "minecraft:fishing_rod/cast",
-            "on_false": _model("angler_rod"),
-            "on_true": _model("angler_rod_cast"),
+            "on_false": _model("test_rod"),
+            "on_true": _model("test_rod_cast"),
         }},
-        "knight_shield": {"model": {
+        "test_shield": {"model": {
             "type": "minecraft:condition",
             "property": "minecraft:using_item",
-            "on_false": _model("knight_shield"),
-            "on_true": _model("knight_shield_blocking"),
+            "on_false": _model("test_shield"),
+            "on_true": _model("test_shield_blocking"),
         }},
     }
 
 
+def _themed(gen):
+    def run():
+        with I.themed(TEST_THEME):
+            return gen()
+    return run
+
+
 # texture name -> (generator, parent model)
 TEXTURED_MODELS = {
-    "hunter_bow": (I.hunter_bow, "minecraft:item/bow"),
-    "hunter_bow_pulling_0": (lambda: I.hunter_bow_pulling(0), f"{NS}:item/hunter_bow"),
-    "hunter_bow_pulling_1": (lambda: I.hunter_bow_pulling(1), f"{NS}:item/hunter_bow"),
-    "hunter_bow_pulling_2": (lambda: I.hunter_bow_pulling(2), f"{NS}:item/hunter_bow"),
-    "iron_crossbow": (lambda: I.iron_crossbow("standby"), "minecraft:item/crossbow"),
-    "iron_crossbow_pulling_0": (lambda: I.iron_crossbow("pull0"), f"{NS}:item/iron_crossbow"),
-    "iron_crossbow_pulling_1": (lambda: I.iron_crossbow("pull1"), f"{NS}:item/iron_crossbow"),
-    "iron_crossbow_pulling_2": (lambda: I.iron_crossbow("pull2"), f"{NS}:item/iron_crossbow"),
-    "iron_crossbow_arrow": (lambda: I.iron_crossbow("arrow"), f"{NS}:item/iron_crossbow"),
-    "iron_crossbow_firework": (lambda: I.iron_crossbow("rocket"), f"{NS}:item/iron_crossbow"),
-    "angler_rod": (I.fishing_rod, "minecraft:item/handheld_rod"),
-    "angler_rod_cast": (I.fishing_rod_cast, "minecraft:item/handheld_rod"),
+    "test_bow": (_themed(I.hunter_bow), "minecraft:item/bow"),
+    "test_bow_pulling_0": (_themed(lambda: I.hunter_bow_pulling(0)), f"{NS}:item/test_bow"),
+    "test_bow_pulling_1": (_themed(lambda: I.hunter_bow_pulling(1)), f"{NS}:item/test_bow"),
+    "test_bow_pulling_2": (_themed(lambda: I.hunter_bow_pulling(2)), f"{NS}:item/test_bow"),
+    "test_crossbow": (_themed(lambda: I.iron_crossbow("standby")), "minecraft:item/crossbow"),
+    "test_crossbow_pulling_0": (_themed(lambda: I.iron_crossbow("pull0")), f"{NS}:item/test_crossbow"),
+    "test_crossbow_pulling_1": (_themed(lambda: I.iron_crossbow("pull1")), f"{NS}:item/test_crossbow"),
+    "test_crossbow_pulling_2": (_themed(lambda: I.iron_crossbow("pull2")), f"{NS}:item/test_crossbow"),
+    "test_crossbow_arrow": (_themed(lambda: I.iron_crossbow("arrow")), f"{NS}:item/test_crossbow"),
+    "test_crossbow_firework": (_themed(lambda: I.iron_crossbow("rocket")), f"{NS}:item/test_crossbow"),
 }
 
 # plain 2D icons (wrapped automatically by the plugin: textures/<name>.png)
 ICONS = {
-    "knight_sword": I.knight_sword,
-    "steel_helmet": I.steel_helmet,
-    "steel_chestplate": I.steel_chestplate,
-    "steel_leggings": I.steel_leggings,
-    "steel_boots": I.steel_boots,
+    "test_material": _themed(I.test_ingot),
+    "test_fuel": _themed(I.test_lump),
+    "test_chestplate": _themed(I.steel_chestplate),
+    "test_skin_book": _themed(I.skin_book),
 }
 
 
-def shield(blocking: bool) -> Model:
-    """Geometry in the same space as the vanilla shield renderer (plate centred on x/y = 0,
-    front face towards +Z, grip towards -Z), so the vanilla display transforms fit."""
-    m = Model("knight_shield_blocking" if blocking else "knight_shield")
-    m.group("plate")
-    m.box("planks", (-5, -10, 1), (5, 10, 2), "wood")
-    m.box("rim_top", (-6, 10, 0.75), (6, 11, 2.5), "steel")
-    m.box("rim_bottom", (-6, -11, 0.75), (6, -10, 2.5), "steel")
-    m.box("rim_left", (-6, -10, 0.75), (-5, 10, 2.5), "steel")
-    m.box("rim_right", (5, -10, 0.75), (6, 10, 2.5), "steel")
-    m.box("band_v", (-0.5, -10, 2), (0.5, 10, 2.25), "brass")
-    m.box("band_h", (-5, -0.5, 2), (-2, 0.5, 2.25), "brass")
-    m.box("band_h2", (2, -0.5, 2), (5, 0.5, 2.25), "brass")
-    m.box("boss", (-2, -2, 2), (2, 2, 3), "steel")
-    m.box("boss_cap", (-1, -1, 3), (1, 1, 3.5), "brass")
-    m.group("grip")
-    m.box("grip", (-1, -3, -5), (1, 3, 1), "wood_dark_grain")
-    m.display = SHIELD_BLOCKING_DISPLAY if blocking else SHIELD_DISPLAY
-    return m
-
-
 def equipment():
-    return {"layers": {
-        "humanoid": [{"texture": f"{NS}:steel"}],
-        "humanoid_leggings": [{"texture": f"{NS}:steel"}],
-    }}
+    return {"layers": {"humanoid": [{"texture": f"{NS}:test"}]}}
 
 
-def write(content_pack: Path, build_dir: Path):
+def write(content_pack: Path):
     assets = content_pack / "assets" / NS
-    for sub in ("items", "models/item", "textures/item", "equipment",
-                "textures/entity/equipment/humanoid", "textures/entity/equipment/humanoid_leggings"):
+    for sub in ("items", "models/item", "textures/item", "equipment", "textures/entity/equipment/humanoid"):
         (assets / sub).mkdir(parents=True, exist_ok=True)
+    (content_pack / "textures").mkdir(parents=True, exist_ok=True)
 
     for name, definition in item_definitions().items():
         (assets / "items" / f"{name}.json").write_text(json.dumps(definition, indent=2))
@@ -165,11 +146,6 @@ def write(content_pack: Path, build_dir: Path):
     for name, gen in ICONS.items():
         gen().save(content_pack / "textures" / f"{name}.png")
 
-    (assets / "equipment" / "steel.json").write_text(json.dumps(equipment(), indent=2))
-    I.steel_humanoid().save(assets / "textures/entity/equipment/humanoid/steel.png")
-    I.steel_humanoid_leggings().save(assets / "textures/entity/equipment/humanoid_leggings/steel.png")
-
-    for blocking in (False, True):
-        s = shield(blocking)
-        s.write(content_pack / "models" / f"{s.name}.bbmodel", build_dir / f"{s.name}.preview.json")
+    (assets / "equipment" / "test.json").write_text(json.dumps(equipment(), indent=2))
+    _themed(I.steel_humanoid)().save(assets / "textures/entity/equipment/humanoid/test.png")
     return list(item_definitions()) + list(ICONS)

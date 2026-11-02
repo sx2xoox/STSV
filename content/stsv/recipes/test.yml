@@ -1,0 +1,28 @@
+# TEST 레시피: 레시피 종류별로 하나씩
+
+test_material:
+  type: shapeless
+  ingredients: [minecraft:dirt, minecraft:cobblestone]
+  result: { item: stsv:test_material, amount: 2 }
+
+test_machine:
+  type: shaped
+  pattern: ["MMM", "MRM", "MMM"]
+  keys: { M: stsv:test_material, R: minecraft:redstone }
+  result: stsv:test_machine
+
+test_fuel:
+  type: furnace
+  input: stsv:test_material
+  result: stsv:test_fuel
+  experience: 0.1
+
+test_food:
+  type: smoking
+  input: minecraft:sugar
+  result: stsv:test_food
+
+test_rug:
+  type: stonecutting
+  input: stsv:test_material
+  result: stsv:test_rug

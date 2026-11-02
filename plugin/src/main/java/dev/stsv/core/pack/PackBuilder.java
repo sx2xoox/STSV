@@ -87,6 +87,14 @@ public final class PackBuilder {
                 BBModelConverter.Result r = BBModelConverter.convert(p, ns + ":item/" + name);
                 r.warnings().forEach(w -> warnings.add(p.getFileName() + ": " + w));
                 json("assets/" + ns + "/models/item/" + name + ".json", r.model());
+                // every 3D model also gets an item definition "<ns>:model/<name>", so skins, cosmetics and
+                // furniture parts can point an item_model at any model without declaring an item for it
+                JsonObject ref = new JsonObject();
+                ref.addProperty("type", "minecraft:model");
+                ref.addProperty("model", ns + ":item/" + name);
+                JsonObject def = new JsonObject();
+                def.add("model", ref);
+                json("assets/" + ns + "/items/model/" + name + ".json", def);
                 for (Map.Entry<String, byte[]> t : r.textures().entrySet()) {
                     put("assets/" + ns + "/textures/item/" + name + "/" + t.getKey(), t.getValue(), cp);
                 }

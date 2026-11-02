@@ -1,6 +1,9 @@
 package dev.stsv.core;
 
 import dev.stsv.core.command.StsvCommand;
+import dev.stsv.core.command.WardrobeCommand;
+import dev.stsv.core.cosmetic.CosmeticModule;
+import dev.stsv.core.skin.SkinModule;
 import dev.stsv.core.content.ContentModule;
 import dev.stsv.core.furniture.FurnitureModule;
 import dev.stsv.core.gui.ItemBrowser;
@@ -27,6 +30,8 @@ public final class STSVPlugin extends JavaPlugin {
     private RecipeModule recipes;
     private FurnitureModule furniture;
     private PackModule pack;
+    private SkinModule skins;
+    private CosmeticModule cosmetics;
     private ItemBrowser itemBrowser;
     private RecipeEditor recipeEditor;
 
@@ -44,6 +49,8 @@ public final class STSVPlugin extends JavaPlugin {
         modules.register(content = new ContentModule());
         modules.register(recipes = new RecipeModule());
         modules.register(furniture = new FurnitureModule());
+        modules.register(skins = new SkinModule());
+        modules.register(cosmetics = new CosmeticModule());
         modules.register(pack = new PackModule());
         modules.enableAll();
 
@@ -58,6 +65,8 @@ public final class STSVPlugin extends JavaPlugin {
             cmd.setExecutor(command);
             cmd.setTabCompleter(command);
         }
+        PluginCommand wardrobe = getCommand("wardrobe");
+        if (wardrobe != null) wardrobe.setExecutor(new WardrobeCommand(this));
     }
 
     @Override
@@ -75,6 +84,8 @@ public final class STSVPlugin extends JavaPlugin {
     public RecipeModule recipes() { return recipes; }
     public FurnitureModule furniture() { return furniture; }
     public PackModule pack() { return pack; }
+    public SkinModule skins() { return skins; }
+    public CosmeticModule cosmetics() { return cosmetics; }
     public ItemBrowser itemBrowser() { return itemBrowser; }
     public RecipeEditor recipeEditor() { return recipeEditor; }
 }

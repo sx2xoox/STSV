@@ -34,7 +34,7 @@ import java.util.stream.Stream;
 /**
  * Loads content packs from plugins/STSV/contents and keeps the custom item registry.
  */
-public final class ContentModule implements StsvModule {
+public final class ContentModule implements StsvModule, org.bukkit.event.Listener {
 
     private STSVPlugin plugin;
     private Logger log;
@@ -54,11 +54,24 @@ public final class ContentModule implements StsvModule {
         this.contentsDir = plugin.getDataFolder().toPath().resolve("contents");
         syncDefaultContent();
         load();
+        org.bukkit.Bukkit.getPluginManager().registerEvents(this, plugin);
     }
 
     @Override
     public void reload() throws IOException {
         load();
+    }
+
+    /** Food effects the data components cannot express (extra healing). */
+    @org.bukkit.event.EventHandler(ignoreCancelled = true)
+    public void onConsume(org.bukkit.event.player.PlayerItemConsumeEvent e) {
+        itemOf(e.getItem()).map(CustomItem::food).filter(f -> f.heal() > 0)
+                .ifPresent(f -> e.getPlayer().heal(f.heal()));
+    }
+
+    @Override
+    public void disable() {
+        org.bukkit.event.HandlerList.unregisterAll(this);
     }
 
     // ------------------------------------------------------------------------------------------
@@ -149,7 +162,10 @@ public final class ContentModule implements StsvModule {
         }
     }
 
+    private ContentPack currentPack; // pack whose item is being parsed (for relative model names)
+
     private CustomItem parseItem(ContentPack pack, String id, ConfigurationSection sec) {
+        currentPack = pack;
         if (!id.matches("[a-z0-9_./-]+")) throw new IllegalArgumentException("id는 영문 소문자/숫자/_만 가능");
         NamespacedKey key = new NamespacedKey(pack.namespace(), id);
 
@@ -205,8 +221,103 @@ public final class ContentModule implements StsvModule {
             equipment = new CustomItem.Equipment(slot, asset);
         }
 
+        CustomItem.Food food = sec.isConfigurationSection("food") ? parseFood(sec.getConfigurationSection("food")) : null;
+        CustomItem.Skin skin = sec.isConfigurationSection("skin") ? parseSkin(pack, sec.getConfigurationSection("skin")) : null;
+        CustomItem.Cosmetic cosmetic = null;
+        if (sec.isConfigurationSection("cosmetic")) {
+            String slot = sec.getString("cosmetic.slot", "head").toLowerCase(Locale.ROOT);
+            if (!slot.equals("head")) throw new IllegalArgumentException("cosmetic.slot 은 현재 head 만 지원");
+            cosmetic = new CustomItem.Cosmetic(org.bukkit.inventory.EquipmentSlot.HEAD);
+        }
+
         return new CustomItem(key, pack, material, sec.getString("name"), sec.getStringList("lore"), model,
-                maxStack, glint, sec.getBoolean("unbreakable", false), furniture, fuel, equipment);
+                maxStack, glint, sec.getBoolean("unbreakable", false), furniture, fuel, equipment, food, skin, cosmetic);
+    }
+
+    /**
+     * food:
+     *   nutrition: 6          # hunger points restored (bread = 5)
+     *   saturation: 7.2
+     *   always-eat: false     # can be eaten with a full hunger bar
+     *   seconds: 1.6          # time to eat
+     *   animation: eat        # eat, drink, block, bow, spear, crossbow, spyglass, toot_horn, brush, bundle, none
+     *   sound: entity.generic.eat
+     *   remainder: minecraft:bowl
+     *   cooldown: 0           # seconds
+     *   effects: [ { effect: speed, seconds: 10, level: 1, chance: 1.0 } ]
+     *   clear-effects: false  # like milk
+     *   heal: 0               # extra half-hearts
+     */
+    private CustomItem.Food parseFood(ConfigurationSection f) {
+        String anim = f.getString("animation", "eat").toLowerCase(Locale.ROOT);
+        io.papermc.paper.datacomponent.item.consumable.ItemUseAnimation animation = switch (anim) {
+            case "eat" -> io.papermc.paper.datacomponent.item.consumable.ItemUseAnimation.EAT;
+            case "drink" -> io.papermc.paper.datacomponent.item.consumable.ItemUseAnimation.DRINK;
+            case "block" -> io.papermc.paper.datacomponent.item.consumable.ItemUseAnimation.BLOCK;
+            case "bow" -> io.papermc.paper.datacomponent.item.consumable.ItemUseAnimation.BOW;
+            case "spear" -> io.papermc.paper.datacomponent.item.consumable.ItemUseAnimation.SPEAR;
+            case "crossbow" -> io.papermc.paper.datacomponent.item.consumable.ItemUseAnimation.CROSSBOW;
+            case "spyglass" -> io.papermc.paper.datacomponent.item.consumable.ItemUseAnimation.SPYGLASS;
+            case "toot_horn" -> io.papermc.paper.datacomponent.item.consumable.ItemUseAnimation.TOOT_HORN;
+            case "brush" -> io.papermc.paper.datacomponent.item.consumable.ItemUseAnimation.BRUSH;
+            case "bundle" -> io.papermc.paper.datacomponent.item.consumable.ItemUseAnimation.BUNDLE;
+            case "none" -> io.papermc.paper.datacomponent.item.consumable.ItemUseAnimation.NONE;
+            default -> throw new IllegalArgumentException("food.animation 을 알 수 없음: " + anim);
+        };
+        String soundId = f.getString("sound", animation == io.papermc.paper.datacomponent.item.consumable.ItemUseAnimation.DRINK
+                ? "entity.generic.drink" : "entity.generic.eat");
+        List<CustomItem.FoodEffect> effects = new ArrayList<>();
+        for (Object o : f.getList("effects", List.of())) {
+            if (!(o instanceof java.util.Map<?, ?> m)) throw new IllegalArgumentException("food.effects 항목 형식 오류");
+            String id = String.valueOf(m.get("effect"));
+            NamespacedKey ek = NamespacedKey.fromString(id.contains(":") ? id : "minecraft:" + id);
+            org.bukkit.potion.PotionEffectType type = ek == null ? null : org.bukkit.Registry.EFFECT.get(ek);
+            if (type == null) throw new IllegalArgumentException("알 수 없는 효과: " + id);
+            int ticks = (int) Math.round(toDouble(m.get("seconds"), 5) * 20);
+            int level = (int) toDouble(m.get("level"), 1);
+            float chance = (float) toDouble(m.get("chance"), 1);
+            effects.add(new CustomItem.FoodEffect(new org.bukkit.potion.PotionEffect(type, ticks, Math.max(0, level - 1)), chance));
+        }
+        int nutrition = f.getInt("nutrition", 4);
+        if (nutrition < 0) throw new IllegalArgumentException("food.nutrition 은 0 이상");
+        return new CustomItem.Food(nutrition, (float) f.getDouble("saturation", nutrition * 1.2),
+                f.getBoolean("always-eat", false), (float) Math.max(0.05, f.getDouble("seconds", 1.6)), animation,
+                net.kyori.adventure.key.Key.key(soundId), f.getString("remainder"),
+                (float) Math.max(0, f.getDouble("cooldown", 0)), List.copyOf(effects),
+                f.getBoolean("clear-effects", false), Math.max(0, f.getDouble("heal", 0)));
+    }
+
+    private static double toDouble(Object o, double def) {
+        if (o == null) return def;
+        if (o instanceof Number n) return n.doubleValue();
+        try {
+            return Double.parseDouble(o.toString());
+        } catch (NumberFormatException e) {
+            throw new IllegalArgumentException("숫자가 아님: " + o);
+        }
+    }
+
+    /**
+     * skin:
+     *   model: test_sword_skin                 # .bbmodel in this pack, or a full item model id "ns:id"
+     *   applies-to: ["#minecraft:swords", "stsv:test_sword"]
+     *   equipment: stsv:test                   # optional, armor skins
+     *   return-on-remove: true                 # give the book back when the skin is removed
+     */
+    private CustomItem.Skin parseSkin(ContentPack pack, ConfigurationSection s) {
+        String m = s.getString("model");
+        if (m == null) throw new IllegalArgumentException("skin.model 이 없음");
+        NamespacedKey model;
+        if (m.contains(":")) {
+            model = NamespacedKey.fromString(m);
+        } else {
+            if (!Files.exists(pack.models().resolve(m + ".bbmodel"))) throw new IllegalArgumentException("models/" + m + ".bbmodel 이 없음");
+            model = new NamespacedKey(pack.namespace(), "model/" + m);
+        }
+        List<String> applies = s.getStringList("applies-to");
+        if (applies.isEmpty()) throw new IllegalArgumentException("skin.applies-to 가 비어 있음");
+        NamespacedKey asset = s.isString("equipment") ? NamespacedKey.fromString(s.getString("equipment")) : null;
+        return new CustomItem.Skin(model, List.copyOf(applies), asset, s.getBoolean("return-on-remove", true));
     }
 
     private FurnitureSpec parseFurniture(ConfigurationSection f) {
@@ -246,9 +357,30 @@ public final class ContentModule implements StsvModule {
             }
             seats.add(new FurnitureSpec.Seat(cell, s.getDouble("height", 0.5)));
         }
+        // parts: [ { model: test_fan_blade, position: [16, 31, 8], spin: { axis: y, rpm: 40 } } ]
+        List<FurnitureSpec.Part> parts = new ArrayList<>();
+        for (Object o : f.getList("parts", List.of())) {
+            if (!(o instanceof java.util.Map<?, ?> map)) throw new IllegalArgumentException("parts 항목 형식 오류");
+            YamlConfiguration p = new YamlConfiguration();
+            map.forEach((k, v) -> p.set(String.valueOf(k), v));
+            String m = p.getString("model");
+            if (m == null) throw new IllegalArgumentException("parts.model 이 없음");
+            NamespacedKey key = m.contains(":") ? NamespacedKey.fromString(m) : new NamespacedKey(currentPack.namespace(), "model/" + m);
+            if (!m.contains(":") && !Files.exists(currentPack.models().resolve(m + ".bbmodel"))) {
+                throw new IllegalArgumentException("parts: models/" + m + ".bbmodel 이 없음");
+            }
+            String axis = null;
+            float rpm = 0;
+            if (p.isConfigurationSection("spin")) {
+                axis = p.getString("spin.axis", "y").toLowerCase(Locale.ROOT);
+                if (!List.of("x", "y", "z").contains(axis)) throw new IllegalArgumentException("spin.axis 는 x, y, z");
+                rpm = (float) p.getDouble("spin.rpm", 30);
+            }
+            parts.add(new FurnitureSpec.Part(key, vec(p.getDoubleList("position"), 8), axis, rpm));
+        }
         return new FurnitureSpec(cells, f.getBoolean("solid", true), rotation, f.getString("behavior"),
                 vec(f.getDoubleList("translation"), 0), vec(f.getDoubleList("scale"), 1),
-                Math.clamp(f.getInt("brightness", -1), -1, 15), List.copyOf(seats));
+                Math.clamp(f.getInt("brightness", -1), -1, 15), List.copyOf(seats), List.copyOf(parts));
     }
 
     private static int num(Object o) {
@@ -274,12 +406,12 @@ public final class ContentModule implements StsvModule {
             }
         }
         DefaultContentSync.Report r = DefaultContentSync.sync(contentsDir, bundled, shippedHashes());
-        if (r.installed() + r.updated() > 0) {
-            log.info("기본 콘텐츠: 새 파일 " + r.installed() + "개, 업데이트 " + r.updated() + "개");
+        if (r.installed() + r.updated() + r.removed() > 0) {
+            log.info("기본 콘텐츠: 새 파일 " + r.installed() + "개, 업데이트 " + r.updated() + "개, 삭제 " + r.removed() + "개");
         }
         for (String rel : r.kept()) {
-            log.warning("기본 콘텐츠 '" + rel + "' 는 직접 수정된 파일이라 업데이트하지 않았습니다. "
-                    + "새 버전으로 바꾸려면 파일을 지우고 서버를 다시 시작하세요.");
+            log.warning("기본 콘텐츠 '" + rel + "' 는 직접 수정된 파일이라 업데이트/삭제하지 않았습니다. "
+                    + "새 버전으로 맞추려면 파일을 지우고 서버를 다시 시작하세요.");
         }
     }
 

@@ -1,13 +1,26 @@
 package dev.stsv.core.content;
 
+import dev.stsv.core.STSVPlugin;
 import dev.stsv.core.util.Text;
+import io.papermc.paper.datacomponent.DataComponentTypes;
+import io.papermc.paper.datacomponent.item.Consumable;
+import io.papermc.paper.datacomponent.item.FoodProperties;
+import io.papermc.paper.datacomponent.item.UseCooldown;
+import io.papermc.paper.datacomponent.item.UseRemainder;
+import io.papermc.paper.datacomponent.item.consumable.ConsumeEffect;
+import io.papermc.paper.datacomponent.item.consumable.ItemUseAnimation;
+import net.kyori.adventure.key.Key;
 import org.bukkit.Material;
 import org.bukkit.NamespacedKey;
 import org.bukkit.inventory.ItemStack;
 import org.bukkit.inventory.meta.ItemMeta;
 import org.bukkit.persistence.PersistentDataType;
+import org.bukkit.potion.PotionEffect;
 
+import java.util.ArrayList;
 import java.util.List;
+import java.util.Map;
+import java.util.TreeMap;
 
 /**
  * A custom item defined in a content pack's items/*.yml.
@@ -24,13 +37,42 @@ public record CustomItem(
         boolean unbreakable,
         FurnitureSpec furniture,
         Integer fuel,
-        Equipment equipment
+        Equipment equipment,
+        Food food,
+        Skin skin,
+        Cosmetic cosmetic
 ) {
 
     /**
      * How the item looks when worn (armor). {@code asset} points at assets/&lt;ns&gt;/equipment/&lt;id&gt;.json.
      */
     public record Equipment(org.bukkit.inventory.EquipmentSlot slot, NamespacedKey asset) {}
+
+    /**
+     * Makes the item edible.
+     *
+     * @param remainder item given back after eating (e.g. "minecraft:bowl"), or null
+     * @param cooldown  seconds before it can be eaten again, 0 = none
+     * @param heal      extra health restored on eating (half hearts), 0 = none (handled by the plugin)
+     */
+    public record Food(int nutrition, float saturation, boolean alwaysEat, float seconds, ItemUseAnimation animation,
+                       Key sound, String remainder, float cooldown, List<FoodEffect> effects, boolean clearEffects,
+                       double heal) {}
+
+    /** A potion effect applied on eating, with a chance 0..1. */
+    public record FoodEffect(PotionEffect effect, float chance) {}
+
+    /**
+     * A skin book: changes how matching items look, nothing else.
+     *
+     * @param model     item model to show (e.g. stsv:model/test_sword_skin)
+     * @param appliesTo "#minecraft:swords", "minecraft:bow", "stsv:test_sword"
+     * @param asset     optional equipment asset for armor skins
+     */
+    public record Skin(NamespacedKey model, List<String> appliesTo, NamespacedKey asset, boolean returnOnRemove) {}
+
+    /** A cosmetic shown on the player in the given slot (only "head" for now). */
+    public record Cosmetic(org.bukkit.inventory.EquipmentSlot slot) {}
 
     /** Persistent tag that marks an ItemStack as this custom item. */
     public static NamespacedKey idKey() {
@@ -48,6 +90,7 @@ public record CustomItem(
         return furniture != null;
     }
 
+    @SuppressWarnings("UnstableApiUsage")
     public ItemStack create(int amount) {
         ItemStack stack = new ItemStack(material, Math.max(1, amount));
         ItemMeta meta = stack.getItemMeta();
@@ -66,6 +109,34 @@ public record CustomItem(
         }
         meta.getPersistentDataContainer().set(idKey(), PersistentDataType.STRING, key.asString());
         stack.setItemMeta(meta);
+
+        if (food != null) applyFood(stack);
         return stack;
+    }
+
+    @SuppressWarnings("UnstableApiUsage")
+    private void applyFood(ItemStack stack) {
+        stack.setData(DataComponentTypes.FOOD, FoodProperties.food()
+                .nutrition(food.nutrition())
+                .saturation(food.saturation())
+                .canAlwaysEat(food.alwaysEat())
+                .build());
+        Consumable.Builder consumable = Consumable.consumable()
+                .consumeSeconds(food.seconds())
+                .animation(food.animation())
+                .hasConsumeParticles(food.animation() == ItemUseAnimation.EAT);
+        if (food.sound() != null) consumable.sound(food.sound());
+        // group effects by chance: one apply_effects entry per probability
+        Map<Float, List<PotionEffect>> byChance = new TreeMap<>();
+        for (FoodEffect fe : food.effects()) byChance.computeIfAbsent(fe.chance(), k -> new ArrayList<>()).add(fe.effect());
+        byChance.forEach((chance, effects) -> consumable.addEffect(ConsumeEffect.applyStatusEffects(effects, chance)));
+        if (food.clearEffects()) consumable.addEffect(ConsumeEffect.clearAllStatusEffects());
+        stack.setData(DataComponentTypes.CONSUMABLE, consumable.build());
+        if (food.remainder() != null && STSVPlugin.get() != null) {
+            stack.setData(DataComponentTypes.USE_REMAINDER, UseRemainder.useRemainder(STSVPlugin.get().recipes().stack(food.remainder(), 1)));
+        }
+        if (food.cooldown() > 0) {
+            stack.setData(DataComponentTypes.USE_COOLDOWN, UseCooldown.useCooldown(food.cooldown()).cooldownGroup(key).build());
+        }
     }
 }

@@ -21,8 +21,13 @@ def _new(fill=None):
     return Image.new("RGBA", (S, S), fill or (0, 0, 0, 0))
 
 
+NOISE = 0.5  # v3: half the pixel noise of v2 -> cleaner surfaces
+
+
 def _j(rnd, i, chance=0.2):
-    return i + rnd.choice((-1, 1)) if rnd.random() < chance else i
+    # the random draw always happens so seeds stay stable when NOISE changes
+    roll, step = rnd.random(), rnd.choice((-1, 1))
+    return i + step if roll < chance * NOISE else i
 
 
 # ------------------------------------------------------------------------------------------------
@@ -381,6 +386,101 @@ def magic(seed=100):
 
 
 # ------------------------------------------------------------------------------------------------
+# TEST-ONLY "dev textures": instantly recognisable as placeholders (grid + border)
+# ------------------------------------------------------------------------------------------------
+
+def _dev_grid(ramp_name, seed):
+    rnd = random.Random(seed)
+    im = _new()
+    px = im.load()
+    for y in range(S):
+        for x in range(S):
+            i = 2
+            if x % 8 == 0 or y % 8 == 0:
+                i = 1                     # grid lines every half block
+            if x % 8 == 4 and y % 8 == 4:
+                i = 3                     # centre dots
+            px[x, y] = ramp(ramp_name, _j(rnd, i, 0.05))
+    return im
+
+
+def dev_orange(seed=201):
+    return _dev_grid("test_orange", seed)
+
+
+def dev_grey(seed=202):
+    return _dev_grid("test_grey", seed)
+
+
+def dev_purple(seed=203):
+    return _dev_grid("test_purple", seed)
+
+
+def dev_stripe():
+    im = _new()
+    px = im.load()
+    for y in range(S):
+        for x in range(S):
+            px[x, y] = ramp("test_purple", 2) if ((x + y) // 4) % 2 else ramp("test_grey", 3)
+    return im
+
+
+def _dev_screen_frame(k):
+    """Teal screen with a bright scan line moving down (frame k of 8)."""
+    im = _new()
+    px = im.load()
+    for y in range(S):
+        for x in range(S):
+            d = (y - 2 * k) % 16
+            i = 3 if d == 0 else 2 if d in (1, 15) else 1
+            if x in (0, 15) or y in (0, 15):
+                i = 0
+            px[x, y] = ramp("test_teal", i)
+    return im
+
+
+def dev_screen():
+    return _dev_screen_frame(0)
+
+
+def dev_fan():
+    im = _new()
+    px = im.load()
+    for y in range(S):
+        for x in range(S):
+            px[x, y] = ramp("test_grey", 3 if y < 8 else 2)
+    return im
+
+
+def tomato_skin(seed=210):
+    """Glossy tomato: one soft highlight, otherwise clean."""
+    rnd = random.Random(seed)
+    im = _new()
+    px = im.load()
+    for y in range(S):
+        for x in range(S):
+            i = 2
+            if 2 <= x <= 5 and 2 <= y <= 4:
+                i = 3
+            if x in (3, 4) and y == 3:
+                i = 4                     # shine
+            if y >= 13:
+                i = 1
+            px[x, y] = ramp("tomato", _j(rnd, i, 0.05))
+    return im
+
+
+def calyx(seed=211):
+    rnd = random.Random(seed)
+    im = _new()
+    px = im.load()
+    for y in range(S):
+        for x in range(S):
+            px[x, y] = ramp("leaf", _j(rnd, 3 if (x + y) % 5 else 2, 0.05))
+    return im
+
+
+# ------------------------------------------------------------------------------------------------
 # 2D item icons (transparent background, outlined)
 # ------------------------------------------------------------------------------------------------
 
@@ -478,7 +578,30 @@ SURFACES = {
     "gold_trim": gold_trim,
     "crystal": crystal,
     "magic": magic,
+    "dev_orange": dev_orange,
+    "dev_grey": dev_grey,
+    "dev_purple": dev_purple,
+    "dev_stripe": dev_stripe,
+    "dev_screen": dev_screen,
+    "dev_fan": dev_fan,
+    "tomato_skin": tomato_skin,
+    "calyx": calyx,
 }
+
+# Animated textures: name -> (function returning a list of 16x16 frames, ticks per frame).
+# SURFACES[name] must return the first frame (used for previews and validation).
+ANIMATED = {
+    "dev_screen": (lambda: [_dev_screen_frame(k) for k in range(8)], 2),
+}
+
+
+def animation_strip(name):
+    frames = ANIMATED[name][0]()
+    strip = Image.new("RGBA", (S, S * len(frames)))
+    for i, f in enumerate(frames):
+        strip.paste(f, (0, i * S))
+    return strip
+
 
 # Textures with lines that must continue from one face to the next (seams, bands).
 # The model validator requires these lines to be mirror-symmetric.
@@ -517,9 +640,4 @@ def icon_coke():
     return im
 
 
-ICONS = {
-    "gold_chunk": icon_gold_chunk,
-    "steel_ingot": icon_steel_ingot,
-    "copper_plate": icon_copper_plate,
-    "coke": icon_coke,
-}
+ICONS = {}  # real-content 2D icons; the test set's icons live in tools/assetgen/special.py

@@ -24,9 +24,20 @@ public record FurnitureSpec(
         Vector3f translation,
         Vector3f scale,
         int brightness,
-        List<Seat> seats
+        List<Seat> seats,
+        List<Part> parts
 ) {
     public enum Rotation { CARDINAL, FREE }
+
+    /**
+     * An extra model shown as its own display entity, e.g. a fan blade that spins.
+     *
+     * @param model    item model key of the part (a .bbmodel in the pack: "&lt;ns&gt;:model/&lt;name&gt;")
+     * @param position where the part's centre goes, in the furniture's model coordinates (16 = 1 block)
+     * @param spinAxis "x", "y" or "z" to spin around, or null for a still part
+     * @param rpm      turns per minute (negative = other way)
+     */
+    public record Part(org.bukkit.NamespacedKey model, Vector3f position, String spinAxis, float rpm) {}
 
     /**
      * @param cell   model-space cell the seat is in

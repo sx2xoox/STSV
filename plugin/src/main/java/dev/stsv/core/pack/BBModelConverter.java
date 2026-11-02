@@ -56,6 +56,16 @@ public final class BBModelConverter {
                 warnings.add("텍스처 '" + name + "'를 읽을 수 없음");
             } else {
                 textures.put(name + ".png", png);
+                // animated texture: frames stacked vertically (height = n * width) -> .mcmeta
+                int w = t.has("width") ? t.get("width").getAsInt() : 0;
+                int h = t.has("height") ? t.get("height").getAsInt() : 0;
+                if (w > 0 && h > w && h % w == 0) {
+                    int frameTime = t.has("frame_time") ? Math.max(1, t.get("frame_time").getAsInt()) : 1;
+                    String mcmeta = "{\"animation\":{\"frametime\":" + frameTime
+                            + (t.has("frame_interpolate") && t.get("frame_interpolate").getAsBoolean() ? ",\"interpolate\":true" : "")
+                            + "}}";
+                    textures.put(name + ".png.mcmeta", mcmeta.getBytes(StandardCharsets.UTF_8));
+                }
             }
             texRefs.addProperty(String.valueOf(i), textureFolder + "/" + name);
             if (t.has("particle") && t.get("particle").getAsBoolean()) {
@@ -145,6 +155,7 @@ public final class BBModelConverter {
         model.add("textures", texRefs);
         model.add("elements", elements);
         if (bb.has("display")) model.add("display", bb.get("display"));
+        if (bb.has("front_gui_light") && bb.get("front_gui_light").getAsBoolean()) model.addProperty("gui_light", "front");
         return new Result(model, textures, warnings);
     }
 

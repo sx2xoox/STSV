@@ -21,45 +21,47 @@ CONTENT = REPO / "content" / "stsv"
 PREVIEWS = REPO / "docs" / "previews"
 BUILD = HERE / "build"
 
-MODELS = ["smelter", "potted_plant", "chair", "crystal_shrine"]  # tools/assetgen/models/<name>.py, each with build() -> Model
+RENDER = HERE / "render" / "render.mjs"
+
+
+def render_preview(json_path, png_path):
+    subprocess.run(["node", str(RENDER), str(json_path), str(png_path)], check=True)
 
 
 def main():
     render = "--render" in sys.argv
+    sys.path.insert(0, str(HERE))
+    from models.test_items import ALL
+    import special
+
     for d in (CONTENT / "models", CONTENT / "textures", BUILD, PREVIEWS):
         d.mkdir(parents=True, exist_ok=True)
 
     built = {}
-    for name in MODELS:
-        model = importlib.import_module(f"models.{name}").build()
+    for name, fn in ALL.items():
+        model = fn()
         built[name] = model
         model.write(CONTENT / "models" / f"{name}.bbmodel", BUILD / f"{name}.preview.json")
-        print(f"model   {name}: {len(model.elements)} elements, textures {model.textures_used()}")
+        print(f"model   {name}: {len(model.elements)} elements")
         if render:
-            subprocess.run(["node", str(HERE / "render" / "render.mjs"),
-                            str(BUILD / f"{name}.preview.json"), str(PREVIEWS / f"{name}.png")], check=True)
-
-    if render:
-        lineup = [("crystal_shrine", 0, 0), ("chair", 24, 0), ("potted_plant", 48, 0), ("smelter", 72, 0)]
-        scene(built, lineup, BUILD / "lineup.preview.json")
-        subprocess.run(["node", str(HERE / "render" / "render.mjs"),
-                        str(BUILD / "lineup.preview.json"), str(PREVIEWS / "lineup.png")], check=True)
+            render_preview(BUILD / f"{name}.preview.json", PREVIEWS / f"{name}.png")
 
     for name, fn in T.ICONS.items():
         fn().save(CONTENT / "textures" / f"{name}.png")
         print(f"icon    {name}")
 
-    import special
-    names = special.write(CONTENT, BUILD)
+    names = special.write(CONTENT)
     print(f"special {', '.join(names)}")
     special_sheet(PREVIEWS / "special_items.png")
+
     if render:
-        for name in ("knight_shield", "knight_shield_blocking"):
-            subprocess.run(["node", str(HERE / "render" / "render.mjs"),
-                            str(BUILD / f"{name}.preview.json"), str(BUILD / f"{name}.png")], check=True)
+        # world objects side by side (fan blade placed where the machine spins it)
+        lineup = [("test_machine", 0, 0), ("test_fan_blade", 8, 0, 23), ("test_bench", 40, 0),
+                  ("test_rug", 78, 0), ("tomato_mask", 100, 0)]
+        scene(built, lineup, BUILD / "lineup.preview.json")
+        render_preview(BUILD / "lineup.preview.json", PREVIEWS / "lineup.png")
         armor_preview(BUILD / "armor.preview.json")
-        subprocess.run(["node", str(HERE / "render" / "render.mjs"),
-                        str(BUILD / "armor.preview.json"), str(PREVIEWS / "armor_worn.png")], check=True)
+        render_preview(BUILD / "armor.preview.json", PREVIEWS / "armor_worn.png")
 
     style_sheet(PREVIEWS / "style_sheet.png")
 
@@ -68,16 +70,18 @@ def scene(models, placements, path: Path, extra_elements=(), extra_textures=None
     """Merges several models (offset in model units) into one preview, to judge them side by side."""
     import json
     textures, elements = dict(extra_textures or {}), list(extra_elements)
-    for name, ox, oz in placements:
+    for placement in placements:
+        name, ox, oz = placement[:3]
+        oy = placement[3] if len(placement) > 3 else 0
         data = models[name].to_preview()
         textures.update(data["textures"])
         for e in data["elements"]:
             e = dict(e)
-            e["from"] = [e["from"][0] + ox, e["from"][1], e["from"][2] + oz]
-            e["to"] = [e["to"][0] + ox, e["to"][1], e["to"][2] + oz]
+            e["from"] = [e["from"][0] + ox, e["from"][1] + oy, e["from"][2] + oz]
+            e["to"] = [e["to"][0] + ox, e["to"][1] + oy, e["to"][2] + oz]
             if e.get("rotation"):
                 axis, angle, origin = e["rotation"]
-                e["rotation"] = [axis, angle, [origin[0] + ox, origin[1], origin[2] + oz]]
+                e["rotation"] = [axis, angle, [origin[0] + ox, origin[1] + oy, origin[2] + oz]]
             elements.append(e)
     out = {"textures": textures, "elements": elements, "grid": False,
            "views": views or [{"x": 0, "y": 0, "w": 1600, "h": 1000, "az": 20, "el": 18, "k": 2.15}]}
@@ -88,12 +92,11 @@ def special_sheet(path: Path):
     """Every state of every special item, so animations can be checked frame by frame."""
     import special
     from stsv_assets import icons as I
+    gen = lambda n: special.TEXTURED_MODELS[n][0]()
     rows = [
-        ("검 / 갑옷", [("sword", I.knight_sword()), ("helmet", I.steel_helmet()), ("chest", I.steel_chestplate()),
-                     ("legs", I.steel_leggings()), ("boots", I.steel_boots())]),
-        ("활", [(n.replace("hunter_bow", "bow"), g()) for n, (g, _) in special.TEXTURED_MODELS.items() if n.startswith("hunter_bow")]),
-        ("쇠뇌", [(n.replace("iron_crossbow", "xbow"), g()) for n, (g, _) in special.TEXTURED_MODELS.items() if n.startswith("iron_crossbow")]),
-        ("낚싯대", [(n.replace("angler_rod", "rod"), g()) for n, (g, _) in special.TEXTURED_MODELS.items() if n.startswith("angler_rod")]),
+        ("2D", [(n, f()) for n, f in special.ICONS.items()]),
+        ("bow", [(n.replace("test_", ""), gen(n)) for n in special.TEXTURED_MODELS if n.startswith("test_bow")]),
+        ("crossbow", [(n.replace("test_crossbow", "xbow"), gen(n)) for n in special.TEXTURED_MODELS if n.startswith("test_crossbow")]),
     ]
     cell, pad = 96, 10
     width = pad + 6 * (cell + pad)
@@ -109,7 +112,9 @@ def special_sheet(path: Path):
             im.paste(bg, (x, y))
             d.text((x, y + cell + 2), name, fill=(200, 200, 200, 255))
         y += cell + 28
-    for layer in (I.steel_humanoid(), I.steel_humanoid_leggings()):
+    with I.themed(special.TEST_THEME):
+        layers = (I.steel_humanoid(),)
+    for layer in layers:
         bg = Image.new("RGBA", (256, 128), (45, 48, 56, 255))
         bg.alpha_composite(layer.resize((256, 128), Image.NEAREST))
         im.paste(bg, (pad, y))
@@ -130,8 +135,10 @@ def armor_preview(path: Path):
         im.save(buf, "PNG")
         return "data:image/png;base64," + base64.b64encode(buf.getvalue()).decode()
 
-    tex = {"wood_grain": data_url(T.SURFACES["wood_grain"]()),
-           "armor": data_url(I.steel_humanoid()), "legs": data_url(I.steel_humanoid_leggings())}
+    import special
+    with I.themed(special.TEST_THEME):
+        armor_tex = I.steel_humanoid()
+    tex = {"wood_grain": data_url(T.SURFACES["wood_grain"]()), "armor": data_url(armor_tex)}
     els = []
 
     def cube(frm, to, texture, faces_uv=None):
@@ -161,15 +168,10 @@ def armor_preview(path: Path):
     }
     for frm, to in parts.values():
         cube(frm, to, "wood_grain")
-    armor(*parts["head"], I.HEAD, "armor", 1.0)
+    # the test chestplate covers the body and both arms
     armor(*parts["body"], I.BODY, "armor", 1.0)
     armor(*parts["arm_r"], I.ARM, "armor", 1.0)
     armor(*parts["arm_l"], I.ARM, "armor", 1.0)
-    armor(*parts["leg_r"], I.LEG, "armor", 1.0)
-    armor(*parts["leg_l"], I.LEG, "armor", 1.0)
-    armor(*parts["body"], I.BODY, "legs", 0.5)
-    armor(*parts["leg_r"], I.LEG, "legs", 0.5)
-    armor(*parts["leg_l"], I.LEG, "legs", 0.5)
     path.write_text(json.dumps({"textures": tex, "elements": els}))
 
 
@@ -203,5 +205,4 @@ def style_sheet(path: Path):
 
 
 if __name__ == "__main__":
-    sys.path.insert(0, str(HERE))
     main()
