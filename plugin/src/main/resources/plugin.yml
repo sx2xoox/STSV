@@ -10,24 +10,25 @@ libraries:
   - com.zaxxer:HikariCP:6.2.1
   - org.mariadb.jdbc:mariadb-java-client:3.5.1
 commands:
-  stsv:
-    description: STSV 관리 명령어
-    usage: /stsv <give|browse|list|info|recipe|fuel|skin|cosmetic|wardrobe|reload|pack>
+  관리:
+    description: STSV 관리 명령어 (/관리 도움말)
+    aliases: [stsv]
+    usage: /관리 <지급|아이템목록|목록|정보|레시피|연료|스킨|치장|옷장|보스|기간|칭호|통계|리로드|리소스팩>
     permission: stsv.admin
-  wardrobe:
+  옷장:
     description: 옷장 (옷장 구역 안에서)
-    aliases: [옷장]
-    usage: /wardrobe
+    aliases: [wardrobe]
+    usage: /옷장
     permission: stsv.wardrobe
-  profile:
+  프로필:
     description: 프로필 (기록, 칭호)
-    aliases: [프로필]
-    usage: /profile [플레이어]
+    aliases: [profile]
+    usage: /프로필 [플레이어]
     permission: stsv.profile
-  hall:
+  명예의전당:
     description: 명예의 전당
-    aliases: [명예의전당]
-    usage: /hall [기간]
+    aliases: [hall]
+    usage: /명예의전당 [기간]
     permission: stsv.profile
 permissions:
   stsv.profile:

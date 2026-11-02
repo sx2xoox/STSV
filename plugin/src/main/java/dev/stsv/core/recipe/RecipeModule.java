@@ -197,7 +197,7 @@ public final class RecipeModule implements StsvModule, Listener {
         Path file = pack.recipes().resolve(EDITOR_FILE);
         Files.createDirectories(file.getParent());
         YamlConfiguration yaml = YamlConfiguration.loadConfiguration(file.toFile());
-        yaml.options().setHeader(List.of("게임 안 레시피 편집기(/stsv recipe)가 관리하는 파일입니다. 직접 고쳐도 됩니다."));
+        yaml.options().setHeader(List.of("게임 안 레시피 편집기(/관리 레시피)가 관리하는 파일입니다. 직접 고쳐도 됩니다."));
         yaml.set(key.getKey(), null);
         data.forEach((k, v) -> yaml.set(key.getKey() + "." + k, v));
         yaml.save(file.toFile());
@@ -224,7 +224,7 @@ public final class RecipeModule implements StsvModule, Listener {
                 .orElseThrow(() -> new IllegalArgumentException("'" + namespace + "' 네임스페이스의 콘텐츠 팩이 없음"));
         Path file = pack.dir().resolve(FUELS_FILE);
         YamlConfiguration yaml = YamlConfiguration.loadConfiguration(file.toFile());
-        yaml.options().setHeader(List.of("화로 연료 시간 (틱, 20틱 = 1초, 석탄 = 1600). /stsv fuel 로도 편집됩니다."));
+        yaml.options().setHeader(List.of("화로 연료 시간 (틱, 20틱 = 1초, 석탄 = 1600). /관리 연료 로도 편집됩니다."));
         yaml.set(id, ticks);
         yaml.save(file.toFile());
         loadFuels();

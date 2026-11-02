@@ -22,7 +22,7 @@ public final class ProfileCommand implements TabExecutor {
 
     @Override
     public boolean onCommand(@NotNull CommandSender sender, @NotNull Command cmd, @NotNull String label, String @NotNull [] args) {
-        if (cmd.getName().equals("hall")) {
+        if (cmd.getName().equals("명예의전당")) {
             plugin.profiles().showHall(sender, args.length > 0 ? args[0] : null);
             return true;
         }
@@ -48,7 +48,7 @@ public final class ProfileCommand implements TabExecutor {
 
     @Override
     public List<String> onTabComplete(@NotNull CommandSender sender, @NotNull Command cmd, @NotNull String label, String @NotNull [] args) {
-        if (cmd.getName().equals("profile") && args.length == 1) {
+        if (cmd.getName().equals("프로필") && args.length == 1) {
             return Bukkit.getOnlinePlayers().stream().map(Player::getName).filter(n -> n.toLowerCase().startsWith(args[0].toLowerCase())).toList();
         }
         return List.of();

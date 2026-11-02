@@ -1,4 +1,4 @@
-# 보스 정의. /stsv boss spawn <id>
+# 보스 정의. /관리 보스 소환 <id>
 #
 # 판정(체력, 이동, 충돌)은 보이지 않는 철 골렘이 맡고, 겉모습은 관절(bone)마다 하나씩 띄운 3D 모델이 맡습니다.
 # 좌표는 모델 단위(16 = 1블록), 원점 = 발밑 가운데, 앞 = -z(북쪽). 관절 모델(.bbmodel)은 회전 중심(pivot)이
@@ -186,8 +186,6 @@ test_golem:
         body: stsv:model/test_golem_body_alert
         head: stsv:model/test_golem_head_alert
 
-  # 처치에 참여한(피해를 준) 모두에게 주는 칭호 (titles/*.yml)
-  title: stsv:golem_breaker
   drops:
     - { item: stsv:test_material, amount: [4, 8] }
     - { item: stsv:test_fuel, amount: [2, 4] }

@@ -62,8 +62,8 @@ class ProfileStoreTest {
         s.init();
         s.seen(a, "Alpha", 1);
         s.start("kingdom-1", "왕국 1기", 10);
-        s.grantTitle(a, "stsv:executioner_slayer", 11);
-        s.equipTitle(a, "stsv:executioner_slayer");
+        s.grantTitle(a, "stsv:test_title_orange", 11);
+        s.equipTitle(a, "stsv:test_title_orange");
         assertThrows(IllegalStateException.class, () -> s.start("x", "x", 12), "one period at a time");
         db.close();
 
@@ -72,9 +72,9 @@ class ProfileStoreTest {
         r.init();
         assertEquals("kingdom-1", r.current().orElseThrow().id());
         ProfileStore.Titles t = r.titles(a).get();
-        assertTrue(t.owned().contains("stsv:executioner_slayer"));
-        assertEquals("stsv:executioner_slayer", t.equipped());
-        r.revokeTitle(a, "stsv:executioner_slayer").get();
+        assertTrue(t.owned().contains("stsv:test_title_orange"));
+        assertEquals("stsv:test_title_orange", t.equipped());
+        r.revokeTitle(a, "stsv:test_title_orange").get();
         assertEquals(null, r.titles(a).get().equipped(), "revoking the worn title takes it off");
         assertEquals(a, r.findByName("alpha").get().orElseThrow());
         db2.close();

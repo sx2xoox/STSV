@@ -417,8 +417,6 @@ executioner:
       models:
         head: stsv:model/executioner_head_alert
 
-  # 처치에 참여한(피해를 준) 모두에게 주는 칭호 (titles/*.yml)
-  title: stsv:executioner_slayer
   drops:
     - { item: stsv:test_material, amount: [8, 14] }
     - { item: stsv:test_fuel, amount: [4, 8] }

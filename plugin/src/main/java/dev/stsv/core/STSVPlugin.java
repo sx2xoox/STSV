@@ -75,20 +75,20 @@ public final class STSVPlugin extends JavaPlugin {
         Bukkit.getPluginManager().registerEvents(recipeEditor, this);
 
         StsvCommand command = new StsvCommand(this);
-        PluginCommand cmd = getCommand("stsv");
+        PluginCommand cmd = getCommand("관리");
         if (cmd != null) {
             cmd.setExecutor(command);
             cmd.setTabCompleter(command);
         }
         ProfileCommand profileCommand = new ProfileCommand(this);
-        for (String name : new String[]{"profile", "hall"}) {
+        for (String name : new String[]{"프로필", "명예의전당"}) {
             PluginCommand pc = getCommand(name);
             if (pc != null) {
                 pc.setExecutor(profileCommand);
                 pc.setTabCompleter(profileCommand);
             }
         }
-        PluginCommand wardrobe = getCommand("wardrobe");
+        PluginCommand wardrobe = getCommand("옷장");
         if (wardrobe != null) wardrobe.setExecutor(new WardrobeCommand(this));
     }
 

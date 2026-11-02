@@ -1,11 +1,11 @@
-# 칭호. 관리자 지급(/stsv title give), 보스 처치 보상(보스 정의의 title:) 등으로 얻습니다.
-# name 은 채팅/탭 이름 앞에 붙는 모습, description 은 /프로필 에서 보이는 설명
-executioner_slayer:
-  name: "<#c4313f>[처형자 사냥꾼]"
-  description: "처형자를 쓰러뜨렸다"
-golem_breaker:
-  name: "<#ffb35c>[골렘 파괴자]"
-  description: "테스트 골렘을 쓰러뜨렸다"
-pioneer:
-  name: "<#7fd1ff>[개척자]"
-  description: "STSV 첫 콘텐츠에 참여했다"
+# 칭호 (테스트 전용). 채팅/탭 이름 앞에 붙는 모습(name)과 /프로필 에서 보이는 설명(description).
+# 지급: /관리 칭호 지급 <플레이어> <칭호>, 회수: /관리 칭호 회수 <플레이어> <칭호>
+test_title_orange:
+  name: "<#ff9a3c>[테스트 칭호]"
+  description: "테스트 전용 칭호 (주황)"
+test_title_teal:
+  name: "<#3fd6c6>[테스트 칭호]"
+  description: "테스트 전용 칭호 (청록)"
+test_title_purple:
+  name: "<#c86bff>[테스트 칭호]"
+  description: "테스트 전용 칭호 (보라)"

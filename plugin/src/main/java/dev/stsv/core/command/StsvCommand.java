@@ -15,22 +15,67 @@ import org.bukkit.entity.Player;
 import org.bukkit.inventory.ItemStack;
 import org.jetbrains.annotations.NotNull;
 
+import java.util.LinkedHashMap;
 import java.util.List;
+import java.util.Map;
 import java.util.Locale;
 import java.util.Optional;
 
 public final class StsvCommand implements TabExecutor {
 
-    private static final List<String> SUBS = List.of("give", "browse", "list", "info", "reload", "pack", "recipe", "fuel", "skin", "cosmetic", "wardrobe", "boss", "period", "title", "stat");
     private final STSVPlugin plugin;
 
     public StsvCommand(STSVPlugin plugin) {
         this.plugin = plugin;
     }
 
+    // Korean command words (shown everywhere) -> internal names. The English words still work, unlisted.
+    private static final Map<String, String> ROOT = new LinkedHashMap<>();
+    private static final Map<String, Map<String, String>> SUB = new LinkedHashMap<>();
+    private static final Map<String, String> RECIPE_TYPES = new LinkedHashMap<>();
+
+    static {
+        String[][] root = {{"지급", "give"}, {"아이템목록", "browse"}, {"목록", "list"}, {"정보", "info"}, {"레시피", "recipe"},
+                {"연료", "fuel"}, {"스킨", "skin"}, {"치장", "cosmetic"}, {"옷장", "wardrobe"}, {"보스", "boss"},
+                {"기간", "period"}, {"칭호", "title"}, {"통계", "stat"}, {"리로드", "reload"}, {"리소스팩", "pack"}, {"도움말", "help"}};
+        for (String[] r : root) ROOT.put(r[0], r[1]);
+        sub("recipe", "생성", "create", "삭제", "delete", "목록", "list");
+        sub("fuel", "설정", "set", "제거", "remove", "목록", "list");
+        sub("skin", "해제", "remove");
+        sub("cosmetic", "지급", "give", "회수", "take", "정보", "info");
+        sub("wardrobe", "생성", "create", "삭제", "delete", "목록", "list");
+        sub("boss", "소환", "spawn", "목록", "list", "제거", "remove", "패턴", "force", "디버그", "debug", "좌표소환", "spawnat");
+        sub("period", "시작", "start", "종료", "end", "정보", "info");
+        sub("title", "지급", "give", "회수", "take", "목록", "list");
+        sub("stat", "추가", "add");
+        String[][] types = {{"모양조합", "shaped"}, {"무형조합", "shapeless"}, {"화로", "furnace"}, {"용광로", "blasting"},
+                {"훈연기", "smoking"}, {"모닥불", "campfire"}, {"석재절단기", "stonecutting"}};
+        for (String[] t : types) RECIPE_TYPES.put(t[0], t[1]);
+    }
+
+    private static void sub(String root, String... pairs) {
+        Map<String, String> m = new LinkedHashMap<>();
+        for (int i = 0; i + 1 < pairs.length; i += 2) m.put(pairs[i], pairs[i + 1]);
+        SUB.put(root, m);
+    }
+
+    /** Turns the Korean words of a command line into the internal names the handlers below use. */
+    static String[] normalize(String[] args) {
+        String[] a = args.clone();
+        if (a.length > 0) a[0] = ROOT.getOrDefault(a[0], a[0].toLowerCase(Locale.ROOT));
+        if (a.length > 1 && SUB.containsKey(a[0])) a[1] = SUB.get(a[0]).getOrDefault(a[1], a[1].toLowerCase(Locale.ROOT));
+        if (a.length > 3 && a[0].equals("recipe") && a[1].equals("create")) a[3] = RECIPE_TYPES.getOrDefault(a[3], a[3]);
+        return a;
+    }
+
+    private static List<String> korean(String root) {
+        return List.copyOf(SUB.get(root).keySet());
+    }
+
     @Override
-    public boolean onCommand(@NotNull CommandSender sender, @NotNull Command cmd, @NotNull String label, String @NotNull [] args) {
-        String sub = args.length == 0 ? "help" : args[0].toLowerCase(Locale.ROOT);
+    public boolean onCommand(@NotNull CommandSender sender, @NotNull Command cmd, @NotNull String label, String @NotNull [] rawArgs) {
+        String[] args = normalize(rawArgs);
+        String sub = args.length == 0 ? "help" : args[0];
         switch (sub) {
             case "give" -> give(sender, args);
             case "browse" -> {
@@ -73,7 +118,7 @@ public final class StsvCommand implements TabExecutor {
             case "recipe" -> recipe(sender, args);
             case "skin" -> {
                 if (sender instanceof Player p && args.length > 1 && args[1].equalsIgnoreCase("remove")) plugin.skins().removeHeld(p);
-                else sender.sendMessage(Text.msg("<red>/stsv skin remove <gray>(손에 든 아이템의 스킨 해제)"));
+                else sender.sendMessage(Text.msg("<red>/관리 스킨 해제 <gray>(손에 든 아이템의 스킨 해제)"));
             }
             case "cosmetic" -> cosmetic(sender, args);
             case "wardrobe" -> wardrobe(sender, args);
@@ -85,20 +130,21 @@ public final class StsvCommand implements TabExecutor {
             default -> {
                 sender.sendMessage(Text.msg("<gray>명령어 목록"));
                 for (String line : List.of(
-                        "give <플레이어> <아이템> [개수] <dark_gray>- 아이템 지급",
-                        "browse <dark_gray>- 아이템 목록 GUI",
-                        "list | info <dark_gray>- 아이템 목록 / 손에 든 아이템 정보",
-                        "recipe create <id> <종류> [시간] [경험치] <dark_gray>- 레시피 편집기",
-                        "recipe delete <id> | recipe list",
-                        "fuel set <틱> | fuel remove | fuel list <dark_gray>- 손에 든 아이템의 화로 연료 시간",
-                        "skin remove <dark_gray>- 손에 든 아이템의 스킨 해제",
-                        "cosmetic give|take <플레이어> <치장> | cosmetic info [플레이어] <dark_gray>- 치장 지급/회수/상태",
-                        "wardrobe create <이름> [반경] | delete <이름> | list <dark_gray>- 옷장 구역",
-                        "boss spawn <보스> | boss list | boss remove <dark_gray>- 보스 소환/목록/모두 제거",
-                        "period start <id> <이름> | period end | period info <dark_gray>- 콘텐츠 기간 (기록, 명예의 전당)",
-                        "title give|take <플레이어> <칭호> | title list <dark_gray>- 칭호",
-                        "stat add <플레이어> <통계> <값> <dark_gray>- 기록 보정",
-                        "reload | pack")) {
+                        "지급 <플레이어> <아이템> [개수] <dark_gray>- 아이템 지급",
+                        "아이템목록 <dark_gray>- 아이템 목록 GUI",
+                        "목록 | 정보 <dark_gray>- 아이템 목록 / 손에 든 아이템 정보",
+                        "레시피 생성 <id> <종류> [시간] [경험치] <dark_gray>- 레시피 편집기",
+                        "레시피 삭제 <id> | 레시피 목록",
+                        "연료 설정 <틱> | 연료 제거 | 연료 목록 <dark_gray>- 손에 든 아이템의 화로 연료 시간",
+                        "스킨 해제 <dark_gray>- 손에 든 아이템의 스킨 해제",
+                        "치장 지급|회수 <플레이어> <치장> | 치장 정보 [플레이어] <dark_gray>- 치장 지급/회수/상태",
+                        "옷장 생성 <이름> [반경] | 옷장 삭제 <이름> | 옷장 목록 <dark_gray>- 옷장 구역",
+                        "보스 소환 <보스> | 보스 목록 | 보스 제거 <dark_gray>- 보스 소환/목록/모두 제거",
+                        "보스 패턴 <패턴> | 보스 디버그 | 보스 좌표소환 <보스> <x> <y> <z> [월드] <dark_gray>- 보스 테스트",
+                        "기간 시작 <id> <이름> | 기간 종료 | 기간 정보 <dark_gray>- 콘텐츠 기간 (기록, 명예의 전당)",
+                        "칭호 지급|회수 <플레이어> <칭호> | 칭호 목록 <dark_gray>- 칭호",
+                        "통계 추가 <플레이어> <통계> <값> <dark_gray>- 기록 보정",
+                        "리로드 | 리소스팩")) {
                     sender.sendMessage(Text.mm(" <white>/" + label + " " + line));
                 }
             }
@@ -113,7 +159,7 @@ public final class StsvCommand implements TabExecutor {
             switch (sub) {
                 case "start" -> {
                     if (args.length < 4) {
-                        sender.sendMessage(Text.msg("<red>/stsv period start <id> <이름...> <gray>(id 예: economy-1)"));
+                        sender.sendMessage(Text.msg("<red>/관리 기간 시작 <id> <이름...> <gray>(id 예: economy-1)"));
                         return;
                     }
                     var p = profiles.startPeriod(args[2], String.join(" ", java.util.Arrays.copyOfRange(args, 3, args.length)));
@@ -141,7 +187,7 @@ public final class StsvCommand implements TabExecutor {
         String sub = args.length > 1 ? args[1].toLowerCase(Locale.ROOT) : "list";
         if (sub.equals("give") || sub.equals("take")) {
             if (args.length < 4) {
-                sender.sendMessage(Text.msg("<red>/stsv title " + sub + " <플레이어> <칭호>"));
+                sender.sendMessage(Text.msg("<red>/관리 칭호 " + (sub.equals("give") ? "지급" : "회수") + " <플레이어> <칭호>"));
                 return;
             }
             profiles.store().findByName(args[2]).thenAccept(found -> org.bukkit.Bukkit.getScheduler().runTask(plugin, () -> {
@@ -160,7 +206,7 @@ public final class StsvCommand implements TabExecutor {
 
     private void stat(CommandSender sender, String[] args) {
         if (args.length < 5 || !args[1].equalsIgnoreCase("add")) {
-            sender.sendMessage(Text.msg("<red>/stsv stat add <플레이어> <통계> <값> <gray>(음수로 빼기)"));
+            sender.sendMessage(Text.msg("<red>/관리 통계 추가 <플레이어> <통계> <값> <gray>(음수로 빼기)"));
             return;
         }
         double value;
@@ -185,7 +231,7 @@ public final class StsvCommand implements TabExecutor {
         switch (sub) {
             case "spawn" -> {
                 if (!(sender instanceof Player p) || args.length < 3) {
-                    sender.sendMessage(Text.msg("<red>/stsv boss spawn <보스> <gray>(바라보는 곳에 소환)"));
+                    sender.sendMessage(Text.msg("<red>/관리 보스 소환 <보스> <gray>(바라보는 곳에 소환)"));
                     return;
                 }
                 org.bukkit.block.Block aim = p.getTargetBlockExact(24);
@@ -208,7 +254,7 @@ public final class StsvCommand implements TabExecutor {
             // admin testing (also from the console)
             case "spawnat" -> {
                 if (args.length < 6) {
-                    sender.sendMessage(Text.msg("<red>/stsv boss spawnat <보스> <x> <y> <z> [월드]"));
+                    sender.sendMessage(Text.msg("<red>/관리 보스 좌표소환 <보스> <x> <y> <z> [월드]"));
                     return;
                 }
                 org.bukkit.World w = args.length > 6 ? org.bukkit.Bukkit.getWorld(args[6]) : org.bukkit.Bukkit.getWorlds().getFirst();
@@ -217,13 +263,13 @@ public final class StsvCommand implements TabExecutor {
             }
             case "force" -> sender.sendMessage(Text.msg("<gray>패턴 시작: " + (args.length > 2 ? plugin.bosses().force(args[2]) : 0) + "마리"));
             case "debug" -> plugin.bosses().debug().forEach(line -> sender.sendMessage(Text.mm("<gray>" + line)));
-            default -> sender.sendMessage(Text.msg("<red>/stsv boss <spawn|list|remove>"));
+            default -> sender.sendMessage(Text.msg("<red>/관리 보스 <소환|목록|제거|패턴|디버그|좌표소환>"));
         }
     }
 
     private void give(CommandSender sender, String[] args) {
         if (args.length < 3) {
-            sender.sendMessage(Text.msg("<red>/stsv give <플레이어> <아이템> [개수]"));
+            sender.sendMessage(Text.msg("<red>/관리 지급 <플레이어> <아이템> [개수]"));
             return;
         }
         Player target = Bukkit.getPlayerExact(args[1]);
@@ -259,7 +305,7 @@ public final class StsvCommand implements TabExecutor {
     }
 
     // ------------------------------------------------------------------------------------------
-    // /stsv recipe ...
+    // /관리 레시피 ...
     // ------------------------------------------------------------------------------------------
 
     private NamespacedKey key(String id) {
@@ -280,7 +326,7 @@ public final class StsvCommand implements TabExecutor {
                         return;
                     }
                     if (args.length < 4) {
-                        sender.sendMessage(Text.msg("<red>/stsv recipe create <id> <" + String.join("|", RecipeEditor.TYPES)
+                        sender.sendMessage(Text.msg("<red>/관리 레시피 생성 <id> <" + String.join("|", RECIPE_TYPES.keySet())
                                 + "> [시간(틱)] [경험치]"));
                         return;
                     }
@@ -290,21 +336,21 @@ public final class StsvCommand implements TabExecutor {
                 }
                 case "delete" -> {
                     if (args.length < 3) {
-                        sender.sendMessage(Text.msg("<red>/stsv recipe delete <id>"));
+                        sender.sendMessage(Text.msg("<red>/관리 레시피 삭제 <id>"));
                         return;
                     }
                     NamespacedKey k = key(args[2]);
                     sender.sendMessage(plugin.recipes().deleteRecipe(k)
                             ? Text.msg("<green>" + k.asString() + " 삭제 완료")
                             : Text.msg("<red>편집기로 만든 레시피(recipes/" + RecipeModule.EDITOR_FILE
-                                    + ")만 삭제할 수 있습니다. 다른 파일은 직접 지우고 /stsv reload 하세요."));
+                                    + ")만 삭제할 수 있습니다. 다른 파일은 직접 지우고 /관리 리로드 하세요."));
                 }
                 case "list" -> {
                     List<NamespacedKey> keys = plugin.recipes().registered();
                     sender.sendMessage(Text.msg("<gray>등록된 레시피 <white>" + keys.size() + "</white>개"));
                     keys.forEach(k -> sender.sendMessage(Text.mm(" <dark_gray>-</dark_gray> <white>" + k.asString())));
                 }
-                default -> sender.sendMessage(Text.msg("<red>/stsv recipe <create|delete|list>"));
+                default -> sender.sendMessage(Text.msg("<red>/관리 레시피 <생성|삭제|목록>"));
             }
         } catch (NumberFormatException e) {
             sender.sendMessage(Text.msg("<red>시간과 경험치는 숫자여야 합니다."));
@@ -314,14 +360,14 @@ public final class StsvCommand implements TabExecutor {
     }
 
     // ------------------------------------------------------------------------------------------
-    // /stsv cosmetic | wardrobe
+    // /관리 치장 | 옷장
     // ------------------------------------------------------------------------------------------
 
     private void cosmetic(CommandSender sender, String[] args) {
         if (args.length >= 2 && args[1].equalsIgnoreCase("info")) {
             Player target = args.length > 2 ? Bukkit.getPlayerExact(args[2]) : sender instanceof Player p ? p : null;
             if (target == null) {
-                sender.sendMessage(Text.msg("<red>/stsv cosmetic info [플레이어]"));
+                sender.sendMessage(Text.msg("<red>/관리 치장 정보 [플레이어]"));
                 return;
             }
             sender.sendMessage(Text.msg("<gray>" + target.getName() + " 치장 상태"));
@@ -329,7 +375,7 @@ public final class StsvCommand implements TabExecutor {
             return;
         }
         if (args.length < 4 || !(args[1].equalsIgnoreCase("give") || args[1].equalsIgnoreCase("take"))) {
-            sender.sendMessage(Text.msg("<red>/stsv cosmetic <give|take> <플레이어> <치장>"));
+            sender.sendMessage(Text.msg("<red>/관리 치장 <지급|회수> <플레이어> <치장>"));
             return;
         }
         Player target = Bukkit.getPlayerExact(args[2]);
@@ -352,7 +398,7 @@ public final class StsvCommand implements TabExecutor {
             switch (action) {
                 case "create" -> {
                     if (!(sender instanceof Player p) || args.length < 3) {
-                        sender.sendMessage(Text.msg("<red>/stsv wardrobe create <이름> [반경=3] <gray>(지금 서 있는 곳 중심)"));
+                        sender.sendMessage(Text.msg("<red>/관리 옷장 생성 <이름> [반경=3] <gray>(지금 서 있는 곳 중심)"));
                         return;
                     }
                     double r = args.length > 3 ? Double.parseDouble(args[3]) : 3;
@@ -366,7 +412,7 @@ public final class StsvCommand implements TabExecutor {
                     plugin.cosmetics().zones().forEach((n, b) -> sender.sendMessage(Text.mm(" <dark_gray>-</dark_gray> <white>" + n
                             + "</white> <gray>" + (int) b.getCenterX() + ", " + (int) b.getCenterY() + ", " + (int) b.getCenterZ())));
                 }
-                default -> sender.sendMessage(Text.msg("<red>/stsv wardrobe <create|delete|list>"));
+                default -> sender.sendMessage(Text.msg("<red>/관리 옷장 <생성|삭제|목록>"));
             }
         } catch (NumberFormatException e) {
             sender.sendMessage(Text.msg("<red>반경은 숫자여야 합니다."));
@@ -376,7 +422,7 @@ public final class StsvCommand implements TabExecutor {
     }
 
     // ------------------------------------------------------------------------------------------
-    // /stsv fuel ...
+    // /관리 연료 ...
     // ------------------------------------------------------------------------------------------
 
     private void fuel(CommandSender sender, String[] args) {
@@ -404,7 +450,7 @@ public final class StsvCommand implements TabExecutor {
             switch (action) {
                 case "set" -> {
                     if (args.length < 3) {
-                        sender.sendMessage(Text.msg("<red>/stsv fuel set <틱>  (석탄 = 1600, 막대기 = 100)"));
+                        sender.sendMessage(Text.msg("<red>/관리 연료 설정 <틱>  (석탄 = 1600, 막대기 = 100)"));
                         return;
                     }
                     int ticks = Integer.parseInt(args[2]);
@@ -421,7 +467,7 @@ public final class StsvCommand implements TabExecutor {
                     plugin.recipes().setFuel(id, null, ns);
                     sender.sendMessage(Text.msg("<green>" + id + " 연료 설정 삭제 (아이템 정의의 fuel: 은 그대로)"));
                 }
-                default -> sender.sendMessage(Text.msg("<red>/stsv fuel <set|remove|list>"));
+                default -> sender.sendMessage(Text.msg("<red>/관리 연료 <설정|제거|목록>"));
             }
         } catch (NumberFormatException e) {
             sender.sendMessage(Text.msg("<red>틱은 숫자여야 합니다."));
@@ -431,38 +477,51 @@ public final class StsvCommand implements TabExecutor {
     }
 
     @Override
-    public List<String> onTabComplete(@NotNull CommandSender sender, @NotNull Command cmd, @NotNull String label, String @NotNull [] args) {
-        if (args.length == 1) return filter(SUBS, args[0]);
-        if (args[0].equalsIgnoreCase("recipe")) {
-            if (args.length == 2) return filter(List.of("create", "delete", "list"), args[1]);
-            if (args.length == 3 && args[1].equalsIgnoreCase("delete")) {
-                return filter(plugin.recipes().registered().stream().map(NamespacedKey::asString).toList(), args[2]);
+    public List<String> onTabComplete(@NotNull CommandSender sender, @NotNull Command cmd, @NotNull String label, String @NotNull [] raw) {
+        if (raw.length == 1) return filter(List.copyOf(ROOT.keySet()), raw[0]);
+        String[] args = normalize(raw);
+        String root = args[0];
+        if (raw.length == 2) return SUB.containsKey(root) ? filter(korean(root), raw[1]) : players(root, raw[1]);
+        switch (root) {
+            case "recipe" -> {
+                if (raw.length == 3 && args[1].equals("delete")) {
+                    return filter(plugin.recipes().registered().stream().map(NamespacedKey::asString).toList(), raw[2]);
+                }
+                if (raw.length == 4 && args[1].equals("create")) return filter(List.copyOf(RECIPE_TYPES.keySet()), raw[3]);
             }
-            if (args.length == 4 && args[1].equalsIgnoreCase("create")) return filter(RecipeEditor.TYPES, args[3]);
-        }
-        if (args[0].equalsIgnoreCase("fuel") && args.length == 2) return filter(List.of("set", "remove", "list"), args[1]);
-        if (args[0].equalsIgnoreCase("skin") && args.length == 2) return filter(List.of("remove"), args[1]);
-        if (args[0].equalsIgnoreCase("wardrobe") && args.length == 2) return filter(List.of("create", "delete", "list"), args[1]);
-        if (args[0].equalsIgnoreCase("period") && args.length == 2) return filter(List.of("start", "end", "info"), args[1]);
-        if (args[0].equalsIgnoreCase("title") && args.length == 2) return filter(List.of("give", "take", "list"), args[1]);
-        if (args[0].equalsIgnoreCase("title") && args.length == 4) {
-            return filter(plugin.profiles().titles().stream().map(t -> t.id()).toList(), args[3]);
-        }
-        if (args[0].equalsIgnoreCase("stat") && args.length == 2) return filter(List.of("add"), args[1]);
-        if (args[0].equalsIgnoreCase("boss") && args.length == 2) return filter(List.of("spawn", "list", "remove", "force", "debug", "spawnat"), args[1]);
-        if (args[0].equalsIgnoreCase("boss") && args.length == 3 && args[1].equalsIgnoreCase("spawn")) {
-            return filter(plugin.bosses().specs().stream().map(dev.stsv.core.boss.BossSpec::id).toList(), args[2]);
-        }
-        if (args[0].equalsIgnoreCase("cosmetic")) {
-            if (args.length == 2) return filter(List.of("give", "take", "info"), args[1]);
-            if (args.length == 3) return filter(Bukkit.getOnlinePlayers().stream().map(Player::getName).toList(), args[2]);
-            if (args.length == 4) return filter(plugin.cosmetics().cosmetics().stream().map(i -> i.key().asString()).toList(), args[3]);
-        }
-        if (args[0].equalsIgnoreCase("give")) {
-            if (args.length == 2) return filter(Bukkit.getOnlinePlayers().stream().map(Player::getName).toList(), args[1]);
-            if (args.length == 3) return filter(plugin.content().items().stream().map(i -> i.key().asString()).toList(), args[2]);
+            case "title" -> {
+                if (raw.length == 3) return filter(onlineNames(), raw[2]);
+                if (raw.length == 4) return filter(plugin.profiles().titles().stream().map(t -> t.id()).toList(), raw[3]);
+            }
+            case "stat" -> {
+                if (raw.length == 3) return filter(onlineNames(), raw[2]);
+            }
+            case "boss" -> {
+                if (raw.length == 3 && (args[1].equals("spawn") || args[1].equals("spawnat"))) {
+                    return filter(plugin.bosses().specs().stream().map(dev.stsv.core.boss.BossSpec::id).toList(), raw[2]);
+                }
+                if (raw.length == 3 && args[1].equals("force")) {
+                    return filter(plugin.bosses().specs().stream().flatMap(b -> b.skills().keySet().stream()).distinct().toList(), raw[2]);
+                }
+            }
+            case "cosmetic" -> {
+                if (raw.length == 3) return filter(onlineNames(), raw[2]);
+                if (raw.length == 4) return filter(plugin.cosmetics().cosmetics().stream().map(i -> i.key().asString()).toList(), raw[3]);
+            }
+            case "give" -> {
+                if (raw.length == 3) return filter(plugin.content().items().stream().map(i -> i.key().asString()).toList(), raw[2]);
+            }
+            default -> { }
         }
         return List.of();
+    }
+
+    private List<String> players(String root, String prefix) {
+        return root.equals("give") ? filter(onlineNames(), prefix) : List.of();
+    }
+
+    private static List<String> onlineNames() {
+        return Bukkit.getOnlinePlayers().stream().map(Player::getName).toList();
     }
 
     private static List<String> filter(List<String> options, String prefix) {

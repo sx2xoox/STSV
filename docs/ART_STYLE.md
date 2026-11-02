@@ -84,7 +84,7 @@
    - `content/stsv/models/<이름>.bbmodel`: 플러그인이 읽는 원본 파일
    - `docs/previews/<이름>.png`: 3방향 미리보기
 4. 미리보기를 보고 수정을 반복합니다. `docs/previews/lineup.png`에서 **기존 모델들과 나란히** 놓고 어울리는지 확인합니다.
-5. `content/stsv/items/*.yml`에 아이템을 등록합니다. 서버에서는 `/stsv reload`로 바로 반영됩니다.
+5. `content/stsv/items/*.yml`에 아이템을 등록합니다. 서버에서는 `/관리 리로드`로 바로 반영됩니다.
 
 ### Blockbench로 손볼 때
 `.bbmodel`을 Blockbench에서 직접 수정했다면, 그 모델은 **"손으로 관리하는 모델"**이 됩니다.

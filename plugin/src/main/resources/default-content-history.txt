@@ -80,8 +80,10 @@ d2f1471ed45644b94a7a67d081323024d69df514 stsv/assets/stsv/textures/item/test_cro
 fec7d5dc326438b458a1272488e7c7ff102391ac stsv/assets/stsv/textures/item/test_crossbow_pulling_1.png
 47b5904100189686ed27845b79783216aad12962 stsv/assets/stsv/textures/item/test_crossbow_pulling_2.png
 822c7a267255c1982dc5996d1daa012746f48b11 stsv/bosses/executioner.yml
+92fb3ab8a24b66c383aa4c0fb937d7594cda6e97 stsv/bosses/executioner.yml
 aff991072d9d230d1abffa6e640bbd5a249616cd stsv/bosses/executioner.yml
 39888de488dd072bc7b11b36d2b5d780832ee8ff stsv/bosses/test.yml
+f26409f36ddb64cbf002c8401740b5df0c4de136 stsv/bosses/test.yml
 ba297dabb12b4af6b04c70860f78e1cd37e29696 stsv/items/combat.yml
 07b63941f0b856febdac1c654b7e6f6c20567f12 stsv/items/decor.yml
 684f20b6ff81ba8f70b0712c2ba7c82f840adb6d stsv/items/decor.yml
@@ -92,6 +94,8 @@ ba297dabb12b4af6b04c70860f78e1cd37e29696 stsv/items/combat.yml
 7ee26a61c159d9c6e0df1a29494f1aadcbb5ff4c stsv/items/test.yml
 834ec11072fc3ea60431a4878442b9547244a370 stsv/items/test.yml
 861996b6ee7da1cfd464f0c731e2cc4094c1e8e2 stsv/items/test.yml
+393048777e347699c60d26eb75435c5a0f3299a5 stsv/menus/profile.yml
+f065165d0b1811cbc1beabcbd29944d90ec69412 stsv/menus/wardrobe.yml
 c8718e6505ce7d7a7d6c30bc01b14e008ec59573 stsv/models/chair.bbmodel
 e83a5d1a75c0de82a34cb16dd5fed39398e8adbb stsv/models/chair.bbmodel
 5a0c7b6457c212ad785ddc03d8b6d6d0f2a09e2c stsv/models/crystal_shrine.bbmodel
@@ -187,3 +191,4 @@ c60ee0dd031fe8ba741579751ac4762e87766e1b stsv/textures/steel_chestplate.png
 d1eea0757918a33a57fa1499f07517812423c228 stsv/textures/test_material.png
 60cfefb5b4dd23a2e7a9c28d5cdd111ef46596ae stsv/textures/test_skin_book.png
 bed4d78c21f0cb4a6ca3c6a3712943acff34b360 stsv/textures/tomato_voucher.png
+ff41499c606083f73e1d60bbfeb04013dd14bb72 stsv/titles/titles.yml

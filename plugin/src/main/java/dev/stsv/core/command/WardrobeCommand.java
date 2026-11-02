@@ -11,7 +11,7 @@ import org.jetbrains.annotations.NotNull;
 import java.util.List;
 import java.util.Locale;
 
-/** /wardrobe (/옷장): open the wardrobe in a wardrobe zone; sub commands are used by the chat buttons. */
+/** /옷장: open the wardrobe in a wardrobe zone (/옷장 나가기 leaves it). */
 public final class WardrobeCommand implements TabExecutor {
 
     private final STSVPlugin plugin;
@@ -29,11 +29,11 @@ public final class WardrobeCommand implements TabExecutor {
         var cos = plugin.cosmetics();
         String sub = args.length == 0 ? "" : args[0].toLowerCase(Locale.ROOT);
         if (!sub.isEmpty() && !cos.inWardrobe(p)) {
-            p.sendMessage(dev.stsv.core.util.Lang.msg("wardrobe.enter-first", "command", label));
+            p.sendMessage(dev.stsv.core.util.Lang.msg("wardrobe.enter-first"));
             return true;
         }
         switch (sub) {
-            case "exit" -> cos.exitWardrobe(p, true);
+            case "나가기", "exit" -> cos.exitWardrobe(p, true);
             default -> cos.enterWardrobe(p); // inside: reopens the menu
         }
         return true;
@@ -41,6 +41,6 @@ public final class WardrobeCommand implements TabExecutor {
 
     @Override
     public List<String> onTabComplete(@NotNull CommandSender sender, @NotNull Command cmd, @NotNull String label, String @NotNull [] args) {
-        return List.of();
+        return args.length == 1 && sender instanceof Player p && plugin.cosmetics().inWardrobe(p) ? List.of("나가기") : List.of();
     }
 }

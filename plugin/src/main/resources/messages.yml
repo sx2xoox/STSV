@@ -1,5 +1,5 @@
 # 플레이어에게 보이는 문구. MiniMessage 형식, {이름} 은 자리표시자.
-# 이 파일을 고친 뒤 /stsv reload 하면 바로 적용됩니다. 지운 줄은 기본 문구로 돌아갑니다.
+# 이 파일을 고친 뒤 /관리 리로드 하면 바로 적용됩니다. 지운 줄은 기본 문구로 돌아갑니다.
 
 prefix: "<gradient:#ffb35c:#ff6a3d><b>STSV</b></gradient> <dark_gray>»</dark_gray> "
 
@@ -8,7 +8,7 @@ common:
   none: "없음"
 
 wardrobe:
-  enter-first: "<red>먼저 옷장 구역에서 /{command} 를 입력하세요."
+  enter-first: "<red>먼저 옷장 구역에서 /옷장 을 입력하세요."
   zone-only: "<red>옷장 구역 안에서만 사용할 수 있습니다."
   dismount: "<red>탈것에서 내린 뒤 사용하세요."
   no-room: "<red>앞쪽 공간이 부족합니다. 앞쪽 {blocks}칸이 트인 곳에서 사용하세요."

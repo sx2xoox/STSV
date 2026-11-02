@@ -27,7 +27,7 @@ furniture:
   preview: true
 
 editor:
-  # /stsv recipe create 에서 네임스페이스 없이 id 를 쓰면 이 콘텐츠 팩에 저장됩니다
+  # /관리 레시피 생성 에서 네임스페이스 없이 id 를 쓰면 이 콘텐츠 팩에 저장됩니다
   namespace: stsv
 
 cosmetics:
@@ -58,7 +58,7 @@ database:
     password: ""
     pool-size: 6
 
-# 플레이어 기록 (월드와 별개로 남음). 콘텐츠 기간: /stsv period start <id> <이름> ~ /stsv period end
+# 플레이어 기록 (월드와 별개로 남음). 콘텐츠 기간: /관리 기간 시작 <id> <이름> ~ /관리 기간 종료
 profiles:
   # 칭호를 채팅 이름 앞, 탭 목록 이름 앞에 표시
   title-in-chat: true
