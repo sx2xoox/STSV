@@ -37,3 +37,21 @@ cosmetics:
   op-owns-all: false
   # 옷장 시점: 마네킹까지 거리(블록). 미리보기 때 메뉴가 닫히므로 마네킹은 화면 가운데에 보입니다
   wardrobe-distance: 3.2
+  # 옷장 메뉴 (큰 상자 54칸, 칸 번호 0~53: 위에서부터 줄마다 0~8, 9~17, ...)
+  # 치장이 칸 수보다 많으면 페이지가 나뉩니다.
+  menu:
+    # 전용 UI 배경: 기본 콘텐츠 팩의 폰트 글리프(assets/stsv/font/wardrobe.json, textures/gui/wardrobe.png).
+    # 제목 맨 앞에 붙어서 상자 화면 전체를 덮습니다. 바닐라 상자 화면을 쓰려면 "" 로
+    #   \uf801 = 8칸 왼쪽으로, \ue000 = 배경(176x222), \uf802 = 제목 글자 위치로 되돌아감
+    background: "<white><font:stsv:wardrobe>\uf801\ue000\uf802</font></white>"
+    title: "<#f0e2b0>옷장 <#b9a6d6>· 보유 {owned}/{total}"
+    # 배경 그림의 칸 위치와 맞춰야 합니다 (tools/assetgen/gui.py 의 COSMETIC_SLOTS, BUTTONS)
+    cosmetic-slots: [10, 11, 12, 13, 14, 15, 16,
+                     19, 20, 21, 22, 23, 24, 25,
+                     28, 29, 30, 31, 32, 33, 34,
+                     37, 38, 39, 40, 41, 42, 43]
+    slots: { prev: 45, take-off: 47, info: 49, exit: 51, next: 53 }
+    # 버튼 아이콘을 리소스팩 모델(stsv:gui/prev 등)로 표시. false 면 바닐라 아이템(화살, 방벽 ...)
+    custom-icons: true
+    # 빈 칸을 유리판으로 채움 (배경을 끈 경우에 켜면 보기 좋음)
+    filler: false

@@ -70,6 +70,7 @@ public final class FurnitureModule implements StsvModule, Listener {
     private BukkitTask spinTask;
     private final Map<String, FurnitureBehavior> behaviors = new HashMap<>();
     private final Map<UUID, Preview> previews = new HashMap<>();
+    private final Map<UUID, Long> lastPlace = new HashMap<>();
     private BukkitTask previewTask;
 
     @Override
@@ -493,6 +494,7 @@ public final class FurnitureModule implements StsvModule, Listener {
     @EventHandler
     public void onQuit(PlayerQuitEvent e) {
         clearPreview(e.getPlayer().getUniqueId());
+        lastPlace.remove(e.getPlayer().getUniqueId());
         Entity vehicle = e.getPlayer().getVehicle();
         if (vehicle instanceof ItemDisplay seat && seat.getPersistentDataContainer().has(keySeat)) {
             seat.eject();
@@ -626,9 +628,15 @@ public final class FurnitureModule implements StsvModule, Listener {
         e.setCancelled(true);
         if (e.getHand() != EquipmentSlot.HAND && e.getHand() != EquipmentSlot.OFF_HAND) return;
 
+        // one right-click can arrive twice (held button repeat / a second use packet): one placement per 6 ticks
+        long now = player.getWorld().getGameTime();
+        Long last = lastPlace.get(player.getUniqueId());
+        if (last != null && now - last < 6) return;
+
         Block anchor = clicked.isReplaceable() ? clicked : clicked.getRelative(e.getBlockFace());
         Block against = anchor == clicked ? clicked.getRelative(BlockFace.DOWN) : clicked;
         if (place(player, item.get(), anchor, against, e.getHand()).isPresent()) {
+            lastPlace.put(player.getUniqueId(), now);
             if (player.getGameMode() != GameMode.CREATIVE) hand.subtract(1);
             player.swingHand(e.getHand());
         } else {

@@ -60,6 +60,10 @@ def main():
     names = special.write(CONTENT)
     print(f"special {', '.join(names)}")
     special_sheet(PREVIEWS / "special_items.png")
+    import gui
+    gui.write(CONTENT)
+    gui.preview(PREVIEWS / "wardrobe_ui.png")
+    print("gui wardrobe (font glyph + button icons)")
 
     if render:
         # world objects side by side (fan blade placed where the machine spins it)

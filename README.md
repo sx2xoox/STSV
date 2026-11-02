@@ -68,9 +68,25 @@ contents/mypack/
 | `/stsv skin remove` | 손에 든 아이템의 스킨 해제 (스킨북 반환) |
 | `/stsv wardrobe create <이름> [반경]` | 지금 위치에 옷장 구역 만들기 |
 | `/stsv cosmetic give\|take <플레이어> <치장>` | 치장 지급/회수 (교환권 없이 바로 보유 목록에 넣기) |
-| `/옷장` | (플레이어) 옷장 구역에서 입력 → 메뉴. 치장 클릭 → 메뉴가 닫히고 마네킹 미리보기(관전 카메라). 웅크리기 = 메뉴 다시 열기, 나가기 버튼 = 나가기 |
+| `/옷장` | (플레이어) 옷장 구역에서 입력 → 메뉴(큰 상자, 전용 UI, 치장이 28개를 넘으면 페이지). 치장 클릭 → 메뉴가 닫히고 마네킹 미리보기(관전 카메라). 웅크리기 = 메뉴 다시 열기, 나가기 버튼 = 나가기 |
 | `/stsv cosmetic info [플레이어]` | 착용 중인 치장, 권한 등 상태 확인 |
 | `/stsv reload` | 콘텐츠, 레시피, 리소스팩 다시 읽기 |
+
+### 옷장 UI 바꾸기
+
+옷장 메뉴의 배경은 리소스팩 폰트 글리프입니다(메뉴 제목 맨 앞의 글자 하나가 상자 화면 전체를 덮음).
+
+| 파일 | 내용 |
+|---|---|
+| `content/stsv/assets/stsv/textures/gui/wardrobe.png` | 배경 그림 176×222 (큰 상자 화면 크기 그대로) |
+| `content/stsv/assets/stsv/font/wardrobe.json` | 글리프 정의 (`ascent: 13`, `height: 222`) |
+| `content/stsv/assets/stsv/textures/item/gui/*.png` | 버튼 아이콘 16×16 (이전, 다음, 벗기, 정보, 나가기, 비활성 화살표) |
+| `config.yml` → `cosmetics.menu` | 어느 칸에 무엇을 둘지, 배경 끄기(`background: ""`), 바닐라 아이콘(`custom-icons: false`) |
+
+그림을 직접 그릴 때: 상자 칸 (줄 r, 열 c)의 18×18 테두리는 x = 7 + 18c, y = 17 + 18r 입니다.
+`Inventory` 글자는 y = 128, 플레이어 인벤토리는 y = 139부터, 단축바는 y = 197 입니다.
+칸 배치를 바꾸면 그림과 `cosmetic-slots` / `slots` 를 같이 바꾸세요(`WardrobeGuiTest` 가 어긋남을 잡습니다).
+자동 생성은 `tools/assetgen/gui.py` (미리보기: `docs/previews/wardrobe_ui.png`).
 
 ## 서버 설정
 

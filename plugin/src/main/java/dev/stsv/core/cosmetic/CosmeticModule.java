@@ -356,6 +356,8 @@ public final class CosmeticModule implements StsvModule, Listener {
         GameMode gameMode;
         ItemDisplay camera;
         boolean switching;
+        boolean toMenu;
+        int page;
     }
 
     private static final class Menu implements InventoryHolder {
@@ -365,8 +367,20 @@ public final class CosmeticModule implements StsvModule, Listener {
         @Override public @NotNull Inventory getInventory() { return inventory; }
     }
 
-    private static final int ROWS_FOR_COSMETICS = 2;           // slots 0..17
-    private static final int SLOT_TAKE_OFF = 18, SLOT_INFO = 22, SLOT_EXIT = 26;
+    /** Menu layout (large chest), from config so a custom UI texture can be lined up with it. */
+    private record Layout(List<Integer> cosmetics, int prev, int takeOff, int info, int exit, int next, boolean filler) {}
+
+    private Layout layout() {
+        var c = plugin.getConfig();
+        List<Integer> slots = c.getIntegerList("cosmetics.menu.cosmetic-slots");
+        if (slots.isEmpty()) {
+            slots = new ArrayList<>();
+            for (int row = 1; row <= 4; row++) for (int col = 1; col <= 7; col++) slots.add(row * 9 + col);
+        }
+        return new Layout(slots, c.getInt("cosmetics.menu.slots.prev", 45), c.getInt("cosmetics.menu.slots.take-off", 47),
+                c.getInt("cosmetics.menu.slots.info", 49), c.getInt("cosmetics.menu.slots.exit", 51),
+                c.getInt("cosmetics.menu.slots.next", 53), c.getBoolean("cosmetics.menu.filler", true));
+    }
 
     public boolean inWardrobe(Player p) {
         return sessions.containsKey(p.getUniqueId());
@@ -452,16 +466,27 @@ public final class CosmeticModule implements StsvModule, Listener {
             if (s.mannequin.isValid()) s.mannequin.setRotation(s.mannequin.getYaw() + 1.5f, 0);
         }, 20L, 1L);
         p.playSound(spot, Sound.BLOCK_WOODEN_DOOR_OPEN, 0.8f, 1.2f);
-        toMenu(p);
+        // attach the camera first, then open the menu: while the client's camera is another entity it
+        // draws no hotbar/health, so the menu shows over the mannequin view without any HUD
+        p.setGameMode(GameMode.SPECTATOR);
+        p.teleport(s.camera.getLocation());
+        Bukkit.getScheduler().runTaskLater(plugin, () -> {
+            if (!inWardrobe(p)) return;
+            p.setSpectatorTarget(s.camera);
+            Bukkit.getScheduler().runTaskLater(plugin, () -> toMenu(p), 1L);
+        }, 2L);
     }
 
-    /** MENU state: adventure mode (clicks work), frozen at the spot, menu open. */
+    /**
+     * MENU state: adventure mode (spectators' clicks are ignored by the server) with the camera still
+     * attached (leaving spectator would detach it; that event is cancelled while switching), then the menu.
+     */
     private void toMenu(Player p) {
         Session s = sessions.get(p.getUniqueId());
         if (s == null) return;
-        if (p.getGameMode() == GameMode.SPECTATOR) p.setSpectatorTarget(null);
+        s.toMenu = true;
         p.setGameMode(GameMode.ADVENTURE);
-        p.teleport(s.spot);
+        s.toMenu = false;
         Bukkit.getScheduler().runTaskLater(plugin, () -> {
             if (inWardrobe(p)) openMenu(p);
         }, 1L);
@@ -493,7 +518,11 @@ public final class CosmeticModule implements StsvModule, Listener {
         if (s == null) return;
         Menu menu = new Menu();
         long ownedCount = cosmetics().stream().filter(c -> owns(p, c)).count();
-        Inventory inv = Bukkit.createInventory(menu, 27, Text.mm("<dark_gray>옷장 <gray>· 보유 " + ownedCount + "/" + cosmetics().size()));
+        // background glyph first (draws the custom screen texture), then the visible title text
+        String title = plugin.getConfig().getString("cosmetics.menu.background", "")
+                + plugin.getConfig().getString("cosmetics.menu.title", "<dark_gray>옷장 <gray>· 보유 {owned}/{total}")
+                .replace("{owned}", String.valueOf(ownedCount)).replace("{total}", String.valueOf(cosmetics().size()));
+        Inventory inv = Bukkit.createInventory(menu, 54, Text.mm(title));
         menu.inventory = inv;
         s.menu = menu;
         fillMenu(p, s);
@@ -504,14 +533,20 @@ public final class CosmeticModule implements StsvModule, Listener {
     private void fillMenu(Player p, Session s) {
         Inventory inv = s.menu.inventory;
         s.menu.slots.clear();
-        ItemStack empty = icon(org.bukkit.Material.LIGHT_GRAY_STAINED_GLASS_PANE, " ", List.of());
-        ItemStack bar = icon(org.bukkit.Material.BLACK_STAINED_GLASS_PANE, " ", List.of());
-        for (int i = 0; i < 27; i++) inv.setItem(i, i < 9 * ROWS_FOR_COSMETICS ? empty : bar);
+        Layout lay = layout();
+        ItemStack empty = lay.filler() ? icon(org.bukkit.Material.LIGHT_GRAY_STAINED_GLASS_PANE, null, " ", List.of()) : null;
+        ItemStack bar = lay.filler() ? icon(org.bukkit.Material.BLACK_STAINED_GLASS_PANE, null, " ", List.of()) : null;
+        for (int i = 0; i < 54; i++) inv.setItem(i, lay.cosmetics().contains(i) ? empty : bar);
 
         Optional<CustomItem> worn = equipped(p);
         List<CustomItem> all = cosmetics();
-        for (int i = 0; i < all.size() && i < 9 * ROWS_FOR_COSMETICS; i++) {
-            CustomItem c = all.get(i);
+        int perPage = Math.max(1, lay.cosmetics().size());
+        int pages = Math.max(1, (all.size() + perPage - 1) / perPage);
+        s.page = Math.clamp(s.page, 0, pages - 1);
+        for (int k = 0; k < perPage; k++) {
+            int index = s.page * perPage + k;
+            if (index >= all.size()) break;
+            CustomItem c = all.get(index);
             boolean owned = owns(p, c);
             boolean isWorn = worn.filter(w -> w.key().equals(c.key())).isPresent();
             CustomItem.Rarity r = c.cosmetic().rarity();
@@ -534,26 +569,39 @@ public final class CosmeticModule implements StsvModule, Listener {
                 m.lore(lore);
                 m.setEnchantmentGlintOverride(isWorn || c.key().asString().equals(s.previewing));
             });
-            inv.setItem(i, it);
-            s.menu.slots.put(i, c.key().asString());
+            int slot = lay.cosmetics().get(k);
+            inv.setItem(slot, it);
+            s.menu.slots.put(slot, c.key().asString());
         }
-        inv.setItem(SLOT_TAKE_OFF, icon(org.bukkit.Material.BARRIER, "<yellow>치장 벗기",
+        String pageText = (s.page + 1) + " / " + pages;
+        // no previous/next page: a greyed-out arrow (not ARROW, so clicking it does nothing)
+        inv.setItem(lay.prev(), s.page > 0
+                ? icon(org.bukkit.Material.ARROW, "prev", "<yellow>◀ 이전 페이지", List.of("<gray>" + pageText))
+                : icon(org.bukkit.Material.GRAY_DYE, "prev_off", "<dark_gray>◀ 첫 페이지", List.of("<gray>" + pageText)));
+        inv.setItem(lay.next(), s.page < pages - 1
+                ? icon(org.bukkit.Material.ARROW, "next", "<yellow>다음 페이지 ▶", List.of("<gray>" + pageText))
+                : icon(org.bukkit.Material.GRAY_DYE, "next_off", "<dark_gray>마지막 페이지 ▶", List.of("<gray>" + pageText)));
+        inv.setItem(lay.takeOff(), icon(org.bukkit.Material.BARRIER, "take_off", "<yellow>치장 벗기",
                 List.of(worn.map(w -> "<gray>착용 중: " + displayName(w)).orElse("<gray>착용 중인 치장 없음"))));
-        inv.setItem(SLOT_INFO, icon(org.bukkit.Material.ARMOR_STAND, "<gold>옷장", List.of(
+        inv.setItem(lay.info(), icon(org.bukkit.Material.ARMOR_STAND, "info", "<gold>옷장", List.of(
                 "<gray>착용 중: <white>" + worn.map(CosmeticModule::displayName).orElse("없음"),
                 "<gray>미리보기: <white>" + Optional.ofNullable(s.previewing).flatMap(id -> plugin.content().item(id))
                         .map(CosmeticModule::displayName).orElse("없음"),
+                "<gray>페이지: <white>" + pageText,
                 "",
                 "<gray>치장 클릭: 착용 / 착용 중이면 벗기 (창이 닫히고 미리보기)",
                 "<gray>미보유 치장은 미리보기만 됩니다.",
                 "<gray>미리보기 화면에서 웅크리기: 이 메뉴 다시 열기",
                 "<gray>나가기 버튼: 옷장 나가기")));
-        inv.setItem(SLOT_EXIT, icon(org.bukkit.Material.OAK_DOOR, "<red>나가기", List.of()));
+        inv.setItem(lay.exit(), icon(org.bukkit.Material.OAK_DOOR, "exit", "<red>나가기", List.of()));
     }
 
-    private static ItemStack icon(org.bukkit.Material m, String name, List<String> lore) {
+    /** A menu button. With cosmetics.menu.custom-icons, it shows the pack model stsv:gui/<model>. */
+    private ItemStack icon(org.bukkit.Material m, String model, String name, List<String> lore) {
         ItemStack it = new ItemStack(m);
+        boolean custom = model != null && plugin.getConfig().getBoolean("cosmetics.menu.custom-icons", true);
         it.editMeta(meta -> {
+            if (custom) meta.setItemModel(new org.bukkit.NamespacedKey("stsv", "gui/" + model));
             meta.itemName(Text.item(name));
             meta.lore(Text.itemLines(lore));
         });
@@ -596,13 +644,22 @@ public final class CosmeticModule implements StsvModule, Listener {
             }
             showOnMannequin(p, s);
             showPreview(p, s, c);
-        } else if (slot == SLOT_TAKE_OFF) {
+        } else if (slot == layout().prev() && s.page > 0) {
+            s.page--;
+            fillMenu(p, s);
+            p.playSound(p.getLocation(), Sound.ITEM_BOOK_PAGE_TURN, 0.7f, 1f);
+        } else if (slot == layout().next() && menu.inventory.getItem(slot) != null
+                && menu.inventory.getItem(slot).getType() == org.bukkit.Material.ARROW) {
+            s.page++;
+            fillMenu(p, s);
+            p.playSound(p.getLocation(), Sound.ITEM_BOOK_PAGE_TURN, 0.7f, 1f);
+        } else if (slot == layout().takeOff()) {
             store.setEquipped(p.getUniqueId(), null);
             save();
             s.previewing = null;
             showOnMannequin(p, s);
             showPreview(p, s, null);
-        } else if (slot == SLOT_EXIT) {
+        } else if (slot == layout().exit()) {
             Bukkit.getScheduler().runTask(plugin, () -> exitWardrobe(p, true));
         }
     }
@@ -641,13 +698,18 @@ public final class CosmeticModule implements StsvModule, Listener {
         });
     }
 
-    /** Sneaking leaves a spectator camera; in the wardrobe it opens the menu instead. */
+    /**
+     * The camera must stay attached for the whole session: sneaking in the preview would detach it (then
+     * open the menu instead), and switching to adventure for the menu would too (just keep it).
+     */
     @EventHandler
     public void onStopSpectating(com.destroystokyo.paper.event.player.PlayerStopSpectatingEntityEvent e) {
         Session s = sessions.get(e.getPlayer().getUniqueId());
         if (s == null || s.closing || e.getSpectatorTarget() != s.camera) return;
         e.setCancelled(true);
-        Bukkit.getScheduler().runTask(plugin, () -> toMenu(e.getPlayer()));
+        if (!s.toMenu && e.getPlayer().getGameMode() == GameMode.SPECTATOR && !menuOpen(e.getPlayer())) {
+            Bukkit.getScheduler().runTask(plugin, () -> toMenu(e.getPlayer()));
+        }
     }
 
     public void exitWardrobe(Player p, boolean sound) {
@@ -656,7 +718,9 @@ public final class CosmeticModule implements StsvModule, Listener {
         s.closing = true;
         if (s.spin != null) s.spin.cancel();
         if (p.getOpenInventory().getTopInventory().getHolder(false) instanceof Menu) p.closeInventory();
-        if (p.getGameMode() == GameMode.SPECTATOR) p.setSpectatorTarget(null);
+        // detach the camera (it may still be attached in adventure mode), then restore the game mode
+        p.setGameMode(GameMode.SPECTATOR);
+        p.setSpectatorTarget(null);
         p.setGameMode(s.gameMode);
         if (s.mannequin != null) s.mannequin.remove();
         if (s.camera != null) s.camera.remove();
@@ -700,7 +764,7 @@ public final class CosmeticModule implements StsvModule, Listener {
     public void onMove(PlayerMoveEvent e) {
         Session s = sessions.get(e.getPlayer().getUniqueId());
         if (s == null || !e.hasChangedPosition() || e.getPlayer().getGameMode() == GameMode.SPECTATOR) return;
-        Location to = s.spot.clone();
+        Location to = s.camera.getLocation().clone();
         to.setYaw(e.getTo().getYaw());
         to.setPitch(e.getTo().getPitch());
         e.setTo(to);
