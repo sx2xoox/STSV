@@ -481,6 +481,80 @@ def calyx(seed=211):
 
 
 # ------------------------------------------------------------------------------------------------
+# Premium sword ("cash item" look)
+# ------------------------------------------------------------------------------------------------
+
+def blade_steel():
+    """Polished blade: bright, a clean highlight line down the middle, almost no noise."""
+    im = _new()
+    px = im.load()
+    for y in range(S):
+        for x in range(S):
+            i = 2
+            if x in (7, 8):
+                i = 3                       # mirror-polished centre line
+            elif x in (0, 15):
+                i = 1
+            px[x, y] = ramp("blade", i)
+    return im
+
+
+def _energy_frame(k):
+    """Energy flowing up the blade core: a bright pulse travelling upwards (frame k of 8)."""
+    im = _new()
+    px = im.load()
+    n = size("aurora")
+    for y in range(S):
+        for x in range(S):
+            d = (y + 2 * k) % 16          # pulse moves up as k increases
+            core = 2 if 5 <= x <= 10 else 1   # brighter in the middle: a smooth beam, no checkering
+            i = n - 1 if d < 2 else n - 2 if d < 4 else core
+            if x in (0, 15):
+                i = max(0, i - 1)
+            px[x, y] = ramp("aurora", i)
+    return im
+
+
+def energy():
+    return _energy_frame(0)
+
+
+def obsidian_wrap():
+    """Grip: dark leather wrap with diagonal bands."""
+    im = _new()
+    px = im.load()
+    for y in range(S):
+        for x in range(S):
+            px[x, y] = ramp("obsidian", 2 if (x + y) % 4 < 2 else 1)
+    return im
+
+
+def gem_ruby():
+    im = _new()
+    px = im.load()
+    for y in range(S):
+        for x in range(S):
+            d = abs(x - 7.5) + abs(y - 7.5)
+            px[x, y] = ramp("ruby", 3 if d < 4 else 2 if d < 8 else 1 if d < 11 else 0)
+    return im
+
+
+def premium_gold():
+    """Gold trim with an engraved line."""
+    im = _new()
+    px = im.load()
+    for y in range(S):
+        for x in range(S):
+            i = 2
+            if y % 8 == 0:
+                i = 3
+            if y % 8 == 4:
+                i = 1                       # engraving
+            px[x, y] = ramp("gold", i)
+    return im
+
+
+# ------------------------------------------------------------------------------------------------
 # 2D item icons (transparent background, outlined)
 # ------------------------------------------------------------------------------------------------
 
@@ -585,6 +659,11 @@ SURFACES = {
     "dev_screen": dev_screen,
     "dev_fan": dev_fan,
     "tomato_skin": tomato_skin,
+    "blade_steel": blade_steel,
+    "energy": energy,
+    "obsidian_wrap": obsidian_wrap,
+    "gem_ruby": gem_ruby,
+    "premium_gold": premium_gold,
     "calyx": calyx,
 }
 
@@ -592,6 +671,7 @@ SURFACES = {
 # SURFACES[name] must return the first frame (used for previews and validation).
 ANIMATED = {
     "dev_screen": (lambda: [_dev_screen_frame(k) for k in range(8)], 2),
+    "energy": (lambda: [_energy_frame(k) for k in range(8)], 2),
 }
 
 

@@ -230,8 +230,15 @@ public final class ContentModule implements StsvModule, org.bukkit.event.Listene
             cosmetic = new CustomItem.Cosmetic(org.bukkit.inventory.EquipmentSlot.HEAD);
         }
 
+        CustomItem.Effects effects = sec.isConfigurationSection("effects")
+                ? parseEffects(pack, sec.getConfigurationSection("effects")) : null;
+        if (effects != null && effects.chargeTicks() > 0 && food != null) {
+            throw new IllegalArgumentException("effects.charge 와 food 는 같이 쓸 수 없음 (둘 다 우클릭 사용)");
+        }
+
         return new CustomItem(key, pack, material, sec.getString("name"), sec.getStringList("lore"), model,
-                maxStack, glint, sec.getBoolean("unbreakable", false), furniture, fuel, equipment, food, skin, cosmetic);
+                maxStack, glint, sec.getBoolean("unbreakable", false), furniture, fuel, equipment, food, skin, cosmetic,
+                effects);
     }
 
     /**
@@ -285,6 +292,37 @@ public final class ContentModule implements StsvModule, org.bukkit.event.Listene
                 net.kyori.adventure.key.Key.key(soundId), f.getString("remainder"),
                 (float) Math.max(0, f.getDouble("cooldown", 0)), List.copyOf(effects),
                 f.getBoolean("clear-effects", false), Math.max(0, f.getDouble("heal", 0)));
+    }
+
+    /**
+     * effects:
+     *   swing:  { model: test_slash, scale: 2.2, sound: entity.player.attack.sweep }
+     *   charge: { seconds: 1.0, sound: item.trident.thunder }   # hold right-click, release = big slash
+     */
+    private CustomItem.Effects parseEffects(ContentPack pack, ConfigurationSection e) {
+        NamespacedKey model = null;
+        float scale = 2f;
+        net.kyori.adventure.key.Key swingSound = net.kyori.adventure.key.Key.key("entity.player.attack.sweep");
+        if (e.isConfigurationSection("swing")) {
+            String m = e.getString("swing.model");
+            if (m == null) throw new IllegalArgumentException("effects.swing.model 이 없음");
+            if (m.contains(":")) {
+                model = NamespacedKey.fromString(m);
+            } else {
+                if (!Files.exists(pack.models().resolve(m + ".bbmodel"))) throw new IllegalArgumentException("models/" + m + ".bbmodel 이 없음");
+                model = new NamespacedKey(pack.namespace(), "model/" + m);
+            }
+            scale = (float) e.getDouble("swing.scale", 2.0);
+            swingSound = net.kyori.adventure.key.Key.key(e.getString("swing.sound", "entity.player.attack.sweep"));
+        }
+        int charge = 0;
+        net.kyori.adventure.key.Key chargeSound = net.kyori.adventure.key.Key.key("item.trident.thunder");
+        if (e.isConfigurationSection("charge")) {
+            if (model == null) throw new IllegalArgumentException("effects.charge 는 effects.swing 의 참격 모델을 씀");
+            charge = (int) Math.max(1, Math.round(e.getDouble("charge.seconds", 1.0) * 20));
+            chargeSound = net.kyori.adventure.key.Key.key(e.getString("charge.sound", "item.trident.thunder"));
+        }
+        return new CustomItem.Effects(model, scale, swingSound, charge, chargeSound);
     }
 
     private static double toDouble(Object o, double def) {

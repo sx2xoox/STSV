@@ -62,6 +62,11 @@ MATERIALS = {
     "signal_green": (145, 0.150, 0.62, 0.10, 2, True),
     # --- vegetables (cosmetics) -----------------------------------------------------------------
     "tomato":      (30, 0.170, 0.58, 0.30, 5, False),
+    # --- premium (cash-item) accents -------------------------------------------------------------
+    "blade":       (240, 0.025, 0.80, 0.30, 4, False),   # bright polished steel
+    "obsidian":    (285, 0.060, 0.30, 0.18, 4, False),   # dark violet-black metal
+    "aurora":      ((292, 205), 0.170, 0.72, 0.40, 5, True),  # violet -> cyan energy
+    "ruby":        (12, 0.190, 0.55, 0.30, 4, True),
     # --- TEST-ONLY materials: "dev texture" colours, never used by real content -----------------
     "test_orange": (55, 0.150, 0.70, 0.30, 4, True),
     "test_grey":   (250, 0.012, 0.62, 0.30, 4, False),

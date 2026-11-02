@@ -3,6 +3,7 @@ package dev.stsv.core;
 import dev.stsv.core.command.StsvCommand;
 import dev.stsv.core.command.WardrobeCommand;
 import dev.stsv.core.cosmetic.CosmeticModule;
+import dev.stsv.core.effect.ItemEffectsModule;
 import dev.stsv.core.skin.SkinModule;
 import dev.stsv.core.content.ContentModule;
 import dev.stsv.core.furniture.FurnitureModule;
@@ -51,6 +52,7 @@ public final class STSVPlugin extends JavaPlugin {
         modules.register(furniture = new FurnitureModule());
         modules.register(skins = new SkinModule());
         modules.register(cosmetics = new CosmeticModule());
+        modules.register(new ItemEffectsModule());
         modules.register(pack = new PackModule());
         modules.enableAll();
 

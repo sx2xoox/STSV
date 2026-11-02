@@ -108,6 +108,74 @@ def test_sword_skin():
     return _sword("test_sword_skin", "dev_purple", "dev_screen", "dev_grey")
 
 
+# grip of every upright-then-tilted sword: centre of the handle (y≈2.25) after the -45° tilt
+SWORD_GRIP = (-4.07, -4.07, 0.0)
+
+
+def test_greatsword():
+    """'Cash item' greatsword: winged gold guard, ruby gems, a polished blade with flowing energy in
+    its core. Built as long as the model space allows (to y = 32) and shown 1.35x larger in third
+    person / 1.15x in first person, with the grip kept in the hand (presets.enlarged)."""
+    return _greatsword(False)
+
+
+def test_greatsword_charged():
+    """Shown while the right-click charge is full: the whole blade turns to glowing energy."""
+    return _greatsword(True)
+
+
+def _greatsword(charged):
+    m = Model("test_greatsword_charged" if charged else "test_greatsword")
+    blade = "energy" if charged else "blade_steel"
+    m.front_gui_light = True
+    t = SWORD_TILT
+    m.group("hilt")
+    m.box("pommel_gem", (7.1, -2.4, 7.1), (8.9, -0.6, 8.9), "gem_ruby", glow=True, rotation=t)
+    m.box("pommel_cap", (6.75, -0.6, 6.75), (9.25, 0, 9.25), "premium_gold", rotation=t)
+    m.box("grip", (7.25, 0, 7.25), (8.75, 4.5, 8.75), "obsidian_wrap", rotation=t)
+    m.box("grip_ring_a", (7, 1.25, 7), (9, 1.75, 9), "premium_gold", rotation=t)
+    m.box("grip_ring_b", (7, 3, 7), (9, 3.5, 9), "premium_gold", rotation=t)
+    m.group("guard")
+    m.box("guard_core", (5, 4.5, 6.75), (11, 6.5, 9.25), "premium_gold", rotation=t)
+    m.box("guard_gem", (7, 4.75, 6.5), (9, 6.25, 9.5), "gem_ruby", glow=True, rotation=t)
+    for side, x0, x1, x2, x3 in (("l", 2, 5, 0.5, 2), ("r", 11, 14, 14, 15.5)):
+        m.box(f"wing_{side}_1", (x0, 5.5, 7.25), (x1, 6.75, 8.75), "premium_gold", rotation=t)
+        m.box(f"wing_{side}_2", (x2, 6.75, 7.4), (x3, 8.75, 8.6), "premium_gold", rotation=t)
+        tip = (x2, 8.75, 7.6) if side == "l" else (x3 - 1, 8.75, 7.6)
+        m.box(f"wing_{side}_tip", tip, (tip[0] + 1, 10.25, 8.4), "obsidian_wrap", rotation=t)
+    m.box("collar", (6.5, 6.5, 7.25), (9.5, 7.5, 8.75), "obsidian_wrap", rotation=t)
+    m.group("blade")
+    m.box("blade", (6.25, 7.5, 7.5), (9.75, 28, 8.5), blade, glow=charged, rotation=t)
+    m.box("core", (7.4, 8, 7.35), (8.6, 27, 8.65), "energy", glow=True, rotation=t)
+    m.box("edge_l", (5.75, 8.5, 7.75), (6.25, 27, 8.25), blade, glow=charged, rotation=t)
+    m.box("edge_r", (9.75, 8.5, 7.75), (10.25, 27, 8.25), blade, glow=charged, rotation=t)
+    m.box("tip_1", (6.75, 28, 7.6), (9.25, 30, 8.4), blade, glow=charged, rotation=t)
+    m.box("tip_2", (7.25, 30, 7.7), (8.75, 31.25, 8.3), blade, glow=charged, rotation=t)
+    m.box("tip_3", (7.6, 31.25, 7.8), (8.4, 32, 8.2), "energy", glow=True, rotation=t)
+    m.display = {
+        **presets.enlarged(presets.HANDHELD, {"thirdperson_righthand": 1.35, "thirdperson_lefthand": 1.35,
+                                              "firstperson_righthand": 1.15, "firstperson_lefthand": 1.15},
+                           SWORD_GRIP),
+        "gui": {"rotation": [0, 0, 0], "translation": [-1.5, -1.5, 0], "scale": [0.55, 0.55, 0.55]},
+        "ground": {"rotation": [0, 0, 0], "translation": [0, 2, 0], "scale": [0.4, 0.4, 0.4]},
+        "fixed": {"rotation": [0, 180, 0], "translation": [0, 0, 0], "scale": [0.6, 0.6, 0.6]},
+    }
+    return m
+
+
+def test_slash():
+    """Sword-swing effect: a glowing crescent lying flat (XZ plane) in front of the centre, made of
+    seven 3px segments on a 7px radius rotated 22.5° apart. Centred on (8, 8, 8): the plugin spins and
+    grows it around that point while it sweeps."""
+    m = Model("test_slash")
+    for i, angle in enumerate((-45, -22.5, 0, 22.5, 45)):
+        thick = 0.5 if abs(angle) == 45 else 1.0
+        m.box(f"seg_{i}", (6.25, 8 - thick / 2, 0.5), (9.75, 8 + thick / 2, 1.75), "energy",
+              glow=True, rotation=("y", angle, (8, 8, 8)))
+    m.display = {"fixed": {"rotation": [0, 0, 0], "translation": [0, 0, 0], "scale": [1, 1, 1]}}
+    return m
+
+
 def _rod(name, cast):
     m = Model(name)
     m.front_gui_light = True
@@ -177,6 +245,7 @@ def tomato_mask():
     return m
 
 
-ALL = {f.__name__: f for f in (test_machine, test_fan_blade, test_bench, test_rug, test_food, test_sword,
+ALL = {f.__name__: f for f in (test_machine, test_fan_blade, test_bench, test_rug, test_food, test_sword, test_greatsword,
+                               test_greatsword_charged, test_slash,
                                test_sword_skin, test_rod, test_rod_cast, test_shield, test_shield_blocking,
                                tomato_mask)}

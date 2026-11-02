@@ -88,6 +88,20 @@ def item_definitions():
             "on_false": _model("test_rod"),
             "on_true": _model("test_rod_cast"),
         }},
+        # greatsword: holding right-click raises it (trident pose from its consumable component);
+        # after 1 second of holding the fully charged model is shown
+        "test_greatsword": {"model": {
+            "type": "minecraft:condition",
+            "property": "minecraft:using_item",
+            "on_false": _model("test_greatsword"),
+            "on_true": {
+                "type": "minecraft:range_dispatch",
+                "property": "minecraft:use_duration",
+                "scale": 0.05,
+                "entries": [{"threshold": 1.0, "model": _model("test_greatsword_charged")}],
+                "fallback": _model("test_greatsword"),
+            },
+        }},
         "test_shield": {"model": {
             "type": "minecraft:condition",
             "property": "minecraft:using_item",

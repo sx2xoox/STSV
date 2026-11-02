@@ -114,6 +114,7 @@ class PackIntegrityTest {
                     if (!ref[0].equals("minecraft")) require(where, "assets/" + ref[0] + "/items/" + ref[1] + ".json");
                 }
                 if (sec.isString("skin.model")) requireItemModel(where, sec.getString("skin.model"));
+                if (sec.isString("effects.swing.model")) requireItemModel(where, sec.getString("effects.swing.model"));
                 for (Object part : sec.getList("furniture.parts", List.of())) {
                     if (part instanceof Map<?, ?> m) requireItemModel(where, String.valueOf(m.get("model")));
                 }

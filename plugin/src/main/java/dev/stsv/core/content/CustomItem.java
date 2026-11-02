@@ -40,8 +40,18 @@ public record CustomItem(
         Equipment equipment,
         Food food,
         Skin skin,
-        Cosmetic cosmetic
+        Cosmetic cosmetic,
+        Effects effects
 ) {
+
+    /**
+     * Visual weapon effects.
+     *
+     * @param swingModel  item model of the slash shown when swinging, or null
+     * @param chargeTicks hold right-click this long for a charged release, 0 = no charge
+     */
+    public record Effects(NamespacedKey swingModel, float swingScale, Key swingSound,
+                          int chargeTicks, Key chargeSound) {}
 
     /**
      * How the item looks when worn (armor). {@code asset} points at assets/&lt;ns&gt;/equipment/&lt;id&gt;.json.
@@ -111,6 +121,15 @@ public record CustomItem(
         stack.setItemMeta(meta);
 
         if (food != null) applyFood(stack);
+        else if (effects != null && effects.chargeTicks() > 0) {
+            // usable without being eaten: raised like a trident while held, never finishes
+            stack.setData(DataComponentTypes.CONSUMABLE, Consumable.consumable()
+                    .consumeSeconds(3600)
+                    .animation(ItemUseAnimation.TRIDENT)
+                    .sound(Key.key("minecraft:intentionally_empty"))
+                    .hasConsumeParticles(false)
+                    .build());
+        }
         return stack;
     }
 
