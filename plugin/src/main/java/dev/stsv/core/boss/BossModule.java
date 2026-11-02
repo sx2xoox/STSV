@@ -186,6 +186,18 @@ public final class BossModule implements StsvModule, Listener {
         b.remove();
     }
 
+    public int force(String skill) {
+        int n = 0;
+        for (BossInstance b : active.values()) if (b.force(skill)) n++;
+        return n;
+    }
+
+    public List<String> debug() {
+        List<String> out = new ArrayList<>();
+        for (BossInstance b : active.values()) out.addAll(b.debug());
+        return out;
+    }
+
     public int removeAll() {
         int n = active.size();
         for (BossInstance b : new ArrayList<>(active.values())) end(b);

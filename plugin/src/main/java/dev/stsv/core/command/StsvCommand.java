@@ -124,6 +124,18 @@ public final class StsvCommand implements TabExecutor {
                 }
             }
             case "remove" -> sender.sendMessage(Text.msg("<gray>보스 " + plugin.bosses().removeAll() + "마리 제거"));
+            // admin testing (also from the console)
+            case "spawnat" -> {
+                if (args.length < 6) {
+                    sender.sendMessage(Text.msg("<red>/stsv boss spawnat <보스> <x> <y> <z> [월드]"));
+                    return;
+                }
+                org.bukkit.World w = args.length > 6 ? org.bukkit.Bukkit.getWorld(args[6]) : org.bukkit.Bukkit.getWorlds().getFirst();
+                org.bukkit.Location at = new org.bukkit.Location(w, Double.parseDouble(args[3]), Double.parseDouble(args[4]), Double.parseDouble(args[5]));
+                sender.sendMessage(Text.msg(plugin.bosses().spawn(args[2], at).isPresent() ? "<green>소환" : "<red>알 수 없는 보스"));
+            }
+            case "force" -> sender.sendMessage(Text.msg("<gray>패턴 시작: " + (args.length > 2 ? plugin.bosses().force(args[2]) : 0) + "마리"));
+            case "debug" -> plugin.bosses().debug().forEach(line -> sender.sendMessage(Text.mm("<gray>" + line)));
             default -> sender.sendMessage(Text.msg("<red>/stsv boss <spawn|list|remove>"));
         }
     }
@@ -350,7 +362,7 @@ public final class StsvCommand implements TabExecutor {
         if (args[0].equalsIgnoreCase("fuel") && args.length == 2) return filter(List.of("set", "remove", "list"), args[1]);
         if (args[0].equalsIgnoreCase("skin") && args.length == 2) return filter(List.of("remove"), args[1]);
         if (args[0].equalsIgnoreCase("wardrobe") && args.length == 2) return filter(List.of("create", "delete", "list"), args[1]);
-        if (args[0].equalsIgnoreCase("boss") && args.length == 2) return filter(List.of("spawn", "list", "remove"), args[1]);
+        if (args[0].equalsIgnoreCase("boss") && args.length == 2) return filter(List.of("spawn", "list", "remove", "force", "debug", "spawnat"), args[1]);
         if (args[0].equalsIgnoreCase("boss") && args.length == 3 && args[1].equalsIgnoreCase("spawn")) {
             return filter(plugin.bosses().specs().stream().map(dev.stsv.core.boss.BossSpec::id).toList(), args[2]);
         }

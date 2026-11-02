@@ -92,7 +92,11 @@ public final class BossInstance {
         this.lastLoc = golem.getLocation();
         this.bar = BossBar.bossBar(Text.mm(spec.name()), 1f, spec.barColor(), BossBar.Overlay.NOTCHED_10);
         for (BossSpec.Bone b : spec.bones().values()) {
-            ItemDisplay d = golem.getWorld().spawn(golem.getLocation(), ItemDisplay.class, e -> {
+            // yaw/pitch 0: the bone transform already contains the body yaw (see Rig)
+            Location at = golem.getLocation();
+            at.setYaw(0);
+            at.setPitch(0);
+            ItemDisplay d = golem.getWorld().spawn(at, ItemDisplay.class, e -> {
                 e.setItemStack(modelItem(b.model()));
                 e.setItemDisplayTransform(ItemDisplay.ItemDisplayTransform.FIXED);
                 e.setPersistent(false);
@@ -269,6 +273,7 @@ public final class BossInstance {
 
         updateLook();
         modelSpace = Rig.modelSpace(spec, shown, lookYaw, lookPitch);
+        straightenParts();
         float yaw = golem.getBodyYaw();
         float rider = (float) golem.getHeight() + module.riderOffsetAdjust();
         for (Map.Entry<String, ItemDisplay> e : parts.entrySet()) {
@@ -916,6 +921,19 @@ public final class BossInstance {
     @SuppressWarnings("removal")
     private void moveGolem(Location to) {
         golem.teleport(to, io.papermc.paper.entity.TeleportFlag.EntityState.RETAIN_PASSENGERS);
+        // Teleporting a vehicle adds the vehicle's rotation change to every passenger. The golem looks
+        // down at its target (pitch ~30), the teleport sets 0, so each leap tick pushed the bones' pitch
+        // further until they lay flat (clamped at 90). Bones must always stay at yaw 0 / pitch 0.
+        straightenParts();
+    }
+
+    /** Bone displays keep yaw/pitch 0 (all rotation is in their transformation); riding the golem. */
+    private void straightenParts() {
+        for (ItemDisplay d : parts.values()) {
+            if (!d.isValid()) continue;
+            if (d.getYaw() != 0 || d.getPitch() != 0) d.setRotation(0, 0);
+            if (d.getVehicle() != golem) golem.addPassenger(d);
+        }
     }
 
     /** Feet on the floor (the player-reported on-ground flag can be spoofed, so look at the block). */
@@ -1270,6 +1288,35 @@ public final class BossInstance {
         for (ItemDisplay d : parts.values()) d.remove();
         parts.clear();
         golem.remove();
+    }
+
+    /** Starts a pattern now, ignoring range and cooldown (admin testing). */
+    boolean force(String skillId) {
+        BossSpec.Skill s = spec.skills().get(skillId);
+        if (s == null || dying) return false;
+        if (action != null) {
+            action.end();
+            if (action.freeze) unfreeze();
+            action = null;
+        }
+        start(s);
+        return true;
+    }
+
+    /** One line per bone: is it still riding, its own rotation, and how far the bone is tilted from upright. */
+    List<String> debug() {
+        List<String> out = new ArrayList<>();
+        out.add(spec.id() + " anim=" + (action == null ? "-" : action.anim + "@" + action.animTime()) + " yaw=" + Math.round(golem.getBodyYaw())
+                + " hp=" + Math.round(golem.getHealth()) + " pos=" + golem.getLocation().toVector().toString());
+        for (Map.Entry<String, ItemDisplay> e : parts.entrySet()) {
+            ItemDisplay d = e.getValue();
+            Transformation tr = d.getTransformation();
+            Vector3f up = tr.getLeftRotation().transform(new Vector3f(0, 1, 0));
+            out.add(String.format(java.util.Locale.ROOT, "  %-10s riding=%s yaw=%.0f pitch=%.0f tilt=%.0f t=(%.2f %.2f %.2f) valid=%s", e.getKey(),
+                    d.getVehicle() == golem, d.getYaw(), d.getPitch(), Math.toDegrees(Math.acos(Math.clamp(up.y, -1, 1))),
+                    tr.getTranslation().x, tr.getTranslation().y, tr.getTranslation().z, d.isValid()));
+        }
+        return out;
     }
 
     String state() {
