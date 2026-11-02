@@ -1,6 +1,5 @@
 package dev.stsv.core.cosmetic;
 
-import com.destroystokyo.paper.event.player.PlayerStopSpectatingEntityEvent;
 import dev.stsv.core.STSVPlugin;
 import dev.stsv.core.content.CustomItem;
 import dev.stsv.core.module.StsvModule;
@@ -9,17 +8,13 @@ import io.papermc.paper.datacomponent.item.ResolvableProfile;
 import io.papermc.paper.event.entity.EntityEquipmentChangedEvent;
 import io.papermc.paper.event.player.PlayerTrackEntityEvent;
 import net.kyori.adventure.text.Component;
-import net.kyori.adventure.text.event.ClickEvent;
-import net.kyori.adventure.text.event.HoverEvent;
 import org.bukkit.Bukkit;
-import org.bukkit.GameMode;
 import org.bukkit.Location;
 import org.bukkit.NamespacedKey;
 import org.bukkit.Sound;
 import org.bukkit.World;
 import org.bukkit.configuration.file.YamlConfiguration;
 import org.bukkit.entity.Entity;
-import org.bukkit.entity.ItemDisplay;
 import org.bukkit.entity.Mannequin;
 import org.bukkit.entity.Player;
 import org.bukkit.event.EventHandler;
@@ -27,7 +22,15 @@ import org.bukkit.event.HandlerList;
 import org.bukkit.event.Listener;
 import org.bukkit.event.inventory.InventoryClickEvent;
 import org.bukkit.event.inventory.InventoryCloseEvent;
+import org.bukkit.event.block.Action;
 import org.bukkit.event.player.PlayerChangedWorldEvent;
+import org.bukkit.event.player.PlayerInteractEntityEvent;
+import org.bukkit.event.player.PlayerInteractEvent;
+import org.bukkit.event.player.PlayerMoveEvent;
+import org.bukkit.event.player.PlayerToggleSneakEvent;
+import org.bukkit.inventory.Inventory;
+import org.bukkit.inventory.InventoryHolder;
+import org.jetbrains.annotations.NotNull;
 import org.bukkit.event.player.PlayerJoinEvent;
 import org.bukkit.event.player.PlayerQuitEvent;
 import org.bukkit.event.player.PlayerRespawnEvent;
@@ -59,8 +62,9 @@ import java.util.UUID;
  * (and to the player, for third-person view). The real helmet and its protection are untouched.
  * It is re-sent whenever the server would overwrite it (equipment change, new viewer, respawn...).
  *
- * Wardrobe: inside a wardrobe zone, /wardrobe moves the camera in front of a mannequin wearing the
- * player's own skin, so they see themselves while choosing. Chat buttons pick/apply; sneak leaves.
+ * Wardrobe: inside a wardrobe zone, /wardrobe puts the player in front of a mannequin wearing their
+ * own skin and opens a menu. Picking a cosmetic closes the menu (no blur) and dresses the mannequin;
+ * right-click reopens the menu, sneaking leaves.
  */
 public final class CosmeticModule implements StsvModule, Listener {
 
@@ -86,6 +90,10 @@ public final class CosmeticModule implements StsvModule, Listener {
         zonesFile = new File(plugin.getDataFolder(), "wardrobes.yml");
         loadZones();
         Bukkit.getPluginManager().registerEvents(this, plugin);
+        // safety net: whatever overwrote the look (resyncs we cannot see), fix it within 5 seconds
+        Bukkit.getScheduler().runTaskTimer(plugin, () -> {
+            for (Player p : Bukkit.getOnlinePlayers()) if (equipped(p).isPresent()) refresh(p);
+        }, 100L, 100L);
         for (Player p : Bukkit.getOnlinePlayers()) {
             restoreIfStuck(p);
             refreshLater(p);
@@ -243,17 +251,30 @@ public final class CosmeticModule implements StsvModule, Listener {
     }
 
     // ------------------------------------------------------------------------------------------
-    // Wardrobe session (camera + mannequin)
+    // Wardrobe session: the player stands frozen in front of a mannequin wearing their own skin.
+    // A menu (inventory UI) picks the cosmetic; picking closes the menu so the world is not blurred.
+    // Right-click reopens the menu, sneaking leaves.
     // ------------------------------------------------------------------------------------------
 
     private static final class Session {
         Location origin;
-        GameMode gameMode;
-        ItemDisplay camera;
+        Location spot;
+        boolean wasInvulnerable;
         Mannequin mannequin;
         BukkitTask spin;
         String selected;
+        Menu menu;
     }
+
+    private static final class Menu implements InventoryHolder {
+        Inventory inventory;
+        final Map<Integer, String> slots = new HashMap<>();
+
+        @Override public @NotNull Inventory getInventory() { return inventory; }
+    }
+
+    private static final int[] COSMETIC_SLOTS = {10, 11, 12, 13, 14, 15, 16, 19, 20, 21, 22, 23, 24, 25, 28, 29, 30, 31, 32, 33, 34};
+    private static final int SLOT_INFO = 4, SLOT_REMOVE = 46, SLOT_APPLY = 49, SLOT_EXIT = 52;
 
     public boolean inWardrobe(Player p) {
         return sessions.containsKey(p.getUniqueId());
@@ -261,30 +282,46 @@ public final class CosmeticModule implements StsvModule, Listener {
 
     public void enterWardrobe(Player p) {
         if (inWardrobe(p)) {
-            menu(p);
+            openMenu(p);
             return;
         }
         if (zoneAt(p.getLocation()).isEmpty()) {
             p.sendMessage(Text.msg("<red>옷장 구역 안에서만 사용할 수 있습니다."));
             return;
         }
-        if (p.isInsideVehicle() || p.getGameMode() == GameMode.SPECTATOR) {
-            p.sendMessage(Text.msg("<red>지금은 옷장을 열 수 없습니다."));
+        if (p.isInsideVehicle()) {
+            p.sendMessage(Text.msg("<red>탈것에서 내린 뒤 사용하세요."));
             return;
         }
+        Location stand = p.getLocation().clone();
+        stand.setPitch(0);
+        // where the player watches from: in front of the mannequin, looking back at it
+        Vector forward = stand.getDirection().setY(0).normalize();
+        Location spot = null;
+        for (double d : new double[]{2.6, 2.2, 1.8}) {
+            Location c = stand.clone().add(forward.clone().multiply(d));
+            if (c.getBlock().isPassable() && c.clone().add(0, 1, 0).getBlock().isPassable()) {
+                spot = c;
+                break;
+            }
+        }
+        if (spot == null) {
+            p.sendMessage(Text.msg("<red>앞쪽 공간이 부족합니다. 앞이 트인 곳에서 사용하세요."));
+            return;
+        }
+        spot.setDirection(stand.clone().add(0, 1.0, 0).toVector().subtract(spot.clone().add(0, 1.62, 0).toVector()));
+
         Session s = new Session();
         s.origin = p.getLocation().clone();
-        s.gameMode = p.getGameMode();
+        s.spot = spot;
+        s.wasInvulnerable = p.isMarkedInvulnerable(); // the flag set by setInvulnerable (isInvulnerable() is not)
         s.selected = equipped(p).map(c -> c.key().asString()).orElse(null);
-        // crash safety: remember how to put the player back
         Location o = s.origin;
         p.getPersistentDataContainer().set(keyReturn, PersistentDataType.STRING, String.join(";",
-                o.getWorld().getName(), "" + o.getX(), "" + o.getY(), "" + o.getZ(), "" + o.getYaw(), "" + o.getPitch(), s.gameMode.name()));
+                o.getWorld().getName(), "" + o.getX(), "" + o.getY(), "" + o.getZ(), "" + o.getYaw(), "" + o.getPitch(),
+                "" + s.wasInvulnerable));
 
-        World w = p.getWorld();
-        Location stand = o.clone();
-        stand.setPitch(0);
-        s.mannequin = w.spawn(stand, Mannequin.class, m -> {
+        s.mannequin = p.getWorld().spawn(stand, Mannequin.class, m -> {
             m.setVisibleByDefault(false);
             m.setPersistent(false);
             m.setInvulnerable(true);
@@ -298,58 +335,125 @@ public final class CosmeticModule implements StsvModule, Listener {
             eq.setArmorContents(p.getInventory().getArmorContents());
             eq.setItemInMainHand(p.getInventory().getItemInMainHand());
         });
-        // camera: in front of the mannequin, slightly above eye level, looking back at it
-        Vector forward = stand.getDirection().setY(0).normalize();
-        Location cam = stand.clone().add(forward.multiply(2.8)).add(0, 1.75, 0);
-        cam.setDirection(stand.clone().add(0, 1.1, 0).toVector().subtract(cam.toVector()));
-        s.camera = w.spawn(cam, ItemDisplay.class, d -> {
-            d.setVisibleByDefault(false);
-            d.setPersistent(false);
-            d.getPersistentDataContainer().set(keyWardrobeEntity, PersistentDataType.BYTE, (byte) 1);
-        });
         p.showEntity(plugin, s.mannequin);
-        p.showEntity(plugin, s.camera);
         sessions.put(p.getUniqueId(), s);
-        showOnMannequin(s);
+        showOnMannequin(p, s);
 
-        p.setGameMode(GameMode.SPECTATOR);
-        p.teleport(cam);
-        Bukkit.getScheduler().runTaskLater(plugin, () -> {
-            if (inWardrobe(p)) p.setSpectatorTarget(s.camera);
-        }, 2L);
-        // slow turntable so the cosmetic is seen from every side
+        for (Player other : Bukkit.getOnlinePlayers()) if (other != p) other.hidePlayer(plugin, p);
+        p.setInvulnerable(true);
+        p.teleport(spot);
         s.spin = Bukkit.getScheduler().runTaskTimer(plugin, () -> {
             if (s.mannequin.isValid()) s.mannequin.setRotation(s.mannequin.getYaw() + 2.5f, 0);
         }, 20L, 1L);
-        p.playSound(cam, Sound.BLOCK_WOODEN_DOOR_OPEN, 0.8f, 1.2f);
-        menu(p);
+        p.playSound(spot, Sound.BLOCK_WOODEN_DOOR_OPEN, 0.8f, 1.2f);
+        openMenu(p);
     }
 
-    private void showOnMannequin(Session s) {
+    private void showOnMannequin(Player p, Session s) {
         ItemStack head = Optional.ofNullable(s.selected).flatMap(id -> plugin.content().item(id))
-                .map(c -> c.create(1)).orElse(null);
-        Player owner = Bukkit.getPlayer(sessions.entrySet().stream().filter(e -> e.getValue() == s)
-                .map(Map.Entry::getKey).findFirst().orElse(null));
-        if (head == null && owner != null) head = owner.getInventory().getHelmet();
+                .map(c -> c.create(1)).orElse(p.getInventory().getHelmet());
         s.mannequin.getEquipment().setHelmet(head);
     }
 
-    public void preview(Player p, String id) {
+    public void openMenu(Player p) {
         Session s = sessions.get(p.getUniqueId());
         if (s == null) return;
-        Optional<CustomItem> c = plugin.content().item(id).filter(i -> i.cosmetic() != null);
-        if (c.isEmpty()) return;
-        s.selected = c.get().key().asString();
-        showOnMannequin(s);
-        p.sendActionBar(Text.mm("<gray>미리보기: </gray>" + displayName(c.get())));
+        Menu menu = new Menu();
+        Inventory inv = Bukkit.createInventory(menu, 54, Text.mm("<dark_gray>옷장"));
+        menu.inventory = inv;
+        ItemStack pane = icon(org.bukkit.Material.GRAY_STAINED_GLASS_PANE, " ", List.of());
+        for (int i = 0; i < 54; i++) inv.setItem(i, pane);
+
+        Optional<CustomItem> worn = equipped(p);
+        Optional<CustomItem> sel = Optional.ofNullable(s.selected).flatMap(id -> plugin.content().item(id));
+        inv.setItem(SLOT_INFO, icon(org.bukkit.Material.ARMOR_STAND, "<gold>옷장", List.of(
+                "<gray>착용 중: <white>" + worn.map(CosmeticModule::displayName).orElse("없음"),
+                "<gray>미리보기: <white>" + sel.map(CosmeticModule::displayName).orElse("없음"),
+                "",
+                "<gray>치장을 클릭하면 창이 닫히고 마네킹이 입어봅니다.",
+                "<gray>우클릭: 이 창 다시 열기 · 웅크리기: 나가기")));
+
+        List<CustomItem> all = cosmetics();
+        for (int i = 0; i < all.size() && i < COSMETIC_SLOTS.length; i++) {
+            CustomItem c = all.get(i);
+            ItemStack it;
+            if (owns(p, c)) {
+                it = c.create(1);
+                boolean isWorn = worn.filter(w -> w.key().equals(c.key())).isPresent();
+                it.editMeta(m -> {
+                    List<Component> lore = new ArrayList<>();
+                    lore.add(Text.item(isWorn ? "<green>✔ 착용 중" : "<gray>클릭: 미리보기"));
+                    m.lore(lore);
+                    if (s.selected != null && s.selected.equals(c.key().asString())) m.setEnchantmentGlintOverride(true);
+                });
+            } else {
+                it = icon(org.bukkit.Material.GRAY_DYE, "<dark_gray>" + c.key().getKey() + " (잠김)",
+                        List.of("<dark_gray>아직 가지고 있지 않은 치장입니다."));
+            }
+            inv.setItem(COSMETIC_SLOTS[i], it);
+            menu.slots.put(COSMETIC_SLOTS[i], c.key().asString());
+        }
+        inv.setItem(SLOT_REMOVE, icon(org.bukkit.Material.BARRIER, "<yellow>치장 벗기", List.of("<gray>지금 착용 중인 치장을 벗습니다.")));
+        inv.setItem(SLOT_APPLY, icon(org.bukkit.Material.LIME_CONCRETE, "<green>착용하기",
+                List.of(sel.map(c -> "<gray>" + displayName(c) + " <gray>을(를) 입습니다.").orElse("<red>먼저 치장을 클릭해 고르세요."))));
+        inv.setItem(SLOT_EXIT, icon(org.bukkit.Material.OAK_DOOR, "<red>나가기", List.of()));
+        s.menu = menu;
+        p.openInventory(inv);
+    }
+
+    private static ItemStack icon(org.bukkit.Material m, String name, List<String> lore) {
+        ItemStack it = new ItemStack(m);
+        it.editMeta(meta -> {
+            meta.itemName(Text.item(name));
+            meta.lore(Text.itemLines(lore));
+        });
+        return it;
+    }
+
+    @EventHandler
+    public void onMenuClick(InventoryClickEvent e) {
+        if (!(e.getInventory().getHolder(false) instanceof Menu menu)) return;
+        e.setCancelled(true);
+        if (!(e.getWhoClicked() instanceof Player p) || e.getClickedInventory() != e.getInventory()) return;
+        Session s = sessions.get(p.getUniqueId());
+        if (s == null) {
+            p.closeInventory();
+            return;
+        }
+        int slot = e.getSlot();
+        String id = menu.slots.get(slot);
+        if (id != null) {
+            CustomItem c = plugin.content().item(id).orElse(null);
+            if (c == null) return;
+            if (!owns(p, c)) {
+                p.playSound(p.getLocation(), Sound.BLOCK_NOTE_BLOCK_BASS, 0.7f, 0.6f);
+                return;
+            }
+            s.selected = id;
+            showOnMannequin(p, s);
+            p.closeInventory(); // close so the world is not blurred while looking at the mannequin
+            p.showTitle(net.kyori.adventure.title.Title.title(Text.mm(displayName(c)),
+                    Text.mm("<gray>우클릭: 메뉴 (착용하기) · 웅크리기: 나가기"),
+                    net.kyori.adventure.title.Title.Times.times(java.time.Duration.ofMillis(150),
+                            java.time.Duration.ofSeconds(3), java.time.Duration.ofMillis(400))));
+        } else if (slot == SLOT_APPLY) {
+            applySelected(p);
+            openMenu(p);
+        } else if (slot == SLOT_REMOVE) {
+            clearSelected(p);
+            openMenu(p);
+        } else if (slot == SLOT_EXIT) {
+            p.closeInventory();
+            exitWardrobe(p, true);
+        }
     }
 
     public void applySelected(Player p) {
         Session s = sessions.get(p.getUniqueId());
         if (s == null) return;
         if (s.selected == null) {
-            equip(p, null);
-            p.sendActionBar(Text.mm("<gray>치장을 해제했습니다."));
+            p.sendActionBar(Text.mm("<red>먼저 치장을 클릭해서 골라주세요."));
+            p.playSound(p.getLocation(), Sound.BLOCK_NOTE_BLOCK_BASS, 0.7f, 0.6f);
             return;
         }
         CustomItem c = plugin.content().item(s.selected).orElse(null);
@@ -360,33 +464,36 @@ public final class CosmeticModule implements StsvModule, Listener {
         }
         p.getPersistentDataContainer().set(keyEquipped, PersistentDataType.STRING, c.key().asString());
         p.playSound(p.getLocation(), Sound.ITEM_ARMOR_EQUIP_LEATHER, 1f, 1.2f);
-        p.sendActionBar(Text.mm("<green>적용: </green>" + displayName(c)));
+        p.sendActionBar(Text.mm("<green>착용: </green>" + displayName(c)));
     }
 
     public void clearSelected(Player p) {
         Session s = sessions.get(p.getUniqueId());
         if (s == null) return;
         s.selected = null;
-        showOnMannequin(s);
         p.getPersistentDataContainer().remove(keyEquipped);
-        p.sendActionBar(Text.mm("<gray>치장을 해제했습니다."));
+        showOnMannequin(p, s);
+        p.sendActionBar(Text.mm("<gray>치장을 벗었습니다."));
     }
 
     public void exitWardrobe(Player p, boolean sound) {
         Session s = sessions.remove(p.getUniqueId());
         if (s == null) return;
         if (s.spin != null) s.spin.cancel();
-        if (p.getSpectatorTarget() != null) p.setSpectatorTarget(null);
-        if (s.camera != null) s.camera.remove();
         if (s.mannequin != null) s.mannequin.remove();
-        p.setGameMode(s.gameMode);
+        if (p.getOpenInventory().getTopInventory().getHolder(false) instanceof Menu) p.closeInventory();
         p.teleport(s.origin);
+        p.setInvulnerable(s.wasInvulnerable);
+        for (Player other : Bukkit.getOnlinePlayers()) if (other != p) other.showPlayer(plugin, p);
         p.getPersistentDataContainer().remove(keyReturn);
         if (sound) p.playSound(s.origin, Sound.BLOCK_WOODEN_DOOR_CLOSE, 0.8f, 1.2f);
-        refreshLater(p);
+        // the teleport and re-tracking send fresh vanilla equipment; put the cosmetic back a few times
+        for (long delay : new long[]{1, 10, 40}) Bukkit.getScheduler().runTaskLater(plugin, () -> refresh(p), delay);
+        equipped(p).ifPresent(c -> p.sendMessage(Text.msg("<green>착용 중인 치장: </green>" + displayName(c)
+                + " <gray>(F5로 확인)")));
     }
 
-    /** After a crash the player may still be a spectator at the camera: put them back. */
+    /** After a crash the player may still be at the viewing spot: put them back. */
     private void restoreIfStuck(Player p) {
         PersistentDataContainer pdc = p.getPersistentDataContainer();
         String raw = pdc.get(keyReturn, PersistentDataType.STRING);
@@ -396,19 +503,41 @@ public final class CosmeticModule implements StsvModule, Listener {
             World w = Bukkit.getWorld(a[0]);
             if (w != null) p.teleport(new Location(w, Double.parseDouble(a[1]), Double.parseDouble(a[2]),
                     Double.parseDouble(a[3]), Float.parseFloat(a[4]), Float.parseFloat(a[5])));
-            p.setGameMode(GameMode.valueOf(a[6]));
+            p.setInvulnerable(a.length > 6 && Boolean.parseBoolean(a[6]));
         } catch (RuntimeException ignored) {
-            p.setGameMode(Bukkit.getDefaultGameMode());
+            p.setInvulnerable(false);
         }
         pdc.remove(keyReturn);
     }
 
-    @EventHandler
-    public void onStopSpectating(PlayerStopSpectatingEntityEvent e) {
+    /** Frozen in place (looking around is fine). */
+    @EventHandler(ignoreCancelled = true)
+    public void onMove(PlayerMoveEvent e) {
         Session s = sessions.get(e.getPlayer().getUniqueId());
-        if (s != null && e.getSpectatorTarget() == s.camera) {
-            Bukkit.getScheduler().runTask(plugin, () -> exitWardrobe(e.getPlayer(), true)); // sneak = leave
-        }
+        if (s == null || !e.hasChangedPosition()) return;
+        Location to = s.spot.clone();
+        to.setYaw(e.getTo().getYaw());
+        to.setPitch(e.getTo().getPitch());
+        e.setTo(to);
+    }
+
+    @EventHandler
+    public void onSneak(PlayerToggleSneakEvent e) {
+        if (e.isSneaking() && inWardrobe(e.getPlayer())) exitWardrobe(e.getPlayer(), true);
+    }
+
+    @EventHandler
+    public void onRightClick(PlayerInteractEvent e) {
+        if (!inWardrobe(e.getPlayer()) || e.getHand() != EquipmentSlot.HAND) return;
+        e.setCancelled(true);
+        if (e.getAction() == Action.RIGHT_CLICK_AIR || e.getAction() == Action.RIGHT_CLICK_BLOCK) openMenu(e.getPlayer());
+    }
+
+    @EventHandler
+    public void onClickMannequin(PlayerInteractEntityEvent e) {
+        if (!inWardrobe(e.getPlayer())) return;
+        e.setCancelled(true);
+        if (e.getHand() == EquipmentSlot.HAND) openMenu(e.getPlayer());
     }
 
     @EventHandler
@@ -416,33 +545,27 @@ public final class CosmeticModule implements StsvModule, Listener {
         exitWardrobe(e.getPlayer(), false);
     }
 
-    // ------------------------------------------------------------------------------------------
-    // Chat menu (chat does not blur the world, unlike inventory screens)
-    // ------------------------------------------------------------------------------------------
+    @EventHandler
+    public void onJoinHide(PlayerJoinEvent e) {
+        // players already in a wardrobe stay hidden from people who join meanwhile
+        for (UUID id : sessions.keySet()) {
+            Player in = Bukkit.getPlayer(id);
+            if (in != null && in != e.getPlayer()) e.getPlayer().hidePlayer(plugin, in);
+        }
+    }
 
     private static String displayName(CustomItem c) {
         return c.name() == null ? c.key().getKey() : c.name();
     }
 
-    private static Component button(String label, String command, String hover) {
-        return Text.mm(label).clickEvent(ClickEvent.runCommand(command)).hoverEvent(HoverEvent.showText(Text.mm(hover)));
-    }
-
-    public void menu(Player p) {
-        Component line = Text.mm("<gradient:#ffb35c:#ff6a3d><b>옷장</b></gradient> <dark_gray>»</dark_gray> ");
-        for (CustomItem c : cosmetics()) {
-            if (owns(p, c)) {
-                line = line.append(button("<white>[" + displayName(c) + "<white>]</white> ",
-                        "/wardrobe preview " + c.key().asString(), "<gray>클릭: 미리보기"));
-            } else {
-                line = line.append(Text.mm("<dark_gray>[" + c.key().getKey() + " 🔒] "));
-            }
-        }
-        p.sendMessage(line);
-        p.sendMessage(Text.mm("        ")
-                .append(button("<green>[적용]</green> ", "/wardrobe apply", "<gray>미리보기 중인 치장을 입습니다"))
-                .append(button("<yellow>[해제]</yellow> ", "/wardrobe remove", "<gray>치장을 벗습니다"))
-                .append(button("<red>[나가기]</red>", "/wardrobe exit", "<gray>웅크려도 나갈 수 있습니다")));
-        p.sendActionBar(Text.mm("<gray>채팅(T)에서 고르세요 · 웅크리면 나가기"));
+    /** /stsv cosmetic info: what the plugin thinks the player is wearing (for debugging). */
+    public List<String> info(Player p) {
+        List<String> out = new ArrayList<>();
+        out.add("착용 중: " + equipped(p).map(c -> c.key().asString()).orElse("없음"));
+        out.add("보유(직접 지급): " + (owned(p).isEmpty() ? "없음" : String.join(", ", owned(p))));
+        out.add("전체 권한(stsv.cosmetic.*): " + p.hasPermission("stsv.cosmetic.*"));
+        out.add("보는 사람 수: " + p.getTrackedBy().size() + " (+ 본인 표시: " + plugin.getConfig().getBoolean("cosmetics.show-to-self", true) + ")");
+        out.add("옷장 안: " + inWardrobe(p));
+        return out;
     }
 }

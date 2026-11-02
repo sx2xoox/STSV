@@ -33,12 +33,8 @@ public final class WardrobeCommand implements TabExecutor {
             return true;
         }
         switch (sub) {
-            case "" -> cos.enterWardrobe(p);
-            case "preview" -> { if (args.length > 1) cos.preview(p, args[1]); }
-            case "apply" -> cos.applySelected(p);
-            case "remove" -> cos.clearSelected(p);
             case "exit" -> cos.exitWardrobe(p, true);
-            default -> cos.menu(p);
+            default -> cos.enterWardrobe(p); // inside: reopens the menu
         }
         return true;
     }

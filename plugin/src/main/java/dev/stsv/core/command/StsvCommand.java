@@ -87,7 +87,7 @@ public final class StsvCommand implements TabExecutor {
                         "recipe delete <id> | recipe list",
                         "fuel set <틱> | fuel remove | fuel list <dark_gray>- 손에 든 아이템의 화로 연료 시간",
                         "skin remove <dark_gray>- 손에 든 아이템의 스킨 해제",
-                        "cosmetic give|take <플레이어> <치장> <dark_gray>- 치장 지급/회수",
+                        "cosmetic give|take <플레이어> <치장> | cosmetic info [플레이어] <dark_gray>- 치장 지급/회수/상태",
                         "wardrobe create <이름> [반경] | delete <이름> | list <dark_gray>- 옷장 구역",
                         "reload | pack")) {
                     sender.sendMessage(Text.mm(" <white>/" + label + " " + line));
@@ -194,6 +194,16 @@ public final class StsvCommand implements TabExecutor {
     // ------------------------------------------------------------------------------------------
 
     private void cosmetic(CommandSender sender, String[] args) {
+        if (args.length >= 2 && args[1].equalsIgnoreCase("info")) {
+            Player target = args.length > 2 ? Bukkit.getPlayerExact(args[2]) : sender instanceof Player p ? p : null;
+            if (target == null) {
+                sender.sendMessage(Text.msg("<red>/stsv cosmetic info [플레이어]"));
+                return;
+            }
+            sender.sendMessage(Text.msg("<gray>" + target.getName() + " 치장 상태"));
+            plugin.cosmetics().info(target).forEach(l -> sender.sendMessage(Text.mm(" <dark_gray>-</dark_gray> <white>" + l)));
+            return;
+        }
         if (args.length < 4 || !(args[1].equalsIgnoreCase("give") || args[1].equalsIgnoreCase("take"))) {
             sender.sendMessage(Text.msg("<red>/stsv cosmetic <give|take> <플레이어> <치장>"));
             return;
@@ -307,7 +317,7 @@ public final class StsvCommand implements TabExecutor {
         if (args[0].equalsIgnoreCase("skin") && args.length == 2) return filter(List.of("remove"), args[1]);
         if (args[0].equalsIgnoreCase("wardrobe") && args.length == 2) return filter(List.of("create", "delete", "list"), args[1]);
         if (args[0].equalsIgnoreCase("cosmetic")) {
-            if (args.length == 2) return filter(List.of("give", "take"), args[1]);
+            if (args.length == 2) return filter(List.of("give", "take", "info"), args[1]);
             if (args.length == 3) return filter(Bukkit.getOnlinePlayers().stream().map(Player::getName).toList(), args[2]);
             if (args.length == 4) return filter(plugin.cosmetics().cosmetics().stream().map(i -> i.key().asString()).toList(), args[3]);
         }
