@@ -62,6 +62,10 @@ MATERIALS = {
     "signal_green": (145, 0.150, 0.62, 0.10, 2, True),
     # --- vegetables (cosmetics) -----------------------------------------------------------------
     "tomato":      (30, 0.170, 0.58, 0.30, 5, False),
+    "eggplant":    (305, 0.120, 0.42, 0.30, 5, False),
+    "toadstool":   (25, 0.180, 0.55, 0.28, 5, False),   # red mushroom cap
+    "cream":       (85, 0.030, 0.88, 0.14, 4, False),   # mushroom stalk / spots
+    "paper":       (85, 0.025, 0.90, 0.16, 3, False),   # vouchers
     # --- premium (cash-item) accents -------------------------------------------------------------
     "blade":       (240, 0.025, 0.80, 0.30, 4, False),   # bright polished steel
     "obsidian":    (285, 0.060, 0.30, 0.18, 4, False),   # dark violet-black metal

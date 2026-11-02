@@ -215,8 +215,11 @@ public final class StsvCommand implements TabExecutor {
             return;
         }
         boolean give = args[1].equalsIgnoreCase("give");
-        plugin.cosmetics().grant(target, c.get(), give);
-        sender.sendMessage(Text.msg("<green>" + target.getName() + " 에게 " + c.get().key().asString() + (give ? " 지급" : " 회수")));
+        boolean changed = plugin.cosmetics().grant(target, c.get(), give);
+        if (give && changed) plugin.cosmetics().celebrate(target, c.get());
+        sender.sendMessage(Text.msg(changed
+                ? "<green>" + target.getName() + " 에게 " + c.get().key().asString() + (give ? " 지급" : " 회수")
+                : "<yellow>변화 없음 (" + (give ? "이미 보유" : "보유하지 않음") + ")"));
     }
 
     private void wardrobe(CommandSender sender, String[] args) {

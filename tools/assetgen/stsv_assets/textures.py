@@ -470,6 +470,63 @@ def tomato_skin(seed=210):
     return im
 
 
+def eggplant_skin(seed=212):
+    """Glossy dark purple with a long soft highlight."""
+    rnd = random.Random(seed)
+    im = _new()
+    px = im.load()
+    for y in range(S):
+        for x in range(S):
+            i = 2
+            if 2 <= x <= 3 and 2 <= y <= 12:
+                i = 3
+            if x == 3 and 3 <= y <= 8:
+                i = 4                     # shine
+            if y >= 13 or x >= 14:
+                i = 1
+            px[x, y] = ramp("eggplant", _j(rnd, i, 0.04))
+    return im
+
+
+# fixed spot positions: clean and identical on every face (no random speckles)
+_SPOTS = ((2, 2, 2), (10, 3, 2), (6, 8, 3), (12, 11, 2), (3, 12, 2))
+
+
+def toadstool_cap():
+    im = _new()
+    px = im.load()
+    for y in range(S):
+        for x in range(S):
+            px[x, y] = ramp("toadstool", 2 if y < 12 else 1)
+    for (sx, sy, r) in _SPOTS:
+        for y in range(sy, sy + r):
+            for x in range(sx, sx + r):
+                corner = (x in (sx, sx + r - 1)) and (y in (sy, sy + r - 1)) and r > 2
+                if not corner:
+                    px[x % S, y % S] = ramp("cream", 3 if y == sy else 2)
+    return im
+
+
+def mushroom_stalk(seed=213):
+    rnd = random.Random(seed)
+    im = _new()
+    px = im.load()
+    for y in range(S):
+        for x in range(S):
+            px[x, y] = ramp("cream", _j(rnd, 2 if x % 5 else 1, 0.05))
+    return im
+
+
+def gills():
+    """Underside of the cap: fine radial-looking stripes."""
+    im = _new()
+    px = im.load()
+    for y in range(S):
+        for x in range(S):
+            px[x, y] = ramp("cream", 1 if x % 2 else 0)
+    return im
+
+
 def calyx(seed=211):
     rnd = random.Random(seed)
     im = _new()
@@ -659,6 +716,10 @@ SURFACES = {
     "dev_screen": dev_screen,
     "dev_fan": dev_fan,
     "tomato_skin": tomato_skin,
+    "eggplant_skin": eggplant_skin,
+    "toadstool_cap": toadstool_cap,
+    "mushroom_stalk": mushroom_stalk,
+    "gills": gills,
     "blade_steel": blade_steel,
     "energy": energy,
     "obsidian_wrap": obsidian_wrap,

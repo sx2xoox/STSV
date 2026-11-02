@@ -223,19 +223,24 @@ def test_shield_blocking():
     return _shield(True)
 
 
-def tomato_mask():
-    """Worn like a carved pumpkin (model 0..16, face on the north side). The head fits inside the
-    1.5-thick shell; the opening on the front shows the player's face."""
-    m = Model("tomato_mask")
+def _head_shell(m, tex, top=14.5, face=(4, 12, 3, 11)):
+    """The shared mask shell: worn like a carved pumpkin (model 0..16, face on the north side).
+    The head fits in the 1.5-thick walls; the opening on the front shows the player's face.
+    face = (x0, x1, y0, y1) of the opening."""
+    fx0, fx1, fy0, fy1 = face
     m.group("shell")
-    # front wall with a face opening (x 4..12, y 3..11)
-    m.box("front_l", (0, 0, 0), (4, 14.5, 1.5), "tomato_skin")
-    m.box("front_r", (12, 0, 0), (16, 14.5, 1.5), "tomato_skin")
-    m.box("front_b", (4, 0, 0), (12, 3, 1.5), "tomato_skin")
-    m.box("front_t", (4, 11, 0), (12, 14.5, 1.5), "tomato_skin")
-    m.box("back", (0, 0, 14.5), (16, 14.5, 16), "tomato_skin")
-    m.box("left", (0, 0, 1.5), (1.5, 14.5, 14.5), "tomato_skin")
-    m.box("right", (14.5, 0, 1.5), (16, 14.5, 14.5), "tomato_skin")
+    m.box("front_l", (0, 0, 0), (fx0, top, 1.5), tex)
+    m.box("front_r", (fx1, 0, 0), (16, top, 1.5), tex)
+    m.box("front_b", (fx0, 0, 0), (fx1, fy0, 1.5), tex)
+    m.box("front_t", (fx0, fy1, 0), (fx1, top, 1.5), tex)
+    m.box("back", (0, 0, 14.5), (16, top, 16), tex)
+    m.box("left", (0, 0, 1.5), (1.5, top, 14.5), tex)
+    m.box("right", (14.5, 0, 1.5), (16, top, 14.5), tex)
+
+
+def tomato_mask():
+    m = Model("tomato_mask")
+    _head_shell(m, "tomato_skin")
     m.box("top", (0.5, 14.5, 0.5), (15.5, 16, 15.5), "tomato_skin")
     m.group("calyx")
     m.box("leaf_x", (4, 16, 7), (12, 16.75, 9), "calyx")
@@ -245,7 +250,46 @@ def tomato_mask():
     return m
 
 
+def eggplant_mask():
+    """A tall glossy eggplant: the body narrows upwards into a green cap with drooping sepals."""
+    m = Model("eggplant_mask")
+    _head_shell(m, "eggplant_skin")
+    m.group("body")
+    m.box("shoulder", (0.5, 14.5, 0.5), (15.5, 17, 15.5), "eggplant_skin")
+    m.box("neck_1", (2, 17, 2), (14, 20, 14), "eggplant_skin")
+    m.box("neck_2", (3.5, 20, 3.5), (12.5, 22.5, 12.5), "eggplant_skin")
+    m.group("cap")
+    m.box("cap", (3, 22.5, 3), (13, 24, 13), "calyx")
+    # sepals hanging down over the neck on four sides
+    m.box("sepal_n", (6, 19.5, 2.75), (10, 22.5, 3.5), "calyx")
+    m.box("sepal_s", (6, 19.5, 12.5), (10, 22.5, 13.25), "calyx")
+    m.box("sepal_w", (2.75, 19.5, 6), (3.5, 22.5, 10), "calyx")
+    m.box("sepal_e", (12.5, 19.5, 6), (13.25, 22.5, 10), "calyx")
+    m.box("stem", (7, 24, 7), (9, 27, 9), "calyx")
+    m.box("stem_tip", (7, 27, 6), (9, 28, 8), "calyx")
+    m.display = {**presets.BLOCK, "gui": {"rotation": [30, 225, 0], "translation": [0, -2.5, 0], "scale": [0.5, 0.5, 0.5]}}
+    return m
+
+
+def mushroom_mask():
+    """Red toadstool: the cream stalk is the face shell, a wide spotted cap overhangs the head."""
+    m = Model("mushroom_mask")
+    _head_shell(m, "mushroom_stalk", top=13)
+    m.group("cap")
+    under = {"down": "gills"}
+    m.box("brim", (-2.5, 13, -2.5), (18.5, 16, 18.5), "toadstool_cap", faces=under)
+    m.box("dome", (-0.5, 16, -0.5), (16.5, 19, 16.5), "toadstool_cap")
+    m.box("crown", (3, 19, 3), (13, 21, 13), "toadstool_cap")
+    # the stalk's skirt: four strips just outside the walls, above the face opening
+    m.box("ring_n", (-0.5, 11.5, -0.5), (16.5, 12.5, 0), "mushroom_stalk")
+    m.box("ring_s", (-0.5, 11.5, 16), (16.5, 12.5, 16.5), "mushroom_stalk")
+    m.box("ring_w", (-0.5, 11.5, 0), (0, 12.5, 16), "mushroom_stalk")
+    m.box("ring_e", (16, 11.5, 0), (16.5, 12.5, 16), "mushroom_stalk")
+    m.display = {**presets.BLOCK, "gui": {"rotation": [30, 225, 0], "translation": [0, -1.5, 0], "scale": [0.48, 0.48, 0.48]}}
+    return m
+
+
 ALL = {f.__name__: f for f in (test_machine, test_fan_blade, test_bench, test_rug, test_food, test_sword, test_greatsword,
                                test_greatsword_charged, test_slash,
                                test_sword_skin, test_rod, test_rod_cast, test_shield, test_shield_blocking,
-                               tomato_mask)}
+                               tomato_mask, eggplant_mask, mushroom_mask)}

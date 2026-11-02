@@ -138,6 +138,9 @@ ICONS = {
     "test_fuel": _themed(I.test_lump),
     "test_chestplate": _themed(I.steel_chestplate),
     "test_skin_book": _themed(I.skin_book),
+    "tomato_voucher": lambda: I.voucher("tomato"),
+    "eggplant_voucher": lambda: I.voucher("eggplant"),
+    "mushroom_voucher": lambda: I.voucher("toadstool", gem="cream"),
 }
 
 

@@ -423,3 +423,22 @@ def skin_book():
     for (x, y, i) in ((7, 6, 3), (8, 6, 3), (7, 7, 2), (8, 7, 2), (6, 7, 2), (9, 7, 1), (7, 8, 1), (8, 8, 1)):
         ic.put(x, y, "brass", i)          # gem
     return ic.outline().image()
+
+
+def voucher(accent, gem=None):
+    """Cosmetic voucher: a paper ticket with a coloured band and a gem in the cosmetic's colour."""
+    ic = Icon()
+    for y in range(4, 13):
+        for x in range(1, 15):
+            if (x in (1, 14)) and y in (7, 8, 9):
+                continue                          # side notches
+            ic.put(x, y, "paper", 2 if y > 4 else 2)
+    for y in range(4, 13):
+        ic.put(4, y, accent, 2 if y < 8 else 1)   # band
+        if not (y in (7, 8, 9)):
+            ic.put(1, y, "paper", 1)
+    for (x, y, i) in ((9, 7, 3), (10, 7, 3), (9, 8, 2), (10, 8, 2), (8, 8, 2), (11, 8, 1), (9, 9, 1), (10, 9, 1)):
+        ic.put(x, y, gem or accent, i)            # gem
+    for x in range(6, 14, 2):
+        ic.put(x, 11, "paper", 0)                 # perforation
+    return ic.outline().image()

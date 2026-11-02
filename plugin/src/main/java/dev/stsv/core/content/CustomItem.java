@@ -41,7 +41,8 @@ public record CustomItem(
         Food food,
         Skin skin,
         Cosmetic cosmetic,
-        Effects effects
+        Effects effects,
+        String voucher
 ) {
 
     /**
@@ -81,8 +82,24 @@ public record CustomItem(
      */
     public record Skin(NamespacedKey model, List<String> appliesTo, NamespacedKey asset, boolean returnOnRemove) {}
 
-    /** A cosmetic shown on the player in the given slot (only "head" for now). */
-    public record Cosmetic(org.bukkit.inventory.EquipmentSlot slot) {}
+    /**
+     * A cosmetic shown on the player in the given slot (only "head" for now).
+     *
+     * @param rarity common / rare / epic / legendary
+     * @param obtain how to get it, shown on the locked entry in the wardrobe
+     */
+    public record Cosmetic(org.bukkit.inventory.EquipmentSlot slot, Rarity rarity, String obtain) {}
+
+    public enum Rarity {
+        COMMON("일반", "<gray>"), RARE("희귀", "<#5ab0ff>"), EPIC("영웅", "<#c58cff>"), LEGENDARY("전설", "<gradient:#ffd36b:#ff8a3d>");
+
+        public final String label, color;
+
+        Rarity(String label, String color) {
+            this.label = label;
+            this.color = color;
+        }
+    }
 
     /** Persistent tag that marks an ItemStack as this custom item. */
     public static NamespacedKey idKey() {

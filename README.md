@@ -67,7 +67,7 @@ contents/mypack/
 | `/stsv fuel set <틱>` / `remove` / `list` | 손에 든 아이템의 화로 연료 시간 (석탄 = 1600틱) |
 | `/stsv skin remove` | 손에 든 아이템의 스킨 해제 (스킨북 반환) |
 | `/stsv wardrobe create <이름> [반경]` | 지금 위치에 옷장 구역 만들기 |
-| `/stsv cosmetic give <플레이어> <치장>` | 치장 지급 (OP는 모든 치장 사용 가능) |
+| `/stsv cosmetic give\|take <플레이어> <치장>` | 치장 지급/회수 (교환권 없이 바로 보유 목록에 넣기) |
 | `/옷장` | (플레이어) 옷장 구역에서 메뉴 열기 → 치장 클릭(미리보기) → 우클릭으로 메뉴 → 착용하기. 웅크리면 나가기 |
 | `/stsv cosmetic info [플레이어]` | 착용 중인 치장, 권한 등 상태 확인 |
 | `/stsv reload` | 콘텐츠, 레시피, 리소스팩 다시 읽기 |

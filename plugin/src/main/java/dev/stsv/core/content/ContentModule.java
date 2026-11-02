@@ -227,7 +227,13 @@ public final class ContentModule implements StsvModule, org.bukkit.event.Listene
         if (sec.isConfigurationSection("cosmetic")) {
             String slot = sec.getString("cosmetic.slot", "head").toLowerCase(Locale.ROOT);
             if (!slot.equals("head")) throw new IllegalArgumentException("cosmetic.slot 은 현재 head 만 지원");
-            cosmetic = new CustomItem.Cosmetic(org.bukkit.inventory.EquipmentSlot.HEAD);
+            CustomItem.Rarity rarity;
+            try {
+                rarity = CustomItem.Rarity.valueOf(sec.getString("cosmetic.rarity", "common").toUpperCase(Locale.ROOT));
+            } catch (IllegalArgumentException e) {
+                throw new IllegalArgumentException("cosmetic.rarity 는 common / rare / epic / legendary");
+            }
+            cosmetic = new CustomItem.Cosmetic(org.bukkit.inventory.EquipmentSlot.HEAD, rarity, sec.getString("cosmetic.obtain"));
         }
 
         CustomItem.Effects effects = sec.isConfigurationSection("effects")
@@ -236,9 +242,17 @@ public final class ContentModule implements StsvModule, org.bukkit.event.Listene
             throw new IllegalArgumentException("effects.charge 와 food 는 같이 쓸 수 없음 (둘 다 우클릭 사용)");
         }
 
+        // voucher: { cosmetic: stsv:tomato_mask }  -> right-click to own the cosmetic (the voucher is used up)
+        String voucher = null;
+        if (sec.isConfigurationSection("voucher")) {
+            voucher = sec.getString("voucher.cosmetic");
+            if (voucher == null) throw new IllegalArgumentException("voucher.cosmetic 이 없음");
+            if (!voucher.contains(":")) voucher = pack.namespace() + ":" + voucher;
+        }
+
         return new CustomItem(key, pack, material, sec.getString("name"), sec.getStringList("lore"), model,
                 maxStack, glint, sec.getBoolean("unbreakable", false), furniture, fuel, equipment, food, skin, cosmetic,
-                effects);
+                effects, voucher);
     }
 
     /**

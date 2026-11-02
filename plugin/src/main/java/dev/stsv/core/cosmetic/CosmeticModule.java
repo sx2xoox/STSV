@@ -74,6 +74,7 @@ public final class CosmeticModule implements StsvModule, Listener {
     private final Map<String, String> zoneWorlds = new HashMap<>();
     private final Map<UUID, Session> sessions = new HashMap<>();
     private File zonesFile;
+    private CosmeticStore store;
 
     @Override
     public String id() {
@@ -88,6 +89,8 @@ public final class CosmeticModule implements StsvModule, Listener {
         keyReturn = new NamespacedKey(plugin, "wardrobe_return");
         keyWardrobeEntity = new NamespacedKey(plugin, "wardrobe_entity");
         zonesFile = new File(plugin.getDataFolder(), "wardrobes.yml");
+        store = new CosmeticStore(plugin.getDataFolder().toPath().resolve("data").resolve("cosmetics.yml"));
+        store.load();
         loadZones();
         Bukkit.getPluginManager().registerEvents(this, plugin);
         // safety net: whatever overwrote the look (resyncs we cannot see), fix it within 5 seconds
@@ -95,6 +98,7 @@ public final class CosmeticModule implements StsvModule, Listener {
             for (Player p : Bukkit.getOnlinePlayers()) if (equipped(p).isPresent()) refresh(p);
         }, 100L, 100L);
         for (Player p : Bukkit.getOnlinePlayers()) {
+            migrate(p);
             restoreIfStuck(p);
             refreshLater(p);
         }
@@ -124,35 +128,111 @@ public final class CosmeticModule implements StsvModule, Listener {
     // ------------------------------------------------------------------------------------------
 
     public List<CustomItem> cosmetics() {
-        return plugin.content().items().stream().filter(i -> i.cosmetic() != null).toList();
+        return plugin.content().items().stream().filter(i -> i.cosmetic() != null)
+                .sorted(java.util.Comparator.comparing((CustomItem i) -> i.cosmetic().rarity()).thenComparing(i -> i.key().asString()))
+                .toList();
     }
 
+    /**
+     * Owned = in the account's list. Admins can own everything for testing (cosmetics.op-owns-all), and a
+     * rank can be given a specific cosmetic with the permission stsv.cosmetic.&lt;id&gt; (only if explicitly set,
+     * so operators do not silently own everything).
+     */
     public boolean owns(Player p, CustomItem c) {
-        if (p.hasPermission("stsv.cosmetic.*") || p.hasPermission("stsv.cosmetic." + c.key().getKey())) return true;
-        return owned(p).contains(c.key().asString());
+        if (plugin.getConfig().getBoolean("cosmetics.op-owns-all", false) && p.hasPermission("stsv.cosmetic.*")) return true;
+        String node = "stsv.cosmetic." + c.key().getKey();
+        if (p.isPermissionSet(node) && p.hasPermission(node)) return true;
+        return store.owned(p.getUniqueId()).contains(c.key().asString());
     }
 
-    private Set<String> owned(Player p) {
-        String raw = p.getPersistentDataContainer().getOrDefault(keyOwned, PersistentDataType.STRING, "");
-        return raw.isEmpty() ? new HashSet<>() : new HashSet<>(Arrays.asList(raw.split(",")));
+    public Set<String> owned(Player p) {
+        return store.owned(p.getUniqueId());
     }
 
-    public void grant(Player p, CustomItem c, boolean give) {
-        Set<String> set = owned(p);
-        if (give) set.add(c.key().asString()); else set.remove(c.key().asString());
-        p.getPersistentDataContainer().set(keyOwned, PersistentDataType.STRING, String.join(",", set));
-        if (!give && equipped(p).filter(e -> e.key().equals(c.key())).isPresent()) equip(p, null);
+    /** Grants or revokes. Returns true if something changed. */
+    public boolean grant(Player p, CustomItem c, boolean give) {
+        boolean changed = give ? store.grant(p.getUniqueId(), c.key().asString())
+                : store.revoke(p.getUniqueId(), c.key().asString());
+        if (changed) save();
+        if (!give) refresh(p);
+        return changed;
     }
 
     public Optional<CustomItem> equipped(Player p) {
-        String id = p.getPersistentDataContainer().get(keyEquipped, PersistentDataType.STRING);
-        return id == null ? Optional.empty() : plugin.content().item(id).filter(i -> i.cosmetic() != null);
+        return store.equipped(p.getUniqueId()).flatMap(id -> plugin.content().item(id)).filter(i -> i.cosmetic() != null);
     }
 
     public void equip(Player p, CustomItem c) {
-        if (c == null) p.getPersistentDataContainer().remove(keyEquipped);
-        else p.getPersistentDataContainer().set(keyEquipped, PersistentDataType.STRING, c.key().asString());
+        store.setEquipped(p.getUniqueId(), c == null ? null : c.key().asString());
+        save();
         refresh(p);
+    }
+
+    private void save() {
+        try {
+            store.save();
+        } catch (java.io.IOException e) {
+            plugin.getLogger().severe("치장 저장 실패: " + e.getMessage());
+        }
+    }
+
+    /** Older versions kept ownership in the player's data file; move it into the store once. */
+    private void migrate(Player p) {
+        PersistentDataContainer pdc = p.getPersistentDataContainer();
+        boolean changed = false;
+        String owned = pdc.get(keyOwned, PersistentDataType.STRING);
+        if (owned != null) {
+            for (String id : owned.split(",")) if (!id.isBlank()) changed |= store.grant(p.getUniqueId(), id);
+            pdc.remove(keyOwned);
+        }
+        String eq = pdc.get(keyEquipped, PersistentDataType.STRING);
+        if (eq != null) {
+            if (store.equipped(p.getUniqueId()).isEmpty()) store.setEquipped(p.getUniqueId(), eq);
+            pdc.remove(keyEquipped);
+            changed = true;
+        }
+        if (changed) save();
+    }
+
+    // ------------------------------------------------------------------------------------------
+    // Vouchers
+    // ------------------------------------------------------------------------------------------
+
+    @EventHandler
+    public void onVoucher(PlayerInteractEvent e) {
+        if (e.getAction() != Action.RIGHT_CLICK_AIR && e.getAction() != Action.RIGHT_CLICK_BLOCK) return;
+        if (e.getHand() != EquipmentSlot.HAND || inWardrobe(e.getPlayer())) return;
+        Optional<CustomItem> v = plugin.content().itemOf(e.getItem()).filter(i -> i.voucher() != null);
+        if (v.isEmpty()) return;
+        e.setCancelled(true);
+        Player p = e.getPlayer();
+        Optional<CustomItem> c = plugin.content().item(v.get().voucher()).filter(i -> i.cosmetic() != null);
+        if (c.isEmpty()) {
+            p.sendMessage(Text.msg("<red>이 교환권의 치장을 찾을 수 없습니다. 관리자에게 알려주세요."));
+            return;
+        }
+        if (store.owned(p.getUniqueId()).contains(c.get().key().asString())) {
+            p.sendActionBar(Text.mm("<yellow>이미 가지고 있는 치장입니다."));
+            p.playSound(p.getLocation(), Sound.BLOCK_NOTE_BLOCK_BASS, 0.7f, 0.8f);
+            return;
+        }
+        e.getItem().subtract(1);
+        store.grant(p.getUniqueId(), c.get().key().asString());
+        save();
+        celebrate(p, c.get());
+    }
+
+    /** "New cosmetic!" moment: title in the rarity colour, toast sound, particles. */
+    public void celebrate(Player p, CustomItem c) {
+        CustomItem.Rarity r = c.cosmetic().rarity();
+        p.showTitle(net.kyori.adventure.title.Title.title(
+                Text.mm(r.color + "<b>새 치장 획득!</b>"),
+                Text.mm(displayName(c) + " <dark_gray>·</dark_gray> " + r.color + r.label),
+                net.kyori.adventure.title.Title.Times.times(java.time.Duration.ofMillis(200),
+                        java.time.Duration.ofSeconds(3), java.time.Duration.ofMillis(600))));
+        p.playSound(p.getLocation(), Sound.UI_TOAST_CHALLENGE_COMPLETE, 0.8f, 1.2f);
+        p.getWorld().spawnParticle(org.bukkit.Particle.TOTEM_OF_UNDYING, p.getLocation().add(0, 1, 0), 60, 0.4, 0.6, 0.4, 0.4);
+        p.sendMessage(Text.msg("<green>치장 </green>" + displayName(c) + "<green> 을(를) 얻었습니다. 옷장(/옷장)에서 입어보세요."));
     }
 
     /** Sends what the player's head should look like to everyone who sees them (and themselves). */
@@ -172,7 +252,7 @@ public final class CosmeticModule implements StsvModule, Listener {
         Bukkit.getScheduler().runTask(plugin, () -> refresh(p));
     }
 
-    @EventHandler public void onJoin(PlayerJoinEvent e) { restoreIfStuck(e.getPlayer()); refreshLater(e.getPlayer()); }
+    @EventHandler public void onJoin(PlayerJoinEvent e) { migrate(e.getPlayer()); restoreIfStuck(e.getPlayer()); refreshLater(e.getPlayer()); }
     @EventHandler public void onRespawn(PlayerRespawnEvent e) { refreshLater(e.getPlayer()); }
     @EventHandler public void onWorld(PlayerChangedWorldEvent e) { refreshLater(e.getPlayer()); }
 
@@ -376,26 +456,31 @@ public final class CosmeticModule implements StsvModule, Listener {
         List<CustomItem> all = cosmetics();
         for (int i = 0; i < all.size() && i < COSMETIC_SLOTS.length; i++) {
             CustomItem c = all.get(i);
-            ItemStack it;
-            if (owns(p, c)) {
-                it = c.create(1);
-                boolean isWorn = worn.filter(w -> w.key().equals(c.key())).isPresent();
-                it.editMeta(m -> {
-                    List<Component> lore = new ArrayList<>();
-                    lore.add(Text.item(isWorn ? "<green>✔ 착용 중" : "<gray>클릭: 미리보기"));
-                    m.lore(lore);
-                    if (s.selected != null && s.selected.equals(c.key().asString())) m.setEnchantmentGlintOverride(true);
-                });
-            } else {
-                it = icon(org.bukkit.Material.GRAY_DYE, "<dark_gray>" + c.key().getKey() + " (잠김)",
-                        List.of("<dark_gray>아직 가지고 있지 않은 치장입니다."));
-            }
+            boolean owned = owns(p, c);
+            boolean isWorn = worn.filter(w -> w.key().equals(c.key())).isPresent();
+            CustomItem.Rarity r = c.cosmetic().rarity();
+            ItemStack it = c.create(1);
+            it.editMeta(m -> {
+                List<Component> lore = new ArrayList<>();
+                lore.add(Text.item(r.color + "◆ " + r.label));
+                if (owned) {
+                    lore.add(Text.item(isWorn ? "<green>✔ 착용 중" : "<green>보유 중"));
+                } else {
+                    lore.add(Text.item("<red>🔒 미보유"));
+                    if (c.cosmetic().obtain() != null) lore.add(Text.item("<gray>획득: <white>" + c.cosmetic().obtain()));
+                }
+                lore.add(Text.item(""));
+                lore.add(Text.item(owned ? "<gray>클릭: 미리보기" : "<gray>클릭: 미리보기 <dark_gray>(착용은 보유 후)"));
+                m.lore(lore);
+                if (s.selected != null && s.selected.equals(c.key().asString())) m.setEnchantmentGlintOverride(true);
+            });
             inv.setItem(COSMETIC_SLOTS[i], it);
             menu.slots.put(COSMETIC_SLOTS[i], c.key().asString());
         }
         inv.setItem(SLOT_REMOVE, icon(org.bukkit.Material.BARRIER, "<yellow>치장 벗기", List.of("<gray>지금 착용 중인 치장을 벗습니다.")));
         inv.setItem(SLOT_APPLY, icon(org.bukkit.Material.LIME_CONCRETE, "<green>착용하기",
-                List.of(sel.map(c -> "<gray>" + displayName(c) + " <gray>을(를) 입습니다.").orElse("<red>먼저 치장을 클릭해 고르세요."))));
+                List.of(sel.map(c -> owns(p, c) ? "<gray>" + displayName(c) + " <gray>을(를) 입습니다."
+                        : "<red>🔒 " + c.key().getKey() + " 은(는) 미보유").orElse("<red>먼저 치장을 클릭해 고르세요."))));
         inv.setItem(SLOT_EXIT, icon(org.bukkit.Material.OAK_DOOR, "<red>나가기", List.of()));
         s.menu = menu;
         p.openInventory(inv);
@@ -425,15 +510,12 @@ public final class CosmeticModule implements StsvModule, Listener {
         if (id != null) {
             CustomItem c = plugin.content().item(id).orElse(null);
             if (c == null) return;
-            if (!owns(p, c)) {
-                p.playSound(p.getLocation(), Sound.BLOCK_NOTE_BLOCK_BASS, 0.7f, 0.6f);
-                return;
-            }
-            s.selected = id;
+            s.selected = id; // previewing is free, wearing needs ownership
             showOnMannequin(p, s);
             p.closeInventory(); // close so the world is not blurred while looking at the mannequin
             p.showTitle(net.kyori.adventure.title.Title.title(Text.mm(displayName(c)),
-                    Text.mm("<gray>우클릭: 메뉴 (착용하기) · 웅크리기: 나가기"),
+                    Text.mm(owns(p, c) ? "<gray>우클릭: 메뉴 (착용하기) · 웅크리기: 나가기"
+                            : "<red>🔒 미보유</red> <gray>· 우클릭: 메뉴 · 웅크리기: 나가기"),
                     net.kyori.adventure.title.Title.Times.times(java.time.Duration.ofMillis(150),
                             java.time.Duration.ofSeconds(3), java.time.Duration.ofMillis(400))));
         } else if (slot == SLOT_APPLY) {
@@ -459,10 +541,13 @@ public final class CosmeticModule implements StsvModule, Listener {
         CustomItem c = plugin.content().item(s.selected).orElse(null);
         if (c == null) return;
         if (!owns(p, c)) {
-            p.sendActionBar(Text.mm("<red>아직 가지고 있지 않은 치장입니다."));
+            p.sendActionBar(Text.mm("<red>🔒 아직 가지고 있지 않은 치장입니다."
+                    + (c.cosmetic().obtain() == null ? "" : " <gray>(획득: " + c.cosmetic().obtain() + ")")));
+            p.playSound(p.getLocation(), Sound.BLOCK_NOTE_BLOCK_BASS, 0.7f, 0.6f);
             return;
         }
-        p.getPersistentDataContainer().set(keyEquipped, PersistentDataType.STRING, c.key().asString());
+        store.setEquipped(p.getUniqueId(), c.key().asString());
+        save();
         p.playSound(p.getLocation(), Sound.ITEM_ARMOR_EQUIP_LEATHER, 1f, 1.2f);
         p.sendActionBar(Text.mm("<green>착용: </green>" + displayName(c)));
     }
@@ -471,7 +556,8 @@ public final class CosmeticModule implements StsvModule, Listener {
         Session s = sessions.get(p.getUniqueId());
         if (s == null) return;
         s.selected = null;
-        p.getPersistentDataContainer().remove(keyEquipped);
+        store.setEquipped(p.getUniqueId(), null);
+        save();
         showOnMannequin(p, s);
         p.sendActionBar(Text.mm("<gray>치장을 벗었습니다."));
     }
@@ -563,7 +649,8 @@ public final class CosmeticModule implements StsvModule, Listener {
         List<String> out = new ArrayList<>();
         out.add("착용 중: " + equipped(p).map(c -> c.key().asString()).orElse("없음"));
         out.add("보유(직접 지급): " + (owned(p).isEmpty() ? "없음" : String.join(", ", owned(p))));
-        out.add("전체 권한(stsv.cosmetic.*): " + p.hasPermission("stsv.cosmetic.*"));
+        out.add("OP 전체 보유 설정(cosmetics.op-owns-all): " + plugin.getConfig().getBoolean("cosmetics.op-owns-all", false)
+                + " / 권한: " + p.hasPermission("stsv.cosmetic.*"));
         out.add("보는 사람 수: " + p.getTrackedBy().size() + " (+ 본인 표시: " + plugin.getConfig().getBoolean("cosmetics.show-to-self", true) + ")");
         out.add("옷장 안: " + inWardrobe(p));
         return out;

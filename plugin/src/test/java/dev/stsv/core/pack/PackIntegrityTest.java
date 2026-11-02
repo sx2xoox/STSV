@@ -104,6 +104,11 @@ class PackIntegrityTest {
         try (Stream<Path> s = Files.walk(CONTENT.resolve("stsv/items"))) {
             ymls = s.filter(p -> p.toString().endsWith(".yml")).toList();
         }
+        Set<String> cosmetics = new HashSet<>();
+        for (Path file : ymls) {
+            YamlConfiguration yaml = YamlConfiguration.loadConfiguration(file.toFile());
+            for (String id : yaml.getKeys(false)) if (yaml.isConfigurationSection(id + ".cosmetic")) cosmetics.add("stsv:" + id);
+        }
         for (Path file : ymls) {
             YamlConfiguration yaml = YamlConfiguration.loadConfiguration(file.toFile());
             for (String id : yaml.getKeys(false)) {
@@ -115,6 +120,11 @@ class PackIntegrityTest {
                 }
                 if (sec.isString("skin.model")) requireItemModel(where, sec.getString("skin.model"));
                 if (sec.isString("effects.swing.model")) requireItemModel(where, sec.getString("effects.swing.model"));
+                if (sec.isString("voucher.cosmetic")) {
+                    String target = sec.getString("voucher.cosmetic");
+                    if (!target.contains(":")) target = "stsv:" + target;
+                    if (!cosmetics.contains(target)) problems.add(where + " → 교환권이 가리키는 치장이 없음: " + target);
+                }
                 for (Object part : sec.getList("furniture.parts", List.of())) {
                     if (part instanceof Map<?, ?> m) requireItemModel(where, String.valueOf(m.get("model")));
                 }

@@ -33,3 +33,5 @@ editor:
 cosmetics:
   # 치장을 본인 3인칭(F5) 화면에도 보여줍니다
   show-to-self: true
+  # true: OP(권한 stsv.cosmetic.*)는 모든 치장을 보유한 것으로 취급 (테스트용). 실제 운영은 false
+  op-owns-all: false
