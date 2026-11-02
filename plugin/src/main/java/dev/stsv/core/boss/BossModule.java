@@ -315,7 +315,7 @@ public final class BossModule implements StsvModule, Listener {
     public void onBossHits(EntityDamageByEntityEvent e) {
         BossInstance b = of(e.getDamager());
         if (b == null || skillHit) return;
-        if (!(e.getEntity() instanceof Player) || b.busy() || b.dying) {
+        if (!(e.getEntity() instanceof Player) || b.busy() || b.dying || b.spec.meleeDamage() <= 0) {
             e.setCancelled(true);
             return;
         }
@@ -346,6 +346,22 @@ public final class BossModule implements StsvModule, Listener {
     public void onRemoved(EntityRemoveFromWorldEvent e) {
         BossInstance b = of(e.getEntity());
         if (b != null && !b.ended) Bukkit.getScheduler().runTask(plugin, () -> end(b));
+    }
+
+    /** About to eat or drink near a boss: bosses with a "when: heal" pattern punish it. */
+    @EventHandler(priority = EventPriority.MONITOR)
+    public void onUse(org.bukkit.event.player.PlayerInteractEvent e) {
+        if (active.isEmpty() || e.getItem() == null || e.useItemInHand() == org.bukkit.event.Event.Result.DENY) return;
+        if (e.getAction() != org.bukkit.event.block.Action.RIGHT_CLICK_AIR && e.getAction() != org.bukkit.event.block.Action.RIGHT_CLICK_BLOCK) return;
+        Material m = e.getItem().getType();
+        Player p = e.getPlayer();
+        boolean drink = m == Material.POTION;
+        var food = e.getItem().getData(io.papermc.paper.datacomponent.DataComponentTypes.FOOD);
+        boolean eat = food != null && (p.getFoodLevel() < 20 || food.canAlwaysEat());
+        if (!drink && !eat) return;
+        for (BossInstance b : active.values()) {
+            if (b.golem.getWorld() == p.getWorld() && b.golem.getLocation().distanceSquared(p.getLocation()) < 18 * 18) b.onHealAttempt(p);
+        }
     }
 
     @EventHandler

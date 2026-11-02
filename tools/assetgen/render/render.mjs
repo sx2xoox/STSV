@@ -43,10 +43,13 @@ for (const el of M.elements) {
     const ax = { x: new THREE.Vector3(1,0,0), y: new THREE.Vector3(0,1,0), z: new THREE.Vector3(0,0,1) }[axis];
     rot = { m: new THREE.Matrix4().makeRotationAxis(ax, angle * Math.PI / 180), o: new THREE.Vector3(...origin) };
   }
+  // optional pose matrix (column-major 4x4, model units), applied after the element's own rotation
+  const mat = el.matrix ? new THREE.Matrix4().fromArray(el.matrix) : null;
   for (const [f, face] of Object.entries(el.faces)) {
     const c = corners(f, el.from, el.to).map(p => {
       const v = new THREE.Vector3(...p);
       if (rot) v.sub(rot.o).applyMatrix4(rot.m).add(rot.o);
+      if (mat) v.applyMatrix4(mat);
       box.expandByPoint(v);
       return [v.x, v.y, v.z];
     });

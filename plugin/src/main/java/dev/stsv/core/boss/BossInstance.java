@@ -63,7 +63,7 @@ public final class BossInstance {
     private String lastAnim = "";
     private Map<String, Rig.Pose> lastPose = new HashMap<>();
     private Map<String, Rig.Pose> blendFrom = new HashMap<>();
-    private int blendLeft;
+    private int blendLeft, blendTotal = BLEND;
     private float lookYaw, lookPitch;
     private int hurtTicks;
     private Location lastLoc;
@@ -76,6 +76,13 @@ public final class BossInstance {
     double speedMultiplier = 1, cooldownMultiplier = 1;
     private final Map<String, Integer> readyAt = new HashMap<>();
     private int nextSkillAt;
+    private BossSpec.Skill forced;          // phase "then": used as soon as the phase change ends
+    private Player healer;                  // tried to heal nearby: punished as soon as possible
+    private int healerUntil;
+    private int behindTicks;                // how long the target has stood behind the boss
+    private final List<WaveFx> waves = new ArrayList<>();
+    Player held;                            // grabbed player
+    double damageTaken;                     // running total, for "rescue" checks
 
     BossInstance(BossModule module, BossSpec spec, IronGolem golem, Location home) {
         this.module = module;
@@ -134,6 +141,8 @@ public final class BossInstance {
 
         if (age % 10 == 0) updateTarget();
         if (age % 20 == 0 && leashed()) return;
+        tickWaves();
+        updateBehind();
 
         if (action != null) {
             if (action.tick()) {
@@ -145,6 +154,12 @@ public final class BossInstance {
         } else if (pendingPhase != null) {
             enterPhase(pendingPhase);
             pendingPhase = null;
+        } else if (forced != null) {
+            BossSpec.Skill f = forced;
+            forced = null;
+            start(f);
+        } else if (healer != null && age <= healerUntil && valid(healer)) {
+            punishHeal();
         } else if (target != null && age >= nextSkillAt && age % spec.think() == 0) {
             chooseSkill();
         }
@@ -184,7 +199,8 @@ public final class BossInstance {
             if (action.freeze) unfreeze();
             action = null;
         }
-        golem.teleport(home);
+        release();
+        moveGolem(home);
         golem.setHealth(maxHealth());
         damageBy.clear();
         target = null;
@@ -210,7 +226,7 @@ public final class BossInstance {
         float t;
         if (action != null) {
             animName = action.anim;
-            t = action.t;
+            t = action.animTime();
         } else if (groundSpeed > 0.02 && spec.animations().containsKey("walk")) {
             animName = "walk";
             float before = walkT;
@@ -224,24 +240,17 @@ public final class BossInstance {
         BossSpec.Animation anim = spec.animations().get(animName);
         if (!animName.equals(lastAnim)) {
             blendFrom = lastPose;
-            blendLeft = BLEND;
+            blendLeft = action != null ? action.blend : BLEND;
+            blendTotal = blendLeft;
             lastAnim = animName;
         }
 
+        Map<String, Rig.Pose> sampled = Rig.sample(anim, t);
         Map<String, Rig.Pose> pose = new HashMap<>();
         for (String bone : spec.bones().keySet()) {
-            Rig.Pose p = Rig.Pose.REST;
-            if (anim != null) {
-                float at = anim.loop() ? t % anim.length() : Math.min(t, anim.length());
-                BossSpec.Track track = anim.bones().get(bone);
-                if (track != null) {
-                    Vector3f r = BossSpec.Animation.sample(track.rot(), at);
-                    Vector3f o = BossSpec.Animation.sample(track.pos(), at);
-                    p = new Rig.Pose(r == null ? new Vector3f() : r, o == null ? new Vector3f() : o);
-                }
-            }
+            Rig.Pose p = sampled.getOrDefault(bone, Rig.Pose.REST);
             if (blendLeft > 0) {
-                float k = 1f - blendLeft / (float) (BLEND + 1);
+                float k = 1f - blendLeft / (float) (blendTotal + 1);
                 p = blendFrom.getOrDefault(bone, Rig.Pose.REST).lerp(p, k * k * (3 - 2 * k));
             }
             pose.put(bone, p);
@@ -372,6 +381,7 @@ public final class BossInstance {
 
     void onHurt(double amount, Player by) {
         hurtTicks = 4;
+        damageTaken += amount;
         sound("entity.iron_golem.hurt", 1.2f, 0.7f);
         if (by != null) damageBy.merge(by.getUniqueId(), amount, Double::sum);
         double ratio = (golem.getHealth() - amount) / maxHealth();
@@ -390,6 +400,7 @@ public final class BossInstance {
     private void enterPhase(BossSpec.Phase p) {
         speedMultiplier *= p.speedMultiplier();
         cooldownMultiplier *= p.cooldownMultiplier();
+        if (p.then() != null) forced = spec.skills().get(p.then());
         if (p.barColor() != null) bar.color(p.barColor());
         Runnable change = () -> {
             for (Map.Entry<String, NamespacedKey> m : p.models().entrySet()) {
@@ -451,20 +462,74 @@ public final class BossInstance {
     // Skills
     // ------------------------------------------------------------------------------------------
 
+    private boolean usable(BossSpec.Skill s, double dist) {
+        return readyAt.getOrDefault(s.id(), 0) <= age && s.minPhase() <= phase && dist >= s.minRange() && dist <= s.maxRange();
+    }
+
+    /** Situational patterns first (target behind the boss, target out of reach above), then a random one. */
     private void chooseSkill() {
         double dist = golem.getLocation().distance(target.getLocation());
         List<BossSpec.Skill> ok = new ArrayList<>();
         for (BossSpec.Skill s : spec.skills().values()) {
-            if (readyAt.getOrDefault(s.id(), 0) > age) continue;
-            if (dist < s.minRange() || dist > s.maxRange()) continue;
-            ok.add(s);
+            if (!usable(s, dist) || "heal".equals(s.when())) continue;
+            boolean special = "behind".equals(s.when()) || "above".equals(s.when());
+            if (special && condition(s.when())) {
+                start(s);
+                return;
+            }
+            if (!special) ok.add(s);
         }
         if (ok.isEmpty()) return;
-        BossSpec.Skill s = ok.get(ThreadLocalRandom.current().nextInt(ok.size()));
+        start(ok.get(ThreadLocalRandom.current().nextInt(ok.size())));
+    }
+
+    private boolean condition(String when) {
+        if (target == null) return false;
+        return switch (when) {
+            case "behind" -> behindTicks >= 16;
+            case "above" -> target.getLocation().getY() - golem.getLocation().getY() >= 3;
+            default -> false;
+        };
+    }
+
+    private void updateBehind() {
+        if (target == null) {
+            behindTicks = 0;
+            return;
+        }
+        Vector to = target.getLocation().toVector().subtract(golem.getLocation().toVector()).setY(0);
+        boolean behind = to.lengthSquared() < 36 && to.lengthSquared() > 1e-4 && forward().angle(to) > Math.toRadians(110);
+        behindTicks = behind ? behindTicks + 1 : 0;
+    }
+
+    /** Someone close by is about to eat or drink. */
+    void onHealAttempt(Player p) {
+        if (dying || !valid(p)) return;
+        healer = p;
+        healerUntil = age + 15;
+        if (action == null) punishHeal();
+    }
+
+    private void punishHeal() {
+        Player p = healer;
+        healer = null;
+        double dist = golem.getLocation().distance(p.getLocation());
+        for (BossSpec.Skill s : spec.skills().values()) {
+            if ("heal".equals(s.when()) && usable(s, dist)) {
+                target = p;
+                golem.setTarget(p);
+                start(s);
+                return;
+            }
+        }
+    }
+
+    private void start(BossSpec.Skill s) {
         Action a = switch (s.type()) {
             case "slam" -> new Slam(s);
             case "charge" -> new Charge(s);
             case "throw" -> new Throw(s);
+            case "sequence" -> new Sequence(s);
             default -> null;
         };
         if (a == null) {
@@ -472,7 +537,7 @@ public final class BossInstance {
             readyAt.put(s.id(), Integer.MAX_VALUE);
             return;
         }
-        int len = spec.animations().containsKey(s.animation()) ? spec.animations().get(s.animation()).length() : 40;
+        int len = s.animation() != null && spec.animations().containsKey(s.animation()) ? spec.animations().get(s.animation()).length() : 30;
         readyAt.put(s.id(), age + len + (int) (s.cooldown() * cooldownMultiplier));
         nextSkillAt = age + len + (int) (spec.globalCooldown() * cooldownMultiplier);
         play(a);
@@ -558,10 +623,15 @@ public final class BossInstance {
 
     /** A playing animation, optionally with fight logic. tick() returns true when finished. */
     class Action {
-        final String anim;
+        String anim;
         final boolean freeze;
         final boolean invulnerable;
         int t;
+        int blend = BLEND;
+
+        float animTime() {
+            return t;
+        }
 
         Action(String anim, boolean freeze, boolean invulnerable) {
             this.anim = anim;
@@ -584,7 +654,7 @@ public final class BossInstance {
             return t >= length();
         }
 
-        final boolean tick() {
+        boolean tick() {
             BossSpec.Animation a = spec.animations().get(anim);
             if (a != null) {
                 String s = a.sounds().get(t);
@@ -779,11 +849,422 @@ public final class BossInstance {
     }
 
     // ------------------------------------------------------------------------------------------
+    // Sequence patterns: steps of animations with timed hits, delays, movement, grabs and hazards
+    // ------------------------------------------------------------------------------------------
+
+    private static final Particle.DustOptions GLINT = new Particle.DustOptions(Color.fromRGB(0xfff2c4), 1.4f);
+    private static final Particle.DustOptions CRIMSON = new Particle.DustOptions(Color.fromRGB(0xd8102a), 1.8f);
+    private static final Particle.DustOptions WAVE = new Particle.DustOptions(Color.fromRGB(0xc86bff), 1.5f);
+    private static final Particle.DustOptions SAFE = new Particle.DustOptions(Color.fromRGB(0x5dff7a), 1.5f);
+    private static final Particle.DustOptions LINE = new Particle.DustOptions(Color.fromRGB(0xf2f2f2), 1.0f);
+
+    /** Turns towards a point by at most maxDeg this tick (bosses cannot spin on the spot instantly). */
+    private void turnToward(Location to, double maxDeg) {
+        Vector d = to.toVector().subtract(golem.getLocation().toVector());
+        if (d.getX() * d.getX() + d.getZ() * d.getZ() < 1e-4) return;
+        float want = (float) Math.toDegrees(Math.atan2(-d.getX(), d.getZ()));
+        float now = golem.getBodyYaw();
+        float yaw = now + (float) Math.clamp(wrap(want - now), -maxDeg, maxDeg);
+        golem.setRotation(yaw, 0);
+        golem.setBodyYaw(yaw);
+    }
+
+    private boolean inShape(BossSpec.Hit h, Player p, Location origin, Vector fwd) {
+        if (h.shape().equals("held")) return p == held;
+        Location l = p.getLocation();
+        double dy = l.getY() - origin.getY();
+        if (dy < -1.2 || dy > 3.2) return false;
+        Vector to = new Vector(l.getX() - origin.getX(), 0, l.getZ() - origin.getZ());
+        double pad = 0.3; // player half width
+        return switch (h.shape()) {
+            case "cone" -> to.length() - pad <= h.range()
+                    && (to.length() < 1.2 || Math.toDegrees(fwd.angle(to)) <= h.arc() / 2);
+            case "circle" -> to.clone().subtract(fwd.clone().multiply(h.forward())).length() - pad <= h.radius();
+            case "line" -> {
+                double along = to.dot(fwd);
+                double side = to.clone().subtract(fwd.clone().multiply(along)).length();
+                yield along >= -0.5 && along <= h.range() + pad && side <= h.width() / 2 + pad;
+            }
+            default -> false;
+        };
+    }
+
+    private void strike(Player p, BossSpec.Hit h, Location origin) {
+        boolean blocking = p.isBlocking();
+        if (blocking && h.unblockable()) breakGuard(p);
+        hit(p, h.damage(), away(origin, p.getLocation(), h.knockback(), h.up()));
+        if (blocking && h.guardBreak() && !h.unblockable()) breakGuard(p);
+    }
+
+    /** Knocks the shield out of the player's guard for a few seconds. */
+    private void breakGuard(Player p) {
+        p.clearActiveItem();
+        p.setCooldown(Material.SHIELD, 60);
+        p.getWorld().playSound(Sound.sound(Key.key("item.shield.break"), Sound.Source.PLAYER, 1.2f, 0.8f), p);
+        p.getWorld().spawnParticle(Particle.CRIT, p.getLocation().add(0, 1.2, 0), 20, 0.3, 0.3, 0.3, 0.3);
+    }
+
+    void release() {
+        held = null;
+    }
+
+    /**
+     * Teleports the boss together with its bone displays. Newer Paper keeps passengers on teleport by
+     * itself and deprecates the flag; it is still passed so older 26.x builds do the same.
+     */
+    @SuppressWarnings("removal")
+    private void moveGolem(Location to) {
+        golem.teleport(to, io.papermc.paper.entity.TeleportFlag.EntityState.RETAIN_PASSENGERS);
+    }
+
+    /** Feet on the floor (the player-reported on-ground flag can be spoofed, so look at the block). */
+    private static boolean grounded(Player p) {
+        Location l = p.getLocation();
+        return !l.clone().subtract(0, 0.08, 0).getBlock().isPassable();
+    }
+
+    /** Standing height under a point (so a leap lands on the floor, not in the air where the target jumped). */
+    private static Location ground(Location at) {
+        Location l = at.clone();
+        for (int i = 0; i < 8; i++) {
+            org.bukkit.block.Block below = l.clone().subtract(0, 0.05, 0).getBlock();
+            if (!below.isPassable()) {
+                l.setY(below.getY() + below.getBoundingBox().getHeight());
+                return l;
+            }
+            l.subtract(0, 1, 0);
+        }
+        return at.clone();
+    }
+
+    /** Shockwave ring sliding along the floor: only players touching the ground are hit (jump over it). */
+    private final class WaveFx {
+        final Location center;
+        final BossSpec.Wave w;
+        double r = 0.5;
+        final Set<UUID> struck = new HashSet<>();
+
+        WaveFx(Location center, BossSpec.Wave w) {
+            this.center = center;
+            this.w = w;
+        }
+
+        boolean tick() {
+            r += w.speed();
+            int n = (int) Math.max(16, r * 2 * Math.PI / 0.45);
+            ring(center, r, Particle.DUST, WAVE, n);
+            if (age % 2 == 0) center.getWorld().spawnParticle(Particle.BLOCK, center, (int) (r * 3), r * 0.7, 0.05, r * 0.7, 0, groundBlock(center));
+            for (Player p : victims(center, r + w.width() / 2 + 0.3, 1.4)) {
+                double d = Math.hypot(p.getLocation().getX() - center.getX(), p.getLocation().getZ() - center.getZ());
+                if (Math.abs(d - r) > w.width() / 2 + 0.3 || !grounded(p) || !struck.add(p.getUniqueId())) continue;
+                hit(p, w.damage(), away(center, p.getLocation(), 0.6, 0.55));
+            }
+            return r >= w.max();
+        }
+    }
+
+    private void tickWaves() {
+        waves.removeIf(WaveFx::tick);
+    }
+
+    final class Sequence extends Action {
+        final BossSpec.Skill skill;
+        int index = -1;
+        BossSpec.Step step;
+        int st;                 // step animation time (stands still while holding)
+        int holdLeft = -1;      // ticks left in the current hold, -1 = not holding
+        boolean holdDone;
+        boolean done;
+        String outcome;         // grab result: caught / missed
+        final Map<BossSpec.Hit, Set<UUID>> struck = new HashMap<>();
+        Location leapFrom, leapTo;
+        double grabMark;
+        boolean[] safe;
+        double sectorBase;
+        Location sectorCenter;
+
+        float lockedYaw;
+
+        Sequence(BossSpec.Skill skill) {
+            super(skill.steps().getFirst().animation(), true, false);
+            this.skill = skill;
+            this.blend = 3;
+            this.lockedYaw = golem.getBodyYaw();
+        }
+
+        @Override
+        void start() {
+            if (!next(true)) done = true;
+        }
+
+        private boolean next(boolean first) {
+            for (int i = index + 1; i < skill.steps().size(); i++) {
+                BossSpec.Step s = skill.steps().get(i);
+                if (s.minPhase() > phase) continue;
+                if (s.condition() != null && !s.condition().equals(outcome)) continue;
+                if (!first && s.chance() < 1 && ThreadLocalRandom.current().nextDouble() > s.chance()) return false;
+                index = i;
+                step = s;
+                anim = s.animation();
+                st = 0;
+                holdLeft = -1;
+                holdDone = false;
+                struck.clear();
+                return true;
+            }
+            return false;
+        }
+
+        @Override
+        float animTime() {
+            return st;
+        }
+
+        @Override
+        boolean finished() {
+            return done;
+        }
+
+        @Override
+        boolean tick() {
+            if (done) return true;
+            t++;
+            BossSpec.Step s = step;
+            boolean holding = holdLeft >= 0;
+            int glint = s.hold() == null ? 0 : s.hold().glint();
+
+            // facing: follow the target until track-until (and while holding, until the glint)
+            boolean track = st < s.trackUntil() && !(holding && holdLeft <= glint);
+            if (track && target != null) {
+                turnToward(target.getLocation(), s.turn());
+                lockedYaw = golem.getBodyYaw();
+            } else if (s.leap() == null || st < s.leap().from() || st > s.leap().to()) {
+                // committed: the body keeps its direction (vanilla head-follow would slowly turn it)
+                golem.setRotation(lockedYaw, 0);
+                golem.setBodyYaw(lockedYaw);
+            }
+
+            if (holding) {
+                if (holdLeft == glint || (holdLeft < glint && holdLeft == glintStart)) glint();
+                holdLeft--;
+                if (holdLeft < 0) holdDone = true;
+                tickHeld(s);
+                return false;
+            }
+
+            events(s);
+            if (done) return true;
+            BossSpec.Animation a = spec.animations().get(anim);
+            if (a != null) {
+                String snd = a.sounds().get(st);
+                if (snd != null) sound(snd, 1.8f, 0.9f);
+            }
+            st++;
+            if (s.hold() != null && !holdDone && st == s.hold().tick()) {
+                holdLeft = ThreadLocalRandom.current().nextInt(s.hold().min(), s.hold().max() + 1);
+                glintStart = Math.min(holdLeft, glint);
+                if (holdLeft == 0) holdDone = true;
+            }
+            if (a == null || st >= a.length()) {
+                if (!next(false)) done = true;
+            }
+            return done;
+        }
+
+        int glintStart;
+
+        private void glint() {
+            Location tip = socket("blade");
+            golem.getWorld().spawnParticle(Particle.DUST, tip, 30, 0.5, 0.5, 0.5, 0, GLINT);
+            golem.getWorld().spawnParticle(Particle.END_ROD, tip, 12, 0.3, 0.3, 0.3, 0.05);
+            golem.getWorld().playSound(Sound.sound(Key.key("block.bell.use"), Sound.Source.HOSTILE, 1.6f, 1.9f), golem);
+        }
+
+        private void events(BossSpec.Step s) {
+            Location origin = golem.getLocation();
+            Vector fwd = forward();
+
+            if (s.move() != null && st >= s.move().from() && st < s.move().to()) {
+                golem.setVelocity(fwd.clone().multiply(s.move().speed() * speedMultiplier).setY(Math.min(0, golem.getVelocity().getY())));
+            }
+            if (s.flash() != null && st >= s.flash()[0] && st <= s.flash()[1] && st % 2 == 0) {
+                golem.getWorld().spawnParticle(Particle.DUST, socket("hand_l"), 8, 0.25, 0.25, 0.25, 0, CRIMSON);
+            }
+            if (s.leap() != null) leap(s.leap());
+
+            for (BossSpec.Hit h : s.hits()) {
+                if (h.minPhase() > phase || st < h.tick() || st > h.until()) continue;
+                Set<UUID> done = struck.computeIfAbsent(h, k -> new HashSet<>());
+                for (Player p : golem.getWorld().getPlayers()) {
+                    if (!valid(p) || done.contains(p.getUniqueId()) || !inShape(h, p, origin, fwd)) continue;
+                    done.add(p.getUniqueId());
+                    strike(p, h, origin);
+                }
+                if (h.shape().equals("held") && st == h.tick()) release();
+            }
+            for (BossSpec.Wave w : s.waves()) {
+                if (w.tick() == st && w.minPhase() <= phase) {
+                    waves.add(new WaveFx(origin.clone().add(fwd.clone().multiply(w.forward())).add(0, 0.1, 0), w));
+                }
+            }
+            if (s.grab() != null && st == s.grab().tick()) grab(s.grab(), origin, fwd);
+            tickHeld(s);
+            if (s.sectors() != null) sectors(s.sectors());
+        }
+
+        private void grab(BossSpec.Grab g, Location origin, Vector fwd) {
+            Player best = null;
+            double bestD = Double.MAX_VALUE;
+            for (Player p : golem.getWorld().getPlayers()) {
+                if (!valid(p)) continue;
+                Vector to = p.getLocation().toVector().subtract(origin.toVector()).setY(0);
+                double dy = p.getLocation().getY() - origin.getY();
+                if (dy < -1 || dy > 2.5 || to.length() - 0.3 > g.range()) continue;
+                if (to.length() > 1 && Math.toDegrees(fwd.angle(to)) > g.arc() / 2) continue;
+                if (to.length() < bestD) {
+                    bestD = to.length();
+                    best = p;
+                }
+            }
+            if (best != null) {
+                held = best;
+                outcome = "caught";
+                grabMark = damageTaken;
+                best.getWorld().playSound(Sound.sound(Key.key("entity.player.hurt"), Sound.Source.PLAYER, 1f, 0.7f), best);
+            } else {
+                outcome = "missed";
+            }
+            // no gap between grabbing and lifting: go straight into the follow-up step
+            if (!next(false)) done = true;
+        }
+
+        /** Keeps the grabbed player in the hand; enough damage from the others frees them. */
+        private void tickHeld(BossSpec.Step s) {
+            if (s.held() == null || held == null) return;
+            if (!valid(held)) {
+                release();
+                return;
+            }
+            if (damageTaken - grabMark >= maxHealth() * s.held().rescue()) {
+                Player freed = held;
+                release();
+                freed.setVelocity(away(golem.getLocation(), freed.getLocation(), 0.6, 0.4));
+                for (Player v : audience()) v.sendMessage(Text.mm("<green><b>구출!</b> <white>" + freed.getName() + "<gray> 이(가) 풀려났습니다."));
+                sound("entity.iron_golem.damage", 1.5f, 0.6f);
+                outcome = "missed";
+                if (!next(false)) done = true;   // straight into the stagger (grab_miss)
+                return;
+            }
+            if (st <= s.held().until()) {
+                Location hand = socket(s.held().socket());
+                Location at = hand.clone().subtract(0, 1.3, 0);
+                at.setYaw(held.getLocation().getYaw());
+                at.setPitch(held.getLocation().getPitch());
+                held.teleport(at);
+                held.setVelocity(new Vector());
+                held.setFallDistance(0);
+            }
+        }
+
+        private void leap(BossSpec.Leap l) {
+            if (st < l.from() || st > l.to()) {
+                return;
+            }
+            if (st == l.from()) leapFrom = golem.getLocation();
+            if (leapTo == null || (st <= l.trackUntil() && target != null)) {
+                leapTo = ground(target != null ? target.getLocation() : golem.getLocation().add(forward().multiply(6)));
+                // land a little short, so the strike in front of the boss lands on the target
+                Vector back = leapTo.toVector().subtract(leapFrom.toVector()).setY(0);
+                if (back.lengthSquared() > 4) leapTo.subtract(back.normalize().multiply(1.6));
+            }
+            double u = (st - l.from()) / (double) Math.max(1, l.to() - l.from());
+            Location p = leapFrom.clone().add(leapTo.toVector().subtract(leapFrom.toVector()).multiply(u));
+            p.add(0, l.height() * 4 * u * (1 - u), 0);
+            Vector dir = leapTo.toVector().subtract(leapFrom.toVector()).setY(0);
+            float yaw = dir.lengthSquared() > 1e-3 ? (float) Math.toDegrees(Math.atan2(-dir.getX(), dir.getZ())) : golem.getBodyYaw();
+            p.setYaw(yaw);
+            p.setPitch(0);
+            moveGolem(p);
+            golem.setBodyYaw(yaw);
+            lockedYaw = yaw;
+            golem.setVelocity(new Vector());
+            golem.setFallDistance(0);
+            if (st >= l.markerFrom() && st < l.to() && st % 2 == 0) {
+                Location mark = leapTo.clone().add(dir.lengthSquared() > 1e-3 ? dir.clone().normalize().multiply(1.8) : new Vector());
+                telegraph(mark.add(0, 0.15, 0), l.markerRadius(), (st - l.markerFrom()) / (float) Math.max(1, l.to() - l.markerFrom()));
+            }
+        }
+
+        /** The arena splits into slices; only a few are safe. Shown, then hidden: remember them. */
+        private void sectors(BossSpec.Sectors x) {
+            int n = x.count();
+            if (safe == null) {
+                sectorCenter = golem.getLocation().add(0, 0.2, 0);
+                sectorBase = ThreadLocalRandom.current().nextDouble(Math.PI * 2);
+                safe = new boolean[n];
+                List<Integer> idx = new ArrayList<>();
+                for (int i = 0; i < n; i++) idx.add(i);
+                java.util.Collections.shuffle(idx);
+                for (int i = 0; i < Math.min(x.safe(), n - 1); i++) safe[idx.get(i)] = true;
+            }
+            if (sectorCenter == null) return;
+            World w = golem.getWorld();
+            double slice = 2 * Math.PI / n;
+            if (st >= x.show() && st < x.tick() && st % 3 == 0) {
+                boolean reveal = st < x.hide();
+                boolean urgent = st >= x.tick() - 12;
+                for (int i = 0; i < n; i++) {
+                    double a0 = sectorBase + i * slice;
+                    for (double r = 2; r <= x.radius(); r += 1.2) {      // boundary lines
+                        w.spawnParticle(Particle.DUST, sectorCenter.clone().add(Math.cos(a0) * r, 0, Math.sin(a0) * r), 1, 0, 0, 0, 0,
+                                urgent ? WARN : LINE);
+                    }
+                    if (!reveal) continue;
+                    for (double r = 3; r <= x.radius(); r += 3.5) {      // slice fill
+                        int pts = (int) Math.max(3, r * slice / 1.2);
+                        for (int k = 1; k < pts; k++) {
+                            double a = a0 + slice * k / pts;
+                            w.spawnParticle(Particle.DUST, sectorCenter.clone().add(Math.cos(a) * r, 0, Math.sin(a) * r), 1, 0, 0, 0, 0,
+                                    safe[i] ? SAFE : WARN);
+                        }
+                    }
+                }
+                ring(sectorCenter, x.radius(), Particle.DUST, WARN, (int) (x.radius() * 6));
+            }
+            if (st == x.hide()) sound("block.beacon.deactivate", 2f, 0.6f);
+            if (st == x.tick()) {
+                for (int i = 0; i < n; i++) {
+                    if (safe[i]) continue;
+                    double mid = sectorBase + (i + 0.5) * slice;
+                    for (double r = 3; r <= x.radius(); r += 4) {
+                        w.spawnParticle(Particle.EXPLOSION, sectorCenter.clone().add(Math.cos(mid) * r, 0.5, Math.sin(mid) * r), 2, 0.8, 0.3, 0.8);
+                    }
+                }
+                for (Player p : victims(sectorCenter, x.radius(), 6)) {
+                    Location l = p.getLocation();
+                    double a = Math.atan2(l.getZ() - sectorCenter.getZ(), l.getX() - sectorCenter.getX()) - sectorBase;
+                    int i = (int) Math.floor(((a % (2 * Math.PI)) + 2 * Math.PI) % (2 * Math.PI) / slice);
+                    if (safe[Math.clamp(i, 0, n - 1)]) continue;
+                    if (p.isBlocking()) breakGuard(p);
+                    hit(p, x.damage(), away(sectorCenter, l, 1.4, 0.8));
+                }
+            }
+        }
+
+        @Override
+        void end() {
+            release();
+        }
+    }
+
+    // ------------------------------------------------------------------------------------------
 
     void remove() {
         ended = true;
         if (action != null) action.end();
         action = null;
+        release();
+        waves.clear();
         hideBar();
         for (ItemDisplay d : parts.values()) d.remove();
         parts.clear();

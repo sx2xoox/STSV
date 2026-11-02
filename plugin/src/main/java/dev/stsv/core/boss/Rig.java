@@ -29,9 +29,31 @@ public final class Rig {
     public record Pose(Vector3f rot, Vector3f pos) {
         public static final Pose REST = new Pose(new Vector3f(), new Vector3f());
 
+        /** Blends towards another pose the short way round (a 348° spin blends into -12°, not back through 360°). */
         public Pose lerp(Pose to, float k) {
-            return new Pose(new Vector3f(rot).lerp(to.rot, k), new Vector3f(pos).lerp(to.pos, k));
+            Vector3f d = new Vector3f(wrap(to.rot.x - rot.x), wrap(to.rot.y - rot.y), wrap(to.rot.z - rot.z));
+            return new Pose(new Vector3f(rot).add(d.mul(k)), new Vector3f(pos).lerp(to.pos, k));
         }
+
+        private static float wrap(float deg) {
+            deg %= 360;
+            if (deg > 180) deg -= 360;
+            if (deg < -180) deg += 360;
+            return deg;
+        }
+    }
+
+    /** Pose of every animated bone at animation time t (loops wrap, one-shots hold their last frame). */
+    public static Map<String, Pose> sample(BossSpec.Animation anim, float t) {
+        Map<String, Pose> out = new HashMap<>();
+        if (anim == null) return out;
+        float at = anim.loop() ? t % anim.length() : Math.min(t, anim.length());
+        for (Map.Entry<String, BossSpec.Track> e : anim.bones().entrySet()) {
+            Vector3f r = BossSpec.Animation.sample(e.getValue().rot(), at);
+            Vector3f o = BossSpec.Animation.sample(e.getValue().pos(), at);
+            out.put(e.getKey(), new Pose(r == null ? new Vector3f() : r, o == null ? new Vector3f() : o));
+        }
+        return out;
     }
 
     /** Model-space matrix of every bone for the given pose. look = extra (yaw, pitch) degrees for look bones. */

@@ -65,7 +65,7 @@ public record BossSpec(
     }
 
     public record Skill(String id, String type, String animation, int cooldown, double minRange, double maxRange,
-                        Map<String, Object> params) {
+                        Map<String, Object> params, String when, int minPhase, List<Step> steps) {
         public double d(String key, double def) {
             return params.get(key) instanceof Number n ? n.doubleValue() : def;
         }
@@ -80,7 +80,80 @@ public record BossSpec(
     }
 
     public record Phase(double below, String animation, String message, BossBar.Color barColor, double speedMultiplier,
-                        double cooldownMultiplier, double shockRadius, double shockKnockback, Map<String, NamespacedKey> models) {}
+                        double cooldownMultiplier, double shockRadius, double shockKnockback, Map<String, NamespacedKey> models,
+                        String then) {}
+
+    // ------------------------------------------------------------------------------------------
+    // Sequence patterns (see the comment block above "skills:" in content/stsv/bosses/executioner.yml)
+    // ------------------------------------------------------------------------------------------
+
+    public record Step(String animation, double chance, int minPhase, String condition, int trackUntil, double turn,
+                       Hold hold, Move move, Leap leap, List<Hit> hits, List<Wave> waves, int[] flash, Grab grab,
+                       Held held, Sectors sectors) {}
+
+    public record Hold(int tick, int min, int max, int glint) {}
+
+    public record Move(int from, int to, double speed) {}
+
+    public record Leap(int from, int to, double height, int trackUntil, int markerFrom, double markerRadius) {}
+
+    public record Hit(int tick, int until, String shape, double range, double arc, double width, double radius, double forward,
+                      double damage, double knockback, double up, boolean guardBreak, boolean unblockable, int minPhase) {}
+
+    public record Wave(int tick, double forward, double speed, double max, double width, double damage, int minPhase) {}
+
+    public record Grab(int tick, double range, double arc) {}
+
+    public record Held(String socket, int until, double rescue) {}
+
+    public record Sectors(int show, int hide, int tick, int count, int safe, double radius, double damage) {}
+
+    private static Step step(ConfigurationSection s, String where, Map<String, Animation> animations, Map<String, Socket> sockets) {
+        String anim = s.getString("animation");
+        if (anim == null || !animations.containsKey(anim)) throw new IllegalArgumentException(where + ": 애니메이션 '" + anim + "' 없음");
+        ConfigurationSection h = s.getConfigurationSection("hold");
+        ConfigurationSection mv = s.getConfigurationSection("move");
+        ConfigurationSection lp = s.getConfigurationSection("leap");
+        ConfigurationSection gb = s.getConfigurationSection("grab");
+        ConfigurationSection hd = s.getConfigurationSection("held");
+        ConfigurationSection sc = s.getConfigurationSection("sectors");
+        if (hd != null && !sockets.containsKey(hd.getString("socket"))) {
+            throw new IllegalArgumentException(where + ": held 의 소켓 '" + hd.getString("socket") + "' 없음");
+        }
+        List<Hit> hits = new ArrayList<>();
+        for (Map<?, ?> m : s.getMapList("hits")) {
+            ConfigurationSection x = section(m);
+            String shape = x.getString("shape", "cone").toLowerCase(Locale.ROOT);
+            if (!List.of("cone", "circle", "line", "held").contains(shape)) throw new IllegalArgumentException(where + ": 알 수 없는 판정 모양 " + shape);
+            int tick = x.getInt("tick");
+            hits.add(new Hit(tick, x.getInt("until", tick), shape, x.getDouble("range", 4), x.getDouble("arc", 120),
+                    x.getDouble("width", 1.2), x.getDouble("radius", 3), x.getDouble("forward", 0), x.getDouble("damage", 6),
+                    x.getDouble("knockback", 0.8), x.getDouble("up", 0.45), x.getBoolean("guard-break"), x.getBoolean("unblockable"),
+                    x.getInt("min-phase", 0)));
+        }
+        List<Wave> waves = new ArrayList<>();
+        for (Map<?, ?> m : s.getMapList("waves")) {
+            ConfigurationSection x = section(m);
+            waves.add(new Wave(x.getInt("tick"), x.getDouble("forward", 0), x.getDouble("speed", 0.4), x.getDouble("max", 8),
+                    x.getDouble("width", 0.7), x.getDouble("damage", 6), x.getInt("min-phase", 0)));
+        }
+        List<Integer> flash = s.getIntegerList("flash");
+        return new Step(anim, s.getDouble("chance", 1), s.getInt("min-phase", 0), s.getString("if"),
+                s.getInt("track-until", 0), s.getDouble("turn", 10),
+                h == null ? null : new Hold(h.getInt("tick"), h.getInt("min"), Math.max(h.getInt("min"), h.getInt("max")), h.getInt("glint", 4)),
+                mv == null ? null : new Move(mv.getInt("from"), mv.getInt("to"), mv.getDouble("speed", 0.3)),
+                lp == null ? null : new Leap(lp.getInt("from"), lp.getInt("to"), lp.getDouble("height", 5), lp.getInt("track-until", lp.getInt("to")),
+                        lp.getInt("marker-from", lp.getInt("from")), lp.getDouble("marker-radius", 3)),
+                hits, waves, flash.size() == 2 ? new int[]{flash.get(0), flash.get(1)} : null,
+                gb == null ? null : new Grab(gb.getInt("tick"), gb.getDouble("range", 3), gb.getDouble("arc", 80)),
+                hd == null ? null : new Held(hd.getString("socket"), hd.getInt("until"), hd.getDouble("rescue", 0.05)),
+                sc == null ? null : new Sectors(sc.getInt("show"), sc.getInt("hide"), sc.getInt("tick"), Math.max(2, sc.getInt("count", 8)),
+                        Math.max(1, sc.getInt("safe", 2)), sc.getDouble("radius", 16), sc.getDouble("damage", 20)));
+    }
+
+    private static ConfigurationSection section(Map<?, ?> m) {
+        return new org.bukkit.configuration.MemoryConfiguration().createSection("x", m);
+    }
 
     public record Drop(String item, int min, int max, double chance) {}
 
@@ -141,8 +214,17 @@ public record BossSpec(
                 }
                 List<Double> range = s.getDoubleList("range");
                 Map<String, Object> params = new LinkedHashMap<>(s.getValues(false));
-                skills.put(k, new Skill(k, s.getString("type", k).toLowerCase(Locale.ROOT), anim, s.getInt("cooldown", 100),
-                        range.size() > 0 ? range.get(0) : 0, range.size() > 1 ? range.get(1) : 64, params));
+                List<Step> steps = new ArrayList<>();
+                List<Map<?, ?>> raw = s.getMapList("steps");
+                for (int i = 0; i < raw.size(); i++) steps.add(step(section(raw.get(i)), id + " 패턴 " + k + " 단계 " + (i + 1), animations, sockets));
+                String type = s.getString("type", k).toLowerCase(Locale.ROOT);
+                if (type.equals("sequence") && steps.isEmpty()) throw new IllegalArgumentException(id + ": 패턴 '" + k + "' 에 steps 가 없음");
+                String when = s.getString("when");
+                if (when != null && !List.of("behind", "above", "heal").contains(when)) {
+                    throw new IllegalArgumentException(id + ": 패턴 '" + k + "' 의 when '" + when + "' 을 모름 (behind, above, heal)");
+                }
+                skills.put(k, new Skill(k, type, anim, s.getInt("cooldown", 100),
+                        range.size() > 0 ? range.get(0) : 0, range.size() > 1 ? range.get(1) : 64, params, when, s.getInt("min-phase", 0), steps));
             }
         }
 
@@ -163,9 +245,12 @@ public record BossSpec(
             }
             phases.add(new Phase(s.getDouble("below"), anim, s.getString("message"), color(s.getString("bar-color"), null),
                     s.getDouble("speed-multiplier", 1), s.getDouble("cooldown-multiplier", 1),
-                    s.getDouble("shockwave.radius", 0), s.getDouble("shockwave.knockback", 0), models));
+                    s.getDouble("shockwave.radius", 0), s.getDouble("shockwave.knockback", 0), models, s.getString("then")));
         }
         phases.sort((a, b) -> Double.compare(b.below(), a.below()));
+        for (Phase p : phases) {
+            if (p.then() != null && !skills.containsKey(p.then())) throw new IllegalArgumentException(id + ": 페이즈의 then '" + p.then() + "' 패턴 없음");
+        }
 
         List<Drop> drops = new ArrayList<>();
         for (Map<?, ?> m : c.getMapList("drops")) {
