@@ -35,5 +35,7 @@ cosmetics:
   show-to-self: true
   # true: OP(권한 stsv.cosmetic.*)는 모든 치장을 보유한 것으로 취급 (테스트용). 실제 운영은 false
   op-owns-all: false
-  # 옷장에서 시점을 오른쪽으로 돌리는 각도 (마네킹이 메뉴 왼쪽에 보이게). 화면 비율에 따라 조정
-  wardrobe-view-offset: 24
+  # 옷장 시점: 마네킹까지 거리(블록)와, 마네킹이 메뉴 왼쪽에 보이도록 시점을 오른쪽으로 돌리는 각도
+  # 마네킹이 메뉴에 가리면 각도를 키우고(35~40), 너무 작게 보이면 거리를 줄이세요
+  wardrobe-distance: 4.0
+  wardrobe-view-offset: 30

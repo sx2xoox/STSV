@@ -384,7 +384,8 @@ public final class CosmeticModule implements StsvModule, Listener {
         stand.setPitch(0);
         Vector forward = stand.getDirection().setY(0).normalize();
         Location spot = null;
-        for (double d : new double[]{2.8, 2.4, 2.0}) {
+        double want = plugin.getConfig().getDouble("cosmetics.wardrobe-distance", 4.0);
+        for (double d : new double[]{want, want - 0.5, want - 1.0}) {
             Location c = stand.clone().add(forward.clone().multiply(d));
             if (c.getBlock().isPassable() && c.clone().add(0, 1, 0).getBlock().isPassable()) {
                 spot = c;
@@ -392,12 +393,12 @@ public final class CosmeticModule implements StsvModule, Listener {
             }
         }
         if (spot == null) {
-            p.sendMessage(Text.msg("<red>앞쪽 공간이 부족합니다. 앞이 트인 곳에서 사용하세요."));
+            p.sendMessage(Text.msg("<red>앞쪽 공간이 부족합니다. 앞쪽 " + (int) Math.ceil(want) + "칸이 트인 곳에서 사용하세요."));
             return;
         }
-        // look at the mannequin, then turn a little to the right so it sits left of the menu
+        // look at the mannequin's middle, then turn to the right so it sits left of the menu
         spot.setDirection(stand.clone().add(0, 1.0, 0).toVector().subtract(spot.clone().add(0, 1.62, 0).toVector()));
-        spot.setYaw(spot.getYaw() + (float) plugin.getConfig().getDouble("cosmetics.wardrobe-view-offset", 24));
+        spot.setYaw(spot.getYaw() + (float) plugin.getConfig().getDouble("cosmetics.wardrobe-view-offset", 30));
 
         Session s = new Session();
         s.origin = p.getLocation().clone();
