@@ -95,3 +95,35 @@ stats:
 time:
   hours-minutes: "{h}시간 {m}분"
   minutes: "{m}분"
+
+hud:
+  # 상태 줄 항목 사이 구분자
+  separator: "  <dark_gray>|</dark_gray>  "
+
+economy:
+  # 금액 표시 형식: {amount} = 1,234
+  amount: "<gold>{amount} G</gold>"
+  hud: "<gold>⛃</gold> {balance}"
+  balance: "<gray>잔액: </gray>{balance}"
+  balance-other: "<white>{player}</white><gray>의 잔액: </gray>{balance}"
+  top-header: "<gold><b>부자 순위</b>"
+  top-line: " <gray>{rank}.</gray> <white>{player}</white> <dark_gray>-</dark_gray> {balance}"
+  not-found: "<red>그런 플레이어를 찾을 수 없습니다."
+  not-number: "<red>금액은 1 이상의 정수로 입력하세요."
+  not-enough: "<red>돈이 부족합니다. <gray>(필요 {need}, 잔액 {balance})"
+  self: "<red>자기 자신에게는 보낼 수 없습니다."
+  usage-pay: "<red>/송금 <플레이어> <금액> <gray>(수수료 {fee}%)"
+  usage-cheque: "<red>/수표 <금액> <gray>(최소 {min})"
+  confirm: "<yellow>큰 금액입니다. 같은 명령을 15초 안에 한 번 더 입력하면 실행됩니다. <gray>({what})"
+  paid: "<green>{player}</green><gray>에게 </gray>{amount}<gray> 송금 (수수료 </gray>{fee}<gray>)"
+  received: "<green>{player}</green><gray>에게서 </gray>{amount}<gray>을(를) 받았습니다."
+  cheque-min: "<red>수표는 {min} 이상부터 발행할 수 있습니다."
+  inventory-full: "<red>인벤토리에 빈 칸이 없습니다."
+  cheque-issued: "{amount}<gray> 수표를 발행했습니다. 우클릭하면 현금으로 바뀝니다."
+  cheque-cashed: "<green>수표 입금: </green>{amount}"
+  cheque-used: "<red>이미 사용되었거나 가짜인 수표입니다."
+  cheque-error: "<red>수표 처리 중 오류가 났습니다. 수표를 돌려드렸습니다."
+  # 수표 아이템: {amount} {issuer} {date}
+  cheque-name: "<gold>수표</gold> <white>{amount}</white>"
+  cheque-lore: ["<gray>발행: <white>{issuer}", "<gray>발행일: <white>{date}", "", "<yellow>우클릭: 입금"]
+

@@ -20,6 +20,7 @@ import java.util.List;
 import java.util.Map;
 import java.util.Locale;
 import java.util.Optional;
+import java.util.UUID;
 
 public final class StsvCommand implements TabExecutor {
 
@@ -37,7 +38,7 @@ public final class StsvCommand implements TabExecutor {
     static {
         String[][] root = {{"지급", "give"}, {"아이템목록", "browse"}, {"목록", "list"}, {"정보", "info"}, {"레시피", "recipe"},
                 {"연료", "fuel"}, {"스킨", "skin"}, {"치장", "cosmetic"}, {"옷장", "wardrobe"}, {"보스", "boss"},
-                {"기간", "period"}, {"칭호", "title"}, {"통계", "stat"}, {"리로드", "reload"}, {"리소스팩", "pack"}, {"도움말", "help"}};
+                {"기간", "period"}, {"칭호", "title"}, {"통계", "stat"}, {"경제", "economy"}, {"초기화", "reset"}, {"리로드", "reload"}, {"리소스팩", "pack"}, {"도움말", "help"}};
         for (String[] r : root) ROOT.put(r[0], r[1]);
         sub("recipe", "생성", "create", "삭제", "delete", "목록", "list");
         sub("fuel", "설정", "set", "제거", "remove", "목록", "list");
@@ -48,6 +49,8 @@ public final class StsvCommand implements TabExecutor {
         sub("period", "시작", "start", "종료", "end", "정보", "info");
         sub("title", "지급", "give", "회수", "take", "목록", "list");
         sub("stat", "추가", "add");
+        sub("economy", "지급", "give", "회수", "take", "설정", "set", "기록", "history", "되돌리기", "revert", "통계", "stats");
+        sub("reset", "경제", "economy", "기록", "records");
         String[][] types = {{"모양조합", "shaped"}, {"무형조합", "shapeless"}, {"화로", "furnace"}, {"용광로", "blasting"},
                 {"훈연기", "smoking"}, {"모닥불", "campfire"}, {"석재절단기", "stonecutting"}};
         for (String[] t : types) RECIPE_TYPES.put(t[0], t[1]);
@@ -127,6 +130,8 @@ public final class StsvCommand implements TabExecutor {
             case "period" -> period(sender, args);
             case "title" -> title(sender, args);
             case "stat" -> stat(sender, args);
+            case "economy" -> economy(sender, args);
+            case "reset" -> reset(sender, args);
             default -> {
                 sender.sendMessage(Text.msg("<gray>명령어 목록"));
                 for (String line : List.of(
@@ -144,6 +149,10 @@ public final class StsvCommand implements TabExecutor {
                         "기간 시작 <id> <이름> | 기간 종료 | 기간 정보 <dark_gray>- 콘텐츠 기간 (기록, 명예의 전당)",
                         "칭호 지급|회수 <플레이어> <칭호> | 칭호 목록 <dark_gray>- 칭호",
                         "통계 추가 <플레이어> <통계> <값> <dark_gray>- 기록 보정",
+                        "경제 지급|회수|설정 <플레이어> <금액> [메모] <dark_gray>- 돈 지급/회수/지정",
+                        "경제 기록 <플레이어> [개수] | 경제 되돌리기 <플레이어> <분> <dark_gray>- 거래 기록 / 최근 N분 거래 취소",
+                        "경제 통계 <dark_gray>- 최근 24시간 생성·소멸, 총 통화량, 빈부격차",
+                        "초기화 경제|기록 <dark_gray>- 테스트용 초기화 (확인 필요)",
                         "리로드 | 리소스팩")) {
                     sender.sendMessage(Text.mm(" <white>/" + label + " " + line));
                 }
@@ -223,6 +232,111 @@ public final class StsvCommand implements TabExecutor {
             }
             plugin.profiles().add(found.get(), args[3], value);
             sender.sendMessage(Text.msg("<green>" + args[2] + " " + args[3] + " " + (value >= 0 ? "+" : "") + value));
+        }));
+    }
+
+    private static final Map<String, String> KIND_NAMES = Map.of("FAUCET", "생성", "SINK", "소멸", "TRANSFER", "거래",
+            "CHEQUE", "수표", "ADMIN", "관리");
+
+    private void economy(CommandSender sender, String[] args) {
+        var eco = plugin.economy();
+        String sub = args.length > 1 ? args[1] : "";
+        switch (sub) {
+            case "give", "take", "set" -> {
+                long amount = args.length > 3 ? EconomyCommand.parseAmount(args[3]) : -1;
+                if (args.length > 3 && sub.equals("set") && args[3].equals("0")) amount = 0;
+                if (amount < 0) {
+                    sender.sendMessage(Text.msg("<red>/관리 경제 " + (sub.equals("give") ? "지급" : sub.equals("take") ? "회수" : "설정")
+                            + " <플레이어> <금액> [메모]"));
+                    return;
+                }
+                long value = amount;
+                String note = sender.getName() + (args.length > 4 ? ": " + String.join(" ", java.util.Arrays.copyOfRange(args, 4, args.length)) : "");
+                findPlayer(sender, args[2], uuid -> {
+                    if (!eco.hasAccount(uuid)) {
+                        sender.sendMessage(Text.msg("<red>계좌가 없는 플레이어: " + args[2]));
+                        return;
+                    }
+                    switch (sub) {
+                        case "give" -> eco.move(null, uuid, value, dev.stsv.core.economy.EconomyStore.Kind.ADMIN, "admin_give", note);
+                        case "take" -> eco.set(uuid, eco.balance(uuid) - value, note);
+                        default -> eco.set(uuid, value, note);
+                    }
+                    sender.sendMessage(Text.msg("<green>" + args[2] + " 잔액: </green>" + dev.stsv.core.economy.EconomyModule.format(eco.balance(uuid))));
+                });
+            }
+            case "history" -> {
+                if (args.length < 3) {
+                    sender.sendMessage(Text.msg("<red>/관리 경제 기록 <플레이어> [개수]"));
+                    return;
+                }
+                int limit = args.length > 3 ? Math.max(1, (int) Math.min(100, EconomyCommand.parseAmount(args[3]))) : 15;
+                findPlayer(sender, args[2], uuid -> eco.store().history(uuid, limit).thenAccept(list -> {
+                    var time = java.time.format.DateTimeFormatter.ofPattern("MM-dd HH:mm").withZone(java.time.ZoneId.systemDefault());
+                    sender.sendMessage(Text.msg("<gray>" + args[2] + " 거래 기록 (최근 " + list.size() + "건)"));
+                    for (var e : list) {
+                        boolean in = uuid.equals(e.to());
+                        UUID other = in ? e.from() : e.to();
+                        String otherName = other == null ? "" : " <gray>" + (in ? "← " : "→ ") + Optional.ofNullable(Bukkit.getOfflinePlayer(other).getName()).orElse("?");
+                        sender.sendMessage(Text.mm((e.reverted() ? "<st>" : "") + " <dark_gray>" + time.format(java.time.Instant.ofEpochMilli(e.at()))
+                                + "</dark_gray> " + (in ? "<green>+" : "<red>-") + String.format("%,d", e.amount()) + "</green></red>"
+                                + " <gray>[" + KIND_NAMES.getOrDefault(e.kind().name(), e.kind().name()) + "] <white>" + e.reason()
+                                + otherName + (e.note() == null ? "" : " <dark_gray>(" + e.note() + ")")));
+                    }
+                }));
+            }
+            case "revert" -> {
+                long minutes = args.length > 3 ? EconomyCommand.parseAmount(args[3]) : -1;
+                if (minutes <= 0) {
+                    sender.sendMessage(Text.msg("<red>/관리 경제 되돌리기 <플레이어> <분> <gray>(그 플레이어가 낀 최근 N분 거래를 모두 취소, 상대방 쪽도 함께)"));
+                    return;
+                }
+                long now = System.currentTimeMillis();
+                findPlayer(sender, args[2], uuid -> eco.store().revert(uuid, now - minutes * 60_000L, now).thenAccept(n ->
+                        Bukkit.getScheduler().runTask(plugin, () -> sender.sendMessage(Text.msg("<green>" + args[2] + ": 거래 " + n
+                                + "건 취소. 현재 잔액 </green>" + dev.stsv.core.economy.EconomyModule.format(eco.balance(uuid)))))));
+            }
+            case "stats" -> eco.store().stats(System.currentTimeMillis() - 86_400_000L).thenAccept(st -> {
+                sender.sendMessage(Text.msg("<gray>경제 통계 (최근 24시간)"));
+                sender.sendMessage(Text.mm(" <gray>생성: <green>+" + String.format("%,d", st.faucet()) + "</green>  소멸: <red>-"
+                        + String.format("%,d", st.sink()) + "</red>  순증가: <white>" + String.format("%+,d", st.faucet() - st.sink())));
+                sender.sendMessage(Text.mm(" <gray>플레이어 간 거래: <white>" + String.format("%,d", st.transfer())));
+                sender.sendMessage(Text.mm(" <gray>총 통화량: <gold>" + String.format("%,d", st.total()) + " G</gold> (계좌 " + st.accounts()
+                        + "개, 평균 " + String.format("%,d", st.accounts() == 0 ? 0 : st.total() / st.accounts()) + ")"));
+                sender.sendMessage(Text.mm(" <gray>빈부격차(지니): <white>" + String.format("%.2f", st.gini()) + " <dark_gray>(0 평등 ~ 1 독점)"));
+            });
+            default -> sender.sendMessage(Text.msg("<red>/관리 경제 <지급|회수|설정|기록|되돌리기|통계>"));
+        }
+    }
+
+    private void reset(CommandSender sender, String[] args) {
+        String what = args.length > 1 ? args[1] : "";
+        if (!what.equals("economy") && !what.equals("records")) {
+            sender.sendMessage(Text.msg("<red>/관리 초기화 경제 <gray>(모든 잔액·거래 기록·수표)</gray> | /관리 초기화 기록 <gray>(모든 통계·기간·명예의 전당·칭호)"));
+            return;
+        }
+        String word = what.equals("economy") ? "경제" : "기록";
+        if (args.length < 3 || !(args[2].equals("확인") || args[2].equalsIgnoreCase("confirm"))) {
+            sender.sendMessage(Text.msg("<yellow>되돌릴 수 없습니다. 정말 초기화하려면 <white>/관리 초기화 " + word + " 확인"));
+            return;
+        }
+        var done = what.equals("economy") ? plugin.economy().reset() : plugin.profiles().reset();
+        done.whenComplete((v, err) -> Bukkit.getScheduler().runTask(plugin, () -> sender.sendMessage(Text.msg(err == null
+                ? "<green>" + word + " 초기화 완료" + (what.equals("economy") ? " (접속 중인 플레이어는 시작 금액을 다시 받음)" : "")
+                : "<red>초기화 실패: " + err.getMessage()))));
+        plugin.getLogger().warning(sender.getName() + " 님이 " + word + "을(를) 초기화했습니다.");
+    }
+
+    /** Online player by name, else anyone who ever joined; reports unknown names. Callback on the main thread. */
+    private void findPlayer(CommandSender sender, String name, java.util.function.Consumer<UUID> then) {
+        Player online = Bukkit.getPlayerExact(name);
+        if (online != null) {
+            then.accept(online.getUniqueId());
+            return;
+        }
+        plugin.profiles().store().findByName(name).thenAccept(found -> Bukkit.getScheduler().runTask(plugin, () -> {
+            if (found.isEmpty()) sender.sendMessage(Text.msg("<red>접속한 적 없는 플레이어: " + name));
+            else then.accept(found.get());
         }));
     }
 
@@ -493,8 +607,11 @@ public final class StsvCommand implements TabExecutor {
                 if (raw.length == 3) return filter(onlineNames(), raw[2]);
                 if (raw.length == 4) return filter(plugin.profiles().titles().stream().map(t -> t.id()).toList(), raw[3]);
             }
-            case "stat" -> {
+            case "stat", "economy" -> {
                 if (raw.length == 3) return filter(onlineNames(), raw[2]);
+            }
+            case "reset" -> {
+                if (raw.length == 3) return filter(List.of("확인"), raw[2]);
             }
             case "boss" -> {
                 if (raw.length == 3 && (args[1].equals("spawn") || args[1].equals("spawnat"))) {

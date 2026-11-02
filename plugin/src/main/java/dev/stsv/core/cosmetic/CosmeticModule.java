@@ -211,7 +211,7 @@ public final class CosmeticModule implements StsvModule, Listener {
             return;
         }
         if (store.owned(p.getUniqueId()).contains(c.get().key().asString())) {
-            p.sendActionBar(Lang.mm("cosmetic.already-owned"));
+            dev.stsv.core.hud.HudModule.flash(p, Lang.mm("cosmetic.already-owned"));
             p.playSound(p.getLocation(), Sound.BLOCK_NOTE_BLOCK_BASS, 0.7f, 0.8f);
             return;
         }
@@ -590,16 +590,16 @@ public final class CosmeticModule implements StsvModule, Listener {
                 store.setEquipped(p.getUniqueId(), null);
                 s.previewing = null;
                 p.playSound(p.getLocation(), Sound.ITEM_ARMOR_EQUIP_GENERIC, 0.8f, 0.8f);
-                p.sendActionBar(Lang.mm("wardrobe.took-off", "cosmetic", displayName(c)));
+                dev.stsv.core.hud.HudModule.flash(p, Lang.mm("wardrobe.took-off", "cosmetic", displayName(c)));
             } else if (owns(p, c)) {
                 store.setEquipped(p.getUniqueId(), id);
                 s.previewing = id;
                 p.playSound(p.getLocation(), Sound.ITEM_ARMOR_EQUIP_LEATHER, 1f, 1.2f);
-                p.sendActionBar(Lang.mm("wardrobe.wearing", "cosmetic", displayName(c)));
+                dev.stsv.core.hud.HudModule.flash(p, Lang.mm("wardrobe.wearing", "cosmetic", displayName(c)));
             } else {
                 s.previewing = id;
                 p.playSound(p.getLocation(), Sound.UI_BUTTON_CLICK, 0.6f, 1.4f);
-                p.sendActionBar(c.cosmetic().obtain() == null ? Lang.mm("wardrobe.preview-only")
+                dev.stsv.core.hud.HudModule.flash(p, c.cosmetic().obtain() == null ? Lang.mm("wardrobe.preview-only")
                         : Lang.mm("wardrobe.preview-only-obtain", "obtain", c.cosmetic().obtain()));
             }
             showOnMannequin(p, s);

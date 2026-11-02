@@ -2,7 +2,7 @@ name: STSV
 version: '${version}'
 main: dev.stsv.core.STSVPlugin
 api-version: '26.3'
-description: STSV 스트리머 서버 공통 코어 (콘텐츠 팩, 메뉴, 저장소, 기록, 리소스팩)
+description: STSV 스트리머 서버 공통 코어 (콘텐츠 팩, 메뉴, 저장소, 기록, 경제, 리소스팩)
 authors: [STSV]
 # database drivers, downloaded by the server from Maven Central on first start
 libraries:
@@ -13,7 +13,7 @@ commands:
   관리:
     description: STSV 관리 명령어 (/관리 도움말)
     aliases: [stsv]
-    usage: /관리 <지급|아이템목록|목록|정보|레시피|연료|스킨|치장|옷장|보스|기간|칭호|통계|리로드|리소스팩>
+    usage: /관리 <지급|아이템목록|목록|정보|레시피|연료|스킨|치장|옷장|보스|기간|칭호|통계|경제|초기화|리로드|리소스팩>
     permission: stsv.admin
   옷장:
     description: 옷장 (옷장 구역 안에서)
@@ -30,7 +30,25 @@ commands:
     aliases: [hall]
     usage: /명예의전당 [기간]
     permission: stsv.profile
+  돈:
+    description: 잔액 보기, 부자 순위
+    aliases: [money, balance]
+    usage: /돈 [플레이어|순위]
+    permission: stsv.economy
+  송금:
+    description: 다른 플레이어에게 돈 보내기
+    aliases: [pay]
+    usage: /송금 <플레이어> <금액>
+    permission: stsv.economy
+  수표:
+    description: 돈을 수표 아이템으로 꺼내기
+    aliases: [cheque]
+    usage: /수표 <금액>
+    permission: stsv.economy
 permissions:
+  stsv.economy:
+    description: 돈, 송금, 수표
+    default: true
   stsv.profile:
     description: 프로필, 명예의 전당 보기
     default: true

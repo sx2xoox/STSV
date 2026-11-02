@@ -41,6 +41,8 @@ public final class STSVPlugin extends JavaPlugin {
     private CosmeticModule cosmetics;
     private BossModule bosses;
     private dev.stsv.core.profile.ProfileModule profiles;
+    private dev.stsv.core.hud.HudModule hud;
+    private dev.stsv.core.economy.EconomyModule economy;
     private ItemBrowser itemBrowser;
     private RecipeEditor recipeEditor;
 
@@ -59,11 +61,13 @@ public final class STSVPlugin extends JavaPlugin {
         modules.register(database = new DatabaseModule());
         modules.register(content = new ContentModule());
         modules.register(menus = new dev.stsv.core.gui.menu.MenuModule());
+        modules.register(hud = new dev.stsv.core.hud.HudModule());
         modules.register(recipes = new RecipeModule());
         modules.register(furniture = new FurnitureModule());
         modules.register(skins = new SkinModule());
         modules.register(cosmetics = new CosmeticModule());
         modules.register(profiles = new dev.stsv.core.profile.ProfileModule());
+        modules.register(economy = new dev.stsv.core.economy.EconomyModule());
         modules.register(new ItemEffectsModule());
         modules.register(bosses = new BossModule());
         modules.register(pack = new PackModule());
@@ -86,6 +90,14 @@ public final class STSVPlugin extends JavaPlugin {
             if (pc != null) {
                 pc.setExecutor(profileCommand);
                 pc.setTabCompleter(profileCommand);
+            }
+        }
+        dev.stsv.core.command.EconomyCommand economyCommand = new dev.stsv.core.command.EconomyCommand(this);
+        for (String name : new String[]{"돈", "송금", "수표"}) {
+            PluginCommand ec = getCommand(name);
+            if (ec != null) {
+                ec.setExecutor(economyCommand);
+                ec.setTabCompleter(economyCommand);
             }
         }
         PluginCommand wardrobe = getCommand("옷장");
@@ -113,6 +125,8 @@ public final class STSVPlugin extends JavaPlugin {
     public CosmeticModule cosmetics() { return cosmetics; }
     public BossModule bosses() { return bosses; }
     public dev.stsv.core.profile.ProfileModule profiles() { return profiles; }
+    public dev.stsv.core.hud.HudModule hud() { return hud; }
+    public dev.stsv.core.economy.EconomyModule economy() { return economy; }
     public ItemBrowser itemBrowser() { return itemBrowser; }
     public RecipeEditor recipeEditor() { return recipeEditor; }
 }

@@ -127,6 +127,7 @@ ICONS = {
     "tomato_voucher": lambda: I.voucher("tomato"),
     "eggplant_voucher": lambda: I.voucher("eggplant"),
     "mushroom_voucher": lambda: I.voucher("toadstool", gem="cream"),
+    "cheque": I.cheque,
 }
 
 

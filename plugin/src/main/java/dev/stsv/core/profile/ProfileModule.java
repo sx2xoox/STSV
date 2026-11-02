@@ -140,6 +140,13 @@ public final class ProfileModule implements StsvModule, Listener {
         });
     }
 
+    /** Testing: wipes every record and title, then reloads the online players' (now empty) state. */
+    public java.util.concurrent.CompletableFuture<Void> reset() {
+        return store.reset().thenRun(() -> Bukkit.getScheduler().runTask(plugin, () -> {
+            for (Player p : Bukkit.getOnlinePlayers()) joined(p);
+        }));
+    }
+
     private void countPlaytime(Player p) {
         long now = System.currentTimeMillis();
         Long since = playtimeMark.put(p.getUniqueId(), now);
@@ -347,17 +354,17 @@ public final class ProfileModule implements StsvModule, Listener {
             Player p = v.player();
             if (index >= list.size()) return;
             if (!p.getUniqueId().equals(target)) {
-                p.sendActionBar(Lang.mm("profile.other-titles"));
+                dev.stsv.core.hud.HudModule.flash(p, Lang.mm("profile.other-titles"));
                 return;
             }
             Title t = list.get(index);
             if (!titlesOf.owned().contains(t.id())) return;
             if (t.id().equals(titlesOf.equipped())) {
                 equip(p, null);
-                p.sendActionBar(Lang.mm("profile.title-removed"));
+                dev.stsv.core.hud.HudModule.flash(p, Lang.mm("profile.title-removed"));
             } else {
                 equip(p, t.id());
-                p.sendActionBar(Lang.mm("profile.title-equipped", "title", t.name()));
+                dev.stsv.core.hud.HudModule.flash(p, Lang.mm("profile.title-equipped", "title", t.name()));
             }
             titlesOf = online.getOrDefault(target, titlesOf);
             p.playSound(p.getLocation(), Sound.UI_BUTTON_CLICK, 0.6f, 1.3f);

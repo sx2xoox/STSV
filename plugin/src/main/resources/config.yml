@@ -69,3 +69,21 @@ profiles:
   hall-of-fame: [playtime, mob_kills, player_kills, boss_kills, deaths]
   hall-size: 3
 
+
+# 화면 아래 상태 줄 (액션바). 다른 안내 문구가 뜨면 잠시 비켜줌
+hud:
+  refresh-ticks: 20
+  flash-seconds: 3
+
+# 돈 (단위 G, 정수). 잔액과 모든 거래 기록은 저장소에 남음 (월드와 별개)
+economy:
+  # 처음 접속한 플레이어가 받는 돈
+  start-balance: 500
+  # 송금 수수료 (0.02 = 2%, 최소 1G). 수수료는 사라짐 (돈 줄이기)
+  transfer-fee: 0.02
+  # 이 금액 이상 송금 / 수표 발행은 같은 명령을 한 번 더 입력해야 실행 (오타 방지)
+  confirm-over: 10000
+  # 수표 최소 금액
+  cheque-min: 100
+  # 화면 아래 상태 줄에 잔액 표시
+  hud: true

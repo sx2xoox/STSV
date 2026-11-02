@@ -234,12 +234,12 @@ public final class SkinModule implements StsvModule, Listener {
         if (tool == null || tool.isEmpty()) return;
         if (skinOf(tool).filter(id -> id.equals(w.book.key().asString())).isPresent()) return; // already this skin
         if (tool.getAmount() > 1 || !accepts(w.book.skin(), tool)) {
-            player.sendActionBar(dev.stsv.core.util.Lang.mm("skin.not-applicable"));
+            dev.stsv.core.hud.HudModule.flash(player, dev.stsv.core.util.Lang.mm("skin.not-applicable"));
             player.playSound(player.getLocation(), Sound.BLOCK_NOTE_BLOCK_BASS, 0.7f, 0.6f);
             return;
         }
         if (!consumeBook(player, w.book)) {
-            player.sendActionBar(dev.stsv.core.util.Lang.mm("skin.no-book"));
+            dev.stsv.core.hud.HudModule.flash(player, dev.stsv.core.util.Lang.mm("skin.no-book"));
             return;
         }
         Optional<String> replaced = apply(tool, w.book);
@@ -248,7 +248,7 @@ public final class SkinModule implements StsvModule, Listener {
                 .ifPresent(b -> give(player, b.create(1)));
         player.playSound(player.getLocation(), Sound.BLOCK_ENCHANTMENT_TABLE_USE, 0.8f, 1.3f);
         player.spawnParticle(Particle.ENCHANT, player.getLocation().add(0, 1.2, 0), 40, 0.4, 0.4, 0.4, 0.5);
-        player.sendActionBar(dev.stsv.core.util.Lang.mm("skin.applied"));
+        dev.stsv.core.hud.HudModule.flash(player, dev.stsv.core.util.Lang.mm("skin.applied"));
     }
 
     private boolean consumeBook(Player player, CustomItem book) {

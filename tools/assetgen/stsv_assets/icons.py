@@ -442,3 +442,28 @@ def voucher(accent, gem=None):
     for x in range(6, 14, 2):
         ic.put(x, 11, "paper", 0)                 # perforation
     return ic.outline().image()
+
+
+def cheque():
+    """Economy cheque: a paper slip with a gold header band, a signature line and a red wax seal."""
+    ic = Icon()
+    for y in range(3, 13):
+        for x in range(1, 15):
+            ic.put(x, y, "paper", 2)
+    for x in range(1, 15):
+        ic.put(x, 3, "gold", 3 if x < 8 else 2)        # header band
+        ic.put(x, 4, "gold", 1)
+    for x in range(1, 15):
+        ic.put(x, 12, "paper", 1)                      # lower edge in shade
+    for y in range(5, 12):
+        ic.put(14, y, "paper", 1)
+    for (x, y) in ((3, 7), (4, 7), (5, 7), (6, 7), (7, 7), (8, 7)):
+        ic.put(x, y, "paper", 0)                       # amount line
+    for x in range(3, 9):
+        ic.put(x, 10, "soot", 2)                       # signature
+    for x in (4, 7):
+        ic.put(x, 9, "soot", 3)
+    for (x, y) in ((11, 7), (12, 7), (10, 8), (11, 8), (12, 8), (13, 8), (10, 9), (11, 9), (12, 9), (13, 9), (11, 10), (12, 10)):
+        ic.put(x, y, "ruby", 3 if (x + y) < 20 else (2 if (x + y) < 22 else 1))   # wax seal, lit from the top-left
+    ic.put(11, 8, "ruby", 4)
+    return ic.outline().image()

@@ -1,0 +1,8 @@
+# 경제 공통 아이템. 이름/설명은 플러그인이 발행할 때 채움 (messages.yml economy.cheque-*)
+
+# 수표: /수표 <금액> 으로 발행, 우클릭으로 입금. 한 장은 딱 한 번만 입금됨 (복사해도 소용없음)
+cheque:
+  material: paper
+  name: "<gold>수표"
+  texture: cheque
+  max-stack: 1

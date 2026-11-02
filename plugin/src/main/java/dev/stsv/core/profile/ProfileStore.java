@@ -120,6 +120,20 @@ public final class ProfileStore {
     // Stats
     // ------------------------------------------------------------------------------------------
 
+    /**
+     * Testing: forgets every record (stats, periods, hall of fame, titles). Player names stay so
+     * commands can still find offline players.
+     */
+    public synchronized CompletableFuture<Void> reset() {
+        pending.clear();
+        current = null;
+        return db.async(c -> {
+            for (String table : List.of("stat", "period", "hall", "title_owned")) Db.update(c, "DELETE FROM " + table);
+            Db.update(c, "UPDATE profile SET title = NULL");
+            return null;
+        });
+    }
+
     /** Counts something (main thread). Goes to all-time and to the running period. */
     public synchronized void add(UUID player, String stat, double delta) {
         if (delta == 0) return;
