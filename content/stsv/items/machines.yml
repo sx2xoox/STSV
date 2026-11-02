@@ -1,0 +1,23 @@
+# 기계 / 가구
+#
+# model:      models/<이름>.bbmodel 을 사용 (3D)
+# texture:    textures/<이름>.png 를 사용 (2D)
+# item-model: 이미 있는 아이템 모델 id 를 그대로 사용 (예: minecraft:blast_furnace)
+#
+# furniture.cells: 차지하는 블록 (모델 기준 [x, y, z], 정면 = 북쪽)
+
+smelter:
+  material: paper
+  name: "<gradient:#ffb35c:#ff6a3d>산업용 용광로</gradient>"
+  lore:
+    - "<gray>컨베이어로 들어온 광석을 녹여"
+    - "<gray>주괴로 만들어 냅니다."
+    - ""
+    - "<dark_gray>크기 2×2×1 · 타이쿤 설비"
+  model: smelter
+  max-stack: 1
+  furniture:
+    cells: [[0, 0, 0], [1, 0, 0], [0, 1, 0], [1, 1, 0]]
+    solid: true
+    rotation: cardinal
+    behavior: stsv:smelter

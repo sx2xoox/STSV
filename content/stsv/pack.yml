@@ -1,0 +1,3 @@
+# STSV 기본 콘텐츠 팩
+# 이 폴더의 models/, textures/ 는 tools/assetgen/build.py 가 생성합니다. 직접 수정하지 마세요.
+namespace: stsv

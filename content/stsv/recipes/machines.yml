@@ -1,0 +1,13 @@
+smelter:
+  type: shaped
+  pattern:
+    - "BCB"
+    - "SFS"
+    - "BPB"
+  keys:
+    B: minecraft:bricks
+    C: minecraft:chain
+    S: stsv:steel_ingot
+    F: minecraft:blast_furnace
+    P: stsv:copper_plate
+  result: stsv:smelter

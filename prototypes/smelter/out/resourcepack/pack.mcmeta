@@ -1,8 +1,0 @@
-{
-  "pack": {
-    "description": "STSV prototype: smelter",
-    "pack_format": 46,
-    "min_format": 46,
-    "max_format": 999
-  }
-}

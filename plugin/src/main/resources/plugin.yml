@@ -1,0 +1,15 @@
+name: STSV
+version: '${version}'
+main: dev.stsv.core.STSVPlugin
+api-version: '26.3'
+description: STSV 시즌 서버 공통 코어 (커스텀 아이템, 가구, 레시피, 리소스팩)
+authors: [STSV]
+commands:
+  stsv:
+    description: STSV 관리 명령어
+    usage: /stsv <give|browse|list|info|reload|pack>
+    permission: stsv.admin
+permissions:
+  stsv.admin:
+    description: STSV 관리 명령어 사용
+    default: op

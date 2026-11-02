@@ -1,0 +1,23 @@
+steel_ingot:
+  type: blasting
+  input: minecraft:iron_ingot
+  result: stsv:steel_ingot
+  experience: 0.5
+  time: 200
+
+copper_plate:
+  type: stonecutting
+  input: minecraft:copper_ingot
+  result: { item: stsv:copper_plate, amount: 2 }
+
+gold_chunk_smelting:
+  type: blasting
+  input: stsv:gold_chunk
+  result: minecraft:gold_ingot
+  experience: 0.7
+  time: 100
+
+gold_chunk_crafting:
+  type: shapeless
+  ingredients: [minecraft:raw_gold, minecraft:raw_gold]
+  result: { item: stsv:gold_chunk, amount: 3 }

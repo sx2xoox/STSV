@@ -1,0 +1,22 @@
+# 재료 아이템 (2D)
+
+gold_chunk:
+  material: paper
+  name: "<#f4ca4a>금 원석 덩어리"
+  lore:
+    - "<gray>용광로에 넣으면 금 주괴가 됩니다."
+  texture: gold_chunk
+
+steel_ingot:
+  material: paper
+  name: "<#c8ccd4>강철 주괴"
+  lore:
+    - "<gray>철을 한 번 더 제련한 단단한 금속."
+  texture: steel_ingot
+
+copper_plate:
+  material: paper
+  name: "<#ce804c>구리 판"
+  lore:
+    - "<gray>배관과 설비에 쓰이는 판재."
+  texture: copper_plate
