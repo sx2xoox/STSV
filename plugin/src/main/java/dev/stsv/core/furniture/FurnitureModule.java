@@ -313,8 +313,10 @@ public final class FurnitureModule implements StsvModule, Listener {
             }
             String[] a = spec.split(":");
             float rpm = Float.parseFloat(a[1]);
-            // angle from world time, never wrapped: consecutive rotations stay close, so interpolation is smooth
-            double angle = (d.getWorld().getGameTime() + SPIN_STEP) * rpm * 2 * Math.PI / 1200.0;
+            // angle from world time. A quaternion repeats every 4π (not 2π), so wrapping at 4π keeps
+            // consecutive rotations continuous (smooth interpolation) while staying precise as a float.
+            double turns = (d.getWorld().getGameTime() + SPIN_STEP) * (double) rpm / 1200.0;
+            double angle = ((turns % 2.0) + 2.0) % 2.0 * 2 * Math.PI;
             Quaternionf q = switch (a[0]) {
                 case "x" -> new Quaternionf().rotateX((float) angle);
                 case "z" -> new Quaternionf().rotateZ((float) angle);

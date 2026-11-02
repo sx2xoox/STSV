@@ -338,11 +338,7 @@ public final class ContentModule implements StsvModule, org.bukkit.event.Listene
         List<ConfigurationSection> seatSections = new ArrayList<>();
         if (f.isConfigurationSection("seat")) seatSections.add(f.getConfigurationSection("seat"));
         for (Object o : f.getList("seats", List.of())) {
-            if (o instanceof java.util.Map<?, ?> map) {
-                YamlConfiguration tmp = new YamlConfiguration();
-                map.forEach((k, v) -> tmp.set(String.valueOf(k), v));
-                seatSections.add(tmp);
-            }
+            if (o instanceof java.util.Map<?, ?> map) seatSections.add(section(map));
         }
         for (ConfigurationSection s : seatSections) {
             int[] cell = {0, 0, 0};
@@ -361,8 +357,7 @@ public final class ContentModule implements StsvModule, org.bukkit.event.Listene
         List<FurnitureSpec.Part> parts = new ArrayList<>();
         for (Object o : f.getList("parts", List.of())) {
             if (!(o instanceof java.util.Map<?, ?> map)) throw new IllegalArgumentException("parts 항목 형식 오류");
-            YamlConfiguration p = new YamlConfiguration();
-            map.forEach((k, v) -> p.set(String.valueOf(k), v));
+            ConfigurationSection p = section(map);
             String m = p.getString("model");
             if (m == null) throw new IllegalArgumentException("parts.model 이 없음");
             NamespacedKey key = m.contains(":") ? NamespacedKey.fromString(m) : new NamespacedKey(currentPack.namespace(), "model/" + m);
@@ -381,6 +376,15 @@ public final class ContentModule implements StsvModule, org.bukkit.event.Listene
         return new FurnitureSpec(cells, f.getBoolean("solid", true), rotation, f.getString("behavior"),
                 vec(f.getDoubleList("translation"), 0), vec(f.getDoubleList("scale"), 1),
                 Math.clamp(f.getInt("brightness", -1), -1, 15), List.copyOf(seats), List.copyOf(parts));
+    }
+
+    /**
+     * A list entry like "{ model: x, spin: { axis: y } }" arrives as a plain Map. createSection turns
+     * nested maps into sections too (a plain set() would keep "spin" as a Map and isConfigurationSection
+     * would say no, which silently dropped the fan's spin before).
+     */
+    static ConfigurationSection section(java.util.Map<?, ?> map) {
+        return new YamlConfiguration().createSection("entry", map);
     }
 
     private static int num(Object o) {
