@@ -1,6 +1,7 @@
 package dev.stsv.core.boss;
 
 import org.joml.Matrix4f;
+import org.joml.Quaternionf;
 import org.joml.Vector3f;
 
 import java.util.HashMap;
@@ -84,6 +85,23 @@ public final class Rig {
                 .scale(-1 / 16f, 1 / 16f, -1 / 16f)
                 .mul(modelBone)
                 .scale(-16f, 16f, -16f);
+    }
+
+    /** A display transform split the way the client interpolates it: translation, rotation, uniform scale. */
+    public record DisplayParts(Vector3f translation, Quaternionf rotation, float scale) {}
+
+    /**
+     * Splits the display matrix into translation + rotation + scale directly. Handing the raw matrix to
+     * the server makes it run an SVD to find "left rotation x scale x right rotation"; for a pure rotation
+     * that split is not unique, numerical noise picks a different one every tick, and the client then
+     * interpolates the two halves separately: bones swing through wrong orientations (the boss looked
+     * like it was lying down while attacking). The bone matrix is always rotation x uniform scale, so
+     * the exact split is known.
+     */
+    public static DisplayParts displayParts(Matrix4f modelBone, float bodyYaw, float scale, float riderOffset) {
+        Matrix4f m = display(modelBone, bodyYaw, scale, riderOffset);
+        org.joml.Matrix3f rotation = m.get3x3(new org.joml.Matrix3f()).scale(1 / scale);
+        return new DisplayParts(m.getTranslation(new Vector3f()), new Quaternionf().setFromNormalized(rotation).normalize(), scale);
     }
 
     /** World offset (blocks, from the boss's feet) of an assembly-space point carried by a bone. */

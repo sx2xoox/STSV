@@ -170,7 +170,7 @@ public final class StsvCommand implements TabExecutor {
     // ------------------------------------------------------------------------------------------
 
     private NamespacedKey key(String id) {
-        String ns = plugin.getConfig().getString("editor.namespace", "stsv");
+        String ns = plugin.getConfig().getString("editor.namespace");
         NamespacedKey key = id.contains(":") ? NamespacedKey.fromString(id.toLowerCase(Locale.ROOT))
                 : NamespacedKey.fromString(ns + ":" + id.toLowerCase(Locale.ROOT));
         if (key == null) throw new IllegalArgumentException("id는 영문 소문자, 숫자, _ 만 가능: " + id);
@@ -307,7 +307,7 @@ public final class StsvCommand implements TabExecutor {
             }
             String id = plugin.recipes().idOf(hand);
             String ns = plugin.content().itemOf(hand).map(i -> i.key().getNamespace())
-                    .orElse(plugin.getConfig().getString("editor.namespace", "stsv"));
+                    .orElse(plugin.getConfig().getString("editor.namespace"));
             switch (action) {
                 case "set" -> {
                     if (args.length < 3) {

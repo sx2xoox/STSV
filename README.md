@@ -92,7 +92,7 @@ contents/mypack/
 
 ### 보스 만들기
 
-예시: `content/stsv/bosses/test.yml` (테스트 골렘, 입문용), `executioner.yml` (처형자, 고난도). 파일 맨 위 주석에 좌표와 회전 방향 규칙이 있습니다.
+예시: `content/stsv/bosses/test.yml` (테스트 골렘, 입문용, `/stsv boss spawn test_golem`), `executioner.yml` (처형자, 고난도, `/stsv boss spawn executioner`). 파일 맨 위 주석에 좌표와 회전 방향 규칙이 있습니다.
 
 - **겉모습**: 관절(bone)마다 `.bbmodel` 하나. 회전 중심(pivot)이 모델의 (8, 8, 8)에 오게 만듭니다.
   관절 하나는 중심에서 1.5블록까지 뻗을 수 있으므로, 큰 보스는 실제 관절(어깨, 팔꿈치, 엉덩이...)에서 나눕니다.

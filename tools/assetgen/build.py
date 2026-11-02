@@ -32,8 +32,8 @@ def main():
     render = "--render" in sys.argv
     sys.path.insert(0, str(HERE))
     from models.test_items import ALL as ITEMS
-    from models import test_golem, test_executioner
-    ALL = {**ITEMS, **test_golem.ALL, **test_executioner.ALL}
+    from models import test_golem, executioner
+    ALL = {**ITEMS, **test_golem.ALL, **executioner.ALL}
     import special
 
     for d in (CONTENT / "models", CONTENT / "textures", BUILD, PREVIEWS):
@@ -85,14 +85,19 @@ def main():
         render_preview(BUILD / "golem_alert.preview.json", PREVIEWS / "test_golem_phase2.png")
         # executioner: key frames of every attack, lined up (what each pattern looks like at its hit tick)
         from stsv_assets import rig
-        ex = test_executioner
+        ex = executioner
         rig.pose_sheet(ex.SPEC, built, [("idle", 0), ("slash_a", 8), ("slash_a", 10), ("slash_b", 8), ("overhead", 12),
                                         ("overhead", 17), ("spin", 10), ("leap", 16)],
                        ex.model_of, BUILD / "executioner.preview.json", spacing=76)
-        render_preview(BUILD / "executioner.preview.json", PREVIEWS / "test_executioner_attacks.png")
+        render_preview(BUILD / "executioner.preview.json", PREVIEWS / "executioner_attacks.png")
+        # close-up: normal look, and the last phase (glowing blade, red eyes)
+        for name, kw in (("executioner", {}), ("executioner_phase3", {"lit": True, "alert": True})):
+            rig.pose_sheet(ex.SPEC, built, [("idle", 0)], lambda b, kw=kw: ex.model_of(b, **kw),
+                           BUILD / f"{name}.preview.json", az=62, el=8, k=1.45)
+            render_preview(BUILD / f"{name}.preview.json", PREVIEWS / f"{name}.png")
         rig.pose_sheet(ex.SPEC, built, [("grab", 12), ("grab_slam", 18), ("thrust", 10), ("plant", 30), ("roar", 20)],
                        lambda b: ex.model_of(b, lit=True), BUILD / "executioner2.preview.json", spacing=76)
-        render_preview(BUILD / "executioner2.preview.json", PREVIEWS / "test_executioner_attacks2.png")
+        render_preview(BUILD / "executioner2.preview.json", PREVIEWS / "executioner_attacks2.png")
         armor_preview(BUILD / "armor.preview.json")
         render_preview(BUILD / "armor.preview.json", PREVIEWS / "armor_worn.png")
 

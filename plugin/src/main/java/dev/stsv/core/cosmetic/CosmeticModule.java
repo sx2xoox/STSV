@@ -142,7 +142,7 @@ public final class CosmeticModule implements StsvModule, Listener {
      * so operators do not silently own everything).
      */
     public boolean owns(Player p, CustomItem c) {
-        if (plugin.getConfig().getBoolean("cosmetics.op-owns-all", false) && p.hasPermission("stsv.cosmetic.*")) return true;
+        if (plugin.getConfig().getBoolean("cosmetics.op-owns-all") && p.hasPermission("stsv.cosmetic.*")) return true;
         String node = "stsv.cosmetic." + c.key().getKey();
         if (p.isPermissionSet(node) && p.hasPermission(node)) return true;
         return store.owned(p.getUniqueId()).contains(c.key().asString());
@@ -242,7 +242,7 @@ public final class CosmeticModule implements StsvModule, Listener {
     public void refresh(Player p) {
         if (!p.isOnline() || sessions.containsKey(p.getUniqueId())) return;
         Set<Player> viewers = new HashSet<>(p.getTrackedBy());
-        if (plugin.getConfig().getBoolean("cosmetics.show-to-self", true)) viewers.add(p);
+        if (plugin.getConfig().getBoolean("cosmetics.show-to-self")) viewers.add(p);
         ItemStack look = look(p);
         for (Player v : viewers) v.sendEquipmentChange(p, EquipmentSlot.HEAD, look);
     }
@@ -338,7 +338,7 @@ public final class CosmeticModule implements StsvModule, Listener {
     //  - PREVIEW: spectator camera fixed on a mannequin wearing the player's own skin. Only the mannequin
     //    is seen: no body, no hand, no hotbar.
     //  - MENU: the cosmetics menu. Spectators' inventory clicks are ignored by the server, so while the
-    //    menu is open the player is in adventure mode (frozen, invisible) at the camera spot.
+    //    menu is open the player is in creative mode (frozen, invisible, item powers off) at the camera spot.
     // Clicking a cosmetic (wear / take off / preview) or closing the menu goes to PREVIEW;
     // sneaking in PREVIEW (which would normally leave the camera) opens the MENU; the exit button leaves.
     // ------------------------------------------------------------------------------------------
@@ -377,9 +377,9 @@ public final class CosmeticModule implements StsvModule, Listener {
             slots = new ArrayList<>();
             for (int row = 1; row <= 4; row++) for (int col = 1; col <= 7; col++) slots.add(row * 9 + col);
         }
-        return new Layout(slots, c.getInt("cosmetics.menu.slots.prev", 45), c.getInt("cosmetics.menu.slots.take-off", 47),
-                c.getInt("cosmetics.menu.slots.info", 49), c.getInt("cosmetics.menu.slots.exit", 51),
-                c.getInt("cosmetics.menu.slots.next", 53), c.getBoolean("cosmetics.menu.filler", true));
+        return new Layout(slots, c.getInt("cosmetics.menu.slots.prev"), c.getInt("cosmetics.menu.slots.take-off"),
+                c.getInt("cosmetics.menu.slots.info"), c.getInt("cosmetics.menu.slots.exit"),
+                c.getInt("cosmetics.menu.slots.next"), c.getBoolean("cosmetics.menu.filler"));
     }
 
     public boolean inWardrobe(Player p) {
@@ -403,7 +403,7 @@ public final class CosmeticModule implements StsvModule, Listener {
         stand.setPitch(0);
         Vector forward = stand.getDirection().setY(0).normalize();
         Location spot = null;
-        double want = plugin.getConfig().getDouble("cosmetics.wardrobe-distance", 3.2);
+        double want = plugin.getConfig().getDouble("cosmetics.wardrobe-distance");
         for (double d : new double[]{want, want - 0.5, want - 1.0}) {
             Location c = stand.clone().add(forward.clone().multiply(d));
             if (c.getBlock().isPassable() && c.clone().add(0, 1, 0).getBlock().isPassable()) {
@@ -478,18 +478,46 @@ public final class CosmeticModule implements StsvModule, Listener {
     }
 
     /**
-     * MENU state: adventure mode (spectators' clicks are ignored by the server) with the camera still
-     * attached (leaving spectator would detach it; that event is cancelled while switching), then the menu.
+     * MENU state: creative mode with the camera still attached (leaving spectator would detach it; that
+     * event is cancelled while switching), then the menu.
+     *  - not spectator: the server ignores spectators' inventory clicks
+     *  - not adventure: the client draws the held item and the experience bar in adventure/survival even
+     *    while its camera is another entity; creative draws neither (and no hearts)
+     *  - creative's item powers are shut off for wardrobe players (onCreativeSlot), and the held item is
+     *    shown as empty to the player only (hideHands), so no hand appears beside the menu
      */
     private void toMenu(Player p) {
         Session s = sessions.get(p.getUniqueId());
         if (s == null) return;
         s.toMenu = true;
-        p.setGameMode(GameMode.ADVENTURE);
+        p.setGameMode(GameMode.CREATIVE);
         s.toMenu = false;
         Bukkit.getScheduler().runTaskLater(plugin, () -> {
-            if (inWardrobe(p)) openMenu(p);
+            if (!inWardrobe(p)) return;
+            openMenu(p);
+            hideHands(p);
         }, 1L);
+    }
+
+    /** Client-side only: the player's own hands look empty (their invisible arm is then not drawn). */
+    private void hideHands(Player p) {
+        Bukkit.getScheduler().runTask(plugin, () -> {
+            if (!inWardrobe(p)) return;
+            ItemStack air = new ItemStack(org.bukkit.Material.AIR);
+            p.sendEquipmentChange(p, java.util.Map.of(org.bukkit.inventory.EquipmentSlot.HAND, air,
+                    org.bukkit.inventory.EquipmentSlot.OFF_HAND, air));
+        });
+    }
+
+    /** Creative mode can create items (hacked clients send creative slot packets): never in the wardrobe. */
+    @EventHandler(priority = org.bukkit.event.EventPriority.LOWEST)
+    public void onCreativeSlot(org.bukkit.event.inventory.InventoryCreativeEvent e) {
+        if (e.getWhoClicked() instanceof Player p && inWardrobe(p)) e.setCancelled(true);
+    }
+
+    @EventHandler(priority = org.bukkit.event.EventPriority.LOWEST)
+    public void onWardrobeDrop(org.bukkit.event.player.PlayerDropItemEvent e) {
+        if (inWardrobe(e.getPlayer())) e.setCancelled(true);
     }
 
     /** PREVIEW state: spectator camera on the mannequin (no body, hand or hotbar on screen). */
@@ -519,8 +547,8 @@ public final class CosmeticModule implements StsvModule, Listener {
         Menu menu = new Menu();
         long ownedCount = cosmetics().stream().filter(c -> owns(p, c)).count();
         // background glyph first (draws the custom screen texture), then the visible title text
-        String title = plugin.getConfig().getString("cosmetics.menu.background", "")
-                + plugin.getConfig().getString("cosmetics.menu.title", "<dark_gray>옷장 <gray>· 보유 {owned}/{total}")
+        String title = plugin.getConfig().getString("cosmetics.menu.background")
+                + plugin.getConfig().getString("cosmetics.menu.title")
                 .replace("{owned}", String.valueOf(ownedCount)).replace("{total}", String.valueOf(cosmetics().size()));
         Inventory inv = Bukkit.createInventory(menu, 54, Text.mm(title));
         menu.inventory = inv;
@@ -599,7 +627,7 @@ public final class CosmeticModule implements StsvModule, Listener {
     /** A menu button. With cosmetics.menu.custom-icons, it shows the pack model stsv:gui/<model>. */
     private ItemStack icon(org.bukkit.Material m, String model, String name, List<String> lore) {
         ItemStack it = new ItemStack(m);
-        boolean custom = model != null && plugin.getConfig().getBoolean("cosmetics.menu.custom-icons", true);
+        boolean custom = model != null && plugin.getConfig().getBoolean("cosmetics.menu.custom-icons");
         it.editMeta(meta -> {
             if (custom) meta.setItemModel(new org.bukkit.NamespacedKey("stsv", "gui/" + model));
             meta.itemName(Text.item(name));
@@ -612,6 +640,7 @@ public final class CosmeticModule implements StsvModule, Listener {
     public void onMenuClick(InventoryClickEvent e) {
         if (!(e.getInventory().getHolder(false) instanceof Menu menu)) return;
         e.setCancelled(true);
+        if (e.getWhoClicked() instanceof Player clicker) hideHands(clicker);   // a click resyncs the real held item
         if (!(e.getWhoClicked() instanceof Player p) || e.getClickedInventory() != e.getInventory()) return;
         Session s = sessions.get(p.getUniqueId());
         if (s == null) {
@@ -700,7 +729,7 @@ public final class CosmeticModule implements StsvModule, Listener {
 
     /**
      * The camera must stay attached for the whole session: sneaking in the preview would detach it (then
-     * open the menu instead), and switching to adventure for the menu would too (just keep it).
+     * open the menu instead), and switching to creative for the menu would too (just keep it).
      */
     @EventHandler
     public void onStopSpectating(com.destroystokyo.paper.event.player.PlayerStopSpectatingEntityEvent e) {
@@ -718,7 +747,7 @@ public final class CosmeticModule implements StsvModule, Listener {
         s.closing = true;
         if (s.spin != null) s.spin.cancel();
         if (p.getOpenInventory().getTopInventory().getHolder(false) instanceof Menu) p.closeInventory();
-        // detach the camera (it may still be attached in adventure mode), then restore the game mode
+        // detach the camera (it may still be attached in creative mode), then restore the game mode
         p.setGameMode(GameMode.SPECTATOR);
         p.setSpectatorTarget(null);
         p.setGameMode(s.gameMode);
@@ -806,9 +835,9 @@ public final class CosmeticModule implements StsvModule, Listener {
         List<String> out = new ArrayList<>();
         out.add("착용 중: " + equipped(p).map(c -> c.key().asString()).orElse("없음"));
         out.add("보유(직접 지급): " + (owned(p).isEmpty() ? "없음" : String.join(", ", owned(p))));
-        out.add("OP 전체 보유 설정(cosmetics.op-owns-all): " + plugin.getConfig().getBoolean("cosmetics.op-owns-all", false)
+        out.add("OP 전체 보유 설정(cosmetics.op-owns-all): " + plugin.getConfig().getBoolean("cosmetics.op-owns-all")
                 + " / 권한: " + p.hasPermission("stsv.cosmetic.*"));
-        out.add("보는 사람 수: " + p.getTrackedBy().size() + " (+ 본인 표시: " + plugin.getConfig().getBoolean("cosmetics.show-to-self", true) + ")");
+        out.add("보는 사람 수: " + p.getTrackedBy().size() + " (+ 본인 표시: " + plugin.getConfig().getBoolean("cosmetics.show-to-self") + ")");
         out.add("옷장 안: " + inWardrobe(p));
         return out;
     }

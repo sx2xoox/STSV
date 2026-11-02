@@ -158,7 +158,7 @@ public final class FurnitureModule implements StsvModule, Listener {
 
     private float displayYaw(float yaw) {
         // Safety knob: if a client version renders item displays without the 180° flip, set this to 180.
-        return yaw + (float) plugin.getConfig().getDouble("furniture.display-yaw-offset", 0);
+        return yaw + (float) plugin.getConfig().getDouble("furniture.display-yaw-offset");
     }
 
     private void applyModel(ItemDisplay d, CustomItem item) {
@@ -186,7 +186,7 @@ public final class FurnitureModule implements StsvModule, Listener {
         loc.setPitch(0);
         ItemDisplay display = world.spawn(loc, ItemDisplay.class, d -> {
             applyModel(d, item);
-            d.setViewRange((float) plugin.getConfig().getDouble("furniture.view-range", 1.0));
+            d.setViewRange((float) plugin.getConfig().getDouble("furniture.view-range"));
             if (spec.brightness() >= 0) d.setBrightness(new Display.Brightness(spec.brightness(), 15));
             d.setPersistent(true);
             d.getPersistentDataContainer().set(keyItem, PersistentDataType.STRING, item.key().asString());
@@ -287,7 +287,7 @@ public final class FurnitureModule implements StsvModule, Listener {
             it.editMeta(m -> m.setItemModel(part.model()));
             d.setItemStack(it);
             d.setItemDisplayTransform(ItemDisplay.ItemDisplayTransform.FIXED);
-            d.setViewRange((float) plugin.getConfig().getDouble("furniture.view-range", 1.0));
+            d.setViewRange((float) plugin.getConfig().getDouble("furniture.view-range"));
             d.setPersistent(true);
             if (part.spinAxis() != null && part.rpm() != 0) {
                 d.getPersistentDataContainer().set(keySpin, PersistentDataType.STRING, part.spinAxis() + ":" + part.rpm());
@@ -377,7 +377,7 @@ public final class FurnitureModule implements StsvModule, Listener {
     private float yawOf(Furniture f) {
         Float stored = f.data().get(keyYaw, PersistentDataType.FLOAT);
         if (stored != null) return stored;
-        return f.display().getYaw() - (float) plugin.getConfig().getDouble("furniture.display-yaw-offset", 0);
+        return f.display().getYaw() - (float) plugin.getConfig().getDouble("furniture.display-yaw-offset");
     }
 
     /** Removes the furniture and its helpers. Returns false if a listener cancelled it. */
@@ -418,7 +418,7 @@ public final class FurnitureModule implements StsvModule, Listener {
     }
 
     private boolean shouldDrop(Player player) {
-        return player.getGameMode() != GameMode.CREATIVE && plugin.getConfig().getBoolean("furniture.drop-on-break", true);
+        return player.getGameMode() != GameMode.CREATIVE && plugin.getConfig().getBoolean("furniture.drop-on-break");
     }
 
     // ------------------------------------------------------------------------------------------
@@ -528,7 +528,7 @@ public final class FurnitureModule implements StsvModule, Listener {
     }
 
     private void tickPreviews() {
-        if (!plugin.getConfig().getBoolean("furniture.preview", true)) {
+        if (!plugin.getConfig().getBoolean("furniture.preview")) {
             new ArrayList<>(previews.keySet()).forEach(this::clearPreview);
             return;
         }

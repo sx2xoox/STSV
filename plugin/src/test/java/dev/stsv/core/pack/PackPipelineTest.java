@@ -33,7 +33,7 @@ class PackPipelineTest {
 
     private static final Set<String> GLOWING = Set.of("test_machine", "test_greatsword", "test_slash",
             "test_golem_body", "test_golem_body_alert", "test_golem_head", "test_golem_head_alert", "test_golem_rock",
-            "test_executioner_head", "test_executioner_head_alert", "test_executioner_sword_lit", "test_executioner_sword_tip_lit");
+            "executioner_head", "executioner_head_alert", "executioner_sword_lit", "executioner_sword_tip_lit");
     private static final Set<String> ROTATED = Set.of("test_sword", "test_sword_skin", "test_greatsword", "test_slash", "test_rod", "test_rod_cast");
 
     @org.junit.jupiter.params.ParameterizedTest

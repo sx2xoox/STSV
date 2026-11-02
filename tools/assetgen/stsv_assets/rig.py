@@ -134,7 +134,7 @@ def posed_elements(spec, built, p, model_of, offset=(0, 0, 0)):
     return elements, textures
 
 
-def pose_sheet(spec, built, frames, model_of, path, spacing=80, az=60, el=14):
+def pose_sheet(spec, built, frames, model_of, path, spacing=80, az=60, el=14, k=1.9):
     """frames: [(animation, tick)] rendered left to right, seen from the boss's front-right side
     (az = camera angle from the front, towards the boss's right). Frames are laid out along the
     screen's horizontal, so they never hide each other."""
@@ -148,5 +148,5 @@ def pose_sheet(spec, built, frames, model_of, path, spacing=80, az=60, el=14):
         elements += e
         textures.update(tx)
     out = {"textures": textures, "elements": elements, "grid": False,
-           "views": [{"x": 0, "y": 0, "w": 1600, "h": 1000, "az": az, "el": el, "k": 1.9}]}
+           "views": [{"x": 0, "y": 0, "w": 1600, "h": 1000, "az": az, "el": el, "k": k}]}
     path.write_text(json.dumps(out))

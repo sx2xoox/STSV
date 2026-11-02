@@ -100,11 +100,11 @@ public final class BossModule implements StsvModule, Listener {
     }
 
     float viewRange() {
-        return (float) plugin.getConfig().getDouble("bosses.view-range", 2.0);
+        return (float) plugin.getConfig().getDouble("bosses.view-range");
     }
 
     float riderOffsetAdjust() {
-        return (float) plugin.getConfig().getDouble("bosses.rider-offset-adjust", 0.0);
+        return (float) plugin.getConfig().getDouble("bosses.rider-offset-adjust");
     }
 
     private void load() throws IOException {

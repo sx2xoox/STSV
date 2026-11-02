@@ -122,6 +122,23 @@ class BossTest {
         assertTrue(at(Map.of(), "head", new Vector3f(0, 52, -8), 0, 50).x < -0.2);
     }
 
+    /** The split sent to the client (translation, rotation, scale) must rebuild exactly the same matrix. */
+    @Test
+    void displayPartsRebuildTheMatrix() {
+        Map<String, Rig.Pose> pose = new HashMap<>();
+        pose.put("body", new Rig.Pose(new Vector3f(-30, 348, 12), new Vector3f(0, -4, 1)));
+        pose.put("arm_r", new Rig.Pose(new Vector3f(174, -10, 85), new Vector3f()));
+        Map<String, Matrix4f> model = Rig.modelSpace(golem, pose, 40, -20);
+        for (String bone : List.of("body", "head", "arm_r", "forearm_r", "leg_l")) {
+            for (float yaw : new float[]{0, 91, -179.5f}) {
+                Matrix4f m = Rig.display(model.get(bone), yaw, 1.3f, 3.2f);
+                Rig.DisplayParts p = Rig.displayParts(model.get(bone), yaw, 1.3f, 3.2f);
+                Matrix4f rebuilt = new Matrix4f().translate(p.translation()).rotate(p.rotation()).scale(p.scale());
+                assertTrue(m.equals(rebuilt, 1e-4f), bone + " @" + yaw + "\n" + m + "\n" + rebuilt);
+            }
+        }
+    }
+
     @Test
     void displayTransformShowsThePosedPoint() {
         Map<String, Rig.Pose> pose = new HashMap<>();

@@ -71,6 +71,11 @@ MATERIALS = {
     "obsidian":    (285, 0.060, 0.30, 0.18, 4, False),   # dark violet-black metal
     "aurora":      ((292, 205), 0.170, 0.72, 0.40, 5, True),  # violet -> cyan energy
     "ruby":        (12, 0.190, 0.55, 0.30, 4, True),
+    # --- boss: the executioner (blackened armour, blood-red cloth, spectral eyes) ----------------
+    "blacksteel":  (255, 0.022, 0.38, 0.30, 5, False),  # blackened plate armour
+    "crimson":     (18, 0.130, 0.36, 0.22, 4, False),    # deep red cloth (cape, tabard)
+    "leather":     (55, 0.060, 0.36, 0.20, 4, False),    # straps, grips
+    "spectral":    (200, 0.120, 0.80, 0.30, 4, True),    # cold glowing eyes
     # --- TEST-ONLY materials: "dev texture" colours, never used by real content -----------------
     "test_orange": (55, 0.150, 0.70, 0.30, 4, True),
     "test_grey":   (250, 0.012, 0.62, 0.30, 4, False),

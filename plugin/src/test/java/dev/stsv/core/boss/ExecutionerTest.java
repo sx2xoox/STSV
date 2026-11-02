@@ -30,7 +30,7 @@ class ExecutionerTest {
     @BeforeAll
     static void load() {
         YamlConfiguration y = YamlConfiguration.loadConfiguration(CONTENT.resolve("bosses/executioner.yml").toFile());
-        spec = BossSpec.parse("test_executioner", y.getConfigurationSection("test_executioner"));
+        spec = BossSpec.parse("executioner", y.getConfigurationSection("executioner"));
     }
 
     private static Vector3f at(String anim, float t, String bone, Vector3f point) {

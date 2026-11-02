@@ -276,7 +276,8 @@ public final class BossInstance {
             if (!d.isValid()) continue;
             d.setInterpolationDelay(0);
             d.setInterpolationDuration(INTERPOLATION);
-            d.setTransformationMatrix(Rig.display(modelSpace.get(e.getKey()), yaw, spec.modelScale(), rider));
+            Rig.DisplayParts dp = Rig.displayParts(modelSpace.get(e.getKey()), yaw, spec.modelScale(), rider);
+            d.setTransformation(new Transformation(dp.translation(), dp.rotation(), new Vector3f(dp.scale()), new Quaternionf()));
         }
     }
 

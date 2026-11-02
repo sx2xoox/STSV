@@ -1,14 +1,15 @@
-# 테스트 보스 2: 처형자. 체력이 아니라 패턴으로 어려운 보스.
+# 보스: 처형자. 체력이 아니라 패턴으로 어려운 보스.
+# 겉모습: 검게 그을린 판금 갑옷, 핏빛 휘장과 망토, 금 장식, 서늘하게 빛나는 눈 (분노하면 핏빛)
 # 형식과 좌표/회전 규칙은 test.yml 맨 위 주석 참고. 검 관절은 팔의 연장선(아래쪽)으로 만들어져 있어서
 #   sword 회전 0 = 팔과 일직선,  +X = 칼끝을 앞으로 듦
-test_executioner:
-  name: "<#c86bff><b>처형자</b>"
+executioner:
+  name: "<#c4313f><b>처형자</b>"
   health: 520
   armor: 12
   speed: 0.27
   melee-damage: 0       # 철 골렘 기본 주먹 없음: 모든 공격은 패턴
   scale: 1.3
-  bar-color: PURPLE
+  bar-color: RED
   bar-range: 56
   leash: 48
   think: 6              # 자주 판단: 쉴 틈이 적음
@@ -16,17 +17,17 @@ test_executioner:
 
   model:
     bones:
-      body:      { model: stsv:model/test_executioner_body,      pivot: [0, 23, 0] }
-      head:      { model: stsv:model/test_executioner_head,      pivot: [0, 45, -0.5], parent: body, look: true }
-      cape:      { model: stsv:model/test_executioner_cape,      pivot: [0, 44, 5.5],  parent: body }
-      arm_r:     { model: stsv:model/test_executioner_arm_r,     pivot: [10.5, 41, 0], parent: body }
-      forearm_r: { model: stsv:model/test_executioner_forearm_r, pivot: [11, 31, 0],   parent: arm_r }
-      sword:     { model: stsv:model/test_executioner_sword,     pivot: [11, 19.5, 0], parent: forearm_r }
-      sword_tip: { model: stsv:model/test_executioner_sword_tip, pivot: [11, -4, 0],   parent: sword }
-      arm_l:     { model: stsv:model/test_executioner_arm_l,     pivot: [-10.5, 41, 0], parent: body }
-      forearm_l: { model: stsv:model/test_executioner_forearm_l, pivot: [-11, 31, 0],  parent: arm_l }
-      leg_r:     { model: stsv:model/test_executioner_leg_r,     pivot: [4.5, 21, 0] }
-      leg_l:     { model: stsv:model/test_executioner_leg_l,     pivot: [-4.5, 21, 0] }
+      body:      { model: stsv:model/executioner_body,      pivot: [0, 23, 0] }
+      head:      { model: stsv:model/executioner_head,      pivot: [0, 45, -0.5], parent: body, look: true }
+      cape:      { model: stsv:model/executioner_cape,      pivot: [0, 44, 5.5],  parent: body }
+      arm_r:     { model: stsv:model/executioner_arm_r,     pivot: [10.5, 41, 0], parent: body }
+      forearm_r: { model: stsv:model/executioner_forearm_r, pivot: [11, 31, 0],   parent: arm_r }
+      sword:     { model: stsv:model/executioner_sword,     pivot: [11, 19.5, 0], parent: forearm_r }
+      sword_tip: { model: stsv:model/executioner_sword_tip, pivot: [11, -4, 0],   parent: sword }
+      arm_l:     { model: stsv:model/executioner_arm_l,     pivot: [-10.5, 41, 0], parent: body }
+      forearm_l: { model: stsv:model/executioner_forearm_l, pivot: [-11, 31, 0],  parent: arm_l }
+      leg_r:     { model: stsv:model/executioner_leg_r,     pivot: [4.5, 21, 0] }
+      leg_l:     { model: stsv:model/executioner_leg_l,     pivot: [-4.5, 21, 0] }
     sockets:
       hand_l: { bone: forearm_l, at: [-11, 17, -3] }
       blade:  { bone: sword_tip, at: [11, -20, 0] }
@@ -399,14 +400,14 @@ test_executioner:
   phases:
     - below: 0.6
       animation: roar
-      message: "<#c86bff><b>처형자의 검이 달아오릅니다.</b> <gray>(연속 베기가 길어지고, 내려찍기에 충격파가 따라옵니다)"
+      message: "<#ff8a3d><b>처형자의 검이 달아오릅니다.</b> <gray>(연속 베기가 길어지고, 내려찍기에 충격파가 따라옵니다)"
       bar-color: RED
       speed-multiplier: 1.12
       cooldown-multiplier: 0.8
       shockwave: { radius: 6, knockback: 1.1 }
       models:
-        sword: stsv:model/test_executioner_sword_lit
-        sword_tip: stsv:model/test_executioner_sword_tip_lit
+        sword: stsv:model/executioner_sword_lit
+        sword_tip: stsv:model/executioner_sword_tip_lit
     - below: 0.25
       animation: roar
       message: "<red><b>\"처형을 시작한다.\"</b>"
@@ -414,7 +415,7 @@ test_executioner:
       shockwave: { radius: 7, knockback: 1.3 }
       then: execution
       models:
-        head: stsv:model/test_executioner_head_alert
+        head: stsv:model/executioner_head_alert
 
   drops:
     - { item: stsv:test_material, amount: [8, 14] }
