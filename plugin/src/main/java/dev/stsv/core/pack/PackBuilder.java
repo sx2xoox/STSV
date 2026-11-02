@@ -65,6 +65,11 @@ public final class PackBuilder {
         for (CustomItem item : items) {
             writeItemDefinition(item);
         }
+        // menu backgrounds: one generated font with a glyph per background (see MenuSpec)
+        List<dev.stsv.core.gui.menu.MenuSpec> menus = dev.stsv.core.gui.menu.MenuSpec.loadAll(List.copyOf(packs), warnings);
+        if (menus.stream().anyMatch(m -> m.background() != null)) {
+            json("assets/stsv/font/menus.json", dev.stsv.core.gui.menu.MenuSpec.font(menus));
+        }
         return new Built(zip(), sha1(zip()), files.size(), List.copyOf(warnings));
     }
 

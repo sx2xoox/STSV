@@ -3,7 +3,7 @@ plugins {
 }
 
 group = "dev.stsv"
-version = "0.7.2"
+version = "0.8.0"
 
 repositories {
     mavenCentral()
@@ -12,8 +12,12 @@ repositories {
 
 dependencies {
     compileOnly("io.papermc.paper:paper-api:26.3.build.237-stable")
+    // database drivers: downloaded by the server at startup (plugin.yml "libraries"), not shaded
+    compileOnly("org.xerial:sqlite-jdbc:3.47.1.0")
+    compileOnly("com.zaxxer:HikariCP:6.2.1")
 
     testImplementation("io.papermc.paper:paper-api:26.3.build.237-stable")
+    testImplementation("org.xerial:sqlite-jdbc:3.47.1.0")
     testImplementation(platform("org.junit:junit-bom:5.13.4"))
     testImplementation("org.junit.jupiter:junit-jupiter")
     testImplementation("org.junit.jupiter:junit-jupiter-params")

@@ -234,12 +234,12 @@ public final class SkinModule implements StsvModule, Listener {
         if (tool == null || tool.isEmpty()) return;
         if (skinOf(tool).filter(id -> id.equals(w.book.key().asString())).isPresent()) return; // already this skin
         if (tool.getAmount() > 1 || !accepts(w.book.skin(), tool)) {
-            player.sendActionBar(Text.mm("<red>이 스킨을 적용할 수 없는 아이템입니다."));
+            player.sendActionBar(dev.stsv.core.util.Lang.mm("skin.not-applicable"));
             player.playSound(player.getLocation(), Sound.BLOCK_NOTE_BLOCK_BASS, 0.7f, 0.6f);
             return;
         }
         if (!consumeBook(player, w.book)) {
-            player.sendActionBar(Text.mm("<red>스킨북이 인벤토리에 없습니다."));
+            player.sendActionBar(dev.stsv.core.util.Lang.mm("skin.no-book"));
             return;
         }
         Optional<String> replaced = apply(tool, w.book);
@@ -248,7 +248,7 @@ public final class SkinModule implements StsvModule, Listener {
                 .ifPresent(b -> give(player, b.create(1)));
         player.playSound(player.getLocation(), Sound.BLOCK_ENCHANTMENT_TABLE_USE, 0.8f, 1.3f);
         player.spawnParticle(Particle.ENCHANT, player.getLocation().add(0, 1.2, 0), 40, 0.4, 0.4, 0.4, 0.5);
-        player.sendActionBar(Text.mm("<light_purple>스킨이 적용되었습니다!"));
+        player.sendActionBar(dev.stsv.core.util.Lang.mm("skin.applied"));
     }
 
     private boolean consumeBook(Player player, CustomItem book) {
@@ -279,11 +279,11 @@ public final class SkinModule implements StsvModule, Listener {
         ItemStack hand = player.getInventory().getItemInMainHand();
         Optional<String> removed = remove(hand);
         if (removed.isEmpty()) {
-            player.sendMessage(Text.msg("<red>손에 든 아이템에 스킨이 없습니다."));
+            player.sendMessage(dev.stsv.core.util.Lang.msg("skin.none-held"));
             return;
         }
         plugin.content().item(removed.get()).filter(b -> b.skin().returnOnRemove())
                 .ifPresent(b -> give(player, b.create(1)));
-        player.sendMessage(Text.msg("<green>스킨을 해제했습니다."));
+        player.sendMessage(dev.stsv.core.util.Lang.msg("skin.removed"));
     }
 }

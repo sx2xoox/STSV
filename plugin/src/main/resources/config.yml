@@ -37,27 +37,35 @@ cosmetics:
   op-owns-all: false
   # 옷장 시점: 마네킹까지 거리(블록). 미리보기 때 메뉴가 닫히므로 마네킹은 화면 가운데에 보입니다
   wardrobe-distance: 3.2
-  # 옷장 메뉴 (큰 상자 54칸, 칸 번호 0~53: 위에서부터 줄마다 0~8, 9~17, ...)
-  # 치장이 칸 수보다 많으면 페이지가 나뉩니다.
-  menu:
-    # 전용 UI 배경: 기본 콘텐츠 팩의 폰트 글리프(assets/stsv/font/wardrobe.json, textures/gui/wardrobe.png).
-    # 제목 맨 앞에 붙어서 상자 화면 전체를 덮습니다. 바닐라 상자 화면을 쓰려면 "" 로
-    #   \uf801 = 8칸 왼쪽으로, \ue000 = 배경(176x222), \uf802 = 제목 글자 위치로 되돌아감
-    background: "<white><font:stsv:wardrobe>\uf801\ue000\uf802</font></white>"
-    title: "<#f0e2b0>옷장 <#b9a6d6>· 보유 {owned}/{total}"
-    # 배경 그림의 칸 위치와 맞춰야 합니다 (tools/assetgen/gui.py 의 COSMETIC_SLOTS, BUTTONS)
-    cosmetic-slots: [10, 11, 12, 13, 14, 15, 16,
-                     19, 20, 21, 22, 23, 24, 25,
-                     28, 29, 30, 31, 32, 33, 34,
-                     37, 38, 39, 40, 41, 42, 43]
-    slots: { prev: 45, take-off: 47, info: 49, exit: 51, next: 53 }
-    # 버튼 아이콘을 리소스팩 모델(stsv:gui/prev 등)로 표시. false 면 바닐라 아이템(화살, 방벽 ...)
-    custom-icons: true
-    # 빈 칸을 유리판으로 채움 (배경을 끈 경우에 켜면 보기 좋음)
-    filler: false
+  # 옷장 메뉴의 모양(칸 배치, 버튼, 배경 그림)은 contents/stsv/menus/wardrobe.yml 에 있습니다
 
 bosses:
   # 보스 모델이 보이는 거리 배율 (1.0 = 기본 엔티티 거리). 큰 보스는 멀리서도 보이게
   view-range: 2.0
   # 보스 모델이 판정보다 위/아래로 떠 보이면 조정 (블록, 위 = +)
   rider-offset-adjust: 0.0
+
+# 저장소: 치장 보유, 플레이어 기록 등 월드와 별개로 남는 데이터
+database:
+  # sqlite = 플러그인 폴더의 파일 하나 (설정 불필요) / mysql = 여러 서버가 같은 데이터를 공유 (MariaDB 도 가능)
+  type: sqlite
+  sqlite-file: data/stsv.db
+  mysql:
+    host: localhost
+    port: 3306
+    database: stsv
+    user: stsv
+    password: ""
+    pool-size: 6
+
+# 플레이어 기록 (월드와 별개로 남음). 콘텐츠 기간: /stsv period start <id> <이름> ~ /stsv period end
+profiles:
+  # 칭호를 채팅 이름 앞, 탭 목록 이름 앞에 표시
+  title-in-chat: true
+  title-in-tab: true
+  # /프로필 에 보여줄 통계 (순서대로)
+  shown-stats: [playtime, mob_kills, player_kills, deaths, boss_kills, blocks_broken, blocks_placed]
+  # 콘텐츠 기간이 끝날 때 명예의 전당에 남길 부문과 인원
+  hall-of-fame: [playtime, mob_kills, player_kills, boss_kills, deaths]
+  hall-size: 3
+

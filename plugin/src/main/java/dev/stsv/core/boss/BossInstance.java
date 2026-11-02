@@ -211,7 +211,7 @@ public final class BossInstance {
         golem.setTarget(null);
         for (UUID id : viewers) {
             Player p = org.bukkit.Bukkit.getPlayer(id);
-            if (p != null) p.sendMessage(Text.msg(spec.name() + " <gray>이(가) 제자리로 돌아가 체력을 회복했습니다."));
+            if (p != null) p.sendMessage(dev.stsv.core.util.Lang.msg("boss.leash-reset", "boss", spec.name()));
         }
         updateBar();
         return true;
@@ -1168,7 +1168,7 @@ public final class BossInstance {
                 Player freed = held;
                 release();
                 freed.setVelocity(away(golem.getLocation(), freed.getLocation(), 0.6, 0.4));
-                for (Player v : audience()) v.sendMessage(Text.mm("<green><b>구출!</b> <white>" + freed.getName() + "<gray> 이(가) 풀려났습니다."));
+                for (Player v : audience()) v.sendMessage(dev.stsv.core.util.Lang.mm("boss.rescued", "player", freed.getName()));
                 sound("entity.iron_golem.damage", 1.5f, 0.6f);
                 outcome = "missed";
                 if (!next(false)) done = true;   // straight into the stagger (grab_miss)

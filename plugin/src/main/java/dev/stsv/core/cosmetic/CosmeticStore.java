@@ -1,5 +1,6 @@
 package dev.stsv.core.cosmetic;
 
+import dev.stsv.core.data.Db;
 import org.bukkit.configuration.ConfigurationSection;
 import org.bukkit.configuration.file.YamlConfiguration;
 
@@ -17,86 +18,95 @@ import java.util.Set;
 import java.util.UUID;
 
 /**
- * Account-bound cosmetic ownership, kept in the plugin's own data folder (plugins/STSV/data/cosmetics.yml)
- * so it survives season resets that wipe worlds and player data.
+ * Account-bound cosmetic ownership in the shared database (tables cosmetic_owned, cosmetic_equipped),
+ * so it survives world resets and moves between contents. Everything is kept in memory (it is small) and
+ * every change is written straight away on the database thread.
  *
- * <pre>
- * &lt;uuid&gt;:
- *   owned: [stsv:tomato_mask, stsv:eggplant_mask]
- *   equipped: stsv:tomato_mask
- * </pre>
- * Writes go to a temp file first and are then moved over the real file, so a crash mid-save never
- * leaves a half-written file.
+ * Servers from before the database kept this in plugins/STSV/data/cosmetics.yml: on first start the file
+ * is imported once and renamed to cosmetics.yml.imported.
  */
 public final class CosmeticStore {
 
-    public record Entry(Set<String> owned, String equipped) {}
+    private static final List<List<String>> SCHEMA = List.of(List.of(
+            "CREATE TABLE IF NOT EXISTS cosmetic_owned (player CHAR(36) NOT NULL, item VARCHAR(128) NOT NULL, PRIMARY KEY (player, item))",
+            "CREATE TABLE IF NOT EXISTS cosmetic_equipped (player CHAR(36) NOT NULL PRIMARY KEY, item VARCHAR(128) NOT NULL)"));
 
-    private final Path file;
+    private final Db db;
     private final Map<UUID, Set<String>> owned = new HashMap<>();
     private final Map<UUID, String> equipped = new HashMap<>();
 
-    public CosmeticStore(Path file) {
-        this.file = file;
+    public CosmeticStore(Db db) {
+        this.db = db;
     }
 
-    public void load() {
+    /** Creates the tables, imports the old YAML file if there is one, and loads everything. */
+    public synchronized void load(Path legacyYaml) throws IOException {
+        db.migrate("cosmetics", SCHEMA);
+        if (legacyYaml != null && Files.exists(legacyYaml)) importYaml(legacyYaml);
         owned.clear();
         equipped.clear();
-        if (!Files.exists(file)) return;
-        YamlConfiguration y = YamlConfiguration.loadConfiguration(file.toFile());
-        for (String key : y.getKeys(false)) {
-            UUID id;
-            try {
-                id = UUID.fromString(key);
-            } catch (IllegalArgumentException e) {
-                continue;
+        db.sync(c -> {
+            for (String[] r : Db.query(c, "SELECT player, item FROM cosmetic_owned", rs -> new String[]{rs.getString(1), rs.getString(2)})) {
+                owned.computeIfAbsent(UUID.fromString(r[0]), k -> new LinkedHashSet<>()).add(r[1]);
             }
-            ConfigurationSection s = y.getConfigurationSection(key);
-            if (s == null) continue;
-            owned.put(id, new LinkedHashSet<>(s.getStringList("owned")));
-            String eq = s.getString("equipped");
-            if (eq != null && !eq.isEmpty()) equipped.put(id, eq);
-        }
+            for (String[] r : Db.query(c, "SELECT player, item FROM cosmetic_equipped", rs -> new String[]{rs.getString(1), rs.getString(2)})) {
+                equipped.put(UUID.fromString(r[0]), r[1]);
+            }
+            return null;
+        });
     }
 
-    public synchronized void save() throws IOException {
-        YamlConfiguration y = new YamlConfiguration();
-        y.options().setHeader(List.of("계정별 치장 보유/착용 (시즌 초기화와 무관하게 유지됩니다)"));
-        Set<UUID> all = new LinkedHashSet<>(owned.keySet());
-        all.addAll(equipped.keySet());
-        for (UUID id : all) {
-            y.set(id + ".owned", List.copyOf(owned.getOrDefault(id, Set.of())));
-            y.set(id + ".equipped", equipped.get(id));
-        }
-        Files.createDirectories(file.getParent());
-        Path tmp = file.resolveSibling(file.getFileName() + ".tmp");
-        Files.writeString(tmp, y.saveToString());
-        Files.move(tmp, file, StandardCopyOption.REPLACE_EXISTING, StandardCopyOption.ATOMIC_MOVE);
+    private void importYaml(Path file) throws IOException {
+        YamlConfiguration y = YamlConfiguration.loadConfiguration(file.toFile());
+        String grant = db.upsert("cosmetic_owned", List.of("player", "item"), List.of());
+        String wear = db.upsert("cosmetic_equipped", List.of("player"), List.of("item"));
+        db.sync(c -> {
+            for (String key : y.getKeys(false)) {
+                UUID id;
+                try {
+                    id = UUID.fromString(key);
+                } catch (IllegalArgumentException e) {
+                    continue;
+                }
+                ConfigurationSection s = y.getConfigurationSection(key);
+                if (s == null) continue;
+                for (String item : s.getStringList("owned")) Db.update(c, grant, id.toString(), item);
+                String eq = s.getString("equipped");
+                if (eq != null && !eq.isEmpty()) Db.update(c, wear, id.toString(), eq);
+            }
+            return null;
+        });
+        Files.move(file, file.resolveSibling(file.getFileName() + ".imported"), StandardCopyOption.REPLACE_EXISTING);
     }
 
-    public Set<String> owned(UUID player) {
-        return Collections.unmodifiableSet(owned.getOrDefault(player, Set.of()));
+    public synchronized Set<String> owned(UUID player) {
+        return Collections.unmodifiableSet(new LinkedHashSet<>(owned.getOrDefault(player, Set.of())));
     }
 
     /** @return true if it was newly added */
-    public boolean grant(UUID player, String cosmetic) {
-        return owned.computeIfAbsent(player, k -> new LinkedHashSet<>()).add(cosmetic);
+    public synchronized boolean grant(UUID player, String cosmetic) {
+        boolean added = owned.computeIfAbsent(player, k -> new LinkedHashSet<>()).add(cosmetic);
+        if (added) db.execute(db.upsert("cosmetic_owned", List.of("player", "item"), List.of()), player.toString(), cosmetic);
+        return added;
     }
 
     /** @return true if the player had it */
-    public boolean revoke(UUID player, String cosmetic) {
+    public synchronized boolean revoke(UUID player, String cosmetic) {
         boolean had = owned.getOrDefault(player, new LinkedHashSet<>()).remove(cosmetic);
-        if (cosmetic.equals(equipped.get(player))) equipped.remove(player);
+        if (had) db.execute("DELETE FROM cosmetic_owned WHERE player = ? AND item = ?", player.toString(), cosmetic);
+        if (cosmetic.equals(equipped.get(player))) setEquipped(player, null);
         return had;
     }
 
-    public Optional<String> equipped(UUID player) {
+    public synchronized Optional<String> equipped(UUID player) {
         return Optional.ofNullable(equipped.get(player));
     }
 
-    public void setEquipped(UUID player, String cosmetic) {
-        if (cosmetic == null) equipped.remove(player);
-        else equipped.put(player, cosmetic);
+    public synchronized void setEquipped(UUID player, String cosmetic) {
+        if (cosmetic == null) {
+            if (equipped.remove(player) != null) db.execute("DELETE FROM cosmetic_equipped WHERE player = ?", player.toString());
+        } else if (!cosmetic.equals(equipped.put(player, cosmetic))) {
+            db.execute(db.upsert("cosmetic_equipped", List.of("player"), List.of("item")), player.toString(), cosmetic);
+        }
     }
 }

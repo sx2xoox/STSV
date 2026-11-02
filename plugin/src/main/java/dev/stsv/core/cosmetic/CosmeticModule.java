@@ -3,6 +3,7 @@ package dev.stsv.core.cosmetic;
 import dev.stsv.core.STSVPlugin;
 import dev.stsv.core.content.CustomItem;
 import dev.stsv.core.module.StsvModule;
+import dev.stsv.core.util.Lang;
 import dev.stsv.core.util.Text;
 import io.papermc.paper.datacomponent.item.ResolvableProfile;
 import io.papermc.paper.event.entity.EntityEquipmentChangedEvent;
@@ -24,15 +25,11 @@ import org.bukkit.event.HandlerList;
 import org.bukkit.event.Listener;
 import org.bukkit.event.inventory.InventoryClickEvent;
 import org.bukkit.event.inventory.InventoryCloseEvent;
-import org.bukkit.event.inventory.InventoryDragEvent;
 import org.bukkit.event.block.Action;
 import org.bukkit.event.player.PlayerChangedWorldEvent;
 import org.bukkit.event.player.PlayerInteractEntityEvent;
 import org.bukkit.event.player.PlayerInteractEvent;
 import org.bukkit.event.player.PlayerMoveEvent;
-import org.bukkit.inventory.Inventory;
-import org.bukkit.inventory.InventoryHolder;
-import org.jetbrains.annotations.NotNull;
 import org.bukkit.event.player.PlayerJoinEvent;
 import org.bukkit.event.player.PlayerQuitEvent;
 import org.bukkit.event.player.PlayerRespawnEvent;
@@ -47,7 +44,6 @@ import org.bukkit.util.Vector;
 import java.io.File;
 import java.io.IOException;
 import java.util.ArrayList;
-import java.util.Arrays;
 import java.util.HashMap;
 import java.util.HashSet;
 import java.util.LinkedHashMap;
@@ -92,8 +88,12 @@ public final class CosmeticModule implements StsvModule, Listener {
         keyReturn = new NamespacedKey(plugin, "wardrobe_return");
         keyWardrobeEntity = new NamespacedKey(plugin, "wardrobe_entity");
         zonesFile = new File(plugin.getDataFolder(), "wardrobes.yml");
-        store = new CosmeticStore(plugin.getDataFolder().toPath().resolve("data").resolve("cosmetics.yml"));
-        store.load();
+        store = new CosmeticStore(plugin.db());
+        try {
+            store.load(plugin.getDataFolder().toPath().resolve("data").resolve("cosmetics.yml"));
+        } catch (java.io.IOException e) {
+            throw new RuntimeException("치장 데이터 가져오기 실패", e);
+        }
         loadZones();
         Bukkit.getPluginManager().registerEvents(this, plugin);
         // safety net: whatever overwrote the look (resyncs we cannot see), fix it within 5 seconds
@@ -171,12 +171,8 @@ public final class CosmeticModule implements StsvModule, Listener {
         refresh(p);
     }
 
+    /** Changes are written to the database as they happen (CosmeticStore); nothing to flush. */
     private void save() {
-        try {
-            store.save();
-        } catch (java.io.IOException e) {
-            plugin.getLogger().severe("치장 저장 실패: " + e.getMessage());
-        }
     }
 
     /** Older versions kept ownership in the player's data file; move it into the store once. */
@@ -211,11 +207,11 @@ public final class CosmeticModule implements StsvModule, Listener {
         Player p = e.getPlayer();
         Optional<CustomItem> c = plugin.content().item(v.get().voucher()).filter(i -> i.cosmetic() != null);
         if (c.isEmpty()) {
-            p.sendMessage(Text.msg("<red>이 교환권의 치장을 찾을 수 없습니다. 관리자에게 알려주세요."));
+            p.sendMessage(Lang.msg("cosmetic.voucher-unknown"));
             return;
         }
         if (store.owned(p.getUniqueId()).contains(c.get().key().asString())) {
-            p.sendActionBar(Text.mm("<yellow>이미 가지고 있는 치장입니다."));
+            p.sendActionBar(Lang.mm("cosmetic.already-owned"));
             p.playSound(p.getLocation(), Sound.BLOCK_NOTE_BLOCK_BASS, 0.7f, 0.8f);
             return;
         }
@@ -229,13 +225,13 @@ public final class CosmeticModule implements StsvModule, Listener {
     public void celebrate(Player p, CustomItem c) {
         CustomItem.Rarity r = c.cosmetic().rarity();
         p.showTitle(net.kyori.adventure.title.Title.title(
-                Text.mm(r.color + "<b>새 치장 획득!</b>"),
-                Text.mm(displayName(c) + " <dark_gray>·</dark_gray> " + r.color + r.label),
+                Lang.mm("cosmetic.got-title", "color", r.color),
+                Lang.mm("cosmetic.got-subtitle", "cosmetic", displayName(c), "color", r.color, "rarity", r.label),
                 net.kyori.adventure.title.Title.Times.times(java.time.Duration.ofMillis(200),
                         java.time.Duration.ofSeconds(3), java.time.Duration.ofMillis(600))));
         p.playSound(p.getLocation(), Sound.UI_TOAST_CHALLENGE_COMPLETE, 0.8f, 1.2f);
         p.getWorld().spawnParticle(org.bukkit.Particle.TOTEM_OF_UNDYING, p.getLocation().add(0, 1, 0), 60, 0.4, 0.6, 0.4, 0.4);
-        p.sendMessage(Text.msg("<green>치장 </green>" + displayName(c) + "<green> 을(를) 얻었습니다. 옷장(/옷장)에서 입어보세요."));
+        p.sendMessage(Lang.msg("cosmetic.got", "cosmetic", displayName(c)));
     }
 
     /** Sends what the player's head should look like to everyone who sees them (and themselves). */
@@ -351,7 +347,7 @@ public final class CosmeticModule implements StsvModule, Listener {
         Mannequin mannequin;
         BukkitTask spin;
         String previewing;
-        Menu menu;
+        dev.stsv.core.gui.menu.MenuView menu;
         boolean closing;
         GameMode gameMode;
         ItemDisplay camera;
@@ -360,27 +356,6 @@ public final class CosmeticModule implements StsvModule, Listener {
         int page;
     }
 
-    private static final class Menu implements InventoryHolder {
-        Inventory inventory;
-        final Map<Integer, String> slots = new HashMap<>();
-
-        @Override public @NotNull Inventory getInventory() { return inventory; }
-    }
-
-    /** Menu layout (large chest), from config so a custom UI texture can be lined up with it. */
-    private record Layout(List<Integer> cosmetics, int prev, int takeOff, int info, int exit, int next, boolean filler) {}
-
-    private Layout layout() {
-        var c = plugin.getConfig();
-        List<Integer> slots = c.getIntegerList("cosmetics.menu.cosmetic-slots");
-        if (slots.isEmpty()) {
-            slots = new ArrayList<>();
-            for (int row = 1; row <= 4; row++) for (int col = 1; col <= 7; col++) slots.add(row * 9 + col);
-        }
-        return new Layout(slots, c.getInt("cosmetics.menu.slots.prev"), c.getInt("cosmetics.menu.slots.take-off"),
-                c.getInt("cosmetics.menu.slots.info"), c.getInt("cosmetics.menu.slots.exit"),
-                c.getInt("cosmetics.menu.slots.next"), c.getBoolean("cosmetics.menu.filler"));
-    }
 
     public boolean inWardrobe(Player p) {
         return sessions.containsKey(p.getUniqueId());
@@ -392,11 +367,11 @@ public final class CosmeticModule implements StsvModule, Listener {
             return;
         }
         if (zoneAt(p.getLocation()).isEmpty()) {
-            p.sendMessage(Text.msg("<red>옷장 구역 안에서만 사용할 수 있습니다."));
+            p.sendMessage(Lang.msg("wardrobe.zone-only"));
             return;
         }
         if (p.isInsideVehicle()) {
-            p.sendMessage(Text.msg("<red>탈것에서 내린 뒤 사용하세요."));
+            p.sendMessage(Lang.msg("wardrobe.dismount"));
             return;
         }
         Location stand = p.getLocation().clone();
@@ -412,7 +387,7 @@ public final class CosmeticModule implements StsvModule, Listener {
             }
         }
         if (spot == null) {
-            p.sendMessage(Text.msg("<red>앞쪽 공간이 부족합니다. 앞쪽 " + (int) Math.ceil(want) + "칸이 트인 곳에서 사용하세요."));
+            p.sendMessage(Lang.msg("wardrobe.no-room", "blocks", (int) Math.ceil(want)));
             return;
         }
         // look straight at the mannequin's middle: the menu is closed while previewing, so it is centred
@@ -541,189 +516,145 @@ public final class CosmeticModule implements StsvModule, Listener {
         s.mannequin.getEquipment().setHelmet(head);
     }
 
+    static final String WARDROBE_MENU = "stsv:wardrobe";
+
+    /** The cosmetics menu: layout, look and texts are in content/stsv/menus/wardrobe.yml. */
     public void openMenu(Player p) {
         Session s = sessions.get(p.getUniqueId());
         if (s == null) return;
-        Menu menu = new Menu();
-        long ownedCount = cosmetics().stream().filter(c -> owns(p, c)).count();
-        // background glyph first (draws the custom screen texture), then the visible title text
-        String title = plugin.getConfig().getString("cosmetics.menu.background")
-                + plugin.getConfig().getString("cosmetics.menu.title")
-                .replace("{owned}", String.valueOf(ownedCount)).replace("{total}", String.valueOf(cosmetics().size()));
-        Inventory inv = Bukkit.createInventory(menu, 54, Text.mm(title));
-        menu.inventory = inv;
-        s.menu = menu;
-        fillMenu(p, s);
-        p.openInventory(inv);
-    }
-
-    /** (Re)draws the menu in place, so clicking never closes or flickers the window. */
-    private void fillMenu(Player p, Session s) {
-        Inventory inv = s.menu.inventory;
-        s.menu.slots.clear();
-        Layout lay = layout();
-        ItemStack empty = lay.filler() ? icon(org.bukkit.Material.LIGHT_GRAY_STAINED_GLASS_PANE, null, " ", List.of()) : null;
-        ItemStack bar = lay.filler() ? icon(org.bukkit.Material.BLACK_STAINED_GLASS_PANE, null, " ", List.of()) : null;
-        for (int i = 0; i < 54; i++) inv.setItem(i, lay.cosmetics().contains(i) ? empty : bar);
-
-        Optional<CustomItem> worn = equipped(p);
-        List<CustomItem> all = cosmetics();
-        int perPage = Math.max(1, lay.cosmetics().size());
-        int pages = Math.max(1, (all.size() + perPage - 1) / perPage);
-        s.page = Math.clamp(s.page, 0, pages - 1);
-        for (int k = 0; k < perPage; k++) {
-            int index = s.page * perPage + k;
-            if (index >= all.size()) break;
-            CustomItem c = all.get(index);
-            boolean owned = owns(p, c);
-            boolean isWorn = worn.filter(w -> w.key().equals(c.key())).isPresent();
-            CustomItem.Rarity r = c.cosmetic().rarity();
-            ItemStack it = c.create(1);
-            it.editMeta(m -> {
-                List<Component> lore = new ArrayList<>();
-                lore.add(Text.item(r.color + "◆ " + r.label));
-                lore.add(Text.item(""));
-                if (isWorn) {
-                    lore.add(Text.item("<green>✔ 착용 중"));
-                    lore.add(Text.item("<gray>클릭: <white>벗기"));
-                } else if (owned) {
-                    lore.add(Text.item("<green>보유 중"));
-                    lore.add(Text.item("<gray>클릭: <white>착용"));
-                } else {
-                    lore.add(Text.item("<red>🔒 미보유"));
-                    if (c.cosmetic().obtain() != null) lore.add(Text.item("<gray>획득: <white>" + c.cosmetic().obtain()));
-                    lore.add(Text.item("<gray>클릭: <white>미리보기"));
-                }
-                m.lore(lore);
-                m.setEnchantmentGlintOverride(isWorn || c.key().asString().equals(s.previewing));
-            });
-            int slot = lay.cosmetics().get(k);
-            inv.setItem(slot, it);
-            s.menu.slots.put(slot, c.key().asString());
-        }
-        String pageText = (s.page + 1) + " / " + pages;
-        // no previous/next page: a greyed-out arrow (not ARROW, so clicking it does nothing)
-        inv.setItem(lay.prev(), s.page > 0
-                ? icon(org.bukkit.Material.ARROW, "prev", "<yellow>◀ 이전 페이지", List.of("<gray>" + pageText))
-                : icon(org.bukkit.Material.GRAY_DYE, "prev_off", "<dark_gray>◀ 첫 페이지", List.of("<gray>" + pageText)));
-        inv.setItem(lay.next(), s.page < pages - 1
-                ? icon(org.bukkit.Material.ARROW, "next", "<yellow>다음 페이지 ▶", List.of("<gray>" + pageText))
-                : icon(org.bukkit.Material.GRAY_DYE, "next_off", "<dark_gray>마지막 페이지 ▶", List.of("<gray>" + pageText)));
-        inv.setItem(lay.takeOff(), icon(org.bukkit.Material.BARRIER, "take_off", "<yellow>치장 벗기",
-                List.of(worn.map(w -> "<gray>착용 중: " + displayName(w)).orElse("<gray>착용 중인 치장 없음"))));
-        inv.setItem(lay.info(), icon(org.bukkit.Material.ARMOR_STAND, "info", "<gold>옷장", List.of(
-                "<gray>착용 중: <white>" + worn.map(CosmeticModule::displayName).orElse("없음"),
-                "<gray>미리보기: <white>" + Optional.ofNullable(s.previewing).flatMap(id -> plugin.content().item(id))
-                        .map(CosmeticModule::displayName).orElse("없음"),
-                "<gray>페이지: <white>" + pageText,
-                "",
-                "<gray>치장 클릭: 착용 / 착용 중이면 벗기 (창이 닫히고 미리보기)",
-                "<gray>미보유 치장은 미리보기만 됩니다.",
-                "<gray>미리보기 화면에서 웅크리기: 이 메뉴 다시 열기",
-                "<gray>나가기 버튼: 옷장 나가기")));
-        inv.setItem(lay.exit(), icon(org.bukkit.Material.OAK_DOOR, "exit", "<red>나가기", List.of()));
-    }
-
-    /** A menu button. With cosmetics.menu.custom-icons, it shows the pack model stsv:gui/<model>. */
-    private ItemStack icon(org.bukkit.Material m, String model, String name, List<String> lore) {
-        ItemStack it = new ItemStack(m);
-        boolean custom = model != null && plugin.getConfig().getBoolean("cosmetics.menu.custom-icons");
-        it.editMeta(meta -> {
-            if (custom) meta.setItemModel(new org.bukkit.NamespacedKey("stsv", "gui/" + model));
-            meta.itemName(Text.item(name));
-            meta.lore(Text.itemLines(lore));
+        plugin.menus().open(p, WARDROBE_MENU, new WardrobeMenu(s)).ifPresent(v -> {
+            s.menu = v;
+            if (s.page > 0) v.page(s.page);
         });
-        return it;
     }
 
-    @EventHandler
-    public void onMenuClick(InventoryClickEvent e) {
-        if (!(e.getInventory().getHolder(false) instanceof Menu menu)) return;
-        e.setCancelled(true);
-        if (e.getWhoClicked() instanceof Player clicker) hideHands(clicker);   // a click resyncs the real held item
-        if (!(e.getWhoClicked() instanceof Player p) || e.getClickedInventory() != e.getInventory()) return;
-        Session s = sessions.get(p.getUniqueId());
-        if (s == null) {
-            p.closeInventory();
-            return;
+    private final class WardrobeMenu implements dev.stsv.core.gui.menu.MenuHandler {
+        private final Session s;
+
+        WardrobeMenu(Session s) {
+            this.s = s;
         }
-        int slot = e.getSlot();
-        String id = menu.slots.get(slot);
-        if (id != null) {
-            CustomItem c = plugin.content().item(id).orElse(null);
-            if (c == null) return;
+
+        @Override
+        public Map<String, String> placeholders(dev.stsv.core.gui.menu.MenuView v) {
+            Player p = v.player();
+            Optional<CustomItem> worn = equipped(p);
+            return Map.of(
+                    "owned", String.valueOf(cosmetics().stream().filter(c -> owns(p, c)).count()),
+                    "total", String.valueOf(cosmetics().size()),
+                    "worn", worn.map(CosmeticModule::displayName).orElse(Lang.raw("common.none")),
+                    "previewing", Optional.ofNullable(s.previewing).flatMap(id -> plugin.content().item(id))
+                            .map(CosmeticModule::displayName).orElse(Lang.raw("common.none")));
+        }
+
+        @Override
+        public List<ItemStack> list(dev.stsv.core.gui.menu.MenuView v) {
+            Player p = v.player();
+            Optional<CustomItem> worn = equipped(p);
+            List<ItemStack> out = new ArrayList<>();
+            for (CustomItem c : cosmetics()) {
+                boolean owned = owns(p, c);
+                boolean isWorn = worn.filter(w -> w.key().equals(c.key())).isPresent();
+                CustomItem.Rarity r = c.cosmetic().rarity();
+                ItemStack it = c.create(1);
+                it.editMeta(m -> {
+                    List<Component> lore = new ArrayList<>();
+                    lore.add(Lang.item("wardrobe.lore-rarity", "color", r.color, "rarity", r.label));
+                    lore.add(Text.item(""));
+                    if (isWorn) {
+                        lore.addAll(Lang.items("wardrobe.lore-worn"));
+                    } else if (owned) {
+                        lore.addAll(Lang.items("wardrobe.lore-owned"));
+                    } else {
+                        lore.addAll(Lang.items("wardrobe.lore-locked"));
+                        if (c.cosmetic().obtain() != null) lore.add(Lang.item("wardrobe.lore-obtain", "obtain", c.cosmetic().obtain()));
+                        lore.add(Lang.item("wardrobe.lore-locked-click"));
+                    }
+                    m.lore(lore);
+                    m.setEnchantmentGlintOverride(isWorn || c.key().asString().equals(s.previewing));
+                });
+                out.add(it);
+            }
+            return out;
+        }
+
+        @Override
+        public void onListClick(dev.stsv.core.gui.menu.MenuView v, int index, org.bukkit.event.inventory.ClickType click) {
+            Player p = v.player();
+            List<CustomItem> all = cosmetics();
+            if (index >= all.size() || !inWardrobe(p)) return;
+            CustomItem c = all.get(index);
+            String id = c.key().asString();
             boolean worn = equipped(p).filter(w -> w.key().equals(c.key())).isPresent();
             if (worn) {
                 store.setEquipped(p.getUniqueId(), null);
-                save();
                 s.previewing = null;
                 p.playSound(p.getLocation(), Sound.ITEM_ARMOR_EQUIP_GENERIC, 0.8f, 0.8f);
-                p.sendActionBar(Text.mm("<gray>벗었습니다: </gray>" + displayName(c)));
+                p.sendActionBar(Lang.mm("wardrobe.took-off", "cosmetic", displayName(c)));
             } else if (owns(p, c)) {
-                store.setEquipped(p.getUniqueId(), c.key().asString());
-                save();
+                store.setEquipped(p.getUniqueId(), id);
                 s.previewing = id;
                 p.playSound(p.getLocation(), Sound.ITEM_ARMOR_EQUIP_LEATHER, 1f, 1.2f);
-                p.sendActionBar(Text.mm("<green>착용: </green>" + displayName(c)));
+                p.sendActionBar(Lang.mm("wardrobe.wearing", "cosmetic", displayName(c)));
             } else {
                 s.previewing = id;
                 p.playSound(p.getLocation(), Sound.UI_BUTTON_CLICK, 0.6f, 1.4f);
-                p.sendActionBar(Text.mm("<red>🔒 미리보기만 가능합니다"
-                        + (c.cosmetic().obtain() == null ? "" : " <gray>(획득: " + c.cosmetic().obtain() + ")")));
+                p.sendActionBar(c.cosmetic().obtain() == null ? Lang.mm("wardrobe.preview-only")
+                        : Lang.mm("wardrobe.preview-only-obtain", "obtain", c.cosmetic().obtain()));
             }
             showOnMannequin(p, s);
             showPreview(p, s, c);
-        } else if (slot == layout().prev() && s.page > 0) {
-            s.page--;
-            fillMenu(p, s);
-            p.playSound(p.getLocation(), Sound.ITEM_BOOK_PAGE_TURN, 0.7f, 1f);
-        } else if (slot == layout().next() && menu.inventory.getItem(slot) != null
-                && menu.inventory.getItem(slot).getType() == org.bukkit.Material.ARROW) {
-            s.page++;
-            fillMenu(p, s);
-            p.playSound(p.getLocation(), Sound.ITEM_BOOK_PAGE_TURN, 0.7f, 1f);
-        } else if (slot == layout().takeOff()) {
-            store.setEquipped(p.getUniqueId(), null);
-            save();
-            s.previewing = null;
-            showOnMannequin(p, s);
-            showPreview(p, s, null);
-        } else if (slot == layout().exit()) {
-            Bukkit.getScheduler().runTask(plugin, () -> exitWardrobe(p, true));
         }
+
+        @Override
+        public void onAction(dev.stsv.core.gui.menu.MenuView v, String action, org.bukkit.event.inventory.ClickType click) {
+            Player p = v.player();
+            switch (action) {
+                case "wardrobe:take_off" -> {
+                    store.setEquipped(p.getUniqueId(), null);
+                    s.previewing = null;
+                    showOnMannequin(p, s);
+                    showPreview(p, s, null);
+                }
+                case "wardrobe:exit" -> Bukkit.getScheduler().runTask(plugin, () -> exitWardrobe(p, true));
+                default -> { }
+            }
+        }
+
+        /** Esc on the menu: go to the camera view (not out of the wardrobe). */
+        @Override
+        public void onClose(dev.stsv.core.gui.menu.MenuView v) {
+            s.page = v.page();
+            Player p = v.player();
+            if (s.menu != v || s.closing || s.switching) return;
+            Bukkit.getScheduler().runTask(plugin, () -> {
+                if (inWardrobe(p) && !menuOpen(p)) toPreview(p, Lang.mm("wardrobe.title"), Lang.mm("wardrobe.hint"));
+            });
+        }
+    }
+
+    /** Any click in the wardrobe menu makes the client resync the real held item: hide it again. */
+    @EventHandler
+    public void onWardrobeClick(InventoryClickEvent e) {
+        if (e.getInventory().getHolder(false) instanceof dev.stsv.core.gui.menu.MenuView v && v.spec().id().equals(WARDROBE_MENU)
+                && e.getWhoClicked() instanceof Player p) hideHands(p);
     }
 
     /** After a click: close the menu and switch to the camera, with the cosmetic's state as a title. */
     private void showPreview(Player p, Session s, CustomItem c) {
         String state;
-        if (c == null) state = "<gray>치장 없음";
-        else if (equipped(p).filter(w -> w.key().equals(c.key())).isPresent()) state = "<green>✔ 착용 중";
-        else if (owns(p, c)) state = "<gray>벗음";
-        else state = "<red>🔒 미보유 · 미리보기";
+        if (c == null) state = Lang.raw("wardrobe.state-none");
+        else if (equipped(p).filter(w -> w.key().equals(c.key())).isPresent()) state = Lang.raw("wardrobe.state-worn");
+        else if (owns(p, c)) state = Lang.raw("wardrobe.state-removed");
+        else state = Lang.raw("wardrobe.state-locked");
         // never close an inventory inside its own click event: do it on the next tick
         Bukkit.getScheduler().runTask(plugin, () -> {
             if (!inWardrobe(p)) return;
             s.switching = true;
             p.closeInventory();
             s.switching = false;
-            toPreview(p, Text.mm(c == null ? "<gray>치장 없음" : displayName(c)),
-                    Text.mm(state + " <dark_gray>|</dark_gray> <gray>웅크리기: 메뉴"));
-        });
-    }
-
-    @EventHandler
-    public void onMenuDrag(InventoryDragEvent e) {
-        if (e.getInventory().getHolder(false) instanceof Menu) e.setCancelled(true);
-    }
-
-    /** Esc on the menu: go to the camera view (not out of the wardrobe). */
-    @EventHandler
-    public void onMenuClose(InventoryCloseEvent e) {
-        if (!(e.getInventory().getHolder(false) instanceof Menu menu) || !(e.getPlayer() instanceof Player p)) return;
-        Session s = sessions.get(p.getUniqueId());
-        if (s == null || s.menu != menu || s.closing || s.switching) return;
-        Bukkit.getScheduler().runTask(plugin, () -> {
-            if (inWardrobe(p) && !menuOpen(p)) toPreview(p, Text.mm("<gold>옷장"), Text.mm("<gray>웅크리기: 메뉴"));
+            toPreview(p, c == null ? Lang.mm("wardrobe.state-none") : Text.mm(displayName(c)),
+                    Lang.mm("wardrobe.subtitle", "state", state, "hint", Lang.raw("wardrobe.hint")));
         });
     }
 
@@ -746,7 +677,7 @@ public final class CosmeticModule implements StsvModule, Listener {
         if (s == null) return;
         s.closing = true;
         if (s.spin != null) s.spin.cancel();
-        if (p.getOpenInventory().getTopInventory().getHolder(false) instanceof Menu) p.closeInventory();
+        if (menuOpen(p)) p.closeInventory();
         // detach the camera (it may still be attached in creative mode), then restore the game mode
         p.setGameMode(GameMode.SPECTATOR);
         p.setSpectatorTarget(null);
@@ -761,8 +692,7 @@ public final class CosmeticModule implements StsvModule, Listener {
         p.getPersistentDataContainer().remove(keyReturn);
         if (sound) p.playSound(s.origin, Sound.BLOCK_WOODEN_DOOR_CLOSE, 0.8f, 1.2f);
         for (long delay : new long[]{1, 10, 40}) Bukkit.getScheduler().runTaskLater(plugin, () -> refresh(p), delay);
-        equipped(p).ifPresent(c -> p.sendMessage(Text.msg("<green>착용 중인 치장: </green>" + displayName(c)
-                + " <gray>(F5로 확인)")));
+        equipped(p).ifPresent(c -> p.sendMessage(Lang.msg("wardrobe.left", "cosmetic", displayName(c))));
     }
 
     /** After a crash the player may still be at the viewing spot: put them back. */
@@ -800,7 +730,8 @@ public final class CosmeticModule implements StsvModule, Listener {
     }
 
     private boolean menuOpen(Player p) {
-        return p.getOpenInventory().getTopInventory().getHolder(false) instanceof Menu;
+        return p.getOpenInventory().getTopInventory().getHolder(false) instanceof dev.stsv.core.gui.menu.MenuView v
+                && v.spec().id().equals(WARDROBE_MENU);
     }
 
     @EventHandler

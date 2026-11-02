@@ -21,7 +21,7 @@ import java.util.Optional;
 
 public final class StsvCommand implements TabExecutor {
 
-    private static final List<String> SUBS = List.of("give", "browse", "list", "info", "reload", "pack", "recipe", "fuel", "skin", "cosmetic", "wardrobe", "boss");
+    private static final List<String> SUBS = List.of("give", "browse", "list", "info", "reload", "pack", "recipe", "fuel", "skin", "cosmetic", "wardrobe", "boss", "period", "title", "stat");
     private final STSVPlugin plugin;
 
     public StsvCommand(STSVPlugin plugin) {
@@ -54,6 +54,7 @@ public final class StsvCommand implements TabExecutor {
             case "reload" -> {
                 long t = System.currentTimeMillis();
                 plugin.reloadConfig();
+                dev.stsv.core.util.Lang.load(plugin);
                 List<String> failed = plugin.modules().reloadAll();
                 if (failed.isEmpty()) {
                     sender.sendMessage(Text.msg("<green>리로드 완료 <gray>(" + (System.currentTimeMillis() - t) + "ms)"));
@@ -78,6 +79,9 @@ public final class StsvCommand implements TabExecutor {
             case "wardrobe" -> wardrobe(sender, args);
             case "fuel" -> fuel(sender, args);
             case "boss" -> boss(sender, args);
+            case "period" -> period(sender, args);
+            case "title" -> title(sender, args);
+            case "stat" -> stat(sender, args);
             default -> {
                 sender.sendMessage(Text.msg("<gray>명령어 목록"));
                 for (String line : List.of(
@@ -91,12 +95,89 @@ public final class StsvCommand implements TabExecutor {
                         "cosmetic give|take <플레이어> <치장> | cosmetic info [플레이어] <dark_gray>- 치장 지급/회수/상태",
                         "wardrobe create <이름> [반경] | delete <이름> | list <dark_gray>- 옷장 구역",
                         "boss spawn <보스> | boss list | boss remove <dark_gray>- 보스 소환/목록/모두 제거",
+                        "period start <id> <이름> | period end | period info <dark_gray>- 콘텐츠 기간 (기록, 명예의 전당)",
+                        "title give|take <플레이어> <칭호> | title list <dark_gray>- 칭호",
+                        "stat add <플레이어> <통계> <값> <dark_gray>- 기록 보정",
                         "reload | pack")) {
                     sender.sendMessage(Text.mm(" <white>/" + label + " " + line));
                 }
             }
         }
         return true;
+    }
+
+    private void period(CommandSender sender, String[] args) {
+        var profiles = plugin.profiles();
+        String sub = args.length > 1 ? args[1].toLowerCase(Locale.ROOT) : "info";
+        try {
+            switch (sub) {
+                case "start" -> {
+                    if (args.length < 4) {
+                        sender.sendMessage(Text.msg("<red>/stsv period start <id> <이름...> <gray>(id 예: economy-1)"));
+                        return;
+                    }
+                    var p = profiles.startPeriod(args[2], String.join(" ", java.util.Arrays.copyOfRange(args, 3, args.length)));
+                    sender.sendMessage(Text.msg("<green>기간 시작: <white>" + p.id() + " <gray>(" + p.name() + ")"));
+                }
+                case "end" -> {
+                    var hall = profiles.endPeriod();
+                    sender.sendMessage(Text.msg("<green>기간 종료. 명예의 전당 " + hall.values().stream().mapToInt(List::size).sum() + "명 기록"));
+                }
+                default -> {
+                    sender.sendMessage(Text.msg(profiles.store().current()
+                            .map(p -> "<gray>진행 중: <white>" + p.id() + " <gray>(" + p.name() + ")")
+                            .orElse("<gray>진행 중인 콘텐츠 기간 없음")));
+                    profiles.store().periods().thenAccept(list -> sender.sendMessage(Text.mm("<gray>전체 기간: <white>"
+                            + String.join(", ", list.stream().map(p -> p.id() + (p.ended() == null ? "(진행 중)" : "")).toList()))));
+                }
+            }
+        } catch (RuntimeException e) {
+            sender.sendMessage(Text.msg("<red>" + e.getMessage()));
+        }
+    }
+
+    private void title(CommandSender sender, String[] args) {
+        var profiles = plugin.profiles();
+        String sub = args.length > 1 ? args[1].toLowerCase(Locale.ROOT) : "list";
+        if (sub.equals("give") || sub.equals("take")) {
+            if (args.length < 4) {
+                sender.sendMessage(Text.msg("<red>/stsv title " + sub + " <플레이어> <칭호>"));
+                return;
+            }
+            profiles.store().findByName(args[2]).thenAccept(found -> org.bukkit.Bukkit.getScheduler().runTask(plugin, () -> {
+                if (found.isEmpty()) {
+                    sender.sendMessage(Text.msg("<red>접속한 적 없는 플레이어: " + args[2]));
+                    return;
+                }
+                boolean ok = sub.equals("give") ? profiles.grantTitle(found.get(), args[3]) : profiles.revokeTitle(found.get(), args[3]);
+                sender.sendMessage(Text.msg(ok ? "<green>완료" : "<red>알 수 없는 칭호: " + args[3]));
+            }));
+            return;
+        }
+        sender.sendMessage(Text.msg("<gray>칭호 " + profiles.titles().size() + "개"));
+        for (var t : profiles.titles()) sender.sendMessage(Text.mm(" <dark_gray>-</dark_gray> <white>" + t.id() + " " + t.name()));
+    }
+
+    private void stat(CommandSender sender, String[] args) {
+        if (args.length < 5 || !args[1].equalsIgnoreCase("add")) {
+            sender.sendMessage(Text.msg("<red>/stsv stat add <플레이어> <통계> <값> <gray>(음수로 빼기)"));
+            return;
+        }
+        double value;
+        try {
+            value = Double.parseDouble(args[4]);
+        } catch (NumberFormatException e) {
+            sender.sendMessage(Text.msg("<red>값은 숫자"));
+            return;
+        }
+        plugin.profiles().store().findByName(args[2]).thenAccept(found -> org.bukkit.Bukkit.getScheduler().runTask(plugin, () -> {
+            if (found.isEmpty()) {
+                sender.sendMessage(Text.msg("<red>접속한 적 없는 플레이어: " + args[2]));
+                return;
+            }
+            plugin.profiles().add(found.get(), args[3], value);
+            sender.sendMessage(Text.msg("<green>" + args[2] + " " + args[3] + " " + (value >= 0 ? "+" : "") + value));
+        }));
     }
 
     private void boss(CommandSender sender, String[] args) {
@@ -362,6 +443,12 @@ public final class StsvCommand implements TabExecutor {
         if (args[0].equalsIgnoreCase("fuel") && args.length == 2) return filter(List.of("set", "remove", "list"), args[1]);
         if (args[0].equalsIgnoreCase("skin") && args.length == 2) return filter(List.of("remove"), args[1]);
         if (args[0].equalsIgnoreCase("wardrobe") && args.length == 2) return filter(List.of("create", "delete", "list"), args[1]);
+        if (args[0].equalsIgnoreCase("period") && args.length == 2) return filter(List.of("start", "end", "info"), args[1]);
+        if (args[0].equalsIgnoreCase("title") && args.length == 2) return filter(List.of("give", "take", "list"), args[1]);
+        if (args[0].equalsIgnoreCase("title") && args.length == 4) {
+            return filter(plugin.profiles().titles().stream().map(t -> t.id()).toList(), args[3]);
+        }
+        if (args[0].equalsIgnoreCase("stat") && args.length == 2) return filter(List.of("add"), args[1]);
         if (args[0].equalsIgnoreCase("boss") && args.length == 2) return filter(List.of("spawn", "list", "remove", "force", "debug", "spawnat"), args[1]);
         if (args[0].equalsIgnoreCase("boss") && args.length == 3 && args[1].equalsIgnoreCase("spawn")) {
             return filter(plugin.bosses().specs().stream().map(dev.stsv.core.boss.BossSpec::id).toList(), args[2]);

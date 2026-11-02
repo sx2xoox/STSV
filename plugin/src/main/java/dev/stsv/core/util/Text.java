@@ -27,6 +27,6 @@ public final class Text {
     }
 
     public static Component msg(String miniMessage) {
-        return MM.deserialize(PREFIX + miniMessage);
+        return MM.deserialize(Lang.prefix() + miniMessage);
     }
 }

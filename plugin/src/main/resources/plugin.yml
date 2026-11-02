@@ -2,8 +2,13 @@ name: STSV
 version: '${version}'
 main: dev.stsv.core.STSVPlugin
 api-version: '26.3'
-description: STSV 시즌 서버 공통 코어 (커스텀 아이템, 가구, 레시피, 리소스팩)
+description: STSV 스트리머 서버 공통 코어 (콘텐츠 팩, 메뉴, 저장소, 기록, 리소스팩)
 authors: [STSV]
+# database drivers, downloaded by the server from Maven Central on first start
+libraries:
+  - org.xerial:sqlite-jdbc:3.47.1.0
+  - com.zaxxer:HikariCP:6.2.1
+  - org.mariadb.jdbc:mariadb-java-client:3.5.1
 commands:
   stsv:
     description: STSV 관리 명령어
@@ -14,7 +19,20 @@ commands:
     aliases: [옷장]
     usage: /wardrobe
     permission: stsv.wardrobe
+  profile:
+    description: 프로필 (기록, 칭호)
+    aliases: [프로필]
+    usage: /profile [플레이어]
+    permission: stsv.profile
+  hall:
+    description: 명예의 전당
+    aliases: [명예의전당]
+    usage: /hall [기간]
+    permission: stsv.profile
 permissions:
+  stsv.profile:
+    description: 프로필, 명예의 전당 보기
+    default: true
   stsv.wardrobe:
     description: 옷장 사용
     default: true

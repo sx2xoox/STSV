@@ -54,6 +54,8 @@ contents/mypack/
   models/*.bbmodel    3D 모델 (Blockbench 파일 그대로)
   textures/*.png      2D 아이템 텍스처
   bosses/*.yml        보스 (관절 모델, 애니메이션, 패턴, 페이즈, 드롭)
+  menus/*.yml         메뉴 (칸 배치, 버튼, 배경 그림) - content/stsv/menus/wardrobe.yml 참고
+  titles/*.yml        칭호
   assets/...          그 밖의 리소스팩 파일 (폰트, 사운드 등) 그대로 병합
 ```
 
@@ -73,23 +75,30 @@ contents/mypack/
 | `/stsv cosmetic info [플레이어]` | 착용 중인 치장, 권한 등 상태 확인 |
 | `/stsv boss spawn <보스>` / `list` / `remove` | 바라보는 곳에 보스 소환 / 목록 / 살아있는 보스 모두 제거 |
 | `/stsv boss force <패턴>` / `debug` / `spawnat <보스> <x> <y> <z> [월드]` | (테스트용) 패턴 바로 실행 / 관절 상태 출력 / 좌표에 소환(콘솔 가능) |
-| `/stsv reload` | 콘텐츠, 레시피, 리소스팩 다시 읽기 |
+| `/stsv period start <id> <이름>` / `end` / `info` | 콘텐츠 기간 시작 / 종료(명예의 전당 기록) / 상태 |
+| `/stsv title give\|take <플레이어> <칭호>` / `list` | 칭호 지급, 회수, 목록 |
+| `/stsv stat add <플레이어> <통계> <값>` | 기록 보정 |
+| `/프로필 [플레이어]` | (플레이어) 기록과 칭호. 내 칭호는 클릭해서 장착 |
+| `/명예의전당 [기간]` | (플레이어) 지난 콘텐츠의 부문별 순위 |
+| `/stsv reload` | 콘텐츠, 레시피, 메뉴, 칭호, 문구, 리소스팩 다시 읽기 |
+
+### 메뉴 만들기 / 바꾸기
+
+메뉴는 `contents/<팩>/menus/*.yml` 하나와 (선택) 배경 PNG 하나입니다. 형식 설명은 `content/stsv/menus/wardrobe.yml` 맨 위에 있습니다.
+배경을 쓰면 리소스팩을 빌드할 때 폰트가 자동으로 만들어집니다(직접 폰트 파일을 쓸 필요 없음).
 
 ### 옷장 UI 바꾸기
 
-옷장 메뉴의 배경은 리소스팩 폰트 글리프입니다(메뉴 제목 맨 앞의 글자 하나가 상자 화면 전체를 덮음).
-
 | 파일 | 내용 |
 |---|---|
+| `content/stsv/menus/wardrobe.yml` | 칸 배치, 버튼, 문구, 배경 지정 |
 | `content/stsv/assets/stsv/textures/gui/wardrobe.png` | 배경 그림 176×222 (큰 상자 화면 크기 그대로) |
-| `content/stsv/assets/stsv/font/wardrobe.json` | 글리프 정의 (`ascent: 13`, `height: 222`) |
 | `content/stsv/assets/stsv/textures/item/gui/*.png` | 버튼 아이콘 16×16 (이전, 다음, 벗기, 정보, 나가기, 비활성 화살표) |
-| `config.yml` → `cosmetics.menu` | 어느 칸에 무엇을 둘지, 배경 끄기(`background: ""`), 바닐라 아이콘(`custom-icons: false`) |
 
 그림을 직접 그릴 때: 상자 칸 (줄 r, 열 c)의 18×18 테두리는 x = 7 + 18c, y = 17 + 18r 입니다.
 `Inventory` 글자는 y = 128, 플레이어 인벤토리는 y = 139부터, 단축바는 y = 197 입니다.
-칸 배치를 바꾸면 그림과 `cosmetic-slots` / `slots` 를 같이 바꾸세요(`WardrobeGuiTest` 가 어긋남을 잡습니다).
-자동 생성은 `tools/assetgen/gui.py` (미리보기: `docs/previews/wardrobe_ui.png`).
+칸 배치를 바꾸면 그림도 같이 바꾸세요(`WardrobeGuiTest` 가 어긋남을 잡습니다).
+자동 생성은 `tools/assetgen/gui.py` (칸 위치를 wardrobe.yml 에서 읽음, 미리보기: `docs/previews/wardrobe_ui.png`).
 
 ### 보스 만들기
 

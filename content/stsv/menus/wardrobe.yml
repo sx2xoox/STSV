@@ -1,0 +1,60 @@
+# 메뉴 정의 (큰 상자 = rows 6). 형식:
+#   layout      한 줄 9칸. '.' = 빈칸, 글자 = 그 버튼, list 글자 = 페이지가 넘어가는 목록 칸
+#   background  <네임스페이스>:<경로> = assets/<ns>/textures/<경로>.png. 크기는 176 x (114 + 18 x rows) 픽셀
+#               (6줄이면 176x222). 칸 (줄 r, 열 c)의 18x18 테두리는 x = 7 + 18c, y = 17 + 18r
+#   buttons     action: page:prev / page:next / close / menu:<메뉴> / command:<명령어> / 모듈 전용 동작
+#               icon = 아이템 모델(리소스팩), material = 바닐라 아이템. off = 쓸 수 없을 때 모습(첫/마지막 페이지)
+#   {이름}       자리표시자. {page} {pages} 는 공통, 나머지는 메뉴를 여는 모듈이 채움
+#   filler      none / glass (배경 그림이 없을 때 빈칸을 유리판으로)
+wardrobe:
+  title: "<#f0e2b0>옷장 <#b9a6d6>· 보유 {owned}/{total}"
+  rows: 6
+  background: stsv:gui/wardrobe
+  layout:
+    - "........."
+    - ".LLLLLLL."
+    - ".LLLLLLL."
+    - ".LLLLLLL."
+    - ".LLLLLLL."
+    - "P.T.I.X.N"
+  list: L
+  buttons:
+    P:
+      action: page:prev
+      icon: stsv:gui/prev
+      material: ARROW
+      name: "<yellow>◀ 이전 페이지"
+      lore: ["<gray>{page} / {pages}"]
+      off: { icon: stsv:gui/prev_off, material: GRAY_DYE, name: "<dark_gray>◀ 첫 페이지" }
+    N:
+      action: page:next
+      icon: stsv:gui/next
+      material: ARROW
+      name: "<yellow>다음 페이지 ▶"
+      lore: ["<gray>{page} / {pages}"]
+      off: { icon: stsv:gui/next_off, material: GRAY_DYE, name: "<dark_gray>마지막 페이지 ▶" }
+    T:
+      action: wardrobe:take_off
+      icon: stsv:gui/take_off
+      material: BARRIER
+      name: "<yellow>치장 벗기"
+      lore: ["<gray>착용 중: <white>{worn}"]
+    I:
+      action: wardrobe:info
+      icon: stsv:gui/info
+      material: ARMOR_STAND
+      name: "<gold>옷장"
+      lore:
+        - "<gray>착용 중: <white>{worn}"
+        - "<gray>미리보기: <white>{previewing}"
+        - "<gray>페이지: <white>{page} / {pages}"
+        - ""
+        - "<gray>치장 클릭: 착용 / 착용 중이면 벗기 (창이 닫히고 미리보기)"
+        - "<gray>미보유 치장은 미리보기만 됩니다."
+        - "<gray>미리보기 화면에서 웅크리기: 이 메뉴 다시 열기"
+        - "<gray>나가기 버튼: 옷장 나가기"
+    X:
+      action: wardrobe:exit
+      icon: stsv:gui/exit
+      material: OAK_DOOR
+      name: "<red>나가기"

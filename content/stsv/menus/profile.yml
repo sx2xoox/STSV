@@ -1,0 +1,37 @@
+# /프로필: 위 = 기록(머리), 가운데 = 칭호 목록(클릭해서 장착)
+profile:
+  title: "{title}"
+  rows: 6
+  filler: glass
+  layout:
+    - "....H...."
+    - "........."
+    - ".TTTTTTT."
+    - ".TTTTTTT."
+    - "........."
+    - "P...X...N"
+  list: T
+  buttons:
+    H:
+      action: ""
+      material: PLAYER_HEAD
+      name: "<white>{player}"
+    P:
+      action: page:prev
+      icon: stsv:gui/prev
+      material: ARROW
+      name: "<yellow>◀ 이전 페이지"
+      lore: ["<gray>{page} / {pages}"]
+      off: { icon: stsv:gui/prev_off, material: GRAY_DYE, name: "<dark_gray>◀ 첫 페이지" }
+    N:
+      action: page:next
+      icon: stsv:gui/next
+      material: ARROW
+      name: "<yellow>다음 페이지 ▶"
+      lore: ["<gray>{page} / {pages}"]
+      off: { icon: stsv:gui/next_off, material: GRAY_DYE, name: "<dark_gray>마지막 페이지 ▶" }
+    X:
+      action: close
+      icon: stsv:gui/exit
+      material: OAK_DOOR
+      name: "<red>닫기"

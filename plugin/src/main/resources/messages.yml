@@ -1,0 +1,97 @@
+# 플레이어에게 보이는 문구. MiniMessage 형식, {이름} 은 자리표시자.
+# 이 파일을 고친 뒤 /stsv reload 하면 바로 적용됩니다. 지운 줄은 기본 문구로 돌아갑니다.
+
+prefix: "<gradient:#ffb35c:#ff6a3d><b>STSV</b></gradient> <dark_gray>»</dark_gray> "
+
+common:
+  players-only: "<red>플레이어만 사용할 수 있습니다."
+  none: "없음"
+
+wardrobe:
+  enter-first: "<red>먼저 옷장 구역에서 /{command} 를 입력하세요."
+  zone-only: "<red>옷장 구역 안에서만 사용할 수 있습니다."
+  dismount: "<red>탈것에서 내린 뒤 사용하세요."
+  no-room: "<red>앞쪽 공간이 부족합니다. 앞쪽 {blocks}칸이 트인 곳에서 사용하세요."
+  took-off: "<gray>벗었습니다: </gray>{cosmetic}"
+  wearing: "<green>착용: </green>{cosmetic}"
+  preview-only: "<red>🔒 미리보기만 가능합니다"
+  preview-only-obtain: "<red>🔒 미리보기만 가능합니다 <gray>(획득: {obtain})"
+  # 미리보기 화면 제목: 위 = 치장 이름, 아래 = 상태 + 안내
+  title: "<gold>옷장"
+  hint: "<gray>웅크리기: 메뉴"
+  state-none: "<gray>치장 없음"
+  state-worn: "<green>✔ 착용 중"
+  state-removed: "<gray>벗음"
+  state-locked: "<red>🔒 미보유 · 미리보기"
+  subtitle: "{state} <dark_gray>|</dark_gray> {hint}"
+  left: "<green>착용 중인 치장: </green>{cosmetic} <gray>(F5로 확인)"
+  # 메뉴의 치장 설명
+  lore-rarity: "{color}◆ {rarity}"
+  lore-worn: ["<green>✔ 착용 중", "<gray>클릭: <white>벗기"]
+  lore-owned: ["<green>보유 중", "<gray>클릭: <white>착용"]
+  lore-locked: ["<red>🔒 미보유"]
+  lore-obtain: "<gray>획득: <white>{obtain}"
+  lore-locked-click: "<gray>클릭: <white>미리보기"
+
+cosmetic:
+  voucher-unknown: "<red>이 교환권의 치장을 찾을 수 없습니다. 관리자에게 알려주세요."
+  already-owned: "<yellow>이미 가지고 있는 치장입니다."
+  got-title: "{color}<b>새 치장 획득!</b>"
+  got-subtitle: "{cosmetic} <dark_gray>·</dark_gray> {color}{rarity}"
+  got: "<green>치장 </green>{cosmetic}<green> 을(를) 얻었습니다. 옷장(/옷장)에서 입어보세요."
+
+skin:
+  not-applicable: "<red>이 스킨을 적용할 수 없는 아이템입니다."
+  no-book: "<red>스킨북이 인벤토리에 없습니다."
+  applied: "<light_purple>스킨이 적용되었습니다!"
+  none-held: "<red>손에 든 아이템에 스킨이 없습니다."
+  removed: "<green>스킨을 해제했습니다."
+
+boss:
+  defeated-title: "<gold><b>처치!"
+  defeated-subtitle: "{boss}"
+  defeated: "{boss} <gold>처치!"
+  rank: "  <gray>{rank}. <white>{player} <dark_gray>- <yellow>{percent}%"
+  leash-reset: "{boss} <gray>이(가) 제자리로 돌아가 체력을 회복했습니다."
+  rescued: "<green><b>구출!</b> <white>{player}<gray> 이(가) 풀려났습니다."
+
+profile:
+  not-found: "<red>그런 플레이어의 기록이 없습니다."
+  menu-title: "<#f0e2b0>{player} <#b9a6d6>· 프로필"
+  head-name: "<white>{player}"
+  section-period: "<gold>이번 콘텐츠 <gray>({period})"
+  section-all: "<gold>전체 기록"
+  no-period: "<gray>진행 중인 콘텐츠 없음"
+  stat-line: "<gray>{stat}: <white>{value}"
+  title-current: "<gray>칭호: {title}"
+  title-none: "<dark_gray>칭호 없음"
+  title-owned-lore: ["<gray>{description}", "", "<yellow>클릭: 장착"]
+  title-worn-lore: ["<gray>{description}", "", "<green>✔ 장착 중 <gray>(클릭: 해제)"]
+  title-locked-lore: ["<gray>{description}", "", "<red>🔒 미획득"]
+  title-equipped: "<green>칭호 장착: </green>{title}"
+  title-removed: "<gray>칭호를 해제했습니다."
+  title-got: "<gold>새 칭호 획득! </gold>{title}"
+  other-titles: "<gray>다른 플레이어의 칭호는 볼 수만 있습니다."
+
+hall:
+  header: "<gold><b>명예의 전당</b> <gray>{period}"
+  category: "<yellow>{stat}"
+  line: "  <gray>{rank}. <white>{player} <dark_gray>- <white>{value}"
+  empty: "<gray>기록된 명예의 전당이 없습니다."
+  periods: "<gray>기간: {list}"
+  ended: "<gold><b>{period}</b> 콘텐츠가 끝났습니다. 명예의 전당에 기록됩니다."
+  started: "<gold><b>{period}</b> 콘텐츠가 시작되었습니다!"
+
+# 통계 이름 (모드가 새 통계를 쓰면 여기에 이름을 추가)
+stats:
+  playtime: "플레이 시간"
+  deaths: "사망"
+  player_kills: "플레이어 처치"
+  mob_kills: "몹 처치"
+  blocks_broken: "블록 파괴"
+  blocks_placed: "블록 설치"
+  boss_kills: "보스 처치"
+  boss_damage: "보스 피해량"
+time:
+  hours-minutes: "{h}시간 {m}분"
+  minutes: "{m}분"

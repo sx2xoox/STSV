@@ -36,7 +36,8 @@ public record BossSpec(
         Map<String, Animation> animations,
         Map<String, Skill> skills,
         List<Phase> phases,
-        List<Drop> drops
+        List<Drop> drops,
+        String rewardTitle
 ) {
 
     /** @param look turns towards the target (head) */
@@ -265,7 +266,7 @@ public record BossSpec(
                 c.getDouble("speed", 0.23), c.getDouble("melee-damage", 6), c.getDouble("scale", 1),
                 color(c.getString("bar-color"), BossBar.Color.RED), c.getDouble("bar-range", 48), c.getDouble("leash", 40),
                 Math.max(1, c.getInt("think", 20)), c.getInt("global-cooldown", 40), (float) c.getDouble("model.scale", 1),
-                bones, sockets, animations, skills, phases, drops);
+                bones, sockets, animations, skills, phases, drops, c.getString("title"));
     }
 
     private static ConfigurationSection need(ConfigurationSection c, String path, String id) {

@@ -23,13 +23,13 @@ public final class WardrobeCommand implements TabExecutor {
     @Override
     public boolean onCommand(@NotNull CommandSender sender, @NotNull Command cmd, @NotNull String label, String @NotNull [] args) {
         if (!(sender instanceof Player p)) {
-            sender.sendMessage(Text.msg("<red>플레이어만 사용할 수 있습니다."));
+            sender.sendMessage(dev.stsv.core.util.Lang.msg("common.players-only"));
             return true;
         }
         var cos = plugin.cosmetics();
         String sub = args.length == 0 ? "" : args[0].toLowerCase(Locale.ROOT);
         if (!sub.isEmpty() && !cos.inWardrobe(p)) {
-            p.sendMessage(Text.msg("<red>먼저 옷장 구역에서 /" + label + " 를 입력하세요."));
+            p.sendMessage(dev.stsv.core.util.Lang.msg("wardrobe.enter-first", "command", label));
             return true;
         }
         switch (sub) {

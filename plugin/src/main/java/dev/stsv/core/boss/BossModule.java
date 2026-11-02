@@ -262,21 +262,27 @@ public final class BossModule implements StsvModule, Listener {
 
     /** Title for everyone who fought, and the damage ranking in chat. */
     void announceDefeat(BossInstance b) {
+        // records: everyone who hurt it gets the kill and their damage; the boss's title, if it has one
+        for (Map.Entry<UUID, Double> e : b.damageBy.entrySet()) {
+            plugin.profiles().add(e.getKey(), "boss_kills", 1);
+            plugin.profiles().add(e.getKey(), "boss_damage", Math.round(e.getValue()));
+            if (b.spec.rewardTitle() != null) plugin.profiles().grantTitle(e.getKey(), b.spec.rewardTitle());
+        }
         double total = b.damageBy.values().stream().mapToDouble(Double::doubleValue).sum();
         List<Map.Entry<UUID, Double>> ranking = b.damageBy.entrySet().stream()
                 .sorted(Map.Entry.<UUID, Double>comparingByValue(Comparator.reverseOrder())).limit(5).toList();
         List<Player> audience = b.audience();
         for (Player p : audience) {
-            p.showTitle(Title.title(Text.mm("<gold><b>처치!"), Text.mm(b.spec.name()),
+            p.showTitle(Title.title(dev.stsv.core.util.Lang.mm("boss.defeated-title"), dev.stsv.core.util.Lang.mm("boss.defeated-subtitle", "boss", b.spec.name()),
                     Title.Times.times(Duration.ofMillis(200), Duration.ofMillis(2500), Duration.ofMillis(800))));
             p.playSound(net.kyori.adventure.sound.Sound.sound(net.kyori.adventure.key.Key.key("ui.toast.challenge_complete"),
                     net.kyori.adventure.sound.Sound.Source.MASTER, 1f, 1f));
-            p.sendMessage(Text.msg(b.spec.name() + " <gold>처치!"));
+            p.sendMessage(dev.stsv.core.util.Lang.msg("boss.defeated", "boss", b.spec.name()));
             int rank = 1;
             for (Map.Entry<UUID, Double> e : ranking) {
                 String name = Optional.ofNullable(Bukkit.getOfflinePlayer(e.getKey()).getName()).orElse("?");
-                p.sendMessage(Text.mm("  <gray>" + rank++ + ". <white>" + name + " <dark_gray>- <yellow>"
-                        + Math.round(total > 0 ? e.getValue() * 100 / total : 0) + "%"));
+                p.sendMessage(dev.stsv.core.util.Lang.mm("boss.rank", "rank", rank++, "player", name,
+                        "percent", Math.round(total > 0 ? e.getValue() * 100 / total : 0)));
             }
         }
     }

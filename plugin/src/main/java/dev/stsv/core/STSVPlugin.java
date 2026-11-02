@@ -1,7 +1,10 @@
 package dev.stsv.core;
 
 import dev.stsv.core.boss.BossModule;
+import dev.stsv.core.command.ProfileCommand;
 import dev.stsv.core.command.StsvCommand;
+import dev.stsv.core.data.DatabaseModule;
+import dev.stsv.core.data.Db;
 import dev.stsv.core.command.WardrobeCommand;
 import dev.stsv.core.cosmetic.CosmeticModule;
 import dev.stsv.core.effect.ItemEffectsModule;
@@ -28,6 +31,8 @@ public final class STSVPlugin extends JavaPlugin {
     private static STSVPlugin instance;
 
     private ModuleManager modules;
+    private DatabaseModule database;
+    private dev.stsv.core.gui.menu.MenuModule menus;
     private ContentModule content;
     private RecipeModule recipes;
     private FurnitureModule furniture;
@@ -35,6 +40,7 @@ public final class STSVPlugin extends JavaPlugin {
     private SkinModule skins;
     private CosmeticModule cosmetics;
     private BossModule bosses;
+    private dev.stsv.core.profile.ProfileModule profiles;
     private ItemBrowser itemBrowser;
     private RecipeEditor recipeEditor;
 
@@ -46,14 +52,18 @@ public final class STSVPlugin extends JavaPlugin {
     public void onEnable() {
         instance = this;
         saveDefaultConfig();
+        dev.stsv.core.util.Lang.load(this);
 
         modules = new ModuleManager(this);
         // Order matters: content first (others read it), resource pack last (it needs every item).
+        modules.register(database = new DatabaseModule());
         modules.register(content = new ContentModule());
+        modules.register(menus = new dev.stsv.core.gui.menu.MenuModule());
         modules.register(recipes = new RecipeModule());
         modules.register(furniture = new FurnitureModule());
         modules.register(skins = new SkinModule());
         modules.register(cosmetics = new CosmeticModule());
+        modules.register(profiles = new dev.stsv.core.profile.ProfileModule());
         modules.register(new ItemEffectsModule());
         modules.register(bosses = new BossModule());
         modules.register(pack = new PackModule());
@@ -70,6 +80,14 @@ public final class STSVPlugin extends JavaPlugin {
             cmd.setExecutor(command);
             cmd.setTabCompleter(command);
         }
+        ProfileCommand profileCommand = new ProfileCommand(this);
+        for (String name : new String[]{"profile", "hall"}) {
+            PluginCommand pc = getCommand(name);
+            if (pc != null) {
+                pc.setExecutor(profileCommand);
+                pc.setTabCompleter(profileCommand);
+            }
+        }
         PluginCommand wardrobe = getCommand("wardrobe");
         if (wardrobe != null) wardrobe.setExecutor(new WardrobeCommand(this));
     }
@@ -85,13 +103,16 @@ public final class STSVPlugin extends JavaPlugin {
     }
 
     public ModuleManager modules() { return modules; }
+    public Db db() { return database.db(); }
     public ContentModule content() { return content; }
+    public dev.stsv.core.gui.menu.MenuModule menus() { return menus; }
     public RecipeModule recipes() { return recipes; }
     public FurnitureModule furniture() { return furniture; }
     public PackModule pack() { return pack; }
     public SkinModule skins() { return skins; }
     public CosmeticModule cosmetics() { return cosmetics; }
     public BossModule bosses() { return bosses; }
+    public dev.stsv.core.profile.ProfileModule profiles() { return profiles; }
     public ItemBrowser itemBrowser() { return itemBrowser; }
     public RecipeEditor recipeEditor() { return recipeEditor; }
 }
