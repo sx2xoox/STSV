@@ -37,6 +37,13 @@ def main():
     for d in (CONTENT / "models", CONTENT / "textures", BUILD, PREVIEWS):
         d.mkdir(parents=True, exist_ok=True)
 
+    # remove generated files of models that no longer exist (otherwise they would still ship)
+    for stale in (CONTENT / "models").glob("*.bbmodel"):
+        if stale.stem not in ALL:
+            stale.unlink()
+            (PREVIEWS / f"{stale.stem}.png").unlink(missing_ok=True)
+            print(f"removed {stale.name} (model no longer defined)")
+
     built = {}
     for name, fn in ALL.items():
         model = fn()

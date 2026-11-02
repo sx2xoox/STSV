@@ -88,20 +88,6 @@ def item_definitions():
             "on_false": _model("test_rod"),
             "on_true": _model("test_rod_cast"),
         }},
-        # greatsword: holding right-click raises it (trident pose from its consumable component);
-        # after 1 second of holding the fully charged model is shown
-        "test_greatsword": {"model": {
-            "type": "minecraft:condition",
-            "property": "minecraft:using_item",
-            "on_false": _model("test_greatsword"),
-            "on_true": {
-                "type": "minecraft:range_dispatch",
-                "property": "minecraft:use_duration",
-                "scale": 0.05,
-                "entries": [{"threshold": 1.0, "model": _model("test_greatsword_charged")}],
-                "fallback": _model("test_greatsword"),
-            },
-        }},
         "test_shield": {"model": {
             "type": "minecraft:condition",
             "property": "minecraft:using_item",
@@ -153,6 +139,18 @@ def write(content_pack: Path):
     for sub in ("items", "models/item", "textures/item", "equipment", "textures/entity/equipment/humanoid"):
         (assets / sub).mkdir(parents=True, exist_ok=True)
     (content_pack / "textures").mkdir(parents=True, exist_ok=True)
+
+    # remove files from earlier builds that this build no longer produces (stale definitions would ship)
+    expected = {
+        assets / "items": {f"{n}.json" for n in item_definitions()},
+        assets / "models" / "item": {f"{n}.json" for n in TEXTURED_MODELS},
+        assets / "textures" / "item": {f"{n}.png" for n in TEXTURED_MODELS},
+    }
+    for folder, keep in expected.items():
+        for f in folder.iterdir():
+            if f.is_file() and f.name not in keep:
+                f.unlink()
+                print(f"removed {f.relative_to(content_pack)} (no longer generated)")
 
     for name, definition in item_definitions().items():
         (assets / "items" / f"{name}.json").write_text(json.dumps(definition, indent=2))

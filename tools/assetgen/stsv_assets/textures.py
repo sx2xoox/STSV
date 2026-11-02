@@ -470,6 +470,38 @@ def tomato_skin(seed=210):
     return im
 
 
+def _shade(ramp_name, i_main, i_edge):
+    """Plain inner / rim surfaces derived from a material ramp (keeps masks on-palette)."""
+    def gen():
+        im = _new()
+        px = im.load()
+        for y in range(S):
+            for x in range(S):
+                px[x, y] = ramp(ramp_name, i_edge if y in (0, 15) or x in (0, 15) else i_main)
+        return im
+    return gen
+
+
+def tomato_body(seed=214):
+    """Tomato with soft vertical ribs and one clean highlight."""
+    rnd = random.Random(seed)
+    im = _new()
+    px = im.load()
+    for y in range(S):
+        for x in range(S):
+            i = 2
+            if x in (4, 11):
+                i = 1                     # ribs
+            if 2 <= x <= 3 and 3 <= y <= 6:
+                i = 3
+            if x == 2 and y in (3, 4):
+                i = 4                     # shine
+            if y >= 14:
+                i = 1
+            px[x, y] = ramp("tomato", _j(rnd, i, 0.03))
+    return im
+
+
 def eggplant_skin(seed=212):
     """Glossy dark purple with a long soft highlight."""
     rnd = random.Random(seed)
@@ -717,6 +749,13 @@ SURFACES = {
     "dev_fan": dev_fan,
     "tomato_skin": tomato_skin,
     "eggplant_skin": eggplant_skin,
+    "tomato_body": tomato_body,
+    "tomato_inner": _shade("tomato", 0, 0),
+    "tomato_rim": _shade("tomato", 1, 0),
+    "eggplant_inner": _shade("eggplant", 0, 0),
+    "eggplant_rim": _shade("eggplant", 1, 0),
+    "stalk_inner": _shade("cream", 0, 0),
+    "stalk_rim": _shade("toadstool", 1, 0),
     "toadstool_cap": toadstool_cap,
     "mushroom_stalk": mushroom_stalk,
     "gills": gills,

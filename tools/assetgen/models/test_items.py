@@ -119,11 +119,6 @@ def test_greatsword():
     return _greatsword(False)
 
 
-def test_greatsword_charged():
-    """Shown while the right-click charge is full: the whole blade turns to glowing energy."""
-    return _greatsword(True)
-
-
 def _greatsword(charged):
     m = Model("test_greatsword_charged" if charged else "test_greatsword")
     blade = "energy" if charged else "blade_steel"
@@ -223,29 +218,62 @@ def test_shield_blocking():
     return _shield(True)
 
 
-def _head_shell(m, tex, top=14.5, face=(4, 12, 3, 11)):
-    """The shared mask shell: worn like a carved pumpkin (model 0..16, face on the north side).
-    The head fits in the 1.5-thick walls; the opening on the front shows the player's face.
-    face = (x0, x1, y0, y1) of the opening."""
+def _head_shell(m, tex, inner, rim, layers=((0, 1.5, 1), (1.5, 12.5, 0), (12.5, 14.5, 1)),
+                face=(4, 12, 3, 11)):
+    """
+    The shared mask shell, worn like a carved pumpkin (model 0..16, face on the north side).
+
+    layers: (y0, y1, inset) rings stacked from the bottom; insetting the bottom and top rings rounds
+            the silhouette. The head (about 1.6..14.4 in model space) always fits inside.
+    face:   (x0, x1, y0, y1) of the face opening, inside the inset-0 ring. Its corners are filled
+            (rounded opening), a raised rim frames it, and the inner walls use the darker `inner`
+            texture so the opening reads as depth instead of a raw cut.
+    """
     fx0, fx1, fy0, fy1 = face
     m.group("shell")
-    m.box("front_l", (0, 0, 0), (fx0, top, 1.5), tex)
-    m.box("front_r", (fx1, 0, 0), (16, top, 1.5), tex)
-    m.box("front_b", (fx0, 0, 0), (fx1, fy0, 1.5), tex)
-    m.box("front_t", (fx0, fy1, 0), (fx1, top, 1.5), tex)
-    m.box("back", (0, 0, 14.5), (16, top, 16), tex)
-    m.box("left", (0, 0, 1.5), (1.5, top, 14.5), tex)
-    m.box("right", (14.5, 0, 1.5), (16, top, 14.5), tex)
+    for k, (y0, y1, i) in enumerate(layers):
+        o, w = i, 1.5                       # outer offset, wall thickness
+        lo, hi = o, 16 - o
+        front = {"south": inner}
+        has_face = i == 0 and y0 <= fy0 and y1 >= fy1
+        if has_face:
+            m.box(f"l{k}_front_l", (lo, y0, lo), (fx0, y1, lo + w), tex, faces=front)
+            m.box(f"l{k}_front_r", (fx1, y0, lo), (hi, y1, lo + w), tex, faces=front)
+            m.box(f"l{k}_front_b", (fx0, y0, lo), (fx1, fy0, lo + w), tex, faces=front)
+            m.box(f"l{k}_front_t", (fx0, fy1, lo), (fx1, y1, lo + w), tex, faces=front)
+            for cx, cy in ((fx0, fy0), (fx1 - 1, fy0), (fx0, fy1 - 1), (fx1 - 1, fy1 - 1)):
+                m.box(f"l{k}_corner_{cx}_{cy}", (cx, cy, lo), (cx + 1, cy + 1, lo + w), tex, faces=front)
+        else:
+            m.box(f"l{k}_front", (lo, y0, lo), (hi, y1, lo + w), tex, faces=front)
+        m.box(f"l{k}_back", (lo, y0, hi - w), (hi, y1, hi), tex, faces={"north": inner})
+        m.box(f"l{k}_left", (lo, y0, lo + w), (lo + w, y1, hi - w), tex, faces={"east": inner})
+        m.box(f"l{k}_right", (hi - w, y0, lo + w), (hi, y1, hi - w), tex, faces={"west": inner})
+    # raised rim around the opening (sits on the front face, z -0.5..0)
+    m.group("rim")
+    m.box("rim_top", (fx0 + 1, fy1, -0.5), (fx1 - 1, fy1 + 0.75, 0), rim)
+    m.box("rim_bottom", (fx0 + 1, fy0 - 0.75, -0.5), (fx1 - 1, fy0, 0), rim)
+    m.box("rim_left", (fx0 - 0.75, fy0 + 1, -0.5), (fx0, fy1 - 1, 0), rim)
+    m.box("rim_right", (fx1, fy0 + 1, -0.5), (fx1 + 0.75, fy1 - 1, 0), rim)
+    for cx, cy in ((fx0, fy0), (fx1 - 1, fy0), (fx0, fy1 - 1), (fx1 - 1, fy1 - 1)):
+        m.box(f"rim_c_{cx}_{cy}", (cx, cy, -0.5), (cx + 1, cy + 1, 0), rim)
 
 
 def tomato_mask():
     m = Model("tomato_mask")
-    _head_shell(m, "tomato_skin")
-    m.box("top", (0.5, 14.5, 0.5), (15.5, 16, 15.5), "tomato_skin")
+    _head_shell(m, "tomato_body", "tomato_inner", "tomato_rim")
+    m.group("top")
+    m.box("cap", (1, 14.5, 1), (15, 15.75, 15), "tomato_body")
+    m.box("cap_top", (2.5, 15.75, 2.5), (13.5, 16.25, 13.5), "tomato_body")
     m.group("calyx")
-    m.box("leaf_x", (4, 16, 7), (12, 16.75, 9), "calyx")
-    m.box("leaf_z", (7, 16, 4), (9, 16.5, 12), "calyx")
-    m.box("stem", (7.5, 16.75, 7.5), (8.5, 19, 8.5), "calyx")
+    m.box("leaf_x", (3, 16.25, 7), (13, 16.75, 9), "calyx")
+    m.box("leaf_z", (7, 16.25, 3), (9, 16.6, 13), "calyx")
+    # sepal tips drooping over the shoulders on four sides
+    m.box("tip_n", (7, 14, 0.5), (9, 16.25, 1), "calyx")
+    m.box("tip_s", (7, 14, 15), (9, 16.25, 15.5), "calyx")
+    m.box("tip_w", (0.5, 14, 7), (1, 16.25, 9), "calyx")
+    m.box("tip_e", (15, 14, 7), (15.5, 16.25, 9), "calyx")
+    m.box("stem", (7.25, 16.75, 7.25), (8.75, 19, 8.75), "calyx")
+    m.box("stem_curl", (7.25, 19, 8.75), (8.75, 20, 10), "calyx")
     m.display = {**presets.BLOCK}   # 'head' stays identity -> sits on the head like a pumpkin
     return m
 
@@ -253,9 +281,9 @@ def tomato_mask():
 def eggplant_mask():
     """A tall glossy eggplant: the body narrows upwards into a green cap with drooping sepals."""
     m = Model("eggplant_mask")
-    _head_shell(m, "eggplant_skin")
+    _head_shell(m, "eggplant_skin", "eggplant_inner", "eggplant_rim")
     m.group("body")
-    m.box("shoulder", (0.5, 14.5, 0.5), (15.5, 17, 15.5), "eggplant_skin")
+    m.box("shoulder", (1, 14.5, 1), (15, 17, 15), "eggplant_skin")
     m.box("neck_1", (2, 17, 2), (14, 20, 14), "eggplant_skin")
     m.box("neck_2", (3.5, 20, 3.5), (12.5, 22.5, 12.5), "eggplant_skin")
     m.group("cap")
@@ -274,22 +302,23 @@ def eggplant_mask():
 def mushroom_mask():
     """Red toadstool: the cream stalk is the face shell, a wide spotted cap overhangs the head."""
     m = Model("mushroom_mask")
-    _head_shell(m, "mushroom_stalk", top=13)
+    _head_shell(m, "mushroom_stalk", "stalk_inner", "stalk_rim",
+                layers=((0, 1.5, 1), (1.5, 13, 0)))
     m.group("cap")
     under = {"down": "gills"}
     m.box("brim", (-2.5, 13, -2.5), (18.5, 16, 18.5), "toadstool_cap", faces=under)
     m.box("dome", (-0.5, 16, -0.5), (16.5, 19, 16.5), "toadstool_cap")
     m.box("crown", (3, 19, 3), (13, 21, 13), "toadstool_cap")
     # the stalk's skirt: four strips just outside the walls, above the face opening
-    m.box("ring_n", (-0.5, 11.5, -0.5), (16.5, 12.5, 0), "mushroom_stalk")
-    m.box("ring_s", (-0.5, 11.5, 16), (16.5, 12.5, 16.5), "mushroom_stalk")
-    m.box("ring_w", (-0.5, 11.5, 0), (0, 12.5, 16), "mushroom_stalk")
-    m.box("ring_e", (16, 11.5, 0), (16.5, 12.5, 16), "mushroom_stalk")
+    m.box("ring_n", (-0.5, 12, -0.5), (16.5, 13, 0), "mushroom_stalk")
+    m.box("ring_s", (-0.5, 12, 16), (16.5, 13, 16.5), "mushroom_stalk")
+    m.box("ring_w", (-0.5, 12, 0), (0, 13, 16), "mushroom_stalk")
+    m.box("ring_e", (16, 12, 0), (16.5, 13, 16), "mushroom_stalk")
     m.display = {**presets.BLOCK, "gui": {"rotation": [30, 225, 0], "translation": [0, -1.5, 0], "scale": [0.48, 0.48, 0.48]}}
     return m
 
 
 ALL = {f.__name__: f for f in (test_machine, test_fan_blade, test_bench, test_rug, test_food, test_sword, test_greatsword,
-                               test_greatsword_charged, test_slash,
+                               test_slash,
                                test_sword_skin, test_rod, test_rod_cast, test_shield, test_shield_blocking,
                                tomato_mask, eggplant_mask, mushroom_mask)}

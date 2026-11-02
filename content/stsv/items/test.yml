@@ -168,16 +168,13 @@ mushroom_voucher:
 
 # [3D 무기 + 애니메이션] 캐시템 느낌의 대검
 #   평소: 칼날 속 에너지가 흐름 (애니메이션 텍스처)
-#   휘두르기: 앞쪽에 빛나는 참격이 쓸려 나감 (모두에게 보임)
-#   우클릭 꾹: 검을 들어 올리고, 1초 뒤 칼날 전체가 빛남 → 떼면 큰 참격 2개 + 번개 소리
+#   좌클릭(공격): 바닐라 휘두르기 방향(오른쪽 위 → 왼쪽 아래)으로 빛나는 참격 (모두에게 보임)
 test_greatsword:
   material: diamond_sword
   name: "<gradient:#a98bff:#5ad4fc><b>[TEST] 오로라 대검</b></gradient>"
   lore:
     - "<gray>칼날 속 에너지가 흐르는 대검."
-    - "<gray>우클릭을 1초 이상 눌렀다 떼면 오로라 참격."
-  item-model: stsv:test_greatsword
+  model: test_greatsword
   glint: true
   effects:
     swing: { model: test_slash, scale: 2.2, sound: entity.player.attack.sweep }
-    charge: { seconds: 1.0, sound: item.trident.thunder }

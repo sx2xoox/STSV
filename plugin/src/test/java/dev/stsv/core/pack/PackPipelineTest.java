@@ -31,8 +31,8 @@ class PackPipelineTest {
                 .map(n -> n.replace(".bbmodel", "")).sorted();
     }
 
-    private static final Set<String> GLOWING = Set.of("test_machine", "test_greatsword", "test_greatsword_charged", "test_slash");
-    private static final Set<String> ROTATED = Set.of("test_sword", "test_sword_skin", "test_greatsword", "test_greatsword_charged", "test_slash", "test_rod", "test_rod_cast");
+    private static final Set<String> GLOWING = Set.of("test_machine", "test_greatsword", "test_slash");
+    private static final Set<String> ROTATED = Set.of("test_sword", "test_sword_skin", "test_greatsword", "test_slash", "test_rod", "test_rod_cast");
 
     @org.junit.jupiter.params.ParameterizedTest
     @org.junit.jupiter.params.provider.MethodSource("models")
