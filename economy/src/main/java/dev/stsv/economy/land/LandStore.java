@@ -68,9 +68,8 @@ public final class LandStore {
 
     public Claim create(UUID owner, String world, int x1, int z1, int x2, int z2, long now) {
         long id = db.sync(c -> {
-            Db.update(c, "INSERT INTO eco_claim (owner, world, x1, z1, x2, z2, created) VALUES (?, ?, ?, ?, ?, ?, ?)",
+            return Db.insert(c, "INSERT INTO eco_claim (owner, world, x1, z1, x2, z2, created) VALUES (?, ?, ?, ?, ?, ?, ?)",
                     owner == null ? null : owner.toString(), world, Math.min(x1, x2), Math.min(z1, z2), Math.max(x1, x2), Math.max(z1, z2), now);
-            return Db.query(c, "SELECT MAX(id) FROM eco_claim", rs -> rs.getLong(1)).getFirst();
         });
         Claim cl = new Claim(id, owner, world, x1, z1, x2, z2, now);
         index.add(cl);

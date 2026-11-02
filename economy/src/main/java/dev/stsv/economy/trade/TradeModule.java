@@ -64,7 +64,13 @@ public final class TradeModule extends EcoModule {
 
     @Override
     protected void stop() {
-        for (Session s : List.copyOf(sessions.values())) s.cancel("trade.cancelled-reload");
+        for (Session s : List.copyOf(sessions.values())) {
+            try {
+                s.cancel("trade.cancelled-reload");
+            } catch (RuntimeException e) {
+                eco.getLogger().warning("직거래 정리 실패: " + e);
+            }
+        }
     }
 
     static boolean isA(int slot) {
@@ -295,11 +301,13 @@ public final class TradeModule extends EcoModule {
         private void end() {
             sessions.remove(a.getUniqueId());
             sessions.remove(b.getUniqueId());
-            Bukkit.getScheduler().runTask(eco, () -> {
+            Runnable close = () -> {
                 for (Player p : List.of(a, b)) {
                     if (p.isOnline() && p.getOpenInventory().getTopInventory().getHolder(false) == this) p.closeInventory();
                 }
-            });
+            };
+            if (eco.isEnabled()) Bukkit.getScheduler().runTask(eco, close);
+            else close.run();   // shutting down: no scheduler
         }
     }
 
@@ -373,6 +381,10 @@ public final class TradeModule extends EcoModule {
     @EventHandler(priority = EventPriority.HIGH)
     public void onDrag(InventoryDragEvent e) {
         if (!(e.getInventory().getHolder(false) instanceof Session s) || !(e.getWhoClicked() instanceof Player p)) return;
+        if (s.finished) {
+            e.setCancelled(true);
+            return;
+        }
         for (int raw : e.getRawSlots()) {
             if (raw < 54 && !s.mine(p, raw)) {
                 e.setCancelled(true);

@@ -65,9 +65,8 @@ public final class AuctionStore {
     public Auction create(UUID seller, UUID creator, byte[] item, String name, int amount, long start, long deposit, boolean rare, int week, long ends, long now) {
         String n = name.length() > 128 ? name.substring(0, 128) : name;
         long id = db.sync(c -> {
-            Db.update(c, "INSERT INTO eco_auction (seller, creator, item, item_name, amount, start_price, deposit, rare, week, bid, bidder, ends, bids, state, created) "
+            return Db.insert(c, "INSERT INTO eco_auction (seller, creator, item, item_name, amount, start_price, deposit, rare, week, bid, bidder, ends, bids, state, created) "
                     + "VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, 0, NULL, ?, 0, 0, ?)", str(seller), str(creator), item, n, amount, start, deposit, rare ? 1 : 0, week, ends, now);
-            return Db.query(c, "SELECT MAX(id) FROM eco_auction", rs -> rs.getLong(1)).getFirst();
         });
         Auction a = new Auction(id, seller, creator, item, n, amount, start, deposit, rare, week, 0, null, ends, 0);
         running.put(id, a);

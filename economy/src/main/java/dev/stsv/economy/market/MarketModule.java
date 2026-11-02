@@ -87,10 +87,17 @@ public final class MarketModule extends EcoModule {
             return;
         }
         ItemStack item = hand.clone();
-        p.getInventory().setItemInMainHand(null);
         long now = now();
-        MarketStore.Listing l = store.add(p.getUniqueId(), Items.bytes(item), Items.key(item), Items.plainName(item), item.getAmount(), price,
-                now, now + (long) (rules.marketHours() * 3_600_000L));
+        MarketStore.Listing l;
+        try {
+            l = store.add(p.getUniqueId(), Items.bytes(item), Items.key(item), Items.plainName(item), item.getAmount(), price,
+                    now, now + (long) (rules.marketHours() * 3_600_000L));
+        } catch (RuntimeException e) {
+            eco.getLogger().warning("거래소 등록 실패: " + e);
+            p.sendMessage(dev.stsv.core.util.Text.msg("<red>저장소 오류로 등록하지 못했습니다. 물건은 그대로입니다."));
+            return;
+        }
+        p.getInventory().setItemInMainHand(null);   // only once it is safely listed
         p.sendMessage(Lang.msg("market.listed", "item", l.itemName(), "count", l.amount(), "price", EconomyModule.format(price),
                 "fee", EconomyModule.format(TradeRules.fee(price, rules.marketFee())), "hours", (long) rules.marketHours()));
         p.playSound(p.getLocation(), Sound.ITEM_BOOK_PAGE_TURN, 0.7f, 1.2f);

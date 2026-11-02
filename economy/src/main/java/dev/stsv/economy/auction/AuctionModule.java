@@ -111,13 +111,22 @@ public final class AuctionModule extends EcoModule {
             p.sendMessage(Lang.msg("auction.one-each"));
             return;
         }
-        if (!core.economy().move(p.getUniqueId(), null, rules.auctionDeposit(), EconomyStore.Kind.ESCROW, "auction_deposit", null)) {
+        if (!core.economy().has(p.getUniqueId(), rules.auctionDeposit())) {
             p.sendMessage(Lang.msg("auction.no-deposit", "deposit", EconomyModule.format(rules.auctionDeposit())));
             return;
         }
         ItemStack item = hand.clone();
+        Auction a;
+        try {
+            a = create(p.getUniqueId(), p.getUniqueId(), item, startPrice, rules.auctionDeposit(), false, rules.auctionMinutes());
+        } catch (RuntimeException e) {
+            eco.getLogger().warning("경매 등록 실패: " + e);
+            p.sendMessage(dev.stsv.core.util.Text.msg("<red>저장소 오류로 등록하지 못했습니다. 물건과 돈은 그대로입니다."));
+            return;
+        }
+        // stored: now take the item and the deposit (same tick, the balance checked above still holds)
         p.getInventory().setItemInMainHand(null);
-        Auction a = create(p.getUniqueId(), p.getUniqueId(), item, startPrice, rules.auctionDeposit(), false, rules.auctionMinutes());
+        core.economy().move(p.getUniqueId(), null, rules.auctionDeposit(), EconomyStore.Kind.ESCROW, "auction_deposit", null);
         announceStart(a, p.getName());
     }
 

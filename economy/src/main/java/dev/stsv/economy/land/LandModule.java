@@ -228,11 +228,17 @@ public final class LandModule extends EcoModule implements DailyListener {
 
     /** Buys more area at the week's price. */
     public void buy(Player p, long area) {
-        if (area <= 0) {
+        if (area <= 0 || area > 1_000_000) {
             p.sendMessage(Lang.msg("land.usage"));
             return;
         }
-        long price = area * eco.season().landPrice();
+        long price;
+        try {
+            price = Math.multiplyExact(area, (long) eco.season().landPrice());
+        } catch (ArithmeticException e) {
+            p.sendMessage(Lang.msg("land.usage"));
+            return;
+        }
         if (!core.economy().withdraw(p.getUniqueId(), price, "land_buy")) {
             p.sendMessage(Lang.msg("land.not-enough", "price", EconomyModule.format(price)));
             return;
@@ -443,6 +449,17 @@ public final class LandModule extends EcoModule implements DailyListener {
     @EventHandler(priority = EventPriority.LOW, ignoreCancelled = true)
     public void onEntityInteract(PlayerInteractEntityEvent e) {
         if (freeToTouch(e.getRightClicked())) return;
+        deny(e.getPlayer(), e.getRightClicked().getLocation(), e);
+    }
+
+    @EventHandler(priority = EventPriority.LOW, ignoreCancelled = true)
+    public void onEntityInteractAt(org.bukkit.event.player.PlayerInteractAtEntityEvent e) {
+        if (freeToTouch(e.getRightClicked())) return;
+        deny(e.getPlayer(), e.getRightClicked().getLocation(), e);
+    }
+
+    @EventHandler(priority = EventPriority.LOW, ignoreCancelled = true)
+    public void onArmorStand(org.bukkit.event.player.PlayerArmorStandManipulateEvent e) {
         deny(e.getPlayer(), e.getRightClicked().getLocation(), e);
     }
 

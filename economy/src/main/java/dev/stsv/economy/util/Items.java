@@ -15,7 +15,15 @@ import java.util.function.Predicate;
 /** Item helpers: ids ("minecraft:iron_ingot" or "economy:ruby"), storage bytes, counting in inventories. */
 public final class Items {
 
+    /** marks goods bought from the admin shop: they cannot be sold back to it or handed in for requests */
+    public static final org.bukkit.NamespacedKey SHOP_BOUGHT = new org.bukkit.NamespacedKey("economy", "shop_bought");
+
     private Items() {}
+
+    public static boolean shopBought(ItemStack item) {
+        return item != null && item.hasItemMeta()
+                && item.getItemMeta().getPersistentDataContainer().has(SHOP_BOUGHT, org.bukkit.persistence.PersistentDataType.BYTE);
+    }
 
     /** Custom id if it is one of ours, else the vanilla material key. */
     public static String key(ItemStack item) {
@@ -45,7 +53,7 @@ public final class Items {
     public static boolean plain(ItemStack item, String id) {
         if (item == null || item.isEmpty()) return false;
         String key = normalize(id);
-        if (!key(item).equals(key)) return false;
+        if (!key(item).equals(key) || shopBought(item)) return false;
         if (!key.startsWith("minecraft:")) return true;
         if (!item.hasItemMeta()) return true;
         var meta = item.getItemMeta();

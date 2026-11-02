@@ -70,9 +70,8 @@ public final class MarketStore {
 
     public Listing add(UUID seller, byte[] item, String key, String name, int amount, long price, long now, long expires) {
         long id = db.sync(c -> {
-            Db.update(c, "INSERT INTO eco_listing (seller, item, item_key, item_name, amount, price, created, expires, state) VALUES (?, ?, ?, ?, ?, ?, ?, ?, 0)",
+            return Db.insert(c, "INSERT INTO eco_listing (seller, item, item_key, item_name, amount, price, created, expires, state) VALUES (?, ?, ?, ?, ?, ?, ?, ?, 0)",
                     seller.toString(), item, key, name.length() > 128 ? name.substring(0, 128) : name, amount, price, now, expires);
-            return Db.query(c, "SELECT MAX(id) FROM eco_listing", rs -> rs.getLong(1)).getFirst();
         });
         Listing l = new Listing(id, seller, item, key, name, amount, price, now, expires);
         active.put(id, l);

@@ -227,7 +227,9 @@ public final class ShopModule extends EcoModule implements DailyListener {
             HudModule.flash(p, Lang.mm("shop.not-enough", "price", EconomyModule.format(price)));
             return false;
         }
-        p.getInventory().addItem(item.get());
+        // tagged: buying at a fixed price and selling back at a 품귀 price (or delivering it) is no money machine
+        item.get().editMeta(m -> m.getPersistentDataContainer().set(Items.SHOP_BOUGHT, org.bukkit.persistence.PersistentDataType.BYTE, (byte) 1));
+        for (ItemStack left : p.getInventory().addItem(item.get()).values()) p.getWorld().dropItem(p.getLocation(), left);
         HudModule.flash(p, Lang.mm("shop.bought", "item", Items.plainName(item.get()), "count", amount, "amount", EconomyModule.format(price)));
         p.playSound(p.getLocation(), Sound.ENTITY_ITEM_PICKUP, 0.6f, 1.1f);
         return true;

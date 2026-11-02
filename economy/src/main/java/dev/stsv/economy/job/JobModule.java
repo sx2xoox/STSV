@@ -317,6 +317,41 @@ public final class JobModule extends EcoModule {
         if (tracked(e.getBlockPlaced().getType())) mark(e.getBlockPlaced(), true);
     }
 
+    /** A pushed placed ore stays "placed" at its new spot (no XP loop by piston). */
+    private void movePlaced(List<Block> moved, org.bukkit.block.BlockFace dir) {
+        List<Block> marked = new ArrayList<>();
+        for (Block b : moved) if (tracked(b.getType()) && placed(b)) marked.add(b);
+        if (marked.isEmpty()) return;
+        for (Block b : marked) mark(b, false);
+        for (Block b : marked) mark(b.getRelative(dir), true);
+    }
+
+    @EventHandler(priority = EventPriority.MONITOR, ignoreCancelled = true)
+    public void onPush(org.bukkit.event.block.BlockPistonExtendEvent e) {
+        movePlaced(e.getBlocks(), e.getDirection());
+    }
+
+    @EventHandler(priority = EventPriority.MONITOR, ignoreCancelled = true)
+    public void onPull(org.bukkit.event.block.BlockPistonRetractEvent e) {
+        movePlaced(e.getBlocks(), e.getDirection());
+    }
+
+    @EventHandler(priority = EventPriority.MONITOR, ignoreCancelled = true)
+    public void onBlast(org.bukkit.event.entity.EntityExplodeEvent e) {
+        for (Block b : e.blockList()) if (tracked(b.getType()) && placed(b)) mark(b, false);
+    }
+
+    @EventHandler(priority = EventPriority.MONITOR, ignoreCancelled = true)
+    public void onBlockBlast(org.bukkit.event.block.BlockExplodeEvent e) {
+        for (Block b : e.blockList()) if (tracked(b.getType()) && placed(b)) mark(b, false);
+    }
+
+    /** Crafter blocks have no player: job products can only be made by hand (or in job machines). */
+    @EventHandler(priority = EventPriority.HIGH, ignoreCancelled = true)
+    public void onCrafter(org.bukkit.event.block.CrafterCraftEvent e) {
+        if (spec.products().containsKey(Items.key(e.getResult()))) e.setCancelled(true);
+    }
+
     // ------------------------------------------------------------------------------------------
     // Miner and farmer: breaking
     // ------------------------------------------------------------------------------------------
@@ -627,7 +662,7 @@ public final class JobModule extends EcoModule {
     // Fertilizer: anyone can use it, the alchemist makes it
     // ------------------------------------------------------------------------------------------
 
-    @EventHandler(priority = EventPriority.HIGH)
+    @EventHandler(priority = EventPriority.HIGH, ignoreCancelled = true)
     public void onFertilize(PlayerInteractEvent e) {
         if (e.getAction() != Action.RIGHT_CLICK_BLOCK || e.getHand() != EquipmentSlot.HAND || e.getClickedBlock() == null) return;
         ItemStack hand = e.getPlayer().getInventory().getItemInMainHand();

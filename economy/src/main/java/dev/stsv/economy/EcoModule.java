@@ -56,7 +56,14 @@ public abstract class EcoModule implements StsvModule, Listener {
     /** Runs on the main thread (from a database callback). */
     protected void sync(Runnable r) {
         if (Bukkit.isPrimaryThread()) r.run();
-        else Bukkit.getScheduler().runTask(eco, r);
+        else if (!eco.isEnabled()) {
+            // shutting down: the scheduler refuses new tasks; finish the work rather than lose it
+            try {
+                r.run();
+            } catch (RuntimeException e) {
+                eco.getLogger().warning(id() + " 종료 중 작업 실패: " + e);
+            }
+        } else Bukkit.getScheduler().runTask(eco, r);
     }
 
     protected long now() {

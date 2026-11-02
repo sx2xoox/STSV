@@ -51,7 +51,9 @@ public final class Db {
         this.dialect = dialect;
         this.log = log;
         this.onClose = onClose;
-        this.executor = Executors.newFixedThreadPool(Math.max(1, threads), r -> {
+        // ONE worker even with a MySQL pool: work runs in the order it was queued, so a read always sees
+        // the writes queued before it and an older write can never land after a newer one
+        this.executor = Executors.newFixedThreadPool(1, r -> {
             Thread t = new Thread(r, "STSV-DB");
             t.setDaemon(true);
             return t;
@@ -94,6 +96,18 @@ public final class Db {
         try (PreparedStatement ps = c.prepareStatement(sql)) {
             bind(ps, args);
             return ps.executeUpdate();
+        }
+    }
+
+    /** INSERT that returns the generated id (works for both dialects and for servers sharing a database). */
+    public static long insert(Connection c, String sql, Object... args) throws SQLException {
+        try (PreparedStatement ps = c.prepareStatement(sql, java.sql.Statement.RETURN_GENERATED_KEYS)) {
+            bind(ps, args);
+            ps.executeUpdate();
+            try (ResultSet keys = ps.getGeneratedKeys()) {
+                if (!keys.next()) throw new SQLException("생성된 id 없음: " + sql);
+                return keys.getLong(1);
+            }
         }
     }
 

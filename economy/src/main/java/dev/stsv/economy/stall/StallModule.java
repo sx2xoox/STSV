@@ -188,7 +188,35 @@ public final class StallModule extends EcoModule implements DailyListener {
     // ------------------------------------------------------------------------------------------
 
     private StallStore.Stall at(Block b) {
-        return store.at(b.getWorld().getName(), b.getX(), b.getY(), b.getZ());
+        StallStore.Stall s = store.at(b.getWorld().getName(), b.getX(), b.getY(), b.getZ());
+        if (s != null) return s;
+        // the other half of a double chest opens the stall's goods too
+        if (b.getState(false) instanceof Chest c && c.getInventory().getHolder(false) instanceof org.bukkit.block.DoubleChest dc) {
+            for (var half : new org.bukkit.inventory.InventoryHolder[]{dc.getLeftSide(false), dc.getRightSide(false)}) {
+                if (half instanceof Chest hc) {
+                    Block hb = hc.getBlock();
+                    StallStore.Stall x = store.at(hb.getWorld().getName(), hb.getX(), hb.getY(), hb.getZ());
+                    if (x != null) return x;
+                }
+            }
+        }
+        return null;
+    }
+
+    /** No chest next to a stall chest: it would join it into a double chest. */
+    @EventHandler(priority = EventPriority.HIGH, ignoreCancelled = true)
+    public void onPlaceNext(org.bukkit.event.block.BlockPlaceEvent e) {
+        org.bukkit.Material m = e.getBlockPlaced().getType();
+        if (m != org.bukkit.Material.CHEST && m != org.bukkit.Material.TRAPPED_CHEST) return;
+        for (org.bukkit.block.BlockFace f : new org.bukkit.block.BlockFace[]{org.bukkit.block.BlockFace.NORTH, org.bukkit.block.BlockFace.SOUTH,
+                org.bukkit.block.BlockFace.EAST, org.bukkit.block.BlockFace.WEST}) {
+            Block n = e.getBlockPlaced().getRelative(f);
+            if (store.at(n.getWorld().getName(), n.getX(), n.getY(), n.getZ()) != null) {
+                e.setCancelled(true);
+                HudModule.flash(e.getPlayer(), Lang.mm("stall.protected"));
+                return;
+            }
+        }
     }
 
     @EventHandler(priority = EventPriority.HIGH)
@@ -223,6 +251,12 @@ public final class StallModule extends EcoModule implements DailyListener {
     }
 
     private boolean stallInventory(Inventory inv) {
+        if (inv.getHolder(false) instanceof org.bukkit.block.DoubleChest dc) {
+            for (var half : new org.bukkit.inventory.InventoryHolder[]{dc.getLeftSide(false), dc.getRightSide(false)}) {
+                if (half instanceof Chest hc && at(hc.getBlock()) != null) return true;
+            }
+            return false;
+        }
         Location l = inv.getLocation();
         return l != null && l.getWorld() != null && at(l.getBlock()) != null;
     }
@@ -355,7 +389,8 @@ public final class StallModule extends EcoModule implements DailyListener {
     // admin
     public String create(Player admin, int number) {
         Block b = admin.getTargetBlockExact(6);
-        if (b == null || !(b.getState(false) instanceof Chest)) return "<red>상자를 바라보고 입력하세요.";
+        if (b == null || !(b.getState(false) instanceof Chest chest)) return "<red>상자를 바라보고 입력하세요.";
+        if (chest.getInventory().getHolder(false) instanceof org.bukkit.block.DoubleChest) return "<red>큰 상자는 안 됩니다. 한 칸짜리 상자를 쓰세요.";
         if (store.all().containsKey(number)) return "<red>이미 있는 번호: " + number;
         store.create(number, b.getWorld().getName(), b.getX(), b.getY(), b.getZ());
         signs();

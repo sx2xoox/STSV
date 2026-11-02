@@ -39,8 +39,7 @@ public final class EventStore {
 
     public ActiveEvent start(String type, long started, long ends, Map<String, String> params) {
         long id = db.sync(c -> {
-            Db.update(c, "INSERT INTO eco_event (type, started, ends, params, active) VALUES (?, ?, ?, ?, 1)", type, started, ends, ActiveEvent.encode(params));
-            return Db.query(c, "SELECT MAX(id) FROM eco_event", rs -> rs.getLong(1)).getFirst();
+            return Db.insert(c, "INSERT INTO eco_event (type, started, ends, params, active) VALUES (?, ?, ?, ?, 1)", type, started, ends, ActiveEvent.encode(params));
         });
         ActiveEvent e = new ActiveEvent(id, type, started, ends, Map.copyOf(params));
         active.add(e);

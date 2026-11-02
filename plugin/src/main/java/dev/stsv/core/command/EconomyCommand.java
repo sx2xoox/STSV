@@ -141,7 +141,8 @@ public final class EconomyCommand implements TabExecutor {
         if (!confirmed(p, "cheque " + amount, amount, "수표 " + EconomyModule.format(amount))) return;
         Optional<ItemStack> item = eco().issueCheque(p, amount);
         if (item.isEmpty()) return;
-        p.getInventory().addItem(item.get());
+        // the money is already in the cheque: whatever does not fit drops at the player's feet, never vanishes
+        for (ItemStack left : p.getInventory().addItem(item.get()).values()) p.getWorld().dropItem(p.getLocation(), left).setOwner(p.getUniqueId());
         p.sendMessage(Lang.msg("economy.cheque-issued", "amount", EconomyModule.format(amount)));
         p.playSound(p.getLocation(), Sound.ITEM_BOOK_PAGE_TURN, 0.8f, 1.2f);
     }

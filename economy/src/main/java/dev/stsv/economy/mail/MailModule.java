@@ -51,7 +51,8 @@ public final class MailModule extends EcoModule {
     public void deliver(UUID player, ItemStack item, String reason) {
         if (item == null || item.isEmpty()) return;
         Player p = Bukkit.getPlayer(player);
-        if (p != null && Items.room(p.getInventory(), item) >= item.getAmount()) {
+        // dead (respawn screen, or inside PlayerDeathEvent: the inventory is about to be cleared) -> mailbox
+        if (p != null && !p.isDead() && Items.room(p.getInventory(), item) >= item.getAmount()) {
             p.getInventory().addItem(item.clone());
             return;
         }
@@ -117,7 +118,8 @@ public final class MailModule extends EcoModule {
             mails.remove(index);
             items.remove(index);
             store.take(m.id(), p.getUniqueId()).thenAccept(ok -> sync(() -> {
-                if (ok) {
+                if (ok && !p.isOnline()) store.send(p.getUniqueId(), Items.bytes(item), m.reason(), now());   // left meanwhile: back in
+                else if (ok) {
                     for (ItemStack left : p.getInventory().addItem(item).values()) store.send(p.getUniqueId(), Items.bytes(left), m.reason(), now());
                     p.playSound(p.getLocation(), Sound.ENTITY_ITEM_PICKUP, 0.6f, 1.2f);
                 }
@@ -140,7 +142,8 @@ public final class MailModule extends EcoModule {
                 items.remove(i);
                 taken++;
                 store.take(m.id(), p.getUniqueId()).thenAccept(ok -> sync(() -> {
-                    if (ok) for (ItemStack left : p.getInventory().addItem(item).values()) store.send(p.getUniqueId(), Items.bytes(left), m.reason(), now());
+                    if (ok && !p.isOnline()) store.send(p.getUniqueId(), Items.bytes(item), m.reason(), now());
+                    else if (ok) for (ItemStack left : p.getInventory().addItem(item).values()) store.send(p.getUniqueId(), Items.bytes(left), m.reason(), now());
                 }));
             }
             if (taken > 0) p.playSound(p.getLocation(), Sound.ENTITY_ITEM_PICKUP, 0.6f, 1.2f);
