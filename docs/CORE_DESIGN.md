@@ -36,6 +36,12 @@ core.furniture().registerBehavior("stsv:smelter", new SmelterBehavior());
 | 레시피 보호 | 커스텀 아이템이 바닐라 레시피 재료로 쓰이는 것을 차단 (복사 버그 방지) |
 | 리소스팩 | 빌드 → SHA-1 해시 → 내장 웹서버로 배포 → 접속 시 전송. 내용이 같으면 해시도 같음 |
 | 관리 | `/stsv give, browse(GUI), list, info, reload, pack` |
+| 레시피 편집기 | `/stsv recipe create <id> <종류>`: 상자 GUI에 재료와 결과물을 넣고 저장하면 바로 등록 (`recipes/editor.yml`) |
+| 화로 연료 | 아이템 `fuel: 3200` 또는 `/stsv fuel set <틱>` (`fuels.yml`). 커스텀 아이템은 설정한 경우에만 연료로 탐 |
+| 설치 미리보기 | 가구를 들면 설치될 자리에 모델(테두리 발광)과 바닥 범위가 표시됨. 초록 = 설치 가능, 빨강 = 불가. 본인에게만 보임 |
+| 앉기 | `furniture.seat` / `seats` 설정. 우클릭으로 앉고, 내리면 가구 앞쪽에 섬 |
+| 전용 동작 아이템 | 활, 쇠뇌, 낚싯대, 방패, 검, 갑옷(착용 모습 포함). 바닐라 동작을 그대로 상속 |
+| 기본 콘텐츠 자동 업데이트 | 새 jar로 바꾸면 기본 팩이 갱신됨. 직접 수정한 파일은 보존 |
 | 보호 플러그인 호환 | 가구 설치 전에 BlockPlaceEvent를 발생시켜 다른 보호 플러그인의 판단을 따름 |
 
 ## 3. 공통 기능 가안 (구현 예정)
@@ -112,3 +118,6 @@ core.furniture().registerBehavior("stsv:smelter", new SmelterBehavior());
 | 불꽃과 램프가 어두운 곳에서 빛나는지 | 밤에 확인 | `light_emission` 지원 여부 확인 |
 | 리소스팩 적용 | 접속해서 전송 메시지 확인 | `host.public-url`을 외부 주소로 |
 | 클릭 판정이 배리어보다 우선하는지 | 가구를 좌클릭/우클릭 | 판정 크기 조정 |
+| 의자에 앉은 높이 | 의자에 앉아보기 | `seat.height` 조정 |
+| 방패 위치/각도 | 손에 들기, 막기(우클릭) | 모델 위치 조정 |
+| 커스텀 재료가 화로 레시피에 들어가는지 | 금 원석 덩어리를 용광로에 | ExactChoice 방식으로 변경 |

@@ -21,3 +21,10 @@ gold_chunk_crafting:
   type: shapeless
   ingredients: [minecraft:raw_gold, minecraft:raw_gold]
   result: { item: stsv:gold_chunk, amount: 3 }
+
+coke:
+  type: smoking
+  input: minecraft:coal
+  result: stsv:coke
+  experience: 0.2
+  time: 200

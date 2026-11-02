@@ -35,6 +35,7 @@ import java.nio.file.Path;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Locale;
+import java.util.Optional;
 import java.util.stream.Stream;
 
 /**
@@ -61,6 +62,13 @@ public final class RecipeModule implements StsvModule, Listener {
     private STSVPlugin plugin;
     private ContentModule content;
     private final List<NamespacedKey> registered = new ArrayList<>();
+    /** "stsv:coke" / "minecraft:stick" -> burn time in ticks */
+    private final java.util.Map<String, Integer> fuels = new java.util.LinkedHashMap<>();
+
+    /** File the in-game editor writes recipes to (inside the pack that owns the namespace). */
+    public static final String EDITOR_FILE = "editor.yml";
+    /** File (pack root) holding fuel burn times. */
+    public static final String FUELS_FILE = "fuels.yml";
 
     @Override
     public String id() {
@@ -123,6 +131,105 @@ public final class RecipeModule implements StsvModule, Listener {
         }
     }
 
+    // ------------------------------------------------------------------------------------------
+    // Fuels: custom burn times. Custom items only burn if they have a fuel time (their base
+    // material being coal does not make them coal).
+    // ------------------------------------------------------------------------------------------
+
+    /** "stsv:id" for custom items, "minecraft:id" for vanilla. */
+    public String idOf(ItemStack stack) {
+        return content.itemOf(stack).map(i -> i.key().asString())
+                .orElse(stack.getType().getKey().asString());
+    }
+
+    public java.util.Map<String, Integer> fuels() {
+        return java.util.Collections.unmodifiableMap(fuels);
+    }
+
+    @EventHandler(ignoreCancelled = true)
+    public void onBurn(org.bukkit.event.inventory.FurnaceBurnEvent e) {
+        ItemStack fuel = e.getFuel();
+        Integer ticks = fuels.get(idOf(fuel));
+        if (ticks != null) {
+            e.setBurnTime(ticks);
+        } else if (content.itemOf(fuel).isPresent()) {
+            e.setCancelled(true);
+        }
+    }
+
+    private void loadFuels() {
+        fuels.clear();
+        for (dev.stsv.core.content.CustomItem item : content.items()) {
+            if (item.fuel() != null) fuels.put(item.key().asString(), item.fuel());
+        }
+        for (ContentPack pack : content.packs()) {
+            Path file = pack.dir().resolve(FUELS_FILE);
+            if (!Files.exists(file)) continue;
+            YamlConfiguration yaml = YamlConfiguration.loadConfiguration(file.toFile());
+            for (String id : yaml.getKeys(false)) {
+                String full = id.contains(":") ? id : "minecraft:" + id;
+                int ticks = yaml.getInt(id);
+                if (ticks <= 0) {
+                    plugin.getLogger().warning("연료 '" + id + "' 의 시간은 1 이상이어야 합니다 (" + file.getFileName() + ")");
+                    continue;
+                }
+                if (!full.startsWith("minecraft:") && content.item(full).isEmpty()) {
+                    plugin.getLogger().warning("연료 '" + id + "': 알 수 없는 커스텀 아이템");
+                    continue;
+                }
+                fuels.put(full, ticks);
+            }
+        }
+    }
+
+    // ------------------------------------------------------------------------------------------
+    // Editor storage (used by the in-game recipe editor and /stsv fuel)
+    // ------------------------------------------------------------------------------------------
+
+    public Optional<ContentPack> packOf(String namespace) {
+        return content.packs().stream().filter(p -> p.namespace().equals(namespace)).findFirst();
+    }
+
+    /** Writes (or replaces) a recipe in &lt;pack&gt;/recipes/editor.yml and reloads recipes. */
+    public void saveRecipe(NamespacedKey key, java.util.Map<String, Object> data) throws IOException {
+        ContentPack pack = packOf(key.getNamespace())
+                .orElseThrow(() -> new IllegalArgumentException("'" + key.getNamespace() + "' 네임스페이스의 콘텐츠 팩이 없음"));
+        Path file = pack.recipes().resolve(EDITOR_FILE);
+        Files.createDirectories(file.getParent());
+        YamlConfiguration yaml = YamlConfiguration.loadConfiguration(file.toFile());
+        yaml.options().setHeader(List.of("게임 안 레시피 편집기(/stsv recipe)가 관리하는 파일입니다. 직접 고쳐도 됩니다."));
+        yaml.set(key.getKey(), null);
+        data.forEach((k, v) -> yaml.set(key.getKey() + "." + k, v));
+        yaml.save(file.toFile());
+        reload();
+    }
+
+    /** Removes a recipe written by the editor. Returns false if it is not in editor.yml. */
+    public boolean deleteRecipe(NamespacedKey key) throws IOException {
+        Optional<ContentPack> pack = packOf(key.getNamespace());
+        if (pack.isEmpty()) return false;
+        Path file = pack.get().recipes().resolve(EDITOR_FILE);
+        if (!Files.exists(file)) return false;
+        YamlConfiguration yaml = YamlConfiguration.loadConfiguration(file.toFile());
+        if (!yaml.contains(key.getKey())) return false;
+        yaml.set(key.getKey(), null);
+        yaml.save(file.toFile());
+        reload();
+        return true;
+    }
+
+    /** Sets (ticks > 0) or removes (null) a fuel entry in &lt;pack&gt;/fuels.yml. */
+    public void setFuel(String id, Integer ticks, String namespace) throws IOException {
+        ContentPack pack = packOf(namespace)
+                .orElseThrow(() -> new IllegalArgumentException("'" + namespace + "' 네임스페이스의 콘텐츠 팩이 없음"));
+        Path file = pack.dir().resolve(FUELS_FILE);
+        YamlConfiguration yaml = YamlConfiguration.loadConfiguration(file.toFile());
+        yaml.options().setHeader(List.of("화로 연료 시간 (틱, 20틱 = 1초, 석탄 = 1600). /stsv fuel 로도 편집됩니다."));
+        yaml.set(id, ticks);
+        yaml.save(file.toFile());
+        loadFuels();
+    }
+
     private void unregisterAll() {
         if (!registered.isEmpty()) Bukkit.removeRecipes(registered);
         registered.clear();
@@ -153,6 +260,7 @@ public final class RecipeModule implements StsvModule, Listener {
                 }
             }
         }
+        loadFuels();
         if (!parsed.isEmpty() && !Bukkit.addRecipes(parsed)) {
             plugin.getLogger().warning("일부 레시피 등록 실패 (다른 플러그인과 id 충돌?)");
         }

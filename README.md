@@ -27,6 +27,11 @@ cd plugin && ./gradlew build
 cd tools/assetgen && python3 build.py --render
 ```
 
+전용 동작 아이템이 바닐라와 같은 구조인지 확인 (마인크래프트 클라이언트 jar에서 `assets/minecraft`를 풀어둔 경로):
+```bash
+python3 tools/assetgen/check_vanilla.py <경로>/assets/minecraft
+```
+
 ## 업데이트
 
 새 jar로 바꾸고 서버를 재시작하면 기본 콘텐츠(`contents/stsv`)도 자동으로 새 버전이 됩니다.
@@ -52,6 +57,15 @@ contents/mypack/
 ```
 
 아이템과 레시피 작성 예시는 `content/stsv/` 의 YAML 파일을 참고하세요.
+
+### 게임 안에서
+| 명령어 | 하는 일 |
+|---|---|
+| `/stsv browse` | 아이템 목록 GUI (클릭해서 받기) |
+| `/stsv recipe create <id> <종류> [시간] [경험치]` | 레시피 편집기. 종류: shaped, shapeless, furnace, blasting, smoking, campfire, stonecutting |
+| `/stsv recipe delete <id>` / `list` | 편집기로 만든 레시피 삭제 / 목록 |
+| `/stsv fuel set <틱>` / `remove` / `list` | 손에 든 아이템의 화로 연료 시간 (석탄 = 1600틱) |
+| `/stsv reload` | 콘텐츠, 레시피, 리소스팩 다시 읽기 |
 
 ## 서버 설정
 

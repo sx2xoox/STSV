@@ -1,0 +1,64 @@
+# 무기 / 도구 / 갑옷
+#
+# 전용 동작(활 당기기, 쇠뇌 장전, 낚싯대 던지기, 방패 막기)은 바닐라 아이템을 기본 재료(material)로 써야
+# 동작합니다. 모양은 item-model 이 가리키는 우리 리소스(assets/stsv/items/*.json)가 정합니다.
+
+knight_sword:
+  material: iron_sword
+  name: "<#c8ccd4>기사의 검"
+  lore:
+    - "<gray>황동 손잡이를 단 강철 장검."
+  texture: knight_sword
+  handheld: true
+
+hunter_bow:
+  material: bow
+  name: "<#c08a5a>사냥꾼의 활"
+  lore:
+    - "<gray>붉은 손잡이 끈을 감은 원목 활."
+  item-model: stsv:hunter_bow
+
+iron_crossbow:
+  material: crossbow
+  name: "<#c8ccd4>강철 쇠뇌"
+  lore:
+    - "<gray>강철 활대를 단 쇠뇌. 폭죽도 쏠 수 있다."
+  item-model: stsv:iron_crossbow
+
+angler_rod:
+  material: fishing_rod
+  name: "<#ce804c>낚시꾼의 낚싯대"
+  lore:
+    - "<gray>황동 릴이 달린 낚싯대."
+  item-model: stsv:angler_rod
+
+knight_shield:
+  material: shield
+  name: "<#c8ccd4>기사의 방패"
+  lore:
+    - "<gray>강철 테두리와 황동 띠를 두른 나무 방패."
+  item-model: stsv:knight_shield
+
+steel_helmet:
+  material: iron_helmet
+  name: "<#c8ccd4>강철 투구"
+  texture: steel_helmet
+  equipment: { slot: head, asset: stsv:steel }
+
+steel_chestplate:
+  material: iron_chestplate
+  name: "<#c8ccd4>강철 흉갑"
+  texture: steel_chestplate
+  equipment: { slot: chest, asset: stsv:steel }
+
+steel_leggings:
+  material: iron_leggings
+  name: "<#c8ccd4>강철 각반"
+  texture: steel_leggings
+  equipment: { slot: legs, asset: stsv:steel }
+
+steel_boots:
+  material: iron_boots
+  name: "<#c8ccd4>강철 장화"
+  texture: steel_boots
+  equipment: { slot: feet, asset: stsv:steel }

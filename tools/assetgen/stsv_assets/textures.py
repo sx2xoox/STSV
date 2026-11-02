@@ -502,8 +502,24 @@ def line_mask(name, im, x, y):
     return False
 
 
+def icon_coke():
+    """Coke: porous grey-black fuel lumps."""
+    im = _blob([
+        "  ####   ",
+        " ####### ",
+        "#########",
+        "######## ",
+        " ######  ",
+    ], "steel", 104)
+    px = im.load()
+    for (x, y) in ((5, 6), (8, 7), (6, 9), (10, 8), (4, 8)):
+        px[x, y] = ramp("soot", 0)  # pores
+    return im
+
+
 ICONS = {
     "gold_chunk": icon_gold_chunk,
     "steel_ingot": icon_steel_ingot,
     "copper_plate": icon_copper_plate,
+    "coke": icon_coke,
 }

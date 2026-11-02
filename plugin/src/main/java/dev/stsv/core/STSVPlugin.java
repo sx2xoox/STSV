@@ -4,6 +4,7 @@ import dev.stsv.core.command.StsvCommand;
 import dev.stsv.core.content.ContentModule;
 import dev.stsv.core.furniture.FurnitureModule;
 import dev.stsv.core.gui.ItemBrowser;
+import dev.stsv.core.gui.RecipeEditor;
 import dev.stsv.core.module.ModuleManager;
 import dev.stsv.core.pack.PackModule;
 import dev.stsv.core.recipe.RecipeModule;
@@ -27,6 +28,7 @@ public final class STSVPlugin extends JavaPlugin {
     private FurnitureModule furniture;
     private PackModule pack;
     private ItemBrowser itemBrowser;
+    private RecipeEditor recipeEditor;
 
     public static STSVPlugin get() {
         return instance;
@@ -47,6 +49,8 @@ public final class STSVPlugin extends JavaPlugin {
 
         itemBrowser = new ItemBrowser(this);
         Bukkit.getPluginManager().registerEvents(itemBrowser, this);
+        recipeEditor = new RecipeEditor(this);
+        Bukkit.getPluginManager().registerEvents(recipeEditor, this);
 
         StsvCommand command = new StsvCommand(this);
         PluginCommand cmd = getCommand("stsv");
@@ -72,4 +76,5 @@ public final class STSVPlugin extends JavaPlugin {
     public FurnitureModule furniture() { return furniture; }
     public PackModule pack() { return pack; }
     public ItemBrowser itemBrowser() { return itemBrowser; }
+    public RecipeEditor recipeEditor() { return recipeEditor; }
 }

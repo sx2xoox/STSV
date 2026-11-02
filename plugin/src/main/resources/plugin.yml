@@ -7,7 +7,7 @@ authors: [STSV]
 commands:
   stsv:
     description: STSV 관리 명령어
-    usage: /stsv <give|browse|list|info|reload|pack>
+    usage: /stsv <give|browse|list|info|recipe|fuel|reload|pack>
     permission: stsv.admin
 permissions:
   stsv.admin:

@@ -86,7 +86,25 @@
 `.bbmodel`을 Blockbench에서 직접 수정했다면, 그 모델은 **"손으로 관리하는 모델"**이 됩니다.
 `build.py`의 `MODELS`에서 그 모델을 빼서 다음 빌드 때 덮어쓰이지 않게 하세요. 텍스처는 계속 팔레트 색만 쓰면 됩니다.
 
-## 5. 이름 규칙
+## 5. 전용 동작이 있는 아이템 (활, 쇠뇌, 낚싯대, 방패, 검, 갑옷)
+
+**동작은 새로 만들지 않고 바닐라 것을 그대로 물려받습니다.** 모양만 우리 것으로 바꿉니다.
+
+| 종류 | 기본 재료(material) | 손에 드는 자세/동작 | 우리가 만드는 것 |
+|---|---|---|---|
+| 검, 도구 | iron_sword 등 | `handheld: true` (바닐라 handheld 자세) | 2D 아이콘 1장 |
+| 활 | bow | 부모 `minecraft:item/bow` | 대기 + 당김 3단계 |
+| 쇠뇌 | crossbow | 부모 `minecraft:item/crossbow` | 대기 + 당김 3단계 + 화살/폭죽 장전 |
+| 낚싯대 | fishing_rod | 부모 `minecraft:item/handheld_rod` | 평소 + 던졌을 때 |
+| 방패 | shield | 바닐라 방패 표시값 복사 | 3D 모델 (평소 / 막기) |
+| 갑옷 | iron_helmet 등 | 바닐라 장착 | 아이콘 + 64×32 착용 텍스처 2장 |
+
+- 아이콘 방향은 바닐라와 같게 그립니다. 검과 낚싯대는 오른쪽 위를, 활과 쇠뇌는 왼쪽 위를 향합니다. 그래야 부모 모델의 잡는 각도가 맞습니다.
+- 아이템 정의(`assets/stsv/items/*.json`)는 바닐라와 **속성과 기준값까지 똑같은 구조**로 만듭니다. `tools/assetgen/check_vanilla.py`가 바닐라 정의와 비교해서 확인합니다.
+- `docs/previews/special_items.png`: 모든 상태(당김 단계 등)를 한 장에 모은 점검용 시트
+- `docs/previews/armor_worn.png`: 착용 텍스처를 마네킹에 입힌 3D 렌더
+
+## 6. 이름 규칙
 
 - 파일, id: 영문 소문자와 `_` (`smelter`, `gold_chunk`)
 - 텍스처 키: 재질 이름 (`brick`, `steel_dark`, `copper`)

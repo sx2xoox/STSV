@@ -2,6 +2,9 @@ package dev.stsv.core.command;
 
 import dev.stsv.core.STSVPlugin;
 import dev.stsv.core.content.CustomItem;
+import dev.stsv.core.gui.RecipeEditor;
+import dev.stsv.core.recipe.RecipeModule;
+import org.bukkit.NamespacedKey;
 import dev.stsv.core.pack.PackBuilder;
 import dev.stsv.core.util.Text;
 import org.bukkit.Bukkit;
@@ -18,7 +21,7 @@ import java.util.Optional;
 
 public final class StsvCommand implements TabExecutor {
 
-    private static final List<String> SUBS = List.of("give", "browse", "list", "info", "reload", "pack");
+    private static final List<String> SUBS = List.of("give", "browse", "list", "info", "reload", "pack", "recipe", "fuel");
     private final STSVPlugin plugin;
 
     public StsvCommand(STSVPlugin plugin) {
@@ -66,8 +69,21 @@ public final class StsvCommand implements TabExecutor {
                 }
                 if (sender instanceof Player p) plugin.pack().send(p);
             }
-            default -> sender.sendMessage(Text.msg("<gray>/" + label + " <white>give <플레이어> <아이템> [개수]</white> | "
-                    + "<white>browse</white> | <white>list</white> | <white>info</white> | <white>reload</white> | <white>pack</white>"));
+            case "recipe" -> recipe(sender, args);
+            case "fuel" -> fuel(sender, args);
+            default -> {
+                sender.sendMessage(Text.msg("<gray>명령어 목록"));
+                for (String line : List.of(
+                        "give <플레이어> <아이템> [개수] <dark_gray>- 아이템 지급",
+                        "browse <dark_gray>- 아이템 목록 GUI",
+                        "list | info <dark_gray>- 아이템 목록 / 손에 든 아이템 정보",
+                        "recipe create <id> <종류> [시간] [경험치] <dark_gray>- 레시피 편집기",
+                        "recipe delete <id> | recipe list",
+                        "fuel set <틱> | fuel remove | fuel list <dark_gray>- 손에 든 아이템의 화로 연료 시간",
+                        "reload | pack")) {
+                    sender.sendMessage(Text.mm(" <white>/" + label + " " + line));
+                }
+            }
         }
         return true;
     }
@@ -109,9 +125,127 @@ public final class StsvCommand implements TabExecutor {
                 + item.get().key().asString() + " x" + amount + "</white><gray> 지급"));
     }
 
+    // ------------------------------------------------------------------------------------------
+    // /stsv recipe ...
+    // ------------------------------------------------------------------------------------------
+
+    private NamespacedKey key(String id) {
+        String ns = plugin.getConfig().getString("editor.namespace", "stsv");
+        NamespacedKey key = id.contains(":") ? NamespacedKey.fromString(id.toLowerCase(Locale.ROOT))
+                : NamespacedKey.fromString(ns + ":" + id.toLowerCase(Locale.ROOT));
+        if (key == null) throw new IllegalArgumentException("id는 영문 소문자, 숫자, _ 만 가능: " + id);
+        return key;
+    }
+
+    private void recipe(CommandSender sender, String[] args) {
+        String action = args.length > 1 ? args[1].toLowerCase(Locale.ROOT) : "";
+        try {
+            switch (action) {
+                case "create" -> {
+                    if (!(sender instanceof Player p)) {
+                        sender.sendMessage(Text.msg("<red>플레이어만 사용할 수 있습니다."));
+                        return;
+                    }
+                    if (args.length < 4) {
+                        sender.sendMessage(Text.msg("<red>/stsv recipe create <id> <" + String.join("|", RecipeEditor.TYPES)
+                                + "> [시간(틱)] [경험치]"));
+                        return;
+                    }
+                    Integer time = args.length > 4 ? Integer.valueOf(args[4]) : null;
+                    Float xp = args.length > 5 ? Float.valueOf(args[5]) : null;
+                    plugin.recipeEditor().open(p, key(args[2]), args[3], time, xp);
+                }
+                case "delete" -> {
+                    if (args.length < 3) {
+                        sender.sendMessage(Text.msg("<red>/stsv recipe delete <id>"));
+                        return;
+                    }
+                    NamespacedKey k = key(args[2]);
+                    sender.sendMessage(plugin.recipes().deleteRecipe(k)
+                            ? Text.msg("<green>" + k.asString() + " 삭제 완료")
+                            : Text.msg("<red>편집기로 만든 레시피(recipes/" + RecipeModule.EDITOR_FILE
+                                    + ")만 삭제할 수 있습니다. 다른 파일은 직접 지우고 /stsv reload 하세요."));
+                }
+                case "list" -> {
+                    List<NamespacedKey> keys = plugin.recipes().registered();
+                    sender.sendMessage(Text.msg("<gray>등록된 레시피 <white>" + keys.size() + "</white>개"));
+                    keys.forEach(k -> sender.sendMessage(Text.mm(" <dark_gray>-</dark_gray> <white>" + k.asString())));
+                }
+                default -> sender.sendMessage(Text.msg("<red>/stsv recipe <create|delete|list>"));
+            }
+        } catch (NumberFormatException e) {
+            sender.sendMessage(Text.msg("<red>시간과 경험치는 숫자여야 합니다."));
+        } catch (Exception e) {
+            sender.sendMessage(Text.msg("<red>" + e.getMessage()));
+        }
+    }
+
+    // ------------------------------------------------------------------------------------------
+    // /stsv fuel ...
+    // ------------------------------------------------------------------------------------------
+
+    private void fuel(CommandSender sender, String[] args) {
+        String action = args.length > 1 ? args[1].toLowerCase(Locale.ROOT) : "";
+        try {
+            if (action.equals("list")) {
+                var fuels = plugin.recipes().fuels();
+                sender.sendMessage(Text.msg("<gray>커스텀 연료 <white>" + fuels.size() + "</white>개 (석탄 = 1600틱)"));
+                fuels.forEach((id, t) -> sender.sendMessage(Text.mm(" <dark_gray>-</dark_gray> <white>" + id
+                        + "</white> <gray>" + t + "틱 (" + (t / 20.0) + "초, 아이템 " + String.format("%.1f", t / 200.0) + "개 굽기)")));
+                return;
+            }
+            if (!(sender instanceof Player p)) {
+                sender.sendMessage(Text.msg("<red>플레이어만 사용할 수 있습니다."));
+                return;
+            }
+            ItemStack hand = p.getInventory().getItemInMainHand();
+            if (hand.isEmpty()) {
+                sender.sendMessage(Text.msg("<red>연료로 쓸 아이템을 손에 드세요."));
+                return;
+            }
+            String id = plugin.recipes().idOf(hand);
+            String ns = plugin.content().itemOf(hand).map(i -> i.key().getNamespace())
+                    .orElse(plugin.getConfig().getString("editor.namespace", "stsv"));
+            switch (action) {
+                case "set" -> {
+                    if (args.length < 3) {
+                        sender.sendMessage(Text.msg("<red>/stsv fuel set <틱>  (석탄 = 1600, 막대기 = 100)"));
+                        return;
+                    }
+                    int ticks = Integer.parseInt(args[2]);
+                    if (ticks <= 0) throw new IllegalArgumentException("1 이상이어야 합니다.");
+                    if (!hand.getType().isFuel()) {
+                        sender.sendMessage(Text.msg("<red>" + id + " 은(는) 기본 재료(" + hand.getType().getKey().getKey()
+                                + ")가 연료가 아니라 화로 연료 칸에 들어가지 않습니다. 커스텀 아이템이라면 material 을 coal 등으로 바꾸세요."));
+                        return;
+                    }
+                    plugin.recipes().setFuel(id, ticks, ns);
+                    sender.sendMessage(Text.msg("<green>" + id + " 연료 시간 = " + ticks + "틱 (" + ticks / 20.0 + "초)"));
+                }
+                case "remove" -> {
+                    plugin.recipes().setFuel(id, null, ns);
+                    sender.sendMessage(Text.msg("<green>" + id + " 연료 설정 삭제 (아이템 정의의 fuel: 은 그대로)"));
+                }
+                default -> sender.sendMessage(Text.msg("<red>/stsv fuel <set|remove|list>"));
+            }
+        } catch (NumberFormatException e) {
+            sender.sendMessage(Text.msg("<red>틱은 숫자여야 합니다."));
+        } catch (Exception e) {
+            sender.sendMessage(Text.msg("<red>" + e.getMessage()));
+        }
+    }
+
     @Override
     public List<String> onTabComplete(@NotNull CommandSender sender, @NotNull Command cmd, @NotNull String label, String @NotNull [] args) {
         if (args.length == 1) return filter(SUBS, args[0]);
+        if (args[0].equalsIgnoreCase("recipe")) {
+            if (args.length == 2) return filter(List.of("create", "delete", "list"), args[1]);
+            if (args.length == 3 && args[1].equalsIgnoreCase("delete")) {
+                return filter(plugin.recipes().registered().stream().map(NamespacedKey::asString).toList(), args[2]);
+            }
+            if (args.length == 4 && args[1].equalsIgnoreCase("create")) return filter(RecipeEditor.TYPES, args[3]);
+        }
+        if (args[0].equalsIgnoreCase("fuel") && args.length == 2) return filter(List.of("set", "remove", "list"), args[1]);
         if (args[0].equalsIgnoreCase("give")) {
             if (args.length == 2) return filter(Bukkit.getOnlinePlayers().stream().map(Player::getName).toList(), args[1]);
             if (args.length == 3) return filter(plugin.content().items().stream().map(i -> i.key().asString()).toList(), args[2]);

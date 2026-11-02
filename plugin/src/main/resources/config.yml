@@ -23,3 +23,9 @@ furniture:
   view-range: 1.0
   # 가구 모델이 뒤돌아 보이면 180으로 바꾸세요 (충돌 블록 위치는 그대로입니다)
   display-yaw-offset: 0
+  # 가구를 들고 있으면 설치될 위치를 미리 보여줍니다 (본인에게만 보임, 초록=설치 가능 / 빨강=불가)
+  preview: true
+
+editor:
+  # /stsv recipe create 에서 네임스페이스 없이 id 를 쓰면 이 콘텐츠 팩에 저장됩니다
+  namespace: stsv

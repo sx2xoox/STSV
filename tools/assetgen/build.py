@@ -49,6 +49,18 @@ def main():
         fn().save(CONTENT / "textures" / f"{name}.png")
         print(f"icon    {name}")
 
+    import special
+    names = special.write(CONTENT, BUILD)
+    print(f"special {', '.join(names)}")
+    special_sheet(PREVIEWS / "special_items.png")
+    if render:
+        for name in ("knight_shield", "knight_shield_blocking"):
+            subprocess.run(["node", str(HERE / "render" / "render.mjs"),
+                            str(BUILD / f"{name}.preview.json"), str(BUILD / f"{name}.png")], check=True)
+        armor_preview(BUILD / "armor.preview.json")
+        subprocess.run(["node", str(HERE / "render" / "render.mjs"),
+                        str(BUILD / "armor.preview.json"), str(PREVIEWS / "armor_worn.png")], check=True)
+
     style_sheet(PREVIEWS / "style_sheet.png")
 
 
@@ -70,6 +82,95 @@ def scene(models, placements, path: Path, extra_elements=(), extra_textures=None
     out = {"textures": textures, "elements": elements, "grid": False,
            "views": views or [{"x": 0, "y": 0, "w": 1600, "h": 1000, "az": 20, "el": 18, "k": 2.15}]}
     path.write_text(json.dumps(out))
+
+
+def special_sheet(path: Path):
+    """Every state of every special item, so animations can be checked frame by frame."""
+    import special
+    from stsv_assets import icons as I
+    rows = [
+        ("검 / 갑옷", [("sword", I.knight_sword()), ("helmet", I.steel_helmet()), ("chest", I.steel_chestplate()),
+                     ("legs", I.steel_leggings()), ("boots", I.steel_boots())]),
+        ("활", [(n.replace("hunter_bow", "bow"), g()) for n, (g, _) in special.TEXTURED_MODELS.items() if n.startswith("hunter_bow")]),
+        ("쇠뇌", [(n.replace("iron_crossbow", "xbow"), g()) for n, (g, _) in special.TEXTURED_MODELS.items() if n.startswith("iron_crossbow")]),
+        ("낚싯대", [(n.replace("angler_rod", "rod"), g()) for n, (g, _) in special.TEXTURED_MODELS.items() if n.startswith("angler_rod")]),
+    ]
+    cell, pad = 96, 10
+    width = pad + 6 * (cell + pad)
+    height = pad + len(rows) * (cell + 28) + 2 * (128 + 24)
+    im = Image.new("RGBA", (width, height), (27, 29, 34, 255))
+    d = ImageDraw.Draw(im)
+    y = pad
+    for label, items in rows:
+        for i, (name, icon) in enumerate(items):
+            x = pad + i * (cell + pad)
+            bg = Image.new("RGBA", (cell, cell), (45, 48, 56, 255))
+            bg.alpha_composite(icon.resize((cell, cell), Image.NEAREST))
+            im.paste(bg, (x, y))
+            d.text((x, y + cell + 2), name, fill=(200, 200, 200, 255))
+        y += cell + 28
+    for layer in (I.steel_humanoid(), I.steel_humanoid_leggings()):
+        bg = Image.new("RGBA", (256, 128), (45, 48, 56, 255))
+        bg.alpha_composite(layer.resize((256, 128), Image.NEAREST))
+        im.paste(bg, (pad, y))
+        y += 128 + 24
+    im.save(path)
+    print(f"sheet   {path.relative_to(REPO)}")
+
+
+def armor_preview(path: Path):
+    """A wooden mannequin wearing the steel set, with entity box-UVs from the 64x32 layout."""
+    import base64
+    import io
+    import json
+    from stsv_assets import icons as I
+
+    def data_url(im):
+        buf = io.BytesIO()
+        im.save(buf, "PNG")
+        return "data:image/png;base64," + base64.b64encode(buf.getvalue()).decode()
+
+    tex = {"wood_grain": data_url(T.SURFACES["wood_grain"]()),
+           "armor": data_url(I.steel_humanoid()), "legs": data_url(I.steel_humanoid_leggings())}
+    els = []
+
+    def cube(frm, to, texture, faces_uv=None):
+        faces = {}
+        for f in ("north", "south", "east", "west", "up", "down"):
+            if faces_uv is None:
+                faces[f] = {"uv": [0, 0, 16, 16], "texture": texture}
+            elif faces_uv.get(f):
+                x0, y0, x1, y1 = faces_uv[f]
+                faces[f] = {"uv": [x0 / 4, y0 / 2, x1 / 4, y1 / 2], "texture": texture}
+        els.append({"from": list(frm), "to": list(to), "glow": False, "rotation": None, "faces": faces})
+
+    def armor(frm, to, rects, texture, grow):
+        f = {"north": rects["front"], "south": rects["back"], "east": rects["right"], "west": rects["left"],
+             "up": rects["top"], "down": rects["bottom"]}
+        cube([a - grow for a in frm], [b + grow for b in to], texture, f)
+
+    # mannequin (feet at y=0, facing north) shifted to positive space
+    o = 8
+    parts = {
+        "head": ((o - 4, 24, o - 4), (o + 4, 32, o + 4)),
+        "body": ((o - 4, 12, o - 2), (o + 4, 24, o + 2)),
+        "arm_r": ((o + 4, 12, o - 2), (o + 8, 24, o + 2)),
+        "arm_l": ((o - 8, 12, o - 2), (o - 4, 24, o + 2)),
+        "leg_r": ((o, 0, o - 2), (o + 4, 12, o + 2)),
+        "leg_l": ((o - 4, 0, o - 2), (o, 12, o + 2)),
+    }
+    for frm, to in parts.values():
+        cube(frm, to, "wood_grain")
+    armor(*parts["head"], I.HEAD, "armor", 1.0)
+    armor(*parts["body"], I.BODY, "armor", 1.0)
+    armor(*parts["arm_r"], I.ARM, "armor", 1.0)
+    armor(*parts["arm_l"], I.ARM, "armor", 1.0)
+    armor(*parts["leg_r"], I.LEG, "armor", 1.0)
+    armor(*parts["leg_l"], I.LEG, "armor", 1.0)
+    armor(*parts["body"], I.BODY, "legs", 0.5)
+    armor(*parts["leg_r"], I.LEG, "legs", 0.5)
+    armor(*parts["leg_l"], I.LEG, "legs", 0.5)
+    path.write_text(json.dumps({"textures": tex, "elements": els}))
 
 
 def style_sheet(path: Path):

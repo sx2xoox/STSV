@@ -22,8 +22,15 @@ public record CustomItem(
         Integer maxStack,
         Boolean glint,
         boolean unbreakable,
-        FurnitureSpec furniture
+        FurnitureSpec furniture,
+        Integer fuel,
+        Equipment equipment
 ) {
+
+    /**
+     * How the item looks when worn (armor). {@code asset} points at assets/&lt;ns&gt;/equipment/&lt;id&gt;.json.
+     */
+    public record Equipment(org.bukkit.inventory.EquipmentSlot slot, NamespacedKey asset) {}
 
     /** Persistent tag that marks an ItemStack as this custom item. */
     public static NamespacedKey idKey() {
@@ -51,6 +58,12 @@ public record CustomItem(
         if (maxStack != null) meta.setMaxStackSize(maxStack);
         if (glint != null) meta.setEnchantmentGlintOverride(glint);
         if (unbreakable) meta.setUnbreakable(true);
+        if (equipment != null) {
+            org.bukkit.inventory.meta.components.EquippableComponent eq = meta.getEquippable();
+            eq.setSlot(equipment.slot());
+            eq.setModel(equipment.asset());
+            meta.setEquippable(eq);
+        }
         meta.getPersistentDataContainer().set(idKey(), PersistentDataType.STRING, key.asString());
         stack.setItemMeta(meta);
         return stack;

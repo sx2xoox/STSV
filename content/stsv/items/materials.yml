@@ -20,3 +20,11 @@ copper_plate:
   lore:
     - "<gray>배관과 설비에 쓰이는 판재."
   texture: copper_plate
+
+coke:
+  material: coal
+  name: "<#8a8f99>코크스"
+  lore:
+    - "<gray>석탄을 구워 만든 연료. 석탄보다 두 배 오래 탄다."
+  texture: coke
+  fuel: 3200

@@ -180,8 +180,33 @@ public final class ContentModule implements StsvModule {
         ConfigurationSection f = sec.getConfigurationSection("furniture");
         if (f != null) furniture = parseFurniture(f);
 
+        Integer fuel = null;
+        if (sec.contains("fuel")) {
+            fuel = sec.getInt("fuel");
+            if (fuel <= 0) throw new IllegalArgumentException("fuel 은 1 이상의 틱 수 (석탄 = 1600)");
+            if (!material.isFuel()) {
+                throw new IllegalArgumentException("fuel 을 쓰려면 material 이 화로 연료여야 함 (예: coal, charcoal, stick). "
+                        + "현재: " + material.getKey().getKey());
+            }
+        }
+
+        CustomItem.Equipment equipment = null;
+        ConfigurationSection eq = sec.getConfigurationSection("equipment");
+        if (eq != null) {
+            org.bukkit.inventory.EquipmentSlot slot = switch (eq.getString("slot", "").toLowerCase(Locale.ROOT)) {
+                case "head", "helmet" -> org.bukkit.inventory.EquipmentSlot.HEAD;
+                case "chest", "chestplate" -> org.bukkit.inventory.EquipmentSlot.CHEST;
+                case "legs", "leggings" -> org.bukkit.inventory.EquipmentSlot.LEGS;
+                case "feet", "boots" -> org.bukkit.inventory.EquipmentSlot.FEET;
+                default -> throw new IllegalArgumentException("equipment.slot 은 head / chest / legs / feet");
+            };
+            NamespacedKey asset = NamespacedKey.fromString(eq.getString("asset", ""));
+            if (asset == null) throw new IllegalArgumentException("equipment.asset 은 '네임스페이스:이름' (예: stsv:steel)");
+            equipment = new CustomItem.Equipment(slot, asset);
+        }
+
         return new CustomItem(key, pack, material, sec.getString("name"), sec.getStringList("lore"), model,
-                maxStack, glint, sec.getBoolean("unbreakable", false), furniture);
+                maxStack, glint, sec.getBoolean("unbreakable", false), furniture, fuel, equipment);
     }
 
     private FurnitureSpec parseFurniture(ConfigurationSection f) {
@@ -196,9 +221,34 @@ public final class ContentModule implements StsvModule {
         } catch (IllegalArgumentException e) {
             throw new IllegalArgumentException("rotation은 cardinal 또는 free");
         }
+        // seat: { height: 0.6 }                       one seat in the anchor cell
+        // seats: [ { cell: [0,0,0], height: 0.6 }, ...] benches / sofas
+        List<FurnitureSpec.Seat> seats = new ArrayList<>();
+        List<ConfigurationSection> seatSections = new ArrayList<>();
+        if (f.isConfigurationSection("seat")) seatSections.add(f.getConfigurationSection("seat"));
+        for (Object o : f.getList("seats", List.of())) {
+            if (o instanceof java.util.Map<?, ?> map) {
+                YamlConfiguration tmp = new YamlConfiguration();
+                map.forEach((k, v) -> tmp.set(String.valueOf(k), v));
+                seatSections.add(tmp);
+            }
+        }
+        for (ConfigurationSection s : seatSections) {
+            int[] cell = {0, 0, 0};
+            List<?> c = s.getList("cell");
+            if (c != null) {
+                if (c.size() != 3) throw new IllegalArgumentException("seat.cell 은 [x, y, z] 형식");
+                cell = new int[]{num(c.get(0)), num(c.get(1)), num(c.get(2))};
+            }
+            final int[] fc = cell;
+            if (cells.stream().noneMatch(x -> java.util.Arrays.equals(x, fc))) {
+                throw new IllegalArgumentException("seat.cell " + java.util.Arrays.toString(cell) + " 이 cells 안에 없음");
+            }
+            seats.add(new FurnitureSpec.Seat(cell, s.getDouble("height", 0.5)));
+        }
         return new FurnitureSpec(cells, f.getBoolean("solid", true), rotation, f.getString("behavior"),
                 vec(f.getDoubleList("translation"), 0), vec(f.getDoubleList("scale"), 1),
-                Math.clamp(f.getInt("brightness", -1), -1, 15));
+                Math.clamp(f.getInt("brightness", -1), -1, 15), List.copyOf(seats));
     }
 
     private static int num(Object o) {

@@ -1,0 +1,6 @@
+{
+  "parent": "stsv:item/iron_crossbow",
+  "textures": {
+    "layer0": "stsv:item/iron_crossbow_pulling_1"
+  }
+}

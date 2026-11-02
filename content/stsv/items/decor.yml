@@ -21,6 +21,8 @@ chair:
   furniture:
     cells: [[0, 0, 0]]
     solid: true
+    # 우클릭으로 앉기 (방석 윗면 높이, 블록 단위). 웅크리고 우클릭하면 앉지 않음
+    seat: { height: 0.625 }
 
 crystal_shrine:
   material: paper
