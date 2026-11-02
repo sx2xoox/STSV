@@ -8,6 +8,7 @@ version = "0.10.0"
 repositories {
     mavenCentral()
     maven("https://repo.papermc.io/repository/maven-public/")
+    maven("https://jitpack.io") { content { includeGroup("com.github.MilkBowl") } }
 }
 
 dependencies {
@@ -15,6 +16,8 @@ dependencies {
     // database drivers: downloaded by the server at startup (plugin.yml "libraries"), not shaded
     compileOnly("org.xerial:sqlite-jdbc:3.47.1.0")
     compileOnly("com.zaxxer:HikariCP:6.2.1")
+    // Vault: optional, only used when the Vault plugin is installed
+    compileOnly("com.github.MilkBowl:VaultAPI:1.7.1") { isTransitive = false }
 
     testImplementation("io.papermc.paper:paper-api:26.3.build.237-stable")
     testImplementation("org.xerial:sqlite-jdbc:3.47.1.0")

@@ -4,6 +4,7 @@ main: dev.stsv.core.STSVPlugin
 api-version: '26.3'
 description: STSV 스트리머 서버 공통 코어 (콘텐츠 팩, 메뉴, 저장소, 기록, 경제, 리소스팩)
 authors: [STSV]
+softdepend: [Vault]
 # database drivers, downloaded by the server from Maven Central on first start
 libraries:
   - org.xerial:sqlite-jdbc:3.47.1.0

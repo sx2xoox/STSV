@@ -58,11 +58,25 @@ public final class EconomyModule implements StsvModule, Listener {
         plugin.hud().line("economy", 0, p -> plugin.getConfig().getBoolean("economy.hud")
                 ? Lang.mm("economy.hud", "balance", format(balance(p.getUniqueId()))) : null);
         plugin.getLogger().info("경제: 계좌 " + store.balances().size() + "개");
+        if (Bukkit.getPluginManager().getPlugin("Vault") != null) {
+            try {
+                VaultBridge.register(plugin, this);
+            } catch (LinkageError e) {
+                plugin.getLogger().warning("Vault 연결 실패 (Vault 버전 확인): " + e);
+            }
+        }
     }
 
     @Override
     public void disable() {
         HandlerList.unregisterAll(this);
+        if (Bukkit.getPluginManager().getPlugin("Vault") != null) {
+            try {
+                VaultBridge.unregister(plugin);
+            } catch (LinkageError ignored) {
+                // Vault classes missing: nothing was registered
+            }
+        }
         if (plugin.hud() != null) plugin.hud().removeLine("economy");
     }
 
@@ -119,7 +133,11 @@ public final class EconomyModule implements StsvModule, Listener {
 
     private void changed(UUID player, long before, EconomyStore.Kind kind, String reason) {
         long after = store.balance(player);
-        if (after != before) Bukkit.getPluginManager().callEvent(new BalanceChangeEvent(player, before, after, kind, reason));
+        if (after == before) return;
+        BalanceChangeEvent event = new BalanceChangeEvent(player, before, after, kind, reason);
+        // other plugins (Vault) may move money from another thread; events belong on the main thread
+        if (Bukkit.isPrimaryThread()) Bukkit.getPluginManager().callEvent(event);
+        else Bukkit.getScheduler().runTask(plugin, () -> Bukkit.getPluginManager().callEvent(event));
     }
 
     /** Transfer fee for an amount (at least 1 when the fee rate is above 0). */
