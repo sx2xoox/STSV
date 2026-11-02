@@ -1,0 +1,23 @@
+# 노점 손님 창
+stall:
+  title: "<#f3e3b0>노점 #{number} · {owner}"
+  rows: 4
+  background: economy:gui/stall
+  layout:
+    - "....I...."
+    - ".LLLLLLL."
+    - ".LLLLLLL."
+    - "....X...."
+  list: L
+  buttons:
+    I:
+      action: ""
+      icon: stsv:gui/info
+      material: BOOK
+      name: "<white>잔액: {balance}"
+      lore: ["<gray>클릭: 1개 · 쉬프트: 한 묶음"]
+    X:
+      action: close
+      icon: stsv:gui/exit
+      material: OAK_DOOR
+      name: "<red>닫기"

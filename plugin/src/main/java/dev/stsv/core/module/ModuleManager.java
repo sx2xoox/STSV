@@ -59,6 +59,19 @@ public final class ModuleManager {
         return failed;
     }
 
+    /** Disables and forgets a module (a content plugin shutting down before the core). */
+    public void unregister(String id) {
+        StsvModule module = modules.remove(id);
+        if (module == null) return;
+        if (enabled.remove(module)) {
+            try {
+                module.disable();
+            } catch (Exception e) {
+                plugin.getLogger().log(Level.WARNING, "모듈 비활성화 중 오류: " + module.id(), e);
+            }
+        }
+    }
+
     public void disableAll() {
         List<StsvModule> reversed = new ArrayList<>(enabled);
         Collections.reverse(reversed);

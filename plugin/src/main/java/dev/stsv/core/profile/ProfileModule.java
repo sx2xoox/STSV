@@ -217,6 +217,12 @@ public final class ProfileModule implements StsvModule, Listener {
     // Titles
     // ------------------------------------------------------------------------------------------
 
+    /** Titles an online player owns (from memory: no database call). Empty for offline players. */
+    public java.util.Set<String> ownedTitles(UUID player) {
+        ProfileStore.Titles t = online.get(player);
+        return t == null ? java.util.Set.of() : t.owned();
+    }
+
     /** Gives a title (with a message if the player is online). Unknown titles are refused. */
     public boolean grantTitle(UUID player, String titleId) {
         Optional<Title> t = title(titleId);
@@ -425,10 +431,16 @@ public final class ProfileModule implements StsvModule, Listener {
     }
 
     public Map<String, List<ProfileStore.Rank>> endPeriod() {
+        return endPeriod(List.of());
+    }
+
+    /** Ends the period; a content adds its own hall-of-fame categories first (e.g. "net_worth"). */
+    public Map<String, List<ProfileStore.Rank>> endPeriod(List<String> extraCategories) {
         String name = store.current().map(ProfileStore.Period::name).orElse("");
         for (Player p : Bukkit.getOnlinePlayers()) countPlaytime(p);
-        Map<String, List<ProfileStore.Rank>> hall = store.end(System.currentTimeMillis(),
-                plugin.getConfig().getStringList("profiles.hall-of-fame"), plugin.getConfig().getInt("profiles.hall-size"));
+        List<String> categories = new ArrayList<>(extraCategories);
+        for (String c : plugin.getConfig().getStringList("profiles.hall-of-fame")) if (!categories.contains(c)) categories.add(c);
+        Map<String, List<ProfileStore.Rank>> hall = store.end(System.currentTimeMillis(), categories, plugin.getConfig().getInt("profiles.hall-size"));
         Bukkit.broadcast(Lang.msg("hall.ended", "period", name));
         return hall;
     }

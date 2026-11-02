@@ -1,0 +1,27 @@
+# /의뢰: 아래 8건 = 오늘 의뢰, 위 = 이번 주 공동 의뢰
+requests:
+  title: "<#f3e3b0>의뢰 게시판 · {day}일차"
+  rows: 3
+  background: economy:gui/requests
+  layout:
+    - "I...C...."
+    - "LLLL.LLLL"
+    - "....X...."
+  list: L
+  buttons:
+    I:
+      action: ""
+      icon: stsv:gui/info
+      material: BOOK
+      name: "<white>오늘 완료 {done} / {max}"
+      lore: ["<gray>매일 05시에 새 의뢰 8건.", "<gray>클릭하면 인벤토리에서 납품합니다."]
+    C:
+      action: "request:community"
+      icon: economy:gui/trophy
+      material: BEACON
+      name: "<gold>공동 의뢰"
+    X:
+      action: close
+      icon: stsv:gui/exit
+      material: OAK_DOOR
+      name: "<red>닫기"

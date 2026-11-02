@@ -1,0 +1,74 @@
+name: STSV-Economy
+version: '${version}'
+main: dev.stsv.economy.EcoPlugin
+api-version: '26.3'
+description: STSV 경제 서버 (상점, 시세, 거래소, 경매, 직거래, 노점, 직업, 땅, 의뢰, 주차 사건)
+authors: [STSV]
+depend: [STSV]
+commands:
+  경제관리:
+    description: 경제 서버 관리 (/경제관리)
+    aliases: [ecoadmin]
+    permission: stsv.economy.admin
+  상점:
+    description: 관리자 상점 (판매, 구매, 수리)
+    aliases: [shop]
+    permission: stsv.economy.play
+  시세:
+    description: 품목별 매입가와 24시간 변화
+    aliases: [prices]
+    permission: stsv.economy.play
+  우편함:
+    description: 받지 못한 물건 (만료된 등록품, 낙찰품, 가득 찬 인벤토리)
+    aliases: [mail]
+    permission: stsv.economy.play
+  거래소:
+    description: 거래소 (가격을 정해 등록, 누구나 즉시 구매)
+    aliases: [market]
+    permission: stsv.economy.play
+  경매:
+    description: 경매 (30분 공개 입찰)
+    aliases: [auction]
+    permission: stsv.economy.play
+  거래:
+    description: 직거래 (/거래 <플레이어>)
+    aliases: [trade]
+    permission: stsv.economy.play
+  노점:
+    description: 노점 임대와 가격
+    aliases: [stall]
+    permission: stsv.economy.play
+  직업:
+    description: 직업 선택·정보·순위
+    aliases: [job]
+    permission: stsv.economy.play
+  땅:
+    description: 땅 구역, 면적 구매, 재산세
+    aliases: [land]
+    permission: stsv.economy.play
+  의뢰:
+    description: 의뢰 게시판
+    aliases: [requests]
+    permission: stsv.economy.play
+  순위:
+    description: 순자산 순위
+    aliases: [rank]
+    permission: stsv.economy.play
+  기념비:
+    description: 기념비 건립 (4주차)
+    aliases: [monument]
+    permission: stsv.economy.play
+  기부:
+    description: 세무 조사 기간의 기부
+    aliases: [donate]
+    permission: stsv.economy.play
+permissions:
+  stsv.economy.play:
+    description: 경제 서버 플레이어 명령어
+    default: true
+  stsv.economy.admin:
+    description: 경제 서버 관리
+    default: op
+  stsv.economy.land.bypass:
+    description: 남의 땅에서도 무엇이든 할 수 있음
+    default: op

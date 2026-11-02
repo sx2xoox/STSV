@@ -1,0 +1,89 @@
+# 직업 조합법. 결과물이 jobs.yml products 에 있으면 그 직업·레벨만 조합대에서 결과가 보임.
+
+# ── 광부 ── 가루는 화로/용광로에서 주괴로 (누구나)
+iron_dust_smelt: { type: furnace, input: economy:iron_dust, result: minecraft:iron_ingot, experience: 0.3 }
+iron_dust_blast: { type: blasting, input: economy:iron_dust, result: minecraft:iron_ingot, experience: 0.3 }
+gold_dust_smelt: { type: furnace, input: economy:gold_dust, result: minecraft:gold_ingot, experience: 0.5 }
+gold_dust_blast: { type: blasting, input: economy:gold_dust, result: minecraft:gold_ingot, experience: 0.5 }
+copper_dust_smelt: { type: furnace, input: economy:copper_dust, result: minecraft:copper_ingot, experience: 0.3 }
+copper_dust_blast: { type: blasting, input: economy:copper_dust, result: minecraft:copper_ingot, experience: 0.3 }
+crusher:
+  type: shaped
+  pattern: ["III", "SGS", "SSS"]
+  keys: { I: minecraft:iron_ingot, S: minecraft:cobblestone, G: minecraft:grindstone }
+  result: economy:crusher
+
+# ── 농부 ──
+bait:
+  type: shapeless
+  ingredients: [minecraft:wheat_seeds, minecraft:wheat_seeds, minecraft:wheat_seeds, minecraft:wheat_seeds, minecraft:rotten_flesh]
+  result: { item: economy:bait, amount: 4 }
+feed:
+  type: shapeless
+  ingredients: [minecraft:wheat, minecraft:wheat, minecraft:wheat, minecraft:carrot, minecraft:beetroot]
+  result: { item: economy:feed, amount: 2 }
+compost_bin:
+  type: shaped
+  pattern: ["P P", "PCP", "PPP"]
+  keys: { P: minecraft:oak_planks, C: minecraft:composter }
+  result: economy:compost_bin
+auto_planter:
+  type: shaped
+  pattern: ["TDT", "TCT", "TTT"]
+  keys: { T: minecraft:terracotta, D: minecraft:dirt, C: economy:compost_bin }
+  result: economy:auto_planter
+
+# ── 어부 ──
+fish_tank:
+  type: shaped
+  pattern: ["GGG", "GWG", "PPP"]
+  keys: { G: minecraft:glass, W: minecraft:water_bucket, P: minecraft:smooth_stone }
+  result: economy:fish_tank
+
+# ── 대장장이 ──
+reinforced_pickaxe:
+  type: shapeless
+  ingredients: [minecraft:iron_pickaxe, economy:iron_dust, economy:iron_dust, economy:iron_dust, economy:iron_dust]
+  result: economy:reinforced_pickaxe
+reinforced_hoe:
+  type: shapeless
+  ingredients: [minecraft:iron_hoe, economy:iron_dust, economy:iron_dust, economy:iron_dust]
+  result: economy:reinforced_hoe
+reinforced_rod:
+  type: shapeless
+  ingredients: [minecraft:fishing_rod, economy:iron_dust, economy:iron_dust, minecraft:string, minecraft:string]
+  result: economy:reinforced_rod
+steel_pickaxe:
+  type: shaped
+  pattern: ["SSS", " T ", " T "]
+  keys: { S: economy:steel_ingot, T: minecraft:stick }
+  result: economy:steel_pickaxe
+steel_sword:
+  type: shaped
+  pattern: [" S ", " S ", " T "]
+  keys: { S: economy:steel_ingot, T: minecraft:stick }
+  result: economy:steel_sword
+reinforcing_table:
+  type: shaped
+  pattern: ["III", "IAI", "BBB"]
+  keys: { I: minecraft:iron_ingot, A: minecraft:anvil, B: minecraft:iron_block }
+  result: economy:reinforcing_table
+
+# ── 요리사 ──
+cooking_table:
+  type: shaped
+  pattern: ["PPP", "CFC", "CCC"]
+  keys: { P: minecraft:oak_pressure_plate, C: minecraft:cobblestone, F: minecraft:furnace }
+  result: economy:cooking_table
+smoker_oven:
+  type: shaped
+  pattern: ["BBB", "BSB", "BBB"]
+  keys: { B: minecraft:bricks, S: minecraft:smoker }
+  result: economy:smoker_oven
+
+# ── 연금술사 ──
+distiller:
+  type: shaped
+  pattern: ["GGG", "GBG", "CCC"]
+  keys: { G: minecraft:glass, B: minecraft:brewing_stand, C: minecraft:copper_ingot }
+  result: economy:distiller

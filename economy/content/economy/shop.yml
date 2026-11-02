@@ -1,0 +1,130 @@
+# 관리자 상점 /상점, 시세 /시세
+# 매입(sell): 플레이어가 상점에 팔 때. 가격 P = max(floor·base, base·e^(-S/Q)), Q = q × 오늘 접속 인원,
+#   S = 오늘 서버 전체가 판 양 (매일 05시에 daily-decay 만큼 줄어듦). cap = 1인 하루 판매 한도(선택).
+# 구매(buy): 플레이어가 상점에서 살 때 (고정가). 장비와 고급 재료는 팔지 않음: 플레이어끼리 거래.
+floor: 0.35
+daily-decay: 0.5
+
+sell:
+  # 광물
+  diamond: { base: 60, q: 4, job: miner, cap: 32 }
+  emerald: { base: 25, q: 6, job: miner }
+  gold_ingot: { base: 18, q: 12, job: miner }
+  iron_ingot: { base: 10, q: 32, job: miner }
+  copper_ingot: { base: 3, q: 48, job: miner }
+  coal: { base: 4, q: 48, job: miner }
+  redstone: { base: 1, q: 64, job: miner }
+  lapis_lazuli: { base: 2, q: 48, job: miner }
+  quartz: { base: 2, q: 48, job: miner }
+  netherite_scrap: { base: 150, q: 1, job: miner, cap: 4 }
+  # 보석 (광부 Lv2~3)
+  economy:rough_ruby: { base: 25, q: 4, job: miner }
+  economy:rough_sapphire: { base: 25, q: 4, job: miner }
+  economy:rough_topaz: { base: 25, q: 4, job: miner }
+  economy:ruby: { base: 70, q: 3, job: miner }
+  economy:sapphire: { base: 70, q: 3, job: miner }
+  economy:topaz: { base: 70, q: 3, job: miner }
+  # 농산물
+  wheat: { base: 2, q: 128, job: farmer }
+  potato: { base: 2, q: 128, job: farmer }
+  carrot: { base: 2, q: 128, job: farmer }
+  beetroot: { base: 2, q: 128, job: farmer }
+  melon_slice: { base: 0.5, q: 256, job: farmer }
+  pumpkin: { base: 3, q: 64, job: farmer }
+  sugar_cane: { base: 1, q: 128, job: farmer }
+  egg: { base: 1, q: 64, job: farmer }
+  leather: { base: 5, q: 16, job: farmer }
+  white_wool: { base: 2, q: 32, job: farmer }
+  economy:golden_wheat: { base: 12, q: 8, job: farmer }
+  economy:honey_potato: { base: 12, q: 8, job: farmer }
+  economy:ruby_carrot: { base: 12, q: 8, job: farmer }
+  economy:truffle: { base: 30, q: 4, job: farmer }
+  economy:fine_leather: { base: 25, q: 4, job: farmer }
+  economy:golden_egg: { base: 30, q: 3, job: farmer }
+  # 수산물
+  cod: { base: 3, q: 32, job: fisher }
+  salmon: { base: 3, q: 32, job: fisher }
+  tropical_fish: { base: 4, q: 16, job: fisher }
+  economy:tuna: { base: 15, q: 6, job: fisher }
+  economy:sea_bream: { base: 10, q: 8, job: fisher }
+  economy:eel: { base: 12, q: 6, job: fisher }
+  economy:golden_carp: { base: 40, q: 3, job: fisher }
+  economy:lobster: { base: 35, q: 3, job: fisher }
+  economy:pearl: { base: 80, q: 2, job: fisher }
+  economy:black_pearl: { base: 150, q: 1, job: fisher }
+  economy:sea_crystal: { base: 120, q: 1, job: fisher }
+  # 원목 (누구나)
+  oak_log: { base: 1, q: 128 }
+  spruce_log: { base: 1, q: 128 }
+  birch_log: { base: 1, q: 128 }
+  jungle_log: { base: 1, q: 128 }
+  acacia_log: { base: 1, q: 128 }
+  dark_oak_log: { base: 1, q: 128 }
+  mangrove_log: { base: 1, q: 128 }
+  cherry_log: { base: 1, q: 128 }
+  # 몹 전리품
+  rotten_flesh: { base: 0.2, q: 128 }
+  bone: { base: 0.5, q: 64 }
+  string: { base: 1, q: 64 }
+  gunpowder: { base: 3, q: 32 }
+  ender_pearl: { base: 8, q: 8 }
+  blaze_rod: { base: 10, q: 8 }
+  # 연금술사 Lv3
+  economy:essence: { base: 300, q: 1, job: alchemist }
+
+buy:
+  - { item: stone_pickaxe, price: 30 }
+  - { item: stone_axe, price: 30 }
+  - { item: stone_shovel, price: 15 }
+  - { item: stone_hoe, price: 20 }
+  - { item: iron_pickaxe, price: 120 }
+  - { item: iron_axe, price: 120 }
+  - { item: iron_shovel, price: 60 }
+  - { item: iron_hoe, price: 80 }
+  - { item: fishing_rod, price: 40 }
+  - { item: shears, price: 40 }
+  - { item: bucket, price: 60 }
+  - { item: wheat_seeds, amount: 16, price: 16 }
+  - { item: beetroot_seeds, amount: 16, price: 16 }
+  - { item: potato, amount: 4, price: 20 }
+  - { item: carrot, amount: 4, price: 20 }
+  - { item: sugar_cane, amount: 4, price: 20 }
+  - { item: oak_sapling, amount: 4, price: 10 }
+  - { item: bone_meal, amount: 16, price: 40 }
+  - { item: coal, amount: 8, price: 48 }
+  - { item: charcoal, amount: 8, price: 48 }
+  - { item: torch, amount: 16, price: 20 }
+  - { item: bread, amount: 8, price: 40 }
+  - { item: glass_bottle, amount: 8, price: 16 }
+  - { item: cobblestone, amount: 64, price: 30 }
+
+# 상인 행렬 (사건) 한정 상품: 선착순, 사건마다 재고가 새로 채워짐
+merchant:
+  - { item: enchanted_golden_apple, price: 8000, stock: 2 }
+  - { item: totem_of_undying, price: 6000, stock: 2 }
+  - { item: trident, price: 4000, stock: 2 }
+  - { item: heart_of_the_sea, price: 4000, stock: 1 }
+  - { item: netherite_ingot, price: 3000, stock: 3 }
+  - { item: shulker_box, price: 5000, stock: 3 }
+  - { item: elytra, price: 30000, stock: 1 }
+
+# 수리 (/상점 의 수리 버튼, 손에 든 물건): 닳은 내구도 1당 per-point G, 최소 min
+repair:
+  per-point: 0.05
+  min: 5
+
+# 치장·칭호 상점 (과시 소비: 돈이 사라지고 계정에 남음)
+vanity:
+  - { kind: cosmetic, id: stsv:tomato_mask, price: 15000 }
+  - { kind: cosmetic, id: stsv:eggplant_mask, price: 15000 }
+  - { kind: cosmetic, id: stsv:mushroom_mask, price: 30000 }
+  - { kind: title, id: economy:trader, price: 5000 }
+  - { kind: title, id: economy:gourmet, price: 15000 }
+  - { kind: title, id: economy:landlord, price: 30000 }
+  - { kind: title, id: economy:magnate, price: 80000 }
+
+# 기념비 /기념비 <문구>: 스폰 마을에 거대한 머리와 비문. 한 개 세울 때마다 다음은 growth 배
+monument:
+  base: 20000
+  growth: 1.5
+  max-length: 30

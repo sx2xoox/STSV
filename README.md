@@ -10,6 +10,7 @@
 |---|---|
 | `plugin/` | **STSV 코어 플러그인**. 커스텀 아이템, 가구, 레시피, 리소스팩 자동 배포, 모듈 시스템 |
 | `content/stsv/` | 기본 콘텐츠 팩 (플러그인 jar에 포함되고, 첫 실행 때 서버에 설치됨) |
+| `economy/` | **경제 서버** 콘텐츠 플러그인 (STSV-Economy) 과 그 콘텐츠 팩 `economy/content/economy/`. 설명은 [economy/README.md](economy/README.md) |
 | `tools/assetgen/` | 3D 모델과 텍스처를 **코드로** 만드는 도구 (공통 팔레트로 일관성 유지) |
 | `docs/ART_STYLE.md` | 아트 스타일 규칙 |
 | `docs/CORE_DESIGN.md` | 코어 구조와 공통 기능 가안, 개발 순서 |
@@ -21,6 +22,12 @@
 cd plugin && ./gradlew build
 ```
 결과물: `plugin/build/libs/stsv-core-<버전>.jar` → 서버의 `plugins/` 폴더에 넣으면 됩니다.
+
+경제 서버 (코어를 함께 빌드해서 컴파일):
+```bash
+cd economy && ./gradlew build
+```
+결과물: `economy/build/libs/stsv-economy-<버전>.jar` (코어 jar 와 함께 `plugins/` 에)
 
 에셋 (Python 3 + Pillow, 미리보기 렌더링은 Node + Playwright):
 ```bash
@@ -40,6 +47,7 @@ python3 tools/assetgen/check_vanilla.py <경로>/assets/minecraft
 배포 전에 (콘텐츠 변경을 커밋한 다음) 아래를 실행해 이전 버전 기록을 갱신합니다:
 ```bash
 python3 tools/content_history.py
+python3 tools/content_history.py economy/content economy/src/main/resources/default-content-history.txt
 ```
 
 ## 서버에서 콘텐츠 추가하기

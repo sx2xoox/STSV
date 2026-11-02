@@ -1,0 +1,284 @@
+package dev.stsv.economy;
+
+import dev.stsv.core.data.DatabaseModule;
+import dev.stsv.core.data.Db;
+import dev.stsv.economy.auction.Auction;
+import dev.stsv.economy.auction.AuctionStore;
+import dev.stsv.economy.job.JobStore;
+import dev.stsv.economy.land.Claim;
+import dev.stsv.economy.land.LandStore;
+import dev.stsv.economy.mail.MailStore;
+import dev.stsv.economy.market.MarketStore;
+import dev.stsv.economy.request.RequestStore;
+import dev.stsv.economy.season.ActiveEvent;
+import dev.stsv.economy.season.EventStore;
+import dev.stsv.economy.shop.ShopStore;
+import dev.stsv.economy.stats.ActivityStore;
+import dev.stsv.economy.util.Kv;
+import org.junit.jupiter.api.Test;
+import org.junit.jupiter.api.io.TempDir;
+
+import java.nio.file.Path;
+import java.util.List;
+import java.util.Map;
+import java.util.UUID;
+import java.util.concurrent.CompletableFuture;
+import java.util.logging.Logger;
+
+import static org.junit.jupiter.api.Assertions.assertArrayEquals;
+import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertFalse;
+import static org.junit.jupiter.api.Assertions.assertNotNull;
+import static org.junit.jupiter.api.Assertions.assertNull;
+import static org.junit.jupiter.api.Assertions.assertTrue;
+
+/** Everything the economy server keeps survives a restart, and nothing can be taken twice. SQLite. */
+class StoresTest {
+
+    private static final Logger LOG = Logger.getLogger("test");
+    private static final byte[] ITEM = {1, 2, 3, 4};
+
+    private static Db db(Path dir) throws Exception {
+        return DatabaseModule.sqlite(dir.resolve("stsv.db"), LOG);
+    }
+
+    @Test
+    void aListingIsSoldOnceEvenWithTwoBuyersAtOnce(@TempDir Path dir) throws Exception {
+        Db db = db(dir);
+        MarketStore s = new MarketStore(db);
+        s.init();
+        UUID seller = UUID.randomUUID(), b1 = UUID.randomUUID(), b2 = UUID.randomUUID();
+        MarketStore.Listing l = s.add(seller, ITEM, "minecraft:diamond", "다이아몬드", 3, 150, 0, 1000);
+        assertEquals(1, s.count(seller));
+        CompletableFuture<Boolean> first = s.close(l.id(), MarketStore.SOLD, b1, 10), second = s.close(l.id(), MarketStore.SOLD, b2, 10);
+        assertTrue(first.get() ^ second.get(), "exactly one buyer gets it");
+        assertTrue(s.active().isEmpty());
+        // a buyer who could not pay puts it back, and it can be bought again
+        s.reopen(l).get();
+        assertEquals(1, s.active().size());
+        assertTrue(s.close(l.id(), MarketStore.SOLD, b2, 20).get());
+        // the seller was offline: told once on joining
+        List<MarketStore.Sold> told = s.untold(seller).get();
+        assertEquals(1, told.size());
+        assertEquals(150, told.getFirst().price());
+        assertTrue(s.untold(seller).get().isEmpty());
+        // expiry, and a restart keeps the active ones
+        MarketStore.Listing l2 = s.add(seller, ITEM, "minecraft:coal", "석탄", 64, 100, 0, 500);
+        assertEquals(List.of(l2.id()), s.expired(600).stream().map(MarketStore.Listing::id).toList());
+        MarketStore again = new MarketStore(db);
+        again.init();
+        assertEquals(1, again.active().size());
+        assertArrayEquals(ITEM, again.active().getFirst().item());
+        assertTrue(again.active().getFirst().unit() > 1.5);
+        db.close();
+    }
+
+    @Test
+    void mailIsTakenOnce(@TempDir Path dir) throws Exception {
+        Db db = db(dir);
+        MailStore s = new MailStore(db);
+        s.init();
+        UUID p = UUID.randomUUID();
+        s.send(p, ITEM, "auction_win", 1).get();
+        s.send(p, ITEM, "trade", 2).get();
+        List<MailStore.Mail> mail = s.list(p).get();
+        assertEquals(2, mail.size());
+        assertEquals(2, s.count(p).get());
+        assertTrue(s.take(mail.getFirst().id(), p).get());
+        assertFalse(s.take(mail.getFirst().id(), p).get(), "a double click cannot duplicate it");
+        assertFalse(s.take(mail.get(1).id(), UUID.randomUUID()).get(), "not someone else's");
+        assertEquals(1, s.count(p).get());
+        db.close();
+    }
+
+    @Test
+    void auctionsAndTheRareWinLimit(@TempDir Path dir) throws Exception {
+        Db db = db(dir);
+        AuctionStore s = new AuctionStore(db);
+        s.init();
+        UUID seller = UUID.randomUUID(), bidder = UUID.randomUUID();
+        Auction a = s.create(seller, seller, ITEM, "검", 1, 100, 100, false, 1, 5000, 0);
+        Auction rare = s.create(null, null, ITEM, "보스 전리품", 1, 1000, 0, true, 2, 5000, 0);
+        assertEquals(1, s.playerRunning(), "server auctions do not take a player slot");
+        a.bid = 150;
+        a.bidder = bidder;
+        a.bids = 1;
+        s.saveBid(a);
+        AuctionStore again = new AuctionStore(db);
+        again.init();
+        assertEquals(2, again.running().size());
+        Auction loaded = again.get(a.id);
+        assertEquals(150, loaded.bid);
+        assertEquals(bidder, loaded.bidder);
+        rare.bid = 2000;
+        rare.bidder = bidder;
+        again.finish(again.get(rare.id), AuctionStore.SOLD);
+        again.get(a.id);
+        // the bid lives on the in-memory object of the store that settles it
+        Auction r2 = again.running().stream().filter(x -> x.rare).findFirst().orElse(null);
+        assertNull(r2, "finished auctions leave the running list");
+        db.sync(c -> null);
+        assertEquals(0, again.rareWinsSync(bidder, 2), "the stored bidder is the one saved before finish");
+        Auction rare2 = again.create(null, null, ITEM, "보스 전리품 2", 1, 1000, 0, true, 2, 5000, 0);
+        rare2.bid = 3000;
+        rare2.bidder = bidder;
+        again.finish(rare2, AuctionStore.SOLD);
+        db.sync(c -> null);
+        assertEquals(1, again.rareWinsSync(bidder, 2));
+        assertEquals(0, again.rareWinsSync(bidder, 3), "counted per week");
+        db.close();
+    }
+
+    @Test
+    void shopSalesDecayAndPricesAreRemembered(@TempDir Path dir) throws Exception {
+        Db db = db(dir);
+        ShopStore s = new ShopStore(db);
+        s.init();
+        UUID p = UUID.randomUUID();
+        s.record(p, "minecraft:iron_ingot", 64);
+        s.record(p, "minecraft:iron_ingot", 36);
+        assertEquals(100, s.sold("minecraft:iron_ingot"), 1e-9);
+        assertEquals(100, s.soldBy(p, "minecraft:iron_ingot"));
+        long now = System.currentTimeMillis();
+        s.snapshot("minecraft:iron_ingot", now - 25 * 3_600_000L, 9.0);
+        s.snapshot("minecraft:iron_ingot", now - 2 * 3_600_000L, 6.0);
+        assertEquals(9.0, s.priceAgo("minecraft:iron_ingot", now, 86_400_000L));
+        assertNull(s.priceAgo("minecraft:coal", now, 86_400_000L));
+        db.sync(c -> null);
+        ShopStore again = new ShopStore(db);
+        again.init();
+        assertEquals(100, again.sold("minecraft:iron_ingot"), 1e-9, "survives a restart");
+        again.decay(0.5);
+        assertEquals(50, again.sold("minecraft:iron_ingot"), 1e-9);
+        assertEquals(0, again.soldBy(p, "minecraft:iron_ingot"), "daily caps start over");
+        db.sync(c -> null);
+        ShopStore third = new ShopStore(db);
+        third.init();
+        assertEquals(50, third.sold("minecraft:iron_ingot"), 1e-9);
+        assertEquals(9.0, third.priceAgo("minecraft:iron_ingot", now, 86_400_000L));
+        db.close();
+    }
+
+    @Test
+    void jobsLandRequestsEventsAndSettingsPersist(@TempDir Path dir) throws Exception {
+        Db db = db(dir);
+        UUID p = UUID.randomUUID(), friend = UUID.randomUUID();
+
+        JobStore jobs = new JobStore(db);
+        jobs.init();
+        JobStore.Row r = jobs.choose(p, "miner", 1);
+        r.xp = 1500;
+        r.mastery = 40;
+        jobs.touch(r);
+        jobs.flush();
+        jobs.choose(friend, "cook", 1);
+        LandStore land = new LandStore(db);
+        land.init();
+        Claim mine = land.create(p, "world", 0, 0, 19, 19, 1);
+        Claim town = land.create(null, "world", 100, 100, 200, 200, 2);
+        land.member(mine, friend, true);
+        land.resize(mine, 0, 0, 29, 19);
+        land.account(p).bought = 200;
+        land.account(p).spent = 400;
+        land.save(p);
+        RequestStore req = new RequestStore(db);
+        req.init(3);
+        req.complete(p, 2);
+        req.contribute(1, p, 500);
+        req.contribute(1, friend, 250);
+        req.markCompleted(1, 99);
+        EventStore events = new EventStore(db);
+        events.init();
+        ActiveEvent e = events.start("shortage", 0, Long.MAX_VALUE, Map.of("item", "minecraft:iron_ingot", "multiplier", "3"));
+        events.start("crash", 0, 50, Map.of());
+        Kv kv = new Kv(db);
+        kv.init();
+        kv.set("season.offset", 4);
+        kv.set("season.done.sched:1", "1");
+        kv.set("loc.price-board", "world;0;64;0");
+        ActivityStore act = new ActivityStore(db);
+        act.init(3);
+        act.seen(p, 500);
+        act.seen(p, 900);
+        act.addSeconds(p, 3600);
+        act.addIncome(p, 1200);
+        act.flush();
+        db.sync(c -> null);
+
+        // --- restart ---
+        JobStore jobs2 = new JobStore(db);
+        jobs2.init();
+        assertEquals("miner", jobs2.job(p));
+        assertEquals(1500, jobs2.get(p).xp, 1e-9);
+        assertEquals(40, jobs2.get(p).mastery, 1e-9);
+        assertEquals(List.of(p, friend), jobs2.ranking(null, 5).stream().map(x -> x.player).toList());
+        assertEquals(List.of(p), jobs2.ranking("miner", 5).stream().map(x -> x.player).toList());
+        JobStore.Row changed = jobs2.choose(p, "fisher", 5);
+        assertEquals(0, changed.xp, 1e-9, "a new job starts from zero");
+        assertEquals(40, changed.mastery, 1e-9, "mastery stays");
+        assertEquals(2, changed.changes);
+
+        LandStore land2 = new LandStore(db);
+        land2.init();
+        Claim m2 = land2.index().at("world", 25, 5);
+        assertNotNull(m2, "resized claim restored");
+        assertTrue(m2.allows(friend));
+        assertFalse(m2.allows(UUID.randomUUID()));
+        assertEquals(600, land2.index().area(p));
+        assertEquals(200, land2.account(p).bought);
+        assertEquals(400, land2.account(p).spent);
+        assertTrue(land2.index().at("world", 150, 150).server());
+        land2.reset();
+        db.sync(c -> null);
+        LandStore land3 = new LandStore(db);
+        land3.init();
+        assertNull(land3.index().at("world", 5, 5), "player claims wiped by a reset");
+        assertNotNull(land3.index().at("world", 150, 150), "the town (server claim) stays");
+        assertEquals(town.id, land3.index().at("world", 150, 150).id);
+
+        RequestStore req2 = new RequestStore(db);
+        req2.init(3);
+        assertTrue(req2.done(p).contains(2));
+        assertEquals(750, req2.progress(1));
+        assertEquals(500, req2.contributors(1).get(p));
+        assertTrue(req2.completed(1));
+        req2.newDay(4);
+        assertTrue(req2.done(p).isEmpty(), "a new day, a new board");
+
+        EventStore ev2 = new EventStore(db);
+        ev2.init();
+        assertEquals(2, ev2.active().size());
+        assertEquals(1, ev2.active("shortage", 10).size());
+        assertEquals("minecraft:iron_ingot", ev2.active("shortage", 10).getFirst().param("item"));
+        assertEquals(3, ev2.active("shortage", 10).getFirst().number("multiplier", 0), 1e-9);
+        assertEquals(List.of("crash"), ev2.end(60, null).stream().map(ActiveEvent::type).toList(), "time up");
+        assertEquals(1, ev2.end(60, "shortage").size(), "ended by hand");
+        assertEquals(e.id(), e.id());
+        db.sync(c -> null);
+        EventStore ev3 = new EventStore(db);
+        ev3.init();
+        assertTrue(ev3.active().isEmpty());
+
+        Kv kv2 = new Kv(db);
+        kv2.init();
+        assertEquals(4, kv2.getLong("season.offset", 0));
+        kv2.removePrefix("season.");
+        db.sync(c -> null);
+        Kv kv3 = new Kv(db);
+        kv3.init();
+        assertFalse(kv3.has("season.offset"));
+        assertFalse(kv3.has("season.done.sched:1"));
+        assertEquals("world;0;64;0", kv3.get("loc.price-board"));
+
+        ActivityStore act2 = new ActivityStore(db);
+        act2.init(3);
+        assertEquals(500, act2.startBalance(p, 0), "the first sighting of the day counts");
+        ActivityStore.Day d = act2.day(3).get().getFirst();
+        assertEquals(3600, d.seconds());
+        assertEquals(1200, d.income());
+        act2.newDay(4);
+        assertEquals(1, act2.players(), "at least 1 (prices divide by it)");
+        assertFalse(act2.seenToday(p));
+        db.close();
+    }
+}

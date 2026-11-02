@@ -1,0 +1,93 @@
+# 4주 진행표. 1일차 = /경제관리 시작 한 날. 하루는 05시에 바뀜 (plugins/STSV-Economy/config.yml time).
+length-days: 28
+
+# 주차별 직업 레벨 상한 (1주 Lv1, 2주 Lv2, 3주 이후 Lv3)
+job-level-cap: [1, 2, 3, 3]
+# 주차별 추가 땅 가격 (1㎡당 G). 늦게 넓힐수록 비쌈
+land-price: [1, 2, 3, 4]
+
+# 기능이 열리는 날 (그 전에는 명령어가 안내만 함). 공동 의뢰를 달성하면 다음 주 개방이 하루 빨라짐
+open:
+  shop: 1
+  market: 1
+  trade: 1
+  requests: 1
+  auction: 8
+  stall: 8
+  nether: 15
+  monument: 22
+
+# 수요 고시: 품목 3개의 매입가 1.5배, 다음 고시까지 (매주 이 요일)
+demand-notice:
+  first-day: 3
+  weekday: MONDAY
+  count: 3
+  multiplier: 1.5
+  last-day: 22
+
+# 매일 이 시각에 순자산 상위 5명 발표. 주간 발표(화면 제목)는 weekly-rank-days
+daily-rank: "21:00"
+weekly-rank-days: [7, 14, 21]
+
+# 사건 종류. hours = 지속 시간, color = 보스바 색 (pink, blue, red, green, yellow, purple, white)
+events:
+  shortage:
+    name: "품귀"
+    hours: 48
+    color: green
+    multiplier: 3.0
+  crash:
+    name: "시장 폭락"
+    hours: 24
+    color: red
+    multiplier: 0.5
+  lawless:
+    name: "무법 지대"
+    hours: 72
+    color: red
+    radius: 150
+    ore-veins: 40
+  tax_audit:
+    name: "세무 조사"
+    hours: 24
+    color: yellow
+    tax-multiplier: 2
+    donation-min: 5000
+    donation-title: economy:patron
+  harvest:
+    name: "풍년"
+    hours: 24
+    color: green
+    multiplier: 2
+  merchant:
+    name: "상인 행렬"
+    hours: 2
+    color: purple
+  world_boss:
+    name: "월드 보스"
+    hours: 1
+    color: purple
+    boss: executioner
+    start-price: 1000
+    reward-1: 3000
+    reward-2: 2000
+    reward-3: 1000
+
+# 일정표. event = 위 사건 시작 (키=값은 사건 설정을 덮어씀), announce = 전체 공지, action = finale(시즌 마감)
+schedule:
+  - { day: 1, time: "21:00", announce: "<gold>경제 서버 1주차 · 정착</gold> <gray>관리자 상점, 직업 Lv1, 거래소·직거래, 무료 땅 400㎡가 열렸습니다. 공동 의뢰를 달성하면 2주차가 하루 일찍 열립니다." }
+  - { day: 5, time: "20:00", event: merchant }
+  - { day: 8, time: "21:00", announce: "<gold>2주차 · 확장</gold> <gray>직업 Lv2, 경매, 노점 임대가 열렸습니다. 땅값이 ㎡당 2G로 올랐습니다." }
+  - { day: 11, time: "21:00", event: shortage }
+  - { day: 13, time: "20:00", event: harvest }
+  - { day: 14, time: "21:30", announce: "<light_purple>첫 희귀품 경매</light_purple> <gray>곧 서버 경매가 시작됩니다. /경매" }
+  - { day: 15, time: "21:00", announce: "<gold>3주차 · 격변</gold> <gray>네더와 직업 Lv3가 열렸습니다." }
+  - { day: 16, time: "21:00", event: lawless }
+  - { day: 18, time: "20:00", event: tax_audit }
+  - { day: 19, time: "21:00", event: crash }
+  - { day: 20, time: "21:00", event: world_boss }
+  - { day: 22, time: "21:00", announce: "<gold>4주차 · 피날레</gold> <gray>기념비 건립(/기념비)이 열렸습니다. 마지막 수요 고시가 나왔습니다." }
+  - { day: 24, time: "20:00", event: merchant }
+  - { day: 26, time: "21:00", event: world_boss, reward-1: 6000, reward-2: 4000, reward-3: 2000, start-price: 3000 }
+  - { day: 27, time: "21:00", announce: "<light_purple>대경매</light_purple> <gray>오늘 밤 서버 경매에 시즌 최고의 물건이 올라옵니다. /경매" }
+  - { day: 28, time: "21:00", action: finale }

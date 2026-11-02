@@ -76,6 +76,13 @@ MATERIALS = {
     "crimson":     (18, 0.130, 0.36, 0.22, 4, False),    # deep red cloth (cape, tabard)
     "leather":     (55, 0.060, 0.36, 0.20, 4, False),    # straps, grips
     "spectral":    (200, 0.120, 0.80, 0.30, 4, True),    # cold glowing eyes
+    # --- economy server (job products, menus) -------------------------------------------------
+    "sapphire":    (258, 0.150, 0.55, 0.32, 4, True),
+    "topaz":       (70, 0.160, 0.74, 0.30, 4, True),
+    "pearl":       (95, 0.020, 0.86, 0.20, 3, False),
+    "felt":        (158, 0.070, 0.33, 0.20, 4, False),   # dark green ledger felt (economy menus)
+    "salmon":      (40, 0.120, 0.68, 0.24, 4, False),
+    "rice":        (90, 0.012, 0.92, 0.10, 3, False),
     # --- TEST-ONLY materials: "dev texture" colours, never used by real content -----------------
     "test_orange": (55, 0.150, 0.70, 0.30, 4, True),
     "test_grey":   (250, 0.012, 0.62, 0.30, 4, False),

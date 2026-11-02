@@ -126,7 +126,7 @@ public final class EconomyModule implements StsvModule, Listener {
     public long fee(long amount) {
         double rate = plugin.getConfig().getDouble("economy.transfer-fee");
         if (rate <= 0) return 0;
-        return Math.max(1, (long) Math.ceil(amount * rate));
+        return Math.max(1, (long) Math.ceil(amount * rate - 1e-9));   // 100 x 0.07 is 7.000000000000001 in floating point
     }
 
     /** "1,234 G" with the colours of messages.yml economy.amount. */

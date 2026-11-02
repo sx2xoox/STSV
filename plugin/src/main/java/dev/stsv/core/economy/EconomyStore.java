@@ -36,7 +36,9 @@ public final class EconomyStore {
         /** into or out of a cheque item: not created, not destroyed */
         CHEQUE,
         /** an admin correction */
-        ADMIN
+        ADMIN,
+        /** held by the server for a while (an auction bid, a trade): paid back or passed on later */
+        ESCROW
     }
 
     public record Entry(long id, long at, UUID from, UUID to, long amount, Kind kind, String reason, String note, boolean reverted) {}

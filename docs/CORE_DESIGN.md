@@ -82,6 +82,8 @@ player.sendMessage(Lang.msg("economy.bought", "item", name));        // messages
 | 수표 | `/수표 <금액>`: 돈을 아이템으로(분실, 도난, 뇌물 가능). DB 에서 "아직 입금 안 됨"일 때만 입금 처리 → 복사한 수표는 무효. 우클릭 순간 아이템을 먼저 빼서 연타로 두 번 입금 불가 |
 | 경제 관리 | 지급/회수/설정, 거래 기록, 최근 N분 되돌리기(양쪽 모두, 수표 무효화 포함), 24시간 통계(생성/소멸, 총 통화량, 지니 계수) |
 | HUD | 액션바 상태 줄: 콘텐츠가 `hud().line(id, 순서, 플레이어 → 문구)` 로 항목 추가(기본: 잔액). 일회성 안내는 `HudModule.flash()` 로 보내면 상태 줄이 3초 비켜줌. 이벤트 보스바 `hud().bar(...)` (나중에 들어온 사람에게도 보임) |
+| 콘텐츠 플러그인 연결 | 콘텐츠 플러그인(예: 경제 서버)은 `onLoad` 에서 `ContentModule.registerBundle(this, getFile())` 로 자기 jar 의 `default-content/` 를 등록(코어와 같은 방식으로 설치·업데이트, 기록 파일은 따로), `Lang.register(this)` 로 자기 messages.yml 을 추가, 모듈은 코어의 `modules().register()` 로 넣어 `/관리 리로드` 를 함께 받고, 꺼질 때 `modules().unregister()` |
+| 코어 이벤트·API 추가 | `BossDefeatEvent`(전리품을 가로채 경매로), 돈 종류 `ESCROW`(입찰금 보관), 메뉴 핸들러 `onPlayerInventoryClick`(상점에서 내 인벤토리 클릭 = 팔기), `endPeriod(추가 부문)`(순자산을 명예의 전당에), `ownedTitles()` |
 | 테스트 초기화 | `/관리 초기화 경제\|기록 확인`: 재설치 없이 반복 테스트 |
 | 보호 플러그인 호환 | 가구 설치 전에 BlockPlaceEvent를 발생시켜 다른 보호 플러그인의 판단을 따름 |
 

@@ -1,0 +1,25 @@
+# 경제 서버 칭호. tycoon_1~3 = 시즌 마감 순자산 1~3위, patron = 세무 조사 때 기부, 나머지 = 칭호 상점(shop.yml vanity)
+tycoon_1:
+  name: "<gradient:#fff3a0:#f5b301><b>[최고 부자]</b></gradient>"
+  description: "경제 서버 시즌 순자산 1위"
+tycoon_2:
+  name: "<#e0e0e0>[대부호]"
+  description: "경제 서버 시즌 순자산 2위"
+tycoon_3:
+  name: "<#d08a4a>[부호]"
+  description: "경제 서버 시즌 순자산 3위"
+patron:
+  name: "<#ffd54f>[기부왕]"
+  description: "세무 조사 때 나라에 기부했다"
+trader:
+  name: "<#81c784>[상인]"
+  description: "칭호 상점에서 산 칭호"
+landlord:
+  name: "<#a1887f>[지주]"
+  description: "칭호 상점에서 산 칭호"
+gourmet:
+  name: "<#ffb74d>[미식가]"
+  description: "칭호 상점에서 산 칭호"
+magnate:
+  name: "<gradient:#ffe082:#ffb300>[거상]</gradient>"
+  description: "칭호 상점에서 산 가장 비싼 칭호"

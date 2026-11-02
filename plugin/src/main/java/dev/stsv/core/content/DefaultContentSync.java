@@ -31,8 +31,14 @@ public final class DefaultContentSync {
 
     public static Report sync(Path contentsDir, Map<String, byte[]> bundled, Map<String, Set<String>> history)
             throws IOException {
+        return sync(contentsDir, bundled, history, ".default-content");
+    }
+
+    /** manifest = record file name, one per source (the core and each content plugin keep their own). */
+    public static Report sync(Path contentsDir, Map<String, byte[]> bundled, Map<String, Set<String>> history, String manifestName)
+            throws IOException {
         Files.createDirectories(contentsDir);
-        Path manifestFile = contentsDir.resolve(".default-content");
+        Path manifestFile = contentsDir.resolve(manifestName);
         Map<String, String> manifest = new LinkedHashMap<>();
         if (Files.exists(manifestFile)) {
             for (String line : Files.readAllLines(manifestFile)) {

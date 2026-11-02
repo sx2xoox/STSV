@@ -1,0 +1,169 @@
+# 직업 /직업. 1인 1직업, 변경은 7일에 한 번 1,000G (처음 고르는 건 무료).
+# 레벨: 경험치가 levels 에 닿으면 오름. 단, 그 주의 레벨 상한(season.yml job-level-cap)을 넘지 못하고,
+# 상한에서 더 번 경험치는 숙련(직업 순위 점수)이 됩니다.
+levels: [0, 1000, 3000]
+change-cost: 1000
+change-days: 7
+
+jobs:
+  miner:
+    name: "광부"
+    color: "#9fb4c8"
+    icon: minecraft:iron_pickaxe
+    description: ["광석 추가 드롭 10 / 20 / 30%", "Lv2부터 광석에서 원석 발견", "분쇄기: 원석 → 가루(주괴 2배), 보석 세공(Lv3)"]
+    passive:
+      extra: [0.10, 0.20, 0.30]   # 광석 드롭 +1 확률 (섬세한 손길 제외)
+      gem: [0.0, 0.03, 0.05]      # 원석 발견 확률
+    xp:
+      break: { coal_ore: 1, deepslate_coal_ore: 1, copper_ore: 1, deepslate_copper_ore: 1, iron_ore: 2, deepslate_iron_ore: 2,
+               gold_ore: 3, deepslate_gold_ore: 3, redstone_ore: 2, deepslate_redstone_ore: 2, lapis_ore: 3, deepslate_lapis_ore: 3,
+               diamond_ore: 10, deepslate_diamond_ore: 10, emerald_ore: 10, deepslate_emerald_ore: 10,
+               nether_gold_ore: 1, nether_quartz_ore: 1, ancient_debris: 20 }
+      smelt: { iron_ingot: 0.5, gold_ingot: 0.5, copper_ingot: 0.3 }
+    drops:   # 원석: 광석 -> 나올 수 있는 원석
+      redstone_ore: [economy:rough_ruby]
+      deepslate_redstone_ore: [economy:rough_ruby]
+      iron_ore: [economy:rough_ruby]
+      deepslate_iron_ore: [economy:rough_ruby]
+      lapis_ore: [economy:rough_sapphire]
+      deepslate_lapis_ore: [economy:rough_sapphire]
+      diamond_ore: [economy:rough_sapphire]
+      deepslate_diamond_ore: [economy:rough_sapphire]
+      gold_ore: [economy:rough_topaz]
+      deepslate_gold_ore: [economy:rough_topaz]
+      copper_ore: [economy:rough_topaz]
+      deepslate_copper_ore: [economy:rough_topaz]
+      coal_ore: [economy:rough_topaz]
+      deepslate_coal_ore: [economy:rough_topaz]
+
+  farmer:
+    name: "농부"
+    color: "#8bc34a"
+    icon: minecraft:iron_hoe
+    description: ["다 자란 작물 수확량 +1 / +2 / +3", "주변 작물 성장 가속", "Lv2 고급 작물, Lv3 가축 부산물"]
+    passive:
+      bonus: [1, 2, 3]
+      growth: [0.03, 0.06, 0.10]   # 10초마다 반경 6칸 작물이 한 단계 자랄 확률
+      premium: [0.0, 0.04, 0.07]
+      animal: [0.0, 0.0, 0.15]
+    xp:
+      harvest: { wheat: 0.5, carrots: 0.5, potatoes: 0.5, beetroots: 0.5, nether_wart: 0.5, cocoa: 0.5, melon: 0.5, pumpkin: 1 }
+      breed: 3
+    drops:
+      wheat: [economy:golden_wheat]
+      potatoes: [economy:honey_potato]
+      carrots: [economy:ruby_carrot]
+      minecraft:pig: [economy:truffle]
+      minecraft:cow: [economy:fine_leather]
+      minecraft:chicken: [economy:golden_egg]
+
+  fisher:
+    name: "어부"
+    color: "#4fc3f7"
+    icon: minecraft:fishing_rod
+    description: ["희귀 어획 5 / 10 / 15% (미끼 +5%)", "Lv2 황금 잉어·바닷가재, Lv3 진주", "수조: 물고기 양식, 연어알, 바다 수정"]
+    passive:
+      rare: [0.05, 0.10, 0.15]
+      bait: [0.05, 0.05, 0.05]
+    xp:
+      catch: 3
+      rare: 10
+    drops:
+      tier1: [economy:tuna, economy:sea_bream, economy:eel]
+      tier2: [economy:golden_carp, economy:lobster]
+      tier3: [economy:pearl, economy:pearl, economy:black_pearl]
+
+  blacksmith:
+    name: "대장장이"
+    color: "#ff8a65"
+    icon: minecraft:anvil
+    description: ["도구·갑옷 제작 때 재료 10 / 20 / 30% 확률로 1개 돌려받음", "강화 도구, Lv2 강철, Lv3 보석 장비", "강화대 사용"]
+    passive:
+      save: [0.10, 0.20, 0.30]
+    xp:
+      craft: { iron_pickaxe: 4, iron_axe: 4, iron_shovel: 2, iron_hoe: 2, iron_sword: 4, iron_helmet: 5, iron_chestplate: 8,
+               iron_leggings: 7, iron_boots: 4, diamond_pickaxe: 10, diamond_axe: 10, diamond_shovel: 5, diamond_hoe: 5,
+               diamond_sword: 8, diamond_helmet: 12, diamond_chestplate: 18, diamond_leggings: 16, diamond_boots: 10,
+               shield: 3, bow: 2, crossbow: 3, fishing_rod: 1, shears: 1, bucket: 1, anvil: 8 }
+      smith: 30
+
+  cook:
+    name: "요리사"
+    color: "#ffb74d"
+    icon: minecraft:cooked_beef
+    description: ["만든 요리의 버프 시간 +20 / +40 / +60%", "조리대·훈연 화덕: 채굴 속도, 행운, 이동 속도 요리", "재료는 농부와 어부에게서"]
+    passive:
+      quality: [0.2, 0.4, 0.6]
+    xp:
+      smelt: { cooked_beef: 1, cooked_porkchop: 1, cooked_chicken: 1, cooked_mutton: 1, cooked_rabbit: 1, cooked_cod: 1,
+               cooked_salmon: 1, baked_potato: 0.5, dried_kelp: 0.2 }
+      craft: { bread: 0.5, cake: 5, pumpkin_pie: 2, rabbit_stew: 3, beetroot_soup: 2, mushroom_stew: 1, cookie: 0.3, golden_carrot: 2 }
+
+  alchemist:
+    name: "연금술사"
+    color: "#ba68c8"
+    icon: minecraft:brewing_stand
+    description: ["양조한 물약 지속 시간 +20 / +40 / +60%", "증류기: 비료, 마시는 물약, 강화 촉매", "Lv3 영약, 정수"]
+    passive:
+      quality: [0.2, 0.4, 0.6]
+    xp:
+      brew: 4
+
+# 직업 생산품: 이 아이템을 만들 수 있는(조합대·기계) 직업과 레벨, 만들 때 경험치, 붙는 인챈트,
+# quality = 만든 사람의 품질(요리사·연금술사 패시브)로 효과 시간이 늘어남
+products:
+  iron_dust: { job: miner, level: 1, xp: 2 }
+  gold_dust: { job: miner, level: 1, xp: 3 }
+  copper_dust: { job: miner, level: 1, xp: 1 }
+  ruby: { job: miner, level: 3, xp: 15 }
+  sapphire: { job: miner, level: 3, xp: 15 }
+  topaz: { job: miner, level: 3, xp: 15 }
+  crusher: { job: miner, level: 1, xp: 10 }
+
+  bait: { job: farmer, level: 1, xp: 1 }
+  compost: { job: farmer, level: 1, xp: 2 }
+  feed: { job: farmer, level: 1, xp: 1 }
+  golden_wheat: { job: farmer, level: 3, xp: 8 }
+  honey_potato: { job: farmer, level: 3, xp: 8 }
+  ruby_carrot: { job: farmer, level: 3, xp: 8 }
+  compost_bin: { job: farmer, level: 1, xp: 10 }
+  auto_planter: { job: farmer, level: 3, xp: 30 }
+
+  salmon_roe: { job: fisher, level: 2, xp: 6 }
+  pearl: { job: fisher, level: 3, xp: 15 }
+  sea_crystal: { job: fisher, level: 3, xp: 20 }
+  fish_tank: { job: fisher, level: 1, xp: 10 }
+
+  reinforced_pickaxe: { job: blacksmith, level: 1, xp: 12, enchants: { efficiency: 3, unbreaking: 2 } }
+  reinforced_hoe: { job: blacksmith, level: 1, xp: 10, enchants: { efficiency: 3, unbreaking: 3 } }
+  reinforced_rod: { job: blacksmith, level: 1, xp: 10, enchants: { lure: 2, luck_of_the_sea: 2 } }
+  steel_ingot: { job: blacksmith, level: 2, xp: 5 }
+  steel_pickaxe: { job: blacksmith, level: 2, xp: 25, enchants: { efficiency: 4, unbreaking: 3, fortune: 1 } }
+  steel_sword: { job: blacksmith, level: 2, xp: 25, enchants: { sharpness: 4, unbreaking: 3 } }
+  ruby_sword: { job: blacksmith, level: 3, xp: 40, enchants: { sharpness: 5, unbreaking: 3, looting: 2 } }
+  sapphire_pickaxe: { job: blacksmith, level: 3, xp: 40, enchants: { efficiency: 5, fortune: 3, unbreaking: 3 } }
+  topaz_chestplate: { job: blacksmith, level: 3, xp: 40, enchants: { protection: 4, unbreaking: 3 } }
+  reinforcing_table: { job: blacksmith, level: 2, xp: 15 }
+
+  miner_lunchbox: { job: cook, level: 1, xp: 5, quality: true }
+  lucky_grill: { job: cook, level: 1, xp: 5, quality: true }
+  sprint_salad: { job: cook, level: 1, xp: 5, quality: true }
+  hearty_stew: { job: cook, level: 2, xp: 12, quality: true }
+  golden_sushi: { job: cook, level: 2, xp: 12, quality: true }
+  honey_pie: { job: cook, level: 2, xp: 12, quality: true }
+  royal_feast: { job: cook, level: 3, xp: 25, quality: true }
+  truffle_risotto: { job: cook, level: 3, xp: 25, quality: true }
+  pearl_dessert: { job: cook, level: 3, xp: 25, quality: true }
+  cooking_table: { job: cook, level: 1, xp: 10 }
+  smoker_oven: { job: cook, level: 1, xp: 10 }
+
+  fertilizer: { job: alchemist, level: 1, xp: 3 }
+  miners_tonic: { job: alchemist, level: 1, xp: 6, quality: true }
+  swift_tonic: { job: alchemist, level: 1, xp: 6, quality: true }
+  catalyst: { job: alchemist, level: 2, xp: 12 }
+  super_fertilizer: { job: alchemist, level: 2, xp: 8 }
+  luck_tonic: { job: alchemist, level: 2, xp: 12, quality: true }
+  grand_catalyst: { job: alchemist, level: 3, xp: 25 }
+  elixir: { job: alchemist, level: 3, xp: 25, quality: true }
+  essence: { job: alchemist, level: 3, xp: 30 }
+  distiller: { job: alchemist, level: 1, xp: 10 }

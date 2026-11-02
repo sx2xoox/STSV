@@ -1,0 +1,50 @@
+# /거래소: 개당 최저가 순
+market:
+  title: "<#f3e3b0>거래소 · {mode}"
+  rows: 6
+  background: economy:gui/market
+  layout:
+    - "M...I...R"
+    - "LLLLLLLLL"
+    - "LLLLLLLLL"
+    - "LLLLLLLLL"
+    - "LLLLLLLLL"
+    - "P...X...N"
+  list: L
+  buttons:
+    M:
+      action: "market:mine"
+      icon: economy:gui/ledger
+      material: WRITABLE_BOOK
+      name: "<white>내 등록품 / 전체"
+      lore: ["<gray>내 등록품: {mine} / {limit}"]
+    I:
+      action: ""
+      icon: stsv:gui/info
+      material: BOOK
+      name: "<white>잔액: {balance}"
+      lore: ["<gray>등록: 물건을 들고 <white>/거래소 등록 <가격>", "<gray>검색: <white>/거래소 검색 <이름>", "<gray>두 번 클릭하면 구매"]
+    R:
+      action: "market:refresh"
+      icon: economy:gui/refresh
+      material: CLOCK
+      name: "<white>새로고침"
+    P:
+      action: page:prev
+      icon: stsv:gui/prev
+      material: ARROW
+      name: "<yellow>◀ 이전 페이지"
+      lore: ["<gray>{page} / {pages}"]
+      off: { icon: stsv:gui/prev_off, material: GRAY_DYE, name: "<dark_gray>◀ 첫 페이지" }
+    N:
+      action: page:next
+      icon: stsv:gui/next
+      material: ARROW
+      name: "<yellow>다음 페이지 ▶"
+      lore: ["<gray>{page} / {pages}"]
+      off: { icon: stsv:gui/next_off, material: GRAY_DYE, name: "<dark_gray>마지막 페이지 ▶" }
+    X:
+      action: close
+      icon: stsv:gui/exit
+      material: OAK_DOOR
+      name: "<red>닫기"

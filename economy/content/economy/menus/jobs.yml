@@ -1,0 +1,28 @@
+# /직업: 두 번 클릭해서 선택
+jobs:
+  title: "<#f3e3b0>직업"
+  rows: 4
+  background: economy:gui/jobs
+  layout:
+    - "....I...."
+    - "..L.L.L.."
+    - "..L.L.L.."
+    - "R...X...."
+  list: L
+  buttons:
+    I:
+      action: ""
+      icon: stsv:gui/info
+      material: BOOK
+      name: "<white>내 직업: {job} <gray>Lv{level}"
+      lore: ["<gray>이번 주 레벨 상한: <white>Lv{cap}", "<gray>경험치: <white>{xp} <gray>/ {next}", "<gray>숙련: <white>{mastery}", "<gray>직업 변경: 7일에 한 번, {cost}"]
+    R:
+      action: "command:직업 순위"
+      icon: economy:gui/trophy
+      material: GOLDEN_HELMET
+      name: "<yellow>직업 순위 (숙련)"
+    X:
+      action: close
+      icon: stsv:gui/exit
+      material: OAK_DOOR
+      name: "<red>닫기"

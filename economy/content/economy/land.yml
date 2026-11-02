@@ -1,0 +1,9 @@
+# 땅 /땅
+free-area: 400       # 무료 면적 (20×20)
+min-side: 3          # 구역 한 변의 최소 길이
+max-claims: 8        # 1인 구역 수
+tax:
+  rate: 0.05             # 매일 05시 보유 면적 × 0.05G
+  progressive-over: 2500 # 이 면적을 넘는 부분은
+  progressive-factor: 2  # 2배
+  warn-days: 3           # 3일 연속 미납이면 가장 나중에 만든 구역 해제

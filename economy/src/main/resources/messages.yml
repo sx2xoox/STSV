@@ -1,0 +1,349 @@
+# STSV 경제 서버 문구. MiniMessage 형식, {이름} = 자리표시자. 고친 뒤 /관리 리로드.
+# 금액 표시 형식은 STSV 의 messages.yml economy.amount.
+
+common:
+  players-only: "<red>플레이어만 사용할 수 있습니다."
+
+stats:
+  net_worth: "순자산"
+  job_mastery: "직업 숙련"
+
+season:
+  closed: "<red>{feature}은(는) 아직 열리지 않았습니다. <gray>({day}일차 개방)"
+  closed-short: "<red>{feature}: {day}일차 개방"
+  closed-generic: "<red>{feature}: {day}일차 개방"
+  feature:
+    shop: "관리자 상점"
+    market: "거래소"
+    trade: "직거래"
+    requests: "의뢰 게시판"
+    auction: "경매"
+    stall: "노점"
+    nether: "네더"
+    monument: "기념비 건립"
+  event-title: "<gold><b>{event}</b>"
+  event-start: "<gold><b>사건: {event}</b></gold> <white>{detail}</white> <gray>({hours})"
+  event-end: "<gray>사건이 끝났습니다: <white>{event}"
+  event-bar: "<gold>{event}</gold> <white>{detail}</white> <gray>· 남은 시간 {left}"
+  hours: "{h}시간 {m}분"
+  minutes: "{m}분"
+  no-pvp: "<red>지금은 PvP가 꺼져 있습니다. <gray>(무법 지대 안에서만)"
+  lawless-detail: "중심 {x}, {z} · 반경 {radius}블록 안에서 PvP, 희귀 광맥"
+  lawless-enter: "<red><b>⚔ 무법 지대</b></red> <gray>여기서는 공격받을 수 있습니다"
+  lawless-leave: "<green>무법 지대를 벗어났습니다"
+  region-locked: "<red>{region}: {day}일차에 열립니다"
+
+activity:
+  hud-up: "<green>오늘 +{amount}"
+  hud-down: "<red>오늘 -{amount}"
+
+mail:
+  arrived: "<gray>인벤토리에 자리가 없어 <white>{item}</white>을(를) 우편함에 넣었습니다. <white>/우편함"
+  waiting: "<yellow>우편함에 물건 {count}개가 있습니다. <white>/우편함"
+  no-room: "<red>인벤토리에 자리가 없습니다."
+  lore: ["", "<dark_gray>{reason}", "<yellow>클릭: 꺼내기"]
+  reason:
+    market_buy: "거래소에서 산 물건"
+    market_cancel: "거래소 등록 취소"
+    market_expired: "거래소 등록 기간 만료"
+    auction_unsold: "경매 유찰"
+    auction_win: "경매 낙찰"
+    auction_cancel: "경매 취소"
+    trade: "직거래로 받은 물건"
+    trade_cancel: "취소된 직거래"
+    stall_release: "노점 반납"
+    stall_evicted: "노점 임대료 미납"
+
+shop:
+  not-buying: "<red>상점이 사지 않는 물건입니다. <gray>(이름 바꾼/인챈트/닳은 물건도 안 삼)"
+  cap-reached: "<red>오늘은 이 물건을 더 팔 수 없습니다. <gray>(1인 하루 한도)"
+  sold: "<green>판매</green> <white>{item} ×{count}</white> <gray>→</gray> {amount} <dark_gray>(다음 개당 {unit} G)"
+  sold-all: "<green>전부 판매</green> <white>{kinds}종</white> <gray>→</gray> {amount}"
+  nothing-to-sell: "<gray>상점이 살 만한 물건이 없습니다."
+  no-room: "<red>인벤토리에 자리가 없습니다."
+  not-enough: "<red>돈이 부족합니다. <gray>(필요 {price})"
+  bought: "<green>구매</green> <white>{item} ×{count}</white> <gray>-</gray> {amount}"
+  buy-lore: ["", "<gray>가격: </gray>{price} <dark_gray>({count}개)", "<yellow>클릭: 사기 <dark_gray>· 쉬프트: 8번"]
+  repair-none: "<gray>손에 든 수리할 물건 없음"
+  repair-nothing: "<red>손에 수리할 물건을 드세요."
+  repaired: "<green>수리 완료</green> <white>{item}</white> <gray>-</gray> {amount}"
+  notice: "<gold><b>수요 고시</b></gold> <white>{items}</white> <gray>매입가 ×{mult} (다음 고시까지)"
+  shortage-detail: "{item} 매입가 ×{mult}"
+  crash-detail: "{item} 매입가 ×{mult}, 거래소 가격 빨간색"
+  merchant-detail: "스폰에 한정 상품 (/상점 → 상인 행렬)"
+  merchant-gone: "<red>지금은 상인 행렬이 없습니다."
+  merchant-lore: ["", "<gray>가격: </gray>{price}", "<gray>남은 수량: <white>{left} / {stock}", "<yellow>클릭: 사기 (선착순)"]
+  merchant-sold-out: "<light_purple>상인 행렬</light_purple> <white>{item}</white> <gray>매진! 마지막 구매자: <white>{player}"
+  sold-out: "<red>매진되었습니다."
+  board-title: "<gold><b>오늘의 시세</b></gold> <gray>(개당 매입가)"
+  price-line: "<white>{item}</white> <gold>{price} G</gold> {change}{marks}"
+  change-up: "<green>▲{pct}%</green>"
+  change-down: "<red>▼{pct}%</red>"
+  change-none: "<dark_gray>-</dark_gray>"
+  mark-notice: " <gold>★</gold>"
+  mark-shortage: " <green>품귀</green>"
+  mark-crash: " <red>폭락</red>"
+  mark-floor: " <dark_gray>(바닥)</dark_gray>"
+  prices-header: "<gold>시세</gold> <gray>(오늘 접속 {players}명 기준)"
+  price-lore: ["", "<gray>지금 개당: <gold>{price} G</gold> <dark_gray>(기준 {base} G)", "<gray>24시간: {change}{marks}",
+               "<gray>오늘 서버 판매: <white>{sold}</white> / 적정 {quota}", "<gray>내가 오늘 판 양: <white>{mine}</white> <dark_gray>(한도 {cap})"]
+
+market:
+  usage: "<red>/거래소 등록 <가격> <gray>(손에 든 묶음 전체의 가격)"
+  help: "<gray>/거래소 · /거래소 등록 <가격> · /거래소 내목록 · /거래소 검색 <이름>"
+  hold-item: "<red>팔 물건을 손에 드세요."
+  no-cheques: "<red>수표는 거래소에 올릴 수 없습니다."
+  full: "<red>등록은 {limit}건까지입니다. <gray>(노점을 빌리면 늘어남)"
+  listed: "<green>등록</green> <white>{item} ×{count}</white> {price} <gray>(팔리면 수수료 {fee}, {hours}시간 뒤 만료)"
+  own: "<red>내 등록품입니다. <gray>(클릭해서 취소)"
+  not-enough: "<red>돈이 부족합니다. <gray>({price})"
+  gone: "<red>이미 팔렸거나 내려간 물건입니다."
+  bought: "<green>구매</green> <white>{item} ×{count}</white> {price} <gray>(판매자 {seller})"
+  sold: "<green>거래소 판매</green> <white>{item} ×{count}</white> {price} <gray>(수수료 {fee}, 구매자 {buyer})"
+  cancelled: "<gray>등록 취소: <white>{item}</white> (우편함/인벤토리로)"
+  expired: "<gray>거래소 등록 기간이 끝났습니다: <white>{item}</white> <gray>(우편함)"
+  away: "<green>자리를 비운 동안 거래소에서 {count}건이 팔렸습니다: <white>+{amount}"
+  away-line: " <gray>- <white>{item} ×{count}</white> {price} <dark_gray>({buyer})"
+  mode-all: "전체"
+  mode-mine: "내 등록품"
+  mode-search: "검색: {search}"
+  lore: ["", "<gray>가격: </gray>{price} <dark_gray>(개당 {unit})", "<gray>판매자: <white>{seller}", "<gray>남은 시간: {left}"]
+  lore-crash: ["", "<red>가격: {price} (개당 {unit})", "<gray>판매자: <white>{seller}", "<gray>남은 시간: {left}"]
+  lore-buy: ["<yellow>두 번 클릭: 구매"]
+  lore-confirm: ["<gold><b>한 번 더 클릭하면 구매합니다</b>"]
+  lore-own: ["<yellow>클릭: 등록 취소"]
+
+auction:
+  usage: "<red>/경매 등록 <시작가> <gray>(손에 든 물건)</gray> | /경매 입찰 <번호> <금액> | /경매 취소 <번호>"
+  hold-item: "<red>경매에 올릴 물건을 손에 드세요."
+  min-start: "<red>시작가는 {min} 이상이어야 합니다."
+  full: "<red>지금은 경매 자리가 없습니다. <gray>(서버 전체 동시 {max}건)"
+  one-each: "<red>한 사람은 경매를 하나씩만 열 수 있습니다."
+  no-deposit: "<red>보증금 {deposit}이 필요합니다."
+  server: "서버"
+  started: "<light_purple><b>경매 #{id}</b></light_purple> <white>{item} ×{count}</white> <gray>판매자 {seller}, 시작가 </gray>{price}<gray>, {minutes}분 · /경매"
+  started-rare: "<light_purple><b>희귀품 경매 #{id}</b></light_purple> <white>{item} ×{count}</white> <gray>시작가 </gray>{price}<gray>, {minutes}분 · /경매"
+  no-such: "<red>없는 경매입니다."
+  own: "<red>내 경매에는 입찰할 수 없습니다."
+  already-top: "<yellow>이미 최고 입찰자입니다."
+  too-low: "<red>최소 입찰가는 {min} 입니다."
+  rare-limit: "<red>희귀품 경매는 한 주에 {limit}개까지만 낙찰받을 수 있습니다."
+  not-enough: "<red>돈이 부족합니다. <gray>(입찰금은 맡겨 두었다가 밀리면 돌려줌)"
+  outbid: "<red>경매 #{id} {item}: <white>{player}</white>님이 {price}로 앞질렀습니다. <gray>(입찰금 반환, 다음 최소 {min})"
+  bid: "<light_purple>경매 #{id}</light_purple> <white>{item}</white> <gray>- <white>{player}</white> {price}"
+  bid-extended: "<light_purple>경매 #{id}</light_purple> <white>{item}</white> <gray>- <white>{player}</white> {price} <red>(막판 입찰! {seconds}초 연장)"
+  bar: "<light_purple>경매 #{id}</light_purple> <white>{item}</white> <gray>·</gray> {price} <gray>({player}) · {left}"
+  no-bids: "입찰 없음"
+  sold: "<light_purple><b>낙찰!</b></light_purple> <white>경매 #{id} {item}</white> <gray>→ <white>{player}</white> {price} <dark_gray>(입찰 {bids}회)"
+  unsold: "<gray>경매 #{id} {item}: 입찰이 없어 유찰되었습니다."
+  cancelled: "<gray>경매 #{id} {item} 취소"
+  seller-paid: "<green>경매 대금</green> {price} <gray>(수수료 {fee}, 보증금 {deposit} 반환)"
+  not-yours: "<red>내 경매가 아닙니다."
+  has-bids: "<red>입찰이 있는 경매는 취소할 수 없습니다."
+  world-boss-detail: "{x}, {z} 에 출현! 전리품은 경매로만 팝니다"
+  boss-reward: "<gold>월드 보스 피해 {rank}위</gold> <white>{player}</white> <gray>보상 </gray>{amount}"
+  lore: ["", "<gray>경매 <white>#{id}</white> <gray>판매자 <white>{seller}", "<gray>현재가: </gray>{price} <gray>({player})",
+         "<gray>최소 입찰: </gray>{min}", "<gray>남은 시간: {left} <dark_gray>(입찰 {bids}회)"]
+  lore-rare: ["<light_purple>희귀품: 1인 주 {limit}개 낙찰 제한"]
+  lore-click: ["<yellow>두 번 클릭: {min} 입찰"]
+  lore-confirm: ["<gold><b>한 번 더 클릭하면 {min} 입찰</b>"]
+
+trade:
+  usage: "<red>/거래 <플레이어> | /거래 수락 | /거래 거절"
+  self: "<red>자기 자신과는 거래할 수 없습니다."
+  not-online: "<red>접속 중인 플레이어가 아닙니다."
+  too-far: "<red>{distance}블록 안에 있어야 합니다."
+  busy: "<red>둘 중 한 명이 이미 거래 중입니다."
+  already-asked: "<yellow>이미 거래를 신청했습니다."
+  asked: "<gray><white>{player}</white>님에게 거래를 신청했습니다."
+  request: "<gold>{player}</gold><gray>님이 거래를 신청했습니다."
+  accept-button: "<green><b>[수락]</b>"
+  deny-button: "<red><b>[거절]</b>"
+  no-request: "<red>받은 거래 신청이 없습니다."
+  denied-you: "<gray>거래를 거절했습니다."
+  denied: "<red>{player}님이 거래를 거절했습니다."
+  cancel-button: "<red>거래 취소"
+  money-name: "<gold>{player}: {amount}"
+  money-lore: ["<gray>좌클릭 +100 · 우클릭 -100", "<gray>쉬프트: ±1,000"]
+  big-name: "<gold>±10,000 G"
+  big-lore: ["<gray>좌클릭 +10,000 · 우클릭 -10,000"]
+  state-not-ready: "<red>{player}: 준비 안 됨"
+  state-ready: "<yellow>{player}: 준비 완료 <gray>(상대 기다리는 중)"
+  state-press-confirm: "<yellow>{player}: 준비 완료 <gold>→ 눌러서 확정"
+  state-confirmed: "<green>{player}: 확정"
+  button-lore: ["<gray>1. 둘 다 [준비] → 2. 둘 다 [확정]", "<gray>무엇이든 바뀌면 처음부터 다시"]
+  money-changed: "<red>잔액이 바뀌어 다시 확인해야 합니다."
+  done: "<green>거래 완료</green> <gray>({player})"
+  cancelled: "<gray>거래가 취소되었습니다. 물건은 돌려받았습니다."
+  cancelled-far: "<gray>너무 멀어져서 거래가 취소되었습니다."
+  cancelled-left: "<gray>상대가 사라져서 거래가 취소되었습니다."
+  cancelled-reload: "<gray>서버 리로드로 거래가 취소되었습니다."
+
+stall:
+  usage: "<gray>/노점 임대 <번호> · /노점 반납 · /노점 가격 <개당 가격|해제> <dark_gray>(손에 든 종류)"
+  status: "<gray>내 노점: <white>#{number}</white> <dark_gray>(빈 노점 {free} / {total}, 하루 {rent})"
+  status-none: "<gray>빌린 노점 없음 <dark_gray>(빈 노점 {free} / {total}, 하루 {rent})"
+  no-such: "<red>없는 노점 번호입니다: {number}"
+  taken: "<red>노점 #{number}은(는) {player}님이 쓰고 있습니다."
+  one-each: "<red>노점은 한 사람에 하나만 빌릴 수 있습니다."
+  not-enough: "<red>임대료 {rent}이 필요합니다."
+  rented: "<green>노점 #{number} 임대</green> <gray>(하루 {rent}, 매일 05시 자동 결제). 상자에 물건을 넣고 /노점 가격 <가격>"
+  released: "<gray>노점 #{number}을(를) 반납했습니다. 남은 물건은 우편함으로."
+  none: "<red>빌린 노점이 없습니다."
+  hold-item: "<red>가격을 정할 물건을 손에 드세요."
+  priced: "<green>가격 설정</green> <white>{item}</white> 개당 {price}"
+  unpriced: "<gray>가격 해제: <white>{item}"
+  evicted: "<red>임대료 {rent}을 내지 못해 노점 #{number}이(가) 반납되었습니다. <gray>(물건은 우편함)"
+  vacant: "<gray>빈 노점 <white>#{number}</white> (하루 {rent})"
+  rent-button: "<green><b>[빌리기]</b>"
+  protected: "<red>노점 상자는 부술 수 없습니다."
+  lore: ["", "<gray>개당: </gray>{price}", "<gray>재고: <white>{stock}", "<yellow>클릭 1개 · 쉬프트 한 묶음"]
+  lore-empty: ["", "<gray>개당: </gray>{price}", "<red>품절"]
+  sold-out: "<red>품절입니다."
+  not-enough-buy: "<red>돈이 부족합니다. <gray>(개당 {price})"
+  bought: "<green>구매</green> <white>{item} ×{count}</white> <gray>-</gray> {amount}"
+  sale: "<green>노점 판매</green> <white>{player}</white> <gray>→</gray> <white>{item} ×{count}</white> {amount}"
+  sign: "<gold>노점 #{number}</gold>\n<white>{owner}"
+  sign-vacant: "<gray>노점 #{number}</gray>\n<green>빈 노점</green> <gray>· 하루 {rent}"
+
+job:
+  hud: "<{color}>{job}<gray> <gray>Lv{level}"
+  hud-none: "<dark_gray>직업 없음 (/직업)"
+  none: "없음"
+  no-job: "<red>직업이 없습니다. <white>/직업"
+  no-such: "<red>없는 직업입니다."
+  same: "<yellow>이미 그 직업입니다."
+  too-soon: "<red>직업은 7일에 한 번만 바꿀 수 있습니다. <gray>(남은 시간 {left})"
+  not-enough: "<red>직업 변경에는 {cost}이 필요합니다."
+  chosen: "<green>직업 선택: <{color}><b>{job}</b>"
+  info: "<{color}>{job}<gray> <white>Lv{level}</white> <gray>(이번 주 상한 Lv{cap}) · 경험치 {xp} / {next} · 숙련 {mastery}"
+  levelup-title: "<gold><b>Lv{level}!</b>"
+  levelup-subtitle: "<{color}>{job}<gray> <gray>레벨 업"
+  levelup-broadcast: "<white>{player}</white><gray>님이 <{color}>{job}<gray> Lv{level}이 되었습니다."
+  locked: "<red><{color}>{job}<gray> Lv{level} 전용 생산품입니다."
+  found: "<aqua>발견!</aqua> <white>{item}"
+  rare-catch: "<aqua><b>희귀 어획!</b></aqua> <white>{item}"
+  saved: "<green>재료 절약</green> <white>{item}</white> <gray>1개를 돌려받았습니다"
+  quality-lore: "<dark_gray>품질 +{pct}% (<{color}>{job}<gray> Lv{level} 제작)"
+  fertilizer-nothing: "<gray>주변에 자랄 작물이 없습니다."
+  lore-current: ["<green>✔ 내 직업"]
+  lore-pick: ["<yellow>두 번 클릭: 선택 (처음은 무료)"]
+  lore-change: ["<yellow>두 번 클릭: 변경 <gray>({cost}, 경험치 초기화)"]
+  lore-confirm: ["<gold><b>한 번 더 클릭하면 선택합니다</b>"]
+  ranking-header: "<gold>직업 순위</gold> {job} <gray>(숙련 + 경험치)"
+  ranking-line: " <gray>{rank}.</gray> <white>{player}</white> <{color}>{job}<gray> Lv{level} <gray>숙련 {mastery} · 경험치 {xp}"
+  all: "전체"
+
+machine:
+  job-only: "<red><{color}>{job}<gray> 전용 기계입니다."
+  idle: "<gray>{machine}: 대기 중 <dark_gray>(재료를 넣으세요)"
+  idle-operator: "<red>{machine}: 운영자 없음 <dark_gray>(이 직업인 사람이 열면 시작)"
+  working: "<green>{item}</green> <gray>만드는 중 {bar} <white>{pct}%"
+  operator: ["<gray>운영자: <white>{player}</white> <gray>(Lv{level})"]
+  recipes-header: "<gold>레시피"
+  recipe: "<gray>{in} → <white>{out}</white> <dark_gray>({seconds}초, Lv{level})"
+  recipe-locked: "<dark_gray>{in} → {out} (Lv{level} 필요)"
+
+land:
+  usage: "<gray>/땅 · /땅 1 · /땅 2 · /땅 생성 [반지름] · /땅 확장 <칸> · /땅 구매 <㎡> · /땅 신뢰|불신 <플레이어> · /땅 삭제 · /땅 보기"
+  corner: "<gray>모서리 {n}: <white>{x}, {z}"
+  selection: "<gray>선택: <white>{w}×{d} = {area}㎡</white> <gray>(남은 면적 {left}㎡) → <white>/땅 생성"
+  no-selection: "<red>먼저 /땅 1, /땅 2 로 두 모서리를 찍거나 /땅 생성 <반지름> 을 쓰세요."
+  too-small: "<red>한 변이 {min}칸 이상이어야 합니다."
+  overlap: "<red>다른 구역과 겹칩니다."
+  too-many: "<red>구역은 {max}개까지입니다."
+  no-quota: "<red>면적이 부족합니다. <gray>(필요 {area}㎡, 남은 {left}㎡) /땅 구매 <㎡>"
+  created: "<green>구역 생성</green> <white>{area}㎡</white> <gray>(남은 면적 {left}㎡)"
+  created-server: "<green>운영자 구역 생성</green> <white>{area}㎡"
+  not-yours: "<red>내 구역 안에서 하세요."
+  expanded: "<green>구역 확장</green> <white>{area}㎡</white> <gray>(남은 면적 {left}㎡)"
+  deleted: "<gray>구역 삭제 ({area}㎡, 면적은 돌려받음 · 돈은 환불 안 됨)"
+  not-enough: "<red>돈이 부족합니다. <gray>({price})"
+  bought: "<green>면적 구매</green> <white>{area}㎡</white> {price} <gray>(총 면적 {total}㎡)"
+  no-player: "<red>그런 플레이어를 찾을 수 없습니다."
+  trusted: "<green>{player}</green><gray>님이 이 구역을 쓸 수 있습니다."
+  untrusted: "<gray>{player}님의 이 구역 권한을 뺐습니다."
+  info: "<gray>땅: <white>{used} / {quota}㎡</white> <dark_gray>(무료 {free} + 구매 {bought})</dark_gray> · 재산세 하루 {tax} · 지금 ㎡당 {price}G <dark_gray>(미납 {warnings}/{warn-days})"
+  info-line: " <gray>- ({x1}, {z1}) ~ ({x2}, {z2}) <white>{area}㎡</white> <dark_gray>신뢰 {members}명"
+  here: "<gray>여기는 <white>{owner}</white>의 땅입니다."
+  server: "운영자"
+  showing: "<gray>주변 구역 {count}개를 10초 동안 표시합니다."
+  protected: "<red>{owner}의 땅입니다."
+  enter: "<gray>{owner}의 땅"
+  leave: "<dark_gray>야생"
+  tax-warning: "<red>재산세 {tax}를 내지 못했습니다 ({n}/{max}). <gray>{max}일 연속이면 가장 최근 구역이 해제됩니다."
+  released: "<red>재산세 미납으로 구역 ({x}, {z}) {area}㎡의 보호가 풀렸습니다."
+
+request:
+  new-day: "<gold>의뢰 게시판</gold> <gray>새 의뢰 {count}건이 올라왔습니다. <white>/의뢰"
+  no-such: "<red>없는 의뢰입니다."
+  already: "<yellow>이미 완료한 의뢰입니다."
+  limit: "<red>오늘은 의뢰를 {max}건까지만 할 수 있습니다."
+  missing: "<red>납품할 물건이 부족합니다."
+  done: "<green>의뢰 완료</green> <white>{item} ×{count}</white> <gray>→</gray> {reward} <dark_gray>(오늘 남은 {left}건)"
+  name: "<white>{item} ×{count}"
+  lore: ["", "<gray>보상: </gray>{reward}", "<gray>가진 것: <white>{have} / {count}"]
+  lore-xp: ["<gray>+ <{color}>{job}<gray> 경험치 {xp}"]
+  lore-ready: ["<yellow>클릭: 납품"]
+  lore-missing: ["<red>물건이 부족합니다"]
+  lore-done: ["<green>✔ 완료"]
+  no-community: "<gray>이번 주 공동 의뢰가 없습니다."
+  community-done: "<green>이번 주 공동 의뢰는 이미 달성했습니다!"
+  community-missing: "<red>{item}을(를) 들고 있지 않습니다."
+  contributed: "<green>공동 의뢰</green> <white>{item} ×{count}</white> <gray>납품 ({progress} / {target})"
+  community-name: "<gold><b>공동 의뢰: {name}</b>"
+  community-lore: ["<gray>{item} {progress} / {target} <white>({pct}%)", "{bar}", "<gray>내 기여: <white>{mine}</white> <dark_gray>· 참여 {contributors}명",
+                   "<gray>달성하면 참여자 모두 </gray>{reward}", "<yellow>클릭: 가진 {item} 전부 납품"]
+  community-lore-done: ["<green>✔ 달성! ({target})", "<gray>참여 {contributors}명, 각자 </gray>{reward}"]
+  community-complete: "<gold><b>공동 의뢰 달성!</b></gold> <white>{name}</white> <gray>참여 {count}명 모두에게 </gray>{reward}"
+  community-complete-early: "<gold><b>공동 의뢰 달성!</b></gold> <white>{name}</white> <gray>참여 {count}명 모두에게 </gray>{reward}<gray>, 다음 주 개방이 하루 빨라집니다!"
+
+rank:
+  header: "<gold>순자산 순위</gold> <gray>({count}명 · 잔액 + 경매 입찰금 + 땅에 쓴 돈)"
+  line: " <gray>{rank}.</gray> <white>{player}</white> <gray>-</gray> {worth}"
+  line-me: " <yellow>{rank}. {player}</yellow> <gray>-</gray> {worth}"
+  mine: " <gray>...</gray> <yellow>{rank}. 나</yellow> <gray>-</gray> {worth}"
+  daily-header: "<gold><b>{day}일차 순자산 순위</b>"
+  weekly-header: "<gold><b>{week}주차 결산</b></gold> <gray>순자산 순위"
+  weekly-title: "<gold><b>{week}주차 결산</b>"
+  weekly-subtitle: "<gray>1위 <white>{player}</white> {worth}"
+  finale-header: "<gold><b>시즌 마감 · 최종 순자산 순위</b>"
+  finale-title: "<gold><b>시즌 종료</b>"
+  finale-subtitle: "<gray>최고 부자: <white>{player}"
+
+vanity:
+  owned: "<yellow>이미 가지고 있습니다."
+  unknown: "<red>상품 설정 오류입니다. 관리자에게 알려주세요."
+  not-enough: "<red>돈이 부족합니다. <gray>({price})"
+  bought-broadcast: "<gold>{player}</gold><gray>님이 </gray>{item}<gray>을(를) {price}에 샀습니다."
+  lore-cosmetic: ["", "<gray>치장 · 가격 </gray>{price}", "<dark_gray>/옷장 에서 착용"]
+  lore-title: ["", "<gray>칭호 · 가격 </gray>{price}", "<dark_gray>/프로필 에서 장착"]
+  lore-buy: ["<yellow>두 번 클릭: 구매"]
+  lore-confirm: ["<gold><b>한 번 더 클릭하면 구매합니다</b>"]
+  lore-owned: ["<green>✔ 보유 중"]
+  monument-usage: "<gray>/기념비 <문구> <dark_gray>({max}자까지, 지금 가격 {price})"
+  monument-full: "<red>기념비 자리가 없습니다. <gray>(관리자: /경제관리 위치 기념비N)"
+  monument-built: "<gold><b>기념비 건립!</b></gold> <white>{player}</white> <gray>\"{text}\" ({price})"
+  monument-title: "<gold><b>기념비 건립</b>"
+  monument-subtitle: "<white>{player}"
+  monument-plate: "<gold><b>{player}</b></gold>\n<white>\"{text}\"</white>\n<gray>{date} · {price}"
+  donate-closed: "<red>기부는 세무 조사 기간에만 받습니다."
+  donate-usage: "<gray>/기부 <금액> <dark_gray>(합계 {min} 이상이면 칭호)"
+  donated: "<yellow>{player}</yellow><gray>님이 나라에 </gray>{amount}<gray>을 기부했습니다."
+  donate-progress: "<gray>이번 세무 조사 기부 합계 </gray>{total} <gray>/ {min}"
+
+report:
+  header: "<gold>경제 보고서</gold> <gray>{day}일차"
+  supply: " <gray>통화량 <white>{supply} G</white> <dark_gray>(전날 대비 {growth}, 정상 +3~8%)"
+  flow: " <gray>생성 <green>{faucet}</green> · 소멸 <red>{sink}</red> · 소멸/생성 <white>{ratio}</white> <dark_gray>(이번 주 목표 {target})"
+  gini: " <gray>빈부격차(지니) <white>{gini}</white> <dark_gray>(정상 0.35~0.55, 접속 {players}명)"
+  income: " <gray>시간당 수입 하위 25% <white>{low} G</white> · 상위 25% <white>{top} G</white> <dark_gray>(하위가 상위의 1/4 이상)"
+  floor: " <gray>바닥가에 닿은 품목 <white>{count}개</white> <dark_gray>(2개 이하)"
+  ok: " <green>모든 지표 정상"
+  warn-growth-high: " <red>⚠ 돈이 너무 빨리 늘어남 → 수수료·세금 올리기, 기준가 내리기"
+  warn-growth-low: " <yellow>⚠ 돈이 거의 안 늘어남 → 의뢰 보상, 기준가 올리기"
+  warn-ratio-low: " <red>⚠ 소멸이 목표보다 적음 → 과시 소비 상품 추가, 땅값·세금"
+  warn-ratio-high: " <yellow>⚠ 소멸이 목표보다 많음 → 수수료·세금 내리기"
+  warn-gini: " <red>⚠ 빈부격차 0.6 초과 → 누진세 구간 낮추기, 의뢰 보상 올리기, 시장 폭락 앞당기기"
+  warn-gap: " <red>⚠ 하위 수입이 상위의 1/4 미만 → 의뢰 건수·보상 올리기"
+  warn-floor: " <yellow>⚠ 바닥가 품목이 많음 → 그 품목의 q 올리기, 수요 고시에서 빼기"

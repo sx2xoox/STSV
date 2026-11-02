@@ -236,7 +236,7 @@ public final class StsvCommand implements TabExecutor {
     }
 
     private static final Map<String, String> KIND_NAMES = Map.of("FAUCET", "생성", "SINK", "소멸", "TRANSFER", "거래",
-            "CHEQUE", "수표", "ADMIN", "관리");
+            "CHEQUE", "수표", "ADMIN", "관리", "ESCROW", "보관");
 
     private void economy(CommandSender sender, String[] args) {
         var eco = plugin.economy();

@@ -90,7 +90,11 @@ public final class MenuModule implements StsvModule, Listener {
     public void onClick(InventoryClickEvent e) {
         if (!(e.getInventory().getHolder(false) instanceof MenuView view)) return;
         e.setCancelled(true);
-        if (!(e.getWhoClicked() instanceof Player p) || e.getClickedInventory() != e.getInventory()) return;
+        if (!(e.getWhoClicked() instanceof Player p) || e.getClickedInventory() == null) return;
+        if (e.getClickedInventory() != e.getInventory()) {
+            if (e.getClickedInventory() == p.getInventory()) view.handler().onPlayerInventoryClick(view, e.getSlot(), e.getClick());
+            return;
+        }
         int slot = e.getSlot();
         Integer index = view.listAt.get(slot);
         if (index != null) {

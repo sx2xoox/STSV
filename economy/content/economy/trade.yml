@@ -1,0 +1,19 @@
+# 거래 수단 4가지의 수수료와 제한
+market:            # 거래소 /거래소
+  fee: 0.05        # 팔릴 때 5%
+  max-listings: 10
+  stall-bonus: 10  # 노점을 빌린 사람은 +10
+  hours: 48        # 지나면 우편함으로 돌아옴
+auction:           # 경매 /경매
+  fee: 0.07        # 낙찰가의 7%
+  deposit: 100     # 보증금: 팔리면 돌려받고, 입찰이 없으면 잃음
+  minutes: 30
+  extend-seconds: 60   # 끝나기 전 이 시간 안의 입찰은 마감을 이만큼 뒤로 (스나이핑 방지)
+  min-raise: 0.05      # 다음 입찰은 현재가 +5% 이상
+  max-running: 3       # 서버 전체 동시 진행 (플레이어 경매)
+  rare-weekly-wins: 2  # 서버 경매(희귀품) 1인 주간 낙찰 제한
+  min-start: 10
+trade:             # 직거래 /거래
+  distance: 10
+stall:             # 노점 /노점
+  rent: 200        # 하루 임대료 (05시)

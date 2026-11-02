@@ -1,0 +1,37 @@
+# /경매
+auction:
+  title: "<#f3e3b0>경매장"
+  rows: 4
+  background: economy:gui/auction
+  layout:
+    - "....I...."
+    - ".LLLLLLL."
+    - ".LLLLLLL."
+    - "P...X...N"
+  list: L
+  buttons:
+    I:
+      action: ""
+      icon: stsv:gui/info
+      material: BOOK
+      name: "<white>진행 중 {count}건"
+      lore: ["<gray>등록: 물건을 들고 <white>/경매 등록 <시작가>", "<gray>입찰: 두 번 클릭(최소 입찰가) 또는 <white>/경매 입찰 <번호> <금액>", "<gray>잔액: {balance}"]
+    P:
+      action: page:prev
+      icon: stsv:gui/prev
+      material: ARROW
+      name: "<yellow>◀ 이전 페이지"
+      lore: ["<gray>{page} / {pages}"]
+      off: { icon: stsv:gui/prev_off, material: GRAY_DYE, name: "<dark_gray>◀ 첫 페이지" }
+    N:
+      action: page:next
+      icon: stsv:gui/next
+      material: ARROW
+      name: "<yellow>다음 페이지 ▶"
+      lore: ["<gray>{page} / {pages}"]
+      off: { icon: stsv:gui/next_off, material: GRAY_DYE, name: "<dark_gray>마지막 페이지 ▶" }
+    X:
+      action: close
+      icon: stsv:gui/exit
+      material: OAK_DOOR
+      name: "<red>닫기"

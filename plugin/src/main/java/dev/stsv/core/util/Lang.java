@@ -22,6 +22,8 @@ import java.nio.charset.StandardCharsets;
 public final class Lang {
 
     private static YamlConfiguration messages = new YamlConfiguration();
+    /** messages of content plugins (their own messages.yml), looked up after the core's */
+    private static final java.util.Map<String, YamlConfiguration> extra = new java.util.LinkedHashMap<>();
 
     private Lang() {}
 
@@ -36,6 +38,40 @@ public final class Lang {
         messages = y;
     }
 
+    /**
+     * A content plugin's own plugins/&lt;plugin&gt;/messages.yml (defaults from its jar). Call again to
+     * reload it (e.g. on /관리 리로드).
+     */
+    public static void register(JavaPlugin plugin) {
+        File file = new File(plugin.getDataFolder(), "messages.yml");
+        if (!file.exists()) plugin.saveResource("messages.yml", false);
+        YamlConfiguration y = YamlConfiguration.loadConfiguration(file);
+        var bundled = plugin.getResource("messages.yml");
+        if (bundled != null) y.setDefaults(YamlConfiguration.loadConfiguration(new InputStreamReader(bundled, StandardCharsets.UTF_8)));
+        extra.put(plugin.getName(), y);
+    }
+
+    /** For tests: add a messages file as if a content plugin registered it. */
+    public static void useExtra(String name, YamlConfiguration y) {
+        extra.put(name, y);
+    }
+
+    private static String find(String key) {
+        String s = messages.getString(key);
+        if (s != null) return s;
+        for (YamlConfiguration y : extra.values()) {
+            s = y.getString(key);
+            if (s != null) return s;
+        }
+        return null;
+    }
+
+    private static java.util.List<String> findList(String key) {
+        if (messages.contains(key)) return messages.getStringList(key);
+        for (YamlConfiguration y : extra.values()) if (y.contains(key)) return y.getStringList(key);
+        return java.util.List.of();
+    }
+
     /** For tests and tools: use a given messages file. */
     public static void use(YamlConfiguration y) {
         messages = y;
@@ -43,7 +79,7 @@ public final class Lang {
 
     /** The raw MiniMessage text with {placeholders} filled: pairs of name, value. */
     public static String raw(String key, Object... pairs) {
-        String s = messages.getString(key);
+        String s = find(key);
         if (s == null) return "<red>[" + key + "]";
         for (int i = 0; i + 1 < pairs.length; i += 2) s = s.replace("{" + pairs[i] + "}", String.valueOf(pairs[i + 1]));
         return s;
@@ -61,7 +97,7 @@ public final class Lang {
     /** A list of item lore lines. */
     public static java.util.List<Component> items(String key, Object... pairs) {
         java.util.List<Component> out = new java.util.ArrayList<>();
-        for (String line : messages.getStringList(key)) {
+        for (String line : findList(key)) {
             for (int i = 0; i + 1 < pairs.length; i += 2) line = line.replace("{" + pairs[i] + "}", String.valueOf(pairs[i + 1]));
             out.add(Text.item(line));
         }

@@ -35,6 +35,9 @@ public interface MenuHandler {
         return base;
     }
 
+    /** A click in the player's own inventory while this menu is open (the click itself is cancelled). */
+    default void onPlayerInventoryClick(MenuView view, int slot, ClickType click) {}
+
     /** The menu closed (Esc, another menu opened, or closed by code). */
     default void onClose(MenuView view) {}
 }

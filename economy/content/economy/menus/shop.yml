@@ -1,0 +1,69 @@
+# /상점: 위 = 기능 버튼, 가운데 = 파는 물건(클릭해서 사기), 내 인벤토리 클릭 = 팔기
+shop:
+  title: "<#f3e3b0>관리자 상점"
+  rows: 6
+  background: economy:gui/shop
+  layout:
+    - "A.T.I.R.M"
+    - "LLLLLLLLL"
+    - "LLLLLLLLL"
+    - "LLLLLLLLL"
+    - "LLLLLLLLL"
+    - "P..V.X..N"
+  list: L
+  buttons:
+    A:
+      action: "shop:sell-all"
+      icon: economy:gui/coins
+      material: GOLD_NUGGET
+      name: "<gold>가진 것 전부 팔기"
+      lore: ["<gray>상점이 사는 물건을 인벤토리에서 모두 팝니다."]
+    T:
+      action: "shop:prices"
+      icon: economy:gui/chart
+      material: PAPER
+      name: "<aqua>시세 보기"
+      lore: ["<gray>품목별 매입가, 24시간 변화, 수요 고시"]
+    I:
+      action: ""
+      icon: stsv:gui/info
+      material: BOOK
+      name: "<white>잔액: {balance}"
+      lore: ["<gray>내 인벤토리 물건 클릭: <white>팔기", "<dark_gray> 좌클릭 묶음 · 우클릭 1개 · 쉬프트 전부", "<gray>위 물건 클릭: <white>사기 <dark_gray>(쉬프트 8번)"]
+    R:
+      action: "shop:repair"
+      icon: economy:gui/hammer
+      material: ANVIL
+      name: "<white>손에 든 물건 수리"
+      lore: ["<gray>비용: {repair}"]
+    M:
+      action: "shop:merchant"
+      icon: economy:gui/bag
+      material: BUNDLE
+      name: "<light_purple>상인 행렬 한정 상품"
+      lore: ["<gray>사건이 열려 있을 때만"]
+    V:
+      action: "shop:vanity"
+      icon: economy:gui/crown
+      material: GOLDEN_HELMET
+      name: "<yellow>치장·칭호 상점"
+      lore: ["<gray>돈을 영원한 자랑거리로"]
+    P:
+      action: page:prev
+      icon: stsv:gui/prev
+      material: ARROW
+      name: "<yellow>◀ 이전 페이지"
+      lore: ["<gray>{page} / {pages}"]
+      off: { icon: stsv:gui/prev_off, material: GRAY_DYE, name: "<dark_gray>◀ 첫 페이지" }
+    N:
+      action: page:next
+      icon: stsv:gui/next
+      material: ARROW
+      name: "<yellow>다음 페이지 ▶"
+      lore: ["<gray>{page} / {pages}"]
+      off: { icon: stsv:gui/next_off, material: GRAY_DYE, name: "<dark_gray>마지막 페이지 ▶" }
+    X:
+      action: close
+      icon: stsv:gui/exit
+      material: OAK_DOOR
+      name: "<red>닫기"

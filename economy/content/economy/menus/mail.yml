@@ -1,0 +1,44 @@
+# /우편함
+mail:
+  title: "<#f3e3b0>우편함 ({count})"
+  rows: 6
+  background: economy:gui/mail
+  layout:
+    - "....I...."
+    - "LLLLLLLLL"
+    - "LLLLLLLLL"
+    - "LLLLLLLLL"
+    - "LLLLLLLLL"
+    - "P..A.X..N"
+  list: L
+  buttons:
+    I:
+      action: ""
+      icon: stsv:gui/info
+      material: BOOK
+      name: "<white>우편함"
+      lore: ["<gray>받지 못한 물건이 여기 모입니다.", "<gray>클릭해서 꺼내기"]
+    A:
+      action: "mail:all"
+      icon: economy:gui/chest
+      material: CHEST
+      name: "<green>전부 꺼내기"
+    P:
+      action: page:prev
+      icon: stsv:gui/prev
+      material: ARROW
+      name: "<yellow>◀ 이전 페이지"
+      lore: ["<gray>{page} / {pages}"]
+      off: { icon: stsv:gui/prev_off, material: GRAY_DYE, name: "<dark_gray>◀ 첫 페이지" }
+    N:
+      action: page:next
+      icon: stsv:gui/next
+      material: ARROW
+      name: "<yellow>다음 페이지 ▶"
+      lore: ["<gray>{page} / {pages}"]
+      off: { icon: stsv:gui/next_off, material: GRAY_DYE, name: "<dark_gray>마지막 페이지 ▶" }
+    X:
+      action: close
+      icon: stsv:gui/exit
+      material: OAK_DOOR
+      name: "<red>닫기"

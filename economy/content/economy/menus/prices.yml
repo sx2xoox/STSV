@@ -1,0 +1,44 @@
+# /시세: 상점이 사는 품목의 현재가
+prices:
+  title: "<#f3e3b0>시세"
+  rows: 6
+  background: economy:gui/prices
+  layout:
+    - "....I...."
+    - "LLLLLLLLL"
+    - "LLLLLLLLL"
+    - "LLLLLLLLL"
+    - "LLLLLLLLL"
+    - "P..B.X..N"
+  list: L
+  buttons:
+    I:
+      action: ""
+      icon: stsv:gui/info
+      material: BOOK
+      name: "<white>시세 보는 법"
+      lore: ["<gray>오늘 많이 팔린 품목일수록 싸게 삽니다.", "<gray>매일 05시에 조금씩 회복합니다.", "<gold>★<gray> 수요 고시  <green>▲<gray> 품귀  <red>▼<gray> 폭락  <dark_gray>_<gray> 바닥가"]
+    B:
+      action: "command:상점"
+      icon: economy:gui/back
+      material: ARROW
+      name: "<yellow>상점으로"
+    P:
+      action: page:prev
+      icon: stsv:gui/prev
+      material: ARROW
+      name: "<yellow>◀ 이전 페이지"
+      lore: ["<gray>{page} / {pages}"]
+      off: { icon: stsv:gui/prev_off, material: GRAY_DYE, name: "<dark_gray>◀ 첫 페이지" }
+    N:
+      action: page:next
+      icon: stsv:gui/next
+      material: ARROW
+      name: "<yellow>다음 페이지 ▶"
+      lore: ["<gray>{page} / {pages}"]
+      off: { icon: stsv:gui/next_off, material: GRAY_DYE, name: "<dark_gray>마지막 페이지 ▶" }
+    X:
+      action: close
+      icon: stsv:gui/exit
+      material: OAK_DOOR
+      name: "<red>닫기"

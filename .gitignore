@@ -5,3 +5,4 @@ __pycache__/
 plugin/build/
 tools/assetgen/build/
 dist/
+economy/build/

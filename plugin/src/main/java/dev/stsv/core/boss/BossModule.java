@@ -253,11 +253,15 @@ public final class BossModule implements StsvModule, Listener {
 
     void dropLoot(BossInstance b, Location at) {
         ThreadLocalRandom r = ThreadLocalRandom.current();
+        List<ItemStack> loot = new java.util.ArrayList<>();
         for (BossSpec.Drop d : b.spec.drops()) {
             if (r.nextDouble() > d.chance()) continue;
             int amount = d.max() > d.min() ? r.nextInt(d.min(), d.max() + 1) : d.min();
-            item(d.item(), amount).ifPresent(it -> at.getWorld().dropItemNaturally(at, it));
+            item(d.item(), amount).ifPresent(loot::add);
         }
+        BossDefeatEvent event = new BossDefeatEvent(b.spec.id(), at.clone(), java.util.Collections.unmodifiableMap(new java.util.HashMap<>(b.damageBy)), loot);
+        Bukkit.getPluginManager().callEvent(event);
+        for (ItemStack it : event.drops()) at.getWorld().dropItemNaturally(at, it);
     }
 
     /** Title for everyone who fought, and the damage ranking in chat. */
