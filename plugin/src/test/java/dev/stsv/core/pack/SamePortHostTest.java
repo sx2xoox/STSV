@@ -16,6 +16,7 @@ import java.util.Set;
 import static org.junit.jupiter.api.Assertions.assertArrayEquals;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
+import static org.junit.jupiter.api.Assertions.assertNotNull;
 import static org.junit.jupiter.api.Assertions.assertNull;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
@@ -90,12 +91,18 @@ class SamePortHostTest {
         assertTrue(response(ch).startsWith("HTTP/1.1 200 OK"));
     }
 
+    /** Another plugin may serve its own pack on the same port: requests for other paths reach the next handler. */
     @Test
-    void otherPathsAreNotFound() {
+    void otherPathsArePassedOnUntouched() {
         EmbeddedChannel ch = channel();
-        ch.writeInbound(bytes("GET /secret HTTP/1.1\r\n\r\n"));
-        assertTrue(response(ch).startsWith("HTTP/1.1 404 Not Found"));
-        assertFalse(ch.isOpen());
+        String request = "GET /mcpl-pack/def.zip HTTP/1.1\r\nHost: x\r\n\r\n";
+        ch.writeInbound(bytes("GET /mcpl"));
+        ch.writeInbound(bytes(request.substring(9)));
+        assertEquals(request, game.got.toString(StandardCharsets.ISO_8859_1));
+        assertTrue(response(ch).isEmpty(), "not answered by us");
+        assertNull(ch.pipeline().get("stsv_pack_http"), "steps out");
+        assertNotNull(ch.pipeline().get("timeout"), "the game's read timeout stays");
+        assertTrue(ch.isOpen());
     }
 
     /** Handshake: packet length, packet id 0, protocol, host, port, intent. Must arrive byte for byte. */

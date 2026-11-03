@@ -24,8 +24,9 @@ import java.util.logging.Logger;
  * (io.papermc.paper.network.ChannelInitializeListenerHolder, internal). For each connection we put a
  * small handler in front of the Minecraft ones that looks at the first bytes: "GET " is an HTTP request
  * (a Minecraft client starts with a packet length and the packet id 0, never "GET "), anything else is
- * handed on untouched and the handler removes itself. HTTP requests get the pack and the connection
- * is closed; the Minecraft handlers never see them.
+ * handed on untouched and the handler removes itself. HTTP requests for {@link #PATH} get the pack and the
+ * connection is closed; the Minecraft handlers never see them. Other HTTP requests are handed on untouched too,
+ * so another plugin can serve its own files on the same port.
  *
  * Does not work when something in front of the server only lets Minecraft traffic through (proxies
  * such as Velocity or BungeeCord, DDoS protection such as TCPShield): use the separate port then.
@@ -36,6 +37,8 @@ final class SamePortHost {
     private static final byte[] GET = "GET ".getBytes(StandardCharsets.US_ASCII);
     private static final int MAX_REQUEST = 8192;
     private static final String HANDLER = "stsv_pack_http";
+    /** Requests under this path are ours; any other HTTP request is handed on to the next handler. */
+    static final String PATH = "/pack/";
 
     private final Supplier<PackBuilder.Built> pack;
     private final Logger log;
@@ -116,9 +119,6 @@ final class SamePortHost {
                 }
                 if (n < GET.length) return; // could still be "GET ": wait for more
                 http = true;
-                // a download takes longer than the game's read timeout allows; use our own limit
-                if (ctx.pipeline().get("timeout") != null) ctx.pipeline().remove("timeout");
-                ctx.executor().schedule(() -> ctx.close(), 120, TimeUnit.SECONDS);
             }
             String request = buffered.toString(StandardCharsets.ISO_8859_1);
             int end = request.indexOf("\r\n\r\n");
@@ -129,9 +129,17 @@ final class SamePortHost {
             String line = request.substring(0, request.indexOf("\r\n"));
             String[] parts = line.split(" ");
             String path = parts.length >= 2 ? parts[1] : "";
+            if (!path.startsWith(PATH)) {
+                // not ours (e.g. another plugin serving its own pack on this port): hand it on untouched
+                passOn(ctx);
+                return;
+            }
             buffered.release();
             buffered = null;
             answered = true;
+            // a download takes longer than the game's read timeout allows; use our own limit
+            if (ctx.pipeline().get("timeout") != null) ctx.pipeline().remove("timeout");
+            ctx.executor().schedule(() -> ctx.close(), 120, TimeUnit.SECONDS);
             respond(ctx, path);
         }
 
@@ -148,7 +156,7 @@ final class SamePortHost {
             byte[] body;
             String status;
             String type;
-            if (built != null && path.startsWith("/pack/")) {
+            if (built != null) {
                 body = built.zip();
                 status = "200 OK";
                 type = "application/zip";
