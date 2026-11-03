@@ -24,7 +24,6 @@ import org.bukkit.event.EventHandler;
 import org.bukkit.event.HandlerList;
 import org.bukkit.event.Listener;
 import org.bukkit.event.inventory.InventoryClickEvent;
-import org.bukkit.event.inventory.InventoryCloseEvent;
 import org.bukkit.event.block.Action;
 import org.bukkit.event.player.PlayerChangedWorldEvent;
 import org.bukkit.event.player.PlayerInteractEntityEvent;
@@ -45,7 +44,6 @@ import java.io.File;
 import java.io.IOException;
 import java.util.ArrayList;
 import java.util.HashMap;
-import java.util.HashSet;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
@@ -56,9 +54,11 @@ import java.util.UUID;
 /**
  * Cosmetics: purely visual items worn on top of the real equipment.
  *
- * Showing: the cosmetic is sent as a visual-only equipment change to everyone who can see the player
- * (and to the player, for third-person view). The real helmet and its protection are untouched.
- * It is re-sent whenever the server would overwrite it (equipment change, new viewer, respawn...).
+ * Showing: the cosmetic is sent as a visual-only equipment change to everyone who can see the player.
+ * The real helmet and its protection are untouched. It is never sent to the wearer: the client draws its
+ * own head straight from the inventory helmet slot, so showing it there would put the cosmetic in that
+ * slot. The wearer sees it on the wardrobe mannequin. It is re-sent whenever the server would overwrite
+ * it (equipment change, new viewer, respawn...).
  *
  * Wardrobe: inside a wardrobe zone, /wardrobe opens the menu. Clicking a cosmetic wears it (or takes it
  * off if worn, or only previews it if not owned), closes the menu and shows a spectator camera on a
@@ -101,6 +101,7 @@ public final class CosmeticModule implements StsvModule, Listener {
             for (Player p : Bukkit.getOnlinePlayers()) if (equipped(p).isPresent()) refresh(p);
         }, 100L, 100L);
         for (Player p : Bukkit.getOnlinePlayers()) {
+            p.updateInventory(); // older versions showed the cosmetic in the wearer's own helmet slot
             migrate(p);
             restoreIfStuck(p);
             refreshLater(p);
@@ -234,13 +235,11 @@ public final class CosmeticModule implements StsvModule, Listener {
         p.sendMessage(Lang.msg("cosmetic.got", "cosmetic", displayName(c)));
     }
 
-    /** Sends what the player's head should look like to everyone who sees them (and themselves). */
+    /** Sends what the player's head should look like to everyone who sees them (never to themselves). */
     public void refresh(Player p) {
         if (!p.isOnline() || sessions.containsKey(p.getUniqueId())) return;
-        Set<Player> viewers = new HashSet<>(p.getTrackedBy());
-        if (plugin.getConfig().getBoolean("cosmetics.show-to-self")) viewers.add(p);
         ItemStack look = look(p);
-        for (Player v : viewers) v.sendEquipmentChange(p, EquipmentSlot.HEAD, look);
+        for (Player v : p.getTrackedBy()) if (v != p) v.sendEquipmentChange(p, EquipmentSlot.HEAD, look);
     }
 
     private ItemStack look(Player p) {
@@ -271,10 +270,6 @@ public final class CosmeticModule implements StsvModule, Listener {
             }
         });
     }
-
-    /** The client's own inventory gets re-synced by the server on clicks; put the look back. */
-    @EventHandler public void onInvClick(InventoryClickEvent e) { if (e.getWhoClicked() instanceof Player p && equipped(p).isPresent()) refreshLater(p); }
-    @EventHandler public void onInvClose(InventoryCloseEvent e) { if (e.getPlayer() instanceof Player p && equipped(p).isPresent()) refreshLater(p); }
 
     // ------------------------------------------------------------------------------------------
     // Wardrobe zones
@@ -768,7 +763,7 @@ public final class CosmeticModule implements StsvModule, Listener {
         out.add("보유(직접 지급): " + (owned(p).isEmpty() ? "없음" : String.join(", ", owned(p))));
         out.add("OP 전체 보유 설정(cosmetics.op-owns-all): " + plugin.getConfig().getBoolean("cosmetics.op-owns-all")
                 + " / 권한: " + p.hasPermission("stsv.cosmetic.*"));
-        out.add("보는 사람 수: " + p.getTrackedBy().size() + " (+ 본인 표시: " + plugin.getConfig().getBoolean("cosmetics.show-to-self") + ")");
+        out.add("보는 사람 수: " + p.getTrackedBy().size() + " (본인 화면에는 보내지 않음)");
         out.add("옷장 안: " + inWardrobe(p));
         return out;
     }
