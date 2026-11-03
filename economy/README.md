@@ -6,7 +6,7 @@ STSV 공통 플러그인 위에서 도는 첫 번째 콘텐츠: 마인크래프�
 
 ## 설치
 
-1. `plugins/` 에 `stsv-core-0.11.2.jar` 와 `stsv-economy-1.1.0.jar` 를 함께 넣습니다 (경제 플러그인은 코어가 필요).
+1. `plugins/` 에 `stsv-core-0.11.3.jar` 와 `stsv-economy-1.1.0.jar` 를 함께 넣습니다 (경제 플러그인은 코어가 필요).
 2. 서버를 켜면 경제 콘텐츠 팩이 `plugins/STSV/contents/economy/` 에 설치되고, 아이템·기계 모델·메뉴 배경이 리소스팩에 들어갑니다.
 3. 돈과 모든 기록은 코어의 저장소(`plugins/STSV/data/stsv.db` 또는 MySQL)에 있습니다. 월드와 별개입니다.
 

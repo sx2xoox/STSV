@@ -3,7 +3,7 @@ plugins {
 }
 
 group = "dev.stsv"
-version = "0.11.2"
+version = "0.11.3"
 
 repositories {
     mavenCentral()
@@ -23,6 +23,8 @@ dependencies {
 
     testImplementation("io.papermc.paper:paper-api:26.3.build.237-stable")
     testImplementation("org.xerial:sqlite-jdbc:3.47.1.0")
+    testImplementation("io.netty:netty-transport:4.2.16.Final")
+    testImplementation("io.netty:netty-handler:4.2.16.Final")
     testImplementation(platform("org.junit:junit-bom:5.13.4"))
     testImplementation("org.junit.jupiter:junit-jupiter")
     testImplementation("org.junit.jupiter:junit-jupiter-params")

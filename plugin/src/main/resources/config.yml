@@ -7,13 +7,21 @@ resource-pack:
   pack-format: 97
   required: true
   prompt: "<gradient:#ffb35c:#ff6a3d>STSV</gradient> <gray>서버 전용 리소스팩이 필요합니다."
-  # 내장 웹서버로 리소스팩을 배포합니다. public-url은 플레이어가 접속할 수 있는 주소여야 합니다.
+  # 리소스팩을 서버가 직접 배포합니다.
   host:
     enabled: true
+    # same-port: 마인크래프트 접속 포트로 함께 배포합니다. 포트를 따로 열거나 주소를 적을 필요가 없습니다 (기본)
+    # separate-port: 아래 port 로 따로 배포합니다. 서버 앞에 Velocity/BungeeCord 같은 프록시나
+    #                TCPShield 같은 디도스 방어가 있으면 이쪽을 쓰고, 그 포트를 외부에 열어야 합니다
+    mode: same-port
+    # separate-port 전용
     bind: 0.0.0.0
     port: 8163
-    public-url: "http://localhost:8163"
-  # 내장 웹서버 대신 외부 주소를 쓸 때 (host.enabled: false 일 때 사용)
+    # 비워 두면 플레이어가 접속할 때 입력한 주소를 그대로 씁니다.
+    # 접속 주소로 서버에 바로 닿지 않을 때만 적으세요 (예: 포트포워딩으로 외부 포트와 서버 포트가 다를 때)
+    # 예: "http://mc.example.com:25565"  (localhost 는 무시됩니다)
+    public-url: ""
+  # 서버가 배포하지 않고 외부 주소를 쓸 때 (host.enabled: false 일 때 사용)
   external-url: ""
 
 furniture:

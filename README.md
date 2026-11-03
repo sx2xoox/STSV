@@ -142,5 +142,10 @@ contents/mypack/
 
 ## 서버 설정
 
-`plugins/STSV/config.yml` 의 `resource-pack.host.public-url` 은 **플레이어가 접속할 수 있는 주소**여야 합니다.
-예: `http://서버IP:8163`. 방화벽에서 해당 포트를 열어야 합니다.
+리소스팩은 **마인크래프트 접속 포트로 함께 배포**됩니다(`resource-pack.host.mode: same-port`, 기본).
+포트를 따로 열거나 주소를 적을 필요가 없고, 플레이어가 접속할 때 입력한 주소로 받아 갑니다.
+
+- 서버 앞에 Velocity/BungeeCord 같은 프록시나 TCPShield 같은 디도스 방어가 있으면 다운로드 요청이 서버까지 오지 않습니다.
+  이때는 `mode: separate-port` 로 바꾸고 `port`(기본 8163)를 외부에 여세요.
+- 포트포워딩으로 외부 포트와 서버 포트가 다르면 `public-url` 에 외부 주소를 적으세요. 예: `http://mc.example.com:25565`
+- 받기에 실패하면 서버 로그에 그 플레이어가 받으려 한 주소가 나옵니다.

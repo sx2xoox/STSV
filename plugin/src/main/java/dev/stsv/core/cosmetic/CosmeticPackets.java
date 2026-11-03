@@ -108,7 +108,15 @@ final class CosmeticPackets {
 
         Class<?> craftItem = Class.forName(Bukkit.getServer().getClass().getPackageName() + ".inventory.CraftItemStack", false, cl);
         asNms = craftItem.getMethod("asNMSCopy", ItemStack.class);
-        asBukkit = craftItem.getMethod("asBukkitCopy", nmsItem);
+        // Paper takes the NMS item's interface (ItemInstance), vanilla code the class: match by assignability
+        Method bukkit = null;
+        for (Method m : craftItem.getMethods()) {
+            if (m.getName().equals("asBukkitCopy") && m.getParameterCount() == 1
+                    && m.getParameterTypes()[0].isAssignableFrom(nmsItem)
+                    && java.lang.reflect.Modifier.isStatic(m.getModifiers())) bukkit = m;
+        }
+        if (bukkit == null) throw new NoSuchMethodException("CraftItemStack.asBukkitCopy");
+        asBukkit = bukkit;
         nmsCopy = nmsItem.getMethod("copy");
     }
 
