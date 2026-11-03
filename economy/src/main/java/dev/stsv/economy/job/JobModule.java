@@ -472,6 +472,45 @@ public final class JobModule extends EcoModule {
     }
 
     // ------------------------------------------------------------------------------------------
+    // Custom crops: who may plant them, and the farmer's touch at harvest
+    // ------------------------------------------------------------------------------------------
+
+    @EventHandler(priority = EventPriority.NORMAL, ignoreCancelled = true)
+    public void onCrop(dev.stsv.core.crop.CropEvent e) {
+        Player p = e.player();
+        UUID u = p.getUniqueId();
+        switch (e.action()) {
+            case PLANT -> {
+                String job = e.crop().extra().get("job");
+                if (job == null || p.hasPermission("stsv.economy.admin")) return;
+                int need = Integer.parseInt(e.crop().extra().getOrDefault("level", "1"));
+                if (!job.equals(job(u)) || level(u) < need) {
+                    e.setCancelled(true);
+                    JobSpec.Job j = spec.jobs().get(job);
+                    HudModule.flash(p, Lang.mm("job.locked-plant", "color", j == null ? "white" : j.color(), "job", j == null ? job : j.name(), "level", need));
+                }
+            }
+            case HARVEST -> {
+                reward(p, "harvest", e.crop().id(), 1);
+                if (!"farmer".equals(job(u))) return;
+                e.qualityBonus(e.qualityBonus() + passive(u, "farmer", "crop-quality"));
+                if (ThreadLocalRandom.current().nextDouble() < passive(u, "farmer", "crop-bonus")) {
+                    for (dev.stsv.core.crop.CropSpec.Drop d : e.crop().harvest()) {
+                        if (!d.quality()) continue;
+                        for (ItemStack it : e.drops()) {
+                            if (Items.key(it).equals(d.item())) {
+                                it.setAmount(it.getAmount() + 1);
+                                return;
+                            }
+                        }
+                    }
+                }
+            }
+            default -> { }
+        }
+    }
+
+    // ------------------------------------------------------------------------------------------
     // Fisher
     // ------------------------------------------------------------------------------------------
 

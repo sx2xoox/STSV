@@ -26,6 +26,7 @@ class PackTest {
     private static final Path PACK = ContentTest.PACK;
     private static final Path CORE = Path.of("../content/stsv").toAbsolutePath().normalize();
     private static final Set<String> GLOWING = Set.of("smoker_oven", "distiller");
+    // crop stages are crossed planes with cut-out textures
 
     @Test
     void machineModelsConvertCleanly() throws Exception {
@@ -33,7 +34,7 @@ class PackTest {
         try (var s = Files.list(PACK.resolve("models"))) {
             models = s.filter(p -> p.toString().endsWith(".bbmodel")).sorted().toList();
         }
-        assertEquals(8, models.size());
+        assertEquals(8 + 2 + 27, models.size(), "8 machines, sprinkler and pot, 26 crop stages + withered");
         for (Path p : models) {
             String name = p.getFileName().toString().replace(".bbmodel", "");
             BBModelConverter.Result r = BBModelConverter.convert(p, "economy:item/" + name);

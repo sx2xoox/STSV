@@ -43,6 +43,7 @@ public final class STSVPlugin extends JavaPlugin {
     private dev.stsv.core.profile.ProfileModule profiles;
     private dev.stsv.core.hud.HudModule hud;
     private dev.stsv.core.economy.EconomyModule economy;
+    private dev.stsv.core.crop.CropModule crops;
     private ItemBrowser itemBrowser;
     private RecipeEditor recipeEditor;
 
@@ -65,6 +66,7 @@ public final class STSVPlugin extends JavaPlugin {
         modules.register(recipes = new RecipeModule());
         modules.register(furniture = new FurnitureModule());
         modules.register(skins = new SkinModule());
+        modules.register(crops = new dev.stsv.core.crop.CropModule());
         modules.register(cosmetics = new CosmeticModule());
         modules.register(profiles = new dev.stsv.core.profile.ProfileModule());
         modules.register(economy = new dev.stsv.core.economy.EconomyModule());
@@ -127,6 +129,7 @@ public final class STSVPlugin extends JavaPlugin {
     public dev.stsv.core.profile.ProfileModule profiles() { return profiles; }
     public dev.stsv.core.hud.HudModule hud() { return hud; }
     public dev.stsv.core.economy.EconomyModule economy() { return economy; }
+    public dev.stsv.core.crop.CropModule crops() { return crops; }
     public ItemBrowser itemBrowser() { return itemBrowser; }
     public RecipeEditor recipeEditor() { return recipeEditor; }
 }

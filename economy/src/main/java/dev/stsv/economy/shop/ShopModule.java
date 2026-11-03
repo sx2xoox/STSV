@@ -125,6 +125,11 @@ public final class ShopModule extends EcoModule implements DailyListener {
         return m;
     }
 
+    /** Quality stars of custom crops: ★2 pays 1.25x, ★3 1.5x. */
+    public static double starMultiplier(int star) {
+        return star <= 1 ? 1 : 1 + 0.25 * (star - 1);
+    }
+
     public double price(String item) {
         ShopCatalog.SellEntry e = catalog.sell().get(item);
         if (e == null) return 0;
@@ -158,17 +163,19 @@ public final class ShopModule extends EcoModule implements DailyListener {
         String id = Items.key(sample);
         ShopCatalog.SellEntry e = catalog.sell().get(id);
         if (e == null || !Items.plain(sample, id)) return "shop.not-buying";
-        int have = Items.count(p.getInventory(), it -> Items.plain(it, id));
+        int star = dev.stsv.core.crop.CropModule.stars(sample);
+        java.util.function.Predicate<ItemStack> same = it -> Items.plain(it, id) && dev.stsv.core.crop.CropModule.stars(it) == star;
+        int have = Items.count(p.getInventory(), same);
         int n = Math.min(count, have);
         if (e.cap() != null) n = Math.min(n, e.cap() - store.soldBy(p.getUniqueId(), id));
         if (n <= 0) return e.cap() != null && store.soldBy(p.getUniqueId(), id) >= e.cap() ? "shop.cap-reached" : "shop.not-buying";
-        double mult = multiplier(id);
+        double mult = multiplier(id) * starMultiplier(star);
         double total = PriceModel.total(e.base(), store.sold(id), e.q(), eco.activity().store().players(), catalog.floor(), mult, n);
         String rk = p.getUniqueId() + "|" + id;
         total += remainder.getOrDefault(rk, 0.0);
         long paid = (long) Math.floor(total);
         remainder.put(rk, total - paid);
-        int removed = Items.remove(p.getInventory(), it -> Items.plain(it, id), n);
+        int removed = Items.remove(p.getInventory(), same, n);
         if (removed != n) eco.getLogger().warning("판매 수량 불일치: " + p.getName() + " " + id + " " + removed + "/" + n);
         store.record(p.getUniqueId(), id, removed);
         if (paid > 0) core.economy().move(null, p.getUniqueId(), paid, EconomyStore.Kind.FAUCET, "shop_sell", id + " x" + removed);
@@ -194,7 +201,7 @@ public final class ShopModule extends EcoModule implements DailyListener {
         for (ItemStack it : p.getInventory().getStorageContents()) {
             if (it == null || it.isEmpty()) continue;
             String id = Items.key(it);
-            if (catalog.sell().containsKey(id) && Items.plain(it, id)) samples.putIfAbsent(id, it.clone());
+            if (catalog.sell().containsKey(id) && Items.plain(it, id)) samples.putIfAbsent(id + "|" + dev.stsv.core.crop.CropModule.stars(it), it.clone());
         }
         for (ItemStack sample : samples.values()) {
             Object r = sell(p, sample, Integer.MAX_VALUE);

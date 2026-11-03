@@ -87,3 +87,25 @@ distiller:
   pattern: ["GGG", "GBG", "CCC"]
   keys: { G: minecraft:glass, B: minecraft:brewing_stand, C: minecraft:copper_ingot }
   result: economy:distiller
+
+# ── 작물 도구 ──
+watering_can:
+  type: shaped
+  pattern: ["I  ", "IBI", " I "]
+  keys: { I: minecraft:iron_ingot, B: minecraft:bucket }
+  result: economy:watering_can
+copper_watering_can:
+  type: shaped
+  pattern: ["CCC", "CWC", "CCC"]
+  keys: { C: minecraft:copper_ingot, W: economy:watering_can }
+  result: economy:copper_watering_can
+sprinkler:
+  type: shaped
+  pattern: ["S S", " W ", "SCS"]
+  keys: { S: economy:steel_ingot, W: minecraft:water_bucket, C: minecraft:copper_ingot }
+  result: economy:sprinkler
+planter_pot:
+  type: shaped
+  pattern: ["T T", "TDT", "TTT"]
+  keys: { T: minecraft:terracotta, D: minecraft:dirt }
+  result: { item: economy:planter_pot, amount: 2 }

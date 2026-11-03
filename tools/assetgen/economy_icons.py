@@ -685,3 +685,116 @@ GUI = {
     "chest": lambda: mask(CHEST, {"#": "wood", "k": "brass"}),
     "back": lambda: mask(BACK, {"#": "gold"}),
 }
+
+
+# ------------------------------------------------------------------------------------------------
+# Crops: seed packets, produce, tools
+# ------------------------------------------------------------------------------------------------
+
+PACKET = pad([
+    "",
+    "...pppppppppp...",
+    "...pPPPPPPPPp...",
+    "...pPPPPPPPPp...",
+    "...p..ffff..p...",
+    "...p.ffffff.p...",
+    "...p.ffffff.p...",
+    "...p..ffff..p...",
+    "...p...ll...p...",
+    "...pPPPPPPPPp...",
+    "...pppppppppp...",
+])
+
+TOMATO = pad([
+    "", "",
+    ".......ll.......",
+    ".....llllll.....",
+    ".....######.....",
+    "...#hh#######...",
+    "..#hh#########..",
+    "..#h##########..",
+    "..############..",
+    "..############..",
+    "...##########...",
+    ".....######.....",
+])
+
+CHILI = pad([
+    "",
+    "...ll...........",
+    "....ll..........",
+    "....###.........",
+    "...#h###........",
+    "...#h####.......",
+    "....#h####......",
+    ".....######.....",
+    "......######....",
+    ".......######...",
+    ".........#####..",
+    "...........###..",
+    ".............#..",
+])
+
+BERRY = pad([
+    "", "",
+    "......l.l.......",
+    ".....lllll......",
+    "....########....",
+    "...#h#.##.###...",
+    "...##########...",
+    "...#.##.##.##...",
+    "....########....",
+    "....##.##.##....",
+    ".....######.....",
+    "......####......",
+    ".......##.......",
+])
+
+CAN = pad([
+    "", "",
+    ".........hhh....",
+    "........h...h...",
+    "..s....#######..",
+    "..ss..########..",
+    "...ss#########..",
+    "....##########..",
+    ".....#########..",
+    ".....#########..",
+    ".....#########..",
+    "......#######...",
+])
+
+SPRAY = pad([
+    "",
+    ".......nnn......",
+    "......nnnnt.....",
+    ".......kk.......",
+    "......gggg......",
+    ".....g####g.....",
+    ".....g#ss#g.....",
+    ".....g#ss#g.....",
+    ".....g####g.....",
+    ".....g####g.....",
+    ".....g####g.....",
+    "......gggg......",
+])
+
+
+def packet(paper, fruit, leaf="leaf"):
+    return mask(PACKET, {"p": paper, "P": (paper, 3), "f": fruit, "l": leaf}, flat="P")
+
+
+ITEMS.update({
+    "golden_wheat_seeds": lambda: packet("cream", "gold"),
+    "honey_potato_seed": lambda: packet("cream", "terracotta"),
+    "ruby_carrot_seed": lambda: packet("cream", "ruby"),
+    "tomato_seeds": lambda: packet("paper", "tomato"),
+    "chili_seeds": lambda: packet("paper", "fabric_red"),
+    "strawberry_seeds": lambda: packet("paper", "toadstool"),
+    "tomato": lambda: mask(TOMATO, {"#": "tomato", "h": ("tomato", 4), "l": "leaf"}, flat="h"),
+    "chili_pepper": lambda: mask(CHILI, {"#": "fabric_red", "h": ("tomato", 4), "l": "leaf"}, flat="h"),
+    "strawberry": lambda: mask(BERRY, {"#": "toadstool", "h": ("cream", 3), "l": "leaf"}, flat="h"),
+    "watering_can": lambda: mask(CAN, {"#": "steel", "h": "steel", "s": "steel"}),
+    "copper_watering_can": lambda: mask(CAN, {"#": "copper", "h": "copper", "s": "copper"}),
+    "pesticide": lambda: mask(SPRAY, {"n": "steel", "t": "steel", "k": "rubber", "g": ("snow", 2), "#": "leaf", "s": ("obsidian", 1)}, flat="gs"),
+})

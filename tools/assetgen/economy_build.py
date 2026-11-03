@@ -76,15 +76,26 @@ def main():
     sheet(E, PREVIEWS / "economy_items.png")
     gui_sheet(G, menus, PREVIEWS / "economy_menus.png")
     if render:
-        machines = [Image.open(BUILD / f"eco_{n}.png").convert("RGBA") for n in M.ALL]
+        crop_models = {f"{n}_{st}" for n, (k, stages, *_) in M.CROPS.items() for st in range(stages)} | {"withered_crop"}
+        machines = [Image.open(BUILD / f"eco_{n}.png").convert("RGBA") for n in M.ALL if n not in crop_models]
         w = sum(m.width for m in machines)
         out = Image.new("RGBA", (w, max(m.height for m in machines)), (40, 40, 48, 255))
         x = 0
         for m in machines:
             out.alpha_composite(m, (x, 0))
             x += m.width
+        out = out.resize((out.width // 3, out.height // 3))
         out.save(PREVIEWS / "economy_machines.png")
-
+        # crops: one row per crop, its stages left to right; the withered look at the end
+        rows = [[f"eco_{n}_{st}.png" for st in range(stages)] for n, (k, stages, *_) in M.CROPS.items()]
+        rows[-1] = rows[-1] + ["eco_withered_crop.png"]
+        ims = [[Image.open(BUILD / f).convert("RGBA") for f in r] for r in rows]
+        cw, ch = ims[0][0].width // 3, ims[0][0].height // 3
+        out = Image.new("RGBA", (cw * max(len(r) for r in ims), ch * len(ims)), (40, 40, 48, 255))
+        for y, r in enumerate(ims):
+            for x, im in enumerate(r):
+                out.alpha_composite(im.resize((cw, ch)), (x * cw, y * ch))
+        out.save(PREVIEWS / "economy_crops.png")
 
 def sheet(E, path, cols=9, scale=4):
     items = list(E.ITEMS.items())

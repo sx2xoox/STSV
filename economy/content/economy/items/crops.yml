@@ -1,0 +1,96 @@
+# 작물 관련 아이템: 씨앗, 수확물, 물뿌리개, 살충제, 스프링클러, 화분
+# 작물 정의는 crops/crops.yml
+
+golden_wheat_seeds:
+  material: paper
+  name: "<#8bc34a>황금 밀 씨앗"
+  lore: ["<gray>Lv2 농부가 밀을 수확할 때 가끔. 경작지에 심기 (농부 Lv2)."]
+  texture: golden_wheat_seeds
+
+honey_potato_seed:
+  material: paper
+  name: "<#8bc34a>꿀 씨감자"
+  lore: ["<gray>Lv2 농부가 감자를 수확할 때 가끔. 경작지에 심기 (농부 Lv2)."]
+  texture: honey_potato_seed
+
+ruby_carrot_seed:
+  material: paper
+  name: "<#8bc34a>루비 당근 씨앗"
+  lore: ["<gray>Lv2 농부가 당근을 수확할 때 가끔. 경작지에 심기 (농부 Lv2)."]
+  texture: ruby_carrot_seed
+
+tomato_seeds:
+  material: paper
+  name: "<#8bc34a>토마토 씨앗"
+  lore: ["<gray>관리자 상점. 경작지나 화분에 심기. 수확 뒤 다시 열림."]
+  texture: tomato_seeds
+
+chili_seeds:
+  material: paper
+  name: "<#8bc34a>고추 씨앗"
+  lore: ["<gray>관리자 상점. 경작지나 화분에 심기. 수확 뒤 다시 열림."]
+  texture: chili_seeds
+
+strawberry_seeds:
+  material: paper
+  name: "<#8bc34a>딸기 씨앗"
+  lore: ["<gray>관리자 상점. 경작지나 화분에 심기. 수확 뒤 다시 열림, 해충에 약함."]
+  texture: strawberry_seeds
+
+tomato:
+  material: paper
+  name: "<#8bc34a>토마토"
+  lore: ["<gray>요리 재료. 품질 ★이 높을수록 비싸게 팔림."]
+  texture: tomato
+
+chili_pepper:
+  material: paper
+  name: "<#8bc34a>고추"
+  lore: ["<gray>요리 재료. 품질 ★이 높을수록 비싸게 팔림."]
+  texture: chili_pepper
+
+strawberry:
+  material: paper
+  name: "<#8bc34a>딸기"
+  lore: ["<gray>요리 재료. 품질 ★이 높을수록 비싸게 팔림."]
+  texture: strawberry
+
+pesticide:
+  material: paper
+  name: "<#ba68c8>살충제"
+  lore: ["<gray>해충이 생긴 작물에 우클릭."]
+  texture: pesticide
+
+watering_can:
+  material: paper
+  name: "<#ff8a65>물뿌리개"
+  lore: ["<gray>물에 대고 우클릭: 채우기 (16번)", "<gray>작물에 우클릭: 물 주기."]
+  texture: watering_can
+  max-stack: 1
+
+copper_watering_can:
+  material: paper
+  name: "<#ff8a65>구리 물뿌리개"
+  lore: ["<gray>물에 대고 우클릭: 채우기 (48번)", "<gray>작물에 우클릭: 물 주기. 3×3 한 번에."]
+  texture: copper_watering_can
+  max-stack: 1
+
+sprinkler:
+  material: paper
+  name: "<#ff8a65>스프링클러"
+  lore: ["<gray>주변 5×5 작물에 늘 물을 줌", "<dark_gray>대장장이 Lv2 생산품"]
+  model: sprinkler
+  max-stack: 16
+  furniture:
+    cells: [[0, 0, 0]]
+    behavior: stsv:sprinkler
+
+planter_pot:
+  material: paper
+  name: "<#8bc34a>화분"
+  lore: ["<gray>씨앗을 들고 우클릭: 심기 (실내 재배)", "<dark_gray>농부 Lv1 생산품"]
+  model: planter_pot
+  max-stack: 16
+  furniture:
+    cells: [[0, 0, 0]]
+    behavior: stsv:crop_pot

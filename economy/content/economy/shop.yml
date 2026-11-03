@@ -1,4 +1,5 @@
 # 관리자 상점 /상점, 시세 /시세
+# 커스텀 작물의 품질 ★: ★2 는 1.25배, ★3 는 1.5배로 매입.
 # 매입(sell): 플레이어가 상점에 팔 때. 가격 P = max(floor·base, base·e^(-S/Q)), Q = q × 오늘 접속 인원,
 #   S = 오늘 서버 전체가 판 양 (매일 05시에 daily-decay 만큼 줄어듦). cap = 1인 하루 판매 한도(선택).
 # 구매(buy): 플레이어가 상점에서 살 때 (고정가). 장비와 고급 재료는 팔지 않음: 플레이어끼리 거래.
@@ -35,6 +36,9 @@ sell:
   egg: { base: 1, q: 64, job: farmer }
   leather: { base: 5, q: 16, job: farmer }
   white_wool: { base: 2, q: 32, job: farmer }
+  economy:tomato: { base: 6, q: 48, job: farmer }
+  economy:chili_pepper: { base: 7, q: 40, job: farmer }
+  economy:strawberry: { base: 9, q: 32, job: farmer }
   economy:golden_wheat: { base: 12, q: 8, job: farmer }
   economy:honey_potato: { base: 12, q: 8, job: farmer }
   economy:ruby_carrot: { base: 12, q: 8, job: farmer }
@@ -89,6 +93,10 @@ buy:
   - { item: potato, amount: 4, price: 20 }
   - { item: carrot, amount: 4, price: 20 }
   - { item: sugar_cane, amount: 4, price: 20 }
+  - { item: economy:tomato_seeds, amount: 4, price: 40 }
+  - { item: economy:chili_seeds, amount: 4, price: 50 }
+  - { item: economy:strawberry_seeds, amount: 4, price: 60 }
+  - { item: economy:watering_can, price: 150 }
   - { item: oak_sapling, amount: 4, price: 10 }
   - { item: bone_meal, amount: 16, price: 40 }
   - { item: coal, amount: 8, price: 48 }

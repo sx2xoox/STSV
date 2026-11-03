@@ -96,7 +96,7 @@ class ContentTest {
 
         // the plan's shape: 6 jobs, 54 products (+ 8 machines), 4 weeks, every event used exists
         assertEquals(6, jobs.jobs().size());
-        assertEquals(54 + 8, ours.size(), "54 job products + 8 machines");
+        assertEquals(54 + 8 + 14, ours.size(), "54 job products + 8 machines + 14 crop items");
         assertTrue(ours.containsAll(jobs.products().keySet()));
         assertEquals(8, machines.size());
         assertEquals(List.of(1, 2, 3, 3), season.jobLevelCap());
@@ -117,6 +117,29 @@ class ContentTest {
             ConfigurationSection keys = r.getConfigurationSection("keys");
             if (keys != null) for (String key : keys.getKeys(false)) if (!exists(JobSpec.norm(keys.getString(key)), ours)) problems.add("recipe " + k + ": " + keys.getString(key));
         }
+        // crops: harvests make things, seeds come from shops or drops; every crop has its models
+        YamlConfiguration crops = yaml("crops/crops.yml");
+        for (String k : crops.getKeys(false)) {
+            if (k.equals("tools")) {
+                var tools = new dev.stsv.core.crop.CropTools();
+                tools.read(crops.getConfigurationSection("tools"));
+                for (String id : tools.allItems()) if (!exists(id, ours)) problems.add("crop tool: " + id);
+                continue;
+            }
+            var spec = dev.stsv.core.crop.CropSpec.parse("economy", k, crops.getConfigurationSection(k));
+            if (!exists(spec.seed(), ours)) problems.add("crop " + k + " seed: " + spec.seed());
+            for (var d : spec.harvest()) {
+                if (!exists(d.item(), ours)) problems.add("crop " + k + " harvest: " + d.item());
+                makeable.add(d.item());
+            }
+            for (String model : spec.models()) {
+                if (!Files.exists(PACK.resolve("models/" + model.substring(model.indexOf('/') + 1) + ".bbmodel"))) problems.add("crop model " + model);
+            }
+            String w = spec.witheredModel();
+            if (!Files.exists(PACK.resolve("models/" + w.substring(w.indexOf('/') + 1) + ".bbmodel"))) problems.add("withered model " + w);
+            if (spec.extra().containsKey("job") && !jobs.jobs().containsKey(spec.extra().get("job"))) problems.add("crop job " + spec.extra().get("job"));
+        }
+        for (var b : shop.buy()) makeable.add(b.id());
         for (String id : ours) if (!makeable.contains(id)) problems.add("nobody can make " + id);
         assertTrue(problems.isEmpty(), String.join("\n", problems));
     }

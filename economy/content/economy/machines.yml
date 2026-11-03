@@ -62,9 +62,9 @@ cooking_table:
   job: cook
   recipes:
     - { in: { bread: 1, cooked_beef: 1, carrot: 1 }, out: economy:miner_lunchbox, amount: 2, seconds: 15, level: 1 }
-    - { in: { carrot: 2, beetroot: 2, bowl: 1 }, out: economy:sprint_salad, amount: 2, seconds: 15, level: 1 }
+    - { in: { economy:tomato: 2, carrot: 1, bowl: 1 }, out: economy:sprint_salad, amount: 2, seconds: 15, level: 1 }
     - { in: { economy:honey_potato: 1, cooked_beef: 2, bowl: 1 }, out: economy:hearty_stew, amount: 2, seconds: 25, level: 2 }
-    - { in: { economy:honey_potato: 1, honey_bottle: 1, egg: 1 }, out: economy:honey_pie, amount: 2, seconds: 25, level: 2 }
+    - { in: { economy:honey_potato: 1, honey_bottle: 1, economy:strawberry: 2 }, out: economy:honey_pie, amount: 2, seconds: 25, level: 2 }
     - { in: { economy:truffle: 1, economy:golden_egg: 1, economy:lobster: 1 }, out: economy:royal_feast, amount: 2, seconds: 40, level: 3 }
     - { in: { economy:truffle: 1, economy:golden_wheat: 2, bowl: 1 }, out: economy:truffle_risotto, amount: 2, seconds: 40, level: 3 }
     - { in: { economy:pearl: 1, sugar: 2, economy:golden_egg: 1 }, out: economy:pearl_dessert, amount: 2, seconds: 40, level: 3 }
@@ -74,7 +74,7 @@ smoker_oven:
   item: economy:smoker_oven
   job: cook
   recipes:
-    - { in: { economy:sea_bream: 1, wheat: 1 }, out: economy:lucky_grill, amount: 2, seconds: 15, level: 1 }
+    - { in: { economy:sea_bream: 1, economy:chili_pepper: 1 }, out: economy:lucky_grill, amount: 2, seconds: 15, level: 1 }
     - { in: { economy:tuna: 1, economy:golden_wheat: 1, dried_kelp: 2 }, out: economy:golden_sushi, amount: 2, seconds: 25, level: 2 }
 
 distiller:
@@ -83,6 +83,7 @@ distiller:
   job: alchemist
   recipes:
     - { in: { economy:compost: 2, bone_meal: 2 }, out: economy:fertilizer, amount: 2, seconds: 20, level: 1 }
+    - { in: { glass_bottle: 1, spider_eye: 1, economy:compost: 1 }, out: economy:pesticide, amount: 2, seconds: 20, level: 1 }
     - { in: { glass_bottle: 1, economy:iron_dust: 2, redstone: 1 }, out: economy:miners_tonic, seconds: 20, level: 1 }
     - { in: { glass_bottle: 1, sugar: 3 }, out: economy:swift_tonic, seconds: 20, level: 1 }
     - { in: { economy:rough_ruby: 1, redstone: 4, glowstone_dust: 2 }, out: economy:catalyst, seconds: 30, level: 2 }
