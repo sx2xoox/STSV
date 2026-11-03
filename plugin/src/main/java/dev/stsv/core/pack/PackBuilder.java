@@ -36,7 +36,8 @@ import java.util.zip.ZipOutputStream;
  */
 public final class PackBuilder {
 
-    public record Built(byte[] zip, String sha1, int files, List<String> warnings) {}
+    /** @param cosmeticViews item model keys that got a cosmetic self-view wrapper (CosmeticViews) */
+    public record Built(byte[] zip, String sha1, int files, List<String> warnings, java.util.Set<String> cosmeticViews) {}
 
     private static final Gson GSON = new GsonBuilder().setPrettyPrinting().disableHtmlEscaping().create();
 
@@ -65,12 +66,14 @@ public final class PackBuilder {
         for (CustomItem item : items) {
             writeItemDefinition(item);
         }
+        // cosmetics seen by their wearer: head items that look like themselves in the inventory
+        java.util.Set<String> cosmeticViews = dev.stsv.core.cosmetic.CosmeticViews.write(items, this::readJson, this::json, warnings);
         // menu backgrounds: one generated font with a glyph per background (see MenuSpec)
         List<dev.stsv.core.gui.menu.MenuSpec> menus = dev.stsv.core.gui.menu.MenuSpec.loadAll(List.copyOf(packs), warnings);
         if (menus.stream().anyMatch(m -> m.background() != null)) {
             json("assets/stsv/font/menus.json", dev.stsv.core.gui.menu.MenuSpec.font(menus));
         }
-        return new Built(zip(), sha1(zip()), files.size(), List.copyOf(warnings));
+        return new Built(zip(), sha1(zip()), files.size(), List.copyOf(warnings), cosmeticViews);
     }
 
     private void copyRawAssets(ContentPack cp) throws IOException {
@@ -140,6 +143,17 @@ public final class PackBuilder {
         JsonObject def = new JsonObject();
         def.add("model", model);
         json("assets/" + item.key().getNamespace() + "/items/" + item.key().getKey() + ".json", def);
+    }
+
+    private JsonObject readJson(String path) {
+        byte[] data = files.get(path);
+        if (data == null) return null;
+        try {
+            return com.google.gson.JsonParser.parseString(new String(data, StandardCharsets.UTF_8)).getAsJsonObject();
+        } catch (RuntimeException e) {
+            warnings.add("JSON 을 읽지 못함: " + path);
+            return null;
+        }
     }
 
     private void json(String path, JsonObject obj) {

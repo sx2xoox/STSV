@@ -1,0 +1,1032 @@
+{
+ "version": "26.3",
+ "items": {
+  "minecraft:leather_helmet": {
+   "model": {
+    "type": "minecraft:select",
+    "cases": [
+     {
+      "model": {
+       "type": "minecraft:model",
+       "model": "minecraft:item/leather_helmet_quartz_trim",
+       "tints": [
+        {
+         "type": "minecraft:dye",
+         "default": -6265536
+        }
+       ]
+      },
+      "when": "minecraft:quartz"
+     },
+     {
+      "model": {
+       "type": "minecraft:model",
+       "model": "minecraft:item/leather_helmet_iron_trim",
+       "tints": [
+        {
+         "type": "minecraft:dye",
+         "default": -6265536
+        }
+       ]
+      },
+      "when": "minecraft:iron"
+     },
+     {
+      "model": {
+       "type": "minecraft:model",
+       "model": "minecraft:item/leather_helmet_netherite_trim",
+       "tints": [
+        {
+         "type": "minecraft:dye",
+         "default": -6265536
+        }
+       ]
+      },
+      "when": "minecraft:netherite"
+     },
+     {
+      "model": {
+       "type": "minecraft:model",
+       "model": "minecraft:item/leather_helmet_redstone_trim",
+       "tints": [
+        {
+         "type": "minecraft:dye",
+         "default": -6265536
+        }
+       ]
+      },
+      "when": "minecraft:redstone"
+     },
+     {
+      "model": {
+       "type": "minecraft:model",
+       "model": "minecraft:item/leather_helmet_copper_trim",
+       "tints": [
+        {
+         "type": "minecraft:dye",
+         "default": -6265536
+        }
+       ]
+      },
+      "when": "minecraft:copper"
+     },
+     {
+      "model": {
+       "type": "minecraft:model",
+       "model": "minecraft:item/leather_helmet_gold_trim",
+       "tints": [
+        {
+         "type": "minecraft:dye",
+         "default": -6265536
+        }
+       ]
+      },
+      "when": "minecraft:gold"
+     },
+     {
+      "model": {
+       "type": "minecraft:model",
+       "model": "minecraft:item/leather_helmet_emerald_trim",
+       "tints": [
+        {
+         "type": "minecraft:dye",
+         "default": -6265536
+        }
+       ]
+      },
+      "when": "minecraft:emerald"
+     },
+     {
+      "model": {
+       "type": "minecraft:model",
+       "model": "minecraft:item/leather_helmet_diamond_trim",
+       "tints": [
+        {
+         "type": "minecraft:dye",
+         "default": -6265536
+        }
+       ]
+      },
+      "when": "minecraft:diamond"
+     },
+     {
+      "model": {
+       "type": "minecraft:model",
+       "model": "minecraft:item/leather_helmet_lapis_trim",
+       "tints": [
+        {
+         "type": "minecraft:dye",
+         "default": -6265536
+        }
+       ]
+      },
+      "when": "minecraft:lapis"
+     },
+     {
+      "model": {
+       "type": "minecraft:model",
+       "model": "minecraft:item/leather_helmet_amethyst_trim",
+       "tints": [
+        {
+         "type": "minecraft:dye",
+         "default": -6265536
+        }
+       ]
+      },
+      "when": "minecraft:amethyst"
+     },
+     {
+      "model": {
+       "type": "minecraft:model",
+       "model": "minecraft:item/leather_helmet_resin_trim",
+       "tints": [
+        {
+         "type": "minecraft:dye",
+         "default": -6265536
+        }
+       ]
+      },
+      "when": "minecraft:resin"
+     }
+    ],
+    "fallback": {
+     "type": "minecraft:model",
+     "model": "minecraft:item/leather_helmet",
+     "tints": [
+      {
+       "type": "minecraft:dye",
+       "default": -6265536
+      }
+     ]
+    },
+    "property": "minecraft:trim_material"
+   }
+  },
+  "minecraft:chainmail_helmet": {
+   "model": {
+    "type": "minecraft:select",
+    "cases": [
+     {
+      "model": {
+       "type": "minecraft:model",
+       "model": "minecraft:item/chainmail_helmet_quartz_trim"
+      },
+      "when": "minecraft:quartz"
+     },
+     {
+      "model": {
+       "type": "minecraft:model",
+       "model": "minecraft:item/chainmail_helmet_iron_trim"
+      },
+      "when": "minecraft:iron"
+     },
+     {
+      "model": {
+       "type": "minecraft:model",
+       "model": "minecraft:item/chainmail_helmet_netherite_trim"
+      },
+      "when": "minecraft:netherite"
+     },
+     {
+      "model": {
+       "type": "minecraft:model",
+       "model": "minecraft:item/chainmail_helmet_redstone_trim"
+      },
+      "when": "minecraft:redstone"
+     },
+     {
+      "model": {
+       "type": "minecraft:model",
+       "model": "minecraft:item/chainmail_helmet_copper_trim"
+      },
+      "when": "minecraft:copper"
+     },
+     {
+      "model": {
+       "type": "minecraft:model",
+       "model": "minecraft:item/chainmail_helmet_gold_trim"
+      },
+      "when": "minecraft:gold"
+     },
+     {
+      "model": {
+       "type": "minecraft:model",
+       "model": "minecraft:item/chainmail_helmet_emerald_trim"
+      },
+      "when": "minecraft:emerald"
+     },
+     {
+      "model": {
+       "type": "minecraft:model",
+       "model": "minecraft:item/chainmail_helmet_diamond_trim"
+      },
+      "when": "minecraft:diamond"
+     },
+     {
+      "model": {
+       "type": "minecraft:model",
+       "model": "minecraft:item/chainmail_helmet_lapis_trim"
+      },
+      "when": "minecraft:lapis"
+     },
+     {
+      "model": {
+       "type": "minecraft:model",
+       "model": "minecraft:item/chainmail_helmet_amethyst_trim"
+      },
+      "when": "minecraft:amethyst"
+     },
+     {
+      "model": {
+       "type": "minecraft:model",
+       "model": "minecraft:item/chainmail_helmet_resin_trim"
+      },
+      "when": "minecraft:resin"
+     }
+    ],
+    "fallback": {
+     "type": "minecraft:model",
+     "model": "minecraft:item/chainmail_helmet"
+    },
+    "property": "minecraft:trim_material"
+   }
+  },
+  "minecraft:copper_helmet": {
+   "model": {
+    "type": "minecraft:select",
+    "cases": [
+     {
+      "model": {
+       "type": "minecraft:model",
+       "model": "minecraft:item/copper_helmet_quartz_trim"
+      },
+      "when": "minecraft:quartz"
+     },
+     {
+      "model": {
+       "type": "minecraft:model",
+       "model": "minecraft:item/copper_helmet_iron_trim"
+      },
+      "when": "minecraft:iron"
+     },
+     {
+      "model": {
+       "type": "minecraft:model",
+       "model": "minecraft:item/copper_helmet_netherite_trim"
+      },
+      "when": "minecraft:netherite"
+     },
+     {
+      "model": {
+       "type": "minecraft:model",
+       "model": "minecraft:item/copper_helmet_redstone_trim"
+      },
+      "when": "minecraft:redstone"
+     },
+     {
+      "model": {
+       "type": "minecraft:model",
+       "model": "minecraft:item/copper_helmet_copper_trim"
+      },
+      "when": "minecraft:copper"
+     },
+     {
+      "model": {
+       "type": "minecraft:model",
+       "model": "minecraft:item/copper_helmet_gold_trim"
+      },
+      "when": "minecraft:gold"
+     },
+     {
+      "model": {
+       "type": "minecraft:model",
+       "model": "minecraft:item/copper_helmet_emerald_trim"
+      },
+      "when": "minecraft:emerald"
+     },
+     {
+      "model": {
+       "type": "minecraft:model",
+       "model": "minecraft:item/copper_helmet_diamond_trim"
+      },
+      "when": "minecraft:diamond"
+     },
+     {
+      "model": {
+       "type": "minecraft:model",
+       "model": "minecraft:item/copper_helmet_lapis_trim"
+      },
+      "when": "minecraft:lapis"
+     },
+     {
+      "model": {
+       "type": "minecraft:model",
+       "model": "minecraft:item/copper_helmet_amethyst_trim"
+      },
+      "when": "minecraft:amethyst"
+     },
+     {
+      "model": {
+       "type": "minecraft:model",
+       "model": "minecraft:item/copper_helmet_resin_trim"
+      },
+      "when": "minecraft:resin"
+     }
+    ],
+    "fallback": {
+     "type": "minecraft:model",
+     "model": "minecraft:item/copper_helmet"
+    },
+    "property": "minecraft:trim_material"
+   }
+  },
+  "minecraft:iron_helmet": {
+   "model": {
+    "type": "minecraft:select",
+    "cases": [
+     {
+      "model": {
+       "type": "minecraft:model",
+       "model": "minecraft:item/iron_helmet_quartz_trim"
+      },
+      "when": "minecraft:quartz"
+     },
+     {
+      "model": {
+       "type": "minecraft:model",
+       "model": "minecraft:item/iron_helmet_iron_trim"
+      },
+      "when": "minecraft:iron"
+     },
+     {
+      "model": {
+       "type": "minecraft:model",
+       "model": "minecraft:item/iron_helmet_netherite_trim"
+      },
+      "when": "minecraft:netherite"
+     },
+     {
+      "model": {
+       "type": "minecraft:model",
+       "model": "minecraft:item/iron_helmet_redstone_trim"
+      },
+      "when": "minecraft:redstone"
+     },
+     {
+      "model": {
+       "type": "minecraft:model",
+       "model": "minecraft:item/iron_helmet_copper_trim"
+      },
+      "when": "minecraft:copper"
+     },
+     {
+      "model": {
+       "type": "minecraft:model",
+       "model": "minecraft:item/iron_helmet_gold_trim"
+      },
+      "when": "minecraft:gold"
+     },
+     {
+      "model": {
+       "type": "minecraft:model",
+       "model": "minecraft:item/iron_helmet_emerald_trim"
+      },
+      "when": "minecraft:emerald"
+     },
+     {
+      "model": {
+       "type": "minecraft:model",
+       "model": "minecraft:item/iron_helmet_diamond_trim"
+      },
+      "when": "minecraft:diamond"
+     },
+     {
+      "model": {
+       "type": "minecraft:model",
+       "model": "minecraft:item/iron_helmet_lapis_trim"
+      },
+      "when": "minecraft:lapis"
+     },
+     {
+      "model": {
+       "type": "minecraft:model",
+       "model": "minecraft:item/iron_helmet_amethyst_trim"
+      },
+      "when": "minecraft:amethyst"
+     },
+     {
+      "model": {
+       "type": "minecraft:model",
+       "model": "minecraft:item/iron_helmet_resin_trim"
+      },
+      "when": "minecraft:resin"
+     }
+    ],
+    "fallback": {
+     "type": "minecraft:model",
+     "model": "minecraft:item/iron_helmet"
+    },
+    "property": "minecraft:trim_material"
+   }
+  },
+  "minecraft:golden_helmet": {
+   "model": {
+    "type": "minecraft:select",
+    "cases": [
+     {
+      "model": {
+       "type": "minecraft:model",
+       "model": "minecraft:item/golden_helmet_quartz_trim"
+      },
+      "when": "minecraft:quartz"
+     },
+     {
+      "model": {
+       "type": "minecraft:model",
+       "model": "minecraft:item/golden_helmet_iron_trim"
+      },
+      "when": "minecraft:iron"
+     },
+     {
+      "model": {
+       "type": "minecraft:model",
+       "model": "minecraft:item/golden_helmet_netherite_trim"
+      },
+      "when": "minecraft:netherite"
+     },
+     {
+      "model": {
+       "type": "minecraft:model",
+       "model": "minecraft:item/golden_helmet_redstone_trim"
+      },
+      "when": "minecraft:redstone"
+     },
+     {
+      "model": {
+       "type": "minecraft:model",
+       "model": "minecraft:item/golden_helmet_copper_trim"
+      },
+      "when": "minecraft:copper"
+     },
+     {
+      "model": {
+       "type": "minecraft:model",
+       "model": "minecraft:item/golden_helmet_gold_trim"
+      },
+      "when": "minecraft:gold"
+     },
+     {
+      "model": {
+       "type": "minecraft:model",
+       "model": "minecraft:item/golden_helmet_emerald_trim"
+      },
+      "when": "minecraft:emerald"
+     },
+     {
+      "model": {
+       "type": "minecraft:model",
+       "model": "minecraft:item/golden_helmet_diamond_trim"
+      },
+      "when": "minecraft:diamond"
+     },
+     {
+      "model": {
+       "type": "minecraft:model",
+       "model": "minecraft:item/golden_helmet_lapis_trim"
+      },
+      "when": "minecraft:lapis"
+     },
+     {
+      "model": {
+       "type": "minecraft:model",
+       "model": "minecraft:item/golden_helmet_amethyst_trim"
+      },
+      "when": "minecraft:amethyst"
+     },
+     {
+      "model": {
+       "type": "minecraft:model",
+       "model": "minecraft:item/golden_helmet_resin_trim"
+      },
+      "when": "minecraft:resin"
+     }
+    ],
+    "fallback": {
+     "type": "minecraft:model",
+     "model": "minecraft:item/golden_helmet"
+    },
+    "property": "minecraft:trim_material"
+   }
+  },
+  "minecraft:diamond_helmet": {
+   "model": {
+    "type": "minecraft:select",
+    "cases": [
+     {
+      "model": {
+       "type": "minecraft:model",
+       "model": "minecraft:item/diamond_helmet_quartz_trim"
+      },
+      "when": "minecraft:quartz"
+     },
+     {
+      "model": {
+       "type": "minecraft:model",
+       "model": "minecraft:item/diamond_helmet_iron_trim"
+      },
+      "when": "minecraft:iron"
+     },
+     {
+      "model": {
+       "type": "minecraft:model",
+       "model": "minecraft:item/diamond_helmet_netherite_trim"
+      },
+      "when": "minecraft:netherite"
+     },
+     {
+      "model": {
+       "type": "minecraft:model",
+       "model": "minecraft:item/diamond_helmet_redstone_trim"
+      },
+      "when": "minecraft:redstone"
+     },
+     {
+      "model": {
+       "type": "minecraft:model",
+       "model": "minecraft:item/diamond_helmet_copper_trim"
+      },
+      "when": "minecraft:copper"
+     },
+     {
+      "model": {
+       "type": "minecraft:model",
+       "model": "minecraft:item/diamond_helmet_gold_trim"
+      },
+      "when": "minecraft:gold"
+     },
+     {
+      "model": {
+       "type": "minecraft:model",
+       "model": "minecraft:item/diamond_helmet_emerald_trim"
+      },
+      "when": "minecraft:emerald"
+     },
+     {
+      "model": {
+       "type": "minecraft:model",
+       "model": "minecraft:item/diamond_helmet_diamond_trim"
+      },
+      "when": "minecraft:diamond"
+     },
+     {
+      "model": {
+       "type": "minecraft:model",
+       "model": "minecraft:item/diamond_helmet_lapis_trim"
+      },
+      "when": "minecraft:lapis"
+     },
+     {
+      "model": {
+       "type": "minecraft:model",
+       "model": "minecraft:item/diamond_helmet_amethyst_trim"
+      },
+      "when": "minecraft:amethyst"
+     },
+     {
+      "model": {
+       "type": "minecraft:model",
+       "model": "minecraft:item/diamond_helmet_resin_trim"
+      },
+      "when": "minecraft:resin"
+     }
+    ],
+    "fallback": {
+     "type": "minecraft:model",
+     "model": "minecraft:item/diamond_helmet"
+    },
+    "property": "minecraft:trim_material"
+   }
+  },
+  "minecraft:netherite_helmet": {
+   "model": {
+    "type": "minecraft:select",
+    "cases": [
+     {
+      "model": {
+       "type": "minecraft:model",
+       "model": "minecraft:item/netherite_helmet_quartz_trim"
+      },
+      "when": "minecraft:quartz"
+     },
+     {
+      "model": {
+       "type": "minecraft:model",
+       "model": "minecraft:item/netherite_helmet_iron_trim"
+      },
+      "when": "minecraft:iron"
+     },
+     {
+      "model": {
+       "type": "minecraft:model",
+       "model": "minecraft:item/netherite_helmet_netherite_trim"
+      },
+      "when": "minecraft:netherite"
+     },
+     {
+      "model": {
+       "type": "minecraft:model",
+       "model": "minecraft:item/netherite_helmet_redstone_trim"
+      },
+      "when": "minecraft:redstone"
+     },
+     {
+      "model": {
+       "type": "minecraft:model",
+       "model": "minecraft:item/netherite_helmet_copper_trim"
+      },
+      "when": "minecraft:copper"
+     },
+     {
+      "model": {
+       "type": "minecraft:model",
+       "model": "minecraft:item/netherite_helmet_gold_trim"
+      },
+      "when": "minecraft:gold"
+     },
+     {
+      "model": {
+       "type": "minecraft:model",
+       "model": "minecraft:item/netherite_helmet_emerald_trim"
+      },
+      "when": "minecraft:emerald"
+     },
+     {
+      "model": {
+       "type": "minecraft:model",
+       "model": "minecraft:item/netherite_helmet_diamond_trim"
+      },
+      "when": "minecraft:diamond"
+     },
+     {
+      "model": {
+       "type": "minecraft:model",
+       "model": "minecraft:item/netherite_helmet_lapis_trim"
+      },
+      "when": "minecraft:lapis"
+     },
+     {
+      "model": {
+       "type": "minecraft:model",
+       "model": "minecraft:item/netherite_helmet_amethyst_trim"
+      },
+      "when": "minecraft:amethyst"
+     },
+     {
+      "model": {
+       "type": "minecraft:model",
+       "model": "minecraft:item/netherite_helmet_resin_trim"
+      },
+      "when": "minecraft:resin"
+     }
+    ],
+    "fallback": {
+     "type": "minecraft:model",
+     "model": "minecraft:item/netherite_helmet"
+    },
+    "property": "minecraft:trim_material"
+   }
+  },
+  "minecraft:turtle_helmet": {
+   "model": {
+    "type": "minecraft:select",
+    "cases": [
+     {
+      "model": {
+       "type": "minecraft:model",
+       "model": "minecraft:item/turtle_helmet_quartz_trim"
+      },
+      "when": "minecraft:quartz"
+     },
+     {
+      "model": {
+       "type": "minecraft:model",
+       "model": "minecraft:item/turtle_helmet_iron_trim"
+      },
+      "when": "minecraft:iron"
+     },
+     {
+      "model": {
+       "type": "minecraft:model",
+       "model": "minecraft:item/turtle_helmet_netherite_trim"
+      },
+      "when": "minecraft:netherite"
+     },
+     {
+      "model": {
+       "type": "minecraft:model",
+       "model": "minecraft:item/turtle_helmet_redstone_trim"
+      },
+      "when": "minecraft:redstone"
+     },
+     {
+      "model": {
+       "type": "minecraft:model",
+       "model": "minecraft:item/turtle_helmet_copper_trim"
+      },
+      "when": "minecraft:copper"
+     },
+     {
+      "model": {
+       "type": "minecraft:model",
+       "model": "minecraft:item/turtle_helmet_gold_trim"
+      },
+      "when": "minecraft:gold"
+     },
+     {
+      "model": {
+       "type": "minecraft:model",
+       "model": "minecraft:item/turtle_helmet_emerald_trim"
+      },
+      "when": "minecraft:emerald"
+     },
+     {
+      "model": {
+       "type": "minecraft:model",
+       "model": "minecraft:item/turtle_helmet_diamond_trim"
+      },
+      "when": "minecraft:diamond"
+     },
+     {
+      "model": {
+       "type": "minecraft:model",
+       "model": "minecraft:item/turtle_helmet_lapis_trim"
+      },
+      "when": "minecraft:lapis"
+     },
+     {
+      "model": {
+       "type": "minecraft:model",
+       "model": "minecraft:item/turtle_helmet_amethyst_trim"
+      },
+      "when": "minecraft:amethyst"
+     },
+     {
+      "model": {
+       "type": "minecraft:model",
+       "model": "minecraft:item/turtle_helmet_resin_trim"
+      },
+      "when": "minecraft:resin"
+     }
+    ],
+    "fallback": {
+     "type": "minecraft:model",
+     "model": "minecraft:item/turtle_helmet"
+    },
+    "property": "minecraft:trim_material"
+   }
+  },
+  "minecraft:carved_pumpkin": {
+   "model": {
+    "type": "minecraft:model",
+    "model": "minecraft:block/carved_pumpkin"
+   }
+  },
+  "minecraft:skeleton_skull": {
+   "model": {
+    "type": "minecraft:special",
+    "base": "minecraft:item/template_skull",
+    "model": {
+     "type": "minecraft:head",
+     "kind": "skeleton"
+    },
+    "transformation": {
+     "left_rotation": [
+      1.0,
+      0.0,
+      0.0,
+      -0.0
+     ],
+     "right_rotation": [
+      0.0,
+      0.0,
+      0.0,
+      1.0
+     ],
+     "scale": [
+      1.0,
+      1.0,
+      1.0
+     ],
+     "translation": [
+      0.5,
+      0.0,
+      0.5
+     ]
+    }
+   }
+  },
+  "minecraft:wither_skeleton_skull": {
+   "model": {
+    "type": "minecraft:special",
+    "base": "minecraft:item/template_skull",
+    "model": {
+     "type": "minecraft:head",
+     "kind": "wither_skeleton"
+    },
+    "transformation": {
+     "left_rotation": [
+      1.0,
+      0.0,
+      0.0,
+      -0.0
+     ],
+     "right_rotation": [
+      0.0,
+      0.0,
+      0.0,
+      1.0
+     ],
+     "scale": [
+      1.0,
+      1.0,
+      1.0
+     ],
+     "translation": [
+      0.5,
+      0.0,
+      0.5
+     ]
+    }
+   }
+  },
+  "minecraft:zombie_head": {
+   "model": {
+    "type": "minecraft:special",
+    "base": "minecraft:item/template_skull",
+    "model": {
+     "type": "minecraft:head",
+     "kind": "zombie"
+    },
+    "transformation": {
+     "left_rotation": [
+      1.0,
+      0.0,
+      0.0,
+      -0.0
+     ],
+     "right_rotation": [
+      0.0,
+      0.0,
+      0.0,
+      1.0
+     ],
+     "scale": [
+      1.0,
+      1.0,
+      1.0
+     ],
+     "translation": [
+      0.5,
+      0.0,
+      0.5
+     ]
+    }
+   }
+  },
+  "minecraft:creeper_head": {
+   "model": {
+    "type": "minecraft:special",
+    "base": "minecraft:item/template_skull",
+    "model": {
+     "type": "minecraft:head",
+     "kind": "creeper"
+    },
+    "transformation": {
+     "left_rotation": [
+      1.0,
+      0.0,
+      0.0,
+      -0.0
+     ],
+     "right_rotation": [
+      0.0,
+      0.0,
+      0.0,
+      1.0
+     ],
+     "scale": [
+      1.0,
+      1.0,
+      1.0
+     ],
+     "translation": [
+      0.5,
+      0.0,
+      0.5
+     ]
+    }
+   }
+  },
+  "minecraft:dragon_head": {
+   "model": {
+    "type": "minecraft:special",
+    "base": "minecraft:item/dragon_head",
+    "model": {
+     "type": "minecraft:head",
+     "kind": "dragon"
+    },
+    "transformation": {
+     "left_rotation": [
+      1.0,
+      0.0,
+      0.0,
+      -0.0
+     ],
+     "right_rotation": [
+      0.0,
+      0.0,
+      0.0,
+      1.0
+     ],
+     "scale": [
+      1.0,
+      1.0,
+      1.0
+     ],
+     "translation": [
+      0.5,
+      0.0,
+      0.5
+     ]
+    }
+   }
+  },
+  "minecraft:piglin_head": {
+   "model": {
+    "type": "minecraft:special",
+    "base": "minecraft:item/template_skull",
+    "model": {
+     "type": "minecraft:head",
+     "kind": "piglin"
+    },
+    "transformation": {
+     "left_rotation": [
+      1.0,
+      0.0,
+      0.0,
+      -0.0
+     ],
+     "right_rotation": [
+      0.0,
+      0.0,
+      0.0,
+      1.0
+     ],
+     "scale": [
+      1.0,
+      1.0,
+      1.0
+     ],
+     "translation": [
+      0.5,
+      0.0,
+      0.5
+     ]
+    }
+   }
+  },
+  "minecraft:player_head": {
+   "model": {
+    "type": "minecraft:special",
+    "base": "minecraft:item/template_skull",
+    "model": {
+     "type": "minecraft:player_head"
+    },
+    "transformation": {
+     "left_rotation": [
+      1.0,
+      0.0,
+      0.0,
+      -0.0
+     ],
+     "right_rotation": [
+      0.0,
+      0.0,
+      0.0,
+      1.0
+     ],
+     "scale": [
+      1.0,
+      1.0,
+      1.0
+     ],
+     "translation": [
+      0.5,
+      0.0,
+      0.5
+     ]
+    }
+   }
+  }
+ }
+}

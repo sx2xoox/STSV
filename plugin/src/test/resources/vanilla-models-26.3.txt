@@ -1307,3 +1307,4 @@ item/zombie_nautilus_spawn_egg
 item/zombie_spawn_egg
 item/zombie_villager_spawn_egg
 item/zombified_piglin_spawn_egg
+block/carved_pumpkin

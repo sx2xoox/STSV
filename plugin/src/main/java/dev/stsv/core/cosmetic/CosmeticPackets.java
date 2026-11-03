@@ -1,0 +1,293 @@
+package dev.stsv.core.cosmetic;
+
+import io.netty.channel.Channel;
+import io.netty.channel.ChannelHandlerContext;
+import io.netty.channel.ChannelOutboundHandlerAdapter;
+import io.netty.channel.ChannelPromise;
+import org.bukkit.Bukkit;
+import org.bukkit.entity.Player;
+import org.bukkit.inventory.ItemStack;
+
+import java.lang.reflect.Constructor;
+import java.lang.reflect.Field;
+import java.lang.reflect.Method;
+import java.util.ArrayList;
+import java.util.List;
+import java.util.Map;
+import java.util.Set;
+import java.util.UUID;
+import java.util.concurrent.ConcurrentHashMap;
+import java.util.concurrent.atomic.AtomicBoolean;
+import java.util.logging.Level;
+import java.util.logging.Logger;
+
+/**
+ * Rewrites outgoing packets so the cosmetic is shown without touching the real equipment:
+ * <ul>
+ *   <li>equipment of a wearer, sent to anyone else: the head item becomes the cosmetic;</li>
+ *   <li>the wearer's own helmet slot (inventory menu slot 5, player inventory slot 39): the self-view
+ *       item from {@link CosmeticViews#selfView}.</li>
+ * </ul>
+ * Rewriting the packets themselves (instead of re-sending a look after the server sent the real one)
+ * means there is never a frame where the real helmet shows, and nothing to re-send on clicks, damage,
+ * respawn or new viewers.
+ *
+ * Paper has no packet API, so this adds a handler to each player's network pipeline and reads the
+ * vanilla packet classes by reflection (the server runs with Mojang's names). If anything is missing,
+ * the constructor throws and the cosmetic module falls back to sending the look to other players.
+ */
+final class CosmeticPackets {
+
+    private static final String HANDLER = "stsv_cosmetics";
+    private static final int MENU_HEAD_SLOT = 5;       // InventoryMenu.ARMOR_SLOT_START (head)
+    private static final int INVENTORY_HEAD_SLOT = 39; // Inventory.EQUIPMENT_SLOT_MAPPING -> HEAD
+
+    private final Logger log;
+    private final AtomicBoolean warned = new AtomicBoolean();
+
+    private final Class<?> equipCls, setSlotCls, contentCls, invSlotCls, bundleCls, connectionCls;
+    private final Constructor<?> equipNew, setSlotNew, contentNew, invSlotNew, bundleNew;
+    private final Method equipEntity, equipSlots;
+    private final Method setSlotContainer, setSlotState, setSlotSlot, setSlotItem;
+    private final Method contentContainer, contentState, contentItems, contentCarried;
+    private final Method invSlotSlot, invSlotContents, bundleSub;
+    private final Method pairOf, pairFirst, pairSecond;
+    private final Method asNms, asBukkit, nmsCopy;
+
+    /** entity id of a wearer -> the cosmetic (NMS stack) other players see on their head. */
+    private final Map<Integer, Object> othersView = new ConcurrentHashMap<>();
+    /** per online player: their handler. */
+    private final Map<UUID, Handler> handlers = new ConcurrentHashMap<>();
+    /** item model keys with a self-view wrapper in the current resource pack */
+    private final java.util.function.Supplier<Set<String>> targets;
+
+    CosmeticPackets(Logger log, java.util.function.Supplier<Set<String>> targets) throws ReflectiveOperationException {
+        this.log = log;
+        this.targets = targets;
+        ClassLoader cl = Bukkit.getServer().getClass().getClassLoader();
+        String game = "net.minecraft.network.protocol.game.";
+        Class<?> nmsItem = Class.forName("net.minecraft.world.item.ItemStack", false, cl);
+        Class<?> pair = Class.forName("com.mojang.datafixers.util.Pair", false, cl);
+        connectionCls = Class.forName("net.minecraft.network.Connection", false, cl);
+
+        equipCls = Class.forName(game + "ClientboundSetEquipmentPacket", false, cl);
+        equipNew = equipCls.getConstructor(int.class, List.class);
+        equipEntity = equipCls.getMethod("getEntity");
+        equipSlots = equipCls.getMethod("getSlots");
+
+        setSlotCls = Class.forName(game + "ClientboundContainerSetSlotPacket", false, cl);
+        setSlotNew = setSlotCls.getConstructor(int.class, int.class, int.class, nmsItem);
+        setSlotContainer = setSlotCls.getMethod("getContainerId");
+        setSlotState = setSlotCls.getMethod("getStateId");
+        setSlotSlot = setSlotCls.getMethod("getSlot");
+        setSlotItem = setSlotCls.getMethod("getItem");
+
+        contentCls = Class.forName(game + "ClientboundContainerSetContentPacket", false, cl);
+        contentNew = contentCls.getConstructor(int.class, int.class, List.class, nmsItem);
+        contentContainer = contentCls.getMethod("containerId");
+        contentState = contentCls.getMethod("stateId");
+        contentItems = contentCls.getMethod("items");
+        contentCarried = contentCls.getMethod("carriedItem");
+
+        invSlotCls = Class.forName(game + "ClientboundSetPlayerInventoryPacket", false, cl);
+        invSlotNew = invSlotCls.getConstructor(int.class, nmsItem);
+        invSlotSlot = invSlotCls.getMethod("slot");
+        invSlotContents = invSlotCls.getMethod("contents");
+
+        bundleCls = Class.forName(game + "ClientboundBundlePacket", false, cl);
+        bundleNew = bundleCls.getConstructor(Iterable.class);
+        bundleSub = bundleCls.getMethod("subPackets");
+
+        pairOf = pair.getMethod("of", Object.class, Object.class);
+        pairFirst = pair.getMethod("getFirst");
+        pairSecond = pair.getMethod("getSecond");
+
+        Class<?> craftItem = Class.forName(Bukkit.getServer().getClass().getPackageName() + ".inventory.CraftItemStack", false, cl);
+        asNms = craftItem.getMethod("asNMSCopy", ItemStack.class);
+        asBukkit = craftItem.getMethod("asBukkitCopy", nmsItem);
+        nmsCopy = nmsItem.getMethod("copy");
+    }
+
+    // ------------------------------------------------------------------------------------------
+    // State (main thread writes, network threads read)
+    // ------------------------------------------------------------------------------------------
+
+    /** What others see on this player's head; null = their real helmet. */
+    void othersView(int entityId, ItemStack cosmetic) {
+        if (cosmetic == null) othersView.remove(entityId);
+        else {
+            try {
+                othersView.put(entityId, asNms.invoke(null, cosmetic));
+            } catch (ReflectiveOperationException e) {
+                warn(e);
+            }
+        }
+    }
+
+    /** What the player sees on their own head; null = their real helmet. */
+    void selfView(Player p, String cosmeticId) {
+        Handler h = handlers.get(p.getUniqueId());
+        if (h != null) {
+            h.cosmetic = cosmeticId;
+            h.entityId = p.getEntityId();
+        }
+    }
+
+    boolean installed(Player p) {
+        return handlers.containsKey(p.getUniqueId());
+    }
+
+    // ------------------------------------------------------------------------------------------
+    // Pipeline
+    // ------------------------------------------------------------------------------------------
+
+    void inject(Player p) {
+        try {
+            Channel ch = channel(p);
+            Handler h = new Handler(p.getEntityId());
+            ch.eventLoop().execute(() -> {
+                if (ch.pipeline().get(HANDLER) != null) ch.pipeline().remove(HANDLER);
+                if (ch.pipeline().get("packet_handler") != null) ch.pipeline().addBefore("packet_handler", HANDLER, h);
+            });
+            handlers.put(p.getUniqueId(), h);
+        } catch (Throwable t) {
+            warn(t);
+        }
+    }
+
+    void uninject(Player p) {
+        Handler h = handlers.remove(p.getUniqueId());
+        if (h == null) return;
+        try {
+            Channel ch = channel(p);
+            ch.eventLoop().execute(() -> {
+                if (ch.pipeline().get(HANDLER) != null) ch.pipeline().remove(HANDLER);
+            });
+        } catch (Throwable ignored) {
+            // disconnected: the pipeline is gone anyway
+        }
+    }
+
+    void forget(Player p, int entityId) {
+        handlers.remove(p.getUniqueId());
+        othersView.remove(entityId);
+    }
+
+    /** CraftPlayer -> ServerPlayer.connection -> its Connection -> the netty channel (found by type). */
+    private Channel channel(Player p) throws ReflectiveOperationException {
+        Object handle = p.getClass().getMethod("getHandle").invoke(p);
+        Object listener = handle.getClass().getField("connection").get(handle);
+        Object connection = fieldOfType(listener, connectionCls);
+        Object channel = fieldOfType(connection, Channel.class);
+        if (!(channel instanceof Channel c)) throw new NoSuchFieldException("channel");
+        return c;
+    }
+
+    private static Object fieldOfType(Object owner, Class<?> type) throws ReflectiveOperationException {
+        for (Class<?> c = owner.getClass(); c != null; c = c.getSuperclass()) {
+            for (Field f : c.getDeclaredFields()) {
+                if (type.isAssignableFrom(f.getType())) {
+                    f.setAccessible(true);
+                    return f.get(owner);
+                }
+            }
+        }
+        throw new NoSuchFieldException(type.getName() + " in " + owner.getClass().getName());
+    }
+
+    private void warn(Throwable t) {
+        if (warned.compareAndSet(false, true)) {
+            log.log(Level.WARNING, "치장 패킷 처리 실패 (이 메시지는 한 번만 표시됩니다)", t);
+        }
+    }
+
+    // ------------------------------------------------------------------------------------------
+    // Rewriting
+    // ------------------------------------------------------------------------------------------
+
+    private final class Handler extends ChannelOutboundHandlerAdapter {
+        volatile String cosmetic;
+        volatile int entityId;
+
+        Handler(int entityId) {
+            this.entityId = entityId;
+        }
+
+        @Override
+        public void write(ChannelHandlerContext ctx, Object msg, ChannelPromise promise) throws Exception {
+            Object out = msg;
+            try {
+                out = rewrite(msg, this);
+            } catch (Throwable t) {
+                warn(t);
+            }
+            super.write(ctx, out, promise);
+        }
+    }
+
+    /** Returns the packet to send instead, or the same object if nothing changes. */
+    private Object rewrite(Object packet, Handler h) throws ReflectiveOperationException {
+        Class<?> c = packet.getClass();
+        if (c == equipCls) return equipment(packet, h);
+        if (c == bundleCls) {
+            List<Object> sub = new ArrayList<>();
+            boolean changed = false;
+            for (Object p : (Iterable<?>) bundleSub.invoke(packet)) {
+                Object r = rewrite(p, h);
+                changed |= r != p;
+                sub.add(r);
+            }
+            return changed ? bundleNew.newInstance(sub) : packet;
+        }
+        String cosmetic = h.cosmetic;
+        if (cosmetic == null) return packet;
+        if (c == setSlotCls) {
+            if ((int) setSlotContainer.invoke(packet) != 0 || (int) setSlotSlot.invoke(packet) != MENU_HEAD_SLOT) return packet;
+            Object view = self(setSlotItem.invoke(packet), cosmetic);
+            return view == null ? packet : setSlotNew.newInstance(0, setSlotState.invoke(packet), MENU_HEAD_SLOT, view);
+        }
+        if (c == contentCls) {
+            if ((int) contentContainer.invoke(packet) != 0) return packet;
+            List<?> items = (List<?>) contentItems.invoke(packet);
+            if (items.size() <= MENU_HEAD_SLOT) return packet;
+            Object view = self(items.get(MENU_HEAD_SLOT), cosmetic);
+            if (view == null) return packet;
+            List<Object> copy = new ArrayList<>(items);
+            copy.set(MENU_HEAD_SLOT, view);
+            return contentNew.newInstance(0, contentState.invoke(packet), copy, contentCarried.invoke(packet));
+        }
+        if (c == invSlotCls) {
+            if ((int) invSlotSlot.invoke(packet) != INVENTORY_HEAD_SLOT) return packet;
+            Object view = self(invSlotContents.invoke(packet), cosmetic);
+            return view == null ? packet : invSlotNew.newInstance(INVENTORY_HEAD_SLOT, view);
+        }
+        return packet;
+    }
+
+    private Object equipment(Object packet, Handler h) throws ReflectiveOperationException {
+        int entity = (int) equipEntity.invoke(packet);
+        if (entity == h.entityId) return packet; // a player's own equipment is the inventory, handled above
+        Object look = othersView.get(entity);
+        if (look == null) return packet;
+        List<?> slots = (List<?>) equipSlots.invoke(packet);
+        List<Object> copy = new ArrayList<>(slots.size());
+        boolean changed = false;
+        for (Object pair : slots) {
+            Object slot = pairFirst.invoke(pair);
+            if (slot instanceof Enum<?> e && e.name().equals("HEAD")) {
+                copy.add(pairOf.invoke(null, slot, nmsCopy.invoke(look)));
+                changed = true;
+            } else {
+                copy.add(pair);
+            }
+        }
+        return changed ? equipNew.newInstance(entity, copy) : packet;
+    }
+
+    /** NMS helmet stack -> NMS self-view stack, or null to leave it. */
+    private Object self(Object nmsReal, String cosmetic) throws ReflectiveOperationException {
+        ItemStack real = (ItemStack) asBukkit.invoke(null, nmsReal);
+        ItemStack view = CosmeticViews.selfView(real, cosmetic, targets.get());
+        return view == null ? null : asNms.invoke(null, view);
+    }
+}

@@ -3,7 +3,7 @@ plugins {
 }
 
 group = "dev.stsv"
-version = "0.11.1"
+version = "0.11.2"
 
 repositories {
     mavenCentral()
@@ -18,6 +18,8 @@ dependencies {
     compileOnly("com.zaxxer:HikariCP:6.2.1")
     // Vault: optional, only used when the Vault plugin is installed
     compileOnly("com.github.MilkBowl:VaultAPI:1.7.1") { isTransitive = false }
+    // the server's own netty (cosmetic packet rewriting); same version as Paper 26.3 ships
+    compileOnly("io.netty:netty-transport:4.2.16.Final")
 
     testImplementation("io.papermc.paper:paper-api:26.3.build.237-stable")
     testImplementation("org.xerial:sqlite-jdbc:3.47.1.0")

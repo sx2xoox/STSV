@@ -24,7 +24,7 @@ wardrobe:
   state-removed: "<gray>벗음"
   state-locked: "<red>🔒 미보유 · 미리보기"
   subtitle: "{state} <dark_gray>|</dark_gray> {hint}"
-  left: "<green>착용 중인 치장: </green>{cosmetic} <gray>(다른 사람에게 보입니다. 내 투구 칸과는 별개)"
+  left: "<green>착용 중인 치장: </green>{cosmetic} <gray>(F5로 확인. 투구 칸과는 별개)"
   # 메뉴의 치장 설명
   lore-rarity: "{color}◆ {rarity}"
   lore-worn: ["<green>✔ 착용 중", "<gray>클릭: <white>벗기"]
