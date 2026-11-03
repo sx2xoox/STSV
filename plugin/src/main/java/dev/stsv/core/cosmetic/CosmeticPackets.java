@@ -45,7 +45,9 @@ final class CosmeticPackets {
     private final Logger log;
     private final AtomicBoolean warned = new AtomicBoolean();
 
-    private final Class<?> equipCls, setSlotCls, contentCls, invSlotCls, bundleCls, connectionCls;
+    private final Class<?> equipCls, setSlotCls, contentCls, invSlotCls, bundleCls, addEntityCls, connectionCls;
+    private final Object headSlot;
+    private final Method addEntityId;
     private final Constructor<?> equipNew, setSlotNew, contentNew, invSlotNew, bundleNew;
     private final Method equipEntity, equipSlots;
     private final Method setSlotContainer, setSlotState, setSlotSlot, setSlotItem;
@@ -58,12 +60,8 @@ final class CosmeticPackets {
     private final Map<Integer, Object> othersView = new ConcurrentHashMap<>();
     /** per online player: their handler. */
     private final Map<UUID, Handler> handlers = new ConcurrentHashMap<>();
-    /** item model keys with a self-view wrapper in the current resource pack */
-    private final java.util.function.Supplier<Set<String>> targets;
-
-    CosmeticPackets(Logger log, java.util.function.Supplier<Set<String>> targets) throws ReflectiveOperationException {
+    CosmeticPackets(Logger log) throws ReflectiveOperationException {
         this.log = log;
-        this.targets = targets;
         ClassLoader cl = Bukkit.getServer().getClass().getClassLoader();
         String game = "net.minecraft.network.protocol.game.";
         Class<?> nmsItem = Class.forName("net.minecraft.world.item.ItemStack", false, cl);
@@ -93,6 +91,12 @@ final class CosmeticPackets {
         invSlotNew = invSlotCls.getConstructor(int.class, nmsItem);
         invSlotSlot = invSlotCls.getMethod("slot");
         invSlotContents = invSlotCls.getMethod("contents");
+
+        addEntityCls = Class.forName(game + "ClientboundAddEntityPacket", false, cl);
+        addEntityId = addEntityCls.getMethod("getId");
+        @SuppressWarnings({"unchecked", "rawtypes"})
+        Object head = Enum.valueOf((Class) Class.forName("net.minecraft.world.entity.EquipmentSlot", false, cl), "HEAD");
+        headSlot = head;
 
         bundleCls = Class.forName(game + "ClientboundBundlePacket", false, cl);
         bundleNew = bundleCls.getConstructor(Iterable.class);
@@ -124,13 +128,22 @@ final class CosmeticPackets {
         }
     }
 
-    /** What the player sees on their own head; null = their real helmet. */
-    void selfView(Player p, String cosmeticId) {
+    /**
+     * What the player sees on their own head; null = their real helmet.
+     *
+     * @param views item models with a self-view wrapper in the resource pack this client has loaded
+     */
+    void selfView(Player p, String cosmeticId, Set<String> views) {
         Handler h = handlers.get(p.getUniqueId());
         if (h != null) {
+            h.views = views;
             h.cosmetic = cosmeticId;
             h.entityId = p.getEntityId();
         }
+    }
+
+    void clear() {
+        othersView.clear();
     }
 
     boolean installed(Player p) {
@@ -207,6 +220,7 @@ final class CosmeticPackets {
 
     private final class Handler extends ChannelOutboundHandlerAdapter {
         volatile String cosmetic;
+        volatile Set<String> views = Set.of();
         volatile int entityId;
 
         Handler(int entityId) {
@@ -232,10 +246,22 @@ final class CosmeticPackets {
         if (c == bundleCls) {
             List<Object> sub = new ArrayList<>();
             boolean changed = false;
+            List<Integer> spawned = new ArrayList<>();
+            Set<Integer> equipped = new java.util.HashSet<>();
             for (Object p : (Iterable<?>) bundleSub.invoke(packet)) {
                 Object r = rewrite(p, h);
                 changed |= r != p;
                 sub.add(r);
+                if (p.getClass() == addEntityCls) spawned.add((int) addEntityId.invoke(p));
+                else if (p.getClass() == equipCls) equipped.add((int) equipEntity.invoke(p));
+            }
+            // the spawn packets leave out empty slots: a wearer without a helmet still needs a head item
+            for (int id : spawned) {
+                Object look = othersView.get(id);
+                if (look != null && id != h.entityId && !equipped.contains(id)) {
+                    sub.add(equipNew.newInstance(id, List.of(pairOf.invoke(null, headSlot, nmsCopy.invoke(look)))));
+                    changed = true;
+                }
             }
             return changed ? bundleNew.newInstance(sub) : packet;
         }
@@ -243,14 +269,14 @@ final class CosmeticPackets {
         if (cosmetic == null) return packet;
         if (c == setSlotCls) {
             if ((int) setSlotContainer.invoke(packet) != 0 || (int) setSlotSlot.invoke(packet) != MENU_HEAD_SLOT) return packet;
-            Object view = self(setSlotItem.invoke(packet), cosmetic);
+            Object view = self(setSlotItem.invoke(packet), cosmetic, h);
             return view == null ? packet : setSlotNew.newInstance(0, setSlotState.invoke(packet), MENU_HEAD_SLOT, view);
         }
         if (c == contentCls) {
             if ((int) contentContainer.invoke(packet) != 0) return packet;
             List<?> items = (List<?>) contentItems.invoke(packet);
             if (items.size() <= MENU_HEAD_SLOT) return packet;
-            Object view = self(items.get(MENU_HEAD_SLOT), cosmetic);
+            Object view = self(items.get(MENU_HEAD_SLOT), cosmetic, h);
             if (view == null) return packet;
             List<Object> copy = new ArrayList<>(items);
             copy.set(MENU_HEAD_SLOT, view);
@@ -258,7 +284,7 @@ final class CosmeticPackets {
         }
         if (c == invSlotCls) {
             if ((int) invSlotSlot.invoke(packet) != INVENTORY_HEAD_SLOT) return packet;
-            Object view = self(invSlotContents.invoke(packet), cosmetic);
+            Object view = self(invSlotContents.invoke(packet), cosmetic, h);
             return view == null ? packet : invSlotNew.newInstance(INVENTORY_HEAD_SLOT, view);
         }
         return packet;
@@ -270,24 +296,19 @@ final class CosmeticPackets {
         Object look = othersView.get(entity);
         if (look == null) return packet;
         List<?> slots = (List<?>) equipSlots.invoke(packet);
-        List<Object> copy = new ArrayList<>(slots.size());
-        boolean changed = false;
+        List<Object> copy = new ArrayList<>(slots.size() + 1);
         for (Object pair : slots) {
-            Object slot = pairFirst.invoke(pair);
-            if (slot instanceof Enum<?> e && e.name().equals("HEAD")) {
-                copy.add(pairOf.invoke(null, slot, nmsCopy.invoke(look)));
-                changed = true;
-            } else {
-                copy.add(pair);
-            }
+            if (pairFirst.invoke(pair) != headSlot) copy.add(pair);
         }
-        return changed ? equipNew.newInstance(entity, copy) : packet;
+        // always carry the head: packets that leave out an empty helmet slot still need the cosmetic
+        copy.add(pairOf.invoke(null, headSlot, nmsCopy.invoke(look)));
+        return equipNew.newInstance(entity, copy);
     }
 
     /** NMS helmet stack -> NMS self-view stack, or null to leave it. */
-    private Object self(Object nmsReal, String cosmetic) throws ReflectiveOperationException {
+    private Object self(Object nmsReal, String cosmetic, Handler h) throws ReflectiveOperationException {
         ItemStack real = (ItemStack) asBukkit.invoke(null, nmsReal);
-        ItemStack view = CosmeticViews.selfView(real, cosmetic, targets.get());
+        ItemStack view = CosmeticViews.selfView(real, cosmetic, h.views);
         return view == null ? null : asNms.invoke(null, view);
     }
 }

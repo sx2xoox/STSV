@@ -79,9 +79,14 @@ public final class CosmeticModule implements StsvModule, Listener {
     private CosmeticStore store;
     /** null = packet rewriting unavailable (fallback: equipment changes to other players only). */
     private CosmeticPackets packets;
-    /** players whose client has loaded the server resource pack (self view needs its models). */
-    private final Set<UUID> packLoaded = java.util.concurrent.ConcurrentHashMap.newKeySet();
-    private final Set<UUID> pendingSync = new java.util.HashSet<>();
+    /**
+     * Per player: the self-view wrappers in the resource pack their client has loaded (snapshot taken
+     * when it reported SUCCESSFULLY_LOADED; a rebuilt pack only counts once the client has it).
+     */
+    private final Map<UUID, Set<String>> packViews = new HashMap<>();
+    /** players currently shown their own cosmetic */
+    private final Set<UUID> selfShown = new java.util.HashSet<>();
+    private final Map<UUID, Boolean> pendingSync = new HashMap<>();
 
     @Override
     public String id() {
@@ -104,10 +109,7 @@ public final class CosmeticModule implements StsvModule, Listener {
         }
         loadZones();
         try {
-            packets = new CosmeticPackets(plugin.getLogger(), () -> {
-                dev.stsv.core.pack.PackBuilder.Built built = plugin.pack() == null ? null : plugin.pack().current();
-                return built == null ? Set.of() : built.cosmeticViews();
-            });
+            packets = new CosmeticPackets(plugin.getLogger());
         } catch (Throwable t) {
             packets = null;
             plugin.getLogger().warning("치장 패킷 처리를 쓸 수 없어 다른 사람에게만 보입니다: " + t);
@@ -121,14 +123,20 @@ public final class CosmeticModule implements StsvModule, Listener {
         }
         for (Player p : Bukkit.getOnlinePlayers()) {
             if (packets != null) packets.inject(p);
-            // a reload keeps the clients' resource packs loaded
-            if (p.getResourcePackStatus() == org.bukkit.event.player.PlayerResourcePackStatusEvent.Status.SUCCESSFULLY_LOADED) {
-                packLoaded.add(p.getUniqueId());
-            }
             migrate(p);
             restoreIfStuck(p);
             refreshLater(p);
         }
+        // enabled with players online (plugin reload): they keep the pack they have; the pack module is
+        // enabled after this one, so look at its build on the next tick
+        Bukkit.getScheduler().runTask(plugin, () -> {
+            for (Player p : Bukkit.getOnlinePlayers()) {
+                if (p.getResourcePackStatus() == org.bukkit.event.player.PlayerResourcePackStatusEvent.Status.SUCCESSFULLY_LOADED) {
+                    packViews.put(p.getUniqueId(), currentViews());
+                    refresh(p);
+                }
+            }
+        });
         // leftovers from a crash (preview entities are not saved, but be safe)
         for (World w : Bukkit.getWorlds()) {
             for (Entity e : w.getEntities()) if (e.getPersistentDataContainer().has(keyWardrobeEntity)) e.remove();
@@ -148,10 +156,16 @@ public final class CosmeticModule implements StsvModule, Listener {
             if (p != null) exitWardrobe(p, false);
         });
         if (packets != null) {
+            packets.clear();
             for (Player p : Bukkit.getOnlinePlayers()) {
-                packets.selfView(p, null);
+                packets.selfView(p, null, Set.of());
                 packets.uninject(p);
-                p.updateInventory(); // put the real helmet back on their screen
+            }
+            // put the real helmet back on every screen (also with a menu open, unlike updateInventory)
+            for (Player p : Bukkit.getOnlinePlayers()) {
+                ItemStack helmet = helmet(p);
+                p.sendEquipmentChange(p, EquipmentSlot.HEAD, helmet);
+                for (Player v : p.getTrackedBy()) if (v != p) v.sendEquipmentChange(p, EquipmentSlot.HEAD, helmet);
             }
             packets = null;
         }
@@ -272,16 +286,61 @@ public final class CosmeticModule implements StsvModule, Listener {
         Optional<CustomItem> worn = equipped(p);
         if (packets != null) {
             packets.othersView(p.getEntityId(), worn.map(c -> c.create(1)).orElse(null));
-            boolean self = worn.isPresent() && packLoaded.contains(p.getUniqueId()) && plugin.getConfig().getBoolean("resource-pack.enabled");
-            packets.selfView(p, self ? worn.get().key().asString() : null);
-            // re-send the real items: the packets are rewritten on the way out
-            ItemStack helmet = p.getInventory().getHelmet();
+            // re-send the real helmet to the others: the packets are rewritten on the way out
+            ItemStack helmet = helmet(p);
             for (Player v : p.getTrackedBy()) if (v != p) v.sendEquipmentChange(p, EquipmentSlot.HEAD, helmet);
-            p.updateInventory();
+            syncSelf(p);
             return;
         }
         ItemStack look = look(p);
         for (Player v : p.getTrackedBy()) if (v != p) v.sendEquipmentChange(p, EquipmentSlot.HEAD, look);
+    }
+
+    private static ItemStack helmet(Player p) {
+        ItemStack h = p.getInventory().getHelmet();
+        return h == null ? ItemStack.empty() : h;
+    }
+
+    private Set<String> currentViews() {
+        dev.stsv.core.pack.PackBuilder.Built built = plugin.pack() == null ? null : plugin.pack().current();
+        return built == null ? Set.of() : built.cosmeticViews();
+    }
+
+    /**
+     * Tells the packet layer what the player sees on their own head and puts it in their helmet slot
+     * now. Sent as an equipment change of their own entity: the client stores it straight in the slot,
+     * also while a chest or menu is open (updateInventory only re-sends the open menu).
+     */
+    private void syncSelf(Player p) {
+        if (packets == null || !p.isOnline() || sessions.containsKey(p.getUniqueId())) return;
+        Set<String> views = packViews.getOrDefault(p.getUniqueId(), Set.of());
+        Optional<CustomItem> worn = equipped(p);
+        String id = worn.isPresent() && !views.isEmpty() ? worn.get().key().asString() : null;
+        packets.selfView(p, id, views);
+        ItemStack helmet = helmet(p);
+        ItemStack shown = id == null ? null : CosmeticViews.selfView(helmet, id, views);
+        boolean wasShown = id != null ? !selfShown.add(p.getUniqueId()) : selfShown.remove(p.getUniqueId());
+        if (shown != null || wasShown) p.sendEquipmentChange(p, EquipmentSlot.HEAD, shown != null ? shown : helmet);
+    }
+
+    /**
+     * The client predicts some changes itself and the server only corrects what it thinks differs, so
+     * the client can be left with the real helmet (or nothing) in the slot: put the view back next tick.
+     *
+     * @param inventory also re-send the inventory (the client may hold a copy of the view in its hand)
+     */
+    private void syncSelfLater(Player p, boolean inventory) {
+        if (packets == null || !selfShown.contains(p.getUniqueId())) return;
+        Boolean pending = pendingSync.put(p.getUniqueId(), inventory || Boolean.TRUE.equals(pendingSync.get(p.getUniqueId())));
+        if (pending != null) return;
+        Bukkit.getScheduler().runTask(plugin, () -> {
+            Boolean inv = pendingSync.remove(p.getUniqueId());
+            if (!p.isOnline()) return;
+            if (Boolean.TRUE.equals(inv) && p.getOpenInventory().getTopInventory().getType() == org.bukkit.event.inventory.InventoryType.CRAFTING) {
+                p.updateInventory();
+            }
+            syncSelf(p);
+        });
     }
 
     private ItemStack look(Player p) {
@@ -301,17 +360,21 @@ public final class CosmeticModule implements StsvModule, Listener {
     @EventHandler public void onRespawn(PlayerRespawnEvent e) { refreshLater(e.getPlayer()); }
     @EventHandler public void onWorld(PlayerChangedWorldEvent e) { refreshLater(e.getPlayer()); }
 
-    /** The self view uses models from the server resource pack: only once the client has it. */
+    /**
+     * The self view uses models from the server resource pack: only with the pack the client has loaded.
+     * A failed (re)load may leave the client without them, so the view is withdrawn.
+     */
     @EventHandler
     public void onPackStatus(org.bukkit.event.player.PlayerResourcePackStatusEvent e) {
+        Player p = e.getPlayer();
         switch (e.getStatus()) {
-            case SUCCESSFULLY_LOADED -> {
-                packLoaded.add(e.getPlayer().getUniqueId());
-                if (equipped(e.getPlayer()).isPresent()) refreshLater(e.getPlayer());
+            case SUCCESSFULLY_LOADED -> packViews.put(p.getUniqueId(), currentViews());
+            case DECLINED, FAILED_DOWNLOAD, FAILED_RELOAD, INVALID_URL, DISCARDED -> packViews.remove(p.getUniqueId());
+            default -> {
+                return;
             }
-            case DECLINED, FAILED_DOWNLOAD, FAILED_RELOAD, INVALID_URL, DISCARDED -> packLoaded.remove(e.getPlayer().getUniqueId());
-            default -> { }
         }
+        if (equipped(p).isPresent() || selfShown.contains(p.getUniqueId())) refreshLater(p);
     }
 
     @EventHandler
@@ -322,13 +385,33 @@ public final class CosmeticModule implements StsvModule, Listener {
             return;
         }
         // packets are rewritten as they go out, except when the client already predicted the new helmet
-        // (it put it in the slot itself, so the server sends nothing): re-send the slot once
-        if (e.getEquipmentChanges().containsKey(EquipmentSlot.HEAD) && pendingSync.add(p.getUniqueId())) {
-            Bukkit.getScheduler().runTask(plugin, () -> {
-                pendingSync.remove(p.getUniqueId());
-                if (p.isOnline()) p.updateInventory();
-            });
-        }
+        // (it put it in the slot itself, so the server sends nothing)
+        if (e.getEquipmentChanges().containsKey(EquipmentSlot.HEAD)) syncSelfLater(p, false);
+    }
+
+    /** e.g. picking up the empty-slot view: the server only corrects the cursor, the slot stays empty. */
+    @EventHandler(priority = org.bukkit.event.EventPriority.MONITOR)
+    public void onClickView(InventoryClickEvent e) {
+        if (e.getWhoClicked() instanceof Player p) syncSelfLater(p, false);
+    }
+
+    @EventHandler(priority = org.bukkit.event.EventPriority.MONITOR)
+    public void onDragView(org.bukkit.event.inventory.InventoryDragEvent e) {
+        if (e.getWhoClicked() instanceof Player p) syncSelfLater(p, false);
+    }
+
+    /**
+     * Right-clicking a helmet: the client swaps it with the view (they differ) while the server may
+     * refuse (same as the real one) and send nothing back, leaving the view in the client's hand.
+     */
+    @EventHandler(priority = org.bukkit.event.EventPriority.MONITOR)
+    public void onUseHeadItem(PlayerInteractEvent e) {
+        if (e.getAction() != Action.RIGHT_CLICK_AIR && e.getAction() != Action.RIGHT_CLICK_BLOCK) return;
+        ItemStack item = e.getItem();
+        if (item == null || item.isEmpty()) return;
+        @SuppressWarnings("UnstableApiUsage")
+        io.papermc.paper.datacomponent.item.Equippable eq = item.getData(io.papermc.paper.datacomponent.DataComponentTypes.EQUIPPABLE);
+        if (eq != null && eq.slot() == EquipmentSlot.HEAD) syncSelfLater(e.getPlayer(), true);
     }
 
     /** Creative clients send whole items back: never let a self-view item become a real one. */
@@ -342,7 +425,7 @@ public final class CosmeticModule implements StsvModule, Listener {
     /** A player starts seeing someone: give them the cosmetic look right after the vanilla packets. */
     @EventHandler
     public void onTrack(PlayerTrackEntityEvent e) {
-        if (packets != null) return; // the spawn packets are rewritten
+        if (packets != null) return; // the spawn packets are rewritten (a head item is added if missing)
         if (!(e.getEntity() instanceof Player target) || equipped(target).isEmpty()) return;
         Player viewer = e.getPlayer();
         Bukkit.getScheduler().runTask(plugin, () -> {
@@ -823,7 +906,9 @@ public final class CosmeticModule implements StsvModule, Listener {
     @EventHandler
     public void onQuit(PlayerQuitEvent e) {
         exitWardrobe(e.getPlayer(), false);
-        packLoaded.remove(e.getPlayer().getUniqueId());
+        packViews.remove(e.getPlayer().getUniqueId());
+        selfShown.remove(e.getPlayer().getUniqueId());
+        pendingSync.remove(e.getPlayer().getUniqueId());
         if (packets != null) packets.forget(e.getPlayer(), e.getPlayer().getEntityId());
     }
 
@@ -848,7 +933,8 @@ public final class CosmeticModule implements StsvModule, Listener {
                 + " / 권한: " + p.hasPermission("stsv.cosmetic.*"));
         out.add("보는 사람 수: " + p.getTrackedBy().size());
         out.add("패킷 처리: " + (packets == null ? "사용 불가 (다른 사람에게만 보임)" : packets.installed(p) ? "적용됨" : "미적용")
-                + " / 리소스팩 적용: " + packLoaded.contains(p.getUniqueId()));
+                + " / 리소스팩 적용: " + packViews.containsKey(p.getUniqueId())
+                + " / 본인 화면 표시: " + selfShown.contains(p.getUniqueId()));
         out.add("옷장 안: " + inWardrobe(p));
         return out;
     }
