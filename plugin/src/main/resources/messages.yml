@@ -149,3 +149,4 @@ crop:
   pot-empty: "<gray>씨앗을 들고 우클릭하면 심습니다."
   sprinkler-placed: "<aqua>스프링클러</aqua> <gray>주변 {size}×{size} 작물에 늘 물을 줍니다."
   sprinkler-info: "<aqua>스프링클러</aqua> <gray>주변 {size}×{size}"
+  unknown: "<red>작물 정의를 찾을 수 없습니다 ({crop}). 관리자에게 알려주세요. <gray>(작물은 그대로 둡니다)"

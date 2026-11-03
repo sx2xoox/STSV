@@ -161,4 +161,52 @@ class CropMathTest {
         assertTrue(threes > 650 && threes < 850, "about 75% (0.85 ± 0.1 against 0.8): " + threes);
         assertTrue(ones > 900, "ones " + ones);
     }
+
+    @Test
+    void serverDowntimeIsNotDryTime() {
+        CropSpec spec = spec(0);
+        CropState s = fresh(0);
+        CropMath.water(s, spec, 0);
+        CropMath.update(s, spec, null, false, HOUR, new Random(8));
+        // the server is off for two days, then starts again
+        CropMath.shift(s, 48 * HOUR);
+        CropMath.update(s, spec, null, false, 49 * HOUR + 30 * MIN, new Random(8));
+        assertFalse(s.withered, "two days off must not wither the farm");
+        assertEquals(90 * MIN, s.progress, "1 h before + 30 min after the downtime, still wet");
+    }
+
+    @Test
+    void storedCropsComeBackAsTheyWere(@org.junit.jupiter.api.io.TempDir java.nio.file.Path dir) throws Exception {
+        var db = dev.stsv.core.data.DatabaseModule.sqlite(dir.resolve("stsv.db"), java.util.logging.Logger.getLogger("t"));
+        CropStore store = new CropStore(db);
+        store.init();
+        CropState s = new CropState(42, "economy:tomato", "world", 3, 64, -7, UUID.randomUUID(), UUID.randomUUID(), 1000);
+        store.insert(s);
+        s.progress = 12345;
+        s.fertilizer = "economy:compost";
+        s.pestSince = 777;
+        s.neverDry = false;
+        store.save(List.of(s));
+        store.putSprinkler(new CropStore.Sprinkler("world", 1, 64, 1, 2));
+        store.alive(5000);
+        db.sync(c -> null);
+        List<CropState> back = store.loadCrops();
+        assertEquals(1, back.size());
+        CropState b = back.getFirst();
+        assertEquals(42, b.id);
+        assertEquals(12345, b.progress);
+        assertEquals("economy:compost", b.fertilizer);
+        assertEquals(777, b.pestSince);
+        assertFalse(b.neverDry);
+        assertEquals(s.pot, b.pot);
+        assertEquals(-7, b.z);
+        assertEquals(1, store.loadSprinklers().size());
+        assertEquals(5000, store.lastAlive());
+        store.delete(42);
+        store.deleteSprinkler("world", 1, 64, 1);
+        db.sync(c -> null);
+        assertTrue(store.loadCrops().isEmpty());
+        assertTrue(store.loadSprinklers().isEmpty());
+        db.close();
+    }
 }

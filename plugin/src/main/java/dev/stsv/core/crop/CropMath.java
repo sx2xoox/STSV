@@ -63,6 +63,15 @@ public final class CropMath {
                 || (s.drySince == 0) != wetBefore;
     }
 
+    /** The server was off for 'downtime' ms: time stood still for the crop (no drying, no pests advancing). */
+    public static void shift(CropState s, long downtime) {
+        if (downtime <= 0) return;
+        s.last += downtime;
+        if (s.waterUntil > 0) s.waterUntil += downtime;
+        if (s.drySince > 0) s.drySince += downtime;
+        if (s.pestSince > 0) s.pestSince += downtime;
+    }
+
     public static void water(CropState s, CropSpec spec, long now) {
         s.waterUntil = now + (long) (spec.waterHours() * 3_600_000);
         s.drySince = 0;

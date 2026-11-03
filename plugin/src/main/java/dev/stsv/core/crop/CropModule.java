@@ -94,6 +94,9 @@ public final class CropModule implements StsvModule, Listener {
     private final Map<UUID, Long> byHit = new HashMap<>();
     private final Map<UUID, Long> byPot = new HashMap<>();
     private final List<CropStore.Sprinkler> sprinklers = new ArrayList<>();
+    private final Map<String, List<CropStore.Sprinkler>> sprinklersByChunk = new HashMap<>();
+    private final Map<Long, Integer> potMissing = new HashMap<>();
+    private long nextId = 1;
     private final Set<Long> dirty = new HashSet<>();
     private final List<BukkitTask> tasks = new ArrayList<>();
 
@@ -109,14 +112,28 @@ public final class CropModule implements StsvModule, Listener {
         store.init();
         load();
         long now = System.currentTimeMillis();
-        for (CropState s : store.loadCrops()) index(s);
-        sprinklers.addAll(store.loadSprinklers());
+        // time stood still while the server was off: no withering from a long maintenance
+        long alive = store.lastAlive();
+        long downtime = alive > 0 ? Math.max(0, now - alive) : 0;
+        for (CropState s : store.loadCrops()) {
+            if (downtime > 60_000) {
+                CropMath.shift(s, downtime);
+                dirty.add(s.id);
+            }
+            index(s);
+            nextId = Math.max(nextId, s.id + 1);
+        }
+        for (CropStore.Sprinkler sp : store.loadSprinklers()) addSprinkler(sp);
+        store.alive(now);
         Bukkit.getPluginManager().registerEvents(this, plugin);
         plugin.furniture().registerBehavior("stsv:sprinkler", new SprinklerBehavior());
         plugin.furniture().registerBehavior("stsv:crop_pot", new PotBehavior());
         for (World w : Bukkit.getWorlds()) for (Chunk c : w.getLoadedChunks()) showChunk(w.getName(), c.getX(), c.getZ());
         tasks.add(Bukkit.getScheduler().runTaskTimer(plugin, this::tick, 100L, 100L));
-        tasks.add(Bukkit.getScheduler().runTaskTimer(plugin, this::flush, 600L, 600L));
+        tasks.add(Bukkit.getScheduler().runTaskTimer(plugin, () -> {
+            flush();
+            store.alive(System.currentTimeMillis());
+        }, 600L, 600L));
         tasks.add(Bukkit.getScheduler().runTaskTimer(plugin, this::sprinkle, 40L, 40L));
         plugin.getLogger().info("작물 " + specs.size() + "종, 심어진 작물 " + crops.size() + "개 (" + (System.currentTimeMillis() - now) + "ms)");
     }
@@ -135,6 +152,7 @@ public final class CropModule implements StsvModule, Listener {
         for (CropState s : crops.values()) settle(s, now);
         dirty.addAll(crops.keySet());
         flush();
+        store.alive(now);
         for (Long id : new ArrayList<>(shown.keySet())) hide(id);
         HandlerList.unregisterAll(this);
     }
@@ -226,10 +244,26 @@ public final class CropModule implements StsvModule, Listener {
     // Growth
     // ------------------------------------------------------------------------------------------
 
+    private void addSprinkler(CropStore.Sprinkler sp) {
+        sprinklers.add(sp);
+        sprinklersByChunk.computeIfAbsent(chunkKey(sp.world(), sp.x() >> 4, sp.z() >> 4), k -> new ArrayList<>()).add(sp);
+    }
+
+    private void removeSprinkler(String world, int x, int y, int z) {
+        sprinklers.removeIf(sp -> sp.world().equals(world) && sp.x() == x && sp.y() == y && sp.z() == z);
+        List<CropStore.Sprinkler> l = sprinklersByChunk.get(chunkKey(world, x >> 4, z >> 4));
+        if (l != null) l.removeIf(sp -> sp.x() == x && sp.y() == y && sp.z() == z);
+    }
+
+    /** Sprinklers reach at most 16 blocks: only the crop's chunk and its neighbours are looked at. */
     private boolean sprinkled(CropState s) {
-        for (CropStore.Sprinkler sp : sprinklers) {
-            if (sp.world().equals(s.world) && Math.abs(sp.x() - s.x) <= sp.radius() && Math.abs(sp.z() - s.z) <= sp.radius()
-                    && Math.abs(sp.y() - s.y) <= 1) return true;
+        int cx = s.x >> 4, cz = s.z >> 4;
+        for (int dx = -1; dx <= 1; dx++) {
+            for (int dz = -1; dz <= 1; dz++) {
+                for (CropStore.Sprinkler sp : sprinklersByChunk.getOrDefault(chunkKey(s.world, cx + dx, cz + dz), List.of())) {
+                    if (Math.abs(sp.x() - s.x) <= sp.radius() && Math.abs(sp.z() - s.z) <= sp.radius() && Math.abs(sp.y() - s.y) <= 1) return true;
+                }
+            }
         }
         return false;
     }
@@ -239,7 +273,7 @@ public final class CropModule implements StsvModule, Listener {
         CropSpec spec = specs.get(s.crop);
         if (spec == null) return false;
         boolean changed = CropMath.update(s, spec, tools.fertilizers.get(s.fertilizer), sprinkled(s), now, ThreadLocalRandom.current());
-        dirty.add(s.id);
+        if (changed) dirty.add(s.id);   // in between, growth is recomputed exactly from the saved state
         return changed;
     }
 
@@ -253,6 +287,19 @@ public final class CropModule implements StsvModule, Listener {
             if (s.pot == null && !soilOk(s, w)) {
                 pop(s, null);
                 continue;
+            }
+            if (s.pot != null) {
+                // the pot was removed some other way (/kill, another plugin): after 15 s give the seed back
+                var pot = Bukkit.getEntity(s.pot);
+                if (pot == null || !pot.isValid()) {
+                    if (potMissing.merge(s.id, 1, Integer::sum) >= 3) {
+                        potMissing.remove(s.id);
+                        pop(s, null);
+                        continue;
+                    }
+                } else {
+                    potMissing.remove(s.id);
+                }
             }
             if (settle(s, now)) refresh(s);
             if (s.pests() && !s.withered) {
@@ -325,13 +372,15 @@ public final class CropModule implements StsvModule, Listener {
             e.setViewRange((float) plugin.getConfig().getDouble("furniture.view-range"));
             e.setBillboard(Display.Billboard.FIXED);
         });
-        Interaction hit = null;
-        if (s.pot == null) {
-            hit = at.getWorld().spawn(at.clone().add(0, -0.5, 0), Interaction.class, i -> {
+        Interaction hit;
+        {
+            // in a pot the box starts above the pot's own (which still takes clicks on the pot)
+            Location base = s.pot == null ? at.clone().add(0, -0.5, 0) : new Location(at.getWorld(), s.x + 0.5, s.y + 1.03, s.z + 0.5);
+            hit = at.getWorld().spawn(base, Interaction.class, i -> {
                 i.setPersistent(false);
                 i.getPersistentDataContainer().set(TAG, PersistentDataType.LONG, s.id);
                 i.setInteractionWidth(0.9f);
-                i.setInteractionHeight(height(s));
+                i.setInteractionHeight(s.pot == null ? height(s) : Math.max(0.2f, (float) (height(s) - (1.03 - POT_TOP))));
                 i.setResponsive(true);
             });
             byHit.put(hit.getUniqueId(), s.id);
@@ -360,7 +409,7 @@ public final class CropModule implements StsvModule, Listener {
         ItemStack it = new ItemStack(Material.PAPER);
         it.editMeta(m -> m.setItemModel(model(s)));
         sh.display().setItemStack(it);
-        if (sh.hit() != null) sh.hit().setInteractionHeight(height(s));
+        if (sh.hit() != null) sh.hit().setInteractionHeight(s.pot == null ? height(s) : Math.max(0.2f, (float) (height(s) - (1.03 - POT_TOP))));
         moisture(s);
     }
 
@@ -456,6 +505,9 @@ public final class CropModule implements StsvModule, Listener {
         if (k == null) return;
         // fill a watering can at water
         CropTools.Can can = tools.cans.get(k);
+        if (can != null && (!hand.hasItemMeta() || !hand.getItemMeta().getPersistentDataContainer().has(WATER, PersistentDataType.INTEGER))) {
+            setWater(hand, can, 0);
+        }
         if (can != null && (e.getAction() == Action.RIGHT_CLICK_AIR || e.getAction() == Action.RIGHT_CLICK_BLOCK)) {
             RayTraceResult r = p.rayTraceBlocks(5, FluidCollisionMode.SOURCE_ONLY);
             Block b = r == null ? null : r.getHitBlock();
@@ -469,18 +521,19 @@ public final class CropModule implements StsvModule, Listener {
             }
             return;
         }
-        // plant a seed on farmland
+        // plant a seed on farmland (other right-clicks - chests, doors - work normally while holding seeds)
         String cropId = seeds.get(k);
         if (cropId == null || e.getAction() != Action.RIGHT_CLICK_BLOCK || e.getClickedBlock() == null) return;
-        e.setCancelled(true);
+        if (e.useItemInHand() == org.bukkit.event.Event.Result.DENY) return;
         CropSpec spec = specs.get(cropId);
         Block soil = e.getClickedBlock();
-        Block above = soil.getRelative(BlockFace.UP);
-        if (e.getBlockFace() != BlockFace.UP || !spec.soil().contains(soil.getType().getKey().asString())) {
-            HudModule.flash(p, Lang.mm("crop.wrong-soil"));
+        if (!spec.soil().contains(soil.getType().getKey().asString())) {
+            if (soil.getType() == Material.DIRT || soil.getType() == Material.GRASS_BLOCK) HudModule.flash(p, Lang.mm("crop.wrong-soil"));
             return;
         }
-        if (!above.isEmpty() || at(above).isPresent()) return;
+        e.setCancelled(true);
+        Block above = soil.getRelative(BlockFace.UP);
+        if (e.getBlockFace() != BlockFace.UP || !above.isEmpty() || at(above).isPresent()) return;
         plant(p, spec, above, null, hand);
     }
 
@@ -489,13 +542,8 @@ public final class CropModule implements StsvModule, Listener {
         Bukkit.getPluginManager().callEvent(ev);
         if (ev.isCancelled()) return;
         long now = System.currentTimeMillis();
-        CropState s = new CropState(0, spec.id(), at.getWorld().getName(), at.getX(), at.getY(), at.getZ(), pot, p.getUniqueId(), now);
-        try {
-            store.insert(s);
-        } catch (RuntimeException ex) {
-            plugin.getLogger().warning("작물 저장 실패: " + ex);
-            return;
-        }
+        CropState s = new CropState(nextId++, spec.id(), at.getWorld().getName(), at.getX(), at.getY(), at.getZ(), pot, p.getUniqueId(), now);
+        store.insert(s);
         index(s);
         show(s);
         if (p.getGameMode() != org.bukkit.GameMode.CREATIVE) hand.subtract(1);
@@ -507,7 +555,7 @@ public final class CropModule implements StsvModule, Listener {
     // Using a crop
     // ------------------------------------------------------------------------------------------
 
-    @EventHandler(priority = EventPriority.HIGH)
+    @EventHandler(priority = EventPriority.HIGH, ignoreCancelled = true)
     public void onClickCrop(PlayerInteractEntityEvent e) {
         Long id = byHit.get(e.getRightClicked().getUniqueId());
         if (id == null) return;
@@ -517,7 +565,7 @@ public final class CropModule implements StsvModule, Listener {
         if (s != null) use(e.getPlayer(), s);
     }
 
-    @EventHandler(priority = EventPriority.HIGH)
+    @EventHandler(priority = EventPriority.HIGH, ignoreCancelled = true)
     public void onHitCrop(PrePlayerAttackEntityEvent e) {
         Long id = byHit.get(e.getAttacked().getUniqueId());
         if (id == null) return;
@@ -530,7 +578,8 @@ public final class CropModule implements StsvModule, Listener {
         CropSpec spec = specs.get(s.crop);
         Location loc = place(s);
         if (spec == null) {
-            remove(s);
+            // its definition is missing (a YAML error, a renamed crop): keep it until the file is fixed
+            HudModule.flash(p, Lang.mm("crop.unknown", "crop", s.crop));
             return;
         }
         CropEvent ev = new CropEvent(CropEvent.Action.USE, p, spec, loc, List.of());
@@ -548,14 +597,22 @@ public final class CropModule implements StsvModule, Listener {
                 return;
             }
             int n = 0;
+            List<CropState> watered = new ArrayList<>();
             for (CropState o : near(s, can.radius())) {
                 CropSpec os = specs.get(o.crop);
                 if (os == null || o.withered) continue;
+                if (o != s) {
+                    CropEvent oe = new CropEvent(CropEvent.Action.USE, p, os, place(o), List.of());
+                    Bukkit.getPluginManager().callEvent(oe);
+                    if (oe.isCancelled()) continue;   // someone else's crop next door
+                }
                 settle(o, now);
+                watered.add(o);
                 CropMath.water(o, os, now);
                 refresh(o);
                 n++;
             }
+            store.save(watered);
             setWater(hand, can, left - 1);
             loc.getWorld().spawnParticle(Particle.SPLASH, loc, 20 + 10 * n, 0.4 + can.radius(), 0.2, 0.4 + can.radius(), 0);
             p.playSound(loc, Sound.ENTITY_GENERIC_SPLASH, 0.5f, 1.4f);
@@ -570,7 +627,7 @@ public final class CropModule implements StsvModule, Listener {
             }
             s.fertilizer = k;
             hand.subtract(1);
-            dirty.add(s.id);
+            store.save(List.of(s));
             loc.getWorld().spawnParticle(Particle.HAPPY_VILLAGER, loc, 12, 0.3, 0.3, 0.3);
             p.playSound(loc, Sound.ITEM_BONE_MEAL_USE, 1f, 1f);
             HudModule.flash(p, Lang.mm("crop.fertilized", "item", name(k)));
@@ -583,7 +640,7 @@ public final class CropModule implements StsvModule, Listener {
             }
             s.pestSince = 0;
             hand.subtract(1);
-            dirty.add(s.id);
+            store.save(List.of(s));
             refresh(s);
             loc.getWorld().spawnParticle(Particle.CLOUD, loc, 10, 0.3, 0.3, 0.3, 0.01);
             p.playSound(loc, Sound.BLOCK_BREWING_STAND_BREW, 0.6f, 1.5f);
@@ -601,6 +658,21 @@ public final class CropModule implements StsvModule, Listener {
             return;
         }
         status(p, s, spec, now);
+    }
+
+    /** Crops within a square radius of a block (looked up by chunk). */
+    private List<CropState> inRange(Block b, int radius) {
+        List<CropState> out = new ArrayList<>();
+        String w = b.getWorld().getName();
+        for (int cx = (b.getX() - radius) >> 4; cx <= (b.getX() + radius) >> 4; cx++) {
+            for (int cz = (b.getZ() - radius) >> 4; cz <= (b.getZ() + radius) >> 4; cz++) {
+                for (Long id : byChunk.getOrDefault(chunkKey(w, cx, cz), Set.of())) {
+                    CropState s = crops.get(id);
+                    if (s != null && Math.abs(s.x - b.getX()) <= radius && Math.abs(s.z - b.getZ()) <= radius && Math.abs(s.y - b.getY()) <= 1) out.add(s);
+                }
+            }
+        }
+        return out;
     }
 
     private List<CropState> near(CropState s, int radius) {
@@ -636,7 +708,8 @@ public final class CropModule implements StsvModule, Listener {
                 "pct", pct, "water", water, "fertilizer", s.fertilizer == null ? Lang.raw("crop.no-fertilizer") : name(s.fertilizer)));
     }
 
-    private void harvest(Player p, CropState s, CropSpec spec) {
+    /** True if it was harvested (false: a content cancelled it). */
+    private boolean harvest(Player p, CropState s, CropSpec spec) {
         ThreadLocalRandom r = ThreadLocalRandom.current();
         CropTools.Fertilizer fert = tools.fertilizers.get(s.fertilizer);
         List<ItemStack> drops = new ArrayList<>();
@@ -648,7 +721,7 @@ public final class CropModule implements StsvModule, Listener {
         Location loc = place(s);
         CropEvent ev = new CropEvent(CropEvent.Action.HARVEST, p, spec, loc, drops);
         Bukkit.getPluginManager().callEvent(ev);
-        if (ev.isCancelled()) return;
+        if (ev.isCancelled()) return false;
         int stars = CropMath.stars(s, fert, ev.qualityBonus(), r);
         Set<String> quality = new HashSet<>();
         for (CropSpec.Drop d : spec.harvest()) if (d.quality()) quality.add(d.item());
@@ -661,17 +734,18 @@ public final class CropModule implements StsvModule, Listener {
         if (stars == 3) p.playSound(loc, Sound.ENTITY_PLAYER_LEVELUP, 0.4f, 1.8f);
         HudModule.flash(p, Lang.mm("crop.harvested", "crop", spec.name(), "stars", "★".repeat(stars) + "<dark_gray>" + "★".repeat(3 - stars)));
         if (CropMath.harvested(s, spec)) {
-            dirty.add(s.id);
+            store.save(List.of(s));   // at once: a crash must not make it ripe again
             refresh(s);
         } else {
             remove(s);
         }
+        return true;
     }
 
     private void breakCrop(Player p, CropState s) {
         CropSpec spec = specs.get(s.crop);
         if (spec == null) {
-            remove(s);
+            HudModule.flash(p, Lang.mm("crop.unknown", "crop", s.crop));
             return;
         }
         CropEvent ev = new CropEvent(CropEvent.Action.BREAK, p, spec, place(s), List.of());
@@ -679,8 +753,7 @@ public final class CropModule implements StsvModule, Listener {
         if (ev.isCancelled()) return;
         settle(s, System.currentTimeMillis());
         if (!s.withered && spec.ripe(s.progress)) {
-            harvest(p, s, spec);
-            if (crops.containsKey(s.id)) remove(s);   // breaking a regrowing plant removes it
+            if (harvest(p, s, spec) && crops.containsKey(s.id)) remove(s);   // breaking a regrowing plant removes it
             return;
         }
         pop(s, p);
@@ -719,22 +792,26 @@ public final class CropModule implements StsvModule, Listener {
                 HudModule.flash(p, Lang.mm("crop.pot-empty"));
                 return;
             }
+            if (at(f.location().getBlock()).isPresent()) return;
             plant(p, specs.get(cropId), f.location().getBlock(), f.display().getUniqueId(), hand);
         }
 
         @Override
         public void onBreak(Player p, Furniture f) {
             Long id = byPot.get(f.display().getUniqueId());
-            if (id != null && crops.containsKey(id)) pop(crops.get(id), p);
+            if (id == null || !crops.containsKey(id)) return;
+            CropState s = crops.get(id);
+            CropSpec spec = specs.get(s.crop);
+            settle(s, System.currentTimeMillis());
+            if (spec != null && !s.withered && spec.ripe(s.progress) && harvest(p, s, spec) && crops.containsKey(id)) remove(s);
+            else if (crops.containsKey(id)) pop(s, p);
         }
     }
 
     private final class SprinklerBehavior implements FurnitureBehavior {
         private void settleAround(Block b, int radius) {
             long now = System.currentTimeMillis();
-            for (CropState s : crops.values()) {
-                if (s.world.equals(b.getWorld().getName()) && Math.abs(s.x - b.getX()) <= radius && Math.abs(s.z - b.getZ()) <= radius) settle(s, now);
-            }
+            for (CropState s : inRange(b, radius)) settle(s, now);
         }
 
         @Override
@@ -744,9 +821,9 @@ public final class CropModule implements StsvModule, Listener {
             Block b = f.location().getBlock();
             settleAround(b, radius);   // growth so far was without it
             CropStore.Sprinkler sp = new CropStore.Sprinkler(b.getWorld().getName(), b.getX(), b.getY(), b.getZ(), radius);
-            sprinklers.add(sp);
+            addSprinkler(sp);
             store.putSprinkler(sp);
-            for (Long id : new ArrayList<>(shown.keySet())) refresh(crops.get(id));
+            for (CropState s : inRange(b, radius)) refresh(s);
             HudModule.flash(p, Lang.mm("crop.sprinkler-placed", "size", radius * 2 + 1));
         }
 
@@ -755,16 +832,17 @@ public final class CropModule implements StsvModule, Listener {
             Block b = f.location().getBlock();
             Integer radius = tools.sprinklers.get(f.item().key().asString());
             settleAround(b, radius == null ? 3 : radius);   // growth until now was with it
-            sprinklers.removeIf(s -> s.world().equals(b.getWorld().getName()) && s.x() == b.getX() && s.y() == b.getY() && s.z() == b.getZ());
+            removeSprinkler(b.getWorld().getName(), b.getX(), b.getY(), b.getZ());
             store.deleteSprinkler(b.getWorld().getName(), b.getX(), b.getY(), b.getZ());
             long now = System.currentTimeMillis();
             // what it watered stays wet for one watering's time
-            for (CropState s : crops.values()) {
-                if (s.world.equals(b.getWorld().getName()) && radius != null && Math.abs(s.x - b.getX()) <= radius && Math.abs(s.z - b.getZ()) <= radius) {
-                    CropSpec spec = specs.get(s.crop);
-                    if (spec != null && !sprinkled(s)) CropMath.water(s, spec, now);
-                }
+            List<CropState> reached = radius == null ? List.of() : inRange(b, radius);
+            for (CropState s : reached) {
+                CropSpec spec = specs.get(s.crop);
+                if (spec != null && !sprinkled(s)) CropMath.water(s, spec, now);
+                refresh(s);
             }
+            store.save(reached);
         }
 
         @Override
