@@ -31,7 +31,9 @@ pool:
   - { item: economy:lettuce, min: 16, max: 32, job: farmer, xp: 20, from-day: 2 }
   - { item: economy:cucumber, min: 8, max: 24, job: farmer, xp: 20, from-day: 2 }
   - { item: economy:grapes, min: 8, max: 24, job: farmer, xp: 25, from-day: 4 }
-  - { item: economy:tea_leaves, min: 16, max: 32, job: farmer, xp: 25, from-day: 4 }
+  - { item: economy:eggplant, min: 8, max: 24, job: farmer, xp: 20, from-day: 2 }
+  - { item: economy:zucchini, min: 8, max: 16, job: farmer, xp: 20, from-day: 3 }
+  - { item: economy:muskmelon, min: 2, max: 6, job: farmer, xp: 30, from-day: 5 }
   - { item: cod, min: 8, max: 24, job: fisher, xp: 25 }
   - { item: salmon, min: 8, max: 24, job: fisher, xp: 25 }
   - { item: economy:tuna, min: 1, max: 3, job: fisher, xp: 40, from-day: 3, weight: 6 }

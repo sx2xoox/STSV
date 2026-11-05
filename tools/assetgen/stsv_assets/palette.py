@@ -85,7 +85,7 @@ MATERIALS = {
     "rice":        (90, 0.012, 0.92, 0.10, 3, False),
     # --- crops (economy farming) -------------------------------------------------------------
     "sprout":      (122, 0.120, 0.66, 0.34, 5, False),   # yellow-green new growth
-    "leaf_dark":   (152, 0.090, 0.42, 0.26, 4, False),   # deep glossy leaves (tea, green onion, cucumber)
+    "leaf_dark":   (152, 0.090, 0.42, 0.26, 4, False),   # deep glossy leaves (green onion, cucumber)
     "straw":       (82, 0.090, 0.72, 0.30, 5, False),    # ripe grain, drying leaves, husks
     "pepper":      (27, 0.175, 0.52, 0.30, 5, False),    # chili red
     "onion":       (58, 0.105, 0.62, 0.30, 4, False),    # onion skin
@@ -97,6 +97,9 @@ MATERIALS = {
     "grape":       (300, 0.130, 0.44, 0.30, 5, False),
     "petal_yellow": (98, 0.150, 0.84, 0.16, 3, False),
     "petal_purple": (315, 0.110, 0.66, 0.20, 3, False),
+    "aubergine":   (312, 0.100, 0.36, 0.34, 5, False),   # glossy eggplant skin, near black-purple
+    "zucchini":    (122, 0.075, 0.70, 0.30, 4, False),   # pale Korean courgette (애호박)
+    "melon_rind":  (108, 0.060, 0.66, 0.36, 5, False),   # netted muskmelon: green-beige rind to pale net
     # --- TEST-ONLY materials: "dev texture" colours, never used by real content -----------------
     "test_orange": (55, 0.150, 0.70, 0.30, 4, True),
     "test_grey":   (250, 0.012, 0.62, 0.30, 4, False),

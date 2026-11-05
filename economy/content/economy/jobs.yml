@@ -48,7 +48,8 @@ jobs:
       harvest: { wheat: 0.5, carrots: 0.5, potatoes: 0.5, beetroots: 0.5, nether_wart: 0.5, cocoa: 0.5, melon: 0.5, pumpkin: 1,
                  economy:tomato: 2, economy:chili: 2, economy:strawberry: 2, economy:onion: 2, economy:garlic: 2, economy:cabbage: 3,
                  economy:rice: 2, economy:soybean: 2, economy:corn: 3, economy:green_onion: 2, economy:radish: 3, economy:lettuce: 2,
-                 economy:cucumber: 2, economy:grape: 3, economy:tea: 2 }
+                 economy:cucumber: 2, economy:grape: 3, economy:eggplant: 2,
+                 economy:zucchini: 2, economy:muskmelon: 4 }
       breed: 3
     drops:
       minecraft:pig: [economy:truffle]

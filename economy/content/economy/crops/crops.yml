@@ -139,12 +139,33 @@ grape:
     - { item: grapes, min: 1, max: 3 }
     - { item: grape_seeds, min: 0, max: 1 }
 
-tea:
-  name: "차나무"
-  seed: tea_seeds
-  stages: 4
-  regrow: 5
-  height: 0.8
+eggplant:
+  name: "가지"
+  seed: eggplant_seeds
+  stages: 5
+  regrow: 4
+  height: 0.9
   harvest:
-    - { item: tea_leaves, min: 2, max: 4 }
-    - { item: tea_seeds, min: 0, max: 1 }
+    - { item: eggplant, min: 1, max: 3 }
+    - { item: eggplant_seeds, min: 0, max: 1 }
+
+zucchini:
+  name: "애호박"
+  seed: zucchini_seeds
+  stages: 5
+  regrow: 4
+  height: 0.7
+  harvest:
+    - { item: zucchini, min: 1, max: 2 }
+    - { item: zucchini_seeds, min: 0, max: 1 }
+
+muskmelon:
+  name: "멜론"
+  seed: muskmelon_seeds
+  stages: 5
+  max-age: 9
+  regrow: 5
+  height: 0.6
+  harvest:
+    - { item: muskmelon, min: 1, max: 1 }
+    - { item: muskmelon_seeds, min: 0, max: 1 }

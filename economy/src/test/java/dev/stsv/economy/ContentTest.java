@@ -97,7 +97,7 @@ class ContentTest {
 
         // the shape: 6 jobs, 42 job products (6 of them machines), 12 things jobs find, 28 crop items (13 seeds, 15 harvests)
         assertEquals(6, jobs.jobs().size());
-        assertEquals(42 + 12 + 28, ours.size(), "42 job products + 12 job finds + 28 crop items");
+        assertEquals(42 + 12 + 32, ours.size(), "42 job products + 12 job finds + 32 crop items");
         assertTrue(ours.containsAll(jobs.products().keySet()));
         assertEquals(6, machines.size());
         assertTrue(events.keySet().containsAll(List.of("shortage", "crash", "harvest", "merchant", "tax_audit")));
@@ -118,7 +118,7 @@ class ContentTest {
         }
         // crops: harvests make things, seeds come from shops or drops; every crop has its models
         YamlConfiguration crops = yaml("crops/crops.yml");
-        assertEquals(15, crops.getKeys(false).size(), "15 crops");
+        assertEquals(17, crops.getKeys(false).size(), "17 crops");
         for (String k : crops.getKeys(false)) {
             var spec = dev.stsv.core.crop.CropSpec.parse("economy", k, crops.getConfigurationSection(k));
             if (!exists(spec.seed(), ours)) problems.add("crop " + k + " seed: " + spec.seed());

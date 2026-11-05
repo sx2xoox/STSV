@@ -74,11 +74,23 @@ grape_seeds:
   lore: ["<gray>경작지에 심기. 한 번 심으면 계속 열림."]
   texture: grape_seeds
 
-tea_seeds:
+eggplant_seeds:
   material: paper
-  name: "<#8bc34a>차나무 씨앗"
-  lore: ["<gray>경작지에 심기. 새순을 따면 다시 자람."]
-  texture: tea_seeds
+  name: "<#8bc34a>가지 씨앗"
+  lore: ["<gray>경작지에 심기. 다 익으면 우클릭으로 수확, 다시 열림."]
+  texture: eggplant_seeds
+
+zucchini_seeds:
+  material: paper
+  name: "<#8bc34a>애호박 씨앗"
+  lore: ["<gray>경작지에 심기. 다 익으면 우클릭으로 수확, 다시 열림."]
+  texture: zucchini_seeds
+
+muskmelon_seeds:
+  material: paper
+  name: "<#8bc34a>멜론 씨앗"
+  lore: ["<gray>경작지에 심기. 덩굴이 남아 다시 열림 (조금 오래 걸림)."]
+  texture: muskmelon_seeds
 
 # ── 수확물 ──
 tomato:
@@ -183,8 +195,29 @@ grapes:
     nutrition: 2
     saturation: 1.2
 
-tea_leaves:
+eggplant:
   material: paper
-  name: "<#8bc34a>찻잎"
-  lore: ["<gray>덖어서 차로."]
-  texture: tea_leaves
+  name: "<#8bc34a>가지"
+  lore: ["<gray>요리 재료. 쪄서 무치거나 볶아서."]
+  texture: eggplant
+  food:
+    nutrition: 2
+    saturation: 1.2
+
+zucchini:
+  material: paper
+  name: "<#8bc34a>애호박"
+  lore: ["<gray>요리 재료. 전, 찌개, 볶음에."]
+  texture: zucchini
+  food:
+    nutrition: 2
+    saturation: 1.2
+
+muskmelon:
+  material: paper
+  name: "<#8bc34a>멜론"
+  lore: ["<gray>그물무늬가 고운 달콤한 멜론. 비싸게 팔림."]
+  texture: muskmelon
+  food:
+    nutrition: 6
+    saturation: 4.8

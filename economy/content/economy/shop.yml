@@ -50,7 +50,9 @@ sell:
   economy:lettuce: { base: 5, q: 48, job: farmer }
   economy:cucumber: { base: 7, q: 40, job: farmer }
   economy:grapes: { base: 10, q: 32, job: farmer }
-  economy:tea_leaves: { base: 6, q: 48, job: farmer }
+  economy:eggplant: { base: 8, q: 40, job: farmer }
+  economy:zucchini: { base: 9, q: 32, job: farmer }
+  economy:muskmelon: { base: 26, q: 12, job: farmer }
   economy:truffle: { base: 30, q: 4, job: farmer }
   economy:fine_leather: { base: 25, q: 4, job: farmer }
   economy:golden_egg: { base: 30, q: 3, job: farmer }
@@ -116,7 +118,9 @@ buy:
   - { item: economy:lettuce_seeds, amount: 4, price: 30 }
   - { item: economy:cucumber_seeds, amount: 4, price: 40 }
   - { item: economy:grape_seeds, amount: 4, price: 60 }
-  - { item: economy:tea_seeds, amount: 4, price: 60 }
+  - { item: economy:eggplant_seeds, amount: 4, price: 50 }
+  - { item: economy:zucchini_seeds, amount: 4, price: 50 }
+  - { item: economy:muskmelon_seeds, amount: 2, price: 80 }
   - { item: oak_sapling, amount: 4, price: 10 }
   - { item: bone_meal, amount: 16, price: 40 }
   - { item: coal, amount: 8, price: 48 }

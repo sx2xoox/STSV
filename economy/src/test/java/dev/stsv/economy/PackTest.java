@@ -34,7 +34,7 @@ class PackTest {
         try (var s = Files.list(PACK.resolve("models"))) {
             models = s.filter(p -> p.toString().endsWith(".bbmodel")).sorted().toList();
         }
-        assertEquals(6 + 66, models.size(), "6 machines, 66 growth stages of 15 crops");
+        assertEquals(6 + 77, models.size(), "6 machines, 77 growth stages of 17 crops");
         for (Path p : models) {
             String name = p.getFileName().toString().replace(".bbmodel", "");
             BBModelConverter.Result r = BBModelConverter.convert(p, "economy:item/" + name);
@@ -53,7 +53,7 @@ class PackTest {
             crops = s.filter(p -> p.toString().endsWith(".bbmodel")).filter(p -> p.getFileName().toString().matches("[a-z_]+_\\d\\.bbmodel"))
                     .sorted().toList();
         }
-        assertEquals(66, crops.size());
+        assertEquals(77, crops.size());
         for (Path p : crops) {
             String name = p.getFileName().toString().replace(".bbmodel", "");
             int planes = 0, solids = 0;
@@ -78,7 +78,7 @@ class PackTest {
                 assertEquals(List.of(0f, 16f), uvs, name + ": the back is mirrored back, so the picture is the same from both sides");
             }
             assertTrue(planes == 2 || planes == 4 || planes == 8, name + ": cross (2) or hash (4) planes, doubled for tall plants");
-            if (name.matches("(radish|onion|garlic|cabbage|green_onion|lettuce|strawberry)_3")) {
+            if (name.matches("(radish|onion|garlic|cabbage|green_onion|lettuce|strawberry)_3|(eggplant|zucchini|muskmelon)_4")) {
                 assertTrue(solids > 0, name + ": roots, bulbs, heads and berries are solid, not painted on the planes");
             }
         }

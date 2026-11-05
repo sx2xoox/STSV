@@ -1,6 +1,6 @@
 """
 Economy farming art: growth stages (crossed planes, like vanilla crops), produce icons and seed packets
-for the 15 crops of contents/economy/crops/crops.yml.
+for the 17 crops of contents/economy/crops/crops.yml.
 
 Hand-drawn pixel art. Every pixel names a palette ramp and a step (docs/ART_STYLE.md: colours only from
 ramps, light from the top-left). Plants have no outline (like vanilla crops); icons get the usual
@@ -152,14 +152,21 @@ class Part:
     or a flat cross. frm/to are model pixels: x and z 0..16, y from -1 (the soil surface) up.
     """
 
-    def __init__(self, frm, to, side, top, extra=None):
+    def __init__(self, frm, to, side, top, extra=None, end=None):
+        """side: w x h (north/south; also east/west when the part is square), top: w x d,
+        end: d x h for the east/west faces of a long part (a courgette lying down)."""
         self.frm, self.to = tuple(frm), tuple(to)
         w, h, d = (self.to[i] - self.frm[i] for i in range(3))
         assert len(side) == h and all(len(r) == w for r in side), f"side picture is not {w}x{h}"
         assert len(top) == d and all(len(r) == w for r in top), f"top picture is not {w}x{d}"
+        if end is None:
+            assert w == d, "a long part needs an end picture"
+            end = side
+        assert len(end) == h and all(len(r) == d for r in end), f"end picture is not {d}x{h}"
         assert w <= 16 and d <= 16 and h <= 16
-        self.side, self.top = picture(side, extra), picture(top, extra)
-        assert self.side.getextrema()[3][0] == 255 and self.top.getextrema()[3][0] == 255, "solid parts are opaque"
+        self.side, self.top, self.end = picture(side, extra), picture(top, extra), picture(end, extra)
+        for im in (self.side, self.top, self.end):
+            assert im.getextrema()[3][0] == 255, "solid parts are opaque"
         self.w, self.h, self.d = w, h, d
 
     def moved(self, dx, dz):
@@ -176,17 +183,17 @@ class Part:
         return p
 
     def textures(self):
-        """The side and the top, each as an opaque 16x16 texture (the picture at the top-left)."""
+        """Side, top and end, each as an opaque 16x16 texture (the picture at the top-left)."""
         out = []
-        for pic in (self.side, self.top):
+        for pic in (self.side, self.top, self.end):
             im = Image.new("RGBA", (16, 16), pic.getpixel((0, 0)))
             im.paste(pic, (0, 0))
             out.append(im)
         return out
 
     def uv(self):
-        side, top = [0, 0, self.w, self.h], [0, 0, self.w, self.d]
-        return {"north": side, "south": side, "east": side, "west": side, "up": top, "down": top}
+        side, top, end = [0, 0, self.w, self.h], [0, 0, self.w, self.d], [0, 0, self.d, self.h]
+        return {"north": side, "south": side, "east": end, "west": end, "up": top, "down": top}
 
 
 # where the crossed planes of the vanilla-style layout meet: four small plants (bulbs) per block sit here
@@ -803,87 +810,126 @@ STAGES["grape"] = [
 ]
 
 # ================================================================================================
-# 차나무: a small bush of glossy dark leaves; light new shoots on top to pick
+# 가지: a branching bush on purple-tinged stems, star-shaped purple flowers, glossy fruit hanging down
 # ================================================================================================
 
-SHOOT = [".e", "ed", ".c"]          # pale new growth: what is picked
-TEA_LEAF = ["xy", "wx"]             # one glossy leaf in the hedge (tip catching the light)
+EGG = {"A": ("aubergine", 4), "B": ("aubergine", 3), "C": ("aubergine", 2), "D": ("aubergine", 1), "E": ("aubergine", 0),
+       "S": ("aubergine", 1), "P": ("petal_purple", 1), "Q": ("petal_purple", 0), "Y": ("petal_yellow", 1)}
+EGG_LEAF = [".443.", "44332", "43321", ".321."]        # broad, soft, slightly grey leaf
+EGG_FLOWER = [".P.", "QYP", ".Q."]
 
 
-def _tea(size, shoots=False):
-    """A young bush on the planes (before the hedge closes)."""
+def _egg_bush(top, flowers=False):
     g = Grid()
-    top = 16 - size
-    g.line([(7, 15), (7, 13)], "m").line([(8, 15), (8, 13)], "n")
-    spots = [("m", 5, top), ("w", 1, top + 2), ("w", 9, top + 2), ("m", 4, top + 3), ("m", 11, top + 5), ("w", 0, top + 5),
-             ("w", 6, top + 5), ("m", 3, top + 7), ("m", 9, top + 7)]
-    for name, x, y in spots:
-        if y + 2 <= 14:
-            g.sprite(LEAF[name], x, y, GLOSSY)
-    if shoots:
-        for x, y in ((2, top), (6, top - 2), (10, top), (13, top + 3)):
-            g.sprite(SHOOT, x, y)
+    g.line([(8, 15), (8, top + 3)], "S")                                          # main stem
+    g.line([(8, 12), (4, top + 6)], "S").line([(8, 10), (12, top + 4)], "S").line([(8, 7), (5, top + 1)], "S")
+    for x, y in ((5, top), (9, top + 1), (1, top + 3), (11, top + 4), (3, top + 7), (10, top + 7), (6, top + 4), (0, top + 9),
+                 (12, top + 9)):
+        if y + 3 <= 15:
+            g.sprite(EGG_LEAF, x, y)
+    if flowers:
+        for x, y in ((3, top + 5), (11, top + 2), (7, top + 8)):
+            g.sprite(EGG_FLOWER, x, y)
     return g
 
 
-# glossy leaves of three sizes, placed by hand on a 16x16 tile; the gaps between them are shadow
-TEA_TILE = [
-    "vwxyvvwxxvvwyxwv",
-    "wxyywvxyywvxyywv",
-    "vwxwvwwxwvvwxwvv",
-    "vvwvxyvvvwxyvvwx",
-    "xvvwxyyvwxyyvwxy",
-    "yxvvwxwvvwxwvvwx",
-    "xwvvvwvvvvwvxyvw",
-    "vvwxyvvwxyvvxyyv",
-    "vwxyyvwxyywvwxwv",
-    "vvwxwvvwxwvvvwvv",
-    "xyvwvvxyvvwxyvvw",
-    "yywvvwxyyvxyywvx",
-    "xwvvvvwxwvwxwvvw",
-    "vvwxyvvwvvvwvxyv",
-    "vwxyywvvwxyvvxyy",
-    "vvwxwvvvwxwvvwxw",
+# fruit: green star of a calyx on top, then glossy near-black purple with a highlight down one side
+EGG_YOUNG = Part((0, 0, 0), (1, 3, 1), ["3", "C", "D"], ["3"], EGG)
+EGG_FRUIT = Part((0, 0, 0), (2, 6, 2), ["32", "BA", "CA", "CB", "DC", "ED"], ["23", "32"], EGG)
+EGG_FRUIT_SHORT = Part((0, 0, 0), (2, 5, 2), ["32", "BA", "CB", "DC", "ED"], ["23", "32"], EGG)
+
+STAGES["eggplant"] = [
+    Stage(image(seedling().rows()), "cross"),
+    Stage(image(Grid().line([(8, 15), (8, 10)], "S").sprite(EGG_LEAF, 3, 9).sprite(EGG_LEAF, 8, 8).sprite(EGG_LEAF, 5, 11).rows(), EGG),
+          "cross"),
+    Stage(image(_egg_bush(2).rows(), EGG), "cross"),
+    Stage(image(_egg_bush(2, flowers=True).rows(), EGG), "cross",
+          [EGG_YOUNG.moved(5, 7).lifted(5), EGG_YOUNG.moved(10, 9).lifted(6), EGG_YOUNG.moved(7, 4).lifted(4)]),
+    Stage(image(_egg_bush(2).rows(), EGG), "cross",
+          [EGG_FRUIT.moved(4, 7).lifted(2), EGG_FRUIT.moved(10, 9).lifted(3), EGG_FRUIT_SHORT.moved(7, 3).lifted(1)]),
 ]
 
+# ================================================================================================
+# 애호박: big lobed leaves with silvery patches on long stalks, yellow trumpet flowers, pale fruit lying on the soil
+# ================================================================================================
 
-def _foliage(w, h, dx=0, dy=0):
-    """A w x h cut of the leaf tile (opaque: the clipped face of the bush)."""
-    return ["".join(TEA_TILE[(y + dy) % 16][(x + dx) % 16] for x in range(w)) for y in range(h)]
-
-
-def _sunlit(rows):
-    """The top of the bush catches the sky: one step lighter than its sides."""
-    up = {"v": "w", "w": "x", "x": "y", "y": "y"}
-    return ["".join(up[c] for c in r) for r in rows]
+ZUC = {"A": ("zucchini", 3), "B": ("zucchini", 2), "C": ("zucchini", 1), "D": ("zucchini", 0), "M": ("cabbage", 2),
+       "Y": ("petal_yellow", 1), "Z": ("petal_yellow", 2), "O": ("petal_yellow", 0)}
+SQ_LEAF = ["44.444", "4M54M4", "345M43", ".34432", "...2.."]
+BLOSSOM = [".ZZ.", "ZYYZ", ".YO.", "..2."]
 
 
-def _hedge(y0, y1, inset):
-    """The clipped bush, as tea is grown in rows: a block of leaves with a smaller, rounded top layer."""
-    a, b = inset, 16 - inset
-    body = Part((a, y0, a), (b, y1 - 1, b), _foliage(b - a, y1 - 1 - y0, 3, 2), _sunlit(_foliage(b - a, b - a, 5, 1)))
-    top = Part((a + 1, y1 - 1, a + 1), (b - 1, y1, b - 1), _foliage(b - a - 2, 1, 7, 0), _sunlit(_foliage(b - a - 2, b - a - 2, 1, 6)))
-    return [body, top]
-
-
-def _sprigs(top, shoots):
-    """What pokes out above the hedge: leaf sprigs, and the pale new shoots that are picked."""
+def _squash(top, flowers=False):
     g = Grid()
-    for x, y in ((1, top + 1), (5, top), (9, top + 1), (12, top)):
-        g.sprite(TEA_LEAF, x, y).sprite(TEA_LEAF, x + 1, y + 1)
-    if shoots:
-        for x, y in ((2, top - 2), (7, top - 3), (11, top - 2), (14, top - 1)):
-            g.sprite(SHOOT, x, y)
+    spots = [(0, top + 4), (10, top + 3), (5, top), (2, top + 8), (9, top + 8), (6, top + 5)]
+    for x, y in spots:                                                     # long hollow stalks from the crown
+        g.line([(8, 15), (x + 2, y + 4)], "3")
+    for x, y in spots:
+        if y + 4 <= 15:
+            g.sprite(SQ_LEAF, x, y)
+    if flowers:
+        for x, y in ((4, top + 9), (11, top + 10)):
+            g.sprite(BLOSSOM, x, y)
     return g
 
 
-TEA_TRUNK = Part((7, -1, 7), (9, 2, 9), ["nm", "mn", "nm"], ["nm", "mn"])
+# fruit lying on the soil: pale green with darker speckles, a dark stalk end and a paler tip
+ZUC_YOUNG = Part((0, -1, 0), (3, 0, 1), ["2BY"], ["2AY"], ZUC, end=["B"])
+ZUC_X = Part((0, -1, 0), (7, 1, 2), ["3BABACA", "2CBCBCB"], ["3ABCABA", "3BACBAB"], ZUC, end=["BA", "CB"])
+ZUC_Z = Part((0, -1, 0), (2, 1, 7), ["BA", "CB"], ["33", "AB", "BC", "CA", "AB", "BA", "AB"], ZUC, end=["ACABAB3", "BCBCBC2"])
 
-STAGES["tea"] = [
-    Stage(image(seedlings([".xy.", "wxyx", ".mw.", ".m.."], xs=(2, 10)).rows())),
-    Stage(image(_tea(7).rows())),
-    Stage(image(_sprigs(6, False).rows()), parts=[TEA_TRUNK, *_hedge(2, 7, 2)]),
-    Stage(image(_sprigs(3, True).rows()), parts=[TEA_TRUNK, *_hedge(2, 10, 1)]),
+STAGES["zucchini"] = [
+    Stage(image(seedling().rows()), "cross"),
+    Stage(image(_squash(8).rows(), ZUC), "cross"),
+    Stage(image(_squash(3).rows(), ZUC), "cross"),
+    Stage(image(_squash(3, flowers=True).rows(), ZUC), "cross", [ZUC_YOUNG.moved(3, 10), ZUC_YOUNG.moved(10, 4)]),
+    Stage(image(_squash(3, flowers=True).rows(), ZUC), "cross", [ZUC_X.moved(1, 10), ZUC_Z.moved(11, 1)]),
+]
+
+# ================================================================================================
+# 멜론: a low vine with round leaves and tendrils; a green melon swells and ripens into a netted one
+# ================================================================================================
+
+MEL = {"A": ("melon_rind", 4), "B": ("melon_rind", 3), "C": ("melon_rind", 2), "D": ("melon_rind", 1), "E": ("melon_rind", 0),
+       "G": ("cucumber", 2), "H": ("cucumber", 1), "J": ("cucumber", 0), "K": ("cucumber", 3), "Y": ("petal_yellow", 1),
+       "O": ("petal_yellow", 0)}
+MEL_LEAF = [".44.4", "44544", "34543", ".332."]
+
+
+def _melon_vine(spread, flowers=False):
+    g = Grid()
+    g.line([(8, 15), (3, 14), (0, 15)], "2").line([(8, 15), (13, 14), (15, 13)], "2")      # runners along the ground
+    spots = [(0, 11), (11, 11), (4, 12), (8, 12)] if spread == 1 else \
+            [(0, 9), (11, 8), (3, 11), (9, 11), (0, 12), (12, 12), (5, 9), (7, 12)]
+    for x, y in spots:
+        g.sprite(MEL_LEAF, x, y)
+    for x, y in ((3, 10), (2, 9), (13, 10), (14, 9), (6, 8)):                            # curling tendrils
+        if spread > 1:
+            g.put(x, y, "c")
+    if flowers:
+        for x, y in ((2, 8), (12, 7), (7, 10)):
+            g.sprite(["Y.Y", ".O.", "Y.Y"], x, y)
+    return g
+
+
+MELON_YOUNG = Part((6, -1, 6), (10, 2, 10), ["HGKG", "GHGH", "JHJH"], ["GKGH", "KGHG", "GHGK", "HGKG"], MEL)
+# the ripe melon: olive-green rind under a raised pale net, rounded off by a smaller top layer
+MELON = Part((5, -1, 5), (11, 4, 11), [
+    "DADDAD",
+    "ADDADA",
+    "DAADDA",
+    "ADDAAD",
+    "EDEDDE",
+], ["DADDAD", "ADDADA", "DAADDA", "ADDAAD", "DAADDA", "ADDADA"], MEL)
+MELON_TOP = Part((6, 4, 6), (10, 5, 10), ["ADDA"], ["DAAD", "ADDA", "ADDA", "DAAD"], MEL)
+MELON_STEM = Part((7, 5, 7), (9, 6, 9), ["ji"], ["ij", "ji"])
+
+STAGES["muskmelon"] = [
+    Stage(image(seedling().rows()), "cross"),
+    Stage(image(_melon_vine(1).rows()), "cross"),
+    Stage(image(_melon_vine(2, flowers=True).rows(), MEL), "cross"),
+    Stage(image(_melon_vine(2).rows(), MEL), "cross", [MELON_YOUNG]),
+    Stage(image(_melon_vine(2).rows(), MEL), "cross", [MELON, MELON_TOP, MELON_STEM]),
 ]
 
 # ================================================================================================
@@ -1096,20 +1142,20 @@ ICONS["soybean"] = lambda: icon([
 ], {"A": ("bean", 3), "B": ("bean", 2), "C": ("bean", 1), "D": ("bean", 0)})
 
 ICONS["corn"] = lambda: icon([
-    "............kj",
-    "..........ABAk",
-    ".........ABCBC",
-    "........ABCBCD",
-    ".......ABCBCDC",
-    "......ABCBCDC.",
-    ".....ABCBCDC..",
-    "..e.ABCBCDC.e.",
-    ".ed.dBCBCDc.d.",
-    ".dc.dcCDCdc.c.",
-    "edc.dc..dcb.c.",
-    "dc..cb..cb.cb.",
-    "c..cb..cb..b..",
-    "..cb...b......",
+    "...........kj.",
+    "..........BCB.",
+    "........ABCBCB",
+    ".......ABCBCBD",
+    "......ABCBCBD.",
+    ".....ABCBCBD..",
+    "...eABCBCBD...",
+    "..edBCBCBd....",
+    ".edcCBCBdc....",
+    "edcbBCBdcb....",
+    "dcbBCBdcb.....",
+    "cbcCdcba......",
+    "bcbccba.......",
+    ".ba...........",
 ], {"A": ("corn", 3), "B": ("corn", 2), "C": ("corn", 1), "D": ("corn", 0)})
 
 ICONS["green_onion"] = lambda: icon([
@@ -1130,20 +1176,20 @@ ICONS["green_onion"] = lambda: icon([
 ], {"V": ("garlic", 3), "W": ("garlic", 2)})
 
 ICONS["radish"] = lambda: shade([
-    "........4.4.4",
-    "........34343",
-    ".........323.",
-    "......dcdcd..",
-    ".....edcdcb..",
-    "....edcdcbb..",
-    "...#ddcdcb...",
-    "..#V#dcbb....",
-    ".#V####b.....",
-    ".#V#####.....",
-    "#V#####......",
-    "#######......",
-    ".#####.......",
-    "..#..........",
+    "..........4.4.",
+    ".........4343.",
+    "........43234.",
+    "........dcdc..",
+    ".......edcdcb.",
+    "......#edcdcb.",
+    ".....#V#dccb..",
+    "....#V###cbb..",
+    "...#V#####....",
+    "..#V#####.....",
+    "..#V####......",
+    "..####........",
+    "..###.........",
+    "..#...........",
 ], "garlic", {"V": ("snow", 2)}, lo=0)
 
 ICONS["lettuce"] = lambda: icon([
@@ -1196,21 +1242,55 @@ ICONS["grapes"] = lambda: icon([
     "......CD....",
 ], {"A": ("grape", 4), "B": ("grape", 3), "C": ("grape", 2), "D": ("grape", 1), "E": ("grape", 0), "V": ("petal_purple", 2)})
 
-ICONS["tea_leaves"] = lambda: icon([
-    "y......e......",
-    "wy....edc....y",
-    "wxy...dcb...yw",
-    ".wxy...cb..yxw",
-    "wxxyx..b..xyxw",
-    ".wxxyx.b.xyxw.",
-    "..wxxyxbxyxxw.",
-    "..vwxxybyxxwv.",
-    "...vwxxbxxwv..",
-    "....vwxbxwv...",
-    ".....vvbvv....",
-    "......m.......",
-    ".....m........",
-], {})
+ICONS["eggplant"] = lambda: shade([
+    "...3.3........",
+    "..43234.......",
+    ".4323234......",
+    "..3##3........",
+    "...#VB##......",
+    "...#B####.....",
+    "....#B#####...",
+    "....##B#####..",
+    ".....##B#####.",
+    "......#######.",
+    "......#######S",
+    ".......#####S.",
+    "........###S..",
+], "aubergine", {"V": ("petal_purple", 2), "B": ("aubergine", 4), "S": ("aubergine", 0)}, lo=0)
+
+ICONS["zucchini"] = lambda: icon([
+    "...........32.",
+    "..........3BA2",
+    ".........BABCB",
+    "........BACBC.",
+    ".......BAMBCD.",
+    "......BACBCD..",
+    ".....BAMBCD...",
+    "....BACBCD....",
+    "...BAMBCD.....",
+    "..BACBCD......",
+    ".BAABCD.......",
+    "BAABCD........",
+    "OABCD.........",
+    ".OCD..........",
+], {"A": ("zucchini", 3), "B": ("zucchini", 2), "C": ("zucchini", 1), "D": ("zucchini", 0), "M": ("cabbage", 3),
+    "O": ("petal_yellow", 0)})
+
+ICONS["muskmelon"] = lambda: shade([
+    "......ji.....",
+    "......j3.....",
+    "....##N##....",
+    "..#N###N###..",
+    ".#N#N#N#N#N#.",
+    ".N###N###N##.",
+    "##N#N#N#N#N##",
+    "###N###N###N#",
+    ".#N#N#N#N#N#.",
+    ".####N###N##.",
+    "..N#N#N#N#N..",
+    "...####N##...",
+    ".....###.....",
+], "melon_rind", {"N": ("melon_rind", 4)}, lo=0, hi=2)
 
 
 # ------------------------------------------------------------------------------------------------
@@ -1230,11 +1310,14 @@ MINI = {   # 6 x 6 pictures for the packet window (legend: BASE + the crop's let
     "lettuce": ([".e.e..", "edcdd.", "dcVcd.", "dcVcb.", ".bVb..", "..V..."], {"V": ("cabbage", 3)}),
     "cucumber": (["2.....", "AB....", "AEC...", ".AEC..", "..ABCY", "...CC."], {"A": ("cucumber", 3), "B": ("cucumber", 2), "C": ("cucumber", 1), "E": ("sprout", 3)}),
     "grape": (["..m43.", "ABAB2.", "BCBCD.", ".ABCD.", ".BCD..", "..D..."], {"A": ("grape", 4), "B": ("grape", 3), "C": ("grape", 2), "D": ("grape", 1)}),
-    "tea": (["...ed.", ".yy.c.", "yxxwb.", ".xwv..", "..m...", ".m...."], {}),
+    "eggplant": (["3.3...", "323...", ".BC...", ".BCD..", "..CDE.", "...DE."], {"B": ("aubergine", 4), "C": ("aubergine", 2), "D": ("aubergine", 1), "E": ("aubergine", 0)}),
+    "zucchini": (["....32", "...ABC", "..ABC.", ".ABC..", "ABC...", "OC...."], {"A": ("zucchini", 3), "B": ("zucchini", 2), "C": ("zucchini", 1), "O": ("petal_yellow", 0)}),
+    "muskmelon": (["..j...", ".DAD..", "ADADA.", "DADAD.", "ADADA.", ".EDE.."], {"A": ("melon_rind", 4), "D": ("melon_rind", 1), "E": ("melon_rind", 0)}),
 }
 BAND = {"tomato": ("tomato", 2), "chili": ("pepper", 2), "strawberry": ("toadstool", 2), "onion": ("onion", 2), "cabbage": ("leaf", 3),
         "rice": ("straw", 2), "corn": ("corn", 2), "green_onion": ("leaf_dark", 2), "radish": ("leaf", 3), "lettuce": ("sprout", 3),
-        "cucumber": ("cucumber", 2), "grape": ("grape", 2), "tea": ("leaf_dark", 2)}
+        "cucumber": ("cucumber", 2), "grape": ("grape", 2), "eggplant": ("aubergine", 2),
+        "zucchini": ("zucchini", 1), "muskmelon": ("melon_rind", 2)}
 
 
 def packet(crop):
@@ -1272,7 +1355,8 @@ def packet(crop):
 
 SEEDS = {"tomato_seeds": "tomato", "chili_seeds": "chili", "strawberry_seeds": "strawberry", "onion_seeds": "onion",
          "cabbage_seeds": "cabbage", "rice_seeds": "rice", "corn_seeds": "corn", "green_onion_seeds": "green_onion",
-         "radish_seeds": "radish", "lettuce_seeds": "lettuce", "cucumber_seeds": "cucumber", "grape_seeds": "grape", "tea_seeds": "tea"}
+         "radish_seeds": "radish", "lettuce_seeds": "lettuce", "cucumber_seeds": "cucumber", "grape_seeds": "grape",
+         "eggplant_seeds": "eggplant", "zucchini_seeds": "zucchini", "muskmelon_seeds": "muskmelon"}
 for _item, _crop in SEEDS.items():
     ICONS[_item] = (lambda c=_crop: packet(c))
 
@@ -1287,7 +1371,8 @@ NAMES = {"tomato": ("토마토", "tomato", "tomato_seeds"), "chili": ("고추", 
          "rice": ("벼", "paddy", "rice_seeds"), "soybean": ("콩", "soybean", "soybean"), "corn": ("옥수수", "corn", "corn_seeds"),
          "green_onion": ("파", "green_onion", "green_onion_seeds"), "radish": ("무", "radish", "radish_seeds"),
          "lettuce": ("상추", "lettuce", "lettuce_seeds"), "cucumber": ("오이", "cucumber", "cucumber_seeds"),
-         "grape": ("포도", "grapes", "grape_seeds"), "tea": ("차나무", "tea_leaves", "tea_seeds")}
+         "grape": ("포도", "grapes", "grape_seeds"), "eggplant": ("가지", "eggplant", "eggplant_seeds"),
+         "zucchini": ("애호박", "zucchini", "zucchini_seeds"), "muskmelon": ("멜론", "muskmelon", "muskmelon_seeds")}
 
 
 def sheet(path, scale=5):

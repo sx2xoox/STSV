@@ -126,7 +126,7 @@ def crop_field(M, CR, path, cols=5, gap=12):
                         e["rotation"] = [axis, angle, [o[0] + ox, o[1], o[2] + oz]]
                     elements.append(e)
     path.write_text(json.dumps({"textures": textures, "elements": elements, "grid": False,
-                                "views": [{"x": 0, "y": 0, "w": 1600, "h": 1000, "az": 180, "el": 46, "k": 1.95}]}))
+                                "views": [{"x": 0, "y": 0, "w": 1600, "h": 1000, "az": 180, "el": 50, "k": 2.3}]}))
 
 
 def sheet(E, path, cols=9, scale=4):
