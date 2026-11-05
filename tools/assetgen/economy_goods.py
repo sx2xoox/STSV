@@ -167,11 +167,16 @@ def steel_ingot():
 
 @icon
 def iron_chain():
-    """Dark iron links running corner to corner, each with a see-through eye."""
+    """Hanging links, the way vanilla draws a chain: rings seen face-on with a see-through eye,
+    joined by links seen edge-on."""
     c = Canvas()
-    for x, y in ((4, 12), (8, 8), (12, 4)):
-        c.ellipse(x, y, 2.9, 2.9, "blacksteel", 1, lo=1, hi=4)
-        c.hole(x, y, 1.0, 1.0)
+    m = {"a": ("steel", 5), "b": ("steel", 4), "c": ("steel", 3), "d": ("steel", 2), "e": ("steel", 1)}
+    face = [".abc.", "ab.cd", "b...d", "c...d", ".cde."]
+    edge = ["bc", "cd", "cd"]
+    for y0 in (1, 8):
+        grid(c, face, m, z=2, x0=5, y0=y0)
+    for y0 in (5, 12):
+        grid(c, edge, m, z=3, x0=7, y0=y0)
     return c
 
 
@@ -265,24 +270,33 @@ def jeweled_crown():
 
 @icon
 def pearl():
-    """A pearl in its opened oyster shell."""
+    """A pearl in its opened oyster shell: a rough grey outside, a rainbow-pale inside."""
     c = Canvas()
-    c.ellipse(8, 9.5, 7.0, 5.5, "stone", 1, dome=0.7)
-    c.ellipse(8, 9.2, 5.6, 4.2, "cream", 2, lo=2, hi=4, dome=-0.6)
-    c.ellipse(8.5, 9, 3.0, 3.0, "pearl", 3)
-    c.put(7, 7, "snow", 2)
-    for x, y in ((2, 11), (4, 12), (12, 12), (14, 11)):
-        c.put(x, y, "stone", 0)
+    c.ellipse(8, 10.0, 7.0, 5.0, "stone", 1, dome=0.7)
+    rough = [p for p in c.where("stone")]
+    c.tone([(x, y) for x, y in rough if (x * 3 + y) % 5 == 0], 1)
+    c.ellipse(8, 9.6, 5.6, 3.8, "pearl", 2, lo=1, hi=3, dome=-0.6)
+    inner = c.last()
+    c.tone([(x, y) for x, y in inner if x + y < 15], 1)
+    for x, y in ((4, 9), (5, 11), (11, 11), (12, 9)):
+        c.put(x, y, "seabream", 5, z=3)
+    c.ellipse(8.5, 9.0, 2.7, 2.7, "pearl", 4)
+    c.dots([(7, 7), (7, 8)], "snow", 2)
     return c
 
 
 @icon
 def polished_pearl():
-    """A large polished pearl with a soft lustre."""
+    """A large polished pearl: creamy white, a bright glint, a faint rosy sheen along its shaded rim."""
     c = Canvas()
     c.ellipse(8, 8, 6.6, 6.6, "pearl", 1)
-    c.dots([(5, 4), (4, 5), (5, 5)], "snow", 2)
-    c.dots([(11, 12), (12, 11)], "glass", 3)
+    c.dots([(5, 4), (4, 5), (5, 5), (6, 4)], "snow", 2)
+    body = set(c.where("pearl"))
+    inner = [p for p in body if all((p[0] + dx, p[1] + dy) in body for dx, dy in ((1, 0), (-1, 0), (0, 1), (0, -1)))]
+    rim = [(x, y) for (x, y) in inner if 4.4 <= ((x + 0.5 - 8) ** 2 + (y + 0.5 - 8) ** 2) ** 0.5 <= 5.6
+           and (x - 8) + (y - 8) > 3]
+    for p in rim:
+        c.put(*p, "seabream", 5, z=5)
     return c
 
 

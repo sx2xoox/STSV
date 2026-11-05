@@ -40,7 +40,7 @@ SHINY = {"steel", "blacksteel", "gold", "copper", "brass", "blade", "ruby", "sap
 # dark shiny materials keep a dark range, with only a soft top (blued steel, netherite-like)
 TOP = {"blacksteel": 0.80, "obsidian": 0.70, "fish_blue": 0.80, "aubergine": 0.82, "copper": 0.88}
 # bright metals stay bright through the mids (vanilla gold is buttery yellow, not mustard)
-CURVE = {"gold": (0.46, 0.85), "brass": (0.40, 1.0), "pearl": (0.55, 1.0)}     # material -> (lowest lightness, curve)
+CURVE = {"gold": (0.46, 0.85), "brass": (0.40, 1.0), "pearl": (0.66, 0.9)}     # material -> (lowest lightness, curve)
 
 
 def ramp(name):
