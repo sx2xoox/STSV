@@ -2,13 +2,13 @@ package dev.stsv.economy.land;
 
 import org.bukkit.configuration.ConfigurationSection;
 
-/** contents/economy/land.yml: free area, minimum side, property tax. Pure (unit-tested). */
-public record LandRules(long freeArea, int minSide, double taxRate, long progressiveOver, double progressiveFactor, int warnDays, int maxClaims) {
+/** contents/economy/land.yml: free area, minimum side, price of more area, property tax. Pure (unit-tested). */
+public record LandRules(long freeArea, int minSide, double taxRate, long progressiveOver, double progressiveFactor, int warnDays, int maxClaims, long price) {
 
     public static LandRules parse(ConfigurationSection c) {
         return new LandRules(c.getLong("free-area", 400), c.getInt("min-side", 3), c.getDouble("tax.rate", 0.05),
                 c.getLong("tax.progressive-over", 2500), c.getDouble("tax.progressive-factor", 2), c.getInt("tax.warn-days", 3),
-                c.getInt("max-claims", 8));
+                c.getInt("max-claims", 8), Math.max(0, c.getLong("price", 2)));
     }
 
     /** Daily property tax for an owned area (whole gold, rounded up); multiplier = 세무 조사. */

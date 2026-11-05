@@ -45,6 +45,7 @@ public final class STSVPlugin extends JavaPlugin {
     private dev.stsv.core.economy.EconomyModule economy;
     private dev.stsv.core.crop.CropModule crops;
     private ItemBrowser itemBrowser;
+    private final dev.stsv.core.command.AdminRegistry admin = new dev.stsv.core.command.AdminRegistry();
     private RecipeEditor recipeEditor;
 
     public static STSVPlugin get() {
@@ -81,7 +82,7 @@ public final class STSVPlugin extends JavaPlugin {
         Bukkit.getPluginManager().registerEvents(recipeEditor, this);
 
         StsvCommand command = new StsvCommand(this);
-        PluginCommand cmd = getCommand("관리");
+        PluginCommand cmd = getCommand("관리자");
         if (cmd != null) {
             cmd.setExecutor(command);
             cmd.setTabCompleter(command);
@@ -131,5 +132,7 @@ public final class STSVPlugin extends JavaPlugin {
     public dev.stsv.core.economy.EconomyModule economy() { return economy; }
     public dev.stsv.core.crop.CropModule crops() { return crops; }
     public ItemBrowser itemBrowser() { return itemBrowser; }
+    /** What content plugins add to /관리자 (sub commands, 보고서 sections, 초기화 targets). */
+    public dev.stsv.core.command.AdminRegistry admin() { return admin; }
     public RecipeEditor recipeEditor() { return recipeEditor; }
 }

@@ -131,8 +131,13 @@ vanity:
   - { kind: title, id: economy:landlord, price: 30000 }
   - { kind: title, id: economy:magnate, price: 80000 }
 
-# 기념비 /기념비 <문구>: 스폰 마을에 거대한 머리와 비문. 한 개 세울 때마다 다음은 growth 배
+# 수요 고시: 매주 이 요일 05시에 매입 품목 count 개를 골라 다음 고시까지 매입가 multiplier 배.
+# 지난주 품목과 진행 중인 품귀·시장 폭락 품목은 고르지 않음
+demand-notice:
+  weekday: MONDAY
+  count: 3
+  multiplier: 1.5
+
+# 기념비 /기념비 <문구>: 스폰 마을에 거대한 머리와 비문. 주간 순위 1위가 건립권을 받음 (무료)
 monument:
-  base: 20000
-  growth: 1.5
   max-length: 30

@@ -7,10 +7,10 @@ import dev.stsv.core.gui.menu.MenuView;
 import dev.stsv.core.hud.HudModule;
 import dev.stsv.core.util.Lang;
 import dev.stsv.core.util.Text;
-import dev.stsv.economy.DailyListener;
+import dev.stsv.economy.calendar.DailyListener;
 import dev.stsv.economy.EcoModule;
 import dev.stsv.economy.EcoPlugin;
-import dev.stsv.economy.season.ActiveEvent;
+import dev.stsv.economy.event.ActiveEvent;
 import dev.stsv.economy.util.Items;
 import net.kyori.adventure.text.Component;
 import org.bukkit.Bukkit;
@@ -65,10 +65,10 @@ public final class ShopModule extends EcoModule implements DailyListener {
         store = new ShopStore(core.db());
         store.init();
         load();
-        eco.season().onDaily(this);
-        eco.season().onEventStart("shortage", this::startShortage);
-        eco.season().onEventStart("crash", this::startCrash);
-        eco.season().onEventStart("merchant", e -> e.params().put("detail", Lang.raw("shop.merchant-detail")));
+        eco.calendar().onDaily(this);
+        eco.events().onStart("shortage", this::startShortage);
+        eco.events().onStart("crash", this::startCrash);
+        eco.events().onStart("merchant", e -> e.params().put("detail", Lang.raw("shop.merchant-detail")));
         every(1200L, this::minute);
     }
 
@@ -119,9 +119,9 @@ public final class ShopModule extends EcoModule implements DailyListener {
     /** Everything that changes an item's price right now (수요 고시, 품귀, 폭락). */
     public double multiplier(String item) {
         double m = 1;
-        if (noticed().contains(item)) m *= eco.season().spec().demand().multiplier();
-        for (ActiveEvent e : eco.season().active("shortage")) if (item.equals(e.param("item"))) m *= e.number("multiplier", 3);
-        for (ActiveEvent e : eco.season().active("crash")) if (item.equals(e.param("item"))) m *= e.number("multiplier", 0.5);
+        if (noticed().contains(item)) m *= catalog.demand().multiplier();
+        for (ActiveEvent e : eco.events().active("shortage")) if (item.equals(e.param("item"))) m *= e.number("multiplier", 3);
+        for (ActiveEvent e : eco.events().active("crash")) if (item.equals(e.param("item"))) m *= e.number("multiplier", 0.5);
         return m;
     }
 
@@ -159,7 +159,6 @@ public final class ShopModule extends EcoModule implements DailyListener {
      * a reason (message key) why nothing was sold.
      */
     public Object sell(Player p, ItemStack sample, int count) {
-        if (!eco.season().isOpen("shop") && !p.hasPermission("stsv.economy.admin")) return "season.closed-generic";
         String id = Items.key(sample);
         ShopCatalog.SellEntry e = catalog.sell().get(id);
         if (e == null || !Items.plain(sample, id)) return "shop.not-buying";
@@ -189,7 +188,7 @@ public final class ShopModule extends EcoModule implements DailyListener {
                     "amount", EconomyModule.format(s.paid()), "unit", String.format("%.1f", s.unitAfter())));
             p.playSound(p.getLocation(), Sound.ENTITY_EXPERIENCE_ORB_PICKUP, 0.5f, 1.4f);
         } else {
-            HudModule.flash(p, Lang.mm((String) result, "feature", Lang.raw("season.feature.shop"), "day", eco.season().openDay("shop")));
+            HudModule.flash(p, Lang.mm((String) result));
         }
     }
 
@@ -277,24 +276,31 @@ public final class ShopModule extends EcoModule implements DailyListener {
         floorHits.clear();
         store.decay(catalog.dailyDecay());
         remainder.clear();
-        var d = eco.season().spec().demand();
-        boolean noticeDay = day == d.firstDay() || (day > d.firstDay() && day <= d.lastDay() && eco.season().days().weekday(dayStart) == d.weekday());
-        if (eco.season().running() && noticeDay) announceNotice(dayStart);
+        // a new notice on its weekday (when the last one runs out), or right away if there is none (first start)
+        if (catalog.demand().count() > 0 && noticed().isEmpty()) announceNotice(dayStart);
     }
 
+    /** Items a running 품귀 or 시장 폭락 is about: never in the 수요 고시 at the same time. */
+    private java.util.Set<String> eventItems() {
+        java.util.Set<String> out = new java.util.HashSet<>();
+        for (String type : List.of("shortage", "crash")) for (ActiveEvent e : eco.events().active(type)) if (e.param("item") != null) out.add(e.param("item"));
+        return out;
+    }
+
+    /** Picks this week's 수요 고시: not last week's items, not an item of a running 품귀/폭락. Lasts until the next notice weekday. */
     public List<String> announceNotice(long from) {
-        var d = eco.season().spec().demand();
+        var d = catalog.demand();
+        List<String> last = List.of(eco.kv().get("shop.notice", "").split(","));
         List<String> pool = new ArrayList<>(catalog.sell().keySet());
-        pool.removeAll(noticed());
+        pool.removeAll(last);
+        pool.removeAll(eventItems());
         java.util.Collections.shuffle(pool, ThreadLocalRandom.current());
-        List<String> picked = pool.subList(0, Math.min(d.count(), pool.size()));
-        // until the next notice weekday's reset (a week), at least a day
-        long until = eco.season().days().nextDayStart(from);
-        while (eco.season().days().weekday(until) != d.weekday()) until += DAY;
+        List<String> picked = List.copyOf(pool.subList(0, Math.min(d.count(), pool.size())));
+        long until = eco.calendar().days().next(d.weekday(), from);
         eco.kv().set("shop.notice", String.join(",", picked));
         eco.kv().set("shop.notice-until", until);
         List<String> names = picked.stream().map(this::itemName).toList();
-        eco.season().broadcast(Lang.msg("shop.notice", "items", String.join(", ", names), "mult", trim(d.multiplier())));
+        Bukkit.broadcast(Lang.msg("shop.notice", "items", String.join(", ", names), "mult", trim(d.multiplier())));
         return picked;
     }
 
@@ -309,8 +315,10 @@ public final class ShopModule extends EcoModule implements DailyListener {
     private void startShortage(ActiveEvent e) {
         String item = e.param("item");
         if (item == null || !catalog.sell().containsKey(ShopCatalog.norm(item))) {
-            // a mid-priced item: something worth stocking up on, not the cheapest dirt
+            // a mid-priced item: something worth stocking up on, not the cheapest dirt (and not one the 수요 고시 already raises)
             List<ShopCatalog.SellEntry> pool = new ArrayList<>(catalog.sell().values());
+            pool.removeIf(x -> noticed().contains(x.id()) || eventItems().contains(x.id()));
+            if (pool.isEmpty()) pool.addAll(catalog.sell().values());
             pool.sort(Comparator.comparingDouble(ShopCatalog.SellEntry::base));
             List<ShopCatalog.SellEntry> mid = pool.subList(pool.size() / 4, Math.max(pool.size() / 4 + 1, pool.size() * 3 / 4));
             item = mid.get(ThreadLocalRandom.current().nextInt(mid.size())).id();
@@ -325,6 +333,7 @@ public final class ShopModule extends EcoModule implements DailyListener {
         String item = e.param("item");
         if (item == null) {
             item = catalog.sell().keySet().stream()
+                    .filter(i -> !noticed().contains(i) && !eventItems().contains(i))
                     .max(Comparator.comparingDouble(i -> store.sold(i) * catalog.sell().get(i).base()))
                     .orElse(catalog.sell().keySet().iterator().next());
         }
@@ -380,8 +389,8 @@ public final class ShopModule extends EcoModule implements DailyListener {
     private String marks(String id) {
         StringBuilder m = new StringBuilder();
         if (noticed().contains(id)) m.append(Lang.raw("shop.mark-notice"));
-        for (ActiveEvent e : eco.season().active("shortage")) if (id.equals(e.param("item"))) m.append(Lang.raw("shop.mark-shortage"));
-        for (ActiveEvent e : eco.season().active("crash")) if (id.equals(e.param("item"))) m.append(Lang.raw("shop.mark-crash"));
+        for (ActiveEvent e : eco.events().active("shortage")) if (id.equals(e.param("item"))) m.append(Lang.raw("shop.mark-shortage"));
+        for (ActiveEvent e : eco.events().active("crash")) if (id.equals(e.param("item"))) m.append(Lang.raw("shop.mark-crash"));
         if (atFloor(id)) m.append(Lang.raw("shop.mark-floor"));
         return m.toString();
     }
@@ -391,7 +400,6 @@ public final class ShopModule extends EcoModule implements DailyListener {
     // ------------------------------------------------------------------------------------------
 
     public void open(Player p) {
-        if (!eco.season().checkOpen(p, "shop")) return;
         core.menus().open(p, "economy:shop", new ShopMenu());
     }
 
@@ -400,7 +408,7 @@ public final class ShopModule extends EcoModule implements DailyListener {
     }
 
     public void openMerchant(Player p) {
-        List<ActiveEvent> ev = eco.season().active("merchant");
+        List<ActiveEvent> ev = eco.events().active("merchant");
         if (ev.isEmpty()) {
             HudModule.flash(p, Lang.mm("shop.merchant-gone"));
             return;
@@ -471,7 +479,7 @@ public final class ShopModule extends EcoModule implements DailyListener {
 
         @Override
         public ItemStack button(MenuView v, dev.stsv.core.gui.menu.MenuSpec.Button button, ItemStack base) {
-            if (button.action().equals("shop:merchant") && !eco.season().isActive("merchant")) return null;
+            if (button.action().equals("shop:merchant") && !eco.events().isActive("merchant")) return null;
             return base;
         }
     }
@@ -527,7 +535,7 @@ public final class ShopModule extends EcoModule implements DailyListener {
             if (buy(v.player(), l.id(), l.amount(), l.price(), "merchant")) {
                 String key = "shop.merchant." + event.id() + "." + l.index();
                 eco.kv().set(key, eco.kv().getLong(key, 0) + 1);
-                if (left(l) == 0) eco.season().broadcast(Lang.msg("shop.merchant-sold-out", "item", itemName(l.id()), "player", v.player().getName()));
+                if (left(l) == 0) Bukkit.broadcast(Lang.msg("shop.merchant-sold-out", "item", itemName(l.id()), "player", v.player().getName()));
             }
             v.refresh();
         }

@@ -11,10 +11,10 @@ libraries:
   - com.zaxxer:HikariCP:6.2.1
   - org.mariadb.jdbc:mariadb-java-client:3.5.1
 commands:
-  관리:
-    description: STSV 관리 명령어 (/관리 도움말)
-    aliases: [stsv]
-    usage: /관리 <지급|아이템목록|목록|정보|레시피|연료|스킨|치장|옷장|보스|기간|칭호|통계|경제|초기화|리로드|리소스팩>
+  관리자:
+    description: STSV 관리 명령어 (/관리자 도움말). 콘텐츠 플러그인의 관리 명령어도 여기에 모임
+    aliases: [관리, stsv]
+    usage: /관리자 <지급|아이템목록|목록|정보|레시피|연료|스킨|치장|옷장|보스|기간|칭호|통계|경제|보고서|초기화|리로드|리소스팩|...>
     permission: stsv.admin
   옷장:
     description: 옷장 (옷장 구역 안에서)

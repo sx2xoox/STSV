@@ -16,14 +16,19 @@ import java.util.function.ToDoubleFunction;
  * contents/economy/requests.yml: the pool daily delivery requests are drawn from, and the weekly
  * shared goal (공동 의뢰). Pure (unit-tested): the same day always draws the same board.
  */
-public record RequestSpec(int dailyCount, int perPlayer, double rewardMultiplier, List<Entry> pool, Map<Integer, Community> community) {
+public record RequestSpec(int dailyCount, int perPlayer, double rewardMultiplier, List<Entry> pool, List<Community> community) {
 
     public record Entry(String item, int min, int max, String job, double xp, int fromDay, double value, int weight) {}
 
     /** A drawn request: deliver amount of item for reward (+ job XP when you have that job). */
     public record Request(int index, String item, int amount, long reward, String job, double xp) {}
 
-    public record Community(int week, String name, String item, long target, long reward, boolean opensEarly) {}
+    public record Community(String name, String item, long target, long reward) {}
+
+    /** The shared goal of a week: the list goes round (week 1 = the first entry). Null if there is none. */
+    public Community communityFor(int week) {
+        return community.isEmpty() ? null : community.get(Math.floorMod(week - 1, community.size()));
+    }
 
     /**
      * Today's board: dailyCount different items available on this day, amounts at random, rewards =
@@ -69,16 +74,15 @@ public record RequestSpec(int dailyCount, int perPlayer, double rewardMultiplier
                     m.get("job") == null ? null : String.valueOf(m.get("job")), dbl(m.get("xp"), 0), num(m.get("from-day"), 1),
                     dbl(m.get("value"), 0), Math.max(1, num(m.get("weight"), 10))));
         }
-        Map<Integer, Community> community = new LinkedHashMap<>();
-        ConfigurationSection cs = c.getConfigurationSection("community");
-        if (cs != null) {
-            for (String k : cs.getKeys(false)) {
-                ConfigurationSection w = cs.getConfigurationSection(k);
-                if (w == null || w.getString("item") == null) continue;
-                int week = Integer.parseInt(k);
-                community.put(week, new Community(week, w.getString("name", "공동 의뢰"), JobSpec.norm(w.getString("item")),
-                        w.getLong("target", 1000), w.getLong("reward", 500), w.getBoolean("opens-early", true)));
+        List<Community> community = new ArrayList<>();
+        for (Map<?, ?> m : c.getMapList("community")) {
+            Object item = m.get("item");
+            if (item == null) {
+                problems.add("community: item 필요 (" + m + ")");
+                continue;
             }
+            community.add(new Community(m.get("name") == null ? "공동 의뢰" : String.valueOf(m.get("name")), JobSpec.norm(String.valueOf(item)),
+                    Math.max(1, num(m.get("target"), 1000)), Math.max(0, num(m.get("reward"), 500))));
         }
         return new RequestSpec(c.getInt("daily-count", 8), c.getInt("per-player", 3), c.getDouble("reward-multiplier", 1.3), pool, community);
     }

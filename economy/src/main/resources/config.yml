@@ -1,15 +1,20 @@
-# STSV 경제 서버 설정 (서버 운영). 콘텐츠 수치(가격, 직업, 일정)는 plugins/STSV/contents/economy/ 의 YAML 에 있습니다.
+# STSV 경제 서버 설정 (서버 운영). 콘텐츠 수치(가격, 직업, 사건)는 plugins/STSV/contents/economy/ 의 YAML 에 있습니다.
+# 시즌 없이 계속 운영합니다: 처음 켠 날이 1일차, 한 주는 월요일 05시에 바뀜 (/관리자 날짜).
 
 time:
-  # 하루가 바뀌는 시각과 시간대. 매일 이 시각에 시세 회복, 의뢰 갱신, 세금, 임대료, 보고서
+  # 하루가 바뀌는 시각과 시간대. 매일 이 시각에 시세 회복, 의뢰 갱신, 세금, 임대료, 보고서. 월요일엔 주간 순위 결산, 수요 고시
   zone: Asia/Seoul
   reset-hour: 5
 
 pvp:
-  # true = 언제 어디서나 PvP. false = 무법 지대 사건 안에서만
+  # true = 언제 어디서나 PvP. false = PvP 끔
   always: false
 
 hud:
   # 화면 아래 상태 줄: 오늘 손익, 직업 레벨
   today: true
   job: true
+
+report:
+  # 경제 보고서 (/관리자 보고서, 매일 05시): 만들어진 돈 중 다시 없어져야 할 비율 (소멸/생성 목표)
+  sink-target: 0.45

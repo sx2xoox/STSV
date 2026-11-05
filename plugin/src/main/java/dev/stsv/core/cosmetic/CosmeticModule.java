@@ -453,7 +453,7 @@ public final class CosmeticModule implements StsvModule, Listener {
 
     private void saveZones() throws IOException {
         YamlConfiguration y = new YamlConfiguration();
-        y.options().setHeader(List.of("옷장 구역 (/관리 옷장 생성 <이름> [반경] 으로 추가)"));
+        y.options().setHeader(List.of("옷장 구역 (/관리자 옷장 생성 <이름> [반경] 으로 추가)"));
         zones.forEach((name, b) -> {
             y.set(name + ".world", zoneWorlds.get(name));
             y.set(name + ".min", List.of(b.getMinX(), b.getMinY(), b.getMinZ()));

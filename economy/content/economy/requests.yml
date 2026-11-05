@@ -1,6 +1,6 @@
 # 의뢰 게시판 /의뢰
 # 매일 05시 daily-count 건을 pool 에서 뽑음 (weight 클수록 자주). 보상 = 관리자 상점 기준가(없으면 value) × 개수 × reward-multiplier
-# 한 사람은 하루 per-player 건까지. job 이 있으면 그 직업인 사람에게 xp 도 줌. from-day 부터 나옴.
+# 한 사람은 하루 per-player 건까지. job 이 있으면 그 직업인 사람에게 xp 도 줌. from-day 일차(서버를 처음 연 날 = 1일차)부터 나옴.
 daily-count: 8
 per-player: 3
 reward-multiplier: 1.3
@@ -42,9 +42,10 @@ pool:
   - { item: economy:royal_feast, min: 1, max: 1, job: cook, xp: 100, value: 250, from-day: 15, weight: 3 }
   - { item: economy:grand_catalyst, min: 1, max: 1, job: alchemist, xp: 100, value: 300, from-day: 15, weight: 3 }
 
-# 주간 공동 의뢰: 서버 전체 목표. 달성하면 참여자 모두 reward, opens-early 면 다음 주 개방이 하루 빨라짐
+# 주간 공동 의뢰: 서버 전체 목표 (월요일 05시에 바뀜). 달성하면 참여자 모두 reward.
+# 목록을 차례대로 돌아가며 씀 (1주차 = 첫 줄, 목록이 끝나면 처음부터)
 community:
-  1: { name: "철의 도시", item: iron_ingot, target: 20000, reward: 500, opens-early: true }
-  2: { name: "겨울 대비 석탄", item: coal, target: 30000, reward: 1000, opens-early: true }
-  3: { name: "대어 축제", item: cod, target: 10000, reward: 1500, opens-early: true }
-  4: { name: "왕관의 보석", item: diamond, target: 2000, reward: 3000, opens-early: false }
+  - { name: "철의 도시", item: iron_ingot, target: 20000, reward: 500 }
+  - { name: "겨울 대비 석탄", item: coal, target: 30000, reward: 1000 }
+  - { name: "대어 축제", item: cod, target: 10000, reward: 1500 }
+  - { name: "왕관의 보석", item: diamond, target: 2000, reward: 3000 }

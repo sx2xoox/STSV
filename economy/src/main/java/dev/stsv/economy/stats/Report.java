@@ -31,16 +31,6 @@ public record Report(int day, long supply, long previousSupply, long faucet, lon
         return out;
     }
 
-    /** The plan's sink/faucet goal per week: 20% → 30% → 40% → 45%. */
-    public static double targetRatio(int week) {
-        return switch (week) {
-            case 1 -> 0.20;
-            case 2 -> 0.30;
-            case 3 -> 0.40;
-            default -> 0.45;
-        };
-    }
-
     /** Average hourly income of the bottom and top quarter (players with at least 10 minutes online). */
     public static double[] quartiles(List<long[]> incomeAndSeconds) {
         List<Double> rates = new ArrayList<>();

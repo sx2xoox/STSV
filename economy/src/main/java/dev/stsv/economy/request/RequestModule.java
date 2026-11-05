@@ -1,11 +1,12 @@
 package dev.stsv.economy.request;
 
+import org.bukkit.Bukkit;
 import dev.stsv.core.economy.EconomyModule;
 import dev.stsv.core.gui.menu.MenuHandler;
 import dev.stsv.core.gui.menu.MenuView;
 import dev.stsv.core.hud.HudModule;
 import dev.stsv.core.util.Lang;
-import dev.stsv.economy.DailyListener;
+import dev.stsv.economy.calendar.DailyListener;
 import dev.stsv.economy.EcoModule;
 import dev.stsv.economy.EcoPlugin;
 import dev.stsv.economy.shop.ShopCatalog;
@@ -47,16 +48,16 @@ public final class RequestModule extends EcoModule implements DailyListener {
     protected void start() {
         store = new RequestStore(core.db());
         load();
-        store.init(eco.season().day());
-        draw(eco.season().day());
-        eco.season().onDaily(this);
+        store.init(eco.calendar().day());
+        draw(eco.calendar().day());
+        eco.calendar().onDaily(this);
         eco.onReset(store::reset);
     }
 
     @Override
     public void reload() {
         load();
-        draw(eco.season().day());
+        draw(eco.calendar().day());
     }
 
     private void load() {
@@ -80,7 +81,7 @@ public final class RequestModule extends EcoModule implements DailyListener {
     public void newDay(int day, long dayStart) {
         store.newDay(day);
         draw(day);
-        if (eco.season().running()) eco.season().broadcast(Lang.msg("request.new-day", "count", today.size()));
+        Bukkit.broadcast(Lang.msg("request.new-day", "count", today.size()));
     }
 
     public List<RequestSpec.Request> today() {
@@ -88,7 +89,7 @@ public final class RequestModule extends EcoModule implements DailyListener {
     }
 
     public RequestSpec.Community community() {
-        return spec.community().get(eco.season().week());
+        return spec.communityFor(eco.calendar().week());
     }
 
     public RequestStore store() {
@@ -119,7 +120,7 @@ public final class RequestModule extends EcoModule implements DailyListener {
     /** Hands in every matching item for the week's shared goal. */
     public String contribute(Player p) {
         RequestSpec.Community c = community();
-        int week = eco.season().week();
+        int week = eco.calendar().week();
         if (c == null) return "request.no-community";
         if (store.completed(week)) return "request.community-done";
         long need = c.target() - store.progress(week);
@@ -139,8 +140,7 @@ public final class RequestModule extends EcoModule implements DailyListener {
         store.markCompleted(week, now());
         Map<UUID, Long> who = store.contributors(week);
         for (UUID u : who.keySet()) if (core.economy().hasAccount(u)) core.economy().deposit(u, c.reward(), "community");
-        if (c.opensEarly()) eco.season().markEarly(week);
-        eco.season().broadcast(Lang.msg(c.opensEarly() ? "request.community-complete-early" : "request.community-complete",
+        Bukkit.broadcast(Lang.msg("request.community-complete",
                 "name", c.name(), "count", who.size(), "reward", EconomyModule.format(c.reward())));
         for (Player p : org.bukkit.Bukkit.getOnlinePlayers()) p.playSound(p.getLocation(), Sound.UI_TOAST_CHALLENGE_COMPLETE, 0.8f, 1f);
     }
@@ -148,7 +148,6 @@ public final class RequestModule extends EcoModule implements DailyListener {
     // ------------------------------------------------------------------------------------------
 
     public void open(Player p) {
-        if (!eco.season().checkOpen(p, "requests")) return;
         core.menus().open(p, "economy:requests", new View());
     }
 
@@ -156,7 +155,7 @@ public final class RequestModule extends EcoModule implements DailyListener {
         @Override
         public Map<String, String> placeholders(MenuView v) {
             UUID u = v.player().getUniqueId();
-            return Map.of("done", String.valueOf(store.done(u).size()), "max", String.valueOf(spec.perPlayer()), "day", String.valueOf(eco.season().day()));
+            return Map.of("done", String.valueOf(store.done(u).size()), "max", String.valueOf(spec.perPlayer()), "day", String.valueOf(eco.calendar().day()));
         }
 
         @Override
@@ -204,7 +203,7 @@ public final class RequestModule extends EcoModule implements DailyListener {
             if (!button.action().equals("request:community")) return base;
             RequestSpec.Community c = community();
             if (c == null) return null;
-            int week = eco.season().week();
+            int week = eco.calendar().week();
             ItemStack it = Items.create(c.item(), 1).orElse(base);
             long mine = store.contributors(week).getOrDefault(v.player().getUniqueId(), 0L);
             int pct = (int) Math.min(100, store.progress(week) * 100 / Math.max(1, c.target()));

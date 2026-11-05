@@ -12,7 +12,7 @@ import java.util.List;
 import java.util.function.BiConsumer;
 import java.util.function.BiFunction;
 
-/** The player commands of the economy server (all Korean) and the /경제관리 admin root. */
+/** The player commands of the economy server (all Korean). The admin tools are in {@link AdminCommands}. */
 final class Commands {
 
     private Commands() {}
@@ -32,8 +32,13 @@ final class Commands {
 
         @Override
         public List<String> onTabComplete(@NotNull CommandSender s, @NotNull Command c, @NotNull String l, String @NotNull [] a) {
-            return tab == null ? List.of() : AdminCommand.filter(tab.apply(s, a), a.length == 0 ? "" : a[a.length - 1]);
+            return tab == null ? List.of() : filter(tab.apply(s, a), a.length == 0 ? "" : a[a.length - 1]);
         }
+    }
+
+    static List<String> filter(List<String> options, String prefix) {
+        String p = prefix.toLowerCase(java.util.Locale.ROOT);
+        return options.stream().filter(o -> o.toLowerCase(java.util.Locale.ROOT).startsWith(p)).toList();
     }
 
     /** Runs only for players. */
@@ -60,7 +65,6 @@ final class Commands {
     }
 
     static void register(EcoPlugin eco) {
-        eco.command("경제관리", eco.admin());
         eco.command("상점", new Simple(player((p, a) -> {
             if (a.length > 0 && a[0].equals("전부판매")) eco.shop().sellAll(p);
             else eco.shop().open(p);
@@ -163,7 +167,7 @@ final class Commands {
                     }
                     var j = eco.jobs().spec().jobs().get(r.job);
                     int lv = eco.jobs().level(p.getUniqueId());
-                    p.sendMessage(Lang.msg("job.info", "color", j.color(), "job", j.name(), "level", lv, "cap", eco.season().levelCap(),
+                    p.sendMessage(Lang.msg("job.info", "color", j.color(), "job", j.name(), "level", lv, "cap", eco.jobs().spec().maxLevel(),
                             "xp", String.format("%,.0f", r.xp), "next", lv >= eco.jobs().spec().maxLevel() ? "-" : String.format("%,.0f", eco.jobs().spec().xpFor(lv + 1)),
                             "mastery", String.format("%,.0f", r.mastery)));
                 }
@@ -206,15 +210,16 @@ final class Commands {
             return List.of();
         }));
         eco.command("의뢰", new Simple(player((p, a) -> eco.requests().open(p)), null));
-        eco.command("순위", new Simple((s, a) -> eco.rank().lines(s instanceof org.bukkit.entity.Player p ? p.getUniqueId() : null).forEach(s::sendMessage), null));
+        eco.command("순위", new Simple((s, a) -> eco.rank().lines(s instanceof org.bukkit.entity.Player p ? p.getUniqueId() : null,
+                a.length > 0 && a[0].equals("자산")).forEach(s::sendMessage), (s, a) -> a.length == 1 ? List.of("자산") : List.of()));
         eco.command("기념비", new Simple(player((p, a) -> {
             if (a.length == 0) {
-                p.sendMessage(Lang.msg("vanity.monument-usage", "max", 30, "price", dev.stsv.core.economy.EconomyModule.format(eco.vanity().nextPrice())));
+                int rights = eco.vanity().monumentRights(p.getUniqueId());
+                p.sendMessage(rights > 0 ? Lang.msg("vanity.monument-usage", "max", eco.vanity().maxLength(), "rights", rights) : Lang.msg("vanity.monument-no-right"));
                 return;
             }
             eco.vanity().build(p, String.join(" ", a));
         }), null));
         eco.command("기부", new Simple(player((p, a) -> eco.vanity().donate(p, a.length > 0 ? amount(a[0]) : 0)), null));
-        AdminCommands.register(eco);
     }
 }

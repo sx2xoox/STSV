@@ -11,7 +11,7 @@ import java.util.ArrayList;
 import java.util.List;
 
 /**
- * A part of the economy server. Registered with the core's module manager (so /관리 리로드 reaches it),
+ * A part of the economy server. Registered with the core's module manager (so /관리자 리로드 reaches it),
  * but its listeners and tasks belong to the economy plugin, so they stop when that plugin stops.
  */
 public abstract class EcoModule implements StsvModule, Listener {

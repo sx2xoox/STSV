@@ -5,7 +5,7 @@ import dev.stsv.core.gui.menu.MenuSpec;
 import dev.stsv.economy.job.JobSpec;
 import dev.stsv.economy.job.MachineSpec;
 import dev.stsv.economy.request.RequestSpec;
-import dev.stsv.economy.season.SeasonSpec;
+import dev.stsv.economy.event.EventSpec;
 import dev.stsv.economy.shop.ShopCatalog;
 import org.bukkit.Material;
 import org.bukkit.configuration.ConfigurationSection;
@@ -28,6 +28,7 @@ import java.util.regex.Pattern;
 import java.util.stream.Stream;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
 /**
@@ -65,7 +66,7 @@ class ContentTest {
         Set<String> ours = ourItems();
         List<String> problems = new ArrayList<>();
 
-        SeasonSpec season = SeasonSpec.parse(yaml("season.yml"), problems);
+        Map<String, EventSpec> events = EventSpec.parse(yaml("events.yml"), problems);
         ShopCatalog shop = ShopCatalog.parse(yaml("shop.yml"), problems);
         JobSpec jobs = JobSpec.parse(yaml("jobs.yml"), problems);
         Map<String, MachineSpec> machines = MachineSpec.parse(yaml("machines.yml"), problems);
@@ -91,18 +92,16 @@ class ContentTest {
             }
         }
         for (var e : requests.pool()) if (!exists(e.item(), ours)) problems.add("request: " + e.item());
-        for (var c : requests.community().values()) if (!exists(c.item(), ours)) problems.add("community: " + c.item());
+        for (var c : requests.community()) if (!exists(c.item(), ours)) problems.add("community: " + c.item());
         assertTrue(problems.isEmpty(), String.join("\n", problems));
 
-        // the plan's shape: 6 jobs, 54 products (+ 8 machines), 4 weeks, every event used exists
+        // the plan's shape: 6 jobs, 54 products (+ 8 machines), the events the shop and jobs hook
         assertEquals(6, jobs.jobs().size());
         assertEquals(54 + 8 + 14, ours.size(), "54 job products + 8 machines + 14 crop items");
         assertTrue(ours.containsAll(jobs.products().keySet()));
         assertEquals(8, machines.size());
-        assertEquals(List.of(1, 2, 3, 3), season.jobLevelCap());
-        assertEquals(List.of(1, 2, 3, 4), season.landPrice());
-        for (var s : season.schedule()) if (s.event() != null) assertTrue(season.events().containsKey(s.event()), s.event());
-        assertTrue(season.schedule().stream().anyMatch(s -> "finale".equals(s.action())), "the season ends");
+        assertTrue(events.keySet().containsAll(List.of("shortage", "crash", "harvest", "merchant", "tax_audit")));
+        assertFalse(Files.exists(PACK.resolve("season.yml")), "no season plan any more");
         // every job product can actually be made: by a recipe, a machine or a job drop
         Set<String> makeable = new HashSet<>();
         for (MachineSpec m : machines.values()) for (var r : m.recipes()) makeable.add(r.output());
@@ -228,9 +227,7 @@ class ContentTest {
         }
         assertTrue(found > 200, "found " + found);
         // keys built at run time
-        for (String f : List.of("shop", "market", "trade", "requests", "auction", "stall", "nether", "monument")) {
-            if (!messages.contains("season.feature." + f)) missing.add("season.feature." + f);
-        }
+        for (java.time.DayOfWeek w : java.time.DayOfWeek.values()) if (!messages.contains("weekday." + w)) missing.add("weekday." + w);
         for (String r : List.of("market_buy", "market_cancel", "market_expired", "auction_unsold", "auction_win", "auction_cancel",
                 "trade", "trade_cancel", "stall_release", "stall_evicted")) {
             if (!messages.contains("mail.reason." + r)) missing.add("mail.reason." + r);

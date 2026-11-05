@@ -1,4 +1,4 @@
-# STSV RPG 문구. MiniMessage 형식, {이름} = 자리표시자. 고친 뒤 /관리 리로드.
+# STSV RPG 문구. MiniMessage 형식, {이름} = 자리표시자. 고친 뒤 /관리자 리로드.
 
 rpg:
   players-only: "<red>플레이어만 사용할 수 있습니다."

@@ -10,7 +10,7 @@ import java.util.Map;
 
 /**
  * contents/economy/shop.yml: what the admin shop buys (매입, dynamic price) and sells (fixed price),
- * the 상인 행렬 goods, repair cost and the vanity goods (치장, 칭호). Pure data.
+ * the 수요 고시, the 상인 행렬 goods, repair cost and the vanity goods (치장, 칭호). Pure data.
  */
 public record ShopCatalog(
         Map<String, SellEntry> sell,
@@ -20,7 +20,11 @@ public record ShopCatalog(
         double dailyDecay,
         double repairPerPoint,
         long repairMin,
-        List<VanityEntry> vanity) {
+        List<VanityEntry> vanity,
+        DemandNotice demand) {
+
+    /** 수요 고시: every week on this weekday (at the reset hour), count items sell for multiplier x until the next one. */
+    public record DemandNotice(java.time.DayOfWeek weekday, int count, double multiplier) {}
 
     public record SellEntry(String id, double base, double q, Integer cap, String job) {}
 
@@ -79,8 +83,16 @@ public record ShopCatalog(
             }
             vanity.add(new VanityEntry(String.valueOf(kind), String.valueOf(id), p.longValue()));
         }
+        java.time.DayOfWeek weekday;
+        try {
+            weekday = java.time.DayOfWeek.valueOf(c.getString("demand-notice.weekday", "MONDAY").toUpperCase(Locale.ROOT));
+        } catch (IllegalArgumentException e) {
+            problems.add("demand-notice.weekday: MONDAY ~ SUNDAY (" + c.getString("demand-notice.weekday") + ")");
+            weekday = java.time.DayOfWeek.MONDAY;
+        }
+        DemandNotice demand = new DemandNotice(weekday, Math.max(0, c.getInt("demand-notice.count", 3)), c.getDouble("demand-notice.multiplier", 1.5));
         return new ShopCatalog(sell, buy, merchant,
                 c.getDouble("floor", 0.35), c.getDouble("daily-decay", 0.5),
-                c.getDouble("repair.per-point", 0.05), c.getLong("repair.min", 5), vanity);
+                c.getDouble("repair.per-point", 0.05), c.getLong("repair.min", 5), vanity, demand);
     }
 }

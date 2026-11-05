@@ -5,10 +5,10 @@ import dev.stsv.core.furniture.FurnitureBreakEvent;
 import dev.stsv.core.furniture.FurnitureInteractEvent;
 import dev.stsv.core.hud.HudModule;
 import dev.stsv.core.util.Lang;
-import dev.stsv.economy.DailyListener;
+import dev.stsv.economy.calendar.DailyListener;
 import dev.stsv.economy.EcoModule;
 import dev.stsv.economy.EcoPlugin;
-import dev.stsv.economy.season.ActiveEvent;
+import dev.stsv.economy.event.ActiveEvent;
 import dev.stsv.economy.util.Players;
 import org.bukkit.Bukkit;
 import org.bukkit.Location;
@@ -82,7 +82,7 @@ public final class LandModule extends EcoModule implements DailyListener {
         store = new LandStore(core.db());
         store.init();
         rules = LandRules.parse(eco.data("land.yml"));
-        eco.season().onDaily(this);
+        eco.calendar().onDaily(this);
         eco.onReset(store::reset);
     }
 
@@ -226,7 +226,7 @@ public final class LandModule extends EcoModule implements DailyListener {
         p.sendMessage(Lang.msg("land.deleted", "area", c.area()));
     }
 
-    /** Buys more area at the week's price. */
+    /** Buys more area (land.yml price per m²). */
     public void buy(Player p, long area) {
         if (area <= 0 || area > 1_000_000) {
             p.sendMessage(Lang.msg("land.usage"));
@@ -234,7 +234,7 @@ public final class LandModule extends EcoModule implements DailyListener {
         }
         long price;
         try {
-            price = Math.multiplyExact(area, (long) eco.season().landPrice());
+            price = Math.multiplyExact(area, rules.price());
         } catch (ArithmeticException e) {
             p.sendMessage(Lang.msg("land.usage"));
             return;
@@ -272,7 +272,7 @@ public final class LandModule extends EcoModule implements DailyListener {
         LandStore.Account a = store.account(u);
         long area = used(u);
         p.sendMessage(Lang.msg("land.info", "used", area, "quota", quota(u), "free", rules.freeArea(), "bought", a.bought,
-                "tax", EconomyModule.format(rules.tax(area, taxMultiplier())), "price", eco.season().landPrice(), "warnings", a.warnings, "warn-days", rules.warnDays()));
+                "tax", EconomyModule.format(rules.tax(area, taxMultiplier())), "price", rules.price(), "warnings", a.warnings, "warn-days", rules.warnDays()));
         for (Claim c : store.index().of(u)) {
             p.sendMessage(Lang.mm("land.info-line", "x1", c.x1, "z1", c.z1, "x2", c.x2, "z2", c.z2, "area", c.area(), "members", c.members.size()));
         }
@@ -319,13 +319,12 @@ public final class LandModule extends EcoModule implements DailyListener {
 
     private double taxMultiplier() {
         double m = 1;
-        for (ActiveEvent e : eco.season().active("tax_audit")) m *= e.number("tax-multiplier", 2);
+        for (ActiveEvent e : eco.events().active("tax_audit")) m *= e.number("tax-multiplier", 2);
         return m;
     }
 
     @Override
     public void newDay(int day, long dayStart) {
-        if (!eco.season().running()) return;
         double mult = taxMultiplier();
         java.util.Set<UUID> owners = new java.util.HashSet<>();
         for (Claim c : store.index().all()) if (!c.server()) owners.add(c.owner);

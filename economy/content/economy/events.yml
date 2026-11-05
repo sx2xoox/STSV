@@ -1,0 +1,39 @@
+# 사건 종류. hours = 지속 시간, color = 보스바 색 (pink, blue, red, green, yellow, purple, white)
+# 지금은 관리자가 /관리자 사건 시작 <종류> 로 엽니다. (사건이 저절로 이어지는 방식은 사건 단계에서 추가)
+events:
+  shortage:
+    name: "품귀"
+    hours: 24
+    color: green
+    multiplier: 3.0      # 중간 가격대 품목 하나의 매입가 배수 (수요 고시 품목은 고르지 않음)
+  crash:
+    name: "시장 폭락"
+    hours: 24
+    color: red
+    multiplier: 0.5      # 최근 가장 많이 팔린 품목의 매입가 배수 (수요 고시 품목은 고르지 않음)
+  harvest:
+    name: "풍년"
+    hours: 24
+    color: green
+    multiplier: 2        # 농부·어부 패시브 배수
+  merchant:
+    name: "상인 행렬"
+    hours: 2
+    color: purple        # 상점의 상인 행렬 칸에 shop.yml merchant 상품
+  tax_audit:
+    name: "세무 조사"
+    hours: 24
+    color: yellow
+    tax-multiplier: 2
+    donation-min: 5000
+    donation-title: economy:patron
+  # 보류: 자동으로 열리지 않습니다 (관리자가 시험용으로만)
+  world_boss:
+    name: "월드 보스"
+    hours: 1
+    color: purple
+    boss: executioner
+    start-price: 1000
+    reward-1: 3000
+    reward-2: 2000
+    reward-3: 1000

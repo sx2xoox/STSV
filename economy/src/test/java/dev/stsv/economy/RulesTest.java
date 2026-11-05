@@ -7,7 +7,8 @@ import dev.stsv.economy.land.Claim;
 import dev.stsv.economy.land.ClaimIndex;
 import dev.stsv.economy.land.LandRules;
 import dev.stsv.economy.request.RequestSpec;
-import dev.stsv.economy.season.SeasonSpec;
+import dev.stsv.economy.event.EventSpec;
+import dev.stsv.economy.shop.ShopCatalog;
 import dev.stsv.economy.shop.PriceModel;
 import dev.stsv.economy.stats.Report;
 import dev.stsv.economy.trade.TradeState;
@@ -45,46 +46,54 @@ class RulesTest {
 
     @Test
     void aDayStartsAtFiveInTheMorning() {
-        long start = t(2026, 11, 2, 20, 0);             // season started Monday 20:00 (day 1)
-        Days d = new Days(KST, 5, start, 0);
-        assertEquals(1, d.day(start));
-        assertEquals(1, d.day(t(2026, 11, 3, 4, 59)), "after midnight is still the same day");
-        assertEquals(2, d.day(t(2026, 11, 3, 5, 0)));
-        assertEquals(7, d.day(t(2026, 11, 8, 23, 0)));
-        assertEquals(8, d.day(t(2026, 11, 9, 5, 0)));
-        assertEquals(1, d.week(t(2026, 11, 8, 23, 0)));
-        assertEquals(2, d.week(t(2026, 11, 9, 5, 0)));
-        assertEquals(t(2026, 11, 12, 21, 0), d.at(11, LocalTime.of(21, 0)));
-        assertEquals(t(2026, 11, 13, 1, 0), d.at(11, LocalTime.of(1, 0)), "01:00 belongs to the end of that day");
-        assertEquals(t(2026, 11, 3, 5, 0), d.nextDayStart(start));
-        assertEquals(t(2026, 11, 2, 5, 0), d.dayStart(start));
+        long first = t(2026, 11, 4, 20, 0);             // the server first ran Wednesday 20:00 (day 1, week 1)
+        Days d = new Days(KST, 5, first, 0);
+        assertEquals(1, d.day(first));
+        assertEquals(1, d.day(t(2026, 11, 5, 4, 59)), "after midnight is still the same day");
+        assertEquals(2, d.day(t(2026, 11, 5, 5, 0)));
+        assertEquals(t(2026, 11, 5, 5, 0), d.nextDayStart(first));
+        assertEquals(t(2026, 11, 4, 5, 0), d.dayStart(first));
         assertEquals(DayOfWeek.MONDAY, d.weekday(t(2026, 11, 10, 3, 0)), "Tuesday 03:00 is still Monday");
-        assertEquals(11, new Days(KST, 5, start, 10).day(start), "testing offset");
-        assertEquals(1, new Days(KST, 5, 0, 0).day(start), "no season: day 1");
+        assertEquals(1, new Days(KST, 5, 0, 0).day(first), "not started yet: day 1");
     }
 
     @Test
-    void theSeasonPlan() {
+    void aWeekStartsOnMondayAndNeverEnds() {
+        long first = t(2026, 11, 4, 20, 0);             // a Wednesday
+        Days d = new Days(KST, 5, first, 0);
+        assertEquals(1, d.week(first));
+        assertEquals(1, d.week(t(2026, 11, 9, 4, 59)), "Monday before 05:00 is still last week");
+        assertEquals(2, d.week(t(2026, 11, 9, 5, 0)), "a short first week: the calendar week, not 7 days from day 1");
+        assertEquals(6, d.day(t(2026, 11, 9, 5, 0)));
+        assertEquals(54, d.week(t(2027, 11, 8, 5, 0)), "no end: 53 Mondays later is week 54");
+        assertEquals(t(2026, 11, 9, 5, 0), d.next(DayOfWeek.MONDAY, first));
+        assertEquals(t(2026, 11, 16, 5, 0), d.next(DayOfWeek.MONDAY, t(2026, 11, 9, 5, 0)), "from a Monday: the next one");
+        // testing offset: the calendar moves, real times do not
+        Days later = new Days(KST, 5, first, 5);
+        assertEquals(6, later.day(first));
+        assertEquals(2, later.week(first), "day 1 + 5 = Monday of week 2");
+        assertEquals(DayOfWeek.MONDAY, later.weekday(first));
+        assertEquals(t(2026, 11, 4, 5, 0), later.dayStart(first));
+    }
+
+    @Test
+    void theEventsAndTheDemandNotice() {
         List<String> problems = new ArrayList<>();
-        SeasonSpec s = SeasonSpec.parse(ContentTest.yaml("season.yml"), problems);
+        Map<String, EventSpec> events = EventSpec.parse(ContentTest.yaml("events.yml"), problems);
         assertTrue(problems.isEmpty(), problems.toString());
-        assertEquals(1, s.levelCap(1));
-        assertEquals(1, s.levelCap(7));
-        assertEquals(2, s.levelCap(8));
-        assertEquals(3, s.levelCap(15));
-        assertEquals(3, s.levelCap(28));
-        assertEquals(4, s.landPrice(28));
-        assertEquals(8, s.openDay("auction", w -> false));
-        assertEquals(7, s.openDay("auction", w -> w == 1), "the shared goal of week 1 opens week 2 a day early");
-        assertEquals(1, s.openDay("unknown", w -> false));
-        assertEquals(3.0, s.events().get("shortage").number("multiplier", 0));
-        // schedule keys are unique (an entry runs once)
-        assertEquals(s.schedule().size(), new HashSet<>(s.schedule().stream().map(SeasonSpec.Entry::key).toList()).size());
+        assertEquals(List.of("shortage", "crash", "harvest", "merchant", "tax_audit", "world_boss"), List.copyOf(events.keySet()));
+        assertEquals(24, events.get("shortage").hours(), "품귀 lasts a day");
+        assertEquals(3.0, events.get("shortage").number("multiplier", 0));
+        assertFalse(events.containsKey("lawless"), "무법 지대 is gone");
+        ShopCatalog shop = ShopCatalog.parse(ContentTest.yaml("shop.yml"), problems);
+        assertEquals(new ShopCatalog.DemandNotice(DayOfWeek.MONDAY, 3, 1.5), shop.demand());
         // bad entries are reported, not crashing
         YamlConfiguration bad = new YamlConfiguration();
-        bad.set("schedule", List.of(Map.of("day", 3, "time", "25:99"), Map.of("day", 4, "time", "10:00", "event", "nope")));
+        bad.set("events.x.hours", 0);
+        bad.set("demand-notice.weekday", "someday");
         List<String> p2 = new ArrayList<>();
-        SeasonSpec.parse(bad, p2);
+        EventSpec.parse(bad, p2);
+        ShopCatalog.parse(bad, p2);
         assertEquals(2, p2.size(), p2.toString());
     }
 
@@ -251,8 +260,12 @@ class RulesTest {
             assertEquals(Math.max(1, Math.round(unit * r.amount() * 1.3)), r.reward(), r.item());
             assertTrue(r.amount() >= e.min() && r.amount() <= e.max());
         }
-        assertTrue(spec.community().get(1).opensEarly());
-        assertFalse(spec.community().get(4).opensEarly(), "nothing opens after the last week");
+        // the weekly shared goal goes round the list for ever
+        assertEquals(4, spec.community().size());
+        assertEquals(spec.community().get(0), spec.communityFor(1));
+        assertEquals(spec.community().get(3), spec.communityFor(4));
+        assertEquals(spec.communityFor(1), spec.communityFor(5));
+        assertEquals(spec.communityFor(2), spec.communityFor(102));
     }
 
     @Test
@@ -265,6 +278,5 @@ class RulesTest {
                 new long[]{99999, 60}));
         assertEquals(100, q[0], 1e-9);
         assertEquals(1600, q[1], 1e-9, "players under 10 minutes are left out");
-        assertEquals(0.45, Report.targetRatio(9));
     }
 }

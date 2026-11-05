@@ -3,7 +3,7 @@ package dev.stsv.economy.stats;
 import dev.stsv.core.economy.BalanceChangeEvent;
 import dev.stsv.core.economy.EconomyStore;
 import dev.stsv.core.util.Lang;
-import dev.stsv.economy.DailyListener;
+import dev.stsv.economy.calendar.DailyListener;
 import dev.stsv.economy.EcoModule;
 import dev.stsv.economy.EcoPlugin;
 import org.bukkit.Bukkit;
@@ -35,7 +35,7 @@ public final class ActivityModule extends EcoModule implements DailyListener {
     @Override
     protected void start() {
         store = new ActivityStore(core.db());
-        store.init(eco.season().day());
+        store.init(eco.calendar().day());
         for (Player p : Bukkit.getOnlinePlayers()) joined(p);
         every(1200L, () -> {
             for (Player p : Bukkit.getOnlinePlayers()) count(p);
@@ -46,7 +46,7 @@ public final class ActivityModule extends EcoModule implements DailyListener {
             long delta = core.economy().balance(p.getUniqueId()) - store.startBalance(p.getUniqueId(), core.economy().balance(p.getUniqueId()));
             return Lang.mm(delta >= 0 ? "activity.hud-up" : "activity.hud-down", "amount", String.format("%,d", Math.abs(delta)));
         });
-        eco.season().onDaily(this);
+        eco.calendar().onDaily(this);
     }
 
     @Override

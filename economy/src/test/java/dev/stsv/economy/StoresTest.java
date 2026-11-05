@@ -10,8 +10,8 @@ import dev.stsv.economy.land.LandStore;
 import dev.stsv.economy.mail.MailStore;
 import dev.stsv.economy.market.MarketStore;
 import dev.stsv.economy.request.RequestStore;
-import dev.stsv.economy.season.ActiveEvent;
-import dev.stsv.economy.season.EventStore;
+import dev.stsv.economy.event.ActiveEvent;
+import dev.stsv.economy.event.EventStore;
 import dev.stsv.economy.shop.ShopStore;
 import dev.stsv.economy.stats.ActivityStore;
 import dev.stsv.economy.util.Kv;
@@ -193,8 +193,8 @@ class StoresTest {
         events.start("crash", 0, 50, Map.of());
         Kv kv = new Kv(db);
         kv.init();
-        kv.set("season.offset", 4);
-        kv.set("season.done.sched:1", "1");
+        kv.set("calendar.offset", 4);
+        kv.set("calendar.last-day", "1");
         kv.set("loc.price-board", "world;0;64;0");
         ActivityStore act = new ActivityStore(db);
         act.init(3);
@@ -261,13 +261,13 @@ class StoresTest {
 
         Kv kv2 = new Kv(db);
         kv2.init();
-        assertEquals(4, kv2.getLong("season.offset", 0));
-        kv2.removePrefix("season.");
+        assertEquals(4, kv2.getLong("calendar.offset", 0));
+        kv2.removePrefix("calendar.");
         db.sync(c -> null);
         Kv kv3 = new Kv(db);
         kv3.init();
-        assertFalse(kv3.has("season.offset"));
-        assertFalse(kv3.has("season.done.sched:1"));
+        assertFalse(kv3.has("calendar.offset"));
+        assertFalse(kv3.has("calendar.last-day"));
         assertEquals("world;0;64;0", kv3.get("loc.price-board"));
 
         ActivityStore act2 = new ActivityStore(db);

@@ -1,8 +1,8 @@
-package dev.stsv.economy.season;
+package dev.stsv.economy.event;
 
 import java.util.Map;
 
-/** A running event (품귀, 무법 지대, ...): what, since when, until when, with which details. */
+/** A running event (품귀, 풍년, ...): what, since when, until when, with which details. */
 public record ActiveEvent(long id, String type, long started, long ends, Map<String, String> params) {
 
     public String param(String k) {

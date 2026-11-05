@@ -63,7 +63,7 @@ import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.ThreadLocalRandom;
 
 /**
- * 직업: one job per person (change once a week for 1,000G), Lv1-3 with the cap set by the season week,
+ * 직업: one job per person (change once a week for 1,000G), levels from jobs.yml (no cap: the server runs without seasons),
  * XP only from the job's own work (placed blocks give nothing), passives, and products only a job at a
  * level can craft. Cook and alchemist products carry a quality that lengthens their effects.
  */
@@ -142,15 +142,15 @@ public final class JobModule extends EcoModule {
     public int level(UUID player) {
         JobStore.Row r = store.get(player);
         if (r == null) return 0;
-        return Math.min(eco.season().levelCap(), spec.levelFor(r.xp));
+        return Math.min(spec.maxLevel(), spec.levelFor(r.xp));
     }
 
     /** The passive value of a job for a player (0 if they do not have that job). 풍년 doubles farmer/fisher ones. */
     public double passive(UUID player, String job, String key) {
         if (!job.equals(job(player))) return 0;
         double v = spec.jobs().get(job).passive(key, level(player));
-        if ((job.equals("farmer") || job.equals("fisher")) && eco.season().isActive("harvest")) {
-            v *= eco.season().active("harvest").getFirst().number("multiplier", 2);
+        if ((job.equals("farmer") || job.equals("fisher")) && eco.events().isActive("harvest")) {
+            v *= eco.events().active("harvest").getFirst().number("multiplier", 2);
         }
         return v;
     }
@@ -159,7 +159,7 @@ public final class JobModule extends EcoModule {
         if (xp <= 0 || !job.equals(job(player))) return;
         JobStore.Row r = store.get(player);
         int before = level(player);
-        double[] g = spec.gain(r.xp, xp, eco.season().levelCap());
+        double[] g = spec.gain(r.xp, xp, spec.maxLevel());
         r.xp = g[0];
         r.mastery += g[1];
         store.touch(r);
@@ -170,7 +170,7 @@ public final class JobModule extends EcoModule {
             p.showTitle(net.kyori.adventure.title.Title.title(Lang.mm("job.levelup-title", "level", after),
                     Lang.mm("job.levelup-subtitle", "color", j.color(), "job", j.name(), "level", after)));
             p.playSound(p.getLocation(), Sound.UI_TOAST_CHALLENGE_COMPLETE, 0.7f, 1.1f);
-            eco.season().broadcast(Lang.msg("job.levelup-broadcast", "player", p.getName(), "color", j.color(), "job", j.name(), "level", after));
+            Bukkit.broadcast(Lang.msg("job.levelup-broadcast", "player", p.getName(), "color", j.color(), "job", j.name(), "level", after));
         }
     }
 
@@ -224,7 +224,7 @@ public final class JobModule extends EcoModule {
             JobSpec.Job j = r == null ? null : spec.jobs().get(r.job);
             int lv = level(u);
             return Map.of("job", j == null ? Lang.raw("job.none") : "<" + j.color() + ">" + j.name(),
-                    "level", String.valueOf(lv), "cap", String.valueOf(eco.season().levelCap()),
+                    "level", String.valueOf(lv), "cap", String.valueOf(spec.maxLevel()),
                     "xp", r == null ? "0" : String.format("%,.0f", r.xp),
                     "next", lv >= spec.maxLevel() ? "-" : String.format("%,.0f", spec.xpFor(lv + 1)),
                     "mastery", r == null ? "0" : String.format("%,.0f", r.mastery),
@@ -273,7 +273,7 @@ public final class JobModule extends EcoModule {
             if (refused != null) {
                 JobStore.Row r = store.get(p.getUniqueId());
                 long wait = r == null ? 0 : r.changed + spec.changeDays() * 86_400_000L - now();
-                HudModule.flash(p, Lang.mm(refused, "cost", EconomyModule.format(spec.changeCost()), "left", dev.stsv.economy.season.SeasonModule.hoursText(wait)));
+                HudModule.flash(p, Lang.mm(refused, "cost", EconomyModule.format(spec.changeCost()), "left", dev.stsv.economy.event.EventModule.hoursText(wait)));
             }
             v.refresh();
         }
@@ -742,7 +742,7 @@ public final class JobModule extends EcoModule {
         for (JobStore.Row r : store.ranking(job, 10)) {
             JobSpec.Job rj = spec.jobs().get(r.job);
             out.add(Lang.mm("job.ranking-line", "rank", rank++, "player", Players.name(r.player), "color", rj == null ? "white" : rj.color(),
-                    "job", rj == null ? r.job : rj.name(), "level", Math.min(eco.season().levelCap(), spec.levelFor(r.xp)),
+                    "job", rj == null ? r.job : rj.name(), "level", Math.min(spec.maxLevel(), spec.levelFor(r.xp)),
                     "mastery", String.format("%,.0f", r.mastery), "xp", String.format("%,.0f", r.xp)));
         }
         return out;

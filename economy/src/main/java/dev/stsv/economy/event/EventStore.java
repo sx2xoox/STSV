@@ -1,4 +1,4 @@
-package dev.stsv.economy.season;
+package dev.stsv.economy.event;
 
 import dev.stsv.core.data.Db;
 

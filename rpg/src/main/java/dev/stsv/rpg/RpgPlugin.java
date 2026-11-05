@@ -15,7 +15,7 @@ import java.util.List;
 
 /**
  * The RPG server: a content plugin on top of the STSV core. Its modules are registered with the
- * core, so /관리 리로드 reloads them together with the core's.
+ * core, so /관리자 리로드 reloads them together with the core's.
  */
 public final class RpgPlugin extends JavaPlugin {
 

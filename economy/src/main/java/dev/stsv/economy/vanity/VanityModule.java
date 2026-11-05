@@ -42,7 +42,7 @@ import java.util.UUID;
 
 /**
  * 과시 소비 (money that leaves the economy for good, and stays with the account): the cosmetic and
- * title shop, and monuments - a giant head and an inscription in the town, each dearer than the last.
+ * title shop, and monuments - a giant head and an inscription in the town, built by the week's top earner.
  */
 public final class VanityModule extends EcoModule {
 
@@ -118,7 +118,7 @@ public final class VanityModule extends EcoModule {
             core.profiles().grantTitle(p.getUniqueId(), v.id());
             bought.add(p.getUniqueId() + "|" + v.id());
         }
-        eco.season().broadcast(Lang.msg("vanity.bought-broadcast", "player", p.getName(), "item", name(v), "price", EconomyModule.format(v.price())));
+        Bukkit.broadcast(Lang.msg("vanity.bought-broadcast", "player", p.getName(), "item", name(v), "price", EconomyModule.format(v.price())));
         return null;
     }
 
@@ -187,13 +187,19 @@ public final class VanityModule extends EcoModule {
     // Monuments
     // ------------------------------------------------------------------------------------------
 
-    public long nextPrice() {
-        var c = eco.data("shop.yml");
-        double base = c.getDouble("monument.base", 20000), growth = c.getDouble("monument.growth", 1.5);
-        return Math.round(base * Math.pow(growth, monuments.size()));
+    /** 기념비 건립권 a player holds (the week's top earner gets one). */
+    public int monumentRights(UUID player) {
+        return (int) eco.kv().getLong("monument.rights." + player, 0);
     }
 
-    private int maxLength() {
+    /** Gives one 기념비 건립권; returns how many they hold now. */
+    public int grantMonument(UUID player) {
+        int n = monumentRights(player) + 1;
+        eco.kv().set("monument.rights." + player, n);
+        return n;
+    }
+
+    public int maxLength() {
         return eco.data("shop.yml").getInt("monument.max-length", 30);
     }
 
@@ -206,10 +212,14 @@ public final class VanityModule extends EcoModule {
     }
 
     public void build(Player p, String text) {
-        if (!eco.season().checkOpen(p, "monument")) return;
+        int rights = monumentRights(p.getUniqueId());
+        if (rights <= 0) {
+            p.sendMessage(Lang.msg("vanity.monument-no-right"));
+            return;
+        }
         String clean = text.replace("<", "").replace(">", "").trim();
         if (clean.isEmpty() || clean.length() > maxLength()) {
-            p.sendMessage(Lang.msg("vanity.monument-usage", "max", maxLength(), "price", EconomyModule.format(nextPrice())));
+            p.sendMessage(Lang.msg("vanity.monument-usage", "max", maxLength(), "rights", rights));
             return;
         }
         Integer slot = freeSlot();
@@ -217,16 +227,13 @@ public final class VanityModule extends EcoModule {
             p.sendMessage(Lang.msg("vanity.monument-full"));
             return;
         }
-        long price = nextPrice();
-        if (!core.economy().withdraw(p.getUniqueId(), price, "monument")) {
-            p.sendMessage(Lang.msg("vanity.not-enough", "price", EconomyModule.format(price)));
-            return;
-        }
+        eco.kv().set("monument.rights." + p.getUniqueId(), rights - 1);
+        long price = 0;   // no longer bought: the column stays for monuments built before
         Monument m = new Monument(slot, p.getUniqueId(), clean, now(), price);
         monuments.put(slot, m);
         db.execute("INSERT INTO eco_monument (slot, player, text, at, price) VALUES (?, ?, ?, ?, ?)", slot, p.getUniqueId().toString(), clean, m.at(), price);
         show(m);
-        eco.season().broadcast(Lang.msg("vanity.monument-built", "player", p.getName(), "text", clean, "price", EconomyModule.format(price)));
+        Bukkit.broadcast(Lang.msg("vanity.monument-built", "player", p.getName(), "text", clean));
         for (Player o : Bukkit.getOnlinePlayers()) {
             o.showTitle(Title.title(Lang.mm("vanity.monument-title"), Lang.mm("vanity.monument-subtitle", "player", p.getName()),
                     Title.Times.times(Duration.ofMillis(300), Duration.ofMillis(3000), Duration.ofMillis(800))));
@@ -263,8 +270,7 @@ public final class VanityModule extends EcoModule {
             d.setPersistent(false);
             d.setBillboard(Display.Billboard.VERTICAL);
             d.setBackgroundColor(org.bukkit.Color.fromARGB(170, 20, 16, 8));
-            d.text(Text.mm(Lang.raw("vanity.monument-plate", "player", Players.name(m.player()), "text", m.text(), "date", date,
-                    "price", EconomyModule.format(m.price()))));
+            d.text(Text.mm(Lang.raw("vanity.monument-plate", "player", Players.name(m.player()), "text", m.text(), "date", date)));
         });
         shown.put(m.slot(), List.of(statue, plate));
     }
@@ -279,7 +285,7 @@ public final class VanityModule extends EcoModule {
     // ------------------------------------------------------------------------------------------
 
     public void donate(Player p, long amount) {
-        List<dev.stsv.economy.season.ActiveEvent> events = eco.season().active("tax_audit");
+        List<dev.stsv.economy.event.ActiveEvent> events = eco.events().active("tax_audit");
         if (events.isEmpty()) {
             p.sendMessage(Lang.msg("vanity.donate-closed"));
             return;
@@ -297,7 +303,7 @@ public final class VanityModule extends EcoModule {
         String key = "donation." + e.id() + "." + p.getUniqueId();
         long total = eco.kv().getLong(key, 0) + amount;
         eco.kv().set(key, total);
-        eco.season().broadcast(Lang.msg("vanity.donated", "player", p.getName(), "amount", EconomyModule.format(amount)));
+        Bukkit.broadcast(Lang.msg("vanity.donated", "player", p.getName(), "amount", EconomyModule.format(amount)));
         String title = e.params().getOrDefault("donation-title", "economy:patron");
         if (total >= min && !eco.kv().has(key + ".title")) {
             eco.kv().set(key + ".title", "1");

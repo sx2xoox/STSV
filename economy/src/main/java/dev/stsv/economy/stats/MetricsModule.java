@@ -3,7 +3,7 @@ package dev.stsv.economy.stats;
 import dev.stsv.core.data.Db;
 import dev.stsv.core.util.Lang;
 import dev.stsv.core.util.Text;
-import dev.stsv.economy.DailyListener;
+import dev.stsv.economy.calendar.DailyListener;
 import dev.stsv.economy.EcoModule;
 import dev.stsv.economy.EcoPlugin;
 import org.bukkit.Bukkit;
@@ -15,7 +15,7 @@ import java.util.List;
 import java.util.concurrent.CompletableFuture;
 
 /**
- * The 05:00 report to the admins: money supply growth, sink/faucet ratio against the week's goal,
+ * The 05:00 report to the admins: money supply growth, sink/faucet ratio against the goal (config.yml),
  * inequality, the bottom quarter's hourly income against the top's, and items stuck at the price floor.
  */
 public final class MetricsModule extends EcoModule implements DailyListener {
@@ -37,13 +37,13 @@ public final class MetricsModule extends EcoModule implements DailyListener {
         db.migrate("eco_daily", List.of(List.of(
                 "CREATE TABLE IF NOT EXISTS eco_daily (day INT NOT NULL PRIMARY KEY, supply BIGINT NOT NULL, faucet BIGINT NOT NULL, sink BIGINT NOT NULL, "
                         + "gini DOUBLE NOT NULL, low_hourly DOUBLE NOT NULL, top_hourly DOUBLE NOT NULL, floor_items INT NOT NULL, players INT NOT NULL)")));
-        eco.season().onDaily(this);
+        eco.calendar().onDaily(this);
         eco.onReset(() -> db.execute("DELETE FROM eco_daily"));
     }
 
     @Override
     public void newDay(int day, long dayStart) {
-        if (!eco.season().running() || day <= 1) return;
+        if (day <= 1) return;
         build(day - 1, dayStart - 86_400_000L, eco.shop().floorHitsYesterday()).thenAccept(r -> sync(() -> {
             db.execute(db.upsert("eco_daily", List.of("day"), List.of("supply", "faucet", "sink", "gini", "low_hourly", "top_hourly", "floor_items", "players")),
                     r.day(), r.supply(), r.faucet(), r.sink(), r.gini(), r.lowHourly(), r.topHourly(), r.floorItems(), r.players());
@@ -55,7 +55,6 @@ public final class MetricsModule extends EcoModule implements DailyListener {
 
     /** The report of a day (from its start for 24 hours). */
     public CompletableFuture<Report> build(int day, long from, int floorItems) {
-        int week = (day - 1) / 7 + 1;
         CompletableFuture<Long> previous = db.async(c -> {
             List<Long> v = Db.query(c, "SELECT supply FROM eco_daily WHERE day = ?", rs -> rs.getLong(1), day - 1);
             return v.isEmpty() ? 0L : v.getFirst();
@@ -66,8 +65,13 @@ public final class MetricsModule extends EcoModule implements DailyListener {
             List<long[]> rates = new ArrayList<>();
             for (ActivityStore.Day d : rows) rates.add(new long[]{d.income(), d.seconds()});
             double[] q = Report.quartiles(rates);
-            return new Report(day, st.total(), (Long) o[1], st.faucet(), st.sink(), st.gini(), q[0], q[1], floorItems, rows.size(), Report.targetRatio(week));
+            return new Report(day, st.total(), (Long) o[1], st.faucet(), st.sink(), st.gini(), q[0], q[1], floorItems, rows.size(), sinkTarget());
         });
+    }
+
+    /** How much of the money made should be destroyed again (sinks / faucets), config.yml report.sink-target. */
+    private double sinkTarget() {
+        return eco.getConfig().getDouble("report.sink-target");
     }
 
     public List<net.kyori.adventure.text.Component> lines(Report r) {
@@ -87,8 +91,8 @@ public final class MetricsModule extends EcoModule implements DailyListener {
 
     public void show(CommandSender s, Integer day) {
         if (day == null) {
-            int today = eco.season().day();
-            build(today, eco.season().days().dayStart(now()), eco.shop().floorHitsToday())
+            int today = eco.calendar().day();
+            build(today, eco.calendar().days().dayStart(now()), eco.shop().floorHitsToday())
                     .thenAccept(r -> sync(() -> lines(r).forEach(s::sendMessage)));
             return;
         }
@@ -105,7 +109,7 @@ public final class MetricsModule extends EcoModule implements DailyListener {
                 return;
             }
             Report rep = new Report(day, (Long) r[1], prev == null ? 0 : (Long) prev[1], (Long) r[2], (Long) r[3], (Double) r[4],
-                    (Double) r[5], (Double) r[6], (Integer) r[7], (Integer) r[8], Report.targetRatio((day - 1) / 7 + 1));
+                    (Double) r[5], (Double) r[6], (Integer) r[7], (Integer) r[8], sinkTarget());
             lines(rep).forEach(s::sendMessage);
         }));
     }

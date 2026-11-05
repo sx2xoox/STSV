@@ -6,7 +6,7 @@ import dev.stsv.core.gui.menu.MenuView;
 import dev.stsv.core.hud.HudModule;
 import dev.stsv.core.util.Lang;
 import dev.stsv.core.util.Text;
-import dev.stsv.economy.DailyListener;
+import dev.stsv.economy.calendar.DailyListener;
 import dev.stsv.economy.EcoModule;
 import dev.stsv.economy.EcoPlugin;
 import dev.stsv.economy.util.Items;
@@ -65,7 +65,7 @@ public final class StallModule extends EcoModule implements DailyListener {
     protected void start() {
         store = new StallStore(core.db());
         store.init();
-        eco.season().onDaily(this);
+        eco.calendar().onDaily(this);
         every(200L, this::signs);
         eco.onReset(() -> {
             store.reset();
@@ -102,7 +102,6 @@ public final class StallModule extends EcoModule implements DailyListener {
     // ------------------------------------------------------------------------------------------
 
     public void rent(Player p, int number) {
-        if (!eco.season().checkOpen(p, "stall")) return;
         StallStore.Stall s = store.all().get(number);
         if (s == null) {
             p.sendMessage(Lang.msg("stall.no-such", "number", number));

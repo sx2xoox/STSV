@@ -1,4 +1,4 @@
 # STSV 경제 서버 콘텐츠 팩 (STSV-Economy 플러그인이 설치)
-# 수치는 모두 초기값: 시범 운영 뒤 /경제관리 보고 의 지표를 보고 조정하세요. 고친 뒤 /관리 리로드.
+# 수치는 모두 초기값: 시범 운영 뒤 /관리자 보고서 의 지표를 보고 조정하세요. 고친 뒤 /관리자 리로드.
 # models/, textures/, assets/ 는 tools/assetgen 이 생성합니다.
 namespace: economy

@@ -6,7 +6,7 @@ import java.util.List;
 import java.util.Map;
 import java.util.concurrent.ConcurrentHashMap;
 
-/** Small persistent settings and markers ("season.offset", "done:sched:3:11", ...), cached in memory. */
+/** Small persistent settings and markers ("calendar.epoch", "shop.notice", ...), cached in memory. */
 public final class Kv {
 
     private final Db db;
@@ -57,7 +57,7 @@ public final class Kv {
         db.execute("DELETE FROM eco_state WHERE k = ?", k);
     }
 
-    /** Removes every key starting with a prefix (e.g. "season." on a reset). */
+    /** Removes every key starting with a prefix (e.g. "calendar." on a reset). */
     public void removePrefix(String prefix) {
         cache.keySet().removeIf(k -> k.startsWith(prefix));
         db.execute("DELETE FROM eco_state WHERE k LIKE ?", prefix.replace("%", "") + "%");

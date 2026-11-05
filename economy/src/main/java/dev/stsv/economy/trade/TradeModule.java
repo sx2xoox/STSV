@@ -92,7 +92,6 @@ public final class TradeModule extends EcoModule {
     // ------------------------------------------------------------------------------------------
 
     public void request(Player from, Player to) {
-        if (!eco.season().checkOpen(from, "trade")) return;
         if (from.equals(to)) {
             from.sendMessage(Lang.msg("trade.self"));
             return;

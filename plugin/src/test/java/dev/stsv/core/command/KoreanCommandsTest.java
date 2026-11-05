@@ -23,9 +23,26 @@ class KoreanCommandsTest {
                 "only command words are translated, never names or ids");
         assertArrayEquals(new String[]{"economy", "revert", "Steve", "30"}, StsvCommand.normalize(new String[]{"경제", "되돌리기", "Steve", "30"}));
         assertArrayEquals(new String[]{"reset", "economy", "확인"}, StsvCommand.normalize(new String[]{"초기화", "경제", "확인"}));
+        assertArrayEquals(new String[]{"report"}, StsvCommand.normalize(new String[]{"보고서"}));
+        assertArrayEquals(new String[]{"reset", "경제서버", "확인"}, StsvCommand.normalize(new String[]{"초기화", "경제서버", "확인"}),
+                "a target a content plugin added stays as typed");
         assertEquals(1000, EconomyCommand.parseAmount("1,000"));
         assertEquals(-1, EconomyCommand.parseAmount("-5"));
         assertEquals(-1, EconomyCommand.parseAmount("abc"));
+    }
+
+    @Test
+    void contentPluginsAddToTheAdminCommand() {
+        AdminRegistry r = new AdminRegistry();
+        r.add("STSV-Economy", "사건", "목록", "사건", (s, a) -> { });
+        r.report("STSV-Economy", (s, a) -> { });
+        r.reset("STSV-Economy", "경제서버", "경제 서버 기록", by -> java.util.concurrent.CompletableFuture.completedFuture(null));
+        assertEquals("사건", r.sub("사건").name());
+        assertEquals(1, r.reportList().size());
+        assertEquals("경제서버", r.resetTarget("경제서버").word());
+        r.removeAll("STSV-Economy");
+        assertEquals(null, r.sub("사건"));
+        assertTrue(r.reportList().isEmpty() && r.resetTargets().isEmpty());
     }
 
     @Test
@@ -33,7 +50,7 @@ class KoreanCommandsTest {
         var yaml = org.bukkit.configuration.file.YamlConfiguration.loadConfiguration(
                 new InputStreamReader(getClass().getResourceAsStream("/plugin.yml"), StandardCharsets.UTF_8));
         var names = yaml.getConfigurationSection("commands").getKeys(false);
-        assertEquals(java.util.Set.of("관리", "옷장", "프로필", "명예의전당", "돈", "송금", "수표"), names);
+        assertEquals(java.util.Set.of("관리자", "옷장", "프로필", "명예의전당", "돈", "송금", "수표"), names);
         for (String n : names) assertTrue(n.codePoints().allMatch(c -> c >= 0xAC00 && c <= 0xD7A3), n);
     }
 }

@@ -3,15 +3,14 @@ package dev.stsv.economy.util;
 import java.time.DayOfWeek;
 import java.time.Instant;
 import java.time.LocalDate;
-import java.time.LocalTime;
 import java.time.ZoneId;
-import java.time.ZonedDateTime;
 import java.time.temporal.ChronoUnit;
+import java.time.temporal.TemporalAdjusters;
 
 /**
- * The season calendar. A day starts at the reset hour (05:00), not at midnight, so a late-night
- * session still counts as "today". Day 1 is the day the season started; week 1 is days 1-7.
- * Pure (no Bukkit): unit-tested.
+ * The server calendar. A day starts at the reset hour (05:00), not at midnight, so a late-night
+ * session still counts as "today". Day 1 is the day the economy server first ran; weeks start on
+ * Monday at the reset hour, and week 1 is the week that contains day 1. Pure (no Bukkit): unit-tested.
  */
 public final class Days {
 
@@ -19,52 +18,58 @@ public final class Days {
 
     private final ZoneId zone;
     private final int resetHour;
-    private final long start;
+    private final long epoch;
     private final int offset;
 
-    /** start = epoch millis the season started (0 = no season: always day 1); offset = days added (testing). */
-    public Days(ZoneId zone, int resetHour, long start, int offset) {
+    /** epoch = when the server first ran (0 = now is day 1); offset = days added to the calendar (testing). */
+    public Days(ZoneId zone, int resetHour, long epoch, int offset) {
         this.zone = zone;
         this.resetHour = resetHour;
-        this.start = start;
+        this.epoch = epoch;
         this.offset = offset;
     }
 
     public ZoneId zone() { return zone; }
-    public long start() { return start; }
+    public long epoch() { return epoch; }
 
-    /** The calendar date a moment belongs to (before 05:00 = the previous date). */
-    public LocalDate date(long t) {
+    /** The real calendar date a moment belongs to (before 05:00 = the previous date). */
+    private LocalDate realDate(long t) {
         return Instant.ofEpochMilli(t).atZone(zone).minusHours(resetHour).toLocalDate();
     }
 
+    /** The date the calendar shows for a moment (the testing offset included). */
+    public LocalDate date(long t) {
+        return realDate(t).plusDays(offset);
+    }
+
+    private LocalDate first(long t) {
+        return epoch <= 0 ? realDate(t) : realDate(epoch);
+    }
+
     public int day(long t) {
-        if (start <= 0) return Math.max(1, 1 + offset);
-        return (int) Math.max(1, ChronoUnit.DAYS.between(date(start), date(t)) + 1 + offset);
+        return (int) Math.max(1, ChronoUnit.DAYS.between(first(t), date(t)) + 1);
     }
 
     public int week(long t) {
-        return (day(t) - 1) / 7 + 1;
+        LocalDate monday0 = first(t).with(TemporalAdjusters.previousOrSame(DayOfWeek.MONDAY));
+        LocalDate monday = date(t).with(TemporalAdjusters.previousOrSame(DayOfWeek.MONDAY));
+        return (int) Math.max(1, ChronoUnit.WEEKS.between(monday0, monday) + 1);
     }
 
-    /** When the day that contains t began (its 05:00). */
+    /** When the day that contains t began (its 05:00, real time). */
     public long dayStart(long t) {
-        return date(t).atTime(resetHour, 0).atZone(zone).toInstant().toEpochMilli();
+        return realDate(t).atTime(resetHour, 0).atZone(zone).toInstant().toEpochMilli();
     }
 
     public long nextDayStart(long t) {
-        return date(t).plusDays(1).atTime(resetHour, 0).atZone(zone).toInstant().toEpochMilli();
+        return realDate(t).plusDays(1).atTime(resetHour, 0).atZone(zone).toInstant().toEpochMilli();
     }
 
-    /**
-     * The moment of a clock time on a season day. Times before the reset hour belong to the end of that
-     * day (01:00 of day 3 is the night after day 3's evening).
-     */
-    public long at(int day, LocalTime time) {
-        LocalDate first = start <= 0 ? date(System.currentTimeMillis()).minusDays(Math.max(0, offset)) : date(start).minusDays(offset);
-        LocalDate d = first.plusDays(day - 1L);
-        if (time.getHour() < resetHour) d = d.plusDays(1);
-        return ZonedDateTime.of(d, time, zone).toInstant().toEpochMilli();
+    /** The next start of a day that falls on this weekday (real time), strictly after t's day. */
+    public long next(DayOfWeek weekday, long t) {
+        long at = nextDayStart(t);
+        while (date(at).getDayOfWeek() != weekday) at = nextDayStart(at);
+        return at;
     }
 
     public DayOfWeek weekday(long t) {

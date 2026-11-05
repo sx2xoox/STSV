@@ -2,14 +2,10 @@ name: STSV-Economy
 version: '${version}'
 main: dev.stsv.economy.EcoPlugin
 api-version: '26.3'
-description: STSV 경제 서버 (상점, 시세, 거래소, 경매, 직거래, 노점, 직업, 땅, 의뢰, 주차 사건)
+description: STSV 경제 서버 (계속 운영. 상점, 시세, 거래소, 경매, 직거래, 노점, 직업, 땅, 의뢰, 사건, 주간 순위). 관리 명령어는 STSV 의 /관리자
 authors: [STSV]
 depend: [STSV]
 commands:
-  경제관리:
-    description: 경제 서버 관리 (/경제관리)
-    aliases: [ecoadmin]
-    permission: stsv.economy.admin
   상점:
     description: 관리자 상점 (판매, 구매, 수리)
     aliases: [shop]
@@ -51,11 +47,11 @@ commands:
     aliases: [requests]
     permission: stsv.economy.play
   순위:
-    description: 순자산 순위
+    description: 이번 주에 번 돈 순위 (/순위 자산 = 순자산 순위)
     aliases: [rank]
     permission: stsv.economy.play
   기념비:
-    description: 기념비 건립 (4주차)
+    description: 기념비 건립 (주간 순위 1위의 건립권)
     aliases: [monument]
     permission: stsv.economy.play
   기부:

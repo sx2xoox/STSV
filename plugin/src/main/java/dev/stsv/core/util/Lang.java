@@ -40,7 +40,7 @@ public final class Lang {
 
     /**
      * A content plugin's own plugins/&lt;plugin&gt;/messages.yml (defaults from its jar). Call again to
-     * reload it (e.g. on /관리 리로드).
+     * reload it (e.g. on /관리자 리로드).
      */
     public static void register(JavaPlugin plugin) {
         File file = new File(plugin.getDataFolder(), "messages.yml");

@@ -8,7 +8,6 @@ import dev.stsv.core.util.Lang;
 import dev.stsv.economy.EcoModule;
 import dev.stsv.economy.EcoPlugin;
 import dev.stsv.economy.TradeRules;
-import dev.stsv.economy.season.SeasonModule;
 import dev.stsv.economy.util.Items;
 import dev.stsv.economy.util.Players;
 import net.kyori.adventure.text.Component;
@@ -67,7 +66,6 @@ public final class MarketModule extends EcoModule {
 
     /** /거래소 등록 &lt;가격&gt;: lists the held stack. */
     public void list(Player p, long price) {
-        if (!eco.season().checkOpen(p, "market")) return;
         ItemStack hand = p.getInventory().getItemInMainHand();
         if (hand.isEmpty()) {
             p.sendMessage(Lang.msg("market.hold-item"));
@@ -180,7 +178,6 @@ public final class MarketModule extends EcoModule {
     // ------------------------------------------------------------------------------------------
 
     public void open(Player p, String search, boolean mine) {
-        if (!eco.season().checkOpen(p, "market")) return;
         core.menus().open(p, "economy:market", new View(search, mine));
     }
 
@@ -213,14 +210,14 @@ public final class MarketModule extends EcoModule {
                 all.add(l);
             }
             shown = all;
-            boolean crash = eco.season().isActive("crash");
+            boolean crash = eco.events().isActive("crash");
             List<ItemStack> out = new ArrayList<>();
             for (MarketStore.Listing l : all) {
                 ItemStack it = Items.fromBytes(l.item());
                 boolean isArmed = armed == l.id() && now() - armedAt < 5000;
                 List<Component> extra = Lang.items(crash ? "market.lore-crash" : "market.lore",
                         "price", EconomyModule.format(l.price()), "unit", String.format("%,.1f", l.unit()),
-                        "seller", Players.name(l.seller()), "left", SeasonModule.hoursText(l.expires() - now()));
+                        "seller", Players.name(l.seller()), "left", dev.stsv.economy.event.EventModule.hoursText(l.expires() - now()));
                 extra.addAll(Lang.items(l.seller().equals(me) ? "market.lore-own" : isArmed ? "market.lore-confirm" : "market.lore-buy"));
                 it.editMeta(meta -> {
                     List<Component> lore = meta.hasLore() ? new ArrayList<>(meta.lore()) : new ArrayList<>();

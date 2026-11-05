@@ -1,4 +1,4 @@
-# STSV 경제 서버 문구. MiniMessage 형식, {이름} = 자리표시자. 고친 뒤 /관리 리로드.
+# STSV 경제 서버 문구. MiniMessage 형식, {이름} = 자리표시자. 고친 뒤 /관리자 리로드.
 # 금액 표시 형식은 STSV 의 messages.yml economy.amount.
 
 common:
@@ -8,30 +8,27 @@ stats:
   net_worth: "순자산"
   job_mastery: "직업 숙련"
 
-season:
-  closed: "<red>{feature}은(는) 아직 열리지 않았습니다. <gray>({day}일차 개방)"
-  closed-short: "<red>{feature}: {day}일차 개방"
-  closed-generic: "<red>{feature}: {day}일차 개방"
-  feature:
-    shop: "관리자 상점"
-    market: "거래소"
-    trade: "직거래"
-    requests: "의뢰 게시판"
-    auction: "경매"
-    stall: "노점"
-    nether: "네더"
-    monument: "기념비 건립"
-  event-title: "<gold><b>{event}</b>"
-  event-start: "<gold><b>사건: {event}</b></gold> <white>{detail}</white> <gray>({hours})"
-  event-end: "<gray>사건이 끝났습니다: <white>{event}"
-  event-bar: "<gold>{event}</gold> <white>{detail}</white> <gray>· 남은 시간 {left}"
+event:
+  title: "<gold><b>{event}</b>"
+  start: "<gold><b>사건: {event}</b></gold> <white>{detail}</white> <gray>({hours})"
+  end: "<gray>사건이 끝났습니다: <white>{event}"
+  bar: "<gold>{event}</gold> <white>{detail}</white> <gray>· 남은 시간 {left}"
+
+time:
   hours: "{h}시간 {m}분"
   minutes: "{m}분"
-  no-pvp: "<red>지금은 PvP가 꺼져 있습니다. <gray>(무법 지대 안에서만)"
-  lawless-detail: "중심 {x}, {z} · 반경 {radius}블록 안에서 PvP, 희귀 광맥"
-  lawless-enter: "<red><b>⚔ 무법 지대</b></red> <gray>여기서는 공격받을 수 있습니다"
-  lawless-leave: "<green>무법 지대를 벗어났습니다"
-  region-locked: "<red>{region}: {day}일차에 열립니다"
+
+weekday:
+  MONDAY: "월요일"
+  TUESDAY: "화요일"
+  WEDNESDAY: "수요일"
+  THURSDAY: "목요일"
+  FRIDAY: "금요일"
+  SATURDAY: "토요일"
+  SUNDAY: "일요일"
+
+pvp:
+  disabled: "<red>이 서버는 PvP가 꺼져 있습니다."
 
 activity:
   hud-up: "<green>오늘 +{amount}"
@@ -297,20 +294,19 @@ request:
                    "<gray>달성하면 참여자 모두 </gray>{reward}", "<yellow>클릭: 가진 {item} 전부 납품"]
   community-lore-done: ["<green>✔ 달성! ({target})", "<gray>참여 {contributors}명, 각자 </gray>{reward}"]
   community-complete: "<gold><b>공동 의뢰 달성!</b></gold> <white>{name}</white> <gray>참여 {count}명 모두에게 </gray>{reward}"
-  community-complete-early: "<gold><b>공동 의뢰 달성!</b></gold> <white>{name}</white> <gray>참여 {count}명 모두에게 </gray>{reward}<gray>, 다음 주 개방이 하루 빨라집니다!"
 
 rank:
-  header: "<gold>순자산 순위</gold> <gray>({count}명 · 잔액 + 경매 입찰금 + 땅에 쓴 돈)"
-  line: " <gray>{rank}.</gray> <white>{player}</white> <gray>-</gray> {worth}"
-  line-me: " <yellow>{rank}. {player}</yellow> <gray>-</gray> {worth}"
-  mine: " <gray>...</gray> <yellow>{rank}. 나</yellow> <gray>-</gray> {worth}"
-  daily-header: "<gold><b>{day}일차 순자산 순위</b>"
-  weekly-header: "<gold><b>{week}주차 결산</b></gold> <gray>순자산 순위"
-  weekly-title: "<gold><b>{week}주차 결산</b>"
-  weekly-subtitle: "<gray>1위 <white>{player}</white> {worth}"
-  finale-header: "<gold><b>시즌 마감 · 최종 순자산 순위</b>"
-  finale-title: "<gold><b>시즌 종료</b>"
-  finale-subtitle: "<gray>최고 부자: <white>{player}"
+  header: "<gold>이번 주 순위</gold> <gray>({week}주차 · 이번 주에 번 돈 · 결산까지 {left})"
+  worth-header: "<gold>순자산 순위</gold> <gray>({count}명 · 잔액 + 경매 입찰금 + 땅에 쓴 돈)"
+  line: " <gray>{rank}.</gray> <white>{player}</white> <gray>-</gray> {amount}"
+  line-me: " <yellow>{rank}. {player}</yellow> <gray>-</gray> {amount}"
+  mine: " <gray>...</gray> <yellow>{rank}. 나</yellow> <gray>-</gray> {amount}"
+  last-winner: " <dark_gray>지난 1위 ({week}주차): {player} {amount}"
+  weekly-header: "<gold><b>{week}주차 결산</b></gold> <gray>이번 주에 가장 많이 번 사람"
+  weekly-none: "<gray>{week}주차 결산: 돈을 번 사람이 없습니다."
+  weekly-title: "<gold><b>{week}주차 1위</b>"
+  weekly-subtitle: "<white>{player}</white> <gray>{amount} · 기념비 건립권"
+  monument-right: "<gold><b>주간 1위!</b></gold> <gray>기념비 건립권을 받았습니다 (지금 {count}장). <white>/기념비 <문구>"
 
 vanity:
   owned: "<yellow>이미 가지고 있습니다."
@@ -322,12 +318,13 @@ vanity:
   lore-buy: ["<yellow>두 번 클릭: 구매"]
   lore-confirm: ["<gold><b>한 번 더 클릭하면 구매합니다</b>"]
   lore-owned: ["<green>✔ 보유 중"]
-  monument-usage: "<gray>/기념비 <문구> <dark_gray>({max}자까지, 지금 가격 {price})"
-  monument-full: "<red>기념비 자리가 없습니다. <gray>(관리자: /경제관리 위치 기념비N)"
-  monument-built: "<gold><b>기념비 건립!</b></gold> <white>{player}</white> <gray>\"{text}\" ({price})"
+  monument-usage: "<gray>/기념비 <문구> <dark_gray>({max}자까지, 건립권 {rights}장)"
+  monument-no-right: "<red>기념비는 주간 순위 1위만 세울 수 있습니다. <gray>(1위가 건립권을 받음, /순위)"
+  monument-full: "<red>기념비 자리가 없습니다. <gray>(관리자: /관리자 위치 기념비N)"
+  monument-built: "<gold><b>기념비 건립!</b></gold> <white>{player}</white> <gray>\"{text}\""
   monument-title: "<gold><b>기념비 건립</b>"
   monument-subtitle: "<white>{player}"
-  monument-plate: "<gold><b>{player}</b></gold>\n<white>\"{text}\"</white>\n<gray>{date} · {price}"
+  monument-plate: "<gold><b>{player}</b></gold>\n<white>\"{text}\"</white>\n<gray>{date} · 주간 1위"
   donate-closed: "<red>기부는 세무 조사 기간에만 받습니다."
   donate-usage: "<gray>/기부 <금액> <dark_gray>(합계 {min} 이상이면 칭호)"
   donated: "<yellow>{player}</yellow><gray>님이 나라에 </gray>{amount}<gray>을 기부했습니다."
@@ -336,7 +333,7 @@ vanity:
 report:
   header: "<gold>경제 보고서</gold> <gray>{day}일차"
   supply: " <gray>통화량 <white>{supply} G</white> <dark_gray>(전날 대비 {growth}, 정상 +3~8%)"
-  flow: " <gray>생성 <green>{faucet}</green> · 소멸 <red>{sink}</red> · 소멸/생성 <white>{ratio}</white> <dark_gray>(이번 주 목표 {target})"
+  flow: " <gray>생성 <green>{faucet}</green> · 소멸 <red>{sink}</red> · 소멸/생성 <white>{ratio}</white> <dark_gray>(목표 {target})"
   gini: " <gray>빈부격차(지니) <white>{gini}</white> <dark_gray>(정상 0.35~0.55, 접속 {players}명)"
   income: " <gray>시간당 수입 하위 25% <white>{low} G</white> · 상위 25% <white>{top} G</white> <dark_gray>(하위가 상위의 1/4 이상)"
   floor: " <gray>바닥가에 닿은 품목 <white>{count}개</white> <dark_gray>(2개 이하)"
