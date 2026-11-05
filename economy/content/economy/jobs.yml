@@ -39,12 +39,11 @@ jobs:
     name: "농부"
     color: "#8bc34a"
     icon: minecraft:iron_hoe
-    description: ["다 자란 작물 수확량 +1 / +2 / +3", "주변 작물 성장 가속, 채소 수확 때 하나 더", "Lv3 가축 부산물"]
+    description: ["다 자란 작물 수확량 +1 / +2 / +3 (채소·과일 포함)", "주변 작물 성장 가속", "Lv3 가축 부산물"]
     passive:
       bonus: [1, 2, 3]
-      growth: [0.03, 0.06, 0.10]   # 10초마다 반경 6칸 바닐라 작물이 한 단계 자랄 확률
+      growth: [0.03, 0.06, 0.10]   # 10초마다 반경 6칸 작물(바닐라·커스텀)이 한 단계 자랄 확률
       animal: [0.0, 0.0, 0.15]
-      crop-bonus: [0.15, 0.30, 0.45]     # 커스텀 작물 수확물 +1 확률
     xp:
       harvest: { wheat: 0.5, carrots: 0.5, potatoes: 0.5, beetroots: 0.5, nether_wart: 0.5, cocoa: 0.5, melon: 0.5, pumpkin: 1,
                  economy:tomato: 2, economy:chili: 2, economy:strawberry: 2, economy:onion: 2, economy:garlic: 2, economy:cabbage: 3,

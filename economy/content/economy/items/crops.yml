@@ -68,11 +68,11 @@ cucumber_seeds:
   lore: ["<gray>경작지에 심기. 다 익으면 우클릭으로 수확, 다시 열림."]
   texture: cucumber_seeds
 
-grape_sapling:
+grape_seeds:
   material: paper
-  name: "<#8bc34a>포도 묘목"
+  name: "<#8bc34a>포도 씨앗"
   lore: ["<gray>경작지에 심기. 한 번 심으면 계속 열림."]
-  texture: grape_sapling
+  texture: grape_seeds
 
 tea_seeds:
   material: paper

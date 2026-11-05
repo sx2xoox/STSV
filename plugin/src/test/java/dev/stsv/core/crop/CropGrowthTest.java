@@ -74,6 +74,20 @@ class CropGrowthTest {
     }
 
     @Test
+    void fortuneAddsAsOnVanillaCrops() {
+        Random r = new Random(5);
+        assertEquals(0, CropGrowth.fortune(0, r), "no Fortune, nothing extra");
+        long sum = 0;
+        int runs = 20_000;
+        for (int i = 0; i < runs; i++) {
+            int n = CropGrowth.fortune(3, r);
+            assertTrue(n >= 0 && n <= 3);
+            sum += n;
+        }
+        assertEquals(3 * 4 / 7.0, sum / (double) runs, 0.03, "Fortune III: 1.71 more on average");
+    }
+
+    @Test
     void boneMealAddsTwoToFive() {
         Random r = new Random(3);
         for (int i = 0; i < 200; i++) {

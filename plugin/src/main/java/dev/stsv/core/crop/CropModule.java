@@ -524,12 +524,18 @@ public final class CropModule implements StsvModule, Listener {
                 "pct", s.age * 100 / spec.maxAge(), "notes", notes));
     }
 
-    /** Harvests a ripe crop; replant = it starts again (from one of its seeds, or its regrow age). False if cancelled. */
+    /**
+     * Harvests a ripe crop; replant = it starts again (from one of its seeds, or its regrow age). False if
+     * cancelled. Judged like breaking a vanilla crop: Fortune on the tool in hand adds to every drop the way
+     * it does for wheat seeds, carrots and potatoes, and the harvest costs the same bit of hunger.
+     */
     private boolean harvest(Player p, CropState s, CropSpec spec, boolean replant) {
         ThreadLocalRandom r = ThreadLocalRandom.current();
+        int fortune = p.getInventory().getItemInMainHand().getEnchantmentLevel(org.bukkit.enchantments.Enchantment.FORTUNE);
         List<ItemStack> drops = new ArrayList<>();
         for (CropSpec.Drop d : spec.harvest()) {
             int n = d.max() > d.min() ? r.nextInt(d.min(), d.max() + 1) : d.min();
+            if (d.max() > 0) n += CropGrowth.fortune(fortune, r);
             item(d.item(), n).ifPresent(drops::add);
         }
         Location loc = place(s);
@@ -550,6 +556,7 @@ public final class CropModule implements StsvModule, Listener {
             if (!again) HudModule.flash(p, Lang.mm("crop.no-seed"));
         }
         for (ItemStack it : ev.drops()) if (it != null && !it.isEmpty()) loc.getWorld().dropItemNaturally(loc, it);
+        if (p.getGameMode() != GameMode.CREATIVE) p.setExhaustion(p.getExhaustion() + 0.005f);   // as breaking a block
         p.swingMainHand();
         loc.getWorld().playSound(loc, Sound.BLOCK_CROP_BREAK, 1f, 1f);
         if (again) {
@@ -708,6 +715,31 @@ public final class CropModule implements StsvModule, Listener {
     @EventHandler(ignoreCancelled = true)
     public void onPull(BlockPistonRetractEvent e) {
         if (touchesCrops(e.getBlocks(), e.getDirection())) e.setCancelled(true);
+    }
+
+    /**
+     * Grows the custom crops around a spot one age each with this chance (for contents that speed up
+     * growth near someone, like a farmer's job, the way they would vanilla crops). Returns how many grew.
+     */
+    public int growAround(World w, int x, int y, int z, int radius, int below, int above, double chance) {
+        ThreadLocalRandom r = ThreadLocalRandom.current();
+        int n = 0;
+        for (int cx = (x - radius) >> 4; cx <= (x + radius) >> 4; cx++) {
+            for (int cz = (z - radius) >> 4; cz <= (z + radius) >> 4; cz++) {
+                for (Long id : byChunk.getOrDefault(chunkKey(w.getName(), cx, cz), Set.of())) {
+                    CropState s = crops.get(id);
+                    CropSpec spec = s == null ? null : specs.get(s.crop);
+                    if (spec == null || spec.ripe(s.age) || Math.abs(s.x - x) > radius || Math.abs(s.z - z) > radius
+                            || s.y < y - below || s.y > y + above || r.nextDouble() >= chance) continue;
+                    int before = s.age++;
+                    dirty.add(s.id);
+                    if (spec.stageOf(s.age) != spec.stageOf(before)) refresh(s);
+                    if (r.nextInt(4) == 0) w.spawnParticle(Particle.HAPPY_VILLAGER, s.x + 0.5, s.y + 0.4, s.z + 0.5, 2, 0.2, 0.1, 0.2);
+                    n++;
+                }
+            }
+        }
+        return n;
     }
 
     /** For contents: is this item a seed of a crop? */

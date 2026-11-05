@@ -996,22 +996,6 @@ ICONS["tea_leaves"] = lambda: icon([
     "...m",
 ], {})
 
-ICONS["grape_sapling"] = lambda: icon([
-    ".........443",
-    "........44332",
-    ".......4433321",
-    "........33221",
-    "...443...m21",
-    "..44332.m",
-    "..43321m",
-    "...321m",
-    ".....m",
-    "....nm",
-    "...nm",
-    "..nm",
-    ".nm",
-    ".m",
-], {})
 
 # ------------------------------------------------------------------------------------------------
 # Seed packets: a paper packet showing the crop, a band in the crop's colour
@@ -1029,7 +1013,7 @@ MINI = {   # 6 x 6 pictures for the packet window (legend: BASE + the crop's let
     "radish": (["...434", "..cdc3", ".VVW..", ".VWD..", "VWD...", "W....."], {"V": ("garlic", 3), "W": ("garlic", 2), "D": ("garlic", 1)}),
     "lettuce": ([".e.e..", "edcdd.", "dcVcd.", "dcVcb.", ".bVb..", "..V..."], {"V": ("cabbage", 3)}),
     "cucumber": (["....AY", "...ABC", "..AEC.", ".AEC..", "ABC...", "BC...."], {"A": ("cucumber", 3), "B": ("cucumber", 2), "C": ("cucumber", 1), "E": ("sprout", 3)}),
-    "grape": ([".m.43.", "ABAB2.", "BCBC..", ".ACD..", ".BD...", "..D..."], {"A": ("grape", 4), "B": ("grape", 3), "C": ("grape", 2), "D": ("grape", 1)}),
+    "grape": (["..m43.", "ABAB2.", "BCBCD.", ".ABCD.", ".BCD..", "..D..."], {"A": ("grape", 4), "B": ("grape", 3), "C": ("grape", 2), "D": ("grape", 1)}),
     "tea": (["...ed.", ".yy.c.", "yxxwb.", ".xwv..", "..m...", ".m...."], {}),
 }
 BAND = {"tomato": ("tomato", 2), "chili": ("pepper", 2), "strawberry": ("toadstool", 2), "onion": ("onion", 2), "cabbage": ("leaf", 3),
@@ -1072,7 +1056,7 @@ def packet(crop):
 
 SEEDS = {"tomato_seeds": "tomato", "chili_seeds": "chili", "strawberry_seeds": "strawberry", "onion_seeds": "onion",
          "cabbage_seeds": "cabbage", "rice_seeds": "rice", "corn_seeds": "corn", "green_onion_seeds": "green_onion",
-         "radish_seeds": "radish", "lettuce_seeds": "lettuce", "cucumber_seeds": "cucumber", "tea_seeds": "tea"}
+         "radish_seeds": "radish", "lettuce_seeds": "lettuce", "cucumber_seeds": "cucumber", "grape_seeds": "grape", "tea_seeds": "tea"}
 for _item, _crop in SEEDS.items():
     ICONS[_item] = (lambda c=_crop: packet(c))
 
@@ -1087,7 +1071,7 @@ NAMES = {"tomato": ("토마토", "tomato", "tomato_seeds"), "chili": ("고추", 
          "rice": ("벼", "paddy", "rice_seeds"), "soybean": ("콩", "soybean", "soybean"), "corn": ("옥수수", "corn", "corn_seeds"),
          "green_onion": ("파", "green_onion", "green_onion_seeds"), "radish": ("무", "radish", "radish_seeds"),
          "lettuce": ("상추", "lettuce", "lettuce_seeds"), "cucumber": ("오이", "cucumber", "cucumber_seeds"),
-         "grape": ("포도", "grapes", "grape_sapling"), "tea": ("차나무", "tea_leaves", "tea_seeds")}
+         "grape": ("포도", "grapes", "grape_seeds"), "tea": ("차나무", "tea_leaves", "tea_seeds")}
 
 
 def sheet(path, scale=5):

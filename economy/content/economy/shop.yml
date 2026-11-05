@@ -115,7 +115,7 @@ buy:
   - { item: economy:radish_seeds, amount: 4, price: 40 }
   - { item: economy:lettuce_seeds, amount: 4, price: 30 }
   - { item: economy:cucumber_seeds, amount: 4, price: 40 }
-  - { item: economy:grape_sapling, amount: 1, price: 60 }
+  - { item: economy:grape_seeds, amount: 4, price: 60 }
   - { item: economy:tea_seeds, amount: 4, price: 60 }
   - { item: oak_sapling, amount: 4, price: 10 }
   - { item: bone_meal, amount: 16, price: 40 }

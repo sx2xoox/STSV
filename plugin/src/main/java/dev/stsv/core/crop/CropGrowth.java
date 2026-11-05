@@ -56,6 +56,13 @@ public final class CropGrowth {
         return age;
     }
 
+    /** Fortune on a harvest, as vanilla crops roll it: one extra item per level with chance 4/7 each. */
+    public static int fortune(int level, Random r) {
+        int n = 0;
+        for (int i = 0; i < level; i++) if (r.nextFloat() < 0.5714286f) n++;
+        return n;
+    }
+
     /** Bone meal: 2 to 5 ages, like vanilla crops. */
     public static int boneMeal(int age, int maxAge, Random r) {
         return Math.min(maxAge, age + 2 + r.nextInt(4));

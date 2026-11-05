@@ -428,7 +428,7 @@ public final class JobModule extends EcoModule {
         }
     }
 
-    /** 성장 가속: crops around online farmers grow a step now and then. */
+    /** 성장 가속: crops (vanilla and custom) around online farmers grow a step now and then. */
     private void growCrops() {
         ThreadLocalRandom r = ThreadLocalRandom.current();
         for (Player p : Bukkit.getOnlinePlayers()) {
@@ -443,6 +443,7 @@ public final class JobModule extends EcoModule {
                 b.setBlockData(a, false);
                 if (r.nextInt(4) == 0) b.getWorld().spawnParticle(Particle.HAPPY_VILLAGER, b.getLocation().add(0.5, 0.4, 0.5), 2, 0.2, 0.1, 0.2);
             }
+            core.crops().growAround(c.getWorld(), c.getX(), c.getY(), c.getZ(), 6, 2, 1, chance);
         }
     }
 
@@ -485,13 +486,12 @@ public final class JobModule extends EcoModule {
             case HARVEST -> {
                 reward(p, "harvest", e.crop().id(), 1);
                 if (!"farmer".equals(job(u))) return;
-                // a farmer's harvest: one more of the produce now and then
-                if (ThreadLocalRandom.current().nextDouble() < passive(u, "farmer", "crop-bonus")) {
-                    for (ItemStack it : e.drops()) {
-                        if (e.crop().produce().equals(Items.key(it))) {
-                            it.setAmount(it.getAmount() + 1);
-                            return;
-                        }
+                // the same farmer's bonus as on a vanilla crop: +1 / +2 / +3 of the produce
+                int bonus = (int) Math.round(passive(u, "farmer", "bonus"));
+                for (ItemStack it : e.drops()) {
+                    if (bonus > 0 && e.crop().produce().equals(Items.key(it))) {
+                        it.setAmount(it.getAmount() + bonus);
+                        return;
                     }
                 }
             }

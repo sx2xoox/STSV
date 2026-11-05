@@ -130,14 +130,14 @@ cucumber:
 
 grape:
   name: "포도"
-  seed: grape_sapling
+  seed: grape_seeds
   stages: 5
   max-age: 9
   regrow: 6
   height: 1.0
   harvest:
     - { item: grapes, min: 1, max: 3 }
-    - { item: grape_sapling, min: 0, max: 1 }
+    - { item: grape_seeds, min: 0, max: 1 }
 
 tea:
   name: "차나무"
