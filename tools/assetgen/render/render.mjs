@@ -59,7 +59,7 @@ for (const el of M.elements) {
     const idx = [0, 3, 2, 0, 2, 1];
     g.setAttribute('position', new THREE.Float32BufferAttribute(idx.flatMap(i => c[i]), 3));
     g.setAttribute('uv', new THREE.Float32BufferAttribute(idx.flatMap(i => uv[i]), 2));
-    const s = el.glow ? 1 : SHADE[f];
+    const s = el.glow || el.shade === false ? 1 : SHADE[f];
     scene.add(new THREE.Mesh(g, new THREE.MeshBasicMaterial({ map: tex[face.texture], color: new THREE.Color(s, s, s), side: THREE.FrontSide, alphaTest: 0.1 })));
   }
 }

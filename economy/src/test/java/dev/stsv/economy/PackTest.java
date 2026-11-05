@@ -47,6 +47,44 @@ class PackTest {
     }
 
     @Test
+    void cropPlanesStandLikeVanillaCrops() throws Exception {
+        List<Path> crops;
+        try (var s = Files.list(PACK.resolve("models"))) {
+            crops = s.filter(p -> p.toString().endsWith(".bbmodel")).filter(p -> p.getFileName().toString().matches("[a-z_]+_\\d\\.bbmodel"))
+                    .sorted().toList();
+        }
+        assertEquals(66, crops.size());
+        for (Path p : crops) {
+            String name = p.getFileName().toString().replace(".bbmodel", "");
+            int planes = 0, solids = 0;
+            for (JsonElement el : BBModelConverter.convert(p, "economy:item/" + name).model().getAsJsonArray("elements")) {
+                JsonObject e = el.getAsJsonObject();
+                var from = e.getAsJsonArray("from");
+                var to = e.getAsJsonArray("to");
+                boolean plane = false;
+                for (int a = 0; a < 3; a++) plane |= from.get(a).getAsFloat() == to.get(a).getAsFloat();
+                if (!plane) {
+                    solids++;
+                    assertTrue(from.get(1).getAsFloat() >= -1, name + ": a bulb or root starts at the soil surface");
+                    continue;
+                }
+                planes++;
+                float y = from.get(1).getAsFloat();
+                assertTrue(y == -1 || y == 15, name + ": planes stand 1px down in the farmland, like vanilla crops (" + y + ")");
+                assertTrue(e.has("shade") && !e.get("shade").getAsBoolean(), name + ": plant planes are not shaded by direction");
+                var faces = e.getAsJsonObject("faces");
+                assertEquals(2, faces.size(), name + ": a plane has a front and a back");
+                var uvs = faces.entrySet().stream().map(f -> f.getValue().getAsJsonObject().getAsJsonArray("uv").get(0).getAsFloat()).sorted().toList();
+                assertEquals(List.of(0f, 16f), uvs, name + ": the back is mirrored back, so the picture is the same from both sides");
+            }
+            assertTrue(planes == 2 || planes == 4 || planes == 8, name + ": cross (2) or hash (4) planes, doubled for tall plants");
+            if (name.matches("(radish|onion|garlic|cabbage|green_onion|lettuce|strawberry)_3")) {
+                assertTrue(solids > 0, name + ": roots, bulbs, heads and berries are solid, not painted on the planes");
+            }
+        }
+    }
+
+    @Test
     void bothPacksBuildIntoOneResourcePack() throws Exception {
         List<ContentPack> packs = List.of(new ContentPack("economy", "economy", PACK), new ContentPack("stsv", "stsv", CORE));
         PackBuilder.Built a = new PackBuilder().build(packs, List.of(), 97, "test");

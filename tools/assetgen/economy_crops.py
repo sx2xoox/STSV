@@ -132,7 +132,95 @@ def pad(rows, top=0):
     return [r.ljust(16, ".") for r in rows] + ["." * 16] * (16 - len(rows))
 
 
-STAGES = {}   # crop -> [Image per stage]  (corn: tall stages are (bottom, top) pairs)
+def picture(rows, extra=None):
+    """Any-size picture with no relighting (for the faces of solid parts; the box itself is shaded in game)."""
+    legend = dict(BASE, **(extra or {}))
+    im = Image.new("RGBA", (len(rows[0]), len(rows)), (0, 0, 0, 0))
+    for y, row in enumerate(rows):
+        assert len(row) == len(rows[0]), f"ragged picture: {rows!r}"
+        for x, ch in enumerate(row):
+            if ch != ".":
+                im.putpixel((x, y), ramp(*legend[ch]))
+    return im
+
+
+class Part:
+    """
+    A solid piece of a plant (bulb, root, head): a real box with its own side and top pictures.
+
+    Painted on the crossed planes instead, one bulb shows up once on every plane, as a hollow square
+    or a flat cross. frm/to are model pixels: x and z 0..16, y from -1 (the soil surface) up.
+    """
+
+    def __init__(self, frm, to, side, top, extra=None):
+        self.frm, self.to = tuple(frm), tuple(to)
+        w, h, d = (self.to[i] - self.frm[i] for i in range(3))
+        assert len(side) == h and all(len(r) == w for r in side), f"side picture is not {w}x{h}"
+        assert len(top) == d and all(len(r) == w for r in top), f"top picture is not {w}x{d}"
+        assert w <= 8 and d <= 16 and h <= 16
+        self.side, self.top = picture(side, extra), picture(top, extra)
+        assert self.side.getextrema()[3][0] == 255 and self.top.getextrema()[3][0] == 255, "solid parts are opaque"
+        self.w, self.h, self.d = w, h, d
+
+    def moved(self, dx, dz):
+        p = object.__new__(Part)
+        p.__dict__.update(self.__dict__)
+        p.frm = (self.frm[0] + dx, self.frm[1], self.frm[2] + dz)
+        p.to = (self.to[0] + dx, self.to[1], self.to[2] + dz)
+        return p
+
+    def texture(self):
+        """One opaque 16x16 texture: the side at the left, the top at x=8."""
+        im = Image.new("RGBA", (16, 16), self.side.getpixel((0, 0)))
+        im.paste(self.side, (0, 0))
+        im.paste(self.top, (8, 0))
+        return im
+
+    def uv(self):
+        side = [0, 0, self.w, self.h]
+        top = [8, 0, 8 + self.w, self.d]
+        return {"north": side, "south": side, "east": side, "west": side, "up": top, "down": top}
+
+
+# where the crossed planes of the vanilla-style layout meet: four small plants (bulbs) per block sit here
+CORNERS = ((0, 0), (8, 0), (0, 8), (8, 8))
+
+
+def four(part):
+    """The part (drawn around x=z=4) at all four crossings of the planes."""
+    return [part.moved(dx, dz) for dx, dz in CORNERS]
+
+
+class Stage:
+    """
+    One growth stage: the plane picture(s) and how they stand, plus solid parts.
+
+    layout "hash": four planes at 4 and 12 (vanilla crops). Things drawn at columns 4 and 12 meet where
+                   the planes cross, so a block holds four small plants in a 2x2; rows of crops join up.
+    layout "cross": two diagonal planes through the middle (vanilla flowers): one plant per block,
+                   drawn at the middle (column 8). For plants that stand alone (radish, cabbage, corn).
+    """
+
+    def __init__(self, planes, layout="hash", parts=()):
+        assert layout in ("hash", "cross")
+        self.planes, self.layout, self.parts = planes, layout, list(parts)
+
+    def flat(self):
+        """The front view for the preview sheet: the planes with the solid parts drawn in front."""
+        lo = self.planes[0] if isinstance(self.planes, tuple) else self.planes
+        im = lo.copy()
+        for p in sorted(self.parts, key=lambda p: p.frm[2]):
+            row = 15 - p.to[1]                      # plane rows: row 15 is y -1..0, row 0 is y 14..15
+            im.alpha_composite(p.side, (int(p.frm[0]), int(row)))
+        return im if not isinstance(self.planes, tuple) else (im, self.planes[1])
+
+
+def stage(st):
+    """Older crops are a bare picture (hash layout, no parts)."""
+    return st if isinstance(st, Stage) else Stage(st)
+
+
+STAGES = {}   # crop -> [Stage or picture per stage]  (corn: tall pictures are (bottom, top) pairs)
 ICONS = {}    # item -> callable returning the 16x16 icon
 
 # ------------------------------------------------------------------------------------------------
@@ -180,6 +268,11 @@ def seedlings(sprite=COTYLEDON, xs=(1, 9), bottom=15, g=None):
     for k, x in enumerate(xs):
         g.sprite(sprite, x, bottom - len(sprite) + 1 + (k % 2))
     return g
+
+
+def seedling(sprite=COTYLEDON, bottom=15):
+    """One seedling in the middle (column 8), for plants that grow alone (cross layout)."""
+    return Grid().sprite(sprite, 8 - len(sprite[0]) // 2, bottom - len(sprite) + 1)
 
 
 def leaves(g, spots, recolor=None):
@@ -282,24 +375,26 @@ BERRY_WHITE = [".3.", "VVW", "WVW", ".W."]
 
 
 def _strawberry(flowers=False, berries=None, big=True):
+    """Two plants per plane, at columns 4 and 12: four low plants per block where the planes cross."""
     g = Grid()
-    spots = [(0, 11), (4, 10), (9, 10), (12, 11), (2, 12), (7, 12)] if big else [(1, 12), (5, 11), (10, 12)]
-    for x, y in spots:
-        g.sprite(TRIO, x, y)
-    if flowers:
-        for x, y in ((2, 8), (8, 8), (13, 9)):
-            g.sprite(FLOWER_W, x, y)
-    if berries:
-        for x, y in ((1, 12), (6, 11), (11, 12), (13, 12)):
-            g.sprite(berries, x, y)
+    for cx in (4, 12):
+        for x, y in ([(cx - 4, 11), (cx - 1, 11), (cx - 2, 9)] if big else [(cx - 3, 12), (cx - 1, 11)]):
+            g.sprite(TRIO, x, y)
+        if flowers:
+            g.sprite(FLOWER_W, cx - 4 if cx == 4 else cx + 1, 7)
     return g
 
 
+# ripe berries: solid, two by each of the four plants, lying on the soil
+BERRY_SOLID = Part((0, -1, 0), (2, 1, 2), ["QZ", "SR"], ["3P", "PQ"], STRAW)
+BERRIES = [BERRY_SOLID.moved(x, z) for x, z in ((5, 1), (1, 5))]
+
+
 STAGES["strawberry"] = [
-    image(seedlings(TRIO, xs=(2, 9)).rows()),
+    image(seedlings(TRIO, xs=(2, 10)).rows()),
     image(_strawberry(big=False).rows()),
     image(_strawberry(flowers=True).rows()),
-    image(_strawberry(berries=BERRY).rows(), STRAW),
+    Stage(image(_strawberry().rows()), parts=[b for p in BERRIES for b in four(p)]),
 ]
 
 # ================================================================================================
@@ -317,21 +412,32 @@ def _tubes(g, x, top, chars="432", lean=0):
     return g
 
 
+ONION_YOUNG = Part((3, -1, 3), (5, 1, 5), ["EE", "FF"], ["cd", "dc"], ONION)
+ONION_BULB = Part((2, -1, 2), (6, 2, 6), ["BAAB", "ABBC", "BCCD"], ["CBBC", "BAAB", "BAAB", "CBBC"], ONION)
+ONION_NECK = Part((3, 2, 3), (5, 3, 5), ["kj"], ["jk", "kj"])
+
+
+def _flopped(g, cx, base):
+    """Dry leaves fallen over from a neck at column cx."""
+    g.line([(cx - 1, base), (cx - 3, base - 3), (cx - 4, base - 4)], "i")
+    g.line([(cx, base), (cx + 2, base - 2), (cx + 3, base - 2)], "j")
+    g.line([(cx, base), (cx + 1, base - 4), (cx, base - 6)], "k")
+    return g
+
+
 STAGES["onion"] = [
-    image(seedlings(BLADES, xs=(2, 10)).rows()),
-    image(_tubes(_tubes(Grid(), 3, 9), 10, 10).rows()),
-    image(_tubes(_tubes(Grid(), 3, 4), 10, 5).sprite(["ECE", "FDF"], 3, 14).sprite(["ECE", "FDF"], 10, 14).rows(), ONION),
-    image(Grid()
-          .line([(4, 13), (1, 9), (0, 8)], "i").line([(5, 13), (8, 10), (10, 10)], "j").line([(4, 13), (5, 8), (4, 6)], "k")
-          .line([(11, 13), (14, 10), (15, 10)], "i").line([(11, 13), (11, 9), (12, 7)], "j")
-          .sprite([".AB.", "ABBC", "BBCD", ".CD."], 3, 12).sprite([".AB.", "ABBC", "BBCD", ".CD."], 10, 12).rows(), ONION),
+    Stage(image(seedlings(BLADES, xs=(2, 10)).rows())),
+    Stage(image(_tubes(_tubes(Grid(), 3, 9), 11, 10).rows())),
+    Stage(image(_tubes(_tubes(Grid(), 3, 4), 11, 5).rows()), parts=four(ONION_YOUNG)),
+    Stage(image(_flopped(_flopped(Grid(), 4, 12), 12, 12).rows()), parts=four(ONION_BULB) + four(ONION_NECK)),
 ]
 
 # ================================================================================================
 # 마늘: flat leaves in a fan, a curled scape, white bulbs when the leaves dry
 # ================================================================================================
 
-GARLIC = {"A": ("garlic", 3), "B": ("garlic", 2), "C": ("garlic", 1), "D": ("garlic", 0), "U": ("petal_purple", 0)}
+GARLIC = {"A": ("garlic", 3), "B": ("garlic", 2), "C": ("garlic", 1), "D": ("garlic", 0), "U": ("petal_purple", 0),
+          "G": ("petal_purple", 2)}
 
 
 def _fan(g, x, top, recolor=None):
@@ -343,12 +449,14 @@ def _fan(g, x, top, recolor=None):
     return g
 
 
+GARLIC_BULB = Part((2, -1, 2), (6, 2, 6), ["BAAB", "AGBC", "BCGD"], ["CBBC", "BAAB", "BAAB", "CBBC"], GARLIC)
+GARLIC_NECK = Part((3, 2, 3), (5, 3, 5), ["kj"], ["jk", "kj"])
+
 STAGES["garlic"] = [
-    image(seedlings(BLADES, xs=(3, 10)).rows()),
-    image(_fan(_fan(Grid(), 4, 9), 11, 10).rows()),
-    image(_fan(_fan(Grid(), 4, 4), 11, 5).line([(5, 15), (6, 3), (8, 1), (9, 2)], "2").sprite(["W"], 9, 2).rows()),
-    image(_fan(_fan(Grid(), 4, 7, DRY), 11, 8, DRY).sprite([".AB.", "ABBC", "BUBD", ".CD."], 3, 12)
-          .sprite([".AB.", "ABBC", "BUBD", ".CD."], 10, 12).rows(), GARLIC),
+    Stage(image(seedlings(BLADES, xs=(2, 10)).rows())),
+    Stage(image(_fan(_fan(Grid(), 3, 9), 11, 10).rows())),
+    Stage(image(_fan(_fan(Grid(), 3, 4), 11, 5).line([(4, 15), (5, 3), (7, 1), (8, 2)], "2").sprite(["W"], 8, 2).rows())),
+    Stage(image(_fan(_fan(Grid(), 3, 7, DRY), 11, 8, DRY).rows()), parts=four(GARLIC_BULB) + four(GARLIC_NECK)),
 ]
 
 # ================================================================================================
@@ -370,23 +478,27 @@ def _cabbage_leaves(g, big):
     return g
 
 
+CABBAGE_HEART = Part((6, -1, 6), (10, 4, 10), ["CBBC", "3CB2", "3VC2", "4VC2", "3W21"], ["CBBC", "BAAB", "BAAB", "CBBC"], CABBAGE)
+CABBAGE_HEAD = Part((5, -1, 5), (11, 10, 11), [
+    "CBAABC",
+    "3BAAB2",
+    "3CBAC2",
+    "4CVBC2",
+    "43VC32",
+    "43VC32",
+    "43W332",
+    "33W321",
+    "43W321",
+    "33W221",
+    "322221",
+], ["CBBBBC", "BAABAB", "BABAAB", "BAABAB", "BABAAB", "CBBBBC"], CABBAGE)
+
 STAGES["cabbage"] = [
-    image(seedlings().rows()),
-    image(_cabbage_leaves(Grid(), False).rows(), CABBAGE),
-    image(_cabbage_leaves(Grid(), True).sprite(UPRIGHT, 4, 7).sprite(UPRIGHT, 8, 7).sprite(UPRIGHT, 6, 9).rows(), CABBAGE),
-    image(_cabbage_leaves(Grid(), True).sprite([
-        "..AAB...",
-        ".AABBC..",
-        "4AABBCC2",
-        "44ABBC32",
-        "44ABBC32",
-        "43ABCC32",
-        "43ABC322",
-        "433BC321",
-        "4433C321",
-        ".433C21.",
-        "..4321..",
-    ], 4, 4).rows(), CABBAGE),
+    Stage(image(seedling().rows()), "cross"),
+    Stage(image(_cabbage_leaves(Grid(), False).rows(), CABBAGE), "cross"),
+    Stage(image(_cabbage_leaves(Grid(), True).sprite(UPRIGHT, 4, 7).sprite(UPRIGHT, 8, 7).rows(), CABBAGE), "cross",
+          [CABBAGE_HEART]),
+    Stage(image(_cabbage_leaves(Grid(), True).rows(), CABBAGE), "cross", [CABBAGE_HEAD]),
 ]
 
 # ================================================================================================
@@ -485,7 +597,7 @@ def _blade(g, x, y, right=True, length=6, light="4", dark="2"):
 
 
 STAGES["corn"] = [
-    image(seedlings(BLADES, xs=(2, 10)).rows()),
+    image(seedling(BLADES).rows()),
     image(_blade(_blade(_blade(_stalk(Grid(), 7, 10), 7, 13, False, 5), 8, 11, True, 6), 7, 10, False, 4, "4", "3").rows()),
     image(_blade(_blade(_blade(_blade(_blade(_stalk(Grid(), 7, 2), 7, 13, False, 7), 8, 10, True, 7), 7, 7, False, 6), 8, 4, True, 6),
                  7, 3, False, 4, "4", "3").line([(7, 2), (7, 0)], "4").rows()),
@@ -512,24 +624,29 @@ def _corn_tall(ripe):
 
 
 STAGES["corn"] += [_corn_tall(False), _corn_tall(True)]
+STAGES["corn"] = [Stage(st, "cross") for st in STAGES["corn"]]      # one stalk per block, not four around it
 
 # ================================================================================================
 # 파: dense clumps of dark hollow leaves on white stems
 # ================================================================================================
 
 
-def _scallion(g, x, top):
+def _scallion(g, x, top, base):
+    """Four hollow leaves fanning up from a white stem: columns x..x+3, so x=2 and x=10 meet the crossings."""
     for dx, t, ch in ((0, top + 2, "x"), (1, top, "y"), (2, top + 1, "x"), (3, top + 3, "w")):
-        g.line([(x + dx, 15 - 3), (x + dx + (dx - 1.5) * 0.6, t)], ch)
-        g.col(x + dx, 14, 15, "VW" + "W")
+        g.line([(x + dx, base), (x + dx + (dx - 1.5) * 0.6, t)], ch)
     return g
 
 
+STEM_YOUNG = Part((3, -1, 3), (5, 1, 5), ["VV", "WW"], ["xy", "yx"])
+STEM = Part((3, -1, 3), (5, 3, 5), ["xV", "VV", "VW", "WW"], ["xy", "yx"])
+
 STAGES["green_onion"] = [
-    image(seedlings(BLADES, xs=(2, 10)).rows()),
-    image(Grid().line([(3, 15), (3, 10)], "x").line([(4, 15), (5, 9)], "y").line([(11, 15), (11, 9)], "x").line([(12, 15), (13, 10)], "w").rows()),
-    image(_scallion(_scallion(Grid(), 2, 6), 10, 7).rows()),
-    image(_scallion(_scallion(_scallion(Grid(), 1, 3), 6, 2), 11, 4).rows()),
+    Stage(image(seedlings(BLADES, xs=(2, 10)).rows())),
+    Stage(image(Grid().line([(3, 15), (3, 10)], "x").line([(4, 15), (5, 9)], "y").line([(11, 15), (11, 9)], "x")
+                .line([(12, 15), (13, 10)], "w").rows())),
+    Stage(image(_scallion(_scallion(Grid(), 2, 6, 14), 10, 7, 14).rows()), parts=four(STEM_YOUNG)),
+    Stage(image(_scallion(_scallion(Grid(), 2, 1, 12), 10, 2, 12).rows()), parts=four(STEM)),
 ]
 
 # ================================================================================================
@@ -549,12 +666,24 @@ def _rosette(g, spots, crown=(7, 15)):
     return g
 
 
+RADISH_TOP = Part((7, -1, 7), (9, 1, 9), ["dc", "AB"], ["dc", "cd"], RADISH)
+RADISH_ROOT = Part((5, -1, 5), (11, 5, 11), [
+    "ccddcb",
+    "bcddcb",
+    "AcAdBc",
+    "AAAABC",
+    "BAAABC",
+    "BBAACD",
+], ["bccccb", "cddddc", "cd22dc", "cd22dc", "cddddc", "bccccb"], RADISH)
+
+RADISH_CROWN = Part((6, 5, 6), (10, 6, 10), ["cddc"], ["cddc", "d22d", "d22d", "cddc"], RADISH)
+
 STAGES["radish"] = [
-    image(seedlings().rows()),
-    image(_rosette(Grid(), [(1, 11), (5, 10), (9, 10), (12, 11)]).rows()),
-    image(_rosette(Grid(), [(0, 8), (3, 6), (8, 6), (12, 8), (2, 10), (10, 10)]).rows()),
-    image(_rosette(Grid(), [(0, 5), (3, 3), (8, 3), (12, 5), (1, 8), (11, 8)], crown=(7, 11))
-          .sprite([".cdc.", "cddcb", "ABBBC", "ABBCD", "ABBCD"], 5, 11).rows(), RADISH),
+    Stage(image(seedling().rows()), "cross"),
+    Stage(image(_rosette(Grid(), [(1, 11), (5, 10), (9, 10), (12, 11)]).rows()), "cross"),
+    Stage(image(_rosette(Grid(), [(0, 8), (3, 6), (8, 6), (12, 8), (2, 10), (10, 10)]).rows()), "cross", [RADISH_TOP]),
+    Stage(image(_rosette(Grid(), [(0, 4), (3, 2), (8, 2), (12, 4), (1, 7), (11, 7)], crown=(7, 9)).rows()), "cross",
+          [RADISH_ROOT, RADISH_CROWN]),
 ]
 
 # ================================================================================================
@@ -563,12 +692,18 @@ STAGES["radish"] = [
 
 RUFFLE = [".e.d.", "edddc", "dcccb", ".bcb."]
 
+LETTUCE_HEART = [
+    Part((5, -1, 5), (11, 1, 11), ["dcedcd", "bcbcab"], ["cdedcd", "dcddec", "edcbdc", "cdbcde", "ceddcd", "dcdecd"]),
+    Part((6, 1, 6), (10, 2, 10), ["edde"], ["edde", "dccd", "dccd", "edde"]),
+]
+
 STAGES["lettuce"] = [
-    image(seedlings().rows()),
-    image(Grid().sprite(RUFFLE, 1, 12).sprite(RUFFLE, 9, 12).rows()),
-    image(Grid().sprite(RUFFLE, 0, 11).sprite(RUFFLE, 5, 10).sprite(RUFFLE, 10, 11).sprite(RUFFLE, 3, 12).sprite(RUFFLE, 8, 12).rows()),
-    image(Grid().sprite(RUFFLE, 0, 10).sprite(RUFFLE, 4, 8).sprite(RUFFLE, 8, 8).sprite(RUFFLE, 11, 10).sprite(RUFFLE, 2, 11)
-          .sprite(RUFFLE, 6, 11).sprite(RUFFLE, 10, 12).sprite(["43.", "321"], 6, 10, None).rows()),
+    Stage(image(seedling().rows()), "cross"),
+    Stage(image(Grid().sprite(RUFFLE, 3, 12).sprite(RUFFLE, 8, 12).sprite(RUFFLE, 6, 11).rows()), "cross"),
+    Stage(image(Grid().sprite(RUFFLE, 0, 11).sprite(RUFFLE, 5, 10).sprite(RUFFLE, 10, 11).sprite(RUFFLE, 3, 12)
+                .sprite(RUFFLE, 8, 12).rows()), "cross"),
+    Stage(image(Grid().sprite(RUFFLE, 0, 10).sprite(RUFFLE, 4, 8).sprite(RUFFLE, 8, 8).sprite(RUFFLE, 11, 10).sprite(RUFFLE, 2, 11)
+                .sprite(RUFFLE, 6, 11).sprite(RUFFLE, 10, 12).rows()), "cross", LETTUCE_HEART),
 ]
 
 # ================================================================================================
@@ -597,13 +732,13 @@ def _vine(fruit=None, flowers=False):
     return g
 
 
-STAGES["cucumber"] = [
-    image(seedlings().rows()),
+STAGES["cucumber"] = [Stage(st, "cross") for st in (
+    image(seedling().rows()),
     image(Grid().sprite(BIG, 0, 10).sprite(BIG, 9, 9).line([(4, 15), (5, 12), (9, 11)], "2").sprite(BIG, 4, 11).rows()),
     image(_vine().rows()),
     image(_vine(fruit=CUKE_SMALL, flowers=True).rows(), CUKE),
     image(_vine(fruit=CUCUMBER).rows(), CUKE),
-]
+)]
 
 # ================================================================================================
 # 포도: a woody vine on a post with a crossbar, lobed leaves, bunches (green, then purple)
@@ -1097,6 +1232,7 @@ def sheet(path, scale=5):
             x = left + k * (cell + gap)
             base = y0 + row_h - gap - s
             d.rectangle([x, base, x + cell - 1, base + s], fill=farmland)
+            st = stage(st).flat()
             if isinstance(st, tuple):
                 im.alpha_composite(st[0].resize((cell, cell), Image.NEAREST), (x, base - cell))
                 im.alpha_composite(st[1].resize((cell, cell), Image.NEAREST), (x, base - 2 * cell))

@@ -80,7 +80,7 @@ def main():
     sheet(E, PREVIEWS / "economy_items.png")
     gui_sheet(G, menus, PREVIEWS / "economy_menus.png")
     if render:
-        crop_models = {f"{n}_{st}" for n, (k, stages, *_) in M.CROPS.items() for st in range(stages)} | {"withered_crop"}
+        crop_models = {f"{c}_{st}" for c, stages in CR.STAGES.items() for st in range(len(stages))}
         machines = [Image.open(BUILD / f"eco_{n}.png").convert("RGBA") for n in M.ALL if n not in crop_models]
         w = sum(m.width for m in machines)
         out = Image.new("RGBA", (w, max(m.height for m in machines)), (40, 40, 48, 255))
@@ -90,16 +90,44 @@ def main():
             x += m.width
         out = out.resize((out.width // 3, out.height // 3))
         out.save(PREVIEWS / "economy_machines.png")
-        # crops: one row per crop, its stages left to right; the withered look at the end
-        rows = [[f"eco_{n}_{st}.png" for st in range(stages)] for n, (k, stages, *_) in M.CROPS.items()]
-        rows[-1] = rows[-1] + ["eco_withered_crop.png"]
-        ims = [[Image.open(BUILD / f).convert("RGBA") for f in r] for r in rows]
-        cw, ch = ims[0][0].width // 3, ims[0][0].height // 3
-        out = Image.new("RGBA", (cw * max(len(r) for r in ims), ch * len(ims)), (40, 40, 48, 255))
-        for y, r in enumerate(ims):
-            for x, im in enumerate(r):
-                out.alpha_composite(im.resize((cw, ch)), (x * cw, y * ch))
-        out.save(PREVIEWS / "economy_crops.png")
+        # crops: every ripe crop as it stands in a field (2x2 blocks on farmland), to judge the 3D look
+        crop_field(M, CR, BUILD / "crop_field.preview.json")
+        subprocess.run(["node", str(HERE / "render" / "render.mjs"), str(BUILD / "crop_field.preview.json"),
+                        str(PREVIEWS / "crops_3d.png")], check=True)
+
+
+def crop_field(M, CR, path, cols=5, gap=12):
+    """Ripe stage of each crop, 2x2 blocks on farmland, in rows of five (left to right as in crops.yml)."""
+    import base64
+    import io
+    soil = Image.new("RGBA", (16, 16))
+    for y in range(16):
+        for x in range(16):
+            soil.putpixel((x, y), (74, 42, 22, 255) if y % 4 == 0 else (92, 54, 30, 255) if (x * 7 + y * 3) % 5 else (104, 62, 34, 255))
+    buf = io.BytesIO()
+    soil.save(buf, "PNG")
+    textures = {"soil": "data:image/png;base64," + base64.b64encode(buf.getvalue()).decode()}
+    elements = []
+    for k, (crop, stages) in enumerate(CR.STAGES.items()):
+        data = M.ALL[f"{crop}_{len(stages) - 1}"]().to_preview()
+        textures.update(data["textures"])
+        for bx in range(2):
+            for bz in range(2):
+                ox, oz = (k % cols) * (32 + gap) + bx * 16, (k // cols) * (32 + gap) + bz * 16
+                # farmland: its top is 1px below the crop block's floor
+                elements.append({"from": [ox, -5, oz], "to": [ox + 16, -1, oz + 16], "glow": False, "rotation": None,
+                                 "faces": {f: {"uv": [0, 0, 16, 16], "texture": "soil"} for f in ("up", "north", "south", "east", "west")}})
+                for e in data["elements"]:
+                    e = dict(e)
+                    e["from"] = [e["from"][0] + ox, e["from"][1], e["from"][2] + oz]
+                    e["to"] = [e["to"][0] + ox, e["to"][1], e["to"][2] + oz]
+                    if e.get("rotation"):
+                        axis, angle, o = e["rotation"]
+                        e["rotation"] = [axis, angle, [o[0] + ox, o[1], o[2] + oz]]
+                    elements.append(e)
+    path.write_text(json.dumps({"textures": textures, "elements": elements, "grid": False,
+                                "views": [{"x": 0, "y": 0, "w": 1600, "h": 1000, "az": 180, "el": 46, "k": 1.95}]}))
+
 
 def sheet(E, path, cols=9, scale=4):
     items = list(E.ITEMS.items())

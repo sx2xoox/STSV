@@ -579,6 +579,12 @@ public final class CropModule implements StsvModule, Listener {
         CropEvent ev = new CropEvent(CropEvent.Action.BREAK, p, spec, place(s), List.of());
         Bukkit.getPluginManager().callEvent(ev);
         if (ev.isCancelled()) return;
+        if (p.getGameMode() == GameMode.CREATIVE) {
+            // like breaking a vanilla crop in creative: it is gone, nothing drops
+            place(s).getWorld().playSound(place(s), Sound.BLOCK_CROP_BREAK, 1f, 1f);
+            remove(s);
+            return;
+        }
         if (spec.ripe(s.age)) {
             harvest(p, s, spec, false);   // broken by hand: harvested and gone
             return;
@@ -620,11 +626,25 @@ public final class CropModule implements StsvModule, Listener {
         // broken the normal way (protection, job rewards, fortune all see a normal harvest); one seed of the drops replants it
         replanting = new Replant(b, seed);
         seedTaken = false;
+        // breaking in creative drops nothing (vanilla); harvesting by hand is ours, and gives the harvest in every mode
+        boolean creative = p.getGameMode() == GameMode.CREATIVE;
+        List<ItemStack> creativeDrops = creative ? new ArrayList<>(b.getDrops(p.getInventory().getItemInMainHand(), p)) : List.of();
         boolean broken;
         try {
             broken = p.breakBlock(b);
         } finally {
             replanting = null;
+        }
+        if (broken && creative) {
+            Location at = b.getLocation().add(0.5, 0.5, 0.5);
+            boolean seedUsed = false;
+            for (ItemStack it : creativeDrops) {
+                if (!seedUsed && it.getType() == seed) {
+                    it.subtract(1);
+                    seedUsed = true;
+                }
+                if (!it.isEmpty()) b.getWorld().dropItemNaturally(at, it);
+            }
         }
         if (!broken || !b.isEmpty() || b.getRelative(BlockFace.DOWN).getType() != Material.FARMLAND) return;
         if (!seedTaken && p.getGameMode() != GameMode.CREATIVE && !takeOne(p, seed.getKey().asString())) {

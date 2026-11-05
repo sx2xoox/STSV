@@ -43,6 +43,7 @@ fc569adc2876f3c38af4ca7dbd7d26c7c9144cfc economy/assets/economy/textures/item/gu
 72e384defb0c431c734740db6d66b08c5e7de6a4 economy/crops/crops.yml
 88ef03303ff504a7f02273485ff55e13fe721c5c economy/crops/crops.yml
 8cc2d53ba14fe7e7d77bb23479ab474d94e46ff8 economy/crops/crops.yml
+379a2320c087123e4a8e9d02166c7084398e28c9 economy/events.yml
 bceb0c402f2a9d2ea61ee6013e06d537fb3cccd1 economy/events.yml
 0839d977c3cfee7569c183679d3b1e5af7c04523 economy/items/crops.yml
 19bd5fe99995da0b81875b2fda6898d1a1a3c3b8 economy/items/crops.yml

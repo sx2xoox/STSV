@@ -164,28 +164,45 @@ ALL = {f.__name__: f for f in (crusher, fish_tank, reinforcing_table, cooking_ta
 
 
 # ------------------------------------------------------------------------------------------------
-# Crops: every growth stage is four crossed planes (like vanilla crops) with a hand-drawn cut-out
-# texture (economy_crops.py). Plants two blocks tall (corn) stack a second set of planes on top.
+# Crops: each growth stage is a hand-drawn cut-out picture (economy_crops.py) on planes standing the way
+# vanilla plants do: "hash" = four planes at 4 and 12 (wheat, carrots), "cross" = two diagonal planes
+# (flowers, saplings). Like vanilla, the planes start 1px down in the farmland, have no shading by
+# direction, and show the picture the same way round from both sides. Bulbs, roots and heads are solid
+# boxes. Plants two blocks tall (corn) stack a second set of planes on top.
 # ------------------------------------------------------------------------------------------------
 
 import economy_crops as CROPS   # noqa: E402
 
-
-def _planes(m, tex, y0, y1):
-    for i, x in enumerate((4, 12)):
-        m.box(f"x{i}_{y0}", (x, y0, 0), (x, y1, 16), tex, faces={"north": None, "south": None, "up": None, "down": None},
-              full_uv=["east", "west"])
-    for i, z in enumerate((4, 12)):
-        m.box(f"z{i}_{y0}", (0, y0, z), (16, y1, z), tex, faces={"east": None, "west": None, "up": None, "down": None},
-              full_uv=["north", "south"])
+SOIL = -1      # farmland is 15/16 high: its top is 1px below the crop block's floor
+FRONT, BACK = [0, 0, 16, 16], [16, 0, 0, 16]      # the back face mirrored back, so the picture lines up
 
 
-def _crop_model(name, low, high=None):
+def _planes(m, tex, y0, layout):
+    y1 = y0 + 16
+    if layout == "hash":
+        for i, x in enumerate((4, 12)):
+            m.box(f"x{i}_{y0}", (x, y0, 0), (x, y1, 16), tex, faces={"north": None, "south": None, "up": None, "down": None},
+                  uv={"east": FRONT, "west": BACK}, shade=False)
+        for i, z in enumerate((4, 12)):
+            m.box(f"z{i}_{y0}", (0, y0, z), (16, y1, z), tex, faces={"east": None, "west": None, "up": None, "down": None},
+                  uv={"north": FRONT, "south": BACK}, shade=False)
+    else:
+        m.box(f"a_{y0}", (0, y0, 8), (16, y1, 8), tex, faces={"east": None, "west": None, "up": None, "down": None},
+              uv={"north": FRONT, "south": BACK}, rotation=("y", 45, (8, 8, 8)), shade=False)
+        m.box(f"b_{y0}", (8, y0, 0), (8, y1, 16), tex, faces={"north": None, "south": None, "up": None, "down": None},
+              uv={"east": FRONT, "west": BACK}, rotation=("y", 45, (8, 8, 8)), shade=False)
+
+
+def _crop_model(name, low, high, layout, parts):
     m = Model(name)
     m.group("plant")
-    _planes(m, low, 0, 16)
+    _planes(m, low, SOIL, layout)
     if high:
-        _planes(m, high, 16, 32)
+        _planes(m, high, SOIL + 16, layout)
+    if parts:
+        m.group("solid")
+        for i, (tex, p) in enumerate(parts):
+            m.box(f"part{i}", p.frm, p.to, tex, uv=p.uv())
     m.display = presets.furniture(gui_scale=0.6)
     return m
 
@@ -193,16 +210,25 @@ def _crop_model(name, low, high=None):
 def _crop_builders():
     out = {}
     for crop, stages in CROPS.STAGES.items():
-        for s, im in enumerate(stages):
-            if isinstance(im, tuple):
-                lo, hi = f"crop_{crop}_{s}_lo", f"crop_{crop}_{s}_hi"
-                T.SURFACES[lo] = (lambda img=im[0]: img.copy())
-                T.SURFACES[hi] = (lambda img=im[1]: img.copy())
-                out[f"{crop}_{s}"] = (lambda n=f"{crop}_{s}", a=lo, b=hi: _crop_model(n, a, b))
+        for s, st in enumerate(stages):
+            st = CROPS.stage(st)
+            name = f"{crop}_{s}"
+            if isinstance(st.planes, tuple):
+                lo, hi = f"crop_{name}_lo", f"crop_{name}_hi"
+                T.SURFACES[lo] = (lambda img=st.planes[0]: img.copy())
+                T.SURFACES[hi] = (lambda img=st.planes[1]: img.copy())
             else:
-                tex = f"crop_{crop}_{s}"
-                T.SURFACES[tex] = (lambda img=im: img.copy())
-                out[f"{crop}_{s}"] = (lambda n=f"{crop}_{s}", t=tex: _crop_model(n, t))
+                lo, hi = f"crop_{name}", None
+                T.SURFACES[lo] = (lambda img=st.planes: img.copy())
+            parts, seen = [], {}
+            for p in st.parts:
+                img = p.texture()
+                key = img.tobytes()
+                if key not in seen:          # the same bulb four times: one texture
+                    seen[key] = f"crop_{name}_part{len(seen)}"
+                    T.SURFACES[seen[key]] = (lambda im=img: im.copy())
+                parts.append((seen[key], p))
+            out[name] = (lambda n=name, a=lo, b=hi, lay=st.layout, ps=tuple(parts): _crop_model(n, a, b, lay, ps))
     return out
 
 

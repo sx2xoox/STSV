@@ -58,7 +58,7 @@ class Model:
         self._group = name
         return self
 
-    def box(self, name, frm, to, tex, faces=None, full_uv=(), glow=False, rotation=None, uv=None, side_v=None):
+    def box(self, name, frm, to, tex, faces=None, full_uv=(), glow=False, rotation=None, uv=None, side_v=None, shade=True):
         """
         tex:      texture used on every face
         faces:    {face: texture | None}  override / remove faces (None = no face, e.g. hidden sides)
@@ -67,6 +67,7 @@ class Model:
         rotation: (axis, angle, origin)  axis in "xyz", angle in 22.5° steps between -45 and 45
         uv:       {face: [u1, v1, u2, v2]} explicit UVs
         side_v:   (v1, v2) texture rows used on the four side faces (keeps e.g. a seam row off thin sides)
+        shade:    False = no light/shadow by face direction (vanilla plants: every leaf plane equally lit)
         """
         fs = {f: tex for f in FACES}
         if faces:
@@ -82,7 +83,7 @@ class Model:
         self.elements.append({
             "name": name, "group": self._group, "from": frm, "to": to, "faces": fs,
             "full_uv": set(full_uv), "glow": glow, "rotation": rotation, "uv": uv or {},
-            "side_v": side_v,
+            "side_v": side_v, "shade": shade,
         })
         return self
 
@@ -263,6 +264,7 @@ class Model:
             }
             if e["glow"]:
                 el["light_emission"] = 15
+            if e["glow"] or not e.get("shade", True):
                 el["shade"] = False
             elements.append(el)
             groups.setdefault(e["group"], []).append(uid)
@@ -286,7 +288,7 @@ class Model:
             "textures": {t: "data:image/png;base64," + base64.b64encode(self._png(t)).decode()
                          for t in self.textures_used()},
             "elements": [{
-                "from": e["from"], "to": e["to"], "glow": e["glow"],
+                "from": e["from"], "to": e["to"], "glow": e["glow"], "shade": e.get("shade", True),
                 "rotation": list(e["rotation"][:2]) + [list(e["rotation"][2])] if e["rotation"] else None,
                 "faces": {f: {"uv": self._face_uv(e, f), "texture": t} for f, t in e["faces"].items()},
             } for e in self.elements],
