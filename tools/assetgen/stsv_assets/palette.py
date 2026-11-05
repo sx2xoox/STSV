@@ -102,6 +102,18 @@ MATERIALS = {
     "melon_rind":  (108, 0.060, 0.66, 0.36, 5, False),   # netted muskmelon: green-beige rind to pale net
     "musk":        (135, 0.070, 0.70, 0.36, 5, False),   # muskmelon rind under the net: soft mint green
     "melon_net":   (95, 0.030, 0.90, 0.14, 3, False),    # its raised net: soft cream
+    # --- goods (economy job products) -------------------------------------------------------
+    "glass":       (200, 0.025, 0.86, 0.22, 4, False),   # clear bottles and jars
+    "bottle_green": (158, 0.090, 0.55, 0.30, 4, False),  # soju bottle
+    "wine":        (12, 0.130, 0.34, 0.24, 4, False),    # red wine, dark berries
+    "fish_silver": (240, 0.025, 0.70, 0.40, 5, False),   # silvery fish sides
+    "fish_blue":   (250, 0.080, 0.38, 0.30, 4, False),   # tuna back
+    "seabream":    (22, 0.120, 0.66, 0.30, 4, False),    # red sea bream skin
+    "tuna_meat":   (22, 0.160, 0.46, 0.26, 4, False),    # deep red tuna flesh
+    "doenjang":    (65, 0.075, 0.45, 0.26, 4, False),    # soybean paste, dried fish
+    "onggi":       (45, 0.045, 0.34, 0.24, 4, False),    # glazed earthenware crock
+    "porcelain":   (230, 0.012, 0.90, 0.16, 3, False),   # white bowls and plates
+    "roe":         (280, 0.020, 0.22, 0.18, 3, False),   # caviar
     # --- TEST-ONLY materials: "dev texture" colours, never used by real content -----------------
     "test_orange": (55, 0.150, 0.70, 0.30, 4, True),
     "test_grey":   (250, 0.012, 0.62, 0.30, 4, False),
