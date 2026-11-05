@@ -442,8 +442,8 @@ vanity:
   unknown: "<red>상품 설정 오류입니다. 관리자에게 알려주세요."
   not-enough: "<red>돈이 부족합니다. <gray>({price})"
   bought-broadcast: "<gold>{player}</gold><gray>님이 </gray>{item}<gray>을(를) {price}에 샀습니다."
-  lore-cosmetic: ["", "<gray>치장 · 가격 </gray>{price}", "<dark_gray>/옷장 에서 착용"]
-  lore-title: ["", "<gray>칭호 · 가격 </gray>{price}", "<dark_gray>/프로필 에서 장착"]
+  lore-cosmetic: ["", "<gray>치장 · 가격 </gray>{price}", "<dark_gray>/치장 에서 착용"]
+  lore-title: ["", "<gray>칭호 · 가격 </gray>{price}", "<dark_gray>/칭호 에서 장착"]
   lore-buy: ["<yellow>두 번 클릭: 구매"]
   lore-confirm: ["<gold><b>한 번 더 클릭하면 구매합니다</b>"]
   lore-owned: ["<green>✔ 보유 중"]

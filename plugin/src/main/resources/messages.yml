@@ -8,16 +8,20 @@ common:
   none: "없음"
 
 wardrobe:
-  enter-first: "<red>먼저 옷장 구역에서 /옷장 을 입력하세요."
-  zone-only: "<red>옷장 구역 안에서만 사용할 수 있습니다."
+  enter-first: "<red>먼저 /치장 을 입력하세요."
   dismount: "<red>탈것에서 내린 뒤 사용하세요."
+  not-ground: "<red>땅에 서 있을 때 사용하세요."
+  in-water: "<red>물이나 용암 밖에서 사용하세요."
+  burning: "<red>불이 꺼진 뒤 사용하세요."
+  in-combat: "<red>전투 중에는 쓸 수 없습니다. <gray>(피해를 입고 10초 뒤부터)"
+  not-now: "<red>지금은 쓸 수 없습니다."
   no-room: "<red>앞쪽 공간이 부족합니다. 앞쪽 {blocks}칸이 트인 곳에서 사용하세요."
   took-off: "<gray>벗었습니다: </gray>{cosmetic}"
   wearing: "<green>착용: </green>{cosmetic}"
   preview-only: "<red>🔒 미리보기만 가능합니다"
   preview-only-obtain: "<red>🔒 미리보기만 가능합니다 <gray>(획득: {obtain})"
   # 미리보기 화면 제목: 위 = 치장 이름, 아래 = 상태 + 안내
-  title: "<gold>옷장"
+  title: "<gold>치장"
   hint: "<gray>웅크리기: 메뉴"
   state-none: "<gray>치장 없음"
   state-worn: "<green>✔ 착용 중"
@@ -38,7 +42,7 @@ cosmetic:
   already-owned: "<yellow>이미 가지고 있는 치장입니다."
   got-title: "{color}<b>새 치장 획득!</b>"
   got-subtitle: "{cosmetic} <dark_gray>·</dark_gray> {color}{rarity}"
-  got: "<green>치장 </green>{cosmetic}<green> 을(를) 얻었습니다. 옷장(/옷장)에서 입어보세요."
+  got: "<green>치장 </green>{cosmetic}<green> 을(를) 얻었습니다. /치장 에서 입어보세요."
 
 skin:
   not-applicable: "<red>이 스킨을 적용할 수 없는 아이템입니다."
@@ -69,6 +73,7 @@ profile:
   title-worn-lore: ["<gray>{description}", "", "<green>✔ 장착 중 <gray>(클릭: 해제)"]
   title-locked-lore: ["<gray>{description}", "", "<red>🔒 미획득"]
   title-equipped: "<green>칭호 장착: </green>{title}"
+  title-not-owned: "<red>가진 칭호 중에 '{name}' 이(가) 없습니다. <gray>/칭호 로 목록 보기"
   title-removed: "<gray>칭호를 해제했습니다."
   title-got: "<gold>새 칭호 획득! </gold>{title}"
   other-titles: "<gray>다른 플레이어의 칭호는 볼 수만 있습니다."

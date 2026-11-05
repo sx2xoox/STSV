@@ -26,6 +26,11 @@ public final class Text {
         return lines.stream().map(Text::item).toList();
     }
 
+    /** The text alone, tags stripped ("<gold>[강태공]" -> "[강태공]"). */
+    public static String plain(String miniMessage) {
+        return net.kyori.adventure.text.serializer.plain.PlainTextComponentSerializer.plainText().serialize(MM.deserialize(miniMessage));
+    }
+
     public static Component msg(String miniMessage) {
         return MM.deserialize(Lang.prefix() + miniMessage);
     }

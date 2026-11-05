@@ -17,7 +17,7 @@ vanity:
       icon: stsv:gui/info
       material: BOOK
       name: "<white>잔액: {balance}"
-      lore: ["<gray>산 치장은 /옷장, 칭호는 /프로필 에서."]
+      lore: ["<gray>산 치장은 /치장, 칭호는 /칭호 에서."]
     B:
       action: "command:상점"
       icon: economy:gui/back

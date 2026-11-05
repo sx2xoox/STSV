@@ -103,8 +103,14 @@ public final class STSVPlugin extends JavaPlugin {
                 ec.setTabCompleter(economyCommand);
             }
         }
-        PluginCommand wardrobe = getCommand("옷장");
+        PluginCommand wardrobe = getCommand("치장");
         if (wardrobe != null) wardrobe.setExecutor(new WardrobeCommand(this));
+        PluginCommand titles = getCommand("칭호");
+        if (titles != null) {
+            dev.stsv.core.command.TitleCommand titleCommand = new dev.stsv.core.command.TitleCommand(this);
+            titles.setExecutor(titleCommand);
+            titles.setTabCompleter(titleCommand);
+        }
     }
 
     @Override

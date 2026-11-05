@@ -37,14 +37,13 @@ public final class StsvCommand implements TabExecutor {
 
     static {
         String[][] root = {{"지급", "give"}, {"아이템목록", "browse"}, {"목록", "list"}, {"정보", "info"}, {"레시피", "recipe"},
-                {"연료", "fuel"}, {"스킨", "skin"}, {"치장", "cosmetic"}, {"옷장", "wardrobe"}, {"보스", "boss"},
+                {"연료", "fuel"}, {"스킨", "skin"}, {"치장", "cosmetic"}, {"보스", "boss"},
                 {"기간", "period"}, {"칭호", "title"}, {"통계", "stat"}, {"경제", "economy"}, {"보고서", "report"}, {"초기화", "reset"}, {"리로드", "reload"}, {"리소스팩", "pack"}, {"도움말", "help"}};
         for (String[] r : root) ROOT.put(r[0], r[1]);
         sub("recipe", "생성", "create", "삭제", "delete", "목록", "list");
         sub("fuel", "설정", "set", "제거", "remove", "목록", "list");
         sub("skin", "해제", "remove");
         sub("cosmetic", "지급", "give", "회수", "take", "정보", "info");
-        sub("wardrobe", "생성", "create", "삭제", "delete", "목록", "list");
         sub("boss", "소환", "spawn", "목록", "list", "제거", "remove", "패턴", "force", "디버그", "debug", "좌표소환", "spawnat");
         sub("period", "시작", "start", "종료", "end", "정보", "info");
         sub("title", "지급", "give", "회수", "take", "목록", "list");
@@ -135,7 +134,6 @@ public final class StsvCommand implements TabExecutor {
                 else sender.sendMessage(Text.msg("<red>/관리자 스킨 해제 <gray>(손에 든 아이템의 스킨 해제)"));
             }
             case "cosmetic" -> cosmetic(sender, args);
-            case "wardrobe" -> wardrobe(sender, args);
             case "fuel" -> fuel(sender, args);
             case "boss" -> boss(sender, args);
             case "period" -> period(sender, args);
@@ -155,7 +153,6 @@ public final class StsvCommand implements TabExecutor {
                         "연료 설정 <틱> | 연료 제거 | 연료 목록 <dark_gray>- 손에 든 아이템의 화로 연료 시간",
                         "스킨 해제 <dark_gray>- 손에 든 아이템의 스킨 해제",
                         "치장 지급|회수 <플레이어> <치장> | 치장 정보 [플레이어] <dark_gray>- 치장 지급/회수/상태",
-                        "옷장 생성 <이름> [반경] | 옷장 삭제 <이름> | 옷장 목록 <dark_gray>- 옷장 구역",
                         "보스 소환 <보스> | 보스 목록 | 보스 제거 <dark_gray>- 보스 소환/목록/모두 제거",
                         "보스 패턴 <패턴> | 보스 디버그 | 보스 좌표소환 <보스> <x> <y> <z> [월드] <dark_gray>- 보스 테스트",
                         "기간 시작 <id> <이름> | 기간 종료 | 기간 정보 <dark_gray>- 콘텐츠 기간 (기록, 명예의 전당)",
@@ -562,7 +559,7 @@ public final class StsvCommand implements TabExecutor {
     }
 
     // ------------------------------------------------------------------------------------------
-    // /관리자 치장 | 옷장
+    // /관리자 치장
     // ------------------------------------------------------------------------------------------
 
     private void cosmetic(CommandSender sender, String[] args) {
@@ -592,35 +589,6 @@ public final class StsvCommand implements TabExecutor {
         sender.sendMessage(Text.msg(changed
                 ? "<green>" + target.getName() + " 에게 " + c.get().key().asString() + (give ? " 지급" : " 회수")
                 : "<yellow>변화 없음 (" + (give ? "이미 보유" : "보유하지 않음") + ")"));
-    }
-
-    private void wardrobe(CommandSender sender, String[] args) {
-        String action = args.length > 1 ? args[1].toLowerCase(Locale.ROOT) : "";
-        try {
-            switch (action) {
-                case "create" -> {
-                    if (!(sender instanceof Player p) || args.length < 3) {
-                        sender.sendMessage(Text.msg("<red>/관리자 옷장 생성 <이름> [반경=3] <gray>(지금 서 있는 곳 중심)"));
-                        return;
-                    }
-                    double r = args.length > 3 ? Double.parseDouble(args[3]) : 3;
-                    plugin.cosmetics().createZone(args[2], p.getLocation(), r);
-                    sender.sendMessage(Text.msg("<green>옷장 구역 '" + args[2] + "' 생성 (반경 " + r + ")"));
-                }
-                case "delete" -> sender.sendMessage(args.length > 2 && plugin.cosmetics().deleteZone(args[2])
-                        ? Text.msg("<green>삭제 완료") : Text.msg("<red>그런 구역이 없습니다."));
-                case "list" -> {
-                    sender.sendMessage(Text.msg("<gray>옷장 구역 " + plugin.cosmetics().zones().size() + "개"));
-                    plugin.cosmetics().zones().forEach((n, b) -> sender.sendMessage(Text.mm(" <dark_gray>-</dark_gray> <white>" + n
-                            + "</white> <gray>" + (int) b.getCenterX() + ", " + (int) b.getCenterY() + ", " + (int) b.getCenterZ())));
-                }
-                default -> sender.sendMessage(Text.msg("<red>/관리자 옷장 <생성|삭제|목록>"));
-            }
-        } catch (NumberFormatException e) {
-            sender.sendMessage(Text.msg("<red>반경은 숫자여야 합니다."));
-        } catch (Exception e) {
-            sender.sendMessage(Text.msg("<red>" + e.getMessage()));
-        }
     }
 
     // ------------------------------------------------------------------------------------------

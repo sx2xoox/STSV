@@ -7,7 +7,7 @@
 #   {이름}       자리표시자. {page} {pages} 는 공통, 나머지는 메뉴를 여는 모듈이 채움
 #   filler      none / glass (배경 그림이 없을 때 빈칸을 유리판으로)
 wardrobe:
-  title: "<#f0e2b0>옷장 <#b9a6d6>· 보유 {owned}/{total}"
+  title: "<#f0e2b0>치장 <#b9a6d6>· 보유 {owned}/{total}"
   rows: 6
   background: stsv:gui/wardrobe
   layout:
@@ -43,7 +43,7 @@ wardrobe:
       action: wardrobe:info
       icon: stsv:gui/info
       material: ARMOR_STAND
-      name: "<gold>옷장"
+      name: "<gold>치장"
       lore:
         - "<gray>착용 중: <white>{worn}"
         - "<gray>미리보기: <white>{previewing}"
@@ -52,7 +52,7 @@ wardrobe:
         - "<gray>치장 클릭: 착용 / 착용 중이면 벗기 (창이 닫히고 미리보기)"
         - "<gray>미보유 치장은 미리보기만 됩니다."
         - "<gray>미리보기 화면에서 웅크리기: 이 메뉴 다시 열기"
-        - "<gray>나가기 버튼: 옷장 나가기"
+        - "<gray>나가기 버튼: 원래 자리로"
     X:
       action: wardrobe:exit
       icon: stsv:gui/exit

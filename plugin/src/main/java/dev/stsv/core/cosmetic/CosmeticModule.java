@@ -15,7 +15,6 @@ import org.bukkit.Location;
 import org.bukkit.NamespacedKey;
 import org.bukkit.Sound;
 import org.bukkit.World;
-import org.bukkit.configuration.file.YamlConfiguration;
 import org.bukkit.entity.Entity;
 import org.bukkit.entity.ItemDisplay;
 import org.bukkit.entity.Mannequin;
@@ -37,14 +36,10 @@ import org.bukkit.inventory.ItemStack;
 import org.bukkit.persistence.PersistentDataContainer;
 import org.bukkit.persistence.PersistentDataType;
 import org.bukkit.scheduler.BukkitTask;
-import org.bukkit.util.BoundingBox;
 import org.bukkit.util.Vector;
 
-import java.io.File;
-import java.io.IOException;
 import java.util.ArrayList;
 import java.util.HashMap;
-import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Optional;
@@ -63,19 +58,19 @@ import java.util.UUID;
  * If packets cannot be rewritten (unknown server internals), others get the look as equipment changes,
  * re-sent whenever the server would overwrite it, and the wearer sees it on the wardrobe mannequin.
  *
- * Wardrobe: inside a wardrobe zone, /wardrobe opens the menu. Clicking a cosmetic wears it (or takes it
- * off if worn, or only previews it if not owned), closes the menu and shows a spectator camera on a
- * mannequin wearing the player's skin (nothing else on screen); sneaking reopens the menu, the exit
- * button leaves.
+ * Wardrobe: /치장 anywhere (standing on the ground, not hurt in the last 10 seconds, not burning, not in
+ * water or a vehicle) opens the menu. A mannequin wearing the player's skin stands where they stood and
+ * a spectator camera looks at it from a few blocks ahead. Clicking a cosmetic wears it (or takes it off
+ * if worn, or only previews it if not owned), closes the menu and shows the camera (nothing else on
+ * screen); sneaking reopens the menu, the exit button leaves (back to the same spot, nothing changed).
  */
 public final class CosmeticModule implements StsvModule, Listener {
 
     private STSVPlugin plugin;
     private NamespacedKey keyEquipped, keyOwned, keyReturn, keyWardrobeEntity;
-    private final Map<String, BoundingBox> zones = new LinkedHashMap<>();
-    private final Map<String, String> zoneWorlds = new HashMap<>();
+    /** when each player last took damage (no wardrobe within 10 seconds of a hit: no escape from a fight) */
+    private final Map<UUID, Long> lastHurt = new HashMap<>();
     private final Map<UUID, Session> sessions = new HashMap<>();
-    private File zonesFile;
     private CosmeticStore store;
     /** null = packet rewriting unavailable (fallback: equipment changes to other players only). */
     private CosmeticPackets packets;
@@ -100,14 +95,12 @@ public final class CosmeticModule implements StsvModule, Listener {
         keyOwned = new NamespacedKey(plugin, "cosmetics_owned");
         keyReturn = new NamespacedKey(plugin, "wardrobe_return");
         keyWardrobeEntity = new NamespacedKey(plugin, "wardrobe_entity");
-        zonesFile = new File(plugin.getDataFolder(), "wardrobes.yml");
         store = new CosmeticStore(plugin.db());
         try {
             store.load(plugin.getDataFolder().toPath().resolve("data").resolve("cosmetics.yml"));
         } catch (java.io.IOException e) {
             throw new RuntimeException("치장 데이터 가져오기 실패", e);
         }
-        loadZones();
         try {
             packets = new CosmeticPackets(plugin.getLogger());
         } catch (Throwable t) {
@@ -145,7 +138,6 @@ public final class CosmeticModule implements StsvModule, Listener {
 
     @Override
     public void reload() {
-        loadZones();
         Bukkit.getOnlinePlayers().forEach(this::refresh);
     }
 
@@ -436,59 +428,6 @@ public final class CosmeticModule implements StsvModule, Listener {
     }
 
     // ------------------------------------------------------------------------------------------
-    // Wardrobe zones
-    // ------------------------------------------------------------------------------------------
-
-    private void loadZones() {
-        zones.clear();
-        zoneWorlds.clear();
-        YamlConfiguration y = YamlConfiguration.loadConfiguration(zonesFile);
-        for (String name : y.getKeys(false)) {
-            List<Double> min = y.getDoubleList(name + ".min"), max = y.getDoubleList(name + ".max");
-            if (min.size() != 3 || max.size() != 3) continue;
-            zones.put(name, new BoundingBox(min.get(0), min.get(1), min.get(2), max.get(0), max.get(1), max.get(2)));
-            zoneWorlds.put(name, y.getString(name + ".world"));
-        }
-    }
-
-    private void saveZones() throws IOException {
-        YamlConfiguration y = new YamlConfiguration();
-        y.options().setHeader(List.of("옷장 구역 (/관리자 옷장 생성 <이름> [반경] 으로 추가)"));
-        zones.forEach((name, b) -> {
-            y.set(name + ".world", zoneWorlds.get(name));
-            y.set(name + ".min", List.of(b.getMinX(), b.getMinY(), b.getMinZ()));
-            y.set(name + ".max", List.of(b.getMaxX(), b.getMaxY(), b.getMaxZ()));
-        });
-        y.save(zonesFile);
-    }
-
-    public void createZone(String name, Location center, double radius) throws IOException {
-        zones.put(name, BoundingBox.of(center, radius, radius, radius));
-        zoneWorlds.put(name, center.getWorld().getName());
-        saveZones();
-    }
-
-    public boolean deleteZone(String name) throws IOException {
-        if (zones.remove(name) == null) return false;
-        zoneWorlds.remove(name);
-        saveZones();
-        return true;
-    }
-
-    public Map<String, BoundingBox> zones() {
-        return zones;
-    }
-
-    public Optional<String> zoneAt(Location loc) {
-        for (Map.Entry<String, BoundingBox> z : zones.entrySet()) {
-            if (loc.getWorld().getName().equals(zoneWorlds.get(z.getKey())) && z.getValue().contains(loc.toVector())) {
-                return Optional.of(z.getKey());
-            }
-        }
-        return Optional.empty();
-    }
-
-    // ------------------------------------------------------------------------------------------
     // Wardrobe session, two states:
     //  - PREVIEW: spectator camera fixed on a mannequin wearing the player's own skin. Only the mannequin
     //    is seen: no body, no hand, no hotbar.
@@ -525,12 +464,9 @@ public final class CosmeticModule implements StsvModule, Listener {
             openMenu(p);
             return;
         }
-        if (zoneAt(p.getLocation()).isEmpty()) {
-            p.sendMessage(Lang.msg("wardrobe.zone-only"));
-            return;
-        }
-        if (p.isInsideVehicle()) {
-            p.sendMessage(Lang.msg("wardrobe.dismount"));
+        String refusal = refusal(p);
+        if (refusal != null) {
+            p.sendMessage(Lang.msg(refusal));
             return;
         }
         Location stand = p.getLocation().clone();
@@ -571,7 +507,7 @@ public final class CosmeticModule implements StsvModule, Listener {
             m.setSilent(true);
             m.setImmovable(true);
             m.setProfile(ResolvableProfile.resolvableProfile(p.getPlayerProfile()));
-            m.setDescription(Text.mm("<gray>옷장 미리보기"));
+            m.setDescription(Text.mm("<gray>치장 미리보기"));
             m.getPersistentDataContainer().set(keyWardrobeEntity, PersistentDataType.BYTE, (byte) 1);
             var eq = m.getEquipment();
             eq.setArmorContents(p.getInventory().getArmorContents());
@@ -609,6 +545,28 @@ public final class CosmeticModule implements StsvModule, Listener {
             p.setSpectatorTarget(s.camera);
             Bukkit.getScheduler().runTaskLater(plugin, () -> toMenu(p), 1L);
         }, 2L);
+    }
+
+    /**
+     * Why the wardrobe cannot open here and now (message key), or null. The player is frozen and safe
+     * inside it and comes back to the same spot, so it must not cut a fall, a fight or a fire short.
+     */
+    private String refusal(Player p) {
+        if (p.isInsideVehicle()) return "wardrobe.dismount";
+        if (p.getGameMode() == GameMode.SPECTATOR) return "wardrobe.not-now";
+        if (p.isGliding() || p.isSleeping() || p.isSwimming() || p.isRiptiding()) return "wardrobe.not-now";
+        if (p.isInWater() || p.isInLava()) return "wardrobe.in-water";
+        if (p.getFireTicks() > 0) return "wardrobe.burning";
+        @SuppressWarnings("deprecation") boolean ground = p.isOnGround();
+        if (!ground || p.getFallDistance() > 0.5f) return "wardrobe.not-ground";
+        Long hurt = lastHurt.get(p.getUniqueId());
+        if (hurt != null && System.currentTimeMillis() - hurt < 10_000) return "wardrobe.in-combat";
+        return null;
+    }
+
+    @EventHandler(priority = org.bukkit.event.EventPriority.MONITOR, ignoreCancelled = true)
+    public void onHurt(org.bukkit.event.entity.EntityDamageEvent e) {
+        if (e.getEntity() instanceof Player p) lastHurt.put(p.getUniqueId(), System.currentTimeMillis());
     }
 
     /**
@@ -909,6 +867,7 @@ public final class CosmeticModule implements StsvModule, Listener {
         packViews.remove(e.getPlayer().getUniqueId());
         selfShown.remove(e.getPlayer().getUniqueId());
         pendingSync.remove(e.getPlayer().getUniqueId());
+        lastHurt.remove(e.getPlayer().getUniqueId());
         if (packets != null) packets.forget(e.getPlayer(), e.getPlayer().getEntityId());
     }
 
@@ -935,7 +894,7 @@ public final class CosmeticModule implements StsvModule, Listener {
         out.add("패킷 처리: " + (packets == null ? "사용 불가 (다른 사람에게만 보임)" : packets.installed(p) ? "적용됨" : "미적용")
                 + " / 리소스팩 적용: " + packViews.containsKey(p.getUniqueId())
                 + " / 본인 화면 표시: " + selfShown.contains(p.getUniqueId()));
-        out.add("옷장 안: " + inWardrobe(p));
+        out.add("치장 화면 안: " + inWardrobe(p));
         return out;
     }
 }

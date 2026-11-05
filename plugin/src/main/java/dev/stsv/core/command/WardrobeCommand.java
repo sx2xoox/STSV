@@ -11,7 +11,7 @@ import org.jetbrains.annotations.NotNull;
 import java.util.List;
 import java.util.Locale;
 
-/** /옷장: open the wardrobe in a wardrobe zone (/옷장 나가기 leaves it). */
+/** /치장: open the wardrobe where you stand (/치장 나가기 leaves it). */
 public final class WardrobeCommand implements TabExecutor {
 
     private final STSVPlugin plugin;

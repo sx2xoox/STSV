@@ -258,11 +258,95 @@ public final class ProfileModule implements StsvModule, Listener {
         return true;
     }
 
+    /** Wears one of the player's titles (null takes it off). */
+    public void equipTitle(Player p, String titleId) {
+        equip(p, titleId);
+    }
+
     private void equip(Player p, String titleId) {
         ProfileStore.Titles cur = online.getOrDefault(p.getUniqueId(), new ProfileStore.Titles(java.util.Set.of(), null));
         online.put(p.getUniqueId(), new ProfileStore.Titles(cur.owned(), titleId));
         store.equipTitle(p.getUniqueId(), titleId);
         showName(p);
+    }
+
+    // ------------------------------------------------------------------------------------------
+    // /칭호: the player's titles first (worn, then owned), then the ones still to get and how
+    // ------------------------------------------------------------------------------------------
+
+    public void openTitles(Player p) {
+        store.titles(p.getUniqueId()).thenAccept(t -> Bukkit.getScheduler().runTask(plugin, () -> {
+            if (p.isOnline()) plugin.menus().open(p, "stsv:titles", new TitlesMenu(t));
+        }));
+    }
+
+    private final class TitlesMenu implements MenuHandler {
+        ProfileStore.Titles mine;
+        List<Title> shown = List.of();
+
+        TitlesMenu(ProfileStore.Titles mine) {
+            this.mine = mine;
+        }
+
+        @Override
+        public Map<String, String> placeholders(MenuView v) {
+            long have = titles.values().stream().filter(t -> mine.owned().contains(t.id())).count();
+            return Map.of("owned", String.valueOf(have), "total", String.valueOf(titles.size()),
+                    "worn", mine.equipped() == null ? Lang.raw("common.none") : title(mine.equipped()).map(Title::name).orElse(mine.equipped()));
+        }
+
+        @Override
+        public List<ItemStack> list(MenuView v) {
+            List<Title> l = new ArrayList<>(titles.values());
+            l.sort(java.util.Comparator.comparingInt(t -> t.id().equals(mine.equipped()) ? 0 : mine.owned().contains(t.id()) ? 1 : 2));
+            shown = l;
+            List<ItemStack> out = new ArrayList<>();
+            for (Title t : l) {
+                boolean owned = mine.owned().contains(t.id());
+                boolean worn = t.id().equals(mine.equipped());
+                ItemStack it = new ItemStack(owned ? Material.NAME_TAG : Material.PAPER);
+                it.editMeta(m -> {
+                    m.itemName(owned ? Text.item(t.name()) : Text.item("<dark_gray>" + Text.plain(t.name())));
+                    m.lore(Lang.items(worn ? "profile.title-worn-lore" : owned ? "profile.title-owned-lore" : "profile.title-locked-lore",
+                            "description", t.description()));
+                    m.setEnchantmentGlintOverride(worn);
+                });
+                out.add(it);
+            }
+            return out;
+        }
+
+        @Override
+        public void onListClick(MenuView v, int index, ClickType click) {
+            Player p = v.player();
+            if (index >= shown.size()) return;
+            Title t = shown.get(index);
+            if (!mine.owned().contains(t.id())) {
+                p.playSound(p.getLocation(), Sound.BLOCK_NOTE_BLOCK_BASS, 0.5f, 0.8f);
+                return;
+            }
+            if (t.id().equals(mine.equipped())) {
+                equip(p, null);
+                dev.stsv.core.hud.HudModule.flash(p, Lang.mm("profile.title-removed"));
+            } else {
+                equip(p, t.id());
+                dev.stsv.core.hud.HudModule.flash(p, Lang.mm("profile.title-equipped", "title", t.name()));
+            }
+            mine = online.getOrDefault(p.getUniqueId(), mine);
+            p.playSound(p.getLocation(), Sound.UI_BUTTON_CLICK, 0.6f, 1.3f);
+            v.refresh();
+        }
+
+        @Override
+        public void onAction(MenuView v, String action, ClickType click) {
+            if (!action.equals("titles:off")) return;
+            Player p = v.player();
+            equip(p, null);
+            mine = online.getOrDefault(p.getUniqueId(), mine);
+            dev.stsv.core.hud.HudModule.flash(p, Lang.mm("profile.title-removed"));
+            p.playSound(p.getLocation(), Sound.UI_BUTTON_CLICK, 0.6f, 1.0f);
+            v.refresh();
+        }
     }
 
     // ------------------------------------------------------------------------------------------

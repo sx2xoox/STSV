@@ -1,0 +1,43 @@
+# /칭호: 가진 칭호(장착 중 → 보유) 먼저, 그다음 아직 없는 칭호와 얻는 법. 클릭 = 장착 / 해제
+titles:
+  title: "<#f0e2b0>칭호 <#b9a6d6>· {owned} / {total}"
+  rows: 6
+  filler: glass
+  layout:
+    - "....I...O"
+    - "TTTTTTTTT"
+    - "TTTTTTTTT"
+    - "TTTTTTTTT"
+    - "TTTTTTTTT"
+    - "P...X...N"
+  list: T
+  buttons:
+    I:
+      action: ""
+      icon: stsv:gui/info
+      material: BOOK
+      name: "<white>장착 중: {worn}"
+      lore: ["<gray>채팅과 탭 목록에서 이름 앞에 붙습니다.", "<gray>가진 칭호 <white>{owned}<gray> / {total}", "", "<dark_gray>/칭호 <이름> 으로 바로 장착, /칭호 해제"]
+    O:
+      action: "titles:off"
+      material: BARRIER
+      name: "<red>칭호 해제"
+    P:
+      action: page:prev
+      icon: stsv:gui/prev
+      material: ARROW
+      name: "<yellow>◀ 이전 페이지"
+      lore: ["<gray>{page} / {pages}"]
+      off: { icon: stsv:gui/prev_off, material: GRAY_DYE, name: "<dark_gray>◀ 첫 페이지" }
+    N:
+      action: page:next
+      icon: stsv:gui/next
+      material: ARROW
+      name: "<yellow>다음 페이지 ▶"
+      lore: ["<gray>{page} / {pages}"]
+      off: { icon: stsv:gui/next_off, material: GRAY_DYE, name: "<dark_gray>마지막 페이지 ▶" }
+    X:
+      action: close
+      icon: stsv:gui/exit
+      material: OAK_DOOR
+      name: "<red>닫기"

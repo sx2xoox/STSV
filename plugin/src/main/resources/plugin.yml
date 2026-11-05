@@ -14,13 +14,18 @@ commands:
   관리자:
     description: STSV 관리 명령어 (/관리자 도움말). 콘텐츠 플러그인의 관리 명령어도 여기에 모임
     aliases: [관리, stsv]
-    usage: /관리자 <지급|아이템목록|목록|정보|레시피|연료|스킨|치장|옷장|보스|기간|칭호|통계|경제|보고서|초기화|리로드|리소스팩|...>
+    usage: /관리자 <지급|아이템목록|목록|정보|레시피|연료|스킨|치장|보스|기간|칭호|통계|경제|보고서|초기화|리로드|리소스팩|...>
     permission: stsv.admin
-  옷장:
-    description: 옷장 (옷장 구역 안에서)
-    aliases: [wardrobe]
-    usage: /옷장
+  치장:
+    description: 치장 입기·미리보기 (어디서나, 마네킹으로 보여 줌)
+    aliases: [옷장, wardrobe, cosmetic]
+    usage: /치장
     permission: stsv.wardrobe
+  칭호:
+    description: 가진 칭호 장착·해제, 아직 없는 칭호와 얻는 법
+    aliases: [title, titles]
+    usage: /칭호 [이름|해제]
+    permission: stsv.profile
   프로필:
     description: 프로필 (기록, 칭호)
     aliases: [profile]
@@ -54,7 +59,7 @@ permissions:
     description: 프로필, 명예의 전당 보기
     default: true
   stsv.wardrobe:
-    description: 옷장 사용
+    description: 치장 (/치장) 사용
     default: true
   stsv.cosmetic.*:
     description: 모든 치장 사용 가능

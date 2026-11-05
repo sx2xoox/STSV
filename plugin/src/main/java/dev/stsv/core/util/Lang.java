@@ -14,7 +14,7 @@ import java.nio.charset.StandardCharsets;
  * touching code. Placeholders are {name}; values are MiniMessage too.
  *
  * <pre>
- * player.sendMessage(Lang.msg("wardrobe.zone-only"));
+ * player.sendMessage(Lang.msg("wardrobe.dismount"));
  * player.sendActionBar(Lang.mm("wardrobe.wearing", "cosmetic", name));
  * </pre>
  * Admin command output stays in code (it is for operators, not part of a content's voice).
