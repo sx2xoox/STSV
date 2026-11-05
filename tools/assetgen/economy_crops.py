@@ -171,8 +171,9 @@ def melon_net(w, h, seed, spacing=2.6, width=0.5, inside=lambda x, y: True, orig
 
 
 def net_rows(w, h, seed, shade_bottom=True):
-    """An opaque w x h rind picture with the net on it (N net, R rind, S the shaded bottom row)."""
-    on = melon_net(w, h, seed)
+    """An opaque w x h rind picture with the net on it (N net, R rind, S the shaded bottom row).
+    Finer than on the icon: a block face is only a few pixels across."""
+    on = melon_net(w, h, seed, spacing=2.4, width=0.42)
     return ["".join("N" if (x, y) in on else ("S" if shade_bottom and y == h - 1 else "R") for x in range(w)) for y in range(h)]
 
 
@@ -930,7 +931,7 @@ STAGES["zucchini"] = [
 
 MEL = {"A": ("melon_rind", 4), "B": ("melon_rind", 3), "C": ("melon_rind", 2), "D": ("melon_rind", 1), "E": ("melon_rind", 0),
        "G": ("cucumber", 2), "H": ("cucumber", 1), "J": ("cucumber", 0), "K": ("cucumber", 3), "Y": ("petal_yellow", 1),
-       "O": ("petal_yellow", 0), "N": ("garlic", 3), "R": ("musk", 2), "S": ("musk", 1)}
+       "O": ("petal_yellow", 0), "N": ("melon_net", 1), "R": ("musk", 2), "S": ("musk", 1)}
 MEL_LEAF = [".44.4", "44544", "34543", ".332."]
 
 
@@ -951,7 +952,7 @@ def _melon_vine(spread, flowers=False):
 
 
 MELON_YOUNG = Part((6, -1, 6), (10, 2, 10), ["HGKG", "GHGH", "JHJH"], ["GKGH", "KGHG", "GHGK", "HGKG"], MEL)
-# the ripe melon: a soft grey-green rind under a raised white net, built round from a core, a cross of
+# the ripe melon: a soft mint-green rind under a raised cream net, built round from a core, a cross of
 # bulges and a cap, with the T-shaped stalk muskmelons are sold with
 MELON = [
     Part((5, -1, 5), (11, 4, 11), net_rows(6, 5, 1), net_rows(6, 6, 2, False), MEL),
@@ -981,7 +982,8 @@ PAD = 3
 
 
 # light materials whose own darkest step is too pale to read as an outline
-OUTLINE = {"garlic": ("stone", 0), "snow": ("stone", 0), "paper": ("bean", 0), "cabbage": ("leaf", 0), "petal_yellow": ("straw", 0)}
+OUTLINE = {"garlic": ("stone", 0), "snow": ("stone", 0), "paper": ("bean", 0), "cabbage": ("leaf", 0), "petal_yellow": ("straw", 0),
+           "melon_net": ("musk", 0)}
 
 
 def _fit(ic):
@@ -1314,7 +1316,7 @@ ICONS["zucchini"] = lambda: shade([
 ], "sprout", {"M": ("cabbage", 3), "O": ("petal_yellow", 0), "x": ("leaf_dark", 2), "w": ("leaf_dark", 1)}, lo=1)
 
 def _melon_icon():
-    """A whole muskmelon: grey-green ball under a fine white net, both lit like a sphere from the top-left
+    """A whole muskmelon: soft mint-green ball under a fine cream net, both lit like a sphere from the top-left
     (so the net wraps round it instead of lying flat), with the T-shaped stalk on top."""
     cx, cy, r = 6.5, 8.1, 6.0
     inside = lambda x, y: ((x + 0.5 - cx) / r) ** 2 + ((y + 0.5 - cy) / (r * 0.96)) ** 2 <= 1   # noqa: E731
@@ -1330,14 +1332,15 @@ def _melon_icon():
             u, v = (x + 0.5 - cx) / r, (y + 0.5 - cy) / (r * 0.96)
             b = u * lx + v * ly + math.sqrt(max(0.0, 1 - u * u - v * v)) * lz
             if (x, y) in mesh:
-                ic.put(x + PAD, y + PAD, "garlic", 1 if b < 0.15 else 2 if b < 0.55 else 3)
+                ic.put(x + PAD, y + PAD, "melon_net", 0 if b < 0.15 else 1 if b < 0.55 else 2)
             else:
                 ic.put(x + PAD, y + PAD, "musk", 0 if b < -0.1 else 1 if b < 0.3 else 2 if b < 0.65 else 3)
-    for x, i in ((4, 1), (5, 2), (6, 3), (7, 2), (8, 1)):      # the T: a bit of vine across the top
+    for x, i in ((5, 2), (6, 3), (7, 2)):                      # the T: a bit of dry vine across the top
         ic.put(x + PAD, PAD, "straw", i)
     ic.put(6 + PAD, 1 + PAD, "straw", 2)
     ic.put(6 + PAD, 2 + PAD, "straw", 0)
-    ic.put(3 + PAD, 5 + PAD, "snow", 2)                        # glint
+    ic.put(3 + PAD, 5 + PAD, "snow", 2)                        # shine
+    ic.put(4 + PAD, 4 + PAD, "snow", 1)
     return _fit(ic)
 
 
@@ -1363,7 +1366,7 @@ MINI = {   # 6 x 6 pictures for the packet window (legend: BASE + the crop's let
     "grape": (["..m43.", "ABAB2.", "BCBCD.", ".ABCD.", ".BCD..", "..D..."], {"A": ("grape", 4), "B": ("grape", 3), "C": ("grape", 2), "D": ("grape", 1)}),
     "eggplant": (["3.....", "323...", ".BC...", ".BCD..", "..CDDE", "...DEE"], {"B": ("aubergine", 4), "C": ("aubergine", 2), "D": ("aubergine", 1), "E": ("aubergine", 0)}),
     "zucchini": (["....32", "...ABB", "..ABMC", ".AMBC.", "ABBC..", "OBC..."], {"A": ("sprout", 4), "B": ("sprout", 3), "C": ("sprout", 2), "M": ("cabbage", 3), "O": ("petal_yellow", 0)}),
-    "muskmelon": ([".jjj..", "..j...", ".RNRN.", "NRRNRR", "RNRRNS", ".SNRS."], {"R": ("musk", 2), "S": ("musk", 1), "N": ("garlic", 3)}),
+    "muskmelon": ([".jjj..", "..j...", ".RNRN.", "NRRNRR", "RNRRNS", ".SNRS."], {"R": ("musk", 2), "S": ("musk", 1), "N": ("melon_net", 2)}),
 }
 BAND = {"tomato": ("tomato", 2), "chili": ("pepper", 2), "strawberry": ("toadstool", 2), "onion": ("onion", 2), "cabbage": ("leaf", 3),
         "rice": ("straw", 2), "corn": ("corn", 2), "green_onion": ("leaf_dark", 2), "radish": ("leaf", 3), "lettuce": ("sprout", 3),

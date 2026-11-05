@@ -100,7 +100,8 @@ MATERIALS = {
     "aubergine":   (312, 0.100, 0.36, 0.34, 5, False),   # glossy eggplant skin, near black-purple
     "zucchini":    (122, 0.075, 0.70, 0.30, 4, False),   # pale Korean courgette (애호박)
     "melon_rind":  (108, 0.060, 0.66, 0.36, 5, False),   # netted muskmelon: green-beige rind to pale net
-    "musk":        (132, 0.050, 0.55, 0.36, 5, False),   # muskmelon rind under the net: soft grey-green
+    "musk":        (135, 0.070, 0.70, 0.36, 5, False),   # muskmelon rind under the net: soft mint green
+    "melon_net":   (95, 0.030, 0.90, 0.14, 3, False),    # its raised net: soft cream
     # --- TEST-ONLY materials: "dev texture" colours, never used by real content -----------------
     "test_orange": (55, 0.150, 0.70, 0.30, 4, True),
     "test_grey":   (250, 0.012, 0.62, 0.30, 4, False),
