@@ -114,6 +114,17 @@ MATERIALS = {
     "onggi":       (45, 0.045, 0.34, 0.24, 4, False),    # glazed earthenware crock
     "porcelain":   (230, 0.012, 0.90, 0.16, 3, False),   # white bowls and plates
     "roe":         (280, 0.020, 0.22, 0.18, 3, False),   # caviar
+    # job machines
+    "millstone":   (75, 0.012, 0.58, 0.28, 5, False),    # warm grey granite (millstones)
+    "whetstone":   (78, 0.058, 0.72, 0.28, 5, False),    # sandstone grinding wheel
+    "bark":        (58, 0.045, 0.36, 0.22, 4, False),    # log bark
+    "clay":        (66, 0.060, 0.64, 0.28, 5, False),    # yellow-ochre clay plaster (traditional stove)
+    "burlap":      (76, 0.055, 0.66, 0.26, 4, False),    # sacks
+    "flour":       (88, 0.012, 0.94, 0.08, 3, False),
+    "iron":        (255, 0.012, 0.32, 0.24, 5, False),   # cast iron pots, anvils, bands
+    "ice":         (218, 0.045, 0.88, 0.18, 4, False),
+    "glow_amber":  (72, 0.150, 0.84, 0.30, 4, True),     # glowing liquor, lanterns
+    "glow_cyan":   (196, 0.110, 0.86, 0.30, 4, True),    # glowing water, pearls
     # --- TEST-ONLY materials: "dev texture" colours, never used by real content -----------------
     "test_orange": (55, 0.150, 0.70, 0.30, 4, True),
     "test_grey":   (250, 0.012, 0.62, 0.30, 4, False),

@@ -63,8 +63,8 @@ for (const el of M.elements) {
     scene.add(new THREE.Mesh(g, new THREE.MeshBasicMaterial({ map: tex[face.texture], color: new THREE.Color(s, s, s), side: THREE.FrontSide, alphaTest: 0.1 })));
   }
 }
-const center = box.getCenter(new THREE.Vector3());
-const radius = box.getSize(new THREE.Vector3()).length() / 2;
+const center = M.center ? new THREE.Vector3(...M.center) : box.getCenter(new THREE.Vector3());
+const radius = M.radius || box.getSize(new THREE.Vector3()).length() / 2;
 if (M.grid !== false) {
   const grid = new THREE.GridHelper(96, 6, 0x3a3f4a, 0x3a3f4a);
   grid.position.set(8, -0.01, 8);
