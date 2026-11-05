@@ -3,6 +3,8 @@ package dev.stsv.economy.util;
 import dev.stsv.core.STSVPlugin;
 import dev.stsv.core.content.CustomItem;
 import net.kyori.adventure.text.Component;
+import net.kyori.adventure.text.format.Style;
+import net.kyori.adventure.text.minimessage.MiniMessage;
 import net.kyori.adventure.text.serializer.plain.PlainTextComponentSerializer;
 import org.bukkit.Material;
 import org.bukkit.entity.Player;
@@ -95,8 +97,34 @@ public final class Items {
         return item.effectiveName();
     }
 
+    /** Plain text (vanilla names in the server's language, English): for searching and storing, not for players. */
     public static String plainName(ItemStack item) {
         return PlainTextComponentSerializer.plainText().serialize(item.effectiveName());
+    }
+
+    /**
+     * The name for a {item} placeholder in a message, as MiniMessage. Vanilla names stay translation keys
+     * ({@code <lang:item.minecraft.lapis_lazuli>}), so every player reads them in their own game language.
+     */
+    public static String mmName(ItemStack item) {
+        return mm(item.effectiveName());
+    }
+
+    /** "economy:ruby" / "minecraft:diamond" as a {item} placeholder; the id itself if there is no such item. */
+    public static String mmName(String id) {
+        return create(id, 1).map(Items::mmName).orElse(id);
+    }
+
+    /**
+     * A name as MiniMessage with no colour or formatting (the message colours it, and an open colour tag
+     * would run on into the rest of the line); text is escaped, so a renamed item cannot add tags.
+     */
+    public static String mm(Component name) {
+        return MiniMessage.miniMessage().serialize(unstyled(name));
+    }
+
+    private static Component unstyled(Component c) {
+        return c.style(Style.empty()).children(c.children().stream().map(Items::unstyled).toList());
     }
 
     /** Puts items in the inventory; returns what did not fit. */

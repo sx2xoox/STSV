@@ -210,7 +210,7 @@ public final class ShopModule extends EcoModule implements DailyListener {
 
     private void sellFeedback(Player p, ItemStack sample, Object result) {
         if (result instanceof Sale s) {
-            HudModule.flash(p, Lang.mm("shop.sold", "item", Items.plainName(sample), "count", s.count(),
+            HudModule.flash(p, Lang.mm("shop.sold", "item", Items.mmName(sample), "count", s.count(),
                     "amount", EconomyModule.format(s.paid()), "unit", String.format("%.1f", s.unitAfter())));
             p.playSound(p.getLocation(), Sound.ENTITY_EXPERIENCE_ORB_PICKUP, 0.5f, 1.4f);
         } else {
@@ -262,7 +262,7 @@ public final class ShopModule extends EcoModule implements DailyListener {
         // tagged: buying at a fixed price and selling back at a 품귀 price (or delivering it) is no money machine
         item.get().editMeta(m -> m.getPersistentDataContainer().set(Items.SHOP_BOUGHT, org.bukkit.persistence.PersistentDataType.BYTE, (byte) 1));
         for (ItemStack left : p.getInventory().addItem(item.get()).values()) p.getWorld().dropItem(p.getLocation(), left);
-        HudModule.flash(p, Lang.mm("shop.bought", "item", Items.plainName(item.get()), "count", amount, "amount", EconomyModule.format(price)));
+        HudModule.flash(p, Lang.mm("shop.bought", "item", Items.mmName(item.get()), "count", amount, "amount", EconomyModule.format(price)));
         p.playSound(p.getLocation(), Sound.ENTITY_ITEM_PICKUP, 0.6f, 1.1f);
         return true;
     }
@@ -288,7 +288,7 @@ public final class ShopModule extends EcoModule implements DailyListener {
             return;
         }
         hand.editMeta(Damageable.class, d -> d.setDamage(0));
-        HudModule.flash(p, Lang.mm("shop.repaired", "item", Items.plainName(hand), "amount", EconomyModule.format(cost)));
+        HudModule.flash(p, Lang.mm("shop.repaired", "item", Items.mmName(hand), "amount", EconomyModule.format(cost)));
         p.playSound(p.getLocation(), Sound.BLOCK_ANVIL_USE, 0.6f, 1.2f);
     }
 
@@ -431,8 +431,9 @@ public final class ShopModule extends EcoModule implements DailyListener {
         return v == Math.rint(v) ? String.valueOf((long) v) : String.valueOf(v);
     }
 
+    /** For a {item} placeholder (MiniMessage, each player's language). */
     public String itemName(String id) {
-        return Items.create(id, 1).map(Items::plainName).orElse(id);
+        return Items.mmName(id);
     }
 
     private void startShortage(ActiveEvent e) {
@@ -673,7 +674,7 @@ public final class ShopModule extends EcoModule implements DailyListener {
         List<Component> out = new ArrayList<>();
         out.add(Lang.msg("shop.prices-header", "players", eco.activity().store().players()));
         for (String id : catalog.sell().keySet()) {
-            if (filter != null && !id.contains(filter.toLowerCase(java.util.Locale.ROOT)) && !itemName(id).contains(filter)) continue;
+            if (filter != null && !id.contains(filter.toLowerCase(java.util.Locale.ROOT)) && !Items.create(id, 1).map(Items::plainName).orElse(id).contains(filter)) continue;
             out.add(Text.mm(" " + priceLine(id)));
         }
         return out;

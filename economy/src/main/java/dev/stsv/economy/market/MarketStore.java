@@ -25,7 +25,7 @@ public final class MarketStore {
         }
     }
 
-    public record Sold(long id, String itemName, int amount, long price, UUID buyer) {}
+    public record Sold(long id, byte[] item, int amount, long price, UUID buyer) {}
 
     private final Db db;
     private final Map<Long, Listing> active = new ConcurrentHashMap<>();
@@ -101,8 +101,8 @@ public final class MarketStore {
     /** Sales the seller has not heard about yet (they were offline); marks them told. */
     public CompletableFuture<List<Sold>> untold(UUID seller) {
         return db.async(c -> {
-            List<Sold> out = Db.query(c, "SELECT id, item_name, amount, price, buyer FROM eco_listing WHERE seller = ? AND state = 1 AND notified = 0",
-                    rs -> new Sold(rs.getLong(1), rs.getString(2), rs.getInt(3), rs.getLong(4), UUID.fromString(rs.getString(5))), seller.toString());
+            List<Sold> out = Db.query(c, "SELECT id, item, amount, price, buyer FROM eco_listing WHERE seller = ? AND state = 1 AND notified = 0",
+                    rs -> new Sold(rs.getLong(1), rs.getBytes(2), rs.getInt(3), rs.getLong(4), UUID.fromString(rs.getString(5))), seller.toString());
             Db.update(c, "UPDATE eco_listing SET notified = 1 WHERE seller = ? AND state = 1", seller.toString());
             return out;
         });

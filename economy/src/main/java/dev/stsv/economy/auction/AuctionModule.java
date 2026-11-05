@@ -43,6 +43,13 @@ public final class AuctionModule extends EcoModule {
     private TradeRules rules;
     private final Map<Long, BossBar> bars = new ConcurrentHashMap<>();
     private final Map<String, Integer> rareWins = new HashMap<>();   // player|week
+    /** names for messages, read from the item once per auction (the boss bar asks every second) */
+    private final Map<Auction, String> names = new java.util.WeakHashMap<>();
+
+    /** From the auctioned item itself, so it reads in each player's language (item_name is kept for the record). */
+    private String name(Auction a) {
+        return names.computeIfAbsent(a, x -> Items.mmName(Items.fromBytes(x.item)));
+    }
 
     public AuctionModule(EcoPlugin eco) {
         super(eco);
@@ -142,7 +149,7 @@ public final class AuctionModule extends EcoModule {
     }
 
     private void announceStart(Auction a, String sellerName) {
-        Bukkit.broadcast(Lang.msg(a.rare ? "auction.started-rare" : "auction.started", "id", a.id, "item", a.itemName, "count", a.amount,
+        Bukkit.broadcast(Lang.msg(a.rare ? "auction.started-rare" : "auction.started", "id", a.id, "item", name(a), "count", a.amount,
                 "seller", sellerName, "price", EconomyModule.format(a.startPrice), "minutes", Math.round((a.ends - now()) / 60_000.0)));
         for (Player p : Bukkit.getOnlinePlayers()) p.playSound(p.getLocation(), Sound.BLOCK_NOTE_BLOCK_BELL, 0.7f, 1.2f);
     }
@@ -180,12 +187,12 @@ public final class AuctionModule extends EcoModule {
             core.economy().move(null, previous, previousBid, EconomyStore.Kind.ESCROW, "auction_refund", "#" + a.id);
             Player prev = Bukkit.getPlayer(previous);
             if (prev != null) {
-                prev.sendMessage(Lang.msg("auction.outbid", "id", a.id, "item", a.itemName, "player", p.getName(), "price", EconomyModule.format(amount),
+                prev.sendMessage(Lang.msg("auction.outbid", "id", a.id, "item", name(a), "player", p.getName(), "price", EconomyModule.format(amount),
                         "min", EconomyModule.format(a.minNext(rules.minRaise()))));
                 prev.playSound(prev.getLocation(), Sound.BLOCK_NOTE_BLOCK_BASS, 0.8f, 0.8f);
             }
         }
-        Bukkit.broadcast(Lang.msg(extended ? "auction.bid-extended" : "auction.bid", "id", a.id, "item", a.itemName, "player", p.getName(),
+        Bukkit.broadcast(Lang.msg(extended ? "auction.bid-extended" : "auction.bid", "id", a.id, "item", name(a), "player", p.getName(),
                 "price", EconomyModule.format(amount), "seconds", rules.extendSeconds()));
         return null;
     }
@@ -201,7 +208,7 @@ public final class AuctionModule extends EcoModule {
         List<Long> alive = new ArrayList<>();
         for (Auction a : store.running()) {
             alive.add(a.id);
-            Component title = Lang.mm("auction.bar", "id", a.id, "item", a.itemName,
+            Component title = Lang.mm("auction.bar", "id", a.id, "item", name(a),
                     "price", EconomyModule.format(a.bidder == null ? a.startPrice : a.bid),
                     "player", a.bidder == null ? Lang.raw("auction.no-bids") : Players.name(a.bidder), "left", clock(a.ends - now));
             float progress = Math.clamp((float) (a.ends - now) / (float) Math.max(60_000L, (long) (rules.auctionMinutes() * 60_000L)), 0f, 1f);
@@ -232,7 +239,7 @@ public final class AuctionModule extends EcoModule {
                 core.economy().move(null, a.seller, a.deposit, EconomyStore.Kind.ESCROW, "auction_deposit_back", "#" + a.id);
                 core.economy().withdraw(a.seller, a.deposit, "auction_deposit_lost");
             }
-            Bukkit.broadcast(Lang.msg("auction.unsold", "id", a.id, "item", a.itemName));
+            Bukkit.broadcast(Lang.msg("auction.unsold", "id", a.id, "item", name(a)));
             return;
         }
         store.finish(a, AuctionStore.SOLD);
@@ -249,7 +256,7 @@ public final class AuctionModule extends EcoModule {
             rareWins.merge(a.bidder + "|" + a.week, 1, Integer::sum);
         }
         eco.mail().deliver(a.bidder, Items.fromBytes(a.item), "auction_win");
-        Bukkit.broadcast(Lang.msg("auction.sold", "id", a.id, "item", a.itemName, "player", Players.name(a.bidder),
+        Bukkit.broadcast(Lang.msg("auction.sold", "id", a.id, "item", name(a), "player", Players.name(a.bidder),
                 "price", EconomyModule.format(a.bid), "bids", a.bids));
         for (Player p : Bukkit.getOnlinePlayers()) p.playSound(p.getLocation(), Sound.UI_TOAST_CHALLENGE_COMPLETE, 0.5f, 1.2f);
         Player seller = a.seller == null ? null : Bukkit.getPlayer(a.seller);
@@ -274,7 +281,7 @@ public final class AuctionModule extends EcoModule {
         store.finish(a, AuctionStore.CANCELLED);
         if (a.seller != null && a.deposit > 0) core.economy().move(null, a.seller, a.deposit, EconomyStore.Kind.ESCROW, "auction_deposit_back", "#" + a.id);
         eco.mail().deliver(a.seller != null ? a.seller : p.getUniqueId(), Items.fromBytes(a.item), "auction_cancel");
-        Bukkit.broadcast(Lang.msg("auction.cancelled", "id", a.id, "item", a.itemName));
+        Bukkit.broadcast(Lang.msg("auction.cancelled", "id", a.id, "item", name(a)));
         return null;
     }
 

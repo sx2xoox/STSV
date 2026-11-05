@@ -57,7 +57,7 @@ public final class MailModule extends EcoModule {
             return;
         }
         store.send(player, Items.bytes(item), reason, now());
-        if (p != null) p.sendMessage(Lang.msg("mail.arrived", "item", Items.plainName(item)));
+        if (p != null) p.sendMessage(Lang.msg("mail.arrived", "item", Items.mmName(item)));
     }
 
     @EventHandler

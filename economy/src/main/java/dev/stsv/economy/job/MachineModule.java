@@ -246,7 +246,7 @@ public final class MachineModule extends EcoModule {
                 meta.itemName(Lang.item(m.operator == null || lv == 0 ? "machine.idle-operator" : "machine.idle", "machine", m.spec.name()));
             } else {
                 int pct = (int) Math.round(m.progress / r.seconds() * 100);
-                meta.itemName(Lang.item("machine.working", "item", Items.create(r.output(), 1).map(Items::plainName).orElse(r.output()), "pct", pct,
+                meta.itemName(Lang.item("machine.working", "item", Items.mmName(r.output()), "pct", pct,
                         "bar", bar(pct)));
             }
             List<Component> lore = new ArrayList<>(Lang.items("machine.operator", "player", m.operator == null ? "-" : dev.stsv.economy.util.Players.name(m.operator),
@@ -270,7 +270,7 @@ public final class MachineModule extends EcoModule {
     }
 
     private static String name(String id) {
-        return Items.create(id, 1).map(Items::plainName).orElse(id);
+        return Items.mmName(id);
     }
 
     private void saveDirty() {

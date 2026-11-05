@@ -96,7 +96,7 @@ public final class MarketModule extends EcoModule {
             return;
         }
         p.getInventory().setItemInMainHand(null);   // only once it is safely listed
-        p.sendMessage(Lang.msg("market.listed", "item", l.itemName(), "count", l.amount(), "price", EconomyModule.format(price),
+        p.sendMessage(Lang.msg("market.listed", "item", name(l), "count", l.amount(), "price", EconomyModule.format(price),
                 "fee", EconomyModule.format(eco.feesWaived() ? 0 : TradeRules.fee(price, rules.marketFee())), "hours", (long) rules.marketHours()));
         p.playSound(p.getLocation(), Sound.ITEM_BOOK_PAGE_TURN, 0.7f, 1.2f);
     }
@@ -126,12 +126,12 @@ public final class MarketModule extends EcoModule {
                 eco.getLogger().warning("거래소 수수료를 걷지 못함: 판매자 " + l.seller() + " 글 " + l.id());
             }
             eco.mail().deliver(p.getUniqueId(), Items.fromBytes(l.item()), "market_buy");
-            p.sendMessage(Lang.msg("market.bought", "item", l.itemName(), "count", l.amount(), "price", EconomyModule.format(l.price()),
+            p.sendMessage(Lang.msg("market.bought", "item", name(l), "count", l.amount(), "price", EconomyModule.format(l.price()),
                     "seller", Players.name(l.seller())));
             p.playSound(p.getLocation(), Sound.ENTITY_EXPERIENCE_ORB_PICKUP, 0.6f, 1.3f);
             Player seller = Bukkit.getPlayer(l.seller());
             if (seller != null) {
-                seller.sendMessage(Lang.msg("market.sold", "item", l.itemName(), "count", l.amount(), "price", EconomyModule.format(l.price()),
+                seller.sendMessage(Lang.msg("market.sold", "item", name(l), "count", l.amount(), "price", EconomyModule.format(l.price()),
                         "fee", EconomyModule.format(fee), "buyer", p.getName()));
                 seller.playSound(seller.getLocation(), Sound.ENTITY_EXPERIENCE_ORB_PICKUP, 0.6f, 1.6f);
                 store.told(l.id());
@@ -144,7 +144,7 @@ public final class MarketModule extends EcoModule {
         store.close(l.id(), MarketStore.CANCELLED, null, now()).thenAccept(ok -> sync(() -> {
             if (!ok) return;
             eco.mail().deliver(l.seller(), Items.fromBytes(l.item()), "market_cancel");
-            HudModule.flash(p, Lang.mm("market.cancelled", "item", l.itemName()));
+            HudModule.flash(p, Lang.mm("market.cancelled", "item", name(l)));
         }));
     }
 
@@ -154,9 +154,14 @@ public final class MarketModule extends EcoModule {
                 if (!ok) return;
                 eco.mail().deliver(l.seller(), Items.fromBytes(l.item()), "market_expired");
                 Player s = Bukkit.getPlayer(l.seller());
-                if (s != null) s.sendMessage(Lang.msg("market.expired", "item", l.itemName()));
+                if (s != null) s.sendMessage(Lang.msg("market.expired", "item", name(l)));
             }));
         }
+    }
+
+    /** From the listed item itself, so it reads in each player's language (item_name is kept for search). */
+    private static String name(MarketStore.Listing l) {
+        return Items.mmName(Items.fromBytes(l.item()));
     }
 
     @EventHandler
@@ -167,7 +172,7 @@ public final class MarketModule extends EcoModule {
             long total = sold.stream().mapToLong(MarketStore.Sold::price).sum();
             p.sendMessage(Lang.msg("market.away", "count", sold.size(), "amount", EconomyModule.format(total)));
             for (MarketStore.Sold s : sold.subList(0, Math.min(5, sold.size()))) {
-                p.sendMessage(Lang.mm("market.away-line", "item", s.itemName(), "count", s.amount(), "price", EconomyModule.format(s.price()),
+                p.sendMessage(Lang.mm("market.away-line", "item", Items.mmName(Items.fromBytes(s.item())), "count", s.amount(), "price", EconomyModule.format(s.price()),
                         "buyer", Players.name(s.buyer())));
             }
         }));

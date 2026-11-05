@@ -417,7 +417,7 @@ public final class JobModule extends EcoModule {
             if (!silk && !gems.isEmpty() && r.nextDouble() < passive(u, "miner", "gem")) {
                 Items.create(gems.get(r.nextInt(gems.size())), 1).ifPresent(g -> {
                     e.getBlock().getWorld().dropItemNaturally(e.getBlock().getLocation().add(0.5, 0.5, 0.5), g);
-                    HudModule.flash(p, Lang.mm("job.found", "item", Items.plainName(g)));
+                    HudModule.flash(p, Lang.mm("job.found", "item", Items.mmName(g)));
                     p.playSound(p.getLocation(), Sound.BLOCK_AMETHYST_BLOCK_CHIME, 1f, 1.2f);
                 });
             }
@@ -463,7 +463,7 @@ public final class JobModule extends EcoModule {
         if (drops.isEmpty() || ThreadLocalRandom.current().nextDouble() >= passive(p.getUniqueId(), "farmer", "animal")) return;
         Items.create(drops.get(ThreadLocalRandom.current().nextInt(drops.size())), 1).ifPresent(g -> {
             e.getDrops().add(g);
-            HudModule.flash(p, Lang.mm("job.found", "item", Items.plainName(g)));
+            HudModule.flash(p, Lang.mm("job.found", "item", Items.mmName(g)));
         });
     }
 
@@ -532,7 +532,7 @@ public final class JobModule extends EcoModule {
         if (rare.isEmpty()) return;
         caught.setItemStack(rare.get());
         reward(p, "rare", Items.key(rare.get()), 1);
-        HudModule.flash(p, Lang.mm("job.rare-catch", "item", Items.plainName(rare.get())));
+        HudModule.flash(p, Lang.mm("job.rare-catch", "item", Items.mmName(rare.get())));
         p.playSound(p.getLocation(), Sound.ENTITY_PLAYER_LEVELUP, 0.5f, 1.8f);
     }
 
@@ -614,7 +614,7 @@ public final class JobModule extends EcoModule {
                 ItemStack back = used.get(ThreadLocalRandom.current().nextInt(used.size()));
                 Bukkit.getScheduler().runTask(eco, () -> {
                     for (ItemStack left : p.getInventory().addItem(back).values()) p.getWorld().dropItem(p.getLocation(), left);
-                    HudModule.flash(p, Lang.mm("job.saved", "item", Items.plainName(back)));
+                    HudModule.flash(p, Lang.mm("job.saved", "item", Items.mmName(back)));
                 });
             }
         }
