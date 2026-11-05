@@ -88,39 +88,6 @@ def crusher():
     return _done(m)
 
 
-def compost_bin():
-    m = Model("compost_bin")
-    m.group("box")
-    m.box("box", (1, 0, 1), (15, 13, 15), "wood", faces={"up": "soil"})
-    m.group("rim")
-    m.box("rim_n", (0, 13, 0), (16, 15, 1), "wood_dark")
-    m.box("rim_s", (0, 13, 15), (16, 15, 16), "wood_dark")
-    m.box("rim_w", (0, 13, 1), (1, 15, 15), "wood_dark")
-    m.box("rim_e", (15, 13, 1), (16, 15, 15), "wood_dark")
-    for i, (x, z) in enumerate(((0, 0), (15, 0), (0, 15), (15, 15))):
-        m.box(f"post_{i}", (x, 0, z), (x + 1, 13, z + 1), "wood_dark")
-    m.group("scraps")
-    m.box("leaf_a", (4, 13, 5), (7, 13.5, 8), "leaves", faces={"down": None})
-    m.box("leaf_b", (9, 13, 9), (12, 13.5, 11), "leaves", faces={"down": None})
-    return _done(m)
-
-
-def auto_planter():
-    m = Model("auto_planter")
-    m.group("pot")
-    m.box("pot", (2, 0, 2), (14, 9, 14), "terracotta", faces={"up": "soil"})
-    m.box("lip_n", (1, 9, 1), (15, 10, 2), "terracotta")
-    m.box("lip_s", (1, 9, 14), (15, 10, 15), "terracotta")
-    m.box("lip_w", (1, 9, 2), (2, 10, 14), "terracotta")
-    m.box("lip_e", (14, 9, 2), (15, 10, 14), "terracotta")
-    m.group("crop")
-    m.box("stalk_a", (5, 9, 7.5), (11, 15, 8.5), "leaves", faces={"down": None})
-    m.box("stalk_b", (7.5, 9, 5), (8.5, 15, 7.5), "leaves", faces={"down": None})
-    m.box("stalk_c", (7.5, 9, 8.5), (8.5, 15, 11), "leaves", faces={"down": None})
-    m.box("grain", (7, 15, 7), (9, 16, 9), "gold_trim")
-    return _done(m)
-
-
 def fish_tank():
     m = Model("fish_tank")
     m.group("stand")
@@ -193,164 +160,50 @@ def distiller():
     return _done(m)
 
 
-ALL = {f.__name__: f for f in (crusher, compost_bin, auto_planter, fish_tank, reinforcing_table, cooking_table, smoker_oven, distiller)}
+ALL = {f.__name__: f for f in (crusher, fish_tank, reinforcing_table, cooking_table, smoker_oven, distiller)}
 
 
 # ------------------------------------------------------------------------------------------------
-# Crops: every growth stage is four crossed planes (like vanilla crops) with a cut-out plant texture.
+# Crops: every growth stage is four crossed planes (like vanilla crops) with a hand-drawn cut-out
+# texture (economy_crops.py). Plants two blocks tall (corn) stack a second set of planes on top.
 # ------------------------------------------------------------------------------------------------
 
-def _plant(kind, stage, stages, seed):
-    """A 16x16 plant sprite with transparency. kind: grain | root | bush. Grows with the stage;
-    the last stage shows the ripe crop."""
-    rnd = random.Random(seed * 31 + stage)
-    im = T._new()
-    px = im.load()
-    t = stage / (stages - 1)
-    ripe = stage == stages - 1
-    top = 15 - int(3 + t * (11 if kind == "grain" else 9 if kind == "bush" else 6))
-
-    def put(x, y, r, i):
-        if 0 <= x < 16 and 0 <= y < 16:
-            px[x, y] = ramp(r, i)
-
-    if kind == "grain":
-        for x in (3, 6, 9, 12):
-            h = top + rnd.randint(0, 2)
-            for y in range(h, 16):
-                put(x + (1 if y < h + 3 and x % 2 else 0), y, "leaf", 2 if y < 12 else 1)
-            if ripe:
-                for y in range(h - 1, h + 4):
-                    put(x, y, "gold", 3 if y < h + 1 else 2)
-                    put(x + 1, y, "gold", 1)
-            elif stage > 0:
-                put(x - 1, h + 3, "leaf", 3)
-    else:
-        # stem and leaves
-        for y in range(top, 16):
-            put(7, y, "leaf", 1)
-            put(8, y, "leaf", 2)
-        for k in range(2 + stage * 2):
-            y = rnd.randint(top, 14)
-            side = -1 if k % 2 else 1
-            for d in range(1, 3 + (stage > 1)):
-                put(7 + side * d + (1 if side > 0 else 0), y - (d // 2), "leaf", 3 if d == 1 else 2)
-        if ripe:
-            color = {"root": None}.get(kind)
-            if kind == "root":
-                pass
-            else:
-                for k in range(4):
-                    fx, fy = rnd.randint(3, 11), rnd.randint(top + 2, 12)
-                    shape = ((0, 0, 3), (0, 1, 2), (0, 2, 2), (1, 3, 1)) if seed == 5 else ((0, 0, 3), (1, 0, 2), (0, 1, 2), (1, 1, 1))
-                    for (dx, dy, i) in shape:   # chili: long hanging pods; others: round fruit
-                        put(fx + dx, fy + dy, seed_color(seed), i)
-    return im
+import economy_crops as CROPS   # noqa: E402
 
 
-_FRUIT = {}
-
-
-def seed_color(seed):
-    return _FRUIT.get(seed, "tomato")
-
-
-def _root_top(color, seed):
-    """The top of a root crop poking out of the soil (bottom rows of the last stage)."""
-    def make():
-        im = _plant("root", 3, 4, seed)
-        px = im.load()
-        for x in range(5, 11):
-            for y in range(13, 16):
-                px[x, y] = ramp(color, 3 if y == 13 else 2 if x < 9 else 1)
-        return im
-    return make
-
-
-def _crop_textures(name, kind, stages, seed, fruit=None, root=None):
-    if fruit:
-        _FRUIT[seed] = fruit
-    for s in range(stages):
-        tex = f"crop_{name}_{s}"
-        if root and s == stages - 1:
-            T.SURFACES[tex] = _root_top(root, seed)
-        else:
-            T.SURFACES[tex] = (lambda st=s: _plant(kind, st, stages, seed))
-
-
-def _withered():
-    rnd = random.Random(99)
-    im = T._new()
-    px = im.load()
-    for x in (3, 6, 9, 12):
-        h = 9 + rnd.randint(0, 3)
-        for y in range(h, 16):
-            px[x + (1 if y < h + 2 else 0), y] = ramp("soil", 2 if y < 13 else 1)
-    return im
-
-
-T.SURFACES["crop_withered"] = _withered
-
-CROPS = {
-    # name: (kind, stages, seed, fruit colour, root colour)
-    "golden_wheat": ("grain", 4, 1, None, None),
-    "honey_potato": ("root", 4, 2, None, "terracotta"),
-    "ruby_carrot": ("root", 4, 3, None, "ruby"),
-    "tomato": ("bush", 5, 4, "tomato", None),
-    "chili": ("bush", 5, 5, "fabric_red", None),
-    "strawberry": ("bush", 4, 6, "toadstool", None),
-}
-
-
-def _crop_model(name, tex):
-    m = Model(name)
-    m.group("plant")
-    # two planes across x and two across z, 4 px from the edges, like vanilla crops
+def _planes(m, tex, y0, y1):
     for i, x in enumerate((4, 12)):
-        m.box(f"x{i}", (x, 0, 0), (x, 16, 16), tex, faces={"north": None, "south": None, "up": None, "down": None},
+        m.box(f"x{i}_{y0}", (x, y0, 0), (x, y1, 16), tex, faces={"north": None, "south": None, "up": None, "down": None},
               full_uv=["east", "west"])
     for i, z in enumerate((4, 12)):
-        m.box(f"z{i}", (0, 0, z), (16, 16, z), tex, faces={"east": None, "west": None, "up": None, "down": None},
+        m.box(f"z{i}_{y0}", (0, y0, z), (16, y1, z), tex, faces={"east": None, "west": None, "up": None, "down": None},
               full_uv=["north", "south"])
+
+
+def _crop_model(name, low, high=None):
+    m = Model(name)
+    m.group("plant")
+    _planes(m, low, 0, 16)
+    if high:
+        _planes(m, high, 16, 32)
     m.display = presets.furniture(gui_scale=0.6)
     return m
 
 
 def _crop_builders():
     out = {}
-    for name, (kind, stages, seed, fruit, root) in CROPS.items():
-        _crop_textures(name, kind, stages, seed, fruit, root)
-        for s in range(stages):
-            out[f"{name}_{s}"] = (lambda n=name, st=s: _crop_model(f"{n}_{st}", f"crop_{n}_{st}"))
-    out["withered_crop"] = lambda: _crop_model("withered_crop", "crop_withered")
+    for crop, stages in CROPS.STAGES.items():
+        for s, im in enumerate(stages):
+            if isinstance(im, tuple):
+                lo, hi = f"crop_{crop}_{s}_lo", f"crop_{crop}_{s}_hi"
+                T.SURFACES[lo] = (lambda img=im[0]: img.copy())
+                T.SURFACES[hi] = (lambda img=im[1]: img.copy())
+                out[f"{crop}_{s}"] = (lambda n=f"{crop}_{s}", a=lo, b=hi: _crop_model(n, a, b))
+            else:
+                tex = f"crop_{crop}_{s}"
+                T.SURFACES[tex] = (lambda img=im: img.copy())
+                out[f"{crop}_{s}"] = (lambda n=f"{crop}_{s}", t=tex: _crop_model(n, t))
     return out
 
 
-def sprinkler():
-    m = Model("sprinkler")
-    m.group("base")
-    m.box("base", (4, 0, 4), (12, 2, 12), "copper")
-    m.box("pipe", (7, 2, 7), (9, 10, 9), "steel")
-    m.group("head")
-    m.box("head", (5, 10, 5), (11, 12, 11), "brass")
-    m.box("arm_x", (2, 10.5, 7.5), (5, 11.5, 8.5), "steel")
-    m.box("arm_x2", (11, 10.5, 7.5), (14, 11.5, 8.5), "steel")
-    m.box("arm_z", (7.5, 10.5, 2), (8.5, 11.5, 5), "steel")
-    m.box("arm_z2", (7.5, 10.5, 11), (8.5, 11.5, 14), "steel")
-    m.box("cap", (7, 12, 7), (9, 13, 9), "copper")
-    return _done(m)
-
-
-def planter_pot():
-    m = Model("planter_pot")
-    m.group("pot")
-    m.box("pot", (2, 0, 2), (14, 9, 14), "terracotta", faces={"up": "soil"})
-    m.box("lip_n", (1, 9, 1), (15, 10, 2), "terracotta")
-    m.box("lip_s", (1, 9, 14), (15, 10, 15), "terracotta")
-    m.box("lip_w", (1, 9, 2), (2, 10, 14), "terracotta")
-    m.box("lip_e", (14, 9, 2), (15, 10, 14), "terracotta")
-    return _done(m)
-
-
-ALL.update({"sprinkler": sprinkler, "planter_pot": planter_pot})
 ALL.update(_crop_builders())

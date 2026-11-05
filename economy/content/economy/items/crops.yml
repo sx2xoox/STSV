@@ -1,96 +1,190 @@
-# 작물 관련 아이템: 씨앗, 수확물, 물뿌리개, 살충제, 스프링클러, 화분
-# 작물 정의는 crops/crops.yml
+# 작물 아이템: 씨앗과 수확물. 작물 정의(자라는 방식, 수확량)는 crops/crops.yml
+# 씨앗은 관리자 상점에서. 마늘과 콩은 수확물을 그대로 심음.
 
-golden_wheat_seeds:
-  material: paper
-  name: "<#8bc34a>황금 밀 씨앗"
-  lore: ["<gray>Lv2 농부가 밀을 수확할 때 가끔. 경작지에 심기 (농부 Lv2)."]
-  texture: golden_wheat_seeds
-
-honey_potato_seed:
-  material: paper
-  name: "<#8bc34a>꿀 씨감자"
-  lore: ["<gray>Lv2 농부가 감자를 수확할 때 가끔. 경작지에 심기 (농부 Lv2)."]
-  texture: honey_potato_seed
-
-ruby_carrot_seed:
-  material: paper
-  name: "<#8bc34a>루비 당근 씨앗"
-  lore: ["<gray>Lv2 농부가 당근을 수확할 때 가끔. 경작지에 심기 (농부 Lv2)."]
-  texture: ruby_carrot_seed
-
+# ── 씨앗 ──
 tomato_seeds:
   material: paper
   name: "<#8bc34a>토마토 씨앗"
-  lore: ["<gray>관리자 상점. 경작지나 화분에 심기. 수확 뒤 다시 열림."]
+  lore: ["<gray>경작지에 심기. 다 익으면 우클릭으로 수확, 다시 열림."]
   texture: tomato_seeds
 
 chili_seeds:
   material: paper
   name: "<#8bc34a>고추 씨앗"
-  lore: ["<gray>관리자 상점. 경작지나 화분에 심기. 수확 뒤 다시 열림."]
+  lore: ["<gray>경작지에 심기. 다 익으면 우클릭으로 수확, 다시 열림."]
   texture: chili_seeds
 
 strawberry_seeds:
   material: paper
   name: "<#8bc34a>딸기 씨앗"
-  lore: ["<gray>관리자 상점. 경작지나 화분에 심기. 수확 뒤 다시 열림, 해충에 약함."]
+  lore: ["<gray>경작지에 심기. 다 익으면 우클릭으로 수확, 다시 열림."]
   texture: strawberry_seeds
 
+onion_seeds:
+  material: paper
+  name: "<#8bc34a>양파 씨앗"
+  lore: ["<gray>경작지에 심기. 다 익으면 우클릭으로 수확."]
+  texture: onion_seeds
+
+cabbage_seeds:
+  material: paper
+  name: "<#8bc34a>배추 씨앗"
+  lore: ["<gray>경작지에 심기. 다 익으면 우클릭으로 수확."]
+  texture: cabbage_seeds
+
+rice_seeds:
+  material: paper
+  name: "<#8bc34a>볍씨"
+  lore: ["<gray>경작지에 심기. 물가에서 잘 자람."]
+  texture: rice_seeds
+
+corn_seeds:
+  material: paper
+  name: "<#8bc34a>옥수수 씨앗"
+  lore: ["<gray>경작지에 심기. 사람 키만큼 자람."]
+  texture: corn_seeds
+
+green_onion_seeds:
+  material: paper
+  name: "<#8bc34a>파 씨앗"
+  lore: ["<gray>경작지에 심기. 다 익으면 우클릭으로 수확."]
+  texture: green_onion_seeds
+
+radish_seeds:
+  material: paper
+  name: "<#8bc34a>무 씨앗"
+  lore: ["<gray>경작지에 심기. 다 익으면 우클릭으로 수확."]
+  texture: radish_seeds
+
+lettuce_seeds:
+  material: paper
+  name: "<#8bc34a>상추 씨앗"
+  lore: ["<gray>경작지에 심기. 잎을 따면 다시 자람."]
+  texture: lettuce_seeds
+
+cucumber_seeds:
+  material: paper
+  name: "<#8bc34a>오이 씨앗"
+  lore: ["<gray>경작지에 심기. 다 익으면 우클릭으로 수확, 다시 열림."]
+  texture: cucumber_seeds
+
+grape_sapling:
+  material: paper
+  name: "<#8bc34a>포도 묘목"
+  lore: ["<gray>경작지에 심기. 한 번 심으면 계속 열림."]
+  texture: grape_sapling
+
+tea_seeds:
+  material: paper
+  name: "<#8bc34a>차나무 씨앗"
+  lore: ["<gray>경작지에 심기. 새순을 따면 다시 자람."]
+  texture: tea_seeds
+
+# ── 수확물 ──
 tomato:
   material: paper
   name: "<#8bc34a>토마토"
-  lore: ["<gray>요리 재료. 품질 ★이 높을수록 비싸게 팔림."]
+  lore: ["<gray>요리 재료. 날로 먹을 수 있음."]
   texture: tomato
+  food:
+    nutrition: 3
+    saturation: 1.8
 
 chili_pepper:
   material: paper
   name: "<#8bc34a>고추"
-  lore: ["<gray>요리 재료. 품질 ★이 높을수록 비싸게 팔림."]
+  lore: ["<gray>요리 재료. 말려서 고춧가루로."]
   texture: chili_pepper
 
 strawberry:
   material: paper
   name: "<#8bc34a>딸기"
-  lore: ["<gray>요리 재료. 품질 ★이 높을수록 비싸게 팔림."]
+  lore: ["<gray>요리 재료. 날로 먹을 수 있음."]
   texture: strawberry
+  food:
+    nutrition: 2
+    saturation: 1.2
 
-pesticide:
+onion:
   material: paper
-  name: "<#ba68c8>살충제"
-  lore: ["<gray>해충이 생긴 작물에 우클릭."]
-  texture: pesticide
+  name: "<#8bc34a>양파"
+  lore: ["<gray>요리 재료."]
+  texture: onion
 
-watering_can:
+garlic:
   material: paper
-  name: "<#ff8a65>물뿌리개"
-  lore: ["<gray>물에 대고 우클릭: 채우기 (16번)", "<gray>작물에 우클릭: 물 주기."]
-  texture: watering_can
-  max-stack: 1
+  name: "<#8bc34a>마늘"
+  lore: ["<gray>요리 재료. 경작지에 심으면 마늘이 자람."]
+  texture: garlic
 
-copper_watering_can:
+napa_cabbage:
   material: paper
-  name: "<#ff8a65>구리 물뿌리개"
-  lore: ["<gray>물에 대고 우클릭: 채우기 (48번)", "<gray>작물에 우클릭: 물 주기. 3×3 한 번에."]
-  texture: copper_watering_can
-  max-stack: 1
+  name: "<#8bc34a>배추"
+  lore: ["<gray>요리 재료. 김치의 주재료."]
+  texture: napa_cabbage
 
-sprinkler:
+paddy:
   material: paper
-  name: "<#ff8a65>스프링클러"
-  lore: ["<gray>주변 5×5 작물에 늘 물을 줌", "<dark_gray>대장장이 Lv2 생산품"]
-  model: sprinkler
-  max-stack: 16
-  furniture:
-    cells: [[0, 0, 0]]
-    behavior: stsv:sprinkler
+  name: "<#8bc34a>벼"
+  lore: ["<gray>도정하면 쌀이 됨."]
+  texture: paddy
 
-planter_pot:
+soybean:
   material: paper
-  name: "<#8bc34a>화분"
-  lore: ["<gray>씨앗을 들고 우클릭: 심기 (실내 재배)", "<dark_gray>농부 Lv1 생산품"]
-  model: planter_pot
-  max-stack: 16
-  furniture:
-    cells: [[0, 0, 0]]
-    behavior: stsv:crop_pot
+  name: "<#8bc34a>콩"
+  lore: ["<gray>요리 재료. 경작지에 심으면 콩이 자람."]
+  texture: soybean
+
+corn:
+  material: paper
+  name: "<#8bc34a>옥수수"
+  lore: ["<gray>요리 재료."]
+  texture: corn
+
+green_onion:
+  material: paper
+  name: "<#8bc34a>파"
+  lore: ["<gray>요리 재료."]
+  texture: green_onion
+
+radish:
+  material: paper
+  name: "<#8bc34a>무"
+  lore: ["<gray>요리 재료. 날로 먹을 수 있음."]
+  texture: radish
+  food:
+    nutrition: 2
+    saturation: 1.2
+
+lettuce:
+  material: paper
+  name: "<#8bc34a>상추"
+  lore: ["<gray>쌈 채소. 날로 먹을 수 있음."]
+  texture: lettuce
+  food:
+    nutrition: 1
+    saturation: 0.6
+
+cucumber:
+  material: paper
+  name: "<#8bc34a>오이"
+  lore: ["<gray>요리 재료. 날로 먹을 수 있음."]
+  texture: cucumber
+  food:
+    nutrition: 3
+    saturation: 1.8
+
+grapes:
+  material: paper
+  name: "<#8bc34a>포도"
+  lore: ["<gray>날로 먹거나 즙을 냄."]
+  texture: grapes
+  food:
+    nutrition: 2
+    saturation: 1.2
+
+tea_leaves:
+  material: paper
+  name: "<#8bc34a>찻잎"
+  lore: ["<gray>덖어서 차로."]
+  texture: tea_leaves

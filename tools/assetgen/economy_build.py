@@ -53,6 +53,10 @@ def main():
                             str(BUILD / f"eco_{name}.png")], check=True)
     print(f"models  {len(M.ALL)}")
 
+    # crop art preview (growth stages, harvest and seed icons)
+    import economy_crops as CR
+    CR.sheet(PREVIEWS / "crops.png")
+
     # menu backgrounds + button icons
     assets = PACK / "assets" / NS
     folders = {"bg": assets / "textures/gui", "tex": assets / "textures/item/gui", "model": assets / "models/item/gui",

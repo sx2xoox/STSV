@@ -20,6 +20,18 @@ pool:
   - { item: economy:tomato, min: 16, max: 32, job: farmer, xp: 20, from-day: 2 }
   - { item: economy:chili_pepper, min: 16, max: 32, job: farmer, xp: 20, from-day: 2 }
   - { item: economy:strawberry, min: 8, max: 24, job: farmer, xp: 20, from-day: 2 }
+  - { item: economy:onion, min: 8, max: 24, job: farmer, xp: 20, from-day: 2 }
+  - { item: economy:garlic, min: 16, max: 32, job: farmer, xp: 20, from-day: 2 }
+  - { item: economy:napa_cabbage, min: 4, max: 12, job: farmer, xp: 25, from-day: 3 }
+  - { item: economy:paddy, min: 32, max: 64, job: farmer, xp: 20, from-day: 2 }
+  - { item: economy:soybean, min: 32, max: 64, job: farmer, xp: 20, from-day: 2 }
+  - { item: economy:corn, min: 8, max: 16, job: farmer, xp: 25, from-day: 3 }
+  - { item: economy:green_onion, min: 16, max: 32, job: farmer, xp: 20, from-day: 2 }
+  - { item: economy:radish, min: 4, max: 12, job: farmer, xp: 25, from-day: 3 }
+  - { item: economy:lettuce, min: 16, max: 32, job: farmer, xp: 20, from-day: 2 }
+  - { item: economy:cucumber, min: 8, max: 24, job: farmer, xp: 20, from-day: 2 }
+  - { item: economy:grapes, min: 8, max: 24, job: farmer, xp: 25, from-day: 4 }
+  - { item: economy:tea_leaves, min: 16, max: 32, job: farmer, xp: 25, from-day: 4 }
   - { item: cod, min: 8, max: 24, job: fisher, xp: 25 }
   - { item: salmon, min: 8, max: 24, job: fisher, xp: 25 }
   - { item: economy:tuna, min: 1, max: 3, job: fisher, xp: 40, from-day: 3, weight: 6 }
@@ -29,10 +41,8 @@ pool:
   - { item: economy:miner_lunchbox, min: 2, max: 5, job: cook, xp: 30, value: 25, from-day: 3, weight: 6 }
   - { item: iron_pickaxe, min: 1, max: 2, job: blacksmith, xp: 30, value: 100 }
   - { item: shield, min: 1, max: 2, job: blacksmith, xp: 20, value: 30 }
-  - { item: economy:fertilizer, min: 4, max: 8, job: alchemist, xp: 30, value: 12, from-day: 3, weight: 6 }
   - { item: economy:swift_tonic, min: 1, max: 3, job: alchemist, xp: 30, value: 40, from-day: 3, weight: 5 }
   - { item: economy:steel_ingot, min: 4, max: 8, job: blacksmith, xp: 40, value: 30, from-day: 8, weight: 6 }
-  - { item: economy:golden_wheat, min: 2, max: 4, job: farmer, xp: 40, from-day: 8, weight: 5 }
   - { item: economy:catalyst, min: 1, max: 2, job: alchemist, xp: 60, value: 80, from-day: 8, weight: 5 }
   - { item: economy:salmon_roe, min: 2, max: 4, job: fisher, xp: 40, value: 25, from-day: 8, weight: 5 }
   - { item: economy:hearty_stew, min: 2, max: 3, job: cook, xp: 50, value: 60, from-day: 8, weight: 5 }

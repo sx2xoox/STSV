@@ -83,16 +83,6 @@ public final class Items {
         return amount - left;
     }
 
-    /** Like {@link #remove}, but the lowest quality ★ first (deliveries keep the best for the owner). */
-    public static int removeLowestQuality(PlayerInventory inv, Predicate<ItemStack> match, int amount) {
-        int left = amount;
-        for (int star = 0; star <= 3 && left > 0; star++) {
-            final int s = star;
-            left -= remove(inv, it -> match.test(it) && dev.stsv.core.crop.CropModule.stars(it) == s, left);
-        }
-        return amount - left;
-    }
-
     public static byte[] bytes(ItemStack item) {
         return item.serializeAsBytes();
     }

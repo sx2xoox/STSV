@@ -425,14 +425,6 @@ public final class JobModule extends EcoModule {
             if (crop != null && bonus > 0) {
                 e.getBlock().getWorld().dropItemNaturally(e.getBlock().getLocation().add(0.5, 0.3, 0.5), new ItemStack(crop, bonus));
             }
-            List<String> premium = spec.jobs().get("farmer").drops(key);
-            if (!premium.isEmpty() && r.nextDouble() < passive(u, "farmer", "premium")) {
-                Items.create(premium.get(r.nextInt(premium.size())), 1).ifPresent(g -> {
-                    e.getBlock().getWorld().dropItemNaturally(e.getBlock().getLocation().add(0.5, 0.3, 0.5), g);
-                    HudModule.flash(p, Lang.mm("job.found", "item", Items.plainName(g)));
-                    p.playSound(p.getLocation(), Sound.BLOCK_AMETHYST_BLOCK_CHIME, 1f, 1.4f);
-                });
-            }
         }
     }
 
@@ -493,15 +485,12 @@ public final class JobModule extends EcoModule {
             case HARVEST -> {
                 reward(p, "harvest", e.crop().id(), 1);
                 if (!"farmer".equals(job(u))) return;
-                e.qualityBonus(e.qualityBonus() + passive(u, "farmer", "crop-quality"));
+                // a farmer's harvest: one more of the produce now and then
                 if (ThreadLocalRandom.current().nextDouble() < passive(u, "farmer", "crop-bonus")) {
-                    for (dev.stsv.core.crop.CropSpec.Drop d : e.crop().harvest()) {
-                        if (!d.quality()) continue;
-                        for (ItemStack it : e.drops()) {
-                            if (Items.key(it).equals(d.item())) {
-                                it.setAmount(it.getAmount() + 1);
-                                return;
-                            }
+                    for (ItemStack it : e.drops()) {
+                        if (e.crop().produce().equals(Items.key(it))) {
+                            it.setAmount(it.getAmount() + 1);
+                            return;
                         }
                     }
                 }

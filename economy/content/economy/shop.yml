@@ -1,5 +1,4 @@
 # 관리자 상점 /상점, 시세 /시세
-# 커스텀 작물의 품질 ★: ★2 는 1.25배, ★3 는 1.5배로 매입.
 # 매입(sell): 플레이어가 상점에 팔 때. 가격 P = max(floor·base, base·e^(-S/Q)), Q = q × 오늘 접속 인원,
 #   S = 오늘 서버 전체가 판 양 (매일 05시에 daily-decay 만큼 줄어듦). cap = 1인 하루 판매 한도(선택).
 # 구매(buy): 플레이어가 상점에서 살 때 (고정가). 장비와 고급 재료는 팔지 않음: 플레이어끼리 거래.
@@ -36,12 +35,22 @@ sell:
   egg: { base: 1, q: 64, job: farmer }
   leather: { base: 5, q: 16, job: farmer }
   white_wool: { base: 2, q: 32, job: farmer }
+  # 채소·과일 (커스텀 작물)
   economy:tomato: { base: 6, q: 48, job: farmer }
   economy:chili_pepper: { base: 7, q: 40, job: farmer }
   economy:strawberry: { base: 9, q: 32, job: farmer }
-  economy:golden_wheat: { base: 12, q: 8, job: farmer }
-  economy:honey_potato: { base: 12, q: 8, job: farmer }
-  economy:ruby_carrot: { base: 12, q: 8, job: farmer }
+  economy:onion: { base: 8, q: 40, job: farmer }
+  economy:garlic: { base: 5, q: 48, job: farmer }
+  economy:napa_cabbage: { base: 18, q: 16, job: farmer }
+  economy:paddy: { base: 4, q: 64, job: farmer }
+  economy:soybean: { base: 4, q: 64, job: farmer }
+  economy:corn: { base: 10, q: 32, job: farmer }
+  economy:green_onion: { base: 5, q: 48, job: farmer }
+  economy:radish: { base: 14, q: 16, job: farmer }
+  economy:lettuce: { base: 5, q: 48, job: farmer }
+  economy:cucumber: { base: 7, q: 40, job: farmer }
+  economy:grapes: { base: 10, q: 32, job: farmer }
+  economy:tea_leaves: { base: 6, q: 48, job: farmer }
   economy:truffle: { base: 30, q: 4, job: farmer }
   economy:fine_leather: { base: 25, q: 4, job: farmer }
   economy:golden_egg: { base: 30, q: 3, job: farmer }
@@ -96,7 +105,18 @@ buy:
   - { item: economy:tomato_seeds, amount: 4, price: 40 }
   - { item: economy:chili_seeds, amount: 4, price: 50 }
   - { item: economy:strawberry_seeds, amount: 4, price: 60 }
-  - { item: economy:watering_can, price: 150 }
+  - { item: economy:onion_seeds, amount: 4, price: 30 }
+  - { item: economy:garlic, amount: 4, price: 30 }
+  - { item: economy:cabbage_seeds, amount: 4, price: 40 }
+  - { item: economy:rice_seeds, amount: 8, price: 30 }
+  - { item: economy:soybean, amount: 8, price: 30 }
+  - { item: economy:corn_seeds, amount: 4, price: 40 }
+  - { item: economy:green_onion_seeds, amount: 4, price: 30 }
+  - { item: economy:radish_seeds, amount: 4, price: 40 }
+  - { item: economy:lettuce_seeds, amount: 4, price: 30 }
+  - { item: economy:cucumber_seeds, amount: 4, price: 40 }
+  - { item: economy:grape_sapling, amount: 1, price: 60 }
+  - { item: economy:tea_seeds, amount: 4, price: 60 }
   - { item: oak_sapling, amount: 4, price: 10 }
   - { item: bone_meal, amount: 16, price: 40 }
   - { item: coal, amount: 8, price: 48 }

@@ -63,40 +63,16 @@ bait:
   lore: ["<gray>어부의 왼손에 들면 희귀 어획 확률 +5% (한 번에 1개 소모).", "<dark_gray>농부 Lv1 생산품"]
   texture: bait
 
-compost:
-  material: paper
-  name: "<#8bc34a>퇴비"
-  lore: ["<gray>비료통: 식물 찌꺼기 → 퇴비. 연금술사가 비료로 만듦.", "<dark_gray>농부 Lv1 생산품"]
-  texture: compost
-
 feed:
   material: paper
   name: "<#8bc34a>사료"
   lore: ["<gray>수조에서 물고기를 기를 때 필요.", "<dark_gray>농부 Lv1 생산품"]
   texture: feed
 
-golden_wheat:
-  material: paper
-  name: "<#8bc34a>황금 밀"
-  lore: ["<gray>Lv2 농부가 밀을 수확할 때 가끔.", "<dark_gray>농부 Lv2 생산품"]
-  texture: golden_wheat
-
-honey_potato:
-  material: paper
-  name: "<#8bc34a>꿀 감자"
-  lore: ["<gray>Lv2 농부가 감자를 수확할 때 가끔.", "<dark_gray>농부 Lv2 생산품"]
-  texture: honey_potato
-
-ruby_carrot:
-  material: paper
-  name: "<#8bc34a>루비 당근"
-  lore: ["<gray>Lv2 농부가 당근을 수확할 때 가끔.", "<dark_gray>농부 Lv2 생산품"]
-  texture: ruby_carrot
-
 truffle:
   material: paper
   name: "<#8bc34a>송로버섯"
-  lore: ["<gray>Lv3 농부가 돼지를 잡을 때 가끔. 자동 수확 화분.", "<dark_gray>농부 Lv3 생산품"]
+  lore: ["<gray>Lv3 농부가 돼지를 잡을 때 가끔.", "<dark_gray>농부 Lv3 생산품"]
   texture: truffle
 
 fine_leather:
@@ -374,12 +350,6 @@ pearl_dessert:
       - { effect: resistance, seconds: 300, level: 1 }
 
 # ── 연금술사 ─────────────────────────────────────────────
-fertilizer:
-  material: paper
-  name: "<#ba68c8>비료"
-  lore: ["<gray>작물에 우클릭: 주변 3×3 작물이 다 자람.", "<dark_gray>연금술사 Lv1 생산품"]
-  texture: fertilizer
-
 miners_tonic:
   material: paper
   name: "<#ba68c8>채굴 물약"
@@ -417,12 +387,6 @@ catalyst:
   name: "<#ba68c8>강화 촉매"
   lore: ["<gray>대장장이의 강화 재료.", "<dark_gray>연금술사 Lv2 생산품"]
   texture: catalyst
-
-super_fertilizer:
-  material: paper
-  name: "<#ba68c8>고급 비료"
-  lore: ["<gray>작물에 우클릭: 주변 5×5 작물이 다 자람.", "<dark_gray>연금술사 Lv2 생산품"]
-  texture: super_fertilizer
 
 luck_tonic:
   material: paper
@@ -480,26 +444,6 @@ crusher:
     cells: [[0, 0, 0]]
     behavior: economy:machine/crusher
 
-compost_bin:
-  material: paper
-  name: "<#8bc34a>비료통"
-  lore: ["<gray>식물 찌꺼기를 퇴비로.", "<dark_gray>농부 전용 기계 · 설치 후 우클릭"]
-  model: compost_bin
-  max-stack: 1
-  furniture:
-    cells: [[0, 0, 0]]
-    behavior: economy:machine/compost_bin
-
-auto_planter:
-  material: paper
-  name: "<#8bc34a>자동 수확 화분"
-  lore: ["<gray>씨앗과 퇴비로 고급 작물을 기름.", "<dark_gray>농부 전용 기계 · 설치 후 우클릭"]
-  model: auto_planter
-  max-stack: 1
-  furniture:
-    cells: [[0, 0, 0]]
-    behavior: economy:machine/auto_planter
-
 fish_tank:
   material: paper
   name: "<#4fc3f7>수조"
@@ -543,7 +487,7 @@ smoker_oven:
 distiller:
   material: paper
   name: "<#ba68c8>증류기"
-  lore: ["<gray>비료, 물약, 강화 촉매를 만듦.", "<dark_gray>연금술사 전용 기계 · 설치 후 우클릭"]
+  lore: ["<gray>마시는 물약, 강화 촉매를 만듦.", "<dark_gray>연금술사 전용 기계 · 설치 후 우클릭"]
   model: distiller
   max-stack: 1
   furniture:

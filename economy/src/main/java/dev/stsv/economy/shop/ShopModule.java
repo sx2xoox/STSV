@@ -125,11 +125,6 @@ public final class ShopModule extends EcoModule implements DailyListener {
         return m;
     }
 
-    /** Quality stars of custom crops: ★2 pays 1.25x, ★3 1.5x. */
-    public static double starMultiplier(int star) {
-        return star <= 1 ? 1 : 1 + 0.25 * (star - 1);
-    }
-
     public double price(String item) {
         ShopCatalog.SellEntry e = catalog.sell().get(item);
         if (e == null) return 0;
@@ -162,13 +157,12 @@ public final class ShopModule extends EcoModule implements DailyListener {
         String id = Items.key(sample);
         ShopCatalog.SellEntry e = catalog.sell().get(id);
         if (e == null || !Items.plain(sample, id)) return "shop.not-buying";
-        int star = dev.stsv.core.crop.CropModule.stars(sample);
-        java.util.function.Predicate<ItemStack> same = it -> Items.plain(it, id) && dev.stsv.core.crop.CropModule.stars(it) == star;
+        java.util.function.Predicate<ItemStack> same = it -> Items.plain(it, id);
         int have = Items.count(p.getInventory(), same);
         int n = Math.min(count, have);
         if (e.cap() != null) n = Math.min(n, e.cap() - store.soldBy(p.getUniqueId(), id));
         if (n <= 0) return e.cap() != null && store.soldBy(p.getUniqueId(), id) >= e.cap() ? "shop.cap-reached" : "shop.not-buying";
-        double mult = multiplier(id) * starMultiplier(star);
+        double mult = multiplier(id);
         double total = PriceModel.total(e.base(), store.sold(id), e.q(), eco.activity().store().players(), catalog.floor(), mult, n);
         String rk = p.getUniqueId() + "|" + id;
         total += remainder.getOrDefault(rk, 0.0);
@@ -200,7 +194,7 @@ public final class ShopModule extends EcoModule implements DailyListener {
         for (ItemStack it : p.getInventory().getStorageContents()) {
             if (it == null || it.isEmpty()) continue;
             String id = Items.key(it);
-            if (catalog.sell().containsKey(id) && Items.plain(it, id)) samples.putIfAbsent(id + "|" + dev.stsv.core.crop.CropModule.stars(it), it.clone());
+            if (catalog.sell().containsKey(id) && Items.plain(it, id)) samples.putIfAbsent(id, it.clone());
         }
         for (ItemStack sample : samples.values()) {
             Object r = sell(p, sample, Integer.MAX_VALUE);

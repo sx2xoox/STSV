@@ -11,9 +11,8 @@ import org.jetbrains.annotations.NotNull;
 import java.util.List;
 
 /**
- * Crop events for contents and protection: PLANT (cancellable: claims, job rules), USE (watering,
- * fertilizing, curing, looking: cancellable), BREAK (cancellable), HARVEST (drops and the quality
- * bonus can be changed before the quality is rolled).
+ * Crop events for contents and protection: PLANT (cancellable: claims, job rules), USE (bone meal,
+ * looking: cancellable), BREAK (cancellable), HARVEST (the drops can be changed; cancellable).
  */
 public final class CropEvent extends Event implements Cancellable {
 
@@ -26,7 +25,6 @@ public final class CropEvent extends Event implements Cancellable {
     private final CropSpec crop;
     private final Location location;
     private final List<ItemStack> drops;
-    private double qualityBonus;
     private boolean cancelled;
 
     public CropEvent(Action action, Player player, CropSpec crop, Location location, List<ItemStack> drops) {
@@ -41,11 +39,8 @@ public final class CropEvent extends Event implements Cancellable {
     public Player player() { return player; }
     public CropSpec crop() { return crop; }
     public Location location() { return location; }
-    /** HARVEST: mutable list of what drops (quality stars are put on the produce afterwards) */
+    /** HARVEST: mutable list of what drops */
     public List<ItemStack> drops() { return drops; }
-    public double qualityBonus() { return qualityBonus; }
-    /** HARVEST: added to the quality roll (e.g. a skilled farmer) */
-    public void qualityBonus(double v) { this.qualityBonus = v; }
 
     @Override public boolean isCancelled() { return cancelled; }
     @Override public void setCancelled(boolean c) { this.cancelled = c; }

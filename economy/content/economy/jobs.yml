@@ -39,22 +39,19 @@ jobs:
     name: "농부"
     color: "#8bc34a"
     icon: minecraft:iron_hoe
-    description: ["다 자란 작물 수확량 +1 / +2 / +3", "주변 작물 성장 가속, 커스텀 작물 품질 ↑", "Lv2 고급 작물 씨앗, Lv3 가축 부산물"]
+    description: ["다 자란 작물 수확량 +1 / +2 / +3", "주변 작물 성장 가속, 채소 수확 때 하나 더", "Lv3 가축 부산물"]
     passive:
       bonus: [1, 2, 3]
-      growth: [0.03, 0.06, 0.10]   # 10초마다 반경 6칸 작물이 한 단계 자랄 확률
-      premium: [0.0, 0.04, 0.07]
+      growth: [0.03, 0.06, 0.10]   # 10초마다 반경 6칸 바닐라 작물이 한 단계 자랄 확률
       animal: [0.0, 0.0, 0.15]
-      crop-quality: [0.05, 0.10, 0.15]   # 커스텀 작물 수확 품질 보너스
       crop-bonus: [0.15, 0.30, 0.45]     # 커스텀 작물 수확물 +1 확률
     xp:
       harvest: { wheat: 0.5, carrots: 0.5, potatoes: 0.5, beetroots: 0.5, nether_wart: 0.5, cocoa: 0.5, melon: 0.5, pumpkin: 1,
-                 economy:golden_wheat: 5, economy:honey_potato: 5, economy:ruby_carrot: 5, economy:tomato: 2, economy:chili: 2, economy:strawberry: 2 }
+                 economy:tomato: 2, economy:chili: 2, economy:strawberry: 2, economy:onion: 2, economy:garlic: 2, economy:cabbage: 3,
+                 economy:rice: 2, economy:soybean: 2, economy:corn: 3, economy:green_onion: 2, economy:radish: 3, economy:lettuce: 2,
+                 economy:cucumber: 2, economy:grape: 3, economy:tea: 2 }
       breed: 3
     drops:
-      wheat: [economy:golden_wheat_seeds]
-      potatoes: [economy:honey_potato_seed]
-      carrots: [economy:ruby_carrot_seed]
       minecraft:pig: [economy:truffle]
       minecraft:cow: [economy:fine_leather]
       minecraft:chicken: [economy:golden_egg]
@@ -105,7 +102,7 @@ jobs:
     name: "연금술사"
     color: "#ba68c8"
     icon: minecraft:brewing_stand
-    description: ["양조한 물약 지속 시간 +20 / +40 / +60%", "증류기: 비료, 마시는 물약, 강화 촉매", "Lv3 영약, 정수"]
+    description: ["양조한 물약 지속 시간 +20 / +40 / +60%", "증류기: 마시는 물약, 강화 촉매", "Lv3 영약, 정수"]
     passive:
       quality: [0.2, 0.4, 0.6]
     xp:
@@ -123,14 +120,7 @@ products:
   crusher: { job: miner, level: 1, xp: 10 }
 
   bait: { job: farmer, level: 1, xp: 1 }
-  compost: { job: farmer, level: 1, xp: 2 }
   feed: { job: farmer, level: 1, xp: 1 }
-  golden_wheat: { job: farmer, level: 3, xp: 8 }
-  honey_potato: { job: farmer, level: 3, xp: 8 }
-  ruby_carrot: { job: farmer, level: 3, xp: 8 }
-  compost_bin: { job: farmer, level: 1, xp: 10 }
-  planter_pot: { job: farmer, level: 1, xp: 5 }
-  auto_planter: { job: farmer, level: 3, xp: 30 }
 
   salmon_roe: { job: fisher, level: 2, xp: 6 }
   pearl: { job: fisher, level: 3, xp: 15 }
@@ -147,9 +137,6 @@ products:
   sapphire_pickaxe: { job: blacksmith, level: 3, xp: 40, enchants: { efficiency: 5, fortune: 3, unbreaking: 3 } }
   topaz_chestplate: { job: blacksmith, level: 3, xp: 40, enchants: { protection: 4, unbreaking: 3 } }
   reinforcing_table: { job: blacksmith, level: 2, xp: 15 }
-  watering_can: { job: blacksmith, level: 1, xp: 6 }
-  copper_watering_can: { job: blacksmith, level: 2, xp: 15 }
-  sprinkler: { job: blacksmith, level: 2, xp: 20 }
 
   miner_lunchbox: { job: cook, level: 1, xp: 5, quality: true }
   lucky_grill: { job: cook, level: 1, xp: 5, quality: true }
@@ -163,14 +150,11 @@ products:
   cooking_table: { job: cook, level: 1, xp: 10 }
   smoker_oven: { job: cook, level: 1, xp: 10 }
 
-  fertilizer: { job: alchemist, level: 1, xp: 3 }
   miners_tonic: { job: alchemist, level: 1, xp: 6, quality: true }
   swift_tonic: { job: alchemist, level: 1, xp: 6, quality: true }
   catalyst: { job: alchemist, level: 2, xp: 12 }
-  super_fertilizer: { job: alchemist, level: 2, xp: 8 }
   luck_tonic: { job: alchemist, level: 2, xp: 12, quality: true }
   grand_catalyst: { job: alchemist, level: 3, xp: 25 }
   elixir: { job: alchemist, level: 3, xp: 25, quality: true }
   essence: { job: alchemist, level: 3, xp: 30 }
   distiller: { job: alchemist, level: 1, xp: 10 }
-  pesticide: { job: alchemist, level: 1, xp: 3 }

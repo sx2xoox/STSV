@@ -107,7 +107,7 @@ public final class RequestModule extends EcoModule implements DailyListener {
         if (store.done(u).size() >= spec.perPlayer()) return "request.limit";
         int have = Items.count(p.getInventory(), it -> Items.plain(it, r.item()));
         if (have < r.amount()) return "request.missing";
-        Items.removeLowestQuality(p.getInventory(), it -> Items.plain(it, r.item()), r.amount());
+        Items.remove(p.getInventory(), it -> Items.plain(it, r.item()), r.amount());
         store.complete(u, index);
         core.economy().deposit(u, r.reward(), "request");
         if (r.job() != null && r.xp() > 0) eco.jobs().addXp(u, r.job(), r.xp());
@@ -127,7 +127,7 @@ public final class RequestModule extends EcoModule implements DailyListener {
         int have = Items.count(p.getInventory(), it -> Items.plain(it, c.item()));
         if (have <= 0) return "request.community-missing";
         int give = (int) Math.min(have, need);
-        Items.removeLowestQuality(p.getInventory(), it -> Items.plain(it, c.item()), give);
+        Items.remove(p.getInventory(), it -> Items.plain(it, c.item()), give);
         store.contribute(week, p.getUniqueId(), give);
         p.sendMessage(Lang.msg("request.contributed", "count", give, "item", eco.shop().itemName(c.item()),
                 "progress", String.format("%,d", store.progress(week)), "target", String.format("%,d", c.target())));

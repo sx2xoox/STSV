@@ -34,7 +34,7 @@ class PackTest {
         try (var s = Files.list(PACK.resolve("models"))) {
             models = s.filter(p -> p.toString().endsWith(".bbmodel")).sorted().toList();
         }
-        assertEquals(8 + 2 + 27, models.size(), "8 machines, sprinkler and pot, 26 crop stages + withered");
+        assertEquals(6 + 66, models.size(), "6 machines, 66 growth stages of 15 crops");
         for (Path p : models) {
             String name = p.getFileName().toString().replace(".bbmodel", "");
             BBModelConverter.Result r = BBModelConverter.convert(p, "economy:item/" + name);

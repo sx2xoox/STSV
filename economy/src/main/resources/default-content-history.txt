@@ -47,6 +47,7 @@ a46c1122e1d5ba5f72aefbb88252a7bb0094bddc economy/items/jobs.yml
 0279948cc1c88687f6b598ec86a7506f1c708240 economy/jobs.yml
 5063db8c3a9abb2be7ad642833451245f45cbf20 economy/jobs.yml
 97f012a769b7c4ec01c2806e86946bff06687fc1 economy/jobs.yml
+223a5033033c0056f9f841680055e379d8a79b65 economy/land.yml
 a830be706358aca6ff75550caefd7425c3790a9c economy/land.yml
 e3a08e1c5f36a134948fc1e88398d37140f49b56 economy/land.yml
 2e50ddd101960347d0a30e98b58e996023a2877c economy/machines.yml
@@ -180,3 +181,4 @@ db2ad60c1a0908479cf382bad7c9b99ff3a89bce economy/textures/tuna.png
 a69bc0fe8e621a94a815db7e8cef41145f90a469 economy/titles/titles.yml
 a880ba52868b21f940f2fe984f4936e658f7f588 economy/titles/titles.yml
 708b008d9ef95cf75a07e889a1743fb8bd86fb9a economy/trade.yml
+bf065b2a8d7ad484bcccbd991b77dbdc2c3b121a economy/trade.yml

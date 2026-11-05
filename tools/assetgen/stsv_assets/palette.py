@@ -83,6 +83,20 @@ MATERIALS = {
     "felt":        (158, 0.070, 0.33, 0.20, 4, False),   # dark green ledger felt (economy menus)
     "salmon":      (40, 0.120, 0.68, 0.24, 4, False),
     "rice":        (90, 0.012, 0.92, 0.10, 3, False),
+    # --- crops (economy farming) -------------------------------------------------------------
+    "sprout":      (122, 0.120, 0.66, 0.34, 5, False),   # yellow-green new growth
+    "leaf_dark":   (152, 0.090, 0.42, 0.26, 4, False),   # deep glossy leaves (tea, green onion, cucumber)
+    "straw":       (82, 0.090, 0.72, 0.30, 5, False),    # ripe grain, drying leaves, husks
+    "pepper":      (27, 0.175, 0.52, 0.30, 5, False),    # chili red
+    "onion":       (58, 0.105, 0.62, 0.30, 4, False),    # onion skin
+    "garlic":      (95, 0.018, 0.86, 0.18, 4, False),    # white bulbs, radish
+    "cabbage":     (112, 0.080, 0.82, 0.22, 4, False),   # pale heart leaves
+    "bean":        (80, 0.060, 0.76, 0.22, 4, False),    # soybeans, dry pods
+    "corn":        (90, 0.140, 0.80, 0.24, 4, False),    # kernels
+    "cucumber":    (140, 0.085, 0.46, 0.28, 4, False),
+    "grape":       (300, 0.130, 0.44, 0.30, 5, False),
+    "petal_yellow": (98, 0.150, 0.84, 0.16, 3, False),
+    "petal_purple": (315, 0.110, 0.66, 0.20, 3, False),
     # --- TEST-ONLY materials: "dev texture" colours, never used by real content -----------------
     "test_orange": (55, 0.150, 0.70, 0.30, 4, True),
     "test_grey":   (250, 0.012, 0.62, 0.30, 4, False),

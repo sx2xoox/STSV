@@ -95,11 +95,11 @@ class ContentTest {
         for (var c : requests.community()) if (!exists(c.item(), ours)) problems.add("community: " + c.item());
         assertTrue(problems.isEmpty(), String.join("\n", problems));
 
-        // the plan's shape: 6 jobs, 54 products (+ 8 machines), the events the shop and jobs hook
+        // the shape: 6 jobs, 42 job products (6 of them machines), 12 things jobs find, 28 crop items (13 seeds, 15 harvests)
         assertEquals(6, jobs.jobs().size());
-        assertEquals(54 + 8 + 14, ours.size(), "54 job products + 8 machines + 14 crop items");
+        assertEquals(42 + 12 + 28, ours.size(), "42 job products + 12 job finds + 28 crop items");
         assertTrue(ours.containsAll(jobs.products().keySet()));
-        assertEquals(8, machines.size());
+        assertEquals(6, machines.size());
         assertTrue(events.keySet().containsAll(List.of("shortage", "crash", "harvest", "merchant", "tax_audit")));
         assertFalse(Files.exists(PACK.resolve("season.yml")), "no season plan any more");
         // every job product can actually be made: by a recipe, a machine or a job drop
@@ -118,13 +118,8 @@ class ContentTest {
         }
         // crops: harvests make things, seeds come from shops or drops; every crop has its models
         YamlConfiguration crops = yaml("crops/crops.yml");
+        assertEquals(15, crops.getKeys(false).size(), "15 crops");
         for (String k : crops.getKeys(false)) {
-            if (k.equals("tools")) {
-                var tools = new dev.stsv.core.crop.CropTools();
-                tools.read(crops.getConfigurationSection("tools"));
-                for (String id : tools.allItems()) if (!exists(id, ours)) problems.add("crop tool: " + id);
-                continue;
-            }
             var spec = dev.stsv.core.crop.CropSpec.parse("economy", k, crops.getConfigurationSection(k));
             if (!exists(spec.seed(), ours)) problems.add("crop " + k + " seed: " + spec.seed());
             for (var d : spec.harvest()) {
@@ -134,8 +129,11 @@ class ContentTest {
             for (String model : spec.models()) {
                 if (!Files.exists(PACK.resolve("models/" + model.substring(model.indexOf('/') + 1) + ".bbmodel"))) problems.add("crop model " + model);
             }
-            String w = spec.witheredModel();
-            if (!Files.exists(PACK.resolve("models/" + w.substring(w.indexOf('/') + 1) + ".bbmodel"))) problems.add("withered model " + w);
+            // replanting needs a seed: a regrowing plant stays, anything else must drop at least one of its seed
+            if (spec.regrow() < 0 && spec.harvest().stream().noneMatch(d -> d.item().equals(spec.seed()) && d.min() >= 1)) {
+                problems.add("crop " + k + " cannot replant itself");
+            }
+            if (!spec.harvest().getFirst().item().equals(spec.produce())) problems.add("crop " + k + " produce");
             if (spec.extra().containsKey("job") && !jobs.jobs().containsKey(spec.extra().get("job"))) problems.add("crop job " + spec.extra().get("job"));
         }
         for (var b : shop.buy()) makeable.add(b.id());

@@ -169,49 +169,6 @@ LOBSTER = pad([
     ".....#.##.#.....",
 ])
 
-WHEAT = pad([
-    "",
-    ".....g..g..g....",
-    "....gg.ggg.gg...",
-    "...g.ggggggg.g..",
-    "....ggggggggg...",
-    ".....gggggggg...",
-    "......sssss.....",
-    "......sssss.....",
-    "......bbbbb.....",
-    "......sssss.....",
-    ".....sssssss....",
-    "....ss.sss.ss...",
-    "...s..s.s.s..s..",
-])
-
-POTATO = pad([
-    "", "", "", "",
-    ".......####.....",
-    ".....###d####...",
-    "....##########..",
-    "...####d#####...",
-    "...##########...",
-    "....#####d##..h.",
-    ".....######..hh.",
-    "............hh..",
-])
-
-CARROT = pad([
-    "",
-    "..........ll.l..",
-    "..........llll..",
-    "........lllll...",
-    ".........##l....",
-    "........####....",
-    ".......####.....",
-    "......###.#.....",
-    ".....####.......",
-    "....###.#.......",
-    "...####.........",
-    "..###...........",
-    ".##.............",
-])
 
 TRUFFLE = pad([
     "", "", "", "",
@@ -264,16 +221,6 @@ TIN = pad([
     "....tttttttt....",
 ])
 
-PILE = pad([
-    "", "", "", "", "",
-    "........l.......",
-    ".......###l.....",
-    ".....#l#####....",
-    "....####l####...",
-    "...#l#########..",
-    "..####l####l###.",
-    ".###############",
-])
 
 SACK = pad([
     "",
@@ -485,11 +432,7 @@ ITEMS = {
     "topaz": lambda: gem_cut("topaz"),
     # farmer
     "bait": lambda: mask(TIN, {"t": "steel", "T": ("steel", 3), "c": "soil", "w": "salmon"}, flat="T"),
-    "compost": lambda: mask(PILE, {"#": "soil", "l": ("leaf", 3)}, flat="l"),
     "feed": lambda: mask(SACK, {"#": "wood", "t": "brass", "e": "leaf"}),
-    "golden_wheat": lambda: mask(WHEAT, {"g": "gold", "s": "brass", "b": "fabric_red"}),
-    "honey_potato": lambda: mask(POTATO, {"#": "terracotta", "d": ("soil", 1), "h": "gold"}, flat="d"),
-    "ruby_carrot": lambda: mask(CARROT, {"#": "ruby", "l": "leaf"}),
     "truffle": lambda: mask(TRUFFLE, {"#": "obsidian", "d": ("soil", 3)}, flat="d"),
     "fine_leather": lambda: mask(HIDE, {"#": "copper", "s": ("cream", 3)}, flat="s"),
     "golden_egg": lambda: mask(EGG, {"#": "gold", "h": ("lamp", 3)}, flat="h"),
@@ -524,11 +467,9 @@ ITEMS = {
     "truffle_risotto": lambda: mask(BOWL, {"#": "wood", "f": "cream"}),
     "pearl_dessert": lambda: mask(CUP, {"#": "snow", "f": "cream", "p": "pearl"}),
     # alchemist
-    "fertilizer": lambda: mask(SACK, {"#": "paper", "t": "brass", "e": "leaf"}),
     "miners_tonic": lambda: bottle("copper"),
     "swift_tonic": lambda: bottle("spectral"),
     "catalyst": lambda: mask(VIAL, {"k": "wood", "g": ("snow", 2), "#": "crystal", "h": ("crystal", 4), "b": "brass"}, flat="gh"),
-    "super_fertilizer": lambda: mask(SACK, {"#": "paper", "t": "gold", "e": "gold"}),
     "luck_tonic": lambda: bottle("leaf"),
     "grand_catalyst": lambda: mask(VIAL, {"k": "gold", "g": ("snow", 2), "#": "magic", "h": ("aurora", 4), "b": "gold"}, flat="gh"),
     "elixir": lambda: bottle("ruby"),
@@ -691,110 +632,8 @@ GUI = {
 # Crops: seed packets, produce, tools
 # ------------------------------------------------------------------------------------------------
 
-PACKET = pad([
-    "",
-    "...pppppppppp...",
-    "...pPPPPPPPPp...",
-    "...pPPPPPPPPp...",
-    "...p..ffff..p...",
-    "...p.ffffff.p...",
-    "...p.ffffff.p...",
-    "...p..ffff..p...",
-    "...p...ll...p...",
-    "...pPPPPPPPPp...",
-    "...pppppppppp...",
-])
 
-TOMATO = pad([
-    "", "",
-    ".......ll.......",
-    ".....llllll.....",
-    ".....######.....",
-    "...#hh#######...",
-    "..#hh#########..",
-    "..#h##########..",
-    "..############..",
-    "..############..",
-    "...##########...",
-    ".....######.....",
-])
+# crops: seeds, produce (economy_crops.py, hand-drawn)
+from economy_crops import ICONS as _CROP_ICONS   # noqa: E402
 
-CHILI = pad([
-    "",
-    "...ll...........",
-    "....ll..........",
-    "....###.........",
-    "...#h###........",
-    "...#h####.......",
-    "....#h####......",
-    ".....######.....",
-    "......######....",
-    ".......######...",
-    ".........#####..",
-    "...........###..",
-    ".............#..",
-])
-
-BERRY = pad([
-    "", "",
-    "......l.l.......",
-    ".....lllll......",
-    "....########....",
-    "...#h#.##.###...",
-    "...##########...",
-    "...#.##.##.##...",
-    "....########....",
-    "....##.##.##....",
-    ".....######.....",
-    "......####......",
-    ".......##.......",
-])
-
-CAN = pad([
-    "", "",
-    ".........hhh....",
-    "........h...h...",
-    "..s....#######..",
-    "..ss..########..",
-    "...ss#########..",
-    "....##########..",
-    ".....#########..",
-    ".....#########..",
-    ".....#########..",
-    "......#######...",
-])
-
-SPRAY = pad([
-    "",
-    ".......nnn......",
-    "......nnnnt.....",
-    ".......kk.......",
-    "......gggg......",
-    ".....g####g.....",
-    ".....g#ss#g.....",
-    ".....g#ss#g.....",
-    ".....g####g.....",
-    ".....g####g.....",
-    ".....g####g.....",
-    "......gggg......",
-])
-
-
-def packet(paper, fruit, leaf="leaf"):
-    return mask(PACKET, {"p": paper, "P": (paper, 3), "f": fruit, "l": leaf}, flat="P")
-
-
-ITEMS.update({
-    "golden_wheat_seeds": lambda: packet("cream", "gold"),
-    "honey_potato_seed": lambda: packet("cream", "terracotta"),
-    "ruby_carrot_seed": lambda: packet("cream", "ruby"),
-    "tomato_seeds": lambda: packet("paper", "tomato"),
-    "chili_seeds": lambda: packet("paper", "fabric_red"),
-    "strawberry_seeds": lambda: packet("paper", "toadstool"),
-    "tomato": lambda: mask(TOMATO, {"#": "tomato", "h": ("tomato", 4), "l": "leaf"}, flat="h"),
-    "chili_pepper": lambda: mask(CHILI, {"#": "fabric_red", "h": ("tomato", 4), "l": "leaf"}, flat="h"),
-    "strawberry": lambda: mask(BERRY, {"#": "toadstool", "h": ("cream", 3), "l": "leaf"}, flat="h"),
-    "watering_can": lambda: mask(CAN, {"#": "steel", "h": "steel", "s": "steel"}),
-    "copper_watering_can": lambda: mask(CAN, {"#": "copper", "h": "copper", "s": "copper"}),
-    "pesticide": lambda: mask(SPRAY, {"n": "steel", "t": "steel", "k": "rubber", "g": ("snow", 2), "#": "leaf", "s": ("obsidian", 1)}, flat="gs"),
-})
+ITEMS.update(_CROP_ICONS)

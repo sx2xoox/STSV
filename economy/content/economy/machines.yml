@@ -14,27 +14,6 @@ crusher:
     - { in: { economy:rough_sapphire: 1 }, out: economy:sapphire, seconds: 30, level: 3 }
     - { in: { economy:rough_topaz: 1 }, out: economy:topaz, seconds: 30, level: 3 }
 
-compost_bin:
-  name: "비료통"
-  item: economy:compost_bin
-  job: farmer
-  recipes:
-    - { in: { wheat_seeds: 16 }, out: economy:compost, seconds: 15, level: 1 }
-    - { in: { rotten_flesh: 8 }, out: economy:compost, seconds: 15, level: 1 }
-    - { in: { potato: 8 }, out: economy:compost, amount: 2, seconds: 15, level: 1 }
-    - { in: { beetroot_seeds: 16 }, out: economy:compost, seconds: 15, level: 1 }
-    - { in: { melon_slice: 16 }, out: economy:compost, seconds: 15, level: 1 }
-
-auto_planter:
-  name: "자동 수확 화분"
-  item: economy:auto_planter
-  job: farmer
-  recipes:
-    - { in: { wheat_seeds: 16, economy:compost: 1 }, out: economy:golden_wheat, seconds: 60, level: 3 }
-    - { in: { potato: 16, economy:compost: 1 }, out: economy:honey_potato, seconds: 60, level: 3 }
-    - { in: { carrot: 16, economy:compost: 1 }, out: economy:ruby_carrot, seconds: 60, level: 3 }
-    - { in: { brown_mushroom: 8, economy:compost: 2 }, out: economy:truffle, seconds: 120, level: 3 }
-
 fish_tank:
   name: "수조"
   item: economy:fish_tank
@@ -63,10 +42,10 @@ cooking_table:
   recipes:
     - { in: { bread: 1, cooked_beef: 1, carrot: 1 }, out: economy:miner_lunchbox, amount: 2, seconds: 15, level: 1 }
     - { in: { economy:tomato: 2, carrot: 1, bowl: 1 }, out: economy:sprint_salad, amount: 2, seconds: 15, level: 1 }
-    - { in: { economy:honey_potato: 1, cooked_beef: 2, bowl: 1 }, out: economy:hearty_stew, amount: 2, seconds: 25, level: 2 }
-    - { in: { economy:honey_potato: 1, honey_bottle: 1, economy:strawberry: 2 }, out: economy:honey_pie, amount: 2, seconds: 25, level: 2 }
+    - { in: { economy:radish: 1, cooked_beef: 2, bowl: 1 }, out: economy:hearty_stew, amount: 2, seconds: 25, level: 2 }
+    - { in: { wheat: 2, honey_bottle: 1, economy:strawberry: 2 }, out: economy:honey_pie, amount: 2, seconds: 25, level: 2 }
     - { in: { economy:truffle: 1, economy:golden_egg: 1, economy:lobster: 1 }, out: economy:royal_feast, amount: 2, seconds: 40, level: 3 }
-    - { in: { economy:truffle: 1, economy:golden_wheat: 2, bowl: 1 }, out: economy:truffle_risotto, amount: 2, seconds: 40, level: 3 }
+    - { in: { economy:truffle: 1, economy:paddy: 2, bowl: 1 }, out: economy:truffle_risotto, amount: 2, seconds: 40, level: 3 }
     - { in: { economy:pearl: 1, sugar: 2, economy:golden_egg: 1 }, out: economy:pearl_dessert, amount: 2, seconds: 40, level: 3 }
 
 smoker_oven:
@@ -75,21 +54,18 @@ smoker_oven:
   job: cook
   recipes:
     - { in: { economy:sea_bream: 1, economy:chili_pepper: 1 }, out: economy:lucky_grill, amount: 2, seconds: 15, level: 1 }
-    - { in: { economy:tuna: 1, economy:golden_wheat: 1, dried_kelp: 2 }, out: economy:golden_sushi, amount: 2, seconds: 25, level: 2 }
+    - { in: { economy:tuna: 1, economy:paddy: 1, dried_kelp: 2 }, out: economy:golden_sushi, amount: 2, seconds: 25, level: 2 }
 
 distiller:
   name: "증류기"
   item: economy:distiller
   job: alchemist
   recipes:
-    - { in: { economy:compost: 2, bone_meal: 2 }, out: economy:fertilizer, amount: 2, seconds: 20, level: 1 }
-    - { in: { glass_bottle: 1, spider_eye: 1, economy:compost: 1 }, out: economy:pesticide, amount: 2, seconds: 20, level: 1 }
     - { in: { glass_bottle: 1, economy:iron_dust: 2, redstone: 1 }, out: economy:miners_tonic, seconds: 20, level: 1 }
     - { in: { glass_bottle: 1, sugar: 3 }, out: economy:swift_tonic, seconds: 20, level: 1 }
     - { in: { economy:rough_ruby: 1, redstone: 4, glowstone_dust: 2 }, out: economy:catalyst, seconds: 30, level: 2 }
     - { in: { economy:rough_sapphire: 1, redstone: 4, glowstone_dust: 2 }, out: economy:catalyst, seconds: 30, level: 2 }
     - { in: { economy:rough_topaz: 1, redstone: 4, glowstone_dust: 2 }, out: economy:catalyst, seconds: 30, level: 2 }
-    - { in: { economy:fertilizer: 2, economy:golden_wheat: 1, glowstone_dust: 1 }, out: economy:super_fertilizer, amount: 2, seconds: 30, level: 2 }
     - { in: { glass_bottle: 1, economy:golden_carp: 1, lapis_lazuli: 2 }, out: economy:luck_tonic, seconds: 30, level: 2 }
     - { in: { economy:catalyst: 2, economy:sea_crystal: 1, amethyst_shard: 2 }, out: economy:grand_catalyst, seconds: 45, level: 3 }
     - { in: { glass_bottle: 1, economy:black_pearl: 1, glistering_melon_slice: 2 }, out: economy:elixir, seconds: 45, level: 3 }
