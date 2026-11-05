@@ -301,4 +301,15 @@ class StoresTest {
         assertFalse(act2.seenToday(p));
         db.close();
     }
+    @Test
+    void stallRemovalOnlyReadsTheStallTableWhenThereIsOne(@TempDir Path dir) throws Exception {
+        Db db = db(dir);
+        assertFalse(db.<Boolean>sync(c -> StallRemoval.hasTable(c, "eco_stall")), "a new server never had stalls");
+        db.execute("CREATE TABLE eco_stall_price (number INTEGER)").get();
+        db.execute("CREATE TABLE ecoxstall (number INTEGER)").get();
+        assertFalse(db.<Boolean>sync(c -> StallRemoval.hasTable(c, "eco_stall")), "no other table counts, '_' is not a wildcard here");
+        db.execute("CREATE TABLE eco_stall (number INTEGER)").get();
+        assertTrue(db.<Boolean>sync(c -> StallRemoval.hasTable(c, "eco_stall")));
+        db.close();
+    }
 }

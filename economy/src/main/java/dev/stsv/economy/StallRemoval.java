@@ -6,6 +6,9 @@ import org.bukkit.World;
 import org.bukkit.block.Chest;
 import org.bukkit.inventory.ItemStack;
 
+import java.sql.Connection;
+import java.sql.ResultSet;
+import java.sql.SQLException;
 import java.util.List;
 import java.util.UUID;
 
@@ -21,10 +24,13 @@ final class StallRemoval {
         if (eco.kv().has("removed.stalls")) return;
         List<Object[]> rented;
         try {
-            rented = db.sync(c -> Db.query(c, "SELECT number, world, x, y, z, owner FROM eco_stall WHERE owner IS NOT NULL",
+            // a server that never ran a version with stalls has no stall table: look before reading
+            rented = db.sync(c -> !hasTable(c, "eco_stall") ? List.<Object[]>of()
+                    : Db.query(c, "SELECT number, world, x, y, z, owner FROM eco_stall WHERE owner IS NOT NULL",
                     rs -> new Object[]{rs.getInt(1), rs.getString(2), rs.getInt(3), rs.getInt(4), rs.getInt(5), rs.getString(6)}));
         } catch (RuntimeException e) {
-            rented = List.of();   // never had stalls
+            eco.getLogger().warning("노점 표를 읽지 못했습니다: " + e.getMessage());
+            rented = List.of();
         }
         int items = 0;
         for (Object[] r : rented) {
@@ -52,5 +58,13 @@ final class StallRemoval {
         }
         eco.kv().set("removed.stalls", "1");
         if (!rented.isEmpty()) eco.getLogger().info("노점 삭제: 빌린 노점 " + rented.size() + "곳의 물건 " + items + "묶음을 우편함으로 보냈습니다.");
+    }
+
+    /** SQLite and MySQL both answer this through JDBC metadata (MySQL: only this server's database). */
+    static boolean hasTable(Connection c, String table) throws SQLException {
+        try (ResultSet rs = c.getMetaData().getTables(c.getCatalog(), null, table, null)) {
+            while (rs.next()) if (rs.getString("TABLE_NAME").equalsIgnoreCase(table)) return true;
+            return false;
+        }
     }
 }
