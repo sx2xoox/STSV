@@ -70,17 +70,20 @@ def sapphire():
 
 
 def _rough(mat):
-    """A raw lump of rock with a crystal breaking out of it."""
+    """A raw lump of mottled rock with a crystal breaking out of it, each facet its own tone."""
     c = Canvas()
     c.ellipse(6.5, 10.5, 5.5, 4.0, "stone", 1, dome=0.9)
     c.ellipse(11, 11, 3.8, 3.2, "stone", 1, dome=0.9)
     c.ellipse(4, 12, 3.2, 2.6, "stone", 2, dome=0.9)
-    c.poly([(5, 9), (7, 2), (9, 3), (9.5, 9)], mat, 3, normal=(-0.5, -0.4, 0.8))
-    c.poly([(8.5, 9), (9, 3), (11, 4.5), (11, 9)], mat, 3, normal=(0.6, -0.2, 0.7))
-    c.poly([(10.5, 9.5), (12.5, 5), (14, 6.5), (13, 10)], mat, 3, normal=(0.4, -0.5, 0.8))
-    c.poly([(3, 9.5), (3.5, 6), (5.5, 7), (5.5, 9.5)], mat, 3, normal=(-0.6, -0.3, 0.7))
-    c.dots([(7, 4), (7, 5), (12, 7)], mat, 5)
-    c.dots([(5, 11), (9, 13), (12, 12)], "stone", 0)
+    rock = [p for p, v in c.px.items() if v[0] == "stone"]
+    c.tone([(x, y) for x, y in rock if (x * 3 + y * 5) % 7 == 0], 1)
+    c.tone([(x, y) for x, y in rock if (x * 5 + y * 3) % 9 == 0], -1)
+    for pts, st in ((([5, 9], [7, 2], [8, 2.5], [8, 9]), 3), (([8, 9], [8, 2.5], [9.5, 3.5], [10.5, 9]), 1),
+                    (([10.5, 9.5], [12.5, 5], [13.2, 5.6], [12.6, 10]), 2), (([12.6, 10], [13.2, 5.6], [14.2, 7], [13.6, 10]), 1),
+                    (([3, 9.5], [3.5, 6], [4.6, 6.5], [4.6, 9.5]), 3), (([4.6, 9.5], [4.6, 6.5], [5.8, 7.4], [5.8, 9.5]), 1)):
+        c.poly([tuple(p) for p in pts], mat, 3, step=st)
+    c.dots([(7, 3), (7, 4), (12, 6), (4, 7)], mat, 5)
+    c.dots([(7, 5), (7, 6), (12, 7), (4, 8)], mat, 4)
     return c
 
 
@@ -96,25 +99,29 @@ def rough_sapphire():
 
 @icon
 def coke():
+    """Lumps of coke: dark grey and porous, with a dull metallic sheen."""
     c = Canvas()
-    c.ellipse(5.5, 9.5, 4.5, 4.0, "steel", 1, dome=0.8)
-    c.ellipse(10.5, 7.5, 4.2, 3.8, "steel", 2, dome=0.8)
-    c.ellipse(9, 12, 4.5, 2.8, "steel", 3, dome=0.8)
-    c.ellipse(5, 5, 3, 2.5, "steel", 1, dome=0.8)
+    c.ellipse(5.5, 9.5, 4.5, 4.0, "blacksteel", 1, dome=0.8)
+    c.ellipse(10.5, 7.5, 4.2, 3.8, "blacksteel", 2, dome=0.8)
+    c.ellipse(9, 12, 4.5, 2.8, "blacksteel", 3, dome=0.8)
+    c.ellipse(5, 5, 3, 2.5, "blacksteel", 1, dome=0.8)
     c.dots([(4, 9), (6, 11), (10, 6), (12, 8), (8, 12), (11, 13), (5, 5), (3, 10)], "soot", 0)
-    c.dots([(9, 5), (4, 7), (7, 10)], "steel", 5)
+    c.dots([(9, 5), (4, 7), (7, 10), (11, 11)], "blacksteel", 5)
     return c
 
 
 def _sheet(mat):
-    """A square metal sheet lying at an angle: a lit top, a thin dark edge, rivet holes at the corners."""
+    """A square metal sheet lying at an angle: a lit top with a brushed streak, a dark edge, rivets."""
     c = Canvas()
-    c.poly([(6, 2), (15, 2), (10, 11), (1, 11)], mat, 1, normal=(-0.25, -0.5, 0.9))
-    c.poly([(1, 11), (10, 11), (10, 13), (1, 13)], mat, 1, normal=(0, 0.7, 0.5))
-    c.poly([(10, 11), (15, 2), (15, 4), (10, 13)], mat, 1, normal=(0.8, 0.3, 0.4))
-    c.line(6, 3, 13, 3, mat, 5)
-    c.line(5, 4, 2, 10, mat, 4)
-    c.dots([(7, 3), (12, 3), (3, 10), (8, 10)], mat, 1)
+    c.poly([(6, 2), (15, 2), (10, 11), (1, 11)], mat, 1, normal=(-0.25, -0.5, 0.9), lo=2, hi=3)
+    top = c.last()
+    c.tone([(x, y) for x, y in top if 9 <= x + y <= 11 or 15 <= x + y <= 16], 1)       # brushed streaks
+    c.tone([(x, y) for x, y in top if x + y >= 19], -1)
+    c.lit_edge(top, 2)
+    c.poly([(1, 11), (10, 11), (10, 13), (1, 13)], mat, 1, normal=(0, 0.7, 0.5), lo=1, hi=2)
+    c.poly([(10, 11), (15, 2), (15, 4), (10, 13)], mat, 1, normal=(0.8, 0.3, 0.4), lo=1, hi=1)
+    for x, y in ((7, 3), (12, 3), (3, 10), (8, 10)):
+        c.put(x, y, mat, 1).put(x - 1, y, mat, 5)
     return c
 
 
@@ -144,14 +151,17 @@ def gold_leaf():
 
 @icon
 def steel_ingot():
-    """The ingot shape everyone knows, in blued steel."""
+    """The ingot shape everyone knows, in blued steel: dark, with bright bevelled edges."""
     c = Canvas()
-    c.poly([(1, 10), (5, 4), (15, 4), (11, 10)], "blacksteel", 1, normal=(-0.2, -0.6, 0.8))
-    c.poly([(1, 10), (11, 10), (11, 13), (1, 13)], "blacksteel", 1, normal=(-0.1, 0.6, 0.6))
-    c.poly([(11, 10), (15, 4), (15, 7), (11, 13)], "blacksteel", 1, normal=(0.8, 0.2, 0.4))
-    c.poly([(3.5, 9), (6, 5.5), (13, 5.5), (10.5, 9)], "blacksteel", 2, normal=(-0.3, -0.7, 0.8))
-    c.dots([(6, 5), (7, 5), (5, 6)], "blade", 3)
-    c.line(2, 11, 9, 11, "blacksteel", 4)
+    c.poly([(1, 10), (5, 4), (15, 4), (11, 10)], "blacksteel", 1, normal=(-0.2, -0.6, 0.8), lo=2, hi=3)
+    top = c.last()
+    c.tone([(x, y) for x, y in top if 12 <= x + y <= 13], 1)
+    c.lit_edge(top, 2)
+    c.poly([(1, 10), (11, 10), (11, 13), (1, 13)], "blacksteel", 1, normal=(-0.1, 0.6, 0.6), lo=1, hi=2)
+    front = c.last()
+    c.tone([(x, y) for x, y in front if y == 10], 2)
+    c.poly([(11, 10), (15, 4), (15, 7), (11, 13)], "blacksteel", 1, normal=(0.8, 0.2, 0.4), lo=1, hi=1)
+    c.dots([(6, 5), (7, 5)], "blade", 3)
     return c
 
 

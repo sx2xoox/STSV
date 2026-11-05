@@ -32,11 +32,46 @@ _RAMPS = {}
 OUTLINE = {}
 
 
+# Materials that shine (metal, gems, glass, glaze): like vanilla ingots and gems their ramp runs from a deep,
+# still-coloured shadow up to a near-white glint. Measured on 26.3 items: iron/gold/copper ingots, diamond,
+# emerald and amethyst all span lightness ~0.35 -> 1.0; even raw ore lumps reach ~0.95.
+SHINY = {"steel", "blacksteel", "gold", "copper", "brass", "blade", "ruby", "sapphire", "topaz", "crystal", "pearl",
+         "glass", "bottle_green", "porcelain", "obsidian", "aubergine", "fish_silver", "fish_blue"}
+# dark shiny materials keep a dark range, with only a soft top (blued steel, netherite-like)
+TOP = {"blacksteel": 0.80, "obsidian": 0.70, "fish_blue": 0.80, "aubergine": 0.82, "copper": 0.88}
+# bright metals stay bright through the mids (vanilla gold is buttery yellow, not mustard)
+CURVE = {"gold": (0.46, 0.85), "brass": (0.40, 1.0), "pearl": (0.55, 1.0)}     # material -> (lowest lightness, curve)
+
+
 def ramp(name):
-    """6-step icon ramp of a palette material."""
+    """6-step icon ramp of a palette material: the palette formula (hue, chroma, hue shift towards the
+    light and shadow colours), with the wider range small icons need."""
     if name not in _RAMPS:
         hue, chroma, center, span, _steps, accent = P.MATERIALS[name]
-        _RAMPS[name] = P.build_ramp(hue, chroma, center, min(0.62, span * 1.35), STEPS, accent)
+        shiny = name in SHINY
+        lo = max(0.22, center - span * (0.9 if shiny else 0.8))
+        hi = TOP.get(name, 0.985) if shiny else min(0.95, center + span * 0.95)
+        gamma = 1.45 if shiny else 1.0
+        if name in CURVE:
+            lo, gamma = CURVE[name]
+        out = []
+        for i in range(STEPS):
+            t = i / (STEPS - 1)
+            # shiny: the lower steps stay deep and saturated, only the top steps climb to the glint
+            L = lo + (hi - lo) * t ** gamma
+            h = hue[0] + (hue[1] - hue[0]) * t if isinstance(hue, tuple) else hue
+            edge = abs(t - 0.5) * 2
+            h = P._toward(h, P.LIGHT_HUE if t > 0.5 else P.SHADOW_HUE, P.HUE_SHIFT * edge * (0.5 if accent else 1.0))
+            boost = (P.ACCENT_CHROMA_BOOST if accent else P.CHROMA_BOOST) * 1.12
+            if shiny:
+                fade = 1.0 if t < 0.7 else 1.0 - (t - 0.7) / 0.3 * 0.7     # colour held to the mids, the glint goes white
+            else:
+                fade = 1.0 - 0.15 * edge
+            c = chroma * boost * fade
+            if chroma < 0.02:
+                c = max(c, 0.008)
+            out.append(P.oklch_to_rgb(L, c, h % 360))
+        _RAMPS[name] = out
     return _RAMPS[name]
 
 
@@ -179,6 +214,16 @@ class Canvas:
         for k in range(n + 1):
             self.put(round(x0 + (x1 - x0) * k / n), round(y0 + (y1 - y0) * k / n), mat, step, z)
         return self
+
+    def last(self):
+        """Pixels of the most recently drawn shape (to add streaks, bands and edges to it)."""
+        sid = self._id
+        return [p for p, v in self.px.items() if v[3] == sid]
+
+    def lit_edge(self, pts, delta=1):
+        """Brightens the pixels of `pts` that face the light (their top or left neighbour is not in `pts`)."""
+        s = set(pts)
+        return self.tone([(x, y) for x, y in pts if (x - 1, y) not in s or (x, y - 1) not in s], delta)
 
     def hole(self, cx, cy, rx, ry):
         """Cuts an elliptical hole (a ring, a chain link, the inside of a handle)."""
