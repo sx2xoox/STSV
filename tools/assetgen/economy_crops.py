@@ -1175,11 +1175,11 @@ ICONS["soybean"] = lambda: icon([
     ".....ceedcb..",
     ".....bddcb...",
     "....cbcb.....",
-    "...ceedb..AAB",
-    "..ceedcb.ABBC",
-    "..bddcb..ABDC",
-    "...bbb....BC.",
-], {"A": ("bean", 3), "B": ("bean", 2), "C": ("bean", 1), "D": ("bean", 0)})
+    "...ceedb.....",
+    "..ceedcb.....",
+    "..bddcb......",
+    "...bbb.......",
+], {})
 
 ICONS["corn"] = lambda: icon([
     "...........kj.",
