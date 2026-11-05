@@ -19,6 +19,7 @@ from PIL import Image
 
 from stsv_assets import icons as I
 from stsv_assets.palette import ramp
+from stsv_assets.palette import size as _size
 
 BASE = {
     "1": ("leaf", 0), "2": ("leaf", 1), "3": ("leaf", 2), "4": ("leaf", 3), "5": ("leaf", 4),
@@ -70,15 +71,46 @@ class Grid:
         return ["".join(r) for r in self.c]
 
 
-def image(rows, extra=None):
+# ramps that are not shaded again (flowers, the white of petals): they are drawn as they should look
+FLAT = {"petal_yellow", "petal_purple", "snow"}
+
+
+def relight(cells, ground):
+    """Light and shadow on top of the drawing, the same way for every plant: an edge open to the
+    top-left catches the light (+1), an edge open to the bottom-right falls into shade (-1), a pixel
+    closed in on all sides sits inside the foliage (-1), and the rows near the ground are darker (-1)."""
+    out = {}
+    for (x, y), (r, i) in cells.items():
+        if r in FLAT:
+            out[(x, y)] = (r, i)
+            continue
+        have = lambda dx, dy: (x + dx, y + dy) in cells      # noqa: E731
+        d = 0
+        if not have(-1, 0) or not have(0, -1):
+            d += 1
+        if not have(1, 0) or not have(0, 1):
+            d -= 1
+        if have(-1, 0) and have(1, 0) and have(0, -1) and have(0, 1) and have(1, 1):
+            d -= 1
+        if y >= ground - 2:
+            d -= 1
+        out[(x, y)] = (r, max(0, min(_size(r) - 1, i + d)))
+    return out
+
+
+def image(rows, extra=None, light=True):
     legend = dict(BASE, **(extra or {}))
-    im = Image.new("RGBA", (16, len(rows)), (0, 0, 0, 0))
+    cells = {}
     for y, row in enumerate(rows):
         assert len(row) == 16, f"row of {len(row)}: {row!r}"
         for x, ch in enumerate(row):
             if ch != ".":
-                r, i = legend[ch]
-                im.putpixel((x, y), ramp(r, i))
+                cells[(x, y)] = legend[ch]
+    if light:
+        cells = relight(cells, len(rows) - 1)
+    im = Image.new("RGBA", (16, len(rows)), (0, 0, 0, 0))
+    for (x, y), (r, i) in cells.items():
+        im.putpixel((x, y), ramp(r, i))
     return im
 
 
@@ -475,8 +507,8 @@ def _corn_tall(ripe):
     # cobs in husks with silk on top; ripe ones open a little at the tip
     cob = ["E.", "FE", "kA", "kB", "jA", "jB", "ji", ".i"] if ripe else ["c.", "dc", "dc", "dc", "cb", "cb", "cb", ".b"]
     g.sprite(cob, 9, 15).sprite(cob, 5, 20)
-    rows = g.rows()
-    return image(rows[16:], CORN), image(rows[:16], CORN)
+    whole = image(g.rows(), CORN)            # lit as one plant, then cut into the two blocks
+    return whole.crop((0, 16, 16, 32)), whole.crop((0, 0, 16, 16))
 
 
 STAGES["corn"] += [_corn_tall(False), _corn_tall(True)]
@@ -637,323 +669,356 @@ STAGES["tea"] = [
 # ================================================================================================
 # Icons
 # ================================================================================================
+#
+# Every icon is drawn on a larger sheet, outlined, then centred on the 16x16 grid with even margins
+# (one pixel more on the right/bottom when the space is odd), so all crop icons sit the same way in a slot.
 
-from stsv_assets.palette import size as _size   # noqa: E402
+PAD = 3
 
 
-def _dist(cells, x, y, dx, dy):
+# light materials whose own darkest step is too pale to read as an outline
+OUTLINE = {"garlic": ("stone", 0), "snow": ("stone", 0), "paper": ("bean", 0), "cabbage": ("leaf", 0), "petal_yellow": ("straw", 0)}
+
+
+def _fit(ic):
+    drawn = set(ic.px)
+    ic.outline()
+    for k in set(ic.px) - drawn:
+        r, _ = ic.px[k]
+        if r in OUTLINE:
+            ic.px[k] = OUTLINE[r]
+    im = ic.image()
+    box = im.getbbox()
+    w, h = box[2] - box[0], box[3] - box[1]
+    if w > 16 or h > 16:
+        raise ValueError(f"icon too big: {w}x{h}")
+    out = Image.new("RGBA", (16, 16), (0, 0, 0, 0))
+    out.paste(im.crop(box), ((16 - w) // 2, (16 - h) // 2))
+    return out
+
+
+def _cells(rows):
+    return {(x, y): ch for y, r in enumerate(rows) for x, ch in enumerate(r) if ch != "."}
+
+
+def icon(rows, extra=None):
+    """An icon drawn pixel by pixel (every letter in the legend), outlined and centred."""
+    legend = dict(BASE, **(extra or {}))
+    ic = I.Icon(16 + 2 * PAD, 16 + 2 * PAD)
+    for (x, y), ch in _cells(rows).items():
+        r, i = legend[ch]
+        ic.put(x + PAD, y + PAD, r, i)
+    return _fit(ic)
+
+
+def _dist(cells, x, y, dx, dy, body):
     n = 0
-    while (x + dx * (n + 1), y + dy * (n + 1)) in cells:
+    while cells.get((x + dx * (n + 1), y + dy * (n + 1)), ".") in body:
         n += 1
     return n
 
 
-def shade(rows, body, extra=None, lo=1, hi=None):
-    """An icon whose '#' cells are one rounded body in ramp `body`, lit from the top-left (the step of each
-    cell comes from how far it is from the edges on each side); other letters are hand-placed details."""
+def shade(rows, body, extra=None, lo=1, hi=None, parts="#"):
+    """An icon whose `parts` letters are one rounded body in ramp `body`, lit from the top-left (each
+    cell's step comes from how far it is from the edges on each side); other letters are details."""
     legend = dict(BASE, **(extra or {}))
     n = _size(body)
     hi = n - 1 if hi is None else hi
-    cells = {(x, y) for y, r in enumerate(rows) for x, ch in enumerate(r) if ch == "#"}
-    ic = I.Icon()
-    for y, row in enumerate(rows):
-        assert len(row) == 16, f"row of {len(row)}: {row!r}"
-        for x, ch in enumerate(row):
-            if ch == ".":
-                continue
-            if ch != "#":
-                r, i = legend[ch]
-                ic.put(x, y, r, i)
-                continue
-            le, ri = _dist(cells, x, y, -1, 0), _dist(cells, x, y, 1, 0)
-            up, dn = _dist(cells, x, y, 0, -1), _dist(cells, x, y, 0, 1)
-            nx = (le - ri) / max(1, le + ri)
-            ny = (up - dn) / max(1, up + dn)
-            lit = (-nx - ny) / 2                    # +1 facing the top-left light, -1 facing away
-            mid = (lo + hi) / 2
-            i = round(mid + lit * (hi - lo) / 2 * 1.15)
-            ic.put(x, y, body, max(lo, min(hi, i)))
-    return ic.outline().image()
+    cells = _cells(rows)
+    solid = set(parts) | set(extra or {})          # details painted on the body still count as body
+    ic = I.Icon(16 + 2 * PAD, 16 + 2 * PAD)
+    for (x, y), ch in cells.items():
+        if ch not in parts:
+            r, i = legend[ch]
+            ic.put(x + PAD, y + PAD, r, i)
+            continue
+        le, ri = _dist(cells, x, y, -1, 0, solid), _dist(cells, x, y, 1, 0, solid)
+        up, dn = _dist(cells, x, y, 0, -1, solid), _dist(cells, x, y, 0, 1, solid)
+        nx = (le - ri) / max(1, le + ri)
+        ny = (up - dn) / max(1, up + dn)
+        lit = (-nx - ny) / 2                    # +1 facing the top-left light, -1 facing away
+        i = round((lo + hi) / 2 + lit * (hi - lo) / 2 * 1.25)
+        ic.put(x + PAD, y + PAD, body, max(lo, min(hi, i)))
+    return _fit(ic)
 
 
-def _x(rows):
-    return [r.ljust(16, ".")[:16] for r in rows] + ["." * 16] * (16 - len(rows))
+GLINT = ("snow", 2)
 
-
-ICONS["tomato"] = lambda: shade(_x([
-    "",
-    ".......2",
-    "......343",
-    "....3443443",
-    "...##4###4##",
-    "..############",
-    "..##P#########",
-    ".##PP##########",
-    ".##P###########",
-    ".##############",
-    ".##############",
-    "..############",
-    "..############",
-    "...##########",
-    ".....######",
-]), "tomato", {"P": ("tomato", 4)}, lo=0)
-
-ICONS["chili_pepper"] = lambda: shade(_x([
-    "",
-    "..22",
-    "...2",
-    "..434",
-    "..####",
-    "..#F###",
-    "...#F###",
-    "....#####",
-    ".....#####",
-    "......#####",
-    ".......#####",
-    "........#####",
-    ".........####",
-    "...........###",
-    ".............#",
-]), "pepper", {"F": ("pepper", 4)}, lo=0)
-
-ICONS["strawberry"] = lambda: shade(_x([
-    "",
-    "......4.4",
-    "....434343",
-    "...4#33#34",
-    "..##########",
-    "..#Z##Z##Z##",
-    "..##########",
-    "..#P#Z##Z#Z#",
-    "...########",
-    "...#Z##Z#Z#",
+ICONS["tomato"] = lambda: shade([
+    ".......32",
+    ".....43234",
+    "...4#3#4#3#4",
+    "..####S##S###",
+    ".##VQ###S#####",
+    ".#QQ#########S",
+    "##Q###########",
+    "##############",
+    "##############",
+    "##############",
+    ".############S",
+    ".###########S",
+    "..#########S",
     "....######",
-    "....#Z##Z#",
-    ".....####",
-    "......#Z",
-    "......#",
-]), "toadstool", {"P": ("toadstool", 4)}, lo=0)
+], "tomato", {"V": GLINT, "Q": ("tomato", 4), "S": ("tomato", 1)}, lo=0)
 
-ICONS["onion"] = lambda: shade(_x([
-    "",
-    ".......k",
-    ".......j",
-    "......###",
-    ".....#####",
-    "....##L####",
-    "...##L######",
-    "..##L##D##D##",
-    "..##L##D##D##",
-    "..###########",
-    "..#####D##D##",
-    "...########",
-    "....#######",
-    "......###",
-    ".....W.W.W",
-]), "onion", {"L": ("onion", 3), "D": ("onion", 1), "W": ("garlic", 1)})
-
-ICONS["garlic"] = lambda: shade(_x([
-    "",
-    ".......j",
-    ".......i",
-    "......###",
-    ".....#####",
-    "....##V####",
-    "...##V#####D",
-    "..##V##D##D##",
-    "..##V##D##D##",
-    "..#####D##D##",
-    "..##U##D##U##",
-    "...##U###U##",
-    "....#######",
-    ".....W.W.W",
-]), "garlic", {"V": ("garlic", 3), "D": ("garlic", 1), "U": ("petal_purple", 0), "W": ("garlic", 1)})
-
-ICONS["napa_cabbage"] = lambda: shade(_x([
-    "",
-    ".....5445",
-    "....544433",
-    "...44####32",
-    "...4######3",
-    "..44######32",
-    "..4###V###32",
-    "..4###V###32",
-    "..4###V###32",
-    "..44##V###2",
-    "...4##V##32",
-    "...44#V#322",
-    "....4WVW32",
-    ".....WWW",
-]), "cabbage", {"V": ("garlic", 3), "W": ("garlic", 2)})
-
-ICONS["paddy"] = lambda: icon(_x([
-    "",
-    "..........lk",
-    "........lkjkl",
-    "......lk.kl.k",
-    ".....kj.jkl..l",
-    "....kj.jk..k.k",
-    "...jj.ij...l",
-    "..ji.ij.....k",
-    "..i.ii",
-    ".ii.i",
-    ".hiihh",
-    ".mnmn",
-    "ihi",
-    "ih",
-    "h",
-]), {})
-
-ICONS["soybean"] = lambda: shade(_x([
-    "",
-    "",
-    "........cd",
-    ".......cdcb",
-    "......cdcbb.",
-    ".....cdcbb",
-    "....###.cbb",
-    "...#####.b",
-    "...#####",
-    "...#####.###",
-    "....###.#####",
-    "..###...#####",
-    ".#####..#####",
-    ".#####...###",
+ICONS["chili_pepper"] = lambda: shade([
+    "..32",
+    "..432",
+    ".4334",
     ".#####",
-    "..###",
-]), "bean")
+    ".#VF###",
+    "..#F####",
+    "...#F####",
+    "....#F####",
+    ".....#F###S",
+    "......#####S",
+    ".......####S",
+    "........###S",
+    ".........###",
+    "..........##",
+], "pepper", {"V": GLINT, "F": ("pepper", 4), "S": ("pepper", 1)}, lo=0)
 
-ICONS["corn"] = lambda: icon(_x([
-    "",
-    "...........ih",
-    "..........ii",
-    "........ABAB",
-    ".......ABCBC",
-    "......ABCBCD",
-    ".....ABCBCD",
-    "....ABCBCD",
-    "...cABCBCD",
-    "..cdcBCD",
-    "..cdcdD",
-    ".cdccb",
-    ".cdcb",
-    "..cb.b",
-    "..b..",
-]), {"A": ("corn", 3), "B": ("corn", 2), "C": ("corn", 1), "D": ("corn", 0)})
+ICONS["strawberry"] = lambda: shade([
+    "...34.2.43",
+    "..4434234433",
+    ".##3#4#34#3##",
+    ".############",
+    ".#VZ##Z##Z##S",
+    ".#Q#########S",
+    ".##Z##Z##Z##S",
+    "..#########S",
+    "..#Z##Z##Z#S",
+    "...#######S",
+    "...#Z##Z#S",
+    "....#####",
+    ".....#Z#",
+    "......#",
+], "toadstool", {"V": GLINT, "Q": ("toadstool", 4), "S": ("toadstool", 1), "Z": ("petal_yellow", 2)}, lo=0)
 
-ICONS["green_onion"] = lambda: icon(_x([
-    ".............y",
-    "............yx",
-    "..........y.xw",
-    ".........yxyw",
-    "........yxyw.",
-    ".......yxyw",
-    "......yxyw",
-    ".....yxw",
-    "....VVW",
+ICONS["onion"] = lambda: shade([
+    "......k",
+    "......j",
+    ".....###",
+    "....#L#D#",
+    "...#L##D##",
+    "..#L##D##D#",
+    ".#VL#D###D##",
+    ".#L##D###D##",
+    ".####D###D##",
+    ".####D###D##",
+    "..###D##D##",
+    "...####D##",
+    ".....###",
+    "....W.W.W",
+], "onion", {"L": ("onion", 3), "D": ("onion", 1), "V": ("garlic", 3), "W": ("straw", 3)}, lo=0)
+
+ICONS["garlic"] = lambda: shade([
+    "......j",
+    "......i",
+    ".....###",
+    "....##D##",
+    "...#V#D#D#",
+    "..##V#D#D##",
+    ".##V#D###D##",
+    ".##V#D###D##",
+    ".###U#D##D##",
+    ".##U##D#U#D#",
+    "..#U#D###U#",
+    "...###D###",
+    ".....###",
+    "....j.j.j",
+], "garlic", {"V": ("garlic", 3), "D": ("garlic", 1), "U": ("petal_purple", 0)}, lo=0)
+
+ICONS["napa_cabbage"] = lambda: icon([
+    ".....5445",
+    "....54MLL4",
+    "...54MLMLK3",
+    "...4MLKLKK3",
+    "..44LMLKLK32",
+    "..4MLKVLKK32",
+    "..4LMKVLKJ32",
+    "..4MLKVKKJ32",
+    "..44LKVKJ321",
+    "...4LKVKJ32",
+    "...44KVKJ32",
+    "....4KVJ321",
+    "....4WVW31",
+    ".....WWW",
+], {"M": ("cabbage", 3), "L": ("cabbage", 2), "K": ("cabbage", 1), "J": ("cabbage", 0), "V": ("garlic", 3), "W": ("garlic", 2)})
+
+ICONS["paddy"] = lambda: icon([
+    "......hiijj",
+    ".....hi...kj",
+    "....hi....lkj",
+    "...hi....lklk",
+    "...i.....kljk",
+    "..hi.....lklj",
+    "..i......kljk",
+    ".hi......jklj",
+    ".i........kjk",
+    "hi........lkj",
+    "i..........kj",
+    "i..........j",
+], {})
+
+ICONS["soybean"] = lambda: icon([
+    "..........32",
+    ".........edc",
+    "........edcdc",
+    ".......edcdcb",
+    "......edcdcba",
+    ".....dcdcba",
+    "....dcdcba",
+    "...cdcbba",
+    "..AAB.ba.AAB",
+    ".ABBCD..ABBCD",
+    ".ABhCD..AhBCD",
+    "..BCD....BCD",
+    "....AAB",
+    "...ABhCD",
+], {"A": ("bean", 3), "B": ("bean", 2), "C": ("bean", 1), "D": ("bean", 0)})
+
+ICONS["corn"] = lambda: icon([
+    "...........kj",
+    ".........ABAB",
+    "........ABCBCD",
+    ".......ABCBCDC",
+    "......ABCBCDC",
+    ".....ABCBCDC",
+    "....ABCBCDC",
+    "...dABCBCD",
+    "..ecdBCDC",
+    "..edcdCD",
+    ".edcdcb",
+    ".dcdcb",
+    "..cbcb",
+    "...b.b",
+], {"A": ("corn", 3), "B": ("corn", 2), "C": ("corn", 1), "D": ("corn", 0)})
+
+ICONS["green_onion"] = lambda: icon([
+    "...........yxw",
+    ".........y.xw",
+    "........yxyxw",
+    ".......yxyxw",
+    "......yxdxw",
+    ".....yddc",
+    "....VVdc",
     "...VVW",
     "..VVW",
     ".VVW",
+    "VVW",
     "VWW",
-    "WW.W",
-    ".W",
-]), {"V": ("garlic", 3), "W": ("garlic", 2)})
+    "WWkj",
+    "j.k.j",
+], {"V": ("garlic", 3), "W": ("garlic", 2)})
 
-ICONS["radish"] = lambda: shade(_x([
-    "...........4.4",
-    "..........43434",
-    ".........34343",
-    "........cdc32",
-    ".......#cdc#",
-    "......#####",
-    ".....######",
-    "....######",
-    "...######",
-    "..######",
-    "..#####",
+ICONS["radish"] = lambda: shade([
+    "..........4.4",
+    ".........43434",
+    "........434.3",
+    ".......edc32",
+    "......edcdc",
+    ".....#ddcc",
+    "....#V###",
+    "...#V###",
+    "..#V###",
     "..####",
-    "..###",
-    "..##",
-    ".#",
-]), "garlic", lo=0)
+    ".####",
+    ".###",
+    ".##",
+    "#",
+], "garlic", {"V": ("snow", 2)}, lo=0)
 
-ICONS["lettuce"] = lambda: icon(_x([
-    "",
-    "....e.e.e",
-    "...edededde",
-    "..eddcdcddcd",
-    ".eddcVcdcccdc",
-    ".dccdVccccccd",
-    ".dcccVcccbccd",
-    "..dccVcccccb",
-    "..dbccVccbcb",
-    "...bcbVcbcb",
-    "....bbcVbb",
-    "......bbVb",
-    "........Vb",
-    ".........V",
-]), {"V": ("cabbage", 3)})
+ICONS["lettuce"] = lambda: icon([
+    "...e.e.e.e",
+    "..edededdde",
+    ".edddcdcddcd",
+    "eddcdVcdcccdc",
+    "edccdVccccccd",
+    "dcccdVcccbccd",
+    ".dccVcccccccb",
+    ".dbccVcccbcb",
+    "..dbcVccbcb",
+    "...bcVcbcb",
+    "....bVbb.b",
+    "......Vb",
+    "......V",
+], {"V": ("cabbage", 3)})
 
-ICONS["cucumber"] = lambda: icon(_x([
-    "",
-    "............YZ",
-    "...........AAY",
-    "..........ABB",
-    ".........AECC",
-    "........ABCB",
-    ".......AECCD",
-    "......ABCBD",
-    ".....AECCD",
-    "....ABCBD",
-    "...AECCD",
-    "..ABCBD",
-    "..BCCD",
+ICONS["cucumber"] = lambda: icon([
+    "............AAY",
+    "...........AEB",
+    "..........AEBC",
+    ".........ABCEC",
+    "........AEBCD",
+    ".......ABCEC",
+    "......AEBCD",
+    ".....ABCEC",
+    "....AEBCD",
+    "...ABCEC",
+    "..AEBCD",
+    "..BCECD",
     "..2CD",
     ".2",
-]), {"A": ("cucumber", 3), "B": ("cucumber", 2), "C": ("cucumber", 1), "D": ("cucumber", 0), "E": ("sprout", 3)})
+], {"A": ("cucumber", 3), "B": ("cucumber", 2), "C": ("cucumber", 1), "D": ("cucumber", 0), "E": ("sprout", 3)})
 
-ICONS["grapes"] = lambda: icon(_x([
-    "........m",
-    ".......m.443",
-    "......m.44321",
-    "...ABBAB.321",
-    "..ABCDABCD",
-    "..BCDDBCDD",
+ICONS["grapes"] = lambda: icon([
+    "......m..443",
+    ".......m44321",
+    "...ABBAB",
+    "..AVCBAVCB",
+    "..BCDCBCDC",
     "...ABBABBA",
-    "..ABCDACDBC",
-    "..BCDDBCDCD",
+    "..AVCBAVCBA",
+    "..BCDCBCDCD",
     "...ABBABBA",
-    "....ACDBCD",
-    "....BDDCDD",
+    "....AVCBVC",
+    "....BCDCDC",
     ".....ABBA",
-    ".....BCDD",
+    ".....BVCD",
     "......CD",
-]), {"A": ("grape", 4), "B": ("grape", 3), "C": ("grape", 2), "D": ("grape", 1)})
+], {"A": ("grape", 4), "B": ("grape", 3), "C": ("grape", 2), "D": ("grape", 1), "V": ("petal_purple", 2)})
 
-ICONS["tea_leaves"] = lambda: icon(_x([
-    "",
+ICONS["tea_leaves"] = lambda: icon([
     "..........ed",
     ".........edc",
     "........edcb",
-    "....yy..dcb",
-    "...yyxw.cb",
-    "..yxxxw.b",
-    "..yxxww.b",
-    "...xwwv.b..yy",
-    "....wv..byyxxw",
-    "........mxxxww",
-    ".......m.wwvv",
-    "......m",
-    ".....m",
+    "...yy..dcb",
+    "..yyxw.cb",
+    ".yxyxw.b",
+    ".yxxyw.b...y",
+    "..xwxv.b.yyxy",
+    "...wv..byxyxw",
+    ".......mxxyxw",
+    "......m.wxwv",
+    ".....m...v",
     "....m",
-]), {})
+    "...m",
+], {})
+
+ICONS["grape_sapling"] = lambda: icon([
+    ".........443",
+    "........44332",
+    ".......4433321",
+    "........33221",
+    "...443...m21",
+    "..44332.m",
+    "..43321m",
+    "...321m",
+    ".....m",
+    "....nm",
+    "...nm",
+    "..nm",
+    ".nm",
+    ".m",
+], {})
 
 # ------------------------------------------------------------------------------------------------
 # Seed packets: a paper packet showing the crop, a band in the crop's colour
 # ------------------------------------------------------------------------------------------------
 
 MINI = {   # 6 x 6 pictures for the packet window (legend: BASE + the crop's letters)
-    "tomato": ([".343..", "TQTTS.", "QPTTSR", "TTTTSR", "TTTSSR", ".SSRR."], {"T": ("tomato", 2), "Q": ("tomato", 3), "P": ("tomato", 4), "S": ("tomato", 1), "R": ("tomato", 0)}),
+    "tomato": ([".343..", "TQTTS.", "QVTTSR", "TTTTSR", "TTTSSR", ".SSRR."], {"T": ("tomato", 2), "Q": ("tomato", 3), "V": ("tomato", 4), "S": ("tomato", 1), "R": ("tomato", 0)}),
     "chili": (["3.....", "43....", ".GH...", "..GH..", "...GJ.", "....JK"], {"G": ("pepper", 3), "H": ("pepper", 2), "J": ("pepper", 1), "K": ("pepper", 0)}),
     "strawberry": ([".4343.", "QPQSS.", "QZQSZ.", ".QSZR.", ".SSR..", "..R..."], {"P": ("toadstool", 4), "Q": ("toadstool", 3), "S": ("toadstool", 2), "R": ("toadstool", 1), "Z": ("petal_yellow", 2)}),
     "onion": (["..j...", ".ABB..", "ABBCC.", "ABBCD.", ".BCD..", "..W..."], {"A": ("onion", 3), "B": ("onion", 2), "C": ("onion", 1), "D": ("onion", 0), "W": ("garlic", 1)}),
@@ -973,33 +1038,36 @@ BAND = {"tomato": ("tomato", 2), "chili": ("pepper", 2), "strawberry": ("toadsto
 
 
 def packet(crop):
+    """A paper seed packet 12 x 15: crimped top, a fold shadow, the crop in a window, a coloured band."""
     pic, letters = MINI[crop]
     legend = dict(BASE, **letters)
-    ic = I.Icon()
-    for y in range(1, 15):
-        for x in range(3, 13):
-            if y == 1:
-                ic.put(x, y, "paper", 0 if x % 2 else 1)        # crimped top
-            elif x == 3:
-                ic.put(x, y, "paper", 2)                         # lit left edge
-            elif x == 12 or y == 14:
-                ic.put(x, y, "paper", 0)
+    ic = I.Icon(16 + 2 * PAD, 16 + 2 * PAD)
+    put = lambda x, y, r, i: ic.put(x + PAD, y + PAD, r, i)   # noqa: E731
+    x0, x1, y0, y1 = 2, 13, 0, 13
+    for y in range(y0, y1 + 1):
+        for x in range(x0, x1 + 1):
+            if y == y0:
+                put(x, y, "paper", 0 if x % 2 else 2)              # crimped top
+            elif y == y0 + 1:
+                put(x, y, "paper", 1)                               # the fold under the crimp
+            elif x == x0 or y == y0 + 2:
+                put(x, y, "paper", 2)                               # lit left and top edges
+            elif x == x1 or y == y1:
+                put(x, y, "paper", 0)                               # shaded right and bottom edges
             else:
-                ic.put(x, y, "paper", 1)
-    for y in range(3, 10):                                      # the picture's frame
+                put(x, y, "paper", 2 if x < x0 + 3 else 1)          # light falls across the front
+    for y in range(3, 11):                                          # the window's frame
         for x in range(4, 12):
-            if y in (3, 9) or x in (4, 11):
-                ic.put(x, y, "paper", 2)
-    for dy, row in enumerate(pic):
-        for dx, ch in enumerate(row):
-            if ch != ".":
-                r, i = legend[ch]
-                ic.put(5 + dx, 3 + dy, r, i)
+            if y in (3, 10) or x in (4, 11):
+                put(x, y, "paper", 0 if x == 11 or y == 10 else 2)
+    for (dx, dy), ch in _cells(pic).items():
+        r, i = legend[ch]
+        put(5 + dx, 4 + dy, r, i)
     band, step = BAND[crop]
-    for x in range(4, 12):
-        ic.put(x, 11, band, step + 1)
-        ic.put(x, 12, band, step)
-    return ic.outline().image()
+    for x in range(x0 + 1, x1):
+        put(x, 11, band, min(_size(band) - 1, step + 1))
+        put(x, 12, band, step)
+    return _fit(ic)
 
 
 SEEDS = {"tomato_seeds": "tomato", "chili_seeds": "chili", "strawberry_seeds": "strawberry", "onion_seeds": "onion",
@@ -1007,24 +1075,6 @@ SEEDS = {"tomato_seeds": "tomato", "chili_seeds": "chili", "strawberry_seeds": "
          "radish_seeds": "radish", "lettuce_seeds": "lettuce", "cucumber_seeds": "cucumber", "tea_seeds": "tea"}
 for _item, _crop in SEEDS.items():
     ICONS[_item] = (lambda c=_crop: packet(c))
-
-ICONS["grape_sapling"] = lambda: icon(_x([
-    "",
-    ".........443",
-    "........44332",
-    ".......4433321",
-    "........33221",
-    "...443...m21",
-    "..44332.m",
-    "..43321m",
-    "...321m",
-    ".....m",
-    "....nm",
-    "...nm",
-    "..nm",
-    ".nm",
-    ".m",
-]), {})
 
 
 # ------------------------------------------------------------------------------------------------
