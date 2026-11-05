@@ -835,8 +835,14 @@ def _egg_bush(top, flowers=False):
 
 # fruit: green star of a calyx on top, then glossy near-black purple with a highlight down one side
 EGG_YOUNG = Part((0, 0, 0), (1, 3, 1), ["3", "C", "D"], ["3"], EGG)
-EGG_FRUIT = Part((0, 0, 0), (2, 6, 2), ["32", "BA", "CA", "CB", "DC", "ED"], ["23", "32"], EGG)
-EGG_FRUIT_SHORT = Part((0, 0, 0), (2, 5, 2), ["32", "BA", "CB", "DC", "ED"], ["23", "32"], EGG)
+EGG_TOP = Part((0, 0, 0), (2, 3, 2), ["32", "BA", "CA"], ["23", "32"], EGG)
+EGG_BOTTOM = Part((0, 0, 0), (2, 4, 2), ["CB", "CB", "DC", "ED"], ["BA", "CB"], EGG)
+
+
+def _eggplant(x, z, y, dx=1, dz=0):
+    """A long fruit with a gentle bend: the lower half hangs a pixel further out."""
+    return [EGG_TOP.moved(x, z).lifted(y + 4), EGG_BOTTOM.moved(x + dx, z + dz).lifted(y)]
+
 
 STAGES["eggplant"] = [
     Stage(image(seedling().rows()), "cross"),
@@ -846,14 +852,14 @@ STAGES["eggplant"] = [
     Stage(image(_egg_bush(2, flowers=True).rows(), EGG), "cross",
           [EGG_YOUNG.moved(5, 7).lifted(5), EGG_YOUNG.moved(10, 9).lifted(6), EGG_YOUNG.moved(7, 4).lifted(4)]),
     Stage(image(_egg_bush(2).rows(), EGG), "cross",
-          [EGG_FRUIT.moved(4, 7).lifted(2), EGG_FRUIT.moved(10, 9).lifted(3), EGG_FRUIT_SHORT.moved(7, 3).lifted(1)]),
+          _eggplant(4, 7, 1, dx=-1) + _eggplant(10, 9, 2) + _eggplant(7, 3, 0, dx=0, dz=-1)),
 ]
 
 # ================================================================================================
 # 애호박: big lobed leaves with silvery patches on long stalks, yellow trumpet flowers, pale fruit lying on the soil
 # ================================================================================================
 
-ZUC = {"A": ("zucchini", 3), "B": ("zucchini", 2), "C": ("zucchini", 1), "D": ("zucchini", 0), "M": ("cabbage", 2),
+ZUC = {"A": ("sprout", 4), "B": ("sprout", 3), "C": ("sprout", 2), "D": ("sprout", 1), "M": ("cabbage", 3),
        "Y": ("petal_yellow", 1), "Z": ("petal_yellow", 2), "O": ("petal_yellow", 0)}
 SQ_LEAF = ["44.444", "4M54M4", "345M43", ".34432", "...2.."]
 BLOSSOM = [".ZZ.", "ZYYZ", ".YO.", "..2."]
@@ -875,8 +881,8 @@ def _squash(top, flowers=False):
 
 # fruit lying on the soil: pale green with darker speckles, a dark stalk end and a paler tip
 ZUC_YOUNG = Part((0, -1, 0), (3, 0, 1), ["2BY"], ["2AY"], ZUC, end=["B"])
-ZUC_X = Part((0, -1, 0), (7, 1, 2), ["3BABACA", "2CBCBCB"], ["3ABCABA", "3BACBAB"], ZUC, end=["BA", "CB"])
-ZUC_Z = Part((0, -1, 0), (2, 1, 7), ["BA", "CB"], ["33", "AB", "BC", "CA", "AB", "BA", "AB"], ZUC, end=["ACABAB3", "BCBCBC2"])
+ZUC_X = Part((0, -1, 0), (6, 2, 3), ["3AMABA", "2BABMB", "2CBCBC"], ["3ABMAB", "3AABAA", "2BABAB"], ZUC, end=["ABA", "BMB", "CBC"])
+ZUC_Z = Part((0, -1, 0), (3, 2, 6), ["ABA", "BMB", "CBC"], ["323", "ABA", "BAM", "AMB", "BAB", "ABA"], ZUC, end=["ABAMA3", "BMBAB2", "CBCBC2"])
 
 STAGES["zucchini"] = [
     Stage(image(seedling().rows()), "cross"),
@@ -915,14 +921,14 @@ def _melon_vine(spread, flowers=False):
 MELON_YOUNG = Part((6, -1, 6), (10, 2, 10), ["HGKG", "GHGH", "JHJH"], ["GKGH", "KGHG", "GHGK", "HGKG"], MEL)
 # the ripe melon: olive-green rind under a raised pale net, rounded off by a smaller top layer
 MELON = Part((5, -1, 5), (11, 4, 11), [
-    "DADDAD",
-    "ADDADA",
-    "DAADDA",
-    "ADDAAD",
-    "EDEDDE",
-], ["DADDAD", "ADDADA", "DAADDA", "ADDAAD", "DAADDA", "ADDADA"], MEL)
-MELON_TOP = Part((6, 4, 6), (10, 5, 10), ["ADDA"], ["DAAD", "ADDA", "ADDA", "DAAD"], MEL)
-MELON_STEM = Part((7, 5, 7), (9, 6, 9), ["ji"], ["ij", "ji"])
+    "KAKKAK",
+    "AKKAKA",
+    "KAAKKA",
+    "AKKAAK",
+    "GKGKKG",
+], ["KAKKAK", "AKKAKA", "KAAKKA", "AKKAAK", "KAAKKA", "AKKAKA"], MEL)
+MELON_TOP = Part((6, 4, 6), (10, 5, 10), ["AKKA"], ["KAAK", "AKKA", "AKKA", "KAAK"], MEL)
+MELON_STEM = Part((7, 5, 7), (8, 7, 8), ["j", "i"], ["k"])          # a thin dry stalk
 
 STAGES["muskmelon"] = [
     Stage(image(seedling().rows()), "cross"),
@@ -1176,20 +1182,20 @@ ICONS["green_onion"] = lambda: icon([
 ], {"V": ("garlic", 3), "W": ("garlic", 2)})
 
 ICONS["radish"] = lambda: shade([
-    "..........4.4.",
-    ".........4343.",
-    "........43234.",
-    "........dcdc..",
-    ".......edcdcb.",
-    "......#edcdcb.",
-    ".....#V#dccb..",
-    "....#V###cbb..",
-    "...#V#####....",
-    "..#V#####.....",
-    "..#V####......",
-    "..####........",
-    "..###.........",
-    "..#...........",
+    ".........4.4.4",
+    ".........d4343",
+    ".......edcdc3.",
+    "......edcdcb..",
+    ".....#edcdcb..",
+    "....#V#edcbb..",
+    "...#V###dcbb..",
+    "...#V######...",
+    "..#V#######...",
+    "..#V######....",
+    ".#########....",
+    "..######......",
+    "..#####.......",
+    ".#............",
 ], "garlic", {"V": ("snow", 2)}, lo=0)
 
 ICONS["lettuce"] = lambda: icon([
@@ -1243,54 +1249,57 @@ ICONS["grapes"] = lambda: icon([
 ], {"A": ("grape", 4), "B": ("grape", 3), "C": ("grape", 2), "D": ("grape", 1), "E": ("grape", 0), "V": ("petal_purple", 2)})
 
 ICONS["eggplant"] = lambda: shade([
-    "...3.3........",
-    "..43234.......",
-    ".4323234......",
-    "..3##3........",
-    "...#VB##......",
+    ".2............",
+    ".32...........",
+    "4323..........",
+    ".3#43.........",
+    "..#V#3........",
+    "..#VB##.......",
+    "..#B####......",
     "...#B####.....",
-    "....#B#####...",
+    "...##B#####...",
     "....##B#####..",
-    ".....##B#####.",
-    "......#######.",
+    ".....##B######",
     "......#######S",
-    ".......#####S.",
-    "........###S..",
+    "........#####S",
+    "...........#SS",
 ], "aubergine", {"V": ("petal_purple", 2), "B": ("aubergine", 4), "S": ("aubergine", 0)}, lo=0)
 
-ICONS["zucchini"] = lambda: icon([
-    "...........32.",
-    "..........3BA2",
-    ".........BABCB",
-    "........BACBC.",
-    ".......BAMBCD.",
-    "......BACBCD..",
-    ".....BAMBCD...",
-    "....BACBCD....",
-    "...BAMBCD.....",
-    "..BACBCD......",
-    ".BAABCD.......",
-    "BAABCD........",
-    "OABCD.........",
-    ".OCD..........",
-], {"A": ("zucchini", 3), "B": ("zucchini", 2), "C": ("zucchini", 1), "D": ("zucchini", 0), "M": ("cabbage", 3),
-    "O": ("petal_yellow", 0)})
+ICONS["zucchini"] = lambda: shade([
+    "..........xw..",
+    ".........wx#..",
+    "........#####.",
+    ".......###M##.",
+    ".....########.",
+    "....##M#####..",
+    "...########...",
+    "..####M###....",
+    ".#M######.....",
+    ".#######......",
+    ".#####M#......",
+    ".######.......",
+    "..#O##........",
+], "sprout", {"M": ("cabbage", 3), "O": ("petal_yellow", 0), "x": ("leaf_dark", 2), "w": ("leaf_dark", 1)}, lo=1)
 
-ICONS["muskmelon"] = lambda: shade([
-    "......ji.....",
+# a melon with a quarter cut away: netted rind outside, a green layer, orange flesh and seeds inside
+MELON_CUT = [
+    ".....kjk.....",
     "......j3.....",
-    "....##N##....",
-    "..#N###N###..",
-    ".#N#N#N#N#N#.",
-    ".N###N###N##.",
-    "##N#N#N#N#N##",
-    "###N###N###N#",
-    ".#N#N#N#N#N#.",
-    ".####N###N##.",
-    "..N#N#N#N#N..",
-    "...####N##...",
-    ".....###.....",
-], "melon_rind", {"N": ("melon_rind", 4)}, lo=0, hi=2)
+    "...###NN##...",
+    "..#N#####N#..",
+    ".####NN#####.",
+    ".NN#####NN##.",
+    "####NN#####N#",
+    "#N####ZYZFFGR",
+    "###NN#YZYFFGR",
+    ".#####ZYFFFG.",
+    ".#NN##FFFFGR.",
+    ".####NFFFGRR.",
+    "..####GGGRR..",
+    "....##RRR....",
+]
+MELON_CUT_LEGEND = {"N": ("melon_rind", 4), "R": ("melon_rind", 1), "G": ("sprout", 3), "F": ("onion", 3), "Z": ("bean", 3), "Y": ("onion", 2)}
+ICONS["muskmelon"] = lambda: shade(MELON_CUT, "melon_rind", MELON_CUT_LEGEND, lo=0, hi=2)
 
 
 # ------------------------------------------------------------------------------------------------
@@ -1306,18 +1315,18 @@ MINI = {   # 6 x 6 pictures for the packet window (legend: BASE + the crop's let
     "rice": (["...lk.", "..lk.k", ".kj.l.", ".ij...", "ji....", "h....."], {}),
     "corn": (["...AB.", "..ABC.", ".ABCD.", ".cBD..", "cdc...", "cb...."], {"A": ("corn", 3), "B": ("corn", 2), "C": ("corn", 1), "D": ("corn", 0)}),
     "green_onion": (["....yx", "...yxw", "..yxw.", ".VW...", "VW....", "W....."], {"V": ("garlic", 3), "W": ("garlic", 2)}),
-    "radish": (["..434.", ".cdc3.", ".VVWD.", "VVWWD.", "VWWD..", ".WD..."], {"V": ("garlic", 3), "W": ("garlic", 2), "D": ("garlic", 1)}),
+    "radish": (["...434", "..cdc3", ".VVcd.", "VVWWD.", "VWWD..", ".VD..."], {"V": ("garlic", 3), "W": ("garlic", 2), "D": ("garlic", 1)}),
     "lettuce": ([".e.e..", "edcdd.", "dcVcd.", "dcVcb.", ".bVb..", "..V..."], {"V": ("cabbage", 3)}),
     "cucumber": (["2.....", "AB....", "AEC...", ".AEC..", "..ABCY", "...CC."], {"A": ("cucumber", 3), "B": ("cucumber", 2), "C": ("cucumber", 1), "E": ("sprout", 3)}),
     "grape": (["..m43.", "ABAB2.", "BCBCD.", ".ABCD.", ".BCD..", "..D..."], {"A": ("grape", 4), "B": ("grape", 3), "C": ("grape", 2), "D": ("grape", 1)}),
-    "eggplant": (["3.3...", "323...", ".BC...", ".BCD..", "..CDE.", "...DE."], {"B": ("aubergine", 4), "C": ("aubergine", 2), "D": ("aubergine", 1), "E": ("aubergine", 0)}),
-    "zucchini": (["....32", "...ABC", "..ABC.", ".ABC..", "ABC...", "OC...."], {"A": ("zucchini", 3), "B": ("zucchini", 2), "C": ("zucchini", 1), "O": ("petal_yellow", 0)}),
-    "muskmelon": (["..j...", ".DAD..", "ADADA.", "DADAD.", "ADADA.", ".EDE.."], {"A": ("melon_rind", 4), "D": ("melon_rind", 1), "E": ("melon_rind", 0)}),
+    "eggplant": (["3.....", "323...", ".BC...", ".BCD..", "..CDDE", "...DEE"], {"B": ("aubergine", 4), "C": ("aubergine", 2), "D": ("aubergine", 1), "E": ("aubergine", 0)}),
+    "zucchini": (["....32", "...ABB", "..ABMC", ".AMBC.", "ABBC..", "OBC..."], {"A": ("sprout", 4), "B": ("sprout", 3), "C": ("sprout", 2), "M": ("cabbage", 3), "O": ("petal_yellow", 0)}),
+    "muskmelon": (["..j...", ".DAD..", "ADAFF.", "DAFZF.", ".DFFE.", "..EE.."], {"A": ("melon_rind", 4), "D": ("melon_rind", 1), "E": ("melon_rind", 0), "F": ("onion", 3), "Z": ("bean", 3)}),
 }
 BAND = {"tomato": ("tomato", 2), "chili": ("pepper", 2), "strawberry": ("toadstool", 2), "onion": ("onion", 2), "cabbage": ("leaf", 3),
         "rice": ("straw", 2), "corn": ("corn", 2), "green_onion": ("leaf_dark", 2), "radish": ("leaf", 3), "lettuce": ("sprout", 3),
         "cucumber": ("cucumber", 2), "grape": ("grape", 2), "eggplant": ("aubergine", 2),
-        "zucchini": ("zucchini", 1), "muskmelon": ("melon_rind", 2)}
+        "zucchini": ("sprout", 2), "muskmelon": ("onion", 2)}
 
 
 def packet(crop):
