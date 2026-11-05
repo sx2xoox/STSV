@@ -149,7 +149,8 @@ public final class EventModule extends EcoModule {
                     Title.Times.times(Duration.ofMillis(300), Duration.ofMillis(3500), Duration.ofMillis(800))));
             pl.playSound(pl.getLocation(), Sound.EVENT_RAID_HORN, 0.7f, 1f);
         }
-        Bukkit.broadcast(Lang.msg("event.start", "event", name, "detail", detail, "hours", hoursText(ends - started)));
+        Bukkit.broadcast(ends <= started ? Lang.msg("event.start-instant", "event", name, "detail", detail)
+                : Lang.msg("event.start", "event", name, "detail", detail, "hours", hoursText(ends - started)));
         return e;
     }
 
@@ -180,7 +181,7 @@ public final class EventModule extends EcoModule {
                 eco.getLogger().log(java.util.logging.Level.SEVERE, "사건 종료 오류: " + e.type(), ex);
             }
         }
-        Bukkit.broadcast(Lang.msg("event.end", "event", name(e.type())));
+        if (e.ends() > e.started()) Bukkit.broadcast(Lang.msg("event.end", "event", name(e.type())));   // an instant one just happened
         if (store.active().isEmpty()) eco.kv().set(NEXT, now() + chain.gapMillis());   // the next one, a gap after this one ended
     }
 

@@ -60,6 +60,11 @@ def background(menu):
     # ledger lines across the empty felt (every other row of pixels, faint)
     for y in range(20, 17 + 18 * rows, 6):
         _rect(im, 6, y, W - 6, y + 1, ramp("felt", 1))
+    if menu.get("graph"):
+        # stock chart panel over the top two rows: dark screen, faint grid (the candles are title text)
+        _frame(im, 8, 17, W - 16, 38, ramp("felt", 0), ramp("felt", 3), fill=ramp("rubber", 0))
+        for gy in range(20, 53, 8):
+            _rect(im, 10, gy, W - 10, gy + 1, ramp("rubber", 1))
     lst = menu.get("list")
     buttons = set(menu.get("buttons", {}).keys())
     inset = set(menu.get("inset", ""))

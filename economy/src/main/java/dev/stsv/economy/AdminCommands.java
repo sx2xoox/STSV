@@ -82,20 +82,84 @@ final class AdminCommands {
         }, (s, args) -> args.length == 1 ? List.of("시작", "종료", "다음", "목록")
                 : args.length == 2 && (args[0].equals("시작") || args[0].equals("종료")) ? new ArrayList<>(events.specs().keySet()) : List.of());
 
-        add("위치", "<시세판|월드보스|기념비N>", "지금 서 있는 곳을 저장 (시세판, 월드 보스, 기념비 자리)", (s, args) -> {
+        add("위치", "<시세판|주식판|월드보스|기념비N>", "지금 서 있는 곳을 저장 (시세판, 주식판, 월드 보스, 기념비 자리)", (s, args) -> {
             if (!(s instanceof Player p) || args.length < 1) {
                 s.sendMessage(Text.msg("<red>/관리자 위치 <시세판|월드보스|기념비1...>"));
                 return;
             }
             String key = switch (args[0]) {
                 case "시세판" -> "price-board";
+                case "주식판" -> "stock-board";
                 case "월드보스" -> "world-boss";
                 default -> args[0].startsWith("기념비") ? "monument-" + args[0].substring(3) : args[0];
             };
             eco.setLocation(key, p.getLocation());
             s.sendMessage(Text.msg("<green>저장: " + key));
             if (key.equals("price-board")) eco.shop().updateBoard();
-        }, (s, args) -> List.of("시세판", "월드보스", "기념비1", "기념비2", "기념비3"));
+            if (key.equals("stock-board")) eco.stocks().updateBoard();
+        }, (s, args) -> List.of("시세판", "주식판", "월드보스", "기념비1", "기념비2", "기념비3"));
+
+        add("주식", "상장 <이름> <산업> <발행수> <시작가> | 상장폐지 <회사> | 가격 <회사> <가격> | 뉴스 <회사> <+/-%> [내용] | 정지 <회사> | 재개 <회사> | 성격 <회사> <변동성|민감도|배당> <값> | 움직이기",
+                "주식 관리: 회사 상장·상장폐지(보유자에게 현재가로 정산), 주가 지정, 회사 뉴스, 거래 정지·재개, 성격 바꾸기, 주가 한 번 움직이기 (테스트)", (s, args) -> {
+            var st = eco.stocks();
+            String sub = args.length > 0 ? args[0] : "";
+            try {
+                switch (sub) {
+                    case "상장" -> {
+                        if (args.length < 5) {
+                            s.sendMessage(Text.msg("<red>/관리자 주식 상장 <이름> <산업> <발행수> <시작가>"));
+                            return;
+                        }
+                        String err = st.list(args[1], args[2], Long.parseLong(args[3]), Double.parseDouble(args[4]));
+                        s.sendMessage(Text.msg(err == null ? "<green>상장: " + args[1] : "<red>" + err));
+                    }
+                    case "움직이기" -> {
+                        st.forceTick();
+                        s.sendMessage(Text.msg("<green>주가를 한 번 움직였습니다."));
+                    }
+                    default -> {
+                        var c = args.length > 1 ? st.find(args[1]) : null;
+                        if (c == null) {
+                            s.sendMessage(Text.msg("<red>없는 회사. /관리자 주식 " + (sub.isEmpty() ? "<상장|상장폐지|가격|뉴스|정지|재개|성격|움직이기>" : sub + " <회사> ...")));
+                            return;
+                        }
+                        switch (sub) {
+                            case "상장폐지" -> st.delist(c);
+                            case "가격" -> st.setPrice(c, Double.parseDouble(args[2]));
+                            case "뉴스" -> st.news(c, Double.parseDouble(args[2].replace("%", "")),
+                                    args.length > 3 ? String.join(" ", java.util.Arrays.copyOfRange(args, 3, args.length)) : null);
+                            case "정지" -> st.halt(c, true);
+                            case "재개" -> st.halt(c, false);
+                            case "성격" -> {
+                                String f = switch (args[2]) {
+                                    case "변동성" -> "volatility";
+                                    case "민감도" -> "sensitivity";
+                                    case "배당" -> "dividend";
+                                    default -> args[2];
+                                };
+                                if (!st.personality(c, f, Double.parseDouble(args[3]))) {
+                                    s.sendMessage(Text.msg("<red>변동성 | 민감도 | 배당"));
+                                    return;
+                                }
+                            }
+                            default -> {
+                                s.sendMessage(Text.msg("<red>/관리자 주식 <상장|상장폐지|가격|뉴스|정지|재개|성격|움직이기>"));
+                                return;
+                            }
+                        }
+                        s.sendMessage(Text.msg("<green>" + c.name + ": " + sub));
+                    }
+                }
+            } catch (NumberFormatException | ArrayIndexOutOfBoundsException e) {
+                s.sendMessage(Text.msg("<red>숫자나 인자가 잘못됐습니다."));
+            }
+        }, (s, args) -> {
+            if (args.length == 1) return List.of("상장", "상장폐지", "가격", "뉴스", "정지", "재개", "성격", "움직이기");
+            if (args.length == 2 && !args[0].equals("상장")) return eco.stocks().listed().stream().map(c -> c.name).toList();
+            if (args.length == 3 && args[0].equals("상장")) return eco.stocks().spec().industries().values().stream().map(i -> i.name()).toList();
+            if (args.length == 3 && args[0].equals("성격")) return List.of("변동성", "민감도", "배당");
+            return List.of();
+        });
 
         add("경매", "시작 <시작가> [분] | 종료 <번호> | 취소 <번호>", "서버 경매 (손에 든 물건, 주간 낙찰 제한 적용) / 바로 끝내기", (s, args) -> {
             String sub = args.length > 0 ? args[0] : "";

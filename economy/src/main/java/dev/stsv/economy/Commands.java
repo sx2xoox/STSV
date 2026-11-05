@@ -165,6 +165,39 @@ final class Commands {
             for (var j : eco.jobs().spec().jobs().values()) out.add(j.name());
             return out;
         }));
+        eco.command("주식", new Simple(player((p, a) -> {
+            var st = eco.stocks();
+            if (a.length == 0) {
+                st.open(p);
+                return;
+            }
+            switch (a[0]) {
+                case "뉴스" -> st.showNews(p);
+                case "알림" -> st.toggleAlerts(p);
+                case "사기", "매수" -> {
+                    if (a.length < 3) p.sendMessage(Lang.msg("stock.usage"));
+                    else st.tradeByCommand(p, a[1], a[2], true);
+                }
+                case "팔기", "매도" -> {
+                    if (a.length < 3) p.sendMessage(Lang.msg("stock.usage"));
+                    else st.tradeByCommand(p, a[1], a[2], false);
+                }
+                default -> {
+                    var c = st.find(String.join("", a));
+                    if (c == null) p.sendMessage(Lang.msg("stock.no-such"));
+                    else st.quote(p, c);
+                }
+            }
+        }), (s, a) -> {
+            if (a.length == 1) {
+                List<String> out = new java.util.ArrayList<>(List.of("뉴스", "알림", "사기", "팔기"));
+                for (var c : eco.stocks().listed()) out.add(c.name);
+                return out;
+            }
+            if (a.length == 2 && List.of("사기", "팔기", "매수", "매도").contains(a[0])) return eco.stocks().listed().stream().map(c -> c.name).toList();
+            if (a.length == 3) return a[0].equals("팔기") || a[0].equals("매도") ? List.of("1", "10", "100", "전부") : List.of("1", "10", "100");
+            return List.of();
+        }));
         eco.command("땅", new Simple(player((p, a) -> {
             String sub = a.length == 0 ? "정보" : a[0];
             boolean confirm = a.length > 1 && a[a.length - 1].equals("확인");

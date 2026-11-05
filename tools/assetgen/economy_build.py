@@ -74,6 +74,10 @@ def main():
             {"model": {"type": "minecraft:model", "model": f"{NS}:item/gui/{name}"}}, indent=2))
     print(f"gui     {len(menus)} backgrounds, {len(E.GUI)} button icons")
 
+    # stock chart font (candles in the /주식 window title)
+    import economy_stockgraph as SG
+    print(f"font    stockgraph {SG.build(PACK / 'assets')} providers")
+
     sheet(E, PREVIEWS / "economy_items.png")
     gui_sheet(G, menus, PREVIEWS / "economy_menus.png")
     import economy_goods as GO

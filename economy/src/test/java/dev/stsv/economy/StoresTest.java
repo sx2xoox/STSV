@@ -161,6 +161,73 @@ class StoresTest {
     }
 
     @Test
+    void stocksPersist(@TempDir Path dir) throws Exception {
+        Db db = db(dir);
+        UUID p = UUID.randomUUID();
+        dev.stsv.economy.stock.StockStore st = new dev.stsv.economy.stock.StockStore(db);
+        st.init();
+        var c = st.create("hanseong");
+        c.name = "한성제철";
+        c.industry = "steel";
+        c.risk = 1;
+        c.shares = 10000;
+        c.start = c.base = c.price = c.prevClose = c.dayHigh = c.dayLow = 2000;
+        c.volatility = 0.0017;
+        c.sensitivity = 0.8;
+        c.dividend = 1;
+        c.override("volatility");
+        st.save(c);
+        var h = st.hold(p, "hanseong");
+        h.shares = 30;
+        h.cost = 60000;
+        h.locked = 10;
+        h.lockUntil = 5000;
+        st.save(h);
+        st.candle("hanseong", true, 3_600_000L, 2000, 48);
+        st.candle("hanseong", true, 3_600_000L, 2100, 48);
+        st.candle("hanseong", true, 3_600_000L, 1950, 48);
+        st.candle("hanseong", false, 3, 2050, 60);
+        st.addNews(10, "hanseong", "[속보] 한성제철, 신규 용광로 가동… 주가 껑충 ▲7.1%");
+        st.addActivity(4, "steel", 120);
+        st.addActivity(4, "steel", 30);
+        var w = st.week(p, 2);
+        w.startValue = 50000;
+        w.flow = -1000;
+        w.invested = 51000;
+        st.save(w);
+        db.sync(x -> null);
+
+        dev.stsv.economy.stock.StockStore st2 = new dev.stsv.economy.stock.StockStore(db);
+        st2.init();
+        var c2 = st2.company("hanseong");
+        assertEquals("한성제철", c2.name);
+        assertEquals(2000, c2.price, 1e-9);
+        assertTrue(c2.overridden("volatility") && !c2.overridden("dividend"));
+        var h2 = st2.holdings(p).get("hanseong");
+        assertEquals(30, h2.shares);
+        assertEquals(20, h2.sellable(4000), "10 bought in the last 10 minutes are locked");
+        assertEquals(30, h2.sellable(6000));
+        assertEquals(30, st2.held("hanseong"));
+        var k = st2.hourly("hanseong").getFirst();
+        assertEquals(2000, k.open(), 1e-9);
+        assertEquals(2100, k.high(), 1e-9);
+        assertEquals(1950, k.low(), 1e-9);
+        assertEquals(1950, k.close(), 1e-9);
+        assertEquals(1, st2.daily("hanseong").size());
+        assertEquals(1, st2.news().size());
+        assertEquals(150, st2.activity(4).get("steel"), 1e-9);
+        assertEquals(51000, st2.week(p, 2).invested, 1e-9);
+        assertEquals(0, st2.week(p, 3).invested, 1e-9, "a new week starts empty");
+        h2.shares = 0;
+        st2.save(h2);
+        db.sync(x -> null);
+        dev.stsv.economy.stock.StockStore st3 = new dev.stsv.economy.stock.StockStore(db);
+        st3.init();
+        assertTrue(st3.holdings(p).isEmpty(), "a sold-out holding is gone");
+        db.close();
+    }
+
+    @Test
     void jobsLandRequestsEventsAndSettingsPersist(@TempDir Path dir) throws Exception {
         Db db = db(dir);
         UUID p = UUID.randomUUID(), friend = UUID.randomUUID();

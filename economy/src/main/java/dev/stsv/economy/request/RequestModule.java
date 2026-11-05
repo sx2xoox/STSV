@@ -110,6 +110,7 @@ public final class RequestModule extends EcoModule implements DailyListener {
         Items.remove(p.getInventory(), it -> Items.plain(it, r.item()), r.amount());
         store.complete(u, index);
         core.economy().deposit(u, r.reward(), "request");
+        eco.stocks().recordSale(u, r.item(), r.reward());
         if (r.job() != null && r.xp() > 0) eco.jobs().addXp(u, r.job(), r.xp());
         p.sendMessage(Lang.msg("request.done", "item", eco.shop().itemName(r.item()), "count", r.amount(), "reward", EconomyModule.format(r.reward()),
                 "left", spec.perPlayer() - store.done(u).size()));

@@ -1,0 +1,93 @@
+# /주식: 위 = 산업 탭, 가운데 = 회사 (클릭하면 회사 화면), 아래 = 정렬·뉴스·도움말
+stocks:
+  title: "<#f3e3b0>주식 <gray>· {tab} · {sort}"
+  rows: 6
+  background: economy:gui/stocks
+  layout:
+    - "ABCDEFGHM"
+    - "LLLLLLLLL"
+    - "LLLLLLLLL"
+    - "LLLLLLLLL"
+    - "LLLLLLLLL"
+    - "P.UVXWNIQ"
+  list: L
+  buttons:
+    A: { action: "stock:tab:all", icon: economy:gui/chart, material: PAPER, name: "<white>전체" }
+    B: { action: "stock:tab:mining", icon: economy:ruby, material: PAPER, name: "<#9fb4c8>광업" }
+    C: { action: "stock:tab:agriculture", icon: economy:rice, material: PAPER, name: "<#8bc34a>농업" }
+    D: { action: "stock:tab:fisheries", icon: economy:salmon_fillet, material: PAPER, name: "<#4fc3f7>수산" }
+    E: { action: "stock:tab:steel", icon: economy:steel_ingot, material: PAPER, name: "<#ff8a65>철강" }
+    F: { action: "stock:tab:food", icon: economy:kimchi, material: PAPER, name: "<#ffb74d>식품" }
+    G: { action: "stock:tab:pharma", icon: economy:pearl_perfume, material: PAPER, name: "<#ba68c8>제약" }
+    H:
+      action: "stock:tab:mine"
+      icon: economy:gui/bag
+      material: BUNDLE
+      name: "<aqua>내 주식"
+      lore: ["<gray>가치 <white>{value}", "<gray>손익 <white>{sign}{profit}"]
+    M:
+      action: "stock:news"
+      icon: economy:gui/ledger
+      material: PAPER
+      name: "<gold>최근 뉴스"
+      lore: ["<gray>채팅으로 최근 뉴스 10개"]
+    P: { action: "page:prev", icon: economy:gui/back, material: ARROW, name: "<white>이전" }
+    U: { action: "stock:sort:up", icon: economy:gui/chart, material: LIME_DYE, name: "<green>오늘 많이 오른 순" }
+    V: { action: "stock:sort:popular", icon: economy:gui/trophy, material: GOLD_INGOT, name: "<yellow>오늘 많이 산 순" }
+    X: { action: close, icon: stsv:gui/exit, material: OAK_DOOR, name: "<red>닫기" }
+    W: { action: "stock:sort:down", icon: economy:gui/chart, material: RED_DYE, name: "<red>오늘 많이 내린 순" }
+    N: { action: "stock:sort:industry", icon: economy:gui/refresh, material: COMPASS, name: "<white>산업순" }
+    I:
+      action: "stock:help"
+      icon: stsv:gui/info
+      material: BOOK
+      name: "<white>주식 안내"
+      lore: ["<gray>10분마다 주가가 움직이고, 하루 ±20%까지", "<gray>산 주식은 10분 뒤부터 팔 수 있음, 수수료 1%", "<gray>한 회사 발행량의 30%까지 · 배당은 매주 월요일", "<gray>/주식 <회사> · /주식 알림"]
+    Q: { action: "page:next", icon: economy:gui/back, material: ARROW, name: "<white>다음" }
+
+# 회사 화면: 위 두 줄 = 봉 그래프 (제목 글꼴로 그림), 아래 = 기간, 사기, 팔기
+stock:
+  title: "{graph}<#f3e3b0>{name} <white>{price} {change}"
+  rows: 6
+  background: economy:gui/stock
+  # 그림 생성기용: 위 두 줄에 그래프 판을 그림
+  graph: true
+  layout:
+    - "........."
+    - "........."
+    - "I.ABC...N"
+    - ".1.2.3.H."
+    - ".4.5.6.Z."
+    - "R...X...."
+  buttons:
+    I:
+      action: ""
+      icon: stsv:gui/info
+      material: BOOK
+      name: "<white>{name} <gold>{stars}"
+      lore: ["{industry} <gray>· {dividend}", "<gray>현재가 <white>{price}</white> {change}", "<gray>오늘 최고 {high} · 최저 {low}", "<gray>어제 종가 {close}",
+             "<gray>발행 {shares}주 · 주주들이 가진 수 {held}주", "{halted}"]
+    A: { action: "stock:period:h24", icon: economy:gui/chart, material: CLOCK, name: "<white>24시간 <dark_gray>(1시간 봉)", lore: ["<gray>지금 그래프: {period}"] }
+    B: { action: "stock:period:d7", icon: economy:gui/chart, material: CLOCK, name: "<white>7일 <dark_gray>(하루 봉)", lore: ["<gray>지금 그래프: {period}"] }
+    C: { action: "stock:period:d30", icon: economy:gui/chart, material: CLOCK, name: "<white>30일 <dark_gray>(하루 봉)", lore: ["<gray>지금 그래프: {period}"] }
+    N:
+      action: ""
+      icon: economy:gui/ledger
+      material: PAPER
+      name: "<gold>최근 뉴스"
+      lore: ["{news}"]
+    "1": { action: "stock:buy:1", icon: economy:gui/coins, material: LIME_DYE, name: "<green>1주 사기", lore: ["<gray>{p1} <dark_gray>({fee})"] }
+    "2": { action: "stock:buy:10", icon: economy:gui/coins, material: LIME_DYE, name: "<green>10주 사기", lore: ["<gray>{p10} <dark_gray>({fee})"] }
+    "3": { action: "stock:buy:100", icon: economy:gui/coins, material: LIME_DYE, name: "<green>100주 사기", lore: ["<gray>{p100} <dark_gray>({fee})"] }
+    H:
+      action: ""
+      icon: economy:gui/bag
+      material: BUNDLE
+      name: "<aqua>내 주식 {have}주"
+      lore: ["<gray>가치 <white>{value}", "<gray>손익 <white>{sign}{profit}", "<gray>지금 팔 수 있는 수 {sellable}주 <dark_gray>(산 지 10분 뒤부터)"]
+    "4": { action: "stock:sell:1", icon: economy:gui/coins, material: RED_DYE, name: "<red>1주 팔기" }
+    "5": { action: "stock:sell:10", icon: economy:gui/coins, material: RED_DYE, name: "<red>10주 팔기" }
+    "6": { action: "stock:sell:100", icon: economy:gui/coins, material: RED_DYE, name: "<red>100주 팔기" }
+    Z: { action: "stock:sell:all", icon: economy:gui/coins, material: REDSTONE, name: "<red>전부 팔기", lore: ["<gray>팔 수 있는 {sellable}주 전부"] }
+    R: { action: "stock:back", icon: economy:gui/back, material: ARROW, name: "<white>목록으로" }
+    X: { action: close, icon: stsv:gui/exit, material: OAK_DOOR, name: "<red>닫기" }

@@ -206,6 +206,7 @@ public final class ShopModule extends EcoModule implements DailyListener {
         if (removed != n) eco.getLogger().warning("판매 수량 불일치: " + p.getName() + " " + id + " " + removed + "/" + n);
         store.record(p.getUniqueId(), id, removed);
         if (paid > 0) core.economy().move(null, p.getUniqueId(), paid, EconomyStore.Kind.FAUCET, "shop_sell", id + " x" + removed);
+        eco.stocks().recordSale(p.getUniqueId(), id, paid);
         if (atFloor(id)) floorHits.add(id);
         return new Sale(removed, paid, price(id));
     }
@@ -501,8 +502,17 @@ public final class ShopModule extends EcoModule implements DailyListener {
                 t.setBackgroundColor(org.bukkit.Color.fromARGB(160, 10, 10, 14));
             });
         }
+        // the whole list is too long for a sign: the marked ones (수요 고시, 사건) and the ten biggest 24h moves
+        List<String> shown = new ArrayList<>();
+        for (String id : catalog.sell().keySet()) if (!marks(id).isEmpty()) shown.add(id);
+        List<String> movers = new ArrayList<>(catalog.sell().keySet());
+        movers.removeAll(shown);
+        movers.removeIf(id -> change(id) == null);
+        movers.sort(java.util.Comparator.comparingDouble((String id) -> -Math.abs(change(id))));
+        shown.addAll(movers.subList(0, Math.min(10, movers.size())));
         StringBuilder sb = new StringBuilder(Lang.raw("shop.board-title"));
-        for (String id : catalog.sell().keySet()) sb.append('\n').append(priceLine(id));
+        for (String id : shown) sb.append('\n').append(priceLine(id));
+        if (shown.isEmpty()) sb.append('\n').append(Lang.raw("shop.board-quiet"));
         board.text(Text.mm(sb.toString()));
     }
 

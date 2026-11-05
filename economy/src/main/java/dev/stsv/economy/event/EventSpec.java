@@ -48,7 +48,7 @@ public record EventSpec(String id, String name, double hours, String color, Map<
         for (String id : ev.getKeys(false)) {
             ConfigurationSection e = ev.getConfigurationSection(id);
             if (e == null) continue;
-            if (e.getDouble("hours", 0) <= 0) problems.add(id + ": hours 는 0보다 커야 합니다");
+            if (e.getDouble("hours", -1) < 0) problems.add(id + ": hours 는 0 이상 (0 = 바로 끝나는 사건)");
             if (e.contains("weight") && e.getDouble("weight") < 0) problems.add(id + ": weight 는 0 이상");
             Map<String, String> params = new LinkedHashMap<>();
             for (String k : e.getKeys(false)) {

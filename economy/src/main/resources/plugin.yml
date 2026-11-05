@@ -34,6 +34,10 @@ commands:
     description: 직업 선택·정보·순위
     aliases: [job]
     permission: stsv.economy.play
+  주식:
+    description: 주식 (가상 회사 42개, 그래프, 사고팔기, 뉴스)
+    aliases: [stock, stocks]
+    permission: stsv.economy.play
   땅:
     description: 땅 구역, 면적 구매, 재산세
     aliases: [land]

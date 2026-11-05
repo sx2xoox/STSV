@@ -18,6 +18,7 @@ import dev.stsv.economy.stats.MetricsModule;
 import dev.stsv.economy.market.MarketModule;
 import dev.stsv.economy.trade.TradeModule;
 import dev.stsv.economy.shop.ShopModule;
+import dev.stsv.economy.stock.StockModule;
 import dev.stsv.economy.stats.ActivityModule;
 import dev.stsv.economy.util.Kv;
 import dev.stsv.economy.vanity.VanityModule;
@@ -63,6 +64,7 @@ public final class EcoPlugin extends JavaPlugin {
     private RequestModule requests;
     private RankModule rank;
     private MetricsModule metrics;
+    private StockModule stocks;
     private TradeRules rules;
 
     public static EcoPlugin get() {
@@ -98,6 +100,7 @@ public final class EcoPlugin extends JavaPlugin {
         add(land = new LandModule(this));
         add(requests = new RequestModule(this));
         add(vanity = new VanityModule(this));
+        add(stocks = new StockModule(this));
         add(rank = new RankModule(this));
         add(metrics = new MetricsModule(this));   // last: its daily report reads what the others did
         StallRemoval.run(this, core.db());
@@ -161,6 +164,7 @@ public final class EcoPlugin extends JavaPlugin {
     public MailModule mail() { return mail; }
     public ActivityModule activity() { return activity; }
     public ShopModule shop() { return shop; }
+    public StockModule stocks() { return stocks; }
     public MarketModule market() { return market; }
     public AuctionModule auction() { return auction; }
     public TradeModule trade() { return trade; }

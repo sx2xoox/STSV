@@ -3,6 +3,9 @@ package dev.stsv.economy;
 import dev.stsv.economy.auction.Auction;
 import dev.stsv.economy.job.JobSpec;
 import dev.stsv.economy.job.MachineSpec;
+import dev.stsv.economy.stock.NewsSpec;
+import dev.stsv.economy.stock.StockGraph;
+import dev.stsv.economy.stock.StockSpec;
 import dev.stsv.economy.land.ChunkPos;
 import dev.stsv.economy.land.Land;
 import dev.stsv.economy.land.LandIndex;
@@ -98,7 +101,7 @@ class RulesTest {
             seen.merge(next.id(), 1, Integer::sum);
             last = next.id();
         }
-        assertEquals(9, seen.size(), "every chained kind comes up: " + seen);
+        assertEquals(10, seen.size(), "every chained kind comes up: " + seen);
         assertTrue(seen.get("urgent_order") > seen.get("tax_audit"), "weights count: " + seen);
         // in the small hours only the long ones (24 hours)
         for (EventSpec e : chain.candidates(events, "harvest", true)) assertTrue(e.hours() >= 24, e.id());
@@ -131,7 +134,8 @@ class RulesTest {
         Map<String, EventSpec> events = EventSpec.parse(ContentTest.yaml("events.yml"), problems);
         assertTrue(problems.isEmpty(), problems.toString());
         assertEquals(List.of("shortage", "crash", "harvest", "mining_boom", "tax_audit", "merchant", "urgent_order", "premium_buyer", "fee_free",
-                "world_boss"), List.copyOf(events.keySet()));
+                "earnings", "world_boss"), List.copyOf(events.keySet()));
+        assertEquals(0, events.get("earnings").hours(), "실적 발표 happens at once");
         assertEquals(List.of("miner", "blacksmith"), EventSpec.list(events.get("mining_boom").params().get("jobs")));
         assertFalse(events.get("world_boss").chained(), "the world boss is on hold");
         assertEquals(24, events.get("shortage").hours(), "품귀 lasts a day");
@@ -141,7 +145,7 @@ class RulesTest {
         assertEquals(new ShopCatalog.DemandNotice(DayOfWeek.MONDAY, 3, 1.5), shop.demand());
         // bad entries are reported, not crashing
         YamlConfiguration bad = new YamlConfiguration();
-        bad.set("events.x.hours", 0);
+        bad.set("events.x.hours", -1);
         bad.set("demand-notice.weekday", "someday");
         List<String> p2 = new ArrayList<>();
         EventSpec.parse(bad, p2);
@@ -249,6 +253,100 @@ class RulesTest {
         assertEquals(4, s.lanes(3));
         assertEquals(0.30, s.speed(2), 1e-9);
         assertEquals(0.2, s.xpPerGold(), 1e-9);
+    }
+
+    // ------------------------------------------------------------------------------------------ stocks
+
+    @Test
+    void stockPricesMoveInsideTheirBandAndComeBackToTheirValue() {
+        StockSpec spec = StockSpec.parse(ContentTest.yaml("stocks.yml"), new ArrayList<>());
+        StockSpec.Settings s = spec.settings();
+        assertEquals(144, s.ticksPerDay());
+        // no noise, no industry: the price closes half the gap to its value in reversion-days
+        double p = 50, base = 100;
+        for (int i = 0; i < s.ticksPerDay() * s.reversionDays(); i++) p = StockSpec.step(p, base, 0.01, 0, 0, 1, s.kappa());
+        assertEquals(Math.sqrt(50 * 100.0), p, 0.5, "log gap halves: 50 -> ~70.7");
+        assertEquals(120, StockSpec.clamp(200, 100, 0.2), 1e-9);
+        assertEquals(80, StockSpec.clamp(10, 100, 0.2), 1e-9);
+        assertEquals(1, StockSpec.atLimit(120, 100, 0.2));
+        assertEquals(-1, StockSpec.atLimit(80, 100, 0.2));
+        assertEquals(0, StockSpec.atLimit(110, 100, 0.2));
+        // the industry moves a sensitive company more
+        assertTrue(StockSpec.step(100, 100, 0, 0, 0.02, 1.5, 0) > StockSpec.step(100, 100, 0, 0, 0.02, 0.7, 0));
+        // activity: twice the 7-day average = +3%, capped, nothing without history
+        assertEquals(0.03, StockSpec.activityMove(200, 100, 0.03, 0.03), 1e-9);
+        assertEquals(0.03, StockSpec.activityMove(900, 100, 0.03, 0.03), 1e-9, "capped");
+        assertEquals(-0.015, StockSpec.activityMove(50, 100, 0.03, 0.03), 1e-9);
+        assertEquals(0, StockSpec.activityMove(500, 0, 0.03, 0.03), 1e-9);
+        assertEquals("▁▅█", StockSpec.sparkline(List.of(1.0, 1.5, 2.0)));
+        assertEquals(0, StockSpec.band(105, 100, s.alerts()));
+        assertEquals(1, StockSpec.band(112, 100, s.alerts()));
+        assertEquals(-2, StockSpec.band(75, 100, s.alerts()));
+    }
+
+    @Test
+    void dividendsFollowActivityAndOnlyPayingCompaniesPay() {
+        StockSpec spec = StockSpec.parse(ContentTest.yaml("stocks.yml"), new ArrayList<>());
+        Map<String, StockSpec.Company> cos = spec.companies();
+        Map<String, Double> perShare = StockSpec.dividends(10_000, Map.of("steel", 999.0), cos, Map.of());
+        assertFalse(perShare.containsKey("taeyang"), "★3 companies pay no dividend");
+        assertTrue(perShare.get("hanseong") > perShare.get("taebaek"), "the busy industry gets most of the pool");
+        double paid = 0;
+        for (var e : perShare.entrySet()) paid += e.getValue() * cos.get(e.getKey()).shares();
+        assertEquals(10_000, paid, 1e-6, "the whole pool is shared out");
+        assertTrue(StockSpec.dividends(0, Map.of(), cos, Map.of()).isEmpty());
+    }
+
+    @Test
+    void newsLinesDoNotRepeatTheirCauses() {
+        List<String> problems = new ArrayList<>();
+        NewsSpec news = NewsSpec.parse(ContentTest.yaml("news.yml"), problems);
+        assertTrue(problems.isEmpty(), problems.toString());
+        NewsSpec.Writer w = new NewsSpec.Writer(30);
+        java.util.Random r = new java.util.Random(7);
+        List<String> causes = news.causes().get("steel").get(true);
+        java.util.Set<String> seen = new java.util.HashSet<>();
+        for (int i = 0; i < causes.size(); i++) {
+            String line = w.line(news, "hanseong", "한성제철", "steel", 7.5, null, r);
+            assertTrue(line.contains("한성제철") && line.contains("▲7.5%"), line);
+            String used = causes.stream().filter(line::contains).findFirst().orElseThrow();
+            assertTrue(seen.add(used), "a cause is not drawn again while it is recent: " + used);
+        }
+        assertEquals("small", NewsSpec.size(5.2));
+        assertEquals("medium", NewsSpec.size(-7.9));
+        assertEquals("large", NewsSpec.size(12));
+        String custom = w.line(news, "x", "회사", "food", -6, "직접 쓴 이유", r);
+        assertTrue(custom.contains("직접 쓴 이유") && custom.contains("▼6.0%"));
+    }
+
+    @Test
+    void theChartIsTextThatEndsWhereTheTitleStarts() {
+        assertEquals(StockGraph.BASE, StockGraph.glyph(true, false, 0, 1));
+        assertEquals(StockGraph.BASE + StockGraph.H * StockGraph.H * 3 + StockGraph.H - 1, StockGraph.glyph(false, true, 0, 99), "a height past the chart is cut");
+        for (int px : new int[]{1, -1, 37, -200, 255}) {
+            int sum = 0;
+            for (char c : StockGraph.space(px).toCharArray()) sum += StockGraph.spaceAdvance(c);
+            assertEquals(px, sum);
+        }
+        List<StockGraph.Candle> candles = new ArrayList<>();
+        for (int i = 0; i < 24; i++) candles.add(new StockGraph.Candle(100 + i, 103 + i, 98 + i, 101 + i + (i % 3 == 0 ? -4 : 0)));
+        String title = StockGraph.title(candles, 24);
+        assertTrue(title.startsWith("<white><font:economy:stockgraph>") && title.endsWith("</font></white>"));
+        // walk the pen: spaces move it, glyphs advance by their width + 1; it must end at the title origin
+        String body = title.substring("<white><font:economy:stockgraph>".length(), title.length() - "</font></white>".length());
+        int pen = StockGraph.ORIGIN, glyphs = 0;
+        for (char c : body.toCharArray()) {
+            if (c >= StockGraph.SPACE) pen += StockGraph.spaceAdvance(c);
+            else {
+                int set = (c - StockGraph.BASE) / (StockGraph.H * StockGraph.H);
+                assertTrue(pen >= StockGraph.LEFT && pen < StockGraph.RIGHT, "inside the chart: " + pen);
+                pen += set % 2 == 1 ? 2 : 4;
+                glyphs++;
+            }
+        }
+        assertEquals(StockGraph.ORIGIN, pen);
+        assertEquals(48, glyphs, "a wick and a body per candle");
+        assertEquals("", StockGraph.title(List.of(), 24));
     }
 
     // ------------------------------------------------------------------------------------------ trading

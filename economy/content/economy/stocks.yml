@@ -1,0 +1,86 @@
+# 주식 /주식. 가상 회사 42개 (산업 6개 × 7개). 주가는 10분마다 움직임:
+#   회사 고유의 흔들림(volatility) + 산업 지수(서버 활동·사건, sensitivity 배) + 제자리로 돌아가는 힘 + 가끔 회사 뉴스
+# 하루 변동은 전날 종가(05시) 기준 ±limit. 닿으면 서버 공지 (상한가·하한가).
+# 조작 방지: 서버 활동은 매일 05시에 하루치를 한 번만 반영하고, 그 산업 주식을 가진 사람의 활동은 빼고 셈.
+#   최근 7일 평균보다 얼마나 많았나로만 보고, 산업 지수는 하루 activity-cap 까지만 움직임.
+# 이름·회사·성격은 여기서 고치고 /관리자 리로드. 관리자가 명령어로 바꾼 값(가격, 상장, 성격)은 저장소에 남아 이 파일보다 우선합니다.
+
+settings:
+  tick-minutes: 10        # 주가가 움직이는 간격
+  limit: 0.20             # 하루 상하한가 ±20%
+  holding-cap: 0.30       # 한 사람이 회사 하나의 발행 주식 중 가질 수 있는 몫
+  fee: 0.01               # 사고팔 때 수수료 1% (첫 매수는 무료)
+  sell-wait-minutes: 10   # 산 주식은 10분 뒤부터 팔 수 있음
+  news-per-day: 5         # 하루 평균 회사 뉴스 수 (±5~10%)
+  activity-cap: 0.03      # 서버 활동으로 산업 지수가 하루 움직이는 최대치
+  activity-scale: 0.03    # 평소(7일 평균)의 2배 활동 = +3%
+  reversion-days: 3       # 주가가 기준 가치로 반쯤 돌아오는 데 걸리는 날
+  base-reversion-days: 30 # 기준 가치가 처음 값으로 반쯤 돌아오는 데 걸리는 날
+  dividend-share: 0.15    # 매주(월요일 05시) 지난주 사라진 돈(세금·수수료 등)의 15%를 배당으로 나눔
+  min-invested: 1000      # 주간 주식왕 집계: 그 주에 이만큼 이상 투자한 사람만
+  alerts: [0.10, 0.20]    # 내 주식이 산 값보다 ±10%, ±20% 움직이면 알림 (/주식 알림 으로 끄고 켬)
+  event-shock: 0.02       # 사건이 산업 지수를 움직이는 크기 (품귀 +, 폭락 -, 풍년·광산 호황 +)
+
+# risk: 1 = 대형 안정주, 2 = 보통, 3 = 소형 급등락주 (volatility·shares·dividend 기본값)
+risk:
+  1: { volatility: 0.0017, shares: 10000, dividend: 1.0 }
+  2: { volatility: 0.0040, shares: 5000, dividend: 0.5 }
+  3: { volatility: 0.0085, shares: 2000, dividend: 0.0 }
+
+industries:
+  mining:      { name: "광업", job: miner, icon: economy:ruby, color: "#9fb4c8" }
+  agriculture: { name: "농업", job: farmer, icon: economy:rice, color: "#8bc34a" }
+  fisheries:   { name: "수산", job: fisher, icon: economy:salmon_fillet, color: "#4fc3f7" }
+  steel:       { name: "철강", job: blacksmith, icon: economy:steel_ingot, color: "#ff8a65" }
+  food:        { name: "식품", job: cook, icon: economy:kimchi, color: "#ffb74d" }
+  pharma:      { name: "제약", job: alchemist, icon: economy:pearl_perfume, color: "#ba68c8" }
+
+# price = 시작가(=기준 가치), sensitivity = 산업 지수를 따라가는 배수
+companies:
+  taebaek:      { name: "태백광업", industry: mining, risk: 1, price: 1800, sensitivity: 0.7 }
+  halla:        { name: "한라자원", industry: mining, risk: 1, price: 1250, sensitivity: 0.8 }
+  geumgang:     { name: "금강광업", industry: mining, risk: 2, price: 620, sensitivity: 1.0 }
+  dongmyeong:   { name: "동명광산", industry: mining, risk: 2, price: 410, sensitivity: 1.1 }
+  yeongnam:     { name: "영남자원", industry: mining, risk: 2, price: 530, sensitivity: 0.9 }
+  daeryuk:      { name: "대륙자원개발", industry: mining, risk: 3, price: 140, sensitivity: 1.4 }
+  samcheok:     { name: "삼척광물", industry: mining, risk: 3, price: 75, sensitivity: 1.3 }
+
+  daehan:       { name: "대한농산", industry: agriculture, risk: 1, price: 1500, sensitivity: 0.7 }
+  hanguk_grain: { name: "한국곡물", industry: agriculture, risk: 1, price: 1100, sensitivity: 0.8 }
+  pungnyeon:    { name: "풍년영농", industry: agriculture, risk: 2, price: 480, sensitivity: 1.1 }
+  honam:        { name: "호남농산", industry: agriculture, risk: 2, price: 560, sensitivity: 1.0 }
+  handeul:      { name: "한들종묘", industry: agriculture, risk: 2, price: 350, sensitivity: 0.9 }
+  cheongbori:   { name: "청보리농업", industry: agriculture, risk: 3, price: 95, sensitivity: 1.4 }
+  saedeul:      { name: "새들농원", industry: agriculture, risk: 3, price: 60, sensitivity: 1.2 }
+
+  donghae:      { name: "동해수산", industry: fisheries, risk: 1, price: 1650, sensitivity: 0.7 }
+  daeyang:      { name: "대양원양", industry: fisheries, risk: 1, price: 1200, sensitivity: 0.8 }
+  namhae:       { name: "남해어업", industry: fisheries, risk: 2, price: 450, sensitivity: 1.0 }
+  hanbada:      { name: "한바다수산", industry: fisheries, risk: 2, price: 590, sensitivity: 1.1 }
+  seohae:       { name: "서해물산", industry: fisheries, risk: 2, price: 330, sensitivity: 0.9 }
+  jeju_farm:    { name: "제주양식", industry: fisheries, risk: 3, price: 160, sensitivity: 1.5 }
+  pogu:         { name: "포구수산", industry: fisheries, risk: 3, price: 55, sensitivity: 1.3 }
+
+  hanseong:     { name: "한성제철", industry: steel, risk: 1, price: 2000, sensitivity: 0.8 }
+  dongyang:     { name: "동양철강", industry: steel, risk: 1, price: 1400, sensitivity: 0.7 }
+  sinheung:     { name: "신흥제강", industry: steel, risk: 2, price: 700, sensitivity: 1.0 }
+  gyeongil:     { name: "경일금속", industry: steel, risk: 2, price: 380, sensitivity: 1.1 }
+  ujin:         { name: "우진특수강", industry: steel, risk: 2, price: 520, sensitivity: 1.2 }
+  samhwa:       { name: "삼화공구", industry: steel, risk: 3, price: 120, sensitivity: 1.3 }
+  taeyang:      { name: "태양단조", industry: steel, risk: 3, price: 85, sensitivity: 1.5 }
+
+  jinseong:     { name: "진성식품", industry: food, risk: 1, price: 1350, sensitivity: 0.7 }
+  uri_mill:     { name: "우리제분", industry: food, risk: 1, price: 1050, sensitivity: 0.8 }
+  obok:         { name: "오복제과", industry: food, risk: 2, price: 430, sensitivity: 1.0 }
+  hangaram:     { name: "한가람식품", industry: food, risk: 2, price: 610, sensitivity: 0.9 }
+  ilpum:        { name: "일품식품", industry: food, risk: 2, price: 300, sensitivity: 1.1 }
+  namdo:        { name: "남도젓갈", industry: food, risk: 3, price: 110, sensitivity: 1.3 }
+  saebyeok:     { name: "새벽베이커리", industry: food, risk: 3, price: 65, sensitivity: 1.4 }
+
+  hanbit:       { name: "한빛제약", industry: pharma, risk: 1, price: 1900, sensitivity: 0.7 }
+  ilsin:        { name: "일신제약", industry: pharma, risk: 1, price: 1150, sensitivity: 0.8 }
+  dongseong:    { name: "동성약품", industry: pharma, risk: 2, price: 540, sensitivity: 1.0 }
+  jeongwoo:     { name: "정우제약", industry: pharma, risk: 2, price: 670, sensitivity: 1.1 }
+  cheongmyeong: { name: "청명약품", industry: pharma, risk: 2, price: 360, sensitivity: 0.9 }
+  saehan:       { name: "새한바이오", industry: pharma, risk: 3, price: 180, sensitivity: 1.5 }
+  baekse:       { name: "백세바이오", industry: pharma, risk: 3, price: 90, sensitivity: 1.4 }

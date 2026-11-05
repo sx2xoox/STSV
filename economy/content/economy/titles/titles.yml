@@ -23,3 +23,12 @@ gourmet:
 magnate:
   name: "<gradient:#ffe082:#ffb300>[거상]</gradient>"
   description: "칭호 상점에서 산 가장 비싼 칭호"
+stock_king_1:
+  name: "<gradient:#ffe082:#ff8f00><b>[주식왕]</b></gradient>"
+  description: "한 주 동안 주식으로 가장 많이 번 사람"
+stock_king_2:
+  name: "<#90caf9>[큰손]"
+  description: "한 주 동안 주식 수익 2위"
+stock_king_3:
+  name: "<#a5d6a7>[슈퍼개미]"
+  description: "한 주 동안 주식 수익 3위"

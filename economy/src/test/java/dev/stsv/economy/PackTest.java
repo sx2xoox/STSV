@@ -107,6 +107,8 @@ class PackTest {
         JsonObject font = com.google.gson.JsonParser.parseString(new String(files.get("assets/stsv/font/menus.json"))).getAsJsonObject();
         long economyBackgrounds = font.getAsJsonArray("providers").asList().stream()
                 .filter(p -> p.getAsJsonObject().has("file") && p.getAsJsonObject().get("file").getAsString().startsWith("economy:gui/")).count();
-        assertEquals(12, economyBackgrounds, "every economy menu background is in the menu font");
+        assertEquals(14, economyBackgrounds, "every economy menu background is in the menu font");
+        assertTrue(files.containsKey("assets/economy/font/stockgraph.json"), "stock chart font");
+        assertTrue(files.containsKey("assets/economy/textures/font/stockgraph_up_body.png"));
     }
 }

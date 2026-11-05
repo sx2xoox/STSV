@@ -101,6 +101,20 @@ class ContentTest {
             // every good sells: the shop's base price is what machine XP is counted from
             for (var r : m.recipes()) if (!shop.sell().containsKey(r.output())) problems.add(m.id() + " good not in the shop: " + r.output());
         }
+        // stocks: six industries of seven companies, each industry a job, news for every industry
+        dev.stsv.economy.stock.StockSpec stocks = dev.stsv.economy.stock.StockSpec.parse(yaml("stocks.yml"), problems);
+        dev.stsv.economy.stock.NewsSpec news = dev.stsv.economy.stock.NewsSpec.parse(yaml("news.yml"), problems);
+        assertEquals(6, stocks.industries().size());
+        assertEquals(42, stocks.companies().size());
+        for (var i : stocks.industries().values()) {
+            if (!jobs.jobs().containsKey(i.job())) problems.add("stock industry job: " + i.job());
+            if (!exists(i.icon(), ours)) problems.add("stock industry icon: " + i.icon());
+            long n = stocks.companies().values().stream().filter(c -> c.industry().equals(i.id())).count();
+            if (n != 7) problems.add(i.id() + ": " + n + " companies");
+            if (!news.causes().containsKey(i.id())) problems.add("news for " + i.id());
+            else for (boolean up : new boolean[]{true, false}) if (news.causes().get(i.id()).get(up).size() < 12) problems.add("news " + i.id() + " " + up);
+        }
+        if (stocks.companies().values().stream().map(c -> c.name()).distinct().count() != 42) problems.add("company names must differ");
         for (var e : requests.pool()) if (!exists(e.item(), ours)) problems.add("request: " + e.item());
         for (var c : requests.community()) if (!exists(c.item(), ours)) problems.add("community: " + c.item());
         assertTrue(problems.isEmpty(), String.join("\n", problems));
@@ -186,7 +200,7 @@ class ContentTest {
         List<String> problems = new ArrayList<>();
         List<MenuSpec> menus = MenuSpec.loadAll(List.of(new ContentPack("economy", "economy", PACK)), problems);
         assertTrue(problems.isEmpty(), String.join("\n", problems));
-        assertEquals(12, menus.size());
+        assertEquals(14, menus.size());
         for (MenuSpec m : menus) {
             assertTrue(m.background() != null, m.id() + " has a background");
             BufferedImage im = ImageIO.read(PACK.resolve("assets/economy/textures/" + m.background().getKey() + ".png").toFile());
@@ -204,7 +218,8 @@ class ContentTest {
                 String ns = b.on().icon().getNamespace(), key = b.on().icon().getKey();
                 Path def = ns.equals("economy") ? PACK.resolve("assets/economy/items/" + key + ".json")
                         : Path.of(System.getProperty("stsv.content")).resolve("../../content/stsv/assets/stsv/items/" + key + ".json").normalize();
-                assertTrue(Files.exists(def), m.id() + " button icon " + b.on().icon());
+                // a custom item's own model works too (the pack builder writes items/<id>.json for every item)
+                assertTrue(Files.exists(def) || (ns.equals("economy") && ourItems().contains("economy:" + key)), m.id() + " button icon " + b.on().icon());
             }
         }
     }
