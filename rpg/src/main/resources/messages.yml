@@ -1,0 +1,24 @@
+# STSV RPG 문구. MiniMessage 형식, {이름} = 자리표시자. 고친 뒤 /관리 리로드.
+
+rpg:
+  players-only: "<red>플레이어만 사용할 수 있습니다."
+  hud: "<red>❤</red> <white>{hp}</white><gray>/{max}</gray>  <aqua>기력</aqua> <white>{sp}</white><gray>/{maxsp}</gray>"
+  target: "{name} <gray>Lv.{level}</gray>  <red>{bar}</red>  <white>{hp}</white><gray>/{max}</gray>  {dmg}"
+  target-dmg: "<white>-{dmg}"
+  target-dmg-crit: "<yellow><b>-{dmg}</b>"
+  level-up-title: "<gold><b>레벨 업!</b>"
+  level-up-subtitle: "<yellow>Lv.{level}"
+  level-up: "<gold>레벨이 올랐습니다: <yellow>Lv.{level}</yellow> <gray>(최대 체력 {hp}, 공격력 {atk})"
+  exp-gain: "<green>+{exp} 경험치"
+  death-by: "{player}<gray> 님이 </gray>{mob}<gray>에게 쓰러졌습니다."
+  stats:
+    header: "<gold><b>{player}</b> <gray>Lv.{level}  경험치 {exp} / {next}"
+    line: "<gray>{stat}</gray> <white>{value}</white>"
+  admin:
+    usage: "<gray>/rpg 레벨 <플레이어> <레벨> · /rpg 경험치 <플레이어> <양> · /rpg 몹 <레벨> [역할] · /rpg 정보"
+    no-player: "<red>접속 중인 플레이어가 아닙니다: {name}"
+    level-set: "<green>{player} 님의 레벨을 {level}(으)로 바꿨습니다."
+    exp-given: "<green>{player} 님에게 경험치 {exp}을(를) 줬습니다."
+    mob-spawned: "<green>{role} 몹을 Lv.{level}(으)로 소환했습니다. <gray>(체력 {hp}, 공격력 {atk}, 방어력 {def})"
+    no-target: "<red>바라보는 생물이 없습니다."
+    info: "<gold>{name}</gold> <gray>Lv.{level} {role}  체력 {hp}/{max}  공격력 {atk}  방어력 {def}  속성 {element}"

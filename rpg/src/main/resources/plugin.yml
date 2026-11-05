@@ -1,0 +1,21 @@
+name: STSV-RPG
+version: '${version}'
+main: dev.stsv.rpg.RpgPlugin
+api-version: '26.3'
+description: STSV RPG 서버 (스탯, 피해 공식, 기본공격, 레벨)
+authors: [STSV]
+depend: [STSV]
+commands:
+  스탯:
+    description: 내 레벨과 스탯
+    aliases: [stats]
+    permission: stsv.rpg.play
+  rpg:
+    description: RPG 관리 (/rpg)
+    aliases: [알피지]
+    permission: stsv.rpg.admin
+permissions:
+  stsv.rpg.play:
+    default: true
+  stsv.rpg.admin:
+    default: op

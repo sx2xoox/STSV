@@ -1,0 +1,90 @@
+# STSV RPG 설정. 고친 뒤 /관리 리로드.
+# 숫자는 기획서의 "밸런스와 난이도 조절" 절을 따릅니다: 목표를 정하면 몹 체력, 몹 공격력,
+# 경험치, 레벨 곡선은 공식이 계산합니다. 개별 몹 숫자를 직접 적지 않습니다.
+
+balance:
+  # 레벨당 기준 공격력과 체력이 몇 배씩 오르는지 (1.07 = 7%)
+  growth: 1.07
+  # 레벨 1의 기준 공격력과 최대 체력 (장비 제외)
+  base-attack: 10
+  base-health: 100
+  defense:
+    # 피해 감소율 = 방어력 / (방어력 + base + per-level × 공격자 레벨)
+    base: 50
+    per-level: 10
+    max-reduction: 0.75
+  crit:
+    base-chance: 0.05
+    base-damage: 1.5
+    chance-cap: 0.60
+    damage-cap: 2.50
+  # 피해 흔들림 (0.05 = ±5%)
+  variance: 0.05
+  # 맨손/무직 기본공격 간격(초). 공격 속도 스탯이 이 간격을 줄임
+  basic-attack-seconds: 0.6
+  # 기준 플레이어: 같은 레벨의 희귀 +3 장비를 낀 보통 실력. 몹 숫자는 이 플레이어 기준으로 계산
+  reference:
+    gear-attack: 2.0        # 장비로 공격력이 기본의 몇 배가 되는지
+    gear-health: 1.5        # 장비로 체력이 기본의 몇 배가 되는지
+    player-reduction: 0.30  # 기준 플레이어의 피해 감소율
+    mob-reduction: 0.20     # 같은 레벨 몹의 피해 감소율
+  element:
+    advantage: 1.25
+    disadvantage: 0.80
+  stamina:
+    base: 100
+    regen-per-second: 5
+  level:
+    cap: 50
+    # 몹과 이 이상 레벨 차이가 나면 규칙 적용
+    gap: 5
+    over-exp-step: 0.2      # 몹보다 높을 때 한 레벨당 경험치 감소
+    over-exp-min: 0.1
+    under-hurt-step: 0.1    # 몹보다 낮을 때 한 레벨당 받는 피해 증가
+    under-hurt-max: 2.0
+  exp:
+    base: 10                # 레벨 1 일반 몹 경험치
+    kills-per-minute: 4     # 계획한 사냥 속도 (이동과 탐색 포함)
+    # 레벨 하나를 올리는 데 계획한 시간(분). 사이 레벨은 직선으로 이어짐
+    # 누적: 레벨 15 = 7시간, 35 = 28시간, 50 = 50시간
+    minutes-per-level:
+      - { level: 1, minutes: 10 }
+      - { level: 14, minutes: 50 }
+      - { level: 15, minutes: 50 }
+      - { level: 34, minutes: 76 }
+      - { level: 35, minutes: 76 }
+      - { level: 49, minutes: 100 }
+  # 역할별 목표: 기준 플레이어가 잡는 시간(초), 기준 플레이어가 버티는 일반 공격 횟수, 경험치 배수
+  roles:
+    critter: { kill-seconds: 0.8, hits-to-down: 0, exp: 0.2 }
+    normal: { kill-seconds: 2.5, hits-to-down: 13.5, exp: 1 }
+    elite: { kill-seconds: 17.5, hits-to-down: 7, exp: 8 }
+    boss: { kill-seconds: 180, hits-to-down: 10, exp: 60 }
+    final: { kill-seconds: 420, hits-to-down: 8, exp: 200 }
+
+mobs:
+  # 스폰에서 이만큼 멀어질 때마다 몹 레벨 +1
+  blocks-per-level: 100
+  # 차원별 최저 레벨 (네더는 전 단계, 엔드는 결 단계)
+  min-level:
+    world: 1
+    world_nether: 35
+    world_the_end: 45
+
+combat:
+  # 플레이어끼리 공격 (결투 신청은 나중에)
+  pvp: false
+  # 맞을 때 밀려나는 세기
+  knockback: 0.4
+  # 마지막으로 맞거나 때린 뒤 이 시간(초)이 지나야 전투 밖으로 봄
+  combat-seconds: 5
+  # 방패를 들고 있을 때 받는 피해 비율 (전사의 막기 스킬은 나중에 따로)
+  shield-taken: 0.2
+
+death:
+  # 죽으면 현재 레벨에서 필요한 경험치의 이 비율만큼 잃음 (레벨은 내려가지 않음)
+  exp-loss: 0.05
+
+hud:
+  # 체력과 기력 줄의 위치 (낮을수록 왼쪽)
+  order: 0
