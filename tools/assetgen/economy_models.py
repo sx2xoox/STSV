@@ -201,8 +201,8 @@ def _crop_model(name, low, high, layout, parts):
         _planes(m, high, SOIL + 16, layout)
     if parts:
         m.group("solid")
-        for i, (tex, p) in enumerate(parts):
-            m.box(f"part{i}", p.frm, p.to, tex, uv=p.uv())
+        for i, (side, top, p) in enumerate(parts):
+            m.box(f"part{i}", p.frm, p.to, side, faces={"up": top, "down": top}, uv=p.uv())
     m.display = presets.furniture(gui_scale=0.6)
     return m
 
@@ -222,12 +222,14 @@ def _crop_builders():
                 T.SURFACES[lo] = (lambda img=st.planes: img.copy())
             parts, seen = [], {}
             for p in st.parts:
-                img = p.texture()
-                key = img.tobytes()
-                if key not in seen:          # the same bulb four times: one texture
-                    seen[key] = f"crop_{name}_part{len(seen)}"
-                    T.SURFACES[seen[key]] = (lambda im=img: im.copy())
-                parts.append((seen[key], p))
+                names = []
+                for img in p.textures():
+                    key = img.tobytes()
+                    if key not in seen:          # the same bulb four times: one texture
+                        seen[key] = f"crop_{name}_part{len(seen)}"
+                        T.SURFACES[seen[key]] = (lambda im=img: im.copy())
+                    names.append(seen[key])
+                parts.append((names[0], names[1], p))
             out[name] = (lambda n=name, a=lo, b=hi, lay=st.layout, ps=tuple(parts): _crop_model(n, a, b, lay, ps))
     return out
 

@@ -157,7 +157,7 @@ class Part:
         w, h, d = (self.to[i] - self.frm[i] for i in range(3))
         assert len(side) == h and all(len(r) == w for r in side), f"side picture is not {w}x{h}"
         assert len(top) == d and all(len(r) == w for r in top), f"top picture is not {w}x{d}"
-        assert w <= 8 and d <= 16 and h <= 16
+        assert w <= 16 and d <= 16 and h <= 16
         self.side, self.top = picture(side, extra), picture(top, extra)
         assert self.side.getextrema()[3][0] == 255 and self.top.getextrema()[3][0] == 255, "solid parts are opaque"
         self.w, self.h, self.d = w, h, d
@@ -169,16 +169,23 @@ class Part:
         p.to = (self.to[0] + dx, self.to[1], self.to[2] + dz)
         return p
 
-    def texture(self):
-        """One opaque 16x16 texture: the side at the left, the top at x=8."""
-        im = Image.new("RGBA", (16, 16), self.side.getpixel((0, 0)))
-        im.paste(self.side, (0, 0))
-        im.paste(self.top, (8, 0))
-        return im
+    def lifted(self, dy):
+        p = self.moved(0, 0)
+        p.frm = (p.frm[0], p.frm[1] + dy, p.frm[2])
+        p.to = (p.to[0], p.to[1] + dy, p.to[2])
+        return p
+
+    def textures(self):
+        """The side and the top, each as an opaque 16x16 texture (the picture at the top-left)."""
+        out = []
+        for pic in (self.side, self.top):
+            im = Image.new("RGBA", (16, 16), pic.getpixel((0, 0)))
+            im.paste(pic, (0, 0))
+            out.append(im)
+        return out
 
     def uv(self):
-        side = [0, 0, self.w, self.h]
-        top = [8, 0, 8 + self.w, self.d]
+        side, top = [0, 0, self.w, self.h], [0, 0, self.w, self.d]
         return {"north": side, "south": side, "east": side, "west": side, "up": top, "down": top}
 
 
@@ -547,29 +554,49 @@ STAGES["rice"] = [
 # 콩: trifoliate leaves, little purple flowers, fuzzy pods as the leaves turn yellow
 # ================================================================================================
 
-SOY = {"A": ("bean", 3), "B": ("bean", 2), "C": ("bean", 1), "D": ("bean", 0)}
-POD_DRY = ["AB", "BC", "BC", ".D"]
+SOY = {"A": ("bean", 3), "B": ("bean", 2), "C": ("bean", 1), "D": ("bean", 0), "P": ("petal_purple", 0)}
+YELLOWED = {"4": "k", "3": "j", "2": "c", "1": "b"}
 
 
-def _soy(pods=False, flowers=False, recolor=None):
+def _soy_plant(g, cx, top, spots, stem="1", recolor=None):
+    """One plant at column cx (4 or 12: where the planes cross): trifoliate leaves up a single stem."""
+    g.line([(cx, 15), (cx, top + 2)], stem)
+    for dx, y in spots:
+        g.sprite(TRIO, cx + dx, y, recolor)
+    return g
+
+
+SOY_YOUNG = [(-2, 9), (-4, 11), (-1, 12)]
+SOY_FULL = [(-2, 1), (-4, 4), (-1, 5), (-4, 8), (-1, 9), (-3, 11)]
+SOY_BARE = [(-2, 1), (-1, 5), (-4, 7)]           # ripe: most leaves have dropped
+
+
+POD_L = ["l.", "ki", "jh", "ih", ".h"]        # a ripe pod hanging left of the stem: fuzzy, light on its upper edge
+POD_R = [".l", "ik", "hj", "hi", "h."]
+
+
+def _soy(stage):
     g = Grid()
-    g.line([(5, 15), (3, 9)], "1").line([(6, 15), (9, 8)], "1").line([(11, 15), (12, 10)], "1")
-    for x, y in ((0, 7), (4, 6), (8, 6), (11, 8), (1, 10), (6, 9), (10, 11), (3, 12)):
-        g.sprite(TRIO, x, y, recolor)
-    if flowers:
-        for x, y in ((4, 9), (10, 11), (8, 10)):
-            g.put(x, y, "U")
-    if pods:
-        for x, y in ((3, 10), (8, 11), (13, 11), (6, 12)):
-            g.sprite(POD_DRY, x, y)
+    for cx in (4, 12):
+        if stage == 1:
+            _soy_plant(g, cx, 9, SOY_YOUNG)
+        elif stage == 2:
+            _soy_plant(g, cx, 1, SOY_FULL)
+            for dx, y in ((-1, 7), (1, 10), (-1, 12), (1, 4)):      # small purple flowers where leaves meet the stem
+                g.put(cx + dx, y, "P")
+        else:
+            # ripe: the leaves yellow and drop, the stems are hung with flat brown pods (flat, so drawn on the planes)
+            _soy_plant(g, cx, 2, SOY_BARE, stem="i", recolor=YELLOWED)
+            for pod, dx, y in ((POD_L, -2, 4), (POD_R, 1, 6), (POD_L, -2, 8), (POD_R, 1, 10), (POD_L, -3, 11), (POD_R, 1, 2)):
+                g.sprite(pod, cx + dx, y)
     return g
 
 
 STAGES["soybean"] = [
-    image(seedlings().rows()),
-    image(Grid().sprite(TRIO, 0, 11).sprite(TRIO, 4, 10).sprite(TRIO, 9, 11).sprite(TRIO, 12, 12).rows()),
-    image(_soy(flowers=True).rows()),
-    image(_soy(pods=True, recolor={"4": "k", "3": "j", "2": "c", "1": "b"}).rows(), SOY),
+    Stage(image(seedlings().rows())),
+    Stage(image(_soy(1).rows())),
+    Stage(image(_soy(2).rows(), SOY)),
+    Stage(image(_soy(3).rows(), SOY)),
 ]
 
 # ================================================================================================
@@ -711,33 +738,36 @@ STAGES["lettuce"] = [
 # ================================================================================================
 
 CUKE = {"A": ("cucumber", 3), "B": ("cucumber", 2), "C": ("cucumber", 1), "D": ("cucumber", 0), "E": ("sprout", 3)}
-CUCUMBER = ["3.", "EB", "AC", "EB", "AC", "BD", ".D"]     # dark skin, pale bumps
-CUKE_SMALL = ["Y.", "EB", "AC", ".C"]
-BIG = [".443.", "44332", "43321", ".321."]     # big rough vine leaf
+BIG = ["44.44", "45444", "34543", ".343.", "..2.."]     # broad heart-shaped vine leaf with a light vein
 
 
-def _vine(fruit=None, flowers=False):
+def _vine(flowers=False):
     g = Grid()
     g.col(7, 0, 15, "onm").col(8, 1, 15, "nnm")                       # the stake
-    g.line([(7, 15), (6, 12), (9, 9), (6, 6), (9, 3), (8, 1)], "2")   # the vine winding up
-    for x, y in ((0, 6), (10, 4), (2, 2), (10, 0), (1, 9), (11, 8), (4, 5)):
+    g.line([(7, 15), (6, 12), (9, 9), (6, 6), (9, 3), (8, 1)], "2")   # the vine winding up it
+    for x, y in ((0, 6), (10, 4), (2, 1), (11, 0), (1, 10), (11, 9), (4, 4), (9, 12)):
         g.sprite(BIG, x, y)
-    g.put(5, 10, "c").put(4, 11, "c").put(12, 12, "c")                # tendrils
+    for x, y in ((5, 10), (4, 11), (3, 11), (12, 13), (13, 12), (6, 3), (5, 2)):    # curly tendrils
+        g.put(x, y, "c")
     if flowers:
-        for x, y in ((4, 2), (12, 6), (2, 8)):
+        for x, y in ((4, 2), (12, 6), (2, 8), (13, 11)):
             g.sprite(FLOWER_Y, x, y)
-    if fruit:
-        for x, y in ((2, 10), (12, 9), (10, 11)):
-            g.sprite(fruit, x, y)
     return g
 
 
-STAGES["cucumber"] = [Stage(st, "cross") for st in (
-    image(seedling().rows()),
-    image(Grid().sprite(BIG, 0, 10).sprite(BIG, 9, 9).line([(4, 15), (5, 12), (9, 11)], "2").sprite(BIG, 4, 11).rows()),
-    image(_vine().rows()),
-    image(_vine(fruit=CUKE_SMALL, flowers=True).rows(), CUKE),
-    image(_vine(fruit=CUCUMBER).rows(), CUKE),
+# fruit: solid, dark and bumpy, hanging round the stake; young ones still carry their flower
+CUKE_YOUNG = Part((0, 0, 0), (1, 3, 1), ["B", "A", "Y"], ["B"], dict(CUKE, Y=("petal_yellow", 1)))
+CUKE_RIPE = Part((0, 0, 0), (2, 6, 2), ["2B", "BA", "EB", "BC", "CE", "DC"], ["2B", "BC"], CUKE)
+CUKE_SHORT = Part((0, 0, 0), (2, 4, 2), ["BA", "BE", "EC", "DC"], ["2B", "BC"], CUKE)
+
+STAGES["cucumber"] = [Stage(st, "cross", parts) for st, parts in (
+    (image(seedling().rows()), []),
+    (image(Grid().sprite(BIG, 0, 10).sprite(BIG, 10, 9).line([(4, 15), (5, 12), (9, 11)], "2").sprite(BIG, 5, 11).rows()), []),
+    (image(_vine().rows()), []),
+    (image(_vine(flowers=True).rows()), [CUKE_YOUNG.moved(4, 9).lifted(6), CUKE_YOUNG.moved(11, 6).lifted(8),
+                                        CUKE_YOUNG.moved(6, 3).lifted(3)]),
+    (image(_vine().rows()), [CUKE_RIPE.moved(2, 9).lifted(2), CUKE_RIPE.moved(12, 5).lifted(5), CUKE_SHORT.moved(6, 1).lifted(1),
+                             CUKE_SHORT.moved(9, 12).lifted(4)]),
 )]
 
 # ================================================================================================
@@ -776,10 +806,12 @@ STAGES["grape"] = [
 # 차나무: a small bush of glossy dark leaves; light new shoots on top to pick
 # ================================================================================================
 
-SHOOT = [".e", "ed", ".c"]
+SHOOT = [".e", "ed", ".c"]          # pale new growth: what is picked
+TEA_LEAF = ["xy", "wx"]             # one glossy leaf in the hedge (tip catching the light)
 
 
 def _tea(size, shoots=False):
+    """A young bush on the planes (before the hedge closes)."""
     g = Grid()
     top = 16 - size
     g.line([(7, 15), (7, 13)], "m").line([(8, 15), (8, 13)], "n")
@@ -794,11 +826,64 @@ def _tea(size, shoots=False):
     return g
 
 
+# glossy leaves of three sizes, placed by hand on a 16x16 tile; the gaps between them are shadow
+TEA_TILE = [
+    "vwxyvvwxxvvwyxwv",
+    "wxyywvxyywvxyywv",
+    "vwxwvwwxwvvwxwvv",
+    "vvwvxyvvvwxyvvwx",
+    "xvvwxyyvwxyyvwxy",
+    "yxvvwxwvvwxwvvwx",
+    "xwvvvwvvvvwvxyvw",
+    "vvwxyvvwxyvvxyyv",
+    "vwxyyvwxyywvwxwv",
+    "vvwxwvvwxwvvvwvv",
+    "xyvwvvxyvvwxyvvw",
+    "yywvvwxyyvxyywvx",
+    "xwvvvvwxwvwxwvvw",
+    "vvwxyvvwvvvwvxyv",
+    "vwxyywvvwxyvvxyy",
+    "vvwxwvvvwxwvvwxw",
+]
+
+
+def _foliage(w, h, dx=0, dy=0):
+    """A w x h cut of the leaf tile (opaque: the clipped face of the bush)."""
+    return ["".join(TEA_TILE[(y + dy) % 16][(x + dx) % 16] for x in range(w)) for y in range(h)]
+
+
+def _sunlit(rows):
+    """The top of the bush catches the sky: one step lighter than its sides."""
+    up = {"v": "w", "w": "x", "x": "y", "y": "y"}
+    return ["".join(up[c] for c in r) for r in rows]
+
+
+def _hedge(y0, y1, inset):
+    """The clipped bush, as tea is grown in rows: a block of leaves with a smaller, rounded top layer."""
+    a, b = inset, 16 - inset
+    body = Part((a, y0, a), (b, y1 - 1, b), _foliage(b - a, y1 - 1 - y0, 3, 2), _sunlit(_foliage(b - a, b - a, 5, 1)))
+    top = Part((a + 1, y1 - 1, a + 1), (b - 1, y1, b - 1), _foliage(b - a - 2, 1, 7, 0), _sunlit(_foliage(b - a - 2, b - a - 2, 1, 6)))
+    return [body, top]
+
+
+def _sprigs(top, shoots):
+    """What pokes out above the hedge: leaf sprigs, and the pale new shoots that are picked."""
+    g = Grid()
+    for x, y in ((1, top + 1), (5, top), (9, top + 1), (12, top)):
+        g.sprite(TEA_LEAF, x, y).sprite(TEA_LEAF, x + 1, y + 1)
+    if shoots:
+        for x, y in ((2, top - 2), (7, top - 3), (11, top - 2), (14, top - 1)):
+            g.sprite(SHOOT, x, y)
+    return g
+
+
+TEA_TRUNK = Part((7, -1, 7), (9, 2, 9), ["nm", "mn", "nm"], ["nm", "mn"])
+
 STAGES["tea"] = [
-    image(seedlings([".xy.", "wxyx", ".mw.", ".m.."], xs=(2, 10)).rows()),
-    image(_tea(7).rows()),
-    image(_tea(11).rows()),
-    image(_tea(11, shoots=True).rows()),
+    Stage(image(seedlings([".xy.", "wxyx", ".mw.", ".m.."], xs=(2, 10)).rows())),
+    Stage(image(_tea(7).rows())),
+    Stage(image(_sprigs(6, False).rows()), parts=[TEA_TRUNK, *_hedge(2, 7, 2)]),
+    Stage(image(_sprigs(3, True).rows()), parts=[TEA_TRUNK, *_hedge(2, 10, 1)]),
 ]
 
 # ================================================================================================
@@ -880,89 +965,86 @@ def shade(rows, body, extra=None, lo=1, hi=None, parts="#"):
 GLINT = ("snow", 2)
 
 ICONS["tomato"] = lambda: shade([
-    ".......32",
-    ".....43234",
-    "...4#3#4#3#4",
-    "..####S##S###",
-    ".##VQ###S#####",
-    ".#QQ#########S",
-    "##Q###########",
-    "##############",
-    "##############",
-    "##############",
-    ".############S",
-    ".###########S",
-    "..#########S",
-    "....######",
+    "....2.3.....",
+    "...434234...",
+    "..#4#3#4#...",
+    ".##VQ##S###.",
+    "#QQ########S",
+    "#Q#########S",
+    "###########S",
+    "###########S",
+    ".#########S.",
+    "..#######S..",
+    "....###.....",
 ], "tomato", {"V": GLINT, "Q": ("tomato", 4), "S": ("tomato", 1)}, lo=0)
 
 ICONS["chili_pepper"] = lambda: shade([
-    "..32",
-    "..432",
-    ".4334",
-    ".#####",
-    ".#VF###",
-    "..#F####",
-    "...#F####",
-    "....#F####",
-    ".....#F###S",
-    "......#####S",
-    ".......####S",
-    "........###S",
-    ".........###",
-    "..........##",
+    "..2...........",
+    ".32...........",
+    "4343..........",
+    "####..........",
+    "#VF##.........",
+    "#F###.........",
+    "#F####........",
+    ".#F###........",
+    ".#F####.......",
+    "..#F####......",
+    "...##F###....#",
+    "....#######.#.",
+    ".....######S..",
+    ".......SSS....",
 ], "pepper", {"V": GLINT, "F": ("pepper", 4), "S": ("pepper", 1)}, lo=0)
 
 ICONS["strawberry"] = lambda: shade([
-    "...34.2.43",
-    "..4434234433",
-    ".##3#4#34#3##",
-    ".############",
-    ".#VZ##Z##Z##S",
-    ".#Q#########S",
-    ".##Z##Z##Z##S",
-    "..#########S",
-    "..#Z##Z##Z#S",
-    "...#######S",
-    "...#Z##Z#S",
-    "....#####",
-    ".....#Z#",
-    "......#",
-], "toadstool", {"V": GLINT, "Q": ("toadstool", 4), "S": ("toadstool", 1), "Z": ("petal_yellow", 2)}, lo=0)
+    "..d.4.d.4.d",
+    ".edc434cde4",
+    "..d3c4c3dc.",
+    ".##4#34#4##.",
+    "############",
+    "#VQ#Z###Z###",
+    "#Q#Z###Z###S",
+    "###########S",
+    "#Z###Z###Z#S",
+    ".#########S.",
+    ".##Z###Z##S.",
+    "..#######S..",
+    "...##Z##S...",
+    ".....##.....",
+], "toadstool", {"V": GLINT, "Q": ("toadstool", 4), "S": ("toadstool", 1), "Z": ("petal_yellow", 2)}, lo=1)
 
 ICONS["onion"] = lambda: shade([
-    "......k",
-    "......j",
+    "......3.",
+    ".....43.",
+    "......4.",
     ".....###",
-    "....#L#D#",
-    "...#L##D##",
-    "..#L##D##D#",
-    ".#VL#D###D##",
-    ".#L##D###D##",
-    ".####D###D##",
+    "...#L#D##",
+    "..#L##D###",
+    ".#VL##D###D#",
+    ".#L###D###D#",
+    "#L####D###D##",
+    "#L####D###D##",
     ".####D###D##",
     "..###D##D##",
-    "...####D##",
-    ".....###",
+    "....#####",
     "....W.W.W",
 ], "onion", {"L": ("onion", 3), "D": ("onion", 1), "V": ("garlic", 3), "W": ("straw", 3)}, lo=0)
 
 ICONS["garlic"] = lambda: shade([
-    "......j",
-    "......i",
-    ".....###",
-    "....##D##",
-    "...#V#D#D#",
-    "..##V#D#D##",
-    ".##V#D###D##",
-    ".##V#D###D##",
-    ".###U#D##D##",
-    ".##U##D#U#D#",
-    "..#U#D###U#",
-    "...###D###",
-    ".....###",
-    "....j.j.j",
-], "garlic", {"V": ("garlic", 3), "D": ("garlic", 1), "U": ("petal_purple", 0)}, lo=0)
+    "......k......",
+    ".....kj......",
+    "......ji.....",
+    ".....#V#.....",
+    "....#V#D#....",
+    "...#V#D#V#...",
+    ".##V##D##V##.",
+    "#V#D##D##D#D#",
+    "#V#D#VD#V#D##",
+    "#V#D#VD#V#D##",
+    ".#D##V#U#D#D.",
+    "..##D#U#D##..",
+    "....#####....",
+    "...k.j.k.j...",
+], "garlic", {"V": ("garlic", 3), "D": ("garlic", 0), "U": ("petal_purple", 0)}, lo=0)
 
 ICONS["napa_cabbage"] = lambda: icon([
     ".....5445",
@@ -997,37 +1079,37 @@ ICONS["paddy"] = lambda: icon([
 ], {})
 
 ICONS["soybean"] = lambda: icon([
-    "..........32",
-    ".........edc",
-    "........edcdc",
-    ".......edcdcb",
-    "......edcdcba",
-    ".....dcdcba",
-    "....dcdcba",
-    "...cdcbba",
-    "..AAB.ba.AAB",
-    ".ABBCD..ABBCD",
-    ".ABhCD..AhBCD",
-    "..BCD....BCD",
-    "....AAB",
-    "...ABhCD",
+    "...........2.",
+    "..........cb.",
+    ".........cedb",
+    "........ceedb",
+    "........bddc.",
+    ".......cbcb..",
+    "......ceedb..",
+    ".....ceedcb..",
+    ".....bddcb...",
+    "....cbcb.....",
+    "...ceedb..AAB",
+    "..ceedcb.ABBC",
+    "..bddcb..ABDC",
+    "...bbb....BC.",
 ], {"A": ("bean", 3), "B": ("bean", 2), "C": ("bean", 1), "D": ("bean", 0)})
 
 ICONS["corn"] = lambda: icon([
-    "...........kj",
-    ".........ABAB",
+    "............kj",
+    "..........ABAk",
+    ".........ABCBC",
     "........ABCBCD",
     ".......ABCBCDC",
-    "......ABCBCDC",
-    ".....ABCBCDC",
-    "....ABCBCDC",
-    "...dABCBCD",
-    "..ecdBCDC",
-    "..edcdCD",
-    ".edcdcb",
-    ".dcdcb",
-    "..cbcb",
-    "...b.b",
+    "......ABCBCDC.",
+    ".....ABCBCDC..",
+    "..e.ABCBCDC.e.",
+    ".ed.dBCBCDc.d.",
+    ".dc.dcCDCdc.c.",
+    "edc.dc..dcb.c.",
+    "dc..cb..cb.cb.",
+    "c..cb..cb..b..",
+    "..cb...b......",
 ], {"A": ("corn", 3), "B": ("corn", 2), "C": ("corn", 1), "D": ("corn", 0)})
 
 ICONS["green_onion"] = lambda: icon([
@@ -1048,87 +1130,86 @@ ICONS["green_onion"] = lambda: icon([
 ], {"V": ("garlic", 3), "W": ("garlic", 2)})
 
 ICONS["radish"] = lambda: shade([
-    "..........4.4",
-    ".........43434",
-    "........434.3",
-    ".......edc32",
-    "......edcdc",
-    ".....#ddcc",
-    "....#V###",
-    "...#V###",
-    "..#V###",
-    "..####",
-    ".####",
-    ".###",
-    ".##",
-    "#",
+    "........4.4.4",
+    "........34343",
+    ".........323.",
+    "......dcdcd..",
+    ".....edcdcb..",
+    "....edcdcbb..",
+    "...#ddcdcb...",
+    "..#V#dcbb....",
+    ".#V####b.....",
+    ".#V#####.....",
+    "#V#####......",
+    "#######......",
+    ".#####.......",
+    "..#..........",
 ], "garlic", {"V": ("snow", 2)}, lo=0)
 
 ICONS["lettuce"] = lambda: icon([
-    "...e.e.e.e",
-    "..edededdde",
-    ".edddcdcddcd",
-    "eddcdVcdcccdc",
-    "edccdVccccccd",
-    "dcccdVcccbccd",
-    ".dccVcccccccb",
-    ".dbccVcccbcb",
-    "..dbcVccbcb",
-    "...bcVcbcb",
-    "....bVbb.b",
-    "......Vb",
-    "......V",
-], {"V": ("cabbage", 3)})
+    "..e.ed.ed.e...",
+    ".edcdedcdedcd.",
+    "edcbcdcdcdcbce",
+    ".dcbcdedcbcbd.",
+    "edcecdVdcecbce",
+    "dcbcecVcecbcbd",
+    ".dcbceVecbcbd.",
+    "edcbcdVdcbcbce",
+    "dcbcecVcecbcbd",
+    "edcbcbVbcbcbcd",
+    "dcbcbcVcbcbcbc",
+    ".bcbcbVbcbcbb.",
+    "..bbcWVWcbb...",
+    "....bWWWb.....",
+], {"V": ("cabbage", 3), "W": ("cabbage", 2)})
 
 ICONS["cucumber"] = lambda: icon([
-    "............AAY",
-    "...........AEB",
-    "..........AEBC",
-    ".........ABCEC",
-    "........AEBCD",
-    ".......ABCEC",
-    "......AEBCD",
-    ".....ABCEC",
-    "....AEBCD",
-    "...ABCEC",
-    "..AEBCD",
-    "..BCECD",
-    "..2CD",
-    ".2",
-], {"A": ("cucumber", 3), "B": ("cucumber", 2), "C": ("cucumber", 1), "D": ("cucumber", 0), "E": ("sprout", 3)})
+    ".2............",
+    "2AB...........",
+    "ABWC..........",
+    "AWBC..........",
+    "ABBCD.........",
+    ".AWBCD........",
+    ".ABBWCD.......",
+    "..AWBBCD......",
+    "...ABBWCD.....",
+    "....AWBBCDD...",
+    ".....AABWBCDD.",
+    ".......AABBCDY",
+    ".........BCDD.",
+], {"A": ("cucumber", 3), "B": ("cucumber", 2), "C": ("cucumber", 1), "D": ("cucumber", 0), "W": ("sprout", 4), "Y": ("petal_yellow", 1)})
 
 ICONS["grapes"] = lambda: icon([
-    "......m..443",
-    ".......m44321",
-    "...ABBAB",
-    "..AVCBAVCB",
-    "..BCDCBCDC",
-    "...ABBABBA",
-    "..AVCBAVCBA",
-    "..BCDCBCDCD",
-    "...ABBABBA",
-    "....AVCBVC",
-    "....BCDCDC",
-    ".....ABBA",
-    ".....BVCD",
-    "......CD",
-], {"A": ("grape", 4), "B": ("grape", 3), "C": ("grape", 2), "D": ("grape", 1), "V": ("petal_purple", 2)})
+    ".....d...edd",
+    ".....cdedcdc",
+    "....ABAcbcb.",
+    "...AVCA.bb..",
+    "..ABAEBABA..",
+    ".AVCADAVCA..",
+    ".BCDBABCDB..",
+    "..AVCAVCAVC.",
+    "..BCDBCDBCD.",
+    "...ABAVCAB..",
+    "...BAVCBCD..",
+    "....BCDAVC..",
+    ".....AVCCD..",
+    "......CD....",
+], {"A": ("grape", 4), "B": ("grape", 3), "C": ("grape", 2), "D": ("grape", 1), "E": ("grape", 0), "V": ("petal_purple", 2)})
 
 ICONS["tea_leaves"] = lambda: icon([
-    "..........ed",
-    ".........edc",
-    "........edcb",
-    "...yy..dcb",
-    "..yyxw.cb",
-    ".yxyxw.b",
-    ".yxxyw.b...y",
-    "..xwxv.b.yyxy",
-    "...wv..byxyxw",
-    ".......mxxyxw",
-    "......m.wxwv",
-    ".....m...v",
-    "....m",
-    "...m",
+    "y......e......",
+    "wy....edc....y",
+    "wxy...dcb...yw",
+    ".wxy...cb..yxw",
+    "wxxyx..b..xyxw",
+    ".wxxyx.b.xyxw.",
+    "..wxxyxbxyxxw.",
+    "..vwxxybyxxwv.",
+    "...vwxxbxxwv..",
+    "....vwxbxwv...",
+    ".....vvbvv....",
+    "......m.......",
+    ".....m........",
 ], {})
 
 
@@ -1138,16 +1219,16 @@ ICONS["tea_leaves"] = lambda: icon([
 
 MINI = {   # 6 x 6 pictures for the packet window (legend: BASE + the crop's letters)
     "tomato": ([".343..", "TQTTS.", "QVTTSR", "TTTTSR", "TTTSSR", ".SSRR."], {"T": ("tomato", 2), "Q": ("tomato", 3), "V": ("tomato", 4), "S": ("tomato", 1), "R": ("tomato", 0)}),
-    "chili": (["3.....", "43....", ".GH...", "..GH..", "...GJ.", "....JK"], {"G": ("pepper", 3), "H": ("pepper", 2), "J": ("pepper", 1), "K": ("pepper", 0)}),
+    "chili": (["3.....", "43....", "GH....", "GHH...", ".GHJ.K", "..JJK."], {"G": ("pepper", 3), "H": ("pepper", 2), "J": ("pepper", 1), "K": ("pepper", 0)}),
     "strawberry": ([".4343.", "QPQSS.", "QZQSZ.", ".QSZR.", ".SSR..", "..R..."], {"P": ("toadstool", 4), "Q": ("toadstool", 3), "S": ("toadstool", 2), "R": ("toadstool", 1), "Z": ("petal_yellow", 2)}),
-    "onion": (["..j...", ".ABB..", "ABBCC.", "ABBCD.", ".BCD..", "..W..."], {"A": ("onion", 3), "B": ("onion", 2), "C": ("onion", 1), "D": ("onion", 0), "W": ("garlic", 1)}),
+    "onion": (["..3...", ".ABB..", "ABBCC.", "ABBCD.", ".BCD..", "..W..."], {"A": ("onion", 3), "B": ("onion", 2), "C": ("onion", 1), "D": ("onion", 0), "W": ("garlic", 1)}),
     "cabbage": ([".454..", "4AAB3.", "4ABB3.", "4AVB3.", ".4V32.", "..W..."], {"A": ("cabbage", 3), "B": ("cabbage", 2), "V": ("garlic", 3), "W": ("garlic", 2)}),
     "rice": (["...lk.", "..lk.k", ".kj.l.", ".ij...", "ji....", "h....."], {}),
     "corn": (["...AB.", "..ABC.", ".ABCD.", ".cBD..", "cdc...", "cb...."], {"A": ("corn", 3), "B": ("corn", 2), "C": ("corn", 1), "D": ("corn", 0)}),
     "green_onion": (["....yx", "...yxw", "..yxw.", ".VW...", "VW....", "W....."], {"V": ("garlic", 3), "W": ("garlic", 2)}),
-    "radish": (["...434", "..cdc3", ".VVW..", ".VWD..", "VWD...", "W....."], {"V": ("garlic", 3), "W": ("garlic", 2), "D": ("garlic", 1)}),
+    "radish": (["..434.", ".cdc3.", ".VVWD.", "VVWWD.", "VWWD..", ".WD..."], {"V": ("garlic", 3), "W": ("garlic", 2), "D": ("garlic", 1)}),
     "lettuce": ([".e.e..", "edcdd.", "dcVcd.", "dcVcb.", ".bVb..", "..V..."], {"V": ("cabbage", 3)}),
-    "cucumber": (["....AY", "...ABC", "..AEC.", ".AEC..", "ABC...", "BC...."], {"A": ("cucumber", 3), "B": ("cucumber", 2), "C": ("cucumber", 1), "E": ("sprout", 3)}),
+    "cucumber": (["2.....", "AB....", "AEC...", ".AEC..", "..ABCY", "...CC."], {"A": ("cucumber", 3), "B": ("cucumber", 2), "C": ("cucumber", 1), "E": ("sprout", 3)}),
     "grape": (["..m43.", "ABAB2.", "BCBCD.", ".ABCD.", ".BCD..", "..D..."], {"A": ("grape", 4), "B": ("grape", 3), "C": ("grape", 2), "D": ("grape", 1)}),
     "tea": (["...ed.", ".yy.c.", "yxxwb.", ".xwv..", "..m...", ".m...."], {}),
 }
