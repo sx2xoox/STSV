@@ -32,3 +32,43 @@ stock_king_2:
 stock_king_3:
   name: "<#a5d6a7>[슈퍼개미]"
   description: "한 주 동안 주식 수익 3위"
+# ── 도감 (economy_fish.py 가 씀)
+angler_sea:
+  name: "<#7fd8ff>[바다 낚시꾼]"
+  description: "도감: 바다 물고기를 모두 잡음"
+angler_deep:
+  name: "<#7fd8ff>[심해 사냥꾼]"
+  description: "도감: 깊은 바다 물고기를 모두 잡음"
+angler_warm:
+  name: "<#7fd8ff>[산호초 탐험가]"
+  description: "도감: 따뜻한 바다 물고기를 모두 잡음"
+angler_cold:
+  name: "<#7fd8ff>[북해의 어부]"
+  description: "도감: 차가운 바다 물고기를 모두 잡음"
+angler_river:
+  name: "<#7fd8ff>[강태공의 제자]"
+  description: "도감: 강 물고기를 모두 잡음"
+angler_coldriver:
+  name: "<#7fd8ff>[얼음낚시 달인]"
+  description: "도감: 차가운 강·호수 물고기를 모두 잡음"
+angler_swamp:
+  name: "<#7fd8ff>[늪지 사냥꾼]"
+  description: "도감: 늪 물고기를 모두 잡음"
+angler_mangrove:
+  name: "<#7fd8ff>[갯벌 탐험가]"
+  description: "도감: 맹그로브 물고기를 모두 잡음"
+angler_jungle:
+  name: "<#7fd8ff>[밀림의 낚시꾼]"
+  description: "도감: 정글 물고기를 모두 잡음"
+angler_cave:
+  name: "<#7fd8ff>[심연의 낚시꾼]"
+  description: "도감: 동굴 지하수 물고기를 모두 잡음"
+angler_mushroom:
+  name: "<#7fd8ff>[포자의 낚시꾼]"
+  description: "도감: 버섯 섬 물고기를 모두 잡음"
+angler_special:
+  name: "<#7fd8ff>[때를 아는 자]"
+  description: "도감: 시간·날씨 물고기를 모두 잡음"
+master_angler:
+  name: "<gradient:#7fd8ff:#ffd36a><b>[강태공]</b></gradient>"
+  description: "도감: 물고기를 모두 잡음"

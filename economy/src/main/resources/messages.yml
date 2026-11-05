@@ -204,7 +204,6 @@ job:
   levelup-broadcast: "<white>{player}</white><gray>님이 <{color}>{job}<gray> Lv{level}이 되었습니다."
   locked-plant: "<red><{color}>{job}<gray> Lv{level}만 심을 수 있는 씨앗입니다."
   found: "<aqua>발견!</aqua> <white>{item}"
-  rare-catch: "<aqua><b>희귀 어획!</b></aqua> <white>{item}"
   saved: "<green>재료 절약</green> <white>{item}</white> <gray>1개를 돌려받았습니다"
   lore-xp: "<gray>경험치 <white>{xp}</white> <gray>/ {next}"
   lore-current: ["<green>✔ 내 직업"]
@@ -475,3 +474,58 @@ report:
   warn-gini: " <red>⚠ 빈부격차 0.6 초과 → 누진세 구간 낮추기, 의뢰 보상 올리기, 시장 폭락 앞당기기"
   warn-gap: " <red>⚠ 하위 수입이 상위의 1/4 미만 → 의뢰 건수·보상 올리기"
   warn-floor: " <yellow>⚠ 바닥가 품목이 많음 → 그 품목의 q 올리기, 수요 고시에서 빼기"
+
+# 낚시: 입질이 오면 화면 가운데 링, 바늘이 초록 칸에 올 때 우클릭
+fishing:
+  pearl: "진주"
+  hint: "<gray>바늘이 <green>초록 칸<gray>에 오면 <white>우클릭 <dark_gray>(금색 칸은 완벽)"
+  good: "<green>좋아!"
+  perfect: "<gold><b>완벽!</b>"
+  miss: "<red>놓쳤다…"
+  trap: "<dark_red>함정! <red>하트 두 칸"
+  escaped: "<gray>물고기가 달아났다…"
+  size-lore: "<gray>크기 <white>{size}cm <dark_gray>· 매입가 {pct}%"
+  result: "<white>{size}cm"
+  result-perfect: "<gold>{size}cm <yellow>· 완벽한 낚시!"
+  caught: "<gray>낚았다! <{color}>{fish} <white>{size}cm<gray>{count}"
+  caught-perfect: "<gold>완벽한 낚시! <{color}>{fish} <white>{size}cm<gray>{count} <yellow>(크기 +10%)"
+  caught-pearl: "<gray>바다 밑에서 <white>진주<gray>를 건졌다!{count}"
+  new-species: "<aqua>도감 등록! <white>{fish} <gray>({caught}/{total})"
+  group-done: "<gold>{player}<yellow>님이 도감의 <gold>{group}<yellow> 물고기를 모두 낚았습니다!"
+  all-done: "<gold><b>{player}님이 모든 물고기를 낚아 [강태공]이 되었습니다!</b>"
+  week-record: "<aqua>이번 주 최대어 갱신! <white>{player}<gray>님의 <white>{fish} <gold>{size}cm"
+  week-winner: "<gold>지난주 최대어: <white>{player}<gray>님의 <white>{fish} <gold>{size}cm"
+
+# /도감
+codex:
+  all: "전체"
+  fresh: "민물 어디나"
+  salt: "바다 어디나"
+  anytime: "언제나"
+  when:
+    night: "밤"
+    dawn: "새벽"
+    dusk: "해질녘"
+    rain: "비 올 때"
+    thunder: "뇌우"
+    fullmoon: "보름달 뜬 밤"
+  unknown: "<dark_gray>???"
+  unknown-lore:
+    - "<gray>등급 <{color}>{rarity}"
+    - "<gray>사는 곳 <white>{where}"
+    - "<gray>때 <white>{when}"
+    - ""
+    - "<dark_gray>아직 낚지 못했다"
+  known-lore:
+    - "<gray>등급 <{color}>{rarity}"
+    - "<gray>사는 곳 <white>{where}"
+    - "<gray>때 <white>{when}"
+    - "<gray>크기 <white>{min} ~ {max}cm"
+    - ""
+    - "<gray>낚은 수 <white>{count}"
+    - "<gray>가장 큰 것 <gold>{best}cm"
+  group: "<gray>{group} <white>{have}<gray>/{all}"
+  group-done: "<green>✔ {group} <white>{have}<gray>/{all}"
+  info-lore:
+    - "<gray>한 서식지를 모두 낚으면 그 칭호를,"
+    - "<gray>모든 물고기를 낚으면 <gold>[강태공]<gray>을 얻습니다."

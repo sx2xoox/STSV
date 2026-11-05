@@ -79,14 +79,14 @@ jobs:
     icon: minecraft:fishing_rod
     machine: fish_bench
     description:
-      - "희귀 어획 5 → 15% (직업이 아니면 1%)"
+      - "희귀·전설 입질 5 → 15% (직업이 아니면 1%)"
+      - "초록 구간 레벨당 +1%, Lv10 하트 +1, Lv20 크기 +10%"
       - "Lv10 손질 결과 +1 (15%)"
       - "Lv20 진주·참다랑어·철갑상어 두 마리씩"
       - "Lv30 손질품 매입가 +20%"
     finds:
       chance: [0.05, 0.15]
       outsider: 0.01
-      pool: { economy:red_seabream: 50, economy:pearl: 25, economy:bluefin_tuna: 15, economy:sturgeon: 10 }
       double: { level: 20, items: [economy:pearl, economy:bluefin_tuna, economy:sturgeon] }
     machine-bonus:
       extra: { level: 10, chance: 0.15 }

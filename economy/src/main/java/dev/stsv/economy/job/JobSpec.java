@@ -28,9 +28,11 @@ public record JobSpec(int maxLevel, double a, double b, long changeCost, int cha
     /** An effect that switches on at a level (value = chance, factor or bonus); speed is per level from Lv1. */
     public record Bonus(int level, double value) {}
 
-    /** Finds: gems in ores (drops by block) or rare catches (weighted pool), with a doubling from a level. */
-    public record Finds(Range chance, double outsider, Map<String, List<String>> drops, Map<String, Integer> pool,
-                        int doubleLevel, Set<String> doubleItems) {
+    /**
+     * Finds: gems in ores (drops by block), or the chance of a rare or legend bite (the fish themselves are in
+     * fish.yml), with a doubling from a level.
+     */
+    public record Finds(Range chance, double outsider, Map<String, List<String>> drops, int doubleLevel, Set<String> doubleItems) {
 
         public List<String> drops(String key) {
             List<String> v = drops.get(key);
@@ -38,17 +40,6 @@ public record JobSpec(int maxLevel, double a, double b, long changeCost, int cha
             return v == null ? List.of() : v;
         }
 
-        /** Weighted pick from the pool; roll in [0, 1). */
-        public String pick(double roll) {
-            int total = pool.values().stream().mapToInt(Integer::intValue).sum();
-            if (total <= 0) return null;
-            double at = roll * total;
-            for (Map.Entry<String, Integer> e : pool.entrySet()) {
-                at -= e.getValue();
-                if (at < 0) return e.getKey();
-            }
-            return pool.keySet().iterator().next();
-        }
     }
 
     public record Job(String id, String name, String color, String icon, String machine, List<String> description,
@@ -169,12 +160,9 @@ public record JobSpec(int maxLevel, double a, double b, long changeCost, int cha
                     Map<String, List<String>> drops = new LinkedHashMap<>();
                     ConfigurationSection ds = fs.getConfigurationSection("drops");
                     if (ds != null) for (String k : ds.getKeys(false)) drops.put(k.toLowerCase(Locale.ROOT), ds.getStringList(k).stream().map(JobSpec::norm).toList());
-                    Map<String, Integer> pool = new LinkedHashMap<>();
-                    ConfigurationSection ps = fs.getConfigurationSection("pool");
-                    if (ps != null) for (String k : ps.getKeys(false)) pool.put(norm(k), Math.max(0, ps.getInt(k)));
                     Set<String> dbl = new LinkedHashSet<>(fs.getStringList("double.items").stream().map(JobSpec::norm).toList());
                     Range chance = range(fs, "chance");
-                    finds = new Finds(chance == null ? new Range(0, 0) : chance, fs.getDouble("outsider", 0), drops, pool,
+                    finds = new Finds(chance == null ? new Range(0, 0) : chance, fs.getDouble("outsider", 0), drops,
                             fs.getInt("double.level", Integer.MAX_VALUE), dbl);
                 }
                 Bonus growth = j.isConfigurationSection("growth")

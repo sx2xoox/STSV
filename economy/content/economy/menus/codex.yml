@@ -1,0 +1,59 @@
+# /도감: 위 = 도감 탭 (지금은 낚시), 가운데 = 물고기 (잡은 것만 그림과 기록), 아래 = 서식지 고르기
+codex:
+  title: "<#f3e3b0>도감 <gray>· 낚시 · {group} <white>{have}<gray>/{all}"
+  rows: 6
+  background: economy:gui/codex
+  layout:
+    - "F.......I"
+    - "LLLLLLLLL"
+    - "LLLLLLLLL"
+    - "LLLLLLLLL"
+    - "LLLLLLLLL"
+    - "P..GAH.XN"
+  list: L
+  buttons:
+    F:
+      action: ""
+      material: FISHING_ROD
+      name: "<aqua>낚시 <gray>(보는 중)"
+      lore: ["<gray>잡은 물고기 <white>{caught}<gray> / {total}"]
+    I:
+      action: ""
+      icon: stsv:gui/info
+      material: BOOK
+      name: "<white>서식지별 진행"
+    G:
+      action: "codex:prev"
+      icon: economy:gui/back
+      material: ARROW
+      name: "<white>◀ 이전 서식지"
+    A:
+      action: "codex:all"
+      icon: economy:gui/wave
+      material: WATER_BUCKET
+      name: "<white>전체 보기"
+      lore: ["<gray>지금: {group}"]
+    H:
+      action: "codex:next"
+      icon: stsv:gui/next
+      material: ARROW
+      name: "<white>다음 서식지 ▶"
+    P:
+      action: page:prev
+      icon: stsv:gui/prev
+      material: ARROW
+      name: "<yellow>◀ 이전 페이지"
+      lore: ["<gray>{page} / {pages}"]
+      off: { icon: stsv:gui/prev_off, material: GRAY_DYE, name: "<dark_gray>◀ 첫 페이지" }
+    N:
+      action: page:next
+      icon: stsv:gui/next
+      material: ARROW
+      name: "<yellow>다음 페이지 ▶"
+      lore: ["<gray>{page} / {pages}"]
+      off: { icon: stsv:gui/next_off, material: GRAY_DYE, name: "<dark_gray>마지막 페이지 ▶" }
+    X:
+      action: close
+      icon: stsv:gui/exit
+      material: OAK_DOOR
+      name: "<red>닫기"

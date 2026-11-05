@@ -975,7 +975,8 @@ class Mat:
             return self.top.face(w, h, face, seed)
         pw, ph = max(1, math.ceil(w - 1e-6)), max(1, math.ceil(h - 1e-6))
         tile = pw > S or ph > S
-        rnd = random.Random(seed if not tile else hash((self.ramp, self.kind, face)) & 0xffff)
+        # crc32, not hash(): Python salts string hashes per run, which made the tiled faces change every build
+        rnd = random.Random(seed if not tile else zlib.crc32(f"{self.ramp}|{self.kind}|{face}".encode()) & 0xffff)
         if tile:
             pw = ph = S
         grid = self._index(pw, ph, rnd)

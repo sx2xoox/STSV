@@ -1,0 +1,553 @@
+# 낚시로 잡는 물고기 (fish.yml). 참돔·참다랑어·철갑상어는 items/jobs.yml, 대구·연어·복어는 바닐라.
+
+mackerel:
+  material: paper
+  name: "<#ffffff>고등어"
+  lore: ["<gray>바다 · 흔함", "<dark_gray>낚시 · 25~45cm"]
+  texture: mackerel
+
+horse_mackerel:
+  material: paper
+  name: "<#ffffff>전갱이"
+  lore: ["<gray>바다 · 흔함", "<dark_gray>낚시 · 15~35cm"]
+  texture: horse_mackerel
+
+sardine:
+  material: paper
+  name: "<#ffffff>정어리"
+  lore: ["<gray>바다 · 흔함", "<dark_gray>낚시 · 12~25cm"]
+  texture: sardine
+
+saury:
+  material: paper
+  name: "<#ffffff>꽁치"
+  lore: ["<gray>바다 · 흔함", "<dark_gray>낚시 · 25~40cm"]
+  texture: saury
+
+rockfish:
+  material: paper
+  name: "<#55ff55>우럭"
+  lore: ["<gray>바다 · 보통", "<dark_gray>낚시 · 20~45cm"]
+  texture: rockfish
+
+flatfish:
+  material: paper
+  name: "<#55ff55>광어"
+  lore: ["<gray>바다 · 보통", "<dark_gray>낚시 · 30~80cm"]
+  texture: flatfish
+
+greenling:
+  material: paper
+  name: "<#55ff55>노래미"
+  lore: ["<gray>바다 · 보통", "<dark_gray>낚시 · 20~40cm"]
+  texture: greenling
+
+filefish:
+  material: paper
+  name: "<#55ff55>쥐치"
+  lore: ["<gray>바다 · 보통", "<dark_gray>낚시 · 15~30cm"]
+  texture: filefish
+
+yellowtail:
+  material: paper
+  name: "<#5aa8ff>방어"
+  lore: ["<gray>바다 · 희귀", "<dark_gray>낚시 · 50~100cm"]
+  texture: yellowtail
+
+hairtail:
+  material: paper
+  name: "<#5aa8ff>갈치"
+  lore: ["<gray>바다 · 희귀", "<dark_gray>낚시 · 60~150cm"]
+  texture: hairtail
+
+pollack:
+  material: paper
+  name: "<#ffffff>명태"
+  lore: ["<gray>깊은 바다 · 흔함", "<dark_gray>낚시 · 30~60cm"]
+  texture: pollack
+
+monkfish:
+  material: paper
+  name: "<#55ff55>아귀"
+  lore: ["<gray>깊은 바다 · 보통", "<dark_gray>낚시 · 40~100cm"]
+  texture: monkfish
+
+black_rockfish:
+  material: paper
+  name: "<#55ff55>볼락"
+  lore: ["<gray>깊은 바다 · 보통", "<dark_gray>낚시 · 15~30cm"]
+  texture: black_rockfish
+
+skate:
+  material: paper
+  name: "<#55ff55>홍어"
+  lore: ["<gray>깊은 바다 · 보통", "<dark_gray>낚시 · 50~120cm"]
+  texture: skate
+
+croaker:
+  material: paper
+  name: "<#5aa8ff>민어"
+  lore: ["<gray>깊은 바다 · 희귀", "<dark_gray>낚시 · 50~110cm"]
+  texture: croaker
+
+octopus:
+  material: paper
+  name: "<#5aa8ff>문어"
+  lore: ["<gray>깊은 바다 · 희귀", "<dark_gray>낚시 · 40~150cm"]
+  texture: octopus
+
+giant_squid:
+  material: paper
+  name: "<#5aa8ff>대왕오징어"
+  lore: ["<gray>깊은 바다 · 희귀", "<dark_gray>낚시 · 200~600cm"]
+  texture: giant_squid
+
+marlin:
+  material: paper
+  name: "<#ffaa00>청새치"
+  lore: ["<gray>깊은 바다 · 전설", "<dark_gray>낚시 · 180~400cm"]
+  texture: marlin
+
+lantern_angler:
+  material: paper
+  name: "<#ffaa00>초롱아귀"
+  lore: ["<gray>깊은 바다 · 전설", "<dark_gray>낚시 · 20~60cm"]
+  texture: lantern_angler
+
+damselfish:
+  material: paper
+  name: "<#ffffff>자리돔"
+  lore: ["<gray>따뜻한 바다 · 흔함", "<dark_gray>낚시 · 8~18cm"]
+  texture: damselfish
+
+clownfish:
+  material: paper
+  name: "<#ffffff>흰동가리"
+  lore: ["<gray>따뜻한 바다 · 흔함", "<dark_gray>낚시 · 6~12cm"]
+  texture: clownfish
+
+butterflyfish:
+  material: paper
+  name: "<#55ff55>나비고기"
+  lore: ["<gray>따뜻한 바다 · 보통", "<dark_gray>낚시 · 10~20cm"]
+  texture: butterflyfish
+
+tang:
+  material: paper
+  name: "<#55ff55>쥐돔"
+  lore: ["<gray>따뜻한 바다 · 보통", "<dark_gray>낚시 · 15~35cm"]
+  texture: tang
+
+lionfish:
+  material: paper
+  name: "<#55ff55>쏠배감펭"
+  lore: ["<gray>따뜻한 바다 · 보통", "<dark_gray>낚시 · 20~38cm"]
+  texture: lionfish
+
+mahi_mahi:
+  material: paper
+  name: "<#5aa8ff>만새기"
+  lore: ["<gray>따뜻한 바다 · 희귀", "<dark_gray>낚시 · 60~150cm"]
+  texture: mahi_mahi
+
+sunfish:
+  material: paper
+  name: "<#5aa8ff>개복치"
+  lore: ["<gray>따뜻한 바다 · 희귀", "<dark_gray>낚시 · 100~300cm"]
+  texture: sunfish
+
+yellowfin_tuna:
+  material: paper
+  name: "<#5aa8ff>황다랑어"
+  lore: ["<gray>따뜻한 바다 · 희귀", "<dark_gray>낚시 · 80~200cm"]
+  texture: yellowfin_tuna
+
+sailfish:
+  material: paper
+  name: "<#ffaa00>돛새치"
+  lore: ["<gray>따뜻한 바다 · 전설", "<dark_gray>낚시 · 150~340cm"]
+  texture: sailfish
+
+whale_shark:
+  material: paper
+  name: "<#ffaa00>고래상어"
+  lore: ["<gray>따뜻한 바다 · 전설", "<dark_gray>낚시 · 500~1200cm"]
+  texture: whale_shark
+
+herring:
+  material: paper
+  name: "<#ffffff>청어"
+  lore: ["<gray>차가운 바다 · 흔함", "<dark_gray>낚시 · 20~40cm"]
+  texture: herring
+
+sandfish:
+  material: paper
+  name: "<#ffffff>도루묵"
+  lore: ["<gray>차가운 바다 · 흔함", "<dark_gray>낚시 · 15~26cm"]
+  texture: sandfish
+
+atka_mackerel:
+  material: paper
+  name: "<#55ff55>임연수어"
+  lore: ["<gray>차가운 바다 · 보통", "<dark_gray>낚시 · 30~50cm"]
+  texture: atka_mackerel
+
+sand_lance:
+  material: paper
+  name: "<#55ff55>양미리"
+  lore: ["<gray>차가운 바다 · 보통", "<dark_gray>낚시 · 10~20cm"]
+  texture: sand_lance
+
+snow_crab:
+  material: paper
+  name: "<#5aa8ff>대게"
+  lore: ["<gray>차가운 바다 · 희귀", "<dark_gray>낚시 · 20~40cm"]
+  texture: snow_crab
+
+king_crab:
+  material: paper
+  name: "<#5aa8ff>킹크랩"
+  lore: ["<gray>차가운 바다 · 희귀", "<dark_gray>낚시 · 40~90cm"]
+  texture: king_crab
+
+greenland_shark:
+  material: paper
+  name: "<#ffaa00>그린란드상어"
+  lore: ["<gray>차가운 바다 · 전설", "<dark_gray>낚시 · 250~600cm"]
+  texture: greenland_shark
+
+pale_chub:
+  material: paper
+  name: "<#ffffff>피라미"
+  lore: ["<gray>강 · 흔함", "<dark_gray>낚시 · 8~15cm"]
+  texture: pale_chub
+
+crucian_carp:
+  material: paper
+  name: "<#ffffff>붕어"
+  lore: ["<gray>강 · 흔함", "<dark_gray>낚시 · 10~35cm"]
+  texture: crucian_carp
+
+carp:
+  material: paper
+  name: "<#55ff55>잉어"
+  lore: ["<gray>강 · 보통", "<dark_gray>낚시 · 30~90cm"]
+  texture: carp
+
+catfish:
+  material: paper
+  name: "<#55ff55>메기"
+  lore: ["<gray>강 · 보통", "<dark_gray>낚시 · 30~100cm"]
+  texture: catfish
+
+bitterling:
+  material: paper
+  name: "<#55ff55>납자루"
+  lore: ["<gray>강 · 보통", "<dark_gray>낚시 · 5~10cm"]
+  texture: bitterling
+
+mandarin_fish:
+  material: paper
+  name: "<#5aa8ff>쏘가리"
+  lore: ["<gray>강 · 희귀", "<dark_gray>낚시 · 20~50cm"]
+  texture: mandarin_fish
+
+kkeokji:
+  material: paper
+  name: "<#5aa8ff>꺽지"
+  lore: ["<gray>강 · 희귀", "<dark_gray>낚시 · 10~20cm"]
+  texture: kkeokji
+
+bagrid_catfish:
+  material: paper
+  name: "<#5aa8ff>동자개"
+  lore: ["<gray>강 · 희귀", "<dark_gray>낚시 · 15~30cm"]
+  texture: bagrid_catfish
+
+dragon_carp:
+  material: paper
+  name: "<#ffaa00>용잉어"
+  lore: ["<gray>강 · 전설", "<dark_gray>낚시 · 90~140cm"]
+  texture: dragon_carp
+
+smelt:
+  material: paper
+  name: "<#ffffff>빙어"
+  lore: ["<gray>차가운 강·호수 · 흔함", "<dark_gray>낚시 · 7~15cm"]
+  texture: smelt
+
+lenok:
+  material: paper
+  name: "<#55ff55>열목어"
+  lore: ["<gray>차가운 강·호수 · 보통", "<dark_gray>낚시 · 30~70cm"]
+  texture: lenok
+
+dace:
+  material: paper
+  name: "<#55ff55>황어"
+  lore: ["<gray>차가운 강·호수 · 보통", "<dark_gray>낚시 · 25~45cm"]
+  texture: dace
+
+masu_salmon:
+  material: paper
+  name: "<#5aa8ff>산천어"
+  lore: ["<gray>차가운 강·호수 · 희귀", "<dark_gray>낚시 · 20~40cm"]
+  texture: masu_salmon
+
+trout:
+  material: paper
+  name: "<#5aa8ff>송어"
+  lore: ["<gray>차가운 강·호수 · 희귀", "<dark_gray>낚시 · 30~70cm"]
+  texture: trout
+
+char:
+  material: paper
+  name: "<#5aa8ff>곤들매기"
+  lore: ["<gray>차가운 강·호수 · 희귀", "<dark_gray>낚시 · 30~70cm"]
+  texture: char
+
+taimen:
+  material: paper
+  name: "<#ffaa00>타이멘"
+  lore: ["<gray>차가운 강·호수 · 전설", "<dark_gray>낚시 · 100~200cm"]
+  texture: taimen
+
+loach:
+  material: paper
+  name: "<#ffffff>미꾸라지"
+  lore: ["<gray>늪 · 흔함", "<dark_gray>낚시 · 8~18cm"]
+  texture: loach
+
+paradise_fish:
+  material: paper
+  name: "<#ffffff>버들붕어"
+  lore: ["<gray>늪 · 흔함", "<dark_gray>낚시 · 6~12cm"]
+  texture: paradise_fish
+
+snakehead:
+  material: paper
+  name: "<#55ff55>가물치"
+  lore: ["<gray>늪 · 보통", "<dark_gray>낚시 · 40~90cm"]
+  texture: snakehead
+
+swamp_eel:
+  material: paper
+  name: "<#55ff55>드렁허리"
+  lore: ["<gray>늪 · 보통", "<dark_gray>낚시 · 30~60cm"]
+  texture: swamp_eel
+
+softshell_turtle:
+  material: paper
+  name: "<#5aa8ff>자라"
+  lore: ["<gray>늪 · 희귀", "<dark_gray>낚시 · 15~40cm"]
+  texture: softshell_turtle
+
+eel:
+  material: paper
+  name: "<#5aa8ff>뱀장어"
+  lore: ["<gray>늪 · 희귀", "<dark_gray>낚시 · 40~100cm"]
+  texture: eel
+
+giant_snakehead:
+  material: paper
+  name: "<#ffaa00>거대 가물치"
+  lore: ["<gray>늪 · 전설", "<dark_gray>낚시 · 100~180cm"]
+  texture: giant_snakehead
+
+goby:
+  material: paper
+  name: "<#ffffff>망둥어"
+  lore: ["<gray>맹그로브 · 흔함", "<dark_gray>낚시 · 8~20cm"]
+  texture: goby
+
+mudskipper:
+  material: paper
+  name: "<#55ff55>짱뚱어"
+  lore: ["<gray>맹그로브 · 보통", "<dark_gray>낚시 · 10~20cm"]
+  texture: mudskipper
+
+mullet:
+  material: paper
+  name: "<#55ff55>숭어"
+  lore: ["<gray>맹그로브 · 보통", "<dark_gray>낚시 · 30~70cm"]
+  texture: mullet
+
+mud_crab:
+  material: paper
+  name: "<#5aa8ff>머드크랩"
+  lore: ["<gray>맹그로브 · 희귀", "<dark_gray>낚시 · 15~25cm"]
+  texture: mud_crab
+
+barramundi:
+  material: paper
+  name: "<#5aa8ff>바라문디"
+  lore: ["<gray>맹그로브 · 희귀", "<dark_gray>낚시 · 60~150cm"]
+  texture: barramundi
+
+king_mudskipper:
+  material: paper
+  name: "<#ffaa00>왕짱뚱어"
+  lore: ["<gray>맹그로브 · 전설", "<dark_gray>낚시 · 30~50cm"]
+  texture: king_mudskipper
+
+guppy:
+  material: paper
+  name: "<#ffffff>구피"
+  lore: ["<gray>정글 · 흔함", "<dark_gray>낚시 · 3~6cm"]
+  texture: guppy
+
+neon_tetra:
+  material: paper
+  name: "<#ffffff>네온테트라"
+  lore: ["<gray>정글 · 흔함", "<dark_gray>낚시 · 3~4cm"]
+  texture: neon_tetra
+
+tilapia:
+  material: paper
+  name: "<#55ff55>틸라피아"
+  lore: ["<gray>정글 · 보통", "<dark_gray>낚시 · 20~45cm"]
+  texture: tilapia
+
+angelfish:
+  material: paper
+  name: "<#55ff55>엔젤피시"
+  lore: ["<gray>정글 · 보통", "<dark_gray>낚시 · 10~20cm"]
+  texture: angelfish
+
+piranha:
+  material: paper
+  name: "<#5aa8ff>피라냐"
+  lore: ["<gray>정글 · 희귀", "<dark_gray>낚시 · 20~35cm"]
+  texture: piranha
+
+discus:
+  material: paper
+  name: "<#5aa8ff>디스커스"
+  lore: ["<gray>정글 · 희귀", "<dark_gray>낚시 · 15~25cm"]
+  texture: discus
+
+arowana:
+  material: paper
+  name: "<#ffaa00>아로와나"
+  lore: ["<gray>정글 · 전설", "<dark_gray>낚시 · 60~120cm"]
+  texture: arowana
+
+arapaima:
+  material: paper
+  name: "<#ffaa00>피라루쿠"
+  lore: ["<gray>정글 · 전설", "<dark_gray>낚시 · 200~450cm"]
+  texture: arapaima
+
+cavefish:
+  material: paper
+  name: "<#ffffff>장님물고기"
+  lore: ["<gray>동굴 지하수 · 흔함", "<dark_gray>낚시 · 6~12cm"]
+  texture: cavefish
+
+cave_shrimp:
+  material: paper
+  name: "<#ffffff>동굴 새우"
+  lore: ["<gray>동굴 지하수 · 흔함", "<dark_gray>낚시 · 4~8cm"]
+  texture: cave_shrimp
+
+cave_crayfish:
+  material: paper
+  name: "<#55ff55>동굴 가재"
+  lore: ["<gray>동굴 지하수 · 보통", "<dark_gray>낚시 · 8~15cm"]
+  texture: cave_crayfish
+
+moss_minnow:
+  material: paper
+  name: "<#55ff55>이끼 피라미"
+  lore: ["<gray>동굴 지하수 · 보통", "<dark_gray>낚시 · 8~15cm"]
+  texture: moss_minnow
+
+crystal_trout:
+  material: paper
+  name: "<#5aa8ff>수정 송어"
+  lore: ["<gray>동굴 지하수 · 희귀", "<dark_gray>낚시 · 25~50cm"]
+  texture: crystal_trout
+
+glow_jellyfish:
+  material: paper
+  name: "<#5aa8ff>발광 해파리"
+  lore: ["<gray>동굴 지하수 · 희귀", "<dark_gray>낚시 · 10~30cm"]
+  texture: glow_jellyfish
+
+abyssfish:
+  material: paper
+  name: "<#ffaa00>심연어"
+  lore: ["<gray>동굴 지하수 · 전설", "<dark_gray>낚시 · 80~160cm"]
+  texture: abyssfish
+
+petal_carp:
+  material: paper
+  name: "<#ffaa00>꽃잎 잉어"
+  lore: ["<gray>동굴 지하수 · 전설", "<dark_gray>낚시 · 40~80cm"]
+  texture: petal_carp
+
+spore_goby:
+  material: paper
+  name: "<#55ff55>포자 망둥어"
+  lore: ["<gray>버섯 섬 · 보통", "<dark_gray>낚시 · 10~20cm"]
+  texture: spore_goby
+
+mushroom_puffer:
+  material: paper
+  name: "<#5aa8ff>버섯 복어"
+  lore: ["<gray>버섯 섬 · 희귀", "<dark_gray>낚시 · 15~30cm"]
+  texture: mushroom_puffer
+
+mycelium_ray:
+  material: paper
+  name: "<#ffaa00>균사 가오리"
+  lore: ["<gray>버섯 섬 · 전설", "<dark_gray>낚시 · 80~160cm"]
+  texture: mycelium_ray
+
+sweetfish:
+  material: paper
+  name: "<#55ff55>은어"
+  lore: ["<gray>시간·날씨 · 보통", "<dark_gray>낚시 · 15~30cm"]
+  texture: sweetfish
+
+pike_conger:
+  material: paper
+  name: "<#55ff55>갯장어"
+  lore: ["<gray>시간·날씨 · 보통", "<dark_gray>낚시 · 60~150cm"]
+  texture: pike_conger
+
+golden_crucian:
+  material: paper
+  name: "<#5aa8ff>황금 붕어"
+  lore: ["<gray>시간·날씨 · 희귀", "<dark_gray>낚시 · 20~40cm"]
+  texture: golden_crucian
+
+sunset_bream:
+  material: paper
+  name: "<#5aa8ff>노을 도미"
+  lore: ["<gray>시간·날씨 · 희귀", "<dark_gray>낚시 · 30~70cm"]
+  texture: sunset_bream
+
+rainbow_trout:
+  material: paper
+  name: "<#5aa8ff>무지개송어"
+  lore: ["<gray>시간·날씨 · 희귀", "<dark_gray>낚시 · 30~70cm"]
+  texture: rainbow_trout
+
+moonlight_ray:
+  material: paper
+  name: "<#ffaa00>달빛 가오리"
+  lore: ["<gray>시간·날씨 · 전설", "<dark_gray>낚시 · 80~200cm"]
+  texture: moonlight_ray
+
+thunder_catfish:
+  material: paper
+  name: "<#ffaa00>천둥 메기"
+  lore: ["<gray>시간·날씨 · 전설", "<dark_gray>낚시 · 100~250cm"]
+  texture: thunder_catfish
+
+moon_goldfish:
+  material: paper
+  name: "<#ffaa00>달 금붕어"
+  lore: ["<gray>시간·날씨 · 전설", "<dark_gray>낚시 · 15~40cm"]
+  texture: moon_goldfish

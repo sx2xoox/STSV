@@ -113,7 +113,6 @@ public final class JobModule extends EcoModule {
         for (JobSpec.Job j : spec.jobs().values()) {
             if (j.finds() == null) continue;
             j.finds().drops().values().forEach(l -> l.forEach(id -> { if (Items.create(id, 1).isEmpty()) problems.add(j.id() + ".finds: 없는 아이템 " + id); }));
-            j.finds().pool().keySet().forEach(id -> { if (Items.create(id, 1).isEmpty()) problems.add(j.id() + ".finds: 없는 아이템 " + id); });
         }
         problems.forEach(p -> eco.getLogger().warning("[jobs.yml] " + p));
     }
@@ -189,6 +188,10 @@ public final class JobModule extends EcoModule {
     }
 
     /** XP for doing something, by the action table of the player's job. */
+    public void rewardAction(Player p, String action, String thing, double times) {
+        reward(p, action, thing, times);
+    }
+
     private void reward(Player p, String action, String thing, double times) {
         String job = job(p.getUniqueId());
         if (job == null) return;
@@ -468,7 +471,11 @@ public final class JobModule extends EcoModule {
         }
     }
 
-    /** Find chance for a player: the job's growing chance, else the outsider chance (1%). */
+    /** Find chance of a job for a player (a rare bite for the fisher): the job's growing chance, else the outsider chance (1%). */
+    public double findChance(UUID u, String job) {
+        return findChance(u, spec.jobs().get(job));
+    }
+
     private double findChance(UUID u, JobSpec.Job j) {
         if (j == null || j.finds() == null) return 0;
         if (j.id().equals(job(u))) return j.finds().chance().at(level(u), spec.maxLevel()) * boost(j.id());
@@ -557,28 +564,13 @@ public final class JobModule extends EcoModule {
     }
 
     // ------------------------------------------------------------------------------------------
-    // Fishing: rare catches (어부 5 -> 15%, anyone else 1%)
+    // Fishing: the fish themselves are the fishing module's (the ring); treasure and junk stay vanilla
     // ------------------------------------------------------------------------------------------
 
-    @EventHandler(priority = EventPriority.HIGH, ignoreCancelled = true)
+    @EventHandler(priority = EventPriority.MONITOR, ignoreCancelled = true)
     public void onFish(PlayerFishEvent e) {
         if (e.getState() != PlayerFishEvent.State.CAUGHT_FISH || !(e.getCaught() instanceof Item caught)) return;
-        Player p = e.getPlayer();
-        UUID u = p.getUniqueId();
-        reward(p, "catch", Items.key(caught.getItemStack()), 1);
-        JobSpec.Job fisher = spec.jobs().get("fisher");
-        if (fisher == null || fisher.finds() == null) return;
-        ThreadLocalRandom r = ThreadLocalRandom.current();
-        if (r.nextDouble() >= findChance(u, fisher)) return;
-        String id = fisher.finds().pick(r.nextDouble());
-        if (id == null) return;
-        int n = "fisher".equals(job(u)) && level(u) >= fisher.finds().doubleLevel() && fisher.finds().doubleItems().contains(id) ? 2 : 1;
-        Items.create(id, n).ifPresent(rare -> {
-            caught.setItemStack(rare);
-            reward(p, "find", id, 1);
-            HudModule.flash(p, Lang.mm("job.rare-catch", "item", Items.mmName(rare)));
-            p.playSound(p.getLocation(), Sound.ENTITY_PLAYER_LEVELUP, 0.5f, 1.8f);
-        });
+        reward(e.getPlayer(), "catch", Items.key(caught.getItemStack()), 1);
     }
 
     // ------------------------------------------------------------------------------------------

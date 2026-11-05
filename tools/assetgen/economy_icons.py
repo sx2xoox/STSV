@@ -168,6 +168,32 @@ BACK = pad([
     "......##........",
     ".......#........",
 ])
+UNKNOWN = pad([
+    "",
+    ".....######.....",
+    "....##....##....",
+    "....##....##....",
+    "..........##....",
+    ".........##.....",
+    "........##......",
+    ".......##.......",
+    ".......##.......",
+    "",
+    ".......##.......",
+    ".......##.......",
+])
+WAVE = pad([
+    "", "", "",
+    "..hh......hh....",
+    ".#..#....#..#...",
+    "#....#..#....#..",
+    "......##......#.",
+    "",
+    "..hh......hh....",
+    ".#..#....#..#...",
+    "#....#..#....#..",
+    "......##......#.",
+])
 
 GUI = {
     "coins": lambda: mask(COINS, {"#": "gold", "h": ("lamp", 3)}, flat="h"),
@@ -180,6 +206,8 @@ GUI = {
     "trophy": lambda: mask(TROPHY, {"g": "gold", "b": "wood_dark"}),
     "chest": lambda: mask(CHEST, {"#": "wood", "k": "brass"}),
     "back": lambda: mask(BACK, {"#": "gold"}),
+    "unknown": lambda: mask(UNKNOWN, {"#": "steel"}),
+    "wave": lambda: mask(WAVE, {"#": "water", "h": ("water", 3)}, flat="h"),
 }
 
 
@@ -191,7 +219,9 @@ GUI = {
 # job goods and finds, crops: seeds and produce (both hand-drawn in their own modules)
 from economy_goods import ICONS as _GOODS_ICONS   # noqa: E402
 from economy_crops import ICONS as _CROP_ICONS   # noqa: E402
+from economy_fish import ICONS as _FISH_ICONS   # noqa: E402
 
 ITEMS = {}
 ITEMS.update(_GOODS_ICONS)
 ITEMS.update(_CROP_ICONS)
+ITEMS.update(_FISH_ICONS)

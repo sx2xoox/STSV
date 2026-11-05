@@ -198,6 +198,8 @@ public final class ShopModule extends EcoModule implements DailyListener {
         }
         // 직업 Lv30: the job's own machine goods sell for more (세공품, 손질품, 요리...)
         total *= eco.jobs().sellBonus(p.getUniqueId(), id);
+        // rare and legend fish: by their size (0.7 - 1.5x)
+        total *= Items.sizeFactor(p.getInventory(), same, n);
         String rk = p.getUniqueId() + "|" + id;
         total += remainder.getOrDefault(rk, 0.0);
         long paid = (long) Math.floor(total);

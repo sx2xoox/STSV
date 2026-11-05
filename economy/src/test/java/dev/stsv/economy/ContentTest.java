@@ -83,7 +83,6 @@ class ContentTest {
             if (!machines.containsKey(j.machine())) problems.add("job machine: " + j.machine());
             if (j.finds() != null) {
                 for (var d : j.finds().drops().values()) for (String id : d) if (!exists(id, ours)) problems.add("job find: " + id);
-                for (String id : j.finds().pool().keySet()) if (!exists(id, ours)) problems.add("job find: " + id);
             }
         }
         for (MachineSpec m : machines.values()) {
@@ -119,20 +118,34 @@ class ContentTest {
         for (var c : requests.community()) if (!exists(c.item(), ours)) problems.add("community: " + c.item());
         assertTrue(problems.isEmpty(), String.join("\n", problems));
 
-        // the shape: 6 jobs, 6 finds, 55 machine goods, 6 machines, 32 crop items (15 seeds, 17 harvests)
+        // fishing: 98 fish (92 our own items, 3 vanilla, 3 kept from the old finds), each group's title exists
+        dev.stsv.economy.fishing.FishSpec fish = dev.stsv.economy.fishing.FishSpec.parse(yaml("fish.yml"), problems);
+        assertEquals(98, fish.species().size());
+        YamlConfiguration titles = yaml("titles/titles.yml");
+        for (var s : fish.species().values()) {
+            if (!exists(s.item(), ours)) problems.add("fish item: " + s.item());
+            if (!fish.groups().containsKey(s.group())) problems.add("fish group: " + s.id() + " " + s.group());
+            if (!shop.sell().containsKey(s.item())) problems.add("fish not in the shop: " + s.item());
+        }
+        for (var g : fish.groups().values()) if (g.title() == null || !titles.contains(g.title().substring(g.title().indexOf(':') + 1))) problems.add("fish title: " + g.title());
+        if (!titles.contains("master_angler")) problems.add("title master_angler");
+        assertEquals(3, fish.species().values().stream().filter(x -> x.item().startsWith("minecraft:")).count(), "cod, salmon, pufferfish");
+
+        // the shape: 6 jobs, 6 finds, 55 machine goods, 6 machines, 32 crop items (15 seeds, 17 harvests), 92 fish
         assertEquals(6, jobs.jobs().size());
-        assertEquals(6 + 55 + 6 + 32, ours.size(), "6 finds + 55 goods + 6 machines + 32 crop items");
+        assertEquals(6 + 55 + 6 + 32 + 92, ours.size(), "6 finds + 55 goods + 6 machines + 32 crop items + 92 fish");
         assertEquals(6, machines.size());
         assertEquals(55, machines.values().stream().flatMap(x -> x.recipes().stream()).map(MachineSpec.Recipe::output).distinct().count());
         assertTrue(events.keySet().containsAll(List.of("shortage", "crash", "harvest", "merchant", "tax_audit")));
         assertFalse(Files.exists(PACK.resolve("season.yml")), "no season plan any more");
-        // every job product can actually be made: by a recipe, a machine or a job drop
+        // every job product can actually be made: by a recipe, a machine, a job drop or a fishing rod
         Set<String> makeable = new HashSet<>();
+        for (var s : fish.species().values()) makeable.add(s.item());
+        makeable.add("economy:pearl");
         for (MachineSpec m : machines.values()) for (var r : m.recipes()) makeable.add(r.output());
         for (var j : jobs.jobs().values()) {
             if (j.finds() == null) continue;
             for (var d : j.finds().drops().values()) makeable.addAll(d);
-            makeable.addAll(j.finds().pool().keySet());
         }
         YamlConfiguration recipes = yaml("recipes/jobs.yml");
         for (String k : recipes.getKeys(false)) {
@@ -200,7 +213,7 @@ class ContentTest {
         List<String> problems = new ArrayList<>();
         List<MenuSpec> menus = MenuSpec.loadAll(List.of(new ContentPack("economy", "economy", PACK)), problems);
         assertTrue(problems.isEmpty(), String.join("\n", problems));
-        assertEquals(14, menus.size());
+        assertEquals(15, menus.size());
         for (MenuSpec m : menus) {
             assertTrue(m.background() != null, m.id() + " has a background");
             BufferedImage im = ImageIO.read(PACK.resolve("assets/economy/textures/" + m.background().getKey() + ".png").toFile());
@@ -255,6 +268,7 @@ class ContentTest {
         assertTrue(found > 200, "found " + found);
         // keys built at run time
         for (java.time.DayOfWeek w : java.time.DayOfWeek.values()) if (!messages.contains("weekday." + w)) missing.add("weekday." + w);
+        for (String w : List.of("night", "dawn", "dusk", "rain", "thunder", "fullmoon")) if (!messages.contains("codex.when." + w)) missing.add("codex.when." + w);
         for (String r : List.of("market_buy", "market_cancel", "market_expired", "auction_unsold", "auction_win", "auction_cancel",
                 "trade", "trade_cancel", "stall_release", "stall_evicted")) {
             if (!messages.contains("mail.reason." + r)) missing.add("mail.reason." + r);

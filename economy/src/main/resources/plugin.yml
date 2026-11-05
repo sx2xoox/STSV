@@ -34,6 +34,10 @@ commands:
     description: 직업 선택·정보·순위
     aliases: [job]
     permission: stsv.economy.play
+  도감:
+    description: 도감 (낚시 98종, 서식지별 칭호)
+    aliases: [codex, fishdex]
+    permission: stsv.economy.play
   주식:
     description: 주식 (가상 회사 42개, 그래프, 사고팔기, 뉴스)
     aliases: [stock, stocks]

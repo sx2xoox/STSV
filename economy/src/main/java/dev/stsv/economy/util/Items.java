@@ -63,6 +63,29 @@ public final class Items {
         return !(meta instanceof org.bukkit.inventory.meta.Damageable d) || !d.hasDamage();
     }
 
+    /** A rare or legend fish's price factor by its size (0.7 - 1.5, set when caught); 1 for anything else. */
+    public static double sizeFactor(ItemStack item) {
+        if (item == null || !item.hasItemMeta()) return 1;
+        Double f = item.getItemMeta().getPersistentDataContainer().get(dev.stsv.economy.fishing.FishingModule.FACTOR,
+                org.bukkit.persistence.PersistentDataType.DOUBLE);
+        return f == null ? 1 : f;
+    }
+
+    /** The average size factor of the first amount matching items (in the order {@link #remove} takes them). */
+    public static double sizeFactor(PlayerInventory inv, Predicate<ItemStack> match, int amount) {
+        double sum = 0;
+        int left = amount;
+        for (ItemStack it : inv.getStorageContents()) {
+            if (left <= 0) break;
+            if (it == null || !match.test(it)) continue;
+            int take = Math.min(left, it.getAmount());
+            sum += sizeFactor(it) * take;
+            left -= take;
+        }
+        int n = amount - left;
+        return n <= 0 ? 1 : sum / n;
+    }
+
     public static int count(PlayerInventory inv, Predicate<ItemStack> match) {
         int n = 0;
         for (ItemStack it : inv.getStorageContents()) if (it != null && match.test(it)) n += it.getAmount();

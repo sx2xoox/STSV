@@ -1,6 +1,9 @@
 package dev.stsv.economy;
 
 import dev.stsv.economy.auction.Auction;
+import dev.stsv.economy.fishing.FishSpec;
+import dev.stsv.economy.fishing.Ring;
+import dev.stsv.economy.fishing.RingGlyphs;
 import dev.stsv.economy.job.JobSpec;
 import dev.stsv.economy.job.MachineSpec;
 import dev.stsv.economy.stock.NewsSpec;
@@ -215,10 +218,9 @@ class RulesTest {
         assertEquals(0.5, smith.bonus("fast", 20), 1e-9);
         assertEquals(0.5, spec.jobs().get("alchemist").bonus("aging", 25), 1e-9);
         assertEquals(miner, spec.ofMachine("gem_bench"));
-        // fishing pool: weighted, the rarest last
+        // fishing: the rare-bite chance and the Lv20 doubles (the fish themselves are in fish.yml)
         JobSpec.Finds fish = spec.jobs().get("fisher").finds();
-        assertEquals("economy:red_seabream", fish.pick(0.0));
-        assertEquals("economy:sturgeon", fish.pick(0.999));
+        assertEquals(0.15, fish.chance().at(30, 30), 1e-9);
         assertTrue(fish.doubleItems().contains("economy:pearl"));
         assertEquals(20, fish.doubleLevel());
         JobSpec.Job farmer = spec.jobs().get("farmer");
@@ -480,5 +482,172 @@ class RulesTest {
                 new long[]{99999, 60}));
         assertEquals(100, q[0], 1e-9);
         assertEquals(1600, q[1], 1e-9, "players under 10 minutes are left out");
+    }
+
+    // ------------------------------------------------------------------------------------------
+    // Fishing
+    // ------------------------------------------------------------------------------------------
+
+    private static FishSpec fish() {
+        List<String> problems = new ArrayList<>();
+        FishSpec f = FishSpec.parse(ContentTest.yaml("fish.yml"), problems);
+        assertTrue(problems.isEmpty(), String.join("\n", problems));
+        return f;
+    }
+
+    @Test
+    void fishLiveWhereTheBiomeSays() {
+        assertEquals("sea", FishSpec.habitat("minecraft:ocean", false));
+        assertEquals("deep", FishSpec.habitat("minecraft:deep_ocean", false));
+        assertEquals("warm", FishSpec.habitat("minecraft:deep_lukewarm_ocean", false));
+        assertEquals("cold", FishSpec.habitat("minecraft:deep_frozen_ocean", false));
+        assertEquals("coldriver", FishSpec.habitat("minecraft:frozen_river", false));
+        assertEquals("coldriver", FishSpec.habitat("minecraft:snowy_taiga", false));
+        assertEquals("river", FishSpec.habitat("minecraft:plains", false));
+        assertEquals("swamp", FishSpec.habitat("minecraft:swamp", false));
+        assertEquals("mangrove", FishSpec.habitat("minecraft:mangrove_swamp", false));
+        assertEquals("jungle", FishSpec.habitat("minecraft:sparse_jungle", false));
+        assertEquals("mushroom", FishSpec.habitat("minecraft:mushroom_fields", false));
+        assertEquals("cave", FishSpec.habitat("minecraft:plains", true), "under the ground it is cave water whatever the biome");
+        assertEquals("cave", FishSpec.habitat("minecraft:lush_caves", false));
+
+        FishSpec f = fish();
+        assertEquals(98, f.species().size());
+        assertEquals(12, f.groups().size());
+        FishSpec.Species cod = f.species().get("cod");
+        assertEquals("minecraft:cod", cod.item());
+        // every water has its common fish at any hour, so a bite never comes up empty
+        FishSpec.Moment noon = new FishSpec.Moment(6000, false, false, 4);
+        java.util.Random r = new java.util.Random(1);
+        for (String h : List.of("sea", "deep", "warm", "cold", "river", "coldriver", "swamp", "mangrove", "jungle", "cave", "mushroom")) {
+            for (var tier : f.rarities().values()) {
+                FishSpec.Species s = f.pick(h, noon, tier, r);
+                assertNotNull(s, h + " " + tier.id());
+                assertTrue((f.livesIn(s, h) || h.equals("mushroom") && f.livesIn(s, "sea")) && noon.is(s.when()), s.id() + " in " + h);
+                assertTrue(f.rarities().get(s.rarity()).index() <= tier.index(), "never rarer than the roll");
+            }
+            // every water has fish of its own up to legend, so its codex page can be completed there
+            assertTrue(f.species().values().stream().filter(s -> s.habitat().equals(h)).count() >= 3, h);
+            assertTrue(f.species().values().stream().anyMatch(s -> s.habitat().equals(h) && s.rarity().equals("legend")), h + " has a legend");
+        }
+        // the mushroom island's commons come from the sea around it
+        FishSpec.Rarity common = f.rarities().get("common");
+        assertEquals("sea", f.pick("mushroom", noon, common, r).habitat());
+        // the moment: a night fish only at night, a full-moon fish only under the full moon
+        FishSpec.Moment night = new FishSpec.Moment(18000, false, false, 0);
+        assertTrue(night.is("night") && night.is("fullmoon") && !night.is("dawn") && !night.is("rain"));
+        assertFalse(new FishSpec.Moment(18000, false, false, 3).is("fullmoon"));
+        assertTrue(new FishSpec.Moment(23500, false, false, 0).is("dawn"));
+        assertTrue(new FishSpec.Moment(12000, true, false, 0).is("dusk"));
+        // a time-and-weather fish needs its moment, and lives in its kind of water
+        for (FishSpec.Species s : f.species().values()) {
+            if (s.when() == null) continue;
+            assertEquals("special", s.group());
+            assertTrue(s.habitat().equals("fresh") || s.habitat().equals("salt"), s.id());
+        }
+    }
+
+    @Test
+    void biteRarityAndSize() {
+        FishSpec f = fish();
+        java.util.Random r = new java.util.Random(7);
+        int[] n = new int[4];
+        for (int i = 0; i < 100_000; i++) n[f.tier(0.15, r).index()]++;
+        assertEquals(0.15 * 0.8, n[2] / 100_000.0, 0.005, "rare: 15% x 0.8");
+        assertEquals(0.15 * 0.2, n[3] / 100_000.0, 0.003, "legend: 15% x 0.2");
+        assertEquals(0.85 * 0.35, n[1] / 100_000.0, 0.006, "uncommon: 35% of the rest");
+
+        FishSpec.Species s = f.species().values().stream().filter(x -> x.rarity().equals("legend")).findFirst().orElseThrow();
+        assertEquals(s.min(), FishSpec.size(s, 0, 0, false, 0), 0.05);
+        assertEquals(s.max(), FishSpec.size(s, 1, 0, false, 0), 0.05);
+        assertEquals(Math.round(s.max() * 1.15 * 10) / 10.0, FishSpec.size(s, 1, 6, true, 0.10), 1e-9, "at most 15% past the biggest");
+        assertTrue(FishSpec.size(s, 0.5, 0, false, 0) < (s.min() + s.max()) / 2, "towards the small end");
+        assertEquals(0.7, FishSpec.priceFactor(s, s.min()), 1e-9);
+        assertEquals(1.5, FishSpec.priceFactor(s, s.max() * 1.1), 1e-9);
+    }
+
+    /** A Random whose ints are always 0 and booleans false: the ring starts at cell 0 and goes forward. */
+    private static final class Fixed extends java.util.Random {
+        @Override
+        public int nextInt(int bound) {
+            return 0;
+        }
+
+        @Override
+        public boolean nextBoolean() {
+            return false;
+        }
+    }
+
+    private static void runTo(Ring ring, java.util.function.IntPredicate stop) {
+        for (int i = 0; i < 2000 && !stop.test(ring.needle()); i++) ring.tick();
+    }
+
+    @Test
+    void ringHitsMissesAndHearts() {
+        FishSpec f = fish();
+        FishSpec.Rarity common = f.rarities().get("common");
+        Ring ring = new Ring(common, 0, 3, new Fixed());
+        assertEquals(8, ring.zoneW, "common: 8 green cells");
+        assertEquals(2, ring.perfW);
+        assertEquals(14, ring.zoneStart, "the zone is ahead of the needle");
+        assertEquals(Ring.Result.IGNORED, ring.press(), "a press during the opening pause does nothing");
+        // to the gold cells and press: perfect
+        runTo(ring, seg -> ring.pause == 0 && ring.inPerfect(seg));
+        assertEquals(Ring.Result.PERFECT, ring.press());
+        assertEquals(1, ring.hits);
+        assertEquals(7, ring.zoneW, "a cell narrower each success");
+        assertEquals(1.22, ring.speed, 1e-9, "and faster");
+        // a press outside the zone costs a heart
+        while (ring.pause > 0) ring.tick();
+        int outside = ring.needle();
+        assertFalse(ring.inZone(outside));
+        assertEquals(Ring.Result.MISS, ring.press());
+        assertEquals(2, ring.hearts);
+        // twice round without a press costs one too
+        while (ring.pause > 0) ring.tick();
+        Ring.Result last = Ring.Result.IGNORED;
+        for (int i = 0; i < 200 && last == Ring.Result.IGNORED; i++) last = ring.tick();
+        assertEquals(Ring.Result.MISS, last);
+        assertEquals(1, ring.hearts);
+        // the second success wins a common fish
+        while (ring.pause > 0) ring.tick();
+        runTo(ring, seg -> ring.inZone(seg) && !ring.inPerfect(seg));
+        assertEquals(Ring.Result.WON, ring.press());
+        assertFalse(ring.allPerfect());
+        // the last heart lets it go
+        Ring r2 = new Ring(common, 0, 1, new Fixed());
+        while (r2.pause > 0) r2.tick();
+        assertEquals(Ring.Result.ESCAPED, r2.press());
+
+        // legends: two red cells just before the zone (two hearts), the zone drifts
+        FishSpec.Rarity legend = f.rarities().get("legend");
+        Ring l = new Ring(legend, 0, 4, new Fixed());
+        assertEquals(List.of(13, 12), l.trap);
+        assertEquals(-1, l.drift, "Fixed: nextBoolean false = drift back");
+        while (l.pause > 0) l.tick();
+        runTo(l, l::inTrap);
+        assertEquals(Ring.Result.TRAP, l.press());
+        assertEquals(2, l.hearts);
+        // the fisher's wider zone: +1% a level, at least 3 cells
+        assertEquals(10, new Ring(common, 0.30, 3, new Fixed()).zoneW, "8 x 1.3 = 10.4");
+        assertEquals(6, new Ring(legend, 0, 3, new Fixed()).zoneW);
+
+        // the title: one glyph per drawn cell, each followed by the back space, total advance 14
+        String t = RingGlyphs.title(new Ring(common, 0, 3, new Fixed()), "f");
+        assertTrue(t.startsWith("<!shadow><white><font:economy:fishring>") && t.endsWith("</font></white>"));
+        long cells = t.chars().filter(c -> c >= 0xE100 && c < 0xE1C0).count();
+        assertEquals(8, cells, "8 zone cells (green and gold)");
+        assertEquals(t.chars().filter(c -> c >= 0xE000 && c < 0xF000).count(), t.chars().filter(c -> c == 0xF001).count(), "a back space after every glyph");
+        // MiniMessage reads every tag (no text shadow under the ring: a title has one, 4 px off)
+        net.kyori.adventure.text.Component c = net.kyori.adventure.text.minimessage.MiniMessage.miniMessage().deserialize(t);
+        String plain = net.kyori.adventure.text.serializer.plain.PlainTextComponentSerializer.plainText().serialize(c);
+        assertFalse(plain.contains("<") || plain.contains("shadow"), plain);
+        String icon = net.kyori.adventure.text.serializer.plain.PlainTextComponentSerializer.plainText()
+                .serialize(net.kyori.adventure.text.minimessage.MiniMessage.miniMessage().deserialize(RingGlyphs.icon(3) + " <gold>대구"));
+        assertEquals(((char) 0xE003) + " 대구", icon);
+        net.kyori.adventure.text.Component styled = net.kyori.adventure.text.minimessage.MiniMessage.miniMessage().deserialize("<!shadow>x");
+        assertNotNull(styled.style().shadowColor(), "the shadow tag is understood");
+        assertEquals(0, styled.style().shadowColor().alpha(), "and turns the shadow off");
     }
 }

@@ -210,7 +210,7 @@ class Canvas:
         return self
 
     def line(self, x0, y0, x1, y1, mat, step, z=99):
-        n = max(abs(x1 - x0), abs(y1 - y0), 1)
+        n = max(round(abs(x1 - x0)), round(abs(y1 - y0)), 1)
         for k in range(n + 1):
             self.put(round(x0 + (x1 - x0) * k / n), round(y0 + (y1 - y0) * k / n), mat, step, z)
         return self
