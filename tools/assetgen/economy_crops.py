@@ -15,6 +15,9 @@ Legend shared by every drawing (a drawing may add its own letters):
   m-o  wood (stakes, vines)         W V  white petals    Y Z  yellow petals    U  purple petals
 """
 
+import math
+import random
+
 from PIL import Image
 
 from stsv_assets import icons as I
@@ -142,6 +145,35 @@ def picture(rows, extra=None):
             if ch != ".":
                 im.putpixel((x, y), ramp(*legend[ch]))
     return im
+
+
+def melon_net(w, h, seed, spacing=2.6, width=0.5, inside=lambda x, y: True, origin=(-0.6, 0.6), reach=1):
+    """Cells of a muskmelon's raised net: the pixels on the border between two random cells.
+    Seeds sit on a jittered grid, so the net is even but never regular like a checkerboard."""
+    rnd = random.Random(seed)
+    seeds, y, row = [], origin[1], 0
+    while y < h + reach:
+        x = origin[0] + (spacing / 2 if row % 2 else 0)
+        while x < w + reach:
+            seeds.append((x + rnd.uniform(-0.6, 0.6), y + rnd.uniform(-0.5, 0.5)))
+            x += spacing
+        y += spacing * 0.87
+        row += 1
+    on = set()
+    for yy in range(h):
+        for xx in range(w):
+            if not inside(xx, yy):
+                continue
+            d = sorted(math.hypot(xx + 0.5 - sx, yy + 0.5 - sy) for sx, sy in seeds)
+            if d[1] - d[0] < width:
+                on.add((xx, yy))
+    return on
+
+
+def net_rows(w, h, seed, shade_bottom=True):
+    """An opaque w x h rind picture with the net on it (N net, R rind, S the shaded bottom row)."""
+    on = melon_net(w, h, seed)
+    return ["".join("N" if (x, y) in on else ("S" if shade_bottom and y == h - 1 else "R") for x in range(w)) for y in range(h)]
 
 
 class Part:
@@ -898,7 +930,7 @@ STAGES["zucchini"] = [
 
 MEL = {"A": ("melon_rind", 4), "B": ("melon_rind", 3), "C": ("melon_rind", 2), "D": ("melon_rind", 1), "E": ("melon_rind", 0),
        "G": ("cucumber", 2), "H": ("cucumber", 1), "J": ("cucumber", 0), "K": ("cucumber", 3), "Y": ("petal_yellow", 1),
-       "O": ("petal_yellow", 0)}
+       "O": ("petal_yellow", 0), "N": ("garlic", 3), "R": ("musk", 2), "S": ("musk", 1)}
 MEL_LEAF = [".44.4", "44544", "34543", ".332."]
 
 
@@ -919,23 +951,23 @@ def _melon_vine(spread, flowers=False):
 
 
 MELON_YOUNG = Part((6, -1, 6), (10, 2, 10), ["HGKG", "GHGH", "JHJH"], ["GKGH", "KGHG", "GHGK", "HGKG"], MEL)
-# the ripe melon: olive-green rind under a raised pale net, rounded off by a smaller top layer
-MELON = Part((5, -1, 5), (11, 4, 11), [
-    "KAKKAK",
-    "AKKAKA",
-    "KAAKKA",
-    "AKKAAK",
-    "GKGKKG",
-], ["KAKKAK", "AKKAKA", "KAAKKA", "AKKAAK", "KAAKKA", "AKKAKA"], MEL)
-MELON_TOP = Part((6, 4, 6), (10, 5, 10), ["AKKA"], ["KAAK", "AKKA", "AKKA", "KAAK"], MEL)
-MELON_STEM = Part((7, 5, 7), (8, 7, 8), ["j", "i"], ["k"])          # a thin dry stalk
+# the ripe melon: a soft grey-green rind under a raised white net, built round from a core, a cross of
+# bulges and a cap, with the T-shaped stalk muskmelons are sold with
+MELON = [
+    Part((5, -1, 5), (11, 4, 11), net_rows(6, 5, 1), net_rows(6, 6, 2, False), MEL),
+    Part((4, 0, 6), (12, 3, 10), net_rows(8, 3, 3), net_rows(8, 4, 4, False), MEL, end=net_rows(4, 3, 5)),
+    Part((6, 0, 4), (10, 3, 12), net_rows(4, 3, 6), net_rows(4, 8, 7, False), MEL, end=net_rows(8, 3, 8)),
+    Part((6, 4, 6), (10, 5, 10), net_rows(4, 1, 9, False), net_rows(4, 4, 10, False), MEL),
+    Part((7, 5, 7), (8, 6, 8), ["j"], ["k"]),                                    # the stalk
+    Part((6, 6, 7), (9, 7, 8), ["ikj"], ["jkl"], end=["j"]),                     # the bit of vine across it
+]
 
 STAGES["muskmelon"] = [
     Stage(image(seedling().rows()), "cross"),
     Stage(image(_melon_vine(1).rows()), "cross"),
     Stage(image(_melon_vine(2, flowers=True).rows(), MEL), "cross"),
     Stage(image(_melon_vine(2).rows(), MEL), "cross", [MELON_YOUNG]),
-    Stage(image(_melon_vine(2).rows(), MEL), "cross", [MELON, MELON_TOP, MELON_STEM]),
+    Stage(image(_melon_vine(2).rows(), MEL), "cross", MELON),
 ]
 
 # ================================================================================================
@@ -1281,25 +1313,35 @@ ICONS["zucchini"] = lambda: shade([
     "..#O##........",
 ], "sprout", {"M": ("cabbage", 3), "O": ("petal_yellow", 0), "x": ("leaf_dark", 2), "w": ("leaf_dark", 1)}, lo=1)
 
-# a melon with a quarter cut away: netted rind outside, a green layer, orange flesh and seeds inside
-MELON_CUT = [
-    ".....kjk.....",
-    "......j3.....",
-    "...###NN##...",
-    "..#N#####N#..",
-    ".####NN#####.",
-    ".NN#####NN##.",
-    "####NN#####N#",
-    "#N####ZYZFFGR",
-    "###NN#YZYFFGR",
-    ".#####ZYFFFG.",
-    ".#NN##FFFFGR.",
-    ".####NFFFGRR.",
-    "..####GGGRR..",
-    "....##RRR....",
-]
-MELON_CUT_LEGEND = {"N": ("melon_rind", 4), "R": ("melon_rind", 1), "G": ("sprout", 3), "F": ("onion", 3), "Z": ("bean", 3), "Y": ("onion", 2)}
-ICONS["muskmelon"] = lambda: shade(MELON_CUT, "melon_rind", MELON_CUT_LEGEND, lo=0, hi=2)
+def _melon_icon():
+    """A whole muskmelon: grey-green ball under a fine white net, both lit like a sphere from the top-left
+    (so the net wraps round it instead of lying flat), with the T-shaped stalk on top."""
+    cx, cy, r = 6.5, 8.1, 6.0
+    inside = lambda x, y: ((x + 0.5 - cx) / r) ** 2 + ((y + 0.5 - cy) / (r * 0.96)) ** 2 <= 1   # noqa: E731
+    mesh = melon_net(14, 15, 8, spacing=2.6, width=0.5, inside=inside, origin=(0.4, 1.6), reach=0)
+    light = (-0.55, -0.62, 0.56)
+    norm = math.sqrt(sum(c * c for c in light))
+    lx, ly, lz = (c / norm for c in light)
+    ic = I.Icon(16 + 2 * PAD, 16 + 2 * PAD)
+    for y in range(15):
+        for x in range(14):
+            if not inside(x, y):
+                continue
+            u, v = (x + 0.5 - cx) / r, (y + 0.5 - cy) / (r * 0.96)
+            b = u * lx + v * ly + math.sqrt(max(0.0, 1 - u * u - v * v)) * lz
+            if (x, y) in mesh:
+                ic.put(x + PAD, y + PAD, "garlic", 1 if b < 0.15 else 2 if b < 0.55 else 3)
+            else:
+                ic.put(x + PAD, y + PAD, "musk", 0 if b < -0.1 else 1 if b < 0.3 else 2 if b < 0.65 else 3)
+    for x, i in ((4, 1), (5, 2), (6, 3), (7, 2), (8, 1)):      # the T: a bit of vine across the top
+        ic.put(x + PAD, PAD, "straw", i)
+    ic.put(6 + PAD, 1 + PAD, "straw", 2)
+    ic.put(6 + PAD, 2 + PAD, "straw", 0)
+    ic.put(3 + PAD, 5 + PAD, "snow", 2)                        # glint
+    return _fit(ic)
+
+
+ICONS["muskmelon"] = _melon_icon
 
 
 # ------------------------------------------------------------------------------------------------
@@ -1321,12 +1363,12 @@ MINI = {   # 6 x 6 pictures for the packet window (legend: BASE + the crop's let
     "grape": (["..m43.", "ABAB2.", "BCBCD.", ".ABCD.", ".BCD..", "..D..."], {"A": ("grape", 4), "B": ("grape", 3), "C": ("grape", 2), "D": ("grape", 1)}),
     "eggplant": (["3.....", "323...", ".BC...", ".BCD..", "..CDDE", "...DEE"], {"B": ("aubergine", 4), "C": ("aubergine", 2), "D": ("aubergine", 1), "E": ("aubergine", 0)}),
     "zucchini": (["....32", "...ABB", "..ABMC", ".AMBC.", "ABBC..", "OBC..."], {"A": ("sprout", 4), "B": ("sprout", 3), "C": ("sprout", 2), "M": ("cabbage", 3), "O": ("petal_yellow", 0)}),
-    "muskmelon": (["..j...", ".DAD..", "ADAFF.", "DAFZF.", ".DFFE.", "..EE.."], {"A": ("melon_rind", 4), "D": ("melon_rind", 1), "E": ("melon_rind", 0), "F": ("onion", 3), "Z": ("bean", 3)}),
+    "muskmelon": ([".jjj..", "..j...", ".RNRN.", "NRRNRR", "RNRRNS", ".SNRS."], {"R": ("musk", 2), "S": ("musk", 1), "N": ("garlic", 3)}),
 }
 BAND = {"tomato": ("tomato", 2), "chili": ("pepper", 2), "strawberry": ("toadstool", 2), "onion": ("onion", 2), "cabbage": ("leaf", 3),
         "rice": ("straw", 2), "corn": ("corn", 2), "green_onion": ("leaf_dark", 2), "radish": ("leaf", 3), "lettuce": ("sprout", 3),
         "cucumber": ("cucumber", 2), "grape": ("grape", 2), "eggplant": ("aubergine", 2),
-        "zucchini": ("sprout", 2), "muskmelon": ("onion", 2)}
+        "zucchini": ("sprout", 2), "muskmelon": ("musk", 2)}
 
 
 def packet(crop):
