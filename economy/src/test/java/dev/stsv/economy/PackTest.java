@@ -13,11 +13,11 @@ import java.nio.file.Path;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
-import java.util.Set;
 import java.util.zip.ZipEntry;
 import java.util.zip.ZipInputStream;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
 /** The economy pack goes through the core's real model converter and resource pack builder. */
@@ -25,7 +25,8 @@ class PackTest {
 
     private static final Path PACK = ContentTest.PACK;
     private static final Path CORE = Path.of("../content/stsv").toAbsolutePath().normalize();
-    private static final Set<String> GLOWING = Set.of("smoker_oven", "distiller");
+    /** job machines and their parts: model_tier (crops are the other models) */
+    static final String MACHINE = "(gem_bench(_wheel)?|mill(_stone)?|fish_bench|forge|kitchen|still)_[0-3]";
     // crop stages are crossed planes with cut-out textures
 
     @Test
@@ -34,14 +35,16 @@ class PackTest {
         try (var s = Files.list(PACK.resolve("models"))) {
             models = s.filter(p -> p.toString().endsWith(".bbmodel")).sorted().toList();
         }
-        assertEquals(6 + 77, models.size(), "6 machines, 77 growth stages of 17 crops");
+        assertEquals(6 * 4 + 2 * 4 + 77, models.size(), "6 machines in 4 tiers, 2 spinning parts in 4 tiers, 77 growth stages of 17 crops");
         for (Path p : models) {
             String name = p.getFileName().toString().replace(".bbmodel", "");
             BBModelConverter.Result r = BBModelConverter.convert(p, "economy:item/" + name);
             assertTrue(r.warnings().isEmpty(), name + ": " + r.warnings());
             boolean glows = false;
             for (JsonElement e : r.model().getAsJsonArray("elements")) glows |= e.getAsJsonObject().has("light_emission");
-            assertEquals(GLOWING.contains(name), glows, name + ": only fire and the distiller bulb glow");
+            if (!name.matches(MACHINE)) assertFalse(glows, name + ": crops do not glow");
+            else if (name.endsWith("_3") || name.startsWith("forge_")) assertTrue(glows, name + ": 3강 glows, and so does the forge fire");
+            else if (name.matches("(gem_bench|mill|fish_bench)(_wheel|_stone)?_[0-2]")) assertFalse(glows, name + ": nothing glows below 3강");
             assertTrue(r.model().has("display"), name);
         }
     }
@@ -51,7 +54,7 @@ class PackTest {
         List<Path> crops;
         try (var s = Files.list(PACK.resolve("models"))) {
             crops = s.filter(p -> p.toString().endsWith(".bbmodel")).filter(p -> p.getFileName().toString().matches("[a-z_]+_\\d\\.bbmodel"))
-                    .sorted().toList();
+                    .filter(p -> !p.getFileName().toString().replace(".bbmodel", "").matches(MACHINE)).sorted().toList();
         }
         assertEquals(77, crops.size());
         for (Path p : crops) {
@@ -96,13 +99,14 @@ class PackTest {
             while ((e = in.getNextEntry()) != null) files.put(e.getName(), in.readAllBytes());
         }
         assertTrue(files.containsKey("assets/economy/textures/item/ruby.png"), "2D job icons");
-        assertTrue(files.containsKey("assets/economy/models/item/crusher.json"), "machine models");
+        assertTrue(files.containsKey("assets/economy/models/item/gem_bench_3.json"), "machine models");
+        assertTrue(files.containsKey("assets/economy/models/item/mill_stone_2.json"), "spinning part models");
         assertTrue(files.containsKey("assets/economy/textures/gui/shop.png"), "menu backgrounds");
         assertTrue(files.containsKey("assets/economy/items/gui/coins.json"), "button icons");
         assertTrue(files.containsKey("assets/stsv/textures/gui/wardrobe.png"), "the core pack is still there");
         JsonObject font = com.google.gson.JsonParser.parseString(new String(files.get("assets/stsv/font/menus.json"))).getAsJsonObject();
         long economyBackgrounds = font.getAsJsonArray("providers").asList().stream()
                 .filter(p -> p.getAsJsonObject().has("file") && p.getAsJsonObject().get("file").getAsString().startsWith("economy:gui/")).count();
-        assertEquals(11, economyBackgrounds, "every economy menu background is in the menu font");
+        assertEquals(12, economyBackgrounds, "every economy menu background is in the menu font");
     }
 }

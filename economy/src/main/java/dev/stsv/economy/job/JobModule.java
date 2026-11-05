@@ -1,6 +1,5 @@
 package dev.stsv.economy.job;
 
-import dev.stsv.core.content.CustomItem;
 import dev.stsv.core.economy.EconomyModule;
 import dev.stsv.core.gui.menu.MenuHandler;
 import dev.stsv.core.gui.menu.MenuView;
@@ -28,55 +27,48 @@ import org.bukkit.entity.Item;
 import org.bukkit.entity.Player;
 import org.bukkit.event.EventHandler;
 import org.bukkit.event.EventPriority;
-import org.bukkit.event.block.Action;
 import org.bukkit.event.block.BlockBreakEvent;
 import org.bukkit.event.block.BlockDropItemEvent;
 import org.bukkit.event.block.BlockPlaceEvent;
 import org.bukkit.event.entity.EntityBreedEvent;
-import org.bukkit.event.entity.EntityDeathEvent;
 import org.bukkit.event.inventory.BrewEvent;
 import org.bukkit.event.inventory.ClickType;
 import org.bukkit.event.inventory.CraftItemEvent;
 import org.bukkit.event.inventory.FurnaceExtractEvent;
 import org.bukkit.event.inventory.InventoryOpenEvent;
 import org.bukkit.event.inventory.InventoryType;
-import org.bukkit.event.inventory.PrepareItemCraftEvent;
 import org.bukkit.event.inventory.SmithItemEvent;
 import org.bukkit.event.player.PlayerFishEvent;
-import org.bukkit.event.player.PlayerInteractEvent;
-import org.bukkit.event.player.PlayerItemConsumeEvent;
-import org.bukkit.inventory.EquipmentSlot;
 import org.bukkit.inventory.ItemStack;
 import org.bukkit.inventory.meta.PotionMeta;
 import org.bukkit.persistence.PersistentDataContainer;
 import org.bukkit.persistence.PersistentDataType;
-import org.bukkit.potion.PotionEffect;
 
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
-import java.util.Optional;
+import java.util.Set;
 import java.util.UUID;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.ThreadLocalRandom;
 
 /**
- * 직업: one job per person (change once a week for 1,000G), levels from jobs.yml (no cap: the server runs without seasons),
- * XP only from the job's own work (placed blocks give nothing), passives, and products only a job at a
- * level can craft. Cook and alchemist products carry a quality that lengthens their effects.
+ * 직업: one job at a time (change once a week for 1,000G), Lv1-30 with the XP kept per job, XP only from
+ * the job's own work (placed blocks give nothing), effects that grow with the level, finds (gems in ores,
+ * rare catches; 1% for everyone else) and the bonuses a job gets on its own machine (MachineModule).
  */
 public final class JobModule extends EcoModule {
 
-    public static final NamespacedKey QUALITY = new NamespacedKey("economy", "quality");
     private static final NamespacedKey PLACED = new NamespacedKey("economy", "placed");
 
     private JobSpec spec;
     private JobStore store;
     private final Map<Location, Boolean> natural = new HashMap<>();
     private final Map<Location, UUID> brewers = new ConcurrentHashMap<>();
-    private final Map<UUID, Long> lockWarned = new ConcurrentHashMap<>();
+    /** farmers in the middle of a 3x3 harvest (the neighbours must not spread again) */
+    private final Set<UUID> spreading = ConcurrentHashMap.newKeySet();
 
     public JobModule(EcoPlugin eco) {
         super(eco);
@@ -96,10 +88,10 @@ public final class JobModule extends EcoModule {
         every(1200L, store::flush);
         core.hud().line("eco-job", 20, p -> {
             if (!eco.getConfig().getBoolean("hud.job")) return null;
-            JobStore.Row r = store.get(p.getUniqueId());
-            if (r == null) return Lang.mm("job.hud-none");
-            JobSpec.Job j = spec.jobs().get(r.job);
-            return Lang.mm("job.hud", "color", j == null ? "white" : j.color(), "job", j == null ? r.job : j.name(), "level", level(p.getUniqueId()));
+            String job = job(p.getUniqueId());
+            if (job == null) return Lang.mm("job.hud-none");
+            JobSpec.Job j = spec.jobs().get(job);
+            return Lang.mm("job.hud", "color", j == null ? "white" : j.color(), "job", j == null ? job : j.name(), "level", level(p.getUniqueId()));
         });
         eco.onReset(store::reset);
     }
@@ -118,7 +110,11 @@ public final class JobModule extends EcoModule {
     private void load() {
         List<String> problems = new ArrayList<>();
         spec = JobSpec.parse(eco.data("jobs.yml"), problems);
-        for (String id : spec.products().keySet()) if (Items.create(id, 1).isEmpty()) problems.add("products: 없는 아이템 " + id);
+        for (JobSpec.Job j : spec.jobs().values()) {
+            if (j.finds() == null) continue;
+            j.finds().drops().values().forEach(l -> l.forEach(id -> { if (Items.create(id, 1).isEmpty()) problems.add(j.id() + ".finds: 없는 아이템 " + id); }));
+            j.finds().pool().keySet().forEach(id -> { if (Items.create(id, 1).isEmpty()) problems.add(j.id() + ".finds: 없는 아이템 " + id); });
+        }
         problems.forEach(p -> eco.getLogger().warning("[jobs.yml] " + p));
     }
 
@@ -131,41 +127,56 @@ public final class JobModule extends EcoModule {
     }
 
     // ------------------------------------------------------------------------------------------
-    // Levels and XP
+    // Levels, XP and effects
     // ------------------------------------------------------------------------------------------
 
     public String job(UUID player) {
         return store.job(player);
     }
 
-    /** 0 = no job. */
+    /** Level of the job the player has now (0 = no job). */
     public int level(UUID player) {
-        JobStore.Row r = store.get(player);
-        if (r == null) return 0;
-        return Math.min(spec.maxLevel(), spec.levelFor(r.xp));
+        String job = job(player);
+        return job == null ? 0 : level(player, job);
     }
 
-    /**
-     * The passive value of a job for a player (0 if they do not have that job). An event that names jobs
-     * (풍년: farmer, fisher; 광산 호황: miner, blacksmith) multiplies theirs while it runs.
-     */
-    public double passive(UUID player, String job, String key) {
-        if (!job.equals(job(player))) return 0;
-        double v = spec.jobs().get(job).passive(key, level(player));
+    /** Level in a job, whether or not they have it now (Lv1 if never worked; levels stay with the job). */
+    public int level(UUID player, String job) {
+        return spec.levelFor(store.xp(player, job));
+    }
+
+    /** An event that names jobs (풍년: farmer, fisher; 광산 호황: miner, blacksmith) multiplies their effects while it runs. */
+    private double boost(String job) {
+        double v = 1;
         for (dev.stsv.economy.event.ActiveEvent e : eco.events().active()) {
             if (e.runningAt(now()) && dev.stsv.economy.event.EventSpec.list(e.param("jobs")).contains(job)) v *= e.number("multiplier", 2);
         }
         return v;
     }
 
+    /** A growing effect ("extra", "save") of a job for a player who has it now; 0 otherwise. */
+    public double effect(UUID player, String job, String key) {
+        if (!job.equals(job(player))) return 0;
+        return spec.jobs().get(job).range(key, level(player), spec.maxLevel()) * boost(job);
+    }
+
+    /**
+     * A machine bonus for a player who has that job now (see JobSpec.Job#bonus): chances and "sell" are 0
+     * and the time factors "fast" / "aging" are 1 for anyone else.
+     */
+    public double bonus(UUID player, String job, String key) {
+        JobSpec.Job j = job == null ? null : spec.jobs().get(job);
+        boolean factor = key.equals("fast") || key.equals("aging");
+        if (j == null || player == null || !job.equals(job(player))) return factor ? 1 : 0;
+        return j.bonus(key, level(player));
+    }
+
+    /** Adds XP to a job, only if it is the player's job now. */
     public void addXp(UUID player, String job, double xp) {
-        if (xp <= 0 || !job.equals(job(player))) return;
+        if (xp <= 0 || job == null || !job.equals(job(player))) return;
         JobStore.Row r = store.get(player);
         int before = level(player);
-        double[] g = spec.gain(r.xp, xp, spec.maxLevel());
-        r.xp = g[0];
-        r.mastery += g[1];
-        store.touch(r);
+        store.addXp(r, job, xp);
         int after = level(player);
         Player p = Bukkit.getPlayer(player);
         if (p != null && after > before) {
@@ -173,7 +184,7 @@ public final class JobModule extends EcoModule {
             p.showTitle(net.kyori.adventure.title.Title.title(Lang.mm("job.levelup-title", "level", after),
                     Lang.mm("job.levelup-subtitle", "color", j.color(), "job", j.name(), "level", after)));
             p.playSound(p.getLocation(), Sound.UI_TOAST_CHALLENGE_COMPLETE, 0.7f, 1.1f);
-            Bukkit.broadcast(Lang.msg("job.levelup-broadcast", "player", p.getName(), "color", j.color(), "job", j.name(), "level", after));
+            if (after % 10 == 0) Bukkit.broadcast(Lang.msg("job.levelup-broadcast", "player", p.getName(), "color", j.color(), "job", j.name(), "level", after));
         }
     }
 
@@ -185,9 +196,15 @@ public final class JobModule extends EcoModule {
         if (xp > 0) addXp(p.getUniqueId(), job, xp);
     }
 
-    /** May this player make this product? */
-    public boolean can(UUID player, JobSpec.Product p) {
-        return p.job().equals(job(player)) && level(player) >= p.level();
+    /**
+     * Shop price multiplier when this player sells this item: 1 + the "sell" bonus if the item is made on
+     * the machine of the player's job and they have the level for it.
+     */
+    public double sellBonus(UUID player, String item) {
+        String machine = eco.machines().madeOn(item);
+        if (machine == null) return 1;
+        JobSpec.Job j = spec.ofMachine(machine);
+        return j == null ? 1 : 1 + bonus(player, j.id(), "sell");
     }
 
     // ------------------------------------------------------------------------------------------
@@ -206,13 +223,21 @@ public final class JobModule extends EcoModule {
             if (!core.economy().withdraw(p.getUniqueId(), spec.changeCost(), "job_change")) return "job.not-enough";
         }
         store.choose(p.getUniqueId(), jobId, now());
-        p.sendMessage(Lang.msg("job.chosen", "color", j.color(), "job", j.name()));
+        p.sendMessage(Lang.msg("job.chosen", "color", j.color(), "job", j.name(), "level", level(p.getUniqueId(), jobId)));
         p.playSound(p.getLocation(), Sound.ENTITY_PLAYER_LEVELUP, 0.6f, 1.2f);
         return null;
     }
 
     public void open(Player p) {
         core.menus().open(p, "economy:jobs", new JobsMenu());
+    }
+
+    /** "Lv12 · 3,780 / 4,520" for one job of a player. */
+    private Map<String, String> progress(UUID u, String job) {
+        double xp = store.xp(u, job);
+        int lv = spec.levelFor(xp);
+        return Map.of("level", String.valueOf(lv), "xp", String.format("%,.0f", xp),
+                "next", lv >= spec.maxLevel() ? Lang.raw("job.max") : String.format("%,.0f", spec.xpFor(lv + 1)));
     }
 
     private final class JobsMenu implements MenuHandler {
@@ -223,28 +248,29 @@ public final class JobModule extends EcoModule {
         @Override
         public Map<String, String> placeholders(MenuView v) {
             UUID u = v.player().getUniqueId();
-            JobStore.Row r = store.get(u);
-            JobSpec.Job j = r == null ? null : spec.jobs().get(r.job);
-            int lv = level(u);
-            return Map.of("job", j == null ? Lang.raw("job.none") : "<" + j.color() + ">" + j.name(),
-                    "level", String.valueOf(lv), "cap", String.valueOf(spec.maxLevel()),
-                    "xp", r == null ? "0" : String.format("%,.0f", r.xp),
-                    "next", lv >= spec.maxLevel() ? "-" : String.format("%,.0f", spec.xpFor(lv + 1)),
-                    "mastery", r == null ? "0" : String.format("%,.0f", r.mastery),
-                    "cost", EconomyModule.format(spec.changeCost()));
+            String job = job(u);
+            JobSpec.Job j = job == null ? null : spec.jobs().get(job);
+            Map<String, String> out = new HashMap<>(job == null ? Map.of("level", "0", "xp", "0", "next", "-") : progress(u, job));
+            out.put("job", j == null ? Lang.raw("job.none") : "<" + j.color() + ">" + j.name());
+            out.put("cap", String.valueOf(spec.maxLevel()));
+            out.put("cost", EconomyModule.format(spec.changeCost()));
+            return out;
         }
 
         @Override
         public List<ItemStack> list(MenuView v) {
             List<ItemStack> out = new ArrayList<>();
-            String mine = job(v.player().getUniqueId());
+            UUID u = v.player().getUniqueId();
+            String mine = job(u);
             for (String id : ids) {
                 JobSpec.Job j = spec.jobs().get(id);
                 ItemStack it = Items.create(j.icon(), 1).orElse(new ItemStack(Material.PAPER));
                 boolean isArmed = id.equals(armed) && now() - armedAt < 5000;
+                Map<String, String> pr = progress(u, id);
                 it.editMeta(meta -> {
-                    meta.itemName(Text.item("<" + j.color() + "><b>" + j.name()));
+                    meta.itemName(Text.item("<" + j.color() + "><b>" + j.name() + "</b> <gray>Lv" + pr.get("level")));
                     List<Component> lore = new ArrayList<>();
+                    lore.add(Lang.item("job.lore-xp", "xp", pr.get("xp"), "next", pr.get("next")));
                     for (String line : j.description()) lore.add(Text.item("<gray>" + line));
                     lore.add(Component.empty());
                     lore.addAll(Lang.items(id.equals(mine) ? "job.lore-current" : isArmed ? "job.lore-confirm" : mine == null ? "job.lore-pick" : "job.lore-change",
@@ -349,12 +375,6 @@ public final class JobModule extends EcoModule {
         for (Block b : e.blockList()) if (tracked(b.getType()) && placed(b)) mark(b, false);
     }
 
-    /** Crafter blocks have no player: job products can only be made by hand (or in job machines). */
-    @EventHandler(priority = EventPriority.HIGH, ignoreCancelled = true)
-    public void onCrafter(org.bukkit.event.block.CrafterCraftEvent e) {
-        if (spec.products().containsKey(Items.key(e.getResult()))) e.setCancelled(true);
-    }
-
     // ------------------------------------------------------------------------------------------
     // Miner and farmer: breaking
     // ------------------------------------------------------------------------------------------
@@ -379,6 +399,10 @@ public final class JobModule extends EcoModule {
         };
     }
 
+    private static boolean ore(Material m) {
+        return tracked(m) && m != Material.MELON && m != Material.PUMPKIN;
+    }
+
     @EventHandler(priority = EventPriority.MONITOR, ignoreCancelled = true)
     public void onBreak(BlockBreakEvent e) {
         Block b = e.getBlock();
@@ -387,12 +411,23 @@ public final class JobModule extends EcoModule {
         if (wasPlaced) mark(b, false);
         Player p = e.getPlayer();
         String key = m.getKey().asString();
+        boolean crop = mature(b.getState());
         if (!wasPlaced) {
-            if (tracked(m) && m != Material.MELON && m != Material.PUMPKIN) reward(p, "break", key, 1);
-            else if (mature(b.getState()) || m == Material.MELON || m == Material.PUMPKIN) reward(p, "harvest", key, 1);
+            if (ore(m)) reward(p, "break", key, 1);
+            else if (crop || m == Material.MELON || m == Material.PUMPKIN) reward(p, "harvest", key, 1);
         }
+        if (crop && Tag.CROPS.isTagged(m)) spread(p, b);
         natural.put(b.getLocation(), !wasPlaced);
         Bukkit.getScheduler().runTask(eco, () -> natural.remove(b.getLocation()));
+    }
+
+    /** Extra produce for a farmer: harvest-per-level x level, the fraction as a chance. */
+    private int farmerBonus(UUID u) {
+        if (!"farmer".equals(job(u))) return 0;
+        double b = spec.jobs().get("farmer").harvestPerLevel() * level(u) * boost("farmer");
+        int n = (int) Math.floor(b);
+        if (ThreadLocalRandom.current().nextDouble() < b - n) n++;
+        return n;
     }
 
     @EventHandler(priority = EventPriority.HIGH, ignoreCancelled = true)
@@ -404,41 +439,73 @@ public final class JobModule extends EcoModule {
         UUID u = p.getUniqueId();
         ThreadLocalRandom r = ThreadLocalRandom.current();
         String key = m.getKey().asString();
-        if ("miner".equals(job(u)) && tracked(m) && m != Material.MELON && m != Material.PUMPKIN) {
+        if (ore(m)) {
             boolean silk = p.getInventory().getItemInMainHand().containsEnchantment(Enchantment.SILK_TOUCH);
-            if (!silk && r.nextDouble() < passive(u, "miner", "extra")) {
+            if (!silk && r.nextDouble() < effect(u, "miner", "extra")) {
                 Item first = e.getItems().getFirst();
                 ItemStack it = first.getItemStack();
                 it.setAmount(it.getAmount() + 1);
                 first.setItemStack(it);
                 p.spawnParticle(Particle.HAPPY_VILLAGER, e.getBlock().getLocation().add(0.5, 0.5, 0.5), 6, 0.3, 0.3, 0.3);
             }
-            List<String> gems = spec.jobs().get("miner").drops(key);
-            if (!silk && !gems.isEmpty() && r.nextDouble() < passive(u, "miner", "gem")) {
+            JobSpec.Job miner = spec.jobs().get("miner");
+            List<String> gems = miner == null || miner.finds() == null ? List.of() : miner.finds().drops(key);
+            if (!silk && !gems.isEmpty() && r.nextDouble() < findChance(u, miner)) {
                 Items.create(gems.get(r.nextInt(gems.size())), 1).ifPresent(g -> {
                     e.getBlock().getWorld().dropItemNaturally(e.getBlock().getLocation().add(0.5, 0.5, 0.5), g);
                     HudModule.flash(p, Lang.mm("job.found", "item", Items.mmName(g)));
                     p.playSound(p.getLocation(), Sound.BLOCK_AMETHYST_BLOCK_CHIME, 1f, 1.2f);
+                    reward(p, "find", Items.key(g), 1);
                 });
             }
         }
-        if ("farmer".equals(job(u)) && (mature(s) || m == Material.MELON || m == Material.PUMPKIN)) {
+        if (mature(s) || m == Material.MELON || m == Material.PUMPKIN) {
             Material crop = produce(m);
-            int bonus = (int) Math.round(passive(u, "farmer", "bonus"));
+            int bonus = farmerBonus(u);
             if (crop != null && bonus > 0) {
                 e.getBlock().getWorld().dropItemNaturally(e.getBlock().getLocation().add(0.5, 0.3, 0.5), new ItemStack(crop, bonus));
             }
         }
     }
 
-    /** 성장 가속: crops (vanilla and custom) around online farmers grow a step now and then. */
+    /** Find chance for a player: the job's growing chance, else the outsider chance (1%). */
+    private double findChance(UUID u, JobSpec.Job j) {
+        if (j == null || j.finds() == null) return 0;
+        if (j.id().equals(job(u))) return j.finds().chance().at(level(u), spec.maxLevel()) * boost(j.id());
+        return j.finds().outsider();
+    }
+
+    /** 농부 Lv30: a ripe crop harvested by hand takes the ripe ones around it (3x3) along. */
+    private void spread(Player p, Block center) {
+        UUID u = p.getUniqueId();
+        JobSpec.Job farmer = spec.jobs().get("farmer");
+        if (farmer == null || farmer.areaHarvest() <= 0 || !"farmer".equals(job(u)) || level(u) < farmer.areaHarvest()) return;
+        if (spreading.contains(u)) return;
+        Bukkit.getScheduler().runTask(eco, () -> {
+            if (!p.isOnline() || !spreading.add(u)) return;
+            try {
+                for (int dx = -1; dx <= 1; dx++) for (int dz = -1; dz <= 1; dz++) {
+                    if (dx == 0 && dz == 0) continue;
+                    core.crops().harvestAt(p, center.getRelative(dx, 0, dz));
+                }
+            } finally {
+                spreading.remove(u);
+            }
+        });
+    }
+
+    /** 성장 가속 (농부 Lv10): crops (vanilla and custom) around online farmers grow a step now and then. */
     private void growCrops() {
         ThreadLocalRandom r = ThreadLocalRandom.current();
+        JobSpec.Job farmer = spec.jobs().get("farmer");
+        if (farmer == null || farmer.growth() == null) return;
         for (Player p : Bukkit.getOnlinePlayers()) {
-            double chance = passive(p.getUniqueId(), "farmer", "growth");
-            if (chance <= 0) continue;
+            UUID u = p.getUniqueId();
+            if (!"farmer".equals(job(u)) || level(u) < farmer.growth().level()) continue;
+            double chance = farmer.growth().value() * boost("farmer");
+            int rad = farmer.growthRadius();
             Block c = p.getLocation().getBlock();
-            for (int dx = -6; dx <= 6; dx++) for (int dz = -6; dz <= 6; dz++) for (int dy = -2; dy <= 1; dy++) {
+            for (int dx = -rad; dx <= rad; dx++) for (int dz = -rad; dz <= rad; dz++) for (int dy = -2; dy <= 1; dy++) {
                 Block b = c.getRelative(dx, dy, dz);
                 if (!(b.getBlockData() instanceof Ageable a) || !Tag.CROPS.isTagged(b.getType()) || a.getAge() >= a.getMaximumAge()) continue;
                 if (r.nextDouble() >= chance) continue;
@@ -446,25 +513,13 @@ public final class JobModule extends EcoModule {
                 b.setBlockData(a, false);
                 if (r.nextInt(4) == 0) b.getWorld().spawnParticle(Particle.HAPPY_VILLAGER, b.getLocation().add(0.5, 0.4, 0.5), 2, 0.2, 0.1, 0.2);
             }
-            core.crops().growAround(c.getWorld(), c.getX(), c.getY(), c.getZ(), 6, 2, 1, chance);
+            core.crops().growAround(c.getWorld(), c.getX(), c.getY(), c.getZ(), rad, 2, 1, chance);
         }
     }
 
     @EventHandler(ignoreCancelled = true)
     public void onBreed(EntityBreedEvent e) {
         if (e.getBreeder() instanceof Player p) reward(p, "breed", e.getEntityType().getKey().asString(), 1);
-    }
-
-    @EventHandler
-    public void onAnimalDeath(EntityDeathEvent e) {
-        Player p = e.getEntity().getKiller();
-        if (p == null || !"farmer".equals(job(p.getUniqueId()))) return;
-        List<String> drops = spec.jobs().get("farmer").drops(e.getEntityType().getKey().asString());
-        if (drops.isEmpty() || ThreadLocalRandom.current().nextDouble() >= passive(p.getUniqueId(), "farmer", "animal")) return;
-        Items.create(drops.get(ThreadLocalRandom.current().nextInt(drops.size())), 1).ifPresent(g -> {
-            e.getDrops().add(g);
-            HudModule.flash(p, Lang.mm("job.found", "item", Items.mmName(g)));
-        });
     }
 
     // ------------------------------------------------------------------------------------------
@@ -488,22 +543,21 @@ public final class JobModule extends EcoModule {
             }
             case HARVEST -> {
                 reward(p, "harvest", e.crop().id(), 1);
-                if (!"farmer".equals(job(u))) return;
-                // the same farmer's bonus as on a vanilla crop: +1 / +2 / +3 of the produce
-                int bonus = (int) Math.round(passive(u, "farmer", "bonus"));
+                int bonus = farmerBonus(u);
                 for (ItemStack it : e.drops()) {
                     if (bonus > 0 && e.crop().produce().equals(Items.key(it))) {
                         it.setAmount(it.getAmount() + bonus);
-                        return;
+                        break;
                     }
                 }
+                spread(p, e.location().getBlock());
             }
             default -> { }
         }
     }
 
     // ------------------------------------------------------------------------------------------
-    // Fisher
+    // Fishing: rare catches (어부 5 -> 15%, anyone else 1%)
     // ------------------------------------------------------------------------------------------
 
     @EventHandler(priority = EventPriority.HIGH, ignoreCancelled = true)
@@ -511,78 +565,25 @@ public final class JobModule extends EcoModule {
         if (e.getState() != PlayerFishEvent.State.CAUGHT_FISH || !(e.getCaught() instanceof Item caught)) return;
         Player p = e.getPlayer();
         UUID u = p.getUniqueId();
-        if (!"fisher".equals(job(u))) return;
         reward(p, "catch", Items.key(caught.getItemStack()), 1);
-        double chance = passive(u, "fisher", "rare");
-        ItemStack off = p.getInventory().getItemInOffHand();
-        boolean bait = Items.key(off).equals("economy:bait");
-        if (bait) {
-            chance += spec.jobs().get("fisher").passive("bait", Math.max(1, level(u)));
-            off.subtract(1);
-        }
+        JobSpec.Job fisher = spec.jobs().get("fisher");
+        if (fisher == null || fisher.finds() == null) return;
         ThreadLocalRandom r = ThreadLocalRandom.current();
-        if (r.nextDouble() >= chance) return;
-        // higher levels can land the rarer tiers
-        int lv = Math.max(1, level(u));
-        int tier = 1;
-        for (int t = lv; t >= 2; t--) if (r.nextDouble() < 0.35) { tier = t; break; }
-        List<String> pool = spec.jobs().get("fisher").drops("tier" + tier);
-        if (pool.isEmpty()) return;
-        Optional<ItemStack> rare = Items.create(pool.get(r.nextInt(pool.size())), 1);
-        if (rare.isEmpty()) return;
-        caught.setItemStack(rare.get());
-        reward(p, "rare", Items.key(rare.get()), 1);
-        HudModule.flash(p, Lang.mm("job.rare-catch", "item", Items.mmName(rare.get())));
-        p.playSound(p.getLocation(), Sound.ENTITY_PLAYER_LEVELUP, 0.5f, 1.8f);
-    }
-
-    // ------------------------------------------------------------------------------------------
-    // Crafting: job-only products, quality, blacksmith savings
-    // ------------------------------------------------------------------------------------------
-
-    /** Applies a product's enchantments and (for cook/alchemist goods) the maker's quality. */
-    public ItemStack decorate(ItemStack item, UUID maker) {
-        JobSpec.Product pr = spec.products().get(Items.key(item));
-        if (pr == null) return item;
-        ItemStack out = item.clone();
-        out.editMeta(meta -> {
-            for (Map.Entry<String, Integer> en : pr.enchants().entrySet()) {
-                Enchantment ench = io.papermc.paper.registry.RegistryAccess.registryAccess()
-                        .getRegistry(io.papermc.paper.registry.RegistryKey.ENCHANTMENT).get(NamespacedKey.minecraft(en.getKey()));
-                if (ench != null) meta.addEnchant(ench, en.getValue(), true);
-            }
-            if (pr.quality() && maker != null) {
-                double q = passive(maker, pr.job(), "quality");
-                if (q > 0) {
-                    meta.getPersistentDataContainer().set(QUALITY, PersistentDataType.DOUBLE, q);
-                    List<Component> lore = meta.hasLore() ? new ArrayList<>(meta.lore()) : new ArrayList<>();
-                    JobSpec.Job j = spec.jobs().get(pr.job());
-                    lore.add(Lang.item("job.quality-lore", "pct", Math.round(q * 100), "color", j.color(), "job", j.name(), "level", level(maker)));
-                    meta.lore(lore);
-                }
-            }
+        if (r.nextDouble() >= findChance(u, fisher)) return;
+        String id = fisher.finds().pick(r.nextDouble());
+        if (id == null) return;
+        int n = "fisher".equals(job(u)) && level(u) >= fisher.finds().doubleLevel() && fisher.finds().doubleItems().contains(id) ? 2 : 1;
+        Items.create(id, n).ifPresent(rare -> {
+            caught.setItemStack(rare);
+            reward(p, "find", id, 1);
+            HudModule.flash(p, Lang.mm("job.rare-catch", "item", Items.mmName(rare)));
+            p.playSound(p.getLocation(), Sound.ENTITY_PLAYER_LEVELUP, 0.5f, 1.8f);
         });
-        return out;
     }
 
-    @EventHandler(priority = EventPriority.HIGH)
-    public void onPrepare(PrepareItemCraftEvent e) {
-        ItemStack result = e.getInventory().getResult();
-        if (result == null || result.isEmpty() || !(e.getView().getPlayer() instanceof Player p)) return;
-        JobSpec.Product pr = spec.products().get(Items.key(result));
-        if (pr == null) return;
-        if (!can(p.getUniqueId(), pr)) {
-            e.getInventory().setResult(null);
-            Long last = lockWarned.get(p.getUniqueId());
-            if (last == null || now() - last > 3000) {
-                lockWarned.put(p.getUniqueId(), now());
-                JobSpec.Job j = spec.jobs().get(pr.job());
-                HudModule.flash(p, Lang.mm("job.locked", "color", j.color(), "job", j.name(), "level", pr.level()));
-            }
-            return;
-        }
-        e.getInventory().setResult(decorate(result, p.getUniqueId()));
-    }
+    // ------------------------------------------------------------------------------------------
+    // Crafting: XP, the blacksmith's savings on tools and armour
+    // ------------------------------------------------------------------------------------------
 
     private static boolean gear(Material m) {
         String n = m.name();
@@ -602,12 +603,10 @@ public final class JobModule extends EcoModule {
             for (ItemStack it : e.getInventory().getMatrix()) if (it != null && !it.isEmpty()) times = Math.min(times, it.getAmount());
             if (times == Integer.MAX_VALUE) times = 1;
         }
-        JobSpec.Product pr = spec.products().get(key);
-        if (pr != null && can(p.getUniqueId(), pr)) addXp(p.getUniqueId(), pr.job(), pr.xp() * times);
-        else reward(p, "craft", key, times);
+        reward(p, "craft", key, times);
         // 대장장이: sometimes one ingredient comes back
-        if ("blacksmith".equals(job(p.getUniqueId())) && (gear(result.getType()) || (pr != null && pr.job().equals("blacksmith")))) {
-            double chance = passive(p.getUniqueId(), "blacksmith", "save");
+        if (gear(result.getType())) {
+            double chance = effect(p.getUniqueId(), "blacksmith", "save");
             List<ItemStack> used = new ArrayList<>();
             for (ItemStack it : e.getInventory().getMatrix()) if (it != null && !it.isEmpty()) used.add(it.asOne());
             if (!used.isEmpty() && ThreadLocalRandom.current().nextDouble() < chance) {
@@ -631,7 +630,7 @@ public final class JobModule extends EcoModule {
     }
 
     // ------------------------------------------------------------------------------------------
-    // Alchemist: brewing quality; anyone: quality lengthens effects when eaten or drunk
+    // Alchemist: brewing XP
     // ------------------------------------------------------------------------------------------
 
     @EventHandler
@@ -641,87 +640,13 @@ public final class JobModule extends EcoModule {
         }
     }
 
-    @EventHandler(priority = EventPriority.HIGH, ignoreCancelled = true)
+    @EventHandler(priority = EventPriority.MONITOR, ignoreCancelled = true)
     public void onBrew(BrewEvent e) {
         UUID u = brewers.get(e.getBlock().getLocation().toBlockLocation());
         if (u == null || !"alchemist".equals(job(u))) return;
-        double q = passive(u, "alchemist", "quality");
         int count = 0;
-        for (ItemStack it : e.getResults()) {
-            if (it == null || it.isEmpty() || !(it.getItemMeta() instanceof PotionMeta)) continue;
-            count++;
-            if (q <= 0) continue;
-            it.editMeta(meta -> {
-                meta.getPersistentDataContainer().set(QUALITY, PersistentDataType.DOUBLE, q);
-                List<Component> lore = meta.hasLore() ? new ArrayList<>(meta.lore()) : new ArrayList<>();
-                JobSpec.Job j = spec.jobs().get("alchemist");
-                lore.add(Lang.item("job.quality-lore", "pct", Math.round(q * 100), "color", j.color(), "job", j.name(), "level", level(u)));
-                meta.lore(lore);
-            });
-        }
+        for (ItemStack it : e.getResults()) if (it != null && !it.isEmpty() && it.getItemMeta() instanceof PotionMeta) count++;
         if (count > 0) addXp(u, "alchemist", spec.jobs().get("alchemist").xp("brew", "*") * count);
-    }
-
-    @EventHandler(priority = EventPriority.MONITOR, ignoreCancelled = true)
-    public void onConsume(PlayerItemConsumeEvent e) {
-        ItemStack it = e.getItem();
-        if (!it.hasItemMeta()) return;
-        Double q = it.getItemMeta().getPersistentDataContainer().get(QUALITY, PersistentDataType.DOUBLE);
-        if (q == null || q <= 0) return;
-        List<PotionEffect> effects = new ArrayList<>();
-        if (it.getItemMeta() instanceof PotionMeta pm) {
-            if (pm.getBasePotionType() != null) effects.addAll(pm.getBasePotionType().getPotionEffects());
-            effects.addAll(pm.getCustomEffects());
-        }
-        Optional<CustomItem> custom = core.content().itemOf(it);
-        if (custom.isPresent() && custom.get().food() != null) {
-            for (CustomItem.FoodEffect fx : custom.get().food().effects()) effects.add(fx.effect());
-        }
-        Player p = e.getPlayer();
-        double bonus = q;
-        Bukkit.getScheduler().runTask(eco, () -> {
-            for (PotionEffect fx : effects) {
-                PotionEffect now = p.getPotionEffect(fx.getType());
-                if (now == null || now.getAmplifier() != fx.getAmplifier() || fx.getDuration() <= 1) continue;
-                p.addPotionEffect(new PotionEffect(fx.getType(), (int) Math.round(fx.getDuration() * (1 + bonus)), fx.getAmplifier(),
-                        fx.isAmbient(), fx.hasParticles(), fx.hasIcon()));
-            }
-        });
-    }
-
-    // ------------------------------------------------------------------------------------------
-    // Fertilizer: anyone can use it, the alchemist makes it
-    // ------------------------------------------------------------------------------------------
-
-    @EventHandler(priority = EventPriority.HIGH, ignoreCancelled = true)
-    public void onFertilize(PlayerInteractEvent e) {
-        if (e.getAction() != Action.RIGHT_CLICK_BLOCK || e.getHand() != EquipmentSlot.HAND || e.getClickedBlock() == null) return;
-        ItemStack hand = e.getPlayer().getInventory().getItemInMainHand();
-        String key = Items.key(hand);
-        int radius = switch (key) {
-            case "economy:fertilizer" -> 1;
-            case "economy:super_fertilizer" -> 2;
-            default -> -1;
-        };
-        if (radius < 0) return;
-        e.setCancelled(true);
-        Block c = e.getClickedBlock();
-        int grown = 0;
-        for (int dx = -radius; dx <= radius; dx++) for (int dz = -radius; dz <= radius; dz++) for (int dy = -1; dy <= 1; dy++) {
-            Block b = c.getRelative(dx, dy, dz);
-            if (b.getBlockData() instanceof Ageable a && (Tag.CROPS.isTagged(b.getType()) || b.getType() == Material.NETHER_WART) && a.getAge() < a.getMaximumAge()) {
-                a.setAge(a.getMaximumAge());
-                b.setBlockData(a);
-                b.getWorld().spawnParticle(Particle.HAPPY_VILLAGER, b.getLocation().add(0.5, 0.5, 0.5), 5, 0.3, 0.2, 0.3);
-                grown++;
-            }
-        }
-        if (grown == 0) {
-            HudModule.flash(e.getPlayer(), Lang.mm("job.fertilizer-nothing"));
-            return;
-        }
-        hand.subtract(1);
-        e.getPlayer().playSound(c.getLocation(), Sound.ITEM_BONE_MEAL_USE, 1f, 1f);
     }
 
     // ------------------------------------------------------------------------------------------
@@ -731,20 +656,31 @@ public final class JobModule extends EcoModule {
         JobSpec.Job j = job == null ? null : spec.jobs().get(job);
         out.add(Lang.msg("job.ranking-header", "job", j == null ? Lang.raw("job.all") : "<" + j.color() + ">" + j.name()));
         int rank = 1;
-        for (JobStore.Row r : store.ranking(job, 10)) {
-            JobSpec.Job rj = spec.jobs().get(r.job);
-            out.add(Lang.mm("job.ranking-line", "rank", rank++, "player", Players.name(r.player), "color", rj == null ? "white" : rj.color(),
-                    "job", rj == null ? r.job : rj.name(), "level", Math.min(spec.maxLevel(), spec.levelFor(r.xp)),
-                    "mastery", String.format("%,.0f", r.mastery), "xp", String.format("%,.0f", r.xp)));
+        for (JobStore.Entry r : store.ranking(job, 10)) {
+            JobSpec.Job rj = spec.jobs().get(r.job());
+            out.add(Lang.mm("job.ranking-line", "rank", rank++, "player", Players.name(r.player()), "color", rj == null ? "white" : rj.color(),
+                    "job", rj == null ? r.job() : rj.name(), "level", spec.levelFor(r.xp()),
+                    "mastery", String.format("%,.0f", spec.mastery(r.xp())), "xp", String.format("%,.0f", r.xp())));
         }
         return out;
     }
 
-    /** Admin: set XP directly (testing). */
+    /** "광부 Lv12 · 농부 Lv3" for /직업 정보: every job this person worked. */
+    public String levelsText(UUID player) {
+        JobStore.Row r = store.get(player);
+        if (r == null) return "-";
+        List<String> parts = new ArrayList<>();
+        for (JobSpec.Job j : spec.jobs().values()) {
+            if (r.xp(j.id()) <= 0 && !j.id().equals(r.job)) continue;
+            parts.add("<" + j.color() + ">" + j.name() + "<gray> Lv" + level(player, j.id()));
+        }
+        return String.join("<dark_gray> · ", parts);
+    }
+
+    /** Admin: set the XP of the player's current job (testing). */
     public void setXp(UUID player, double xp) {
         JobStore.Row r = store.get(player);
         if (r == null) return;
-        r.xp = Math.max(0, xp);
-        store.touch(r);
+        store.setXp(r, r.job, xp);
     }
 }

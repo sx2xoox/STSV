@@ -121,7 +121,17 @@ final class AdminCommands {
             }
         }, (s, args) -> args.length == 1 ? List.of("시작", "종료", "취소") : List.of());
 
-        add("직업", "<플레이어> <직업> | 경험치 <플레이어> <값>", "직업 지정(비용·대기 없음) / 경험치 설정 (테스트)", (s, args) -> {
+        add("직업", "<플레이어> <직업> | 경험치 <플레이어> <값> | 레벨 <플레이어> <1~30>", "직업 지정(비용·대기 없음) / 지금 직업의 경험치·레벨 설정 (테스트)", (s, args) -> {
+            if (args.length >= 3 && args[0].equals("레벨")) {
+                Players.find(args[1], found -> {
+                    if (found.isEmpty()) s.sendMessage(Text.msg("<red>없는 플레이어"));
+                    else {
+                        eco.jobs().setXp(found.get(), eco.jobs().spec().xpFor(Integer.parseInt(args[2])));
+                        s.sendMessage(Text.msg("<green>" + args[1] + " Lv " + eco.jobs().level(found.get())));
+                    }
+                });
+                return;
+            }
             if (args.length >= 3 && args[0].equals("경험치")) {
                 Players.find(args[1], found -> {
                     if (found.isEmpty()) s.sendMessage(Text.msg("<red>없는 플레이어"));
@@ -133,7 +143,7 @@ final class AdminCommands {
                 return;
             }
             if (args.length < 2) {
-                s.sendMessage(Text.msg("<red>/관리자 직업 <플레이어> <직업> | 경험치 <플레이어> <값>"));
+                s.sendMessage(Text.msg("<red>/관리자 직업 <플레이어> <직업> | 경험치 <플레이어> <값> | 레벨 <플레이어> <1~30>"));
                 return;
             }
             String id = Commands.jobId(eco, args[1]);
@@ -150,11 +160,11 @@ final class AdminCommands {
             });
         }, (s, args) -> {
             if (args.length == 1) {
-                List<String> out = new ArrayList<>(List.of("경험치"));
+                List<String> out = new ArrayList<>(List.of("경험치", "레벨"));
                 Bukkit.getOnlinePlayers().forEach(p -> out.add(p.getName()));
                 return out;
             }
-            if (args.length == 2 && args[0].equals("경험치")) return Bukkit.getOnlinePlayers().stream().map(Player::getName).toList();
+            if (args.length == 2 && (args[0].equals("경험치") || args[0].equals("레벨"))) return Bukkit.getOnlinePlayers().stream().map(Player::getName).toList();
             if (args.length == 2) return eco.jobs().spec().jobs().values().stream().map(j -> j.name()).toList();
             return List.of();
         });

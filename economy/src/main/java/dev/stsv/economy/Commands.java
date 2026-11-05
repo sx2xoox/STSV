@@ -144,11 +144,14 @@ final class Commands {
                         p.sendMessage(Lang.msg("job.no-job"));
                         return;
                     }
-                    var j = eco.jobs().spec().jobs().get(r.job);
+                    var spec = eco.jobs().spec();
+                    var j = spec.jobs().get(r.job);
                     int lv = eco.jobs().level(p.getUniqueId());
-                    p.sendMessage(Lang.msg("job.info", "color", j.color(), "job", j.name(), "level", lv, "cap", eco.jobs().spec().maxLevel(),
-                            "xp", String.format("%,.0f", r.xp), "next", lv >= eco.jobs().spec().maxLevel() ? "-" : String.format("%,.0f", eco.jobs().spec().xpFor(lv + 1)),
-                            "mastery", String.format("%,.0f", r.mastery)));
+                    double xp = r.xp(r.job);
+                    p.sendMessage(Lang.msg("job.info", "color", j.color(), "job", j.name(), "level", lv, "cap", spec.maxLevel(),
+                            "xp", String.format("%,.0f", xp), "next", lv >= spec.maxLevel() ? Lang.raw("job.max") : String.format("%,.0f", spec.xpFor(lv + 1)),
+                            "mastery", String.format("%,.0f", spec.mastery(xp))));
+                    p.sendMessage(Lang.msg("job.info-all", "levels", eco.jobs().levelsText(p.getUniqueId())));
                 }
                 default -> {
                     String id = jobId(eco, a[0]);

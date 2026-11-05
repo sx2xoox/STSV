@@ -171,50 +171,84 @@ class RulesTest {
     // ------------------------------------------------------------------------------------------ jobs
 
     @Test
-    void levelsAreCappedByTheWeekAndTheRestIsMastery() {
+    void levelsFollowTheCurveAndEffectsGrowWithThem() {
         JobSpec spec = JobSpec.parse(ContentTest.yaml("jobs.yml"), new ArrayList<>());
+        assertEquals(30, spec.maxLevel());
+        // a(n-1)² + b(n-1) with a 40, b 60
+        assertEquals(0, spec.xpFor(1), 1e-9);
+        assertEquals(100, spec.xpFor(2), 1e-9);
+        assertEquals(3780, spec.xpFor(10), 1e-9);
+        assertEquals(15580, spec.xpFor(20), 1e-9);
+        assertEquals(35380, spec.xpFor(30), 1e-9);
         assertEquals(1, spec.levelFor(0));
-        assertEquals(1, spec.levelFor(999));
-        assertEquals(2, spec.levelFor(1000));
-        assertEquals(3, spec.levelFor(5000));
-        // week 1 (cap 1): XP stops one short of Lv2, the rest is mastery
-        double[] g = spec.gain(900, 300, 1);
-        assertEquals(999, g[0], 1e-9);
-        assertEquals(201, g[1], 1e-9);
-        g = spec.gain(999, 50, 1);
-        assertEquals(999, g[0], 1e-9);
-        assertEquals(50, g[1], 1e-9);
-        // the cap rises: XP counts again
-        g = spec.gain(999, 50, 2);
-        assertEquals(1049, g[0], 1e-9);
-        assertEquals(0, g[1], 1e-9);
-        g = spec.gain(2990, 100, 3);
-        assertEquals(3090, g[0], 1e-9, "no ceiling at the top level");
+        assertEquals(1, spec.levelFor(99));
+        assertEquals(2, spec.levelFor(100));
+        assertEquals(9, spec.levelFor(3779));
+        assertEquals(10, spec.levelFor(3780));
+        assertEquals(30, spec.levelFor(1e9), "capped at the last level");
+        assertEquals(620, spec.mastery(36000), 1e-9, "XP past Lv30 is 숙련");
+        assertEquals(0, spec.mastery(100), 1e-9);
+
         JobSpec.Job miner = spec.jobs().get("miner");
         assertEquals(10, miner.xp("break", "minecraft:diamond_ore"), 1e-9);
         assertEquals(0, miner.xp("break", "minecraft:stone"), 1e-9);
-        assertEquals(0.30, miner.passive("extra", 3), 1e-9);
-        assertEquals(0.30, miner.passive("extra", 5), 1e-9, "past the table: last value");
-        assertEquals(0, miner.passive("extra", 0), 1e-9, "no level, no passive");
-        assertEquals(List.of("economy:rough_ruby"), miner.drops("minecraft:redstone_ore"));
-        assertEquals(3, spec.jobs().get("fisher").drops("tier3").size());
-        JobSpec.Product pick = spec.products().get("economy:reinforced_pickaxe");
-        assertEquals("blacksmith", pick.job());
-        assertEquals(3, pick.enchants().get("efficiency"));
-        assertTrue(spec.products().get("economy:royal_feast").quality());
+        assertEquals(0.01, miner.range("extra", 1, 30), 1e-9);
+        assertEquals(0.30, miner.range("extra", 30, 30), 1e-9);
+        assertEquals(0.01 + 0.29 * 14 / 29, miner.range("extra", 15, 30), 1e-9, "evenly between");
+        assertEquals(0, miner.range("extra", 0, 30), 1e-9, "no level, no effect");
+        assertEquals(List.of("economy:rough_ruby"), miner.finds().drops("minecraft:redstone_ore"));
+        assertEquals(0.08, miner.finds().chance().at(30, 30), 1e-9);
+        assertEquals(0.01, miner.finds().outsider(), 1e-9);
+        // machine bonuses switch on at their level
+        assertEquals(0, miner.bonus("extra", 9), 1e-9);
+        assertEquals(0.15, miner.bonus("extra", 10), 1e-9);
+        assertEquals(0.20, miner.bonus("sell", 30), 1e-9);
+        assertEquals(0, miner.bonus("sell", 29), 1e-9);
+        JobSpec.Job cook = spec.jobs().get("cook");
+        assertEquals(0.12, cook.bonus("speed", 12), 1e-9, "speed is per level");
+        JobSpec.Job smith = spec.jobs().get("blacksmith");
+        assertEquals(1, smith.bonus("fast", 19), 1e-9, "a time factor is 1 below its level");
+        assertEquals(0.5, smith.bonus("fast", 20), 1e-9);
+        assertEquals(0.5, spec.jobs().get("alchemist").bonus("aging", 25), 1e-9);
+        assertEquals(miner, spec.ofMachine("gem_bench"));
+        // fishing pool: weighted, the rarest last
+        JobSpec.Finds fish = spec.jobs().get("fisher").finds();
+        assertEquals("economy:red_seabream", fish.pick(0.0));
+        assertEquals("economy:sturgeon", fish.pick(0.999));
+        assertTrue(fish.doubleItems().contains("economy:pearl"));
+        assertEquals(20, fish.doubleLevel());
+        JobSpec.Job farmer = spec.jobs().get("farmer");
+        assertEquals(30, farmer.areaHarvest());
+        assertEquals(10, farmer.growth().level());
     }
 
     @Test
-    void machinesMatchTheirRecipesByInputsAndLevel() {
+    void machinesPickTheirRecipeByInputsAndTier() {
         Map<String, MachineSpec> m = MachineSpec.parse(ContentTest.yaml("machines.yml"), new ArrayList<>());
-        MachineSpec crusher = m.get("crusher");
-        assertEquals("economy:iron_dust", crusher.match(Map.of("minecraft:raw_iron", 1), 1).output());
-        assertNull(crusher.match(Map.of("economy:rough_ruby", 1), 2), "gem cutting is Lv3");
-        assertEquals("economy:ruby", crusher.match(Map.of("economy:rough_ruby", 1), 3).output());
-        assertNull(crusher.match(Map.of("minecraft:dirt", 64), 3));
-        MachineSpec table = m.get("reinforcing_table");
-        assertNull(table.match(Map.of("minecraft:iron_ingot", 2), 2), "needs coal too");
-        assertEquals("economy:steel_ingot", table.match(Map.of("minecraft:iron_ingot", 5, "minecraft:coal", 9), 2).output());
+        java.util.function.BiPredicate<String, String> tags = (tag, item) -> tag.equals("logs") && item.endsWith("_log");
+        MachineSpec gems = m.get("gem_bench");
+        assertEquals("economy:ruby", gems.auto(Map.of("economy:rough_ruby", 1), 0, tags).output());
+        assertEquals(1, gems.auto(Map.of("economy:rough_ruby", 4), 0, tags).amount(), "the bulk recipe is 1강");
+        assertEquals(5, gems.auto(Map.of("economy:rough_ruby", 4), 1, tags).amount(), "from 1강: four rough gems make five");
+        assertEquals(1, gems.auto(Map.of("economy:rough_ruby", 3), 1, tags).amount(), "not enough for the bulk one");
+        assertNull(gems.auto(Map.of("minecraft:gold_ingot", 2, "economy:ruby", 1), 0, tags), "the ring is 1강");
+        assertEquals("economy:ruby_ring", gems.auto(Map.of("minecraft:gold_ingot", 2, "economy:ruby", 1), 1, tags).output());
+        assertNull(gems.auto(Map.of("economy:rough_ruby", 1, "minecraft:dirt", 1), 3, tags), "a stray item stops the 자동");
+        assertNull(gems.auto(Map.of(), 3, tags));
+        MachineSpec forge = m.get("forge");
+        MachineSpec.Recipe tools = forge.recipes().stream().filter(r -> r.output().equals("economy:steel_toolset")).findFirst().orElseThrow();
+        assertTrue(MachineSpec.enough(tools, Map.of("economy:steel_ingot", 2, "economy:iron_chain", 1, "minecraft:birch_log", 2), tags), "#logs takes any log");
+        assertFalse(MachineSpec.enough(tools, Map.of("economy:steel_ingot", 2, "economy:iron_chain", 1, "minecraft:birch_log", 1), tags));
+        assertEquals("economy:steel_toolset", forge.auto(Map.of("economy:steel_ingot", 2, "economy:iron_chain", 1, "minecraft:oak_log", 2), 2, tags).output());
+        MachineSpec still = m.get("still");
+        assertTrue(still.recipes().stream().filter(r -> r.output().equals("economy:vintage_wine")).findFirst().orElseThrow().aging());
+        MachineSpec.Settings s = MachineSpec.Settings.parse(ContentTest.yaml("machines.yml"));
+        assertEquals(3, s.maxTier());
+        assertEquals(5000, s.cost(1));
+        assertEquals(30, s.level(3));
+        assertEquals(4, s.lanes(3));
+        assertEquals(0.30, s.speed(2), 1e-9);
+        assertEquals(0.2, s.xpPerGold(), 1e-9);
     }
 
     // ------------------------------------------------------------------------------------------ trading

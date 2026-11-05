@@ -1036,7 +1036,9 @@ class MModel(Model):
         for f, t in list(fs.items()):
             if isinstance(t, Mat):
                 w, h = _face_size(f, frm, to)
-                name_t, region = t.face(w, h, f, zlib.crc32(f"{self.name}/{name}/{f}".encode()))
+                # faces of the same size, side and material look the same (one texture), which keeps the
+                # resource pack small; the bevel and pattern still follow each face's own size
+                name_t, region = t.face(w, h, f, zlib.crc32(f"{round(w, 2)}x{round(h, 2)}/{f}".encode()))
                 fs[f] = name_t
                 if region and f not in uv and f not in full_uv:
                     uv[f] = region

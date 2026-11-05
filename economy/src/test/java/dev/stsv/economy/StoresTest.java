@@ -165,14 +165,20 @@ class StoresTest {
         Db db = db(dir);
         UUID p = UUID.randomUUID(), friend = UUID.randomUUID();
 
+        // economy 2.x: one XP and 숙련 per person; it moves to the job they have (eco_job v2)
+        db.migrate("eco_job", List.of(List.of(
+                "CREATE TABLE IF NOT EXISTS eco_job (player CHAR(36) NOT NULL PRIMARY KEY, job VARCHAR(32) NOT NULL, xp DOUBLE NOT NULL, "
+                        + "mastery DOUBLE NOT NULL, changed BIGINT NOT NULL, changes INT NOT NULL)")));
+        db.execute("INSERT INTO eco_job (player, job, xp, mastery, changed, changes) VALUES (?, 'miner', 1500, 40, 1, 1)", p.toString());
         JobStore jobs = new JobStore(db);
         jobs.init();
-        JobStore.Row r = jobs.choose(p, "miner", 1);
-        r.xp = 1500;
-        r.mastery = 40;
-        jobs.touch(r);
+        assertEquals(1540, jobs.xp(p, "miner"), 1e-9, "old XP and 숙련 stay on the job they had");
+        JobStore.Row r = jobs.get(p);
+        jobs.addXp(r, "miner", 60);
         jobs.flush();
-        jobs.choose(friend, "cook", 1);
+        JobStore.Row f = jobs.choose(friend, "cook", 1);
+        jobs.addXp(f, "cook", 10);
+        jobs.flush();
         // an old rectangle (economy 2.0) becomes chunks on the first start
         db.migrate("eco_land", List.of(List.of(
                 "CREATE TABLE IF NOT EXISTS eco_claim (id INTEGER PRIMARY KEY AUTOINCREMENT, owner CHAR(36), world VARCHAR(64) NOT NULL, "
@@ -222,14 +228,21 @@ class StoresTest {
         JobStore jobs2 = new JobStore(db);
         jobs2.init();
         assertEquals("miner", jobs2.job(p));
-        assertEquals(1500, jobs2.get(p).xp, 1e-9);
-        assertEquals(40, jobs2.get(p).mastery, 1e-9);
-        assertEquals(List.of(p, friend), jobs2.ranking(null, 5).stream().map(x -> x.player).toList());
-        assertEquals(List.of(p), jobs2.ranking("miner", 5).stream().map(x -> x.player).toList());
+        assertEquals(1600, jobs2.xp(p, "miner"), 1e-9);
+        assertEquals(List.of(p, friend), jobs2.ranking(null, 5).stream().map(JobStore.Entry::player).toList());
+        assertEquals(List.of(p), jobs2.ranking("miner", 5).stream().map(JobStore.Entry::player).toList());
         JobStore.Row changed = jobs2.choose(p, "fisher", 5);
-        assertEquals(0, changed.xp, 1e-9, "a new job starts from zero");
-        assertEquals(40, changed.mastery, 1e-9, "mastery stays");
+        assertEquals(0, changed.xp("fisher"), 1e-9, "a new job starts from zero");
+        assertEquals(1600, changed.xp("miner"), 1e-9, "the old job keeps its level");
         assertEquals(2, changed.changes);
+        jobs2.addXp(changed, "fisher", 5);
+        jobs2.flush();
+        db.sync(c -> null);
+        JobStore jobs3 = new JobStore(db);
+        jobs3.init();
+        assertEquals("fisher", jobs3.job(p));
+        assertEquals(5, jobs3.xp(p, "fisher"), 1e-9);
+        assertEquals(1600, jobs3.xp(p, "miner"), 1e-9);
 
         LandStore land2 = new LandStore(db);
         land2.init(9);

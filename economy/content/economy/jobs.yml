@@ -1,84 +1,115 @@
-# 직업 /직업. 1인 1직업, 변경은 7일에 한 번 1,000G (처음 고르는 건 무료).
-# 레벨: 경험치가 levels 에 닿으면 오름. 마지막 레벨에서 더 번 경험치는 숙련(직업 순위 점수)이 됩니다.
-levels: [0, 1000, 3000]
+# 직업 /직업. 지금 직업은 하나, 레벨은 직업마다 따로 저장 (바꿨다 돌아와도 그대로).
+# 바꾸기는 7일에 한 번 1,000G (처음 고르는 건 무료). 효과는 지금 직업의 것만 받음.
+#
+# 레벨 1~30. 레벨 n 이 되는 누적 경험치 = a(n-1)² + b(n-1)  → Lv2 100, Lv10 3,780, Lv20 15,580, Lv30 35,380
+# Lv30 이후 경험치는 계속 쌓여 직업 순위(숙련)가 됩니다.
+max-level: 30
+xp-curve: { a: 40, b: 60 }
 change-cost: 1000
 change-days: 7
+
+# 효과 표의 [Lv1 값, Lv30 값] 은 그 사이를 레벨에 따라 고르게 올라감.
+# 직업 기계에서 받는 효과(machine:)는 그 기계를 지금 직업이 같은 사람이 돌릴 때만:
+#   speed   레벨당 시간 단축          extra   결과 +1 확률 (level 부터)
+#   double  결과 두 배(2인분) 확률     save    재료 하나 아끼는 확률
+#   fast    시간 배수 (level 부터)     aging   숙성 레시피 시간 배수
+#   sell    그 기계 생산품을 상점에 팔 때 매입가 보너스 (level 부터)
+# 직업 기계 경험치: 만든 물건 기준가 5G 당 1 (machines.yml 의 xp-per-gold)
 
 jobs:
   miner:
     name: "광부"
     color: "#9fb4c8"
     icon: minecraft:iron_pickaxe
-    description: ["광석 추가 드롭 10 / 20 / 30%", "Lv2부터 광석에서 원석 발견", "분쇄기: 원석 → 가루(주괴 2배), 보석 세공(Lv3)"]
-    passive:
-      extra: [0.10, 0.20, 0.30]   # 광석 드롭 +1 확률 (섬세한 손길 제외)
-      gem: [0.0, 0.03, 0.05]      # 원석 발견 확률
+    machine: gem_bench
+    description:
+      - "광석 추가 드롭 1 → 30% (섬세한 손길 제외)"
+      - "보석 원석 발견 2 → 8% (직업이 아니면 1%)"
+      - "Lv10 세공 결과 +1 (15%) · Lv20 재료 절약 15%"
+      - "Lv30 세공품 매입가 +20%"
+    extra: [0.01, 0.30]          # 광석 드롭 +1 확률
+    finds:
+      chance: [0.02, 0.08]       # 원석 발견 확률
+      outsider: 0.01             # 다른 직업일 때
+      drops:                     # 광석 -> 나올 수 있는 원석
+        redstone_ore: [economy:rough_ruby]
+        deepslate_redstone_ore: [economy:rough_ruby]
+        iron_ore: [economy:rough_ruby]
+        deepslate_iron_ore: [economy:rough_ruby]
+        lapis_ore: [economy:rough_sapphire]
+        deepslate_lapis_ore: [economy:rough_sapphire]
+        diamond_ore: [economy:rough_sapphire]
+        deepslate_diamond_ore: [economy:rough_sapphire]
+    machine-bonus:
+      extra: { level: 10, chance: 0.15 }
+      save: { level: 20, chance: 0.15 }
+      sell: { level: 30, bonus: 0.20 }
     xp:
       break: { coal_ore: 1, deepslate_coal_ore: 1, copper_ore: 1, deepslate_copper_ore: 1, iron_ore: 2, deepslate_iron_ore: 2,
                gold_ore: 3, deepslate_gold_ore: 3, redstone_ore: 2, deepslate_redstone_ore: 2, lapis_ore: 3, deepslate_lapis_ore: 3,
                diamond_ore: 10, deepslate_diamond_ore: 10, emerald_ore: 10, deepslate_emerald_ore: 10,
                nether_gold_ore: 1, nether_quartz_ore: 1, ancient_debris: 20 }
-      smelt: { iron_ingot: 0.5, gold_ingot: 0.5, copper_ingot: 0.3 }
-    drops:   # 원석: 광석 -> 나올 수 있는 원석
-      redstone_ore: [economy:rough_ruby]
-      deepslate_redstone_ore: [economy:rough_ruby]
-      iron_ore: [economy:rough_ruby]
-      deepslate_iron_ore: [economy:rough_ruby]
-      lapis_ore: [economy:rough_sapphire]
-      deepslate_lapis_ore: [economy:rough_sapphire]
-      diamond_ore: [economy:rough_sapphire]
-      deepslate_diamond_ore: [economy:rough_sapphire]
-      gold_ore: [economy:rough_topaz]
-      deepslate_gold_ore: [economy:rough_topaz]
-      copper_ore: [economy:rough_topaz]
-      deepslate_copper_ore: [economy:rough_topaz]
-      coal_ore: [economy:rough_topaz]
-      deepslate_coal_ore: [economy:rough_topaz]
+      find: 5
 
   farmer:
     name: "농부"
     color: "#8bc34a"
     icon: minecraft:iron_hoe
-    description: ["다 자란 작물 수확량 +1 / +2 / +3 (채소·과일 포함)", "주변 작물 성장 가속", "Lv3 가축 부산물"]
-    passive:
-      bonus: [1, 2, 3]
-      growth: [0.03, 0.06, 0.10]   # 10초마다 반경 6칸 작물(바닐라·커스텀)이 한 단계 자랄 확률
-      animal: [0.0, 0.0, 0.15]
+    machine: mill
+    description:
+      - "다 자란 작물 수확량 +0.1 × 레벨 (Lv10 = +1)"
+      - "Lv10 주변 작물 성장 가속"
+      - "Lv20 가공 결과 +1 (15%)"
+      - "Lv30 3×3 한 번에 수확"
+    harvest-per-level: 0.1
+    growth: { level: 10, chance: 0.05, radius: 6 }   # 10초마다 주변 작물이 한 단계 자랄 확률
+    area-harvest: 30
+    machine-bonus:
+      extra: { level: 20, chance: 0.15 }
     xp:
       harvest: { wheat: 0.5, carrots: 0.5, potatoes: 0.5, beetroots: 0.5, nether_wart: 0.5, cocoa: 0.5, melon: 0.5, pumpkin: 1,
                  economy:tomato: 2, economy:chili: 2, economy:strawberry: 2, economy:onion: 2, economy:garlic: 2, economy:cabbage: 3,
                  economy:rice: 2, economy:soybean: 2, economy:corn: 3, economy:green_onion: 2, economy:radish: 3, economy:lettuce: 2,
-                 economy:cucumber: 2, economy:grape: 3, economy:eggplant: 2,
-                 economy:zucchini: 2, economy:muskmelon: 4 }
+                 economy:cucumber: 2, economy:grape: 3, economy:eggplant: 2, economy:zucchini: 2, economy:muskmelon: 4 }
       breed: 3
-    drops:
-      minecraft:pig: [economy:truffle]
-      minecraft:cow: [economy:fine_leather]
-      minecraft:chicken: [economy:golden_egg]
 
   fisher:
     name: "어부"
     color: "#4fc3f7"
     icon: minecraft:fishing_rod
-    description: ["희귀 어획 5 / 10 / 15% (미끼 +5%)", "Lv2 황금 잉어·바닷가재, Lv3 진주", "수조: 물고기 양식, 연어알, 바다 수정"]
-    passive:
-      rare: [0.05, 0.10, 0.15]
-      bait: [0.05, 0.05, 0.05]
+    machine: fish_bench
+    description:
+      - "희귀 어획 5 → 15% (직업이 아니면 1%)"
+      - "Lv10 손질 결과 +1 (15%)"
+      - "Lv20 진주·참다랑어·철갑상어 두 마리씩"
+      - "Lv30 손질품 매입가 +20%"
+    finds:
+      chance: [0.05, 0.15]
+      outsider: 0.01
+      pool: { economy:red_seabream: 50, economy:pearl: 25, economy:bluefin_tuna: 15, economy:sturgeon: 10 }
+      double: { level: 20, items: [economy:pearl, economy:bluefin_tuna, economy:sturgeon] }
+    machine-bonus:
+      extra: { level: 10, chance: 0.15 }
+      sell: { level: 30, bonus: 0.20 }
     xp:
       catch: 3
-      rare: 10
-    drops:
-      tier1: [economy:tuna, economy:sea_bream, economy:eel]
-      tier2: [economy:golden_carp, economy:lobster]
-      tier3: [economy:pearl, economy:pearl, economy:black_pearl]
+      find: 10
 
   blacksmith:
     name: "대장장이"
     color: "#ff8a65"
     icon: minecraft:anvil
-    description: ["도구·갑옷 제작 때 재료 10 / 20 / 30% 확률로 1개 돌려받음", "강화 도구, Lv2 강철, Lv3 보석 장비", "강화대 사용"]
-    passive:
-      save: [0.10, 0.20, 0.30]
+    machine: forge
+    description:
+      - "재료 절약 5 → 30% (대장간, 도구·갑옷 제작)"
+      - "Lv10 대장간 결과 +1 (15%)"
+      - "Lv20 대장간 시간 절반"
+      - "Lv30 대장간 생산품 매입가 +20%"
+    save: [0.05, 0.30]
+    machine-bonus:
+      extra: { level: 10, chance: 0.15 }
+      fast: { level: 20, factor: 0.5 }
+      sell: { level: 30, bonus: 0.20 }
     xp:
       craft: { iron_pickaxe: 4, iron_axe: 4, iron_shovel: 2, iron_hoe: 2, iron_sword: 4, iron_helmet: 5, iron_chestplate: 8,
                iron_leggings: 7, iron_boots: 4, diamond_pickaxe: 10, diamond_axe: 10, diamond_shovel: 5, diamond_hoe: 5,
@@ -90,9 +121,17 @@ jobs:
     name: "요리사"
     color: "#ffb74d"
     icon: minecraft:cooked_beef
-    description: ["만든 요리의 버프 시간 +20 / +40 / +60%", "조리대·훈연 화덕: 채굴 속도, 행운, 이동 속도 요리", "재료는 농부와 어부에게서"]
-    passive:
-      quality: [0.2, 0.4, 0.6]
+    machine: kitchen
+    description:
+      - "조리 시간 레벨당 -1%"
+      - "Lv10 2인분 (15%)"
+      - "Lv20 재료 절약 15%"
+      - "Lv30 요리 매입가 +20%"
+    machine-bonus:
+      speed: 0.01
+      double: { level: 10, chance: 0.15 }
+      save: { level: 20, chance: 0.15 }
+      sell: { level: 30, bonus: 0.20 }
     xp:
       smelt: { cooked_beef: 1, cooked_porkchop: 1, cooked_chicken: 1, cooked_mutton: 1, cooked_rabbit: 1, cooked_cod: 1,
                cooked_salmon: 1, baked_potato: 0.5, dried_kelp: 0.2 }
@@ -102,59 +141,16 @@ jobs:
     name: "연금술사"
     color: "#ba68c8"
     icon: minecraft:brewing_stand
-    description: ["양조한 물약 지속 시간 +20 / +40 / +60%", "증류기: 마시는 물약, 강화 촉매", "Lv3 영약, 정수"]
-    passive:
-      quality: [0.2, 0.4, 0.6]
+    machine: still
+    description:
+      - "증류 시간 레벨당 -1%"
+      - "Lv10 증류 결과 +1 (15%)"
+      - "Lv20 숙성 시간 절반"
+      - "Lv30 술·향수 매입가 +20%"
+    machine-bonus:
+      speed: 0.01
+      extra: { level: 10, chance: 0.15 }
+      aging: { level: 20, factor: 0.5 }
+      sell: { level: 30, bonus: 0.20 }
     xp:
       brew: 4
-
-# 직업 생산품: 이 아이템을 만들 수 있는(조합대·기계) 직업과 레벨, 만들 때 경험치, 붙는 인챈트,
-# quality = 만든 사람의 품질(요리사·연금술사 패시브)로 효과 시간이 늘어남
-products:
-  iron_dust: { job: miner, level: 1, xp: 2 }
-  gold_dust: { job: miner, level: 1, xp: 3 }
-  copper_dust: { job: miner, level: 1, xp: 1 }
-  ruby: { job: miner, level: 3, xp: 15 }
-  sapphire: { job: miner, level: 3, xp: 15 }
-  topaz: { job: miner, level: 3, xp: 15 }
-  crusher: { job: miner, level: 1, xp: 10 }
-
-  bait: { job: farmer, level: 1, xp: 1 }
-  feed: { job: farmer, level: 1, xp: 1 }
-
-  salmon_roe: { job: fisher, level: 2, xp: 6 }
-  pearl: { job: fisher, level: 3, xp: 15 }
-  sea_crystal: { job: fisher, level: 3, xp: 20 }
-  fish_tank: { job: fisher, level: 1, xp: 10 }
-
-  reinforced_pickaxe: { job: blacksmith, level: 1, xp: 12, enchants: { efficiency: 3, unbreaking: 2 } }
-  reinforced_hoe: { job: blacksmith, level: 1, xp: 10, enchants: { efficiency: 3, unbreaking: 3 } }
-  reinforced_rod: { job: blacksmith, level: 1, xp: 10, enchants: { lure: 2, luck_of_the_sea: 2 } }
-  steel_ingot: { job: blacksmith, level: 2, xp: 5 }
-  steel_pickaxe: { job: blacksmith, level: 2, xp: 25, enchants: { efficiency: 4, unbreaking: 3, fortune: 1 } }
-  steel_sword: { job: blacksmith, level: 2, xp: 25, enchants: { sharpness: 4, unbreaking: 3 } }
-  ruby_sword: { job: blacksmith, level: 3, xp: 40, enchants: { sharpness: 5, unbreaking: 3, looting: 2 } }
-  sapphire_pickaxe: { job: blacksmith, level: 3, xp: 40, enchants: { efficiency: 5, fortune: 3, unbreaking: 3 } }
-  topaz_chestplate: { job: blacksmith, level: 3, xp: 40, enchants: { protection: 4, unbreaking: 3 } }
-  reinforcing_table: { job: blacksmith, level: 2, xp: 15 }
-
-  miner_lunchbox: { job: cook, level: 1, xp: 5, quality: true }
-  lucky_grill: { job: cook, level: 1, xp: 5, quality: true }
-  sprint_salad: { job: cook, level: 1, xp: 5, quality: true }
-  hearty_stew: { job: cook, level: 2, xp: 12, quality: true }
-  golden_sushi: { job: cook, level: 2, xp: 12, quality: true }
-  honey_pie: { job: cook, level: 2, xp: 12, quality: true }
-  royal_feast: { job: cook, level: 3, xp: 25, quality: true }
-  truffle_risotto: { job: cook, level: 3, xp: 25, quality: true }
-  pearl_dessert: { job: cook, level: 3, xp: 25, quality: true }
-  cooking_table: { job: cook, level: 1, xp: 10 }
-  smoker_oven: { job: cook, level: 1, xp: 10 }
-
-  miners_tonic: { job: alchemist, level: 1, xp: 6, quality: true }
-  swift_tonic: { job: alchemist, level: 1, xp: 6, quality: true }
-  catalyst: { job: alchemist, level: 2, xp: 12 }
-  luck_tonic: { job: alchemist, level: 2, xp: 12, quality: true }
-  grand_catalyst: { job: alchemist, level: 3, xp: 25 }
-  elixir: { job: alchemist, level: 3, xp: 25, quality: true }
-  essence: { job: alchemist, level: 3, xp: 30 }
-  distiller: { job: alchemist, level: 1, xp: 10 }

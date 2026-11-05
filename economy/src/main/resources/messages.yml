@@ -188,40 +188,85 @@ job:
   hud: "<{color}>{job}<gray> <gray>Lv{level}"
   hud-none: "<dark_gray>직업 없음 (/직업)"
   none: "없음"
+  max: "최고 레벨"
   no-job: "<red>직업이 없습니다. <white>/직업"
   no-such: "<red>없는 직업입니다."
   same: "<yellow>이미 그 직업입니다."
   too-soon: "<red>직업은 7일에 한 번만 바꿀 수 있습니다. <gray>(남은 시간 {left})"
   not-enough: "<red>직업 변경에는 {cost}이 필요합니다."
-  chosen: "<green>직업 선택: <{color}><b>{job}</b>"
-  info: "<{color}>{job}<gray> <white>Lv{level}</white> <gray>(이번 주 상한 Lv{cap}) · 경험치 {xp} / {next} · 숙련 {mastery}"
+  chosen: "<green>직업 선택: <{color}><b>{job}</b> <gray>(Lv{level}, 직업마다 레벨이 따로 남습니다)"
+  info: "<{color}>{job}<gray> <white>Lv{level}</white> <gray>/ {cap} · 경험치 {xp} / {next} · 숙련 {mastery}"
+  info-all: "<gray>내 직업 레벨: {levels}"
   levelup-title: "<gold><b>Lv{level}!</b>"
   levelup-subtitle: "<{color}>{job}<gray> <gray>레벨 업"
   levelup-broadcast: "<white>{player}</white><gray>님이 <{color}>{job}<gray> Lv{level}이 되었습니다."
-  locked: "<red><{color}>{job}<gray> Lv{level} 전용 생산품입니다."
   locked-plant: "<red><{color}>{job}<gray> Lv{level}만 심을 수 있는 씨앗입니다."
   found: "<aqua>발견!</aqua> <white>{item}"
   rare-catch: "<aqua><b>희귀 어획!</b></aqua> <white>{item}"
   saved: "<green>재료 절약</green> <white>{item}</white> <gray>1개를 돌려받았습니다"
-  quality-lore: "<dark_gray>품질 +{pct}% (<{color}>{job}<gray> Lv{level} 제작)"
-  fertilizer-nothing: "<gray>주변에 자랄 작물이 없습니다."
+  lore-xp: "<gray>경험치 <white>{xp}</white> <gray>/ {next}"
   lore-current: ["<green>✔ 내 직업"]
   lore-pick: ["<yellow>두 번 클릭: 선택 (처음은 무료)"]
-  lore-change: ["<yellow>두 번 클릭: 변경 <gray>({cost}, 경험치 초기화)"]
+  lore-change: ["<yellow>두 번 클릭: 변경 <gray>({cost}, 레벨은 그대로 남음)"]
   lore-confirm: ["<gold><b>한 번 더 클릭하면 선택합니다</b>"]
-  ranking-header: "<gold>직업 순위</gold> {job} <gray>(숙련 + 경험치)"
-  ranking-line: " <gray>{rank}.</gray> <white>{player}</white> <{color}>{job}<gray> Lv{level} <gray>숙련 {mastery} · 경험치 {xp}"
+  ranking-header: "<gold>직업 순위</gold> {job} <gray>(경험치)"
+  ranking-line: " <gray>{rank}.</gray> <white>{player}</white> <{color}>{job}<gray> Lv{level} <gray>경험치 {xp} · 숙련 {mastery}"
   all: "전체"
 
 machine:
-  job-only: "<red><{color}>{job}<gray> 전용 기계입니다."
-  idle: "<gray>{machine}: 대기 중 <dark_gray>(재료를 넣으세요)"
-  idle-operator: "<red>{machine}: 운영자 없음 <dark_gray>(이 직업인 사람이 열면 시작)"
-  working: "<green>{item}</green> <gray>만드는 중 {bar} <white>{pct}%"
-  operator: ["<gray>운영자: <white>{player}</white> <gray>(Lv{level})"]
-  recipes-header: "<gold>레시피"
-  recipe: "<gray>{in} → <white>{out}</white> <dark_gray>({seconds}초, Lv{level})"
-  recipe-locked: "<dark_gray>{in} → {out} (Lv{level} 필요)"
+  tier:
+    "0": "기본"
+    "1": "1강"
+    "2": "2강"
+    "3": "3강"
+  tag:
+    logs: "원목"
+    small_flowers: "꽃"
+    planks: "판자"
+  book: "<gold>레시피 목록"
+  book-lore: ["<gray>이 기계로 만들 수 있는 것 전부", "<dark_gray>줄마다 고르려면 그 줄의 상태 칸을 클릭"]
+  info: "<gold>{machine}</gold> <gray>· <white>{tier}"
+  info-lore: ["<gray>설치: <white>{owner}", "<gray>줄 <white>{lanes}</white>개 · 속도 <white>+{speed}%", "<gray>누구나 사용. <{color}>{job}<gray>면 빠르고 경험치·직업 효과", "<dark_gray>재료를 넣은 사람이 그 줄의 운영자"]
+  upgrade: "<gold>강화 → {tier}"
+  upgrade-lore: ["<gray>비용 <white>{cost}", "<gray>필요: 설치한 사람이 <{color}>{job}<gray> Lv{level}", "<gray>강화하면: 줄 {lanes}개 · 속도 +{speed}% · 새 레시피 {recipes}개 · 새 모습"]
+  upgrade-click: ["<yellow>두 번 클릭: 강화 (설치한 사람만)"]
+  upgrade-confirm: ["<gold><b>한 번 더 클릭하면 강화합니다</b>"]
+  upgrade-max: "<gold>최고 단계입니다"
+  owner-only: "<red>설치한 사람({player})만 강화할 수 있습니다."
+  need-level: "<{color}>{job}<red> Lv{level}이 되어야 {tier}로 강화할 수 있습니다."
+  not-enough: "<red>강화 비용 {cost}이 부족합니다."
+  upgraded: "<gold>{machine}</gold> <gray>강화 → <white><b>{tier}</b></white><gray>! 줄 {lanes}개, 속도 +{speed}%"
+  collect: "<green>결과 전부 받기"
+  collected: "<green>결과 {count}개를 받았습니다."
+  nothing: "<gray>받을 결과가 없습니다."
+  close: "<red>닫기"
+  lane-locked: "<dark_gray>{n}번 줄 · {tier}에서 열림"
+  lane-idle: "<gray>{n}번 줄: 대기 중"
+  lane-working: "<gray>{n}번 줄: <green>{item}</green> {bar} <white>{pct}%"
+  lane-blocked: "<red>{n}번 줄: 결과 칸이 가득 찼습니다"
+  lane-auto: "<gray>레시피: <white>자동</white> <dark_gray>(넣은 재료로)"
+  lane-fixed: "<gray>레시피: <white>{item}"
+  lane-needs: "<gray>필요한 재료: {in}"
+  lane-auto-help: "<dark_gray>재료를 넣으면 만들 수 있는 걸 알아서 만듭니다"
+  lane-left: "<gray>남은 시간 <white>{time}</white> <dark_gray>/ {total}"
+  lane-operator: "<gray>운영자: <white>{player}"
+  lane-click: ["<dark_gray>클릭: 만들 것 고르기 · 우클릭: 자동"]
+  set-auto: "<gray>{n}번 줄: 자동 (넣은 재료로)"
+  auto: "<white>자동"
+  auto-lore: ["<gray>넣은 재료로 만들 수 있는 걸 알아서", "<dark_gray>같은 재료로 되는 게 여럿이면 강화 단계가 높은 것부터"]
+  recipe-in: "<gray>재료: {in}"
+  recipe-time: "<gray>시간: <white>{time}"
+  recipe-time-aging: "<gray>숙성: <white>{time}"
+  recipe-value: "<gray>기준가 <white>{value}G</white> <dark_gray>(개당)"
+  recipe-locked: "<red>{tier} 강화에서 열림"
+  recipe-current: "<green>✔ 지금 이 줄"
+  maker: "<dark_gray>제작: {player}"
+  maker-job: "<dark_gray>제작: {player} (<{color}>{job}<dark_gray> Lv{level})"
+  tier-lore: "<gold>강화: {tier}"
+  bonus: "<green>{what}</green> <gray>{item}"
+  bonus-extra: "결과 +1"
+  bonus-double: "2인분"
+  bonus-save: "재료 절약"
 
 land:
   usage: "<gray>/땅 · 구매 [확인] · 포기 · 보기 · 초대 <플레이어> · 수락 · 거절 · 추방 <플레이어> · 나가기 · 양도 <구성원> · 금고 [입금|출금 <금액>] · 해체 [확인]"

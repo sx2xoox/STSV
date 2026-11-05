@@ -48,9 +48,6 @@ def main():
     for name, fn in M.ALL.items():
         m = fn()
         m.write(PACK / "models" / f"{name}.bbmodel", BUILD / f"eco_{name}.preview.json")
-        if render:
-            subprocess.run(["node", str(HERE / "render" / "render.mjs"), str(BUILD / f"eco_{name}.preview.json"),
-                            str(BUILD / f"eco_{name}.png")], check=True)
     print(f"models  {len(M.ALL)}")
 
     # crop art preview (growth stages, harvest and seed icons)
@@ -79,21 +76,52 @@ def main():
 
     sheet(E, PREVIEWS / "economy_items.png")
     gui_sheet(G, menus, PREVIEWS / "economy_menus.png")
+    import economy_goods as GO
+    GO.sheet(PREVIEWS / "goods.png")
     if render:
-        crop_models = {f"{c}_{st}" for c, stages in CR.STAGES.items() for st in range(len(stages))}
-        machines = [Image.open(BUILD / f"eco_{n}.png").convert("RGBA") for n in M.ALL if n not in crop_models]
-        w = sum(m.width for m in machines)
-        out = Image.new("RGBA", (w, max(m.height for m in machines)), (40, 40, 48, 255))
-        x = 0
-        for m in machines:
-            out.alpha_composite(m, (x, 0))
-            x += m.width
-        out = out.resize((out.width // 3, out.height // 3))
-        out.save(PREVIEWS / "economy_machines.png")
+        # job machines: every machine in its four tier looks, from the front and from behind
+        machine_sheet(PREVIEWS / "machines_front.png", 35, 22)
+        machine_sheet(PREVIEWS / "machines_back.png", 215, 24)
         # crops: every ripe crop as it stands in a field (2x2 blocks on farmland), to judge the 3D look
         crop_field(M, CR, BUILD / "crop_field.preview.json")
         subprocess.run(["node", str(HERE / "render" / "render.mjs"), str(BUILD / "crop_field.preview.json"),
                         str(PREVIEWS / "crops_3d.png")], check=True)
+
+
+MACHINE_ROWS = [("gem_bench", "세공대 (광부) 2×1×2"), ("mill", "가공대 (농부) 2×2×2"), ("fish_bench", "손질대 (어부) 2×1×2"),
+                ("forge", "대장간 (대장장이) 2×2×3"), ("kitchen", "조리대 (요리사) 3×1×2"), ("still", "증류기 (연금술사) 2×2×3")]
+
+
+def machine_sheet(path, az, el):
+    """Rows of machines, columns of tiers (기본 / 1강 / 2강 / 3강), the same camera for every tier of a machine."""
+    import economy_machines as MC
+    from PIL import ImageDraw, ImageFont
+    font = ImageFont.truetype("/usr/share/fonts/truetype/wqy/wqy-zenhei.ttc", 30)
+    small = ImageFont.truetype("/usr/share/fonts/truetype/wqy/wqy-zenhei.ttc", 24)
+    sc, head = 0.46, 56
+    cw, ch = int(1000 * sc), int(900 * sc)
+    out = Image.new("RGBA", (cw * 4, len(MACHINE_ROWS) * (ch + head)), (27, 29, 34, 255))
+    d = ImageDraw.Draw(out)
+    for row, (mid, title) in enumerate(MACHINE_ROWS):
+        _fn, (w, h, dep), _floor, _parts = MC.MACHINES[mid]
+        top = MC.preview(mid, 3)["elements"]
+        lo = [min(e["from"][i] for e in top) for i in range(3)]
+        hi = [max(e["to"][i] for e in top) for i in range(3)]
+        y = row * (ch + head)
+        d.rectangle((0, y, cw * 4, y + head - 6), fill=(40, 43, 52, 255))
+        d.text((16, y + 10), title, fill=(245, 245, 245), font=font)
+        for t in range(4):
+            data = MC.preview(mid, t)
+            data.update({"grid": True, "center": [(lo[i] + hi[i]) / 2 for i in range(3)],
+                         "radius": (w * w + h * h + dep * dep) ** 0.5 * 8,
+                         "views": [{"x": 0, "y": 0, "w": 1000, "h": 900, "az": az, "el": el, "k": 3.0}]})
+            src, png = BUILD / f"machine_{mid}_{t}.json", BUILD / f"machine_{mid}_{t}.png"
+            src.write_text(json.dumps(data))
+            subprocess.run(["node", str(HERE / "render" / "render.mjs"), str(src), str(png)], check=True, capture_output=True)
+            im = Image.open(png).convert("RGBA").crop((0, 0, 1000, 900)).resize((cw, ch), Image.LANCZOS)
+            out.alpha_composite(im, (t * cw, y + head))
+            d.text((t * cw + 14, y + head + 8), MC.TIERS[t], fill=(230, 230, 230), font=small)
+    out.convert("RGB").save(path, optimize=True)
 
 
 def crop_field(M, CR, path, cols=5, gap=12):

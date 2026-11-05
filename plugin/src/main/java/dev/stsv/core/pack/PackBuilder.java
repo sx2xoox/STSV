@@ -30,7 +30,7 @@ import java.util.zip.ZipOutputStream;
  * Output layout (per namespace):
  *   assets/&lt;ns&gt;/items/&lt;id&gt;.json                   item model definition (what item_model points at)
  *   assets/&lt;ns&gt;/models/item/&lt;model&gt;.json           converted .bbmodel or generated 2D model
- *   assets/&lt;ns&gt;/textures/item/&lt;model&gt;/&lt;tex&gt;.png   textures of a .bbmodel
+ *   assets/&lt;ns&gt;/textures/item/shared/&lt;hash&gt;.png   textures of .bbmodels, stored once by content
  *   assets/&lt;ns&gt;/textures/item/&lt;name&gt;.png           2D item textures
  * plus every file under contents/&lt;pack&gt;/assets copied as-is.
  */
@@ -48,6 +48,7 @@ public final class PackBuilder {
             throws IOException {
         files.clear();
         warnings.clear();
+        sharedTextures.clear();
         zipCache = null;
 
         JsonObject pack = new JsonObject();
@@ -94,7 +95,6 @@ public final class PackBuilder {
                 String ns = cp.namespace();
                 BBModelConverter.Result r = BBModelConverter.convert(p, ns + ":item/" + name);
                 r.warnings().forEach(w -> warnings.add(p.getFileName() + ": " + w));
-                json("assets/" + ns + "/models/item/" + name + ".json", r.model());
                 // every 3D model also gets an item definition "<ns>:model/<name>", so skins, cosmetics and
                 // furniture parts can point an item_model at any model without declaring an item for it
                 JsonObject ref = new JsonObject();
@@ -103,10 +103,40 @@ public final class PackBuilder {
                 JsonObject def = new JsonObject();
                 def.add("model", ref);
                 json("assets/" + ns + "/items/model/" + name + ".json", def);
+                // identical textures (the same face on several models, e.g. the tiers of a machine) are stored
+                // once, by content, under textures/item/shared: smaller pack, fewer atlas sprites
+                JsonObject refs = r.model().getAsJsonObject("textures");
                 for (Map.Entry<String, byte[]> t : r.textures().entrySet()) {
-                    put("assets/" + ns + "/textures/item/" + name + "/" + t.getKey(), t.getValue(), cp);
+                    if (!t.getKey().endsWith(".png")) continue;
+                    String tex = t.getKey().replaceFirst("\\.png$", "");
+                    byte[] meta = r.textures().get(t.getKey() + ".mcmeta");
+                    String shared = "shared/" + hash(t.getValue(), meta);
+                    if (sharedTextures.add(ns + ":" + shared)) {
+                        put("assets/" + ns + "/textures/item/" + shared + ".png", t.getValue(), cp);
+                        if (meta != null) put("assets/" + ns + "/textures/item/" + shared + ".png.mcmeta", meta, cp);
+                    }
+                    String old = ns + ":item/" + name + "/" + tex;
+                    if (refs != null) {
+                        for (String k : refs.keySet()) {
+                            if (refs.get(k).getAsString().equals(old)) refs.addProperty(k, ns + ":item/" + shared);
+                        }
+                    }
                 }
+                json("assets/" + ns + "/models/item/" + name + ".json", r.model());
             }
+        }
+    }
+
+    private final java.util.Set<String> sharedTextures = new java.util.HashSet<>();
+
+    private static String hash(byte[] png, byte[] meta) {
+        try {
+            java.security.MessageDigest md = java.security.MessageDigest.getInstance("SHA-1");
+            md.update(png);
+            if (meta != null) md.update(meta);
+            return java.util.HexFormat.of().formatHex(md.digest()).substring(0, 16);
+        } catch (java.security.NoSuchAlgorithmException e) {
+            throw new IllegalStateException(e);
         }
     }
 

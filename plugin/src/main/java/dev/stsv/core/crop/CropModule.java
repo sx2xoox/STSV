@@ -623,6 +623,27 @@ public final class CropModule implements StsvModule, Listener {
         Player p = e.getPlayer();
         if (p.isSneaking()) return;
         e.setCancelled(true);
+        harvestVanilla(p, b, seed);
+    }
+
+    /**
+     * Harvests a ripe crop at this block for a player and replants it, like a right-click (ours or vanilla,
+     * protection and job rules see a normal harvest). False if there is no ripe crop or it was refused.
+     */
+    public boolean harvestAt(Player p, Block b) {
+        Optional<CropState> ours = at(b);
+        if (ours.isPresent()) {
+            CropSpec spec = specs.get(ours.get().crop);
+            return spec != null && spec.ripe(ours.get().age) && harvest(p, ours.get(), spec, true);
+        }
+        Material seed = VANILLA.get(b.getType());
+        if (seed == null || !(b.getBlockData() instanceof Ageable a) || a.getAge() < a.getMaximumAge()) return false;
+        if (b.getRelative(BlockFace.DOWN).getType() != Material.FARMLAND) return false;
+        return harvestVanilla(p, b, seed);
+    }
+
+    private boolean harvestVanilla(Player p, Block b, Material seed) {
+        Material type = b.getType();
         // broken the normal way (protection, job rewards, fortune all see a normal harvest); one seed of the drops replants it
         replanting = new Replant(b, seed);
         seedTaken = false;
@@ -646,14 +667,15 @@ public final class CropModule implements StsvModule, Listener {
                 if (!it.isEmpty()) b.getWorld().dropItemNaturally(at, it);
             }
         }
-        if (!broken || !b.isEmpty() || b.getRelative(BlockFace.DOWN).getType() != Material.FARMLAND) return;
+        if (!broken || !b.isEmpty() || b.getRelative(BlockFace.DOWN).getType() != Material.FARMLAND) return broken;
         if (!seedTaken && p.getGameMode() != GameMode.CREATIVE && !takeOne(p, seed.getKey().asString())) {
             HudModule.flash(p, Lang.mm("crop.no-seed"));
-            return;
+            return true;
         }
         b.setType(type);
         p.swingMainHand();
         b.getWorld().playSound(b.getLocation().add(0.5, 0.5, 0.5), Sound.ITEM_CROP_PLANT, 0.8f, 1f);
+        return true;
     }
 
     @EventHandler(priority = EventPriority.HIGHEST, ignoreCancelled = true)

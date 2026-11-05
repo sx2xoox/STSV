@@ -66,7 +66,7 @@ import java.util.UUID;
 public final class FurnitureModule implements StsvModule, Listener {
 
     private STSVPlugin plugin;
-    private NamespacedKey keyItem, keyCells, keyParts, keyOwner, keyYaw, keySeat, keySpin;
+    private NamespacedKey keyItem, keyCells, keyParts, keyOwner, keyYaw, keySeat, keySpin, keySpinOff;
     private BukkitTask spinTask;
     private final Map<String, FurnitureBehavior> behaviors = new HashMap<>();
     private final Map<UUID, Preview> previews = new HashMap<>();
@@ -88,6 +88,7 @@ public final class FurnitureModule implements StsvModule, Listener {
         keyYaw = new NamespacedKey(plugin, "furniture_yaw");
         keySeat = new NamespacedKey(plugin, "seat_of");
         keySpin = new NamespacedKey(plugin, "spin");
+        keySpinOff = new NamespacedKey(plugin, "spin_off");
         Bukkit.getPluginManager().registerEvents(this, plugin);
         previewTask = Bukkit.getScheduler().runTaskTimer(plugin, this::tickPreviews, 1L, 2L);
         for (World w : Bukkit.getWorlds()) w.getEntitiesByClass(ItemDisplay.class).forEach(this::track);
@@ -230,7 +231,8 @@ public final class FurnitureModule implements StsvModule, Listener {
         pdc.set(keyParts, PersistentDataType.STRING, partData.toString());
 
         world.playSound(loc, Sound.BLOCK_STONE_PLACE, 1f, 0.9f);
-        behavior(item).ifPresent(b -> b.onPlace(player, furniture));
+        ItemStack from = player.getInventory().getItem(hand);
+        behavior(item).ifPresent(b -> b.onPlace(player, furniture, from));
         return Optional.of(furniture);
     }
 
@@ -331,7 +333,8 @@ public final class FurnitureModule implements StsvModule, Listener {
     }
 
     private void track(Entity e) {
-        if (e instanceof ItemDisplay d && d.getPersistentDataContainer().has(keySpin)) spinning.add(d.getUniqueId());
+        if (e instanceof ItemDisplay d && d.getPersistentDataContainer().has(keySpin)
+                && !d.getPersistentDataContainer().has(keySpinOff)) spinning.add(d.getUniqueId());
     }
 
     @EventHandler
@@ -385,6 +388,8 @@ public final class FurnitureModule implements StsvModule, Listener {
         FurnitureBreakEvent event = new FurnitureBreakEvent(player, furniture);
         Bukkit.getPluginManager().callEvent(event);
         if (event.isCancelled()) return false;
+        ItemStack dropped = drop ? behavior(furniture.item()).map(b -> b.drop(furniture, furniture.item().create(1)))
+                .orElseGet(() -> furniture.item().create(1)) : null;
         behavior(furniture.item()).ifPresent(b -> b.onBreak(player, furniture));
 
         ItemDisplay display = furniture.display();
@@ -406,10 +411,68 @@ public final class FurnitureModule implements StsvModule, Listener {
             if (b.getType() == Material.BARRIER) b.setType(Material.AIR, false);
         }
         Location loc = display.getLocation();
-        if (drop) world.dropItemNaturally(loc, furniture.item().create(1));
+        if (dropped != null && !dropped.isEmpty()) world.dropItemNaturally(loc, dropped);
         world.playSound(loc, Sound.BLOCK_STONE_BREAK, 1f, 0.9f);
         display.remove();
         return true;
+    }
+
+    // ------------------------------------------------------------------------------------------
+    // Changing a placed piece: another model (upgrade looks), its parts, spinning on and off
+    // ------------------------------------------------------------------------------------------
+
+    /** Shows another item model on the furniture (e.g. "economy:model/mill_2"); null = the item's own model. */
+    public void setModel(Furniture f, NamespacedKey model) {
+        ItemDisplay d = f.display();
+        ItemStack it = model == null ? f.item().create(1) : d.getItemStack();
+        if (model != null) {
+            NamespacedKey now = it.hasItemMeta() ? it.getItemMeta().getItemModel() : null;
+            if (model.equals(now)) return;
+            it.editMeta(m -> m.setItemModel(model));
+        }
+        d.setItemStack(it);
+    }
+
+    /** A point in the furniture's model coordinates (16 = 1 block, anchor block floor = y 0) in the world. */
+    public Location modelPoint(Furniture f, org.joml.Vector3f p) {
+        double[] o = modelToWorld(p, yawOf(f));
+        Block anchor = f.display().getLocation().getBlock();
+        return anchor.getLocation().add(0.5 + o[0], 0.5 + o[1], 0.5 + o[2]);
+    }
+
+    /** The part entities of a piece (extra models such as wheels), in the order of the item's parts. */
+    public List<ItemDisplay> parts(Furniture f) {
+        List<ItemDisplay> out = new ArrayList<>();
+        for (String part : f.data().getOrDefault(keyParts, PersistentDataType.STRING, "").split(";")) {
+            if (part.isBlank()) continue;
+            if (Bukkit.getEntity(UUID.fromString(part)) instanceof ItemDisplay d) out.add(d);
+        }
+        return out;
+    }
+
+    public void setPartModel(ItemDisplay part, NamespacedKey model) {
+        ItemStack it = part.getItemStack();
+        NamespacedKey now = it.hasItemMeta() ? it.getItemMeta().getItemModel() : null;
+        if (model.equals(now)) return;
+        it.editMeta(m -> m.setItemModel(model));
+        part.setItemStack(it);
+    }
+
+    /** Starts or stops a spinning part; it keeps its axis and speed (a stopped part stays where it is). */
+    public void setSpinning(ItemDisplay part, boolean on) {
+        PersistentDataContainer pdc = part.getPersistentDataContainer();
+        if (!pdc.has(keySpin)) return;
+        if (on) {
+            pdc.remove(keySpinOff);
+            spinning.add(part.getUniqueId());
+        } else {
+            pdc.set(keySpinOff, PersistentDataType.BYTE, (byte) 1);
+            spinning.remove(part.getUniqueId());
+        }
+    }
+
+    public boolean isSpinning(ItemDisplay part) {
+        return spinning.contains(part.getUniqueId());
     }
 
     private Optional<FurnitureBehavior> behavior(CustomItem item) {

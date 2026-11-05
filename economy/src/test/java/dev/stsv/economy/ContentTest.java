@@ -56,6 +56,7 @@ class ContentTest {
 
     static boolean exists(String id, Set<String> ours) {
         if (id.startsWith("economy:")) return ours.contains(id);
+        if (id.startsWith("#")) return List.of("#logs", "#small_flowers", "#planks", "#minecraft:logs", "#minecraft:planks").contains(id);
         if (id.startsWith("stsv:")) return Files.exists(Path.of(System.getProperty("stsv.content")).resolve("../../content/stsv"));
         Material m = Material.matchMaterial(id);
         return m != null && !m.isLegacy() && m != Material.AIR;   // isItem() needs a running server
@@ -77,10 +78,13 @@ class ContentTest {
         for (var b : shop.buy()) if (!exists(b.id(), ours)) problems.add("shop buy: " + b.id());
         for (var m : shop.merchant()) if (!exists(m.id(), ours)) problems.add("merchant: " + m.id());
         for (var v : shop.vanity()) if (!v.kind().equals("cosmetic") && !v.kind().equals("title")) problems.add("vanity kind: " + v.kind());
-        for (String id : jobs.products().keySet()) if (!exists(id, ours)) problems.add("product: " + id);
         for (var j : jobs.jobs().values()) {
             if (!exists(j.icon(), ours)) problems.add("job icon: " + j.icon());
-            for (var d : j.drops().values()) for (String id : d) if (!exists(id, ours)) problems.add("job drop: " + id);
+            if (!machines.containsKey(j.machine())) problems.add("job machine: " + j.machine());
+            if (j.finds() != null) {
+                for (var d : j.finds().drops().values()) for (String id : d) if (!exists(id, ours)) problems.add("job find: " + id);
+                for (String id : j.finds().pool().keySet()) if (!exists(id, ours)) problems.add("job find: " + id);
+            }
         }
         for (MachineSpec m : machines.values()) {
             if (!exists(m.item(), ours)) problems.add("machine item: " + m.item());
@@ -88,24 +92,34 @@ class ContentTest {
             for (var r : m.recipes()) {
                 if (!exists(r.output(), ours)) problems.add(m.id() + " out: " + r.output());
                 for (String in : r.inputs().keySet()) if (!exists(in, ours)) problems.add(m.id() + " in: " + in);
-                if (r.level() > jobs.maxLevel()) problems.add(m.id() + " level " + r.level());
             }
+            // every tier of the machine and its parts has a model
+            for (int t = 0; t < 4; t++) {
+                if (!Files.exists(PACK.resolve("models/" + m.model() + "_" + t + ".bbmodel"))) problems.add(m.id() + " model tier " + t);
+                for (String part : m.parts()) if (!Files.exists(PACK.resolve("models/" + part + "_" + t + ".bbmodel"))) problems.add(m.id() + " part " + part + "_" + t);
+            }
+            // every good sells: the shop's base price is what machine XP is counted from
+            for (var r : m.recipes()) if (!shop.sell().containsKey(r.output())) problems.add(m.id() + " good not in the shop: " + r.output());
         }
         for (var e : requests.pool()) if (!exists(e.item(), ours)) problems.add("request: " + e.item());
         for (var c : requests.community()) if (!exists(c.item(), ours)) problems.add("community: " + c.item());
         assertTrue(problems.isEmpty(), String.join("\n", problems));
 
-        // the shape: 6 jobs, 42 job products (6 of them machines), 12 things jobs find, 28 crop items (13 seeds, 15 harvests)
+        // the shape: 6 jobs, 6 finds, 55 machine goods, 6 machines, 32 crop items (15 seeds, 17 harvests)
         assertEquals(6, jobs.jobs().size());
-        assertEquals(42 + 12 + 32, ours.size(), "42 job products + 12 job finds + 32 crop items");
-        assertTrue(ours.containsAll(jobs.products().keySet()));
+        assertEquals(6 + 55 + 6 + 32, ours.size(), "6 finds + 55 goods + 6 machines + 32 crop items");
         assertEquals(6, machines.size());
+        assertEquals(55, machines.values().stream().flatMap(x -> x.recipes().stream()).map(MachineSpec.Recipe::output).distinct().count());
         assertTrue(events.keySet().containsAll(List.of("shortage", "crash", "harvest", "merchant", "tax_audit")));
         assertFalse(Files.exists(PACK.resolve("season.yml")), "no season plan any more");
         // every job product can actually be made: by a recipe, a machine or a job drop
         Set<String> makeable = new HashSet<>();
         for (MachineSpec m : machines.values()) for (var r : m.recipes()) makeable.add(r.output());
-        for (var j : jobs.jobs().values()) for (var d : j.drops().values()) makeable.addAll(d);
+        for (var j : jobs.jobs().values()) {
+            if (j.finds() == null) continue;
+            for (var d : j.finds().drops().values()) makeable.addAll(d);
+            makeable.addAll(j.finds().pool().keySet());
+        }
         YamlConfiguration recipes = yaml("recipes/jobs.yml");
         for (String k : recipes.getKeys(false)) {
             ConfigurationSection r = recipes.getConfigurationSection(k);
@@ -172,7 +186,7 @@ class ContentTest {
         List<String> problems = new ArrayList<>();
         List<MenuSpec> menus = MenuSpec.loadAll(List.of(new ContentPack("economy", "economy", PACK)), problems);
         assertTrue(problems.isEmpty(), String.join("\n", problems));
-        assertEquals(11, menus.size());
+        assertEquals(12, menus.size());
         for (MenuSpec m : menus) {
             assertTrue(m.background() != null, m.id() + " has a background");
             BufferedImage im = ImageIO.read(PACK.resolve("assets/economy/textures/" + m.background().getKey() + ".png").toFile());

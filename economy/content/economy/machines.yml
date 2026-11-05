@@ -1,72 +1,123 @@
-# 직업 기계: 재료 칸 3개에 넣으면 시간이 지나 결과 칸에 나옴. 마지막으로 연 그 직업 사람이 운영자:
-# 그 사람의 레벨로 레시피가 열리고, 경험치와 품질이 그 사람 것. 아무도 안 봐도 계속 돌아감.
-# in: { 재료: 개수 } (3종류까지), out: 결과, amount: 개수, seconds: 한 번에 걸리는 시간, level: 운영자 직업 레벨
+# 직업 기계 (가구). 누구나 설치하고 쓸 수 있음. 그 기계의 직업인 사람이 돌리면 직업 레벨에 따라 빨라지고,
+# 경험치와 직업 효과(jobs.yml machine-bonus)를 받음. 재료를 넣은 사람이 그 줄의 운영자.
+# 줄(lane): 재료 칸 3개 + 결과 칸 1개. 레시피를 고르지 않으면 넣은 재료로 알아서 고름 (같은 재료로 되는 게 여럿이면 목록 앞쪽).
+# 강화는 설치한 사람만: 그 직업 레벨과 골드가 필요. 강화하면 줄이 늘고 빨라지고 새 레시피와 새 모습. 회수해도 강화는 유지.
+#
+# 레시피: in = { 재료: 개수 } (3종류까지, '#logs' 처럼 태그도 됨), out, amount, seconds (기본 속도의 시간),
+#   tier = 열리는 강화 단계 (0 기본 ~ 3), aging = 숙성 (연금술사 Lv20 숙성 절반 대상)
+# effect: 작동 중 파티클·소리, at = 모델 좌표 (16 = 한 칸, 바닥 y 0)
 
-crusher:
-  name: "분쇄기"
-  item: economy:crusher
+upgrade:
+  cost: [5000, 20000, 50000]   # 1강, 2강, 3강
+  level: [10, 20, 30]          # 설치한 사람의 그 직업 레벨
+  lanes: [1, 2, 3, 4]          # 기본, 1강, 2강, 3강
+  speed: [0, 0.15, 0.30, 0.50]
+xp-per-gold: 0.2               # 그 직업인 운영자: 생산품 기준가(상점) 5G 당 경험치 1
+
+gem_bench:
+  name: "세공대"
+  item: economy:gem_bench
   job: miner
+  model: gem_bench
+  parts: [gem_bench_wheel]
+  effect: { particle: crit, at: [8, 24, 5], sound: block.grindstone.use, volume: 0.35, pitch: 1.4 }
   recipes:
-    - { in: { raw_iron: 1 }, out: economy:iron_dust, amount: 2, seconds: 6, level: 1 }
-    - { in: { raw_gold: 1 }, out: economy:gold_dust, amount: 2, seconds: 8, level: 1 }
-    - { in: { raw_copper: 1 }, out: economy:copper_dust, amount: 3, seconds: 5, level: 1 }
-    - { in: { economy:rough_ruby: 1 }, out: economy:ruby, seconds: 30, level: 3 }
-    - { in: { economy:rough_sapphire: 1 }, out: economy:sapphire, seconds: 30, level: 3 }
-    - { in: { economy:rough_topaz: 1 }, out: economy:topaz, seconds: 30, level: 3 }
+    - { in: { economy:rough_ruby: 1 }, out: economy:ruby, seconds: 30 }   # 루비 38G
+    - { in: { economy:rough_sapphire: 1 }, out: economy:sapphire, seconds: 30 }   # 사파이어 38G
+    - { in: { coal: 8 }, out: economy:coke, seconds: 40 }   # 코크스 48G
+    - { in: { copper_ingot: 8 }, out: economy:copper_plate, seconds: 40 }   # 구리판 36G
+    - { in: { economy:rough_ruby: 4 }, out: economy:ruby, amount: 5, seconds: 90, tier: 1 }   # 루비 38G
+    - { in: { economy:rough_sapphire: 4 }, out: economy:sapphire, amount: 5, seconds: 90, tier: 1 }   # 사파이어 38G
+    - { in: { gold_ingot: 2, economy:ruby: 1 }, out: economy:ruby_ring, seconds: 120, tier: 1 }   # 루비 반지 133G
+    - { in: { economy:polished_pearl: 1, gold_ingot: 2, economy:sapphire: 1 }, out: economy:pearl_necklace, seconds: 240, tier: 2 }   # 진주 목걸이 427G
+    - { in: { gold_ingot: 8, economy:ruby_ring: 2, economy:pearl_necklace: 1 }, out: economy:jeweled_crown, seconds: 480, tier: 3 }   # 보석 왕관 1841G
 
-fish_tank:
-  name: "수조"
-  item: economy:fish_tank
+mill:
+  name: "가공대"
+  item: economy:mill
+  job: farmer
+  model: mill
+  parts: [mill_stone]
+  effect: { particle: white_ash, at: [16, 15, 16], sound: block.grindstone.use, volume: 0.3, pitch: 0.6 }
+  recipes:
+    - { in: { economy:paddy: 4 }, out: economy:rice, seconds: 20 }   # 쌀 24G
+    - { in: { wheat: 4 }, out: economy:flour, seconds: 20 }   # 밀가루 12G
+    - { in: { economy:soybean: 4 }, out: economy:tofu, seconds: 30 }   # 두부 24G
+    - { in: { economy:chili_pepper: 4 }, out: economy:chili_powder, seconds: 30 }   # 고춧가루 42G
+    - { in: { economy:corn: 2 }, out: economy:corn_flour, seconds: 30 }   # 옥수수 가루 30G
+    - { in: { economy:grapes: 4 }, out: economy:grape_juice, seconds: 60, tier: 1 }   # 포도즙 60G
+    - { in: { economy:zucchini: 3 }, out: economy:dried_zucchini, seconds: 60, tier: 1 }   # 호박고지 40G
+    - { in: { economy:tomato: 4 }, out: economy:tomato_sauce, seconds: 60, tier: 1 }   # 토마토 소스 36G
+    - { in: { wheat: 16 }, out: economy:flour, amount: 5, seconds: 90, tier: 1 }   # 밀가루 12G
+    - { in: { economy:soybean: 8 }, out: economy:doenjang, seconds: 1200, tier: 2, aging: true }   # 된장 48G
+    - { in: { economy:chili_powder: 1, economy:rice: 1, economy:soybean: 2 }, out: economy:gochujang, seconds: 1200, tier: 2, aging: true }   # 고추장 163G
+    - { in: { economy:doenjang: 2, economy:gochujang: 2 }, out: economy:jang_set, seconds: 480, tier: 3 }   # 전통 장 세트 928G
+
+fish_bench:
+  name: "손질대"
+  item: economy:fish_bench
   job: fisher
+  model: fish_bench
+  effect: { particle: splash, at: [8, 17, 6], sound: block.wood.hit, volume: 0.4, pitch: 1.3 }
   recipes:
-    - { in: { cod: 4, economy:feed: 1 }, out: minecraft:cod, amount: 6, seconds: 30, level: 1, xp: 2 }
-    - { in: { salmon: 4, economy:feed: 1 }, out: minecraft:salmon, amount: 6, seconds: 30, level: 1, xp: 2 }
-    - { in: { salmon: 2, economy:feed: 2 }, out: economy:salmon_roe, amount: 2, seconds: 45, level: 2 }
-    - { in: { tropical_fish: 2, economy:feed: 2 }, out: economy:pearl, seconds: 90, level: 3 }
-    - { in: { prismarine_shard: 4, economy:pearl: 1 }, out: economy:sea_crystal, seconds: 90, level: 3 }
+    - { in: { cod: 2 }, out: economy:cod_fillet, seconds: 20 }   # 대구 필렛 9G
+    - { in: { salmon: 2 }, out: economy:salmon_fillet, seconds: 20 }   # 연어 필렛 9G
+    - { in: { cod: 3 }, out: economy:dried_pollack, seconds: 40 }   # 북어 14G
+    - { in: { pufferfish: 1 }, out: economy:prepared_puffer, seconds: 30 }   # 손질한 복어 6G
+    - { in: { salmon: 3 }, out: economy:smoked_salmon, seconds: 60, tier: 1 }   # 훈제 연어 14G
+    - { in: { economy:red_seabream: 1 }, out: economy:seabream_sashimi, amount: 2, seconds: 60, tier: 1 }   # 참돔 회 30G
+    - { in: { economy:bluefin_tuna: 1 }, out: economy:tuna_sashimi, amount: 4, seconds: 120, tier: 1 }   # 참치 회 94G
+    - { in: { economy:pearl: 1 }, out: economy:polished_pearl, seconds: 180, tier: 2 }   # 연마 진주 120G
+    - { in: { economy:cod_fillet: 2, economy:flour: 1, economy:green_onion: 1 }, out: economy:fishcake, amount: 3, seconds: 120, tier: 2 }   # 어묵 26G
+    - { in: { economy:sturgeon: 1 }, out: economy:caviar, amount: 3, seconds: 300, tier: 3 }   # 캐비아 150G
 
-reinforcing_table:
-  name: "강화대"
-  item: economy:reinforcing_table
+forge:
+  name: "대장간"
+  item: economy:forge
   job: blacksmith
+  model: forge
+  effect: { particle: flame, at: [22, 14, 21], sound: block.anvil.use, volume: 0.25, pitch: 1.0 }
   recipes:
-    - { in: { iron_ingot: 2, coal: 2 }, out: economy:steel_ingot, seconds: 20, level: 2 }
-    - { in: { diamond_sword: 1, economy:ruby: 2, economy:grand_catalyst: 1 }, out: economy:ruby_sword, seconds: 60, level: 3 }
-    - { in: { diamond_pickaxe: 1, economy:sapphire: 2, economy:grand_catalyst: 1 }, out: economy:sapphire_pickaxe, seconds: 60, level: 3 }
-    - { in: { diamond_chestplate: 1, economy:topaz: 3, economy:grand_catalyst: 1 }, out: economy:topaz_chestplate, seconds: 60, level: 3 }
+    - { in: { iron_ingot: 4 }, out: economy:iron_plate, seconds: 40 }   # 철판 60G
+    - { in: { iron_ingot: 3 }, out: economy:iron_chain, seconds: 40 }   # 쇠사슬 45G
+    - { in: { gold_ingot: 2 }, out: economy:gold_leaf, amount: 4, seconds: 40 }   # 금박 14G
+    - { in: { iron_ingot: 2, economy:coke: 1 }, out: economy:steel_ingot, seconds: 90, tier: 1 }   # 강철괴 122G
+    - { in: { oak_log: 6, economy:iron_plate: 1 }, out: economy:oak_barrel, seconds: 90, tier: 1 }   # 참나무통 119G
+    - { in: { economy:steel_ingot: 2, economy:iron_chain: 1, "#logs": 2 }, out: economy:steel_toolset, seconds: 240, tier: 2 }   # 강철 공구 세트 640G
+    - { in: { economy:steel_ingot: 4, economy:gold_leaf: 4, economy:ruby: 2 }, out: economy:ornate_armor, seconds: 480, tier: 3 }   # 장식용 갑옷 1364G
 
-cooking_table:
+kitchen:
   name: "조리대"
-  item: economy:cooking_table
+  item: economy:kitchen
   job: cook
+  model: kitchen
+  effect: { particle: cloud, at: [24, 21, 7.5], sound: block.campfire.crackle, volume: 0.6, pitch: 1.0 }
   recipes:
-    - { in: { bread: 1, cooked_beef: 1, carrot: 1 }, out: economy:miner_lunchbox, amount: 2, seconds: 15, level: 1 }
-    - { in: { economy:tomato: 2, carrot: 1, bowl: 1 }, out: economy:sprint_salad, amount: 2, seconds: 15, level: 1 }
-    - { in: { economy:radish: 1, cooked_beef: 2, bowl: 1 }, out: economy:hearty_stew, amount: 2, seconds: 25, level: 2 }
-    - { in: { wheat: 2, honey_bottle: 1, economy:strawberry: 2 }, out: economy:honey_pie, amount: 2, seconds: 25, level: 2 }
-    - { in: { economy:truffle: 1, economy:golden_egg: 1, economy:lobster: 1 }, out: economy:royal_feast, amount: 2, seconds: 40, level: 3 }
-    - { in: { economy:truffle: 1, economy:paddy: 2, bowl: 1 }, out: economy:truffle_risotto, amount: 2, seconds: 40, level: 3 }
-    - { in: { economy:pearl: 1, sugar: 2, economy:golden_egg: 1 }, out: economy:pearl_dessert, amount: 2, seconds: 40, level: 3 }
+    - { in: { economy:napa_cabbage: 2, economy:chili_powder: 1, economy:garlic: 2 }, out: economy:kimchi, amount: 2, seconds: 60 }   # 김치 79G
+    - { in: { economy:radish: 2, economy:chili_powder: 1, economy:garlic: 1 }, out: economy:kkakdugi, amount: 2, seconds: 60 }   # 깍두기 68G
+    - { in: { economy:cucumber: 2, economy:chili_powder: 1, economy:green_onion: 1 }, out: economy:oi_sobagi, amount: 2, seconds: 60 }   # 오이소박이 55G
+    - { in: { economy:eggplant: 2, economy:onion: 1, economy:garlic: 1 }, out: economy:eggplant_stirfry, amount: 2, seconds: 40 }   # 가지볶음 22G
+    - { in: { economy:flour: 1, economy:zucchini: 1, egg: 1 }, out: economy:hobakjeon, amount: 2, seconds: 40 }   # 호박전 20G
+    - { in: { economy:tofu: 1, economy:chili_powder: 1, egg: 1 }, out: economy:sundubu_jjigae, amount: 2, seconds: 60 }   # 순두부찌개 74G
+    - { in: { economy:rice: 1, economy:tuna_sashimi: 1 }, out: economy:tuna_sushi, amount: 2, seconds: 90, tier: 1 }   # 참치 초밥 130G
+    - { in: { economy:flour: 2, economy:strawberry: 3, egg: 1 }, out: economy:strawberry_cake, seconds: 90, tier: 1 }   # 딸기 케이크 94G
+    - { in: { economy:flour: 1, economy:tomato_sauce: 1, economy:onion: 1 }, out: economy:tomato_pasta, seconds: 90, tier: 1 }   # 토마토 파스타 123G
+    - { in: { economy:corn_flour: 2, egg: 1, sugar: 1 }, out: economy:corn_bread, amount: 2, seconds: 90, tier: 1 }   # 옥수수빵 56G
+    - { in: { economy:rice: 1, economy:gochujang: 1, economy:lettuce: 2 }, out: economy:bibimbap, seconds: 180, tier: 2 }   # 비빔밥 433G
+    - { in: { economy:cod_fillet: 2, economy:rice: 1, economy:kimchi: 1 }, out: economy:grilled_fish_set, seconds: 180, tier: 2 }   # 생선구이 정식 266G
+    - { in: { economy:bibimbap: 1, economy:grilled_fish_set: 1, economy:doenjang: 1 }, out: economy:hanjeongsik, seconds: 480, tier: 3 }   # 한정식 1643G
 
-smoker_oven:
-  name: "훈연 화덕"
-  item: economy:smoker_oven
-  job: cook
-  recipes:
-    - { in: { economy:sea_bream: 1, economy:chili_pepper: 1 }, out: economy:lucky_grill, amount: 2, seconds: 15, level: 1 }
-    - { in: { economy:tuna: 1, economy:paddy: 1, dried_kelp: 2 }, out: economy:golden_sushi, amount: 2, seconds: 25, level: 2 }
-
-distiller:
+still:
   name: "증류기"
-  item: economy:distiller
+  item: economy:still
   job: alchemist
+  model: still
+  effect: { particle: bubble_pop, at: [10, 18, 12.5], sound: block.brewing_stand.brew, volume: 0.35, pitch: 0.8 }
   recipes:
-    - { in: { glass_bottle: 1, economy:iron_dust: 2, redstone: 1 }, out: economy:miners_tonic, seconds: 20, level: 1 }
-    - { in: { glass_bottle: 1, sugar: 3 }, out: economy:swift_tonic, seconds: 20, level: 1 }
-    - { in: { economy:rough_ruby: 1, redstone: 4, glowstone_dust: 2 }, out: economy:catalyst, seconds: 30, level: 2 }
-    - { in: { economy:rough_sapphire: 1, redstone: 4, glowstone_dust: 2 }, out: economy:catalyst, seconds: 30, level: 2 }
-    - { in: { economy:rough_topaz: 1, redstone: 4, glowstone_dust: 2 }, out: economy:catalyst, seconds: 30, level: 2 }
-    - { in: { glass_bottle: 1, economy:golden_carp: 1, lapis_lazuli: 2 }, out: economy:luck_tonic, seconds: 30, level: 2 }
-    - { in: { economy:catalyst: 2, economy:sea_crystal: 1, amethyst_shard: 2 }, out: economy:grand_catalyst, seconds: 45, level: 3 }
-    - { in: { glass_bottle: 1, economy:black_pearl: 1, glistering_melon_slice: 2 }, out: economy:elixir, seconds: 45, level: 3 }
-    - { in: { economy:ruby: 1, economy:sapphire: 1, economy:topaz: 1 }, out: economy:essence, seconds: 60, level: 3 }
+    - { in: { economy:rice: 2, wheat: 4 }, out: economy:makgeolli, amount: 2, seconds: 600, aging: true }   # 막걸리 50G
+    - { in: { economy:makgeolli: 2 }, out: economy:soju, seconds: 120 }   # 소주 180G
+    - { in: { economy:muskmelon: 1, sugar: 2 }, out: economy:melon_syrup, amount: 2, seconds: 60 }   # 멜론 시럽 21G
+    - { in: { economy:grape_juice: 2 }, out: economy:wine, seconds: 1200, tier: 1, aging: true }   # 포도주 216G
+    - { in: { economy:melon_syrup: 1, economy:soju: 1 }, out: economy:melon_liqueur, seconds: 180, tier: 1 }   # 멜론 리큐어 442G
+    - { in: { economy:soju: 1, economy:polished_pearl: 1, "#small_flowers": 4 }, out: economy:pearl_perfume, seconds: 240, tier: 2 }   # 진주 향수 669G
+    - { in: { economy:wine: 3, economy:oak_barrel: 1 }, out: economy:vintage_wine, seconds: 7200, tier: 3, aging: true }   # 빈티지 포도주 1687G

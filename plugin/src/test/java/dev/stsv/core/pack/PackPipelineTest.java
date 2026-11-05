@@ -90,7 +90,17 @@ class PackPipelineTest {
         Map<String, byte[]> files = unzip(a.zip());
         assertTrue(files.containsKey("assets/stsv/models/item/test_machine.json"));
         assertTrue(files.containsKey("assets/stsv/items/model/test_fan_blade.json"), "every 3D model gets an item definition");
-        assertTrue(files.containsKey("assets/stsv/textures/item/test_machine/dev_screen.png.mcmeta"), "animated texture metadata");
+        // model textures are stored once by content under textures/item/shared, the model points there
+        JsonObject machine = JsonParser.parseString(new String(files.get("assets/stsv/models/item/test_machine.json"), StandardCharsets.UTF_8)).getAsJsonObject();
+        java.util.Set<String> refs = new java.util.HashSet<>();
+        machine.getAsJsonObject("textures").entrySet().forEach(e -> refs.add(e.getValue().getAsString()));
+        for (String ref : refs) {
+            assertTrue(ref.startsWith("stsv:item/shared/"), "shared texture: " + ref);
+            assertTrue(files.containsKey("assets/stsv/textures/item/" + ref.substring("stsv:item/".length()) + ".png"), "texture file for " + ref);
+        }
+        assertTrue(files.keySet().stream().anyMatch(f -> f.startsWith("assets/stsv/textures/item/shared/") && f.endsWith(".png.mcmeta")),
+                "animated texture metadata");
+        assertTrue(files.keySet().stream().noneMatch(f -> f.startsWith("assets/stsv/textures/item/test_machine/")), "no per-model copies");
         assertTrue(files.containsKey("assets/stsv/models/item/test_material.json"));
         assertTrue(files.containsKey("assets/stsv/textures/item/test_material.png"));
 
