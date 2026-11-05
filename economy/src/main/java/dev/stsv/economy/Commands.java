@@ -213,6 +213,7 @@ final class Commands {
             }
             eco.vanity().build(p, String.join(" ", a));
         }), null));
+        eco.command("납품", new Simple(player((p, a) -> eco.shop().deliver(p)), null));
         eco.command("기부", new Simple(player((p, a) -> eco.vanity().donate(p, a.length > 0 ? amount(a[0]) : 0)), null));
     }
 }

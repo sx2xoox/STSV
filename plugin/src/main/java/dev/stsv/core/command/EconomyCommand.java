@@ -80,7 +80,7 @@ public final class EconomyCommand implements TabExecutor {
             return;
         }
         if (args.length < 2) {
-            p.sendMessage(Lang.msg("economy.usage-pay", "fee", trim(plugin.getConfig().getDouble("economy.transfer-fee") * 100)));
+            p.sendMessage(Lang.msg("economy.usage-pay", "fee", trim(eco().feeRate() * 100)));
             return;
         }
         long amount = amount(p, args[1]);

@@ -11,6 +11,7 @@ import dev.stsv.economy.calendar.DailyListener;
 import dev.stsv.economy.EcoModule;
 import dev.stsv.economy.EcoPlugin;
 import dev.stsv.economy.event.ActiveEvent;
+import dev.stsv.economy.event.EventSpec;
 import dev.stsv.economy.util.Items;
 import net.kyori.adventure.text.Component;
 import org.bukkit.Bukkit;
@@ -69,6 +70,8 @@ public final class ShopModule extends EcoModule implements DailyListener {
         eco.events().onStart("shortage", this::startShortage);
         eco.events().onStart("crash", this::startCrash);
         eco.events().onStart("merchant", e -> e.params().put("detail", Lang.raw("shop.merchant-detail")));
+        eco.events().onStart("urgent_order", this::startOrder);
+        eco.events().onStart("premium_buyer", this::startPremium);
         every(1200L, this::minute);
     }
 
@@ -116,13 +119,28 @@ public final class ShopModule extends EcoModule implements DailyListener {
         return List.of(s.split(","));
     }
 
-    /** Everything that changes an item's price right now (수요 고시, 품귀, 폭락). */
+    /** Everything that changes an item's price right now (수요 고시, 품귀, 폭락, 고가 매입상 while its stock lasts). */
     public double multiplier(String item) {
+        double m = baseMultiplier(item);
+        ActiveEvent premium = premiumFor(item);
+        if (premium != null) m *= premium.number("multiplier", 2);
+        return m;
+    }
+
+    private double baseMultiplier(String item) {
         double m = 1;
         if (noticed().contains(item)) m *= catalog.demand().multiplier();
         for (ActiveEvent e : eco.events().active("shortage")) if (item.equals(e.param("item"))) m *= e.number("multiplier", 3);
         for (ActiveEvent e : eco.events().active("crash")) if (item.equals(e.param("item"))) m *= e.number("multiplier", 0.5);
         return m;
+    }
+
+    /** The running 고가 매입상 that still buys this item, or null. */
+    private ActiveEvent premiumFor(String item) {
+        for (ActiveEvent e : eco.events().active("premium_buyer")) {
+            if (EventSpec.list(e.param("items")).contains(item) && e.number("left." + item, 0) > 0) return e;
+        }
+        return null;
     }
 
     public double price(String item) {
@@ -162,8 +180,22 @@ public final class ShopModule extends EcoModule implements DailyListener {
         int n = Math.min(count, have);
         if (e.cap() != null) n = Math.min(n, e.cap() - store.soldBy(p.getUniqueId(), id));
         if (n <= 0) return e.cap() != null && store.soldBy(p.getUniqueId(), id) >= e.cap() ? "shop.cap-reached" : "shop.not-buying";
-        double mult = multiplier(id);
-        double total = PriceModel.total(e.base(), store.sold(id), e.q(), eco.activity().store().players(), catalog.floor(), mult, n);
+        int players = eco.activity().store().players();
+        double total;
+        ActiveEvent premium = premiumFor(id);
+        if (premium == null) {
+            total = PriceModel.total(e.base(), store.sold(id), e.q(), players, catalog.floor(), multiplier(id), n);
+        } else {
+            // the 고가 매입상 pays double for what is left of its stock; the rest sells at the usual price
+            int left = (int) premium.number("left." + id, 0), high = Math.min(n, left);
+            double normal = baseMultiplier(id);
+            total = PriceModel.total(e.base(), store.sold(id), e.q(), players, catalog.floor(), normal * premium.number("multiplier", 2), high)
+                    + PriceModel.total(e.base(), store.sold(id) + high, e.q(), players, catalog.floor(), normal, n - high);
+            java.util.Map<String, String> params = new java.util.LinkedHashMap<>(premium.params());
+            params.put("left." + id, String.valueOf(left - high));
+            eco.events().update(premium, params);
+            if (left - high <= 0) Bukkit.broadcast(Lang.msg("shop.premium-sold-out", "item", itemName(id), "player", p.getName()));
+        }
         String rk = p.getUniqueId() + "|" + id;
         total += remainder.getOrDefault(rk, 0.0);
         long paid = (long) Math.floor(total);
@@ -274,11 +306,108 @@ public final class ShopModule extends EcoModule implements DailyListener {
         if (catalog.demand().count() > 0 && noticed().isEmpty()) announceNotice(dayStart);
     }
 
-    /** Items a running 품귀 or 시장 폭락 is about: never in the 수요 고시 at the same time. */
+    /** Items a running event is about (품귀, 폭락, 긴급 납품, 고가 매입상): never in the 수요 고시 or another event at the same time. */
     private java.util.Set<String> eventItems() {
         java.util.Set<String> out = new java.util.HashSet<>();
-        for (String type : List.of("shortage", "crash")) for (ActiveEvent e : eco.events().active(type)) if (e.param("item") != null) out.add(e.param("item"));
+        for (String type : List.of("shortage", "crash", "urgent_order")) {
+            for (ActiveEvent e : eco.events().active(type)) if (e.param("item") != null) out.add(e.param("item"));
+        }
+        for (ActiveEvent e : eco.events().active("premium_buyer")) out.addAll(EventSpec.list(e.param("items")));
         return out;
+    }
+
+    /** Things gathered by a job (ores, crops, fish): what the 긴급 납품 and 고가 매입상 ask for. */
+    private List<ShopCatalog.SellEntry> gathered() {
+        List<ShopCatalog.SellEntry> pool = new ArrayList<>();
+        for (ShopCatalog.SellEntry x : catalog.sell().values()) {
+            if (x.job() != null && !noticed().contains(x.id()) && !eventItems().contains(x.id())) pool.add(x);
+        }
+        if (pool.isEmpty()) pool.addAll(catalog.sell().values());
+        return pool;
+    }
+
+    // ------------------------------------------------------------------------------------------
+    // 긴급 납품: a merchant orders a lot of one thing; the earlier you deliver, the more each one pays
+    // ------------------------------------------------------------------------------------------
+
+    private void startOrder(ActiveEvent e) {
+        List<ShopCatalog.SellEntry> pool = gathered();
+        ShopCatalog.SellEntry pick = pool.get(ThreadLocalRandom.current().nextInt(pool.size()));
+        int target = Order.target(pick.base(), e.number("target-value", 3000), (int) e.number("min", 16), (int) e.number("max", 512));
+        e.params().put("item", pick.id());
+        e.params().put("base", String.valueOf(pick.base()));
+        e.params().put("target", String.valueOf(target));
+        e.params().put("delivered", "0");
+        e.params().put("detail", orderDetail(e.params()));
+    }
+
+    private Order order(java.util.Map<String, String> p) {
+        return new Order(Double.parseDouble(p.getOrDefault("base", "1")), Integer.parseInt(p.getOrDefault("target", "1")),
+                Double.parseDouble(p.getOrDefault("top", "2")), Double.parseDouble(p.getOrDefault("bottom", "1")));
+    }
+
+    private String orderDetail(java.util.Map<String, String> p) {
+        Order o = order(p);
+        int done = Integer.parseInt(p.getOrDefault("delivered", "0"));
+        return Lang.raw("shop.order-detail", "item", itemName(p.get("item")), "done", done, "target", o.target(),
+                "unit", String.format("%.1f", o.unit(done)));
+    }
+
+    /** /납품: hands in every matching item for the running 긴급 납품. */
+    public void deliver(Player p) {
+        List<ActiveEvent> running = eco.events().active("urgent_order");
+        if (running.isEmpty()) {
+            p.sendMessage(Lang.msg("shop.order-none"));
+            return;
+        }
+        ActiveEvent e = running.getFirst();
+        String id = e.param("item");
+        Order o = order(e.params());
+        int done = (int) e.number("delivered", 0);
+        java.util.function.Predicate<ItemStack> same = it -> Items.plain(it, id);
+        int n = Math.min(Items.count(p.getInventory(), same), o.target() - done);
+        if (n <= 0) {
+            p.sendMessage(Lang.msg("shop.order-missing", "item", itemName(id)));
+            return;
+        }
+        int removed = Items.remove(p.getInventory(), same, n);
+        long paid = (long) Math.floor(o.pay(done, removed));
+        if (paid > 0) core.economy().move(null, p.getUniqueId(), paid, EconomyStore.Kind.FAUCET, "urgent_order", id + " x" + removed);
+        java.util.Map<String, String> params = new java.util.LinkedHashMap<>(e.params());
+        String by = "by." + p.getUniqueId();
+        params.put(by, String.valueOf(Integer.parseInt(params.getOrDefault(by, "0")) + removed));
+        params.put("delivered", String.valueOf(done + removed));
+        params.put("detail", orderDetail(params));
+        e = eco.events().update(e, params);
+        p.sendMessage(Lang.msg("shop.order-delivered", "count", removed, "item", itemName(id), "amount", EconomyModule.format(paid),
+                "done", done + removed, "target", o.target()));
+        p.playSound(p.getLocation(), Sound.ENTITY_VILLAGER_YES, 0.7f, 1f);
+        if (done + removed >= o.target()) {
+            List<String> top = params.entrySet().stream().filter(x -> x.getKey().startsWith("by."))
+                    .sorted(java.util.Map.Entry.<String, String>comparingByValue(java.util.Comparator.comparingInt(Integer::parseInt)).reversed())
+                    .limit(3).map(x -> dev.stsv.economy.util.Players.name(java.util.UUID.fromString(x.getKey().substring(3))) + " " + x.getValue()).toList();
+            Bukkit.broadcast(Lang.msg("shop.order-complete", "item", itemName(id), "target", o.target(), "top", String.join(", ", top)));
+            eco.events().end(e);
+        }
+    }
+
+    // ------------------------------------------------------------------------------------------
+    // 고가 매입상: a few things bought at double the market price, while its stock lasts
+    // ------------------------------------------------------------------------------------------
+
+    private void startPremium(ActiveEvent e) {
+        List<ShopCatalog.SellEntry> pool = gathered();
+        java.util.Collections.shuffle(pool, ThreadLocalRandom.current());
+        int count = Math.min(pool.size(), ThreadLocalRandom.current().nextInt((int) e.number("min-items", 2), (int) e.number("max-items", 3) + 1));
+        int stock = (int) e.number("stock", 64);
+        List<String> ids = new ArrayList<>();
+        for (int i = 0; i < count; i++) {
+            ids.add(pool.get(i).id());
+            e.params().put("left." + pool.get(i).id(), String.valueOf(stock));
+        }
+        e.params().put("items", String.join(",", ids));
+        e.params().put("detail", Lang.raw("shop.premium-detail", "items", String.join(", ", ids.stream().map(this::itemName).toList()),
+                "mult", trim(e.number("multiplier", 2)), "stock", stock));
     }
 
     /** Picks this week's 수요 고시: not last week's items, not an item of a running 품귀/폭락. Lasts until the next notice weekday. */
@@ -385,6 +514,8 @@ public final class ShopModule extends EcoModule implements DailyListener {
         if (noticed().contains(id)) m.append(Lang.raw("shop.mark-notice"));
         for (ActiveEvent e : eco.events().active("shortage")) if (id.equals(e.param("item"))) m.append(Lang.raw("shop.mark-shortage"));
         for (ActiveEvent e : eco.events().active("crash")) if (id.equals(e.param("item"))) m.append(Lang.raw("shop.mark-crash"));
+        ActiveEvent premium = premiumFor(id);
+        if (premium != null) m.append(Lang.raw("shop.mark-premium", "left", (int) premium.number("left." + id, 0)));
         if (atFloor(id)) m.append(Lang.raw("shop.mark-floor"));
         return m.toString();
     }

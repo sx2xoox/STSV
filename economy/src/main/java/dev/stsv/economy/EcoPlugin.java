@@ -101,6 +101,7 @@ public final class EcoPlugin extends JavaPlugin {
         add(rank = new RankModule(this));
         add(metrics = new MetricsModule(this));   // last: its daily report reads what the others did
         StallRemoval.run(this, core.db());
+        core.economy().feeWaiver(this::feesWaived);   // 수수료 면제 covers /송금 too
         getServer().getPluginManager().registerEvents(new PvpRule(this), this);
         Commands.register(this);
         AdminCommands.register(this);
@@ -119,6 +120,7 @@ public final class EcoPlugin extends JavaPlugin {
         Collections.reverse(reversed);
         if (core != null) {
             core.admin().removeAll(ADMIN_OWNER);
+            core.economy().feeWaiver(null);
             for (StsvModule m : reversed) core.modules().unregister(m.id());
         }
         modules.clear();
@@ -164,6 +166,11 @@ public final class EcoPlugin extends JavaPlugin {
     public TradeModule trade() { return trade; }
     public TradeRules rules() { return rules; }
     public JobModule jobs() { return jobs; }
+
+    /** 수수료 면제: no fees on the 거래소, 경매 or 송금 while it runs. */
+    public boolean feesWaived() {
+        return events != null && events.isActive("fee_free");
+    }
     public MachineModule machines() { return machines; }
     public LandModule land() { return land; }
     public RequestModule requests() { return requests; }

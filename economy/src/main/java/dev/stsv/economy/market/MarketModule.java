@@ -97,7 +97,7 @@ public final class MarketModule extends EcoModule {
         }
         p.getInventory().setItemInMainHand(null);   // only once it is safely listed
         p.sendMessage(Lang.msg("market.listed", "item", l.itemName(), "count", l.amount(), "price", EconomyModule.format(price),
-                "fee", EconomyModule.format(TradeRules.fee(price, rules.marketFee())), "hours", (long) rules.marketHours()));
+                "fee", EconomyModule.format(eco.feesWaived() ? 0 : TradeRules.fee(price, rules.marketFee())), "hours", (long) rules.marketHours()));
         p.playSound(p.getLocation(), Sound.ITEM_BOOK_PAGE_TURN, 0.7f, 1.2f);
     }
 
@@ -121,7 +121,7 @@ public final class MarketModule extends EcoModule {
                 HudModule.flash(p, Lang.mm("market.not-enough", "price", EconomyModule.format(l.price())));
                 return;
             }
-            long fee = TradeRules.fee(l.price(), rules.marketFee());
+            long fee = eco.feesWaived() ? 0 : TradeRules.fee(l.price(), rules.marketFee());
             if (fee > 0 && !core.economy().withdraw(l.seller(), fee, "market_fee")) {
                 eco.getLogger().warning("거래소 수수료를 걷지 못함: 판매자 " + l.seller() + " 글 " + l.id());
             }

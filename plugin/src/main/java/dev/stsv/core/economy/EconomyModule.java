@@ -140,9 +140,21 @@ public final class EconomyModule implements StsvModule, Listener {
         else Bukkit.getScheduler().runTask(plugin, () -> Bukkit.getPluginManager().callEvent(event));
     }
 
+    private volatile java.util.function.BooleanSupplier feeWaiver = () -> false;
+
+    /** Lets a content plugin waive the transfer fee for a while (e.g. an event); null = never. */
+    public void feeWaiver(java.util.function.BooleanSupplier waived) {
+        this.feeWaiver = waived == null ? () -> false : waived;
+    }
+
+    /** The transfer fee rate right now (0 while a content plugin waives it). */
+    public double feeRate() {
+        return feeWaiver.getAsBoolean() ? 0 : plugin.getConfig().getDouble("economy.transfer-fee");
+    }
+
     /** Transfer fee for an amount (at least 1 when the fee rate is above 0). */
     public long fee(long amount) {
-        double rate = plugin.getConfig().getDouble("economy.transfer-fee");
+        double rate = feeRate();
         if (rate <= 0) return 0;
         return Math.max(1, (long) Math.ceil(amount * rate - 1e-9));   // 100 x 0.07 is 7.000000000000001 in floating point
     }

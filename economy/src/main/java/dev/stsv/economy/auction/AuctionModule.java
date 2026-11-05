@@ -241,8 +241,8 @@ public final class AuctionModule extends EcoModule {
         long fee = 0;
         if (a.seller != null) {
             core.economy().transfer(a.bidder, a.seller, a.bid, "auction_sale");
-            fee = TradeRules.fee(a.bid, rules.auctionFee());
-            if (!core.economy().withdraw(a.seller, fee, "auction_fee")) eco.getLogger().warning("경매 수수료를 걷지 못함 #" + a.id);
+            fee = eco.feesWaived() ? 0 : TradeRules.fee(a.bid, rules.auctionFee());
+            if (fee > 0 && !core.economy().withdraw(a.seller, fee, "auction_fee")) eco.getLogger().warning("경매 수수료를 걷지 못함 #" + a.id);
             if (a.deposit > 0) core.economy().move(null, a.seller, a.deposit, EconomyStore.Kind.ESCROW, "auction_deposit_back", "#" + a.id);
         } else {
             core.economy().withdraw(a.bidder, a.bid, "auction_buy");

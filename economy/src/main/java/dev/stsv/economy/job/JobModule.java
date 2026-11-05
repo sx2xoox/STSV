@@ -145,12 +145,15 @@ public final class JobModule extends EcoModule {
         return Math.min(spec.maxLevel(), spec.levelFor(r.xp));
     }
 
-    /** The passive value of a job for a player (0 if they do not have that job). 풍년 doubles farmer/fisher ones. */
+    /**
+     * The passive value of a job for a player (0 if they do not have that job). An event that names jobs
+     * (풍년: farmer, fisher; 광산 호황: miner, blacksmith) multiplies theirs while it runs.
+     */
     public double passive(UUID player, String job, String key) {
         if (!job.equals(job(player))) return 0;
         double v = spec.jobs().get(job).passive(key, level(player));
-        if ((job.equals("farmer") || job.equals("fisher")) && eco.events().isActive("harvest")) {
-            v *= eco.events().active("harvest").getFirst().number("multiplier", 2);
+        for (dev.stsv.economy.event.ActiveEvent e : eco.events().active()) {
+            if (e.runningAt(now()) && dev.stsv.economy.event.EventSpec.list(e.param("jobs")).contains(job)) v *= e.number("multiplier", 2);
         }
         return v;
     }

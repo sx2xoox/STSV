@@ -46,6 +46,21 @@ public final class EventStore {
         return e;
     }
 
+    /** Replaces a running event's details (progress of a delivery, stock left) and saves them. */
+    public ActiveEvent update(ActiveEvent e, Map<String, String> params) {
+        ActiveEvent n = new ActiveEvent(e.id(), e.type(), e.started(), e.ends(), Map.copyOf(params));
+        active.replaceAll(x -> x.id() == e.id() ? n : x);
+        db.execute("UPDATE eco_event SET params = ? WHERE id = ?", ActiveEvent.encode(params), e.id());
+        return n;
+    }
+
+    /** Ends one event now. */
+    public boolean endOne(long now, ActiveEvent e) {
+        if (!active.removeIf(x -> x.id() == e.id())) return false;
+        db.execute("UPDATE eco_event SET active = 0, ends = ? WHERE id = ?", Math.min(now, e.ends()), e.id());
+        return true;
+    }
+
     /** Ends events whose time is up (or all of a type when type != null); returns the ended ones. */
     public List<ActiveEvent> end(long now, String type) {
         List<ActiveEvent> ended = new ArrayList<>();

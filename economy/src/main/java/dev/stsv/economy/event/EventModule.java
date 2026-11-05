@@ -20,13 +20,18 @@ import java.util.concurrent.ConcurrentHashMap;
 import java.util.function.Consumer;
 
 /**
- * Server events (품귀, 시장 폭락, 풍년, 상인 행렬, 세무 조사, ...): the kinds come from events.yml, a
- * running one is kept in the database (a restart does not end it) and shown to everyone as a boss
- * bar. Other modules hook a kind's start (to pick the item, add details) and end.
+ * Server events (품귀, 시장 폭락, 풍년, 상인 행렬, 세무 조사, 광산 호황, 긴급 납품, 고가 매입상, 수수료 면제):
+ * the kinds come from events.yml, a running one is kept in the database (a restart does not end it)
+ * and shown to everyone as a boss bar. They follow each other by themselves ({@link EventChain}):
+ * one at a time, the next one gapHours after the last one ended. Other modules hook a kind's start
+ * (to pick the item, add details) and end.
  */
 public final class EventModule extends EcoModule {
 
+    private static final String NEXT = "event.next", LAST = "event.last";
+
     private Map<String, EventSpec> specs = Map.of();
+    private EventChain chain = EventChain.parse(null);
     private EventStore store;
     private final Map<String, List<Consumer<ActiveEvent>>> onStart = new HashMap<>(), onEnd = new HashMap<>();
     private final Map<Long, BossBar> bars = new ConcurrentHashMap<>();
@@ -61,12 +66,28 @@ public final class EventModule extends EcoModule {
 
     private void load() {
         List<String> problems = new ArrayList<>();
-        specs = EventSpec.parse(eco.data("events.yml"), problems);
+        var y = eco.data("events.yml");
+        specs = EventSpec.parse(y, problems);
+        chain = EventChain.parse(y.getConfigurationSection("chain"));
         problems.forEach(p -> eco.getLogger().warning("[events.yml] " + p));
     }
 
     public Map<String, EventSpec> specs() {
         return specs;
+    }
+
+    public EventChain chain() {
+        return chain;
+    }
+
+    /** When the next event of the chain starts (0 = waiting for the running one to end). */
+    public long next() {
+        return active().isEmpty() ? eco.kv().getLong(NEXT, 0) : 0;
+    }
+
+    /** Testing: the next event in this many minutes. */
+    public void scheduleIn(double minutes) {
+        eco.kv().set(NEXT, now() + (long) (minutes * 60_000));
     }
 
     // ------------------------------------------------------------------------------------------
@@ -120,6 +141,7 @@ public final class EventModule extends EcoModule {
             }
         }
         ActiveEvent e = store.start(type, started, ends, draft.params());
+        eco.kv().set(LAST, type);
         String name = name(type);
         String detail = p.getOrDefault("detail", "");
         for (Player pl : Bukkit.getOnlinePlayers()) {
@@ -129,6 +151,16 @@ public final class EventModule extends EcoModule {
         }
         Bukkit.broadcast(Lang.msg("event.start", "event", name, "detail", detail, "hours", hoursText(ends - started)));
         return e;
+    }
+
+    /** Changes a running event's details (they are saved); returns the event as it is now. */
+    public ActiveEvent update(ActiveEvent e, Map<String, String> params) {
+        return store.update(e, params);
+    }
+
+    /** Ends this one event now (a delivery that reached its goal). */
+    public void end(ActiveEvent e) {
+        if (store.endOne(now(), e)) ended(e);
     }
 
     /** Ends every running event of a kind now; returns how many. */
@@ -149,6 +181,7 @@ public final class EventModule extends EcoModule {
             }
         }
         Bukkit.broadcast(Lang.msg("event.end", "event", name(e.type())));
+        if (store.active().isEmpty()) eco.kv().set(NEXT, now() + chain.gapMillis());   // the next one, a gap after this one ended
     }
 
     // ------------------------------------------------------------------------------------------
@@ -156,6 +189,7 @@ public final class EventModule extends EcoModule {
     private void tick() {
         long now = now();
         for (ActiveEvent e : store.end(now, null)) ended(e);
+        runChain(now);
         for (ActiveEvent e : store.active()) {
             if (!e.runningAt(now)) continue;
             EventSpec es = specs.get(e.type());
@@ -170,6 +204,23 @@ public final class EventModule extends EcoModule {
             }
             for (Player p : Bukkit.getOnlinePlayers()) p.showBossBar(bar);
         }
+    }
+
+    private void runChain(long now) {
+        if (!store.active().isEmpty()) return;
+        long next = eco.kv().getLong(NEXT, 0);
+        if (next <= 0) {
+            eco.kv().set(NEXT, now + chain.gapMillis());   // a fresh server: the first event after one gap
+            return;
+        }
+        if (now < next) return;
+        java.time.ZoneId zone = java.time.ZoneId.of(eco.getConfig().getString("time.zone"));
+        EventSpec kind = chain.pick(specs, eco.kv().get(LAST, ""), chain.night(now, zone), java.util.concurrent.ThreadLocalRandom.current());
+        if (kind == null) {
+            eco.kv().set(NEXT, now + chain.gapMillis());
+            return;
+        }
+        start(kind.id(), kind.hours(), Map.of());
     }
 
     private static BossBar.Color color(String s) {

@@ -8,7 +8,9 @@ import dev.stsv.economy.land.Land;
 import dev.stsv.economy.land.LandIndex;
 import dev.stsv.economy.land.LandRules;
 import dev.stsv.economy.request.RequestSpec;
+import dev.stsv.economy.event.EventChain;
 import dev.stsv.economy.event.EventSpec;
+import dev.stsv.economy.shop.Order;
 import dev.stsv.economy.shop.ShopCatalog;
 import dev.stsv.economy.shop.PriceModel;
 import dev.stsv.economy.stats.Report;
@@ -28,6 +30,7 @@ import java.util.Map;
 import java.util.UUID;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertNotEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertNotNull;
 import static org.junit.jupiter.api.Assertions.assertNull;
@@ -78,11 +81,59 @@ class RulesTest {
     }
 
     @Test
+    void eventsFollowEachOther() {
+        List<String> problems = new ArrayList<>();
+        YamlConfiguration y = ContentTest.yaml("events.yml");
+        Map<String, EventSpec> events = EventSpec.parse(y, problems);
+        EventChain chain = EventChain.parse(y.getConfigurationSection("chain"));
+        assertEquals(6 * 3_600_000L, chain.gapMillis(), "the next one 6 hours after one ends");
+        // never the same kind twice in a row, never one that does not chain
+        java.util.Random r = new java.util.Random(1);
+        Map<String, Integer> seen = new java.util.HashMap<>();
+        String last = "shortage";
+        for (int i = 0; i < 3000; i++) {
+            EventSpec next = chain.pick(events, last, false, r);
+            assertNotEquals(last, next.id());
+            assertNotEquals("world_boss", next.id());
+            seen.merge(next.id(), 1, Integer::sum);
+            last = next.id();
+        }
+        assertEquals(9, seen.size(), "every chained kind comes up: " + seen);
+        assertTrue(seen.get("urgent_order") > seen.get("tax_audit"), "weights count: " + seen);
+        // in the small hours only the long ones (24 hours)
+        for (EventSpec e : chain.candidates(events, "harvest", true)) assertTrue(e.hours() >= 24, e.id());
+        assertEquals(List.of("shortage", "crash", "tax_audit"), chain.candidates(events, "harvest", true).stream().map(EventSpec::id).toList());
+        java.time.ZoneId kst = java.time.ZoneId.of("Asia/Seoul");
+        assertTrue(chain.night(t(2026, 11, 6, 1, 0), kst));
+        assertTrue(chain.night(t(2026, 11, 6, 8, 59), kst));
+        assertFalse(chain.night(t(2026, 11, 6, 9, 0), kst));
+        assertFalse(chain.night(t(2026, 11, 6, 0, 30), kst));
+        assertNull(chain.pick(Map.of("a", events.get("world_boss")), null, false, r), "nothing may come: the chain waits");
+    }
+
+    @Test
+    void anUrgentOrderPaysMoreForTheFirstOnes() {
+        assertEquals(296, Order.target(10, 3000, 16, 512), "iron at 10G: about 3,000G worth, in eights (300 -> 296)");
+        assertEquals(512, Order.target(2, 3000, 16, 512), "cheap things: at most 512");
+        assertEquals(48, Order.target(60, 3000, 16, 512), "diamonds: 50 -> 48");
+        assertEquals(16, Order.target(500, 3000, 16, 512), "at least 16");
+        Order o = new Order(10, 100, 2, 1);
+        assertEquals(20, o.unit(0), 1e-9, "the first one: twice the base price");
+        assertEquals(15, o.unit(50), 1e-9);
+        assertEquals(10, o.unit(100), 1e-9);
+        assertEquals(o.pay(0, 100), o.pay(0, 40) + o.pay(40, 60), 1e-9, "in parts or at once, the same money");
+        assertTrue(o.pay(0, 10) > o.pay(90, 10), "early deliveries earn more");
+    }
+
+    @Test
     void theEventsAndTheDemandNotice() {
         List<String> problems = new ArrayList<>();
         Map<String, EventSpec> events = EventSpec.parse(ContentTest.yaml("events.yml"), problems);
         assertTrue(problems.isEmpty(), problems.toString());
-        assertEquals(List.of("shortage", "crash", "harvest", "merchant", "tax_audit", "world_boss"), List.copyOf(events.keySet()));
+        assertEquals(List.of("shortage", "crash", "harvest", "mining_boom", "tax_audit", "merchant", "urgent_order", "premium_buyer", "fee_free",
+                "world_boss"), List.copyOf(events.keySet()));
+        assertEquals(List.of("miner", "blacksmith"), EventSpec.list(events.get("mining_boom").params().get("jobs")));
+        assertFalse(events.get("world_boss").chained(), "the world boss is on hold");
         assertEquals(24, events.get("shortage").hours(), "품귀 lasts a day");
         assertEquals(3.0, events.get("shortage").number("multiplier", 0));
         assertFalse(events.containsKey("lawless"), "무법 지대 is gone");

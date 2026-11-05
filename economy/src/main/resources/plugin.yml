@@ -50,6 +50,10 @@ commands:
     description: 기념비 건립 (주간 순위 1위의 건립권)
     aliases: [monument]
     permission: stsv.economy.play
+  납품:
+    description: 긴급 납품 사건에 인벤토리의 그 물건을 냄
+    aliases: [deliver]
+    permission: stsv.economy.play
   기부:
     description: 세무 조사 기간의 기부
     aliases: [donate]

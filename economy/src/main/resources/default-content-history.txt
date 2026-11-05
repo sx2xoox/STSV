@@ -42,7 +42,9 @@ c8ec2e264fdb4338910da05d7081acd9c8885431 economy/assets/economy/textures/item/gu
 fc569adc2876f3c38af4ca7dbd7d26c7c9144cfc economy/assets/economy/textures/item/gui/trophy.png
 72e384defb0c431c734740db6d66b08c5e7de6a4 economy/crops/crops.yml
 88ef03303ff504a7f02273485ff55e13fe721c5c economy/crops/crops.yml
+8cc2d53ba14fe7e7d77bb23479ab474d94e46ff8 economy/crops/crops.yml
 bceb0c402f2a9d2ea61ee6013e06d537fb3cccd1 economy/events.yml
+0839d977c3cfee7569c183679d3b1e5af7c04523 economy/items/crops.yml
 19bd5fe99995da0b81875b2fda6898d1a1a3c3b8 economy/items/crops.yml
 ecc2163f4e4fe293972072dc3480313c9aca2049 economy/items/crops.yml
 a46c1122e1d5ba5f72aefbb88252a7bb0094bddc economy/items/jobs.yml
@@ -51,6 +53,7 @@ e77d72d70c269b687c5fdd0fc89acd4644b7313d economy/items/jobs.yml
 5063db8c3a9abb2be7ad642833451245f45cbf20 economy/jobs.yml
 92ebea45c41c87dbe31adf1aba27cf828623164f economy/jobs.yml
 97f012a769b7c4ec01c2806e86946bff06687fc1 economy/jobs.yml
+ff0625280f3226b2202f7925e901ba4550b80ac5 economy/jobs.yml
 223a5033033c0056f9f841680055e379d8a79b65 economy/land.yml
 a830be706358aca6ff75550caefd7425c3790a9c economy/land.yml
 e3a08e1c5f36a134948fc1e88398d37140f49b56 economy/land.yml
@@ -248,6 +251,7 @@ f982c960e90aef00fd0093dc5c5ad08870a7f9d8 economy/recipes/jobs.yml
 f2623ca0e8918f7246064cf82120e0a16ee54a56 economy/requests.yml
 f3c85fd1b590e11695e565a57503fb208ab98154 economy/requests.yml
 121d6a413959bee05fe2b6e5521d23fcf18dd855 economy/season.yml
+0adc5d379d455aae4dc26ebf1fd8e2038e5e70ba economy/shop.yml
 13d7f43c6113779fe361143faa3b747f4d7afb0c economy/shop.yml
 35d6b427c37a8b7227d8fc142e2fbb5b0c28331c economy/shop.yml
 a5b911c79658d23800ecf92439177e3b62c26887 economy/shop.yml
@@ -290,6 +294,7 @@ b767bf2e9b4c8cfc5927be3f08e8d6d921753ac5 economy/textures/golden_wheat.png
 148b2f3e924a20acff75d9a4733f9a895544ea0b economy/textures/golden_wheat_seeds.png
 2fc4c40c91470dd4a7916f3ad20e9877e43fedbd economy/textures/grand_catalyst.png
 dac454c4eff2ae16db8828deb1fd37b6bf5a15bb economy/textures/grape_sapling.png
+5fb1f813a587322badb752ac7ad440ded3883ba8 economy/textures/grape_seeds.png
 debe89250e702a5040c9feb424d4ae9b97138d39 economy/textures/grapes.png
 f1d27b2715d1cba4c7861f1f5d41c0bd895ff84d economy/textures/grapes.png
 6fe51ea5c8e921d48973a673192a1ae685abedd8 economy/textures/green_onion.png

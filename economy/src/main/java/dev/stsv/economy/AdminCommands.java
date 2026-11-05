@@ -42,7 +42,7 @@ final class AdminCommands {
                     + ", 첫날 " + first + ", 다음 05시까지 " + EventModule.hoursText(d.nextDayStart(now) - now) + ")"));
         }, (s, args) -> List.of("다음날"));
 
-        add("사건", "시작 <종류> [시간] [키=값...] | 종료 <종류> | 목록", "사건(품귀, 폭락, 풍년, 상인 행렬, 세무 조사) 바로 시작/종료", (s, args) -> {
+        add("사건", "시작 <종류> [시간] [키=값...] | 종료 <종류> | 다음 [분] | 목록", "사건 바로 시작/종료, 다음 사건 시각 보기/바꾸기 (테스트)", (s, args) -> {
             String sub = args.length > 0 ? args[0] : "목록";
             switch (sub) {
                 case "시작" -> {
@@ -62,6 +62,14 @@ final class AdminCommands {
                     s.sendMessage(Text.msg("<green>시작: " + es.name() + " <gray>" + e.params()));
                 }
                 case "종료" -> s.sendMessage(Text.msg("<gray>종료: " + (args.length > 1 ? events.end(args[1]) : 0) + "건"));
+                case "다음" -> {
+                    if (args.length > 1) events.scheduleIn(Double.parseDouble(args[1]));
+                    long next = events.next();
+                    s.sendMessage(Text.msg(next <= 0 ? "<gray>사건이 진행 중입니다. 끝나고 " + events.chain().gapHours() + "시간 뒤에 다음 사건."
+                            : "<gray>다음 사건까지 <white>" + EventModule.hoursText(next - System.currentTimeMillis())
+                            + "</white> <dark_gray>(" + java.time.Instant.ofEpochMilli(next).atZone(java.time.ZoneId.of(eco.getConfig().getString("time.zone")))
+                            .toLocalTime().withNano(0) + ")"));
+                }
                 default -> {
                     s.sendMessage(Text.msg("<gray>진행 중인 사건 " + events.active().size() + "건 <dark_gray>(종류: "
                             + String.join(", ", events.specs().keySet()) + ")"));
@@ -71,8 +79,8 @@ final class AdminCommands {
                     }
                 }
             }
-        }, (s, args) -> args.length == 1 ? List.of("시작", "종료", "목록")
-                : args.length == 2 && !args[0].equals("목록") ? new ArrayList<>(events.specs().keySet()) : List.of());
+        }, (s, args) -> args.length == 1 ? List.of("시작", "종료", "다음", "목록")
+                : args.length == 2 && (args[0].equals("시작") || args[0].equals("종료")) ? new ArrayList<>(events.specs().keySet()) : List.of());
 
         add("위치", "<시세판|월드보스|기념비N>", "지금 서 있는 곳을 저장 (시세판, 월드 보스, 기념비 자리)", (s, args) -> {
             if (!(s instanceof Player p) || args.length < 1) {
