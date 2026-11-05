@@ -5,7 +5,8 @@ import dev.stsv.core.data.Db;
 import dev.stsv.economy.auction.Auction;
 import dev.stsv.economy.auction.AuctionStore;
 import dev.stsv.economy.job.JobStore;
-import dev.stsv.economy.land.Claim;
+import dev.stsv.economy.land.ChunkPos;
+import dev.stsv.economy.land.Land;
 import dev.stsv.economy.land.LandStore;
 import dev.stsv.economy.mail.MailStore;
 import dev.stsv.economy.market.MarketStore;
@@ -172,15 +173,27 @@ class StoresTest {
         jobs.touch(r);
         jobs.flush();
         jobs.choose(friend, "cook", 1);
+        // an old rectangle (economy 2.0) becomes chunks on the first start
+        db.migrate("eco_land", List.of(List.of(
+                "CREATE TABLE IF NOT EXISTS eco_claim (id INTEGER PRIMARY KEY AUTOINCREMENT, owner CHAR(36), world VARCHAR(64) NOT NULL, "
+                        + "x1 INT NOT NULL, z1 INT NOT NULL, x2 INT NOT NULL, z2 INT NOT NULL, created BIGINT NOT NULL)",
+                "CREATE TABLE IF NOT EXISTS eco_claim_member (claim BIGINT NOT NULL, player CHAR(36) NOT NULL, PRIMARY KEY (claim, player))",
+                "CREATE TABLE IF NOT EXISTS eco_land (player CHAR(36) NOT NULL PRIMARY KEY, bought BIGINT NOT NULL, spent BIGINT NOT NULL, warnings INT NOT NULL)")));
+        db.execute("INSERT INTO eco_claim (owner, world, x1, z1, x2, z2, created) VALUES (?, 'world', 100, 100, 140, 120, 2)", (Object) null);
+        db.execute("INSERT INTO eco_land (player, bought, spent, warnings) VALUES (?, 200, 400, 0)", p.toString());
         LandStore land = new LandStore(db);
-        land.init();
-        Claim mine = land.create(p, "world", 0, 0, 19, 19, 1);
-        Claim town = land.create(null, "world", 100, 100, 200, 200, 2);
-        land.member(mine, friend, true);
-        land.resize(mine, 0, 0, 29, 19);
-        land.account(p).bought = 200;
-        land.account(p).spent = 400;
-        land.save(p);
+        land.init(1);
+        Land town = land.index().at("world", 130, 110);
+        assertNotNull(town, "the old town rectangle became chunks");
+        assertTrue(town.server());
+        assertEquals(3 * 2, town.size(), "x 100..140 = chunks 6..8, z 100..120 = chunks 6..7");
+        Land mine = land.create(p, 1);
+        land.claim(mine, new ChunkPos("world", 0, 0), 1);
+        land.claim(mine, new ChunkPos("world", 1, 0), 2);
+        land.member(mine, friend, true, 3);
+        land.vault(mine, friend, 300, "deposit", 4);
+        land.vault(mine, null, -26, "tax", 5);
+        land.addSpent(p, 500);
         RequestStore req = new RequestStore(db);
         req.init(3);
         req.complete(p, 2);
@@ -219,22 +232,29 @@ class StoresTest {
         assertEquals(2, changed.changes);
 
         LandStore land2 = new LandStore(db);
-        land2.init();
-        Claim m2 = land2.index().at("world", 25, 5);
-        assertNotNull(m2, "resized claim restored");
+        land2.init(9);
+        Land m2 = land2.index().at("world", 25, 5);
+        assertNotNull(m2, "chunks restored");
+        assertEquals(mine.id, m2.id);
+        assertEquals(2, m2.size());
+        assertEquals(new ChunkPos("world", 1, 0), m2.newest());
         assertTrue(m2.allows(friend));
         assertFalse(m2.allows(UUID.randomUUID()));
-        assertEquals(600, land2.index().area(p));
-        assertEquals(200, land2.account(p).bought);
-        assertEquals(400, land2.account(p).spent);
-        assertTrue(land2.index().at("world", 150, 150).server());
+        assertEquals(274, m2.vault);
+        assertEquals(Map.of(friend, 300L), land2.contributions(m2), "tax is not a contribution");
+        assertEquals(2, land2.history(m2, 10).size());
+        assertEquals("tax", land2.history(m2, 10).getFirst().kind(), "newest first");
+        assertEquals(900, land2.spent(p), "old land money is kept");
+        assertEquals(town.id, land2.index().at("world", 130, 110).id, "converted once, not again");
+        assertEquals(2, land2.index().all().size());
         land2.reset();
         db.sync(c -> null);
         LandStore land3 = new LandStore(db);
-        land3.init();
-        assertNull(land3.index().at("world", 5, 5), "player claims wiped by a reset");
-        assertNotNull(land3.index().at("world", 150, 150), "the town (server claim) stays");
-        assertEquals(town.id, land3.index().at("world", 150, 150).id);
+        land3.init(10);
+        assertNull(land3.index().at("world", 5, 5), "player lands wiped by a reset");
+        assertNotNull(land3.index().at("world", 130, 110), "the town (server land) stays");
+        assertEquals(town.id, land3.index().at("world", 130, 110).id);
+        assertEquals(0, land3.spent(p));
 
         RequestStore req2 = new RequestStore(db);
         req2.init(3);

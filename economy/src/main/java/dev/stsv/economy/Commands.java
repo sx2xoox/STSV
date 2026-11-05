@@ -131,27 +131,6 @@ final class Commands {
             for (var pl : org.bukkit.Bukkit.getOnlinePlayers()) out.add(pl.getName());
             return a.length == 1 ? out : List.of();
         }));
-        eco.command("노점", new Simple(player((p, a) -> {
-            String sub = a.length == 0 ? "정보" : a[0];
-            switch (sub) {
-                case "임대" -> {
-                    if (a.length < 2) p.sendMessage(Lang.msg("stall.usage"));
-                    else eco.stalls().rent(p, (int) amount(a[1]));
-                }
-                case "반납" -> eco.stalls().release(p);
-                case "가격" -> {
-                    if (a.length < 2) p.sendMessage(Lang.msg("stall.usage"));
-                    else eco.stalls().price(p, a[1].equals("해제") ? 0 : amount(a[1]));
-                }
-                default -> {
-                    var mine = eco.stalls().store().of(p.getUniqueId());
-                    p.sendMessage(Lang.msg("stall.usage"));
-                    long free = eco.stalls().store().all().values().stream().filter(x -> x.owner == null).count();
-                    p.sendMessage(Lang.msg(mine == null ? "stall.status-none" : "stall.status", "number", mine == null ? 0 : mine.number,
-                            "free", free, "total", eco.stalls().store().all().size(), "rent", dev.stsv.core.economy.EconomyModule.format(eco.rules().stallRent())));
-                }
-            }
-        }), (s, a) -> a.length == 1 ? List.of("임대", "반납", "가격", "정보") : a.length == 2 && a[0].equals("가격") ? List.of("해제") : List.of()));
         eco.command("직업", new Simple(player((p, a) -> {
             if (a.length == 0) {
                 eco.jobs().open(p);
@@ -185,28 +164,42 @@ final class Commands {
         }));
         eco.command("땅", new Simple(player((p, a) -> {
             String sub = a.length == 0 ? "정보" : a[0];
+            boolean confirm = a.length > 1 && a[a.length - 1].equals("확인");
             switch (sub) {
-                case "1" -> eco.land().corner(p, 0);
-                case "2" -> eco.land().corner(p, 1);
-                case "생성" -> eco.land().create(p, a.length > 1 ? (int) amount(a[1]) : -1, false);
-                case "확장" -> eco.land().expand(p, a.length > 1 ? (int) amount(a[1]) : 0);
-                case "삭제" -> eco.land().delete(p);
-                case "구매" -> eco.land().buy(p, a.length > 1 ? amount(a[1]) : 0);
-                case "신뢰" -> {
-                    if (a.length > 1) eco.land().trust(p, a[1], true);
-                    else p.sendMessage(Lang.msg("land.usage"));
-                }
-                case "불신" -> {
-                    if (a.length > 1) eco.land().trust(p, a[1], false);
-                    else p.sendMessage(Lang.msg("land.usage"));
-                }
+                case "구매" -> eco.land().buy(p, confirm);
+                case "포기" -> eco.land().abandon(p);
                 case "보기" -> eco.land().show(p);
+                case "초대" -> {
+                    if (a.length > 1) eco.land().invite(p, a[1]);
+                    else p.sendMessage(Lang.msg("land.usage"));
+                }
+                case "수락" -> eco.land().accept(p);
+                case "거절" -> eco.land().decline(p);
+                case "추방" -> {
+                    if (a.length > 1) eco.land().kick(p, a[1]);
+                    else p.sendMessage(Lang.msg("land.usage"));
+                }
+                case "나가기" -> eco.land().leave(p);
+                case "양도" -> {
+                    if (a.length > 1) eco.land().transfer(p, a[1]);
+                    else p.sendMessage(Lang.msg("land.usage"));
+                }
+                case "금고" -> {
+                    if (a.length >= 3 && a[1].equals("입금")) eco.land().deposit(p, amount(a[2]));
+                    else if (a.length >= 3 && a[1].equals("출금")) eco.land().withdraw(p, amount(a[2]));
+                    else eco.land().vaultInfo(p);
+                }
+                case "해체" -> eco.land().disband(p, confirm);
                 case "도움말" -> p.sendMessage(Lang.msg("land.usage"));
                 default -> eco.land().info(p);
             }
         }), (s, a) -> {
-            if (a.length == 1) return List.of("정보", "1", "2", "생성", "확장", "삭제", "구매", "신뢰", "불신", "보기", "도움말");
-            if (a.length == 2 && (a[0].equals("신뢰") || a[0].equals("불신"))) return org.bukkit.Bukkit.getOnlinePlayers().stream().map(x -> x.getName()).toList();
+            if (a.length == 1) return List.of("정보", "구매", "포기", "보기", "초대", "수락", "거절", "추방", "나가기", "양도", "금고", "해체", "도움말");
+            if (a.length == 2 && (a[0].equals("초대") || a[0].equals("추방") || a[0].equals("양도"))) {
+                return org.bukkit.Bukkit.getOnlinePlayers().stream().map(x -> x.getName()).toList();
+            }
+            if (a.length == 2 && a[0].equals("금고")) return List.of("입금", "출금");
+            if (a.length == 2 && (a[0].equals("구매") || a[0].equals("해체"))) return List.of("확인");
             return List.of();
         }));
         eco.command("의뢰", new Simple(player((p, a) -> eco.requests().open(p)), null));

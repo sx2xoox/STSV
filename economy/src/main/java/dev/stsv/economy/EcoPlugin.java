@@ -16,7 +16,6 @@ import dev.stsv.economy.rank.RankModule;
 import dev.stsv.economy.request.RequestModule;
 import dev.stsv.economy.stats.MetricsModule;
 import dev.stsv.economy.market.MarketModule;
-import dev.stsv.economy.stall.StallModule;
 import dev.stsv.economy.trade.TradeModule;
 import dev.stsv.economy.shop.ShopModule;
 import dev.stsv.economy.stats.ActivityModule;
@@ -57,7 +56,6 @@ public final class EcoPlugin extends JavaPlugin {
     private MarketModule market;
     private AuctionModule auction;
     private TradeModule trade;
-    private StallModule stalls;
     private VanityModule vanity;
     private JobModule jobs;
     private MachineModule machines;
@@ -94,7 +92,6 @@ public final class EcoPlugin extends JavaPlugin {
         add(jobs = new JobModule(this));
         add(machines = new MachineModule(this));
         add(shop = new ShopModule(this));
-        add(stalls = new StallModule(this));
         add(market = new MarketModule(this));
         add(auction = new AuctionModule(this));
         add(trade = new TradeModule(this));
@@ -103,6 +100,7 @@ public final class EcoPlugin extends JavaPlugin {
         add(vanity = new VanityModule(this));
         add(rank = new RankModule(this));
         add(metrics = new MetricsModule(this));   // last: its daily report reads what the others did
+        StallRemoval.run(this, core.db());
         getServer().getPluginManager().registerEvents(new PvpRule(this), this);
         Commands.register(this);
         AdminCommands.register(this);
@@ -164,7 +162,6 @@ public final class EcoPlugin extends JavaPlugin {
     public MarketModule market() { return market; }
     public AuctionModule auction() { return auction; }
     public TradeModule trade() { return trade; }
-    public StallModule stalls() { return stalls; }
     public TradeRules rules() { return rules; }
     public JobModule jobs() { return jobs; }
     public MachineModule machines() { return machines; }

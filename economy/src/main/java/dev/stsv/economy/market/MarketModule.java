@@ -26,7 +26,7 @@ import java.util.UUID;
 
 /**
  * 거래소: list an item at a price, anyone buys it at once, even while the seller is offline. 5% fee on
- * sale, 10 listings (20 with a stall), 48 hours, then the item comes back by mail.
+ * sale, 10 listings, 48 hours, then the item comes back by mail.
  */
 public final class MarketModule extends EcoModule {
 
@@ -61,7 +61,7 @@ public final class MarketModule extends EcoModule {
     }
 
     public int limit(UUID player) {
-        return rules.marketMax() + (eco.stalls() != null && eco.stalls().owns(player) ? rules.stallBonus() : 0);
+        return rules.marketMax();
     }
 
     /** /거래소 등록 &lt;가격&gt;: lists the held stack. */

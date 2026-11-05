@@ -82,7 +82,7 @@ public final class RankModule extends EcoModule implements WeeklyListener {
     public long worth(UUID player) {
         long w = core.economy().balance(player);
         for (Auction a : eco.auction().store().running()) if (player.equals(a.bidder)) w += a.bid;
-        w += eco.land().store().account(player).spent;
+        w += eco.land().store().spent(player);
         return w;
     }
 

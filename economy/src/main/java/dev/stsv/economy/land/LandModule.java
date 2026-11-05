@@ -5,11 +5,12 @@ import dev.stsv.core.furniture.FurnitureBreakEvent;
 import dev.stsv.core.furniture.FurnitureInteractEvent;
 import dev.stsv.core.hud.HudModule;
 import dev.stsv.core.util.Lang;
-import dev.stsv.economy.calendar.DailyListener;
 import dev.stsv.economy.EcoModule;
 import dev.stsv.economy.EcoPlugin;
+import dev.stsv.economy.calendar.DailyListener;
 import dev.stsv.economy.event.ActiveEvent;
 import dev.stsv.economy.util.Players;
+import net.kyori.adventure.text.Component;
 import org.bukkit.Bukkit;
 import org.bukkit.Location;
 import org.bukkit.Material;
@@ -43,30 +44,35 @@ import org.bukkit.event.player.PlayerBucketEmptyEvent;
 import org.bukkit.event.player.PlayerBucketFillEvent;
 import org.bukkit.event.player.PlayerInteractEntityEvent;
 import org.bukkit.event.player.PlayerInteractEvent;
+import org.bukkit.event.player.PlayerJoinEvent;
 import org.bukkit.event.player.PlayerMoveEvent;
 import org.bukkit.event.vehicle.VehicleDestroyEvent;
 
+import java.time.Instant;
+import java.time.ZoneId;
+import java.time.format.DateTimeFormatter;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
-import java.util.Set;
 import java.util.UUID;
 import java.util.concurrent.ConcurrentHashMap;
 
 /**
- * 땅: claims protect a rectangle (full height). 400㎡ are free; more area is bought at the week's price
- * (1G, 2G, 3G, 4G per ㎡: early investment pays). Property tax every day at 05:00 (area x 0.05G, double
- * above 2,500㎡); three days unpaid and the newest claim is released. Server claims protect the town.
+ * 땅, counted in chunks (16x16, full height). Everyone who lives on a land brings 2 free chunks; more
+ * are bought, each dearer than the last. A land has one owner and any number of members who live
+ * there together: all of them may build and use everything, and they share a 금고. The daily property
+ * tax (05:00) is paid from the 금고 first, then from the owner's wallet; three days unpaid and the
+ * newest chunks are released until the tax can be paid. The server's land protects the town.
  */
 public final class LandModule extends EcoModule implements DailyListener {
 
+    private record Invite(long land, UUID by, long expires) {}
+
     private LandStore store;
     private LandRules rules;
-    private final Map<UUID, int[]> corners = new ConcurrentHashMap<>();   // [x1, z1, x2, z2] (Integer.MIN_VALUE = unset)
-    private final Map<UUID, String> cornerWorld = new ConcurrentHashMap<>();
+    private final Map<UUID, Invite> invites = new ConcurrentHashMap<>();
     private final Map<UUID, Long> where = new ConcurrentHashMap<>();
     private final Map<UUID, Long> warned = new ConcurrentHashMap<>();
-    private final Set<UUID> showing = ConcurrentHashMap.newKeySet();
 
     public LandModule(EcoPlugin eco) {
         super(eco);
@@ -80,7 +86,7 @@ public final class LandModule extends EcoModule implements DailyListener {
     @Override
     protected void start() {
         store = new LandStore(core.db());
-        store.init();
+        store.init(now());
         rules = LandRules.parse(eco.data("land.yml"));
         eco.calendar().onDaily(this);
         eco.onReset(store::reset);
@@ -99,162 +105,126 @@ public final class LandModule extends EcoModule implements DailyListener {
         return rules;
     }
 
-    public Claim at(Location l) {
+    public Land at(Location l) {
         return l.getWorld() == null ? null : store.index().at(l.getWorld().getName(), l.getBlockX(), l.getBlockZ());
     }
 
-    public long quota(UUID player) {
-        return rules.freeArea() + store.account(player).bought;
-    }
-
-    public long used(UUID player) {
-        return store.index().area(player);
+    private static ChunkPos chunk(Location l) {
+        return ChunkPos.ofBlock(l.getWorld().getName(), l.getBlockX(), l.getBlockZ());
     }
 
     /** May this player change things here? */
     public boolean allowed(Player p, Location l) {
-        Claim c = at(l);
+        Land c = at(l);
         return c == null || c.allows(p.getUniqueId()) || p.hasPermission("stsv.economy.land.bypass");
     }
 
+    public int free(Land l) {
+        return rules.free(store.index().residents(l));
+    }
+
+    public long tax(Land l) {
+        return l.server() ? 0 : rules.tax(l.size(), free(l), l.members.size(), taxMultiplier());
+    }
+
+    private String ownerName(Land l) {
+        return l == null || l.server() ? Lang.raw("land.server") : Players.name(l.owner);
+    }
+
+    /** The land a command is about: the one you stand in if you live there, else where you live. */
+    private Land mine(Player p) {
+        Land here = at(p.getLocation());
+        if (here != null && !here.server() && here.allows(p.getUniqueId())) return here;
+        return store.index().home(p.getUniqueId());
+    }
+
+    private void tell(Land l, Component msg) {
+        for (UUID u : l.people()) {
+            Player p = Bukkit.getPlayer(u);
+            if (p != null) p.sendMessage(msg);
+        }
+    }
+
     // ------------------------------------------------------------------------------------------
-    // Commands
+    // Chunks
     // ------------------------------------------------------------------------------------------
 
-    public void corner(Player p, int which) {
-        int[] c = corners.computeIfAbsent(p.getUniqueId(), k -> new int[]{Integer.MIN_VALUE, 0, Integer.MIN_VALUE, 0});
-        if (!p.getWorld().getName().equals(cornerWorld.put(p.getUniqueId(), p.getWorld().getName()))) {
-            c[0] = c[2] = Integer.MIN_VALUE;
-        }
-        c[which * 2] = p.getLocation().getBlockX();
-        c[which * 2 + 1] = p.getLocation().getBlockZ();
-        p.sendMessage(Lang.msg("land.corner", "n", which + 1, "x", c[which * 2], "z", c[which * 2 + 1]));
-        if (c[0] != Integer.MIN_VALUE && c[2] != Integer.MIN_VALUE) {
-            long area = (long) (Math.abs(c[2] - c[0]) + 1) * (Math.abs(c[3] - c[1]) + 1);
-            p.sendMessage(Lang.msg("land.selection", "w", Math.abs(c[2] - c[0]) + 1, "d", Math.abs(c[3] - c[1]) + 1, "area", area,
-                    "left", quota(p.getUniqueId()) - used(p.getUniqueId())));
-            outline(p, p.getWorld().getName(), Math.min(c[0], c[2]), Math.min(c[1], c[3]), Math.max(c[0], c[2]), Math.max(c[1], c[3]), true);
-        }
-    }
-
-    /** From the two corners, or a square of radius r around the player when r >= 0. */
-    public void create(Player p, int radius, boolean server) {
-        int x1, z1, x2, z2;
-        if (radius >= 0) {
-            x1 = p.getLocation().getBlockX() - radius;
-            z1 = p.getLocation().getBlockZ() - radius;
-            x2 = p.getLocation().getBlockX() + radius;
-            z2 = p.getLocation().getBlockZ() + radius;
-        } else {
-            int[] c = corners.get(p.getUniqueId());
-            if (c == null || c[0] == Integer.MIN_VALUE || c[2] == Integer.MIN_VALUE || !p.getWorld().getName().equals(cornerWorld.get(p.getUniqueId()))) {
-                p.sendMessage(Lang.msg("land.no-selection"));
-                return;
-            }
-            x1 = c[0];
-            z1 = c[1];
-            x2 = c[2];
-            z2 = c[3];
-        }
-        Object made = tryCreate(p.getUniqueId(), p.getWorld().getName(), x1, z1, x2, z2, server);
-        if (made instanceof String refused) {
-            p.sendMessage(Lang.msg(refused, "min", rules.minSide(), "left", quota(p.getUniqueId()) - used(p.getUniqueId()),
-                    "area", (long) (Math.abs(x2 - x1) + 1) * (Math.abs(z2 - z1) + 1), "max", rules.maxClaims()));
+    /** Claims the chunk you stand in: free while you have free chunks, else for a price (twice: 확인). */
+    public void buy(Player p, boolean confirmed) {
+        UUID u = p.getUniqueId();
+        ChunkPos c = chunk(p.getLocation());
+        Land taken = store.index().at(c);
+        if (taken != null) {
+            p.sendMessage(Lang.msg(taken.isOwner(u) ? "land.already-mine" : "land.taken", "owner", ownerName(taken)));
             return;
         }
-        Claim c = (Claim) made;
-        corners.remove(p.getUniqueId());
-        p.sendMessage(Lang.msg(server ? "land.created-server" : "land.created", "area", c.area(),
-                "left", quota(p.getUniqueId()) - used(p.getUniqueId())));
-        p.playSound(p.getLocation(), Sound.BLOCK_AMETHYST_BLOCK_PLACE, 1f, 1f);
-        outline(p, c.world, c.x1, c.z1, c.x2, c.z2, false);
-    }
-
-    /** The new claim, or the message key of the refusal. */
-    public Object tryCreate(UUID owner, String world, int x1, int z1, int x2, int z2, boolean server) {
-        int w = Math.abs(x2 - x1) + 1, d = Math.abs(z2 - z1) + 1;
-        if (w < rules.minSide() || d < rules.minSide()) return "land.too-small";
-        if (store.index().overlapping(world, x1, z1, x2, z2, null) != null) return "land.overlap";
-        long area = (long) w * d;
-        if (!server) {
-            if (store.index().of(owner).size() >= rules.maxClaims()) return "land.too-many";
-            if (used(owner) + area > quota(owner)) return "land.no-quota";
-        }
-        return store.create(server ? null : owner, world, x1, z1, x2, z2, now());
-    }
-
-    public void expand(Player p, int blocks) {
-        Claim c = at(p.getLocation());
-        if (c == null || !p.getUniqueId().equals(c.owner)) {
-            p.sendMessage(Lang.msg("land.not-yours"));
+        Land land = store.index().ownedBy(u);
+        int free = land != null ? free(land) : store.index().memberOf(u) == null ? rules.free(1) : 0;
+        int size = land == null ? 0 : land.size();
+        long price = rules.price(size, free);
+        if (price > 0 && !confirmed) {
+            p.sendMessage(Lang.msg("land.buy-confirm", "x", c.x(), "z", c.z(), "price", EconomyModule.format(price),
+                    "tax", EconomyModule.format(rules.tax(size + 1, free, land == null ? 0 : land.members.size(), taxMultiplier()))));
             return;
         }
-        BlockFace face = p.getFacing();
-        int x1 = c.x1, z1 = c.z1, x2 = c.x2, z2 = c.z2;
-        switch (face) {
-            case NORTH -> z1 -= blocks;
-            case SOUTH -> z2 += blocks;
-            case WEST -> x1 -= blocks;
-            case EAST -> x2 += blocks;
-            default -> { }
-        }
-        long added = (long) (x2 - x1 + 1) * (z2 - z1 + 1) - c.area();
-        if (blocks <= 0 || added <= 0) {
-            p.sendMessage(Lang.msg("land.usage"));
-            return;
-        }
-        if (used(p.getUniqueId()) + added > quota(p.getUniqueId())) {
-            p.sendMessage(Lang.msg("land.no-quota", "area", added, "left", quota(p.getUniqueId()) - used(p.getUniqueId())));
-            return;
-        }
-        if (store.index().overlapping(c.world, x1, z1, x2, z2, c) != null) {
-            p.sendMessage(Lang.msg("land.overlap"));
-            return;
-        }
-        store.resize(c, x1, z1, x2, z2);
-        p.sendMessage(Lang.msg("land.expanded", "area", c.area(), "left", quota(p.getUniqueId()) - used(p.getUniqueId())));
-        outline(p, c.world, c.x1, c.z1, c.x2, c.z2, false);
-    }
-
-    public void delete(Player p) {
-        Claim c = at(p.getLocation());
-        if (c == null || (!p.getUniqueId().equals(c.owner) && !p.hasPermission("stsv.economy.admin"))) {
-            p.sendMessage(Lang.msg("land.not-yours"));
-            return;
-        }
-        store.delete(c);
-        p.sendMessage(Lang.msg("land.deleted", "area", c.area()));
-    }
-
-    /** Buys more area (land.yml price per m²). */
-    public void buy(Player p, long area) {
-        if (area <= 0 || area > 1_000_000) {
-            p.sendMessage(Lang.msg("land.usage"));
-            return;
-        }
-        long price;
-        try {
-            price = Math.multiplyExact(area, rules.price());
-        } catch (ArithmeticException e) {
-            p.sendMessage(Lang.msg("land.usage"));
-            return;
-        }
-        if (!core.economy().withdraw(p.getUniqueId(), price, "land_buy")) {
+        if (price > 0 && !core.economy().withdraw(u, price, "land_buy")) {
             p.sendMessage(Lang.msg("land.not-enough", "price", EconomyModule.format(price)));
             return;
         }
-        LandStore.Account a = store.account(p.getUniqueId());
-        a.bought += area;
-        a.spent += price;
-        store.save(p.getUniqueId());
-        p.sendMessage(Lang.msg("land.bought", "area", area, "price", EconomyModule.format(price), "total", quota(p.getUniqueId())));
-        p.playSound(p.getLocation(), Sound.ENTITY_EXPERIENCE_ORB_PICKUP, 0.6f, 1f);
+        boolean first = land == null;
+        if (first) land = store.create(u, now());
+        store.claim(land, c, now());
+        if (price > 0) store.addSpent(u, price);
+        p.sendMessage(Lang.msg(price > 0 ? "land.bought" : "land.claimed-free", "x", c.x(), "z", c.z(), "price", EconomyModule.format(price),
+                "size", land.size(), "free", free(land), "next", EconomyModule.format(rules.price(land.size(), free(land)))));
+        if (first) p.sendMessage(Lang.msg("land.first"));
+        p.playSound(p.getLocation(), Sound.BLOCK_AMETHYST_BLOCK_PLACE, 1f, 1f);
+        outline(p, List.of(c), true);
     }
 
-    public void trust(Player p, String name, boolean add) {
-        Claim c = at(p.getLocation());
-        if (c == null || !p.getUniqueId().equals(c.owner)) {
-            p.sendMessage(Lang.msg("land.not-yours"));
+    /** Gives up the chunk you stand in (no refund). The last chunk ends the land. */
+    public void abandon(Player p) {
+        Land l = at(p.getLocation());
+        if (l == null || !l.isOwner(p.getUniqueId())) {
+            p.sendMessage(Lang.msg("land.not-owner"));
+            return;
+        }
+        ChunkPos c = chunk(p.getLocation());
+        store.release(l, c);
+        p.sendMessage(Lang.msg("land.abandoned", "x", c.x(), "z", c.z(), "size", l.size()));
+        if (l.size() == 0) disband(l, "land.disbanded-empty");
+    }
+
+    /** /땅 해체 확인: the whole land goes; the 금고 goes back to the owner. */
+    public void disband(Player p, boolean confirmed) {
+        Land l = store.index().ownedBy(p.getUniqueId());
+        if (l == null) {
+            p.sendMessage(Lang.msg("land.not-owner"));
+            return;
+        }
+        if (!confirmed) {
+            p.sendMessage(Lang.msg("land.disband-confirm", "size", l.size(), "vault", EconomyModule.format(l.vault), "members", l.members.size()));
+            return;
+        }
+        disband(l, "land.disbanded");
+    }
+
+    private void disband(Land l, String key) {
+        if (l.vault > 0 && l.owner != null) {
+            core.economy().deposit(l.owner, l.vault, "land_vault_refund");
+        }
+        tell(l, Lang.msg(key, "vault", EconomyModule.format(l.vault)));
+        store.delete(l);
+    }
+
+    // ------------------------------------------------------------------------------------------
+    // Living together
+    // ------------------------------------------------------------------------------------------
+
+    public void invite(Player p, String name) {
+        Land l = store.index().ownedBy(p.getUniqueId());
+        if (l == null) {
+            p.sendMessage(Lang.msg("land.not-owner"));
             return;
         }
         Players.find(name, found -> {
@@ -262,55 +232,292 @@ public final class LandModule extends EcoModule implements DailyListener {
                 p.sendMessage(Lang.msg("land.no-player"));
                 return;
             }
-            store.member(c, found.get(), add);
-            p.sendMessage(Lang.msg(add ? "land.trusted" : "land.untrusted", "player", name));
+            UUID t = found.get();
+            if (l.allows(t)) {
+                p.sendMessage(Lang.msg("land.already-member", "player", name));
+                return;
+            }
+            if (store.index().memberOf(t) != null) {
+                p.sendMessage(Lang.msg("land.member-elsewhere", "player", name));
+                return;
+            }
+            invites.put(t, new Invite(l.id, p.getUniqueId(), now() + rules.inviteMinutes() * 60_000L));
+            p.sendMessage(Lang.msg("land.invited", "player", name, "minutes", rules.inviteMinutes()));
+            Player tp = Bukkit.getPlayer(t);
+            if (tp != null) {
+                tp.sendMessage(Lang.msg("land.invite", "owner", p.getName(), "size", l.size(), "members", l.members.size(), "minutes", rules.inviteMinutes()));
+                if (store.index().ownedBy(t) != null) tp.sendMessage(Lang.msg("land.invite-own-land", "free", rules.freePerPerson()));
+                tp.playSound(tp.getLocation(), Sound.BLOCK_NOTE_BLOCK_PLING, 0.7f, 1.4f);
+            }
         });
     }
 
+    public void accept(Player p) {
+        UUID u = p.getUniqueId();
+        Invite inv = invites.remove(u);
+        Land l = inv == null || now() > inv.expires() ? null : store.index().get(inv.land());
+        if (l == null) {
+            p.sendMessage(Lang.msg("land.no-invite"));
+            return;
+        }
+        if (store.index().memberOf(u) != null) {
+            p.sendMessage(Lang.msg("land.member-elsewhere", "player", p.getName()));
+            return;
+        }
+        store.member(l, u, true, now());
+        tell(l, Lang.msg("land.joined", "player", p.getName(), "owner", ownerName(l), "free", free(l)));
+    }
+
+    public void decline(Player p) {
+        Invite inv = invites.remove(p.getUniqueId());
+        p.sendMessage(Lang.msg(inv == null ? "land.no-invite" : "land.declined"));
+        Player by = inv == null ? null : Bukkit.getPlayer(inv.by());
+        if (by != null) by.sendMessage(Lang.msg("land.declined-by", "player", p.getName()));
+    }
+
+    public void kick(Player p, String name) {
+        Land l = store.index().ownedBy(p.getUniqueId());
+        if (l == null) {
+            p.sendMessage(Lang.msg("land.not-owner"));
+            return;
+        }
+        Players.find(name, found -> {
+            if (found.isEmpty() || !l.members.containsKey(found.get())) {
+                p.sendMessage(Lang.msg("land.not-member", "player", name));
+                return;
+            }
+            store.member(l, found.get(), false, now());
+            tell(l, Lang.msg("land.kicked", "player", name, "free", free(l)));
+            Player tp = Bukkit.getPlayer(found.get());
+            if (tp != null) tp.sendMessage(Lang.msg("land.kicked-you", "owner", ownerName(l)));
+        });
+    }
+
+    public void leave(Player p) {
+        Land l = store.index().memberOf(p.getUniqueId());
+        if (l == null) {
+            p.sendMessage(Lang.msg("land.not-a-member"));
+            return;
+        }
+        store.member(l, p.getUniqueId(), false, now());
+        p.sendMessage(Lang.msg("land.left", "owner", ownerName(l)));
+        tell(l, Lang.msg("land.left-notice", "player", p.getName(), "free", free(l)));
+    }
+
+    /** Hands the land to a member; the old owner stays on as a member (unless they live elsewhere). */
+    public void transfer(Player p, String name) {
+        Land l = store.index().ownedBy(p.getUniqueId());
+        if (l == null) {
+            p.sendMessage(Lang.msg("land.not-owner"));
+            return;
+        }
+        Players.find(name, found -> {
+            UUID t = found.orElse(null);
+            if (t == null || !l.members.containsKey(t)) {
+                p.sendMessage(Lang.msg("land.not-member", "player", name));
+                return;
+            }
+            if (store.index().ownedBy(t) != null) {
+                p.sendMessage(Lang.msg("land.owns-another", "player", name));
+                return;
+            }
+            UUID old = l.owner;
+            store.member(l, t, false, now());
+            store.setOwner(l, t);
+            if (store.index().memberOf(old) == null) store.member(l, old, true, now());
+            tell(l, Lang.msg("land.transferred", "from", Players.name(old), "to", name));
+        });
+    }
+
+    // ------------------------------------------------------------------------------------------
+    // 금고
+    // ------------------------------------------------------------------------------------------
+
+    public void vaultInfo(Player p) {
+        Land l = mine(p);
+        if (l == null) {
+            p.sendMessage(Lang.msg("land.no-land"));
+            return;
+        }
+        long tax = tax(l);
+        p.sendMessage(Lang.msg("land.vault", "owner", ownerName(l), "vault", EconomyModule.format(l.vault), "tax", EconomyModule.format(tax),
+                "days", tax <= 0 ? "-" : String.valueOf(l.vault / tax)));
+        Map<UUID, Long> by = store.contributions(l);
+        if (!by.isEmpty()) {
+            List<String> parts = new ArrayList<>();
+            by.forEach((u, v) -> parts.add(Players.name(u) + " " + EconomyModule.format(v)));
+            p.sendMessage(Lang.msg("land.vault-shares", "list", String.join(", ", parts)));
+        }
+        DateTimeFormatter f = DateTimeFormatter.ofPattern("MM.dd HH:mm").withZone(ZoneId.of(eco.getConfig().getString("time.zone")));
+        for (LandStore.VaultEntry e : store.history(l, 8)) {
+            p.sendMessage(Lang.mm("land.vault-line", "at", f.format(Instant.ofEpochMilli(e.at())), "kind", Lang.raw("land.vault-kind." + e.kind()),
+                    "player", e.player() == null ? "-" : Players.name(e.player()),
+                    "amount", (e.amount() >= 0 ? "<green>+" : "<red>") + EconomyModule.format(e.amount())));
+        }
+    }
+
+    public void deposit(Player p, long amount) {
+        Land l = mine(p);
+        if (l == null) {
+            p.sendMessage(Lang.msg("land.no-land"));
+            return;
+        }
+        if (amount <= 0) {
+            p.sendMessage(Lang.msg("land.usage"));
+            return;
+        }
+        if (!core.economy().withdraw(p.getUniqueId(), amount, "land_vault")) {
+            p.sendMessage(Lang.msg("land.not-enough", "price", EconomyModule.format(amount)));
+            return;
+        }
+        store.vault(l, p.getUniqueId(), amount, "deposit", now());
+        tell(l, Lang.msg("land.deposited", "player", p.getName(), "amount", EconomyModule.format(amount), "vault", EconomyModule.format(l.vault)));
+    }
+
+    public void withdraw(Player p, long amount) {
+        Land l = mine(p);
+        if (l == null || !l.isOwner(p.getUniqueId())) {
+            p.sendMessage(Lang.msg("land.withdraw-owner"));
+            return;
+        }
+        if (amount <= 0 || amount > l.vault) {
+            p.sendMessage(Lang.msg("land.vault-short", "vault", EconomyModule.format(l.vault)));
+            return;
+        }
+        store.vault(l, p.getUniqueId(), -amount, "withdraw", now());
+        core.economy().deposit(p.getUniqueId(), amount, "land_vault");
+        tell(l, Lang.msg("land.withdrew", "player", p.getName(), "amount", EconomyModule.format(amount), "vault", EconomyModule.format(l.vault)));
+    }
+
+    // ------------------------------------------------------------------------------------------
+    // Looking
+    // ------------------------------------------------------------------------------------------
+
     public void info(Player p) {
         UUID u = p.getUniqueId();
-        LandStore.Account a = store.account(u);
-        long area = used(u);
-        p.sendMessage(Lang.msg("land.info", "used", area, "quota", quota(u), "free", rules.freeArea(), "bought", a.bought,
-                "tax", EconomyModule.format(rules.tax(area, taxMultiplier())), "price", rules.price(), "warnings", a.warnings, "warn-days", rules.warnDays()));
-        for (Claim c : store.index().of(u)) {
-            p.sendMessage(Lang.mm("land.info-line", "x1", c.x1, "z1", c.z1, "x2", c.x2, "z2", c.z2, "area", c.area(), "members", c.members.size()));
+        Land here = at(p.getLocation());
+        ChunkPos c = chunk(p.getLocation());
+        p.sendMessage(here == null ? Lang.msg("land.here-wild", "x", c.x(), "z", c.z())
+                : Lang.msg("land.here", "owner", ownerName(here), "x", c.x(), "z", c.z()));
+        Land l = mine(p);
+        if (l == null) {
+            p.sendMessage(Lang.msg("land.none-yet", "free", rules.free(1)));
+            return;
         }
-        Claim here = at(p.getLocation());
-        if (here != null) p.sendMessage(Lang.msg("land.here", "owner", here.server() ? Lang.raw("land.server") : Players.name(here.owner)));
+        long tax = tax(l);
+        p.sendMessage(Lang.msg("land.info", "owner", ownerName(l), "role", Lang.raw(l.isOwner(u) ? "land.role-owner" : "land.role-member"),
+                "size", l.size(), "free", free(l), "residents", store.index().residents(l),
+                "next", EconomyModule.format(rules.price(l.size(), free(l))), "tax", EconomyModule.format(tax),
+                "limit", rules.progressiveLimit(l.members.size()), "vault", EconomyModule.format(l.vault),
+                "warnings", l.warnings, "warn-days", rules.warnDays()));
+        List<String> names = new ArrayList<>();
+        for (UUID m : l.members.keySet()) names.add(Players.name(m));
+        p.sendMessage(Lang.msg("land.info-members", "count", names.size(), "list", names.isEmpty() ? "-" : String.join(", ", names)));
+        Land own = store.index().ownedBy(u);
+        if (own != null && own != l) p.sendMessage(Lang.msg("land.info-own-too", "size", own.size(), "tax", EconomyModule.format(tax(own))));
     }
 
+    /** Borders of the lands around you for 10 seconds: yours green, others red, the town yellow. */
     public void show(Player p) {
-        int n = 0;
-        for (Claim c : store.index().all()) {
-            if (!c.world.equals(p.getWorld().getName())) continue;
-            double cx = (c.x1 + c.x2) / 2.0, cz = (c.z1 + c.z2) / 2.0;
-            if (Math.hypot(cx - p.getX(), cz - p.getZ()) > 120) continue;
-            outline(p, c.world, c.x1, c.z1, c.x2, c.z2, false);
-            n++;
+        String w = p.getWorld().getName();
+        int pcx = p.getLocation().getBlockX() >> 4, pcz = p.getLocation().getBlockZ() >> 4;
+        List<ChunkPos> around = new ArrayList<>();
+        for (int dx = -6; dx <= 6; dx++) {
+            for (int dz = -6; dz <= 6; dz++) {
+                ChunkPos c = new ChunkPos(w, pcx + dx, pcz + dz);
+                if (store.index().at(c) != null) around.add(c);
+            }
         }
-        p.sendMessage(Lang.msg("land.showing", "count", n));
+        outline(p, around, false);
+        p.sendMessage(Lang.msg("land.showing", "count", around.size()));
     }
 
-    /** Particles along the edges for 10 seconds. */
-    private void outline(Player p, String world, int x1, int z1, int x2, int z2, boolean selection) {
-        if (!showing.add(p.getUniqueId())) showing.remove(p.getUniqueId());
-        org.bukkit.Color color = selection ? org.bukkit.Color.fromRGB(80, 200, 255) : org.bukkit.Color.fromRGB(255, 210, 60);
+    /** Particles along the outer edges of these chunks (where the next chunk belongs to someone else). */
+    private void outline(Player p, List<ChunkPos> chunks, boolean justClaimed) {
+        UUID u = p.getUniqueId();
         for (int t = 0; t < 10; t++) {
             Bukkit.getScheduler().runTaskLater(eco, () -> {
-                if (!p.isOnline() || !p.getWorld().getName().equals(world)) return;
+                if (!p.isOnline()) return;
                 double y = p.getY() + 0.5;
-                Particle.DustOptions dust = new Particle.DustOptions(color, 1.2f);
-                for (double x = x1; x <= x2 + 1; x += 1) {
-                    p.spawnParticle(Particle.DUST, x, y, z1, 1, dust);
-                    p.spawnParticle(Particle.DUST, x, y, z2 + 1, 1, dust);
-                }
-                for (double z = z1; z <= z2 + 1; z += 1) {
-                    p.spawnParticle(Particle.DUST, x1, y, z, 1, dust);
-                    p.spawnParticle(Particle.DUST, x2 + 1, y, z, 1, dust);
+                for (ChunkPos c : chunks) {
+                    if (!c.world().equals(p.getWorld().getName())) continue;
+                    Land l = store.index().at(c);
+                    org.bukkit.Color color = justClaimed ? org.bukkit.Color.fromRGB(80, 200, 255)
+                            : l == null || l.server() ? org.bukkit.Color.fromRGB(255, 210, 60)
+                            : l.allows(u) ? org.bukkit.Color.fromRGB(90, 220, 110) : org.bukkit.Color.fromRGB(235, 70, 60);
+                    Particle.DustOptions dust = new Particle.DustOptions(color, 1.2f);
+                    int x0 = c.minX(), z0 = c.minZ();
+                    boolean n = store.index().at(new ChunkPos(c.world(), c.x(), c.z() - 1)) != l || justClaimed;
+                    boolean s = store.index().at(new ChunkPos(c.world(), c.x(), c.z() + 1)) != l || justClaimed;
+                    boolean we = store.index().at(new ChunkPos(c.world(), c.x() - 1, c.z())) != l || justClaimed;
+                    boolean e = store.index().at(new ChunkPos(c.world(), c.x() + 1, c.z())) != l || justClaimed;
+                    for (int i = 0; i <= 16; i++) {
+                        if (n) p.spawnParticle(Particle.DUST, x0 + i, y, z0, 1, dust);
+                        if (s) p.spawnParticle(Particle.DUST, x0 + i, y, z0 + 16, 1, dust);
+                        if (we) p.spawnParticle(Particle.DUST, x0, y, z0 + i, 1, dust);
+                        if (e) p.spawnParticle(Particle.DUST, x0 + 16, y, z0 + i, 1, dust);
+                    }
                 }
             }, t * 20L);
         }
+    }
+
+    // ------------------------------------------------------------------------------------------
+    // Admin: the server's land
+    // ------------------------------------------------------------------------------------------
+
+    /** Claims every free chunk within radius (in chunks) for the server. Returns how many. */
+    public int claimServer(Player p, int radius) {
+        Land server = store.index().server();
+        if (server == null) server = store.create(null, now());
+        String w = p.getWorld().getName();
+        int cx = p.getLocation().getBlockX() >> 4, cz = p.getLocation().getBlockZ() >> 4, n = 0;
+        List<ChunkPos> done = new ArrayList<>();
+        for (int dx = -radius; dx <= radius; dx++) {
+            for (int dz = -radius; dz <= radius; dz++) {
+                ChunkPos c = new ChunkPos(w, cx + dx, cz + dz);
+                if (store.index().at(c) != null) continue;
+                store.claim(server, c, now());
+                done.add(c);
+                n++;
+            }
+        }
+        outline(p, done, true);
+        return n;
+    }
+
+    /** Releases every chunk within radius, whoever owns it. Lands left empty end (금고 back to the owner). */
+    public int releaseAround(Player p, int radius) {
+        String w = p.getWorld().getName();
+        int cx = p.getLocation().getBlockX() >> 4, cz = p.getLocation().getBlockZ() >> 4, n = 0;
+        for (int dx = -radius; dx <= radius; dx++) {
+            for (int dz = -radius; dz <= radius; dz++) {
+                ChunkPos c = new ChunkPos(w, cx + dx, cz + dz);
+                Land l = store.index().at(c);
+                if (l == null) continue;
+                store.release(l, c);
+                n++;
+                if (l.size() == 0) {
+                    if (l.server()) store.delete(l);
+                    else disband(l, "land.disbanded-empty");
+                }
+            }
+        }
+        return n;
+    }
+
+    /** /관리자 땅 정보: everything about the land you stand in. */
+    public void adminInfo(Player p) {
+        Land l = at(p.getLocation());
+        if (l == null) {
+            p.sendMessage(Lang.msg("land.here-wild", "x", p.getLocation().getBlockX() >> 4, "z", p.getLocation().getBlockZ() >> 4));
+            return;
+        }
+        List<String> names = new ArrayList<>();
+        for (UUID m : l.members.keySet()) names.add(Players.name(m));
+        p.sendMessage(dev.stsv.core.util.Text.msg("<gray>땅 #" + l.id + " <white>" + ownerName(l) + "</white> 청크 " + l.size()
+                + " (무료 " + free(l) + ") · 구성원 " + (names.isEmpty() ? "-" : String.join(", ", names))
+                + " · 금고 " + EconomyModule.format(l.vault) + " · 하루 세금 " + EconomyModule.format(tax(l)) + " · 미납 " + l.warnings + "일"));
     }
 
     // ------------------------------------------------------------------------------------------
@@ -325,39 +532,69 @@ public final class LandModule extends EcoModule implements DailyListener {
 
     @Override
     public void newDay(int day, long dayStart) {
-        double mult = taxMultiplier();
-        java.util.Set<UUID> owners = new java.util.HashSet<>();
-        for (Claim c : store.index().all()) if (!c.server()) owners.add(c.owner);
-        for (UUID u : owners) {
-            long area = used(u);
-            long tax = rules.tax(area, mult);
-            LandStore.Account a = store.account(u);
-            Player p = Bukkit.getPlayer(u);
-            if (tax <= 0 || core.economy().withdraw(u, tax, "land_tax")) {
-                if (a.warnings != 0) {
-                    a.warnings = 0;
-                    store.save(u);
+        for (Land l : List.copyOf(store.index().players())) {
+            if (l.size() == 0) continue;
+            long tax = tax(l);
+            if (tax <= 0) {
+                if (l.warnings != 0) {
+                    l.warnings = 0;
+                    store.save(l);
                 }
                 continue;
             }
-            a.warnings++;
-            if (a.warnings >= rules.warnDays()) {
-                List<Claim> mine = store.index().of(u);
-                Claim newest = mine.isEmpty() ? null : mine.getLast();
-                if (newest != null) {
-                    store.delete(newest);
-                    eco.getLogger().info("재산세 " + rules.warnDays() + "일 미납: " + Players.name(u) + " 의 구역 해제 (" + newest.area() + "㎡)");
-                    if (p != null) p.sendMessage(Lang.msg("land.released", "area", newest.area(), "x", newest.x1, "z", newest.z1));
+            if (!canPay(l, tax)) {
+                l.warnings++;
+                if (l.warnings < rules.warnDays()) {
+                    store.save(l);
+                    tell(l, Lang.msg("land.tax-warning", "tax", EconomyModule.format(tax), "n", l.warnings, "max", rules.warnDays()));
+                    continue;
                 }
-                a.warnings = 0;
-            } else if (p != null) {
-                p.sendMessage(Lang.msg("land.tax-warning", "tax", EconomyModule.format(tax), "n", a.warnings, "max", rules.warnDays()));
+                // the newest chunks go until what is left can be paid
+                int released = 0;
+                while (l.size() > 0 && !canPay(l, tax(l))) {
+                    store.release(l, l.newest());
+                    released++;
+                }
+                eco.getLogger().info("재산세 " + rules.warnDays() + "일 미납: " + ownerName(l) + " 의 땅에서 청크 " + released + "개 해제");
+                tell(l, Lang.msg("land.released", "count", released, "size", l.size()));
+                if (l.size() == 0) {
+                    disband(l, "land.disbanded-empty");
+                    continue;
+                }
+                tax = tax(l);
             }
-            store.save(u);
+            pay(l, tax);
+            l.warnings = 0;
+            store.save(l);
+            if (rules.lowVaultDays() > 0 && l.vault < tax * rules.lowVaultDays()) {
+                tell(l, Lang.msg("land.vault-low", "vault", EconomyModule.format(l.vault), "tax", EconomyModule.format(tax), "days", l.vault / tax));
+            }
         }
     }
 
-    // ------------------------------------------------------------------------------------------
+    private boolean canPay(Land l, long tax) {
+        return tax <= 0 || l.vault + core.economy().balance(l.owner) >= tax;
+    }
+
+    /** The 금고 first, the owner's wallet for the rest. (금고 money already left circulation when it was put in.) */
+    private void pay(Land l, long tax) {
+        long fromVault = Math.min(l.vault, tax);
+        if (fromVault > 0) store.vault(l, null, -fromVault, "tax", now());
+        long rest = tax - fromVault;
+        if (rest > 0) core.economy().withdraw(l.owner, rest, "land_tax");
+    }
+
+    @EventHandler
+    public void onJoin(PlayerJoinEvent e) {
+        Land l = store.index().home(e.getPlayer().getUniqueId());
+        if (l == null || l.size() == 0) return;
+        long tax = tax(l);
+        if (l.warnings > 0) e.getPlayer().sendMessage(Lang.msg("land.tax-warning", "tax", EconomyModule.format(tax), "n", l.warnings, "max", rules.warnDays()));
+        else if (tax > 0 && rules.lowVaultDays() > 0 && l.vault < tax * rules.lowVaultDays()) {
+            e.getPlayer().sendMessage(Lang.msg("land.vault-low", "vault", EconomyModule.format(l.vault), "tax", EconomyModule.format(tax), "days", l.vault / tax));
+        }
+    }
+
     // Protection
     // ------------------------------------------------------------------------------------------
 
@@ -368,15 +605,14 @@ public final class LandModule extends EcoModule implements DailyListener {
         Long last = warned.get(p.getUniqueId());
         if (last == null || now - last > 1500) {
             warned.put(p.getUniqueId(), now);
-            Claim c = at(l);
-            HudModule.flash(p, Lang.mm("land.protected", "owner", c == null || c.server() ? Lang.raw("land.server") : Players.name(c.owner)));
+            Land c = at(l);
+            HudModule.flash(p, Lang.mm("land.protected", "owner", ownerName(c)));
         }
         return true;
     }
 
     @EventHandler(priority = EventPriority.LOW, ignoreCancelled = true)
     public void onBreak(BlockBreakEvent e) {
-        if (eco.stalls() != null && eco.stalls().store().at(e.getBlock().getWorld().getName(), e.getBlock().getX(), e.getBlock().getY(), e.getBlock().getZ()) != null) return;
         deny(e.getPlayer(), e.getBlock().getLocation(), e);
     }
 
@@ -409,10 +645,9 @@ public final class LandModule extends EcoModule implements DailyListener {
             return;
         }
         if (e.getAction() != Action.RIGHT_CLICK_BLOCK) return;
-        if (eco.stalls() != null && eco.stalls().store().at(b.getWorld().getName(), b.getX(), b.getY(), b.getZ()) != null) return;
         boolean usesBlock = interactive(b) && !harmless(b.getType()) && !(e.getPlayer().isSneaking() && e.getItem() != null);
         // in the town (server claims) doors, gates and buttons work for everyone
-        Claim here = at(b.getLocation());
+        Land here = at(b.getLocation());
         if (usesBlock && here != null && here.server() && passage(b.getType())) usesBlock = false;
         boolean usesItem = e.getItem() != null && (e.getItem().getType() == Material.FLINT_AND_STEEL || e.getItem().getType() == Material.FIRE_CHARGE
                 || e.getItem().getType().name().endsWith("_SPAWN_EGG") || e.getItem().getType() == Material.ARMOR_STAND
@@ -527,17 +762,17 @@ public final class LandModule extends EcoModule implements DailyListener {
 
     @EventHandler(priority = EventPriority.LOW, ignoreCancelled = true)
     public void onFlow(BlockFromToEvent e) {
-        Claim to = at(e.getToBlock().getLocation());
+        Land to = at(e.getToBlock().getLocation());
         if (to != null && to != at(e.getBlock().getLocation())) e.setCancelled(true);
     }
 
     private boolean crosses(Block piston, List<Block> moved, BlockFace dir) {
-        Claim home = at(piston.getLocation());
+        Land home = at(piston.getLocation());
         List<Block> touched = new ArrayList<>(moved);
         for (Block b : moved) touched.add(b.getRelative(dir));
         touched.add(piston.getRelative(dir));
         for (Block b : touched) {
-            Claim c = at(b.getLocation());
+            Land c = at(b.getLocation());
             if (c != null && c != home) return true;
         }
         return false;
@@ -556,12 +791,12 @@ public final class LandModule extends EcoModule implements DailyListener {
     @EventHandler(priority = EventPriority.MONITOR, ignoreCancelled = true)
     public void onMove(PlayerMoveEvent e) {
         if (e.getFrom().getBlockX() == e.getTo().getBlockX() && e.getFrom().getBlockZ() == e.getTo().getBlockZ()) return;
-        Claim c = at(e.getTo());
+        Land c = at(e.getTo());
         long id = c == null ? -1 : c.id;
         Long before = where.put(e.getPlayer().getUniqueId(), id);
         if (before != null && before != id) {
             HudModule.flash(e.getPlayer(), c == null ? Lang.mm("land.leave")
-                    : Lang.mm("land.enter", "owner", c.server() ? Lang.raw("land.server") : Players.name(c.owner)));
+                    : Lang.mm("land.enter", "owner", ownerName(c)));
         }
     }
 }

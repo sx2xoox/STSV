@@ -19,7 +19,7 @@ import java.util.concurrent.CompletableFuture;
 
 /**
  * The economy server's admin tools, as sub commands of the core's /관리자 (날짜, 사건, 위치, 경매,
- * 직업, 땅, 수요고시, 순위, 기념비, 노점), its part of /관리자 보고서 and /관리자 초기화 경제서버.
+ * 직업, 땅, 수요고시, 순위, 기념비), its part of /관리자 보고서 and /관리자 초기화 경제서버.
  */
 final class AdminCommands {
 
@@ -151,14 +151,18 @@ final class AdminCommands {
             return List.of();
         });
 
-        add("땅", "서버 [반지름] | 삭제", "운영자 구역(스폰 마을): 선택한 두 모서리(/땅 1, /땅 2) 또는 반지름 / 서 있는 구역 삭제", (s, args) -> {
+        add("땅", "서버 [반지름] | 해제 [반지름] | 정보", "운영자 땅(스폰 마을): 둘레 청크를 서버 땅으로 / 둘레 청크를 누구 땅이든 해제 / 서 있는 땅 정보. 반지름은 청크 수 (0 = 지금 청크)", (s, args) -> {
             if (!(s instanceof Player p) || args.length < 1) {
-                s.sendMessage(Text.msg("<red>/관리자 땅 서버 [반지름] | 삭제"));
+                s.sendMessage(Text.msg("<red>/관리자 땅 서버 [반지름] | 해제 [반지름] | 정보"));
                 return;
             }
-            if (args[0].equals("삭제")) eco.land().delete(p);
-            else eco.land().create(p, args.length > 1 ? Integer.parseInt(args[1]) : -1, true);
-        }, (s, args) -> args.length == 1 ? List.of("서버", "삭제") : List.of());
+            int radius = args.length > 1 ? Math.clamp(Integer.parseInt(args[1]), 0, 32) : 0;
+            switch (args[0]) {
+                case "서버" -> s.sendMessage(Text.msg("<green>서버 땅으로: 청크 " + eco.land().claimServer(p, radius) + "개"));
+                case "해제" -> s.sendMessage(Text.msg("<yellow>해제: 청크 " + eco.land().releaseAround(p, radius) + "개"));
+                default -> eco.land().adminInfo(p);
+            }
+        }, (s, args) -> args.length == 1 ? List.of("서버", "해제", "정보") : List.of());
 
         add("수요고시", "", "이번 주 수요 고시를 지금 새로 뽑기", (s, args) -> {
             var picked = eco.shop().announceNotice(System.currentTimeMillis());
@@ -190,24 +194,6 @@ final class AdminCommands {
             for (var m : eco.vanity().monuments()) s.sendMessage(Text.mm(" <white>#" + m.slot() + " " + Players.name(m.player()) + " <gray>\"" + m.text() + "\""));
         }, (s, args) -> args.length == 1 ? List.of("지급", "목록")
                 : args.length == 2 ? Bukkit.getOnlinePlayers().stream().map(Player::getName).toList() : List.of());
-
-        add("노점", "생성 <번호> | 삭제 <번호> | 목록", "노점 상자 등록 (상자를 바라보고)", (s, args) -> {
-            String sub = args.length > 0 ? args[0] : "목록";
-            switch (sub) {
-                case "생성" -> {
-                    if (!(s instanceof Player p) || args.length < 2) s.sendMessage(Text.msg("<red>/관리자 노점 생성 <번호> (상자를 바라보고)"));
-                    else s.sendMessage(Text.msg(eco.stalls().create(p, Integer.parseInt(args[1]))));
-                }
-                case "삭제" -> s.sendMessage(Text.msg(args.length < 2 ? "<red>/관리자 노점 삭제 <번호>" : eco.stalls().delete(Integer.parseInt(args[1]))));
-                default -> {
-                    s.sendMessage(Text.msg("<gray>노점 " + eco.stalls().store().all().size() + "개"));
-                    for (var st : eco.stalls().store().all().values()) {
-                        s.sendMessage(Text.mm(" <white>#" + st.number + " <gray>" + st.world + " " + st.x + "," + st.y + "," + st.z + " - "
-                                + (st.owner == null ? "<green>빈 노점" : "<white>" + Players.name(st.owner))));
-                    }
-                }
-            }
-        }, (s, args) -> args.length == 1 ? List.of("생성", "삭제", "목록") : List.of());
 
         // /관리자 보고서 [일차]: the economy's health under the server's
         admin.report(EcoPlugin.ADMIN_OWNER, (s, args) -> {

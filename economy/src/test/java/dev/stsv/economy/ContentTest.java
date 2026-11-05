@@ -174,7 +174,7 @@ class ContentTest {
         List<String> problems = new ArrayList<>();
         List<MenuSpec> menus = MenuSpec.loadAll(List.of(new ContentPack("economy", "economy", PACK)), problems);
         assertTrue(problems.isEmpty(), String.join("\n", problems));
-        assertEquals(12, menus.size());
+        assertEquals(11, menus.size());
         for (MenuSpec m : menus) {
             assertTrue(m.background() != null, m.id() + " has a background");
             BufferedImage im = ImageIO.read(PACK.resolve("assets/economy/textures/" + m.background().getKey() + ".png").toFile());

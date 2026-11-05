@@ -3,8 +3,9 @@ package dev.stsv.economy;
 import dev.stsv.economy.auction.Auction;
 import dev.stsv.economy.job.JobSpec;
 import dev.stsv.economy.job.MachineSpec;
-import dev.stsv.economy.land.Claim;
-import dev.stsv.economy.land.ClaimIndex;
+import dev.stsv.economy.land.ChunkPos;
+import dev.stsv.economy.land.Land;
+import dev.stsv.economy.land.LandIndex;
 import dev.stsv.economy.land.LandRules;
 import dev.stsv.economy.request.RequestSpec;
 import dev.stsv.economy.event.EventSpec;
@@ -208,40 +209,58 @@ class RulesTest {
     // ------------------------------------------------------------------------------------------ land
 
     @Test
-    void claimsAreFoundAcrossChunksAndDoNotOverlap() {
-        ClaimIndex idx = new ClaimIndex();
-        UUID a = UUID.randomUUID();
-        Claim c = new Claim(1, a, "world", -20, -5, 10, 30, 0);   // spans chunks -2..0 by -1..1
-        idx.add(c);
-        assertSame(c, idx.at("world", -20, -5));
-        assertSame(c, idx.at("world", 10, 30));
-        assertSame(c, idx.at("world", -1, 0));
-        assertNull(idx.at("world", 11, 30));
+    void aChunkBelongsToOneLandAndEveryoneLivesInOne() {
+        LandIndex idx = new LandIndex();
+        UUID a = UUID.randomUUID(), b = UUID.randomUUID(), c = UUID.randomUUID();
+        Land la = new Land(1, a, 0), lb = new Land(2, b, 0), town = new Land(3, null, 0);
+        idx.add(la);
+        idx.add(lb);
+        idx.add(town);
+        idx.claim(la, new ChunkPos("world", 0, 0), 10);
+        idx.claim(la, new ChunkPos("world", -1, 0), 20);
+        idx.claim(town, new ChunkPos("world", 5, 5), 1);
+        assertSame(la, idx.at("world", 15, 15), "block 15,15 is chunk 0,0");
+        assertSame(la, idx.at("world", -1, 0), "block -1 is chunk -1");
+        assertNull(idx.at("world", 16, 0));
         assertNull(idx.at("nether", 0, 0));
-        assertNotNull(idx.overlapping("world", 10, 30, 40, 40, null));
-        assertNull(idx.overlapping("world", 11, 31, 40, 40, null));
-        assertNull(idx.overlapping("world", -20, -5, 10, 30, c), "itself is ignored (resizing)");
-        assertEquals(31L * 36, c.area());
-        idx.update(c, -20, -5, 50, 30);
-        assertSame(c, idx.at("world", 45, 0), "re-filed under the new chunks");
-        Claim b = new Claim(2, a, "world", 100, 100, 104, 104, 1);
-        idx.add(b);
-        assertEquals(List.of(c, b), idx.of(a), "oldest first (the newest is released first)");
-        assertEquals(c.area() + 25, idx.area(a));
-        idx.remove(c);
+        assertEquals(new ChunkPos("world", -1, 0), la.newest(), "the newest is released first");
+        assertTrue(town.server() && idx.server() == town);
+        assertEquals(0, idx.residents(town));
+        // living together: b joins a's land; b's free chunks count there, not on b's own land
+        assertEquals(1, idx.residents(la));
+        assertEquals(1, idx.residents(lb));
+        la.members.put(b, 5L);
+        assertSame(la, idx.home(b));
+        assertSame(lb, idx.ownedBy(b));
+        assertEquals(2, idx.residents(la));
+        assertEquals(0, idx.residents(lb), "b's own land lost b's free chunks");
+        assertTrue(la.allows(b) && la.allows(a) && !la.allows(c) && !lb.allows(a));
+        assertNull(idx.home(c));
+        idx.release(la, new ChunkPos("world", 0, 0));
         assertNull(idx.at("world", 0, 0));
+        assertEquals(1, la.size());
+        idx.remove(la);
+        assertNull(idx.at("world", -1, 0));
+        assertNull(idx.memberOf(b));
     }
 
     @Test
-    void propertyTaxIsProgressive() {
+    void landPriceAndTaxGrowWithSize() {
         LandRules r = LandRules.parse(ContentTest.yaml("land.yml"));
-        assertEquals(400, r.freeArea());
-        assertEquals(20, r.tax(400, 1));
-        assertEquals(125, r.tax(2500, 1));
-        assertEquals(125 + 50, r.tax(3000, 1), "above 2,500: double");
-        assertEquals(40, r.tax(400, 2), "세무 조사");
-        assertEquals(1, r.tax(1, 1), "rounded up");
-        assertEquals(0, r.tax(0, 1));
+        assertEquals(2, r.free(1), "2 free chunks a person");
+        assertEquals(6, r.free(3), "3 people living together: 6 free chunks");
+        assertEquals(0, r.price(0, 2));
+        assertEquals(0, r.price(1, 2));
+        assertEquals(500, r.price(2, 2), "the first paid chunk");
+        assertEquals(550, r.price(3, 2), "each paid chunk makes the next dearer");
+        assertEquals(0, r.tax(2, 2, 0, 1), "free chunks are not taxed");
+        assertEquals(13, r.tax(3, 2, 0, 1));
+        assertEquals(8 * 13, r.tax(10, 2, 0, 1));
+        assertEquals(8 * 13 + 2 * 26, r.tax(12, 2, 0, 1), "past 10 chunks: double");
+        assertEquals(15, r.progressiveLimit(1), "10 + 5 per member");
+        assertEquals(8 * 13, r.tax(12, 4, 1, 1), "two people: 4 free, double only past 15");
+        assertEquals(2 * 13, r.tax(3, 2, 0, 2), "세무 조사");
+        assertEquals(0, r.tax(0, 2, 0, 1));
     }
 
     // ------------------------------------------------------------------------------------------ requests, report

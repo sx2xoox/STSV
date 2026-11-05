@@ -6,7 +6,7 @@ import java.util.List;
 import java.util.UUID;
 import java.util.concurrent.CompletableFuture;
 
-/** Items waiting for a player (expired listings, auction wins, evicted stalls, full inventories). */
+/** Items waiting for a player (expired listings, auction wins, full inventories). */
 public final class MailStore {
 
     public record Mail(long id, UUID player, byte[] item, String reason, long at) {}

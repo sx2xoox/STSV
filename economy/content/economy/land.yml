@@ -1,10 +1,19 @@
-# 땅 /땅
-free-area: 400       # 무료 면적 (20×20)
-min-side: 3          # 구역 한 변의 최소 길이
-max-claims: 8        # 1인 구역 수
-price: 2             # 무료 면적을 넘는 땅을 살 때 1㎡당 가격 (G)
+# 땅 /땅. 단위는 청크(16×16, 높이 전체). 서 있는 청크를 /땅 구매 로 차지합니다.
+# 한 사람당 무료 청크 free-per-person 개. 구성원이 되면 그 사람의 무료 청크가 그 땅에 더해짐
+# (무료 청크는 한 사람당 한 곳: 구성원인 땅, 아니면 자기 땅). 청크 수 상한은 없음.
+free-per-person: 2
+
+# 무료를 넘는 청크 값: base + step × (이미 가진 유료 청크 수). 돌려받지 않음
+price:
+  base: 500
+  step: 50
+
 tax:
-  rate: 0.05             # 매일 05시 보유 면적 × 0.05G
-  progressive-over: 2500 # 이 면적을 넘는 부분은
-  progressive-factor: 2  # 2배
-  warn-days: 3           # 3일 연속 미납이면 가장 나중에 만든 구역 해제
+  per-chunk: 13              # 무료를 넘는 청크 하나의 하루 재산세 (05시, 금고에서 먼저, 모자라면 소유자 지갑)
+  progressive-base: 10       # 땅 전체 청크가 progressive-base + 구성원 1명당 progressive-per-member 를 넘으면
+  progressive-per-member: 5
+  progressive-factor: 2      # 넘는 청크는 세금 2배
+  warn-days: 3               # 3일 연속 못 내면, 낼 수 있게 될 때까지 가장 최근 청크부터 해제
+  low-vault-days: 3          # 금고가 이 일수의 세금보다 적으면 소유자·구성원에게 알림 (0 = 끔)
+
+invite-minutes: 5            # /땅 초대 가 유효한 시간

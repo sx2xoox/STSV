@@ -1,8 +1,7 @@
-# 거래 수단 4가지의 수수료와 제한
+# 거래 수단(거래소, 경매, 직거래)의 수수료와 제한
 market:            # 거래소 /거래소
   fee: 0.05        # 팔릴 때 5%
   max-listings: 10
-  stall-bonus: 10  # 노점을 빌린 사람은 +10
   hours: 48        # 지나면 우편함으로 돌아옴
 auction:           # 경매 /경매
   fee: 0.07        # 낙찰가의 7%
@@ -15,5 +14,3 @@ auction:           # 경매 /경매
   min-start: 10
 trade:             # 직거래 /거래
   distance: 10
-stall:             # 노점 /노점
-  rent: 200        # 하루 임대료 (05시)
