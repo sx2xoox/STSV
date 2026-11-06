@@ -1854,6 +1854,104 @@ def still(tier):
 # registry, preview
 # ================================================================================================
 
+# ================================================================================================
+# 압착기 (press, 공용) 2 x 2 x 1: a screw press over a stone basin on the left, the oil running out of
+# a spout into a tub on the right, pressed blocks and a compost sack beside it
+# ================================================================================================
+
+OIL = Mat("corn", "plain", 1, bevel=None, noise=0.04)
+
+
+def press(tier):
+    m = MModel(f"press_{tier}")
+    fine, glow = tier >= 2, tier >= 3
+    oil = Mat("lamp", "plain", 2, bevel=None, glow=True) if glow else OIL
+    m.group("basin")
+    m.box("basin", (1, 0, 2), (15, 6, 14), STONE)
+    for (x0, z0, x1, z1) in ((1, 2, 15, 3), (1, 13, 15, 14), (1, 3, 2, 13), (14, 3, 15, 13)):
+        m.box("basin_rim", (x0, 6, z0), (x1, 8, z1), STONE, faces={"down": None})
+    m.box("basin_oil", (2, 6, 3), (14, 7, 13), oil, faces={f: None for f in ("north", "south", "east", "west", "down")})
+    m.group("frame")
+    post = Mat("crimson", "grain", 2) if fine else LOG
+    for x in (1, 13):
+        m.box("post", (x, 8, 6.5), (x + 2, 27, 9.5), post)
+        m.box("post_foot", (x - 0.5, 6, 6), (x + 2.5, 8.5, 10), STONE)
+    m.box("beam", (0.5, 27, 5.5), (15.5, 31, 10.5), OAK)
+    m.box("nut", (5.5, 25.5, 5.5), (10.5, 27, 10.5), IRON)
+    m.group("cake")
+    m.box("cake", (4, 7, 4), (12, 10.5, 12), BURLAP)
+    m.box("plate", (3.5, 10.5, 3.5), (12.5, 12.5, 12.5), OAK)
+    m.group("spout")
+    m.box("spout", (15, 4.5, 7), (19, 5.5, 9), IRON)
+    m.box("drip", (18.25, 3, 7.75), (18.75, 4.5, 8.25), oil)
+    m.group("tub")
+    m.box("tub_floor", (17, 0, 3), (27, 1, 13), SPRUCE)
+    frame_t = 1
+    for (x0, z0, x1, z1) in ((17, 3, 27, 4), (17, 12, 27, 13), (17, 4, 18, 12), (26, 4, 27, 12)):
+        m.box("tub_wall", (x0, 1, z0), (x1, 5, z1), SPRUCE)
+    m.box("tub_oil", (18, 1, 4), (26, 3.5, 12), oil, faces={f: None for f in ("north", "south", "east", "west", "down")})
+    m.box("tub_band", (16.75, 2.5, 2.75), (27.25, 3.25, 13.25), BRASS if fine else IRON)
+    m.group("blocks")
+    pressed = Mat("stone", "speckle", 1)
+    m.box("pressed", (27.5, 0, 1), (31.5, 4, 5), pressed)
+    m.box("pressed", (28, 4, 1.5), (31, 7, 4.5), pressed)
+    m.box("pressed_dirt", (27.5, 0, 5.5), (31.5, 4, 9.5), Mat("soil", "speckle", 2))
+    sack(m, 27.5, 9.75, 4.25, 5)
+
+    if tier >= 1:
+        # 1강: iron bands round the posts and beam ends, a shelf of oil bottles at the back
+        m.group("extra")
+        for x in (1, 13):
+            for y in (11, 22):
+                m.box("band", (x - 0.25, y, 6.25), (x + 2.25, y + 1, 9.75), IRON)
+        for x in (0.25, 14.25):
+            m.box("beam_cap", (x, 26.75, 5.25), (x + 1.5, 31.25, 10.75), IRON)
+        m.box("shelf", (17, 13, 13.5), (31, 14, 16), SPRUCE)
+        for x in (17.5, 29.5):
+            m.box("shelf_leg", (x, 0, 14), (x + 1, 13, 15.5), SPRUCE_GRAIN)
+        for i, x in enumerate((18, 21, 24)):
+            m.box("bottle", (x, 14, 14), (x + 2, 17.5, 15.5), GLASS)
+            m.box("bottle_oil", (x + 0.25, 14, 14.25), (x + 1.75, 16.5 if i % 2 else 17, 15.25), oil, faces={"down": None})
+            m.box("bottle_cork", (x + 0.5, 17.5, 14.5), (x + 1.5, 18.5, 15), OAK_GRAIN)
+
+    if fine:
+        # 2강 기름집: posts painted red, brass bands and a brass funnel over the press, a pressure gauge
+        m.group("craft")
+        m.box("funnel", (6, 31, 6), (10, 32, 10), BRASS)
+        m.box("gauge", (6.5, 2, 1.5), (9.5, 5, 2), BRASS, faces={"south": None})
+        m.box("gauge_face", (7, 2.5, 1.25), (9, 4.5, 1.5), Mat("dial", "plain", 1, bevel=None), faces={"south": None})
+        m.box("gauge_needle", (7.75, 3.5, 1.15), (8.25, 4.25, 1.25), Mat("crimson", "plain", 2, bevel=None), faces={"south": None})
+
+    if glow:
+        # 3강 황금 기름: gold caps on the beam, a lantern on the shelf, the oil itself shining
+        m.group("glow")
+        for x in (0, 14.5):
+            m.box("gold_cap", (x, 31.25, 5.5), (x + 1.5, 32, 10.5), GOLD)
+        # a lantern standing on the shelf
+        m.box("lantern_base", (27, 14, 13.25), (31, 15, 16), IRON)
+        m.box("lantern_glass", (27.25, 15, 13.5), (30.75, 19, 15.75), "mc_glass_gold", glow=True,
+              full_uv=["north", "south", "east", "west"], faces={"up": None, "down": None})
+        m.box("lantern_cap", (27, 19, 13.25), (31, 20, 16), IRON)
+        m.box("lantern_handle", (28.75, 20, 14.25), (29.25, 21.5, 15), IRON)
+    return display(m, (2, 2, 1), 0)
+
+
+def press_screw(tier):
+    """The press screw with its capstan bar, turns around y. Centre (8, 8, 8)."""
+    m = MModel(f"press_screw_{tier}")
+    m.group("screw")
+    cyl(m, "rod", "y", (8, 8), 3, 0.5, 15.5, IRON, cap=IRON)
+    for y in range(2, 15, 2):
+        cyl(m, "thread", "y", (8, 8), 4, y, y + 0.75, STEEL_DARK, cap=STEEL_DARK)
+    m.box("bar", (2.5, 5, 7.5), (13.5, 6, 8.5), OAK_GRAIN)
+    m.box("bar_end", (2, 4.75, 7.25), (3, 6.25, 8.75), BRASS if tier >= 2 else IRON)
+    m.box("bar_end", (13, 4.75, 7.25), (14, 6.25, 8.75), BRASS if tier >= 2 else IRON)
+    if tier >= 3:
+        cyl(m, "glow_ring", "y", (8, 8), 5, 0.75, 1.5, Mat("glow_amber", "plain", 2, glow=True, bevel=None))
+    m.display = presets.furniture(gui_scale=0.5)
+    return m
+
+
 # machine id -> (builder, size in blocks (w, h, d), floor y, [(part builder, centre in floor coords, axis, rpm)])
 MACHINES = {
     "gem_bench": (gem_bench, (2, 2, 1), 0, [(gem_bench_wheel, (8, 24, 8), "z", 40)]),
@@ -1862,6 +1960,7 @@ MACHINES = {
     "forge": (forge, (2, 3, 2), -16, []),
     "kitchen": (kitchen, (3, 2, 1), 0, []),
     "still": (still, (2, 3, 2), -16, []),
+    "press": (press, (2, 2, 1), 0, [(press_screw, (8, 20, 8), "y", 30)]),
 }
 
 

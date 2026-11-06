@@ -1,4 +1,4 @@
-# 직업 발견품, 직업 기계 생산품, 직업 기계. 설명은 꼭 필요한 것만 (만드는 법은 기계의 레시피 목록에, 만든 사람은 제작 표시에).
+# 직업 발견품, 직업 기계 생산품, 직업 기계, 공용 기계(압착기)와 그 생산품. 설명은 꼭 필요한 것만 (만드는 법은 기계의 레시피 목록에, 만든 사람은 제작 표시에).
 # 생산품은 누구나 직업 기계로 만들 수 있음 (그 직업이면 빠르고 경험치·효과). 레시피는 machines.yml.
 # 아이콘: tools/assetgen/economy_goods.py, 기계 모델: tools/assetgen/economy_machines.py
 
@@ -72,6 +72,36 @@ jeweled_crown:
   name: "<#9fb4c8>보석 왕관"
   texture: jeweled_crown
 
+cut_emerald:
+  material: paper
+  name: "<#9fb4c8>세공 에메랄드"
+  texture: cut_emerald
+
+lapis_beads:
+  material: paper
+  name: "<#9fb4c8>청금석 구슬"
+  texture: lapis_beads
+
+gold_ring:
+  material: paper
+  name: "<#9fb4c8>금반지"
+  texture: gold_ring
+
+cut_diamond:
+  material: paper
+  name: "<#9fb4c8>세공 다이아몬드"
+  texture: cut_diamond
+
+sapphire_brooch:
+  material: paper
+  name: "<#9fb4c8>사파이어 브로치"
+  texture: sapphire_brooch
+
+diamond_ring:
+  material: paper
+  name: "<#9fb4c8>다이아 반지"
+  texture: diamond_ring
+
 # ── 가공대 · 농부 ─────────────────────────────────────────
 rice:
   material: paper
@@ -127,6 +157,31 @@ jang_set:
   material: paper
   name: "<#8bc34a>전통 장 세트"
   texture: jang_set
+
+potato_starch:
+  material: paper
+  name: "<#8bc34a>감자 전분"
+  texture: potato_starch
+
+brown_sugar:
+  material: paper
+  name: "<#8bc34a>흑설탕"
+  texture: brown_sugar
+
+apple_juice:
+  material: paper
+  name: "<#8bc34a>사과즙"
+  texture: apple_juice
+
+jocheong:
+  material: paper
+  name: "<#8bc34a>조청"
+  texture: jocheong
+
+soy_sauce:
+  material: paper
+  name: "<#8bc34a>간장"
+  texture: soy_sauce
 
 # ── 손질대 · 어부 ─────────────────────────────────────────
 cod_fillet:
@@ -184,6 +239,31 @@ caviar:
   name: "<#4fc3f7>캐비아"
   texture: caviar
 
+shrimp_meat:
+  material: paper
+  name: "<#4fc3f7>새우살"
+  texture: shrimp_meat
+
+gwamegi:
+  material: paper
+  name: "<#4fc3f7>과메기"
+  texture: gwamegi
+
+gulbi:
+  material: paper
+  name: "<#4fc3f7>굴비"
+  texture: gulbi
+
+hongeo:
+  material: paper
+  name: "<#4fc3f7>삭힌 홍어"
+  texture: hongeo
+
+jeotgal:
+  material: paper
+  name: "<#4fc3f7>젓갈"
+  texture: jeotgal
+
 # ── 대장간 · 대장장이 ─────────────────────────────────────────
 iron_plate:
   material: paper
@@ -219,6 +299,31 @@ ornate_armor:
   material: paper
   name: "<#ff8a65>장식용 갑옷"
   texture: ornate_armor
+
+iron_nails:
+  material: paper
+  name: "<#ff8a65>쇠못"
+  texture: iron_nails
+
+copper_pot:
+  material: paper
+  name: "<#ff8a65>구리 냄비"
+  texture: copper_pot
+
+gamasot:
+  material: paper
+  name: "<#ff8a65>가마솥"
+  texture: gamasot
+
+iron_lantern:
+  material: paper
+  name: "<#ff8a65>철 랜턴"
+  texture: iron_lantern
+
+ornamental_sword:
+  material: paper
+  name: "<#ff8a65>장식용 도검"
+  texture: ornamental_sword
 
 # ── 조리대 · 요리사 ─────────────────────────────────────────
 kimchi:
@@ -357,6 +462,78 @@ hanjeongsik:
     nutrition: 14
     saturation: 16.8
 
+gyeranmari:
+  material: paper
+  name: "<#ffb74d>계란말이"
+  texture: gyeranmari
+  food:
+    nutrition: 4
+    saturation: 4.8
+
+hotteok:
+  material: paper
+  name: "<#ffb74d>호떡"
+  texture: hotteok
+  food:
+    nutrition: 3
+    saturation: 3.6
+
+gamjajeon:
+  material: paper
+  name: "<#ffb74d>감자전"
+  texture: gamjajeon
+  food:
+    nutrition: 4
+    saturation: 4.8
+
+bulgogi:
+  material: paper
+  name: "<#ffb74d>불고기"
+  texture: bulgogi
+  food:
+    nutrition: 8
+    saturation: 9.6
+
+jeyuk:
+  material: paper
+  name: "<#ffb74d>제육볶음"
+  texture: jeyuk
+  food:
+    nutrition: 8
+    saturation: 9.6
+
+samgyetang:
+  material: paper
+  name: "<#ffb74d>삼계탕"
+  texture: samgyetang
+  food:
+    nutrition: 9
+    saturation: 10.8
+
+doenjang_jjigae:
+  material: paper
+  name: "<#ffb74d>된장찌개"
+  texture: doenjang_jjigae
+  food:
+    nutrition: 7
+    saturation: 8.4
+
+kimchi_jjigae:
+  material: paper
+  name: "<#ffb74d>김치찌개"
+  texture: kimchi_jjigae
+  food:
+    nutrition: 8
+    saturation: 9.6
+
+tteokbokki:
+  material: paper
+  name: "<#ffb74d>떡볶이"
+  texture: tteokbokki
+  food:
+    nutrition: 7
+    saturation: 8.4
+
 # ── 증류기 · 연금술사 ─────────────────────────────────────────
 makgeolli:
   material: paper
@@ -392,6 +569,58 @@ vintage_wine:
   material: paper
   name: "<#ba68c8>빈티지 포도주"
   texture: vintage_wine
+
+flower_tea:
+  material: paper
+  name: "<#ba68c8>꽃잎 차"
+  texture: flower_tea
+
+cider:
+  material: paper
+  name: "<#ba68c8>사과주"
+  texture: cider
+
+strawberry_wine:
+  material: paper
+  name: "<#ba68c8>딸기주"
+  texture: strawberry_wine
+
+mead:
+  material: paper
+  name: "<#ba68c8>꿀술"
+  texture: mead
+
+cheongju:
+  material: paper
+  name: "<#ba68c8>청주"
+  texture: cheongju
+
+# ── 압착기 · 공용 (남는 바닐라 물건을 눌러서) ─────────────────────────
+
+seed_oil:
+  material: paper
+  name: "<#c8b98a>씨앗 기름"
+  texture: seed_oil
+
+compost:
+  material: paper
+  name: "<#c8b98a>퇴비"
+  texture: compost
+
+compressed_stone:
+  material: paper
+  name: "<#c8b98a>압축 석재"
+  texture: compressed_stone
+
+compressed_dirt:
+  material: paper
+  name: "<#c8b98a>압축 흙"
+  texture: compressed_dirt
+
+refined_oil:
+  material: paper
+  name: "<#c8b98a>정제유"
+  texture: refined_oil
 
 # ── 직업 기계 (가구) ─────────────────────────────────────────────
 gem_bench:
@@ -459,3 +688,15 @@ still:
     cells: [[0, 0, 0], [1, 0, 0], [0, 0, 1], [1, 0, 1], [0, 1, 0], [1, 1, 0], [0, 1, 1], [1, 1, 1], [0, 2, 0], [1, 2, 0], [0, 2, 1], [1, 2, 1]]
     behavior: economy:machine/still
     translation: [0, 1, 0]
+
+press:
+  material: paper
+  name: "<#c8b98a>압착기"
+  lore: ["<gray>공용 기계 · 2×1×2", "<gray>남는 씨앗·묘목·잎·돌·흙을 눌러서 팔 것으로", "<dark_gray>설치하고 우클릭"]
+  model: press_0
+  max-stack: 1
+  furniture:
+    cells: [[0, 0, 0], [1, 0, 0], [0, 1, 0], [1, 1, 0]]
+    behavior: economy:machine/press
+    parts:
+      - { model: press_screw_0, position: [8, 20, 8], spin: { axis: y, rpm: 30 } }

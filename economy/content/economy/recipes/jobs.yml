@@ -35,3 +35,9 @@ still:
   pattern: ["CGC", "CBC", "KFK"]
   keys: { C: minecraft:copper_block, G: minecraft:glass, B: minecraft:brewing_stand, K: minecraft:bricks, F: minecraft:furnace }
   result: economy:still
+
+press:
+  type: shaped
+  pattern: ["PLP", "CHC", "CCC"]
+  keys: { P: minecraft:piston, L: "#minecraft:logs", H: minecraft:hopper, C: minecraft:cobblestone }
+  result: economy:press

@@ -71,7 +71,8 @@ class ContentTest {
     static boolean exists(String id, Set<String> ours) {
         if (id.startsWith("#economy:")) return GROUPS.contains(id);
         if (id.startsWith("economy:")) return ours.contains(id);
-        if (id.startsWith("#")) return List.of("#logs", "#small_flowers", "#planks", "#minecraft:logs", "#minecraft:planks").contains(id);
+        if (id.startsWith("#")) return List.of("#logs", "#small_flowers", "#planks", "#minecraft:logs", "#minecraft:planks",
+                "#saplings", "#leaves", "#stone_crafting_materials").contains(id);
         if (id.startsWith("stsv:")) return Files.exists(Path.of(System.getProperty("stsv.content")).resolve("../../content/stsv"));
         Material m = Material.matchMaterial(id);
         return m != null && !m.isLegacy() && m != Material.AIR;   // isItem() needs a running server
@@ -135,7 +136,8 @@ class ContentTest {
         }
         for (MachineSpec m : machines.values()) {
             if (!exists(m.item(), ours)) problems.add("machine item: " + m.item());
-            if (!jobs.jobs().containsKey(m.job())) problems.add("machine job: " + m.job());
+            // the six job machines have their job; the press is for everyone (no job)
+            if (m.job() == null ? !m.id().equals("press") : !jobs.jobs().containsKey(m.job())) problems.add("machine job: " + m.job());
             for (var r : m.recipes()) {
                 if (!exists(r.output(), ours)) problems.add(m.id() + " out: " + r.output());
                 for (String in : r.inputs().keySet()) if (!exists(in, ours)) problems.add(m.id() + " in: " + in);
@@ -182,11 +184,12 @@ class ContentTest {
         if (!titles.contains("master_angler")) problems.add("title master_angler");
         assertEquals(3, fish.species().values().stream().filter(x -> x.item().startsWith("minecraft:")).count(), "cod, salmon, pufferfish");
 
-        // the shape: 6 jobs, 6 finds, 60 machine goods, 6 machines, 32 crop items (15 seeds, 17 harvests), 92 fish
+        // the shape: 6 jobs, 6 finds, 95 job machine goods + 5 press goods, 6 job machines + the press,
+        // 32 crop items (15 seeds, 17 harvests), 92 fish
         assertEquals(6, jobs.jobs().size());
-        assertEquals(6 + 60 + 6 + 32 + 92, ours.size(), "6 finds + 60 goods + 6 machines + 32 crop items + 92 fish");
-        assertEquals(6, machines.size());
-        assertEquals(60, machines.values().stream().flatMap(x -> x.recipes().stream()).map(MachineSpec.Recipe::output).distinct().count());
+        assertEquals(6 + 100 + 7 + 32 + 92, ours.size(), "6 finds + 100 goods + 7 machines + 32 crop items + 92 fish");
+        assertEquals(7, machines.size());
+        assertEquals(100, machines.values().stream().flatMap(x -> x.recipes().stream()).map(MachineSpec.Recipe::output).distinct().count());
         assertTrue(events.keySet().containsAll(List.of("shortage", "crash", "harvest", "merchant", "tax_audit")));
         assertFalse(Files.exists(PACK.resolve("season.yml")), "no season plan any more");
         // every job product can actually be made: by a recipe, a machine, a job drop or a fishing rod
@@ -428,5 +431,42 @@ class ContentTest {
         assertEquals(spec.daily().count() + spec.weekly().count(), list.size());
         // daily missions fill the first row of the list, weekly the second
         assertEquals(List.of(list.get(0) / 9, list.get(spec.daily().count()) / 9 - 1), List.of(list.get(spec.daily().count() - 1) / 9, list.get(0) / 9));
+    }
+
+    /**
+     * Every job machine can work alone: it has recipes that need no other machine's goods (raw things only,
+     * or its own goods), and every good that has a second, "direct" recipe in the same machine can be
+     * made that way without the other machines. The press takes only vanilla leftovers. Times range from
+     * quick to long, and the still's aged drinks are its slowest.
+     */
+    @Test
+    void machinesWorkWithoutTheOthers() {
+        Map<String, MachineSpec> machines = MachineSpec.parse(yaml("machines.yml"), new ArrayList<>());
+        Map<String, String> madeOn = new java.util.HashMap<>();
+        for (MachineSpec m : machines.values()) for (var r : m.recipes()) madeOn.putIfAbsent(r.output(), m.id());
+        List<String> problems = new ArrayList<>();
+        for (MachineSpec m : machines.values()) {
+            java.util.function.Predicate<MachineSpec.Recipe> alone = r -> r.inputs().keySet().stream()
+                    .allMatch(in -> !madeOn.containsKey(in) || madeOn.get(in).equals(m.id()));
+            long n = m.recipes().stream().filter(alone).count();
+            if (n < 5) problems.add(m.id() + ": only " + n + " recipes without other machines");
+            Map<String, List<MachineSpec.Recipe>> byOut = new java.util.HashMap<>();
+            for (var r : m.recipes()) byOut.computeIfAbsent(r.output(), k -> new ArrayList<>()).add(r);
+            for (var e : byOut.entrySet()) {
+                if (e.getValue().size() > 1 && e.getValue().stream().noneMatch(alone)) problems.add(m.id() + " " + e.getKey() + ": no direct recipe");
+            }
+            int quick = (int) m.recipes().stream().filter(r -> r.seconds() <= 60).count();
+            int slow = (int) m.recipes().stream().filter(r -> r.seconds() >= 300).count();
+            if (quick == 0 || (!m.id().equals("press") && slow == 0)) problems.add(m.id() + ": times " + quick + " quick, " + slow + " slow");
+        }
+        for (var r : machines.get("press").recipes()) {
+            for (String in : r.inputs().keySet()) {
+                if (!(in.startsWith("minecraft:") || in.startsWith("#") || madeOn.getOrDefault(in, "").equals("press"))) problems.add("press takes " + in);
+            }
+        }
+        MachineSpec still = machines.get("still");
+        double agedMin = still.recipes().stream().filter(MachineSpec.Recipe::aging).mapToDouble(MachineSpec.Recipe::seconds).min().orElse(0);
+        if (agedMin < 600) problems.add("still: an aged drink in " + agedMin + " s");
+        assertTrue(problems.isEmpty(), String.join("\n", problems));
     }
 }

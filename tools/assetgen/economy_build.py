@@ -94,7 +94,7 @@ def main():
     import economy_goods as GO
     GO.sheet(PREVIEWS / "goods.png")
     if render:
-        # job machines: every machine in its four tier looks, from the front and from behind
+        # job machines and the press: every machine in its four tier looks, from the front and from behind
         machine_sheet(PREVIEWS / "machines_front.png", 35, 22)
         machine_sheet(PREVIEWS / "machines_back.png", 215, 24)
         # crops: every ripe crop as it stands in a field (2x2 blocks on farmland), to judge the 3D look
@@ -104,7 +104,8 @@ def main():
 
 
 MACHINE_ROWS = [("gem_bench", "세공대 (광부) 2×1×2"), ("mill", "가공대 (농부) 2×2×2"), ("fish_bench", "손질대 (어부) 2×1×2"),
-                ("forge", "대장간 (대장장이) 2×2×3"), ("kitchen", "조리대 (요리사) 3×1×2"), ("still", "증류기 (연금술사) 2×2×3")]
+                ("forge", "대장간 (대장장이) 2×2×3"), ("kitchen", "조리대 (요리사) 3×1×2"), ("still", "증류기 (연금술사) 2×2×3"),
+                ("press", "압착기 (공용) 2×1×2")]
 
 
 def machine_sheet(path, az, el):

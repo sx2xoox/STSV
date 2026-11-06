@@ -249,6 +249,9 @@ machine:
   info-lore: ["<gray>설치: <white>{owner}", "<gray>줄 <white>{lanes}</white>개 · 속도 <white>+{speed}%", "<gray>누구나 사용. <{color}>{job}<gray>면 빠르고 경험치·직업 효과", "<dark_gray>재료를 넣은 사람이 그 줄의 운영자"]
   upgrade: "<gold>강화 → {tier}"
   upgrade-lore: ["<gray>비용 <white>{cost}", "<gray>필요: 설치한 사람이 <{color}>{job}<gray> Lv{level}", "<gray>강화하면: 줄 {lanes}개 · 속도 +{speed}% · 새 레시피 {recipes}개 · 새 모습"]
+  # 공용 기계 (직업 없음: 압착기)
+  info-lore-common: ["<gray>설치: <white>{owner}", "<gray>줄 <white>{lanes}</white>개 · 속도 <white>+{speed}%", "<gray>공용 기계: 누구나 같은 속도 (경험치·직업 효과 없음)", "<dark_gray>재료를 넣은 사람이 그 줄의 운영자"]
+  upgrade-lore-common: ["<gray>비용 <white>{cost}", "<gray>필요: 설치한 사람 (직업 레벨 필요 없음)", "<gray>강화하면: 줄 {lanes}개 · 속도 +{speed}% · 새 레시피 {recipes}개 · 새 모습"]
   upgrade-click: ["<yellow>두 번 클릭: 강화 (설치한 사람만)"]
   upgrade-confirm: ["<gold><b>한 번 더 클릭하면 강화합니다</b>"]
   upgrade-max: "<gold>최고 단계입니다"

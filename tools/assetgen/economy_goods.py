@@ -1023,6 +1023,490 @@ def pearl_perfume():
 
 
 # ================================================================================================
+# 추가 생산품 (세공대, 가공대, 손질대, 대장간, 조리대, 증류기) and the 압착기's goods
+# ================================================================================================
+
+@icon
+def cut_emerald():
+    return _gem("bottle_green")
+
+
+@icon
+def cut_diamond():
+    c = _gem("ice")
+    c.dots([(11, 3), (12, 4)], "snow", 2)
+    return c
+
+
+@icon
+def lapis_beads():
+    """청금석 구슬: a loop of deep blue beads with a little gold clasp and a tassel."""
+    c = Canvas()
+    import math
+    for i in range(12):
+        a = math.pi * 2 * i / 12
+        x, y = 8 + 5.4 * math.cos(a), 7.2 + 4.6 * math.sin(a)
+        c.ellipse(x, y, 1.2, 1.2, "sapphire", 1 + (i % 2) * 0.1, lo=1, hi=3)
+    c.rect(7, 11, 9, 12.6, "gold", 3, normal=(0, -0.3, 1), lo=2, hi=4)
+    c.line(8, 13, 8, 15, "fabric_red", 3, z=3).line(7, 14, 7, 15, "fabric_red", 2, z=3).line(9, 14, 9, 15, "fabric_red", 2, z=3)
+    c.dots([(4, 4), (11, 4)], "sapphire", 5)
+    return c
+
+
+def _ring(gem=None):
+    c = Canvas()
+    c.ellipse(8, 10.2, 6.6, 4.6, "gold", 1)
+    c.hole(8, 10.6, 4.4, 2.6)
+    if gem:
+        c.rect(6, 4.5, 10, 6.5, "gold", 3, normal=(0, -0.4, 1))
+        c.ellipse(8, 3.6, 3.0, 2.6, gem, 4)
+    else:
+        c.line(3, 8, 6, 7, "gold", 4, z=3).line(10, 7, 13, 8, "gold", 4, z=3)
+    return c
+
+
+@icon
+def gold_ring():
+    return _ring()
+
+
+@icon
+def diamond_ring():
+    c = _ring("ice")
+    c.dots([(7, 2), (6, 3)], "snow", 2)
+    c.dots([(12, 1), (13, 2), (11, 2)], "snow", 1)
+    return c
+
+
+@icon
+def sapphire_brooch():
+    """An oval brooch: a sapphire in a gold frame of little beads, a pin behind it."""
+    c = Canvas()
+    c.line(2, 12, 14, 4, "steel", 3, z=0)
+    c.ellipse(8, 8, 6.4, 5.4, "gold", 1, lo=1, hi=4)
+    c.ellipse(8, 8, 4.6, 3.8, "gold", 1.5, lo=3, hi=4, dome=-0.3)
+    c.ellipse(8, 8, 3.6, 3.0, "sapphire", 2, lo=1, hi=4)
+    c.dots([(7, 6), (6, 7)], "snow", 2)
+    for x, y in ((2, 8), (14, 8), (8, 3), (8, 13), (4, 4), (12, 4), (4, 12), (12, 12)):
+        c.put(x, y, "gold", 5, z=3)
+    return c
+
+
+def _dish_heap(mat, dots=()):
+    c = Canvas()
+    c.ellipse(8, 7.6, 5.6, 4.6, mat, 2, lo=1, hi=4, dome=0.9)
+    c.poly([(1, 10.5), (15, 10.5), (12.5, 14.5), (3.5, 14.5)], "porcelain", 3, normal=(0, 0.5, 0.85), lo=2, hi=4)
+    c.tube([(1.6, 10.6), (14.4, 10.6)], [0.9, 0.9], "porcelain", 4, lo=2, hi=5)
+    for (pts, m, st) in dots:
+        c.dots(pts, m, st)
+    return c
+
+
+@icon
+def potato_starch():
+    return _dish_heap("flour", (([(6, 5), (9, 4), (8, 7)], "snow", 2),))
+
+
+@icon
+def brown_sugar():
+    """흑설탕: dark crystals in a glass jar with a wooden lid."""
+    c = Canvas()
+    c.cyl(2.5, 4.5, 13.5, 14.9, "glass", 1, lo=2, hi=4, rounded=1.5)
+    c.cyl(3.5, 7.0, 12.5, 14.0, "plush", 2, lo=1, hi=4, rounded=1.2)
+    c.dots([(5, 9), (8, 8), (10, 10), (6, 12), (9, 12), (11, 8)], "plush", 5)
+    c.cyl(3, 1.5, 13, 4.5, "wood", 3, lo=2, hi=4)
+    c.dots([(3, 7), (3, 8), (3, 9)], "glass", 5)
+    return c
+
+
+@icon
+def apple_juice():
+    c = _flask("topaz")
+    c.ellipse(11.5, 3.2, 1.4, 1.3, "tomato", 4, lo=2, hi=4)
+    c.put(11, 1, "leaf", 3)
+    return c
+
+
+@icon
+def jocheong():
+    """조청: a jar of dark amber grain syrup, a wooden dipper dripping into it."""
+    c = Canvas()
+    c.cyl(2, 5.0, 14, 14.9, "glass", 1, lo=2, hi=4, rounded=1.5)
+    c.cyl(3, 6.5, 13, 14.0, "brass", 2, lo=1, hi=4, rounded=1.2)
+    c.tube([(9.5, 7.5), (13.5, 1.5)], [0.55, 0.55], "wood", 3, lo=2, hi=4)
+    c.ellipse(9.0, 6.6, 1.6, 1.2, "wood", 3, lo=2, hi=4)
+    c.line(9, 8, 9, 9, "topaz", 4, z=4)
+    c.dots([(4, 8), (4, 9), (4, 10)], "glass", 5)
+    c.dots([(6, 9), (10, 12)], "topaz", 5)
+    return c
+
+
+@icon
+def soy_sauce():
+    """간장: a dark bottle with a red cap and a white label."""
+    c = _long_bottle(Canvas(), "soot")
+    c.cyl(6.3, 0.8, 9.7, 2.6, "fabric_red", 2, lo=1, hi=3)
+    c.cyl(4.2, 9.2, 11.8, 12.6, "paper", 3, lo=2, hi=4)
+    c.line(6, 10, 9, 10, "roe", 1, z=4).line(6, 11, 8, 11, "roe", 2, z=4)
+    c.dots([(5, 7), (5, 8)], "soot", 5)
+    return c
+
+
+@icon
+def shrimp_meat():
+    """새우살: peeled shrimp curled into a C, orange stripes on white."""
+    c = Canvas()
+    for k, (x, y) in enumerate(((5.2, 9.6), (10.6, 6.4))):
+        c.tube([(x + 2.4, y - 2.6), (x + 0.2, y - 2.8), (x - 2.0, y - 0.8), (x - 1.6, y + 2.0), (x + 0.8, y + 2.6)],
+               [1.5, 1.8, 1.9, 1.6, 1.0], "salmon", 1 + k, lo=2, hi=4, flat=0.8)
+        for (dx, dy) in ((0, -2), (-1, 0), (0, 2)):
+            c.put(int(x + dx), int(y + dy), "seabream", 5, z=3 + k)
+    return c
+
+
+@icon
+def gwamegi():
+    """과메기: split dried saury, dark red flesh and a silver skin edge, hung by the tail from a pole."""
+    c = Canvas()
+    c.tube([(0.8, 2.2), (15.2, 2.2)], [0.7, 0.7], "wood", 0, lo=2, hi=4)
+    for k, x in enumerate((3.4, 8.0, 12.6)):
+        c.poly([(x - 1.6, 2.6), (x, 4.6), (x + 1.6, 2.6)], "fish_silver", 1 + k, normal=(0, -0.4, 1), lo=1, hi=3)
+        c.tube([(x, 4.4), (x - 0.3, 9.0), (x + 0.2, 14.4)], [0.8, 1.6, 1.1], "wine", 1.2 + k, lo=1, hi=4, flat=0.7)
+        c.line(int(x - 1), 6, int(x - 1), 12, "fish_silver", 3, z=3 + k)
+        c.put(int(x), 2, "straw", 4, z=6)
+    return c
+
+
+@icon
+def gulbi():
+    """굴비: two golden dried croakers hanging head-down from a knot of straw rope."""
+    c = Canvas()
+    c.tube([(1.0, 2.0), (15.0, 2.0)], [0.6, 0.6], "straw", 0, lo=2, hi=4)
+    for k, x in enumerate((5.0, 11.0)):
+        c.poly([(x - 2.0, 2.4), (x, 4.8), (x + 2.0, 2.4)], "corn", 1 + k, normal=(0, -0.4, 1), lo=1, hi=3)
+        c.tube([(x, 4.6), (x, 9.0), (x, 13.6)], [0.8, 2.1, 1.5], "petal_yellow", 1.5 + k, lo=1, hi=4)
+        c.line(int(x) - 1, 7, int(x) - 1, 11, "corn", 4, z=3 + k)
+        c.put(int(x) + 1, 12, "roe", 0, z=3 + k)
+        c.put(int(x), 3, "straw", 2, z=6).put(int(x), 4, "straw", 3, z=6)
+    return c
+
+
+@icon
+def hongeo():
+    """삭힌 홍어: pale pink slices of fermented skate fanned on a plate."""
+    c = _plate(Canvas())
+    for k, (x, y) in enumerate(((4.4, 9.2), (7.8, 8.0), (11.2, 9.0))):
+        c.ellipse(x, y, 2.8, 2.0, "seabream", 2 + k * 0.1, lo=3, hi=4, dome=0.5)
+        c.line(int(x - 1), int(y - 1), int(x + 1), int(y + 1), "cream", 4, z=3 + k)
+    c.dots([(12, 4), (13, 5)], "leaf", 3)
+    return c
+
+
+@icon
+def jeotgal():
+    return _crock("salmon")
+
+
+@icon
+def iron_nails():
+    """쇠못: two steel nails lying side by side, flat heads at the bottom left, points at the top right,
+    drawn pixel by pixel (a 1 px shaft with its lit and shaded side, a 5 px head)."""
+    c = Canvas()
+    for (hx, hy) in ((2, 11), (5, 14)):
+        for i in range(1, 10):
+            x, y = hx + i, hy - i
+            c.put(x, y, "steel", 4 if i < 9 else 5, z=5)
+            if i < 9:
+                c.put(x + 1, y, "steel", 2, z=4)
+        for d in (-2, -1, 0, 1, 2):
+            c.put(hx + d, hy + d, "steel", 4 if d <= 0 else 2, z=6)
+    return c
+
+
+@icon
+def copper_pot():
+    """구리 냄비: a bright copper pot with a long handle, a darker rim."""
+    c = Canvas()
+    c.tube([(10.5, 7.2), (15, 3.5)], [0.8, 0.7], "wood_dark", 0, lo=2, hi=3)
+    c.cyl(1.5, 6.5, 12.5, 14.5, "copper", 1, lo=1, hi=4, rounded=1.4)
+    c.ellipse(7, 6.6, 5.6, 1.8, "copper", 1.5, lo=1, hi=2, dome=-0.3)
+    c.tube([(1.6, 6.8), (12.4, 6.8)], [0.6, 0.6], "copper", 2, lo=3, hi=5)
+    c.dots([(3, 9), (3, 10), (4, 8)], "copper", 5)
+    return c
+
+
+@icon
+def gamasot():
+    """가마솥: a black cast-iron cauldron with a wide rim, the heavy lid and its knob."""
+    c = Canvas()
+    c.ellipse(8, 10.6, 6.0, 4.6, "blacksteel", 1, lo=1, hi=3)
+    c.tube([(0.8, 8.6), (15.2, 8.6)], [1.0, 1.0], "blacksteel", 2, lo=1, hi=4)
+    c.ellipse(8, 6.6, 6.0, 2.6, "blacksteel", 3, lo=2, hi=4, dome=0.6)
+    c.ellipse(8, 3.8, 1.4, 1.2, "blacksteel", 4, lo=2, hi=5)
+    c.dots([(4, 6), (5, 5)], "blade", 3)
+    return c
+
+
+@icon
+def iron_lantern():
+    """철 랜턴: an iron lantern with a ring on top, warm light behind its panes."""
+    c = Canvas()
+    c.ellipse(8, 1.8, 1.6, 1.4, "steel", 0, lo=2, hi=4)
+    c.hole(8, 1.8, 0.6, 0.5)
+    c.poly([(4, 5), (8, 3), (12, 5)], "blacksteel", 1, normal=(0, -0.6, 0.8), lo=2, hi=4)
+    c.rect(4, 5, 12, 13, "lamp", 2, normal=(-0.2, 0, 1), lo=2, hi=5)
+    for x in (4, 8, 11):
+        c.line(x, 5, x, 12, "blacksteel", 1, z=3)
+    c.line(4, 5, 11, 5, "blacksteel", 2, z=3).line(4, 9, 11, 9, "blacksteel", 1, z=3)
+    c.rect(3, 13, 13, 14.6, "blacksteel", 3, normal=(0, 0.4, 0.9), lo=1, hi=3)
+    return c
+
+
+@icon
+def ornamental_sword():
+    """장식용 도검: a straight steel blade, a gold guard and pommel, a red tassel."""
+    c = Canvas()
+    c.tube([(5.2, 10.8), (14.2, 1.8)], [1.2, 0.5], "blade", 1, lo=2, hi=5, flat=0.5)
+    c.line(6, 9, 13, 2, "snow", 2, z=2)
+    c.tube([(2.8, 9.0), (7.2, 13.4)], [0.9, 0.9], "gold", 2, lo=2, hi=4)
+    c.tube([(2.4, 13.6), (4.6, 11.4)], [0.8, 0.8], "fabric_red", 2.5, lo=2, hi=3)
+    c.ellipse(1.8, 14.2, 1.2, 1.2, "gold", 3, lo=2, hi=4)
+    c.line(2, 15, 2, 15, "fabric_red", 3, z=4)
+    c.dots([(1, 12), (1, 13), (0, 14)], "fabric_red", 3)
+    return c
+
+
+@icon
+def gyeranmari():
+    """계란말이: rolled-omelette slices showing their yellow spiral, green flecks, on a plate."""
+    c = _plate(Canvas())
+    for k, (x, y) in enumerate(((4.2, 8.4), (8.0, 7.4), (11.8, 8.4))):
+        c.rect(x - 1.8, y - 2.6, x + 1.8, y + 2.0, "corn", 2 + k * 0.1, normal=(-0.2, -0.1, 1), lo=2, hi=4)
+        c.line(int(x - 1), int(y - 1), int(x + 1), int(y - 1), "petal_yellow", 2, z=3 + k)
+        c.put(int(x), int(y), "leaf", 3, z=3 + k).put(int(x - 1), int(y + 1), "fabric_red", 3, z=3 + k)
+    return c
+
+
+@icon
+def hotteok():
+    """호떡: two round golden pancakes, the brown sugar syrup oozing from a bitten edge."""
+    c = Canvas()
+    c.ellipse(9.2, 10.4, 5.8, 3.8, "straw", 1, lo=1, hi=4, dome=0.7)
+    c.ellipse(6.8, 6.8, 5.8, 3.8, "straw", 2, lo=2, hi=4, dome=0.7)
+    c.ellipse(6.8, 6.6, 2.4, 1.4, "plush", 3, lo=1, hi=3)
+    c.dots([(4, 5), (9, 5), (5, 8), (8, 8)], "straw", 5)
+    c.dots([(10, 13), (12, 12)], "plush", 2)
+    return c
+
+
+@icon
+def gamjajeon():
+    """감자전: a crisp golden potato pancake, browner at the edge, on a plate."""
+    c = _plate(Canvas())
+    c.ellipse(8, 8.4, 6.2, 3.4, "straw", 2, lo=1, hi=3, dome=0.4)
+    c.ellipse(8, 8.2, 4.6, 2.4, "corn", 2.5, lo=2, hi=4, dome=0.3)
+    c.dots([(5, 8), (7, 7), (10, 8), (9, 9), (6, 9)], "cream", 4)
+    c.dots([(12, 7), (3, 9)], "leaf", 3)
+    return c
+
+
+@icon
+def bulgogi():
+    """불고기: glossy brown slices of beef with onion and scallion on a plate."""
+    c = _plate(Canvas())
+    for k, (x, y) in enumerate(((4.6, 8.8), (8.2, 7.4), (11.4, 9.2), (7.4, 9.8))):
+        c.ellipse(x, y, 2.9, 1.7, "leather", 2 + k * 0.1, lo=1, hi=4, dome=0.6)
+    c.dots([(6, 7), (10, 8), (5, 10)], "garlic", 4)
+    c.dots([(9, 6), (12, 8), (4, 8)], "leaf", 3)
+    c.dots([(7, 8), (11, 10)], "leather", 5)
+    return c
+
+
+@icon
+def jeyuk():
+    """제육볶음: pork stir-fried red and spicy, onion and scallion through it, on a plate."""
+    c = _plate(Canvas())
+    for k, (x, y) in enumerate(((4.6, 8.8), (8.2, 7.4), (11.4, 9.2), (7.4, 9.8))):
+        c.ellipse(x, y, 2.9, 1.7, "terracotta", 2 + k * 0.1, lo=1, hi=4, dome=0.6)
+    c.dots([(6, 7), (10, 8), (5, 10)], "garlic", 4)
+    c.dots([(9, 6), (12, 8), (4, 8)], "leaf", 3)
+    c.dots([(7, 8), (11, 10), (5, 9)], "pepper", 4)
+    return c
+
+
+def _ttukbaegi(c, broth):
+    """뚝배기: a black clay pot seen a little from above, its broth on the rim's ellipse."""
+    c.poly([(1.2, 8.0), (14.8, 8.0), (13.2, 14.0), (2.8, 14.0)], "soot", 0, normal=(-0.1, 0.5, 0.85), lo=1, hi=3)
+    c.tube([(1.6, 8.3), (14.4, 8.3)], [0.8, 0.8], "soot", 0.2, lo=2, hi=3)
+    c.ellipse(8, 8.0, 6.2, 2.4, broth, 1, lo=2, hi=4, dome=0.3)
+    return c
+
+
+@icon
+def samgyetang():
+    """삼계탕: a whole young chicken in milky broth in a black pot, a jujube and scallion on top."""
+    c = _ttukbaegi(Canvas(), "rice")
+    c.ellipse(8, 6.8, 4.0, 2.6, "cream", 2, lo=2, hi=4, dome=0.8)
+    c.ellipse(5.0, 6.2, 1.1, 1.6, "cream", 2.5, lo=2, hi=4)
+    c.ellipse(11.0, 6.2, 1.1, 1.6, "cream", 2.5, lo=2, hi=4)
+    c.put(9, 5, "fabric_red", 3, z=4).put(6, 8, "leaf", 3, z=4).put(11, 8, "leaf", 4, z=4)
+    c.dots([(6, 3), (7, 2), (10, 3)], "snow", 1)
+    return c
+
+
+@icon
+def doenjang_jjigae():
+    """된장찌개: brown soybean-paste stew with tofu cubes, zucchini and chili in a black pot."""
+    c = _ttukbaegi(Canvas(), "doenjang")
+    for x, y in ((5, 7), (9, 8), (11, 7)):
+        c.rect(x - 1, y - 1, x + 1, y + 0.6, "cream", 2, normal=(-0.2, -0.4, 1), lo=3, hi=4)
+    c.ellipse(7.2, 8.6, 1.3, 0.8, "zucchini", 2, lo=2, hi=4)
+    c.dots([(8, 7), (12, 8)], "pepper", 4)
+    c.dots([(6, 4), (7, 3), (10, 4)], "snow", 1)
+    return c
+
+
+@icon
+def kimchi_jjigae():
+    """김치찌개: red stew with kimchi, tofu and pork in a black pot, steaming."""
+    c = _ttukbaegi(Canvas(), "pepper")
+    for x, y in ((5, 7), (10, 8)):
+        c.rect(x - 1, y - 1, x + 1, y + 0.6, "cream", 2, normal=(-0.2, -0.4, 1), lo=3, hi=4)
+    c.dots([(7, 7), (8, 8), (11, 7)], "cabbage", 4)
+    c.dots([(6, 9), (9, 7)], "seabream", 4)
+    c.dots([(6, 4), (7, 3), (10, 4), (11, 3)], "snow", 1)
+    return c
+
+
+@icon
+def tteokbokki():
+    """떡볶이: white rice-cake sticks and fish-cake triangles in thick red sauce on a plate."""
+    c = _plate(Canvas())
+    c.ellipse(8, 9.0, 5.6, 2.6, "pepper", 1, lo=2, hi=4, dome=0.4)
+    for k, ((x0, y0), (x1, y1)) in enumerate((((3.5, 9.5), (7, 7.5)), ((7, 10.5), (11, 8.5)), ((9.5, 7.2), (13, 6.6)),
+                                               ((4.5, 7.0), (7.5, 5.6)))):
+        c.tube([(x0, y0), (x1, y1)], [0.95, 0.95], "rice", 2 + k * 0.1, lo=2, hi=4)
+    c.poly([(10, 11), (13, 11), (11.5, 9)], "straw", 3, normal=(0, -0.4, 1), lo=2, hi=4)
+    c.dots([(6, 8), (9, 9), (11, 7)], "pepper", 5)
+    c.put(12, 5, "leaf", 3)
+    return c
+
+
+@icon
+def flower_tea():
+    """꽃잎 차: a white cup of pale pink tea on its saucer, a petal floating."""
+    c = Canvas()
+    c.ellipse(8, 12.6, 7.0, 2.4, "porcelain", 0, lo=1, hi=3, dome=0.3)
+    c.poly([(2.4, 6.5), (13.6, 6.5), (11.6, 12.6), (4.4, 12.6)], "porcelain", 1, normal=(-0.1, 0.4, 0.9), lo=2, hi=4)
+    c.ellipse(8, 6.5, 5.6, 1.9, "pink", 2, lo=2, hi=4, dome=-0.2)
+    c.tube([(13.4, 7.5), (15, 9), (13.0, 10.8)], [0.6, 0.6, 0.6], "porcelain", 1.5, lo=2, hi=4)
+    c.ellipse(7, 6.3, 1.4, 0.8, "pink", 3, lo=3, hi=4)
+    c.dots([(6, 3), (8, 2), (9, 4)], "snow", 1)
+    return c
+
+
+@icon
+def cider():
+    """사과주: a stout green bottle of apple wine, an apple on the label."""
+    c = _long_bottle(Canvas(), "bottle_green", x0=3.6, x1=12.4, shoulder=7.6)
+    c.cyl(6.3, 0.8, 9.7, 2.6, "straw", 2, lo=2, hi=4)
+    c.cyl(3.6, 9.4, 12.4, 13.2, "cream", 3, lo=2, hi=4)
+    c.ellipse(8, 11.3, 1.4, 1.3, "tomato", 4, lo=2, hi=4)
+    c.put(8, 9, "leaf", 3, z=5)
+    c.dots([(5, 8), (5, 9)], "bottle_green", 5)
+    return c
+
+
+@icon
+def strawberry_wine():
+    """딸기주: a slim bottle of rosy strawberry wine, a strawberry on the label."""
+    c = _long_bottle(Canvas(), "pink")
+    c.cyl(6.3, 0.8, 9.7, 2.6, "fabric_red", 2, lo=2, hi=4)
+    c.cyl(4.2, 9.4, 11.8, 12.8, "paper", 3, lo=2, hi=4)
+    c.poly([(6.8, 10), (9.2, 10), (8, 12.4)], "tomato", 4, normal=(0, -0.2, 1), lo=2, hi=4)
+    c.put(8, 9, "leaf", 3, z=5)
+    c.dots([(5, 7), (5, 8)], "pink", 5)
+    return c
+
+
+@icon
+def mead():
+    """꿀술: a round clay jug of honey wine, a honeycomb label, a cork."""
+    c = Canvas()
+    c.ellipse(8, 10.0, 6.0, 5.2, "clay", 1, lo=1, hi=4)
+    c.cyl(6.2, 2.6, 9.8, 5.6, "clay", 1.2, lo=2, hi=4)
+    c.tube([(10.4, 4.2), (13.6, 6.0), (13.0, 9.6)], [0.6, 0.6, 0.6], "clay", 0.5, lo=2, hi=3)
+    c.rect(6.6, 1.0, 9.4, 2.8, "wood", 2, normal=(-0.3, -0.5, 1))
+    c.ellipse(8, 10.4, 2.6, 2.2, "topaz", 3, lo=2, hi=4)
+    c.dots([(7, 10), (9, 10), (8, 11)], "brass", 2)
+    return c
+
+
+@icon
+def cheongju():
+    """청주: a white porcelain bottle with blue bands, clear rice wine inside."""
+    c = _long_bottle(Canvas(), "porcelain", x0=4.0, x1=12.0, shoulder=7.4)
+    c.cyl(6.3, 0.8, 9.7, 2.4, "sapphire", 2, lo=2, hi=3)
+    c.line(4, 10, 11, 10, "sapphire", 3, z=4).line(4, 13, 11, 13, "sapphire", 2, z=4)
+    c.dots([(6, 11), (8, 12), (10, 11)], "sapphire", 4)
+    c.dots([(5, 8), (5, 9)], "snow", 2)
+    return c
+
+
+@icon
+def seed_oil():
+    return _flask("corn")
+
+
+@icon
+def compost():
+    """퇴비: a dark crumbly heap with bits of leaf and twig in it."""
+    c = Canvas()
+    c.ellipse(8, 10.4, 6.8, 4.4, "soil", 1, lo=1, hi=4, dome=0.9)
+    c.ellipse(7, 7.4, 4.4, 3.0, "soil", 2, lo=1, hi=4, dome=0.9)
+    c.dots([(4, 9), (9, 7), (11, 11), (6, 12), (8, 5)], "leaf", 3)
+    c.dots([(5, 7), (10, 9), (12, 12)], "wood", 3)
+    c.dots([(3, 11), (7, 10), (10, 12), (6, 6)], "soil", 0)
+    return c
+
+
+def _cube(mat, cracks):
+    """A pressed block seen from the corner: lit top, two shaded sides, crack lines across it."""
+    c = Canvas()
+    c.poly([(8, 1.5), (14.6, 4.8), (8, 8.1), (1.4, 4.8)], mat, 1, normal=(0, -1, 0.5), lo=3, hi=4)
+    c.poly([(1.4, 4.8), (8, 8.1), (8, 15.2), (1.4, 11.9)], mat, 1, normal=(-0.8, 0.2, 0.6), lo=2, hi=3)
+    c.poly([(8, 8.1), (14.6, 4.8), (14.6, 11.9), (8, 15.2)], mat, 1, normal=(0.8, 0.2, 0.4), lo=1, hi=2)
+    for (x0, y0, x1, y1) in cracks:
+        c.line(x0, y0, x1, y1, mat, 0, z=3)
+    return c
+
+
+@icon
+def compressed_stone():
+    return _cube("stone", ((3, 7, 5, 11), (10, 9, 12, 12), (6, 4, 9, 5)))
+
+
+@icon
+def compressed_dirt():
+    c = _cube("soil", ((3, 8, 5, 10), (11, 8, 12, 11)))
+    c.dots([(6, 3), (10, 4), (9, 6)], "leaf", 3)
+    return c
+
+
+@icon
+def refined_oil():
+    """정제유: a tin oil can with a spout, an amber drop on the label."""
+    c = Canvas()
+    c.rect(2.5, 5, 12, 15, "steel", 1, normal=(-0.2, -0.1, 1), lo=2, hi=4)
+    c.poly([(12, 5), (14, 3.8), (14, 13.8), (12, 15)], "steel", 1, normal=(0.85, 0, 0.4), lo=1, hi=2)
+    c.poly([(2.5, 5), (4.5, 3.8), (14, 3.8), (12, 5)], "steel", 1.2, normal=(-0.2, -0.8, 0.6), lo=3, hi=4)
+    c.tube([(10, 4), (12.5, 0.8)], [0.7, 0.5], "steel", 2, lo=2, hi=4)
+    c.rect(3.5, 8, 11, 12.5, "fabric_red", 2, normal=(-0.1, 0, 1), lo=2, hi=3)
+    c.poly([(7.2, 8.6), (8.6, 11.8), (5.8, 11.8)], "topaz", 3, normal=(-0.3, -0.3, 1), lo=3, hi=5)
+    return c
+
+
+# ================================================================================================
 # Names and the preview sheet (docs/previews/goods.png)
 # ================================================================================================
 
@@ -1045,6 +1529,17 @@ GROUPS = [
                    "grilled_fish_set": "생선구이 정식", "hanjeongsik": "한정식"}),
     ("증류기 · 연금술사", {"makgeolli": "막걸리", "soju": "소주", "melon_syrup": "멜론 시럽", "wine": "포도주",
                     "melon_liqueur": "멜론 리큐어", "pearl_perfume": "진주 향수", "vintage_wine": "빈티지 포도주"}),
+    ("추가 · 세공대", {"cut_emerald": "세공 에메랄드", "lapis_beads": "청금석 구슬", "gold_ring": "금반지", "cut_diamond": "세공 다이아몬드",
+                   "sapphire_brooch": "사파이어 브로치", "diamond_ring": "다이아 반지"}),
+    ("추가 · 가공대", {"potato_starch": "감자 전분", "brown_sugar": "흑설탕", "apple_juice": "사과즙", "jocheong": "조청", "soy_sauce": "간장"}),
+    ("추가 · 손질대", {"shrimp_meat": "새우살", "gwamegi": "과메기", "gulbi": "굴비", "hongeo": "삭힌 홍어", "jeotgal": "젓갈"}),
+    ("추가 · 대장간", {"iron_nails": "쇠못", "copper_pot": "구리 냄비", "gamasot": "가마솥", "iron_lantern": "철 랜턴",
+                   "ornamental_sword": "장식용 도검"}),
+    ("추가 · 조리대", {"gyeranmari": "계란말이", "hotteok": "호떡", "gamjajeon": "감자전", "bulgogi": "불고기", "jeyuk": "제육볶음",
+                   "samgyetang": "삼계탕", "doenjang_jjigae": "된장찌개", "kimchi_jjigae": "김치찌개", "tteokbokki": "떡볶이"}),
+    ("추가 · 증류기", {"flower_tea": "꽃잎 차", "cider": "사과주", "strawberry_wine": "딸기주", "mead": "꿀술", "cheongju": "청주"}),
+    ("압착기 · 공용", {"seed_oil": "씨앗 기름", "compost": "퇴비", "compressed_stone": "압축 석재", "compressed_dirt": "압축 흙",
+                   "refined_oil": "정제유"}),
 ]
 NAMES = {k: v for _, g in GROUPS for k, v in g.items()}
 

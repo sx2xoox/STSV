@@ -622,14 +622,14 @@ public final class MachineModule extends EcoModule {
         m.inv.setItem(BOOK, icon(Material.BOOK, "economy:gui/ledger", Lang.item("machine.book"), Lang.items("machine.book-lore")));
         m.inv.setItem(INFO, icon(Material.CRAFTING_TABLE, "stsv:gui/info",
                 Lang.item("machine.info", "machine", m.spec.name(), "tier", tierName(m.tier)),
-                Lang.items("machine.info-lore", "owner", m.owner == null ? "-" : Players.name(m.owner), "lanes", m.open(),
+                Lang.items(j == null ? "machine.info-lore-common" : "machine.info-lore", "owner", m.owner == null ? "-" : Players.name(m.owner), "lanes", m.open(),
                         "speed", Math.round(settings.speed(m.tier) * 100), "color", jc, "job", jn)));
         int next = m.tier + 1;
         if (next > settings.maxTier()) {
             m.inv.setItem(UPGRADE, icon(Material.NETHER_STAR, "economy:gui/crown", Lang.item("machine.upgrade-max"), null));
         } else {
             long recipes = m.spec.recipes().stream().filter(r -> r.tier() == next).count();
-            List<Component> lore = new ArrayList<>(Lang.items("machine.upgrade-lore", "cost", EconomyModule.format(settings.cost(next)),
+            List<Component> lore = new ArrayList<>(Lang.items(j == null ? "machine.upgrade-lore-common" : "machine.upgrade-lore", "cost", EconomyModule.format(settings.cost(next)),
                     "color", jc, "job", jn, "level", settings.level(next), "lanes", settings.lanes(next),
                     "speed", Math.round(settings.speed(next) * 100), "recipes", recipes));
             boolean armed = System.currentTimeMillis() - m.armedUpgrade < 5000;

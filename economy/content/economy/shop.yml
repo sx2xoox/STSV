@@ -190,6 +190,12 @@ sell:
       gunpowder: { base: 3, q: 32 }
       ender_pearl: { base: 8, q: 8 }
       blaze_rod: { base: 10, q: 8 }
+      # 압착기 (공용): 남는 바닐라 물건을 눌러 만든 것. 일부러 쌈
+      economy:seed_oil: { base: 8, q: 16 }   # 씨앗 기름
+      economy:compost: { base: 4, q: 32 }   # 퇴비
+      economy:compressed_stone: { base: 5, q: 16 }   # 압축 석재
+      economy:compressed_dirt: { base: 3, q: 16 }   # 압축 흙
+      economy:refined_oil: { base: 48, q: 8 }   # 정제유
   # ── 직업 생산품 (기준가 = 재료값 × 가공 배율: 원재료만 1.5, 가공품·다른 직업 재료 1.8, 가공품 둘 이상 2.2)
   crafts:
     name: "보석·금속"
@@ -203,6 +209,12 @@ sell:
       economy:ruby_ring: { base: 133, q: 8 }   # 루비 반지
       economy:pearl_necklace: { base: 427, q: 4 }   # 진주 목걸이
       economy:jeweled_crown: { base: 1841, q: 1 }   # 보석 왕관
+      economy:cut_emerald: { base: 36, q: 16 }   # 세공 에메랄드
+      economy:lapis_beads: { base: 45, q: 8 }   # 청금석 구슬
+      economy:gold_ring: { base: 50, q: 8 }   # 금반지
+      economy:cut_diamond: { base: 90, q: 8 }   # 세공 다이아몬드
+      economy:sapphire_brooch: { base: 133, q: 8 }   # 사파이어 브로치
+      economy:diamond_ring: { base: 220, q: 4 }   # 다이아 반지
       # 대장간 (대장장이)
       economy:iron_plate: { base: 60, q: 8 }   # 철판
       economy:iron_chain: { base: 45, q: 16 }   # 쇠사슬
@@ -211,6 +223,11 @@ sell:
       economy:oak_barrel: { base: 119, q: 8 }   # 참나무통
       economy:steel_toolset: { base: 640, q: 2 }   # 강철 공구 세트
       economy:ornate_armor: { base: 1364, q: 1 }   # 장식용 갑옷
+      economy:iron_nails: { base: 4, q: 64 }   # 쇠못
+      economy:copper_pot: { base: 55, q: 8 }   # 구리 냄비
+      economy:gamasot: { base: 160, q: 4 }   # 가마솥
+      economy:iron_lantern: { base: 95, q: 8 }   # 철 랜턴
+      economy:ornamental_sword: { base: 420, q: 2 }   # 장식용 도검
   foodstuff:
     name: "식재료"
     icon: economy:doenjang
@@ -227,6 +244,11 @@ sell:
       economy:doenjang: { base: 48, q: 16 }   # 된장
       economy:gochujang: { base: 163, q: 4 }   # 고추장
       economy:jang_set: { base: 928, q: 2 }   # 전통 장 세트
+      economy:potato_starch: { base: 18, q: 16 }   # 감자 전분
+      economy:brown_sugar: { base: 10, q: 32 }   # 흑설탕
+      economy:apple_juice: { base: 20, q: 16 }   # 사과즙
+      economy:jocheong: { base: 120, q: 8 }   # 조청
+      economy:soy_sauce: { base: 48, q: 16 }   # 간장
       # 손질대 (어부)
       economy:cod_fillet: { base: 9, q: 32 }   # 생선 필렛
       economy:salmon_fillet: { base: 9, q: 32 }   # 연어 필렛
@@ -239,6 +261,11 @@ sell:
       economy:polished_pearl: { base: 120, q: 8 }   # 연마 진주
       economy:fishcake: { base: 26, q: 16 }   # 어묵
       economy:caviar: { base: 150, q: 4 }   # 캐비아
+      economy:shrimp_meat: { base: 16, q: 16 }   # 새우살
+      economy:gwamegi: { base: 22, q: 16 }   # 과메기
+      economy:gulbi: { base: 95, q: 8 }   # 굴비
+      economy:hongeo: { base: 45, q: 8 }   # 삭힌 홍어
+      economy:jeotgal: { base: 80, q: 8 }   # 젓갈
   dishes:
     name: "요리·술"
     icon: economy:bibimbap
@@ -261,6 +288,15 @@ sell:
       economy:bibimbap: { base: 433, q: 4 }   # 비빔밥
       economy:grilled_fish_set: { base: 266, q: 4 }   # 생선구이 정식
       economy:hanjeongsik: { base: 1643, q: 1 }   # 한정식
+      economy:gyeranmari: { base: 18, q: 16 }   # 계란말이
+      economy:hotteok: { base: 8, q: 32 }   # 호떡
+      economy:gamjajeon: { base: 9, q: 32 }   # 감자전
+      economy:bulgogi: { base: 30, q: 16 }   # 불고기
+      economy:jeyuk: { base: 58, q: 16 }   # 제육볶음
+      economy:samgyetang: { base: 45, q: 8 }   # 삼계탕
+      economy:doenjang_jjigae: { base: 80, q: 8 }   # 된장찌개
+      economy:kimchi_jjigae: { base: 120, q: 8 }   # 김치찌개
+      economy:tteokbokki: { base: 165, q: 4 }   # 떡볶이
       # 증류기 (연금술사)
       economy:makgeolli: { base: 50, q: 16 }   # 막걸리
       economy:soju: { base: 180, q: 4 }   # 소주
@@ -269,6 +305,11 @@ sell:
       economy:melon_liqueur: { base: 442, q: 4 }   # 멜론 리큐어
       economy:pearl_perfume: { base: 669, q: 2 }   # 진주 향수
       economy:vintage_wine: { base: 1687, q: 1 }   # 빈티지 포도주
+      economy:flower_tea: { base: 14, q: 16 }   # 꽃잎 차
+      economy:cider: { base: 55, q: 8 }   # 사과주
+      economy:strawberry_wine: { base: 90, q: 8 }   # 딸기주
+      economy:mead: { base: 90, q: 8 }   # 꿀술
+      economy:cheongju: { base: 230, q: 4 }   # 청주
 
 buy:
   tools:
@@ -297,6 +338,7 @@ buy:
       - { item: economy:forge, price: 800 }        # 대장간 (대장장이)  약 554G: 모루, 철 블록 2, 용광로
       - { item: economy:kitchen, price: 400 }      # 조리대 (요리사)    약 108G
       - { item: economy:still, price: 500 }        # 증류기 (연금술사)  약 129G
+      - { item: economy:press, price: 200 }        # 압착기 (공용)      약 40G: 피스톤 2, 깔때기
   seeds:
     name: "씨앗·묘목"
     icon: wheat_seeds

@@ -25,8 +25,8 @@ class PackTest {
 
     private static final Path PACK = ContentTest.PACK;
     private static final Path CORE = Path.of("../content/stsv").toAbsolutePath().normalize();
-    /** job machines and their parts: model_tier (crops are the other models) */
-    static final String MACHINE = "(gem_bench(_wheel)?|mill(_stone)?|fish_bench|forge|kitchen|still)_[0-3]";
+    /** job machines, the press and their parts: model_tier (crops are the other models) */
+    static final String MACHINE = "(gem_bench(_wheel)?|mill(_stone)?|fish_bench|forge|kitchen|still|press(_screw)?)_[0-3]";
     // crop stages are crossed planes with cut-out textures
 
     @Test
@@ -35,7 +35,7 @@ class PackTest {
         try (var s = Files.list(PACK.resolve("models"))) {
             models = s.filter(p -> p.toString().endsWith(".bbmodel")).sorted().toList();
         }
-        assertEquals(6 * 4 + 2 * 4 + 77, models.size(), "6 machines in 4 tiers, 2 spinning parts in 4 tiers, 77 growth stages of 17 crops");
+        assertEquals(7 * 4 + 3 * 4 + 77, models.size(), "7 machines in 4 tiers, 3 spinning parts in 4 tiers, 77 growth stages of 17 crops");
         for (Path p : models) {
             String name = p.getFileName().toString().replace(".bbmodel", "");
             BBModelConverter.Result r = BBModelConverter.convert(p, "economy:item/" + name);
