@@ -11,7 +11,7 @@
 #   자동 선택은 줄에 든 재료 '종류'로 고르므로, 같은 기계에서 재료 종류가 똑같은 레시피는 되도록 두지 않음
 # effect: 작동 중 파티클·소리, at = 모델 좌표 (16 = 한 칸, 바닥 y 0)
 
-# 어종 묶음: 레시피 재료에 '#economy:<묶음>' 으로 쓰면 묶음 안의 물고기는 아무거나 됨 (낚시 물고기 fish.yml).
+# 묶음: 레시피 재료에 '#economy:<묶음>' 으로 쓰면 묶음 안의 것은 아무거나 됨. 어종 묶음(낚시 물고기 fish.yml)과 압착기 묶음.
 # 레시피 값은 묶음 안의 싼 물고기 기준이라, 비싼 물고기는 그냥 파는 쪽이 이득일 수 있음.
 groups:
   white_fish:
@@ -45,6 +45,24 @@ groups:
   cephalopod:
     name: "문어·오징어"
     items: [economy:octopus, economy:giant_squid]
+
+  # 압착기 묶음 (남는 물건): 묶음 안의 것은 아무거나, 섞어도 됨. '#' 는 바닐라 태그 (#saplings = 모든 묘목)
+  seeds:
+    name: "씨앗"
+    items: [wheat_seeds, beetroot_seeds, melon_seeds, pumpkin_seeds, torchflower_seeds, pitcher_pod,
+            economy:tomato_seeds, economy:chili_seeds, economy:strawberry_seeds, economy:onion_seeds, economy:cabbage_seeds,
+            economy:rice_seeds, economy:corn_seeds, economy:green_onion_seeds, economy:radish_seeds, economy:lettuce_seeds,
+            economy:cucumber_seeds, economy:grape_seeds, economy:eggplant_seeds, economy:zucchini_seeds, economy:muskmelon_seeds]
+  compostables:
+    name: "묘목·잎·풀·썩은 것"
+    items: ["#saplings", "#leaves", short_grass, tall_grass, fern, large_fern, dead_bush, vine, kelp, seagrass,
+            rotten_flesh, poisonous_potato, spider_eye]
+  stones:
+    name: "돌"
+    items: ["#stone_crafting_materials", andesite, diorite, granite, tuff, netherrack]
+  dirts:
+    name: "흙"
+    items: [dirt, coarse_dirt, rooted_dirt]
 
 upgrade:
   cost: [5000, 20000, 50000]   # 1강, 2강, 3강
@@ -241,22 +259,10 @@ press:
   parts: [press_screw]
   effect: { particle: poof, at: [8, 12, 8], sound: block.piston.contract, volume: 0.25, pitch: 0.7 }
   recipes:
-    - { in: { wheat_seeds: 32 }, out: economy:seed_oil, seconds: 20 }   # 씨앗 기름 8G
-    - { in: { beetroot_seeds: 32 }, out: economy:seed_oil, seconds: 20 }
-    - { in: { melon_seeds: 16 }, out: economy:seed_oil, seconds: 20 }
-    - { in: { pumpkin_seeds: 16 }, out: economy:seed_oil, seconds: 20 }
-    - { in: { "#saplings": 8 }, out: economy:compost, seconds: 15 }   # 퇴비 4G
-    - { in: { "#leaves": 32 }, out: economy:compost, seconds: 15 }
-    - { in: { rotten_flesh: 16 }, out: economy:compost, seconds: 20 }
-    - { in: { poisonous_potato: 8 }, out: economy:compost, seconds: 15 }
-    - { in: { spider_eye: 8 }, out: economy:compost, seconds: 15 }
-    - { in: { "#stone_crafting_materials": 64 }, out: economy:compressed_stone, seconds: 30 }   # 압축 석재 5G (조약돌, 심층암 조약돌, 흑암)
-    - { in: { andesite: 64 }, out: economy:compressed_stone, seconds: 30 }
-    - { in: { diorite: 64 }, out: economy:compressed_stone, seconds: 30 }
-    - { in: { granite: 64 }, out: economy:compressed_stone, seconds: 30 }
-    - { in: { tuff: 64 }, out: economy:compressed_stone, seconds: 30 }
-    - { in: { netherrack: 64 }, out: economy:compressed_stone, seconds: 30 }
-    - { in: { dirt: 64 }, out: economy:compressed_dirt, seconds: 30 }   # 압축 흙 3G
+    - { in: { "#economy:seeds": 32 }, out: economy:seed_oil, seconds: 20 }   # 씨앗 기름 8G (바닐라·커스텀 작물 씨앗 아무거나)
+    - { in: { "#economy:compostables": 16 }, out: economy:compost, seconds: 15 }   # 퇴비 4G
+    - { in: { "#economy:stones": 64 }, out: economy:compressed_stone, seconds: 30 }   # 압축 석재 5G
+    - { in: { "#economy:dirts": 64 }, out: economy:compressed_dirt, seconds: 30 }   # 압축 흙 3G
     - { in: { economy:seed_oil: 4, coal: 1 }, out: economy:refined_oil, seconds: 60, tier: 1 }   # 정제유 48G
     - { in: { economy:refined_oil: 1, bone_meal: 2 }, out: economy:soap, amount: 2, seconds: 90, tier: 2 }   # 비누 32G
     - { in: { economy:compost: 4, bone: 2 }, out: economy:fertilizer, amount: 2, seconds: 60, tier: 2 }   # 비료 12G

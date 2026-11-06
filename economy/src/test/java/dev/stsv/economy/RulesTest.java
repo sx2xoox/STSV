@@ -270,7 +270,12 @@ class RulesTest {
         java.util.Set<String> fishItems = new HashSet<>();
         f.species().values().forEach(sp -> fishItems.add(sp.item()));
         Map<String, String> seen = new java.util.HashMap<>();
+        // the press's groups (seeds, compostables, stones, dirts) are not fish
+        java.util.Set<String> pressGroups = new HashSet<>();
+        for (var r : m.get("press").recipes()) for (String in : r.inputs().keySet()) if (in.startsWith("#economy:")) pressGroups.add(in.substring(1));
+        assertEquals(4, pressGroups.size());
         for (var g : groups.values()) {
+            if (pressGroups.contains(g.id())) continue;
             for (String it : g.items()) {
                 assertTrue(fishItems.contains(it), g.id() + ": " + it + " is a fish");
                 var sp = f.species().values().stream().filter(x -> x.item().equals(it)).findFirst().orElseThrow();
@@ -288,6 +293,33 @@ class RulesTest {
                 "economy:green_onion", 1), 1, tags).output());
         assertNull(kitchen.auto(Map.of("economy:guppy", 2, "economy:chili_powder", 1, "economy:green_onion", 1), 3, tags),
                 "an aquarium fish is not food");
+    }
+
+    /** The press: every seed (vanilla or a custom crop's) makes seed oil, mixed in one lane; each good is one recipe. */
+    @Test
+    void thePressTakesAnySeedMixed() {
+        var y = ContentTest.yaml("machines.yml");
+        MachineSpec press = MachineSpec.parse(y, new ArrayList<>()).get("press");
+        Map<String, MachineSpec.Group> groups = MachineSpec.groups(y, new ArrayList<>());
+        java.util.Set<String> saplings = java.util.Set.of("minecraft:oak_sapling", "minecraft:cherry_sapling");
+        java.util.function.BiPredicate<String, String> tags = (tag, item) -> {
+            var g = groups.get(tag);
+            if (g == null) return tag.equals("saplings") && saplings.contains(item);
+            return g.items().contains(item) || g.items().stream().anyMatch(e -> e.startsWith("#") && e.equals("#saplings") && saplings.contains(item));
+        };
+        assertEquals("economy:seed_oil", press.auto(Map.of("minecraft:wheat_seeds", 20, "economy:tomato_seeds", 12), 0, tags).output());
+        assertNull(press.auto(Map.of("minecraft:wheat_seeds", 20), 0, tags), "not 32 yet");
+        assertEquals("economy:compost", press.auto(Map.of("minecraft:oak_sapling", 6, "minecraft:rotten_flesh", 10), 0, tags).output());
+        var custom = new HashSet<String>();
+        try (var s = java.nio.file.Files.list(java.nio.file.Path.of(System.getProperty("stsv.content")).resolve("economy/items"))) {
+            for (var f : s.toList()) for (String k : org.bukkit.configuration.file.YamlConfiguration.loadConfiguration(f.toFile()).getKeys(false))
+                if (k.endsWith("_seeds")) custom.add("economy:" + k);
+        } catch (java.io.IOException e) {
+            throw new RuntimeException(e);
+        }
+        assertFalse(custom.isEmpty());
+        assertTrue(groups.get("economy:seeds").items().containsAll(custom), "every custom crop's seeds");
+        assertEquals(press.recipes().size(), press.recipes().stream().map(MachineSpec.Recipe::output).distinct().count(), "one recipe per good");
     }
 
     @Test

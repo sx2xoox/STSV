@@ -179,7 +179,10 @@ public final class MachineModule extends EcoModule {
         specs = MachineSpec.parse(data, problems);
         groups = MachineSpec.groups(data, problems);
         for (MachineSpec.Group g : groups.values()) {
-            for (String id : g.items()) if (Items.create(id, 1).isEmpty()) problems.add("groups." + g.id() + ": 없는 아이템 " + id);
+            for (String id : g.items()) {
+                boolean known = id.startsWith("#") ? tag(id.substring(1)) != null : Items.create(id, 1).isPresent();
+                if (!known) problems.add("groups." + g.id() + ": 없는 아이템 " + id);
+            }
         }
         settings = MachineSpec.Settings.parse(data);
         Map<String, String> made = new HashMap<>();
@@ -237,7 +240,10 @@ public final class MachineModule extends EcoModule {
 
     private boolean tagged(String tag, String item) {
         MachineSpec.Group g = groups.get(tag);
-        if (g != null) return g.items().contains(item);
+        if (g != null) {
+            // a group lists items, and may list vanilla tags too ("#saplings")
+            return g.items().contains(item) || g.items().stream().anyMatch(e -> e.startsWith("#") && tagged(e.substring(1), item));
+        }
         if (!item.startsWith("minecraft:")) return false;
         Material m = Material.matchMaterial(item);
         Tag<Material> t = tag(tag);
@@ -613,7 +619,7 @@ public final class MachineModule extends EcoModule {
         for (String key : r.inputs().keySet()) {
             MachineSpec.Group g = key.startsWith("#") ? groups.get(key.substring(1)) : null;
             if (g == null) continue;
-            List<String> names = g.items().stream().map(Items::mmName).toList();
+            List<String> names = g.items().stream().map(e -> e.startsWith("#") ? tagName(e.substring(1)) : Items.mmName(e)).toList();
             for (int i = 0; i < names.size(); i += 5) {
                 String chunk = String.join("<dark_gray>, ", names.subList(i, Math.min(names.size(), i + 5)));
                 out.add(Lang.item(i == 0 ? "machine.group-items" : "machine.group-items-more", "group", g.name(), "items", chunk));
