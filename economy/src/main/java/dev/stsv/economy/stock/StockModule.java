@@ -826,6 +826,13 @@ public final class StockModule extends EcoModule implements DailyListener, Weekl
         }
     }
 
+    /** The candles that start at `from` or later (t: a time in ms, or a day number for day candles). */
+    private static List<StockStore.Candle> since(List<StockStore.Candle> src, long from) {
+        List<StockStore.Candle> out = new ArrayList<>();
+        for (StockStore.Candle k : src) if (k.t() >= from) out.add(k);
+        return out;
+    }
+
     private static List<StockGraph.Candle> candles(List<StockStore.Candle> src) {
         List<StockGraph.Candle> out = new ArrayList<>();
         for (StockStore.Candle k : src) out.add(new StockGraph.Candle(k.open(), k.high(), k.low(), k.close()));
@@ -868,12 +875,18 @@ public final class StockModule extends EcoModule implements DailyListener, Weekl
             return store.company(id);
         }
 
-        /** 10분: sixteen 10-minute candles; 24시간: twelve 2-hour candles; 7일: seven day candles. */
+        /**
+         * 10분: the 10-minute candles of the last 160 minutes (16); 24시간: the last 24 hours in 2-hour
+         * candles (12); 7일: the day candles of the last 7 days. Only candles inside the period count:
+         * hours or days the server was off leave none, so an old candle never shows as a recent one.
+         */
         private String graph() {
+            long now = now();
+            int today = eco.calendar().day();
             List<StockGraph.Candle> all = switch (period) {
-                case "m10" -> candles(store.tenMinute(id));
-                case "d7" -> candles(store.daily(id));
-                default -> twoHour(store.hourly(id));
+                case "m10" -> candles(since(store.tenMinute(id), now - 16 * TEN_MINUTES));
+                case "d7" -> candles(since(store.daily(id), today - 6));
+                default -> twoHour(since(store.hourly(id), now - 24 * 3_600_000L + 1));
             };
             int slots = switch (period) {
                 case "m10" -> 16;
