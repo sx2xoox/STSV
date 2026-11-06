@@ -23,11 +23,22 @@ public record ShopCatalog(
         Merchant merchant,
         double floor,
         double dailyDecay,
+        Curve curve,
         double repairPerPoint,
         long repairMin,
         DemandNotice demand) {
 
     public static final int MAX_CATEGORIES = 7;
+
+    /**
+     * How fast selling lowers the price: Q = q x depth x max(players today, minPlayers), and the amount
+     * sold today S shrinks by hourlyRecovery every hour (besides daily-decay at the reset).
+     */
+    public record Curve(double depth, int minPlayers, double hourlyRecovery) {
+        public double quota(double q, int players) {
+            return q * depth * Math.max(players, minPlayers);
+        }
+    }
 
     /** 수요 고시: every week on this weekday (at the reset hour), count items sell for multiplier x until the next one. */
     public record DemandNotice(java.time.DayOfWeek weekday, int count, double multiplier) {}
@@ -189,6 +200,8 @@ public record ShopCatalog(
         DemandNotice demand = new DemandNotice(weekday, Math.max(0, c.getInt("demand-notice.count", 3)), c.getDouble("demand-notice.multiplier", 1.5));
         return new ShopCatalog(sell, sellCats, buyCats, merchant,
                 c.getDouble("floor", 0.35), c.getDouble("daily-decay", 0.5),
+                new Curve(Math.max(0.1, c.getDouble("depth", 1)), Math.max(1, c.getInt("min-players", 1)),
+                        Math.clamp(c.getDouble("hourly-recovery", 0), 0, 0.9)),
                 c.getDouble("repair.per-point", 0.05), c.getLong("repair.min", 5), demand);
     }
 

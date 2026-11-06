@@ -63,6 +63,11 @@ public final class ShopModule extends EcoModule implements DailyListener {
 
     @Override
     protected void start() {
+        // prices recover through the day too: S shrinks by hourly-recovery an hour, applied every 10 minutes
+        every(12_000L, () -> {
+            double r = catalog.curve().hourlyRecovery();
+            if (r > 0) store.recover(Math.pow(1 - r, 1 / 6.0));
+        });
         store = new ShopStore(core.db());
         store.init();
         load();
@@ -154,12 +159,12 @@ public final class ShopModule extends EcoModule implements DailyListener {
     public double price(String item) {
         ShopCatalog.SellEntry e = catalog.sell().get(item);
         if (e == null) return 0;
-        return PriceModel.unit(e.base(), store.sold(item), e.q(), eco.activity().store().players(), catalog.floor(), multiplier(item));
+        return PriceModel.unit(e.base(), store.sold(item), depthQ(e), pricePlayers(), catalog.floor(), multiplier(item));
     }
 
     public boolean atFloor(String item) {
         ShopCatalog.SellEntry e = catalog.sell().get(item);
-        return e != null && PriceModel.atFloor(e.base(), store.sold(item), e.q(), eco.activity().store().players(), catalog.floor());
+        return e != null && PriceModel.atFloor(e.base(), store.sold(item), depthQ(e), pricePlayers(), catalog.floor());
     }
 
     /** 24h change in percent, or null if there is no price from a day ago yet. */
@@ -188,17 +193,17 @@ public final class ShopModule extends EcoModule implements DailyListener {
         int n = Math.min(count, have);
         if (e.cap() != null) n = Math.min(n, e.cap() - store.soldBy(p.getUniqueId(), id));
         if (n <= 0) return e.cap() != null && store.soldBy(p.getUniqueId(), id) >= e.cap() ? "shop.cap-reached" : "shop.not-buying";
-        int players = eco.activity().store().players();
+        int players = pricePlayers();
         double total;
         ActiveEvent premium = premiumFor(id);
         if (premium == null) {
-            total = PriceModel.total(e.base(), store.sold(id), e.q(), players, catalog.floor(), multiplier(id), n);
+            total = PriceModel.total(e.base(), store.sold(id), depthQ(e), players, catalog.floor(), multiplier(id), n);
         } else {
             // the 고가 매입상 pays double for what is left of its stock; the rest sells at the usual price
             int left = (int) premium.number("left." + id, 0), high = Math.min(n, left);
             double normal = baseMultiplier(id);
-            total = PriceModel.total(e.base(), store.sold(id), e.q(), players, catalog.floor(), normal * premium.number("multiplier", 2), high)
-                    + PriceModel.total(e.base(), store.sold(id) + high, e.q(), players, catalog.floor(), normal, n - high);
+            total = PriceModel.total(e.base(), store.sold(id), depthQ(e), players, catalog.floor(), normal * premium.number("multiplier", 2), high)
+                    + PriceModel.total(e.base(), store.sold(id) + high, depthQ(e), players, catalog.floor(), normal, n - high);
             java.util.Map<String, String> params = new java.util.LinkedHashMap<>(premium.params());
             params.put("left." + id, String.valueOf(left - high));
             eco.events().update(premium, params);
@@ -536,6 +541,16 @@ public final class ShopModule extends EcoModule implements DailyListener {
         return Lang.raw("shop.price-line", "item", itemName(id), "price", String.format("%.1f", price(id)), "change", change, "marks", marks(id));
     }
 
+    /** Players today for the price curve: at least curve.minPlayers (a quiet server does not crash prices at once). */
+    private int pricePlayers() {
+        return Math.max(catalog.curve().minPlayers(), eco.activity().store().players());
+    }
+
+    /** One player's daily amount as the curve counts it (q x depth). */
+    private double depthQ(ShopCatalog.SellEntry e) {
+        return e.q() * catalog.curve().depth();
+    }
+
     private String marks(String id) {
         StringBuilder m = new StringBuilder();
         if (noticed().contains(id)) m.append(Lang.raw("shop.mark-notice"));
@@ -798,7 +813,7 @@ public final class ShopModule extends EcoModule implements DailyListener {
     private Holding holding(Player p, List<String> ids) {
         int kinds = 0, count = 0;
         double value = 0;
-        int players = eco.activity().store().players();
+        int players = pricePlayers();
         for (String id : ids) {
             ShopCatalog.SellEntry e = catalog.sell().get(id);
             int n = Items.count(p.getInventory(), it -> Items.plain(it, id));
@@ -807,7 +822,7 @@ public final class ShopModule extends EcoModule implements DailyListener {
             if (n <= 0) continue;
             kinds++;
             count += n;
-            value += PriceModel.total(e.base(), store.sold(id), e.q(), players, catalog.floor(), multiplier(id), n)
+            value += PriceModel.total(e.base(), store.sold(id), depthQ(e), players, catalog.floor(), multiplier(id), n)
                     * eco.jobs().sellBonus(p.getUniqueId(), id);
         }
         return new Holding(kinds, count, (long) Math.floor(value));
@@ -888,7 +903,7 @@ public final class ShopModule extends EcoModule implements DailyListener {
                 int have = Items.count(p.getInventory(), it -> Items.plain(it, id));
                 List<Component> lore = new ArrayList<>(Lang.items("shop.price-lore",
                         "price", String.format("%.1f", price(id)), "base", trim(e.base()), "change", change, "marks", marks(id),
-                        "sold", String.format("%.0f", store.sold(id)), "quota", String.format("%.0f", e.q() * eco.activity().store().players()),
+                        "sold", String.format("%.0f", store.sold(id)), "quota", String.format("%.0f", catalog.curve().quota(e.q(), eco.activity().store().players())),
                         "mine", store.soldBy(p.getUniqueId(), id), "cap", e.cap() == null ? "-" : e.cap()));
                 lore.addAll(have > 0 ? Lang.items("shop.sell-have", "have", have) : Lang.items("shop.sell-have-none"));
                 out.add(Items.create(id, 1).map(it -> withLore(it, lore)).orElse(null));

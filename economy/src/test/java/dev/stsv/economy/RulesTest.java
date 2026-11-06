@@ -772,4 +772,21 @@ class RulesTest {
         }
         assertEquals(java.util.Set.of("stsv:crown_voucher", "stsv:halo_voucher"), seen, "both come up over time");
     }
+
+    /** The sell price curve as shipped: a quiet server does not hit the floor after one stack. */
+    @Test
+    void sellPriceFallsGently() throws Exception {
+        org.bukkit.configuration.file.YamlConfiguration y = org.bukkit.configuration.file.YamlConfiguration.loadConfiguration(
+                java.nio.file.Path.of(System.getProperty("stsv.content")).resolve("economy/shop.yml").toFile());
+        dev.stsv.economy.shop.ShopCatalog c = dev.stsv.economy.shop.ShopCatalog.parse(y, new java.util.ArrayList<>());
+        var curve = c.curve();
+        int players = Math.max(1, curve.minPlayers());
+        // an item one player sells 16 of a day, one player online: a stack still pays well over half
+        double afterStack = dev.stsv.economy.shop.PriceModel.unit(10, 64, 16 * curve.depth(), players, c.floor(), 1) / 10;
+        assertTrue(afterStack > 0.55, "after one stack: " + afterStack);
+        // and the floor is still reached when a lot is sold
+        double afterMany = dev.stsv.economy.shop.PriceModel.unit(10, 2000, 16 * curve.depth(), players, c.floor(), 1) / 10;
+        assertEquals(c.floor(), afterMany, 1e-9);
+        assertTrue(curve.hourlyRecovery() > 0 && curve.hourlyRecovery() < 0.5);
+    }
 }

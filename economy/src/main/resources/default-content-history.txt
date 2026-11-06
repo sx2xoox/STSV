@@ -1,3 +1,9 @@
+fb89198c09a45bb18504a15fbfac4e8a84f2ad5c economy/achievements/economy.yml
+39d53fef485309ffb6594d730cf6cb4810276675 economy/achievements/farming.yml
+6bd5de597b29f5be1f73d2c9ed6efc9be80c3d98 economy/achievements/fishing.yml
+cc100f266b558754ad0e147c5a64229ff032cb15 economy/achievements/jobs.yml
+06427254ae3bdf82ecc700fceb0062612a9c6fb8 economy/achievements/mining.yml
+bccf50c58ac1e22f299a7f77ddd0b690f1d87fc2 economy/achievements/trade.yml
 720ec6a70d6d4a22748da4dcfd0df5dabf7bb5a9 economy/assets/economy/font/fishicon.json
 19a3c188986a309683c722915cfea7e27fcd6779 economy/assets/economy/font/fishring.json
 534f5303b517a5f6ff52d39062479c180693db3d economy/assets/economy/font/fishring.json
@@ -771,6 +777,7 @@ f3c85fd1b590e11695e565a57503fb208ab98154 economy/requests.yml
 83ea0e0a9a4e74d71dbf74fc9b4a7aaada752c24 economy/shop.yml
 a5b911c79658d23800ecf92439177e3b62c26887 economy/shop.yml
 ce705e26bab7d4704e536cbb73ac3544170de999 economy/shop.yml
+d80058583e2e440ac4d7b996f351307cca5b0f20 economy/shop.yml
 dae946176eb81429725a60e683c2d51c9a604ac2 economy/shop.yml
 ec3b7dc1bcc2fd929b084083b54b32f423237fba economy/shop.yml
 fd684f520ec2ea64e736e9d82fa39b70f289880a economy/shop.yml
@@ -1092,6 +1099,7 @@ c4d02760bf0442d46a98c7118be9c90d06d45643 economy/textures/yellowtail.png
 9dfdae48704246c4c1a6222c1dd5600ab047b176 economy/textures/zucchini.png
 ac16a8f73693388a89da9b34a5182a85e8bb34a5 economy/textures/zucchini_seeds.png
 c53d6ca5ec0b22def4d174f5de491889dd6ba83f economy/textures/zucchini_seeds.png
+87d85cc8c8fd39ac6afc6c3affecc8fac7e5fdc6 economy/titles/achievements.yml
 2aa1954cdb2062cacea42d9ecb6590d7487b78f0 economy/titles/titles.yml
 6d3e770c18cdf04882e7e2bed4258b5c85fedc98 economy/titles/titles.yml
 87f03b9f2f8c65dbab31c5d106af474f8963fe8f economy/titles/titles.yml

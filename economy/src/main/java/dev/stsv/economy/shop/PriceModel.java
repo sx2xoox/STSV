@@ -4,8 +4,9 @@ package dev.stsv.economy.shop;
  * The admin shop's buying price: it falls as the whole server sells the same item today.
  *
  * <pre>P = max(floor · P0, P0 · e^(-S / Q)) · multiplier,   Q = q · N</pre>
- * P0 base price, S sold today by everyone, q what one player is expected to sell per day, N players
- * who joined today. At S = Q the price is 37% of the base; the floor (35%) stops it there.
+ * P0 base price, S sold today by everyone, q what one player is expected to sell per day (the shop
+ * passes q x depth), N players who joined today (the shop passes at least min-players). At S = Q the
+ * price is 37% of the base; the floor stops it there.
  * Every unit of a sale pushes S by one, so selling 64 at once gets the same total as 64 one by one.
  */
 public final class PriceModel {

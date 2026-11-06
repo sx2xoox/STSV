@@ -65,6 +65,19 @@ public final class ShopStore {
         db.execute(db.upsert("eco_shop_player", List.of("player", "item"), List.of("amount")), player.toString(), item, p);
     }
 
+    /** During the day: S shrinks a little (prices recover); per-player counts stay. */
+    public void recover(double factor) {
+        if (sold.isEmpty()) return;
+        sold.replaceAll((k, v) -> v * factor);
+        sold.values().removeIf(v -> v < 0.5);
+        Map<String, Double> copy = new HashMap<>(sold);
+        db.async(c -> {
+            Db.update(c, "DELETE FROM eco_shop_sold");
+            for (Map.Entry<String, Double> e : copy.entrySet()) Db.update(c, "INSERT INTO eco_shop_sold (item, sold) VALUES (?, ?)", e.getKey(), e.getValue());
+            return null;
+        });
+    }
+
     /** The daily reset: S shrinks (prices recover slowly), the per-player counts start over. */
     public void decay(double factor) {
         sold.replaceAll((k, v) -> v * factor);
