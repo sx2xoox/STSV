@@ -7,18 +7,59 @@
 #   {이름}       자리표시자. {page} {pages} 는 공통, 나머지는 메뉴를 여는 모듈이 채움
 #   filler      none / glass (배경 그림이 없을 때 빈칸을 유리판으로)
 wardrobe:
-  title: "<#f0e2b0>치장 <#b9a6d6>· 보유 {owned}/{total}"
+  title: "<#f0e2b0>치장 <#b9a6d6>· {tab} <#8f86a6>· 보유 {owned}/{total}"
   rows: 6
   background: stsv:gui/wardrobe
   layout:
-    - "........."
+    - ".ABCDEFG."
     - ".LLLLLLL."
     - ".LLLLLLL."
     - ".LLLLLLL."
     - ".LLLLLLL."
-    - "P.T.I.X.N"
+    - "P.TI.SX.N"
   list: L
   buttons:
+    # 탭: 지금 탭은 반짝임. 아이콘은 그 부위 치장 모델
+    A:
+      action: "wardrobe:tab:all"
+      material: ARMOR_STAND
+      name: "<white>전체"
+      lore: ["<gray>모든 치장"]
+    B:
+      action: "wardrobe:tab:head"
+      icon: stsv:straw_hat
+      material: LEATHER_HELMET
+      name: "<white>머리"
+      lore: ["<gray>모자, 귀, 왕관, 탈", "<gray>착용: <white>{worn_head}"]
+    C:
+      action: "wardrobe:tab:above"
+      icon: stsv:halo
+      material: GLOWSTONE_DUST
+      name: "<white>머리 위"
+      lore: ["<gray>머리 위에 떠 있는 것", "<gray>착용: <white>{worn_above}"]
+    D:
+      action: "wardrobe:tab:shoulder"
+      icon: stsv:chick
+      material: FEATHER
+      name: "<white>어깨"
+      lore: ["<gray>어깨에 올라탄 친구", "<gray>착용: <white>{worn_shoulder}"]
+    E:
+      action: "wardrobe:tab:back"
+      icon: stsv:angel_wings
+      material: ELYTRA
+      name: "<white>등"
+      lore: ["<gray>날개, 인형 가방, 책가방", "<gray>착용: <white>{worn_back}"]
+    F:
+      action: "wardrobe:tab:tail"
+      icon: stsv:fox_tail
+      material: RABBIT_FOOT
+      name: "<white>꼬리"
+      lore: ["<gray>착용: <white>{worn_tail}"]
+    G:
+      action: "wardrobe:tab:worn"
+      material: PLAYER_HEAD
+      name: "<white>착용 중"
+      lore: ["<gray>지금 입고 있는 치장만"]
     P:
       action: page:prev
       icon: stsv:gui/prev
@@ -37,7 +78,7 @@ wardrobe:
       action: wardrobe:take_off
       icon: stsv:gui/take_off
       material: BARRIER
-      name: "<yellow>치장 벗기"
+      name: "<yellow>{take_off}"
       lore: ["<gray>착용 중: <white>{worn}"]
     I:
       action: wardrobe:info
@@ -49,10 +90,22 @@ wardrobe:
         - "<gray>미리보기: <white>{previewing}"
         - "<gray>페이지: <white>{page} / {pages}"
         - ""
+        - "<gray>부위마다 하나씩: 머리, 머리 위, 어깨, 등, 꼬리"
         - "<gray>치장 클릭: 착용 / 착용 중이면 벗기 (창이 닫히고 미리보기)"
-        - "<gray>미보유 치장은 미리보기만 됩니다."
+        - "<gray>미보유 치장은 마네킹에 입혀 보기만 됩니다."
         - "<gray>미리보기 화면에서 웅크리기: 이 메뉴 다시 열기"
         - "<gray>나가기 버튼: 원래 자리로"
+    S:
+      action: wardrobe:self
+      material: SPYGLASS
+      name: "<white>내 화면에 표시: {self}"
+      lore:
+        - "<gray>머리 위·어깨·등·꼬리 치장을"
+        - "<gray>내 화면(F5)에서도 볼지 정합니다."
+        - "<gray>다른 사람에게는 늘 보입니다."
+        - "<dark_gray>켜면 1인칭에서도 어깨 친구 등이 보일 수 있어요."
+        - ""
+        - "<gray>클릭: <white>켜기 / 끄기"
     X:
       action: wardrobe:exit
       icon: stsv:gui/exit

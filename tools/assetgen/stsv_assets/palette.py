@@ -125,6 +125,13 @@ MATERIALS = {
     "ice":         (218, 0.045, 0.88, 0.18, 4, False),
     "glow_amber":  (72, 0.150, 0.84, 0.30, 4, True),     # glowing liquor, lanterns
     "glow_cyan":   (196, 0.110, 0.86, 0.30, 4, True),    # glowing water, pearls
+    # --- cosmetics (hats, wings, plush backpacks, shoulder pets, tails) ---------------------------
+    "pink":        (8, 0.100, 0.78, 0.26, 4, False),     # hearts, inner ears, bunny noses
+    "feather":     (85, 0.014, 0.90, 0.20, 4, False),    # white feathers and fur
+    "fox":         (48, 0.150, 0.64, 0.30, 5, False),    # fox and tabby-cat orange
+    "plush":       (60, 0.080, 0.56, 0.26, 4, False),    # teddy-bear brown
+    "slime":       (138, 0.150, 0.74, 0.30, 4, False),   # slime green
+    "denim":       (255, 0.090, 0.48, 0.26, 4, False),   # school bag blue
     # --- TEST-ONLY materials: "dev texture" colours, never used by real content -----------------
     "test_orange": (55, 0.150, 0.70, 0.30, 4, True),
     "test_grey":   (250, 0.012, 0.62, 0.30, 4, False),

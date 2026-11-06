@@ -83,12 +83,41 @@ public record CustomItem(
     public record Skin(NamespacedKey model, List<String> appliesTo, NamespacedKey asset, boolean returnOnRemove) {}
 
     /**
-     * A cosmetic shown on the player in the given slot (only "head" for now).
+     * A cosmetic shown on the player in one of the cosmetic slots. One cosmetic per slot is worn at a time.
      *
      * @param rarity common / rare / epic / legendary
      * @param obtain how to get it, shown on the locked entry in the wardrobe
+     * @param offset extra offset from the slot's anchor, in pixels (1/16 block): x right, y up, z back
+     * @param scale  size on the player (1 = as modelled)
+     * @param bob    floats gently up and down (above the head)
      */
-    public record Cosmetic(org.bukkit.inventory.EquipmentSlot slot, Rarity rarity, String obtain) {}
+    public record Cosmetic(CosmeticSlot slot, Rarity rarity, String obtain, org.bukkit.util.Vector offset, float scale, boolean bob) {
+        public Cosmetic(CosmeticSlot slot, Rarity rarity, String obtain) {
+            this(slot, rarity, obtain, new org.bukkit.util.Vector(), 1f, false);
+        }
+    }
+
+    /**
+     * Where a cosmetic is worn. HEAD replaces what others see on the head (the real helmet stays); the
+     * others are models carried along with the player.
+     */
+    public enum CosmeticSlot {
+        HEAD("head", "머리"), ABOVE("above", "머리 위"), SHOULDER("shoulder", "어깨"), BACK("back", "등"), TAIL("tail", "꼬리");
+
+        public final String id, label;
+
+        CosmeticSlot(String id, String label) {
+            this.id = id;
+            this.label = label;
+        }
+
+        /** "back" or "등" (also "머리위"); null if unknown. */
+        public static CosmeticSlot parse(String s) {
+            String t = s.trim().toLowerCase(java.util.Locale.ROOT).replace(" ", "");
+            for (CosmeticSlot c : values()) if (c.id.equals(t) || c.label.replace(" ", "").equals(t)) return c;
+            return null;
+        }
+    }
 
     public enum Rarity {
         COMMON("일반", "<gray>"), RARE("희귀", "<#5ab0ff>"), EPIC("영웅", "<#c58cff>"), LEGENDARY("전설", "<gradient:#ffd36b:#ff8a3d>");

@@ -1,6 +1,9 @@
 # ─────────────────────────────────────────────────────────────────────────────────────────────
-#  [치장] 보유해야 입을 수 있음. 교환권 우클릭 → 보유 → /치장 에서 착용
+#  [치장] 보유해야 입을 수 있음. 교환권 우클릭 / 상점 구매 → 보유 → /치장 에서 착용
 #  rarity: common(일반) / rare(희귀) / epic(영웅) / legendary(전설)
+#  slot: head(머리) / above(머리 위) / shoulder(어깨) / back(등) / tail(꼬리). 부위마다 하나씩 착용
+#    머리: 투구 칸은 그대로 두고 다른 사람에게 보이는 머리만 바뀜
+#    나머지: 플레이어를 따라다니는 모델. offset: [오른쪽, 위, 뒤] 픽셀(1/16칸), scale: 크기, bob: 둥실둥실
 # ─────────────────────────────────────────────────────────────────────────────────────────────
 tomato_mask:
   material: paper
@@ -23,6 +26,180 @@ mushroom_mask:
   max-stack: 1
   cosmetic: { slot: head, rarity: epic, obtain: "버섯 탈 교환권" }
 
+# ── 머리 ──────────────────────────────────────────────────────────────────────────
+straw_hat:
+  material: paper
+  name: "<#e8c66a>밀짚모자"
+  lore: ["<gray>여름 들판의 필수품"]
+  model: straw_hat
+  max-stack: 1
+  cosmetic: { slot: head, rarity: common, obtain: "상점 · 치장" }
+
+cat_ears:
+  material: paper
+  name: "<#f2a7c0>고양이 귀"
+  lore: ["<gray>쫑긋 선 귀"]
+  model: cat_ears
+  max-stack: 1
+  cosmetic: { slot: head, rarity: common, obtain: "상점 · 치장" }
+
+frog_hat:
+  material: paper
+  name: "<#7ccf5a>개구리 모자"
+  lore: ["<gray>눈이 똘망똘망한 개구리"]
+  model: frog_hat
+  max-stack: 1
+  cosmetic: { slot: head, rarity: rare, obtain: "상점 · 치장" }
+
+wizard_hat:
+  material: paper
+  name: "<#8a6cff>마법사 모자"
+  lore: ["<gray>별이 박힌 뾰족 모자"]
+  model: wizard_hat
+  max-stack: 1
+  cosmetic: { slot: head, rarity: rare, obtain: "상점 · 치장" }
+
+gat:
+  material: paper
+  name: "<#cfcfd6>갓"
+  lore: ["<gray>선비의 품격, 갓끈까지"]
+  model: gat
+  max-stack: 1
+  cosmetic: { slot: head, rarity: epic, obtain: "상점 · 치장" }
+
+crown:
+  material: paper
+  name: "<#ffd34d>왕관"
+  lore: ["<gray>보석 박힌 금관"]
+  model: crown
+  max-stack: 1
+  cosmetic: { slot: head, rarity: legendary, obtain: "상점 · 치장" }
+
+# ── 머리 위 ──────────────────────────────────────────────────────────────────────────
+sprout:
+  material: paper
+  name: "<#7fd35a>새싹"
+  lore: ["<gray>머리에서 쏙 돋아난 새싹"]
+  model: sprout
+  max-stack: 1
+  cosmetic: { slot: above, rarity: common, obtain: "상점 · 치장" }
+
+heart:
+  material: paper
+  name: "<#ff7aa2>하트"
+  lore: ["<gray>두근두근 떠다니는 하트"]
+  model: heart
+  max-stack: 1
+  cosmetic: { slot: above, rarity: rare, obtain: "상점 · 치장", bob: true }
+
+rain_cloud:
+  material: paper
+  name: "<#a9b4c2>비구름"
+  lore: ["<gray>나만 따라다니는 먹구름"]
+  model: rain_cloud
+  max-stack: 1
+  cosmetic: { slot: above, rarity: epic, obtain: "상점 · 치장", bob: true }
+
+halo:
+  material: paper
+  name: "<#fff2b0>천사의 고리"
+  lore: ["<gray>은은하게 빛나는 고리"]
+  model: halo
+  max-stack: 1
+  cosmetic: { slot: above, rarity: legendary, obtain: "상점 · 치장", bob: true }
+
+# ── 어깨 ──────────────────────────────────────────────────────────────────────────
+chick:
+  material: paper
+  name: "<#ffe066>병아리"
+  lore: ["<gray>어깨 위의 삐약이"]
+  model: chick
+  max-stack: 1
+  cosmetic: { slot: shoulder, rarity: common, obtain: "상점 · 치장" }
+
+slime:
+  material: paper
+  name: "<#7fe07a>슬라임"
+  lore: ["<gray>말랑말랑 어깨 친구"]
+  model: slime
+  max-stack: 1
+  cosmetic: { slot: shoulder, rarity: rare, obtain: "상점 · 치장" }
+
+shoulder_cat:
+  material: paper
+  name: "<#f0a050>어깨 고양이"
+  lore: ["<gray>어깨 위가 제일 편한 고양이"]
+  model: shoulder_cat
+  max-stack: 1
+  cosmetic: { slot: shoulder, rarity: epic, obtain: "상점 · 치장" }
+
+# ── 등 ──────────────────────────────────────────────────────────────────────────
+school_bag:
+  material: paper
+  name: "<#5b8ee6>책가방"
+  lore: ["<gray>준비물 챙겼니?"]
+  model: school_bag
+  max-stack: 1
+  cosmetic: { slot: back, rarity: common, obtain: "상점 · 치장" }
+
+bear_backpack:
+  material: paper
+  name: "<#c08a5a>곰 인형 가방"
+  lore: ["<gray>등에 업힌 곰돌이"]
+  model: bear_backpack
+  max-stack: 1
+  cosmetic: { slot: back, rarity: rare, obtain: "상점 · 치장" }
+
+bunny_backpack:
+  material: paper
+  name: "<#f5d0dc>토끼 인형 가방"
+  lore: ["<gray>귀가 쫑긋한 토끼 가방"]
+  model: bunny_backpack
+  max-stack: 1
+  cosmetic: { slot: back, rarity: rare, obtain: "상점 · 치장" }
+
+butterfly_wings:
+  material: paper
+  name: "<#5ab0ff>나비 날개"
+  lore: ["<gray>푸르게 빛나는 날개"]
+  model: butterfly_wings
+  max-stack: 1
+  cosmetic: { slot: back, rarity: epic, obtain: "상점 · 치장" }
+
+angel_wings:
+  material: paper
+  name: "<#ffffff>천사 날개"
+  lore: ["<gray>새하얀 깃털 날개"]
+  model: angel_wings
+  max-stack: 1
+  cosmetic: { slot: back, rarity: legendary, obtain: "상점 · 치장" }
+
+demon_wings:
+  material: paper
+  name: "<#c0303a>악마 날개"
+  lore: ["<gray>박쥐 같은 검붉은 날개"]
+  model: demon_wings
+  max-stack: 1
+  cosmetic: { slot: back, rarity: legendary, obtain: "상점 · 치장" }
+
+# ── 꼬리 ──────────────────────────────────────────────────────────────────────────
+cat_tail:
+  material: paper
+  name: "<#f0a050>고양이 꼬리"
+  lore: ["<gray>살랑살랑"]
+  model: cat_tail
+  max-stack: 1
+  cosmetic: { slot: tail, rarity: common, obtain: "상점 · 치장" }
+
+fox_tail:
+  material: paper
+  name: "<#ff8a3d>여우 꼬리"
+  lore: ["<gray>복슬복슬, 끝은 하얗게"]
+  model: fox_tail
+  max-stack: 1
+  cosmetic: { slot: tail, rarity: rare, obtain: "상점 · 치장" }
+
+# ── 교환권 ──────────────────────────────────────────────────────────────────────────────
 tomato_voucher:
   material: paper
   name: "<#e21806>토마토 탈 교환권"

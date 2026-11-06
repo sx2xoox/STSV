@@ -50,7 +50,7 @@ class CosmeticViewsTest {
         items = new ArrayList<>();
         for (String id : COSMETICS) {
             items.add(item(pack, id, Material.PAPER, new ModelRef(ModelRef.Kind.BBMODEL, id, false), null,
-                    new CustomItem.Cosmetic(EquipmentSlot.HEAD, CustomItem.Rarity.COMMON, "")));
+                    new CustomItem.Cosmetic(CustomItem.CosmeticSlot.HEAD, CustomItem.Rarity.COMMON, "")));
         }
         // a custom helmet made from a vanilla helmet, and a custom item worn on the head by equipment
         items.add(item(pack, "test_helmet", Material.IRON_HELMET, new ModelRef(ModelRef.Kind.BBMODEL, "eggplant_mask", false), null, null));

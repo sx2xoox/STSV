@@ -3,7 +3,7 @@ plugins {
 }
 
 group = "dev.stsv"
-version = "3.8.1"
+version = "3.9.0"
 
 repositories {
     mavenCentral()
@@ -41,5 +41,6 @@ tasks.withType<JavaCompile>().configureEach {
 // plugins/STSV/contents/ by the core on start.
 tasks.processResources {
     from("content") { into("default-content") }
+    inputs.property("version", project.version)   // a new version must re-expand plugin.yml
     filesMatching("plugin.yml") { expand("version" to project.version) }
 }

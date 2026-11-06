@@ -35,12 +35,12 @@ def main():
     render = "--render" in sys.argv
     sys.path.insert(0, str(HERE))
     from models.test_items import ALL as ITEMS
-    from models import test_golem, executioner
-    ALL = {**ITEMS, **test_golem.ALL, **executioner.ALL}
+    from models import test_golem, executioner, cosmetics
+    ALL = {**ITEMS, **test_golem.ALL, **executioner.ALL, **cosmetics.ALL}
     import special
 
     def home(name):
-        return CONTENT if name in SHIPPED_MODELS or name in executioner.ALL else FIXTURE
+        return CONTENT if name in SHIPPED_MODELS or name in executioner.ALL or name in cosmetics.ALL else FIXTURE
 
     for d in (CONTENT / "models", CONTENT / "textures", FIXTURE / "models", FIXTURE / "textures", BUILD, PREVIEWS):
         d.mkdir(parents=True, exist_ok=True)

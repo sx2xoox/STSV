@@ -18,22 +18,28 @@ import java.util.Set;
 import java.util.UUID;
 
 /**
- * Account-bound cosmetic ownership in the shared database (tables cosmetic_owned, cosmetic_equipped),
- * so it survives world resets and moves between contents. Everything is kept in memory (it is small) and
- * every change is written straight away on the database thread.
+ * Account-bound cosmetic ownership in the shared database (tables cosmetic_owned, cosmetic_worn: one
+ * cosmetic per slot), so it survives world resets and moves between contents. Everything is kept in
+ * memory (it is small) and every change is written straight away on the database thread.
+ *
+ * Version 1 had one worn cosmetic per player (cosmetic_equipped, always on the head); version 2 copies it
+ * into cosmetic_worn as the head slot (the old table is left as it was).
  *
  * Servers from before the database kept this in plugins/STSV/data/cosmetics.yml: on first start the file
  * is imported once and renamed to cosmetics.yml.imported.
  */
 public final class CosmeticStore {
 
-    private static final List<List<String>> SCHEMA = List.of(List.of(
-            "CREATE TABLE IF NOT EXISTS cosmetic_owned (player CHAR(36) NOT NULL, item VARCHAR(128) NOT NULL, PRIMARY KEY (player, item))",
-            "CREATE TABLE IF NOT EXISTS cosmetic_equipped (player CHAR(36) NOT NULL PRIMARY KEY, item VARCHAR(128) NOT NULL)"));
+    private static final List<List<String>> SCHEMA = List.of(
+            List.of("CREATE TABLE IF NOT EXISTS cosmetic_owned (player CHAR(36) NOT NULL, item VARCHAR(128) NOT NULL, PRIMARY KEY (player, item))",
+                    "CREATE TABLE IF NOT EXISTS cosmetic_equipped (player CHAR(36) NOT NULL PRIMARY KEY, item VARCHAR(128) NOT NULL)"),
+            List.of("CREATE TABLE IF NOT EXISTS cosmetic_worn (player CHAR(36) NOT NULL, slot VARCHAR(16) NOT NULL, item VARCHAR(128) NOT NULL, PRIMARY KEY (player, slot))",
+                    "INSERT INTO cosmetic_worn (player, slot, item) SELECT player, 'head', item FROM cosmetic_equipped"));
 
     private final Db db;
     private final Map<UUID, Set<String>> owned = new HashMap<>();
-    private final Map<UUID, String> equipped = new HashMap<>();
+    /** player -> slot id -> cosmetic */
+    private final Map<UUID, Map<String, String>> worn = new HashMap<>();
 
     public CosmeticStore(Db db) {
         this.db = db;
@@ -44,13 +50,13 @@ public final class CosmeticStore {
         db.migrate("cosmetics", SCHEMA);
         if (legacyYaml != null && Files.exists(legacyYaml)) importYaml(legacyYaml);
         owned.clear();
-        equipped.clear();
+        worn.clear();
         db.sync(c -> {
             for (String[] r : Db.query(c, "SELECT player, item FROM cosmetic_owned", rs -> new String[]{rs.getString(1), rs.getString(2)})) {
                 owned.computeIfAbsent(UUID.fromString(r[0]), k -> new LinkedHashSet<>()).add(r[1]);
             }
-            for (String[] r : Db.query(c, "SELECT player, item FROM cosmetic_equipped", rs -> new String[]{rs.getString(1), rs.getString(2)})) {
-                equipped.put(UUID.fromString(r[0]), r[1]);
+            for (String[] r : Db.query(c, "SELECT player, slot, item FROM cosmetic_worn", rs -> new String[]{rs.getString(1), rs.getString(2), rs.getString(3)})) {
+                worn.computeIfAbsent(UUID.fromString(r[0]), k -> new HashMap<>()).put(r[1], r[2]);
             }
             return null;
         });
@@ -59,7 +65,7 @@ public final class CosmeticStore {
     private void importYaml(Path file) throws IOException {
         YamlConfiguration y = YamlConfiguration.loadConfiguration(file.toFile());
         String grant = db.upsert("cosmetic_owned", List.of("player", "item"), List.of());
-        String wear = db.upsert("cosmetic_equipped", List.of("player"), List.of("item"));
+        String wear = db.upsert("cosmetic_worn", List.of("player", "slot"), List.of("item"));
         db.sync(c -> {
             for (String key : y.getKeys(false)) {
                 UUID id;
@@ -72,7 +78,7 @@ public final class CosmeticStore {
                 if (s == null) continue;
                 for (String item : s.getStringList("owned")) Db.update(c, grant, id.toString(), item);
                 String eq = s.getString("equipped");
-                if (eq != null && !eq.isEmpty()) Db.update(c, wear, id.toString(), eq);
+                if (eq != null && !eq.isEmpty()) Db.update(c, wear, id.toString(), "head", eq);
             }
             return null;
         });
@@ -90,23 +96,42 @@ public final class CosmeticStore {
         return added;
     }
 
-    /** @return true if the player had it */
+    /** @return true if the player had it (also takes it off) */
     public synchronized boolean revoke(UUID player, String cosmetic) {
         boolean had = owned.getOrDefault(player, new LinkedHashSet<>()).remove(cosmetic);
         if (had) db.execute("DELETE FROM cosmetic_owned WHERE player = ? AND item = ?", player.toString(), cosmetic);
-        if (cosmetic.equals(equipped.get(player))) setEquipped(player, null);
+        for (Map.Entry<String, String> e : Map.copyOf(worn.getOrDefault(player, Map.of())).entrySet()) {
+            if (e.getValue().equals(cosmetic)) setWorn(player, e.getKey(), null);
+        }
         return had;
     }
 
-    public synchronized Optional<String> equipped(UUID player) {
-        return Optional.ofNullable(equipped.get(player));
+    /** slot id -> cosmetic, for every slot the player wears something in. */
+    public synchronized Map<String, String> worn(UUID player) {
+        return Map.copyOf(worn.getOrDefault(player, Map.of()));
     }
 
-    public synchronized void setEquipped(UUID player, String cosmetic) {
+    public synchronized Optional<String> worn(UUID player, String slot) {
+        return Optional.ofNullable(worn.getOrDefault(player, Map.of()).get(slot));
+    }
+
+    /** Wears the cosmetic in the slot (null: takes off whatever is there). */
+    public synchronized void setWorn(UUID player, String slot, String cosmetic) {
+        Map<String, String> m = worn.computeIfAbsent(player, k -> new HashMap<>());
         if (cosmetic == null) {
-            if (equipped.remove(player) != null) db.execute("DELETE FROM cosmetic_equipped WHERE player = ?", player.toString());
-        } else if (!cosmetic.equals(equipped.put(player, cosmetic))) {
-            db.execute(db.upsert("cosmetic_equipped", List.of("player"), List.of("item")), player.toString(), cosmetic);
+            if (m.remove(slot) != null) db.execute("DELETE FROM cosmetic_worn WHERE player = ? AND slot = ?", player.toString(), slot);
+        } else if (!cosmetic.equals(m.put(slot, cosmetic))) {
+            db.execute(db.upsert("cosmetic_worn", List.of("player", "slot"), List.of("item")), player.toString(), slot, cosmetic);
         }
+        if (m.isEmpty()) worn.remove(player);
+    }
+
+    /** The head slot (what version 1 called "equipped"). */
+    public Optional<String> equipped(UUID player) {
+        return worn(player, "head");
+    }
+
+    public void setEquipped(UUID player, String cosmetic) {
+        setWorn(player, "head", cosmetic);
     }
 }

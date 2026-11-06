@@ -18,6 +18,7 @@ wardrobe:
   no-room: "<red>앞쪽 공간이 부족합니다. 앞쪽 {blocks}칸이 트인 곳에서 사용하세요."
   took-off: "<gray>벗었습니다: </gray>{cosmetic}"
   wearing: "<green>착용: </green>{cosmetic}"
+  wearing-replace: "<green>착용: </green>{cosmetic} <gray>({old} 대신)"
   preview-only: "<red>🔒 미리보기만 가능합니다"
   preview-only-obtain: "<red>🔒 미리보기만 가능합니다 <gray>(획득: {obtain})"
   # 미리보기 화면 제목: 위 = 치장 이름, 아래 = 상태 + 안내
@@ -29,10 +30,21 @@ wardrobe:
   state-locked: "<red>🔒 미보유 · 미리보기"
   subtitle: "{state} <dark_gray>|</dark_gray> {hint}"
   left: "<green>착용 중인 치장: </green>{cosmetic} <gray>(F5로 확인. 투구 칸과는 별개)"
+  left-self-hint: "<gray>머리 위·어깨·등·꼬리 치장은 다른 사람에게 보입니다. 내 화면에도 보려면 /치장 → <white>내 화면에 표시"
+  # 탭 (부위 이름은 cosmetic.slot)
+  tab-all: "전체"
+  tab-worn: "착용 중"
+  take-off-all: "모든 치장 벗기"
+  take-off-slot: "{slot} 치장 벗기"
+  self-on: "<green>켜짐"
+  self-off: "<gray>꺼짐"
+  self-turned-on: "<green>내 화면에 표시: 켜짐 <gray>(1인칭에서도 보일 수 있어요)"
+  self-turned-off: "<gray>내 화면에 표시: 꺼짐 <dark_gray>(다른 사람에게는 그대로 보임)"
   # 메뉴의 치장 설명
-  lore-rarity: "{color}◆ {rarity}"
+  lore-rarity: "{color}◆ {rarity} <dark_gray>· <gray>{slot}"
   lore-worn: ["<green>✔ 착용 중", "<gray>클릭: <white>벗기"]
   lore-owned: ["<green>보유 중", "<gray>클릭: <white>착용"]
+  lore-replaces: "<dark_gray>(지금 착용 중인 {cosmetic} 대신)"
   lore-locked: ["<red>🔒 미보유"]
   lore-obtain: "<gray>획득: <white>{obtain}"
   lore-locked-click: "<gray>클릭: <white>미리보기"
@@ -43,6 +55,12 @@ cosmetic:
   got-title: "{color}<b>새 치장 획득!</b>"
   got-subtitle: "{cosmetic} <dark_gray>·</dark_gray> {color}{rarity}"
   got: "<green>치장 </green>{cosmetic}<green> 을(를) 얻었습니다. /치장 에서 입어보세요."
+  slot:
+    head: "머리"
+    above: "머리 위"
+    shoulder: "어깨"
+    back: "등"
+    tail: "꼬리"
 
 skin:
   not-applicable: "<red>이 스킨을 적용할 수 없는 아이템입니다."

@@ -2,6 +2,7 @@ package dev.stsv.core.cosmetic;
 
 import dev.stsv.core.STSVPlugin;
 import dev.stsv.core.content.CustomItem;
+import dev.stsv.core.content.CustomItem.CosmeticSlot;
 import dev.stsv.core.module.StsvModule;
 import dev.stsv.core.util.Lang;
 import dev.stsv.core.util.Text;
@@ -39,6 +40,7 @@ import org.bukkit.scheduler.BukkitTask;
 import org.bukkit.util.Vector;
 
 import java.util.ArrayList;
+import java.util.EnumMap;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
@@ -57,17 +59,20 @@ import java.util.UUID;
  *    shows in third person (F5) and on the inventory paper doll. Only after the resource pack loaded.
  * If packets cannot be rewritten (unknown server internals), others get the look as equipment changes,
  * re-sent whenever the server would overwrite it, and the wearer sees it on the wardrobe mannequin.
+ * The other slots (above the head, shoulder, back, tail) are models carried along with the player
+ * (CosmeticAttachments). Nothing is shown while the player is invisible, dead or spectating.
  *
  * Wardrobe: /치장 anywhere (standing on the ground, not hurt in the last 10 seconds, not burning, not in
  * water or a vehicle) opens the menu. A mannequin wearing the player's skin stands where they stood and
  * a spectator camera looks at it from a few blocks ahead. Clicking a cosmetic wears it (or takes it off
  * if worn, or only previews it if not owned), closes the menu and shows the camera (nothing else on
  * screen); sneaking reopens the menu, the exit button leaves (back to the same spot, nothing changed).
+ * Tabs on top show one slot at a time; one cosmetic per slot is worn.
  */
 public final class CosmeticModule implements StsvModule, Listener {
 
     private STSVPlugin plugin;
-    private NamespacedKey keyEquipped, keyOwned, keyReturn, keyWardrobeEntity, keyInvisible;
+    private NamespacedKey keyEquipped, keyOwned, keyReturn, keyWardrobeEntity, keyInvisible, keyAttachment, keySelfView;
     /** when each player last took damage (no wardrobe within 10 seconds of a hit: no escape from a fight) */
     private final Map<UUID, Long> lastHurt = new HashMap<>();
     private final Map<UUID, Session> sessions = new HashMap<>();
@@ -82,6 +87,11 @@ public final class CosmeticModule implements StsvModule, Listener {
     /** players currently shown their own cosmetic */
     private final Set<UUID> selfShown = new java.util.HashSet<>();
     private final Map<UUID, Boolean> pendingSync = new HashMap<>();
+    /** the models worn outside the head slot */
+    private CosmeticAttachments attachments;
+    /** per player: whether their cosmetics were hidden (invisible, dead, spectator) at the last check */
+    private final Map<UUID, Boolean> concealed = new HashMap<>();
+    private long ticks;
 
     @Override
     public String id() {
@@ -96,6 +106,8 @@ public final class CosmeticModule implements StsvModule, Listener {
         keyReturn = new NamespacedKey(plugin, "wardrobe_return");
         keyWardrobeEntity = new NamespacedKey(plugin, "wardrobe_entity");
         keyInvisible = new NamespacedKey(plugin, "wardrobe_invisible");
+        keyAttachment = new NamespacedKey(plugin, "cosmetic_attachment");
+        keySelfView = new NamespacedKey(plugin, "cosmetic_self_view");
         store = new CosmeticStore(plugin.db());
         try {
             store.load(plugin.getDataFolder().toPath().resolve("data").resolve("cosmetics.yml"));
@@ -108,6 +120,15 @@ public final class CosmeticModule implements StsvModule, Listener {
             packets = null;
             plugin.getLogger().warning("치장 패킷 처리를 쓸 수 없어 다른 사람에게만 보입니다: " + t);
         }
+        // leftovers from a crash or a reload (preview and worn models are not saved, but be safe)
+        for (World w : Bukkit.getWorlds()) {
+            for (Entity e : w.getEntities()) {
+                if (e.getPersistentDataContainer().has(keyWardrobeEntity) || e.getPersistentDataContainer().has(keyAttachment)) e.remove();
+            }
+        }
+        attachments = new CosmeticAttachments(plugin, keyAttachment, packets, this::selfView);
+        loadAnchors();
+        Bukkit.getScheduler().runTaskTimer(plugin, this::tick, 1L, 1L);
         Bukkit.getPluginManager().registerEvents(this, plugin);
         if (packets == null) {
             // safety net: whatever overwrote the look (resyncs we cannot see), fix it within 5 seconds
@@ -132,15 +153,46 @@ public final class CosmeticModule implements StsvModule, Listener {
                 }
             }
         });
-        // leftovers from a crash (preview entities are not saved, but be safe)
-        for (World w : Bukkit.getWorlds()) {
-            for (Entity e : w.getEntities()) if (e.getPersistentDataContainer().has(keyWardrobeEntity)) e.remove();
-        }
     }
 
     @Override
     public void reload() {
+        loadAnchors();
         Bukkit.getOnlinePlayers().forEach(this::refresh);
+    }
+
+    private void loadAnchors() {
+        List<String> problems = new ArrayList<>();
+        attachments.anchors(CosmeticAttachments.anchorsFrom(plugin.getConfig().getConfigurationSection("cosmetics.anchors"), problems));
+        problems.forEach(m -> plugin.getLogger().warning("config.yml " + m));
+    }
+
+    /** Every tick: the worn models follow their wearers; every 5 ticks: hide or show with invisibility etc. */
+    private void tick() {
+        attachments.tick();
+        if (++ticks % 5 != 0) return;
+        for (Player p : Bukkit.getOnlinePlayers()) {
+            boolean now = concealed(p);
+            Boolean was = concealed.put(p.getUniqueId(), now);
+            if (was != null && was != now) refresh(p);
+        }
+    }
+
+    /** No cosmetics are shown on an invisible, dead or spectating player (the real helmet shows as usual). */
+    private static boolean concealed(Player p) {
+        return p.isDead() || p.getGameMode() == GameMode.SPECTATOR || p.isInvisible()
+                || p.hasPotionEffect(org.bukkit.potion.PotionEffectType.INVISIBILITY);
+    }
+
+    /** Whether the player sees their own models above the head, on the shoulder, back and tail. */
+    public boolean selfView(Player p) {
+        return p.getPersistentDataContainer().getOrDefault(keySelfView, PersistentDataType.BYTE, (byte) 0) == 1;
+    }
+
+    public void selfView(Player p, boolean on) {
+        if (on) p.getPersistentDataContainer().set(keySelfView, PersistentDataType.BYTE, (byte) 1);
+        else p.getPersistentDataContainer().remove(keySelfView);
+        attachments.selfViewChanged(p);
     }
 
     @Override
@@ -149,6 +201,7 @@ public final class CosmeticModule implements StsvModule, Listener {
             Player p = Bukkit.getPlayer(id);
             if (p != null) exitWardrobe(p, false);
         });
+        if (attachments != null) attachments.removeAll();
         if (packets != null) {
             packets.clear();
             for (Player p : Bukkit.getOnlinePlayers()) {
@@ -170,9 +223,11 @@ public final class CosmeticModule implements StsvModule, Listener {
     // Ownership & equipping
     // ------------------------------------------------------------------------------------------
 
+    /** Every cosmetic, by slot, then rarity, then id. */
     public List<CustomItem> cosmetics() {
         return plugin.content().items().stream().filter(i -> i.cosmetic() != null)
-                .sorted(java.util.Comparator.comparing((CustomItem i) -> i.cosmetic().rarity()).thenComparing(i -> i.key().asString()))
+                .sorted(java.util.Comparator.comparing((CustomItem i) -> i.cosmetic().slot())
+                        .thenComparing(i -> i.cosmetic().rarity()).thenComparing(i -> i.key().asString()))
                 .toList();
     }
 
@@ -201,12 +256,36 @@ public final class CosmeticModule implements StsvModule, Listener {
         return changed;
     }
 
+    /** The head slot. */
     public Optional<CustomItem> equipped(Player p) {
-        return store.equipped(p.getUniqueId()).flatMap(id -> plugin.content().item(id)).filter(i -> i.cosmetic() != null);
+        return Optional.ofNullable(worn(p).get(CosmeticSlot.HEAD));
     }
 
+    /**
+     * What the player wears, by slot. A cosmetic whose slot was changed in the content since it was put on
+     * moves to its new slot (if that one is free).
+     */
+    public Map<CosmeticSlot, CustomItem> worn(Player p) {
+        Map<CosmeticSlot, CustomItem> out = new EnumMap<>(CosmeticSlot.class);
+        List<CustomItem> moved = new ArrayList<>();
+        store.worn(p.getUniqueId()).forEach((slotId, id) -> plugin.content().item(id).filter(i -> i.cosmetic() != null).ifPresent(i -> {
+            if (i.cosmetic().slot().id.equals(slotId)) out.put(i.cosmetic().slot(), i);
+            else moved.add(i);
+        }));
+        for (CustomItem i : moved) out.putIfAbsent(i.cosmetic().slot(), i);
+        return out;
+    }
+
+    /** Wears the cosmetic in its slot (replacing what was there). */
     public void equip(Player p, CustomItem c) {
-        store.setEquipped(p.getUniqueId(), c == null ? null : c.key().asString());
+        store.setWorn(p.getUniqueId(), c.cosmetic().slot().id, c.key().asString());
+        save();
+        refresh(p);
+    }
+
+    /** Takes off the slot (null: every slot). */
+    public void takeOff(Player p, CosmeticSlot slot) {
+        for (CosmeticSlot s : slot == null ? CosmeticSlot.values() : new CosmeticSlot[]{slot}) store.setWorn(p.getUniqueId(), s.id, null);
         save();
         refresh(p);
     }
@@ -277,7 +356,9 @@ public final class CosmeticModule implements StsvModule, Listener {
     /** Updates what the player's head looks like, to everyone who sees them and to themselves. */
     public void refresh(Player p) {
         if (!p.isOnline() || sessions.containsKey(p.getUniqueId())) return;
-        Optional<CustomItem> worn = equipped(p);
+        Map<CosmeticSlot, CustomItem> all = concealed(p) ? Map.of() : worn(p);
+        attachments.set(p, all);
+        Optional<CustomItem> worn = Optional.ofNullable(all.get(CosmeticSlot.HEAD));
         if (packets != null) {
             packets.othersView(p.getEntityId(), worn.map(c -> c.create(1)).orElse(null));
             // re-send the real helmet to the others: the packets are rewritten on the way out
@@ -308,7 +389,7 @@ public final class CosmeticModule implements StsvModule, Listener {
     private void syncSelf(Player p) {
         if (packets == null || !p.isOnline() || sessions.containsKey(p.getUniqueId())) return;
         Set<String> views = packViews.getOrDefault(p.getUniqueId(), Set.of());
-        Optional<CustomItem> worn = equipped(p);
+        Optional<CustomItem> worn = shownHead(p);
         String id = worn.isPresent() && !views.isEmpty() ? worn.get().key().asString() : null;
         packets.selfView(p, id, views);
         ItemStack helmet = helmet(p);
@@ -338,7 +419,12 @@ public final class CosmeticModule implements StsvModule, Listener {
     }
 
     private ItemStack look(Player p) {
-        return equipped(p).map(c -> c.create(1)).orElseGet(() -> p.getInventory().getHelmet());
+        return shownHead(p).map(c -> c.create(1)).orElseGet(() -> p.getInventory().getHelmet());
+    }
+
+    /** The head cosmetic as others see it now (none while concealed). */
+    private Optional<CustomItem> shownHead(Player p) {
+        return concealed(p) ? Optional.empty() : equipped(p);
     }
 
     private void refreshLater(Player p) {
@@ -351,8 +437,10 @@ public final class CosmeticModule implements StsvModule, Listener {
     }
 
     @EventHandler public void onJoin(PlayerJoinEvent e) { migrate(e.getPlayer()); restoreIfStuck(e.getPlayer()); makeVisible(e.getPlayer()); refreshLater(e.getPlayer()); }
-    @EventHandler public void onRespawn(PlayerRespawnEvent e) { refreshLater(e.getPlayer()); }
-    @EventHandler public void onWorld(PlayerChangedWorldEvent e) { refreshLater(e.getPlayer()); }
+    /** A respawned player is a new entity on their own client: the models riding the old one are made anew. */
+    @EventHandler public void onRespawn(PlayerRespawnEvent e) { attachments.remove(e.getPlayer()); refreshLater(e.getPlayer()); }
+    @EventHandler public void onWorld(PlayerChangedWorldEvent e) { attachments.remove(e.getPlayer()); refreshLater(e.getPlayer()); }
+    @EventHandler public void onDeath(org.bukkit.event.entity.PlayerDeathEvent e) { attachments.remove(e.getPlayer()); }
 
     /**
      * The self view uses models from the server resource pack: only with the pack the client has loaded.
@@ -368,7 +456,7 @@ public final class CosmeticModule implements StsvModule, Listener {
                 return;
             }
         }
-        if (equipped(p).isPresent() || selfShown.contains(p.getUniqueId())) refreshLater(p);
+        if (shownHead(p).isPresent() || selfShown.contains(p.getUniqueId())) refreshLater(p);
     }
 
     @EventHandler
@@ -420,7 +508,7 @@ public final class CosmeticModule implements StsvModule, Listener {
     @EventHandler
     public void onTrack(PlayerTrackEntityEvent e) {
         if (packets != null) return; // the spawn packets are rewritten (a head item is added if missing)
-        if (!(e.getEntity() instanceof Player target) || equipped(target).isEmpty()) return;
+        if (!(e.getEntity() instanceof Player target) || shownHead(target).isEmpty()) return;
         Player viewer = e.getPlayer();
         Bukkit.getScheduler().runTask(plugin, () -> {
             if (viewer.isOnline() && target.isOnline() && !sessions.containsKey(target.getUniqueId())) {
@@ -446,7 +534,16 @@ public final class CosmeticModule implements StsvModule, Listener {
         boolean addedInvisibility;
         Mannequin mannequin;
         BukkitTask spin;
+        /** the last cosmetic clicked (glint in the menu) */
         String previewing;
+        /** what the mannequin wears, by slot: what the player wears, with tried-on cosmetics in their slots */
+        final Map<CosmeticSlot, String> look = new EnumMap<>(CosmeticSlot.class);
+        /** the mannequin's models outside the head slot */
+        final Map<CosmeticSlot, ItemDisplay> models = new EnumMap<>(CosmeticSlot.class);
+        /** tab: "all", "worn" or a slot id */
+        String tab = "all";
+        /** the menu is being reopened on another tab (its page must not be kept) */
+        boolean tabbing;
         dev.stsv.core.gui.menu.MenuView menu;
         boolean closing;
         GameMode gameMode;
@@ -495,7 +592,8 @@ public final class CosmeticModule implements StsvModule, Listener {
         s.spot = spot;
         s.wasInvulnerable = p.isMarkedInvulnerable();
         s.gameMode = p.getGameMode();
-        s.previewing = equipped(p).map(c -> c.key().asString()).orElse(null);
+        worn(p).forEach((slot, c) -> s.look.put(slot, c.key().asString()));
+        attachments.remove(p);
         Location o = s.origin;
         p.getPersistentDataContainer().set(keyReturn, PersistentDataType.STRING, String.join(";",
                 o.getWorld().getName(), "" + o.getX(), "" + o.getY(), "" + o.getZ(), "" + o.getYaw(), "" + o.getPitch(),
@@ -536,7 +634,12 @@ public final class CosmeticModule implements StsvModule, Listener {
         }
         p.setInvulnerable(true);
         s.spin = Bukkit.getScheduler().runTaskTimer(plugin, () -> {
-            if (s.mannequin.isValid()) s.mannequin.setRotation(s.mannequin.getYaw() + 1.5f, 0);
+            if (!s.mannequin.isValid()) return;
+            s.mannequin.setRotation(s.mannequin.getYaw() + 1.5f, 0);
+            float body = s.mannequin.getBodyYaw();
+            s.models.forEach((slot, d) -> {
+                if (d.isValid()) d.setRotation(CosmeticAttachments.onBody(slot) ? body : s.mannequin.getYaw(), 0);
+            });
         }, 20L, 1L);
         p.playSound(spot, Sound.BLOCK_WOODEN_DOOR_OPEN, 0.8f, 1.2f);
         // attach the camera first, then open the menu: while the client's camera is another entity it
@@ -631,9 +734,44 @@ public final class CosmeticModule implements StsvModule, Listener {
     }
 
     private void showOnMannequin(Player p, Session s) {
-        ItemStack head = Optional.ofNullable(s.previewing).flatMap(id -> plugin.content().item(id))
+        ItemStack head = Optional.ofNullable(s.look.get(CosmeticSlot.HEAD)).flatMap(id -> plugin.content().item(id))
                 .map(c -> c.create(1)).orElse(p.getInventory().getHelmet());
         s.mannequin.getEquipment().setHelmet(head);
+        s.models.values().forEach(Entity::remove);
+        s.models.clear();
+        Location top = s.mannequin.getLocation().add(0, s.mannequin.getHeight(), 0);
+        s.look.forEach((slot, id) -> {
+            if (slot == CosmeticSlot.HEAD) return;
+            plugin.content().item(id).filter(c -> c.cosmetic() != null).ifPresent(c -> {
+                ItemDisplay d = attachments.spawnPreview(top, s.mannequin.getBodyYaw(), slot, c);
+                p.showEntity(plugin, d);
+                s.models.put(slot, d);
+            });
+        });
+    }
+
+    /** Cosmetics shown on the open tab. */
+    private List<CustomItem> shown(Player p, Session s) {
+        Map<CosmeticSlot, CustomItem> worn = worn(p);
+        return cosmetics().stream().filter(c -> switch (s.tab) {
+            case "all" -> true;
+            case "worn" -> worn.get(c.cosmetic().slot()) != null && worn.get(c.cosmetic().slot()).key().equals(c.key());
+            default -> c.cosmetic().slot().id.equals(s.tab);
+        }).toList();
+    }
+
+    private static String slotName(CosmeticSlot slot) {
+        return Lang.raw("cosmetic.slot." + slot.id);
+    }
+
+    private String tabName(String tab) {
+        CosmeticSlot slot = CosmeticSlot.parse(tab);
+        return slot != null ? slotName(slot) : tab.equals("worn") ? Lang.raw("wardrobe.tab-worn") : Lang.raw("wardrobe.tab-all");
+    }
+
+    private static String names(java.util.Collection<CustomItem> items) {
+        return items.isEmpty() ? Lang.raw("common.none")
+                : String.join("<gray>, </gray>", items.stream().map(CosmeticModule::displayName).toList());
     }
 
     static final String WARDROBE_MENU = "stsv:wardrobe";
@@ -658,33 +796,60 @@ public final class CosmeticModule implements StsvModule, Listener {
         @Override
         public Map<String, String> placeholders(dev.stsv.core.gui.menu.MenuView v) {
             Player p = v.player();
-            Optional<CustomItem> worn = equipped(p);
-            return Map.of(
-                    "owned", String.valueOf(cosmetics().stream().filter(c -> owns(p, c)).count()),
-                    "total", String.valueOf(cosmetics().size()),
-                    "worn", worn.map(CosmeticModule::displayName).orElse(Lang.raw("common.none")),
-                    "previewing", Optional.ofNullable(s.previewing).flatMap(id -> plugin.content().item(id))
-                            .map(CosmeticModule::displayName).orElse(Lang.raw("common.none")));
+            Map<CosmeticSlot, CustomItem> worn = worn(p);
+            Map<String, String> out = new HashMap<>();
+            out.put("owned", String.valueOf(cosmetics().stream().filter(c -> owns(p, c)).count()));
+            out.put("total", String.valueOf(cosmetics().size()));
+            out.put("worn", names(worn.values()));
+            out.put("previewing", Optional.ofNullable(s.previewing).flatMap(id -> plugin.content().item(id))
+                    .map(CosmeticModule::displayName).orElse(Lang.raw("common.none")));
+            out.put("tab", tabName(s.tab));
+            for (CosmeticSlot slot : CosmeticSlot.values()) {
+                out.put("worn_" + slot.id, Optional.ofNullable(worn.get(slot)).map(CosmeticModule::displayName).orElse(Lang.raw("common.none")));
+            }
+            CosmeticSlot tabSlot = CosmeticSlot.parse(s.tab);
+            out.put("take_off", tabSlot == null ? Lang.raw("wardrobe.take-off-all") : Lang.raw("wardrobe.take-off-slot", "slot", slotName(tabSlot)));
+            out.put("self", Lang.raw(selfView(p) ? "wardrobe.self-on" : "wardrobe.self-off"));
+            return out;
+        }
+
+        /** The open tab glows; the "worn" tab shows the player's own head. */
+        @Override
+        public ItemStack button(dev.stsv.core.gui.menu.MenuView v, dev.stsv.core.gui.menu.MenuSpec.Button b, ItemStack base) {
+            if (base == null) return null;
+            String action = b.action();
+            if (action.startsWith("wardrobe:tab:")) {
+                String tab = action.substring("wardrobe:tab:".length());
+                if (tab.equals("worn") && base.getType() == org.bukkit.Material.PLAYER_HEAD) {
+                    base.setData(io.papermc.paper.datacomponent.DataComponentTypes.PROFILE, ResolvableProfile.resolvableProfile(v.player().getPlayerProfile()));
+                }
+                if (tab.equals(s.tab)) base.editMeta(m -> m.setEnchantmentGlintOverride(true));
+            } else if (action.equals("wardrobe:self") && selfView(v.player())) {
+                base.editMeta(m -> m.setEnchantmentGlintOverride(true));
+            }
+            return base;
         }
 
         @Override
         public List<ItemStack> list(dev.stsv.core.gui.menu.MenuView v) {
             Player p = v.player();
-            Optional<CustomItem> worn = equipped(p);
+            Map<CosmeticSlot, CustomItem> worn = worn(p);
             List<ItemStack> out = new ArrayList<>();
-            for (CustomItem c : cosmetics()) {
+            for (CustomItem c : shown(p, s)) {
                 boolean owned = owns(p, c);
-                boolean isWorn = worn.filter(w -> w.key().equals(c.key())).isPresent();
+                CustomItem w = worn.get(c.cosmetic().slot());
+                boolean isWorn = w != null && w.key().equals(c.key());
                 CustomItem.Rarity r = c.cosmetic().rarity();
                 ItemStack it = c.create(1);
                 it.editMeta(m -> {
                     List<Component> lore = new ArrayList<>();
-                    lore.add(Lang.item("wardrobe.lore-rarity", "color", r.color, "rarity", r.label));
+                    lore.add(Lang.item("wardrobe.lore-rarity", "color", r.color, "rarity", r.label, "slot", slotName(c.cosmetic().slot())));
                     lore.add(Text.item(""));
                     if (isWorn) {
                         lore.addAll(Lang.items("wardrobe.lore-worn"));
                     } else if (owned) {
                         lore.addAll(Lang.items("wardrobe.lore-owned"));
+                        if (w != null) lore.add(Lang.item("wardrobe.lore-replaces", "cosmetic", displayName(w)));
                     } else {
                         lore.addAll(Lang.items("wardrobe.lore-locked"));
                         if (c.cosmetic().obtain() != null) lore.add(Lang.item("wardrobe.lore-obtain", "obtain", c.cosmetic().obtain()));
@@ -701,22 +866,28 @@ public final class CosmeticModule implements StsvModule, Listener {
         @Override
         public void onListClick(dev.stsv.core.gui.menu.MenuView v, int index, org.bukkit.event.inventory.ClickType click) {
             Player p = v.player();
-            List<CustomItem> all = cosmetics();
+            List<CustomItem> all = shown(p, s);
             if (index >= all.size() || !inWardrobe(p)) return;
             CustomItem c = all.get(index);
             String id = c.key().asString();
-            boolean worn = equipped(p).filter(w -> w.key().equals(c.key())).isPresent();
-            if (worn) {
-                store.setEquipped(p.getUniqueId(), null);
+            CosmeticSlot slot = c.cosmetic().slot();
+            Optional<CustomItem> before = Optional.ofNullable(worn(p).get(slot));
+            if (before.filter(w -> w.key().equals(c.key())).isPresent()) {
+                store.setWorn(p.getUniqueId(), slot.id, null);
+                s.look.remove(slot);
                 s.previewing = null;
                 p.playSound(p.getLocation(), Sound.ITEM_ARMOR_EQUIP_GENERIC, 0.8f, 0.8f);
                 dev.stsv.core.hud.HudModule.flash(p, Lang.mm("wardrobe.took-off", "cosmetic", displayName(c)));
             } else if (owns(p, c)) {
-                store.setEquipped(p.getUniqueId(), id);
+                store.setWorn(p.getUniqueId(), slot.id, id);
+                s.look.put(slot, id);
                 s.previewing = id;
                 p.playSound(p.getLocation(), Sound.ITEM_ARMOR_EQUIP_LEATHER, 1f, 1.2f);
-                dev.stsv.core.hud.HudModule.flash(p, Lang.mm("wardrobe.wearing", "cosmetic", displayName(c)));
+                dev.stsv.core.hud.HudModule.flash(p, before.isPresent()
+                        ? Lang.mm("wardrobe.wearing-replace", "cosmetic", displayName(c), "old", displayName(before.get()))
+                        : Lang.mm("wardrobe.wearing", "cosmetic", displayName(c)));
             } else {
+                s.look.put(slot, id);
                 s.previewing = id;
                 p.playSound(p.getLocation(), Sound.UI_BUTTON_CLICK, 0.6f, 1.4f);
                 dev.stsv.core.hud.HudModule.flash(p, c.cosmetic().obtain() == null ? Lang.mm("wardrobe.preview-only")
@@ -729,12 +900,43 @@ public final class CosmeticModule implements StsvModule, Listener {
         @Override
         public void onAction(dev.stsv.core.gui.menu.MenuView v, String action, org.bukkit.event.inventory.ClickType click) {
             Player p = v.player();
+            if (action.startsWith("wardrobe:tab:")) {
+                String tab = action.substring("wardrobe:tab:".length());
+                if (tab.equals(s.tab)) return;
+                s.tab = tab;
+                s.page = 0;
+                p.playSound(p.getLocation(), Sound.UI_BUTTON_CLICK, 0.5f, 1.6f);
+                // the title names the tab: open the menu again (next tick, never inside its own click)
+                Bukkit.getScheduler().runTask(plugin, () -> {
+                    if (!inWardrobe(p)) return;
+                    s.switching = true;
+                    s.tabbing = true;
+                    s.page = 0;
+                    openMenu(p);
+                    s.tabbing = false;
+                    s.switching = false;
+                    hideHands(p);
+                });
+                return;
+            }
             switch (action) {
                 case "wardrobe:take_off" -> {
-                    store.setEquipped(p.getUniqueId(), null);
+                    CosmeticSlot slot = CosmeticSlot.parse(s.tab);
+                    for (CosmeticSlot each : slot == null ? CosmeticSlot.values() : new CosmeticSlot[]{slot}) {
+                        store.setWorn(p.getUniqueId(), each.id, null);
+                        s.look.remove(each);
+                    }
                     s.previewing = null;
+                    p.playSound(p.getLocation(), Sound.ITEM_ARMOR_EQUIP_GENERIC, 0.8f, 0.8f);
                     showOnMannequin(p, s);
                     showPreview(p, s, null);
+                }
+                case "wardrobe:self" -> {
+                    boolean on = !selfView(p);
+                    selfView(p, on);
+                    p.playSound(p.getLocation(), Sound.UI_BUTTON_CLICK, 0.6f, on ? 1.5f : 1.0f);
+                    dev.stsv.core.hud.HudModule.flash(p, Lang.mm(on ? "wardrobe.self-turned-on" : "wardrobe.self-turned-off"));
+                    v.refresh();
                 }
                 case "wardrobe:exit" -> Bukkit.getScheduler().runTask(plugin, () -> exitWardrobe(p, true));
                 default -> { }
@@ -744,7 +946,7 @@ public final class CosmeticModule implements StsvModule, Listener {
         /** Esc on the menu: go to the camera view (not out of the wardrobe). */
         @Override
         public void onClose(dev.stsv.core.gui.menu.MenuView v) {
-            s.page = v.page();
+            if (!s.tabbing) s.page = v.page();
             Player p = v.player();
             if (s.menu != v || s.closing || s.switching) return;
             Bukkit.getScheduler().runTask(plugin, () -> {
@@ -763,8 +965,9 @@ public final class CosmeticModule implements StsvModule, Listener {
     /** After a click: close the menu and switch to the camera, with the cosmetic's state as a title. */
     private void showPreview(Player p, Session s, CustomItem c) {
         String state;
+        CustomItem wornThere = c == null ? null : worn(p).get(c.cosmetic().slot());
         if (c == null) state = Lang.raw("wardrobe.state-none");
-        else if (equipped(p).filter(w -> w.key().equals(c.key())).isPresent()) state = Lang.raw("wardrobe.state-worn");
+        else if (wornThere != null && wornThere.key().equals(c.key())) state = Lang.raw("wardrobe.state-worn");
         else if (owns(p, c)) state = Lang.raw("wardrobe.state-removed");
         else state = Lang.raw("wardrobe.state-locked");
         // never close an inventory inside its own click event: do it on the next tick
@@ -803,6 +1006,7 @@ public final class CosmeticModule implements StsvModule, Listener {
         p.setSpectatorTarget(null);
         p.setGameMode(s.gameMode);
         if (s.mannequin != null) s.mannequin.remove();
+        s.models.values().forEach(Entity::remove);
         if (s.camera != null) s.camera.remove();
         p.teleport(s.origin);
         p.setInvulnerable(s.wasInvulnerable);
@@ -819,7 +1023,11 @@ public final class CosmeticModule implements StsvModule, Listener {
         p.getPersistentDataContainer().remove(keyReturn);
         if (sound) p.playSound(s.origin, Sound.BLOCK_WOODEN_DOOR_CLOSE, 0.8f, 1.2f);
         for (long delay : new long[]{1, 10, 40}) Bukkit.getScheduler().runTaskLater(plugin, () -> refresh(p), delay);
-        equipped(p).ifPresent(c -> p.sendMessage(Lang.msg("wardrobe.left", "cosmetic", displayName(c))));
+        Map<CosmeticSlot, CustomItem> worn = worn(p);
+        if (!worn.isEmpty()) {
+            p.sendMessage(Lang.msg("wardrobe.left", "cosmetic", names(worn.values())));
+            if (!selfView(p) && worn.keySet().stream().anyMatch(slot -> slot != CosmeticSlot.HEAD)) p.sendMessage(Lang.msg("wardrobe.left-self-hint"));
+        }
     }
 
     /**
@@ -893,6 +1101,8 @@ public final class CosmeticModule implements StsvModule, Listener {
         selfShown.remove(e.getPlayer().getUniqueId());
         pendingSync.remove(e.getPlayer().getUniqueId());
         lastHurt.remove(e.getPlayer().getUniqueId());
+        concealed.remove(e.getPlayer().getUniqueId());
+        attachments.remove(e.getPlayer());
         if (packets != null) packets.forget(e.getPlayer(), e.getPlayer().getEntityId());
     }
 
@@ -911,7 +1121,10 @@ public final class CosmeticModule implements StsvModule, Listener {
     /** /stsv cosmetic info: what the plugin thinks the player is wearing (for debugging). */
     public List<String> info(Player p) {
         List<String> out = new ArrayList<>();
-        out.add("착용 중: " + equipped(p).map(c -> c.key().asString()).orElse("없음"));
+        Map<CosmeticSlot, CustomItem> worn = worn(p);
+        out.add("착용 중: " + (worn.isEmpty() ? "없음" : String.join(", ", worn.entrySet().stream()
+                .map(e -> e.getKey().id + "=" + e.getValue().key().asString()).toList())));
+        out.add("붙은 모델(디스플레이 id): " + attachments.displays(p) + " / 내 화면 표시: " + selfView(p) + " / 숨김(투명·사망·관전): " + concealed(p));
         out.add("보유(직접 지급): " + (owned(p).isEmpty() ? "없음" : String.join(", ", owned(p))));
         out.add("OP 전체 보유 설정(cosmetics.op-owns-all): " + plugin.getConfig().getBoolean("cosmetics.op-owns-all")
                 + " / 권한: " + p.hasPermission("stsv.cosmetic.*"));

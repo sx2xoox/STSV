@@ -225,15 +225,24 @@ public final class ContentModule implements StsvModule, org.bukkit.event.Listene
         CustomItem.Skin skin = sec.isConfigurationSection("skin") ? parseSkin(pack, sec.getConfigurationSection("skin")) : null;
         CustomItem.Cosmetic cosmetic = null;
         if (sec.isConfigurationSection("cosmetic")) {
-            String slot = sec.getString("cosmetic.slot", "head").toLowerCase(Locale.ROOT);
-            if (!slot.equals("head")) throw new IllegalArgumentException("cosmetic.slot 은 현재 head 만 지원");
+            CustomItem.CosmeticSlot slot = CustomItem.CosmeticSlot.parse(sec.getString("cosmetic.slot", "head"));
+            if (slot == null) throw new IllegalArgumentException("cosmetic.slot 은 head(머리) / above(머리 위) / shoulder(어깨) / back(등) / tail(꼬리)");
             CustomItem.Rarity rarity;
             try {
                 rarity = CustomItem.Rarity.valueOf(sec.getString("cosmetic.rarity", "common").toUpperCase(Locale.ROOT));
             } catch (IllegalArgumentException e) {
                 throw new IllegalArgumentException("cosmetic.rarity 는 common / rare / epic / legendary");
             }
-            cosmetic = new CustomItem.Cosmetic(org.bukkit.inventory.EquipmentSlot.HEAD, rarity, sec.getString("cosmetic.obtain"));
+            List<Double> off = sec.getDoubleList("cosmetic.offset");
+            if (sec.contains("cosmetic.offset") && off.size() != 3) throw new IllegalArgumentException("cosmetic.offset 은 [x, y, z] (픽셀, 1/16칸)");
+            double scale = sec.getDouble("cosmetic.scale", 1.0);
+            if (scale <= 0 || scale > 4) throw new IllegalArgumentException("cosmetic.scale 은 0 초과 4 이하");
+            if (slot == CustomItem.CosmeticSlot.HEAD && (sec.contains("cosmetic.offset") || sec.contains("cosmetic.scale") || sec.contains("cosmetic.bob"))) {
+                throw new IllegalArgumentException("머리 치장은 투구처럼 씌워져서 offset / scale / bob 을 쓸 수 없음 (모델에서 조정)");
+            }
+            cosmetic = new CustomItem.Cosmetic(slot, rarity, sec.getString("cosmetic.obtain"),
+                    off.size() == 3 ? new org.bukkit.util.Vector(off.get(0), off.get(1), off.get(2)) : new org.bukkit.util.Vector(),
+                    (float) scale, sec.getBoolean("cosmetic.bob"));
         }
 
         CustomItem.Effects effects = sec.isConfigurationSection("effects")

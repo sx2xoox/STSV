@@ -72,6 +72,50 @@ class CosmeticStoreTest {
     }
 
     @Test
+    void oneCosmeticPerSlotSurvivesARestart(@TempDir Path dir) throws Exception {
+        UUID a = UUID.randomUUID();
+        Db db = DatabaseModule.sqlite(dir.resolve("stsv.db"), LOG);
+        CosmeticStore s = new CosmeticStore(db);
+        s.load(null);
+        s.setWorn(a, "head", "stsv:crown");
+        s.setWorn(a, "back", "stsv:angel_wings");
+        s.setWorn(a, "back", "stsv:demon_wings");   // replaces the wings
+        s.setWorn(a, "tail", "stsv:fox_tail");
+        s.setWorn(a, "tail", null);
+        db.close();
+
+        Db db2 = DatabaseModule.sqlite(dir.resolve("stsv.db"), LOG);
+        CosmeticStore r = new CosmeticStore(db2);
+        r.load(null);
+        assertEquals(java.util.Map.of("head", "stsv:crown", "back", "stsv:demon_wings"), r.worn(a));
+        assertEquals(Optional.of("stsv:crown"), r.equipped(a));
+        r.grant(a, "stsv:demon_wings");
+        r.revoke(a, "stsv:demon_wings");
+        assertEquals(java.util.Map.of("head", "stsv:crown"), r.worn(a), "revoking takes it off its slot");
+        db2.close();
+    }
+
+    @Test
+    void theOldSingleHeadCosmeticMovesToTheHeadSlot(@TempDir Path dir) throws Exception {
+        UUID a = UUID.randomUUID();
+        Db db = DatabaseModule.sqlite(dir.resolve("stsv.db"), LOG);
+        // a database written by the version with one worn cosmetic (schema version 1)
+        db.migrate("cosmetics", java.util.List.of(java.util.List.of(
+                "CREATE TABLE IF NOT EXISTS cosmetic_owned (player CHAR(36) NOT NULL, item VARCHAR(128) NOT NULL, PRIMARY KEY (player, item))",
+                "CREATE TABLE IF NOT EXISTS cosmetic_equipped (player CHAR(36) NOT NULL PRIMARY KEY, item VARCHAR(128) NOT NULL)")));
+        db.execute("INSERT INTO cosmetic_owned (player, item) VALUES (?, ?)", a.toString(), "stsv:tomato_mask");
+        db.execute("INSERT INTO cosmetic_equipped (player, item) VALUES (?, ?)", a.toString(), "stsv:tomato_mask");
+        db.close();
+
+        Db db2 = DatabaseModule.sqlite(dir.resolve("stsv.db"), LOG);
+        CosmeticStore r = new CosmeticStore(db2);
+        r.load(null);
+        assertEquals(java.util.Map.of("head", "stsv:tomato_mask"), r.worn(a));
+        assertEquals(Set.of("stsv:tomato_mask"), r.owned(a));
+        db2.close();
+    }
+
+    @Test
     void migrationsRunOnceAndUpsertWorksInBothDialects(@TempDir Path dir) throws Exception {
         Db db = DatabaseModule.sqlite(dir.resolve("stsv.db"), LOG);
         var steps = java.util.List.of(java.util.List.of("CREATE TABLE t (k VARCHAR(8) PRIMARY KEY, v INT)"));

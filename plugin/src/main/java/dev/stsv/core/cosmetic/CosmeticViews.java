@@ -118,7 +118,7 @@ public final class CosmeticViews {
         // head branch: custom_model_data string = cosmetic id -> the cosmetic's own model
         JsonArray cases = new JsonArray();
         for (CustomItem c : items) {
-            if (c.cosmetic() == null || c.itemModelKey() == null) continue;
+            if (c.cosmetic() == null || c.cosmetic().slot() != CustomItem.CosmeticSlot.HEAD || c.itemModelKey() == null) continue;
             JsonObject def = read.apply(definitionPath(c.itemModelKey().asString()));
             if (def == null || !def.has("model")) {
                 warnings.add("치장 " + c.key() + ": 모델 정의가 없어 본인 화면용 머리 모습을 만들지 못함");

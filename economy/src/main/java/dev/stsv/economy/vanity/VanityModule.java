@@ -125,10 +125,15 @@ public final class VanityModule extends EcoModule {
                 ? core.content().item(e.id()).map(c -> c.create(1)).orElse(new ItemStack(Material.BARRIER))
                 : new ItemStack(Material.NAME_TAG);
         boolean own = owned(p, e);
+        var cosmetic = e.kind().equals("cosmetic") ? core.content().item(e.id()).map(c -> c.cosmetic()).orElse(null) : null;
         it.editMeta(meta -> {
             meta.itemName(Text.item(name(e)));
-            List<Component> lore = new ArrayList<>(Lang.items(e.kind().equals("cosmetic") ? "vanity.lore-cosmetic" : "vanity.lore-title",
-                    "price", EconomyModule.format(e.price())));
+            // the cosmetic's own description first, then rarity, slot and price
+            List<Component> lore = new ArrayList<>(meta.hasLore() ? meta.lore() : List.of());
+            lore.addAll(cosmetic != null
+                    ? Lang.items("vanity.lore-cosmetic", "price", EconomyModule.format(e.price()), "color", cosmetic.rarity().color,
+                            "rarity", cosmetic.rarity().label, "slot", cosmetic.slot().label)
+                    : Lang.items("vanity.lore-title", "price", EconomyModule.format(e.price())));
             lore.addAll(Lang.items(own ? "vanity.lore-owned" : armed ? "vanity.lore-confirm" : "vanity.lore-buy"));
             meta.lore(lore);
             meta.setEnchantmentGlintOverride(own || armed);

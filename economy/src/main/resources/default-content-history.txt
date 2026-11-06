@@ -2,6 +2,7 @@
 19a3c188986a309683c722915cfea7e27fcd6779 economy/assets/economy/font/fishring.json
 534f5303b517a5f6ff52d39062479c180693db3d economy/assets/economy/font/fishring.json
 32de76b0ed3cf2c092d94e98ad5e05cf11afa29d economy/assets/economy/font/stockgraph.json
+b64d510bd76f405ccd8d720efd59956d85d18b57 economy/assets/economy/font/stockgraph.json
 56eef0bca51e3272a3d3d733661bc743c45e9fc9 economy/assets/economy/items/gui/arrow_left.json
 0c71c68fe8eb8f519d5650c5160a27c93bea94f6 economy/assets/economy/items/gui/arrow_right.json
 4623663ecfe19fcedd5f4eb8f6ec380e16352544 economy/assets/economy/items/gui/back.json
@@ -59,6 +60,7 @@ ea57a156a2dbbc108bd1186eb4c94e9976bec71c economy/assets/economy/items/gui/logo_s
 cc04e36218f2ff297fa97aee317b8a6250aaf3b5 economy/assets/economy/items/gui/logo_ujin.json
 97187e9d7836eb537e0cc04336b874ec436da571 economy/assets/economy/items/gui/logo_uri_mill.json
 cc40f2b6fff6e60ef7da5ad77aa863272038f27c economy/assets/economy/items/gui/logo_yeongnam.json
+0d0de8780b42841d07c8fa82f198e37ff88f2bd9 economy/assets/economy/items/gui/period_10.json
 b7a6efe67cc493822d3f3d8d5b845d98633ed7b4 economy/assets/economy/items/gui/period_24.json
 9de52e6e0b6f97ec6d00c5bf107af037c3e4fba1 economy/assets/economy/items/gui/period_30.json
 4d619a6453c66b8a2b268c6be4c1d42da843ab2d economy/assets/economy/items/gui/period_7.json
@@ -128,6 +130,7 @@ a25c203620f90d8e545f37b80e74a2dac1363ce3 economy/assets/economy/models/item/gui/
 cf9f3a4c64bf80d1b4e4ca2f6a14484476e82f58 economy/assets/economy/models/item/gui/logo_ujin.json
 a08e31f888add14ccb0c994fa28d0844fa67f50b economy/assets/economy/models/item/gui/logo_uri_mill.json
 1bf91bde2917b93a4526308629b2f08ae03a3738 economy/assets/economy/models/item/gui/logo_yeongnam.json
+fc80096c2ab84320017d6fdb9f7ad2f19d9ba042 economy/assets/economy/models/item/gui/period_10.json
 7f3d0674755a7a75f6a341e1e773dbb3ac2b6dd7 economy/assets/economy/models/item/gui/period_24.json
 f3659d8381d82189bf956685fd96b799d07a13dd economy/assets/economy/models/item/gui/period_30.json
 3e1aec9c94008a6766b8cf7118d9190f74156dbc economy/assets/economy/models/item/gui/period_7.json
@@ -147,10 +150,18 @@ ac51a19d35e9dc4a6ce03141a7b5b269402a3831 economy/assets/economy/textures/font/fi
 72ef6961d796655a94ccb41380578aa3441d7870 economy/assets/economy/textures/font/fishring_green.png
 2233a8113a228e5f950805673faf55f7ab1b8c4a economy/assets/economy/textures/font/fishring_needle.png
 1fbdf39994a03f8d9cafbc391e1f00aa3c23c75e economy/assets/economy/textures/font/fishring_red.png
+29d369cc377779cb8a93cb797948daf986db294c economy/assets/economy/textures/font/stockgraph_dash_down.png
+5e0ae0bbea8150919af1192e60f2a97a9b9ffe8e economy/assets/economy/textures/font/stockgraph_dash_up.png
+55b354f34eb6ccabe8e989a0a5e9794983d4d186 economy/assets/economy/textures/font/stockgraph_digits.png
+457c842b2091f53da2ed13df3d9f5ad7e170acaf economy/assets/economy/textures/font/stockgraph_down_body.png
 d630ef4fc14d92e2a9ca5a8a28e4dbeb2248201f economy/assets/economy/textures/font/stockgraph_down_body.png
 f3a869b81ab070aeea6e4662a4ec5a71bf1fc2bd economy/assets/economy/textures/font/stockgraph_down_body.png
 2d51e5030ceebbe3ee4d5cb78f2e4f8461830ed2 economy/assets/economy/textures/font/stockgraph_down_wick.png
+bfb37a5255dc6ced6940315c5b48ae90081e9ff1 economy/assets/economy/textures/font/stockgraph_down_wick.png
 f1ee0a57f0e49db41b07b9f069f209a9591b7219 economy/assets/economy/textures/font/stockgraph_down_wick.png
+f2926f9c0a009ee34c42f87445eae310427eba72 economy/assets/economy/textures/font/stockgraph_tag_down.png
+d5e6ef9181d37d9adcc8f8b9b6c73006c0cc5270 economy/assets/economy/textures/font/stockgraph_tag_up.png
+9428d436395d2627cd5ec1f92069373aa0aa3907 economy/assets/economy/textures/font/stockgraph_up_body.png
 a6fd414116f348a66d58807198000c4557f8f87e economy/assets/economy/textures/font/stockgraph_up_body.png
 ffb11b9297b57106d3b752e82237be6d38971da4 economy/assets/economy/textures/font/stockgraph_up_body.png
 1eafed28f80fcbcda00368e83ae524bd9ec29665 economy/assets/economy/textures/font/stockgraph_up_wick.png
@@ -192,6 +203,7 @@ ad631073429b654452831d79fb513a8bc7fe87a9 economy/assets/economy/textures/gui/sho
 60e04ba21a07c1ec139206e50cc34fb980ab0209 economy/assets/economy/textures/gui/stock.png
 62d2bcd628360af9e2eb4c0d170bd77b4d785a32 economy/assets/economy/textures/gui/stock.png
 850013b0f2f3837443d49e2afebd93145e30f48e economy/assets/economy/textures/gui/stock.png
+cfce6b7b50b47d36bca3b8647f76ef99f1ab9dfb economy/assets/economy/textures/gui/stock.png
 1c0b886e94343cfa682eb5bd143cc1cbfa400709 economy/assets/economy/textures/gui/stocks.png
 37f29e20c4b125f4644d9ff4c95353a8e6cf0d16 economy/assets/economy/textures/gui/stocks.png
 4005bc9169fdf9cf338a638c5dc40e5bd90a7956 economy/assets/economy/textures/gui/stocks.png
@@ -282,8 +294,11 @@ ed351593c008d57192d93cbca35fa36ebf640de1 economy/assets/economy/textures/item/gu
 640e6492d544246f3a18f81224f0c92a52d5bfc7 economy/assets/economy/textures/item/gui/logo_ujin.png
 7c8faa0ddbdd1e783d1ceb70d445d8bd7c40d997 economy/assets/economy/textures/item/gui/logo_uri_mill.png
 087807deaf38bd911acd31d19a239acd2f20faa2 economy/assets/economy/textures/item/gui/logo_yeongnam.png
+6ceecc3159942c84dd14f6deaab7856cd7731d45 economy/assets/economy/textures/item/gui/period_10.png
+7fb8f9beb12e600319178c8286644393e99937eb economy/assets/economy/textures/item/gui/period_24.png
 b5d7795b139dd7268e372a0cd1c1791018841e5a economy/assets/economy/textures/item/gui/period_24.png
 31289cb93521026395fcd6d9660369b35e22aaef economy/assets/economy/textures/item/gui/period_30.png
+218ee855b3e699b828ccd37ac40c6e41e4171aae economy/assets/economy/textures/item/gui/period_7.png
 d3adb23d725789d1424647ad515e59e108d34e26 economy/assets/economy/textures/item/gui/period_7.png
 89a0b0c2e970e3eb64068a3f389ad7d587eac1b3 economy/assets/economy/textures/item/gui/refresh.png
 fbac21de5477b73d0d70e5f80aa10ef499a09340 economy/assets/economy/textures/item/gui/refresh.png
@@ -370,6 +385,7 @@ c5e44327d68a3c5821fcefc4ca747e9bfb18a45b economy/menus/shop.yml
 c89368821d7b63b653cc41b0b75c1606cd53f693 economy/menus/stall.yml
 1140b7ab5c1b7a7ec97bd91dba3fcfc8317e230d economy/menus/stocks.yml
 3544a2dc6fcc2dd9cf48d319aa5b399d988dfbbc economy/menus/stocks.yml
+599ff667f6adca5c6c305551ec8a9198dbb980be economy/menus/stocks.yml
 69e86cdc3507481acede74de1bf8a2b5dd656a25 economy/menus/stocks.yml
 775789d3fcd8329235c1535b7381a713aab0476d economy/menus/stocks.yml
 f5ec59104ff1ed966de73e6f6f52bfc8c6b14eae economy/menus/trade.yml

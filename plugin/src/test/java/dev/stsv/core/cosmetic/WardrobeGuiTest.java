@@ -26,6 +26,11 @@ class WardrobeGuiTest {
     private static final Path PACK = Path.of(System.getProperty("stsv.content")).resolve("stsv");
     private static final Path ASSETS = PACK.resolve("assets/stsv");
 
+    /** A drawn button icon (assets/stsv/items) or a content model (models/*.bbmodel, its item model is generated). */
+    private static boolean iconExists(org.bukkit.NamespacedKey icon) {
+        return Files.exists(ASSETS.resolve("items/" + icon.getKey() + ".json")) || Files.exists(PACK.resolve("models/" + icon.getKey() + ".bbmodel"));
+    }
+
     private static MenuSpec wardrobe(List<String> problems) throws Exception {
         List<MenuSpec> menus = MenuSpec.loadAll(List.of(new ContentPack("stsv", "stsv", PACK)), problems);
         return menus.stream().filter(m -> m.id().equals("stsv:wardrobe")).findFirst().orElseThrow();
@@ -40,10 +45,10 @@ class WardrobeGuiTest {
         assertEquals(28, m.slots(m.list()).size(), "7 x 4 cosmetics per page");
         for (MenuSpec.Button b : m.buttons().values()) {
             if (b.on().icon() != null) {
-                assertTrue(Files.exists(ASSETS.resolve("items/" + b.on().icon().getKey() + ".json")), b.on().icon().toString());
+                assertTrue(iconExists(b.on().icon()), b.on().icon().toString());
             }
             if (b.off() != null && b.off().icon() != null) {
-                assertTrue(Files.exists(ASSETS.resolve("items/" + b.off().icon().getKey() + ".json")), b.off().icon().toString());
+                assertTrue(iconExists(b.off().icon()), b.off().icon().toString());
             }
         }
     }
@@ -139,7 +144,7 @@ class WardrobeGuiTest {
             assertEquals(panel.intValue(), here, m.id() + " panel colour");
             for (MenuSpec.Button b : m.buttons().values()) {
                 if (b.on().icon() != null && b.on().icon().getNamespace().equals("stsv")) {
-                    assertTrue(Files.exists(ASSETS.resolve("items/" + b.on().icon().getKey() + ".json")), m.id() + " " + b.on().icon());
+                    assertTrue(iconExists(b.on().icon()), m.id() + " " + b.on().icon());
                 }
             }
         }

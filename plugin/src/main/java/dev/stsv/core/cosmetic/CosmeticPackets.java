@@ -26,7 +26,13 @@ import java.util.logging.Logger;
  * <ul>
  *   <li>equipment of a wearer, sent to anyone else: the head item becomes the cosmetic;</li>
  *   <li>the wearer's own helmet slot (inventory menu slot 5, player inventory slot 39): the self-view
- *       item from {@link CosmeticViews#selfView}.</li>
+ *       item from {@link CosmeticViews#selfView};</li>
+ *   <li>the models worn above the head, on the shoulder, back and tail (item displays, see
+ *       CosmeticAttachments) ride the wearer on the clients only: whenever a client is shown the wearer
+ *       or one of the displays, and whenever the server tells it who rides the wearer, the displays are
+ *       added to the wearer's passengers. The client then carries them along with the wearer every frame
+ *       (no lag behind a running player). On the server they are not passengers, so teleporting the
+ *       player, which fails for players with passengers, is not affected.</li>
  * </ul>
  * Rewriting the packets themselves (instead of re-sending a look after the server sent the real one)
  * means there is never a frame where the real helmet shows, and nothing to re-send on clicks, damage,
@@ -45,7 +51,9 @@ final class CosmeticPackets {
     private final Logger log;
     private final AtomicBoolean warned = new AtomicBoolean();
 
-    private final Class<?> equipCls, setSlotCls, contentCls, invSlotCls, bundleCls, addEntityCls, connectionCls;
+    private final Class<?> equipCls, setSlotCls, contentCls, invSlotCls, bundleCls, addEntityCls, connectionCls, passengersCls;
+    private final Constructor<?> passengersNew, bufNew;
+    private final Method passengersVehicle, passengersIds, bufVarInt, bufVarIntArray;
     private final Object headSlot;
     private final Method addEntityId;
     private final Constructor<?> equipNew, setSlotNew, contentNew, invSlotNew, bundleNew;
@@ -60,6 +68,12 @@ final class CosmeticPackets {
     private final Map<Integer, Object> othersView = new ConcurrentHashMap<>();
     /** per online player: their handler. */
     private final Map<UUID, Handler> handlers = new ConcurrentHashMap<>();
+    /** entity id of a wearer -> the ids of the displays riding them on the clients. */
+    private final Map<Integer, int[]> links = new ConcurrentHashMap<>();
+    /** display id -> its wearer */
+    private final Map<Integer, Integer> wearerOf = new ConcurrentHashMap<>();
+    /** wearer -> their real passengers (as last seen on the main thread) */
+    private final Map<Integer, int[]> riders = new ConcurrentHashMap<>();
     CosmeticPackets(Logger log) throws ReflectiveOperationException {
         this.log = log;
         ClassLoader cl = Bukkit.getServer().getClass().getClassLoader();
@@ -97,6 +111,17 @@ final class CosmeticPackets {
         @SuppressWarnings({"unchecked", "rawtypes"})
         Object head = Enum.valueOf((Class) Class.forName("net.minecraft.world.entity.EquipmentSlot", false, cl), "HEAD");
         headSlot = head;
+
+        passengersCls = Class.forName(game + "ClientboundSetPassengersPacket", false, cl);
+        passengersVehicle = passengersCls.getMethod("getVehicle");
+        passengersIds = passengersCls.getMethod("getPassengers");
+        Class<?> buf = Class.forName("net.minecraft.network.FriendlyByteBuf", false, cl);
+        bufNew = buf.getConstructor(io.netty.buffer.ByteBuf.class);
+        bufVarInt = buf.getMethod("writeVarInt", int.class);
+        bufVarIntArray = buf.getMethod("writeVarIntArray", int[].class);
+        passengersNew = passengersCls.getDeclaredConstructor(buf);   // the decoding constructor (no public one takes ids)
+        passengersNew.setAccessible(true);
+        passengers(1, new int[]{2});                                  // fail now, not on the network thread
 
         bundleCls = Class.forName(game + "ClientboundBundlePacket", false, cl);
         bundleNew = bundleCls.getConstructor(Iterable.class);
@@ -152,6 +177,50 @@ final class CosmeticPackets {
 
     void clear() {
         othersView.clear();
+        links.clear();
+        wearerOf.clear();
+        riders.clear();
+    }
+
+    /**
+     * The displays that ride the wearer on the clients (empty: none). Takes effect for what is sent from
+     * now on: displays spawned after this call arrive linked.
+     *
+     * @param realPassengers what really rides the wearer on the server (kept in the list)
+     */
+    void link(int wearer, int[] displays, int[] realPassengers) {
+        int[] old = links.remove(wearer);
+        if (old != null) for (int d : old) wearerOf.remove(d, wearer);
+        if (displays.length == 0) {
+            riders.remove(wearer);
+            return;
+        }
+        for (int d : displays) wearerOf.put(d, wearer);
+        riders.put(wearer, realPassengers);
+        links.put(wearer, displays.clone());
+    }
+
+    /** Builds the "these ride that" packet. */
+    private Object passengers(int vehicle, int[] ids) throws ReflectiveOperationException {
+        io.netty.buffer.ByteBuf raw = io.netty.buffer.Unpooled.buffer(16);
+        try {
+            Object buf = bufNew.newInstance(raw);
+            bufVarInt.invoke(buf, vehicle);
+            bufVarIntArray.invoke(buf, (Object) ids);
+            return passengersNew.newInstance(buf);
+        } finally {
+            raw.release();
+        }
+    }
+
+    /** Real passengers + displays, without duplicates; null if the wearer has no displays. */
+    private int[] linked(int wearer, int[] real) {
+        int[] displays = links.get(wearer);
+        if (displays == null) return null;
+        java.util.LinkedHashSet<Integer> all = new java.util.LinkedHashSet<>();
+        for (int r : real) all.add(r);
+        for (int d : displays) all.add(d);
+        return all.stream().mapToInt(Integer::intValue).toArray();
     }
 
     boolean installed(Player p) {
@@ -192,6 +261,7 @@ final class CosmeticPackets {
     void forget(Player p, int entityId) {
         handlers.remove(p.getUniqueId());
         othersView.remove(entityId);
+        link(entityId, new int[0], new int[0]);
     }
 
     /** CraftPlayer -> ServerPlayer.connection -> its Connection -> the netty channel (found by type). */
@@ -251,6 +321,11 @@ final class CosmeticPackets {
     private Object rewrite(Object packet, Handler h) throws ReflectiveOperationException {
         Class<?> c = packet.getClass();
         if (c == equipCls) return equipment(packet, h);
+        if (c == passengersCls) {
+            int vehicle = (int) passengersVehicle.invoke(packet);
+            int[] ids = linked(vehicle, (int[]) passengersIds.invoke(packet));
+            return ids == null ? packet : passengers(vehicle, ids);
+        }
         if (c == bundleCls) {
             List<Object> sub = new ArrayList<>();
             boolean changed = false;
@@ -268,6 +343,18 @@ final class CosmeticPackets {
                 Object look = othersView.get(id);
                 if (look != null && id != h.entityId && !equipped.contains(id)) {
                     sub.add(equipNew.newInstance(id, List.of(pairOf.invoke(null, headSlot, nmsCopy.invoke(look)))));
+                    changed = true;
+                }
+            }
+            // a wearer or one of their displays appears: (re)link them (a client that does not know one of
+            // the two yet ignores the unknown ids; the other one's spawn links them again)
+            Set<Integer> relinked = new java.util.HashSet<>();
+            for (int id : spawned) {
+                Integer wearer = links.containsKey(id) ? Integer.valueOf(id) : wearerOf.get(id);
+                if (wearer == null || !relinked.add(wearer)) continue;
+                int[] ids = linked(wearer, riders.getOrDefault(wearer, new int[0]));
+                if (ids != null) {
+                    sub.add(passengers(wearer, ids));
                     changed = true;
                 }
             }
