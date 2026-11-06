@@ -3,12 +3,14 @@ Menu button icons (16 x 16) for the charcoal menus: one set for the core (stsv:g
 (economy:gui/*). Same rules for all: a light glyph (two greys: face and its lower/right shade) with a
 1-px dark outline so it reads on the button tile and in the hand; colour only where it means something
 (gold = money and prizes, red = up / buy, blue = down / sell, Korean stock colours), and a dim grey for
-switched-off buttons. Glyph inside 1..14 so the outline fits.
+switched-off buttons. Glyph inside 1..14 so the outline fits (these rules are for the icons drawn here).
 
-A few icons are drawings picked from PixelLab instead (ui_art/<name>.png, 16 x 16, chosen by eye): the
-back arrow, pouch, cart, gift box, coins, crown, question mark, wave, trophy and the red rise arrow. The
-blue fall arrow is that arrow turned over and recoloured, and the n-share buy / sell buttons are the two
-arrows with the amount on top (the arrow sits on column 7, the axis the digits are centred on).
+Most icons are drawings picked from PixelLab instead (ui_art/<name>.png, 16 x 16, chosen by eye): the
+back arrow, pouch, cart, gift box, coins, crown, question mark, wave, trophy, the red rise arrow and the
+core's page chevron, close, info, hanger and clear. The next page is the chevron mirrored and the
+switched-off pages are the chevrons dimmed to grey; the blue fall arrow is the rise arrow turned over
+and recoloured, and the n-share buy / sell buttons are the two arrows with the amount on top (the
+arrow sits on column 7, the axis the digits are centred on).
 """
 
 import colorsys
@@ -17,11 +19,25 @@ from pathlib import Path
 from PIL import Image
 
 ART = Path(__file__).resolve().parent / "ui_art"
-PICKED = ("back", "bag", "cart", "chest", "coins", "crown", "unknown", "wave", "trophy", "rise")
+PICKED = ("back", "bag", "cart", "chest", "coins", "crown", "unknown", "wave", "trophy", "rise",
+          "prev", "exit", "info", "take_off", "clear")
 
 
 def _art(name):
     return Image.open(ART / f"{name}.png").convert("RGBA")
+
+
+def _dimmed(im):
+    """A switched-off button: the picture in a dark grey of its own brightness."""
+    out = im.copy()
+    px = out.load()
+    for y in range(out.height):
+        for x in range(out.width):
+            r, g, b, a = px[x, y]
+            if a:
+                v = int((0.3 * r + 0.59 * g + 0.11 * b) * 0.55)
+                px[x, y] = (v, v, v + 6, a)
+    return out
 
 
 def _turned_blue(up):
@@ -45,7 +61,6 @@ COLOURS = {
     "r": (240, 76, 76), "R": (168, 44, 44),                # red (up, buy)
     "b": (74, 144, 250), "B": (40, 92, 178),               # blue (down, sell)
     "w": (120, 196, 240), "W": (62, 128, 186),             # water
-    "d": (108, 113, 124), "D": (78, 82, 92),               # disabled
     "k": (34, 37, 44),                                     # dark detail inside a light shape
     "H": (255, 253, 246), "S": (122, 118, 110),            # the anvil's glint and underside
 }
@@ -81,88 +96,6 @@ def draw(rows, recolour=None):
 # ------------------------------------------------------------------------------------------------
 # Shapes
 # ------------------------------------------------------------------------------------------------
-
-CHEVRON_LEFT = [
-    "",
-    "",
-    ".........###",
-    "........###s",
-    ".......###s",
-    "......###s",
-    ".....###s",
-    "....###s",
-    "....###s",
-    ".....###s",
-    "......###s",
-    ".......###s",
-    "........###s",
-    ".........###",
-]
-
-CLOSE = [
-    "",
-    "",
-    "...##......##",
-    "...###....###s",
-    "....###..###s",
-    ".....######s",
-    "......####s",
-    "......####s",
-    ".....######s",
-    "....###s.###s",
-    "...###s...###s",
-    "...##s.....##s",
-]
-
-INFO = [
-    "",
-    ".....######",
-    "...##ssssss##",
-    "..#s.......s#",
-    "..#....##...#s",
-    ".#.....##....#s",
-    ".#...........#s",
-    ".#....###....#s",
-    ".#.....##....#s",
-    ".#.....##....#s",
-    "..#....##...#s",
-    "..#...####..#s",
-    "...##......##s",
-    ".....######ss",
-]
-
-CLEAR = [   # take off: a ring with a slash
-    "",
-    ".....######",
-    "...##ssssss##",
-    "..#s.......###",
-    "..#.......###s",
-    ".#.......###.#s",
-    ".#......###..#s",
-    ".#.....###...#s",
-    ".#....###....#s",
-    ".#...###.....#s",
-    "..#.###.....#s",
-    "..####.....#s",
-    "...##......##s",
-    ".....######ss",
-]
-
-HANGER = [
-    "",
-    ".......##",
-    "......#..#",
-    "..........#",
-    ".........#",
-    "........##",
-    ".......#s.#",
-    "......#s...#",
-    ".....#s.....#",
-    "....#s.......#",
-    "...#s.........#",
-    "..##############",
-    "...ssssssssssss",
-]
 
 CHART = [
     "",
@@ -312,16 +245,7 @@ TRIANGLE_LEFT = [   # switch a group (codex habitats): a solid triangle, differe
 
 def icons():
     """name -> image, every icon of the set."""
-    left = draw(CHEVRON_LEFT)
     out = {
-        "prev": left,
-        "next": left.transpose(Image.FLIP_LEFT_RIGHT),
-        "prev_off": draw(CHEVRON_LEFT, {"#": "d", "s": "D"}),
-        "next_off": draw(CHEVRON_LEFT, {"#": "d", "s": "D"}).transpose(Image.FLIP_LEFT_RIGHT),
-        "exit": draw(CLOSE),
-        "info": draw(INFO),
-        "take_off": draw(HANGER),
-        "clear": draw(CLEAR),
         "chart": draw(CHART),
         "ledger": draw(LEDGER),
         "hammer": draw(HAMMER),
@@ -332,6 +256,9 @@ def icons():
     }
     for name in PICKED:
         out[name] = _art(name)
+    out["next"] = out["prev"].transpose(Image.FLIP_LEFT_RIGHT)
+    out["prev_off"] = _dimmed(out["prev"])
+    out["next_off"] = _dimmed(out["next"])
     out["fall"] = _turned_blue(out["rise"])
     for n in (1, 10, 100):
         for key, arrow in ((f"buy_{n}", out["rise"]), (f"sell_{n}", out["fall"])):

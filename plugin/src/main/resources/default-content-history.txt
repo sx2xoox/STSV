@@ -56,6 +56,7 @@ d628bc241d6647011838a5803129750f01ae187e stsv/assets/stsv/textures/entity/equipm
 d557c6800377372604649e6e952cb6b4f6780746 stsv/assets/stsv/textures/entity/equipment/humanoid_leggings/steel.png
 54f6c1fc3a50548fe6e717e2c099166bc6b964db stsv/assets/stsv/textures/gui/profile.png
 05f717c1b9d712dbb8c4f0a8c3f4799ee3744253 stsv/assets/stsv/textures/gui/titles.png
+353d26595f4e5a687c2ff035b38e9b6ddf21c10d stsv/assets/stsv/textures/gui/titles.png
 92ac9de5376614372912b7fe2bed8a623c1c1529 stsv/assets/stsv/textures/gui/wardrobe.png
 cfc449ea422095c8f78ad2451fac58e7bae88c14 stsv/assets/stsv/textures/gui/wardrobe.png
 1d9cc694d9e31220aeb62a97bfc44370dbbaa70a stsv/assets/stsv/textures/item/angler_rod.png
@@ -117,6 +118,7 @@ c0798ada1b895205b34f70af6e36018b01b6ed25 stsv/items/economy.yml
 b8a79ec2eacff89eb8786243e5224e700189d909 stsv/menus/profile.yml
 1e934b823691cbe3fc4afc94caf6af40ed39522d stsv/menus/titles.yml
 4854942b0887054d71a709ee1fbe0fb543af5075 stsv/menus/titles.yml
+678e23923ff46acb9dc6ecb16f8d4eefbde6a0a8 stsv/menus/titles.yml
 3fa768466d385bb4e9b1a704ad17635be183931d stsv/menus/wardrobe.yml
 f065165d0b1811cbc1beabcbd29944d90ec69412 stsv/menus/wardrobe.yml
 c8718e6505ce7d7a7d6c30bc01b14e008ec59573 stsv/models/chair.bbmodel
