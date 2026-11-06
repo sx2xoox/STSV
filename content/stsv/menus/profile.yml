@@ -1,11 +1,11 @@
-# /프로필: 위 = 기록(머리), 가운데 = 칭호 목록(클릭해서 장착)
+# /프로필: 위 = 기록(머리), 업적 요약, 가운데 = 칭호 목록(클릭해서 장착)
 profile:
   title: "{title}"
   rows: 6
   background: stsv:gui/profile
   layout:
     - "....H...."
-    - "........."
+    - "....A...."
     - ".TTTTTTT."
     - ".TTTTTTT."
     - "........."
@@ -16,6 +16,10 @@ profile:
       action: ""
       material: PLAYER_HEAD
       name: "<white>{player}"
+    A:
+      action: "command:업적"
+      material: BOOK
+      name: "<gold>업적"
     P:
       action: page:prev
       icon: stsv:gui/prev

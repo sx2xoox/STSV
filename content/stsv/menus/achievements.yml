@@ -7,7 +7,7 @@ achievements:
     - "....I...."
     - ".LLLLLLL."
     - ".LLLLLLL."
-    - "...C.X..."
+    - "..R.C.X.."
   list: L
   buttons:
     I:
@@ -23,6 +23,11 @@ achievements:
         - "<#c58cff>어려움 50점 <dark_gray>· <gold>매우 어려움 100점"
         - "<gray>어려움 이상은 달성하면 서버 전체에 알려집니다."
         - "<gray>보상은 여기서 직접 받습니다 (인벤토리가 차 있어도 안전)."
+    R:
+      action: "achievements:ranking"
+      material: GOLDEN_HELMET
+      name: "<gold>업적 순위"
+      lore: ["<gray>업적 점수가 높은 사람 10명", "<dark_gray>/업적 순위"]
     C:
       action: "achievements:claim_all"
       icon: stsv:gui/chest

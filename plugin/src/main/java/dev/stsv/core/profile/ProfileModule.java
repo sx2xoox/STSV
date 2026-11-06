@@ -400,11 +400,14 @@ public final class ProfileModule implements StsvModule, Listener {
         var all = store.stats(target, ProfileStore.ALL_TIME);
         var cur = period == null ? java.util.concurrent.CompletableFuture.completedFuture(Map.<String, Double>of()) : store.stats(target, period);
         var t = store.titles(target);
-        all.thenCombine(cur, (a, c) -> new Object[]{a, c}).thenCombine(t, (ac, tt) -> {
-            @SuppressWarnings("unchecked") Map<String, Double> a = (Map<String, Double>) ac[0];
-            @SuppressWarnings("unchecked") Map<String, Double> c = (Map<String, Double>) ac[1];
+        var ach = plugin.achievements() == null ? java.util.concurrent.CompletableFuture.<dev.stsv.core.achievement.AchievementModule.Summary>completedFuture(null)
+                : plugin.achievements().summaryOf(target);
+        all.thenCombine(cur, (a, c) -> new Object[]{a, c}).thenCombine(t, (ac, tt) -> new Object[]{ac[0], ac[1], tt}).thenCombine(ach, (x, sum) -> {
+            @SuppressWarnings("unchecked") Map<String, Double> a = (Map<String, Double>) x[0];
+            @SuppressWarnings("unchecked") Map<String, Double> c = (Map<String, Double>) x[1];
+            ProfileStore.Titles tt = (ProfileStore.Titles) x[2];
             Bukkit.getScheduler().runTask(plugin, () -> {
-                if (viewer.isOnline()) plugin.menus().open(viewer, "stsv:profile", new ProfileMenu(target, targetName, a, c, tt));
+                if (viewer.isOnline()) plugin.menus().open(viewer, "stsv:profile", new ProfileMenu(target, targetName, a, c, tt, sum));
             });
             return null;
         });
@@ -416,13 +419,17 @@ public final class ProfileModule implements StsvModule, Listener {
         final Map<String, Double> all, current;
         ProfileStore.Titles titlesOf;
         final List<Title> list = new ArrayList<>(titles.values());
+        /** null when there is no achievement module */
+        final dev.stsv.core.achievement.AchievementModule.Summary achievements;
 
-        ProfileMenu(UUID target, String name, Map<String, Double> all, Map<String, Double> current, ProfileStore.Titles t) {
+        ProfileMenu(UUID target, String name, Map<String, Double> all, Map<String, Double> current, ProfileStore.Titles t,
+                    dev.stsv.core.achievement.AchievementModule.Summary achievements) {
             this.target = target;
             this.name = name;
             this.all = all;
             this.current = current;
             this.titlesOf = t;
+            this.achievements = achievements;
         }
 
         @Override
@@ -432,6 +439,7 @@ public final class ProfileModule implements StsvModule, Listener {
 
         @Override
         public ItemStack button(MenuView v, MenuSpec.Button b, ItemStack base) {
+            if (b.key() == 'A') return achievementsButton(base);
             if (b.key() != 'H') return base;
             OfflinePlayer op = Bukkit.getOfflinePlayer(target);
             ItemStack head = new ItemStack(Material.PLAYER_HEAD);
@@ -441,6 +449,8 @@ public final class ProfileModule implements StsvModule, Listener {
                 List<Component> lore = new ArrayList<>();
                 lore.add(titlesOf.equipped() == null ? Lang.item("profile.title-none")
                         : Lang.item("profile.title-current", "title", title(titlesOf.equipped()).map(Title::name).orElse(titlesOf.equipped())));
+                if (achievements != null) lore.add(Lang.item("profile.achievement-points", "points",
+                        String.format(java.util.Locale.ROOT, "%,d", achievements.points()), "done", achievements.done(), "total", achievements.total()));
                 lore.add(Text.item(""));
                 Optional<ProfileStore.Period> p = store.current();
                 if (p.isPresent()) {
@@ -455,6 +465,27 @@ public final class ProfileModule implements StsvModule, Listener {
                 m.lore(lore);
             });
             return head;
+        }
+
+        /** The target's achievements: points, per difficulty, the latest five. */
+        private ItemStack achievementsButton(ItemStack base) {
+            if (base == null || achievements == null) return base;
+            var a = achievements;
+            base.editMeta(m -> {
+                m.itemName(Lang.item("profile.achievements-name", "points", String.format(java.util.Locale.ROOT, "%,d", a.points())));
+                List<Component> lore = new ArrayList<>();
+                lore.add(Lang.item("profile.achievements-done", "done", a.done(), "total", a.total()));
+                a.perTier().forEach((t, x) -> lore.add(Lang.item("profile.achievements-tier", "color", t.color, "tier", t.label, "done", x[0], "total", x[1])));
+                if (!a.recent().isEmpty()) {
+                    lore.add(Text.item(""));
+                    lore.add(Lang.item("profile.achievements-recent"));
+                    for (var s : a.recent()) lore.add(Text.item("<dark_gray> · </dark_gray>" + s.tier().color + s.name()));
+                }
+                lore.add(Text.item(""));
+                lore.add(Lang.item("profile.achievements-click"));
+                m.lore(lore);
+            });
+            return base;
         }
 
         private void lines(List<Component> lore, Map<String, Double> stats) {

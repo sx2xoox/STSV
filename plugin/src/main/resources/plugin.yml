@@ -29,7 +29,7 @@ commands:
   업적:
     description: 업적 (쉬움 ~ 매우 어려움), 달성 보상 받기
     aliases: [achievements, achievement]
-    usage: /업적
+    usage: /업적 [순위]
     permission: stsv.profile
   프로필:
     description: 프로필 (기록, 칭호)

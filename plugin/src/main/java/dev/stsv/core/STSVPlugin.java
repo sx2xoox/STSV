@@ -109,7 +109,10 @@ public final class STSVPlugin extends JavaPlugin {
         if (wardrobe != null) wardrobe.setExecutor(new WardrobeCommand(this));
         PluginCommand ach = getCommand("업적");
         if (ach != null) ach.setExecutor((sender, cmdObj, label, args) -> {
-            if (sender instanceof org.bukkit.entity.Player p) achievements.open(p);
+            if (sender instanceof org.bukkit.entity.Player p) {
+                if (args.length > 0 && (args[0].equals("순위") || args[0].equalsIgnoreCase("top"))) achievements.showRanking(p);
+                else achievements.open(p);
+            }
             else sender.sendMessage(dev.stsv.core.util.Lang.msg("common.players-only"));
             return true;
         });

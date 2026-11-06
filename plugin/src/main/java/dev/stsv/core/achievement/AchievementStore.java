@@ -110,6 +110,14 @@ public final class AchievementStore {
         });
     }
 
+    /** Every record of every player, with the player's last known name (for the points ranking). */
+    public record Row(UUID player, String name, String id, long doneAt) {}
+
+    public CompletableFuture<List<Row>> all() {
+        return db.async(c -> Db.query(c, "SELECT a.player, p.name, a.id, a.done_at FROM achievement_done a LEFT JOIN profile p ON p.player = a.player",
+                rs -> new Row(UUID.fromString(rs.getString(1)), rs.getString(2), rs.getString(3), rs.getLong(4))));
+    }
+
     /** Offline lookup (admin info). */
     public CompletableFuture<Map<String, Done>> read(UUID player) {
         return db.async(c -> {

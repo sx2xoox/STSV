@@ -375,6 +375,12 @@ public final class AchievementModule implements StsvModule, Listener {
             if (action.equals("achievements:claim_all")) {
                 claimAll(v.player(), List.copyOf(specs.values()));
                 v.refresh();
+            } else if (action.equals("achievements:ranking")) {
+                Player p = v.player();
+                Bukkit.getScheduler().runTask(plugin, () -> {
+                    p.closeInventory();
+                    showRanking(p);
+                });
             }
         }
     }
@@ -465,6 +471,75 @@ public final class AchievementModule implements StsvModule, Listener {
         if (a.condition().stat() && a.unit().isEmpty()) return dev.stsv.core.profile.ProfileModule.format(a.condition().key(), v);
         String n = v == Math.rint(v) ? String.format(Locale.ROOT, "%,d", (long) v) : String.format(Locale.ROOT, "%,.1f", v);
         return a.unit().isEmpty() ? n : n + " " + a.unit();
+    }
+
+    // ------------------------------------------------------------------------------------------
+    // Points: profile summary, ranking
+    // ------------------------------------------------------------------------------------------
+
+    /** A player's achievements at a glance (/프로필). */
+    public record Summary(int points, int done, int total, Map<Tier, int[]> perTier, List<AchievementSpec> recent) {}
+
+    private Summary summary(Map<String, AchievementStore.Done> d) {
+        Map<Tier, int[]> per = new java.util.EnumMap<>(Tier.class);
+        for (AchievementSpec s : specs.values()) {
+            int[] x = per.computeIfAbsent(s.tier(), k -> new int[2]);
+            x[1]++;
+            if (d.containsKey(s.id())) x[0]++;
+        }
+        List<AchievementSpec> mine = specs.values().stream().filter(s -> d.containsKey(s.id())).toList();
+        List<AchievementSpec> recent = mine.stream()
+                .sorted(Comparator.comparingLong((AchievementSpec s) -> d.get(s.id()).doneAt()).reversed()).limit(5).toList();
+        return new Summary(mine.stream().mapToInt(s -> s.tier().points).sum(), mine.size(), specs.size(), per, recent);
+    }
+
+    /** From memory for online players, else read from the database. */
+    public java.util.concurrent.CompletableFuture<Summary> summaryOf(UUID player) {
+        if (store.loaded(player)) return java.util.concurrent.CompletableFuture.completedFuture(summary(store.of(player)));
+        return store.read(player).thenApply(this::summary);
+    }
+
+    public record Rank(UUID player, String name, int points, int done) {}
+
+    /** Everyone by achievement points (ties: more achievements, then the name). */
+    public java.util.concurrent.CompletableFuture<List<Rank>> ranking() {
+        return store.all().thenApply(rows -> {
+            Map<UUID, int[]> sum = new HashMap<>();
+            Map<UUID, String> names = new HashMap<>();
+            for (AchievementStore.Row r : rows) {
+                AchievementSpec s = specs.get(r.id());
+                if (s == null) continue;
+                int[] x = sum.computeIfAbsent(r.player(), k -> new int[2]);
+                x[0] += s.tier().points;
+                x[1]++;
+                if (r.name() != null) names.put(r.player(), r.name());
+            }
+            return sum.entrySet().stream().map(e -> new Rank(e.getKey(), names.getOrDefault(e.getKey(), "?"), e.getValue()[0], e.getValue()[1]))
+                    .sorted(Comparator.comparingInt(Rank::points).reversed().thenComparing(Comparator.comparingInt(Rank::done).reversed())
+                            .thenComparing(Rank::name)).toList();
+        });
+    }
+
+    /** /업적 순위: the top 10 and where the player stands. */
+    public void showRanking(Player p) {
+        ranking().thenAccept(list -> Bukkit.getScheduler().runTask(plugin, () -> {
+            if (!p.isOnline()) return;
+            if (list.isEmpty()) {
+                p.sendMessage(Lang.msg("achievement.rank-empty"));
+                return;
+            }
+            p.sendMessage(Lang.msg("achievement.rank-header"));
+            for (int i = 0; i < Math.min(10, list.size()); i++) {
+                Rank r = list.get(i);
+                p.sendMessage(Lang.mm("achievement.rank-line", "rank", i + 1, "player", r.name(),
+                        "points", String.format(Locale.ROOT, "%,d", r.points()), "done", r.done()));
+            }
+            for (int i = 10; i < list.size(); i++) {
+                if (list.get(i).player().equals(p.getUniqueId())) {
+                    p.sendMessage(Lang.mm("achievement.rank-mine", "rank", i + 1, "points", String.format(Locale.ROOT, "%,d", list.get(i).points())));
+                }
+            }
+        }));
     }
 
     // ------------------------------------------------------------------------------------------
