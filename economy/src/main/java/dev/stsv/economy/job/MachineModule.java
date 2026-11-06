@@ -320,7 +320,8 @@ public final class MachineModule extends EcoModule {
         Map<String, Integer> have = new LinkedHashMap<>();
         for (int i = 0; i < 3; i++) {
             ItemStack it = m.inv.getItem(input(lane, i));
-            if (it != null && !it.isEmpty()) have.merge(Items.key(it), it.getAmount(), Integer::sum);
+            // goods bought from the admin shop never count (buying them and processing them would mint money)
+            if (it != null && !it.isEmpty() && !Items.shopBought(it)) have.merge(Items.key(it), it.getAmount(), Integer::sum);
         }
         return have;
     }
@@ -514,7 +515,7 @@ public final class MachineModule extends EcoModule {
         int left = count;
         for (int i = 0; i < 3 && left > 0; i++) {
             ItemStack it = m.inv.getItem(input(lane, i));
-            if (it == null || it.isEmpty() || !MachineSpec.fits(key, Items.key(it), TAGGED)) continue;
+            if (it == null || it.isEmpty() || Items.shopBought(it) || !MachineSpec.fits(key, Items.key(it), TAGGED)) continue;
             int t = Math.min(left, it.getAmount());
             it.setAmount(it.getAmount() - t);
             m.inv.setItem(input(lane, i), it.getAmount() <= 0 ? null : it);
@@ -969,7 +970,10 @@ public final class MachineModule extends EcoModule {
         int slot = e.getSlot();
         int in = inputLane(slot);
         if (in >= 0) {
+            ItemStack placing = e.getAction() == InventoryAction.HOTBAR_SWAP && e.getHotbarButton() >= 0
+                    ? p.getInventory().getItem(e.getHotbarButton()) : e.getCursor();
             if (in >= m.open()) e.setCancelled(true);
+            else if (Items.shopBought(placing)) refuseBought(p, e);
             else m.lanes[in].operator = p.getUniqueId();
             return;
         }
@@ -1004,10 +1008,21 @@ public final class MachineModule extends EcoModule {
         }
     }
 
+    /** Goods bought from the admin shop cannot go into a machine (they cannot be sold back either). */
+    private void refuseBought(Player p, org.bukkit.event.Cancellable e) {
+        e.setCancelled(true);
+        HudModule.flash(p, Lang.mm("machine.shop-bought"));
+        p.playSound(p.getLocation(), Sound.BLOCK_NOTE_BLOCK_BASS, 0.6f, 0.8f);
+    }
+
     /** Shift-click from the player's inventory: onto the same item in an open lane, else into the first free input slot. */
     private void shiftIn(Player p, Machine m, InventoryClickEvent e) {
         ItemStack it = e.getCurrentItem();
         if (it == null || it.isEmpty()) return;
+        if (Items.shopBought(it)) {
+            refuseBought(p, e);
+            return;
+        }
         for (int pass = 0; pass < 2 && !it.isEmpty(); pass++) {
             for (int k = 0; k < m.open() && !it.isEmpty(); k++) {
                 for (int i = 0; i < 3 && !it.isEmpty(); i++) {
@@ -1032,6 +1047,11 @@ public final class MachineModule extends EcoModule {
     @EventHandler(priority = EventPriority.HIGH)
     public void onDrag(InventoryDragEvent e) {
         if (!(e.getInventory().getHolder(false) instanceof Machine m)) return;
+        if (Items.shopBought(e.getOldCursor()) && e.getRawSlots().stream().anyMatch(raw -> raw < SIZE)
+                && e.getWhoClicked() instanceof Player p) {
+            refuseBought(p, e);
+            return;
+        }
         for (int raw : e.getRawSlots()) {
             if (raw >= SIZE) continue;
             int lane = inputLane(raw);

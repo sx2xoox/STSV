@@ -252,6 +252,7 @@ machine:
   book-lore: ["<gray>이 기계로 만들 수 있는 것 전부", "<dark_gray>줄마다 고르려면 그 줄의 상태 칸을 클릭"]
   info: "<gold>{machine}</gold> <gray>· <white>{tier}"
   info-lore: ["<gray>설치: <white>{owner}", "<gray>줄 <white>{lanes}</white>개 · 속도 <white>+{speed}%", "<gray>누구나 사용. <{color}>{job}<gray>면 빠르고 경험치·직업 효과", "<dark_gray>재료를 넣은 사람이 그 줄의 운영자"]
+  shop-bought: "<red>상점에서 산 물건은 기계에 넣을 수 없습니다 <gray>(직접 기르거나 캐거나 잡은 것만)"
   upgrade: "<gold>강화 → {tier}"
   upgrade-lore: ["<gray>비용 <white>{cost}", "<gray>필요: 설치한 사람이 <{color}>{job}<gray> Lv{level}", "<gray>강화하면: 줄 {lanes}개 · 속도 +{speed}% · 새 레시피 {recipes}개 · 새 모습"]
   # 공용 기계 (직업 없음: 압착기)
