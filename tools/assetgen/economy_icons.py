@@ -50,7 +50,7 @@ def pad(rows):
 # menu button icons (economy:gui/<name>): the shared UI set (stsv_assets/ui_icons.py), the economy's part
 from stsv_assets import ui_icons as _UI   # noqa: E402
 
-_ECONOMY_UI = ("back", "bag", "chart", "chest", "coins", "crown", "hammer", "ledger", "refresh", "trophy", "unknown", "wave",
+_ECONOMY_UI = ("back", "bag", "cart", "chart", "chest", "coins", "crown", "hammer", "ledger", "refresh", "trophy", "unknown", "wave",
                "sell_all", "arrow_left", "arrow_right", "rise", "fall", "buy_1", "buy_10", "buy_100", "sell_1", "sell_10", "sell_100", "period_24", "period_7", "period_30")
 GUI = {name: (lambda n=name: _UI.icons()[n]) for name in _ECONOMY_UI}
 

@@ -13,16 +13,16 @@ patron:
   description: "세무 조사 때 나라에 기부했다"
 trader:
   name: "<#81c784>[상인]"
-  description: "칭호 상점에서 산 칭호"
+  description: "상점에서 산 칭호"
 landlord:
   name: "<#a1887f>[지주]"
-  description: "칭호 상점에서 산 칭호"
+  description: "상점에서 산 칭호"
 gourmet:
   name: "<#ffb74d>[미식가]"
-  description: "칭호 상점에서 산 칭호"
+  description: "상점에서 산 칭호"
 magnate:
   name: "<gradient:#ffe082:#ffb300>[거상]</gradient>"
-  description: "칭호 상점에서 산 가장 비싼 칭호"
+  description: "상점에서 산 가장 비싼 칭호"
 stock_king_1:
   name: "<gradient:#ffe082:#ff8f00><b>[주식왕]</b></gradient>"
   description: "한 주 동안 주식으로 가장 많이 번 사람"

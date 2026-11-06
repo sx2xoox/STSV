@@ -212,6 +212,23 @@ BAG = [   # my holdings: a pouch with a gold tie
     "....sssssss",
 ]
 
+CART = [   # the shop's 구매 side: a cart with red goods in it
+    "",
+    "##",
+    ".#...rrr.rr",
+    ".#..rrRrrRRr",
+    ".##############",
+    "..#k#k#k#k#k#s",
+    "..###########s",
+    "...#k#k#k#k#s",
+    "...#########s",
+    "....#",
+    "....##########",
+    ".....sssssssss",
+    ".....##....##",
+    ".....ss....ss",
+]
+
 CHEST = [   # the vanity shop: a gift box
     "",
     ".....g...g",
@@ -450,6 +467,7 @@ def icons():
         "chart": draw(CHART),
         "ledger": draw(LEDGER),
         "bag": draw(BAG),
+        "cart": draw(CART),
         "chest": draw(CHEST),
         "crown": draw(CROWN),
         "hammer": draw(HAMMER),

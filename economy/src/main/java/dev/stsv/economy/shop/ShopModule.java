@@ -34,10 +34,10 @@ import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.ThreadLocalRandom;
 
 /**
- * 관리자 상점: buys what players gather at a price that falls as the server sells (매입), sells basic
- * tools, seeds and fuel at fixed prices, 수요 고시 (three items x1.5 for a week), 품귀 / 시장 폭락 events,
- * 시세 (prices, 24h change), the 시세판 hologram, repairs, the 상인 행렬 limited goods and the
- * 치장·칭호 상점.
+ * 관리자 상점: buys what players gather at a price that falls as the server sells (판매), sells basic
+ * tools, seeds, supplies, cosmetics and titles at fixed prices (구매), both by category; 수요 고시 (three
+ * items x1.5 for a week), 품귀 / 시장 폭락 events, 시세 (prices, 24h change), the 시세판 hologram,
+ * repairs and the 상인 행렬 limited goods (a 구매 category while the event runs).
  */
 public final class ShopModule extends EcoModule implements DailyListener {
 
@@ -89,7 +89,10 @@ public final class ShopModule extends EcoModule implements DailyListener {
         List<String> problems = new ArrayList<>();
         catalog = ShopCatalog.parse(eco.data("shop.yml"), problems);
         for (String id : catalog.sell().keySet()) if (Items.create(id, 1).isEmpty()) problems.add("sell: 없는 아이템 " + id);
-        for (ShopCatalog.BuyEntry b : catalog.buy()) if (Items.create(b.id(), 1).isEmpty()) problems.add("buy: 없는 아이템 " + b.id());
+        for (ShopCatalog.Good g : catalog.goods()) {
+            if (g.kind().equals("item") && Items.create(g.id(), 1).isEmpty()) problems.add("buy: 없는 아이템 " + g.id());
+        }
+        for (ShopCatalog.LimitedEntry l : catalog.merchant().goods()) if (Items.create(l.id(), 1).isEmpty()) problems.add("merchant: 없는 아이템 " + l.id());
         problems.forEach(p -> eco.getLogger().warning("[shop.yml] " + p));
     }
 
@@ -223,15 +226,15 @@ public final class ShopModule extends EcoModule implements DailyListener {
         }
     }
 
-    /** Sells every sellable item in the inventory (상점의 "전부 팔기"). */
-    public long sellAll(Player p) {
+    /** Sells every sellable item in the inventory, or only these items (상점의 "전부 팔기"). */
+    public long sellAll(Player p, java.util.Collection<String> only) {
         long total = 0;
         int kinds = 0;
         Map<String, ItemStack> samples = new LinkedHashMap<>();
         for (ItemStack it : p.getInventory().getStorageContents()) {
             if (it == null || it.isEmpty()) continue;
             String id = Items.key(it);
-            if (catalog.sell().containsKey(id) && Items.plain(it, id)) samples.putIfAbsent(id, it.clone());
+            if (catalog.sell().containsKey(id) && (only == null || only.contains(id)) && Items.plain(it, id)) samples.putIfAbsent(id, it.clone());
         }
         for (ItemStack sample : samples.values()) {
             Object r = sell(p, sample, Integer.MAX_VALUE);
@@ -538,24 +541,27 @@ public final class ShopModule extends EcoModule implements DailyListener {
     }
 
     // ------------------------------------------------------------------------------------------
-    // Menus
+    // Menus: 상점 → 구매 / 판매 → 카테고리 → 품목
     // ------------------------------------------------------------------------------------------
 
     public void open(Player p) {
-        core.menus().open(p, "economy:shop", new ShopMenu());
+        core.menus().open(p, "economy:shop", new FrontMenu());
     }
 
-    public void openPrices(Player p) {
-        core.menus().open(p, "economy:prices", new PricesMenu());
+    public void openBuy(Player p) {
+        core.menus().open(p, "economy:shop_buy", new BuyCategories());
     }
 
-    public void openMerchant(Player p) {
-        List<ActiveEvent> ev = eco.events().active("merchant");
-        if (ev.isEmpty()) {
-            HudModule.flash(p, Lang.mm("shop.merchant-gone"));
-            return;
-        }
-        core.menus().open(p, "economy:merchant", new MerchantMenu(ev.getFirst()));
+    public void openSell(Player p) {
+        core.menus().open(p, "economy:shop_sell", new SellCategories());
+    }
+
+    private void later(Runnable r) {
+        Bukkit.getScheduler().runTask(eco, r);
+    }
+
+    private String balance(Player p) {
+        return EconomyModule.format(core.economy().balance(p.getUniqueId()));
     }
 
     private ItemStack withLore(ItemStack base, List<Component> extra) {
@@ -568,118 +574,342 @@ public final class ShopModule extends EcoModule implements DailyListener {
         return it;
     }
 
-    private final class ShopMenu implements MenuHandler {
+    /** A category tile: its icon item, its name, only the given lore (the icon's own tooltip hidden). */
+    private ItemStack tile(String icon, String name, List<Component> lore) {
+        ItemStack it = Items.create(icon, 1).orElseGet(() -> new ItemStack(org.bukkit.Material.CHEST));
+        it.editMeta(meta -> {
+            meta.itemName(Text.item(Lang.raw("shop.category-name", "name", name)));
+            meta.customName(null);
+            meta.lore(lore);
+            meta.addItemFlags(org.bukkit.inventory.ItemFlag.values());
+        });
+        return it;
+    }
+
+    /** Categories centred in the one row of category cells (null = an empty cell). */
+    private static <T> List<T> centred(List<T> entries, int cells) {
+        List<T> out = new ArrayList<>();
+        for (int i = 0; i < Math.max(0, (cells - entries.size()) / 2); i++) out.add(null);
+        out.addAll(entries);
+        return out;
+    }
+
+    /** Sells the clicked stack of the player's own inventory (both 판매 screens). */
+    private void sellFromInventory(MenuView v, int slot, ClickType click) {
+        Player p = v.player();
+        ItemStack it = p.getInventory().getItem(slot);
+        if (it == null || it.isEmpty()) return;
+        int count = click.isShiftClick() ? Integer.MAX_VALUE : click.isRightClick() ? 1 : it.getAmount();
+        sellFeedback(p, it, sell(p, it.clone(), count));
+        v.refresh();
+    }
+
+    private final class FrontMenu implements MenuHandler {
         @Override
         public Map<String, String> placeholders(MenuView v) {
-            return Map.of("balance", EconomyModule.format(core.economy().balance(v.player().getUniqueId())),
+            return Map.of("balance", balance(v.player()),
                     "repair", Optional.of(repairCost(v.player().getInventory().getItemInMainHand())).filter(c -> c >= 0)
                             .map(EconomyModule::format).orElse(Lang.raw("shop.repair-none")));
-        }
-
-        @Override
-        public List<ItemStack> list(MenuView v) {
-            List<ItemStack> out = new ArrayList<>();
-            for (ShopCatalog.BuyEntry b : catalog.buy()) {
-                Items.create(b.id(), b.amount()).ifPresent(it -> out.add(withLore(it,
-                        Lang.items("shop.buy-lore", "price", EconomyModule.format(b.price()), "count", b.amount()))));
-            }
-            return out;
-        }
-
-        @Override
-        public void onListClick(MenuView v, int index, ClickType click) {
-            if (index >= catalog.buy().size()) return;
-            ShopCatalog.BuyEntry b = catalog.buy().get(index);
-            int times = click.isShiftClick() ? 8 : 1;
-            for (int i = 0; i < times; i++) if (!buy(v.player(), b.id(), b.amount(), b.price(), "shop_buy")) break;
-            v.refresh();
-        }
-
-        @Override
-        public void onPlayerInventoryClick(MenuView v, int slot, ClickType click) {
-            Player p = v.player();
-            ItemStack it = p.getInventory().getItem(slot);
-            if (it == null || it.isEmpty()) return;
-            int count = click.isShiftClick() ? Integer.MAX_VALUE : click.isRightClick() ? 1 : it.getAmount();
-            sellFeedback(p, it, sell(p, it.clone(), count));
-            v.refresh();
         }
 
         @Override
         public void onAction(MenuView v, String action, ClickType click) {
             Player p = v.player();
             switch (action) {
-                case "shop:sell-all" -> sellAll(p);
-                case "shop:prices" -> Bukkit.getScheduler().runTask(eco, () -> openPrices(p));
-                case "shop:repair" -> repair(p);
-                case "shop:merchant" -> Bukkit.getScheduler().runTask(eco, () -> openMerchant(p));
-                case "shop:vanity" -> Bukkit.getScheduler().runTask(eco, () -> eco.vanity().openShop(p));
+                case "shop:buy" -> later(() -> openBuy(p));
+                case "shop:sell" -> later(() -> openSell(p));
+                case "shop:repair" -> {
+                    repair(p);
+                    v.refresh();
+                }
                 default -> { }
             }
-            v.refresh();
-        }
-
-        @Override
-        public ItemStack button(MenuView v, dev.stsv.core.gui.menu.MenuSpec.Button button, ItemStack base) {
-            if (button.action().equals("shop:merchant") && !eco.events().isActive("merchant")) return null;
-            return base;
         }
     }
 
-    private final class PricesMenu implements MenuHandler {
-        private final List<String> ids = new ArrayList<>(catalog.sell().keySet());
+    // ------------------------------------------------------------------------------------------ 구매
+
+    private final class BuyCategories implements MenuHandler {
+        /** a ShopCatalog.BuyCategory, or the running 상인 행렬 (an ActiveEvent) */
+        private final List<Object> shown = new ArrayList<>();
 
         @Override
-        public List<ItemStack> list(MenuView v) {
-            List<ItemStack> out = new ArrayList<>();
-            for (String id : ids) {
-                ShopCatalog.SellEntry e = catalog.sell().get(id);
-                Double ch = change(id);
-                String change = ch == null ? Lang.raw("shop.change-none") : Lang.raw(ch >= 0 ? "shop.change-up" : "shop.change-down", "pct", String.format("%.0f", Math.abs(ch)));
-                Items.create(id, 1).ifPresent(it -> out.add(withLore(it, Lang.items("shop.price-lore",
-                        "price", String.format("%.1f", price(id)), "base", trim(e.base()), "change", change, "marks", marks(id),
-                        "sold", String.format("%.0f", store.sold(id)), "quota", String.format("%.0f", e.q() * eco.activity().store().players()),
-                        "mine", store.soldBy(v.player().getUniqueId(), id), "cap", e.cap() == null ? "-" : e.cap()))));
-            }
-            return out;
-        }
-    }
-
-    private final class MerchantMenu implements MenuHandler {
-        private final ActiveEvent event;
-
-        MerchantMenu(ActiveEvent event) {
-            this.event = event;
-        }
-
-        private int left(ShopCatalog.LimitedEntry l) {
-            return l.stock() - (int) eco.kv().getLong("shop.merchant." + event.id() + "." + l.index(), 0);
+        public Map<String, String> placeholders(MenuView v) {
+            return Map.of("balance", balance(v.player()));
         }
 
         @Override
         public List<ItemStack> list(MenuView v) {
+            List<Object> entries = new ArrayList<>(catalog.buyCategories());
+            List<ActiveEvent> merchant = eco.events().active("merchant");
+            if (!merchant.isEmpty() && !catalog.merchant().goods().isEmpty()) entries.add(merchant.getFirst());
+            shown.clear();
+            shown.addAll(centred(entries, ShopCatalog.MAX_CATEGORIES));
             List<ItemStack> out = new ArrayList<>();
-            for (ShopCatalog.LimitedEntry l : catalog.merchant()) {
-                Items.create(l.id(), l.amount()).ifPresent(it -> out.add(withLore(it,
-                        Lang.items("shop.merchant-lore", "price", EconomyModule.format(l.price()), "left", Math.max(0, left(l)), "stock", l.stock()))));
+            for (Object o : shown) {
+                if (o instanceof ShopCatalog.BuyCategory c) {
+                    long min = c.goods().stream().mapToLong(ShopCatalog.Good::price).min().orElse(0);
+                    long max = c.goods().stream().mapToLong(ShopCatalog.Good::price).max().orElse(0);
+                    out.add(tile(c.icon(), c.name(), Lang.items("shop.category-buy", "count", c.goods().size(),
+                            "min", EconomyModule.format(min), "max", EconomyModule.format(max))));
+                } else if (o instanceof ActiveEvent e) {
+                    ShopCatalog.Merchant m = catalog.merchant();
+                    int left = m.goods().stream().mapToInt(l -> Math.max(0, left(e, l))).sum();
+                    out.add(tile(m.icon(), m.name(), Lang.items("shop.category-merchant", "count", m.goods().size(), "left", left)));
+                } else {
+                    out.add(null);
+                }
             }
             return out;
         }
 
         @Override
         public void onListClick(MenuView v, int index, ClickType click) {
-            if (index >= catalog.merchant().size() || !event.runningAt(now())) return;
-            ShopCatalog.LimitedEntry l = catalog.merchant().get(index);
-            if (left(l) <= 0) {
+            if (index >= shown.size()) return;
+            Object o = shown.get(index);
+            Player p = v.player();
+            if (o instanceof ShopCatalog.BuyCategory c) later(() -> core.menus().open(p, "economy:shop_buy_items", new BuyItems(c)));
+            else if (o instanceof ActiveEvent e) later(() -> core.menus().open(p, "economy:shop_buy_items", new MerchantItems(e)));
+        }
+    }
+
+    private final class BuyItems implements MenuHandler {
+        private final ShopCatalog.BuyCategory category;
+        /** a cosmetic or title waits for a second click (they are dear) */
+        private String armed;
+        private long armedAt;
+
+        BuyItems(ShopCatalog.BuyCategory category) {
+            this.category = category;
+        }
+
+        private boolean vanity() {
+            return category.goods().stream().anyMatch(ShopCatalog.Good::vanity);
+        }
+
+        @Override
+        public Map<String, String> placeholders(MenuView v) {
+            return Map.of("balance", balance(v.player()), "category", category.name(),
+                    "hint", Lang.raw(vanity() ? "shop.hint-vanity" : "shop.hint-buy"));
+        }
+
+        @Override
+        public List<ItemStack> list(MenuView v) {
+            List<ItemStack> out = new ArrayList<>();
+            for (ShopCatalog.Good g : category.goods()) {
+                if (g.vanity()) {
+                    out.add(eco.vanity().display(v.player(), g, (g.kind() + g.id()).equals(armed) && now() - armedAt < 5000));
+                } else {
+                    out.add(Items.create(g.id(), g.amount()).map(it -> withLore(it,
+                            Lang.items("shop.buy-lore", "price", EconomyModule.format(g.price()), "count", g.amount()))).orElse(null));
+                }
+            }
+            return out;
+        }
+
+        @Override
+        public void onListClick(MenuView v, int index, ClickType click) {
+            if (index >= category.goods().size()) return;
+            ShopCatalog.Good g = category.goods().get(index);
+            Player p = v.player();
+            if (g.vanity()) {
+                String key = g.kind() + g.id();
+                if (!key.equals(armed) || now() - armedAt > 5000) {
+                    armed = key;
+                    armedAt = now();
+                    p.playSound(p.getLocation(), Sound.UI_BUTTON_CLICK, 0.5f, 1.4f);
+                } else {
+                    armed = null;
+                    String refused = eco.vanity().buy(p, g);
+                    if (refused != null) HudModule.flash(p, Lang.mm(refused, "price", EconomyModule.format(g.price())));
+                }
+            } else {
+                int times = click.isShiftClick() ? 8 : 1;
+                for (int i = 0; i < times; i++) if (!buy(p, g.id(), g.amount(), g.price(), "shop_buy")) break;
+            }
+            v.refresh();
+        }
+    }
+
+    private int left(ActiveEvent event, ShopCatalog.LimitedEntry l) {
+        return l.stock() - (int) eco.kv().getLong("shop.merchant." + event.id() + "." + l.index(), 0);
+    }
+
+    private final class MerchantItems implements MenuHandler {
+        private final ActiveEvent event;
+
+        MerchantItems(ActiveEvent event) {
+            this.event = event;
+        }
+
+        @Override
+        public Map<String, String> placeholders(MenuView v) {
+            return Map.of("balance", balance(v.player()), "category", catalog.merchant().name(), "hint", Lang.raw("shop.hint-merchant"));
+        }
+
+        @Override
+        public List<ItemStack> list(MenuView v) {
+            List<ItemStack> out = new ArrayList<>();
+            for (ShopCatalog.LimitedEntry l : catalog.merchant().goods()) {
+                out.add(Items.create(l.id(), l.amount()).map(it -> withLore(it,
+                        Lang.items("shop.merchant-lore", "price", EconomyModule.format(l.price()), "left", Math.max(0, left(event, l)), "stock", l.stock())))
+                        .orElse(null));
+            }
+            return out;
+        }
+
+        @Override
+        public void onListClick(MenuView v, int index, ClickType click) {
+            if (index >= catalog.merchant().goods().size()) return;
+            if (!event.runningAt(now())) {
+                HudModule.flash(v.player(), Lang.mm("shop.merchant-gone"));
+                return;
+            }
+            ShopCatalog.LimitedEntry l = catalog.merchant().goods().get(index);
+            if (left(event, l) <= 0) {
                 HudModule.flash(v.player(), Lang.mm("shop.sold-out"));
                 return;
             }
             if (buy(v.player(), l.id(), l.amount(), l.price(), "merchant")) {
                 String key = "shop.merchant." + event.id() + "." + l.index();
                 eco.kv().set(key, eco.kv().getLong(key, 0) + 1);
-                if (left(l) == 0) Bukkit.broadcast(Lang.msg("shop.merchant-sold-out", "item", itemName(l.id()), "player", v.player().getName()));
+                if (left(event, l) == 0) Bukkit.broadcast(Lang.msg("shop.merchant-sold-out", "item", itemName(l.id()), "player", v.player().getName()));
             }
             v.refresh();
+        }
+    }
+
+    // ------------------------------------------------------------------------------------------ 판매
+
+    /** What the player could sell of these items right now: kinds, pieces, about how much. */
+    private record Holding(int kinds, int count, long value) {}
+
+    private Holding holding(Player p, List<String> ids) {
+        int kinds = 0, count = 0;
+        double value = 0;
+        int players = eco.activity().store().players();
+        for (String id : ids) {
+            ShopCatalog.SellEntry e = catalog.sell().get(id);
+            int n = Items.count(p.getInventory(), it -> Items.plain(it, id));
+            if (e == null || n <= 0) continue;
+            if (e.cap() != null) n = Math.min(n, Math.max(0, e.cap() - store.soldBy(p.getUniqueId(), id)));
+            if (n <= 0) continue;
+            kinds++;
+            count += n;
+            value += PriceModel.total(e.base(), store.sold(id), e.q(), players, catalog.floor(), multiplier(id), n)
+                    * eco.jobs().sellBonus(p.getUniqueId(), id);
+        }
+        return new Holding(kinds, count, (long) Math.floor(value));
+    }
+
+    private List<Component> holdingLore(Player p, List<String> ids) {
+        Holding h = holding(p, ids);
+        return h.kinds() == 0 ? Lang.items("shop.holding-none")
+                : Lang.items("shop.holding", "kinds", h.kinds(), "count", h.count(), "value", EconomyModule.format(h.value()));
+    }
+
+    private final class SellCategories implements MenuHandler {
+        private final List<ShopCatalog.Category> shown = new ArrayList<>();
+
+        @Override
+        public Map<String, String> placeholders(MenuView v) {
+            return Map.of("balance", balance(v.player()));
+        }
+
+        @Override
+        public List<ItemStack> list(MenuView v) {
+            shown.clear();
+            shown.addAll(centred(catalog.sellCategories(), ShopCatalog.MAX_CATEGORIES));
+            List<ItemStack> out = new ArrayList<>();
+            for (ShopCatalog.Category c : shown) {
+                if (c == null) {
+                    out.add(null);
+                    continue;
+                }
+                List<Component> lore = new ArrayList<>(Lang.items("shop.category-sell", "count", c.items().size()));
+                lore.addAll(holdingLore(v.player(), c.items()));
+                lore.addAll(Lang.items("shop.category-open"));
+                out.add(tile(c.icon(), c.name(), lore));
+            }
+            return out;
+        }
+
+        @Override
+        public void onListClick(MenuView v, int index, ClickType click) {
+            if (index >= shown.size() || shown.get(index) == null) return;
+            ShopCatalog.Category c = shown.get(index);
+            Player p = v.player();
+            later(() -> core.menus().open(p, "economy:shop_sell_items", new SellItems(c)));
+        }
+
+        @Override
+        public void onAction(MenuView v, String action, ClickType click) {
+            if (action.equals("shop:sell-all")) sellAll(v.player(), null);
+            v.refresh();
+        }
+
+        @Override
+        public void onPlayerInventoryClick(MenuView v, int slot, ClickType click) {
+            sellFromInventory(v, slot, click);
+        }
+    }
+
+    private final class SellItems implements MenuHandler {
+        private final ShopCatalog.Category category;
+
+        SellItems(ShopCatalog.Category category) {
+            this.category = category;
+        }
+
+        @Override
+        public Map<String, String> placeholders(MenuView v) {
+            return Map.of("balance", balance(v.player()), "category", category.name());
+        }
+
+        @Override
+        public List<ItemStack> list(MenuView v) {
+            List<ItemStack> out = new ArrayList<>();
+            Player p = v.player();
+            for (String id : category.items()) {
+                ShopCatalog.SellEntry e = catalog.sell().get(id);
+                Double ch = change(id);
+                String change = ch == null ? Lang.raw("shop.change-none") : Lang.raw(ch >= 0 ? "shop.change-up" : "shop.change-down", "pct", String.format("%.0f", Math.abs(ch)));
+                int have = Items.count(p.getInventory(), it -> Items.plain(it, id));
+                List<Component> lore = new ArrayList<>(Lang.items("shop.price-lore",
+                        "price", String.format("%.1f", price(id)), "base", trim(e.base()), "change", change, "marks", marks(id),
+                        "sold", String.format("%.0f", store.sold(id)), "quota", String.format("%.0f", e.q() * eco.activity().store().players()),
+                        "mine", store.soldBy(p.getUniqueId(), id), "cap", e.cap() == null ? "-" : e.cap()));
+                lore.addAll(have > 0 ? Lang.items("shop.sell-have", "have", have) : Lang.items("shop.sell-have-none"));
+                out.add(Items.create(id, 1).map(it -> withLore(it, lore)).orElse(null));
+            }
+            return out;
+        }
+
+        @Override
+        public void onListClick(MenuView v, int index, ClickType click) {
+            if (index >= category.items().size()) return;
+            String id = category.items().get(index);
+            Player p = v.player();
+            Optional<ItemStack> sample = Items.create(id, 1);
+            if (sample.isEmpty()) return;
+            if (Items.count(p.getInventory(), it -> Items.plain(it, id)) <= 0) {
+                HudModule.flash(p, Lang.mm("shop.have-none", "item", itemName(id)));
+                return;
+            }
+            int count = click.isShiftClick() ? Integer.MAX_VALUE : click.isRightClick() ? 1 : sample.get().getMaxStackSize();
+            sellFeedback(p, sample.get(), sell(p, sample.get(), count));
+            v.refresh();
+        }
+
+        @Override
+        public void onAction(MenuView v, String action, ClickType click) {
+            if (action.equals("shop:sell-category")) sellAll(v.player(), category.items());
+            v.refresh();
+        }
+
+        @Override
+        public void onPlayerInventoryClick(MenuView v, int slot, ClickType click) {
+            sellFromInventory(v, slot, click);
         }
     }
 

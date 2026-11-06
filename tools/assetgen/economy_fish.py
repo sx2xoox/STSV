@@ -551,19 +551,19 @@ def write_content(pack: Path, icons):
     (pack / "items" / "fish.yml").write_text("\n".join(items).rstrip() + "\n", encoding="utf-8")
 
     shop = (pack / "shop.yml").read_text(encoding="utf-8")
-    start, end = "  # ── 낚시 (fish.yml, economy_fish.py 가 씀)\n", "  # ── 낚시 끝\n"
+    # the 수산물 category of the 판매 side (sell.fish.items)
+    start, end = "      # ── 낚시 (fish.yml, economy_fish.py 가 씀)\n", "      # ── 낚시 끝\n"
     lines = [start]
     for fid, (name, hab, rar, lo, hi, price, shape, c1, c2, x) in FISH.items():
         if fid in VANILLA or fid in FINDS:
             continue
         q = 32 if price < 6 else 16 if price < 20 else 4 if price < 100 else 1
-        lines.append(f"  economy:{fid}: {{ base: {price}, q: {q}, job: fisher }}   # {name}\n")
+        lines.append(f"      economy:{fid}: {{ base: {price}, q: {q}, job: fisher }}   # {name}\n")
     lines.append(end)
     block = "".join(lines)
-    if start in shop:
-        shop = shop[:shop.index(start)] + block + shop[shop.index(end) + len(end):]
-    else:
-        shop = shop.replace("  # 원목 (누구나)\n", block + "  # 원목 (누구나)\n", 1)
+    if start not in shop:
+        raise ValueError("shop.yml: the 낚시 markers are missing from sell.fish.items")
+    shop = shop[:shop.index(start)] + block + shop[shop.index(end) + len(end):]
     (pack / "shop.yml").write_text(shop, encoding="utf-8")
 
     titles = (pack / "titles" / "titles.yml").read_text(encoding="utf-8")

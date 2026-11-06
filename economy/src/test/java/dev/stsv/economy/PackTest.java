@@ -107,7 +107,7 @@ class PackTest {
         JsonObject font = com.google.gson.JsonParser.parseString(new String(files.get("assets/stsv/font/menus.json"))).getAsJsonObject();
         long economyBackgrounds = font.getAsJsonArray("providers").asList().stream()
                 .filter(p -> p.getAsJsonObject().has("file") && p.getAsJsonObject().get("file").getAsString().startsWith("economy:gui/")).count();
-        assertEquals(15, economyBackgrounds, "every economy menu background is in the menu font");
+        assertEquals(16, economyBackgrounds, "every economy menu background is in the menu font");
         assertTrue(files.containsKey("assets/economy/font/stockgraph.json"), "stock chart font");
         assertTrue(files.containsKey("assets/economy/font/fishring.json"), "fishing ring font");
         // the ring's glyphs stack: each is as wide as its height (an invisible pixel in the last column of every

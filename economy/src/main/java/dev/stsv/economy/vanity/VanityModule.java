@@ -3,9 +3,6 @@ package dev.stsv.economy.vanity;
 import dev.stsv.core.content.CustomItem;
 import dev.stsv.core.data.Db;
 import dev.stsv.core.economy.EconomyModule;
-import dev.stsv.core.gui.menu.MenuHandler;
-import dev.stsv.core.gui.menu.MenuView;
-import dev.stsv.core.hud.HudModule;
 import dev.stsv.core.util.Lang;
 import dev.stsv.core.util.Text;
 import dev.stsv.economy.EcoModule;
@@ -22,7 +19,6 @@ import org.bukkit.entity.Display;
 import org.bukkit.entity.ItemDisplay;
 import org.bukkit.entity.Player;
 import org.bukkit.entity.TextDisplay;
-import org.bukkit.event.inventory.ClickType;
 import org.bukkit.inventory.ItemStack;
 import org.bukkit.inventory.meta.SkullMeta;
 import org.bukkit.util.Transformation;
@@ -41,8 +37,8 @@ import java.util.Optional;
 import java.util.UUID;
 
 /**
- * 과시 소비 (money that leaves the economy for good, and stays with the account): the cosmetic and
- * title shop, and monuments - a giant head and an inscription in the town, built by the week's top earner.
+ * 과시 소비 (money that leaves the economy for good, and stays with the account): cosmetics and
+ * titles (sold in the 상점's 구매 categories), and monuments - a giant head and an inscription in the town, built by the week's top earner.
  */
 public final class VanityModule extends EcoModule {
 
@@ -86,14 +82,10 @@ public final class VanityModule extends EcoModule {
     }
 
     // ------------------------------------------------------------------------------------------
-    // The shop
+    // 치장, 칭호: sold in the 상점's 구매 categories
     // ------------------------------------------------------------------------------------------
 
-    public void openShop(Player p) {
-        core.menus().open(p, "economy:vanity", new Shop());
-    }
-
-    private boolean owned(Player p, ShopCatalog.VanityEntry v) {
+    public boolean owned(Player p, ShopCatalog.Good v) {
         if (v.kind().equals("cosmetic")) {
             return core.content().item(v.id()).map(c -> core.cosmetics().owns(p, c)).orElse(false);
         }
@@ -104,7 +96,7 @@ public final class VanityModule extends EcoModule {
     private final java.util.Set<String> bought = java.util.concurrent.ConcurrentHashMap.newKeySet();
 
     /** Returns null on success, else the refusal key. */
-    public String buy(Player p, ShopCatalog.VanityEntry v) {
+    public String buy(Player p, ShopCatalog.Good v) {
         if (owned(p, v)) return "vanity.owned";
         if (v.kind().equals("cosmetic")) {
             Optional<CustomItem> c = core.content().item(v.id());
@@ -122,65 +114,26 @@ public final class VanityModule extends EcoModule {
         return null;
     }
 
-    private String name(ShopCatalog.VanityEntry v) {
+    private String name(ShopCatalog.Good v) {
         if (v.kind().equals("cosmetic")) return core.content().item(v.id()).map(c -> c.name() == null ? v.id() : c.name()).orElse(v.id());
         return core.profiles().title(v.id()).map(t -> t.name()).orElse(v.id());
     }
 
-    private final class Shop implements MenuHandler {
-        private String armed;
-        private long armedAt;
-
-        private List<ShopCatalog.VanityEntry> entries() {
-            return eco.shop().catalog().vanity();
-        }
-
-        @Override
-        public Map<String, String> placeholders(MenuView v) {
-            return Map.of("balance", EconomyModule.format(core.economy().balance(v.player().getUniqueId())));
-        }
-
-        @Override
-        public List<ItemStack> list(MenuView v) {
-            List<ItemStack> out = new ArrayList<>();
-            for (ShopCatalog.VanityEntry e : entries()) {
-                ItemStack it = e.kind().equals("cosmetic")
-                        ? core.content().item(e.id()).map(c -> c.create(1)).orElse(new ItemStack(Material.BARRIER))
-                        : new ItemStack(Material.NAME_TAG);
-                boolean own = owned(v.player(), e);
-                boolean isArmed = (e.kind() + e.id()).equals(armed) && now() - armedAt < 5000;
-                it.editMeta(meta -> {
-                    meta.itemName(Text.item(name(e)));
-                    List<Component> lore = new ArrayList<>(Lang.items(e.kind().equals("cosmetic") ? "vanity.lore-cosmetic" : "vanity.lore-title",
-                            "price", EconomyModule.format(e.price())));
-                    lore.addAll(Lang.items(own ? "vanity.lore-owned" : isArmed ? "vanity.lore-confirm" : "vanity.lore-buy"));
-                    meta.lore(lore);
-                    meta.setEnchantmentGlintOverride(own || isArmed);
-                });
-                out.add(it);
-            }
-            return out;
-        }
-
-        @Override
-        public void onListClick(MenuView v, int index, ClickType click) {
-            List<ShopCatalog.VanityEntry> list = entries();
-            if (index >= list.size()) return;
-            ShopCatalog.VanityEntry e = list.get(index);
-            Player p = v.player();
-            String key = e.kind() + e.id();
-            if (!key.equals(armed) || now() - armedAt > 5000) {
-                armed = key;
-                armedAt = now();
-                p.playSound(p.getLocation(), Sound.UI_BUTTON_CLICK, 0.5f, 1.4f);
-                v.refresh();
-                return;
-            }
-            armed = null;
-            String refused = buy(p, e);
-            if (refused != null) HudModule.flash(p, Lang.mm(refused, "price", EconomyModule.format(e.price())));
-            v.refresh();
-        }
+    /** How a cosmetic or title looks in the shop: owned, waiting for the second click, or for sale. */
+    public ItemStack display(Player p, ShopCatalog.Good e, boolean armed) {
+        ItemStack it = e.kind().equals("cosmetic")
+                ? core.content().item(e.id()).map(c -> c.create(1)).orElse(new ItemStack(Material.BARRIER))
+                : new ItemStack(Material.NAME_TAG);
+        boolean own = owned(p, e);
+        it.editMeta(meta -> {
+            meta.itemName(Text.item(name(e)));
+            List<Component> lore = new ArrayList<>(Lang.items(e.kind().equals("cosmetic") ? "vanity.lore-cosmetic" : "vanity.lore-title",
+                    "price", EconomyModule.format(e.price())));
+            lore.addAll(Lang.items(own ? "vanity.lore-owned" : armed ? "vanity.lore-confirm" : "vanity.lore-buy"));
+            meta.lore(lore);
+            meta.setEnchantmentGlintOverride(own || armed);
+        });
+        return it;
     }
 
     // ------------------------------------------------------------------------------------------

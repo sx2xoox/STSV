@@ -54,6 +54,17 @@ class ContentTest {
         return ids;
     }
 
+    /** Items of the core content (stsv:...): cosmetics and the like. */
+    static Set<String> coreItems() {
+        Set<String> ids = new HashSet<>();
+        try (Stream<Path> s = Files.list(Path.of(System.getProperty("stsv.content")).resolve("../../content/stsv/items").normalize())) {
+            for (Path f : s.toList()) for (String k : YamlConfiguration.loadConfiguration(f.toFile()).getKeys(false)) ids.add("stsv:" + k);
+        } catch (Exception e) {
+            throw new RuntimeException(e);
+        }
+        return ids;
+    }
+
     /** "#economy:<group>" inputs of machines.yml (filled when it is read) */
     static final Set<String> GROUPS = new HashSet<>();
 
@@ -83,9 +94,33 @@ class ContentTest {
         assertTrue(problems.isEmpty(), String.join("\n", problems));
 
         for (String id : shop.sell().keySet()) if (!exists(id, ours)) problems.add("shop sell: " + id);
-        for (var b : shop.buy()) if (!exists(b.id(), ours)) problems.add("shop buy: " + b.id());
-        for (var m : shop.merchant()) if (!exists(m.id(), ours)) problems.add("merchant: " + m.id());
-        for (var v : shop.vanity()) if (!v.kind().equals("cosmetic") && !v.kind().equals("title")) problems.add("vanity kind: " + v.kind());
+        for (var g : shop.goods()) {
+            switch (g.kind()) {
+                case "item" -> { if (!exists(g.id(), ours)) problems.add("shop buy: " + g.id()); }
+                case "cosmetic" -> { if (!coreItems().contains(g.id())) problems.add("shop cosmetic: " + g.id()); }
+                case "title" -> { if (!yaml("titles/titles.yml").contains(g.id().replace("economy:", ""))) problems.add("shop title: " + g.id()); }
+                default -> problems.add("shop kind: " + g.kind());
+            }
+        }
+        for (var m : shop.merchant().goods()) if (!exists(m.id(), ours)) problems.add("merchant: " + m.id());
+        // 상점: 구매 · 판매 → 카테고리 → 품목. Every category fits the one row (구매 with the 상인 행렬's place),
+        // has an icon and goods, and every item the shop buys is in exactly one 판매 category
+        assertTrue(shop.sellCategories().size() <= ShopCatalog.MAX_CATEGORIES && shop.buyCategories().size() + 1 <= ShopCatalog.MAX_CATEGORIES);
+        assertEquals(List.of("minerals", "farm", "fish", "materials", "crafts", "foodstuff", "dishes"),
+                shop.sellCategories().stream().map(ShopCatalog.Category::id).toList());
+        assertEquals(List.of("tools", "seeds", "supplies", "cosmetics", "titles"), shop.buyCategories().stream().map(ShopCatalog.BuyCategory::id).toList());
+        List<String> inCategories = new ArrayList<>();
+        for (var c : shop.sellCategories()) {
+            if (c.items().isEmpty() || !exists(c.icon(), ours)) problems.add("sell category " + c.id());
+            inCategories.addAll(c.items());
+        }
+        assertEquals(List.copyOf(shop.sell().keySet()), inCategories, "each sold item in one category");
+        for (var c : shop.buyCategories()) {
+            if (c.goods().isEmpty() || !(exists(c.icon(), ours) || coreItems().contains(c.icon()))) problems.add("buy category " + c.id());
+            boolean vanity = c.goods().getFirst().vanity();
+            if (c.goods().stream().anyMatch(g -> g.vanity() != vanity)) problems.add("buy category " + c.id() + " mixes items with cosmetics/titles");
+        }
+        if (!exists(shop.merchant().icon(), ours)) problems.add("merchant icon");
         for (var j : jobs.jobs().values()) {
             if (!exists(j.icon(), ours)) problems.add("job icon: " + j.icon());
             if (!machines.containsKey(j.machine())) problems.add("job machine: " + j.machine());
@@ -193,7 +228,7 @@ class ContentTest {
             if (!spec.harvest().getFirst().item().equals(spec.produce())) problems.add("crop " + k + " produce");
             if (spec.extra().containsKey("job") && !jobs.jobs().containsKey(spec.extra().get("job"))) problems.add("crop job " + spec.extra().get("job"));
         }
-        for (var b : shop.buy()) makeable.add(b.id());
+        for (var g : shop.goods()) if (g.kind().equals("item")) makeable.add(g.id());
         for (String id : ours) if (!makeable.contains(id)) problems.add("nobody can make " + id);
         assertTrue(problems.isEmpty(), String.join("\n", problems));
     }
@@ -229,7 +264,7 @@ class ContentTest {
         List<String> problems = new ArrayList<>();
         List<MenuSpec> menus = MenuSpec.loadAll(List.of(new ContentPack("economy", "economy", PACK)), problems);
         assertTrue(problems.isEmpty(), String.join("\n", problems));
-        assertEquals(15, menus.size());
+        assertEquals(16, menus.size());
         for (MenuSpec m : menus) {
             // the button grid is mirror-symmetric, row by row (the machine's lanes are fixed by its code; their
             // empty cells hold arrows, so they read as full rows)

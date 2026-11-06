@@ -62,13 +62,27 @@ shop:
   not-enough: "<red>돈이 부족합니다. <gray>(필요 {price})"
   bought: "<green>구매</green> <white>{item} ×{count}</white> <gray>-</gray> {amount}"
   buy-lore: ["", "<gray>가격: </gray>{price} <dark_gray>({count}개)", "<yellow>클릭: 사기 <dark_gray>· 쉬프트: 8번"]
+  # 상점 카테고리 (구매 · 판매 화면)
+  category-name: "<white>{name}"
+  category-buy: ["<gray>{count}종 · {min} ~ {max}", "<yellow>클릭: 열기"]
+  category-merchant: ["<light_purple>사건 한정 · 선착순", "<gray>{count}종 · 남은 수량 {left}개", "<yellow>클릭: 열기"]
+  category-sell: ["<gray>{count}종"]
+  category-open: ["<yellow>클릭: 시세 보기 · 팔기"]
+  holding: ["<gray>가진 것: <white>{kinds}종 {count}개</white> <dark_gray>·</dark_gray> 약 {value}"]
+  holding-none: ["<dark_gray>가진 것 없음"]
+  hint-buy: "<gray>클릭: 사기 <dark_gray>· 쉬프트: 8번"
+  hint-vanity: "<gray>두 번 클릭: 사기 <dark_gray>· /치장, /칭호 에서 착용"
+  hint-merchant: "<light_purple>선착순 한정 상품 <dark_gray>· 클릭: 사기"
+  sell-have: ["<gray>가진 것: <white>{have}개", "<yellow>좌클릭 묶음 · 우클릭 1개 · 쉬프트 전부"]
+  sell-have-none: ["<dark_gray>가진 것 없음"]
+  have-none: "<gray>인벤토리에 {item}이(가) 없습니다."
   repair-none: "<gray>손에 든 수리할 물건 없음"
   repair-nothing: "<red>손에 수리할 물건을 드세요."
   repaired: "<green>수리 완료</green> <white>{item}</white> <gray>-</gray> {amount}"
   notice: "<gold><b>수요 고시</b></gold> <white>{items}</white> <gray>매입가 ×{mult} (다음 고시까지)"
   shortage-detail: "{item} 매입가 ×{mult}"
   crash-detail: "{item} 매입가 ×{mult}, 거래소 가격 빨간색"
-  merchant-detail: "스폰에 한정 상품 (/상점 → 상인 행렬)"
+  merchant-detail: "스폰에 한정 상품 (/상점 → 구매 → 상인 행렬)"
   order-detail: "{item} {done}/{target} · 지금 개당 {unit}G · /납품"
   order-none: "<gray>지금은 긴급 납품이 없습니다."
   order-missing: "<red>납품할 {item}이(가) 없습니다."

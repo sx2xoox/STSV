@@ -1,53 +1,195 @@
-# /상점: 위 = 기능 버튼, 가운데 = 파는 물건(클릭해서 사기), 내 인벤토리 클릭 = 팔기
+# /상점: 구매 · 판매 → 카테고리 → 품목 (카테고리와 품목은 shop.yml)
+
+# 첫 화면
 shop:
-  title: "<#f3e3b0>관리자 상점"
-  rows: 6
+  title: "<#f3e3b0>상점"
+  rows: 3
   background: economy:gui/shop
   layout:
-    - "A.T.I.R.M"
-    - "LLLLLLLLL"
-    - "LLLLLLLLL"
-    - "LLLLLLLLL"
-    - "LLLLLLLLL"
-    - "P..V.X..N"
-  list: L
+    - "....I...."
+    - "..B.R.S.."
+    - "....X...."
   buttons:
-    A:
-      action: "shop:sell-all"
-      icon: economy:gui/coins
-      material: GOLD_NUGGET
-      name: "<gold>가진 것 전부 팔기"
-      lore: ["<gray>상점이 사는 물건을 인벤토리에서 모두 팝니다."]
-    T:
-      action: "shop:prices"
-      icon: economy:gui/chart
-      material: PAPER
-      name: "<aqua>시세 보기"
-      lore: ["<gray>품목별 매입가, 24시간 변화, 수요 고시"]
     I:
       action: ""
       icon: stsv:gui/info
       material: BOOK
       name: "<white>잔액: {balance}"
-      lore: ["<gray>내 인벤토리 물건 클릭: <white>팔기", "<dark_gray> 좌클릭 묶음 · 우클릭 1개 · 쉬프트 전부", "<gray>위 물건 클릭: <white>사기 <dark_gray>(쉬프트 8번)"]
+      lore: ["<gray>구매: 도구, 씨앗, 생활 용품, 치장, 칭호", "<gray>판매: 내가 모은 것, 만든 것"]
+    B:
+      action: "shop:buy"
+      icon: economy:gui/cart
+      material: CHEST
+      name: "<#ff5f57>구매"
+      lore: ["<gray>상점에서 물건 사기"]
+    S:
+      action: "shop:sell"
+      icon: economy:gui/coins
+      material: GOLD_NUGGET
+      name: "<#4d9bff>판매"
+      lore: ["<gray>상점에 물건 팔기 · 오늘의 시세"]
     R:
       action: "shop:repair"
       icon: economy:gui/hammer
       material: ANVIL
       name: "<white>손에 든 물건 수리"
       lore: ["<gray>비용: {repair}"]
-    M:
-      action: "shop:merchant"
-      icon: economy:gui/bag
+    X:
+      action: close
+      icon: stsv:gui/exit
+      material: OAK_DOOR
+      name: "<red>닫기"
+
+# 구매 카테고리 (상인 행렬은 사건이 열려 있을 때만)
+shop_buy:
+  title: "<#f3e3b0>상점 · 구매"
+  rows: 3
+  background: economy:gui/shop_buy
+  layout:
+    - "....I...."
+    - ".LLLLLLL."
+    - "...B.X..."
+  list: L
+  buttons:
+    I:
+      action: ""
+      icon: stsv:gui/info
+      material: BOOK
+      name: "<white>잔액: {balance}"
+      lore: ["<gray>카테고리를 고르세요."]
+    B:
+      action: "command:상점"
+      icon: economy:gui/back
+      material: ARROW
+      name: "<yellow>처음으로"
+    X:
+      action: close
+      icon: stsv:gui/exit
+      material: OAK_DOOR
+      name: "<red>닫기"
+
+# 판매 카테고리: 카테고리를 고르거나, 내 인벤토리 물건을 바로 클릭해서 팔기
+shop_sell:
+  title: "<#f3e3b0>상점 · 판매"
+  rows: 3
+  background: economy:gui/shop_sell
+  layout:
+    - "..A.I.T.."
+    - ".LLLLLLL."
+    - "...B.X..."
+  list: L
+  buttons:
+    A:
+      action: "shop:sell-all"
+      icon: economy:gui/sell_all
+      material: GOLD_NUGGET
+      name: "<#4d9bff>가진 것 전부 팔기"
+      lore: ["<gray>상점이 사는 물건을 인벤토리에서 모두 팝니다."]
+    I:
+      action: ""
+      icon: stsv:gui/info
+      material: BOOK
+      name: "<white>잔액: {balance}"
+      lore: ["<gray>카테고리: 품목별 시세 보기", "<gray>내 인벤토리 물건 클릭: <white>팔기", "<dark_gray> 좌클릭 묶음 · 우클릭 1개 · 쉬프트 전부"]
+    T:
+      action: ""
+      icon: economy:gui/chart
       material: PAPER
-      name: "<light_purple>상인 행렬 한정 상품"
-      lore: ["<gray>사건이 열려 있을 때만"]
-    V:
-      action: "shop:vanity"
-      icon: economy:gui/crown
-      material: GOLDEN_HELMET
-      name: "<yellow>치장·칭호 상점"
-      lore: ["<gray>돈을 영원한 자랑거리로"]
+      name: "<white>시세 보는 법"
+      lore: ["<gray>오늘 많이 팔린 품목일수록 싸게 삽니다.", "<gray>매일 05시에 조금씩 회복합니다.", "<gold>★</gold> <gray>수요 고시  <green>품귀</green> <gray>비싸게 삼", "<red>폭락</red> <gray>싸게 삼  <dark_gray>(바닥)</dark_gray> <gray>최저가"]
+    B:
+      action: "command:상점"
+      icon: economy:gui/back
+      material: ARROW
+      name: "<yellow>처음으로"
+    X:
+      action: close
+      icon: stsv:gui/exit
+      material: OAK_DOOR
+      name: "<red>닫기"
+
+# 구매 품목 (한 카테고리)
+shop_buy_items:
+  title: "<#f3e3b0>구매 · {category}"
+  rows: 6
+  background: economy:gui/shop_buy_items
+  layout:
+    - "....I...."
+    - "LLLLLLLLL"
+    - "LLLLLLLLL"
+    - "LLLLLLLLL"
+    - "LLLLLLLLL"
+    - "P..B.X..N"
+  list: L
+  buttons:
+    I:
+      action: ""
+      icon: stsv:gui/info
+      material: BOOK
+      name: "<white>잔액: {balance}"
+      lore: ["{hint}"]
+    B:
+      action: "command:상점 구매"
+      icon: economy:gui/back
+      material: ARROW
+      name: "<yellow>구매 카테고리로"
+    P:
+      action: page:prev
+      icon: stsv:gui/prev
+      material: ARROW
+      name: "<yellow>◀ 이전 페이지"
+      lore: ["<gray>{page} / {pages}"]
+      off: { icon: stsv:gui/prev_off, material: GRAY_DYE, name: "<dark_gray>◀ 첫 페이지" }
+    N:
+      action: page:next
+      icon: stsv:gui/next
+      material: ARROW
+      name: "<yellow>다음 페이지 ▶"
+      lore: ["<gray>{page} / {pages}"]
+      off: { icon: stsv:gui/next_off, material: GRAY_DYE, name: "<dark_gray>마지막 페이지 ▶" }
+    X:
+      action: close
+      icon: stsv:gui/exit
+      material: OAK_DOOR
+      name: "<red>닫기"
+
+# 판매 품목 (한 카테고리): 품목 클릭 = 인벤토리의 그 물건 팔기, 내 인벤토리 클릭도 그대로 팔기
+shop_sell_items:
+  title: "<#f3e3b0>판매 · {category}"
+  rows: 6
+  background: economy:gui/shop_sell_items
+  layout:
+    - "..A.I.T.."
+    - "LLLLLLLLL"
+    - "LLLLLLLLL"
+    - "LLLLLLLLL"
+    - "LLLLLLLLL"
+    - "P..B.X..N"
+  list: L
+  buttons:
+    A:
+      action: "shop:sell-category"
+      icon: economy:gui/sell_all
+      material: GOLD_NUGGET
+      name: "<#4d9bff>이 카테고리 전부 팔기"
+      lore: ["<gray>{category} 중 가진 것을 모두 팝니다."]
+    I:
+      action: ""
+      icon: stsv:gui/info
+      material: BOOK
+      name: "<white>잔액: {balance}"
+      lore: ["<gray>품목 클릭: <white>인벤토리의 그 물건 팔기", "<gray>내 인벤토리 물건 클릭: <white>팔기", "<dark_gray> 좌클릭 묶음 · 우클릭 1개 · 쉬프트 전부"]
+    T:
+      action: ""
+      icon: economy:gui/chart
+      material: PAPER
+      name: "<white>시세 보는 법"
+      lore: ["<gray>오늘 많이 팔린 품목일수록 싸게 삽니다.", "<gray>매일 05시에 조금씩 회복합니다.", "<gold>★</gold> <gray>수요 고시  <green>품귀</green> <gray>비싸게 삼", "<red>폭락</red> <gray>싸게 삼  <dark_gray>(바닥)</dark_gray> <gray>최저가"]
+    B:
+      action: "command:상점 판매"
+      icon: economy:gui/back
+      material: ARROW
+      name: "<yellow>판매 카테고리로"
     P:
       action: page:prev
       icon: stsv:gui/prev

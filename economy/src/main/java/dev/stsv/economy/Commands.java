@@ -66,11 +66,16 @@ final class Commands {
 
     static void register(EcoPlugin eco) {
         eco.command("상점", new Simple(player((p, a) -> {
-            if (a.length > 0 && a[0].equals("전부판매")) eco.shop().sellAll(p);
-            else eco.shop().open(p);
-        }), (s, a) -> a.length == 1 ? List.of("전부판매") : List.of()));
+            String sub = a.length > 0 ? a[0] : "";
+            switch (sub) {
+                case "구매" -> eco.shop().openBuy(p);
+                case "판매" -> eco.shop().openSell(p);
+                case "전부판매" -> eco.shop().sellAll(p, null);
+                default -> eco.shop().open(p);
+            }
+        }), (s, a) -> a.length == 1 ? List.of("구매", "판매", "전부판매") : List.of()));
         eco.command("시세", new Simple((s, a) -> {
-            if (s instanceof Player p && a.length == 0) eco.shop().openPrices(p);
+            if (s instanceof Player p && a.length == 0) eco.shop().openSell(p);
             else eco.shop().priceLines(a.length > 0 ? a[0] : null).forEach(s::sendMessage);
         }, null));
         eco.command("우편함", new Simple(player((p, a) -> eco.mail().open(p)), null));

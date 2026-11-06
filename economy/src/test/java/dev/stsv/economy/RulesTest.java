@@ -156,6 +156,37 @@ class RulesTest {
         assertEquals(2, p2.size(), p2.toString());
     }
 
+    @Test
+    void anOlderShopFileStillLoads() {
+        // before categories: items straight under sell, one buy list, a vanity list, a merchant list
+        YamlConfiguration old = new YamlConfiguration();
+        old.set("sell.diamond.base", 60);
+        old.set("sell.diamond.q", 4);
+        old.set("sell.wheat.base", 2);
+        old.set("sell.wheat.q", 128);
+        old.set("buy", List.of(Map.of("item", "torch", "amount", 16, "price", 20)));
+        old.set("vanity", List.of(Map.of("kind", "cosmetic", "id", "stsv:tomato_mask", "price", 15000),
+                Map.of("kind", "title", "id", "economy:trader", "price", 5000)));
+        old.set("merchant", List.of(Map.of("item", "elytra", "price", 30000, "stock", 1)));
+        List<String> problems = new ArrayList<>();
+        ShopCatalog c = ShopCatalog.parse(old, problems);
+        assertTrue(problems.isEmpty(), problems.toString());
+        assertEquals(List.of("minecraft:diamond", "minecraft:wheat"), c.sellCategories().getFirst().items());
+        assertEquals(List.of("goods", "cosmetics", "titles"), c.buyCategories().stream().map(ShopCatalog.BuyCategory::id).toList());
+        assertEquals(new ShopCatalog.Good("item", "minecraft:torch", 16, 20), c.goods().getFirst());
+        assertEquals(new ShopCatalog.Good("title", "economy:trader", 1, 5000), c.goods().getLast());
+        assertEquals(1, c.merchant().goods().size());
+        // a category that names an item twice is reported
+        YamlConfiguration twice = new YamlConfiguration();
+        for (String cat : List.of("a", "b")) {
+            twice.set("sell." + cat + ".items.diamond.base", 60);
+            twice.set("sell." + cat + ".items.diamond.q", 4);
+        }
+        List<String> p2 = new ArrayList<>();
+        ShopCatalog.parse(twice, p2);
+        assertEquals(1, p2.size(), p2.toString());
+    }
+
     // ------------------------------------------------------------------------------------------ prices
 
     @Test
