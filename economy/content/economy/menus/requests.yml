@@ -4,7 +4,7 @@ requests:
   rows: 3
   background: economy:gui/requests
   layout:
-    - "I...C...."
+    - "...I.C..."
     - "LLLL.LLLL"
     - "....X...."
   list: L

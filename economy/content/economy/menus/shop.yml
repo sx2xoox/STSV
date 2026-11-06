@@ -39,7 +39,7 @@ shop:
     M:
       action: "shop:merchant"
       icon: economy:gui/bag
-      material: BUNDLE
+      material: PAPER
       name: "<light_purple>상인 행렬 한정 상품"
       lore: ["<gray>사건이 열려 있을 때만"]
     V:

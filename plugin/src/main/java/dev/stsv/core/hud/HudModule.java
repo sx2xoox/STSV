@@ -24,7 +24,10 @@ import java.util.concurrent.ConcurrentHashMap;
 import java.util.function.Function;
 
 /**
- * The always-on status line above the hotbar (action bar) and event boss bars.
+ * The always-on status line above the hotbar (action bar), the sidebar on the right and boss bars.
+ *
+ * Sidebar: contents add rows ({@link #sidebar}), each asked every refresh, null to hide; shown top to
+ * bottom by their order under a title, on the player's own scoreboard with the score numbers hidden.
  *
  * Contents add lines ({@link #line}): each is asked every refresh and may answer null to stay hidden;
  * the visible ones are joined left to right by their order. A one-off action-bar message must go
@@ -33,6 +36,10 @@ import java.util.function.Function;
 public final class HudModule implements StsvModule, Listener {
 
     private record Line(String id, int order, Function<Player, Component> render) {}
+
+    private final Map<String, Line> rows = new LinkedHashMap<>();
+    private final Map<UUID, org.bukkit.scoreboard.Scoreboard> boards = new ConcurrentHashMap<>();
+    private final Map<UUID, List<Component>> shown = new ConcurrentHashMap<>();
 
     private static HudModule instance;
 
@@ -71,6 +78,7 @@ public final class HudModule implements StsvModule, Listener {
     @Override
     public void disable() {
         if (ticker != null) ticker.cancel();
+        for (Player p : Bukkit.getOnlinePlayers()) clearSidebar(p);
         for (BossBar bar : bars.values()) for (Player p : Bukkit.getOnlinePlayers()) p.hideBossBar(bar);
         bars.clear();
         HandlerList.unregisterAll(this);
@@ -98,6 +106,13 @@ public final class HudModule implements StsvModule, Listener {
     }
 
     private void refresh() {
+        for (Player p : Bukkit.getOnlinePlayers()) {
+            try {
+                refreshSidebar(p);
+            } catch (RuntimeException e) {
+                plugin.getLogger().warning("사이드바 오류: " + e.getMessage());
+            }
+        }
         if (lines.isEmpty()) return;
         List<Line> ordered = new ArrayList<>(lines.values());
         ordered.sort(Comparator.comparingInt(Line::order));
@@ -123,6 +138,81 @@ public final class HudModule implements StsvModule, Listener {
             }
             if (out != null) p.sendActionBar(out);
         }
+    }
+
+    // ------------------------------------------------------------------------------------------
+    // Sidebar
+    // ------------------------------------------------------------------------------------------
+
+    /** Adds (or replaces) a sidebar row. Lower order = higher up. Answer Component.empty() for a gap. */
+    public void sidebar(String id, int order, Function<Player, Component> render) {
+        rows.put(id, new Line(id, order, render));
+    }
+
+    public void removeSidebar(String id) {
+        rows.remove(id);
+    }
+
+    private static final String OBJECTIVE = "stsv";
+
+    private void refreshSidebar(Player p) {
+        List<Line> ordered = new ArrayList<>(rows.values());
+        ordered.sort(Comparator.comparingInt(Line::order));
+        List<Component> lines = new ArrayList<>();
+        for (Line l : ordered) {
+            Component c;
+            try {
+                c = l.render().apply(p);
+            } catch (RuntimeException e) {
+                plugin.getLogger().warning("사이드바 줄 '" + l.id() + "' 오류: " + e.getMessage());
+                continue;
+            }
+            if (c != null) lines.add(c);
+        }
+        // no gap at the ends, no two gaps in a row
+        List<Component> tidy = new ArrayList<>();
+        for (Component c : lines) {
+            boolean gap = c.equals(Component.empty());
+            if (gap && (tidy.isEmpty() || tidy.getLast().equals(Component.empty()))) continue;
+            tidy.add(c);
+        }
+        while (!tidy.isEmpty() && tidy.getLast().equals(Component.empty())) tidy.removeLast();
+        if (tidy.size() > 15) tidy = new ArrayList<>(tidy.subList(0, 15));
+        UUID u = p.getUniqueId();
+        if (tidy.isEmpty()) {
+            clearSidebar(p);
+            return;
+        }
+        if (tidy.equals(shown.get(u)) && boards.containsKey(u) && p.getScoreboard() == boards.get(u)) return;
+        org.bukkit.scoreboard.Scoreboard sb = boards.computeIfAbsent(u, k -> Bukkit.getScoreboardManager().getNewScoreboard());
+        org.bukkit.scoreboard.Objective o = sb.getObjective(OBJECTIVE);
+        if (o == null) {
+            o = sb.registerNewObjective(OBJECTIVE, org.bukkit.scoreboard.Criteria.DUMMY, Lang.mm("hud.sidebar-title"));
+            o.setDisplaySlot(org.bukkit.scoreboard.DisplaySlot.SIDEBAR);
+            o.numberFormat(io.papermc.paper.scoreboard.numbers.NumberFormat.blank());
+        } else {
+            o.displayName(Lang.mm("hud.sidebar-title"));
+        }
+        List<Component> before = shown.getOrDefault(u, List.of());
+        for (int i = 0; i < tidy.size(); i++) {
+            org.bukkit.scoreboard.Score score = o.getScore("r" + i);
+            if (i >= before.size() || !tidy.get(i).equals(before.get(i)) || !score.isScoreSet()) {
+                score.setScore(tidy.size() - i);
+                score.customName(tidy.get(i));
+            } else if (score.getScore() != tidy.size() - i) {
+                score.setScore(tidy.size() - i);
+            }
+        }
+        for (int i = tidy.size(); i < before.size(); i++) sb.resetScores("r" + i);
+        shown.put(u, tidy);
+        if (p.getScoreboard() != sb) p.setScoreboard(sb);
+    }
+
+    private void clearSidebar(Player p) {
+        UUID u = p.getUniqueId();
+        shown.remove(u);
+        org.bukkit.scoreboard.Scoreboard sb = boards.remove(u);
+        if (sb != null && p.getScoreboard() == sb) p.setScoreboard(Bukkit.getScoreboardManager().getMainScoreboard());
     }
 
     // ------------------------------------------------------------------------------------------
@@ -156,5 +246,7 @@ public final class HudModule implements StsvModule, Listener {
     @EventHandler
     public void onQuit(PlayerQuitEvent e) {
         pausedUntil.remove(e.getPlayer().getUniqueId());
+        shown.remove(e.getPlayer().getUniqueId());
+        boards.remove(e.getPlayer().getUniqueId());
     }
 }

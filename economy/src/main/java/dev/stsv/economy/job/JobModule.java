@@ -86,12 +86,14 @@ public final class JobModule extends EcoModule {
         load();
         every(200L, this::growCrops);
         every(1200L, store::flush);
-        core.hud().line("eco-job", 20, p -> {
+        core.hud().sidebar("eco-job", 20, p -> {
             if (!eco.getConfig().getBoolean("hud.job")) return null;
             String job = job(p.getUniqueId());
             if (job == null) return Lang.mm("job.hud-none");
             JobSpec.Job j = spec.jobs().get(job);
-            return Lang.mm("job.hud", "color", j == null ? "white" : j.color(), "job", j == null ? job : j.name(), "level", level(p.getUniqueId()));
+            int lv = level(p.getUniqueId());
+            return Lang.mm("job.hud", "color", j == null ? "white" : j.color(), "job", j == null ? job : j.name(), "level", lv,
+                    "pct", lv >= spec.maxLevel() ? "MAX" : progress(p.getUniqueId(), lv) + "%");
         });
         eco.onReset(store::reset);
     }
@@ -104,7 +106,7 @@ public final class JobModule extends EcoModule {
     @Override
     protected void stop() {
         store.flush();
-        core.hud().removeLine("eco-job");
+        core.hud().removeSidebar("eco-job");
     }
 
     private void load() {
@@ -176,14 +178,24 @@ public final class JobModule extends EcoModule {
         JobStore.Row r = store.get(player);
         int before = level(player);
         store.addXp(r, job, xp);
-        int after = level(player);
+        leveled(player, job, before, level(player));
+    }
+
+    /**
+     * A level up: the title and sound for the player, and a broadcast when a tens level (10, 20, 30) was
+     * reached or passed (a big jump of XP can skip over it).
+     */
+    private void leveled(UUID player, String job, int before, int after) {
         Player p = Bukkit.getPlayer(player);
-        if (p != null && after > before) {
-            JobSpec.Job j = spec.jobs().get(job);
-            p.showTitle(net.kyori.adventure.title.Title.title(Lang.mm("job.levelup-title", "level", after),
-                    Lang.mm("job.levelup-subtitle", "color", j.color(), "job", j.name(), "level", after)));
-            p.playSound(p.getLocation(), Sound.UI_TOAST_CHALLENGE_COMPLETE, 0.7f, 1.1f);
-            if (after % 10 == 0) Bukkit.broadcast(Lang.msg("job.levelup-broadcast", "player", p.getName(), "color", j.color(), "job", j.name(), "level", after));
+        if (p == null || after <= before) return;
+        JobSpec.Job j = spec.jobs().get(job);
+        if (j == null) return;
+        p.showTitle(net.kyori.adventure.title.Title.title(Lang.mm("job.levelup-title", "level", after),
+                Lang.mm("job.levelup-subtitle", "color", j.color(), "job", j.name(), "level", after)));
+        p.playSound(p.getLocation(), Sound.UI_TOAST_CHALLENGE_COMPLETE, 0.7f, 1.1f);
+        int tens = after / 10 * 10;
+        if (tens > before && tens >= 10) {
+            Bukkit.broadcast(Lang.msg("job.levelup-broadcast", "player", p.getName(), "color", j.color(), "job", j.name(), "level", tens));
         }
     }
 
@@ -669,10 +681,19 @@ public final class JobModule extends EcoModule {
         return String.join("<dark_gray> · ", parts);
     }
 
+    /** How far into the level (0..99). */
+    private int progress(UUID player, int lv) {
+        String job = job(player);
+        double xp = store.xp(player, job), lo = spec.xpFor(lv), hi = spec.xpFor(lv + 1);
+        return hi <= lo ? 100 : (int) Math.clamp((xp - lo) / (hi - lo) * 100, 0, 99);
+    }
+
     /** Admin: set the XP of the player's current job (testing). */
     public void setXp(UUID player, double xp) {
         JobStore.Row r = store.get(player);
         if (r == null) return;
+        int before = level(player);
         store.setXp(r, r.job, xp);
+        leveled(player, r.job, before, level(player));
     }
 }

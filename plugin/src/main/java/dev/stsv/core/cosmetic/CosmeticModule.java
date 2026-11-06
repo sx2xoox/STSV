@@ -67,7 +67,7 @@ import java.util.UUID;
 public final class CosmeticModule implements StsvModule, Listener {
 
     private STSVPlugin plugin;
-    private NamespacedKey keyEquipped, keyOwned, keyReturn, keyWardrobeEntity;
+    private NamespacedKey keyEquipped, keyOwned, keyReturn, keyWardrobeEntity, keyInvisible;
     /** when each player last took damage (no wardrobe within 10 seconds of a hit: no escape from a fight) */
     private final Map<UUID, Long> lastHurt = new HashMap<>();
     private final Map<UUID, Session> sessions = new HashMap<>();
@@ -95,6 +95,7 @@ public final class CosmeticModule implements StsvModule, Listener {
         keyOwned = new NamespacedKey(plugin, "cosmetics_owned");
         keyReturn = new NamespacedKey(plugin, "wardrobe_return");
         keyWardrobeEntity = new NamespacedKey(plugin, "wardrobe_entity");
+        keyInvisible = new NamespacedKey(plugin, "wardrobe_invisible");
         store = new CosmeticStore(plugin.db());
         try {
             store.load(plugin.getDataFolder().toPath().resolve("data").resolve("cosmetics.yml"));
@@ -118,6 +119,7 @@ public final class CosmeticModule implements StsvModule, Listener {
             if (packets != null) packets.inject(p);
             migrate(p);
             restoreIfStuck(p);
+            makeVisible(p);
             refreshLater(p);
         }
         // enabled with players online (plugin reload): they keep the pack they have; the pack module is
@@ -348,7 +350,7 @@ public final class CosmeticModule implements StsvModule, Listener {
         if (packets != null) packets.inject(e.getPlayer());
     }
 
-    @EventHandler public void onJoin(PlayerJoinEvent e) { migrate(e.getPlayer()); restoreIfStuck(e.getPlayer()); refreshLater(e.getPlayer()); }
+    @EventHandler public void onJoin(PlayerJoinEvent e) { migrate(e.getPlayer()); restoreIfStuck(e.getPlayer()); makeVisible(e.getPlayer()); refreshLater(e.getPlayer()); }
     @EventHandler public void onRespawn(PlayerRespawnEvent e) { refreshLater(e.getPlayer()); }
     @EventHandler public void onWorld(PlayerChangedWorldEvent e) { refreshLater(e.getPlayer()); }
 
@@ -530,6 +532,7 @@ public final class CosmeticModule implements StsvModule, Listener {
             p.addPotionEffect(new org.bukkit.potion.PotionEffect(org.bukkit.potion.PotionEffectType.INVISIBILITY,
                     org.bukkit.potion.PotionEffect.INFINITE_DURATION, 0, false, false, false));
             s.addedInvisibility = true;
+            p.getPersistentDataContainer().set(keyInvisible, PersistentDataType.BYTE, (byte) 1);
         }
         p.setInvulnerable(true);
         s.spin = Bukkit.getScheduler().runTaskTimer(plugin, () -> {
@@ -801,15 +804,37 @@ public final class CosmeticModule implements StsvModule, Listener {
         p.setGameMode(s.gameMode);
         if (s.mannequin != null) s.mannequin.remove();
         if (s.camera != null) s.camera.remove();
-        if (s.addedInvisibility) p.removePotionEffect(org.bukkit.potion.PotionEffectType.INVISIBILITY);
         p.teleport(s.origin);
         p.setInvulnerable(s.wasInvulnerable);
         for (Player other : Bukkit.getOnlinePlayers()) if (other != p) other.showPlayer(plugin, p);
+        makeVisible(p);
         p.updateInventory();
+        // the hands were sent as empty to the player only: send the real ones back
+        p.sendEquipmentChange(p, java.util.Map.of(org.bukkit.inventory.EquipmentSlot.HAND, p.getInventory().getItemInMainHand(),
+                org.bukkit.inventory.EquipmentSlot.OFF_HAND, p.getInventory().getItemInOffHand()));
+        // and again a little later: the game recomputes visibility from effects on its own tick
+        for (long delay : new long[]{1, 5, 20}) Bukkit.getScheduler().runTaskLater(plugin, () -> {
+            if (p.isOnline() && !inWardrobe(p)) makeVisible(p);
+        }, delay);
         p.getPersistentDataContainer().remove(keyReturn);
         if (sound) p.playSound(s.origin, Sound.BLOCK_WOODEN_DOOR_CLOSE, 0.8f, 1.2f);
         for (long delay : new long[]{1, 10, 40}) Bukkit.getScheduler().runTaskLater(plugin, () -> refresh(p), delay);
         equipped(p).ifPresent(c -> p.sendMessage(Lang.msg("wardrobe.left", "cosmetic", displayName(c))));
+    }
+
+    /**
+     * Undoes the wardrobe's invisibility for good: the invisibility we added (marked on the player, or the
+     * infinite hidden one an older version left without a mark), and the invisible flag spectator mode sets.
+     */
+    private void makeVisible(Player p) {
+        if (inWardrobe(p)) return;
+        var type = org.bukkit.potion.PotionEffectType.INVISIBILITY;
+        org.bukkit.potion.PotionEffect inv = p.getPotionEffect(type);
+        boolean marked = p.getPersistentDataContainer().has(keyInvisible);
+        boolean ours = inv != null && inv.isInfinite() && !inv.hasIcon() && !inv.hasParticles() && inv.getAmplifier() == 0;
+        if (inv != null && (marked || ours)) p.removePotionEffect(type);
+        p.getPersistentDataContainer().remove(keyInvisible);
+        if (!p.hasPotionEffect(type) && p.getGameMode() != GameMode.SPECTATOR && p.isInvisible()) p.setInvisible(false);
     }
 
     /** After a crash the player may still be at the viewing spot: put them back. */

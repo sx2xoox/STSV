@@ -9,7 +9,7 @@ stocks:
     - "LLLLLLLLL"
     - "LLLLLLLLL"
     - "LLLLLLLLL"
-    - "P.UVXWNIQ"
+    - "P..SXI..Q"
   list: L
   buttons:
     A: { action: "stock:tab:all", icon: economy:gui/chart, material: PAPER, name: "<white>전체" }
@@ -22,7 +22,7 @@ stocks:
     H:
       action: "stock:tab:mine"
       icon: economy:gui/bag
-      material: BUNDLE
+      material: PAPER
       name: "<aqua>내 주식"
       lore: ["<gray>가치 <white>{value}", "<gray>손익 <white>{sign}{profit}"]
     M:
@@ -32,11 +32,14 @@ stocks:
       name: "<gold>최근 뉴스"
       lore: ["<gray>채팅으로 최근 뉴스 10개"]
     P: { action: "page:prev", icon: stsv:gui/prev, material: ARROW, name: "<yellow>◀ 이전 페이지", lore: ["<gray>{page} / {pages}"], off: { icon: stsv:gui/prev_off, material: GRAY_DYE, name: "<dark_gray>◀ 첫 페이지" } }
-    U: { action: "stock:sort:up", icon: economy:gui/rise, material: LIME_DYE, name: "<#ff5f57>오늘 많이 오른 순" }
-    V: { action: "stock:sort:popular", icon: economy:gui/trophy, material: GOLD_INGOT, name: "<yellow>오늘 많이 산 순" }
     X: { action: close, icon: stsv:gui/exit, material: OAK_DOOR, name: "<red>닫기" }
-    W: { action: "stock:sort:down", icon: economy:gui/fall, material: RED_DYE, name: "<#4d9bff>오늘 많이 내린 순" }
-    N: { action: "stock:sort:industry", icon: economy:gui/refresh, material: COMPASS, name: "<white>산업순" }
+    # 정렬: 누를 때마다 산업순 → 오른 순 → 내린 순 → 많이 산 순 (우클릭은 거꾸로). 아이콘은 지금 정렬에 맞게 바뀜
+    S:
+      action: "stock:sort:next"
+      icon: economy:gui/refresh
+      material: COMPASS
+      name: "<white>정렬: {sort}"
+      lore: ["<gray>클릭: 다음 정렬 · 우클릭: 이전", "<dark_gray>산업순 → 오른 순 → 내린 순 → 많이 산 순"]
     I:
       action: "stock:help"
       icon: stsv:gui/info
@@ -55,10 +58,10 @@ stock:
   layout:
     - "........."
     - "........."
-    - "I.ABC...N"
-    - ".1.2.3.H."
-    - ".4.5.6.Z."
-    - "R...X...."
+    - "I..ABC..N"
+    - "...123..."
+    - "...456..."
+    - "R..H.Z..X"
   buttons:
     I:
       action: ""
@@ -82,7 +85,7 @@ stock:
     H:
       action: ""
       icon: economy:gui/bag
-      material: BUNDLE
+      material: PAPER
       name: "<aqua>내 주식 {have}주"
       lore: ["<gray>가치 <white>{value}", "<gray>손익 <white>{sign}{profit}", "<gray>지금 팔 수 있는 수 {sellable}주 <dark_gray>(산 지 10분 뒤부터)"]
     "4": { action: "stock:sell:1", icon: economy:gui/sell_1, material: RED_DYE, name: "<#4d9bff>1주 팔기" }

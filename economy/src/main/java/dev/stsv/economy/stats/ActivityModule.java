@@ -41,11 +41,6 @@ public final class ActivityModule extends EcoModule implements DailyListener {
             for (Player p : Bukkit.getOnlinePlayers()) count(p);
             store.flush();
         });
-        core.hud().line("eco-today", 10, p -> {
-            if (!eco.getConfig().getBoolean("hud.today")) return null;
-            long delta = core.economy().balance(p.getUniqueId()) - store.startBalance(p.getUniqueId(), core.economy().balance(p.getUniqueId()));
-            return Lang.mm(delta >= 0 ? "activity.hud-up" : "activity.hud-down", "amount", String.format("%,d", Math.abs(delta)));
-        });
         eco.calendar().onDaily(this);
     }
 
@@ -53,7 +48,6 @@ public final class ActivityModule extends EcoModule implements DailyListener {
     protected void stop() {
         for (Player p : Bukkit.getOnlinePlayers()) count(p);
         store.flush();
-        core.hud().removeLine("eco-today");
     }
 
     public ActivityStore store() {

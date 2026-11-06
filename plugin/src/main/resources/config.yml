@@ -76,7 +76,7 @@ profiles:
   hall-size: 3
 
 
-# 화면 아래 상태 줄 (액션바). 다른 안내 문구가 뜨면 잠시 비켜줌
+# 화면 아래 상태 줄 (액션바, 다른 안내 문구가 뜨면 잠시 비켜줌)과 오른쪽 사이드바를 새로 그리는 간격
 hud:
   refresh-ticks: 20
   flash-seconds: 3
@@ -91,5 +91,5 @@ economy:
   confirm-over: 10000
   # 수표 최소 금액
   cheque-min: 100
-  # 화면 아래 상태 줄에 잔액 표시
+  # 오른쪽 사이드바에 잔액 표시
   hud: true

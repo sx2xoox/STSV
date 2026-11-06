@@ -43,11 +43,14 @@ python3 tools/assetgen/check_vanilla.py <경로>/assets/minecraft
 
 새 jar로 바꾸고 서버를 재시작하면 기본 콘텐츠(`contents/stsv`)도 자동으로 새 버전이 됩니다.
 **직접 수정한 파일은 덮어쓰지 않고** 콘솔에 알려줍니다.
+문구(`plugins/<플러그인>/messages.yml`)도 같습니다: 예전 기본 문구 그대로인 줄은 새 문구로 바뀌고, 직접 고친 줄은 그대로 남습니다.
 
-배포 전에 (콘텐츠 변경을 커밋한 다음) 아래를 실행해 이전 버전 기록을 갱신합니다:
+배포 전에 (콘텐츠·문구 변경을 커밋한 다음) 아래를 실행해 이전 버전 기록을 갱신합니다:
 ```bash
 python3 tools/content_history.py
 python3 tools/content_history.py economy/content economy/src/main/resources/default-content-history.txt
+python3 tools/messages_history.py plugin
+python3 tools/messages_history.py economy
 ```
 
 ## 서버에서 콘텐츠 추가하기

@@ -356,7 +356,9 @@ def all_icons():
 # ------------------------------------------------------------------------------------------------
 
 RING, RC, SEG = 56, 28, 48
-RING_HEIGHT, RING_ASCENT = 14, 9
+# shown at half size (height 28): one glyph pixel = two GUI pixels in the title. The ascent keeps the
+# ring's bottom where the first, smaller ring had it (above the subtitle): it grew upwards
+RING_HEIGHT, RING_ASCENT = 28, 23
 BASE_CH = 0xE000            # base rings: + rim (0 normal, 1 white flash, 2 gold, 3 red)
 CENTER_CH = 0xE010          # silhouettes: + shape * 4 + rarity
 GREEN_CH, GOLD_CH, RED_CH, NEEDLE_CH = 0xE100, 0xE140, 0xE180, 0xE1C0
@@ -545,7 +547,7 @@ def write_content(pack: Path, icons):
             continue
         hname = HABITATS[group(fid)][0] if group(fid) in HABITATS else hab
         items += [f"{fid}:", "  material: paper", f'  name: "<{RARITY[rar][2]}>{name}"',
-                  f'  lore: ["<gray>{hname} · {RARITY[rar][1]}", "<dark_gray>낚시 · {lo}~{hi}cm"]', f"  texture: {fid}", ""]
+                  f'  lore: ["<gray>{hname} · {RARITY[rar][1]}"]', f"  texture: {fid}", ""]
     (pack / "items" / "fish.yml").write_text("\n".join(items).rstrip() + "\n", encoding="utf-8")
 
     shop = (pack / "shop.yml").read_text(encoding="utf-8")

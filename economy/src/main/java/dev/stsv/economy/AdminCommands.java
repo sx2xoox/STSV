@@ -99,8 +99,8 @@ final class AdminCommands {
             if (key.equals("stock-board")) eco.stocks().updateBoard();
         }, (s, args) -> List.of("시세판", "주식판", "월드보스", "기념비1", "기념비2", "기념비3"));
 
-        add("주식", "상장 <이름> <산업> <발행수> <시작가> | 상장폐지 <회사> | 가격 <회사> <가격> | 뉴스 <회사> <+/-%> [내용] | 정지 <회사> | 재개 <회사> | 성격 <회사> <변동성|민감도|배당> <값> | 움직이기",
-                "주식 관리: 회사 상장·상장폐지(보유자에게 현재가로 정산), 주가 지정, 회사 뉴스, 거래 정지·재개, 성격 바꾸기, 주가 한 번 움직이기 (테스트)", (s, args) -> {
+        add("주식", "상장 <이름> <산업> <발행수> <시작가> | 상장폐지 <회사> | 가격 <회사> <가격> | 뉴스 <회사> <+/-%> [내용] | 정지 <회사> | 재개 <회사> | 성격 <회사> <변동성|민감도|배당> <값> | 움직이기 [횟수]",
+                "주식 관리: 회사 상장·상장폐지(보유자에게 현재가로 정산), 주가 지정, 회사 뉴스, 거래 정지·재개, 성격 바꾸기, 주가를 N번(기본 6번 = 1시간어치) 움직이기 (테스트)", (s, args) -> {
             var st = eco.stocks();
             String sub = args.length > 0 ? args[0] : "";
             try {
@@ -114,8 +114,10 @@ final class AdminCommands {
                         s.sendMessage(Text.msg(err == null ? "<green>상장: " + args[1] : "<red>" + err));
                     }
                     case "움직이기" -> {
-                        st.forceTick();
-                        s.sendMessage(Text.msg("<green>주가를 한 번 움직였습니다."));
+                        int n = args.length > 1 ? Math.max(1, Math.min(144, Integer.parseInt(args[1]))) : 6;
+                        var movers = st.forceTicks(n);
+                        s.sendMessage(Text.msg("<green>주가를 " + n + "번 움직였습니다 <gray>(10분씩, " + EventModule.hoursText(n * 600_000L) + "어치)"));
+                        for (String line : movers) s.sendMessage(Text.mm(" <gray>" + line));
                     }
                     default -> {
                         var c = args.length > 1 ? st.find(args[1]) : null;

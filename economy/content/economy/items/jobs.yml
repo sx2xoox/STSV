@@ -1,4 +1,4 @@
-# 직업 발견품, 직업 기계 생산품, 직업 기계.
+# 직업 발견품, 직업 기계 생산품, 직업 기계. 설명은 꼭 필요한 것만 (만드는 법은 기계의 레시피 목록에, 만든 사람은 제작 표시에).
 # 생산품은 누구나 직업 기계로 만들 수 있음 (그 직업이면 빠르고 경험치·효과). 레시피는 machines.yml.
 # 아이콘: tools/assetgen/economy_goods.py, 기계 모델: tools/assetgen/economy_machines.py
 
@@ -6,258 +6,219 @@
 rough_ruby:
   material: paper
   name: "<#9fb4c8>루비 원석"
-  lore: ["<gray>광부가 레드스톤·철 광석에서 가끔 발견.", "<dark_gray>광부 발견품"]
   texture: rough_ruby
 
 rough_sapphire:
   material: paper
   name: "<#9fb4c8>사파이어 원석"
-  lore: ["<gray>광부가 청금석·다이아몬드 광석에서 가끔 발견.", "<dark_gray>광부 발견품"]
   texture: rough_sapphire
 
 red_seabream:
   material: paper
   name: "<#4fc3f7>참돔"
-  lore: ["<gray>어부가 낚시로 가끔 낚는 붉은 생선.", "<dark_gray>어부 발견품"]
+  lore: ["<gray>바다 · 희귀"]
   texture: red_seabream
 
 pearl:
   material: paper
   name: "<#4fc3f7>진주"
-  lore: ["<gray>어부가 낚시로 가끔 건지는 조개 속 진주.", "<dark_gray>어부 발견품"]
   texture: pearl
 
 bluefin_tuna:
   material: paper
   name: "<#4fc3f7>참다랑어"
-  lore: ["<gray>어부가 드물게 낚는 큰 물고기.", "<dark_gray>어부 발견품"]
+  lore: ["<gray>바다 · 전설"]
   texture: bluefin_tuna
 
 sturgeon:
   material: paper
   name: "<#4fc3f7>철갑상어"
-  lore: ["<gray>어부가 아주 드물게 낚는 귀한 물고기.", "<dark_gray>어부 발견품"]
+  lore: ["<gray>강 · 전설"]
   texture: sturgeon
 
 # ── 세공대 · 광부 ─────────────────────────────────────────
 ruby:
   material: paper
   name: "<#9fb4c8>루비"
-  lore: ["<gray>세공대: 루비 원석 → 루비", "<dark_gray>광부 생산품"]
   texture: ruby
 
 sapphire:
   material: paper
   name: "<#9fb4c8>사파이어"
-  lore: ["<gray>세공대: 사파이어 원석 → 사파이어", "<dark_gray>광부 생산품"]
   texture: sapphire
 
 coke:
   material: paper
   name: "<#9fb4c8>코크스"
-  lore: ["<gray>세공대: 석탄 8 → 코크스", "<dark_gray>광부 생산품"]
   texture: coke
 
 copper_plate:
   material: paper
   name: "<#9fb4c8>구리판"
-  lore: ["<gray>세공대: 구리 주괴 8 → 구리판", "<dark_gray>광부 생산품"]
   texture: copper_plate
 
 ruby_ring:
   material: paper
   name: "<#9fb4c8>루비 반지"
-  lore: ["<gray>세공대 1강: 금 주괴 2 + 루비 → 루비 반지", "<dark_gray>광부 생산품"]
   texture: ruby_ring
 
 pearl_necklace:
   material: paper
   name: "<#9fb4c8>진주 목걸이"
-  lore: ["<gray>세공대 2강: 연마 진주 + 금 주괴 2 + 사파이어 → 진주 목걸이", "<dark_gray>광부 생산품"]
   texture: pearl_necklace
 
 jeweled_crown:
   material: paper
   name: "<#9fb4c8>보석 왕관"
-  lore: ["<gray>세공대 3강: 금 주괴 8 + 루비 반지 2 + 진주 목걸이 → 보석 왕관", "<dark_gray>광부 생산품"]
   texture: jeweled_crown
 
 # ── 가공대 · 농부 ─────────────────────────────────────────
 rice:
   material: paper
   name: "<#8bc34a>쌀"
-  lore: ["<gray>가공대: 벼 4 → 쌀", "<dark_gray>농부 생산품"]
   texture: rice
 
 flour:
   material: paper
   name: "<#8bc34a>밀가루"
-  lore: ["<gray>가공대: 밀 4 → 밀가루", "<dark_gray>농부 생산품"]
   texture: flour
 
 tofu:
   material: paper
   name: "<#8bc34a>두부"
-  lore: ["<gray>가공대: 콩 4 → 두부", "<dark_gray>농부 생산품"]
   texture: tofu
 
 chili_powder:
   material: paper
   name: "<#8bc34a>고춧가루"
-  lore: ["<gray>가공대: 고추 4 → 고춧가루", "<dark_gray>농부 생산품"]
   texture: chili_powder
 
 corn_flour:
   material: paper
   name: "<#8bc34a>옥수수 가루"
-  lore: ["<gray>가공대: 옥수수 2 → 옥수수 가루", "<dark_gray>농부 생산품"]
   texture: corn_flour
 
 grape_juice:
   material: paper
   name: "<#8bc34a>포도즙"
-  lore: ["<gray>가공대 1강: 포도 4 → 포도즙", "<dark_gray>농부 생산품"]
   texture: grape_juice
 
 dried_zucchini:
   material: paper
   name: "<#8bc34a>호박고지"
-  lore: ["<gray>가공대 1강: 애호박 3 → 호박고지", "<dark_gray>농부 생산품"]
   texture: dried_zucchini
 
 tomato_sauce:
   material: paper
   name: "<#8bc34a>토마토 소스"
-  lore: ["<gray>가공대 1강: 토마토 4 → 토마토 소스", "<dark_gray>농부 생산품"]
   texture: tomato_sauce
 
 doenjang:
   material: paper
   name: "<#8bc34a>된장"
-  lore: ["<gray>가공대 2강: 콩 8 → 된장", "<dark_gray>농부 생산품"]
   texture: doenjang
 
 gochujang:
   material: paper
   name: "<#8bc34a>고추장"
-  lore: ["<gray>가공대 2강: 고춧가루 + 쌀 + 콩 2 → 고추장", "<dark_gray>농부 생산품"]
   texture: gochujang
 
 jang_set:
   material: paper
   name: "<#8bc34a>전통 장 세트"
-  lore: ["<gray>가공대 3강: 된장 2 + 고추장 2 → 전통 장 세트", "<dark_gray>농부 생산품"]
   texture: jang_set
 
 # ── 손질대 · 어부 ─────────────────────────────────────────
 cod_fillet:
   material: paper
   name: "<#4fc3f7>대구 필렛"
-  lore: ["<gray>손질대: 대구 2 → 대구 필렛", "<dark_gray>어부 생산품"]
   texture: cod_fillet
 
 salmon_fillet:
   material: paper
   name: "<#4fc3f7>연어 필렛"
-  lore: ["<gray>손질대: 연어 2 → 연어 필렛", "<dark_gray>어부 생산품"]
   texture: salmon_fillet
 
 dried_pollack:
   material: paper
   name: "<#4fc3f7>북어"
-  lore: ["<gray>손질대: 대구 3 → 북어", "<dark_gray>어부 생산품"]
   texture: dried_pollack
 
 prepared_puffer:
   material: paper
   name: "<#4fc3f7>손질한 복어"
-  lore: ["<gray>손질대: 복어 → 손질한 복어", "<dark_gray>어부 생산품"]
   texture: prepared_puffer
 
 smoked_salmon:
   material: paper
   name: "<#4fc3f7>훈제 연어"
-  lore: ["<gray>손질대 1강: 연어 3 → 훈제 연어", "<dark_gray>어부 생산품"]
   texture: smoked_salmon
 
 seabream_sashimi:
   material: paper
   name: "<#4fc3f7>참돔 회"
-  lore: ["<gray>손질대 1강: 참돔 → 참돔 회 2", "<dark_gray>어부 생산품"]
   texture: seabream_sashimi
 
 tuna_sashimi:
   material: paper
   name: "<#4fc3f7>참치 회"
-  lore: ["<gray>손질대 1강: 참다랑어 → 참치 회 4", "<dark_gray>어부 생산품"]
   texture: tuna_sashimi
 
 polished_pearl:
   material: paper
   name: "<#4fc3f7>연마 진주"
-  lore: ["<gray>손질대 2강: 진주 → 연마 진주", "<dark_gray>어부 생산품"]
   texture: polished_pearl
 
 fishcake:
   material: paper
   name: "<#4fc3f7>어묵"
-  lore: ["<gray>손질대 2강: 대구 필렛 2 + 밀가루 + 파 → 어묵 3", "<dark_gray>어부 생산품"]
   texture: fishcake
 
 caviar:
   material: paper
   name: "<#4fc3f7>캐비아"
-  lore: ["<gray>손질대 3강: 철갑상어 → 캐비아 3", "<dark_gray>어부 생산품"]
   texture: caviar
 
 # ── 대장간 · 대장장이 ─────────────────────────────────────────
 iron_plate:
   material: paper
   name: "<#ff8a65>철판"
-  lore: ["<gray>대장간: 철 주괴 4 → 철판", "<dark_gray>대장장이 생산품"]
   texture: iron_plate
 
 iron_chain:
   material: paper
   name: "<#ff8a65>쇠사슬"
-  lore: ["<gray>대장간: 철 주괴 3 → 쇠사슬", "<dark_gray>대장장이 생산품"]
   texture: iron_chain
 
 gold_leaf:
   material: paper
   name: "<#ff8a65>금박"
-  lore: ["<gray>대장간: 금 주괴 2 → 금박 4", "<dark_gray>대장장이 생산품"]
   texture: gold_leaf
 
 steel_ingot:
   material: paper
   name: "<#ff8a65>강철괴"
-  lore: ["<gray>대장간 1강: 철 주괴 2 + 코크스 → 강철괴", "<dark_gray>대장장이 생산품"]
   texture: steel_ingot
 
 oak_barrel:
   material: paper
   name: "<#ff8a65>참나무통"
-  lore: ["<gray>대장간 1강: 참나무 원목 6 + 철판 → 참나무통", "<dark_gray>대장장이 생산품"]
   texture: oak_barrel
 
 steel_toolset:
   material: paper
   name: "<#ff8a65>강철 공구 세트"
-  lore: ["<gray>대장간 2강: 강철괴 2 + 쇠사슬 + 원목 2 → 강철 공구 세트", "<dark_gray>대장장이 생산품"]
   texture: steel_toolset
 
 ornate_armor:
   material: paper
   name: "<#ff8a65>장식용 갑옷"
-  lore: ["<gray>대장간 3강: 강철괴 4 + 금박 4 + 루비 2 → 장식용 갑옷", "<dark_gray>대장장이 생산품"]
   texture: ornate_armor
 
 # ── 조리대 · 요리사 ─────────────────────────────────────────
 kimchi:
   material: paper
   name: "<#ffb74d>김치"
-  lore: ["<gray>조리대: 배추 2 + 고춧가루 + 마늘 2 → 김치 2", "<dark_gray>요리사 생산품"]
   texture: kimchi
   food:
     nutrition: 6
@@ -266,7 +227,6 @@ kimchi:
 kkakdugi:
   material: paper
   name: "<#ffb74d>깍두기"
-  lore: ["<gray>조리대: 무 2 + 고춧가루 + 마늘 → 깍두기 2", "<dark_gray>요리사 생산품"]
   texture: kkakdugi
   food:
     nutrition: 6
@@ -275,7 +235,6 @@ kkakdugi:
 oi_sobagi:
   material: paper
   name: "<#ffb74d>오이소박이"
-  lore: ["<gray>조리대: 오이 2 + 고춧가루 + 파 → 오이소박이 2", "<dark_gray>요리사 생산품"]
   texture: oi_sobagi
   food:
     nutrition: 6
@@ -284,7 +243,6 @@ oi_sobagi:
 eggplant_stirfry:
   material: paper
   name: "<#ffb74d>가지볶음"
-  lore: ["<gray>조리대: 가지 2 + 양파 + 마늘 → 가지볶음 2", "<dark_gray>요리사 생산품"]
   texture: eggplant_stirfry
   food:
     nutrition: 6
@@ -293,7 +251,6 @@ eggplant_stirfry:
 hobakjeon:
   material: paper
   name: "<#ffb74d>호박전"
-  lore: ["<gray>조리대: 밀가루 + 애호박 + 달걀 → 호박전 2", "<dark_gray>요리사 생산품"]
   texture: hobakjeon
   food:
     nutrition: 6
@@ -302,7 +259,6 @@ hobakjeon:
 sundubu_jjigae:
   material: paper
   name: "<#ffb74d>순두부찌개"
-  lore: ["<gray>조리대: 두부 + 고춧가루 + 달걀 → 순두부찌개 2", "<dark_gray>요리사 생산품"]
   texture: sundubu_jjigae
   food:
     nutrition: 6
@@ -311,7 +267,6 @@ sundubu_jjigae:
 tuna_sushi:
   material: paper
   name: "<#ffb74d>참치 초밥"
-  lore: ["<gray>조리대 1강: 쌀 + 참치 회 → 참치 초밥 2", "<dark_gray>요리사 생산품"]
   texture: tuna_sushi
   food:
     nutrition: 8
@@ -320,7 +275,6 @@ tuna_sushi:
 strawberry_cake:
   material: paper
   name: "<#ffb74d>딸기 케이크"
-  lore: ["<gray>조리대 1강: 밀가루 2 + 딸기 3 + 달걀 → 딸기 케이크", "<dark_gray>요리사 생산품"]
   texture: strawberry_cake
   food:
     nutrition: 8
@@ -329,7 +283,6 @@ strawberry_cake:
 tomato_pasta:
   material: paper
   name: "<#ffb74d>토마토 파스타"
-  lore: ["<gray>조리대 1강: 밀가루 + 토마토 소스 + 양파 → 토마토 파스타", "<dark_gray>요리사 생산품"]
   texture: tomato_pasta
   food:
     nutrition: 8
@@ -338,7 +291,6 @@ tomato_pasta:
 corn_bread:
   material: paper
   name: "<#ffb74d>옥수수빵"
-  lore: ["<gray>조리대 1강: 옥수수 가루 2 + 달걀 + 설탕 → 옥수수빵 2", "<dark_gray>요리사 생산품"]
   texture: corn_bread
   food:
     nutrition: 8
@@ -347,7 +299,6 @@ corn_bread:
 bibimbap:
   material: paper
   name: "<#ffb74d>비빔밥"
-  lore: ["<gray>조리대 2강: 쌀 + 고추장 + 상추 2 → 비빔밥", "<dark_gray>요리사 생산품"]
   texture: bibimbap
   food:
     nutrition: 10
@@ -356,7 +307,6 @@ bibimbap:
 grilled_fish_set:
   material: paper
   name: "<#ffb74d>생선구이 정식"
-  lore: ["<gray>조리대 2강: 대구 필렛 2 + 쌀 + 김치 → 생선구이 정식", "<dark_gray>요리사 생산품"]
   texture: grilled_fish_set
   food:
     nutrition: 10
@@ -365,7 +315,6 @@ grilled_fish_set:
 hanjeongsik:
   material: paper
   name: "<#ffb74d>한정식"
-  lore: ["<gray>조리대 3강: 비빔밥 + 생선구이 정식 + 된장 → 한정식", "<dark_gray>요리사 생산품"]
   texture: hanjeongsik
   food:
     nutrition: 14
@@ -375,50 +324,43 @@ hanjeongsik:
 makgeolli:
   material: paper
   name: "<#ba68c8>막걸리"
-  lore: ["<gray>증류기: 쌀 2 + 밀 4 → 막걸리 2", "<dark_gray>연금술사 생산품"]
   texture: makgeolli
 
 soju:
   material: paper
   name: "<#ba68c8>소주"
-  lore: ["<gray>증류기: 막걸리 2 → 소주", "<dark_gray>연금술사 생산품"]
   texture: soju
 
 melon_syrup:
   material: paper
   name: "<#ba68c8>멜론 시럽"
-  lore: ["<gray>증류기: 멜론 + 설탕 2 → 멜론 시럽 2", "<dark_gray>연금술사 생산품"]
   texture: melon_syrup
 
 wine:
   material: paper
   name: "<#ba68c8>포도주"
-  lore: ["<gray>증류기 1강: 포도즙 2 → 포도주", "<dark_gray>연금술사 생산품"]
   texture: wine
 
 melon_liqueur:
   material: paper
   name: "<#ba68c8>멜론 리큐어"
-  lore: ["<gray>증류기 1강: 멜론 시럽 + 소주 → 멜론 리큐어", "<dark_gray>연금술사 생산품"]
   texture: melon_liqueur
 
 pearl_perfume:
   material: paper
   name: "<#ba68c8>진주 향수"
-  lore: ["<gray>증류기 2강: 소주 + 연마 진주 + 꽃 4 → 진주 향수", "<dark_gray>연금술사 생산품"]
   texture: pearl_perfume
 
 vintage_wine:
   material: paper
   name: "<#ba68c8>빈티지 포도주"
-  lore: ["<gray>증류기 3강: 포도주 3 + 참나무통 → 빈티지 포도주", "<dark_gray>연금술사 생산품"]
   texture: vintage_wine
 
 # ── 직업 기계 (가구) ─────────────────────────────────────────────
 gem_bench:
   material: paper
   name: "<#9fb4c8>세공대"
-  lore: ["<gray>원석을 보석으로, 금과 보석으로 장신구를.", "<dark_gray>광부 기계 · 2×1×2 · 누구나 사용 (광부면 빠르고 경험치)", "<dark_gray>설치 후 우클릭 · 강화는 설치한 사람이"]
+  lore: ["<gray>광부 기계 · 2×1×2", "<dark_gray>설치하고 우클릭"]
   model: gem_bench_0
   max-stack: 1
   furniture:
@@ -430,7 +372,7 @@ gem_bench:
 mill:
   material: paper
   name: "<#8bc34a>가공대"
-  lore: ["<gray>곡식과 콩을 빻고, 장을 담그고 숙성.", "<dark_gray>농부 기계 · 2×2×2 · 누구나 사용 (농부면 빠르고 경험치)", "<dark_gray>설치 후 우클릭 · 강화는 설치한 사람이"]
+  lore: ["<gray>농부 기계 · 2×2×2", "<dark_gray>설치하고 우클릭"]
   model: mill_0
   max-stack: 1
   furniture:
@@ -442,7 +384,7 @@ mill:
 fish_bench:
   material: paper
   name: "<#4fc3f7>손질대"
-  lore: ["<gray>생선을 손질하고 회를 뜨고, 진주를 연마.", "<dark_gray>어부 기계 · 2×1×2 · 누구나 사용 (어부면 빠르고 경험치)", "<dark_gray>설치 후 우클릭 · 강화는 설치한 사람이"]
+  lore: ["<gray>어부 기계 · 2×1×2", "<dark_gray>설치하고 우클릭"]
   model: fish_bench_0
   max-stack: 1
   furniture:
@@ -452,7 +394,7 @@ fish_bench:
 forge:
   material: paper
   name: "<#ff8a65>대장간"
-  lore: ["<gray>철과 금을 두드려 판·사슬·강철로.", "<dark_gray>대장장이 기계 · 2×2×3 · 누구나 사용 (대장장이면 빠르고 경험치)", "<dark_gray>설치 후 우클릭 · 강화는 설치한 사람이"]
+  lore: ["<gray>대장장이 기계 · 2×2×3", "<dark_gray>설치하고 우클릭"]
   model: forge_0
   max-stack: 1
   furniture:
@@ -463,7 +405,7 @@ forge:
 kitchen:
   material: paper
   name: "<#ffb74d>조리대"
-  lore: ["<gray>김치부터 한정식까지, 요리를.", "<dark_gray>요리사 기계 · 3×1×2 · 누구나 사용 (요리사면 빠르고 경험치)", "<dark_gray>설치 후 우클릭 · 강화는 설치한 사람이"]
+  lore: ["<gray>요리사 기계 · 3×1×2", "<dark_gray>설치하고 우클릭"]
   model: kitchen_0
   max-stack: 1
   furniture:
@@ -473,7 +415,7 @@ kitchen:
 still:
   material: paper
   name: "<#ba68c8>증류기"
-  lore: ["<gray>막걸리를 빚고 소주를 내리고, 포도주를 숙성.", "<dark_gray>연금술사 기계 · 2×2×3 · 누구나 사용 (연금술사면 빠르고 경험치)", "<dark_gray>설치 후 우클릭 · 강화는 설치한 사람이"]
+  lore: ["<gray>연금술사 기계 · 2×2×3", "<dark_gray>설치하고 우클릭"]
   model: still_0
   max-stack: 1
   furniture:

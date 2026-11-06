@@ -4,12 +4,12 @@ codex:
   rows: 6
   background: economy:gui/codex
   layout:
-    - "F.......I"
+    - "F...A...I"
     - "LLLLLLLLL"
     - "LLLLLLLLL"
     - "LLLLLLLLL"
     - "LLLLLLLLL"
-    - "P..GAH.XN"
+    - "P.G.X.H.N"
   list: L
   buttons:
     F:

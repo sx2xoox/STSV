@@ -62,7 +62,7 @@ import java.util.function.BiPredicate;
 public final class MachineModule extends EcoModule {
 
     static final int SIZE = 54, LANES = 4;
-    static final int BOOK = 0, INFO = 4, UPGRADE = 8, COLLECT = 47, CLOSE = 49;
+    static final int BOOK = 0, INFO = 4, UPGRADE = 8, COLLECT = 48, CLOSE = 50;
     public static final NamespacedKey TIER = new NamespacedKey("economy", "machine_tier");
     public static final NamespacedKey MAKER = new NamespacedKey("economy", "maker");
 

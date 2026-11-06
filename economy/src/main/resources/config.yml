@@ -11,9 +11,9 @@ pvp:
   always: false
 
 hud:
-  # 화면 아래 상태 줄: 오늘 손익, 직업 레벨
-  today: true
+  # 오른쪽 사이드바: 직업 레벨, 진행 중인 사건
   job: true
+  event: true
 
 report:
   # 경제 보고서 (/관리자 보고서, 매일 05시): 만들어진 돈 중 다시 없어져야 할 비율 (소멸/생성 목표)

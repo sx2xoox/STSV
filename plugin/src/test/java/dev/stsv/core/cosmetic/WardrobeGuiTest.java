@@ -128,6 +128,10 @@ class WardrobeGuiTest {
         Integer panel = null;
         for (MenuSpec m : menus) {
             assertNotNull(m.background(), m.id() + " has a background");
+            for (String row : m.layout()) {
+                String used = row.replaceAll("[^.]", "#");
+                assertEquals(new StringBuilder(used).reverse().toString(), used, m.id() + " row " + row + " is symmetric");
+            }
             BufferedImage im = ImageIO.read(ASSETS.resolve("textures/" + m.background().getKey() + ".png").toFile());
             // one look: the same panel colour beside the title on every menu
             int here = im.getRGB(100, 8);

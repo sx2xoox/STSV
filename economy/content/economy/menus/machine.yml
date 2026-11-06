@@ -1,5 +1,5 @@
 # 직업 기계 창. 칸 위치는 플러그인 고정: 줄 k(0~3) = 재료 9(k+1)+1~3, 상태 9(k+1)+5, 결과 9(k+1)+7.
-# 위: 레시피 목록(0), 기계 정보(4), 강화(8). 아래: 결과 전부 받기(47), 닫기(49). 여기서는 제목·배경·버튼 모양만
+# 위: 레시피 목록(0), 기계 정보(4), 강화(8). 아래: 결과 전부 받기(48), 닫기(50). 여기서는 제목·배경·버튼 모양만
 machine:
   title: "<#f3e3b0>{machine}"
   rows: 6
@@ -13,7 +13,7 @@ machine:
     - ".III.S.O."
     - ".III.S.O."
     - ".III.S.O."
-    - "..C.X...."
+    - "...C.X..."
   buttons:
     R: { action: "", material: AIR, name: " " }
     N: { action: "", material: AIR, name: " " }
@@ -35,7 +35,7 @@ machine_recipes:
     - "LLLLLLLLL"
     - "LLLLLLLLL"
     - "LLLLLLLLL"
-    - "B...X...."
+    - "...B.X..."
   list: L
   buttons:
     I:

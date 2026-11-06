@@ -14,6 +14,8 @@ event:
   start-instant: "<gold><b>사건: {event}</b></gold> <white>{detail}"
   end: "<gray>사건이 끝났습니다: <white>{event}"
   bar: "<gold>{event}</gold> <white>{detail}</white> <gray>· 남은 시간 {left}"
+  sidebar: "<gray>사건 <gold>{event} <dark_gray>{left}"
+  sidebar-detail: "<white>{detail}"
 
 time:
   hours: "{h}시간 {m}분"
@@ -32,8 +34,6 @@ pvp:
   disabled: "<red>이 서버는 PvP가 꺼져 있습니다."
 
 activity:
-  hud-up: "<green>오늘 +{amount}"
-  hud-down: "<red>오늘 -{amount}"
 
 mail:
   arrived: "<gray>인벤토리에 자리가 없어 <white>{item}</white>을(를) 우편함에 넣었습니다. <white>/우편함"
@@ -187,8 +187,8 @@ trade:
   cancelled-reload: "<gray>서버 리로드로 거래가 취소되었습니다."
 
 job:
-  hud: "<{color}>{job}<gray> <gray>Lv{level}"
-  hud-none: "<dark_gray>직업 없음 (/직업)"
+  hud: "<gray>직업 <{color}>{job} <white>Lv{level} <dark_gray>{pct}"
+  hud-none: "<gray>직업 <dark_gray>없음 · /직업"
   none: "없음"
   max: "최고 레벨"
   no-job: "<red>직업이 없습니다. <white>/직업"
@@ -289,7 +289,7 @@ stock:
   sold: "<#4d9bff>{company} {count}주를 팔았습니다 <white>{amount} <gray>(수수료 {fee}, 손익 {sign}{profit})"
   up: "<#ff5f57>▲{pct}%"
   down: "<#4d9bff>▼{pct}%"
-  flat: "<gray>-0.0%"
+  flat: "<gray>0.0%"
   news: "<gold>[뉴스]</gold> {line}"
   news-header: "<gold>최근 주식 뉴스"
   news-line: " {line}"
@@ -305,8 +305,8 @@ stock:
   alert-down: "<#4d9bff>[내 주식] <white>{company} <#4d9bff>-{pct}% <gray>· 가치 {value} (손실 {profit}) <dark_gray>· 끄기 /주식 알림"
   alerts-on: "<green>내 주식 알림을 켰습니다."
   alerts-off: "<gray>내 주식 알림을 껐습니다. <dark_gray>(/주식 알림 으로 다시 켜기)"
-  quote: "<white>{company}</white> <{color}>{industry}<gray> <gold>{stars}</gold> <white>{price}</white> {change} <gray>24시간 {spark}"
-  quote-mine: "<gray>내 주식 {count}주 · 가치 {value} · 손익 {sign}{profit}"
+  quote: "<white>{company} <{color}>{industry} <gold>{stars} <white>{price} {change} <dark_gray>· <gray>24시간 {low} ~ {high}"
+  quote-mine: "<gray>내 주식 <white>{count}주 <dark_gray>· <gray>평가 <white>{value} <{color}>{profit} ({pct}%)"
   dividend: "<gold>[배당]</gold> <gray>이번 주 배당금 총 <white>{amount}</white><gray>이 주주들에게 지급됐습니다."
   dividend-you: "<gold>[배당]</gold> <white>{amount}</white><gray>을 받았습니다."
   dividend-yes: "<green>배당 있음"
@@ -330,8 +330,8 @@ stock:
   fee: "수수료 {pct}%"
   fee-first: "첫 매수 수수료 무료"
   fee-free: "수수료 면제 중"
-  icon-lore: ["<{color}>{industry}<gray> <gold>{stars}", "<gray>현재가 <white>{price}</white> {change}", "<gray>24시간 {spark}", "{dividend}"]
-  icon-mine: "<aqua>내 주식 {count}주 · 가치 {value} · {sign}{profit} ({sign}{pct}%)"
+  icon-lore: ["<{color}>{industry}", "<gray>현재가 <white>{price} {change}", "<gray>24시간 {low} ~ {high}", "{dividend}"]
+  icon-mine: ["", "<aqua>내 주식 {count}주", "<gray>평가 <white>{value} <{color}>{profit} ({pct}%)"]
   icon-halted: "<red>거래 정지"
   icon-click: "<dark_gray>클릭: 그래프와 사고팔기"
   board-title: "<gold><b>주식판</b></gold> <gray>(산업 지수, 상장가 = 1,000)"

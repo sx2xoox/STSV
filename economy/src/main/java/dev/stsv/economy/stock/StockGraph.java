@@ -55,6 +55,9 @@ public final class StockGraph {
         return i >= 17 ? -(1 << (i - 17)) : 1 << (i - 1);
     }
 
+    /** The smallest price range the chart shows, as a share of the price. */
+    static final double MIN_BAND = 0.06;
+
     /** Pixel row (0 = top) of a price in a [lo, hi] chart. */
     static int row(double price, double lo, double hi) {
         if (hi - lo < 1e-9) return H / 2;
@@ -72,10 +75,10 @@ public final class StockGraph {
             lo = Math.min(lo, c.low());
             hi = Math.max(hi, c.high());
         }
-        if (hi - lo < hi * 0.01) {          // a flat chart: show a 1% band so noise does not fill it
+        if (hi - lo < hi * MIN_BAND) {      // a quiet chart: at least a 6% band, so a 1% wobble looks like one
             double mid = (hi + lo) / 2;
-            lo = mid * 0.995;
-            hi = mid * 1.005;
+            lo = mid * (1 - MIN_BAND / 2);
+            hi = mid * (1 + MIN_BAND / 2);
         }
         int n = Math.max(slots, candles.size());
         int step = Math.max(4, (RIGHT - LEFT) / n);

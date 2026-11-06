@@ -5,6 +5,7 @@
 #
 # 레시피: in = { 재료: 개수 } (3종류까지, '#logs' 처럼 태그도 됨), out, amount, seconds (기본 속도의 시간),
 #   tier = 열리는 강화 단계 (0 기본 ~ 3), aging = 숙성 (연금술사 Lv20 숙성 절반 대상)
+#   숙성은 오래 걸리는 만큼 많이 나옴 (재료값을 빼고 숙성 1분에 8~20G쯤): 막걸리 4, 포도주 2, 빈티지 2, 된장 4, 고추장 2
 # effect: 작동 중 파티클·소리, at = 모델 좌표 (16 = 한 칸, 바닥 y 0)
 
 upgrade:
@@ -49,8 +50,8 @@ mill:
     - { in: { economy:zucchini: 3 }, out: economy:dried_zucchini, seconds: 60, tier: 1 }   # 호박고지 40G
     - { in: { economy:tomato: 4 }, out: economy:tomato_sauce, seconds: 60, tier: 1 }   # 토마토 소스 36G
     - { in: { wheat: 16 }, out: economy:flour, amount: 5, seconds: 90, tier: 1 }   # 밀가루 12G
-    - { in: { economy:soybean: 8 }, out: economy:doenjang, seconds: 1200, tier: 2, aging: true }   # 된장 48G
-    - { in: { economy:chili_powder: 1, economy:rice: 1, economy:soybean: 2 }, out: economy:gochujang, seconds: 1200, tier: 2, aging: true }   # 고추장 163G
+    - { in: { economy:soybean: 8 }, out: economy:doenjang, amount: 4, seconds: 1200, tier: 2, aging: true }   # 된장 48G
+    - { in: { economy:chili_powder: 1, economy:rice: 1, economy:soybean: 2 }, out: economy:gochujang, amount: 2, seconds: 1200, tier: 2, aging: true }   # 고추장 163G
     - { in: { economy:doenjang: 2, economy:gochujang: 2 }, out: economy:jang_set, seconds: 480, tier: 3 }   # 전통 장 세트 928G
 
 fish_bench:
@@ -114,10 +115,10 @@ still:
   model: still
   effect: { particle: bubble_pop, at: [10, 18, 12.5], sound: block.brewing_stand.brew, volume: 0.35, pitch: 0.8 }
   recipes:
-    - { in: { economy:rice: 2, wheat: 4 }, out: economy:makgeolli, amount: 2, seconds: 600, aging: true }   # 막걸리 50G
+    - { in: { economy:rice: 2, wheat: 4 }, out: economy:makgeolli, amount: 4, seconds: 600, aging: true }   # 막걸리 50G
     - { in: { economy:makgeolli: 2 }, out: economy:soju, seconds: 120 }   # 소주 180G
     - { in: { economy:muskmelon: 1, sugar: 2 }, out: economy:melon_syrup, amount: 2, seconds: 60 }   # 멜론 시럽 21G
-    - { in: { economy:grape_juice: 2 }, out: economy:wine, seconds: 1200, tier: 1, aging: true }   # 포도주 216G
+    - { in: { economy:grape_juice: 2 }, out: economy:wine, amount: 2, seconds: 1200, tier: 1, aging: true }   # 포도주 216G
     - { in: { economy:melon_syrup: 1, economy:soju: 1 }, out: economy:melon_liqueur, seconds: 180, tier: 1 }   # 멜론 리큐어 442G
     - { in: { economy:soju: 1, economy:polished_pearl: 1, "#small_flowers": 4 }, out: economy:pearl_perfume, seconds: 240, tier: 2 }   # 진주 향수 669G
-    - { in: { economy:wine: 3, economy:oak_barrel: 1 }, out: economy:vintage_wine, seconds: 7200, tier: 3, aging: true }   # 빈티지 포도주 1687G
+    - { in: { economy:wine: 3, economy:oak_barrel: 1 }, out: economy:vintage_wine, amount: 2, seconds: 7200, tier: 3, aging: true }   # 빈티지 포도주 1687G

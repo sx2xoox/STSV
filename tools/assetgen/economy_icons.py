@@ -54,6 +54,14 @@ _ECONOMY_UI = ("back", "bag", "chart", "chest", "coins", "crown", "hammer", "led
                "sell_all", "arrow_left", "arrow_right", "rise", "fall", "buy_1", "buy_10", "buy_100", "sell_1", "sell_10", "sell_100", "period_24", "period_7", "period_30")
 GUI = {name: (lambda n=name: _UI.icons()[n]) for name in _ECONOMY_UI}
 
+# company logos for /주식 (economy:gui/logo_<company>, economy_logos.py)
+import economy_logos as _LOGOS   # noqa: E402
+from pathlib import Path as _Path   # noqa: E402
+
+_PACK = _Path(__file__).resolve().parents[2] / "economy" / "content" / "economy"
+for _name, _im in _LOGOS.all_logos(_LOGOS.companies(_PACK)).items():
+    GUI[_name] = (lambda im=_im: im)
+
 
 # ------------------------------------------------------------------------------------------------
 # Crops: seed packets, produce, tools

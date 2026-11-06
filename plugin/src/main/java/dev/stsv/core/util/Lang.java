@@ -28,14 +28,76 @@ public final class Lang {
     private Lang() {}
 
     public static void load(JavaPlugin plugin) {
+        messages = open(plugin);
+    }
+
+    /** plugins/&lt;plugin&gt;/messages.yml with the jar's as defaults; old untouched defaults updated first. */
+    private static YamlConfiguration open(JavaPlugin plugin) {
         File file = new File(plugin.getDataFolder(), "messages.yml");
         if (!file.exists()) plugin.saveResource("messages.yml", false);
         YamlConfiguration y = YamlConfiguration.loadConfiguration(file);
         var bundled = plugin.getResource("messages.yml");
         if (bundled != null) {
-            y.setDefaults(YamlConfiguration.loadConfiguration(new InputStreamReader(bundled, StandardCharsets.UTF_8)));
+            YamlConfiguration defaults = YamlConfiguration.loadConfiguration(new InputStreamReader(bundled, StandardCharsets.UTF_8));
+            java.util.Set<String> history = history(plugin);
+            int changed = upgrade(y, defaults, history);
+            if (changed > 0) {
+                try {
+                    y.save(file);
+                    plugin.getLogger().info("messages.yml: 예전 기본 문구 " + changed + "개를 새 문구로 바꿨습니다 (직접 고친 문구는 그대로).");
+                } catch (java.io.IOException e) {
+                    plugin.getLogger().warning("messages.yml 저장 실패: " + e.getMessage());
+                }
+            }
+            y.setDefaults(defaults);
         }
-        messages = y;
+        return y;
+    }
+
+    /** SHA-1s of every committed default value (tools/messages_history.py), empty if the jar has none. */
+    private static java.util.Set<String> history(JavaPlugin plugin) {
+        var in = plugin.getResource("default-messages-history.txt");
+        if (in == null) return java.util.Set.of();
+        try (var r = new java.io.BufferedReader(new InputStreamReader(in, StandardCharsets.UTF_8))) {
+            return r.lines().map(String::trim).filter(l -> !l.isEmpty()).collect(java.util.stream.Collectors.toSet());
+        } catch (java.io.IOException e) {
+            return java.util.Set.of();
+        }
+    }
+
+    /**
+     * Replaces every value of the server's file that is a former default (its hash is in the history)
+     * and no longer the default by the jar's current text. A text the owner wrote stays. Returns how many.
+     */
+    public static int upgrade(YamlConfiguration user, YamlConfiguration bundled, java.util.Set<String> history) {
+        int n = 0;
+        for (String key : user.getKeys(true)) {
+            if (user.isConfigurationSection(key) || !bundled.contains(key) || bundled.isConfigurationSection(key)) continue;
+            String mine = flat(user, key), now = flat(bundled, key);
+            if (mine == null || now == null || mine.equals(now)) continue;
+            if (history.contains(sha1(key + "\0" + mine))) {
+                user.set(key, bundled.get(key));
+                n++;
+            }
+        }
+        return n;
+    }
+
+    private static String flat(YamlConfiguration y, String key) {
+        if (y.isList(key)) return String.join("\n", y.getStringList(key));
+        Object o = y.get(key);
+        return o == null ? null : String.valueOf(o);
+    }
+
+    static String sha1(String s) {
+        try {
+            byte[] d = java.security.MessageDigest.getInstance("SHA-1").digest(s.getBytes(StandardCharsets.UTF_8));
+            StringBuilder sb = new StringBuilder();
+            for (byte b : d) sb.append(String.format("%02x", b));
+            return sb.toString();
+        } catch (java.security.NoSuchAlgorithmException e) {
+            throw new IllegalStateException(e);
+        }
     }
 
     /**
@@ -43,12 +105,7 @@ public final class Lang {
      * reload it (e.g. on /관리자 리로드).
      */
     public static void register(JavaPlugin plugin) {
-        File file = new File(plugin.getDataFolder(), "messages.yml");
-        if (!file.exists()) plugin.saveResource("messages.yml", false);
-        YamlConfiguration y = YamlConfiguration.loadConfiguration(file);
-        var bundled = plugin.getResource("messages.yml");
-        if (bundled != null) y.setDefaults(YamlConfiguration.loadConfiguration(new InputStreamReader(bundled, StandardCharsets.UTF_8)));
-        extra.put(plugin.getName(), y);
+        extra.put(plugin.getName(), open(plugin));
     }
 
     /** For tests: add a messages file as if a content plugin registered it. */

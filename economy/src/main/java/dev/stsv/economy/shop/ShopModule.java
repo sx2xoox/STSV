@@ -492,6 +492,8 @@ public final class ShopModule extends EcoModule implements DailyListener {
             return;
         }
         if (!at.isChunkLoaded()) return;
+        at.setPitch(0);
+        at.setYaw(0);
         if (board == null || !board.isValid()) {
             for (var ent : at.getWorld().getNearbyEntitiesByType(TextDisplay.class, at, 1.5)) {
                 if (ent.getScoreboardTags().contains("stsv-price-board")) ent.remove();
@@ -499,7 +501,7 @@ public final class ShopModule extends EcoModule implements DailyListener {
             board = at.getWorld().spawn(at, TextDisplay.class, t -> {
                 t.addScoreboardTag("stsv-price-board");
                 t.setPersistent(false);
-                t.setBillboard(Display.Billboard.VERTICAL);
+                t.setBillboard(Display.Billboard.CENTER);
                 t.setLineWidth(400);
                 t.setBackgroundColor(org.bukkit.Color.fromARGB(160, 10, 10, 14));
             });

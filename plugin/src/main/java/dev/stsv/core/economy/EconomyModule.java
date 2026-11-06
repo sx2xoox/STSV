@@ -55,7 +55,7 @@ public final class EconomyModule implements StsvModule, Listener {
         store.init();
         Bukkit.getPluginManager().registerEvents(this, plugin);
         for (Player p : Bukkit.getOnlinePlayers()) open(p.getUniqueId());
-        plugin.hud().line("economy", 0, p -> plugin.getConfig().getBoolean("economy.hud")
+        plugin.hud().sidebar("economy", 0, p -> plugin.getConfig().getBoolean("economy.hud")
                 ? Lang.mm("economy.hud", "balance", format(balance(p.getUniqueId()))) : null);
         plugin.getLogger().info("경제: 계좌 " + store.balances().size() + "개");
         if (Bukkit.getPluginManager().getPlugin("Vault") != null) {
@@ -77,7 +77,7 @@ public final class EconomyModule implements StsvModule, Listener {
                 // Vault classes missing: nothing was registered
             }
         }
-        if (plugin.hud() != null) plugin.hud().removeLine("economy");
+        if (plugin.hud() != null) plugin.hud().removeSidebar("economy");
     }
 
     public EconomyStore store() {

@@ -110,6 +110,29 @@ class PackTest {
         assertEquals(15, economyBackgrounds, "every economy menu background is in the menu font");
         assertTrue(files.containsKey("assets/economy/font/stockgraph.json"), "stock chart font");
         assertTrue(files.containsKey("assets/economy/font/fishring.json"), "fishing ring font");
+        // the ring's glyphs stack: each is as wide as its height (an invisible pixel in the last column of every
+        // cell sets the advance to height + 1), the back space undoes exactly that, the forward space centres it
+        JsonObject ring = com.google.gson.JsonParser.parseString(new String(files.get("assets/economy/font/fishring.json"))).getAsJsonObject();
+        var providers = ring.getAsJsonArray("providers").asList();
+        JsonObject spaces = providers.getFirst().getAsJsonObject().getAsJsonObject("advances");
+        for (var pv : providers.subList(1, providers.size())) {
+            JsonObject b = pv.getAsJsonObject();
+            int h = b.get("height").getAsInt();
+            assertEquals(-(h + 1), spaces.get("\uF001").getAsInt(), "back space");
+            assertEquals(h, spaces.get("\uF002").getAsInt(), "forward space");
+            assertTrue(b.get("ascent").getAsInt() <= h, "ascent within the glyph");
+            String png = "assets/economy/textures/font/" + b.get("file").getAsString().substring("economy:font/".length());
+            java.awt.image.BufferedImage im = javax.imageio.ImageIO.read(new java.io.ByteArrayInputStream(files.get(png)));
+            int rows = b.getAsJsonArray("chars").size(), cols = b.getAsJsonArray("chars").get(0).getAsString().codePointCount(0,
+                    b.getAsJsonArray("chars").get(0).getAsString().length());
+            int cw = im.getWidth() / cols, ch = im.getHeight() / rows;
+            for (int r = 0; r < rows; r++) for (int c = 0; c < cols; c++) {
+                if (b.getAsJsonArray("chars").get(r).getAsString().codePointAt(b.getAsJsonArray("chars").get(r).getAsString().offsetByCodePoints(0, c)) == 0) continue;
+                boolean marked = false;
+                for (int y = 0; y < ch && !marked; y++) marked = (im.getRGB(c * cw + cw - 1, r * ch + y) >>> 24) != 0;
+                assertTrue(marked, png + " cell " + r + "," + c + " has the width pixel");
+            }
+        }
         assertTrue(files.containsKey("assets/economy/textures/font/fishring_needle.png"));
         assertTrue(files.containsKey("assets/economy/font/fishicon.json"), "fish picture font");
         assertTrue(files.containsKey("assets/economy/textures/font/fishicon.png"));

@@ -102,13 +102,15 @@ time:
   minutes: "{m}분"
 
 hud:
-  # 상태 줄 항목 사이 구분자
+  # 상태 줄(액션바) 항목 사이 구분자
   separator: "  <dark_gray>|</dark_gray>  "
+  # 오른쪽 사이드바 제목
+  sidebar-title: "<gradient:#ffb35c:#ff6a3d><b>STSV</b></gradient>"
 
 economy:
   # 금액 표시 형식: {amount} = 1,234
   amount: "<gold>{amount} G</gold>"
-  hud: "<gold>⛃</gold> {balance}"
+  hud: "<gray>잔액 {balance}"
   balance: "<gray>잔액: </gray>{balance}"
   balance-other: "<white>{player}</white><gray>의 잔액: </gray>{balance}"
   top-header: "<gold><b>부자 순위</b>"

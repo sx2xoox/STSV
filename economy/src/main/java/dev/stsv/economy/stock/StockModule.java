@@ -277,6 +277,7 @@ public final class StockModule extends EcoModule implements DailyListener, Weekl
         String line = writer.line(news, c.id, c.name, c.industry, moved, cause, rnd);
         store.addNews(now(), c.id, line);
         Bukkit.broadcast(Lang.msg("stock.news", "line", line));
+        alerts();
     }
 
     /** 실적 발표: one industry, every company moves on its own by 5~15% up or down. */
@@ -294,6 +295,7 @@ public final class StockModule extends EcoModule implements DailyListener, Weekl
             store.addNews(now(), c.id, line);
             Bukkit.broadcast(Lang.mm("stock.earnings-line", "line", line));
         }
+        alerts();
     }
 
     /** An event moves an industry: every company by the shock times its sensitivity, half of it lasting. */
@@ -305,6 +307,7 @@ public final class StockModule extends EcoModule implements DailyListener, Weekl
         StockSpec.Industry i = spec.industries().get(industry);
         if (i != null) Bukkit.broadcast(Lang.msg(amount > 0 ? "stock.event-up" : "stock.event-down", "color", i.color(), "industry", i.name(),
                 "event", eco.events().name(e.type())));
+        alerts();
     }
 
     private void shockJobs(ActiveEvent e, double amount) {
@@ -328,7 +331,7 @@ public final class StockModule extends EcoModule implements DailyListener, Weekl
                 if (p == null || !further || eco.kv().has("stock.mute." + u)) continue;
                 double ch = (h.shares * c.price / h.cost - 1) * 100;
                 p.sendMessage(Lang.msg(ch >= 0 ? "stock.alert-up" : "stock.alert-down", "company", c.name, "pct", pct(ch),
-                        "value", money(h.shares * c.price), "profit", money(h.shares * c.price - h.cost)));
+                        "value", money(h.shares * c.price), "profit", money(Math.abs(h.shares * c.price - h.cost))));
             }
         }
     }
@@ -496,7 +499,7 @@ public final class StockModule extends EcoModule implements DailyListener, Weekl
         params.put("count", qty);
         params.put("amount", money(net));
         params.put("fee", money(fee));
-        params.put("profit", money(net - basis));
+        params.put("profit", money(Math.abs(net - basis)));
         params.put("sign", net - basis >= 0 ? "+" : "-");
         return null;
     }
@@ -565,6 +568,7 @@ public final class StockModule extends EcoModule implements DailyListener, Weekl
         c.dayHigh = Math.max(c.dayHigh, c.price);
         c.dayLow = Math.min(c.dayLow, c.price);
         record(c);
+        alerts();
     }
 
     public void halt(StockStore.Co c, boolean on) {
@@ -588,8 +592,19 @@ public final class StockModule extends EcoModule implements DailyListener, Weekl
         return true;
     }
 
-    public void forceTick() {
-        tick();
+    /** Admin: n price moves now (one is 10 minutes of the game's time); returns the biggest movers, as text. */
+    public List<String> forceTicks(int n) {
+        Map<String, Double> before = new HashMap<>();
+        for (StockStore.Co c : listed()) before.put(c.id, c.price);
+        for (int i = 0; i < Math.max(1, n); i++) tick();
+        List<StockStore.Co> l = new ArrayList<>(listed());
+        l.sort(Comparator.comparingDouble((StockStore.Co c) -> c.price / before.getOrDefault(c.id, c.price)));
+        List<String> out = new ArrayList<>();
+        for (StockStore.Co c : List.of(l.getLast(), l.getFirst())) {
+            double b = before.getOrDefault(c.id, c.price);
+            out.add(c.name + " " + money(b) + " → " + money(c.price) + " " + changeText((c.price / b - 1) * 100));
+        }
+        return out;
     }
 
     // ------------------------------------------------------------------------------------------
@@ -597,15 +612,34 @@ public final class StockModule extends EcoModule implements DailyListener, Weekl
     // ------------------------------------------------------------------------------------------
 
     public void quote(Player p, StockStore.Co c) {
-        List<Double> closes = new ArrayList<>();
-        for (StockStore.Candle k : store.hourly(c.id)) closes.add(k.close());
-        if (closes.size() > 24) closes = closes.subList(closes.size() - 24, closes.size());
         StockSpec.Industry i = industry(c);
+        double[] range = range24(c);
         p.sendMessage(Lang.msg("stock.quote", "company", c.name, "color", i == null ? "white" : i.color(), "industry", i == null ? "-" : i.name(),
-                "stars", stars(c.risk), "price", money(c.price), "change", changeText(c.dayChange()), "spark", StockSpec.sparkline(closes)));
+                "stars", stars(c.risk), "price", money(c.price), "change", changeText(c.dayChange()), "low", money(range[0]), "high", money(range[1])));
         StockStore.Hold h = store.holdings(p.getUniqueId()).get(c.id);
-        if (h != null && h.shares > 0) p.sendMessage(Lang.msg("stock.quote-mine", "count", h.shares, "value", money(h.shares * c.price),
-                "profit", money(h.shares * c.price - h.cost), "sign", h.shares * c.price >= h.cost ? "+" : "-"));
+        if (h != null && h.shares > 0) p.sendMessage(Lang.msg("stock.quote-mine", mine(h, c)));
+    }
+
+    /** The lowest and highest price of the last 24 hours, from the same hourly candles the 24-hour chart draws. */
+    private double[] range24(StockStore.Co c) {
+        List<StockStore.Candle> l = store.hourly(c.id);
+        if (l.size() > 24) l = l.subList(l.size() - 24, l.size());
+        double lo = c.price, hi = c.price;
+        for (StockStore.Candle k : l) {
+            lo = Math.min(lo, k.low());
+            hi = Math.max(hi, k.high());
+        }
+        return new double[]{lo, hi};
+    }
+
+    /** Placeholders of a holding: count, value, profit with its sign, colour (Korean: gain red, loss blue), percent. */
+    private Object[] mine(StockStore.Hold h, StockStore.Co c) {
+        double v = h.shares * c.price, gain = v - h.cost, pct = h.cost <= 0 ? 0 : (v / h.cost - 1) * 100;
+        boolean flat = Math.abs(pct) < 0.05 && Math.abs(gain) < 0.5;
+        String colour = flat ? "gray" : gain > 0 ? "#ff5f57" : "#4d9bff";
+        String sign = flat ? "" : gain > 0 ? "+" : "-";
+        return new Object[]{"count", String.format("%,d", h.shares), "value", money(v), "color", colour,
+                "profit", sign + money(Math.abs(gain)), "pct", sign + pct(pct)};
     }
 
     public void showNews(Player p) {
@@ -645,19 +679,20 @@ public final class StockModule extends EcoModule implements DailyListener, Weekl
 
     private ItemStack companyIcon(StockStore.Co c, UUID viewer) {
         StockSpec.Industry i = industry(c);
-        ItemStack it = Items.create(i == null ? "minecraft:paper" : i.icon(), 1).orElse(new ItemStack(Material.PAPER));
-        List<Double> closes = new ArrayList<>();
-        for (StockStore.Candle k : store.hourly(c.id)) closes.add(k.close());
-        if (closes.size() > 24) closes = closes.subList(closes.size() - 24, closes.size());
-        List<Component> lore = new ArrayList<>(Lang.items("stock.icon-lore", "color", i == null ? "white" : i.color(), "industry", i == null ? "-" : i.name(),
-                "price", money(c.price), "change", changeText(c.dayChange()), "spark", StockSpec.sparkline(closes),
-                "dividend", Lang.raw(c.dividend > 0 ? "stock.dividend-yes" : "stock.dividend-no"), "stars", stars(c.risk)));
-        StockStore.Hold h = store.holdings(viewer).get(c.id);
-        if (h != null && h.shares > 0) {
-            double v = h.shares * c.price;
-            lore.add(Lang.item("stock.icon-mine", "count", h.shares, "value", money(v), "profit", money(v - h.cost), "sign", v >= h.cost ? "+" : "-",
-                    "pct", pct(h.cost <= 0 ? 0 : (v / h.cost - 1) * 100)));
+        ItemStack it;
+        if (spec.companies().containsKey(c.id)) {
+            // its own logo (economy_logos.py); a company an admin listed later shows its industry's item
+            it = new ItemStack(Material.PAPER);
+            it.editMeta(meta -> meta.setItemModel(new org.bukkit.NamespacedKey("economy", "gui/logo_" + c.id)));
+        } else {
+            it = Items.create(i == null ? "minecraft:paper" : i.icon(), 1).orElse(new ItemStack(Material.PAPER));
         }
+        double[] range = range24(c);
+        List<Component> lore = new ArrayList<>(Lang.items("stock.icon-lore", "color", i == null ? "white" : i.color(), "industry", i == null ? "-" : i.name(),
+                "price", money(c.price), "change", changeText(c.dayChange()), "low", money(range[0]), "high", money(range[1]),
+                "dividend", Lang.raw(c.dividend > 0 ? "stock.dividend-yes" : "stock.dividend-no")));
+        StockStore.Hold h = store.holdings(viewer).get(c.id);
+        if (h != null && h.shares > 0) lore.addAll(Lang.items("stock.icon-mine", mine(h, c)));
         if (c.halted) lore.add(Lang.item("stock.icon-halted"));
         lore.add(Lang.item("stock.icon-click"));
         it.editMeta(meta -> {
@@ -668,7 +703,11 @@ public final class StockModule extends EcoModule implements DailyListener, Weekl
         return it;
     }
 
-    private final class ListMenu implements MenuHandler {
+    /** The list orders, in the order the sort button goes through them, with their icons. */
+    private static final List<String> SORTS = List.of("industry", "up", "down", "popular");
+    private static final Map<String, String> SORT_ICONS = Map.of("industry", "gui/refresh", "up", "gui/rise", "down", "gui/fall", "popular", "gui/trophy");
+
+        private final class ListMenu implements MenuHandler {
         private final String tab;
         private final String sort;
         private List<StockStore.Co> shown = List.of();
@@ -686,8 +725,14 @@ public final class StockModule extends EcoModule implements DailyListener, Weekl
             StockSpec.Industry i = spec.industries().get(tab);
             String tabName = tab.equals("all") ? Lang.raw("stock.tab-all") : tab.equals("mine") ? Lang.raw("stock.tab-mine")
                     : i == null ? tab : "<" + i.color() + ">" + i.name();
-            return Map.of("tab", tabName, "value", money(value), "profit", money(value - cost), "sign", value >= cost ? "+" : "-",
+            return Map.of("tab", tabName, "value", money(value), "profit", money(Math.abs(value - cost)), "sign", value >= cost ? "+" : "-",
                     "sort", Lang.raw("stock.sort." + sort));
+        }
+
+        @Override
+        public ItemStack button(MenuView v, dev.stsv.core.gui.menu.MenuSpec.Button b, ItemStack base) {
+            if (b.key() == 'S') base.editMeta(meta -> meta.setItemModel(new org.bukkit.NamespacedKey("economy", SORT_ICONS.getOrDefault(sort, "gui/refresh"))));
+            return base;
         }
 
         @Override
@@ -722,7 +767,10 @@ public final class StockModule extends EcoModule implements DailyListener, Weekl
         public void onAction(MenuView v, String action, ClickType click) {
             Player p = v.player();
             if (action.startsWith("stock:tab:")) core.menus().open(p, "economy:stocks", new ListMenu(action.substring(10), sort));
-            else if (action.startsWith("stock:sort:")) core.menus().open(p, "economy:stocks", new ListMenu(tab, action.substring(11)));
+            else if (action.equals("stock:sort:next")) {
+                int at = Math.max(0, SORTS.indexOf(sort)), step = click.isRightClick() ? SORTS.size() - 1 : 1;
+                core.menus().open(p, "economy:stocks", new ListMenu(tab, SORTS.get((at + step) % SORTS.size())));
+            } else if (action.startsWith("stock:sort:")) core.menus().open(p, "economy:stocks", new ListMenu(tab, action.substring(11)));
             else if (action.equals("stock:news")) {
                 p.closeInventory();
                 showNews(p);
@@ -782,7 +830,7 @@ public final class StockModule extends EcoModule implements DailyListener, Weekl
             m.put("have", String.format("%,d", have));
             m.put("sellable", String.format("%,d", sellable));
             m.put("value", money(val));
-            m.put("profit", money(val - cost));
+            m.put("profit", money(Math.abs(val - cost)));
             m.put("sign", val >= cost ? "+" : "-");
             boolean first = !eco.kv().has("stock.first." + u);
             double fee = first || feeFree() ? 0 : spec.settings().fee();
@@ -831,6 +879,9 @@ public final class StockModule extends EcoModule implements DailyListener, Weekl
             return;
         }
         if (!at.isChunkLoaded()) return;
+        // upright whatever way the admin was looking when saving the spot (a pitch tilts the text away)
+        at.setPitch(0);
+        at.setYaw(0);
         if (board == null || !board.isValid()) {
             for (var ent : at.getWorld().getNearbyEntitiesByType(TextDisplay.class, at, 1.5)) {
                 if (ent.getScoreboardTags().contains("stsv-stock-board")) ent.remove();
@@ -838,7 +889,7 @@ public final class StockModule extends EcoModule implements DailyListener, Weekl
             board = at.getWorld().spawn(at, TextDisplay.class, t -> {
                 t.addScoreboardTag("stsv-stock-board");
                 t.setPersistent(false);
-                t.setBillboard(Display.Billboard.VERTICAL);
+                t.setBillboard(Display.Billboard.CENTER);
                 t.setLineWidth(300);
                 t.setBackgroundColor(org.bukkit.Color.fromARGB(160, 10, 10, 14));
             });

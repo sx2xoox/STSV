@@ -114,6 +114,9 @@ class ContentTest {
             else for (boolean up : new boolean[]{true, false}) if (news.causes().get(i.id()).get(up).size() < 12) problems.add("news " + i.id() + " " + up);
         }
         if (stocks.companies().values().stream().map(c -> c.name()).distinct().count() != 42) problems.add("company names must differ");
+        for (String id : stocks.companies().keySet()) {
+            if (!Files.exists(PACK.resolve("assets/economy/items/gui/logo_" + id + ".json"))) problems.add("company logo: " + id);
+        }
         for (var e : requests.pool()) if (!exists(e.item(), ours)) problems.add("request: " + e.item());
         for (var c : requests.community()) if (!exists(c.item(), ours)) problems.add("community: " + c.item());
         assertTrue(problems.isEmpty(), String.join("\n", problems));
@@ -215,6 +218,14 @@ class ContentTest {
         assertTrue(problems.isEmpty(), String.join("\n", problems));
         assertEquals(15, menus.size());
         for (MenuSpec m : menus) {
+            // the button grid is mirror-symmetric, row by row (the machine's lanes are fixed by its code; their
+            // empty cells hold arrows, so they read as full rows)
+            if (!m.id().equals("economy:machine")) {
+                for (String row : m.layout()) {
+                    String used = row.replaceAll("[^.]", "#");
+                    assertEquals(new StringBuilder(used).reverse().toString(), used, m.id() + " row " + row + " is symmetric");
+                }
+            }
             assertTrue(m.background() != null, m.id() + " has a background");
             BufferedImage im = ImageIO.read(PACK.resolve("assets/economy/textures/" + m.background().getKey() + ".png").toFile());
             // every slot used by the layout is drawn as a cell (its centre differs from the felt around it)

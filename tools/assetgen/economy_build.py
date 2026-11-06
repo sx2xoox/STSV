@@ -73,6 +73,8 @@ def main():
         (folders["def"] / f"{name}.json").write_text(json.dumps(
             {"model": {"type": "minecraft:model", "model": f"{NS}:item/gui/{name}"}}, indent=2))
     print(f"gui     {len(menus)} backgrounds, {len(E.GUI)} button icons")
+    import economy_logos as LG
+    LG.sheet(PREVIEWS / "stock_logos.png", LG.all_logos(LG.companies(PACK)))
 
     # fishing: content made from the fish table, the ring font, the fish icon font, a preview sheet
     import economy_fish as FI

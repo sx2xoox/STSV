@@ -4,12 +4,12 @@ titles:
   rows: 6
   background: stsv:gui/titles
   layout:
-    - "....I...O"
     - "TTTTTTTTT"
     - "TTTTTTTTT"
     - "TTTTTTTTT"
     - "TTTTTTTTT"
-    - "P...X...N"
+    - "TTTTTTTTT"
+    - "P..OXI..N"
   list: T
   buttons:
     I:

@@ -5,98 +5,97 @@
 tomato_seeds:
   material: paper
   name: "<#8bc34a>토마토 씨앗"
-  lore: ["<gray>경작지에 심기. 다 익으면 우클릭으로 수확, 다시 열림."]
+  lore: ["<gray>경작지에 심기 · 수확해도 다시 열림"]
   texture: tomato_seeds
 
 chili_seeds:
   material: paper
   name: "<#8bc34a>고추 씨앗"
-  lore: ["<gray>경작지에 심기. 다 익으면 우클릭으로 수확, 다시 열림."]
+  lore: ["<gray>경작지에 심기 · 수확해도 다시 열림"]
   texture: chili_seeds
 
 strawberry_seeds:
   material: paper
   name: "<#8bc34a>딸기 씨앗"
-  lore: ["<gray>경작지에 심기. 다 익으면 우클릭으로 수확, 다시 열림."]
+  lore: ["<gray>경작지에 심기 · 수확해도 다시 열림"]
   texture: strawberry_seeds
 
 onion_seeds:
   material: paper
   name: "<#8bc34a>양파 씨앗"
-  lore: ["<gray>경작지에 심기. 다 익으면 우클릭으로 수확."]
+  lore: ["<gray>경작지에 심기"]
   texture: onion_seeds
 
 cabbage_seeds:
   material: paper
   name: "<#8bc34a>배추 씨앗"
-  lore: ["<gray>경작지에 심기. 다 익으면 우클릭으로 수확."]
+  lore: ["<gray>경작지에 심기"]
   texture: cabbage_seeds
 
 rice_seeds:
   material: paper
   name: "<#8bc34a>볍씨"
-  lore: ["<gray>경작지에 심기. 물가에서 잘 자람."]
+  lore: ["<gray>경작지에 심기"]
   texture: rice_seeds
 
 corn_seeds:
   material: paper
   name: "<#8bc34a>옥수수 씨앗"
-  lore: ["<gray>경작지에 심기. 사람 키만큼 자람."]
+  lore: ["<gray>경작지에 심기"]
   texture: corn_seeds
 
 green_onion_seeds:
   material: paper
   name: "<#8bc34a>파 씨앗"
-  lore: ["<gray>경작지에 심기. 다 익으면 우클릭으로 수확."]
+  lore: ["<gray>경작지에 심기"]
   texture: green_onion_seeds
 
 radish_seeds:
   material: paper
   name: "<#8bc34a>무 씨앗"
-  lore: ["<gray>경작지에 심기. 다 익으면 우클릭으로 수확."]
+  lore: ["<gray>경작지에 심기"]
   texture: radish_seeds
 
 lettuce_seeds:
   material: paper
   name: "<#8bc34a>상추 씨앗"
-  lore: ["<gray>경작지에 심기. 잎을 따면 다시 자람."]
+  lore: ["<gray>경작지에 심기 · 수확해도 다시 열림"]
   texture: lettuce_seeds
 
 cucumber_seeds:
   material: paper
   name: "<#8bc34a>오이 씨앗"
-  lore: ["<gray>경작지에 심기. 다 익으면 우클릭으로 수확, 다시 열림."]
+  lore: ["<gray>경작지에 심기 · 수확해도 다시 열림"]
   texture: cucumber_seeds
 
 grape_seeds:
   material: paper
   name: "<#8bc34a>포도 씨앗"
-  lore: ["<gray>경작지에 심기. 한 번 심으면 계속 열림."]
+  lore: ["<gray>경작지에 심기 · 수확해도 다시 열림"]
   texture: grape_seeds
 
 eggplant_seeds:
   material: paper
   name: "<#8bc34a>가지 씨앗"
-  lore: ["<gray>경작지에 심기. 다 익으면 우클릭으로 수확, 다시 열림."]
+  lore: ["<gray>경작지에 심기 · 수확해도 다시 열림"]
   texture: eggplant_seeds
 
 zucchini_seeds:
   material: paper
   name: "<#8bc34a>애호박 씨앗"
-  lore: ["<gray>경작지에 심기. 다 익으면 우클릭으로 수확, 다시 열림."]
+  lore: ["<gray>경작지에 심기 · 수확해도 다시 열림"]
   texture: zucchini_seeds
 
 muskmelon_seeds:
   material: paper
   name: "<#8bc34a>멜론 씨앗"
-  lore: ["<gray>경작지에 심기. 덩굴이 남아 다시 열림 (조금 오래 걸림)."]
+  lore: ["<gray>경작지에 심기 · 수확해도 다시 열림"]
   texture: muskmelon_seeds
 
 # ── 수확물 ──
 tomato:
   material: paper
   name: "<#8bc34a>토마토"
-  lore: ["<gray>요리 재료. 날로 먹을 수 있음."]
   texture: tomato
   food:
     nutrition: 3
@@ -105,13 +104,11 @@ tomato:
 chili_pepper:
   material: paper
   name: "<#8bc34a>고추"
-  lore: ["<gray>요리 재료. 말려서 고춧가루로."]
   texture: chili_pepper
 
 strawberry:
   material: paper
   name: "<#8bc34a>딸기"
-  lore: ["<gray>요리 재료. 날로 먹을 수 있음."]
   texture: strawberry
   food:
     nutrition: 2
@@ -120,49 +117,43 @@ strawberry:
 onion:
   material: paper
   name: "<#8bc34a>양파"
-  lore: ["<gray>요리 재료."]
   texture: onion
 
 garlic:
   material: paper
   name: "<#8bc34a>마늘"
-  lore: ["<gray>요리 재료. 경작지에 심으면 마늘이 자람."]
+  lore: ["<gray>경작지에 심을 수 있음"]
   texture: garlic
 
 napa_cabbage:
   material: paper
   name: "<#8bc34a>배추"
-  lore: ["<gray>요리 재료. 김치의 주재료."]
   texture: napa_cabbage
 
 paddy:
   material: paper
   name: "<#8bc34a>벼"
-  lore: ["<gray>도정하면 쌀이 됨."]
   texture: paddy
 
 soybean:
   material: paper
   name: "<#8bc34a>콩"
-  lore: ["<gray>요리 재료. 경작지에 심으면 콩이 자람."]
+  lore: ["<gray>경작지에 심을 수 있음"]
   texture: soybean
 
 corn:
   material: paper
   name: "<#8bc34a>옥수수"
-  lore: ["<gray>요리 재료."]
   texture: corn
 
 green_onion:
   material: paper
   name: "<#8bc34a>파"
-  lore: ["<gray>요리 재료."]
   texture: green_onion
 
 radish:
   material: paper
   name: "<#8bc34a>무"
-  lore: ["<gray>요리 재료. 날로 먹을 수 있음."]
   texture: radish
   food:
     nutrition: 2
@@ -171,7 +162,6 @@ radish:
 lettuce:
   material: paper
   name: "<#8bc34a>상추"
-  lore: ["<gray>쌈 채소. 날로 먹을 수 있음."]
   texture: lettuce
   food:
     nutrition: 1
@@ -180,7 +170,6 @@ lettuce:
 cucumber:
   material: paper
   name: "<#8bc34a>오이"
-  lore: ["<gray>요리 재료. 날로 먹을 수 있음."]
   texture: cucumber
   food:
     nutrition: 3
@@ -189,7 +178,6 @@ cucumber:
 grapes:
   material: paper
   name: "<#8bc34a>포도"
-  lore: ["<gray>날로 먹거나 즙을 냄."]
   texture: grapes
   food:
     nutrition: 2
@@ -198,7 +186,6 @@ grapes:
 eggplant:
   material: paper
   name: "<#8bc34a>가지"
-  lore: ["<gray>요리 재료. 쪄서 무치거나 볶아서."]
   texture: eggplant
   food:
     nutrition: 2
@@ -207,7 +194,6 @@ eggplant:
 zucchini:
   material: paper
   name: "<#8bc34a>애호박"
-  lore: ["<gray>요리 재료. 전, 찌개, 볶음에."]
   texture: zucchini
   food:
     nutrition: 2
@@ -216,7 +202,6 @@ zucchini:
 muskmelon:
   material: paper
   name: "<#8bc34a>멜론"
-  lore: ["<gray>그물무늬가 고운 달콤한 멜론. 비싸게 팔림."]
   texture: muskmelon
   food:
     nutrition: 6

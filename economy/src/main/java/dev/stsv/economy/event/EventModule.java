@@ -51,6 +51,17 @@ public final class EventModule extends EcoModule {
         store.init();
         load();
         every(20L, this::tick);
+        hideBars();   // a server updated from a version with event boss bars
+        core.hud().sidebar("eco-event-gap", 25, p -> eco.getConfig().getBoolean("hud.event") && shown() != null ? net.kyori.adventure.text.Component.empty() : null);
+        core.hud().sidebar("eco-event", 30, p -> {
+            ActiveEvent e = eco.getConfig().getBoolean("hud.event") ? shown() : null;
+            return e == null ? null : Lang.mm("event.sidebar", "event", name(e.type()), "left", hoursText(e.ends() - now()));
+        });
+        core.hud().sidebar("eco-event-detail", 31, p -> {
+            ActiveEvent e = eco.getConfig().getBoolean("hud.event") ? shown() : null;
+            String d = e == null ? "" : e.params().getOrDefault("detail", "");
+            return d.isEmpty() ? null : Lang.mm("event.sidebar-detail", "detail", d);
+        });
         eco.onReset(this::reset);
     }
 
@@ -62,6 +73,7 @@ public final class EventModule extends EcoModule {
     @Override
     protected void stop() {
         hideBars();
+        for (String id : java.util.List.of("eco-event-gap", "eco-event", "eco-event-detail")) core.hud().removeSidebar(id);
     }
 
     private void load() {
@@ -191,20 +203,15 @@ public final class EventModule extends EcoModule {
         long now = now();
         for (ActiveEvent e : store.end(now, null)) ended(e);
         runChain(now);
-        for (ActiveEvent e : store.active()) {
-            if (!e.runningAt(now)) continue;
-            EventSpec es = specs.get(e.type());
-            float progress = Math.clamp((float) (e.ends() - now) / Math.max(1, e.ends() - e.started()), 0f, 1f);
-            var title = Lang.mm("event.bar", "event", name(e.type()), "detail", e.params().getOrDefault("detail", ""), "left", hoursText(e.ends() - now));
-            BossBar bar = bars.get(e.id());
-            if (bar == null) {
-                bar = BossBar.bossBar(title, progress, color(es == null ? "yellow" : es.color()), BossBar.Overlay.NOTCHED_10);
-                bars.put(e.id(), bar);
-            } else {
-                bar.name(title).progress(progress);
-            }
-            for (Player p : Bukkit.getOnlinePlayers()) p.showBossBar(bar);
-        }
+        // running events are shown in the sidebar (see start), not as boss bars any more
+    }
+
+    /** The event shown in the sidebar: the one that ends first. */
+    private ActiveEvent shown() {
+        long now = now();
+        ActiveEvent best = null;
+        for (ActiveEvent e : store.active()) if (e.runningAt(now) && (best == null || e.ends() < best.ends())) best = e;
+        return best;
     }
 
     private void runChain(long now) {
