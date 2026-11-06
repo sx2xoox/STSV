@@ -74,6 +74,9 @@ final class CosmeticPackets {
     private final Map<Integer, Integer> wearerOf = new ConcurrentHashMap<>();
     /** wearer -> their real passengers (as last seen on the main thread) */
     private final Map<Integer, int[]> riders = new ConcurrentHashMap<>();
+    /** debug counters: links put into spawn bundles, passenger packets extended, links re-sent */
+    final java.util.concurrent.atomic.AtomicLong linkedSpawns = new java.util.concurrent.atomic.AtomicLong(),
+            extendedPassengers = new java.util.concurrent.atomic.AtomicLong(), resent = new java.util.concurrent.atomic.AtomicLong();
     CosmeticPackets(Logger log) throws ReflectiveOperationException {
         this.log = log;
         ClassLoader cl = Bukkit.getServer().getClass().getClassLoader();
@@ -210,6 +213,7 @@ final class CosmeticPackets {
         try {
             Object packet = passengers(wearer.getEntityId(), ids);
             for (Player v : viewers) send(v, packet);
+            resent.addAndGet(viewers.size());
         } catch (Throwable t) {
             warn(t);
         }
@@ -355,7 +359,9 @@ final class CosmeticPackets {
         if (c == passengersCls) {
             int vehicle = (int) passengersVehicle.invoke(packet);
             int[] ids = linked(vehicle, (int[]) passengersIds.invoke(packet));
-            return ids == null ? packet : passengers(vehicle, ids);
+            if (ids == null) return packet;
+            extendedPassengers.incrementAndGet();
+            return passengers(vehicle, ids);
         }
         if (c == bundleCls) {
             List<Object> sub = new ArrayList<>();
@@ -386,6 +392,7 @@ final class CosmeticPackets {
                 int[] ids = linked(wearer, riders.getOrDefault(wearer, new int[0]));
                 if (ids != null) {
                     sub.add(passengers(wearer, ids));
+                    linkedSpawns.incrementAndGet();
                     changed = true;
                 }
             }

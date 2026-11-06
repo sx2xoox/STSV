@@ -71,6 +71,37 @@ final class CosmeticAttachments {
             CosmeticSlot.BACK, new Vector3f(0, -0.62f, -0.12f),
             CosmeticSlot.TAIL, new Vector3f(0, -1.02f, -0.12f));
 
+    /**
+     * The way the clients turn a player's body (LivingEntity.tick, then tickHeadTurn): towards the walking
+     * direction (backwards walking keeps facing forward), towards the head while swinging, 30% of the way
+     * each tick, and never more than 50 degrees (15 while blocking with a shield) from the head. The
+     * server's own body yaw for players cannot be used: the server resets a player's previous position
+     * just before ticking them, so to it they never walk and the body only follows the head.
+     *
+     * @param dx, dz how far the player moved since the last tick
+     */
+    static float nextBody(float body, double dx, double dz, float yaw, boolean swinging, boolean blocking) {
+        float target = body;
+        if ((float) (dx * dx + dz * dz) > 0.0025f) {
+            float walk = (float) Math.atan2(dz, dx) * 57.295776f - 90f;
+            float off = Math.abs(wrap(yaw) - walk);
+            target = 95f < off && off < 265f ? walk - 180f : walk;
+        }
+        if (swinging) target = yaw;
+        body += wrap(target - body) * 0.3f;
+        float d = wrap(yaw - body);
+        float max = blocking ? 15f : 50f;
+        if (Math.abs(d) > max) body += d - Math.signum(d) * max;
+        return body;
+    }
+
+    /** Per wearer: the body turn as the clients draw it. */
+    private static final class Body {
+        double x, z;
+        float yaw;
+        int swing;
+    }
+
     /** Slots that move with the upper body (body yaw, sneak tilt); the rest follow the head. */
     static boolean onBody(CosmeticSlot slot) {
         return slot == CosmeticSlot.SHOULDER || slot == CosmeticSlot.BACK || slot == CosmeticSlot.TAIL;
@@ -127,6 +158,9 @@ final class CosmeticAttachments {
     private final CosmeticPackets packets;
     private final Predicate<Player> selfView;
     private final Map<UUID, Map<CosmeticSlot, Worn>> worn = new HashMap<>();
+    private final Map<UUID, Body> bodies = new HashMap<>();
+    /** wearer -> ticks at which the link is sent again (right after their displays changed) */
+    private final Map<UUID, List<Long>> relinkAt = new HashMap<>();
     private Map<CosmeticSlot, Vector3f> anchors = DEFAULT_ANCHORS;
     private long ticks;
 
@@ -185,6 +219,14 @@ final class CosmeticAttachments {
         for (Worn w : fresh) {
             for (Player v : p.getWorld().getPlayers()) if (shouldSee(v, p)) v.showEntity(plugin, w.display);
         }
+        // and once more shortly after, in case a client got a display before the link
+        if (!fresh.isEmpty()) relinkAt.put(p.getUniqueId(), new ArrayList<>(List.of(ticks + 2, ticks + 10)));
+    }
+
+    /** The player swung an arm: the clients turn their body to the head for the swing (6 ticks). */
+    void swung(Player p) {
+        Body b = bodies.get(p.getUniqueId());
+        if (b != null) b.swing = 6;
     }
 
     /** Who sees a wearer's displays: whoever sees the wearer; the wearer only if they turned it on. */
@@ -194,6 +236,8 @@ final class CosmeticAttachments {
 
     /** Removes the player's displays (they come back with the next {@link #set}). */
     void remove(Player p) {
+        bodies.remove(p.getUniqueId());
+        relinkAt.remove(p.getUniqueId());
         Map<CosmeticSlot, Worn> have = worn.remove(p.getUniqueId());
         if (have != null) have.values().forEach(w -> w.display.remove());
         if (packets != null) packets.link(p.getEntityId(), new int[0], new int[0]);
@@ -202,6 +246,8 @@ final class CosmeticAttachments {
     void removeAll() {
         for (Map<CosmeticSlot, Worn> have : worn.values()) have.values().forEach(w -> w.display.remove());
         worn.clear();
+        bodies.clear();
+        relinkAt.clear();
     }
 
     /** Debug: slot -> display entity id. */
@@ -221,7 +267,8 @@ final class CosmeticAttachments {
     private Worn spawn(Player p, CosmeticSlot slot, CustomItem c) {
         boolean sneak = sneaking(p, slot);
         float scale = scale(p);
-        ItemDisplay d = p.getWorld().spawn(place(p, slot, sneak), ItemDisplay.class, e -> {
+        Body b = bodies.get(p.getUniqueId());
+        ItemDisplay d = p.getWorld().spawn(place(p, slot, sneak, b == null ? p.getBodyYaw() : b.yaw), ItemDisplay.class, e -> {
             e.setVisibleByDefault(false);   // shown once linked (set)
             e.setPersistent(false);
             e.getPersistentDataContainer().set(tag, PersistentDataType.BYTE, (byte) 1);
@@ -253,6 +300,7 @@ final class CosmeticAttachments {
             }
             boolean hide = badPose(p);
             float scale = scale(p);
+            float body = turnBody(p);
             boolean relink = false;
             for (Map.Entry<CosmeticSlot, Worn> we : e.getValue().entrySet()) {
                 CosmeticSlot slot = we.getKey();
@@ -275,7 +323,7 @@ final class CosmeticAttachments {
                     w.display.setInterpolationDuration(bob ? BOB_TICKS : 3);
                     w.display.setTransformation(transformation(slot, w, p));
                 }
-                Location target = place(p, slot, sneak);
+                Location target = place(p, slot, sneak, body);
                 Location now = w.display.getLocation();
                 if (packets == null || now.distanceSquared(target) > 1.0) {
                     if (now.distanceSquared(target) > 1e-4 || turned(now, target)) w.display.teleport(target);
@@ -296,7 +344,7 @@ final class CosmeticAttachments {
                 Map<CosmeticSlot, CustomItem> wanted = new EnumMap<>(CosmeticSlot.class);
                 e.getValue().forEach((slot, w) -> wanted.put(slot, w.cosmetic));
                 set(p, wanted);
-            } else if (resend && packets != null) {
+            } else if (packets != null && (resend || dueRelink(p))) {
                 List<Player> viewers = new ArrayList<>(p.getTrackedBy());
                 if (selfView.test(p)) viewers.add(p);
                 packets.resendLink(p, viewers);
@@ -329,11 +377,42 @@ final class CosmeticAttachments {
         return d;
     }
 
+    private boolean dueRelink(Player p) {
+        List<Long> due = relinkAt.get(p.getUniqueId());
+        if (due == null || !due.remove(ticks)) return false;
+        if (due.isEmpty()) relinkAt.remove(p.getUniqueId());
+        return true;
+    }
+
+    /** Advances the wearer's body turn by one tick (see {@link #nextBody}); riding: the vehicle's. */
+    private float turnBody(Player p) {
+        Location l = p.getLocation();
+        Body b = bodies.get(p.getUniqueId());
+        if (b == null) {
+            b = new Body();
+            b.x = l.getX();
+            b.z = l.getZ();
+            b.yaw = p.getBodyYaw();
+            bodies.put(p.getUniqueId(), b);
+        }
+        Entity vehicle = p.getVehicle();
+        if (vehicle != null) {
+            // horses turn their rider's body with theirs, boats and the rest to their own facing
+            b.yaw = vehicle instanceof org.bukkit.entity.LivingEntity le ? le.getBodyYaw() : vehicle.getYaw();
+        } else {
+            b.yaw = nextBody(b.yaw, l.getX() - b.x, l.getZ() - b.z, l.getYaw(), b.swing > 0, p.isBlocking());
+        }
+        if (b.swing > 0) b.swing--;
+        b.x = l.getX();
+        b.z = l.getZ();
+        return b.yaw;
+    }
+
     /** Where the display stands: the top of the hitbox (the clients' passenger point), facing with the wearer. */
-    private static Location place(Player p, CosmeticSlot slot, boolean sneaking) {
+    private static Location place(Player p, CosmeticSlot slot, boolean sneaking, float body) {
         Location l = p.getLocation();
         l.add(0, p.getHeight(), 0);
-        l.setYaw(onBody(slot) ? p.getBodyYaw() : l.getYaw());
+        l.setYaw(onBody(slot) ? body : l.getYaw());
         l.setPitch(sneaking && onBody(slot) ? SNEAK_TILT : 0);
         return l;
     }

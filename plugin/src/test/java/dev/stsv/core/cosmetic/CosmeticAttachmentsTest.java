@@ -58,6 +58,33 @@ class CosmeticAttachmentsTest {
         }
     }
 
+    /** The body turn the clients draw (LivingEntity.tick + tickHeadTurn), followed tick by tick. */
+    @Test
+    void bodyTurnsLikeOnTheClients() {
+        // standing still, head turned 30 degrees: the body stays (within 50)
+        assertEquals(0f, CosmeticAttachments.nextBody(0f, 0, 0, 30f, false, false), 1e-4);
+        // head turned 80: the body is pulled to 50 behind the head
+        assertEquals(30f, CosmeticAttachments.nextBody(0f, 0, 0, 80f, false, false), 1e-4);
+        // blocking with a shield: 15
+        assertEquals(65f, CosmeticAttachments.nextBody(0f, 0, 0, 80f, false, true), 1e-4);
+        // walking south (+z) with the head south too: yaw 0 is south, the body turns 30% of the way per tick
+        float body = 40f;
+        for (int i = 0; i < 40; i++) body = CosmeticAttachments.nextBody(body, 0, 0.2, 0f, false, false);
+        assertEquals(0f, body, 0.01);
+        // strafing east (-90 = east) while looking south: the body turns towards the walk, up to 50 from the head
+        body = 0f;
+        for (int i = 0; i < 40; i++) body = CosmeticAttachments.nextBody(body, 0.2, 0, 0f, false, false);
+        assertEquals(-50f, body, 0.01);
+        // walking backwards (north) while looking south: the body keeps facing south
+        body = 0f;
+        for (int i = 0; i < 40; i++) body = CosmeticAttachments.nextBody(body, 0, -0.2, 0f, false, false);
+        assertEquals(0f, body, 0.01);
+        // swinging: towards the head even while walking elsewhere
+        body = -50f;
+        for (int i = 0; i < 40; i++) body = CosmeticAttachments.nextBody(body, 0.2, 0, 0f, true, false);
+        assertEquals(0f, body, 0.01);
+    }
+
     @Test
     void neckHeights() {
         // standing: 1.8 hitbox, neck at 24 px x 15/16; sneaking: 1.5 hitbox, neck 3.2 px (x 15/16) + 2 px lower

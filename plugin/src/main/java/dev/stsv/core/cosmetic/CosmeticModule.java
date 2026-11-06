@@ -441,6 +441,8 @@ public final class CosmeticModule implements StsvModule, Listener {
     @EventHandler public void onRespawn(PlayerRespawnEvent e) { attachments.remove(e.getPlayer()); refreshLater(e.getPlayer()); }
     @EventHandler public void onWorld(PlayerChangedWorldEvent e) { attachments.remove(e.getPlayer()); refreshLater(e.getPlayer()); }
     @EventHandler public void onDeath(org.bukkit.event.entity.PlayerDeathEvent e) { attachments.remove(e.getPlayer()); }
+    /** Swinging turns the body to the head on every client: the worn models turn with it. */
+    @EventHandler public void onSwing(io.papermc.paper.event.player.PlayerArmSwingEvent e) { attachments.swung(e.getPlayer()); }
 
     /**
      * The self view uses models from the server resource pack: only with the pack the client has loaded.
@@ -560,7 +562,14 @@ public final class CosmeticModule implements StsvModule, Listener {
 
     public void enterWardrobe(Player p) {
         if (inWardrobe(p)) {
-            openMenu(p);
+            Session s = sessions.get(p.getUniqueId());
+            // menu clicks only count outside spectator mode: go through the camera -> menu switch
+            if (p.getGameMode() == GameMode.SPECTATOR) {
+                if (p.getSpectatorTarget() != s.camera) p.setSpectatorTarget(s.camera);
+                toMenu(p);
+            } else {
+                openMenu(p);
+            }
             return;
         }
         String refusal = refusal(p);
@@ -985,10 +994,35 @@ public final class CosmeticModule implements StsvModule, Listener {
      * The camera must stay attached for the whole session: sneaking in the preview would detach it (then
      * open the menu instead), and switching to creative for the menu would too (just keep it).
      */
+    /**
+     * In the preview the player is a spectator, and a spectator's click on an entity makes them watch it
+     * from inside (the mannequin): never anything but the camera; a click opens the menu instead.
+     */
+    @EventHandler
+    public void onStartSpectating(com.destroystokyo.paper.event.player.PlayerStartSpectatingEntityEvent e) {
+        Session s = sessions.get(e.getPlayer().getUniqueId());
+        if (s == null || s.closing || e.getNewSpectatorTarget() == s.camera) return;
+        e.setCancelled(true);
+        Player p = e.getPlayer();
+        if (!s.toMenu && !menuOpen(p)) Bukkit.getScheduler().runTask(plugin, () -> {
+            if (inWardrobe(p) && p.getGameMode() == GameMode.SPECTATOR && !menuOpen(p)) toMenu(p);
+        });
+    }
+
     @EventHandler
     public void onStopSpectating(com.destroystokyo.paper.event.player.PlayerStopSpectatingEntityEvent e) {
         Session s = sessions.get(e.getPlayer().getUniqueId());
-        if (s == null || s.closing || e.getSpectatorTarget() != s.camera) return;
+        if (s == null || s.closing) return;
+        if (e.getSpectatorTarget() != s.camera) {
+            // watching something else after all (should not happen): back onto the camera, then the menu
+            Player p = e.getPlayer();
+            Bukkit.getScheduler().runTask(plugin, () -> {
+                if (!inWardrobe(p) || p.getGameMode() != GameMode.SPECTATOR) return;
+                p.setSpectatorTarget(s.camera);
+                if (!menuOpen(p)) toMenu(p);
+            });
+            return;
+        }
         e.setCancelled(true);
         if (!s.toMenu && e.getPlayer().getGameMode() == GameMode.SPECTATOR && !menuOpen(e.getPlayer())) {
             Bukkit.getScheduler().runTask(plugin, () -> toMenu(e.getPlayer()));
@@ -1125,6 +1159,8 @@ public final class CosmeticModule implements StsvModule, Listener {
         out.add("착용 중: " + (worn.isEmpty() ? "없음" : String.join(", ", worn.entrySet().stream()
                 .map(e -> e.getKey().id + "=" + e.getValue().key().asString()).toList())));
         out.add("붙은 모델(디스플레이 id): " + attachments.displays(p) + " / 내 화면 표시: " + selfView(p) + " / 숨김(투명·사망·관전): " + concealed(p));
+        if (packets != null) out.add("몸에 붙이기 패킷(서버 전체): 스폰 때 " + packets.linkedSpawns.get() + " / 탑승 패킷 보강 "
+                + packets.extendedPassengers.get() + " / 재전송 " + packets.resent.get());
         out.add("보유(직접 지급): " + (owned(p).isEmpty() ? "없음" : String.join(", ", owned(p))));
         out.add("OP 전체 보유 설정(cosmetics.op-owns-all): " + plugin.getConfig().getBoolean("cosmetics.op-owns-all")
                 + " / 권한: " + p.hasPermission("stsv.cosmetic.*"));
