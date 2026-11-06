@@ -16,6 +16,9 @@ COLOURS = {
     "w": (120, 196, 240), "W": (62, 128, 186),             # water
     "d": (108, 113, 124), "D": (78, 82, 92),               # disabled
     "k": (34, 37, 44),                                     # dark detail inside a light shape
+    # extra depth for the few icons drawn as objects (coins, crown, anvil): a highlight and a deep shade
+    "H": (255, 253, 246), "S": (122, 118, 110),            # glint on light/grey, grey's underside
+    "y": (255, 228, 132), "o": (132, 88, 26),              # gold highlight, gold's deep shade
 }
 OUTLINE = (16, 18, 22)
 
@@ -147,21 +150,26 @@ HANGER = [
     "...ssssssssssss",
 ]
 
-COINS = [
-    "",
-    "",
-    "...gggg",
-    "..gggggg",
-    "..GGGGGG",
-    "..gggggg",
-    "..GGGGGG..gggg",
-    "..gggggg.gggggg",
-    "..GGGGGG.GGGGGG",
-    "..gggggg.gggggg",
-    "..GGGGGG.GGGGGG",
-    "..gggggg.gggggg",
-    "..GGGGGG.GGGGGG",
-]
+def _coin_stacks():
+    """Two stacks of gold coins lit from the upper left: a top face with a glint, a highlight stripe
+    down each stack, a shaded right side and a dark groove between coins."""
+    grid = [["."] * 16 for _ in range(16)]
+    sides = ["g", "y", "g", "g", "G", "o"]                    # across a stack, left to right
+    darker = {"y": "G", "g": "o", "G": "o", "o": "o"}
+    for x0, top in ((1, 2), (8, 6)):
+        for k, ch in enumerate(".yHyy."):
+            if ch != ".":
+                grid[top][x0 + k] = ch
+        for k, ch in enumerate("gyyyyG"):
+            grid[top + 1][x0 + k] = ch
+        for y in range(top + 2, 14):
+            groove = (y - top) % 2 == 0
+            for k, ch in enumerate(sides):
+                grid[y][x0 + k] = darker[ch] if groove else ch
+    return ["".join(r) for r in grid]
+
+
+COINS = _coin_stacks()
 
 CHART = [
     "",
@@ -244,32 +252,36 @@ CHEST = [   # the vanity shop: a gift box
     ".....ssssGGss",
 ]
 
-CROWN = [
+CROWN = [   # three points with a ball on the middle one, a jewelled band; lit from the left
     "",
     "",
-    "",
-    "...g...g...g",
-    "...gg.ggg.gg",
-    "...ggggggggg",
-    "...gggrgggbgG",
-    "...gggggggggG",
-    "...gggggggggG",
-    "...GGGGGGGGGG",
+    ".......yg",
+    ".......gG",
+    ".y.....yg.....G",
+    ".yg...yggG...gG",
+    ".ygg.yyggGG.ggo",
+    ".yggyyggggGGgGo",
+    ".ygggggggggGGGo",
+    ".oooooooooooooo",
+    ".ygHrggHbggHrGo",
+    ".ygrRggbBggrRGo",
+    ".oooooooooooooo",
 ]
 
-HAMMER = [
+HAMMER = [   # an anvil: a lit top face, the horn's shadowed underside, a waist and a wide foot
     "",
     "",
     "",
     "",
-    ".#############",
-    "...###########s",
-    "......######s",
+    "..HHHHHHHHHHHH",
+    ".H###########s",
+    "...SSsssssssss",
+    "......S#####s",
+    ".......####s",
     "......######s",
     ".....########s",
-    "....##########s",
-    "....##########s",
-    ".....ssssssssss",
+    "....H#########s",
+    "....SSSSSSSSSSS",
 ]
 
 def _refresh():
