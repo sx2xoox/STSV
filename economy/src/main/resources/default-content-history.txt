@@ -9,6 +9,7 @@ d1d6447b930fcc918fe2e282117c0ee584a5da70 economy/assets/economy/items/gui/bag.js
 49ee70ab95b861a9f776f6ae40426caadb362582 economy/assets/economy/items/gui/buy_1.json
 22c1322d5436a5effdb932b9d8b8bfaa6ea9390a economy/assets/economy/items/gui/buy_10.json
 8be8b611b9203ca13c5141b96b308c16aa09ff47 economy/assets/economy/items/gui/buy_100.json
+8606c4761cb2bab01e977d5ce46274713128a449 economy/assets/economy/items/gui/cart.json
 0d1eebfe6c0409b668fc6b916c137914134a4b7c economy/assets/economy/items/gui/chart.json
 c517633a771f8f0bdd6da5562e27b5e2e0ef034c economy/assets/economy/items/gui/chest.json
 6cd4f351f51e11bd9abcba76fb81aedf7bfe0f67 economy/assets/economy/items/gui/coins.json
@@ -77,6 +78,7 @@ cd040382d6684b85b48d73b004bd84f622ae04c2 economy/assets/economy/models/item/gui/
 472ad2cb4f4f1eff413b217739c212f7c611d8af economy/assets/economy/models/item/gui/buy_1.json
 4e55918c71adb5e195b08d87ca1a597a8dcd627e economy/assets/economy/models/item/gui/buy_10.json
 9d6cf6a7ac592269c20387664a7423bd23afd925 economy/assets/economy/models/item/gui/buy_100.json
+5b00df72fa99a84201a0b8473caa9e8df865aae8 economy/assets/economy/models/item/gui/cart.json
 87cdac4c930659941543056e1564f9d6c17b518a economy/assets/economy/models/item/gui/chart.json
 c8d800761afb4dc3bcb28693c16487fe05167024 economy/assets/economy/models/item/gui/chest.json
 c600ebcb21025b4b7bcf9d701b85a70104980f41 economy/assets/economy/models/item/gui/coins.json
@@ -181,6 +183,11 @@ fc01fe805f30d60d8e6d622e03a30a3543bec204 economy/assets/economy/textures/gui/pri
 be552e4f4e6d39f1c51d6776cb612e99156f3afb economy/assets/economy/textures/gui/requests.png
 3f7dee464f5accc6ae58acd90c60d5bb39cff680 economy/assets/economy/textures/gui/shop.png
 575af5771d3d25f9469e09c79cf54e726dcc773c economy/assets/economy/textures/gui/shop.png
+dea15fdfabbd096f68afe2a99ac52835850f630a economy/assets/economy/textures/gui/shop.png
+ad631073429b654452831d79fb513a8bc7fe87a9 economy/assets/economy/textures/gui/shop_buy.png
+54243f5141bca96f192295e70c2675b223f9a57b economy/assets/economy/textures/gui/shop_buy_items.png
+2f471394a5a2ae1a7250494a802efc820249adaf economy/assets/economy/textures/gui/shop_sell.png
+8e865ee36e47d01d49b3d7dcb53ef01f7162b92a economy/assets/economy/textures/gui/shop_sell_items.png
 8dc672b4c13d6d8e23fe4076d765a298f65a7a4d economy/assets/economy/textures/gui/stall.png
 60e04ba21a07c1ec139206e50cc34fb980ab0209 economy/assets/economy/textures/gui/stock.png
 62d2bcd628360af9e2eb4c0d170bd77b4d785a32 economy/assets/economy/textures/gui/stock.png
@@ -201,6 +208,7 @@ e7387b93761850c7f75080576cd6197022b8ccc7 economy/assets/economy/textures/item/gu
 0b10438b21264ab5f407270e7aff4f0e3a358743 economy/assets/economy/textures/item/gui/buy_1.png
 7611ac452c2ebc2ca054924a28c476534633f84f economy/assets/economy/textures/item/gui/buy_10.png
 7f199763540ca4035cea7d0cc17d8d0d2a4d3ee4 economy/assets/economy/textures/item/gui/buy_100.png
+f838386263959c6d5d93bfdb9bf3b863c6a4eb8d economy/assets/economy/textures/item/gui/cart.png
 e91fc5970009a348633b17c6d4394a6dbfdc2a2a economy/assets/economy/textures/item/gui/chart.png
 f5195b01495d32b54e294af403e75032227dbbae economy/assets/economy/textures/item/gui/chart.png
 348c9a17c2d701988e7ac266a320d89d97e281d3 economy/assets/economy/textures/item/gui/chest.png
@@ -326,6 +334,7 @@ e2b1186f2bf981df408e87fa8ed142633fff6690 economy/menus/jobs.yml
 a1d0b34fcf3bc2a7f3bf23504309020e87eb2425 economy/menus/prices.yml
 c9d3cbe42245ce0160d9b4231d79f61c6c0b1809 economy/menus/requests.yml
 e1c96b81524e1aec79354163933f7556164b468b economy/menus/requests.yml
+252379e2ffd295c403b7997776d09b10708a9e4a economy/menus/shop.yml
 4b4fe3bebbd6ceef80b02508c6e5b676150e13bb economy/menus/shop.yml
 c5e44327d68a3c5821fcefc4ca747e9bfb18a45b economy/menus/shop.yml
 c89368821d7b63b653cc41b0b75c1606cd53f693 economy/menus/stall.yml
@@ -712,6 +721,7 @@ f3c85fd1b590e11695e565a57503fb208ab98154 economy/requests.yml
 35d6b427c37a8b7227d8fc142e2fbb5b0c28331c economy/shop.yml
 83ea0e0a9a4e74d71dbf74fc9b4a7aaada752c24 economy/shop.yml
 a5b911c79658d23800ecf92439177e3b62c26887 economy/shop.yml
+ce705e26bab7d4704e536cbb73ac3544170de999 economy/shop.yml
 dae946176eb81429725a60e683c2d51c9a604ac2 economy/shop.yml
 fd684f520ec2ea64e736e9d82fa39b70f289880a economy/shop.yml
 f67b979d934ac0d6e127aafb77be1d7b12f8d757 economy/stocks.yml
@@ -1033,6 +1043,7 @@ c4d02760bf0442d46a98c7118be9c90d06d45643 economy/textures/yellowtail.png
 ac16a8f73693388a89da9b34a5182a85e8bb34a5 economy/textures/zucchini_seeds.png
 c53d6ca5ec0b22def4d174f5de491889dd6ba83f economy/textures/zucchini_seeds.png
 2aa1954cdb2062cacea42d9ecb6590d7487b78f0 economy/titles/titles.yml
+6d3e770c18cdf04882e7e2bed4258b5c85fedc98 economy/titles/titles.yml
 87f03b9f2f8c65dbab31c5d106af474f8963fe8f economy/titles/titles.yml
 a69bc0fe8e621a94a815db7e8cef41145f90a469 economy/titles/titles.yml
 a880ba52868b21f940f2fe984f4936e658f7f588 economy/titles/titles.yml

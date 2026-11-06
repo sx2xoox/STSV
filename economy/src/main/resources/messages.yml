@@ -81,7 +81,7 @@ shop:
   repaired: "<green>수리 완료</green> <white>{item}</white> <gray>-</gray> {amount}"
   notice: "<gold><b>수요 고시</b></gold> <white>{items}</white> <gray>매입가 ×{mult} (다음 고시까지)"
   shortage-detail: "{item} 매입가 ×{mult}"
-  crash-detail: "{item} 매입가 ×{mult}, 거래소 가격 빨간색"
+  crash-detail: "{item} 매입가 ×{mult}, 거래소 가격 파란색"
   merchant-detail: "스폰에 한정 상품 (/상점 → 구매 → 상인 행렬)"
   order-detail: "{item} {done}/{target} · 지금 개당 {unit}G · /납품"
   order-none: "<gray>지금은 긴급 납품이 없습니다."
@@ -98,12 +98,12 @@ shop:
   board-title: "<gold><b>오늘의 시세</b></gold> <gray>(개당 매입가)"
   board-quiet: "<gray>오늘은 아직 조용합니다"
   price-line: "<white>{item}</white> <gold>{price} G</gold> {change}{marks}"
-  change-up: "<green>▲{pct}%</green>"
-  change-down: "<red>▼{pct}%</red>"
+  change-up: "<color:#ff5f57>▲{pct}%</color>"
+  change-down: "<color:#4d9bff>▼{pct}%</color>"
   change-none: "<dark_gray>-</dark_gray>"
   mark-notice: " <gold>★</gold>"
-  mark-shortage: " <green>품귀</green>"
-  mark-crash: " <red>폭락</red>"
+  mark-shortage: " <color:#ff5f57>품귀</color>"
+  mark-crash: " <color:#4d9bff>폭락</color>"
   mark-floor: " <dark_gray>(바닥)</dark_gray>"
   prices-header: "<gold>시세</gold> <gray>(오늘 접속 {players}명 기준)"
   price-lore: ["", "<gray>지금 개당: <gold>{price} G</gold> <dark_gray>(기준 {base} G)", "<gray>24시간: {change}{marks}",
@@ -129,7 +129,7 @@ market:
   mode-mine: "내 등록품"
   mode-search: "검색: {search}"
   lore: ["", "<gray>가격: </gray>{price} <dark_gray>(개당 {unit})", "<gray>판매자: <white>{seller}", "<gray>남은 시간: {left}"]
-  lore-crash: ["", "<red>가격: {price} (개당 {unit})", "<gray>판매자: <white>{seller}", "<gray>남은 시간: {left}"]
+  lore-crash: ["", "<color:#4d9bff>가격: {price} (개당 {unit})", "<gray>판매자: <white>{seller}", "<gray>남은 시간: {left}"]
   lore-buy: ["<yellow>두 번 클릭: 구매"]
   lore-confirm: ["<gold><b>한 번 더 클릭하면 구매합니다</b>"]
   lore-own: ["<yellow>클릭: 등록 취소"]
