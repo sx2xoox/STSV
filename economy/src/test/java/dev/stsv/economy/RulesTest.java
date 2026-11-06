@@ -229,6 +229,37 @@ class RulesTest {
     }
 
     @Test
+    void fishGroupsFeedTheRecipes() {
+        var y = ContentTest.yaml("machines.yml");
+        Map<String, MachineSpec> m = MachineSpec.parse(y, new ArrayList<>());
+        Map<String, MachineSpec.Group> groups = MachineSpec.groups(y, new ArrayList<>());
+        java.util.function.BiPredicate<String, String> tags = (tag, item) -> groups.containsKey(tag) && groups.get(tag).items().contains(item);
+        // every member is a fish of fish.yml, none is a legend, and a fish is in one cooking group only (명태·대구 aside)
+        FishSpec f = fish();
+        java.util.Set<String> fishItems = new HashSet<>();
+        f.species().values().forEach(sp -> fishItems.add(sp.item()));
+        Map<String, String> seen = new java.util.HashMap<>();
+        for (var g : groups.values()) {
+            for (String it : g.items()) {
+                assertTrue(fishItems.contains(it), g.id() + ": " + it + " is a fish");
+                var sp = f.species().values().stream().filter(x -> x.item().equals(it)).findFirst().orElseThrow();
+                assertNotEquals("legend", sp.rarity(), it + " is a legend: sold, not cooked");
+                if (!g.id().equals("economy:pollack")) assertNull(seen.put(it, g.id()), it + " in two groups");
+            }
+        }
+        // any fish of a group will do, mixed too
+        MachineSpec bench = m.get("fish_bench");
+        assertEquals("economy:cod_fillet", bench.auto(Map.of("economy:rockfish", 1, "minecraft:cod", 1), 0, tags).output());
+        assertEquals("economy:sukhoe", bench.auto(Map.of("economy:octopus", 1), 1, tags).output());
+        assertNull(bench.auto(Map.of("economy:octopus", 1), 0, tags), "숙회 is 1강");
+        MachineSpec kitchen = m.get("kitchen");
+        assertEquals("economy:maeuntang", kitchen.auto(Map.of("economy:carp", 1, "economy:loach", 1, "economy:chili_powder", 1,
+                "economy:green_onion", 1), 1, tags).output());
+        assertNull(kitchen.auto(Map.of("economy:guppy", 2, "economy:chili_powder", 1, "economy:green_onion", 1), 3, tags),
+                "an aquarium fish is not food");
+    }
+
+    @Test
     void machinesPickTheirRecipeByInputsAndTier() {
         Map<String, MachineSpec> m = MachineSpec.parse(ContentTest.yaml("machines.yml"), new ArrayList<>());
         java.util.function.BiPredicate<String, String> tags = (tag, item) -> tag.equals("logs") && item.endsWith("_log");

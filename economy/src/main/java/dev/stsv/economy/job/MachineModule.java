@@ -94,7 +94,9 @@ public final class MachineModule extends EcoModule {
         return row >= 1 && row <= LANES && slot % 9 == 5 ? row - 1 : -1;
     }
 
-    private static final BiPredicate<String, String> TAGGED = MachineModule::tagged;
+    /** "#tag" inputs: a machines.yml group (fish kinds) or a vanilla item tag */
+    private final BiPredicate<String, String> TAGGED = this::tagged;
+    private Map<String, MachineSpec.Group> groups = Map.of();
 
     private Map<String, MachineSpec> specs = Map.of();
     private MachineSpec.Settings settings = new MachineSpec.Settings(List.of(), List.of(), List.of(1), List.of(0.0), 0.2);
@@ -175,6 +177,10 @@ public final class MachineModule extends EcoModule {
         List<String> problems = new ArrayList<>();
         var data = eco.data("machines.yml");
         specs = MachineSpec.parse(data, problems);
+        groups = MachineSpec.groups(data, problems);
+        for (MachineSpec.Group g : groups.values()) {
+            for (String id : g.items()) if (Items.create(id, 1).isEmpty()) problems.add("groups." + g.id() + ": 없는 아이템 " + id);
+        }
         settings = MachineSpec.Settings.parse(data);
         Map<String, String> made = new HashMap<>();
         for (MachineSpec s : specs.values()) {
@@ -183,7 +189,8 @@ public final class MachineModule extends EcoModule {
             for (MachineSpec.Recipe r : s.recipes()) {
                 if (Items.create(r.output(), 1).isEmpty()) problems.add(s.id() + ": 없는 결과물 " + r.output());
                 for (String in : r.inputs().keySet()) {
-                    if (in.startsWith("#") ? tag(in.substring(1)) == null : Items.create(in, 1).isEmpty()) problems.add(s.id() + ": 없는 재료 " + in);
+                    boolean known = in.startsWith("#") ? groups.containsKey(in.substring(1)) || tag(in.substring(1)) != null : Items.create(in, 1).isPresent();
+                    if (!known) problems.add(s.id() + ": 없는 재료 " + in);
                 }
                 made.putIfAbsent(r.output(), s.id());
             }
@@ -214,7 +221,9 @@ public final class MachineModule extends EcoModule {
         return key == null ? null : Bukkit.getTag(Tag.REGISTRY_ITEMS, key, Material.class);
     }
 
-    private static boolean tagged(String tag, String item) {
+    private boolean tagged(String tag, String item) {
+        MachineSpec.Group g = groups.get(tag);
+        if (g != null) return g.items().contains(item);
         if (!item.startsWith("minecraft:")) return false;
         Material m = Material.matchMaterial(item);
         Tag<Material> t = tag(tag);
@@ -433,7 +442,7 @@ public final class MachineModule extends EcoModule {
         if (p != null && !bonuses.isEmpty()) HudModule.flash(p, Lang.mm("machine.bonus", "item", Items.mmName(product), "what", String.join(", ", bonuses)));
     }
 
-    private static void take(Machine m, int lane, String key, int count) {
+    private void take(Machine m, int lane, String key, int count) {
         int left = count;
         for (int i = 0; i < 3 && left > 0; i++) {
             ItemStack it = m.inv.getItem(input(lane, i));
@@ -527,10 +536,32 @@ public final class MachineModule extends EcoModule {
     private String inputsText(MachineSpec.Recipe r) {
         List<String> ins = new ArrayList<>();
         for (Map.Entry<String, Integer> in : r.inputs().entrySet()) {
-            String name = in.getKey().startsWith("#") ? Lang.raw("machine.tag." + in.getKey().substring(1).replace(':', '.')) : Items.mmName(in.getKey());
+            String key = in.getKey();
+            MachineSpec.Group g = key.startsWith("#") ? groups.get(key.substring(1)) : null;
+            String name = g != null ? Lang.raw("machine.group", "group", g.name())
+                    : key.startsWith("#") ? Lang.raw("machine.tag." + key.substring(1).replace(':', '.')) : Items.mmName(key);
             ins.add(name + "<gray> ×" + in.getValue());
         }
         return String.join("<gray> + ", ins);
+    }
+
+    /** For each group input of a recipe: which items count, a few names per line. */
+    private List<Component> groupLines(MachineSpec.Recipe r) {
+        List<Component> out = new ArrayList<>();
+        for (String key : r.inputs().keySet()) {
+            MachineSpec.Group g = key.startsWith("#") ? groups.get(key.substring(1)) : null;
+            if (g == null) continue;
+            List<String> names = g.items().stream().map(Items::mmName).toList();
+            for (int i = 0; i < names.size(); i += 5) {
+                String chunk = String.join("<dark_gray>, ", names.subList(i, Math.min(names.size(), i + 5)));
+                out.add(Lang.item(i == 0 ? "machine.group-items" : "machine.group-items-more", "group", g.name(), "items", chunk));
+            }
+        }
+        return out;
+    }
+
+    public Map<String, MachineSpec.Group> groups() {
+        return groups;
     }
 
     private JobSpec.Job jobOf(Machine m) {
@@ -708,6 +739,7 @@ public final class MachineModule extends EcoModule {
                 boolean locked = r.tier() > m.tier;
                 List<Component> lore = new ArrayList<>();
                 lore.add(Lang.item("machine.recipe-in", "in", inputsText(r)));
+                lore.addAll(groupLines(r));
                 lore.add(Lang.item(r.aging() ? "machine.recipe-time-aging" : "machine.recipe-time", "time", time(seconds(m, r, u))));
                 double val = value(r.output());
                 if (val > 0) lore.add(Lang.item("machine.recipe-value", "value", String.format("%,.0f", val)));

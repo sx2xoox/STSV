@@ -22,6 +22,22 @@ public record MachineSpec(String id, String name, String item, String job, Strin
      */
     public record Recipe(int index, Map<String, Integer> inputs, String output, int amount, double seconds, int tier, boolean aging) {}
 
+    /** A named set of items that counts as one recipe input ("#economy:white_fish"): any of them will do. */
+    public record Group(String id, String name, List<String> items) {}
+
+    /** machines.yml groups: id -> name and items; the key is "economy:<id>" as recipes write it after the '#'. */
+    public static Map<String, Group> groups(ConfigurationSection c, List<String> problems) {
+        Map<String, Group> out = new LinkedHashMap<>();
+        ConfigurationSection gs = c.getConfigurationSection("groups");
+        if (gs == null) return out;
+        for (String id : gs.getKeys(false)) {
+            List<String> items = gs.getStringList(id + ".items").stream().map(JobSpec::norm).toList();
+            if (items.isEmpty()) problems.add("groups." + id + ": items 필요");
+            out.put("economy:" + id, new Group("economy:" + id, gs.getString(id + ".name", id), items));
+        }
+        return out;
+    }
+
     /** While working: a particle and a sound at a point in model coordinates (floor = y 0). */
     public record Effect(String particle, double[] at, String sound, float volume, float pitch) {}
 
@@ -105,7 +121,7 @@ public record MachineSpec(String id, String name, String item, String job, Strin
     public static Map<String, MachineSpec> parse(ConfigurationSection c, List<String> problems) {
         Map<String, MachineSpec> out = new LinkedHashMap<>();
         for (String id : c.getKeys(false)) {
-            if (id.equals("upgrade") || id.equals("xp-per-gold")) continue;
+            if (id.equals("upgrade") || id.equals("xp-per-gold") || id.equals("groups")) continue;
             ConfigurationSection m = c.getConfigurationSection(id);
             if (m == null) continue;
             String item = m.getString("item");

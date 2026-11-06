@@ -32,8 +32,8 @@ pool:
   - { item: economy:eggplant, min: 8, max: 24, job: farmer, xp: 20, from-day: 2 }
   - { item: economy:zucchini, min: 8, max: 16, job: farmer, xp: 20, from-day: 3 }
   - { item: economy:muskmelon, min: 2, max: 6, job: farmer, xp: 30, from-day: 5 }
-  - { item: cod, min: 8, max: 24, job: fisher, xp: 25 }
-  - { item: salmon, min: 8, max: 24, job: fisher, xp: 25 }
+  - { item: economy:mackerel, min: 8, max: 24, job: fisher, xp: 25 }
+  - { item: economy:crucian_carp, min: 8, max: 24, job: fisher, xp: 25 }
   - { item: oak_log, min: 32, max: 64 }
   - { item: bread, min: 16, max: 32, job: cook, xp: 15, value: 6 }
   - { item: cooked_beef, min: 16, max: 32, job: cook, xp: 15, value: 4 }
@@ -48,10 +48,13 @@ pool:
   - { item: economy:doenjang, min: 1, max: 4, job: farmer, xp: 60, from-day: 8, weight: 4 }
   - { item: economy:cod_fillet, min: 8, max: 24, job: fisher, xp: 25, from-day: 2, weight: 6 }
   - { item: economy:seabream_sashimi, min: 2, max: 6, job: fisher, xp: 50, from-day: 5, weight: 4 }
+  - { item: economy:sukhoe, min: 2, max: 6, job: fisher, xp: 50, from-day: 5, weight: 3 }
   - { item: economy:iron_plate, min: 2, max: 6, job: blacksmith, xp: 30, from-day: 2, weight: 6 }
   - { item: economy:steel_ingot, min: 1, max: 4, job: blacksmith, xp: 60, from-day: 8, weight: 4 }
   - { item: economy:kimchi, min: 2, max: 8, job: cook, xp: 30, from-day: 2, weight: 6 }
   - { item: economy:hobakjeon, min: 4, max: 12, job: cook, xp: 25, from-day: 2, weight: 6 }
+  - { item: economy:maeuntang, min: 1, max: 4, job: cook, xp: 40, from-day: 4, weight: 4 }
+  - { item: economy:braised_mackerel, min: 1, max: 4, job: cook, xp: 40, from-day: 4, weight: 4 }
   - { item: economy:bibimbap, min: 1, max: 2, job: cook, xp: 100, from-day: 15, weight: 3 }
   - { item: economy:makgeolli, min: 2, max: 6, job: alchemist, xp: 30, from-day: 2, weight: 6 }
   - { item: economy:soju, min: 1, max: 3, job: alchemist, xp: 60, from-day: 8, weight: 4 }
@@ -62,5 +65,5 @@ pool:
 community:
   - { name: "철의 도시", item: iron_ingot, target: 20000, reward: 500 }
   - { name: "겨울 대비 석탄", item: coal, target: 30000, reward: 1000 }
-  - { name: "대어 축제", item: cod, target: 10000, reward: 1500 }
+  - { name: "대어 축제", item: economy:cod_fillet, target: 4000, reward: 1500 }
   - { name: "왕관의 보석", item: diamond, target: 2000, reward: 3000 }

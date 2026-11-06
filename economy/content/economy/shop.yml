@@ -190,12 +190,13 @@ sell:
   economy:gochujang: { base: 163, q: 4 }   # 고추장
   economy:jang_set: { base: 928, q: 2 }   # 전통 장 세트
   # 손질대 (어부)
-  economy:cod_fillet: { base: 9, q: 32 }   # 대구 필렛
+  economy:cod_fillet: { base: 9, q: 32 }   # 생선 필렛
   economy:salmon_fillet: { base: 9, q: 32 }   # 연어 필렛
   economy:dried_pollack: { base: 14, q: 32 }   # 북어
   economy:prepared_puffer: { base: 6, q: 32 }   # 손질한 복어
   economy:smoked_salmon: { base: 14, q: 32 }   # 훈제 연어
-  economy:seabream_sashimi: { base: 30, q: 16 }   # 참돔 회
+  economy:seabream_sashimi: { base: 30, q: 16 }   # 모둠회
+  economy:sukhoe: { base: 41, q: 16 }   # 숙회
   economy:tuna_sashimi: { base: 94, q: 8 }   # 참치 회
   economy:polished_pearl: { base: 120, q: 8 }   # 연마 진주
   economy:fishcake: { base: 26, q: 16 }   # 어묵
@@ -216,6 +217,10 @@ sell:
   economy:hobakjeon: { base: 20, q: 16 }   # 호박전
   economy:sundubu_jjigae: { base: 74, q: 8 }   # 순두부찌개
   economy:tuna_sushi: { base: 130, q: 8 }   # 참치 초밥
+  economy:braised_mackerel: { base: 112, q: 8 }   # 고등어조림
+  economy:maeuntang: { base: 95, q: 8 }   # 매운탕
+  economy:steamed_crab: { base: 135, q: 4 }   # 게찜
+  economy:grilled_eel: { base: 330, q: 4 }   # 장어구이
   economy:strawberry_cake: { base: 94, q: 8 }   # 딸기 케이크
   economy:tomato_pasta: { base: 123, q: 8 }   # 토마토 파스타
   economy:corn_bread: { base: 56, q: 16 }   # 옥수수빵

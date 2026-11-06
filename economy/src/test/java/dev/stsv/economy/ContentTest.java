@@ -54,7 +54,11 @@ class ContentTest {
         return ids;
     }
 
+    /** "#economy:<group>" inputs of machines.yml (filled when it is read) */
+    static final Set<String> GROUPS = new HashSet<>();
+
     static boolean exists(String id, Set<String> ours) {
+        if (id.startsWith("#economy:")) return GROUPS.contains(id);
         if (id.startsWith("economy:")) return ours.contains(id);
         if (id.startsWith("#")) return List.of("#logs", "#small_flowers", "#planks", "#minecraft:logs", "#minecraft:planks").contains(id);
         if (id.startsWith("stsv:")) return Files.exists(Path.of(System.getProperty("stsv.content")).resolve("../../content/stsv"));
@@ -71,6 +75,10 @@ class ContentTest {
         ShopCatalog shop = ShopCatalog.parse(yaml("shop.yml"), problems);
         JobSpec jobs = JobSpec.parse(yaml("jobs.yml"), problems);
         Map<String, MachineSpec> machines = MachineSpec.parse(yaml("machines.yml"), problems);
+        // fish groups: every member exists, every group is used by a recipe, and a recipe's "#economy:x" is a group
+        Map<String, MachineSpec.Group> groups = MachineSpec.groups(yaml("machines.yml"), problems);
+        GROUPS.clear();
+        GROUPS.addAll(groups.keySet().stream().map(k -> "#" + k).toList());
         RequestSpec requests = RequestSpec.parse(yaml("requests.yml"), problems);
         assertTrue(problems.isEmpty(), String.join("\n", problems));
 
@@ -84,6 +92,11 @@ class ContentTest {
             if (j.finds() != null) {
                 for (var d : j.finds().drops().values()) for (String id : d) if (!exists(id, ours)) problems.add("job find: " + id);
             }
+        }
+        for (var g : groups.values()) {
+            for (String id : g.items()) if (!exists(id, ours)) problems.add("group " + g.id() + ": " + id);
+            boolean used = machines.values().stream().flatMap(x -> x.recipes().stream()).anyMatch(r -> r.inputs().containsKey("#" + g.id()));
+            if (!used) problems.add("group not used: " + g.id());
         }
         for (MachineSpec m : machines.values()) {
             if (!exists(m.item(), ours)) problems.add("machine item: " + m.item());
@@ -134,11 +147,11 @@ class ContentTest {
         if (!titles.contains("master_angler")) problems.add("title master_angler");
         assertEquals(3, fish.species().values().stream().filter(x -> x.item().startsWith("minecraft:")).count(), "cod, salmon, pufferfish");
 
-        // the shape: 6 jobs, 6 finds, 55 machine goods, 6 machines, 32 crop items (15 seeds, 17 harvests), 92 fish
+        // the shape: 6 jobs, 6 finds, 60 machine goods, 6 machines, 32 crop items (15 seeds, 17 harvests), 92 fish
         assertEquals(6, jobs.jobs().size());
-        assertEquals(6 + 55 + 6 + 32 + 92, ours.size(), "6 finds + 55 goods + 6 machines + 32 crop items + 92 fish");
+        assertEquals(6 + 60 + 6 + 32 + 92, ours.size(), "6 finds + 60 goods + 6 machines + 32 crop items + 92 fish");
         assertEquals(6, machines.size());
-        assertEquals(55, machines.values().stream().flatMap(x -> x.recipes().stream()).map(MachineSpec.Recipe::output).distinct().count());
+        assertEquals(60, machines.values().stream().flatMap(x -> x.recipes().stream()).map(MachineSpec.Recipe::output).distinct().count());
         assertTrue(events.keySet().containsAll(List.of("shortage", "crash", "harvest", "merchant", "tax_audit")));
         assertFalse(Files.exists(PACK.resolve("season.yml")), "no season plan any more");
         // every job product can actually be made: by a recipe, a machine, a job drop or a fishing rod

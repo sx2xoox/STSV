@@ -437,6 +437,20 @@ def tuna_sashimi():
 
 
 @icon
+def sukhoe():
+    """숙회: thick rounds of boiled octopus, purple skin round white flesh, with a little dish of red 초장."""
+    c = _plate(Canvas())
+    for k, (x, y) in enumerate(((4.4, 9.0), (8.0, 7.6), (11.4, 9.6))):
+        c.ellipse(x, y, 2.7, 2.1, "aubergine", 2 + k * 0.1, lo=1, hi=4, dome=0.6)
+        c.ellipse(x - 0.3, y - 0.4, 1.6, 1.2, "porcelain", 2.05 + k * 0.1, lo=2, hi=4)
+        c.put(int(x + 1), int(y + 1), "aubergine", 5, z=3 + k)
+    c.ellipse(12.8, 3.8, 2.3, 1.5, "porcelain", 4, lo=1, hi=3)
+    c.ellipse(12.8, 3.6, 1.5, 0.8, "pepper", 4.2, lo=2, hi=4)
+    c.dots([(3, 5), (4, 4), (5, 4)], "leaf", 3)
+    return c
+
+
+@icon
 def fishcake():
     """꼬치 어묵: a fish-cake ribbon folded back and forth on a wooden skewer."""
     c = Canvas()
@@ -822,6 +836,72 @@ def grilled_fish_set():
     c.poly([(1.0, 3.8), (5.4, 3.8), (4.6, 6.2), (1.8, 6.2)], "porcelain", 3.5, normal=(0, 0.5, 0.85), lo=2, hi=4)
     c.ellipse(13.0, 12.4, 1.9, 1.3, "pepper", 3, lo=2, hi=4, dome=0.7)
     c.poly([(11.2, 12.6), (14.8, 12.6), (14.2, 14.6), (11.8, 14.6)], "porcelain", 3.5, normal=(0, 0.5, 0.85), lo=2, hi=4)
+    return c
+
+
+@icon
+def braised_mackerel():
+    """고등어조림: mackerel pieces and radish chunks braised in red sauce, in a black pan with a handle."""
+    c = Canvas()
+    c.line(13, 7, 15, 5, "wood", 1, z=0).line(13, 8, 15, 6, "wood", 2, z=0)
+    c.ellipse(7.6, 9.8, 7.0, 4.8, "soot", 0, lo=1, hi=3)
+    c.ellipse(7.6, 9.4, 5.8, 3.7, "pepper", 1, lo=1, hi=3, dome=0.4)
+    cube = {"W": ("cream", 4), "w": ("cream", 3), "S": ("cream", 2), "r": ("pepper", 4)}
+    for k, (x, y) in enumerate(((2, 8), (9, 9))):
+        grid(c, ["rWW", "WwS", "wSS"], cube, z=3 + k, x0=x, y0=y)
+    for k, (a, b) in enumerate((((4.6, 8.8), (8.0, 6.4)), ((8.6, 9.6), (11.6, 7.4)))):
+        c.tube([a, b], [1.5, 1.5], "fish_silver", 5 + k, flat=0.8, lo=1, hi=4)
+        c.tube([(a[0] - 0.4, a[1] - 0.6), (b[0] - 0.4, b[1] - 0.6)], [0.8, 0.8], "fish_blue", 5.5 + k, flat=0.8, lo=1, hi=3)
+    c.dots([(9, 6), (6, 11)], "leaf", 3)
+    c.dots([(5, 3), (6, 2), (9, 3), (10, 2)], "snow", 1)
+    return c
+
+
+@icon
+def maeuntang():
+    """매운탕: a two-handled pot of red spicy broth with a piece of fish, radish, scallions and chilli, steaming."""
+    c = Canvas()
+    c.poly([(1.8, 8.0), (14.2, 8.0), (13.0, 14.2), (3.0, 14.2)], "steel", 0, normal=(-0.1, 0.5, 0.85), lo=1, hi=4)
+    c.line(0, 9, 1, 9, "steel", 2, z=0.1).line(14, 9, 15, 9, "steel", 1, z=0.1)
+    c.tube([(2.0, 8.3), (14.0, 8.3)], [0.8, 0.8], "steel", 0.2, lo=2, hi=5)
+    c.ellipse(8, 8.0, 5.9, 2.3, "pepper", 1, lo=2, hi=4, dome=0.3)
+    c.ellipse(6.0, 7.6, 2.0, 1.1, "fish_silver", 2, lo=2, hi=4)
+    c.put(5, 7, "fish_blue", 2, z=3).put(6, 7, "fish_blue", 3, z=3)
+    grid(c, ["WW", "wS"], {"W": ("cream", 4), "w": ("cream", 3), "S": ("cream", 2)}, z=3, x0=10, y0=7)
+    c.dots([(8, 8), (9, 7), (12, 8)], "leaf", 3)
+    c.put(8, 9, "pepper", 5, z=3).put(4, 8, "pepper", 5, z=3)
+    c.dots([(5, 4), (6, 3), (6, 2), (10, 4), (11, 3), (11, 2)], "snow", 1)
+    return c
+
+
+@icon
+def steamed_crab():
+    """게찜: a whole steamed crab, bright orange-red, on a plate with scallions."""
+    c = _plate(Canvas())
+    for (x0, y0), (x1, y1) in (((5, 10), (2, 12)), ((5, 11), (3, 13)), ((11, 10), (14, 12)), ((11, 11), (13, 13))):
+        c.line(x0, y0, x1, y1, "seabream", 2, z=1)
+    for x in (3.4, 12.6):
+        c.line(int(x + (1 if x < 8 else -1)), 8, int(x), 6, "seabream", 3, z=1.5)
+        c.ellipse(x, 5.0, 1.6, 1.3, "seabream", 2, lo=1, hi=4, dome=0.7)
+    c.ellipse(8, 9.0, 4.6, 3.1, "seabream", 3, lo=1, hi=4, dome=0.9)
+    c.dots([(6, 7), (7, 7)], "seabream", 5)
+    c.dots([(7, 6), (9, 6)], "soot", 4)
+    c.dots([(2, 9), (14, 9), (13, 14)], "leaf", 3)
+    return c
+
+
+@icon
+def grilled_eel():
+    """장어구이: three glazed pieces of eel, grill marks across them, on a wooden board."""
+    c = Canvas()
+    c.poly([(1, 11), (5, 7), (15, 7), (11, 11)], "wood", 0, normal=(-0.1, -0.6, 0.8), lo=2, hi=4)
+    c.poly([(1, 11), (11, 11), (11, 13), (1, 13)], "wood", 0.5, normal=(0, 0.7, 0.5), lo=1, hi=2)
+    c.poly([(11, 11), (15, 7), (15, 9), (11, 13)], "wood", 0.5, normal=(0.7, 0.3, 0.5), lo=1, hi=2)
+    e = {"D": ("doenjang", 3), "d": ("doenjang", 2), "h": ("doenjang", 5), "g": ("pepper", 4), "s": ("soot", 1), "u": ("doenjang", 1)}
+    piece = [".hgDd", "gDsDd", "DsDdd", "uuuu."]
+    for k, (x, y) in enumerate(((1, 6), (6, 5), (11, 4))):
+        grid(c, piece, e, z=5 + k, x0=x, y0=y)
+    c.dots([(2, 10), (8, 10), (13, 8)], "leaf", 3)
     return c
 
 

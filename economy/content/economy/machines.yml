@@ -4,9 +4,45 @@
 # 강화는 설치한 사람만: 그 직업 레벨과 골드가 필요. 강화하면 줄이 늘고 빨라지고 새 레시피와 새 모습. 회수해도 강화는 유지.
 #
 # 레시피: in = { 재료: 개수 } (3종류까지, '#logs' 처럼 태그도 됨), out, amount, seconds (기본 속도의 시간),
+#   '#economy:white_fish' 처럼 아래 어종 묶음도 됨
 #   tier = 열리는 강화 단계 (0 기본 ~ 3), aging = 숙성 (연금술사 Lv20 숙성 절반 대상)
 #   숙성은 오래 걸리는 만큼 많이 나옴 (재료값을 빼고 숙성 1분에 8~20G쯤): 막걸리 4, 포도주 2, 빈티지 2, 된장 4, 고추장 2
 # effect: 작동 중 파티클·소리, at = 모델 좌표 (16 = 한 칸, 바닥 y 0)
+
+# 어종 묶음: 레시피 재료에 '#economy:<묶음>' 으로 쓰면 묶음 안의 물고기는 아무거나 됨 (낚시 물고기 fish.yml).
+# 레시피 값은 묶음 안의 싼 물고기 기준이라, 비싼 물고기는 그냥 파는 쪽이 이득일 수 있음.
+groups:
+  white_fish:
+    name: "흰살 생선"
+    items: [cod, economy:pollack, economy:rockfish, economy:greenling, economy:filefish, economy:black_rockfish, economy:sandfish,
+            economy:atka_mackerel, economy:mullet, economy:goby, economy:mudskipper, economy:damselfish, economy:tilapia,
+            economy:cavefish, economy:moss_minnow]
+  pollack:
+    name: "명태·대구"
+    items: [economy:pollack, cod]
+  blue_fish:
+    name: "등푸른 생선"
+    items: [economy:mackerel, economy:horse_mackerel, economy:sardine, economy:saury, economy:herring, economy:sand_lance]
+  salmon_fish:
+    name: "연어류"
+    items: [salmon, economy:lenok]
+  river_fish:
+    name: "민물고기"
+    items: [economy:crucian_carp, economy:carp, economy:pale_chub, economy:smelt, economy:bitterling, economy:dace,
+            economy:paradise_fish, economy:catfish, economy:loach, economy:snakehead]
+  sashimi_fish:
+    name: "회감"
+    items: [economy:red_seabream, economy:yellowtail, economy:croaker, economy:sunset_bream, economy:mahi_mahi, economy:yellowfin_tuna,
+            economy:trout, economy:masu_salmon, economy:char, economy:rainbow_trout, economy:crystal_trout]
+  crab:
+    name: "게"
+    items: [economy:snow_crab, economy:king_crab, economy:mud_crab]
+  eel:
+    name: "장어"
+    items: [economy:eel, economy:pike_conger, economy:swamp_eel]
+  cephalopod:
+    name: "문어·오징어"
+    items: [economy:octopus, economy:giant_squid]
 
 upgrade:
   cost: [5000, 20000, 50000]   # 1강, 2강, 3강
@@ -61,12 +97,13 @@ fish_bench:
   model: fish_bench
   effect: { particle: splash, at: [8, 17, 6], sound: block.wood.hit, volume: 0.4, pitch: 1.3 }
   recipes:
-    - { in: { cod: 2 }, out: economy:cod_fillet, seconds: 20 }   # 대구 필렛 9G
-    - { in: { salmon: 2 }, out: economy:salmon_fillet, seconds: 20 }   # 연어 필렛 9G
-    - { in: { cod: 3 }, out: economy:dried_pollack, seconds: 40 }   # 북어 14G
+    - { in: { "#economy:white_fish": 2 }, out: economy:cod_fillet, seconds: 20 }   # 생선 필렛 9G
+    - { in: { "#economy:salmon_fish": 2 }, out: economy:salmon_fillet, seconds: 20 }   # 연어 필렛 9G
+    - { in: { "#economy:pollack": 3 }, out: economy:dried_pollack, seconds: 40 }   # 북어 14G
     - { in: { pufferfish: 1 }, out: economy:prepared_puffer, seconds: 30 }   # 손질한 복어 6G
-    - { in: { salmon: 3 }, out: economy:smoked_salmon, seconds: 60, tier: 1 }   # 훈제 연어 14G
-    - { in: { economy:red_seabream: 1 }, out: economy:seabream_sashimi, amount: 2, seconds: 60, tier: 1 }   # 참돔 회 30G
+    - { in: { "#economy:salmon_fish": 3 }, out: economy:smoked_salmon, seconds: 60, tier: 1 }   # 훈제 연어 14G
+    - { in: { "#economy:sashimi_fish": 1 }, out: economy:seabream_sashimi, amount: 2, seconds: 60, tier: 1 }   # 모둠회 30G
+    - { in: { "#economy:cephalopod": 1 }, out: economy:sukhoe, amount: 2, seconds: 90, tier: 1 }   # 숙회 41G
     - { in: { economy:bluefin_tuna: 1 }, out: economy:tuna_sashimi, amount: 4, seconds: 120, tier: 1 }   # 참치 회 94G
     - { in: { economy:pearl: 1 }, out: economy:polished_pearl, seconds: 180, tier: 2 }   # 연마 진주 120G
     - { in: { economy:cod_fillet: 2, economy:flour: 1, economy:green_onion: 1 }, out: economy:fishcake, amount: 3, seconds: 120, tier: 2 }   # 어묵 26G
@@ -101,11 +138,15 @@ kitchen:
     - { in: { economy:flour: 1, economy:zucchini: 1, egg: 1 }, out: economy:hobakjeon, amount: 2, seconds: 40 }   # 호박전 20G
     - { in: { economy:tofu: 1, economy:chili_powder: 1, egg: 1 }, out: economy:sundubu_jjigae, amount: 2, seconds: 60 }   # 순두부찌개 74G
     - { in: { economy:rice: 1, economy:tuna_sashimi: 1 }, out: economy:tuna_sushi, amount: 2, seconds: 90, tier: 1 }   # 참치 초밥 130G
+    - { in: { "#economy:blue_fish": 2, economy:radish: 1, economy:chili_powder: 1 }, out: economy:braised_mackerel, seconds: 90, tier: 1 }   # 고등어조림 112G
+    - { in: { "#economy:river_fish": 2, economy:chili_powder: 1, economy:green_onion: 1 }, out: economy:maeuntang, seconds: 90, tier: 1 }   # 매운탕 95G
     - { in: { economy:flour: 2, economy:strawberry: 3, egg: 1 }, out: economy:strawberry_cake, seconds: 90, tier: 1 }   # 딸기 케이크 94G
     - { in: { economy:flour: 1, economy:tomato_sauce: 1, economy:onion: 1 }, out: economy:tomato_pasta, seconds: 90, tier: 1 }   # 토마토 파스타 123G
     - { in: { economy:corn_flour: 2, egg: 1, sugar: 1 }, out: economy:corn_bread, amount: 2, seconds: 90, tier: 1 }   # 옥수수빵 56G
     - { in: { economy:rice: 1, economy:gochujang: 1, economy:lettuce: 2 }, out: economy:bibimbap, seconds: 180, tier: 2 }   # 비빔밥 433G
     - { in: { economy:cod_fillet: 2, economy:rice: 1, economy:kimchi: 1 }, out: economy:grilled_fish_set, seconds: 180, tier: 2 }   # 생선구이 정식 266G
+    - { in: { "#economy:crab": 1, economy:green_onion: 2, economy:garlic: 1 }, out: economy:steamed_crab, seconds: 120, tier: 2 }   # 게찜 135G
+    - { in: { "#economy:eel": 2, economy:gochujang: 1 }, out: economy:grilled_eel, seconds: 180, tier: 2 }   # 장어구이 330G
     - { in: { economy:bibimbap: 1, economy:grilled_fish_set: 1, economy:doenjang: 1 }, out: economy:hanjeongsik, seconds: 480, tier: 3 }   # 한정식 1643G
 
 still:

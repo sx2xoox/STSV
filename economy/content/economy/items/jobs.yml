@@ -131,7 +131,7 @@ jang_set:
 # ── 손질대 · 어부 ─────────────────────────────────────────
 cod_fillet:
   material: paper
-  name: "<#4fc3f7>대구 필렛"
+  name: "<#4fc3f7>생선 필렛"
   texture: cod_fillet
 
 salmon_fillet:
@@ -156,7 +156,7 @@ smoked_salmon:
 
 seabream_sashimi:
   material: paper
-  name: "<#4fc3f7>참돔 회"
+  name: "<#4fc3f7>모둠회"
   texture: seabream_sashimi
 
 tuna_sashimi:
@@ -168,6 +168,11 @@ polished_pearl:
   material: paper
   name: "<#4fc3f7>연마 진주"
   texture: polished_pearl
+
+sukhoe:
+  material: paper
+  name: "<#4fc3f7>숙회"
+  texture: sukhoe
 
 fishcake:
   material: paper
@@ -308,6 +313,38 @@ grilled_fish_set:
   material: paper
   name: "<#ffb74d>생선구이 정식"
   texture: grilled_fish_set
+  food:
+    nutrition: 10
+    saturation: 12.0
+
+braised_mackerel:
+  material: paper
+  name: "<#ffb74d>고등어조림"
+  texture: braised_mackerel
+  food:
+    nutrition: 8
+    saturation: 9.6
+
+maeuntang:
+  material: paper
+  name: "<#ffb74d>매운탕"
+  texture: maeuntang
+  food:
+    nutrition: 8
+    saturation: 9.6
+
+steamed_crab:
+  material: paper
+  name: "<#ffb74d>게찜"
+  texture: steamed_crab
+  food:
+    nutrition: 8
+    saturation: 9.6
+
+grilled_eel:
+  material: paper
+  name: "<#ffb74d>장어구이"
+  texture: grilled_eel
   food:
     nutrition: 10
     saturation: 12.0

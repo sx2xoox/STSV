@@ -224,6 +224,10 @@ machine:
     logs: "원목"
     small_flowers: "꽃"
     planks: "판자"
+  # 어종 묶음 (machines.yml groups): 묶음 안의 물고기는 아무거나
+  group: "{group} <dark_gray>(아무거나)"
+  group-items: "<dark_gray>{group}: {items}"
+  group-items-more: "<dark_gray>  {items}"
   book: "<gold>레시피 목록"
   book-lore: ["<gray>이 기계로 만들 수 있는 것 전부", "<dark_gray>줄마다 고르려면 그 줄의 상태 칸을 클릭"]
   info: "<gold>{machine}</gold> <gray>· <white>{tier}"
