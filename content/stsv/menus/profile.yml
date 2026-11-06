@@ -2,7 +2,7 @@
 profile:
   title: "{title}"
   rows: 6
-  filler: glass
+  background: stsv:gui/profile
   layout:
     - "....H...."
     - "........."

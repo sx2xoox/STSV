@@ -2,7 +2,8 @@
 The stock chart font (economy:stockgraph): candles drawn in the /주식 window title, no client mod.
 
 For every top row t (0..H-1) of the chart and every height h (1..H) there is a glyph: a bar h pixels tall
-whose top is row t. Four sets: up body (3 px, green), up wick (1 px), down body (3 px, red), down wick.
+whose top is row t. Four sets: up body (3 px, red), up wick (1 px), down body (3 px, blue), down wick
+(Korean stock colours).
 All providers of a set share one strip image (bars of height 1..H); only the ascent differs. Glyph
 code = 0xE000 + (set * H + t) * H + h - 1, and spaces 0xF001.. move the pen by +-1..128 px. The layout
 must match economy/src/main/java/dev/stsv/economy/stock/StockGraph.java.
@@ -15,10 +16,11 @@ from PIL import Image
 
 H, TOP, BASE, SPACE = 32, 20, 0xE000, 0xF000
 SETS = [  # (name, width, colours from the lit left column to the shaded right one)
-    ("up_body", 3, [(124, 232, 132), (67, 190, 84), (40, 142, 58)]),
-    ("up_wick", 1, [(96, 196, 108)]),
-    ("down_body", 3, [(255, 128, 118), (226, 72, 66), (166, 40, 44)]),
-    ("down_wick", 1, [(222, 96, 92)]),
+    # Korean stock colours: red up, blue down
+    ("up_body", 3, [(255, 128, 118), (232, 72, 66), (170, 40, 44)]),
+    ("up_wick", 1, [(232, 96, 92)]),
+    ("down_body", 3, [(128, 182, 255), (72, 140, 246), (40, 92, 178)]),
+    ("down_wick", 1, [(96, 156, 240)]),
 ]
 
 

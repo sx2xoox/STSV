@@ -117,4 +117,32 @@ class WardrobeGuiTest {
         assertEquals(0xFF, argb >>> 24, "opaque at slot " + slot);
         return argb;
     }
+
+    @Test
+    void everyCoreMenuHasTheSharedLookAndTheInventoryLabelIsBlank() throws Exception {
+        List<String> problems = new ArrayList<>();
+        List<MenuSpec> menus = MenuSpec.loadAll(List.of(new ContentPack("stsv", "stsv", PACK)), problems);
+        assertTrue(problems.isEmpty(), problems.toString());
+        assertEquals(java.util.Set.of("stsv:wardrobe", "stsv:profile", "stsv:titles"),
+                menus.stream().map(MenuSpec::id).collect(java.util.stream.Collectors.toSet()));
+        Integer panel = null;
+        for (MenuSpec m : menus) {
+            assertNotNull(m.background(), m.id() + " has a background");
+            BufferedImage im = ImageIO.read(ASSETS.resolve("textures/" + m.background().getKey() + ".png").toFile());
+            // one look: the same panel colour beside the title on every menu
+            int here = im.getRGB(100, 8);
+            if (panel == null) panel = here;
+            assertEquals(panel.intValue(), here, m.id() + " panel colour");
+            for (MenuSpec.Button b : m.buttons().values()) {
+                if (b.on().icon() != null && b.on().icon().getNamespace().equals("stsv")) {
+                    assertTrue(Files.exists(ASSETS.resolve("items/" + b.on().icon().getKey() + ".json")), m.id() + " " + b.on().icon());
+                }
+            }
+        }
+        // the dark menus have no light strip behind the client's dark "Inventory" label: the pack blanks it
+        for (String lang : List.of("ko_kr", "en_us")) {
+            JsonObject o = com.google.gson.JsonParser.parseString(Files.readString(PACK.resolve("assets/minecraft/lang/" + lang + ".json"))).getAsJsonObject();
+            assertEquals("", o.get("container.inventory").getAsString(), lang);
+        }
+    }
 }

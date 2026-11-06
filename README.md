@@ -110,18 +110,23 @@ contents/mypack/
 메뉴는 `contents/<팩>/menus/*.yml` 하나와 (선택) 배경 PNG 하나입니다. 형식 설명은 `content/stsv/menus/wardrobe.yml` 맨 위에 있습니다.
 배경을 쓰면 리소스팩을 빌드할 때 폰트가 자동으로 만들어집니다(직접 폰트 파일을 쓸 필요 없음).
 
-### 치장(옷장) UI 바꾸기
+### 메뉴 모양 (모든 메뉴 공통)
+
+![코어 메뉴](docs/previews/core_menus.png)
+
+치장·프로필·칭호와 경제 서버의 메뉴 15개가 모두 같은 모양입니다: 어두운 차콜 판, 제목 아래 금색 선, 목록 칸은 들어간 칸, 버튼은 튀어나온 타일.
 
 | 파일 | 내용 |
 |---|---|
-| `content/stsv/menus/wardrobe.yml` | 칸 배치, 버튼, 문구, 배경 지정 |
-| `content/stsv/assets/stsv/textures/gui/wardrobe.png` | 배경 그림 176×222 (큰 상자 화면 크기 그대로) |
-| `content/stsv/assets/stsv/textures/item/gui/*.png` | 버튼 아이콘 16×16 (이전, 다음, 벗기, 정보, 나가기, 비활성 화살표) |
+| `tools/assetgen/stsv_assets/menu_theme.py` | 배경 그리기 (모든 메뉴 공통). 칸 위치는 각 메뉴 yml 의 layout 에서 읽음 |
+| `tools/assetgen/stsv_assets/ui_icons.py` | 버튼 아이콘 한 벌 (밝은 선 + 어두운 테두리, 돈 = 금색, 상승·사기 = 빨강, 하락·팔기 = 파랑) |
+| `content/stsv/menus/*.yml` | 칸 배치, 버튼, 문구, 배경 지정 (`background: stsv:gui/<이름>`) |
+| `content/stsv/assets/minecraft/lang/*.json` | 상자 화면의 "인벤토리" 글자를 비움 (어두운 판 위에서 안 보이는 회색 글자라서. 다른 상자에서도 안 보임) |
 
-그림을 직접 그릴 때: 상자 칸 (줄 r, 열 c)의 18×18 테두리는 x = 7 + 18c, y = 17 + 18r 입니다.
-`Inventory` 글자는 y = 128, 플레이어 인벤토리는 y = 139부터, 단축바는 y = 197 입니다.
-칸 배치를 바꾸면 그림도 같이 바꾸세요(`WardrobeGuiTest` 가 어긋남을 잡습니다).
-자동 생성은 `tools/assetgen/gui.py` (칸 위치를 wardrobe.yml 에서 읽음, 미리보기: `docs/previews/wardrobe_ui.png`).
+메뉴 yml 에서 쓸 수 있는 그림용 설정: `inset` (버튼 글자를 물건 칸 모양으로), `graph: true` (위 두 줄에 그래프 화면), `flow: true` (줄 사이 빈칸에 화살표).
+상자 칸 (줄 r, 열 c)의 18×18 테두리는 x = 7 + 18c, y = 17 + 18r, 플레이어 인벤토리는 y = 31 + 18×줄 수 부터입니다.
+코어 그림은 `cd tools/assetgen && python3 -c "import gui; from pathlib import Path; gui.write(Path('../../content/stsv'))"` (또는 `build.py`),
+경제 서버 그림은 `python3 economy_build.py` 로 다시 만듭니다. 칸 배치를 바꾸면 그림도 다시 만드세요(`WardrobeGuiTest`, 경제 `ContentTest` 가 어긋남을 잡습니다).
 
 ### 보스 만들기
 

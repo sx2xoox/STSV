@@ -24,7 +24,7 @@ codex:
       name: "<white>서식지별 진행"
     G:
       action: "codex:prev"
-      icon: economy:gui/back
+      icon: economy:gui/arrow_left
       material: ARROW
       name: "<white>◀ 이전 서식지"
     A:
@@ -35,7 +35,7 @@ codex:
       lore: ["<gray>지금: {group}"]
     H:
       action: "codex:next"
-      icon: stsv:gui/next
+      icon: economy:gui/arrow_right
       material: ARROW
       name: "<white>다음 서식지 ▶"
     P:

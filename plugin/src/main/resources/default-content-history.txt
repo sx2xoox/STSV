@@ -92,11 +92,14 @@ c0798ada1b895205b34f70af6e36018b01b6ed25 stsv/items/economy.yml
 6be73d49a7fd6861959360927bbe0cba87f5e2c7 stsv/items/machines.yml
 09e63107dca5cb144d69b7995e1542d0a1069233 stsv/items/materials.yml
 9334a9ca6dde94e06d67edd12ce1a77f778d7157 stsv/items/materials.yml
+31264b9ff6da66f87bdd5e2de0c3824716ea9333 stsv/items/test.yml
 7b98908b3981043f2e5fda5eb4c694029766d5f9 stsv/items/test.yml
 7ee26a61c159d9c6e0df1a29494f1aadcbb5ff4c stsv/items/test.yml
 834ec11072fc3ea60431a4878442b9547244a370 stsv/items/test.yml
 861996b6ee7da1cfd464f0c731e2cc4094c1e8e2 stsv/items/test.yml
 393048777e347699c60d26eb75435c5a0f3299a5 stsv/menus/profile.yml
+4854942b0887054d71a709ee1fbe0fb543af5075 stsv/menus/titles.yml
+3fa768466d385bb4e9b1a704ad17635be183931d stsv/menus/wardrobe.yml
 f065165d0b1811cbc1beabcbd29944d90ec69412 stsv/menus/wardrobe.yml
 c8718e6505ce7d7a7d6c30bc01b14e008ec59573 stsv/models/chair.bbmodel
 e83a5d1a75c0de82a34cb16dd5fed39398e8adbb stsv/models/chair.bbmodel

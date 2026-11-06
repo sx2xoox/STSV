@@ -185,6 +185,73 @@ final class AdminCommands {
             }
         }, (s, args) -> args.length == 1 ? List.of("시작", "종료", "취소") : List.of());
 
+        add("낚시", "등급 <흔함|보통|희귀|전설|진주> [플레이어] [횟수] | 물고기 <이름> [플레이어] [횟수] | 취소 [플레이어] | 확인 [플레이어]",
+                "다음 입질을 그 등급·그 물고기로 (테스트, 보물·쓰레기 입질도 바꿈. 물고기는 사는 곳·때와 상관없이)", (s, args) -> {
+            var fishing = eco.fishing();
+            String sub = args.length > 0 ? args[0] : "확인";
+            boolean needsArg = sub.equals("등급") || sub.equals("물고기");
+            int at = needsArg ? 2 : 1;
+            Player target = args.length > at ? Bukkit.getPlayerExact(args[at]) : s instanceof Player p ? p : null;
+            if (target == null) {
+                s.sendMessage(Text.msg("<red>" + (args.length > at ? "접속 중이 아닌 플레이어: " + args[at] : "플레이어를 적어 주세요")));
+                return;
+            }
+            int times = 1;
+            if (args.length > at + 1) {
+                try {
+                    times = Math.max(1, Integer.parseInt(args[at + 1]));
+                } catch (NumberFormatException ex) {
+                    s.sendMessage(Text.msg("<red>횟수는 숫자: " + args[at + 1]));
+                    return;
+                }
+            }
+            switch (sub) {
+                case "등급" -> {
+                    String rarity = args.length > 1 ? rarityId(fishing.spec(), args[1]) : null;
+                    if (rarity == null) {
+                        s.sendMessage(Text.msg("<red>등급: 흔함, 보통, 희귀, 전설, 진주"));
+                        return;
+                    }
+                    fishing.force(target.getUniqueId(), rarity, null, times);
+                    s.sendMessage(Text.msg("<green>" + target.getName() + " 다음 입질 " + times + "번: " + args[1]));
+                }
+                case "물고기" -> {
+                    var fish = args.length > 1 ? speciesOf(fishing.spec(), args[1]) : null;
+                    if (fish == null) {
+                        s.sendMessage(Text.msg("<red>없는 물고기: " + (args.length > 1 ? args[1] : "") + " <gray>(이름 또는 id, 탭 완성)"));
+                        return;
+                    }
+                    fishing.force(target.getUniqueId(), null, fish.id(), times);
+                    s.sendMessage(Text.msg("<green>" + target.getName() + " 다음 입질 " + times + "번: " + fish.name()
+                            + " <gray>(" + fishing.spec().rarities().get(fish.rarity()).name() + ")"));
+                }
+                case "취소" -> s.sendMessage(Text.msg(fishing.unforce(target.getUniqueId()) ? "<green>취소" : "<gray>정해 둔 입질 없음"));
+                default -> {
+                    var f = fishing.forced(target.getUniqueId());
+                    s.sendMessage(Text.msg(f == null ? "<gray>" + target.getName() + ": 정해 둔 입질 없음"
+                            : "<white>" + target.getName() + ": 다음 " + f.left() + "번 "
+                            + (f.species() != null ? fishing.spec().species().get(f.species()).name()
+                            : f.rarity().equals("pearl") ? "진주" : fishing.spec().rarities().get(f.rarity()).name())));
+                }
+            }
+        }, (s, args) -> {
+            if (args.length == 1) return List.of("등급", "물고기", "취소", "확인");
+            if (args.length == 2 && args[0].equals("등급")) {
+                List<String> out = new ArrayList<>();
+                eco.fishing().spec().rarities().values().forEach(r -> out.add(r.name()));
+                out.add("진주");
+                return out;
+            }
+            if (args.length == 2 && args[0].equals("물고기")) {
+                String a = args[1];
+                return eco.fishing().spec().species().values().stream().map(f -> f.name().replace(" ", "_"))
+                        .filter(n -> n.startsWith(a)).limit(40).toList();
+            }
+            int at = args[0].equals("등급") || args[0].equals("물고기") ? 3 : 2;
+            if (args.length == at) return Bukkit.getOnlinePlayers().stream().map(Player::getName).toList();
+            return List.of();
+        });
+
         add("직업", "<플레이어> <직업> | 경험치 <플레이어> <값> | 레벨 <플레이어> <1~30>", "직업 지정(비용·대기 없음) / 지금 직업의 경험치·레벨 설정 (테스트)", (s, args) -> {
             if (args.length >= 3 && args[0].equals("레벨")) {
                 Players.find(args[1], found -> {
@@ -296,5 +363,19 @@ final class AdminCommands {
             eco.getLogger().warning(by.getName() + " 님이 경제 서버 기록을 초기화했습니다.");
             return CompletableFuture.completedFuture(null);
         });
+    }
+
+    /** 흔함 / 보통 / 희귀 / 전설 (or the ids), 진주 = "pearl"; null if none. */
+    static String rarityId(dev.stsv.economy.fishing.FishSpec spec, String q) {
+        if (q.equals("진주") || q.equalsIgnoreCase("pearl")) return "pearl";
+        for (var r : spec.rarities().values()) if (r.name().equals(q) || r.id().equalsIgnoreCase(q)) return r.id();
+        return null;
+    }
+
+    /** A fish by its Korean name (spaces may be written as _) or its id. */
+    static dev.stsv.economy.fishing.FishSpec.Species speciesOf(dev.stsv.economy.fishing.FishSpec spec, String q) {
+        String n = q.replace("_", " ");
+        for (var f : spec.species().values()) if (f.name().equals(n) || f.id().equalsIgnoreCase(q)) return f;
+        return null;
     }
 }

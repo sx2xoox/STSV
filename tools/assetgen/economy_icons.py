@@ -1,6 +1,6 @@
 """
 Economy server item icons (16x16): job goods (economy_goods.py, lit pixel renderer), crops
-(economy_crops.py) and menu button icons (masks below).
+(economy_crops.py), fish (economy_fish.py) and the menu button icons (the shared UI set).
 
 Same rules as every STSV icon (docs/ART_STYLE.md): colours only from palette ramps, light from the
 top-left (a pixel whose upper/left neighbour is another part or empty is lit, lower/right is shaded),
@@ -47,168 +47,12 @@ def pad(rows):
     return [r.ljust(16, ".")[:16] for r in rows]
 
 
-# ------------------------------------------------------------------------------------------------
-# Menu button icons
-# ------------------------------------------------------------------------------------------------
+# menu button icons (economy:gui/<name>): the shared UI set (stsv_assets/ui_icons.py), the economy's part
+from stsv_assets import ui_icons as _UI   # noqa: E402
 
-COINS = pad([
-    "", "", "",
-    ".......######...",
-    "......#hhhhhh#..",
-    "......########..",
-    "..######.####...",
-    ".#hhhhhh#.......",
-    ".########.......",
-    "..######........",
-    ".#hhhhhh#.......",
-    ".########.......",
-    "..######........",
-])
-CHART = pad([
-    "",
-    "..pppppppppppp..",
-    "..p..........p..",
-    "..p.......l..p..",
-    "..p......l.l.p..",
-    "..p..l..l....p..",
-    "..p.l.ll.....p..",
-    "..pl.........p..",
-    "..p..........p..",
-    "..pppppppppppp..",
-])
-HAMMER = pad([
-    "",
-    "...HHHHHHH......",
-    "..HHHHHHHHH.....",
-    "..HHHHHHHHH.....",
-    ".......tS.......",
-    "......tS........",
-    ".....tS.........",
-    "....tS..........",
-    "...tS...........",
-    "..tS............",
-])
-BAG = pad([
-    "",
-    "......c..c......",
-    ".......cc.......",
-    "......####......",
-    ".....######.....",
-    "....########....",
-    "...####gg####...",
-    "...###gggg###...",
-    "...####gg####...",
-    "....########....",
-])
-CROWN = pad([
-    "", "", "",
-    "..g...g..g...g..",
-    "..gg.ggg.ggg.g..",
-    "..gggggggggggg..",
-    "..ggrggggggrgg..",
-    "..gggggggggggg..",
-    "..bbbbbbbbbbbb..",
-])
-LEDGER = pad([
-    "",
-    "...ccccccccccc..",
-    "...cppppppppcc..",
-    "...cp.llll.pc...",
-    "...cppppppppc...",
-    "...cp.lll..pc...",
-    "...cppppppppc...",
-    "...cp.llll.pc...",
-    "...ccccccccccc..",
-])
-REFRESH = pad([
-    "", "",
-    "......####......",
-    "....##....#.#...",
-    "...#.......##...",
-    "...#......###...",
-    "..#.............",
-    "..#..........#..",
-    ".............#..",
-    "...###......#...",
-    "...##.......#...",
-    "...#.#....##....",
-    "......####......",
-])
-TROPHY = pad([
-    "",
-    "...gggggggggg...",
-    "..g.gggggggg.g..",
-    "..g.gggggggg.g..",
-    "...ggggggggggg..",
-    ".....gggggg.....",
-    ".......gg.......",
-    ".......gg.......",
-    ".....bbbbbb.....",
-    "....bbbbbbbb....",
-])
-CHEST = pad([
-    "", "",
-    "..############..",
-    "..#..........#..",
-    "..############..",
-    "..#####kk#####..",
-    "..#####kk#####..",
-    "..############..",
-    "..############..",
-])
-BACK = pad([
-    "", "", "",
-    ".......#........",
-    "......##........",
-    ".....###........",
-    "....##########..",
-    "...###########..",
-    "....##########..",
-    ".....###........",
-    "......##........",
-    ".......#........",
-])
-UNKNOWN = pad([
-    "",
-    ".....######.....",
-    "....##....##....",
-    "....##....##....",
-    "..........##....",
-    ".........##.....",
-    "........##......",
-    ".......##.......",
-    ".......##.......",
-    "",
-    ".......##.......",
-    ".......##.......",
-])
-WAVE = pad([
-    "", "", "",
-    "..hh......hh....",
-    ".#..#....#..#...",
-    "#....#..#....#..",
-    "......##......#.",
-    "",
-    "..hh......hh....",
-    ".#..#....#..#...",
-    "#....#..#....#..",
-    "......##......#.",
-])
-
-GUI = {
-    "coins": lambda: mask(COINS, {"#": "gold", "h": ("lamp", 3)}, flat="h"),
-    "chart": lambda: mask(CHART, {"p": "paper", "l": "leaf"}),
-    "hammer": lambda: mask(HAMMER, {"H": "steel", "S": "wood", "t": ("wood", 3)}, flat="t"),
-    "bag": lambda: mask(BAG, {"#": "leather", "c": "brass", "g": "gold"}),
-    "crown": lambda: mask(CROWN, {"g": "gold", "r": "ruby", "b": "topaz"}),
-    "ledger": lambda: mask(LEDGER, {"c": "felt", "p": "paper", "l": ("steel", 1)}, flat="l"),
-    "refresh": lambda: mask(REFRESH, {"#": "leaf"}),
-    "trophy": lambda: mask(TROPHY, {"g": "gold", "b": "wood_dark"}),
-    "chest": lambda: mask(CHEST, {"#": "wood", "k": "brass"}),
-    "back": lambda: mask(BACK, {"#": "gold"}),
-    "unknown": lambda: mask(UNKNOWN, {"#": "steel"}),
-    "wave": lambda: mask(WAVE, {"#": "water", "h": ("water", 3)}, flat="h"),
-}
+_ECONOMY_UI = ("back", "bag", "chart", "chest", "coins", "crown", "hammer", "ledger", "refresh", "trophy", "unknown", "wave",
+               "sell_all", "arrow_left", "arrow_right", "rise", "fall", "buy_1", "buy_10", "buy_100", "sell_1", "sell_10", "sell_100", "period_24", "period_7", "period_30")
+GUI = {name: (lambda n=name: _UI.icons()[n]) for name in _ECONOMY_UI}
 
 
 # ------------------------------------------------------------------------------------------------

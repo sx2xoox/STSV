@@ -112,6 +112,7 @@ c89368821d7b63b653cc41b0b75c1606cd53f693 economy/menus/stall.yml
 69e86cdc3507481acede74de1bf8a2b5dd656a25 economy/menus/stocks.yml
 f5ec59104ff1ed966de73e6f6f52bfc8c6b14eae economy/menus/trade.yml
 82bc434d76f921ea304f34416d419a114a759b77 economy/menus/vanity.yml
+b1e3f5a2e56cfd017fb81a106ab301cd40f34d89 economy/menus/vanity.yml
 78cf6d6c452afbb6717a390f67d2f969f2e4b35a economy/models/auto_planter.bbmodel
 6f5ffea9b2bf26834d97602fa97f9c5138f862f3 economy/models/cabbage_0.bbmodel
 7f7b9f39d6496ea2c265e3cd9e71f976e6647f62 economy/models/cabbage_0.bbmodel

@@ -4,8 +4,9 @@ machine:
   title: "<#f3e3b0>{machine}"
   rows: 6
   background: economy:gui/machine
-  # 그림 생성기용: 이 글자 칸은 버튼이 아니라 물건 칸 모양으로 그림
+  # 그림 생성기용: 이 글자 칸은 버튼이 아니라 물건 칸 모양으로 그림, flow = 줄 사이 빈칸에 화살표
   inset: "IO"
+  flow: true
   layout:
     - "R...N...U"
     - ".III.S.O."

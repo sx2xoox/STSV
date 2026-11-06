@@ -2,7 +2,7 @@
 titles:
   title: "<#f0e2b0>칭호 <#b9a6d6>· {owned} / {total}"
   rows: 6
-  filler: glass
+  background: stsv:gui/titles
   layout:
     - "....I...O"
     - "TTTTTTTTT"
@@ -20,6 +20,7 @@ titles:
       lore: ["<gray>채팅과 탭 목록에서 이름 앞에 붙습니다.", "<gray>가진 칭호 <white>{owned}<gray> / {total}", "", "<dark_gray>/칭호 <이름> 으로 바로 장착, /칭호 해제"]
     O:
       action: "titles:off"
+      icon: stsv:gui/clear
       material: BARRIER
       name: "<red>칭호 해제"
     P:

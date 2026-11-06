@@ -650,4 +650,18 @@ class RulesTest {
         assertNotNull(styled.style().shadowColor(), "the shadow tag is understood");
         assertEquals(0, styled.style().shadowColor().alpha(), "and turns the shadow off");
     }
+
+    @Test
+    void adminFishingTestNames() {
+        FishSpec f = fish();
+        assertEquals("legend", AdminCommands.rarityId(f, "전설"));
+        assertEquals("common", AdminCommands.rarityId(f, "흔함"));
+        assertEquals("pearl", AdminCommands.rarityId(f, "진주"));
+        assertNull(AdminCommands.rarityId(f, "아무거나"));
+        assertEquals("cod", AdminCommands.speciesOf(f, "대구").id());
+        assertEquals("cod", AdminCommands.speciesOf(f, "cod").id());
+        var twoWords = f.species().values().stream().filter(x -> x.name().contains(" ")).findFirst().orElseThrow();
+        assertEquals(twoWords.id(), AdminCommands.speciesOf(f, twoWords.name().replace(" ", "_")).id(), "tab completion writes spaces as _");
+        assertNull(AdminCommands.speciesOf(f, "없는물고기"));
+    }
 }

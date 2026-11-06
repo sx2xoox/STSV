@@ -5,7 +5,7 @@ import java.util.List;
 /**
  * The candle chart in the /주식 company window, drawn into the window title with the resource pack font
  * "economy:stockgraph" (tools/assetgen/economy_stockgraph.py makes it): bars 1..H pixels tall for every
- * top row, as a 3 px body and a 1 px wick, green (up) or red (down), and spaces that move the pen by
+ * top row, as a 3 px body and a 1 px wick, red (up) or blue (down), the Korean way, and spaces that move the pen by
  * powers of two. No client mod: it is text. Pure (unit-tested).
  */
 public final class StockGraph {

@@ -53,9 +53,9 @@ public record NewsSpec(String format, List<String> prefixes, Map<String, Map<Boo
         return a < 6.5 ? "small" : a < 8.5 ? "medium" : "large";
     }
 
-    /** "<green>▲9.4%" / "<red>▼6.1%" */
+    /** "<#ff5f57>▲9.4%" / "<#4d9bff>▼6.1%": Korean stock colours, red up and blue down */
     public static String change(double pct) {
-        return (pct >= 0 ? "<green>▲" : "<red>▼") + String.format(Locale.ROOT, "%.1f%%", Math.abs(pct));
+        return (pct >= 0 ? "<#ff5f57>▲" : "<#4d9bff>▼") + String.format(Locale.ROOT, "%.1f%%", Math.abs(pct));
     }
 
     /** Writes news lines and remembers what it used. */

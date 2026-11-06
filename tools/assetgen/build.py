@@ -64,8 +64,8 @@ def main():
     special_sheet(PREVIEWS / "special_items.png")
     import gui
     gui.write(CONTENT)
-    gui.preview(PREVIEWS / "wardrobe_ui.png")
-    print("gui wardrobe (font glyph + button icons)")
+    gui.preview(PREVIEWS / "core_menus.png")
+    print("gui core menus (backgrounds, button icons, inventory label off)")
 
     if render:
         # world objects side by side (fan blade placed where the machine spins it)

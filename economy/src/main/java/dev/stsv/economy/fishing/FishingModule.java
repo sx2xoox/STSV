@@ -60,6 +60,11 @@ public final class FishingModule extends EcoModule implements WeeklyListener {
     private FishStore store;
     private List<String> order = List.of();
     private final Map<UUID, Game> games = new HashMap<>();
+    /** testing (/관리자 낚시): the next bites of a player, by rarity id ("pearl" too) or by fish */
+    private final Map<UUID, Forced> forced = new HashMap<>();
+
+    /** rarity: a rarity id or "pearl" (null when a fish is set); species: a fish id; left: bites to go. */
+    public record Forced(String rarity, String species, int left) {}
     private final Random rnd = new Random();
 
     private static final class Game {
@@ -144,7 +149,8 @@ public final class FishingModule extends EcoModule implements WeeklyListener {
             return;
         }
         if (e.getState() != PlayerFishEvent.State.CAUGHT_FISH || !(e.getCaught() instanceof Item caught)) return;
-        if (!FISH.contains(caught.getItemStack().getType())) return;   // treasure and junk: vanilla
+        Forced force = forced.get(u);
+        if (force == null && !FISH.contains(caught.getItemStack().getType())) return;   // treasure and junk: vanilla
         Location at = e.getHook().getLocation();
         Block b = at.getBlock();
         World w = at.getWorld();
@@ -154,8 +160,15 @@ public final class FishingModule extends EcoModule implements WeeklyListener {
         double rare = eco.jobs().findChance(u, "fisher");
         FishSpec.Rarity tier = spec.tier(rare, rnd);
         FishSpec.Species s;
-        if (tier.index() == 2 && FishSpec.SALT.contains(habitat) && rnd.nextDouble() < spec.pearl()) {
-            s = new FishSpec.Species("pearl", Lang.raw("fishing.pearl"), "salt", tier.id(), 0, 0, 80, "f", "economy:pearl", null);   // a mystery until it is up
+        if (force != null) {
+            // a test bite: that fish wherever and whenever, or that rarity from this water
+            if (force.left() <= 1) forced.remove(u);
+            else forced.put(u, new Forced(force.rarity(), force.species(), force.left() - 1));
+            if (force.species() != null) s = spec.species().get(force.species());
+            else if (force.rarity().equals("pearl")) s = pearl();
+            else s = spec.pick(habitat, m, spec.rarities().get(force.rarity()), rnd);
+        } else if (tier.index() == 2 && FishSpec.SALT.contains(habitat) && rnd.nextDouble() < spec.pearl()) {
+            s = pearl();
         } else {
             s = spec.pick(habitat, m, tier, rnd);
         }
@@ -176,6 +189,25 @@ public final class FishingModule extends EcoModule implements WeeklyListener {
         p.playSound(p.getLocation(), Sound.BLOCK_NOTE_BLOCK_BELL, 0.6f, 0.6f + real.index() * 0.2f);
     }
 
+    /** A pearl comes up as a rare bite of the sea, its ring a fish's (a mystery until it is up). */
+    private FishSpec.Species pearl() {
+        String rare = new ArrayList<>(spec.rarities().keySet()).get(2);
+        return new FishSpec.Species("pearl", Lang.raw("fishing.pearl"), "salt", rare, 0, 0, 80, "f", "economy:pearl", null);
+    }
+
+    /** Testing: the player's next bites are of that rarity ("pearl" too) or that fish; times = how many. */
+    public void force(UUID player, String rarity, String species, int times) {
+        forced.put(player, new Forced(rarity, species, Math.max(1, times)));
+    }
+
+    public Forced forced(UUID player) {
+        return forced.get(player);
+    }
+
+    public boolean unforce(UUID player) {
+        return forced.remove(player) != null;
+    }
+
     @EventHandler(priority = EventPriority.HIGHEST)
     public void onUse(PlayerInteractEvent e) {
         Game g = games.get(e.getPlayer().getUniqueId());
@@ -192,6 +224,7 @@ public final class FishingModule extends EcoModule implements WeeklyListener {
     @EventHandler
     public void onQuit(PlayerQuitEvent e) {
         games.remove(e.getPlayer().getUniqueId());
+        forced.remove(e.getPlayer().getUniqueId());
     }
 
     private void press(Player p, Game g) {
