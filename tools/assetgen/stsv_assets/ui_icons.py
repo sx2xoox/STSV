@@ -6,8 +6,8 @@ Menu button icons (16 x 16) for the charcoal menus: one set for the core (stsv:g
 switched-off buttons. Glyph inside 1..14 so the outline fits (these rules are for the icons drawn here).
 
 Most icons are drawings picked from PixelLab instead (ui_art/<name>.png, 16 x 16, chosen by eye): the
-back arrow, pouch, cart, gift box, coins, crown, question mark, wave, trophy, the red rise arrow and the
-core's page chevron, close, info, hanger and clear. The next page is the chevron mirrored and the
+back arrow, pouch, cart, gift box, coins, crown, question mark, wave, trophy, rising chart, the red rise
+arrow and the core's page chevron, close, info, hanger and clear. The next page is the chevron mirrored and the
 switched-off pages are the chevrons dimmed to grey; the blue fall arrow is the rise arrow turned over
 and recoloured, and the n-share buy / sell buttons are the two arrows with the amount on top (the
 arrow sits on column 7, the axis the digits are centred on).
@@ -20,7 +20,7 @@ from PIL import Image
 
 ART = Path(__file__).resolve().parent / "ui_art"
 PICKED = ("back", "bag", "cart", "chest", "coins", "crown", "unknown", "wave", "trophy", "rise",
-          "prev", "exit", "info", "take_off", "clear")
+          "prev", "exit", "info", "take_off", "clear", "chart")
 
 
 def _art(name):
@@ -96,23 +96,6 @@ def draw(rows, recolour=None):
 # ------------------------------------------------------------------------------------------------
 # Shapes
 # ------------------------------------------------------------------------------------------------
-
-CHART = [
-    "",
-    ".#",
-    ".#.........gg",
-    ".#........gG",
-    ".#..g....gG",
-    ".#.gGg..gG",
-    ".#gG.GggG",
-    ".#G...GG",
-    ".#",
-    ".#",
-    ".#",
-    ".#",
-    ".############",
-    "..sssssssssss",
-]
 
 LEDGER = [   # news: a page of lines
     "",
@@ -246,7 +229,6 @@ TRIANGLE_LEFT = [   # switch a group (codex habitats): a solid triangle, differe
 def icons():
     """name -> image, every icon of the set."""
     out = {
-        "chart": draw(CHART),
         "ledger": draw(LEDGER),
         "hammer": draw(HAMMER),
         "refresh": draw(REFRESH),
