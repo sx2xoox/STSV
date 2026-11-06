@@ -215,10 +215,13 @@ f5195b01495d32b54e294af403e75032227dbbae economy/assets/economy/textures/item/gu
 7a4e66e547281e747812fa9babfe29babe3f92b7 economy/assets/economy/textures/item/gui/chest.png
 8f7c2b4f7455382dd1c6f6c00948665e99b34ab7 economy/assets/economy/textures/item/gui/coins.png
 a1cf76975ec7550520c3791e67ffcd282673dd6f economy/assets/economy/textures/item/gui/coins.png
+ae7ef1ebc27ece550536813a9cdcb4e319ec880e economy/assets/economy/textures/item/gui/coins.png
+04ac2177e5597b954df9e6e220b95996881ac9b3 economy/assets/economy/textures/item/gui/crown.png
 3bc1e9ccef3812f059b585a3f99c966817b83f4b economy/assets/economy/textures/item/gui/crown.png
 c8ec2e264fdb4338910da05d7081acd9c8885431 economy/assets/economy/textures/item/gui/crown.png
 bf6d52ccb213d9d23e71d7a259dec56579f770a8 economy/assets/economy/textures/item/gui/fall.png
 3ca25346de723c231bcfb2ea7ef0820c281ec9cc economy/assets/economy/textures/item/gui/hammer.png
+49ecfa84377b3c9717b8eea5600111661b3cd5e2 economy/assets/economy/textures/item/gui/hammer.png
 c40fd1c1b2c2bb9093f5f18a8d4c854f8f657952 economy/assets/economy/textures/item/gui/hammer.png
 9392ccc8d89e727acedb79049b115c420c14c717 economy/assets/economy/textures/item/gui/ledger.png
 f2a33455ade9068a56bfccb429dd06db37c9792f economy/assets/economy/textures/item/gui/ledger.png

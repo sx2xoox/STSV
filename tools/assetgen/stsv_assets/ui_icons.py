@@ -4,9 +4,40 @@ Menu button icons (16 x 16) for the charcoal menus: one set for the core (stsv:g
 1-px dark outline so it reads on the button tile and in the hand; colour only where it means something
 (gold = money and prizes, red = up / buy, blue = down / sell, Korean stock colours), and a dim grey for
 switched-off buttons. Glyph inside 1..14 so the outline fits.
+
+A few icons are drawings picked from PixelLab instead (ui_art/<name>.png, 16 x 16, chosen by eye): the
+back arrow, pouch, cart, gift box, coins, crown, question mark, wave, trophy and the red rise arrow. The
+blue fall arrow is that arrow turned over and recoloured, and the n-share buy / sell buttons are the two
+arrows with the amount on top.
 """
 
+import colorsys
+from pathlib import Path
+
 from PIL import Image
+
+ART = Path(__file__).resolve().parent / "ui_art"
+PICKED = ("back", "bag", "cart", "chest", "coins", "crown", "unknown", "wave", "trophy", "rise")
+
+
+def _art(name):
+    return Image.open(ART / f"{name}.png").convert("RGBA")
+
+
+def _turned_blue(up):
+    """The red up arrow as the blue down arrow: flipped, every coloured pixel's hue set to blue."""
+    out = up.transpose(Image.FLIP_TOP_BOTTOM)
+    px = out.load()
+    for y in range(out.height):
+        for x in range(out.width):
+            r, g, b, a = px[x, y]
+            if a:
+                h, s, v = colorsys.rgb_to_hsv(r / 255, g / 255, b / 255)
+                if s > 0.25:
+                    h = 0.6
+                r2, g2, b2 = colorsys.hsv_to_rgb(h, s, v)
+                px[x, y] = (int(r2 * 255), int(g2 * 255), int(b2 * 255), a)
+    return out
 
 COLOURS = {
     "#": (232, 228, 218), "s": (168, 163, 152),            # light face, its shade
@@ -16,9 +47,7 @@ COLOURS = {
     "w": (120, 196, 240), "W": (62, 128, 186),             # water
     "d": (108, 113, 124), "D": (78, 82, 92),               # disabled
     "k": (34, 37, 44),                                     # dark detail inside a light shape
-    # extra depth for the few icons drawn as objects (coins, crown, anvil): a highlight and a deep shade
-    "H": (255, 253, 246), "S": (122, 118, 110),            # glint on light/grey, grey's underside
-    "y": (255, 228, 132), "o": (132, 88, 26),              # gold highlight, gold's deep shade
+    "H": (255, 253, 246), "S": (122, 118, 110),            # the anvil's glint and underside
 }
 OUTLINE = (16, 18, 22)
 
@@ -68,21 +97,6 @@ CHEVRON_LEFT = [
     ".......###s",
     "........###s",
     ".........###",
-]
-
-BACK = [
-    "",
-    "",
-    "....#",
-    "...##",
-    "..###",
-    ".############",
-    ".#############",
-    "..###.......##",
-    "...##.......#s",
-    "....#.......#s",
-    "......#######s",
-    "......sssssss",
 ]
 
 CLOSE = [
@@ -150,27 +164,6 @@ HANGER = [
     "...ssssssssssss",
 ]
 
-def _coin_stacks():
-    """Two stacks of gold coins lit from the upper left: a top face with a glint, a highlight stripe
-    down each stack, a shaded right side and a dark groove between coins."""
-    grid = [["."] * 16 for _ in range(16)]
-    sides = ["g", "y", "g", "g", "G", "o"]                    # across a stack, left to right
-    darker = {"y": "G", "g": "o", "G": "o", "o": "o"}
-    for x0, top in ((1, 2), (8, 6)):
-        for k, ch in enumerate(".yHyy."):
-            if ch != ".":
-                grid[top][x0 + k] = ch
-        for k, ch in enumerate("gyyyyG"):
-            grid[top + 1][x0 + k] = ch
-        for y in range(top + 2, 14):
-            groove = (y - top) % 2 == 0
-            for k, ch in enumerate(sides):
-                grid[y][x0 + k] = darker[ch] if groove else ch
-    return ["".join(r) for r in grid]
-
-
-COINS = _coin_stacks()
-
 CHART = [
     "",
     ".#",
@@ -202,70 +195,6 @@ LEDGER = [   # news: a page of lines
     "...#########s",
     "...#########s",
     "....sssssssss",
-]
-
-BAG = [   # my holdings: a pouch with a gold tie
-    "",
-    "......##",
-    ".....#ss#",
-    "......gg",
-    ".....gGGg",
-    "....######",
-    "...########",
-    "..##########",
-    "..#####gg###s",
-    "..####gGGg##s",
-    "..#####gg###s",
-    "...########s",
-    "....sssssss",
-]
-
-CART = [   # the shop's 구매 side: a cart with red goods in it
-    "",
-    "##",
-    ".#...rrr.rr",
-    ".#..rrRrrRRr",
-    ".##############",
-    "..#k#k#k#k#k#s",
-    "..###########s",
-    "...#k#k#k#k#s",
-    "...#########s",
-    "....#",
-    "....##########",
-    ".....sssssssss",
-    ".....##....##",
-    ".....ss....ss",
-]
-
-CHEST = [   # the vanity shop: a gift box
-    "",
-    ".....g...g",
-    "......g.g",
-    "...#######g###",
-    "...######gG##s",
-    "...######gG##s",
-    "....#####gG#s",
-    "....#####gG#s",
-    "....#####gG#s",
-    "....#####gG#s",
-    "....#####gG#s",
-    ".....ssssGGss",
-]
-
-CROWN = [   # three points with a ball on the middle one, a jewelled band; lit from the left
-    "",
-    "",
-    ".......yg",
-    ".......gG",
-    ".y.....yg.....G",
-    ".yg...yggG...gG",
-    ".ygg.yyggGG.ggo",
-    ".yggyyggggGGgGo",
-    ".ygggggggggGGGo",
-    ".oooooooooooooo",
-    ".ygHrggHbggHrGo",
-    ".ygrRggbBggrRGo",
-    ".oooooooooooooo",
 ]
 
 HAMMER = [   # an anvil: a lit top face, the horn's shadowed underside, a waist and a wide foot
@@ -303,72 +232,6 @@ def _refresh():
 
 REFRESH = _refresh()
 
-TROPHY = [
-    "",
-    "",
-    "...gggggggggg",
-    ".gggggggggggggg",
-    ".g.ggggggggg.gG",
-    ".gg.gggggggg.gG",
-    "..gggggggggggG",
-    "....ggggggggG",
-    "......ggggG",
-    ".......ggG",
-    ".......ggG",
-    ".....gggggg",
-    "....ggggggggG",
-    "....GGGGGGGGG",
-]
-
-QUESTION = [
-    "",
-    ".....######",
-    "....##ssss##",
-    "....##s...##s",
-    "..........##s",
-    ".........##s",
-    "........##s",
-    ".......##s",
-    ".......##s",
-    "........ss",
-    ".......##",
-    ".......##s",
-    "........ss",
-]
-
-WAVE = [
-    "",
-    "",
-    "",
-    "..ww......ww",
-    ".wWWw....wWWw",
-    "wW..Ww..wW..Ww",
-    ".....wwww....W",
-    "",
-    "..ww......ww",
-    ".wWWw....wWWw",
-    "wW..Ww..wW..Ww",
-    ".....wwww....W",
-]
-
-
-def _arrow(up):
-    rows = [
-        "",
-        ".......#",
-        "......###",
-        ".....#####",
-        "....#######",
-        "...#########",
-        "......###s",
-        "......###s",
-        "......sss",
-    ]
-    if not up:
-        rows = ["", "......###", "......###s", "......###s", "...#########", "....#######s", ".....#####s", "......###s", ".......#s"]
-    return rows
-
-
 DIGITS = {
     "0": ["###", "#.#", "#.#", "#.#", "###"],
     "1": [".#.", "##.", ".#.", ".#.", "###"],
@@ -389,15 +252,6 @@ def _with_digits(rows, text, y=10):
                 if c == "#":
                     rows[y + yy][x0 + i * 4 + xx] = "#"
     return ["".join(r) for r in rows]
-
-
-def trade(buy, amount):
-    """Buy: a red up arrow; sell: a blue down arrow; the amount below in white."""
-    colour = {"#": "r", "s": "R"} if buy else {"#": "b", "s": "B"}
-    arrow = draw(_arrow(buy), colour)
-    digits = draw(_with_digits([""] * 16, str(amount)))
-    arrow.alpha_composite(digits)
-    return arrow
 
 
 SELL_ALL = [
@@ -456,12 +310,6 @@ TRIANGLE_LEFT = [   # switch a group (codex habitats): a solid triangle, differe
 ]
 
 
-def _big_arrow(up):
-    """A plain arrow (sort by rising / falling), centred."""
-    rows = _arrow(up)
-    return [""] * 3 + rows[1:]
-
-
 def icons():
     """name -> image, every icon of the set."""
     left = draw(CHEVRON_LEFT)
@@ -470,32 +318,26 @@ def icons():
         "next": left.transpose(Image.FLIP_LEFT_RIGHT),
         "prev_off": draw(CHEVRON_LEFT, {"#": "d", "s": "D"}),
         "next_off": draw(CHEVRON_LEFT, {"#": "d", "s": "D"}).transpose(Image.FLIP_LEFT_RIGHT),
-        "back": draw(BACK),
         "exit": draw(CLOSE),
         "info": draw(INFO),
         "take_off": draw(HANGER),
         "clear": draw(CLEAR),
-        "coins": draw(COINS),
         "chart": draw(CHART),
         "ledger": draw(LEDGER),
-        "bag": draw(BAG),
-        "cart": draw(CART),
-        "chest": draw(CHEST),
-        "crown": draw(CROWN),
         "hammer": draw(HAMMER),
         "refresh": draw(REFRESH),
-        "trophy": draw(TROPHY),
-        "unknown": draw(QUESTION),
-        "wave": draw(WAVE),
         "sell_all": draw(SELL_ALL, {"#": "b", "s": "B"}),
         "arrow_left": draw(TRIANGLE_LEFT),
         "arrow_right": draw(TRIANGLE_LEFT).transpose(Image.FLIP_LEFT_RIGHT),
-        "rise": draw(_big_arrow(True), {"#": "r", "s": "R"}),
-        "fall": draw(_big_arrow(False), {"#": "b", "s": "B"}),
     }
+    for name in PICKED:
+        out[name] = _art(name)
+    out["fall"] = _turned_blue(out["rise"])
     for n in (1, 10, 100):
-        out[f"buy_{n}"] = trade(True, n)
-        out[f"sell_{n}"] = trade(False, n)
+        for key, arrow in ((f"buy_{n}", out["rise"]), (f"sell_{n}", out["fall"])):
+            im = arrow.copy()
+            im.alpha_composite(draw(_with_digits([""] * 16, str(n))))
+            out[key] = im
     for p in ("24", "7", "30"):
         out[f"period_{p}"] = period(p)
     return out
