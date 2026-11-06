@@ -155,6 +155,10 @@ DIGITS = {
     "3": ["##.", "..#", ".#.", "..#", "##."],
     "4": ["#.#", "#.#", "###", "..#", "..#"],
     "7": ["###", "..#", ".#.", ".#.", ".#."],
+    # units on the chart period buttons: 10m, 24h, 7d
+    "m": ["...", "##.", "###", "#.#", "#.#"],
+    "h": ["#..", "#..", "##.", "#.#", "#.#"],
+    "d": ["..#", "..#", ".##", "#.#", ".##"],
 }
 
 
@@ -247,6 +251,6 @@ def icons():
             im = arrow.copy()
             im.alpha_composite(draw(_with_digits([""] * 16, str(n))))
             out[key] = im
-    for p in ("24", "7", "30"):
-        out[f"period_{p}"] = period(p)
+    for key, label in (("10", "10m"), ("24", "24h"), ("7", "7d")):
+        out[f"period_{key}"] = period(label)
     return out

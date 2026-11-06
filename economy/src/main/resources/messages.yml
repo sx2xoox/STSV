@@ -352,9 +352,9 @@ stock:
     down: "내린 순"
     popular: "많이 산 순"
   period:
+    m10: "10분"
     h24: "24시간"
     d7: "7일"
-    d30: "30일"
   fee: "수수료 {pct}%"
   fee-first: "첫 매수 수수료 무료"
   fee-free: "수수료 면제 중"

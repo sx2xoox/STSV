@@ -4,7 +4,8 @@ Draws the 176 x (114 + 18 rows) background of a menu from its own layout (menus/
 menu always agree:
   - list cells (the paged area) and `inset` cells: recessed slots
   - buttons: raised tiles with a dark rim
-  - `graph: true`: a dark chart screen over rows 0-1 (the stock chart is drawn there by the title font)
+  - `graph: true`: a dark chart screen over rows 0-1 with guides (the stock chart is drawn there by the
+    title font)
   - `flow: true`: a small arrow in an empty cell between two used cells of a row, one of them a slot
     (machine lanes: inputs -> state -> result)
   - empty cells: plain panel, nothing drawn
@@ -32,7 +33,9 @@ TILE_RIM = (18, 20, 24)
 GOLD = (224, 176, 74)
 GOLD_DIM = (138, 106, 44)
 SCREEN = (23, 25, 30)
-GRID = (35, 38, 45)
+SCREEN_FRAME_DARK = (8, 9, 11)
+SCREEN_FRAME_LIGHT = (92, 99, 114)
+GRID = (52, 57, 68)
 ARROW = (82, 88, 101)
 
 
@@ -90,10 +93,15 @@ def background(menu):
     _rect(im, 7, 15, W - 7, 16, GOLD_DIM)
     _rect(im, 7, 15, 40, 16, GOLD)
     if menu.get("graph"):
-        _bevel(im, 7, 17, W - 14, 36, SLOT_TOP, SLOT_BOTTOM, fill=SCREEN)
-        for gy in range(22, 52, 7):
+        # the stock chart's screen (economy StockGraph: rows y 20..51, candles x 12..139, the price tag
+        # right of x 141): a crisp frame, dotted guides at the top, quarters and bottom of the chart, and a
+        # dotted line before the price column
+        _bevel(im, 7, 17, W - 14, 36, SCREEN_FRAME_DARK, SCREEN_FRAME_LIGHT, fill=SCREEN)
+        for gy in (20, 28, 36, 43, 51):
             for gx in range(9, W - 9, 2):
                 im.putpixel((gx, gy), GRID + (255,))
+        for gy in range(19, 52, 2):
+            im.putpixel((141, gy), GRID + (255,))
     lst = menu.get("list")
     buttons = set(menu.get("buttons", {}) or {})
     inset = set(menu.get("inset", "") or "")

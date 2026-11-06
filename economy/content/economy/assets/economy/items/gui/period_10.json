@@ -1,6 +1,6 @@
 {
   "model": {
     "type": "minecraft:model",
-    "model": "economy:item/gui/period_30"
+    "model": "economy:item/gui/period_10"
   }
 }

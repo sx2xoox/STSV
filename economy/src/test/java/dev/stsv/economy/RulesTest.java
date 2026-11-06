@@ -392,25 +392,50 @@ class RulesTest {
             for (char c : StockGraph.space(px).toCharArray()) sum += StockGraph.spaceAdvance(c);
             assertEquals(px, sum);
         }
+        assertEquals("12,345", StockGraph.label(12_345.4));
         List<StockGraph.Candle> candles = new ArrayList<>();
-        for (int i = 0; i < 24; i++) candles.add(new StockGraph.Candle(100 + i, 103 + i, 98 + i, 101 + i + (i % 3 == 0 ? -4 : 0)));
-        String title = StockGraph.title(candles, 24);
+        for (int i = 0; i < 12; i++) candles.add(new StockGraph.Candle(100 + i, 103 + i, 98 + i, 101 + i + (i % 3 == 0 ? -4 : 0)));
+        String title = StockGraph.title(candles, 12);
         assertTrue(title.startsWith("<white><font:economy:stockgraph>") && title.endsWith("</font></white>"));
         // walk the pen: spaces move it, glyphs advance by their width + 1; it must end at the title origin
         String body = title.substring("<white><font:economy:stockgraph>".length(), title.length() - "</font></white>".length());
-        int pen = StockGraph.ORIGIN, glyphs = 0;
+        int tagLeft = StockGraph.TAG_RIGHT - StockGraph.tagWidth(StockGraph.label(candles.getLast().close()));
+        int pen = StockGraph.ORIGIN, bodies = 0, wicks = 0, dashes = 0, columns = 0, digits = 0;
         for (char c : body.toCharArray()) {
-            if (c >= StockGraph.SPACE) pen += StockGraph.spaceAdvance(c);
-            else {
+            if (c > StockGraph.SPACE && c < StockGraph.SPACE + 0x20) {
+                pen += StockGraph.spaceAdvance(c);
+            } else if (c >= StockGraph.EXTRA + 0x100) {                       // the tag's digits
+                assertTrue(pen >= tagLeft + 2 && pen < StockGraph.TAG_RIGHT, "digit on the tag: " + pen);
+                pen += (c - StockGraph.EXTRA - 0x100) % 16 == 10 ? 2 : 4;
+                digits++;
+            } else if (c >= StockGraph.EXTRA + 64) {                          // the tag's columns
+                assertTrue(pen >= tagLeft && pen < StockGraph.TAG_RIGHT, "tag inside the screen: " + pen);
+                pen += 2;
+                columns++;
+            } else if (c >= StockGraph.EXTRA) {                               // the last price's dashes
+                assertTrue(pen >= StockGraph.LEFT && pen + 3 <= tagLeft - 2, "dash before the tag: " + pen);
+                pen += 4;
+                dashes++;
+            } else {
                 int set = (c - StockGraph.BASE) / (StockGraph.H * StockGraph.H);
                 assertTrue(pen >= StockGraph.LEFT && pen < StockGraph.RIGHT, "inside the chart: " + pen);
-                pen += set % 2 == 1 ? 2 : 4;
-                glyphs++;
+                if (set % 2 == 1) {
+                    pen += 2;
+                    wicks++;
+                } else {
+                    assertTrue(pen + StockGraph.BODY <= StockGraph.RIGHT, "a body ends inside the chart");
+                    pen += 6;
+                    bodies++;
+                }
             }
         }
         assertEquals(StockGraph.ORIGIN, pen);
-        assertEquals(48, glyphs, "a wick and a body per candle");
-        assertEquals("", StockGraph.title(List.of(), 24));
+        assertEquals(12, bodies, "a body per candle");
+        assertEquals(12, wicks, "a wick per candle");
+        assertTrue(dashes > 10, "a dashed line across: " + dashes);
+        assertEquals(StockGraph.TAG_RIGHT - tagLeft, columns);
+        assertEquals(StockGraph.label(candles.getLast().close()).length(), digits);
+        assertEquals("", StockGraph.title(List.of(), 12));
     }
 
     // ------------------------------------------------------------------------------------------ trading

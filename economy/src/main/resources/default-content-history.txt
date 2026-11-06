@@ -218,6 +218,7 @@ e7387b93761850c7f75080576cd6197022b8ccc7 economy/assets/economy/textures/item/gu
 7f199763540ca4035cea7d0cc17d8d0d2a4d3ee4 economy/assets/economy/textures/item/gui/buy_100.png
 bf686b5e17062732ad2efd3d380e3221875352eb economy/assets/economy/textures/item/gui/cart.png
 f838386263959c6d5d93bfdb9bf3b863c6a4eb8d economy/assets/economy/textures/item/gui/cart.png
+5c180749028e48d3161998bd8c69e94b0f7308ff economy/assets/economy/textures/item/gui/chart.png
 e91fc5970009a348633b17c6d4394a6dbfdc2a2a economy/assets/economy/textures/item/gui/chart.png
 f5195b01495d32b54e294af403e75032227dbbae economy/assets/economy/textures/item/gui/chart.png
 348c9a17c2d701988e7ac266a320d89d97e281d3 economy/assets/economy/textures/item/gui/chest.png

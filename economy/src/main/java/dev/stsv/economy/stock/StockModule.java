@@ -226,6 +226,8 @@ public final class StockModule extends EcoModule implements DailyListener, Weekl
     // Price moves
     // ------------------------------------------------------------------------------------------
 
+    private static final long TEN_MINUTES = 600_000L;
+
     private long hourStart() {
         return now() / 3_600_000L * 3_600_000L;
     }
@@ -233,8 +235,9 @@ public final class StockModule extends EcoModule implements DailyListener, Weekl
     private void record(StockStore.Co c) {
         c.dayHigh = Math.max(c.dayHigh, c.price);
         c.dayLow = Math.min(c.dayLow, c.price);
-        store.candle(c.id, true, hourStart(), c.price, 48);
-        store.candle(c.id, false, eco.calendar().day(), c.price, 60);
+        store.candle(c.id, 'm', now() / TEN_MINUTES * TEN_MINUTES, c.price, 32, TEN_MINUTES);
+        store.candle(c.id, 'h', hourStart(), c.price, 48, 0);
+        store.candle(c.id, 'd', eco.calendar().day(), c.price, 60, 0);
         int at = StockSpec.atLimit(c.price, c.prevClose, spec.settings().limit());
         if (at != 0 && c.limitShown != at) {
             c.limitShown = at;
@@ -823,6 +826,35 @@ public final class StockModule extends EcoModule implements DailyListener, Weekl
         }
     }
 
+    private static List<StockGraph.Candle> candles(List<StockStore.Candle> src) {
+        List<StockGraph.Candle> out = new ArrayList<>();
+        for (StockStore.Candle k : src) out.add(new StockGraph.Candle(k.open(), k.high(), k.low(), k.close()));
+        return out;
+    }
+
+    /** Hourly candles merged two by two (even hours), for the 24-hour chart's bigger bars. */
+    static List<StockGraph.Candle> twoHour(List<StockStore.Candle> hourly) {
+        List<StockGraph.Candle> out = new ArrayList<>();
+        long bucket = Long.MIN_VALUE;
+        double open = 0, high = 0, low = 0, close = 0;
+        for (StockStore.Candle k : hourly) {
+            long b = Math.floorDiv(k.t(), 7_200_000L);
+            if (b != bucket) {
+                if (bucket != Long.MIN_VALUE) out.add(new StockGraph.Candle(open, high, low, close));
+                bucket = b;
+                open = k.open();
+                high = k.high();
+                low = k.low();
+            } else {
+                high = Math.max(high, k.high());
+                low = Math.min(low, k.low());
+            }
+            close = k.close();
+        }
+        if (bucket != Long.MIN_VALUE) out.add(new StockGraph.Candle(open, high, low, close));
+        return out;
+    }
+
     private final class CompanyMenu implements MenuHandler {
         private final String id;
         private final String period;
@@ -836,14 +868,19 @@ public final class StockModule extends EcoModule implements DailyListener, Weekl
             return store.company(id);
         }
 
+        /** 10분: sixteen 10-minute candles; 24시간: twelve 2-hour candles; 7일: seven day candles. */
         private String graph() {
-            List<StockStore.Candle> src = period.equals("h24") ? store.hourly(id) : store.daily(id);
-            int slots = period.equals("h24") ? 24 : period.equals("d7") ? 7 : 30;
-            List<StockGraph.Candle> out = new ArrayList<>();
-            for (StockStore.Candle k : src.subList(Math.max(0, src.size() - slots), src.size())) {
-                out.add(new StockGraph.Candle(k.open(), k.high(), k.low(), k.close()));
-            }
-            return StockGraph.title(out, slots);
+            List<StockGraph.Candle> all = switch (period) {
+                case "m10" -> candles(store.tenMinute(id));
+                case "d7" -> candles(store.daily(id));
+                default -> twoHour(store.hourly(id));
+            };
+            int slots = switch (period) {
+                case "m10" -> 16;
+                case "d7" -> 7;
+                default -> 12;
+            };
+            return StockGraph.title(all.subList(Math.max(0, all.size() - slots), all.size()), slots);
         }
 
         @Override

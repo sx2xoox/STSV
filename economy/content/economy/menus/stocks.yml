@@ -70,9 +70,9 @@ stock:
       name: "<white>{name}"
       lore: ["<gray>업종 {industry}", "<gray>변동 {risk}", "", "<gray>현재가 <white>{price}", "<gray>오늘 {change} <dark_gray>(어제 마감 {close} 대비)",
              "<gray>오늘 최저 <white>{low} <gray>· 최고 <white>{high}", "{dividend}", "", "<gray>발행 {shares}주 · 주주들이 가진 수 {held}주", "{halted}"]
-    A: { action: "stock:period:h24", icon: economy:gui/period_24, material: CLOCK, name: "<white>24시간 <dark_gray>(1시간 봉)", lore: ["<gray>지금 그래프: {period}"] }
-    B: { action: "stock:period:d7", icon: economy:gui/period_7, material: CLOCK, name: "<white>7일 <dark_gray>(하루 봉)", lore: ["<gray>지금 그래프: {period}"] }
-    C: { action: "stock:period:d30", icon: economy:gui/period_30, material: CLOCK, name: "<white>30일 <dark_gray>(하루 봉)", lore: ["<gray>지금 그래프: {period}"] }
+    A: { action: "stock:period:m10", icon: economy:gui/period_10, material: CLOCK, name: "<white>10분 <dark_gray>(10분 봉)", lore: ["<gray>지금 그래프: {period}"] }
+    B: { action: "stock:period:h24", icon: economy:gui/period_24, material: CLOCK, name: "<white>24시간 <dark_gray>(2시간 봉)", lore: ["<gray>지금 그래프: {period}"] }
+    C: { action: "stock:period:d7", icon: economy:gui/period_7, material: CLOCK, name: "<white>7일 <dark_gray>(하루 봉)", lore: ["<gray>지금 그래프: {period}"] }
     N:
       action: ""
       icon: economy:gui/ledger

@@ -183,10 +183,14 @@ class StoresTest {
         h.locked = 10;
         h.lockUntil = 5000;
         st.save(h);
-        st.candle("hanseong", true, 3_600_000L, 2000, 48);
-        st.candle("hanseong", true, 3_600_000L, 2100, 48);
-        st.candle("hanseong", true, 3_600_000L, 1950, 48);
-        st.candle("hanseong", false, 3, 2050, 60);
+        st.candle("hanseong", 'h', 3_600_000L, 2000, 48, 0);
+        st.candle("hanseong", 'h', 3_600_000L, 2100, 48, 0);
+        st.candle("hanseong", 'h', 3_600_000L, 1950, 48, 0);
+        st.candle("hanseong", 'd', 3, 2050, 60, 0);
+        // 10-minute candles: a new one opens at the close of the one just before, not at its own price
+        st.candle("hanseong", 'm', 600_000L, 2000, 32, 600_000L);
+        st.candle("hanseong", 'm', 1_200_000L, 2080, 32, 600_000L);
+        st.candle("hanseong", 'm', 3_000_000L, 2060, 32, 600_000L);   // after a gap: opens at its own price
         st.addNews(10, "hanseong", "[속보] 한성제철, 신규 용광로 가동… 주가 껑충 ▲7.1%");
         st.addActivity(4, "steel", 120);
         st.addActivity(4, "steel", 30);
@@ -214,6 +218,13 @@ class StoresTest {
         assertEquals(1950, k.low(), 1e-9);
         assertEquals(1950, k.close(), 1e-9);
         assertEquals(1, st2.daily("hanseong").size());
+        var m = st2.tenMinute("hanseong");
+        assertEquals(3, m.size());
+        assertEquals(2000, m.get(1).open(), 1e-9);
+        assertEquals(2080, m.get(1).high(), 1e-9);
+        assertEquals(2000, m.get(1).low(), 1e-9);
+        assertEquals(2080, m.get(1).close(), 1e-9);
+        assertEquals(2060, m.get(2).open(), 1e-9);
         assertEquals(1, st2.news().size());
         assertEquals(150, st2.activity(4).get("steel"), 1e-9);
         assertEquals(51000, st2.week(p, 2).invested, 1e-9);

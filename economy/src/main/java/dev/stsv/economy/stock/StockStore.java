@@ -12,7 +12,7 @@ import java.util.concurrent.ConcurrentHashMap;
 /**
  * The market's memory: each company's state (price, base value, yesterday's close, today's range, what
  * an admin changed), who holds what (shares, cost, the part still locked after buying, the last alert),
- * hourly and daily candles, the news, the activity per industry per day and the week's investment
+ * 10-minute, hourly and daily candles, the news, the activity per industry per day and the week's investment
  * record for the 주식왕. Everything the market needs is in memory; writes go through the database queue.
  */
 public final class StockStore {
@@ -83,7 +83,7 @@ public final class StockStore {
     private final Db db;
     private final Map<String, Co> companies = new ConcurrentHashMap<>();
     private final Map<UUID, Map<String, Hold>> holds = new ConcurrentHashMap<>();
-    private final Map<String, List<Candle>> hourly = new ConcurrentHashMap<>(), daily = new ConcurrentHashMap<>();
+    private final Map<String, List<Candle>> tenMinute = new ConcurrentHashMap<>(), hourly = new ConcurrentHashMap<>(), daily = new ConcurrentHashMap<>();
     private final List<News> news = new ArrayList<>();
     private final Map<UUID, Week> weeks = new ConcurrentHashMap<>();
 
@@ -109,6 +109,7 @@ public final class StockStore {
                         + "flow DOUBLE NOT NULL, invested DOUBLE NOT NULL)")));
         companies.clear();
         holds.clear();
+        tenMinute.clear();
         hourly.clear();
         daily.clear();
         news.clear();
@@ -151,7 +152,12 @@ public final class StockStore {
         }
         for (Object[] r : db.sync(x -> Db.query(x, "SELECT company, kind, t, o, h, l, c FROM eco_stock_candle ORDER BY t",
                 rs -> new Object[]{rs.getString(1), rs.getString(2), new Candle(rs.getLong(3), rs.getDouble(4), rs.getDouble(5), rs.getDouble(6), rs.getDouble(7))}))) {
-            (r[1].equals("h") ? hourly : daily).computeIfAbsent((String) r[0], k -> new ArrayList<>()).add((Candle) r[2]);
+            Map<String, List<Candle>> kind = switch ((String) r[1]) {
+                case "m" -> tenMinute;
+                case "h" -> hourly;
+                default -> daily;
+            };
+            kind.computeIfAbsent((String) r[0], k -> new ArrayList<>()).add((Candle) r[2]);
         }
         news.addAll(db.sync(x -> Db.query(x, "SELECT at, company, line FROM eco_stock_news ORDER BY at DESC LIMIT 50",
                 rs -> new News(rs.getLong(1), rs.getString(2), rs.getString(3)))).reversed());
@@ -232,6 +238,11 @@ public final class StockStore {
 
     // ------------------------------------------------------------------------------------------ candles
 
+    /** 10-minute candles: one price move each, so each opens at the one before's close. */
+    public List<Candle> tenMinute(String company) {
+        return tenMinute.getOrDefault(company, List.of());
+    }
+
     public List<Candle> hourly(String company) {
         return hourly.getOrDefault(company, List.of());
     }
@@ -240,23 +251,31 @@ public final class StockStore {
         return daily.getOrDefault(company, List.of());
     }
 
-    /** Adds a price to the candle starting at t (opens it if new), keeping at most `keep` candles. */
-    public void candle(String company, boolean hour, long t, double price, int keep) {
-        List<Candle> l = (hour ? hourly : daily).computeIfAbsent(company, k -> new ArrayList<>());
+    /**
+     * Adds a price to the candle of kind 'm' (10 minutes), 'h' (hour) or 'd' (day) starting at t (opens it
+     * if new), keeping at most `keep` candles. A new 10-minute candle opens at the previous one's close when
+     * that one is the period just before (`span` ms earlier): the price moves once a tick, so a candle opened
+     * at its own price would be flat.
+     */
+    public void candle(String company, char kind, long t, double price, int keep, long span) {
+        List<Candle> l = (kind == 'm' ? tenMinute : kind == 'h' ? hourly : daily).computeIfAbsent(company, k -> new ArrayList<>());
         Candle c;
         if (!l.isEmpty() && l.getLast().t() == t) {
             Candle last = l.removeLast();
             c = new Candle(t, last.open(), Math.max(last.high(), price), Math.min(last.low(), price), price);
+        } else if (kind == 'm' && !l.isEmpty() && l.getLast().t() == t - span) {
+            double open = l.getLast().close();
+            c = new Candle(t, open, Math.max(open, price), Math.min(open, price), price);
         } else {
             c = new Candle(t, price, price, price, price);
         }
         l.add(c);
         while (l.size() > keep) {
             Candle old = l.removeFirst();
-            db.execute("DELETE FROM eco_stock_candle WHERE company = ? AND kind = ? AND t = ?", company, hour ? "h" : "d", old.t());
+            db.execute("DELETE FROM eco_stock_candle WHERE company = ? AND kind = ? AND t = ?", company, String.valueOf(kind), old.t());
         }
         db.execute(db.upsert("eco_stock_candle", List.of("company", "kind", "t"), List.of("o", "h", "l", "c")),
-                company, hour ? "h" : "d", t, c.open(), c.high(), c.low(), c.close());
+                company, String.valueOf(kind), t, c.open(), c.high(), c.low(), c.close());
     }
 
     // ------------------------------------------------------------------------------------------ news
@@ -318,6 +337,7 @@ public final class StockStore {
     public void reset() {
         companies.clear();
         holds.clear();
+        tenMinute.clear();
         hourly.clear();
         daily.clear();
         news.clear();
