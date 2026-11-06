@@ -293,6 +293,7 @@ class ContentTest {
         // keys built at run time
         for (java.time.DayOfWeek w : java.time.DayOfWeek.values()) if (!messages.contains("weekday." + w)) missing.add("weekday." + w);
         for (String w : List.of("night", "dawn", "dusk", "rain", "thunder", "fullmoon")) if (!messages.contains("codex.when." + w)) missing.add("codex.when." + w);
+        for (int r = 1; r <= 3; r++) if (!messages.contains("stock.risk." + r)) missing.add("stock.risk." + r);
         for (String r : List.of("market_buy", "market_cancel", "market_expired", "auction_unsold", "auction_win", "auction_cancel",
                 "trade", "trade_cancel", "stall_release", "stall_evicted")) {
             if (!messages.contains("mail.reason." + r)) missing.add("mail.reason." + r);

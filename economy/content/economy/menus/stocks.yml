@@ -24,7 +24,7 @@ stocks:
       icon: economy:gui/bag
       material: PAPER
       name: "<aqua>내 주식"
-      lore: ["<gray>가치 <white>{value}", "<gray>손익 <white>{sign}{profit}"]
+      lore: ["<gray>평가액 <white>{value}", "<gray>손익 {pl}"]
     M:
       action: "stock:news"
       icon: economy:gui/ledger
@@ -67,9 +67,9 @@ stock:
       action: ""
       icon: stsv:gui/info
       material: BOOK
-      name: "<white>{name} <gold>{stars}"
-      lore: ["{industry} <gray>· {dividend}", "<gray>현재가 <white>{price}</white> {change}", "<gray>오늘 최고 {high} · 최저 {low}", "<gray>어제 종가 {close}",
-             "<gray>발행 {shares}주 · 주주들이 가진 수 {held}주", "{halted}"]
+      name: "<white>{name}"
+      lore: ["<gray>업종 {industry}", "<gray>변동 {risk}", "", "<gray>현재가 <white>{price}", "<gray>오늘 {change} <dark_gray>(어제 마감 {close} 대비)",
+             "<gray>오늘 최저 <white>{low} <gray>· 최고 <white>{high}", "{dividend}", "", "<gray>발행 {shares}주 · 주주들이 가진 수 {held}주", "{halted}"]
     A: { action: "stock:period:h24", icon: economy:gui/period_24, material: CLOCK, name: "<white>24시간 <dark_gray>(1시간 봉)", lore: ["<gray>지금 그래프: {period}"] }
     B: { action: "stock:period:d7", icon: economy:gui/period_7, material: CLOCK, name: "<white>7일 <dark_gray>(하루 봉)", lore: ["<gray>지금 그래프: {period}"] }
     C: { action: "stock:period:d30", icon: economy:gui/period_30, material: CLOCK, name: "<white>30일 <dark_gray>(하루 봉)", lore: ["<gray>지금 그래프: {period}"] }
@@ -87,7 +87,7 @@ stock:
       icon: economy:gui/bag
       material: PAPER
       name: "<aqua>내 주식 {have}주"
-      lore: ["<gray>가치 <white>{value}", "<gray>손익 <white>{sign}{profit}", "<gray>지금 팔 수 있는 수 {sellable}주 <dark_gray>(산 지 10분 뒤부터)"]
+      lore: ["<gray>평가액 <white>{value}", "<gray>손익 {pl}", "{mydiv}", "<gray>지금 팔 수 있는 수 {sellable}주 <dark_gray>(산 지 10분 뒤부터)"]
     "4": { action: "stock:sell:1", icon: economy:gui/sell_1, material: RED_DYE, name: "<#4d9bff>1주 팔기" }
     "5": { action: "stock:sell:10", icon: economy:gui/sell_10, material: RED_DYE, name: "<#4d9bff>10주 팔기" }
     "6": { action: "stock:sell:100", icon: economy:gui/sell_100, material: RED_DYE, name: "<#4d9bff>100주 팔기" }

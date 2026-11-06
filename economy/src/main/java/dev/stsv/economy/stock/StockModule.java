@@ -405,6 +405,8 @@ public final class StockModule extends EcoModule implements DailyListener, Weekl
             prices.put(c.id, c.price);
         }
         Map<String, Double> perShare = StockSpec.dividends(pool, activity, companies, prices);
+        // remembered for the windows: "지난번 1주당 ..."
+        for (StockStore.Co c : listed()) if (c.dividend > 0) eco.kv().set("stock.div." + c.id, perShare.getOrDefault(c.id, 0.0));
         long total = 0;
         for (UUID u : List.copyOf(store.investors())) {
             double amount = 0;
@@ -642,6 +644,43 @@ public final class StockModule extends EcoModule implements DailyListener, Weekl
                 "profit", sign + money(Math.abs(gain)), "pct", sign + pct(pct)};
     }
 
+    /** "+9,102 G (+0.3%)" in red, a loss in blue, nothing in grey. */
+    private String plText(double value, double cost) {
+        double gain = value - cost, pct = cost <= 0 ? 0 : (value / cost - 1) * 100;
+        boolean flat = Math.abs(pct) < 0.05 && Math.abs(gain) < 0.5;
+        String sign = flat ? "" : gain > 0 ? "+" : "-";
+        return "<" + (flat ? "gray" : gain > 0 ? "#ff5f57" : "#4d9bff") + ">" + sign + money(Math.abs(gain)) + " (" + sign + pct(pct) + "%)";
+    }
+
+    /** The dividend per share paid last Monday, or null before the first one. */
+    private Double lastDividend(StockStore.Co c) {
+        String v = eco.kv().get("stock.div." + c.id);
+        try {
+            return v == null ? null : Double.parseDouble(v);
+        } catch (NumberFormatException e) {
+            return null;
+        }
+    }
+
+    /** A small amount with cents (dividends per share are often under 1 G). */
+    private static String amountFine(double v) {
+        return v >= 100 ? money(v) : Lang.raw("stock.amount-fine", "amount", String.format(Locale.ROOT, "%,.2f", v));
+    }
+
+    /** When and how much: every Monday 05:00, last time per share (or none, or not yet). */
+    private String dividendLine(StockStore.Co c) {
+        if (c.dividend <= 0) return Lang.raw("stock.dividend-no");
+        Double per = lastDividend(c);
+        return per == null ? Lang.raw("stock.dividend-soon") : Lang.raw("stock.dividend-yes", "per", amountFine(per));
+    }
+
+    /** What a holding got last time (an estimate for the next Monday). */
+    private String myDividend(StockStore.Co c, long shares) {
+        if (c.dividend <= 0) return Lang.raw("stock.my-dividend-none");
+        Double per = lastDividend(c);
+        return per == null ? Lang.raw("stock.my-dividend-soon") : Lang.raw("stock.my-dividend", "amount", amountFine(per * shares));
+    }
+
     public void showNews(Player p) {
         List<StockStore.News> l = store.news();
         if (l.isEmpty()) {
@@ -689,14 +728,17 @@ public final class StockModule extends EcoModule implements DailyListener, Weekl
         }
         double[] range = range24(c);
         List<Component> lore = new ArrayList<>(Lang.items("stock.icon-lore", "color", i == null ? "white" : i.color(), "industry", i == null ? "-" : i.name(),
-                "price", money(c.price), "change", changeText(c.dayChange()), "low", money(range[0]), "high", money(range[1]),
-                "dividend", Lang.raw(c.dividend > 0 ? "stock.dividend-yes" : "stock.dividend-no")));
+                "risk", Lang.raw("stock.risk." + c.risk), "price", money(c.price), "change", changeText(c.dayChange()),
+                "low", money(range[0]), "high", money(range[1]), "dividend", dividendLine(c)));
         StockStore.Hold h = store.holdings(viewer).get(c.id);
-        if (h != null && h.shares > 0) lore.addAll(Lang.items("stock.icon-mine", mine(h, c)));
+        if (h != null && h.shares > 0) {
+            lore.addAll(Lang.items("stock.icon-mine", mine(h, c)));
+            lore.add(Text.item(myDividend(c, h.shares)));
+        }
         if (c.halted) lore.add(Lang.item("stock.icon-halted"));
         lore.add(Lang.item("stock.icon-click"));
         it.editMeta(meta -> {
-            meta.itemName(Text.item("<white>" + c.name + " <gold>" + stars(c.risk)));
+            meta.itemName(Text.item("<white>" + c.name));
             meta.lore(lore);
             meta.addItemFlags(org.bukkit.inventory.ItemFlag.values());
         });
@@ -726,7 +768,7 @@ public final class StockModule extends EcoModule implements DailyListener, Weekl
             String tabName = tab.equals("all") ? Lang.raw("stock.tab-all") : tab.equals("mine") ? Lang.raw("stock.tab-mine")
                     : i == null ? tab : "<" + i.color() + ">" + i.name();
             return Map.of("tab", tabName, "value", money(value), "profit", money(Math.abs(value - cost)), "sign", value >= cost ? "+" : "-",
-                    "sort", Lang.raw("stock.sort." + sort));
+                    "pl", plText(value, cost), "sort", Lang.raw("stock.sort." + sort));
         }
 
         @Override
@@ -825,7 +867,10 @@ public final class StockModule extends EcoModule implements DailyListener, Weekl
             m.put("close", money(c.prevClose));
             m.put("shares", String.format("%,d", c.shares));
             m.put("held", String.format("%,d", store.held(id)));
-            m.put("dividend", Lang.raw(c.dividend > 0 ? "stock.dividend-yes" : "stock.dividend-no"));
+            m.put("dividend", dividendLine(c));
+            m.put("risk", Lang.raw("stock.risk." + c.risk));
+            m.put("pl", plText(val, cost));
+            m.put("mydiv", myDividend(c, have));
             m.put("period", Lang.raw("stock.period." + period));
             m.put("have", String.format("%,d", have));
             m.put("sellable", String.format("%,d", sellable));
