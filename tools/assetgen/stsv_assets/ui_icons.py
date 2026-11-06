@@ -8,7 +8,7 @@ switched-off buttons. Glyph inside 1..14 so the outline fits.
 A few icons are drawings picked from PixelLab instead (ui_art/<name>.png, 16 x 16, chosen by eye): the
 back arrow, pouch, cart, gift box, coins, crown, question mark, wave, trophy and the red rise arrow. The
 blue fall arrow is that arrow turned over and recoloured, and the n-share buy / sell buttons are the two
-arrows with the amount on top.
+arrows with the amount on top (the arrow sits on column 7, the axis the digits are centred on).
 """
 
 import colorsys
