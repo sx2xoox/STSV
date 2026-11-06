@@ -1,0 +1,38 @@
+# /미션: 위 줄 = 오늘의 미션, 가운데 줄 = 이번 주 미션 (사람마다 따로 뽑힘), 오른쪽 = 다 끝내면 받는 보너스
+# 미션 우클릭 = 다른 미션으로 바꾸기 (missions.yml 의 rerolls 번까지)
+missions:
+  title: "<#f3e3b0>미션 <dark_gray>· <gray>오늘 <white>{daily_done}/{daily_count} <dark_gray>· <gray>이번 주 <white>{weekly_done}/{weekly_count}"
+  rows: 3
+  background: economy:gui/missions
+  layout:
+    - ".D.LLL.B."
+    - ".W.LLL.C."
+    - "....X...."
+  list: L
+  buttons:
+    D:
+      action: "mission:daily"
+      material: CLOCK
+      name: "<gold>오늘의 미션"
+      lore: ["<gray>매일 05시에 새로 뽑힙니다.", "<gray>새 미션까지 <white>{daily_left}", "<gray>다시 뽑기 <white>{daily_rerolls}번</white> 남음"]
+    W:
+      action: "mission:weekly"
+      icon: economy:gui/ledger
+      material: WRITABLE_BOOK
+      name: "<gold>이번 주 미션"
+      lore: ["<gray>월요일 05시에 새로 뽑힙니다.", "<gray>새 미션까지 <white>{weekly_left}", "<gray>다시 뽑기 <white>{weekly_rerolls}번</white> 남음"]
+    B:
+      action: "mission:daily-bonus"
+      icon: economy:gui/trophy
+      material: GOLD_INGOT
+      name: "<gold>일일 보너스"
+    C:
+      action: "mission:weekly-bonus"
+      icon: economy:gui/crown
+      material: GOLD_BLOCK
+      name: "<gold>주간 보너스"
+    X:
+      action: close
+      icon: stsv:gui/exit
+      material: OAK_DOOR
+      name: "<red>닫기"

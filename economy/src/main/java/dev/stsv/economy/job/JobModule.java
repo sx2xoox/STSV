@@ -172,12 +172,18 @@ public final class JobModule extends EcoModule {
         return j.bonus(key, level(player));
     }
 
-    /** Adds XP to a job, only if it is the player's job now. */
+    /** Adds XP to a job, only if it is the player's job now (counted in the job_xp stat for 미션). */
     public void addXp(UUID player, String job, double xp) {
+        addXp(player, job, xp, true);
+    }
+
+    /** counted: false for XP that is itself a mission reward, so it does not count towards another mission. */
+    public void addXp(UUID player, String job, double xp, boolean counted) {
         if (xp <= 0 || job == null || !job.equals(job(player))) return;
         JobStore.Row r = store.get(player);
         int before = level(player);
         store.addXp(r, job, xp);
+        if (counted) core.profiles().add(player, "job_xp", xp);
         leveled(player, job, before, level(player));
     }
 

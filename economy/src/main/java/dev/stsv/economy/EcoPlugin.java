@@ -63,6 +63,7 @@ public final class EcoPlugin extends JavaPlugin {
     private MachineModule machines;
     private LandModule land;
     private RequestModule requests;
+    private dev.stsv.economy.mission.MissionModule missions;
     private RankModule rank;
     private MetricsModule metrics;
     private StockModule stocks;
@@ -102,6 +103,7 @@ public final class EcoPlugin extends JavaPlugin {
         add(trade = new TradeModule(this));
         add(land = new LandModule(this));
         add(requests = new RequestModule(this));
+        add(missions = new dev.stsv.economy.mission.MissionModule(this));
         add(vanity = new VanityModule(this));
         add(stocks = new StockModule(this));
         add(fishing = new FishingModule(this));
@@ -202,6 +204,7 @@ public final class EcoPlugin extends JavaPlugin {
     public MachineModule machines() { return machines; }
     public LandModule land() { return land; }
     public RequestModule requests() { return requests; }
+    public dev.stsv.economy.mission.MissionModule missions() { return missions; }
     public RankModule rank() { return rank; }
     public MetricsModule metrics() { return metrics; }
 

@@ -35,7 +35,7 @@ commands:
     aliases: [job]
     permission: stsv.economy.play
   도감:
-    description: 도감 (낚시 98종, 서식지별 칭호)
+    description: 도감 (상점에 파는 물건 전부, 1개씩 바쳐 등록)
     aliases: [codex, fishdex]
     permission: stsv.economy.play
   주식:
@@ -49,6 +49,10 @@ commands:
   의뢰:
     description: 의뢰 게시판
     aliases: [requests]
+    permission: stsv.economy.play
+  미션:
+    description: 일일·주간 미션 (사람마다 따로, 다 깨면 보너스)
+    aliases: [mission, missions]
     permission: stsv.economy.play
   순위:
     description: 이번 주에 번 돈 순위 (/순위 자산 = 순자산 순위)

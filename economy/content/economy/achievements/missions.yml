@@ -1,0 +1,86 @@
+# 업적 (/업적) · 미션 (/미션). 형식 설명: plugin 의 AchievementSpec.java 맨 위
+#   missions_daily / missions_weekly: 끝낸 일일·주간 미션 수, missions_daily_all / missions_weekly_all: 세 개를 모두 끝낸 날·주 수
+
+category: { name: "미션", icon: minecraft:clock, order: 36 }
+achievements:
+  daily_1:
+    name: "오늘의 할 일"
+    description: "일일 미션 1개 끝내기"
+    tier: easy
+    icon: minecraft:clock
+    stat: missions_daily
+    goal: 1
+    unit: "개"
+    rewards: { gold: 200 }
+  daily_all_1:
+    name: "개근 첫날"
+    description: "하루에 일일 미션 모두 끝내기"
+    tier: easy
+    icon: minecraft:sunflower
+    stat: missions_daily_all
+    goal: 1
+    unit: "일"
+    rewards: { gold: 500 }
+  weekly_1:
+    name: "한 주의 목표"
+    description: "주간 미션 1개 끝내기"
+    tier: easy
+    icon: minecraft:writable_book
+    stat: missions_weekly
+    goal: 1
+    unit: "개"
+    rewards: { gold: 1000 }
+  daily_100:
+    name: "성실한 일꾼"
+    description: "일일 미션 100개 끝내기"
+    tier: normal
+    icon: minecraft:clock
+    stat: missions_daily
+    goal: 100
+    unit: "개"
+    rewards: { gold: 10000, title: economy:diligent }
+  daily_all_30:
+    name: "한 달 개근"
+    description: "일일 미션을 모두 끝낸 날 30일"
+    tier: normal
+    icon: minecraft:sunflower
+    stat: missions_daily_all
+    goal: 30
+    unit: "일"
+    rewards: { gold: 15000, items: ["minecraft:experience_bottle x32"] }
+  weekly_all_4:
+    name: "알찬 한 달"
+    description: "주간 미션을 모두 끝낸 주 4주"
+    tier: normal
+    icon: minecraft:writable_book
+    stat: missions_weekly_all
+    goal: 4
+    unit: "주"
+    rewards: { gold: 15000 }
+  daily_500:
+    name: "일벌레"
+    description: "일일 미션 500개 끝내기"
+    tier: hard
+    icon: minecraft:honeycomb
+    stat: missions_daily
+    goal: 500
+    unit: "개"
+    rewards: { gold: 50000, title: economy:workaholic }
+  weekly_all_26:
+    name: "반년의 약속"
+    description: "주간 미션을 모두 끝낸 주 26주"
+    tier: hard
+    icon: minecraft:lectern
+    stat: missions_weekly_all
+    goal: 26
+    unit: "주"
+    rewards: { gold: 60000, items: ["minecraft:diamond x10"] }
+  daily_all_365:
+    name: "일 년 개근"
+    description: "일일 미션을 모두 끝낸 날 365일"
+    tier: very_hard
+    icon: minecraft:beacon
+    stat: missions_daily_all
+    goal: 365
+    unit: "일"
+    rewards: { gold: 200000, items: ["minecraft:nether_star x1"], title: economy:perfect_attendance }

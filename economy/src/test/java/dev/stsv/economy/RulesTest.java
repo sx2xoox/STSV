@@ -809,4 +809,62 @@ class RulesTest {
             assertTrue(a.getInt("achievements." + key + ".goal") <= cat.get().items().size(), key);
         }
     }
+
+    // ------------------------------------------------------------------------------------------ missions
+
+    private static dev.stsv.economy.mission.MissionSpec.Mission mission(String id, String stat, String job, String group) {
+        return new dev.stsv.economy.mission.MissionSpec.Mission(id, id, stat, 10, job, group == null ? stat : group, "", "minecraft:paper", 10,
+                new dev.stsv.economy.mission.MissionSpec.Reward(100, 0, List.of()));
+    }
+
+    /** One mission of the player's job first, then missions for everyone; never two of a group. */
+    @Test
+    void aMissionSetHasOneJobMissionAndNoTwoOfAGroup() {
+        var all = new java.util.LinkedHashMap<String, dev.stsv.economy.mission.MissionSpec.Mission>();
+        for (var m : List.of(mission("ores", "ores_mined", "miner", null), mission("gems", "made_miner", "miner", "machine"),
+                mission("fish", "fish_caught", "fisher", null), mission("dig", "blocks_broken", null, null),
+                mission("mobs", "mob_kills", null, null), mission("sell", "shop_sold", null, "shop"), mission("income", "shop_income", null, "shop"),
+                mission("machine", "machine_made", null, "machine"))) all.put(m.id(), m);
+        var k = new dev.stsv.economy.mission.MissionSpec.Kind(3, 1, dev.stsv.economy.mission.MissionSpec.Reward.NONE, all);
+        for (int seed = 0; seed < 300; seed++) {
+            var miner = dev.stsv.economy.mission.MissionSpec.draw(k, "miner", new java.util.Random(seed));
+            assertEquals(3, miner.size());
+            assertEquals("miner", miner.getFirst().job());
+            assertTrue(miner.subList(1, 3).stream().allMatch(m -> m.job() == null), "the rest is for everyone");
+            assertEquals(3, miner.stream().map(dev.stsv.economy.mission.MissionSpec.Mission::group).distinct().count(), "no two of a group");
+            // no job (or a job with no missions): all three for everyone
+            for (String job : java.util.Arrays.asList(null, "cook")) {
+                var none = dev.stsv.economy.mission.MissionSpec.draw(k, job, new java.util.Random(seed));
+                assertEquals(3, none.size());
+                assertTrue(none.stream().allMatch(m -> m.job() == null));
+            }
+            // swapping: a job mission for another of that job, one for everyone for another for everyone, never a group already there
+            var set = new ArrayList<>(miner);
+            for (int i = 0; i < 3; i++) {
+                var next = dev.stsv.economy.mission.MissionSpec.reroll(k, set, i, new java.util.Random(seed + i));
+                assertNotNull(next);
+                assertFalse(set.stream().anyMatch(m -> m.id().equals(next.id())), "a new mission");
+                if (i == 0) {
+                    // another miner mission if one fits (gems is of the machine group), else one for everyone
+                    boolean gemsFits = set.subList(1, 3).stream().noneMatch(m -> m.group().equals("machine"));
+                    assertEquals(gemsFits ? "miner" : null, next.job());
+                } else assertNull(next.job());
+                int at = i;
+                assertTrue(java.util.stream.IntStream.range(0, 3).filter(x -> x != at).noneMatch(x -> set.get(x).group().equals(next.group())));
+            }
+        }
+        // the only other miner mission shares a group with a mission already in the set: falls back to one for everyone
+        var set = List.of(all.get("ores"), all.get("machine"), all.get("dig"));
+        var swapped = dev.stsv.economy.mission.MissionSpec.reroll(k, set, 0, new java.util.Random(1));
+        assertNull(swapped.job());
+        assertFalse(List.of("machine", "blocks_broken").contains(swapped.group()));
+    }
+
+    @Test
+    void missionRewardItemsParse() {
+        assertEquals(new dev.stsv.economy.mission.MissionSpec.ItemReward("minecraft:diamond", 3), dev.stsv.economy.mission.MissionSpec.item("diamond x3"));
+        assertEquals(new dev.stsv.economy.mission.MissionSpec.ItemReward("economy:ruby", 1), dev.stsv.economy.mission.MissionSpec.item("economy:ruby"));
+        assertNull(dev.stsv.economy.mission.MissionSpec.item("diamond x0"));
+        assertNull(dev.stsv.economy.mission.MissionSpec.item("two words"));
+    }
 }

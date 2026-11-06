@@ -11,8 +11,9 @@ pvp:
   always: false
 
 hud:
-  # 오른쪽 사이드바: 직업 레벨, 진행 중인 사건
+  # 오른쪽 사이드바: 직업 레벨, 미션 (오늘·이번 주 완료 수), 진행 중인 사건
   job: true
+  missions: true
   event: true
 
 report:

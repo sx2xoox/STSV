@@ -264,7 +264,7 @@ class ContentTest {
         List<String> problems = new ArrayList<>();
         List<MenuSpec> menus = MenuSpec.loadAll(List.of(new ContentPack("economy", "economy", PACK)), problems);
         assertTrue(problems.isEmpty(), String.join("\n", problems));
-        assertEquals(16, menus.size());
+        assertEquals(17, menus.size());
         for (MenuSpec m : menus) {
             // the button grid is mirror-symmetric, row by row (the machine's lanes are fixed by its code; their
             // empty cells hold arrows, so they read as full rows)
@@ -372,5 +372,61 @@ class ContentTest {
         }
         assertTrue(reads >= 5, "reads " + reads);
         assertTrue(problems.isEmpty(), String.join("\n", problems));
+    }
+
+    /**
+     * missions.yml: parses clean, counts only stats that are really counted, names real jobs and items,
+     * every job has its own daily and weekly missions, and a full set can always be drawn.
+     */
+    @Test
+    void missionsFitEveryJob() throws Exception {
+        List<String> problems = new ArrayList<>();
+        var spec = dev.stsv.economy.mission.MissionSpec.parse(yaml("missions.yml"), problems);
+        JobSpec jobs = JobSpec.parse(yaml("jobs.yml"), problems);
+        assertTrue(problems.isEmpty(), String.join("\n", problems));
+        Set<String> ours = ourItems();
+        Set<String> stats = new HashSet<>(List.of("ores_mined", "crops_harvested", "animals_bred", "fish_caught", "rare_finds",
+                "machine_made", "job_xp", "shop_sold", "shop_income", "requests_done", "stock_trades", "market_sold",
+                "playtime", "mob_kills", "blocks_broken", "blocks_placed"));
+        for (String j : jobs.jobs().keySet()) stats.add("made_" + j);
+        for (var period : dev.stsv.economy.mission.MissionSpec.Period.values()) {
+            var k = spec.kind(period);
+            assertEquals(3, k.count(), period + " count");
+            for (var m : k.missions().values()) {
+                String at = period + " " + m.id();
+                if (!stats.contains(m.stat())) problems.add(at + ": stat " + m.stat());
+                if (m.job() != null && !jobs.jobs().containsKey(m.job())) problems.add(at + ": job " + m.job());
+                if (!exists(m.icon(), ours)) problems.add(at + ": icon " + m.icon());
+                if (m.reward().isEmpty()) problems.add(at + ": no reward");
+                for (var i : m.reward().items()) if (!exists(i.id(), ours)) problems.add(at + ": item " + i.id());
+                // a made_<job> mission belongs to that job; a job_xp mission is for one job and says which
+                if (m.stat().startsWith("made_") && !m.stat().equals("made_" + m.job())) problems.add(at + ": made_ of another job");
+                if (m.stat().equals("job_xp") && (m.job() == null || !m.name().startsWith(jobs.jobs().get(m.job()).name()))) problems.add(at + ": job_xp name");
+            }
+            for (var i : k.bonus().items()) if (!exists(i.id(), ours)) problems.add(period + " bonus item " + i.id());
+            for (String j : jobs.jobs().keySet()) {
+                if (k.ofJob(j).isEmpty()) problems.add(period + ": no mission for " + j);
+                // whatever job mission comes first, the missions for everyone still fill the set
+                for (var first : k.ofJob(j)) {
+                    long open = k.general().stream().map(dev.stsv.economy.mission.MissionSpec.Mission::group).distinct()
+                            .filter(g -> !g.equals(first.group())).count();
+                    if (open < k.count() - 1) problems.add(period + " " + first.id() + ": too few missions for everyone");
+                }
+            }
+            for (int seed = 0; seed < 200; seed++) {
+                for (String j : new ArrayList<>(jobs.jobs().keySet()) {{ add(null); }}) {
+                    var set = dev.stsv.economy.mission.MissionSpec.draw(k, j, new java.util.Random(seed));
+                    if (set.size() != k.count()) problems.add(period + " " + j + ": drew " + set.size());
+                }
+            }
+        }
+        assertTrue(problems.isEmpty(), String.join("\n", problems));
+        // the menu: one row of the list for each period
+        MenuSpec menu = MenuSpec.loadAll(List.of(new ContentPack("economy", "economy", PACK)), problems).stream()
+                .filter(m -> m.id().equals("economy:missions")).findFirst().orElseThrow();
+        List<Integer> list = menu.slots(menu.list());
+        assertEquals(spec.daily().count() + spec.weekly().count(), list.size());
+        // daily missions fill the first row of the list, weekly the second
+        assertEquals(List.of(list.get(0) / 9, list.get(spec.daily().count()) / 9 - 1), List.of(list.get(spec.daily().count() - 1) / 9, list.get(0) / 9));
     }
 }

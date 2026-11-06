@@ -1,0 +1,89 @@
+# 미션 /미션: 사람마다 따로 뽑히는 일일(매일 05시)·주간(월요일 05시) 목표. 의뢰(물건 납품)와 달리 "활동" 목표.
+# 한 번에 count 개: 지금 직업이 있으면 그 직업 미션(job) 1개 + 나머지는 누구나 미션(job 없음).
+#   같은 group 은 한 번에 하나만 (group 을 안 쓰면 stat 이 group).
+# stat = 세는 기록. 미션을 받은 순간부터 늘어난 만큼 셈 (그전 기록은 안 셈). 쓸 수 있는 기록:
+#   ores_mined 광석 캐기 · crops_harvested 작물 수확 · animals_bred 동물 번식 · fish_caught 낚시 · rare_finds 발견품(광부 원석, 어부 희귀 어획)
+#   made_miner/made_farmer/made_fisher/made_blacksmith/made_cook/made_alchemist 그 직업 기계로 만든 수 · machine_made 아무 직업 기계
+#   job_xp 직업 경험치 (미션 보상 경험치는 안 셈) · shop_sold 상점에 판 개수 · shop_income 상점 판매 수입(G) · requests_done 의뢰
+#   stock_trades 주식 거래 · market_sold 거래소에서 팔린 수 · playtime 플레이 시간(초) · mob_kills 몹 처치 · blocks_broken · blocks_placed
+# 보상: gold, xp (끝냈을 때 직업의 경험치), items ["아이디 x개수"] (인벤토리가 차면 우편함). 다 끝내면 bonus.
+# rerolls: 기간마다 미션을 다른 것으로 바꿀 수 있는 횟수 (/미션 에서 우클릭). weight: 클수록 자주 뽑힘 (기본 10)
+
+daily:
+  count: 3
+  rerolls: 1
+  bonus: { gold: 400, xp: 50 }
+  missions:
+    # 광부
+    ores:        { name: "광석 64개 캐기", stat: ores_mined, goal: 64, unit: "개", job: miner, icon: iron_ore, gold: 150, xp: 40 }
+    gem_bench:   { name: "세공대에서 6개 만들기", stat: made_miner, goal: 6, unit: "개", job: miner, group: machine, icon: economy:ruby, gold: 150, xp: 40 }
+    xp_miner:    { name: "광부 경험치 150 모으기", stat: job_xp, goal: 150, job: miner, icon: experience_bottle, gold: 150 }
+    # 농부
+    harvest:     { name: "작물 160개 수확", stat: crops_harvested, goal: 160, unit: "개", job: farmer, icon: wheat, gold: 150, xp: 40 }
+    breed:       { name: "동물 10마리 번식", stat: animals_bred, goal: 10, unit: "마리", job: farmer, icon: wheat, gold: 150, xp: 40, weight: 6 }
+    mill:        { name: "가공대에서 8개 만들기", stat: made_farmer, goal: 8, unit: "개", job: farmer, group: machine, icon: economy:chili_powder, gold: 150, xp: 40 }
+    xp_farmer:   { name: "농부 경험치 150 모으기", stat: job_xp, goal: 150, job: farmer, icon: experience_bottle, gold: 150 }
+    # 어부
+    fish:        { name: "물고기 15마리 낚기", stat: fish_caught, goal: 15, unit: "마리", job: fisher, icon: cod, gold: 150, xp: 40 }
+    fish_bench:  { name: "손질대에서 6개 만들기", stat: made_fisher, goal: 6, unit: "개", job: fisher, group: machine, icon: economy:cod_fillet, gold: 150, xp: 40 }
+    xp_fisher:   { name: "어부 경험치 150 모으기", stat: job_xp, goal: 150, job: fisher, icon: experience_bottle, gold: 150 }
+    # 대장장이
+    forge:       { name: "대장간에서 4개 만들기", stat: made_blacksmith, goal: 4, unit: "개", job: blacksmith, group: machine, icon: economy:iron_plate, gold: 150, xp: 40 }
+    xp_smith:    { name: "대장장이 경험치 150 모으기", stat: job_xp, goal: 150, job: blacksmith, icon: experience_bottle, gold: 150 }
+    # 요리사
+    kitchen:     { name: "조리대에서 6개 만들기", stat: made_cook, goal: 6, unit: "개", job: cook, group: machine, icon: economy:kimchi, gold: 150, xp: 40 }
+    xp_cook:     { name: "요리사 경험치 150 모으기", stat: job_xp, goal: 150, job: cook, icon: experience_bottle, gold: 150 }
+    # 연금술사
+    still:       { name: "증류기에서 4개 만들기", stat: made_alchemist, goal: 4, unit: "개", job: alchemist, group: machine, icon: economy:makgeolli, gold: 150, xp: 40 }
+    xp_alchemist: { name: "연금술사 경험치 150 모으기", stat: job_xp, goal: 150, job: alchemist, icon: experience_bottle, gold: 150 }
+    # 누구나
+    play:        { name: "1시간 플레이", stat: playtime, goal: 3600, icon: clock, gold: 120, xp: 30, weight: 6 }
+    mobs:        { name: "몹 40마리 처치", stat: mob_kills, goal: 40, unit: "마리", icon: iron_sword, gold: 150, xp: 40 }
+    dig:         { name: "블록 400개 부수기", stat: blocks_broken, goal: 400, unit: "개", icon: iron_shovel, gold: 150, xp: 40 }
+    build:       { name: "블록 200개 놓기", stat: blocks_placed, goal: 200, unit: "개", icon: bricks, gold: 150, xp: 40 }
+    sell:        { name: "상점에 물건 128개 팔기", stat: shop_sold, goal: 128, unit: "개", group: shop, icon: chest, gold: 150, xp: 40 }
+    income:      { name: "상점 판매로 800G 벌기", stat: shop_income, goal: 800, unit: "G", group: shop, icon: gold_ingot, gold: 150, xp: 40 }
+    requests:    { name: "의뢰 2건 완료", stat: requests_done, goal: 2, unit: "건", icon: writable_book, gold: 180, xp: 50 }
+    stocks:      { name: "주식 3번 거래", stat: stock_trades, goal: 3, unit: "번", icon: book, gold: 120, xp: 30, weight: 5 }
+    machine:     { name: "직업 기계로 10개 만들기", stat: machine_made, goal: 10, unit: "개", group: machine, icon: crafting_table, gold: 150, xp: 40 }
+
+weekly:
+  count: 3
+  rerolls: 1
+  bonus: { gold: 3000, xp: 300, items: ["minecraft:experience_bottle x16"] }
+  missions:
+    # 광부
+    ores:        { name: "광석 600개 캐기", stat: ores_mined, goal: 600, unit: "개", job: miner, icon: diamond_ore, gold: 1200, xp: 400 }
+    gem_bench:   { name: "세공대에서 50개 만들기", stat: made_miner, goal: 50, unit: "개", job: miner, group: machine, icon: economy:ruby, gold: 1200, xp: 400 }
+    finds_miner: { name: "원석 8개 발견", stat: rare_finds, goal: 8, unit: "개", job: miner, icon: economy:rough_ruby, gold: 1200, xp: 400, weight: 6 }
+    xp_miner:    { name: "광부 경험치 1,500 모으기", stat: job_xp, goal: 1500, job: miner, icon: experience_bottle, gold: 1200 }
+    # 농부
+    harvest:     { name: "작물 1,500개 수확", stat: crops_harvested, goal: 1500, unit: "개", job: farmer, icon: hay_block, gold: 1200, xp: 400 }
+    breed:       { name: "동물 80마리 번식", stat: animals_bred, goal: 80, unit: "마리", job: farmer, icon: egg, gold: 1200, xp: 400, weight: 6 }
+    mill:        { name: "가공대에서 60개 만들기", stat: made_farmer, goal: 60, unit: "개", job: farmer, group: machine, icon: economy:chili_powder, gold: 1200, xp: 400 }
+    xp_farmer:   { name: "농부 경험치 1,500 모으기", stat: job_xp, goal: 1500, job: farmer, icon: experience_bottle, gold: 1200 }
+    # 어부
+    fish:        { name: "물고기 120마리 낚기", stat: fish_caught, goal: 120, unit: "마리", job: fisher, icon: salmon, gold: 1200, xp: 400 }
+    fish_bench:  { name: "손질대에서 50개 만들기", stat: made_fisher, goal: 50, unit: "개", job: fisher, group: machine, icon: economy:cod_fillet, gold: 1200, xp: 400 }
+    finds_fisher: { name: "희귀 어획 10번", stat: rare_finds, goal: 10, unit: "번", job: fisher, icon: economy:pearl, gold: 1200, xp: 400, weight: 6 }
+    xp_fisher:   { name: "어부 경험치 1,500 모으기", stat: job_xp, goal: 1500, job: fisher, icon: experience_bottle, gold: 1200 }
+    # 대장장이
+    forge:       { name: "대장간에서 35개 만들기", stat: made_blacksmith, goal: 35, unit: "개", job: blacksmith, group: machine, icon: economy:iron_plate, gold: 1200, xp: 400 }
+    xp_smith:    { name: "대장장이 경험치 1,500 모으기", stat: job_xp, goal: 1500, job: blacksmith, icon: experience_bottle, gold: 1200 }
+    # 요리사
+    kitchen:     { name: "조리대에서 50개 만들기", stat: made_cook, goal: 50, unit: "개", job: cook, group: machine, icon: economy:kimchi, gold: 1200, xp: 400 }
+    xp_cook:     { name: "요리사 경험치 1,500 모으기", stat: job_xp, goal: 1500, job: cook, icon: experience_bottle, gold: 1200 }
+    # 연금술사
+    still:       { name: "증류기에서 30개 만들기", stat: made_alchemist, goal: 30, unit: "개", job: alchemist, group: machine, icon: economy:makgeolli, gold: 1200, xp: 400 }
+    xp_alchemist: { name: "연금술사 경험치 1,500 모으기", stat: job_xp, goal: 1500, job: alchemist, icon: experience_bottle, gold: 1200 }
+    # 누구나
+    play:        { name: "10시간 플레이", stat: playtime, goal: 36000, icon: clock, gold: 1000, xp: 300, weight: 6 }
+    mobs:        { name: "몹 400마리 처치", stat: mob_kills, goal: 400, unit: "마리", icon: diamond_sword, gold: 1200, xp: 400 }
+    dig:         { name: "블록 4,000개 부수기", stat: blocks_broken, goal: 4000, unit: "개", icon: diamond_shovel, gold: 1200, xp: 400 }
+    build:       { name: "블록 2,000개 놓기", stat: blocks_placed, goal: 2000, unit: "개", icon: bricks, gold: 1200, xp: 400 }
+    sell:        { name: "상점에 물건 1,500개 팔기", stat: shop_sold, goal: 1500, unit: "개", group: shop, icon: chest, gold: 1200, xp: 400 }
+    income:      { name: "상점 판매로 8,000G 벌기", stat: shop_income, goal: 8000, unit: "G", group: shop, icon: gold_block, gold: 1200, xp: 400 }
+    requests:    { name: "의뢰 12건 완료", stat: requests_done, goal: 12, unit: "건", icon: writable_book, gold: 1500, xp: 500 }
+    stocks:      { name: "주식 20번 거래", stat: stock_trades, goal: 20, unit: "번", icon: book, gold: 1000, xp: 300, weight: 5 }
+    market:      { name: "거래소에서 5개 팔기", stat: market_sold, goal: 5, unit: "개", icon: emerald, gold: 1200, xp: 400, weight: 4 }
+    machine:     { name: "직업 기계로 100개 만들기", stat: machine_made, goal: 100, unit: "개", group: machine, icon: crafting_table, gold: 1200, xp: 400 }

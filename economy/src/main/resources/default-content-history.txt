@@ -785,6 +785,7 @@ ce705e26bab7d4704e536cbb73ac3544170de999 economy/shop.yml
 d80058583e2e440ac4d7b996f351307cca5b0f20 economy/shop.yml
 dae946176eb81429725a60e683c2d51c9a604ac2 economy/shop.yml
 ec3b7dc1bcc2fd929b084083b54b32f423237fba economy/shop.yml
+ef5178fe77d66bf66a429bcbac5d9b744a8ee873 economy/shop.yml
 f2d6bdda870b52bd26589f14062edfea304be813 economy/shop.yml
 fd684f520ec2ea64e736e9d82fa39b70f289880a economy/shop.yml
 f67b979d934ac0d6e127aafb77be1d7b12f8d757 economy/stocks.yml

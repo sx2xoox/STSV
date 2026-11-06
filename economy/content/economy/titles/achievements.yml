@@ -89,3 +89,12 @@ market_regular:
 auction_god:
   name: "<gradient:#ffd36b:#ff8a3d><b>[경매의 신]</b></gradient>"
   description: "업적: 경매 30번 낙찰"
+diligent:
+  name: "<#5ab0ff>[성실한 일꾼]"
+  description: "업적: 일일 미션 100개 끝내기"
+workaholic:
+  name: "<#c58cff>[일벌레]"
+  description: "업적: 일일 미션 500개 끝내기"
+perfect_attendance:
+  name: "<gradient:#ffd36b:#ff8a3d><b>[일 년 개근]</b></gradient>"
+  description: "업적: 일일 미션을 모두 끝낸 날 365일"
