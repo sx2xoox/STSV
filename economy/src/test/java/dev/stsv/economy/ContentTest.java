@@ -184,12 +184,12 @@ class ContentTest {
         if (!titles.contains("master_angler")) problems.add("title master_angler");
         assertEquals(3, fish.species().values().stream().filter(x -> x.item().startsWith("minecraft:")).count(), "cod, salmon, pufferfish");
 
-        // the shape: 6 jobs, 6 finds, 95 job machine goods + 9 press goods, 6 job machines + the press,
+        // the shape: 6 jobs, 6 finds, 121 job machine goods + 9 press goods, 6 job machines + the press,
         // 32 crop items (15 seeds, 17 harvests), 92 fish
         assertEquals(6, jobs.jobs().size());
-        assertEquals(6 + 104 + 7 + 32 + 92, ours.size(), "6 finds + 104 goods + 7 machines + 32 crop items + 92 fish");
+        assertEquals(6 + 130 + 7 + 32 + 92, ours.size(), "6 finds + 130 goods + 7 machines + 32 crop items + 92 fish");
         assertEquals(7, machines.size());
-        assertEquals(104, machines.values().stream().flatMap(x -> x.recipes().stream()).map(MachineSpec.Recipe::output).distinct().count());
+        assertEquals(130, machines.values().stream().flatMap(x -> x.recipes().stream()).map(MachineSpec.Recipe::output).distinct().count());
         assertTrue(events.keySet().containsAll(List.of("shortage", "crash", "harvest", "merchant", "tax_audit")));
         assertFalse(Files.exists(PACK.resolve("season.yml")), "no season plan any more");
         // every job product can actually be made: by a recipe, a machine, a job drop or a fishing rod
@@ -434,10 +434,10 @@ class ContentTest {
     }
 
     /**
-     * Every job machine can work alone: it has recipes that need no other machine's goods (raw things only,
-     * or its own goods), and every good that has a second, "direct" recipe in the same machine can be
-     * made that way without the other machines. The press takes only vanilla leftovers. Times range from
-     * quick to long, and the still's aged drinks are its slowest.
+     * Every job machine can work alone: it has goods of its own made from raw things only (no other
+     * machine's goods), and no good has a second recipe that only routes round another machine (new goods,
+     * not new ways to old ones). The press takes only leftovers. Times range from quick to long, and the
+     * still's aged drinks are its slowest.
      */
     @Test
     void machinesWorkWithoutTheOthers() {
@@ -450,10 +450,11 @@ class ContentTest {
                     .allMatch(in -> !madeOn.containsKey(in) || madeOn.get(in).equals(m.id()));
             long n = m.recipes().stream().filter(alone).count();
             if (n < 5) problems.add(m.id() + ": only " + n + " recipes without other machines");
-            Map<String, List<MachineSpec.Recipe>> byOut = new java.util.HashMap<>();
-            for (var r : m.recipes()) byOut.computeIfAbsent(r.output(), k -> new ArrayList<>()).add(r);
-            for (var e : byOut.entrySet()) {
-                if (e.getValue().size() > 1 && e.getValue().stream().noneMatch(alone)) problems.add(m.id() + " " + e.getKey() + ": no direct recipe");
+            // a good made by two recipes of one machine: only the bulk kind (same inputs, more at once) is allowed
+            Map<String, List<MachineSpec.Recipe>> same = new java.util.HashMap<>();
+            for (var r : m.recipes()) same.computeIfAbsent(r.output(), k -> new ArrayList<>()).add(r);
+            for (var e : same.entrySet()) {
+                if (e.getValue().stream().map(r -> r.inputs().keySet()).distinct().count() > 1) problems.add(m.id() + " " + e.getKey() + ": two routes");
             }
             int quick = (int) m.recipes().stream().filter(r -> r.seconds() <= 60).count();
             int slow = (int) m.recipes().stream().filter(r -> r.seconds() >= 300).count();

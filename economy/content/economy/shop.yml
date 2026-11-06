@@ -219,6 +219,9 @@ sell:
       economy:cut_diamond: { base: 90, q: 8 }   # 세공 다이아몬드
       economy:sapphire_brooch: { base: 133, q: 8 }   # 사파이어 브로치
       economy:diamond_ring: { base: 220, q: 4 }   # 다이아 반지
+      economy:copper_bracelet: { base: 50, q: 8 }   # 구리 팔찌 (원재료만)
+      economy:amethyst_pendant: { base: 40, q: 8 }   # 자수정 펜던트 (원재료만)
+      economy:quartz_figurine: { base: 42, q: 8 }   # 석영 조각상 (원재료만)
       # 대장간 (대장장이)
       economy:iron_plate: { base: 60, q: 8 }   # 철판
       economy:iron_chain: { base: 45, q: 16 }   # 쇠사슬
@@ -232,6 +235,9 @@ sell:
       economy:gamasot: { base: 160, q: 4 }   # 가마솥
       economy:iron_lantern: { base: 95, q: 8 }   # 철 랜턴
       economy:ornamental_sword: { base: 420, q: 2 }   # 장식용 도검
+      economy:homi: { base: 28, q: 16 }   # 호미 (원재료만)
+      economy:sickle: { base: 40, q: 8 }   # 낫 (원재료만)
+      economy:wind_chime: { base: 30, q: 8 }   # 풍경 (원재료만)
   foodstuff:
     name: "식재료"
     icon: economy:doenjang
@@ -253,6 +259,9 @@ sell:
       economy:apple_juice: { base: 20, q: 16 }   # 사과즙
       economy:jocheong: { base: 120, q: 8 }   # 조청
       economy:soy_sauce: { base: 48, q: 16 }   # 간장
+      economy:gangnaengi: { base: 40, q: 16 }   # 강냉이 (원재료만)
+      economy:onion_juice: { base: 40, q: 16 }   # 양파즙 (원재료만)
+      economy:mumallaengi: { base: 34, q: 16 }   # 무말랭이 (원재료만)
       # 손질대 (어부)
       economy:cod_fillet: { base: 9, q: 32 }   # 생선 필렛
       economy:salmon_fillet: { base: 9, q: 32 }   # 연어 필렛
@@ -270,6 +279,8 @@ sell:
       economy:gulbi: { base: 95, q: 8 }   # 굴비
       economy:hongeo: { base: 45, q: 8 }   # 삭힌 홍어
       economy:jeotgal: { base: 80, q: 8 }   # 젓갈
+      economy:salted_mackerel: { base: 9, q: 32 }   # 간고등어 (원재료만)
+      economy:fish_sauce: { base: 50, q: 8 }   # 까나리 액젓 (원재료만)
   dishes:
     name: "요리·술"
     icon: economy:bibimbap
@@ -301,6 +312,16 @@ sell:
       economy:doenjang_jjigae: { base: 80, q: 8 }   # 된장찌개
       economy:kimchi_jjigae: { base: 120, q: 8 }   # 김치찌개
       economy:tteokbokki: { base: 165, q: 4 }   # 떡볶이
+      economy:godeungeo_gui: { base: 8, q: 32 }   # 고등어구이 (원재료만)
+      economy:oi_muchim: { base: 34, q: 16 }   # 오이무침 (원재료만)
+      economy:beoseot_bokkeum: { base: 18, q: 16 }   # 버섯볶음 (원재료만)
+      economy:gamja_jorim: { base: 11, q: 32 }   # 감자조림 (원재료만)
+      economy:pajeon: { base: 14, q: 32 }   # 파전 (원재료만)
+      economy:miyeokguk: { base: 18, q: 16 }   # 미역국 (원재료만)
+      economy:kalguksu: { base: 25, q: 16 }   # 칼국수 (원재료만)
+      economy:injeolmi: { base: 13, q: 32 }   # 인절미 (원재료만)
+      economy:dakbokkeumtang: { base: 42, q: 8 }   # 닭볶음탕 (원재료만)
+      economy:gamjatang: { base: 40, q: 8 }   # 감자탕 (원재료만)
       # 증류기 (연금술사)
       economy:makgeolli: { base: 50, q: 16 }   # 막걸리
       economy:soju: { base: 180, q: 4 }   # 소주
@@ -314,6 +335,11 @@ sell:
       economy:strawberry_wine: { base: 90, q: 8 }   # 딸기주
       economy:mead: { base: 90, q: 8 }   # 꿀술
       economy:cheongju: { base: 230, q: 4 }   # 청주
+      economy:pumpkin_makgeolli: { base: 30, q: 16 }   # 단호박 막걸리 (원재료만)
+      economy:bokbunja_wine: { base: 60, q: 8 }   # 복분자주 (원재료만)
+      economy:rum: { base: 55, q: 8 }   # 럼 (원재료만)
+      economy:corn_whiskey: { base: 200, q: 4 }   # 옥수수 위스키 (원재료만)
+      economy:potato_vodka: { base: 130, q: 4 }   # 감자 보드카 (원재료만)
 
 buy:
   tools:

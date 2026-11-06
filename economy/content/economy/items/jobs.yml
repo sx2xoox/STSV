@@ -102,6 +102,21 @@ diamond_ring:
   name: "<#9fb4c8>다이아 반지"
   texture: diamond_ring
 
+copper_bracelet:
+  material: paper
+  name: "<#9fb4c8>구리 팔찌"
+  texture: copper_bracelet
+
+amethyst_pendant:
+  material: paper
+  name: "<#9fb4c8>자수정 펜던트"
+  texture: amethyst_pendant
+
+quartz_figurine:
+  material: paper
+  name: "<#9fb4c8>석영 조각상"
+  texture: quartz_figurine
+
 # ── 가공대 · 농부 ─────────────────────────────────────────
 rice:
   material: paper
@@ -182,6 +197,21 @@ soy_sauce:
   material: paper
   name: "<#8bc34a>간장"
   texture: soy_sauce
+
+gangnaengi:
+  material: paper
+  name: "<#8bc34a>강냉이"
+  texture: gangnaengi
+
+onion_juice:
+  material: paper
+  name: "<#8bc34a>양파즙"
+  texture: onion_juice
+
+mumallaengi:
+  material: paper
+  name: "<#8bc34a>무말랭이"
+  texture: mumallaengi
 
 # ── 손질대 · 어부 ─────────────────────────────────────────
 cod_fillet:
@@ -264,6 +294,16 @@ jeotgal:
   name: "<#4fc3f7>젓갈"
   texture: jeotgal
 
+salted_mackerel:
+  material: paper
+  name: "<#4fc3f7>간고등어"
+  texture: salted_mackerel
+
+fish_sauce:
+  material: paper
+  name: "<#4fc3f7>까나리 액젓"
+  texture: fish_sauce
+
 # ── 대장간 · 대장장이 ─────────────────────────────────────────
 iron_plate:
   material: paper
@@ -324,6 +364,21 @@ ornamental_sword:
   material: paper
   name: "<#ff8a65>장식용 도검"
   texture: ornamental_sword
+
+homi:
+  material: paper
+  name: "<#ff8a65>호미"
+  texture: homi
+
+sickle:
+  material: paper
+  name: "<#ff8a65>낫"
+  texture: sickle
+
+wind_chime:
+  material: paper
+  name: "<#ff8a65>풍경"
+  texture: wind_chime
 
 # ── 조리대 · 요리사 ─────────────────────────────────────────
 kimchi:
@@ -534,6 +589,86 @@ tteokbokki:
     nutrition: 7
     saturation: 8.4
 
+godeungeo_gui:
+  material: paper
+  name: "<#ffb74d>고등어구이"
+  texture: godeungeo_gui
+  food:
+    nutrition: 5
+    saturation: 6.0
+
+oi_muchim:
+  material: paper
+  name: "<#ffb74d>오이무침"
+  texture: oi_muchim
+  food:
+    nutrition: 4
+    saturation: 4.8
+
+beoseot_bokkeum:
+  material: paper
+  name: "<#ffb74d>버섯볶음"
+  texture: beoseot_bokkeum
+  food:
+    nutrition: 5
+    saturation: 6.0
+
+gamja_jorim:
+  material: paper
+  name: "<#ffb74d>감자조림"
+  texture: gamja_jorim
+  food:
+    nutrition: 4
+    saturation: 4.8
+
+pajeon:
+  material: paper
+  name: "<#ffb74d>파전"
+  texture: pajeon
+  food:
+    nutrition: 5
+    saturation: 6.0
+
+miyeokguk:
+  material: paper
+  name: "<#ffb74d>미역국"
+  texture: miyeokguk
+  food:
+    nutrition: 6
+    saturation: 7.2
+
+kalguksu:
+  material: paper
+  name: "<#ffb74d>칼국수"
+  texture: kalguksu
+  food:
+    nutrition: 7
+    saturation: 8.4
+
+injeolmi:
+  material: paper
+  name: "<#ffb74d>인절미"
+  texture: injeolmi
+  food:
+    nutrition: 4
+    saturation: 4.8
+
+dakbokkeumtang:
+  material: paper
+  name: "<#ffb74d>닭볶음탕"
+  texture: dakbokkeumtang
+  food:
+    nutrition: 9
+    saturation: 10.8
+
+gamjatang:
+  material: paper
+  name: "<#ffb74d>감자탕"
+  texture: gamjatang
+  food:
+    nutrition: 9
+    saturation: 10.8
+
 # ── 증류기 · 연금술사 ─────────────────────────────────────────
 makgeolli:
   material: paper
@@ -594,6 +729,31 @@ cheongju:
   material: paper
   name: "<#ba68c8>청주"
   texture: cheongju
+
+pumpkin_makgeolli:
+  material: paper
+  name: "<#ba68c8>단호박 막걸리"
+  texture: pumpkin_makgeolli
+
+bokbunja_wine:
+  material: paper
+  name: "<#ba68c8>복분자주"
+  texture: bokbunja_wine
+
+rum:
+  material: paper
+  name: "<#ba68c8>럼"
+  texture: rum
+
+corn_whiskey:
+  material: paper
+  name: "<#ba68c8>옥수수 위스키"
+  texture: corn_whiskey
+
+potato_vodka:
+  material: paper
+  name: "<#ba68c8>감자 보드카"
+  texture: potato_vodka
 
 # ── 압착기 · 공용 (남는 바닐라 물건을 눌러서) ─────────────────────────
 

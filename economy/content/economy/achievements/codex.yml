@@ -45,7 +45,7 @@ achievements:
     tier: hard
     icon: economy:bibimbap
     value: economy:codex:dishes
-    goal: 38
+    goal: 53
     unit: "개"
     rewards: { gold: 25000 }
   codex_all:
@@ -54,6 +54,6 @@ achievements:
     tier: very_hard
     icon: minecraft:lectern
     value: economy:codex
-    goal: 257
+    goal: 283
     unit: "개"
     rewards: { gold: 150000, items: ["minecraft:beacon x1"] }
