@@ -388,6 +388,7 @@ e1c96b81524e1aec79354163933f7556164b468b economy/menus/requests.yml
 252379e2ffd295c403b7997776d09b10708a9e4a economy/menus/shop.yml
 4b4fe3bebbd6ceef80b02508c6e5b676150e13bb economy/menus/shop.yml
 5055ce31e80ee18de29586e4a6ab431f967c4622 economy/menus/shop.yml
+6ded4a8f19e3453648417aaafe99530f2eac4ae5 economy/menus/shop.yml
 c5e44327d68a3c5821fcefc4ca747e9bfb18a45b economy/menus/shop.yml
 c89368821d7b63b653cc41b0b75c1606cd53f693 economy/menus/stall.yml
 1140b7ab5c1b7a7ec97bd91dba3fcfc8317e230d economy/menus/stocks.yml
@@ -780,6 +781,7 @@ ce705e26bab7d4704e536cbb73ac3544170de999 economy/shop.yml
 d80058583e2e440ac4d7b996f351307cca5b0f20 economy/shop.yml
 dae946176eb81429725a60e683c2d51c9a604ac2 economy/shop.yml
 ec3b7dc1bcc2fd929b084083b54b32f423237fba economy/shop.yml
+f2d6bdda870b52bd26589f14062edfea304be813 economy/shop.yml
 fd684f520ec2ea64e736e9d82fa39b70f289880a economy/shop.yml
 f67b979d934ac0d6e127aafb77be1d7b12f8d757 economy/stocks.yml
 1097344fceaf394d2a4c4290baf320ed7140a406 economy/textures/abyssfish.png

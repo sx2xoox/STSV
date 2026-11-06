@@ -542,18 +542,19 @@ public final class CropModule implements StsvModule, Listener {
         CropEvent ev = new CropEvent(CropEvent.Action.HARVEST, p, spec, loc, drops);
         Bukkit.getPluginManager().callEvent(ev);
         if (ev.isCancelled()) return false;
-        boolean again = replant && spec.regrow() >= 0;
-        if (replant && !again) {
-            // the plant is replanted with one of the seeds it just dropped, else one from the bag
+        boolean again = replant;
+        if (replant && spec.regrow() < 0) {
+            // replanted with one of the seeds it just dropped, else one from the bag; with neither (a harvest
+            // that happened to drop no seed) it is replanted all the same: a harvest never leaves the soil empty
+            boolean seeded = false;
             for (ItemStack it : ev.drops()) {
                 if (it != null && !it.isEmpty() && spec.seed().equals(key(it))) {
                     it.subtract(1);
-                    again = true;
+                    seeded = true;
                     break;
                 }
             }
-            if (!again && (p.getGameMode() == GameMode.CREATIVE || takeOne(p, spec.seed()))) again = true;
-            if (!again) HudModule.flash(p, Lang.mm("crop.no-seed"));
+            if (!seeded && p.getGameMode() != GameMode.CREATIVE) takeOne(p, spec.seed());
         }
         for (ItemStack it : ev.drops()) if (it != null && !it.isEmpty()) loc.getWorld().dropItemNaturally(loc, it);
         if (p.getGameMode() != GameMode.CREATIVE) p.setExhaustion(p.getExhaustion() + 0.005f);   // as breaking a block
@@ -586,10 +587,10 @@ public final class CropModule implements StsvModule, Listener {
             return;
         }
         if (spec.ripe(s.age)) {
-            harvest(p, s, spec, false);   // broken by hand: harvested and gone
+            harvest(p, s, spec, true);   // hitting a ripe crop harvests it like a right-click (and replants)
             return;
         }
-        pop(s);
+        pop(s);   // a young plant comes out as its seed
     }
 
     /** Takes a crop out, giving its seed back. */
@@ -668,10 +669,8 @@ public final class CropModule implements StsvModule, Listener {
             }
         }
         if (!broken || !b.isEmpty() || b.getRelative(BlockFace.DOWN).getType() != Material.FARMLAND) return broken;
-        if (!seedTaken && p.getGameMode() != GameMode.CREATIVE && !takeOne(p, seed.getKey().asString())) {
-            HudModule.flash(p, Lang.mm("crop.no-seed"));
-            return true;
-        }
+        // a seed from the drops (taken above), else from the bag; with neither it is replanted all the same
+        if (!seedTaken && p.getGameMode() != GameMode.CREATIVE) takeOne(p, seed.getKey().asString());
         b.setType(type);
         p.swingMainHand();
         b.getWorld().playSound(b.getLocation().add(0.5, 0.5, 0.5), Sound.ITEM_CROP_PLANT, 0.8f, 1f);

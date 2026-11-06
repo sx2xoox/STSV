@@ -339,23 +339,68 @@ public final class MachineModule extends EcoModule {
         return n;
     }
 
-    /** The product with its maker tag ("제작: 이름 (광부 Lv12)"; the job part only for the machine's job). */
+    /**
+     * The product with its maker tag ("제작: 이름"). Only the name: a level in the tag changed with every
+     * level up, and the same goods from the same maker then no longer stacked.
+     */
     private ItemStack product(Machine m, MachineSpec.Recipe r, int amount, UUID op) {
         ItemStack it = Items.create(r.output(), amount).orElse(null);
         if (it == null || op == null) return it;
-        String job = m.spec.job();
-        JobSpec.Job j = job == null ? null : eco.jobs().spec().jobs().get(job);
-        boolean mine = j != null && job.equals(eco.jobs().job(op));
         String name = Players.name(op);
-        int lv = mine ? eco.jobs().level(op) : 0;
         it.editMeta(meta -> {
             List<Component> lore = meta.hasLore() ? new ArrayList<>(meta.lore()) : new ArrayList<>();
-            lore.add(mine ? Lang.item("machine.maker-job", "player", name, "color", j.color(), "job", j.name(), "level", lv)
-                    : Lang.item("machine.maker", "player", name));
+            lore.add(Lang.item("machine.maker", "player", name));
             meta.lore(lore);
             meta.getPersistentDataContainer().set(MAKER, PersistentDataType.STRING, op.toString());
         });
         return it;
+    }
+
+    private static final String MAKER_PREFIX = "제작: ";
+
+    /**
+     * Goods made before the tag lost its level ("제작: 이름 (광부 Lv12)") get the name-only tag, so they stack
+     * with new ones. Returns true if the item was changed.
+     */
+    static boolean normalizeMaker(ItemStack it) {
+        if (it == null || it.isEmpty() || !it.hasItemMeta()) return false;
+        var meta = it.getItemMeta();
+        if (!meta.getPersistentDataContainer().has(MAKER, PersistentDataType.STRING) || !meta.hasLore()) return false;
+        List<Component> lore = new ArrayList<>(meta.lore());
+        boolean changed = false;
+        for (int i = 0; i < lore.size(); i++) {
+            String plain = net.kyori.adventure.text.serializer.plain.PlainTextComponentSerializer.plainText().serialize(lore.get(i));
+            if (!plain.startsWith(MAKER_PREFIX) || !plain.endsWith(")") || !plain.contains(" Lv")) continue;
+            int cut = plain.lastIndexOf(" (");
+            if (cut <= MAKER_PREFIX.length()) continue;
+            lore.set(i, Lang.item("machine.maker", "player", plain.substring(MAKER_PREFIX.length(), cut)));
+            changed = true;
+        }
+        if (!changed) return false;
+        meta.lore(lore);
+        it.setItemMeta(meta);
+        return true;
+    }
+
+    private static void normalizeMakers(org.bukkit.inventory.Inventory inv) {
+        for (ItemStack it : inv.getContents()) normalizeMaker(it);
+    }
+
+    @org.bukkit.event.EventHandler
+    public void onJoinMakers(org.bukkit.event.player.PlayerJoinEvent e) {
+        normalizeMakers(e.getPlayer().getInventory());
+        normalizeMakers(e.getPlayer().getEnderChest());
+    }
+
+    @org.bukkit.event.EventHandler(ignoreCancelled = true)
+    public void onOpenMakers(org.bukkit.event.inventory.InventoryOpenEvent e) {
+        normalizeMakers(e.getInventory());
+    }
+
+    @org.bukkit.event.EventHandler(ignoreCancelled = true)
+    public void onPickupMakers(org.bukkit.event.entity.EntityPickupItemEvent e) {
+        ItemStack it = e.getItem().getItemStack();
+        if (normalizeMaker(it)) e.getItem().setItemStack(it);
     }
 
     /** Shop base price of an item (0 if the shop does not buy it): what machine XP is counted from. */

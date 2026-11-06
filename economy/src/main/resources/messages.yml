@@ -281,7 +281,6 @@ machine:
   recipe-locked: "<red>{tier} 강화에서 열림"
   recipe-current: "<green>✔ 지금 이 줄"
   maker: "<dark_gray>제작: {player}"
-  maker-job: "<dark_gray>제작: {player} (<{color}>{job}<dark_gray> Lv{level})"
   tier-lore: "<gold>강화: {tier}"
   bonus: "<green>{what}</green> <gray>{item}"
   bonus-extra: "결과 +1"
