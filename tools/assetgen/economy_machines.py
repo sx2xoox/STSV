@@ -3,7 +3,9 @@ Job machines (economy server): six multi-block workstations, each in four looks 
 
     tier 0  기본   wood and stone
     tier 1  1강    the same machine with extra parts attached (racks, tools, a second vessel...)
-    tier 2  2강    metal reinforcement: iron bands, steel legs and housings, riveted plates
+    tier 2  2강    the machine grown in its own trade: a jeweller's brass desk, a dancheong-painted mill
+                   with a tiled roof, a fish market stall with floats, a smithy with a crest and a weapon
+                   rack, a big kitchen with a lattice window and dried chillies, a copper column still
     tier 3  3강    glowing parts (gems, liquids, lanterns, runes)
 
 Every tier keeps everything of the tier before it, so an upgrade always reads as "more".
@@ -140,22 +142,6 @@ def whetstone_face():
             return 3
         return None
     _disc(px, "whetstone", draw)
-    return im
-
-
-@_surface
-def steel_wheel_face():
-    """2강 wheel: the same stone with a riveted steel collar."""
-    im = whetstone_face()
-    px = im.load()
-
-    def draw(x, y, d, a):
-        if 2.6 <= d < 4.2:
-            if abs(math.sin(a * 3)) < 0.25 and 3.0 < d < 3.8:
-                return ramp("steel", 5)
-            return ramp("steel", 3 if x + y < 15 else 1)
-        return None
-    _disc(px, "steel", draw)
     return im
 
 
@@ -350,13 +336,6 @@ def fish_flesh():
             px[x, y] = ramp("salmon", 3 if (x + y) % 4 else 1)
             if (x + y) % 4 == 2:
                 px[x, y] = ramp("rice", 1)
-    return im
-
-
-@_surface
-def iron():
-    """Cast / wrought iron: dark, a soft sheen at the top-left."""
-    im, px, rnd = _fill("iron", 415, lambda x, y: 3 if x + y < 6 else 2, ((0.12, -1), (0.06, 1)))
     return im
 
 
@@ -742,23 +721,6 @@ def hearth_mouth():
                 px[x, y] = ramp("fire", 1) if rnd.random() < (y - 7) * 0.25 else ramp("soot", 0)
             else:
                 px[x, y] = ramp("soot", 0)
-    return im
-
-
-@_surface
-def fire_door():
-    """Iron fire door with a glowing slot."""
-    im, px, rnd = _fill("iron", 442, 2, ((0.08, -1),))
-    for y in range(S):
-        for x in range(S):
-            if y in (0, 15) or x in (0, 15):
-                px[x, y] = ramp("iron", 4 if (x == 0 or y == 0) else 0)
-    for x in range(3, 13):
-        px[x, 5] = ramp("fire", 3)
-        px[x, 6] = ramp("fire", 4)
-        px[x, 7] = ramp("fire", 2)
-    for (x, y) in ((2, 2), (13, 2), (2, 13), (13, 13)):
-        px[x, y] = ramp("steel", 5)
     return im
 
 
@@ -1162,11 +1124,13 @@ def cyl(m, name, axis, c, d, lo, hi, side, cap=None, cap2=None, glow=False, face
         m.box(name, frm, to, side, faces=f, uv=uv, glow=glow)
 
 
-def ring(m, name, c, d_out, d_in, lo, hi, mat):
-    """Flat ring around the y axis, rasterised on the pixel grid and merged into as few boxes as possible."""
+def ring(m, name, c, d_out, d_in, lo, hi, mat, skip=None):
+    """Flat ring around the y axis, rasterised on the pixel grid and merged into as few boxes as possible.
+    skip(x, z): leave out the pixel centred there (where the ring runs inside another part)."""
     n = int(round(d_out))
     x0, z0 = c[0] - d_out / 2, c[1] - d_out / 2
-    cells = [[d_in / 2 <= math.hypot(x0 + i + 0.5 - c[0], z0 + j + 0.5 - c[1]) < d_out / 2 for i in range(n)]
+    cells = [[d_in / 2 <= math.hypot(x0 + i + 0.5 - c[0], z0 + j + 0.5 - c[1]) < d_out / 2
+              and not (skip and skip(x0 + i + 0.5, z0 + j + 0.5)) for i in range(n)]
              for j in range(n)]
     used = [[False] * n for _ in range(n)]
     for j in range(n):
@@ -1250,18 +1214,18 @@ def display(m, size_blocks, floor):
 
 def gem_bench(tier):
     m = MModel(f"gem_bench_{tier}")
-    metal, glow = tier >= 2, tier >= 3
+    fine, glow = tier >= 2, tier >= 3
     m.group("bench")
     m.box("top", (0.5, 13, 0), (16, 16, 16), OAK)
     m.box("top", (16, 13, 0), (31.5, 16, 16), OAK)
-    leg = STEEL_DARK if metal else SPRUCE_GRAIN
+    leg = SPRUCE_GRAIN
     for z in (1, 13):
         m.box("leg", (1, 0, z), (3, 13, z + 2), leg)
     m.box("apron", (3, 11, 1), (15, 13, 2), SPRUCE)
     m.box("shelf", (3, 3, 2), (15, 4, 14), SPRUCE)
     m.box("cabinet", (15, 0, 1), (31, 13, 15), SPRUCE)
     for (y0, y1) in ((1, 6.5), (7, 12)):
-        m.box("drawer", (16, y0, 0.5), (30, y1, 1), Mat("wood", "panel", 2), faces={"south": None})
+        m.box("drawer", (16, y0, 0.5), (30, y1, 1), Mat("wood_dark" if fine else "wood", "panel", 2), faces={"south": None})
         m.box("knob", (22, y0 + 2, 0), (24, y0 + 3.5, 0.5), BRASS, faces={"south": None})
         if glow:
             m.box("inlay", (26.5, y0 + 2, 0.25), (28, y0 + 3.5, 0.5), SAPPHIRE(glow=True), faces={"south": None})
@@ -1276,27 +1240,23 @@ def gem_bench(tier):
     m.box("water", (4, 17, 3), (12, 18.5, 10), "mc_water", faces={f: None for f in ("north", "south", "east", "west", "down")})
 
     m.group("stand")
-    body = STEEL(rivets=True) if metal else IRON(rivets=True)
+    body = BRASS(rivets=True) if fine else IRON(rivets=True)
     m.box("stand_foot", (4, 16, 11), (12, 17, 15), IRON)
     m.box("stand_column", (6, 17, 11.5), (10, 21, 14.5), IRON)
     m.box("bearing", (5, 21, 11), (11, 27, 15), body)
     m.box("axle", (7.5, 23.5, 9.5), (8.5, 24.5, 11), IRON, faces={"south": None})
-    if metal:
-        m.box("gauge", (6, 18, 11.25), (10, 21, 11.5), "gauge", full_uv=["north"], faces={"south": None})
-        cyl(m, "pulley", "z", (8, 24), 4, 15, 16, STEEL_DARK, cap=STEEL_DARK)
-        m.box("belt", (7, 7, 15.25), (9, 22, 15.75), "belt")
-        cyl(m, "motor", "x", (6.5, 12), 5, 4, 12, STEEL, cap="eco_gear")
 
     m.group("tray")
     m.box("tray", (18, 16, 3), (27, 17.5, 9), SPRUCE, faces={"up": CLOTH_RED})
     for (x0, z0, x1, z1) in ((18, 3, 27, 3.5), (18, 8.5, 27, 9), (18, 3.5, 18.5, 8.5), (26.5, 3.5, 27, 8.5)):
-        m.box("tray_rim", (x0, 17.5, z0), (x1, 18, z1), SPRUCE, faces={"down": None})
+        m.box("tray_rim", (x0, 17.5, z0), (x1, 18, z1), BRASS if fine else SPRUCE, faces={"down": None})
     gems = ((19.5, 4.5, RUBY), (22, 6, SAPPHIRE), (24.5, 4.5, RUBY), (20, 6.8, SAPPHIRE))
     for (x, z, g) in gems:
         m.box("gem", (x, 17.5, z), (x + 1.5, 19, z + 1.5), g(glow=glow))
     m.box("big_gem", (23.5, 17.5, 6.5), (25.5, 19.5, 8.5), RUBY(glow=glow), rotation=("y", 45, (24.5, 18.5, 7.5)))
-    m.box("ore", (28, 16, 3), (31, 18.5, 6), "mc_ore")
-    m.box("ore", (28.5, 16, 7), (30.5, 17.5, 9), "mc_ore")
+    if not glow:
+        m.box("ore", (28, 16, 3), (31, 18.5, 6), "mc_ore")
+        m.box("ore", (28.5, 16, 7), (30.5, 17.5, 9), "mc_ore")
     m.box("tweezers", (19, 16, 10.5), (25, 16.5, 11), STEEL, faces={"down": None})
     m.box("loupe", (26, 16, 10), (28, 17.5, 12), IRON, faces={"up": GLASS})
 
@@ -1327,21 +1287,33 @@ def gem_bench(tier):
         m.box("bucket", (10.5, 4, 4), (14, 8.5, 8), SPRUCE, faces={"up": "mc_water"})
         m.box("bucket_band", (10.25, 6, 3.75), (14.25, 6.75, 8.25), IRON)
 
-    if metal:
-        m.group("metal")
-        for (x0, x1) in ((2, 16), (16, 30)):
-            m.box("strap", (x0, 13.5, -0.5), (x1, 15, 0), Mat("iron", "band", 3), faces={"south": None})
-        for (x0, x1) in ((0, 2), (30, 32)):
-            m.box("corner", (x0, 12.75, -1), (x1, 16.5, 2), STEEL(rivets=False))
-        # splash plate behind the wheel and a short hood over its top
-        cyl(m, "splash", "z", (8, 24), 14, 10.25, 11, STEEL, cap=STEEL(bevel=None, kind="plain"), clip=(19.5, 32))
-        m.box("hood", (4, 30.5, 5.5), (12, 31.5, 10), STEEL(rivets=False))
-        for (x0, x1, y0) in ((2, 4, 29.5), (12, 14, 29.5)):
-            m.box("hood", (x0, y0, 5.5), (x1, y0 + 1, 10), STEEL)
+    if fine:
+        # 2강 장인 공방: a brass edge and corner caps, dark walnut drawers, a brass-rimmed tray (above), a desk lamp
+        m.group("craft")
+        m.box("edge", (0.5, 15.25, -0.5), (31.5, 16, 0), BRASS, faces={"south": None})
+        for x in (15, 30):
+            m.box("cap", (x, 0, 0.25), (x + 1, 13, 1), BRASS, faces={"south": None})
+        # a brass desk lamp in the back corner
+        m.box("lamp_foot", (0.75, 16, 12.5), (3.25, 16.5, 15), BRASS)
+        m.box("lamp_post", (1.75, 16.5, 13.5), (2.25, 23, 14), BRASS)
+        m.box("lamp_arm", (1.75, 22.5, 9), (2.25, 23, 13.5), BRASS)
+        m.box("lamp_shade", (0.75, 20.5, 7.5), (3.25, 22.5, 10), BRASS, faces={"down": Mat("lamp", "plain", 3, glow=glow, bevel=None)})
+        # a polished ring on a little velvet stand by the magnifier
+        m.box("stand", (27.25, 16, 9.25), (29.75, 18, 11.5), CLOTH_RED)
+        m.box("ring", (27.75, 18, 9.85), (29.25, 19.5, 10.85), GOLD)
+        m.box("ring_gem", (28.1, 19.5, 10), (28.9, 20.25, 10.7), SAPPHIRE(glow=glow))
 
     if glow:
+        # 3강 보석 명장: gold trim, a jewelled crown on a cushion, glowing crystals and inlays
         m.group("glow")
         m.box("trim", (2, 12, -0.75), (30, 12.75, 0), "mc_glow_trim", glow=True)
+        # the crown on a velvet cushion where the raw ore lay
+        m.box("cushion", (27.5, 16, 2.5), (31.5, 17.5, 8), CLOTH_RED)
+        m.box("crown_band", (28.25, 17.5, 3.25), (30.75, 18.75, 7.25), GOLD)
+        for (x, z) in ((28.25, 3.25), (30, 3.25), (28.25, 6.5), (30, 6.5)):
+            m.box("crown_point", (x, 18.75, z), (x + 0.75, 20, z + 0.75), GOLD)
+        m.box("crown_gem", (29.1, 17.75, 3), (29.9, 18.5, 3.25), RUBY(glow=True), faces={"south": None})
+        m.box("crown_top", (29.1, 18.75, 4.85), (29.9, 20.5, 5.65), SAPPHIRE(glow=True))
         m.box("crystal", (28, 16, 12.5), (30, 22, 14.5), Mat("crystal", "plain", 3, glow=True),
               rotation=("z", -22.5, (29, 16, 13.5)))
         m.box("crystal", (26.5, 16, 12), (28, 19.5, 13.5), Mat("crystal", "plain", 3, glow=True),
@@ -1353,11 +1325,10 @@ def gem_bench(tier):
 def gem_bench_wheel(tier):
     """Grinding wheel, face to the front, spins around z. Centre (8, 8, 8)."""
     m = MModel(f"gem_bench_wheel_{tier}")
-    face = "mc_steel_wheel_face" if tier >= 2 else "mc_whetstone_face"
     m.group("wheel")
-    cyl(m, "wheel", "z", (8, 8), 12, 6.5, 9.5, "mc_whetstone", cap=face)
+    cyl(m, "wheel", "z", (8, 8), 12, 6.5, 9.5, "mc_whetstone", cap="mc_whetstone_face")
     if tier >= 2:
-        cyl(m, "collar", "z", (8, 8), 6, 6, 6.5, STEEL, cap=STEEL(bevel=None), faces={"south": None})
+        cyl(m, "collar", "z", (8, 8), 4, 6, 6.5, BRASS, cap=BRASS(bevel=None), faces={"south": None})
     if tier >= 3:
         cyl(m, "glow_ring", "z", (8, 8), 4, 5.5, 6, "crystal", cap="crystal", glow=True, faces={"south": None})
     m.display = presets.furniture(gui_scale=0.5)
@@ -1374,7 +1345,7 @@ GRAIN = Mat("straw", "speckle", 2, bevel=None)
 
 def mill(tier):
     m = MModel(f"mill_{tier}")
-    metal, glow = tier >= 2, tier >= 3
+    fine, glow = tier >= 2, tier >= 3
     C = (16, 16)
     m.group("plinth")
     cyl(m, "plinth", "y", C, 22, 0, 6, "stone_bricks", cap=FLOUR)
@@ -1389,7 +1360,7 @@ def mill(tier):
     m.box("bin_rim", (11, 4, 4.5), (21, 4.5, 5), SPRUCE, faces={"down": None})
 
     m.group("frame")
-    post = STEEL_DARK if metal else SPRUCE_GRAIN
+    post = Mat("crimson", "grain", 2) if fine else SPRUCE_GRAIN
     for x in (1, 28):
         m.box("brace", (x - 0.5, 0, 12), (x + 3.5, 1.5, 20), SPRUCE)
         m.box("post", (x, 1.5, 14), (x + 3, 14, 18), post)
@@ -1417,20 +1388,41 @@ def mill(tier):
         m.box("sieve", (24, 0, 18.5), (25, 8, 26), SPRUCE, rotation=("z", -22.5, (24, 0, 22)))
         m.box("sieve_mesh", (24.25, 1, 19.5), (24.75, 7, 25), "eco_grate", rotation=("z", -22.5, (24, 0, 22)))
 
-    if metal:
-        m.group("metal")
-        cyl(m, "band", "y", C, 23, 2, 3.5, IRON, cap=IRON)
+    if fine:
+        # 2강 방앗간: posts in 단청 red with green and gold bands, a tiled roof over the beam, a straw rope round the plinth
+        m.group("dancheong")
+        green, gold_band = Mat("leaf_dark", "plain", 2), Mat("lamp", "plain", 1)
         for x in (1, 28):
-            for y in (8, 20):
-                m.box("post_band", (x - 0.25, y, 13.75), (x + 3.25, y + 1, 18.25), IRON)
-            m.box("bracket", (x, 23, 13.5), (x + 3, 29, 14), STEEL(rivets=True), faces={"south": None})
-        m.box("hopper_band", (9.75, 26.25, 9.75), (22.25, 27.25, 22.25), IRON)
+            m.box("band", (x - 0.25, 24, 13.75), (x + 3.25, 26, 18.25), green)
+            m.box("band", (x - 0.25, 23.5, 13.75), (x + 3.25, 24, 18.25), gold_band)
+            m.box("foot", (x - 0.25, 1.5, 13.75), (x + 3.25, 3, 18.25), Mat("stone", "speckle", 3))
+        for (x0, x1) in ((0.5, 10), (22, 31.5)):          # the hopper hides the middle of the beam
+            m.box("beam_band", (x0, 28, 13.75), (x1, 29, 14), green, faces={"south": None})
+            m.box("beam_band", (x0, 28, 18), (x1, 29, 18.25), green, faces={"north": None})
+        roof, ridge = Mat("blacksteel", "planks", 2, period=2), Mat("blacksteel", "plain", 1)
+        m.box("roof", (0, 30, 12), (16, 31, 20), roof)
+        m.box("roof", (16, 30, 12), (32, 31, 20), roof)
+        m.box("eave", (0, 29.5, 11), (16, 30.25, 12), roof, faces={"up": roof})
+        m.box("eave", (16, 29.5, 11), (32, 30.25, 12), roof)
+        m.box("eave", (0, 29.5, 20), (16, 30.25, 21), roof)
+        m.box("eave", (16, 29.5, 20), (32, 30.25, 21), roof)
+        end = 1.5 if glow else 0                          # 3강: gold caps take the ridge's ends
+        m.box("ridge", (end, 31, 15), (16, 32, 17), ridge)
+        m.box("ridge", (16, 31, 15), (32 - end, 32, 17), ridge)
+        ring(m, "rope", C, 23, 21.5, 2, 3.5, Mat("straw", "weave", 2, bevel=None))
+        m.box("basket", (1.5, 0, 1.5), (7.5, 4, 7.5), Mat("straw", "weave", 1), faces={"up": GRAIN})
 
     if glow:
+        # 3강 풍년 방앗간: gold on the roof ends, lanterns, the grain in the bin and the hopper shining
         m.group("glow")
-        cyl(m, "rune_band", "y", C, 22.5, 1.5, 2.5, "mc_glow_trim", cap="mc_glow_trim", glow=True)
         lantern(m, 7, 16, 27, True)
         lantern(m, 25, 16, 27, True)
+        for x in (0, 30.5):
+            m.box("ridge_end", (x, 31, 14.5), (x + 1.5, 32, 17.5), GOLD)
+        m.box("gold_grain", (11.5, 4, 1), (20.5, 4.75, 4.5), Mat("lamp", "speckle", 2, glow=True, bevel=None),
+              faces={"down": None})
+        m.box("gold_grain", (10.5, 29, 10.5), (21.5, 29.25, 21.5), Mat("lamp", "speckle", 2, glow=True, bevel=None),
+              faces={"down": None})
     return display(m, (2, 2, 2), 0)
 
 
@@ -1442,8 +1434,8 @@ def mill_stone(tier):
     m.box("handle", (12, 10.5, 7), (14, 17.5, 9), OAK_GRAIN)
     m.box("handle_cap", (11.75, 17.5, 6.75), (14.25, 18, 9.25), SPRUCE)
     if tier >= 2:
-        cyl(m, "hoop", "y", (8, 8), 15, 7.5, 8.5, IRON, cap=IRON)
-        m.box("handle_band", (11.75, 11, 6.75), (14.25, 12, 9.25), IRON)
+        # a red cloth wound round the handle (단청 colours, like the frame)
+        m.box("handle_band", (11.75, 13, 6.75), (14.25, 15, 9.25), Mat("crimson", "weave", 2, bevel=None))
     if tier >= 3:
         ring(m, "glow_ring", (8, 8), 8, 6, 10.5, 10.75, Mat("glow_amber", "plain", 2, glow=True, bevel=None))
     m.display = presets.furniture(gui_scale=0.5)
@@ -1478,18 +1470,22 @@ def fish_hanging(m, name, x0, y0, y1, z0, skin, belly="rice", w=3, thick=1.5):
 
 def fish_bench(tier):
     m = MModel(f"fish_bench_{tier}")
-    metal, glow = tier >= 2, tier >= 3
+    fine, glow = tier >= 2, tier >= 3
     m.group("counter")
     m.box("body", (1, 0, 1), (16, 13, 15), SPRUCE)
     m.box("body", (16, 0, 1), (31, 13, 15), SPRUCE)
     for (x0, x1) in ((2, 15), (17, 30)):
-        m.box("door", (x0, 1, 0.5), (x1, 12, 1), Mat("steel" if metal else "wood", "panel", 3 if metal else 2),
+        # 2강: doors painted sea blue
+        m.box("door", (x0, 1, 0.5), (x1, 12, 1), Mat("sapphire" if fine else "wood", "panel", 1 if fine else 2),
               faces={"south": None})
         hx = x1 - 3 if x0 < 16 else x0 + 2
-        m.box("handle", (hx, 5, 0), (hx + 1, 9, 0.5), STEEL if metal else BRASS, faces={"south": None})
-    top = Mat("steel", "metal", 4) if metal else OAK
-    m.box("top", (0.5, 13, 0), (16, 15, 16), top)
-    m.box("top", (16, 13, 0), (31.5, 15, 16), top)
+        m.box("handle", (hx, 5, 0), (hx + 1, 9, 0.5), BRASS, faces={"south": None})
+    # 2강: a white tiled counter, like a fish market's
+    top = OAK
+    m.box("top", (0.5, 13, 0), (16, 15, 16), top, faces={"up": "mc_tile", "north": "mc_tile"} if fine else None,
+          full_uv=["up", "north"] if fine else ())
+    m.box("top", (16, 13, 0), (31.5, 15, 16), top, faces={"up": "mc_tile", "north": "mc_tile"} if fine else None,
+          full_uv=["up", "north"] if fine else ())
 
     m.group("board")
     m.box("board", (2, 15, 2.5), (14, 16.5, 11.5), Mat("wood", "plain", 3))
@@ -1500,9 +1496,9 @@ def fish_bench(tier):
     m.box("knife_grip", (8.5, 16.5, 10.25), (12, 17.5, 11.25), SPRUCE_GRAIN)
 
     m.group("ice")
-    m.box("tray", (17, 15, 2), (30, 16, 12), STEEL_DARK if metal else SPRUCE)
+    m.box("tray", (17, 15, 2), (30, 16, 12), SPRUCE)
     for (x0, z0, x1, z1) in ((17, 2, 30, 3), (17, 11, 30, 12), (17, 3, 18, 11), (29, 3, 30, 11)):
-        m.box("tray_wall", (x0, 16, z0), (x1, 17.5, z1), STEEL_DARK if metal else SPRUCE, faces={"down": None})
+        m.box("tray_wall", (x0, 16, z0), (x1, 17.5, z1), SPRUCE, faces={"down": None})
     m.box("ice", (18, 16, 3), (29, 17, 11), "mc_ice", faces={f: None for f in ("north", "south", "east", "west", "down")})
     fish_flat(m, "seabream", 21, 28, 3.75, 6.75, 17, "seabream", head="east")
     fish_flat(m, "cod", 21, 28.5, 7.75, 10.25, 17, "fish_silver", head="east")
@@ -1511,7 +1507,7 @@ def fish_bench(tier):
 
     if tier >= 1:
         m.group("rail")
-        pole = STEEL if metal else SPRUCE_GRAIN
+        pole = SPRUCE_GRAIN
         for x in (0.5, 30):
             m.box("pole", (x, 15, 13.5), (x + 1.5, 30, 15), pole)
         m.box("bar", (0.5, 30, 13.25), (16, 31.5, 15.25), pole)
@@ -1523,22 +1519,35 @@ def fish_bench(tier):
         for x in (14.5, 16.5):
             m.box("rack_knife", (x, 19, 14.25), (x + 1, 24, 14.5), Mat("blade", "metal", 2))
             m.box("rack_grip", (x, 25, 14.25), (x + 1, 27.5, 14.75), SPRUCE_GRAIN)
-        m.box("pail", (24, 15, 12.5), (28, 18, 15.25), SPRUCE, faces={"up": "mc_water"}) if False else None
 
-    if metal:
-        m.group("metal")
-        for x in (0, 30.5):
-            m.box("corner", (x, 12.5, -0.5), (x + 1.5, 15.5, 1), STEEL)
-        m.box("sink", (2, 15, 11.5), (13.5, 15.75, 14.5), STEEL_DARK, faces={"up": "mc_water"})
+    if fine:
+        # 2강 수산 시장: rope round the ice tray, red and white floats on the rail, a white tiled sink
+        m.group("market")
+        rope = Mat("straw", "weave", 2, bevel=None)
+        for (x0, z0, x1, z1) in ((16.75, 1.75, 30.25, 2.25), (16.75, 11.75, 30.25, 12.25)):
+            m.box("tray_rope", (x0, 16.5, z0), (x1, 17.25, z1), rope)
+        for (x, mat) in ((12.5, Mat("crimson", "plain", 3)), (18, Mat("porcelain", "plain", 2))):
+            m.box("float_line", (x + 0.75, 28.5, 14), (x + 1.25, 30, 14.5), rope)
+            m.box("float", (x, 26, 13.25), (x + 2, 28.5, 15.25), mat)
+            m.box("float_band", (x - 0.1, 27, 13.15), (x + 2.1, 27.5, 15.35), Mat("porcelain" if x < 16 else "crimson", "plain", 2))
+        if tier < 3:
+            m.box("sink", (2, 15, 11.5), (13.5, 15.75, 14.5), Mat("porcelain", "plain", 2), faces={"up": "mc_water"})
 
     if glow:
+        # 3강 용궁 어시장: lanterns, a glowing live-fish basin where the sink was, a pearl in its shell
         m.group("glow")
         lantern(m, 3.5, 11, 30, True)
         lantern(m, 28, 11, 30, True)
+        m.box("tank_floor", (2, 15, 11.5), (13.5, 15.5, 14.75), Mat("straw", "speckle", 3))
+        for (x0, x1) in ((2, 2.5), (13, 13.5)):
+            m.box("tank_frame", (x0, 15.5, 11.5), (x1, 18, 14.75), BRASS)
+        for (z0, z1) in ((11.5, 12), (14.25, 14.75)):
+            m.box("tank_rim", (2.5, 17.5, z0), (13, 18, z1), BRASS)
+        m.box("tank_water", (2.5, 15.5, 11.75), (13, 17.5, 14.5), "mc_glow_cyan", glow=True)
+        m.box("tank_fish", (5, 15.75, 11.6), (8.5, 17, 11.75), Mat("seabream", "plain", 3), faces={"south": None})
+        m.box("tank_fish", (9, 16, 11.6), (11.5, 16.75, 11.75), Mat("lamp", "plain", 2), faces={"south": None})
         m.box("shell", (13.5, 15, 12), (16.5, 15.75, 15), "mc_shell", faces={"up": "mc_shell"})
         m.box("pearl", (14.5, 15.75, 13), (15.5, 16.75, 14), Mat("pearl", "plain", 2, glow=True))
-        m.box("meltwater", (18, 17, 3), (29, 17.01, 11), "mc_glow_cyan", glow=True,
-              faces={f: None for f in ("north", "south", "east", "west", "down")}) if False else None
     return display(m, (2, 2, 1), 0)
 
 
@@ -1548,7 +1557,7 @@ def fish_bench(tier):
 
 def forge(tier):
     m = MModel(f"forge_{tier}", dy=-16)
-    metal, glow = tier >= 2, tier >= 3
+    fine, glow = tier >= 2, tier >= 3
     m.group("hearth")
     # hearth base (x 14..32, z 12..32), coal pit in the middle
     m.box("base", (13, 0, 12), (31, 11, 32), "stone_bricks")
@@ -1559,13 +1568,13 @@ def forge(tier):
     flames(m, "fire", 22, 21.5, 11.5, 8, 8)
     # back wall and the hood
     m.box("back", (13, 13, 29), (31, 24, 32), "brick")
-    hood = "steel" if metal else "brick_soot"
+    hood = "brick_soot"
     for x in (13, 29):
-        m.box("pillar", (x, 13, 12), (x + 2, 24, 14.5), STEEL_DARK if metal else STONE)
+        m.box("pillar", (x, 13, 12), (x + 2, 24, 14.5), STONE)
     m.box("hood", (12.5, 24, 11.5), (31.5, 28, 32), hood)
     m.box("hood", (15, 28, 14), (30, 32, 31), hood)
     m.box("hood", (17.5, 32, 17), (28, 36, 28), hood)
-    chim = "mc_iron" if metal else "brick_soot"
+    chim = "brick_soot"
     m.box("chimney", (19.5, 36, 19), (26, 47.5 if glow else 48, 26), chim)
 
     m.group("bellows")
@@ -1573,13 +1582,13 @@ def forge(tier):
     m.box("bellows_board", (3.5, 5, 21.5), (12.5, 6, 30.5), OAK)
     m.box("bellows_leather", (4.5, 6, 22.5), (11.5, 9, 29.5), "mc_leather")
     m.box("bellows_board", (3.5, 9, 21.5), (12.5, 10, 30.5), OAK)
-    m.box("nozzle", (12.5, 6.5, 25), (13, 8.5, 27), BRASS if not metal else STEEL)
+    m.box("nozzle", (12.5, 6.5, 25), (13, 8.5, 27), BRASS)
     m.box("lever", (6, 10, 25.5), (7, 18, 26.5), SPRUCE_GRAIN)
     m.box("lever_grip", (5.5, 18, 24), (7.5, 19, 28), SPRUCE_GRAIN)
 
     m.group("anvil")
     cyl(m, "stump", "y", (7, 7), 10, 0, 8, "mc_bark", cap="mc_log_top")
-    anvil = Mat("steel", "metal", 2) if metal else IRON
+    anvil = IRON
     m.box("anvil_foot", (3.5, 8, 4.5), (10.5, 10, 9.5), anvil)
     m.box("anvil_waist", (4.5, 10, 5.5), (9.5, 13, 8.5), anvil)
     m.box("anvil_face", (2.5, 13, 4), (11.5, 16, 10), anvil, faces={"up": Mat("steel", "metal", 4)})
@@ -1590,7 +1599,7 @@ def forge(tier):
     m.box("hammer_handle", (5.75, 16, 6.5), (7.25, 17, 11.5), OAK_GRAIN)
 
     m.group("trough")
-    trough = STEEL_DARK if metal else SPRUCE
+    trough = Mat("stone", "speckle", 2) if fine else SPRUCE
     m.box("trough", (17, 0, 1), (31, 1, 9), trough)
     for (x0, z0, x1, z1) in ((17, 1, 31, 2), (17, 8, 31, 9), (17, 2, 18, 8), (30, 2, 31, 8)):
         m.box("trough_wall", (x0, 1, z0), (x1, 7, z1), trough, faces={"down": None})
@@ -1613,14 +1622,28 @@ def forge(tier):
         for k, y in enumerate((13, 13.75)):
             m.box("ingot", (23 + k * 0.5, y, 12.25), (27 + k * 0.5, y + 0.75, 14.25), ingot)
 
-    if metal:
-        m.group("metal")
-        for x in (12, 30):
-            m.box("hearth_band", (x, 0, 11), (x + 1, 11, 12), STEEL(rivets=True))
-        for y in (38, 44):
-            m.box("chimney_band", (19, y, 18.5), (26.5, y + 1, 26.5), STEEL)
-        m.box("stump_band", (1.75, 5, 1.75), (12.25, 6, 12.25), IRON) if False else cyl(m, "stump_band", "y", (7, 7), 10.5, 5, 6, IRON, cap=IRON)
-        m.box("gauge", (21, 26, 11.25), (25, 30, 11.5), "gauge", full_uv=["north"], faces={"south": None}) if False else None
+    if fine:
+        # 2강 대장장이 공방: a carved stone lintel and a brass crossed-hammers crest on the hood, a stone cap on the
+        # chimney, a rack of finished swords and an axe at the back
+        m.group("smithy")
+        light = Mat("stone", "speckle", 3)
+        m.box("lintel", (12.25, 23, 11.25), (31.75, 24.5, 12), light)
+        for (a, rot) in ((-45, 1), (45, -1)):
+            m.box("crest_handle", (21.5, 24.5, 11.1), (22.5, 28, 11.4), BRASS, rotation=("z", a, (22, 26.25, 11.25)))
+        for (x0, x1) in ((19.75, 21.75), (22.25, 24.25)):
+            m.box("crest_head", (x0, 27, 11.05), (x1, 28.25, 11.45), BRASS)
+        m.box("chimney_cap", (18.5, 46.5, 18), (27, 47.5, 27), light)
+        m.box("rack", (1, 4, 31), (12.5, 25, 32), OAK)
+        m.box("rack_rail", (0.5, 22, 30.25), (13, 23, 31), SPRUCE)
+        blade = Mat("blade", "metal", 2)
+        for x in (2.5, 5.5):
+            m.box("sword_blade", (x, 10.5, 30.4), (x + 1, 22, 30.9), blade)
+            m.box("sword_guard", (x - 1, 9.5, 30.25), (x + 2, 10.5, 31), BRASS)
+            m.box("sword_grip", (x, 6.5, 30.4), (x + 1, 9.5, 30.9), LEATHER)
+            m.box("sword_pommel", (x - 0.25, 5.75, 30.3), (x + 1.25, 6.5, 31), BRASS)
+        m.box("axe_handle", (9.5, 6, 30.4), (10.5, 21, 30.9), OAK_GRAIN)
+        m.box("axe_head", (8, 17, 30.3), (11.5, 20.5, 31), IRON)
+        m.box("axe_edge", (7.5, 16.5, 30.3), (8, 21, 31), blade)
 
     if glow:
         m.group("glow")
@@ -1628,6 +1651,10 @@ def forge(tier):
         m.box("molten", (20, 15.5, 19), (24, 15.75, 23), "mc_molten", glow=True, faces={"down": None})
         m.box("trim", (12.5, 24.5, 11), (31.5, 25.5, 11.5), "mc_glow_trim", glow=True)
         m.box("rune", (4, 14, 3.75), (10, 15, 4), Mat("glow_amber", "plain", 2, glow=True), faces={"south": None})
+        # the masterwork: the first sword on the rack glows, a gold crest
+        m.box("sword_glow", (2.5, 10.5, 30.3), (3.5, 22, 30.4), Mat("magic", "plain", 2, glow=True), faces={"south": None})
+        for (x0, x1) in ((19.75, 21.75), (22.25, 24.25)):
+            m.box("crest_gold", (x0, 27, 10.95), (x1, 28.25, 11.05), GOLD, faces={"south": None})
         m.box("hot_blade", (4, 16, 6.5), (10.5, 16.75, 8), Mat("fire", "metal", 4, glow=True))
         m.box("hot_tang", (10.5, 16, 7), (12.5, 16.5, 7.5), Mat("fire", "metal", 2, glow=True))
         m.box("embers_top", (20, 47.5, 19.5), (25.5, 47.75, 25.5), "mc_embers", glow=True, faces={"down": None})
@@ -1657,30 +1684,28 @@ def _jar(m, cx, cz, d, h, y0=0):
 
 def kitchen(tier):
     m = MModel(f"kitchen_{tier}")
-    metal, glow = tier >= 2, tier >= 3
+    fine, glow = tier >= 2, tier >= 3
     m.group("stove")
     # clay stove (x 16..32)
     m.box("stove", (16.5, 0, 0.5), (31.5, 13, 15.5), CLAY)
     m.box("stove_top", (16, 13, 0), (32, 14, 16), Mat("clay", "speckle", 3))
-    if metal:
-        m.box("door", (19.5, 1, 0), (28.5, 8, 0.5), "mc_fire_door", full_uv=["north"], faces={"south": None})
-    else:
-        m.box("mouth", (20, 1, 0.25), (28, 8, 0.5), "mc_hearth_mouth", full_uv=["north"], glow=True, faces={"south": None})
-        m.box("arch", (19, 8, 0), (29, 9.5, 0.5), Mat("stone", "speckle", 3), faces={"south": None})
-        for x in (19, 28):
-            m.box("jamb", (x, 0, 0), (x + 1, 8, 0.5), Mat("stone", "speckle", 3), faces={"south": None})
+    m.box("mouth", (20, 1, 0.25), (28, 8, 0.5), "mc_hearth_mouth", full_uv=["north"], glow=True, faces={"south": None})
+    m.box("arch", (19, 8, 0), (29, 9.5, 0.5), Mat("stone", "speckle", 3), faces={"south": None})
+    for x in (19, 28):
+        m.box("jamb", (x, 0, 0), (x + 1, 8, 0.5), Mat("stone", "speckle", 3), faces={"south": None})
     cyl(m, "cauldron", "y", (24, 7.5), 12, 14, 17, IRON, cap=IRON)
-    cyl(m, "brim", "y", (24, 7.5), 14, 16, 17, IRON, cap=IRON) if False else ring(m, "brim", (24, 7.5), 14, 12, 16, 17, IRON)
+    ring(m, "brim", (24, 7.5), 14, 12, 16, 17, IRON)
     cyl(m, "lid", "y", (24, 7.5), 11, 17, 18.5, IRON, cap="mc_pot_lid")
-    m.box("lid_knob", (23, 18.5, 6.5), (25, 20, 8.5), SPRUCE_GRAIN if not metal else BRASS)
-    m.box("chimney", (27, 14, 11), (31, 31, 15), CLAY if not metal else "mc_iron")
+    m.box("lid_knob", (23, 18.5, 6.5), (25, 20, 8.5), GOLD if glow else SPRUCE_GRAIN)
+    m.box("chimney", (27, 14, 11), (31, 31, 15), CLAY)
     m.box("chimney_cap", (26.5, 31, 10.5), (31.5, 32, 15.5), Mat("stone", "speckle", 2))
 
     m.group("counter")
     m.box("cabinet", (0, 0, 1), (16, 13, 15), SPRUCE)
-    m.box("door", (1, 1, 0.5), (15, 12, 1), Mat("wood", "panel", 2), faces={"south": None})
-    m.box("handle", (12, 5, 0), (13, 8, 0.5), BRASS, faces={"south": None})
-    ctop = Mat("steel", "metal", 4) if metal else OAK
+    # 3강 수라간: the door in red lacquer with a gold handle
+    m.box("door", (1, 1, 0.5), (15, 12, 1), Mat("crimson" if glow else "wood", "panel", 2), faces={"south": None})
+    m.box("handle", (12, 5, 0), (13, 8, 0.5), GOLD if glow else BRASS, faces={"south": None})
+    ctop = Mat("wood_dark", "planks", 2) if fine else OAK
     m.box("top", (0, 13, 0), (16, 15, 16), ctop)
     m.box("board", (2, 15, 2), (13, 16, 10), Mat("wood", "plain", 3))
     m.box("radish", (3, 16, 3), (8, 18, 5), "mc_radish")
@@ -1709,25 +1734,37 @@ def kitchen(tier):
         for (x, r) in ((2, "bottle_green"), (4.5, "bottle_green"), (8, "wine")):
             m.box("bottle", (x, 24, 12.5), (x + 2, 28, 14.5), Mat(r, "plain", 2))
             m.box("bottle_neck", (x + 0.5, 28, 13), (x + 1.5, 29.5, 14), Mat(r, "plain", 2))
-        m.box("rail", (-15, 20.5, 14.5), (15, 21, 15.5), IRON) if False else None
         m.box("ladle_bar", (10, 19.5, 15), (15.5, 20, 15.5), IRON)
-        m.box("ladle", (11.5, 14.5, 14.5), (12.25, 19.5, 15), STEEL, faces={"south": None}) if False else None
         m.box("ttukbaegi", (16.5, 14, 13.25), (20, 16.5, 15.75), Mat("onggi", "plain", 1), faces={"up": "mc_soup"})
-        _jar(m, -6.5, 12, 5, 4, 6) if False else None
 
-    if metal:
-        m.group("metal")
-        m.box("hood", (18, 28.5, 2), (30, 31.5, 11), "steel")
-        m.box("hood_skirt", (18.5, 27, 2), (29.5, 28.5, 3), STEEL)
-        m.box("jar_band", (-15.75, 5, 0.75), (-0.25, 6, 1), IRON, faces={"south": None})
+    if fine:
+        # 2강 큰 부엌: a lattice window of 한지 behind the counter, strings of dried chillies and a garlic braid
+        # under the wall shelf, a straw rope round the jar stand
+        m.group("buok")
+        lattice = Mat("wood_dark", "plain", 1)
+        m.box("hanji", (2, 16.5, 15.6), (13, 22.5, 15.9), Mat("paper", "plain", 3, bevel=None))
+        frame(m, "window", 1.5, 13.5, 16, 23, 15.25, 15.6, 0.75, lattice)
+        for x in (4.9, 7.5, 10.1):
+            m.box("window_bar", (x - 0.25, 16.75, 15.4), (x + 0.25, 22.25, 15.6), lattice, faces={"south": None})
+        for y in (18.6, 20.4):
+            m.box("window_bar", (2.25, y - 0.25, 15.3), (12.75, y + 0.25, 15.55), lattice)
+        rope = Mat("straw", "weave", 2, bevel=None)
+        for x in (-12.5, -9):
+            m.box("chili_string", (x + 0.85, 15, 14.85), (x + 1.15, 23, 15.15), rope)
+            for k, y in enumerate((15.5, 17, 18.5, 20, 21.5)):
+                m.box("dried_chili", (x + (0.25 if k % 2 else 0.75), y, 14.5), (x + (1.25 if k % 2 else 1.75), y + 1.5, 15.5),
+                      Mat("crimson", "plain", 2 + k % 2))
+        for k, y in enumerate((16, 17.75, 19.5, 21.25)):
+            m.box("garlic", (-5.5 + (k % 2) * 0.5, y, 14.25), (-3.75 + (k % 2) * 0.5, y + 1.75, 15.75), Mat("garlic", "plain", 2))
+        m.box("garlic_braid", (-4.9, 15.5, 14.75), (-4.4, 23, 15.25), rope)
+        m.box("jar_band", (-15.75, 5, 0.75), (-0.25, 6, 1), rope, faces={"south": None})
 
     if glow:
+        # 3강 수라간: lantern, red lacquer door (above), gold pot brim and lid knob, glowing spice jars
         m.group("glow")
-        lantern(m, -8, 4, 32, True, chain=4) if tier >= 1 else None
-        for x in (-12.5, -4.5):
-            m.box("gold_rim", (x - 0.25, 15.75 + (0 if x < -8 else -3), 7.5 if x < -8 else 6.5),
-                  (x + 0.25, 16, 8), GOLD) if False else None
+        lantern(m, -8, 4, 32, True, chain=4)
         m.box("trim", (0.5, 12.25, -0.5), (15.5, 13, 0), "mc_glow_trim", glow=True)
+        ring(m, "gold_brim", (24, 7.5), 14, 12.5, 17, 17.25, GOLD, skip=lambda x, z: 27 < x < 31 and 11 < z < 15)  # chimney
         m.box("spice", (10.5, 24, 12.5), (12.5, 27, 14.5), Mat("glow_amber", "plain", 2, glow=True))
         m.box("spice", (13, 24, 12.5), (15, 26, 14.5), Mat("glow_cyan", "plain", 2, glow=True))
     return display(m, (3, 2, 1), 0)
@@ -1739,34 +1776,53 @@ def kitchen(tier):
 
 def still(tier):
     m = MModel(f"still_{tier}", dy=-16)
-    metal, glow = tier >= 2, tier >= 3
+    fine, glow = tier >= 2, tier >= 3
     K = (10, 21)                  # kettle centre (x, z)
+    trim = GOLD if glow else BRASS
     m.group("firebox")
     m.box("firebox", (2, 0, 13), (18, 10, 28), "brick")
-    if metal:
-        m.box("fire_door", (6, 1, 12.5), (14, 8, 13), "mc_fire_door", full_uv=["north"], faces={"south": None})
-    else:
-        m.box("mouth", (6, 1, 12.75), (14, 7, 13), "mc_hearth_mouth", full_uv=["north"], glow=True, faces={"south": None})
+    m.box("mouth", (6, 1, 12.75), (14, 7, 13), "mc_hearth_mouth", full_uv=["north"], glow=True, faces={"south": None})
     m.group("kettle")
     pot = Mat("copper", "metal", 2, noise=0.04)
     for (d, y0, y1, i) in ((12, 10, 11, 1), (15, 11, 13, 2), (16, 13, 19, 2), (15, 19, 21, 3), (12, 21, 22.5, 3),
                            (6, 22.5, 24, 2), (9, 24, 27, 2), (7, 27, 29, 3), (4, 29, 31, 3)):
         cyl(m, "kettle", "y", K, d, y0, y1, pot(base=i), cap=pot(base=i + 1))
     m.box("sight", (8, 14, 12.75), (12, 18, 13), "mc_sight_glass", full_uv=["north"], faces={"south": None}, glow=glow)
-    # swan neck to the condenser
     pipe = Mat("copper", "metal", 3)
-    m.box("neck", (9, 31, 20), (11, 33, 22), pipe)
-    m.box("arm", (11, 31, 20.25), (16, 32.5, 21.75), pipe)
-    m.box("arm", (16, 30, 20.25), (20, 31.5, 21.75), pipe)
-    m.box("arm", (20, 29, 20.25), (24, 30.5, 21.75), pipe)
-    m.box("drop", (24, 22, 20.25), (25.5, 30.5, 21.75), pipe)
+    if not fine:
+        # swan neck to the condenser
+        m.box("neck", (9, 31, 20), (11, 33, 22), pipe)
+        m.box("arm", (11, 31, 20.25), (16, 32.5, 21.75), pipe)
+        m.box("arm", (16, 30, 20.25), (20, 31.5, 21.75), pipe)
+        m.box("arm", (20, 29, 20.25), (24, 30.5, 21.75), pipe)
+        m.box("drop", (24, 22, 20.25), (25.5, 30.5, 21.75), pipe)
+    else:
+        # 2강 증류탑: a copper column on the kettle, brass plate rings and round windows (amber-lit at 3강),
+        # the lyne arm from its head down to the condenser
+        m.group("column")
+        col = Mat("copper", "metal", 2, noise=0.04)
+        cyl(m, "column_foot", "y", K, 6, 31, 32, trim, cap=trim)
+        cyl(m, "column", "y", K, 5, 32, 44, col, cap=col)
+        for y in (35, 39):
+            cyl(m, "plate_ring", "y", K, 6, y, y + 1, trim, cap=trim)
+        for y in (32.75, 36.5, 40.5):
+            m.box("port", (9, y, 18.25), (11, y + 2, 18.5), "mc_glow_amber" if glow else "mc_sight_glass", full_uv=["north"],
+                  faces={"south": None}, glow=glow)
+        cyl(m, "column_head", "y", K, 6, 44, 45, trim, cap=trim)
+        cyl(m, "column_dome", "y", K, 4, 45, 46.5, col, cap=col)
+        cyl(m, "column_knob", "y", K, 2, 46.5, 47.5, trim, cap=trim)
+        m.box("arm", (12, 42.5, 20.25), (16, 44, 21.75), pipe)
+        m.box("arm", (16, 41, 20.25), (20, 42.5, 21.75), pipe)
+        m.box("arm", (20, 39.5, 20.25), (24, 41, 21.75), pipe)
+        m.box("drop", (24, 22, 20.25), (25.5, 41, 21.75), pipe)
+        m.box("drop_collar", (23.75, 30, 20), (25.75, 31, 22), trim)
 
     m.group("condenser")
     B = (25, 22)
     cyl(m, "barrel", "y", B, 12, 0, 22, Mat("wood_dark", "grain", 2), cap="mc_barrel_top")
-    for y in ((1.5, 9.5, 17.5) if metal else (2, 10, 19)):
-        cyl(m, "hoop", "y", B, 12.5, y, y + (2 if metal else 1), Mat("steel", "band", 3) if metal else IRON,
-            cap=STEEL_DARK if metal else IRON)
+    hoop = Mat("brass" if glow else "copper", "band", 2) if fine else IRON
+    for y in ((1.5, 9.5, 18) if fine else (2, 10, 19)):
+        cyl(m, "hoop", "y", B, 12.5, y, y + (2 if fine else 1), hoop, cap=hoop)
     m.box("tap", (24.25, 4, 14.5), (25.75, 5.5, 16.5), BRASS)
     m.box("tap_valve", (24.5, 5.5, 15), (25.5, 7, 16), BRASS)
     cyl(m, "jug", "y", (25, 10.5), 6, 0, 4, Mat("glow_amber" if glow else "straw", "plain", 1 if glow else 2, bevel=None, glow=glow),
@@ -1776,37 +1832,20 @@ def still(tier):
 
     if tier >= 1:
         m.group("extra")
-        m.box("gauge", (5, 24, 14.75), (9, 28, 15), "gauge", full_uv=["north"], faces={"south": None}) if False else None
-        m.box("thermo", (13.5, 26, 19.5), (15.5, 30, 21.5), BRASS) if False else None
         m.box("table", (1, 0, 1), (13, 9, 9), SPRUCE)
         m.box("table_top", (0.5, 9, 0.5), (13.5, 10, 9.5), OAK)
-        for (x, r) in ((2, "bottle_green"), (5, "bottle_green"), (8.5, "wine")):
-            m.box("bottle", (x, 10, 3), (x + 2.5, 15, 5.5), Mat(r, "plain", 2))
-            m.box("bottle_neck", (x + 0.75, 15, 3.75), (x + 1.75, 17, 4.75), Mat(r, "plain", 2))
-            m.box("cork", (x + 0.75, 17, 3.75), (x + 1.75, 17.5, 4.75), Mat("wood", "plain", 2))
+        # 3강: the front bottle is the house spirit, amber-lit with a gold stopper
+        for (x, r) in ((2, "glow_amber" if glow else "bottle_green"), (5, "bottle_green"), (8.5, "wine")):
+            lit = r == "glow_amber"
+            m.box("bottle", (x, 10, 3), (x + 2.5, 15, 5.5), Mat(r, "plain", 1 if lit else 2, glow=lit))
+            m.box("bottle_neck", (x + 0.75, 15, 3.75), (x + 1.75, 17, 4.75), Mat(r, "plain", 2, glow=lit))
+            m.box("cork", (x + 0.75, 17, 3.75), (x + 1.75, 17.5, 4.75), GOLD if lit else Mat("wood", "plain", 2))
         m.box("funnel", (10, 10, 6), (13, 11, 9), GLASS)
-        for (z, y) in ((30, 0), (30, 2.5)):
-            m.box("log", (2, y, z), (18, y + 2.5, z + 2), "mc_bark", faces={"east": "mc_log_top", "west": "mc_log_top"}) if False else None
         cyl(m, "wood_log", "x", (1.5, 30.5), 3, 19, 31, "mc_bark", cap="mc_log_top")
-        cyl(m, "wood_log", "x", (1.5, 27), 3, 19, 31, "mc_bark", cap="mc_log_top") if False else None
-
-    if metal:
-        m.group("metal")
-        for x in (1, 18):
-            m.box("corner", (x, 0, 12), (x + 1, 10.5, 13), STEEL(rivets=True))
-        m.box("valve", (17, 30.5, 19.5), (19, 33, 22.5), BRASS)
-        m.box("valve_wheel", (16.5, 33, 19), (19.5, 33.5, 23), Mat("signal_red", "plain", 1))
-        m.box("gauge", (11.5, 27, 17.25), (15.5, 31, 17.5), "gauge", full_uv=["north"], faces={"south": None}) if False else None
 
     if glow:
+        # 3강 명주: amber-lit windows on the column, a glowing bottle, gold rings and trim
         m.group("glow")
-        m.box("column", (2, 10, 26), (6, 40, 30), "mc_glow_amber", glow=True) if False else None
-        cyl(m, "column_base", "y", (4, 30), 4, 0, 2, BRASS, cap=BRASS)
-        cyl(m, "column", "y", (4, 30), 3, 2, 34, "mc_glow_amber", cap=BRASS, glow=True)
-        cyl(m, "column_cap", "y", (4, 30), 4, 34, 35.5, BRASS, cap=BRASS)
-        m.box("column_pipe", (4.5, 36, 23.25), (6, 37.5, 24.75), COPPER) if False else None
-        m.box("column_pipe", (6, 33, 23.25), (6.5, 34.5, 24.75), COPPER) if False else None
-        m.box("jug_glow", (23.5, 6, 9), (26.5, 6.25, 12), "mc_glow_amber", glow=True) if False else None
         m.box("trim", (2, 9.25, 12.5), (18, 10, 13), "mc_glow_trim", glow=True)
     return display(m, (2, 3, 2), -16)
 
