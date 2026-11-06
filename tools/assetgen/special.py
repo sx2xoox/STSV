@@ -142,6 +142,10 @@ ICONS = {
     "phoenix_voucher": lambda: I.voucher("gold", gem="fox"),
     "cheque": I.cheque,
 }
+# the vouchers and the cheque redrawn by hand: one ticket each with a picture of what it gives (voucher_art.py)
+import voucher_art as _VA   # noqa: E402
+
+ICONS.update(_VA.ICONS)
 
 
 def equipment():

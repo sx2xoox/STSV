@@ -324,7 +324,13 @@ def icon(fid):
     name, hab, rar, lo, hi, price, shape, c1, c2, x = FISH[fid]
     ex = set(x.split())
     c = Canvas()
-    DRAW[shape](c, fid, mat(c1), mat(c2), ex)
+    a, b = mat(c1), mat(c2)
+    # one dark outline in the fish's own hue for every part: a pale belly's own darkest step is about
+    # slot grey, so the lower edge of the fish would vanish in the inventory
+    ink = (mat(c1, -0.45), 0)
+    for m in (a, b, "snow", "pearl"):
+        c.ink[m] = ink
+    DRAW[shape](c, fid, a, b, ex)
     im = c.render()
     if "glow" in ex:   # a faint pale rim of light around glowing fish
         px = im.load()
@@ -340,13 +346,20 @@ def icon(fid):
     return im
 
 
-ICONS = {fid: (lambda f=fid: icon(f)) for fid in FISH if fid not in VANILLA and fid not in FINDS}
+def picture(fid):
+    """The fish's icon: hand-drawn in fish_art.py for species the templates cannot give, else the template."""
+    import fish_art
+    art = fish_art.ICONS.get(fid)
+    return art() if art else icon(fid)
+
+
+ICONS = {fid: (lambda f=fid: picture(f)) for fid in FISH if fid not in VANILLA and fid not in FINDS}
 
 
 def all_icons():
     """Every fish's picture: the finds keep their goods icons, the vanilla three are drawn here too (for the title font)."""
     import economy_goods as GO
-    return {fid: (GO.ICONS[fid]() if fid in FINDS else icon(fid)) for fid in FISH}
+    return {fid: (GO.ICONS[fid]() if fid in FINDS else picture(fid)) for fid in FISH}
 
 
 # ------------------------------------------------------------------------------------------------
