@@ -126,6 +126,7 @@ public final class MarketModule extends EcoModule {
                 eco.getLogger().warning("거래소 수수료를 걷지 못함: 판매자 " + l.seller() + " 글 " + l.id());
             }
             eco.mail().deliver(p.getUniqueId(), Items.fromBytes(l.item()), "market_buy");
+            core.profiles().add(l.seller(), "market_sold", 1);
             p.sendMessage(Lang.msg("market.bought", "item", name(l), "count", l.amount(), "price", EconomyModule.format(l.price()),
                     "seller", Players.name(l.seller())));
             p.playSound(p.getLocation(), Sound.ENTITY_EXPERIENCE_ORB_PICKUP, 0.6f, 1.3f);

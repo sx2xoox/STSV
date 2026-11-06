@@ -436,6 +436,7 @@ public final class MachineModule extends EcoModule {
         if (slot == null || slot.isEmpty()) m.inv.setItem(output(lane), product);
         else slot.setAmount(Math.min(slot.getMaxStackSize(), slot.getAmount() + product.getAmount()));
         if (op != null && job != null) eco.jobs().addXp(op, job, value(r.output()) * amount * settings.xpPerGold());
+        if (op != null) core.profiles().add(op, "machine_made", amount);
         m.dirty = true;
         for (var v : m.inv.getViewers()) if (v instanceof Player p) p.playSound(p.getLocation(), Sound.ENTITY_ITEM_PICKUP, 0.5f, 1.2f);
         Player p = op == null ? null : Bukkit.getPlayer(op);

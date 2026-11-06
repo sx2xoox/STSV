@@ -132,6 +132,11 @@ ICONS = {
     "tomato_voucher": lambda: I.voucher("tomato"),
     "eggplant_voucher": lambda: I.voucher("eggplant"),
     "mushroom_voucher": lambda: I.voucher("toadstool", gem="cream"),
+    # legendary cosmetics (weekly ranking, 상인 행렬): a gold band
+    "crown_voucher": lambda: I.voucher("gold", gem="ruby"),
+    "halo_voucher": lambda: I.voucher("gold", gem="lamp"),
+    "angel_wings_voucher": lambda: I.voucher("gold", gem="feather"),
+    "demon_wings_voucher": lambda: I.voucher("gold", gem="crimson"),
     "cheque": I.cheque,
 }
 

@@ -73,7 +73,7 @@ crown:
   lore: ["<gray>보석 박힌 금관"]
   model: crown
   max-stack: 1
-  cosmetic: { slot: head, rarity: legendary, obtain: "상점 · 치장" }
+  cosmetic: { slot: head, rarity: legendary, obtain: "주간 순위 1위 · 상인 행렬" }
 
 # ── 머리 위 ──────────────────────────────────────────────────────────────────────────
 sprout:
@@ -106,7 +106,7 @@ halo:
   lore: ["<gray>은은하게 빛나는 고리"]
   model: halo
   max-stack: 1
-  cosmetic: { slot: above, rarity: legendary, obtain: "상점 · 치장", bob: true }
+  cosmetic: { slot: above, rarity: legendary, obtain: "주간 순위 1위 · 상인 행렬", bob: true }
 
 # ── 어깨 ──────────────────────────────────────────────────────────────────────────
 chick:
@@ -172,7 +172,7 @@ angel_wings:
   lore: ["<gray>새하얀 깃털 날개"]
   model: angel_wings
   max-stack: 1
-  cosmetic: { slot: back, rarity: legendary, obtain: "상점 · 치장" }
+  cosmetic: { slot: back, rarity: legendary, obtain: "주간 순위 1위 · 상인 행렬" }
 
 demon_wings:
   material: paper
@@ -180,7 +180,7 @@ demon_wings:
   lore: ["<gray>박쥐 같은 검붉은 날개"]
   model: demon_wings
   max-stack: 1
-  cosmetic: { slot: back, rarity: legendary, obtain: "상점 · 치장" }
+  cosmetic: { slot: back, rarity: legendary, obtain: "주간 순위 1위 · 상인 행렬" }
 
 # ── 꼬리 ──────────────────────────────────────────────────────────────────────────
 cat_tail:
@@ -220,3 +220,32 @@ mushroom_voucher:
   lore: ["<gray>우클릭: 버섯 탈을 계정에 등록합니다.", "<dark_gray>등록 후 /치장 에서 착용"]
   texture: mushroom_voucher
   voucher: { cosmetic: mushroom_mask }
+
+# 전설 치장 교환권: 주간 순위 1위 보상(경제 서버), 상인 행렬 사건 때 한 장씩
+crown_voucher:
+  material: paper
+  name: "<#ffd34d>왕관 교환권"
+  lore: ["<gray>우클릭: 왕관을 계정에 등록합니다.", "<gold>전설 치장", "<dark_gray>등록 후 /치장 에서 착용"]
+  texture: crown_voucher
+  voucher: { cosmetic: crown }
+
+halo_voucher:
+  material: paper
+  name: "<#fff2b0>천사의 고리 교환권"
+  lore: ["<gray>우클릭: 천사의 고리를 계정에 등록합니다.", "<gold>전설 치장", "<dark_gray>등록 후 /치장 에서 착용"]
+  texture: halo_voucher
+  voucher: { cosmetic: halo }
+
+angel_wings_voucher:
+  material: paper
+  name: "<#ffffff>천사 날개 교환권"
+  lore: ["<gray>우클릭: 천사 날개를 계정에 등록합니다.", "<gold>전설 치장", "<dark_gray>등록 후 /치장 에서 착용"]
+  texture: angel_wings_voucher
+  voucher: { cosmetic: angel_wings }
+
+demon_wings_voucher:
+  material: paper
+  name: "<#c0303a>악마 날개 교환권"
+  lore: ["<gray>우클릭: 악마 날개를 계정에 등록합니다.", "<gold>전설 치장", "<dark_gray>등록 후 /치장 에서 착용"]
+  texture: demon_wings_voucher
+  voucher: { cosmetic: demon_wings }

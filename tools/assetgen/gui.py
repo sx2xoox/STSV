@@ -16,7 +16,7 @@ from stsv_assets import ui_icons as U
 
 MENUS_DIR = Path(__file__).resolve().parents[2] / "content/stsv/menus"
 # the core's own buttons (stsv:gui/<name>); contents use them too (pages, close, info)
-CORE_ICONS = ("prev", "next", "prev_off", "next_off", "exit", "info", "take_off", "clear")
+CORE_ICONS = ("prev", "next", "prev_off", "next_off", "exit", "info", "take_off", "clear", "back", "chest")
 
 
 def menus():

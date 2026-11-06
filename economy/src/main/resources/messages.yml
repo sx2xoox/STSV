@@ -83,6 +83,7 @@ shop:
   shortage-detail: "{item} 매입가 ×{mult}"
   crash-detail: "{item} 매입가 ×{mult}, 거래소 가격 파란색"
   merchant-detail: "스폰에 한정 상품 (/상점 → 구매 → 상인 행렬)"
+  merchant-detail-rare: "한정 상품과 <gold>{item}</gold> 1장 (/상점 → 구매 → 상인 행렬)"
   order-detail: "{item} {done}/{target} · 지금 개당 {unit}G · /납품"
   order-none: "<gray>지금은 긴급 납품이 없습니다."
   order-missing: "<red>납품할 {item}이(가) 없습니다."
@@ -475,6 +476,8 @@ rank:
   weekly-title: "<gold><b>{week}주차 1위</b>"
   weekly-subtitle: "<white>{player}</white> <gray>{amount} · 기념비 건립권"
   monument-right: "<gold><b>주간 1위!</b></gold> <gray>기념비 건립권을 받았습니다 (지금 {count}장). <white>/기념비 <문구>"
+  weekly-legendary: "<gold><b>주간 1위 보상</b></gold> <white>{player}</white><gray> 님이 전설 치장 </gray>{cosmetic}<gray> 을(를) 받았습니다!"
+  weekly-legendary-gold: "<gold><b>주간 1위 보상</b></gold> <white>{player}</white><gray> 님은 전설 치장을 모두 가져서 </gray>{amount}<gray> 을(를) 받았습니다."
 
 vanity:
   owned: "<yellow>이미 가지고 있습니다."

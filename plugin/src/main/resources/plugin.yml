@@ -26,6 +26,11 @@ commands:
     aliases: [title, titles]
     usage: /칭호 [이름|해제]
     permission: stsv.profile
+  업적:
+    description: 업적 (쉬움 ~ 매우 어려움), 달성 보상 받기
+    aliases: [achievements, achievement]
+    usage: /업적
+    permission: stsv.profile
   프로필:
     description: 프로필 (기록, 칭호)
     aliases: [profile]

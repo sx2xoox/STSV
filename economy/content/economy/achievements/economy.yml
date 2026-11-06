@@ -1,0 +1,112 @@
+# 업적 (/업적). 파일 하나 = 분류 하나. 형식 설명: plugin 의 AchievementSpec.java 맨 위
+#   tier: easy(쉬움 10점) / normal(보통 25점) / hard(어려움 50점) / very_hard(매우 어려움 100점)
+#   stat: 누적 기록 (플레이 시간은 초) / value: 플러그인이 알려 주는 값.  goal: 목표.  hidden: 달성 전엔 ???
+#   rewards: gold, items ["아이디 x개수"], title, cosmetic, commands (보상은 /업적 에서 직접 받음)
+
+category: { name: "경제", icon: minecraft:gold_ingot, order: 40 }
+achievements:
+  sell_1:
+    name: "첫 장사"
+    description: "상점에 물건 1개 팔기"
+    tier: easy
+    icon: minecraft:gold_nugget
+    stat: shop_sold
+    goal: 1
+    rewards: { gold: 100 }
+  income_1:
+    name: "용돈 벌이"
+    description: "상점에 팔아 10,000 G 벌기"
+    tier: easy
+    icon: minecraft:gold_nugget
+    stat: shop_income
+    goal: 10000
+    unit: "G"
+    rewards: { gold: 1000 }
+  worth_1:
+    name: "종잣돈"
+    description: "순자산 10,000 G"
+    tier: easy
+    icon: minecraft:gold_ingot
+    value: economy:net_worth
+    goal: 10000
+    unit: "G"
+    rewards: { gold: 500 }
+  land_1:
+    name: "내 땅"
+    description: "땅 1청크 갖기"
+    tier: easy
+    icon: minecraft:grass_block
+    value: economy:land_chunks
+    goal: 1
+    unit: "청크"
+    rewards: { gold: 500 }
+  sell_2:
+    name: "단골 납품업자"
+    description: "상점에 물건 10,000개 팔기"
+    tier: normal
+    icon: minecraft:chest
+    stat: shop_sold
+    goal: 10000
+    rewards: { gold: 5000 }
+  income_2:
+    name: "장사꾼"
+    description: "상점에 팔아 300,000 G 벌기"
+    tier: normal
+    icon: minecraft:gold_ingot
+    stat: shop_income
+    goal: 300000
+    unit: "G"
+    rewards: { gold: 8000, title: economy:merchant }
+  land_2:
+    name: "넓은 땅"
+    description: "땅 20청크 갖기"
+    tier: normal
+    icon: minecraft:oak_fence
+    value: economy:land_chunks
+    goal: 20
+    unit: "청크"
+    rewards: { gold: 10000 }
+  sell_3:
+    name: "물류왕"
+    description: "상점에 물건 200,000개 팔기"
+    tier: hard
+    icon: minecraft:barrel
+    stat: shop_sold
+    goal: 200000
+    rewards: { gold: 30000, title: economy:logistics_king }
+  worth_2:
+    name: "부자"
+    description: "순자산 1,000,000 G"
+    tier: hard
+    icon: minecraft:gold_block
+    value: economy:net_worth
+    goal: 1000000
+    unit: "G"
+    rewards: { gold: 30000, title: economy:rich }
+  income_3:
+    name: "거상"
+    description: "상점에 팔아 3,000,000 G 벌기"
+    tier: very_hard
+    icon: minecraft:raw_gold_block
+    stat: shop_income
+    goal: 3000000
+    unit: "G"
+    rewards: { gold: 100000, title: economy:great_merchant }
+  worth_3:
+    name: "재벌"
+    description: "순자산 10,000,000 G"
+    tier: very_hard
+    icon: minecraft:emerald_block
+    value: economy:net_worth
+    goal: 10000000
+    unit: "G"
+    rewards: { items: ["minecraft:beacon x1"], title: economy:chaebol }
+  land_3:
+    name: "영주"
+    description: "땅 100청크 갖기"
+    tier: very_hard
+    icon: minecraft:white_banner
+    value: economy:land_chunks
+    goal: 100
+    unit: "청크"
+    rewards: { gold: 100000, title: economy:lord }

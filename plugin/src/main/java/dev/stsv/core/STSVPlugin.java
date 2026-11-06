@@ -44,6 +44,7 @@ public final class STSVPlugin extends JavaPlugin {
     private dev.stsv.core.hud.HudModule hud;
     private dev.stsv.core.economy.EconomyModule economy;
     private dev.stsv.core.crop.CropModule crops;
+    private dev.stsv.core.achievement.AchievementModule achievements;
     private ItemBrowser itemBrowser;
     private final dev.stsv.core.command.AdminRegistry admin = new dev.stsv.core.command.AdminRegistry();
     private RecipeEditor recipeEditor;
@@ -71,6 +72,7 @@ public final class STSVPlugin extends JavaPlugin {
         modules.register(cosmetics = new CosmeticModule());
         modules.register(profiles = new dev.stsv.core.profile.ProfileModule());
         modules.register(economy = new dev.stsv.core.economy.EconomyModule());
+        modules.register(achievements = new dev.stsv.core.achievement.AchievementModule());
         modules.register(new ItemEffectsModule());
         modules.register(bosses = new BossModule());
         modules.register(pack = new PackModule());
@@ -105,6 +107,12 @@ public final class STSVPlugin extends JavaPlugin {
         }
         PluginCommand wardrobe = getCommand("치장");
         if (wardrobe != null) wardrobe.setExecutor(new WardrobeCommand(this));
+        PluginCommand ach = getCommand("업적");
+        if (ach != null) ach.setExecutor((sender, cmdObj, label, args) -> {
+            if (sender instanceof org.bukkit.entity.Player p) achievements.open(p);
+            else sender.sendMessage(dev.stsv.core.util.Lang.msg("common.players-only"));
+            return true;
+        });
         PluginCommand titles = getCommand("칭호");
         if (titles != null) {
             dev.stsv.core.command.TitleCommand titleCommand = new dev.stsv.core.command.TitleCommand(this);
@@ -137,6 +145,7 @@ public final class STSVPlugin extends JavaPlugin {
     public dev.stsv.core.hud.HudModule hud() { return hud; }
     public dev.stsv.core.economy.EconomyModule economy() { return economy; }
     public dev.stsv.core.crop.CropModule crops() { return crops; }
+    public dev.stsv.core.achievement.AchievementModule achievements() { return achievements; }
     public ItemBrowser itemBrowser() { return itemBrowser; }
     /** What content plugins add to /관리자 (sub commands, 보고서 sections, 초기화 targets). */
     public dev.stsv.core.command.AdminRegistry admin() { return admin; }

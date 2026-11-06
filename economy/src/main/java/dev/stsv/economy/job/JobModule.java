@@ -205,6 +205,16 @@ public final class JobModule extends EcoModule {
     }
 
     private void reward(Player p, String action, String thing, double times) {
+        // 업적 stats: counted for everyone, job or not
+        String stat = switch (action) {
+            case "break" -> "ores_mined";
+            case "harvest" -> "crops_harvested";
+            case "catch" -> "fish_caught";
+            case "find" -> "rare_finds";
+            case "breed" -> "animals_bred";
+            default -> null;
+        };
+        if (stat != null) core.profiles().add(p.getUniqueId(), stat, times);
         String job = job(p.getUniqueId());
         if (job == null) return;
         double xp = spec.jobs().get(job).xp(action, thing) * times;

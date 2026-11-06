@@ -18,3 +18,9 @@ hud:
 report:
   # 경제 보고서 (/관리자 보고서, 매일 05시): 만들어진 돈 중 다시 없어져야 할 비율 (소멸/생성 목표)
   sink-target: 0.45
+
+rank:
+  # 주간 순위 1위 보상: 기념비 건립권 + 전설 치장 하나. 주마다 목록에서 돌아가며 고르고, 이미 가진 것은 건너뜀.
+  # 목록을 모두 가진 1위는 대신 골드를 받음
+  weekly-legendary: [stsv:crown, stsv:angel_wings, stsv:demon_wings, stsv:halo]
+  weekly-legendary-fallback-gold: 100000

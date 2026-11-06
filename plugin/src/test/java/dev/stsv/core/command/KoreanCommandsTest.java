@@ -50,7 +50,7 @@ class KoreanCommandsTest {
         var yaml = org.bukkit.configuration.file.YamlConfiguration.loadConfiguration(
                 new InputStreamReader(getClass().getResourceAsStream("/plugin.yml"), StandardCharsets.UTF_8));
         var names = yaml.getConfigurationSection("commands").getKeys(false);
-        assertEquals(java.util.Set.of("관리자", "치장", "칭호", "프로필", "명예의전당", "돈", "송금", "수표"), names);
+        assertEquals(java.util.Set.of("관리자", "치장", "칭호", "업적", "프로필", "명예의전당", "돈", "송금", "수표"), names);
         for (String n : names) assertTrue(n.codePoints().allMatch(c -> c >= 0xAC00 && c <= 0xD7A3), n);
     }
 }

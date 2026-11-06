@@ -1,0 +1,138 @@
+# 업적 (/업적). 파일 하나 = 분류 하나. 형식 설명: plugin 의 AchievementSpec.java 맨 위
+#   tier: easy(쉬움 10점) / normal(보통 25점) / hard(어려움 50점) / very_hard(매우 어려움 100점)
+#   stat: 누적 기록 (플레이 시간은 초) / value: 플러그인이 알려 주는 값.  goal: 목표.  hidden: 달성 전엔 ???
+#   rewards: gold, items ["아이디 x개수"], title, cosmetic, commands (보상은 /업적 에서 직접 받음)
+
+category: { name: "직업", icon: minecraft:smithing_table, order: 33 }
+achievements:
+  make_1:
+    name: "첫 생산"
+    description: "직업 기계로 1개 만들기"
+    tier: easy
+    icon: minecraft:crafting_table
+    stat: machine_made
+    goal: 1
+    rewards: { gold: 300 }
+  level_10:
+    name: "한 우물"
+    description: "아무 직업이나 레벨 10"
+    tier: easy
+    icon: minecraft:experience_bottle
+    value: economy:job_level_max
+    goal: 10
+    unit: "레벨"
+    rewards: { gold: 2000 }
+  make_2:
+    name: "공방 주인"
+    description: "직업 기계로 1,000개 만들기"
+    tier: normal
+    icon: minecraft:smithing_table
+    stat: machine_made
+    goal: 1000
+    rewards: { gold: 5000, items: ["minecraft:experience_bottle x32"] }
+  level_20:
+    name: "숙련공"
+    description: "아무 직업이나 레벨 20"
+    tier: normal
+    icon: minecraft:experience_bottle
+    value: economy:job_level_max
+    goal: 20
+    unit: "레벨"
+    rewards: { gold: 8000 }
+  make_3:
+    name: "장인"
+    description: "직업 기계로 10,000개 만들기"
+    tier: hard
+    icon: minecraft:anvil
+    stat: machine_made
+    goal: 10000
+    rewards: { gold: 25000, title: economy:artisan }
+  level_30:
+    name: "달인"
+    description: "아무 직업이나 레벨 30"
+    tier: hard
+    icon: minecraft:enchanting_table
+    value: economy:job_level_max
+    goal: 30
+    unit: "레벨"
+    rewards: { gold: 30000, title: economy:expert }
+  total_60:
+    name: "다재다능"
+    description: "모든 직업 레벨의 합 60"
+    tier: hard
+    icon: minecraft:bookshelf
+    value: economy:jobs_total
+    goal: 60
+    unit: "레벨"
+    rewards: { gold: 30000, title: economy:versatile }
+  make_4:
+    name: "명장"
+    description: "직업 기계로 50,000개 만들기"
+    tier: very_hard
+    icon: minecraft:netherite_block
+    stat: machine_made
+    goal: 50000
+    rewards: { gold: 80000, title: economy:grandmaster }
+  total_180:
+    name: "팔방미인"
+    description: "여섯 직업 모두 레벨 30 (합 180)"
+    tier: very_hard
+    icon: minecraft:nether_star
+    value: economy:jobs_total
+    goal: 180
+    unit: "레벨"
+    rewards: { gold: 200000, title: economy:all_rounder, cosmetic: stsv:butterfly_wings }
+  blacksmith_10:
+    name: "대장장이 Lv10"
+    description: "대장장이 레벨 10"
+    tier: normal
+    icon: minecraft:anvil
+    value: economy:job_level:blacksmith
+    goal: 10
+    unit: "레벨"
+    rewards: { gold: 5000 }
+  blacksmith_30:
+    name: "명장 대장장이"
+    description: "대장장이 레벨 30"
+    tier: very_hard
+    icon: minecraft:anvil
+    value: economy:job_level:blacksmith
+    goal: 30
+    unit: "레벨"
+    rewards: { gold: 50000, items: ["economy:steel_toolset x1"], title: economy:master_smith }
+  cook_10:
+    name: "요리사 Lv10"
+    description: "요리사 레벨 10"
+    tier: normal
+    icon: minecraft:smoker
+    value: economy:job_level:cook
+    goal: 10
+    unit: "레벨"
+    rewards: { gold: 5000 }
+  cook_30:
+    name: "명장 요리사"
+    description: "요리사 레벨 30"
+    tier: very_hard
+    icon: minecraft:smoker
+    value: economy:job_level:cook
+    goal: 30
+    unit: "레벨"
+    rewards: { gold: 50000, items: ["economy:hanjeongsik x3"], title: economy:master_cook }
+  alchemist_10:
+    name: "연금술사 Lv10"
+    description: "연금술사 레벨 10"
+    tier: normal
+    icon: minecraft:brewing_stand
+    value: economy:job_level:alchemist
+    goal: 10
+    unit: "레벨"
+    rewards: { gold: 5000 }
+  alchemist_30:
+    name: "명장 연금술사"
+    description: "연금술사 레벨 30"
+    tier: very_hard
+    icon: minecraft:brewing_stand
+    value: economy:job_level:alchemist
+    goal: 30
+    unit: "레벨"
+    rewards: { gold: 50000, items: ["economy:vintage_wine x3"], title: economy:master_alchemist }

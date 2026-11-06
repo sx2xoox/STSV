@@ -256,6 +256,7 @@ public final class AuctionModule extends EcoModule {
             rareWins.merge(a.bidder + "|" + a.week, 1, Integer::sum);
         }
         eco.mail().deliver(a.bidder, Items.fromBytes(a.item), "auction_win");
+        core.profiles().add(a.bidder, "auctions_won", 1);
         Bukkit.broadcast(Lang.msg("auction.sold", "id", a.id, "item", name(a), "player", Players.name(a.bidder),
                 "price", EconomyModule.format(a.bid), "bids", a.bids));
         for (Player p : Bukkit.getOnlinePlayers()) p.playSound(p.getLocation(), Sound.UI_TOAST_CHALLENGE_COMPLETE, 0.5f, 1.2f);

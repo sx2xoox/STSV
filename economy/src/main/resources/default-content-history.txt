@@ -772,6 +772,7 @@ f3c85fd1b590e11695e565a57503fb208ab98154 economy/requests.yml
 a5b911c79658d23800ecf92439177e3b62c26887 economy/shop.yml
 ce705e26bab7d4704e536cbb73ac3544170de999 economy/shop.yml
 dae946176eb81429725a60e683c2d51c9a604ac2 economy/shop.yml
+ec3b7dc1bcc2fd929b084083b54b32f423237fba economy/shop.yml
 fd684f520ec2ea64e736e9d82fa39b70f289880a economy/shop.yml
 f67b979d934ac0d6e127aafb77be1d7b12f8d757 economy/stocks.yml
 1097344fceaf394d2a4c4290baf320ed7140a406 economy/textures/abyssfish.png

@@ -1,0 +1,73 @@
+# 업적 (/업적). 파일 하나 = 분류 하나. 형식 설명: plugin 의 AchievementSpec.java 맨 위
+#   tier: easy(쉬움 10점) / normal(보통 25점) / hard(어려움 50점) / very_hard(매우 어려움 100점)
+#   stat: 누적 기록 (플레이 시간은 초) / value: 플러그인이 알려 주는 값.  goal: 목표.  hidden: 달성 전엔 ???
+#   rewards: gold, items ["아이디 x개수"], title, cosmetic, commands (보상은 /업적 에서 직접 받음)
+
+category: { name: "농사", icon: minecraft:wheat, order: 31 }
+achievements:
+  harvest_1:
+    name: "첫 수확"
+    description: "작물 10번 수확"
+    tier: easy
+    icon: minecraft:wheat
+    stat: crops_harvested
+    goal: 10
+    rewards: { gold: 200, items: ["economy:tomato_seeds x8"] }
+  breed_1:
+    name: "목장 시작"
+    description: "동물 10번 번식"
+    tier: easy
+    icon: minecraft:egg
+    stat: animals_bred
+    goal: 10
+    rewards: { gold: 300, items: ["minecraft:lead x2"] }
+  harvest_2:
+    name: "농부의 하루"
+    description: "작물 1,000번 수확"
+    tier: normal
+    icon: economy:napa_cabbage
+    stat: crops_harvested
+    goal: 1000
+    rewards: { gold: 3000, cosmetic: stsv:straw_hat }
+  harvest_3:
+    name: "대농"
+    description: "작물 20,000번 수확"
+    tier: hard
+    icon: minecraft:hay_block
+    stat: crops_harvested
+    goal: 20000
+    rewards: { gold: 20000, items: ["economy:muskmelon_seeds x16"], title: economy:big_farmer }
+  breed_2:
+    name: "목장주"
+    description: "동물 500번 번식"
+    tier: hard
+    icon: minecraft:saddle
+    stat: animals_bred
+    goal: 500
+    rewards: { gold: 15000, items: ["minecraft:saddle x1", "minecraft:name_tag x3"], title: economy:rancher }
+  harvest_4:
+    name: "들판의 주인"
+    description: "작물 100,000번 수확"
+    tier: very_hard
+    icon: minecraft:golden_carrot
+    stat: crops_harvested
+    goal: 100000
+    rewards: { gold: 80000, items: ["minecraft:enchanted_golden_apple x2"], title: economy:lord_of_fields }
+  farmer_10:
+    name: "농부 Lv10"
+    description: "농부 레벨 10"
+    tier: normal
+    icon: minecraft:iron_hoe
+    value: economy:job_level:farmer
+    goal: 10
+    unit: "레벨"
+    rewards: { gold: 5000 }
+  farmer_30:
+    name: "명장 농부"
+    description: "농부 레벨 30"
+    tier: very_hard
+    icon: minecraft:iron_hoe
+    value: economy:job_level:farmer
+    goal: 30
+    unit: "레벨"
+    rewards: { gold: 50000, items: ["economy:jang_set x1"], title: economy:master_farmer }

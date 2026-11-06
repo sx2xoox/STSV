@@ -1,0 +1,73 @@
+# 업적 (/업적). 파일 하나 = 분류 하나. 형식 설명: plugin 의 AchievementSpec.java 맨 위
+#   tier: easy(쉬움 10점) / normal(보통 25점) / hard(어려움 50점) / very_hard(매우 어려움 100점)
+#   stat: 누적 기록 (플레이 시간은 초) / value: 플러그인이 알려 주는 값.  goal: 목표.  hidden: 달성 전엔 ???
+#   rewards: gold, items ["아이디 x개수"], title, cosmetic, commands (보상은 /업적 에서 직접 받음)
+
+category: { name: "채광", icon: minecraft:iron_pickaxe, order: 30 }
+achievements:
+  ore_1:
+    name: "첫 광석"
+    description: "광석 10개 캐기"
+    tier: easy
+    icon: minecraft:coal_ore
+    stat: ores_mined
+    goal: 10
+    rewards: { gold: 300, items: ["minecraft:torch x32"] }
+  find_1:
+    name: "반짝이는 발견"
+    description: "희귀한 것 1개 발견 (원석, 진주 등)"
+    tier: easy
+    icon: economy:rough_ruby
+    stat: rare_finds
+    goal: 1
+    rewards: { gold: 500 }
+  ore_2:
+    name: "광부 수습"
+    description: "광석 500개 캐기"
+    tier: normal
+    icon: minecraft:iron_ore
+    stat: ores_mined
+    goal: 500
+    rewards: { gold: 3000, items: ["economy:gem_bench x1"] }
+  ore_3:
+    name: "광맥 사냥꾼"
+    description: "광석 5,000개 캐기"
+    tier: hard
+    icon: minecraft:diamond_ore
+    stat: ores_mined
+    goal: 5000
+    rewards: { gold: 20000, items: ["minecraft:diamond x5"], title: economy:vein_hunter }
+  find_2:
+    name: "보물 감별사"
+    description: "희귀한 것 100개 발견"
+    tier: hard
+    icon: economy:sapphire
+    stat: rare_finds
+    goal: 100
+    rewards: { gold: 25000, title: economy:appraiser }
+  ore_4:
+    name: "지하의 왕"
+    description: "광석 50,000개 캐기"
+    tier: very_hard
+    icon: minecraft:ancient_debris
+    stat: ores_mined
+    goal: 50000
+    rewards: { gold: 100000, items: ["minecraft:netherite_ingot x2"], title: economy:king_below }
+  miner_10:
+    name: "광부 Lv10"
+    description: "광부 레벨 10"
+    tier: normal
+    icon: minecraft:iron_pickaxe
+    value: economy:job_level:miner
+    goal: 10
+    unit: "레벨"
+    rewards: { gold: 5000 }
+  miner_30:
+    name: "명장 광부"
+    description: "광부 레벨 30"
+    tier: very_hard
+    icon: minecraft:iron_pickaxe
+    value: economy:job_level:miner
+    goal: 30
+    unit: "레벨"
+    rewards: { gold: 50000, items: ["economy:jeweled_crown x1"], title: economy:master_miner }

@@ -1,0 +1,79 @@
+# 업적 (/업적). 파일 하나 = 분류 하나. 형식 설명: plugin 의 AchievementSpec.java 맨 위
+#   tier: easy(쉬움 10점) / normal(보통 25점) / hard(어려움 50점) / very_hard(매우 어려움 100점)
+#   stat: 누적 기록 (플레이 시간은 초) / value: 플러그인이 알려 주는 값.  goal: 목표.  hidden: 달성 전엔 ???
+#   rewards: gold, items ["아이디 x개수"], title, cosmetic, commands (보상은 /업적 에서 직접 받음)
+
+category: { name: "전투", icon: minecraft:iron_sword, order: 20 }
+achievements:
+  hunt_1:
+    name: "첫 사냥"
+    description: "몹 10마리 처치"
+    tier: easy
+    icon: minecraft:wooden_sword
+    stat: mob_kills
+    goal: 10
+    rewards: { gold: 300, items: ["minecraft:cooked_beef x16"] }
+  hunt_2:
+    name: "사냥꾼"
+    description: "몹 500마리 처치"
+    tier: normal
+    icon: minecraft:iron_sword
+    stat: mob_kills
+    goal: 500
+    rewards: { gold: 3000, title: stsv:hunter }
+  hunt_3:
+    name: "몬스터 헌터"
+    description: "몹 5,000마리 처치"
+    tier: hard
+    icon: minecraft:diamond_sword
+    stat: mob_kills
+    goal: 5000
+    rewards: { gold: 20000, items: ["minecraft:diamond x5", "minecraft:golden_apple x5"], title: stsv:monster_hunter }
+  hunt_4:
+    name: "학살자"
+    description: "몹 30,000마리 처치"
+    tier: very_hard
+    icon: minecraft:netherite_sword
+    stat: mob_kills
+    goal: 30000
+    rewards: { gold: 80000, items: ["minecraft:totem_of_undying x1", "minecraft:netherite_ingot x1"], title: stsv:slayer }
+  boss_dmg_1:
+    name: "묵직한 한 방"
+    description: "보스에게 피해 10,000 주기"
+    tier: normal
+    icon: minecraft:mace
+    stat: boss_damage
+    goal: 10000
+    rewards: { gold: 3000, items: ["minecraft:golden_apple x3"] }
+  boss_1:
+    name: "보스 사냥"
+    description: "보스 처치에 1번 참여"
+    tier: normal
+    icon: minecraft:wither_skeleton_skull
+    stat: boss_kills
+    goal: 1
+    rewards: { gold: 5000, items: ["minecraft:golden_apple x3"] }
+  boss_2:
+    name: "보스 헌터"
+    description: "보스 처치에 10번 참여"
+    tier: hard
+    icon: minecraft:wither_skeleton_skull
+    stat: boss_kills
+    goal: 10
+    rewards: { gold: 25000, items: ["minecraft:enchanted_golden_apple x1"], title: stsv:boss_hunter }
+  boss_3:
+    name: "보스 학살자"
+    description: "보스 처치에 50번 참여"
+    tier: very_hard
+    icon: minecraft:dragon_head
+    stat: boss_kills
+    goal: 50
+    rewards: { gold: 100000, items: ["minecraft:nether_star x1"], title: stsv:boss_slayer }
+  boss_dmg_2:
+    name: "보스의 악몽"
+    description: "보스에게 피해 500,000 주기"
+    tier: very_hard
+    icon: minecraft:mace
+    stat: boss_damage
+    goal: 500000
+    rewards: { gold: 60000, title: stsv:boss_nightmare }

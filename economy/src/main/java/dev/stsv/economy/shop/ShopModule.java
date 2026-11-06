@@ -69,7 +69,11 @@ public final class ShopModule extends EcoModule implements DailyListener {
         eco.calendar().onDaily(this);
         eco.events().onStart("shortage", this::startShortage);
         eco.events().onStart("crash", this::startCrash);
-        eco.events().onStart("merchant", e -> e.params().put("detail", Lang.raw("shop.merchant-detail")));
+        eco.events().onStart("merchant", e -> {
+            ShopCatalog.LimitedEntry rare = catalog.merchant().rareFor(String.valueOf(e.id()));
+            e.params().put("detail", rare == null ? Lang.raw("shop.merchant-detail")
+                    : Lang.raw("shop.merchant-detail-rare", "item", Items.mmName(rare.id())));
+        });
         eco.events().onStart("urgent_order", this::startOrder);
         eco.events().onStart("premium_buyer", this::startPremium);
         every(1200L, this::minute);
@@ -93,6 +97,7 @@ public final class ShopModule extends EcoModule implements DailyListener {
             if (g.kind().equals("item") && Items.create(g.id(), 1).isEmpty()) problems.add("buy: 없는 아이템 " + g.id());
         }
         for (ShopCatalog.LimitedEntry l : catalog.merchant().goods()) if (Items.create(l.id(), 1).isEmpty()) problems.add("merchant: 없는 아이템 " + l.id());
+        for (ShopCatalog.LimitedEntry l : catalog.merchant().rare()) if (Items.create(l.id(), 1).isEmpty()) problems.add("merchant.rare: 없는 아이템 " + l.id());
         problems.forEach(p -> eco.getLogger().warning("[shop.yml] " + p));
     }
 
@@ -211,6 +216,8 @@ public final class ShopModule extends EcoModule implements DailyListener {
         if (removed != n) eco.getLogger().warning("판매 수량 불일치: " + p.getName() + " " + id + " " + removed + "/" + n);
         store.record(p.getUniqueId(), id, removed);
         if (paid > 0) core.economy().move(null, p.getUniqueId(), paid, EconomyStore.Kind.FAUCET, "shop_sell", id + " x" + removed);
+        core.profiles().add(p.getUniqueId(), "shop_sold", removed);
+        core.profiles().add(p.getUniqueId(), "shop_income", paid);
         eco.stocks().recordSale(p.getUniqueId(), id, paid);
         if (atFloor(id)) floorHits.add(id);
         return new Sale(removed, paid, price(id));
@@ -600,7 +607,9 @@ public final class ShopModule extends EcoModule implements DailyListener {
         ItemStack it = p.getInventory().getItem(slot);
         if (it == null || it.isEmpty()) return;
         int count = click.isShiftClick() ? Integer.MAX_VALUE : click.isRightClick() ? 1 : it.getAmount();
-        sellFeedback(p, it, sell(p, it.clone(), count));
+        // a copy: selling empties the clicked slot, and the message would then name the empty slot (공기)
+        ItemStack sample = it.clone();
+        sellFeedback(p, sample, sell(p, sample.clone(), count));
         v.refresh();
     }
 
@@ -654,8 +663,9 @@ public final class ShopModule extends EcoModule implements DailyListener {
                             "min", EconomyModule.format(min), "max", EconomyModule.format(max))));
                 } else if (o instanceof ActiveEvent e) {
                     ShopCatalog.Merchant m = catalog.merchant();
-                    int left = m.goods().stream().mapToInt(l -> Math.max(0, left(e, l))).sum();
-                    out.add(tile(m.icon(), m.name(), Lang.items("shop.category-merchant", "count", m.goods().size(), "left", left)));
+                    List<ShopCatalog.LimitedEntry> shown = m.shown(String.valueOf(e.id()));
+                    int left = shown.stream().mapToInt(l -> Math.max(0, left(e, l))).sum();
+                    out.add(tile(m.icon(), m.name(), Lang.items("shop.category-merchant", "count", shown.size(), "left", left)));
                 } else {
                     out.add(null);
                 }
@@ -750,7 +760,7 @@ public final class ShopModule extends EcoModule implements DailyListener {
         @Override
         public List<ItemStack> list(MenuView v) {
             List<ItemStack> out = new ArrayList<>();
-            for (ShopCatalog.LimitedEntry l : catalog.merchant().goods()) {
+            for (ShopCatalog.LimitedEntry l : catalog.merchant().shown(String.valueOf(event.id()))) {
                 out.add(Items.create(l.id(), l.amount()).map(it -> withLore(it,
                         Lang.items("shop.merchant-lore", "price", EconomyModule.format(l.price()), "left", Math.max(0, left(event, l)), "stock", l.stock())))
                         .orElse(null));
@@ -760,12 +770,13 @@ public final class ShopModule extends EcoModule implements DailyListener {
 
         @Override
         public void onListClick(MenuView v, int index, ClickType click) {
-            if (index >= catalog.merchant().goods().size()) return;
+            List<ShopCatalog.LimitedEntry> shown = catalog.merchant().shown(String.valueOf(event.id()));
+            if (index >= shown.size()) return;
             if (!event.runningAt(now())) {
                 HudModule.flash(v.player(), Lang.mm("shop.merchant-gone"));
                 return;
             }
-            ShopCatalog.LimitedEntry l = catalog.merchant().goods().get(index);
+            ShopCatalog.LimitedEntry l = shown.get(index);
             if (left(event, l) <= 0) {
                 HudModule.flash(v.player(), Lang.mm("shop.sold-out"));
                 return;

@@ -62,6 +62,37 @@ cosmetic:
     back: "등"
     tail: "꼬리"
 
+achievement:
+  done-title: "{color}<b>업적 달성!</b>"
+  done: "<gold>업적 달성: </gold>{color}{name} <dark_gray>({tier} · {points}점)"
+  claim-hint: "<yellow><u>[/업적 에서 보상 받기]</u>"
+  broadcast: "<white>{player}</white><gray> 님이 </gray>{color}[{tier}]<gray> 업적 </gray>{color}{name}<gray> 을(를) 달성했습니다!"
+  waiting: "<yellow>받지 않은 업적 보상이 {count}개 있습니다. <u>[/업적]</u>"
+  loading: "<gray>업적 기록을 불러오는 중입니다. 잠시 뒤 다시 입력하세요."
+  not-done: "<red>아직 달성하지 않은 업적입니다."
+  already-claimed: "<gray>이미 받은 보상입니다."
+  no-room: "<red>인벤토리에 빈칸이 {count}칸 필요합니다."
+  claimed: "<green>보상 받음: </green>{color}{name} <dark_gray>→</dark_gray> {rewards}"
+  nothing-to-claim: "<gray>받을 보상이 없습니다."
+  reward-title: "<white>칭호 {title}"
+  reward-cosmetic: "<white>치장 {cosmetic}"
+  reward-special: "<light_purple>특별 보상"
+  # 분류 화면
+  category-progress: "<gray>달성 <white>{done}/{total} <dark_gray>{bar}"
+  category-tier: "<dark_gray> · </dark_gray>{color}{tier} <gray>{done}/{total}"
+  category-waiting: "<yellow>받을 보상 {count}개"
+  category-click: "<dark_gray>클릭: 업적 보기"
+  # 업적 설명
+  secret-name: "<dark_gray>???"
+  secret-description: "숨겨진 업적. 달성하면 보입니다."
+  lore-tier: "{color}◆ {tier} <dark_gray>· <gray>{points}점"
+  lore-progress: "<gray>진행 <white>{bar} <gray>{have} / {goal}"
+  lore-done: "<green>✔ 달성 <dark_gray>({date})"
+  lore-rewards: "<gray>보상:"
+  lore-count: "<dark_gray>달성한 사람 {count}명"
+  lore-claim: "<yellow>클릭: 보상 받기"
+  lore-claimed: "<dark_gray>보상 받음"
+
 skin:
   not-applicable: "<red>이 스킨을 적용할 수 없는 아이템입니다."
   no-book: "<red>스킨북이 인벤토리에 없습니다."

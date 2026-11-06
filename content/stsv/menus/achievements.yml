@@ -1,0 +1,90 @@
+# /업적: 분류 → 업적 목록. 업적 정의는 contents/<팩>/achievements/<분류>.yml
+achievements:
+  title: "<#f0e2b0>업적 <#b9a6d6>· {done}/{total} <#8f86a6>· 점수 {points}"
+  rows: 4
+  background: stsv:gui/achievements
+  layout:
+    - "....I...."
+    - ".LLLLLLL."
+    - ".LLLLLLL."
+    - "...C.X..."
+  list: L
+  buttons:
+    I:
+      action: ""
+      icon: stsv:gui/info
+      material: BOOK
+      name: "<gold>업적"
+      lore:
+        - "<gray>달성 <white>{done}/{total} <dark_gray>· <gray>점수 <white>{points}"
+        - "<gray>받을 보상 <white>{unclaimed}개"
+        - ""
+        - "<#8fd16a>쉬움 10점 <dark_gray>· <#5ab0ff>보통 25점"
+        - "<#c58cff>어려움 50점 <dark_gray>· <gold>매우 어려움 100점"
+        - "<gray>어려움 이상은 달성하면 서버 전체에 알려집니다."
+        - "<gray>보상은 여기서 직접 받습니다 (인벤토리가 차 있어도 안전)."
+    C:
+      action: "achievements:claim_all"
+      icon: stsv:gui/chest
+      material: CHEST
+      name: "<yellow>보상 모두 받기"
+      lore: ["<gray>받을 보상 <white>{unclaimed}개"]
+    X:
+      action: close
+      icon: stsv:gui/exit
+      material: OAK_DOOR
+      name: "<red>닫기"
+
+achievement_list:
+  title: "<#f0e2b0>업적 · {category} <#8f86a6>· {category_done}/{category_total}"
+  rows: 6
+  background: stsv:gui/achievement_list
+  layout:
+    - "....I...."
+    - ".LLLLLLL."
+    - ".LLLLLLL."
+    - ".LLLLLLL."
+    - ".LLLLLLL."
+    - "P.B.C.X.N"
+  list: L
+  buttons:
+    I:
+      action: ""
+      icon: stsv:gui/info
+      material: BOOK
+      name: "<gold>{category}"
+      lore:
+        - "<gray>이 분류 <white>{category_done}/{category_total}"
+        - "<gray>전체 <white>{done}/{total} <dark_gray>· <gray>점수 <white>{points}"
+        - ""
+        - "<gray>쉬운 것부터 매우 어려운 것 순서"
+        - "<gray>반짝이는 업적: 클릭해서 보상 받기"
+    B:
+      action: "command:업적"
+      icon: stsv:gui/back
+      material: ARROW
+      name: "<yellow>분류로"
+    C:
+      action: "achievements:claim_all"
+      icon: stsv:gui/chest
+      material: CHEST
+      name: "<yellow>이 분류 보상 모두 받기"
+    P:
+      action: page:prev
+      icon: stsv:gui/prev
+      material: ARROW
+      name: "<yellow>◀ 이전 페이지"
+      lore: ["<gray>{page} / {pages}"]
+      off: { icon: stsv:gui/prev_off, material: GRAY_DYE, name: "<dark_gray>◀ 첫 페이지" }
+    N:
+      action: page:next
+      icon: stsv:gui/next
+      material: ARROW
+      name: "<yellow>다음 페이지 ▶"
+      lore: ["<gray>{page} / {pages}"]
+      off: { icon: stsv:gui/next_off, material: GRAY_DYE, name: "<dark_gray>마지막 페이지 ▶" }
+    X:
+      action: close
+      icon: stsv:gui/exit
+      material: OAK_DOOR
+      name: "<red>닫기"

@@ -247,6 +247,18 @@ public final class CosmeticModule implements StsvModule, Listener {
         return store.owned(p.getUniqueId());
     }
 
+    /** Owned by account (also for players who are not online; without the permission-based ones). */
+    public Set<String> owned(UUID player) {
+        return store.owned(player);
+    }
+
+    /** Gives a cosmetic to an account, online or not (rewards). Returns true if it was new. */
+    public boolean grant(UUID player, CustomItem c) {
+        boolean added = store.grant(player, c.key().asString());
+        if (added) save();
+        return added;
+    }
+
     /** Grants or revokes. Returns true if something changed. */
     public boolean grant(Player p, CustomItem c, boolean give) {
         boolean changed = give ? store.grant(p.getUniqueId(), c.key().asString())

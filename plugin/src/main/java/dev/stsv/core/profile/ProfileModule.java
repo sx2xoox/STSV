@@ -99,7 +99,46 @@ public final class ProfileModule implements StsvModule, Listener {
 
     /** Counts a stat for a player (all-time and the running content period). Main thread. */
     public void add(UUID player, String stat, double delta) {
+        count(player, stat, delta);
+    }
+
+    /** All-time stats of online players, kept in memory (achievements read them every few seconds). */
+    private final Map<UUID, Map<String, Double>> allTime = new ConcurrentHashMap<>();
+    private final java.util.Set<UUID> allTimeLoaded = ConcurrentHashMap.newKeySet();
+
+    private void count(UUID player, String stat, double delta) {
         store.add(player, stat, delta);
+        Map<String, Double> m = allTime.get(player);
+        if (m != null && delta != 0) m.merge(stat, delta, Double::sum);
+    }
+
+    /**
+     * An online player's all-time stat (0 if never counted). Only meaningful once {@link #statsLoaded};
+     * playtime is counted once a minute.
+     */
+    public double stat(UUID player, String stat) {
+        Map<String, Double> m = allTime.get(player);
+        return m == null ? 0 : m.getOrDefault(stat, 0.0);
+    }
+
+    public boolean statsLoaded(UUID player) {
+        return allTimeLoaded.contains(player);
+    }
+
+    /**
+     * Starts the in-memory copy: the database read flushes what was counted before this call, and what
+     * is counted from now on goes into the map, so nothing is counted twice.
+     */
+    private void loadAllTime(UUID player) {
+        java.util.concurrent.CompletableFuture<Map<String, Double>> stored = store.stats(player, ProfileStore.ALL_TIME);
+        Map<String, Double> m = new ConcurrentHashMap<>();
+        allTime.put(player, m);
+        allTimeLoaded.remove(player);
+        stored.thenAccept(db -> Bukkit.getScheduler().runTask(plugin, () -> {
+            if (allTime.get(player) != m) return;   // left (or rejoined) meanwhile
+            db.forEach((k, v) -> m.merge(k, v, Double::sum));
+            allTimeLoaded.add(player);
+        }));
     }
 
     private void loadTitles() throws Exception {
@@ -133,6 +172,7 @@ public final class ProfileModule implements StsvModule, Listener {
 
     private void joined(Player p) {
         store.seen(p.getUniqueId(), p.getName(), System.currentTimeMillis());
+        loadAllTime(p.getUniqueId());
         playtimeMark.put(p.getUniqueId(), System.currentTimeMillis());
         store.titles(p.getUniqueId()).thenAccept(t -> {
             online.put(p.getUniqueId(), t);
@@ -150,7 +190,7 @@ public final class ProfileModule implements StsvModule, Listener {
     private void countPlaytime(Player p) {
         long now = System.currentTimeMillis();
         Long since = playtimeMark.put(p.getUniqueId(), now);
-        if (since != null) store.add(p.getUniqueId(), "playtime", (now - since) / 1000.0);
+        if (since != null) count(p.getUniqueId(), "playtime", (now - since) / 1000.0);
     }
 
     @EventHandler
@@ -163,6 +203,8 @@ public final class ProfileModule implements StsvModule, Listener {
         countPlaytime(e.getPlayer());
         playtimeMark.remove(e.getPlayer().getUniqueId());
         online.remove(e.getPlayer().getUniqueId());
+        allTime.remove(e.getPlayer().getUniqueId());
+        allTimeLoaded.remove(e.getPlayer().getUniqueId());
     }
 
     private Optional<Title> worn(UUID player) {
@@ -191,26 +233,26 @@ public final class ProfileModule implements StsvModule, Listener {
 
     @EventHandler(priority = EventPriority.MONITOR)
     public void onDeath(PlayerDeathEvent e) {
-        store.add(e.getPlayer().getUniqueId(), "deaths", 1);
+        count(e.getPlayer().getUniqueId(), "deaths", 1);
         Player killer = e.getPlayer().getKiller();
-        if (killer != null && killer != e.getPlayer()) store.add(killer.getUniqueId(), "player_kills", 1);
+        if (killer != null && killer != e.getPlayer()) count(killer.getUniqueId(), "player_kills", 1);
     }
 
     @EventHandler(priority = EventPriority.MONITOR)
     public void onMobDeath(EntityDeathEvent e) {
         if (e.getEntity() instanceof Player) return;
         Player killer = e.getEntity().getKiller();
-        if (killer != null) store.add(killer.getUniqueId(), "mob_kills", 1);
+        if (killer != null) count(killer.getUniqueId(), "mob_kills", 1);
     }
 
     @EventHandler(priority = EventPriority.MONITOR, ignoreCancelled = true)
     public void onBreak(BlockBreakEvent e) {
-        store.add(e.getPlayer().getUniqueId(), "blocks_broken", 1);
+        count(e.getPlayer().getUniqueId(), "blocks_broken", 1);
     }
 
     @EventHandler(priority = EventPriority.MONITOR, ignoreCancelled = true)
     public void onPlace(BlockPlaceEvent e) {
-        store.add(e.getPlayer().getUniqueId(), "blocks_placed", 1);
+        count(e.getPlayer().getUniqueId(), "blocks_placed", 1);
     }
 
     // ------------------------------------------------------------------------------------------

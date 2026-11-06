@@ -1,0 +1,64 @@
+# 업적 칭호 (content/stsv/achievements 에서 줌). 색: 보통 파랑, 어려움 보라, 매우 어려움 금색
+regular:
+  name: "<#5ab0ff>[단골]"
+  description: "업적: 서버에서 10시간 지내기"
+old_timer:
+  name: "<#c58cff>[터줏대감]"
+  description: "업적: 서버에서 100시간 지내기"
+living_history:
+  name: "<gradient:#ffd36b:#ff8a3d><b>[산증인]</b></gradient>"
+  description: "업적: 서버에서 500시간 지내기"
+builder:
+  name: "<#5ab0ff>[건축가]"
+  description: "업적: 블록 20,000개 설치"
+master_builder:
+  name: "<#c58cff>[대건축가]"
+  description: "업적: 블록 200,000개 설치"
+city_maker:
+  name: "<gradient:#ffd36b:#ff8a3d><b>[도시를 세운 자]</b></gradient>"
+  description: "업적: 블록 1,000,000개 설치"
+earth_splitter:
+  name: "<#c58cff>[대지를 가르는 자]"
+  description: "업적: 블록 500,000개 부수기"
+afterlife_regular:
+  name: "<#5ab0ff>[저승 단골]"
+  description: "업적: 100번 죽기"
+hunter:
+  name: "<#5ab0ff>[사냥꾼]"
+  description: "업적: 몹 500마리 처치"
+monster_hunter:
+  name: "<#c58cff>[몬스터 헌터]"
+  description: "업적: 몹 5,000마리 처치"
+slayer:
+  name: "<gradient:#ffd36b:#ff8a3d><b>[학살자]</b></gradient>"
+  description: "업적: 몹 30,000마리 처치"
+boss_hunter:
+  name: "<#c58cff>[보스 헌터]"
+  description: "업적: 보스 처치에 10번 참여"
+boss_slayer:
+  name: "<gradient:#ffd36b:#ff8a3d><b>[보스 학살자]</b></gradient>"
+  description: "업적: 보스 처치에 50번 참여"
+boss_nightmare:
+  name: "<gradient:#ffd36b:#ff8a3d><b>[보스의 악몽]</b></gradient>"
+  description: "업적: 보스에게 피해 500,000 주기"
+fashionista:
+  name: "<#5ab0ff>[패셔니스타]"
+  description: "업적: 치장 10개 갖기"
+title_collector:
+  name: "<#c58cff>[명찰 수집가]"
+  description: "업적: 칭호 25개 갖기"
+achiever:
+  name: "<#c58cff>[업적 마스터]"
+  description: "업적: 업적 60개 달성"
+challenger:
+  name: "<#c58cff>[도전자]"
+  description: "업적: 어려움 업적 10개 달성"
+style_icon:
+  name: "<gradient:#ffd36b:#ff8a3d><b>[스타일 아이콘]</b></gradient>"
+  description: "업적: 치장 20개 갖기"
+unstoppable:
+  name: "<gradient:#ffd36b:#ff8a3d><b>[불가능은 없다]</b></gradient>"
+  description: "업적: 매우 어려움 업적 5개 달성"
+living_legend:
+  name: "<gradient:#ffd36b:#ff8a3d><b>[살아있는 전설]</b></gradient>"
+  description: "업적: 업적 점수 2,200점"

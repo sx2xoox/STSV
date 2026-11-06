@@ -751,4 +751,25 @@ class RulesTest {
         assertEquals(twoWords.id(), AdminCommands.speciesOf(f, twoWords.name().replace(" ", "_")).id(), "tab completion writes spaces as _");
         assertNull(AdminCommands.speciesOf(f, "없는물고기"));
     }
+
+    /** 상인 행렬: each event brings one of the rare entries (the same one for everyone), with its own stock counter. */
+    @Test
+    void merchantBringsOneRareEntryPerEvent() {
+        org.bukkit.configuration.file.YamlConfiguration y = new org.bukkit.configuration.file.YamlConfiguration();
+        y.set("merchant.items", java.util.List.of(java.util.Map.of("item", "totem_of_undying", "price", 6000, "stock", 2)));
+        y.set("merchant.rare", java.util.List.of(java.util.Map.of("item", "stsv:crown_voucher", "price", 250000, "stock", 1),
+                java.util.Map.of("item", "stsv:halo_voucher", "price", 250000, "stock", 1)));
+        java.util.List<String> problems = new java.util.ArrayList<>();
+        dev.stsv.economy.shop.ShopCatalog c = dev.stsv.economy.shop.ShopCatalog.parse(y, problems);
+        assertTrue(problems.isEmpty(), problems.toString());
+        java.util.Set<String> seen = new java.util.HashSet<>();
+        for (int e = 1; e <= 20; e++) {
+            var shown = c.merchant().shown(String.valueOf(e));
+            assertEquals(2, shown.size());
+            assertEquals(shown, c.merchant().shown(String.valueOf(e)), "same event, same pick");
+            assertTrue(shown.get(1).index() >= 1000, "rare stock counters do not share the goods' keys");
+            seen.add(shown.get(1).id());
+        }
+        assertEquals(java.util.Set.of("stsv:crown_voucher", "stsv:halo_voucher"), seen, "both come up over time");
+    }
 }

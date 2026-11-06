@@ -329,10 +329,11 @@ buy:
       - { item: glass_bottle, amount: 8, price: 16 }
       - { item: cobblestone, amount: 64, price: 30 }
   # 치장·칭호 (과시 소비: 돈이 사라지고 계정에 남음, 두 번 눌러 삼)
-  # 치장 값: 일반 12,000 · 희귀 25,000 · 영웅 50,000 · 전설 120,000 (탈 3종은 원래 값)
+  # 치장 값: 일반 12,000 · 희귀 25,000 · 영웅 50,000 (탈 3종은 원래 값)
+  # 전설 치장(왕관, 천사의 고리, 천사·악마 날개)은 팔지 않음: 주간 순위 1위 보상, 상인 행렬 사건 (아래 merchant.rare)
   cosmetics:
     name: "치장"
-    icon: stsv:angel_wings
+    icon: stsv:butterfly_wings
     items:
       # 머리
       - { cosmetic: stsv:tomato_mask, price: 15000 }
@@ -343,12 +344,10 @@ buy:
       - { cosmetic: stsv:frog_hat, price: 25000 }
       - { cosmetic: stsv:wizard_hat, price: 25000 }
       - { cosmetic: stsv:gat, price: 50000 }
-      - { cosmetic: stsv:crown, price: 120000 }
       # 머리 위
       - { cosmetic: stsv:sprout, price: 12000 }
       - { cosmetic: stsv:heart, price: 25000 }
       - { cosmetic: stsv:rain_cloud, price: 50000 }
-      - { cosmetic: stsv:halo, price: 120000 }
       # 어깨
       - { cosmetic: stsv:chick, price: 12000 }
       - { cosmetic: stsv:slime, price: 25000 }
@@ -358,8 +357,6 @@ buy:
       - { cosmetic: stsv:bear_backpack, price: 25000 }
       - { cosmetic: stsv:bunny_backpack, price: 25000 }
       - { cosmetic: stsv:butterfly_wings, price: 50000 }
-      - { cosmetic: stsv:angel_wings, price: 120000 }
-      - { cosmetic: stsv:demon_wings, price: 120000 }
       # 꼬리
       - { cosmetic: stsv:cat_tail, price: 12000 }
       - { cosmetic: stsv:fox_tail, price: 25000 }
@@ -376,6 +373,12 @@ buy:
 merchant:
   name: "상인 행렬"
   icon: emerald
+  # 사건마다 이 중 하나가 1장만 나옴 (선착순). 전설 치장은 여기와 주간 순위 1위 보상으로만 얻음
+  rare:
+    - { item: stsv:crown_voucher, price: 250000, stock: 1 }
+    - { item: stsv:halo_voucher, price: 250000, stock: 1 }
+    - { item: stsv:angel_wings_voucher, price: 250000, stock: 1 }
+    - { item: stsv:demon_wings_voucher, price: 250000, stock: 1 }
   items:
     - { item: enchanted_golden_apple, price: 8000, stock: 2 }
     - { item: totem_of_undying, price: 6000, stock: 2 }

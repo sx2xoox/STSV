@@ -1,0 +1,87 @@
+# 업적 (/업적). 파일 하나 = 분류 하나. 형식 설명: plugin 의 AchievementSpec.java 맨 위
+#   tier: easy(쉬움 10점) / normal(보통 25점) / hard(어려움 50점) / very_hard(매우 어려움 100점)
+#   stat: 누적 기록 (플레이 시간은 초) / value: 플러그인이 알려 주는 값.  goal: 목표.  hidden: 달성 전엔 ???
+#   rewards: gold, items ["아이디 x개수"], title, cosmetic, commands (보상은 /업적 에서 직접 받음)
+
+category: { name: "거래·투자", icon: minecraft:emerald, order: 41 }
+achievements:
+  request_1:
+    name: "첫 의뢰"
+    description: "의뢰 1개 완료"
+    tier: easy
+    icon: minecraft:writable_book
+    stat: requests_done
+    goal: 1
+    rewards: { gold: 300 }
+  stock_1:
+    name: "첫 투자"
+    description: "주식 1번 거래"
+    tier: easy
+    icon: minecraft:paper
+    stat: stock_trades
+    goal: 1
+    rewards: { gold: 300 }
+  market_1:
+    name: "첫 거래소 판매"
+    description: "거래소에서 물건 1번 팔기"
+    tier: easy
+    icon: minecraft:emerald
+    stat: market_sold
+    goal: 1
+    rewards: { gold: 300 }
+  auction_1:
+    name: "낙찰!"
+    description: "경매 1번 낙찰"
+    tier: easy
+    icon: minecraft:bell
+    stat: auctions_won
+    goal: 1
+    rewards: { gold: 500 }
+  request_2:
+    name: "믿음직한 일꾼"
+    description: "의뢰 50개 완료"
+    tier: normal
+    icon: minecraft:book
+    stat: requests_done
+    goal: 50
+    rewards: { gold: 8000, items: ["minecraft:experience_bottle x32"] }
+  stock_2:
+    name: "개미 투자자"
+    description: "주식 100번 거래"
+    tier: normal
+    icon: minecraft:map
+    stat: stock_trades
+    goal: 100
+    rewards: { gold: 5000 }
+  request_3:
+    name: "해결사"
+    description: "의뢰 300개 완료"
+    tier: hard
+    icon: minecraft:lectern
+    stat: requests_done
+    goal: 300
+    rewards: { gold: 30000, title: economy:fixer }
+  stock_3:
+    name: "큰손"
+    description: "주식 1,000번 거래"
+    tier: hard
+    icon: minecraft:filled_map
+    stat: stock_trades
+    goal: 1000
+    rewards: { gold: 30000, title: economy:big_hand }
+  market_2:
+    name: "거래소 단골"
+    description: "거래소에서 물건 100번 팔기"
+    tier: hard
+    icon: minecraft:emerald_block
+    stat: market_sold
+    goal: 100
+    rewards: { gold: 20000, title: economy:market_regular }
+  auction_2:
+    name: "경매의 신"
+    description: "경매 30번 낙찰"
+    tier: very_hard
+    icon: minecraft:bell
+    stat: auctions_won
+    goal: 30
+    rewards: { gold: 80000, title: economy:auction_god }

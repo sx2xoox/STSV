@@ -512,6 +512,7 @@ public final class StockModule extends EcoModule implements DailyListener, Weekl
     private void trade(Player p, StockStore.Co c, boolean buying, long qty) {
         Map<String, Object> params = new HashMap<>();
         String refused = buying ? buy(p, c, qty, params) : sell(p, c, qty, params);
+        if (refused == null) core.profiles().add(p.getUniqueId(), "stock_trades", 1);
         params.put("company", c == null ? "-" : c.name);
         params.put("count", params.getOrDefault("count", qty));
         List<Object> flat = new ArrayList<>();

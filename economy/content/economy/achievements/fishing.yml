@@ -1,0 +1,93 @@
+# 업적 (/업적). 파일 하나 = 분류 하나. 형식 설명: plugin 의 AchievementSpec.java 맨 위
+#   tier: easy(쉬움 10점) / normal(보통 25점) / hard(어려움 50점) / very_hard(매우 어려움 100점)
+#   stat: 누적 기록 (플레이 시간은 초) / value: 플러그인이 알려 주는 값.  goal: 목표.  hidden: 달성 전엔 ???
+#   rewards: gold, items ["아이디 x개수"], title, cosmetic, commands (보상은 /업적 에서 직접 받음)
+
+category: { name: "낚시", icon: minecraft:fishing_rod, order: 32 }
+achievements:
+  fish_1:
+    name: "첫 입질"
+    description: "물고기 1마리 낚기"
+    tier: easy
+    icon: minecraft:cod
+    stat: fish_caught
+    goal: 1
+    rewards: { gold: 200, items: ["minecraft:bread x8"] }
+  species_10:
+    name: "도감 채우기"
+    description: "물고기 10종 발견"
+    tier: easy
+    icon: minecraft:book
+    value: economy:fish_species
+    goal: 10
+    unit: "종"
+    rewards: { gold: 1000 }
+  fish_2:
+    name: "낚시꾼"
+    description: "물고기 100마리 낚기"
+    tier: normal
+    icon: minecraft:fishing_rod
+    stat: fish_caught
+    goal: 100
+    rewards: { gold: 3000, items: ["economy:fish_bench x1"] }
+  species_30:
+    name: "어류 관찰가"
+    description: "물고기 30종 발견"
+    tier: normal
+    icon: minecraft:book
+    value: economy:fish_species
+    goal: 30
+    unit: "종"
+    rewards: { gold: 5000 }
+  fish_3:
+    name: "바다의 친구"
+    description: "물고기 1,000마리 낚기"
+    tier: hard
+    icon: minecraft:tropical_fish
+    stat: fish_caught
+    goal: 1000
+    rewards: { gold: 20000, title: economy:sea_friend, cosmetic: stsv:shoulder_cat }
+  species_60:
+    name: "어류학자"
+    description: "물고기 60종 발견"
+    tier: hard
+    icon: minecraft:writable_book
+    value: economy:fish_species
+    goal: 60
+    unit: "종"
+    rewards: { gold: 25000, title: economy:ichthyologist }
+  fish_4:
+    name: "전설의 강태공"
+    description: "물고기 10,000마리 낚기"
+    tier: very_hard
+    icon: minecraft:pufferfish
+    stat: fish_caught
+    goal: 10000
+    rewards: { gold: 80000, items: ["minecraft:heart_of_the_sea x1"], title: economy:legendary_angler }
+  species_all:
+    name: "도감 완성"
+    description: "물고기 98종 모두 발견"
+    tier: very_hard
+    icon: minecraft:enchanted_book
+    value: economy:fish_species
+    goal: 98
+    unit: "종"
+    rewards: { gold: 100000, items: ["minecraft:conduit x1"] }
+  fisher_10:
+    name: "어부 Lv10"
+    description: "어부 레벨 10"
+    tier: normal
+    icon: minecraft:fishing_rod
+    value: economy:job_level:fisher
+    goal: 10
+    unit: "레벨"
+    rewards: { gold: 5000 }
+  fisher_30:
+    name: "명장 어부"
+    description: "어부 레벨 30"
+    tier: very_hard
+    icon: minecraft:fishing_rod
+    value: economy:job_level:fisher
+    goal: 30
+    unit: "레벨"
+    rewards: { gold: 50000, items: ["economy:caviar x3"], title: economy:master_fisher }

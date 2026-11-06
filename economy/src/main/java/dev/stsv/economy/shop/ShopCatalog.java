@@ -48,8 +48,29 @@ public record ShopCatalog(
 
     public record LimitedEntry(int index, String id, int amount, long price, int stock) {}
 
-    /** 상인 행렬: a 구매 category that is only there while the event runs. */
-    public record Merchant(String name, String icon, List<LimitedEntry> goods) {}
+    /**
+     * 상인 행렬: a 구매 category that is only there while the event runs. Besides its goods, each event
+     * brings one of the rare entries (picked by the event, so everyone sees the same one).
+     */
+    public record Merchant(String name, String icon, List<LimitedEntry> goods, List<LimitedEntry> rare) {
+        public Merchant(String name, String icon, List<LimitedEntry> goods) {
+            this(name, icon, goods, List.of());
+        }
+
+        /** The rare entry of this event (null if there are none). */
+        public LimitedEntry rareFor(String eventId) {
+            return rare.isEmpty() ? null : rare.get(Math.floorMod(eventId.hashCode(), rare.size()));
+        }
+
+        /** What the event sells: the goods, then its rare entry. */
+        public List<LimitedEntry> shown(String eventId) {
+            LimitedEntry r = rareFor(eventId);
+            if (r == null) return goods;
+            List<LimitedEntry> out = new ArrayList<>(goods);
+            out.add(r);
+            return out;
+        }
+    }
 
     /** Every good of every 구매 category, in order. */
     public List<Good> goods() {
@@ -136,6 +157,17 @@ public record ShopCatalog(
         List<LimitedEntry> limited = new ArrayList<>();
         List<Map<?, ?>> raw = c.isConfigurationSection("merchant") ? c.getMapList("merchant.items") : c.getMapList("merchant");
         int i = 0;
+        List<LimitedEntry> rare = new ArrayList<>();
+        int r = 1000;   // their own stock counters (the index is part of the key)
+        for (Map<?, ?> m : c.isConfigurationSection("merchant") ? c.getMapList("merchant.rare") : List.<Map<?, ?>>of()) {
+            Object item = m.get("item"), price = m.get("price"), stock = m.get("stock");
+            if (item == null || !(price instanceof Number p) || !(stock instanceof Number st)) {
+                problems.add("merchant.rare: item, price, stock 필요 (" + m + ")");
+                continue;
+            }
+            Object amount = m.get("amount");
+            rare.add(new LimitedEntry(r++, norm(String.valueOf(item)), amount instanceof Number a ? Math.max(1, a.intValue()) : 1, p.longValue(), st.intValue()));
+        }
         for (Map<?, ?> m : raw) {
             Object item = m.get("item"), price = m.get("price"), stock = m.get("stock");
             if (item == null || !(price instanceof Number p) || !(stock instanceof Number st)) {
@@ -145,7 +177,7 @@ public record ShopCatalog(
             Object amount = m.get("amount");
             limited.add(new LimitedEntry(i++, norm(String.valueOf(item)), amount instanceof Number a ? Math.max(1, a.intValue()) : 1, p.longValue(), st.intValue()));
         }
-        Merchant merchant = new Merchant(c.getString("merchant.name", "상인 행렬"), norm(c.getString("merchant.icon", "emerald")), limited);
+        Merchant merchant = new Merchant(c.getString("merchant.name", "상인 행렬"), norm(c.getString("merchant.icon", "emerald")), limited, rare);
 
         java.time.DayOfWeek weekday;
         try {

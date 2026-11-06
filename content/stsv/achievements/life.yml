@@ -1,0 +1,113 @@
+# 업적 (/업적). 파일 하나 = 분류 하나. 형식 설명: plugin 의 AchievementSpec.java 맨 위
+#   tier: easy(쉬움 10점) / normal(보통 25점) / hard(어려움 50점) / very_hard(매우 어려움 100점)
+#   stat: 누적 기록 (플레이 시간은 초) / value: 플러그인이 알려 주는 값.  goal: 목표.  hidden: 달성 전엔 ???
+#   rewards: gold, items ["아이디 x개수"], title, cosmetic, commands (보상은 /업적 에서 직접 받음)
+
+category: { name: "생활", icon: minecraft:compass, order: 10 }
+achievements:
+  first_hour:
+    name: "첫 발걸음"
+    description: "서버에서 1시간 지내기"
+    tier: easy
+    icon: minecraft:clock
+    stat: playtime
+    goal: 3600
+    rewards: { gold: 500, items: ["minecraft:bread x16"] }
+  regular:
+    name: "단골"
+    description: "서버에서 10시간 지내기"
+    tier: normal
+    icon: minecraft:clock
+    stat: playtime
+    goal: 36000
+    rewards: { gold: 3000, title: stsv:regular }
+  old_timer:
+    name: "터줏대감"
+    description: "서버에서 100시간 지내기"
+    tier: hard
+    icon: minecraft:clock
+    stat: playtime
+    goal: 360000
+    rewards: { gold: 20000, items: ["minecraft:diamond x5"], title: stsv:old_timer }
+  living_history:
+    name: "산증인"
+    description: "서버에서 500시간 지내기"
+    tier: very_hard
+    icon: minecraft:clock
+    stat: playtime
+    goal: 1800000
+    rewards: { gold: 80000, items: ["minecraft:enchanted_golden_apple x1"], title: stsv:living_history, cosmetic: stsv:rain_cloud }
+  builder_1:
+    name: "첫 벽돌"
+    description: "블록 500개 설치"
+    tier: easy
+    icon: minecraft:bricks
+    stat: blocks_placed
+    goal: 500
+    rewards: { gold: 300, items: ["minecraft:oak_log x32"] }
+  builder_2:
+    name: "건축가"
+    description: "블록 20,000개 설치"
+    tier: normal
+    icon: minecraft:bricks
+    stat: blocks_placed
+    goal: 20000
+    rewards: { gold: 3000, title: stsv:builder }
+  builder_3:
+    name: "대건축가"
+    description: "블록 200,000개 설치"
+    tier: hard
+    icon: minecraft:quartz_block
+    stat: blocks_placed
+    goal: 200000
+    rewards: { gold: 25000, items: ["minecraft:diamond x8"], title: stsv:master_builder }
+  builder_4:
+    name: "도시를 세운 자"
+    description: "블록 1,000,000개 설치"
+    tier: very_hard
+    icon: minecraft:beacon
+    stat: blocks_placed
+    goal: 1000000
+    rewards: { gold: 100000, items: ["minecraft:beacon x1"], title: stsv:city_maker }
+  digger_1:
+    name: "삽질 시작"
+    description: "블록 1,000개 부수기"
+    tier: easy
+    icon: minecraft:iron_shovel
+    stat: blocks_broken
+    goal: 1000
+    rewards: { gold: 300, items: ["minecraft:iron_shovel x1"] }
+  digger_2:
+    name: "굴착기"
+    description: "블록 50,000개 부수기"
+    tier: normal
+    icon: minecraft:diamond_pickaxe
+    stat: blocks_broken
+    goal: 50000
+    rewards: { gold: 4000, items: ["minecraft:experience_bottle x32"] }
+  digger_3:
+    name: "대지를 가르는 자"
+    description: "블록 500,000개 부수기"
+    tier: hard
+    icon: minecraft:netherite_pickaxe
+    stat: blocks_broken
+    goal: 500000
+    rewards: { gold: 30000, title: stsv:earth_splitter }
+  first_death:
+    name: "다음엔 조심"
+    description: "처음으로 죽기"
+    tier: easy
+    icon: minecraft:skeleton_skull
+    stat: deaths
+    goal: 1
+    hidden: true
+    rewards: { gold: 100, items: ["minecraft:cooked_beef x8"] }
+  death_100:
+    name: "저승 단골"
+    description: "100번 죽기"
+    tier: normal
+    icon: minecraft:wither_skeleton_skull
+    stat: deaths
+    goal: 100
+    hidden: true
+    rewards: { gold: 1000, title: stsv:afterlife_regular }

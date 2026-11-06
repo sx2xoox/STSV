@@ -189,12 +189,38 @@ public final class RankModule extends EcoModule implements WeeklyListener {
             int rights = eco.vanity().grantMonument(top.player());
             Player winner = Bukkit.getPlayer(top.player());
             if (winner != null) winner.sendMessage(Lang.msg("rank.monument-right", "count", rights));
+            weeklyLegendary(top.player(), endedWeek);
             for (Player p : Bukkit.getOnlinePlayers()) {
                 p.showTitle(Title.title(Lang.mm("rank.weekly-title", "week", endedWeek),
                         Lang.mm("rank.weekly-subtitle", "player", Players.name(top.player()), "amount", EconomyModule.format(top.amount())),
                         Title.Times.times(Duration.ofMillis(400), Duration.ofMillis(4000), Duration.ofMillis(800))));
                 p.playSound(p.getLocation(), Sound.UI_TOAST_CHALLENGE_COMPLETE, 0.8f, 1f);
             }
+        }
+    }
+
+    /**
+     * The week's legendary cosmetic for the winner: config rank.weekly-legendary, starting at the week's
+     * place in the list and skipping what they already own; gold if they own them all.
+     */
+    private void weeklyLegendary(UUID winner, int endedWeek) {
+        List<String> list = eco.getConfig().getStringList("rank.weekly-legendary");
+        java.util.Set<String> owned = core.cosmetics().owned(winner);
+        for (int k = 0; k < list.size(); k++) {
+            String id = list.get(Math.floorMod(endedWeek + k, list.size()));
+            var c = core.content().item(id).filter(i -> i.cosmetic() != null);
+            if (c.isEmpty() || owned.contains(c.get().key().asString())) continue;
+            core.cosmetics().grant(winner, c.get());
+            String name = c.get().name() == null ? id : c.get().name();
+            Bukkit.broadcast(Lang.msg("rank.weekly-legendary", "player", Players.name(winner), "cosmetic", name));
+            Player p = Bukkit.getPlayer(winner);
+            if (p != null) core.cosmetics().celebrate(p, c.get());
+            return;
+        }
+        long gold = eco.getConfig().getLong("rank.weekly-legendary-fallback-gold");
+        if (gold > 0) {
+            core.economy().deposit(winner, gold, "rank_reward");
+            Bukkit.broadcast(Lang.msg("rank.weekly-legendary-gold", "player", Players.name(winner), "amount", EconomyModule.format(gold)));
         }
     }
 

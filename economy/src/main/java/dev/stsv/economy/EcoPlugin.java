@@ -111,7 +111,22 @@ public final class EcoPlugin extends JavaPlugin {
         getServer().getPluginManager().registerEvents(new PvpRule(this), this);
         Commands.register(this);
         AdminCommands.register(this);
+        provideAchievementValues(core);
         getLogger().info("경제 서버 시작: " + calendar.day() + "일차 (" + calendar.week() + "주차)");
+    }
+
+    /** What the 업적 in contents/economy/achievements measure besides stats (value: economy:...). */
+    private void provideAchievementValues(STSVPlugin core) {
+        var a = core.achievements();
+        a.provide("economy:job_level", (p, job) -> job == null ? jobs.level(p.getUniqueId()) : jobs.level(p.getUniqueId(), job));
+        a.provide("economy:job_level_max", (p, x) -> jobs.spec().jobs().keySet().stream().mapToInt(j -> jobs.level(p.getUniqueId(), j)).max().orElse(0));
+        a.provide("economy:jobs_total", (p, x) -> jobs.spec().jobs().keySet().stream().mapToInt(j -> jobs.level(p.getUniqueId(), j)).sum());
+        a.provide("economy:net_worth", (p, x) -> rank.worth(p.getUniqueId()));
+        a.provide("economy:land_chunks", (p, x) -> {
+            var l = land.store().index().ownedBy(p.getUniqueId());
+            return l == null ? 0 : l.chunks().size();
+        });
+        a.provide("economy:fish_species", (p, x) -> fishing.store().of(p.getUniqueId()).size());
     }
 
     private void add(StsvModule m) {
@@ -126,6 +141,7 @@ public final class EcoPlugin extends JavaPlugin {
         Collections.reverse(reversed);
         if (core != null) {
             core.admin().removeAll(ADMIN_OWNER);
+            core.achievements().unprovide("economy:");
             core.economy().feeWaiver(null);
             for (StsvModule m : reversed) core.modules().unregister(m.id());
         }
