@@ -464,6 +464,17 @@ class ContentTest {
                 if (!(in.startsWith("minecraft:") || in.startsWith("#") || madeOn.getOrDefault(in, "").equals("press"))) problems.add("press takes " + in);
             }
         }
+        // every vanilla tag a recipe takes has a name in the messages (the recipe book shows it)
+        YamlConfiguration messages = YamlConfiguration.loadConfiguration(
+                java.nio.file.Path.of("src/main/resources/messages.yml").toFile());
+        for (MachineSpec m : machines.values()) {
+            for (var r : m.recipes()) {
+                for (String in : r.inputs().keySet()) {
+                    if (in.startsWith("#") && !in.startsWith("#economy:") && !messages.contains("machine.tag." + in.substring(1).replace("minecraft:", "")))
+                        problems.add(m.id() + ": no name for the tag " + in + " (machine.tag." + in.substring(1) + ")");
+                }
+            }
+        }
         MachineSpec still = machines.get("still");
         double agedMin = still.recipes().stream().filter(MachineSpec.Recipe::aging).mapToDouble(MachineSpec.Recipe::seconds).min().orElse(0);
         if (agedMin < 600) problems.add("still: an aged drink in " + agedMin + " s");

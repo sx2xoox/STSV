@@ -221,6 +221,20 @@ public final class MachineModule extends EcoModule {
         return key == null ? null : Bukkit.getTag(Tag.REGISTRY_ITEMS, key, Material.class);
     }
 
+    /**
+     * A tag input's name: machine.tag.&lt;tag&gt; from the messages, else (a tag added to machines.yml
+     * without a name) its first item and "등", never the raw key.
+     */
+    static String tagName(String tag) {
+        String key = "machine.tag." + tag.replace(':', '.');
+        String n = Lang.raw(key);
+        if (!n.equals("<red>[" + key + "]")) return n;
+        Tag<Material> t = tag(tag);
+        if (t == null || t.getValues().isEmpty()) return tag;
+        Material first = t.getValues().stream().min(java.util.Comparator.comparing(Material::name)).orElseThrow();
+        return Lang.raw("machine.tag-other", "item", "<lang:" + first.translationKey() + ">");
+    }
+
     private boolean tagged(String tag, String item) {
         MachineSpec.Group g = groups.get(tag);
         if (g != null) return g.items().contains(item);
@@ -587,7 +601,7 @@ public final class MachineModule extends EcoModule {
             String key = in.getKey();
             MachineSpec.Group g = key.startsWith("#") ? groups.get(key.substring(1)) : null;
             String name = g != null ? Lang.raw("machine.group", "group", g.name())
-                    : key.startsWith("#") ? Lang.raw("machine.tag." + key.substring(1).replace(':', '.')) : Items.mmName(key);
+                    : key.startsWith("#") ? tagName(key.substring(1)) : Items.mmName(key);
             ins.add(name + "<gray> ×" + in.getValue());
         }
         return String.join("<gray> + ", ins);

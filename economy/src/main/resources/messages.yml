@@ -239,6 +239,11 @@ machine:
     logs: "원목"
     small_flowers: "꽃"
     planks: "판자"
+    saplings: "묘목"
+    leaves: "나뭇잎"
+    stone_crafting_materials: "조약돌 (심층암·흑암 포함)"
+  # 이름이 없는 태그: 그 태그의 첫 물건 + 등
+  tag-other: "{item} 등"
   # 어종 묶음 (machines.yml groups): 묶음 안의 물고기는 아무거나
   group: "{group} <dark_gray>(아무거나)"
   group-items: "<dark_gray>{group}: {items}"
