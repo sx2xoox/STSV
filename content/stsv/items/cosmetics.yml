@@ -199,6 +199,111 @@ fox_tail:
   max-stack: 1
   cosmetic: { slot: tail, rarity: rare, obtain: "상점 · 치장" }
 
+# ── 펫 (옆에서 따라다님. float: true = 떠다님) ─────────────────────────────────────────────
+puppy:
+  material: paper
+  name: "<#f0a050>강아지"
+  lore: ["<gray>졸졸 따라오는 시바견"]
+  model: puppy
+  max-stack: 1
+  cosmetic: { slot: pet, rarity: common, obtain: "상점 · 치장" }
+
+penguin:
+  material: paper
+  name: "<#9fb4c8>아기 펭귄"
+  lore: ["<gray>뒤뚱뒤뚱"]
+  model: penguin
+  max-stack: 1
+  cosmetic: { slot: pet, rarity: rare, obtain: "상점 · 치장" }
+
+ghost:
+  material: paper
+  name: "<#e8f0ff>꼬마 유령"
+  lore: ["<gray>무섭지 않은 유령, 둥실둥실"]
+  model: ghost
+  max-stack: 1
+  cosmetic: { slot: pet, rarity: epic, obtain: "상점 · 치장", float: true }
+
+baby_dragon:
+  material: paper
+  name: "<#7fd35a>아기 용"
+  lore: ["<gray>파닥파닥 날아서 따라옴"]
+  model: baby_dragon
+  max-stack: 1
+  cosmetic: { slot: pet, rarity: epic, obtain: "상점 · 치장", float: true }
+
+# ── 발자취 (걸은 자리에 파티클. particle = 바닐라 파티클 이름, DUST 는 color) ────────────────
+petal_trail:
+  material: pink_petals
+  name: "<#ffb7d5>꽃잎 발자취"
+  lore: ["<gray>걸음마다 벚꽃잎"]
+  max-stack: 1
+  cosmetic: { slot: trail, rarity: common, obtain: "상점 · 치장", particle: cherry_leaves, count: 2, spread: 0.2 }
+
+note_trail:
+  material: note_block
+  name: "<#7fe07a>음표 발자취"
+  lore: ["<gray>걸음마다 음표"]
+  max-stack: 1
+  cosmetic: { slot: trail, rarity: rare, obtain: "상점 · 치장", particle: note, count: 1, spread: 0.2, speed: 1 }
+
+heart_trail:
+  material: poppy
+  name: "<#ff7aa2>하트 발자취"
+  lore: ["<gray>걸음마다 하트"]
+  max-stack: 1
+  cosmetic: { slot: trail, rarity: rare, obtain: "상점 · 치장", particle: heart, count: 1, spread: 0.2 }
+
+flame_trail:
+  material: blaze_powder
+  name: "<#ff8a3d>불꽃 발자취"
+  lore: ["<gray>걸은 자리에 작은 불꽃"]
+  max-stack: 1
+  cosmetic: { slot: trail, rarity: epic, obtain: "상점 · 치장", particle: flame, count: 3, spread: 0.12, speed: 0.01 }
+
+rainbow_trail:
+  material: amethyst_shard
+  name: "<gradient:#ff5f57:#ffd36b:#7fe07a:#5ab0ff:#c58cff>무지개 발자취</gradient>"
+  lore: ["<gray>색이 계속 바뀌는 빛 가루"]
+  max-stack: 1
+  cosmetic: { slot: trail, rarity: epic, obtain: "상점 · 치장", particle: dust, color: rainbow, count: 4, spread: 0.2 }
+
+# ── 처치 효과 (내가 잡은 몹·플레이어 자리에서 터짐. lightning = 피해 없는 번개) ────────────────
+kill_hearts:
+  material: pink_dye
+  name: "<#ff7aa2>하트 뿅"
+  lore: ["<gray>잡으면 하트가 뿅"]
+  max-stack: 1
+  cosmetic: { slot: kill, rarity: common, obtain: "상점 · 치장", particle: heart, count: 8, spread: 0.4, sound: entity.experience_orb.pickup }
+
+kill_snow:
+  material: snowball
+  name: "<#e8f0ff>눈보라"
+  lore: ["<gray>잡으면 눈송이가 흩날림"]
+  max-stack: 1
+  cosmetic: { slot: kill, rarity: rare, obtain: "상점 · 치장", particle: snowflake, count: 40, spread: 0.6, speed: 0.05, sound: block.powder_snow.break }
+
+kill_firework:
+  material: firework_rocket
+  name: "<#ffd36b>축포"
+  lore: ["<gray>잡으면 폭죽이 펑"]
+  max-stack: 1
+  cosmetic: { slot: kill, rarity: rare, obtain: "상점 · 치장", particle: firework, count: 40, spread: 0.3, speed: 0.15, sound: entity.firework_rocket.blast }
+
+kill_soul:
+  material: soul_lantern
+  name: "<#5ad8ff>영혼 회수"
+  lore: ["<gray>잡으면 푸른 영혼이 피어오름"]
+  max-stack: 1
+  cosmetic: { slot: kill, rarity: epic, obtain: "상점 · 치장", particle: soul_fire_flame, count: 30, spread: 0.3, speed: 0.04, sound: particle.soul_escape }
+
+kill_thunder:
+  material: lightning_rod
+  name: "<#c58cff>천벌"
+  lore: ["<gray>잡으면 하늘에서 번개 (피해 없음)"]
+  max-stack: 1
+  cosmetic: { slot: kill, rarity: epic, obtain: "상점 · 치장", lightning: true, particle: electric_spark, count: 25, spread: 0.4, speed: 0.1 }
+
 # ── 교환권 ──────────────────────────────────────────────────────────────────────────────
 tomato_voucher:
   material: paper

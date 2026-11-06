@@ -11,7 +11,7 @@ wardrobe:
   rows: 6
   background: stsv:gui/wardrobe
   layout:
-    - ".ABCDEFG."
+    - "ABCDEFGHJ"
     - ".LLLLLLL."
     - ".LLLLLLL."
     - ".LLLLLLL."
@@ -56,6 +56,17 @@ wardrobe:
       name: "<white>꼬리"
       lore: ["<gray>착용: <white>{worn_tail}"]
     G:
+      action: "wardrobe:tab:pet"
+      icon: stsv:puppy
+      material: BONE
+      name: "<white>펫"
+      lore: ["<gray>옆에서 따라다니는 친구", "<gray>착용: <white>{worn_pet}"]
+    H:
+      action: "wardrobe:tab:effect"
+      material: BLAZE_POWDER
+      name: "<white>효과"
+      lore: ["<gray>발자취, 처치 효과", "<gray>발자취: <white>{worn_trail}", "<gray>처치 효과: <white>{worn_kill}"]
+    J:
       action: "wardrobe:tab:worn"
       material: PLAYER_HEAD
       name: "<white>착용 중"
@@ -90,7 +101,7 @@ wardrobe:
         - "<gray>미리보기: <white>{previewing}"
         - "<gray>페이지: <white>{page} / {pages}"
         - ""
-        - "<gray>부위마다 하나씩: 머리, 머리 위, 어깨, 등, 꼬리"
+        - "<gray>부위마다 하나씩: 머리, 머리 위, 어깨, 등, 꼬리, 펫, 발자취, 처치 효과"
         - "<gray>치장 클릭: 착용 / 착용 중이면 벗기 (창이 닫히고 미리보기)"
         - "<gray>미보유 치장은 마네킹에 입혀 보기만 됩니다."
         - "<gray>미리보기 화면에서 웅크리기: 이 메뉴 다시 열기"

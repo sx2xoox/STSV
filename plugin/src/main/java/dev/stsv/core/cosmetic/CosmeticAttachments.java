@@ -206,7 +206,7 @@ final class CosmeticAttachments {
         }
         List<Worn> fresh = new ArrayList<>();
         for (Map.Entry<CosmeticSlot, CustomItem> e : wanted.entrySet()) {
-            if (e.getKey() == CosmeticSlot.HEAD || have.containsKey(e.getKey())) continue;
+            if (!DEFAULT_ANCHORS.containsKey(e.getKey()) || have.containsKey(e.getKey())) continue;   // head, pet, effects: not here
             Worn w = spawn(p, e.getKey(), e.getValue());
             have.put(e.getKey(), w);
             fresh.add(w);

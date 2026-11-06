@@ -91,18 +91,31 @@ public record CustomItem(
      * @param scale  size on the player (1 = as modelled)
      * @param bob    floats gently up and down (above the head)
      */
-    public record Cosmetic(CosmeticSlot slot, Rarity rarity, String obtain, org.bukkit.util.Vector offset, float scale, boolean bob) {
+    public record Cosmetic(CosmeticSlot slot, Rarity rarity, String obtain, org.bukkit.util.Vector offset, float scale, boolean bob, Fx fx) {
         public Cosmetic(CosmeticSlot slot, Rarity rarity, String obtain) {
-            this(slot, rarity, obtain, new org.bukkit.util.Vector(), 1f, false);
+            this(slot, rarity, obtain, new org.bukkit.util.Vector(), 1f, false, null);
+        }
+
+        public Cosmetic(CosmeticSlot slot, Rarity rarity, String obtain, org.bukkit.util.Vector offset, float scale, boolean bob) {
+            this(slot, rarity, obtain, offset, scale, bob, null);
         }
     }
 
     /**
-     * Where a cosmetic is worn. HEAD replaces what others see on the head (the real helmet stays); the
-     * others are models carried along with the player.
+     * What a trail, kill effect or pet does: particle (a Bukkit particle name) with count, spread (blocks)
+     * and speed; color = a hex colour for DUST, or "rainbow"; sound (a sound key, kill effects);
+     * lightning = a harmless lightning strike (kill effects); floating = a pet that hovers.
+     */
+    public record Fx(String particle, int count, double spread, double speed, String color, String sound, boolean lightning, boolean floating) {}
+
+    /**
+     * Where a cosmetic is worn. HEAD replaces what others see on the head (the real helmet stays);
+     * ABOVE..TAIL are models carried along with the player; PET walks beside them; TRAIL leaves particles
+     * where they walk; KILL plays where they kill something.
      */
     public enum CosmeticSlot {
-        HEAD("head", "머리"), ABOVE("above", "머리 위"), SHOULDER("shoulder", "어깨"), BACK("back", "등"), TAIL("tail", "꼬리");
+        HEAD("head", "머리"), ABOVE("above", "머리 위"), SHOULDER("shoulder", "어깨"), BACK("back", "등"), TAIL("tail", "꼬리"),
+        PET("pet", "펫"), TRAIL("trail", "발자취"), KILL("kill", "처치 효과");
 
         public final String id, label;
 

@@ -472,6 +472,90 @@ def cat_tail():
 
 
 # slot of every cosmetic model (the item yml says the same; the preview places them by it)
+# ================================================================================================
+# 펫 (walks or floats beside the player): feet on y 0, centred on x / z 8, facing north. The plugin puts
+# the model's (8, 8, 8) half a block above the ground (floating pets higher), so y 0 is the ground.
+# ================================================================================================
+
+PET_GUI = (25, 210, 0)
+
+
+def puppy():
+    """강아지: a little shiba, curled tail."""
+    m = MModel("puppy")
+    fur, fur_light, cream = Mat("fox", "speckle", 3), Mat("fox", "plain", 4), Mat("cream", "plain", 3)
+    m.box("body", (5.5, 3, 6.5), (10.5, 7.5, 12.5), fur)
+    m.box("belly", (6.25, 2.75, 7.25), (9.75, 3, 11.25), cream, faces={"up": None})
+    m.box("head", (5, 6, 3), (11, 11.5, 8.5), fur)
+    m.box("snout", (6.75, 6.5, 1.75), (9.25, 8.75, 3), cream, faces={"south": None})
+    m.box("nose", (7.5, 8, 1.5), (8.5, 8.75, 1.75), BLACK, faces={"south": None})
+    mirror(m, "cheek", (5.25, 6.25, 2.75), (6.75, 7.75, 3), cream, faces={"south": None})
+    mirror(m, "eye", (6.25, 9, 2.75), (7.25, 10, 3), EYE, faces={"south": None})
+    mirror(m, "ear", (5.25, 11.5, 4.5), (7.25, 13.25, 6), fur_light)
+    mirror(m, "leg", (6, 0, 7), (7.5, 3, 8.5), fur_light)
+    mirror(m, "leg", (6, 0, 10.5), (7.5, 3, 12), fur_light)
+    m.box("tail", (7.25, 7.5, 12.5), (8.75, 10, 14), fur_light)
+    m.box("tail", (7.25, 10, 11.75), (8.75, 11, 13.5), cream)
+    _display(m, PET_GUI, 1.1, -2)
+    return m
+
+
+def penguin():
+    """아기 펭귄: round, black and white, orange beak and feet."""
+    m = MModel("penguin")
+    black, white, orange = Mat("rubber", "plain", 2), Mat("feather", "plain", 3), Mat("fox", "plain", 3)
+    m.box("body", (5.5, 1, 6), (10.5, 9, 10.5), black)
+    m.box("belly", (6.25, 1.5, 5.75), (9.75, 7.75, 6), white, faces={"south": None})
+    m.box("head", (6, 9, 6.25), (10, 12.5, 10), black)
+    m.box("face", (6.5, 9.5, 6.0), (9.5, 11.75, 6.25), white, faces={"south": None})
+    m.box("beak", (7.5, 10, 5.25), (8.5, 10.75, 6), orange, faces={"south": None})
+    mirror(m, "eye", (6.9, 10.9, 5.9), (7.4, 11.4, 6.0), EYE, faces={"south": None})
+    mirror(m, "flipper", (4.75, 4, 7), (5.5, 8, 9.5), black, faces={"east": None})
+    mirror(m, "foot", (6.25, 0, 5.25), (7.75, 1, 7.25), orange)
+    _display(m, PET_GUI, 1.1, -1)
+    return m
+
+
+def ghost():
+    """꼬마 유령: a floating white sheet with a wavy hem and rosy cheeks."""
+    m = MModel("ghost")
+    sheet, sheet_light = Mat("snow", "plain", 2), Mat("snow", "plain", 3)
+    m.box("body", (5, 2, 5), (11, 11, 11), sheet)
+    m.box("top", (5.5, 11, 5.5), (10.5, 12, 10.5), sheet_light)
+    m.box("hem", (5, 0.75, 5), (6.5, 2, 11), sheet, faces={"up": None})
+    m.box("hem", (7.25, 0.25, 5), (8.75, 2, 11), sheet, faces={"up": None})
+    m.box("hem", (9.5, 0.75, 5), (11, 2, 11), sheet, faces={"up": None})
+    mirror(m, "eye", (6.25, 7.5, 4.75), (7.25, 9.25, 5), EYE, faces={"south": None})
+    m.box("mouth", (7.5, 5.75, 4.75), (8.5, 6.75, 5), EYE, faces={"south": None})
+    mirror(m, "cheek", (5.5, 6.25, 4.75), (6.5, 7, 5), PINK, faces={"south": None})
+    mirror(m, "arm", (4.25, 5, 7), (5, 7.5, 9), sheet, faces={"east": None})
+    _display(m, PET_GUI, 1.0, -1)
+    return m
+
+
+def baby_dragon():
+    """아기 용: green with a cream belly, little horns and bat wings."""
+    m = MModel("baby_dragon")
+    scale, scale_light, belly = Mat("leaf", "speckle", 2), Mat("leaf", "plain", 3), Mat("cream", "plain", 3)
+    horn, wing = Mat("cream", "plain", 2), Mat("leaf_dark", "plain", 2)
+    m.box("body", (5.5, 3, 6), (10.5, 8, 11), scale)
+    m.box("belly", (6.25, 3.5, 5.75), (9.75, 7.25, 6), belly, faces={"south": None})
+    m.box("head", (5.75, 7.5, 2.5), (10.25, 11.5, 6.5), scale_light)
+    m.box("snout", (6.75, 7.75, 1.25), (9.25, 9.75, 2.5), scale_light, faces={"south": None})
+    mirror(m, "nostril", (7.25, 9.25, 1.0), (7.75, 9.5, 1.25), EYE, faces={"south": None})
+    mirror(m, "eye", (6.5, 10, 2.25), (7.5, 11, 2.5), EYE, faces={"south": None})
+    mirror(m, "horn", (6.25, 11.5, 4.5), (7, 13.25, 5.25), horn)
+    mirror(m, "wing", (1.5, 6.5, 7.75), (5.5, 10, 8.25), wing)
+    mirror(m, "wing", (2.5, 10, 7.75), (4.5, 11, 8.25), wing)
+    mirror(m, "leg", (6, 1, 6.5), (7.5, 3, 8), scale)
+    mirror(m, "leg", (6, 1, 9), (7.5, 3, 10.5), scale)
+    m.box("tail", (7, 3.5, 11), (9, 5.5, 13.5), scale)
+    m.box("tail", (7.5, 4, 13.5), (8.5, 5, 15.5), scale_light)
+    m.box("spike", (7.75, 8, 7), (8.25, 9, 9.5), horn)
+    _display(m, PET_GUI, 1.0, -1)
+    return m
+
+
 SLOTS = {
     "straw_hat": "head", "cat_ears": "head", "wizard_hat": "head", "crown": "head", "gat": "head", "frog_hat": "head",
     "halo": "above", "rain_cloud": "above", "heart": "above", "sprout": "above",
@@ -479,10 +563,11 @@ SLOTS = {
     "angel_wings": "back", "demon_wings": "back", "butterfly_wings": "back",
     "bear_backpack": "back", "bunny_backpack": "back", "school_bag": "back",
     "fox_tail": "tail", "cat_tail": "tail",
+    "puppy": "pet", "penguin": "pet", "ghost": "pet", "baby_dragon": "pet",
 }
 
 ALL = {f.__name__: f for f in (straw_hat, cat_ears, wizard_hat, crown, gat, frog_hat,
                                halo, rain_cloud, heart, sprout,
                                chick, shoulder_cat, slime,
                                angel_wings, demon_wings, butterfly_wings, bear_backpack, bunny_backpack, school_bag,
-                               fox_tail, cat_tail)}
+                               fox_tail, cat_tail, puppy, penguin, ghost, baby_dragon)}

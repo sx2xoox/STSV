@@ -34,6 +34,7 @@ wardrobe:
   # 탭 (부위 이름은 cosmetic.slot)
   tab-all: "전체"
   tab-worn: "착용 중"
+  tab-effect: "효과"
   take-off-all: "모든 치장 벗기"
   take-off-slot: "{slot} 치장 벗기"
   self-on: "<green>켜짐"
@@ -61,6 +62,9 @@ cosmetic:
     shoulder: "어깨"
     back: "등"
     tail: "꼬리"
+    pet: "펫"
+    trail: "발자취"
+    kill: "처치 효과"
 
 achievement:
   done-title: "{color}<b>업적 달성!</b>"

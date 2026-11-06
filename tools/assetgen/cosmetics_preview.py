@@ -34,7 +34,8 @@ FONT = "/usr/share/fonts/opentype/unifont/unifont.otf"
 U = 0.9375                     # the player model is drawn at 15/16
 ANCHORS = {"above": (0, 0.10, 0), "shoulder": (0.38, -0.39, 0), "back": (0, -0.62, -0.12), "tail": (0, -1.02, -0.12)}
 TOP = (8, 1.8 * 16, 8)         # top of the hitbox, in model units around the mannequin
-SLOT_KO = {"head": "머리", "above": "머리 위", "shoulder": "어깨", "back": "등", "tail": "꼬리"}
+SLOT_KO = {"head": "머리", "above": "머리 위", "shoulder": "어깨", "back": "등", "tail": "꼬리", "pet": "펫"}
+PET_AT = (-14, 0, 6)           # beside the mannequin (its right, a little behind), on the ground
 
 
 def names_ko():
@@ -71,7 +72,10 @@ def worn_scene(name):
     man = mannequin().to_preview()
     d = C.ALL[name]().to_preview()
     slot = C.SLOTS[name]
-    if slot == "head":
+    if slot == "pet":
+        lift = 6 if name in ("ghost", "baby_dragon") else 0     # floating pets hover
+        fn = lambda p: [p[0] + PET_AT[0], p[1] + PET_AT[1] + lift, p[2] + PET_AT[2]]
+    elif slot == "head":
         # a helmet-slot item: 0.625 x the player's scale, centred on the head
         s, hc = 0.625 * U, (8, 28 * U, 8)
         fn = lambda p: [hc[i] + (p[i] - 8) * s for i in range(3)]
@@ -99,7 +103,7 @@ def worn_sheet(names, out, ko):
         views = [{"x": 0, "y": 0, "w": 600, "h": 700, "az": a1, "el": 12, "k": 2.4},
                  {"x": 600, "y": 0, "w": 600, "h": 700, "az": a2, "el": 8, "k": 2.4}]
         zoom = {"head": ([8, 27, 8], 14), "above": ([8, 28, 8], 14), "shoulder": ([5, 24, 8], 14),
-                "back": ([8, 20, 10], 22), "tail": ([8, 12, 12], 18)}
+                "back": ([8, 20, 10], 22), "tail": ([8, 12, 12], 18), "pet": ([2, 12, 10], 22)}
         c, r = zoom[slot]
         data.update({"grid": False, "center": c, "radius": r, "views": views})
         ims.append((n, slot, render(data, n).crop((0, 0, 1200, 700)).resize((480, 280), Image.LANCZOS)))
@@ -142,9 +146,11 @@ def main():
     ko = names_ko()
     order = list(C.ALL)
     first = [n for n in order if C.SLOTS[n] in ("head", "above")]
-    second = [n for n in order if C.SLOTS[n] not in ("head", "above")]
+    second = [n for n in order if C.SLOTS[n] not in ("head", "above", "pet")]
+    pets = [n for n in order if C.SLOTS[n] == "pet"]
     worn_sheet(first, PREVIEWS / "cosmetics_worn_1.png", ko)
     worn_sheet(second, PREVIEWS / "cosmetics_worn_2.png", ko)
+    worn_sheet(pets, PREVIEWS / "cosmetics_pets.png", ko)
     icon_sheet(order, PREVIEWS / "cosmetics_icons.png", ko)
 
 

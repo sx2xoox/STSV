@@ -1,3 +1,4 @@
+b28a55852ba33e59df46b68a988f11ae4e9b4cee economy/achievements/codex.yml
 fb89198c09a45bb18504a15fbfac4e8a84f2ad5c economy/achievements/economy.yml
 39d53fef485309ffb6594d730cf6cb4810276675 economy/achievements/farming.yml
 6bd5de597b29f5be1f73d2c9ed6efc9be80c3d98 economy/achievements/fishing.yml
@@ -174,6 +175,7 @@ ffb11b9297b57106d3b752e82237be6d38971da4 economy/assets/economy/textures/font/st
 8d6c8d2251a810d66583ccf2515ca8bb852bdfe5 economy/assets/economy/textures/font/stockgraph_up_wick.png
 39d6bb26aa475ac168e306bacdcf21132f804eed economy/assets/economy/textures/gui/auction.png
 e1d316126d370f1c5a7186c0636b7502e8c57b0c economy/assets/economy/textures/gui/auction.png
+3285558ae79201d5c1ab644ffe4bd1b2ca36a46b economy/assets/economy/textures/gui/codex.png
 5919ff1479fa4a6abe2449c9d93f6e2874584eb7 economy/assets/economy/textures/gui/codex.png
 5b00d06e3a9d564f70b4400d1d32844440861273 economy/assets/economy/textures/gui/codex.png
 e0cee6437ace6302afef58148af51b355e631362 economy/assets/economy/textures/gui/codex.png
@@ -372,6 +374,7 @@ a6519a931ddf6b42402f8b5060505f54ae6eeb68 economy/machines.yml
 2f89e3bb5f119646751a566e9d5facb6ab418225 economy/menus/codex.yml
 4fc5596e4ce2bcf6e617e3dc9e3110894f51da78 economy/menus/codex.yml
 6d83caed3f778a3e86bb09b67784c2fb046545a3 economy/menus/codex.yml
+6ed4ce1d191f3244fea4c9e1b5a1f6898ef16441 economy/menus/codex.yml
 2497ddc50627760b27272a944284cffaadf03ee5 economy/menus/jobs.yml
 43dce353353a8c871f6c71cd8067b42a76169b82 economy/menus/jobs.yml
 e2b1186f2bf981df408e87fa8ed142633fff6690 economy/menus/jobs.yml
@@ -1103,6 +1106,7 @@ c4d02760bf0442d46a98c7118be9c90d06d45643 economy/textures/yellowtail.png
 ac16a8f73693388a89da9b34a5182a85e8bb34a5 economy/textures/zucchini_seeds.png
 c53d6ca5ec0b22def4d174f5de491889dd6ba83f economy/textures/zucchini_seeds.png
 87d85cc8c8fd39ac6afc6c3affecc8fac7e5fdc6 economy/titles/achievements.yml
+e67ffe09d175cd10d6befc921f9948954ef6eb93 economy/titles/codex.yml
 2aa1954cdb2062cacea42d9ecb6590d7487b78f0 economy/titles/titles.yml
 6d3e770c18cdf04882e7e2bed4258b5c85fedc98 economy/titles/titles.yml
 87f03b9f2f8c65dbab31c5d106af474f8963fe8f economy/titles/titles.yml

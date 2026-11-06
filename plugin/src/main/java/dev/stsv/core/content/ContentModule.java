@@ -226,7 +226,7 @@ public final class ContentModule implements StsvModule, org.bukkit.event.Listene
         CustomItem.Cosmetic cosmetic = null;
         if (sec.isConfigurationSection("cosmetic")) {
             CustomItem.CosmeticSlot slot = CustomItem.CosmeticSlot.parse(sec.getString("cosmetic.slot", "head"));
-            if (slot == null) throw new IllegalArgumentException("cosmetic.slot 은 head(머리) / above(머리 위) / shoulder(어깨) / back(등) / tail(꼬리)");
+            if (slot == null) throw new IllegalArgumentException("cosmetic.slot 은 head(머리) / above(머리 위) / shoulder(어깨) / back(등) / tail(꼬리) / pet(펫) / trail(발자취) / kill(처치 효과)");
             CustomItem.Rarity rarity;
             try {
                 rarity = CustomItem.Rarity.valueOf(sec.getString("cosmetic.rarity", "common").toUpperCase(Locale.ROOT));
@@ -240,9 +240,36 @@ public final class ContentModule implements StsvModule, org.bukkit.event.Listene
             if (slot == CustomItem.CosmeticSlot.HEAD && (sec.contains("cosmetic.offset") || sec.contains("cosmetic.scale") || sec.contains("cosmetic.bob"))) {
                 throw new IllegalArgumentException("머리 치장은 투구처럼 씌워져서 offset / scale / bob 을 쓸 수 없음 (모델에서 조정)");
             }
+            CustomItem.Fx fx = null;
+            if (slot == CustomItem.CosmeticSlot.TRAIL || slot == CustomItem.CosmeticSlot.KILL || slot == CustomItem.CosmeticSlot.PET) {
+                String particle = sec.getString("cosmetic.particle");
+                boolean lightning = sec.getBoolean("cosmetic.lightning");
+                if (particle != null) {
+                    org.bukkit.Particle pt;
+                    try {
+                        pt = org.bukkit.Particle.valueOf(particle.trim().toUpperCase(Locale.ROOT));
+                    } catch (IllegalArgumentException e) {
+                        throw new IllegalArgumentException("cosmetic.particle: 없는 파티클 " + particle);
+                    }
+                    Class<?> data = pt.getDataType();
+                    if (data != Void.class && data != org.bukkit.Particle.DustOptions.class) {
+                        throw new IllegalArgumentException("cosmetic.particle: " + particle + " 은(는) 추가 데이터가 필요해서 쓸 수 없음");
+                    }
+                    if (data == org.bukkit.Particle.DustOptions.class && sec.getString("cosmetic.color") == null) {
+                        throw new IllegalArgumentException("cosmetic.color 필요 (DUST: \"#ff8800\" 또는 rainbow)");
+                    }
+                } else if (slot != CustomItem.CosmeticSlot.PET && !lightning) {
+                    throw new IllegalArgumentException("cosmetic.particle (또는 처치 효과는 lightning: true) 필요");
+                }
+                fx = new CustomItem.Fx(particle == null ? null : particle.trim().toUpperCase(Locale.ROOT),
+                        Math.max(1, sec.getInt("cosmetic.count", slot == CustomItem.CosmeticSlot.KILL ? 20 : 2)),
+                        sec.getDouble("cosmetic.spread", slot == CustomItem.CosmeticSlot.KILL ? 0.5 : 0.15),
+                        sec.getDouble("cosmetic.speed", 0.02), sec.getString("cosmetic.color"), sec.getString("cosmetic.sound"),
+                        lightning, sec.getBoolean("cosmetic.float"));
+            }
             cosmetic = new CustomItem.Cosmetic(slot, rarity, sec.getString("cosmetic.obtain"),
                     off.size() == 3 ? new org.bukkit.util.Vector(off.get(0), off.get(1), off.get(2)) : new org.bukkit.util.Vector(),
-                    (float) scale, sec.getBoolean("cosmetic.bob"));
+                    (float) scale, sec.getBoolean("cosmetic.bob"), fx);
         }
 
         CustomItem.Effects effects = sec.isConfigurationSection("effects")

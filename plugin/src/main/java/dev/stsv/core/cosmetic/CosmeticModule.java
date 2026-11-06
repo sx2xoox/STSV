@@ -89,6 +89,10 @@ public final class CosmeticModule implements StsvModule, Listener {
     private final Map<UUID, Boolean> pendingSync = new HashMap<>();
     /** the models worn outside the head slot */
     private CosmeticAttachments attachments;
+    /** pets following their owners */
+    private CosmeticPets pets;
+    /** where each player last left a trail mark */
+    private final Map<UUID, Location> trailAt = new HashMap<>();
     /** per player: whether their cosmetics were hidden (invisible, dead, spectator) at the last check */
     private final Map<UUID, Boolean> concealed = new HashMap<>();
     private long ticks;
@@ -127,6 +131,7 @@ public final class CosmeticModule implements StsvModule, Listener {
             }
         }
         attachments = new CosmeticAttachments(plugin, keyAttachment, packets, this::selfView);
+        pets = new CosmeticPets(plugin, keyAttachment);
         loadAnchors();
         Bukkit.getScheduler().runTaskTimer(plugin, this::tick, 1L, 1L);
         Bukkit.getPluginManager().registerEvents(this, plugin);
@@ -170,7 +175,9 @@ public final class CosmeticModule implements StsvModule, Listener {
     /** Every tick: the worn models follow their wearers; every 5 ticks: hide or show with invisibility etc. */
     private void tick() {
         attachments.tick();
-        if (++ticks % 5 != 0) return;
+        pets.tick();
+        if (++ticks % 3 == 0) trails();
+        if (ticks % 5 != 0) return;
         for (Player p : Bukkit.getOnlinePlayers()) {
             boolean now = concealed(p);
             Boolean was = concealed.put(p.getUniqueId(), now);
@@ -202,6 +209,7 @@ public final class CosmeticModule implements StsvModule, Listener {
             if (p != null) exitWardrobe(p, false);
         });
         if (attachments != null) attachments.removeAll();
+        if (pets != null) pets.removeAll();
         if (packets != null) {
             packets.clear();
             for (Player p : Bukkit.getOnlinePlayers()) {
@@ -370,6 +378,7 @@ public final class CosmeticModule implements StsvModule, Listener {
         if (!p.isOnline() || sessions.containsKey(p.getUniqueId())) return;
         Map<CosmeticSlot, CustomItem> all = concealed(p) ? Map.of() : worn(p);
         attachments.set(p, all);
+        pets.set(p, all.get(CosmeticSlot.PET));
         Optional<CustomItem> worn = Optional.ofNullable(all.get(CosmeticSlot.HEAD));
         if (packets != null) {
             packets.othersView(p.getEntityId(), worn.map(c -> c.create(1)).orElse(null));
@@ -450,9 +459,51 @@ public final class CosmeticModule implements StsvModule, Listener {
 
     @EventHandler public void onJoin(PlayerJoinEvent e) { migrate(e.getPlayer()); restoreIfStuck(e.getPlayer()); makeVisible(e.getPlayer()); refreshLater(e.getPlayer()); }
     /** A respawned player is a new entity on their own client: the models riding the old one are made anew. */
-    @EventHandler public void onRespawn(PlayerRespawnEvent e) { attachments.remove(e.getPlayer()); refreshLater(e.getPlayer()); }
-    @EventHandler public void onWorld(PlayerChangedWorldEvent e) { attachments.remove(e.getPlayer()); refreshLater(e.getPlayer()); }
-    @EventHandler public void onDeath(org.bukkit.event.entity.PlayerDeathEvent e) { attachments.remove(e.getPlayer()); }
+    @EventHandler public void onRespawn(PlayerRespawnEvent e) { attachments.remove(e.getPlayer()); pets.remove(e.getPlayer()); refreshLater(e.getPlayer()); }
+    @EventHandler public void onWorld(PlayerChangedWorldEvent e) { attachments.remove(e.getPlayer()); pets.remove(e.getPlayer()); refreshLater(e.getPlayer()); }
+    @EventHandler public void onDeath(org.bukkit.event.entity.PlayerDeathEvent e) { attachments.remove(e.getPlayer()); pets.remove(e.getPlayer()); }
+
+    // ------------------------------------------------------------------------------------------
+    // Trails and kill effects
+    // ------------------------------------------------------------------------------------------
+
+    /** Every 3 ticks: a mark of the trail where each wearer has walked on (not standing still). */
+    private void trails() {
+        for (Player p : Bukkit.getOnlinePlayers()) {
+            if (inWardrobe(p) || concealed(p)) continue;
+            CustomItem c = worn(p).get(CosmeticSlot.TRAIL);
+            if (c == null || c.cosmetic().fx() == null) {
+                trailAt.remove(p.getUniqueId());
+                continue;
+            }
+            Location here = p.getLocation();
+            Location last = trailAt.get(p.getUniqueId());
+            if (last != null && last.getWorld() == here.getWorld() && last.distanceSquared(here) < 0.15 * 0.15) continue;
+            trailAt.put(p.getUniqueId(), here);
+            CosmeticEffects.play(viewersOf(p, 48), here.clone().add(0, 0.1, 0), c.cosmetic().fx(), ticks, false);
+        }
+    }
+
+    /** A wearer killed something: their effect where it died. */
+    @EventHandler(priority = org.bukkit.event.EventPriority.MONITOR)
+    public void onKill(org.bukkit.event.entity.EntityDeathEvent e) {
+        Player killer = e.getEntity().getKiller();
+        if (killer == null || killer == e.getEntity() || inWardrobe(killer) || concealed(killer)) return;
+        CustomItem c = worn(killer).get(CosmeticSlot.KILL);
+        if (c == null || c.cosmetic().fx() == null) return;
+        Location at = e.getEntity().getLocation().add(0, e.getEntity().getHeight() / 2, 0);
+        CosmeticEffects.play(viewersOf(killer, 64), at, c.cosmetic().fx(), ticks, true);
+    }
+
+    /** Players near the wearer who can see them (and the wearer). */
+    private static List<Player> viewersOf(Player p, double range) {
+        List<Player> out = new ArrayList<>();
+        Location at = p.getLocation();
+        for (Player v : p.getWorld().getPlayers()) {
+            if ((v == p || v.canSee(p)) && v.getLocation().distanceSquared(at) <= range * range) out.add(v);
+        }
+        return out;
+    }
     /** Swinging turns the body to the head on every client: the worn models turn with it. */
     @EventHandler public void onSwing(io.papermc.paper.event.player.PlayerArmSwingEvent e) { attachments.swung(e.getPlayer()); }
 
@@ -554,7 +605,9 @@ public final class CosmeticModule implements StsvModule, Listener {
         final Map<CosmeticSlot, String> look = new EnumMap<>(CosmeticSlot.class);
         /** the mannequin's models outside the head slot */
         final Map<CosmeticSlot, ItemDisplay> models = new EnumMap<>(CosmeticSlot.class);
-        /** tab: "all", "worn" or a slot id */
+        /** ticks since the wardrobe opened (effect previews) */
+        long previewTicks;
+        /** tab: "all", "worn", "effect" or a slot id */
         String tab = "all";
         /** the menu is being reopened on another tab (its page must not be kept) */
         boolean tabbing;
@@ -615,6 +668,7 @@ public final class CosmeticModule implements StsvModule, Listener {
         s.gameMode = p.getGameMode();
         worn(p).forEach((slot, c) -> s.look.put(slot, c.key().asString()));
         attachments.remove(p);
+        pets.remove(p);
         Location o = s.origin;
         p.getPersistentDataContainer().set(keyReturn, PersistentDataType.STRING, String.join(";",
                 o.getWorld().getName(), "" + o.getX(), "" + o.getY(), "" + o.getZ(), "" + o.getYaw(), "" + o.getPitch(),
@@ -659,8 +713,12 @@ public final class CosmeticModule implements StsvModule, Listener {
             s.mannequin.setRotation(s.mannequin.getYaw() + 1.5f, 0);
             float body = s.mannequin.getBodyYaw();
             s.models.forEach((slot, d) -> {
-                if (d.isValid()) d.setRotation(CosmeticAttachments.onBody(slot) ? body : s.mannequin.getYaw(), 0);
+                if (slot != CosmeticSlot.PET && d.isValid()) d.setRotation(CosmeticAttachments.onBody(slot) ? body : s.mannequin.getYaw(), 0);
             });
+            // trail and kill effect on the mannequin, for this player only
+            s.previewTicks++;
+            previewEffect(p, s, CosmeticSlot.TRAIL, 6, s.mannequin.getLocation().add(0, 0.1, 0));
+            previewEffect(p, s, CosmeticSlot.KILL, 50, s.mannequin.getLocation().add(0, 1.0, 0));
         }, 20L, 1L);
         p.playSound(spot, Sound.BLOCK_WOODEN_DOOR_OPEN, 0.8f, 1.2f);
         // attach the camera first, then open the menu: while the client's camera is another entity it
@@ -762,13 +820,30 @@ public final class CosmeticModule implements StsvModule, Listener {
         s.models.clear();
         Location top = s.mannequin.getLocation().add(0, s.mannequin.getHeight(), 0);
         s.look.forEach((slot, id) -> {
-            if (slot == CosmeticSlot.HEAD) return;
+            if (slot == CosmeticSlot.HEAD || slot == CosmeticSlot.TRAIL || slot == CosmeticSlot.KILL) return;   // effects: previewEffect
             plugin.content().item(id).filter(c -> c.cosmetic() != null).ifPresent(c -> {
-                ItemDisplay d = attachments.spawnPreview(top, s.mannequin.getBodyYaw(), slot, c);
+                ItemDisplay d = slot == CosmeticSlot.PET ? pets.spawnPreview(s.mannequin.getLocation(), c)
+                        : attachments.spawnPreview(top, s.mannequin.getBodyYaw(), slot, c);
                 p.showEntity(plugin, d);
                 s.models.put(slot, d);
             });
         });
+    }
+
+    /** The trail or kill effect the mannequin shows, every `every` ticks, to this player only. */
+    private void previewEffect(Player p, Session s, CosmeticSlot slot, int every, Location at) {
+        if (s.previewTicks % every != 0) return;
+        String id = s.look.get(slot);
+        if (id == null) return;
+        plugin.content().item(id).filter(c -> c.cosmetic() != null && c.cosmetic().fx() != null)
+                .ifPresent(c -> CosmeticEffects.play(List.of(p), at, c.cosmetic().fx(), s.previewTicks, slot == CosmeticSlot.KILL, true));
+    }
+
+    /** Slots a tab shows: one slot, "effect" (trail and kill), or null (all, worn). */
+    private static List<CosmeticSlot> tabSlots(String tab) {
+        if (tab.equals("effect")) return List.of(CosmeticSlot.TRAIL, CosmeticSlot.KILL);
+        CosmeticSlot slot = CosmeticSlot.parse(tab);
+        return slot == null ? null : List.of(slot);
     }
 
     /** Cosmetics shown on the open tab. */
@@ -777,7 +852,10 @@ public final class CosmeticModule implements StsvModule, Listener {
         return cosmetics().stream().filter(c -> switch (s.tab) {
             case "all" -> true;
             case "worn" -> worn.get(c.cosmetic().slot()) != null && worn.get(c.cosmetic().slot()).key().equals(c.key());
-            default -> c.cosmetic().slot().id.equals(s.tab);
+            default -> {
+                List<CosmeticSlot> slots = tabSlots(s.tab);
+                yield slots != null && slots.contains(c.cosmetic().slot());
+            }
         }).toList();
     }
 
@@ -787,7 +865,8 @@ public final class CosmeticModule implements StsvModule, Listener {
 
     private String tabName(String tab) {
         CosmeticSlot slot = CosmeticSlot.parse(tab);
-        return slot != null ? slotName(slot) : tab.equals("worn") ? Lang.raw("wardrobe.tab-worn") : Lang.raw("wardrobe.tab-all");
+        return slot != null ? slotName(slot) : tab.equals("worn") ? Lang.raw("wardrobe.tab-worn")
+                : tab.equals("effect") ? Lang.raw("wardrobe.tab-effect") : Lang.raw("wardrobe.tab-all");
     }
 
     private static String names(java.util.Collection<CustomItem> items) {
@@ -828,8 +907,8 @@ public final class CosmeticModule implements StsvModule, Listener {
             for (CosmeticSlot slot : CosmeticSlot.values()) {
                 out.put("worn_" + slot.id, Optional.ofNullable(worn.get(slot)).map(CosmeticModule::displayName).orElse(Lang.raw("common.none")));
             }
-            CosmeticSlot tabSlot = CosmeticSlot.parse(s.tab);
-            out.put("take_off", tabSlot == null ? Lang.raw("wardrobe.take-off-all") : Lang.raw("wardrobe.take-off-slot", "slot", slotName(tabSlot)));
+            List<CosmeticSlot> tabSlots = tabSlots(s.tab);
+            out.put("take_off", tabSlots == null ? Lang.raw("wardrobe.take-off-all") : Lang.raw("wardrobe.take-off-slot", "slot", tabName(s.tab)));
             out.put("self", Lang.raw(selfView(p) ? "wardrobe.self-on" : "wardrobe.self-off"));
             return out;
         }
@@ -942,8 +1021,8 @@ public final class CosmeticModule implements StsvModule, Listener {
             }
             switch (action) {
                 case "wardrobe:take_off" -> {
-                    CosmeticSlot slot = CosmeticSlot.parse(s.tab);
-                    for (CosmeticSlot each : slot == null ? CosmeticSlot.values() : new CosmeticSlot[]{slot}) {
+                    List<CosmeticSlot> slots = tabSlots(s.tab);
+                    for (CosmeticSlot each : slots == null ? List.of(CosmeticSlot.values()) : slots) {
                         store.setWorn(p.getUniqueId(), each.id, null);
                         s.look.remove(each);
                     }
@@ -1148,7 +1227,9 @@ public final class CosmeticModule implements StsvModule, Listener {
         pendingSync.remove(e.getPlayer().getUniqueId());
         lastHurt.remove(e.getPlayer().getUniqueId());
         concealed.remove(e.getPlayer().getUniqueId());
+        trailAt.remove(e.getPlayer().getUniqueId());
         attachments.remove(e.getPlayer());
+        pets.remove(e.getPlayer());
         if (packets != null) packets.forget(e.getPlayer(), e.getPlayer().getEntityId());
     }
 

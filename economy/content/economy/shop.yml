@@ -367,6 +367,23 @@ buy:
       # 꼬리
       - { cosmetic: stsv:cat_tail, price: 12000 }
       - { cosmetic: stsv:fox_tail, price: 25000 }
+      # 펫
+      - { cosmetic: stsv:puppy, price: 12000 }
+      - { cosmetic: stsv:penguin, price: 25000 }
+      - { cosmetic: stsv:ghost, price: 50000 }
+      - { cosmetic: stsv:baby_dragon, price: 50000 }
+      # 발자취
+      - { cosmetic: stsv:petal_trail, price: 12000 }
+      - { cosmetic: stsv:note_trail, price: 25000 }
+      - { cosmetic: stsv:heart_trail, price: 25000 }
+      - { cosmetic: stsv:flame_trail, price: 50000 }
+      - { cosmetic: stsv:rainbow_trail, price: 50000 }
+      # 처치 효과
+      - { cosmetic: stsv:kill_hearts, price: 12000 }
+      - { cosmetic: stsv:kill_snow, price: 25000 }
+      - { cosmetic: stsv:kill_firework, price: 25000 }
+      - { cosmetic: stsv:kill_soul, price: 50000 }
+      - { cosmetic: stsv:kill_thunder, price: 50000 }
   titles:
     name: "칭호"
     icon: name_tag
