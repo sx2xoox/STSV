@@ -279,17 +279,17 @@ buy:
       - { item: fishing_rod, price: 40 }
       - { item: shears, price: 40 }
       - { item: bucket, price: 60 }
-  # 직업 기계: 조합대에서도 만들 수 있음. 값 = 재료의 상점 시세 x 4 (최소 300), 강화 단계 0
+  # 직업 기계: 조합대에서도 만들 수 있음. 강화 단계 0
   machines:
     name: "기계"
     icon: economy:forge
     items:
-      - { item: economy:gem_bench, price: 300 }    # 세공대 (광부)      재료 시세 약 23G
+      - { item: economy:gem_bench, price: 300 }    # 세공대 (광부)      조합 재료 시세 약 23G
       - { item: economy:mill, price: 300 }         # 가공대 (농부)      약 58G
       - { item: economy:fish_bench, price: 300 }   # 손질대 (어부)      약 33G
-      - { item: economy:forge, price: 2500 }       # 대장간 (대장장이)  약 554G: 모루, 철 블록 2, 용광로
-      - { item: economy:kitchen, price: 500 }      # 조리대 (요리사)    약 108G
-      - { item: economy:still, price: 600 }        # 증류기 (연금술사)  약 129G
+      - { item: economy:forge, price: 800 }        # 대장간 (대장장이)  약 554G: 모루, 철 블록 2, 용광로
+      - { item: economy:kitchen, price: 400 }      # 조리대 (요리사)    약 108G
+      - { item: economy:still, price: 500 }        # 증류기 (연금술사)  약 129G
   seeds:
     name: "씨앗·묘목"
     icon: wheat_seeds
