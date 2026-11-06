@@ -622,6 +622,26 @@ refined_oil:
   name: "<#c8b98a>정제유"
   texture: refined_oil
 
+soap:
+  material: paper
+  name: "<#c8b98a>비누"
+  texture: soap
+
+fertilizer:
+  material: paper
+  name: "<#c8b98a>비료"
+  texture: fertilizer
+
+scented_candle:
+  material: paper
+  name: "<#c8b98a>향초"
+  texture: scented_candle
+
+stone_lantern:
+  material: paper
+  name: "<#c8b98a>석등"
+  texture: stone_lantern
+
 # ── 직업 기계 (가구) ─────────────────────────────────────────────
 gem_bench:
   material: paper

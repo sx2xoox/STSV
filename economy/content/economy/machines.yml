@@ -258,3 +258,7 @@ press:
     - { in: { netherrack: 64 }, out: economy:compressed_stone, seconds: 30 }
     - { in: { dirt: 64 }, out: economy:compressed_dirt, seconds: 30 }   # 압축 흙 3G
     - { in: { economy:seed_oil: 4, coal: 1 }, out: economy:refined_oil, seconds: 60, tier: 1 }   # 정제유 48G
+    - { in: { economy:refined_oil: 1, bone_meal: 2 }, out: economy:soap, amount: 2, seconds: 90, tier: 2 }   # 비누 32G
+    - { in: { economy:compost: 4, bone: 2 }, out: economy:fertilizer, amount: 2, seconds: 60, tier: 2 }   # 비료 12G
+    - { in: { economy:refined_oil: 2, string: 2, "#small_flowers": 4 }, out: economy:scented_candle, amount: 2, seconds: 240, tier: 3 }   # 향초 120G
+    - { in: { economy:compressed_stone: 8, torch: 4 }, out: economy:stone_lantern, seconds: 300, tier: 3 }   # 석등 90G (압축 석재를 깎아서)

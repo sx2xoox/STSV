@@ -184,12 +184,12 @@ class ContentTest {
         if (!titles.contains("master_angler")) problems.add("title master_angler");
         assertEquals(3, fish.species().values().stream().filter(x -> x.item().startsWith("minecraft:")).count(), "cod, salmon, pufferfish");
 
-        // the shape: 6 jobs, 6 finds, 95 job machine goods + 5 press goods, 6 job machines + the press,
+        // the shape: 6 jobs, 6 finds, 95 job machine goods + 9 press goods, 6 job machines + the press,
         // 32 crop items (15 seeds, 17 harvests), 92 fish
         assertEquals(6, jobs.jobs().size());
-        assertEquals(6 + 100 + 7 + 32 + 92, ours.size(), "6 finds + 100 goods + 7 machines + 32 crop items + 92 fish");
+        assertEquals(6 + 104 + 7 + 32 + 92, ours.size(), "6 finds + 104 goods + 7 machines + 32 crop items + 92 fish");
         assertEquals(7, machines.size());
-        assertEquals(100, machines.values().stream().flatMap(x -> x.recipes().stream()).map(MachineSpec.Recipe::output).distinct().count());
+        assertEquals(104, machines.values().stream().flatMap(x -> x.recipes().stream()).map(MachineSpec.Recipe::output).distinct().count());
         assertTrue(events.keySet().containsAll(List.of("shortage", "crash", "harvest", "merchant", "tax_audit")));
         assertFalse(Files.exists(PACK.resolve("season.yml")), "no season plan any more");
         // every job product can actually be made: by a recipe, a machine, a job drop or a fishing rod

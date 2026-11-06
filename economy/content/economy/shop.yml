@@ -196,6 +196,10 @@ sell:
       economy:compressed_stone: { base: 5, q: 16 }   # 압축 석재
       economy:compressed_dirt: { base: 3, q: 16 }   # 압축 흙
       economy:refined_oil: { base: 48, q: 8 }   # 정제유
+      economy:soap: { base: 32, q: 16 }   # 비누 (2강)
+      economy:fertilizer: { base: 12, q: 16 }   # 비료 (2강)
+      economy:scented_candle: { base: 120, q: 4 }   # 향초 (3강)
+      economy:stone_lantern: { base: 90, q: 4 }   # 석등 (3강)
   # ── 직업 생산품 (기준가 = 재료값 × 가공 배율: 원재료만 1.5, 가공품·다른 직업 재료 1.8, 가공품 둘 이상 2.2)
   crafts:
     name: "보석·금속"
