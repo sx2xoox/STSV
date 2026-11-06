@@ -55,7 +55,7 @@ achievements:
     value: economy:fish_species
     goal: 60
     unit: "종"
-    rewards: { gold: 25000, title: economy:ichthyologist }
+    rewards: { gold: 25000, title: economy:ichthyologist, cosmetic: stsv:otter }
   fish_4:
     name: "전설의 강태공"
     description: "물고기 10,000마리 낚기"

@@ -72,7 +72,11 @@ class CosmeticContentTest {
 
     @Test
     void rainbowCycles() {
-        assertTrue(!CosmeticEffects.color("rainbow", 0).equals(CosmeticEffects.color("rainbow", 60)));
+        int n = CosmeticEffects.RAINBOW_TICKS;
+        // goes round the colours in 1.5 s, so a trail (marks every 3 ticks, living about a second) shows several
+        assertEquals(30, n);
+        assertTrue(!CosmeticEffects.color("rainbow", 0).equals(CosmeticEffects.color("rainbow", n / 2)));
+        assertEquals(CosmeticEffects.color("rainbow", 3), CosmeticEffects.color("rainbow", 3 + n));
         assertEquals(0xff8800, CosmeticEffects.color("#ff8800", 0).asRGB());
     }
 }

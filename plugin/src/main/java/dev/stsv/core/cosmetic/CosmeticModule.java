@@ -480,7 +480,7 @@ public final class CosmeticModule implements StsvModule, Listener {
             Location last = trailAt.get(p.getUniqueId());
             if (last != null && last.getWorld() == here.getWorld() && last.distanceSquared(here) < 0.15 * 0.15) continue;
             trailAt.put(p.getUniqueId(), here);
-            CosmeticEffects.play(viewersOf(p, 48), here.clone().add(0, 0.1, 0), c.cosmetic().fx(), ticks, false);
+            CosmeticEffects.play(viewersOf(p, 48), here.clone().add(0, c.cosmetic().fx().height(), 0), c.cosmetic().fx(), ticks, false);
         }
     }
 
@@ -717,7 +717,7 @@ public final class CosmeticModule implements StsvModule, Listener {
             });
             // trail and kill effect on the mannequin, for this player only
             s.previewTicks++;
-            previewEffect(p, s, CosmeticSlot.TRAIL, 6, s.mannequin.getLocation().add(0, 0.1, 0));
+            previewEffect(p, s, CosmeticSlot.TRAIL, 6, s.mannequin.getLocation());
             previewEffect(p, s, CosmeticSlot.KILL, 50, s.mannequin.getLocation().add(0, 1.0, 0));
         }, 20L, 1L);
         p.playSound(spot, Sound.BLOCK_WOODEN_DOOR_OPEN, 0.8f, 1.2f);
@@ -836,7 +836,8 @@ public final class CosmeticModule implements StsvModule, Listener {
         String id = s.look.get(slot);
         if (id == null) return;
         plugin.content().item(id).filter(c -> c.cosmetic() != null && c.cosmetic().fx() != null)
-                .ifPresent(c -> CosmeticEffects.play(List.of(p), at, c.cosmetic().fx(), s.previewTicks, slot == CosmeticSlot.KILL, true));
+                .ifPresent(c -> CosmeticEffects.play(List.of(p), slot == CosmeticSlot.TRAIL ? at.clone().add(0, c.cosmetic().fx().height(), 0) : at,
+                        c.cosmetic().fx(), s.previewTicks, slot == CosmeticSlot.KILL, true));
     }
 
     /** Slots a tab shows: one slot, "effect" (trail and kill), or null (all, worn). */

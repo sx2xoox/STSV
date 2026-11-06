@@ -76,7 +76,7 @@ achievements:
     value: stsv:achievements
     goal: 60
     unit: "개"
-    rewards: { gold: 30000, title: stsv:achiever }
+    rewards: { gold: 30000, title: stsv:achiever, cosmetic: stsv:owl }
   hard_10:
     name: "도전자"
     description: "어려움 업적 10개 달성"

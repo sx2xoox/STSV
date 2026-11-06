@@ -38,6 +38,14 @@ SLOT_KO = {"head": "머리", "above": "머리 위", "shoulder": "어깨", "back"
 PET_AT = (-14, 0, 6)           # beside the mannequin (its right, a little behind), on the ground
 
 
+def _floating():
+    items = yaml.safe_load((REPO / "content/stsv/items/cosmetics.yml").read_text())
+    return {k for k, v in items.items() if isinstance(v, dict) and (v.get("cosmetic") or {}).get("float")}
+
+
+FLOATING = _floating()
+
+
 def names_ko():
     items = yaml.safe_load((REPO / "content/stsv/items/cosmetics.yml").read_text())
     return {k: re.sub(r"<[^>]+>", "", v["name"]) for k, v in items.items() if isinstance(v, dict) and "name" in v}
@@ -73,7 +81,7 @@ def worn_scene(name):
     d = C.ALL[name]().to_preview()
     slot = C.SLOTS[name]
     if slot == "pet":
-        lift = 6 if name in ("ghost", "baby_dragon") else 0     # floating pets hover
+        lift = 6 if name in FLOATING else 0     # floating pets hover (cosmetic.float)
         fn = lambda p: [p[0] + PET_AT[0], p[1] + PET_AT[1] + lift, p[2] + PET_AT[2]]
     elif slot == "head":
         # a helmet-slot item: 0.625 x the player's scale, centred on the head
@@ -148,9 +156,12 @@ def main():
     first = [n for n in order if C.SLOTS[n] in ("head", "above")]
     second = [n for n in order if C.SLOTS[n] not in ("head", "above", "pet")]
     pets = [n for n in order if C.SLOTS[n] == "pet"]
-    worn_sheet(first, PREVIEWS / "cosmetics_worn_1.png", ko)
-    worn_sheet(second, PREVIEWS / "cosmetics_worn_2.png", ko)
+    if sys.argv[1:] != ["pets"]:
+        worn_sheet(first, PREVIEWS / "cosmetics_worn_1.png", ko)
+        worn_sheet(second, PREVIEWS / "cosmetics_worn_2.png", ko)
     worn_sheet(pets, PREVIEWS / "cosmetics_pets.png", ko)
+    if sys.argv[1:] == ["pets"]:
+        return
     icon_sheet(order, PREVIEWS / "cosmetics_icons.png", ko)
 
 

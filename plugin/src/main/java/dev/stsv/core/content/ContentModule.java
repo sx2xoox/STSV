@@ -265,7 +265,7 @@ public final class ContentModule implements StsvModule, org.bukkit.event.Listene
                         Math.max(1, sec.getInt("cosmetic.count", slot == CustomItem.CosmeticSlot.KILL ? 20 : 2)),
                         sec.getDouble("cosmetic.spread", slot == CustomItem.CosmeticSlot.KILL ? 0.5 : 0.15),
                         sec.getDouble("cosmetic.speed", 0.02), sec.getString("cosmetic.color"), sec.getString("cosmetic.sound"),
-                        lightning, sec.getBoolean("cosmetic.float"));
+                        lightning, sec.getBoolean("cosmetic.float"), sec.getDouble("cosmetic.height", 0.1));
             }
             cosmetic = new CustomItem.Cosmetic(slot, rarity, sec.getString("cosmetic.obtain"),
                     off.size() == 3 ? new org.bukkit.util.Vector(off.get(0), off.get(1), off.get(2)) : new org.bukkit.util.Vector(),

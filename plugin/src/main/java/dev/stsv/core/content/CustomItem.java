@@ -104,9 +104,11 @@ public record CustomItem(
     /**
      * What a trail, kill effect or pet does: particle (a Bukkit particle name) with count, spread (blocks)
      * and speed; color = a hex colour for DUST, or "rainbow"; sound (a sound key, kill effects);
-     * lightning = a harmless lightning strike (kill effects); floating = a pet that hovers.
+     * lightning = a harmless lightning strike (kill effects); floating = a pet that hovers; height = how
+     * far above the feet a trail mark appears (blocks).
      */
-    public record Fx(String particle, int count, double spread, double speed, String color, String sound, boolean lightning, boolean floating) {}
+    public record Fx(String particle, int count, double spread, double speed, String color, String sound, boolean lightning, boolean floating,
+                     double height) {}
 
     /**
      * Where a cosmetic is worn. HEAD replaces what others see on the head (the real helmet stays);

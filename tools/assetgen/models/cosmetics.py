@@ -556,6 +556,245 @@ def baby_dragon():
     return m
 
 
+
+# ── 상점 펫 ────────────────────────────────────────────────────────────────────────────────
+
+def cat():
+    """아기 고양이: a grey tabby kitten, tail up, green eyes."""
+    m = MModel("cat")
+    fur, stripe, white = Mat("millstone", "speckle", 3), Mat("millstone", "plain", 1), Mat("snow", "plain", 2)
+    green = Mat("leaf", "plain", 4)
+    m.box("body", (6, 3, 7), (10, 6.5, 12.5), fur)
+    m.box("belly", (6.5, 2.75, 7.75), (9.5, 3, 11.25), white, faces={"up": None})
+    m.box("stripe", (6.75, 6.5, 8.5), (9.25, 6.75, 9.25), stripe, faces={"down": None})
+    m.box("stripe", (6.75, 6.5, 10.25), (9.25, 6.75, 11), stripe, faces={"down": None})
+    m.box("head", (5.5, 5.5, 3.5), (10.5, 10, 8), fur)
+    m.box("stripe", (7.5, 10, 4.25), (8.5, 10.25, 7), stripe, faces={"down": None})
+    m.box("muzzle", (6.75, 5.75, 2.75), (9.25, 7.5, 3.5), white, faces={"south": None})
+    m.box("nose", (7.5, 7, 2.5), (8.5, 7.5, 2.75), PINK, faces={"south": None})
+    mirror(m, "eye", (6.25, 8, 3.25), (7.5, 9.25, 3.5), green, faces={"south": None})
+    mirror(m, "pupil", (6.75, 8, 3.15), (7.0, 9.25, 3.25), EYE, faces={"south": None})
+    mirror(m, "ear", (5.75, 10, 4.5), (7.25, 11.75, 6), fur)
+    mirror(m, "ear_in", (6.0, 10, 4.25), (7.0, 11.25, 4.5), PINK, faces={"south": None})
+    mirror(m, "leg", (6.25, 0, 7.5), (7.5, 3, 9), fur)
+    mirror(m, "leg", (6.25, 0, 10.75), (7.5, 3, 12.25), fur)
+    mirror(m, "paw", (6.25, 0, 7.25), (7.5, 0.75, 7.5), white, faces={"south": None})
+    m.box("tail", (7.5, 5, 12.5), (8.5, 10, 13.5), fur)
+    m.box("tail", (7.5, 10, 11.75), (8.5, 11, 13.25), stripe)
+    _display(m, PET_GUI, 1.1, -1)
+    return m
+
+
+def bunny():
+    """아기 토끼: white, long pink-lined ears, a cotton tail."""
+    m = MModel("bunny")
+    fur, puff = Mat("snow", "plain", 2), Mat("feather", "plain", 3)
+    m.box("body", (6, 1, 5.5), (10, 6, 12), fur)
+    m.box("head", (5.75, 5, 3.5), (10.25, 9.5, 7.5), fur)
+    m.box("muzzle", (6.75, 5.25, 3), (9.25, 6.75, 3.5), puff, faces={"south": None})
+    m.box("nose", (7.5, 6.25, 2.75), (8.5, 6.75, 3), PINK, faces={"south": None})
+    mirror(m, "eye", (6.5, 7.5, 3.25), (7.5, 8.5, 3.5), EYE, faces={"south": None})
+    mirror(m, "cheek", (5.9, 6, 3.25), (6.65, 6.75, 3.5), Mat("pink", "plain", 3), faces={"south": None})
+    mirror(m, "ear", (6.25, 9.5, 5), (7.5, 14.5, 6), fur)
+    mirror(m, "ear_in", (6.5, 10, 4.75), (7.25, 14, 5), PINK, faces={"south": None})
+    mirror(m, "paw", (6.5, 0, 4.75), (7.5, 1.5, 6), fur)
+    mirror(m, "foot", (5.5, 0, 8.75), (7, 1, 12.25), fur)
+    m.box("tail", (7, 2.5, 12), (9, 4.5, 13.5), puff)
+    _display(m, PET_GUI, 1.0, -1)
+    return m
+
+
+def panda():
+    """아기 판다: round and white, black ears, eye patches, legs and a shoulder band."""
+    m = MModel("panda")
+    white, black = Mat("feather", "plain", 2), Mat("rubber", "plain", 2)
+    m.box("body", (5.5, 2.5, 6.5), (10.5, 8, 12.5), white)
+    m.box("band", (5.4, 5, 6.4), (10.6, 8.1, 8.75), black)
+    mirror(m, "leg", (5.75, 0, 7), (7.5, 3, 8.75), black)
+    mirror(m, "leg", (5.75, 0, 10.5), (7.5, 3, 12.25), black)
+    m.box("head", (5, 7, 3), (11, 12, 8), white)
+    mirror(m, "ear", (5.25, 11.5, 5), (7, 13.25, 6.5), black)
+    mirror(m, "patch", (5.75, 8.75, 2.75), (7.5, 10.75, 3), black, faces={"south": None})
+    mirror(m, "eye", (6.5, 9.75, 2.6), (7.25, 10.5, 2.75), WHITE, faces={"south": None})
+    m.box("muzzle", (6.75, 7.25, 2.25), (9.25, 8.75, 3), white, faces={"south": None})
+    m.box("nose", (7.5, 8.25, 2), (8.5, 8.75, 2.25), black, faces={"south": None})
+    m.box("tail", (7.5, 6, 12.5), (8.5, 7, 13.25), white)
+    _display(m, PET_GUI, 1.0, -2)
+    return m
+
+
+def turtle():
+    """아기 거북이: a domed green shell with a yellow rim, head peeking out."""
+    m = MModel("turtle")
+    shell, shell_top, rim, skin = Mat("leaf_dark", "speckle", 2), Mat("leaf_dark", "plain", 3), Mat("bean", "plain", 2), Mat("musk", "plain", 2)
+    m.box("rim", (4.75, 1.5, 5.25), (11.25, 2.25, 12.75), rim)
+    m.box("shell", (5, 2.25, 5.5), (11, 5.5, 12.5), shell)
+    m.box("shell", (5.75, 5.5, 6.25), (10.25, 6.75, 11.75), shell_top)
+    m.box("scute", (7.25, 6.75, 7.5), (8.75, 7, 10.5), rim, faces={"down": None})
+    m.box("head", (6.5, 2, 2.25), (9.5, 5, 5.5), skin)
+    mirror(m, "eye", (6.75, 3.75, 2.0), (7.5, 4.5, 2.25), EYE, faces={"south": None})
+    m.box("mouth", (7.25, 2.75, 2.0), (8.75, 3.0, 2.25), Mat("musk", "plain", 0), faces={"south": None})
+    mirror(m, "leg", (4.25, 0, 6), (5.75, 2, 7.5), skin)
+    mirror(m, "leg", (4.25, 0, 10.5), (5.75, 2, 12), skin)
+    m.box("tail", (7.5, 1.75, 12.5), (8.5, 2.5, 13.75), skin)
+    _display(m, PET_GUI, 1.1, 0)
+    return m
+
+
+# ── 업적 보상 펫 ────────────────────────────────────────────────────────────────────────────
+
+def mole():
+    """두더지 (업적 광맥 사냥꾼): dark fur, a pink snout and big digging paws, a little miner's helmet."""
+    m = MModel("mole")
+    fur, pink, hard = Mat("soot", "plain", 2), Mat("pink", "plain", 2), Mat("corn", "plain", 2)
+    m.box("body", (5.5, 1, 6), (10.5, 6, 12.5), fur)
+    m.box("head", (6, 1.5, 3), (10, 5.5, 6.5), fur)
+    m.box("snout", (7, 2.25, 1.75), (9, 4, 3), pink)
+    m.box("nose", (7.5, 3.25, 1.5), (8.5, 4, 1.75), Mat("pink", "plain", 1), faces={"south": None})
+    mirror(m, "eye", (6.75, 4.25, 2.75), (7.25, 4.75, 3), EYE, faces={"south": None})
+    mirror(m, "paw", (4.5, 0, 3.25), (6.5, 1.75, 5.75), pink)
+    mirror(m, "claw", (4.5, 0, 3.0), (6.5, 0.75, 3.25), WHITE, faces={"south": None})
+    mirror(m, "foot", (6, 0, 10.5), (7.25, 1, 12), pink)
+    m.box("tail", (7.5, 2.5, 12.5), (8.5, 3.5, 13.5), pink)
+    m.box("helmet", (5.75, 5.5, 3), (10.25, 7, 6.75), hard)
+    m.box("brim", (5.5, 5.25, 2.25), (10.5, 5.75, 3), hard)
+    m.box("lamp", (7.25, 5.9, 2.75), (8.75, 6.85, 3), Mat("lamp", "plain", 3, glow=True), faces={"south": None})
+    _display(m, PET_GUI, 1.1, 0)
+    return m
+
+
+def lamb():
+    """아기 양 (업적 목장주): a fluffy fleece, cream face, black legs."""
+    m = MModel("lamb")
+    wool, face, legs = Mat("feather", "weave", 2), Mat("cream", "plain", 2), Mat("rubber", "plain", 2)
+    m.box("body", (5.25, 3, 6), (10.75, 8.5, 12.5), wool)
+    m.box("head", (6.25, 6.5, 2.75), (9.75, 10.25, 6.5), face)
+    m.box("tuft", (6, 10.25, 3.5), (10, 11.5, 6.5), wool)
+    mirror(m, "ear", (4.75, 8.5, 4.5), (6.25, 9.5, 5.75), face)
+    mirror(m, "eye", (6.75, 8.5, 2.5), (7.5, 9.25, 2.75), EYE, faces={"south": None})
+    m.box("nose", (7.5, 7, 2.5), (8.5, 7.5, 2.75), PINK, faces={"south": None})
+    mirror(m, "leg", (6, 0, 7), (7.25, 3, 8.25), legs)
+    mirror(m, "leg", (6, 0, 10.5), (7.25, 3, 11.75), legs)
+    m.box("tail", (7.25, 6.5, 12.5), (8.75, 8, 13.5), wool)
+    _display(m, PET_GUI, 1.0, -1)
+    return m
+
+
+def otter():
+    """수달 (업적 어류학자): stands up, a fish held to its chest, a thick flat tail."""
+    m = MModel("otter")
+    fur, fur_light, cream = Mat("plush", "plain", 1), Mat("plush", "plain", 2), Mat("cream", "plain", 2)
+    fish, fish_dark = Mat("fish_silver", "plain", 3), Mat("fish_silver", "plain", 1)
+    m.box("body", (6, 1, 6.5), (10, 8, 10.5), fur)
+    m.box("belly", (6.75, 1.5, 6.25), (9.25, 7, 6.5), cream, faces={"south": None})
+    m.box("head", (5.75, 7.5, 5.25), (10.25, 11.5, 9.25), fur_light)
+    m.box("muzzle", (6.75, 7.75, 4.5), (9.25, 9.25, 5.25), cream, faces={"south": None})
+    m.box("nose", (7.5, 8.75, 4.25), (8.5, 9.25, 4.5), BLACK, faces={"south": None})
+    mirror(m, "eye", (6.5, 9.75, 5), (7.25, 10.5, 5.25), EYE, faces={"south": None})
+    mirror(m, "ear", (6, 11, 6.5), (7, 12, 7.5), fur)
+    m.box("fish", (4.75, 4.75, 5.25), (10.5, 6, 6.25), fish)
+    m.box("fin", (10.5, 4.25, 5.25), (11.75, 6.5, 6.25), fish_dark)
+    m.box("fish_eye", (5.25, 5.25, 5.0), (5.75, 5.75, 5.25), EYE, faces={"south": None})
+    mirror(m, "arm", (5.75, 4.25, 5.0), (7.0, 5.5, 6.75), fur)
+    mirror(m, "foot", (6, 0, 5.5), (7.5, 1, 7.5), fur)
+    m.box("tail", (7, 1, 10.5), (9, 2.5, 14), fur)
+    _display(m, PET_GUI, 1.0, -1)
+    return m
+
+
+def owl():
+    """부엉이 (업적 업적 마스터): flies beside you; round face disc, gold-ringed eyes, ear tufts."""
+    m = MModel("owl")
+    feather, dark, belly = Mat("plush", "grain", 2), Mat("plush", "grain", 1), Mat("cream", "speckle", 2)
+    disc, ring, beak = Mat("cream", "plain", 3), Mat("gold", "plain", 2), Mat("topaz", "plain", 2)
+    m.box("body", (5.5, 1, 5.5), (10.5, 10, 10.5), feather)
+    m.box("belly", (6.25, 1.5, 5.25), (9.75, 6.75, 5.5), belly, faces={"south": None})
+    m.box("disc", (5.75, 6.75, 5.25), (10.25, 9.75, 5.5), disc, faces={"south": None})
+    mirror(m, "ring", (6, 7, 5.0), (7.75, 9.5, 5.25), ring, faces={"south": None})
+    mirror(m, "eye", (6.5, 7.5, 4.9), (7.25, 9, 5.0), EYE, faces={"south": None})
+    m.box("beak", (7.5, 6.5, 4.75), (8.5, 7.5, 5.25), beak, faces={"south": None})
+    mirror(m, "tuft", (5.5, 10, 6.5), (6.5, 11.75, 7.5), dark)
+    mirror(m, "wing", (4.75, 2.5, 6), (5.5, 8, 9.5), dark, faces={"east": None})
+    mirror(m, "foot", (6.5, 0, 5.5), (7.5, 1, 7), beak)
+    for y in (3.5, 5.5, 7.5):
+        m.box("back_stripe", (6.5, y, 10.5), (9.5, y + 0.75, 10.75), dark, faces={"north": None})
+    m.box("tail", (6.75, 0.75, 10.5), (9.25, 2.75, 11.75), dark)
+    _display(m, PET_GUI, 1.0, -2)
+    return m
+
+
+# ── 한정 펫 (전설: 주간 순위 1위 · 상인 행렬) ───────────────────────────────────────────────────
+
+def haetae():
+    """아기 해태: the palace guardian as a pup; cream body, jade curly mane, one gold horn, a bell."""
+    m = MModel("haetae")
+    body, mane, gold = Mat("whetstone", "plain", 3), Mat("bottle_green", "speckle", 2), Mat("gold", "plain", 2)
+    m.box("body", (5.5, 3, 6.5), (10.5, 8, 12.5), body)
+    mirror(m, "leg", (5.75, 0, 7), (7.5, 3, 8.75), body)
+    mirror(m, "leg", (5.75, 0, 10.5), (7.5, 3, 12.25), body)
+    mirror(m, "claw", (5.75, 0, 6.75), (7.5, 0.75, 7), mane, faces={"south": None})
+    m.box("head", (5, 6.5, 2.5), (11, 12, 7.5), body)
+    m.box("mane", (4.5, 6, 7.5), (11.5, 12.75, 8.75), mane)
+    mirror(m, "mane", (4.25, 6.5, 3.5), (5, 11, 7.5), mane)
+    m.box("mane", (5.5, 12, 3.25), (10.5, 13, 7.5), mane)
+    m.box("horn", (7.5, 13, 4.5), (8.5, 15, 5.5), gold)
+    mirror(m, "eye", (6.25, 9.5, 2.25), (7.5, 10.75, 2.5), EYE, faces={"south": None})
+    mirror(m, "brow", (6, 10.75, 2.25), (7.75, 11.25, 2.5), mane, faces={"south": None})
+    m.box("nose", (7.25, 8.25, 2), (8.75, 9, 2.5), Mat("wood", "plain", 1), faces={"south": None})
+    m.box("grin", (6.5, 7, 2.25), (9.5, 7.75, 2.5), Mat("feather", "plain", 3), faces={"south": None})
+    m.box("bell", (7.25, 5.25, 5.75), (8.75, 6.75, 7), gold)
+    m.box("tail", (7.25, 7, 12.5), (8.75, 10.5, 13.75), mane)
+    m.box("tail", (7.25, 10.5, 11.5), (8.75, 11.75, 13), mane)
+    _display(m, PET_GUI, 1.0, -2)
+    return m
+
+
+def gumiho():
+    """꼬마 구미호: a white fox with nine tails fanned out behind, tipped with blue fox-fire."""
+    m = MModel("gumiho")
+    fur, fire = Mat("snow", "plain", 2), Mat("spectral", "plain", 2, glow=True)
+    m.box("body", (6, 3, 7), (10, 6.5, 12), fur)
+    m.box("head", (5.5, 5.5, 3), (10.5, 10, 7.5), fur)
+    m.box("snout", (6.75, 5.75, 1.75), (9.25, 7.5, 3), fur)
+    m.box("nose", (7.5, 7, 1.5), (8.5, 7.5, 1.75), BLACK, faces={"south": None})
+    mirror(m, "eye", (6.25, 8, 2.75), (7.5, 8.75, 3), EYE, faces={"south": None})
+    m.box("mark", (7.6, 8.9, 2.75), (8.4, 9.65, 3), Mat("fabric_red", "plain", 2), faces={"south": None})
+    mirror(m, "ear", (5.75, 10, 4), (7.25, 12.5, 5.5), fur)
+    mirror(m, "ear_in", (6, 10.25, 3.75), (7, 12, 4), PINK, faces={"south": None})
+    mirror(m, "leg", (6.25, 0, 7.5), (7.5, 3, 9), fur)
+    mirror(m, "leg", (6.25, 0, 10.5), (7.5, 3, 12), fur)
+    # nine tails: five in the back row, four in front of them, fanned at the angles a model allows
+    for row, (z0, z1, angles, y0) in enumerate(((12.75, 13.75, (-45, -22.5, 0, 22.5, 45), 4.5),
+                                                  (12.0, 12.75, (-45, -22.5, 22.5, 45), 5.0))):
+        for a in angles:
+            rot = ("z", a, (8, y0, z0))
+            m.box("tail", (7.25, y0, z0), (8.75, y0 + 6.5, z1), fur, rotation=rot)
+            m.box("tail_fire", (7.25, y0 + 5, z0 - 0.01), (8.75, y0 + 7, z1 + 0.01), fire, rotation=rot)
+    _display(m, PET_GUI, 0.9, -1)
+    return m
+
+
+def phoenix():
+    """아기 봉황: flies beside you; red with a gold breast and crest, fiery wings and long tail plumes."""
+    m = MModel("phoenix")
+    red, gold, flame, tip = Mat("pepper", "plain", 2), Mat("gold", "plain", 2), Mat("fire", "grain", 3), Mat("fire", "plain", 4, glow=True)
+    m.box("body", (6, 2, 6), (10, 7, 11), red)
+    m.box("breast", (6.5, 2.5, 5.75), (9.5, 6.25, 6), Mat("topaz", "plain", 2), faces={"south": None})
+    m.box("head", (6.25, 6.5, 4), (9.75, 10, 7.5), red)
+    m.box("beak", (7.5, 7.5, 3), (8.5, 8.5, 4), gold)
+    mirror(m, "eye", (6.5, 8.5, 3.75), (7.25, 9.25, 4), EYE, faces={"south": None})
+    m.box("crest", (7.5, 10, 5), (8.5, 12.5, 6), gold)
+    m.box("crest", (7.5, 11.5, 6), (8.5, 13, 7), flame)
+    mirror(m, "wing", (2.5, 4.5, 7), (6, 8.5, 9), flame)
+    mirror(m, "wing_tip", (1.5, 6.5, 7), (2.5, 9.5, 9), tip)
+    m.box("plume", (7.5, 2.5, 11), (8.5, 3.5, 17), flame)
+    mirror(m, "plume", (6.25, 3, 11), (7.25, 4, 15.5), Mat("fire", "plain", 3))
+    m.box("plume_tip", (7.25, 2.25, 17), (8.75, 3.75, 18.25), tip)
+    mirror(m, "plume_tip", (6.0, 2.75, 15.5), (7.5, 4.25, 16.5), tip)
+    mirror(m, "leg", (7, 1, 7.5), (7.75, 2, 8.5), gold)
+    _display(m, PET_GUI, 0.9, -1)
+    return m
+
 SLOTS = {
     "straw_hat": "head", "cat_ears": "head", "wizard_hat": "head", "crown": "head", "gat": "head", "frog_hat": "head",
     "halo": "above", "rain_cloud": "above", "heart": "above", "sprout": "above",
@@ -564,10 +803,14 @@ SLOTS = {
     "bear_backpack": "back", "bunny_backpack": "back", "school_bag": "back",
     "fox_tail": "tail", "cat_tail": "tail",
     "puppy": "pet", "penguin": "pet", "ghost": "pet", "baby_dragon": "pet",
+    "cat": "pet", "bunny": "pet", "panda": "pet", "turtle": "pet",
+    "mole": "pet", "lamb": "pet", "otter": "pet", "owl": "pet",
+    "haetae": "pet", "gumiho": "pet", "phoenix": "pet",
 }
 
 ALL = {f.__name__: f for f in (straw_hat, cat_ears, wizard_hat, crown, gat, frog_hat,
                                halo, rain_cloud, heart, sprout,
                                chick, shoulder_cat, slime,
                                angel_wings, demon_wings, butterfly_wings, bear_backpack, bunny_backpack, school_bag,
-                               fox_tail, cat_tail, puppy, penguin, ghost, baby_dragon)}
+                               fox_tail, cat_tail, puppy, penguin, ghost, baby_dragon,
+                               cat, bunny, panda, turtle, mole, lamb, otter, owl, haetae, gumiho, phoenix)}

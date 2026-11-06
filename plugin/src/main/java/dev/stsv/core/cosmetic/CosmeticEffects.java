@@ -51,12 +51,15 @@ final class CosmeticEffects {
         }
     }
 
-    /** "#ff8800", or "rainbow": the hue goes round every few seconds. */
+    /** Ticks for "rainbow" to go once round the colours: short enough that one trail shows several. */
+    static final int RAINBOW_TICKS = 30;
+
+    /** "#ff8800", or "rainbow": the hue goes round every 1.5 seconds. */
     static Color color(String spec, long t) {
         if (spec == null) return Color.WHITE;
         String s = spec.trim().toLowerCase(Locale.ROOT);
         if (s.equals("rainbow")) {
-            java.awt.Color c = java.awt.Color.getHSBColor((t % 120) / 120f, 0.75f, 1f);
+            java.awt.Color c = java.awt.Color.getHSBColor((t % RAINBOW_TICKS) / (float) RAINBOW_TICKS, 0.75f, 1f);
             return Color.fromRGB(c.getRed(), c.getGreen(), c.getBlue());
         }
         try {

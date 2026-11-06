@@ -23,5 +23,6 @@ report:
 rank:
   # 주간 순위 1위 보상: 기념비 건립권 + 전설 치장 하나. 주마다 목록에서 돌아가며 고르고, 이미 가진 것은 건너뜀.
   # 목록을 모두 가진 1위는 대신 골드를 받음
-  weekly-legendary: [stsv:crown, stsv:angel_wings, stsv:demon_wings, stsv:halo]
+  # 목록에 없는 전설 치장(새로 추가된 것)도 목록 뒤에 붙여서 돌림
+  weekly-legendary: [stsv:crown, stsv:angel_wings, stsv:demon_wings, stsv:halo, stsv:haetae, stsv:gumiho, stsv:phoenix]
   weekly-legendary-fallback-gold: 100000

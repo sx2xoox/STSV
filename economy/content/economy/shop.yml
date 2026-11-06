@@ -372,6 +372,10 @@ buy:
       - { cosmetic: stsv:penguin, price: 25000 }
       - { cosmetic: stsv:ghost, price: 50000 }
       - { cosmetic: stsv:baby_dragon, price: 50000 }
+      - { cosmetic: stsv:turtle, price: 12000 }
+      - { cosmetic: stsv:cat, price: 15000 }
+      - { cosmetic: stsv:bunny, price: 25000 }
+      - { cosmetic: stsv:panda, price: 45000 }
       # 발자취
       - { cosmetic: stsv:petal_trail, price: 12000 }
       - { cosmetic: stsv:note_trail, price: 25000 }
@@ -403,6 +407,9 @@ merchant:
     - { item: stsv:halo_voucher, price: 250000, stock: 1 }
     - { item: stsv:angel_wings_voucher, price: 250000, stock: 1 }
     - { item: stsv:demon_wings_voucher, price: 250000, stock: 1 }
+    - { item: stsv:haetae_voucher, price: 250000, stock: 1 }
+    - { item: stsv:gumiho_voucher, price: 250000, stock: 1 }
+    - { item: stsv:phoenix_voucher, price: 250000, stock: 1 }
   items:
     - { item: enchanted_golden_apple, price: 8000, stock: 2 }
     - { item: totem_of_undying, price: 6000, stock: 2 }

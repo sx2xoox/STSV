@@ -199,7 +199,7 @@ fox_tail:
   max-stack: 1
   cosmetic: { slot: tail, rarity: rare, obtain: "상점 · 치장" }
 
-# ── 펫 (옆에서 따라다님. float: true = 떠다님) ─────────────────────────────────────────────
+# ── 펫 (옆에서 따라다님. float: true = 떠다님, particle = 가끔 흘리는 파티클) ────────────────────────
 puppy:
   material: paper
   name: "<#f0a050>강아지"
@@ -232,20 +232,110 @@ baby_dragon:
   max-stack: 1
   cosmetic: { slot: pet, rarity: epic, obtain: "상점 · 치장", float: true }
 
-# ── 발자취 (걸은 자리에 파티클. particle = 바닐라 파티클 이름, DUST 는 color) ────────────────
+cat:
+  material: paper
+  name: "<#c9c4bc>아기 고양이"
+  lore: ["<gray>꼬리를 바짝 세우고 졸졸"]
+  model: cat
+  max-stack: 1
+  cosmetic: { slot: pet, rarity: common, obtain: "상점 · 치장" }
+
+turtle:
+  material: paper
+  name: "<#7fb069>아기 거북이"
+  lore: ["<gray>느긋해 보여도 꼭 따라옴"]
+  model: turtle
+  max-stack: 1
+  cosmetic: { slot: pet, rarity: common, obtain: "상점 · 치장" }
+
+bunny:
+  material: paper
+  name: "<#ffd6e0>아기 토끼"
+  lore: ["<gray>깡충깡충, 솜뭉치 꼬리"]
+  model: bunny
+  max-stack: 1
+  cosmetic: { slot: pet, rarity: rare, obtain: "상점 · 치장" }
+
+panda:
+  material: paper
+  name: "<#eeeeee>아기 판다"
+  lore: ["<gray>뒤뚱뒤뚱, 대나무 냄새가 남"]
+  model: panda
+  max-stack: 1
+  cosmetic: { slot: pet, rarity: epic, obtain: "상점 · 치장" }
+
+# 업적 보상 펫 (상점에 없음)
+mole:
+  material: paper
+  name: "<#c49a6c>두더지"
+  lore: ["<gray>광부 헬멧을 쓴 땅 파기 선수"]
+  model: mole
+  max-stack: 1
+  cosmetic: { slot: pet, rarity: epic, obtain: "업적 · 광맥 사냥꾼 (광석 5,000개)" }
+
+lamb:
+  material: paper
+  name: "<#f5f0e6>아기 양"
+  lore: ["<gray>보송보송 털뭉치"]
+  model: lamb
+  max-stack: 1
+  cosmetic: { slot: pet, rarity: epic, obtain: "업적 · 목장주 (동물 번식)" }
+
+otter:
+  material: paper
+  name: "<#c8925a>수달"
+  lore: ["<gray>물고기를 꼭 끌어안고 다님"]
+  model: otter
+  max-stack: 1
+  cosmetic: { slot: pet, rarity: epic, obtain: "업적 · 어류학자 (물고기 60종)" }
+
+owl:
+  material: paper
+  name: "<#d9b47a>부엉이"
+  lore: ["<gray>옆에서 둥실둥실 날아다님"]
+  model: owl
+  max-stack: 1
+  cosmetic: { slot: pet, rarity: epic, obtain: "업적 · 업적 마스터 (업적 60개)", float: true }
+
+# 한정 펫 (전설): 주간 순위 1위 보상, 상인 행렬 사건 때 교환권. 상점에 없음
+haetae:
+  material: paper
+  name: "<gradient:#7fd3a0:#ffd36b>아기 해태</gradient>"
+  lore: ["<gray>궁궐을 지키던 수호신의 아기", "<gray>가끔 반짝이는 빛을 흘림"]
+  model: haetae
+  max-stack: 1
+  cosmetic: { slot: pet, rarity: legendary, obtain: "주간 순위 1위 · 상인 행렬", particle: end_rod, count: 1, spread: 0.2, speed: 0.01 }
+
+gumiho:
+  material: paper
+  name: "<gradient:#e8f6ff:#45e7ed>꼬마 구미호</gradient>"
+  lore: ["<gray>아홉 꼬리 끝에 도깨비불", "<gray>푸른 불씨가 따라다님"]
+  model: gumiho
+  max-stack: 1
+  cosmetic: { slot: pet, rarity: legendary, obtain: "주간 순위 1위 · 상인 행렬", particle: soul_fire_flame, count: 1, spread: 0.2, speed: 0.005 }
+
+phoenix:
+  material: paper
+  name: "<gradient:#ff8a3d:#ffd36b>아기 봉황</gradient>"
+  lore: ["<gray>날갯짓마다 불씨가 반짝", "<gray>옆에서 둥실둥실 날아다님"]
+  model: phoenix
+  max-stack: 1
+  cosmetic: { slot: pet, rarity: legendary, obtain: "주간 순위 1위 · 상인 행렬", float: true, particle: small_flame, count: 2, spread: 0.2, speed: 0.005 }
+
+# ── 발자취 (걸은 자리에 파티클. particle = 바닐라 파티클 이름, DUST 는 color, height = 발에서 높이(기본 0.1)) ──
 petal_trail:
   material: pink_petals
   name: "<#ffb7d5>꽃잎 발자취"
-  lore: ["<gray>걸음마다 벚꽃잎"]
+  lore: ["<gray>걸음마다 벚꽃잎이 흩날림"]
   max-stack: 1
-  cosmetic: { slot: trail, rarity: common, obtain: "상점 · 치장", particle: cherry_leaves, count: 2, spread: 0.2 }
+  cosmetic: { slot: trail, rarity: common, obtain: "상점 · 치장", particle: cherry_leaves, count: 2, spread: 0.3, height: 0.8 }
 
 note_trail:
   material: note_block
   name: "<#7fe07a>음표 발자취"
-  lore: ["<gray>걸음마다 음표"]
+  lore: ["<gray>걸음마다 통통 튀는 음표"]
   max-stack: 1
-  cosmetic: { slot: trail, rarity: rare, obtain: "상점 · 치장", particle: note, count: 1, spread: 0.2, speed: 1 }
+  cosmetic: { slot: trail, rarity: rare, obtain: "상점 · 치장", particle: note, count: 3, spread: 0.3, speed: 1, height: 0.5 }
 
 heart_trail:
   material: poppy
@@ -354,3 +444,24 @@ demon_wings_voucher:
   lore: ["<gray>우클릭: 악마 날개를 계정에 등록합니다.", "<gold>전설 치장", "<dark_gray>등록 후 /치장 에서 착용"]
   texture: demon_wings_voucher
   voucher: { cosmetic: demon_wings }
+
+haetae_voucher:
+  material: paper
+  name: "<#7fd3a0>아기 해태 교환권"
+  lore: ["<gray>우클릭: 아기 해태를 계정에 등록합니다.", "<gold>전설 펫", "<dark_gray>등록 후 /치장 에서 꺼내기"]
+  texture: haetae_voucher
+  voucher: { cosmetic: haetae }
+
+gumiho_voucher:
+  material: paper
+  name: "<#45e7ed>꼬마 구미호 교환권"
+  lore: ["<gray>우클릭: 꼬마 구미호를 계정에 등록합니다.", "<gold>전설 펫", "<dark_gray>등록 후 /치장 에서 꺼내기"]
+  texture: gumiho_voucher
+  voucher: { cosmetic: gumiho }
+
+phoenix_voucher:
+  material: paper
+  name: "<#ff8a3d>아기 봉황 교환권"
+  lore: ["<gray>우클릭: 아기 봉황을 계정에 등록합니다.", "<gold>전설 펫", "<dark_gray>등록 후 /치장 에서 꺼내기"]
+  texture: phoenix_voucher
+  voucher: { cosmetic: phoenix }

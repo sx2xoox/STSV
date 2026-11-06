@@ -200,11 +200,16 @@ public final class RankModule extends EcoModule implements WeeklyListener {
     }
 
     /**
-     * The week's legendary cosmetic for the winner: config rank.weekly-legendary, starting at the week's
-     * place in the list and skipping what they already own; gold if they own them all.
+     * The week's legendary cosmetic for the winner: config rank.weekly-legendary, then every other legendary
+     * cosmetic (one added later reaches servers whose config.yml still has the old list), starting at the
+     * week's place in the list and skipping what they already own; gold if they own them all.
      */
     private void weeklyLegendary(UUID winner, int endedWeek) {
-        List<String> list = eco.getConfig().getStringList("rank.weekly-legendary");
+        List<String> list = new java.util.ArrayList<>(eco.getConfig().getStringList("rank.weekly-legendary"));
+        core.cosmetics().cosmetics().stream()
+                .filter(c -> c.cosmetic().rarity() == dev.stsv.core.content.CustomItem.Rarity.LEGENDARY)
+                .map(c -> c.key().asString()).sorted()
+                .filter(id -> !list.contains(id)).forEach(list::add);
         java.util.Set<String> owned = core.cosmetics().owned(winner);
         for (int k = 0; k < list.size(); k++) {
             String id = list.get(Math.floorMod(endedWeek + k, list.size()));

@@ -137,6 +137,9 @@ ICONS = {
     "halo_voucher": lambda: I.voucher("gold", gem="lamp"),
     "angel_wings_voucher": lambda: I.voucher("gold", gem="feather"),
     "demon_wings_voucher": lambda: I.voucher("gold", gem="crimson"),
+    "haetae_voucher": lambda: I.voucher("gold", gem="bottle_green"),
+    "gumiho_voucher": lambda: I.voucher("gold", gem="spectral"),
+    "phoenix_voucher": lambda: I.voucher("gold", gem="fox"),
     "cheque": I.cheque,
 }
 

@@ -13,6 +13,7 @@ import org.bukkit.util.Vector;
 
 import java.util.ArrayList;
 import java.util.HashMap;
+import java.util.List;
 import java.util.Map;
 import java.util.UUID;
 import java.util.function.Predicate;
@@ -22,7 +23,8 @@ import java.util.function.Predicate;
  * stands half a block above the ground) that trots after its owner. Unlike the worn models it is meant
  * to follow, not to be attached: each tick it moves part of the way to a spot behind the owner's right
  * side, turns the way it walks (or the owner's way when standing), hops while walking, and floating
- * pets hover and bob. Far behind (a teleport) or another world: it appears at the spot.
+ * pets hover and bob. Far behind (a teleport) or another world: it appears at the spot. A pet with a
+ * particle (cosmetic.particle) lets one go every half second.
  */
 final class CosmeticPets {
 
@@ -137,6 +139,15 @@ final class CosmeticPets {
             Location at = location(p.getWorld(), pet.pos, pet.yaw, pet.item, pet.t);
             if (!floating(pet.item) && moved > 0.03) at.add(0, Math.abs(Math.sin(pet.t * 0.55)) * 0.12, 0);   // hop
             pet.display.teleport(at);
+            // a pet with a particle (the legendary ones) lets one go every half second, for whoever sees the pet
+            CustomItem.Fx fx = pet.item.cosmetic() == null ? null : pet.item.cosmetic().fx();
+            if (fx != null && fx.particle() != null && pet.t % 10 == 0) {
+                List<Player> viewers = new ArrayList<>();
+                for (Player v : p.getWorld().getPlayers()) {
+                    if (v.canSee(pet.display) && v.getLocation().distanceSquared(at) < 48 * 48) viewers.add(v);
+                }
+                CosmeticEffects.play(viewers, at.clone().add(0, 0.4, 0), fx, pet.t, false);
+            }
             if (sweep) {
                 for (Player v : p.getWorld().getPlayers()) {
                     boolean want = v == p || v.canSee(p);

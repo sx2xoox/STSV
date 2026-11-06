@@ -44,7 +44,7 @@ achievements:
     icon: minecraft:saddle
     stat: animals_bred
     goal: 500
-    rewards: { gold: 15000, items: ["minecraft:saddle x1", "minecraft:name_tag x3"], title: economy:rancher }
+    rewards: { gold: 15000, items: ["minecraft:saddle x1", "minecraft:name_tag x3"], title: economy:rancher, cosmetic: stsv:lamb }
   harvest_4:
     name: "들판의 주인"
     description: "작물 100,000번 수확"

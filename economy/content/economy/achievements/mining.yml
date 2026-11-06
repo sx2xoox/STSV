@@ -36,7 +36,7 @@ achievements:
     icon: minecraft:diamond_ore
     stat: ores_mined
     goal: 5000
-    rewards: { gold: 20000, items: ["minecraft:diamond x5"], title: economy:vein_hunter }
+    rewards: { gold: 20000, items: ["minecraft:diamond x5"], title: economy:vein_hunter, cosmetic: stsv:mole }
   find_2:
     name: "보물 감별사"
     description: "희귀한 것 100개 발견"
