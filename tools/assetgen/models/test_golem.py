@@ -2,7 +2,8 @@
 TEST boss "test_golem": one model per bone. Geometry is written in the boss's assembly space
 (model units, origin = ground centre between the feet, front = -z) and each bone model is shifted so its
 pivot lands on (8, 8, 8), the point the plugin rotates it around. The pivots come from the boss
-definition (content/stsv/bosses/test.yml), so model and animation can never disagree.
+definition (the test fixture plugin/src/test/fixtures/stsv/bosses/test.yml), so model and animation can never
+disagree.
 
 A bone can reach 24 units (1.5 blocks) from its pivot in every direction (the -16..32 model limit), so
 the golem is split where a real joint is anyway: legs, body, head, upper arms, forearms.
@@ -16,7 +17,7 @@ import yaml
 from stsv_assets import presets
 from stsv_assets.model import Model
 
-BOSS_FILE = Path(__file__).resolve().parents[3] / "content" / "stsv" / "bosses" / "test.yml"
+BOSS_FILE = Path(__file__).resolve().parents[3] / "plugin" / "src" / "test" / "fixtures" / "stsv" / "bosses" / "test.yml"
 
 
 def _bones():

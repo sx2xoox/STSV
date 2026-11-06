@@ -36,11 +36,14 @@ class PackIntegrityTest {
     private static final Path CONTENT = Path.of(System.getProperty("stsv.content"));
 
     private Map<String, byte[]> files;
+    private Path packDir;
     private final List<String> problems = new ArrayList<>();
 
-    @Test
-    void everyReferenceResolves() throws Exception {
-        ContentPack pack = new ContentPack("stsv", "stsv", CONTENT.resolve("stsv"));
+    @org.junit.jupiter.params.ParameterizedTest
+    @org.junit.jupiter.params.provider.ValueSource(strings = {"stsv.content", "stsv.fixtures"})
+    void everyReferenceResolves(String root) throws Exception {
+        packDir = Path.of(System.getProperty(root)).resolve("stsv");
+        ContentPack pack = new ContentPack("stsv", "stsv", packDir);
         files = unzip(new PackBuilder().build(List.of(pack), List.of(), 97, "test").zip());
         Set<String> vanillaModels = new HashSet<>();
         try (InputStream in = getClass().getResourceAsStream("/vanilla-models-26.3.txt")) {
@@ -101,7 +104,7 @@ class PackIntegrityTest {
 
     private void checkItemsYaml() throws Exception {
         List<Path> ymls;
-        try (Stream<Path> s = Files.walk(CONTENT.resolve("stsv/items"))) {
+        try (Stream<Path> s = Files.walk(packDir.resolve("items"))) {
             ymls = s.filter(p -> p.toString().endsWith(".yml")).toList();
         }
         Set<String> cosmetics = new HashSet<>();

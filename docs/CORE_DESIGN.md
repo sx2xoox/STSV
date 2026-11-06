@@ -112,8 +112,8 @@ player.sendMessage(Lang.msg("economy.bought", "item", name));        // messages
 | 클릭 판정이 배리어보다 우선하는지 | 가구를 좌클릭/우클릭 | 판정 크기 조정 |
 | 의자에 앉은 높이 | 의자에 앉아보기 | `seat.height` 조정 |
 | 방패 위치/각도 | 손에 들기, 막기(우클릭) | 모델 위치 조정 |
-| 커스텀 재료가 화로 레시피에 들어가는지 | [TEST] 재료를 화로에 | ExactChoice 방식으로 변경 |
-| 회전 부품이 부드럽게 도는지 | [TEST] 기계 위 팬 | `SPIN_STEP` 조정 |
+| 커스텀 재료가 화로 레시피에 들어가는지 | 커스텀 재료를 화로에 (TEST 자료는 이제 서버에 없음: `plugin/src/test/fixtures/stsv`) | ExactChoice 방식으로 변경 |
+| 회전 부품이 부드럽게 도는지 | 경제 서버 직업 기계(세공대 숫돌, 가공대 맷돌) | `SPIN_STEP` 조정 |
 | 상태 줄(잔액)이 안내 문구와 겹치지 않는지 | 옷장에서 치장 착용 → 3초 뒤 잔액이 다시 보임 | `hud.flash-seconds` |
 | 수표 아이콘, 우클릭 입금 | `/수표 1000` → 우클릭 | 아이콘: `tools/assetgen` |
 | 치장이 다른 사람 화면과 본인 F5에 보이고, 본인 투구 칸은 실제 투구(트림, 염색, 인챈트 반짝임, 내구도, 툴팁 그대로) 또는 빈 투구 칸 그림인지 | 토마토 탈 적용 → F5, 인벤토리 열기, 다른 계정. 투구 끼고 빼기, 맞아서 내구도 닳기, 크리에이티브에서 투구 칸 옮기기 | `CosmeticViews`, `CosmeticPackets`, `/stsv cosmetic info` |
@@ -121,7 +121,7 @@ player.sendMessage(Lang.msg("economy.bought", "item", name));        // messages
 | 치장 상태 | `/관리자 치장 정보` | - |
 | 3D 검/낚싯대/방패를 쥔 자세 | 손에 들고 1인칭/3인칭 | 모델 위치 조정 |
 | 옷장 UI 배경이 칸과 딱 맞는지 | `/옷장` 메뉴에서 아이템이 칸 그림 안에 있는지 | 확인 완료 (0.5.x) |
-| 보스 모델이 판정 위치에 딱 붙어 있는지 | `/관리자 보스 소환 test_golem` 후 F3+B | 위아래로 뜨면 `bosses.rider-offset-adjust` |
+| 보스 모델이 판정 위치에 딱 붙어 있는지 | `/관리자 보스 소환 executioner` 후 F3+B | 위아래로 뜨면 `bosses.rider-offset-adjust` |
 | 보스가 바라보는 방향, 팔 휘두르는 방향 | 보스 앞에서 패턴 보기 | 애니메이션 키프레임 부호 |
 | 경고 표시와 실제 판정이 맞는지 | 경고 원 안/밖에서 맞아보기 | 패턴의 `radius`, `forward` |
 | 처형자 패턴 난이도 | 혼자 / 여럿이 상대해보기 | `hold`(지연 길이), `chance`(연타 확률), `turn`(추적 속도), `cooldown` |

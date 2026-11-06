@@ -1,6 +1,6 @@
 # 보스: 처형자. 체력이 아니라 패턴으로 어려운 보스.
 # 겉모습: 검게 그을린 판금 갑옷, 핏빛 휘장과 망토, 금 장식, 서늘하게 빛나는 눈 (분노하면 핏빛)
-# 형식과 좌표/회전 규칙은 test.yml 맨 위 주석 참고. 검 관절은 팔의 연장선(아래쪽)으로 만들어져 있어서
+# 형식과 좌표/회전 규칙은 테스트 자료 plugin/src/test/fixtures/stsv/bosses/test.yml 맨 위 주석 참고. 검 관절은 팔의 연장선(아래쪽)으로 만들어져 있어서
 #   sword 회전 0 = 팔과 일직선,  +X = 칼끝을 앞으로 듦
 executioner:
   name: "<#c4313f><b>처형자</b>"
@@ -418,6 +418,6 @@ executioner:
         head: stsv:model/executioner_head_alert
 
   drops:
-    - { item: stsv:test_material, amount: [8, 14] }
-    - { item: stsv:test_fuel, amount: [4, 8] }
+    - { item: minecraft:diamond, amount: [3, 6] }
+    - { item: minecraft:emerald, amount: [6, 12] }
     - { item: stsv:eggplant_voucher, amount: 1, chance: 0.5 }

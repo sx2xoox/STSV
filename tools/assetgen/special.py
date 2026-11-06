@@ -4,7 +4,9 @@ the vanilla parent that defines the pose (minecraft:item/bow, crossbow), 3D mode
 display transforms, and every item definition mirrors the vanilla one property-for-property
 (check_vanilla.py verifies that).
 
-Writes raw resource-pack files to content/stsv/assets/stsv/... (merged as-is by the plugin).
+Writes raw resource-pack files to the TEST fixture pack, plugin/src/test/fixtures/stsv/assets/stsv/...
+(merged as-is by the plugin; the shipped content has none of the TEST set). The shipped cheque and
+voucher icons go to content/stsv/textures (write_icons).
 """
 
 import json
@@ -119,11 +121,14 @@ TEXTURED_MODELS = {
 }
 
 # plain 2D icons (wrapped automatically by the plugin: textures/<name>.png)
-ICONS = {
+TEST_ICONS = {
     "test_material": _themed(I.test_ingot),
     "test_fuel": _themed(I.test_lump),
     "test_chestplate": _themed(I.steel_chestplate),
     "test_skin_book": _themed(I.skin_book),
+}
+# icons of the shipped content (content/stsv/textures)
+ICONS = {
     "tomato_voucher": lambda: I.voucher("tomato"),
     "eggplant_voucher": lambda: I.voucher("eggplant"),
     "mushroom_voucher": lambda: I.voucher("toadstool", gem="cream"),
@@ -135,7 +140,16 @@ def equipment():
     return {"layers": {"humanoid": [{"texture": f"{NS}:test"}]}}
 
 
+def write_icons(content_pack: Path):
+    """The shipped icons (cheque, vouchers) into content/stsv/textures."""
+    (content_pack / "textures").mkdir(parents=True, exist_ok=True)
+    for name, gen in ICONS.items():
+        gen().save(content_pack / "textures" / f"{name}.png")
+    return list(ICONS)
+
+
 def write(content_pack: Path):
+    """The TEST set into the test fixture pack (plugin/src/test/fixtures/stsv), never into shipped content."""
     assets = content_pack / "assets" / NS
     for sub in ("items", "models/item", "textures/item", "equipment", "textures/entity/equipment/humanoid"):
         (assets / sub).mkdir(parents=True, exist_ok=True)
@@ -159,9 +173,9 @@ def write(content_pack: Path):
         gen().save(assets / "textures" / "item" / f"{name}.png")
         model = {"parent": parent, "textures": {"layer0": f"{NS}:item/{name}"}}
         (assets / "models" / "item" / f"{name}.json").write_text(json.dumps(model, indent=2))
-    for name, gen in ICONS.items():
+    for name, gen in TEST_ICONS.items():
         gen().save(content_pack / "textures" / f"{name}.png")
 
     (assets / "equipment" / "test.json").write_text(json.dumps(equipment(), indent=2))
     _themed(I.steel_humanoid)().save(assets / "textures/entity/equipment/humanoid/test.png")
-    return list(item_definitions()) + list(ICONS)
+    return list(item_definitions()) + list(TEST_ICONS)

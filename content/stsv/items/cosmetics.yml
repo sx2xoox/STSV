@@ -1,0 +1,45 @@
+# ─────────────────────────────────────────────────────────────────────────────────────────────
+#  [치장] 보유해야 입을 수 있음. 교환권 우클릭 → 보유 → /치장 에서 착용
+#  rarity: common(일반) / rare(희귀) / epic(영웅) / legendary(전설)
+# ─────────────────────────────────────────────────────────────────────────────────────────────
+tomato_mask:
+  material: paper
+  name: "<#e21806>토마토 탈"
+  model: tomato_mask
+  max-stack: 1
+  cosmetic: { slot: head, rarity: common, obtain: "토마토 탈 교환권" }
+
+eggplant_mask:
+  material: paper
+  name: "<#8c5bd6>가지 탈"
+  model: eggplant_mask
+  max-stack: 1
+  cosmetic: { slot: head, rarity: rare, obtain: "가지 탈 교환권" }
+
+mushroom_mask:
+  material: paper
+  name: "<#e8334a>버섯 탈"
+  model: mushroom_mask
+  max-stack: 1
+  cosmetic: { slot: head, rarity: epic, obtain: "버섯 탈 교환권" }
+
+tomato_voucher:
+  material: paper
+  name: "<#e21806>토마토 탈 교환권"
+  lore: ["<gray>우클릭: 토마토 탈을 계정에 등록합니다.", "<dark_gray>등록 후 /치장 에서 착용"]
+  texture: tomato_voucher
+  voucher: { cosmetic: tomato_mask }
+
+eggplant_voucher:
+  material: paper
+  name: "<#8c5bd6>가지 탈 교환권"
+  lore: ["<gray>우클릭: 가지 탈을 계정에 등록합니다.", "<dark_gray>등록 후 /치장 에서 착용"]
+  texture: eggplant_voucher
+  voucher: { cosmetic: eggplant_mask }
+
+mushroom_voucher:
+  material: paper
+  name: "<#e8334a>버섯 탈 교환권"
+  lore: ["<gray>우클릭: 버섯 탈을 계정에 등록합니다.", "<dark_gray>등록 후 /치장 에서 착용"]
+  texture: mushroom_voucher
+  voucher: { cosmetic: mushroom_mask }

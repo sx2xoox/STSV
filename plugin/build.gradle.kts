@@ -3,7 +3,7 @@ plugins {
 }
 
 group = "dev.stsv"
-version = "0.17.1"
+version = "0.18.0"
 
 repositories {
     mavenCentral()
@@ -34,6 +34,7 @@ dependencies {
 tasks.test {
     useJUnitPlatform()
     systemProperty("stsv.content", file("../content").absolutePath)
+    systemProperty("stsv.fixtures", file("src/test/fixtures").absolutePath)
 }
 
 java {

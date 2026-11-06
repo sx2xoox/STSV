@@ -25,7 +25,8 @@ import static org.junit.jupiter.api.Assertions.assertTrue;
  */
 class BossTest {
 
-    private static final Path CONTENT = Path.of(System.getProperty("stsv.content")).resolve("stsv");
+    /** The TEST boss lives in the test fixture pack (never shipped). */
+    private static final Path CONTENT = Path.of(System.getProperty("stsv.fixtures")).resolve("stsv");
     private static BossSpec golem;
 
     @BeforeAll
@@ -62,7 +63,15 @@ class BossTest {
             }
         }
 
-        YamlConfiguration items = YamlConfiguration.loadConfiguration(CONTENT.resolve("items/test.yml").toFile());
+        // drops: TEST items of the fixture pack or real items of the shipped pack (the vouchers)
+        java.util.Set<String> items = new java.util.HashSet<>();
+        for (Path dir : List.of(CONTENT.resolve("items"), Path.of(System.getProperty("stsv.content")).resolve("stsv/items"))) {
+            try (var files = Files.list(dir)) {
+                for (Path f : files.filter(x -> x.toString().endsWith(".yml")).toList()) {
+                    items.addAll(YamlConfiguration.loadConfiguration(f.toFile()).getKeys(false));
+                }
+            }
+        }
         for (BossSpec.Drop d : golem.drops()) {
             assertTrue(items.contains(d.item().replace("stsv:", "")), "drop " + d.item());
             assertTrue(d.min() >= 1 && d.max() >= d.min());

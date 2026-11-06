@@ -18,6 +18,9 @@ from stsv_assets.palette import PALETTE
 HERE = Path(__file__).parent
 REPO = HERE.parent.parent
 CONTENT = REPO / "content" / "stsv"
+# the TEST set (every kind of item, recipe and boss once) is a test fixture, never shipped
+FIXTURE = REPO / "plugin" / "src" / "test" / "fixtures" / "stsv"
+SHIPPED_MODELS = ("tomato_mask", "eggplant_mask", "mushroom_mask")
 PREVIEWS = REPO / "docs" / "previews"
 BUILD = HERE / "build"
 
@@ -36,21 +39,24 @@ def main():
     ALL = {**ITEMS, **test_golem.ALL, **executioner.ALL}
     import special
 
-    for d in (CONTENT / "models", CONTENT / "textures", BUILD, PREVIEWS):
+    def home(name):
+        return CONTENT if name in SHIPPED_MODELS or name in executioner.ALL else FIXTURE
+
+    for d in (CONTENT / "models", CONTENT / "textures", FIXTURE / "models", FIXTURE / "textures", BUILD, PREVIEWS):
         d.mkdir(parents=True, exist_ok=True)
 
-    # remove generated files of models that no longer exist (otherwise they would still ship)
-    for stale in (CONTENT / "models").glob("*.bbmodel"):
-        if stale.stem not in ALL:
-            stale.unlink()
-            (PREVIEWS / f"{stale.stem}.png").unlink(missing_ok=True)
-            print(f"removed {stale.name} (model no longer defined)")
+    # remove generated files of models that no longer exist or moved (otherwise they would still ship)
+    for pack in (CONTENT, FIXTURE):
+        for stale in (pack / "models").glob("*.bbmodel"):
+            if stale.stem not in ALL or home(stale.stem) != pack:
+                stale.unlink()
+                print(f"removed {stale.relative_to(REPO)} (not defined for this pack)")
 
     built = {}
     for name, fn in ALL.items():
         model = fn()
         built[name] = model
-        model.write(CONTENT / "models" / f"{name}.bbmodel", BUILD / f"{name}.preview.json")
+        model.write(home(name) / "models" / f"{name}.bbmodel", BUILD / f"{name}.preview.json")
         print(f"model   {name}: {len(model.elements)} elements")
         if render and not hasattr(model, "pivot"):   # boss bones are shown assembled/posed instead
             render_preview(BUILD / f"{name}.preview.json", PREVIEWS / f"{name}.png")
@@ -59,8 +65,9 @@ def main():
         fn().save(CONTENT / "textures" / f"{name}.png")
         print(f"icon    {name}")
 
-    names = special.write(CONTENT)
-    print(f"special {', '.join(names)}")
+    names = special.write(FIXTURE)
+    print(f"special (test fixture) {', '.join(names)}")
+    print(f"icons   {', '.join(special.write_icons(CONTENT))}")
     special_sheet(PREVIEWS / "special_items.png")
     import gui
     gui.write(CONTENT)

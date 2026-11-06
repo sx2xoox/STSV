@@ -133,7 +133,9 @@ contents/mypack/
 
 ### 보스 만들기
 
-예시: `content/stsv/bosses/test.yml` (테스트 골렘, 입문용, `/관리자 보스 소환 test_golem`), `executioner.yml` (처형자, 고난도, `/관리자 보스 소환 executioner`). 파일 맨 위 주석에 좌표와 회전 방향 규칙이 있습니다.
+예시: `content/stsv/bosses/executioner.yml` (처형자, 고난도, `/관리자 보스 소환 executioner`). 좌표와 회전 방향 규칙은 테스트 자료 `plugin/src/test/fixtures/stsv/bosses/test.yml` (테스트 골렘, 입문용) 맨 위 주석에 있습니다.
+
+**TEST 아이템·레시피·보스는 서버에 실리지 않습니다.** 플러그인이 지원하는 모든 종류를 하나씩 담은 테스트 자료(`plugin/src/test/fixtures/stsv`)로, 자동 테스트와 새 콘텐츠를 만들 때 참고용입니다.
 
 - **겉모습**: 관절(bone)마다 `.bbmodel` 하나. 회전 중심(pivot)이 모델의 (8, 8, 8)에 오게 만듭니다.
   관절 하나는 중심에서 1.5블록까지 뻗을 수 있으므로, 큰 보스는 실제 관절(어깨, 팔꿈치, 엉덩이...)에서 나눕니다.

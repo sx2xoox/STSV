@@ -1,0 +1,3 @@
+# 테스트 자료 팩 (서버에 실리지 않음): 플러그인이 지원하는 모든 아이템·레시피·보스 종류를 하나씩.
+# models/, textures/, assets/ 는 tools/assetgen/build.py 가 생성합니다.
+namespace: stsv

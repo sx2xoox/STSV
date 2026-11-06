@@ -34,7 +34,7 @@ class VanillaIdsTest {
         }
         List<String> unknown = new ArrayList<>();
         List<Path> files;
-        try (Stream<Path> s = Files.walk(CONTENT)) {
+        try (Stream<Path> s = Stream.concat(Files.walk(CONTENT), Files.walk(Path.of(System.getProperty("stsv.fixtures"))))) {
             files = s.filter(p -> p.toString().endsWith(".yml")).toList();
         }
         for (Path file : files) {
@@ -52,7 +52,7 @@ class VanillaIdsTest {
                     String id = s.toLowerCase(Locale.ROOT);
                     if (id.contains(":") && !id.startsWith("minecraft:")) continue; // custom item
                     id = id.replace("minecraft:", "");
-                    if (!vanilla.contains(id)) unknown.add(CONTENT.relativize(file) + " → " + path + " = " + s);
+                    if (!vanilla.contains(id)) unknown.add(file.getFileName() + " → " + path + " = " + s);
                 }
             }
         }
