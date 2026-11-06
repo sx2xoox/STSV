@@ -318,11 +318,11 @@ stock:
   dividend-soon: "<gray>배당 <white>매주 월요일 05시 <dark_gray>(아직 첫 배당 전)"
   dividend-no: "<gray>배당 <dark_gray>없음 (크게 움직이는 회사)"
   amount-fine: "<gold>{amount} G"
-  my-dividend: "<gray>배당 예상 <gold>약 {amount} <dark_gray>(지난번 기준, 월요일 05시)"
+  my-dividend: "<gray>배당 예상 <gold>약 {amount}"
   my-dividend-soon: "<gray>배당 예상 <dark_gray>첫 배당 뒤에 보임"
   my-dividend-none: "<gray>배당 예상 <dark_gray>없음"
   risk:
-    "1": "<gold>★<dark_gray>☆☆ <gray>안정적 (조금씩 움직임)"
+    "1": "<gold>★<dark_gray>☆☆ <gray>안정적"
     "2": "<gold>★★<dark_gray>☆ <gray>보통"
     "3": "<gold>★★★ <gray>크게 움직임"
   king: "<gold><b>[주식왕]</b></gold> <gray>지난주 {rank}위 <white>{player}</white> <gray>(수익 +{profit})"

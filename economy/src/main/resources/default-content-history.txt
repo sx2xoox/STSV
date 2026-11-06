@@ -330,6 +330,7 @@ e1c96b81524e1aec79354163933f7556164b468b economy/menus/requests.yml
 c5e44327d68a3c5821fcefc4ca747e9bfb18a45b economy/menus/shop.yml
 c89368821d7b63b653cc41b0b75c1606cd53f693 economy/menus/stall.yml
 1140b7ab5c1b7a7ec97bd91dba3fcfc8317e230d economy/menus/stocks.yml
+3544a2dc6fcc2dd9cf48d319aa5b399d988dfbbc economy/menus/stocks.yml
 69e86cdc3507481acede74de1bf8a2b5dd656a25 economy/menus/stocks.yml
 775789d3fcd8329235c1535b7381a713aab0476d economy/menus/stocks.yml
 f5ec59104ff1ed966de73e6f6f52bfc8c6b14eae economy/menus/trade.yml
