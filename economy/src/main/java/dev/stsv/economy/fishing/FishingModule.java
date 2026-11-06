@@ -332,25 +332,11 @@ public final class FishingModule extends EcoModule implements WeeklyListener {
                 "color", r.color(), "fish", s.name(), "size", String.format("%.1f", size), "count", count > 1 ? " ×" + count : ""));
         if (pearl) return;
         boolean first = store.record(u, s.id(), size, now());
-        if (first) {
-            p.sendMessage(Lang.msg("fishing.new-species", "fish", s.name(), "caught", store.of(u).size(), "total", spec.species().size()));
-            checkCodex(p, s);
+        // the codex takes one of the fish to register it (/도감)
+        if (first && !eco.codex().registered(u).contains(dev.stsv.economy.shop.ShopCatalog.norm(s.item()))) {
+            p.sendMessage(Lang.msg("fishing.new-species", "fish", s.name()));
         }
         weeklyRecord(p, s, size);
-    }
-
-    private void checkCodex(Player p, FishSpec.Species s) {
-        UUID u = p.getUniqueId();
-        Map<String, FishStore.Entry> mine = store.of(u);
-        FishSpec.Group grp = spec.groups().get(s.group());
-        if (grp != null && spec.species().values().stream().filter(x -> x.group().equals(grp.id())).allMatch(x -> mine.containsKey(x.id()))) {
-            if (grp.title() != null) core.profiles().grantTitle(u, grp.title());
-            Bukkit.broadcast(Lang.msg("fishing.group-done", "player", p.getName(), "group", grp.name()));
-        }
-        if (spec.species().keySet().stream().allMatch(mine::containsKey)) {
-            core.profiles().grantTitle(u, "economy:master_angler");
-            Bukkit.broadcast(Lang.msg("fishing.all-done", "player", p.getName()));
-        }
     }
 
     /** kv fish.week = "week;player;species;size" of the week's biggest catch (by length). */
@@ -370,105 +356,5 @@ public final class FishingModule extends EcoModule implements WeeklyListener {
         FishSpec.Species s = spec.species().get(cur[2]);
         Bukkit.broadcast(Lang.msg("fishing.week-winner", "player", Players.name(UUID.fromString(cur[1])),
                 "fish", s == null ? cur[2] : s.name(), "size", cur[3]));
-    }
-
-    // ------------------------------------------------------------------------------------------
-    // /도감 (a tab per kind of collection; fishing for now)
-    // ------------------------------------------------------------------------------------------
-
-    public void openCodex(Player p) {
-        openCodex(p, null);
-    }
-
-    private void openCodex(Player p, String group) {
-        core.menus().open(p, "economy:codex", new CodexMenu(group));
-    }
-
-    private final class CodexMenu implements MenuHandler {
-        /** the habitat group shown, null = all */
-        private final String group;
-
-        CodexMenu(String group) {
-            this.group = group;
-        }
-
-        private List<FishSpec.Species> shown() {
-            return spec.species().values().stream().filter(s -> group == null || s.group().equals(group)).toList();
-        }
-
-        @Override
-        public Map<String, String> placeholders(MenuView v) {
-            Map<String, FishStore.Entry> mine = store.of(v.player().getUniqueId());
-            List<FishSpec.Species> l = shown();
-            FishSpec.Group g = group == null ? null : spec.groups().get(group);
-            return Map.of("caught", String.valueOf(mine.size()), "total", String.valueOf(spec.species().size()),
-                    "group", g == null ? Lang.raw("codex.all") : g.name(),
-                    "have", String.valueOf(l.stream().filter(s -> mine.containsKey(s.id())).count()), "all", String.valueOf(l.size()));
-        }
-
-        @Override
-        public ItemStack button(MenuView v, dev.stsv.core.gui.menu.MenuSpec.Button b, ItemStack base) {
-            if (b.key() != 'I') return base;
-            // every group with its count, and the title it gives
-            Map<String, FishStore.Entry> mine = store.of(v.player().getUniqueId());
-            List<Component> lore = new ArrayList<>();
-            for (FishSpec.Group g : spec.groups().values()) {
-                List<FishSpec.Species> in = spec.species().values().stream().filter(x -> x.group().equals(g.id())).toList();
-                long have = in.stream().filter(x -> mine.containsKey(x.id())).count();
-                lore.add(Lang.item(have >= in.size() ? "codex.group-done" : "codex.group", "group", g.name(), "have", have, "all", in.size()));
-            }
-            lore.add(Component.empty());
-            lore.addAll(Lang.items("codex.info-lore"));
-            base.editMeta(meta -> meta.lore(lore));
-            return base;
-        }
-
-        @Override
-        public List<ItemStack> list(MenuView v) {
-            Map<String, FishStore.Entry> mine = store.of(v.player().getUniqueId());
-            List<ItemStack> out = new ArrayList<>();
-            for (FishSpec.Species s : shown()) {
-                FishSpec.Rarity r = spec.rarities().get(s.rarity());
-                FishSpec.Group g = spec.groups().get(s.habitat());
-                String where = s.habitat().equals("fresh") ? Lang.raw("codex.fresh") : s.habitat().equals("salt") ? Lang.raw("codex.salt")
-                        : g == null ? s.habitat() : g.name();
-                String when = s.when() == null ? Lang.raw("codex.anytime") : Lang.raw("codex.when." + s.when());
-                FishStore.Entry e = mine.get(s.id());
-                ItemStack it;
-                if (e == null) {
-                    it = new ItemStack(Material.PAPER);
-                    it.editMeta(meta -> {
-                        meta.setItemModel(NamespacedKey.fromString("economy:gui/unknown"));
-                        meta.itemName(Lang.item("codex.unknown"));
-                        meta.lore(Lang.items("codex.unknown-lore", "where", where, "when", when, "color", r.color(), "rarity", r.name()));
-                    });
-                } else {
-                    it = Items.create(s.item(), 1).orElse(new ItemStack(Material.COD));
-                    it.editMeta(meta -> {
-                        meta.itemName(Text.item("<" + r.color() + ">" + s.name()));
-                        meta.lore(Lang.items("codex.known-lore", "where", where, "when", when, "color", r.color(), "rarity", r.name(),
-                                "count", e.count, "best", String.format("%.1f", e.best), "min", fmt(s.min()), "max", fmt(s.max())));
-                    });
-                }
-                out.add(it);
-            }
-            return out;
-        }
-
-        @Override
-        public void onAction(MenuView v, String action, ClickType click) {
-            List<String> ids = new ArrayList<>(spec.groups().keySet());
-            int at = group == null ? -1 : ids.indexOf(group);
-            switch (action) {
-                case "codex:all" -> openCodex(v.player(), null);
-                case "codex:next" -> openCodex(v.player(), ids.get((at + 1) % ids.size()));
-                case "codex:prev" -> openCodex(v.player(), ids.get(at <= 0 ? ids.size() - 1 : at - 1));
-                default -> { }
-            }
-        }
-    }
-
-    private static String fmt(double cm) {
-        return cm == Math.floor(cm) ? String.valueOf((long) cm) : String.format("%.1f", cm);
     }
 }

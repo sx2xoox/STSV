@@ -67,7 +67,7 @@ class AchievementSpecTest {
                 "ores_mined", "crops_harvested", "fish_caught", "rare_finds", "animals_bred", "machine_made", "shop_sold", "shop_income",
                 "requests_done", "stock_trades", "market_sold", "auctions_won");
         Set<String> providers = Set.of("stsv:achievements", "stsv:points", "stsv:titles", "stsv:cosmetics", "stsv:balance",
-                "economy:job_level", "economy:job_level_max", "economy:jobs_total", "economy:net_worth", "economy:land_chunks", "economy:fish_species");
+                "economy:job_level", "economy:job_level_max", "economy:jobs_total", "economy:net_worth", "economy:land_chunks", "economy:fish_species", "economy:codex");
         Set<String> titles = new HashSet<>(), items = new HashSet<>();
         for (var e : packs.entrySet()) {
             try (Stream<Path> f = Files.list(e.getValue().resolve("titles"))) {

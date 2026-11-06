@@ -1,43 +1,36 @@
-# /도감: 위 = 도감 탭 (지금은 낚시), 가운데 = 물고기 (잡은 것만 그림과 기록), 아래 = 서식지 고르기
+# /도감: 위 = 분류 탭 (상점 판매 분류와 같음), 가운데 = 그 분류의 모든 물건 (처음부터 다 보임)
+# 등록: 그 물건 1개를 바쳐야 함. 칸 클릭 = 인벤토리에서 1개 내고 등록, 도감을 연 채 내 물건 클릭 = 그 물건 등록
 codex:
-  title: "<#f3e3b0>도감 <gray>· 낚시 · {group} <white>{have}<gray>/{all}"
+  title: "<#f3e3b0>도감 <gray>· {tab} <white>{have}<gray>/{all} <dark_gray>· 전체 {total_have}/{total}"
   rows: 6
   background: economy:gui/codex
   layout:
-    - "F...A...I"
+    - "IABCDEFGR"
     - "LLLLLLLLL"
     - "LLLLLLLLL"
     - "LLLLLLLLL"
     - "LLLLLLLLL"
-    - "P.G.X.H.N"
+    - "P...X...N"
   list: L
   buttons:
-    F:
-      action: ""
-      material: FISHING_ROD
-      name: "<aqua>낚시 <gray>(보는 중)"
-      lore: ["<gray>잡은 물고기 <white>{caught}<gray> / {total}"]
     I:
       action: ""
       icon: stsv:gui/info
       material: BOOK
-      name: "<white>서식지별 진행"
-    G:
-      action: "codex:prev"
-      icon: economy:gui/arrow_left
-      material: ARROW
-      name: "<white>◀ 이전 서식지"
-    A:
-      action: "codex:all"
-      icon: economy:gui/wave
-      material: WATER_BUCKET
-      name: "<white>전체 보기"
-      lore: ["<gray>지금: {group}"]
-    H:
-      action: "codex:next"
-      icon: economy:gui/arrow_right
-      material: ARROW
-      name: "<white>다음 서식지 ▶"
+      name: "<white>도감 <gray>{total_have}/{total}"
+    A: { action: "codex:tab:minerals", material: DIAMOND, name: "<white>광물" }
+    B: { action: "codex:tab:farm", material: WHEAT, name: "<white>농산물" }
+    C: { action: "codex:tab:fish", icon: economy:mackerel, material: COD, name: "<white>수산물" }
+    D: { action: "codex:tab:materials", material: OAK_LOG, name: "<white>원목·전리품" }
+    E: { action: "codex:tab:crafts", icon: economy:ruby_ring, material: GOLD_INGOT, name: "<white>보석·금속" }
+    F: { action: "codex:tab:foodstuff", icon: economy:doenjang, material: BREAD, name: "<white>식재료" }
+    G: { action: "codex:tab:dishes", icon: economy:bibimbap, material: MUSHROOM_STEW, name: "<white>요리·술" }
+    R:
+      action: "codex:register_all"
+      icon: economy:gui/chest
+      material: CHEST
+      name: "<yellow>이 분류 모두 등록"
+      lore: ["<gray>인벤토리에 있는 미등록 물건을", "<gray>하나씩 내고 등록합니다. <white>({ready}개)"]
     P:
       action: page:prev
       icon: stsv:gui/prev

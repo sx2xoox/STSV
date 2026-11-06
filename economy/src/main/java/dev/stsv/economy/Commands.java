@@ -170,7 +170,7 @@ final class Commands {
             for (var j : eco.jobs().spec().jobs().values()) out.add(j.name());
             return out;
         }));
-        eco.command("도감", new Simple(player((p, a) -> eco.fishing().openCodex(p)), (s, a) -> List.of()));
+        eco.command("도감", new Simple(player((p, a) -> eco.codex().open(p)), (s, a) -> List.of()));
         eco.command("주식", new Simple(player((p, a) -> {
             var st = eco.stocks();
             if (a.length == 0) {

@@ -1,0 +1,59 @@
+# 업적 (/업적). 파일 하나 = 분류 하나. 형식 설명: plugin 의 AchievementSpec.java 맨 위
+#   tier: easy(쉬움 10점) / normal(보통 25점) / hard(어려움 50점) / very_hard(매우 어려움 100점)
+#   value: economy:codex[:분류] = 도감에 등록한 수 (분류 없으면 전체)
+category: { name: "도감", icon: minecraft:book, order: 35 }
+achievements:
+  codex_10:
+    name: "도감 첫 장"
+    description: "도감에 10개 등록"
+    tier: easy
+    icon: minecraft:book
+    value: economy:codex
+    goal: 10
+    unit: "개"
+    rewards: { gold: 1000 }
+  codex_50:
+    name: "수집가"
+    description: "도감에 50개 등록"
+    tier: normal
+    icon: minecraft:writable_book
+    value: economy:codex
+    goal: 50
+    unit: "개"
+    rewards: { gold: 8000, items: ["minecraft:experience_bottle x32"] }
+  codex_minerals:
+    name: "광물 도감"
+    description: "도감의 광물 분류 모두 등록"
+    tier: normal
+    icon: minecraft:diamond
+    value: economy:codex:minerals
+    goal: 12
+    unit: "개"
+    rewards: { gold: 5000 }
+  codex_100:
+    name: "도감 반을 넘다"
+    description: "도감에 100개 등록"
+    tier: hard
+    icon: minecraft:enchanted_book
+    value: economy:codex
+    goal: 100
+    unit: "개"
+    rewards: { gold: 30000, items: ["minecraft:diamond x5"] }
+  codex_dishes:
+    name: "미식 도감"
+    description: "도감의 요리·술 분류 모두 등록"
+    tier: hard
+    icon: economy:bibimbap
+    value: economy:codex:dishes
+    goal: 24
+    unit: "개"
+    rewards: { gold: 25000 }
+  codex_all:
+    name: "살아있는 도감"
+    description: "도감의 모든 물건 등록"
+    tier: very_hard
+    icon: minecraft:lectern
+    value: economy:codex
+    goal: 213
+    unit: "개"
+    rewards: { gold: 150000, items: ["minecraft:beacon x1"] }

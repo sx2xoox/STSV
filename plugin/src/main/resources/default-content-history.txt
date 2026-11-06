@@ -63,7 +63,9 @@ d628bc241d6647011838a5803129750f01ae187e stsv/assets/stsv/textures/entity/equipm
 d557c6800377372604649e6e952cb6b4f6780746 stsv/assets/stsv/textures/entity/equipment/humanoid_leggings/steel.png
 7e727e0ae980cf5ba71d97b5e0e71198614c10b9 stsv/assets/stsv/textures/gui/achievement_list.png
 1a1170af863ab816edb652f40484dea18037fb02 stsv/assets/stsv/textures/gui/achievements.png
+a28e87a26859c00d588672eeeeeecc16e45242cb stsv/assets/stsv/textures/gui/achievements.png
 54f6c1fc3a50548fe6e717e2c099166bc6b964db stsv/assets/stsv/textures/gui/profile.png
+f9feb75be03aed11b32d4c3b4d2185c2e02995f9 stsv/assets/stsv/textures/gui/profile.png
 05f717c1b9d712dbb8c4f0a8c3f4799ee3744253 stsv/assets/stsv/textures/gui/titles.png
 353d26595f4e5a687c2ff035b38e9b6ddf21c10d stsv/assets/stsv/textures/gui/titles.png
 92ac9de5376614372912b7fe2bed8a623c1c1529 stsv/assets/stsv/textures/gui/wardrobe.png
@@ -138,8 +140,10 @@ c0798ada1b895205b34f70af6e36018b01b6ed25 stsv/items/economy.yml
 7ee26a61c159d9c6e0df1a29494f1aadcbb5ff4c stsv/items/test.yml
 834ec11072fc3ea60431a4878442b9547244a370 stsv/items/test.yml
 861996b6ee7da1cfd464f0c731e2cc4094c1e8e2 stsv/items/test.yml
+148d77ec7013370f587da1a61cbb9e8c023011d8 stsv/menus/achievements.yml
 4d0194a38c1c55691364ac8c57d01302baa9d782 stsv/menus/achievements.yml
 393048777e347699c60d26eb75435c5a0f3299a5 stsv/menus/profile.yml
+5697005d78e38a17efc0aa104ab23b5690d2711d stsv/menus/profile.yml
 b8a79ec2eacff89eb8786243e5224e700189d909 stsv/menus/profile.yml
 1e934b823691cbe3fc4afc94caf6af40ed39522d stsv/menus/titles.yml
 4854942b0887054d71a709ee1fbe0fb543af5075 stsv/menus/titles.yml

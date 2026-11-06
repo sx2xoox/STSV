@@ -15,9 +15,12 @@ import java.util.concurrent.ConcurrentHashMap;
  */
 public final class AchievementStore {
 
-    private static final List<List<String>> SCHEMA = List.of(List.of(
-            "CREATE TABLE IF NOT EXISTS achievement_done (player CHAR(36) NOT NULL, id VARCHAR(128) NOT NULL, "
-                    + "done_at BIGINT NOT NULL, claimed_at BIGINT, PRIMARY KEY (player, id))"));
+    private static final List<List<String>> SCHEMA = List.of(
+            List.of("CREATE TABLE IF NOT EXISTS achievement_done (player CHAR(36) NOT NULL, id VARCHAR(128) NOT NULL, "
+                    + "done_at BIGINT NOT NULL, claimed_at BIGINT, PRIMARY KEY (player, id))"),
+            // where a stat stood when the achievement first applied to the player: only what comes after counts
+            List.of("CREATE TABLE IF NOT EXISTS achievement_base (player CHAR(36) NOT NULL, id VARCHAR(128) NOT NULL, "
+                    + "base DOUBLE NOT NULL, PRIMARY KEY (player, id))"));
 
     /** done_at, and claimed_at (0 = not taken yet) */
     public record Done(long doneAt, long claimedAt) {
@@ -28,6 +31,8 @@ public final class AchievementStore {
 
     private final Db db;
     private final Map<UUID, Map<String, Done>> online = new ConcurrentHashMap<>();
+    /** online players: achievement -> the stat when it started counting */
+    private final Map<UUID, Map<String, Double>> bases = new ConcurrentHashMap<>();
     /** achievement -> how many players have it (for "달성한 사람") */
     private final Map<String, Integer> counts = new ConcurrentHashMap<>();
 
@@ -54,6 +59,12 @@ public final class AchievementStore {
                     rs -> new Object[]{rs.getString(1), rs.getLong(2), rs.getLong(3)}, player.toString())) {
                 m.put((String) r[0], new Done((Long) r[1], (Long) r[2]));
             }
+            Map<String, Double> b = new ConcurrentHashMap<>();
+            for (Object[] r : Db.query(c, "SELECT id, base FROM achievement_base WHERE player = ?",
+                    rs -> new Object[]{rs.getString(1), rs.getDouble(2)}, player.toString())) {
+                b.put((String) r[0], (Double) r[1]);
+            }
+            bases.put(player, b);
             online.put(player, m);
             return null;
         });
@@ -61,6 +72,20 @@ public final class AchievementStore {
 
     public void unload(UUID player) {
         online.remove(player);
+        bases.remove(player);
+    }
+
+    /** The stat value this achievement counts from for an online player (null: not started yet). */
+    public Double base(UUID player, String id) {
+        Map<String, Double> b = bases.get(player);
+        return b == null ? null : b.get(id);
+    }
+
+    /** Starts counting this achievement for the player from this value (once). */
+    public void startBase(UUID player, String id, double value) {
+        Map<String, Double> b = bases.get(player);
+        if (b == null || b.putIfAbsent(id, value) != null) return;
+        db.execute("INSERT INTO achievement_base (player, id, base) VALUES (?, ?, ?)", player.toString(), id, value);
     }
 
     public boolean loaded(UUID player) {
@@ -104,8 +129,10 @@ public final class AchievementStore {
     public CompletableFuture<Void> reset() {
         counts.clear();
         for (Map<String, Done> m : online.values()) m.clear();
+        for (Map<String, Double> m : bases.values()) m.clear();
         return db.async(c -> {
             Db.update(c, "DELETE FROM achievement_done");
+            Db.update(c, "DELETE FROM achievement_base");
             return null;
         });
     }

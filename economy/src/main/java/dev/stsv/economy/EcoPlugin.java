@@ -67,6 +67,7 @@ public final class EcoPlugin extends JavaPlugin {
     private MetricsModule metrics;
     private StockModule stocks;
     private FishingModule fishing;
+    private dev.stsv.economy.codex.CodexModule codex;
     private TradeRules rules;
 
     public static EcoPlugin get() {
@@ -104,6 +105,7 @@ public final class EcoPlugin extends JavaPlugin {
         add(vanity = new VanityModule(this));
         add(stocks = new StockModule(this));
         add(fishing = new FishingModule(this));
+        add(codex = new dev.stsv.economy.codex.CodexModule(this));
         add(rank = new RankModule(this));
         add(metrics = new MetricsModule(this));   // last: its daily report reads what the others did
         StallRemoval.run(this, core.db());
@@ -126,7 +128,8 @@ public final class EcoPlugin extends JavaPlugin {
             var l = land.store().index().ownedBy(p.getUniqueId());
             return l == null ? 0 : l.chunks().size();
         });
-        a.provide("economy:fish_species", (p, x) -> fishing.store().of(p.getUniqueId()).size());
+        a.provide("economy:fish_species", (p, x) -> codex.fishSpecies(p.getUniqueId()));
+        a.provide("economy:codex", (p, tab) -> codex.count(p.getUniqueId(), tab));
     }
 
     private void add(StsvModule m) {
@@ -185,6 +188,7 @@ public final class EcoPlugin extends JavaPlugin {
     public ShopModule shop() { return shop; }
     public StockModule stocks() { return stocks; }
     public FishingModule fishing() { return fishing; }
+    public dev.stsv.economy.codex.CodexModule codex() { return codex; }
     public MarketModule market() { return market; }
     public AuctionModule auction() { return auction; }
     public TradeModule trade() { return trade; }

@@ -140,10 +140,16 @@ public final class AchievementModule implements StsvModule, Listener {
     // Progress
     // ------------------------------------------------------------------------------------------
 
-    /** Current value towards the goal (0 when it cannot be measured now). */
+    /**
+     * Current value towards the goal (0 when it cannot be measured now). A stat counts only from when the
+     * achievement first applied to the player (its base); a value (a level, the net worth...) is what it is now.
+     */
     public double progress(Player p, AchievementSpec a) {
         AchievementSpec.Condition c = a.condition();
-        if (c.stat()) return plugin.profiles().stat(p.getUniqueId(), c.key());
+        if (c.stat()) {
+            Double base = store.base(p.getUniqueId(), a.id());
+            return base == null ? 0 : Math.max(0, plugin.profiles().stat(p.getUniqueId(), c.key()) - base);
+        }
         BiFunction<Player, String, Number> f = providers.get(c.key());
         if (f == null) return 0;
         try {
@@ -175,6 +181,11 @@ public final class AchievementModule implements StsvModule, Listener {
                 for (AchievementSpec a : specs.values()) {
                     if (d.containsKey(a.id())) continue;
                     if (a.condition().kind().equals("value") && !providers.containsKey(a.condition().key())) continue;
+                    if (a.condition().stat() && store.base(u, a.id()) == null) {
+                        // first time this achievement applies to the player: count from here on, not their past
+                        store.startBase(u, a.id(), plugin.profiles().stat(u, a.condition().key()));
+                        continue;
+                    }
                     if (progress(p, a) + 1e-9 >= a.condition().goal() && store.complete(u, a.id(), now)) {
                         announce(p, a);
                         any = true;

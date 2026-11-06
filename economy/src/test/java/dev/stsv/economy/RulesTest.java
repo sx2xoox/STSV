@@ -789,4 +789,24 @@ class RulesTest {
         assertEquals(c.floor(), afterMany, 1e-9);
         assertTrue(curve.hourlyRecovery() > 0 && curve.hourlyRecovery() < 0.5);
     }
+
+    /** The codex achievements count what the codex holds: their goals match the shop's 판매 categories. */
+    @Test
+    void codexAchievementGoalsMatchTheCodex() {
+        java.nio.file.Path content = java.nio.file.Path.of(System.getProperty("stsv.content")).resolve("economy");
+        dev.stsv.economy.shop.ShopCatalog shop = dev.stsv.economy.shop.ShopCatalog.parse(
+                org.bukkit.configuration.file.YamlConfiguration.loadConfiguration(content.resolve("shop.yml").toFile()), new java.util.ArrayList<>());
+        org.bukkit.configuration.file.YamlConfiguration a = org.bukkit.configuration.file.YamlConfiguration.loadConfiguration(
+                content.resolve("achievements/codex.yml").toFile());
+        int total = shop.sellCategories().stream().mapToInt(c -> c.items().size()).sum();
+        assertEquals(total, a.getInt("achievements.codex_all.goal"), "codex_all");
+        for (String key : a.getConfigurationSection("achievements").getKeys(false)) {
+            String value = a.getString("achievements." + key + ".value");
+            String[] parts = value.split(":");
+            if (parts.length < 3) continue;
+            var cat = shop.sellCategories().stream().filter(c -> c.id().equals(parts[2])).findFirst();
+            assertTrue(cat.isPresent(), key + ": no tab " + parts[2]);
+            assertTrue(a.getInt("achievements." + key + ".goal") <= cat.get().items().size(), key);
+        }
+    }
 }

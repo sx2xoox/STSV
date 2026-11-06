@@ -38,6 +38,11 @@ public final class FishStore {
         }
     }
 
+    /** Everyone with at least one catch. */
+    public java.util.Set<UUID> players() {
+        return java.util.Set.copyOf(log.keySet());
+    }
+
     public Map<String, Entry> of(UUID player) {
         return log.getOrDefault(player, Map.of());
     }
