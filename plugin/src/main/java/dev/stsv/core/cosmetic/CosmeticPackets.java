@@ -200,6 +200,37 @@ final class CosmeticPackets {
         links.put(wearer, displays.clone());
     }
 
+    /**
+     * Sends the wearer's link again to these players (each must already know the wearer: they track it
+     * or are the wearer). Safety net: the spawn packets already carry it.
+     */
+    void resendLink(Player wearer, java.util.Collection<? extends Player> viewers) {
+        int[] ids = linked(wearer.getEntityId(), riders.getOrDefault(wearer.getEntityId(), new int[0]));
+        if (ids == null || viewers.isEmpty()) return;
+        try {
+            Object packet = passengers(wearer.getEntityId(), ids);
+            for (Player v : viewers) send(v, packet);
+        } catch (Throwable t) {
+            warn(t);
+        }
+    }
+
+    private volatile Method listenerSend;
+
+    /** ServerPlayer.connection.send(packet): through the pipeline like any other packet. */
+    private void send(Player p, Object packet) throws ReflectiveOperationException {
+        Object handle = p.getClass().getMethod("getHandle").invoke(p);
+        Object listener = handle.getClass().getField("connection").get(handle);
+        if (listener == null) return;
+        Method m = listenerSend;
+        if (m == null) {
+            Class<?> packetType = Class.forName("net.minecraft.network.protocol.Packet", false, passengersCls.getClassLoader());
+            m = listener.getClass().getMethod("send", packetType);
+            listenerSend = m;
+        }
+        m.invoke(listener, packet);
+    }
+
     /** Builds the "these ride that" packet. */
     private Object passengers(int vehicle, int[] ids) throws ReflectiveOperationException {
         io.netty.buffer.ByteBuf raw = io.netty.buffer.Unpooled.buffer(16);

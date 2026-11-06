@@ -765,6 +765,7 @@ f3c85fd1b590e11695e565a57503fb208ab98154 economy/requests.yml
 13d7f43c6113779fe361143faa3b747f4d7afb0c economy/shop.yml
 17eb972a9e13e06057057e01944851a4e95a3f62 economy/shop.yml
 35d6b427c37a8b7227d8fc142e2fbb5b0c28331c economy/shop.yml
+588235b4e1745d74b7f738d204babb38f77fc608 economy/shop.yml
 83ea0e0a9a4e74d71dbf74fc9b4a7aaada752c24 economy/shop.yml
 a5b911c79658d23800ecf92439177e3b62c26887 economy/shop.yml
 ce705e26bab7d4704e536cbb73ac3544170de999 economy/shop.yml

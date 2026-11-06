@@ -37,8 +37,13 @@ import java.util.function.Predicate;
  * <p>Following the wearer: CosmeticPackets makes the displays ride the wearer on the clients only, so the
  * client moves them with the wearer every frame. On the server they stay ordinary entities next to the
  * wearer (moved along when they drift away, for tracking), because a player with real passengers cannot
- * be teleported by other plugins. Without packet rewriting they are teleported every tick instead (a
- * little behind a running player).
+ * be teleported to another world by other plugins. Without packet rewriting they are teleported every
+ * tick instead (a little behind a running player).
+ *
+ * <p>The link must reach a client before or with the display: the server sends a new entity to the
+ * players around it while it is being added to the world, so a display is spawned visible to nobody,
+ * linked, and only then shown. Every 2 seconds the link is sent again to everyone who sees the wearer
+ * (a client that lost it for any reason gets it back).
  *
  * <p>Who sees them: everyone who can see the wearer; the wearer themselves only if they turned that on
  * (a display riding the camera player is drawn in first person too, where a shoulder pet covers the view).
@@ -53,6 +58,8 @@ final class CosmeticAttachments {
      * 2 px lower, under a 1.5 hitbox.
      */
     static final double NECK_STAND = 1.8 - 24 * 0.9375 / 16, NECK_SNEAK = 1.5 - (24 * 0.9375 / 16 - 3.2 * 0.9375 / 16 - 0.125);
+    /** Ticks between the safety re-sends of the riding link. */
+    static final int RELINK_TICKS = 40;
     /** Bobbing above the head: blocks up and down, ticks per half period. */
     static final float BOB = 0.035f;
     static final int BOB_TICKS = 24;
@@ -163,14 +170,26 @@ final class CosmeticAttachments {
                 changed = true;
             }
         }
+        List<Worn> fresh = new ArrayList<>();
         for (Map.Entry<CosmeticSlot, CustomItem> e : wanted.entrySet()) {
             if (e.getKey() == CosmeticSlot.HEAD || have.containsKey(e.getKey())) continue;
-            have.put(e.getKey(), spawn(p, e.getKey(), e.getValue()));
+            Worn w = spawn(p, e.getKey(), e.getValue());
+            have.put(e.getKey(), w);
+            fresh.add(w);
             changed = true;
         }
         if (have.isEmpty()) worn.remove(p.getUniqueId());
-        // before the tracker sends the new displays (end of this tick): they arrive linked
-        if (changed) link(p);
+        if (!changed) return;
+        // linked first, shown after: the spawn packets then carry the link
+        link(p);
+        for (Worn w : fresh) {
+            for (Player v : p.getWorld().getPlayers()) if (shouldSee(v, p)) v.showEntity(plugin, w.display);
+        }
+    }
+
+    /** Who sees a wearer's displays: whoever sees the wearer; the wearer only if they turned it on. */
+    private boolean shouldSee(Player viewer, Player wearer) {
+        return viewer == wearer ? selfView.test(wearer) : viewer.canSee(wearer);
     }
 
     /** Removes the player's displays (they come back with the next {@link #set}). */
@@ -203,19 +222,16 @@ final class CosmeticAttachments {
         boolean sneak = sneaking(p, slot);
         float scale = scale(p);
         ItemDisplay d = p.getWorld().spawn(place(p, slot, sneak), ItemDisplay.class, e -> {
+            e.setVisibleByDefault(false);   // shown once linked (set)
             e.setPersistent(false);
             e.getPersistentDataContainer().set(tag, PersistentDataType.BYTE, (byte) 1);
             e.setItemStack(c.create(1));
             e.setItemDisplayTransform(ItemDisplay.ItemDisplayTransform.NONE);
-            e.setTeleportDuration(packets == null ? 3 : 2);   // turning (and, without riding, moving) is smoothed
+            e.setTeleportDuration(packets == null ? 3 : 1);   // turning (and, without riding, moving) is smoothed
             e.setInterpolationDuration(3);
             e.setShadowRadius(0);
             e.setTransformation(transformation(anchor(slot), c.cosmetic(), sneak, scale, 0));
         });
-        // hidden before the tracker sends it: from the wearer (unless they want it) and from whoever cannot see them
-        for (Player v : p.getWorld().getPlayers()) {
-            if (v == p ? !selfView.test(p) : !v.canSee(p)) v.hideEntity(plugin, d);
-        }
         Worn w = new Worn(d, c);
         w.sneaking = sneak;
         w.scale = scale;
@@ -226,6 +242,7 @@ final class CosmeticAttachments {
     void tick() {
         ticks++;
         boolean sweep = ticks % 5 == 0;
+        boolean resend = ticks % RELINK_TICKS == 0;
         boolean bobFlip = ticks % BOB_TICKS == 0;
         for (Map.Entry<UUID, Map<CosmeticSlot, Worn>> e : new ArrayList<>(worn.entrySet())) {
             Player p = Bukkit.getPlayer(e.getKey());
@@ -267,7 +284,7 @@ final class CosmeticAttachments {
                 }
                 if (sweep) {
                     for (Player v : p.getWorld().getPlayers()) {
-                        boolean want = v == p ? selfView.test(p) : v.canSee(p);
+                        boolean want = shouldSee(v, p);
                         if (want != v.canSee(w.display)) {
                             if (want) v.showEntity(plugin, w.display);
                             else v.hideEntity(plugin, w.display);
@@ -279,6 +296,10 @@ final class CosmeticAttachments {
                 Map<CosmeticSlot, CustomItem> wanted = new EnumMap<>(CosmeticSlot.class);
                 e.getValue().forEach((slot, w) -> wanted.put(slot, w.cosmetic));
                 set(p, wanted);
+            } else if (resend && packets != null) {
+                List<Player> viewers = new ArrayList<>(p.getTrackedBy());
+                if (selfView.test(p)) viewers.add(p);
+                packets.resendLink(p, viewers);
             }
         }
     }

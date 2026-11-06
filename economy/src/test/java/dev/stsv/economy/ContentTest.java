@@ -108,7 +108,7 @@ class ContentTest {
         assertTrue(shop.sellCategories().size() <= ShopCatalog.MAX_CATEGORIES && shop.buyCategories().size() + 1 <= ShopCatalog.MAX_CATEGORIES);
         assertEquals(List.of("minerals", "farm", "fish", "materials", "crafts", "foodstuff", "dishes"),
                 shop.sellCategories().stream().map(ShopCatalog.Category::id).toList());
-        assertEquals(List.of("tools", "seeds", "supplies", "cosmetics", "titles"), shop.buyCategories().stream().map(ShopCatalog.BuyCategory::id).toList());
+        assertEquals(List.of("tools", "machines", "seeds", "supplies", "cosmetics", "titles"), shop.buyCategories().stream().map(ShopCatalog.BuyCategory::id).toList());
         List<String> inCategories = new ArrayList<>();
         for (var c : shop.sellCategories()) {
             if (c.items().isEmpty() || !exists(c.icon(), ours)) problems.add("sell category " + c.id());

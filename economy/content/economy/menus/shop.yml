@@ -15,7 +15,7 @@ shop:
       icon: stsv:gui/info
       material: BOOK
       name: "<white>잔액: {balance}"
-      lore: ["<gray>구매: 도구, 씨앗, 생활 용품, 치장, 칭호", "<gray>판매: 내가 모은 것, 만든 것"]
+      lore: ["<gray>구매: 도구, 기계, 씨앗, 생활 용품, 치장, 칭호", "<gray>판매: 내가 모은 것, 만든 것"]
     B:
       action: "shop:buy"
       icon: economy:gui/cart
