@@ -29,6 +29,7 @@ public final class MenuModule implements StsvModule, Listener {
 
     private STSVPlugin plugin;
     private final Map<String, MenuSpec> menus = new LinkedHashMap<>();
+    private final Map<String, String> overrides = new java.util.concurrent.ConcurrentHashMap<>();
 
     @Override
     public String id() {
@@ -68,12 +69,27 @@ public final class MenuModule implements StsvModule, Listener {
     }
 
     public Optional<MenuSpec> menu(String id) {
-        return Optional.ofNullable(menus.get(id.contains(":") ? id : "stsv:" + id));
+        return Optional.ofNullable(menus.get(full(id)));
     }
 
-    /** Opens a menu; empty if no such menu exists. */
+    /**
+     * Opening menu id shows menu by instead (while by exists), e.g. a content plugin's fuller version of a
+     * core menu (economy:hub for stsv:hub). by == null removes the override. Plugins set it on enable and
+     * remove it on disable, so leftover content of a removed plugin changes nothing.
+     */
+    public void override(String id, String by) {
+        if (by == null) overrides.remove(full(id));
+        else overrides.put(full(id), full(by));
+    }
+
+    private static String full(String id) {
+        return id.contains(":") ? id : "stsv:" + id;
+    }
+
+    /** Opens a menu (or its override); empty if no such menu exists. */
     public Optional<MenuView> open(Player player, String id, MenuHandler handler) {
-        Optional<MenuSpec> spec = menu(id);
+        String by = overrides.get(full(id));
+        Optional<MenuSpec> spec = by != null && menus.containsKey(by) ? menu(by) : menu(id);
         if (spec.isEmpty()) {
             plugin.getLogger().warning("[메뉴] 없는 메뉴: " + id);
             return Optional.empty();

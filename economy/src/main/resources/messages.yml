@@ -394,13 +394,20 @@ stock:
   board-movers: "<gray>오늘 많이 오른 · 내린 회사"
   board-line: "<white>{company}</white> <gray>{price}</gray> {change}"
 
+# 통합 메뉴 (/메뉴, Shift+F)의 경제 칸
+hub:
+  none: "없음"
+  no-job: "없음"
+  no-land: "없음 (건축월드에서 /땅 구매)"
+  land: "{chunks}청크"
+
 land:
   usage: "<gray>/땅 · 구매 [확인] · 포기 · 보기 · 초대 <플레이어> · 수락 · 거절 · 추방 <플레이어> · 나가기 · 양도 <구성원> · 금고 [입금|출금 <금액>] · 해체 [확인]"
   server: "운영자"
   role-owner: "소유자"
   role-member: "구성원"
   here: "<gray>여기는 <white>{owner}</white>의 땅입니다. <dark_gray>(청크 {x}, {z})"
-  here-wild: "<gray>여기는 주인 없는 땅입니다. <dark_gray>(청크 {x}, {z}) <gray>→ <white>/땅 구매"
+  here-wild: "<gray>여기는 주인 없는 땅입니다 (블록 변경 불가). <dark_gray>(청크 {x}, {z}) <gray>→ <white>/땅 구매"
   none-yet: "<gray>아직 땅이 없습니다. 서 있는 청크에서 <white>/땅 구매</white> <gray>(처음 {free}청크는 무료)"
   info: "<gold>{owner}의 땅</gold> <gray>({role}) · 청크 <white>{size}</white> (무료 {free}, 사는 사람 {residents}명) · 다음 청크 {next}\n<gray>재산세 하루 {tax} <dark_gray>({limit}청크 넘는 부분 2배)</dark_gray> · 금고 {vault} <dark_gray>(미납 {warnings}/{warn-days}일)"
   info-members: "<gray>구성원 {count}명: <white>{list}"
@@ -451,7 +458,13 @@ land:
   showing: "<gray>주변 땅 {count}청크의 경계를 10초 동안 보여줍니다. <green>초록</green> = 내가 사는 땅, <red>빨강</red> = 남의 땅, <yellow>노랑</yellow> = 운영자"
   protected: "<red>{owner}의 땅입니다."
   enter: "<gray>{owner}의 땅"
-  leave: "<dark_gray>야생"
+  leave: "<dark_gray>주인 없는 땅"
+  leave-build: "<dark_gray>주인 없는 땅 · 블록 변경 불가"
+  # 건축월드 / 야생월드 (코어 config.yml worlds)
+  build-own-only: "<red>건축월드에서는 내 땅에서만 블록을 부수고 놓을 수 있습니다 <gray>→ /땅 구매 (처음 {free}청크 무료) · 자원은 /야생월드"
+  build-world-only: "<red>땅은 건축월드에서만 살 수 있습니다. <gray>/건축월드 로 가서 서 있는 청크에서 <white>/땅 구매</white> <gray>(처음 {free}청크 무료)"
+  here-wild-world: "<gray>야생월드에는 땅이 없습니다. 누구나 자유롭게 캐고 지을 수 있습니다 (보호 없음, 가끔 초기화)."
+  here-other-world: "<gray>여기는 주인 없는 곳입니다. 땅은 건축월드에서만 살 수 있습니다."
   tax-warning: "<red>재산세 {tax}를 내지 못했습니다 ({n}/{max}). <gray>금고에 넣거나(/땅 금고 입금) 소유자 지갑을 채우세요. {max}일째엔 최근 청크부터 해제됩니다."
   released: "<red>재산세 미납으로 청크 {count}개의 보호가 풀렸습니다. <gray>(남은 청크 {size})"
   vault-low: "<yellow>땅 금고가 부족합니다:</yellow> {vault} <gray>(하루 세금 {tax}, {days}일치). <white>/땅 금고 입금 <금액>"

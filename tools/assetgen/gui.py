@@ -16,7 +16,9 @@ from stsv_assets import ui_icons as U
 
 MENUS_DIR = Path(__file__).resolve().parents[2] / "content/stsv/menus"
 # the core's own buttons (stsv:gui/<name>); contents use them too (pages, close, info)
-CORE_ICONS = ("prev", "next", "prev_off", "next_off", "exit", "info", "take_off", "clear", "back", "chest")
+CORE_ICONS = ("prev", "next", "prev_off", "next_off", "exit", "info", "take_off", "clear", "back", "chest",
+              # the hub (/메뉴): worlds, titles, rankings, money
+              "house", "pine", "tag", "podium", "send", "coins", "crown", "trophy")
 
 
 def menus():
@@ -88,8 +90,11 @@ def preview(path: Path, scale=3):
                 elif ch in (spec.get("buttons") or {}):
                     icon = (spec["buttons"][ch] or {}).get("icon", "")
                     name = icon.split("/")[-1] if icon.startswith("stsv:gui/") else None
+                    own = MENUS_DIR.parent / "textures" / (icon.split(":", 1)[-1] + ".png")   # a content item (the cheque)
                     if name in every:
                         im.alpha_composite(every[name], (x + 1, y + 1))
+                    elif icon.startswith("stsv:") and own.exists():
+                        im.alpha_composite(Image.open(own).convert("RGBA").resize((16, 16), Image.NEAREST), (x + 1, y + 1))
         ims.append(im)
     canvas = Image.new("RGBA", (len(ims) * (T.W + 8) + 8, max(i.height for i in ims) + 16), (32, 34, 40, 255))
     for k, im in enumerate(ims):

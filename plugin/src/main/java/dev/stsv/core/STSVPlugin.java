@@ -45,6 +45,8 @@ public final class STSVPlugin extends JavaPlugin {
     private dev.stsv.core.economy.EconomyModule economy;
     private dev.stsv.core.crop.CropModule crops;
     private dev.stsv.core.achievement.AchievementModule achievements;
+    private dev.stsv.core.gui.HubModule hub;
+    private dev.stsv.core.world.WorldsModule worlds;
     private ItemBrowser itemBrowser;
     private final dev.stsv.core.command.AdminRegistry admin = new dev.stsv.core.command.AdminRegistry();
     private RecipeEditor recipeEditor;
@@ -64,6 +66,7 @@ public final class STSVPlugin extends JavaPlugin {
         modules.register(database = new DatabaseModule());
         modules.register(content = new ContentModule());
         modules.register(menus = new dev.stsv.core.gui.menu.MenuModule());
+        modules.register(worlds = new dev.stsv.core.world.WorldsModule());
         modules.register(hud = new dev.stsv.core.hud.HudModule());
         modules.register(recipes = new RecipeModule());
         modules.register(furniture = new FurnitureModule());
@@ -73,6 +76,7 @@ public final class STSVPlugin extends JavaPlugin {
         modules.register(profiles = new dev.stsv.core.profile.ProfileModule());
         modules.register(economy = new dev.stsv.core.economy.EconomyModule());
         modules.register(achievements = new dev.stsv.core.achievement.AchievementModule());
+        modules.register(hub = new dev.stsv.core.gui.HubModule());
         modules.register(new ItemEffectsModule());
         modules.register(bosses = new BossModule());
         modules.register(pack = new PackModule());
@@ -116,6 +120,21 @@ public final class STSVPlugin extends JavaPlugin {
             else sender.sendMessage(dev.stsv.core.util.Lang.msg("common.players-only"));
             return true;
         });
+        PluginCommand menu = getCommand("메뉴");
+        if (menu != null) menu.setExecutor((sender, cmdObj, label, args) -> {
+            if (sender instanceof org.bukkit.entity.Player p) hub.open(p);
+            else sender.sendMessage(dev.stsv.core.util.Lang.msg("common.players-only"));
+            return true;
+        });
+        for (String name : new String[]{"건축월드", "야생월드"}) {
+            PluginCommand travel = getCommand(name);
+            if (travel != null) travel.setExecutor((sender, cmdObj, label, args) -> {
+                if (sender instanceof org.bukkit.entity.Player p) {
+                    worlds.travel(p, cmdObj.getName().equals("야생월드") ? dev.stsv.core.world.WorldRules.Kind.WILD : dev.stsv.core.world.WorldRules.Kind.BUILD);
+                } else sender.sendMessage(dev.stsv.core.util.Lang.msg("common.players-only"));
+                return true;
+            });
+        }
         PluginCommand titles = getCommand("칭호");
         if (titles != null) {
             dev.stsv.core.command.TitleCommand titleCommand = new dev.stsv.core.command.TitleCommand(this);
@@ -149,6 +168,10 @@ public final class STSVPlugin extends JavaPlugin {
     public dev.stsv.core.economy.EconomyModule economy() { return economy; }
     public dev.stsv.core.crop.CropModule crops() { return crops; }
     public dev.stsv.core.achievement.AchievementModule achievements() { return achievements; }
+    /** 통합 메뉴 (Shift+F, /메뉴). */
+    public dev.stsv.core.gui.HubModule hub() { return hub; }
+    /** 건축월드 / 야생월드. */
+    public dev.stsv.core.world.WorldsModule worlds() { return worlds; }
     public ItemBrowser itemBrowser() { return itemBrowser; }
     /** What content plugins add to /관리자 (sub commands, 보고서 sections, 초기화 targets). */
     public dev.stsv.core.command.AdminRegistry admin() { return admin; }

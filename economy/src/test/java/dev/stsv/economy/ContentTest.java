@@ -267,7 +267,7 @@ class ContentTest {
         List<String> problems = new ArrayList<>();
         List<MenuSpec> menus = MenuSpec.loadAll(List.of(new ContentPack("economy", "economy", PACK)), problems);
         assertTrue(problems.isEmpty(), String.join("\n", problems));
-        assertEquals(17, menus.size());
+        assertEquals(18, menus.size());
         for (MenuSpec m : menus) {
             // the button grid is mirror-symmetric, row by row (the machine's lanes are fixed by its code; their
             // empty cells hold arrows, so they read as full rows)
@@ -294,7 +294,8 @@ class ContentTest {
                 Path def = ns.equals("economy") ? PACK.resolve("assets/economy/items/" + key + ".json")
                         : Path.of(System.getProperty("stsv.content")).resolve("../../content/stsv/assets/stsv/items/" + key + ".json").normalize();
                 // a custom item's own model works too (the pack builder writes items/<id>.json for every item)
-                assertTrue(Files.exists(def) || (ns.equals("economy") && ourItems().contains("economy:" + key)), m.id() + " button icon " + b.on().icon());
+                assertTrue(Files.exists(def) || (ns.equals("economy") && ourItems().contains("economy:" + key))
+                        || (ns.equals("stsv") && coreItems().contains("stsv:" + key)), m.id() + " button icon " + b.on().icon());
             }
         }
     }

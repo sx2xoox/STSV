@@ -51,7 +51,9 @@ def pad(rows):
 from stsv_assets import ui_icons as _UI   # noqa: E402
 
 _ECONOMY_UI = ("back", "bag", "cart", "chart", "chest", "coins", "crown", "hammer", "ledger", "refresh", "trophy", "unknown", "wave",
-               "sell_all", "arrow_left", "arrow_right", "rise", "fall", "buy_1", "buy_10", "buy_100", "sell_1", "sell_10", "sell_100", "period_10", "period_24", "period_7")
+               "sell_all", "arrow_left", "arrow_right", "rise", "fall", "buy_1", "buy_10", "buy_100", "sell_1", "sell_10", "sell_100", "period_10", "period_24", "period_7",
+               # the hub (/메뉴): the economy's features
+               "trade", "mail", "candles", "pickaxe", "checklist", "scroll", "book", "flag", "alert", "monument")
 GUI = {name: (lambda n=name: _UI.icons()[n]) for name in _ECONOMY_UI}
 
 # company logos for /주식 (economy:gui/logo_<company>, economy_logos.py)

@@ -5,6 +5,7 @@ import dev.stsv.core.furniture.FurnitureBreakEvent;
 import dev.stsv.core.furniture.FurnitureInteractEvent;
 import dev.stsv.core.hud.HudModule;
 import dev.stsv.core.util.Lang;
+import dev.stsv.core.world.WorldRules;
 import dev.stsv.economy.EcoModule;
 import dev.stsv.economy.EcoPlugin;
 import dev.stsv.economy.calendar.DailyListener;
@@ -63,6 +64,10 @@ import java.util.concurrent.ConcurrentHashMap;
  * there together: all of them may build and use everything, and they share a 금고. The daily property
  * tax (05:00) is paid from the 금고 first, then from the owner's wallet; three days unpaid and the
  * newest chunks are released until the tax can be paid. The server's land protects the town.
+ *
+ * Worlds (core config.yml "worlds", rules in {@link LandAccess}): land is bought only in the 건축월드, where
+ * nobody changes blocks outside a land they live on; the 야생월드 is free (claims there are dormant); claims
+ * made earlier in other worlds keep protecting.
  */
 public final class LandModule extends EcoModule implements DailyListener {
 
@@ -105,18 +110,37 @@ public final class LandModule extends EcoModule implements DailyListener {
         return rules;
     }
 
+    /** The land here; none in the wild world (claims there are dormant). */
     public Land at(Location l) {
-        return l.getWorld() == null ? null : store.index().at(l.getWorld().getName(), l.getBlockX(), l.getBlockZ());
+        if (l.getWorld() == null || !LandAccess.claimsCount(kind(l))) return null;
+        return store.index().at(l.getWorld().getName(), l.getBlockX(), l.getBlockZ());
+    }
+
+    private WorldRules.Kind kind(Location l) {
+        return core.worlds() == null ? WorldRules.Kind.OTHER : core.worlds().kind(l.getWorld());
+    }
+
+    /** Unclaimed build world: no land, but protected all the same. */
+    private static final Object UNCLAIMED_BUILD = new Object();
+
+    /** What owns the blocks here as far as nature is concerned: a land, the unclaimed build world, or null (free). */
+    private Object zone(Location l) {
+        Land land = at(l);
+        if (land != null) return land;
+        return LandAccess.sheltered(kind(l), null) ? UNCLAIMED_BUILD : null;
     }
 
     private static ChunkPos chunk(Location l) {
         return ChunkPos.ofBlock(l.getWorld().getName(), l.getBlockX(), l.getBlockZ());
     }
 
-    /** May this player change things here? */
+    /** May this player change blocks here? */
     public boolean allowed(Player p, Location l) {
-        Land c = at(l);
-        return c == null || c.allows(p.getUniqueId()) || p.hasPermission("stsv.economy.land.bypass");
+        return verdict(p, l, true) == LandAccess.Verdict.ALLOW;
+    }
+
+    private LandAccess.Verdict verdict(Player p, Location l, boolean changes) {
+        return LandAccess.decide(kind(l), at(l), p.getUniqueId(), p.hasPermission("stsv.economy.land.bypass"), changes);
     }
 
     public int free(Land l) {
@@ -152,6 +176,10 @@ public final class LandModule extends EcoModule implements DailyListener {
     /** Claims the chunk you stand in: free while you have free chunks, else for a price (twice: 확인). */
     public void buy(Player p, boolean confirmed) {
         UUID u = p.getUniqueId();
+        if (!LandAccess.claimable(kind(p.getLocation()))) {
+            p.sendMessage(Lang.msg("land.build-world-only", "free", rules.free(1)));
+            return;
+        }
         ChunkPos c = chunk(p.getLocation());
         Land taken = store.index().at(c);
         if (taken != null) {
@@ -397,8 +425,11 @@ public final class LandModule extends EcoModule implements DailyListener {
         UUID u = p.getUniqueId();
         Land here = at(p.getLocation());
         ChunkPos c = chunk(p.getLocation());
-        p.sendMessage(here == null ? Lang.msg("land.here-wild", "x", c.x(), "z", c.z())
-                : Lang.msg("land.here", "owner", ownerName(here), "x", c.x(), "z", c.z()));
+        WorldRules.Kind world = kind(p.getLocation());
+        p.sendMessage(here != null ? Lang.msg("land.here", "owner", ownerName(here), "x", c.x(), "z", c.z())
+                : world == WorldRules.Kind.WILD ? Lang.msg("land.here-wild-world")
+                : world == WorldRules.Kind.BUILD ? Lang.msg("land.here-wild", "x", c.x(), "z", c.z())
+                : Lang.msg("land.here-other-world"));
         Land l = mine(p);
         if (l == null) {
             p.sendMessage(Lang.msg("land.none-yet", "free", rules.free(1)));
@@ -419,6 +450,10 @@ public final class LandModule extends EcoModule implements DailyListener {
 
     /** Borders of the lands around you for 10 seconds: yours green, others red, the town yellow. */
     public void show(Player p) {
+        if (!LandAccess.claimsCount(kind(p.getLocation()))) {
+            p.sendMessage(Lang.msg("land.here-wild-world"));
+            return;
+        }
         String w = p.getWorld().getName();
         int pcx = p.getLocation().getBlockX() >> 4, pcz = p.getLocation().getBlockZ() >> 4;
         List<ChunkPos> around = new ArrayList<>();
@@ -598,15 +633,22 @@ public final class LandModule extends EcoModule implements DailyListener {
     // Protection
     // ------------------------------------------------------------------------------------------
 
+    /** Changing blocks (break, place, pour, ignite, till...): others' land and the unclaimed build world say no. */
     private boolean deny(Player p, Location l, Cancellable e) {
-        if (allowed(p, l)) return false;
+        return deny(p, l, e, true);
+    }
+
+    /** changes = false: only using something (a door, a chest, an animal), fine outside lands. */
+    private boolean deny(Player p, Location l, Cancellable e, boolean changes) {
+        LandAccess.Verdict v = verdict(p, l, changes);
+        if (v == LandAccess.Verdict.ALLOW) return false;
         e.setCancelled(true);
         long now = now();
         Long last = warned.get(p.getUniqueId());
         if (last == null || now - last > 1500) {
             warned.put(p.getUniqueId(), now);
-            Land c = at(l);
-            HudModule.flash(p, Lang.mm("land.protected", "owner", ownerName(c)));
+            HudModule.flash(p, v == LandAccess.Verdict.UNCLAIMED_BUILD ? Lang.mm("land.build-own-only", "free", rules.free(1))
+                    : Lang.mm("land.protected", "owner", ownerName(at(l))));
         }
         return true;
     }
@@ -616,6 +658,7 @@ public final class LandModule extends EcoModule implements DailyListener {
         deny(e.getPlayer(), e.getBlock().getLocation(), e);
     }
 
+    /** Placing blocks, and through it furniture and machines (the core asks with a place event per cell). */
     @EventHandler(priority = EventPriority.LOW, ignoreCancelled = true)
     public void onPlace(BlockPlaceEvent e) {
         deny(e.getPlayer(), e.getBlock().getLocation(), e);
@@ -649,11 +692,16 @@ public final class LandModule extends EcoModule implements DailyListener {
         // in the town (server claims) doors, gates and buttons work for everyone
         Land here = at(b.getLocation());
         if (usesBlock && here != null && here.server() && passage(b.getType())) usesBlock = false;
-        boolean usesItem = e.getItem() != null && (e.getItem().getType() == Material.FLINT_AND_STEEL || e.getItem().getType() == Material.FIRE_CHARGE
-                || e.getItem().getType().name().endsWith("_SPAWN_EGG") || e.getItem().getType() == Material.ARMOR_STAND
-                || e.getItem().getType() == Material.ITEM_FRAME || e.getItem().getType() == Material.GLOW_ITEM_FRAME || e.getItem().getType() == Material.PAINTING
-                || e.getItem().getType() == Material.BONE_MEAL || e.getItem().getType().name().endsWith("_BOAT") || e.getItem().getType().name().endsWith("MINECART"));
-        if (usesBlock || usesItem) deny(e.getPlayer(), b.getLocation(), e);
+        Material item = e.getItem() == null ? Material.AIR : e.getItem().getType();
+        String n = item.name();
+        // items that change blocks or hang things on them: fire, bone meal, frames, stands; tools that till, strip, flatten or wax
+        boolean changes = item == Material.FLINT_AND_STEEL || item == Material.FIRE_CHARGE || item == Material.BONE_MEAL
+                || item == Material.ARMOR_STAND || item == Material.ITEM_FRAME || item == Material.GLOW_ITEM_FRAME || item == Material.PAINTING
+                || (!usesBlock && (n.endsWith("_HOE") || n.endsWith("_SHOVEL") || n.endsWith("_AXE") || item == Material.HONEYCOMB));
+        // items that only bring something out (mobs, boats, carts)
+        boolean usesItem = n.endsWith("_SPAWN_EGG") || n.endsWith("_BOAT") || n.endsWith("_RAFT") || n.endsWith("MINECART");
+        if (changes) deny(e.getPlayer(), b.getLocation(), e, true);
+        else if (usesBlock || usesItem) deny(e.getPlayer(), b.getLocation(), e, false);
     }
 
     /** Blocks that do something on right-click (containers, doors, redstone parts, ...). */
@@ -683,18 +731,18 @@ public final class LandModule extends EcoModule implements DailyListener {
     @EventHandler(priority = EventPriority.LOW, ignoreCancelled = true)
     public void onEntityInteract(PlayerInteractEntityEvent e) {
         if (freeToTouch(e.getRightClicked())) return;
-        deny(e.getPlayer(), e.getRightClicked().getLocation(), e);
+        deny(e.getPlayer(), e.getRightClicked().getLocation(), e, false);
     }
 
     @EventHandler(priority = EventPriority.LOW, ignoreCancelled = true)
     public void onEntityInteractAt(org.bukkit.event.player.PlayerInteractAtEntityEvent e) {
         if (freeToTouch(e.getRightClicked())) return;
-        deny(e.getPlayer(), e.getRightClicked().getLocation(), e);
+        deny(e.getPlayer(), e.getRightClicked().getLocation(), e, false);
     }
 
     @EventHandler(priority = EventPriority.LOW, ignoreCancelled = true)
     public void onArmorStand(org.bukkit.event.player.PlayerArmorStandManipulateEvent e) {
-        deny(e.getPlayer(), e.getRightClicked().getLocation(), e);
+        deny(e.getPlayer(), e.getRightClicked().getLocation(), e, false);
     }
 
     /**
@@ -708,7 +756,7 @@ public final class LandModule extends EcoModule implements DailyListener {
 
     @EventHandler(priority = EventPriority.LOW, ignoreCancelled = true)
     public void onFurnitureUse(FurnitureInteractEvent e) {
-        deny(e.getPlayer(), e.getFurniture().location(), e);
+        deny(e.getPlayer(), e.getFurniture().location(), e, false);
     }
 
     @EventHandler(priority = EventPriority.LOW, ignoreCancelled = true)
@@ -720,7 +768,8 @@ public final class LandModule extends EcoModule implements DailyListener {
     public void onDamage(EntityDamageByEntityEvent e) {
         if (freeToTouch(e.getEntity())) return;
         Player by = e.getDamager() instanceof Player p ? p : e.getDamager() instanceof Projectile pr && pr.getShooter() instanceof Player p ? p : null;
-        if (by != null) deny(by, e.getEntity().getLocation(), e);
+        // hitting animals and the like is using, not building (others' land still says no)
+        if (by != null) deny(by, e.getEntity().getLocation(), e, false);
     }
 
     @EventHandler(priority = EventPriority.LOW, ignoreCancelled = true)
@@ -728,54 +777,57 @@ public final class LandModule extends EcoModule implements DailyListener {
         Entity r = e.getRemover();
         Player by = r instanceof Player p ? p : r instanceof Projectile pr && pr.getShooter() instanceof Player p ? p : null;
         if (by != null) deny(by, e.getEntity().getLocation(), e);
-        else if (at(e.getEntity().getLocation()) != null) e.setCancelled(true);
+        else if (zone(e.getEntity().getLocation()) != null) e.setCancelled(true);
     }
 
     @EventHandler(priority = EventPriority.LOW, ignoreCancelled = true)
     public void onVehicle(VehicleDestroyEvent e) {
-        if (e.getAttacker() instanceof Player p) deny(p, e.getVehicle().getLocation(), e);
+        if (e.getAttacker() instanceof Player p) deny(p, e.getVehicle().getLocation(), e, false);
     }
+
+    // nature (explosions, spreading fire, liquids and pistons from elsewhere) changes nothing in a land or in the
+    // build world outside lands; the wild world (and unclaimed nether / end) is free
 
     @EventHandler(priority = EventPriority.LOW, ignoreCancelled = true)
     public void onExplode(EntityExplodeEvent e) {
-        e.blockList().removeIf(b -> at(b.getLocation()) != null);
+        e.blockList().removeIf(b -> zone(b.getLocation()) != null);
     }
 
     @EventHandler(priority = EventPriority.LOW, ignoreCancelled = true)
     public void onBlockExplode(BlockExplodeEvent e) {
-        e.blockList().removeIf(b -> at(b.getLocation()) != null);
+        e.blockList().removeIf(b -> zone(b.getLocation()) != null);
     }
 
     @EventHandler(priority = EventPriority.LOW, ignoreCancelled = true)
     public void onBurn(BlockBurnEvent e) {
-        if (at(e.getBlock().getLocation()) != null) e.setCancelled(true);
+        if (zone(e.getBlock().getLocation()) != null) e.setCancelled(true);
     }
 
     @EventHandler(priority = EventPriority.LOW, ignoreCancelled = true)
     public void onIgnite(BlockIgniteEvent e) {
-        if (at(e.getBlock().getLocation()) == null) return;
         if (e.getPlayer() != null) deny(e.getPlayer(), e.getBlock().getLocation(), e);
-        else if (e.getCause() == BlockIgniteEvent.IgniteCause.SPREAD || e.getCause() == BlockIgniteEvent.IgniteCause.LAVA) e.setCancelled(true);
+        else if (zone(e.getBlock().getLocation()) != null
+                && (e.getCause() == BlockIgniteEvent.IgniteCause.SPREAD || e.getCause() == BlockIgniteEvent.IgniteCause.LAVA)) e.setCancelled(true);
     }
 
     @EventHandler(priority = EventPriority.LOW, ignoreCancelled = true)
     public void onSpread(BlockSpreadEvent e) {
-        if (e.getSource().getType() == Material.FIRE && at(e.getBlock().getLocation()) != null) e.setCancelled(true);
+        if (e.getSource().getType() == Material.FIRE && zone(e.getBlock().getLocation()) != null) e.setCancelled(true);
     }
 
     @EventHandler(priority = EventPriority.LOW, ignoreCancelled = true)
     public void onFlow(BlockFromToEvent e) {
-        Land to = at(e.getToBlock().getLocation());
-        if (to != null && to != at(e.getBlock().getLocation())) e.setCancelled(true);
+        Object to = zone(e.getToBlock().getLocation());
+        if (to != null && to != zone(e.getBlock().getLocation())) e.setCancelled(true);
     }
 
     private boolean crosses(Block piston, List<Block> moved, BlockFace dir) {
-        Land home = at(piston.getLocation());
+        Object home = zone(piston.getLocation());
         List<Block> touched = new ArrayList<>(moved);
         for (Block b : moved) touched.add(b.getRelative(dir));
         touched.add(piston.getRelative(dir));
         for (Block b : touched) {
-            Land c = at(b.getLocation());
+            Object c = zone(b.getLocation());
             if (c != null && c != home) return true;
         }
         return false;
@@ -798,8 +850,8 @@ public final class LandModule extends EcoModule implements DailyListener {
         long id = c == null ? -1 : c.id;
         Long before = where.put(e.getPlayer().getUniqueId(), id);
         if (before != null && before != id) {
-            HudModule.flash(e.getPlayer(), c == null ? Lang.mm("land.leave")
-                    : Lang.mm("land.enter", "owner", ownerName(c)));
+            HudModule.flash(e.getPlayer(), c != null ? Lang.mm("land.enter", "owner", ownerName(c))
+                    : kind(e.getTo()) == WorldRules.Kind.BUILD ? Lang.mm("land.leave-build") : Lang.mm("land.leave"));
         }
     }
 }

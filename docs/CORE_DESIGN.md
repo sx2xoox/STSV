@@ -91,6 +91,8 @@ player.sendMessage(Lang.msg("economy.bought", "item", name));        // messages
 | 코어 이벤트·API 추가 | `BossDefeatEvent`(전리품을 가로채 경매로), 돈 종류 `ESCROW`(입찰금 보관), 메뉴 핸들러 `onPlayerInventoryClick`(상점에서 내 인벤토리 클릭 = 팔기), `endPeriod(추가 부문)`(순자산을 명예의 전당에), `ownedTitles()` |
 | 테스트 초기화 | `/관리자 초기화 경제\|기록 확인`: 재설치 없이 반복 테스트 |
 | 보호 플러그인 호환 | 가구 설치 전에 BlockPlaceEvent를 발생시켜 다른 보호 플러그인의 판단을 따름 |
+| 통합 메뉴 (`gui/HubModule`) | `/메뉴` 또는 웅크린 채 F(Shift+F, `PlayerSwapHandItemsEvent` 를 취소: 그냥 F 는 그대로, 다른 창이 열려 있거나 옷장 안이면 무시). 모양은 `menus/hub.yml`(stsv:hub). 콘텐츠 플러그인은 켜질 때 `menus().override("stsv:hub", "<팩>:hub")` 로 더 큰 판을 열게 하고 `hub().provide(이름, 플레이어 → 자리표시자)` 로 실시간 값(직업, 땅 등)을 더함, 꺼질 때 되돌림. 버튼 동작 `hub:run:<명령어>\|run:<우클릭>`, `hub:suggest:<명령어>`(닫고 채팅에 클릭 입력 줄). `hub.hotkey`, `hub.join-tip`(처음 한 번 안내) |
+| 건축월드 / 야생월드 (`world/WorldsModule`) | `worlds.build-world`(비우면 기본 월드) / `worlds.wild-world`(없으면 켜질 때 새로 만듦). `kind(World)` = BUILD · WILD · OTHER 로 콘텐츠가 규칙을 나눔(경제 서버 땅: 건축월드에서만 사고, 주인 없는 건축월드 청크도 보호, 야생월드는 무보호). `/건축월드` = 마지막 위치(플레이어 PDC, 월드 UID 로 확인) 또는 스폰, `/야생월드` = 매번 무작위 안전 자리(`SafeSpot`, 비동기 청크 로드, 재사용 대기). 이동 전 가만히 N초(움직임·피해로 취소). 야생에서 죽으면 침대 없으면 건축월드 스폰. `/관리자 야생초기화 확인`: 안의 플레이어를 옮기고, 월드를 내리고, 폴더를 지운 뒤 새 시드로 생성 |
 
 ## 3. 다음 공통 작업 후보 (콘텐츠를 정한 뒤 필요한 것만)
 
@@ -136,4 +138,6 @@ player.sendMessage(Lang.msg("economy.bought", "item", name));        // messages
 | DB 드라이버 다운로드 | 첫 실행 로그에 `DB: SQLite ...` | 서버가 Maven Central 에 접속 가능한지 |
 | 옷장이 새 메뉴 프레임워크로 동작하는지 | `/옷장` 메뉴, 페이지, 버튼 | `menus/wardrobe.yml` |
 | 칭호가 채팅/탭에 붙는지 | `/관리자 칭호 지급 <나> test_title_orange` 후 `/프로필` 에서 장착 | `profiles.title-in-chat` |
+| 통합 메뉴 단축키 | 웅크린 채 F → 메뉴, 그냥 F → 손 바꾸기, 상자를 연 채 F → 아무 일 없음 | `hub.hotkey` |
+| 야생월드 생성·무작위 이동·초기화 | 첫 실행 로그 `[월드] 야생월드`, `/야생월드` 여러 번(바다·숲 위에 떨어지지 않는지), `/관리자 야생초기화 확인` | `worlds.wild-random.*` |
 | 기간과 명예의 전당 | `/관리자 기간 시작 test-1 테스트` → 몹 몇 마리 → `/관리자 기간 종료` → `/명예의전당` | - |

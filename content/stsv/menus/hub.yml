@@ -1,0 +1,93 @@
+# /메뉴, 웅크린 채 F (Shift+F): 통합 메뉴. 코어 기능만 있는 판.
+# 경제 서버가 있으면 contents/economy/menus/hub.yml (이 메뉴의 모든 버튼 + 경제 기능)이 대신 열림.
+# 버튼 동작: command:<명령어> (플레이어로 실행), menu:<메뉴>, close,
+#            hub:<왼쪽>|<오른쪽>  각각 run:<명령어> (실행) 또는 suggest:<명령어> (닫고 채팅창에 "/명령어 " 넣기 안내).
+#            오른쪽을 빼면 모든 클릭이 왼쪽
+# 자리표시자: {player} {world} {balance} {title} {points} {cosmetics} {fee} {hotkey} {warmup} {cooldown}
+hub:
+  title: "<#f0e2b0>통합 메뉴 <#8f86a6>· {world}"
+  rows: 4
+  background: stsv:gui/hub
+  layout:
+    - "..B.P.Y.."
+    - "..QRSTZ.."
+    - "...UVW..."
+    - "....X...."
+  buttons:
+    B:
+      action: "command:건축월드"
+      icon: stsv:gui/house
+      material: BRICKS
+      name: "<white>건축월드로"
+      lore: ["<gray>땅을 사서 집을 짓는 곳", "<dark_gray>마지막 위치나 스폰으로 · {warmup}초 가만히"]
+    P:
+      action: "command:프로필"
+      material: PLAYER_HEAD
+      name: "<white>{player}"
+      lore:
+        - "<gray>지금 있는 곳: <white>{world}"
+        - "<gray>잔액: {balance}"
+        - "<gray>칭호: <white>{title}"
+        - "<gray>업적 점수: <gold>{points}점"
+        - ""
+        - "<yellow>클릭: 내 프로필"
+        - "<dark_gray>이 메뉴: {hotkey}"
+    Y:
+      action: "command:야생월드"
+      icon: stsv:gui/pine
+      material: OAK_SAPLING
+      name: "<white>야생월드로"
+      lore: ["<gray>자원을 캐는 곳 (보호 없음, 가끔 초기화)", "<gray>매번 무작위 위치로 (흩어져서 시작)", "<dark_gray>{warmup}초 가만히 · 다시 가려면 {cooldown}초"]
+    Q:
+      action: "command:치장"
+      icon: stsv:gui/take_off
+      material: LEATHER_CHESTPLATE
+      name: "<white>치장"
+      lore: ["<gray>모자, 날개, 펫... 입어 보고 꾸미기", "<gray>보유: <white>{cosmetics}"]
+    R:
+      action: "command:칭호"
+      icon: stsv:gui/tag
+      material: NAME_TAG
+      name: "<white>칭호"
+      lore: ["<gray>이름 앞에 붙는 칭호 장착", "<gray>지금: <white>{title}"]
+    S:
+      action: "hub:run:업적|run:업적 순위"
+      icon: stsv:gui/trophy
+      material: GOLDEN_HELMET
+      name: "<white>업적"
+      lore: ["<gray>도전 과제를 깨고 보상 받기", "<gray>점수: <gold>{points}점", "<dark_gray>우클릭: 업적 순위"]
+    T:
+      action: "command:명예의전당"
+      icon: stsv:gui/crown
+      material: GOLDEN_HELMET
+      name: "<white>명예의 전당"
+      lore: ["<gray>지난 콘텐츠 기간의 상위 기록"]
+    Z:
+      action: "command:돈 순위"
+      icon: stsv:gui/podium
+      material: GOLD_BLOCK
+      name: "<white>부자 순위"
+      lore: ["<gray>잔액이 많은 플레이어 순위"]
+    U:
+      action: "command:돈"
+      icon: stsv:gui/coins
+      material: GOLD_INGOT
+      name: "<white>잔액: {balance}"
+      lore: ["<gray>내 돈 (상태 줄과 사이드바에도 보임)"]
+    V:
+      action: "hub:suggest:송금"
+      icon: stsv:gui/send
+      material: GOLD_NUGGET
+      name: "<white>송금"
+      lore: ["<gray>다른 플레이어에게 돈 보내기 (수수료 {fee}%)", "<dark_gray>/송금 <플레이어> <금액>"]
+    W:
+      action: "hub:suggest:수표"
+      icon: stsv:cheque
+      material: PAPER
+      name: "<white>수표"
+      lore: ["<gray>돈을 수표 아이템으로 꺼내기 (우클릭하면 입금)", "<dark_gray>/수표 <금액>"]
+    X:
+      action: close
+      icon: stsv:gui/exit
+      material: OAK_DOOR
+      name: "<red>닫기"
