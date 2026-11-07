@@ -56,7 +56,28 @@ commands:
     aliases: [cheque]
     usage: /수표 <금액>
     permission: stsv.economy
+  메뉴:
+    description: 통합 메뉴 (모든 기능을 한곳에서). 웅크린 채 F(Shift+F)로도 열림
+    aliases: [menu, 통합메뉴]
+    usage: /메뉴
+    permission: stsv.menu
+  건축월드:
+    description: 건축월드로 이동 (땅을 사서 짓는 곳, 내 땅에서만 블록 변경)
+    aliases: [build, 건축]
+    usage: /건축월드
+    permission: stsv.travel
+  야생월드:
+    description: 야생월드로 이동 (자원 채집용, 보호 없음, 가끔 초기화됨)
+    aliases: [wild, 야생]
+    usage: /야생월드
+    permission: stsv.travel
 permissions:
+  stsv.menu:
+    description: 통합 메뉴 (/메뉴, Shift+F)
+    default: true
+  stsv.travel:
+    description: /건축월드, /야생월드
+    default: true
   stsv.economy:
     description: 돈, 송금, 수표
     default: true

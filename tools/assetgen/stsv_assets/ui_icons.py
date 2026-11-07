@@ -253,4 +253,296 @@ def icons():
             out[key] = im
     for key, label in (("10", "10m"), ("24", "24h"), ("7", "7d")):
         out[f"period_{key}"] = period(label)
+    out.update(hub_icons())
     return out
+
+
+# ------------------------------------------------------------------------------------------------
+# 통합 메뉴 (hub) buttons: one glyph per feature, drawn here in the same two-grey + outline look.
+# Colour only where it means something: gold = money, red = the roof / the claim flag / the seal,
+# green = nature (the wild world, done), blue = the codex's cover.
+# ------------------------------------------------------------------------------------------------
+
+COLOURS.update({
+    "e": (110, 196, 92), "E": (58, 132, 58),               # green (nature, done)
+    "o": (170, 118, 70), "O": (112, 74, 44),               # wood (handles, trunks, poles)
+})
+
+HOUSE = [   # 건축월드: a house, red roof, a window and a door
+    "",
+    ".......rr",
+    "......rrrr",
+    ".....rrrrrr",
+    "....rrrrrrrr",
+    "...rrrrrrrrrr",
+    "..rrrrrrrrrrrr",
+    ".RRRRRRRRRRRRRR",
+    "...##########s",
+    "...##########s",
+    "...#ww###kkk#s",
+    "...#ww###kkk#s",
+    "...######kkk#s",
+    "...######kkk#s",
+    "...######kkk#s",
+    "...ssssssssss",
+]
+
+PINE = [    # 야생월드: a pine tree on a little ground
+    "",
+    ".......ee",
+    "......eeee",
+    ".....eeeeEE",
+    "......eeEE",
+    ".....eeeeeE",
+    "....eeeeeeEE",
+    ".....eeeeEE",
+    "....eeeeeeeE",
+    "...eeeeeeeeEE",
+    "..eeeeeeeeeeEE",
+    ".......oO",
+    ".......oO",
+    "...ssssssssss",
+]
+
+TAG = [     # 칭호: a name tag with its string
+    "",
+    "",
+    "..ss",
+    "...s",
+    "....s",
+    ".....##########",
+    "....###########s",
+    "...##k#########s",
+    "...##k##kkkkk##s",
+    "....###########s",
+    ".....##########s",
+    "......ssssssssss",
+]
+
+PODIUM = [  # 순위: the winner's block in the middle with a gold star, lower blocks either side
+    "",
+    ".......g",
+    "......ggg",
+    ".......G",
+    ".....######",
+    ".....###k##s",
+    ".....##kk##s",
+    ".....###k##s",
+    ".###s###k##s",
+    ".###s##kkk#s",
+    ".###s######s##s",
+    ".###s######s##s",
+    ".###s######s##s",
+    ".###s######s##s",
+    "..sssssssssssss",
+]
+
+SEND = [    # 송금: a gold coin flying right
+    "",
+    "",
+    "",
+    "....gggg",
+    "...gggggG",
+    "..ggGGGGgG......",
+    "..ggGggGgG..#",
+    "..ggGggGgG..##",
+    "..ggGGGGgG#####",
+    "..gggggggG..##s",
+    "...gGGGGG...#s",
+    "....GGGG",
+]
+
+TRADE = [   # 직거래: goods one way (light), money the other (gold)
+    "",
+    "",
+    "..........#",
+    "..........##",
+    "..##########",
+    "..###########",
+    "..##########s",
+    "..........##s",
+    "..........#s",
+    "....g",
+    "...gg",
+    "..gggggggggg",
+    ".ggggggggggg",
+    "..gggggggggG",
+    "...ggGGGGGGG",
+    "....G",
+]
+
+MAIL = [    # 우편함: an envelope with a red seal
+    "",
+    "",
+    "",
+    ".##############",
+    ".#s##########s#s",
+    ".##s########s##s",
+    ".###s######s###s",
+    ".####s####s####s",
+    ".#####srrs#####s",
+    ".######rr######s",
+    ".##############s",
+    ".##############s",
+    ".##############s",
+    "..sssssssssssss",
+]
+
+PICKAXE = [  # 직업: a pickaxe (head light, wooden handle)
+    "",
+    "....######",
+    "..##########",
+    ".###ssssss###",
+    ".##s..oO..s##",
+    ".#s...oO...s#",
+    ".#....oO....#",
+    "......oO",
+    "......oO",
+    "......oO",
+    "......oO",
+    "......oO",
+    "......oO",
+    "......oO",
+]
+
+CHECKLIST = [   # 미션: a page with ticked boxes
+    "",
+    "..###########",
+    "..###########s",
+    "..#e#########s",
+    "..ee#kkkkkk##s",
+    "..#e#########s",
+    "..###########s",
+    "..#e#########s",
+    "..ee#kkkkk###s",
+    "..#e#########s",
+    "..###########s",
+    "..#k#########s",
+    "..###kkkkkk##s",
+    "..###########s",
+    "...sssssssssss",
+]
+
+SCROLL = [  # 의뢰: a rolled notice
+    "",
+    "..ssssssssssss",
+    ".s############s",
+    "..ssssssssssss",
+    "...##########s",
+    "...#kkkkkkk##s",
+    "...##########s",
+    "...#kkkkk####s",
+    "...##########s",
+    "...#kkkkkkk##s",
+    "...##########s",
+    "..ssssssssssss",
+    ".s############s",
+    "..ssssssssssss",
+]
+
+BOOK = [    # 도감: a closed book, blue cover, gold emblem, pages on the right
+    "",
+    "..bbbbbbbbbb",
+    "..bbbbbbbbbb#",
+    "..bbbbbbbbbB#s",
+    "..bbbbggbbbB#s",
+    "..bbbggggbbB#s",
+    "..bbbggggbbB#s",
+    "..bbbbggbbbB#s",
+    "..bbbbbbbbbB#s",
+    "..bbbbbbbbbB#s",
+    "..bbbbbbbbbB#s",
+    "..bbbbbbbbbB#s",
+    "..BBBBBBBBBB#s",
+    "...##########s",
+    "....sssssssss",
+]
+
+FLAG = [    # 땅: a red claim flag on a pole
+    "",
+    "...o",
+    "...orrrrrr",
+    "...orrrrrrrrr",
+    "...orrrrrrrrrR",
+    "...orrrrrrrrR",
+    "...orrrrrrrR",
+    "...oRRRRRR",
+    "...o",
+    "...o",
+    "...o",
+    "...o",
+    "..###",
+    ".#####s",
+    "..sssss",
+]
+
+ALERT = [   # 사건: an exclamation mark in a gold sign
+    "",
+    ".......gg",
+    "......gggg",
+    "......gkkg",
+    ".....ggkkgg",
+    ".....ggkkgg",
+    "....gggkkggg",
+    "....gggkkggg",
+    "...ggggkkgggg",
+    "...gggggggggg",
+    "..ggggggggggggG",
+    "..gggggkkggggGG",
+    ".ggggggggggggGG",
+    ".GGGGGGGGGGGGGG",
+]
+
+MONUMENT = [    # 기념비: an obelisk on a plinth, a gold tip
+    "",
+    ".......g",
+    "......ggG",
+    "......##s",
+    "......##s",
+    "......##s",
+    ".....###s",
+    ".....###s",
+    ".....####s",
+    ".....####s",
+    ".....####s",
+    "....######s",
+    "...########s",
+    "..##########s",
+    "...ssssssssss",
+]
+
+
+def _candles():
+    """주식: a chart screen with four candles (red up, blue down)."""
+    screen = [
+        "",
+        "",
+        ".##############",
+        ".#kkkkkkkkkkkk#s",
+        ".#kkkkkkkkkkkk#s",
+        ".#kkkkkkkkkkkk#s",
+        ".#kkkkkkkkkkkk#s",
+        ".#kkkkkkkkkkkk#s",
+        ".#kkkkkkkkkkkk#s",
+        ".#kkkkkkkkkkkk#s",
+        ".#kkkkkkkkkkkk#s",
+        ".#kkkkkkkkkkkk#s",
+        ".##############s",
+        "..sssssssssssss",
+    ]
+    im = draw(screen)
+    for (x, top, bot, up) in ((3, 8, 10, False), (6, 6, 9, True), (9, 7, 9, False), (12, 4, 7, True)):
+        c = COLOURS["r"] if up else COLOURS["b"]
+        for y in range(top, bot + 1):
+            for xx in range(x - 1, x + 1):
+                im.putpixel((xx, y), c + (255,))
+        for y in (top - 1, bot + 1):
+            im.putpixel((x - 1 if up else x, y), c + (255,))
+    return im
+
+
+def hub_icons():
+    return {"house": draw(HOUSE), "pine": draw(PINE), "tag": draw(TAG), "podium": draw(PODIUM), "send": draw(SEND),
+            "trade": draw(TRADE), "mail": draw(MAIL), "pickaxe": draw(PICKAXE), "checklist": draw(CHECKLIST),
+            "scroll": draw(SCROLL), "book": draw(BOOK), "flag": draw(FLAG), "alert": draw(ALERT), "monument": draw(MONUMENT),
+            "candles": _candles()}

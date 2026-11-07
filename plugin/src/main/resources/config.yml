@@ -24,6 +24,34 @@ resource-pack:
   # 서버가 배포하지 않고 외부 주소를 쓸 때 (host.enabled: false 일 때 사용)
   external-url: ""
 
+# 통합 메뉴 (/메뉴): 모든 플레이어 기능을 한곳에. 모양은 contents/stsv/menus/hub.yml
+# (경제 서버가 있으면 contents/economy/menus/hub.yml 이 대신 열림)
+hub:
+  # 웅크린 채 F(손 바꾸기 키) = 통합 메뉴. 그냥 F 는 그대로 손 바꾸기
+  hotkey: true
+  # 처음 접속했을 때 한 번만 Shift+F 안내
+  join-tip: true
+
+# 건축월드 / 야생월드. 인벤토리는 두 월드가 함께 씀
+worlds:
+  # 건축월드: 땅을 사서 짓는 곳 (경제 서버: 내 땅에서만 블록을 부수고 놓을 수 있음). 비우면 서버 기본 월드(level-name)
+  build-world: ""
+  # 야생월드: 보호 없는 자원 월드. 없으면 서버가 켜질 때 새로 만듦 (일반 지형, 새 시드). 비우면 야생월드 없음
+  # 초기화: /관리자 야생초기화 (안의 플레이어를 건축월드로 보낸 뒤 새 시드로 다시 만듦)
+  # 네더/엔드는 따로 만들지 않음: 야생월드의 네더 포털도 서버 기본 네더로 이어짐
+  wild-world: wild
+  # /건축월드, /야생월드: 이 시간(초) 동안 가만히 있어야 이동 (움직이거나 피해를 입으면 취소). 관리자는 바로
+  # 건축월드로 = 그 월드의 마지막 위치 (없으면 스폰)
+  travel-warmup-seconds: 3
+  # 야생월드로 = 매번 무작위 위치 (스폰에서 min-distance ~ radius 블록, 월드 경계 안, 물·용암·나뭇잎·선인장 위는 피함)
+  wild-random:
+    radius: 5000
+    min-distance: 300
+    # 안전한 자리를 이만큼 찾아보고 없으면 이동하지 않음
+    tries: 12
+    # 야생월드로 다시 가려면 기다려야 하는 시간(초). 정찰용 반복 이동 방지. 관리자는 없음
+    cooldown-seconds: 60
+
 furniture:
   # 가구를 부술 때 아이템을 돌려줄지 (크리에이티브 제외)
   drop-on-break: true

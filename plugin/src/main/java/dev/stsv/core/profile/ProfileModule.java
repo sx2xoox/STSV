@@ -207,6 +207,11 @@ public final class ProfileModule implements StsvModule, Listener {
         allTimeLoaded.remove(e.getPlayer().getUniqueId());
     }
 
+    /** The name (MiniMessage) of the title an online player wears, if any. */
+    public Optional<String> wornTitleName(UUID player) {
+        return worn(player).map(Title::name);
+    }
+
     private Optional<Title> worn(UUID player) {
         ProfileStore.Titles t = online.get(player);
         return t == null || t.equipped() == null ? Optional.empty() : title(t.equipped());

@@ -116,6 +116,7 @@ public final class EcoPlugin extends JavaPlugin {
         getServer().getPluginManager().registerEvents(new PvpRule(this), this);
         Commands.register(this);
         AdminCommands.register(this);
+        Hub.register(this);
         provideAchievementValues(core);
         Bukkit.getScheduler().runTask(this, () -> rescaleCrops(core));   // first tick: the core has its crop specs and plants
         getLogger().info("경제 서버 시작: " + calendar.day() + "일차 (" + calendar.week() + "주차)");
@@ -163,6 +164,7 @@ public final class EcoPlugin extends JavaPlugin {
         STSVPlugin core = STSVPlugin.get();
         List<StsvModule> reversed = new ArrayList<>(modules);
         Collections.reverse(reversed);
+        Hub.unregister();
         if (core != null) {
             core.admin().removeAll(ADMIN_OWNER);
             core.achievements().unprovide("economy:");

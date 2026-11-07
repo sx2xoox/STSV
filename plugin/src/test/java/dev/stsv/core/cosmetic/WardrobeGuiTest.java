@@ -26,9 +26,10 @@ class WardrobeGuiTest {
     private static final Path PACK = Path.of(System.getProperty("stsv.content")).resolve("stsv");
     private static final Path ASSETS = PACK.resolve("assets/stsv");
 
-    /** A drawn button icon (assets/stsv/items) or a content model (models/*.bbmodel, its item model is generated). */
+    /** A drawn button icon (assets/stsv/items), a content model (models/*.bbmodel) or item texture (textures/*.png): their item models are generated. */
     private static boolean iconExists(org.bukkit.NamespacedKey icon) {
-        return Files.exists(ASSETS.resolve("items/" + icon.getKey() + ".json")) || Files.exists(PACK.resolve("models/" + icon.getKey() + ".bbmodel"));
+        return Files.exists(ASSETS.resolve("items/" + icon.getKey() + ".json")) || Files.exists(PACK.resolve("models/" + icon.getKey() + ".bbmodel"))
+                || Files.exists(PACK.resolve("textures/" + icon.getKey() + ".png"));   // a content item's own icon (e.g. the cheque)
     }
 
     private static MenuSpec wardrobe(List<String> problems) throws Exception {
@@ -128,7 +129,7 @@ class WardrobeGuiTest {
         List<String> problems = new ArrayList<>();
         List<MenuSpec> menus = MenuSpec.loadAll(List.of(new ContentPack("stsv", "stsv", PACK)), problems);
         assertTrue(problems.isEmpty(), problems.toString());
-        assertEquals(java.util.Set.of("stsv:wardrobe", "stsv:profile", "stsv:titles", "stsv:achievements", "stsv:achievement_list"),
+        assertEquals(java.util.Set.of("stsv:wardrobe", "stsv:profile", "stsv:titles", "stsv:achievements", "stsv:achievement_list", "stsv:hub"),
                 menus.stream().map(MenuSpec::id).collect(java.util.stream.Collectors.toSet()));
         Integer panel = null;
         for (MenuSpec m : menus) {

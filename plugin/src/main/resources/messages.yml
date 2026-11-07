@@ -199,6 +199,40 @@ economy:
   cheque-lore: ["<gray>발행: <white>{issuer}", "<gray>발행일: <white>{date}", "", "<yellow>우클릭: 입금"]
 
 
+# 통합 메뉴 (/메뉴, Shift+F)
+hub:
+  join-tip: "<gray>팁: <white>웅크린 채 F</white> <dark_gray>(Shift+F)</dark_gray> 를 누르면 <gold>통합 메뉴</gold>가 열립니다. 상점, 직업, 치장, 업적... 모든 기능이 한곳에! <dark_gray>(/메뉴)"
+  hotkey-on: "Shift+F 또는 /메뉴"
+  hotkey-off: "/메뉴"
+  # hub:suggest: 이름이나 금액을 이어서 써야 하는 명령어
+  suggest: "<click:suggest_command:'/{command} '><hover:show_text:'<gray>클릭하면 채팅창에 /{command} 가 입력됩니다'><yellow><u>[/{command} 입력하기]</u></yellow></hover></click> <gray>← 클릭한 뒤 이어서 쓰세요."
+
+# 건축월드 / 야생월드
+worlds:
+  build: "건축월드"
+  wild: "야생월드"
+  nether: "네더"
+  end: "엔드"
+  already: "<yellow>이미 {world}에 있습니다."
+  no-wild: "<red>야생월드가 없습니다. <gray>(config.yml worlds.wild-world)"
+  in-wardrobe: "<red>치장 화면에서 나간 뒤 사용하세요."
+  warmup: "<gray>{seconds}초 뒤 <white>{world}</white>(으)로 이동합니다. 움직이지 마세요."
+  warmup-wild: "<gray>{seconds}초 뒤 <white>{world}</white>의 무작위 위치로 이동합니다. 움직이지 마세요."
+  searching: "<gray>안전한 자리를 찾는 중..."
+  no-spot: "<red>안전한 자리를 찾지 못했습니다. 잠시 뒤 다시 해 보세요."
+  cooldown: "<red>야생월드로는 {seconds}초 뒤에 다시 갈 수 있습니다."
+  countdown: "<gray>{world}(으)로 이동까지 <white>{seconds}초"
+  moved: "<red>움직여서 이동이 취소되었습니다."
+  hurt: "<red>피해를 입어 이동이 취소되었습니다."
+  arrived: "<green>{world}"
+  resetting: "<red>야생월드를 다시 만드는 중입니다. 잠시 뒤에 오세요."
+  reset-confirm: "<yellow>야생월드 <white>{world}</white> 를 새 시드로 다시 만듭니다 (지형과 그 안의 모든 것이 사라짐). 안에 있는 {players}명은 건축월드 스폰으로 옮겨집니다. 30초 안에 <white>/관리자 야생초기화 확인</white>"
+  reset-unsafe: "<red>야생월드 폴더가 건축월드나 서버 폴더를 품고 있어 초기화하지 않았습니다: {path}"
+  reset-moved: "<yellow>야생월드를 다시 만듭니다. 건축월드로 옮겨 드렸습니다."
+  reset-started: "<gray>야생월드 '{world}' 를 내리고 다시 만드는 중..."
+  reset-failed: "<red>야생월드를 다시 만들지 못했습니다. 콘솔을 확인하세요."
+  reset-done: "<gold>{world}가 새로 만들어졌습니다! <gray>/야생월드"
+
 crop:
   wrong-soil: "<red>이 씨앗은 경작지 위에 심어야 합니다."
   status: "<white>{crop}</white> <gray>{stage}/{stages}단계 ({pct}%){notes}"
