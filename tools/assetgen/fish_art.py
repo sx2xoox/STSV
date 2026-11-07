@@ -2171,6 +2171,128 @@ def icon_tilapia():
     return c.render(contact=False)
 
 
+# ------------------------------------------------------------------------------------------------
+# r3_fish_c (round 3)
+# ------------------------------------------------------------------------------------------------
+
+
+"""r3 fish (artist c): 민어 and 노래미, hand-placed pixel by pixel, lying like vanilla cod (head bottom left,
+tail top right), lit from the top-left; the canvas adds the dark outline in each fish's own hue round the
+outside (4-neighbour outline, so corners stay rounded like vanilla).
+
+croaker    민어: a big deep-bodied croaker: a dusky grey-brown back with a lit rim along the upper-left edge, a
+           mid-tone row into a pale cream belly with a 3-px sheen behind the gill, a darker lower-right belly edge,
+           a long low dusky dorsal fin (L 0.44, with a small lit spiny hump), pelvic and anal fins at L 0.44, and a
+           broad truncate fan tail spread across the axis from (10,1) to (14,5) on a narrow stalk: lit upper lobe,
+           one lit middle ray, darker lower lobe, all clearly lighter than the outline.
+greenling  노래미: a chestnut-amber greenling: a blunt cod-like head, a pale-orange dorsal fin strip along the whole
+           back, three dark-brown saddles (#562605-like) each two diagonals wide from the fin to the midline with two
+           diagonals of mid amber (#a8743e-like) between them, a pale belly, a long orange anal fin along the belly,
+           a narrow tail stalk and a forked tail with an open V notch.
+"""
+
+
+def _r3fishc_m(tag, hexcol, lo, hi, C=None):
+    """A palette material in the hue of hexcol whose six ramp steps run evenly from lightness lo to hi
+    (step i = lo + (hi - lo) * i / 5), so each painted step lands on a chosen OKLab lightness."""
+    name = f"r3fishc_{tag}"
+    if name not in palette.MATERIALS:
+        _l, ch, h = rgb_to_oklch(tuple(int(hexcol[i:i + 2], 16) for i in (1, 3, 5)))
+        span = (hi - lo) / 1.75
+        chroma = (ch if C is None else C) / 1.512
+        palette.MATERIALS[name] = (h, chroma, lo + 0.8 * span, span, 5, False)
+    return name
+
+
+def _r3fishc_draw(rows, key, ink, z=5):
+    """Hand-placed shape pixels: each character of rows is a key into (material, step); '.' stays empty.
+    Every material gets the fish's outline ink, which the canvas lays round the outside."""
+    c = Canvas()
+    for m, _s in key.values():
+        c.ink[m] = ink
+    for y, row in enumerate(rows):
+        for x, ch in enumerate(row):
+            if ch != ".":
+                m, s = key[ch]
+                c.put(x, y, m, s, z)
+    return c.render(contact=False)
+
+
+# ---- 민어 ----------------------------------------------------------------------------------------------
+# R back rim (lit)  K back  M mid-tone row  W belly  S sheen  v w lower-right belly edge (shade, edge)
+# d D dorsal fin (lit hump, fin)  P pelvic / anal fin  f g F e tail (lit upper lobe, ray, fan, lower lobe)
+# E H eye, glint
+_r3fishc_CROAKER = [
+    "................",
+    "..........ffg...",
+    "..........fgFg..",
+    "..........fFgFF.",
+    ".....dd...fgFFe.",
+    ".....DDDKKgFFee.",
+    "....DRKKMWw.....",
+    "...DRKKMWWw.....",
+    "...RKKMSWvwP....",
+    "..RKKMSSWvwP....",
+    ".RKKHWWWWvw.....",
+    ".RKEMWWWvw......",
+    ".KMMWWWvw.......",
+    ".MWWWWvw........",
+    "..wwwwwPP.......",
+    "................",
+]
+
+
+def icon_croaker():
+    """민어: a big deep-bodied croaker: a dusky grey-brown back lit along its upper-left rim, a soft mid-tone
+    row into a pale cream belly with a small sheen behind the gill, one long low dusky dorsal fin, small pelvic
+    and anal fins, and a broad truncate fan tail on a narrow stalk."""
+    back = _r3fishc_m("cro_back", "#6f6257", 0.37, 0.72, C=0.022)       # 0.37 .44 .51 .58 .65 .72
+    belly = _r3fishc_m("cro_belly", "#d6cebd", 0.56, 0.91, C=0.024)     # 0.56 .63 .70 .77 .84 .91
+    fin = _r3fishc_m("cro_fin", "#5c4f43", 0.30, 0.65, C=0.024)         # 0.30 .37 .44 .51 .58 .65
+    ink = (_r3fishc_m("cro_ink", "#261d16", 0.24, 0.49, C=0.02), 0)     # outline 0.24
+    key = {"R": (back, 4), "K": (back, 2), "M": (belly, 1), "W": (belly, 3), "S": (belly, 4),
+           "v": (belly, 2), "w": (belly, 1), "d": (fin, 3), "D": (fin, 2), "P": (fin, 2),
+           "f": (fin, 4), "g": (fin, 3), "F": (fin, 2), "e": (fin, 1), "E": ("roe", 0), "H": ("snow", 2)}
+    return _r3fishc_draw(_r3fishc_CROAKER, key, ink)
+
+
+# ---- 노래미 --------------------------------------------------------------------------------------------
+# f g dorsal fin strip (lit edge, fin)  A a amber back (lit rim, back)  S dark saddle  q r belly (pale, shaded
+# edge)  h anal fin  t T tail (lit upper lobe, fin)  E H eye, glint
+_r3fishc_GREENLING = [
+    "................",
+    "..........tt....",
+    "..........tT....",
+    "......ffgaaTT...",
+    "....ffgSaaaaTTT.",
+    "...fgaaSSaq..TT.",
+    "..fgSSaaSqr.....",
+    "..gaaSSaqqr.....",
+    ".ASSaaSqqrhh....",
+    ".AaSSaqqrhh.....",
+    ".AHaSqqrh.......",
+    ".AEaqqr.........",
+    "..aqr...........",
+    "................",
+    "................",
+    "................",
+]
+
+
+def icon_greenling():
+    """노래미: a chestnut-amber greenling of the rocky shore lying like vanilla cod: a blunt head, one long low
+    orange dorsal fin running the whole back, three dark-brown saddles crossing the amber back from the fin to
+    the midline, a pale belly, a long anal fin, a narrow tail stalk and a forked tail."""
+    back = _r3fishc_m("grn_back", "#a8743e", 0.39, 0.74, C=0.08)        # 0.39 .46 .53 .60 .67 .74
+    belly = _r3fishc_m("grn_belly", "#c8a878", 0.55, 0.90, C=0.06)      # 0.55 .62 .69 .76 .83 .90
+    fin = _r3fishc_m("grn_fin", "#b8783e", 0.40, 0.75, C=0.13)          # 0.40 .47 .54 .61 .68 .75
+    sad = _r3fishc_m("grn_saddle", "#562605", 0.26, 0.61, C=0.085)      # 0.26 .33 .40 .47 .54 .61
+    ink = (_r3fishc_m("grn_ink", "#2a1606", 0.20, 0.45, C=0.04), 0)     # outline 0.20
+    key = {"f": (fin, 5), "g": (fin, 4), "A": (back, 4), "a": (back, 3), "S": (sad, 1), "q": (belly, 3),
+           "r": (belly, 1), "h": (fin, 2), "t": (fin, 4), "T": (fin, 2), "E": ("roe", 0), "H": ("snow", 2)}
+    return _r3fishc_draw(_r3fishc_GREENLING, key, ink)
+
+
 ICONS = {
     "butterflyfish": icon_butterflyfish,
     "clownfish": icon_clownfish,
@@ -2251,4 +2373,6 @@ ICONS = {
     "mudskipper": icon_mudskipper,
     "king_mudskipper": icon_king_mudskipper,
     "tilapia": icon_tilapia,
+    "croaker": icon_croaker,
+    "greenling": icon_greenling,
 }

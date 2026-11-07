@@ -323,6 +323,73 @@ def icon_angel_wings_voucher():
     return _core_finish(ic)
 
 
+# ------------------------------------------------------------------------------------------------
+# r3_core_a (round 3)
+# ------------------------------------------------------------------------------------------------
+
+
+"""
+Core batch, round 3 (artist a): gumiho and phoenix vouchers on the shared legendary ticket
+(voucher_art._core_ticket / _core_paint / _core_finish, so the stub, gold perforation and dark card stay
+exactly as on crown, halo, wings and haetae).
+
+- gumiho_voucher (구미호 꼬리 교환권): an orange fox sitting in profile, facing left (pointed ear with a dark
+  inner, slanted eye, long snout with a black nose, white cheek, chest and front paws), and behind it a fan of
+  five spectral-cyan fox-fire tails spreading from its back to the upper right: one over its head, one straight
+  up, one to the top-right corner, two to the right edge. Each tail is about 2 px wide, darker teal at the root,
+  cyan in the middle and a white fox-fire tip, split from the next by obsidian gaps that reach the outer edge.
+  Nothing bright on x4, plain ticket in both lower corners, no bow-tie/butterfly symmetry, and the profile snout
+  keeps it from reading as a cat.
+- phoenix_voucher (불사조 날개 교환권): a red 봉황 flying diagonally up to the right: 3x3 head at x11-13 y3-5
+  with a dark eye at (12,4), a gold beak at (14,4) and a short gold crest, a slim red body lit from the top
+  left with a gold breast, one wing raised from the back as three pointed feathers (red root, orange, yellow
+  tips) split by crimson lines, and a straight tail plume running down-left to a solid 2x2 yellow tip.
+  The crest and the wing tips are separated by open background, nothing curls, x4 stays navy.
+"""
+
+
+def _r3corea_paint(rows, legend, edge):
+    """Paint full-width rows over the legendary ticket. '.' keeps the ticket (or stays empty above it); the stub
+    and perforation (x0-3, rows 3+) are never touched. Every drawn pixel that borders empty space gets a dark
+    outline in `edge` (obsidian for the fox, crimson for the bird) before the ticket's own outline is added."""
+    ic = _core_ticket("gold", dark=True)
+    _core_paint(ic, ["".join(ch if (x >= 4 or y < 3) else "." for x, ch in enumerate(r))
+                     for y, r in enumerate(rows)], legend, 0, 0)
+    for (x, y), (r, i) in list(ic.px.items()):
+        if i == 0 or x <= 3 or r == "obsidian":
+            continue
+        for a, b in ((1, 0), (-1, 0), (0, 1), (0, -1)):
+            n = (x + a, y + b)
+            if 0 <= n[0] < 16 and 0 <= n[1] < 16 and n not in ic.px:
+                ic.px[n] = edge
+    return _core_finish(ic)
+
+
+_r3corea_bird = {"k": ("crimson", 0), "Q": ("pepper", 0), "q": ("pepper", 1), "r": ("pepper", 2),
+                 "R": ("pepper", 3), "H": ("pepper", 4), "O": ("fox", 3), "d": ("fox", 2),
+                 "Y": ("fire", 4), "P": ("gold", 3), "G": ("gold", 2), "e": ("iron", 0)}
+
+
+def icon_phoenix_voucher():
+    return _r3corea_paint([
+        #0123456789012345
+        "................",   # 0
+        ".......Y....P...",   # 1  top feather tip | crest tip
+        ".....YkYO..GG...",   # 2  second feather tip | gold crest
+        ".....YOkOOkRHRk.",   # 3  head
+        ".....kOOkdkReHG.",   # 4  eye, gold beak
+        ".....YkddRRrrqk.",   # 5  third feather tip; neck
+        ".....OOkRRRrrG..",   # 6  body lit from the top left, gold breast
+        "......kRRrrqqG..",   # 7
+        "......kRrqqQk...",   # 8
+        "......Orqqk.....",   # 9  tail plume runs down-left
+        ".....OrQk.......",   # 10
+        ".....Ork........",   # 11
+        ".....YY.........",   # 12 solid 2x2 yellow tip
+        ".....YY.........",   # 13
+    ], _r3corea_bird, ("crimson", 0))
+
+
 ICONS = {
     "cheque": icon_cheque,
     "crown_voucher": icon_crown_voucher,
@@ -333,4 +400,5 @@ ICONS = {
     "mushroom_voucher": icon_mushroom_voucher,
     "tomato_voucher": icon_tomato_voucher,
     "angel_wings_voucher": icon_angel_wings_voucher,
+    "phoenix_voucher": icon_phoenix_voucher,
 }

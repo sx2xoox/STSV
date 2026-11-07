@@ -3518,6 +3518,541 @@ def icon_kimchi_jjigae():
     return c.render()
 
 
+# ------------------------------------------------------------------------------------------------
+# r3_disha_c (round 3)
+# ------------------------------------------------------------------------------------------------
+
+
+# the white plate seen from above (round 2's plate with one more row of floor, so three pieces lie apart on it):
+# a lit back rim, a shaded inner wall, the front rim in shade
+_r3dishac_EGG_PLATE = [
+    "................",
+    "................",
+    "................",
+    "................",
+    "....AAAAAAAB....",
+    "..ABBdddddddBc..",
+    ".ABdDDDDDDDDDcc.",
+    ".BdDDDDDDDDDDDc.",
+    ".BDDDDDDDDDDDDc.",
+    ".BDDDDDDDDDDDDc.",
+    ".BDDDDDDDDDDDcc.",
+    ".dDDDDDDDDDDDDc.",
+    "..dDDDDDDDDDcc..",
+    "..ccDDDDDDDDcc..",
+    "....cccccccc....",
+    "................",
+]
+
+
+# three pieces of halved eggplant, apart on the plate (white plate between them), each half skin and half flesh:
+# the flesh is soy-tinted tan (pale against the purple skin, but not lost against the white plate), with one
+# cream glint on each piece
+#   back: lying on its side, the glossy purple skin (a lilac sheen and a glint on top) over the pale flesh,
+#         browned with soy at the right
+#   front-left: lying flesh-up, the pale flesh on top and the dark skin showing as its underside
+#   right: a slanted strip, the skin along its upper-left side and the flesh along its lower-right
+_r3dishac_EGG_FOOD = [
+    "................",
+    "................",
+    "................",
+    "................",
+    "................",
+    ".....qGQPP......",
+    "....qQPPPPpp....",
+    "....FWFFfffss...",
+    ".....ffss.......",
+    "...........qQW..",
+    "...FWFf...qPPF..",
+    "..FFfffs.qPPFs..",
+    "...pPPpk.PPFs...",
+    "....ppk..ffs....",
+    "................",
+    "................",
+]
+
+
+_r3dishac_EGG_LEGEND = {"W": ("bean", 5), "F": ("bean", 4), "f": ("bean", 3), "s": ("doenjang", 4),
+                        "G": ("aubergine", 5), "q": ("aubergine", 4), "Q": ("aubergine", 3),
+                        "P": ("aubergine", 2), "p": ("aubergine", 1), "k": ("aubergine", 1)}
+
+
+def icon_eggplant_stirfry():
+    """가지볶음: three pieces of halved eggplant stir-fried in soy lying apart on a white plate seen from above,
+    each half glossy dark-purple skin and half pale flesh: one on its side at the back (skin over flesh), one
+    flesh-up at the front left (its skin showing underneath), one slanted strip at the right (skin along one side,
+    flesh along the other); a scallion sliver beside them."""
+    c = Canvas()
+    c.ink["bean"] = ("doenjang", 1)
+    grid(c, _r3dishac_EGG_PLATE, {"A": ("porcelain", 5), "B": ("porcelain", 4), "D": ("porcelain", 2),
+                                  "d": ("porcelain", 3), "c": ("porcelain", 1)}, z=0)
+    grid(c, _r3dishac_EGG_FOOD, _r3dishac_EGG_LEGEND, z=10)
+    c.put(2, 8, "leaf", 4, z=20).put(3, 8, "leaf", 3, z=20)
+    return c.render()
+
+
+_r3dishac_GREEN = mat("#2e9e3e")
+
+
+_r3dishac_FISHCAKE = mat("#c8963c")
+
+
+# the green melamine plate of a 분식집 seen from above, full of dark red sauce (round 2's plate with one more row
+# of sauce, so three sticks lie apart in it)
+_r3dishac_TT_PLATE = [
+    "................",
+    "................",
+    "................",
+    "................",
+    "....HHHHHHHh....",
+    "..HHhSSSSSShgg..",
+    ".HhSSSSSSSSSSgg.",
+    ".HSSSSSSSSSSSSg.",
+    ".HSSSSSSSSSSSSg.",
+    ".HSSSSSSSSSSSSg.",
+    ".hSSSSSSSSSSSSg.",
+    ".hgSSSSSSSSSSgG.",
+    "..ggSSSSSSSSgG..",
+    "..GggggggggggG..",
+    "....GGGGGGGG....",
+    "................",
+]
+
+
+def _r3dishac_run(x0, tops):
+    """columns (x, top row) of a stick, from its left end"""
+    return [(x0 + i, t) for i, t in enumerate(tops)]
+
+
+def _r3dishac_tteok(c, cols, z, right_cap=True):
+    """a rice-cake stick shaded as a glazed cylinder, 3 rows in every column: a salmon glaze on the lit top with a
+    cream glint, the orange glaze, a dark red underside; the pale cut end at the left, the right cut end in shade"""
+    for i, (x, yt) in enumerate(cols):
+        top = ("cream", 5) if i in (1, 2) else ("salmon", 3)
+        for dy, ms in enumerate((top, ("salmon", 2), ("tomato", 2))):
+            c.put(x, yt + dy, *ms, z=z)
+    x, yt = cols[0]
+    c.put(x, yt, "cream", 4, z=z).put(x, yt + 1, "cream", 5, z=z).put(x, yt + 2, "cream", 3, z=z)
+    if right_cap:
+        x, yt = cols[-1]
+        c.put(x, yt + 1, "cream", 3, z=z).put(x, yt + 2, "cream", 1, z=z)
+
+
+def icon_tteokbokki():
+    """떡볶이 on the green melamine plate of a 분식집 seen from above: three rice-cake sticks, 6 px each, lying apart
+    in dark red sauce (one at the back, one at the front left, one crossing up to the right that meets the front
+    one only with its pale cut end), each glazed orange with a cream glint, a dark red underside and a pale cut end;
+    a golden fish-cake triangle lying flat at the back right, a scallion sliver in the sauce."""
+    c = Canvas()
+    g, fc, sauce = _r3dishac_GREEN, _r3dishac_FISHCAKE, ("crimson", 2)
+    c.ink[g] = ("leaf_dark", 0)
+    c.ink["cream"] = ("tomato", 1)
+    c.ink["salmon"] = ("tomato", 1)
+    c.ink[fc] = ("doenjang", 1)
+    grid(c, _r3dishac_TT_PLATE, {"H": (g, 4), "h": (g, 3), "g": (g, 2), "G": (g, 1), "S": sauce}, z=0)
+    for y in (12, 13, 14):                       # the front rim lies in front of the food: no shadow on it
+        for x, ch in enumerate(_r3dishac_TT_PLATE[y]):
+            if ch in "gG":
+                c.px[(x, y)][2] = 20
+    grid(c, ["..W..",
+             ".WYy.",
+             "WYyyo"], {"W": (fc, 5), "Y": (fc, 4), "y": (fc, 3), "o": (fc, 2)}, z=5, x0=10, y0=4)
+    _r3dishac_tteok(c, _r3dishac_run(4, [5] * 6), 10)
+    _r3dishac_tteok(c, _r3dishac_run(2, [9] * 6), 11, right_cap=False)
+    _r3dishac_tteok(c, _r3dishac_run(8, [10, 10, 9, 9, 8, 8]), 12)
+    c.put(10, 7, "leaf", 4, z=15).put(11, 7, "leaf", 3, z=15)
+    return c.render()
+
+
+# ------------------------------------------------------------------------------------------------
+# r3_dishb_c (round 3)
+# ------------------------------------------------------------------------------------------------
+
+
+# cucumber rounds lying tilted: lit skin ring L top-left, shaded ring K/D right and below, pale face f with a
+# paler seed core c and a shaded right edge g, the darker side band t of the slice's thickness underneath
+_r3dishbc_CUKE = {"L": ("cucumber", 3), "K": ("cucumber", 2), "D": ("cucumber", 2), "t": ("cucumber", 1),
+                  "f": ("musk", 4), "c": ("musk", 5), "g": ("musk", 3)}
+
+
+_r3dishbc_ROUND = ["..LLL..",
+                   ".LfffK.",
+                   "LfccfgD",
+                   ".KfffD.",
+                   ".tDDDt.",
+                   "..ttt.."]
+
+
+_r3dishbc_WIDE = ["..LLLLK..",
+                  ".LffffgK.",
+                  "LffccffgD",
+                  ".KffffgD.",
+                  ".tDDDDDt.",
+                  "..ttttt.."]
+
+
+# the shallow white 반찬 dish with an even lit rim and a cobalt band
+_r3dishbc_DISH = [
+    ".PPPPPPPPPPPPPP.",
+    "..ppppppppqqqq..",
+    "..bbbbbbbbBBBB..",
+    "...ooooooooOO...",
+]
+
+
+def icon_oi_muchim():
+    """오이무침: four cucumber rounds heaped in a shallow white 반찬 dish with a cobalt band, each tilted its own
+    way and wide or narrow, each with a clean dark-green skin ring, a pale face and a paler seed core; gochugaru in
+    a 2-px cluster at a different spot on each round and a small bright dressing smear; a scallion sliver on the
+    rim. The side bands of the slices never touch the outline, and nothing casts a shadow on the rim."""
+    c = Canvas()
+    c.ink["musk"] = ("cucumber", 0)
+    c.ink["sapphire"] = ("stone", 1)
+    c.ink["leaf"] = ("stone", 1)
+    for t, x0, y0, z in ((_r3dishbc_WIDE, 1, 3, 10), (_r3dishbc_ROUND, 8, 2, 11),
+                         (_r3dishbc_ROUND, 1, 6, 12), (_r3dishbc_WIDE, 6, 6, 13)):
+        for y, r in enumerate(t):
+            for x, ch in enumerate(r):
+                if ch != ".":
+                    c.put(x0 + x, y0 + y, *_r3dishbc_CUKE[ch], z=z)
+    grid(c, _r3dishbc_DISH, {"P": ("porcelain", 4), "p": ("porcelain", 3), "q": ("porcelain", 2),
+                             "b": ("sapphire", 2), "B": ("sapphire", 1), "o": ("porcelain", 2), "O": ("porcelain", 1)},
+         z=30, y0=11)
+    for (x, y), v in c.px.items():           # the side band never meets the outline
+        if v[0] == "cucumber" and v[1] == 1 and any((x + dx, y + dy) not in c.px
+                                                    for dx, dy in ((1, 0), (-1, 0), (0, 1), (0, -1))):
+            v[1] = 2
+    for x, y, m, s in ((3, 4, "pepper", 3), (4, 4, "pepper", 2),       # back-left round: top of the face
+                       (12, 3, "pepper", 3), (12, 4, "pepper", 2),     # back-right: right of the core
+                       (3, 9, "tomato", 3), (4, 9, "tomato", 4),       # front-left: a dressing smear low on the face
+                       (11, 7, "pepper", 3), (12, 7, "pepper", 2)):    # front-right: top right of the face
+        c.put(x, y, m, s, z=20)
+    c.put(9, 11, "leaf", 4, z=31).put(10, 11, "leaf", 5, z=31)
+    return c.render(contact=False)
+
+
+# ------------------------------------------------------------------------------------------------
+# r3_fisha_a (round 3)
+# ------------------------------------------------------------------------------------------------
+
+
+"""r3 fisha (artist a): 손질대 fish goods redrawn after the third review.
+
+cod_fillet     a white cod loin lying flat in 3/4 view: cream top face with an unbroken lit front edge, a darker cut side,
+               two round ')' flake arcs on the top face that stop above the lit edge and go on down the cut side in a
+               darker tone, one row of grey skin, the cream top running on into a rounded tail tip
+smoked_salmon  a fully visible oval plate (white back rim above the food); three skewed, draped salmon-orange slices
+               shingled on it, each with at least two rows of orange body, a short wavy pale fat dash and a darker lower
+               edge; a dill sprig at the front left, a yellow lemon wedge over the rim at the front right
+fishcake       어묵꼬치: a golden fried fish-cake sheet folded into three humps on a pale birch skewer at ~63 degrees, the humps
+               bulging out on alternate sides (left, right, left) with a 1-row waist between them where only the stick
+               shows, so every gap is a V notch on both edges; the stick shows as tip, waists and handle
+"""
+
+
+def icon_cod_fillet():
+    """대구 필렛: a thick piece of white cod loin lying flat, seen from the front and a little above: a blunt, rounded cut
+    end on the left, tapering to a rounded tail tip at mid-height on the right. The top face is cream with an unbroken
+    1-px lit front edge; under it a clearly darker 2-row cut side, then one row of grey skin along the bottom.
+    Two round ')' flake arcs in a warm light grey cross the top face and stop above the lit edge; they go on down the
+    cut side in the side's darker tone."""
+    c = Canvas()
+    fl = mat("#e8d8d0")                                 # warm, faintly pink grey flesh: the cut side and the flake lines
+    L = {"T": ("pearl", 4), "E": ("pearl", 5), "S": (fl, 2), "a": (fl, 2), "s": (fl, 1), "K": ("fish_silver", 3)}
+    grid(c, [
+        "................",
+        "................",
+        "................",
+        "...TTTaTTTT.....",
+        "..TTTTaTTTaT....",
+        ".TTTTTTaTTTaTT..",
+        ".TTTTTTaTTTaTTT.",
+        ".TTTTTaTTTaTTTT.",
+        ".EEEEEEEEEEEESK.",
+        ".SSSSSsSSSsSSK..",
+        ".SSSSSsSSSsSK...",
+        "..KKKKKKKKKK....",
+    ], L)
+    for m in ("pearl", fl, "fish_silver"):
+        c.ink[m] = ("fish_silver", 1)
+    return c.render()
+
+
+# ------------------------------------------------------------------------------------------------
+# r3_fisha_c (round 3)
+# ------------------------------------------------------------------------------------------------
+
+
+"""r3 fisha (artist c): 손질대 fish goods redrawn after the third review.
+
+cod_fillet     a flat white cod loin in 3/4 view: cream top face, an unbroken lit front edge, a darker cut side, two
+               ')' flake arcs on the top face that stop above the lit edge and go on down the side in a darker tone,
+               one row of grey skin, the cream top running on into a 2-row tail tip
+smoked_salmon  a fully visible white oval plate; three shingled salmon-orange slices (back right, middle left, front
+               centre), each with two rows of orange body, a short wavy fat dash and a darker lower edge; dill at the
+               front left, a lemon wedge at the front right
+fishcake       어묵꼬치: a golden fried fish-cake sheet folded into three humps on alternate sides (left, right, left) of a
+               pale birch skewer at ~63 degrees, a 1-row waist between them where only the stick shows
+"""
+
+
+def icon_fishcake():
+    """어묵꼬치: a sheet of fried fish cake threaded in folds on a straight pale birch skewer running at about 63 degrees
+    from the lower left to the upper right. Three humps bulge out on alternate sides (left, right, left), each one fold
+    of the sheet: a lit top row, a golden body, a darker underside and lower-right end, the outer end rounded by
+    corner cuts like a curled sheet edge. Between them a 1-row waist where only the stick shows, so each gap is a V
+    notch; the near-white stick shows as a tip, where it enters and leaves the humps, in the waists and as a handle."""
+    c = Canvas()
+    fc = mat("#d89a50")                                 # fried golden fish cake
+    st = mat("#ecd9ae")                                 # pale birch skewer
+    L = {"L": (fc, 4), "M": (fc, 3), "D": (fc, 2), "s": (st, 5), "t": (st, 3)}
+    grid(c, [
+        "................",
+        "............st..",
+        "......LLLLLLst..",
+        ".....LMMMMMMD...",
+        "......DDDDDst...",
+        "..........st....",
+        ".........sLLLL..",
+        ".......LMMMMMMD.",
+        "........DDDDDD..",
+        "........st......",
+        "...LLLLLst......",
+        "..LMMMMMMD......",
+        "...DDDDst.......",
+        "......st........",
+        ".....st.........",
+    ], L)
+    c.ink[fc] = (fc, 0)
+    c.ink[st] = ("wood", 1)
+    return c.render()
+
+
+# ------------------------------------------------------------------------------------------------
+# r3_fisha_d (round 3)
+# ------------------------------------------------------------------------------------------------
+
+
+"""r3 fisha (artist d): 훈제 연어 after the third review.
+
+smoked_salmon  candidate a with the judge's two-row fix: the plate's right rim now steps like the left (symmetric oval),
+               and the middle slice's lower edge runs as a darker crease (row 10 x7-10) so it no longer fuses with the
+               front slice's body below it; three shingled salmon slices on a round white plate, dill at the front left,
+               a lemon wedge over the rim at the front right.
+"""
+
+
+def icon_smoked_salmon():
+    """훈제 연어: three thin slices of smoked salmon shingled inside a white oval plate (back rim visible as a white arc
+    above them); each slice salmon orange with two rows of body, a short pale fat dash and a darker lower edge that
+    creases it off the slice in front. Dill sprig at the front left, lemon wedge over the rim at the front right."""
+    c = Canvas()
+    sm = mat("#e0603a")                                 # smoked: a deeper red-orange than the raw salmon fillet
+    L = {"r": ("porcelain", 4), "R": ("porcelain", 3), "w": ("porcelain", 2), "u": ("porcelain", 1),
+         "O": (sm, 3), "o": (sm, 2), "f": (sm, 4),
+         "e": ("petal_yellow", 4), "Y": ("petal_yellow", 3), "j": ("petal_yellow", 2),
+         "g": ("leaf_dark", 4), "G": ("leaf_dark", 5), "h": ("leaf_dark", 3)}
+    grid(c, [
+        "................",
+        "................",
+        "................",
+        "................",
+        "....rrrrrrRR....",
+        "..rrrwwwOOOOwR..",
+        ".rrwwwOOOffOOwR.",
+        ".rwwwOOOffOOOoR.",
+        ".rwwwooooooowwR.",
+        ".rwwOOOOOOwwwwR.",
+        ".rwOOffoooowwwR.",
+        ".RGOoooOOOOOeYR.",
+        ".RgGwOOOffOeeYR.",
+        "..hgwwoooooeYj..",
+        "....uuuuuuYYj...",
+    ], L)
+    for m in ("porcelain", sm, "leaf_dark", "petal_yellow"):
+        c.ink[m] = ("stone", 1)                         # one dark rim line round plate, lemon and dill alike
+    return c.render()
+
+
+# ------------------------------------------------------------------------------------------------
+# r3_fishb_e (round 3)
+# ------------------------------------------------------------------------------------------------
+
+
+"""r3 fishb icon fixes, artist e (숙회 / 장어구이): fresh compositions, every pixel placed by hand."""
+
+
+_r3fishbe_octo = mat("#86264e")          # blanched octopus skin, red-purple
+
+
+# 숙회 on a white plate, seen a little from above. The hero is one blanched octopus leg: its cut end lies on the
+# plate at the front right (W/w the white flesh of the cut, a pink sucker row along its underside), then the leg
+# rises up the right side (suckers o along its inner edge, lit edge T on the left) and curls over into a hooked tip
+# with a dark crease K inside the curl. One round slice cut from it lies on the plate at the front left: a white
+# disc of flesh in a skin ring (lit T on the top left, D shade on the bottom right, a sucker under it). The little
+# white dish of red 초장 stands behind the plate at the top left. K is the dark seam where food meets the plate.
+_r3fishbe_sukhoe = [
+    "................",
+    "..PPP.....TTT...",
+    ".PhhRP...TMMMD..",
+    ".PRRRP...MDKoMD.",
+    "..qqq....DDKMMD.",
+    ".....AAAAKKKoMD.",
+    "...AAqqqqqKTMMD.",
+    "..KKKKqqqqKToMD.",
+    ".KTTTTKqqKTMMMD.",
+    ".TWWWWDKKWMoMMD.",
+    ".TWWWwDKWWMMMDp.",
+    ".DWwwwDKwwDDoDp.",
+    "..DoDDKKKKKKKp..",
+    "...KKKppppppp...",
+    ".....uuuuuu.....",
+    "................",
+]
+
+
+def icon_sukhoe():
+    """숙회: a blanched octopus leg on a white plate, its thick cut end lying on the plate and the rest rising up the
+    right side to curl over into a hooked tip, pale pink suckers along its inner edge and underside, and one round
+    slice cut from it lying beside it (white flesh in a red-purple skin ring, a sucker under it). A small white dish
+    of red 초장 stands behind the plate at the top left. Food meets the plate along a dark seam; the outline is dark
+    red-purple round the octopus and grey round the porcelain."""
+    S = _r3fishbe_octo
+    c = Canvas()
+    c.ink["porcelain"] = ("stone", 1)
+    c.ink["tomato"] = ("stone", 1)
+    for m in (S, "pearl", "pink"):
+        c.ink[m] = (S, 0)
+    L = {"T": (S, 4), "M": (S, 3), "D": (S, 2), "K": (S, 1), "o": ("pink", 4), "W": ("pearl", 5), "w": ("pearl", 4),
+         "A": ("porcelain", 5), "P": ("porcelain", 4), "p": ("porcelain", 3), "q": ("porcelain", 2),
+         "u": ("porcelain", 1), "R": ("tomato", 2), "h": ("tomato", 3)}
+    grid(c, _r3fishbe_sukhoe, L, z=1)
+    return c.render(contact=False)
+
+
+# ------------------------------------------------------------------------------------------------
+# r3_gem_b (round 3)
+# ------------------------------------------------------------------------------------------------
+
+
+"""r3 gem b (fresh composition): rough ruby as ONE stout hexagonal ruby crystal standing in broken grey rock,
+instead of a row of prisms on a rock slab (which read as a tray and sat too close to rough_sapphire's fan of spindles)."""
+
+
+_r3gemb_EMPTY = "................"
+
+
+def _r3gemb_rows(d):
+    """16 rows, empty except the given {row: string}."""
+    return [d.get(y, _r3gemb_EMPTY) for y in range(16)]
+
+
+def _r3gemb_ruby_canvas():
+    L = {"W": ("ruby", 5), "P": ("ruby", 4), "R": ("ruby", 3), "E": ("ruby", 2), "D": ("ruby", 1),
+         "H": ("stone", 4), "T": ("stone", 2), "M": ("stone", 1), "F": ("stone", 0)}
+    # the crystal: a hexagonal pyramid tip that faces up, so it is a step lighter than the prism under it
+    # (pink left facets with a white glint, red right facet), on a prism whose faces step from a pink lit
+    # edge through red to a deep shadow face
+    crystal = _r3gemb_rows({
+        1: ".......P........",
+        2: "......PPR.......",
+        3: ".....WWPRR......",
+        4: "....PWPPRRE.....",
+        **{y: "....PRREEED....." for y in range(5, 12)},
+    })
+    # rock behind the crystal: a higher shoulder on the left, a lower one on the right
+    back = _r3gemb_rows({
+        8: "...HT...........",
+        9: "..HHTM......HT..",
+        10: ".HHTMM.....THHT.",
+        11: ".TTMM......TTTM.",
+    })
+    # two broken lumps in front of the crystal's foot, each lit at its upper left; the crystal shows between them
+    front = _r3gemb_rows({
+        11: "...HHT..HHT.....",
+        12: ".HHTTTMHHTTTMM..",
+        13: "..TTMMFTTMMMFF..",
+        14: "...FFFFFFFFF....",
+    })
+    c = Canvas()
+    c.ink["stone"] = ("iron", 1)          # stone's own darkest step is used inside the rock, so the outline goes darker
+    grid(c, back, L, z=3)
+    grid(c, crystal, L, z=5)
+    grid(c, front, L, z=6)
+    return c
+
+
+def icon_rough_ruby():
+    """루비 원석: one stout, uncut hexagonal ruby crystal with a pointed tip and a white glint on its lit facet,
+    standing upright in broken dark-grey rock: a rock shoulder behind it on each side and two lumps in front of
+    its foot. A single fat crystal, not rough_sapphire's fan of thin spindles on a brown slab."""
+    return _r3gemb_ruby_canvas().render()
+
+
+# ------------------------------------------------------------------------------------------------
+# r3_new_a (round 3)
+# ------------------------------------------------------------------------------------------------
+
+
+"""r3 new (artist a): 생선전 and 해물 한상, drawn pixel by pixel (economy_goods.grid on a pixelart Canvas, layered so the
+renderer adds the outline and the contact shadows).
+
+saengseonjeon  생선전: two thick slices of white fish dipped in egg and pan-fried, shingled on a long rectangular celadon
+               (jade green) plate, with a small white dish of 초간장 (dark soy, a red and a green chili flake) at the back
+               right. Each slice has a golden egg top (lit top-left, a darker lower-right edge) and a white band of fish
+               flesh along its front edge; a dark golden crease parts the front slice from the back one. The green oblong
+               plate, the soy dish and the white flesh tell it from 호박전 / 감자전 / 계란말이 on round white plates.
+seafood_feast  해물 한상: a gold-rimmed oval platter heaped on crushed ice: a big red crab claw rising at the back left (open
+               pincer), fanned smoked-salmon slices with white fat stripes at the right, a dollop of black caviar with a
+               glint on a mother-of-pearl spoon at the front, a lemon wedge at the front right. The gold rim, the pale ice bed
+               and the separate seafood pieces read as a luxury platter, apart from the caviar tin, smoked salmon,
+               steamed crab, 생선구이 정식 and 한정식.
+"""
+
+
+def icon_seafood_feast():
+    """해물 한상: crab claw, smoked salmon, caviar and lemon on crushed ice in a gold-rimmed oval platter."""
+    c = Canvas()
+    sm = mat("#e0603a")                         # smoked salmon, as in the 훈제 연어 icon
+    L = {"A": ("tomato", 4), "B": ("tomato", 3), "C": ("tomato", 2), "D": ("tomato", 1),
+         "E": ("gold", 4), "F": ("gold", 3), "O": ("gold", 2), "G": ("ice", 5),
+         "H": (sm, 3), "J": (sm, 2), "K": (sm, 1), "I": ("cream", 5),
+         "L": ("roe", 1), "M": ("roe", 2), "P": ("roe", 5), "R": ("pearl", 3), "S": ("pearl", 5),
+         "N": ("petal_yellow", 4), "Q": ("petal_yellow", 3)}
+    grid(c, [                                   # the platter: gold rim round a bed of crushed ice
+        "................",
+        "................",
+        "................",
+        ".....EEEEEE.....",
+        "...EEGGGGGGFF...",
+        "..EGGGGGGGGGGF..",
+        "..EGGGGGGGGGGF..",
+        "..FGGGGGGGGGGF..",
+        "..FGGGGGGGGGGF..",
+        "..FGGGGGGGGGGO..",
+        "..FGGGGGGGGGGO..",
+        "..FGGGGGGGGGGO..",
+        "...EEGGGGGEEO...",
+        ".....OOOOOO.....",
+    ], L, z=0)
+    grid(c, [                                   # claw (its pincer open over the rim), salmon, caviar on a spoon, lemon
+        "................",
+        "................",
+        "...AB..BC.......",
+        "...AB..BC.......",
+        "...AB.BBC.......",
+        "...BABBC..HHH...",
+        "...BBBCD.HIHHJ..",
+        "....BBC.HHHIHJ..",
+        ".....BC.JHHHIK..",
+        ".........JJJKK..",
+        ".....LLM.....N..",
+        "....LPLLM..NQQ..",
+        ".....RSSSR......",
+    ], L, z=2)
+    return c.render()
+
+
 ICONS = {
     "bluefin_tuna": icon_bluefin_tuna,
     "coke": icon_coke,
@@ -3638,4 +4173,13 @@ ICONS = {
     "kimchi_jjigae": icon_kimchi_jjigae,
     "maeuntang": icon_maeuntang,
     "samgyetang": icon_samgyetang,
+    "eggplant_stirfry": icon_eggplant_stirfry,
+    "tteokbokki": icon_tteokbokki,
+    "oi_muchim": icon_oi_muchim,
+    "cod_fillet": icon_cod_fillet,
+    "fishcake": icon_fishcake,
+    "smoked_salmon": icon_smoked_salmon,
+    "sukhoe": icon_sukhoe,
+    "rough_ruby": icon_rough_ruby,
+    "seafood_feast": icon_seafood_feast,
 }
