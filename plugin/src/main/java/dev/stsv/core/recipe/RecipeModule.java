@@ -9,11 +9,13 @@ import org.bukkit.Bukkit;
 import org.bukkit.Material;
 import org.bukkit.NamespacedKey;
 import org.bukkit.Tag;
+import org.bukkit.block.Crafter;
 import org.bukkit.configuration.ConfigurationSection;
 import org.bukkit.configuration.file.YamlConfiguration;
 import org.bukkit.event.EventHandler;
 import org.bukkit.event.HandlerList;
 import org.bukkit.event.Listener;
+import org.bukkit.event.block.CrafterCraftEvent;
 import org.bukkit.event.inventory.FurnaceSmeltEvent;
 import org.bukkit.event.inventory.PrepareItemCraftEvent;
 import org.bukkit.event.player.PlayerJoinEvent;
@@ -119,6 +121,19 @@ public final class RecipeModule implements StsvModule, Listener {
         for (ItemStack ingredient : e.getInventory().getMatrix()) {
             if (content.itemOf(ingredient).isPresent()) {
                 e.getInventory().setResult(null);
+                return;
+            }
+        }
+    }
+
+    /** The Crafter block crafts without a player and fires only this event: the same guard as onPrepareCraft. */
+    @EventHandler(ignoreCancelled = true)
+    public void onCrafter(CrafterCraftEvent e) {
+        if (ours(e.getRecipe().getKey())) return;
+        if (!(e.getBlock().getState(false) instanceof Crafter c)) return;
+        for (ItemStack it : c.getInventory().getContents()) {
+            if (content.itemOf(it).isPresent()) {
+                e.setCancelled(true);                      // the crafter keeps its ingredients and makes nothing
                 return;
             }
         }

@@ -32,6 +32,9 @@ public record FishSpec(Map<String, Rarity> rarities, Map<String, Group> groups, 
 
     public static final List<String> SALT = List.of("sea", "deep", "warm", "cold", "mangrove", "mushroom");
 
+    /** A fish whose size was taken off (in a machine slot) sells as the smallest of its kind. */
+    public static final double STRIPPED_FACTOR = 0.7;
+
     /** The water around a small one: the mushroom island has no common fish of its own, the open sea gives them. */
     static final Map<String, String> AROUND = Map.of("mushroom", "sea");
 

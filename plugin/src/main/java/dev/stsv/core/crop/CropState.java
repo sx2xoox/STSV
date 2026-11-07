@@ -12,7 +12,7 @@ public final class CropState {
     public final UUID planter;
     public int age;
     /** Ages grown by itself (random ticks, a farmer's aura) and bone meals used, over the plant's whole life. */
-    public int natural, meals;
+    public int grown, meals;
     /** A mark (namespaced PDC key) of the seed it was planted from; a young plant broken out gives a seed with it. */
     public String carry;
 

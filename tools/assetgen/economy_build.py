@@ -81,6 +81,7 @@ def main():
     fish_icons = FI.all_icons()
     FI.write_content(PACK, fish_icons)
     FI.ring_font(PACK / "assets")
+    FI.ring_preview(PACK / "assets", PREVIEWS / "fishing_ring.png")
     FI.icon_font(PACK / "assets", fish_icons)
     FI.sheet(PREVIEWS / "fish.png", fish_icons)
     print(f"fish    {len(FI.FISH)} species")

@@ -269,6 +269,11 @@ caviar:
   name: "<#4fc3f7>캐비아"
   texture: caviar
 
+seafood_feast:
+  material: paper
+  name: "<#4fc3f7>해물 한상"
+  texture: seafood_feast
+
 shrimp_meat:
   material: paper
   name: "<#4fc3f7>새우살"
@@ -417,6 +422,14 @@ hobakjeon:
   material: paper
   name: "<#ffb74d>호박전"
   texture: hobakjeon
+  food:
+    nutrition: 6
+    saturation: 7.2
+
+saengseonjeon:
+  material: paper
+  name: "<#ffb74d>생선전"
+  texture: saengseonjeon
   food:
     nutrition: 6
     saturation: 7.2

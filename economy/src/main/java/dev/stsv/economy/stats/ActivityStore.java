@@ -3,8 +3,10 @@ package dev.stsv.economy.stats;
 import dev.stsv.core.data.Db;
 
 import java.util.HashMap;
+import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
+import java.util.Set;
 import java.util.UUID;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ConcurrentHashMap;
@@ -20,6 +22,7 @@ public final class ActivityStore {
     private final Db db;
     private int today = -1;
     private final Map<UUID, long[]> rows = new ConcurrentHashMap<>();   // [startBalance, seconds, income]
+    private volatile Set<UUID> carried = Set.of();
 
     public ActivityStore(Db db) {
         this.db = db;
@@ -45,10 +48,19 @@ public final class ActivityStore {
         return today;
     }
 
-    /** A new day: forget today's rows (they stay in the database), start counting again. */
-    public void newDay(int day) {
+    /**
+     * A new day: forget today's rows (they stay in the database), start counting again. The carried players (online at the
+     * rollover with 15 minutes the day before) count as today's players from the first second, so the price curve's N does not dip at
+     * 05:00; a restart forgets them (they count again once they have 15 minutes today).
+     */
+    public void newDay(int day, Set<UUID> carried) {
         flush();
         load(day);
+        this.carried = Set.copyOf(carried);
+    }
+
+    public void newDay(int day) {
+        newDay(day, Set.of());
     }
 
     /** First sight today records the balance the day started with. */
@@ -63,12 +75,21 @@ public final class ActivityStore {
     /** Seconds played today before a player counts as one of the day's players (15 minutes). */
     public static final long ACTIVE_SECONDS = 900;
 
+    /** Players with at least 15 minutes today (the rows only, not the carried ones). */
+    public Set<UUID> active() {
+        Set<UUID> out = new HashSet<>();
+        rows.forEach((u, r) -> { if (r[1] >= ACTIVE_SECONDS) out.add(u); });
+        return out;
+    }
+
     /**
-     * Players who played at least 15 minutes today (at least 1): the N of the shop's price curve. A ten-second login
-     * (an alt account, a quick check) does not widen everyone's sell room.
+     * Players who played at least 15 minutes today or were carried over the rollover (at least 1): the N of the shop's price
+     * curve. A ten-second login (an alt account, a quick check) does not widen everyone's sell room.
      */
     public int players() {
-        return Math.max(1, (int) rows.values().stream().filter(r -> r[1] >= ACTIVE_SECONDS).count());
+        Set<UUID> n = new HashSet<>(carried);
+        n.addAll(active());
+        return Math.max(1, n.size());
     }
 
     public void addSeconds(UUID player, long seconds) {
@@ -110,6 +131,7 @@ public final class ActivityStore {
 
     public void reset() {
         rows.clear();
+        carried = Set.of();
         db.execute("DELETE FROM eco_activity");
     }
 }

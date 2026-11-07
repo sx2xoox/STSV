@@ -162,7 +162,7 @@ public final class JobModule extends EcoModule {
     }
 
     /**
-     * A machine bonus for a player who has that job now (see JobSpec.Job#bonus): chances and "sell" are 0
+     * A machine bonus for a player who has that job now (see JobSpec.Job#bonus): chances are 0
      * and the time factors "fast" / "aging" are 1 for anyone else.
      */
     public double bonus(UUID player, String job, String key) {
@@ -225,17 +225,6 @@ public final class JobModule extends EcoModule {
         if (job == null) return;
         double xp = spec.jobs().get(job).xp(action, thing) * times;
         if (xp > 0) addXp(p.getUniqueId(), job, xp);
-    }
-
-    /**
-     * Shop price multiplier when this player sells this item: 1 + the "sell" bonus if the item is made on
-     * the machine of the player's job and they have the level for it.
-     */
-    public double sellBonus(UUID player, String item) {
-        String machine = eco.machines().madeOn(item);
-        if (machine == null) return 1;
-        JobSpec.Job j = spec.ofMachine(machine);
-        return j == null ? 1 : 1 + bonus(player, j.id(), "sell");
     }
 
     // ------------------------------------------------------------------------------------------
@@ -604,7 +593,7 @@ public final class JobModule extends EcoModule {
             case HARVEST -> {
                 reward(p, "harvest", e.crop().id(), 1);
                 // the farmer's harvest bonus: a share of the produce (+2% a level), so every crop gains alike
-                double pct = "farmer".equals(job(u)) ? spec.jobs().get("farmer").harvestPctPerLevel() * level(u) * boost("farmer") : 0;
+                double pct = "farmer".equals(job(u)) ? spec.jobs().get("farmer").harvestPct(level(u)) * boost("farmer") : 0;
                 for (ItemStack it : e.drops()) {
                     if (pct > 0 && e.crop().produce().equals(Items.key(it))) {
                         int n = it.getAmount(), whole = (int) Math.floor(pct);

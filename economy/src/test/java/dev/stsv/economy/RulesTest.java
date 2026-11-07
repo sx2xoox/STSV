@@ -240,13 +240,15 @@ class RulesTest {
         // machine bonuses switch on at their level
         assertEquals(0, miner.bonus("extra", 9), 1e-9);
         assertEquals(0.15, miner.bonus("extra", 10), 1e-9);
-        assertEquals(0.20, miner.bonus("sell", 30), 1e-9);
-        assertEquals(0, miner.bonus("sell", 29), 1e-9);
+        assertEquals(0.20, miner.bonus("yield", 30), 1e-9);
+        assertEquals(0, miner.bonus("yield", 29), 1e-9);
         JobSpec.Job cook = spec.jobs().get("cook");
         assertEquals(0.12, cook.bonus("speed", 12), 1e-9, "speed is per level");
         JobSpec.Job smith = spec.jobs().get("blacksmith");
         assertEquals(1, smith.bonus("fast", 19), 1e-9, "a time factor is 1 below its level");
         assertEquals(0.5, smith.bonus("fast", 20), 1e-9);
+        assertEquals(0.15, smith.bonus("save", 20), 1e-9);
+        assertEquals(0, smith.bonus("save", 19), 1e-9);
         assertEquals(0.5, spec.jobs().get("alchemist").bonus("aging", 25), 1e-9);
         assertEquals(miner, spec.ofMachine("gem_bench"));
         // fishing: the rare-bite chance and the Lv20 doubles (the fish themselves are in fish.yml)
@@ -257,6 +259,54 @@ class RulesTest {
         JobSpec.Job farmer = spec.jobs().get("farmer");
         assertEquals(30, farmer.areaHarvest());
         assertEquals(10, farmer.growth().level());
+        // the custom-crop harvest bonus: a chance per produce unit, +2% a level
+        assertEquals(0.02, farmer.harvestPctPerLevel(), 1e-9);
+        assertEquals(0.60, farmer.harvestPct(30), 1e-9);
+        assertEquals(0.1, farmer.harvestPerLevel(), 1e-9);
+    }
+
+    /** Every job bonus rolls per unit, so a 4 -> 4 bulk recipe gains exactly four times what a 1 -> 1 one does. */
+    @Test
+    void machineBonusesAreProportional() {
+        java.util.Random r = new java.util.Random(1);
+        assertEquals(0, MachineSpec.binomial(0, 0.5, r));
+        assertEquals(0, MachineSpec.binomial(5, 0, r));
+        assertEquals(5, MachineSpec.binomial(5, 1, r));
+        int draws = 100_000;
+        java.util.Random four = new java.util.Random(1), one = new java.util.Random(1);
+        long sum4 = 0, sum1 = 0;
+        for (int i = 0; i < draws; i++) {
+            sum4 += MachineSpec.binomial(4, 0.35, four);
+            sum1 += MachineSpec.binomial(1, 0.35, one);
+        }
+        double mean4 = (double) sum4 / draws, mean1 = (double) sum1 / draws;
+        assertEquals(1.40, mean4, 0.02);
+        assertEquals(4 * mean1, mean4, 0.02, "four units, four times the bonus of one");
+        // the room a batch needs: 'double' doubles it, 'extra' / 'yield' add at most one per unit
+        assertEquals(8, MachineSpec.maxBatch(4, false, true));
+        assertEquals(4, MachineSpec.maxBatch(2, true, false));
+        assertEquals(10, MachineSpec.maxBatch(5, false, true));
+        assertEquals(12, MachineSpec.maxBatch(3, true, true));
+        assertEquals(1, MachineSpec.maxBatch(1, false, false));
+    }
+
+    /** The Lv30 bonus is 'yield' on the machine now: an old jobs.yml with the shop-price 'sell' gets a load problem. */
+    @Test
+    void theOldSellBonusIsAProblem() {
+        for (String key : List.of("sell", "yield")) {
+            YamlConfiguration y = new YamlConfiguration();
+            y.set("jobs.miner.name", "광부");
+            y.set("jobs.miner.machine", "gem_bench");
+            y.set("jobs.miner.machine-bonus." + key + ".level", 30);
+            y.set("jobs.miner.machine-bonus." + key + "." + (key.equals("sell") ? "bonus" : "chance"), 0.2);
+            List<String> problems = new ArrayList<>();
+            JobSpec spec = JobSpec.parse(y, problems);
+            if (key.equals("sell")) assertEquals(List.of("miner.machine-bonus: 모르는 효과 sell"), problems);
+            else {
+                assertEquals(List.of(), problems);
+                assertEquals(0.2, spec.jobs().get("miner").bonus("yield", 30), 1e-9);
+            }
+        }
     }
 
     @Test
@@ -265,7 +315,7 @@ class RulesTest {
         Map<String, MachineSpec> m = MachineSpec.parse(y, new ArrayList<>());
         Map<String, MachineSpec.Group> groups = MachineSpec.groups(y, new ArrayList<>());
         java.util.function.BiPredicate<String, String> tags = (tag, item) -> groups.containsKey(tag) && groups.get(tag).items().contains(item);
-        // every member is a fish of fish.yml, none is a legend, and a fish is in one cooking group only (명태·대구 aside)
+        // every member is a fish of fish.yml, none is a legend, and a fish is in one cooking group only
         FishSpec f = fish();
         java.util.Set<String> fishItems = new HashSet<>();
         f.species().values().forEach(sp -> fishItems.add(sp.item()));
@@ -280,19 +330,37 @@ class RulesTest {
                 assertTrue(fishItems.contains(it), g.id() + ": " + it + " is a fish");
                 var sp = f.species().values().stream().filter(x -> x.item().equals(it)).findFirst().orElseThrow();
                 assertNotEquals("legend", sp.rarity(), it + " is a legend: sold, not cooked");
-                if (!g.id().equals("economy:pollack")) assertNull(seen.put(it, g.id()), it + " in two groups");
+                assertNull(seen.put(it, g.id()), it + " in two groups");
             }
         }
         // any fish of a group will do, mixed too
         MachineSpec bench = m.get("fish_bench");
-        assertEquals("economy:cod_fillet", bench.auto(Map.of("economy:rockfish", 1, "minecraft:cod", 1), 0, tags).output());
+        assertEquals("economy:cod_fillet", bench.auto(Map.of("economy:sandfish", 1, "minecraft:cod", 1), 0, tags).output());
         assertEquals("economy:sukhoe", bench.auto(Map.of("economy:octopus", 1), 1, tags).output());
         assertNull(bench.auto(Map.of("economy:octopus", 1), 0, tags), "숙회 is 1강");
         MachineSpec kitchen = m.get("kitchen");
         assertEquals("economy:maeuntang", kitchen.auto(Map.of("economy:carp", 1, "economy:loach", 1, "economy:chili_powder", 1,
-                "economy:green_onion", 1), 1, tags).output());
-        assertNull(kitchen.auto(Map.of("economy:guppy", 2, "economy:chili_powder", 1, "economy:green_onion", 1), 3, tags),
+                "economy:tofu", 1), 1, tags).output());
+        assertNull(kitchen.auto(Map.of("economy:guppy", 2, "economy:chili_powder", 1, "economy:tofu", 1), 3, tags),
                 "an aquarium fish is not food");
+        assertEquals("economy:saengseonjeon", kitchen.auto(Map.of("economy:rockfish", 1, "economy:lenok", 1, "economy:flour", 1,
+                "minecraft:egg", 1), 0, tags).output());
+    }
+
+    /** A sized fish goes into a lane (and loses its size) only where a recipe open at the machine's tier uses it. */
+    @Test
+    void machinesTakeOnlyTheFishTheyUse() {
+        var y = ContentTest.yaml("machines.yml");
+        Map<String, MachineSpec> m = MachineSpec.parse(y, new ArrayList<>());
+        Map<String, MachineSpec.Group> groups = MachineSpec.groups(y, new ArrayList<>());
+        java.util.function.BiPredicate<String, String> tags = (tag, item) -> groups.containsKey(tag) && groups.get(tag).items().contains(item);
+        MachineSpec fishBench = m.get("fish_bench"), kitchen = m.get("kitchen"), press = m.get("press");
+        assertTrue(fishBench.takes("economy:croaker", 1, tags));
+        assertFalse(fishBench.takes("economy:croaker", 0, tags), "굴비 opens at 1강");
+        assertTrue(kitchen.takes("economy:snow_crab", 2, tags), "through #economy:crab");
+        assertFalse(kitchen.takes("economy:king_crab", 3, tags), "a trophy");
+        assertFalse(press.takes("economy:whale_shark", 3, tags));
+        assertTrue(fishBench.takes("economy:sardine", 0, tags), "through #economy:blue_fish (common, never sized)");
     }
 
     /** The press: every seed (vanilla or a custom crop's) makes seed oil, mixed in one lane; each good is one recipe. */
@@ -309,7 +377,8 @@ class RulesTest {
         };
         assertEquals("economy:seed_oil", press.auto(Map.of("minecraft:wheat_seeds", 20, "economy:tomato_seeds", 12), 0, tags).output());
         assertNull(press.auto(Map.of("minecraft:wheat_seeds", 20), 0, tags), "not 32 yet");
-        assertEquals("economy:compost", press.auto(Map.of("minecraft:oak_sapling", 6, "minecraft:rotten_flesh", 10), 0, tags).output());
+        assertEquals("economy:compost", press.auto(Map.of("minecraft:oak_sapling", 10, "minecraft:rotten_flesh", 10), 0, tags).output());
+        assertNull(press.auto(Map.of("minecraft:oak_sapling", 6, "minecraft:rotten_flesh", 10), 0, tags), "not 20 yet");
         var custom = new HashSet<String>();
         try (var s = java.nio.file.Files.list(java.nio.file.Path.of(System.getProperty("stsv.content")).resolve("economy/items"))) {
             for (var f : s.toList()) for (String k : org.bukkit.configuration.file.YamlConfiguration.loadConfiguration(f.toFile()).getKeys(false))
@@ -329,7 +398,7 @@ class RulesTest {
         MachineSpec gems = m.get("gem_bench");
         assertEquals("economy:ruby", gems.auto(Map.of("economy:rough_ruby", 1), 0, tags).output());
         assertEquals(1, gems.auto(Map.of("economy:rough_ruby", 4), 0, tags).amount(), "the bulk recipe is 1강");
-        assertEquals(5, gems.auto(Map.of("economy:rough_ruby", 4), 1, tags).amount(), "from 1강: four rough gems make five");
+        assertEquals(4, gems.auto(Map.of("economy:rough_ruby", 4), 1, tags).amount(), "from 1강: four rough gems are cut at once (same yield, faster)");
         assertEquals(1, gems.auto(Map.of("economy:rough_ruby", 3), 1, tags).amount(), "not enough for the bulk one");
         assertNull(gems.auto(Map.of("minecraft:gold_ingot", 2, "economy:ruby", 1), 0, tags), "the ring is 1강");
         assertEquals("economy:ruby_ring", gems.auto(Map.of("minecraft:gold_ingot", 2, "economy:ruby", 1), 1, tags).output());
@@ -349,6 +418,15 @@ class RulesTest {
         assertEquals(4, s.lanes(3));
         assertEquals(0.30, s.speed(2), 1e-9);
         assertEquals(0.2, s.xpPerGold(), 1e-9);
+        // the press has its own upgrade costs, the rest of the table is the global one
+        MachineSpec.Settings press = s.forMachine(m.get("press"));
+        assertEquals(1000, press.cost(1)); assertEquals(4000, press.cost(2)); assertEquals(10000, press.cost(3));
+        assertEquals(3, press.maxTier(), "the global levels are kept: the press still goes to 3강");
+        assertEquals(4, press.lanes(3)); assertEquals(0.30, press.speed(2), 1e-9); assertEquals(30, press.level(3));
+        assertSame(s, s.forMachine(m.get("forge")), "job machines keep the global table");
+        // presses upgraded at the global price before get the difference back
+        assertEquals(4000, MachineSpec.Settings.refund(s, press, 1)); assertEquals(20000, MachineSpec.Settings.refund(s, press, 2));
+        assertEquals(60000, MachineSpec.Settings.refund(s, press, 3)); assertEquals(0, MachineSpec.Settings.refund(s, s, 3), "job machines");
     }
 
     // ------------------------------------------------------------------------------------------ stocks
@@ -589,6 +667,19 @@ class RulesTest {
         assertEquals(spec.community().get(3), spec.communityFor(4));
         assertEquals(spec.communityFor(1), spec.communityFor(5));
         assertEquals(spec.communityFor(2), spec.communityFor(102));
+        // the community floor: 0.5% of the target, and the items worth the reward at request prices
+        assertEquals(129, RequestSpec.minShare(2500, 1500, 9, 1.3));
+        assertEquals(39, RequestSpec.minShare(2000, 3000, 60, 1.3));
+        assertEquals(193, RequestSpec.minShare(30000, 1000, 4, 1.3));
+        assertEquals(100, RequestSpec.minShare(20000, 500, 10, 1.3), "the 0.5% binds");
+        assertEquals(1, RequestSpec.minShare(10, 0, 0, 1.3));
+        ShopCatalog shop = ShopCatalog.parse(ContentTest.yaml("shop.yml"), new ArrayList<>());
+        for (RequestSpec.Community c : spec.community()) {
+            double base = shop.sell().containsKey(c.item()) ? shop.sell().get(c.item()).base() : 0;
+            long min = spec.minShare(c, base);
+            assertTrue(min * base * spec.rewardMultiplier() >= c.reward(), c.name() + ": " + min + " x " + base + " G is worth less than " + c.reward() + " G");
+            assertTrue(min <= c.target() / 10, c.name() + ": the floor " + min + " is over a tenth of " + c.target());
+        }
     }
 
     @Test
@@ -672,8 +763,8 @@ class RulesTest {
         java.util.Random r = new java.util.Random(7);
         int[] n = new int[4];
         for (int i = 0; i < 100_000; i++) n[f.tier(0.15, r).index()]++;
-        assertEquals(0.15 * 0.8, n[2] / 100_000.0, 0.005, "rare: 15% x 0.8");
-        assertEquals(0.15 * 0.2, n[3] / 100_000.0, 0.003, "legend: 15% x 0.2");
+        assertEquals(0.15 * 0.95, n[2] / 100_000.0, 0.005, "rare: 15% x 0.95");
+        assertEquals(0.15 * 0.05, n[3] / 100_000.0, 0.003, "legend: 15% x 0.05 (legend-share)");
         assertEquals(0.85 * 0.35, n[1] / 100_000.0, 0.006, "uncommon: 35% of the rest");
 
         FishSpec.Species s = f.species().values().stream().filter(x -> x.rarity().equals("legend")).findFirst().orElseThrow();
@@ -683,6 +774,20 @@ class RulesTest {
         assertTrue(FishSpec.size(s, 0.5, 0, false, 0) < (s.min() + s.max()) / 2, "towards the small end");
         assertEquals(0.7, FishSpec.priceFactor(s, s.min()), 1e-9);
         assertEquals(1.5, FishSpec.priceFactor(s, s.max() * 1.1), 1e-9);
+    }
+
+    /** A fish stripped of its size in a machine slot sells as the smallest of its kind: taking it back out never raises its price. */
+    @Test
+    void aStrippedFishNeverSellsForMore() {
+        for (FishSpec.Species s : fish().species().values()) {
+            for (int i = 0; ; i++) {
+                double size = s.min() + i * 0.1;
+                if (size > s.max() * 1.15 + 1e-9) break;
+                double f = FishSpec.priceFactor(s, size);
+                if (i == 0) assertEquals(FishSpec.STRIPPED_FACTOR, f, 1e-9, s.id() + " at its smallest");
+                else assertTrue(FishSpec.STRIPPED_FACTOR < f, s.id() + " " + size + " cm: " + f);
+            }
+        }
     }
 
     /** A Random whose ints are always 0 and booleans false: the ring starts at cell 0 and goes forward. */
@@ -750,7 +855,7 @@ class RulesTest {
         assertEquals(2, l.hearts);
         // the fisher's wider zone: +1% a level, at least 3 cells
         assertEquals(10, new Ring(common, 0.30, 3, new Fixed()).zoneW, "8 x 1.3 = 10.4");
-        assertEquals(6, new Ring(legend, 0, 3, new Fixed()).zoneW);
+        assertEquals(13, new Ring(legend, 0, 3, new Fixed()).zoneW);
 
         // the title: one glyph per drawn cell, each followed by the back space, total advance 14
         String t = RingGlyphs.title(new Ring(common, 0, 3, new Fixed()), "f");
@@ -768,6 +873,68 @@ class RulesTest {
         net.kyori.adventure.text.Component styled = net.kyori.adventure.text.minimessage.MiniMessage.miniMessage().deserialize("<!shadow>x");
         assertNotNull(styled.style().shadowColor(), "the shadow tag is understood");
         assertEquals(0, styled.style().shadowColor().alpha(), "and turns the shadow off");
+    }
+
+    /** A Random whose nextInt always draws `v` (capped by the bound), so newRound puts the zone at a chosen distance; stateless. */
+    private static final class Draw extends java.util.Random {
+        final int v;
+
+        Draw(int v) {
+            this.v = v;
+        }
+
+        @Override
+        public int nextInt(int bound) {
+            return Math.min(v, bound - 1);
+        }
+
+        @Override
+        public boolean nextBoolean() {
+            return false;
+        }
+    }
+
+    /** A ring after h successes, each pressed on the first green cell (the same r, lv, v, h always gives the same ring). */
+    private static Ring ringAt(FishSpec.Rarity r, int lv, int v, int h) {
+        Ring ring = new Ring(r, lv * 0.01, 4, new Draw(v));
+        for (int k = 0; k < h; k++) {
+            while (ring.pause > 0) ring.tick();
+            runTo(ring, ring::inZone);
+            Ring.Result res = ring.press();
+            assertTrue(res == Ring.Result.HIT || res == Ring.Result.PERFECT, "reached hit " + (k + 1));
+        }
+        return ring;
+    }
+
+    /** Every hit of every rarity is on green for at least 2 server ticks, at every fisher level, and no round starts on green. */
+    @Test
+    void ringWindowsAreTwoTicks() {
+        FishSpec f = fish();
+        for (FishSpec.Rarity r : f.rarities().values()) {
+            boolean legend = r.index() >= 3;
+            for (int h = 0; h < r.hits(); h++) {                       // the closed form, as BalanceTest R12
+                int zone = Math.max(Ring.MIN_ZONE, r.zone() - h);
+                double speed = r.speed() + Ring.HIT_SPEEDUP * h;
+                assertTrue(zone >= 2 * speed + (legend ? 1 : 0), r.id() + " hit " + (h + 1) + ": zone " + zone + " < 2 x " + speed);
+            }
+            for (int lv = 0; lv <= 30; lv++) {
+                for (int v = 0; v < 19; v++) {
+                    for (int h = 0; h < r.hits(); h++) {
+                        Ring ring = ringAt(r, lv, v, h);
+                        String at = r.id() + " Lv" + lv + " draw " + v + " hit " + (h + 1);
+                        assertFalse(ring.inZone(ring.needle()), at + ": the round starts on green");   // R12b
+                        while (ring.pause > 0) ring.tick();
+                        int on = 0;
+                        for (int i = 0; i < 400; i++) {
+                            ring.tick();
+                            if (ring.inZone(ring.needle())) on++;
+                            else if (on > 0) break;
+                        }
+                        assertTrue(on >= 2, at + ": " + on + " tick(s) on green");
+                    }
+                }
+            }
+        }
     }
 
     @Test

@@ -3,7 +3,7 @@ plugins {
 }
 
 group = "dev.stsv"
-version = "3.19.0"
+version = "3.20.0"
 
 repositories {
     mavenCentral()
@@ -25,6 +25,8 @@ dependencies {
 tasks.test {
     useJUnitPlatform()
     systemProperty("stsv.content", file("content").absolutePath)
+    // BalanceTest on another content tree (a directory with shop.yml, machines.yml, ...): -PbalanceContent=<dir>
+    providers.gradleProperty("balanceContent").orNull?.let { systemProperty("stsv.balance.content", file(it).absolutePath) }
 }
 
 java {

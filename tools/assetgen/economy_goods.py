@@ -1926,6 +1926,37 @@ def potato_vodka():
     return c
 
 
+@icon
+def saengseonjeon():
+    """생선전: oval slices of white fish dipped in egg and fried golden, the pale flesh showing at the cut, on a plate."""
+    c = _plate(Canvas())
+    for k, (x, y) in enumerate(((4.4, 9.4), (11.6, 9.2), (8.0, 6.2))):
+        c.ellipse(x, y, 3.4, 1.9, "corn", 2 + k, lo=2, hi=4, dome=0.5)
+        c.ellipse(x - 0.6, y - 0.3, 2.0, 0.9, "cream", 2.5 + k, lo=3, hi=5, dome=0.2)
+        c.put(int(x + 2), int(y + 1), "straw", 2, z=3 + k)
+    c.dots([(7, 9), (12, 6)], "pepper", 3).dots([(8, 9), (3, 7)], "leaf", 3)
+    return c
+
+
+@icon
+def seafood_feast():
+    """해물 한상: a round dark lacquer tray from above: a gold tin of caviar, slices of smoked salmon, a fishcake skewer."""
+    c = Canvas()
+    c.ellipse(8, 8.3, 7.5, 6.8, "wood_dark", 0, lo=1, hi=3, dome=0.25)
+    c.ellipse(8, 8.1, 6.3, 5.6, "wood_dark", 0.2, lo=2, hi=2, dome=-0.2)
+    c.ellipse(5.0, 5.0, 2.7, 2.2, "gold", 1, lo=2, hi=4, dome=0.3)
+    c.ellipse(5.0, 5.0, 1.9, 1.4, "roe", 1.2, lo=1, hi=2, dome=0.7)
+    c.dots([(4, 5), (5, 4)], "sapphire", 4)
+    for k, (x, y) in enumerate(((11.0, 5.4), (11.4, 8.6))):
+        c.tube([(x - 1.8, y - 0.4), (x + 1.6, y + 0.6)], [1.3, 1.3], "salmon", 1 + k * 0.1, flat=0.55, lo=2, hi=4)
+        c.line(int(x - 1), int(y), int(x + 1), int(y), "cream", 4, z=2 + k)
+    f = {"A": ("straw", 5), "B": ("straw", 4), "C": ("straw", 2), "D": ("doenjang", 3), "s": ("wood", 3)}
+    grid(c, ["ABBBC.", ".DDD..", "ABBBC.", ".DDD.."], f, z=3, x0=3, y0=9)
+    c.dots([(5, 13), (5, 14)], "wood", 3, z=3)
+    c.dots([(9, 12), (10, 12)], "leaf", 3)
+    return c
+
+
 # the goods redrawn by hand one by one (goods_art.py) replace the template drawings above
 import goods_art as _GA   # noqa: E402
 
@@ -1946,13 +1977,13 @@ GROUPS = [
                   "gochujang": "고추장", "jang_set": "전통 장 세트"}),
     ("손질대 · 어부", {"cod_fillet": "대구 필렛", "salmon_fillet": "연어 필렛", "dried_pollack": "북어", "prepared_puffer": "손질한 복어",
                   "smoked_salmon": "훈제 연어", "seabream_sashimi": "참돔 회", "tuna_sashimi": "참치 회",
-                  "polished_pearl": "연마 진주", "fishcake": "어묵", "caviar": "캐비아"}),
+                  "polished_pearl": "연마 진주", "fishcake": "어묵", "caviar": "캐비아", "seafood_feast": "해물 한상"}),
     ("대장간 · 대장장이", {"iron_plate": "철판", "iron_chain": "쇠사슬", "gold_leaf": "금박", "steel_ingot": "강철괴",
                     "oak_barrel": "참나무통", "steel_toolset": "강철 공구 세트", "ornate_armor": "장식용 갑옷"}),
     ("조리대 · 요리사", {"kimchi": "김치", "kkakdugi": "깍두기", "oi_sobagi": "오이소박이", "hobakjeon": "호박전",
                    "eggplant_stirfry": "가지볶음", "sundubu_jjigae": "순두부찌개", "tuna_sushi": "참치 초밥",
                    "strawberry_cake": "딸기 케이크", "tomato_pasta": "토마토 파스타", "corn_bread": "옥수수빵", "bibimbap": "비빔밥",
-                   "grilled_fish_set": "생선구이 정식", "hanjeongsik": "한정식"}),
+                   "grilled_fish_set": "생선구이 정식", "hanjeongsik": "한정식", "saengseonjeon": "생선전"}),
     ("증류기 · 연금술사", {"makgeolli": "막걸리", "soju": "소주", "melon_syrup": "멜론 시럽", "wine": "포도주",
                     "melon_liqueur": "멜론 리큐어", "pearl_perfume": "진주 향수", "vintage_wine": "빈티지 포도주"}),
     ("추가 · 세공대", {"cut_emerald": "세공 에메랄드", "lapis_beads": "청금석 구슬", "gold_ring": "금반지", "cut_diamond": "세공 다이아몬드",

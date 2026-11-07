@@ -24,7 +24,8 @@ machine:
     I: { action: "", material: AIR, name: " " }
     O: { action: "", material: AIR, name: " " }
 
-# 기계 레시피 목록: 줄의 상태 칸을 누르면 열림. 클릭 = 그 줄에 고정, 맨 앞 '자동' = 넣은 재료로 알아서
+# 기계 레시피 목록: 줄의 상태 칸을 누르면 열림. 클릭 = 그 줄에 고정, 맨 앞 '자동' = 넣은 재료로 알아서.
+# 한 화면 36칸: 넘치면 ◀ ▶ 로 넘김 (조리대는 자동 + 37개)
 machine_recipes:
   title: "<#f3e3b0>{machine} 레시피 <dark_gray>· {lane}번 줄"
   rows: 6
@@ -35,7 +36,7 @@ machine_recipes:
     - "LLLLLLLLL"
     - "LLLLLLLLL"
     - "LLLLLLLLL"
-    - "...B.X..."
+    - "P..B.X..N"
   list: L
   buttons:
     I:
@@ -49,6 +50,20 @@ machine_recipes:
       icon: economy:gui/back
       material: ARROW
       name: "<white>기계로 돌아가기"
+    P:
+      action: page:prev
+      icon: stsv:gui/prev
+      material: ARROW
+      name: "<yellow>◀ 이전 페이지"
+      lore: ["<gray>{page} / {pages}"]
+      off: { icon: stsv:gui/prev_off, material: GRAY_DYE, name: "<dark_gray>◀ 첫 페이지" }
+    N:
+      action: page:next
+      icon: stsv:gui/next
+      material: ARROW
+      name: "<yellow>다음 페이지 ▶"
+      lore: ["<gray>{page} / {pages}"]
+      off: { icon: stsv:gui/next_off, material: GRAY_DYE, name: "<dark_gray>마지막 페이지 ▶" }
     X:
       action: close
       icon: stsv:gui/exit

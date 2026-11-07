@@ -8,6 +8,7 @@ import java.util.Map;
 import java.util.Random;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
@@ -101,6 +102,11 @@ class CropGrowthTest {
         assertTrue(CropGrowth.mealAllowed(14, 1));
         assertEquals(3, CropGrowth.agesToNextMeal(4, 0));
         assertEquals(1, CropGrowth.agesToNextMeal(13, 1));
+        int meals = CropGrowth.mealsBanked(28, 0);          // a regrowing tomato with 28 natural ages and no meal yet
+        assertEquals(3, meals);
+        assertTrue(CropGrowth.mealAllowed(28, meals), "one meal now");
+        assertFalse(CropGrowth.mealAllowed(28, meals + 1), "not four in a row: the next one waits for 7 more natural ages");
+        assertEquals(0, CropGrowth.mealsBanked(7, 0)); assertEquals(1, CropGrowth.mealsBanked(14, 0));
     }
 
     @Test

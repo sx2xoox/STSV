@@ -80,15 +80,26 @@ public final class Items {
     }
 
     /**
-     * The same fish without its size: a plain stack of the species (no size, no price factor, no size line), so
-     * fish of one kind stack in a machine's input slot. Anything else comes back as it is.
+     * The same fish without its size, priced as the smallest of its kind (FishSpec.STRIPPED_FACTOR) with one lore line: every stripped
+     * fish of a species is like every other, so they stack in an input slot, and taking one back out never raises its price.
+     * Anything else comes back as it is.
      */
     public static ItemStack stripSize(ItemStack item) {
         if (!sized(item)) return item;
-        return create(key(item), item.getAmount()).orElse(item);
+        return create(key(item), item.getAmount()).map(plain -> {
+            plain.editMeta(m -> {
+                java.util.List<Component> lore = m.hasLore() ? new java.util.ArrayList<>(m.lore()) : new java.util.ArrayList<>();
+                lore.add(dev.stsv.core.util.Lang.item("fishing.size-stripped-lore", "pct",
+                        Math.round(dev.stsv.economy.fishing.FishSpec.STRIPPED_FACTOR * 100)));
+                m.lore(lore);
+                m.getPersistentDataContainer().set(dev.stsv.economy.fishing.FishingModule.FACTOR,
+                        org.bukkit.persistence.PersistentDataType.DOUBLE, dev.stsv.economy.fishing.FishSpec.STRIPPED_FACTOR);
+            });
+            return plain;
+        }).orElse(item);
     }
 
-    /** A rare or legend fish's price factor by its size (0.7 - 1.5, set when caught); 1 for anything else. */
+    /** A rare or legend fish's price factor by its size (0.7 - 1.5, set when caught; 0.7 once stripped in a machine); 1 for anything else. */
     public static double sizeFactor(ItemStack item) {
         if (item == null || !item.hasItemMeta()) return 1;
         Double f = item.getItemMeta().getPersistentDataContainer().get(dev.stsv.economy.fishing.FishingModule.FACTOR,

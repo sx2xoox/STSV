@@ -80,12 +80,17 @@ public final class CropGrowth {
     }
 
     /** May the plant take a bone meal: one per 7 ages it grew by itself, counted over its whole life. */
-    public static boolean mealAllowed(int natural, int meals) {
-        return meals < natural / MEAL_EVERY;
+    public static boolean mealAllowed(int grown, int meals) {
+        return meals < grown / MEAL_EVERY;
+    }
+
+    /** Meals counted with at most one unused meal banked: credits beyond one are dropped, so meals cannot be saved up. */
+    public static int mealsBanked(int grown, int meals) {
+        return Math.max(meals, grown / MEAL_EVERY - 1);
     }
 
     /** Ages it still has to grow by itself before the next bone meal works. */
-    public static int agesToNextMeal(int natural, int meals) {
-        return (meals + 1) * MEAL_EVERY - natural;
+    public static int agesToNextMeal(int grown, int meals) {
+        return (meals + 1) * MEAL_EVERY - grown;
     }
 }

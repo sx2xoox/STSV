@@ -251,10 +251,11 @@ machine:
   group-items-more: "<dark_gray>  {items}"
   book: "<gold>레시피 목록"
   book-lore: ["<gray>이 기계로 만들 수 있는 것 전부", "<dark_gray>줄마다 고르려면 그 줄의 상태 칸을 클릭",
-              "<dark_gray>희귀·전설 물고기는 재료 칸에 넣으면 크기가 지워져 같은 종류끼리 쌓임 (큰 물고기는 파는 쪽이 이득)"]
+              "<dark_gray>희귀·전설 물고기는 그 물고기를 쓰는 기계의 재료 칸에 넣으면 크기가 지워져 같은 종류끼리 쌓임 (매입가 70%: 큰 물고기는 파세요)"]
   info: "<gold>{machine}</gold> <gray>· <white>{tier}"
   info-lore: ["<gray>설치: <white>{owner}", "<gray>줄 <white>{lanes}</white>개 · 속도 <white>+{speed}%", "<gray>누구나 사용. <{color}>{job}<gray>면 빠르고 경험치·직업 효과", "<dark_gray>재료를 넣은 사람이 그 줄의 운영자"]
   shop-bought: "<red>상점에서 산 물건은 기계에 넣을 수 없습니다 <gray>(그걸로 만든 것, 다 자라기 전에 뽑은 것 포함 · 직접 기르거나 캐거나 잡은 것만)"
+  fish-not-used: "<yellow>이 기계에서 쓰지 않는 물고기입니다 <gray>(크기가 지워지지 않게 그대로 둠)"
   upgrade: "<gold>강화 → {tier}"
   upgrade-lore: ["<gray>비용 <white>{cost}", "<gray>필요: 설치한 사람이 <{color}>{job}<gray> Lv{level}", "<gray>강화하면: 줄 {lanes}개 · 속도 +{speed}% · 새 레시피 {recipes}개 · 새 모습"]
   # 공용 기계 (직업 없음: 압착기)
@@ -267,6 +268,7 @@ machine:
   need-level: "<{color}>{job}<red> Lv{level}이 되어야 {tier}로 강화할 수 있습니다."
   not-enough: "<red>강화 비용 {cost}이 부족합니다."
   upgraded: "<gold>{machine}</gold> <gray>강화 → <white><b>{tier}</b></white><gray>! 줄 {lanes}개, 속도 +{speed}%"
+  refund: "<green>압착기 강화비가 내려 그 차액 </green>{amount}<green>을(를) 돌려받았습니다."
   collect: "<green>결과 전부 받기"
   collected: "<green>결과 {count}개를 받았습니다."
   nothing: "<gray>받을 결과가 없습니다."
@@ -470,9 +472,9 @@ request:
   contributed: "<green>공동 의뢰</green> <white>{item} ×{count}</white> <gray>납품 ({progress} / {target})"
   community-name: "<gold><b>공동 의뢰: {name}</b>"
   community-lore: ["<gray>{item} {progress} / {target} <white>({pct}%)", "{bar}", "<gray>내 기여: <white>{mine}</white> <dark_gray>· 참여 {contributors}명",
-                   "<gray>달성하면 참여자 모두 </gray>{reward}", "<yellow>클릭: 가진 {item} 전부 납품"]
-  community-lore-done: ["<green>✔ 달성! ({target})", "<gray>참여 {contributors}명, 각자 </gray>{reward}"]
-  community-complete: "<gold><b>공동 의뢰 달성!</b></gold> <white>{name}</white> <gray>참여 {count}명 모두에게 </gray>{reward}"
+                   "<gray>달성하면 {min}개 이상 낸 사람 모두 </gray>{reward}", "<yellow>클릭: 가진 {item} 전부 납품"]
+  community-lore-done: ["<green>✔ 달성! ({target})", "<gray>{min}개 이상 낸 {paid}명, 각자 </gray>{reward}"]
+  community-complete: "<gold><b>공동 의뢰 달성!</b></gold> <white>{name}</white> <gray>{min}개 이상 낸 {count}명에게 </gray>{reward}"
 
 mission:
   daily: "일일"
@@ -572,6 +574,7 @@ fishing:
   trap: "<dark_red>함정! <red>하트 두 칸"
   escaped: "<gray>물고기가 달아났다…"
   size-lore: "<gray>크기 <white>{size}cm <dark_gray>· 매입가 {pct}%"
+  size-stripped-lore: "<gray>크기 없음 <dark_gray>· 매입가 {pct}%"
   result: "<white>{size}cm"
   result-perfect: "<gold>{size}cm <yellow>· 완벽한 낚시!"
   caught: "<gray>낚았다! <{color}>{fish} <white>{size}cm<gray>{count}"

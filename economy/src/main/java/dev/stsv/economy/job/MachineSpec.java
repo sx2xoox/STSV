@@ -74,6 +74,16 @@ public record MachineSpec(String id, String name, String item, String job, Strin
             return s.upgradeCost().isEmpty() ? this : new Settings(s.upgradeCost(), level, lanes, speed, xpPerGold);
         }
 
+        /**
+         * What a machine's own upgrade table saves against the global one up to a tier: the refund for a machine upgraded at the global
+         * price before it had its own table (0 for a machine without one; press: 1강 4,000, 2강 20,000, 3강 60,000).
+         */
+        public static long refund(Settings global, Settings own, int tier) {
+            long sum = 0;
+            for (int t = 1; t <= Math.min(tier, Math.min(global.maxTier(), own.maxTier())); t++) sum += Math.max(0, global.cost(t) - own.cost(t));
+            return sum;
+        }
+
         public static Settings parse(ConfigurationSection c) {
             ConfigurationSection u = c.getConfigurationSection("upgrade");
             List<Long> cost = u == null ? List.of() : u.getLongList("cost");
@@ -94,6 +104,11 @@ public record MachineSpec(String id, String name, String item, String job, Strin
         int k = 0;
         for (int i = 0; i < n; i++) if (rnd.nextDouble() < p) k++;
         return k;
+    }
+
+    /** The most one batch can make: 'double' doubles the batch, 'extra' / 'yield' add at most one per unit (MachineModule room check). */
+    public static int maxBatch(int amount, boolean dbl, boolean more) {
+        return amount * (dbl ? 2 : 1) * (more ? 2 : 1);
     }
 
     /** Does an item id count for an input key: the same id, or a "#tag" the item is in. */
@@ -136,6 +151,15 @@ public record MachineSpec(String id, String name, String item, String job, Strin
                 .filter(r -> r.tier() <= tier && enough(r, have, tagged) && only(r, have, tagged))
                 .min(Comparator.comparingInt((Recipe r) -> -r.tier()).thenComparingInt(Recipe::index))
                 .orElse(null);
+    }
+
+    /** Does a recipe open at this tier take the item, by its own id or through a group or tag? A sized fish goes into a lane only then. */
+    public boolean takes(String item, int tier, BiPredicate<String, String> tagged) {
+        for (Recipe r : recipes) {
+            if (r.tier() > tier) continue;
+            for (String in : r.inputs().keySet()) if (fits(in, item, tagged)) return true;
+        }
+        return false;
     }
 
     public static Map<String, MachineSpec> parse(ConfigurationSection c, List<String> problems) {

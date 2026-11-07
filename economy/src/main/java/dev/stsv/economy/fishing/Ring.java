@@ -87,7 +87,8 @@ public final class Ring {
         perfW = zoneW >= 5 ? 2 : 1;
         speed = rarity.speed() + HIT_SPEEDUP * hits;
         if (reverse() && !first && rnd.nextBoolean()) dir = -dir;
-        int ahead = 14 + rnd.nextInt(19);
+        // the zone's far end stays behind the needle: ahead + zoneW - 1 <= SEG - 1 for every draw (a 17-cell legend zone: 14..31 ahead)
+        int ahead = 14 + rnd.nextInt(Math.max(1, Math.min(19, SEG - 13 - zoneW)));
         int near = (int) Math.floor(p) + dir * ahead;
         zoneStart = mod(dir > 0 ? near : near - zoneW + 1, SEG);
         trap = new ArrayList<>();

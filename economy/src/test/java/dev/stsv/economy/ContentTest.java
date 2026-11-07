@@ -184,12 +184,12 @@ class ContentTest {
         if (!titles.contains("master_angler")) problems.add("title master_angler");
         assertEquals(3, fish.species().values().stream().filter(x -> x.item().startsWith("minecraft:")).count(), "cod, salmon, pufferfish");
 
-        // the shape: 6 jobs, 6 finds, 121 job machine goods + 9 press goods, 6 job machines + the press,
+        // the shape: 6 jobs, 6 finds, 123 job machine goods + 9 press goods, 6 job machines + the press,
         // 32 crop items (15 seeds, 17 harvests), 92 fish
         assertEquals(6, jobs.jobs().size());
-        assertEquals(6 + 130 + 7 + 32 + 92, ours.size(), "6 finds + 130 goods + 7 machines + 32 crop items + 92 fish");
+        assertEquals(6 + 132 + 7 + 32 + 92, ours.size(), "6 finds + 132 goods + 7 machines + 32 crop items + 92 fish");
         assertEquals(7, machines.size());
-        assertEquals(130, machines.values().stream().flatMap(x -> x.recipes().stream()).map(MachineSpec.Recipe::output).distinct().count());
+        assertEquals(132, machines.values().stream().flatMap(x -> x.recipes().stream()).map(MachineSpec.Recipe::output).distinct().count());
         assertTrue(events.keySet().containsAll(List.of("shortage", "crash", "harvest", "merchant", "tax_audit")));
         assertFalse(Files.exists(PACK.resolve("season.yml")), "no season plan any more");
         // every job product can actually be made: by a recipe, a machine, a job drop or a fishing rod
@@ -297,6 +297,22 @@ class ContentTest {
                 assertTrue(Files.exists(def) || (ns.equals("economy") && ourItems().contains("economy:" + key)), m.id() + " button icon " + b.on().icon());
             }
         }
+    }
+
+    /** The lane picker (자동 + every recipe) and the recipe book fit the list of economy:machine_recipes, or the menu pages it. */
+    @Test
+    void theRecipeBookShowsEveryRecipe() throws Exception {
+        List<String> problems = new ArrayList<>();
+        MenuSpec book = MenuSpec.loadAll(List.of(new ContentPack("economy", "economy", PACK)), problems).stream()
+                .filter(m -> m.id().equals("economy:machine_recipes")).findFirst().orElseThrow();
+        int slots = book.slots(book.list()).size();
+        boolean pages = book.buttons().values().stream().anyMatch(b -> b.action().equals("page:next"))
+                && book.buttons().values().stream().anyMatch(b -> b.action().equals("page:prev"));
+        for (MachineSpec m : MachineSpec.parse(yaml("machines.yml"), problems).values()) {
+            if (m.recipes().size() + 1 > slots && !pages)
+                problems.add(m.id() + ": 자동 + " + m.recipes().size() + " recipes in " + slots + " list slots and no page buttons");
+        }
+        assertTrue(problems.isEmpty(), String.join("\n", problems));
     }
 
     private static final Pattern KEY = Pattern.compile("Lang\\.(?:msg|mm|raw|item|items)\\(\\s*\"([a-z][a-z0-9.-]+)\"");

@@ -27,7 +27,8 @@ import java.util.UUID;
 /**
  * 의뢰 게시판: 8 delivery requests a day (reward 1.3x the shop's base price + job XP), 3 per person
  * per day, so everyone has a steady base income however late they join. Plus the week's 공동 의뢰:
- * a server-wide goal; when reached everyone who helped is paid and next week's openings come a day early.
+ * a server-wide goal; when reached everyone who handed in at least the floor (RequestSpec.minShare) is paid and next week's
+ * openings come a day early.
  */
 public final class RequestModule extends EcoModule implements DailyListener {
 
@@ -138,12 +139,29 @@ public final class RequestModule extends EcoModule implements DailyListener {
         return null;
     }
 
+    /** The least a contributor hands in to be paid for the goal (RequestSpec.minShare at the shop's base price). */
+    private long floor(RequestSpec.Community c) {
+        ShopCatalog cat = eco.shop() == null ? null : eco.shop().catalog();
+        double base = cat == null || !cat.sell().containsKey(c.item()) ? 0 : cat.sell().get(c.item()).base();
+        return spec.minShare(c, base);
+    }
+
+    /** Contributors paid when the goal completes: at least the floor handed in, with an account. */
+    private boolean earns(Map.Entry<UUID, Long> e, long min) {
+        return e.getValue() >= min && core.economy().hasAccount(e.getKey());
+    }
+
     private void complete(RequestSpec.Community c, int week) {
         store.markCompleted(week, now());
-        Map<UUID, Long> who = store.contributors(week);
-        for (UUID u : who.keySet()) if (core.economy().hasAccount(u)) core.economy().deposit(u, c.reward(), "community");
-        Bukkit.broadcast(Lang.msg("request.community-complete",
-                "name", c.name(), "count", who.size(), "reward", EconomyModule.format(c.reward())));
+        long min = floor(c);
+        int paid = 0;
+        for (Map.Entry<UUID, Long> e : store.contributors(week).entrySet()) {
+            if (!earns(e, min)) continue;
+            core.economy().deposit(e.getKey(), c.reward(), "community");
+            paid++;
+        }
+        Bukkit.broadcast(Lang.msg("request.community-complete", "name", c.name(), "count", paid, "min", String.format("%,d", min),
+                "reward", EconomyModule.format(c.reward())));
         for (Player p : org.bukkit.Bukkit.getOnlinePlayers()) p.playSound(p.getLocation(), Sound.UI_TOAST_CHALLENGE_COMPLETE, 0.8f, 1f);
     }
 
@@ -209,12 +227,15 @@ public final class RequestModule extends EcoModule implements DailyListener {
             ItemStack it = Items.create(c.item(), 1).orElse(base);
             long mine = store.contributors(week).getOrDefault(v.player().getUniqueId(), 0L);
             int pct = (int) Math.min(100, store.progress(week) * 100 / Math.max(1, c.target()));
+            long min = floor(c);
+            long paid = store.contributors(week).entrySet().stream().filter(e -> earns(e, min)).count();
             it.editMeta(meta -> {
                 meta.itemName(Lang.item("request.community-name", "name", c.name()));
                 meta.lore(Lang.items(store.completed(week) ? "request.community-lore-done" : "request.community-lore",
                         "item", eco.shop().itemName(c.item()), "progress", String.format("%,d", store.progress(week)),
                         "target", String.format("%,d", c.target()), "pct", pct, "bar", bar(pct), "mine", String.format("%,d", mine),
-                        "reward", EconomyModule.format(c.reward()), "contributors", store.contributors(week).size()));
+                        "reward", EconomyModule.format(c.reward()), "contributors", store.contributors(week).size(),
+                        "min", String.format("%,d", min), "paid", paid));
                 meta.setEnchantmentGlintOverride(true);
             });
             return it;

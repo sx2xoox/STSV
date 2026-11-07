@@ -22,6 +22,7 @@ import org.junit.jupiter.api.io.TempDir;
 import java.nio.file.Path;
 import java.util.List;
 import java.util.Map;
+import java.util.Set;
 import java.util.UUID;
 import java.util.concurrent.CompletableFuture;
 import java.util.logging.Logger;
@@ -390,6 +391,21 @@ class StoresTest {
         act2.newDay(4);
         assertEquals(1, act2.players(), "at least 1 (prices divide by it)");
         assertFalse(act2.seenToday(p));
+        UUID x = UUID.randomUUID(), y = UUID.randomUUID(), z = UUID.randomUUID();
+        act2.seen(x, 0); act2.addSeconds(x, 900);
+        act2.seen(y, 0); act2.addSeconds(y, 1200);
+        act2.seen(z, 0); act2.addSeconds(z, 10);
+        assertEquals(2, act2.players(), "a 10-second login does not count");
+        assertEquals(Set.of(x, y), act2.active());
+        act2.newDay(5, Set.of(x, y));                  // all three online at 05:00; x and y had 15 minutes on day 4
+        act2.seen(x, 0); act2.seen(y, 0); act2.seen(z, 0);
+        assertEquals(2, act2.players(), "x and y count from second 0 of day 5, z does not");
+        act2.addSeconds(z, 900);
+        assertEquals(3, act2.players(), "15 minutes counts");
+        act2.addSeconds(x, 900);
+        assertEquals(3, act2.players(), "a carried player with 15 minutes today counts once");
+        act2.newDay(6);
+        assertEquals(1, act2.players(), "nobody carried: at least 1");
         db.close();
     }
     @Test

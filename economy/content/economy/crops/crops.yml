@@ -1,7 +1,9 @@
 # 커스텀 작물 (STSV 작물 엔진). 씨앗을 경작지에 우클릭해서 심음. 자라는 방식은 바닐라 작물과 같음:
-#   빛 9 이상, 주변 4칸 안에 물(또는 비)이 있어 젖은 경작지면 빨리, 같은 작물을 줄지어 심으면 빨리, 뼛가루로 2~5단계.
+#   빛 9 이상, 주변 4칸 안에 물(또는 비)이 있어 젖은 경작지면 빨리, 같은 작물을 줄지어 심으면 빨리,
+#   뼛가루로 1단계 (저절로 7단계 자랄 때마다 한 번, 상점에서 산 뼛가루는 안 됨).
 #   플레이어 근처(시뮬레이션 거리)에서만 자람.
 # max-age = 성장 단계 수 (밀 = 7, 젖은 경작지에서 약 24분). stages = 모양 수 (models/<작물>_0 ~ _(stages-1), 마지막은 다 익었을 때만).
+# 다시 열리는 작물(regrow)은 max-age 8~14: 처음 27~48분, 그 뒤 4~7단계마다. 24분에 한 칸 값: 다시 열림 23~37G, 다시 심음 14~21G.
 # 다 익은 작물을 우클릭하거나 때리면 수확하고 바로 다시 심음: regrow 가 있으면 그 단계로 돌아가 다시 열리고,
 #   없으면 수확물 중 씨앗 하나(없으면 가방의 씨앗 하나, 그것도 없으면 그냥)로 다시 심음. 덜 자란 작물을 때리면 씨앗으로 돌아옴.
 # harvest 의 첫 줄이 주 수확물 (농부의 "하나 더" 대상). height = 다 자란 키 (블록).
@@ -10,6 +12,7 @@ tomato:
   name: "토마토"
   seed: tomato_seeds
   stages: 5
+  max-age: 8
   regrow: 4
   height: 1.0
   harvest:
@@ -20,6 +23,7 @@ chili:
   name: "고추"
   seed: chili_seeds
   stages: 5
+  max-age: 8
   regrow: 4
   height: 0.9
   harvest:
@@ -30,6 +34,7 @@ strawberry:
   name: "딸기"
   seed: strawberry_seeds
   stages: 4
+  max-age: 8
   regrow: 4
   height: 0.5
   harvest:
@@ -42,7 +47,7 @@ onion:
   stages: 4
   height: 0.7
   harvest:
-    - { item: onion, min: 1, max: 2 }
+    - { item: onion, min: 2, max: 3 }
     - { item: onion_seeds, min: 1, max: 2 }
 
 garlic:
@@ -51,13 +56,13 @@ garlic:
   stages: 4
   height: 0.7
   harvest:
-    - { item: garlic, min: 2, max: 4 }
+    - { item: garlic, min: 4, max: 6 }
 
 cabbage:
   name: "배추"
   seed: cabbage_seeds
   stages: 4
-  max-age: 8
+  max-age: 6
   height: 0.6
   harvest:
     - { item: napa_cabbage, min: 1, max: 1 }
@@ -69,7 +74,7 @@ rice:
   stages: 5
   height: 0.9
   harvest:
-    - { item: paddy, min: 2, max: 4 }
+    - { item: paddy, min: 3, max: 5 }
     - { item: rice_seeds, min: 1, max: 2 }
 
 soybean:
@@ -78,7 +83,7 @@ soybean:
   stages: 4
   height: 0.6
   harvest:
-    - { item: soybean, min: 2, max: 5 }
+    - { item: soybean, min: 3, max: 6 }
 
 corn:
   name: "옥수수"
@@ -87,7 +92,7 @@ corn:
   max-age: 9
   height: 1.8
   harvest:
-    - { item: corn, min: 1, max: 2 }
+    - { item: corn, min: 2, max: 3 }
     - { item: corn_seeds, min: 1, max: 2 }
 
 green_onion:
@@ -96,7 +101,7 @@ green_onion:
   stages: 4
   height: 0.8
   harvest:
-    - { item: green_onion, min: 2, max: 3 }
+    - { item: green_onion, min: 3, max: 5 }
     - { item: green_onion_seeds, min: 1, max: 2 }
 
 radish:
@@ -105,23 +110,25 @@ radish:
   stages: 4
   height: 0.6
   harvest:
-    - { item: radish, min: 1, max: 1 }
+    - { item: radish, min: 1, max: 2 }
     - { item: radish_seeds, min: 1, max: 2 }
 
 lettuce:
   name: "상추"
   seed: lettuce_seeds
   stages: 4
+  max-age: 8
   regrow: 4
   height: 0.4
   harvest:
-    - { item: lettuce, min: 1, max: 3 }
+    - { item: lettuce, min: 2, max: 4 }
     - { item: lettuce_seeds, min: 0, max: 1 }
 
 cucumber:
   name: "오이"
   seed: cucumber_seeds
   stages: 5
+  max-age: 8
   regrow: 4
   height: 1.0
   harvest:
@@ -132,17 +139,18 @@ grape:
   name: "포도"
   seed: grape_seeds
   stages: 5
-  max-age: 9
-  regrow: 6
+  max-age: 14
+  regrow: 7
   height: 1.0
   harvest:
-    - { item: grapes, min: 1, max: 3 }
+    - { item: grapes, min: 2, max: 3 }
     - { item: grape_seeds, min: 0, max: 1 }
 
 eggplant:
   name: "가지"
   seed: eggplant_seeds
   stages: 5
+  max-age: 8
   regrow: 4
   height: 0.9
   harvest:
@@ -153,6 +161,7 @@ zucchini:
   name: "애호박"
   seed: zucchini_seeds
   stages: 5
+  max-age: 8
   regrow: 4
   height: 0.7
   harvest:
@@ -163,7 +172,7 @@ muskmelon:
   name: "멜론"
   seed: muskmelon_seeds
   stages: 5
-  max-age: 9
+  max-age: 10
   regrow: 5
   height: 0.6
   harvest:

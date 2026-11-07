@@ -15,6 +15,8 @@ pool:
   - { item: potato, min: 64, max: 128, job: farmer, xp: 25 }
   - { item: carrot, min: 64, max: 128, job: farmer, xp: 25 }
   - { item: leather, min: 8, max: 24, job: farmer, xp: 20 }
+  - { item: beetroot, min: 64, max: 128, job: farmer, xp: 25, weight: 5 }
+  - { item: melon_slice, min: 128, max: 256, job: farmer, xp: 15, weight: 5 }
   - { item: economy:tomato, min: 16, max: 32, job: farmer, xp: 20, from-day: 2 }
   - { item: economy:chili_pepper, min: 16, max: 32, job: farmer, xp: 20, from-day: 2 }
   - { item: economy:strawberry, min: 8, max: 24, job: farmer, xp: 20, from-day: 2 }
@@ -37,8 +39,8 @@ pool:
   - { item: oak_log, min: 32, max: 64 }
   - { item: bread, min: 16, max: 32, job: cook, xp: 15, value: 6 }
   - { item: cooked_beef, min: 16, max: 32, job: cook, xp: 15, value: 4 }
-  - { item: iron_pickaxe, min: 1, max: 2, job: blacksmith, xp: 30, value: 100 }
-  - { item: shield, min: 1, max: 2, job: blacksmith, xp: 20, value: 30 }
+  - { item: iron_pickaxe, min: 1, max: 2, job: blacksmith, xp: 30, value: 40 }
+  - { item: shield, min: 1, max: 2, job: blacksmith, xp: 20, value: 15 }
   # 직업 생산품 (직업 기계)
   - { item: economy:ruby, min: 2, max: 6, job: miner, xp: 30, from-day: 2, weight: 6 }
   - { item: economy:coke, min: 2, max: 6, job: miner, xp: 30, from-day: 2, weight: 6 }
@@ -48,22 +50,24 @@ pool:
   - { item: economy:doenjang, min: 1, max: 4, job: farmer, xp: 60, from-day: 8, weight: 4 }
   - { item: economy:cod_fillet, min: 8, max: 24, job: fisher, xp: 25, from-day: 2, weight: 6 }
   - { item: economy:seabream_sashimi, min: 2, max: 6, job: fisher, xp: 50, from-day: 5, weight: 4 }
-  - { item: economy:sukhoe, min: 2, max: 6, job: fisher, xp: 50, from-day: 5, weight: 3 }
+  - { item: economy:sukhoe, min: 2, max: 4, job: fisher, xp: 50, from-day: 5, weight: 3 }
   - { item: economy:iron_plate, min: 2, max: 6, job: blacksmith, xp: 30, from-day: 2, weight: 6 }
   - { item: economy:steel_ingot, min: 1, max: 4, job: blacksmith, xp: 60, from-day: 8, weight: 4 }
   - { item: economy:kimchi, min: 2, max: 8, job: cook, xp: 30, from-day: 2, weight: 6 }
   - { item: economy:hobakjeon, min: 4, max: 12, job: cook, xp: 25, from-day: 2, weight: 6 }
   - { item: economy:maeuntang, min: 1, max: 4, job: cook, xp: 40, from-day: 4, weight: 4 }
-  - { item: economy:braised_mackerel, min: 1, max: 4, job: cook, xp: 40, from-day: 4, weight: 4 }
+  - { item: economy:braised_mackerel, min: 1, max: 4, job: cook, xp: 40, from-day: 8, weight: 4 }
   - { item: economy:bibimbap, min: 1, max: 2, job: cook, xp: 100, from-day: 15, weight: 3 }
   - { item: economy:makgeolli, min: 2, max: 6, job: alchemist, xp: 30, from-day: 2, weight: 6 }
   - { item: economy:soju, min: 1, max: 3, job: alchemist, xp: 60, from-day: 8, weight: 4 }
   - { item: economy:wine, min: 1, max: 2, job: alchemist, xp: 80, from-day: 15, weight: 3 }
 
-# 주간 공동 의뢰: 서버 전체 목표 (월요일 05시에 바뀜). 달성하면 참여자 모두 reward.
+# 주간 공동 의뢰: 서버 전체 목표 (월요일 05시에 바뀜). 달성하면 최소량 이상 낸 참여자 모두 reward.
+# 최소량 = 목표의 0.5% 와, 낸 물건의 의뢰 값(기준가 × reward-multiplier)이 reward 이상이 되는 양 중 큰 쪽
+# (부계정으로 조금씩 나눠 내도 의뢰로 파는 것보다 더 받지 못함. 검사: BalanceTest R14c).
 # 목록을 차례대로 돌아가며 씀 (1주차 = 첫 줄, 목록이 끝나면 처음부터)
 community:
   - { name: "철의 도시", item: iron_ingot, target: 20000, reward: 500 }
   - { name: "겨울 대비 석탄", item: coal, target: 30000, reward: 1000 }
-  - { name: "대어 축제", item: economy:cod_fillet, target: 4000, reward: 1500 }
+  - { name: "대어 축제", item: economy:cod_fillet, target: 2500, reward: 1500 }
   - { name: "왕관의 보석", item: diamond, target: 2000, reward: 3000 }

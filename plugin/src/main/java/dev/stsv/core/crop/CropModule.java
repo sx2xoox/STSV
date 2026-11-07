@@ -101,10 +101,19 @@ public final class CropModule implements StsvModule, Listener {
     private int lastTick = -1;
     private Replant replanting;
     private boolean seedTaken;
+    private boolean running;
 
     @Override
     public String id() {
         return "crops";
+    }
+
+    /**
+     * Has enable() run to the end (definitions and planted crops loaded)? False before, after disable() and after a start that
+     * failed part-way: the definitions may be loaded then while the planted crops are not.
+     */
+    public boolean running() {
+        return running;
     }
 
     @Override
@@ -123,6 +132,7 @@ public final class CropModule implements StsvModule, Listener {
         tasks.add(Bukkit.getScheduler().runTaskTimer(plugin, this::grow, 100L, 100L));
         tasks.add(Bukkit.getScheduler().runTaskTimer(plugin, this::flush, 600L, 600L));
         plugin.getLogger().info("작물 " + specs.size() + "종, 심어진 작물 " + crops.size() + "개 (" + (System.currentTimeMillis() - started) + "ms)");
+        running = true;
     }
 
     @Override
@@ -134,6 +144,7 @@ public final class CropModule implements StsvModule, Listener {
 
     @Override
     public void disable() {
+        running = false;
         tasks.forEach(BukkitTask::cancel);
         tasks.clear();
         flush();
@@ -274,7 +285,7 @@ public final class CropModule implements StsvModule, Listener {
             int before = s.age;
             s.age = CropGrowth.grow(s.age, spec.maxAge(), n, CropGrowth.chance(speed(s, w)), r);
             if (s.age == before) continue;
-            s.natural += s.age - before;
+            s.grown += s.age - before;
             dirty.add(s.id);
             if (spec.stageOf(s.age) != spec.stageOf(before)) refresh(s);
         }
@@ -522,8 +533,10 @@ public final class CropModule implements StsvModule, Listener {
         ItemStack hand = p.getInventory().getItemInMainHand();
         if (hand.getType() == Material.BONE_MEAL) {
             // one age, and one meal per 7 ages the plant grew by itself (so meal speeds every crop up alike, by 1/7)
-            if (p.getGameMode() != GameMode.CREATIVE && !CropGrowth.mealAllowed(s.natural, s.meals)) {
-                HudModule.flash(p, Lang.mm("crop.meal-wait", "ages", CropGrowth.agesToNextMeal(s.natural, s.meals)));
+            // at most one meal banked: a plant that went long without meal does not take several in a row
+            s.meals = CropGrowth.mealsBanked(s.grown, s.meals);
+            if (p.getGameMode() != GameMode.CREATIVE && !CropGrowth.mealAllowed(s.grown, s.meals)) {
+                HudModule.flash(p, Lang.mm("crop.meal-wait", "ages", CropGrowth.agesToNextMeal(s.grown, s.meals)));
                 return;
             }
             int before = s.age;
@@ -808,7 +821,7 @@ public final class CropModule implements StsvModule, Listener {
                     if (spec == null || spec.ripe(s.age) || Math.abs(s.x - x) > radius || Math.abs(s.z - z) > radius
                             || s.y < y - below || s.y > y + above || r.nextDouble() >= chance) continue;
                     int before = s.age++;
-                    s.natural++;
+                    s.grown++;
                     dirty.add(s.id);
                     if (spec.stageOf(s.age) != spec.stageOf(before)) refresh(s);
                     if (r.nextInt(4) == 0) w.spawnParticle(Particle.HAPPY_VILLAGER, s.x + 0.5, s.y + 0.4, s.z + 0.5, 2, 0.2, 0.1, 0.2);
@@ -817,6 +830,28 @@ public final class CropModule implements StsvModule, Listener {
             }
         }
         return n;
+    }
+
+    /**
+     * After a crop's max-age changed: ripe plants stay ripe, the rest keep their share of the way (never ripe by it).
+     * Returns how many planted crops changed age. The new ages are queued for saving at once, so a caller's "done" mark
+     * written to the database afterwards (the one database thread keeps the order) can never be stored without them.
+     */
+    public int rescale(String crop, int oldMaxAge) {
+        CropSpec spec = specs.get(crop);
+        if (spec == null || oldMaxAge <= 0 || spec.maxAge() == oldMaxAge) return 0;
+        List<CropState> changed = new ArrayList<>();
+        for (CropState s : crops.values()) {
+            if (!s.crop.equals(crop)) continue;
+            int before = s.age;
+            s.age = s.age >= oldMaxAge ? spec.maxAge() : Math.min(spec.maxAge() - 1, s.age * spec.maxAge() / oldMaxAge);
+            if (s.age != before) {
+                changed.add(s);
+                refresh(s);
+            }
+        }
+        store.save(changed);   // at once, not at the next flush: a crash must not keep the old ages under a done mark
+        return changed.size();
     }
 
     /** For contents: is this item a seed of a crop? */

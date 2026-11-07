@@ -17,7 +17,7 @@ import json
 import math
 from pathlib import Path
 
-from PIL import Image
+from PIL import Image, ImageDraw
 
 from stsv_assets import palette as P
 from stsv_assets.color import rgb_to_oklch
@@ -27,8 +27,8 @@ E = "economy:"
 RARITY = [  # name, colour, successes, needle speed (cells per tick), zone cells
     ("common", "흔함", "#ffffff", 2, 1.0, 8),
     ("uncommon", "보통", "#55ff55", 3, 1.35, 7),
-    ("rare", "희귀", "#5aa8ff", 4, 1.75, 6),
-    ("legend", "전설", "#ffaa00", 6, 2.2, 6),
+    ("rare", "희귀", "#5aa8ff", 4, 1.75, 9),
+    ("legend", "전설", "#ffaa00", 6, 2.2, 13),
 ]
 HABITATS = {  # id: (name, codex title id, title text)
     "sea": ("바다", "angler_sea", "[바다 낚시꾼]"),
@@ -48,8 +48,8 @@ HABITATS = {  # id: (name, codex title id, title text)
 FISH = {
     # 바다
     "mackerel": ("고등어", "sea", 0, 25, 45, 3, "f", "#3f6f8a", "#c9d6dc", "stripes"),
-    "horse_mackerel": ("전갱이", "sea", 0, 15, 35, 2, "f", "#7f97a3", "#dfe6e8", ""),
-    "sardine": ("정어리", "sea", 0, 12, 25, 2, "f", "#4c6f95", "#e0e8ee", "spots"),
+    "horse_mackerel": ("전갱이", "sea", 0, 15, 35, 3, "f", "#7f97a3", "#dfe6e8", ""),
+    "sardine": ("정어리", "sea", 0, 12, 25, 3, "f", "#4c6f95", "#e0e8ee", "spots"),
     "saury": ("꽁치", "sea", 0, 25, 40, 3, "l", "#3a5f86", "#d8e2ea", "bill"),
     "rockfish": ("우럭", "sea", 1, 20, 45, 9, "f", "#4a4a44", "#8a8678", "spots"),
     "flatfish": ("광어", "sea", 1, 30, 80, 12, "p", "#7a6a50", "#e8e0d0", "spots"),
@@ -71,7 +71,7 @@ FISH = {
     "marlin": ("청새치", "deep", 3, 180, 400, 520, "f", "#2a3a7a", "#d8e0ee", "bill"),
     "lantern_angler": ("초롱아귀", "deep", 3, 20, 60, 480, "p", "#2a2a3a", "#7ae0ff", "lure glow"),
     # 따뜻한 바다 (복어는 손질대 재료라 더함: 98종)
-    "damselfish": ("자리돔", "warm", 0, 8, 18, 2, "f", "#4a5a7a", "#a0b0c8", ""),
+    "damselfish": ("자리돔", "warm", 0, 8, 18, 3, "f", "#4a5a7a", "#a0b0c8", ""),
     "clownfish": ("흰동가리", "warm", 0, 6, 12, 4, "f", "#ff7a20", "#ffffff", "bands"),
     "pufferfish": ("복어", "warm", 0, 10, 30, 4, "p", "#d8b84a", "#f4ecd0", "spots"),
     "butterflyfish": ("나비고기", "warm", 1, 10, 20, 8, "p", "#ffd84a", "#ffffff", "bands"),
@@ -119,7 +119,7 @@ FISH = {
     "eel": ("뱀장어", "swamp", 2, 40, 100, 50, "l", "#3a4a3a", "#c0c8a0", ""),
     "giant_snakehead": ("거대 가물치", "swamp", 3, 100, 180, 480, "l", "#2a2a1a", "#6a6a4a", "spots"),
     # 맹그로브
-    "goby": ("망둥어", "mangrove", 0, 8, 20, 2, "f", "#8a8060", "#d8d0b0", "spots"),
+    "goby": ("망둥어", "mangrove", 0, 8, 20, 3, "f", "#8a8060", "#d8d0b0", "spots"),
     "mudskipper": ("짱뚱어", "mangrove", 1, 10, 20, 9, "f", "#6a6a5a", "#8ad0ff", "spots"),
     "mullet": ("숭어", "mangrove", 1, 30, 70, 8, "f", "#7a8a9a", "#e8eef2", ""),
     "mud_crab": ("머드크랩", "mangrove", 2, 15, 25, 48, "c", "#4a5a3a", "#b0a070", ""),
@@ -505,6 +505,56 @@ def ring_font(assets: Path):
     (font_dir / "fishring.json").write_text(json.dumps({"providers": providers}, ensure_ascii=True))
 
 
+RING_STATES = [  # label, rarity index, hits so far, rim, centre shape, zone start cell, needle cell, legend trap
+    ("흔함 · 시작", 0, 0, 0, "f", 14, 3, False),
+    ("보통 · 성공 직후", 1, 1, 1, "l", 30, 22, False),
+    ("희귀 · 완벽", 2, 1, 2, "c", 40, None, False),      # needle None: on the last gold (perfect) cell
+    ("전설 · 함정 2칸", 3, 0, 0, "q", 20, 12, True),
+    ("놓침 (빨간 테)", 1, 0, 3, "p", 5, 30, False),
+]
+
+
+def ring_preview(assets: Path, path: Path, rarity=None):
+    """docs/previews/fishing_ring.png: the ring in five states, drawn from the ring font (ring_font) with the zones of RARITY as
+    Ring.newRound makes them (zone = max(3, zone - hits), 2 gold cells from 5 cells up, a legend's 2 red cells behind its zone)."""
+    rarity = rarity or RARITY
+    font = assets / "economy" / "textures" / "font"
+    R = 56
+
+    def cell(name, k):
+        im = Image.open(font / f"fishring_{name}.png").convert("RGBA")
+        return im.crop(((k % 8) * R, (k // 8) * R, (k % 8) * R + R, (k // 8) * R + R))
+
+    def ring(rim, shape, rar, zone, zw, perf, trap, needle):
+        out = Image.new("RGBA", (R, R), (0, 0, 0, 0))
+        out.alpha_composite(cell("base", rim))
+        out.alpha_composite(cell("center", "flpcq".index(shape) * 4 + rar))
+        off = (zw - perf) // 2
+        for i in range(zw):
+            out.alpha_composite(cell("gold" if off <= i < off + perf else "green", (zone + i) % 48))
+        for t in trap:
+            out.alpha_composite(cell("red", t))
+        out.alpha_composite(cell("needle", needle))
+        return out
+
+    W, H = 260, 330
+    img = Image.new("RGBA", (W * len(RING_STATES), H), (0, 0, 0, 255))
+    d = ImageDraw.Draw(img)
+    for n, (label, rar, hits, rim, shape, zone, needle, legend) in enumerate(RING_STATES):
+        zw = max(3, rarity[rar][5] - hits)
+        perf = 2 if zw >= 5 else 1
+        if needle is None:
+            needle = (zone + (zw - perf) // 2 + perf - 1) % 48
+        trap = [(zone - 1) % 48, (zone - 2) % 48] if legend else []
+        x0 = n * W
+        for y in range(H):   # a sky-and-sea backdrop
+            c = (70 + y // 6, 120 + y // 5, 190) if y < 200 else (30, 70 + (y - 200) // 4, 120)
+            d.line([(x0, y), (x0 + W - 1, y)], fill=c)
+        r = ring(rim, shape, rar, zone, zw, perf, trap, needle)
+        img.alpha_composite(r.resize((R * 3, R * 3), Image.NEAREST), (x0 + (W - R * 3) // 2, 40))
+    img.save(path)
+
+
 def icon_font(assets: Path, icons):
     """economy:fishicon: every fish icon as a glyph (16 px shown at 8, so 32 GUI px in a title)."""
     ids = list(FISH)
@@ -540,7 +590,7 @@ def write_content(pack: Path, icons):
            "# 크기는 size 범위 안에서 정해지고 희귀·전설은 아이템에 크기가 붙어 매입가가 0.7 ~ 1.5배 (흔함·보통은 쌓이게 크기 없음).",
            "# 물고기 그림·이 파일은 tools/assetgen/economy_fish.py 가 만듭니다.",
            "",
-           "legend-share: 0.2",
+           "legend-share: 0.05     # 희귀·전설 입질 중 전설 비율 (어부 Lv30 이 낚는 전설 수가 링을 고치기 전과 같게)",
            "pearl: 0.15            # 바다에서 희귀가 걸렸을 때 진주가 나올 확률",
            "",
            "rarities:"]

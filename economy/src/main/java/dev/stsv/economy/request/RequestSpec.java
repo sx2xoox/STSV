@@ -31,6 +31,21 @@ public record RequestSpec(int dailyCount, int perPlayer, double rewardMultiplier
     }
 
     /**
+     * The least a contributor hands in to be paid when a community goal completes: 0.5% of the target, and enough that the items are
+     * worth the reward at request prices (shop base x reward-multiplier), so an alt with the floor earns no more than a request pays for
+     * the same items. base <= 0 (the shop does not buy it): the 0.5% only (BalanceTest R14c refuses such a goal).
+     */
+    public static long minShare(long target, long reward, double base, double multiplier) {
+        long byTarget = (target * 5 + 999) / 1000;                                  // ceil(0.5%), exact
+        long byValue = base <= 0 || multiplier <= 0 ? 0 : (long) Math.ceil(reward / (base * multiplier) - 1e-9);
+        return Math.max(1, Math.max(byTarget, byValue));
+    }
+
+    public long minShare(Community c, double base) {
+        return minShare(c.target(), c.reward(), base, rewardMultiplier);
+    }
+
+    /**
      * Today's board: dailyCount different items available on this day, amounts at random, rewards =
      * base value x amount x multiplier. price: the admin shop's base price of an item (0 if not sold there).
      */

@@ -35,6 +35,7 @@ import java.io.File;
 import java.util.ArrayList;
 import java.util.Collections;
 import java.util.List;
+import java.util.Map;
 
 /**
  * The economy server: a content plugin on top of the STSV core. It runs without end (no seasons). Its
@@ -116,7 +117,25 @@ public final class EcoPlugin extends JavaPlugin {
         Commands.register(this);
         AdminCommands.register(this);
         provideAchievementValues(core);
+        Bukkit.getScheduler().runTask(this, () -> rescaleCrops(core));   // first tick: the core has its crop specs and plants
         getLogger().info("경제 서버 시작: " + calendar.day() + "일차 (" + calendar.week() + "주차)");
+    }
+
+    /** The old max-age of the crops whose max-age changed (7 -> 8 for the first seven, grape 9 -> 14, muskmelon 9 -> 10, cabbage 8 -> 6). */
+    private static final Map<String, Integer> OLD_MAX_AGES = Map.of(
+            "economy:tomato", 7, "economy:chili", 7, "economy:strawberry", 7, "economy:lettuce", 7, "economy:cucumber", 7,
+            "economy:eggplant", 7, "economy:zucchini", 7, "economy:grape", 9, "economy:muskmelon", 9, "economy:cabbage", 8);
+
+    /** Once: planted crops keep their ripeness across those max-age changes (ages are stored numbers, ripe = age >= max-age). */
+    private void rescaleCrops(STSVPlugin core) {
+        if (kv.getLong("crops.max-age-1", 0) != 0) return;
+        // the crop module did not start (its definitions may be loaded while reading the planted crops failed) or has no
+        // crops at all: try again next start, the plants must not miss it
+        if (!core.crops().running() || core.crops().specs().isEmpty()) return;
+        int n = 0;
+        for (Map.Entry<String, Integer> e : OLD_MAX_AGES.entrySet()) n += core.crops().rescale(e.getKey(), e.getValue());
+        kv.set("crops.max-age-1", 1);
+        if (n > 0) getLogger().info("작물: 성장 단계 수가 바뀐 작물 " + n + "포기의 나이를 맞췄습니다.");
     }
 
     /** What the 업적 in contents/economy/achievements measure besides stats (value: economy:...). */
@@ -169,7 +188,9 @@ public final class EcoPlugin extends JavaPlugin {
         activity.store().reset();
         mail.store().reset();
         for (Runnable r : resets) r.run();
-        for (String k : kv.all().keySet()) if (!k.startsWith("loc.")) kv.remove(k);   // admin-set places stay
+        // admin-set places stay; so do the crop-age migrations (the planted crops are the core's and stay too) and the
+        // one-time press refund (machines upgraded after a reset paid today's prices: a next start must not refund them)
+        for (String k : kv.all().keySet()) if (!k.startsWith("loc.") && !k.startsWith("crops.") && !k.startsWith("machines.")) kv.remove(k);
         calendar.reset();
     }
 

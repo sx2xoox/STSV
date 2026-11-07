@@ -64,6 +64,8 @@ public final class MachineModule extends EcoModule {
     static final int SIZE = 54, LANES = 4;
     static final int BOOK = 0, INFO = 4, UPGRADE = 8, COLLECT = 48, CLOSE = 50;
     public static final NamespacedKey TIER = new NamespacedKey("economy", "machine_tier");
+    /** On a picked-up machine: upgraded at today's prices or already refunded (Behavior.onPlace pays an unmarked one once). */
+    public static final NamespacedKey REFUNDED = new NamespacedKey("economy", "machine_refunded");
     public static final NamespacedKey MAKER = new NamespacedKey("economy", "maker");
 
     static int input(int lane, int i) {
@@ -140,6 +142,7 @@ public final class MachineModule extends EcoModule {
             m.readState((String) r[5]);
             machines.put(m.id, m);
         }
+        refundPresses();
         register();
         every(20L, this::tick);
         every(600L, this::saveDirty);
@@ -148,6 +151,19 @@ public final class MachineModule extends EcoModule {
             machines.clear();
             db.execute("DELETE FROM eco_machines");
         });
+    }
+
+    /** Once: machines upgraded at the global price before they had their own table (the press) get the difference back. */
+    private void refundPresses() {
+        if (eco.kv().getLong("machines.press-refund-1", 0) != 0) return;
+        eco.kv().set("machines.press-refund-1", 1);          // first: a crash after paying must not pay twice
+        for (Machine m : machines.values()) {
+            if (m.owner == null || m.tier <= 0) continue;
+            long back = MachineSpec.Settings.refund(settings, settings(m), m.tier);
+            if (back <= 0) continue;
+            core.economy().deposit(m.owner, back, "press_refund");
+            eco.getLogger().info("press refund: " + back + " G to " + m.owner + " (machine " + m.id + ", " + m.tier + "강)");
+        }
     }
 
     private static ItemStack at(ItemStack[] items, int i) {
@@ -361,10 +377,8 @@ public final class MachineModule extends EcoModule {
 
     private int maxAmount(Machine m, MachineSpec.Recipe r, UUID op) {
         String job = m.spec.job();
-        int n = r.amount();
-        if (eco.jobs().bonus(op, job, "double") > 0) n *= 2;
-        if (eco.jobs().bonus(op, job, "extra") > 0) n *= 2;     // every unit may get its +1
-        return n;
+        return MachineSpec.maxBatch(r.amount(), eco.jobs().bonus(op, job, "double") > 0,
+                eco.jobs().bonus(op, job, "extra") + eco.jobs().bonus(op, job, "yield") > 0);
     }
 
     /**
@@ -482,11 +496,14 @@ public final class MachineModule extends EcoModule {
         }
     }
 
-    /** Sized fish that reached an input slot some other way (dragging) lose their size, and equal stacks merge. */
+    /**
+     * Sized fish that reached an input slot some other way (dragging) lose their size, and equal stacks merge; only fish this
+     * machine has an open recipe for (one sitting in a lane from before keeps its size and can be taken back).
+     */
     private void plainInputs(Machine m, int lane) {
         for (int i = 0; i < 3; i++) {
             ItemStack it = m.inv.getItem(input(lane, i));
-            if (!Items.sized(it)) continue;
+            if (!Items.sized(it) || !m.spec.takes(Items.key(it), m.tier, TAGGED)) continue;
             ItemStack plain = Items.stripSize(it);
             for (int j = 0; j < i && !plain.isEmpty(); j++) {
                 ItemStack o = m.inv.getItem(input(lane, j));
@@ -504,9 +521,8 @@ public final class MachineModule extends EcoModule {
         ThreadLocalRandom rnd = ThreadLocalRandom.current();
         String job = m.spec.job();
         List<String> bonuses = new ArrayList<>();
-        // 재료 절약: every input unit stays with the chance (so a 4-input batch saves four times what a 1-input one does);
-        // capped at 90% (the blacksmith's save doubles in 광산 호황), so a batch always uses something
-        double save = Math.clamp(eco.jobs().bonus(op, job, "save") + (op == null || job == null ? 0 : eco.jobs().effect(op, job, "save")), 0, 0.9);
+        // 재료 절약: every input unit stays with the chance (machine-bonus only: the blacksmith's growing save is for tools and armour)
+        double save = Math.clamp(eco.jobs().bonus(op, job, "save"), 0, 0.9);
         int kept = 0;
         for (Map.Entry<String, Integer> in : r.inputs().entrySet()) {
             int keep = MachineSpec.binomial(in.getValue(), save, rnd);
@@ -519,8 +535,9 @@ public final class MachineModule extends EcoModule {
             amount *= 2;
             bonuses.add(Lang.raw("machine.bonus-double"));
         }
-        // 결과 +: every output unit gets its +1 with the chance (proportional, like the save)
-        int extra = MachineSpec.binomial(amount, eco.jobs().bonus(op, job, "extra"), rnd);
+        // 결과 +: every output unit gets its +1 with the chance; Lv30 'yield' adds to the chance (one roll a unit)
+        double more = Math.min(1, eco.jobs().bonus(op, job, "extra") + eco.jobs().bonus(op, job, "yield"));
+        int extra = MachineSpec.binomial(amount, more, rnd);
         if (extra > 0) {
             amount += extra;
             bonuses.add(Lang.raw("machine.bonus-extra", "count", extra));
@@ -935,6 +952,16 @@ public final class MachineModule extends EcoModule {
             Integer tier = from == null || !from.hasItemMeta() ? null
                     : from.getItemMeta().getPersistentDataContainer().get(TIER, PersistentDataType.INTEGER);
             m.tier = tier == null ? 0 : Math.clamp(tier, 0, settings(m).maxTier());
+            // a press picked up before this release (no REFUNDED mark) gets the old price difference once, when it is placed again
+            // (not in creative: there the placed item stays in the hand, so it could be placed again and again)
+            if (m.tier > 0 && from != null && from.hasItemMeta() && player.getGameMode() != org.bukkit.GameMode.CREATIVE
+                    && !from.getItemMeta().getPersistentDataContainer().has(REFUNDED)) {
+                long back = MachineSpec.Settings.refund(settings, settings(m), m.tier);
+                if (back > 0) {
+                    core.economy().deposit(player.getUniqueId(), back, "press_refund");
+                    player.sendMessage(Lang.msg("machine.refund", "amount", EconomyModule.format(back)));
+                }
+            }
             m.dirty = true;
             applyLooks(m);
             for (ItemDisplay part : core.furniture().parts(furniture)) core.furniture().setSpinning(part, false);
@@ -953,6 +980,8 @@ public final class MachineModule extends EcoModule {
             int tier = m.tier;
             item.editMeta(meta -> {
                 meta.getPersistentDataContainer().set(TIER, PersistentDataType.INTEGER, tier);
+                // upgraded at today's prices or already refunded: onPlace never pays this one
+                meta.getPersistentDataContainer().set(REFUNDED, PersistentDataType.BYTE, (byte) 1);
                 List<Component> lore = meta.hasLore() ? new ArrayList<>(meta.lore()) : new ArrayList<>();
                 lore.add(Lang.item("machine.tier-lore", "tier", tierName(tier)));
                 meta.lore(lore);
@@ -1002,20 +1031,23 @@ public final class MachineModule extends EcoModule {
         int slot = e.getSlot();
         int in = inputLane(slot);
         if (in >= 0) {
-            ItemStack placing = e.getAction() == InventoryAction.HOTBAR_SWAP && e.getHotbarButton() >= 0
-                    ? p.getInventory().getItem(e.getHotbarButton()) : e.getCursor();
+            int hand = swapSlot(e);
+            ItemStack placing = hand >= 0 ? p.getInventory().getItem(hand) : e.getCursor();
             if (in >= m.open()) e.setCancelled(true);
             else if (Items.shopBought(placing)) refuseBought(p, e);
-            else if (Items.sized(placing)) placePlain(p, m, in, slot, e);
+            else if (Items.sized(placing) && puts(e.getAction())) {
+                if (!refuseFish(p, m, placing, e)) placePlain(p, m, in, slot, e);
+            }
             else m.lanes[in].operator = p.getUniqueId();
             return;
         }
         int out = outputLane(slot);
         if (out >= 0) {
             InventoryAction a = e.getAction();
+            int hand = swapSlot(e);
             boolean taking = a == InventoryAction.PICKUP_ALL || a == InventoryAction.PICKUP_HALF || a == InventoryAction.PICKUP_ONE
                     || a == InventoryAction.PICKUP_SOME || a == InventoryAction.MOVE_TO_OTHER_INVENTORY || a == InventoryAction.DROP_ALL_SLOT
-                    || a == InventoryAction.DROP_ONE_SLOT || a == InventoryAction.HOTBAR_SWAP && (p.getInventory().getItem(e.getHotbarButton()) == null);
+                    || a == InventoryAction.DROP_ONE_SLOT || hand >= 0 && p.getInventory().getItem(hand) == null;
             if (!taking || out >= m.open()) e.setCancelled(true);
             return;
         }
@@ -1041,6 +1073,15 @@ public final class MachineModule extends EcoModule {
         }
     }
 
+    /**
+     * The player inventory slot a HOTBAR_SWAP click swaps the clicked slot with: the number key's hotbar slot, or 40 (the
+     * offhand) for F, whose event carries no button (getHotbarButton() is -1 for any click but NUMBER_KEY). -1 for other clicks.
+     */
+    static int swapSlot(InventoryClickEvent e) {
+        if (e.getAction() != InventoryAction.HOTBAR_SWAP) return -1;
+        return e.getClick() == ClickType.SWAP_OFFHAND ? 40 : e.getHotbarButton();
+    }
+
     /** Goods bought from the admin shop cannot go into a machine (they cannot be sold back either). */
     private void refuseBought(Player p, org.bukkit.event.Cancellable e) {
         e.setCancelled(true);
@@ -1048,19 +1089,39 @@ public final class MachineModule extends EcoModule {
         p.playSound(p.getLocation(), Sound.BLOCK_NOTE_BLOCK_BASS, 0.6f, 0.8f);
     }
 
+    /** A sized fish this machine has no open recipe for keeps its size: it is not let in (it would be stripped for nothing). */
+    private boolean refuseFish(Player p, Machine m, ItemStack it, org.bukkit.event.Cancellable e) {
+        if (!Items.sized(it) || m.spec.takes(Items.key(it), m.tier, TAGGED)) return false;
+        e.setCancelled(true);
+        HudModule.flash(p, Lang.mm("machine.fish-not-used"));
+        p.playSound(p.getLocation(), Sound.BLOCK_NOTE_BLOCK_BASS, 0.6f, 0.8f);
+        return true;
+    }
+
     /**
-     * A sized fish (희귀·전설) put into an input slot by hand: it goes in without its size, so fish of one kind stack
-     * (machines ignore the size; the recipe book says so). Done by hand on the next tick: the click itself is cancelled.
+     * Click actions that put the cursor or the hotbar item into the clicked slot. The others (picking up, shift-click out,
+     * dropping, bundles, a creative clone) leave the hand where it is, so a fish held on the cursor meanwhile is not touched.
+     */
+    private static boolean puts(InventoryAction a) {
+        return a == InventoryAction.PLACE_ALL || a == InventoryAction.PLACE_SOME || a == InventoryAction.PLACE_ONE
+                || a == InventoryAction.SWAP_WITH_CURSOR || a == InventoryAction.HOTBAR_SWAP;
+    }
+
+    /**
+     * A sized fish (희귀·전설) put by hand into an input slot of a machine that uses it: it goes in without its size, so fish
+     * of one kind stack (machines ignore the size; the recipe book says so). Done by hand on the next tick: the click itself
+     * is cancelled, and only the units that go in lose their size.
      */
     private void placePlain(Player p, Machine m, int lane, int slot, InventoryClickEvent e) {
         e.setCancelled(true);
-        boolean hotbar = e.getAction() == InventoryAction.HOTBAR_SWAP && e.getHotbarButton() >= 0;
-        int button = e.getHotbarButton();
+        int button = swapSlot(e);
+        boolean hotbar = button >= 0;
         boolean one = !hotbar && e.isRightClick();
         Bukkit.getScheduler().runTask(eco, () -> {
             if (p.getOpenInventory().getTopInventory() != m.inv || lane >= m.open()) return;
             ItemStack src = hotbar ? p.getInventory().getItem(button) : p.getItemOnCursor();
-            if (!Items.sized(src) || Items.shopBought(src)) return;
+            // the hand may hold another fish by now (a second click in the same tick): it must still be one this machine uses
+            if (!Items.sized(src) || Items.shopBought(src) || !m.spec.takes(Items.key(src), m.tier, TAGGED)) return;
             ItemStack plain = Items.stripSize(src);
             ItemStack cur = m.inv.getItem(slot);
             int move;
@@ -1095,7 +1156,11 @@ public final class MachineModule extends EcoModule {
             refuseBought(p, e);
             return;
         }
-        it = Items.stripSize(it);                               // a sized fish goes in plain and stacks with its kind
+        if (refuseFish(p, m, it, e)) return;
+        ItemStack src = it;
+        it = Items.stripSize(it);                               // a sized fish: the units that go in, plain (they stack with their kind)
+        boolean sized = it != src;                              // (a fish that could not be stripped goes in as it is)
+        int before = it.getAmount();
         for (int pass = 0; pass < 2 && !it.isEmpty(); pass++) {
             for (int k = 0; k < m.open() && !it.isEmpty(); k++) {
                 for (int i = 0; i < 3 && !it.isEmpty(); i++) {
@@ -1114,7 +1179,9 @@ public final class MachineModule extends EcoModule {
                 }
             }
         }
-        e.setCurrentItem(it.isEmpty() ? null : it);
+        int moved = before - it.getAmount();
+        if (sized) e.setCurrentItem(moved >= src.getAmount() ? null : src.asQuantity(src.getAmount() - moved));   // the rest keep their size
+        else e.setCurrentItem(it.isEmpty() ? null : it);
     }
 
     @EventHandler(priority = EventPriority.HIGH)
@@ -1125,6 +1192,8 @@ public final class MachineModule extends EcoModule {
             refuseBought(p, e);
             return;
         }
+        if (e.getRawSlots().stream().anyMatch(raw -> raw < SIZE) && e.getWhoClicked() instanceof Player p
+                && refuseFish(p, m, e.getOldCursor(), e)) return;
         for (int raw : e.getRawSlots()) {
             if (raw >= SIZE) continue;
             int lane = inputLane(raw);

@@ -211,8 +211,6 @@ public final class ShopModule extends EcoModule implements DailyListener {
             eco.events().update(premium, params);
             if (left - high <= 0) Bukkit.broadcast(Lang.msg("shop.premium-sold-out", "item", itemName(id), "player", p.getName()));
         }
-        // 직업 Lv30: the job's own machine goods sell for more (세공품, 손질품, 요리...)
-        total *= eco.jobs().sellBonus(p.getUniqueId(), id);
         // rare and legend fish: by their size (0.7 - 1.5x)
         total *= Items.sizeFactor(p.getInventory(), same, n);
         String rk = p.getUniqueId() + "|" + id;
@@ -313,6 +311,18 @@ public final class ShopModule extends EcoModule implements DailyListener {
         for (ItemStack it : e.getInventory().getMatrix()) {
             if (Items.shopBought(it)) {
                 e.setCurrentItem(Items.markBought(cur.clone()));
+                return;
+            }
+        }
+    }
+
+    /** The Crafter block crafts without a player and fires only this event: a marked ingredient marks its result too. */
+    @org.bukkit.event.EventHandler(priority = org.bukkit.event.EventPriority.HIGHEST, ignoreCancelled = true)
+    public void onCrafter(org.bukkit.event.block.CrafterCraftEvent e) {
+        if (!(e.getBlock().getState(false) instanceof org.bukkit.block.Crafter c)) return;
+        for (ItemStack it : c.getInventory().getContents()) {
+            if (Items.shopBought(it)) {
+                e.setResult(Items.markBought(e.getResult()));
                 return;
             }
         }
@@ -853,8 +863,7 @@ public final class ShopModule extends EcoModule implements DailyListener {
             if (n <= 0) continue;
             kinds++;
             count += n;
-            value += PriceModel.total(e.base(), store.sold(id), depthQ(e), players, catalog.floor(), multiplier(id), n)
-                    * eco.jobs().sellBonus(p.getUniqueId(), id);
+            value += PriceModel.total(e.base(), store.sold(id), depthQ(e), players, catalog.floor(), multiplier(id), n);
         }
         return new Holding(kinds, count, (long) Math.floor(value));
     }

@@ -9,11 +9,12 @@ change-cost: 1000
 change-days: 7
 
 # 효과 표의 [Lv1 값, Lv30 값] 은 그 사이를 레벨에 따라 고르게 올라감.
-# 직업 기계에서 받는 효과(machine:)는 그 기계를 지금 직업이 같은 사람이 돌릴 때만:
-#   speed   레벨당 시간 단축          extra   결과 +1 확률 (level 부터)
-#   double  결과 두 배(2인분) 확률     save    재료 하나 아끼는 확률
+# 직업 기계에서 받는 효과(machine-bonus)는 그 기계를 지금 직업이 같은 사람이 돌릴 때만. 결과·재료 효과는 한 개마다 따로 굴려서
+# 모든 레시피가 같은 비율로 늘어남 (재료가 4개든 1개든 레시피 사이 효율 순서는 레벨이 올라도 그대로):
+#   speed   레벨당 시간 단축          extra   결과 한 개마다 +1 확률 (level 부터)
+#   double  결과 두 배(2인분) 확률     save    재료 한 개마다 아끼는 확률 (level 부터)
 #   fast    시간 배수 (level 부터)     aging   숙성 레시피 시간 배수
-#   sell    그 기계 생산품을 상점에 팔 때 매입가 보너스 (level 부터)
+#   yield   결과 한 개마다 +1 확률을 더함 (level 부터, extra 와 합쳐 한 번 굴림)
 # 직업 기계 경험치: 만든 물건 기준가 5G 당 1 (machines.yml 의 xp-per-gold)
 
 jobs:
@@ -25,8 +26,8 @@ jobs:
     description:
       - "광석 추가 드롭 1 → 30% (섬세한 손길 제외)"
       - "보석 원석 발견 2 → 8% (직업이 아니면 1%)"
-      - "Lv10 세공 결과 +1 (15%) · Lv20 재료 절약 15%"
-      - "Lv30 세공품 매입가 +20%"
+      - "Lv10 세공 결과 하나마다 15% 확률로 +1 · Lv20 재료 하나마다 15% 확률로 아낌"
+      - "Lv30 세공 결과 +1 확률 15% → 35%"
     extra: [0.01, 0.30]          # 광석 드롭 +1 확률
     finds:
       chance: [0.02, 0.08]       # 원석 발견 확률
@@ -43,7 +44,7 @@ jobs:
     machine-bonus:
       extra: { level: 10, chance: 0.15 }
       save: { level: 20, chance: 0.15 }
-      sell: { level: 30, bonus: 0.20 }
+      yield: { level: 30, chance: 0.20 }
     xp:
       break: { coal_ore: 1, deepslate_coal_ore: 1, copper_ore: 1, deepslate_copper_ore: 1, iron_ore: 2, deepslate_iron_ore: 2,
                gold_ore: 3, deepslate_gold_ore: 3, redstone_ore: 2, deepslate_redstone_ore: 2, lapis_ore: 3, deepslate_lapis_ore: 3,
@@ -57,20 +58,21 @@ jobs:
     icon: minecraft:iron_hoe
     machine: mill
     description:
-      - "다 자란 작물 수확량 +0.1 × 레벨 (Lv10 = +1)"
+      - "다 자란 작물 수확량 +2% × 레벨 (Lv30 +60%) · 바닐라 작물 +0.1 × 레벨"
       - "Lv10 주변 작물 성장 가속"
-      - "Lv20 가공 결과 +1 (15%)"
+      - "Lv20 가공 결과 하나마다 15% 확률로 +1"
       - "Lv30 3×3 한 번에 수확"
-    harvest-per-level: 0.1
+    harvest-per-level: 0.1          # 바닐라 작물: 레벨당 +0.1개 (소수는 확률)
+    harvest-pct-per-level: 0.02     # 커스텀 작물: 주 수확물 한 개마다 레벨 × 2% 확률로 하나 더
     growth: { level: 10, chance: 0.05, radius: 6 }   # 10초마다 주변 작물이 한 단계 자랄 확률
     area-harvest: 30
     machine-bonus:
       extra: { level: 20, chance: 0.15 }
     xp:
       harvest: { wheat: 0.5, carrots: 0.5, potatoes: 0.5, beetroots: 0.5, nether_wart: 0.5, cocoa: 0.5, melon: 0.5, pumpkin: 1,
-                 economy:tomato: 2, economy:chili: 2, economy:strawberry: 2, economy:onion: 2, economy:garlic: 2, economy:cabbage: 3,
-                 economy:rice: 2, economy:soybean: 2, economy:corn: 3, economy:green_onion: 2, economy:radish: 3, economy:lettuce: 2,
-                 economy:cucumber: 2, economy:grape: 3, economy:eggplant: 2, economy:zucchini: 2, economy:muskmelon: 4 }
+                 economy:tomato: 2, economy:chili: 2, economy:strawberry: 2, economy:onion: 3, economy:garlic: 3, economy:cabbage: 3,
+                 economy:rice: 3, economy:soybean: 3, economy:corn: 4, economy:green_onion: 3, economy:radish: 3, economy:lettuce: 2,
+                 economy:cucumber: 2, economy:grape: 3, economy:eggplant: 2, economy:zucchini: 2, economy:muskmelon: 2.5 }
       breed: 3
 
   fisher:
@@ -81,16 +83,16 @@ jobs:
     description:
       - "희귀·전설 입질 5 → 15% (직업이 아니면 1%)"
       - "초록 구간 레벨당 +1%, Lv10 하트 +1, Lv20 크기 +10%"
-      - "Lv10 손질 결과 +1 (15%)"
+      - "Lv10 손질 결과 하나마다 15% 확률로 +1"
       - "Lv20 진주·참다랑어·철갑상어 두 마리씩"
-      - "Lv30 손질품 매입가 +20%"
+      - "Lv30 손질 결과 +1 확률 15% → 35%"
     finds:
       chance: [0.05, 0.15]
       outsider: 0.01
       double: { level: 20, items: [economy:pearl, economy:bluefin_tuna, economy:sturgeon] }
     machine-bonus:
       extra: { level: 10, chance: 0.15 }
-      sell: { level: 30, bonus: 0.20 }
+      yield: { level: 30, chance: 0.20 }
     xp:
       catch: 3
       find: 10
@@ -101,15 +103,16 @@ jobs:
     icon: minecraft:anvil
     machine: forge
     description:
-      - "재료 절약 5 → 30% (대장간, 도구·갑옷 제작)"
-      - "Lv10 대장간 결과 +1 (15%)"
-      - "Lv20 대장간 시간 절반"
-      - "Lv30 대장간 생산품 매입가 +20%"
-    save: [0.05, 0.30]
+      - "도구·갑옷 제작 재료 절약 5 → 30%"
+      - "Lv10 대장간 결과 하나마다 15% 확률로 +1"
+      - "Lv20 대장간 시간 절반 · 재료 하나마다 15% 확률로 아낌"
+      - "Lv30 대장간 결과 +1 확률 15% → 35%"
+    save: [0.05, 0.30]            # 도구·갑옷 제작 때만 (대장간은 아래 machine-bonus 의 save)
     machine-bonus:
       extra: { level: 10, chance: 0.15 }
       fast: { level: 20, factor: 0.5 }
-      sell: { level: 30, bonus: 0.20 }
+      save: { level: 20, chance: 0.15 }
+      yield: { level: 30, chance: 0.20 }
     xp:
       craft: { iron_pickaxe: 4, iron_axe: 4, iron_shovel: 2, iron_hoe: 2, iron_sword: 4, iron_helmet: 5, iron_chestplate: 8,
                iron_leggings: 7, iron_boots: 4, diamond_pickaxe: 10, diamond_axe: 10, diamond_shovel: 5, diamond_hoe: 5,
@@ -125,13 +128,13 @@ jobs:
     description:
       - "조리 시간 레벨당 -1%"
       - "Lv10 2인분 (15%)"
-      - "Lv20 재료 절약 15%"
-      - "Lv30 요리 매입가 +20%"
+      - "Lv20 재료 하나마다 15% 확률로 아낌"
+      - "Lv30 요리 하나마다 20% 확률로 +1"
     machine-bonus:
       speed: 0.01
       double: { level: 10, chance: 0.15 }
       save: { level: 20, chance: 0.15 }
-      sell: { level: 30, bonus: 0.20 }
+      yield: { level: 30, chance: 0.20 }
     xp:
       smelt: { cooked_beef: 1, cooked_porkchop: 1, cooked_chicken: 1, cooked_mutton: 1, cooked_rabbit: 1, cooked_cod: 1,
                cooked_salmon: 1, baked_potato: 0.5, dried_kelp: 0.2 }
@@ -144,13 +147,13 @@ jobs:
     machine: still
     description:
       - "증류 시간 레벨당 -1%"
-      - "Lv10 증류 결과 +1 (15%)"
+      - "Lv10 증류 결과 하나마다 15% 확률로 +1"
       - "Lv20 숙성 시간 절반"
-      - "Lv30 술·향수 매입가 +20%"
+      - "Lv30 증류 결과 +1 확률 15% → 35%"
     machine-bonus:
       speed: 0.01
       extra: { level: 10, chance: 0.15 }
       aging: { level: 20, factor: 0.5 }
-      sell: { level: 30, bonus: 0.20 }
+      yield: { level: 30, chance: 0.20 }
     xp:
       brew: 4

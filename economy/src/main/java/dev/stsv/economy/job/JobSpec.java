@@ -64,6 +64,11 @@ public record JobSpec(int maxLevel, double a, double b, long changeCost, int cha
             return b.value();
         }
 
+        /** Chance per produce unit of one more on a custom crop at a level (before events): harvest-pct-per-level x level. */
+        public double harvestPct(int level) {
+            return harvestPctPerLevel * level;
+        }
+
         /** XP for an action on a thing ("break" / "minecraft:diamond_ore"); "*" is the fallback. */
         public double xp(String action, String thing) {
             Map<String, Double> m = xp.get(action);
@@ -135,7 +140,7 @@ public record JobSpec(int maxLevel, double a, double b, long changeCost, int cha
                         } else {
                             bonuses.put(k, new Bonus(1, mb.getDouble(k)));
                         }
-                        if (!List.of("speed", "extra", "double", "save", "fast", "aging", "sell").contains(k)) {
+                        if (!List.of("speed", "extra", "double", "save", "fast", "aging", "yield").contains(k)) {
                             problems.add(id + ".machine-bonus: 모르는 효과 " + k);
                         }
                     }
