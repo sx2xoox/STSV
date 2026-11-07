@@ -31,14 +31,16 @@ import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Optional;
+import java.util.UUID;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.ThreadLocalRandom;
 
 /**
- * 관리자 상점: buys what players gather at a price that falls as the server sells (판매), sells basic
- * tools, seeds, supplies, cosmetics and titles at fixed prices (구매), both by category; 수요 고시 (three
- * items x1.5 for a week), 품귀 / 시장 폭락 events, 시세 (prices, 24h change), the 시세판 hologram,
- * repairs and the 상인 행렬 limited goods (a 구매 category while the event runs).
+ * 관리자 상점: buys what players gather at a price of each player's own that falls as that player sells (판매:
+ * one player's selling never lowers anyone else's price), sells basic tools, seeds, supplies, cosmetics and titles at fixed
+ * prices (구매), both by category; 수요 고시 (three items x1.5 for a week), 품귀 / 시장 폭락 events, 시세 (each player's
+ * prices; the market price = base x events, its 24h change), the 시세판 hologram (market prices), repairs and the 상인 행렬
+ * limited goods (a 구매 category while the event runs).
  */
 public final class ShopModule extends EcoModule implements DailyListener {
 
@@ -49,7 +51,7 @@ public final class ShopModule extends EcoModule implements DailyListener {
     /** fractions of a gold piece owed to a player per item, so selling one at a time loses nothing */
     private final Map<String, Double> remainder = new ConcurrentHashMap<>();
     private TextDisplay board;
-    /** items whose price touched the floor today / yesterday (daily report) */
+    /** items whose price touched the floor today / yesterday for at least one seller (their own price; daily report) */
     private final java.util.Set<String> floorHits = ConcurrentHashMap.newKeySet();
     private int floorHitsYesterday;
 
@@ -170,22 +172,33 @@ public final class ShopModule extends EcoModule implements DailyListener {
         return null;
     }
 
-    public double price(String item) {
+    /**
+     * The market price: what a player who sold none of it lately gets, base x 수요 고시 / 사건 (no one's selling in it). What
+     * the 시세판, the hourly history and the 24h change show, since prices are each player's own.
+     */
+    public double marketPrice(String item) {
+        ShopCatalog.SellEntry e = catalog.sell().get(item);
+        return e == null ? 0 : e.base() * multiplier(item);
+    }
+
+    /** This player's price now: lowered only by what they sold lately (null: nobody, the market price). */
+    public double price(UUID player, String item) {
         ShopCatalog.SellEntry e = catalog.sell().get(item);
         if (e == null) return 0;
-        return PriceModel.unit(e.base(), store.sold(item), depthQ(e), pricePlayers(), catalog.floor(), multiplier(item));
+        return PriceModel.unit(e.base(), store.sold(player, item), depthQ(e), catalog.floor(), multiplier(item));
     }
 
-    public boolean atFloor(String item) {
+    /** Is this player's own price at the floor? */
+    public boolean atFloor(UUID player, String item) {
         ShopCatalog.SellEntry e = catalog.sell().get(item);
-        return e != null && PriceModel.atFloor(e.base(), store.sold(item), depthQ(e), pricePlayers(), catalog.floor());
+        return e != null && PriceModel.atFloor(e.base(), store.sold(player, item), depthQ(e), catalog.floor());
     }
 
-    /** 24h change in percent, or null if there is no price from a day ago yet. */
+    /** The market price's 24h change in percent, or null if there is no price from a day ago yet. */
     public Double change(String item) {
         Double ago = store.priceAgo(item, now(), DAY);
         if (ago == null || ago <= 0) return null;
-        return (price(item) - ago) / ago * 100;
+        return (marketPrice(item) - ago) / ago * 100;
     }
 
     // ------------------------------------------------------------------------------------------
@@ -212,17 +225,19 @@ public final class ShopModule extends EcoModule implements DailyListener {
         int n = Math.min(count, have);
         if (e.cap() != null) n = Math.min(n, e.cap() - store.soldBy(p.getUniqueId(), id));
         if (n <= 0) return e.cap() != null && store.soldBy(p.getUniqueId(), id) >= e.cap() ? "shop.cap-reached" : "shop.not-buying";
-        int players = pricePlayers();
+        // the seller's own curve: every unit pushes their S by one, so the price falls within one sale too
+        UUID who = p.getUniqueId();
+        double s = store.sold(who, id);
         double total;
         ActiveEvent premium = premiumFor(id);
         if (premium == null) {
-            total = PriceModel.total(e.base(), store.sold(id), depthQ(e), players, catalog.floor(), multiplier(id), n);
+            total = PriceModel.total(e.base(), s, depthQ(e), catalog.floor(), multiplier(id), n);
         } else {
             // the 고가 매입상 pays double for what is left of its stock; the rest sells at the usual price
             int left = (int) premium.number("left." + id, 0), high = Math.min(n, left);
             double normal = baseMultiplier(id);
-            total = PriceModel.total(e.base(), store.sold(id), depthQ(e), players, catalog.floor(), normal * premium.number("multiplier", 2), high)
-                    + PriceModel.total(e.base(), store.sold(id) + high, depthQ(e), players, catalog.floor(), normal, n - high);
+            total = PriceModel.total(e.base(), s, depthQ(e), catalog.floor(), normal * premium.number("multiplier", 2), high)
+                    + PriceModel.total(e.base(), s + high, depthQ(e), catalog.floor(), normal, n - high);
             java.util.Map<String, String> params = new java.util.LinkedHashMap<>(premium.params());
             params.put("left." + id, String.valueOf(left - high));
             eco.events().update(premium, params);
@@ -241,8 +256,8 @@ public final class ShopModule extends EcoModule implements DailyListener {
         core.profiles().add(p.getUniqueId(), "shop_sold", removed);
         core.profiles().add(p.getUniqueId(), "shop_income", paid);
         eco.stocks().recordSale(p.getUniqueId(), id, paid);
-        if (atFloor(id)) floorHits.add(id);
-        return new Sale(removed, paid, price(id));
+        if (atFloor(who, id)) floorHits.add(id);
+        return new Sale(removed, paid, price(who, id));
     }
 
     private void sellFeedback(Player p, ItemStack sample, Object result) {
@@ -549,12 +564,12 @@ public final class ShopModule extends EcoModule implements DailyListener {
     }
 
     private void startCrash(ActiveEvent e) {
-        // the item the server sold most of lately (the one everybody farms)
+        // the item the server sold most of lately, everybody's S added up (the one everybody farms)
         String item = e.param("item");
         if (item == null) {
             item = catalog.sell().keySet().stream()
                     .filter(i -> !noticed().contains(i) && !eventItems().contains(i))
-                    .max(Comparator.comparingDouble(i -> store.sold(i) * catalog.sell().get(i).base()))
+                    .max(Comparator.comparingDouble(i -> store.soldTotal(i) * catalog.sell().get(i).base()))
                     .orElse(catalog.sell().keySet().iterator().next());
         }
         item = ShopCatalog.norm(item);
@@ -563,14 +578,14 @@ public final class ShopModule extends EcoModule implements DailyListener {
     }
 
     // ------------------------------------------------------------------------------------------
-    // Every minute: hourly snapshots, the 시세판
+    // Every minute: hourly snapshots of the market price, the 시세판
     // ------------------------------------------------------------------------------------------
 
     private void minute() {
         long hour = now() / 3_600_000L;
         if (eco.kv().getLong("shop.snap-hour", -1) != hour) {
             eco.kv().set("shop.snap-hour", hour);
-            for (String id : catalog.sell().keySet()) store.snapshot(id, now(), price(id));
+            for (String id : catalog.sell().keySet()) store.snapshot(id, now(), marketPrice(id));
         }
         updateBoard();
     }
@@ -597,44 +612,47 @@ public final class ShopModule extends EcoModule implements DailyListener {
                 t.setBackgroundColor(org.bukkit.Color.fromARGB(160, 10, 10, 14));
             });
         }
-        // the whole list is too long for a sign: the marked ones (수요 고시, 사건) and the ten biggest 24h moves
+        // market prices (nobody's own): the whole list is too long for a sign, so the marked ones (수요 고시, 사건) and the ten
+        // biggest 24h moves (a market price moves only when an event or notice starts or ends: an unmoved one is not news)
         List<String> shown = new ArrayList<>();
-        for (String id : catalog.sell().keySet()) if (!marks(id).isEmpty()) shown.add(id);
+        for (String id : catalog.sell().keySet()) if (!marks(null, id).isEmpty()) shown.add(id);
         List<String> movers = new ArrayList<>(catalog.sell().keySet());
         movers.removeAll(shown);
-        movers.removeIf(id -> change(id) == null);
+        movers.removeIf(id -> change(id) == null || Math.abs(change(id)) < 0.5);
         movers.sort(java.util.Comparator.comparingDouble((String id) -> -Math.abs(change(id))));
         shown.addAll(movers.subList(0, Math.min(10, movers.size())));
         StringBuilder sb = new StringBuilder(Lang.raw("shop.board-title"));
-        for (String id : shown) sb.append('\n').append(priceLine(id));
+        for (String id : shown) sb.append('\n').append(priceLine(null, id));
         if (shown.isEmpty()) sb.append('\n').append(Lang.raw("shop.board-quiet"));
         board.text(Text.mm(sb.toString()));
     }
 
-    private String priceLine(String id) {
+    /** The 24h change of the market price, as a line shows it. */
+    private String changeText(String id) {
         Double ch = change(id);
-        String change = ch == null ? Lang.raw("shop.change-none") : Lang.raw(ch >= 0 ? "shop.change-up" : "shop.change-down", "pct", String.format("%.0f", Math.abs(ch)));
-        return Lang.raw("shop.price-line", "item", itemName(id), "price", String.format("%.1f", price(id)), "change", change, "marks", marks(id));
+        return ch == null ? Lang.raw("shop.change-none") : Lang.raw(ch >= 0 ? "shop.change-up" : "shop.change-down", "pct", String.format("%.0f", Math.abs(ch)));
     }
 
-    /** Players today for the price curve: at least curve.minPlayers (a quiet server does not crash prices at once). */
-    private int pricePlayers() {
-        return Math.max(catalog.curve().minPlayers(), eco.activity().store().players());
+    /** One line of /시세 or the 시세판: the viewer's own price (null viewer: the market price), the market's 24h change, marks. */
+    private String priceLine(UUID viewer, String id) {
+        return Lang.raw("shop.price-line", "item", itemName(id), "price", String.format("%.1f", price(viewer, id)), "change", changeText(id),
+                "marks", marks(viewer, id));
     }
 
-    /** One player's daily amount as the curve counts it (q x depth). */
+    /** One player's daily amount as the curve counts it (q x depth): the Q of their own curve. */
     private double depthQ(ShopCatalog.SellEntry e) {
-        return e.q() * catalog.curve().depth();
+        return catalog.curve().quota(e.q());
     }
 
-    private String marks(String id) {
+    /** 수요 고시, 사건 and 고가 매입상 marks; (바닥) only for a viewer whose own price is at the floor. */
+    private String marks(UUID viewer, String id) {
         StringBuilder m = new StringBuilder();
         if (noticed().contains(id)) m.append(Lang.raw("shop.mark-notice"));
         for (ActiveEvent e : eco.events().active("shortage")) if (id.equals(e.param("item"))) m.append(Lang.raw("shop.mark-shortage"));
         for (ActiveEvent e : eco.events().active("crash")) if (id.equals(e.param("item"))) m.append(Lang.raw("shop.mark-crash"));
         ActiveEvent premium = premiumFor(id);
         if (premium != null) m.append(Lang.raw("shop.mark-premium", "left", (int) premium.number("left." + id, 0)));
-        if (atFloor(id)) m.append(Lang.raw("shop.mark-floor"));
+        if (viewer != null && atFloor(viewer, id)) m.append(Lang.raw("shop.mark-floor"));
         return m.toString();
     }
 
@@ -889,7 +907,7 @@ public final class ShopModule extends EcoModule implements DailyListener {
     private Holding holding(Player p, List<String> ids) {
         int kinds = 0, count = 0;
         double value = 0;
-        int players = pricePlayers();
+        UUID who = p.getUniqueId();
         for (String id : ids) {
             ShopCatalog.SellEntry e = catalog.sell().get(id);
             int n = Items.count(p.getInventory(), it -> Items.plain(it, id));
@@ -898,7 +916,7 @@ public final class ShopModule extends EcoModule implements DailyListener {
             if (n <= 0) continue;
             kinds++;
             count += n;
-            value += PriceModel.total(e.base(), store.sold(id), depthQ(e), players, catalog.floor(), multiplier(id), n);
+            value += PriceModel.total(e.base(), store.sold(who, id), depthQ(e), catalog.floor(), multiplier(id), n);
         }
         return new Holding(kinds, count, (long) Math.floor(value));
     }
@@ -973,13 +991,13 @@ public final class ShopModule extends EcoModule implements DailyListener {
             Player p = v.player();
             for (String id : category.items()) {
                 ShopCatalog.SellEntry e = catalog.sell().get(id);
-                Double ch = change(id);
-                String change = ch == null ? Lang.raw("shop.change-none") : Lang.raw(ch >= 0 ? "shop.change-up" : "shop.change-down", "pct", String.format("%.0f", Math.abs(ch)));
+                UUID who = p.getUniqueId();
                 int have = Items.count(p.getInventory(), it -> Items.plain(it, id));
                 List<Component> lore = new ArrayList<>(Lang.items("shop.price-lore",
-                        "price", String.format("%.1f", price(id)), "base", trim(e.base()), "change", change, "marks", marks(id),
-                        "sold", String.format("%.0f", store.sold(id)), "quota", String.format("%.0f", catalog.curve().quota(e.q(), pricePlayers())),
-                        "mine", store.soldBy(p.getUniqueId(), id), "cap", e.cap() == null ? "-" : e.cap()));
+                        "price", String.format("%.1f", price(who, id)), "market", String.format("%.1f", marketPrice(id)), "base", trim(e.base()),
+                        "change", changeText(id), "marks", marks(who, id),
+                        "sold", String.format("%.0f", store.sold(who, id)), "quota", String.format("%.0f", depthQ(e)),
+                        "mine", store.soldBy(who, id), "cap", e.cap() == null ? "-" : e.cap()));
                 lore.addAll(have > 0 ? Lang.items("shop.sell-have", "have", have) : Lang.items("shop.sell-have-none"));
                 out.add(Items.create(id, 1).map(it -> withLore(it, lore)).orElse(null));
             }
@@ -1016,7 +1034,6 @@ public final class ShopModule extends EcoModule implements DailyListener {
 
     // ------------------------------------------------------------------------------------------
 
-    /** Price list for chat (/시세 [품목]). */
     /** /시세 completions: the 판매 categories and the ids (vanilla ones without minecraft:). */
     public List<String> priceWords(String prefix) {
         List<String> out = new ArrayList<>();
@@ -1026,12 +1043,13 @@ public final class ShopModule extends EcoModule implements DailyListener {
         return out;
     }
 
-    public List<Component> priceLines(String filter) {
+    /** Price list for chat (/시세 [품목]): the viewer's own prices (null viewer, the console: market prices). */
+    public List<Component> priceLines(UUID viewer, String filter) {
         List<Component> out = new ArrayList<>();
-        out.add(Lang.msg("shop.prices-header", "players", pricePlayers(), "min", catalog.curve().minPlayers()));
+        out.add(Lang.msg(viewer == null ? "shop.prices-header-market" : "shop.prices-header"));
         List<String> ids = filter == null ? new ArrayList<>(catalog.sell().keySet())
                 : catalog.search(filter, id -> Items.create(id, 1).map(Items::plainName).orElse(id));
-        for (String id : ids) out.add(Text.mm(" " + priceLine(id)));
+        for (String id : ids) out.add(Text.mm(" " + priceLine(viewer, id)));
         if (ids.isEmpty()) out.add(Lang.msg("shop.prices-none", "filter", net.kyori.adventure.text.minimessage.MiniMessage.miniMessage().escapeTags(filter)));
         return out;
     }

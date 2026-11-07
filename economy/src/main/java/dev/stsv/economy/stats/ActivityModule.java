@@ -13,9 +13,7 @@ import org.bukkit.event.EventPriority;
 import org.bukkit.event.player.PlayerJoinEvent;
 import org.bukkit.event.player.PlayerQuitEvent;
 
-import java.util.HashSet;
 import java.util.Map;
-import java.util.Set;
 import java.util.UUID;
 import java.util.concurrent.ConcurrentHashMap;
 
@@ -59,9 +57,7 @@ public final class ActivityModule extends EcoModule implements DailyListener {
     @Override
     public void newDay(int day, long dayStart) {
         for (Player p : Bukkit.getOnlinePlayers()) count(p);
-        Set<UUID> carried = new HashSet<>(store.active());     // 15 minutes yesterday ...
-        carried.retainAll(Bukkit.getOnlinePlayers().stream().map(Player::getUniqueId).toList());   // ... and still here
-        store.newDay(day, carried);
+        store.newDay(day);
         for (Player p : Bukkit.getOnlinePlayers()) store.seen(p.getUniqueId(), core.economy().balance(p.getUniqueId()));
     }
 

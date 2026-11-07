@@ -139,7 +139,7 @@ class StoresTest {
         UUID p = UUID.randomUUID();
         s.record(p, "minecraft:iron_ingot", 64);
         s.record(p, "minecraft:iron_ingot", 36);
-        assertEquals(100, s.sold("minecraft:iron_ingot"), 1e-9);
+        assertEquals(100, s.sold(p, "minecraft:iron_ingot"), 1e-9);
         assertEquals(100, s.soldBy(p, "minecraft:iron_ingot"));
         long now = System.currentTimeMillis();
         s.snapshot("minecraft:iron_ingot", now - 25 * 3_600_000L, 9.0);
@@ -149,20 +149,105 @@ class StoresTest {
         db.sync(c -> null);
         ShopStore again = new ShopStore(db);
         again.init();
-        assertEquals(100, again.sold("minecraft:iron_ingot"), 1e-9, "survives a restart");
+        assertEquals(100, again.sold(p, "minecraft:iron_ingot"), 1e-9, "survives a restart");
         again.decay(0.5);
-        assertEquals(50, again.sold("minecraft:iron_ingot"), 1e-9);
+        assertEquals(50, again.sold(p, "minecraft:iron_ingot"), 1e-9);
         assertEquals(0, again.soldBy(p, "minecraft:iron_ingot"), "daily caps start over");
         db.sync(c -> null);
         ShopStore third = new ShopStore(db);
         third.init();
-        assertEquals(50, third.sold("minecraft:iron_ingot"), 1e-9);
+        assertEquals(50, third.sold(p, "minecraft:iron_ingot"), 1e-9);
         assertEquals(9.0, third.priceAgo("minecraft:iron_ingot", now, 86_400_000L));
         // in memory too, snapshots older than the table keeps (3 days) go
         third.snapshot("minecraft:coal", now - 5 * 86_400_000L, 3.0);
         third.snapshot("minecraft:coal", now, 4.0);
         assertNull(third.priceAgo("minecraft:coal", now, 86_400_000L), "the 5-day-old snapshot was dropped");
         assertEquals(4.0, third.priceAgo("minecraft:coal", now, 0));
+        db.close();
+    }
+
+    /** Each player's S is their own: kept, recovered and decayed per player, forgotten once tiny, cleared by a reset. */
+    @Test
+    void shopSalesArePerPlayer(@TempDir Path dir) throws Exception {
+        Db db = db(dir);
+        ShopStore s = new ShopStore(db);
+        s.init();
+        UUID a = UUID.randomUUID(), b = UUID.randomUUID(), c = UUID.randomUUID();
+        String iron = "minecraft:iron_ingot", coal = "minecraft:coal";
+        s.record(a, iron, 300);
+        s.record(b, coal, 10);
+        s.record(c, iron, 1);
+        assertEquals(300, s.sold(a, iron), 1e-9);
+        assertEquals(0, s.sold(b, iron), 1e-9, "a's selling is not b's");
+        assertEquals(10, s.sold(b, coal), 1e-9);
+        assertEquals(0, s.sold(null, iron), 1e-9, "nobody: nothing sold (the market price)");
+        assertEquals(301, s.soldTotal(iron), 1e-9, "the server's total (시장 폭락)");
+        assertEquals(3, s.sellers());
+
+        // through the day: everyone's S shrinks; c's 1 drops under half a piece and c is forgotten
+        s.recover(0.4);
+        assertEquals(120, s.sold(a, iron), 1e-9);
+        assertEquals(4, s.sold(b, coal), 1e-9);
+        assertEquals(0, s.sold(c, iron), 1e-9);
+        assertEquals(2, s.sellers(), "memory keeps only the players who sold lately");
+        assertEquals(1, s.soldBy(c, iron), "today's counts (caps) stay through the day");
+        s.record(a, iron, 30);                          // after the recovery: 150 (in the table too, the queue keeps the order)
+        db.sync(x -> null);
+        ShopStore again = new ShopStore(db);
+        again.init();
+        assertEquals(150, again.sold(a, iron), 1e-9, "survives a restart");
+        assertEquals(4, again.sold(b, coal), 1e-9);
+        assertEquals(0, again.sold(c, iron), 1e-9, "forgotten in the table too");
+        assertEquals(2, again.sellers());
+        assertEquals(1, again.soldBy(c, iron));
+
+        // the daily reset: S shrinks by daily-decay, the counts start over; b's 4 x 0.1 is forgotten
+        again.decay(0.1);
+        assertEquals(15, again.sold(a, iron), 1e-9);
+        assertEquals(0, again.sold(b, coal), 1e-9);
+        assertEquals(1, again.sellers());
+        assertEquals(0, again.soldBy(a, iron));
+        db.sync(x -> null);
+        ShopStore third = new ShopStore(db);
+        third.init();
+        assertEquals(15, third.sold(a, iron), 1e-9);
+        assertEquals(1, third.sellers());
+        assertEquals(0, third.soldBy(c, iron));
+        // a daily-decay of 0 clears everyone at the reset
+        third.decay(0);
+        assertEquals(0, third.sellers());
+        third.record(b, coal, 5);
+        third.reset();
+        assertEquals(0, third.sold(b, coal), 1e-9);
+        db.sync(x -> null);
+        ShopStore fourth = new ShopStore(db);
+        fourth.init();
+        assertEquals(0, fourth.sellers(), "a reset empties the table");
+        db.close();
+    }
+
+    /** A server from before per-player prices: today's per-player counts become each player's S, the shared S and old snapshots go. */
+    @Test
+    void shopMovesToPerPlayerSales(@TempDir Path dir) throws Exception {
+        Db db = db(dir);
+        db.migrate("eco_shop", List.of(List.of(
+                "CREATE TABLE IF NOT EXISTS eco_shop_sold (item VARCHAR(128) NOT NULL PRIMARY KEY, sold DOUBLE NOT NULL)",
+                "CREATE TABLE IF NOT EXISTS eco_shop_player (player CHAR(36) NOT NULL, item VARCHAR(128) NOT NULL, amount INT NOT NULL, "
+                        + "PRIMARY KEY (player, item))",
+                "CREATE TABLE IF NOT EXISTS eco_price (item VARCHAR(128) NOT NULL, at BIGINT NOT NULL, price DOUBLE NOT NULL, PRIMARY KEY (item, at))")));
+        UUID a = UUID.randomUUID();
+        long now = System.currentTimeMillis();
+        db.execute("INSERT INTO eco_shop_sold (item, sold) VALUES (?, ?)", "minecraft:iron_ingot", 900.0);
+        db.execute("INSERT INTO eco_shop_player (player, item, amount) VALUES (?, ?, ?)", a.toString(), "minecraft:iron_ingot", 120);
+        db.execute("INSERT INTO eco_price (item, at, price) VALUES (?, ?, ?)", "minecraft:iron_ingot", now - 25 * 3_600_000L, 4.0);
+        db.sync(x -> null);
+        ShopStore s = new ShopStore(db);
+        s.init();
+        assertEquals(120, s.sold(a, "minecraft:iron_ingot"), 1e-9, "what they sold today");
+        assertEquals(120, s.soldBy(a, "minecraft:iron_ingot"));
+        assertEquals(120, s.soldTotal("minecraft:iron_ingot"), 1e-9, "the shared 900 is gone");
+        assertNull(s.priceAgo("minecraft:iron_ingot", now, 86_400_000L), "a snapshot of the shared price is not a market price");
+        assertFalse(db.<Boolean>sync(x -> StallRemoval.hasTable(x, "eco_shop_sold")), "the shared table is dropped");
         db.close();
     }
 
@@ -394,23 +479,8 @@ class StoresTest {
         assertEquals(3600, d.seconds());
         assertEquals(1200, d.income());
         act2.newDay(4);
-        assertEquals(1, act2.players(), "at least 1 (prices divide by it)");
         assertFalse(act2.seenToday(p));
-        UUID x = UUID.randomUUID(), y = UUID.randomUUID(), z = UUID.randomUUID();
-        act2.seen(x, 0); act2.addSeconds(x, 900);
-        act2.seen(y, 0); act2.addSeconds(y, 1200);
-        act2.seen(z, 0); act2.addSeconds(z, 10);
-        assertEquals(2, act2.players(), "a 10-second login does not count");
-        assertEquals(Set.of(x, y), act2.active());
-        act2.newDay(5, Set.of(x, y));                  // all three online at 05:00; x and y had 15 minutes on day 4
-        act2.seen(x, 0); act2.seen(y, 0); act2.seen(z, 0);
-        assertEquals(2, act2.players(), "x and y count from second 0 of day 5, z does not");
-        act2.addSeconds(z, 900);
-        assertEquals(3, act2.players(), "15 minutes counts");
-        act2.addSeconds(x, 900);
-        assertEquals(3, act2.players(), "a carried player with 15 minutes today counts once");
-        act2.newDay(6);
-        assertEquals(1, act2.players(), "nobody carried: at least 1");
+        assertTrue(act2.todayRows().isEmpty(), "a new day starts with nobody");
         db.close();
     }
     @Test

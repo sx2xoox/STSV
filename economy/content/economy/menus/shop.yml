@@ -96,7 +96,7 @@ shop_sell:
       icon: economy:gui/chart
       material: PAPER
       name: "<white>시세 보는 법"
-      lore: ["<gray>오늘 많이 팔린 품목일수록 싸게 삽니다.", "<gray>시간이 지나면 회복합니다 (매시간 조금, 매일 05시에 크게).", "<gold>★</gold> <gray>수요 고시  <color:#ff5f57>품귀</color> <gray>비싸게 삼", "<color:#4d9bff>폭락</color> <gray>싸게 삼  <dark_gray>(바닥)</dark_gray> <gray>최저가"]
+      lore: ["<gray>내가 많이 판 품목일수록 나에게만 싸게 삽니다.", "<gray>다른 사람이 판 것은 내 값과 상관없음.", "<gray>시간이 지나면 회복합니다 (매시간 조금, 매일 05시에 크게).", "<gold>★</gold> <gray>수요 고시  <color:#ff5f57>품귀</color> <gray>비싸게 삼", "<color:#4d9bff>폭락</color> <gray>싸게 삼  <dark_gray>(바닥)</dark_gray> <gray>내 값이 최저가"]
     B:
       action: "command:상점"
       icon: economy:gui/back
@@ -184,7 +184,7 @@ shop_sell_items:
       icon: economy:gui/chart
       material: PAPER
       name: "<white>시세 보는 법"
-      lore: ["<gray>오늘 많이 팔린 품목일수록 싸게 삽니다.", "<gray>시간이 지나면 회복합니다 (매시간 조금, 매일 05시에 크게).", "<gold>★</gold> <gray>수요 고시  <color:#ff5f57>품귀</color> <gray>비싸게 삼", "<color:#4d9bff>폭락</color> <gray>싸게 삼  <dark_gray>(바닥)</dark_gray> <gray>최저가"]
+      lore: ["<gray>내가 많이 판 품목일수록 나에게만 싸게 삽니다.", "<gray>다른 사람이 판 것은 내 값과 상관없음.", "<gray>시간이 지나면 회복합니다 (매시간 조금, 매일 05시에 크게).", "<gold>★</gold> <gray>수요 고시  <color:#ff5f57>품귀</color> <gray>비싸게 삼", "<color:#4d9bff>폭락</color> <gray>싸게 삼  <dark_gray>(바닥)</dark_gray> <gray>내 값이 최저가"]
     B:
       action: "command:상점 판매"
       icon: economy:gui/back

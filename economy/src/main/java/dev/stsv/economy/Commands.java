@@ -76,7 +76,7 @@ final class Commands {
         }), (s, a) -> a.length == 1 ? List.of("구매", "판매", "전부판매") : List.of()));
         eco.command("시세", new Simple((s, a) -> {
             if (s instanceof Player p && a.length == 0) eco.shop().openSell(p);
-            else eco.shop().priceLines(a.length > 0 ? String.join(" ", a) : null).forEach(s::sendMessage);
+            else eco.shop().priceLines(s instanceof Player viewer ? viewer.getUniqueId() : null, a.length > 0 ? String.join(" ", a) : null).forEach(s::sendMessage);
         }, (s, a) -> a.length == 1 ? eco.shop().priceWords(a[0]) : List.of()));
         eco.command("우편함", new Simple(player((p, a) -> eco.mail().open(p)), null));
         eco.command("거래소", new Simple(player((p, a) -> {

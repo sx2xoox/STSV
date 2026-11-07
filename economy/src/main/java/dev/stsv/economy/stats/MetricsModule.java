@@ -16,7 +16,7 @@ import java.util.concurrent.CompletableFuture;
 
 /**
  * The 05:00 report to the admins: money supply growth, sink/faucet ratio against the goal (config.yml),
- * inequality, the bottom quarter's hourly income against the top's, and items stuck at the price floor.
+ * inequality, the bottom quarter's hourly income against the top's, and items someone sold down to their own price floor.
  */
 public final class MetricsModule extends EcoModule implements DailyListener {
 

@@ -96,7 +96,7 @@ shop:
   merchant-lore: ["", "<gray>가격: </gray>{price}", "<gray>남은 수량: <white>{left} / {stock}", "<yellow>클릭: 사기 (선착순)"]
   merchant-sold-out: "<light_purple>상인 행렬</light_purple> <white>{item}</white> <gray>매진! 마지막 구매자: <white>{player}"
   sold-out: "<red>매진되었습니다."
-  board-title: "<gold><b>오늘의 시세</b></gold> <gray>(개당 매입가)"
+  board-title: "<gold><b>오늘의 시세</b></gold> <gray>(개당 시장가: 최근 그 물건을 안 판 사람의 매입가)\n<dark_gray>매입가는 사람마다: 내가 판 만큼만 내 값이 내려감 · 내 값은 /시세"
   board-quiet: "<gray>오늘은 아직 조용합니다"
   price-line: "<white>{item}</white> <gold>{price} G</gold> {change}{marks}"
   change-up: "<color:#ff5f57>▲{pct}%</color>"
@@ -106,10 +106,11 @@ shop:
   mark-shortage: " <color:#ff5f57>품귀</color>"
   mark-crash: " <color:#4d9bff>폭락</color>"
   mark-floor: " <dark_gray>(바닥)</dark_gray>"
-  prices-header: "<gold>시세</gold> <gray>(기준 {players}명: 오늘 15분 넘게 플레이한 사람, 최소 {min}명)"
+  prices-header: "<gold>내 시세</gold> <gray>(내가 최근 판 만큼만 내려감, 다른 사람이 판 것과 무관 · 24시간 변화는 시장가)"
+  prices-header-market: "<gold>시세</gold> <gray>(시장가: 최근 그 물건을 안 판 사람의 매입가. 매입가는 사람마다 다름)"
   prices-none: "<gray>'{filter}'에 맞는 품목이 없습니다. 바닐라 물건은 영어 이름(diamond, iron_ingot)이나 분류 이름(광물, 농산물 …)으로 찾아 주세요"
-  price-lore: ["", "<gray>지금 개당: <gold>{price} G</gold> <dark_gray>(기준 {base} G)", "<gray>24시간: {change}{marks}",
-               "<gray>오늘 서버 판매: <white>{sold}</white> / 적정 {quota}", "<gray>내가 오늘 판 양: <white>{mine}</white> <dark_gray>(한도 {cap})"]
+  price-lore: ["", "<gray>내 매입가: <gold>{price} G</gold> <dark_gray>(시장가 {market} G · 기준 {base} G)", "<gray>시장가 24시간: {change}{marks}",
+               "<gray>내 판매 기록: <white>{sold}</white> / 적정 {quota} <dark_gray>(시간이 지나면 줄어듦)", "<gray>오늘 판 개수: <white>{mine}</white> <dark_gray>(한도 {cap})"]
 
 market:
   usage: "<red>/거래소 등록 <가격> <gray>(손에 든 묶음 전체의 가격)"
@@ -556,7 +557,7 @@ report:
   flow: " <gray>생성 <green>{faucet}</green> · 소멸 <red>{sink}</red> · 소멸/생성 <white>{ratio}</white> <dark_gray>(목표 {target})"
   gini: " <gray>빈부격차(지니) <white>{gini}</white> <dark_gray>(정상 0.35~0.55, 접속 {players}명)"
   income: " <gray>시간당 수입 하위 25% <white>{low} G</white> · 상위 25% <white>{top} G</white> <dark_gray>(하위가 상위의 1/4 이상)"
-  floor: " <gray>바닥가에 닿은 품목 <white>{count}개</white> <dark_gray>(2개 이하)"
+  floor: " <gray>누군가 자기 바닥가까지 판 품목 <white>{count}개</white> <dark_gray>(2개 이하)"
   ok: " <green>모든 지표 정상"
   warn-growth-high: " <red>⚠ 돈이 너무 빨리 늘어남 → 수수료·세금 올리기, 기준가 내리기"
   warn-growth-low: " <yellow>⚠ 돈이 거의 안 늘어남 → 의뢰 보상, 기준가 올리기"
@@ -564,7 +565,7 @@ report:
   warn-ratio-high: " <yellow>⚠ 소멸이 목표보다 많음 → 수수료·세금 내리기"
   warn-gini: " <red>⚠ 빈부격차 0.6 초과 → 누진세 구간 낮추기, 의뢰 보상 올리기, 시장 폭락 앞당기기"
   warn-gap: " <red>⚠ 하위 수입이 상위의 1/4 미만 → 의뢰 건수·보상 올리기"
-  warn-floor: " <yellow>⚠ 바닥가 품목이 많음 → 그 품목의 q 올리기, 수요 고시에서 빼기"
+  warn-floor: " <yellow>⚠ 바닥가까지 팔리는 품목이 많음 → 그 품목의 q 올리기, 수요 고시에서 빼기"
 
 # 낚시: 입질이 오면 화면 가운데 링, 바늘이 초록 칸에 올 때 우클릭
 fishing:

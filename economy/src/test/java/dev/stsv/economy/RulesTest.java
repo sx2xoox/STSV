@@ -193,20 +193,48 @@ class RulesTest {
     // ------------------------------------------------------------------------------------------ prices
 
     @Test
-    void sellPriceFallsWithWhatTheServerSold() {
+    void sellPriceFallsWithWhatThePlayerSold() {
         double q = 32, base = 10, floor = 0.35;
-        assertEquals(10, PriceModel.unit(base, 0, q, 1, floor, 1), 1e-9);
-        assertEquals(10 * Math.exp(-1), PriceModel.unit(base, 32, q, 1, floor, 1), 1e-9, "S = Q: 37% of the base");
-        assertEquals(3.5, PriceModel.unit(base, 1000, q, 1, floor, 1), 1e-9, "never below the floor");
-        assertTrue(PriceModel.atFloor(base, 1000, q, 1, floor));
-        assertFalse(PriceModel.atFloor(base, 10, q, 1, floor));
-        assertEquals(10 * Math.exp(-1), PriceModel.unit(base, 32 * 5, q, 5, floor, 1), 1e-9, "more players, more room");
-        assertEquals(15, PriceModel.unit(base, 0, q, 1, floor, 1.5), 1e-9, "수요 고시 x1.5");
-        // selling 64 at once = selling them one by one
-        double once = PriceModel.total(base, 0, q, 3, floor, 1, 64), oneByOne = 0;
-        for (int k = 0; k < 64; k++) oneByOne += PriceModel.unit(base, k, q, 3, floor, 1);
+        assertEquals(10, PriceModel.unit(base, 0, q, floor, 1), 1e-9, "nothing sold lately: the market price");
+        assertEquals(10 * Math.exp(-1), PriceModel.unit(base, 32, q, floor, 1), 1e-9, "S = Q (the player's own quota): 37% of the base");
+        assertEquals(10 * Math.exp(-0.5), PriceModel.unit(base, 16, q, floor, 1), 1e-9);
+        assertEquals(3.5, PriceModel.unit(base, 1000, q, floor, 1), 1e-9, "never below the floor");
+        assertTrue(PriceModel.atFloor(base, 1000, q, floor));
+        assertFalse(PriceModel.atFloor(base, 10, q, floor));
+        // the floor is where e^(-S/Q) = floor: S = Q ln(1/floor)
+        assertTrue(PriceModel.atFloor(base, q * Math.log(1 / floor) + 1e-6, q, floor));
+        assertFalse(PriceModel.atFloor(base, q * Math.log(1 / floor) - 1e-3, q, floor));
+        assertEquals(15, PriceModel.unit(base, 0, q, floor, 1.5), 1e-9, "수요 고시 x1.5");
+        assertEquals(3.5 * 3, PriceModel.unit(base, 1000, q, floor, 3), 1e-9, "the floor is multiplied too (품귀 x3)");
+    }
+
+    @Test
+    void oneSaleLowersItsOwnUnitsAsItGoes() {
+        double q = 32, base = 10, floor = 0.35, sold = 20;
+        // selling 64 at once = selling them one by one, each unit at the price after the ones before it
+        double once = PriceModel.total(base, sold, q, floor, 1, 64), oneByOne = 0;
+        for (int k = 0; k < 64; k++) oneByOne += PriceModel.unit(base, sold + k, q, floor, 1);
         assertEquals(oneByOne, once, 1e-9);
-        assertTrue(once < 64 * base);
+        assertTrue(once < 64 * PriceModel.unit(base, sold, q, floor, 1), "later units of the same sale pay less");
+        assertTrue(once > 64 * PriceModel.unit(base, sold + 64, q, floor, 1));
+        // split in two (the 고가 매입상's stock, then the rest): the same as one curve with two multipliers
+        double split = PriceModel.total(base, sold, q, floor, 2, 10) + PriceModel.total(base, sold + 10, q, floor, 1, 54);
+        double byHand = 0;
+        for (int k = 0; k < 64; k++) byHand += PriceModel.unit(base, sold + k, q, floor, k < 10 ? 2 : 1);
+        assertEquals(byHand, split, 1e-9);
+        assertEquals(0, PriceModel.total(base, sold, q, floor, 1, 0), 1e-9);
+    }
+
+    @Test
+    void eachPlayersPriceIsTheirOwn() {
+        double q = 32 * 3, base = 10, floor = 0.4;
+        // A sold 300 today, B nothing: A's price is low, B still gets the market price; how many play does not enter
+        double a = PriceModel.unit(base, 300, q, floor, 1), b = PriceModel.unit(base, 0, q, floor, 1);
+        assertEquals(base * floor, a, 1e-9);
+        assertEquals(base, b, 1e-9);
+        // B sells 32 after A's 300: B's units start at the market price and fall only by B's own 32
+        assertEquals(10 * Math.exp(-32.0 / q), PriceModel.unit(base, 32, q, floor, 1), 1e-9);
+        assertTrue(PriceModel.total(base, 0, q, floor, 1, 32) > 32 * PriceModel.unit(base, 300, q, floor, 1) * 2);
     }
 
     // ------------------------------------------------------------------------------------------ jobs
@@ -1004,19 +1032,21 @@ class RulesTest {
         assertEquals(java.util.Set.of("stsv:crown_voucher", "stsv:halo_voucher"), seen, "both come up over time");
     }
 
-    /** The sell price curve as shipped: a quiet server does not hit the floor after one stack. */
+    /**
+     * The sell price curve as shipped, for one player (prices are per player, so how many play does not enter): selling their
+     * own daily quota q still pays well over half, and the floor is still reached when they sell a lot.
+     */
     @Test
     void sellPriceFallsGently() throws Exception {
         org.bukkit.configuration.file.YamlConfiguration y = org.bukkit.configuration.file.YamlConfiguration.loadConfiguration(
                 java.nio.file.Path.of(System.getProperty("stsv.content")).resolve("economy/shop.yml").toFile());
         dev.stsv.economy.shop.ShopCatalog c = dev.stsv.economy.shop.ShopCatalog.parse(y, new java.util.ArrayList<>());
         var curve = c.curve();
-        int players = Math.max(1, curve.minPlayers());
-        // an item one player sells 16 of a day, one player online: a stack still pays well over half
-        double afterStack = dev.stsv.economy.shop.PriceModel.unit(10, 64, 16 * curve.depth(), players, c.floor(), 1) / 10;
-        assertTrue(afterStack > 0.55, "after one stack: " + afterStack);
+        // an item one player sells 64 of a day (a stack): after that stack their price still pays well over half
+        double afterQuota = dev.stsv.economy.shop.PriceModel.unit(10, 64, curve.quota(64), c.floor(), 1) / 10;
+        assertTrue(afterQuota > 0.55, "after one day's quota: " + afterQuota);
         // and the floor is still reached when a lot is sold
-        double afterMany = dev.stsv.economy.shop.PriceModel.unit(10, 2000, 16 * curve.depth(), players, c.floor(), 1) / 10;
+        double afterMany = dev.stsv.economy.shop.PriceModel.unit(10, 2000, curve.quota(64), c.floor(), 1) / 10;
         assertEquals(c.floor(), afterMany, 1e-9);
         assertTrue(curve.hourlyRecovery() > 0 && curve.hourlyRecovery() < 0.5);
     }
