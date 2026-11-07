@@ -4,22 +4,12 @@ drawn by economy_fish.icon(). Each icon is a 16x16 image, lit from the top left,
 fish's own hue. Diagonal fish lie like vanilla cod (head bottom left, tail top right); tall and round fish,
 rays, crabs and turtles are drawn side-on or from above.
 """
-from economy_fish import mat
-from stsv_assets.pixelart import Canvas, color
-from stsv_assets import palette as _fish2_P
-from stsv_assets import pixelart as _fish2_px
-from stsv_assets.color import rgb_to_oklch as _fish2_oklch
-from stsv_assets.pixelart import Canvas
-import math as _fish3_math
-from PIL import Image as _fish3_Image
-from stsv_assets import palette as _fish3_P
-from stsv_assets import pixelart as _fish3_px
-from stsv_assets.color import rgb_to_oklch as _fish3_oklch
-import math as _fish4_math
+import math
 from PIL import Image as _fish4_Image
-from stsv_assets import palette as _fish4_P
-from stsv_assets import pixelart as _fish4_px
-from stsv_assets.color import rgb_to_oklch as _fish4_oklch
+from economy_fish import mat
+from stsv_assets import palette, pixelart
+from stsv_assets.color import rgb_to_oklch
+from stsv_assets.pixelart import Canvas, color
 
 
 # ------------------------------------------------------------------------------------------------
@@ -251,9 +241,9 @@ def icon_octopus():
 def _fish2_m(hexcol, L=None, C=None, span=0.34):
     """A material from a colour: its lightness (or L) in the middle of the ramp, its chroma (or C)."""
     name = f"f2_{hexcol[1:]}_{L}_{C}_{span}"
-    if name not in _fish2_P.MATERIALS:
-        l, ch, h = _fish2_oklch(tuple(int(hexcol[i:i + 2], 16) for i in (1, 3, 5)))
-        _fish2_P.MATERIALS[name] = (h, ch / 1.5 if C is None else C, min(0.9, max(0.3, l)) if L is None else L,
+    if name not in palette.MATERIALS:
+        l, ch, h = rgb_to_oklch(tuple(int(hexcol[i:i + 2], 16) for i in (1, 3, 5)))
+        palette.MATERIALS[name] = (h, ch / 1.5 if C is None else C, min(0.9, max(0.3, l)) if L is None else L,
                                     span, 5, False)
     return name
 
@@ -261,9 +251,9 @@ def _fish2_m(hexcol, L=None, C=None, span=0.34):
 def _fish2_ink(hexcol, L=0.26, C=None):
     """A dark outline (material, step 0) in the fish's own hue."""
     name = f"f2ink_{hexcol[1:]}_{int(L * 100)}"
-    if name not in _fish2_P.MATERIALS:
-        l, ch, h = _fish2_oklch(tuple(int(hexcol[i:i + 2], 16) for i in (1, 3, 5)))
-        _fish2_P.MATERIALS[name] = (h, min(ch / 1.5, 0.06) if C is None else C, L + 0.272, 0.34, 5, False)
+    if name not in palette.MATERIALS:
+        l, ch, h = rgb_to_oklch(tuple(int(hexcol[i:i + 2], 16) for i in (1, 3, 5)))
+        palette.MATERIALS[name] = (h, min(ch / 1.5, 0.06) if C is None else C, L + 0.272, 0.34, 5, False)
     return (name, 0)
 
 
@@ -276,7 +266,7 @@ def _fish2_canvas(ink, *mats):
 
 def _fish2_paint(im, pts, mat, step):
     """Pixels painted after the outline pass (thin whiskers, a bill, spines): they are their own outline."""
-    col = _fish2_px.color(mat, step)
+    col = pixelart.color(mat, step)
     for x, y in pts:
         if 0 <= x < 16 and 0 <= y < 16:
             im.putpixel((x, y), col)
@@ -574,9 +564,9 @@ def icon_pale_chub():
 def _fish3_m(hexcol, L=None, C=None, span=0.34):
     """A material from a colour: its lightness (or L) in the middle of the ramp, its chroma (or C)."""
     name = f"f3_{hexcol[1:]}_{L}_{C}_{span}"
-    if name not in _fish3_P.MATERIALS:
-        l, ch, h = _fish3_oklch(tuple(int(hexcol[i:i + 2], 16) for i in (1, 3, 5)))
-        _fish3_P.MATERIALS[name] = (h, ch / 1.5 if C is None else C, min(0.9, max(0.3, l)) if L is None else L,
+    if name not in palette.MATERIALS:
+        l, ch, h = rgb_to_oklch(tuple(int(hexcol[i:i + 2], 16) for i in (1, 3, 5)))
+        palette.MATERIALS[name] = (h, ch / 1.5 if C is None else C, min(0.9, max(0.3, l)) if L is None else L,
                                     span, 5, False)
     return name
 
@@ -584,9 +574,9 @@ def _fish3_m(hexcol, L=None, C=None, span=0.34):
 def _fish3_ink(hexcol, L=0.26, C=None):
     """A dark outline (material, step 0) in the fish's own hue."""
     name = f"f3ink_{hexcol[1:]}_{int(L * 100)}"
-    if name not in _fish3_P.MATERIALS:
-        l, ch, h = _fish3_oklch(tuple(int(hexcol[i:i + 2], 16) for i in (1, 3, 5)))
-        _fish3_P.MATERIALS[name] = (h, min(ch / 1.5, 0.06) if C is None else C, L + 0.272, 0.34, 5, False)
+    if name not in palette.MATERIALS:
+        l, ch, h = rgb_to_oklch(tuple(int(hexcol[i:i + 2], 16) for i in (1, 3, 5)))
+        palette.MATERIALS[name] = (h, min(ch / 1.5, 0.06) if C is None else C, L + 0.272, 0.34, 5, False)
     return (name, 0)
 
 
@@ -599,7 +589,7 @@ def _fish3_canvas(ink, *mats):
 
 def _fish3_paint(im, pts, mat, step):
     """Pixels painted after the outline pass (whiskers, threads): they are their own outline."""
-    col = _fish3_px.color(mat, step)
+    col = pixelart.color(mat, step)
     for x, y in pts:
         if 0 <= x < 16 and 0 <= y < 16:
             im.putpixel((x, y), col)
@@ -620,8 +610,8 @@ def _fish3_fan(cx, cy, r, ang, half, n=8):
     screen coordinates: 0 right, -90 up), opening +-half."""
     pts = [(cx, cy)]
     for k in range(n + 1):
-        t = _fish3_math.radians(ang - half + 2 * half * k / n)
-        pts.append((cx + r * _fish3_math.cos(t), cy + r * _fish3_math.sin(t)))
+        t = math.radians(ang - half + 2 * half * k / n)
+        pts.append((cx + r * math.cos(t), cy + r * math.sin(t)))
     return pts
 
 
@@ -630,11 +620,11 @@ def _fish3_part(c, rows, chars, mat, z, lo=1, hi=4, k=1.3, gloss=0.0, bias=0.0):
     cell faces away from the part's middle, so the part is lit from the top-left like the toolkit's shapes)."""
     cells = {(x, y) for y, row in enumerate(rows) for x, ch in enumerate(row) if ch in chars}
     out = [(x, y) for x in range(-1, 17) for y in range(-1, 17) if (x, y) not in cells]
-    d = {p: min(_fish3_math.hypot(p[0] - q[0], p[1] - q[1]) for q in out) for p in cells}
+    d = {p: min(math.hypot(p[0] - q[0], p[1] - q[1]) for q in out) for p in cells}
     for (x, y) in cells:
         gx = d.get((x + 1, y), 0) - d.get((x - 1, y), 0)
         gy = d.get((x, y + 1), 0) - d.get((x, y - 1), 0)
-        c.put(x, y, mat, _fish3_px.shade_step((-gx, -gy, k), lo, hi, gloss, bias), z)
+        c.put(x, y, mat, pixelart.shade_step((-gx, -gy, k), lo, hi, gloss, bias), z)
     return c
 
 
@@ -893,9 +883,9 @@ def icon_angelfish():
 def _fish4_m(hexcol, L=None, C=None, span=0.34):
     """A material from a colour: its lightness (or L) in the middle of the ramp, its chroma (or C)."""
     name = f"f4_{hexcol[1:]}_{L}_{C}_{span}"
-    if name not in _fish4_P.MATERIALS:
-        l, ch, h = _fish4_oklch(tuple(int(hexcol[i:i + 2], 16) for i in (1, 3, 5)))
-        _fish4_P.MATERIALS[name] = (h, ch / 1.5 if C is None else C, min(0.9, max(0.3, l)) if L is None else L,
+    if name not in palette.MATERIALS:
+        l, ch, h = rgb_to_oklch(tuple(int(hexcol[i:i + 2], 16) for i in (1, 3, 5)))
+        palette.MATERIALS[name] = (h, ch / 1.5 if C is None else C, min(0.9, max(0.3, l)) if L is None else L,
                                     span, 5, False)
     return name
 
@@ -903,9 +893,9 @@ def _fish4_m(hexcol, L=None, C=None, span=0.34):
 def _fish4_ink(hexcol, L=0.26, C=None):
     """A dark outline (material, step 0) in the fish's own hue."""
     name = f"f4ink_{hexcol[1:]}_{int(L * 100)}"
-    if name not in _fish4_P.MATERIALS:
-        l, ch, h = _fish4_oklch(tuple(int(hexcol[i:i + 2], 16) for i in (1, 3, 5)))
-        _fish4_P.MATERIALS[name] = (h, min(ch / 1.5, 0.06) if C is None else C, L + 0.272, 0.34, 5, False)
+    if name not in palette.MATERIALS:
+        l, ch, h = rgb_to_oklch(tuple(int(hexcol[i:i + 2], 16) for i in (1, 3, 5)))
+        palette.MATERIALS[name] = (h, min(ch / 1.5, 0.06) if C is None else C, L + 0.272, 0.34, 5, False)
     return (name, 0)
 
 
@@ -918,7 +908,7 @@ def _fish4_canvas(ink, *mats):
 
 def _fish4_paint(im, pts, mat, step, alpha=255):
     """Pixels painted after the outline pass (whiskers, barbels, teeth): they are their own outline."""
-    col = _fish4_px.color(mat, step)
+    col = pixelart.color(mat, step)
     for x, y in pts:
         if 0 <= x < 16 and 0 <= y < 16:
             im.putpixel((x, y), col[:3] + (alpha,))
@@ -955,8 +945,8 @@ def _fish4_fan(cx, cy, r, ang, half, n=8):
     screen coordinates: 0 right, -90 up), opening +-half."""
     pts = [(cx, cy)]
     for k in range(n + 1):
-        t = _fish4_math.radians(ang - half + 2 * half * k / n)
-        pts.append((cx + r * _fish4_math.cos(t), cy + r * _fish4_math.sin(t)))
+        t = math.radians(ang - half + 2 * half * k / n)
+        pts.append((cx + r * math.cos(t), cy + r * math.sin(t)))
     return pts
 
 
@@ -1386,6 +1376,801 @@ def icon_thunder_catfish():
     return im
 
 
+# ------------------------------------------------------------------------------------------------
+# fa (round 2, attempt 1)
+# ------------------------------------------------------------------------------------------------
+
+
+def _r2fa1_rows(c, rows, key):
+    """hand-placed pixels: rows of characters, '.' leaves a pixel alone, key maps a character to (material, step)"""
+    for y, row in enumerate(rows):
+        for x, ch in enumerate(row):
+            if ch != ".":
+                c.put(x, y, key[ch][0], key[ch][1], z=50)
+    return c
+
+
+# ---- 정어리: a slender blue sardine (much thinner than 고등어), forked tail, the row of dark spots ----
+def icon_sardine():
+    a, b = _fish3_m("#3c6a9c"), _fish3_m("#e2eaf2")
+    sp = _fish3_m("#1c2c4c", L=0.3)
+    c = _fish3_canvas(_fish3_ink("#1a2c4a", 0.24), a, b)
+    c.poly([(9.8, 5.8), (13.4, 0.9), (14.4, 1.2), (12.6, 5.0), (14.6, 7.4), (14.0, 8.4), (10.8, 7.0)], a, 0,
+           normal=(0.35, 0.1, 1), lo=1, hi=3)
+    c.poly([(5.0, 8.6), (6.6, 5.6), (8.4, 5.8), (6.6, 8.0)], a, 1, normal=(-0.3, -0.7, 0.6), lo=1, hi=3)
+    pts = [(2.6, 13.0), (6.4, 9.2), (11.0, 4.6)]
+    c.tube(pts, [1.5, 2.6, 1.3], b, 2, flat=0.9, lo=2, hi=4, gloss=0)
+    c.tube([(x - 0.9, y - 0.9) for x, y in pts], [0.9, 1.6, 0.7], a, 3, flat=0.9, lo=1, hi=4, gloss=0.93)
+    _fish3_recolor(c, [(5, 11), (7, 9), (9, 7)], sp, 1)
+    c.put(2, 12, "roe", 0).put(3, 11, "snow", 2)
+    return c.render()
+
+
+# ---- 전갱이: green-grey jack with the scute ridge along its rear flank, the black gill spot, sickle tail ----
+def icon_horse_mackerel():
+    a, b = _fish3_m("#5e7c80"), _fish3_m("#e2e8e6")
+    sc = _fish3_m("#3a4c50", L=0.36)
+    c = _fish3_canvas(_fish3_ink("#1e2c30", 0.24), a, b)
+    c.poly([(9.8, 6.2), (13.4, 0.8), (14.4, 1.0), (12.4, 6.4), (15.0, 9.2), (14.6, 10.2), (10.8, 8.4)], a, 0,
+           normal=(0.35, 0.1, 1), lo=1, hi=3)
+    c.poly([(4.5, 8.5), (6.4, 5.4), (8.0, 5.8), (6, 9)], a, 1, normal=(-0.3, -0.7, 0.6), lo=1, hi=3)
+    c.poly([(8.0, 6.0), (10.6, 3.2), (11.0, 4.6)], a, 1, normal=(-0.3, -0.7, 0.6), lo=1, hi=3)
+    pts = [(3.4, 12.4), (6.6, 9.2), (10.4, 5.4)]
+    c.tube(pts, [2.2, 3.6, 1.8], b, 2, flat=0.9, lo=1, hi=4, gloss=0)
+    c.tube([(x - 0.5, y - 0.7) for x, y in pts], [1.4, 2.4, 1.2], a, 3, flat=0.9, lo=1, hi=4, gloss=0.93)
+    c.poly([(6, 12.6), (8.5, 14.5), (9.4, 12.4)], a, 1, normal=(0.4, 0.6, 0.7), lo=1, hi=2)
+    _fish3_recolor(c, [(6, 10), (7, 9), (8, 8), (9, 7), (10, 6), (11, 5)], sc, 1)
+    _fish3_recolor(c, [(7, 8), (8, 7), (9, 6), (10, 5)], b, 4)
+    c.put(5, 9, sc, 1)                                   # the dark spot on the gill cover
+    c.put(3, 11, "roe", 0).put(3, 10, "snow", 2)
+    return c.render()
+
+
+# ---- 명태: slim olive-brown cod with three separate dorsal fins, a square tail, the dark lateral line over the
+#      pale belly and the jutting lower jaw ----
+def _r2fa1_pollack_band(t):
+    """the pollack's body across (s = x + y) at a place along it (t = x - y, head -12 .. tail stalk 7)"""
+    if t < -12 or t > 7:
+        return None
+    return {-12: (14, 14), -11: (13, 15), -10: (12, 16), 2: (12, 17), 3: (12, 16), 4: (12, 16),
+            5: (13, 16), 6: (13, 15), 7: (13, 15)}.get(t) or (11, 17)
+
+
+def icon_pollack():
+    a, b = _fish3_m("#5e5a3e"), _fish3_m("#e0ddcc")
+    fin = _fish3_m("#6a6446")
+    ln = _fish3_m("#34301e", L=0.32)
+    c = _fish3_canvas(_fish3_ink("#24200c", 0.22), a, b, fin, ln)
+    for x in range(16):
+        for y in range(16):
+            s, t = x + y, x - y
+            band = _r2fa1_pollack_band(t)
+            if not band or not band[0] <= s <= band[1]:
+                continue
+            if s <= 13:
+                c.put(x, y, a, {11: 4, 12: 3, 13: 2}[s], z=2)
+            elif s == 14:
+                c.put(x, y, *((ln, 2) if -8 <= t <= 6 else (a, 2)), z=2)
+            else:
+                c.put(x, y, b, {15: 3, 16: 3, 17: 2}[s], z=2)
+    c.poly([(10.6, 4.4), (12.2, 0.8), (13.4, 1.0), (14.2, 2.6), (14.6, 4.0), (11.6, 5.4)], fin, 0,
+           normal=(0.35, 0.1, 1), lo=1, hi=3)
+    for cc in (-7, -1, 5):      # three dorsal fins, apart
+        for (s, t, st) in ((10, cc - 1, 3), (10, cc + 1, 2), (9, cc, 3), (9, cc + 2, 2)):
+            c.put((s + t) // 2, (s - t) // 2, fin, st, z=1)
+    c.put(6, 12, fin, 2, z=1).put(7, 12, fin, 2, z=1)              # pelvic fin
+    c.dots([(9, 9), (10, 8), (10, 9), (11, 8)], fin, 2, z=1)        # anal fin
+    c.put(1, 14, b, 3, z=5).put(2, 14, b, 2, z=5).put(1, 13, "roe", 1, z=5)
+    c.put(2, 11, "roe", 0).put(3, 10, "snow", 2)
+    return c.render()
+
+
+# ---- 갈치: a silver ribbon swimming in a gentle wave, the fin fringe along its back, open jaws (the lower one
+#      longer) with the big eye behind them, the rear third tapering to a thread that ends inside the slot ----
+def icon_hairtail():
+    s = "fish_silver"
+    fm = _fish3_m("#8a9cb8", C=0.03)
+    ink = _fish3_ink("#26303e", 0.24)
+    c = _fish3_canvas(ink, s, fm)
+    pts = [(2.0, 13.2), (5.0, 11.6), (6.4, 8.6), (8.8, 7.0), (9.8, 5.2), (11.0, 4.2)]
+    r = [1.3, 1.8, 1.8, 1.3, 0.7, 0.35]
+    fringe = [(x - (rr + 0.25) * 0.72, y - (rr + 0.25) * 0.72) for (x, y), rr in zip(pts[1:5], r[1:5])]
+    c.tube(fringe, [0.7, 0.7, 0.6, 0.35], fm, 0, flat=0.9, lo=2, hi=3, gloss=0)
+    c.tube(pts, r, s, 1, flat=0.9, lo=1, hi=5, gloss=0.9)
+    c.dots([(11, 3), (12, 2), (13, 1)], s, 4, z=1)     # the thread, ending inside the slot
+    c.erase([(x, y) for x in range(8) for y in range(10, 16)])
+    key = {str(k): (s, k) for k in range(6)}
+    key.update({"e": ("roe", 0), "m": (ink[0], 0), "f": (fm, 3), "w": ("snow", 4)})
+    _r2fa1_rows(c, ["........"] * 10 + ["...f542.",
+                                        "..5w31..",
+                                        ".54e2...",
+                                        ".mm31...",
+                                        ".43....."], key)
+    return c.render()
+
+
+# ---- 대왕오징어: diagonal: the long mantle ending in a closed diamond fin top right, a big eye, four arms
+#      splaying out as separate strands ----
+def icon_giant_squid():
+    a = _fish3_m("#c8645a")
+    fin = _fish3_m("#a8483e")
+    ink = _fish3_ink("#5a1610", 0.24)
+    c = _fish3_canvas(ink, a, fin)
+    for p, st in {(12, 1): 3, (11, 2): 3, (12, 2): 3, (13, 2): 2, (10, 3): 3, (11, 3): 3, (12, 3): 2, (13, 3): 2,
+                  (14, 3): 1, (11, 4): 2, (12, 4): 2, (13, 4): 1, (12, 5): 1}.items():
+        c.put(*p, fin, st, z=1)
+    c.tube([(12.0, 3.4), (9.8, 5.2), (7.0, 8.0)], [0.6, 1.5, 2.0], a, 2, flat=0.85, lo=1, hi=4, gloss=0.9)
+    c.ellipse(5.2, 10.4, 1.7, 1.6, a, 3, lo=1, hi=4, gloss=0)
+    for arm in ([(3, 10), (2, 9), (1, 9)], [(3, 12), (2, 13), (1, 14)], [(5, 12), (5, 13), (4, 14)],
+                [(6, 12), (7, 13), (8, 13)]):
+        for k, (x, y) in enumerate(arm):
+            c.put(x, y, a, 3 if k < 1 else 2, z=1)
+    c.put(5, 10, "roe", 0).put(6, 9, "snow", 3)
+    return _fish1_closed(c, ink[0])
+
+
+# ---- 만새기: side on, the bull-headed dolphinfish: a steep blunt forehead, one blue fin running the whole back,
+#      green back over golden flanks, a deeply forked blue tail ----
+def icon_mahi_mahi():
+    gr, yl = _fish3_m("#2a9a6a", C=0.12), _fish3_m("#f0d040", C=0.13)
+    fin = _fish3_m("#2a6ac8", C=0.12)
+    c = _fish3_canvas(_fish3_ink("#0c3020", 0.22), gr, yl, fin)
+    top = {1: 4, 2: 4, 3: 4, 4: 4, 5: 5, 6: 5, 7: 5, 8: 6, 9: 6, 10: 7, 11: 8}
+    bot = {1: 10, 2: 11, 3: 12, 4: 12, 5: 12, 6: 12, 7: 11, 8: 11, 9: 10, 10: 10, 11: 9}
+    dorsal = {2: (2, 3), 3: (2, 3), 4: (2, 3), 5: (3, 4), 6: (3, 4), 7: (3, 4), 8: (4, 5), 9: (5, 5), 10: (6, 6)}
+    anal = {6: (13, 13), 7: (12, 12), 8: (12, 12), 9: (11, 11)}
+    tail = [(12, 6), (12, 7), (12, 8), (12, 9), (12, 10), (13, 4), (13, 5), (13, 6), (14, 3), (14, 4), (13, 10),
+            (13, 11), (13, 12), (14, 12), (14, 13)]
+    g = [["."] * 16 for _ in range(16)]
+    for x in top:
+        for y in range(top[x], bot[x] + 1):
+            g[y][x] = "G" if y <= (top[x] + bot[x]) / 2 else "Y"
+    for x, (y0, y1) in list(dorsal.items()) + list(anal.items()):
+        for y in range(y0, y1 + 1):
+            g[y][x] = "D"
+    for x, y in tail:
+        g[y][x] = "D"
+    rows = ["".join(r) for r in g]
+    _fish3_part(c, rows, "GY", gr, 2, lo=1, hi=4, k=1.4, gloss=0.9)
+    for (x, y), v in c.px.items():
+        if rows[y][x] == "Y":
+            v[0], v[1] = yl, min(4, v[1] + 1)
+    _fish3_part(c, rows, "D", fin, 1, lo=1, hi=3, k=1.0)
+    c.put(2, 7, "roe", 0).put(3, 6, "snow", 3)
+    return c.render()
+
+
+# ---- 그린란드상어: stout and dark brown-grey, small fins, two small dorsal fins, the pale clouded eye ----
+def icon_greenland_shark():
+    a = _fish3_m("#57534c")
+    b = _fish3_m("#9a958a")
+    c = _fish3_canvas(_fish3_ink("#25221e", 0.20), a, b)
+    c.poly([(10.2, 5.2), (11.6, 3.2), (13.8, 1.0), (14.8, 1.2), (13.2, 4.4), (12.0, 5.8)], a, 0,
+           normal=(0.35, -0.2, 1), lo=1, hi=3)
+    c.poly([(11.6, 5.0), (14.9, 5.6), (14.4, 7.0), (11.2, 6.6)], a, 0, normal=(0.35, 0.3, 1), lo=1, hi=2)
+    c.poly([(4.2, 8.4), (5.6, 2.8), (6.8, 3.0), (7.0, 5.0), (8.6, 6.0)], a, 1, normal=(-0.5, -0.4, 0.75), lo=1, hi=3)
+    c.poly([(8.6, 5.4), (9.2, 2.6), (10.8, 3.4), (10.4, 4.8)], a, 1, normal=(-0.3, -0.6, 0.75), lo=1, hi=3)
+    c.poly([(4.8, 11.6), (7.6, 14.2), (8.2, 13.4), (7.2, 9.8)], a, 1, normal=(0.3, 0.5, 0.8), lo=1, hi=2)
+    c.tube([(2.2, 13.0), (5.0, 10.2), (8.6, 6.8), (11.6, 4.2)], [1.7, 2.5, 2.2, 0.8], b, 2, flat=0.9, lo=1, hi=4)
+    c.tube([(1.9, 12.6), (4.6, 9.8), (8.2, 6.4), (11.3, 3.9)], [1.35, 2.0, 1.75, 0.5], a, 3, flat=0.9, lo=1, hi=3,
+           gloss=0.95)
+    c.put(11, 3, a, 2, z=9)
+    c.put(2, 12, _fish3_m("#c8eef2"), 4)
+    return c.render()
+
+
+# ------------------------------------------------------------------------------------------------
+# fb (round 2, attempt 1)
+# ------------------------------------------------------------------------------------------------
+
+
+def _r2fb1_paint(c, rows, key, z=50):
+    """Hand-placed pixels: each character of rows is a key into (material, step); '.' leaves the pixel alone."""
+    for y, row in enumerate(rows):
+        for x, ch in enumerate(row):
+            if ch != ".":
+                m, s = key[ch]
+                c.put(x, y, m, s, z)
+    return c
+
+
+def _r2fb1_key(a, b, fin, **extra):
+    """digits 1-5: the back's steps; q r s t: the belly's steps 1-4; f g h j: the fins' steps 1-4."""
+    k = {ch: (a, i + 1) for i, ch in enumerate("12345")}
+    k.update({ch: (b, i + 1) for i, ch in enumerate("qrst")})
+    k.update({ch: (fin, i + 1) for i, ch in enumerate("fghj")})
+    k.update({"e": ("roe", 0), "w": ("snow", 4)})
+    k.update(extra)
+    return k
+
+
+def _r2fb1_canvas(ink, *mats):
+    """A canvas whose parts, eye and eye glint all take the fish's own dark outline."""
+    return _fish4_canvas(ink, *mats, "snow", "roe")
+
+
+# ---- 우럭 ----------------------------------------------------------------------------------------------
+_r2fb1_rockfish_rows = [
+    "................",
+    "............hg..",
+    "........j..hhgf.",
+    "......j.h..hggf.",
+    "...j..hgg3hggf..",
+    "...h.gg332gf....",
+    "...gg332221s....",
+    "..g33r2221sr....",
+    "..33w2r21sr.....",
+    ".32e2221ssr.....",
+    ".322211ssrh.....",
+    ".32211srrhg.....",
+    ".ooo1srqgf......",
+    ".tssrrq.........",
+    "..rqp...........",
+    "................",
+]
+
+
+def icon_rockfish():
+    """우럭: a heavy charcoal rockfish lying corner to corner: the big head with its wide open mouth and pale
+    jutting lower jaw, three spines standing up off the back, a square tail and a grey belly (볼락 is the
+    red-brown, big-eyed one side on)."""
+    a, b = _fish4_m("#4a4842", L=0.44), _fish4_m("#a8a090")
+    fin = _fish4_m("#3c3a34", L=0.4)
+    ink = _fish4_ink("#141210", 0.16)
+    c = _r2fb1_canvas(ink, a, b, fin)
+    _r2fb1_paint(c, _r2fb1_rockfish_rows, _r2fb1_key(a, b, fin, o=ink, p=(b, 1)))
+    return c.render()
+
+
+# ---- 볼락 ----------------------------------------------------------------------------------------------
+def icon_black_rockfish():
+    """볼락: side on, a red-brown rockfish with the huge eyes it is named for, a row of dorsal spines, dark
+    bars over the back and a round tail."""
+    a, b = _fish4_m("#86483a", C=0.07), _fish4_m("#dab09e", C=0.05)
+    fin = _fish4_m("#7a4234", C=0.065)
+    bar = _fish4_m("#52261c", L=0.38)
+    ink = _fish4_ink("#2a0c06", 0.18)
+    c = _r2fb1_canvas(ink, a, b, fin, bar)
+    c.poly(_fish4_fan(10.4, 7.8, 4.4, 0, 46), fin, 0, normal=(0.4, 0, 1), lo=1, hi=3)
+    c.poly([(2.6, 6.0), (3.6, 3.4), (10.4, 3.8), (11.4, 6.6)], fin, 1, normal=(-0.2, -0.7, 0.7), lo=1, hi=3)
+    for (x, y) in ((4, 2), (6, 2), (8, 2), (10, 3)):
+        c.put(x, y, fin, 4, z=1).put(x, y + 1, fin, 3, z=1)
+    c.poly([(6.4, 10.4), (8.0, 13.4), (9.8, 10.4)], fin, 1, normal=(0.2, 0.6, 0.8), lo=1, hi=2)
+    c.poly([(3.2, 10.0), (3.6, 12.8), (5.4, 10.6)], fin, 1, normal=(0.2, 0.6, 0.8), lo=1, hi=2)
+    c.ellipse(5.9, 7.7, 5.3, 3.5, a, 2, lo=1, hi=4, gloss=0.9)
+    body = set(c.last())
+    _fish4_recolor(c, [(x, y) for (x, y) in body if y >= 9], b, None, delta=1)
+    _fish4_recolor(c, [(x, y) for (x, y) in body if x in (5, 6, 9) and y <= 8], bar, None, only={a})
+    c.poly([(4.4, 8.4), (7.2, 7.8), (6.8, 10.0)], fin, 3, normal=(0.2, 0.3, 0.9), lo=1, hi=3)
+    c.dots([(2, 6), (3, 6), (2, 7), (3, 7)], "roe", 0, z=9).put(2, 6, "snow", 4, z=10)
+    return c.render()
+
+
+# ------------------------------------------------------------------------------------------------
+# fb (round 2, attempt 2)
+# ------------------------------------------------------------------------------------------------
+
+
+def _r2fb2_paint(c, rows, key, z=50):
+    """Hand-placed pixels: each character of rows is a key into (material, step); '.' leaves the pixel alone."""
+    for y, row in enumerate(rows):
+        for x, ch in enumerate(row):
+            if ch != ".":
+                m, s = key[ch]
+                c.put(x, y, m, s, z)
+    return c
+
+
+def _r2fb2_closed(im, ink):
+    """Background specks shut in by the outline (between two fins and the belly) take the outline colour, so no
+    slot-grey pixel shows inside the fish."""
+    px = im.load()
+    out, todo = set(), [(x, y) for x in range(16) for y in (0, 15)] + [(x, y) for y in range(16) for x in (0, 15)]
+    while todo:
+        q = todo.pop()
+        if q in out or not (0 <= q[0] < 16 and 0 <= q[1] < 16) or px[q][3]:
+            continue
+        out.add(q)
+        todo += [(q[0] + 1, q[1]), (q[0] - 1, q[1]), (q[0], q[1] + 1), (q[0], q[1] - 1)]
+    shut = [(x, y) for y in range(16) for x in range(16) if not px[x, y][3] and (x, y) not in out]
+    return _fish4_paint(im, shut, ink[0], ink[1])
+
+
+# ---- 쏠배감펭 ------------------------------------------------------------------------------------------
+_r2fb2_lionfish_fins = [
+    "................",
+    ".......j....hg..",
+    ".....j.j...hhgf.",
+    ".....j.h.j.hggf.",
+    "...j.hRhRh..gf..",
+    "...hRhRR........",
+    "...hRR..........",
+    "................",
+    "................",
+    "................",
+    "..........RR....",
+    ".........RRcc...",
+    "........RRccRR..",
+    ".......RccRRR...",
+    "......ccRR......",
+    "................",
+]
+
+
+def icon_lionfish():
+    """쏠배감펭: a red lionfish with two broad cream bands, a crest of four solid venom spines joined to its
+    back by a low membrane, and the pectoral fan with two broad cream stripes; the body keeps its own outline
+    against the fan, and the dark eye has a glint and mid-red all round."""
+    a = _fish4_m("#c23a2c", C=0.14)
+    b = _fish4_m("#e2765e", C=0.11)
+    w = _fish4_m("#f6e6d4")
+    fin = _fish4_m("#b8402e", C=0.12)
+    ink = _fish4_ink("#4a0e08", 0.2)
+    c = _fish4_canvas(ink, a, b, w, fin, "snow", "roe")
+    _r2fb2_paint(c, _r2fb2_lionfish_fins, {"R": (fin, 2), "c": (w, 3), "f": (fin, 1), "g": (fin, 2), "h": (fin, 3),
+                                          "j": (fin, 4)}, z=1)
+    c.tube([(4.0, 11.8), (7.0, 9.0), (10.6, 5.6)], [2.0, 2.8, 1.5], b, 2, flat=0.9, lo=1, hi=4, gloss=0)
+    c.tube([(3.5, 11.1), (6.4, 8.3), (10.0, 5.0)], [1.4, 2.0, 0.9], a, 3, flat=0.9, lo=1, hi=4, gloss=0.93)
+    _fish4_recolor(c, [(x, y) for x in range(16) for y in range(16) if x - y in (-5, -4, -1, 0)], w, None,
+                   only={a, b}, delta=1)
+    c.px[(4, 11)][:2] = [a, 3]          # the eye's neighbours stay mid-red so the dark eye stands out
+    c.px[(3, 12)][:2] = [b, 2]
+    c.px[(2, 10)][:2] = [a, 4]          # no wet glint right beside the eye glint
+    im = c.render()
+    _fish4_paint(im, [(9, 10), (8, 11), (7, 12)], ink[0], 0)     # the body's outline between body and fan
+    _fish4_paint(im, [(3, 11)], "roe", 0)
+    return _fish4_paint(im, [(3, 10)], "snow", 4)
+
+
+# ---- 열목어 --------------------------------------------------------------------------------------------
+# 1 2: back (bronze rim, gold)  q: belly  f: dorsal, adipose and upper tail lobe  R m: red fins (lit, shaded)
+# k: black spot  e w: eye, glint
+_r2fb2_lenok_rows = [
+    "................",
+    "...........f....",
+    "..........ff....",
+    ".....f..f.ff....",
+    "....ff.11222RRR.",
+    "...ff1112k22mm..",
+    "....112k222.....",
+    "...11k2222qmR...",
+    "..1122222q.R....",
+    "..1k2k22q.......",
+    "..12222qmR......",
+    ".122w2q.R.......",
+    ".22e2q..........",
+    ".222q...........",
+    ".22q............",
+    "................",
+]
+
+
+def icon_lenok():
+    """열목어: a golden-bronze trout of the cold rivers lying corner to corner: five crisp single black spots over
+    the gold back (each with gold all round), a soft dorsal fin and the little adipose fin of the salmon family,
+    small red pelvic and anal fins, and a forked tail of two equal lobes, the upper one bronze, the lower one red
+    (타이멘's tail is red all over, 쏘가리 has brown blotches and a spiny fin)."""
+    gold = _fish4_m("#bc9450", C=0.07)
+    b = _fish4_m("#e8c8a8", C=0.045)
+    red = _fish4_m("#c84030", C=0.12)
+    sp = _fish4_m("#241a10", L=0.3)
+    ink = _fish4_ink("#3a2408", 0.22)
+    c = _fish4_canvas(ink, gold, b, red, sp, "snow", "roe")
+    _r2fb2_paint(c, _r2fb2_lenok_rows, {"1": (gold, 2), "2": (gold, 3), "f": (gold, 2), "q": (b, 4), "R": (red, 3),
+                                       "m": (red, 2), "k": (sp, 1), "e": ("roe", 0), "w": ("snow", 4)})
+    return _r2fb2_closed(c.render(contact=False), ink)
+
+
+# ---- 망둥어 · 포자 망둥어 -------------------------------------------------------------------------------
+def _r2fb2_goby(c, a, b, fin, first=True):
+    """The goby body lying corner to corner: a big round head (the widest part, with more cheek on the belly
+    side), a slim body tapering to a round tail fan, a small round first dorsal just behind the head, the second
+    dorsal and the anal fin towards the tail."""
+    c.poly(_fish4_fan(11.2, 4.2, 3.4, -45, 62), fin, 0, normal=(0.3, -0.2, 1), lo=2, hi=3)
+    if first:
+        c.poly(_fish4_fan(6.4, 6.6, 2.4, -135, 36), fin, 1, normal=(-0.3, -0.7, 0.6), lo=2, hi=3)
+    c.poly([(8.4, 5.4), (8.8, 3.4), (10.8, 1.8), (10.8, 4.0)], fin, 1, normal=(-0.3, -0.7, 0.6), lo=2, hi=3)
+    c.poly([(8.0, 9.6), (11.2, 7.6), (11.0, 5.6), (8.6, 8.0)], fin, 1, normal=(0.4, 0.6, 0.7), lo=2, hi=2)
+    pts = [(4.5, 10.6), (8.0, 7.2), (11.0, 4.4)]
+    c.tube(pts, [3.6, 1.9, 1.0], b, 2, flat=0.9, lo=3, hi=4, gloss=0)
+    c.tube([(x - 0.5, y - 0.6) for x, y in pts], [2.9, 1.3, 0.6], a, 3, flat=0.9, lo=2, hi=3, gloss=0)
+    return c
+
+
+def icon_goby():
+    """망둥어: a sandy goby: a big round head with the eye up on top, a small round first dorsal behind the head,
+    a round tail, warm brown fins and three dark-brown 2x2 saddles on the back (nape, between the dorsals, tail
+    base), each touching the back's edge and parted by sand (미꾸라지 is the slim olive one with barbels)."""
+    a, b = _fish4_m("#b09c74", C=0.04), _fish4_m("#ece2c4", C=0.035)
+    fin = _fish4_m("#8a6a44", C=0.06)
+    dk = _fish4_m("#4a3418", L=0.4, C=0.05)
+    ink = _fish4_ink("#261a08", 0.2)
+    c = _fish4_canvas(ink, a, b, fin, dk, "snow", "roe")
+    _r2fb2_goby(c, a, b, fin)
+    for x0, y0 in ((4, 7), (7, 5), (10, 3)):
+        _fish4_recolor(c, [(x0, y0), (x0 + 1, y0), (x0, y0 + 1), (x0 + 1, y0 + 1)], dk, 1, only={a, b})
+    c.put(3, 10, "roe", 0).put(2, 9, "snow", 4)
+    return c.render(contact=False)
+
+
+def icon_spore_goby():
+    """포자 망둥어: the goby's body in mycelium mauve with a red toadstool (domed cap five wide, two white spots,
+    thin cream stem) sprouting from its back in place of the first dorsal fin, an outline all round the cap
+    and stem, and three pale spores."""
+    a, b = _fish4_m("#7a5274", C=0.06), _fish4_m("#d8bcd2", C=0.04)
+    fin = _fish4_m("#644460")
+    sp = _fish4_m("#f4ecd4", C=0.03)
+    ink = _fish4_ink("#2a1428", 0.2)
+    c = _fish4_canvas(ink, a, b, fin, "cream")
+    c.ink["toadstool"] = _fish4_ink("#4a0c10", 0.2)
+    _r2fb2_goby(c, a, b, fin, first=False)
+    c.dots([(5, 4), (5, 5), (5, 6)], "cream", 3, z=6)
+    cap = [(4, 1), (5, 1), (6, 1), (3, 2), (4, 2), (5, 2), (6, 2), (7, 2), (3, 3), (4, 3), (5, 3), (6, 3), (7, 3)]
+    for (x, y) in cap:
+        c.put(x, y, "toadstool", 4 if y == 1 else 3 if y == 2 else 2, z=7)
+    c.put(3, 2, "toadstool", 4, z=7)
+    c.dots([(4, 2), (6, 2)], "snow", 4, z=8)
+    c.dots([(7, 8), (9, 6), (5, 10)], sp, 4, z=9)
+    c.put(3, 10, "roe", 0).put(2, 9, "snow", 4)
+    return _r2fb2_closed(c.render(contact=False), ink)   # the pocket between cap, stem and back is outline
+
+
+# ---- 미꾸라지 ------------------------------------------------------------------------------------------
+# 2 3: back (dark olive, one highlight)  q r: pale yellow belly stripe  f g: fins  k: black dot  e: eye
+_r2fb2_loach_rows = [
+    "................",
+    "............ff..",
+    "...........2ffg.",
+    "..........2k2gg.",
+    ".........222qr..",
+    ".......f2k2qr...",
+    "......f222qr....",
+    "......2k2qr.....",
+    ".....222qr......",
+    "....2k2qr.......",
+    "...322qr........",
+    "...2eqq.........",
+    "....qqrg........",
+    "................",
+    "................",
+    "................",
+]
+
+
+def icon_loach():
+    """미꾸라지: a slim, smooth loach lying corner to corner: a dark olive back with four black dots over a pale
+    yellow belly stripe, a blunt round head with short barbels splayed above and below the mouth, a small dorsal
+    nub and pectoral fin, and a little round tail no wider than the body (망둥어 is the sandy big-headed one)."""
+    a, b = _fish4_m("#5a5226"), _fish4_m("#e4d49a", C=0.055)
+    fin = _fish4_m("#6a5c36")
+    dk = _fish4_m("#1c1808", L=0.26)
+    ink = _fish4_ink("#1e1606", 0.2)
+    c = _fish4_canvas(ink, a, b, fin, dk, "snow", "roe")
+    _r2fb2_paint(c, _r2fb2_loach_rows, {"2": (a, 2), "3": (a, 3), "q": (b, 4), "r": (b, 3), "f": (fin, 4),
+                                       "g": (fin, 3), "k": (dk, 0), "e": ("roe", 0)})
+    im = c.render(contact=False)
+    return _fish4_paint(im, [(1, 10), (0, 9), (0, 8), (1, 12), (0, 13), (0, 14)], ink[0], 0)
+
+
+# ------------------------------------------------------------------------------------------------
+# fc (round 2, attempt 1)
+# ------------------------------------------------------------------------------------------------
+
+
+def _r2fc1_mask(rows, chars):
+    """the cells of a hand-drawn map whose character is in chars"""
+    return [(x, y) for y, row in enumerate(rows) for x, ch in enumerate(row) if ch in chars]
+
+
+# ---- 짱뚱어 / 왕짱뚱어: side on, head left. A tall blunt head with two pale eye domes standing up off the top of
+#      the head, the body tapering to a narrow tail stalk and a round tail fan, propped on a small fan of a
+#      pectoral fin under the head. ----
+_r2fc1_mud_rows = [
+    "................",
+    "................",
+    ".EE.EE..........",
+    ".EE.EE..D.......",
+    "..BBBBB.DD......",
+    ".BBBBBBBBDD.....",
+    ".BBBBBBBBBB..T..",
+    ".BBBBBBBBBBBTTT.",
+    ".BBBBBBBBBBBTTT.",
+    ".BBBBBBBBBB.TTT.",
+    "..BBBBBBB...TTT.",
+    "...PP........T..",
+    "..PPPP..........",
+    "..PPPP..........",
+    "................",
+    "................",
+]
+
+
+def _r2fc1_mudskipper(c, a, b, fin, eye, rows=_r2fc1_mud_rows, sail=None, spine=None, eyes=((1, 2), (4, 2))):
+    _fish3_part(c, rows, "T", fin, 0, lo=1, hi=3, k=1.0)
+    _fish3_part(c, rows, "D", fin, 1, lo=1, hi=3, k=1.0)
+    if sail:
+        _fish3_part(c, sail, "Ss", fin, 1, lo=1, hi=3, k=1.0)
+        c.dots(_r2fc1_mask(sail, "s"), spine or fin, 3, z=1)
+    _fish3_part(c, rows, "B", a, 2, lo=1, hi=4, k=1.4)
+    body = set(_r2fc1_mask(rows, "B"))
+    # pale belly: the bottom two rows under the head, the bottom row further back
+    _fish4_recolor(c, [(x, y) for (x, y) in body if (x, y + 1) not in body or ((x, y + 2) not in body and x < 9)],
+                   b, None, delta=1)
+    _fish3_part(c, rows, "P", fin, 3, lo=1, hi=3, k=1.0)
+    for (ex, ey) in eyes:          # eye domes: lit top-left, the dark pupil low and forward
+        c.put(ex, ey, eye, 5, 60).put(ex + 1, ey, eye, 4, 60).put(ex + 1, ey + 1, eye, 3, 60)
+        c.put(ex, ey + 1, "roe", 0, 60)
+    return c
+
+
+def icon_mudskipper():
+    """짱뚱어: grey-brown, two bulging eyes on top of a big blunt head, propped on its pectoral fins, sprinkled
+    with bright blue spots."""
+    a, b = _fish4_m("#6e6448"), _fish4_m("#bcb490")
+    fin = _fish4_m("#7a7058")
+    eye = _fish4_m("#e8e0c0")
+    spot = _fish4_m("#58b8f0", L=0.72, C=0.12)
+    ink = _fish4_ink("#2a2818", 0.22)
+    c = _fish4_canvas(ink, a, b, fin, eye)
+    _r2fc1_mudskipper(c, a, b, fin, eye)
+    c.dots([(3, 6), (6, 5), (8, 7), (5, 8), (10, 7)], spot, 3, z=70)
+    c.put(1, 8, ink[0], 0, z=70)
+    return c.render()
+
+
+# ---- 구피: side on, head left: a small silver fish (a 5 px deep body, clear head and eye), a blue flag of a
+#      dorsal fin and the huge flame orange fan tail spreading out behind it, dotted dark orange. ----
+_r2fc1_guppy_rows = [
+    "................",
+    "................",
+    "................",
+    ".......D.....T..",
+    "......DD....TTT.",
+    ".....DDD...TTTT.",
+    "..BBBBBDD.TTTTT.",
+    ".BBBBBBBBTTTTTT.",
+    ".BBBBBBBBTTTTTT.",
+    ".BBBBBBBBTTTTTT.",
+    "..BBBBBB..TTTTT.",
+    "....FF.....TTTT.",
+    ".............T..",
+    "................",
+    "................",
+    "................",
+]
+
+
+def icon_guppy():
+    """구피: a small silvery fish with a big eye, a blue dorsal flag and a huge flame orange fan tail with
+    dark orange spots."""
+    a, b = _fish4_m("#62748a", L=0.6), _fish4_m("#e4eaee")
+    tail = _fish4_m("#ff7a30", C=0.15)
+    spot = _fish4_m("#c02810", L=0.42, C=0.14)
+    blue = _fish4_m("#30a0e8", C=0.13)
+    ink = _fish4_ink("#2a2e3a", 0.24)
+    c = _fish4_canvas(ink, a, b, tail, blue, spot)
+    c.ink[tail] = _fish4_ink("#6a2008", 0.26)
+    rows = _r2fc1_guppy_rows
+    _fish3_part(c, rows, "T", tail, 0, lo=2, hi=4, k=1.0)
+    _fish3_part(c, rows, "D", blue, 1, lo=1, hi=4, k=1.0)
+    _fish3_part(c, rows, "F", a, 1, lo=1, hi=3, k=1.0)
+    _fish3_part(c, rows, "B", a, 2, lo=1, hi=4, k=1.4)
+    body = set(_r2fc1_mask(rows, "B"))
+    _fish4_recolor(c, [(x, y) for (x, y) in body if y >= 8], b, None, delta=1)
+    c.dots([(12, 5), (13, 7), (11, 9), (13, 10)], spot, 2, z=70)
+    c.dots([(6, 8), (7, 8)], tail, 3, z=70)
+    c.put(3, 7, "roe", 0, z=70).put(2, 7, "snow", 4, z=70)
+    return c.render()
+
+
+# ---- 디스커스: side on, head left: a round red-orange body crossed by three continuous wavy turquoise lines,
+#      a dark eye with a catchlight in the front third and a mouth, ringed by a dark contour and outside it the
+#      paler orange fringe of the dorsal and anal fins wrapping round it; a fan tail on a narrow waist. ----
+_r2fc1_discus_rows = [
+    "................",
+    "....FFFF........",
+    "...FFFFFFF......",
+    "...kkkkkkFF.....",
+    "..BBBBBBBkF...T.",
+    "..BBBBBBBkFF.TT.",
+    ".BBBBBBBBBkF.TT.",
+    ".BBBBBBBBBkFTTT.",
+    ".BBBBBBBBBkFTTT.",
+    ".BBBBBBBBBkF.TT.",
+    "..BBBBBBBkFF.TT.",
+    "..BBBBBBBkF...T.",
+    "...kkkkkkFF.....",
+    "...FFFFFFF......",
+    "....FFFF........",
+    "................",
+]
+
+
+def icon_discus():
+    """디스커스: a near-perfect disc, red-orange crossed by the wavy turquoise lines of the turquoise discus,
+    its dorsal and anal fins wrapping round it as a paler orange fringe behind a dark contour, a dark eye
+    with a catchlight in the front third, the small mouth, a big fan tail on a narrow waist."""
+    o = _fish4_m("#e8582a", C=0.16)
+    fr = _fish4_m("#f8a060", C=0.12)
+    tq = _fish4_m("#30c8e8", L=0.74, C=0.12)
+    ink = _fish4_ink("#3a1608", 0.2)
+    c = _fish4_canvas(ink, o, fr, tq)
+    rows = _r2fc1_discus_rows
+    _fish3_part(c, rows, "FT", fr, 0, lo=2, hi=4, k=1.0)
+    c.dots(_r2fc1_mask(rows, "k"), ink[0], 0, z=1)
+    _fish3_part(c, rows, "B", o, 2, lo=1, hi=4, k=1.6)
+    eye = {(3, 6), (2, 6), (4, 6), (3, 5), (2, 5), (3, 7), (2, 7)}
+    for y0 in (4, 7, 10):                       # three parallel wavy lines, runs of 3 (no zigzag speckle)
+        for x in range(1, 10):
+            y = y0 + (0, 1, 1, 1, 0, 0)[x % 6]
+            if c.px.get((x, y), [None])[0] == o and (x, y) not in eye:
+                c.put(x, y, tq, 3, z=5)
+    c.put(3, 6, "roe", 0, z=6).put(2, 6, "snow", 4, z=6)
+    c.put(1, 8, ink[0], 0, z=6)                 # the small mouth under the snout
+    return c.render()
+
+
+# ---- 달 금붕어: side on, a fancy goldfish: an egg-shaped body tilted a little nose-down, cream gold right
+#      down to the belly, a tall dorsal fin, a small pelvic fin and the split double tail as two
+#      moon-white petal lobes fanning up-right and down-right with a gap between them, in its moonlight
+#      glow. ----
+def icon_moon_goldfish():
+    """달 금붕어: the full-moon legend: a fancy goldfish with an egg-shaped cream-gold body tilted a little
+    nose-down, a tall dorsal fin, small pelvic fins and a flowing split double tail in moon-white lilac,
+    glowing softly."""
+    a = _fish4_m("#f2d890", C=0.085)
+    fin = _fish4_m("#e6dcf6", C=0.04)
+    ink = _fish4_ink("#5a3a10", 0.26)
+    c = _fish4_canvas(ink, a, fin)
+    c.ink[fin] = _fish4_ink("#5a4a8a", 0.36)
+    c.tube([(10.0, 6.2), (11.8, 4.0), (13.2, 1.8)], [0.9, 1.6, 1.2], fin, 0, flat=0.8, lo=2, hi=4, gloss=0)
+    c.tube([(10.0, 7.8), (12.4, 9.4), (14.0, 11.8)], [0.9, 1.6, 1.2], fin, 0, flat=0.8, lo=1, hi=3, gloss=0)
+    c.poly([(3.6, 6.0), (4.0, 2.6), (5.0, 1.2), (6.8, 1.4), (8.0, 4.6)], fin, 1, normal=(-0.3, -0.7, 0.6), lo=2, hi=4)
+    c.poly([(4.6, 12.2), (4.2, 14.6), (6.6, 12.6)], fin, 1, normal=(0.4, 0.6, 0.7), lo=2, hi=3)
+    c.tube([(3.2, 9.8), (6.0, 8.4), (9.4, 7.0)], [2.3, 3.9, 1.9], a, 2, flat=0.9, lo=1, hi=4, gloss=0.88)
+    c.put(3, 9, "roe", 0).put(2, 9, "snow", 4)
+    return _fish4_glow(c.render(), "#fff4d0")
+
+
+# ------------------------------------------------------------------------------------------------
+# fc (round 2, attempt 2)
+# ------------------------------------------------------------------------------------------------
+
+
+def _r2fc2_mask(rows, chars):
+    """the cells of a hand-drawn map whose character is in chars"""
+    return [(x, y) for y, row in enumerate(rows) for x, ch in enumerate(row) if ch in chars]
+
+
+# ---- 왕짱뚱어: the mudskipper body (side on, head left, two eye domes on top of the blunt head, a small
+#      propped pectoral fan, a round tail fan) in dark slate, with a great rayed sail fanning up just behind
+#      the eyes. Map: B body, E eye domes, P pectoral, T tail, R bright ray, M / m membrane (lit / at the
+#      base), k the dark back outline under the sail (and the eye's back edge in front of it). The sail
+#      starts as a low web behind the eyes (x6), peaks at the front ray (x7), and its ray tips step down toward the
+#      tail (x7 row 1, x9 row 2, x11 row 3), each poking one pixel above the membrane on either side, so the
+#      edge is scalloped. It ends at x11 with a clear notch (x12-13) above the tail, which hangs a row lower. --
+_r2fc2_king_rows = [
+    "................",
+    ".......R........",
+    "......MR.R......",
+    "......MRMR.R....",
+    ".EE.EEkRMRMR....",
+    ".EE.EEkRmRMk....",
+    "..BBBBBkkRm.....",
+    ".BBBBBBBBkk.....",
+    ".BBBBBBBBBB.....",
+    ".BBBBBBBBBB..T..",
+    ".BBBBBBBBBBBTTT.",
+    ".BBBBBBBBBBBTTT.",
+    "..BBBBBBBB..TTT.",
+    "...PPP......TTT.",
+    "..PPPP.......T..",
+    "................",
+]
+
+
+def icon_king_mudskipper():
+    """왕짱뚱어: the mangrove legend: the mudskipper's body in dark slate with its two bulging eyes on top of
+    the head, the first dorsal fin raised into a great blue sail with bright rays, peaking right behind the
+    eyes and stepping down toward the tail, slate fins edged teal, electric blue spots and a cold blue glow."""
+    rows = _r2fc2_king_rows
+    a, b = _fish4_m("#5c6052"), _fish4_m("#a4a690")
+    fin = _fish4_m("#666c5e")
+    eye = _fish4_m("#e0e8e0")
+    mem = _fish4_m("#245a7a", C=0.08)
+    ray = _fish4_m("#5ad0ff", L=0.7, C=0.12)
+    spot = _fish4_m("#5ad0ff", L=0.8, C=0.13)
+    teal = _fish4_m("#3aa8c8")
+    ink = _fish4_ink("#16222c", 0.2)
+    c = _fish4_canvas(ink, a, b, fin, eye, mem, ray, spot, teal, ink[0])
+    # slate tail fan and pectoral, each with a teal rim (the tail's trailing edge, the pectoral's foot)
+    _fish3_part(c, rows, "T", fin, 0, lo=1, hi=3, k=1.0)
+    _fish3_part(c, rows, "P", fin, 3, lo=1, hi=3, k=1.0)
+    tail = set(_r2fc2_mask(rows, "T"))
+    for (x, y) in tail:
+        if (x + 1, y) not in tail or ((x, y - 1) not in tail and x > 12) or ((x, y + 1) not in tail and x > 12):
+            c.put(x, y, teal, 3 if y < 11 else 2, 1)
+    pec = set(_r2fc2_mask(rows, "P"))
+    for (x, y) in pec:
+        if (x, y + 1) not in pec:
+            c.put(x, y, teal, 3, 3)
+    # the body in flat slate: a lit back and brow, darker toward the tail stalk, one pale belly tone
+    body = set(_r2fc2_mask(rows, "B"))
+    for (x, y) in body:
+        if (x, y + 1) not in body or ((x, y + 2) not in body and x <= 9):
+            c.put(x, y, b, 3, 2)
+        elif ((x, y - 1) not in body and x <= 10) or ((x - 1, y) not in body and y < 9):
+            c.put(x, y, a, 4, 2)
+        elif x >= 10 or (x + 1, y) not in body:
+            c.put(x, y, a, 2, 2)
+        else:
+            c.put(x, y, a, 3, 2)
+    c.dots([(3, 8), (6, 7), (8, 9), (5, 10), (10, 10)], spot, 4, z=2)
+    # the sail: bright rays, blue membrane (darker at its base), the dark back outline under it
+    c.dots(_r2fc2_mask(rows, "R"), ray, 4, z=4)
+    c.dots(_r2fc2_mask(rows, "M"), mem, 3, z=4)
+    c.dots(_r2fc2_mask(rows, "m"), mem, 2, z=4)
+    c.dots(_r2fc2_mask(rows, "k"), ink[0], 0, z=4)
+    for (ex, ey) in ((1, 4), (4, 4)):       # eye domes: lit top-left, the dark pupil low and forward
+        c.put(ex, ey, eye, 5, 60).put(ex + 1, ey, eye, 4, 60).put(ex + 1, ey + 1, eye, 3, 60)
+        c.put(ex, ey + 1, "roe", 0, 60)
+    return _fish4_glow(c.render(contact=False), "#5ad0ff")
+
+
+# ---- 틸라피아: corner to corner like cod. Drawn on the diagonal: t = x - y runs along the fish (snout -12,
+#      tail rim 11), s = x + y across it (back small, belly large). A deep grey-olive body in a flat fill with a
+#      lit back staircase, three clean 2 px dark bars and a pale belly; a long spiny dorsal ridge with three
+#      red spine tips that stops two pixels short of the tail; a narrow stalk, then the broad square tail as
+#      one solid block: a light base, two dark 1 px cross-stripes with 2 px light between them, and a red-orange
+#      trailing rim two pixels thick, outlined beyond. ----
+_r2fc2_tilapia_body = {-12: (14, 16), -11: (13, 17), -10: (12, 18), -9: (11, 19), -8: (11, 19), -7: (11, 19),
+                       -6: (11, 19), -5: (11, 19), -4: (11, 19), -3: (11, 19), -2: (11, 19), -1: (11, 19),
+                       0: (11, 19), 1: (11, 17), 2: (12, 18), 3: (13, 17), 4: (14, 16)}
+
+
+_r2fc2_tilapia_tail = {5: (14, 16), 6: (13, 17), 7: (12, 18), 8: (11, 19), 9: (11, 19), 10: (12, 18), 11: (13, 17)}
+
+
+def _r2fc2_diag(spans):
+    """{t: (s0, s1)} -> [(x, y, t, s)] for the pixels with s0 <= x + y <= s1 on each diagonal t = x - y"""
+    return [(x, y, x - y, x + y) for x in range(16) for y in range(16)
+            if x - y in spans and spans[x - y][0] <= x + y <= spans[x - y][1]]
+
+
+def icon_tilapia():
+    """틸라피아: a deep grey-olive cichlid with dark bars, a long spiny dorsal fin with red tips and the broad
+    square tail striped across and edged red-orange that marks it."""
+    a, b = _fish4_m("#7a8470"), _fish4_m("#dcdecc")
+    fin = _fish4_m("#9aa08e")
+    red = _fish4_m("#e85a34", C=0.15)
+    ink = _fish4_ink("#262c1c", 0.22)
+    c = _fish4_canvas(ink, a, b, fin, red)
+    # the tail: light base (t 5), dark stripe (6), light (7-8), dark stripe (9), red-orange rim (10-11)
+    for (x, y, t, s) in _r2fc2_diag(_r2fc2_tilapia_tail):
+        if t >= 10:
+            c.put(x, y, red, 3, 0)
+        elif t in (6, 9):
+            c.put(x, y, a, 1, 0)
+        else:
+            c.put(x, y, fin, 3 if s < 16 else 2, 0)
+    # the long spiny dorsal along the back (s 9-10, t -6..2), red spine tips every 4 pixels
+    for (x, y, t, s) in _r2fc2_diag({t: (9, 10) for t in range(-6, 3)}):
+        c.put(x, y, fin, 2, 1)
+    for (x, y, t, s) in _r2fc2_diag({t: (8, 8) for t in (-6, -2, 2)}):
+        c.put(x, y, red, 3, 1)
+    # the body: a pale belly, three 2 px bars, a lit back, the flat grey-olive fill
+    for (x, y, t, s) in _r2fc2_diag(_r2fc2_tilapia_body):
+        if s >= 17:
+            c.put(x, y, b, 3, 2)
+        elif t in (-6, -5, -2, -1, 2, 3):
+            c.put(x, y, a, 1, 2)
+        else:
+            c.put(x, y, a, 4 if s <= 12 else 3, 2)
+    c.poly([(6, 12.8), (8.6, 14.8), (9.6, 12.4)], fin, 1, normal=(0.4, 0.6, 0.7), lo=1, hi=2)
+    c.put(3, 11, "roe", 0).put(3, 10, "snow", 3)
+    return c.render(contact=False)
+
+
 ICONS = {
     "butterflyfish": icon_butterflyfish,
     "clownfish": icon_clownfish,
@@ -1446,4 +2231,24 @@ ICONS = {
     "sunset_bream": icon_sunset_bream,
     "sweetfish": icon_sweetfish,
     "thunder_catfish": icon_thunder_catfish,
+    "giant_squid": icon_giant_squid,
+    "greenland_shark": icon_greenland_shark,
+    "hairtail": icon_hairtail,
+    "horse_mackerel": icon_horse_mackerel,
+    "mahi_mahi": icon_mahi_mahi,
+    "pollack": icon_pollack,
+    "sardine": icon_sardine,
+    "black_rockfish": icon_black_rockfish,
+    "rockfish": icon_rockfish,
+    "goby": icon_goby,
+    "lenok": icon_lenok,
+    "lionfish": icon_lionfish,
+    "loach": icon_loach,
+    "spore_goby": icon_spore_goby,
+    "discus": icon_discus,
+    "guppy": icon_guppy,
+    "moon_goldfish": icon_moon_goldfish,
+    "mudskipper": icon_mudskipper,
+    "king_mudskipper": icon_king_mudskipper,
+    "tilapia": icon_tilapia,
 }

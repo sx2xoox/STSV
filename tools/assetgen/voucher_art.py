@@ -3,7 +3,7 @@ is the rarity (stone common, sapphire rare, crystal epic, gold legendary); legen
 gold perforation so white and glowing pictures stand out.
 """
 import math
-from stsv_assets import icons as _core_I
+from stsv_assets import icons
 
 
 # ------------------------------------------------------------------------------------------------
@@ -55,7 +55,7 @@ def _core_ball(ic, cx, cy, rx, ry, ramp, levels, edge=0, edge_ramp=None, skip=()
 def _core_ticket(stub, dark=False):
     """The shared ticket body: x1-14, rows 4-13, notched at rows 8-9; stub x1-2 behind a perforation at x3.
     Its outline comes from _core_finish (paper gets a brown edge instead of its own pale step 0)."""
-    ic = _core_I.Icon()
+    ic = icons.Icon()
     body, lit, mid, shade, perf = ("obsidian", 3, 2, 1, ("gold", 1)) if dark else ("paper", 2, 2, 1, ("paper", 0))
     top = {"gold": 3, "stone": 3, "sapphire": 3, "crystal": 4}[stub]
     for y in range(4, 14):
@@ -234,7 +234,7 @@ def icon_haetae_voucher():
 
 
 def icon_cheque():
-    ic = _core_I.Icon()
+    ic = icons.Icon()
     for y in range(4, 13):
         for x in range(1, 15):
             ic.put(x, y, "paper", 1 if (y == 12 or x == 14) else 2)
@@ -253,6 +253,76 @@ def icon_cheque():
     return _core_finish(ic)
 
 
+# ------------------------------------------------------------------------------------------------
+# core (round 2)
+# ------------------------------------------------------------------------------------------------
+
+
+"""
+Core batch, round 2 (attempt 1): angel wings, gumiho and phoenix vouchers on the shared legendary ticket.
+
+- angel_wings_voucher: the demon-wings footprint (x4-14, mirrored around x9, tips at the top corners) in white
+  feathers: arched top rising from the centre, three stepped feather rows split by grey lines, pointed tips
+  along the lower edge. Everything outside the ticket gets the ticket's dark-navy edge, so x15 stays navy.
+- gumiho_voucher: a white fox head with tall pink-lined ears above the ticket, a V face narrowing to the nose,
+  sly slanted eyes and the red forehead mark; its tails (spirit blue, fox-fire tips) fan out behind and below
+  the head on both sides, one curling up and one sweeping down each side. Perforation and frame untouched.
+- phoenix_voucher: a right-facing 봉황: raised wing in three stepped rows (red coverts, orange, yellow flame
+  tips), gold crest swept back, gold beak and breast, and two wide flame plumes curling down-left.
+"""
+
+
+def _r2core1_frame(ic):
+    """put the bare legendary ticket's own outline back wherever the picture left it empty, so the frame
+    (navy body edge, gold stub corner) stays exactly as on the other vouchers"""
+    t = _core_ticket("gold", dark=True)
+    for (x, y), (r, i) in t.px.items():
+        if i == 0:
+            continue
+        for dx, dy in ((1, 0), (-1, 0), (0, 1), (0, -1)):
+            n = (x + dx, y + dy)
+            if 0 <= n[0] < 16 and 0 <= n[1] < 16 and n not in t.px and n not in ic.px:
+                ic.px[n] = (r, 0)
+
+
+def _r2core1_edge(ic, ramps, edge, pts=None):
+    """outline the given ramps (or the given pixels) with one colour, before _core_finish, so the picture's
+    edge matches the ticket's dark edge instead of a pale step of its own ramp"""
+    _r2core1_frame(ic)
+    filled = dict(ic.px)
+    for (x, y), (r, i) in filled.items():
+        if (r not in ramps) if pts is None else ((x, y) not in pts):
+            continue
+        for dx, dy in ((1, 0), (-1, 0), (0, 1), (0, -1)):
+            n = (x + dx, y + dy)
+            if 0 <= n[0] < 16 and 0 <= n[1] < 16 and n not in ic.px:
+                ic.px[n] = edge
+
+
+_r2core1_feather = {"W": ("feather", 3), "w": ("feather", 2), "g": ("feather", 1), "S": ("stone", 3)}
+
+
+def icon_angel_wings_voucher():
+    ic = _core_ticket("gold", dark=True)
+    rows = [                   # left wing x4-8 from y2; the right wing is its mirror image (x10-14)
+        "W....",               # tip at the top corner
+        "WWW..",               # arched top: rises from the centre (x8 at y6) to the tip
+        "WWWW.",
+        "SWWW.",               # first grey line: coverts / secondaries
+        "wSSWW",
+        "wwwSW",
+        "SwwwS",               # second grey line: secondaries / primaries
+        "gSSwg",
+        "gggSg",
+        "g.gg.",               # pointed feather tips along the lower edge
+        "..g..",
+    ]
+    _core_paint(ic, rows, _r2core1_feather, 4, 2)
+    _core_paint(ic, [r[::-1] for r in rows], _r2core1_feather, 10, 2)
+    _r2core1_edge(ic, ("feather", "stone"), ("obsidian", 0))
+    return _core_finish(ic)
+
+
 ICONS = {
     "cheque": icon_cheque,
     "crown_voucher": icon_crown_voucher,
@@ -262,4 +332,5 @@ ICONS = {
     "halo_voucher": icon_halo_voucher,
     "mushroom_voucher": icon_mushroom_voucher,
     "tomato_voucher": icon_tomato_voucher,
+    "angel_wings_voucher": icon_angel_wings_voucher,
 }
