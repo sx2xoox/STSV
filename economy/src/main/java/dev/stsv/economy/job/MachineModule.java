@@ -187,6 +187,8 @@ public final class MachineModule extends EcoModule {
         settings = MachineSpec.Settings.parse(data);
         Map<String, String> made = new HashMap<>();
         for (MachineSpec s : specs.values()) {
+            if (!s.upgradeCost().isEmpty() && s.upgradeCost().size() != settings.level().size())
+                problems.add(s.id() + ".upgrade.cost: 강화 단계 수가 다름 (" + s.upgradeCost().size() + " / " + settings.level().size() + ")");
             if (Items.create(s.item(), 1).isEmpty()) problems.add(s.id() + ": 없는 아이템 " + s.item());
             if (s.job() != null && !eco.jobs().spec().jobs().containsKey(s.job())) problems.add(s.id() + ": 없는 직업 " + s.job());
             for (MachineSpec.Recipe r : s.recipes()) {
@@ -212,6 +214,11 @@ public final class MachineModule extends EcoModule {
 
     public MachineSpec.Settings settings() {
         return settings;
+    }
+
+    /** The upgrade table of this machine: the global one, with the machine's own costs if it has them (the press). */
+    private MachineSpec.Settings settings(Machine m) {
+        return settings.forMachine(m.spec);
     }
 
     /** The machine an item is made on (its first recipe), or null. */
@@ -287,7 +294,7 @@ public final class MachineModule extends EcoModule {
         }
 
         int open() {
-            return Math.min(LANES, settings.lanes(tier));
+            return Math.min(LANES, settings.forMachine(spec).lanes(tier));
         }
 
         String state() {
@@ -345,7 +352,7 @@ public final class MachineModule extends EcoModule {
     /** Seconds one batch takes: the tier's speed, then the operator's job bonuses (if it is their job). */
     double seconds(Machine m, MachineSpec.Recipe r, UUID op) {
         String job = m.spec.job();
-        double t = r.seconds() / (1 + settings.speed(m.tier));
+        double t = r.seconds() / (1 + settings(m).speed(m.tier));
         t *= Math.max(0.1, 1 - eco.jobs().bonus(op, job, "speed"));
         t *= eco.jobs().bonus(op, job, "fast");
         if (r.aging()) t *= eco.jobs().bonus(op, job, "aging");
@@ -356,7 +363,7 @@ public final class MachineModule extends EcoModule {
         String job = m.spec.job();
         int n = r.amount();
         if (eco.jobs().bonus(op, job, "double") > 0) n *= 2;
-        if (eco.jobs().bonus(op, job, "extra") > 0) n += 1;
+        if (eco.jobs().bonus(op, job, "extra") > 0) n *= 2;     // every unit may get its +1
         return n;
     }
 
@@ -440,6 +447,7 @@ public final class MachineModule extends EcoModule {
             boolean any = false;
             for (int k = 0; k < LANES; k++) {
                 Lane l = m.lanes[k];
+                if (k < m.open()) plainInputs(m, k);
                 MachineSpec.Recipe r = k < m.open() ? recipeFor(m, k) : null;
                 int idx = r == null ? -1 : r.index();
                 if (idx != l.making) {
@@ -474,27 +482,48 @@ public final class MachineModule extends EcoModule {
         }
     }
 
+    /** Sized fish that reached an input slot some other way (dragging) lose their size, and equal stacks merge. */
+    private void plainInputs(Machine m, int lane) {
+        for (int i = 0; i < 3; i++) {
+            ItemStack it = m.inv.getItem(input(lane, i));
+            if (!Items.sized(it)) continue;
+            ItemStack plain = Items.stripSize(it);
+            for (int j = 0; j < i && !plain.isEmpty(); j++) {
+                ItemStack o = m.inv.getItem(input(lane, j));
+                if (o == null || !o.isSimilar(plain)) continue;
+                int move = Math.min(plain.getAmount(), o.getMaxStackSize() - o.getAmount());
+                o.setAmount(o.getAmount() + move);
+                plain.setAmount(plain.getAmount() - move);
+            }
+            m.inv.setItem(input(lane, i), plain.isEmpty() ? null : plain);
+            m.dirty = true;
+        }
+    }
+
     private void complete(Machine m, int lane, MachineSpec.Recipe r, UUID op) {
         ThreadLocalRandom rnd = ThreadLocalRandom.current();
         String job = m.spec.job();
         List<String> bonuses = new ArrayList<>();
-        // 재료 절약: one unit of one input stays
-        String saved = null;
-        double save = eco.jobs().bonus(op, job, "save") + (op == null || job == null ? 0 : eco.jobs().effect(op, job, "save"));
-        if (save > 0 && rnd.nextDouble() < save) {
-            List<String> keys = new ArrayList<>(r.inputs().keySet());
-            saved = keys.get(rnd.nextInt(keys.size()));
-            bonuses.add(Lang.raw("machine.bonus-save"));
+        // 재료 절약: every input unit stays with the chance (so a 4-input batch saves four times what a 1-input one does);
+        // capped at 90% (the blacksmith's save doubles in 광산 호황), so a batch always uses something
+        double save = Math.clamp(eco.jobs().bonus(op, job, "save") + (op == null || job == null ? 0 : eco.jobs().effect(op, job, "save")), 0, 0.9);
+        int kept = 0;
+        for (Map.Entry<String, Integer> in : r.inputs().entrySet()) {
+            int keep = MachineSpec.binomial(in.getValue(), save, rnd);
+            kept += keep;
+            take(m, lane, in.getKey(), in.getValue() - keep);
         }
-        for (Map.Entry<String, Integer> in : r.inputs().entrySet()) take(m, lane, in.getKey(), in.getValue() - (in.getKey().equals(saved) ? 1 : 0));
+        if (kept > 0) bonuses.add(Lang.raw("machine.bonus-save", "count", kept));
         int amount = r.amount();
         if (rnd.nextDouble() < eco.jobs().bonus(op, job, "double")) {
             amount *= 2;
             bonuses.add(Lang.raw("machine.bonus-double"));
         }
-        if (rnd.nextDouble() < eco.jobs().bonus(op, job, "extra")) {
-            amount += 1;
-            bonuses.add(Lang.raw("machine.bonus-extra"));
+        // 결과 +: every output unit gets its +1 with the chance (proportional, like the save)
+        int extra = MachineSpec.binomial(amount, eco.jobs().bonus(op, job, "extra"), rnd);
+        if (extra > 0) {
+            amount += extra;
+            bonuses.add(Lang.raw("machine.bonus-extra", "count", extra));
         }
         ItemStack product = product(m, r, amount, op);
         if (product == null) return;
@@ -502,7 +531,8 @@ public final class MachineModule extends EcoModule {
         if (slot == null || slot.isEmpty()) m.inv.setItem(output(lane), product);
         else slot.setAmount(Math.min(slot.getMaxStackSize(), slot.getAmount() + product.getAmount()));
         if (op != null && job != null) eco.jobs().addXp(op, job, value(r.output()) * amount * settings.xpPerGold());
-        if (op != null) core.profiles().add(op, "machine_made", amount);
+        // 미션·업적 '직업 기계로 만들기': the press (no job) does not count
+        if (op != null && job != null) core.profiles().add(op, "machine_made", amount);
         // 미션: what was made on each job's machine (made_miner = 세공대 ...)
         if (op != null && job != null) core.profiles().add(op, "made_" + job, amount);
         m.dirty = true;
@@ -639,6 +669,7 @@ public final class MachineModule extends EcoModule {
 
     private void draw(Machine m) {
         JobSpec.Job j = jobOf(m);
+        MachineSpec.Settings settings = settings(m);
         String jc = j == null ? "white" : j.color(), jn = j == null ? "-" : j.name();
         m.inv.setItem(BOOK, icon(Material.BOOK, "economy:gui/ledger", Lang.item("machine.book"), Lang.items("machine.book-lore")));
         m.inv.setItem(INFO, icon(Material.CRAFTING_TABLE, "stsv:gui/info",
@@ -667,7 +698,7 @@ public final class MachineModule extends EcoModule {
     private ItemStack laneIcon(Machine m, int k) {
         if (k >= m.open()) {
             int need = 0;
-            while (need < 3 && settings.lanes(need) <= k) need++;
+            while (need < 3 && settings(m).lanes(need) <= k) need++;
             return icon(Material.BARRIER, null, Lang.item("machine.lane-locked", "n", k + 1, "tier", tierName(need)), null);
         }
         Lane l = m.lanes[k];
@@ -728,6 +759,7 @@ public final class MachineModule extends EcoModule {
     }
 
     private void upgrade(Player p, Machine m) {
+        MachineSpec.Settings settings = settings(m);
         int next = m.tier + 1;
         if (next > settings.maxTier()) {
             HudModule.flash(p, Lang.mm("machine.upgrade-max"));
@@ -902,7 +934,7 @@ public final class MachineModule extends EcoModule {
             m.owner = player.getUniqueId();
             Integer tier = from == null || !from.hasItemMeta() ? null
                     : from.getItemMeta().getPersistentDataContainer().get(TIER, PersistentDataType.INTEGER);
-            m.tier = tier == null ? 0 : Math.clamp(tier, 0, settings.maxTier());
+            m.tier = tier == null ? 0 : Math.clamp(tier, 0, settings(m).maxTier());
             m.dirty = true;
             applyLooks(m);
             for (ItemDisplay part : core.furniture().parts(furniture)) core.furniture().setSpinning(part, false);
@@ -974,6 +1006,7 @@ public final class MachineModule extends EcoModule {
                     ? p.getInventory().getItem(e.getHotbarButton()) : e.getCursor();
             if (in >= m.open()) e.setCancelled(true);
             else if (Items.shopBought(placing)) refuseBought(p, e);
+            else if (Items.sized(placing)) placePlain(p, m, in, slot, e);
             else m.lanes[in].operator = p.getUniqueId();
             return;
         }
@@ -1015,6 +1048,45 @@ public final class MachineModule extends EcoModule {
         p.playSound(p.getLocation(), Sound.BLOCK_NOTE_BLOCK_BASS, 0.6f, 0.8f);
     }
 
+    /**
+     * A sized fish (희귀·전설) put into an input slot by hand: it goes in without its size, so fish of one kind stack
+     * (machines ignore the size; the recipe book says so). Done by hand on the next tick: the click itself is cancelled.
+     */
+    private void placePlain(Player p, Machine m, int lane, int slot, InventoryClickEvent e) {
+        e.setCancelled(true);
+        boolean hotbar = e.getAction() == InventoryAction.HOTBAR_SWAP && e.getHotbarButton() >= 0;
+        int button = e.getHotbarButton();
+        boolean one = !hotbar && e.isRightClick();
+        Bukkit.getScheduler().runTask(eco, () -> {
+            if (p.getOpenInventory().getTopInventory() != m.inv || lane >= m.open()) return;
+            ItemStack src = hotbar ? p.getInventory().getItem(button) : p.getItemOnCursor();
+            if (!Items.sized(src) || Items.shopBought(src)) return;
+            ItemStack plain = Items.stripSize(src);
+            ItemStack cur = m.inv.getItem(slot);
+            int move;
+            if (cur == null || cur.isEmpty()) {
+                move = Math.min(one ? 1 : plain.getAmount(), plain.getMaxStackSize());
+                m.inv.setItem(slot, plain.asQuantity(move));
+            } else if (cur.isSimilar(plain)) {
+                move = Math.min(one ? 1 : plain.getAmount(), cur.getMaxStackSize() - cur.getAmount());
+                cur.setAmount(cur.getAmount() + move);
+            } else {
+                if (one) return;
+                m.inv.setItem(slot, plain);                      // swap: what was in the slot goes back to the hand
+                if (hotbar) p.getInventory().setItem(button, cur);
+                else p.setItemOnCursor(cur);
+                m.lanes[lane].operator = p.getUniqueId();
+                m.dirty = true;
+                return;
+            }
+            ItemStack rest = src.getAmount() - move <= 0 ? null : src.asQuantity(src.getAmount() - move);
+            if (hotbar) p.getInventory().setItem(button, rest);
+            else p.setItemOnCursor(rest);
+            if (move > 0) m.lanes[lane].operator = p.getUniqueId();
+            m.dirty = true;
+        });
+    }
+
     /** Shift-click from the player's inventory: onto the same item in an open lane, else into the first free input slot. */
     private void shiftIn(Player p, Machine m, InventoryClickEvent e) {
         ItemStack it = e.getCurrentItem();
@@ -1023,6 +1095,7 @@ public final class MachineModule extends EcoModule {
             refuseBought(p, e);
             return;
         }
+        it = Items.stripSize(it);                               // a sized fish goes in plain and stacks with its kind
         for (int pass = 0; pass < 2 && !it.isEmpty(); pass++) {
             for (int k = 0; k < m.open() && !it.isEmpty(); k++) {
                 for (int i = 0; i < 3 && !it.isEmpty(); i++) {

@@ -56,15 +56,36 @@ public final class CropGrowth {
         return age;
     }
 
-    /** Fortune on a harvest, as vanilla crops roll it: one extra item per level with chance 4/7 each. */
-    public static int fortune(int level, Random r) {
-        int n = 0;
-        for (int i = 0; i < level; i++) if (r.nextFloat() < 0.5714286f) n++;
-        return n;
+    /** Chance per item and Fortune level on a custom crop's produce (Fortune III: +45%). */
+    public static final double FORTUNE_PER_LEVEL = 0.15;
+
+    /**
+     * Fortune on a harvest: every one of the n produce items gets one more with chance 0.15 x level, so the
+     * bonus is a share of the harvest (a one-melon crop and a four-bean crop gain alike). Seeds get none.
+     */
+    public static int fortune(int level, int n, Random r) {
+        double p = Math.min(1, FORTUNE_PER_LEVEL * Math.max(0, level));
+        if (p <= 0 || n <= 0) return 0;
+        int k = 0;
+        for (int i = 0; i < n; i++) if (r.nextDouble() < p) k++;
+        return k;
     }
 
-    /** Bone meal: 2 to 5 ages, like vanilla crops. */
-    public static int boneMeal(int age, int maxAge, Random r) {
-        return Math.min(maxAge, age + 2 + r.nextInt(4));
+    /** One bone meal for every this many ages a plant grew by itself. */
+    public static final int MEAL_EVERY = 7;
+
+    /** Bone meal: one age (never past ripe). */
+    public static int boneMeal(int age, int maxAge) {
+        return Math.min(maxAge, age + 1);
+    }
+
+    /** May the plant take a bone meal: one per 7 ages it grew by itself, counted over its whole life. */
+    public static boolean mealAllowed(int natural, int meals) {
+        return meals < natural / MEAL_EVERY;
+    }
+
+    /** Ages it still has to grow by itself before the next bone meal works. */
+    public static int agesToNextMeal(int natural, int meals) {
+        return (meals + 1) * MEAL_EVERY - natural;
     }
 }

@@ -106,7 +106,7 @@ shop:
   mark-shortage: " <color:#ff5f57>품귀</color>"
   mark-crash: " <color:#4d9bff>폭락</color>"
   mark-floor: " <dark_gray>(바닥)</dark_gray>"
-  prices-header: "<gold>시세</gold> <gray>(오늘 접속 {players}명 기준)"
+  prices-header: "<gold>시세</gold> <gray>(기준 {players}명: 오늘 15분 넘게 플레이한 사람, 최소 {min}명)"
   price-lore: ["", "<gray>지금 개당: <gold>{price} G</gold> <dark_gray>(기준 {base} G)", "<gray>24시간: {change}{marks}",
                "<gray>오늘 서버 판매: <white>{sold}</white> / 적정 {quota}", "<gray>내가 오늘 판 양: <white>{mine}</white> <dark_gray>(한도 {cap})"]
 
@@ -218,6 +218,7 @@ job:
   levelup-subtitle: "<{color}>{job}<gray> <gray>레벨 업"
   levelup-broadcast: "<white>{player}</white><gray>님이 <{color}>{job}<gray> Lv{level}이 되었습니다."
   locked-plant: "<red><{color}>{job}<gray> Lv{level}만 심을 수 있는 씨앗입니다."
+  bought-meal: "<red>상점에서 산 뼛가루는 작물에 쓸 수 없습니다"
   found: "<aqua>발견!</aqua> <white>{item}"
   saved: "<green>재료 절약</green> <white>{item}</white> <gray>1개를 돌려받았습니다"
   lore-xp: "<gray>경험치 <white>{xp}</white> <gray>/ {next}"
@@ -249,10 +250,11 @@ machine:
   group-items: "<dark_gray>{group}: {items}"
   group-items-more: "<dark_gray>  {items}"
   book: "<gold>레시피 목록"
-  book-lore: ["<gray>이 기계로 만들 수 있는 것 전부", "<dark_gray>줄마다 고르려면 그 줄의 상태 칸을 클릭"]
+  book-lore: ["<gray>이 기계로 만들 수 있는 것 전부", "<dark_gray>줄마다 고르려면 그 줄의 상태 칸을 클릭",
+              "<dark_gray>희귀·전설 물고기는 재료 칸에 넣으면 크기가 지워져 같은 종류끼리 쌓임 (큰 물고기는 파는 쪽이 이득)"]
   info: "<gold>{machine}</gold> <gray>· <white>{tier}"
   info-lore: ["<gray>설치: <white>{owner}", "<gray>줄 <white>{lanes}</white>개 · 속도 <white>+{speed}%", "<gray>누구나 사용. <{color}>{job}<gray>면 빠르고 경험치·직업 효과", "<dark_gray>재료를 넣은 사람이 그 줄의 운영자"]
-  shop-bought: "<red>상점에서 산 물건은 기계에 넣을 수 없습니다 <gray>(직접 기르거나 캐거나 잡은 것만)"
+  shop-bought: "<red>상점에서 산 물건은 기계에 넣을 수 없습니다 <gray>(그걸로 만든 것, 다 자라기 전에 뽑은 것 포함 · 직접 기르거나 캐거나 잡은 것만)"
   upgrade: "<gold>강화 → {tier}"
   upgrade-lore: ["<gray>비용 <white>{cost}", "<gray>필요: 설치한 사람이 <{color}>{job}<gray> Lv{level}", "<gray>강화하면: 줄 {lanes}개 · 속도 +{speed}% · 새 레시피 {recipes}개 · 새 모습"]
   # 공용 기계 (직업 없음: 압착기)
@@ -292,9 +294,9 @@ machine:
   maker: "<dark_gray>제작: {player}"
   tier-lore: "<gold>강화: {tier}"
   bonus: "<green>{what}</green> <gray>{item}"
-  bonus-extra: "결과 +1"
+  bonus-extra: "결과 +{count}"
   bonus-double: "2인분"
-  bonus-save: "재료 절약"
+  bonus-save: "재료 {count}개 절약"
 
 stock:
   usage: "<gray>/주식 · <회사> · 뉴스 · 알림 · 사기 <회사> <수> · 팔기 <회사> <수|전부>"

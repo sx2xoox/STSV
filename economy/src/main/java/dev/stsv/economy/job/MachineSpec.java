@@ -14,7 +14,7 @@ import java.util.function.BiPredicate;
  * tier, and the upgrade table. Pure data and matching (unit-tested).
  */
 public record MachineSpec(String id, String name, String item, String job, String model, List<String> parts, Effect effect,
-                          List<Recipe> recipes) {
+                          List<Recipe> recipes, List<Long> upgradeCost) {
 
     /**
      * inputs: item id (or "#tag") -> count; output id and amount; seconds at base speed; tier = the upgrade
@@ -66,6 +66,14 @@ public record MachineSpec(String id, String name, String item, String job, Strin
             return level.get(tier - 1);
         }
 
+        /**
+         * One machine's table: its own upgrade costs if machines.yml gives it some ("press: upgrade: cost: [...]"),
+         * the global levels, lanes, speeds and XP rate for everything else.
+         */
+        public Settings forMachine(MachineSpec s) {
+            return s.upgradeCost().isEmpty() ? this : new Settings(s.upgradeCost(), level, lanes, speed, xpPerGold);
+        }
+
         public static Settings parse(ConfigurationSection c) {
             ConfigurationSection u = c.getConfigurationSection("upgrade");
             List<Long> cost = u == null ? List.of() : u.getLongList("cost");
@@ -74,6 +82,18 @@ public record MachineSpec(String id, String name, String item, String job, Strin
             List<Double> speed = u == null ? List.of(0.0) : u.getDoubleList("speed");
             return new Settings(cost, level, lanes, speed, c.getDouble("xp-per-gold", 0.2));
         }
+    }
+
+    /**
+     * Successes in n tries of chance p. The job bonuses roll per unit with it (each output unit +1, each input
+     * unit kept), so a 4 -> 4 bulk recipe gets exactly four times the bonus of a 1 -> 1 one.
+     */
+    public static int binomial(int n, double p, java.util.random.RandomGenerator rnd) {
+        if (p <= 0 || n <= 0) return 0;
+        if (p >= 1) return n;
+        int k = 0;
+        for (int i = 0; i < n; i++) if (rnd.nextDouble() < p) k++;
+        return k;
     }
 
     /** Does an item id count for an input key: the same id, or a "#tag" the item is in. */
@@ -154,7 +174,7 @@ public record MachineSpec(String id, String name, String item, String job, Strin
                         ef.getString("sound"), (float) ef.getDouble("volume", 0.4), (float) ef.getDouble("pitch", 1));
             }
             out.put(id, new MachineSpec(id, m.getString("name", id), JobSpec.norm(item), m.getString("job"), m.getString("model", id),
-                    m.getStringList("parts"), effect, recipes));
+                    m.getStringList("parts"), effect, recipes, List.copyOf(m.getLongList("upgrade.cost"))));
         }
         return out;
     }

@@ -162,6 +162,14 @@ FINDS = {"red_seabream", "bluefin_tuna", "sturgeon"}   # items of the jobs step 
 SHAPES = "flpcq"
 
 
+def q_for(base):
+    """A sell line's q from its base price: the one ladder shop.yml uses for every line (BalanceTest R10)."""
+    for limit, q in ((3, 128), (6, 64), (15, 32), (50, 16), (150, 8), (500, 4), (1000, 2)):
+        if base < limit:
+            return q
+    return 1
+
+
 def extra(fid):
     return set(FISH[fid][9].split())
 
@@ -570,7 +578,7 @@ def write_content(pack: Path, icons):
     for fid, (name, hab, rar, lo, hi, price, shape, c1, c2, x) in FISH.items():
         if fid in VANILLA or fid in FINDS:
             continue
-        q = 32 if price < 6 else 16 if price < 20 else 4 if price < 100 else 1
+        q = q_for(price)
         lines.append(f"      economy:{fid}: {{ base: {price}, q: {q}, job: fisher }}   # {name}\n")
     lines.append(end)
     block = "".join(lines)

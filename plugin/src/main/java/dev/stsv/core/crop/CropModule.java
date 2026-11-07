@@ -274,6 +274,7 @@ public final class CropModule implements StsvModule, Listener {
             int before = s.age;
             s.age = CropGrowth.grow(s.age, spec.maxAge(), n, CropGrowth.chance(speed(s, w)), r);
             if (s.age == before) continue;
+            s.natural += s.age - before;
             dirty.add(s.id);
             if (spec.stageOf(s.age) != spec.stageOf(before)) refresh(s);
         }
@@ -404,19 +405,40 @@ public final class CropModule implements StsvModule, Listener {
     }
 
     /** Takes one item of this id from the player's inventory. */
-    private boolean takeOne(Player p, String id) {
+    /** Takes one of an item from the bag (or the off hand); returns a copy of what was taken, null if there was none. */
+    private ItemStack takeOne(Player p, String id) {
         for (ItemStack it : p.getInventory().getStorageContents()) {
             if (it != null && id.equals(key(it))) {
+                ItemStack one = it.asOne();
                 it.subtract(1);
-                return true;
+                return one;
             }
         }
         ItemStack off = p.getInventory().getItemInOffHand();
         if (id.equals(key(off))) {
+            ItemStack one = off.asOne();
             off.subtract(1);
-            return true;
+            return one;
         }
-        return false;
+        return null;
+    }
+
+    /**
+     * Marks a content plugin puts on items (the economy's "bought from the admin shop") that a plant keeps from its
+     * seed: a young plant broken out gives its seed back with the mark, so planting cannot wash it off. A ripe
+     * harvest is unmarked (growing it is real work).
+     */
+    public void carryMark(org.bukkit.NamespacedKey key) {
+        carryMarks.add(key);
+    }
+
+    private final Set<org.bukkit.NamespacedKey> carryMarks = new java.util.concurrent.CopyOnWriteArraySet<>();
+
+    private String markOf(ItemStack it) {
+        if (it == null || it.isEmpty() || !it.hasItemMeta()) return null;
+        var pdc = it.getItemMeta().getPersistentDataContainer();
+        for (org.bukkit.NamespacedKey k : carryMarks) if (pdc.has(k)) return k.asString();
+        return null;
     }
 
     // ------------------------------------------------------------------------------------------
@@ -451,6 +473,7 @@ public final class CropModule implements StsvModule, Listener {
         Bukkit.getPluginManager().callEvent(ev);
         if (ev.isCancelled()) return;
         CropState s = new CropState(nextId++, spec.id(), at.getWorld().getName(), at.getX(), at.getY(), at.getZ(), p.getUniqueId(), 0);
+        s.carry = markOf(hand);
         store.insert(s);
         index(s);
         show(s);
@@ -498,16 +521,20 @@ public final class CropModule implements StsvModule, Listener {
         if (ev.isCancelled()) return;
         ItemStack hand = p.getInventory().getItemInMainHand();
         if (hand.getType() == Material.BONE_MEAL) {
+            // one age, and one meal per 7 ages the plant grew by itself (so meal speeds every crop up alike, by 1/7)
+            if (p.getGameMode() != GameMode.CREATIVE && !CropGrowth.mealAllowed(s.natural, s.meals)) {
+                HudModule.flash(p, Lang.mm("crop.meal-wait", "ages", CropGrowth.agesToNextMeal(s.natural, s.meals)));
+                return;
+            }
             int before = s.age;
-            s.age = CropGrowth.boneMeal(s.age, spec.maxAge(), ThreadLocalRandom.current());
+            s.age = CropGrowth.boneMeal(s.age, spec.maxAge());
+            s.meals++;
             if (p.getGameMode() != GameMode.CREATIVE) hand.subtract(1);
             p.swingMainHand();
             loc.getWorld().spawnParticle(Particle.HAPPY_VILLAGER, loc, 15, 0.3, 0.3, 0.3);
             loc.getWorld().playSound(loc, Sound.ITEM_BONE_MEAL_USE, 1f, 1f);
-            if (s.age != before) {
-                store.save(List.of(s));
-                refresh(s);
-            }
+            store.save(List.of(s));
+            if (s.age != before) refresh(s);
             return;
         }
         status(p, s, spec);
@@ -535,7 +562,7 @@ public final class CropModule implements StsvModule, Listener {
         List<ItemStack> drops = new ArrayList<>();
         for (CropSpec.Drop d : spec.harvest()) {
             int n = d.max() > d.min() ? r.nextInt(d.min(), d.max() + 1) : d.min();
-            if (d.max() > 0) n += CropGrowth.fortune(fortune, r);
+            if (d == spec.harvest().getFirst()) n += CropGrowth.fortune(fortune, n, r);   // the produce only, a share of it
             item(d.item(), n).ifPresent(drops::add);
         }
         Location loc = place(s);
@@ -551,10 +578,14 @@ public final class CropModule implements StsvModule, Listener {
                 if (it != null && !it.isEmpty() && spec.seed().equals(key(it))) {
                     it.subtract(1);
                     seeded = true;
+                    s.carry = null;
                     break;
                 }
             }
-            if (!seeded && p.getGameMode() != GameMode.CREATIVE) takeOne(p, spec.seed());
+            if (!seeded && p.getGameMode() != GameMode.CREATIVE) {
+                ItemStack taken = takeOne(p, spec.seed());
+                s.carry = taken == null ? null : markOf(taken);
+            }
         }
         for (ItemStack it : ev.drops()) if (it != null && !it.isEmpty()) loc.getWorld().dropItemNaturally(loc, it);
         if (p.getGameMode() != GameMode.CREATIVE) p.setExhaustion(p.getExhaustion() + 0.005f);   // as breaking a block
@@ -597,7 +628,11 @@ public final class CropModule implements StsvModule, Listener {
     private void pop(CropState s) {
         CropSpec spec = specs.get(s.crop);
         Location loc = place(s);
-        if (spec != null && loc.getWorld() != null) item(spec.seed(), 1).ifPresent(seed -> loc.getWorld().dropItemNaturally(loc, seed));
+        if (spec != null && loc.getWorld() != null) item(spec.seed(), 1).ifPresent(seed -> {
+            org.bukkit.NamespacedKey mark = s.carry == null ? null : org.bukkit.NamespacedKey.fromString(s.carry);
+            if (mark != null) seed.editMeta(m -> m.getPersistentDataContainer().set(mark, org.bukkit.persistence.PersistentDataType.BYTE, (byte) 1));
+            loc.getWorld().dropItemNaturally(loc, seed);
+        });
         if (loc.getWorld() != null) loc.getWorld().playSound(loc, Sound.BLOCK_CROP_BREAK, 1f, 1f);
         remove(s);
     }
@@ -773,6 +808,7 @@ public final class CropModule implements StsvModule, Listener {
                     if (spec == null || spec.ripe(s.age) || Math.abs(s.x - x) > radius || Math.abs(s.z - z) > radius
                             || s.y < y - below || s.y > y + above || r.nextDouble() >= chance) continue;
                     int before = s.age++;
+                    s.natural++;
                     dirty.add(s.id);
                     if (spec.stageOf(s.age) != spec.stageOf(before)) refresh(s);
                     if (r.nextInt(4) == 0) w.spawnParticle(Particle.HAPPY_VILLAGER, s.x + 0.5, s.y + 0.4, s.z + 0.5, 2, 0.2, 0.1, 0.2);

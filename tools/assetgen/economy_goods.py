@@ -1926,6 +1926,12 @@ def potato_vodka():
     return c
 
 
+# the goods redrawn by hand one by one (goods_art.py) replace the template drawings above
+import goods_art as _GA   # noqa: E402
+
+ICONS.update(_GA.ICONS)
+
+
 # ================================================================================================
 # Names and the preview sheet (docs/previews/goods.png)
 # ================================================================================================

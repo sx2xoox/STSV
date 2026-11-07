@@ -60,9 +60,15 @@ public final class ActivityStore {
         return rows.containsKey(player);
     }
 
-    /** Number of different players who joined today (at least 1). */
+    /** Seconds played today before a player counts as one of the day's players (15 minutes). */
+    public static final long ACTIVE_SECONDS = 900;
+
+    /**
+     * Players who played at least 15 minutes today (at least 1): the N of the shop's price curve. A ten-second login
+     * (an alt account, a quick check) does not widen everyone's sell room.
+     */
     public int players() {
-        return Math.max(1, rows.size());
+        return Math.max(1, (int) rows.values().stream().filter(r -> r[1] >= ACTIVE_SECONDS).count());
     }
 
     public void addSeconds(UUID player, long seconds) {

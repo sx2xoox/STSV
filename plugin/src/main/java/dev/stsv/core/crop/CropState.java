@@ -11,6 +11,10 @@ public final class CropState {
     public final int x, y, z;
     public final UUID planter;
     public int age;
+    /** Ages grown by itself (random ticks, a farmer's aura) and bone meals used, over the plant's whole life. */
+    public int natural, meals;
+    /** A mark (namespaced PDC key) of the seed it was planted from; a young plant broken out gives a seed with it. */
+    public String carry;
 
     public CropState(long id, String crop, String world, int x, int y, int z, UUID planter, int age) {
         this.id = id;

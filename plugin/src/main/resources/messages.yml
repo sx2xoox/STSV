@@ -206,4 +206,5 @@ crop:
   note-dry: " · <yellow>흙이 말라 천천히 자람</yellow> <dark_gray>(4칸 안에 물)"
   note-wet: " · <aqua>젖은 흙</aqua>"
   no-seed: "<yellow>씨앗이 없어 다시 심지 못했습니다."
+  meal-wait: "<yellow>아직 뼛가루가 듣지 않습니다 <gray>(저절로 {ages}단계 더 자라야 함 · 7단계마다 한 번)"
   unknown: "<red>작물 정의를 찾을 수 없습니다 ({crop}). 관리자에게 알려주세요. <gray>(작물은 그대로 둡니다)"

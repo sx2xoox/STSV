@@ -63,6 +63,8 @@ public final class ShopModule extends EcoModule implements DailyListener {
 
     @Override
     protected void start() {
+        // a young custom crop planted from bought seed gives its seed back marked (planting does not wash the mark off)
+        core.crops().carryMark(Items.SHOP_BOUGHT);
         // prices recover through the day too: S shrinks by hourly-recovery an hour, applied every 10 minutes
         every(12_000L, () -> {
             double r = catalog.curve().hourlyRecovery();
@@ -280,11 +282,40 @@ public final class ShopModule extends EcoModule implements DailyListener {
             return false;
         }
         // tagged: buying at a fixed price and selling back at a 품귀 price (or delivering it) is no money machine
-        item.get().editMeta(m -> m.getPersistentDataContainer().set(Items.SHOP_BOUGHT, org.bukkit.persistence.PersistentDataType.BYTE, (byte) 1));
+        Items.markBought(item.get());
         for (ItemStack left : p.getInventory().addItem(item.get()).values()) p.getWorld().dropItem(p.getLocation(), left);
         HudModule.flash(p, Lang.mm("shop.bought", "item", Items.mmName(item.get()), "count", amount, "amount", EconomyModule.format(price)));
         p.playSound(p.getLocation(), Sound.ENTITY_ITEM_PICKUP, 0.6f, 1.1f);
         return true;
+    }
+
+    /**
+     * Crafting with anything bought here marks the result too (coal -> coal block -> coal, bone meal <-> bone block,
+     * wheat <-> hay bale), so the mark cannot be crafted away on the way to a machine or the sell counter.
+     */
+    @org.bukkit.event.EventHandler(priority = org.bukkit.event.EventPriority.MONITOR)
+    public void onPrepareCraft(org.bukkit.event.inventory.PrepareItemCraftEvent e) {
+        ItemStack res = e.getInventory().getResult();
+        if (res == null || res.isEmpty() || Items.shopBought(res)) return;
+        for (ItemStack it : e.getInventory().getMatrix()) {
+            if (Items.shopBought(it)) {
+                e.getInventory().setResult(Items.markBought(res.clone()));
+                return;
+            }
+        }
+    }
+
+    /** The result taken (shift-click crafts several in a row): marked as well, in case another plugin set it after us. */
+    @org.bukkit.event.EventHandler(priority = org.bukkit.event.EventPriority.HIGHEST, ignoreCancelled = true)
+    public void onCraft(org.bukkit.event.inventory.CraftItemEvent e) {
+        ItemStack cur = e.getCurrentItem();
+        if (cur == null || cur.isEmpty() || Items.shopBought(cur)) return;
+        for (ItemStack it : e.getInventory().getMatrix()) {
+            if (Items.shopBought(it)) {
+                e.setCurrentItem(Items.markBought(cur.clone()));
+                return;
+            }
+        }
     }
 
     // ------------------------------------------------------------------------------------------
@@ -903,7 +934,7 @@ public final class ShopModule extends EcoModule implements DailyListener {
                 int have = Items.count(p.getInventory(), it -> Items.plain(it, id));
                 List<Component> lore = new ArrayList<>(Lang.items("shop.price-lore",
                         "price", String.format("%.1f", price(id)), "base", trim(e.base()), "change", change, "marks", marks(id),
-                        "sold", String.format("%.0f", store.sold(id)), "quota", String.format("%.0f", catalog.curve().quota(e.q(), eco.activity().store().players())),
+                        "sold", String.format("%.0f", store.sold(id)), "quota", String.format("%.0f", catalog.curve().quota(e.q(), pricePlayers())),
                         "mine", store.soldBy(p.getUniqueId(), id), "cap", e.cap() == null ? "-" : e.cap()));
                 lore.addAll(have > 0 ? Lang.items("shop.sell-have", "have", have) : Lang.items("shop.sell-have-none"));
                 out.add(Items.create(id, 1).map(it -> withLore(it, lore)).orElse(null));
@@ -944,7 +975,7 @@ public final class ShopModule extends EcoModule implements DailyListener {
     /** Price list for chat (/시세 [품목]). */
     public List<Component> priceLines(String filter) {
         List<Component> out = new ArrayList<>();
-        out.add(Lang.msg("shop.prices-header", "players", eco.activity().store().players()));
+        out.add(Lang.msg("shop.prices-header", "players", pricePlayers(), "min", catalog.curve().minPlayers()));
         for (String id : catalog.sell().keySet()) {
             if (filter != null && !id.contains(filter.toLowerCase(java.util.Locale.ROOT)) && !Items.create(id, 1).map(Items::plainName).orElse(id).contains(filter)) continue;
             out.add(Text.mm(" " + priceLine(id)));

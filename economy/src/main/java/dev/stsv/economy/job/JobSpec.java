@@ -44,7 +44,7 @@ public record JobSpec(int maxLevel, double a, double b, long changeCost, int cha
 
     public record Job(String id, String name, String color, String icon, String machine, List<String> description,
                       Map<String, Range> ranges, Map<String, Bonus> bonuses, Map<String, Map<String, Double>> xp, Finds finds,
-                      double harvestPerLevel, Bonus growth, int growthRadius, int areaHarvest) {
+                      double harvestPerLevel, double harvestPctPerLevel, Bonus growth, int growthRadius, int areaHarvest) {
 
         public double range(String key, int level, int maxLevel) {
             Range r = ranges.get(key);
@@ -170,7 +170,8 @@ public record JobSpec(int maxLevel, double a, double b, long changeCost, int cha
                 String machine = j.getString("machine");
                 jobs.put(id, new Job(id, j.getString("name", id), j.getString("color", "white"), j.getString("icon", "minecraft:paper"),
                         machine, j.getStringList("description"), ranges, bonuses, xp, finds,
-                        j.getDouble("harvest-per-level", 0), growth, j.getInt("growth.radius", 6), j.getInt("area-harvest", 0)));
+                        j.getDouble("harvest-per-level", 0), j.getDouble("harvest-pct-per-level", 0), growth, j.getInt("growth.radius", 6),
+                        j.getInt("area-harvest", 0)));
             }
         }
         if (jobs.isEmpty()) problems.add("jobs: 직업이 없음");

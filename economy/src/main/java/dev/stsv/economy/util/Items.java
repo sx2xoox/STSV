@@ -17,10 +17,20 @@ import java.util.function.Predicate;
 /** Item helpers: ids ("minecraft:iron_ingot" or "economy:ruby"), storage bytes, counting in inventories. */
 public final class Items {
 
-    /** marks goods bought from the admin shop: they cannot be sold back to it or handed in for requests */
+    /**
+     * Marks goods bought from the admin shop: they cannot be sold back to it, handed in for requests or put into a
+     * machine. Crafting with a marked item marks the result, and a young crop planted from one gives its seed back marked.
+     */
     public static final org.bukkit.NamespacedKey SHOP_BOUGHT = new org.bukkit.NamespacedKey("economy", "shop_bought");
 
     private Items() {}
+
+    /** Puts the admin-shop mark on a stack (bought goods, and what is crafted from them). Returns the same stack. */
+    public static ItemStack markBought(ItemStack item) {
+        if (item != null && !item.isEmpty())
+            item.editMeta(m -> m.getPersistentDataContainer().set(SHOP_BOUGHT, org.bukkit.persistence.PersistentDataType.BYTE, (byte) 1));
+        return item;
+    }
 
     public static boolean shopBought(ItemStack item) {
         return item != null && item.hasItemMeta()
@@ -61,6 +71,21 @@ public final class Items {
         var meta = item.getItemMeta();
         if (meta.hasCustomName() || meta.hasEnchants() || meta.hasLore()) return false;
         return !(meta instanceof org.bukkit.inventory.meta.Damageable d) || !d.hasDamage();
+    }
+
+    /** A rare or legend fish with its size (and price factor) from the catch. */
+    public static boolean sized(ItemStack item) {
+        return item != null && !item.isEmpty() && item.hasItemMeta()
+                && item.getItemMeta().getPersistentDataContainer().has(dev.stsv.economy.fishing.FishingModule.SIZE);
+    }
+
+    /**
+     * The same fish without its size: a plain stack of the species (no size, no price factor, no size line), so
+     * fish of one kind stack in a machine's input slot. Anything else comes back as it is.
+     */
+    public static ItemStack stripSize(ItemStack item) {
+        if (!sized(item)) return item;
+        return create(key(item), item.getAmount()).orElse(item);
     }
 
     /** A rare or legend fish's price factor by its size (0.7 - 1.5, set when caught); 1 for anything else. */

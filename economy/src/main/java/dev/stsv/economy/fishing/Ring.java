@@ -14,6 +14,12 @@ import java.util.Random;
 public final class Ring {
 
     public static final int SEG = 48;
+    /** The needle gets this much faster (cells a tick) with every hit. */
+    public static final double HIT_SPEEDUP = 0.22;
+    /** The narrowest green zone (cells), however many hits. */
+    public static final int MIN_ZONE = 3;
+    /** A legend's zone drifts one cell every this many ticks. */
+    public static final int DRIFT_EVERY = 3;
 
     public enum Result { IGNORED, HIT, PERFECT, MISS, TRAP, WON, ESCAPED }
 
@@ -76,10 +82,10 @@ public final class Ring {
     }
 
     private void newRound(boolean first) {
-        int base = Math.max(3, rarity.zone() - hits);
-        zoneW = Math.max(3, (int) Math.round(base * (1 + zoneBonus)));
+        int base = Math.max(MIN_ZONE, rarity.zone() - hits);
+        zoneW = Math.max(MIN_ZONE, (int) Math.round(base * (1 + zoneBonus)));
         perfW = zoneW >= 5 ? 2 : 1;
-        speed = rarity.speed() + 0.22 * hits;
+        speed = rarity.speed() + HIT_SPEEDUP * hits;
         if (reverse() && !first && rnd.nextBoolean()) dir = -dir;
         int ahead = 14 + rnd.nextInt(19);
         int near = (int) Math.floor(p) + dir * ahead;
@@ -103,7 +109,7 @@ public final class Ring {
         }
         p += speed * dir;
         travel += speed;
-        if (drift != 0 && tickCount % 3 == 0) {
+        if (drift != 0 && tickCount % DRIFT_EVERY == 0) {
             zoneStart = mod(zoneStart + drift, SEG);
             List<Integer> moved = new ArrayList<>();
             for (int t : trap) moved.add(mod(t + drift, SEG));

@@ -461,6 +461,24 @@ public final class JobModule extends EcoModule {
         return n;
     }
 
+    /** Bone meal bought from the admin shop does not work on vanilla crops either (it is no longer sold; old stock). */
+    @EventHandler(priority = EventPriority.HIGH, ignoreCancelled = true)
+    public void onFertilize(org.bukkit.event.block.BlockFertilizeEvent e) {
+        Player p = e.getPlayer();
+        if (p == null) return;
+        ItemStack main = p.getInventory().getItemInMainHand(), off = p.getInventory().getItemInOffHand();
+        ItemStack used = main.getType() == Material.BONE_MEAL ? main : off;
+        if (used.getType() == Material.BONE_MEAL && Items.shopBought(used)) {
+            e.setCancelled(true);
+            HudModule.flash(p, Lang.mm("job.bought-meal"));
+        }
+    }
+
+    @EventHandler(priority = EventPriority.HIGH, ignoreCancelled = true)
+    public void onDispenseMeal(org.bukkit.event.block.BlockDispenseEvent e) {
+        if (e.getItem().getType() == Material.BONE_MEAL && Items.shopBought(e.getItem())) e.setCancelled(true);
+    }
+
     @EventHandler(priority = EventPriority.HIGH, ignoreCancelled = true)
     public void onDrops(BlockDropItemEvent e) {
         Player p = e.getPlayer();
@@ -576,12 +594,21 @@ public final class JobModule extends EcoModule {
                     HudModule.flash(p, Lang.mm("job.locked-plant", "color", j == null ? "white" : j.color(), "job", j == null ? job : j.name(), "level", need));
                 }
             }
+            case USE -> {
+                ItemStack hand = p.getInventory().getItemInMainHand();
+                if (hand.getType() == Material.BONE_MEAL && Items.shopBought(hand)) {
+                    e.setCancelled(true);
+                    HudModule.flash(p, Lang.mm("job.bought-meal"));
+                }
+            }
             case HARVEST -> {
                 reward(p, "harvest", e.crop().id(), 1);
-                int bonus = farmerBonus(u);
+                // the farmer's harvest bonus: a share of the produce (+2% a level), so every crop gains alike
+                double pct = "farmer".equals(job(u)) ? spec.jobs().get("farmer").harvestPctPerLevel() * level(u) * boost("farmer") : 0;
                 for (ItemStack it : e.drops()) {
-                    if (bonus > 0 && e.crop().produce().equals(Items.key(it))) {
-                        it.setAmount(it.getAmount() + bonus);
+                    if (pct > 0 && e.crop().produce().equals(Items.key(it))) {
+                        int n = it.getAmount(), whole = (int) Math.floor(pct);
+                        it.setAmount(n + n * whole + MachineSpec.binomial(n, pct - whole, ThreadLocalRandom.current()));
                         break;
                     }
                 }

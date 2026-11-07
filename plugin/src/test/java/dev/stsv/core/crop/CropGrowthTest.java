@@ -74,27 +74,33 @@ class CropGrowthTest {
     }
 
     @Test
-    void fortuneAddsAsOnVanillaCrops() {
+    void fortuneIsProportionalOnTheProduce() {
         Random r = new Random(5);
-        assertEquals(0, CropGrowth.fortune(0, r), "no Fortune, nothing extra");
+        assertEquals(0, CropGrowth.fortune(0, 4, r), "no Fortune, nothing extra");
+        assertEquals(0, CropGrowth.fortune(3, 0, r), "nothing to multiply");
         long sum = 0;
         int runs = 20_000;
         for (int i = 0; i < runs; i++) {
-            int n = CropGrowth.fortune(3, r);
-            assertTrue(n >= 0 && n <= 3);
+            int n = CropGrowth.fortune(3, 4, r);
+            assertTrue(n >= 0 && n <= 4, "at most one more per item");
             sum += n;
         }
-        assertEquals(3 * 4 / 7.0, sum / (double) runs, 0.03, "Fortune III: 1.71 more on average");
+        assertEquals(4 * 0.45, sum / (double) runs, 0.03, "Fortune III: +45% of the produce (1.8 more on 4)");
+        long one = 0;
+        for (int i = 0; i < runs; i++) one += CropGrowth.fortune(3, 1, r);
+        assertEquals(0.45, one / (double) runs, 0.02, "a one-item crop gains the same share");
     }
 
     @Test
-    void boneMealAddsTwoToFive() {
-        Random r = new Random(3);
-        for (int i = 0; i < 200; i++) {
-            int a = CropGrowth.boneMeal(0, 7, r);
-            assertTrue(a >= 2 && a <= 5, "" + a);
-        }
-        assertEquals(7, CropGrowth.boneMeal(6, 7, r), "never past ripe");
+    void boneMealAddsOneOncePerSevenNaturalAges() {
+        assertEquals(1, CropGrowth.boneMeal(0, 7));
+        assertEquals(7, CropGrowth.boneMeal(7, 7), "never past ripe");
+        assertTrue(!CropGrowth.mealAllowed(6, 0), "not before 7 ages of its own");
+        assertTrue(CropGrowth.mealAllowed(7, 0));
+        assertTrue(!CropGrowth.mealAllowed(13, 1), "the second after 14");
+        assertTrue(CropGrowth.mealAllowed(14, 1));
+        assertEquals(3, CropGrowth.agesToNextMeal(4, 0));
+        assertEquals(1, CropGrowth.agesToNextMeal(13, 1));
     }
 
     @Test

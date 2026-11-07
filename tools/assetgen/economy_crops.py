@@ -1414,6 +1414,11 @@ SEEDS = {"tomato_seeds": "tomato", "chili_seeds": "chili", "strawberry_seeds": "
 for _item, _crop in SEEDS.items():
     ICONS[_item] = (lambda c=_crop: packet(c))
 
+# the produce and packets redrawn by hand (crop_art.py) replace the drawings above
+import crop_art as _CA   # noqa: E402
+
+ICONS.update(_CA.ICONS)
+
 
 # ------------------------------------------------------------------------------------------------
 # Preview sheet (docs/previews/crops.png): each crop's harvest, seed and growth stages on farmland
