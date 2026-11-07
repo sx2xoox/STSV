@@ -211,7 +211,7 @@ job:
   no-job: "<red>직업이 없습니다. <white>/직업"
   no-such: "<red>없는 직업입니다."
   same: "<yellow>이미 그 직업입니다."
-  too-soon: "<red>직업은 7일에 한 번만 바꿀 수 있습니다. <gray>(남은 시간 {left})"
+  too-soon: "<red>아직 직업을 바꿀 수 없습니다. <gray>(남은 시간 {left})"
   not-enough: "<red>직업 변경에는 {cost}이 필요합니다."
   chosen: "<green>직업 선택: <{color}><b>{job}</b> <gray>(Lv{level}, 직업마다 레벨이 따로 남습니다)"
   info: "<{color}>{job}<gray> <white>Lv{level}</white> <gray>/ {cap} · 경험치 {xp} / {next} · 숙련 {mastery}"

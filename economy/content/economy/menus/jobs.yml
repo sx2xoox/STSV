@@ -15,7 +15,7 @@ jobs:
       icon: stsv:gui/info
       material: BOOK
       name: "<white>내 직업: {job} <gray>Lv{level}"
-      lore: ["<gray>경험치: <white>{xp} <gray>/ {next}", "<gray>레벨은 직업마다 따로 남습니다 (최고 Lv{cap}).", "<gray>직업 변경: 7일에 한 번, {cost}"]
+      lore: ["<gray>경험치: <white>{xp} <gray>/ {next}", "<gray>레벨은 직업마다 따로 남습니다 (최고 Lv{cap}).", "<gray>직업 변경: 언제든 {cost}"]
     R:
       action: "command:직업 순위"
       icon: economy:gui/trophy
