@@ -409,6 +409,61 @@ def icon_muskmelon_seeds():
     return _crops3_packet("muskmelon")
 
 
+# ------------------------------------------------------------------------------------------------
+# r2_c_seed_2 (round 2)
+# ------------------------------------------------------------------------------------------------
+
+
+_r2c_seed2_EGGPLANT = (
+    ["3.....",
+     "332...",
+     ".3VC..",
+     "..BCD.",
+     "..CDDD",
+     "...DE."],
+    {"B": ("aubergine", 4), "C": ("aubergine", 2), "D": ("aubergine", 1), "E": ("aubergine", 0),
+     "V": ("petal_purple", 2)},
+)
+
+
+def _r2c_seed2_packet(pic, letters, band):
+    """The shared seed packet (same drawing as _crops3_packet) with an explicit window picture and band."""
+    legend = dict(economy_crops.BASE, **letters)
+    P = economy_crops.PAD
+    ic = icons.Icon(16 + 2 * P, 16 + 2 * P)
+    put = lambda x, y, r, i: ic.put(x + P, y + P, r, i)   # noqa: E731
+    x0, x1, y0, y1 = 2, 13, 0, 13
+    for y in range(y0, y1 + 1):
+        for x in range(x0, x1 + 1):
+            if y == y0:
+                put(x, y, "paper", 0 if x % 2 else 2)
+            elif y == y0 + 1:
+                put(x, y, "paper", 1)
+            elif x == x0 or y == y0 + 2:
+                put(x, y, "paper", 2)
+            elif x == x1 or y == y1:
+                put(x, y, "paper", 0)
+            else:
+                put(x, y, "paper", 2 if x < x0 + 3 else 1)
+    for y in range(3, 11):
+        for x in range(4, 12):
+            if y in (3, 10) or x in (4, 11):
+                put(x, y, "paper", 0 if x == 11 or y == 10 else 2)
+    for (dx, dy), ch in economy_crops._cells(pic).items():
+        r, i = legend[ch]
+        put(5 + dx, 4 + dy, r, i)
+    (r1, i1), (r2, i2) = band
+    for x in range(x0 + 1, x1):
+        put(x, 11, r1, i1)
+        put(x, 12, r2, i2)
+    return economy_crops._fit(ic)
+
+
+def icon_eggplant_seeds():
+    pic, letters = _r2c_seed2_EGGPLANT
+    return _r2c_seed2_packet(pic, letters, (("aubergine", 2), ("aubergine", 1)))
+
+
 ICONS = {
     "chili_pepper": icon_chili_pepper,
     "garlic": icon_garlic,
@@ -429,4 +484,5 @@ ICONS = {
     "radish_seeds": icon_radish_seeds,
     "rice_seeds": icon_rice_seeds,
     "zucchini_seeds": icon_zucchini_seeds,
+    "eggplant_seeds": icon_eggplant_seeds,
 }
