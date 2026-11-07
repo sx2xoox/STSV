@@ -107,6 +107,7 @@ shop:
   mark-crash: " <color:#4d9bff>폭락</color>"
   mark-floor: " <dark_gray>(바닥)</dark_gray>"
   prices-header: "<gold>시세</gold> <gray>(기준 {players}명: 오늘 15분 넘게 플레이한 사람, 최소 {min}명)"
+  prices-none: "<gray>'{filter}'에 맞는 품목이 없습니다. 바닐라 물건은 영어 이름(diamond, iron_ingot)이나 분류 이름(광물, 농산물 …)으로 찾아 주세요"
   price-lore: ["", "<gray>지금 개당: <gold>{price} G</gold> <dark_gray>(기준 {base} G)", "<gray>24시간: {change}{marks}",
                "<gray>오늘 서버 판매: <white>{sold}</white> / 적정 {quota}", "<gray>내가 오늘 판 양: <white>{mine}</white> <dark_gray>(한도 {cap})"]
 
@@ -253,7 +254,7 @@ machine:
   book-lore: ["<gray>이 기계로 만들 수 있는 것 전부", "<dark_gray>줄마다 고르려면 그 줄의 상태 칸을 클릭",
               "<dark_gray>희귀·전설 물고기는 그 물고기를 쓰는 기계의 재료 칸에 넣으면 크기가 지워져 같은 종류끼리 쌓임 (매입가 70%: 큰 물고기는 파세요)"]
   info: "<gold>{machine}</gold> <gray>· <white>{tier}"
-  info-lore: ["<gray>설치: <white>{owner}", "<gray>줄 <white>{lanes}</white>개 · 속도 <white>+{speed}%", "<gray>누구나 사용. <{color}>{job}<gray>면 빠르고 경험치·직업 효과", "<dark_gray>재료를 넣은 사람이 그 줄의 운영자"]
+  info-lore: ["<gray>설치: <white>{owner}", "<gray>줄 <white>{lanes}</white>개 · 속도 <white>+{speed}%", "<gray>누구나 사용. <{color}>{job}<gray>면 경험치와 직업 효과(레벨에 따라)", "<dark_gray>재료를 넣은 사람이 그 줄의 운영자"]
   shop-bought: "<red>상점에서 산 물건은 기계에 넣을 수 없습니다 <gray>(그걸로 만든 것, 다 자라기 전에 뽑은 것 포함 · 직접 기르거나 캐거나 잡은 것만)"
   fish-not-used: "<yellow>이 기계에서 쓰지 않는 물고기입니다 <gray>(크기가 지워지지 않게 그대로 둠)"
   upgrade: "<gold>강화 → {tier}"
@@ -277,6 +278,7 @@ machine:
   lane-idle: "<gray>{n}번 줄: 대기 중"
   lane-working: "<gray>{n}번 줄: <green>{item}</green> {bar} <white>{pct}%"
   lane-blocked: "<red>{n}번 줄: 결과 칸이 가득 찼습니다"
+  lane-mixed: "<red>{n}번 줄: 결과 칸에 겹치지 않는 물건(다른 사람이 만든 것 등)이 있습니다. 꺼내 주세요"
   lane-auto: "<gray>레시피: <white>자동</white> <dark_gray>(넣은 재료로)"
   lane-fixed: "<gray>레시피: <white>{item}"
   lane-needs: "<gray>필요한 재료: {in}"
@@ -608,7 +610,7 @@ codex:
     - "<gray>크기 <white>{min} ~ {max}cm <dark_gray>· <gray>낚은 수 <white>{count} <dark_gray>· <gray>최대 <gold>{best}cm"
   lore-registered: "<green>✔ 등록 <dark_gray>({date})"
   lore-missing: "<gray>◇ 미등록"
-  lore-click: "<yellow>클릭: 1개 내고 등록 <gray>(가진 수 {have})"
+  lore-click: "<yellow>클릭: 1개 내고 등록 <gray>(가진 수 {have} · 물고기는 가장 작은 것)"
   lore-get: "<dark_gray>구해 오면 등록할 수 있음"
   tab-lore: "<gray>등록 <white>{have}<gray>/{all}"
   info-tab: "<gray>{tab} <white>{have}<gray>/{all}"

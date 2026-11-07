@@ -109,9 +109,16 @@ public final class Items {
 
     /** The average size factor of the first amount matching items (in the order {@link #remove} takes them). */
     public static double sizeFactor(PlayerInventory inv, Predicate<ItemStack> match, int amount) {
+        return sizeFactor(inv, match, amount, -1);
+    }
+
+    /** The same, taking from storage slot first (a clicked slot; -1 = none) before the others. */
+    public static double sizeFactor(PlayerInventory inv, Predicate<ItemStack> match, int amount, int first) {
         double sum = 0;
         int left = amount;
-        for (ItemStack it : inv.getStorageContents()) {
+        ItemStack[] contents = inv.getStorageContents();
+        for (int i : order(contents.length, first)) {
+            ItemStack it = contents[i];
             if (left <= 0) break;
             if (it == null || !match.test(it)) continue;
             int take = Math.min(left, it.getAmount());
@@ -122,6 +129,15 @@ public final class Items {
         return n <= 0 ? 1 : sum / n;
     }
 
+    /** Slot indices 0..size-1, with first (if it is one of them) moved to the front. */
+    public static int[] order(int size, int first) {
+        int[] out = new int[size];
+        int k = 0;
+        if (first >= 0 && first < size) out[k++] = first;
+        for (int i = 0; i < size; i++) if (i != first) out[k++] = i;
+        return out;
+    }
+
     public static int count(PlayerInventory inv, Predicate<ItemStack> match) {
         int n = 0;
         for (ItemStack it : inv.getStorageContents()) if (it != null && match.test(it)) n += it.getAmount();
@@ -130,9 +146,15 @@ public final class Items {
 
     /** Removes up to amount matching items; returns how many were removed. */
     public static int remove(PlayerInventory inv, Predicate<ItemStack> match, int amount) {
+        return remove(inv, match, amount, -1);
+    }
+
+    /** The same, taking from storage slot first (a clicked slot; -1 = none) before the others. */
+    public static int remove(PlayerInventory inv, Predicate<ItemStack> match, int amount, int first) {
         int left = amount;
         ItemStack[] contents = inv.getStorageContents();
-        for (int i = 0; i < contents.length && left > 0; i++) {
+        for (int i : order(contents.length, first)) {
+            if (left <= 0) break;
             ItemStack it = contents[i];
             if (it == null || !match.test(it)) continue;
             int take = Math.min(left, it.getAmount());

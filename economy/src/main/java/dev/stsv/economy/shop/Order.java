@@ -13,6 +13,14 @@ public record Order(double base, int target, double top, double bottom) {
         return Math.max(min, n / 8 * 8);
     }
 
+    /**
+     * Can an order ask for an item of this base price: its least order (min) is at most half again the order's worth (value).
+     * Dearer things (300G finds) would be a min-sized order no one can fill in an event's few hours.
+     */
+    public static boolean reachable(double base, double value, int min) {
+        return base * min <= value * 1.5;
+    }
+
     /** What the next one pays after done have been delivered. */
     public double unit(int done) {
         return base * (top - (top - bottom) * Math.min(done, target) / Math.max(1, target));

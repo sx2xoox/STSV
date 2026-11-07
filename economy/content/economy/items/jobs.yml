@@ -1,5 +1,5 @@
 # 직업 발견품, 직업 기계 생산품, 직업 기계, 공용 기계(압착기)와 그 생산품. 설명은 꼭 필요한 것만 (만드는 법은 기계의 레시피 목록에, 만든 사람은 제작 표시에).
-# 생산품은 누구나 직업 기계로 만들 수 있음 (그 직업이면 빠르고 경험치·효과). 레시피는 machines.yml.
+# 생산품은 누구나 직업 기계로 만들 수 있음 (그 직업이면 경험치·직업 효과). 레시피는 machines.yml.
 # 아이콘: tools/assetgen/economy_goods.py, 기계 모델: tools/assetgen/economy_machines.py
 
 # ── 발견품 (광부: 광석에서, 어부: 낚시로) ──────────────────────────
@@ -15,7 +15,7 @@ rough_sapphire:
 
 red_seabream:
   material: paper
-  name: "<#4fc3f7>참돔"
+  name: "<#5aa8ff>참돔"
   lore: ["<gray>바다 · 희귀"]
   texture: red_seabream
 
@@ -26,13 +26,13 @@ pearl:
 
 bluefin_tuna:
   material: paper
-  name: "<#4fc3f7>참다랑어"
+  name: "<#ffaa00>참다랑어"
   lore: ["<gray>바다 · 전설"]
   texture: bluefin_tuna
 
 sturgeon:
   material: paper
-  name: "<#4fc3f7>철갑상어"
+  name: "<#ffaa00>철갑상어"
   lore: ["<gray>강 · 전설"]
   texture: sturgeon
 

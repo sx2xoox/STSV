@@ -697,10 +697,13 @@ public final class LandModule extends EcoModule implements DailyListener {
         deny(e.getPlayer(), e.getRightClicked().getLocation(), e);
     }
 
-    /** Planting, watering, harvesting or breaking crops on someone else's land. */
+    /**
+     * Planting, watering, harvesting or breaking crops on someone else's land. Harvests too: most reach here already
+     * stopped (the click or the hit), but a farmer's 3x3 harvest calls the crop's harvest for the neighbours directly.
+     */
     @EventHandler(priority = EventPriority.LOW, ignoreCancelled = true)
     public void onCrop(dev.stsv.core.crop.CropEvent e) {
-        if (e.action() != dev.stsv.core.crop.CropEvent.Action.HARVEST) deny(e.player(), e.location(), e);
+        deny(e.player(), e.location(), e);
     }
 
     @EventHandler(priority = EventPriority.LOW, ignoreCancelled = true)

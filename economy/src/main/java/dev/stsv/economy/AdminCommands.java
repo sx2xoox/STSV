@@ -230,10 +230,16 @@ final class AdminCommands {
                 case "취소" -> s.sendMessage(Text.msg(fishing.unforce(target.getUniqueId()) ? "<green>취소" : "<gray>정해 둔 입질 없음"));
                 default -> {
                     var f = fishing.forced(target.getUniqueId());
+                    String what = "";
+                    if (f != null) {
+                        // the species or rarity may be gone from fish.yml since (a reload): show its id, not an error
+                        var sp = f.species() == null ? null : fishing.spec().species().get(f.species());
+                        var ra = f.rarity() == null ? null : fishing.spec().rarities().get(f.rarity());
+                        what = f.species() != null ? (sp == null ? f.species() + " (없음)" : sp.name())
+                                : "pearl".equals(f.rarity()) ? "진주" : ra == null ? f.rarity() + " (없음)" : ra.name();
+                    }
                     s.sendMessage(Text.msg(f == null ? "<gray>" + target.getName() + ": 정해 둔 입질 없음"
-                            : "<white>" + target.getName() + ": 다음 " + f.left() + "번 "
-                            + (f.species() != null ? fishing.spec().species().get(f.species()).name()
-                            : f.rarity().equals("pearl") ? "진주" : fishing.spec().rarities().get(f.rarity()).name())));
+                            : "<white>" + target.getName() + ": 다음 " + f.left() + "번 " + what));
                 }
             }
         }, (s, args) -> {

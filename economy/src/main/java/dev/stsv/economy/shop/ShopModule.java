@@ -12,6 +12,7 @@ import dev.stsv.economy.EcoModule;
 import dev.stsv.economy.EcoPlugin;
 import dev.stsv.economy.event.ActiveEvent;
 import dev.stsv.economy.event.EventSpec;
+import dev.stsv.economy.fishing.FishSpec;
 import dev.stsv.economy.util.Items;
 import net.kyori.adventure.text.Component;
 import org.bukkit.Bukkit;
@@ -77,7 +78,9 @@ public final class ShopModule extends EcoModule implements DailyListener {
         eco.events().onStart("shortage", this::startShortage);
         eco.events().onStart("crash", this::startCrash);
         eco.events().onStart("merchant", e -> {
-            ShopCatalog.LimitedEntry rare = catalog.merchant().rareFor(String.valueOf(e.id()));
+            // the hook sees a draft (id 0, the stored id comes later): the pick is kept in the event, so the news and the stall agree
+            e.params().put(RARE, String.valueOf(java.util.concurrent.ThreadLocalRandom.current().nextInt(Integer.MAX_VALUE)));
+            ShopCatalog.LimitedEntry rare = catalog.merchant().rareFor(rareKey(e));
             e.params().put("detail", rare == null ? Lang.raw("shop.merchant-detail")
                     : Lang.raw("shop.merchant-detail-rare", "item", Items.mmName(rare.id())));
         });
@@ -89,6 +92,15 @@ public final class ShopModule extends EcoModule implements DailyListener {
     @Override
     public void reload() {
         load();
+    }
+
+    /** The merchant event's param that picks its rare entry. */
+    private static final String RARE = "rare";
+
+    /** What picks a merchant event's rare entry: its stored pick, or (events started before there was one) its id. */
+    static String rareKey(ActiveEvent e) {
+        String pick = e.param(RARE);
+        return pick != null ? pick : String.valueOf(e.id());
     }
 
     @Override
@@ -187,6 +199,11 @@ public final class ShopModule extends EcoModule implements DailyListener {
      * a reason (message key) why nothing was sold.
      */
     public Object sell(Player p, ItemStack sample, int count) {
+        return sell(p, sample, count, -1);
+    }
+
+    /** The same, taking the clicked storage slot first (-1: none), so a clicked small fish is sold and not the trophy before it. */
+    public Object sell(Player p, ItemStack sample, int count, int first) {
         String id = Items.key(sample);
         ShopCatalog.SellEntry e = catalog.sell().get(id);
         if (e == null || !Items.plain(sample, id)) return "shop.not-buying";
@@ -212,12 +229,12 @@ public final class ShopModule extends EcoModule implements DailyListener {
             if (left - high <= 0) Bukkit.broadcast(Lang.msg("shop.premium-sold-out", "item", itemName(id), "player", p.getName()));
         }
         // rare and legend fish: by their size (0.7 - 1.5x)
-        total *= Items.sizeFactor(p.getInventory(), same, n);
+        total *= Items.sizeFactor(p.getInventory(), same, n, first);
         String rk = p.getUniqueId() + "|" + id;
         total += remainder.getOrDefault(rk, 0.0);
         long paid = (long) Math.floor(total);
         remainder.put(rk, total - paid);
-        int removed = Items.remove(p.getInventory(), same, n);
+        int removed = Items.remove(p.getInventory(), same, n, first);
         if (removed != n) eco.getLogger().warning("판매 수량 불일치: " + p.getName() + " " + id + " " + removed + "/" + n);
         store.record(p.getUniqueId(), id, removed);
         if (paid > 0) core.economy().move(null, p.getUniqueId(), paid, EconomyStore.Kind.FAUCET, "shop_sell", id + " x" + removed);
@@ -271,6 +288,9 @@ public final class ShopModule extends EcoModule implements DailyListener {
     private boolean buy(Player p, String id, int amount, long price, String reason) {
         Optional<ItemStack> item = Items.create(id, amount);
         if (item.isEmpty()) return false;
+        // tagged: buying at a fixed price and selling back at a 품귀 price (or delivering it) is no money machine.
+        // Marked before the room is counted: it stacks only with marked ones
+        Items.markBought(item.get());
         if (Items.room(p.getInventory(), item.get()) < amount) {
             HudModule.flash(p, Lang.mm("shop.no-room"));
             return false;
@@ -279,8 +299,6 @@ public final class ShopModule extends EcoModule implements DailyListener {
             HudModule.flash(p, Lang.mm("shop.not-enough", "price", EconomyModule.format(price)));
             return false;
         }
-        // tagged: buying at a fixed price and selling back at a 품귀 price (or delivering it) is no money machine
-        Items.markBought(item.get());
         for (ItemStack left : p.getInventory().addItem(item.get()).values()) p.getWorld().dropItem(p.getLocation(), left);
         HudModule.flash(p, Lang.mm("shop.bought", "item", Items.mmName(item.get()), "count", amount, "amount", EconomyModule.format(price)));
         p.playSound(p.getLocation(), Sound.ENTITY_ITEM_PICKUP, 0.6f, 1.1f);
@@ -391,10 +409,27 @@ public final class ShopModule extends EcoModule implements DailyListener {
     // 긴급 납품: a merchant orders a lot of one thing; the earlier you deliver, the more each one pays
     // ------------------------------------------------------------------------------------------
 
+    /** Rare and legend fish: a lucky catch each (and they do not stack), never asked for by the dozen. */
+    private boolean luckyFish(String id) {
+        var fishing = eco.fishing();
+        if (fishing == null || fishing.spec() == null) return false;
+        for (var sp : fishing.spec().species().values()) {
+            if (!ShopCatalog.norm(sp.item()).equals(id)) continue;
+            FishSpec.Rarity r = fishing.spec().rarities().get(sp.rarity());
+            if (r != null && r.index() >= 2) return true;
+        }
+        return false;
+    }
+
     private void startOrder(ActiveEvent e) {
-        List<ShopCatalog.SellEntry> pool = gathered();
+        double value = e.number("target-value", 3000);
+        int min = (int) e.number("min", 16);
+        // only what a few hours of the job can bring in: no lucky fish, and no item whose least order is far over the order's worth
+        List<ShopCatalog.SellEntry> pool = new ArrayList<>();
+        for (ShopCatalog.SellEntry x : gathered()) if (Order.reachable(x.base(), value, min) && !luckyFish(x.id())) pool.add(x);
+        if (pool.isEmpty()) pool = gathered();
         ShopCatalog.SellEntry pick = pool.get(ThreadLocalRandom.current().nextInt(pool.size()));
-        int target = Order.target(pick.base(), e.number("target-value", 3000), (int) e.number("min", 16), (int) e.number("max", 512));
+        int target = Order.target(pick.base(), value, min, (int) e.number("max", 512));
         e.params().put("item", pick.id());
         e.params().put("base", String.valueOf(pick.base()));
         e.params().put("target", String.valueOf(target));
@@ -665,7 +700,7 @@ public final class ShopModule extends EcoModule implements DailyListener {
         int count = click.isShiftClick() ? Integer.MAX_VALUE : click.isRightClick() ? 1 : it.getAmount();
         // a copy: selling empties the clicked slot, and the message would then name the empty slot (공기)
         ItemStack sample = it.clone();
-        sellFeedback(p, sample, sell(p, sample.clone(), count));
+        sellFeedback(p, sample, sell(p, sample.clone(), count, slot));
         v.refresh();
     }
 
@@ -719,7 +754,7 @@ public final class ShopModule extends EcoModule implements DailyListener {
                             "min", EconomyModule.format(min), "max", EconomyModule.format(max))));
                 } else if (o instanceof ActiveEvent e) {
                     ShopCatalog.Merchant m = catalog.merchant();
-                    List<ShopCatalog.LimitedEntry> shown = m.shown(String.valueOf(e.id()));
+                    List<ShopCatalog.LimitedEntry> shown = m.shown(rareKey(e));
                     int left = shown.stream().mapToInt(l -> Math.max(0, left(e, l))).sum();
                     out.add(tile(m.icon(), m.name(), Lang.items("shop.category-merchant", "count", shown.size(), "left", left)));
                 } else {
@@ -816,7 +851,7 @@ public final class ShopModule extends EcoModule implements DailyListener {
         @Override
         public List<ItemStack> list(MenuView v) {
             List<ItemStack> out = new ArrayList<>();
-            for (ShopCatalog.LimitedEntry l : catalog.merchant().shown(String.valueOf(event.id()))) {
+            for (ShopCatalog.LimitedEntry l : catalog.merchant().shown(rareKey(event))) {
                 out.add(Items.create(l.id(), l.amount()).map(it -> withLore(it,
                         Lang.items("shop.merchant-lore", "price", EconomyModule.format(l.price()), "left", Math.max(0, left(event, l)), "stock", l.stock())))
                         .orElse(null));
@@ -826,7 +861,7 @@ public final class ShopModule extends EcoModule implements DailyListener {
 
         @Override
         public void onListClick(MenuView v, int index, ClickType click) {
-            List<ShopCatalog.LimitedEntry> shown = catalog.merchant().shown(String.valueOf(event.id()));
+            List<ShopCatalog.LimitedEntry> shown = catalog.merchant().shown(rareKey(event));
             if (index >= shown.size()) return;
             if (!event.runningAt(now())) {
                 HudModule.flash(v.player(), Lang.mm("shop.merchant-gone"));
@@ -982,13 +1017,22 @@ public final class ShopModule extends EcoModule implements DailyListener {
     // ------------------------------------------------------------------------------------------
 
     /** Price list for chat (/시세 [품목]). */
+    /** /시세 completions: the 판매 categories and the ids (vanilla ones without minecraft:). */
+    public List<String> priceWords(String prefix) {
+        List<String> out = new ArrayList<>();
+        for (ShopCatalog.Category c : catalog.sellCategories()) out.add(c.name());
+        for (String id : catalog.sell().keySet()) out.add(id.startsWith("minecraft:") ? id.substring("minecraft:".length()) : id);
+        out.removeIf(w -> !w.startsWith(prefix));
+        return out;
+    }
+
     public List<Component> priceLines(String filter) {
         List<Component> out = new ArrayList<>();
         out.add(Lang.msg("shop.prices-header", "players", pricePlayers(), "min", catalog.curve().minPlayers()));
-        for (String id : catalog.sell().keySet()) {
-            if (filter != null && !id.contains(filter.toLowerCase(java.util.Locale.ROOT)) && !Items.create(id, 1).map(Items::plainName).orElse(id).contains(filter)) continue;
-            out.add(Text.mm(" " + priceLine(id)));
-        }
+        List<String> ids = filter == null ? new ArrayList<>(catalog.sell().keySet())
+                : catalog.search(filter, id -> Items.create(id, 1).map(Items::plainName).orElse(id));
+        for (String id : ids) out.add(Text.mm(" " + priceLine(id)));
+        if (ids.isEmpty()) out.add(Lang.msg("shop.prices-none", "filter", net.kyori.adventure.text.minimessage.MiniMessage.miniMessage().escapeTags(filter)));
         return out;
     }
 

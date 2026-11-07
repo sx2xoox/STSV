@@ -315,7 +315,7 @@ public final class FishingModule extends EcoModule implements WeeklyListener {
         }
         for (ItemStack left : p.getInventory().addItem(it).values()) p.getWorld().dropItemNaturally(p.getLocation(), left);
         // what vanilla would have given: experience, rod wear, the statistic
-        p.giveExp(1 + rnd.nextInt(6));
+        p.giveExp(1 + rnd.nextInt(6), true);   // applyMending: like the orb a vanilla catch drops, Mending gear takes it first
         ItemStack rod = p.getInventory().getItem(g.hand);
         if (rod.getType() == Material.FISHING_ROD) p.getInventory().setItem(g.hand, rod.damage(1, p));
         p.incrementStatistic(Statistic.FISH_CAUGHT);

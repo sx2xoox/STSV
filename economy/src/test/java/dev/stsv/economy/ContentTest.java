@@ -497,4 +497,28 @@ class ContentTest {
         if (agedMin < 600) problems.add("still: an aged drink in " + agedMin + " s");
         assertTrue(problems.isEmpty(), String.join("\n", problems));
     }
+
+    /** A fish item's name has its rarity's colour (fish.yml rarities), the one the catch message uses, wherever the item is defined. */
+    @Test
+    void fishNamesWearTheirRarityColour() throws Exception {
+        YamlConfiguration fish = yaml("fish.yml");
+        Map<String, String> names = new java.util.HashMap<>();
+        try (Stream<Path> s = Files.list(PACK.resolve("items"))) {
+            for (Path f : s.toList()) {
+                YamlConfiguration y = YamlConfiguration.loadConfiguration(f.toFile());
+                for (String k : y.getKeys(false)) names.put("economy:" + k, y.getString(k + ".name", ""));
+            }
+        }
+        List<String> problems = new ArrayList<>();
+        ConfigurationSection species = fish.getConfigurationSection("species");
+        for (String id : species.getKeys(false)) {
+            String item = species.getString(id + ".item", "economy:" + id);
+            if (!item.startsWith("economy:")) continue;
+            String colour = fish.getString("rarities." + species.getString(id + ".rarity") + ".color", "?");
+            String name = names.getOrDefault(item, "");
+            if (!name.toLowerCase(java.util.Locale.ROOT).startsWith("<" + colour.toLowerCase(java.util.Locale.ROOT) + ">"))
+                problems.add(item + " " + name + " (want " + colour + ")");
+        }
+        assertTrue(problems.isEmpty(), String.join("\n", problems));
+    }
 }

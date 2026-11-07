@@ -158,6 +158,11 @@ class StoresTest {
         third.init();
         assertEquals(50, third.sold("minecraft:iron_ingot"), 1e-9);
         assertEquals(9.0, third.priceAgo("minecraft:iron_ingot", now, 86_400_000L));
+        // in memory too, snapshots older than the table keeps (3 days) go
+        third.snapshot("minecraft:coal", now - 5 * 86_400_000L, 3.0);
+        third.snapshot("minecraft:coal", now, 4.0);
+        assertNull(third.priceAgo("minecraft:coal", now, 86_400_000L), "the 5-day-old snapshot was dropped");
+        assertEquals(4.0, third.priceAgo("minecraft:coal", now, 0));
         db.close();
     }
 

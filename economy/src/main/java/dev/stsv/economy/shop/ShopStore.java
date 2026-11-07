@@ -42,7 +42,7 @@ public final class ShopStore {
             for (Object[] r : Db.query(c, "SELECT player, item, amount FROM eco_shop_player", rs -> new Object[]{rs.getString(1), rs.getString(2), rs.getInt(3)})) {
                 playerDay.put(r[0] + "|" + r[1], (Integer) r[2]);
             }
-            long since = System.currentTimeMillis() - 3 * 86_400_000L;
+            long since = System.currentTimeMillis() - KEEP;
             for (Object[] r : Db.query(c, "SELECT item, at, price FROM eco_price WHERE at >= ? ORDER BY at", rs -> new Object[]{rs.getString(1), rs.getLong(2), rs.getDouble(3)}, since)) {
                 history.computeIfAbsent((String) r[0], k -> new ArrayList<>()).add(new Snapshot((Long) r[1], (Double) r[2]));
             }
@@ -88,13 +88,19 @@ public final class ShopStore {
             Db.update(c, "DELETE FROM eco_shop_sold");
             Db.update(c, "DELETE FROM eco_shop_player");
             for (Map.Entry<String, Double> e : copy.entrySet()) Db.update(c, "INSERT INTO eco_shop_sold (item, sold) VALUES (?, ?)", e.getKey(), e.getValue());
-            Db.update(c, "DELETE FROM eco_price WHERE at < ?", System.currentTimeMillis() - 3 * 86_400_000L);
+            Db.update(c, "DELETE FROM eco_price WHERE at < ?", System.currentTimeMillis() - KEEP);
             return null;
         });
     }
 
+    /** How long price snapshots are kept, in the table (the daily decay) and in memory alike. */
+    static final long KEEP = 3 * 86_400_000L;
+
     public void snapshot(String item, long at, double price) {
-        history.computeIfAbsent(item, k -> new ArrayList<>()).add(new Snapshot(at, price));
+        List<Snapshot> h = history.computeIfAbsent(item, k -> new ArrayList<>());
+        h.add(new Snapshot(at, price));
+        // a server that runs for weeks without a restart does not pile up snapshots nobody asks about any more
+        h.removeIf(x -> x.at() < at - KEEP);
         db.execute(db.upsert("eco_price", List.of("item", "at"), List.of("price")), item, at, price);
     }
 

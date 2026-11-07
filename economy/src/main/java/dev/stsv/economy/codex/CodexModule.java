@@ -153,8 +153,8 @@ public final class CodexModule extends EcoModule {
     // ------------------------------------------------------------------------------------------
 
     /**
-     * Gives one of this item from the player's inventory (the given slot if it is that item) and
-     * registers it. Returns the message key of why not, or null.
+     * Gives one of this item from the player's inventory (the given slot if it is that item, else the smallest of a sized
+     * fish) and registers it. Returns the message key of why not, or null.
      */
     String register(Player p, String item, int slot) {
         ShopCatalog.Category c = tabOf(item);
@@ -166,11 +166,9 @@ public final class CodexModule extends EcoModule {
             if (at != null && item.equals(Items.key(at))) taken = at;
         }
         if (taken == null) {
+            // the cheapest of them: a sized fish only when there is no smaller one (a trophy is never given before a small one)
             for (ItemStack it : p.getInventory().getStorageContents()) {
-                if (it != null && !it.isEmpty() && item.equals(Items.key(it))) {
-                    taken = it;
-                    break;
-                }
+                if (it != null && !it.isEmpty() && item.equals(Items.key(it)) && (taken == null || Items.sizeFactor(it) < Items.sizeFactor(taken))) taken = it;
             }
         }
         if (taken == null) return "codex.missing";

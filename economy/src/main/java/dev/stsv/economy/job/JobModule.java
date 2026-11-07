@@ -22,6 +22,7 @@ import org.bukkit.Tag;
 import org.bukkit.block.Block;
 import org.bukkit.block.BlockState;
 import org.bukkit.block.data.Ageable;
+import org.bukkit.block.data.Bisected;
 import org.bukkit.enchantments.Enchantment;
 import org.bukkit.entity.Item;
 import org.bukkit.entity.Player;
@@ -35,6 +36,7 @@ import org.bukkit.event.inventory.BrewEvent;
 import org.bukkit.event.inventory.ClickType;
 import org.bukkit.event.inventory.CraftItemEvent;
 import org.bukkit.event.inventory.FurnaceExtractEvent;
+import org.bukkit.event.inventory.InventoryAction;
 import org.bukkit.event.inventory.InventoryOpenEvent;
 import org.bukkit.event.inventory.InventoryType;
 import org.bukkit.event.inventory.SmithItemEvent;
@@ -231,6 +233,12 @@ public final class JobModule extends EcoModule {
     // Choosing a job
     // ------------------------------------------------------------------------------------------
 
+    /** How long until this player may change jobs again (0 or less: now). */
+    public long changeWait(UUID u) {
+        JobStore.Row r = store.get(u);
+        return r == null ? 0 : r.changed + spec.changeDays() * 86_400_000L - now();
+    }
+
     /** Returns null on success, else the message key of the refusal. */
     public String choose(Player p, String jobId) {
         JobSpec.Job j = spec.jobs().get(jobId);
@@ -320,9 +328,8 @@ public final class JobModule extends EcoModule {
             armed = null;
             String refused = choose(p, id);
             if (refused != null) {
-                JobStore.Row r = store.get(p.getUniqueId());
-                long wait = r == null ? 0 : r.changed + spec.changeDays() * 86_400_000L - now();
-                HudModule.flash(p, Lang.mm(refused, "cost", EconomyModule.format(spec.changeCost()), "left", dev.stsv.economy.event.EventModule.hoursText(wait)));
+                HudModule.flash(p, Lang.mm(refused, "cost", EconomyModule.format(spec.changeCost()), "left",
+                        dev.stsv.economy.event.EventModule.hoursText(changeWait(p.getUniqueId()))));
             }
             v.refresh();
         }
@@ -528,7 +535,10 @@ public final class JobModule extends EcoModule {
             try {
                 for (int dx = -1; dx <= 1; dx++) for (int dz = -1; dz <= 1; dz++) {
                     if (dx == 0 && dz == 0) continue;
-                    core.crops().harvestAt(p, center.getRelative(dx, 0, dz));
+                    Block nb = center.getRelative(dx, 0, dz);
+                    // someone else's land stays theirs: the same check as the player's own harvest there (silent here)
+                    if (eco.land() != null && !eco.land().allowed(p, nb.getLocation())) continue;
+                    core.crops().harvestAt(p, nb);
                 }
             } finally {
                 spreading.remove(u);
@@ -536,7 +546,10 @@ public final class JobModule extends EcoModule {
         });
     }
 
-    /** 성장 가속 (농부 Lv10): crops (vanilla and custom) around online farmers grow a step now and then. */
+    /**
+     * 성장 가속 (농부 Lv10): crops (vanilla and custom) around online farmers grow a step now and then. Two-block crops
+     * (the pitcher plant) are left out: raising one half's age by hand does not grow the other half and breaks the plant.
+     */
     private void growCrops() {
         ThreadLocalRandom r = ThreadLocalRandom.current();
         JobSpec.Job farmer = spec.jobs().get("farmer");
@@ -549,7 +562,8 @@ public final class JobModule extends EcoModule {
             Block c = p.getLocation().getBlock();
             for (int dx = -rad; dx <= rad; dx++) for (int dz = -rad; dz <= rad; dz++) for (int dy = -2; dy <= 1; dy++) {
                 Block b = c.getRelative(dx, dy, dz);
-                if (!(b.getBlockData() instanceof Ageable a) || !Tag.CROPS.isTagged(b.getType()) || a.getAge() >= a.getMaximumAge()) continue;
+                if (!(b.getBlockData() instanceof Ageable a) || a instanceof Bisected || b.getType() == Material.PITCHER_CROP
+                        || !Tag.CROPS.isTagged(b.getType()) || a.getAge() >= a.getMaximumAge()) continue;
                 if (r.nextDouble() >= chance) continue;
                 a.setAge(a.getAge() + 1);
                 b.setBlockData(a, false);
@@ -628,24 +642,46 @@ public final class JobModule extends EcoModule {
                 || m == Material.FISHING_ROD || m == Material.SHIELD || m == Material.BOW || m == Material.CROSSBOW;
     }
 
+    /**
+     * How many times a click on a crafting or smithing result really makes it. The server fires the event for every click
+     * on the result slot, also when nothing is made (another item on the cursor: NOTHING; a full inventory on a shift-click),
+     * so only the actions that take the result count. A shift-click makes as many as both the ingredients (batches) and the
+     * free room (in results of perCraft each) allow; a drop only works with an empty cursor.
+     */
+    static int crafted(InventoryAction action, boolean cursorEmpty, int batches, int room, int perCraft) {
+        return switch (action) {
+            case PICKUP_ALL, PICKUP_HALF, PICKUP_SOME, PICKUP_ONE, HOTBAR_SWAP -> 1;
+            case DROP_ONE_SLOT, DROP_ALL_SLOT -> cursorEmpty ? 1 : 0;
+            case MOVE_TO_OTHER_INVENTORY -> Math.max(0, Math.min(batches, room / Math.max(1, perCraft)));
+            default -> 0;
+        };
+    }
+
+    private static boolean cursorEmpty(org.bukkit.event.inventory.InventoryClickEvent e) {
+        return e.getCursor() == null || e.getCursor().isEmpty();
+    }
+
     @EventHandler(priority = EventPriority.MONITOR, ignoreCancelled = true)
     public void onCraft(CraftItemEvent e) {
         if (!(e.getWhoClicked() instanceof Player p)) return;
         ItemStack result = e.getRecipe().getResult();
-        String key = Items.key(e.getInventory().getResult() == null ? result : e.getInventory().getResult());
-        int times = 1;
-        if (e.isShiftClick()) {
-            times = Integer.MAX_VALUE;
-            for (ItemStack it : e.getInventory().getMatrix()) if (it != null && !it.isEmpty()) times = Math.min(times, it.getAmount());
-            if (times == Integer.MAX_VALUE) times = 1;
-        }
+        ItemStack made = e.getInventory().getResult() == null || e.getInventory().getResult().isEmpty() ? result : e.getInventory().getResult();
+        String key = Items.key(made);
+        int batches = Integer.MAX_VALUE;
+        for (ItemStack it : e.getInventory().getMatrix()) if (it != null && !it.isEmpty()) batches = Math.min(batches, it.getAmount());
+        if (batches == Integer.MAX_VALUE) batches = 1;
+        int times = crafted(e.getAction(), cursorEmpty(e), batches,
+                e.getAction() == InventoryAction.MOVE_TO_OTHER_INVENTORY ? Items.room(p.getInventory(), made) : 0, made.getAmount());
+        if (times <= 0) return;
         reward(p, "craft", key, times);
-        // 대장장이: sometimes one ingredient comes back
+        // 대장장이: sometimes one ingredient comes back (a roll for each piece really made)
         if (gear(result.getType())) {
             double chance = effect(p.getUniqueId(), "blacksmith", "save");
             List<ItemStack> used = new ArrayList<>();
             for (ItemStack it : e.getInventory().getMatrix()) if (it != null && !it.isEmpty()) used.add(it.asOne());
-            if (!used.isEmpty() && ThreadLocalRandom.current().nextDouble() < chance) {
+            if (used.isEmpty()) return;
+            for (int i = 0; i < times; i++) {
+                if (ThreadLocalRandom.current().nextDouble() >= chance) continue;
                 ItemStack back = used.get(ThreadLocalRandom.current().nextInt(used.size()));
                 Bukkit.getScheduler().runTask(eco, () -> {
                     for (ItemStack left : p.getInventory().addItem(back).values()) p.getWorld().dropItem(p.getLocation(), left);
@@ -657,7 +693,11 @@ public final class JobModule extends EcoModule {
 
     @EventHandler(priority = EventPriority.MONITOR, ignoreCancelled = true)
     public void onSmith(SmithItemEvent e) {
-        if (e.getWhoClicked() instanceof Player p && e.getInventory().getResult() != null) reward(p, "smith", Items.key(e.getInventory().getResult()), 1);
+        ItemStack made = e.getInventory().getResult();
+        if (!(e.getWhoClicked() instanceof Player p) || made == null || made.isEmpty()) return;
+        int times = crafted(e.getAction(), cursorEmpty(e), 1,
+                e.getAction() == InventoryAction.MOVE_TO_OTHER_INVENTORY ? Items.room(p.getInventory(), made) : 0, made.getAmount());
+        if (times > 0) reward(p, "smith", Items.key(made), 1);
     }
 
     @EventHandler

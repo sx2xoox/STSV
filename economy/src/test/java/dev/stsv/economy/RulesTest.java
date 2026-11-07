@@ -123,6 +123,9 @@ class RulesTest {
         assertEquals(512, Order.target(2, 3000, 16, 512), "cheap things: at most 512");
         assertEquals(48, Order.target(60, 3000, 16, 512), "diamonds: 50 -> 48");
         assertEquals(16, Order.target(500, 3000, 16, 512), "at least 16");
+        assertTrue(Order.reachable(150, 3000, 16), "netherite scrap: 16 x 150G = 2,400G");
+        assertTrue(Order.reachable(250, 3000, 16), "4,000G: within half again 3,000G");
+        assertFalse(Order.reachable(520, 3000, 16), "a 520G find: 16 of them is 8,320G, not an order");
         Order o = new Order(10, 100, 2, 1);
         assertEquals(20, o.unit(0), 1e-9, "the first one: twice the base price");
         assertEquals(15, o.unit(50), 1e-9);
@@ -714,6 +717,8 @@ class RulesTest {
         assertEquals("coldriver", FishSpec.habitat("minecraft:frozen_river", false));
         assertEquals("coldriver", FishSpec.habitat("minecraft:snowy_taiga", false));
         assertEquals("river", FishSpec.habitat("minecraft:plains", false));
+        assertEquals("coldriver", FishSpec.habitat("minecraft:grove", false));
+        assertEquals("river", FishSpec.habitat("minecraft:cherry_grove", false), "the cherry grove is temperate");
         assertEquals("swamp", FishSpec.habitat("minecraft:swamp", false));
         assertEquals("mangrove", FishSpec.habitat("minecraft:mangrove_swamp", false));
         assertEquals("jungle", FishSpec.habitat("minecraft:sparse_jungle", false));
@@ -949,6 +954,33 @@ class RulesTest {
         var twoWords = f.species().values().stream().filter(x -> x.name().contains(" ")).findFirst().orElseThrow();
         assertEquals(twoWords.id(), AdminCommands.speciesOf(f, twoWords.name().replace(" ", "_")).id(), "tab completion writes spaces as _");
         assertNull(AdminCommands.speciesOf(f, "없는물고기"));
+    }
+
+    /** /시세: by id (vanilla in English), by a custom item's own name, or by its 판매 category's name. */
+    @Test
+    void priceSearchFindsIdsNamesAndCategories() throws Exception {
+        org.bukkit.configuration.file.YamlConfiguration y = new org.bukkit.configuration.file.YamlConfiguration();
+        y.loadFromString("""
+                sell:
+                  minerals:
+                    name: "광물"
+                    items:
+                      diamond: { base: 60, q: 8 }
+                      iron_ingot: { base: 10, q: 32 }
+                  gems:
+                    name: "보석·금속"
+                    items:
+                      economy:ruby: { base: 40, q: 16 }
+                """);
+        java.util.List<String> problems = new java.util.ArrayList<>();
+        dev.stsv.economy.shop.ShopCatalog c = dev.stsv.economy.shop.ShopCatalog.parse(y, problems);
+        assertTrue(problems.isEmpty(), problems.toString());
+        java.util.function.Function<String, String> names = id -> id.equals("economy:ruby") ? "루비" : "item." + id.replace(':', '.');
+        assertEquals(java.util.List.of("minecraft:diamond"), c.search("diamond", names));
+        assertEquals(java.util.List.of("minecraft:iron_ingot"), c.search("Iron Ingot", names));
+        assertEquals(java.util.List.of("economy:ruby"), c.search("루비", names));
+        assertEquals(java.util.List.of("minecraft:diamond", "minecraft:iron_ingot"), c.search("광물", names));
+        assertTrue(c.search("다이아몬드", names).isEmpty(), "no Korean names for vanilla items on the server: the search says so");
     }
 
     /** 상인 행렬: each event brings one of the rare entries (the same one for everyone), with its own stock counter. */

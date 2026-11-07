@@ -83,6 +83,22 @@ public record ShopCatalog(
         }
     }
 
+    /**
+     * The sell ids a /시세 search finds: by id ("diamond", "iron ingot", "economy:ruby"), by the item's own name (nameOf: custom
+     * items read "루비"), or by its 판매 category's name ("광물"). The server has no Korean names for vanilla items (each
+     * client translates them), so a vanilla item is found by its id or its category.
+     */
+    public List<String> search(String filter, java.util.function.Function<String, String> nameOf) {
+        String f = filter.trim().toLowerCase(Locale.ROOT);
+        java.util.Set<String> inCategory = new java.util.HashSet<>();
+        for (Category c : sellCategories) if (c.name().toLowerCase(Locale.ROOT).contains(f)) inCategory.addAll(c.items());
+        List<String> out = new ArrayList<>();
+        for (String id : sell.keySet()) {
+            if (id.contains(f.replace(' ', '_')) || inCategory.contains(id) || nameOf.apply(id).toLowerCase(Locale.ROOT).contains(f)) out.add(id);
+        }
+        return out;
+    }
+
     /** Every good of every 구매 category, in order. */
     public List<Good> goods() {
         List<Good> out = new ArrayList<>();

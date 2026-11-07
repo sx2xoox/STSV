@@ -278,11 +278,55 @@ public final class MachineModule extends EcoModule {
     // ------------------------------------------------------------------------------------------
 
     static final class Lane {
+        /** making of a lane saved before it was stored: whatever it makes on the first tick is what the progress was for */
+        static final int UNKNOWN = Integer.MIN_VALUE;
+
         int recipe = -1;          // chosen recipe index, -1 = 자동
         UUID operator;
         double progress;          // seconds worked on the current batch
         int making = -1;          // recipe index being made (to notice a change)
         boolean blocked;          // the output slot is full
+        boolean mixed;            // ... with something that does not stack with the product (another item, another maker's)
+
+        /** Now making recipe idx (-1: nothing); returns true if the progress was dropped because that is another recipe. */
+        boolean make(int idx) {
+            if (idx == making) return false;
+            boolean carryOn = making == UNKNOWN && idx >= 0;
+            making = idx;
+            if (carryOn || progress == 0) return false;
+            progress = 0;
+            return true;
+        }
+
+        /** recipe,operator,progress,making for each lane; read back by {@link #read}. */
+        static String state(Lane[] lanes) {
+            StringBuilder sb = new StringBuilder();
+            for (Lane l : lanes) {
+                sb.append(l.recipe).append(',').append(l.operator == null ? "" : l.operator).append(',')
+                        .append(String.format(Locale.ROOT, "%.1f", l.progress)).append(',').append(l.making).append(';');
+            }
+            return sb.toString();
+        }
+
+        /** Older states have no making: the progress is kept for whatever the lane makes first (UNKNOWN). */
+        static void read(Lane[] lanes, String s) {
+            if (s == null) return;
+            String[] ls = s.split(";");
+            for (int k = 0; k < lanes.length && k < ls.length; k++) {
+                String[] f = ls[k].split(",", -1);
+                if (f.length < 3) continue;
+                try {
+                    lanes[k].recipe = Integer.parseInt(f[0]);
+                    lanes[k].operator = f[1].isEmpty() ? null : UUID.fromString(f[1]);
+                    lanes[k].progress = Double.parseDouble(f[2]);
+                    lanes[k].making = f.length > 3 && !f[3].isEmpty() ? Integer.parseInt(f[3]) : UNKNOWN;
+                } catch (IllegalArgumentException ignored) {
+                    // a broken lane starts over
+                    lanes[k].progress = 0;
+                    lanes[k].making = -1;
+                }
+            }
+        }
     }
 
     final class Machine implements InventoryHolder {
@@ -314,28 +358,11 @@ public final class MachineModule extends EcoModule {
         }
 
         String state() {
-            StringBuilder sb = new StringBuilder();
-            for (Lane l : lanes) {
-                sb.append(l.recipe).append(',').append(l.operator == null ? "" : l.operator).append(',')
-                        .append(String.format(Locale.ROOT, "%.1f", l.progress)).append(';');
-            }
-            return sb.toString();
+            return Lane.state(lanes);
         }
 
         void readState(String s) {
-            if (s == null) return;
-            String[] ls = s.split(";");
-            for (int k = 0; k < LANES && k < ls.length; k++) {
-                String[] f = ls[k].split(",", -1);
-                if (f.length < 3) continue;
-                try {
-                    lanes[k].recipe = Integer.parseInt(f[0]);
-                    lanes[k].operator = f[1].isEmpty() ? null : UUID.fromString(f[1]);
-                    lanes[k].progress = Double.parseDouble(f[2]);
-                } catch (IllegalArgumentException ignored) {
-                    // a broken lane starts over
-                }
-            }
+            Lane.read(lanes, s);
         }
     }
 
@@ -464,23 +491,17 @@ public final class MachineModule extends EcoModule {
                 if (k < m.open()) plainInputs(m, k);
                 MachineSpec.Recipe r = k < m.open() ? recipeFor(m, k) : null;
                 int idx = r == null ? -1 : r.index();
-                if (idx != l.making) {
-                    l.making = idx;
-                    if (l.progress != 0) {
-                        l.progress = 0;
-                        m.dirty = true;
-                    }
-                }
+                if (l.make(idx)) m.dirty = true;
                 if (r == null) {
-                    l.blocked = false;
+                    l.blocked = l.mixed = false;
                     continue;
                 }
                 UUID op = operator(m, k);
                 ItemStack proto = product(m, r, 1, op);
                 if (proto == null) continue;
                 ItemStack slot = m.inv.getItem(output(k));
-                l.blocked = !(slot == null || slot.isEmpty()
-                        || (slot.isSimilar(proto) && slot.getAmount() + maxAmount(m, r, op) <= slot.getMaxStackSize()));
+                l.mixed = slot != null && !slot.isEmpty() && !slot.isSimilar(proto);
+                l.blocked = l.mixed || !(slot == null || slot.isEmpty() || slot.getAmount() + maxAmount(m, r, op) <= slot.getMaxStackSize());
                 if (l.blocked) continue;
                 any = true;
                 l.progress += 1;
@@ -730,7 +751,7 @@ public final class MachineModule extends EcoModule {
             double need = seconds(m, r, op);
             int pct = (int) Math.round(l.progress / need * 100);
             it = Items.create(r.output(), r.amount()).orElse(new ItemStack(Material.LIME_DYE));
-            Component name = l.blocked ? Lang.item("machine.lane-blocked", "n", k + 1)
+            Component name = l.blocked ? Lang.item(l.mixed ? "machine.lane-mixed" : "machine.lane-blocked", "n", k + 1)
                     : Lang.item("machine.lane-working", "n", k + 1, "item", Items.mmName(r.output()), "bar", bar(pct), "pct", pct);
             lore.add(Lang.item("machine.lane-left", "time", time(need - l.progress), "total", time(need)));
             if (op != null) lore.add(Lang.item("machine.lane-operator", "player", Players.name(op)));

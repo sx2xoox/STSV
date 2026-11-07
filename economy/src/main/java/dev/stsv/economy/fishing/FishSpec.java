@@ -90,7 +90,7 @@ public record FishSpec(Map<String, Rarity> rarities, Map<String, Group> groups, 
         if (b.contains("cold_ocean") || b.contains("frozen_ocean") || b.equals("snowy_beach")) return "cold";
         if (b.equals("deep_ocean")) return "deep";
         if (b.equals("ocean") || b.equals("beach") || b.equals("stony_shore")) return "sea";
-        if (b.contains("frozen") || b.contains("snowy") || b.contains("ice") || b.contains("taiga") || b.contains("grove")
+        if (b.contains("frozen") || b.contains("snowy") || b.contains("ice") || b.contains("taiga") || b.equals("grove")
                 || b.contains("peaks") || b.contains("slopes")) return "coldriver";
         return "river";
     }
