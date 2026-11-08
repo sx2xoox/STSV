@@ -464,6 +464,8 @@ land:
   build-own-only: "<red>건축월드에서는 내 땅에서만 블록을 부수고 놓을 수 있습니다 <gray>→ /땅 구매 (처음 {free}청크 무료) · 자원은 /야생월드"
   build-world-only: "<red>땅은 건축월드에서만 살 수 있습니다. <gray>/건축월드 로 가서 서 있는 청크에서 <white>/땅 구매</white> <gray>(처음 {free}청크 무료)"
   here-wild-world: "<gray>야생월드에는 땅이 없습니다. 누구나 자유롭게 캐고 지을 수 있습니다 (보호 없음, 가끔 초기화)."
+  here-wild-dimension: "<gray>야생월드의 {world}에는 땅이 없습니다. 누구나 자유롭게 캐고 지을 수 있습니다 (보호 없음, 야생월드와 함께 가끔 초기화)."
+  here-wild-dimension-keep: "<gray>야생월드의 {world}에는 땅이 없습니다. 누구나 자유롭게 캐고 지을 수 있습니다 (보호 없음, 야생월드와 함께 가끔 초기화). <gold>여기서는 죽어도 아이템과 경험치가 남습니다."
   here-other-world: "<gray>여기는 주인 없는 곳입니다. 땅은 건축월드에서만 살 수 있습니다."
   tax-warning: "<red>재산세 {tax}를 내지 못했습니다 ({n}/{max}). <gray>금고에 넣거나(/땅 금고 입금) 소유자 지갑을 채우세요. {max}일째엔 최근 청크부터 해제됩니다."
   released: "<red>재산세 미납으로 청크 {count}개의 보호가 풀렸습니다. <gray>(남은 청크 {size})"

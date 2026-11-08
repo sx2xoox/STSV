@@ -41,7 +41,7 @@ hub:
       icon: stsv:gui/pine
       material: OAK_SAPLING
       name: "<white>야생월드로"
-      lore: ["<gray>자원을 캐는 곳 (보호 없음, 가끔 초기화)", "<gray>매번 무작위 위치로 (흩어져서 시작)", "<dark_gray>{warmup}초 가만히 · 다시 가려면 {cooldown}초"]
+      lore: ["<gray>자원을 캐는 곳 (보호 없음, 가끔 초기화)", "<gray>매번 무작위 위치로 (흩어져서 시작)", "<gray>지옥·엔드는 야생월드의 포털로 (죽어도 아이템 유지)", "<dark_gray>{warmup}초 가만히 · 다시 가려면 {cooldown}초"]
 
     # 사고팔기
     A:

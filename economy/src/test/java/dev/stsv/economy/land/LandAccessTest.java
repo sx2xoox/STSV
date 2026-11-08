@@ -40,17 +40,19 @@ class LandAccessTest {
     }
 
     @Test
-    void wildWorldIsFreeEvenOnOldClaims() {
-        assertEquals(ALLOW, LandAccess.decide(Kind.WILD, null, stranger, false, true));
-        assertEquals(ALLOW, LandAccess.decide(Kind.WILD, land, stranger, false, true), "claims there are dormant");
-        assertFalse(LandAccess.claimsCount(Kind.WILD));
-        assertFalse(LandAccess.claimable(Kind.WILD));
-        assertFalse(LandAccess.sheltered(Kind.WILD, land), "explosions and fire work there");
+    void wildWorldAndItsNetherAndEndAreFreeEvenOnOldClaims() {
+        for (Kind k : new Kind[]{Kind.WILD, Kind.NETHER, Kind.END}) {
+            assertEquals(ALLOW, LandAccess.decide(k, null, stranger, false, true), k.name());
+            assertEquals(ALLOW, LandAccess.decide(k, land, stranger, false, true), "claims there are dormant: " + k);
+            assertFalse(LandAccess.claimsCount(k));
+            assertFalse(LandAccess.claimable(k));
+            assertFalse(LandAccess.sheltered(k, land), "explosions and fire work there: " + k);
+        }
     }
 
     @Test
     void otherWorldsKeepTheirOldClaimsButSellNoLand() {
-        assertEquals(ALLOW, LandAccess.decide(Kind.OTHER, null, stranger, false, true), "unclaimed nether is free");
+        assertEquals(ALLOW, LandAccess.decide(Kind.OTHER, null, stranger, false, true), "an unclaimed other world (e.g. the unused default nether) is free");
         assertEquals(OTHERS_LAND, LandAccess.decide(Kind.OTHER, land, stranger, false, true), "an old claim still protects");
         assertEquals(ALLOW, LandAccess.decide(Kind.OTHER, land, member, false, true));
         assertTrue(LandAccess.claimsCount(Kind.OTHER));
