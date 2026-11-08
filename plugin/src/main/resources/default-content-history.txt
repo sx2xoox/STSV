@@ -175,6 +175,7 @@ c0798ada1b895205b34f70af6e36018b01b6ed25 stsv/items/economy.yml
 861996b6ee7da1cfd464f0c731e2cc4094c1e8e2 stsv/items/test.yml
 148d77ec7013370f587da1a61cbb9e8c023011d8 stsv/menus/achievements.yml
 4d0194a38c1c55691364ac8c57d01302baa9d782 stsv/menus/achievements.yml
+436d76ef0dbc05b540fc7d1aa9775f5e9a9cb2c1 stsv/menus/hub.yml
 7a5e35f78423fc543f703b7740a9981ebe78f3c1 stsv/menus/hub.yml
 83eed9a674a34d9816c6a19a87a1cdca7a748875 stsv/menus/hub.yml
 f2031937eb2d3b1437cd503aa54a63d5079c6c25 stsv/menus/hub.yml

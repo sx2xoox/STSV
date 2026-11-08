@@ -442,6 +442,7 @@ d5eac3c5c75db22c688273009a5e88df76c7ed2c economy/machines.yml
 6ed4ce1d191f3244fea4c9e1b5a1f6898ef16441 economy/menus/codex.yml
 047f4b387dbfa41d15112c4116149ca42d3e8c60 economy/menus/hub.yml
 19afcc63cda04b9bf10861fbc361bf8b824a545d economy/menus/hub.yml
+889f5b79b16416f95b0c8fb1bff8d49b95c7812a economy/menus/hub.yml
 99b5087147bfb759ccdd8e88a1567eeca9a19a40 economy/menus/hub.yml
 da84b6a7fc90adab9f932457a7f8803f9086f025 economy/menus/hub.yml
 f6363cdf5ef1d819aed5c0532b88104865ebeef6 economy/menus/hub.yml
