@@ -69,109 +69,109 @@ sell:
     name: "수산물"
     icon: economy:mackerel
     items:
-      cod: { base: 3, q: 64, job: fisher }
-      salmon: { base: 3, q: 64, job: fisher }
-      tropical_fish: { base: 4, q: 64, job: fisher }
-      pufferfish: { base: 4, q: 64, job: fisher }
+      cod: { base: 5, q: 64, job: fisher }
+      salmon: { base: 5, q: 64, job: fisher }
+      tropical_fish: { base: 6, q: 32, job: fisher }
+      pufferfish: { base: 6, q: 32, job: fisher }
       # ── 낚시 (fish.yml, economy_fish.py 가 씀)
-      economy:mackerel: { base: 3, q: 64, job: fisher }   # 고등어
-      economy:horse_mackerel: { base: 3, q: 64, job: fisher }   # 전갱이
-      economy:sardine: { base: 3, q: 64, job: fisher }   # 정어리
-      economy:saury: { base: 3, q: 64, job: fisher }   # 꽁치
-      economy:rockfish: { base: 9, q: 32, job: fisher }   # 우럭
-      economy:flatfish: { base: 12, q: 32, job: fisher }   # 광어
-      economy:greenling: { base: 7, q: 32, job: fisher }   # 노래미
-      economy:filefish: { base: 8, q: 32, job: fisher }   # 쥐치
-      economy:yellowtail: { base: 40, q: 16, job: fisher }   # 방어
-      economy:hairtail: { base: 35, q: 16, job: fisher }   # 갈치
-      economy:pollack: { base: 3, q: 64, job: fisher }   # 명태
-      economy:monkfish: { base: 14, q: 32, job: fisher }   # 아귀
-      economy:black_rockfish: { base: 8, q: 32, job: fisher }   # 볼락
-      economy:skate: { base: 15, q: 16, job: fisher }   # 홍어
-      economy:croaker: { base: 60, q: 8, job: fisher }   # 민어
-      economy:octopus: { base: 55, q: 8, job: fisher }   # 문어
-      economy:giant_squid: { base: 80, q: 8, job: fisher }   # 대왕오징어
-      economy:marlin: { base: 520, q: 2, job: fisher }   # 청새치
-      economy:lantern_angler: { base: 480, q: 4, job: fisher }   # 초롱아귀
-      economy:damselfish: { base: 3, q: 64, job: fisher }   # 자리돔
-      economy:clownfish: { base: 4, q: 64, job: fisher }   # 흰동가리
-      economy:butterflyfish: { base: 8, q: 32, job: fisher }   # 나비고기
-      economy:tang: { base: 9, q: 32, job: fisher }   # 쥐돔
-      economy:lionfish: { base: 13, q: 32, job: fisher }   # 쏠배감펭
-      economy:mahi_mahi: { base: 50, q: 8, job: fisher }   # 만새기
-      economy:sunfish: { base: 75, q: 8, job: fisher }   # 개복치
-      economy:yellowfin_tuna: { base: 65, q: 8, job: fisher }   # 황다랑어
-      economy:sailfish: { base: 500, q: 2, job: fisher }   # 돛새치
-      economy:whale_shark: { base: 600, q: 2, job: fisher }   # 고래상어
-      economy:herring: { base: 3, q: 64, job: fisher }   # 청어
-      economy:sandfish: { base: 3, q: 64, job: fisher }   # 도루묵
-      economy:atka_mackerel: { base: 8, q: 32, job: fisher }   # 임연수어
-      economy:sand_lance: { base: 6, q: 32, job: fisher }   # 양미리
-      economy:snow_crab: { base: 60, q: 8, job: fisher }   # 대게
-      economy:king_crab: { base: 80, q: 8, job: fisher }   # 킹크랩
-      economy:greenland_shark: { base: 550, q: 2, job: fisher }   # 그린란드상어
-      economy:pale_chub: { base: 2, q: 128, job: fisher }   # 피라미
-      economy:crucian_carp: { base: 3, q: 64, job: fisher }   # 붕어
-      economy:carp: { base: 10, q: 32, job: fisher }   # 잉어
-      economy:catfish: { base: 11, q: 32, job: fisher }   # 메기
-      economy:bitterling: { base: 6, q: 32, job: fisher }   # 납자루
-      economy:mandarin_fish: { base: 45, q: 16, job: fisher }   # 쏘가리
-      economy:kkeokji: { base: 30, q: 16, job: fisher }   # 꺽지
-      economy:bagrid_catfish: { base: 28, q: 16, job: fisher }   # 동자개
-      economy:dragon_carp: { base: 450, q: 4, job: fisher }   # 용잉어
-      economy:smelt: { base: 2, q: 128, job: fisher }   # 빙어
-      economy:lenok: { base: 12, q: 32, job: fisher }   # 열목어
-      economy:dace: { base: 8, q: 32, job: fisher }   # 황어
-      economy:masu_salmon: { base: 38, q: 16, job: fisher }   # 산천어
-      economy:trout: { base: 40, q: 16, job: fisher }   # 송어
-      economy:char: { base: 48, q: 16, job: fisher }   # 곤들매기
-      economy:taimen: { base: 520, q: 2, job: fisher }   # 타이멘
-      economy:loach: { base: 2, q: 128, job: fisher }   # 미꾸라지
-      economy:paradise_fish: { base: 3, q: 64, job: fisher }   # 버들붕어
-      economy:snakehead: { base: 13, q: 32, job: fisher }   # 가물치
-      economy:swamp_eel: { base: 9, q: 32, job: fisher }   # 드렁허리
-      economy:softshell_turtle: { base: 55, q: 8, job: fisher }   # 자라
-      economy:eel: { base: 50, q: 8, job: fisher }   # 뱀장어
-      economy:giant_snakehead: { base: 480, q: 4, job: fisher }   # 거대 가물치
-      economy:goby: { base: 3, q: 64, job: fisher }   # 망둥어
-      economy:mudskipper: { base: 9, q: 32, job: fisher }   # 짱뚱어
-      economy:mullet: { base: 8, q: 32, job: fisher }   # 숭어
-      economy:mud_crab: { base: 48, q: 16, job: fisher }   # 머드크랩
-      economy:barramundi: { base: 55, q: 8, job: fisher }   # 바라문디
-      economy:king_mudskipper: { base: 420, q: 4, job: fisher }   # 왕짱뚱어
-      economy:guppy: { base: 3, q: 64, job: fisher }   # 구피
-      economy:neon_tetra: { base: 4, q: 64, job: fisher }   # 네온테트라
-      economy:tilapia: { base: 7, q: 32, job: fisher }   # 틸라피아
-      economy:angelfish: { base: 12, q: 32, job: fisher }   # 엔젤피시
-      economy:piranha: { base: 45, q: 16, job: fisher }   # 피라냐
-      economy:discus: { base: 60, q: 8, job: fisher }   # 디스커스
-      economy:arowana: { base: 560, q: 2, job: fisher }   # 아로와나
-      economy:arapaima: { base: 600, q: 2, job: fisher }   # 피라루쿠
-      economy:cavefish: { base: 3, q: 64, job: fisher }   # 장님물고기
-      economy:cave_shrimp: { base: 3, q: 64, job: fisher }   # 동굴 새우
-      economy:cave_crayfish: { base: 10, q: 32, job: fisher }   # 동굴 가재
-      economy:moss_minnow: { base: 8, q: 32, job: fisher }   # 이끼 피라미
-      economy:crystal_trout: { base: 70, q: 8, job: fisher }   # 수정 송어
-      economy:glow_jellyfish: { base: 65, q: 8, job: fisher }   # 발광 해파리
-      economy:abyssfish: { base: 580, q: 2, job: fisher }   # 심연어
-      economy:petal_carp: { base: 500, q: 2, job: fisher }   # 꽃잎 잉어
-      economy:spore_goby: { base: 15, q: 16, job: fisher }   # 포자 망둥어
-      economy:mushroom_puffer: { base: 70, q: 8, job: fisher }   # 버섯 복어
-      economy:mycelium_ray: { base: 520, q: 2, job: fisher }   # 균사 가오리
-      economy:sweetfish: { base: 10, q: 32, job: fisher }   # 은어
-      economy:pike_conger: { base: 12, q: 32, job: fisher }   # 갯장어
-      economy:golden_crucian: { base: 60, q: 8, job: fisher }   # 황금 붕어
-      economy:sunset_bream: { base: 55, q: 8, job: fisher }   # 노을 도미
-      economy:rainbow_trout: { base: 50, q: 8, job: fisher }   # 무지개송어
-      economy:moonlight_ray: { base: 480, q: 4, job: fisher }   # 달빛 가오리
-      economy:thunder_catfish: { base: 520, q: 2, job: fisher }   # 천둥 메기
-      economy:moon_goldfish: { base: 500, q: 2, job: fisher }   # 달 금붕어
+      economy:mackerel: { base: 5, q: 64, job: fisher }   # 고등어
+      economy:horse_mackerel: { base: 5, q: 64, job: fisher }   # 전갱이
+      economy:sardine: { base: 5, q: 64, job: fisher }   # 정어리
+      economy:saury: { base: 5, q: 64, job: fisher }   # 꽁치
+      economy:rockfish: { base: 14, q: 32, job: fisher }   # 우럭
+      economy:flatfish: { base: 18, q: 16, job: fisher }   # 광어
+      economy:greenling: { base: 11, q: 32, job: fisher }   # 노래미
+      economy:filefish: { base: 12, q: 32, job: fisher }   # 쥐치
+      economy:yellowtail: { base: 60, q: 8, job: fisher }   # 방어
+      economy:hairtail: { base: 53, q: 8, job: fisher }   # 갈치
+      economy:pollack: { base: 5, q: 64, job: fisher }   # 명태
+      economy:monkfish: { base: 21, q: 16, job: fisher }   # 아귀
+      economy:black_rockfish: { base: 12, q: 32, job: fisher }   # 볼락
+      economy:skate: { base: 23, q: 16, job: fisher }   # 홍어
+      economy:croaker: { base: 90, q: 8, job: fisher }   # 민어
+      economy:octopus: { base: 83, q: 8, job: fisher }   # 문어
+      economy:giant_squid: { base: 120, q: 8, job: fisher }   # 대왕오징어
+      economy:marlin: { base: 780, q: 2, job: fisher }   # 청새치
+      economy:lantern_angler: { base: 720, q: 2, job: fisher }   # 초롱아귀
+      economy:damselfish: { base: 5, q: 64, job: fisher }   # 자리돔
+      economy:clownfish: { base: 6, q: 32, job: fisher }   # 흰동가리
+      economy:butterflyfish: { base: 12, q: 32, job: fisher }   # 나비고기
+      economy:tang: { base: 14, q: 32, job: fisher }   # 쥐돔
+      economy:lionfish: { base: 20, q: 16, job: fisher }   # 쏠배감펭
+      economy:mahi_mahi: { base: 75, q: 8, job: fisher }   # 만새기
+      economy:sunfish: { base: 113, q: 8, job: fisher }   # 개복치
+      economy:yellowfin_tuna: { base: 98, q: 8, job: fisher }   # 황다랑어
+      economy:sailfish: { base: 750, q: 2, job: fisher }   # 돛새치
+      economy:whale_shark: { base: 900, q: 2, job: fisher }   # 고래상어
+      economy:herring: { base: 5, q: 64, job: fisher }   # 청어
+      economy:sandfish: { base: 5, q: 64, job: fisher }   # 도루묵
+      economy:atka_mackerel: { base: 12, q: 32, job: fisher }   # 임연수어
+      economy:sand_lance: { base: 9, q: 32, job: fisher }   # 양미리
+      economy:snow_crab: { base: 90, q: 8, job: fisher }   # 대게
+      economy:king_crab: { base: 120, q: 8, job: fisher }   # 킹크랩
+      economy:greenland_shark: { base: 825, q: 2, job: fisher }   # 그린란드상어
+      economy:pale_chub: { base: 3, q: 64, job: fisher }   # 피라미
+      economy:crucian_carp: { base: 5, q: 64, job: fisher }   # 붕어
+      economy:carp: { base: 15, q: 16, job: fisher }   # 잉어
+      economy:catfish: { base: 17, q: 16, job: fisher }   # 메기
+      economy:bitterling: { base: 9, q: 32, job: fisher }   # 납자루
+      economy:mandarin_fish: { base: 68, q: 8, job: fisher }   # 쏘가리
+      economy:kkeokji: { base: 45, q: 16, job: fisher }   # 꺽지
+      economy:bagrid_catfish: { base: 42, q: 16, job: fisher }   # 동자개
+      economy:dragon_carp: { base: 675, q: 2, job: fisher }   # 용잉어
+      economy:smelt: { base: 3, q: 64, job: fisher }   # 빙어
+      economy:lenok: { base: 18, q: 16, job: fisher }   # 열목어
+      economy:dace: { base: 12, q: 32, job: fisher }   # 황어
+      economy:masu_salmon: { base: 57, q: 8, job: fisher }   # 산천어
+      economy:trout: { base: 60, q: 8, job: fisher }   # 송어
+      economy:char: { base: 72, q: 8, job: fisher }   # 곤들매기
+      economy:taimen: { base: 780, q: 2, job: fisher }   # 타이멘
+      economy:loach: { base: 3, q: 64, job: fisher }   # 미꾸라지
+      economy:paradise_fish: { base: 5, q: 64, job: fisher }   # 버들붕어
+      economy:snakehead: { base: 20, q: 16, job: fisher }   # 가물치
+      economy:swamp_eel: { base: 14, q: 32, job: fisher }   # 드렁허리
+      economy:softshell_turtle: { base: 83, q: 8, job: fisher }   # 자라
+      economy:eel: { base: 75, q: 8, job: fisher }   # 뱀장어
+      economy:giant_snakehead: { base: 720, q: 2, job: fisher }   # 거대 가물치
+      economy:goby: { base: 5, q: 64, job: fisher }   # 망둥어
+      economy:mudskipper: { base: 14, q: 32, job: fisher }   # 짱뚱어
+      economy:mullet: { base: 12, q: 32, job: fisher }   # 숭어
+      economy:mud_crab: { base: 72, q: 8, job: fisher }   # 머드크랩
+      economy:barramundi: { base: 83, q: 8, job: fisher }   # 바라문디
+      economy:king_mudskipper: { base: 630, q: 2, job: fisher }   # 왕짱뚱어
+      economy:guppy: { base: 5, q: 64, job: fisher }   # 구피
+      economy:neon_tetra: { base: 6, q: 32, job: fisher }   # 네온테트라
+      economy:tilapia: { base: 11, q: 32, job: fisher }   # 틸라피아
+      economy:angelfish: { base: 18, q: 16, job: fisher }   # 엔젤피시
+      economy:piranha: { base: 68, q: 8, job: fisher }   # 피라냐
+      economy:discus: { base: 90, q: 8, job: fisher }   # 디스커스
+      economy:arowana: { base: 840, q: 2, job: fisher }   # 아로와나
+      economy:arapaima: { base: 900, q: 2, job: fisher }   # 피라루쿠
+      economy:cavefish: { base: 5, q: 64, job: fisher }   # 장님물고기
+      economy:cave_shrimp: { base: 5, q: 64, job: fisher }   # 동굴 새우
+      economy:cave_crayfish: { base: 15, q: 16, job: fisher }   # 동굴 가재
+      economy:moss_minnow: { base: 12, q: 32, job: fisher }   # 이끼 피라미
+      economy:crystal_trout: { base: 105, q: 8, job: fisher }   # 수정 송어
+      economy:glow_jellyfish: { base: 98, q: 8, job: fisher }   # 발광 해파리
+      economy:abyssfish: { base: 870, q: 2, job: fisher }   # 심연어
+      economy:petal_carp: { base: 750, q: 2, job: fisher }   # 꽃잎 잉어
+      economy:spore_goby: { base: 23, q: 16, job: fisher }   # 포자 망둥어
+      economy:mushroom_puffer: { base: 105, q: 8, job: fisher }   # 버섯 복어
+      economy:mycelium_ray: { base: 780, q: 2, job: fisher }   # 균사 가오리
+      economy:sweetfish: { base: 15, q: 16, job: fisher }   # 은어
+      economy:pike_conger: { base: 18, q: 16, job: fisher }   # 갯장어
+      economy:golden_crucian: { base: 90, q: 8, job: fisher }   # 황금 붕어
+      economy:sunset_bream: { base: 83, q: 8, job: fisher }   # 노을 도미
+      economy:rainbow_trout: { base: 75, q: 8, job: fisher }   # 무지개송어
+      economy:moonlight_ray: { base: 720, q: 2, job: fisher }   # 달빛 가오리
+      economy:thunder_catfish: { base: 780, q: 2, job: fisher }   # 천둥 메기
+      economy:moon_goldfish: { base: 750, q: 2, job: fisher }   # 달 금붕어
       # ── 낚시 끝
       # 어부 발견품
-      economy:red_seabream: { base: 40, q: 16, job: fisher }   # 참돔
-      economy:pearl: { base: 80, q: 8, job: fisher }   # 진주
-      economy:bluefin_tuna: { base: 250, q: 4, job: fisher }   # 참다랑어
-      economy:sturgeon: { base: 300, q: 4, job: fisher }   # 철갑상어
+      economy:red_seabream: { base: 60, q: 8, job: fisher }   # 참돔
+      economy:pearl: { base: 120, q: 8, job: fisher }   # 진주
+      economy:bluefin_tuna: { base: 375, q: 4, job: fisher }   # 참다랑어
+      economy:sturgeon: { base: 450, q: 4, job: fisher }   # 철갑상어
   materials:
     name: "원목·전리품"
     icon: oak_log
@@ -215,8 +215,8 @@ sell:
       economy:coke: { base: 48, q: 16 }   # 코크스
       economy:copper_plate: { base: 36, q: 16 }   # 구리판
       economy:ruby_ring: { base: 133, q: 8 }   # 루비 반지
-      economy:pearl_necklace: { base: 427, q: 4 }   # 진주 목걸이
-      economy:jeweled_crown: { base: 1841, q: 1 }   # 보석 왕관
+      economy:pearl_necklace: { base: 551, q: 2 }   # 진주 목걸이
+      economy:jeweled_crown: { base: 2114, q: 1 }   # 보석 왕관
       economy:cut_emerald: { base: 36, q: 16 }   # 세공 에메랄드
       economy:lapis_beads: { base: 45, q: 16 }   # 청금석 구슬
       economy:gold_ring: { base: 57, q: 8 }   # 금반지
@@ -267,25 +267,25 @@ sell:
       economy:onion_juice: { base: 40, q: 16 }   # 양파즙 (원재료만)
       economy:mumallaengi: { base: 34, q: 16 }   # 무말랭이 (원재료만)
       # 손질대 (어부)
-      economy:cod_fillet: { base: 9, q: 32 }   # 생선 필렛
-      economy:salmon_fillet: { base: 9, q: 32 }   # 연어 필렛
-      economy:dried_pollack: { base: 14, q: 32 }   # 북어
-      economy:prepared_puffer: { base: 6, q: 32 }   # 손질한 복어
-      economy:smoked_salmon: { base: 32, q: 16 }   # 훈제 연어
-      economy:seabream_sashimi: { base: 30, q: 16 }   # 모둠회
-      economy:sukhoe: { base: 41, q: 16 }   # 숙회
-      economy:tuna_sashimi: { base: 94, q: 8 }   # 참치 회
-      economy:polished_pearl: { base: 122, q: 8 }   # 연마 진주
-      economy:fishcake: { base: 26, q: 16 }   # 어묵
-      economy:caviar: { base: 152, q: 4 }   # 캐비아
-      economy:seafood_feast: { base: 783, q: 2 }   # 해물 한상
-      economy:shrimp_meat: { base: 16, q: 16 }   # 새우살
-      economy:gwamegi: { base: 10, q: 32 }   # 과메기
-      economy:gulbi: { base: 95, q: 8 }   # 굴비
-      economy:hongeo: { base: 45, q: 16 }   # 삭힌 홍어
-      economy:jeotgal: { base: 80, q: 8 }   # 젓갈
-      economy:salted_mackerel: { base: 9, q: 32 }   # 간고등어 (원재료만)
-      economy:fish_sauce: { base: 50, q: 8 }   # 까나리 액젓 (원재료만)
+      economy:cod_fillet: { base: 15, q: 16 }   # 생선 필렛
+      economy:salmon_fillet: { base: 15, q: 16 }   # 연어 필렛
+      economy:dried_pollack: { base: 23, q: 16 }   # 북어
+      economy:prepared_puffer: { base: 9, q: 32 }   # 손질한 복어
+      economy:smoked_salmon: { base: 53, q: 8 }   # 훈제 연어
+      economy:seabream_sashimi: { base: 45, q: 16 }   # 모둠회
+      economy:sukhoe: { base: 62, q: 8 }   # 숙회
+      economy:tuna_sashimi: { base: 139, q: 8 }   # 참치 회
+      economy:polished_pearl: { base: 179, q: 4 }   # 연마 진주
+      economy:fishcake: { base: 35, q: 16 }   # 어묵
+      economy:caviar: { base: 228, q: 4 }   # 캐비아
+      economy:seafood_feast: { base: 1192, q: 1 }   # 해물 한상
+      economy:shrimp_meat: { base: 26, q: 16 }   # 새우살
+      economy:gwamegi: { base: 16, q: 16 }   # 과메기
+      economy:gulbi: { base: 144, q: 8 }   # 굴비
+      economy:hongeo: { base: 69, q: 8 }   # 삭힌 홍어
+      economy:jeotgal: { base: 133, q: 8 }   # 젓갈
+      economy:salted_mackerel: { base: 15, q: 16 }   # 간고등어 (원재료만)
+      economy:fish_sauce: { base: 75, q: 8 }   # 까나리 액젓 (원재료만)
   dishes:
     name: "요리·술"
     icon: economy:bibimbap
@@ -296,19 +296,19 @@ sell:
       economy:oi_sobagi: { base: 55, q: 8 }   # 오이소박이
       economy:eggplant_stirfry: { base: 22, q: 16 }   # 가지볶음
       economy:hobakjeon: { base: 20, q: 16 }   # 호박전
-      economy:saengseonjeon: { base: 26, q: 16 }   # 생선전
+      economy:saengseonjeon: { base: 33, q: 16 }   # 생선전
       economy:sundubu_jjigae: { base: 74, q: 8 }   # 순두부찌개
-      economy:tuna_sushi: { base: 130, q: 8 }   # 참치 초밥
-      economy:braised_mackerel: { base: 211, q: 4 }   # 고등어조림
-      economy:maeuntang: { base: 165, q: 4 }   # 매운탕
-      economy:steamed_crab: { base: 110, q: 8 }   # 게찜
-      economy:grilled_eel: { base: 454, q: 4 }   # 장어구이
+      economy:tuna_sushi: { base: 175, q: 4 }   # 참치 초밥
+      economy:braised_mackerel: { base: 220, q: 4 }   # 고등어조림
+      economy:maeuntang: { base: 172, q: 4 }   # 매운탕
+      economy:steamed_crab: { base: 153, q: 4 }   # 게찜
+      economy:grilled_eel: { base: 480, q: 4 }   # 장어구이
       economy:strawberry_cake: { base: 95, q: 8 }   # 딸기 케이크
       economy:tomato_pasta: { base: 125, q: 8 }   # 토마토 파스타
       economy:corn_bread: { base: 57, q: 8 }   # 옥수수빵
       economy:bibimbap: { base: 424, q: 4 }   # 비빔밥
-      economy:grilled_fish_set: { base: 275, q: 4 }   # 생선구이 정식
-      economy:hanjeongsik: { base: 1643, q: 1 }   # 한정식
+      economy:grilled_fish_set: { base: 302, q: 4 }   # 생선구이 정식
+      economy:hanjeongsik: { base: 1702, q: 1 }   # 한정식
       economy:gyeranmari: { base: 13, q: 32 }   # 계란말이
       economy:hotteok: { base: 7, q: 32 }   # 호떡
       economy:gamjajeon: { base: 7, q: 32 }   # 감자전
@@ -317,8 +317,8 @@ sell:
       economy:samgyetang: { base: 32, q: 16 }   # 삼계탕
       economy:doenjang_jjigae: { base: 89, q: 8 }   # 된장찌개
       economy:kimchi_jjigae: { base: 120, q: 8 }   # 김치찌개
-      economy:tteokbokki: { base: 255, q: 4 }   # 떡볶이
-      economy:godeungeo_gui: { base: 8, q: 32 }   # 고등어구이 (원재료만)
+      economy:tteokbokki: { base: 280, q: 4 }   # 떡볶이
+      economy:godeungeo_gui: { base: 14, q: 32 }   # 고등어구이 (원재료만)
       economy:oi_muchim: { base: 34, q: 16 }   # 오이무침 (원재료만)
       economy:beoseot_bokkeum: { base: 21, q: 16 }   # 버섯볶음 (원재료만)
       economy:gamja_jorim: { base: 12, q: 32 }   # 감자조림 (원재료만)
@@ -334,7 +334,7 @@ sell:
       economy:melon_syrup: { base: 21, q: 16 }   # 멜론 시럽
       economy:wine: { base: 156, q: 4 }   # 포도주
       economy:melon_liqueur: { base: 442, q: 4 }   # 멜론 리큐어
-      economy:pearl_perfume: { base: 669, q: 2 }   # 진주 향수
+      economy:pearl_perfume: { base: 795, q: 2 }   # 진주 향수
       economy:vintage_wine: { base: 900, q: 2 }   # 빈티지 포도주
       economy:flower_tea: { base: 14, q: 32 }   # 꽃잎 차
       economy:cider: { base: 41, q: 16 }   # 사과주

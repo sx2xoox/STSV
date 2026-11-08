@@ -69,5 +69,5 @@ pool:
 community:
   - { name: "철의 도시", item: iron_ingot, target: 20000, reward: 500 }
   - { name: "겨울 대비 석탄", item: coal, target: 30000, reward: 1000 }
-  - { name: "대어 축제", item: economy:cod_fillet, target: 2500, reward: 1500 }
+  - { name: "대어 축제", item: economy:cod_fillet, target: 2500, reward: 2250 }
   - { name: "왕관의 보석", item: diamond, target: 2000, reward: 3000 }
