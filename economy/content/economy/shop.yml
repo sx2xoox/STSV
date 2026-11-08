@@ -492,11 +492,6 @@ merchant:
     - { item: shulker_box, price: 5000, stock: 3 }
     - { item: elytra, price: 30000, stock: 1 }
 
-# 수리 (/상점 의 수리 버튼, 손에 든 물건): 닳은 내구도 1당 per-point G, 최소 min
-repair:
-  per-point: 0.05
-  min: 5
-
 # 수요 고시: 매주 이 요일 05시에 매입 품목 count 개를 골라 다음 고시까지 매입가 multiplier 배.
 # 지난주 품목과 진행 중인 품귀·시장 폭락 품목은 고르지 않음
 demand-notice:

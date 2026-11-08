@@ -7,7 +7,7 @@ authors: [STSV]
 depend: [STSV]
 commands:
   상점:
-    description: 관리자 상점 (판매, 구매, 수리)
+    description: 관리자 상점 (판매, 구매)
     aliases: [shop]
     permission: stsv.economy.play
   시세:

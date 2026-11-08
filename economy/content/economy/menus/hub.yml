@@ -49,7 +49,7 @@ hub:
       icon: economy:gui/cart
       material: CHEST
       name: "<#ff5f57>상점"
-      lore: ["<gray>물건 사기 · 팔기 · 손에 든 물건 수리"]
+      lore: ["<gray>물건 사기 · 팔기"]
     C:
       action: "command:시세"
       icon: economy:gui/chart

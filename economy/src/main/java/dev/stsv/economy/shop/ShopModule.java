@@ -23,7 +23,6 @@ import org.bukkit.entity.Player;
 import org.bukkit.entity.TextDisplay;
 import org.bukkit.event.inventory.ClickType;
 import org.bukkit.inventory.ItemStack;
-import org.bukkit.inventory.meta.Damageable;
 
 import java.util.ArrayList;
 import java.util.Comparator;
@@ -39,7 +38,7 @@ import java.util.concurrent.ThreadLocalRandom;
  * 관리자 상점: buys what players gather at a price of each player's own that falls as that player sells (판매:
  * one player's selling never lowers anyone else's price), sells basic tools, seeds, supplies, cosmetics and titles at fixed
  * prices (구매), both by category; 수요 고시 (three items x1.5 for a week), 품귀 / 시장 폭락 events, 시세 (each player's
- * prices; the market price = base x events, its 24h change), the 시세판 hologram (market prices), repairs and the 상인 행렬
+ * prices; the market price = base x events, its 24h change), the 시세판 hologram (market prices) and the 상인 행렬
  * limited goods (a 구매 category while the event runs).
  */
 public final class ShopModule extends EcoModule implements DailyListener {
@@ -359,31 +358,6 @@ public final class ShopModule extends EcoModule implements DailyListener {
                 return;
             }
         }
-    }
-
-    // ------------------------------------------------------------------------------------------
-    // Repair
-    // ------------------------------------------------------------------------------------------
-
-    public long repairCost(ItemStack item) {
-        if (item == null || item.isEmpty() || !(item.getItemMeta() instanceof Damageable d) || !d.hasDamage()) return -1;
-        return Math.max(catalog.repairMin(), (long) Math.ceil(d.getDamage() * catalog.repairPerPoint() - 1e-9));
-    }
-
-    public void repair(Player p) {
-        ItemStack hand = p.getInventory().getItemInMainHand();
-        long cost = repairCost(hand);
-        if (cost < 0) {
-            HudModule.flash(p, Lang.mm("shop.repair-nothing"));
-            return;
-        }
-        if (!core.economy().withdraw(p.getUniqueId(), cost, "repair")) {
-            HudModule.flash(p, Lang.mm("shop.not-enough", "price", EconomyModule.format(cost)));
-            return;
-        }
-        hand.editMeta(Damageable.class, d -> d.setDamage(0));
-        HudModule.flash(p, Lang.mm("shop.repaired", "item", Items.mmName(hand), "amount", EconomyModule.format(cost)));
-        p.playSound(p.getLocation(), Sound.BLOCK_ANVIL_USE, 0.6f, 1.2f);
     }
 
     // ------------------------------------------------------------------------------------------
@@ -725,9 +699,7 @@ public final class ShopModule extends EcoModule implements DailyListener {
     private final class FrontMenu implements MenuHandler {
         @Override
         public Map<String, String> placeholders(MenuView v) {
-            return Map.of("balance", balance(v.player()),
-                    "repair", Optional.of(repairCost(v.player().getInventory().getItemInMainHand())).filter(c -> c >= 0)
-                            .map(EconomyModule::format).orElse(Lang.raw("shop.repair-none")));
+            return Map.of("balance", balance(v.player()));
         }
 
         @Override
@@ -736,10 +708,6 @@ public final class ShopModule extends EcoModule implements DailyListener {
             switch (action) {
                 case "shop:buy" -> later(() -> openBuy(p));
                 case "shop:sell" -> later(() -> openSell(p));
-                case "shop:repair" -> {
-                    repair(p);
-                    v.refresh();
-                }
                 default -> { }
             }
         }

@@ -10,7 +10,7 @@ import java.util.Map;
 
 /**
  * contents/economy/shop.yml: what the admin shop buys (판매, dynamic price) and sells (구매, fixed price),
- * both by category, the 수요 고시, the 상인 행렬 goods, repair cost. Pure data.
+ * both by category, the 수요 고시, the 상인 행렬 goods. Pure data.
  * <p>
  * The menus show at most {@link #MAX_CATEGORIES} categories a side (one row). Older files without
  * categories still load: a flat {@code sell} map, a {@code buy} list and a {@code vanity} list each become
@@ -24,8 +24,6 @@ public record ShopCatalog(
         double floor,
         double dailyDecay,
         Curve curve,
-        double repairPerPoint,
-        long repairMin,
         DemandNotice demand) {
 
     public static final int MAX_CATEGORIES = 7;
@@ -217,7 +215,7 @@ public record ShopCatalog(
         return new ShopCatalog(sell, sellCats, buyCats, merchant,
                 c.getDouble("floor", 0.35), c.getDouble("daily-decay", 0.5),
                 new Curve(Math.max(0.1, c.getDouble("depth", 1)), Math.clamp(c.getDouble("hourly-recovery", 0), 0, 0.9)),
-                c.getDouble("repair.per-point", 0.05), c.getLong("repair.min", 5), demand);
+                demand);
     }
 
     private static SellEntry sellEntry(ConfigurationSection parent, String raw, String where, List<String> problems) {

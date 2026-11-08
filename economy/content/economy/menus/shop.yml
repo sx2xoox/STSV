@@ -7,7 +7,7 @@ shop:
   background: economy:gui/shop
   layout:
     - "....I...."
-    - "..B.R.S.."
+    - "..B...S.."
     - "....X...."
   buttons:
     I:
@@ -28,12 +28,6 @@ shop:
       material: GOLD_NUGGET
       name: "<#4d9bff>판매"
       lore: ["<gray>상점에 물건 팔기 · 오늘의 시세"]
-    R:
-      action: "shop:repair"
-      icon: economy:gui/hammer
-      material: ANVIL
-      name: "<white>손에 든 물건 수리"
-      lore: ["<gray>비용: {repair}"]
     X:
       action: close
       icon: stsv:gui/exit
