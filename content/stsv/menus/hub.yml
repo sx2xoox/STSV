@@ -39,11 +39,11 @@ hub:
       name: "<white>야생월드로"
       lore: ["<gray>자원을 캐는 곳 (보호 없음, 가끔 초기화)", "<gray>매번 무작위 위치로 (흩어져서 시작)", "<gray>지옥·엔드는 야생월드의 포털로 (죽어도 아이템 유지)", "<dark_gray>{warmup}초 가만히 · 다시 가려면 {cooldown}초"]
     t:
-      action: "hub:suggest:텔포|suggest:텔포여기"
+      action: "hub:suggest:tpa|suggest:tpahere"
       icon: stsv:gui/pearl
       material: ENDER_PEARL
       name: "<white>텔레포트 요청"
-      lore: ["<gray>다른 플레이어에게 가기 (상대가 수락하면)", "<gray>우클릭: 내 쪽으로 부르기", "<dark_gray>/텔포 <플레이어> · /텔포여기 <플레이어>", "<dark_gray>받은 요청: /수락 · /거절 · 안 받기: /텔포차단"]
+      lore: ["<gray>다른 플레이어에게 가기 (상대가 수락하면)", "<gray>우클릭: 내 쪽으로 부르기", "<dark_gray>/tpa <플레이어> · /tpahere <플레이어>", "<dark_gray>받은 요청: /tpaccept · /tpdeny · 안 받기: /tpatoggle"]
     Q:
       action: "command:치장"
       icon: stsv:gui/take_off

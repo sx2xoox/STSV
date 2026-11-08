@@ -76,35 +76,35 @@ commands:
     aliases: [nightvision, nv]
     usage: /야간투시
     permission: stsv.nightvision
-  텔포:
+  tpa:
     description: 다른 플레이어에게 가겠다고 요청 (상대가 수락하면 잠깐 가만히 있은 뒤 이동)
-    aliases: [tpa, 텔포요청]
-    usage: /텔포 <플레이어>
+    aliases: [텔포, 텔포요청]
+    usage: /tpa <플레이어>
     permission: stsv.tpa
-  텔포여기:
+  tpahere:
     description: 다른 플레이어를 내 쪽으로 부르는 요청 (상대가 수락하면 상대가 이동)
-    aliases: [tpahere, tpa여기]
-    usage: /텔포여기 <플레이어>
+    aliases: [텔포여기, tpa여기]
+    usage: /tpahere <플레이어>
     permission: stsv.tpa
-  수락:
+  tpaccept:
     description: 받은 텔레포트 요청 수락 (이름을 빼면 가장 최근 요청)
-    aliases: [tpaccept, tpyes]
-    usage: /수락 [플레이어]
+    aliases: [수락, tpyes]
+    usage: /tpaccept [플레이어]
     permission: stsv.tpa
-  거절:
+  tpdeny:
     description: 받은 텔레포트 요청 거절 (이름을 빼면 가장 최근 요청)
-    aliases: [tpdeny, tpno]
-    usage: /거절 [플레이어]
+    aliases: [거절, tpno]
+    usage: /tpdeny [플레이어]
     permission: stsv.tpa
-  텔포취소:
+  tpacancel:
     description: 내가 보낸 텔레포트 요청 취소
-    aliases: [tpacancel, tpa취소]
-    usage: /텔포취소
+    aliases: [텔포취소, tpa취소]
+    usage: /tpacancel
     permission: stsv.tpa
-  텔포차단:
+  tpatoggle:
     description: 텔레포트 요청 받지 않기 켜기·끄기 (접속을 끊어도 유지)
-    aliases: [tpatoggle, tpa차단]
-    usage: /텔포차단
+    aliases: [텔포차단, tpa차단]
+    usage: /tpatoggle
     permission: stsv.tpa
 permissions:
   stsv.tpa:

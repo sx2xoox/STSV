@@ -38,7 +38,7 @@ import java.util.UUID;
 public final class TpaModule implements StsvModule, Listener, TabExecutor {
 
     /** The plugin.yml commands this module answers. */
-    public static final List<String> COMMANDS = List.of("텔포", "텔포여기", "수락", "거절", "텔포취소", "텔포차단");
+    public static final List<String> COMMANDS = List.of("tpa", "tpahere", "tpaccept", "tpdeny", "tpacancel", "tpatoggle");
 
     private static final NamespacedKey BLOCKING = new NamespacedKey("stsv", "tpa_block");
 
@@ -85,12 +85,12 @@ public final class TpaModule implements StsvModule, Listener, TabExecutor {
         }
         String arg = args.length > 0 ? args[0] : null;
         switch (command.getName()) {
-            case "텔포" -> request(p, arg, TpaBook.Kind.TO);
-            case "텔포여기" -> request(p, arg, TpaBook.Kind.HERE);
-            case "수락" -> answer(p, arg, true);
-            case "거절" -> answer(p, arg, false);
-            case "텔포취소" -> withdraw(p);
-            case "텔포차단" -> toggle(p);
+            case "tpa" -> request(p, arg, TpaBook.Kind.TO);
+            case "tpahere" -> request(p, arg, TpaBook.Kind.HERE);
+            case "tpaccept" -> answer(p, arg, true);
+            case "tpdeny" -> answer(p, arg, false);
+            case "tpacancel" -> withdraw(p);
+            case "tpatoggle" -> toggle(p);
             default -> { }
         }
         return true;
@@ -102,10 +102,10 @@ public final class TpaModule implements StsvModule, Listener, TabExecutor {
         String typed = args[0].toLowerCase(Locale.ROOT);
         List<String> names = new ArrayList<>();
         switch (command.getName()) {
-            case "텔포", "텔포여기" -> {
+            case "tpa", "tpahere" -> {
                 for (Player o : Bukkit.getOnlinePlayers()) if (!o.equals(p) && p.canSee(o)) names.add(o.getName());
             }
-            case "수락", "거절" -> {
+            case "tpaccept", "tpdeny" -> {
                 for (TpaBook.Request r : book.incoming(p.getUniqueId(), System.currentTimeMillis())) names.add(r.senderName());
             }
             default -> { }

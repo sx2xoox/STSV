@@ -72,7 +72,7 @@ class HubTest {
             assertTrue(!b.on().lore().isEmpty() || b.action().equals("close"), b.key() + " has a line of lore");
         }
         // the hub gathers every player command of the core
-        for (String c : List.of("치장", "칭호", "업적", "프로필", "명예의전당", "돈", "송금", "수표", "건축월드", "야생월드", "텔포", "텔포여기")) {
+        for (String c : List.of("치장", "칭호", "업적", "프로필", "명예의전당", "돈", "송금", "수표", "건축월드", "야생월드", "tpa", "tpahere")) {
             if (!used.contains(c)) problems.add("no button for /" + c);
         }
         assertTrue(hub.buttons().values().stream().anyMatch(b -> b.action().equals("close")), "a close button");
