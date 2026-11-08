@@ -36,8 +36,52 @@ import java.util.zip.ZipOutputStream;
  */
 public final class PackBuilder {
 
-    /** @param cosmeticViews item model keys that got a cosmetic self-view wrapper (CosmeticViews) */
-    public record Built(byte[] zip, String sha1, int files, List<String> warnings, java.util.Set<String> cosmeticViews) {}
+    /**
+     * @param cosmeticViews item model keys that got a cosmetic self-view wrapper (CosmeticViews)
+     * @param json          the pack's JSON files (item definitions and models), for {@link #itemModel}
+     */
+    public record Built(byte[] zip, String sha1, int files, List<String> warnings, java.util.Set<String> cosmeticViews,
+                        Map<String, byte[]> json) {
+
+        /** A pack without its JSON at hand (furniture then has no models to fit its click boxes to). */
+        public Built(byte[] zip, String sha1, int files, List<String> warnings, java.util.Set<String> cosmeticViews) {
+            this(zip, sha1, files, warnings, cosmeticViews, Map.of());
+        }
+
+        /**
+         * The model an item model id ("ns:path", what an item's item_model points at) shows, exactly as sent to
+         * players: assets/ns/items/path.json, when it is a plain "minecraft:model", and the model JSON it names
+         * (e.g. a converted .bbmodel). Null if there is none, it has no cubes, or it is anything fancier.
+         */
+        public Model itemModel(String id) {
+            int colon = id.indexOf(':');
+            String ns = colon < 0 ? "minecraft" : id.substring(0, colon), path = id.substring(colon + 1);
+            JsonObject def = parse(json.get("assets/" + ns + "/items/" + path + ".json"));
+            if (def == null || !def.has("model") || !def.get("model").isJsonObject()) return null;
+            JsonObject ref = def.getAsJsonObject("model");
+            String type = ref.has("type") ? ref.get("type").getAsString() : "";
+            if (!(type.equals("minecraft:model") || type.equals("model")) || !ref.has("model")) return null;
+            String modelId = ref.get("model").getAsString();
+            int c = modelId.indexOf(':');
+            String mns = c < 0 ? "minecraft" : modelId.substring(0, c), mpath = modelId.substring(c + 1);
+            JsonObject model = parse(json.get("assets/" + mns + "/models/" + mpath + ".json"));
+            if (model == null || !model.has("elements") || model.getAsJsonArray("elements").isEmpty()) return null;
+            return new Model(mns + ":" + mpath, model);
+        }
+
+        private static JsonObject parse(byte[] data) {
+            if (data == null) return null;
+            try {
+                com.google.gson.JsonElement e = com.google.gson.JsonParser.parseString(new String(data, StandardCharsets.UTF_8));
+                return e.isJsonObject() ? e.getAsJsonObject() : null;
+            } catch (RuntimeException ex) {
+                return null;
+            }
+        }
+    }
+
+    /** A model of the pack: its id ("ns:item/name") and JSON. */
+    public record Model(String id, JsonObject json) {}
 
     private static final Gson GSON = new GsonBuilder().disableHtmlEscaping().create(); // compact: the client only parses it
 
@@ -75,7 +119,12 @@ public final class PackBuilder {
         if (menus.stream().anyMatch(m -> m.background() != null)) {
             json("assets/stsv/font/menus.json", dev.stsv.core.gui.menu.MenuSpec.font(menus));
         }
-        return new Built(zip(), sha1(zip()), files.size(), List.copyOf(warnings), cosmeticViews);
+        Map<String, byte[]> json = new java.util.HashMap<>();
+        for (Map.Entry<String, byte[]> f : files.entrySet()) {
+            String k = f.getKey();
+            if (k.endsWith(".json") && (k.contains("/items/") || k.contains("/models/"))) json.put(k, f.getValue());
+        }
+        return new Built(zip(), sha1(zip()), files.size(), List.copyOf(warnings), cosmeticViews, Map.copyOf(json));
     }
 
     private void copyRawAssets(ContentPack cp) throws IOException {

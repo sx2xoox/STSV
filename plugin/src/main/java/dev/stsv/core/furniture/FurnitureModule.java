@@ -19,12 +19,15 @@ import org.bukkit.attribute.AttributeInstance;
 import org.bukkit.block.Block;
 import org.bukkit.block.BlockFace;
 import org.bukkit.block.data.BlockData;
+import org.bukkit.entity.ArmorStand;
 import org.bukkit.entity.BlockDisplay;
 import org.bukkit.entity.Display;
 import org.bukkit.entity.Entity;
 import org.bukkit.entity.Interaction;
 import org.bukkit.entity.ItemDisplay;
+import org.bukkit.entity.LivingEntity;
 import org.bukkit.entity.Player;
+import org.bukkit.entity.Vehicle;
 import org.bukkit.event.EventHandler;
 import org.bukkit.event.EventPriority;
 import org.bukkit.event.HandlerList;
@@ -41,6 +44,7 @@ import org.bukkit.inventory.ItemStack;
 import org.bukkit.persistence.PersistentDataContainer;
 import org.bukkit.persistence.PersistentDataType;
 import org.bukkit.scheduler.BukkitTask;
+import org.bukkit.util.BoundingBox;
 import org.bukkit.util.RayTraceResult;
 import org.bukkit.util.Transformation;
 import org.joml.Quaternionf;
@@ -49,6 +53,7 @@ import org.joml.Vector3f;
 import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.HashSet;
+import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Optional;
@@ -56,8 +61,16 @@ import java.util.Set;
 import java.util.UUID;
 
 /**
- * Furniture = an ItemDisplay showing the custom item's model, plus per block cell:
- * an Interaction entity (click target) and optionally a barrier block (collision).
+ * Furniture = an ItemDisplay showing the custom item's model, over a set of block cells (its footprint), plus:
+ * <ul>
+ *   <li>click targets: a few Interaction entities fitted to the model it shows ({@link FurnitureShape}: the
+ *       model voxelized at 1/4 block, covered by at most 6 boxes, never outside the cells). Furniture without
+ *       model geometry is clicked over its whole cells, as before.</li>
+ *   <li>collision (if solid): a barrier block in each cell the model fills at least furniture.barrier-fill.
+ *       The other cells stay air but belong to the piece (ReservedCellGuard keeps everything out of them).</li>
+ * </ul>
+ * Both follow the model shown: placing, a new model (machine upgrade: {@link #setModel}) and loading a piece
+ * placed before (or with older shapes) bring them up to date; shapes are worked out once per model.
  *
  * Also handles: a ghost preview while holding furniture, and sitting on furniture with seats.
  *
@@ -66,7 +79,18 @@ import java.util.UUID;
 public final class FurnitureModule implements StsvModule, Listener {
 
     private STSVPlugin plugin;
-    private NamespacedKey keyItem, keyCells, keyParts, keyOwner, keyYaw, keySeat, keySpin, keySpinOff;
+    private NamespacedKey keyItem, keyCells, keyParts, keyOwner, keyYaw, keySeat, keySpin, keySpinOff, keyShapeBoxes, keyShapeBarriers;
+    private boolean active;
+    /** fitted shapes, per item + models shown (+ settings); emptied when the resource pack is rebuilt */
+    private final Map<String, FurnitureShape.Shape> shapes = new HashMap<>();
+    private final Map<String, Optional<dev.stsv.core.pack.PackBuilder.Model>> resolved = new HashMap<>();
+    private final Set<String> shapeFailures = new HashSet<>();
+    private final ReservedCells reserved = new ReservedCells();
+    private ReservedCellGuard guard;
+    /** furniture (display id) whose click boxes / barriers must be checked, and the tick to do it at */
+    private final Map<UUID, Long> refreshAt = new LinkedHashMap<>();
+    private long refreshTick;
+    private BukkitTask refreshTask;
     private BukkitTask spinTask;
     private final Map<String, FurnitureBehavior> behaviors = new HashMap<>();
     private final Map<UUID, Preview> previews = new HashMap<>();
@@ -89,16 +113,33 @@ public final class FurnitureModule implements StsvModule, Listener {
         keySeat = new NamespacedKey(plugin, "seat_of");
         keySpin = new NamespacedKey(plugin, "spin");
         keySpinOff = new NamespacedKey(plugin, "spin_off");
+        keyShapeBoxes = new NamespacedKey(plugin, "furniture_shape_boxes");
+        keyShapeBarriers = new NamespacedKey(plugin, "furniture_shape_barriers");
+        active = true;
         Bukkit.getPluginManager().registerEvents(this, plugin);
+        Bukkit.getPluginManager().registerEvents(guard = new ReservedCellGuard(this), plugin);
         previewTask = Bukkit.getScheduler().runTaskTimer(plugin, this::tickPreviews, 1L, 2L);
-        for (World w : Bukkit.getWorlds()) w.getEntitiesByClass(ItemDisplay.class).forEach(this::track);
+        for (World w : Bukkit.getWorlds()) {
+            for (ItemDisplay d : w.getEntitiesByClass(ItemDisplay.class)) {
+                track(d);
+                loaded(d);
+            }
+        }
         spinTask = Bukkit.getScheduler().runTaskTimer(plugin, this::tickSpin, 1L, SPIN_STEP);
+        refreshTask = Bukkit.getScheduler().runTaskTimer(plugin, this::tickRefresh, 1L, 1L);
     }
 
     @Override
     public void disable() {
+        active = false;
         if (previewTask != null) previewTask.cancel();
         if (spinTask != null) spinTask.cancel();
+        if (refreshTask != null) refreshTask.cancel();
+        if (guard != null) HandlerList.unregisterAll(guard);
+        reserved.clear();
+        refreshAt.clear();
+        shapes.clear();
+        resolved.clear();
         new ArrayList<>(previews.keySet()).forEach(this::clearPreview);
         for (World w : Bukkit.getWorlds()) {
             for (ItemDisplay d : w.getEntitiesByClass(ItemDisplay.class)) {
@@ -139,10 +180,15 @@ public final class FurnitureModule implements StsvModule, Listener {
         return ((facePlayer % 360f) + 360f) % 360f;
     }
 
-    /** Where the furniture would go and whether it physically fits (protection plugins are asked on placement). */
-    public record Plan(Block anchor, float yaw, List<Block> cells, boolean fits) {}
+    /**
+     * Where the furniture would go and whether it physically fits (protection plugins are asked on placement).
+     * shape: its click boxes and barrier cells there. It does not fit where a barrier would go into a player or
+     * mob (as a block cannot be placed inside one); a cell without a barrier may have someone standing in it.
+     */
+    public record Plan(Block anchor, float yaw, List<Block> cells, boolean fits, Placed shape) {}
 
-    public Plan plan(Player player, FurnitureSpec spec, Block anchor) {
+    public Plan plan(Player player, CustomItem item, Block anchor) {
+        FurnitureSpec spec = item.furniture();
         float yaw = placementYaw(spec, player.getYaw());
         World world = anchor.getWorld();
         List<Block> cells = new ArrayList<>();
@@ -151,10 +197,34 @@ public final class FurnitureModule implements StsvModule, Listener {
             int[] o = rotate(c, yaw);
             Block b = anchor.getRelative(o[0], o[1], o[2]);
             if (b.getY() >= world.getMaxHeight() || b.getY() < world.getMinHeight()) fits = false;
-            else if (!(b.isEmpty() || b.isReplaceable()) || furnitureAt(b).isPresent()) fits = false;
+            else if (!(b.isEmpty() || b.isReplaceable()) || reserved(b) || furnitureAt(b).isPresent()) fits = false;
             cells.add(b);
         }
-        return new Plan(anchor, yaw, cells, fits);
+        Placed shape = placed(spec, shape(item, item.itemModelKey(), List.of()), anchor, yaw, cells);
+        if (fits && obstructed(shape.barriers())) fits = false;
+        return new Plan(anchor, yaw, cells, fits, shape);
+    }
+
+    /** A player, mob, armor stand, boat or minecart is (partly) inside this block. */
+    private boolean obstructed(Block b) {
+        return obstructed(Set.of(b));
+    }
+
+    private boolean obstructed(Set<Block> blocks) {
+        if (blocks.isEmpty()) return false;
+        BoundingBox all = null;
+        for (Block b : blocks) all = all == null ? BoundingBox.of(b) : all.union(BoundingBox.of(b));
+        for (Entity e : blocks.iterator().next().getWorld().getNearbyEntities(all, FurnitureModule::blocksBuilding)) {
+            for (Block b : blocks) if (BoundingBox.of(b).overlaps(e.getBoundingBox())) return true;
+        }
+        return false;
+    }
+
+    private static boolean blocksBuilding(Entity e) {
+        if (!e.isValid()) return false;
+        if (e instanceof Player p) return p.getGameMode() != GameMode.SPECTATOR;
+        if (e instanceof ArmorStand a) return !a.isMarker();
+        return e instanceof LivingEntity || e instanceof Vehicle;
     }
 
     private float displayYaw(float yaw) {
@@ -171,7 +241,7 @@ public final class FurnitureModule implements StsvModule, Listener {
 
     public Optional<Furniture> place(Player player, CustomItem item, Block anchor, Block against, EquipmentSlot hand) {
         FurnitureSpec spec = item.furniture();
-        Plan plan = plan(player, spec, anchor);
+        Plan plan = plan(player, item, anchor);
         if (!plan.fits()) return Optional.empty();
         for (Block b : plan.cells()) {
             // Ask protection plugins (WorldGuard, claims, season rules...) through a regular place event.
@@ -205,23 +275,12 @@ public final class FurnitureModule implements StsvModule, Listener {
         StringBuilder cellData = new StringBuilder();
         StringBuilder partData = new StringBuilder();
         for (Block b : plan.cells()) {
-            if (spec.solid()) b.setType(Material.BARRIER, false);
+            // collision only where the model is solid enough; the other cells are cleared (grass, snow, water...)
+            if (spec.solid()) b.setType(plan.shape().barriers().contains(b) ? Material.BARRIER : Material.AIR, false);
             cellData.append(b.getX()).append(',').append(b.getY()).append(',').append(b.getZ()).append(';');
         }
-        // click targets: as few interaction entities as possible, each exactly covering a k*k*h block of
-        // cells (never more than the furniture occupies, so clicks land exactly where they used to)
-        for (int[] prism : coverWithPrisms(plan.cells().stream().map(b -> new int[]{b.getX(), b.getY(), b.getZ()}).toList())) {
-            int x = prism[0], y = prism[1], z = prism[2], k = prism[3], h = prism[4];
-            Interaction hit = world.spawn(new Location(world, x + k / 2.0, y - 0.01, z + k / 2.0), Interaction.class, i -> {
-                // a hair bigger than the barriers so the entity, not the block, is what the crosshair hits
-                i.setInteractionWidth(k + 0.02f);
-                i.setInteractionHeight(h + 0.02f);
-                i.setResponsive(true);
-                i.setPersistent(true);
-                i.getPersistentDataContainer().set(keyOwner, PersistentDataType.STRING, display.getUniqueId().toString());
-            });
-            partData.append(hit.getUniqueId()).append(';');
-        }
+        // click targets: a few interaction entities fitted to the model, never outside the cells
+        for (double[] box : plan.shape().boxes()) partData.append(spawnHit(world, box, display.getUniqueId()).getUniqueId()).append(';');
         for (FurnitureSpec.Part part : spec.parts()) {
             ItemDisplay pe = spawnPart(display, plan, part);
             partData.append(pe.getUniqueId()).append(';');
@@ -229,11 +288,27 @@ public final class FurnitureModule implements StsvModule, Listener {
         PersistentDataContainer pdc = display.getPersistentDataContainer();
         pdc.set(keyCells, PersistentDataType.STRING, cellData.toString());
         pdc.set(keyParts, PersistentDataType.STRING, partData.toString());
+        pdc.set(keyShapeBoxes, PersistentDataType.STRING, plan.shape().hash());
+        pdc.set(keyShapeBarriers, PersistentDataType.STRING, plan.shape().hash());
+        loaded(display);
 
         world.playSound(loc, Sound.BLOCK_STONE_PLACE, 1f, 0.9f);
         ItemStack from = player.getInventory().getItem(hand);
         behavior(item).ifPresent(b -> b.onPlace(player, furniture, from));
         return Optional.of(furniture);
+    }
+
+    /** A click target over the world box {minX, minY, minZ, size, height}. */
+    private Interaction spawnHit(World world, double[] box, UUID owner) {
+        double size = box[3], height = box[4];
+        return world.spawn(new Location(world, box[0] + size / 2, box[1] - 0.01, box[2] + size / 2), Interaction.class, i -> {
+            // a hair bigger than the box (and the barriers) so the entity, not a block, is what the crosshair hits
+            i.setInteractionWidth((float) size + 0.02f);
+            i.setInteractionHeight((float) height + 0.02f);
+            i.setResponsive(true);
+            i.setPersistent(true);
+            i.getPersistentDataContainer().set(keyOwner, PersistentDataType.STRING, owner.toString());
+        });
     }
 
     /**
@@ -340,11 +415,282 @@ public final class FurnitureModule implements StsvModule, Listener {
     @EventHandler
     public void onEntityAdd(com.destroystokyo.paper.event.entity.EntityAddToWorldEvent e) {
         track(e.getEntity());
+        if (e.getEntity() instanceof ItemDisplay d) loaded(d);
     }
 
     @EventHandler
     public void onEntityRemove(com.destroystokyo.paper.event.entity.EntityRemoveFromWorldEvent e) {
         spinning.remove(e.getEntity().getUniqueId());
+        reserved.remove(e.getEntity().getUniqueId());
+    }
+
+    // ------------------------------------------------------------------------------------------
+    // Fitted shape: click boxes and barrier cells that follow the model shown
+    // ------------------------------------------------------------------------------------------
+
+    /**
+     * A piece's click boxes {minX, minY, minZ, size, height} and barrier blocks in the world.
+     * hash: what was applied (stored on the piece; a different one means boxes / barriers must be redone).
+     */
+    public record Placed(List<double[]> boxes, Set<Block> barriers, String hash) {}
+
+    /**
+     * The model-space shape of an item showing these models (item model ids; null = the item's own / its
+     * parts' own). Worked out once per combination of models and cached until the resource pack is rebuilt.
+     * Without model geometry (no pack yet, a 2D or vanilla model): the full cells, as before.
+     */
+    FurnitureShape.Shape shape(CustomItem item, NamespacedKey main, List<NamespacedKey> partModels) {
+        FurnitureSpec spec = item.furniture();
+        dev.stsv.core.pack.PackBuilder.Built built = plugin.pack() == null ? null : plugin.pack().current();
+        dev.stsv.core.pack.PackBuilder.Model model = built == null || main == null ? null : resolve(built, main);
+        if (model == null) {
+            if (built == null) return FurnitureShape.fullCells(spec.cells(), spec.solid());
+            return shapes.computeIfAbsent(item.key().asString() + "|full", k -> FurnitureShape.fullCells(spec.cells(), spec.solid()));
+        }
+        double minFill = plugin.getConfig().getDouble("furniture.barrier-fill");
+        double yawOffset = plugin.getConfig().getDouble("furniture.display-yaw-offset");
+        StringBuilder key = new StringBuilder(item.key().asString()).append('|').append(model.id());
+        List<FurnitureShape.PartModel> parts = new ArrayList<>();
+        for (int i = 0; i < spec.parts().size(); i++) {
+            FurnitureSpec.Part part = spec.parts().get(i);
+            NamespacedKey k = i < partModels.size() && partModels.get(i) != null ? partModels.get(i) : part.model();
+            dev.stsv.core.pack.PackBuilder.Model pm = resolve(built, k);
+            key.append('|').append(pm == null ? "-" : pm.id());
+            String spin = part.spinAxis() != null && part.rpm() != 0 ? part.spinAxis() : null;
+            parts.add(new FurnitureShape.PartModel(pm == null ? null : pm.json(), part.position(), spin));
+        }
+        key.append('|').append(minFill).append('|').append(yawOffset);
+        FurnitureShape.Shape cached = shapes.get(key.toString());
+        if (cached != null) return cached;
+        FurnitureShape.Shape shape;
+        try {
+            FurnitureShape.Voxels v = FurnitureShape.voxelize(spec.cells(), model.json(), spec.translation(), spec.scale(), parts, yawOffset);
+            shape = FurnitureShape.shape(v, spec.cells(), minFill, spec.solid());
+        } catch (RuntimeException e) {
+            if (shapeFailures.add(key.toString())) {
+                plugin.getLogger().warning("가구 판정을 모델에서 계산하지 못해 칸 전체를 씁니다 (" + item.key() + ", " + model.id() + "): " + e);
+            }
+            shape = FurnitureShape.fullCells(spec.cells(), spec.solid());
+        }
+        shapes.put(key.toString(), shape);
+        return shape;
+    }
+
+    private dev.stsv.core.pack.PackBuilder.Model resolve(dev.stsv.core.pack.PackBuilder.Built built, NamespacedKey itemModel) {
+        return resolved.computeIfAbsent(itemModel.asString(), k -> Optional.ofNullable(built.itemModel(k))).orElse(null);
+    }
+
+    /** The shape of a placed piece, from the models it shows now (machine tier) and its parts'. */
+    private FurnitureShape.Shape shapeOf(Furniture f) {
+        ItemStack shown = f.display().getItemStack();
+        NamespacedKey main = shown.hasItemMeta() ? shown.getItemMeta().getItemModel() : null;
+        if (main == null) main = f.item().itemModelKey();
+        List<NamespacedKey> partModels = new ArrayList<>();
+        for (ItemDisplay part : parts(f)) {
+            ItemStack it = part.getItemStack();
+            partModels.add(it.hasItemMeta() ? it.getItemMeta().getItemModel() : null);
+        }
+        return shape(f.item(), main, partModels);
+    }
+
+    /**
+     * A model-space shape at a placed position. Click boxes turn with the piece (any multiple of 90 degrees maps
+     * squares onto squares); at an in-between angle (free rotation) it falls back to the full cells.
+     */
+    Placed placed(FurnitureSpec spec, FurnitureShape.Shape shape, Block anchor, float yaw, List<Block> cells) {
+        boolean cardinal = Math.abs(yaw / 90f - Math.round(yaw / 90f)) < 1e-3;
+        List<double[]> boxes = new ArrayList<>();
+        Set<Block> barriers = new HashSet<>();
+        if (!shape.fitted() || !cardinal) {
+            for (int[] p : coverWithPrisms(cells.stream().map(b -> new int[]{b.getX(), b.getY(), b.getZ()}).toList())) {
+                boxes.add(new double[]{p[0], p[1], p[2], p[3], p[4]});
+            }
+            if (spec.solid()) barriers.addAll(cells);
+            return new Placed(boxes, barriers, "full:" + (spec.solid() ? "s" : "n") + cells.size());
+        }
+        for (FurnitureShape.Box b : shape.boxes()) {
+            double[] o = boxOffset(b, yaw);
+            boxes.add(new double[]{anchor.getX() + o[0], anchor.getY() + o[1], anchor.getZ() + o[2], o[3], o[4]});
+        }
+        Set<Block> inCells = new HashSet<>(cells);
+        for (int[] c : shape.barriers()) {
+            int[] o = rotate(c, yaw);
+            Block b = anchor.getRelative(o[0], o[1], o[2]);
+            if (inCells.contains(b)) barriers.add(b);
+        }
+        return new Placed(boxes, barriers, shape.hash());
+    }
+
+    /**
+     * A model-space click box at a cardinal yaw: {minX, minY, minZ, size, height} in blocks from the anchor block's
+     * corner. Same turn as the cells ({@link #rotate}) and the model ({@link #modelToWorld}).
+     */
+    static double[] boxOffset(FurnitureShape.Box b, float yaw) {
+        double[] p = modelToWorld(new Vector3f((float) b.x0(), (float) b.y0(), (float) b.z0()), yaw);
+        double[] q = modelToWorld(new Vector3f((float) b.x1(), (float) b.y1(), (float) b.z1()), yaw);
+        return new double[]{round(0.5 + Math.min(p[0], q[0])), round(0.5 + Math.min(p[1], q[1])), round(0.5 + Math.min(p[2], q[2])),
+                b.size() / 16.0, (b.y1() - b.y0()) / 16.0};
+    }
+
+    private static double round(double v) {
+        return Math.round(v * 1e6) / 1e6;
+    }
+
+    /** The resource pack was (re)built: shapes are worked out again from its models, and every loaded piece checked. */
+    public void modelsChanged() {
+        if (!active) return;
+        shapes.clear();
+        resolved.clear();
+        shapeFailures.clear();
+        // every furniture's own model now; other models it may show (machine tiers) the first time one is shown
+        for (CustomItem item : plugin.content().items()) {
+            if (item.isFurniture()) shape(item, item.itemModelKey(), List.of());
+        }
+        for (World w : Bukkit.getWorlds()) {
+            for (ItemDisplay d : w.getEntitiesByClass(ItemDisplay.class)) {
+                if (d.getPersistentDataContainer().has(keyCells)) refreshLater(d.getUniqueId(), 1);
+            }
+        }
+    }
+
+    private void refreshLater(UUID display, long ticks) {
+        refreshAt.merge(display, refreshTick + ticks, Math::min);
+    }
+
+    private void tickRefresh() {
+        refreshTick++;
+        if (refreshAt.isEmpty()) return;
+        int budget = 20; // pieces per tick, so a big reload is spread out
+        List<UUID> due = new ArrayList<>();
+        for (Map.Entry<UUID, Long> e : refreshAt.entrySet()) {
+            if (e.getValue() <= refreshTick) due.add(e.getKey());
+            if (due.size() >= budget) break;
+        }
+        for (UUID id : due) {
+            refreshAt.remove(id);
+            if (!(Bukkit.getEntity(id) instanceof ItemDisplay d) || !d.isValid()) continue; // unloaded: checked again on load
+            if (!refresh(d)) refreshLater(id, 20); // chunks not ready, or someone stands where a barrier goes
+        }
+    }
+
+    /**
+     * Brings a placed piece's click boxes and barriers in line with the models it shows now: after an upgrade
+     * (new model), for pieces placed before click boxes were fitted (full-cell boxes and barriers, migrated once),
+     * and after the models or furniture.barrier-fill changed. Returns false to try again a little later.
+     */
+    private boolean refresh(ItemDisplay d) {
+        if (plugin.pack() == null || plugin.pack().current() == null) return true; // modelsChanged() checks again
+        Optional<Furniture> of = fromDisplay(d);
+        if (of.isEmpty() || of.get().item().furniture() == null) return true;
+        Furniture f = of.get();
+        FurnitureSpec spec = f.item().furniture();
+        List<Block> cells = storedCells(d);
+        if (cells.isEmpty()) return true;
+        Placed want = placed(spec, shapeOf(f), d.getLocation().getBlock(), yawOf(f), cells);
+        PersistentDataContainer pdc = d.getPersistentDataContainer();
+        boolean boxesOk = want.hash().equals(pdc.get(keyShapeBoxes, PersistentDataType.STRING));
+        boolean barriersOk = want.hash().equals(pdc.get(keyShapeBarriers, PersistentDataType.STRING));
+        if (boxesOk && barriersOk) return true;
+        if (!chunksReady(cells)) return false; // never load chunks or lose track of entities in unloaded ones
+        if (!boxesOk) {
+            respawnBoxes(d, want, cells);
+            pdc.set(keyShapeBoxes, PersistentDataType.STRING, want.hash());
+        }
+        if (!barriersOk) {
+            if (!applyBarriers(spec, want, cells)) return false;
+            pdc.set(keyShapeBarriers, PersistentDataType.STRING, want.hash());
+        }
+        return true;
+    }
+
+    private List<Block> storedCells(ItemDisplay d) {
+        List<Block> out = new ArrayList<>();
+        for (String cell : d.getPersistentDataContainer().getOrDefault(keyCells, PersistentDataType.STRING, "").split(";")) {
+            String[] xyz = cell.split(",");
+            if (xyz.length != 3) continue;
+            out.add(d.getWorld().getBlockAt(Integer.parseInt(xyz[0]), Integer.parseInt(xyz[1]), Integer.parseInt(xyz[2])));
+        }
+        return out;
+    }
+
+    private static boolean chunksReady(List<Block> cells) {
+        World w = cells.getFirst().getWorld();
+        Set<Long> seen = new HashSet<>();
+        for (Block b : cells) {
+            int cx = b.getX() >> 4, cz = b.getZ() >> 4;
+            if (!seen.add(((long) cx << 32) ^ (cz & 0xFFFFFFFFL))) continue;
+            if (!w.isChunkLoaded(cx, cz) || !w.getChunkAt(cx, cz).isEntitiesLoaded()) return false;
+        }
+        return true;
+    }
+
+    /** Replaces the piece's click targets (old full-cell ones included); its part models stay, in order. */
+    private void respawnBoxes(ItemDisplay d, Placed want, List<Block> cells) {
+        PersistentDataContainer pdc = d.getPersistentDataContainer();
+        String owner = d.getUniqueId().toString();
+        List<String> keep = new ArrayList<>();
+        for (String id : pdc.getOrDefault(keyParts, PersistentDataType.STRING, "").split(";")) {
+            if (id.isBlank()) continue;
+            Entity e = Bukkit.getEntity(UUID.fromString(id));
+            if (e instanceof Interaction) e.remove();
+            else keep.add(id); // part models (or an entity long gone: harmless)
+        }
+        // strays: click targets of this piece its list lost track of (they always lie within its cells)
+        BoundingBox area = BoundingBox.of(cells.getFirst());
+        for (Block b : cells) area.union(BoundingBox.of(b));
+        for (Entity e : d.getWorld().getNearbyEntities(area.expand(0.1), e -> e instanceof Interaction)) {
+            if (owner.equals(e.getPersistentDataContainer().get(keyOwner, PersistentDataType.STRING))) e.remove();
+        }
+        StringBuilder parts = new StringBuilder();
+        for (double[] box : want.boxes()) parts.append(spawnHit(d.getWorld(), box, d.getUniqueId()).getUniqueId()).append(';');
+        for (String id : keep) parts.append(id).append(';');
+        pdc.set(keyParts, PersistentDataType.STRING, parts.toString());
+    }
+
+    /**
+     * Puts barriers where the shape wants them and takes them out of the other cells. A cell where a barrier
+     * should go but a player or mob stands stays open for now (false: try again), so nobody is shut inside a block.
+     */
+    private boolean applyBarriers(FurnitureSpec spec, Placed want, List<Block> cells) {
+        if (!spec.solid()) return true;
+        boolean done = true;
+        for (Block b : cells) {
+            Material now = b.getType();
+            if (want.barriers().contains(b)) {
+                if (now == Material.BARRIER) continue;
+                if (!(b.isEmpty() || b.isReplaceable())) continue; // something else is there (never ours to remove)
+                if (obstructed(b)) {
+                    done = false;
+                    continue;
+                }
+                b.setType(Material.BARRIER, false);
+            } else if (now == Material.BARRIER) {
+                b.setType(Material.AIR, false);
+            }
+        }
+        return done;
+    }
+
+    /** A loaded piece: its cells are reserved, and its shape checked (next tick: not while the chunk is loading). */
+    private void loaded(ItemDisplay d) {
+        PersistentDataContainer pdc = d.getPersistentDataContainer();
+        if (!pdc.has(keyItem) || !pdc.has(keyCells)) return;
+        List<int[]> cells = new ArrayList<>();
+        for (String cell : pdc.getOrDefault(keyCells, PersistentDataType.STRING, "").split(";")) {
+            String[] xyz = cell.split(",");
+            if (xyz.length == 3) cells.add(new int[]{Integer.parseInt(xyz[0]), Integer.parseInt(xyz[1]), Integer.parseInt(xyz[2])});
+        }
+        reserved.add(d.getWorld().getUID(), d.getUniqueId(), cells);
+        refreshLater(d.getUniqueId(), 1);
+    }
+
+    /** A cell of some loaded furniture (with or without a barrier). */
+    boolean reserved(Block b) {
+        return reserved.reserved(b.getWorld().getUID(), b.getX(), b.getY(), b.getZ());
+    }
+
+    boolean reserved(World w, int x, int y, int z) {
+        return reserved.reserved(w.getUID(), x, y, z);
     }
 
     // ------------------------------------------------------------------------------------------
@@ -410,6 +756,8 @@ public final class FurnitureModule implements StsvModule, Listener {
             Block b = world.getBlockAt(Integer.parseInt(xyz[0]), Integer.parseInt(xyz[1]), Integer.parseInt(xyz[2]));
             if (b.getType() == Material.BARRIER) b.setType(Material.AIR, false);
         }
+        reserved.remove(display.getUniqueId());
+        refreshAt.remove(display.getUniqueId());
         Location loc = display.getLocation();
         if (dropped != null && !dropped.isEmpty()) world.dropItemNaturally(loc, dropped);
         world.playSound(loc, Sound.BLOCK_STONE_BREAK, 1f, 0.9f);
@@ -421,9 +769,13 @@ public final class FurnitureModule implements StsvModule, Listener {
     // Changing a placed piece: another model (upgrade looks), its parts, spinning on and off
     // ------------------------------------------------------------------------------------------
 
-    /** Shows another item model on the furniture (e.g. "economy:model/mill_2"); null = the item's own model. */
+    /**
+     * Shows another item model on the furniture (e.g. "economy:model/mill_2"); null = the item's own model.
+     * Its click boxes and barriers follow on the next tick (after the part models changed too, see setPartModel).
+     */
     public void setModel(Furniture f, NamespacedKey model) {
         ItemDisplay d = f.display();
+        refreshLater(d.getUniqueId(), 1);
         ItemStack it = model == null ? f.item().create(1) : d.getItemStack();
         if (model != null) {
             NamespacedKey now = it.hasItemMeta() ? it.getItemMeta().getItemModel() : null;
@@ -450,6 +802,10 @@ public final class FurnitureModule implements StsvModule, Listener {
         return out;
     }
 
+    /**
+     * Shows another model on a part. The piece's click boxes follow the parts it shows when it is next checked:
+     * call {@link #setModel} for the piece in the same tick (as a tier change does), which schedules that.
+     */
     public void setPartModel(ItemDisplay part, NamespacedKey model) {
         ItemStack it = part.getItemStack();
         NamespacedKey now = it.hasItemMeta() ? it.getItemMeta().getItemModel() : null;
@@ -603,7 +959,7 @@ public final class FurnitureModule implements StsvModule, Listener {
             if (hit == null || hit.getHitBlock() == null || hit.getHitBlockFace() == null) continue;
             Block clicked = hit.getHitBlock();
             Block anchor = clicked.isReplaceable() ? clicked : clicked.getRelative(hit.getHitBlockFace());
-            showPreview(p, held.get(), plan(p, held.get().furniture(), anchor));
+            showPreview(p, held.get(), plan(p, held.get(), anchor));
             seen.add(p.getUniqueId());
         }
         for (UUID id : new ArrayList<>(previews.keySet())) {

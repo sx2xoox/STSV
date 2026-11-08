@@ -92,6 +92,8 @@ public final class PackModule implements StsvModule, Listener {
         Files.createDirectories(out.getParent());
         Files.write(out, built.zip());
         current = built;
+        // furniture click boxes and barriers are fitted to these models (computed again, per model, from now on)
+        if (plugin.furniture() != null) plugin.furniture().modelsChanged();
         plugin.getLogger().info("리소스팩 빌드 완료: 파일 " + built.files() + "개, "
                 + (built.zip().length / 1024) + "KB, sha1=" + built.sha1());
 

@@ -35,4 +35,18 @@ class FurnitureRotationTest {
         // Height is never rotated.
         assertArrayEquals(new int[]{0, 1, 0}, FurnitureModule.rotate(new int[]{0, 1, 0}, 270f));
     }
+
+    @Test
+    void clickBoxesTurnWithTheirCells() {
+        // a box over exactly model cell (1, 0, 2), 18 px tall from 2 px up: lands on the block that cell turns to
+        FurnitureShape.Box box = new FurnitureShape.Box(16, 32, 16, 2, 20);
+        for (float yaw : new float[]{0, 90, 180, 270}) {
+            int[] cell = FurnitureModule.rotate(new int[]{1, 0, 2}, yaw);
+            double[] o = FurnitureModule.boxOffset(box, yaw);
+            assertArrayEquals(new double[]{cell[0], 2 / 16.0, cell[2], 1, 18 / 16.0}, o, 1e-9, "yaw " + yaw);
+        }
+        // a half-block box in the cell's +x/-z quarter keeps to that quarter as it turns (yaw 0: model +x = world -x)
+        double[] o = FurnitureModule.boxOffset(new FurnitureShape.Box(8, 0, 8, 0, 4), 0);
+        assertArrayEquals(new double[]{0, 0, 0.5, 0.5, 0.25}, o, 1e-9);
+    }
 }
