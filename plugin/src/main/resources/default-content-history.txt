@@ -19,6 +19,7 @@ e82ea25a14f98c850da05e93798a8569d17f016f stsv/assets/stsv/items/gui/coins.json
 f9dfcd6770531066208796ebb49b0ab3e9e23e61 stsv/assets/stsv/items/gui/info.json
 7a8816b599882907a1dfeeb76994890c3b41bc21 stsv/assets/stsv/items/gui/next.json
 47d5d63c0fe99ef723d387c61a88e5ded527c354 stsv/assets/stsv/items/gui/next_off.json
+9aeaef3b3378cd9f4b08f1838767781fafec9878 stsv/assets/stsv/items/gui/pearl.json
 52b9748a868ecad0641a69152c3c4b7ed748e71e stsv/assets/stsv/items/gui/pine.json
 799bcad99e1eba6bdb611a7369d4137bb376f09f stsv/assets/stsv/items/gui/podium.json
 c4de0b92cb679cb6b34481c392019bfb1ae15234 stsv/assets/stsv/items/gui/prev.json
@@ -47,6 +48,7 @@ e3ae204690515d0cc05304fdde2bb5930ba7ac4f stsv/assets/stsv/models/item/gui/exit.j
 8ceae62b9fc3e7d62e277158443b540f871fa8b7 stsv/assets/stsv/models/item/gui/info.json
 1061526f04a49801ae43b258b016c77ca729496f stsv/assets/stsv/models/item/gui/next.json
 77a17fbfc971770518d24372cbb23023cda806b3 stsv/assets/stsv/models/item/gui/next_off.json
+6356ed0adfb3fda4b8850e2c66c5b5078d2b2791 stsv/assets/stsv/models/item/gui/pearl.json
 5296d47ec804c699265c7ae5eefbefdd1b04c354 stsv/assets/stsv/models/item/gui/pine.json
 ee46949cc4797d16455281215125f9c51bc6ee05 stsv/assets/stsv/models/item/gui/podium.json
 84405bb787319b68383b6e245232542a5ba8c099 stsv/assets/stsv/models/item/gui/prev.json
@@ -81,6 +83,7 @@ d557c6800377372604649e6e952cb6b4f6780746 stsv/assets/stsv/textures/entity/equipm
 7e727e0ae980cf5ba71d97b5e0e71198614c10b9 stsv/assets/stsv/textures/gui/achievement_list.png
 1a1170af863ab816edb652f40484dea18037fb02 stsv/assets/stsv/textures/gui/achievements.png
 a28e87a26859c00d588672eeeeeecc16e45242cb stsv/assets/stsv/textures/gui/achievements.png
+9cc9eb552d840dc9c05185274f2d52885478a397 stsv/assets/stsv/textures/gui/hub.png
 ff512210be7f2ac3b22290c9e9806d16b125b6fd stsv/assets/stsv/textures/gui/hub.png
 54f6c1fc3a50548fe6e717e2c099166bc6b964db stsv/assets/stsv/textures/gui/profile.png
 f9feb75be03aed11b32d4c3b4d2185c2e02995f9 stsv/assets/stsv/textures/gui/profile.png
@@ -111,6 +114,7 @@ d7f5fda6b59f7cad9390877688cccf60a8e2cd99 stsv/assets/stsv/textures/item/gui/next
 40556705bc2c0e55ae8b797f91e75ce005526cc9 stsv/assets/stsv/textures/item/gui/next_off.png
 851764d1b288f51d2526c47415bb2b51b2895925 stsv/assets/stsv/textures/item/gui/next_off.png
 a0409150d023a03ec72940d15a9a419cac0a8f09 stsv/assets/stsv/textures/item/gui/next_off.png
+aa9601c2d036307f7c517fafec6e033579e371ef stsv/assets/stsv/textures/item/gui/pearl.png
 9ca90eeea7dc8828398b99d956121a5aa6e8de5d stsv/assets/stsv/textures/item/gui/pine.png
 269386cff421042640873b516c3e2aebafcd6b21 stsv/assets/stsv/textures/item/gui/podium.png
 33009dfe705aa011a697a72260a443d4165eef11 stsv/assets/stsv/textures/item/gui/prev.png
@@ -171,6 +175,7 @@ c0798ada1b895205b34f70af6e36018b01b6ed25 stsv/items/economy.yml
 861996b6ee7da1cfd464f0c731e2cc4094c1e8e2 stsv/items/test.yml
 148d77ec7013370f587da1a61cbb9e8c023011d8 stsv/menus/achievements.yml
 4d0194a38c1c55691364ac8c57d01302baa9d782 stsv/menus/achievements.yml
+7a5e35f78423fc543f703b7740a9981ebe78f3c1 stsv/menus/hub.yml
 83eed9a674a34d9816c6a19a87a1cdca7a748875 stsv/menus/hub.yml
 f2031937eb2d3b1437cd503aa54a63d5079c6c25 stsv/menus/hub.yml
 393048777e347699c60d26eb75435c5a0f3299a5 stsv/menus/profile.yml
