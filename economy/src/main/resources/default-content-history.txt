@@ -386,6 +386,7 @@ f37b2389599e39d255f363edf659df5a2c749c24 economy/crops/crops.yml
 379a2320c087123e4a8e9d02166c7084398e28c9 economy/events.yml
 9f2261f323ea92439b68c1a0d8e1ae7cd43a30c8 economy/events.yml
 bceb0c402f2a9d2ea61ee6013e06d537fb3cccd1 economy/events.yml
+6a450860a3dbfca767e2b3c126342fd8054d9146 economy/fish.yml
 8b403b54e42edeede9b0e1d1f39641838e906573 economy/fish.yml
 dd298cd4fd4f7181000e8729f0041befeb6d2c0e economy/fish.yml
 0839d977c3cfee7569c183679d3b1e5af7c04523 economy/items/crops.yml
@@ -412,6 +413,7 @@ ed327f6a9709803072b357f8ee23b6ad8d16ad3e economy/items/jobs.yml
 6aae13f00075d0212b0dfeb3dc09f287dcbf2191 economy/jobs.yml
 92ebea45c41c87dbe31adf1aba27cf828623164f economy/jobs.yml
 97f012a769b7c4ec01c2806e86946bff06687fc1 economy/jobs.yml
+a272d9e28c9d85546dafc46fc3cbc12d7a6a44cc economy/jobs.yml
 a9da3a8fd8cddd4f586a7f10b8d0c1446f35ae50 economy/jobs.yml
 bb28629d5110c886cbb56e5102d74d4530805a3b economy/jobs.yml
 ff0625280f3226b2202f7925e901ba4550b80ac5 economy/jobs.yml
