@@ -74,7 +74,10 @@ public final class WorldsModule implements StsvModule, Listener {
 
     private STSVPlugin plugin;
     private WorldRules rules = WorldRules.parse(null);
-    private final Map<UUID, BukkitTask> pending = new ConcurrentHashMap<>();
+    /** A running stand-still warm-up: its timer, and who to tell when it is cancelled (null = nobody). */
+    private record Warmup(BukkitTask task, java.util.function.Consumer<String> onCancel) {}
+
+    private final Map<UUID, Warmup> pending = new ConcurrentHashMap<>();
     private final Map<UUID, WorldRules.Kind> diedIn = new ConcurrentHashMap<>();
     private final Map<String, Long> confirm = new ConcurrentHashMap<>();
     private final Map<UUID, Long> lastWildTrip = new ConcurrentHashMap<>();
@@ -108,7 +111,7 @@ public final class WorldsModule implements StsvModule, Listener {
 
     @Override
     public void disable() {
-        pending.values().forEach(BukkitTask::cancel);
+        pending.values().forEach(w -> w.task().cancel());
         pending.clear();
         if (spots != null) spots.stop();
         plugin.admin().removeAll(ADMIN_OWNER);
@@ -404,16 +407,33 @@ public final class WorldsModule implements StsvModule, Listener {
             p.sendMessage(Lang.msg("worlds.cooldown", "seconds", (wait + 999) / 1000));
             return;
         }
-        cancel(p, null);
         int seconds = admin ? 0 : rules.warmup();
+        if (seconds > 0) p.sendMessage(Lang.msg(wild ? "worlds.warmup-wild" : "worlds.warmup", "world", name, "seconds", seconds));
+        warmup(p, seconds, left -> Lang.mm("worlds.countdown", "world", name, "seconds", left), () -> go(p, to), null);
+    }
+
+    /** Seconds a player stands still before a trip (/건축월드, /야생월드, /텔포): worlds.travel-warmup-seconds, 0 for admins. */
+    public int travelWarmup(Player p) {
+        return p.hasPermission("stsv.admin") ? 0 : rules.warmup();
+    }
+
+    /**
+     * Runs go after the player stood still for the given seconds (0 or less: at once), the countdown flashed on the
+     * action bar every second. Moving 0.6 blocks or more, changing world, taking damage, dying or leaving cancels it:
+     * the player is told why (worlds.moved, worlds.hurt), then onCancel (may be null) gets that key, or null when it
+     * ended without a message (left, died, replaced). A player has one warm-up at a time: a new one (world travel or
+     * tpa) replaces the old one, which counts as cancelled.
+     */
+    public void warmup(Player p, int seconds, java.util.function.IntFunction<net.kyori.adventure.text.Component> countdown,
+                       Runnable go, java.util.function.Consumer<String> onCancel) {
+        cancel(p, null);
         if (seconds <= 0) {
-            go(p, to);
+            go.run();
             return;
         }
         Location start = p.getLocation();
-        p.sendMessage(Lang.msg(wild ? "worlds.warmup-wild" : "worlds.warmup", "world", name, "seconds", seconds));
         int[] left = {seconds * 4};
-        pending.put(p.getUniqueId(), Bukkit.getScheduler().runTaskTimer(plugin, () -> {
+        pending.put(p.getUniqueId(), new Warmup(Bukkit.getScheduler().runTaskTimer(plugin, () -> {
             if (!p.isOnline()) {
                 cancel(p, null);
                 return;
@@ -423,20 +443,21 @@ public final class WorldsModule implements StsvModule, Listener {
                 cancel(p, "worlds.moved");
                 return;
             }
-            if (left[0] % 4 == 0 && left[0] > 0) HudModule.flash(p, Lang.mm("worlds.countdown", "world", name, "seconds", left[0] / 4));
+            if (left[0] % 4 == 0 && left[0] > 0) HudModule.flash(p, countdown.apply(left[0] / 4));
             if (left[0]-- <= 0) {
-                BukkitTask t = pending.remove(p.getUniqueId());
-                if (t != null) t.cancel();
-                go(p, to);
+                Warmup w = pending.remove(p.getUniqueId());
+                if (w != null) w.task().cancel();
+                go.run();
             }
-        }, 0L, 5L));
+        }, 0L, 5L), onCancel));
     }
 
     private void cancel(Player p, String why) {
-        BukkitTask t = pending.remove(p.getUniqueId());
-        if (t == null) return;
-        t.cancel();
+        Warmup w = pending.remove(p.getUniqueId());
+        if (w == null) return;
+        w.task().cancel();
         if (why != null) p.sendMessage(Lang.msg(why));
+        if (w.onCancel() != null) w.onCancel().accept(why);
     }
 
     private long cooldownLeft(Player p) {
@@ -684,7 +705,7 @@ public final class WorldsModule implements StsvModule, Listener {
         long oldSeed = wild.getSeed();
         resetting = true;
         spots.clear();   // the new world gets a new pool, refilled in the background
-        for (BukkitTask t : pending.values()) t.cancel();
+        for (Warmup w : pending.values()) w.task().cancel();
         pending.clear();
         Location safe = buildWorld().getSpawnLocation().add(0.5, 0, 0.5);
         for (World w : worlds) {

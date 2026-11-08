@@ -76,7 +76,43 @@ commands:
     aliases: [nightvision, nv]
     usage: /야간투시
     permission: stsv.nightvision
+  텔포:
+    description: 다른 플레이어에게 가겠다고 요청 (상대가 수락하면 잠깐 가만히 있은 뒤 이동)
+    aliases: [tpa, 텔포요청]
+    usage: /텔포 <플레이어>
+    permission: stsv.tpa
+  텔포여기:
+    description: 다른 플레이어를 내 쪽으로 부르는 요청 (상대가 수락하면 상대가 이동)
+    aliases: [tpahere, tpa여기]
+    usage: /텔포여기 <플레이어>
+    permission: stsv.tpa
+  수락:
+    description: 받은 텔레포트 요청 수락 (이름을 빼면 가장 최근 요청)
+    aliases: [tpaccept, tpyes]
+    usage: /수락 [플레이어]
+    permission: stsv.tpa
+  거절:
+    description: 받은 텔레포트 요청 거절 (이름을 빼면 가장 최근 요청)
+    aliases: [tpdeny, tpno]
+    usage: /거절 [플레이어]
+    permission: stsv.tpa
+  텔포취소:
+    description: 내가 보낸 텔레포트 요청 취소
+    aliases: [tpacancel, tpa취소]
+    usage: /텔포취소
+    permission: stsv.tpa
+  텔포차단:
+    description: 텔레포트 요청 받지 않기 켜기·끄기 (접속을 끊어도 유지)
+    aliases: [tpatoggle, tpa차단]
+    usage: /텔포차단
+    permission: stsv.tpa
 permissions:
+  stsv.tpa:
+    description: 텔레포트 요청 (/텔포, /텔포여기, /수락, /거절, /텔포취소, /텔포차단)
+    default: true
+  stsv.elevator:
+    description: 뼈 블록 엘리베이터 (뼈 블록 위에서 점프 = 위로, 웅크리기 = 아래로)
+    default: true
   stsv.nightvision:
     description: /야간투시
     default: true

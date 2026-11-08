@@ -541,8 +541,32 @@ def _candles():
     return im
 
 
+COLOURS.update({
+    "p": (72, 196, 176), "P": (30, 116, 108),              # teal (ender pearl: teleport)
+})
+
+
+def _pearl():
+    """텔레포트 요청: an ender pearl, teal with a glint at the top left, a dark core and a shaded bottom right."""
+    rows = []
+    for y in range(16):
+        row = ""
+        for x in range(16):
+            dx, dy = x - 7, y - 8
+            if dx * dx + dy * dy > 30:
+                row += "."
+            elif x in (4, 5) and y in (5, 6):
+                row += "#"
+            elif dx + dy >= 5 or dx * dx + dy * dy > 20 and dx + dy >= 2 or (x - 7.5) ** 2 + (y - 8.5) ** 2 <= 2.5:
+                row += "P"
+            else:
+                row += "p"
+        rows.append(row)
+    return draw(rows)
+
+
 def hub_icons():
-    return {"house": draw(HOUSE), "pine": draw(PINE), "tag": draw(TAG), "podium": draw(PODIUM), "send": draw(SEND),
+    return {"pearl": _pearl(), "house": draw(HOUSE), "pine": draw(PINE), "tag": draw(TAG), "podium": draw(PODIUM), "send": draw(SEND),
             "trade": draw(TRADE), "mail": draw(MAIL), "pickaxe": draw(PICKAXE), "checklist": draw(CHECKLIST),
             "scroll": draw(SCROLL), "book": draw(BOOK), "flag": draw(FLAG), "alert": draw(ALERT), "monument": draw(MONUMENT),
             "candles": _candles()}

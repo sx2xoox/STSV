@@ -17,8 +17,8 @@ from stsv_assets import ui_icons as U
 MENUS_DIR = Path(__file__).resolve().parents[2] / "content/stsv/menus"
 # the core's own buttons (stsv:gui/<name>); contents use them too (pages, close, info)
 CORE_ICONS = ("prev", "next", "prev_off", "next_off", "exit", "info", "take_off", "clear", "back", "chest",
-              # the hub (/메뉴): worlds, titles, rankings, money
-              "house", "pine", "tag", "podium", "send", "coins", "crown", "trophy")
+              # the hub (/메뉴): worlds, teleport requests, titles, rankings, money
+              "house", "pine", "tag", "podium", "send", "coins", "crown", "trophy", "pearl")
 
 
 def menus():
