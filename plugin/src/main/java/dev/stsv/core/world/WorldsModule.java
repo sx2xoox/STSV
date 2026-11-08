@@ -7,7 +7,6 @@ import dev.stsv.core.util.Lang;
 import io.papermc.paper.event.entity.EntityPortalReadyEvent;
 import org.bukkit.Bukkit;
 import org.bukkit.GameRules;
-import org.bukkit.HeightMap;
 import org.bukkit.Location;
 import org.bukkit.Material;
 import org.bukkit.NamespacedKey;
@@ -58,7 +57,8 @@ import java.util.stream.Stream;
  * (wild world: free, a resource world the operator regenerates with /관리자 야생초기화) with its own 지옥 and
  * 엔드. Inventories are shared. /건축월드 and /야생월드 travel after a short stand-still warm-up: to the player's
  * last spot in the build world (kept on the player) or its spawn; to a random safe spot of the wild world (a ring
- * around its spawn, a cooldown between trips so it cannot be used to scout).
+ * around its spawn, a cooldown between trips so it cannot be used to scout). Wild spots come ready from a pool
+ * filled in the background while the server is healthy ({@link WildSpotFiller}), so a trip does not generate terrain.
  * <p>
  * Portals ({@link PortalLinks}): the wild world's nether portals lead to its nether and back, its end portals to
  * its end (a full vanilla end: dragon, gateways, cities) and out again to the wild world; the build world's
@@ -80,6 +80,7 @@ public final class WorldsModule implements StsvModule, Listener {
     private final Map<UUID, Long> lastWildTrip = new ConcurrentHashMap<>();
     private final Map<UUID, Long> portalTold = new ConcurrentHashMap<>();
     private volatile boolean resetting;
+    private WildSpotFiller spots;
 
     @Override
     public String id() {
@@ -89,10 +90,15 @@ public final class WorldsModule implements StsvModule, Listener {
     @Override
     public void enable(STSVPlugin plugin) {
         this.plugin = plugin;
+        spots = new WildSpotFiller(plugin, this::wildWorld, () -> rules);
         load();
+        spots.start();
         Bukkit.getPluginManager().registerEvents(this, plugin);
         plugin.admin().add(ADMIN_OWNER, "야생초기화", "[확인]", "야생월드와 그 지옥·엔드를 새 시드로 다시 만듦 (안의 플레이어는 건축월드로)", this::resetCommand,
                 (s, a) -> a.length == 1 ? List.of("확인") : List.of());
+        plugin.admin().add(ADMIN_OWNER, "야생스팟", "[채우기 <개수>|비우기]", "/야생월드 의 준비된 자리(렉 방지) 상태 / 서버가 한가할 때 빠르게 더 채우기 / 모두 버리기",
+                this::spotsCommand, (s, a) -> a.length == 1 ? List.of("채우기", "비우기") : a.length == 2 && a[0].equals("채우기") ? List.of("50", "100") : List.of());
+        plugin.admin().report(ADMIN_OWNER, (s, a) -> s.sendMessage(spotsStatus()));
     }
 
     @Override
@@ -104,6 +110,7 @@ public final class WorldsModule implements StsvModule, Listener {
     public void disable() {
         pending.values().forEach(BukkitTask::cancel);
         pending.clear();
+        if (spots != null) spots.stop();
         plugin.admin().removeAll(ADMIN_OWNER);
         HandlerList.unregisterAll(this);
     }
@@ -111,6 +118,7 @@ public final class WorldsModule implements StsvModule, Listener {
     private void load() {
         var section = plugin.getConfig().getConfigurationSection("worlds");
         rules = WorldRules.parse(section);
+        spots.settings(WildSpotRules.parse(section));
         if (section != null) for (String word : section.getStringList("keep-inventory")) {
             if (WorldRules.role(word) == null) plugin.getLogger().warning("[월드] worlds.keep-inventory 의 '" + word + "' 는 알 수 없는 월드입니다 (build, wild, nether, end)");
         }
@@ -444,7 +452,10 @@ public final class WorldsModule implements StsvModule, Listener {
                 return;
             }
             HudModule.flash(p, Lang.mm("worlds.searching"));
-            findSpot(wild, rules.tries()).thenAccept(spot -> {
+            spotFor(wild, POOL_CHECKS).exceptionally(err -> {
+                plugin.getLogger().warning("[월드] 야생월드 자리 찾기 실패: " + err.getMessage());
+                return null;
+            }).thenAccept(spot -> {
                 if (!p.isOnline()) return;
                 if (spot == null) {
                     p.sendMessage(Lang.msg("worlds.no-spot"));
@@ -469,25 +480,105 @@ public final class WorldsModule implements StsvModule, Listener {
         });
     }
 
+    /** Ready spots taken from the pool before giving up on it for one trip (each that turned unsafe is dropped). */
+    private static final int POOL_CHECKS = 5;
+
     /**
-     * A random safe spot in the wild world (see {@link SafeSpot}): a column between min-distance and radius from
-     * its spawn, inside the world border; chunks are loaded asynchronously, the blocks read on the main thread.
-     * Completes with null after the configured number of tries.
+     * A safe spot in the wild world for a trip: a ready spot from the pool ({@link WildSpotFiller}: found ahead of
+     * time, the chunks around it generated), checked again on the main thread right before the teleport (a spot
+     * someone built on or dug out is dropped and the next one taken); with an empty pool, {@link #searchSpot}.
      */
-    private CompletableFuture<Location> findSpot(World w, int triesLeft) {
-        if (triesLeft <= 0 || resetting || !w.equals(wildWorld())) return CompletableFuture.completedFuture(null);
-        Location spawn = w.getSpawnLocation();
-        int[] xz = rules.randomColumn(ThreadLocalRandom.current(), spawn.getBlockX(), spawn.getBlockZ());
-        if (!w.getWorldBorder().isInside(new Location(w, xz[0] + 0.5, spawn.getY(), xz[1] + 0.5))) return findSpot(w, triesLeft - 1);
-        return w.getChunkAtAsync(xz[0] >> 4, xz[1] >> 4).thenCompose(chunk -> {
-            Block ground = w.getHighestBlockAt(xz[0], xz[1], HeightMap.MOTION_BLOCKING_NO_LEAVES);
-            Block feet = ground.getRelative(0, 1, 0), head = ground.getRelative(0, 2, 0);
-            if (SafeSpot.safe(ground.getType(), ground.getType().isSolid(), feet.getType(), head.getType(), ground.getY(), w.getMinHeight(), w.getMaxHeight())) {
-                return CompletableFuture.completedFuture(new Location(w, xz[0] + 0.5, ground.getY() + 1, xz[1] + 0.5,
+    private CompletableFuture<Location> spotFor(World w, int checksLeft) {
+        if (resetting || !w.equals(wildWorld())) return CompletableFuture.completedFuture(null);
+        WildSpotPool.Spot s = checksLeft > 0 ? spots.take(w) : null;
+        if (s == null) return searchSpot(w);
+        // generated already: a disk load at most, never generation (gen = false), urgent: a player is waiting
+        return w.getChunkAtAsync(s.x() >> 4, s.z() >> 4, false, true).thenCompose(chunk -> {
+            if (chunk != null && w.equals(wildWorld()) && WildSpotFiller.stillSafe(w, s)) {
+                return CompletableFuture.completedFuture(new Location(w, s.x() + 0.5, s.y(), s.z() + 0.5,
                         ThreadLocalRandom.current().nextFloat() * 360 - 180, 0));
             }
-            return findSpot(w, triesLeft - 1);
+            spots.dropped();
+            return spotFor(w, checksLeft - 1);
         });
+    }
+
+    /**
+     * No ready spot: random columns of the ring (between min-distance and radius from the spawn, inside the world
+     * border), those in already generated chunks first; at most worlds.wild-spots.fallback-generate-tries
+     * never-generated chunks are tried (each generates terrain), worlds.wild-random.tries in all. Chunks are loaded
+     * asynchronously, the blocks read on the main thread. Completes with null when none was safe.
+     */
+    private CompletableFuture<Location> searchSpot(World w) {
+        Location spawn = w.getSpawnLocation();
+        List<int[]> candidates = new ArrayList<>();
+        for (int i = 0; i < rules.tries() * 2; i++) {
+            int[] xz = rules.randomColumn(ThreadLocalRandom.current(), spawn.getBlockX(), spawn.getBlockZ());
+            if (w.getWorldBorder().isInside(new Location(w, xz[0] + 0.5, spawn.getY(), xz[1] + 0.5))) candidates.add(xz);
+        }
+        List<int[]> plan = WildSpotRules.plan(candidates, xz -> w.isChunkGenerated(xz[0] >> 4, xz[1] >> 4), rules.tries(),
+                spots.settings().fallbackGenerate());
+        return tryColumns(w, plan, 0);
+    }
+
+    private CompletableFuture<Location> tryColumns(World w, List<int[]> plan, int i) {
+        if (i >= plan.size() || resetting || !w.equals(wildWorld())) return CompletableFuture.completedFuture(null);
+        int[] xz = plan.get(i);
+        return w.getChunkAtAsync(xz[0] >> 4, xz[1] >> 4).thenCompose(chunk -> {
+            if (resetting || !w.equals(wildWorld())) return CompletableFuture.completedFuture(null);
+            Location at = WildSpotFiller.surface(w, xz[0], xz[1]);
+            return at != null ? CompletableFuture.completedFuture(at) : tryColumns(w, plan, i + 1);
+        });
+    }
+
+    // ------------------------------------------------------------------------------------------
+    // /관리자 야생스팟 [채우기 <개수>|비우기]: the ready spots (also a line of /관리자 보고서)
+    // ------------------------------------------------------------------------------------------
+
+    private void spotsCommand(CommandSender sender, String[] args) {
+        String what = args.length == 0 ? "" : args[0];
+        switch (what) {
+            case "채우기" -> {
+                int n;
+                try {
+                    n = args.length > 1 ? Integer.parseInt(args[1]) : spots.settings().pool();
+                } catch (NumberFormatException e) {
+                    n = -1;
+                }
+                if (n <= 0) {
+                    sender.sendMessage(Lang.msg("worlds.spots-fill-usage"));
+                    return;
+                }
+                if (wildWorld() == null) {
+                    sender.sendMessage(Lang.msg(resetting ? "worlds.resetting" : "worlds.no-wild"));
+                    return;
+                }
+                sender.sendMessage(Lang.msg("worlds.spots-filling", "target", spots.fill(n)));
+            }
+            case "비우기" -> {
+                spots.clear();
+                sender.sendMessage(Lang.msg("worlds.spots-cleared"));
+            }
+            default -> sender.sendMessage(spotsStatus());
+        }
+    }
+
+    private net.kyori.adventure.text.Component spotsStatus() {
+        WildSpotFiller.Status st = spots.status();
+        String state = switch (st.gate()) {
+            case NO_WORLD -> Lang.raw(resetting ? "worlds.spots-state-resetting" : "worlds.spots-state-no-world");
+            case OFF -> Lang.raw("worlds.spots-state-off");
+            case FULL -> Lang.raw("worlds.spots-state-full");
+            case BUSY -> Lang.raw("worlds.spots-state-busy");
+            case LAG -> Lang.raw("worlds.spots-state-lag");
+            case PACE, RUN -> Lang.raw(st.fast() ? "worlds.spots-state-fast" : "worlds.spots-state-working");
+        };
+        String candidate = st.candidateTotal() == 0 ? "" : Lang.raw("worlds.spots-candidate", "done", st.candidateDone(), "total", st.candidateTotal());
+        WildSpotRules set = spots.settings();
+        return Lang.msg("worlds.spots-status", "size", st.size(), "target", st.target(), "state", state, "candidate", candidate,
+                "chunks", st.chunks(), "found", st.found(), "rejected", st.rejected(), "used", st.used(), "dropped", st.dropped(),
+                "tps", String.format(java.util.Locale.ROOT, "%.0f", set.minTps()), "mspt", String.format(java.util.Locale.ROOT, "%.0f", set.maxMspt()),
+                "seconds", String.format(java.util.Locale.ROOT, "%.2f", (st.fast() ? set.fastIntervalMs() : set.intervalMs()) / 1000.0));
     }
 
     // the last spot in the build world: "world-uid;x;y;z;yaw;pitch" (the wild world is always a random spot)
@@ -592,6 +683,7 @@ public final class WorldsModule implements StsvModule, Listener {
         }
         long oldSeed = wild.getSeed();
         resetting = true;
+        spots.clear();   // the new world gets a new pool, refilled in the background
         for (BukkitTask t : pending.values()) t.cancel();
         pending.clear();
         Location safe = buildWorld().getSpawnLocation().add(0.5, 0, 0.5);
