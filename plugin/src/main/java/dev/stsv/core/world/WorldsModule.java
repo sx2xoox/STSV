@@ -4,34 +4,48 @@ import dev.stsv.core.STSVPlugin;
 import dev.stsv.core.hud.HudModule;
 import dev.stsv.core.module.StsvModule;
 import dev.stsv.core.util.Lang;
+import io.papermc.paper.event.entity.EntityPortalReadyEvent;
 import org.bukkit.Bukkit;
-import org.bukkit.Location;
-import org.bukkit.NamespacedKey;
-import org.bukkit.Sound;
+import org.bukkit.GameRules;
 import org.bukkit.HeightMap;
+import org.bukkit.Location;
+import org.bukkit.Material;
+import org.bukkit.NamespacedKey;
+import org.bukkit.PortalType;
+import org.bukkit.Sound;
 import org.bukkit.World;
-import org.bukkit.block.Block;
 import org.bukkit.WorldCreator;
+import org.bukkit.block.Block;
 import org.bukkit.command.CommandSender;
+import org.bukkit.entity.Entity;
 import org.bukkit.entity.Player;
 import org.bukkit.event.EventHandler;
 import org.bukkit.event.EventPriority;
 import org.bukkit.event.HandlerList;
 import org.bukkit.event.Listener;
 import org.bukkit.event.entity.EntityDamageEvent;
+import org.bukkit.event.entity.EntityPortalEvent;
 import org.bukkit.event.entity.PlayerDeathEvent;
+import org.bukkit.event.player.PlayerChangedWorldEvent;
+import org.bukkit.event.player.PlayerJoinEvent;
+import org.bukkit.event.player.PlayerPortalEvent;
 import org.bukkit.event.player.PlayerQuitEvent;
 import org.bukkit.event.player.PlayerRespawnEvent;
 import org.bukkit.event.player.PlayerTeleportEvent;
+import org.bukkit.event.world.PortalCreateEvent;
+import org.bukkit.event.world.WorldLoadEvent;
 import org.bukkit.persistence.PersistentDataType;
 import org.bukkit.scheduler.BukkitTask;
 
 import java.io.IOException;
 import java.nio.file.Files;
 import java.nio.file.Path;
+import java.util.ArrayList;
 import java.util.Comparator;
+import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.Objects;
 import java.util.Random;
 import java.util.UUID;
 import java.util.concurrent.CompletableFuture;
@@ -41,11 +55,18 @@ import java.util.stream.Stream;
 
 /**
  * The 건축월드 (build world: land and its protection, see the economy's LandModule) and the 야생월드
- * (wild world: free, a resource world the operator regenerates with /관리자 야생초기화). Inventories are
- * shared. /건축월드 and /야생월드 travel after a short stand-still warm-up: to the player's last spot in the
- * build world (kept on the player) or its spawn; to a random safe spot of the wild world (a ring around its
- * spawn, a cooldown between trips so it cannot be used to scout). Dying in the wild world without a bed or
- * anchor brings you back to the build world's spawn.
+ * (wild world: free, a resource world the operator regenerates with /관리자 야생초기화) with its own 지옥 and
+ * 엔드. Inventories are shared. /건축월드 and /야생월드 travel after a short stand-still warm-up: to the player's
+ * last spot in the build world (kept on the player) or its spawn; to a random safe spot of the wild world (a ring
+ * around its spawn, a cooldown between trips so it cannot be used to scout).
+ * <p>
+ * Portals ({@link PortalLinks}): the wild world's nether portals lead to its nether and back, its end portals to
+ * its end (a full vanilla end: dragon, gateways, cities) and out again to the wild world; the build world's
+ * portals lead nowhere (and no nether portal is lit there). The server's default nether and end are left unused:
+ * whoever logs in or respawns there is moved to the wild world. Dying anywhere in the wild set (wild world, its
+ * nether, its end) without a bed or anchor respawns at the wild world's spawn. The worlds named by role in
+ * worlds.keep-inventory (default: the wild nether and end) get the keepInventory game rule on start and whenever
+ * they load; other worlds' rules are left alone. Without a wild world everything is vanilla.
  */
 public final class WorldsModule implements StsvModule, Listener {
 
@@ -57,6 +78,7 @@ public final class WorldsModule implements StsvModule, Listener {
     private final Map<UUID, WorldRules.Kind> diedIn = new ConcurrentHashMap<>();
     private final Map<String, Long> confirm = new ConcurrentHashMap<>();
     private final Map<UUID, Long> lastWildTrip = new ConcurrentHashMap<>();
+    private final Map<UUID, Long> portalTold = new ConcurrentHashMap<>();
     private volatile boolean resetting;
 
     @Override
@@ -69,7 +91,7 @@ public final class WorldsModule implements StsvModule, Listener {
         this.plugin = plugin;
         load();
         Bukkit.getPluginManager().registerEvents(this, plugin);
-        plugin.admin().add(ADMIN_OWNER, "야생초기화", "[확인]", "야생월드를 새 시드로 다시 만듦 (안의 플레이어는 건축월드로)", this::resetCommand,
+        plugin.admin().add(ADMIN_OWNER, "야생초기화", "[확인]", "야생월드와 그 지옥·엔드를 새 시드로 다시 만듦 (안의 플레이어는 건축월드로)", this::resetCommand,
                 (s, a) -> a.length == 1 ? List.of("확인") : List.of());
     }
 
@@ -87,23 +109,76 @@ public final class WorldsModule implements StsvModule, Listener {
     }
 
     private void load() {
-        rules = WorldRules.parse(plugin.getConfig().getConfigurationSection("worlds"));
+        var section = plugin.getConfig().getConfigurationSection("worlds");
+        rules = WorldRules.parse(section);
+        if (section != null) for (String word : section.getStringList("keep-inventory")) {
+            if (WorldRules.role(word) == null) plugin.getLogger().warning("[월드] worlds.keep-inventory 의 '" + word + "' 는 알 수 없는 월드입니다 (build, wild, nether, end)");
+        }
         if (Bukkit.getWorld(rules.buildName(main())) == null) {
             plugin.getLogger().warning("[월드] 건축월드 '" + rules.build() + "' 가 없습니다. 기본 월드(" + main() + ")를 건축월드로 씁니다.");
-            rules = new WorldRules("", rules.wild(), rules.warmup(), rules.radius(), rules.minDistance(), rules.tries(), rules.cooldown());
+            rules = rules.withBuild("");
         }
-        if (rules.hasWild(main()) && Bukkit.getWorld(rules.wild()) == null) createWild(new Random().nextLong());
+        if (rules.hasWild(main())) {
+            World wild = Bukkit.getWorld(rules.wild());
+            createWild(wild != null ? wild.getSeed() : new Random().nextLong());
+        }
+        for (World w : Bukkit.getWorlds()) keepInventory(w);
     }
 
     private static String main() {
         return Bukkit.getWorlds().isEmpty() ? "world" : Bukkit.getWorlds().getFirst().getName();
     }
 
-    private World createWild(long seed) {
-        plugin.getLogger().info("[월드] 야생월드 '" + rules.wild() + "' 를 불러옵니다 (없으면 새로 만듦)");
-        World w = Bukkit.createWorld(new WorldCreator(rules.wild()).environment(World.Environment.NORMAL).seed(seed));
-        if (w == null) plugin.getLogger().warning("[월드] 야생월드를 만들지 못했습니다: " + rules.wild());
-        return w;
+    /** The wild world's three worlds by name (overworld, nether, end); empty without a wild world. */
+    private Map<String, World.Environment> wildSet() {
+        if (!rules.hasWild(main())) return Map.of();
+        Map<String, World.Environment> out = new LinkedHashMap<>();
+        out.put(rules.wild(), World.Environment.NORMAL);
+        out.put(rules.wildNetherName(main()), World.Environment.NETHER);
+        out.put(rules.wildEndName(main()), World.Environment.THE_END);
+        return out;
+    }
+
+    /** Loads (creates when missing) the wild world, its nether and its end, all with the same seed. false = one failed. */
+    private boolean createWild(long seed) {
+        boolean ok = true;
+        for (var e : wildSet().entrySet()) {
+            if (Bukkit.getWorld(e.getKey()) != null) continue;
+            plugin.getLogger().info("[월드] 야생월드 '" + e.getKey() + "' (" + e.getValue() + ") 를 불러옵니다 (없으면 새로 만듦)");
+            if (Bukkit.createWorld(new WorldCreator(e.getKey()).environment(e.getValue()).seed(seed)) == null) {
+                plugin.getLogger().warning("[월드] 야생월드를 만들지 못했습니다: " + e.getKey());
+                ok = false;
+            }
+        }
+        return ok;
+    }
+
+    // ------------------------------------------------------------------------------------------
+    // keepInventory: on in the worlds whose role worlds.keep-inventory lists (default: the wild nether and end)
+    // ------------------------------------------------------------------------------------------
+
+    /** Turn keepInventory on in a world whose role is listed; other worlds are left alone. */
+    private void keepInventory(World w) {
+        if (w == null || !rules.keeps(kind(w)) || Boolean.TRUE.equals(w.getGameRuleValue(GameRules.KEEP_INVENTORY))) return;
+        if (w.setGameRule(GameRules.KEEP_INVENTORY, true)) {
+            plugin.getLogger().info("[월드] " + displayName(w) + " '" + w.getName() + "': 죽어도 아이템·경험치 유지 (keepInventory 켬)");
+        } else plugin.getLogger().warning("[월드] '" + w.getName() + "' 에 keepInventory 를 켜지 못했습니다");
+    }
+
+    /** Dying here keeps items and XP? (the role is listed and the game rule is on) */
+    public boolean keepsInventory(World w) {
+        return w != null && rules.keeps(kind(w)) && Boolean.TRUE.equals(w.getGameRuleValue(GameRules.KEEP_INVENTORY));
+    }
+
+    @EventHandler(priority = EventPriority.MONITOR)
+    public void onWorldLoad(WorldLoadEvent e) {
+        keepInventory(e.getWorld());
+    }
+
+    @EventHandler(priority = EventPriority.MONITOR)
+    public void onChangedWorld(PlayerChangedWorldEvent e) {
+        World w = e.getPlayer().getWorld();
+        if (keepsInventory(w)) e.getPlayer().sendMessage(Lang.msg("worlds.keep-inventory", "world", displayName(w)));
     }
 
     // ------------------------------------------------------------------------------------------
@@ -134,11 +209,24 @@ public final class WorldsModule implements StsvModule, Listener {
         return resetting || !rules.hasWild(main()) ? null : Bukkit.getWorld(rules.wild());
     }
 
-    /** The Korean name of the world a player is in (건축월드, 야생월드 or the world's own name). */
+    /** The world a portal destination names; null while there is none (unset, not loaded, or being regenerated). */
+    private World world(PortalLinks.Dest d) {
+        if (resetting || !rules.hasWild(main())) return null;
+        return switch (d) {
+            case WILD -> Bukkit.getWorld(rules.wild());
+            case NETHER -> Bukkit.getWorld(rules.wildNetherName(main()));
+            case END -> Bukkit.getWorld(rules.wildEndName(main()));
+            default -> null;
+        };
+    }
+
+    /** The Korean name of the world a player is in (건축월드, 야생월드, 지옥, 엔드 or the world's own name). */
     public String displayName(World w) {
         return switch (kind(w)) {
             case BUILD -> Lang.raw("worlds.build");
             case WILD -> Lang.raw("worlds.wild");
+            case NETHER -> Lang.raw("worlds.wild-nether");
+            case END -> Lang.raw("worlds.wild-end");
             case OTHER -> w == null ? "-" : switch (w.getEnvironment()) {
                 case NETHER -> Lang.raw("worlds.nether");
                 case THE_END -> Lang.raw("worlds.end");
@@ -146,6 +234,141 @@ public final class WorldsModule implements StsvModule, Listener {
             };
         };
     }
+
+    // ------------------------------------------------------------------------------------------
+    // Portals (see PortalLinks): the wild world <-> its nether, the wild world -> its end -> out to the wild world;
+    // nothing from the build world. Nether portals: Paper's EntityPortalReadyEvent picks the world, then Paper
+    // scales the coordinates and finds or builds the portal there as vanilla does; the portal events only correct
+    // a target that is still wrong. End portals: the target is moved to the wild end, after building its platform.
+    // End gateways (inside an end) are left to vanilla.
+    // ------------------------------------------------------------------------------------------
+
+    private PortalLinks.Dest dest(World from, PortalLinks.Portal portal) {
+        return PortalLinks.target(kind(from), portal, rules.hasWild(main()));
+    }
+
+    /** No travel: a player is told why on the action bar (at most every 3 seconds: portals fire every tick). */
+    private void blocked(Entity who, PortalLinks.Dest d) {
+        if (!(who instanceof Player p)) return;
+        Long last = portalTold.get(p.getUniqueId());
+        if (last != null && System.currentTimeMillis() - last < 3000) return;
+        portalTold.put(p.getUniqueId(), System.currentTimeMillis());
+        HudModule.flash(p, Lang.mm(d == PortalLinks.Dest.BLOCKED ? "worlds.portal-build" : resetting ? "worlds.resetting" : "worlds.portal-unavailable"));
+    }
+
+    @EventHandler(priority = EventPriority.HIGH, ignoreCancelled = true)
+    public void onPortalReady(EntityPortalReadyEvent e) {
+        if (e.getPortalType() != PortalType.NETHER) return;
+        PortalLinks.Dest d = dest(e.getEntity().getWorld(), PortalLinks.Portal.NETHER);
+        if (d == PortalLinks.Dest.VANILLA) return;
+        World to = world(d);
+        if (to == null) {
+            e.setCancelled(true);
+            blocked(e.getEntity(), d);
+            return;
+        }
+        e.setTargetWorld(to);
+    }
+
+    @EventHandler(priority = EventPriority.HIGH, ignoreCancelled = true)
+    public void onPlayerPortal(PlayerPortalEvent e) {
+        PortalLinks.Portal portal = switch (e.getCause()) {
+            case NETHER_PORTAL -> PortalLinks.Portal.NETHER;
+            case END_PORTAL -> PortalLinks.Portal.END;
+            default -> null;
+        };
+        portal(e.getPlayer(), e.getFrom(), e.getTo(), portal, e::setTo, () -> e.setCancelled(true));
+    }
+
+    @EventHandler(priority = EventPriority.HIGH, ignoreCancelled = true)
+    public void onEntityPortal(EntityPortalEvent e) {
+        PortalLinks.Portal portal = switch (e.getPortalType()) {
+            case NETHER -> PortalLinks.Portal.NETHER;
+            case ENDER -> PortalLinks.Portal.END;
+            default -> null;
+        };
+        portal(e.getEntity(), e.getFrom(), e.getTo(), portal, e::setTo, () -> e.setCancelled(true));
+    }
+
+    private void portal(Entity who, Location from, Location to, PortalLinks.Portal portal,
+                        java.util.function.Consumer<Location> setTo, Runnable cancel) {
+        if (portal == null || from.getWorld() == null) return;
+        PortalLinks.Dest d = dest(from.getWorld(), portal);
+        if (d == PortalLinks.Dest.VANILLA) return;
+        World target = world(d);
+        if (target == null) {
+            cancel.run();
+            blocked(who, d);
+            return;
+        }
+        if (to != null && target.equals(to.getWorld())) return;   // already right (the ready event)
+        if (portal == PortalLinks.Portal.NETHER) {
+            // the ready event did not run or was overridden: scale like vanilla, Paper finds or builds the portal there
+            double s = PortalLinks.scale(kind(from.getWorld()), PortalLinks.kind(d));
+            var border = target.getWorldBorder();
+            double half = Math.max(0, border.getSize() / 2 - 16);
+            double x = Math.clamp(from.getX() * s, border.getCenter().getX() - half, border.getCenter().getX() + half);
+            double z = Math.clamp(from.getZ() * s, border.getCenter().getZ() - half, border.getCenter().getZ() + half);
+            double y = Math.clamp(from.getY(), target.getMinHeight() + 1, target.getMaxHeight() - 3);
+            setTo.accept(new Location(target, x, y, z, from.getYaw(), from.getPitch()));
+        } else if (d == PortalLinks.Dest.END) {
+            endPlatform(target);
+            setTo.accept(new Location(target, PortalLinks.ARRIVE_X, who instanceof Player ? PortalLinks.ARRIVE_Y : PortalLinks.ARRIVE_Y + 1,
+                    PortalLinks.ARRIVE_Z, PortalLinks.ARRIVE_YAW, 0));
+        } else {
+            setTo.accept(wildSpawn(target));   // things leaving the end (a player leaving it respawns: onRespawn)
+        }
+    }
+
+    /** The vanilla end spawn platform in the wild end (obsidian 5x5, three layers of air above), rebuilt where it is missing. */
+    private void endPlatform(World end) {
+        int h = PortalLinks.PLATFORM_HALF;
+        for (int x = PortalLinks.PLATFORM_X - h; x <= PortalLinks.PLATFORM_X + h; x++) {
+            for (int z = PortalLinks.PLATFORM_Z - h; z <= PortalLinks.PLATFORM_Z + h; z++) {
+                for (int y = PortalLinks.PLATFORM_Y; y <= PortalLinks.PLATFORM_Y + PortalLinks.PLATFORM_AIR; y++) {
+                    Block b = end.getBlockAt(x, y, z);
+                    Material want = PortalLinks.platformBlock(x, y, z);
+                    if (!PortalLinks.needsFix(want, b.getType())) continue;
+                    if (!b.getType().isAir()) b.breakNaturally();
+                    b.setType(want);
+                }
+            }
+        }
+    }
+
+    private static Location wildSpawn(World wild) {
+        return wild.getSpawnLocation().add(0.5, 0, 0.5);
+    }
+
+    /** Where a player goes who must leave a world: the wild world's spawn, else the build world's. */
+    private Location fallbackSpawn() {
+        World wild = world(PortalLinks.Dest.WILD);
+        return wild != null ? wildSpawn(wild) : buildWorld().getSpawnLocation().add(0.5, 0, 0.5);
+    }
+
+    /** No nether portal is lit in the build world while there is a wild world (it would lead nowhere). */
+    @EventHandler(priority = EventPriority.HIGH, ignoreCancelled = true)
+    public void onPortalCreate(PortalCreateEvent e) {
+        if (e.getReason() != PortalCreateEvent.CreateReason.FIRE || dest(e.getWorld(), PortalLinks.Portal.NETHER) != PortalLinks.Dest.BLOCKED) return;
+        e.setCancelled(true);
+        blocked(e.getEntity(), PortalLinks.Dest.BLOCKED);
+    }
+
+    // ------------------------------------------------------------------------------------------
+    // The server's default nether and end are not played in while there is a wild world: whoever logs in there
+    // goes to the wild world's spawn (the worlds and their data stay; vanilla still needs them loaded)
+    // ------------------------------------------------------------------------------------------
+
+    @EventHandler(priority = EventPriority.MONITOR)
+    public void onJoin(PlayerJoinEvent e) {
+        Player p = e.getPlayer();
+        if (!rules.retired(p.getWorld().getName(), main())) return;
+        Location to = fallbackSpawn();
+        p.teleportAsync(to, PlayerTeleportEvent.TeleportCause.PLUGIN).thenAccept(ok -> {
+            if (ok) p.sendMessage(Lang.msg("worlds.retired-moved", "world", displayName(to.getWorld())));
+        });
+    }
+
 
     // ------------------------------------------------------------------------------------------
     // Travel: /건축월드, /야생월드
@@ -306,7 +529,9 @@ public final class WorldsModule implements StsvModule, Listener {
     }
 
     // ------------------------------------------------------------------------------------------
-    // Respawn: died in the wild world without a bed or anchor -> the build world's spawn
+    // Respawn: died in the wild set (wild world, its nether, its end) without a bed or anchor -> the wild world's
+    // spawn; leaving the wild end -> the respawn point if it is in the wild set, else the wild world's spawn;
+    // never into the server's unused default nether / end
     // ------------------------------------------------------------------------------------------
 
     @EventHandler(priority = EventPriority.MONITOR)
@@ -318,12 +543,24 @@ public final class WorldsModule implements StsvModule, Listener {
     @EventHandler(priority = EventPriority.HIGH)
     public void onRespawn(PlayerRespawnEvent e) {
         WorldRules.Kind where = diedIn.remove(e.getPlayer().getUniqueId());
-        if (where != WorldRules.Kind.WILD || e.isBedSpawn() || e.isAnchorSpawn()) return;
-        e.setRespawnLocation(buildWorld().getSpawnLocation().add(0.5, 0, 0.5));
+        boolean ownPoint = e.isBedSpawn() || e.isAnchorSpawn();
+        World wild = world(PortalLinks.Dest.WILD);
+        if (e.getRespawnReason() == PlayerRespawnEvent.RespawnReason.END_PORTAL) {
+            if (wild == null || kind(e.getPlayer().getWorld()) != WorldRules.Kind.END) return;
+            if (ownPoint && WorldRules.wildSet(kind(e.getRespawnLocation().getWorld()))) return;
+            e.setRespawnLocation(wildSpawn(wild));
+            return;
+        }
+        if (where != null && WorldRules.wildSet(where) && !ownPoint) {
+            e.setRespawnLocation(fallbackSpawn());
+            return;
+        }
+        World at = e.getRespawnLocation().getWorld();
+        if (at != null && rules.retired(at.getName(), main())) e.setRespawnLocation(fallbackSpawn());
     }
 
     // ------------------------------------------------------------------------------------------
-    // /관리자 야생초기화 [확인]
+    // /관리자 야생초기화 [확인]: the wild world, its nether and its end together
     // ------------------------------------------------------------------------------------------
 
     private void resetCommand(CommandSender sender, String[] args) {
@@ -332,41 +569,55 @@ public final class WorldsModule implements StsvModule, Listener {
             sender.sendMessage(Lang.msg(resetting ? "worlds.resetting" : "worlds.no-wild"));
             return;
         }
+        List<World> worlds = wildSet().keySet().stream().map(Bukkit::getWorld).filter(Objects::nonNull).toList();
         String who = sender.getName();
         Long asked = confirm.get(who);
         if (args.length == 0 || !args[0].equals("확인") || asked == null || System.currentTimeMillis() - asked > 30_000) {
             confirm.put(who, System.currentTimeMillis());
-            sender.sendMessage(Lang.msg("worlds.reset-confirm", "world", wild.getName(), "players", wild.getPlayers().size()));
+            sender.sendMessage(Lang.msg("worlds.reset-confirm", "world", String.join(", ", wildSet().keySet()),
+                    "players", worlds.stream().mapToInt(w -> w.getPlayers().size()).sum()));
             return;
         }
         confirm.remove(who);
-        Path folder = wild.getWorldPath().toAbsolutePath().normalize();
         Path build = buildWorld().getWorldPath().toAbsolutePath().normalize();
         Path container = Bukkit.getWorldContainer().toPath().toAbsolutePath().normalize();
-        if (build.startsWith(folder) || container.startsWith(folder) || folder.equals(build)) {
-            sender.sendMessage(Lang.msg("worlds.reset-unsafe", "path", folder));
-            return;
+        List<Path> folders = new ArrayList<>();
+        for (World w : worlds) {
+            Path folder = w.getWorldPath().toAbsolutePath().normalize();
+            if (build.startsWith(folder) || container.startsWith(folder) || folder.equals(build)) {
+                sender.sendMessage(Lang.msg("worlds.reset-unsafe", "path", folder));
+                return;
+            }
+            folders.add(folder);
         }
+        long oldSeed = wild.getSeed();
         resetting = true;
         for (BukkitTask t : pending.values()) t.cancel();
         pending.clear();
         Location safe = buildWorld().getSpawnLocation().add(0.5, 0, 0.5);
-        for (Player p : wild.getPlayers()) {
-            p.teleport(safe, PlayerTeleportEvent.TeleportCause.PLUGIN);
-            p.sendMessage(Lang.msg("worlds.reset-moved"));
+        for (World w : worlds) {
+            for (Player p : w.getPlayers()) {
+                p.teleport(safe, PlayerTeleportEvent.TeleportCause.PLUGIN);
+                p.sendMessage(Lang.msg("worlds.reset-moved"));
+            }
         }
-        if (!Bukkit.unloadWorld(wild, false)) {
+        boolean unloaded = true;
+        for (World w : worlds) unloaded &= Bukkit.unloadWorld(w, false);
+        if (!unloaded) {
+            createWild(oldSeed);   // load back whatever was unloaded, unchanged
             resetting = false;
             sender.sendMessage(Lang.msg("worlds.reset-failed"));
             return;
         }
         sender.sendMessage(Lang.msg("worlds.reset-started", "world", rules.wild()));
         Bukkit.getScheduler().runTaskAsynchronously(plugin, () -> {
-            boolean deleted = delete(folder);
+            boolean deleted = true;
+            for (Path f : folders) deleted &= delete(f);
+            boolean done = deleted;
             Bukkit.getScheduler().runTask(plugin, () -> {
-                World w = createWild(new Random().nextLong());
+                boolean created = createWild(new Random().nextLong());
                 resetting = false;
-                if (w == null || !deleted) sender.sendMessage(Lang.msg("worlds.reset-failed"));
+                if (!created || !done) sender.sendMessage(Lang.msg("worlds.reset-failed"));
                 else Bukkit.broadcast(Lang.msg("worlds.reset-done", "world", Lang.raw("worlds.wild")));
             });
         });

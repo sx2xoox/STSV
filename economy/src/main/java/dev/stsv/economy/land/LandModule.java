@@ -66,8 +66,8 @@ import java.util.concurrent.ConcurrentHashMap;
  * newest chunks are released until the tax can be paid. The server's land protects the town.
  *
  * Worlds (core config.yml "worlds", rules in {@link LandAccess}): land is bought only in the 건축월드, where
- * nobody changes blocks outside a land they live on; the 야생월드 is free (claims there are dormant); claims
- * made earlier in other worlds keep protecting.
+ * nobody changes blocks outside a land they live on; the 야생월드 and its 지옥 and 엔드 are free (claims there
+ * are dormant); claims made earlier in other worlds keep protecting.
  */
 public final class LandModule extends EcoModule implements DailyListener {
 
@@ -110,7 +110,7 @@ public final class LandModule extends EcoModule implements DailyListener {
         return rules;
     }
 
-    /** The land here; none in the wild world (claims there are dormant). */
+    /** The land here; none in the wild world, its nether or its end (claims there are dormant). */
     public Land at(Location l) {
         if (l.getWorld() == null || !LandAccess.claimsCount(kind(l))) return null;
         return store.index().at(l.getWorld().getName(), l.getBlockX(), l.getBlockZ());
@@ -128,6 +128,13 @@ public final class LandModule extends EcoModule implements DailyListener {
         Land land = at(l);
         if (land != null) return land;
         return LandAccess.sheltered(kind(l), null) ? UNCLAIMED_BUILD : null;
+    }
+
+    /** "No land here": the wild world, or its nether / end (where dying keeps items and XP when that is on). */
+    private Component freeWorld(org.bukkit.World w, WorldRules.Kind kind) {
+        if (kind == WorldRules.Kind.WILD) return Lang.msg("land.here-wild-world");
+        return Lang.msg(core.worlds() != null && core.worlds().keepsInventory(w) ? "land.here-wild-dimension-keep" : "land.here-wild-dimension",
+                "world", core.worlds() == null ? w.getName() : core.worlds().displayName(w));
     }
 
     private static ChunkPos chunk(Location l) {
@@ -427,7 +434,7 @@ public final class LandModule extends EcoModule implements DailyListener {
         ChunkPos c = chunk(p.getLocation());
         WorldRules.Kind world = kind(p.getLocation());
         p.sendMessage(here != null ? Lang.msg("land.here", "owner", ownerName(here), "x", c.x(), "z", c.z())
-                : world == WorldRules.Kind.WILD ? Lang.msg("land.here-wild-world")
+                : !LandAccess.claimsCount(world) ? freeWorld(p.getWorld(), world)
                 : world == WorldRules.Kind.BUILD ? Lang.msg("land.here-wild", "x", c.x(), "z", c.z())
                 : Lang.msg("land.here-other-world"));
         Land l = mine(p);
@@ -451,7 +458,7 @@ public final class LandModule extends EcoModule implements DailyListener {
     /** Borders of the lands around you for 10 seconds: yours green, others red, the town yellow. */
     public void show(Player p) {
         if (!LandAccess.claimsCount(kind(p.getLocation()))) {
-            p.sendMessage(Lang.msg("land.here-wild-world"));
+            p.sendMessage(freeWorld(p.getWorld(), kind(p.getLocation())));
             return;
         }
         String w = p.getWorld().getName();
@@ -786,7 +793,7 @@ public final class LandModule extends EcoModule implements DailyListener {
     }
 
     // nature (explosions, spreading fire, liquids and pistons from elsewhere) changes nothing in a land or in the
-    // build world outside lands; the wild world (and unclaimed nether / end) is free
+    // build world outside lands; the wild world, its nether and end (and unclaimed other worlds) are free
 
     @EventHandler(priority = EventPriority.LOW, ignoreCancelled = true)
     public void onExplode(EntityExplodeEvent e) {
