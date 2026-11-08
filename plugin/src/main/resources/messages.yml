@@ -208,6 +208,10 @@ hub:
   suggest: "<click:suggest_command:'/{command} '><hover:show_text:'<gray>클릭하면 채팅창에 /{command} 가 입력됩니다'><yellow><u>[/{command} 입력하기]</u></yellow></hover></click> <gray>← 클릭한 뒤 이어서 쓰세요."
 
 # 건축월드 / 야생월드
+night-vision:
+  enabled: "<green>야간 투시를 켰습니다.</green> <gray>(끄려면 다시 /야간투시)"
+  disabled: "<gray>야간 투시를 껐습니다."
+
 worlds:
   build: "건축월드"
   wild: "야생월드"

@@ -71,7 +71,15 @@ commands:
     aliases: [wild, 야생]
     usage: /야생월드
     permission: stsv.travel
+  야간투시:
+    description: 야간 투시 켜기·끄기 (켜 두면 접속을 끊거나 죽어도 유지)
+    aliases: [nightvision, nv]
+    usage: /야간투시
+    permission: stsv.nightvision
 permissions:
+  stsv.nightvision:
+    description: /야간투시
+    default: true
   stsv.menu:
     description: 통합 메뉴 (/메뉴, Shift+F)
     default: true

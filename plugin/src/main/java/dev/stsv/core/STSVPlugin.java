@@ -135,6 +135,12 @@ public final class STSVPlugin extends JavaPlugin {
                 return true;
             });
         }
+        PluginCommand nightVision = getCommand("야간투시");
+        if (nightVision != null) {
+            dev.stsv.core.command.NightVision nv = new dev.stsv.core.command.NightVision(this);
+            nightVision.setExecutor(nv);
+            getServer().getPluginManager().registerEvents(nv, this);
+        }
         PluginCommand titles = getCommand("칭호");
         if (titles != null) {
             dev.stsv.core.command.TitleCommand titleCommand = new dev.stsv.core.command.TitleCommand(this);
