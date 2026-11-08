@@ -125,7 +125,7 @@ public record JobSpec(int maxLevel, double a, double b, long changeCost, int cha
                 ConfigurationSection j = js.getConfigurationSection(id);
                 if (j == null) continue;
                 Map<String, Range> ranges = new LinkedHashMap<>();
-                for (String k : List.of("extra", "save")) {
+                for (String k : List.of("extra", "save", "bite")) {
                     Range r = range(j, k);
                     if (r != null) ranges.put(k, r);
                 }

@@ -13,7 +13,22 @@ import java.util.Random;
  * how big, how much). Pure data and the catch maths (unit-tested).
  */
 public record FishSpec(Map<String, Rarity> rarities, Map<String, Group> groups, Map<String, Species> species,
-                       double legendShare, double pearl) {
+                       double legendShare, double pearl, Bite bite) {
+
+    /**
+     * How long the float waits for a bite, in seconds (vanilla: 5-30 s). Lure takes lurePerLevel off per level and the fisher's
+     * "bite" effect takes its share off too, both as factors, instead of vanilla's flat -5 s per Lure level (which would make Lure
+     * III bite at once with these shorter waits).
+     */
+    public record Bite(double min, double max, double lurePerLevel) {
+        /** {min, max} wait in ticks for a cast with this Lure level and the fisher's reduction (0..0.8); at least 1 tick. */
+        public int[] ticks(int lure, double fisherCut) {
+            double f = Math.max(0, 1 - lurePerLevel * Math.max(0, lure)) * (1 - Math.clamp(fisherCut, 0, 0.8));
+            int lo = Math.max(1, (int) Math.round(min * 20 * f));
+            int hi = Math.max(lo, (int) Math.round(max * 20 * f));
+            return new int[] {lo, hi};
+        }
+    }
 
     /** speed = needle cells per tick, zone = green cells, hits = successes needed. */
     public record Rarity(String id, int index, String name, String color, int hits, double speed, int zone) {}
@@ -71,7 +86,9 @@ public record FishSpec(Map<String, Rarity> rarities, Map<String, Group> groups, 
             }
         }
         if (species.isEmpty()) problems.add("fish.species: 물고기가 없음");
-        return new FishSpec(rarities, groups, species, c.getDouble("legend-share", 0.2), c.getDouble("pearl", 0.15));
+        double bMin = Math.max(0.5, c.getDouble("bite.min", 5)), bMax = Math.max(bMin, c.getDouble("bite.max", 30));
+        Bite bite = new Bite(bMin, bMax, Math.clamp(c.getDouble("bite.lure-per-level", 0.15), 0, 0.3));
+        return new FishSpec(rarities, groups, species, c.getDouble("legend-share", 0.2), c.getDouble("pearl", 0.15), bite);
     }
 
     // ------------------------------------------------------------------------------------------

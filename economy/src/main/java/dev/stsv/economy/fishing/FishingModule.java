@@ -148,6 +148,15 @@ public final class FishingModule extends EcoModule implements WeeklyListener {
             e.setCancelled(true);   // no new cast while a fish is on
             return;
         }
+        if (e.getState() == PlayerFishEvent.State.FISHING) {
+            // the wait for a bite: fish.yml bite (shorter than vanilla), Lure and the fisher's level as factors
+            ItemStack rod = p.getInventory().getItem(e.getHand() == null ? org.bukkit.inventory.EquipmentSlot.HAND : e.getHand());
+            int lure = rod == null ? 0 : rod.getEnchantmentLevel(org.bukkit.enchantments.Enchantment.LURE);
+            int[] w = spec.bite().ticks(lure, eco.jobs().effect(u, "fisher", "bite"));
+            e.getHook().setApplyLure(false);
+            e.getHook().setWaitTime(w[0], w[1]);
+            return;
+        }
         if (e.getState() != PlayerFishEvent.State.CAUGHT_FISH || !(e.getCaught() instanceof Item caught)) return;
         Forced force = forced.get(u);
         if (force == null && !FISH.contains(caught.getItemStack().getType())) return;   // treasure and junk: vanilla

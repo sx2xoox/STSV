@@ -7,6 +7,8 @@
 
 legend-share: 0.05     # 희귀·전설 입질 중 전설 비율 (어부 Lv30 이 낚는 전설 수가 링을 고치기 전과 같게)
 pearl: 0.15            # 바다에서 희귀가 걸렸을 때 진주가 나올 확률
+# 입질까지 기다리는 시간(초). 바닐라는 5~30초. 미끼(Lure) 한 단계마다 15%, 어부 레벨에 따라 jobs.yml 어부 bite 만큼 줄어듦
+bite: { min: 2, max: 12, lure-per-level: 0.15 }
 
 rarities:
   common: { name: "흔함", color: "#ffffff", hits: 2, speed: 1.0, zone: 8 }

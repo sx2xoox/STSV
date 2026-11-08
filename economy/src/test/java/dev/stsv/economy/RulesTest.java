@@ -35,6 +35,7 @@ import java.util.List;
 import java.util.Map;
 import java.util.UUID;
 
+import static org.junit.jupiter.api.Assertions.assertArrayEquals;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertNotEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
@@ -788,6 +789,20 @@ class RulesTest {
             assertEquals("special", s.group());
             assertTrue(s.habitat().equals("fresh") || s.habitat().equals("salt"), s.id());
         }
+    }
+
+    @Test
+    void biteWaitIsShorterThanVanillaAndShrinksWithLureAndTheFisher() {
+        FishSpec f = fish();
+        assertArrayEquals(new int[] {40, 240}, f.bite().ticks(0, 0), "2-12 s with no Lure, no fisher");
+        assertArrayEquals(new int[] {22, 132}, f.bite().ticks(3, 0), "Lure III: -45%");
+        assertArrayEquals(new int[] {13, 79}, f.bite().ticks(3, 0.40), "Lure III and a Lv30 fisher: -45% then -40%");
+        assertArrayEquals(new int[] {4, 26}, f.bite().ticks(3, 0.80), "an event doubling the fisher's cut is capped at 80%");
+        assertTrue(f.bite().ticks(10, 0.8)[0] >= 1, "never below one tick");
+        JobSpec jobs = JobSpec.parse(ContentTest.yaml("jobs.yml"), new ArrayList<>());
+        JobSpec.Job fisher = jobs.jobs().get("fisher");
+        assertEquals(0.0, fisher.range("bite", 1, 30), 1e-9);
+        assertEquals(0.40, fisher.range("bite", 30, 30), 1e-9);
     }
 
     @Test
