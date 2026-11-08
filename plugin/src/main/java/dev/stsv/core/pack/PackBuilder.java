@@ -39,7 +39,7 @@ public final class PackBuilder {
     /** @param cosmeticViews item model keys that got a cosmetic self-view wrapper (CosmeticViews) */
     public record Built(byte[] zip, String sha1, int files, List<String> warnings, java.util.Set<String> cosmeticViews) {}
 
-    private static final Gson GSON = new GsonBuilder().setPrettyPrinting().disableHtmlEscaping().create();
+    private static final Gson GSON = new GsonBuilder().disableHtmlEscaping().create(); // compact: the client only parses it
 
     private final Map<String, byte[]> files = new TreeMap<>(); // sorted -> deterministic zip -> stable hash
     private final List<String> warnings = new ArrayList<>();
@@ -49,6 +49,7 @@ public final class PackBuilder {
         files.clear();
         warnings.clear();
         sharedTextures.clear();
+        optimizedPngs.clear();
         zipCache = null;
 
         JsonObject pack = new JsonObject();
@@ -103,29 +104,51 @@ public final class PackBuilder {
                 JsonObject def = new JsonObject();
                 def.add("model", ref);
                 json("assets/" + ns + "/items/model/" + name + ".json", def);
-                // identical textures (the same face on several models, e.g. the tiers of a machine) are stored
-                // once, by content, under textures/item/shared: smaller pack, fewer atlas sprites
-                JsonObject refs = r.model().getAsJsonObject("textures");
-                for (Map.Entry<String, byte[]> t : r.textures().entrySet()) {
-                    if (!t.getKey().endsWith(".png")) continue;
-                    String tex = t.getKey().replaceFirst("\\.png$", "");
-                    byte[] meta = r.textures().get(t.getKey() + ".mcmeta");
-                    String shared = "shared/" + hash(t.getValue(), meta);
-                    if (sharedTextures.add(ns + ":" + shared)) {
-                        put("assets/" + ns + "/textures/item/" + shared + ".png", t.getValue(), cp);
-                        if (meta != null) put("assets/" + ns + "/textures/item/" + shared + ".png.mcmeta", meta, cp);
-                    }
-                    String old = ns + ":item/" + name + "/" + tex;
-                    if (refs != null) {
-                        for (String k : refs.keySet()) {
-                            if (refs.get(k).getAsString().equals(old)) refs.addProperty(k, ns + ":item/" + shared);
+
+                JsonObject model = r.model();
+                JsonObject refs = model.getAsJsonObject("textures");
+                String folder = ns + ":item/" + name + "/";
+                // texture key -> png / mcmeta of this model
+                Map<String, byte[]> pngOf = new java.util.HashMap<>(), metaOf = new java.util.HashMap<>();
+                if (refs != null) {
+                    for (String k : refs.keySet()) {
+                        String v = refs.get(k).getAsString();
+                        if (!v.startsWith(folder)) continue;
+                        String tex = v.substring(folder.length());
+                        if (r.textures().containsKey(tex + ".png")) {
+                            pngOf.put(k, r.textures().get(tex + ".png"));
+                            if (r.textures().containsKey(tex + ".png.mcmeta")) metaOf.put(k, r.textures().get(tex + ".png.mcmeta"));
                         }
                     }
                 }
-                json("assets/" + ns + "/models/item/" + name + ".json", r.model());
+                // lossless clean-up: faces without area, then textures nothing uses (see ModelOptimizer)
+                ModelOptimizer.removeZeroAreaFaces(model);
+                ModelOptimizer.dropUnusedTextures(model);
+
+                // identical textures (the same face on several models, e.g. the tiers of a machine) are stored
+                // once, by content, under textures/item/shared: smaller pack, fewer atlas sprites. Each is re-encoded
+                // losslessly to its smallest PNG first (PngOptimizer), so equal pictures also share one file.
+                if (refs != null) {
+                    for (String k : new ArrayList<>(refs.keySet())) {
+                        byte[] png = pngOf.get(k);
+                        if (png == null) continue;
+                        byte[] meta = metaOf.get(k);
+                        byte[] small = optimizedPngs.computeIfAbsent(hash(png, null), h -> PngOptimizer.optimize(png));
+                        String shared = "shared/" + hash(small, meta);
+                        if (sharedTextures.add(ns + ":" + shared)) {
+                            put("assets/" + ns + "/textures/item/" + shared + ".png", small, cp);
+                            if (meta != null) put("assets/" + ns + "/textures/item/" + shared + ".png.mcmeta", meta, cp);
+                        }
+                        refs.addProperty(k, ns + ":item/" + shared);
+                    }
+                }
+                json("assets/" + ns + "/models/item/" + name + ".json", model);
             }
         }
     }
+
+    /** original PNG (by content hash) -> its losslessly re-encoded form, so each picture is optimised once per build */
+    private final Map<String, byte[]> optimizedPngs = new java.util.HashMap<>();
 
     private final java.util.Set<String> sharedTextures = new java.util.HashSet<>();
 
@@ -201,6 +224,7 @@ public final class PackBuilder {
         if (zipCache != null) return zipCache;
         ByteArrayOutputStream bytes = new ByteArrayOutputStream();
         try (ZipOutputStream zip = new ZipOutputStream(bytes)) {
+            zip.setLevel(java.util.zip.Deflater.BEST_COMPRESSION); // smaller download, same files
             for (Map.Entry<String, byte[]> f : files.entrySet()) {
                 ZipEntry e = new ZipEntry(f.getKey());
                 e.setTime(315532800000L); // fixed timestamp (1980-01-01) so identical content -> identical hash
