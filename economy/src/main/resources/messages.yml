@@ -33,6 +33,9 @@ weekday:
 pvp:
   disabled: "<red>이 서버는 PvP가 꺼져 있습니다."
 
+villager:
+  trade-off: "<red>이 서버는 주민 거래가 꺼져 있습니다. <gray>(/상점 · /거래소)"
+
 activity:
 
 mail:

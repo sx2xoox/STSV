@@ -10,6 +10,10 @@ pvp:
   # true = 언제 어디서나 PvP. false = PvP 끔
   always: false
 
+villagers:
+  # false = 주민·떠돌이 상인과 거래 불가 (에메랄드·책·도구로 상점 경제를 우회하지 못하게). true = 바닐라처럼 거래
+  trading: false
+
 hud:
   # 오른쪽 사이드바: 직업 레벨, 미션 (오늘·이번 주 완료 수), 진행 중인 사건
   job: true

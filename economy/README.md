@@ -292,7 +292,9 @@ STSV 공통 플러그인 위에서 도는 첫 번째 콘텐츠: 시즌 없이 **
 | `crops/crops.yml` | 작물 17종 |
 | `items/`, `recipes/`, `menus/`, `titles/` | 아이템 269종(발견품 6 + 생산품 132 (직업 123 + 압착기 9) + 기계 7 + 작물 씨앗·수확물 32 + 물고기 92), 기계 조합법, 메뉴 18종, 칭호 |
 
-운영 설정(시간대, 하루가 바뀌는 시각, PvP, 사이드바, 보고서의 소멸/생성 목표)은 `plugins/STSV-Economy/config.yml`, 문구는 `plugins/STSV-Economy/messages.yml`.
+주민·떠돌이 상인과는 거래할 수 없습니다(상점 가격과 한도를 우회하지 못하게; config.yml `villagers.trading: true` 로 켤 수 있음, 권한 `stsv.economy.villager.trade`).
+
+운영 설정(시간대, 하루가 바뀌는 시각, PvP, 주민 거래, 사이드바, 보고서의 소멸/생성 목표)은 `plugins/STSV-Economy/config.yml`, 문구는 `plugins/STSV-Economy/messages.yml`.
 
 ## 매일 05시
 

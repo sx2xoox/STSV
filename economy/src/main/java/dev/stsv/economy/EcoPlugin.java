@@ -114,6 +114,7 @@ public final class EcoPlugin extends JavaPlugin {
         StallRemoval.run(this, core.db());
         core.economy().feeWaiver(this::feesWaived);   // 수수료 면제 covers /송금 too
         getServer().getPluginManager().registerEvents(new PvpRule(this), this);
+        getServer().getPluginManager().registerEvents(new VillagerRule(this), this);
         Commands.register(this);
         AdminCommands.register(this);
         Hub.register(this);

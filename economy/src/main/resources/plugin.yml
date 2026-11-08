@@ -80,3 +80,6 @@ permissions:
   stsv.economy.land.bypass:
     description: 남의 땅에서도 무엇이든 할 수 있음
     default: op
+  stsv.economy.villager.trade:
+    description: 주민 거래가 꺼져 있어도 거래할 수 있음
+    default: op
