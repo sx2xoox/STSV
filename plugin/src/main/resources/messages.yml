@@ -242,6 +242,20 @@ worlds:
   reset-started: "<gray>야생월드 '{world}' 와 그 지옥·엔드를 내리고 다시 만드는 중..."
   reset-failed: "<red>야생월드를 다시 만들지 못했습니다. 콘솔을 확인하세요."
   reset-done: "<gold>{world}가 새로 만들어졌습니다! <gray>/야생월드"
+  # /관리자 야생스팟 (/야생월드 의 준비된 자리) 과 /관리자 보고서 의 한 줄
+  spots-status: "<gray>야생월드 준비된 자리 <white>{size}/{target}</white> · <white>{state}</white>{candidate} <dark_gray>(이번 실행: 만든 청크 {chunks}, 찾은 자리 {found}, 버린 후보 {rejected}, 쓴 자리 {used}, 쓸 때 위험해서 버림 {dropped} · TPS {tps} 이상·틱 {mspt}ms 미만일 때만, 청크 하나에 {seconds}초 쉼)"
+  spots-candidate: " <dark_gray>· 다음 자리 주변 청크 {done}/{total}"
+  spots-state-no-world: "야생월드 없음"
+  spots-state-resetting: "야생월드 다시 만드는 중"
+  spots-state-off: "꺼짐 (worlds.wild-spots.pool: 0)"
+  spots-state-full: "가득 참 (쉬는 중)"
+  spots-state-busy: "청크 만드는 중"
+  spots-state-lag: "<yellow>서버가 바빠서 쉬는 중</yellow>"
+  spots-state-working: "채우는 중"
+  spots-state-fast: "빠르게 채우는 중"
+  spots-filling: "<green>준비된 자리를 <white>{target}개</white>까지 빠르게 채웁니다. <gray>(한 번에 청크 하나씩, 서버가 바쁘면 쉼 · 상태: /관리자 야생스팟)"
+  spots-fill-usage: "<red>/관리자 야생스팟 채우기 <개수>"
+  spots-cleared: "<yellow>준비된 자리를 모두 버렸습니다. 서버가 한가할 때 다시 채웁니다."
 
 crop:
   wrong-soil: "<red>이 씨앗은 경작지 위에 심어야 합니다."
