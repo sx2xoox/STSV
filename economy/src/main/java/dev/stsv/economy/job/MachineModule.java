@@ -102,6 +102,8 @@ public final class MachineModule extends EcoModule {
 
     private Map<String, MachineSpec> specs = Map.of();
     private MachineSpec.Settings settings = new MachineSpec.Settings(List.of(), List.of(), List.of(1), List.of(0.0), 0.2);
+    /** machines.yml upgrade.repeat: each upgrade of the same kind and tier a player bought before adds this share of the cost */
+    private double repeat;
     private Map<String, String> madeOn = Map.of();
     private final Map<UUID, Machine> machines = new ConcurrentHashMap<>();
     private Db db;
@@ -201,6 +203,7 @@ public final class MachineModule extends EcoModule {
             }
         }
         settings = MachineSpec.Settings.parse(data);
+        repeat = Math.max(0, data.getDouble("upgrade.repeat", 0));
         Map<String, String> made = new HashMap<>();
         for (MachineSpec s : specs.values()) {
             if (!s.upgradeCost().isEmpty() && s.upgradeCost().size() != settings.level().size())
@@ -701,6 +704,18 @@ public final class MachineModule extends EcoModule {
         return groups;
     }
 
+    /** How many upgrades of this kind of machine to this tier a player bought (job machines; the press has no repeat cost). */
+    private String boughtKey(UUID player, Machine m, int tier) {
+        return "machines.bought." + player + "." + m.spec.id() + "." + tier;
+    }
+
+    /** What upgrading this machine to tier costs this player: the table's price, more for every same upgrade bought before. */
+    private long upgradeCost(UUID player, Machine m, int tier) {
+        long base = settings(m).cost(tier);
+        if (player == null || m.spec.job() == null) return base;
+        return MachineSpec.Settings.repeatCost(base, eco.kv().getLong(boughtKey(player, m, tier), 0), repeat);
+    }
+
     private JobSpec.Job jobOf(Machine m) {
         return m.spec.job() == null ? null : eco.jobs().spec().jobs().get(m.spec.job());
     }
@@ -719,7 +734,7 @@ public final class MachineModule extends EcoModule {
             m.inv.setItem(UPGRADE, icon(Material.NETHER_STAR, "economy:gui/crown", Lang.item("machine.upgrade-max"), null));
         } else {
             long recipes = m.spec.recipes().stream().filter(r -> r.tier() == next).count();
-            List<Component> lore = new ArrayList<>(Lang.items(j == null ? "machine.upgrade-lore-common" : "machine.upgrade-lore", "cost", EconomyModule.format(settings.cost(next)),
+            List<Component> lore = new ArrayList<>(Lang.items(j == null ? "machine.upgrade-lore-common" : "machine.upgrade-lore", "cost", EconomyModule.format(upgradeCost(m.owner, m, next)),
                     "color", jc, "job", jn, "level", settings.level(next), "lanes", settings.lanes(next),
                     "speed", Math.round(settings.speed(next) * 100), "recipes", recipes));
             boolean armed = System.currentTimeMillis() - m.armedUpgrade < 5000;
@@ -814,7 +829,7 @@ public final class MachineModule extends EcoModule {
             HudModule.flash(p, Lang.mm("machine.need-level", "color", j.color(), "job", j.name(), "level", need, "tier", tierName(next)));
             return;
         }
-        long cost = settings.cost(next);
+        long cost = upgradeCost(p.getUniqueId(), m, next);
         long nowMs = System.currentTimeMillis();
         if (nowMs - m.armedUpgrade > 5000) {
             m.armedUpgrade = nowMs;
@@ -826,6 +841,10 @@ public final class MachineModule extends EcoModule {
         if (!core.economy().withdraw(p.getUniqueId(), cost, "machine_upgrade")) {
             HudModule.flash(p, Lang.mm("machine.not-enough", "cost", EconomyModule.format(cost)));
             return;
+        }
+        if (m.spec.job() != null) {
+            String k = boughtKey(p.getUniqueId(), m, next);
+            eco.kv().set(k, eco.kv().getLong(k, 0) + 1);
         }
         m.tier = next;
         m.dirty = true;

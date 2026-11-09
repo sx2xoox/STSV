@@ -148,8 +148,8 @@ class BalanceTest {
     // ------------------------------------------------------------------------------------------ R10 q ladder
     /** base below the limit -> q. */
     static final double[][] Q_LADDER = {{3, 128}, {6, 64}, {15, 32}, {50, 16}, {150, 8}, {500, 4}, {1000, 2}, {Double.POSITIVE_INFINITY, 1}};
-    /** R10c: per-player daily cap of a raw custom crop = 6 x q. */
-    static final int CROP_CAP_X_Q = 6;
+    /** R10c: per-player daily cap of a raw custom crop = 4 x q (6 x q before the gentler sell curve: the same cap would pay ~60% more). */
+    static final int CROP_CAP_X_Q = 4;
     // ------------------------------------------------------------------------------------------ R8 crops
     /** G per plot per 24 min at base price, no job. */
     static final Map<String, Range> CROP_BAND = Map.of("regrow", new Range(23.0, 37.0), "replant", new Range(14.0, 21.0));
@@ -859,7 +859,7 @@ class BalanceTest {
         rule("R10", bad);
     }
 
-    /** R10c: a raw custom crop has a per-player daily cap of 6 x q (owner decision 8: caps on raw custom crops only). */
+    /** R10c: a raw custom crop has a per-player daily cap of 4 x q (owner decision 8: caps on raw custom crops only). */
     @Test
     void r10cCropCaps() {
         List<String> bad = new ArrayList<>();

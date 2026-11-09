@@ -467,7 +467,8 @@ public final class LandModule extends EcoModule implements DailyListener {
         p.sendMessage(Lang.msg("land.info", "owner", ownerName(l), "role", Lang.raw(l.isOwner(u) ? "land.role-owner" : "land.role-member"),
                 "size", l.size(), "free", free(l), "residents", store.index().residents(l),
                 "next", EconomyModule.format(rules.price(l.size(), free(l))), "tax", EconomyModule.format(tax),
-                "limit", rules.progressiveLimit(l.members.size()), "vault", EconomyModule.format(l.vault),
+                "limit", rules.progressiveLimit(l.members.size()), "limit2", rules.progressiveLimit2(l.members.size()),
+                "factor", fmt(rules.progressiveFactor()), "factor2", fmt(rules.progressiveFactor2()), "vault", EconomyModule.format(l.vault),
                 "warnings", l.warnings, "warn-days", rules.warnDays()));
         List<String> names = new ArrayList<>();
         for (UUID m : l.members.keySet()) names.add(Players.name(m));
@@ -586,6 +587,11 @@ public final class LandModule extends EcoModule implements DailyListener {
     // ------------------------------------------------------------------------------------------
     // Property tax
     // ------------------------------------------------------------------------------------------
+
+    /** 2 -> "2", 2.5 -> "2.5" (the progressive factors in messages). */
+    private static String fmt(double x) {
+        return x == Math.rint(x) ? String.valueOf((long) x) : String.valueOf(x);
+    }
 
     private double taxMultiplier() {
         double m = 1;

@@ -14,7 +14,40 @@ import java.util.Set;
  * contents/economy/jobs.yml: the six jobs, the level curve (Lv1-30, XP kept per job), what each action is
  * worth, the effects that grow with the level and the ones that unlock at a level. Pure data (unit-tested).
  */
-public record JobSpec(int maxLevel, double a, double b, long changeCost, int changeDays, Map<String, Job> jobs) {
+public record JobSpec(int maxLevel, double a, double b, ChangeCost changeCost, int changeDays, Map<String, Job> jobs) {
+
+    /**
+     * What changing jobs costs, by the level the player has in the job they change TO (levels are kept per job): straight
+     * lines between the points of jobs.yml change-cost (level: gold), flat before the first and after the last point. The
+     * first pick is free (the module's rule, not this table's).
+     */
+    public record ChangeCost(java.util.NavigableMap<Integer, Long> points) {
+        public ChangeCost {
+            points = java.util.Collections.unmodifiableNavigableMap(new java.util.TreeMap<>(points));
+        }
+
+        public static ChangeCost flat(long cost) {
+            return new ChangeCost(new java.util.TreeMap<>(Map.of(1, Math.max(0, cost))));
+        }
+
+        /** Gold, rounded to whole gold, for a target job level. */
+        public long at(int level) {
+            if (points.isEmpty()) return 0;
+            Map.Entry<Integer, Long> lo = points.floorEntry(level), hi = points.ceilingEntry(level);
+            if (lo == null) return hi.getValue();
+            if (hi == null || hi.getKey().equals(lo.getKey())) return lo.getValue();
+            double t = (level - lo.getKey()) / (double) (hi.getKey() - lo.getKey());
+            return Math.round(lo.getValue() + (hi.getValue() - lo.getValue()) * t);
+        }
+
+        public long min() {
+            return points.values().stream().mapToLong(Long::longValue).min().orElse(0);
+        }
+
+        public long max() {
+            return points.values().stream().mapToLong(Long::longValue).max().orElse(0);
+        }
+    }
 
     /** An effect that grows evenly from its Lv1 value to its max-level value. */
     public record Range(double lo, double hi) {
@@ -182,7 +215,28 @@ public record JobSpec(int maxLevel, double a, double b, long changeCost, int cha
         if (jobs.isEmpty()) problems.add("jobs: 직업이 없음");
         ConfigurationSection curve = c.getConfigurationSection("xp-curve");
         double a = curve == null ? 40 : curve.getDouble("a", 40), b = curve == null ? 60 : curve.getDouble("b", 60);
-        return new JobSpec(max, a, b, c.getLong("change-cost", 1000), c.getInt("change-days", 7), jobs);
+        return new JobSpec(max, a, b, changeCost(c, problems), c.getInt("change-days", 7), jobs);
+    }
+
+    /** change-cost: one number (the same for every level) or { level: gold, ... } points. */
+    static ChangeCost changeCost(ConfigurationSection c, List<String> problems) {
+        ConfigurationSection s = c.getConfigurationSection("change-cost");
+        if (s == null) return ChangeCost.flat(c.getLong("change-cost", 1000));
+        java.util.TreeMap<Integer, Long> points = new java.util.TreeMap<>();
+        for (String k : s.getKeys(false)) {
+            try {
+                long v = s.getLong(k, -1);
+                if (v < 0) throw new NumberFormatException();
+                points.put(Integer.parseInt(k.trim()), v);
+            } catch (NumberFormatException e) {
+                problems.add("change-cost." + k + ": 레벨(정수): 골드(0 이상) 필요");
+            }
+        }
+        if (points.isEmpty()) {
+            problems.add("change-cost: 비어 있음 (1,000G 로)");
+            return ChangeCost.flat(1000);
+        }
+        return new ChangeCost(points);
     }
 
     /** For tests and messages: the job ids in file order. */

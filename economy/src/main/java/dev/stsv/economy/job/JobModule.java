@@ -57,7 +57,7 @@ import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.ThreadLocalRandom;
 
 /**
- * 직업: one job at a time (change once a week for 1,000G), Lv1-30 with the XP kept per job, XP only from
+ * 직업: one job at a time (change any time; the cost grows with the level of the job changed to), Lv1-30 with the XP kept per job, XP only from
  * the job's own work (placed blocks give nothing), effects that grow with the level, finds (gems in ores,
  * rare catches; 1% for everyone else) and the bonuses a job gets on its own machine (MachineModule).
  */
@@ -239,6 +239,16 @@ public final class JobModule extends EcoModule {
         return r == null ? 0 : r.changed + spec.changeDays() * 86_400_000L - now();
     }
 
+    /**
+     * What changing to this job costs this player now: by their level in that job (jobs.yml change-cost), 0 for the first
+     * pick and for the job they already have.
+     */
+    public long changeCost(UUID u, String jobId) {
+        JobStore.Row r = store.get(u);
+        if (r == null || r.job.equals(jobId)) return 0;
+        return spec.changeCost().at(level(u, jobId));
+    }
+
     /** Returns null on success, else the message key of the refusal. */
     public String choose(Player p, String jobId) {
         JobSpec.Job j = spec.jobs().get(jobId);
@@ -248,7 +258,7 @@ public final class JobModule extends EcoModule {
         if (r != null) {
             long wait = r.changed + spec.changeDays() * 86_400_000L - now();
             if (wait > 0 && !p.hasPermission("stsv.economy.admin")) return "job.too-soon";
-            if (!core.economy().withdraw(p.getUniqueId(), spec.changeCost(), "job_change")) return "job.not-enough";
+            if (!core.economy().withdraw(p.getUniqueId(), changeCost(p.getUniqueId(), jobId), "job_change")) return "job.not-enough";
         }
         store.choose(p.getUniqueId(), jobId, now());
         p.sendMessage(Lang.msg("job.chosen", "color", j.color(), "job", j.name(), "level", level(p.getUniqueId(), jobId)));
@@ -281,7 +291,7 @@ public final class JobModule extends EcoModule {
             Map<String, String> out = new HashMap<>(job == null ? Map.of("level", "0", "xp", "0", "next", "-") : progress(u, job));
             out.put("job", j == null ? Lang.raw("job.none") : "<" + j.color() + ">" + j.name());
             out.put("cap", String.valueOf(spec.maxLevel()));
-            out.put("cost", EconomyModule.format(spec.changeCost()));
+            out.put("cost", EconomyModule.format(spec.changeCost().min()) + " ~ " + EconomyModule.format(spec.changeCost().max()));
             return out;
         }
 
@@ -302,7 +312,7 @@ public final class JobModule extends EcoModule {
                     for (String line : j.description()) lore.add(Text.item("<gray>" + line));
                     lore.add(Component.empty());
                     lore.addAll(Lang.items(id.equals(mine) ? "job.lore-current" : isArmed ? "job.lore-confirm" : mine == null ? "job.lore-pick" : "job.lore-change",
-                            "cost", EconomyModule.format(spec.changeCost())));
+                            "cost", EconomyModule.format(changeCost(u, id))));
                     meta.lore(lore);
                     meta.setEnchantmentGlintOverride(id.equals(mine) || isArmed);
                     meta.addItemFlags(org.bukkit.inventory.ItemFlag.HIDE_ATTRIBUTES);
@@ -328,7 +338,7 @@ public final class JobModule extends EcoModule {
             armed = null;
             String refused = choose(p, id);
             if (refused != null) {
-                HudModule.flash(p, Lang.mm(refused, "cost", EconomyModule.format(spec.changeCost()), "left",
+                HudModule.flash(p, Lang.mm(refused, "cost", EconomyModule.format(changeCost(p.getUniqueId(), id)), "left",
                         dev.stsv.economy.event.EventModule.hoursText(changeWait(p.getUniqueId()))));
             }
             v.refresh();

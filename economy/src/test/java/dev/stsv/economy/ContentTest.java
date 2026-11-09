@@ -74,7 +74,8 @@ class ContentTest {
         if (id.startsWith("#")) return List.of("#logs", "#small_flowers", "#planks", "#minecraft:logs", "#minecraft:planks",
                 "#saplings", "#leaves", "#stone_crafting_materials").contains(id);
         if (id.startsWith("stsv:")) return Files.exists(Path.of(System.getProperty("stsv.content")).resolve("../../content/stsv"));
-        Material m = Material.matchMaterial(id);
+        // a vanilla item with components (minecraft:enchanted_book[stored_enchantments={mending:1}]): its material
+        Material m = Material.matchMaterial(id.indexOf('[') > 0 ? id.substring(0, id.indexOf('[')) : id);
         return m != null && !m.isLegacy() && m != Material.AIR;   // isItem() needs a running server
     }
 

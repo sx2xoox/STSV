@@ -75,13 +75,33 @@ public record MachineSpec(String id, String name, String item, String job, Strin
         }
 
         /**
+         * The global upgrade costs when presses were still upgraded at them (before the press had its own table): a refund never pays
+         * back more than was paid then, whatever the global table costs today.
+         */
+        static final List<Long> PRESS_ERA_COST = List.of(5000L, 20000L, 50000L);
+
+        /**
          * What a machine's own upgrade table saves against the global one up to a tier: the refund for a machine upgraded at the global
-         * price before it had its own table (0 for a machine without one; press: 1강 4,000, 2강 20,000, 3강 60,000).
+         * price before it had its own table (0 for a machine without one; press: 1강 4,000, 2강 20,000, 3강 60,000). The global price
+         * counts at most as it was then (PRESS_ERA_COST).
          */
         public static long refund(Settings global, Settings own, int tier) {
+            if (global == own) return 0;
             long sum = 0;
-            for (int t = 1; t <= Math.min(tier, Math.min(global.maxTier(), own.maxTier())); t++) sum += Math.max(0, global.cost(t) - own.cost(t));
+            for (int t = 1; t <= Math.min(tier, Math.min(global.maxTier(), own.maxTier())); t++) {
+                long then = t - 1 < PRESS_ERA_COST.size() ? Math.min(global.cost(t), PRESS_ERA_COST.get(t - 1)) : global.cost(t);
+                sum += Math.max(0, then - own.cost(t));
+            }
             return sum;
+        }
+
+        /**
+         * The same upgrade bought again (machines.yml upgrade.repeat): a player's n-th upgrade of one kind of job machine to one tier
+         * costs base x (1 + repeat x n), n = how many they bought before (0 for the first machine). A sink that grows with the
+         * number of machines, and a soft bound on them (one 3강 machine of a kind is the standard setup of the balance model).
+         */
+        public static long repeatCost(long base, long boughtBefore, double repeat) {
+            return Math.round(base * (1 + Math.max(0, repeat) * Math.max(0, boughtBefore)));
         }
 
         public static Settings parse(ConfigurationSection c) {
