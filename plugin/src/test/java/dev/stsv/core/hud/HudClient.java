@@ -48,22 +48,17 @@ final class HudClient {
                     list.add(new Provider(type, null, 0, cells, adv));
                 } else if (type.equals("bitmap")) {
                     String file = p.get("file").getAsString();
-                    String sheet = file.equals("minecraft:font/ascii.png") ? "ascii"
-                            : file.substring(file.lastIndexOf('/') + 1).replace(".png", "");
+                    if (!file.startsWith("stsv:")) throw new AssertionError("a HUD font uses a file outside the pack: " + file);
+                    String sheet = file.substring(file.lastIndexOf('/') + 1).replace(".png", "");
                     int r = 0;
                     for (JsonElement row : p.getAsJsonArray("chars")) {
                         int[] cps = row.getAsString().codePoints().toArray();
                         for (int c = 0; c < cps.length; c++) {
                             if (cps[c] == 0) continue;
-                            if (sheet.equals("ascii")) {
-                                cells.put(cps[c], new String(Character.toChars(cps[c])));
-                                adv.put(cps[c], HudText.ascii(cps[c]));
-                            } else {
-                                HudSheets.Sheet s = sheets.sheet(sheet);
-                                int k = r * s.cols() + c;
-                                cells.put(cps[c], s.names().get(k));
-                                adv.put(cps[c], s.advances()[k]);
-                            }
+                            HudSheets.Sheet s = sheets.sheet(sheet);
+                            int k = r * s.cols() + c;
+                            cells.put(cps[c], s.names().get(k));
+                            adv.put(cps[c], s.advances()[k]);
                         }
                         r++;
                     }

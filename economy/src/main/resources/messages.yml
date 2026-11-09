@@ -14,7 +14,7 @@ event:
   start-instant: "<gold><b>사건: {event}</b></gold> <white>{detail}"
   end: "<gray>사건이 끝났습니다: <white>{event}"
   bar: "<gold>{event}</gold> <white>{detail}</white> <gray>· 남은 시간 {left}"
-  sidebar: "<gray>사건 <gold>{event} <dark_gray>{left}"
+  sidebar: "<gray>사건\t<gold>{event} <dark_gray>{left}"
   sidebar-detail: "<white>{detail}"
 
 time:
@@ -226,8 +226,8 @@ trade:
   cancelled-reload: "<gray>서버 리로드로 거래가 취소되었습니다."
 
 job:
-  hud: "<gray>직업 <{color}>{job} <white>Lv{level} <dark_gray>{pct}"
-  hud-none: "<gray>직업 <dark_gray>없음 · /직업"
+  hud: "<gray>직업\t<{color}>{job} <white>Lv{level} <dark_gray>{pct}"
+  hud-none: "<gray>직업\t<dark_gray>없음 · /직업"
   none: "없음"
   max: "최고 레벨"
   no-job: "<red>직업이 없습니다. <white>/직업"
@@ -554,7 +554,7 @@ mission:
   bonus-lore: ["<gray>미션 {count}개를 모두 끝내면", "<gray>보상"]
   bonus-lore-progress: "<gray>진행 <white>{done} / {count}"
   bonus-lore-done: "<green>✔ 받음"
-  hud: "<gray>미션 <white>{daily}/{daily_count} <dark_gray>· <gray>주간 <white>{weekly}/{weekly_count}"
+  hud: "<gray>미션\t<white>{daily}/{daily_count} <dark_gray>· <gray>주간 <white>{weekly}/{weekly_count}"
 
 rank:
   header: "<gold>이번 주 순위</gold> <gray>({week}주차 · 이번 주에 번 돈 · 결산까지 {left})"

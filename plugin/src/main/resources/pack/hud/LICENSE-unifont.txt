@@ -1,6 +1,0 @@
-hangul.png holds Hangul syllables rasterised from GNU Unifont (https://unifoundry.com/unifont/).
-Copyright: Jungshik Shin (1998-), Roman Czyborra (1998-2014), Qianqian Fang (2004-2013),
-Luis Alejandro Gonzalez Miranda (2005), Paul Hardy (2007-), Andrew Miller (2013-2014),
-David Corbett (2017-), Johnnie Weaver (2018) and the other Unifont contributors.
-Unifont is dual-licensed under the GNU GPL v2 or later with the GNU font embedding exception, and
-the SIL Open Font License 1.1 (https://openfontlicense.org). The other HUD pictures are STSV's own.

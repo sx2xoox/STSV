@@ -59,7 +59,7 @@ public final class HudSheets {
 
     private HudSheets(Map<String, Sheet> sheets) {
         this.sheets = sheets;
-        for (String text : List.of("hangul", "symbols")) {
+        for (String text : List.of("text", "hangul")) {
             Sheet s = sheets.get(text);
             if (s == null) continue;
             for (int i = 0; i < s.names().size(); i++) charAdvance.put(s.names().get(i).codePointAt(0), s.advances()[i]);
@@ -76,19 +76,12 @@ public final class HudSheets {
         return sheets.values();
     }
 
-    /** Advance of a Hangul syllable or one of the drawn symbols, or -1 if the HUD has no glyph for it. */
+    /** Advance of a letter of the HUD's text sheets (ASCII, signs, Hangul), or -1 if the HUD has no glyph for it. */
     public int charAdvance(int codepoint) {
         Integer a = charAdvance.get(codepoint);
         return a == null ? -1 : a;
     }
 
-    public boolean isSymbol(int codepoint) {
-        return codepoint < 0xAC00 || codepoint > 0xD7A3 ? charAdvance.containsKey(codepoint) : false;
-    }
-
-    public boolean isHangul(int codepoint) {
-        return codepoint >= 0xAC00 && codepoint <= 0xD7A3 && charAdvance.containsKey(codepoint);
-    }
 
     /** The sheets bundled in the plugin jar. */
     public static HudSheets load() throws IOException {

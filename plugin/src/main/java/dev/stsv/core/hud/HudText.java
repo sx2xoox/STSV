@@ -17,24 +17,20 @@ import java.util.List;
  * Text for the HUD fonts: a message (any component, e.g. from messages.yml) as a list of styled characters,
  * measured with the HUD font's own widths, wrapped and shortened to fit. Bold is dropped (it would make every
  * glyph one pixel wider and the panel is laid out to the pixel); colours and the other decorations stay.
+ * A tab in a sidebar row separates its label from its value (the panel puts the value against its right edge;
+ * everywhere else a tab is a space).
  */
 final class HudText {
 
     /** One character and the style it is drawn with (font and bold are set when it is drawn). */
     record Cell(int cp, Style style) {}
 
-    /** The game's ascii.png widths (pen advance) of 0x21..0x7E: read off the texture once, nothing copied. */
-    private static final String ASCII = "2466662444626266666666666225656766666666466666666666666666464663666665662653666666646666664247";
-
     static final int ELLIPSIS = '…';
+    static final int TAB = '\t';
 
     private HudText() {}
 
-    static int ascii(int cp) {
-        return ASCII.charAt(cp - 0x21) - '0';
-    }
-
-    /** The characters of a component with their effective styles. Newlines become spaces. */
+    /** The characters of a component with their effective styles. Newlines become spaces, tabs stay. */
     static List<Cell> cells(Component component) {
         List<Cell> out = new ArrayList<>();
         Deque<Style> stack = new ArrayDeque<>();
@@ -48,7 +44,7 @@ final class HudText {
             @Override
             public void component(String text) {
                 Style s = stack.peek().decoration(TextDecoration.BOLD, false);
-                text.codePoints().forEach(cp -> out.add(new Cell(cp == '\n' || cp == '\t' ? ' ' : cp, s)));
+                text.codePoints().forEach(cp -> out.add(new Cell(cp == '\n' || cp == '\r' ? ' ' : cp, s)));
             }
 
             @Override
@@ -59,22 +55,38 @@ final class HudText {
         return out;
     }
 
+    /** Tabs as spaces (text that has no label / value columns). */
+    static List<Cell> untab(List<Cell> cells) {
+        List<Cell> out = new ArrayList<>(cells.size());
+        for (Cell c : cells) out.add(c.cp() == TAB ? new Cell(' ', c.style()) : c);
+        return out;
+    }
+
+    /** The label (before the first tab) and the value (after it, spaces around it dropped), or null without a tab. */
+    static List<List<Cell>> split(List<Cell> cells) {
+        for (int i = 0; i < cells.size(); i++) {
+            if (cells.get(i).cp() != TAB) continue;
+            return List.of(trim(untab(cells.subList(0, i))), trim(lead(untab(cells.subList(i + 1, cells.size())))));
+        }
+        return null;
+    }
+
     /**
      * Width of a character in a text font. Characters the font lacks: '?' when the font has no fallback (they
      * are replaced by {@link #supported}), otherwise an estimate of the game's own glyph (9 for wide scripts).
      */
     static int advance(HudFont font, int cp) {
-        int a = font.textAdvance(cp);
+        int a = font.textAdvance(cp == TAB ? ' ' : cp);
         if (a >= 0) return a;
-        if (!font.hasFallback()) return ascii('?');
+        if (!font.hasFallback()) return font.textAdvance('?');
         return cp >= 0x1100 ? 9 : 6;
     }
 
-    /** Characters the font cannot draw become '?' (fonts without the game's font behind them). */
+    /** Characters the font cannot draw become '?' (fonts without the game's font behind them). Tabs stay. */
     static List<Cell> supported(HudFont font, List<Cell> cells) {
         if (font.hasFallback()) return cells;
         List<Cell> out = new ArrayList<>(cells.size());
-        for (Cell c : cells) out.add(font.textAdvance(c.cp()) >= 0 ? c : new Cell('?', c.style()));
+        for (Cell c : cells) out.add(c.cp() == TAB || font.textAdvance(c.cp()) >= 0 ? c : new Cell('?', c.style()));
         return out;
     }
 
@@ -103,9 +115,28 @@ final class HudText {
 
     /**
      * Breaks the text into at most {@code maxLines} lines of at most {@code max} pixels, at spaces where it can
-     * (a word longer than a line is cut). Text that does not fit in the last line ends with an ellipsis.
+     * (a word longer than a line is cut). Text that does not fit in the last line ends with an ellipsis. Text
+     * that takes two lines is broken where both lines come out most even, so no word is left alone on the
+     * second line.
      */
     static List<List<Cell>> wrap(HudFont font, List<Cell> cells, int max, int maxLines) {
+        List<Cell> all = trim(lead(untab(cells)));
+        List<List<Cell>> greedy = greedy(font, all, max, maxLines);
+        if (greedy.size() != 2 || greedy.getLast().getLast().cp() == ELLIPSIS) return greedy;
+        int best = -1, bestWidth = Integer.MAX_VALUE;
+        for (int i = 1; i < all.size(); i++) {
+            if (all.get(i).cp() != ' ' || all.get(i - 1).cp() == ' ') continue;
+            int a = width(font, trim(all.subList(0, i))), b = width(font, trim(lead(all.subList(i, all.size()))));
+            if (a <= max && b <= max && Math.max(a, b) < bestWidth) {
+                bestWidth = Math.max(a, b);
+                best = i;
+            }
+        }
+        if (best < 0) return greedy;
+        return List.of(trim(all.subList(0, best)), trim(lead(all.subList(best, all.size()))));
+    }
+
+    private static List<List<Cell>> greedy(HudFont font, List<Cell> cells, int max, int maxLines) {
         List<List<Cell>> lines = new ArrayList<>();
         List<Cell> cur = new ArrayList<>();
         int w = 0, lastSpace = -1;
@@ -149,6 +180,12 @@ final class HudText {
         out = new ArrayList<>(trim(out));
         out.add(new Cell(ELLIPSIS, style));
         return out;
+    }
+
+    private static List<Cell> lead(List<Cell> line) {
+        int k = 0;
+        while (k < line.size() && line.get(k).cp() == ' ') k++;
+        return line.subList(k, line.size());
     }
 
     private static List<Cell> trim(List<Cell> line) {

@@ -11,6 +11,7 @@ import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
+import java.util.stream.Collectors;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
@@ -25,7 +26,7 @@ class HudLayoutTest {
     static HudLayout layout;
     static HudClient client;
 
-    static final HudLayout.Health HEALTHY = new HudLayout.Health(18, 20, 0, 17, 5f, 12, HudLayout.Tint.NORMAL, false, true);
+    static final HudLayout.Health HEALTHY = new HudLayout.Health(18, 20, 0, 17, 5f, 12, HudLayout.Tint.NORMAL, false);
 
     static Component mm(String s) {
         return MiniMessage.miniMessage().deserialize(s);
@@ -43,33 +44,83 @@ class HudLayoutTest {
                 .orElseThrow(() -> new AssertionError("no " + sheet + ":" + cell + " drawn"));
     }
 
+    static boolean drawn(HudClient.Laid laid, String sheet, String cellPrefix) {
+        return laid.draws().stream().anyMatch(d -> d.sheet().equals(sheet) && d.cell().startsWith(cellPrefix));
+    }
+
     /** Distance of a glyph top above the bottom of the screen (action bar pen line = guiHeight - 72). */
     static int fromBottom(HudClient.Draw d) {
         return 72 - d.y();
     }
 
+    /** Visible width of a drawn glyph (its advance minus the game's one pixel). */
+    static int width(HudClient.Draw d) {
+        return sheets.sheet(d.sheet()).width(d.cell());
+    }
+
+    static String number(HudClient.Laid laid, int row, boolean left) {
+        return laid.draws().stream().filter(d -> d.sheet().equals("digits") && fromBottom(d) == row - 1 && (d.x() < 0) == left)
+                .sorted(java.util.Comparator.comparingInt(HudClient.Draw::x)).map(HudClient.Draw::cell).collect(Collectors.joining());
+    }
+
+    /** Pixels of the inside covered by one fill colour (pieces of 1 .. 32 px). */
+    static int filled(HudClient.Laid laid, String colour, int row) {
+        return laid.draws().stream().filter(d -> d.sheet().equals("fill") && d.cell().startsWith(colour + "/")
+                        && !d.cell().endsWith("/edge") && fromBottom(d) == row - 1)
+                .mapToInt(d -> Integer.parseInt(d.cell().substring(colour.length() + 1))).sum();
+    }
+
     @Test
-    void barsSitWhereTheGameDrewHeartsAndHunger() {
+    void barsSitInTheGameRowsAndLeaveTheMiddleToTheLevel() {
         HudClient.Laid laid = client.lay(layout.actionBar(HEALTHY, null));
         assertEquals(0, laid.width(), "the bars alone take no width");
         HudClient.Draw heart = find(laid, "icons", "heart");
-        assertEquals(-91, heart.x());
+        assertEquals(-75, heart.x());
         assertEquals(39, fromBottom(heart));
-        HudClient.Draw frame = laid.draws().stream().filter(d -> d.cell().equals("frame")).toList().getFirst();
-        assertEquals(-82, frame.x());
-        assertEquals(39, fromBottom(frame));
+        HudClient.Draw frame = laid.draws().stream().filter(d -> d.sheet().equals("frame") && d.x() < 0 && fromBottom(d) == 39).findFirst().orElseThrow();
+        assertEquals(-65, frame.x());
+        assertEquals(52, width(frame));
         HudClient.Draw food = find(laid, "icons", "food");
-        assertEquals(82, food.x(), "the drumstick ends where the game's last one did (x 90)");
+        assertEquals(67, food.x());
         assertEquals(39, fromBottom(food));
         HudClient.Draw armor = find(laid, "icons", "armor");
-        assertEquals(-91, armor.x());
+        assertEquals(-75, armor.x());
         assertEquals(49, fromBottom(armor));
-        HudClient.Draw fill = find(laid, "fill", "red/" + HudLayout.fill(18, 20, HudLayout.INNER));
-        assertEquals(-81, fill.x());
-        assertEquals(38, fromBottom(fill));
-        HudClient.Draw foodFill = laid.draws().stream().filter(d -> d.cell().startsWith("food/")).findFirst().orElseThrow();
-        int k = Integer.parseInt(foodFill.cell().substring(5));
-        assertEquals(81, foodFill.x() + k, "hunger fills from the right, like the drumsticks");
+        for (HudClient.Draw d : laid.draws()) {
+            assertTrue(d.x() >= -91 && d.x() + width(d) <= 92, "within the hotbar's width: " + d);
+            assertTrue(d.x() + width(d) <= -13 || d.x() >= 14, "the middle stays free for the level number: " + d);
+            assertTrue(fromBottom(d) <= 49 && fromBottom(d) - sheets.sheet(d.sheet()).cellH() >= 30, "between the XP bar and the item name: " + d);
+        }
+        assertEquals(HudLayout.fill(18, 20, HudLayout.INNER), filled(laid, "red", 39));
+        assertEquals(HudLayout.fill(17, 20, HudLayout.INNER), filled(laid, "food", 39));
+        assertEquals(HudLayout.fill(12, 20, HudLayout.INNER), filled(laid, "armor", 49));
+        // the health fill starts at the frame's inside, next to the heart; the hunger fill grows from its drumstick
+        int hpLeft = laid.draws().stream().filter(d -> d.cell().startsWith("red/")).mapToInt(HudClient.Draw::x).min().orElseThrow();
+        assertEquals(-64, hpLeft);
+        int foodRight = laid.draws().stream().filter(d -> d.cell().startsWith("food/") && !d.cell().endsWith("edge"))
+                .mapToInt(d -> d.x() + width(d)).max().orElseThrow();
+        assertEquals(65, foodRight);
+    }
+
+    @Test
+    void numbersSitBesideTheBarsNeverOnThem() {
+        HudClient.Laid laid = client.lay(layout.actionBar(HEALTHY, null));
+        assertEquals("18", number(laid, 39, true));
+        assertEquals("17", number(laid, 39, false));
+        assertEquals("12", number(laid, 49, true));
+        for (HudClient.Draw d : laid.draws()) {
+            if (!d.sheet().equals("digits")) continue;
+            boolean onFrame = d.x() + width(d) > -65 - 1 && d.x() < -65 + 52 + 1 || d.x() + width(d) > 13 && d.x() < 14 + 52 + 1;
+            assertFalse(onFrame, "a number on a bar: " + d);
+        }
+        // right-aligned against the heart on the left, left-aligned against the drumstick on the right
+        int leftEnd = laid.draws().stream().filter(d -> d.sheet().equals("digits") && d.x() < 0 && fromBottom(d) == 38)
+                .mapToInt(d -> d.x() + width(d)).max().orElseThrow();
+        assertEquals(-76, leftEnd);
+        int rightStart = laid.draws().stream().filter(d -> d.sheet().equals("digits") && d.x() > 0).mapToInt(HudClient.Draw::x).min().orElseThrow();
+        assertEquals(77, rightStart);
+        HudClient.Laid big = client.lay(layout.actionBar(new HudLayout.Health(100, 100, 0, 20, 20f, 0, HudLayout.Tint.NORMAL, false), null));
+        assertTrue(big.draws().stream().allMatch(d -> d.x() >= -91), "three digits still fit");
     }
 
     @Test
@@ -81,10 +132,11 @@ class HudLayoutTest {
             HudClient.Laid laid = client.lay(layout.actionBar(HEALTHY, m));
             int w = layout.messageWidth(m);
             assertEquals(w, laid.width(), "only the message takes width: " + msg);
-            List<HudClient.Draw> text = laid.draws().stream().filter(d -> d.y() == 0).toList();
+            List<HudClient.Draw> text = laid.draws().stream().filter(d -> d.sheet().equals("text") || d.sheet().equals("hangul")).toList();
             assertFalse(text.isEmpty());
             assertEquals(-(w / 2), text.getFirst().x(), "message starts where the game centres it: " + msg);
-            List<HudClient.Draw> bars = laid.draws().stream().filter(d -> d.y() != 0).toList();
+            assertTrue(text.stream().allMatch(d -> d.y() == -2), "baseline where the game's own action bar text has it");
+            List<HudClient.Draw> bars = laid.draws().stream().filter(d -> !text.contains(d)).toList();
             assertEquals(alone, bars, "bars unchanged with message: " + msg);
         }
     }
@@ -92,30 +144,82 @@ class HudLayoutTest {
     @Test
     void creativeOrSpectatorShowsOnlyTheMessage() {
         HudClient.Laid laid = client.lay(layout.actionBar(null, mm("<gray>안녕")));
-        assertTrue(laid.draws().stream().allMatch(d -> d.y() == 0));
+        assertTrue(laid.draws().stream().allMatch(d -> d.sheet().equals("hangul")));
     }
 
     @Test
-    void tintsAbsorptionHungerAndMount() {
-        var h = new HudLayout.Health(6.5, 20, 4, 3, 0f, 0, HudLayout.Tint.POISON, true, false);
+    void tintsAbsorptionHungerAndSaturation() {
+        var h = new HudLayout.Health(6.5, 20, 4, 3, 2f, 0, HudLayout.Tint.POISON, true);
         HudClient.Laid laid = client.lay(layout.actionBar(h, null));
         find(laid, "icons", "heart_poison");
-        find(laid, "stripe", "abs/" + HudLayout.fill(4, 20, HudLayout.INNER));
-        assertTrue(laid.draws().stream().noneMatch(d -> d.cell().startsWith("food")), "riding: the mount's hearts, no hunger bar");
-        assertTrue(laid.draws().stream().noneMatch(d -> d.cell().equals("armor")), "no armor, no armor bar");
-        // digits: "7+4 / 20" (+4 in gold)
-        List<HudClient.Draw> digits = laid.draws().stream().filter(d -> d.sheet().equals("digits") && 72 - d.y() == 38).toList();
-        assertEquals("7+4/20", digits.stream().map(HudClient.Draw::cell).reduce("", String::concat));
-        assertTrue(digits.stream().filter(d -> d.cell().equals("+")).allMatch(d -> d.color() != 0xFFFFFF));
+        find(laid, "icons", "food_hunger");
+        assertEquals(HudLayout.fill(6.5, 20, 50), filled(laid, "poison", 39));
+        assertEquals(HudLayout.fill(10.5, 20, 50) - HudLayout.fill(6.5, 20, 50), filled(laid, "abs", 39), "absorption follows the health");
+        assertTrue(drawn(laid, "line", "sat/"), "saturation line on the hunger bar");
+        assertFalse(drawn(laid, "icons", "armor"), "no armor, no armor bar");
+        assertEquals("11", number(laid, 39, true), "health and absorption together");
+        assertTrue(laid.draws().stream().filter(d -> d.sheet().equals("digits") && d.x() < 0).allMatch(d -> d.color() == HudLayout.GOLD.value()));
+        // more than the maximum: the bar is scaled to fit it all
+        var over = client.lay(layout.actionBar(new HudLayout.Health(20, 20, 16, 20, 5f, 0, HudLayout.Tint.NORMAL, false), null));
+        assertEquals(50, filled(over, "red", 39) + filled(over, "abs", 39));
+        for (var tint : HudLayout.Tint.values()) {
+            client.lay(layout.actionBar(new HudLayout.Health(3, 20, 0, 20, 0f, 0, tint, false), null));
+        }
+        var low = client.lay(layout.actionBar(new HudLayout.Health(3, 20, 0, 20, 0f, 0, HudLayout.Tint.NORMAL, false), null));
+        assertTrue(low.draws().stream().filter(d -> d.sheet().equals("digits") && d.x() < 0).allMatch(d -> d.color() == HudLayout.LOW.value()));
     }
 
     @Test
-    void numbersAreCentredInTheBar() {
+    void mountAndAir() {
+        var h = HEALTHY.withMount(new HudLayout.Mount(21, 30)).withAir(new HudLayout.Air(140, 300));
+        HudClient.Laid laid = client.lay(layout.actionBar(h, null));
+        HudClient.Draw mount = find(laid, "icons", "mount");
+        assertEquals(67, mount.x());
+        assertEquals(39, fromBottom(mount));
+        assertFalse(drawn(laid, "icons", "food"), "riding: the mount's bar takes the hunger bar's place");
+        assertEquals("21", number(laid, 39, false));
+        assertEquals(HudLayout.fill(21, 30, 50), filled(laid, "mount", 39));
+        HudClient.Draw air = find(laid, "icons", "air");
+        assertEquals(67, air.x());
+        assertEquals(49, fromBottom(air));
+        assertEquals("5", number(laid, 49, false), "bubbles left, as the game counts them");
+        assertEquals(HudLayout.fill(140, 300, 50), filled(laid, "air", 49));
+        assertEquals(8 - 1, laid.draws().stream().filter(d -> d.sheet().equals("tick") && fromBottom(d) == 38 && d.x() > 0).count(), "a tick per two mount hearts");
+        var drowning = client.lay(layout.actionBar(HEALTHY.withAir(new HudLayout.Air(-12, 300)), null));
+        assertEquals("0", number(drowning, 49, false));
+        assertEquals(0, filled(drowning, "air", 49));
+        assertEquals(0, HudLayout.bubbles(0, 300));
+        assertEquals(1, HudLayout.bubbles(1, 300));
+        assertEquals(10, HudLayout.bubbles(300, 300));
+    }
+
+    @Test
+    void damageAndHealingFlash() {
+        var hit = client.lay(layout.actionBar(HEALTHY.withFlash(HudLayout.Flash.LOST, 20), null));
+        assertEquals(HudLayout.fill(20, 20, 50) - HudLayout.fill(18, 20, 50), filled(hit, "lost", 39), "the part just lost");
+        find(hit, "frame", "frame_hit");
+        var heal = client.lay(layout.actionBar(HEALTHY.withFlash(HudLayout.Flash.GAIN, 10), null));
+        assertEquals(HudLayout.fill(18, 20, 50) - HudLayout.fill(10, 20, 50), filled(heal, "gain", 39), "the part just gained");
+        find(heal, "frame", "frame_heal");
+        var plain = client.lay(layout.actionBar(HEALTHY, null));
+        assertFalse(drawn(plain, "fill", "lost/") || drawn(plain, "fill", "gain/"));
+    }
+
+    @Test
+    void segmentTicks() {
+        assertEquals(10, HudLayout.segments(20, 2));
+        assertEquals(12, HudLayout.segments(24, 2));
+        assertEquals(8, HudLayout.segments(30, 2), "more than 12 hearts: a tick every two");
+        assertEquals(10, HudLayout.segments(40, 2));
+        assertEquals(10, HudLayout.segments(300, 30));
+        assertEquals(1, HudLayout.segments(1, 2));
+        assertEquals(List.of(5, 10, 15, 20, 25, 30, 35, 40, 45), HudLayout.ticks(10, 50));
+        assertEquals(List.of(), HudLayout.ticks(1, 50));
         HudClient.Laid laid = client.lay(layout.actionBar(HEALTHY, null));
-        List<HudClient.Draw> hp = laid.draws().stream().filter(d -> d.sheet().equals("digits") && d.x() < 0 && 72 - d.y() == 38).toList();
-        int left = hp.getFirst().x(), right = hp.getLast().x() + 5;
-        int innerLeft = -81, innerRight = -81 + HudLayout.INNER;
-        assertTrue(Math.abs((left - innerLeft) - (innerRight - right)) <= 1, "centred: " + left + ".." + right);
+        List<HudClient.Draw> hp = laid.draws().stream().filter(d -> d.sheet().equals("tick") && d.x() < 0 && fromBottom(d) == 38).toList();
+        assertEquals(9, hp.size());
+        int k = HudLayout.fill(18, 20, 50);
+        for (HudClient.Draw t : hp) assertEquals(t.x() + 64 < k ? "on" : "off", t.cell(), "dark over the fill, faint beyond it");
     }
 
     @Test
@@ -125,72 +229,121 @@ class HudLayoutTest {
         assertEquals("1", HudLayout.healthText(0.2));
         assertEquals("0", HudLayout.healthText(0));
         assertEquals("20", HudLayout.healthText(20.0000001));
-        assertEquals(0, HudLayout.fill(0, 20, 69));
-        assertEquals(1, HudLayout.fill(0.01, 20, 69));
-        assertEquals(69, HudLayout.fill(40, 20, 69));
-        assertEquals(35, HudLayout.fill(10, 20, 69));
-        assertEquals(5 * 4 + 2 * 2 + 1, HudLayout.numbersWidth(HudLayout.digits("18 / 20", null)));
-        assertEquals(0, HudLayout.numbersWidth(List.of()));
+        assertEquals(0, HudLayout.fill(0, 20, 50));
+        assertEquals(1, HudLayout.fill(0.01, 20, 50));
+        assertEquals(50, HudLayout.fill(40, 20, 50));
+        assertEquals(25, HudLayout.fill(10, 20, 50));
+        assertEquals(9, HudLayout.numbersWidth(2));
+        assertEquals(0, HudLayout.numbersWidth(0));
     }
 
     @Test
-    void panelIsLeftAlignedAtItsPlaceAndTakesNoWidth() {
+    void lettersAreGalmuriPixelForPixel() {
+        assertEquals(10, sheets.charAdvance('가'), "Hangul: 9 px and a pixel apart");
+        assertEquals(10, sheets.charAdvance('이'), "narrow syllables keep the font's advance (marked)");
+        assertEquals(10, sheets.charAdvance('뛰'));
+        assertEquals(6, sheets.charAdvance('A'));
+        assertEquals(2, sheets.charAdvance('i'));
+        assertEquals(4, sheets.charAdvance('·'));
+        assertEquals(-1, sheets.charAdvance('漢'));
+        assertTrue(sheets.sheet("hangul").names().size() >= 2350);
+    }
+
+    @Test
+    void panelHugsItsRightEdgeWithColumns() {
         List<HudLayout.Row> rows = List.of(
-                new HudLayout.Row("coin", mm("<gray>잔액 <gold>12,345 G"), false),
-                new HudLayout.Row("job", mm("<gray>직업 <#7ec850>농부 <white>Lv12 <dark_gray>34%"), false),
-                new HudLayout.Row("event", mm("<gray>사건 <gold>풍년 <dark_gray>2시간"), true));
-        Component panel = layout.panel(mm("<gradient:#ffb35c:#ff6a3d><b>STSV</b></gradient>"), rows);
-        HudClient.Laid laid = client.lay(panel);
-        assertEquals(0, laid.width());
+                new HudLayout.Row("coin", mm("<gray>잔액\t<gold>12,345 G"), false),
+                new HudLayout.Row("job", mm("<gray>직업\t<#7ec850>농부 <white>Lv12 <dark_gray>34%"), false),
+                new HudLayout.Row("event", mm("<gray>사건\t<gold>풍년 <dark_gray>2시간"), true));
         HudLayout.Settings s = layout.settings();
-        HudClient.Draw corner = find(laid, "panel_head", "l");
-        assertEquals(s.sidebarX(), corner.x());
-        assertEquals(s.sidebarY(), corner.y() + 3, "boss bar pen line is y 3");
-        // icons in a column, rows 11 px apart
-        HudClient.Draw coin = find(laid, "icons", "coin"), job = find(laid, "icons", "job");
-        assertEquals(coin.x(), job.x());
-        assertEquals(11, job.y() - coin.y());
-        assertEquals(s.sidebarX() + HudLayout.PAD, coin.x());
-        // text of every row starts at the same x, right of its icon
-        List<Integer> starts = laid.draws().stream().filter(d -> d.shadow() && d.y() + 3 > s.sidebarY() + HudLayout.HEAD - 1)
-                .collect(java.util.stream.Collectors.groupingBy(HudClient.Draw::y)).values().stream()
-                .map(l -> l.stream().mapToInt(HudClient.Draw::x).min().orElseThrow()).distinct().toList();
-        assertEquals(List.of(s.sidebarX() + HudLayout.PAD + HudLayout.ICON + HudLayout.ICON_GAP), starts);
-        // the event row has a divider above it
-        find(laid, "panel_div", "l");
-        // the right edge stays inside the configured width
-        int right = laid.draws().stream().filter(d -> d.sheet().startsWith("panel_") && d.cell().equals("r")).mapToInt(HudClient.Draw::x).max().orElseThrow() + 4;
-        assertTrue(right <= s.sidebarX() + s.sidebarMaxWidth());
-        assertTrue(right <= 213, "fits a 16:9 screen at automatic GUI scale (guiWidth/2 >= 213)");
+        for (int right : new int[]{s.sidebarRight(), 238, 478, 958}) {
+            HudClient.Laid laid = client.lay(layout.panel(rows, right));
+            assertEquals(0, laid.width());
+            HudClient.Draw cap = find(laid, "panel_head", "r");
+            assertEquals(right, cap.x() + HudLayout.CAP, "the outline ends at the right edge (the shadow just past it)");
+            HudClient.Draw corner = find(laid, "panel_head", "l");
+            int x = corner.x();
+            assertEquals(s.sidebarY(), corner.y() + 3, "boss bar pen line is y 3");
+            assertEquals(x + HudLayout.MARK_X, find(laid, "panel_head", "mark").x());
+            HudClient.Draw coin = find(laid, "icons", "coin"), job = find(laid, "icons", "job");
+            assertEquals(x + HudLayout.PAD, coin.x());
+            assertEquals(coin.x(), job.x());
+            assertEquals(HudLayout.ROW, job.y() - coin.y());
+            // labels start at one x; values end at one x, PAD from the right edge
+            Map<Integer, List<HudClient.Draw>> byRow = laid.draws().stream().filter(d -> d.shadow())
+                    .collect(Collectors.groupingBy(HudClient.Draw::y));
+            assertEquals(3, byRow.size());
+            for (List<HudClient.Draw> line : byRow.values()) {
+                assertEquals(x + HudLayout.TEXT_X, line.stream().mapToInt(HudClient.Draw::x).min().orElseThrow());
+                int end = line.stream().mapToInt(d -> d.x() + sheets.sheet(d.sheet()).advance(d.cell())).max().orElseThrow();
+                assertEquals(right - HudLayout.PAD, end, "value against the right edge");
+                assertEquals(0, (line.getFirst().y() - coin.y()) % HudLayout.ROW, "rows on the grid");
+            }
+            assertTrue(drawn(laid, "panel_div", ""), "a divider above the event");
+            assertTrue(right - x <= s.sidebarMaxWidth());
+        }
     }
 
     @Test
-    void longRowsWrapThenShorten() {
+    void panelDefaultFitsEverySixteenByNineScreenAtAutoScale() {
+        for (int[] w : new int[][]{{1280, 720}, {2560, 1440}, {3840, 2160}}) {
+            assertEquals(HudLayout.Settings.defaults().sidebarRight(), HudPosition.rightFor(w[0], w[1], 0), w[0] + "x" + w[1]);
+        }
+    }
+
+    @Test
+    void longRowsWrapEvenlyThenShorten() {
         HudFont f = new HudFont("t");
         f.text(sheets, 7);
-        var cells = HudText.cells(mm("<gray>사건 <gold>대풍년 축제와 함께하는 아주 긴 이름의 사건이 진행 중입니다 남은 시간 3시간"));
-        var lines = HudText.wrap(f, cells, 90, 2);
+        var cells = HudText.cells(mm("<white>작물 판매가 +20%, 비료 효과 두 배"));
+        int max = 110;
+        var lines = HudText.wrap(f, cells, max, 2);
         assertEquals(2, lines.size());
-        for (var l : lines) assertTrue(HudText.width(f, l) <= 90, "line fits");
-        assertEquals(HudText.ELLIPSIS, lines.getLast().getLast().cp());
+        int a = HudText.width(f, lines.get(0)), b = HudText.width(f, lines.get(1));
+        assertTrue(a <= max && b <= max);
+        assertTrue(Math.abs(a - b) <= 30, "even lines, no word left alone: " + a + " / " + b);
+        var longer = HudText.wrap(f, HudText.cells(mm("<gray>사건 <gold>대풍년 축제와 함께하는 아주 긴 이름의 사건이 진행 중입니다 남은 시간 3시간")), 90, 2);
+        assertEquals(2, longer.size());
+        for (var l : longer) assertTrue(HudText.width(f, l) <= 90, "line fits");
+        assertEquals(HudText.ELLIPSIS, longer.getLast().getLast().cp());
         assertEquals(1, HudText.wrap(f, HudText.cells(mm("짧은 줄")), 90, 2).size());
-        // a word longer than the line is cut, not lost
         var cut = HudText.wrap(f, HudText.cells(mm("가나다라마바사아자차카타파하가나다라마바사")), 40, 3);
         assertTrue(cut.size() >= 2);
         for (var l : cut) assertTrue(HudText.width(f, l) <= 40);
     }
 
     @Test
+    void labelAndValueSplitAtTheTab() {
+        var parts = HudText.split(HudText.cells(mm("<gray>잔액\t<gold>12,345 G")));
+        assertNotNull(parts);
+        assertEquals("잔액", text(parts.get(0)));
+        assertEquals("12,345 G", text(parts.get(1)));
+        assertNull(HudText.split(HudText.cells(mm("탭 없음"))));
+        assertEquals("a b", text(HudText.untab(HudText.cells(mm("a\tb")))));
+        // a row too wide for columns wraps as text, the tab a space
+        HudLayout narrow = new HudLayout(sheets, new HudLayout.Settings(212, 54, 80, 4, true));
+        HudClient c = new HudClient(sheets, narrow.fonts());
+        HudClient.Laid laid = c.lay(narrow.panel(List.of(new HudLayout.Row("coin", mm("<gray>아주 긴 이름의 줄\t<gold>12,345,678 G"), false)), 212));
+        assertEquals(2, laid.draws().stream().filter(HudClient.Draw::shadow).map(HudClient.Draw::y).distinct().count());
+    }
+
+    static String text(List<HudText.Cell> cells) {
+        StringBuilder sb = new StringBuilder();
+        for (var c : cells) sb.appendCodePoint(c.cp());
+        return sb.toString();
+    }
+
+    @Test
     void panelHonoursRowLimitAndUnknownCharacters() {
-        HudLayout small = new HudLayout(sheets, new HudLayout.Settings(96, 54, 116, 2, true));
+        HudLayout small = new HudLayout(sheets, new HudLayout.Settings(212, 54, 132, 2, true));
         HudClient c = new HudClient(sheets, small.fonts());
-        Component panel = small.panel(mm("STSV"), List.of(
+        Component panel = small.panel(List.of(
                 new HudLayout.Row("coin", mm("하나"), false), new HudLayout.Row("job", mm("둘 ✿ 漢"), false),
-                new HudLayout.Row("star", mm("셋"), false)));
+                new HudLayout.Row("star", mm("셋"), false)), 212);
         HudClient.Laid laid = c.lay(panel);   // would throw on a character the row font lacks
         assertEquals(2, laid.draws().stream().filter(d -> d.sheet().equals("icons")).count());
         assertTrue(laid.draws().stream().anyMatch(d -> "?".equals(d.cell())));
-        assertNull(small.panel(mm("STSV"), List.of()));
+        assertNull(small.panel(List.of(), 212));
     }
 
     @Test
@@ -205,9 +358,7 @@ class HudLayoutTest {
                 int ascent = p.get("ascent").getAsInt(), height = p.get("height").getAsInt();
                 assertTrue(ascent <= height, f.getKey() + ": ascent " + ascent + " > height " + height);
                 String file = p.get("file").getAsString();
-                if (file.startsWith("stsv:")) {
-                    assertTrue(files.containsKey("assets/stsv/textures/" + file.substring(5)), "missing " + file);
-                }
+                assertTrue(files.containsKey("assets/stsv/textures/" + file.substring(5)), "missing " + file);
                 int len = -1;
                 for (JsonElement row : p.getAsJsonArray("chars")) {
                     int[] cps = row.getAsString().codePoints().toArray();
@@ -218,6 +369,14 @@ class HudLayoutTest {
             }
             assertTrue(files.containsKey(f.getKey()));
         }
+        assertNotNull(files.get("assets/stsv/textures/font/hud/LICENSE-galmuri.txt"), "the font's licence travels with it");
+    }
+
+    @Test
+    void fontsStayLightOnClientMemory() {
+        long bytes = HudPack.clientMemory(sheets, layout);
+        // the earlier HUD loaded about 28 MB (ten Unifont sheets of 2.4 MB); seven panel rows and the action bar now
+        assertTrue(bytes < 8L * 1024 * 1024, "client memory " + bytes);
     }
 
     @Test
@@ -225,14 +384,14 @@ class HudLayoutTest {
         Map<String, byte[]> files = HudPack.files(sheets, layout, "WHITE", true);
         String s = "assets/minecraft/textures/gui/sprites/";
         for (String n : List.of("hud/heart/full", "hud/heart/container", "hud/heart/poisoned_hardcore_half_blinking",
-                "hud/heart/absorbing_full", "hud/food_full", "hud/food_empty_hunger", "hud/armor_half",
+                "hud/heart/absorbing_full", "hud/heart/vehicle_full", "hud/heart/vehicle_container", "hud/food_full",
+                "hud/food_empty_hunger", "hud/armor_half", "hud/air", "hud/air_bursting", "hud/air_empty",
                 "boss_bar/white_background", "boss_bar/white_progress")) {
             assertNotNull(files.get(s + n + ".png"), n);
         }
-        assertNull(files.get(s + "hud/heart/vehicle_full.png"), "the mount's hearts stay");
         assertNull(files.get(s + "boss_bar/red_background.png"));
-        // 26.3 has 47 heart sprites, 3 of them the mount's
-        assertEquals(44, files.keySet().stream().filter(k -> k.startsWith(s + "hud/heart/")).count());
+        // 26.3 has 47 heart sprites
+        assertEquals(47, files.keySet().stream().filter(k -> k.startsWith(s + "hud/heart/")).count());
         Map<String, byte[]> noHealth = HudPack.files(sheets, layout, null, false);
         assertTrue(noHealth.keySet().stream().noneMatch(k -> k.startsWith("assets/minecraft/")));
     }
@@ -265,14 +424,50 @@ class HudLayoutTest {
     }
 
     @Test
+    void positionFromTheWindow() {
+        assertEquals(4, HudPosition.guiScale(1920, 1080, 0));
+        assertEquals(3, HudPosition.guiScale(1280, 720, 0));
+        assertEquals(6, HudPosition.guiScale(2560, 1440, 0));
+        assertEquals(9, HudPosition.guiScale(3840, 2160, 0));
+        assertEquals(4, HudPosition.guiScale(1920, 1080, 6), "a larger chosen scale is cut down, as the game does");
+        assertEquals(2, HudPosition.guiScale(1920, 1080, 2));
+        assertEquals(427, HudPosition.guiWidth(1280, 3));
+        assertEquals(238, HudPosition.rightFor(1920, 1080, 0));
+        assertEquals(318, HudPosition.rightFor(1920, 1080, 3));
+        assertEquals(478, HudPosition.rightFor(1920, 1080, 2));
+        assertEquals(958, HudPosition.rightFor(1920, 1080, 1));
+        assertEquals(212, HudPosition.rightFor(2560, 1440, 0));
+        assertEquals(318, HudPosition.rightFor(2560, 1440, 4));
+
+        var w = HudPosition.parse(new String[]{"1920x1080", "3"}, 212);
+        assertEquals(HudPosition.Kind.WINDOW, w.kind());
+        assertEquals(318, w.right());
+        assertEquals(3, w.scale());
+        assertEquals(238, HudPosition.parse(new String[]{"1920X1080"}, 212).right());
+        assertEquals(238, HudPosition.parse(new String[]{"1920×1080", "자동"}, 212).right());
+        assertEquals(238, HudPosition.parse(new String[]{"1920", "x", "1080"}, 212).right());
+        assertEquals(HudPosition.Kind.NUDGE, HudPosition.parse(new String[]{"+10"}, 212).kind());
+        assertEquals(222, HudPosition.parse(new String[]{"+10"}, 212).right());
+        assertEquals(207, HudPosition.parse(new String[]{"-5"}, 212).right());
+        assertEquals(300, HudPosition.parse(new String[]{"300"}, 212).right());
+        assertEquals(HudPosition.MIN_RIGHT, HudPosition.parse(new String[]{"-999"}, 212).right());
+        assertEquals(HudPosition.Kind.RESET, HudPosition.parse(new String[]{"기본"}, 212).kind());
+        assertEquals(HudPosition.Kind.USAGE, HudPosition.parse(new String[]{}, 212).kind());
+        assertEquals(HudPosition.Kind.USAGE, HudPosition.parse(new String[]{"오른쪽"}, 212).kind());
+        assertEquals(HudPosition.Kind.USAGE, HudPosition.parse(new String[]{"1920x1080", "큰"}, 212).kind());
+        assertEquals(HudPosition.Kind.USAGE, HudPosition.parse(new String[]{"100x100"}, 212).kind());
+    }
+
+    @Test
     void packetsStaySmall() {
         var gson = net.kyori.adventure.text.serializer.gson.GsonComponentSerializer.gson();
         List<HudLayout.Row> rows = new java.util.ArrayList<>();
-        for (int i = 0; i < 8; i++) rows.add(new HudLayout.Row("coin", mm("<gray>잔액 <gold>12,345,678 G <white>직업 농부 Lv" + i), i == 3));
-        int panel = gson.serialize(layout.panel(mm("<gradient:#ffb35c:#ff6a3d>STSV"), rows)).length();
-        int bars = gson.serialize(layout.actionBar(HEALTHY, mm("<green>도감 등록 <white>토마토 <dark_gray>· <gray>작물 12/40"))).length();
+        for (int i = 0; i < 7; i++) rows.add(new HudLayout.Row("coin", mm("<gray>잔액\t<gold>12,345,678 G <white>농부 Lv" + i), i == 3));
+        int panel = gson.serialize(layout.panel(rows, 212)).length();
+        var worst = HEALTHY.withMount(new HudLayout.Mount(20, 30)).withAir(new HudLayout.Air(100, 300)).withFlash(HudLayout.Flash.LOST, 20);
+        int bars = gson.serialize(layout.actionBar(worst, mm("<green>도감 등록 <white>토마토 <dark_gray>· <gray>작물 12/40"))).length();
         assertTrue(panel < 16_000, "panel JSON " + panel);
-        assertTrue(bars < 6_000, "action bar JSON " + bars);
+        assertTrue(bars < 8_000, "action bar JSON " + bars);
     }
 
     @Test
