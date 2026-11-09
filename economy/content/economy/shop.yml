@@ -237,7 +237,7 @@ sell:
       economy:cut_diamond: { base: 90, q: 8 }   # 세공 다이아몬드
       economy:sapphire_brooch: { base: 147, q: 8 }   # 사파이어 브로치
       economy:diamond_ring: { base: 352, q: 4 }   # 다이아 반지
-      economy:copper_bracelet: { base: 55, q: 8 }   # 구리 팔찌 (원재료만)
+      economy:copper_bracelet: { base: 92, q: 8 }   # 구리 팔찌
       economy:amethyst_pendant: { base: 41.5, q: 16 }   # 자수정 펜던트 (원재료만)
       economy:quartz_figurine: { base: 51, q: 8 }   # 석영 조각상 (원재료만)
       economy:cut_crystal: { base: 68, q: 8 }   # 세공 수정
@@ -324,7 +324,7 @@ sell:
       economy:saengseonjeon: { base: 32, q: 16 }   # 생선전
       economy:fish_platter: { base: 27, q: 16 }   # 모둠 생선구이
       economy:bogeo_jiri: { base: 33, q: 16 }   # 복어 지리
-      economy:pollack_stew: { base: 46, q: 16 }   # 동태찌개
+      economy:pollack_stew: { base: 56, q: 8 }   # 동태찌개
       economy:agujjim: { base: 63, q: 8 }   # 아귀찜
       economy:golden_injeolmi: { base: 52, q: 8 }   # 황금 인절미
       economy:ginseng_samgyetang: { base: 131, q: 8 }   # 산삼 삼계탕
@@ -355,10 +355,10 @@ sell:
       economy:oi_muchim: { base: 36, q: 16 }   # 오이무침 (원재료만)
       economy:beoseot_bokkeum: { base: 22, q: 16 }   # 버섯볶음 (원재료만)
       economy:gamja_jorim: { base: 12, q: 32 }   # 감자조림 (원재료만)
-      economy:pajeon: { base: 16, q: 16 }   # 파전 (원재료만)
+      economy:pajeon: { base: 20, q: 16 }   # 파전
       economy:miyeokguk: { base: 13, q: 32 }   # 미역국 (원재료만)
-      economy:kalguksu: { base: 30, q: 16 }   # 칼국수 (원재료만)
-      economy:injeolmi: { base: 16, q: 16 }   # 인절미 (원재료만)
+      economy:kalguksu: { base: 40, q: 16 }   # 칼국수
+      economy:injeolmi: { base: 27.5, q: 16 }   # 인절미
       economy:dakbokkeumtang: { base: 46, q: 16 }   # 닭볶음탕 (원재료만)
       economy:gamjatang: { base: 44, q: 16 }   # 감자탕 (원재료만)
       # 증류기 (연금술사)
@@ -374,7 +374,7 @@ sell:
       economy:strawberry_wine: { base: 56, q: 8 }   # 딸기주
       economy:mead: { base: 51, q: 8 }   # 꿀술
       economy:cheongju: { base: 311, q: 4 }   # 청주
-      economy:pumpkin_makgeolli: { base: 26, q: 16 }   # 단호박 막걸리 (원재료만)
+      economy:pumpkin_makgeolli: { base: 58, q: 8 }   # 단호박 막걸리
       economy:bokbunja_wine: { base: 42, q: 16 }   # 복분자주 (원재료만)
       economy:rum: { base: 80, q: 8 }   # 럼 (원재료만)
       economy:corn_whiskey: { base: 127, q: 8 }   # 옥수수 위스키 (원재료만)
@@ -384,7 +384,7 @@ sell:
       economy:golden_cheongju: { base: 399, q: 4 }   # 황금 청주
       economy:meteor_elixir: { base: 1089, q: 1 }   # 운철 단약 (꿀에 개어 빚은 환약)
       economy:ambergris_perfume: { base: 1307, q: 1 }   # 용연향 향수
-      economy:crystal_vintage: { base: 746, q: 2 }   # 수정병 빈티지
+      economy:crystal_vintage: { base: 960, q: 2 }   # 수정병 빈티지
 
 buy:
   tools:

@@ -92,8 +92,8 @@ gem_bench:
     - { in: { diamond: 1 }, out: economy:cut_diamond, seconds: 140, tier: 1 }   # 세공 다이아몬드 90G
     - { in: { economy:sapphire: 1, gold_ingot: 2 }, out: economy:sapphire_brooch, seconds: 300, tier: 1 }   # 사파이어 브로치 147G
     - { in: { economy:cut_diamond: 1, economy:gold_ring: 1 }, out: economy:diamond_ring, seconds: 600, tier: 2 }   # 다이아 반지 352G
+    - { in: { copper_ingot: 4, economy:cut_emerald: 1 }, out: economy:copper_bracelet, seconds: 150 }   # 구리 팔찌 92G (세공 에메랄드를 박음)
     # 원재료만으로 (다른 기계의 생산품 없이: 효율은 낮음)
-    - { in: { copper_ingot: 4, emerald: 1 }, out: economy:copper_bracelet, seconds: 100 }   # 구리 팔찌 55G
     - { in: { amethyst_shard: 4, gold_ingot: 1 }, out: economy:amethyst_pendant, seconds: 230 }   # 자수정 펜던트 41.5G
     - { in: { quartz: 16 }, out: economy:quartz_figurine, seconds: 225, tier: 1 }   # 석영 조각상 51G
     # ── 새 레시피 (특별 재료: 다른 직업이 자주 얻는 재료 · 어부가 많이 잡는 생선) ──
@@ -238,10 +238,10 @@ kitchen:
     - { in: { economy:cucumber: 28, economy:chili_pepper: 16, economy:garlic: 14 }, out: economy:oi_muchim, seconds: 75 }   # 오이무침 36G
     - { in: { brown_mushroom: 3, economy:onion: 15, economy:garlic: 14 }, out: economy:beoseot_bokkeum, seconds: 75 }   # 버섯볶음 22G
     - { in: { potato: 24, economy:garlic: 14 }, out: economy:gamja_jorim, amount: 2, seconds: 100 }   # 감자조림 12G
-    - { in: { wheat: 12, economy:green_onion: 43, egg: 1 }, out: economy:pajeon, amount: 2, seconds: 110 }   # 파전 16G
+    - { in: { economy:flour: 1, economy:green_onion: 29, egg: 1 }, out: economy:pajeon, amount: 2, seconds: 110 }   # 파전 20G (밀가루 반죽: 원재료만이 아님, 기계 생산품 하나)
     - { in: { kelp: 6, beef: 1, economy:garlic: 14 }, out: economy:miyeokguk, seconds: 225 }   # 미역국 13G
-    - { in: { wheat: 16, potato: 4, economy:zucchini: 14 }, out: economy:kalguksu, seconds: 225, tier: 1 }   # 칼국수 30G
-    - { in: { economy:paddy: 40, economy:soybean: 27 }, out: economy:injeolmi, amount: 2, seconds: 210, tier: 1 }   # 인절미 16G (떡메로 침)
+    - { in: { economy:flour: 2, potato: 6, economy:zucchini: 28 }, out: economy:kalguksu, amount: 2, seconds: 180, tier: 1 }   # 칼국수 40G (밀가루 반죽: 원재료만이 아님, 기계 생산품 하나)
+    - { in: { economy:rice: 2, economy:soybean: 53 }, out: economy:injeolmi, amount: 4, seconds: 225, tier: 1 }   # 인절미 27.5G (쌀을 쪄서 떡메로 침: 원재료만이 아님, 기계 생산품 하나)
     - { in: { chicken: 1, potato: 12, economy:chili_pepper: 47 }, out: economy:dakbokkeumtang, seconds: 450, tier: 1 }   # 닭볶음탕 46G
     - { in: { porkchop: 2, potato: 16, economy:chili_pepper: 31 }, out: economy:gamjatang, seconds: 600, tier: 1 }   # 감자탕 44G (오래 끓임)
     # ── 새 레시피: 줄에 고정한 레시피는 목록 순서(번호)로 저장되므로, 새 레시피는 항상 맨 뒤에 붙임 ──
@@ -249,7 +249,7 @@ kitchen:
     # ── 새 레시피 (특별 재료: 다른 직업이 자주 얻는 재료 · 어부가 많이 잡는 생선) ──
     - { in: { "#economy:white_fish": 6, "#economy:jeon_fish": 2 }, out: economy:fish_platter, amount: 3, seconds: 270 }   # 모둠 생선구이 27G
     - { in: { economy:prepared_puffer: 2, economy:green_onion: 14, economy:radish: 31 }, out: economy:bogeo_jiri, amount: 2, seconds: 150 }   # 복어 지리 33G
-    - { in: { economy:pollack: 3, economy:radish: 31, economy:tofu: 1 }, out: economy:pollack_stew, amount: 2, seconds: 30, tier: 1 }   # 동태찌개 46G
+    - { in: { economy:pollack: 5, economy:radish: 31, economy:tofu: 1 }, out: economy:pollack_stew, amount: 2, seconds: 225, tier: 1 }   # 동태찌개 56G (다른 찌개처럼 오래 끓임)
     - { in: { economy:monkfish: 1, economy:chili_powder: 1, economy:green_onion: 29 }, out: economy:agujjim, amount: 2, seconds: 85, tier: 1 }   # 아귀찜 63G
     - { in: { economy:rice: 2, economy:golden_ear: 1 }, out: economy:golden_injeolmi, amount: 4, seconds: 555 }   # 황금 인절미 52G
     - { in: { chicken: 1, economy:wild_ginseng: 1, economy:garlic: 29 }, out: economy:ginseng_samgyetang, amount: 2, seconds: 520, tier: 1 }   # 산삼 삼계탕 131G
@@ -277,8 +277,8 @@ still:
     - { in: { economy:strawberry: 64, sugar: 2 }, out: economy:strawberry_wine, amount: 2, seconds: 900, tier: 1, aging: true }   # 딸기주 56G
     - { in: { honey_bottle: 10 }, out: economy:mead, amount: 2, seconds: 1200, tier: 1, aging: true }   # 꿀술 51G
     - { in: { economy:makgeolli: 4, economy:rice: 1 }, out: economy:cheongju, amount: 2, seconds: 1680, tier: 2, aging: true }   # 청주 311G (막걸리를 맑게 거름)
+    - { in: { economy:rice: 3, wheat: 8, pumpkin: 4 }, out: economy:pumpkin_makgeolli, amount: 4, seconds: 720, aging: true }   # 단호박 막걸리 58G (막걸리에 단호박을 더함)
     # 원재료만으로 (다른 기계의 생산품 없이: 효율은 낮음)
-    - { in: { pumpkin: 4, economy:paddy: 64 }, out: economy:pumpkin_makgeolli, amount: 3, seconds: 900, aging: true }   # 단호박 막걸리 26G
     - { in: { sweet_berries: 64, sugar: 1 }, out: economy:bokbunja_wine, amount: 2, seconds: 900, tier: 1, aging: true }   # 복분자주 42G
     - { in: { sugar_cane: 64 }, out: economy:rum, amount: 2, seconds: 1500, tier: 1, aging: true }   # 럼 80G
     - { in: { economy:corn: 64, wheat: 8 }, out: economy:corn_whiskey, seconds: 1115, tier: 2, aging: true }   # 옥수수 위스키 127G
@@ -289,7 +289,7 @@ still:
     - { in: { economy:makgeolli: 4, economy:golden_ear: 1 }, out: economy:golden_cheongju, amount: 2, seconds: 2310, tier: 2, aging: true }   # 황금 청주 399G
     - { in: { economy:soju: 1, economy:meteoric_iron: 1, honey_bottle: 2 }, out: economy:meteor_elixir, seconds: 2670, tier: 3, aging: true }   # 운철 단약 1089G (꿀에 개어 빚은 환약)
     - { in: { economy:soju: 1, economy:ambergris: 1, "#small_flowers": 4 }, out: economy:ambergris_perfume, seconds: 3210, tier: 3, aging: true }   # 용연향 향수 1307G
-    - { in: { economy:wine: 3, economy:cut_crystal: 1 }, out: economy:crystal_vintage, amount: 2, seconds: 3460, tier: 3, aging: true }   # 수정병 빈티지 746G
+    - { in: { economy:wine: 4, economy:cut_crystal: 1 }, out: economy:crystal_vintage, amount: 2, seconds: 4450, tier: 3, aging: true }   # 수정병 빈티지 960G (참나무통 대신 수정병에 포도주를 더 넣어 숙성)
 
 # 압착기 (공용 기계: 직업 없음). 남아도는 바닐라 물건(씨앗, 묘목, 잎, 썩은 살점, 돌, 흙...)을 눌러서 팔 수 있는 것으로.
 # 일부러 값이 낮음 (버리던 것을 조금이라도 돈으로). 누구나 같은 속도, 경험치·직업 효과 없음, 강화는 골드만 (직업 레벨 필요 없음)
