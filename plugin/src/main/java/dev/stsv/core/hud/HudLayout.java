@@ -60,8 +60,13 @@ public final class HudLayout {
 
     public enum Tint { NORMAL, POISON, WITHER, FROZEN }
 
-    /** A short flash of the health bar: the part just lost or just gained, for a moment after the change. */
-    public enum Flash { LOST, GAIN }
+    /**
+     * The bars' motion (HudTrail), in pixels of a bar's inside: the light trail of the part just lost past the
+     * health, the right bar (hunger or the mount) and the armor, and the glow of the health just gained below it.
+     */
+    public record Anim(int health, int glow, int right, int armor) {
+        public static final Anim NONE = new Anim(0, 0, 0, 0);
+    }
 
     /** The health of what the player rides (a living mount: it takes the hunger bar's place, as in the game). */
     public record Mount(double health, double max) {}
@@ -69,27 +74,35 @@ public final class HudLayout {
     /** The air left, shown under water and while it refills (as the game shows its bubbles). */
     public record Air(int remaining, int max) {}
 
-    /**
-     * What the bars show. flashFrom: health + absorption before the change the flash shows (with flash only).
-     */
+    /** What the bars show, and how they are moving (anim). */
     public record Health(double health, double max, double absorption, int food, float saturation, int armor,
-                         Tint tint, boolean hungry, Mount mount, Air air, Flash flash, double flashFrom) {
+                         Tint tint, boolean hungry, Mount mount, Air air, Anim anim) {
+
+        public Health {
+            if (anim == null) anim = Anim.NONE;
+        }
 
         public Health(double health, double max, double absorption, int food, float saturation, int armor, Tint tint,
                       boolean hungry) {
-            this(health, max, absorption, food, saturation, armor, tint, hungry, null, null, null, 0);
+            this(health, max, absorption, food, saturation, armor, tint, hungry, null, null, Anim.NONE);
         }
 
         public Health withMount(Mount m) {
-            return new Health(health, max, absorption, food, saturation, armor, tint, hungry, m, air, flash, flashFrom);
+            return new Health(health, max, absorption, food, saturation, armor, tint, hungry, m, air, anim);
         }
 
         public Health withAir(Air a) {
-            return new Health(health, max, absorption, food, saturation, armor, tint, hungry, mount, a, flash, flashFrom);
+            return new Health(health, max, absorption, food, saturation, armor, tint, hungry, mount, a, anim);
         }
 
-        public Health withFlash(Flash f, double from) {
-            return new Health(health, max, absorption, food, saturation, armor, tint, hungry, mount, air, f, f == null ? 0 : from);
+        public Health withAnim(Anim a) {
+            return new Health(health, max, absorption, food, saturation, armor, tint, hungry, mount, air, a);
+        }
+
+        /** As the moment after health + absorption went from `from` to what it is: the whole lost part trailing, or the gained part glowing. */
+        public Health justChanged(double from) {
+            int now = healthPx(this), before = fill(from, Math.max(max, total()), INNER);
+            return withAnim(new Anim(Math.max(0, before - now), Math.max(0, now - before), anim.right(), anim.armor()));
         }
 
         /** Health and absorption together. */
@@ -343,9 +356,9 @@ public final class HudLayout {
         int end = ink.pen();
         if (h != null) {
             healthBar(ink, h);
-            if (h.mount() != null) mountBar(ink, h.mount());
+            if (h.mount() != null) mountBar(ink, h.mount(), h.anim().right());
             else foodBar(ink, h);
-            if (h.armor() > 0 && settings.armor()) armorBar(ink, h);
+            if ((h.armor() > 0 || h.anim().armor() > 0) && settings.armor()) armorBar(ink, h);
             if (h.air() != null) airBar(ink, h.air());
             ink.to(bar, end);
         }
@@ -357,9 +370,29 @@ public final class HudLayout {
 
     private enum Side { LEFT, RIGHT }
 
+    /** Pixels of the health bar filled by health and absorption together (what its trail and glow are measured from). */
+    static int healthPx(Health h) {
+        return Math.max(fill(h.health(), Math.max(h.max(), h.total()), INNER), fill(h.total(), Math.max(h.max(), h.total()), INNER));
+    }
+
+    /** Pixels of the right bar of the first row filled: the mount's health when riding, the hunger otherwise. */
+    static int rightPx(Health h) {
+        return h.mount() != null ? fill(h.mount().health(), Math.max(1, h.mount().max()), INNER) : fill(h.food(), 20, INNER);
+    }
+
+    /** Pixels of the armor bar filled. */
+    static int armorPx(Health h) {
+        return fill(h.armor(), Math.max(20, h.armor()), INNER);
+    }
+
+    /** A trail of `length` px past the fill (never past the inside). */
+    private static Span trail(int filled, int length) {
+        return new Span("lost", filled, Math.min(INNER, filled + length));
+    }
+
     private void healthBar(Ink ink, Health h) {
         double scale = Math.max(h.max(), h.total());
-        int kh = fill(h.health(), scale, INNER), kt = Math.max(kh, fill(h.total(), scale, INNER));
+        int kh = fill(h.health(), scale, INNER), kt = healthPx(h);
         String colour = switch (h.tint()) {
             case POISON -> "poison";
             case WITHER -> "wither";
@@ -368,15 +401,12 @@ public final class HudLayout {
         };
         List<Span> spans = new ArrayList<>(List.of(new Span(colour, 0, kh), new Span("abs", kh, kt)));
         String rim = "frame";
-        if (h.flash() != null) {
-            int kf = fill(h.flashFrom(), scale, INNER);
-            if (h.flash() == Flash.LOST && kf > kt) {
-                spans.add(new Span("lost", kt, kf));
-                rim = "frame_hit";
-            } else if (h.flash() == Flash.GAIN && kf < kt) {
-                spans.add(new Span("gain", kf, kt));
-                rim = "frame_heal";
-            }
+        if (h.anim().health() > 0 && kt < INNER) {
+            spans.add(trail(kt, h.anim().health()));
+            rim = "frame_hit";
+        } else if (h.anim().glow() > 0) {
+            spans.add(new Span("gain", Math.max(0, kt - h.anim().glow()), kt));
+            rim = "frame_heal";
         }
         String heart = switch (h.tint()) {
             case POISON -> "heart_poison";
@@ -395,25 +425,25 @@ public final class HudLayout {
     }
 
     private void foodBar(Ink ink, Health h) {
-        int k = fill(h.food(), 20, INNER);
+        int k = rightPx(h);
         drawBar(ink, Side.RIGHT, ROW1, h.hungry() ? "food_hunger" : "food", "frame",
-                List.of(new Span(h.hungry() ? "hunger" : "food", 0, k)), k, 10);
+                List.of(new Span(h.hungry() ? "hunger" : "food", 0, k), trail(k, h.anim().right())), k, 10);
         int s = fill(Math.min(h.saturation(), Math.max(0, h.food())), 20, INNER);
         if (s > 0) pieces(ink, "line", "sat", action(ROW1 - 7), Side.RIGHT, 0, s);
         number(ink, Side.RIGHT, ROW1, String.valueOf(Math.max(0, h.food())), h.hungry() ? HUNGER : null);
     }
 
-    private void mountBar(Ink ink, Mount m) {
+    private void mountBar(Ink ink, Mount m, int trail) {
         double scale = Math.max(1, m.max());
         int k = fill(m.health(), scale, INNER);
-        drawBar(ink, Side.RIGHT, ROW1, "mount", "frame", List.of(new Span("mount", 0, k)), k, segments(scale, 2));
+        drawBar(ink, Side.RIGHT, ROW1, "mount", "frame", List.of(new Span("mount", 0, k), trail(k, trail)), k, segments(scale, 2));
         number(ink, Side.RIGHT, ROW1, healthText(m.health()), m.health() <= scale / 4 ? LOW : null);
     }
 
     private void armorBar(Ink ink, Health h) {
         int scale = Math.max(20, h.armor());
-        int k = fill(h.armor(), scale, INNER);
-        drawBar(ink, Side.LEFT, ROW2, "armor", "frame", List.of(new Span("armor", 0, k)), k, segments(scale, 2));
+        int k = armorPx(h);
+        drawBar(ink, Side.LEFT, ROW2, "armor", "frame", List.of(new Span("armor", 0, k), trail(k, h.anim().armor())), k, segments(scale, 2));
         number(ink, Side.LEFT, ROW2, String.valueOf(h.armor()), null);
     }
 

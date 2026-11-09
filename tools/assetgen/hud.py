@@ -711,7 +711,7 @@ def preview(draws_path: Path, out_dir: Path):
                     im = im.resize((sc["thumb"], im.height * sc["thumb"] // im.width), Image.LANCZOS)
                 _label(im, f"{sc['width']} x {sc['height']} · GUI {sc['scale']} · {sc['label']}")
             panels.append(im)
-        if page.endswith("states"):
+        if page.endswith("states") or page.endswith("anim"):
             cols = 2
             cw = max(p.width for p in panels)
             rows = [panels[i:i + cols] for i in range(0, len(panels), cols)]

@@ -255,14 +255,29 @@ class HudLayoutTest {
 
     @Test
     void damageAndHealingFlash() {
-        var hit = client.lay(layout.actionBar(HEALTHY.withFlash(HudLayout.Flash.LOST, 20), null));
+        var hit = client.lay(layout.actionBar(HEALTHY.justChanged(20), null));
         assertEquals(HudLayout.fill(20, 20, HudLayout.INNER) - HudLayout.fill(18, 20, HudLayout.INNER), filled(hit, "lost", 39), "the part just lost");
         find(hit, "frame", "frame_hit");
-        var heal = client.lay(layout.actionBar(HEALTHY.withFlash(HudLayout.Flash.GAIN, 10), null));
+        var heal = client.lay(layout.actionBar(HEALTHY.justChanged(10), null));
         assertEquals(HudLayout.fill(18, 20, HudLayout.INNER) - HudLayout.fill(10, 20, HudLayout.INNER), filled(heal, "gain", 39), "the part just gained");
         find(heal, "frame", "frame_heal");
         var plain = client.lay(layout.actionBar(HEALTHY, null));
         assertFalse(drawn(plain, "fill", "lost/") || drawn(plain, "fill", "gain/"));
+        // a trail on the hunger and armor bars too, grown from the fill away from the icon; the armor bar stays
+        // while its trail drains even when the armor is gone
+        var anim = new HudLayout.Anim(0, 0, 9, 5);
+        var both = client.lay(layout.actionBar(HEALTHY.withAnim(anim), null));
+        assertEquals(9, filled(both, "lost", 39));
+        assertEquals(5, filled(both, "lost", 49));
+        int food = HudLayout.fill(17, 20, HudLayout.INNER);
+        int trailLeft = both.draws().stream().filter(d -> d.cell().startsWith("lost/") && fromBottom(d) == 38).mapToInt(HudClient.Draw::x).min().orElseThrow();
+        assertEquals(14 + HudLayout.INNER - (food + 9 - 1), trailLeft, "the hunger trail just left of its fill");
+        var bare = client.lay(layout.actionBar(new HudLayout.Health(18, 20, 0, 17, 5f, 0, HudLayout.Tint.NORMAL, false).withAnim(new HudLayout.Anim(0, 0, 0, 20)), null));
+        find(bare, "icons", "armor");
+        assertEquals(20, filled(bare, "lost", 49));
+        // never past the inside
+        var over = client.lay(layout.actionBar(HEALTHY.withAnim(new HudLayout.Anim(500, 0, 0, 0)), null));
+        assertEquals(HudLayout.INNER - HudLayout.fill(18, 20, HudLayout.INNER), filled(over, "lost", 39));
     }
 
     @Test
@@ -539,7 +554,8 @@ class HudLayoutTest {
         List<HudLayout.Row> rows = new java.util.ArrayList<>();
         for (int i = 0; i < 7; i++) rows.add(new HudLayout.Row("coin", mm("<gray>잔액\t<gold>12,345,678 G <white>농부 Lv" + i), i == 3));
         int panel = gson.serialize(layout.panel(rows, 212)).length();
-        var worst = HEALTHY.withMount(new HudLayout.Mount(20, 30)).withAir(new HudLayout.Air(100, 300)).withFlash(HudLayout.Flash.LOST, 20);
+        var worst = HEALTHY.withMount(new HudLayout.Mount(20, 30)).withAir(new HudLayout.Air(100, 300))
+                .withAnim(new HudLayout.Anim(7, 0, 7, 7));
         int bars = gson.serialize(layout.actionBar(worst, mm("<green>도감 등록 <white>토마토 <dark_gray>· <gray>작물 12/40"))).length();
         assertTrue(panel < 16_000, "panel JSON " + panel);
         assertTrue(bars < 8_000, "action bar JSON " + bars);
