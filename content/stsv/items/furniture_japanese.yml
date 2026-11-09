@@ -7,6 +7,8 @@
 # solid: false = 방벽을 두지 않음 (깔개, 방석, 커튼처럼 밟거나 지나가는 것)
 # light = 진짜 빛 (보이지 않는 빛 블록). 그 칸에는 방벽이 들어가지 않습니다
 # seats.facing = 앉은 사람이 보는 방향 (가구 정면 기준 각도. 180 = 가구 뒤쪽, 90 = 가구의 +x 쪽)
+# 칸에 딱 맞지 않는 크기(이불 1.5×2.5 등)는 모델을 차지한 칸들의 가운데에 둡니다 (양쪽 여백이 같게)
+# scale = 모델 범위(3칸)보다 큰 것 (도리이): 모델은 1/scale 로 줄여 굽고 표시할 때 다시 키움 (픽셀 크기는 다른 가구와 같음)
 
 # ── 바닥 · 앉는 것 ─────────────────────────────────────────
 tatami:
@@ -53,24 +55,25 @@ kotatsu:
   furniture:
     cells: [[0, 0, 0], [0, 0, -1], [0, 0, 1], [1, 0, 0], [-1, 0, 0]]
     seats:
-      - { cell: [0, 0, -1], height: 0.17, facing: 180 }
-      - { cell: [0, 0, 1], height: 0.17, facing: 0 }
-      - { cell: [1, 0, 0], height: 0.17, facing: -90 }
-      - { cell: [-1, 0, 0], height: 0.17, facing: 90 }
+      - { cell: [0, 0, -1], height: 0.2, facing: 180 }
+      - { cell: [0, 0, 1], height: 0.2, facing: 0 }
+      - { cell: [1, 0, 0], height: 0.2, facing: -90 }
+      - { cell: [-1, 0, 0], height: 0.2, facing: 90 }
 
 futon:
   material: paper
   name: "<#38699d>이불 세트"
-  lore: ["<gray>일본풍 가구 · 1×2칸", "<gray>요, 쪽빛 이불, 메밀 베개.", "<dark_gray>우클릭: 앉기"]
+  lore: ["<gray>일본풍 가구 · 2×3칸 (이불 1.5×2.5)", "<gray>요, 쪽빛 이불, 메밀 베개 두 개.", "<dark_gray>우클릭: 앉기"]
   model: futon
   icon: futon_icon
   max-stack: 16
   furniture:
-    cells: [[0, 0, 0], [0, 0, 1]]
+    # 놓은 칸이 가운데 줄 (앞뒤로 한 칸씩, 오른쪽(+x)으로 한 칸)
+    cells: [[0, 0, -1], [1, 0, -1], [0, 0, 0], [1, 0, 0], [0, 0, 1], [1, 0, 1]]
     solid: false
     seats:
       - { cell: [0, 0, 0], height: 0.23 }
-      - { cell: [0, 0, 1], height: 0.23 }
+      - { cell: [1, 0, 0], height: 0.23 }
 
 # ── 칸막이 · 벽 ─────────────────────────────────────────
 shoji_screen:
@@ -86,12 +89,13 @@ shoji_screen:
 fusuma_panel:
   material: paper
   name: "<#f0c32e>후스마 장식"
-  lore: ["<gray>일본풍 가구 · 2×1칸, 높이 2", "<gray>금박 위에 후지산과 붉은 해를 그린", "<gray>미닫이 문 두 짝."]
+  lore: ["<gray>일본풍 가구 · 2×1칸, 높이 3", "<gray>금박 위에 후지산과 붉은 해를 그린", "<gray>미닫이 문 두 짝."]
   model: fusuma_panel
   icon: fusuma_panel_icon
   max-stack: 16
   furniture:
-    cells: [[0, 0, 0], [1, 0, 0], [0, 1, 0], [1, 1, 0]]
+    cells: [[0, 0, 0], [1, 0, 0], [0, 1, 0], [1, 1, 0], [0, 2, 0], [1, 2, 0]]
+    translation: [0, 1, 0]
 
 hanging_scroll:
   material: paper
@@ -309,13 +313,16 @@ kimono_rack:
 torii:
   material: paper
   name: "<#e06439>도리이"
-  lore: ["<gray>일본풍 가구 · 3×1칸, 높이 3", "<gray>신사 입구의 붉은 문. 가운데로 지나갈 수 있습니다."]
+  lore: ["<gray>일본풍 가구 · 4×1칸, 높이 4", "<gray>신사 입구의 붉은 문. 가운데 두 칸으로 지나갈 수 있습니다."]
   model: torii
   icon: torii_icon
   max-stack: 16
   furniture:
-    cells: [[-1, 0, 0], [0, 0, 0], [1, 0, 0], [-1, 1, 0], [0, 1, 0], [1, 1, 0], [-1, 2, 0], [0, 2, 0], [1, 2, 0]]
-    translation: [0, 1, 0]
+    # 기둥은 x -1 과 2 칸, 가운데 x 0·1 칸이 통로. 모델은 1.25배로 표시 (3.75×3.3칸)
+    cells: [[-1, 0, 0], [0, 0, 0], [1, 0, 0], [2, 0, 0], [-1, 1, 0], [0, 1, 0], [1, 1, 0], [2, 1, 0],
+            [-1, 2, 0], [0, 2, 0], [1, 2, 0], [2, 2, 0], [-1, 3, 0], [0, 3, 0], [1, 3, 0], [2, 3, 0]]
+    translation: [-0.5, 1, 0]
+    scale: [1.25, 1.25, 1.25]
 
 stepping_stones:
   material: paper

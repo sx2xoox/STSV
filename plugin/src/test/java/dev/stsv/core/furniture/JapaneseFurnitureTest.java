@@ -38,7 +38,8 @@ import static org.junit.jupiter.api.Assertions.assertTrue;
  * The Japanese-style furniture (content/stsv/items/furniture_japanese.yml) loads with the real parser, every
  * piece has its model and a 16 px icon, and its shape worked out from the shipped model makes sense: cushions and
  * mats can be walked over and sat on (never a barrier where someone sits), screens, fences and lanterns are solid,
- * the torii can be walked through in the middle, lamps give light from a cell of their own.
+ * the torii can be walked through in the middle, lamps give light from a cell of their own, and every piece sits
+ * in the middle of its cells (a size that is not a whole number of blocks leaves the same margin on both sides).
  */
 @TestInstance(TestInstance.Lifecycle.PER_CLASS)
 class JapaneseFurnitureTest {
@@ -50,6 +51,7 @@ class JapaneseFurnitureTest {
     private final Map<String, ConfigurationSection> items = new LinkedHashMap<>();
     private final Map<String, FurnitureShape.Shape> shapes = new LinkedHashMap<>();
     private final Map<String, FurnitureShape.Voxels> voxels = new LinkedHashMap<>();
+    private final Map<String, JsonObject> models = new LinkedHashMap<>();
     private ContentPack pack;
 
     @BeforeAll
@@ -66,6 +68,7 @@ class JapaneseFurnitureTest {
             FurnitureSpec spec = e.getValue();
             PackBuilder.Model model = built.itemModel("stsv:model/" + items.get(e.getKey()).getString("model"));
             assertNotNull(model, e.getKey());
+            models.put(e.getKey(), model.json());
             FurnitureShape.Voxels v = FurnitureShape.voxelize(spec.cells(), model.json(), spec.translation(), spec.scale(), List.of(), 0);
             voxels.put(e.getKey(), v);
             shapes.put(e.getKey(), FurnitureShape.shape(v, spec.cells(), FILL, spec.solid()));
@@ -157,10 +160,58 @@ class JapaneseFurnitureTest {
         }
         assertTrue(shapes.get("shoji_screen").barrier(new int[]{0, 1, 0}), "a screen two blocks tall blocks at head height");
         assertTrue(shapes.get("bamboo_fence").barrier(new int[]{0, 1, 0}), "the kenninji fence screens at eye level (1.75 blocks)");
+        assertTrue(shapes.get("fusuma_panel").barrier(new int[]{1, 2, 0}), "the fusuma is three blocks tall");
         FurnitureShape.Shape torii = shapes.get("torii");
+        for (int y = 0; y < 2; y++) {   // the beams fill the cells above (2 blocks up)
+            assertFalse(torii.barrier(new int[]{0, y, 0}) || torii.barrier(new int[]{1, y, 0}), "walk through the torii's middle, two wide");
+        }
         for (int y = 0; y < 2; y++) {
-            assertFalse(torii.barrier(new int[]{0, y, 0}), "walk through the torii's middle");
-            assertTrue(torii.barrier(new int[]{-1, y, 0}) && torii.barrier(new int[]{1, y, 0}), "its posts are solid");
+            assertTrue(torii.barrier(new int[]{-1, y, 0}) && torii.barrier(new int[]{2, y, 0}), "its posts are solid");
+        }
+    }
+
+    /**
+     * Every piece sits in the middle of its cells: the empty margin between the model's bounds and its cells'
+     * outline is the same on both sides (within 1/16 block) along x and z, placed facing any of the four ways.
+     * Worked out from the shipped model where the item display shows it (display transform, translation,
+     * scale) and turned with the same maths as placing it. The hanging scroll is the one exception in depth:
+     * it hangs flat against the wall behind its cell.
+     */
+    @Test
+    void modelsAreCentredInTheirCellsFacingEveryWay() {
+        Set<String> wallHung = Set.of("hanging_scroll");
+        for (Map.Entry<String, FurnitureSpec> e : specs.entrySet()) {
+            String id = e.getKey();
+            FurnitureSpec spec = e.getValue();
+            JsonObject model = models.get(id);
+            double[] b = FurnitureShape.bounds(model, FurnitureShape.mainPlacement(model, spec.translation(), spec.scale(), 0));
+            for (float yaw : new float[]{0, 90, 180, 270}) {
+                // the model's bounds and the cells, in blocks from the anchor block's corner, turned as placed
+                double[] lo = {Double.MAX_VALUE, Double.MAX_VALUE}, hi = {-Double.MAX_VALUE, -Double.MAX_VALUE};
+                for (int c = 0; c < 4; c++) {
+                    double[] w = FurnitureModule.modelToWorld(new org.joml.Vector3f((float) ((c & 1) == 0 ? b[0] : b[3]), 0f,
+                            (float) ((c & 2) == 0 ? b[2] : b[5])), yaw);
+                    lo[0] = Math.min(lo[0], w[0] + 0.5);
+                    hi[0] = Math.max(hi[0], w[0] + 0.5);
+                    lo[1] = Math.min(lo[1], w[2] + 0.5);
+                    hi[1] = Math.max(hi[1], w[2] + 0.5);
+                }
+                int[] cmin = {Integer.MAX_VALUE, Integer.MAX_VALUE}, cmax = {Integer.MIN_VALUE, Integer.MIN_VALUE};
+                for (int[] cell : spec.cells()) {
+                    int[] o = FurnitureModule.rotate(cell, yaw);
+                    cmin[0] = Math.min(cmin[0], o[0]);
+                    cmax[0] = Math.max(cmax[0], o[0] + 1);
+                    cmin[1] = Math.min(cmin[1], o[2]);
+                    cmax[1] = Math.max(cmax[1], o[2] + 1);
+                }
+                boolean depthIsX = Math.abs(Math.sin(Math.toRadians(yaw))) > 0.5; // the model's z (front to back) along world x
+                for (int a = 0; a < 2; a++) {
+                    if (wallHung.contains(id) && (a == 0) == depthIsX) continue;
+                    double near = lo[a] - cmin[a], far = cmax[a] - hi[a];
+                    assertTrue(Math.abs(near - far) <= 1 / 16.0 + 1e-6, String.format("%s facing %s: %s margins %.3f / %.3f blocks",
+                            id, yaw, a == 0 ? "x" : "z", near, far));
+                }
+            }
         }
     }
 

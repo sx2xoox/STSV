@@ -233,25 +233,51 @@ public final class FurnitureShape {
         for (JsonElement je : elements) {
             JsonObject el = je.getAsJsonObject();
             if (!el.has("faces") || el.getAsJsonObject("faces").isEmpty()) continue; // nothing drawn
-            double[] from = vec(el, "from", 0), to = vec(el, "to", 0);
-            Matrix4d em = new Matrix4d(m);
-            if (el.has("rotation")) {
-                JsonObject r = el.getAsJsonObject("rotation");
-                double angle = Math.toRadians(r.get("angle").getAsDouble());
-                String axis = r.has("axis") ? r.get("axis").getAsString() : "y";
-                double[] o = vec(r, "origin", 8);
-                boolean rescale = r.has("rescale") && r.get("rescale").getAsBoolean();
-                double s = rescale && Math.cos(angle) != 0 ? 1 / Math.abs(Math.cos(angle)) : 1;
-                em.translate(o[0], o[1], o[2]);
-                switch (axis) {
-                    case "x" -> em.scale(1, s, s).rotateX(angle);
-                    case "z" -> em.scale(s, s, 1).rotateZ(angle);
-                    default -> em.scale(s, 1, s).rotateY(angle);
-                }
-                em.translate(-o[0], -o[1], -o[2]);
-            }
-            addCube(v, from, to, em);
+            addCube(v, vec(el, "from", 0), vec(el, "to", 0), elementPlacement(el, m));
         }
+    }
+
+    /** One element's placement: m, then the element's own rotation (origin, angle, rescale). */
+    private static Matrix4d elementPlacement(JsonObject el, Matrix4d m) {
+        Matrix4d em = new Matrix4d(m);
+        if (el.has("rotation")) {
+            JsonObject r = el.getAsJsonObject("rotation");
+            double angle = Math.toRadians(r.get("angle").getAsDouble());
+            String axis = r.has("axis") ? r.get("axis").getAsString() : "y";
+            double[] o = vec(r, "origin", 8);
+            boolean rescale = r.has("rescale") && r.get("rescale").getAsBoolean();
+            double s = rescale && Math.cos(angle) != 0 ? 1 / Math.abs(Math.cos(angle)) : 1;
+            em.translate(o[0], o[1], o[2]);
+            switch (axis) {
+                case "x" -> em.scale(1, s, s).rotateX(angle);
+                case "z" -> em.scale(s, s, 1).rotateZ(angle);
+                default -> em.scale(s, 1, s).rotateY(angle);
+            }
+            em.translate(-o[0], -o[1], -o[2]);
+        }
+        return em;
+    }
+
+    /**
+     * Exact bounds of every visible cube of a model placed by m (rotated cubes by their corners), px:
+     * {minX, minY, minZ, maxX, maxY, maxZ}. Used to check that a piece sits in the middle of its cells.
+     */
+    public static double[] bounds(JsonObject model, Matrix4d m) {
+        double[] b = {Double.MAX_VALUE, Double.MAX_VALUE, Double.MAX_VALUE, -Double.MAX_VALUE, -Double.MAX_VALUE, -Double.MAX_VALUE};
+        JsonArray elements = model.has("elements") ? model.getAsJsonArray("elements") : new JsonArray();
+        Vector3d p = new Vector3d();
+        for (JsonElement je : elements) {
+            JsonObject el = je.getAsJsonObject();
+            if (!el.has("faces") || el.getAsJsonObject("faces").isEmpty()) continue;
+            double[] from = vec(el, "from", 0), to = vec(el, "to", 0);
+            Matrix4d em = elementPlacement(el, m);
+            for (int c = 0; c < 8; c++) {
+                em.transformPosition(p.set((c & 1) == 0 ? from[0] : to[0], (c & 2) == 0 ? from[1] : to[1], (c & 4) == 0 ? from[2] : to[2]));
+                b[0] = Math.min(b[0], p.x); b[1] = Math.min(b[1], p.y); b[2] = Math.min(b[2], p.z);
+                b[3] = Math.max(b[3], p.x); b[4] = Math.max(b[4], p.y); b[5] = Math.max(b[5], p.z);
+            }
+        }
+        return b;
     }
 
     /** One cube (its own px, from..to) placed by m. Axis-aligned placements are filled exactly, others sampled. */

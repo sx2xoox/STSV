@@ -211,11 +211,21 @@ class BModel(Model):
     down by dy, e.g. -16 for pieces three blocks tall).
     floor:  y of the floor it stands on (occlusion near the floor; its bottom faces there are never seen), or None
     planes: more surfaces the piece is placed against, e.g. ("y>", 16) a ceiling, ("z>", 16) a wall behind it
+    shift:  (dx, dy, dz) the whole drawing moved by this much once painted (dy as above; dx / dz centre a piece
+            in its cells without repainting it)
+    scale:  > 1 for pieces bigger than a model may be (elements must stay in -16..32): it is drawn and painted at
+            its real size (16 px a block), then shrunk by 1/scale around (8, 8, 8) after the shift, and the
+            furniture's item display scales it back up (furniture.scale in the item file: the same texel size as
+            every other piece, not a stretched one). Model point = 8 + (drawn + shift - 8) / scale.
     """
 
-    def __init__(self, name, dy=0, floor=0, planes=()):
+    def __init__(self, name, dy=0, floor=0, planes=(), shift=None, scale=1.0):
         super().__init__(name)
         self.dy, self.floor, self.planes = dy, floor, list(planes)
+        self.shift = tuple(shift if shift is not None else (0, dy, 0))
+        if shift is not None and dy:
+            raise ValueError(f"{name}: give dy inside shift")
+        self.scale = float(scale)
         if floor is not None:
             self.planes.append(("y<", floor))
         self._names = {}
@@ -231,28 +241,35 @@ class BModel(Model):
         ps.update(faces or {})
         ps = {f: p for f, p in ps.items() if p is not None}
         glow = glow or any(p.glow for p in ps.values())
-        frm = (frm[0], frm[1] + self.dy, frm[2])
-        to = (to[0], to[1] + self.dy, to[2])
+        frm, to = self.to_model(frm), self.to_model(to)
         if rotation:
             axis, angle, o = rotation
-            rotation = (axis, angle, (o[0], o[1] + self.dy, o[2]))
+            rotation = (axis, angle, self.to_model(o))
         super().box(name, frm, to, "__bake__", faces={f: ("__bake__" if f in ps else None) for f in FACES},
                     glow=glow, rotation=rotation, shade=shade)
         self._paints.append(ps)
         self._baked = False
         return self
 
+    def to_model(self, p):
+        """Drawn point -> model point (see shift / scale)."""
+        if self.scale == 1:
+            return tuple(p[i] + self.shift[i] for i in range(3))
+        return tuple(round(8 + (p[i] + self.shift[i] - 8) / self.scale, 6) for i in range(3))
+
+    def to_drawn(self, q):
+        """Model point -> drawn point (where it was painted)."""
+        return [round((q[i] - 8) * self.scale + 8 - self.shift[i], 6) for i in range(3)]
+
     # --- baking ------------------------------------------------------------------------------------
     def bake(self):
         if self._baked:
             return
         self._baked = True
-        dy = self.dy
         solid = []
         for e in self.elements:
             if not e["rotation"]:
-                f, t = e["from"], e["to"]
-                solid.append((f[0], f[1] - dy, f[2], t[0], t[1] - dy, t[2]))
+                solid.append((*self.to_drawn(e["from"]), *self.to_drawn(e["to"])))
         boxes = np.array(solid, dtype=float).reshape(-1, 6)
 
         def occupied(pts):
@@ -275,8 +292,7 @@ class BModel(Model):
         frames = None
         for ei, e in enumerate(self.elements):
             for f, p in self._paints[ei].items():
-                lo = [e["from"][0], e["from"][1] - dy, e["from"][2]]
-                hi = [e["to"][0], e["to"][1] - dy, e["to"][2]]
+                lo, hi = self.to_drawn(e["from"]), self.to_drawn(e["to"])
                 geo = _face_grid(f, lo, hi)
                 if geo is None:
                     # a face without area (the edges of a flat plane): nothing to draw

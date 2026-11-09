@@ -88,8 +88,12 @@
 
 **꾸미기 가구** (`models/furniture_japanese.py`, 아이콘 `furniture_icons.py`): 인벤토리에는 2D 아이콘(`icon: <id>_icon`), 설치하면 3D 모델이
 보입니다. 등불은 `furniture.light`로 진짜 빛을 냅니다. `python3 furniture_preview.py`가 `docs/previews/furniture_japanese*.png`
-(세 방향 시트, 아이콘, 방·정원 장면)와 `docs/previews/furniture_scale.png`(모든 가구를 같은 축척으로 플레이어·블록 옆에 세운 크기 비교)를
+(세 방향 시트, 아이콘, 방·정원 장면)와 `docs/previews/furniture_scale.png`(모든 가구를 같은 축척으로 플레이어·블록 옆에 세운 크기 비교),
+`docs/previews/furniture_footprints.png`(위에서 본 칸과 모델 범위, 놓는 방향 4가지)를
 만들고, `python3 furniture_preview.py --pieces <폴더>`는 가구마다 네 방향 확대 그림을 만듭니다.
+**칸 가운데에**: 칸에 딱 맞지 않는 크기(이불 1.5×2.5칸 등)는 차지한 칸들의 가운데에 두어 양쪽 여백을 같게 합니다(놓는 방향과 상관없이,
+`JapaneseFurnitureTest`가 검사). 벽에 거는 족자만 뒤가 벽에 붙습니다. 3칸보다 큰 것(도리이)은 실제 크기로 그려 구운 뒤 줄이고
+(`BModel(scale=…)`) 아이템 디스플레이가 다시 키웁니다(`furniture.scale`): 픽셀 크기는 다른 가구와 같습니다.
 **크기**: 플레이어(1.8칸) 옆에서 실물처럼 읽히게 합니다. 큰 물건(문, 병풍, 석등)은 실물 크기(1칸 ≈ 1 m), 작은 소품(다기, 술병, 풍경)은
 바닐라 소품처럼 실물의 2~3배로 키워서 잘 보이게 합니다. 얼굴처럼 읽혀야 하는 그림(다루마, 마네키네코)은 빛을 굽지 않은 평평한 면에 그립니다.
 그림이 여러 상자에 걸치는 경우(후스마, 기모노) 정면에서 보면 모델의 +x가 **왼쪽**입니다.

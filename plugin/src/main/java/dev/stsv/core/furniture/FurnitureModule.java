@@ -627,6 +627,12 @@ public final class FurnitureModule implements StsvModule, Listener {
         if (of.isEmpty() || of.get().item().furniture() == null) return true;
         Furniture f = of.get();
         FurnitureSpec spec = f.item().furniture();
+        // the display's translation / scale follow the item file (a model redrawn bigger or moved, e.g. the
+        // torii shown at 1.25, the fusuma lifted a block): without this a placed one would keep the old ones
+        Transformation t = d.getTransformation();
+        if (!t.getTranslation().equals(spec.translation()) || !t.getScale().equals(spec.scale())) {
+            d.setTransformation(new Transformation(spec.translation(), t.getLeftRotation(), spec.scale(), t.getRightRotation()));
+        }
         List<Block> cells = storedCells(d);
         if (cells.isEmpty()) return true;
         Placed want = placed(spec, shapeOf(f), d.getLocation().getBlock(), yawOf(f), cells);
