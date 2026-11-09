@@ -161,6 +161,19 @@ class RulesTest {
     }
 
     @Test
+    void shopCategoriesLayOutSymmetrically() {
+        List<String> seven = List.of("a", "b", "c", "d", "e", "f", "g");
+        java.util.function.Function<List<String>, String> cells = l -> String.join("", l.stream().map(x -> x == null ? "." : x).toList());
+        // 구매 row of 9: 7 centred, 8 split around the empty middle cell, 9 full; 판매 row of 7: full
+        assertEquals(".abcdefg", cells.apply(ShopCatalog.row(seven, 9)));
+        assertEquals("abcd.efgh", cells.apply(ShopCatalog.row(List.of("a", "b", "c", "d", "e", "f", "g", "h"), 9)));
+        assertEquals("abcdefghi", cells.apply(ShopCatalog.row(List.of("a", "b", "c", "d", "e", "f", "g", "h", "i"), 9)));
+        assertEquals(".abc.def", cells.apply(ShopCatalog.row(List.of("a", "b", "c", "d", "e", "f"), 9)));
+        assertEquals("abcdefg", cells.apply(ShopCatalog.row(seven, 7)));
+        assertEquals(".abcde", cells.apply(ShopCatalog.row(List.of("a", "b", "c", "d", "e"), 7)));
+    }
+
+    @Test
     void anOlderShopFileStillLoads() {
         // before categories: items straight under sell, one buy list, a vanity list, a merchant list
         YamlConfiguration old = new YamlConfiguration();

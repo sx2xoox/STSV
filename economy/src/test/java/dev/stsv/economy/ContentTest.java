@@ -107,10 +107,25 @@ class ContentTest {
         for (var m : shop.merchant().goods()) if (!exists(m.id(), ours)) problems.add("merchant: " + m.id());
         // 상점: 구매 · 판매 → 카테고리 → 품목. Every category fits the one row (구매 with the 상인 행렬's place),
         // has an icon and goods, and every item the shop buys is in exactly one 판매 category
-        assertTrue(shop.sellCategories().size() <= ShopCatalog.MAX_CATEGORIES && shop.buyCategories().size() + 1 <= ShopCatalog.MAX_CATEGORIES);
+        assertTrue(shop.sellCategories().size() <= ShopCatalog.MAX_SELL_CATEGORIES && shop.buyCategories().size() + 1 <= ShopCatalog.MAX_BUY_CATEGORIES);
         assertEquals(List.of("minerals", "farm", "fish", "materials", "crafts", "foodstuff", "dishes"),
                 shop.sellCategories().stream().map(ShopCatalog.Category::id).toList());
-        assertEquals(List.of("tools", "machines", "seeds", "supplies", "cosmetics", "titles"), shop.buyCategories().stream().map(ShopCatalog.BuyCategory::id).toList());
+        assertEquals(List.of("tools", "machines", "seeds", "supplies", "furniture", "cosmetics", "titles"),
+                shop.buyCategories().stream().map(ShopCatalog.BuyCategory::id).toList());
+        // 가구: every Japanese-style piece of the core (content/stsv/items/furniture_japanese.yml), in the file's order (room, light,
+        // plants, props, garden), one at a time, on one page of the item menu (36 cells); the shop does not buy furniture back
+        ShopCatalog.BuyCategory furniture = shop.buyCategories().stream().filter(c -> c.id().equals("furniture")).findFirst().orElseThrow();
+        List<String> pieces = YamlConfiguration.loadConfiguration(Path.of(System.getProperty("stsv.content"))
+                .resolve("../../content/stsv/items/furniture_japanese.yml").normalize().toFile()).getKeys(false).stream().map(k -> "stsv:" + k).toList();
+        assertEquals(30, pieces.size());
+        assertEquals(pieces, furniture.goods().stream().map(ShopCatalog.Good::id).toList());
+        assertTrue(furniture.goods().stream().allMatch(g -> g.kind().equals("item") && g.amount() == 1), "one piece a purchase");
+        assertTrue(furniture.goods().size() <= 36, "one page");
+        assertTrue(pieces.contains(furniture.icon()), "a piece is the icon");
+        for (String id : pieces) if (shop.sell().containsKey(id)) problems.add("furniture is not sold to the shop: " + id);
+        assertEquals(Map.of("stsv:torii", 20000L, "stsv:maneki_neko", 7777L, "stsv:stepping_stones", 500L, "stsv:kotatsu", 15000L),
+                furniture.goods().stream().filter(g -> List.of("stsv:torii", "stsv:maneki_neko", "stsv:stepping_stones", "stsv:kotatsu").contains(g.id()))
+                        .collect(java.util.stream.Collectors.toMap(ShopCatalog.Good::id, ShopCatalog.Good::price)));
         List<String> inCategories = new ArrayList<>();
         for (var c : shop.sellCategories()) {
             if (c.items().isEmpty() || !exists(c.icon(), ours)) problems.add("sell category " + c.id());
@@ -285,6 +300,9 @@ class ContentTest {
                     assertEquals(new StringBuilder(used).reverse().toString(), used, m.id() + " row " + row + " is symmetric");
                 }
             }
+            // the shop's category rows hold as many categories as ShopCatalog allows on that side
+            if (m.id().equals("economy:shop_buy")) assertEquals(ShopCatalog.MAX_BUY_CATEGORIES, m.slots(m.list()).size());
+            if (m.id().equals("economy:shop_sell")) assertEquals(ShopCatalog.MAX_SELL_CATEGORIES, m.slots(m.list()).size());
             assertTrue(m.background() != null, m.id() + " has a background");
             BufferedImage im = ImageIO.read(PACK.resolve("assets/economy/textures/" + m.background().getKey() + ".png").toFile());
             // every slot used by the layout is drawn as a cell (its centre differs from the felt around it)

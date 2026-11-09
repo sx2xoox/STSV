@@ -1,5 +1,6 @@
 # 꾸미기 가구 · 일본풍 (30종). 모델: tools/assetgen/models/furniture_japanese.py, 아이콘: tools/assetgen/furniture_icons.py
 # 미리보기: docs/previews/furniture_japanese.png (python3 furniture_preview.py)
+# 얻는 곳: 관리자 상점 /상점 → 구매 → 가구 (가격은 economy/content/economy/shop.yml 의 buy.furniture, 이 파일과 같은 순서)
 #
 # model = 설치했을 때 보이는 3D 모델, icon = 인벤토리·메뉴에서 보이는 2D 그림
 # 충돌(방벽)과 클릭 범위는 모델 모양에서 자동으로 계산됩니다 (얇거나 낮은 것은 지나갈 수 있음).

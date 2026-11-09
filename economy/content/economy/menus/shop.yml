@@ -15,7 +15,7 @@ shop:
       icon: stsv:gui/info
       material: BOOK
       name: "<white>잔액: {balance}"
-      lore: ["<gray>구매: 도구, 기계, 씨앗, 생활 용품, 치장, 칭호", "<gray>판매: 내가 모은 것, 만든 것"]
+      lore: ["<gray>구매: 도구, 기계, 씨앗, 생활 용품, 가구, 치장, 칭호", "<gray>판매: 내가 모은 것, 만든 것"]
     B:
       action: "shop:buy"
       icon: economy:gui/cart
@@ -34,14 +34,14 @@ shop:
       material: OAK_DOOR
       name: "<red>닫기"
 
-# 구매 카테고리 (상인 행렬은 사건이 열려 있을 때만)
+# 구매 카테고리 (상인 행렬은 사건이 열려 있을 때만). 한 줄 9칸: 7개는 가운데 7칸, 8개는 가운데 칸을 비우고 4개씩
 shop_buy:
   title: "<#f0e2b0>상점 <#b9a6d6>· 구매"
   rows: 3
   background: economy:gui/shop_buy
   layout:
     - "....I...."
-    - ".LLLLLLL."
+    - "LLLLLLLLL"
     - "...B.X..."
   list: L
   buttons:

@@ -12,7 +12,8 @@ import java.util.Map;
  * contents/economy/shop.yml: what the admin shop buys (판매, dynamic price) and sells (구매, fixed price),
  * both by category, the 수요 고시, the 상인 행렬 goods. Pure data.
  * <p>
- * The menus show at most {@link #MAX_CATEGORIES} categories a side (one row). Older files without
+ * The menus show the categories of a side in one row: at most {@link #MAX_SELL_CATEGORIES} 판매 categories and
+ * {@link #MAX_BUY_CATEGORIES} 구매 categories (the 상인 행렬's place counted), laid out by {@link #row}. Older files without
  * categories still load: a flat {@code sell} map, a {@code buy} list and a {@code vanity} list each become
  * categories of their own.
  */
@@ -26,7 +27,32 @@ public record ShopCatalog(
         Curve curve,
         DemandNotice demand) {
 
-    public static final int MAX_CATEGORIES = 7;
+    /** The 판매 row (menus/shop.yml shop_sell: ".LLLLLLL."). */
+    public static final int MAX_SELL_CATEGORIES = 7;
+    /** The 구매 row (menus/shop.yml shop_buy: "LLLLLLLLL"), the 상인 행렬 included while it runs. */
+    public static final int MAX_BUY_CATEGORIES = 9;
+
+    /**
+     * The categories laid out mirror-symmetrically in a row of cells (null = an empty cell): centred, and when that cannot be
+     * (an even count in an odd row: 8 of 9) split in two halves around the empty middle cell. 7 of 9: cells 1-7; 8 of 9:
+     * cells 0-3 and 5-8. More than fit are returned as they are.
+     */
+    public static <T> List<T> row(List<T> entries, int cells) {
+        int free = cells - entries.size();
+        if (free <= 0) return new ArrayList<>(entries);
+        boolean split = free % 2 == 1 && cells % 2 == 1;
+        List<T> out = new ArrayList<>();
+        for (int i = 0; i < (split ? free - 1 : free) / 2; i++) out.add(null);
+        if (split) {
+            int half = entries.size() / 2;
+            out.addAll(entries.subList(0, half));
+            out.add(null);
+            out.addAll(entries.subList(half, entries.size()));
+        } else {
+            out.addAll(entries);
+        }
+        return out;
+    }
 
     /**
      * How fast one player's selling lowers their own price: Q = q x depth (how many players are on does not matter), the
@@ -191,8 +217,8 @@ public record ShopCatalog(
             if (!cos.isEmpty()) buyCats.add(new BuyCategory("cosmetics", "치장", cos.getFirst().id(), cos));
             if (!titles.isEmpty()) buyCats.add(new BuyCategory("titles", "칭호", "minecraft:name_tag", titles));
         }
-        if (sellCats.size() > MAX_CATEGORIES) problems.add("sell: 카테고리는 " + MAX_CATEGORIES + "개까지 (" + sellCats.size() + "개)");
-        if (buyCats.size() + 1 > MAX_CATEGORIES) problems.add("buy: 카테고리는 상인 행렬까지 " + MAX_CATEGORIES + "개까지 (" + (buyCats.size() + 1) + "개)");
+        if (sellCats.size() > MAX_SELL_CATEGORIES) problems.add("sell: 카테고리는 " + MAX_SELL_CATEGORIES + "개까지 (" + sellCats.size() + "개)");
+        if (buyCats.size() + 1 > MAX_BUY_CATEGORIES) problems.add("buy: 카테고리는 상인 행렬까지 " + MAX_BUY_CATEGORIES + "개까지 (" + (buyCats.size() + 1) + "개)");
 
         List<LimitedEntry> limited = new ArrayList<>();
         List<Map<?, ?>> raw = c.isConfigurationSection("merchant") ? c.getMapList("merchant.items") : c.getMapList("merchant");
