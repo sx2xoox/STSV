@@ -768,6 +768,205 @@ potato_vodka:
   name: "<#ba68c8>감자 보드카"
   texture: potato_vodka
 
+# ── 특별 재료 (누구나 얻지만 그 직업이 훨씬 자주: jobs.yml specials). 관리자 상점은 사지 않음: 필요한 직업에게 거래 ─────────
+wild_ginseng:
+  material: paper
+  name: "<#8bc34a>산삼"
+  lore: ["<light_purple>특별 재료</light_purple> <gray>· 작물 수확 (농부가 자주)", "<gray>거래 참고가 <white>160G</white> <dark_gray>(상점은 안 삼)", "<gray>쓰는 곳: 연금술사 인삼주 · 요리사 산삼 삼계탕"]
+  texture: wild_ginseng
+
+golden_ear:
+  material: paper
+  name: "<#8bc34a>황금 이삭"
+  lore: ["<light_purple>특별 재료</light_purple> <gray>· 작물 수확 (농부가 자주)", "<gray>거래 참고가 <white>70G</white> <dark_gray>(상점은 안 삼)", "<gray>쓰는 곳: 요리사 황금 인절미 · 연금술사 황금 청주"]
+  texture: golden_ear
+
+silk_cocoon:
+  material: paper
+  name: "<#8bc34a>누에고치"
+  lore: ["<light_purple>특별 재료</light_purple> <gray>· 작물 수확 (농부가 자주)", "<gray>거래 참고가 <white>60G</white> <dark_gray>(상점은 안 삼)", "<gray>쓰는 곳: 광부 명주 진주 목걸이·용연향 노리개 · 대장장이 운철검"]
+  texture: silk_cocoon
+
+red_coral:
+  material: paper
+  name: "<#4fc3f7>붉은 산호"
+  lore: ["<light_purple>특별 재료</light_purple> <gray>· 낚시 (어부가 자주)", "<gray>거래 참고가 <white>90G</white> <dark_gray>(상점은 안 삼)", "<gray>쓰는 곳: 광부 산호 브로치 · 대장장이 산호 자개함"]
+  texture: red_coral
+
+ambergris:
+  material: paper
+  name: "<#4fc3f7>용연향"
+  lore: ["<light_purple>특별 재료</light_purple> <gray>· 낚시 (어부가 자주)", "<gray>거래 참고가 <white>260G</white> <dark_gray>(상점은 안 삼)", "<gray>쓰는 곳: 연금술사 용연향 향수 · 광부 용연향 노리개"]
+  texture: ambergris
+
+abalone:
+  material: paper
+  name: "<#4fc3f7>전복"
+  lore: ["<light_purple>특별 재료</light_purple> <gray>· 낚시 (어부가 자주)", "<gray>거래 참고가 <white>40G</white> <dark_gray>(상점은 안 삼)", "<gray>쓰는 곳: 요리사 전복죽 · 대장장이 산호 자개함"]
+  texture: abalone
+
+meteoric_iron:
+  material: paper
+  name: "<#9fb4c8>운철"
+  lore: ["<light_purple>특별 재료</light_purple> <gray>· 광석 캐기 (광부가 자주)", "<gray>거래 참고가 <white>180G</white> <dark_gray>(상점은 안 삼)", "<gray>쓰는 곳: 대장장이 운철검 · 연금술사 운철 단약"]
+  texture: meteoric_iron
+
+rough_crystal:
+  material: paper
+  name: "<#9fb4c8>수정 원석"
+  lore: ["<light_purple>특별 재료</light_purple> <gray>· 광석 캐기 (광부가 자주)", "<gray>거래 참고가 <white>45G</white> <dark_gray>(상점은 안 삼)", "<gray>쓰는 곳: 광부가 세공 수정으로 → 대장장이 수정 랜턴 · 연금술사 수정병 빈티지"]
+  texture: rough_crystal
+
+# ── 특별 재료·도매 생선으로 만드는 것 ─────────────────────────
+cut_crystal:
+  material: paper
+  name: "<#9fb4c8>세공 수정"
+  texture: cut_crystal
+
+coral_brooch:
+  material: paper
+  name: "<#9fb4c8>산호 브로치"
+  texture: coral_brooch
+
+silk_pearl_necklace:
+  material: paper
+  name: "<#9fb4c8>명주 진주 목걸이"
+  texture: silk_pearl_necklace
+
+ambergris_norigae:
+  material: paper
+  name: "<#9fb4c8>용연향 노리개"
+  texture: ambergris_norigae
+
+iron_pan:
+  material: paper
+  name: "<#ff8a65>무쇠 팬"
+  texture: iron_pan
+
+iron_brazier:
+  material: paper
+  name: "<#ff8a65>무쇠 화로"
+  texture: iron_brazier
+
+sheath:
+  material: paper
+  name: "<#ff8a65>칼집"
+  texture: sheath
+
+padlock:
+  material: paper
+  name: "<#ff8a65>금박 자물쇠"
+  texture: padlock
+
+crystal_lantern:
+  material: paper
+  name: "<#ff8a65>수정 랜턴"
+  texture: crystal_lantern
+
+coral_inlay_box:
+  material: paper
+  name: "<#ff8a65>산호 자개함"
+  texture: coral_inlay_box
+
+meteor_sword:
+  material: paper
+  name: "<#ff8a65>운철검"
+  texture: meteor_sword
+
+fish_platter:
+  material: paper
+  name: "<#ffb74d>모둠 생선구이"
+  texture: fish_platter
+  food:
+    nutrition: 6
+    saturation: 7.2
+
+bogeo_jiri:
+  material: paper
+  name: "<#ffb74d>복어 지리"
+  texture: bogeo_jiri
+  food:
+    nutrition: 6
+    saturation: 7.2
+
+pollack_stew:
+  material: paper
+  name: "<#ffb74d>동태찌개"
+  texture: pollack_stew
+  food:
+    nutrition: 7
+    saturation: 8.4
+
+agujjim:
+  material: paper
+  name: "<#ffb74d>아귀찜"
+  texture: agujjim
+  food:
+    nutrition: 7
+    saturation: 8.4
+
+golden_injeolmi:
+  material: paper
+  name: "<#ffb74d>황금 인절미"
+  texture: golden_injeolmi
+  food:
+    nutrition: 5
+    saturation: 6.0
+
+ginseng_samgyetang:
+  material: paper
+  name: "<#ffb74d>산삼 삼계탕"
+  texture: ginseng_samgyetang
+  food:
+    nutrition: 8
+    saturation: 12.8
+
+abalone_porridge:
+  material: paper
+  name: "<#ffb74d>전복죽"
+  texture: abalone_porridge
+  food:
+    nutrition: 6
+    saturation: 9.6
+
+japchae:
+  material: paper
+  name: "<#ffb74d>잡채"
+  texture: japchae
+  food:
+    nutrition: 5
+    saturation: 6.0
+
+sikhye:
+  material: paper
+  name: "<#ba68c8>식혜"
+  texture: sikhye
+
+ginseng_liquor:
+  material: paper
+  name: "<#ba68c8>인삼주"
+  texture: ginseng_liquor
+
+golden_cheongju:
+  material: paper
+  name: "<#ba68c8>황금 청주"
+  texture: golden_cheongju
+
+meteor_elixir:
+  material: paper
+  name: "<#ba68c8>운철 단약"
+  texture: meteor_elixir
+
+ambergris_perfume:
+  material: paper
+  name: "<#ba68c8>용연향 향수"
+  texture: ambergris_perfume
+
+crystal_vintage:
+  material: paper
+  name: "<#ba68c8>수정병 빈티지"
+  texture: crystal_vintage
+
 # ── 압착기 · 공용 (남는 바닐라 물건을 눌러서) ─────────────────────────
 
 seed_oil:
