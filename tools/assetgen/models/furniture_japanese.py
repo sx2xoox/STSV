@@ -25,7 +25,7 @@ PIECES: id -> (builder, cells as (w, h, d) for the previews, floor offset)
 import math
 
 from economy_machines import display
-from stsv_assets.bake import BModel, Paint, cyl, h3, vnoise
+from stsv_assets.bake import BModel, Paint, cyl, h3, vnoise, voxels
 
 # ================================================================================================
 # Paints (palette ramp, base step, pattern); see bake.Paint
@@ -64,22 +64,6 @@ def moss_on(paint, amount=0.62, cell=2.5, seed=5):
             return ("leaf", 2 if v > amount + 0.12 else 1)
         return None
     return paint(decal=decal, decal_pattern=True)
-
-
-def picture(rows, colours, x_left, y_top, face="north"):
-    """A decal from a little pixel picture (list of strings, '.' = the paint's own surface): column 0 starts at
-    model x = x_left on the viewer's left (north faces: the viewer's left is +x; south faces: -x)."""
-    def decal(c):
-        if c.face != face:
-            return None
-        col = math.floor(x_left - c.p[0]) if face == "north" else math.floor(c.p[0] - x_left)
-        row = math.floor(y_top - c.p[1])
-        if 0 <= row < len(rows) and 0 <= col < len(rows[row]):
-            ch = rows[row][col]
-            if ch != ".":
-                return colours[ch]
-        return None
-    return decal
 
 
 def chain(*decals):
@@ -1031,35 +1015,113 @@ def taiko_drum():
     return display(m, (1, 1.4, 1), 0)
 
 
+def lambert(n, light=(0.35, 0.8, -0.5)):
+    """How much a surface with normal n faces the light (top, front, a little from the viewer's left): -1 .. 1."""
+    ln = math.sqrt(sum(v * v for v in light))
+    nn = math.sqrt(sum(v * v for v in n)) or 1.0
+    return sum(n[k] * light[k] for k in range(3)) / (ln * nn)
+
+
 def maneki_neko():
-    """마네키네코: a white cat sitting on a red cushion, its right paw raised to beckon: a big head, eyes closed in
-    a smile, rosy cheeks, a small pink nose over an ω mouth, whiskers running round the cheeks, pink inside its
-    ears, a red collar with a golden bell, a gold koban coin held in its other paw, calico patches on its ears and
-    back."""
+    """마네키네코: a white cat sitting on a red cushion, its right paw raised to beckon: a round head (10 x 8 px, a
+    cat's proportions) sculpted from 1 px cells (bake.voxels): a muzzle standing out of the face with a raised
+    pink nose, cheeks rounding off to the sides, ears as little wedges with pink inside; eyes closed in a smile
+    and a little ㅅ mouth painted on it, rosy cheeks, whiskers; a red collar with a golden bell, a gold koban coin held in
+    its other paw, calico patches on its ears and back."""
     m = BModel("maneki_neko")
-    # the face, 12 px wide (column 0 at the viewer's left, x 14 -> 13), rows from y 14 down
-    face = ["............",   # y 13
-            "..KK....KK..",   # y 12  eyes closed in a smile
-            ".K..K..K..K.",   # y 11
-            ".....PP.....",   # y 10  the nose
-            ".BB......BB.",   # y 9   rosy cheeks
-            "...K.KK.K...",   # y 8   the mouth: ω
-            "....K..K...."]   # y 7
-    colours = {"K": ("rubber", 0), "P": ("pink", 1), "B": ("pink", 3)}
-    white = Paint("feather", 2, noise=0, rim=0.8)
+    # the head: x 3..13, y 6..14, z from its front (the map below) to 10. The map: columns x 12 -> 3 (the
+    # viewer's left first), rows from y 13 down; digits are the front z of that column, '.' no cell.
+    depth = [".54444445.",   # y 13  the crown rounds off
+             "5333333335",   # y 12
+             "4333333334",   # y 11  the eyes
+             "4333333334",   # y 10
+             "4332112334",   # y 9   the nose stands out on top of the muzzle
+             "3322222233",   # y 8   the muzzle stands out; the cheeks round off forward
+             "3332222333",   # y 7
+             ".44444444."]   # y 6   the chin
+    # what is painted on the front: K ink, B blush (rows as above)
+    face = ["..........",
+            "..........",
+            "..K....K..",    # y 11  eyes closed in a smile: ^ ^
+            ".K.K..K.K.",    # y 10
+            "....PP....",    # y 9   the nose (pink)
+            "BB..KK..BB",    # y 8   the mouth (ㅅ) under the nose; rosy cheeks
+            "...K..K...",    # y 7
+            ".........."]
+    cells = {}
+    paint_at = {}
+    for row, line in enumerate(depth):
+        y = 13 - row
+        for col, ch in enumerate(line):
+            if ch == ".":
+                continue
+            x = 12 - col
+            edge = (x in (3, 12)) + (y in (6, 13))
+            back = 10 - edge
+            for z in range(int(ch), back + 1):
+                cells[(x, y, z)] = "head"
+            if face[row][col] != ".":
+                paint_at[(x, y)] = face[row][col]
+    # the ears: wedges on the crown, leaning out, the inside (pink) set back a pixel
+    ears = {}
+    for (x0, tip) in ((9, 11), (4, 4)):
+        for x in range(x0, x0 + 3):
+            for z in range(5, 8):
+                if not (x == x0 + 1 and z == 5):
+                    ears[(x, 14, z)] = "ear"
+        for x in (tip, tip + 1):
+            ears[(x, 15, 6)] = "ear"
+    cells.update(ears)
+    # the body, sitting: a rounded block under the head, the chest to the front
+    for y in range(2, 6):
+        x0, x1, z0, z1 = (4, 12, 5, 13) if y < 4 else (5, 11, 5, 12)
+        for x in range(x0, x1):
+            for z in range(z0, z1):
+                corner = (x in (x0, x1 - 1)) and (z in (z0, z1 - 1))
+                if not corner:
+                    cells[(x, y, z)] = "body"
 
     def calico(c):
         """Orange and black patches on the ears and the back (never on the face)."""
         x, y, z = c.p
         if c.face == "down":
             return None
-        for (cx, cy, cz, r, ramp_name, step) in ((11, 14.5, 9.5, 2.8, "fox", 2), (5, 14.5, 9.5, 2.6, "rubber", 1),
-                                                  (10, 6, 12.5, 3.0, "fox", 2), (5, 4, 11, 2.4, "rubber", 1),
-                                                  (11.5, 3, 13.5, 1.6, "rubber", 1)):
+        for (cx, cy, cz, r, ramp_name, step) in ((10.5, 14.5, 8, 2.6, "fox", 2), (5, 14, 9.5, 2.2, "rubber", 1),
+                                                  (10, 4.5, 12.5, 2.6, "fox", 2), (5.5, 3.5, 11.5, 2.0, "rubber", 1),
+                                                  (11.5, 3, 13.5, 1.4, "rubber", 1)):
             if (x - cx) ** 2 + ((y - cy) * 1.2) ** 2 + (z - cz) ** 2 < r * r:
                 return (ramp_name, step)
         return None
-    fur = white(decal=calico)
+
+    def shade(c, centre, size):
+        """Round shading in ramp steps: the part's own (box-rounded) normal at the texel, lit from above in front."""
+        n = [(c.p[k] - centre[k]) / size[k] for k in range(3)]
+        n = [v * abs(v) for v in n]                  # flat in the middle, turning at the edges
+        return 0.8 * (lambert(n) - 0.45)
+
+    def fur(c):
+        lab = cells.get(c.i)
+        x, y, z = c.i
+        if lab == "ear":
+            if c.face == "north" and (x, 14, 5) not in cells and z == 6 and y == 14:
+                return ("pink", 2)                    # inside the ear
+            got = calico(c)
+            return got if got else ("feather", 2 + shade(c, (8, 12, 7), (6, 4, 4)))
+        if lab == "head":
+            ch = paint_at.get((x, y))
+            if ch and c.face == "north":
+                if ch == "K":
+                    return ("rubber", 0)
+                if ch == "P":
+                    return ("pink", 1.4)
+                if ch == "B":
+                    return ("pink", 3)
+            got = calico(c) if z > 6 else None
+            return got if got else ("feather", 2 + shade(c, (8, 10, 6.5), (5.5, 4.5, 4.5)))
+        got = calico(c)
+        return got if got else ("feather", 2 + shade(c, (8, 4, 8.5), (4.5, 3, 4.5)))
+    white = Paint("feather", 2, noise=0, rim=0.6)
+    fur_paint = white(grad=0, rim=0, decal=fur)
     m.group("cushion")
     cloth = Paint("crimson", 2, "weave", rim=0.8)
     m.box("cushion", (1, 0, 1), (15, 1.25, 15), cloth)
@@ -1072,106 +1134,143 @@ def maneki_neko():
     tassel = Paint("gold", 2, noise=0, rim=0.5)
     for (x, z) in ((0.5, 0.5), (14.5, 0.5), (0.5, 14.5), (14.5, 14.5)):
         m.box("tassel", (x + 0.125, 0.25, z + 0.125), (x + 0.875, 1.5, z + 0.875), tassel)
-    m.group("body")
-    m.box("body", (3.5, 2, 4.5), (12.5, 6.25, 12.5), fur)
-    m.box("collar", (3.25, 6.25, 4.25), (12.75, 7, 12.75), flat("vermilion", 2, rim=0.5))
-    m.box("tail", (9, 2, 12.5), (12.5, 3.5, 14), fur)
-    m.box("tail", (11, 3.5, 12.5), (12.5, 6, 14), fur)
-    m.group("head")
-    # the face is a picture: flat colours, no rims or occlusion across it
-    m.box("head", (2, 7, 3), (14, 14, 11), fur,
-          faces={"north": Paint("feather", 2, noise=0, light=False, decal=picture(face, colours, 14, 14))})
-
-    def ear_inside(c):
-        if c.face == "north" and c.p[1] < 15 and math.floor(c.p[0]) in (4, 11):
-            return ("pink", 2)
-        return calico(c)
-    ear = white(decal=ear_inside)
-    for (x0, tip) in ((3, 4), (10, 11)):
-        m.box("ear", (x0, 14, 5), (x0 + 3, 15, 7.5), ear)
-        m.box("ear", (tip, 15, 5.5), (tip + 1, 16, 7), ear)
+    m.group("cat")
+    voxels(m, "cat", cells, lambda lab: fur_paint)
+    m.box("collar", (4.75, 5.25, 4.5), (11.25, 6.25, 11.5), flat("vermilion", 2, rim=0.5))
+    m.box("tail", (9, 2, 12.5), (12, 3.5, 14), white(decal=calico))
+    m.box("tail", (10.5, 3.5, 12.5), (12, 6, 14), white(decal=calico))
     m.group("paws")
     # the raised right paw: the arm up beside the head, the paw bent forward at the wrist, its pink pad to the front
-    m.box("arm", (12.5, 4, 5.5), (14.5, 7, 8), white)
-    m.box("arm", (14, 7, 5), (16, 11.5, 7.5), white)
+    m.box("arm", (11, 3.5, 6.5), (13, 6, 8.5), white)
+    m.box("arm", (13, 6, 5.5), (15, 10.5, 7.5), white)
 
     def pad(c):
-        if c.face == "north" and math.floor(c.p[0]) in (14, 15) and c.p[1] < 13.5:
+        if c.face == "north" and 13.75 < c.p[0] < 15.25 and c.p[1] < 12.5:
             return ("pink", 2)
         return None
-    m.box("paw_up", (13.75, 11.5, 4), (16, 14.5, 6.5), white(decal=pad))
+    m.box("paw_up", (13, 10.5, 4), (15.5, 13.5, 6.5), white(decal=pad))
 
     # the other paw holds a gold koban coin against the chest: an oval with hammered lines
     def koban(c):
-        if c.face == "north" and math.floor(c.p[0]) == 4 and 3 <= c.p[1] < 5:
+        if c.face == "north" and math.floor(c.p[0]) == 4 and 3 <= c.p[1] < 4.5:
             return ("gold", 0)                        # its stamped mark
         if c.face in ("north", "east", "west") and c.i[1] % 2 == 0:
             return ("gold", 2)                        # hammered lines across it
         return None
     coin = Paint("gold", 3, noise=0, decal=koban, rim=0.6)
-    m.box("koban", (2, 2.5, 3.75), (7, 5.5, 4.5), coin)
-    m.box("koban", (3, 2, 3.75), (6, 2.5, 4.5), coin)
-    m.box("koban", (3, 5.5, 3.75), (6, 6, 4.5), coin)
-    m.box("paw", (5.5, 2, 3), (8, 3.75, 4.5), white)
+    m.box("koban", (2.5, 2.5, 3.75), (6.5, 5, 4.5), coin)
+    m.box("koban", (3.25, 2, 3.75), (5.75, 2.5, 4.5), coin)
+    m.box("koban", (3.25, 5, 3.75), (5.75, 5.5, 4.5), coin)
+    m.box("paw", (5, 2, 3.25), (7.5, 3.75, 5), white)
     # whiskers: two each side, out from the cheeks
     whisker = flat("millstone", 1, rim=0, ao=0)
-    for y in (8.25, 9.75):
-        m.box("whisker", (14, y, 3.25), (15.5, y + 0.5, 3.75), whisker)
-        m.box("whisker", (0.5, y, 3.25), (2, y + 0.5, 3.75), whisker)
-    m.box("bell", (7.25, 4.75, 3.25), (8.75, 6.25, 4.25),
-          Paint("gold", 3, "metal", decal=lambda c: ("gold", 0) if c.face == "north" and c.p[1] < 5.25 else None))
+    for y in (7.25, 8.75):
+        m.box("whisker", (13, y, 3.25), (14.5, y + 0.5, 3.75), whisker)
+        m.box("whisker", (1.5, y, 3.25), (3, y + 0.5, 3.75), whisker)
+    m.box("bell", (7.25, 4.25, 4), (8.75, 5.75, 5),
+          Paint("gold", 3, "metal", decal=lambda c: ("gold", 0) if c.face == "north" and c.p[1] < 4.75 else None))
     return display(m, (1, 1, 1), 0)
 
 
 def daruma():
-    """다루마: a round red tumbling doll a block wide, its front pressed flat for the face: a big white face with
-    bold black brows, two large round eyes (the one on the viewer's right painted in, the other still a blank
-    white circle: the wish is still to come true), a red nose, a bushy moustache whose ends curl up; gold
-    clouds on its sides, a gold band at the hem and a gold mark on its back."""
-    m = BModel("daruma", shift=(0, 0, -1.5))         # centred in its block (its front is pressed flat)
-    # the face, 14 px wide (column 0 at the viewer's left, x 15 -> 14), from y 14 down: W white, K black ink,
-    # R red (nose), G gold, '.' the red lacquer
-    face = ["....WWWWWW....",   # y 13
-            "..KKKWWWWKKK..",   # y 12  the brows: bold arcs
-            ".KKKKKWWKKKKK.",   # y 11
-            ".WWWWWWWWWWWW.",   # y 10
-            ".WWKKWWWWKKWW.",   # y 9   the eyes: round, 4 px
-            ".WKWWKWWKWKKW.",   # y 8   blank eye | painted eye (a glint in the pupil)
-            ".WKWWKWWKKKKW.",   # y 7
-            ".WWKKWWWWKKWW.",   # y 6
-            ".WKWWWRRWWWKW.",   # y 5   the nose; the moustache's ends curl up beside it
-            ".WWKKKKKKKKWW.",   # y 4   the moustache
-            ".WWWKKWWKKWWW.",   # y 3   bushy: two lobes, parted under the nose
-            "..WWWWWWWWWW..",   # y 2
-            "...GGGGGGGG...",   # y 1   gold band at the hem
+    """다루마: a round red tumbling doll a block wide, an egg rounded every way: the white face set into its front
+    under a red hood rim, bold black brows and a bushy moustache standing out of it, two large round eyes painted
+    on (the one on the viewer's right painted in, the other still a blank white circle: the wish is still to come
+    true), a raised red nose; gold clouds on its sides, a gold band at the hem and a gold mark on its back. The
+    body is sculpted from 1 px cells (bake.voxels) and shaded as one round thing, the face too."""
+    m = BModel("daruma")
+    # the face (column 0 at the viewer's left, x 15 -> 0), from y 12 down: W white, E ink painted on it,
+    # H a glint, B brows and M moustache (black, standing out), N the nose (red, standing out)
+    face = ["....BBWWWWBB....",   # y 12  the brows: bold arcs
+            "...BBBBWWBBBB...",   # y 11
+            "..WWWWWWWWWWWW..",   # y 10
+            "..WWEEWWWWEEWW..",   # y 9   the eyes: round, 4 px
+            "..WEWWEWWEEEEW..",   # y 8   blank eye | painted eye (a glint in the pupil)
+            "..WEWWEWWEHEEW..",   # y 7
+            "..WWEEWWWWEEWW..",   # y 6
+            "..MWWWWNNWWWWM..",   # y 5   the nose
+            "..MMMMMMMMMMMM..",   # y 4   the moustache: out from under the nose,
+            "...WMMMWWMMMW...",   # y 3   drooping to both sides, its ends curled up
+            ".....WWWWWW.....",   # y 2
             ]
-    colours = {"W": ("porcelain", 2), "K": ("rubber", 0), "R": ("vermilion", 1), "G": ("gold", 2)}
+    art = {(15 - col, 12 - row): ch for row, line in enumerate(face) for col, ch in enumerate(line) if ch != "."}
+    half = [5, 6.5, 7.4, 7.9, 8, 8, 8, 8, 8, 7.9, 7.6, 7.2, 6.6, 5.8, 4.7, 3.2]     # half width, y 0..15
+    cells = {}
+    for y, a in enumerate(half):
+        b = a * 7 / 8
+        for x in range(16):
+            for z in range(16):
+                if ((x + 0.5 - 8) / a) ** 2 + ((z + 0.5 - 8) / b) ** 2 <= 1:
+                    cells[(x, y, z)] = "R"
+    front = {}
+    for (x, y, z) in cells:
+        front[(x, y)] = min(front.get((x, y), 99), z)
+    # the face: a gently curved plane set into the front (a step back only at its outer columns and its top and
+    # bottom rows), brows, moustache and nose standing a pixel out of it
+    surface = {}
+    for (x, y), ch in art.items():
+        s = 2 + (abs(x - 7.5) > 5) + (y in (2, 12))
+        for z in range(0, 8):
+            if z < s - 1 or (z == s - 1 and ch not in "BMN"):
+                cells.pop((x, y, z), None)
+            elif z == s - 1:
+                cells[(x, y, z)] = "N" if ch == "N" else "K"
+            else:
+                cells[(x, y, z)] = "R"
+        surface[(x, y)] = s
+    # a red rim round the face
+    for (x, y), z in list(front.items()):
+        if (x, y) in art:
+            continue
+        near = [surface[(x + dx, y + dy)] for dx in (-1, 0, 1) for dy in (-1, 0, 1) if (x + dx, y + dy) in surface]
+        if near:
+            # proud of the face above and below it (the hood, the chin), level with it at the cheeks
+            lip = 1 if (x, y - 1) in art or (x, y + 1) in art else 0
+            for k in range(min(near) - lip, z):
+                cells[(x, y, k)] = "R"
+
+    def shade(c):
+        """Round shading in ramp steps: the egg's own normal at the texel, lit from above in front."""
+        x, y, z = c.p
+        a = 8.0
+        return 1.1 * (lambert(((x - 8) / a ** 2, (y - 7.5) / a ** 2, (z - 8) / 49)) - 0.45)
     swirl = [".GGG.",          # a gold cloud on each side (u: z from the front, rows from y 9 down)
              "G...G",
              "G.G.G",
              "G..G.",
              ".GG.."]
 
-    def gold(c):
+    def paint(c):
+        lab = cells.get(c.i)
+        x, y, z = c.i
+        if lab == "K":
+            return ("rubber", 0 + (0.6 if c.face == "up" else 0))
+        if lab == "N":
+            return ("vermilion", 1.6 + shade(c))
+        ch = art.get((x, y))
+        if ch and z < 8 and c.face != "south":
+            if ch == "E":
+                return ("rubber", 0)
+            # the face: white, a little darker towards its edge and under the brows and the moustache
+            d = shade(c) * 0.8
+            if cells.get((x, y + 1, z - 1)) in ("K", "R") or (x, y + 1) not in art:
+                d -= 0.6
+            elif (x + 1, y) not in art or (x - 1, y) not in art:
+                d -= 0.4
+            return ("porcelain", 2.1 + d)
         if c.face in ("east", "west"):
             col = math.floor(c.p[2] - 5.5) if c.face == "east" else math.floor(10.5 - c.p[2])
             row = math.floor(9 - c.p[1])
             if 0 <= row < 5 and 0 <= col < 5 and swirl[row][col] == "G":
-                return ("gold", 2)
-            if c.i[1] == 1:
-                return ("gold", 2)
-        if c.face == "south" and abs(c.p[0] - 8) < 1 and 5 <= c.p[1] < 10 and c.i[1] != 7:
-            return ("gold", 2)                     # a brushed mark on the back
-        if c.face == "south" and c.i[1] == 1:
-            return ("gold", 2)
-        return None
-    red = Paint("vermilion", 2, noise=0.02, decal=gold, rim=0.8)
-    # the face is a picture: flat colours, no rims or occlusion across it
-    front = Paint("vermilion", 2, noise=0, light=False, decal=picture(face, colours, 15, 14))
+                return ("gold", 2 + shade(c) * 0.6)
+        if c.face == "south" and abs(c.p[0] - 8) < 1 and 5 <= c.p[1] < 10 and y != 7:
+            return ("gold", 2 + shade(c) * 0.6)    # a brushed mark on the back
+        if c.face in SIDE_FACES and y == 1:
+            return ("gold", 2 + shade(c) * 0.6)    # the band at the hem
+        return ("vermilion", 2 + shade(c))
+    body = Paint("vermilion", 2, noise=0, rim=0.3, grad=0, decal=paint)
     m.group("doll")
-    for (d, lo, hi) in ((12, 0, 1), (14, 1, 3), (16, 3, 13), (12, 13, 15), (6, 15, 16)):
-        # the front is pressed flat at z 3: a 14 px face plane on the widest part
-        cyl(m, "body", (8, 8), d, lo, hi, red, faces={"north": front}, clip=(3, 16))
+    voxels(m, "body", cells, lambda lab: body)
     return display(m, (1, 1, 1), 0)
 
 
