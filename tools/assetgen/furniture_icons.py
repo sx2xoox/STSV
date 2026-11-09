@@ -417,62 +417,64 @@ def _pixels(c, rows, colours, x0, y0, z):
 
 @icon("maneki_neko")
 def maneki_neko():
-    """The beckoning cat as its 3D model shows it: a big white head with eyes closed in a smile, a pink nose
-    over an ω mouth, rosy cheeks and whiskers, the raised paw beside it, a red collar and bell, a gold koban,
-    the red cushion."""
+    """The beckoning cat as its 3D model shows it: a round white head (a cat's proportions) with eyes closed in a
+    smile, a pink nose over a little ㅅ mouth, rosy cheeks, pink inside the ears, the raised paw beside it, a red
+    collar and bell, a gold koban, the red cushion."""
     c = Canvas()
     w = "feather"
     c.rect(1, 14, 15, 16, "crimson", 0, normal=UP)              # the red cushion it sits on
     c.put(0, 15, "gold", 3, z=1)
     c.put(15, 15, "gold", 3, z=1)
     c.rect(4, 10, 12, 14.5, w, 1, normal=FRONT)                 # the body
-    c.rect(2, 3, 14, 10, w, 2, normal=FRONT)                    # the head
-    c.poly([(3, 3), (4, 0.5), (6, 3)], w, 2, step=3)            # the ears
-    c.poly([(10, 3), (12, 0.5), (13, 3)], w, 2, step=3)
-    c.put(4, 2, "pink", 3, z=3)
-    c.put(11, 2, "pink", 3, z=3)
-    c.put(12, 1, "fox", 3, z=3)                                 # a calico patch on one ear
-    c.put(12, 2, "fox", 2, z=3)
-    c.rect(0, 2, 2, 9, w, 3, step=3)                            # the raised paw, its pad to the front
-    c.put(0, 3, "pink", 3, z=4)
+    c.ellipse(8, 7, 5.1, 4.3, w, 2, lo=2, hi=4, gloss=0)        # the head, round: 10 x 8
+    c.poly([(3.5, 4), (4.5, 0.5), (7, 3)], w, 3, step=3)        # the ears
+    c.poly([(9, 3), (11.5, 0.5), (12.5, 4)], w, 3, step=3)
+    c.put(5, 2, "pink", 3, z=4)
+    c.put(11, 2, "pink", 3, z=4)
+    c.put(11, 1, "fox", 3, z=4)                                 # a calico patch on one ear
+    c.put(12, 2, "fox", 2, z=4)
+    c.rect(0.5, 2, 3, 9, w, 3, step=3)                          # the raised paw, its pad to the front
     c.put(1, 3, "pink", 3, z=4)
-    c.put(0, 4, "pink", 2, z=4)
+    c.put(2, 3, "pink", 3, z=4)
     c.put(1, 4, "pink", 2, z=4)
-    _pixels(c, ["............",
-                "..KK....KK..",     # eyes closed in a smile (y 4, 5)
-                ".K..K..K..K.",
-                ".B...PP...B.",     # nose; rosy cheeks
-                "...K.KK.K...",     # the mouth: ω
-                "....K..K...."],
-            {"K": ("rubber", 0), "P": ("pink", 1), "B": ("pink", 3)}, 2, 3, 2)
-    c.rect(3, 10, 13, 11, "vermilion", 4, step=3)               # the collar and its bell
-    c.put(8, 11, "gold", 4, z=6)
-    c.ellipse(5.5, 12.5, 1.6, 1.9, "gold", 6)                   # the koban
+    c.put(2, 4, "pink", 2, z=4)
+    _pixels(c, ["..K....K..",       # eyes closed in a smile (y 5, 6)
+                ".K.K..K.K.",
+                "....PP....",       # the nose
+                "BB..KK..BB",       # the mouth: ㅅ; rosy cheeks
+                "...K..K..."],
+            {"K": ("rubber", 0), "P": ("pink", 1), "B": ("pink", 3)}, 3, 5, 5)
+    c.rect(4, 11, 12, 12, "vermilion", 4, step=3)               # the collar and its bell
+    c.put(8, 12, "gold", 4, z=6)
+    c.ellipse(5.5, 12.8, 1.6, 1.8, "gold", 6)                   # the koban
     return c.render()
 
 
 @icon("daruma")
 def daruma():
-    """The doll as its 3D model shows it: a big white face with bold brows, one eye blank and one painted in,
-    a red nose and a curled moustache; gold at the hem."""
+    """The doll as its 3D model shows it: round and red, the white face set in under the red hood, bold brows,
+    one eye blank and one painted in, a red nose and a moustache curled up at its ends; gold at the hem."""
     c = Canvas()
     c.ellipse(8, 8.5, 7.2, 7.4, "vermilion", 0)
-    c.rect(3, 2, 13, 13, "porcelain", 1, step=4)
-    for (x, y) in ((3, 2), (12, 2), (3, 12), (12, 12)):
+    c.rect(3, 3, 13, 14, "porcelain", 1, step=4)
+    for (x, y) in ((3, 3), (12, 3), (3, 13), (12, 13), (4, 13), (11, 13)):
         c.erase([(x, y)])
-    _pixels(c, ["KKK....KKK",       # the brows
+    c.tone([(x, 12) for x in range(4, 12)] + [(3, y) for y in range(4, 13)] + [(12, y) for y in range(4, 13)], -1)
+    _pixels(c, ["..KK..KK..",       # the brows, standing out under the hood
+                ".KKK..KKK.",
                 "..........",
                 ".KK....KK.",       # the eyes: blank | painted (with a glint)
+                "K..K..KKKK",
                 "K..K..KWKK",
                 ".KK....KK.",
-                "....RR....",       # the nose
-                ".K......K.",       # the moustache, its ends curled up
-                "..KKKKKK.."],
+                "K...RR...K",       # the nose; the moustache's ends curled up
+                "KKKKKKKKKK",       # the moustache
+                ".KK....KK."],
             {"K": ("rubber", 0), "W": ("porcelain", 4), "R": ("vermilion", 1)}, 3, 3, 1)
     for x in range(5, 11):
         c.put(x, 14, "gold", 3, z=3)                 # the gold band at the hem
-    c.put(1, 7, "gold", 3, z=3)                      # gold clouds on its sides
-    c.put(14, 7, "gold", 2, z=3)
+    c.put(1, 8, "gold", 3, z=3)                      # gold clouds on its sides
+    c.put(14, 8, "gold", 2, z=3)
     return c.render()
 
 

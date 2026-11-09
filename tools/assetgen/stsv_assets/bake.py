@@ -92,6 +92,8 @@ class Paint:
     noise:  share of texels one step lighter or darker
     light:  False = flat (glowing paper, embers, pictures that must keep their colours): no rims, no occlusion
     ao, rim: strength of the occlusion and of the edge light (1 = default)
+    grad:   (option) strength of the light gradient up tall sides (1 = default; 0 for parts shaded by their decal,
+            e.g. a round body made of many boxes: see voxels)
     decal:  picture painted over the faces in world space (see the module doc)
     frames: animated paint: decal/pattern get ctx.frame 0..frames-1 (one animated atlas per model)
     """
@@ -354,7 +356,7 @@ class BModel(Model):
                 shade -= 0.6
             if f in SIDES and hi[1] - lo[1] >= 4:
                 t = (pts[:, 1] - lo[1]) / (hi[1] - lo[1])
-                shade += 0.5 * (t - 0.5)
+                shade += 0.5 * (t - 0.5) * p.opt.get("grad", 1.0)
         c = Ctx()
         c.face, c.n, c.lo, c.hi, c.frame, c.nu, c.nv, c.el = f, n, lo, hi, frame, nu, nv, ei
         for k, (j, i, cu, cv) in enumerate(centres):
@@ -699,3 +701,30 @@ def ring(m, name, c, d_out, d_in, lo, hi, paint, faces=None):
                     used[jj][k] = True
             m.box(name, (x0 + i, lo, z0 + j), (x0 + i1, hi, z0 + j1), paint, faces=faces)
             i = i1
+
+
+def voxels(m, name, cells, paint):
+    """A sculpted shape from 1 px cells: cells maps (x, y, z) (the cell x..x+1 etc.) to a label; cells with the same
+    label are merged into as few boxes as possible (greedy: along x, then z, then y). A part made this way can be
+    round in every direction (a doll's body, a cat's head); its decal paints it by position (ctx.i is the cell
+    under the texel, so it can look the label up), paint(label) gives each label's paint."""
+    for label in sorted(set(cells.values()), key=str):
+        todo = {p for p, v in cells.items() if v == label}
+        for p in sorted(todo, key=lambda q: (q[1], q[2], q[0])):
+            if p not in todo:
+                continue
+            x, y, z = p
+            x1 = x + 1
+            while (x1, y, z) in todo:
+                x1 += 1
+            z1 = z + 1
+            while all((i, y, z1) in todo for i in range(x, x1)):
+                z1 += 1
+            y1 = y + 1
+            while all((i, y1, k) in todo for i in range(x, x1) for k in range(z, z1)):
+                y1 += 1
+            for i in range(x, x1):
+                for j in range(y, y1):
+                    for k in range(z, z1):
+                        todo.discard((i, j, k))
+            m.box(name, (x, y, z), (x1, y1, z1), paint(label))
