@@ -299,7 +299,7 @@ class RulesTest {
         assertEquals(0.5, smith.bonus("fast", 20), 1e-9);
         assertEquals(0.15, smith.bonus("save", 20), 1e-9);
         assertEquals(0, smith.bonus("save", 19), 1e-9);
-        assertEquals(0.5, spec.jobs().get("alchemist").bonus("aging", 25), 1e-9);
+        assertEquals(0.7, spec.jobs().get("alchemist").bonus("aging", 25), 1e-9);
         assertEquals(miner, spec.ofMachine("gem_bench"));
         // fishing: the rare-bite chance and the Lv20 doubles (the fish themselves are in fish.yml)
         JobSpec.Finds fish = spec.jobs().get("fisher").finds();

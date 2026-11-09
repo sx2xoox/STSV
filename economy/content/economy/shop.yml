@@ -365,10 +365,10 @@ sell:
       economy:makgeolli: { base: 49, q: 16 }   # 막걸리
       economy:soju: { base: 175, q: 4 }   # 소주
       economy:melon_syrup: { base: 20, q: 16 }   # 멜론 시럽
-      economy:wine: { base: 143, q: 8 }   # 포도주
+      economy:wine: { base: 115, q: 8 }   # 포도주
       economy:melon_liqueur: { base: 546, q: 2 }   # 멜론 리큐어
       economy:pearl_perfume: { base: 776, q: 2 }   # 진주 향수
-      economy:vintage_wine: { base: 889, q: 2 }   # 빈티지 포도주
+      economy:vintage_wine: { base: 593, q: 2 }   # 빈티지 포도주
       economy:flower_tea: { base: 14, q: 32 }   # 꽃잎 차
       economy:cider: { base: 60, q: 8 }   # 사과주
       economy:strawberry_wine: { base: 56, q: 8 }   # 딸기주

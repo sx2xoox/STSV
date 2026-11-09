@@ -267,10 +267,10 @@ still:
     - { in: { economy:rice: 3, wheat: 8 }, out: economy:makgeolli, amount: 4, seconds: 600, aging: true }   # 막걸리 49G
     - { in: { economy:makgeolli: 2 }, out: economy:soju, seconds: 90 }   # 소주 175G
     - { in: { economy:muskmelon: 29, sugar: 5 }, out: economy:melon_syrup, amount: 2, seconds: 50 }   # 멜론 시럽 20G (설탕에 졸임)
-    - { in: { economy:grape_juice: 2 }, out: economy:wine, amount: 2, seconds: 825, tier: 1, aging: true }   # 포도주 143G
+    - { in: { economy:grape_juice: 4 }, out: economy:wine, amount: 5, seconds: 1650, tier: 1, aging: true }   # 포도주 115G (포도즙 4개로 5병)
     - { in: { economy:melon_syrup: 1, economy:soju: 1 }, out: economy:melon_liqueur, seconds: 1530, tier: 1, aging: true }   # 멜론 리큐어 546G
     - { in: { economy:soju: 1, economy:polished_pearl: 1, "#small_flowers": 4 }, out: economy:pearl_perfume, seconds: 860, tier: 2 }   # 진주 향수 776G
-    - { in: { economy:wine: 3, economy:oak_barrel: 1 }, out: economy:vintage_wine, amount: 2, seconds: 4500, tier: 3, aging: true }   # 빈티지 포도주 889G
+    - { in: { economy:wine: 4, economy:oak_barrel: 1 }, out: economy:vintage_wine, amount: 3, seconds: 4580, tier: 3, aging: true }   # 빈티지 포도주 593G (포도주 4병을 참나무통에 숙성해 3병)
     # ── 추가 (숙성은 오래 걸리는 만큼 남음) ──
     - { in: { "#small_flowers": 4, sugar: 1 }, out: economy:flower_tea, seconds: 70 }   # 꽃잎 차 14G
     - { in: { economy:apple_juice: 8, sugar: 1 }, out: economy:cider, amount: 4, seconds: 720, aging: true }   # 사과주 60G (포도주처럼 즙을 숙성)
@@ -284,12 +284,12 @@ still:
     - { in: { economy:corn: 64, wheat: 8 }, out: economy:corn_whiskey, seconds: 1115, tier: 2, aging: true }   # 옥수수 위스키 127G
     - { in: { potato: 64 }, out: economy:potato_vodka, seconds: 730, tier: 2, aging: true }   # 감자 보드카 83G
     # ── 새 레시피 (특별 재료: 다른 직업이 자주 얻는 재료 · 어부가 많이 잡는 생선) ──
-    - { in: { economy:rice: 2, sugar: 2 }, out: economy:sikhye, amount: 2, seconds: 45 }   # 식혜 41G (쌀을 삭혀 달게)
+    - { in: { economy:rice: 2, sugar: 2 }, out: economy:sikhye, amount: 2, seconds: 80 }   # 식혜 41G (쌀을 삭혀 달게)
     - { in: { economy:soju: 1, economy:wild_ginseng: 1 }, out: economy:ginseng_liquor, seconds: 2640, tier: 2, aging: true }   # 인삼주 1005G
     - { in: { economy:makgeolli: 4, economy:golden_ear: 1 }, out: economy:golden_cheongju, amount: 2, seconds: 2310, tier: 2, aging: true }   # 황금 청주 399G
     - { in: { economy:soju: 1, economy:meteoric_iron: 1, honey_bottle: 2 }, out: economy:meteor_elixir, seconds: 2670, tier: 3, aging: true }   # 운철 단약 1089G (꿀에 개어 빚은 환약)
     - { in: { economy:soju: 1, economy:ambergris: 1, "#small_flowers": 4 }, out: economy:ambergris_perfume, seconds: 3210, tier: 3, aging: true }   # 용연향 향수 1307G
-    - { in: { economy:wine: 4, economy:cut_crystal: 1 }, out: economy:crystal_vintage, amount: 2, seconds: 4450, tier: 3, aging: true }   # 수정병 빈티지 960G (참나무통 대신 수정병에 포도주를 더 넣어 숙성)
+    - { in: { economy:wine: 5, economy:cut_crystal: 1 }, out: economy:crystal_vintage, amount: 2, seconds: 4945, tier: 3, aging: true }   # 수정병 빈티지 960G (참나무통 대신 수정병에 포도주를 더 넣어 숙성)
 
 # 압착기 (공용 기계: 직업 없음). 남아도는 바닐라 물건(씨앗, 묘목, 잎, 썩은 살점, 돌, 흙...)을 눌러서 팔 수 있는 것으로.
 # 일부러 값이 낮음 (버리던 것을 조금이라도 돈으로). 누구나 같은 속도, 경험치·직업 효과 없음, 강화는 골드만 (직업 레벨 필요 없음)

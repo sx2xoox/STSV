@@ -1379,39 +1379,153 @@ class BalanceTest {
         rule("R16", bad);
     }
 
-    /** The parity model's table: economy/src/test/resources/balance/parity.json next to the content (null when another tree is checked). */
-    static com.google.gson.JsonObject parityTable() {
-        Path p = ROOT.toAbsolutePath().getParent().getParent().resolve("src/test/resources/balance/parity.json");
+    /** The stored parity table and its curated exceptions: economy/src/test/resources/balance/parity.json (tools/parity/mk_parity.py writes it). */
+    static final Path PARITY_JSON = ContentTest.PACK.toAbsolutePath().normalize().getParent().getParent()
+            .resolve("src/test/resources/balance/parity.json");
+    /** The parity model: tools/parity/mk_parity.py (python3 + PyYAML); --json <content dir> prints the table of that content. */
+    static final Path PARITY_TOOL = PARITY_JSON.getParent().getParent().getParent().getParent().getParent().getParent()
+            .resolve("tools/parity/mk_parity.py");
+    /** The content files the parity table depends on, hashed in this order (mk_parity.CONTENT_FILES). */
+    static final List<String> PARITY_FILES = List.of("shop.yml", "machines.yml", "jobs.yml", "crops/crops.yml", "fish.yml", "requests.yml");
+    /** A recomputed cell may differ this much from the stored one before parity.json counts as stale. */
+    static final double PARITY_STALE = 0.005;
+    static final String PARITY_REGEN = "regenerate it: python3 tools/parity/mk_parity.py (then review the exceptions it prints)";
+
+    /** R17 / R18's table: {@code table} to check, {@code stored} for the exceptions, {@code problems} that fail R17 on their own. */
+    record Parity(com.google.gson.JsonObject table, com.google.gson.JsonObject stored, List<String> problems) {}
+
+    static Parity parity;
+
+    /**
+     * The parity table of the checked content: recomputed by the parity model (tools/parity/mk_parity.py --json, about 15 s) so a
+     * content change that moves a job out of its band fails here even when nobody regenerated parity.json; the recomputed table must
+     * also match the stored one (else parity.json is stale). Without python3 / PyYAML the stored table is used, and only while its
+     * content_sha1 is the content's.
+     */
+    static synchronized Parity parity() {
+        if (parity != null) return parity;
+        List<String> problems = new ArrayList<>();
+        com.google.gson.JsonObject stored = null;
         try {
-            return com.google.gson.JsonParser.parseString(java.nio.file.Files.readString(p)).getAsJsonObject();
+            stored = com.google.gson.JsonParser.parseString(java.nio.file.Files.readString(PARITY_JSON)).getAsJsonObject();
         } catch (java.io.IOException e) {
-            return null;
+            problems.add("parity.json missing (" + PARITY_JSON + "): " + PARITY_REGEN);
+        }
+        boolean own = ROOT.toAbsolutePath().normalize().equals(ContentTest.PACK.toAbsolutePath().normalize());
+        String why;
+        com.google.gson.JsonObject live = null;
+        try {
+            live = parityLive();
+            why = null;
+        } catch (IllegalStateException e) {
+            why = e.getMessage();
+        }
+        if (live != null && stored != null && own) {
+            var sNet = stored.getAsJsonObject("net");
+            for (var point : live.getAsJsonObject("net").entrySet()) {
+                for (var e : point.getValue().getAsJsonObject().entrySet()) {
+                    var s = sNet.has(point.getKey()) ? sNet.getAsJsonObject(point.getKey()).get(e.getKey()) : null;
+                    double now = e.getValue().getAsDouble();
+                    if (s == null || Math.abs(s.getAsDouble() - now) > PARITY_STALE * Math.max(1.0, Math.abs(now))) {
+                        problems.add("parity.json is stale: " + point.getKey() + " " + e.getKey() + " stored " + s + ", the content gives "
+                                + Math.round(now) + "; " + PARITY_REGEN);
+                    }
+                }
+            }
+        }
+        com.google.gson.JsonObject table = live;
+        if (live == null && stored != null) {
+            String sha = contentSha1(ROOT);
+            if (!sha.equals(stored.get("content_sha1").getAsString())) {
+                problems.add("the content changed since parity.json was made (content_sha1 " + stored.get("content_sha1").getAsString()
+                        + ", now " + sha + ") and the parity model could not run here (" + why + "): " + PARITY_REGEN);
+            }
+            table = stored;
+        }
+        parity = new Parity(table, stored, problems);
+        return parity;
+    }
+
+    /** sha1 over PARITY_FILES of a content dir, as mk_parity.content_hash. */
+    static String contentSha1(Path root) {
+        try {
+            var md = java.security.MessageDigest.getInstance("SHA-1");
+            for (String f : PARITY_FILES) md.update(java.nio.file.Files.readAllBytes(root.resolve(f)));
+            return java.util.HexFormat.of().formatHex(md.digest());
+        } catch (java.io.IOException | java.security.NoSuchAlgorithmException e) {
+            throw new IllegalStateException(e);
         }
     }
 
     /**
-     * R17: the parity model's table (written by the parity scripts from this content): at every level and 1 / 3 / 6 hours every
-     * job's day is within 15% of the jobs' mean (the exceptions the table names, each with its reason, within 35%); more hours pay
+     * The parity model run on the checked content (python3 tools/parity/mk_parity.py --json ROOT). Throws IllegalStateException with
+     * the reason when Python cannot run it (no python3, no PyYAML, no tools/parity); a model error on this content is an
+     * AssertionError (the content broke the model).
+     */
+    static com.google.gson.JsonObject parityLive() {
+        if (!java.nio.file.Files.isRegularFile(PARITY_TOOL)) throw new IllegalStateException("no " + PARITY_TOOL);
+        try {
+            Path out = java.nio.file.Files.createTempFile("parity", ".json"), err = java.nio.file.Files.createTempFile("parity", ".err");
+            try {
+                Process p = new ProcessBuilder("python3", PARITY_TOOL.toString(), "--json", ROOT.toAbsolutePath().toString())
+                        .redirectOutput(out.toFile()).redirectError(err.toFile()).start();
+                if (!p.waitFor(10, java.util.concurrent.TimeUnit.MINUTES)) {
+                    p.destroyForcibly();
+                    throw new AssertionError("parity model: no result in 10 minutes");
+                }
+                String e = java.nio.file.Files.readString(err);
+                if (p.exitValue() != 0) {
+                    if (e.contains("ModuleNotFoundError") || e.contains("ImportError")) {
+                        throw new IllegalStateException(e.strip().lines().reduce((a, b) -> b).orElse("import error"));
+                    }
+                    throw new AssertionError("parity model failed on this content (" + PARITY_TOOL + "):\n" + e);
+                }
+                return com.google.gson.JsonParser.parseString(java.nio.file.Files.readString(out)).getAsJsonObject();
+            } finally {
+                java.nio.file.Files.deleteIfExists(out);
+                java.nio.file.Files.deleteIfExists(err);
+            }
+        } catch (java.io.IOException e) {
+            throw new IllegalStateException("python3: " + e.getMessage());
+        } catch (InterruptedException e) {
+            Thread.currentThread().interrupt();
+            throw new IllegalStateException("interrupted");
+        }
+    }
+
+    /**
+     * R17: the parity model's table, recomputed from this content (see {@link #parity()}): at every level and 1 / 3 / 6 hours every
+     * job's day is within 15% of the jobs' mean (the exceptions parity.json names, each with its reason, within 35%); more hours pay
      * more for every job (3h >= 2 x 1h and 6h >= 1.5 x 3h before the sales tax, 1.8 / 1.3 after it); the Lv30 3h mean stays near the
-     * money supply balance2 set.
+     * money supply balance2 set; parity.json is current.
      */
     @Test
     void r17Parity() {
-        List<String> bad = new ArrayList<>();
-        var t = parityTable();
-        if (t == null) {
-            rule("R17", List.of("parity.json missing"));
+        var par = parity();
+        List<String> bad = new ArrayList<>(par.problems());
+        var t = par.table();
+        if (t == null || par.stored() == null) {
+            rule("R17", bad);
             return;
         }
         Set<String> exc = new HashSet<>();
-        for (var e : t.getAsJsonArray("exceptions")) exc.add(e.getAsJsonObject().get("point").getAsString());
+        for (var e : par.stored().getAsJsonArray("exceptions")) {
+            var o = e.getAsJsonObject();
+            exc.add(o.get("point").getAsString());
+            if (!o.has("reason") || o.get("reason").getAsString().isBlank() || o.get("reason").getAsString().startsWith("TODO")) {
+                bad.add("exception " + o.get("point").getAsString() + " has no reason");
+            }
+        }
         for (var point : t.getAsJsonObject("net").entrySet()) {
             var row = point.getValue().getAsJsonObject();
             double mean = row.entrySet().stream().mapToDouble(e -> e.getValue().getAsDouble()).average().orElse(0);
             for (var e : row.entrySet()) {
                 double d = e.getValue().getAsDouble() / mean - 1;
                 double lim = exc.contains(point.getKey() + "|" + e.getKey()) ? PARITY_BAND_WIDE : PARITY_BAND;
-                if (Math.abs(d) > lim + 1e-9) bad.add(point.getKey() + " " + e.getKey() + ": " + Math.round(d * 1000) / 10.0 + "% of the mean");
+                if (Math.abs(d) > lim + 1e-9) {
+                    bad.add(point.getKey() + " " + e.getKey() + ": " + Math.round(d * 1000) / 10.0 + "% of the mean (limit "
+                            + Math.round(lim * 100) + "%" + (lim < PARITY_BAND_WIDE ? "; not an exception in parity.json" : "") + ")");
+                }
             }
         }
         for (var lv : t.getAsJsonObject("hours").entrySet()) {
@@ -1433,9 +1547,9 @@ class BalanceTest {
     @Test
     void r18Trade() {
         List<String> bad = new ArrayList<>();
-        var t = parityTable();
+        var t = parity().table();
         if (t == null) {
-            rule("R18", List.of("parity.json missing"));
+            rule("R18", List.of("no parity table (see R17)"));
             return;
         }
         for (var point : t.getAsJsonObject("trade").entrySet()) {
