@@ -148,6 +148,11 @@ public final class STSVPlugin extends JavaPlugin {
             nightVision.setExecutor(nv);
             getServer().getPluginManager().registerEvents(nv, this);
         }
+        PluginCommand sidebar = getCommand("사이드바");
+        if (sidebar != null) {
+            sidebar.setExecutor(hud);
+            sidebar.setTabCompleter(hud);
+        }
         PluginCommand titles = getCommand("칭호");
         if (titles != null) {
             dev.stsv.core.command.TitleCommand titleCommand = new dev.stsv.core.command.TitleCommand(this);

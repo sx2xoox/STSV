@@ -73,6 +73,8 @@ def main():
     gui.write(CONTENT)
     gui.preview(PREVIEWS / "core_menus.png")
     print("gui core menus (backgrounds, button icons, inventory label off)")
+    import hud
+    print(f"hud glyph sheets (plugin/src/main/resources/pack/hud): {hud.write()}")
 
     if render:
         # world objects side by side (fan blade placed where the machine spins it)

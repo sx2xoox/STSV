@@ -22,6 +22,7 @@ import java.net.URI;
 import java.nio.charset.StandardCharsets;
 import java.nio.file.Files;
 import java.nio.file.Path;
+import java.util.Map;
 import java.util.UUID;
 import java.util.concurrent.Executors;
 
@@ -38,7 +39,8 @@ import java.util.concurrent.Executors;
  */
 public final class PackModule implements StsvModule, Listener {
 
-    private static final UUID PACK_ID = UUID.nameUUIDFromBytes("stsv-core-pack".getBytes(StandardCharsets.UTF_8));
+    /** The server pack's id (resource-pack status events of other packs carry other ids). */
+    public static final UUID PACK_ID = UUID.nameUUIDFromBytes("stsv-core-pack".getBytes(StandardCharsets.UTF_8));
 
     private STSVPlugin plugin;
     private HttpServer http;
@@ -83,7 +85,9 @@ public final class PackModule implements StsvModule, Listener {
 
     public void rebuild() throws IOException {
         ConfigurationSection cfg = cfg();
-        PackBuilder.Built built = new PackBuilder().build(
+        PackBuilder.Built built = new PackBuilder()
+                .extra(plugin.hud() == null ? Map.of() : plugin.hud().packFiles())
+                .build(
                 plugin.content().packs(), plugin.content().items(),
                 cfg.getInt("pack-format", 97), "STSV server resources");
         built.warnings().forEach(w -> plugin.getLogger().warning("[리소스팩] " + w));

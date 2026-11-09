@@ -87,6 +87,16 @@ public final class PackBuilder {
 
     private final Map<String, byte[]> files = new TreeMap<>(); // sorted -> deterministic zip -> stable hash
     private final List<String> warnings = new ArrayList<>();
+    private Map<String, byte[]> extra = Map.of();
+
+    /**
+     * Files the core makes itself (the resource-pack HUD: fonts, glyph sheets, see-through vanilla sprites). They go
+     * in before the content packs, so a content pack's own file of the same path wins (with a warning).
+     */
+    public PackBuilder extra(Map<String, byte[]> files) {
+        this.extra = Map.copyOf(files);
+        return this;
+    }
 
     public Built build(Collection<ContentPack> packs, Collection<CustomItem> items, int packFormat, String description)
             throws IOException {
@@ -103,6 +113,7 @@ public final class PackBuilder {
         JsonObject mcmeta = new JsonObject();
         mcmeta.add("pack", pack);
         json("pack.mcmeta", mcmeta);
+        files.putAll(extra);
 
         for (ContentPack cp : packs) {
             copyRawAssets(cp);
@@ -263,7 +274,8 @@ public final class PackBuilder {
     }
 
     private void put(String path, byte[] data, ContentPack from) {
-        if (files.containsKey(path)) warnings.add("파일 충돌, " + from.id() + " 의 것으로 덮어씀: " + path);
+        if (files.containsKey(path)) warnings.add("파일 충돌, " + from.id() + " 의 것으로 덮어씀: " + path
+                + (extra.containsKey(path) ? " (코어 HUD 파일)" : ""));
         files.put(path, data);
     }
 
