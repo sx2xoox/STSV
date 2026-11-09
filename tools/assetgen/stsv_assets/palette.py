@@ -132,6 +132,15 @@ MATERIALS = {
     "plush":       (60, 0.080, 0.56, 0.26, 4, False),    # teddy-bear brown
     "slime":       (138, 0.150, 0.74, 0.30, 4, False),   # slime green
     "denim":       (255, 0.090, 0.48, 0.26, 4, False),   # school bag blue
+    # --- Japanese-style furniture (models/furniture_japanese.py) ---------------------------------
+    "tatami":      (102, 0.070, 0.70, 0.26, 4, False),   # woven rush mats, pale green-straw
+    "vermilion":   (29, 0.150, 0.52, 0.26, 4, False),    # shu lacquer: torii, parasols, trays
+    "indigo":      (262, 0.090, 0.38, 0.26, 4, False),   # ai-zome cloth: noren, futon, kimono
+    "bamboo":      (118, 0.095, 0.62, 0.30, 5, False),   # green bamboo culms
+    "hinoki":      (78, 0.060, 0.74, 0.22, 4, False),    # pale cypress: shoji frames, trays
+    "sakura":      (355, 0.075, 0.84, 0.22, 4, False),   # cherry blossom pink
+    "celadon":     (165, 0.050, 0.68, 0.26, 4, False),   # pale green glaze: cups, pots, scroll mount
+    "washi_lit":   (80, 0.075, 0.90, 0.14, 3, True),     # lamp paper lit from inside
     # --- TEST-ONLY materials: "dev texture" colours, never used by real content -----------------
     "test_orange": (55, 0.150, 0.70, 0.30, 4, True),
     "test_grey":   (250, 0.012, 0.62, 0.30, 4, False),

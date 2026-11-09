@@ -15,6 +15,7 @@ import java.util.List;
  * @param translation / scale  fine-tuning of the display entity
  * @param brightness  fixed block light 0..15 for the model, or -1 for world lighting
  * @param seats     places a player can sit (empty = not sittable)
+ * @param light     a light block the piece gives off (lamps, lanterns), or null
  */
 public record FurnitureSpec(
         List<int[]> cells,
@@ -25,9 +26,26 @@ public record FurnitureSpec(
         Vector3f scale,
         int brightness,
         List<Seat> seats,
-        List<Part> parts
+        List<Part> parts,
+        Light light
 ) {
     public enum Rotation { CARDINAL, FREE }
+
+    /** Without a light (machines, tables, chairs...). */
+    public FurnitureSpec(List<int[]> cells, boolean solid, Rotation rotation, String behavior, Vector3f translation,
+                         Vector3f scale, int brightness, List<Seat> seats, List<Part> parts) {
+        this(cells, solid, rotation, behavior, translation, scale, brightness, seats, parts, null);
+    }
+
+    /**
+     * Real light, not just a bright model: an invisible light block (vanilla minecraft:light) of this level in
+     * one of the piece's cells. That cell never gets a barrier (a block holds either), so a lamp's light cell is
+     * the one the player may walk into: the lantern head of a tall stone lantern, the whole cell of a small lamp.
+     *
+     * @param level 1..15
+     * @param cell  model-space cell (one of the cells) the light block goes in
+     */
+    public record Light(int level, int[] cell) {}
 
     /**
      * An extra model shown as its own display entity, e.g. a fan blade that spins.
@@ -42,8 +60,15 @@ public record FurnitureSpec(
     /**
      * @param cell   model-space cell the seat is in
      * @param height height of the sitting surface above the cell's bottom, in blocks (cushion top of a chair ≈ 0.6)
+     * @param facing where the sitter looks, in degrees turned from the piece's front (0 = the way the piece faces,
+     *               180 = towards its back, 90 = towards its model east / +x, -90 = towards its west): cushions
+     *               round a low table face the table
      */
-    public record Seat(int[] cell, double height) {}
+    public record Seat(int[] cell, double height, float facing) {
+        public Seat(int[] cell, double height) {
+            this(cell, height, 0f);
+        }
+    }
 
     public boolean sittable() {
         return seats != null && !seats.isEmpty();
