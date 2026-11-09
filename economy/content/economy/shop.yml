@@ -427,6 +427,7 @@ buy:
   furniture:
     name: "가구"
     icon: stsv:chabudai
+    single: true          # 한 번에 1개씩 (쉬프트 클릭도 1개: 비싼 가구를 실수로 8개 사지 않게)
     items:
       # 바닥 · 앉는 것 · 칸막이 · 벽
       - { item: stsv:tatami, price: 1500 }           # 다다미

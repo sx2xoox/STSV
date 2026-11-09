@@ -70,6 +70,8 @@ shop:
   not-enough: "<red>돈이 부족합니다. <gray>(필요 {price})"
   bought: "<green>구매</green> <white>{item} ×{count}</white> <gray>-</gray> {amount}"
   buy-lore: ["", "<gray>가격: </gray>{price} <dark_gray>({count}개)", "<yellow>클릭: 사기 <dark_gray>· 쉬프트: 8번"]
+  # 한 번에 1개씩만 사는 카테고리 (shop.yml single: true, 가구)
+  buy-lore-single: ["", "<gray>가격: </gray>{price} <dark_gray>({count}개)", "<yellow>클릭: 사기 <dark_gray>· 한 번에 1개씩"]
   # 상점 카테고리 (구매 · 판매 화면)
   category-name: "<white>{name}"
   category-buy: ["<gray>{count}종 · {min} ~ {max}", "<yellow>클릭: 열기"]
@@ -81,6 +83,7 @@ shop:
   holding: ["<gray>가진 것: <white>{kinds}종 {count}개</white> <dark_gray>·</dark_gray> 약 {value}"]
   holding-none: ["<dark_gray>가진 것 없음"]
   hint-buy: "<gray>클릭: 사기 <dark_gray>· 쉬프트: 8번"
+  hint-buy-single: "<gray>클릭: 사기 <dark_gray>· 한 번에 1개씩"
   hint-vanity: "<gray>두 번 클릭: 사기 <dark_gray>· /치장, /칭호 에서 착용"
   hint-merchant: "<light_purple>선착순 한정 상품 <dark_gray>· 클릭: 사기"
   sell-have: ["<gray>가진 것: <white>{have}개", "<yellow>좌클릭 묶음 · 우클릭 1개 · 쉬프트 전부"]

@@ -800,7 +800,7 @@ public final class ShopModule extends EcoModule implements DailyListener {
         @Override
         public Map<String, String> placeholders(MenuView v) {
             return Map.of("balance", balance(v.player()), "category", category.name(),
-                    "hint", Lang.raw(vanity() ? "shop.hint-vanity" : "shop.hint-buy"));
+                    "hint", Lang.raw(vanity() ? "shop.hint-vanity" : category.single() ? "shop.hint-buy-single" : "shop.hint-buy"));
         }
 
         @Override
@@ -811,7 +811,7 @@ public final class ShopModule extends EcoModule implements DailyListener {
                     out.add(eco.vanity().display(v.player(), g, (g.kind() + g.id()).equals(armed) && now() - armedAt < 5000));
                 } else {
                     out.add(Items.create(g.id(), g.amount()).map(it -> withLore(it,
-                            Lang.items("shop.buy-lore", "price", EconomyModule.format(g.price()), "count", g.amount()))).orElse(null));
+                            Lang.items(category.single() ? "shop.buy-lore-single" : "shop.buy-lore", "price", EconomyModule.format(g.price()), "count", g.amount()))).orElse(null));
                 }
             }
             return out;
@@ -834,7 +834,7 @@ public final class ShopModule extends EcoModule implements DailyListener {
                     if (refused != null) HudModule.flash(p, Lang.mm(refused, "price", EconomyModule.format(g.price())));
                 }
             } else {
-                int times = click.isShiftClick() ? 8 : 1;
+                int times = click.isShiftClick() && !category.single() ? 8 : 1;
                 for (int i = 0; i < times; i++) if (!buy(p, g.id(), g.amount(), g.price(), "shop_buy")) break;
             }
             v.refresh();

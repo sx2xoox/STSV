@@ -120,6 +120,8 @@ class ContentTest {
         assertEquals(30, pieces.size());
         assertEquals(pieces, furniture.goods().stream().map(ShopCatalog.Good::id).toList());
         assertTrue(furniture.goods().stream().allMatch(g -> g.kind().equals("item") && g.amount() == 1), "one piece a purchase");
+        assertTrue(furniture.single(), "no shift-click 8 at once: a 20,000 G piece by mistake");
+        assertTrue(shop.buyCategories().stream().filter(c -> !c.id().equals("furniture")).noneMatch(ShopCatalog.BuyCategory::single), "only the furniture");
         assertTrue(furniture.goods().size() <= 36, "one page");
         assertTrue(pieces.contains(furniture.icon()), "a piece is the icon");
         for (String id : pieces) if (shop.sell().containsKey(id)) problems.add("furniture is not sold to the shop: " + id);
