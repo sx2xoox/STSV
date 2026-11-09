@@ -77,19 +77,23 @@ class HudLayoutTest {
         HudClient.Laid laid = client.lay(layout.actionBar(HEALTHY, null));
         assertEquals(0, laid.width(), "the bars alone take no width");
         HudClient.Draw heart = find(laid, "icons", "heart");
-        assertEquals(-75, heart.x());
+        assertEquals(-84, heart.x());
         assertEquals(39, fromBottom(heart));
         HudClient.Draw frame = laid.draws().stream().filter(d -> d.sheet().equals("frame") && d.x() < 0 && fromBottom(d) == 39).findFirst().orElseThrow();
-        assertEquals(-65, frame.x());
-        assertEquals(52, width(frame));
+        assertEquals(-74, frame.x());
+        assertEquals(61, width(frame));
         HudClient.Draw food = find(laid, "icons", "food");
-        assertEquals(67, food.x());
+        assertEquals(76, food.x());
         assertEquals(39, fromBottom(food));
         HudClient.Draw armor = find(laid, "icons", "armor");
-        assertEquals(-75, armor.x());
+        assertEquals(-84, armor.x());
         assertEquals(49, fromBottom(armor));
         for (HudClient.Draw d : laid.draws()) {
-            assertTrue(d.x() >= -91 && d.x() + width(d) <= 92, "within the hotbar's width: " + d);
+            if (d.sheet().equals("digits")) {
+                assertTrue(d.x() >= -91 - 9 && d.x() + width(d) <= 91 + 9, "numbers just past the hotbar's ends: " + d);
+            } else {
+                assertTrue(d.x() >= -91 && d.x() + width(d) <= 91, "bars and icons within the hotbar's width: " + d);
+            }
             assertTrue(d.x() + width(d) <= -13 || d.x() >= 14, "the middle stays free for the level number: " + d);
             assertTrue(fromBottom(d) <= 49 && fromBottom(d) - sheets.sheet(d.sheet()).cellH() >= 30, "between the XP bar and the item name: " + d);
         }
@@ -98,10 +102,43 @@ class HudLayoutTest {
         assertEquals(HudLayout.fill(12, 20, HudLayout.INNER), filled(laid, "armor", 49));
         // the health fill starts at the frame's inside, next to the heart; the hunger fill grows from its drumstick
         int hpLeft = laid.draws().stream().filter(d -> d.cell().startsWith("red/")).mapToInt(HudClient.Draw::x).min().orElseThrow();
-        assertEquals(-64, hpLeft);
+        assertEquals(-73, hpLeft);
         int foodRight = laid.draws().stream().filter(d -> d.cell().startsWith("food/") && !d.cell().endsWith("edge"))
                 .mapToInt(d -> d.x() + width(d)).max().orElseThrow();
-        assertEquals(65, foodRight);
+        assertEquals(74, foodRight);
+    }
+
+    @Test
+    void barsSpanTheHotbarAndMirrorEachOther() {
+        // armor and air too, so every bar of both rows is drawn
+        HudClient.Laid laid = client.lay(layout.actionBar(HEALTHY.withAir(new HudLayout.Air(300, 300)), null));
+        for (int row : new int[]{39, 49}) {
+            HudClient.Draw left = laid.draws().stream().filter(d -> d.sheet().equals("frame") && d.x() < 0 && fromBottom(d) == row).findFirst().orElseThrow();
+            HudClient.Draw right = laid.draws().stream().filter(d -> d.sheet().equals("frame") && d.x() > 0 && fromBottom(d) == row).findFirst().orElseThrow();
+            assertEquals(width(left), width(right));
+            assertEquals(-(right.x() + width(right)), left.x() - 1, "frames mirrored about the middle: " + row);
+            int lIcon = laid.draws().stream().filter(d -> d.sheet().equals("icons") && d.x() < 0 && fromBottom(d) == row).findFirst().orElseThrow().x();
+            int rIcon = laid.draws().stream().filter(d -> d.sheet().equals("icons") && d.x() > 0 && fromBottom(d) == row).findFirst().orElseThrow().x();
+            assertEquals(-(rIcon + HudLayout.ICON), lIcon - 1, "icons mirrored: " + row);
+            // the frames with their icons take nearly all of the hotbar's 182 px; the frames start at the level's room
+            assertTrue(lIcon <= -84 && rIcon + HudLayout.ICON >= 84, "as wide as the hotbar: " + lIcon + " / " + rIcon);
+            assertEquals(-13, left.x() + width(left));
+            assertEquals(14, right.x());
+        }
+        // a two-digit number on either side ends as far from the middle as the other
+        int leftStart = laid.draws().stream().filter(d -> d.sheet().equals("digits") && d.x() < 0 && fromBottom(d) == 38).mapToInt(HudClient.Draw::x).min().orElseThrow();
+        int rightEnd = laid.draws().stream().filter(d -> d.sheet().equals("digits") && d.x() > 0 && fromBottom(d) == 38).mapToInt(d -> d.x() + width(d)).max().orElseThrow();
+        assertEquals(-rightEnd, leftStart - 1);
+        // every part is as wide as the others: (inside + 1) / parts, its fill and a tick
+        for (int n : new int[]{2, 3, 4, 5, 6, 10, 12}) {
+            List<Integer> ticks = HudLayout.ticks(n, HudLayout.INNER);
+            int prev = -1;
+            for (int t : ticks) {
+                assertEquals((HudLayout.INNER + 1) / n - 1, t - prev - 1, n + " parts: " + ticks);
+                prev = t;
+            }
+            assertEquals((HudLayout.INNER + 1) / n - 1, HudLayout.INNER - prev - 1, n + " parts, the last: " + ticks);
+        }
     }
 
     @Test
@@ -112,17 +149,19 @@ class HudLayoutTest {
         assertEquals("12", number(laid, 49, true));
         for (HudClient.Draw d : laid.draws()) {
             if (!d.sheet().equals("digits")) continue;
-            boolean onFrame = d.x() + width(d) > -65 - 1 && d.x() < -65 + 52 + 1 || d.x() + width(d) > 13 && d.x() < 14 + 52 + 1;
+            boolean onFrame = d.x() + width(d) > -74 - 1 && d.x() < -74 + 61 + 1 || d.x() + width(d) > 13 && d.x() < 14 + 61 + 1;
+            boolean onIcon = d.x() + width(d) > -84 && d.x() < -84 + 9 || d.x() + width(d) > 76 && d.x() < 76 + 9;
+            assertFalse(onIcon, "a number on an icon: " + d);
             assertFalse(onFrame, "a number on a bar: " + d);
         }
         // right-aligned against the heart on the left, left-aligned against the drumstick on the right
         int leftEnd = laid.draws().stream().filter(d -> d.sheet().equals("digits") && d.x() < 0 && fromBottom(d) == 38)
                 .mapToInt(d -> d.x() + width(d)).max().orElseThrow();
-        assertEquals(-76, leftEnd);
+        assertEquals(-85, leftEnd);
         int rightStart = laid.draws().stream().filter(d -> d.sheet().equals("digits") && d.x() > 0).mapToInt(HudClient.Draw::x).min().orElseThrow();
-        assertEquals(77, rightStart);
+        assertEquals(86, rightStart);
         HudClient.Laid big = client.lay(layout.actionBar(new HudLayout.Health(100, 100, 0, 20, 20f, 0, HudLayout.Tint.NORMAL, false), null));
-        assertTrue(big.draws().stream().allMatch(d -> d.x() >= -91), "three digits still fit");
+        assertTrue(big.draws().stream().allMatch(d -> d.x() >= -91 - 9), "three digits still sit close to the hotbar");
     }
 
     @Test
@@ -155,15 +194,15 @@ class HudLayoutTest {
         HudClient.Laid laid = client.lay(layout.actionBar(h, null));
         find(laid, "icons", "heart_poison");
         find(laid, "icons", "food_hunger");
-        assertEquals(HudLayout.fill(6.5, 20, 50), filled(laid, "poison", 39));
-        assertEquals(HudLayout.fill(10.5, 20, 50) - HudLayout.fill(6.5, 20, 50), filled(laid, "abs", 39), "absorption follows the health");
+        assertEquals(HudLayout.fill(6.5, 20, HudLayout.INNER), filled(laid, "poison", 39));
+        assertEquals(HudLayout.fill(10.5, 20, HudLayout.INNER) - HudLayout.fill(6.5, 20, HudLayout.INNER), filled(laid, "abs", 39), "absorption follows the health");
         assertTrue(drawn(laid, "line", "sat/"), "saturation line on the hunger bar");
         assertFalse(drawn(laid, "icons", "armor"), "no armor, no armor bar");
         assertEquals("11", number(laid, 39, true), "health and absorption together");
         assertTrue(laid.draws().stream().filter(d -> d.sheet().equals("digits") && d.x() < 0).allMatch(d -> d.color() == HudLayout.GOLD.value()));
         // more than the maximum: the bar is scaled to fit it all
         var over = client.lay(layout.actionBar(new HudLayout.Health(20, 20, 16, 20, 5f, 0, HudLayout.Tint.NORMAL, false), null));
-        assertEquals(50, filled(over, "red", 39) + filled(over, "abs", 39));
+        assertEquals(HudLayout.INNER, filled(over, "red", 39) + filled(over, "abs", 39));
         for (var tint : HudLayout.Tint.values()) {
             client.lay(layout.actionBar(new HudLayout.Health(3, 20, 0, 20, 0f, 0, tint, false), null));
         }
@@ -176,16 +215,16 @@ class HudLayoutTest {
         var h = HEALTHY.withMount(new HudLayout.Mount(21, 30)).withAir(new HudLayout.Air(140, 300));
         HudClient.Laid laid = client.lay(layout.actionBar(h, null));
         HudClient.Draw mount = find(laid, "icons", "mount");
-        assertEquals(67, mount.x());
+        assertEquals(76, mount.x());
         assertEquals(39, fromBottom(mount));
         assertFalse(drawn(laid, "icons", "food"), "riding: the mount's bar takes the hunger bar's place");
         assertEquals("21", number(laid, 39, false));
-        assertEquals(HudLayout.fill(21, 30, 50), filled(laid, "mount", 39));
+        assertEquals(HudLayout.fill(21, 30, HudLayout.INNER), filled(laid, "mount", 39));
         HudClient.Draw air = find(laid, "icons", "air");
-        assertEquals(67, air.x());
+        assertEquals(76, air.x());
         assertEquals(49, fromBottom(air));
         assertEquals("5", number(laid, 49, false), "bubbles left, as the game counts them");
-        assertEquals(HudLayout.fill(140, 300, 50), filled(laid, "air", 49));
+        assertEquals(HudLayout.fill(140, 300, HudLayout.INNER), filled(laid, "air", 49));
         assertEquals(8 - 1, laid.draws().stream().filter(d -> d.sheet().equals("tick") && fromBottom(d) == 38 && d.x() > 0).count(), "a tick per two mount hearts");
         var drowning = client.lay(layout.actionBar(HEALTHY.withAir(new HudLayout.Air(-12, 300)), null));
         assertEquals("0", number(drowning, 49, false));
@@ -198,10 +237,10 @@ class HudLayoutTest {
     @Test
     void damageAndHealingFlash() {
         var hit = client.lay(layout.actionBar(HEALTHY.withFlash(HudLayout.Flash.LOST, 20), null));
-        assertEquals(HudLayout.fill(20, 20, 50) - HudLayout.fill(18, 20, 50), filled(hit, "lost", 39), "the part just lost");
+        assertEquals(HudLayout.fill(20, 20, HudLayout.INNER) - HudLayout.fill(18, 20, HudLayout.INNER), filled(hit, "lost", 39), "the part just lost");
         find(hit, "frame", "frame_hit");
         var heal = client.lay(layout.actionBar(HEALTHY.withFlash(HudLayout.Flash.GAIN, 10), null));
-        assertEquals(HudLayout.fill(18, 20, 50) - HudLayout.fill(10, 20, 50), filled(heal, "gain", 39), "the part just gained");
+        assertEquals(HudLayout.fill(18, 20, HudLayout.INNER) - HudLayout.fill(10, 20, HudLayout.INNER), filled(heal, "gain", 39), "the part just gained");
         find(heal, "frame", "frame_heal");
         var plain = client.lay(layout.actionBar(HEALTHY, null));
         assertFalse(drawn(plain, "fill", "lost/") || drawn(plain, "fill", "gain/"));
@@ -215,13 +254,15 @@ class HudLayoutTest {
         assertEquals(10, HudLayout.segments(40, 2));
         assertEquals(10, HudLayout.segments(300, 30));
         assertEquals(1, HudLayout.segments(1, 2));
-        assertEquals(List.of(5, 10, 15, 20, 25, 30, 35, 40, 45), HudLayout.ticks(10, 50));
-        assertEquals(List.of(), HudLayout.ticks(1, 50));
+        assertEquals(List.of(5, 11, 17, 23, 29, 35, 41, 47, 53), HudLayout.ticks(10, 59));
+        assertEquals(List.of(4, 9, 14, 19, 24, 29, 34, 39, 44, 49, 54), HudLayout.ticks(12, 59));
+        assertEquals(List.of(), HudLayout.ticks(1, 59));
         HudClient.Laid laid = client.lay(layout.actionBar(HEALTHY, null));
         List<HudClient.Draw> hp = laid.draws().stream().filter(d -> d.sheet().equals("tick") && d.x() < 0 && fromBottom(d) == 38).toList();
         assertEquals(9, hp.size());
-        int k = HudLayout.fill(18, 20, 50);
-        for (HudClient.Draw t : hp) assertEquals(t.x() + 64 < k ? "on" : "off", t.cell(), "dark over the fill, faint beyond it");
+        int k = HudLayout.fill(18, 20, HudLayout.INNER);
+        assertEquals(53, k, "nine hearts fill nine parts, up to the ninth tick");
+        for (HudClient.Draw t : hp) assertEquals(t.x() + 73 < k ? "on" : "off", t.cell(), "dark over the fill, faint beyond it");
     }
 
     @Test
@@ -231,10 +272,12 @@ class HudLayoutTest {
         assertEquals("1", HudLayout.healthText(0.2));
         assertEquals("0", HudLayout.healthText(0));
         assertEquals("20", HudLayout.healthText(20.0000001));
-        assertEquals(0, HudLayout.fill(0, 20, 50));
-        assertEquals(1, HudLayout.fill(0.01, 20, 50));
-        assertEquals(50, HudLayout.fill(40, 20, 50));
-        assertEquals(25, HudLayout.fill(10, 20, 50));
+        assertEquals(0, HudLayout.fill(0, 20, 59));
+        assertEquals(1, HudLayout.fill(0.01, 20, 59));
+        assertEquals(59, HudLayout.fill(40, 20, 59));
+        assertEquals(59, HudLayout.fill(20, 20, 59));
+        assertEquals(29, HudLayout.fill(10, 20, 59), "five of ten parts: up to the fifth tick");
+        assertEquals(2, HudLayout.fill(1, 20, 59), "half a heart: half a part");
         assertEquals(9, HudLayout.numbersWidth(2));
         assertEquals(0, HudLayout.numbersWidth(0));
     }

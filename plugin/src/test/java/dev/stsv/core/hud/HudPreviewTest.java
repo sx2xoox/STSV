@@ -35,7 +35,7 @@ class HudPreviewTest {
     }
 
     static Scene state(String label, HudLayout.Health health, Component message, int level, boolean water) {
-        return new Scene(1920, 1080, 3, label, null, false, health, message, false, level, 0, water, new int[]{-100, 82, 200, 82}, 1, 0);
+        return new Scene(1920, 1080, 3, label, null, false, health, message, false, level, 0, water, new int[]{-106, 82, 212, 82}, 1, 0);
     }
 
     /** The panel moved with the mouse to `margin` px from the right edge of this screen, at a size and a top. */
