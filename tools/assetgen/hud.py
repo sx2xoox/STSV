@@ -2,7 +2,7 @@
 The resource-pack HUD of the core (hud.mode: pack): the glyph sheets the plugin turns into fonts.
 
     python3 hud.py                                  # the sheets (also run by build.py)
-    python3 hud.py --preview <draws.json> <out.png> # docs/previews/hud.png from the core's draw list
+    python3 hud.py --preview <draws.json> <outdir>  # docs/previews/hud*.png from the core's draw list
 
 The draw list is written by the core's tests (cd plugin && ./gradlew test --tests '*HudPreviewTest' ->
 plugin/build/hud-preview.json): every glyph where the game would put it, read from the generated fonts.
@@ -12,16 +12,21 @@ name of every cell, the height the game draws a cell at). The plugin (dev.stsv.c
 reads the same files to build the fonts (one bitmap provider per sheet and height on screen) and to
 measure every glyph exactly as the game does (rightmost visible column), so layout and pictures can
 never disagree. Nothing here is a Mojang texture:
-  - hangul: the Hangul syllables of KS X 1001 plus any other syllable the repository's texts use,
-    rasterised from GNU Unifont (dual GPLv2+ with font embedding exception / SIL OFL 1.1, the same
-    font the game itself uses for Hangul; see pack/hud/LICENSE-unifont.txt). Our own copy is needed
-    because the game's unifont cannot be moved up or down, and the HUD measures every width itself.
-  - symbols: the few non-ASCII signs of the messages (· → × ★ ...), drawn here.
-  - digits: the small outlined numbers on the health bars.
-  - bar / fill / stripe / icons: the health, hunger and armor bars and the 9 x 9 icons.
+  - text / hangul: the HUD's letters, drawn pixel for pixel (one font pixel = one GUI pixel, like the
+    game's own letters) from Galmuri9 (SIL OFL 1.1, fonts/LICENSE-galmuri.txt, data: galmuri.py):
+    ASCII, the signs the messages use and the Hangul jamo in `text`, the 2,350 syllables of KS X 1001
+    plus any other syllable the repository's texts use in `hangul`. Every cell's rightmost visible
+    column gives the game Galmuri's own advance; where a glyph ends earlier, one pixel of alpha 1 marks
+    it (the game measures it, its text shader discards anything under alpha 0.1, so it never shows).
+    The game's text is not used: the letters are moved up and down per panel row, which a font
+    reference cannot do, and the HUD measures every width itself.
+  - digits: the small outlined numbers next to the bars.
+  - frame / fill / tick / line / icons: the bars and the 9 x 9 icons.
   - panel_*: the sidebar panel in the menus' charcoal and gold (stsv_assets/menu_theme.py), cut in
-    strips (left edge, right edge, fills of 1, 2, 4 ... 128 px) so the plugin can size it to its text.
-ASCII is the game's own ascii.png, referenced (not copied) by the generated fonts.
+    strips (left cap, right cap with its drop shadow, fills of 1, 2, 4 ... 64 px) so the plugin can size
+    it to its text, and the server mark in its title strip.
+The fonts cost the client memory per (sheet, height on screen): every bitmap provider keeps its whole
+sheet as RGBA. Sheets are therefore packed tightly (a 9 x 9 Hangul cell, one row of strip pieces).
 """
 
 import json
@@ -31,77 +36,162 @@ from pathlib import Path
 
 from PIL import Image, ImageDraw, ImageFont
 
+import galmuri
 from stsv_assets import menu_theme as T
 
 REPO = Path(__file__).resolve().parents[2]
 OUT = REPO / "plugin" / "src" / "main" / "resources" / "pack" / "hud"
-UNIFONT = "/usr/share/fonts/opentype/unifont/unifont.otf"
 TEXT_SOURCES = ["plugin/src/main/resources/messages.yml", "economy/src/main/resources/messages.yml",
                 "content/**/*.yml", "economy/content/**/*.yml"]
+
+# ------------------------------------------------------------------------------------------------
+# Letters (Galmuri9): 9 px above the baseline, 1 below
+# ------------------------------------------------------------------------------------------------
+
+ABOVE, BELOW = 9, 1
+TEXT_CELL = (9, ABOVE + BELOW)
+HANGUL_CELL = (9, ABOVE)
+MARK = (255, 255, 255, 1)        # an invisible pixel that sets a glyph's advance
+
+# signs always on the sheet (besides those the repository's texts use)
+BASE_SIGNS = "·•…→←↑↓⇄×÷±°²‘’“”«»★☆◆◇▲▼◀▶■□○●─%✔✦❤⚠♪"
+
+# signs Galmuri9 lacks or draws unlike the menus: our own, in its 9 px style (rows from the top, 9 above
+# the baseline; the advance is the width + 1)
+OWN_SIGNS = {
+    "✔": ["", "", "......#", ".....##", "#...##", "##.##", ".###", "..#", ""],
+    "✦": ["", "...#", "...#", "..###", "#######", "..###", "...#", "...#", ""],
+    "❤": ["", ".##.##.", "#######", "#######", "#######", ".#####", "..###", "...#", ""],
+    "⚠": ["....#", "...###", "...#.#", "..##.##", "..##.##", ".###.###", ".#######", "####.####", "#########"],
+}
+
+
+def _hangul_set():
+    """KS X 1001 (2350 syllables, EUC-KR two-byte codes) plus every syllable the repository's texts use."""
+    out = set()
+    for cp in range(0xAC00, 0xD7A4):
+        try:
+            if len(chr(cp).encode("euc_kr")) == 2:
+                out.add(chr(cp))
+        except UnicodeEncodeError:
+            pass
+    for ch in _repo_chars():
+        if 0xAC00 <= ord(ch) <= 0xD7A3:
+            out.add(ch)
+    return sorted(out)
+
+
+def _repo_chars():
+    chars = set()
+    for pattern in TEXT_SOURCES:
+        for f in REPO.glob(pattern):
+            chars.update(f.read_text(encoding="utf-8"))
+    return chars
+
+
+def _text_set(font):
+    """ASCII, the signs (base set + whatever the texts use and we can draw), the Hangul jamo."""
+    out = [chr(c) for c in range(0x21, 0x7F)]
+    signs = set(BASE_SIGNS)
+    for ch in _repo_chars():
+        o = ord(ch)
+        if o > 0x7E and not (0xAC00 <= o <= 0xD7A3) and o <= 0xFFFF and (o in font or ch in OWN_SIGNS):
+            signs.add(ch)
+    out += sorted(s for s in signs if s not in out)
+    out += [chr(c) for c in range(0x3131, 0x3164) if c in font]
+    return out
+
+
+def letter(font, ch, cell):
+    """One letter in a cell whose top is ABOVE px over the baseline, white, with its advance marked."""
+    w, h = cell
+    im = Image.new("RGBA", (w, h), (0, 0, 0, 0))
+    if ch in OWN_SIGNS:
+        rows = OWN_SIGNS[ch]
+        ink = [(x, y) for y, r in enumerate(rows) for x, c in enumerate(r) if c == "#"]
+        advance = max(x for x, _ in ink) + 2
+    else:
+        advance, xo, yo, bits = font[ord(ch)]
+        top = ABOVE - (yo + len(bits))
+        ink = [(xo + x, top + y) for y, r in enumerate(bits) for x, b in enumerate(r) if b]
+    last = advance - 2                                  # the game: advance = rightmost column + 2
+    for x, y in ink:
+        if 0 <= x <= min(last, w - 1) and 0 <= y < h:
+            im.putpixel((x, y), (255, 255, 255, 255))
+    if 0 <= last < w and all(im.getpixel((last, y))[3] == 0 for y in range(h)):
+        im.putpixel((last, h - 1), MARK)
+    return im
+
 
 # ------------------------------------------------------------------------------------------------
 # Colours
 # ------------------------------------------------------------------------------------------------
 
-OUTLINE = (16, 18, 22)
-PANEL_ALPHA = 232
-BAR_BACK = (24, 26, 31, 210)
-BAR_EDGE = (10, 11, 14, 255)
+def mix(a, b, t):
+    return tuple(int(round(x + (y - x) * t)) for x, y in zip(a, b))
 
-FILLS = {   # light top row, body, dark bottom row
-    "red": ((255, 120, 108), (222, 54, 54), (150, 28, 38)),
-    "poison": ((200, 226, 104), (128, 172, 44), (74, 112, 26)),
-    "wither": ((122, 112, 124), (70, 62, 74), (36, 30, 40)),
-    "frozen": ((214, 244, 255), (124, 200, 238), (70, 140, 192)),
-    "food": ((255, 204, 128), (222, 142, 54), (150, 86, 30)),
-    "hunger": ((186, 196, 106), (124, 144, 62), (80, 92, 38)),
-    "armor": ((218, 230, 244), (150, 170, 196), (92, 108, 134)),
+
+FILLS = {   # light, body, shade
+    "red": ((255, 130, 116), (220, 52, 56), (138, 24, 36)),
+    "poison": ((214, 236, 120), (134, 176, 46), (70, 106, 26)),
+    "wither": ((136, 124, 140), (78, 68, 82), (36, 30, 40)),
+    "frozen": ((226, 248, 255), (128, 204, 240), (62, 132, 186)),
+    "abs": ((255, 238, 140), (240, 186, 52), (166, 112, 22)),
+    "food": ((255, 206, 132), (218, 136, 52), (134, 76, 28)),
+    "hunger": ((198, 208, 112), (128, 146, 60), (76, 88, 34)),
+    "armor": ((230, 238, 250), (156, 174, 200), (88, 102, 130)),
+    "air": ((214, 240, 255), (96, 176, 236), (40, 104, 176)),
+    "mount": ((255, 176, 132), (206, 104, 70), (122, 52, 36)),
+    "lost": ((255, 255, 255), (255, 226, 222), (226, 170, 170)),
+    "gain": ((246, 255, 238), (196, 246, 176), (120, 196, 110)),
 }
-STRIPES = {"abs": (255, 214, 84), "sat": (255, 236, 150)}
-FILL_W, FILL_H = 69, 7          # inside of the 71 x 9 bar frame
+SAT = (255, 228, 92)
+FILL_H = 7
+INNER = 50                     # the inside of a bar (the frame is 52 x 9)
+PIECES = (1, 2, 4, 8, 16, 32)
+
+OUTLINE = (16, 18, 22)
+BAR_RIM = (9, 10, 13)
+BAR_BACK = (22, 24, 30, 214)
+BAR_BACK_TOP = (12, 13, 17, 214)
+RIMS = {"frame": BAR_RIM, "frame_hit": (178, 46, 46), "frame_heal": (70, 170, 76)}
 
 # ------------------------------------------------------------------------------------------------
-# Small drawings (9 x 9 icons, 3 x 5 digits, 8 x 8 symbols)
+# Icons (9 x 9: 7 x 7 art and a 1 px outline)
 # ------------------------------------------------------------------------------------------------
 
 ICON_COLOURS = {
-    "r": (232, 60, 60), "R": (160, 30, 40), "h": (255, 170, 160),          # heart
-    "p": (140, 184, 50), "P": (80, 118, 30), "q": (214, 240, 140),         # poisoned heart
-    "x": (86, 78, 90), "X": (44, 38, 48), "z": (150, 140, 152),            # withered heart
-    "i": (140, 210, 245), "I": (76, 146, 196), "j": (226, 248, 255),       # frozen heart
-    "m": (214, 132, 60), "M": (150, 84, 34), "n": (246, 186, 120),         # meat
-    "u": (136, 152, 70), "U": (88, 100, 44), "v": (186, 200, 112),         # spoiled meat
-    "w": (238, 232, 216), "W": (178, 170, 154),                            # bone, paper
-    "s": (176, 192, 214), "S": (110, 126, 152), "t": (232, 240, 250),      # steel
-    "g": (246, 198, 78), "G": (184, 132, 42), "y": (255, 238, 160),        # gold
-    "b": (122, 86, 52), "B": (84, 58, 36),                                 # wood handle
-    "c": (96, 200, 120), "e": (240, 112, 72), "E": (180, 64, 40),          # check, flame
+    "r": (232, 56, 60), "R": (150, 26, 38), "h": (255, 168, 160),          # heart
+    "p": (140, 184, 50), "P": (76, 114, 28), "q": (214, 240, 140),         # poisoned heart
+    "x": (90, 80, 94), "X": (44, 38, 48), "z": (156, 146, 158),            # withered heart
+    "i": (140, 210, 245), "I": (70, 140, 196), "j": (232, 250, 255),       # frozen heart
+    "m": (214, 132, 60), "M": (148, 82, 34), "n": (248, 190, 124),         # meat
+    "u": (136, 152, 70), "U": (86, 98, 42), "v": (190, 204, 116),          # spoiled meat
+    "w": (240, 234, 218), "W": (176, 168, 152),                            # bone, paper
+    "s": (170, 186, 210), "S": (104, 120, 148), "t": (232, 240, 250),      # steel
+    "g": (246, 198, 78), "G": (184, 130, 40), "y": (255, 240, 168),        # gold
+    "b": (126, 88, 52), "B": (84, 58, 36),                                 # wood handle
+    "c": (96, 200, 120), "e": (242, 110, 70), "E": (176, 60, 38),          # check, flame
+    "a": (132, 200, 250), "A": (56, 118, 196), "o": (236, 248, 255),       # bubble
+    "d": (150, 102, 64), "D": (98, 64, 38), "f": (190, 140, 92),           # horse
     "k": (34, 37, 44),
 }
 
 ICONS = {
-    "heart": ["",
-              ".rr.rr.", "rhrrrrr", "rhrrrrr", "rrrrrrR", ".rrrrR.", "..rrR..", "...R..."],
-    "food": ["",
-             "....mmm", "...mnmmM", "...mmmmM", "...mmmMM", "..wMMMM.", ".w.....", "ww.....", ".w....."],
-    "armor": ["",
-              "sssssss", "tsSsSss", "tsssssS", "tssssSS", ".sssSS.", "..sSS..", "...S..."],
-    "coin": ["",
-             "..ggg..", ".gyggG.", "gyGGGgG", "ggGggGG", "ggGGGgG", ".ggggG.", "..GGG.."],
-    "job": ["",
-            ".sssss.", "sS...Ss", "....b..", "...b...", "..b....", ".b.....", "B......"],
-    "mission": ["",
-                ".wwwww.", ".wkkkW.", ".wwwwW.", ".wkkwW.", ".wwwccW", ".wwccW.", ".Wc.WW."],
-    "event": ["",
-              "...e...", "..eeE..", ".eeyeE.", ".eyyeE.", "eeyygEE", ".eggeE.", "..EEE.."],
-    "star": ["",
-             "...g...", "...g...", "gggyggG", ".gyygG.", ".ggGgG.", ".gG.GG.", ".G...G."],
-    "clock": ["",
-              "..www..", ".wwkwW.", "wwwkwwW", "wwwkkwW", "wwwwwwW", ".wwwwW.", "..WWW.."],
+    "heart": [".rr.rr.", "rhhrrrr", "rhrrrrR", "rrrrrrR", ".rrrrR.", "..rrR..", "...R..."],
+    "food": ["....mmm", "...mnnmM", "...mnmmM", "...mmmMM", "..wMMMM.", ".w.....", "ww.....", ".w....."],
+    "armor": ["tt...sS", "ttsssSS", ".tsssS.", ".tssSS.", ".tsssS.", ".tssSS.", ".SSSSS."],
+    "air": ["..AAA..", ".AooaA.", "Aoaaa.A", "Aaaaa.A", "Aaaa..A", ".A...A.", "..AAA.."],
+    "mount": ["....D.D", "...ddDD", "..dkddD", ".ddddfD", "ddd.dfD", "dd..dfD", "...ddfD"],
+    "coin": ["..ggg..", ".gyygG.", "gygGGgG", "gyGggGG", "ggGGGgG", ".gggGG.", "..GGG.."],
+    "job": [".sssss.", "sS...Ss", "....b..", "...b...", "..b....", ".b.....", "B......"],
+    "mission": [".wwwww.", ".wkkkW.", ".wwwwW.", ".wkkwW.", ".wwwccW", ".wwccW.", ".Wc.WW."],
+    "event": ["...e...", "..eeE..", ".eeyeE.", ".eyyeE.", "eeyygEE", ".eggeE.", "..EEE.."],
+    "star": ["...g...", "...g...", "gggyggG", ".gyygG.", ".ggGgG.", ".gG.GG.", ".G...G."],
+    "clock": ["..www..", ".wwkwW.", "wwwkwwW", "wwwkkwW", "wwwwwwW", ".wwwwW.", "..WWW.."],
 }
-# heart variants: same shape, other colours
-for name, (a, b, c) in {"heart_poison": "pPq", "heart_wither": "xXz", "heart_frozen": "iIj"}.items():
-    ICONS[name] = [row.replace("r", a).replace("R", b).replace("h", c) for row in ICONS["heart"]]
+for _name, (_a, _b, _c) in {"heart_poison": "pPq", "heart_wither": "xXz", "heart_frozen": "iIj"}.items():
+    ICONS[_name] = [row.replace("r", _a).replace("R", _b).replace("h", _c) for row in ICONS["heart"]]
 ICONS["food_hunger"] = [row.replace("m", "u").replace("M", "U").replace("n", "v") for row in ICONS["food"]]
 
 DIGITS = {
@@ -122,37 +212,11 @@ DIGITS = {
     ".": ["...", "...", "...", "...", ".#."],
 }
 DIGIT_FACE = (250, 248, 240)
-DIGIT_EDGE = (22, 16, 18)
-
-# 8 x 8 cells, baseline under row 6 like the game's ASCII (row 7 = below the line)
-SYMBOLS = {
-    "·": ["", "", "", "##", "##"],
-    "•": ["", "", ".##", "####", "####", ".##"],
-    "→": ["", "", "...#", "....#", "######", "....#", "...#"],
-    "←": ["", "", "..#", ".#", "######", ".#", "..#"],
-    "×": ["", "", "#...#", ".#.#", "..#", ".#.#", "#...#"],
-    "◀": ["", "...#", "..##", ".###", "####", ".###", "..##", "...#"],
-    "▶": ["", "#", "##", "###", "####", "###", "##", "#"],
-    "▲": ["", "", "..#", ".###", "#####", "", ""],
-    "▼": ["", "", "#####", ".###", "..#", "", ""],
-    "◆": ["", "..#", ".###", "#####", ".###", "..#"],
-    "◇": ["", "..#", ".#.#", "#...#", ".#.#", "..#"],
-    "★": ["", "...#", "...#", "#######", ".#####", "..###", ".##.##", "#.....#"],
-    "☆": ["", "...#", "..#.#", "##...##", ".#...#", "..#.#", ".#.#.#", "#.....#"],
-    "✔": ["", ".....#", "....#", "#..##", "##.#", ".##", "..#"],
-    "…": ["", "", "", "", "", "", "#.#.#"],
-    "±": ["", "..#", "..#", "#####", "..#", "..#", "#####"],
-    "»": ["", "", "#.#", ".#.#", "..#.#", ".#.#", "#.#"],
-    "«": ["", "", "..#.#", ".#.#", "#.#", ".#.#", "..#.#"],
-    "─": ["", "", "", "", "########"],
-    "⚠": ["", "...#", "..#.#", "..#.#", ".#.#.#", ".#...#", "#..#..#", "#######"],
-    "■": ["", "", "#####", "#####", "#####", "#####", "#####"],
-    "❤": ["", ".##.##", "#######", "#######", ".#####", "..###", "...#"],
-}
+DIGIT_EDGE = (20, 16, 18)
 
 
 def _outlined(rows, size, colours, outline=OUTLINE):
-    """rows of colour letters ('.' = empty) inside a size x size cell, with a 1 px dark outline."""
+    """rows of colour letters ('.' = empty) inside a size cell, with a 1 px dark outline around them."""
     w, h = size
     im = Image.new("RGBA", (w, h), (0, 0, 0, 0))
     filled = {(x, y) for y, row in enumerate(rows) for x, ch in enumerate(row) if ch != "." and x < w and y < h}
@@ -167,7 +231,7 @@ def _outlined(rows, size, colours, outline=OUTLINE):
 
 
 def icon(name):
-    rows = [("." + r) for r in ICONS[name]]          # one column for the left outline
+    rows = [""] + [("." + r) for r in ICONS[name]]      # one row / column for the outline
     return _outlined(rows, (9, 9), ICON_COLOURS)
 
 
@@ -176,161 +240,198 @@ def digit(ch):
     return _outlined(rows, (5, 7), {"f": DIGIT_FACE}, DIGIT_EDGE)
 
 
-def symbol(ch):
-    im = Image.new("RGBA", (8, 8), (0, 0, 0, 0))
-    for y, row in enumerate(SYMBOLS[ch]):
-        for x, c in enumerate(row):
-            if c == "#":
-                im.putpixel((x, y), (255, 255, 255, 255))
-    return im
-
-
-def hangul_set():
-    """KS X 1001 (2350 syllables, EUC-KR two-byte codes) plus every syllable the repository's texts use."""
-    out = set()
-    for cp in range(0xAC00, 0xD7A4):
-        try:
-            if len(chr(cp).encode("euc_kr")) == 2:
-                out.add(chr(cp))
-        except UnicodeEncodeError:
-            pass
-    for pattern in TEXT_SOURCES:
-        for f in REPO.glob(pattern):
-            out.update(ch for ch in f.read_text(encoding="utf-8") if 0xAC00 <= ord(ch) <= 0xD7A3)
-    return sorted(out)
-
-
-def hangul_glyph(font, ch):
-    """One syllable in a 16 x 16 cell as Unifont draws it, moved left onto column 0 (the game trims the
-    empty columns on the left of a Unifont glyph too)."""
-    im = Image.new("L", (16, 16), 0)
-    ImageDraw.Draw(im).text((0, 0), ch, font=font, fill=255)
-    box = im.getbbox()
-    out = Image.new("RGBA", (16, 16), (0, 0, 0, 0))
-    if box:
-        mask = im.point(lambda v: 255 if v >= 128 else 0)
-        white = Image.new("RGBA", (16, 16), (255, 255, 255, 255))
-        shifted = Image.new("L", (16, 16), 0)
-        shifted.paste(mask.crop((box[0], 0, 16, 16)), (0, 0))
-        out.paste(white, (0, 0), shifted)
-    return out
-
-
 # ------------------------------------------------------------------------------------------------
-# Bars and panel
+# Bars: a 52 x 9 frame, fills of 1 .. 32 px (7 px tall) and a leading edge, segment ticks
 # ------------------------------------------------------------------------------------------------
 
-def bar_frame(w):
-    """A w x 9 bar: a dark rounded rim around a dim inside (the fill is drawn over the inside)."""
-    im = Image.new("RGBA", (w, 9), (0, 0, 0, 0))
+def frame(rim):
+    im = Image.new("RGBA", (INNER + 2, 9), (0, 0, 0, 0))
     d = ImageDraw.Draw(im)
-    d.rectangle([0, 0, w - 1, 8], fill=BAR_EDGE)
-    d.rectangle([1, 1, w - 2, 7], fill=BAR_BACK)
-    for x, y in ((0, 0), (w - 1, 0), (0, 8), (w - 1, 8)):
+    d.rectangle([0, 0, INNER + 1, 8], fill=rim + (255,))
+    d.rectangle([1, 1, INNER, 7], fill=BAR_BACK)
+    d.line([1, 1, INNER, 1], fill=BAR_BACK_TOP)
+    for x, y in ((0, 0), (INNER + 1, 0), (0, 8), (INNER + 1, 8)):
         im.putpixel((x, y), (0, 0, 0, 0))
     return im
 
 
-def fill(colours, k):
+def _fill_column(colours):
     light, base, shade = colours
-    im = Image.new("RGBA", (FILL_W, FILL_H), (0, 0, 0, 0))
+    return [light, mix(light, base, 0.5), base, base, base, mix(base, shade, 0.5), shade]
+
+
+def fill_piece(colours, k):
+    im = Image.new("RGBA", (32, FILL_H), (0, 0, 0, 0))
+    col = _fill_column(colours)
     for x in range(k):
         for y in range(FILL_H):
-            c = light if y == 0 else shade if y == FILL_H - 1 else base
-            if y in (1, 2) and x < k - 1:
-                c = tuple(min(255, int(v * 0.6 + l * 0.4)) for v, l in zip(base, light)) if y == 1 else base
-            im.putpixel((x, y), c + (255,))
-    if k >= 3:   # a darker end so a part-filled bar reads as a level
-        for y in range(1, FILL_H - 1):
-            im.putpixel((k - 1, y), tuple(int(v * 0.8) for v in base) + (255,))
+            im.putpixel((x, y), col[y] + (255,))
     return im
 
 
-def stripe(colour, k):
-    im = Image.new("RGBA", (FILL_W, 1), (0, 0, 0, 0))
+def fill_edge(colours):
+    """The leading edge of a fill: a bright column, so a part-filled bar reads as a level."""
+    light, base, shade = colours
+    im = Image.new("RGBA", (32, FILL_H), (0, 0, 0, 0))
+    col = [mix(light, (255, 255, 255), 0.35)] * 2 + [mix(base, light, 0.7)] * 3 + [mix(base, light, 0.3), shade]
+    for y in range(FILL_H):
+        im.putpixel((0, y), col[y] + (255,))
+    return im
+
+
+def tick(on):
+    im = Image.new("RGBA", (1, FILL_H), (0, 0, 0, 0))
+    for y in range(FILL_H):
+        if on:
+            im.putpixel((0, y), (0, 0, 0, 96 if y in (0, FILL_H - 1) else 120))
+        elif 0 < y < FILL_H - 1:
+            im.putpixel((0, y), (255, 255, 255, 30))
+    return im
+
+
+def line_piece(colour, k):
+    im = Image.new("RGBA", (32, 1), (0, 0, 0, 0))
     for x in range(k):
         im.putpixel((x, 0), colour + (255,))
     return im
 
 
-PANEL_FILL = T.PANEL + (PANEL_ALPHA,)
-CAP = 4
-SEGMENTS = (1, 2, 4, 8, 16, 32, 64, 128)
-STRIPS = {"panel_head": 18, "panel_row": 11, "panel_div": 11, "panel_foot": 5}
-GOLD_ACCENT = 28
-HEAD_LINE = 14       # row of the gold line in the head strip
+# ------------------------------------------------------------------------------------------------
+# Panel: drawn whole for a sample size, then cut into strips
+# ------------------------------------------------------------------------------------------------
+
+PANEL_ALPHA = 236
+HEAD_BG = (33, 36, 44)
+HEAD_H, ROW_H, FOOT_H = 19, 13, 3     # strips: title (to the gold line and the top padding), a row, the bottom
+GOLD_ROW = 15
+CAP_L, CAP_R = 4, 4                   # the right cap is one column wider for the drop shadow
+STRIP_PIECES = (1, 2, 4, 8, 16, 32, 64)
+SHADOW = (0, 0, 0, 84)
+DIVIDER = (24, 26, 32)
+MARK_LEFT = 5                          # the server mark's x in the title strip
 
 
-def _strip_column(kind, part):
-    """The colours of one column of a strip, top to bottom. part: 'l0'..'l3', 'f' (fill), 'r0'..'r3'."""
-    h = STRIPS[kind]
-    col = [PANEL_FILL] * h
-    top = kind == "panel_head"
-    bottom = kind == "panel_foot"
-    if top:
-        col[0] = T.EDGE_OUT + (255,)
-        col[1] = T.EDGE_LIGHT + (255,)
-    if bottom:
-        col[h - 1] = T.EDGE_OUT + (255,)
-        col[h - 2] = T.EDGE_DARK + (255,)
-    if part == "l0":
-        col = [T.EDGE_OUT + (255,)] * h
-    elif part == "l1":
-        col = [T.EDGE_LIGHT + (255,)] * h
-        if top:
-            col[0] = T.EDGE_OUT + (255,)
-        if bottom:
-            col[h - 1] = T.EDGE_OUT + (255,)
-            col[h - 2] = T.EDGE_DARK + (255,)
-    elif part == "r3":
-        col = [T.EDGE_OUT + (255,)] * h
-    elif part == "r2":
-        col = [T.EDGE_DARK + (255,)] * h
-        if top:
-            col[0] = T.EDGE_OUT + (255,)
-            col[1] = T.EDGE_LIGHT + (255,)
-        if bottom:
-            col[h - 1] = T.EDGE_OUT + (255,)
-    if part == "f":
-        if top:
-            col[HEAD_LINE] = T.GOLD_DIM + (255,)
-        if kind == "panel_div":
-            col[0] = (64, 69, 80, 255)
-    if top and part in ("l0", "r3"):
-        col[0] = (0, 0, 0, 0)
-        col[1] = col[1] if part == "l0" else col[1]
-    if bottom and part in ("l0", "r3"):
-        col[h - 1] = (0, 0, 0, 0)
-    return col
+def panel_picture(w, rows):
+    """A whole panel w px wide (plus 1 px shadow right and below) with `rows` body rows."""
+    h = HEAD_H + ROW_H * rows + FOOT_H - 1           # the bottom outline is the strip's last visible row
+    im = Image.new("RGBA", (w + 1, h + 1), (0, 0, 0, 0))
+    px = im.load()
+    body = T.PANEL + (PANEL_ALPHA,)
+    head = HEAD_BG + (244,)
+    for y in range(h):
+        for x in range(w):
+            px[x, y] = head if 2 <= y < GOLD_ROW else body
+    for x in range(2, w - 2):
+        px[x, GOLD_ROW] = T.GOLD_DIM + (255,)
+    for x in range(w):                                 # bevel: light top/left, dark bottom/right
+        px[x, 1] = T.EDGE_LIGHT + (255,)
+        px[x, h - 2] = T.EDGE_DARK + (255,)
+    for y in range(1, h - 1):
+        px[1, y] = T.EDGE_LIGHT + (255,)
+        px[w - 2, y] = T.EDGE_DARK + (255,)
+    px[w - 2, 1] = mix(T.EDGE_LIGHT, T.EDGE_DARK, 0.5) + (255,)
+    px[1, h - 2] = mix(T.EDGE_LIGHT, T.EDGE_DARK, 0.5) + (255,)
+    for x in range(w):                                 # outline with rounded corners
+        px[x, 0] = T.EDGE_OUT + (255,)
+        px[x, h - 1] = T.EDGE_OUT + (255,)
+    for y in range(h):
+        px[0, y] = T.EDGE_OUT + (255,)
+        px[w - 1, y] = T.EDGE_OUT + (255,)
+    for x, y in ((0, 0), (w - 1, 0), (0, h - 1), (w - 1, h - 1)):
+        px[x, y] = (0, 0, 0, 0)
+    for y in range(2, h + 1):                          # drop shadow
+        px[w, y] = SHADOW
+    for x in range(2, w):
+        px[x, h] = SHADOW
+    return im
 
 
 def strip_sheet(kind):
-    """Cells of 128 x h: 'l' (left edge, 4 px), 'r' (right edge, 4 px), fills of 1..128 px."""
-    h = STRIPS[kind]
-    names = ["l", "r"] + [str(s) for s in SEGMENTS]
+    """Cells of 64 x height in one row: 'l' (left cap), 'r' (right cap + shadow), fills of 1 .. 64 px,
+    and in the title strip the server mark and its gold accent."""
+    sample = panel_picture(CAP_L + 64 + CAP_R, 1)
+    y0, hh = {"panel_head": (0, HEAD_H), "panel_row": (HEAD_H, ROW_H),
+              "panel_foot": (HEAD_H + ROW_H, FOOT_H)}[kind]
+    band = sample.crop((0, y0, sample.width, y0 + hh))
+    names, cells = [], []
+
+    def cell(part):
+        im = Image.new("RGBA", (64, hh), (0, 0, 0, 0))
+        im.alpha_composite(part, (0, 0))
+        return im
+
+    names.append("l")
+    cells.append(cell(band.crop((0, 0, CAP_L, hh))))
+    names.append("r")
+    cells.append(cell(band.crop((sample.width - CAP_R - 1, 0, sample.width, hh))))
+    column = band.crop((CAP_L + 8, 0, CAP_L + 9, hh))
+    for k in STRIP_PIECES:
+        im = Image.new("RGBA", (64, hh), (0, 0, 0, 0))
+        for x in range(k):
+            im.paste(column, (x, 0))
+        names.append(str(k))
+        cells.append(im)
     if kind == "panel_head":
-        names.append("gold")
-    cells = []
-    for n in names:
-        im = Image.new("RGBA", (128, h), (0, 0, 0, 0))
-        if n in ("l", "r"):
-            for x in range(CAP):
-                for y, c in enumerate(_strip_column(kind, f"{n}{x}")):
-                    im.putpixel((x, y), c)
-            if kind == "panel_head":   # round the outer corner: no light pixel on the corner itself
-                if n == "l":
-                    im.putpixel((1, 1), T.EDGE_LIGHT + (255,))
-                    im.putpixel((0, 1), T.EDGE_OUT + (255,))
-        elif n == "gold":
-            for x in range(GOLD_ACCENT):
-                im.putpixel((x, HEAD_LINE), T.GOLD + (255,))
-        else:
-            col = _strip_column(kind, "f")
-            for x in range(int(n)):
-                for y, c in enumerate(col):
-                    im.putpixel((x, y), c)
+        logo = server_mark()
+        im = Image.new("RGBA", (64, hh), (0, 0, 0, 0))
+        im.alpha_composite(logo, (0, 4))
+        names.append("mark")
+        cells.append(im)
+        im = Image.new("RGBA", (64, hh), (0, 0, 0, 0))
+        for x in range(logo.width - 1):
+            im.putpixel((x, GOLD_ROW), T.GOLD + (255,))
+        names.append("accent")
         cells.append(im)
     return names, cells
+
+
+def divider_sheet():
+    names, cells = [], []
+    for k in STRIP_PIECES:
+        im = Image.new("RGBA", (64, 1), (0, 0, 0, 0))
+        for x in range(k):
+            im.putpixel((x, 0), DIVIDER + (255,))
+        names.append(str(k))
+        cells.append(im)
+    return names, cells
+
+
+# The server mark: a gold gem and "STSV" in bold 2 px strokes, a warm gradient, a dark outline (9 px tall)
+MARK_LETTERS = {
+    "S": [".#####", "##....", "##....", ".####.", "....##", "....##", "#####."],
+    "T": ["######", "..##..", "..##..", "..##..", "..##..", "..##..", "..##.."],
+    "V": ["##..##", "##..##", "##..##", "##..##", ".####.", ".####.", "..##.."],
+}
+GEM = ["...#...", "..#h#..", ".#hh##.", "#hh###G", ".##GGG.", "..#GG..", "...G..."]
+
+
+def server_mark():
+    top, bottom = (255, 222, 132), (255, 112, 58)
+    rows = [""] * 9
+    x = 0
+    cells = {}
+    for y, r in enumerate(GEM):
+        for i, c in enumerate(r):
+            if c != ".":
+                cells[(x + 1 + i, y + 1)] = {"#": T.GOLD, "h": (255, 236, 160), "G": T.GOLD_DIM}[c]
+    x += 7 + 3
+    for ch in "STSV":
+        for y, r in enumerate(MARK_LETTERS[ch]):
+            for i, c in enumerate(r):
+                if c == "#":
+                    cells[(x + 1 + i, y + 1)] = mix(top, bottom, y / 6)
+        x += 6 + 1
+    w = max(p[0] for p in cells) + 2
+    im = Image.new("RGBA", (w, 9), (0, 0, 0, 0))
+    for (cx, cy) in cells:
+        for dx in (-1, 0, 1):
+            for dy in (-1, 0, 1):
+                q = (cx + dx, cy + dy)
+                if q not in cells and 0 <= q[0] < w and 0 <= q[1] < 9 and (dx == 0 or dy == 0):
+                    im.putpixel(q, (40, 22, 14, 255))
+    for (cx, cy), c in cells.items():
+        im.putpixel((cx, cy), c + (255,))
+    return im
 
 
 # ------------------------------------------------------------------------------------------------
@@ -347,31 +448,31 @@ def _sheet(cells, cell, cols):
 
 def sheets():
     """name -> (cell (w, h), cols, height on screen, cell names, cell images)."""
+    font = galmuri.load()
     out = {}
-    font = ImageFont.truetype(UNIFONT, 16)
-    syll = hangul_set()
-    out["hangul"] = ((16, 16), 64, 8, syll, [hangul_glyph(font, ch) for ch in syll])
-    sy = list(SYMBOLS)
-    out["symbols"] = ((8, 8), 16, 8, sy, [symbol(ch) for ch in sy])
+    tx = _text_set(font)
+    out["text"] = (TEXT_CELL, 16, TEXT_CELL[1], tx, [letter(font, ch, TEXT_CELL) for ch in tx])
+    syll = _hangul_set()
+    out["hangul"] = (HANGUL_CELL, 64, HANGUL_CELL[1], syll, [letter(font, ch, HANGUL_CELL) for ch in syll])
     dg = list(DIGITS)
     out["digits"] = ((5, 7), 16, 7, dg, [digit(ch) for ch in dg])
     out["icons"] = ((9, 9), 8, 9, list(ICONS), [icon(n) for n in ICONS])
-    out["bar"] = ((71, 9), 2, 9, ["frame", "frame_short"], [bar_frame(71), bar_frame(41)])
+    out["frame"] = ((INNER + 2, 9), 3, 9, list(RIMS), [frame(c) for c in RIMS.values()])
     names, cells = [], []
     for colour, ramp in FILLS.items():
-        for k in range(1, FILL_W + 1):
+        for k in PIECES:
             names.append(f"{colour}/{k}")
-            cells.append(fill(ramp, k))
-    out["fill"] = ((FILL_W, FILL_H), FILL_W, FILL_H, names, cells)
-    names, cells = [], []
-    for colour, c in STRIPES.items():
-        for k in range(1, FILL_W + 1):
-            names.append(f"{colour}/{k}")
-            cells.append(stripe(c, k))
-    out["stripe"] = ((FILL_W, 1), FILL_W, 1, names, cells)
-    for kind, h in STRIPS.items():
+            cells.append(fill_piece(ramp, k))
+        names.append(f"{colour}/edge")
+        cells.append(fill_edge(ramp))
+    out["fill"] = ((32, FILL_H), len(PIECES) + 1, FILL_H, names, cells)
+    out["tick"] = ((1, FILL_H), 2, FILL_H, ["on", "off"], [tick(True), tick(False)])
+    out["line"] = ((32, 1), len(PIECES), 1, [f"sat/{k}" for k in PIECES], [line_piece(SAT, k) for k in PIECES])
+    for kind in ("panel_head", "panel_row", "panel_foot"):
         names, cells = strip_sheet(kind)
-        out[kind] = ((128, h), 4, h, names, cells)
+        out[kind] = ((64, cells[0].height), len(names), cells[0].height, names, cells)
+    names, cells = divider_sheet()
+    out["panel_div"] = ((64, 1), len(names), 1, names, cells)
     return out
 
 
@@ -382,51 +483,82 @@ def write(out_dir: Path = OUT):
     for f in out_dir.glob("*.png"):
         if f.stem not in built:
             f.unlink()
+    old = out_dir / "LICENSE-unifont.txt"
+    if old.exists():
+        old.unlink()
     for name, (cell, cols, height, names, cells) in built.items():
         _sheet(cells, cell, cols).save(out_dir / f"{name}.png", optimize=True)
         manifest[name] = {"file": f"{name}.png", "cell": list(cell), "cols": cols, "height": height, "names": names}
     (out_dir / "sheets.json").write_text(json.dumps(manifest, ensure_ascii=False, separators=(",", ":")) + "\n",
                                          encoding="utf-8")
-    (out_dir / "LICENSE-unifont.txt").write_text(
-        "hangul.png holds Hangul syllables rasterised from GNU Unifont (https://unifoundry.com/unifont/).\n"
-        "Copyright: Jungshik Shin (1998-), Roman Czyborra (1998-2014), Qianqian Fang (2004-2013),\n"
-        "Luis Alejandro Gonzalez Miranda (2005), Paul Hardy (2007-), Andrew Miller (2013-2014),\n"
-        "David Corbett (2017-), Johnnie Weaver (2018) and the other Unifont contributors.\n"
-        "Unifont is dual-licensed under the GNU GPL v2 or later with the GNU font embedding exception, and\n"
-        "the SIL Open Font License 1.1 (https://openfontlicense.org). The other HUD pictures are STSV's own.\n",
+    (out_dir / "LICENSE-galmuri.txt").write_text(
+        "text.png and hangul.png hold letters drawn from Galmuri9 (https://galmuri.quiple.dev), version 2.40.3.\n"
+        "The other HUD pictures are STSV's own.\n\n" + galmuri.LICENSE.read_text(encoding="utf-8"),
         encoding="utf-8")
     return {k: len(v[3]) for k, v in built.items()}
 
 
 # ------------------------------------------------------------------------------------------------
-# Preview: the draw list the core writes (HudPreviewTest) on a mock 1920 x 1080 screen
+# Preview: the draw list the core writes (HudPreviewTest) on mock screens
 # ------------------------------------------------------------------------------------------------
 
-# pen advance of the game's ASCII letters (the same table as dev.stsv.core.hud.HudText), for the preview only
-ASCII_WIDTHS = dict(zip((chr(c) for c in range(0x21, 0x7F)),
-                        (int(v) for v in "2466662444626266666666666225656766666666466666666666666666464663666665662653666666646666664247")))
-
-
-def _scene(w, h):
+def _scene(w, h, water=False):
     """A plain daytime backdrop: sky gradient, a horizon of hills and grass (no game textures)."""
     im = Image.new("RGBA", (w, h))
     d = ImageDraw.Draw(im)
     for y in range(h):
         t = y / h
-        if t < 0.55:
+        if water:
+            c = (int(40 + 30 * (1 - t)), int(90 + 50 * (1 - t)), int(160 + 40 * (1 - t)))
+        elif t < 0.55:
             c = (int(120 + 60 * t), int(170 + 50 * t), 235)
         else:
             u = (t - 0.55) / 0.45
             c = (int(92 - 30 * u), int(140 - 40 * u), int(64 - 20 * u))
         d.line([(0, y), (w, y)], fill=c + (255,))
-    for k in range(7):
-        x = k * w // 6
-        d.ellipse([x - w // 5, int(h * 0.48), x + w // 5, int(h * 0.7)], fill=(70 + k * 4, 112, 70, 255))
+    if not water:
+        for k in range(7):
+            x = k * w // 6
+            d.ellipse([x - w // 5, int(h * 0.48), x + w // 5, int(h * 0.7)], fill=(70 + k * 4, 112, 70, 255))
     return im
 
 
-def _mock_vanilla(screen, gw, gh, s):
-    """Stand-ins for what the game still draws: hotbar, experience bar, level (plain shapes)."""
+class Glyphs:
+    def __init__(self):
+        self.manifest = json.loads((OUT / "sheets.json").read_text(encoding="utf-8"))
+        self.imgs = {k: Image.open(OUT / v["file"]).convert("RGBA") for k, v in self.manifest.items()}
+        self.cache = {}
+
+    def cell(self, sheet, name):
+        key = (sheet, name)
+        if key not in self.cache:
+            m = self.manifest[sheet]
+            k = m["names"].index(name)
+            cw, ch = m["cell"]
+            self.cache[key] = self.imgs[sheet].crop(((k % m["cols"]) * cw, (k // m["cols"]) * ch,
+                                                     (k % m["cols"]) * cw + cw, (k // m["cols"]) * ch + ch))
+        return self.cache[key]
+
+
+def _put(screen, glyph, x, y, s, colour=(255, 255, 255), shadow=False):
+    """A glyph at GUI (x, y), scaled by s, multiplied by colour, alpha under 0.1 dropped like the game."""
+    g = glyph.resize((glyph.width * s, glyph.height * s), Image.NEAREST)
+    a = g.split()[3].point(lambda v: 0 if v < 26 else v)
+    if shadow:
+        sh = Image.new("RGBA", g.size, tuple(v // 4 for v in colour) + (255,))
+        sh.putalpha(a)
+        screen.alpha_composite(sh, (int((x + 1) * s), int((y + 1) * s)))
+    if colour != (255, 255, 255):
+        r, gg, b, _ = g.split()
+        g = Image.merge("RGBA", (r.point(lambda v: v * colour[0] // 255), gg.point(lambda v: v * colour[1] // 255),
+                                 b.point(lambda v: v * colour[2] // 255), a))
+    else:
+        g.putalpha(a)
+    screen.alpha_composite(g, (int(x * s), int(y * s)))
+
+
+def _mock_vanilla(screen, glyphs, gw, gh, s, level, effects):
+    """Stand-ins for what the game still draws: hotbar, experience bar and level, status effect icons."""
     d = ImageDraw.Draw(screen)
     cx = gw // 2
 
@@ -439,58 +571,63 @@ def _mock_vanilla(screen, gw, gh, s):
     rect(cx - 91, gh - 22, cx - 91 + 22, gh, None, (240, 240, 240, 255))
     rect(cx - 91, gh - 29, cx + 91, gh - 24, (30, 30, 30, 255))
     rect(cx - 91, gh - 29, cx + 20, gh - 24, (128, 255, 32, 255))
+    if level:
+        # the level number: the game's font in green with a black outline (drawn here with the HUD's letters)
+        text = str(level)
+        w = sum(_advance(glyphs, ch) for ch in text) - 1
+        x0, y0 = (gw - w) // 2, gh - 35 - 2
+        for dx, dy, col in ((1, 0, (0, 0, 0)), (-1, 0, (0, 0, 0)), (0, 1, (0, 0, 0)), (0, -1, (0, 0, 0)), (0, 0, (128, 255, 32))):
+            x = x0 + dx
+            for ch in text:
+                _put(screen, glyphs.cell("text", ch), x, y0 + dy, s, col)
+                x += _advance(glyphs, ch)
+    for i in range(effects):
+        x = gw - 25 * (i + 1)
+        rect(x, 1, x + 24, 25, (54, 58, 66, 230), (140, 140, 150, 255))
+        rect(x + 3, 4, x + 21, 22, [(200, 80, 220, 255), (90, 170, 255, 255), (240, 200, 60, 255)][i % 3])
 
 
-def preview(draws_path: Path, out: Path):
-    """draws.json: {"scales": [{"scale": s, "draws": [...]}]} written by the core's HudPreviewTest:
-    every glyph as the game places it (gui x/y of its top-left, sheet, cell) for a 1920 x 1080 window."""
-    data = json.loads(Path(draws_path).read_text(encoding="utf-8"))
-    manifest = json.loads((OUT / "sheets.json").read_text(encoding="utf-8"))
-    imgs = {k: Image.open(OUT / v["file"]).convert("RGBA") for k, v in manifest.items()}
-    uni = ImageFont.truetype(UNIFONT, 16)
-    W, H = 1920, 1080
-    panels = []
-    for entry in data["scales"]:
-        s = entry["scale"]
-        gw, gh = -(-W // s), -(-H // s)
-        screen = _scene(W, H)
-        _mock_vanilla(screen, gw, gh, s)
-        for dr in entry["draws"]:
-            x, y = dr["x"] + gw / 2, dr["y"] + (gh if dr["anchor"] == "bottom" else 0)
-            colour = tuple(int(dr.get("color", "ffffff")[i:i + 2], 16) for i in (0, 2, 4))
-            if dr["sheet"] == "ascii":
-                # the game's ascii.png is not in the repository: the preview draws ASCII with Unifont
-                # (narrow 8 px Unifont letters stretched to the game's letter width, so the spacing reads right)
-                g = Image.new("L", (16, 16), 0)
-                ImageDraw.Draw(g).text((0, 0), dr["cell"], font=uni, fill=255)
-                box = g.getbbox() or (0, 0, 1, 16)
-                width = max(1, ASCII_WIDTHS.get(dr["cell"], 6) - 1)
-                g = g.crop((box[0], 2, box[2], 16)).resize((width * s, 7 * s), Image.NEAREST)
-                glyph = Image.new("RGBA", g.size, colour + (255,))
-                glyph.putalpha(g)
-                yy = y + 0.5   # Unifont's ASCII sits one half pixel lower than its row grid here
-            else:
-                m = manifest[dr["sheet"]]
-                k = m["names"].index(dr["cell"])
-                cw, ch = m["cell"]
-                cell = imgs[dr["sheet"]].crop(((k % m["cols"]) * cw, (k // m["cols"]) * ch,
-                                               (k % m["cols"]) * cw + cw, (k // m["cols"]) * ch + ch))
-                scale = m["height"] / ch
-                glyph = cell.resize((max(1, round(cw * scale * s)), max(1, round(ch * scale * s))), Image.NEAREST)
-                if colour != (255, 255, 255):
-                    glyph = _multiply(glyph, colour)   # the game multiplies a glyph by its text colour
-                yy = y
-            if dr.get("shadow"):
-                sh = Image.new("RGBA", glyph.size, tuple(v // 4 for v in colour) + (255,))
-                sh.putalpha(glyph.split()[3])
-                screen.alpha_composite(sh, (int((x + 1) * s), int((yy + 1) * s)))
-            screen.alpha_composite(glyph, (int(x * s), int(yy * s)))
-        label = ImageDraw.Draw(screen)
-        label.rectangle([0, 0, 640, 34], fill=(0, 0, 0, 170))
-        label.text((10, 6), f"1920 x 1080 · GUI {s} ({gw} x {gh}) · {entry.get('label', '')}",
-                   font=ImageFont.truetype(UNIFONT, 16), fill=(255, 255, 255, 255))
-        panels.append(screen.resize((W // 2, H // 2), Image.LANCZOS) if "--half" in sys.argv else screen)
-    w = max(p.width for p in panels)
+def _advance(glyphs, ch):
+    im = glyphs.cell("text", ch)
+    w = 0
+    for x in range(im.width - 1, -1, -1):
+        if any(im.getpixel((x, y))[3] for y in range(im.height)):
+            w = x + 1
+            break
+    return w + 1
+
+
+def render(scene, glyphs):
+    W, H, s = scene["width"], scene["height"], scene["scale"]
+    gw, gh = -(-W // s), -(-H // s)
+    screen = _scene(W, H, scene.get("water", False))
+    _mock_vanilla(screen, glyphs, gw, gh, s, scene.get("level", 0), scene.get("effects", 0))
+    for dr in scene["draws"]:
+        x, y = dr["x"] + gw // 2, dr["y"] + (gh if dr["anchor"] == "bottom" else 0)
+        colour = tuple(int(dr.get("color", "ffffff")[i:i + 2], 16) for i in (0, 2, 4))
+        _put(screen, glyphs.cell(dr["sheet"], dr["cell"]), x, y, s, colour, dr.get("shadow", False))
+    return screen
+
+
+def _label(im, text, size=16):
+    d = ImageDraw.Draw(im)
+    font = ImageFont.truetype("/usr/share/fonts/opentype/unifont/unifont.otf", size)
+    w = int(d.textlength(text, font=font)) + 20
+    d.rectangle([0, 0, w, size + 14], fill=(0, 0, 0, 190))
+    d.text((10, 6), text, font=font, fill=(255, 255, 255, 255))
+
+
+def _caption(im, text, size=16):
+    """The picture with a caption strip above it."""
+    out = Image.new("RGBA", (im.width, im.height + size + 12), (12, 12, 14, 255))
+    font = ImageFont.truetype("/usr/share/fonts/opentype/unifont/unifont.otf", size)
+    ImageDraw.Draw(out).text((8, 5), text, font=font, fill=(235, 235, 235, 255))
+    out.alpha_composite(im, (0, size + 12))
+    return out
+
+
+def _stack(panels, out, width=None):
+    w = width or max(p.width for p in panels)
     sheet = Image.new("RGBA", (w, sum(p.height for p in panels) + 8 * (len(panels) - 1)), (20, 20, 24, 255))
     y = 0
     for p in panels:
@@ -499,12 +636,43 @@ def preview(draws_path: Path, out: Path):
     sheet.convert("RGB").save(out, optimize=True)
 
 
-def _multiply(glyph, colour):
-    r, g, b, a = glyph.split()
-    r = r.point(lambda v: v * colour[0] // 255)
-    g = g.point(lambda v: v * colour[1] // 255)
-    b = b.point(lambda v: v * colour[2] // 255)
-    return Image.merge("RGBA", (r, g, b, a))
+def preview(draws_path: Path, out_dir: Path):
+    """draws.json (HudPreviewTest): {"pages": {page: [scene, ...]}}; a scene: width, height, scale, label,
+    optional crop [gui x0, gui y0 from the bottom, gui w, gui h] and zoom, and every glyph as the game places
+    it (gui x from the middle, y from the top or the bottom, sheet, cell, colour, shadow)."""
+    data = json.loads(Path(draws_path).read_text(encoding="utf-8"))
+    glyphs = Glyphs()
+    for page, scenes in data["pages"].items():
+        panels = []
+        for sc in scenes:
+            im = render(sc, glyphs)
+            if "crop" in sc:
+                s = sc["scale"]
+                gw, gh = -(-sc["width"] // s), -(-sc["height"] // s)
+                cx, cy, cw, ch = sc["crop"]
+                box = ((gw // 2 + cx) * s, (gh - cy) * s, (gw // 2 + cx + cw) * s, (gh - cy + ch) * s)
+                im = im.crop(box)
+                z = sc.get("zoom", 1)
+                im = im.resize((im.width * z, im.height * z), Image.NEAREST)
+                im = _caption(im, sc["label"])
+            else:
+                if sc.get("thumb"):
+                    im = im.resize((sc["thumb"], im.height * sc["thumb"] // im.width), Image.LANCZOS)
+                _label(im, f"{sc['width']} x {sc['height']} · GUI {sc['scale']} · {sc['label']}")
+            panels.append(im)
+        if page.endswith("states"):
+            cols = 2
+            cw = max(p.width for p in panels)
+            rows = [panels[i:i + cols] for i in range(0, len(panels), cols)]
+            lines = []
+            for r in rows:
+                line = Image.new("RGBA", (cw * cols + 8 * (cols - 1), max(p.height for p in r)), (20, 20, 24, 255))
+                for i, p in enumerate(r):
+                    line.alpha_composite(p, (i * (cw + 8), 0))
+                lines.append(line)
+            _stack(lines, out_dir / f"{page}.png")
+        else:
+            _stack(panels, out_dir / f"{page}.png")
 
 
 if __name__ == "__main__":

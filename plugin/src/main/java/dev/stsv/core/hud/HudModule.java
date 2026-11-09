@@ -46,18 +46,22 @@ import java.util.function.Function;
  * Two looks (config hud.mode):
  * <ul>
  *   <li>pack (default): drawn with the server resource pack's fonts (HudLayout). The sidebar is a charcoal and
- *       gold panel with an icon per row, in the title of a boss bar whose bar the pack makes see-through; the
- *       hearts, hunger and armor are replaced by bars with numbers ("18 / 20") on the action bar, and one-off
- *       messages are shown on the same action bar above them, so both are always visible. Nothing touches the
- *       player's scoreboard, so other plugins' scoreboards and teams keep working. Players whose client refused
- *       the pack get the scoreboard sidebar instead and keep the game's hearts.</li>
+ *       gold panel with the server mark and an icon per row, in the title of a boss bar whose bar the pack makes
+ *       see-through; the hearts, hunger, armor, air bubbles and a mount's hearts are replaced by segmented bars
+ *       with their numbers beside them on the action bar (status colours, absorption, saturation, a short flash
+ *       when health drops or jumps), and one-off messages are shown on the same action bar above them, so both
+ *       are always visible. Nothing touches the player's scoreboard, so other plugins' scoreboards and teams keep
+ *       working. Players whose client refused the pack get the scoreboard sidebar instead and keep the game's
+ *       hearts.</li>
  *   <li>scoreboard: the sidebar on the player's own scoreboard, the game's hearts.</li>
  * </ul>
- * Every player can hide the sidebar (/사이드바, kept on the player: HudToggle).
+ * Every player can hide the sidebar (/사이드바, kept on the player: HudToggle) and put the panel against their own
+ * screen's right edge (/사이드바 위치, HudPosition).
  *
  * Sidebar: contents add rows ({@link #sidebar}), each asked every refresh, null to hide; shown top to bottom by
- * their order under a title. Component.empty() is a gap (a divider line in the panel). The panel picks each row's
- * icon by the row's id (hud.sidebar.icons).
+ * their order under a title. Component.empty() is a gap (a divider line in the panel). A tab in a row separates
+ * its label from its value (the panel puts the value against its right edge; the scoreboard shows a space). The
+ * panel picks each row's icon by the row's id (hud.sidebar.icons).
  *
  * Contents add lines ({@link #line}): each is asked every refresh and may answer null to stay hidden; the visible
  * ones are joined left to right by their order. A one-off action-bar message must go through {@link #flash} so the
@@ -95,7 +99,7 @@ public final class HudModule implements StsvModule, Listener, CommandExecutor, T
     private BossBar.Color panelColour = BossBar.Color.WHITE;
     private int resendTicks = 20;
     private final Map<String, String> icons = new HashMap<>();
-    private NamespacedKey toggleKey;
+    private NamespacedKey toggleKey, positionKey;
     private final Map<UUID, BossBar> panels = new ConcurrentHashMap<>();
     private final Set<UUID> packReady = ConcurrentHashMap.newKeySet();
     private final Set<UUID> packRefused = ConcurrentHashMap.newKeySet();
@@ -112,6 +116,7 @@ public final class HudModule implements StsvModule, Listener, CommandExecutor, T
         this.plugin = plugin;
         instance = this;
         toggleKey = new NamespacedKey(plugin, "hud_sidebar");
+        positionKey = new NamespacedKey(plugin, "hud_sidebar_right");
         Bukkit.getPluginManager().registerEvents(this, plugin);
         // a plugin reload with players online: they already have the pack
         for (Player p : Bukkit.getOnlinePlayers()) packReady.add(p.getUniqueId());
@@ -166,7 +171,7 @@ public final class HudModule implements StsvModule, Listener, CommandExecutor, T
 
     static HudLayout.Settings settings(org.bukkit.configuration.Configuration cfg) {
         HudLayout.Settings d = HudLayout.Settings.defaults();
-        return new HudLayout.Settings(cfg.getInt("hud.sidebar.x", d.sidebarX()), cfg.getInt("hud.sidebar.y", d.sidebarY()),
+        return new HudLayout.Settings(cfg.getInt("hud.sidebar.right", d.sidebarRight()), cfg.getInt("hud.sidebar.y", d.sidebarY()),
                 cfg.getInt("hud.sidebar.max-width", d.sidebarMaxWidth()), cfg.getInt("hud.sidebar.max-rows", d.sidebarRows()),
                 cfg.getBoolean("hud.health.armor", d.armor()));
     }
@@ -303,7 +308,10 @@ public final class HudModule implements StsvModule, Listener, CommandExecutor, T
     HudLayout.Health healthFor(Player p) {
         if (!healthOn || layout == null || !packFor(p)) return null;
         GameMode gm = p.getGameMode();
-        if (gm == GameMode.CREATIVE || gm == GameMode.SPECTATOR || p.isDead()) return null;
+        if (gm == GameMode.CREATIVE || gm == GameMode.SPECTATOR || p.isDead()) {
+            flashTracks.remove(p.getUniqueId());
+            return null;
+        }
         AttributeInstance maxAttr = p.getAttribute(Attribute.MAX_HEALTH);
         AttributeInstance armorAttr = p.getAttribute(Attribute.ARMOR);
         double max = maxAttr == null ? 20 : maxAttr.getValue();
@@ -311,9 +319,34 @@ public final class HudModule implements StsvModule, Listener, CommandExecutor, T
         HudLayout.Tint tint = p.hasPotionEffect(PotionEffectType.POISON) ? HudLayout.Tint.POISON
                 : p.hasPotionEffect(PotionEffectType.WITHER) ? HudLayout.Tint.WITHER
                 : p.isFrozen() ? HudLayout.Tint.FROZEN : HudLayout.Tint.NORMAL;
-        return new HudLayout.Health(p.getHealth(), max, p.getAbsorptionAmount(), p.getFoodLevel(), p.getSaturation(), armor, tint,
-                p.hasPotionEffect(PotionEffectType.HUNGER), !(p.getVehicle() instanceof LivingEntity));
+        HudLayout.Health h = new HudLayout.Health(p.getHealth(), max, p.getAbsorptionAmount(), p.getFoodLevel(), p.getSaturation(),
+                armor, tint, p.hasPotionEffect(PotionEffectType.HUNGER));
+        if (p.getVehicle() instanceof LivingEntity mount) {
+            AttributeInstance m = mount.getAttribute(Attribute.MAX_HEALTH);
+            h = h.withMount(new HudLayout.Mount(mount.getHealth(), m == null ? mount.getHealth() : m.getValue()));
+        }
+        int air = p.getRemainingAir(), maxAir = p.getMaximumAir();
+        if (maxAir > 0 && (air < maxAir || p.isUnderWater())) {
+            // one step per pixel of the bar: the bar is sent again only when it changes on screen
+            int step = Math.max(1, maxAir / HudLayout.INNER);
+            h = h.withAir(new HudLayout.Air(air <= 0 ? 0 : Math.min(maxAir, -Math.floorDiv(-air, step) * step), maxAir));
+        }
+        FlashTrack t = flashTracks.get(p.getUniqueId());
+        double total = h.total();
+        if (t == null) t = new FlashTrack(total, null, 0, 0);
+        else if (total <= t.last() - 0.5) t = new FlashTrack(total, HudLayout.Flash.LOST, t.flash() == HudLayout.Flash.LOST ? t.from() : t.last(), tick + FLASH_TICKS);
+        else if (total >= t.last() + 2) t = new FlashTrack(total, HudLayout.Flash.GAIN, t.flash() == HudLayout.Flash.GAIN ? t.from() : t.last(), tick + FLASH_TICKS);
+        else t = new FlashTrack(total, t.flash(), t.from(), t.until());
+        if (t.flash() != null && tick >= t.until()) t = new FlashTrack(total, null, 0, 0);
+        flashTracks.put(p.getUniqueId(), t);
+        return t.flash() == null ? h : h.withFlash(t.flash(), t.from());
     }
+
+    /** The health last seen and the flash running (until the tick given). */
+    private record FlashTrack(double last, HudLayout.Flash flash, double from, long until) {}
+
+    private static final int FLASH_TICKS = 12;
+    private final Map<UUID, FlashTrack> flashTracks = new ConcurrentHashMap<>();
 
     private void refreshBars() {
         tick += 2;
@@ -419,7 +452,7 @@ public final class HudModule implements StsvModule, Listener, CommandExecutor, T
                 out.add(new HudLayout.Row(icons.get(e.id()), e.text(), divider));
                 divider = false;
             }
-            Component panel = out.isEmpty() ? null : layout.panel(Lang.mm("hud.sidebar-title"), out);
+            Component panel = out.isEmpty() ? null : layout.panel(out, panelRight(p));
             if (panel == null) hidePanel(p);
             else showPanel(p, panel);
             return;
@@ -430,8 +463,18 @@ public final class HudModule implements StsvModule, Listener, CommandExecutor, T
             return;
         }
         List<Component> tidy = new ArrayList<>();
-        if (want) for (Entry e : entries(p)) tidy.add(e.text());
+        if (want) for (Entry e : entries(p)) tidy.add(e.text().replaceText(TAB_TO_SPACE));
         scoreboardSidebar(p, tidy);
+    }
+
+    /** Sidebar rows put a tab between label and value (the panel's columns); the scoreboard shows a space. */
+    private static final net.kyori.adventure.text.TextReplacementConfig TAB_TO_SPACE =
+            net.kyori.adventure.text.TextReplacementConfig.builder().matchLiteral("\t").replacement(" ").build();
+
+    /** The panel's right edge for this player: their own (/사이드바 위치) or the server's (hud.sidebar.right). */
+    int panelRight(Player p) {
+        Integer own = p.getPersistentDataContainer().get(positionKey, PersistentDataType.INTEGER);
+        return own != null ? own : layout.settings().sidebarRight();
     }
 
     private void showPanel(Player p, Component panel) {
@@ -504,6 +547,10 @@ public final class HudModule implements StsvModule, Listener, CommandExecutor, T
             sender.sendMessage(Lang.msg("common.players-only"));
             return true;
         }
+        if (args.length >= 1 && (args[0].equals("위치") || args[0].equalsIgnoreCase("pos") || args[0].equalsIgnoreCase("position"))) {
+            position(p, java.util.Arrays.copyOfRange(args, 1, args.length));
+            return true;
+        }
         Boolean on = HudToggle.apply(store(p), args.length == 0 ? null : args[0]);
         if (on == null) {
             p.sendMessage(Lang.msg("hud.sidebar-usage"));
@@ -514,10 +561,51 @@ public final class HudModule implements StsvModule, Listener, CommandExecutor, T
         return true;
     }
 
+    /** /사이드바 위치 ...: where this player's panel goes (HudPosition). */
+    private void position(Player p, String[] args) {
+        if (mode != Mode.PACK || layout == null) {
+            p.sendMessage(Lang.msg("hud.position-scoreboard"));
+            return;
+        }
+        HudPosition.Change c = HudPosition.parse(args, panelRight(p));
+        var pdc = p.getPersistentDataContainer();
+        switch (c.kind()) {
+            case USAGE -> {
+                p.sendMessage(Lang.msg("hud.position-usage", "right", panelRight(p)));
+                return;
+            }
+            case RESET -> {
+                pdc.remove(positionKey);
+                p.sendMessage(Lang.msg("hud.position-reset"));
+            }
+            case WINDOW -> {
+                pdc.set(positionKey, PersistentDataType.INTEGER, c.right());
+                p.sendMessage(Lang.msg("hud.position-window", "width", c.width(), "height", c.height(), "scale", c.scale(),
+                        "right", c.right()));
+            }
+            default -> {
+                pdc.set(positionKey, PersistentDataType.INTEGER, c.right());
+                p.sendMessage(Lang.msg("hud.position-moved", "right", c.right()));
+            }
+        }
+        refreshSidebar(p);
+    }
+
+    private static final List<String> WINDOWS = List.of("1920x1080", "2560x1440", "1280x720", "1366x768", "1600x900",
+            "1920x1200", "2560x1080", "3440x1440", "3840x2160");
+
     @Override
     public List<String> onTabComplete(CommandSender sender, Command command, String alias, String[] args) {
-        if (args.length != 1) return List.of();
-        return List.of("켜기", "끄기").stream().filter(s -> s.startsWith(args[0])).toList();
+        List<String> options;
+        if (args.length == 1) options = List.of("켜기", "끄기", "위치");
+        else if (args.length == 2 && args[0].equals("위치")) {
+            options = new ArrayList<>(WINDOWS);
+            options.addAll(List.of("기본", "+5", "-5"));
+        } else if (args.length == 3 && args[0].equals("위치") && args[1].contains("x")) {
+            options = List.of("자동", "1", "2", "3", "4", "5", "6");
+        } else return List.of();
+        String typed = args[args.length - 1];
+        return options.stream().filter(s -> s.startsWith(typed)).toList();
     }
 
     // ------------------------------------------------------------------------------------------
@@ -581,5 +669,6 @@ public final class HudModule implements StsvModule, Listener, CommandExecutor, T
         packRefused.remove(u);
         flashes.remove(u);
         sent.remove(u);
+        flashTracks.remove(u);
     }
 }

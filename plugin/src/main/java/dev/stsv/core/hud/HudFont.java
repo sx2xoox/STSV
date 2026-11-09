@@ -13,9 +13,12 @@ import java.util.Map;
  * Every font starts with a space provider: the space (4 px, as in the game's font) and the pen shifts
  * U+F800 + b (+2^b px) and U+F810 + b (-2^b px), b = 0..10. Picture fonts give each (sheet, height on
  * screen) a bitmap provider whose named cells get private-use characters from U+E000 on, in the order
- * they are added (so the same settings always make the same font). Text fonts use the real characters:
- * the game's own ascii.png referenced at a chosen height, the Hangul and symbol sheets, and, for the
- * action bar line only, the game's default font as a last resort for anything else.
+ * they are added (so the same settings always make the same font). Text fonts use the real characters
+ * of the HUD's own letter sheets (Galmuri9) at a chosen height, and, for the action bar line only, the
+ * game's default font as a last resort for anything else.
+ *
+ * Every bitmap provider keeps its whole sheet in the client's memory (RGBA), once per provider: a text
+ * font costs about 0.8 MB, a picture provider a few kB.
  */
 final class HudFont {
 
@@ -29,7 +32,7 @@ final class HudFont {
     private final Map<String, Character> glyphs = new HashMap<>();
     private final Map<Character, Integer> advances = new HashMap<>();
     private char next = '';
-    private boolean ascii, fallback;
+    private boolean fallback;
     private HudSheets sheets;
 
     HudFont(String name) {
@@ -124,21 +127,14 @@ final class HudFont {
     // Text
     // ------------------------------------------------------------------------------------------
 
-    /** ASCII 0x21..0x7E as the game draws it (its own ascii.png), Hangul and symbols, all at one ascent. */
+    /**
+     * The HUD's letters (sheets text and hangul: ASCII, signs, jamo, Hangul, one font pixel per GUI pixel) with
+     * their tops at one ascent: 9 px above the baseline, so ascent 9 puts the baseline where the game's own
+     * text has it.
+     */
     void text(HudSheets sheets, int ascent) {
         this.sheets = sheets;
-        this.ascii = true;
-        JsonArray rows = new JsonArray();
-        for (int r = 0; r < 16; r++) {
-            StringBuilder row = new StringBuilder();
-            for (int c = 0; c < 16; c++) {
-                int cp = r * 16 + c;
-                row.append(cp > 0x20 && cp < 0x7F ? (char) cp : '\u0000');
-            }
-            rows.add(row.toString());
-        }
-        providers.add(bitmap("minecraft:font/ascii.png", ascent, 8, rows));
-        for (String s : new String[]{"hangul", "symbols"}) {
+        for (String s : new String[]{"text", "hangul"}) {
             HudSheets.Sheet sheet = sheets.sheet(s);
             JsonArray chars = new JsonArray();
             for (int r = 0; r < sheet.rows(); r++) {
@@ -169,7 +165,6 @@ final class HudFont {
     /** Advance of a text character in this font, -1 if the font has no glyph for it (fallback aside). */
     int textAdvance(int cp) {
         if (cp == ' ') return 4;
-        if (ascii && cp > 0x20 && cp < 0x7F) return HudText.ascii(cp);
         if (sheets != null) return sheets.charAdvance(cp);
         return -1;
     }

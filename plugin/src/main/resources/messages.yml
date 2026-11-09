@@ -184,17 +184,24 @@ time:
 hud:
   # 상태 줄(액션바) 항목 사이 구분자
   separator: "  <dark_gray>|</dark_gray>  "
-  # 오른쪽 사이드바 제목
+  # 오른쪽 사이드바 제목 (스코어보드 사이드바용. 리소스팩 패널은 제목 자리에 서버 마크 그림을 그림)
   sidebar-title: "<gradient:#ffb35c:#ff6a3d><b>STSV</b></gradient>"
   # /사이드바
   sidebar-on: "<green>사이드바를 켰습니다. <gray>(/사이드바 로 끄기)"
   sidebar-off: "<gray>사이드바를 껐습니다. <dark_gray>(/사이드바 로 다시 켜기)"
-  sidebar-usage: "<gray>사용법: <white>/사이드바 <gray>[켜기|끄기] <dark_gray>(그냥 /사이드바 = 켜기·끄기 전환)"
+  sidebar-usage: "<gray>사용법: <white>/사이드바 <gray>[켜기|끄기] <dark_gray>(그냥 /사이드바 = 켜기·끄기 전환) <gray>· <white>/사이드바 위치 <gray>= 화면 오른쪽 끝에 맞추기"
+  # /사이드바 위치 (사이드바 줄의 탭 문자 앞은 이름, 뒤는 값: 리소스팩 패널에서 값이 오른쪽 끝에 붙음)
+  position-usage: "<gray>사용법: <white>/사이드바 위치 <가로>x<세로> <gray>[GUI 크기|자동] <dark_gray>예) /사이드바 위치 1920x1080 3<newline><gray>내 화면 해상도와 GUI 크기를 알려 주면 패널이 화면 오른쪽 끝에 딱 붙습니다. <white>+10 <gray>/ <white>-10 <gray>으로 조금씩 옮기기, <white>기본 <gray>으로 되돌리기 <dark_gray>(지금: 가운데에서 {right}픽셀)"
+  position-window: "<green>사이드바를 화면 오른쪽 끝에 맞췄습니다. <gray>({width}x{height}, GUI {scale}) <dark_gray>· 되돌리기: /사이드바 위치 기본"
+  position-moved: "<green>사이드바 위치를 옮겼습니다. <gray>(가운데에서 {right}픽셀) <dark_gray>· 되돌리기: /사이드바 위치 기본"
+  position-reset: "<gray>사이드바를 기본 위치로 되돌렸습니다."
+  position-scoreboard: "<gray>스코어보드 사이드바는 위치를 바꿀 수 없습니다. <dark_gray>(리소스팩 HUD 에서만)"
 
 economy:
   # 금액 표시 형식: {amount} = 1,234
   amount: "<gold>{amount} G</gold>"
-  hud: "<gray>잔액 {balance}"
+  # 사이드바 줄: 탭(\t) 앞 = 이름, 뒤 = 값 (리소스팩 패널에서 값이 오른쪽 끝에 붙음)
+  hud: "<gray>잔액\t{balance}"
   balance: "<gray>잔액: </gray>{balance}"
   balance-other: "<white>{player}</white><gray>의 잔액: </gray>{balance}"
   top-header: "<gold><b>부자 순위</b>"
