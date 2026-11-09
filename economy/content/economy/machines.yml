@@ -168,7 +168,7 @@ forge:
   name: "대장간"
   item: economy:forge
   job: blacksmith
-  lanes: [2, 3, 3, 3]   # 기본, 1강, 2강, 3강의 줄 수 (가공 직업: 0강부터 2줄)
+  lanes: [2, 3, 3, 4]   # 기본, 1강, 2강, 3강의 줄 수 (가공 직업: 0강부터 2줄, 3강은 원래대로 4줄)
   model: forge
   effect: { particle: flame, at: [22, 14, 21], sound: block.anvil.use, volume: 0.25, pitch: 1.0 }
   recipes:
@@ -260,7 +260,7 @@ still:
   name: "증류기"
   item: economy:still
   job: alchemist
-  lanes: [2, 3, 3, 3]   # 기본, 1강, 2강, 3강의 줄 수 (가공 직업: 0강부터 2줄)
+  lanes: [2, 3, 3, 4]   # 기본, 1강, 2강, 3강의 줄 수 (가공 직업: 0강부터 2줄, 3강은 원래대로 4줄)
   model: still
   effect: { particle: bubble_pop, at: [10, 18, 12.5], sound: block.brewing_stand.brew, volume: 0.35, pitch: 0.8 }
   recipes:
