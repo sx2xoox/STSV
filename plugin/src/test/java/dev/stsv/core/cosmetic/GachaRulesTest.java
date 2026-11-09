@@ -188,7 +188,7 @@ class GachaRulesTest {
         rarity.forEach((id, rr) -> {
             if (rr == Rarity.LEGENDARY) assertFalse(obtain.get(id).contains("뽑기"), id);
         });
-        // the expected cost of one particular cosmetic by 10-pulls stays near the old shop prices
+        // the expected cost of one particular cosmetic by 10-pulls is never below the old shop price (the gacha is a money sink)
         Set<Rarity> in = GachaRules.rarities(pool);
         double perDraw = r.multiPrice() / (double) r.multiCount();
         Map<Rarity, Long> count = new EnumMap<>(Rarity.class);
@@ -196,7 +196,7 @@ class GachaRulesTest {
         Map<Rarity, Double> shop = Map.of(Rarity.COMMON, 12_500.0, Rarity.RARE, 25_000.0, Rarity.EPIC, 50_000.0);
         for (Rarity x : in) {
             double cost = perDraw * count.get(x) / r.chance(x, in);
-            assertEquals(shop.get(x), cost, shop.get(x) * 0.25, x + ": " + Math.round(cost));
+            assertTrue(cost >= shop.get(x), x + ": " + Math.round(cost));
         }
     }
 }
