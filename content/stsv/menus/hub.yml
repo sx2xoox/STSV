@@ -10,7 +10,7 @@ hub:
   background: stsv:gui/hub
   layout:
     - ".P.B.Y.t."
-    - "..QRSTZ.."
+    - ".QgR.STZ."
     - "...UVW..."
     - "....X...."
   buttons:
@@ -50,6 +50,12 @@ hub:
       material: LEATHER_CHESTPLATE
       name: "<white>치장"
       lore: ["<gray>모자, 날개, 펫... 입어 보고 꾸미기", "<gray>보유: <white>{cosmetics}"]
+    g:
+      action: "command:뽑기"
+      icon: stsv:gui/gacha
+      material: SNOWBALL
+      name: "<white>치장 뽑기"
+      lore: ["<gray>모자, 날개, 펫... 무작위로 하나", "<gray>이미 가진 치장은 교환권으로 (거래소에서 팔 수 있음)"]
     R:
       action: "command:칭호"
       icon: stsv:gui/tag

@@ -116,8 +116,15 @@ class ContentTest {
             inCategories.addAll(c.items());
         }
         assertEquals(List.copyOf(shop.sell().keySet()), inCategories, "each sold item in one category");
+        // 치장: the core's 치장 뽑기 instead of goods; no cosmetic is sold directly any more
+        assertTrue(shop.buyCategories().stream().anyMatch(c -> c.id().equals("cosmetics") && c.gacha() && c.goods().isEmpty()));
+        assertTrue(shop.goods().stream().noneMatch(g -> g.kind().equals("cosmetic")), "cosmetics come from the gacha");
         for (var c : shop.buyCategories()) {
-            if (c.goods().isEmpty() || !(exists(c.icon(), ours) || coreItems().contains(c.icon()))) problems.add("buy category " + c.id());
+            if (c.gacha()) {
+                if (!coreItems().contains(c.icon())) problems.add("buy category " + c.id() + " icon");
+                continue;
+            }
+            if (c.goods().isEmpty() ||!(exists(c.icon(), ours) || coreItems().contains(c.icon()))) problems.add("buy category " + c.id());
             boolean vanity = c.goods().getFirst().vanity();
             if (c.goods().stream().anyMatch(g -> g.vanity() != vanity)) problems.add("buy category " + c.id() + " mixes items with cosmetics/titles");
         }

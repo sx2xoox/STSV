@@ -16,7 +16,7 @@ wardrobe:
     - ".LLLLLLL."
     - ".LLLLLLL."
     - ".LLLLLLL."
-    - "P.TI.SX.N"
+    - "P.TIgSX.N"
   list: L
   buttons:
     # 탭: 지금 탭은 반짝임. 아이콘은 그 부위 치장 모델
@@ -117,6 +117,12 @@ wardrobe:
         - "<dark_gray>켜면 1인칭에서도 어깨 친구 등이 보일 수 있어요."
         - ""
         - "<gray>클릭: <white>켜기 / 끄기"
+    g:
+      action: wardrobe:gacha
+      icon: stsv:gui/gacha
+      material: SNOWBALL
+      name: "<white>치장 뽑기"
+      lore: ["<gray>새 치장 얻기 (/뽑기)", "<gray>이미 가진 치장은 교환권으로", "<dark_gray>클릭: 옷장을 나가서 뽑기 화면으로"]
     X:
       action: wardrobe:exit
       icon: stsv:gui/exit

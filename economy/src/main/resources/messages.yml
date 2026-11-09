@@ -68,6 +68,8 @@ shop:
   # 상점 카테고리 (구매 · 판매 화면)
   category-name: "<white>{name}"
   category-buy: ["<gray>{count}종 · {min} ~ {max}", "<yellow>클릭: 열기"]
+  # 구매 → 치장 뽑기 (코어의 /뽑기 화면을 엶)
+  category-gacha: ["<gray>모자, 날개, 펫, 발자취... 무작위로 하나", "<gray>1회 {single} · {count}회 {multi}", "<gray>이미 가진 치장은 교환권으로 (거래소에서 팔 수 있음)", "<yellow>클릭: 열기"]
   category-merchant: ["<light_purple>사건 한정 · 선착순", "<gray>{count}종 · 남은 수량 {left}개", "<yellow>클릭: 열기"]
   category-sell: ["<gray>{count}종"]
   category-open: ["<yellow>클릭: 시세 보기 · 팔기"]

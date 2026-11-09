@@ -53,7 +53,15 @@ public record ShopCatalog(
         }
     }
 
-    public record BuyCategory(String id, String name, String icon, List<Good> goods) {}
+    /**
+     * A 구매 category. gacha = the core's 치장 뽑기 instead of goods (shop.yml {@code gacha: true}): the tile opens
+     * the gacha menu, which has its own prices (contents/stsv/gacha.yml).
+     */
+    public record BuyCategory(String id, String name, String icon, List<Good> goods, boolean gacha) {
+        public BuyCategory(String id, String name, String icon, List<Good> goods) {
+            this(id, name, icon, goods, false);
+        }
+    }
 
     public record LimitedEntry(int index, String id, int amount, long price, int stock) {}
 
@@ -148,12 +156,14 @@ public record ShopCatalog(
                     problems.add("buy." + key + ": name, icon, items 필요");
                     continue;
                 }
+                boolean gacha = e.getBoolean("gacha");
                 List<Good> goods = new ArrayList<>();
                 for (Map<?, ?> m : e.getMapList("items")) {
                     Good g = good(m, "buy." + key, problems);
                     if (g != null) goods.add(g);
                 }
-                buyCats.add(new BuyCategory(key, e.getString("name", key), norm(e.getString("icon", "chest")), goods));
+                if (gacha && !goods.isEmpty()) problems.add("buy." + key + ": gacha 카테고리에는 items 를 두지 않음 (무시)");
+                buyCats.add(new BuyCategory(key, e.getString("name", key), norm(e.getString("icon", "chest")), gacha ? List.of() : goods, gacha));
             }
         } else {
             // an older file: one list of items, and the vanity list beside it

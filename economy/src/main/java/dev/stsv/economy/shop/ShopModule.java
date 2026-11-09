@@ -733,7 +733,12 @@ public final class ShopModule extends EcoModule implements DailyListener {
             shown.addAll(centred(entries, ShopCatalog.MAX_CATEGORIES));
             List<ItemStack> out = new ArrayList<>();
             for (Object o : shown) {
-                if (o instanceof ShopCatalog.BuyCategory c) {
+                if (o instanceof ShopCatalog.BuyCategory c && c.gacha()) {
+                    var g = core.gacha();
+                    out.add(tile(c.icon(), c.name(), Lang.items("shop.category-gacha",
+                            "single", EconomyModule.format(g == null ? 0 : g.singlePrice()),
+                            "count", g == null ? 10 : g.multiCount(), "multi", EconomyModule.format(g == null ? 0 : g.multiPrice()))));
+                } else if (o instanceof ShopCatalog.BuyCategory c) {
                     long min = c.goods().stream().mapToLong(ShopCatalog.Good::price).min().orElse(0);
                     long max = c.goods().stream().mapToLong(ShopCatalog.Good::price).max().orElse(0);
                     out.add(tile(c.icon(), c.name(), Lang.items("shop.category-buy", "count", c.goods().size(),
@@ -755,7 +760,9 @@ public final class ShopModule extends EcoModule implements DailyListener {
             if (index >= shown.size()) return;
             Object o = shown.get(index);
             Player p = v.player();
-            if (o instanceof ShopCatalog.BuyCategory c) later(() -> core.menus().open(p, "economy:shop_buy_items", new BuyItems(c)));
+            if (o instanceof ShopCatalog.BuyCategory c && c.gacha()) {
+                if (core.gacha() != null) later(() -> core.gacha().open(p, () -> openBuy(p)));
+            } else if (o instanceof ShopCatalog.BuyCategory c) later(() -> core.menus().open(p, "economy:shop_buy_items", new BuyItems(c)));
             else if (o instanceof ActiveEvent e) later(() -> core.menus().open(p, "economy:shop_buy_items", new MerchantItems(e)));
         }
     }

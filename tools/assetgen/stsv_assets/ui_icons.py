@@ -565,8 +565,38 @@ def _pearl():
     return draw(rows)
 
 
+COLOURS.update({
+    "c": (236, 84, 108), "C": (164, 46, 70),               # capsule red (치장 뽑기)
+})
+
+
+def _gacha():
+    """치장 뽑기: a capsule toy, red top with a glint, a dark seam, a light bottom shaded to the lower right, and a
+    sparkle at the top right."""
+    rows = []
+    for y in range(16):
+        row = ""
+        for x in range(16):
+            dx, dy = x - 7, y - 8.5
+            if dx * dx + dy * dy > 33:
+                row += "."
+            elif y == 8:
+                row += "k"
+            elif x in (4, 5) and y in (4, 5):
+                row += "#"
+            elif y < 8:
+                row += "C" if dx + dy >= 2.5 or dx * dx + dy * dy > 24 and dx > 0 else "c"
+            else:
+                row += "s" if dx + dy >= 5 or dx * dx + dy * dy > 22 and dx + dy > 1 else "#"
+        rows.append(row)
+    rows[0] = rows[0][:13] + "g" + rows[0][14:]
+    rows[1] = rows[1][:12] + "ggg" + rows[1][15:]
+    rows[2] = rows[2][:13] + "g" + rows[2][14:]
+    return draw(rows)
+
+
 def hub_icons():
-    return {"pearl": _pearl(), "house": draw(HOUSE), "pine": draw(PINE), "tag": draw(TAG), "podium": draw(PODIUM), "send": draw(SEND),
+    return {"gacha": _gacha(), "pearl": _pearl(), "house": draw(HOUSE), "pine": draw(PINE), "tag": draw(TAG), "podium": draw(PODIUM), "send": draw(SEND),
             "trade": draw(TRADE), "mail": draw(MAIL), "pickaxe": draw(PICKAXE), "checklist": draw(CHECKLIST),
             "scroll": draw(SCROLL), "book": draw(BOOK), "flag": draw(FLAG), "alert": draw(ALERT), "monument": draw(MONUMENT),
             "candles": _candles()}

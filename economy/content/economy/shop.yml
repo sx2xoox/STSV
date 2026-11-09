@@ -408,59 +408,15 @@ buy:
       - { item: bread, amount: 8, price: 40 }
       - { item: glass_bottle, amount: 8, price: 16 }
       - { item: cobblestone, amount: 64, price: 30 }
-  # 치장·칭호 (과시 소비: 돈이 사라지고 계정에 남음, 두 번 눌러 삼)
-  # 치장 값: 일반 12,000 · 희귀 25,000 · 영웅 50,000 (탈 3종은 원래 값)
-  # 전설 치장(왕관, 천사의 고리, 천사·악마 날개)은 팔지 않음: 주간 순위 1위 보상, 상인 행렬 사건 (아래 merchant.rare)
+  # 치장: 직접 팔지 않고 치장 뽑기로 (코어의 /뽑기 화면이 열림). 가격·확률·나오는 치장은 contents/stsv/gacha.yml
+  # (특정 치장 하나를 얻는 데 드는 돈의 기댓값을 예전 상점가에 맞춤). 이미 가진 치장은 교환권(거래소에서 사고팔 수 있음)으로 나옴.
+  # 전설 치장(왕관, 천사의 고리, 천사·악마 날개, 한정 펫 3종)은 뽑기에도 없음: 주간 순위 1위 보상, 상인 행렬 사건 (아래 merchant.rare)
+  # 예전처럼 직접 팔려면 gacha 줄을 지우고 items: [ { cosmetic: stsv:straw_hat, price: 12000 }, ... ] (두 번 눌러 삼)
   cosmetics:
-    name: "치장"
+    name: "치장 뽑기"
     icon: stsv:butterfly_wings
-    items:
-      # 머리
-      - { cosmetic: stsv:tomato_mask, price: 15000 }
-      - { cosmetic: stsv:eggplant_mask, price: 15000 }
-      - { cosmetic: stsv:mushroom_mask, price: 30000 }
-      - { cosmetic: stsv:straw_hat, price: 12000 }
-      - { cosmetic: stsv:cat_ears, price: 12000 }
-      - { cosmetic: stsv:frog_hat, price: 25000 }
-      - { cosmetic: stsv:wizard_hat, price: 25000 }
-      - { cosmetic: stsv:gat, price: 50000 }
-      # 머리 위
-      - { cosmetic: stsv:sprout, price: 12000 }
-      - { cosmetic: stsv:heart, price: 25000 }
-      - { cosmetic: stsv:rain_cloud, price: 50000 }
-      # 어깨
-      - { cosmetic: stsv:chick, price: 12000 }
-      - { cosmetic: stsv:slime, price: 25000 }
-      - { cosmetic: stsv:shoulder_cat, price: 50000 }
-      # 등
-      - { cosmetic: stsv:school_bag, price: 12000 }
-      - { cosmetic: stsv:bear_backpack, price: 25000 }
-      - { cosmetic: stsv:bunny_backpack, price: 25000 }
-      - { cosmetic: stsv:butterfly_wings, price: 50000 }
-      # 꼬리
-      - { cosmetic: stsv:cat_tail, price: 12000 }
-      - { cosmetic: stsv:fox_tail, price: 25000 }
-      # 펫
-      - { cosmetic: stsv:puppy, price: 12000 }
-      - { cosmetic: stsv:penguin, price: 25000 }
-      - { cosmetic: stsv:ghost, price: 50000 }
-      - { cosmetic: stsv:baby_dragon, price: 50000 }
-      - { cosmetic: stsv:turtle, price: 12000 }
-      - { cosmetic: stsv:cat, price: 15000 }
-      - { cosmetic: stsv:bunny, price: 25000 }
-      - { cosmetic: stsv:panda, price: 45000 }
-      # 발자취
-      - { cosmetic: stsv:petal_trail, price: 12000 }
-      - { cosmetic: stsv:note_trail, price: 25000 }
-      - { cosmetic: stsv:heart_trail, price: 25000 }
-      - { cosmetic: stsv:flame_trail, price: 50000 }
-      - { cosmetic: stsv:rainbow_trail, price: 50000 }
-      # 처치 효과
-      - { cosmetic: stsv:kill_hearts, price: 12000 }
-      - { cosmetic: stsv:kill_snow, price: 25000 }
-      - { cosmetic: stsv:kill_firework, price: 25000 }
-      - { cosmetic: stsv:kill_soul, price: 50000 }
-      - { cosmetic: stsv:kill_thunder, price: 50000 }
+    gacha: true
+  # 칭호 (과시 소비: 돈이 사라지고 계정에 남음, 두 번 눌러 삼)
   titles:
     name: "칭호"
     icon: name_tag

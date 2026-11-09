@@ -21,6 +21,11 @@ commands:
     aliases: [옷장, wardrobe, cosmetic]
     usage: /치장
     permission: stsv.wardrobe
+  뽑기:
+    description: 치장 뽑기 (일반·희귀·영웅 치장, 이미 가진 것은 교환권으로)
+    aliases: [치장뽑기, gacha]
+    usage: /뽑기
+    permission: stsv.wardrobe
   칭호:
     description: 가진 칭호 장착·해제, 아직 없는 칭호와 얻는 법
     aliases: [title, titles]
@@ -129,7 +134,7 @@ permissions:
     description: 프로필, 명예의 전당 보기
     default: true
   stsv.wardrobe:
-    description: 치장 (/치장) 사용
+    description: 치장 (/치장), 치장 뽑기 (/뽑기) 사용
     default: true
   stsv.cosmetic.*:
     description: 모든 치장 사용 가능

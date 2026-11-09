@@ -66,6 +66,32 @@ cosmetic:
     trail: "발자취"
     kill: "처치 효과"
 
+# 치장 뽑기 (/뽑기). 확률은 플레이어에게 보이지 않음 (contents/stsv/gacha.yml)
+gacha:
+  unavailable: "<red>지금은 치장 뽑기를 쓸 수 없습니다."
+  busy: "<yellow>뽑기 결과를 보여 주는 중입니다."
+  not-enough: "<red>돈이 부족합니다 <gray>({price} 필요)"
+  daily-limit: "<red>오늘은 더 뽑을 수 없습니다 <gray>(하루 {limit}회, 남은 횟수 {left})"
+  dropped: "<yellow>인벤토리가 가득 차서 교환권 {count}장을 발밑에 떨어뜨렸습니다. <gray>(나만 주울 수 있음)"
+  confirm-click: "<yellow>클릭: 뽑기"
+  confirm-again: "<gold><b>한 번 더 클릭하면 뽑습니다</b>"
+  lore-new: ["<gray>아직 없음 <dark_gray>· <white>나오면 바로 내 치장"]
+  lore-owned: ["<green>보유 중 <dark_gray>· <gray>또 나오면 <white>교환권", "<dark_gray>교환권은 거래소에서 사고팔 수 있음"]
+  # 뽑는 장면 (제목 / 부제목)
+  roll-title: "<#f0e2b0>치장 뽑기{dots}"
+  roll-hint: "{color}✦ ✦ ✦"
+  counter: "<dark_gray>{n}/{of} · </dark_gray>"
+  reveal-title: "{color}{cosmetic}"
+  reveal-new: "{counter}{color}{rarity} <dark_gray>· <green>새 치장!"
+  reveal-duplicate: "{counter}{color}{rarity} <dark_gray>· <yellow>중복 → 교환권"
+  summary-title: "<#f0e2b0>뽑기 끝!"
+  summary-subtitle: "<green>새 치장 {new}개 <dark_gray>· <yellow>교환권 {vouchers}장"
+  result: "<gold>치장 뽑기 {count}회: </gold><green>새 치장 {new}개</green><gray>, </gray><yellow>교환권 {vouchers}장"
+  result-new: " <dark_gray>-</dark_gray> {color}[{rarity}] {cosmetic} <green>새 치장"
+  result-duplicate: " <dark_gray>-</dark_gray> {color}[{rarity}] {cosmetic} <yellow>교환권 <gray>(인벤토리)"
+  wear-hint: "<gray>새 치장은 <white>/치장</white> 에서 입어 보세요."
+  broadcast: "<white>{player}</white><gray> 님이 치장 뽑기에서 </gray>{color}[{rarity}] {cosmetic}<gray> 을(를) 뽑았습니다!"
+
 achievement:
   done-title: "{color}<b>업적 달성!</b>"
   done: "<gold>업적 달성: </gold>{color}{name} <dark_gray>({tier} · {points}점)"
