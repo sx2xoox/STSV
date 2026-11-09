@@ -8,10 +8,15 @@ docs/previews/furniture_japanese.png        every piece from three angles (front
                                             name, size and its inventory icon
 docs/previews/furniture_japanese_icons.png  the 2D inventory icons, large and at their real 16 px size
 docs/previews/furniture_japanese_room.png   a room and a garden furnished with them, at about in-game distance
+docs/previews/furniture_scale.png           every piece next to a player and a block, all at one scale
+
+    python3 furniture_preview.py --scale [out.png]     # only the scale sheet
+    python3 furniture_preview.py --pieces <dir> [ids]  # one large four-view picture per piece
 """
 
 import copy
 import json
+import math
 import re
 import subprocess
 import sys
@@ -178,6 +183,101 @@ def room(out):
     print(f"scene   {out.relative_to(REPO)}")
 
 
+# the real thing each piece stands for, roughly (w x d x h, metres; 1 block ~ 1 m, a player 1.8 m)
+REAL = {
+    "tatami": "1.8×0.9 m, 두께 5 cm", "zabuton": "55×60 cm, 두께 10 cm", "chabudai": "지름 75 cm, 높이 35 cm",
+    "kotatsu": "탁자 80 cm, 이불 1.9 m", "futon": "1×2 m", "shoji_screen": "폭 1.8 m, 높이 1.7 m",
+    "fusuma_panel": "문 한 짝 0.9×1.8 m", "hanging_scroll": "폭 0.55 m, 길이 1.8 m", "noren": "폭 0.9 m, 길이 0.9~1.5 m",
+    "bamboo_fence": "높이 1.2~1.8 m", "andon": "폭 30 cm, 높이 75 cm", "stone_lantern": "높이 1.5~2 m",
+    "chochin": "지름 30~45 cm, 높이 50~70 cm", "bonsai": "높이 30~60 cm", "ikebana": "수반 35 cm, 높이 60~90 cm",
+    "bamboo_pot": "높이 1.5~2 m", "sakura_pot": "높이 1~1.5 m", "tea_set": "쟁반 35 cm, 주전자 12 cm",
+    "tea_kettle": "화로 45 cm, 높이 50 cm", "sake_set": "병 15 cm, 쟁반 30 cm", "taiko_drum": "북 지름 60~80 cm, 높이 1.3 m",
+    "maneki_neko": "가게 장식용 30~90 cm", "daruma": "절 장식용 30~90 cm", "omamori_rack": "폭 0.9 m, 높이 1 m",
+    "wind_chime": "유리 10 cm, 쪽지 포함 45 cm", "wagasa": "지름 2~2.4 m, 높이 2.5 m", "kimono_rack": "폭 1.8 m, 높이 1.8 m",
+    "torii": "작은 신사 폭 3 m, 높이 3 m", "stepping_stones": "돌 하나 40~60 cm", "koi_pond": "작은 정원 연못 2 m",
+}
+
+
+def _ref_models():
+    """A player (1.875 blocks, the player model's 30 px) and an oak-plank-like block, both in palette colours."""
+    from stsv_assets.bake import BModel, Paint
+    p = BModel("ref_player")
+    legs, body, head = (Paint("steel", k, noise=0, ao=0, rim=0.6) for k in (1, 2, 3))
+    s = 0.9375
+    for x0 in (-4, 0):
+        p.box("leg", (x0 * s, 0, -2 * s), ((x0 + 4) * s, 12 * s, 2 * s), legs)
+    p.box("body", (-4 * s, 12 * s, -2 * s), (4 * s, 24 * s, 2 * s), body)
+    for x0 in (-8, 4):
+        p.box("arm", (x0 * s, 12 * s, -2 * s), ((x0 + 4) * s, 24 * s, 2 * s), body)
+    p.box("head", (-4 * s, 24 * s, -4 * s), (4 * s, 32 * s, 4 * s), head)
+    b = BModel("ref_block")
+    b.box("block", (0, 0, 0), (16, 16, 16), Paint("wood", 2, "planks", axis="x", width=4, ao=0))
+    return p.to_preview(), b.to_preview()
+
+
+def _moved(els, dx, dz):
+    out = []
+    for e in els:
+        e = copy.deepcopy(e)
+        e["from"] = [e["from"][0] + dx, e["from"][1], e["from"][2] + dz]
+        e["to"] = [e["to"][0] + dx, e["to"][1], e["to"][2] + dz]
+        if e.get("rotation"):
+            o = e["rotation"][2]
+            e["rotation"][2] = [o[0] + dx, o[1], o[2] + dz]
+        out.append(e)
+    return out
+
+
+def scale_sheet(pids, out, ko):
+    """Every piece at the same scale next to a player and a block, seen from the front at about eye level,
+    with the real object's size and the model's: does it read the right size in the game?"""
+    player, block = _ref_models()
+    cols, cw, vh, label = 5, 360, 300, 62
+    rows = (len(pids) + cols - 1) // cols
+    textures = {**player["textures"], **block["textures"]}
+    elements, views, info = [], [], []
+    ppu = 3.9                                        # picture px per model unit
+    fov = 10
+    dist = (vh / ppu) / 2 / math.tan(math.radians(fov / 2))
+    for k, pid in enumerate(pids):
+        tex, els = piece(pid)
+        textures.update(tex)
+        lo = [min(e["from"][i] for e in els) for i in range(3)]
+        hi = [max(e["to"][i] for e in els) for i in range(3)]
+        base = k * 240                               # far apart: one scene, one view per piece
+        zc = (lo[2] + hi[2]) / 2
+        elements += _moved(els, base, 0)
+        px = hi[0] + 4 + 7.5                         # the player on the viewer's left (+x), the block on the right
+        elements += _moved(player["elements"], base + px, zc)
+        bx = lo[0] - 4 - 16
+        elements += _moved(block["elements"], base + bx, zc - 8)
+        cx = (bx + px + 7.5) / 2
+        x, y = (k % cols) * cw, (k // cols) * vh
+        views.append({"x": x, "y": y, "w": cw, "h": vh, "az": 14, "el": 8, "k": dist, "radius": 1, "fov": fov,
+                      "far": 4000, "center": [base + cx, 26, zc]})
+        info.append((pid, hi[0] - lo[0], hi[1] - lo[1], hi[2] - lo[2]))
+    data = {"textures": textures, "elements": elements, "grid": False, "size": [cols * cw, rows * vh], "views": views}
+    im = render(data, "scale")
+    font = ImageFont.truetype(FONT, 21)
+    small = ImageFont.truetype(FONT, 15)
+    head = 52
+    sheet = Image.new("RGB", (cols * cw, head + rows * (vh + label)), (27, 29, 34))
+    d = ImageDraw.Draw(sheet)
+    d.text((14, 12), "실제 크기 비교 · 사람 1.8칸(플레이어), 오른쪽 상자 = 블록 1칸 · 모든 칸 같은 축척",
+           font=font, fill=(235, 232, 222))
+    for k, (pid, w, h, dd) in enumerate(info):
+        x, y = (k % cols) * cw, (k // cols) * vh
+        oy = head + (k // cols) * (vh + label)
+        sheet.paste(im.crop((x, y, x + cw, y + vh)), (x, oy))
+        d.rectangle((x, oy + vh, x + cw - 2, oy + vh + label - 2), fill=(40, 43, 52))
+        d.text((x + 8, oy + vh + 4), ko.get(pid, pid), font=font, fill=(245, 242, 232))
+        d.text((x + 8, oy + vh + 32), f"실제 {REAL.get(pid, '?')}", font=small, fill=(170, 170, 178))
+        d.text((x + cw - 8, oy + vh + 8), f"{w / 16:.2f}×{dd / 16:.2f}×{h / 16:.2f}칸", font=small, fill=(200, 196, 160),
+               anchor="ra")
+    sheet.save(out, optimize=True)
+    print(f"scale   {out.relative_to(REPO) if out.is_relative_to(REPO) else out}")
+
+
 def piece_images(pids, out_dir, ko):
     """One large picture per piece (four angles, its Korean name, size and icon), to judge details."""
     out_dir = Path(out_dir)
@@ -207,6 +307,9 @@ def piece_images(pids, out_dir, ko):
 def main():
     ko = names_ko()
     args = sys.argv[1:]
+    if args[:1] == ["--scale"]:
+        scale_sheet(list(F.PIECES), Path(args[1]) if len(args) > 1 else PREVIEWS / "furniture_scale.png", ko)
+        return
     if args[:1] == ["--pieces"]:
         piece_images(args[2:] or list(F.PIECES), args[1], ko)
         return
@@ -219,6 +322,7 @@ def main():
     contact_sheet(pids, PREVIEWS / "furniture_japanese.png", ko)
     icon_sheet(pids, PREVIEWS / "furniture_japanese_icons.png", ko)
     room(PREVIEWS / "furniture_japanese_room.png")
+    scale_sheet(pids, PREVIEWS / "furniture_scale.png", ko)
 
 
 if __name__ == "__main__":

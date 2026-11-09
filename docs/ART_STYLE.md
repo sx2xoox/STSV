@@ -88,7 +88,10 @@
 
 **꾸미기 가구** (`models/furniture_japanese.py`, 아이콘 `furniture_icons.py`): 인벤토리에는 2D 아이콘(`icon: <id>_icon`), 설치하면 3D 모델이
 보입니다. 등불은 `furniture.light`로 진짜 빛을 냅니다. `python3 furniture_preview.py`가 `docs/previews/furniture_japanese*.png`
-(세 방향 시트, 아이콘, 방·정원 장면)를 만들고, `python3 furniture_preview.py --pieces <폴더>`는 가구마다 네 방향 확대 그림을 만듭니다.
+(세 방향 시트, 아이콘, 방·정원 장면)와 `docs/previews/furniture_scale.png`(모든 가구를 같은 축척으로 플레이어·블록 옆에 세운 크기 비교)를
+만들고, `python3 furniture_preview.py --pieces <폴더>`는 가구마다 네 방향 확대 그림을 만듭니다.
+**크기**: 플레이어(1.8칸) 옆에서 실물처럼 읽히게 합니다. 큰 물건(문, 병풍, 석등)은 실물 크기(1칸 ≈ 1 m), 작은 소품(다기, 술병, 풍경)은
+바닐라 소품처럼 실물의 2~3배로 키워서 잘 보이게 합니다. 얼굴처럼 읽혀야 하는 그림(다루마, 마네키네코)은 빛을 굽지 않은 평평한 면에 그립니다.
 그림이 여러 상자에 걸치는 경우(후스마, 기모노) 정면에서 보면 모델의 +x가 **왼쪽**입니다.
 
 **구운(baked) 모델** (`stsv_assets/bake.py`, 일본풍 가구 전부): 면마다 16×16 텍스처를 따로 만들지 않고, 모델 전체를 보면서 면을 한 장씩

@@ -112,10 +112,18 @@ def cup(m, name, c, lo, hi, paint):
     m.box(name, (x - 1, lo, z + 0.5), (x + 1, hi, z + 1.5), paint)
 
 
-def tea_top(x, z, ramp_name="bamboo", step=3):
-    """Decal: the tea (or sake) showing in the middle of a cup's top."""
+def cup4(m, name, c, lo, hi, paint):
+    """A wide cup 4 px across: a square with its corners cut (a 4 px circle), three boxes."""
+    x, z = c
+    m.box(name, (x - 2, lo, z - 1), (x + 2, hi, z + 1), paint)
+    m.box(name, (x - 1, lo, z - 2), (x + 1, hi, z - 1), paint)
+    m.box(name, (x - 1, lo, z + 1), (x + 1, hi, z + 2), paint)
+
+
+def tea_top(x, z, ramp_name="bamboo", step=3, r=0.6):
+    """Decal: the tea (or sake) showing in the middle of a cup's top (r: half its width)."""
     def decal(c):
-        if c.face == "up" and abs(c.p[0] - x) < 0.6 and abs(c.p[2] - z) < 0.6:
+        if c.face == "up" and abs(c.p[0] - x) < r and abs(c.p[2] - z) < r:
             return (ramp_name, step)
         return None
     return decal
@@ -499,33 +507,35 @@ def noren():
 
 
 def bamboo_fence():
-    """대나무 울타리 (켄닌지가키): a screen of split bamboo slats, sun-bleached to straw, held between pairs of green
-    bamboo rails (front and back) that black palm cord ties to it, a split-bamboo cap on top. The slats and
-    rails run edge to edge, so fences side by side make one long fence."""
+    """대나무 울타리 (켄닌지가키) 1x2: a screen of split bamboo slats, sun-bleached to straw, held between pairs of
+    green bamboo rails (front and back) that black palm cord ties to it, a split-bamboo cap on top. As tall as a
+    real kenninji fence (1.75 blocks: it screens a garden at eye level). The slats and rails run edge to edge, so
+    fences side by side make one long fence."""
     m = BModel("bamboo_fence")
     m.group("slats")
     for i in range(8):
         # split culms alternate their round back and their flat face, so every other one stands forward
         z0 = 7.0 if i % 2 else 7.5
         slat = Paint("straw", 2, "bamboo", axis="y", node=7, node_off=(i * 3) % 7, ridge=False, ao=0.7, seed=i)
-        m.box("slat", (2 * i, 0, z0), (2 * i + 2, 14.5, z0 + 1.5), slat)
+        m.box("slat", (2 * i, 0, z0), (2 * i + 2, 26.5, z0 + 1.5), slat)
     m.group("rails")
     rail = Paint("bamboo", 2, "bamboo", axis="x", node=9, node_off=4)
-    for y in (2.5, 8):
+    rails = (3, 12.5, 21.5)
+    for y in rails:
         m.box("rail", (0, y, 5.75), (16, y + 1.5, 7.0), rail)
         m.box("rail", (0, y, 9.0), (16, y + 1.5, 10.25), rail(node_off=1))
     m.group("cap")
-    m.box("cap", (0, 14.5, 6.5), (16, 15.5, 9.5), Paint("bamboo", 1, "bamboo", axis="x", node=8, node_off=2))
-    m.box("cap_top", (0, 15.5, 7.25), (16, 16, 8.75), Paint("bamboo", 2, "bamboo", axis="x", node=8, node_off=6))
+    m.box("cap", (0, 26.5, 6.5), (16, 27.5, 9.5), Paint("bamboo", 1, "bamboo", axis="x", node=8, node_off=2))
+    m.box("cap_top", (0, 27.5, 7.25), (16, 28, 8.75), Paint("bamboo", 2, "bamboo", axis="x", node=8, node_off=6))
     m.group("cords")
-    for y in (2.5, 8):
+    for y in rails:
         for x in (2.5, 12.5):
             m.box("cord", (x, y - 0.5, 5.5), (x + 1, y + 2, 5.75), CORD)
             m.box("cord", (x, y - 0.5, 10.25), (x + 1, y + 2, 10.5), CORD)
     for x in (2.5, 12.5):
-        m.box("cord", (x, 14.25, 6.25), (x + 1, 15.75, 6.5), CORD)
-        m.box("cord", (x, 14.25, 9.5), (x + 1, 15.75, 9.75), CORD)
-    return display(m, (1, 1, 1), 0)
+        m.box("cord", (x, 26.25, 6.25), (x + 1, 27.75, 6.5), CORD)
+        m.box("cord", (x, 26.25, 9.5), (x + 1, 27.75, 9.75), CORD)
+    return display(m, (1, 2, 1), 0)
 
 
 # ================================================================================================
@@ -626,12 +636,12 @@ def stone_lantern():
 def chochin():
     """제등 (초롱): a red paper lantern on bamboo ribs (the ribs show as fine lines), black lacquered caps, a
     black band and a white crest front and back, a red tassel; lit by its light block, its paper is painted
-    brightest round the middle. Hangs from the top of its block."""
+    brightest round the middle. Hangs from the top of its block; 11 px across (a large izakaya lantern)."""
     m = BModel("chochin", floor=None, planes=(("y>", 16),))
     m.group("lantern")
-    m.box("hook", (7.5, 14.5, 7.5), (8.5, 16, 8.5), IRON)
-    cyl(m, "cap", (8, 8), 4, 13.5, 14.5, LACQ)
-    cyl(m, "cap_rim", (8, 8), 6, 13, 13.5, LACQ)
+    m.box("hook", (7.5, 14.75, 7.5), (8.5, 16, 8.5), IRON)
+    cyl(m, "cap", (8, 8), 5, 14, 14.75, LACQ)
+    cyl(m, "cap_rim", (8, 8), 7, 13.5, 14, LACQ)
 
     def paper(c):
         y = c.p[1]
@@ -639,18 +649,18 @@ def chochin():
             return ("vermilion", 2)
         if c.face in ("north", "south"):
             dx = c.p[0] - 8
-            r = math.hypot(dx, y - 7.5)
-            if r < 0.8:
+            r = math.hypot(dx, y - 7.75)
+            if r < 1.0:
                 return ("vermilion", 1)
-            if r < 2.4:
-                return ("porcelain", 2 if r < 1.6 else 1)
+            if r < 2.9:
+                return ("porcelain", 2 if r < 1.9 else 1)
         rib = c.i[1] % 2 == 0
-        return ("vermilion", 3 - abs(y - 7.5) * 0.25 - (0.8 if rib else 0))
+        return ("vermilion", 3 - abs(y - 7.75) * 0.22 - (0.8 if rib else 0))
     skin = Paint("vermilion", 2, decal=paper, ao=0.6)
-    for (d, lo, hi) in ((5, 12.5, 13), (7, 11.5, 12.5), (8, 10, 11.5), (9, 5, 10), (8, 3.5, 5), (7, 2.5, 3.5), (5, 2, 2.5)):
+    for (d, lo, hi) in ((7, 13, 13.5), (9, 12, 13), (10, 10.5, 12), (11, 5, 10.5), (10, 3.5, 5), (9, 2.5, 3.5), (7, 2, 2.5)):
         cyl(m, "paper", (8, 8), d, lo, hi, skin)
-    cyl(m, "cap_rim", (8, 8), 6, 1.5, 2, LACQ)
-    cyl(m, "bottom", (8, 8), 4, 1.25, 1.5, LACQ)
+    cyl(m, "cap_rim", (8, 8), 7, 1.5, 2, LACQ)
+    cyl(m, "bottom", (8, 8), 5, 1.25, 1.5, LACQ)
     m.box("tassel", (7.5, 0, 7.5), (8.5, 1.25, 8.5), flat("vermilion", 1))
     return display(m, (1, 1, 1), 0)
 
@@ -698,34 +708,36 @@ def bonsai():
 
 def ikebana():
     """이케바나 꽃꽂이: a shallow celadon suiban with water, a tall camellia branch (heaven), a shorter one leaning
-    the other way (man), low leaves in front (earth): red and white blooms with gold stamens, glossy leaves."""
+    the other way (man), low leaves in front (earth): red and white blooms with gold stamens, glossy leaves.
+    The dish and the blooms are a little larger than life, so the arrangement reads next to a player."""
     m = BModel("ikebana")
     m.group("dish")
 
     def water(c):
-        if c.face == "up" and math.hypot(c.p[0] - 8, c.p[2] - 8) < 4.6:
+        if c.face == "up" and math.hypot(c.p[0] - 8, c.p[2] - 8) < 5.6:
             return ("water", 2 if (c.i[0] + c.i[2]) % 5 else 3)
         return None
-    cyl(m, "dish", (8, 8), 12, 0, 2, CELADON(decal=water))
+    cyl(m, "dish", (8, 8), 14, 0, 2, CELADON(decal=water))
     m.group("branches")
     tw = Paint("bark", 1, noise=0)
     # shin rises and leans left (+x, the viewer's left), soe leans right
-    for (a, b) in (((7.5, 2, 7.5), (8.5, 6, 8.5)), ((8, 6, 7.5), (9, 10, 8.5)), ((8.75, 10, 7.5), (9.75, 13, 8.5)),
-                   ((9.5, 13, 7.5), (10.25, 15, 8.25)),
-                   ((7, 2, 8), (7.75, 5, 8.75)), ((6, 5, 8), (7, 7.5, 8.75)), ((4.75, 7.5, 8), (6, 8.5, 8.75))):
+    for (a, b) in (((7.5, 2, 7.5), (8.75, 6, 8.75)), ((8, 6, 7.5), (9.25, 10, 8.75)), ((8.75, 10, 7.5), (10, 13, 8.75)),
+                   ((9.75, 13, 7.5), (10.75, 14.5, 8.5)),
+                   ((6.75, 2, 8), (7.75, 5, 9)), ((5.5, 5, 8), (6.75, 7.5, 9)), ((4, 7.5, 8), (5.5, 8.5, 9))):
         m.box("stem", a, b, tw)
     red = Paint("vermilion", 3, noise=0, rim=0.6)
     white = Paint("porcelain", 2, noise=0, rim=0.6)
     stamen = flat("gold", 3, light=False)
-    for (x, y, z, p) in ((9.75, 15, 7.75, red), (7.5, 11, 6.5, red), (3.75, 8.5, 8.25, white), (10.5, 7, 9.75, red)):
-        m.box("bloom", (x - 1.5, y, z - 1), (x + 1.5, y + 0.75, z + 1), p(base=p.base - 1))
-        m.box("bloom", (x - 1, y, z - 1.5), (x + 1, y + 0.75, z - 1), p(base=p.base - 1))
-        m.box("bloom", (x - 1, y, z + 1), (x + 1, y + 0.75, z + 1.5), p(base=p.base - 1))
-        m.box("bloom_top", (x - 1, y + 0.75, z - 1), (x + 1, y + 1.5, z + 1), p)
-        m.box("stamen", (x - 0.5, y + 1.5, z - 0.5), (x + 0.5, y + 1.75, z + 0.5), stamen)
+    for (x, y, z, p) in ((10.25, 14.5, 8, red), (7, 10.5, 5.5, red), (3, 8.5, 8.5, white), (11.5, 6.5, 10.5, red)):
+        # a camellia: four rounded petals round a raised cup, the gold stamens in the middle
+        m.box("bloom", (x - 2, y, z - 1.5), (x + 2, y + 1, z + 1.5), p(base=p.base - 1))
+        m.box("bloom", (x - 1.5, y, z - 2), (x + 1.5, y + 1, z - 1.5), p(base=p.base - 1))
+        m.box("bloom", (x - 1.5, y, z + 1.5), (x + 1.5, y + 1, z + 2), p(base=p.base - 1))
+        m.box("bloom_top", (x - 1.5, y + 1, z - 1.5), (x + 1.5, y + 1.75, z + 1.5), p)
+        m.box("stamen", (x - 0.5, y + 1.75, z - 0.5), (x + 0.5, y + 2.25, z + 0.5), stamen)
     leaf = Paint("leaf_dark", 2, noise=0, rim=0.8)
-    for (x, y, z, w, d) in ((9.5, 4, 6, 2.5, 1.5), (5, 3.5, 9, 1.5, 2.5), (10, 9, 9, 2, 1.5), (6, 9.5, 6.5, 2, 1.5),
-                            (10.25, 12, 6.5, 1.5, 1.5), (4.5, 2.5, 6.5, 2.5, 1.5), (9.5, 2.5, 10, 2.5, 1.5)):
+    for (x, y, z, w, d) in ((9.75, 4, 5, 3, 2), (4.5, 3.5, 9.5, 2, 3), (10.5, 9, 9.5, 2.5, 2), (5.5, 9.5, 6, 2.5, 2),
+                            (10.75, 12, 5.5, 2, 2), (3.5, 2.5, 5.5, 3, 2), (10, 2.5, 11, 3, 2), (12.5, 2.5, 7, 2, 2.5)):
         m.box("leaf", (x, y, z), (x + w, y + 0.5, z + d), leaf)
     return display(m, (1, 1, 1), 0)
 
@@ -821,27 +833,28 @@ def sakura_pot():
 # ================================================================================================
 
 def tea_set():
-    """다기 세트: a hinoki tray with a red-clay kyūsu (the straight side handle, a short spout) and three
-    celadon yunomi of green tea."""
+    """다기 세트: a hinoki tray with a red-clay kyūsu (the straight side handle, a short spout) and three tall
+    celadon yunomi of green tea. A little larger than life (the pot 8 px across, the cups 4 high), so it reads
+    next to a player."""
     m = BModel("tea_set")
     m.group("tray")
-    m.box("tray", (1, 0, 2), (15, 0.75, 14), Paint("hinoki", 2, "planks", axis="x", width=3))
-    for (a, b) in (((1, 0.75, 2), (15, 1.5, 2.75)), ((1, 0.75, 13.25), (15, 1.5, 14)),
-                   ((1, 0.75, 2.75), (1.75, 1.5, 13.25)), ((14.25, 0.75, 2.75), (15, 1.5, 13.25))):
+    m.box("tray", (0.5, 0, 1.5), (15.5, 0.75, 14.5), Paint("hinoki", 2, "planks", axis="x", width=3))
+    for (a, b) in (((0.5, 0.75, 1.5), (15.5, 1.5, 2.25)), ((0.5, 0.75, 13.75), (15.5, 1.5, 14.5)),
+                   ((0.5, 0.75, 2.25), (1.25, 1.5, 13.75)), ((14.75, 0.75, 2.25), (15.5, 1.5, 13.75))):
         m.box("tray_rim", a, b, HINOKI)
     m.group("kyusu")
     clay = Paint("terracotta", 1, "speckle", rim=0.8)
-    cyl(m, "pot", (5.5, 8), 4, 0.75, 1.5, clay)
-    cyl(m, "pot", (5.5, 8), 6, 1.5, 3.5, clay)
-    cyl(m, "pot", (5.5, 8), 5, 3.5, 4.25, clay)
-    cyl(m, "lid", (5.5, 8), 3, 4.25, 4.75, flat("terracotta", 2))
-    m.box("knob", (5, 4.75, 7.5), (6, 5.5, 8.5), flat("terracotta", 0))
-    m.box("spout", (1.5, 2, 7.5), (2.5, 3, 8.5), clay)
-    m.box("spout_tip", (0.75, 2.75, 7.5), (1.5, 3.75, 8.5), clay)
-    m.box("handle", (4.75, 2.25, 2.25), (6.25, 3.25, 5), Paint("terracotta", 1, "grain", axis="z"))
+    cyl(m, "pot", (6, 8), 6, 0.75, 1.75, clay)
+    cyl(m, "pot", (6, 8), 8, 1.75, 5, clay)
+    cyl(m, "pot", (6, 8), 6, 5, 6, clay)
+    cyl(m, "lid", (6, 8), 4, 6, 6.75, flat("terracotta", 2))
+    m.box("knob", (5.5, 6.75, 7.5), (6.5, 7.75, 8.5), flat("terracotta", 0))
+    m.box("spout", (0.75, 2.5, 7.25), (2, 4, 8.75), clay)
+    m.box("spout_tip", (0.25, 3.75, 7.5), (1.25, 5.25, 8.5), clay)
+    m.box("handle", (5.25, 3, 2.25), (6.75, 4.5, 4), Paint("terracotta", 1, "grain", axis="z"))
     m.group("cups")
-    for (x, z) in ((10.75, 4.5), (12.5, 8), (10.5, 11.5)):
-        cup(m, "cup", (x, z), 0.75, 3, CELADON(decal=tea_top(x, z)))
+    for (x, z) in ((13, 3.75), (12.5, 8), (13, 12.25)):
+        cup(m, "cup", (x, z), 0.75, 4.75, CELADON(decal=tea_top(x, z)))
     return display(m, (1, 1, 1), 0)
 
 
@@ -907,21 +920,21 @@ def tea_kettle():
 
 
 def sake_set():
-    """사케 병과 잔: two white tokkuri painted with an indigo wave and two small cups with the blue bull's-eye
-    (janome) inside, on a red lacquer tray."""
+    """사케 병과 잔: two white tokkuri painted with indigo bands and two wide ochoko cups with the blue bull's-eye
+    (janome) inside, on a red lacquer tray. A little larger than life, so it reads next to a player."""
     m = BModel("sake_set")
     m.group("tray")
-    m.box("tray", (2, 0, 3), (14, 0.75, 13), LACQ_RED)
-    for (a, b) in (((2, 0.75, 3), (14, 1.5, 3.5)), ((2, 0.75, 12.5), (14, 1.5, 13)),
-                   ((2, 0.75, 3.5), (2.5, 1.5, 12.5)), ((13.5, 0.75, 3.5), (14, 1.5, 12.5))):
+    m.box("tray", (1, 0, 2), (15, 0.75, 14), LACQ_RED)
+    for (a, b) in (((1, 0.75, 2), (15, 1.5, 2.5)), ((1, 0.75, 13.5), (15, 1.5, 14)),
+                   ((1, 0.75, 2.5), (1.5, 1.5, 13.5)), ((14.5, 0.75, 2.5), (15, 1.5, 13.5))):
         m.box("tray_rim", a, b, LACQ_RED)
     m.group("tokkuri")
-    for (x, z, h) in ((5, 9.5, 0), (9.5, 6.5, 0.5)):
-        def brush(c, x=x, z=z, h=h):
+    for (x, z, h) in ((5, 10, 0), (11, 6, 0.5)):
+        def brush(c, h=h):
             if c.face in ("up", "down"):
                 return None
             yi = c.i[1]
-            if yi in (2, 4) and c.p[1] < 4.5 + h:
+            if yi in (2, 4) and c.p[1] < 5.5 + h:
                 return ("indigo", 2)                   # two brushed bands round the belly
             if yi == 3 and (c.i[0] + c.i[2]) % 2 == 0:
                 return ("indigo", 3)                   # and a row of dots between them
@@ -932,18 +945,18 @@ def sake_set():
                 return ("porcelain", 0)
             return None
         white = Paint("porcelain", 2, noise=0, decal=brush, rim=0.8)
-        cyl(m, "bottle", (x, z), 3, 0.75, 1.25, white)
-        cyl(m, "bottle", (x, z), 5, 1.25, 4.5 + h, white)
-        cyl(m, "bottle", (x, z), 3, 4.5 + h, 5.5 + h, white)
-        cyl(m, "neck", (x, z), 2, 5.5 + h, 7.75 + h, white)
-        cyl(m, "lip", (x, z), 3, 7.75 + h, 8.25 + h, Paint("porcelain", 2, noise=0, rim=0.8, decal=mouth))
+        cyl(m, "bottle", (x, z), 4, 0.75, 1.25, white)
+        cyl(m, "bottle", (x, z), 6, 1.25, 5.5 + h, white)
+        cyl(m, "bottle", (x, z), 4, 5.5 + h, 6.75 + h, white)
+        cyl(m, "neck", (x, z), 2, 6.75 + h, 9.5 + h, white)
+        cyl(m, "lip", (x, z), 4, 9.5 + h, 10 + h, Paint("porcelain", 2, noise=0, rim=0.8, decal=mouth))
     m.group("cups")
-    for (x, z) in ((11.5, 10.5), (4.5, 5.5)):
+    for (x, z) in ((12, 11), (4, 5)):
         def janome(c, x=x, z=z):
-            if c.face == "up" and math.hypot(c.p[0] - x, c.p[2] - z) < 0.8:
+            if c.face == "up" and math.hypot(c.p[0] - x, c.p[2] - z) < 1.1:
                 return ("indigo", 2)
             return None
-        cup(m, "ochoko", (x, z), 0.75, 2, Paint("porcelain", 2, noise=0, decal=janome))
+        cup4(m, "ochoko", (x, z), 0.75, 2.75, Paint("porcelain", 2, noise=0, decal=janome))
     return display(m, (1, 1, 1), 0)
 
 
@@ -997,87 +1010,146 @@ def taiko_drum():
 
 
 def maneki_neko():
-    """마네키네코: a white calico cat sitting on a red cushion, its paw raised to beckon, eyes closed in a smile,
-    a red collar with a golden bell and a gold koban coin."""
+    """마네키네코: a white cat sitting on a red cushion, its right paw raised to beckon: a big head, eyes closed in
+    a smile, rosy cheeks, a small pink nose over an ω mouth, whiskers running round the cheeks, pink inside its
+    ears, a red collar with a golden bell, a gold koban coin held in its other paw, calico patches on its ears and
+    back."""
     m = BModel("maneki_neko")
-    white = Paint("feather", 2, noise=0.0, rim=0.8)
-    face = [".........",
-            ".........",
-            ".KK...KK.",
-            "K..K.K..K",
-            "....P....",
-            "PP.W.W.PP",
-            "...WWW..."]
-    colours = {"K": ("rubber", 0), "P": ("pink", 2), "W": ("feather", 0)}
+    # the face, 12 px wide (column 0 at the viewer's left, x 14 -> 13), rows from y 14 down
+    face = ["............",   # y 13
+            "..KK....KK..",   # y 12  eyes closed in a smile
+            ".K..K..K..K.",   # y 11
+            ".....PP.....",   # y 10  the nose
+            ".BB......BB.",   # y 9   rosy cheeks
+            "...K.KK.K...",   # y 8   the mouth: ω
+            "....K..K...."]   # y 7
+    colours = {"K": ("rubber", 0), "P": ("pink", 1), "B": ("pink", 3)}
+    white = Paint("feather", 2, noise=0, rim=0.8)
 
     def calico(c):
+        """Orange and black patches on the ears and the back (never on the face)."""
         x, y, z = c.p
-        if c.face != "down" and y > 2 and vnoise(x, y, z, 3.0, 4) > 0.72:
-            return ("fox", 3)
-        if c.face != "down" and y > 2 and vnoise(x + 40, y, z, 2.5, 8) > 0.8:
-            return ("rubber", 1)
+        if c.face == "down":
+            return None
+        for (cx, cy, cz, r, ramp_name, step) in ((11, 14.5, 9.5, 2.8, "fox", 2), (5, 14.5, 9.5, 2.6, "rubber", 1),
+                                                  (10, 6, 12.5, 3.0, "fox", 2), (5, 4, 11, 2.4, "rubber", 1),
+                                                  (11.5, 3, 13.5, 1.6, "rubber", 1)):
+            if (x - cx) ** 2 + ((y - cy) * 1.2) ** 2 + (z - cz) ** 2 < r * r:
+                return (ramp_name, step)
         return None
+    fur = white(decal=calico)
     m.group("cushion")
-    cushion(m, 2.5, 2.5, 11)
-    m.group("body")
-    body = white(decal=calico)
-    m.box("body", (4.5, 2.75, 5.5), (11.5, 8, 11.5), body)
-    m.box("chest", (5, 2.75, 5), (11, 7.25, 5.5), white)
-    m.box("tail", (10, 2.75, 11.5), (12.5, 4.25, 13), body)
-    m.box("paw", (5.25, 2.75, 3.75), (7, 4.25, 5), white)
-    m.group("head")
-    m.box("head", (3.5, 8, 4), (12.5, 14.5, 11), white(decal=chain(picture(face, colours, 12.5, 14.5), calico)))
-    m.box("head_top", (4.5, 14.5, 5), (11.5, 15, 10), white(decal=calico))
-    ear = Paint("feather", 2, noise=0, decal=lambda c: ("pink", 2) if c.face == "north" else None)
-    for x in (4, 10):
-        m.box("ear", (x, 15, 6), (x + 2, 16, 8), ear)
-    m.group("collar")
-    m.box("collar", (4.25, 7, 4.75), (11.75, 7.75, 11.75), flat("vermilion", 2, rim=0.5))
-    m.box("bell", (7.25, 5.5, 4), (8.75, 7, 4.75), Paint("gold", 3, "metal"))
-    m.group("paws")
-    m.box("paw_up", (12.5, 9, 6), (14.25, 14, 7.75), white)
-    m.box("paw_pad", (12.75, 12.5, 5.75), (14, 13.5, 6), flat("pink", 2))
+    cloth = Paint("crimson", 2, "weave", rim=0.8)
+    m.box("cushion", (1, 0, 1), (15, 1.25, 15), cloth)
 
-    def koban(c):
-        if c.face == "north" and c.i[0] in (9, 10) and 3 <= c.i[1] <= 4:
-            return ("gold", 1)
+    def seam(c):
+        if c.face == "up" and 1 < min(c.p[0] - 1, 15 - c.p[0], c.p[2] - 1, 15 - c.p[2]) < 2:
+            return ("crimson", 3)
         return None
-    m.box("koban", (8.5, 2.75, 4.125), (11.5, 5.25, 4.875), Paint("gold", 3, noise=0, decal=koban, rim=0.8))
+    m.box("cushion", (1.5, 1.25, 1.5), (14.5, 2, 14.5), cloth(decal=seam))
+    tassel = Paint("gold", 2, noise=0, rim=0.5)
+    for (x, z) in ((0.5, 0.5), (14.5, 0.5), (0.5, 14.5), (14.5, 14.5)):
+        m.box("tassel", (x + 0.125, 0.25, z + 0.125), (x + 0.875, 1.5, z + 0.875), tassel)
+    m.group("body")
+    m.box("body", (3.5, 2, 4.5), (12.5, 6.25, 12.5), fur)
+    m.box("collar", (3.25, 6.25, 4.25), (12.75, 7, 12.75), flat("vermilion", 2, rim=0.5))
+    m.box("tail", (9, 2, 12.5), (12.5, 3.5, 14), fur)
+    m.box("tail", (11, 3.5, 12.5), (12.5, 6, 14), fur)
+    m.group("head")
+    # the face is a picture: flat colours, no rims or occlusion across it
+    m.box("head", (2, 7, 3), (14, 14, 11), fur,
+          faces={"north": Paint("feather", 2, noise=0, light=False, decal=picture(face, colours, 14, 14))})
+
+    def ear_inside(c):
+        if c.face == "north" and c.p[1] < 15 and math.floor(c.p[0]) in (4, 11):
+            return ("pink", 2)
+        return calico(c)
+    ear = white(decal=ear_inside)
+    for (x0, tip) in ((3, 4), (10, 11)):
+        m.box("ear", (x0, 14, 5), (x0 + 3, 15, 7.5), ear)
+        m.box("ear", (tip, 15, 5.5), (tip + 1, 16, 7), ear)
+    m.group("paws")
+    # the raised right paw: the arm up beside the head, the paw bent forward at the wrist, its pink pad to the front
+    m.box("arm", (12.5, 4, 5.5), (14.5, 7, 8), white)
+    m.box("arm", (14, 7, 5), (16, 11.5, 7.5), white)
+
+    def pad(c):
+        if c.face == "north" and math.floor(c.p[0]) in (14, 15) and c.p[1] < 13.5:
+            return ("pink", 2)
+        return None
+    m.box("paw_up", (13.75, 11.5, 4), (16, 14.5, 6.5), white(decal=pad))
+
+    # the other paw holds a gold koban coin against the chest: an oval with hammered lines
+    def koban(c):
+        if c.face == "north" and math.floor(c.p[0]) == 4 and 3 <= c.p[1] < 5:
+            return ("gold", 0)                        # its stamped mark
+        if c.face in ("north", "east", "west") and c.i[1] % 2 == 0:
+            return ("gold", 2)                        # hammered lines across it
+        return None
+    coin = Paint("gold", 3, noise=0, decal=koban, rim=0.6)
+    m.box("koban", (2, 2.5, 3.75), (7, 5.5, 4.5), coin)
+    m.box("koban", (3, 2, 3.75), (6, 2.5, 4.5), coin)
+    m.box("koban", (3, 5.5, 3.75), (6, 6, 4.5), coin)
+    m.box("paw", (5.5, 2, 3), (8, 3.75, 4.5), white)
+    # whiskers: two each side, out from the cheeks
+    whisker = flat("millstone", 1, rim=0, ao=0)
+    for y in (8.25, 9.75):
+        m.box("whisker", (14, y, 3.25), (15.5, y + 0.5, 3.75), whisker)
+        m.box("whisker", (0.5, y, 3.25), (2, y + 0.5, 3.75), whisker)
+    m.box("bell", (7.25, 4.75, 3.25), (8.75, 6.25, 4.25),
+          Paint("gold", 3, "metal", decal=lambda c: ("gold", 0) if c.face == "north" and c.p[1] < 5.25 else None))
     return display(m, (1, 1, 1), 0)
 
 
 def daruma():
-    """다루마: a round red tumbling doll: a white face with thick brows, a curled moustache and beard, one eye
-    painted in (the wish is still to come true), gold patterns on the belly and the sides."""
+    """다루마: a round red tumbling doll a block wide, its front pressed flat for the face: a big white face with
+    bold black brows, two large round eyes (the one on the viewer's right painted in, the other still a blank
+    white circle: the wish is still to come true), a red nose, a bushy moustache whose ends curl up; gold
+    clouds on its sides, a gold band at the hem and a gold mark on its back."""
     m = BModel("daruma")
-    face = ["KKK...KKK",        # the bold brows
-            ".OOO.OOO.",
-            ".OKO.O.O.",        # one eye painted in, the other still blank
-            ".OOO.OOO.",
-            "....P....",
-            "KKKK.KKKK",        # moustache
-            ".KKKKKKK."]        # beard
-    colours = {"K": ("rubber", 0), "O": ("porcelain", 1), "P": ("pink", 1)}
+    # the face, 14 px wide (column 0 at the viewer's left, x 15 -> 14), from y 14 down: W white, K black ink,
+    # R red (nose), G gold, '.' the red lacquer
+    face = ["....WWWWWW....",   # y 13
+            "..KKKWWWWKKK..",   # y 12  the brows: bold arcs
+            ".KKKKKWWKKKKK.",   # y 11
+            ".WWWWWWWWWWWW.",   # y 10
+            ".WWKKWWWWKKWW.",   # y 9   the eyes: round, 4 px
+            ".WKWWKWWKWKKW.",   # y 8   blank eye | painted eye (a glint in the pupil)
+            ".WKWWKWWKKKKW.",   # y 7
+            ".WWKKWWWWKKWW.",   # y 6
+            ".WKWWWRRWWWKW.",   # y 5   the nose; the moustache's ends curl up beside it
+            ".WWKKKKKKKKWW.",   # y 4   the moustache
+            ".WWWKKWWKKWWW.",   # y 3   bushy: two lobes, parted under the nose
+            "..WWWWWWWWWW..",   # y 2
+            "...GGGGGGGG...",   # y 1   gold band at the hem
+            ]
+    colours = {"W": ("porcelain", 2), "K": ("rubber", 0), "R": ("vermilion", 1), "G": ("gold", 2)}
+    swirl = [".GGG.",          # a gold cloud on each side (u: z from the front, rows from y 9 down)
+             "G...G",
+             "G.G.G",
+             "G..G.",
+             ".GG.."]
 
-    def white_face(c):
-        if c.face == "north":
-            dx, dy = (c.p[0] - 8) / 4.6, (c.p[1] - 7.5) / 3.6
-            if dx * dx + dy * dy < 1:
-                return ("porcelain", 2)
-        return None
-
-    def belly(c):
-        if c.face == "north" and 1.5 < c.p[1] < 3.0 and abs(c.p[0] - 8) < 3.5:
-            return ("gold", 2 if (c.i[0] + c.i[1]) % 2 else 3)
-        if c.face in ("east", "west") and abs(c.p[1] - 6) < 0.5:
+    def gold(c):
+        if c.face in ("east", "west"):
+            col = math.floor(c.p[2] - 5.5) if c.face == "east" else math.floor(10.5 - c.p[2])
+            row = math.floor(9 - c.p[1])
+            if 0 <= row < 5 and 0 <= col < 5 and swirl[row][col] == "G":
+                return ("gold", 2)
+            if c.i[1] == 1:
+                return ("gold", 2)
+        if c.face == "south" and abs(c.p[0] - 8) < 1 and 5 <= c.p[1] < 10 and c.i[1] != 7:
+            return ("gold", 2)                     # a brushed mark on the back
+        if c.face == "south" and c.i[1] == 1:
             return ("gold", 2)
         return None
-    red = Paint("vermilion", 2, noise=0.02, decal=chain(picture(face, colours, 12.5, 11), white_face, belly), rim=0.8)
+    red = Paint("vermilion", 2, noise=0.02, decal=gold, rim=0.8)
+    # the face is a picture: flat colours, no rims or occlusion across it
+    front = Paint("vermilion", 2, noise=0, light=False, decal=picture(face, colours, 15, 14))
     m.group("doll")
-    for (d, lo, hi) in ((9, 0, 1), (11, 1, 3), (12, 3, 8), (11, 8, 10.5), (9, 10.5, 12), (6, 12, 13)):
-        cyl(m, "body", (8, 8), d, lo, hi, red)
-    # the face sits on a flat front, so it reads whole from every angle
-    m.box("face", (3.5, 3.5, 1.75), (12.5, 11, 2.5), red)
+    for (d, lo, hi) in ((12, 0, 1), (14, 1, 3), (16, 3, 13), (12, 13, 15), (6, 15, 16)):
+        # the front is pressed flat at z 3: a 14 px face plane on the widest part
+        cyl(m, "body", (8, 8), d, lo, hi, red, faces={"north": front}, clip=(3, 16))
     return display(m, (1, 1, 1), 0)
 
 
@@ -1117,41 +1189,43 @@ def omamori_rack():
 
 def wind_chime():
     """풍경: a glass furin painted with red goldfish and a blue rim, a clapper on a string, the tanzaku strip with
-    a brushed wish. Hangs from the top of its block."""
+    a brushed wish. Hangs from the top of its block. The bell is a little larger than life (half a block), so it
+    reads overhead."""
     m = BModel("wind_chime", floor=None, planes=(("y>", 16),))
     m.group("chime")
-    m.box("hook", (7.75, 14.5, 7.75), (8.25, 16, 8.25), IRON)
+    m.box("hook", (7.75, 14.75, 7.75), (8.25, 16, 8.25), IRON)
 
-    fish = ["##.",
-            ".##"]
+    fish = [".##.#",          # a goldfish swimming to the left, its tail forked
+            "####.",
+            ".##.#"]
 
     def glass(c):
         if c.face == "down":
-            return ("glass", 3) if math.hypot(c.p[0] - 8, c.p[2] - 8) > 2.4 else ("glass", 0)
+            return ("glass", 3) if math.hypot(c.p[0] - 8, c.p[2] - 8) > 3.2 else ("glass", 0)
         if c.face == "up":
             return None
         y = c.p[1]
-        if y < 10.25:
+        if y < 9.25:
             return ("indigo", 3)                       # the blue painted rim
         if c.face in ("north", "south"):
-            col = math.floor(9.5 - c.p[0]) if c.face == "north" else math.floor(c.p[0] - 6.5)
-            row = math.floor(12 - y)
-            if 0 <= row < 2 and 0 <= col < 3 and fish[row][col] == "#":
+            col = math.floor(10.5 - c.p[0]) if c.face == "north" else math.floor(c.p[0] - 5.5)
+            row = math.floor(13 - y)
+            if 0 <= row < 3 and 0 <= col < 5 and fish[row][col] == "#":
                 return ("vermilion", 2)                # a goldfish on each side
-        if c.face in ("north", "east") and c.i[1] in (11, 12) and (c.i[0] if c.face == "north" else c.i[2]) == 9:
+        if c.face in ("north", "east") and c.i[1] in (11, 12) and (c.i[0] if c.face == "north" else c.i[2]) == 10:
             return ("glass", 3)                        # a glint running down the glass
         return None
     gl = Paint("glass", 1, noise=0, decal=glass, rim=1.0, ao=0.5)
-    cyl(m, "bell", (8, 8), 4, 13.25, 14.5, gl)
-    cyl(m, "bell", (8, 8), 6, 9.5, 13.25, gl)
-    m.box("string", (7.75, 5.5, 7.75), (8.25, 9.5, 8.25), flat("cream", 1))
-    m.box("clapper", (7.5, 8.5, 7.5), (8.5, 9.25, 8.5), flat("glass", 3))
+    cyl(m, "bell", (8, 8), 6, 13.5, 14.75, gl)
+    cyl(m, "bell", (8, 8), 8, 8.5, 13.5, gl)
+    m.box("string", (7.75, 6, 7.75), (8.25, 8.5, 8.25), flat("cream", 1))
+    m.box("clapper", (7.25, 7.75, 7.25), (8.75, 8.5, 8.75), flat("glass", 3))
 
     def wish(c):
-        if c.face in ("north", "south") and c.i[0] == 7 and c.i[1] in (1, 3, 4):
-            return ("rubber", 1)                       # a short wish brushed down the strip
+        if c.face in ("north", "south") and c.i[0] == 7 and c.i[1] in (1, 2, 4):
+            return ("sakura", 0)                       # a short wish brushed down the strip
         return None
-    m.box("tanzaku", (7, 1, 7.875), (9, 5.5, 8.125), Paint("sakura", 3, noise=0, decal=wish, rim=0.3))
+    m.box("tanzaku", (7, 0.5, 7.875), (9, 6, 8.125), Paint("sakura", 3, noise=0, decal=wish, rim=0.3))
     return display(m, (1, 1, 1), 0)
 
 
@@ -1289,18 +1363,18 @@ def torii():
 
 
 def stepping_stones():
-    """징검돌: three flat garden stones of different greys, rounded and slightly domed, moss between them
-    (walk over them)."""
+    """징검돌: flat garden stones of different greys, rounded and slightly domed, moss between them (walk over
+    them): a big one to step on (half a metre across, as in a real garden) and two smaller ones."""
     m = BModel("stepping_stones")
     m.group("stones")
-    for (x0, z0, x1, z1, h, p) in ((2, 3, 10.5, 10.5, 1.25, STONE), (10.5, 9.5, 15, 14.5, 1.0, STONE_LIGHT),
-                                   (1, 11.5, 5.5, 15, 0.75, STONE_DARK)):
+    for (x0, z0, x1, z1, h, p) in ((1.5, 1.5, 11, 10, 1.25, STONE), (9.5, 10, 15.5, 15.5, 1.0, STONE_LIGHT),
+                                   (0.5, 11, 7, 15.5, 0.75, STONE_DARK)):
         m.box("stone", (x0 + 1, 0, z0), (x1 - 1, h, z1), p)
         m.box("stone", (x0, 0, z0 + 1), (x0 + 1, h - 0.25, z1 - 1), p)
         m.box("stone", (x1 - 1, 0, z0 + 1), (x1, h - 0.25, z1 - 1), p)
         m.box("stone_top", (x0 + 2, h, z0 + 1.5), (x1 - 2, h + 0.5, z1 - 1.5), p)
     m.group("moss")
-    for (x, z, w, d) in ((10.75, 4, 3, 2), (0.5, 7.5, 1.5, 2.5), (6, 11.25, 3, 1.5), (12, 1, 2, 1.5)):
+    for (x, z, w, d) in ((11.5, 4, 3, 2.5), (7.5, 10.5, 1.5, 3), (12, 1, 2.5, 1.5), (0.25, 3, 1, 2.5)):
         m.box("moss", (x, 0, z), (x + w, 0.25, z + d), Paint("leaf_dark", 1, "speckle", rim=0))
     return display(m, (1, 1, 1), 0)
 
@@ -1388,7 +1462,7 @@ PIECES = {
     "fusuma_panel": (fusuma_panel, (2, 2, 1), 0),
     "hanging_scroll": (hanging_scroll, (1, 2, 1), 0),
     "noren": (noren, (1, 1, 1), 0),
-    "bamboo_fence": (bamboo_fence, (1, 1, 1), 0),
+    "bamboo_fence": (bamboo_fence, (1, 2, 1), 0),
     "andon": (andon, (1, 1, 1), 0),
     "stone_lantern": (stone_lantern, (1, 2, 1), 0),
     "chochin": (chochin, (1, 1, 1), 0),
