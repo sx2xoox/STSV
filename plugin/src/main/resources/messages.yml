@@ -189,13 +189,25 @@ hud:
   # /사이드바
   sidebar-on: "<green>사이드바를 켰습니다. <gray>(/사이드바 로 끄기)"
   sidebar-off: "<gray>사이드바를 껐습니다. <dark_gray>(/사이드바 로 다시 켜기)"
-  sidebar-usage: "<gray>사용법: <white>/사이드바 <gray>[켜기|끄기] <dark_gray>(그냥 /사이드바 = 켜기·끄기 전환) <gray>· <white>/사이드바 위치 <gray>= 화면 오른쪽 끝에 맞추기"
-  # /사이드바 위치 (사이드바 줄의 탭 문자 앞은 이름, 뒤는 값: 리소스팩 패널에서 값이 오른쪽 끝에 붙음)
-  position-usage: "<gray>사용법: <white>/사이드바 위치 <가로>x<세로> <gray>[GUI 크기|자동] <dark_gray>예) /사이드바 위치 1920x1080 3<newline><gray>내 화면 해상도와 GUI 크기를 알려 주면 패널이 화면 오른쪽 끝에 딱 붙습니다. <white>+10 <gray>/ <white>-10 <gray>으로 조금씩 옮기기, <white>기본 <gray>으로 되돌리기 <dark_gray>(지금: 가운데에서 {right}픽셀)"
-  position-window: "<green>사이드바를 화면 오른쪽 끝에 맞췄습니다. <gray>({width}x{height}, GUI {scale}) <dark_gray>· 되돌리기: /사이드바 위치 기본"
-  position-moved: "<green>사이드바 위치를 옮겼습니다. <gray>(가운데에서 {right}픽셀) <dark_gray>· 되돌리기: /사이드바 위치 기본"
-  position-reset: "<gray>사이드바를 기본 위치로 되돌렸습니다."
+  sidebar-usage: "<gray>사용법: <white>/사이드바 <gray>[켜기|끄기] <dark_gray>(그냥 /사이드바 = 켜기·끄기 전환) <gray>· <white>/사이드바 위치 <gray>= 마우스로 옮기고 크기 바꾸기"
+  # /사이드바 위치: 마우스로 패널 옮기기 (사이드바 줄의 탭 문자 앞은 이름, 뒤는 값: 리소스팩 패널에서 값이 오른쪽 끝에 붙음)
+  position-usage: "<gray>사용법: <white>/사이드바 위치 <dark_gray>(마우스로 옮기기) <gray>· <white>/사이드바 위치 기본 <dark_gray>(처음 자리로) <gray>· <white>/사이드바 위치 취소"
+  position-reset: "<gray>사이드바를 기본 위치·크기로 되돌렸습니다."
   position-scoreboard: "<gray>스코어보드 사이드바는 위치를 바꿀 수 없습니다. <dark_gray>(리소스팩 HUD 에서만)"
+  edit-start: "<yellow>사이드바 위치 편집<gray>: 마우스를 움직이면 패널이 따라 움직입니다. <white>휠<gray>로 크기, <white>왼쪽 클릭<gray>이나 <white>F<gray>로 저장, <white>웅크리기<gray>로 취소 <dark_gray>(1분 동안, 그동안 걸을 수 없음)"
+  # 편집하는 동안 액션바에 계속 보이는 안내 ({size} = 작게·보통·크게, {left} = 남은 초)
+  edit-guide: "<yellow>마우스로 이동 <dark_gray>· <yellow>휠로 크기 <white>{size} <dark_gray>· <green>클릭으로 저장 <dark_gray>· <gray>웅크리면 취소 <dark_gray>{left}초"
+  # 편집하는 동안 사이드바 줄이 하나도 없을 때 보이는 견본 줄
+  edit-sample: "<gray>사이드바\t<white>미리보기"
+  edit-saved: "<green>사이드바 위치를 저장했습니다. <gray>(크기: {size}) <dark_gray>· 처음 자리로: /사이드바 위치 기본"
+  edit-cancelled: "<gray>사이드바 위치 편집을 취소했습니다. <dark_gray>(그대로 둠)"
+  edit-timeout: "<gray>1분이 지나 사이드바 위치 편집을 취소했습니다. <dark_gray>(그대로 둠)"
+  edit-hurt: "<gray>피해를 입어 사이드바 위치 편집을 취소했습니다."
+  edit-moved: "<gray>자리를 벗어나 사이드바 위치 편집을 취소했습니다."
+  edit-not-editing: "<gray>지금 사이드바 위치를 편집하고 있지 않습니다. <dark_gray>(/사이드바 위치 로 시작)"
+  edit-unavailable: "<gray>리소스팩 HUD 가 켜진 뒤에 쓸 수 있습니다. <dark_gray>(리소스팩을 받는 중이거나 받지 않음)"
+  edit-off: "<gray>이 서버는 사이드바를 쓰지 않습니다."
+  edit-busy: "<gray>지금은 편집할 수 없습니다. <dark_gray>(탈것을 타거나 겉날개로 날거나 자는 중)"
 
 economy:
   # 금액 표시 형식: {amount} = 1,234

@@ -21,20 +21,26 @@ import static org.junit.jupiter.api.Assertions.assertTrue;
 /**
  * Writes build/hud-preview.json: the pack HUD with the real messages, laid out by HudClient (from the generated
  * fonts), for tools/assetgen/hud.py --preview, which draws docs/previews/hud.png (1920 x 1080 at GUI 2, 3, 4),
- * hud_anchor.png (the panel's place on other screens) and hud_states.png (the bars in every state, enlarged).
+ * hud_anchor.png (the panel's place on other screens), hud_edit.png (/사이드바 위치: the panel being moved, in its
+ * three sizes) and hud_states.png (the bars in every state, enlarged).
  * Also writes build/hud-memory.txt (what the fonts hold in the client's memory).
  */
 class HudPreviewTest {
 
-    record Scene(int width, int height, int scale, String label, Integer right, HudLayout.Health health, Component message,
-                 boolean panel, int level, int effects, boolean water, int[] crop, int zoom, int thumb) {}
+    record Scene(int width, int height, int scale, String label, HudLayout.Placement place, boolean edit, HudLayout.Health health,
+                 Component message, boolean panel, int level, int effects, boolean water, int[] crop, int zoom, int thumb) {}
 
-    static Scene full(int w, int h, int scale, String label, Integer right, HudLayout.Health health, Component message, int level, int effects) {
-        return new Scene(w, h, scale, label, right, health, message, true, level, effects, false, null, 1, 0);
+    static Scene full(int w, int h, int scale, String label, HudLayout.Placement place, HudLayout.Health health, Component message, int level, int effects) {
+        return new Scene(w, h, scale, label, place, false, health, message, true, level, effects, false, null, 1, 0);
     }
 
     static Scene state(String label, HudLayout.Health health, Component message, int level, boolean water) {
-        return new Scene(1920, 1080, 3, label, null, health, message, false, level, 0, water, new int[]{-100, 82, 200, 82}, 1, 0);
+        return new Scene(1920, 1080, 3, label, null, false, health, message, false, level, 0, water, new int[]{-100, 82, 200, 82}, 1, 0);
+    }
+
+    /** The panel moved with the mouse to `margin` px from the right edge of this screen, at a size and a top. */
+    static HudLayout.Placement atRight(int w, int h, int scale, HudLayout.Size size, int top) {
+        return new HudLayout.Placement(size, HudScreen.rightFor(w, h, scale, 2), top);
     }
 
     @Test
@@ -42,7 +48,8 @@ class HudPreviewTest {
         Lang.use(YamlConfiguration.loadConfiguration(new File("src/main/resources/messages.yml")));
         File eco = new File("../economy/src/main/resources/messages.yml");
         if (eco.exists()) Lang.useExtra("STSV-Economy", YamlConfiguration.loadConfiguration(eco));
-        HudSheets sheets = HudSheets.load();
+        HudSheets bundled = HudSheets.load();
+        HudSheets sheets = HudLayout.panelSheets(bundled, bundled.panelLetters());
         HudLayout layout = new HudLayout(sheets, HudLayout.Settings.defaults());
         HudClient client = new HudClient(sheets, layout.fonts());
 
@@ -57,9 +64,9 @@ class HudPreviewTest {
         Component codex = Lang.mm("codex.registered", "item", "<white>토마토", "tab", "작물", "have", 12, "all", 40);
         Map<String, List<Scene>> pages = new LinkedHashMap<>();
         pages.put("hud", List.of(
-                full(1920, 1080, 2, "/사이드바 위치 1920x1080 2 · 보통 · 방어 12 · 안내 문구", HudPosition.rightFor(1920, 1080, 2), normal, codex, 23, 2),
-                full(1920, 1080, 3, "/사이드바 위치 1920x1080 3 · 독 · 허기 · 흡수 4 · 피해 직후",
-                        HudPosition.rightFor(1920, 1080, 3), new HudLayout.Health(7, 20, 4, 6, 0f, 7, HudLayout.Tint.POISON, true)
+                full(1920, 1080, 2, "마우스로 오른쪽 끝에 · 크게 · 방어 12 · 안내 문구", atRight(1920, 1080, 2, HudLayout.Size.LARGE, 54), normal, codex, 23, 2),
+                full(1920, 1080, 3, "마우스로 오른쪽 끝에 · 보통 · 독 · 허기 · 흡수 4 · 피해 직후",
+                        atRight(1920, 1080, 3, HudLayout.Size.NORMAL, 54), new HudLayout.Health(7, 20, 4, 6, 0f, 7, HudLayout.Tint.POISON, true)
                                 .withFlash(HudLayout.Flash.LOST, 15), Lang.mm("tpa.arrived", "player", "Steve"), 5, 1),
                 full(1920, 1080, 4, "자동 · 기본 위치 · 물속 · 말 타기",
                         null, new HudLayout.Health(20, 20, 0, 20, 12f, 0, HudLayout.Tint.NORMAL, false)
@@ -67,9 +74,14 @@ class HudPreviewTest {
         pages.put("hud_anchor", List.of(
                 anchor(1280, 720, 0, "자동 · 기본 위치 = 화면 오른쪽 끝", null, normal),
                 anchor(2560, 1440, 0, "자동 · 기본 위치 = 화면 오른쪽 끝", null, normal),
-                anchor(2560, 1440, 3, "/사이드바 위치 2560x1440 3", HudPosition.rightFor(2560, 1440, 3), normal),
-                anchor(1920, 1080, 1, "/사이드바 위치 1920x1080 1", HudPosition.rightFor(1920, 1080, 1), normal),
-                anchor(1920, 1080, 2, "위치를 알려 주지 않으면 (기본 위치)", null, normal)));
+                anchor(2560, 1440, 3, "마우스로 오른쪽 끝, 조금 아래에 (보통)", atRight(2560, 1440, 3, HudLayout.Size.NORMAL, 67), normal),
+                anchor(1920, 1080, 1, "마우스로 오른쪽 끝에 (크게)", atRight(1920, 1080, 1, HudLayout.Size.LARGE, 54), normal),
+                anchor(1920, 1080, 4, "마우스로 왼쪽 위에 (작게)", atLeft(layout, client, rows, 1920, 1080, 4, HudLayout.Size.SMALL, 21), normal)));
+        pages.put("hud_edit", List.of(
+                edit(1920, 1080, 3, "/사이드바 위치 · 보통 (처음 자리, 노란 모서리 = 편집 중)", layout.defaults()),
+                edit(1920, 1080, 3, "휠 아래로 · 작게 · 마우스로 조금 아래로", new HudLayout.Placement(HudLayout.Size.SMALL, 212, 76)),
+                edit(1920, 1080, 3, "휠 위로 · 크게 · 마우스로 오른쪽 끝에", atRight(1920, 1080, 3, HudLayout.Size.LARGE, 54)),
+                edit(1920, 1080, 3, "마우스로 왼쪽 위로 · 보통", new HudLayout.Placement(HudLayout.Size.NORMAL, -60, 28))));
         pages.put("hud_states", List.of(
                 state("보통 · 방어 12 · 포화 5", normal, null, 23, false),
                 state("피해 직후 (잃은 만큼 하얗게, 테두리 빨강)", normal.withFlash(HudLayout.Flash.LOST, 20), null, 23, false),
@@ -91,7 +103,7 @@ class HudPreviewTest {
                 JsonObject entry = new JsonObject();
                 entry.addProperty("width", s.width());
                 entry.addProperty("height", s.height());
-                entry.addProperty("scale", s.scale() == 0 ? HudPosition.guiScale(s.width(), s.height(), 0) : s.scale());
+                entry.addProperty("scale", s.scale() == 0 ? HudScreen.guiScale(s.width(), s.height(), 0) : s.scale());
                 entry.addProperty("label", s.label());
                 entry.addProperty("level", s.level());
                 entry.addProperty("effects", s.effects());
@@ -105,8 +117,8 @@ class HudPreviewTest {
                 if (s.thumb() > 0) entry.addProperty("thumb", s.thumb());
                 JsonArray draws = new JsonArray();
                 if (s.panel()) {
-                    int right = s.right() == null ? layout.settings().sidebarRight() : s.right();
-                    for (HudClient.Draw d : client.lay(layout.panel(rows, right)).draws()) draws.add(draw(d, "top", 3 + d.y()));
+                    HudLayout.Placement at = s.place() == null ? layout.defaults() : s.place();
+                    for (HudClient.Draw d : client.lay(layout.panel(rows, at, s.edit())).draws()) draws.add(draw(d, "top", 3 + d.y()));
                 }
                 for (HudClient.Draw d : client.lay(layout.actionBar(s.health(), s.message())).draws()) draws.add(draw(d, "bottom", d.y() - 72));
                 entry.add("draws", draws);
@@ -124,14 +136,30 @@ class HudPreviewTest {
                 "every sample message exists");
 
         long pack = 0;
-        for (byte[] b : HudPack.files(sheets, layout, "WHITE", true).values()) pack += b.length;
+        for (byte[] b : HudPack.files(layout, "WHITE", true).values()) pack += b.length;
         Files.writeString(Path.of("build", "hud-memory.txt"), "client memory (font sheets as RGBA): "
-                + HudPack.clientMemory(sheets, layout) + " bytes\nHUD files in the pack (uncompressed): " + pack + " bytes\n");
+                + HudPack.clientMemory(layout) + " bytes\nHUD files in the pack (uncompressed): " + pack + " bytes\n");
     }
 
-    static Scene anchor(int w, int h, int scale, String label, Integer right, HudLayout.Health health) {
-        int s = HudPosition.guiScale(w, h, scale);
-        return new Scene(w, h, s, label, right, health, null, true, 23, 2, false, null, 1, 960);
+    /** The panel moved with the mouse to 2 px from the left edge of this screen (its width measured as drawn). */
+    static HudLayout.Placement atLeft(HudLayout layout, HudClient client, List<HudLayout.Row> rows, int w, int h, int scale,
+                                      HudLayout.Size size, int top) {
+        HudLayout.Placement probe = new HudLayout.Placement(size, 0, top);
+        int width = -client.lay(layout.panel(rows, probe, false)).draws().stream().mapToInt(HudClient.Draw::x).min().orElseThrow();
+        int gw = HudScreen.guiWidth(w, HudScreen.guiScale(w, h, scale));
+        return new HudLayout.Placement(size, -(gw / 2) + 2 + width, top);
+    }
+
+    static Scene anchor(int w, int h, int scale, String label, HudLayout.Placement place, HudLayout.Health health) {
+        int s = HudScreen.guiScale(w, h, scale);
+        return new Scene(w, h, s, label, place, false, health, null, true, 23, 2, false, null, 1, 960);
+    }
+
+    /** The panel being moved (brackets) with the guide over the bars. */
+    static Scene edit(int w, int h, int scale, String label, HudLayout.Placement place) {
+        Component guide = Lang.mm("hud.edit-guide", "size", place.size().label, "left", 52);
+        return new Scene(w, h, scale, label, place, true, new HudLayout.Health(18, 20, 0, 17, 5f, 12, HudLayout.Tint.NORMAL, false),
+                guide, true, 23, 2, false, null, 1, 0);
     }
 
     private static JsonObject draw(HudClient.Draw d, String anchor, int y) {
@@ -139,7 +167,9 @@ class HudPreviewTest {
         o.addProperty("x", d.x());
         o.addProperty("y", y);
         o.addProperty("anchor", anchor);
-        o.addProperty("sheet", d.sheet());
+        // the panel's letter subsets hold the same cells as the whole sheets (which the preview reads)
+        o.addProperty("sheet", d.sheet().equals(HudLayout.PANEL_HANGUL) ? "hangul" : d.sheet().equals(HudLayout.PANEL_HANGUL7) ? "hangul7" : d.sheet());
+        o.addProperty("scale", d.scale());
         o.addProperty("cell", d.cell());
         o.addProperty("color", String.format("%06x", d.color()));
         o.addProperty("shadow", d.shadow());

@@ -20,13 +20,18 @@ never disagree. Nothing here is a Mojang texture:
     it (the game measures it, its text shader discards anything under alpha 0.1, so it never shows).
     The game's text is not used: the letters are moved up and down per panel row, which a font
     reference cannot do, and the HUD measures every width itself.
+  - text7 / hangul7: the same from Galmuri7, for the small sidebar panel (and, drawn twice as big, the
+    large one). The plugin keeps from `hangul` / `hangul7` only the syllables the server's own texts use
+    when it builds the panel's fonts (see HudSheets.subset), so the panel's many rows stay light.
   - digits: the small outlined numbers next to the bars.
   - frame / fill / tick / line / icons: the bars and the 9 x 9 icons.
   - panel_*: the sidebar panel in the menus' charcoal and gold (stsv_assets/menu_theme.py), cut in
-    strips (left cap, right cap with its drop shadow, fills of 1, 2, 4 ... 64 px) so the plugin can size
-    it to its text, and the server mark in its title strip.
+    strips (left cap, right cap with its drop shadow, fills of 1, 2, 4 ... 16 px) so the plugin can size
+    it to its text, in two cuts: _m for Galmuri9 rows (13 px), _s for Galmuri7 rows (11 px); the server
+    mark and its gold accent (panel_mark), the divider (panel_div) and the corner brackets drawn around
+    the panel while a player moves it (panel_edit).
 The fonts cost the client memory per (sheet, height on screen): every bitmap provider keeps its whole
-sheet as RGBA. Sheets are therefore packed tightly (a 9 x 9 Hangul cell, one row of strip pieces).
+sheet as RGBA. Sheets are therefore packed tightly (a 9 x 9 Hangul cell, one row of 16 px strip pieces).
 """
 
 import json
@@ -52,6 +57,10 @@ ABOVE, BELOW = 9, 1
 TEXT_CELL = (9, ABOVE + BELOW)
 HANGUL_CELL = (9, ABOVE)
 MARK = (255, 255, 255, 1)        # an invisible pixel that sets a glyph's advance
+# Galmuri7: letters 7 px above the baseline, 1 below; Hangul 7 x 7
+ABOVE7, BELOW7 = 7, 1
+TEXT7_CELL = (8, ABOVE7 + BELOW7)
+HANGUL7_CELL = (7, ABOVE7)
 
 # signs always on the sheet (besides those the repository's texts use)
 BASE_SIGNS = "·•…→←↑↓⇄×÷±°²‘’“”«»★☆◆◇▲▼◀▶■□○●─%✔✦❤⚠♪"
@@ -89,30 +98,30 @@ def _repo_chars():
     return chars
 
 
-def _text_set(font):
+def _text_set(font, own=OWN_SIGNS):
     """ASCII, the signs (base set + whatever the texts use and we can draw), the Hangul jamo."""
     out = [chr(c) for c in range(0x21, 0x7F)]
-    signs = set(BASE_SIGNS)
+    signs = set(s for s in BASE_SIGNS if ord(s) in font or s in own)
     for ch in _repo_chars():
         o = ord(ch)
-        if o > 0x7E and not (0xAC00 <= o <= 0xD7A3) and o <= 0xFFFF and (o in font or ch in OWN_SIGNS):
+        if o > 0x7E and not (0xAC00 <= o <= 0xD7A3) and o <= 0xFFFF and (o in font or ch in own):
             signs.add(ch)
     out += sorted(s for s in signs if s not in out)
     out += [chr(c) for c in range(0x3131, 0x3164) if c in font]
     return out
 
 
-def letter(font, ch, cell):
-    """One letter in a cell whose top is ABOVE px over the baseline, white, with its advance marked."""
+def letter(font, ch, cell, above=ABOVE, own=OWN_SIGNS):
+    """One letter in a cell whose top is `above` px over the baseline, white, with its advance marked."""
     w, h = cell
     im = Image.new("RGBA", (w, h), (0, 0, 0, 0))
-    if ch in OWN_SIGNS:
+    if ch in own:
         rows = OWN_SIGNS[ch]
         ink = [(x, y) for y, r in enumerate(rows) for x, c in enumerate(r) if c == "#"]
         advance = max(x for x, _ in ink) + 2
     else:
         advance, xo, yo, bits = font[ord(ch)]
-        top = ABOVE - (yo + len(bits))
+        top = above - (yo + len(bits))
         ink = [(xo + x, top + y) for y, r in enumerate(bits) for x, b in enumerate(r) if b]
     last = advance - 2                                  # the game: advance = rightmost column + 2
     for x, y in ink:
@@ -302,27 +311,36 @@ def line_piece(colour, k):
 
 PANEL_ALPHA = 236
 HEAD_BG = (33, 36, 44)
-HEAD_H, ROW_H, FOOT_H = 19, 13, 3     # strips: title (to the gold line and the top padding), a row, the bottom
-GOLD_ROW = 15
+# the two cuts of the panel: strips (title down to the first row, a row, the bottom), the gold line's row in the
+# title and the server mark's top. m: Galmuri9 rows (normal size); s: Galmuri7 rows (small, and doubled: large)
+STYLES = {
+    "m": {"head": 19, "row": 13, "foot": 3, "gold": 15, "mark": 4},
+    "s": {"head": 16, "row": 11, "foot": 3, "gold": 13, "mark": 3},
+}
 CAP_L, CAP_R = 4, 4                   # the right cap is one column wider for the drop shadow
-STRIP_PIECES = (1, 2, 4, 8, 16, 32, 64)
+STRIP_PIECES = (1, 2, 4, 8, 16)
+STRIP_CELL = 16
 SHADOW = (0, 0, 0, 84)
 DIVIDER = (24, 26, 32)
 MARK_LEFT = 5                          # the server mark's x in the title strip
+EDIT = (255, 214, 64)                  # the corner brackets around a panel being moved
+EDIT_DARK = (54, 34, 6)
+EDIT_CELL = (8, 12)                    # 8 x 8 art; the empty rows below let a bracket sit at the screen's top
 
 
-def panel_picture(w, rows):
+def panel_picture(w, rows, st=STYLES["m"]):
     """A whole panel w px wide (plus 1 px shadow right and below) with `rows` body rows."""
-    h = HEAD_H + ROW_H * rows + FOOT_H - 1           # the bottom outline is the strip's last visible row
+    h = st["head"] + st["row"] * rows + st["foot"] - 1     # the bottom outline is the strip's last visible row
+    gold = st["gold"]
     im = Image.new("RGBA", (w + 1, h + 1), (0, 0, 0, 0))
     px = im.load()
     body = T.PANEL + (PANEL_ALPHA,)
     head = HEAD_BG + (244,)
     for y in range(h):
         for x in range(w):
-            px[x, y] = head if 2 <= y < GOLD_ROW else body
+            px[x, y] = head if 2 <= y < gold else body
     for x in range(2, w - 2):
-        px[x, GOLD_ROW] = T.GOLD_DIM + (255,)
+        px[x, gold] = T.GOLD_DIM + (255,)
     for x in range(w):                                 # bevel: light top/left, dark bottom/right
         px[x, 1] = T.EDGE_LIGHT + (255,)
         px[x, h - 2] = T.EDGE_DARK + (255,)
@@ -346,17 +364,16 @@ def panel_picture(w, rows):
     return im
 
 
-def strip_sheet(kind):
-    """Cells of 64 x height in one row: 'l' (left cap), 'r' (right cap + shadow), fills of 1 .. 64 px,
-    and in the title strip the server mark and its gold accent."""
-    sample = panel_picture(CAP_L + 64 + CAP_R, 1)
-    y0, hh = {"panel_head": (0, HEAD_H), "panel_row": (HEAD_H, ROW_H),
-              "panel_foot": (HEAD_H + ROW_H, FOOT_H)}[kind]
+def strip_sheet(kind, st):
+    """Cells of 16 x height in one row: 'l' (left cap), 'r' (right cap + shadow), fills of 1 .. 16 px."""
+    sample = panel_picture(CAP_L + 16 + CAP_R, 1, st)
+    y0, hh = {"head": (0, st["head"]), "row": (st["head"], st["row"]),
+              "foot": (st["head"] + st["row"], st["foot"])}[kind]
     band = sample.crop((0, y0, sample.width, y0 + hh))
     names, cells = [], []
 
     def cell(part):
-        im = Image.new("RGBA", (64, hh), (0, 0, 0, 0))
+        im = Image.new("RGBA", (STRIP_CELL, hh), (0, 0, 0, 0))
         im.alpha_composite(part, (0, 0))
         return im
 
@@ -366,32 +383,48 @@ def strip_sheet(kind):
     cells.append(cell(band.crop((sample.width - CAP_R - 1, 0, sample.width, hh))))
     column = band.crop((CAP_L + 8, 0, CAP_L + 9, hh))
     for k in STRIP_PIECES:
-        im = Image.new("RGBA", (64, hh), (0, 0, 0, 0))
+        im = Image.new("RGBA", (STRIP_CELL, hh), (0, 0, 0, 0))
         for x in range(k):
             im.paste(column, (x, 0))
         names.append(str(k))
         cells.append(im)
-    if kind == "panel_head":
-        logo = server_mark()
-        im = Image.new("RGBA", (64, hh), (0, 0, 0, 0))
-        im.alpha_composite(logo, (0, 4))
-        names.append("mark")
-        cells.append(im)
-        im = Image.new("RGBA", (64, hh), (0, 0, 0, 0))
-        for x in range(logo.width - 1):
-            im.putpixel((x, GOLD_ROW), T.GOLD + (255,))
-        names.append("accent")
-        cells.append(im)
     return names, cells
+
+
+def mark_sheet():
+    """The server mark (9 px tall) and its gold accent (a line, drawn on the title's gold line)."""
+    logo = server_mark()
+    accent = Image.new("RGBA", logo.size, (0, 0, 0, 0))
+    for x in range(logo.width - 1):
+        accent.putpixel((x, 0), T.GOLD + (255,))
+    return ["mark", "accent"], [logo, accent]
 
 
 def divider_sheet():
     names, cells = [], []
     for k in STRIP_PIECES:
-        im = Image.new("RGBA", (64, 1), (0, 0, 0, 0))
+        im = Image.new("RGBA", (STRIP_CELL, 1), (0, 0, 0, 0))
         for x in range(k):
             im.putpixel((x, 0), DIVIDER + (255,))
         names.append(str(k))
+        cells.append(im)
+    return names, cells
+
+
+def edit_sheet():
+    """Corner brackets (an L 2 px thick, 6 px long, dark rim) for the four corners of a panel being moved."""
+    base = {(x, y) for x in range(1, 7) for y in (1, 2)} | {(x, y) for x in (1, 2) for y in range(1, 7)}
+    names, cells = [], []
+    for name, fx, fy in (("tl", False, False), ("tr", True, False), ("bl", False, True), ("br", True, True)):
+        lit = {(7 - x if fx else x, 7 - y if fy else y) for x, y in base}
+        im = Image.new("RGBA", EDIT_CELL, (0, 0, 0, 0))
+        for x in range(8):
+            for y in range(8):
+                if (x, y) in lit:
+                    im.putpixel((x, y), EDIT + (255,))
+                elif any((x + dx, y + dy) in lit for dx, dy in ((1, 0), (-1, 0), (0, 1), (0, -1))):
+                    im.putpixel((x, y), EDIT_DARK + (255,))
+        names.append(name)
         cells.append(im)
     return names, cells
 
@@ -447,13 +480,22 @@ def _sheet(cells, cell, cols):
 
 
 def sheets():
-    """name -> (cell (w, h), cols, height on screen, cell names, cell images)."""
-    font = galmuri.load()
+    """name -> (cell (w, h), cols, height on screen, cell names, cell images[, extra manifest fields])."""
+    font = galmuri.load(9)
     out = {}
     tx = _text_set(font)
-    out["text"] = (TEXT_CELL, 16, TEXT_CELL[1], tx, [letter(font, ch, TEXT_CELL) for ch in tx])
+    out["text"] = (TEXT_CELL, 16, TEXT_CELL[1], tx, [letter(font, ch, TEXT_CELL) for ch in tx], {"space": font[32][0]})
     syll = _hangul_set()
-    out["hangul"] = (HANGUL_CELL, 64, HANGUL_CELL[1], syll, [letter(font, ch, HANGUL_CELL) for ch in syll])
+    # "panel": the syllables of the repository's texts, which the panel's letter subsets always keep (the plugin
+    # adds those of the server's own files)
+    repo = "".join(sorted(ch for ch in _repo_chars() if 0xAC00 <= ord(ch) <= 0xD7A3))
+    out["hangul"] = (HANGUL_CELL, 64, HANGUL_CELL[1], syll, [letter(font, ch, HANGUL_CELL) for ch in syll], {"panel": repo})
+    small = galmuri.load(7)
+    tx7 = _text_set(small, {})
+    out["text7"] = (TEXT7_CELL, 16, TEXT7_CELL[1], tx7, [letter(small, ch, TEXT7_CELL, ABOVE7, {}) for ch in tx7],
+                    {"space": small[32][0]})
+    out["hangul7"] = (HANGUL7_CELL, 64, HANGUL7_CELL[1], syll,
+                      [letter(small, ch, HANGUL7_CELL, ABOVE7, {}) for ch in syll])
     dg = list(DIGITS)
     out["digits"] = ((5, 7), 16, 7, dg, [digit(ch) for ch in dg])
     out["icons"] = ((9, 9), 8, 9, list(ICONS), [icon(n) for n in ICONS])
@@ -468,11 +510,16 @@ def sheets():
     out["fill"] = ((32, FILL_H), len(PIECES) + 1, FILL_H, names, cells)
     out["tick"] = ((1, FILL_H), 2, FILL_H, ["on", "off"], [tick(True), tick(False)])
     out["line"] = ((32, 1), len(PIECES), 1, [f"sat/{k}" for k in PIECES], [line_piece(SAT, k) for k in PIECES])
-    for kind in ("panel_head", "panel_row", "panel_foot"):
-        names, cells = strip_sheet(kind)
-        out[kind] = ((64, cells[0].height), len(names), cells[0].height, names, cells)
+    for style, st in STYLES.items():
+        for kind in ("head", "row", "foot"):
+            names, cells = strip_sheet(kind, st)
+            out[f"panel_{kind}_{style}"] = ((STRIP_CELL, cells[0].height), len(names), cells[0].height, names, cells)
+    names, cells = mark_sheet()
+    out["panel_mark"] = (cells[0].size, len(names), cells[0].height, names, cells)
     names, cells = divider_sheet()
-    out["panel_div"] = ((64, 1), len(names), 1, names, cells)
+    out["panel_div"] = ((STRIP_CELL, 1), len(names), 1, names, cells)
+    names, cells = edit_sheet()
+    out["panel_edit"] = (EDIT_CELL, len(names), EDIT_CELL[1], names, cells)
     return out
 
 
@@ -486,13 +533,16 @@ def write(out_dir: Path = OUT):
     old = out_dir / "LICENSE-unifont.txt"
     if old.exists():
         old.unlink()
-    for name, (cell, cols, height, names, cells) in built.items():
+    for name, (cell, cols, height, names, cells, *extra) in built.items():
         _sheet(cells, cell, cols).save(out_dir / f"{name}.png", optimize=True)
         manifest[name] = {"file": f"{name}.png", "cell": list(cell), "cols": cols, "height": height, "names": names}
+        if extra:
+            manifest[name].update(extra[0])
     (out_dir / "sheets.json").write_text(json.dumps(manifest, ensure_ascii=False, separators=(",", ":")) + "\n",
                                          encoding="utf-8")
     (out_dir / "LICENSE-galmuri.txt").write_text(
-        "text.png and hangul.png hold letters drawn from Galmuri9 (https://galmuri.quiple.dev), version 2.40.3.\n"
+        "text.png and hangul.png hold letters drawn from Galmuri9, text7.png and hangul7.png from Galmuri7\n"
+        "(https://galmuri.quiple.dev), version 2.40.3. The pack's hangul_panel*.png hold some of their letters.\n"
         "The other HUD pictures are STSV's own.\n\n" + galmuri.LICENSE.read_text(encoding="utf-8"),
         encoding="utf-8")
     return {k: len(v[3]) for k, v in built.items()}
@@ -540,9 +590,10 @@ class Glyphs:
         return self.cache[key]
 
 
-def _put(screen, glyph, x, y, s, colour=(255, 255, 255), shadow=False):
-    """A glyph at GUI (x, y), scaled by s, multiplied by colour, alpha under 0.1 dropped like the game."""
-    g = glyph.resize((glyph.width * s, glyph.height * s), Image.NEAREST)
+def _put(screen, glyph, x, y, s, colour=(255, 255, 255), shadow=False, size=1):
+    """A glyph at GUI (x, y), `size` times its own size, the GUI scaled by s, multiplied by colour, alpha under 0.1
+    dropped like the game (the shadow is one GUI pixel off at any size)."""
+    g = glyph.resize((glyph.width * s * size, glyph.height * s * size), Image.NEAREST)
     a = g.split()[3].point(lambda v: 0 if v < 26 else v)
     if shadow:
         sh = Image.new("RGBA", g.size, tuple(v // 4 for v in colour) + (255,))
@@ -605,7 +656,7 @@ def render(scene, glyphs):
     for dr in scene["draws"]:
         x, y = dr["x"] + gw // 2, dr["y"] + (gh if dr["anchor"] == "bottom" else 0)
         colour = tuple(int(dr.get("color", "ffffff")[i:i + 2], 16) for i in (0, 2, 4))
-        _put(screen, glyphs.cell(dr["sheet"], dr["cell"]), x, y, s, colour, dr.get("shadow", False))
+        _put(screen, glyphs.cell(dr["sheet"], dr["cell"]), x, y, s, colour, dr.get("shadow", False), dr.get("scale", 1))
     return screen
 
 

@@ -34,7 +34,8 @@ class HudLayoutTest {
 
     @BeforeAll
     static void load() throws Exception {
-        sheets = HudSheets.load();
+        HudSheets bundled = HudSheets.load();
+        sheets = HudLayout.panelSheets(bundled, bundled.panelLetters());
         layout = new HudLayout(sheets, HudLayout.Settings.defaults());
         client = new HudClient(sheets, layout.fonts());
     }
@@ -55,7 +56,8 @@ class HudLayoutTest {
 
     /** Visible width of a drawn glyph (its advance minus the game's one pixel). */
     static int width(HudClient.Draw d) {
-        return sheets.sheet(d.sheet()).width(d.cell());
+        HudSheets.Sheet s = sheets.sheet(d.sheet());
+        return s.advanceAt(s.index(d.cell()), d.scale()) - 1;
     }
 
     static String number(HudClient.Laid laid, int row, boolean left) {
@@ -239,14 +241,49 @@ class HudLayoutTest {
 
     @Test
     void lettersAreGalmuriPixelForPixel() {
-        assertEquals(10, sheets.charAdvance('가'), "Hangul: 9 px and a pixel apart");
-        assertEquals(10, sheets.charAdvance('이'), "narrow syllables keep the font's advance (marked)");
-        assertEquals(10, sheets.charAdvance('뛰'));
-        assertEquals(6, sheets.charAdvance('A'));
-        assertEquals(2, sheets.charAdvance('i'));
-        assertEquals(4, sheets.charAdvance('·'));
-        assertEquals(-1, sheets.charAdvance('漢'));
+        HudFont g9 = new HudFont("t9");
+        g9.text(sheets, 9);
+        assertEquals(10, g9.textAdvance('가'), "Hangul: 9 px and a pixel apart");
+        assertEquals(10, g9.textAdvance('이'), "narrow syllables keep the font's advance (marked)");
+        assertEquals(10, g9.textAdvance('뛰'));
+        assertEquals(6, g9.textAdvance('A'));
+        assertEquals(2, g9.textAdvance('i'));
+        assertEquals(4, g9.textAdvance('·'));
+        assertEquals(4, g9.textAdvance(' '));
+        assertEquals(-1, g9.textAdvance('漢'));
         assertTrue(sheets.sheet("hangul").names().size() >= 2350);
+        // Galmuri7 (the small panel) and the same letters twice as big (the large one): the game's rounding
+        HudFont g7 = new HudFont("t7");
+        g7.text(sheets, "text7", "hangul7", 7, 1);
+        assertEquals(8, g7.textAdvance('가'));
+        assertEquals(5, g7.textAdvance('A'));
+        assertEquals(3, g7.textAdvance(' '));
+        HudFont g14 = new HudFont("t14");
+        g14.text(sheets, "text7", "hangul7", 7, 2);
+        assertEquals(15, g14.textAdvance('가'), "7 visible px twice as big, and the game's one pixel");
+        assertEquals(9, g14.textAdvance('A'));
+        assertEquals(6, g14.textAdvance(' '));
+    }
+
+    @Test
+    void panelLettersAreTheServersOwn() {
+        HudSheets.Sheet panel = sheets.sheet(HudLayout.PANEL_HANGUL), panel7 = sheets.sheet(HudLayout.PANEL_HANGUL7);
+        assertEquals(sheets.panelLetters().size(), panel.names().size(), "every syllable of the repository's texts, no more");
+        assertEquals(panel.names(), panel7.names());
+        assertTrue(panel.names().containsAll(List.of("잔", "액", "직", "업", "농", "부", "사", "건")));
+        assertTrue(panel.names().size() < sheets.sheet("hangul").names().size() / 2, "a light sheet: " + panel.names().size());
+        // a syllable no text uses is drawn as ? in the panel (the action bar still has every syllable)
+        assertFalse(sheets.panelLetters().contains((int) '꽥'));
+        HudClient.Laid laid = client.lay(layout.panel(List.of(new HudLayout.Row(null, mm("꽥"), false)), 212));
+        assertTrue(laid.draws().stream().anyMatch(d -> "?".equals(d.cell())));
+        assertEquals(1, client.lay(layout.actionBar(null, mm("꽥"))).draws().stream().filter(d -> d.cell().equals("꽥")).count());
+        // the server's own letters come first, then the most used of the rest, up to the limit
+        Map<Integer, Integer> counts = new java.util.HashMap<>();
+        HudModule.count("똠똠똠 뷁", counts);
+        int[] dropped = {0};
+        Set<Integer> picked = HudModule.pickLetters(Set.of((int) '가'), counts, 2, n -> dropped[0] = n);
+        assertEquals(Set.of((int) '가', (int) '똠'), picked);
+        assertEquals(1, dropped[0]);
     }
 
     @Test
@@ -259,12 +296,13 @@ class HudLayoutTest {
         for (int right : new int[]{s.sidebarRight(), 238, 478, 958}) {
             HudClient.Laid laid = client.lay(layout.panel(rows, right));
             assertEquals(0, laid.width());
-            HudClient.Draw cap = find(laid, "panel_head", "r");
+            HudClient.Draw cap = find(laid, "panel_head_m", "r");
             assertEquals(right, cap.x() + HudLayout.CAP, "the outline ends at the right edge (the shadow just past it)");
-            HudClient.Draw corner = find(laid, "panel_head", "l");
+            HudClient.Draw corner = find(laid, "panel_head_m", "l");
             int x = corner.x();
             assertEquals(s.sidebarY(), corner.y() + 3, "boss bar pen line is y 3");
-            assertEquals(x + HudLayout.MARK_X, find(laid, "panel_head", "mark").x());
+            assertEquals(x + HudLayout.MARK_X, find(laid, "panel_mark", "mark").x());
+            assertFalse(drawn(laid, "panel_edit", ""), "no brackets unless it is being moved");
             HudClient.Draw coin = find(laid, "icons", "coin"), job = find(laid, "icons", "job");
             assertEquals(x + HudLayout.PAD, coin.x());
             assertEquals(coin.x(), job.x());
@@ -287,7 +325,7 @@ class HudLayoutTest {
     @Test
     void panelDefaultFitsEverySixteenByNineScreenAtAutoScale() {
         for (int[] w : new int[][]{{1280, 720}, {2560, 1440}, {3840, 2160}}) {
-            assertEquals(HudLayout.Settings.defaults().sidebarRight(), HudPosition.rightFor(w[0], w[1], 0), w[0] + "x" + w[1]);
+            assertEquals(HudLayout.Settings.defaults().sidebarRight(), HudScreen.rightFor(w[0], w[1], 0, 2), w[0] + "x" + w[1]);
         }
     }
 
@@ -349,7 +387,7 @@ class HudLayoutTest {
     @Test
     void fontsAreValid() {
         Map<String, JsonObject> fonts = layout.fonts();
-        Map<String, byte[]> files = HudPack.files(sheets, layout, "WHITE", true);
+        Map<String, byte[]> files = HudPack.files(layout, "WHITE", true);
         for (Map.Entry<String, JsonObject> f : fonts.entrySet()) {
             Set<Integer> seen = new HashSet<>();
             for (JsonElement e : f.getValue().getAsJsonArray("providers")) {
@@ -370,18 +408,27 @@ class HudLayoutTest {
             assertTrue(files.containsKey(f.getKey()));
         }
         assertNotNull(files.get("assets/stsv/textures/font/hud/LICENSE-galmuri.txt"), "the font's licence travels with it");
+        assertNull(files.get("assets/stsv/textures/font/hud/hangul7.png"), "the whole Galmuri7 sheet is only cut from, not shipped");
+        assertNotNull(files.get("assets/stsv/textures/font/hud/" + HudLayout.PANEL_HANGUL7 + ".png"));
     }
 
     @Test
     void fontsStayLightOnClientMemory() {
-        long bytes = HudPack.clientMemory(sheets, layout);
-        // the earlier HUD loaded about 28 MB (ten Unifont sheets of 2.4 MB); seven panel rows and the action bar now
-        assertTrue(bytes < 8L * 1024 * 1024, "client memory " + bytes);
+        long bytes = HudPack.clientMemory(layout);
+        // the earlier HUD loaded about 28 MB (ten Unifont sheets of 2.4 MB), the one with a single panel size and
+        // place 7.2 MB; three sizes and a range of heights (30 rows of letters) now, on letter sheets cut to the
+        // server's own syllables
+        assertTrue(bytes < 10L * 1024 * 1024, "client memory " + bytes);
+        // and with as many syllables as the panel ever keeps
+        HudSheets bundled = sheets;
+        List<Integer> most = bundled.sheet("hangul").names().stream().map(n -> n.codePointAt(0)).limit(HudModule.MAX_PANEL_LETTERS).toList();
+        HudLayout full = new HudLayout(HudLayout.panelSheets(bundled, most), HudLayout.Settings.defaults());
+        assertTrue(HudPack.clientMemory(full) < 11L * 1024 * 1024, "client memory with every letter the panel keeps " + HudPack.clientMemory(full));
     }
 
     @Test
     void packHidesTheVanillaHudItReplaces() {
-        Map<String, byte[]> files = HudPack.files(sheets, layout, "WHITE", true);
+        Map<String, byte[]> files = HudPack.files(layout, "WHITE", true);
         String s = "assets/minecraft/textures/gui/sprites/";
         for (String n : List.of("hud/heart/full", "hud/heart/container", "hud/heart/poisoned_hardcore_half_blinking",
                 "hud/heart/absorbing_full", "hud/heart/vehicle_full", "hud/heart/vehicle_container", "hud/food_full",
@@ -392,7 +439,7 @@ class HudLayoutTest {
         assertNull(files.get(s + "boss_bar/red_background.png"));
         // 26.3 has 47 heart sprites
         assertEquals(47, files.keySet().stream().filter(k -> k.startsWith(s + "hud/heart/")).count());
-        Map<String, byte[]> noHealth = HudPack.files(sheets, layout, null, false);
+        Map<String, byte[]> noHealth = HudPack.files(layout, null, false);
         assertTrue(noHealth.keySet().stream().noneMatch(k -> k.startsWith("assets/minecraft/")));
     }
 
@@ -421,41 +468,6 @@ class HudLayoutTest {
         assertEquals(Boolean.TRUE, HudToggle.apply(store, "켜기"));
         assertNull(HudToggle.apply(store, "뭐지"));
         assertTrue(HudToggle.shown(store), "an unknown word changes nothing");
-    }
-
-    @Test
-    void positionFromTheWindow() {
-        assertEquals(4, HudPosition.guiScale(1920, 1080, 0));
-        assertEquals(3, HudPosition.guiScale(1280, 720, 0));
-        assertEquals(6, HudPosition.guiScale(2560, 1440, 0));
-        assertEquals(9, HudPosition.guiScale(3840, 2160, 0));
-        assertEquals(4, HudPosition.guiScale(1920, 1080, 6), "a larger chosen scale is cut down, as the game does");
-        assertEquals(2, HudPosition.guiScale(1920, 1080, 2));
-        assertEquals(427, HudPosition.guiWidth(1280, 3));
-        assertEquals(238, HudPosition.rightFor(1920, 1080, 0));
-        assertEquals(318, HudPosition.rightFor(1920, 1080, 3));
-        assertEquals(478, HudPosition.rightFor(1920, 1080, 2));
-        assertEquals(958, HudPosition.rightFor(1920, 1080, 1));
-        assertEquals(212, HudPosition.rightFor(2560, 1440, 0));
-        assertEquals(318, HudPosition.rightFor(2560, 1440, 4));
-
-        var w = HudPosition.parse(new String[]{"1920x1080", "3"}, 212);
-        assertEquals(HudPosition.Kind.WINDOW, w.kind());
-        assertEquals(318, w.right());
-        assertEquals(3, w.scale());
-        assertEquals(238, HudPosition.parse(new String[]{"1920X1080"}, 212).right());
-        assertEquals(238, HudPosition.parse(new String[]{"1920×1080", "자동"}, 212).right());
-        assertEquals(238, HudPosition.parse(new String[]{"1920", "x", "1080"}, 212).right());
-        assertEquals(HudPosition.Kind.NUDGE, HudPosition.parse(new String[]{"+10"}, 212).kind());
-        assertEquals(222, HudPosition.parse(new String[]{"+10"}, 212).right());
-        assertEquals(207, HudPosition.parse(new String[]{"-5"}, 212).right());
-        assertEquals(300, HudPosition.parse(new String[]{"300"}, 212).right());
-        assertEquals(HudPosition.MIN_RIGHT, HudPosition.parse(new String[]{"-999"}, 212).right());
-        assertEquals(HudPosition.Kind.RESET, HudPosition.parse(new String[]{"기본"}, 212).kind());
-        assertEquals(HudPosition.Kind.USAGE, HudPosition.parse(new String[]{}, 212).kind());
-        assertEquals(HudPosition.Kind.USAGE, HudPosition.parse(new String[]{"오른쪽"}, 212).kind());
-        assertEquals(HudPosition.Kind.USAGE, HudPosition.parse(new String[]{"1920x1080", "큰"}, 212).kind());
-        assertEquals(HudPosition.Kind.USAGE, HudPosition.parse(new String[]{"100x100"}, 212).kind());
     }
 
     @Test

@@ -1,10 +1,12 @@
 """
-Galmuri9, the 9 px Korean pixel font the resource-pack HUD writes with (tools/assetgen/hud.py).
+Galmuri9 and Galmuri7, the 9 px and 7 px Korean pixel fonts the resource-pack HUD writes with
+(tools/assetgen/hud.py: Galmuri9 everywhere, Galmuri7 for the small and large sidebar panel).
 
 Galmuri 2.40.3 by Lee Minseo (quiple), SIL Open Font License 1.1, no reserved font name
 (fonts/LICENSE-galmuri.txt; the same notice ships in the pack next to the sheets made from it).
-fonts/galmuri9.txt is the part of the font's own bitmap source (dist/Galmuri9.bdf of the npm package
-"galmuri") the HUD can use, one glyph per line, so the pack can be rebuilt without the network:
+fonts/galmuri9.txt and fonts/galmuri7.txt are the part of each font's own bitmap source (dist/Galmuri9.bdf,
+dist/Galmuri7.bdf of the npm package "galmuri") the HUD can use, one glyph per line, so the pack can be
+rebuilt without the network:
 
     codepoint(hex) advance x-offset y-offset width height rows
 
@@ -12,25 +14,30 @@ rows: the glyph's bitmap rows top to bottom, each as hex (most significant bit =
 by '.'; '-' for a glyph without pixels. Offsets and advance are BDF's (y-offset = bottom row above the
 baseline, may be negative). Every Hangul syllable is kept, so any text can be drawn.
 
-    python3 galmuri.py <path to Galmuri9.bdf>     # rewrites fonts/galmuri9.txt
+    python3 galmuri.py <path to Galmuri9.bdf>     # rewrites fonts/galmuri9.txt (Galmuri7.bdf: galmuri7.txt)
 """
 
 import sys
 from pathlib import Path
 
 HERE = Path(__file__).resolve().parent
-DATA = HERE / "fonts" / "galmuri9.txt"
+FONTS = HERE / "fonts"
 LICENSE = HERE / "fonts" / "LICENSE-galmuri.txt"
 
 RANGES = [(0x20, 0x7E), (0xA0, 0xFF), (0x2010, 0x206F), (0x2190, 0x21FF), (0x2200, 0x22FF), (0x2500, 0x25FF),
           (0x2600, 0x26FF), (0x2700, 0x27BF), (0x3000, 0x303F), (0x3131, 0x318E), (0xAC00, 0xD7A3)]
 
-HEADER = ("# Galmuri9 2.40.3 (npm package \"galmuri\", dist/Galmuri9.bdf), Copyright (c) 2019-2025 Lee Minseo.\n"
+HEADER = ("# Galmuri{size} 2.40.3 (npm package \"galmuri\", dist/Galmuri{size}.bdf), Copyright (c) 2019-2025 Lee Minseo.\n"
           "# SIL Open Font License 1.1: see LICENSE-galmuri.txt. Format: tools/assetgen/galmuri.py\n")
 
 
+def data(size=9):
+    return FONTS / f"galmuri{size}.txt"
+
+
 def vendor(bdf_path):
-    out = [HEADER]
+    size = int("".join(c for c in Path(bdf_path).stem if c.isdigit()))
+    out = [HEADER.format(size=size)]
     with open(bdf_path, encoding="latin-1") as f:
         cur, bitmap = None, None
         for line in f:
@@ -57,13 +64,14 @@ def vendor(bdf_path):
                 cur, bitmap = None, None
             elif bitmap is not None:
                 bitmap.append(k)
-    DATA.write_text("".join(out), encoding="utf-8")
+    data(size).write_text("".join(out), encoding="utf-8")
+    return data(size)
 
 
-def load():
+def load(size=9):
     """codepoint -> (advance, x-offset, y-offset, rows as lists of bools, left to right)."""
     out = {}
-    for line in DATA.read_text(encoding="utf-8").splitlines():
+    for line in data(size).read_text(encoding="utf-8").splitlines():
         if not line or line.startswith("#"):
             continue
         cp, dw, xo, yo, w, h, rows = line.split()
@@ -78,5 +86,5 @@ def load():
 
 
 if __name__ == "__main__":
-    vendor(sys.argv[1])
-    print(DATA, DATA.stat().st_size)
+    written = vendor(sys.argv[1])
+    print(written, written.stat().st_size)

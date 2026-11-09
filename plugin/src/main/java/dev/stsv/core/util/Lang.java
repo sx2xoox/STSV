@@ -129,6 +129,24 @@ public final class Lang {
         return java.util.List.of();
     }
 
+    /** Every text of every messages file (the core's and the content plugins', with their defaults). */
+    public static java.util.List<String> allText() {
+        java.util.List<String> out = new java.util.ArrayList<>();
+        java.util.List<org.bukkit.configuration.Configuration> all = new java.util.ArrayList<>();
+        all.add(messages);
+        all.addAll(extra.values());
+        for (org.bukkit.configuration.Configuration y : new java.util.ArrayList<>(all)) {
+            if (y.getDefaults() != null) all.add(y.getDefaults());
+        }
+        for (org.bukkit.configuration.Configuration y : all) {
+            for (String key : y.getKeys(true)) {
+                if (y.isList(key)) out.addAll(y.getStringList(key));
+                else if (y.isString(key)) out.add(y.getString(key));
+            }
+        }
+        return out;
+    }
+
     /** For tests and tools: use a given messages file. */
     public static void use(YamlConfiguration y) {
         messages = y;
