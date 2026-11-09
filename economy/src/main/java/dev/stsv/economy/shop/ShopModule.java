@@ -321,8 +321,9 @@ public final class ShopModule extends EcoModule implements DailyListener {
         Optional<ItemStack> item = Items.create(id, amount);
         if (item.isEmpty()) return false;
         // tagged: buying at a fixed price and selling back at a 품귀 price (or delivering it) is no money machine.
-        // Marked before the room is counted: it stacks only with marked ones
-        Items.markBought(item.get());
+        // Marked before the room is counted: it stacks only with marked ones. Furniture is not: the shop does not buy it, no
+        // machine or request takes it, and a piece picked up again (unmarked) should stack with the ones bought
+        if (!Items.furniture(item.get())) Items.markBought(item.get());
         if (Items.room(p.getInventory(), item.get()) < amount) {
             HudModule.flash(p, Lang.mm("shop.no-room"));
             return false;
@@ -699,14 +700,6 @@ public final class ShopModule extends EcoModule implements DailyListener {
         return it;
     }
 
-    /** Categories centred in the one row of category cells (null = an empty cell). */
-    private static <T> List<T> centred(List<T> entries, int cells) {
-        List<T> out = new ArrayList<>();
-        for (int i = 0; i < Math.max(0, (cells - entries.size()) / 2); i++) out.add(null);
-        out.addAll(entries);
-        return out;
-    }
-
     /** Sells the clicked stack of the player's own inventory (both 판매 screens). */
     private void sellFromInventory(MenuView v, int slot, ClickType click) {
         Player p = v.player();
@@ -753,7 +746,7 @@ public final class ShopModule extends EcoModule implements DailyListener {
             List<ActiveEvent> merchant = eco.events().active("merchant");
             if (!merchant.isEmpty() && !catalog.merchant().goods().isEmpty()) entries.add(merchant.getFirst());
             shown.clear();
-            shown.addAll(centred(entries, ShopCatalog.MAX_CATEGORIES));
+            shown.addAll(ShopCatalog.row(entries, ShopCatalog.MAX_BUY_CATEGORIES));
             List<ItemStack> out = new ArrayList<>();
             for (Object o : shown) {
                 if (o instanceof ShopCatalog.BuyCategory c && c.gacha()) {
@@ -936,7 +929,7 @@ public final class ShopModule extends EcoModule implements DailyListener {
         @Override
         public List<ItemStack> list(MenuView v) {
             shown.clear();
-            shown.addAll(centred(catalog.sellCategories(), ShopCatalog.MAX_CATEGORIES));
+            shown.addAll(ShopCatalog.row(catalog.sellCategories(), ShopCatalog.MAX_SELL_CATEGORIES));
             List<ItemStack> out = new ArrayList<>();
             for (ShopCatalog.Category c : shown) {
                 if (c == null) {

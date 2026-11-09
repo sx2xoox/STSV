@@ -32,6 +32,11 @@ public final class Items {
         return item;
     }
 
+    /** A piece of the core's furniture (placed in the world, not sold to the shop, no machine takes it). */
+    public static boolean furniture(ItemStack item) {
+        return STSVPlugin.get().content().itemOf(item).map(CustomItem::isFurniture).orElse(false);
+    }
+
     public static boolean shopBought(ItemStack item) {
         return item != null && item.hasItemMeta()
                 && item.getItemMeta().getPersistentDataContainer().has(SHOP_BOUGHT, org.bukkit.persistence.PersistentDataType.BYTE);

@@ -9,7 +9,8 @@
 #   q 는 기준가 구간으로 정함 (모든 판매 줄 같은 규칙): 3G 미만 128 · 6G 미만 64 · 15G 미만 32 · 50G 미만 16 · 150G 미만 8
 #   · 500G 미만 4 · 1000G 미만 2 · 그 위 1. 커스텀 작물은 1인 하루 한도 cap = 4 × q. 그 밖에 cap 이 있는 것은 다이아몬드(32)·네더라이트 파편(4)
 # 구매(buy): 플레이어가 상점에서 살 때 (고정가). 장비와 고급 재료는 팔지 않음: 플레이어끼리 거래.
-# 카테고리는 한쪽에 7개까지 (화면 한 줄, 구매는 상인 행렬 자리 포함). 카테고리 = name, icon(아이템 id), items.
+# 카테고리는 화면 한 줄: 판매 7개까지, 구매 9개까지 (상인 행렬 자리 포함, 짝수 개면 가운데 칸을 비우고 양쪽으로 나눔).
+# 카테고리 = name, icon(아이템 id), items.
 # 아무리 많이 팔아도 이 아래로는 안 내려감 (기준가의 25%: 15Q 넘게 팔아야 닿음)
 floor: 0.25
 daily-decay: 0.5
@@ -421,6 +422,47 @@ buy:
       - { item: bread, amount: 8, price: 40 }
       - { item: glass_bottle, amount: 8, price: 16 }
       - { item: cobblestone, amount: 64, price: 30 }
+  # 꾸미기 가구 (코어의 content/stsv/items/furniture_japanese.yml, 일본풍 30종): 상점에서 사기만 함 (판매 줄 없음, 되팔 수 없음).
+  # 산 가구는 상점 표시가 붙지 않음: 기계·납품에 쓰이지 않고, 설치했다 회수한 것과 그대로 겹쳐짐
+  furniture:
+    name: "가구"
+    icon: stsv:chabudai
+    items:
+      # 바닥 · 앉는 것 · 칸막이 · 벽
+      - { item: stsv:tatami, price: 1500 }           # 다다미
+      - { item: stsv:zabuton, price: 800 }           # 방석
+      - { item: stsv:chabudai, price: 2000 }         # 좌식 탁자
+      - { item: stsv:kotatsu, price: 15000 }         # 고타츠
+      - { item: stsv:futon, price: 5000 }            # 이불 세트
+      - { item: stsv:shoji_screen, price: 6000 }     # 쇼지 칸막이
+      - { item: stsv:fusuma_panel, price: 9000 }     # 후스마 장식
+      - { item: stsv:hanging_scroll, price: 4000 }   # 도코노마 족자
+      - { item: stsv:noren, price: 2500 }            # 노렌
+      - { item: stsv:bamboo_fence, price: 600 }      # 대나무 울타리
+      # 조명
+      - { item: stsv:andon, price: 3500 }            # 등롱
+      - { item: stsv:stone_lantern, price: 8000 }    # 석등
+      - { item: stsv:chochin, price: 2500 }          # 제등
+      # 장식품 · 화분
+      - { item: stsv:bonsai, price: 5000 }           # 분재
+      - { item: stsv:ikebana, price: 3000 }          # 이케바나 꽃꽂이
+      - { item: stsv:bamboo_pot, price: 2500 }       # 대나무 화분
+      - { item: stsv:sakura_pot, price: 6000 }       # 벚꽃 화분
+      # 다구 · 소품
+      - { item: stsv:tea_set, price: 2000 }          # 다기 세트
+      - { item: stsv:tea_kettle, price: 4000 }       # 화로와 찻주전자
+      - { item: stsv:sake_set, price: 1500 }         # 사케 병과 잔
+      - { item: stsv:taiko_drum, price: 10000 }      # 다이코 북
+      - { item: stsv:maneki_neko, price: 7777 }      # 마네키네코
+      - { item: stsv:daruma, price: 2000 }           # 다루마
+      - { item: stsv:omamori_rack, price: 3000 }     # 오마모리 걸이
+      - { item: stsv:wind_chime, price: 1500 }       # 풍경
+      # 큰 장식 · 정원
+      - { item: stsv:wagasa, price: 7000 }           # 노다테 우산
+      - { item: stsv:kimono_rack, price: 12000 }     # 기모노 걸이
+      - { item: stsv:torii, price: 20000 }           # 도리이
+      - { item: stsv:stepping_stones, price: 500 }   # 징검돌
+      - { item: stsv:koi_pond, price: 10000 }        # 잉어 연못
   # 치장: 직접 팔지 않고 치장 뽑기로 (코어의 /뽑기 화면이 열림). 가격·확률·나오는 치장은 contents/stsv/gacha.yml
   # (특정 치장 하나를 얻는 데 드는 돈의 기댓값을 예전 상점가에 맞춤). 이미 가진 치장은 교환권(거래소에서 사고팔 수 있음)으로 나옴.
   # 전설 치장(왕관, 천사의 고리, 천사·악마 날개, 한정 펫 3종)은 뽑기에도 없음: 주간 순위 1위 보상, 상인 행렬 사건 (아래 merchant.rare)
