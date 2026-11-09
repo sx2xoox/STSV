@@ -217,6 +217,14 @@ class Model:
             uv[1], uv[3] = e["side_v"]
         return uv
 
+    def _preview_uv(self, e, f, t):
+        """The face's UV in 0..16 units of its texture (the preview renderer's), whatever the texture's size."""
+        uv = self._face_uv(e, f)
+        fw, fh = T.size_of(t)
+        if (fw, fh) == (16, 16):
+            return uv
+        return [round(uv[0] * 16 / fw, 6), round(uv[1] * 16 / fh, 6), round(uv[2] * 16 / fw, 6), round(uv[3] * 16 / fh, 6)]
+
     @staticmethod
     def _png(tex, strip=False):
         """strip=True returns all animation frames stacked vertically (for animated textures)."""
@@ -233,9 +241,10 @@ class Model:
         textures = []
         for i, t in enumerate(tex_names):
             frames, frame_time = (len(T.ANIMATED[t][0]()), T.ANIMATED[t][1]) if t in T.ANIMATED else (1, 1)
+            fw, fh = T.size_of(t)     # 16 x 16, or a baked model's texture atlas (bake.py); UVs are in its pixels
             textures.append({
                 "path": "", "name": f"{t}.png", "folder": "item", "namespace": "",
-                "id": str(i), "width": 16, "height": 16 * frames, "uv_width": 16, "uv_height": 16,
+                "id": str(i), "width": fw, "height": fh * frames, "uv_width": fw, "uv_height": fh,
                 "particle": i == 0, "render_mode": "default", "render_sides": "auto",
                 "frame_time": frame_time, "frame_order_type": "loop", "frame_order": "", "frame_interpolate": False,
                 "visible": True, "internal": True, "saved": False,
@@ -290,7 +299,7 @@ class Model:
             "elements": [{
                 "from": e["from"], "to": e["to"], "glow": e["glow"], "shade": e.get("shade", True),
                 "rotation": list(e["rotation"][:2]) + [list(e["rotation"][2])] if e["rotation"] else None,
-                "faces": {f: {"uv": self._face_uv(e, f), "texture": t} for f, t in e["faces"].items()},
+                "faces": {f: {"uv": self._preview_uv(e, f, t), "texture": t} for f, t in e["faces"].items()},
             } for e in self.elements],
         }
 

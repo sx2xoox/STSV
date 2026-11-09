@@ -1,303 +1,138 @@
 """
 Japanese-style decorative furniture (content/stsv/items/furniture_japanese.yml): 30 pieces for houses and
-gardens, built from the machines' per-face materials (economy_machines.Mat) and the shared palette.
+gardens, built as baked models (stsv_assets/bake.py): every face is painted in model space at 16 px a block
+(the same texel size on every piece), with baked light (rims, contact shadows, ambient occlusion in creases)
+and one texture atlas per model.
 
 Coordinates: model units (16 = 1 block), front = north (z 0), the anchor cell is x 0..16 / z 0..16, y 0 = its
 floor. Pieces that reach over a block to the left/right or to the front use negative x / z (the kotatsu's
-cushions, the torii's posts); pieces three blocks tall are drawn from y -16 and placed a block higher
-(furniture translation [0, 1, 0]), like the forge.
+cushions, the torii's posts); pieces three blocks tall are drawn from y 0 and moved down a block (dy -16,
+furniture translation [0, 1, 0]), like the forge. Seen from the front, model +x is on the viewer's LEFT.
 
 Collision and click boxes come from the model itself (FurnitureShape: a cell gets a barrier when the model
 fills 30% of it, voxels of 1/4 block), so low and thin things (mats, cushions, curtains, stepping stones) are
 drawn so they stay under that, and walls of a piece (screens, fences) are centred on the cell (z 7..9 crosses
-two voxel rows) so they do get one. Lamps give real light (furniture.light in the item file).
+two voxel rows) so they do get one. Lamps give real light (furniture.light in the item file); their paper or
+fire flickers (an animated texture, no entities), and the koi swim round their pond the same way.
 
 PIECES: id -> (builder, cells as (w, h, d) for the previews, floor offset)
-ICONS:  id -> 16x16 inventory icon (stsv:<id>_icon, the item's 'icon')
 """
 
 import math
-import random
-import zlib
 
-from PIL import Image
-
-import economy_models  # noqa: F401  (registers the shared surfaces the machine materials may use)
-from economy_machines import MModel, Mat, cyl, ring, display, IRON, GRANITE, LOG
-from stsv_assets import textures as T
-from stsv_assets.palette import ramp
-from stsv_assets.pixelart import Canvas
-
-S = 16
+from economy_machines import display
+from stsv_assets.bake import BModel, Paint, cyl, h3, vnoise
 
 # ================================================================================================
-# Materials
+# Paints (palette ramp, base step, pattern); see bake.Paint
 # ================================================================================================
 
-HINOKI = Mat("hinoki", "planks", 2)
-HINOKI_GRAIN = Mat("hinoki", "grain", 2)
-DARK = Mat("wood_dark", "grain", 1)           # dark-stained frames, legs
-DARK_PLANKS = Mat("wood_dark", "planks", 2)
-WALNUT = Mat("wood", "grain", 1)
-LACQUER = Mat("rubber", "plain", 2, noise=0.04)  # black lacquer
-LACQUER_RED = Mat("vermilion", "plain", 2, noise=0.04)
-VERMILION = Mat("vermilion", "plain", 2)
-VERMILION_LIGHT = Mat("vermilion", "plain", 3)
-CRIMSON = Mat("crimson", "plain", 2, noise=0.04)
-CRIMSON_TOP = Mat("crimson", "plain", 3, noise=0.04)
-INDIGO = Mat("indigo", "weave", 2)
-INDIGO_DARK = Mat("indigo", "weave", 1)
-CREAM = Mat("cream", "weave", 2)
-WHITE = Mat("porcelain", "plain", 2, noise=0.04)
-CELADON = Mat("celadon", "plain", 2, noise=0.05)
-CELADON_DARK = Mat("celadon", "plain", 1, noise=0.05)
-GOLD = Mat("gold", "metal", 2)
-BRASS = Mat("brass", "metal", 2)
-STONE = Mat("millstone", "speckle", 2)
-STONE_LIGHT = Mat("millstone", "speckle", 3)
-STONE_DARK = Mat("millstone", "speckle", 1)
-MOSS = Mat("leaf", "speckle", 2)
-LEAF = Mat("leaf", "speckle", 2)
-LEAF_DARK = Mat("leaf_dark", "speckle", 2)
-BAMBOO = Mat("bamboo", "grain", 3)
-BAMBOO_DARK = Mat("bamboo", "grain", 2)
-SOIL = Mat("soil", "speckle", 1, bevel=None)
-BARK = Mat("bark", "grain", 2)
-PAPER = Mat("paper", "plain", 1, noise=0.04)
-LIT = Mat("washi_lit", "plain", 1, glow=True, noise=0.0, bevel=(1, 0))
-SAKURA = Mat("sakura", "speckle", 2)
-SAKURA_LIGHT = Mat("sakura", "speckle", 3)
-TATAMI_EDGE = Mat("rubber", "weave", 2, bevel=(1, 0))
-CLAY = Mat("terracotta", "plain", 1)
-ONGGI = Mat("onggi", "plain", 2, noise=0.05)
-FOX = Mat("fox", "plain", 3, noise=0)
-FOX_DARK = Mat("fox", "plain", 1, noise=0)
-FEATHER = Mat("feather", "plain", 2, noise=0.04)
-BLACK = Mat("rubber", "plain", 0, bevel=None, noise=0)
-PINK = Mat("pink", "plain", 2, noise=0)
-GREEN_TEA = Mat("bamboo", "plain", 3, bevel=None, noise=0)
-EMBER = Mat("fire", "plain", 3, glow=True, bevel=None, noise=0.2)
+STONE = Paint("millstone", 2, "stone")
+STONE_LIGHT = Paint("millstone", 3, "stone")
+STONE_DARK = Paint("millstone", 1, "stone")
+HINOKI = Paint("hinoki", 2, "grain", axis="long")
+DARK = Paint("wood_dark", 1, "grain", axis="long", noise=0.03)
+LACQ = Paint("rubber", 1, "lacquer", noise=0.02)
+LACQ_RED = Paint("vermilion", 2, "lacquer", noise=0.02)
+CORD = Paint("bark", 0, noise=0, rim=0.5)
+BARK = Paint("bark", 2, "grain", axis="long")
+SOIL = Paint("soil", 1, "speckle")
+MOSS = Paint("leaf", 2, "speckle")
+BRASS = Paint("brass", 2, "metal")
+IRON = Paint("iron", 2, "metal")
+PORCELAIN = Paint("porcelain", 2, noise=0.02)
+CELADON = Paint("celadon", 2, noise=0.03)
+SIDE_FACES = ("north", "south", "east", "west")
 
 
-def _canvas():
-    return Image.new("RGBA", (S, S), (0, 0, 0, 0))
+def flat(ramp_name, step, **kw):
+    """A plain paint without pattern or noise (small parts, cloth)."""
+    return Paint(ramp_name, step, noise=0, **kw)
 
 
-def surface(name, fn):
-    """Registers a tileable 16x16 surface (auto UV continues it across faces)."""
-    T.SURFACES[name] = fn
-    return name
+def moss_on(paint, amount=0.62, cell=2.5, seed=5):
+    """The paint with moss patches on its upward faces."""
+    def decal(c):
+        if c.face != "up":
+            return None
+        v = vnoise(c.p[0], c.p[1] * 2, c.p[2], cell, seed)
+        if v > amount:
+            return ("leaf", 2 if v > amount + 0.12 else 1)
+        return None
+    return paint(decal=decal, decal_pattern=True)
 
 
-def picture(name, w, h, paint):
-    """A picture of exactly w x h pixels for one face (uv [0, 0, w, h]): paint(px) draws it.
-    Returns (texture, uv) - the uv shows it unmirrored on north and east faces."""
-    im = _canvas()
-    px = im.load()
-    paint(px)
-    _fill_rest(im, w, h)
-    T.SURFACES[name] = (lambda img=im: img.copy())
-    return name, [0, 0, w, h]
+def picture(rows, colours, x_left, y_top, face="north"):
+    """A decal from a little pixel picture (list of strings, '.' = the paint's own surface): column 0 starts at
+    model x = x_left on the viewer's left (north faces: the viewer's left is +x; south faces: -x)."""
+    def decal(c):
+        if c.face != face:
+            return None
+        col = math.floor(x_left - c.p[0]) if face == "north" else math.floor(c.p[0] - x_left)
+        row = math.floor(y_top - c.p[1])
+        if 0 <= row < len(rows) and 0 <= col < len(rows[row]):
+            ch = rows[row][col]
+            if ch != ".":
+                return colours[ch]
+        return None
+    return decal
 
 
-def _fill_rest(im, w, h):
-    """The unused rest of a 16x16 face picture: opaque (a solid box must not have see-through pixels)."""
-    px = im.load()
-    for y in range(S):
-        for x in range(S):
-            if x >= w or y >= h or px[x, y][3] == 0:
-                px[x, y] = px[min(x, w - 1), min(y, h - 1)] if px[min(x, w - 1), min(y, h - 1)][3] else (0, 0, 0, 255)
+def chain(*decals):
+    """Several decals: the first that paints a texel wins."""
+    def decal(c):
+        for d in decals:
+            got = d(c)
+            if got is not None:
+                return got
+        return None
+    return decal
 
 
-def flat(m, name, frm, to, mat, front, back=None, back_uv=None):
-    """A box with a picture on its north face (front) and optionally another on its south face."""
-    tex, uv = front
-    faces = {"north": tex}
-    uvs = {"north": uv}
-    if back:
-        faces["south"] = back[0]
-        uvs["south"] = back_uv or [back[1][2], 0, 0, back[1][3]]
-    m.box(name, frm, to, mat, faces=faces, uv=uvs)
+def poly(m, name, c, w, cut, lo, hi, paint, steps=2):
+    """An octagonal slab w wide whose corners are cut `cut` deep, the cut edge drawn in `steps` pixel steps
+    (1 + 2 * steps boxes; a hexagonal stone part reads the same at this size)."""
+    x, z = c
+    half = w / 2
+    m.box(name, (x - half, lo, z - half + cut), (x + half, hi, z + half - cut), paint)
+    s = cut / steps
+    for k in range(steps):
+        # row k from the edge inwards: the octagon's half width at the middle of the row, on the half pixel
+        za, zb = half - (k + 1) * s, half - k * s
+        hw = math.floor((half - cut + (k + 0.5) * s) * 2 + 0.5) / 2
+        m.box(name, (x - hw, lo, z - zb), (x + hw, hi, z - za), paint)
+        m.box(name, (x - hw, lo, z + za), (x + hw, hi, z + zb), paint)
 
 
-# --- tileable surfaces -----------------------------------------------------------------------------
-
-def _tatami():
-    """Rush mat: fine weave rows along the long side, a stitch line every 4 px across."""
-    rnd = random.Random(601)
-    im = _canvas()
-    px = im.load()
-    for y in range(S):
-        for x in range(S):
-            i = 2 if y % 2 else 3
-            if x % 8 == 3:
-                i = 1 if y % 2 else 2
-            px[x, y] = ramp("tatami", i)
-    return im
+def cup(m, name, c, lo, hi, paint):
+    """A cup 3 px across: a square with its corners cut (a 3 px circle), three boxes."""
+    x, z = c
+    m.box(name, (x - 1.5, lo, z - 0.5), (x + 1.5, hi, z + 0.5), paint)
+    m.box(name, (x - 1, lo, z - 1.5), (x + 1, hi, z - 0.5), paint)
+    m.box(name, (x - 1, lo, z + 0.5), (x + 1, hi, z + 1.5), paint)
 
 
-def _shoji_lattice():
-    """Paper between thin kumiko bars, a bar every 4 px (tiles seamlessly)."""
-    im = _canvas()
-    px = im.load()
-    for y in range(S):
-        for x in range(S):
-            if x % 4 == 0 or y % 5 == 0:
-                px[x, y] = ramp("hinoki", 1 if (x % 4 == 0 and y % 5 == 0) else 2)
-            else:
-                px[x, y] = ramp("paper", 2 if (x % 4 == 1 or y % 5 == 1) else 1)
-    return im
+def tea_top(x, z, ramp_name="bamboo", step=3):
+    """Decal: the tea (or sake) showing in the middle of a cup's top."""
+    def decal(c):
+        if c.face == "up" and abs(c.p[0] - x) < 0.6 and abs(c.p[2] - z) < 0.6:
+            return (ramp_name, step)
+        return None
+    return decal
 
 
-def _shoji_lit():
-    """Lamp paper: glowing paper with the frame's bars as soft shadows."""
-    im = _canvas()
-    px = im.load()
-    for y in range(S):
-        for x in range(S):
-            px[x, y] = ramp("washi_lit", 0 if y % 6 == 0 else 1 if (x % 8 == 0) else 2)
-    return im
+def puff(m, name, c, w, h, d, paint):
+    """A soft rounded clump (blossom, foliage): a core box with smaller caps above and below; c = bottom centre."""
+    x, y, z = c
+    m.box(name, (x - w / 2, y + 1, z - d / 2), (x + w / 2, y + h - 1, z + d / 2), paint)
+    m.box(name, (x - w / 2 + 1, y + h - 1, z - d / 2 + 1), (x + w / 2 - 1, y + h, z + d / 2 - 1), paint)
+    m.box(name, (x - w / 2 + 1, y, z - d / 2 + 1), (x + w / 2 - 1, y + 1, z + d / 2 - 1), paint)
 
 
-def _bamboo_slats():
-    """Split bamboo slats side by side: one slat per 2 px (lit edge, body), a node row every 8 px."""
-    im = _canvas()
-    px = im.load()
-    for y in range(S):
-        for x in range(S):
-            i = 3 if x % 2 == 0 else 2
-            if y % 8 == 5:
-                i = 1
-            px[x, y] = ramp("bamboo", i)
-    return im
-
-
-def _chochin():
-    """Lantern paper: red, a darker bamboo rib every 2 px."""
-    im = _canvas()
-    px = im.load()
-    for y in range(S):
-        for x in range(S):
-            px[x, y] = ramp("vermilion", 2 if y % 2 else 3)
-    return im
-
-
-def _kotatsu_quilt():
-    """Warm orange quilt with a soft plaid (two darker lines each way every 8 px)."""
-    im = _canvas()
-    px = im.load()
-    for y in range(S):
-        for x in range(S):
-            on_x, on_y = x % 8 in (2, 3), y % 8 in (2, 3)
-            i = 1 if (on_x and on_y) else 2 if (on_x or on_y) else 3
-            if x % 8 == 6 or y % 8 == 6:
-                i = min(i, 2) if not (on_x or on_y) else i
-            px[x, y] = ramp("fox", i)
-    return im
-
-
-def _futon_cover():
-    """Indigo futon cover: asanoha-like white diamonds (hemp leaf) on indigo."""
-    im = _canvas()
-    px = im.load()
-    for y in range(S):
-        for x in range(S):
-            i = 2
-            u, v = x % 8, y % 8
-            if abs(u - 4) + abs(v - 4) == 4 or (u == 4 and v in (1, 7)):
-                px[x, y] = ramp("porcelain", 0)
-                continue
-            px[x, y] = ramp("indigo", i)
-    return im
-
-
-def _water_frame(k):
-    """Pond water: deep blue with light ripples drifting (frame k of 8)."""
-    rnd = random.Random(611)
-    im = _canvas()
-    px = im.load()
-    for y in range(S):
-        for x in range(S):
-            i = 1 if (x * 3 + y * 5) % 11 else 2
-            px[x, y] = ramp("water", i)
-    for (x0, y0, n) in ((2, 3, 4), (9, 8, 5), (4, 13, 3)):
-        for j in range(n):
-            px[(x0 + j + k) % S, y0] = ramp("water", 3)
-    for _ in range(6):
-        px[rnd.randrange(S), rnd.randrange(S)] = ramp("water", 0)
-    return im
-
-
-surface("jp_tatami", _tatami)
-surface("jp_shoji", _shoji_lattice)
-surface("jp_shoji_lit", _shoji_lit)
-surface("jp_bamboo_slats", _bamboo_slats)
-surface("jp_chochin", _chochin)
-surface("jp_kotatsu_quilt", _kotatsu_quilt)
-surface("jp_futon", _futon_cover)
-surface("jp_water", lambda: _water_frame(0))
-
-
-def _furin():
-    """Wind chime glass with little red goldfish painted on (bands of the bell show slices of it)."""
-    im = _canvas()
-    px = im.load()
-    for y in range(S):
-        for x in range(S):
-            px[x, y] = ramp("glass", 2 if (x + y) % 7 else 3)
-    for (x, y) in ((2, 6), (3, 6), (4, 7), (9, 5), (10, 5), (11, 6), (13, 9), (6, 10), (7, 10)):
-        px[x, y] = ramp("vermilion", 3)
-    return im
-
-
-surface("jp_furin", _furin)
-
-
-def _hibachi():
-    """Blue-and-white porcelain: an indigo wave band and a line under it (rows line up on every face)."""
-    im = _canvas()
-    px = im.load()
-    for y in range(S):
-        for x in range(S):
-            i = ramp("porcelain", 2 if (x + y) % 9 else 1)
-            if y == 12 and x % 4 < 2:
-                i = ramp("indigo", 3)
-            if y == 14:
-                i = ramp("indigo", 2)
-            px[x, y] = i
-    return im
-
-
-surface("jp_hibachi", _hibachi)
-T.ANIMATED["jp_water"] = (lambda: [_water_frame(k) for k in range(8)], 4)
-
-
-def _disc_pic(name, d, paint):
-    """A round end (drum head, umbrella underside) painted on the full 16x16 square; paint(px, dx, dy, r)
-    gets the offset from the centre in units of the radius (cyl maps the whole square on the round end)."""
-    im = _canvas()
-    px = im.load()
-    for y in range(S):
-        for x in range(S):
-            dx, dy = (x + 0.5 - 8) / 8, (y + 0.5 - 8) / 8
-            c = paint(dx, dy, math.hypot(dx, dy))
-            px[x, y] = c if c[3] else paint(dx * 0.9 / max(1e-6, math.hypot(dx, dy)), dy * 0.9 / max(1e-6, math.hypot(dx, dy)), 0.9)
-    T.SURFACES[name] = (lambda img=im: img.copy())
-    return name
-
-
-# ================================================================================================
-# Shared parts
-# ================================================================================================
-
-def cushion(m, x0, z0, w, mat=CRIMSON, top=CRIMSON_TOP, tassel=GOLD):
-    """Zabuton: a flat square cushion 2.5 high with a domed top, corner tassels and a centre tuft."""
-    m.box("cushion", (x0, 0, z0), (x0 + w, 1.5, z0 + w), mat)
-    m.box("cushion_top", (x0 + 0.5, 1.5, z0 + 0.5), (x0 + w - 0.5, 2.5, z0 + w - 0.5), top)
-    c = w / 2
-    m.box("tuft", (x0 + c - 0.5, 2.5, z0 + c - 0.5), (x0 + c + 0.5, 2.75, z0 + c + 0.5), Mat("crimson", "plain", 0, bevel=None, noise=0))
-    for (dx, dz) in ((-0.5, -0.5), (w - 0.5, -0.5), (-0.5, w - 0.5), (w - 0.5, w - 0.5)):
-        m.box("tassel", (x0 + dx, 0.25, z0 + dz), (x0 + dx + 1, 1.25, z0 + dz + 1), tassel)
+def flicker(k, seed):
+    """A lamp's brightness wobble at frame k (in ramp steps): mostly steady, now and then a soft dip or flare."""
+    seq = (0, 0, 0.25, 0.1, 0, -0.3, -0.15, 0, 0, 0.35, 0.15, 0)
+    return seq[(k + seed) % len(seq)]
 
 
 # ================================================================================================
@@ -305,53 +140,124 @@ def cushion(m, x0, z0, w, mat=CRIMSON, top=CRIMSON_TOP, tassel=GOLD):
 # ================================================================================================
 
 def tatami():
-    """다다미 2x1: a rush mat 1.5 high with dark cloth borders (heri) along the long sides."""
-    m = MModel("tatami")
+    """다다미 2x1: a rush mat 1.5 high, the rush running the long way in fine rows, dark cloth borders (heri)
+    with a thin woven line along the long sides."""
+    m = BModel("tatami")
     m.group("mat")
-    m.box("rush", (0, 0, 1.5), (32, 1.5, 14.5), "jp_tatami")
-    m.box("heri", (0, 0, 0), (32, 1.5, 1.5), TATAMI_EDGE)
-    m.box("heri", (0, 0, 14.5), (32, 1.5, 16), TATAMI_EDGE)
+
+    def rush(c):
+        if c.face == "up":
+            step = 2 if c.i[2] % 2 else 3
+            if c.i[0] % 8 == 3:                       # the warp threads across, every half block
+                step -= 1
+            return ("tatami", step)
+        if c.face in ("east", "west"):                 # cut ends: the rush bundles
+            return ("tatami", 1 if (c.i[1] + c.i[2]) % 2 else 2)
+        return None
+    m.box("omote", (0, 0, 1.5), (32, 1.5, 14.5), Paint("tatami", 2, decal=rush, rim=0.6))
+
+    def heri(c):
+        if c.face == "up" and c.i[2] in (0, 15) and c.i[0] % 3 != 2:
+            return ("indigo", 1)                       # a thin woven line along the border
+        return None
+    for z0 in (0, 14.5):
+        m.box("heri", (0, 0, z0), (32, 1.5, z0 + 1.5), Paint("indigo", 0, noise=0, decal=heri, rim=0.6))
     return display(m, (2, 1, 1), 0)
+
+
+def cushion(m, x0, z0, w, colour="crimson"):
+    """Zabuton: a square floor cushion 2.75 high, softly domed, with a piped seam, a tuft in the middle and a
+    gold tassel at each corner."""
+    cloth = Paint(colour, 2, "weave", rim=0.8)
+
+    def seam(c):
+        if c.face == "up":
+            dx = min(c.p[0] - x0, x0 + w - c.p[0])
+            dz = min(c.p[2] - z0, z0 + w - c.p[2])
+            if 1 < min(dx, dz) < 2:
+                return (colour, 3)
+        return None
+    m.box("cushion", (x0, 0, z0), (x0 + w, 1.25, z0 + w), cloth)
+    m.box("cushion", (x0 + 0.5, 1.25, z0 + 0.5), (x0 + w - 0.5, 2.25, z0 + w - 0.5), cloth(decal=seam))
+    m.box("cushion_top", (x0 + 2.5, 2.25, z0 + 2.5), (x0 + w - 2.5, 2.75, z0 + w - 2.5), cloth)
+    c = w / 2
+    m.box("tuft", (x0 + c - 0.5, 2.75, z0 + c - 0.5), (x0 + c + 0.5, 3.0, z0 + c + 0.5), flat(colour, 0))
+    tassel = Paint("gold", 2, noise=0, rim=0.5)
+    for (dx, dz) in ((-0.5, -0.5), (w - 0.5, -0.5), (-0.5, w - 0.5), (w - 0.5, w - 0.5)):
+        m.box("tassel", (x0 + dx + 0.125, 0.25, z0 + dz + 0.125), (x0 + dx + 0.875, 1.5, z0 + dz + 0.875), tassel)
 
 
 def zabuton():
     """방석: the floor cushion."""
-    m = MModel("zabuton")
+    m = BModel("zabuton")
     m.group("cushion")
     cushion(m, 1.5, 1.5, 13)
     return display(m, (1, 1, 1), 0)
 
 
 def chabudai():
-    """좌식 탁자: a round low table, four short legs under an apron."""
-    m = MModel("chabudai")
+    """좌식 탁자: a round low table on folding legs, two cups of green tea and a skewer of hanami dango."""
+    m = BModel("chabudai")
     m.group("table")
-    cyl(m, "top", "y", (8, 8), 15, 6, 7.5, WALNUT, cap=Mat("wood", "plain", 2, noise=0.05))
-    ring(m, "apron", (8, 8), 11, 9, 5, 6, DARK)
-    for (x, z) in ((4.5, 4.5), (10.5, 4.5), (4.5, 10.5), (10.5, 10.5)):
-        m.box("leg", (x, 0, z), (x + 1, 5, z + 1), DARK)
+    top = Paint("wood", 2, "planks", axis="x", width=3, rim=1.0)
+
+    def edge(c):
+        if c.face == "up" and math.hypot(c.p[0] - 8, c.p[2] - 8) > 6.6:
+            return ("wood", 1)
+        return None
+    cyl(m, "top", (8, 8), 15, 6, 7.5, top(decal=edge))
+    cyl(m, "apron", (8, 8), 12, 5, 6, DARK)
+    leg = Paint("wood_dark", 1, "grain", axis="y")
+    for (x, z) in ((4, 4), (10.5, 4), (4, 10.5), (10.5, 10.5)):
+        m.box("leg", (x, 0, z), (x + 1.5, 5, z + 1.5), leg)
+    m.box("brace", (5.5, 1.5, 4.25), (10.5, 2.25, 5.25), DARK)
+    m.box("brace", (5.5, 1.5, 10.75), (10.5, 2.25, 11.75), DARK)
     m.group("tea")
-    cyl(m, "cup", "y", (6, 7), 2, 7.5, 9, CELADON, cap=GREEN_TEA)
-    cyl(m, "cup", "y", (10, 9.5), 2, 7.5, 9, CELADON, cap=GREEN_TEA)
+    for (x, z) in ((5.5, 6.5), (9.5, 10.5)):
+        m.box("cup_foot", (x - 1, 7.5, z - 1), (x + 1, 7.75, z + 1), flat("celadon", 1))
+        cup(m, "cup", (x, z), 7.75, 10, CELADON(decal=tea_top(x, z)))
+    m.group("dango")
+    cyl(m, "plate", (10, 5.5), 5, 7.5, 8, PORCELAIN)
+    m.box("skewer", (7.5, 8.75, 5.25), (13, 9.0, 5.75), flat("bamboo", 3))
+    for k, ramp_name in enumerate(("pink", "rice", "sprout")):
+        x = 8.25 + 1.5 * k
+        m.box("dango", (x, 8, 4.75), (x + 1.5, 9.5, 6.25), Paint(ramp_name, 1 if ramp_name == "rice" else 2, noise=0))
     return display(m, (1, 1, 1), 0)
 
 
 def kotatsu():
-    """고타츠: the quilted heated table with a basket of mandarins, a cushion on each side (plus-shaped,
-    3x3 blocks without the corners)."""
-    m = MModel("kotatsu")
+    """고타츠: the heated table under its quilt (the quilt falls in folds to the floor), a wooden board, a
+    basket of mandarins, and a cushion on each side (plus-shaped, 3x3 blocks without the corners)."""
+    m = BModel("kotatsu")
     m.group("table")
-    q = "jp_kotatsu_quilt"
-    m.box("quilt_skirt", (0, 0, 0), (16, 1, 16), q)
-    m.box("quilt", (0.5, 1, 0.5), (15.5, 5.5, 15.5), q)
-    m.box("quilt_top", (1, 5.5, 1), (15, 6.5, 15), q)
-    m.box("board", (0.5, 6.5, 0.5), (15.5, 7.5, 15.5), Mat("wood", "plain", 2, noise=0.05))
+
+    def plaid(c):
+        i = c.i
+        u = i[0] if c.face in ("north", "south", "up") else i[2]
+        v = i[2] if c.face == "up" else i[1]
+        on_u, on_v = u % 6 in (1, 2), v % 6 in (1, 2)
+        step = 1 if on_u and on_v else 2 if on_u or on_v else 3
+        if c.side and c.p[1] < 5.5 and u % 4 == 0:      # folds where the quilt falls to the floor
+            step -= 1
+        return ("fox", step)
+    quilt = Paint("fox", 3, decal=plaid, rim=0.7)
+    m.box("quilt_hem", (0, 0, 0), (16, 1, 16), quilt)
+    m.box("quilt", (0.5, 1, 0.5), (15.5, 5.5, 15.5), quilt)
+    m.box("quilt_top", (1, 5.5, 1), (15, 6, 15), quilt)
+
+    def board_edge(c):
+        if c.face == "up" and (c.i[0] in (0, 15) or c.i[2] in (0, 15)):
+            return ("wood_dark", 1)
+        return None
+    m.box("board", (0, 6, 0), (16, 7.25, 16), Paint("wood", 2, "planks", axis="x", width=4, decal=board_edge))
     m.group("mikan")
-    ring(m, "basket", (8, 8), 7, 5, 7.5, 8.5, Mat("straw", "weave", 2))
-    m.box("basket_floor", (6, 7.5, 6), (10, 7.75, 10), Mat("straw", "weave", 1))
-    for (x, z, y) in ((6.25, 6.5, 7.75), (8.25, 6.75, 7.75), (7, 8.5, 7.75), (7.5, 7.25, 9.5)):
-        m.box("mikan", (x, y, z), (x + 1.75, y + 1.75, z + 1.75), Mat("fox", "plain", 3, noise=0))
-    m.box("leaf", (8.25, 11.25, 7.75), (9.25, 11.5, 8.5), Mat("leaf", "plain", 3, noise=0, bevel=None))
+    m.box("basket", (5, 7.25, 5), (11, 8.75, 11), Paint("straw", 2, "weave"))
+    m.box("basket_inside", (5.75, 8.75, 5.75), (10.25, 9.0, 10.25), Paint("straw", 1, "weave"))
+    orange = Paint("fox", 3, noise=0, rim=1.0)
+    for (x, z, y) in ((5.75, 6, 9.0), (8.25, 6.25, 9.0), (6.25, 8.5, 9.0), (8.5, 8.5, 9.0), (7, 7.25, 10.75)):
+        m.box("mikan", (x, y, z), (x + 1.75, y + 1.75, z + 1.75), orange)
+        m.box("mikan_stem", (x + 0.75, y + 1.75, z + 0.75), (x + 1.0, y + 2.0, z + 1.0), flat("leaf_dark", 1))
+    m.box("leaf", (8.75, 12.5, 7.75), (10.25, 12.75, 8.75), flat("leaf", 3))
     m.group("cushions")
     cushion(m, 2, -14, 12)
     cushion(m, 2, 18, 12)
@@ -361,14 +267,43 @@ def kotatsu():
 
 
 def futon():
-    """이불 세트 1x2: mattress, indigo quilt folded back at the top, buckwheat pillow."""
-    m = MModel("futon")
+    """이불 세트 1x2: a white mattress, an indigo quilt with a hemp-leaf (asanoha) pattern that drapes over
+    the sides, its white collar folded back, and a striped buckwheat pillow."""
+    m = BModel("futon")
     m.group("futon")
-    m.box("mattress", (1, 0, 1), (15, 2, 31), Mat("porcelain", "weave", 1, bevel=(1, -1)))
-    m.box("quilt", (0.5, 2, 0.5), (15.5, 3.25, 21), "jp_futon")
-    m.box("fold", (0.5, 3.25, 18.5), (15.5, 3.75, 21), FEATHER)
-    m.box("pillow", (4, 2, 24), (12, 3.5, 29), Mat("straw", "weave", 3))
-    m.box("pillow_cover", (4.5, 3.5, 24.5), (11.5, 4, 28.5), FEATHER)
+    cotton = Paint("rice", 1, "weave", rim=0.8)
+    m.box("shikibuton", (1, 0, 1), (15, 1.5, 31), cotton)
+    m.box("shikibuton", (1.5, 1.5, 1.5), (14.5, 2, 30.5), cotton)
+
+    def asanoha(c):
+        if c.face == "down":
+            return None
+        if c.face == "up":
+            u, v = c.i[0], c.i[2]
+        elif c.face in ("east", "west"):
+            u, v = c.i[2], c.i[1]
+        else:
+            u, v = c.i[0], c.i[1]
+        if (u + v) % 6 == 0 or (u - v) % 6 == 0:
+            return ("indigo", 3)                       # a lattice of light diamonds
+        if (u + v) % 6 == 3 and (u - v) % 6 == 3:
+            return ("porcelain", 1)                    # a dot in the middle of each
+        return ("indigo", 2)
+    quilt = Paint("indigo", 2, decal=asanoha, rim=0.8)
+    m.box("kakebuton", (0.5, 2, 0.5), (15.5, 3.5, 20.5), quilt)
+    m.box("drape", (0, 0.5, 0.5), (0.5, 3.5, 20.5), quilt)
+    m.box("drape", (15.5, 0.5, 0.5), (16, 3.5, 20.5), quilt)
+    m.box("drape", (0.5, 0.5, 0), (15.5, 3.5, 0.5), quilt)
+    m.box("collar", (0.5, 3.5, 17.5), (15.5, 4, 21), Paint("rice", 2, "weave", rim=0.8))
+    m.group("pillow")
+
+    def stripes(c):
+        return ("indigo", 3) if c.i[0] % 3 == 0 else ("rice", 1)
+    # kept under a quarter block, like the rest of the futon, so it never blocks a sleeper
+    pillow = Paint("rice", 1, decal=stripes, rim=0.6)
+    m.box("makura", (4.5, 2, 24), (11.5, 4, 28), pillow)
+    for x0 in (4, 11.5):
+        m.box("makura_end", (x0, 2.25, 24.5), (x0 + 0.5, 3.75, 27.5), pillow)
     return display(m, (1, 1, 2), 0)
 
 
@@ -376,733 +311,1065 @@ def futon():
 # 칸막이 · 벽
 # ================================================================================================
 
-def _shoji_panel(m, x0, tag):
-    """One shoji panel 16 wide: hinoki frame, lattice paper, a wooden kick board."""
-    fr = HINOKI_GRAIN
-    m.box(f"stile_{tag}", (x0, 1, 7), (x0 + 1, 29, 9), fr)
-    m.box(f"stile_{tag}", (x0 + 15, 1, 7), (x0 + 16, 29, 9), fr)
-    m.box(f"rail_{tag}", (x0 + 1, 28, 7), (x0 + 15, 29, 9), fr)
-    m.box(f"kick_{tag}", (x0 + 1, 1, 7), (x0 + 15, 5, 9), HINOKI)
-    m.box(f"paper_{tag}", (x0 + 1, 5, 7.5), (x0 + 15, 16.5, 8.5), "jp_shoji")
-    m.box(f"paper_{tag}", (x0 + 1, 16.5, 7.5), (x0 + 15, 28, 8.5), "jp_shoji")
-
-
 def shoji_screen():
-    """쇼지 칸막이 2x2: two lattice-and-paper panels on small feet."""
-    m = MModel("shoji_screen")
+    """쇼지 칸막이 2x2: two panels of hinoki frame and kumiko lattice with washi paper (the lattice casts a
+    hairline shadow on the paper), a planked kick board, on low feet."""
+    m = BModel("shoji_screen")
     m.group("panels")
-    _shoji_panel(m, 0, "a")
-    _shoji_panel(m, 16, "b")
+    frame = Paint("hinoki", 2, "grain", axis="long", noise=0.02)
+
+    def lattice(c):
+        if c.face not in ("north", "south"):
+            return None
+        u = c.i[0] % 16
+        y = c.i[1]
+        bar_u = u in (5, 10)
+        bar_v = (y - 6) % 4 == 3
+        if bar_u or bar_v:
+            return ("hinoki", 3 if (bar_u and bar_v) else 2)
+        if (y - 6) % 4 == 2 or (u in (4, 9) and c.face == "north") or (u in (6, 11) and c.face == "south"):
+            return ("paper", 1)                       # hairline shadow under / beside a bar
+        return ("paper", 2)
+    paper = Paint("paper", 2, "paper", decal=lattice, ao=0.6)
+    for x0 in (0, 16):
+        m.box("stile", (x0, 1, 7), (x0 + 1.5, 30, 9), frame)
+        m.box("stile", (x0 + 14.5, 1, 7), (x0 + 16, 30, 9), frame)
+        m.box("rail", (x0 + 1.5, 28.5, 7), (x0 + 14.5, 30, 9), frame)
+        m.box("rail", (x0 + 1.5, 6, 7), (x0 + 14.5, 7, 9), frame)
+        m.box("koshiita", (x0 + 1.5, 1, 7.25), (x0 + 14.5, 6, 8.75), Paint("hinoki", 2, "planks", axis="x", width=2))
+        m.box("paper", (x0 + 1.5, 7, 7.5), (x0 + 14.5, 28.5, 8.5), paper)
     m.group("feet")
-    for x in (1, 27):
+    for x in (1, 14, 27):
         m.box("foot", (x, 0, 4), (x + 4, 1, 12), DARK)
     return display(m, (2, 2, 1), 0)
 
 
-def _fusuma_master():
-    """The painting across both fusuma: gold leaf, Mt Fuji, a red sun, clouds and a pine."""
-    W, H = 28, 26
-    img = Image.new("RGBA", (W, H))
-    px = img.load()
-    for y in range(H):
-        for x in range(W):
-            leaf = (x % 7 == 0 or y % 7 == 0)
-            px[x, y] = ramp("gold", 3 if leaf else 2)
-    # sun
-    for y in range(H):
-        for x in range(W):
-            if math.hypot(x - 21.5, y - 5.5) < 2.6:
-                px[x, y] = ramp("vermilion", 2 if x + y < 27 else 1)
-    # Mt Fuji
-    for y in range(8, H):
-        half = (y - 8) * 1.15 + 1.5
-        for x in range(W):
-            if abs(x + 0.5 - 14) <= half:
-                snow = y < 12 + (2 if (x % 3 == 0) else 0)
-                px[x, y] = ramp("porcelain", 2) if snow else ramp("indigo", 3 if x < 14 else 2)
-    # clouds
-    for (x0, x1, y) in ((2, 11, 16), (5, 14, 17), (17, 26, 13), (19, 27, 14), (0, 9, 22), (16, 25, 21)):
-        for x in range(x0, min(W, x1)):
-            px[x, y] = ramp("gold", 3)
-    # pine at the left
-    for y in range(13, H):
-        px[2, y] = ramp("bark", 1)
-        px[3, y] = ramp("bark", 2)
-    for (cx, cy, rx) in ((3, 13, 3), (5, 17, 3), (2, 20, 2)):
-        for x in range(max(0, cx - rx), cx + rx + 1):
-            px[x, cy] = ramp("leaf_dark", 2)
-            px[x, cy - 1] = ramp("leaf_dark", 3) if abs(x - cx) < rx else px[x, cy - 1]
-    return img
-
-
-def _cut(name, src, x0, y0, w, h):
-    """A w x h piece of a bigger picture as its own face texture (uv [0, 0, w, h])."""
-    im = _canvas()
-    im.paste(src.crop((x0, y0, x0 + w, y0 + h)), (0, 0))
-    _fill_rest(im, w, h)
-    T.SURFACES[name] = (lambda img=im: img.copy())
-    return name, [0, 0, w, h]
+def _fusuma_art(col, row):
+    """The painting over both doors, 26 x 25 px (col 0 at the viewer's left, row 0 at the top): gold leaf
+    squares, drifting gold clouds, Mt Fuji in indigo with its snow cap, a red sun, a pine in the corner."""
+    peak = 9
+    half = (row - peak) * 0.95 + 1.0
+    fuji = row >= peak and abs(col + 0.5 - 13) <= half
+    if math.hypot(col + 0.5 - 20.5, row + 0.5 - 5.5) < 3.1:
+        return ("vermilion", 2 if col + row < 25 else 1)
+    for (cx, cy, rx) in ((4, 12, 4), (7, 16, 3), (2, 19, 3), (5, 22, 3)):
+        if row in (cy, cy + 1) and abs(col - cx) <= (rx if row == cy + 1 else rx - 1):
+            return ("leaf_dark", 2 if row == cy else 1)
+    if (col in (3, 4) and row >= 13) or (col == 5 and 15 <= row <= 16) or (col == 2 and 19 <= row <= 20):
+        return ("bark", 1 if col == 4 else 2)
+    if fuji:
+        snow = row < peak + 4 + (1 if col % 3 == 0 else 0) - (1 if col % 4 == 1 else 0)
+        if snow:
+            return ("porcelain", 2 if col < 13 else 1)
+        return ("indigo", 3 if col < 13 else 2)
+    for (x0, x1, y) in ((1, 10, 9), (15, 25, 13), (18, 26, 14), (0, 7, 3), (10, 22, 22)):
+        if (row == y and x0 <= col < x1) or (row == y + 1 and x0 + 1 <= col < x1 - 1):
+            return ("gold", 3)
+    # gold leaf squares: every other square a shade warmer, no hard grid lines
+    return ("gold", 2) if ((col // 5) + (row // 5)) % 2 else ("gold", 2.4)
 
 
 def fusuma_panel():
-    """후스마 장식 2x2: two sliding-door panels in black lacquer frames, painted with Mt Fuji on gold."""
-    m = MModel("fusuma_panel")
-    art = _fusuma_master()
-    back = picture("jp_fusuma_back", 13, 13, lambda px: [px.__setitem__((x, y), ramp("paper", 2 if (x + y) % 4 else 1))
-                                                         for y in range(13) for x in range(13)])
+    """후스마 장식 2x2: two sliding doors in black lacquer frames, painted as one picture across both (Mt Fuji and
+    the red sun on gold leaf), round recessed handles; the backs are patterned karakami paper."""
+    m = BModel("fusuma_panel")
+
+    def art(c):
+        if c.face == "north":
+            col = math.floor(31 - c.p[0] - 1.5)
+            if col >= 13:
+                col -= 3                      # the two middle stiles hide 3 px of the picture's seam
+            row = math.floor(27.5 - c.p[1])
+            if 0 <= col < 26 and 0 <= row < 25:
+                return _fusuma_art(col, row)
+        if c.face == "south":
+            u, v = c.i[0] % 4, c.i[1] % 4
+            return ("paper", 2 if (u, v) in ((1, 1), (3, 3)) else 1) if (u + v) % 2 == 0 else ("cream", 2)
+        return None
     m.group("frames")
     for x0 in (0, 16):
-        m.box("frame", (x0, 1, 7), (x0 + 1.5, 29, 9), LACQUER)
-        m.box("frame", (x0 + 14.5, 1, 7), (x0 + 16, 29, 9), LACQUER)
-        m.box("frame", (x0 + 1.5, 27.5, 7), (x0 + 14.5, 29, 9), LACQUER)
-        m.box("frame", (x0 + 1.5, 1, 7), (x0 + 14.5, 2.5, 9), LACQUER)
+        m.box("frame", (x0, 1, 7), (x0 + 1.5, 29, 9), LACQ)
+        m.box("frame", (x0 + 14.5, 1, 7), (x0 + 16, 29, 9), LACQ)
+        m.box("frame", (x0 + 1.5, 27.5, 7), (x0 + 14.5, 29, 9), LACQ)
+        m.box("frame", (x0 + 1.5, 1, 7), (x0 + 14.5, 2.5, 9), LACQ)
     m.group("paintings")
-    # the picture runs on behind the two middle frames. Seen from the front, model +x is on the viewer's
-    # left: the panel at x 16..32 shows the picture's left half (columns 0..12), the one at x 0..16 its right
-    for p, x0 in enumerate((16, 0)):
-        for r, (y0, y1) in enumerate(((2.5, 15.5), (15.5, 27.5))):
-            src_y = int(27.5 - y1)
-            front = _cut(f"jp_fusuma_{p}{r}", art, 0 if p == 0 else 15, src_y, 13, 13)
-            flat(m, "paper", (x0 + 1.5, y0, 7.5), (x0 + 14.5, y1, 8.5), PAPER, front, back)
-        # the round recessed handle (hikite)
-        hx = x0 + (2.5 if p == 0 else 12.5)
-        m.box("hikite", (hx, 14, 7.25), (hx + 1, 15.5, 7.5), Mat("brass", "plain", 1, bevel=None, noise=0))
+    for x0 in (0, 16):
+        m.box("paper", (x0 + 1.5, 2.5, 7.5), (x0 + 14.5, 27.5, 8.5), Paint("gold", 2, decal=art, ao=0.5, rim=0.3))
+        # the hikite: a round dark pull set into each door, on the side away from where they meet
+        hx = x0 + (3 if x0 == 16 else 11.5)
+        m.box("hikite_rim", (hx - 0.25, 13.25, 7.25), (hx + 1.75, 15.75, 7.5), flat("brass", 1))
+        m.box("hikite", (hx, 13.5, 7.125), (hx + 1.5, 15.5, 7.25), flat("rubber", 0, rim=0))
     m.group("feet")
     for x in (1, 27):
-        m.box("foot", (x, 0, 4), (x + 4, 1, 12), LACQUER)
+        m.box("foot", (x, 0, 4), (x + 4, 1, 12), LACQ)
     return display(m, (2, 2, 1), 0)
 
 
 def hanging_scroll():
-    """족자 (도코노마 족자) 1x2: a kakejiku hung on the wall: celadon mount, ink painting of mountains and the
-    moon with a red seal, dark rollers and a hanging cord."""
-    m = MModel("hanging_scroll")
+    """족자 (도코노마 족자) 1x2: a kakejiku hung on the wall: a cord from the hook, the top rod, brocade bands
+    with gold strips, the two fūtai ribbons, an ink painting (the moon over misty peaks, a pine, the red
+    seal) and the weighted bottom roller with its end knobs."""
+    m = BModel("hanging_scroll", floor=None, planes=(("z>", 16),))
+    gold_strip = flat("gold", 2, rim=0.3)
 
-    def art_top(px):
-        """The upper half: a pale full moon, a column of calligraphy."""
-        for y in range(9):
-            for x in range(8):
-                px[x, y] = ramp("paper", 1)
-                if math.hypot(x - 4.5, y - 3.5) < 2.1:
-                    px[x, y] = ramp("cream", 3)
-        for y in (1, 2, 4, 5, 7):
-            px[1, y] = ramp("millstone", 1)
+    def brocade(c):
+        u, v = c.i[0], c.i[1]
+        if u % 3 == 1 and v % 3 == 1:
+            return ("gold", 1)                         # small gold motifs scattered in the weave
+        return ("indigo", 1)
+    band = Paint("indigo", 1, decal=brocade, rim=0.5)
 
-    def art_bottom(px):
-        """The lower half: ink mountains fading into mist, the painter's red seal."""
-        for y in range(9):
-            for x in range(8):
-                px[x, y] = ramp("paper", 1)
-        for x in range(8):
-            far = 2 + int(1.5 + 1.5 * math.sin(x * 0.9 + 0.6))
-            near = 4 + int(1.2 + 1.2 * math.sin(x * 1.3 + 2.0))
-            for y in range(far, 9):
-                px[x, y] = ramp("millstone", 4 if y < near else 2)
-        px[6, 8] = ramp("vermilion", 1)
-        for y in (0, 1):
-            px[1, y] = ramp("millstone", 1)
+    def ink(c):
+        if c.face != "north":
+            return None
+        col, row = math.floor(12 - c.p[0]), math.floor(24 - c.p[1])      # 8 x 16, row 0 at the top
+        if math.hypot(col + 0.5 - 5.5, row + 0.5 - 3.0) < 1.6:
+            return ("cream", 3)                                   # the moon
+        far = 9 + 1.4 * math.sin(col * 0.9 + 0.4)
+        near = 12 + 1.2 * math.sin(col * 1.4 + 2.4)
+        if row >= near:
+            return ("millstone", 1 if row >= near + 2 else 2)     # the near ridge in dark ink
+        if row >= far:
+            return ("millstone", 3 if row < far + 1.5 else 4)     # far peaks fading into the mist
+        if (col, row) in ((1, 4), (2, 5), (2, 6), (3, 7), (1, 5)):
+            return ("bark", 0)                                    # a pine bough reaching in from the left
+        if row in (3, 4) and col in (0, 2, 3) or (row == 6 and col in (3, 4)):
+            return ("leaf_dark", 0)
+        if (col, row) in ((6, 14), (6, 15)):
+            return ("vermilion", 1)                               # the painter's seal
+        if col == 7 and row in (1, 2, 4, 5, 6):
+            return ("millstone", 0)                               # a column of calligraphy
+        return ("paper", 1)
+    m.group("cord")
 
+    def cord(c):
+        if c.face not in ("north", "south"):
+            return ("raw", (0, 0, 0, 0))
+        dx, y = abs(c.p[0] - 8), c.p[1]
+        return ("crimson", 2) if abs((31.75 - y) * 1.3 - dx) < 0.55 else ("raw", (0, 0, 0, 0))
+    m.box("cord", (4.5, 29.5, 15.75), (11.5, 32, 15.75), Paint("crimson", 2, decal=cord, light=False))
     m.group("scroll")
-    m.box("cord", (7.75, 30, 15.5), (8.25, 32, 16), Mat("crimson", "plain", 2, bevel=None, noise=0))
-    m.box("rod_top", (2.5, 28.5, 15), (13.5, 30, 16), DARK)
-    m.box("mount", (3, 4.5, 15.25), (13, 28.5, 16), CELADON_DARK)
-    flat(m, "art", (4, 17, 14.75), (12, 26, 15.25), PAPER, picture("jp_scroll_top", 8, 9, art_top))
-    flat(m, "art", (4, 8, 14.75), (12, 17, 15.25), PAPER, picture("jp_scroll_bottom", 8, 9, art_bottom))
-    m.box("roller", (2.5, 3, 15), (13.5, 4.5, 16), DARK)
-    for x in (1.5, 13.5):
-        m.box("knob", (x, 2.75, 14.75), (x + 1, 4.75, 16), LACQUER)
+    m.box("hasso", (2.5, 28.5, 14.75), (13.5, 29.5, 16), DARK)
+    m.box("ten", (3, 24.5, 15.25), (13, 28.5, 16), band)
+    m.box("ichimonji", (3.5, 24, 15.125), (12.5, 24.5, 15.25), gold_strip)
+    m.box("mount", (3, 6, 15.25), (13, 24.5, 16), Paint("celadon", 1, "weave", rim=0.4))
+    m.box("honshi", (4, 8, 15), (12, 24, 15.25), Paint("paper", 1, decal=ink, ao=0.4, rim=0))
+    m.box("ichimonji", (3.5, 7.5, 15.125), (12.5, 8, 15.25), gold_strip)
+    m.box("chi", (3, 4.5, 15.25), (13, 6, 16), band)
+    for x in (5, 10):
+        m.box("futai", (x, 20.5, 14.875), (x + 1, 28.5, 15.125), band)
+        m.box("futai_tip", (x, 20, 14.875), (x + 1, 20.5, 15.125), gold_strip)
+    m.box("jiku", (2.5, 3, 14.75), (13.5, 4.5, 16), DARK)
+    for x in (1.25, 13.5):
+        m.box("jikusaki", (x, 2.75, 14.5), (x + 1.25, 4.75, 16), flat("cream", 2))
     return display(m, (1, 2, 1), 0)
 
 
 def noren():
-    """노렌: an indigo shop curtain in three strips on a rod, a white crest in the middle and a white hem.
-    Hangs from the top of its block (place it under a door lintel)."""
-    m = MModel("noren")
+    """노렌: an indigo shop curtain in three strips on a bamboo rod, a white crest (a plum blossom) across the
+    middle, a white wave band at the hem. Hangs from the top of its block (place it under a door lintel)."""
+    m = BModel("noren", floor=None, planes=(("y>", 16),))
+    uroko = [".....#.....",
+             "....###....",
+             "...#####...",
+             "..#.....#..",
+             ".###...###.",
+             "#####.#####"]
 
-    def strip(crest):
-        def paint(px):
-            for y in range(13):
-                for x in range(5):
-                    i = 2 if y else 3
-                    px[x, y] = ramp("indigo", i)
-                    if y in (10, 11):
-                        px[x, y] = ramp("porcelain", 1)
-            if crest:
-                for y in range(13):
-                    for x in range(5):
-                        d = math.hypot(x - 2, y - 4)
-                        if 1.2 <= d < 2.3:
-                            px[x, y] = ramp("porcelain", 2)
-                px[2, 4] = ramp("porcelain", 2)
-        return paint
-
+    def dye(c):
+        x, y = c.p[0], c.p[1]
+        col = math.floor(13.5 - x) if c.face == "north" else math.floor(x - 2.5)
+        row = math.floor(12.5 - y)
+        if 0 <= row < 6 and 0 <= col < 11 and uroko[row][col] == "#":
+            return ("porcelain", 2)                    # mitsu-uroko: three white scales
+        yi = c.i[1]
+        if yi in (2, 3):
+            return ("porcelain", 1)                    # the white hem
+        if yi == 5:
+            return ("porcelain", 2) if c.i[0] % 4 != 3 else ("indigo", 2)
+        if yi == 14:
+            return ("indigo", 1)
+        return ("indigo", 2 if yi < 13 else 3)
     m.group("rod")
-    m.box("rod", (0, 15, 7.5), (16, 16, 8.5), Mat("bamboo", "grain", 2))
+    m.box("rod", (0, 15, 7.25), (16, 16, 8.75), Paint("bamboo", 2, "bamboo", axis="x", node=7, node_off=3))
     m.group("cloth")
-    for k, x0 in enumerate((0.25, 5.5, 10.75)):
-        pic = picture(f"jp_noren_{1 if k == 1 else 0}", 5, 13, strip(k == 1))
-        flat(m, "strip", (x0, 2, 7.75), (x0 + 5, 15, 8.25), INDIGO, pic, pic, back_uv=[5, 0, 0, 13])
+    for x0 in (0.25, 5.5, 10.75):
+        m.box("strip", (x0, 2, 7.75), (x0 + 5, 15, 8.25), Paint("indigo", 2, decal=dye, ao=0.5, rim=0.4))
     return display(m, (1, 1, 1), 0)
 
 
 def bamboo_fence():
-    """대나무 울타리: split-bamboo slats between bamboo rails tied with black cord; joins its neighbours."""
-    m = MModel("bamboo_fence")
-    m.group("fence")
-    m.box("slats", (0, 0, 7), (16, 14, 9), "jp_bamboo_slats", faces={"up": Mat("bamboo", "plain", 2)})
-    rail = Mat("bamboo", "grain", 1)
-    for y in (3, 9.5):
-        m.box("rail", (0, y, 6), (16, y + 1.5, 7), rail)
-        m.box("rail", (0, y, 9), (16, y + 1.5, 10), rail)
-    for x in (3.5, 11.5):
-        m.box("tie", (x, 2.5, 5.5), (x + 1, 5, 6), BLACK)
-        m.box("tie", (x, 9, 5.5), (x + 1, 11.5, 6), BLACK)
-    m.box("cap", (0, 14, 6), (16, 15.5, 10), rail)
+    """대나무 울타리 (켄닌지가키): a screen of split bamboo slats, sun-bleached to straw, held between pairs of green
+    bamboo rails (front and back) that black palm cord ties to it, a split-bamboo cap on top. The slats and
+    rails run edge to edge, so fences side by side make one long fence."""
+    m = BModel("bamboo_fence")
+    m.group("slats")
+    for i in range(8):
+        # split culms alternate their round back and their flat face, so every other one stands forward
+        z0 = 7.0 if i % 2 else 7.5
+        slat = Paint("straw", 2, "bamboo", axis="y", node=7, node_off=(i * 3) % 7, ridge=False, ao=0.7, seed=i)
+        m.box("slat", (2 * i, 0, z0), (2 * i + 2, 14.5, z0 + 1.5), slat)
+    m.group("rails")
+    rail = Paint("bamboo", 2, "bamboo", axis="x", node=9, node_off=4)
+    for y in (2.5, 8):
+        m.box("rail", (0, y, 5.75), (16, y + 1.5, 7.0), rail)
+        m.box("rail", (0, y, 9.0), (16, y + 1.5, 10.25), rail(node_off=1))
+    m.group("cap")
+    m.box("cap", (0, 14.5, 6.5), (16, 15.5, 9.5), Paint("bamboo", 1, "bamboo", axis="x", node=8, node_off=2))
+    m.box("cap_top", (0, 15.5, 7.25), (16, 16, 8.75), Paint("bamboo", 2, "bamboo", axis="x", node=8, node_off=6))
+    m.group("cords")
+    for y in (2.5, 8):
+        for x in (2.5, 12.5):
+            m.box("cord", (x, y - 0.5, 5.5), (x + 1, y + 2, 5.75), CORD)
+            m.box("cord", (x, y - 0.5, 10.25), (x + 1, y + 2, 10.5), CORD)
+    for x in (2.5, 12.5):
+        m.box("cord", (x, 14.25, 6.25), (x + 1, 15.75, 6.5), CORD)
+        m.box("cord", (x, 14.25, 9.5), (x + 1, 15.75, 9.75), CORD)
     return display(m, (1, 1, 1), 0)
 
 
 # ================================================================================================
-# 조명
+# 조명 (진짜 빛: furniture.light; the paper / fire flickers)
 # ================================================================================================
 
 def andon():
-    """등롱 (안돈): a paper floor lamp in a dark wooden frame with a carrying handle; the paper glows."""
-    m = MModel("andon")
+    """등롱 (안돈): a floor lamp: a dark wooden frame on four legs, washi paper glowing from the flame inside
+    (the inner cross bar shows as a soft shadow, the light flickers now and then), a carrying handle on top."""
+    m = BModel("andon")
     m.group("frame")
-    for (x, z) in ((4, 4), (11, 4), (4, 11), (11, 11)):
-        m.box("post", (x, 0, z), (x + 1, 13.5, z + 1), DARK)
-    for y in (2.5, 12.5):
-        m.box("rail", (5, y, 4), (11, y + 1, 5), DARK)
-        m.box("rail", (5, y, 11), (11, y + 1, 12), DARK)
-        m.box("rail", (4, y, 5), (5, y + 1, 11), DARK)
-        m.box("rail", (11, y, 5), (12, y + 1, 11), DARK)
-    m.box("handle_bar", (5, 15, 7.5), (11, 16, 8.5), DARK)
-    for x in (5, 10):
-        m.box("handle_post", (x, 13.5, 7.5), (x + 1, 15, 8.5), DARK)
+    for (x, z) in ((3.5, 3.5), (11.5, 3.5), (3.5, 11.5), (11.5, 11.5)):
+        m.box("post", (x, 0, z), (x + 1, 14, z + 1), DARK)
+    for y in (1.5, 13):
+        m.box("rail", (4.5, y, 3.5), (11.5, y + 1, 4.5), DARK)
+        m.box("rail", (4.5, y, 11.5), (11.5, y + 1, 12.5), DARK)
+        m.box("rail", (3.5, y, 4.5), (4.5, y + 1, 11.5), DARK)
+        m.box("rail", (11.5, y, 4.5), (12.5, y + 1, 11.5), DARK)
+    m.box("handle", (4.5, 15.25, 7.5), (11.5, 16, 8.5), DARK)
+    for x in (4.5, 10.5):
+        m.box("handle_post", (x, 14, 7.5), (x + 1, 15.25, 8.5), DARK)
     m.group("light")
-    m.box("paper", (5, 3.5, 5), (11, 12.5, 11), "jp_shoji_lit", glow=True)
+
+    def glow(c):
+        y = c.p[1]
+        v = 1.75 - max(0.0, abs(y - 7.5) - 3.5) * 0.35 + flicker(c.frame, 0)
+        if c.face in SIDE_FACES and abs(y - 8.5) < 0.5:
+            v -= 1.0                               # the inner frame's cross bar, a soft shadow
+        if c.face in ("up", "down"):
+            v = 2.4 + flicker(c.frame, 0)
+        return ("washi_lit", v)
+    m.box("paper", (4.5, 2.5, 4.5), (11.5, 13, 11.5), Paint("washi_lit", 2, glow=True, light=False, noise=0,
+                                                              decal=glow, frames=12, frametime=3))
     return display(m, (1, 1, 1), 0)
 
 
 def stone_lantern():
-    """석등 (도로) 1x2: a Kasuga stone lantern: base, pillar, platform, a fire box with glowing windows, a wide
-    roof and the jewel on top."""
-    m = MModel("stone_lantern")
-    m.group("stone")
-    cyl(m, "base", "y", (8, 8), 12, 0, 2, STONE_DARK, cap=STONE)
-    cyl(m, "base2", "y", (8, 8), 8, 2, 3, STONE, cap=STONE)
-    cyl(m, "pillar", "y", (8, 8), 5, 3, 11.5, STONE, cap=STONE)
-    cyl(m, "platform", "y", (8, 8), 10, 11.5, 13.5, STONE, cap=STONE_LIGHT)
-    # fire box: four corner posts around a glowing core
-    for (x, z) in ((4, 4), (10, 4), (4, 10), (10, 10)):
-        m.box("post", (x, 13.5, z), (x + 2, 20.5, z + 2), STONE)
-    m.box("lintel", (4, 19.5, 6), (12, 20.5, 10), STONE)
-    m.box("lintel", (6, 19.5, 4), (10, 20.5, 6), STONE)
-    m.box("lintel", (6, 19.5, 10), (10, 20.5, 12), STONE)
-    m.box("sill", (6, 13.5, 4), (10, 14.5, 6), STONE)
-    m.box("sill", (6, 13.5, 10), (10, 14.5, 12), STONE)
-    m.box("sill", (4, 13.5, 6), (6, 14.5, 10), STONE)
-    m.box("sill", (10, 13.5, 6), (12, 14.5, 10), STONE)
+    """석등 (가스가 도로) 1x2: a granite garden lantern in its six classic tiers: base, pillar with a carved band,
+    the platform, the fire box (posts, open front and back windows with the flame inside, a crescent moon and a
+    sun cut through its sides), the wide roof with curled-up corners, the jewel on top. Moss in the hollows."""
+    m = BModel("stone_lantern")
+    st = moss_on(STONE)
+    m.group("base")
+    poly(m, "kiso", (8, 8), 14, 4, 0, 2, st)
+    poly(m, "kiso_lotus", (8, 8), 10, 3, 2, 3, st, steps=1)
+    m.group("pillar")
+    cyl(m, "sao", (8, 8), 5, 3, 7, STONE)
+    cyl(m, "fushi", (8, 8), 6, 7, 8, STONE_LIGHT)
+    cyl(m, "sao", (8, 8), 5, 8, 11.5, STONE)
+    m.group("platform")
+    poly(m, "chudai_neck", (8, 8), 8, 2, 11.5, 12.5, STONE_DARK, steps=1)
+    poly(m, "chudai", (8, 8), 12, 3, 12.5, 14.5, st)
+    m.group("firebox")
+    for (x, z) in ((4, 4), (10.5, 4), (4, 10.5), (10.5, 10.5)):
+        m.box("post", (x, 14.5, z), (x + 1.5, 20.5, z + 1.5), STONE)
+    moon = [".##.", "##..", "#...", "##..", ".##."]          # rows y 19..15, columns z 6..9
+    sun = ["....", ".##.", "####", "####", ".##."]
+
+    def carving(c):
+        if c.face not in ("east", "west"):
+            return None
+        col, row = c.i[2] - 6, 19 - c.i[1]
+        if not (0 <= col < 4 and 0 <= row < 5):
+            return None
+        mask = moon if c.face == "west" else sun
+        if c.face == "west":
+            col = 3 - col                 # the crescent opens towards the front
+        return ("glow_amber", 1) if mask[row][col] == "#" else None
+    side = STONE(decal=carving)
+    m.box("wall", (4.5, 14.5, 5.5), (5.5, 20.5, 10.5), side)
+    m.box("wall", (10.5, 14.5, 5.5), (11.5, 20.5, 10.5), side)
+    for z0 in (4.5, 10.5):
+        m.box("sill", (5.5, 14.5, z0), (10.5, 15.5, z0 + 1), STONE)
+        m.box("lintel", (5.5, 19.5, z0), (10.5, 20.5, z0 + 1), STONE)
     m.group("light")
-    m.box("fire", (6, 14.5, 6), (10, 19.5, 10), Mat("glow_amber", "plain", 2, glow=True, bevel=(1, -1), noise=0.15))
+
+    def fire(c):
+        dx, y = abs(c.p[0] - 8), c.p[1]
+        return ("glow_amber", 2.2 - dx * 0.45 - abs(y - 17.0) * 0.35 + flicker(c.frame, 3) * 1.6)
+    m.box("fire", (5.5, 15.5, 6), (10.5, 19.5, 10), Paint("glow_amber", 2, glow=True, light=False, noise=0,
+                                                            decal=fire, frames=12, frametime=3))
     m.group("roof")
-    cyl(m, "roof", "y", (8, 8), 15, 20.5, 22, STONE_DARK, cap=STONE)
-    cyl(m, "roof2", "y", (8, 8), 11, 22, 23.5, STONE, cap=STONE_LIGHT)
-    cyl(m, "roof3", "y", (8, 8), 6, 23.5, 24.5, STONE, cap=STONE_LIGHT)
-    cyl(m, "jewel", "y", (8, 8), 3, 24.5, 27, STONE_LIGHT, cap=STONE_LIGHT)
-    m.box("jewel_tip", (7.5, 27, 7.5), (8.5, 28, 8.5), STONE_LIGHT)
-    m.group("moss")
-    m.box("moss", (2, 22, 9), (5, 22.25, 12), MOSS)
-    m.box("moss", (10, 2, 3), (13, 2.25, 5), MOSS)
+    m.box("roof_under", (4, 20.5, 4), (12, 21, 12), STONE_DARK)
+    poly(m, "kasa", (8, 8), 16, 4.5, 21, 22, STONE_DARK(rim=1.4))
+    poly(m, "kasa", (8, 8), 13, 3.5, 22, 23, st)
+    poly(m, "kasa", (8, 8), 10, 2.5, 23, 24, st, steps=1)
+    poly(m, "kasa", (8, 8), 7, 1.5, 24, 25, st, steps=1)
+    for (x, z) in ((1, 2.25), (13.5, 2.25), (1, 12.25), (13.5, 12.25)):      # warabite: the corners curl up
+        m.box("warabite", (x, 22, z), (x + 1.5, 23, z + 1.5), STONE_DARK)
+    m.group("jewel")
+    cyl(m, "ukebana", (8, 8), 5, 25, 25.75, STONE_LIGHT)
+    cyl(m, "hoju", (8, 8), 4, 25.75, 27.75, STONE_LIGHT)
+    cyl(m, "hoju", (8, 8), 2, 27.75, 29, STONE_LIGHT)
+    m.box("tip", (7.5, 29, 7.5), (8.5, 29.75, 8.5), STONE_LIGHT)
     return display(m, (1, 2, 1), 0)
 
 
 def chochin():
-    """제등 (초롱): a red paper lantern with black caps, glowing; hangs from the top of its block."""
-    m = MModel("chochin")
+    """제등 (초롱): a red paper lantern on bamboo ribs (the ribs show as fine lines), black lacquered caps, a
+    black band and a white crest front and back, a red tassel; lit by its light block, its paper is painted
+    brightest round the middle. Hangs from the top of its block."""
+    m = BModel("chochin", floor=None, planes=(("y>", 16),))
     m.group("lantern")
-    m.box("hook", (7.5, 15, 7.5), (8.5, 16, 8.5), IRON)
-    cyl(m, "cap", "y", (8, 8), 6, 13.5, 15, LACQUER, cap=LACQUER)
-    # not glowing: its own light block (light 13) lights the paper, and the shading keeps it round
-    top = Mat("vermilion", "plain", 3, bevel=None, noise=0)
-    for (d, lo, hi) in ((8, 12, 13.5), (10, 4, 12), (8, 2.5, 4)):
-        cyl(m, "paper", "y", (8, 8), d, lo, hi, "jp_chochin", cap=top)
-    cyl(m, "bottom", "y", (8, 8), 6, 1.5, 2.5, LACQUER, cap=LACQUER)
-    m.box("tassel", (7.5, 0, 7.5), (8.5, 1.5, 8.5), Mat("vermilion", "plain", 1, bevel=None, noise=0))
+    m.box("hook", (7.5, 14.5, 7.5), (8.5, 16, 8.5), IRON)
+    cyl(m, "cap", (8, 8), 4, 13.5, 14.5, LACQ)
+    cyl(m, "cap_rim", (8, 8), 6, 13, 13.5, LACQ)
+
+    def paper(c):
+        y = c.p[1]
+        if c.face in ("up", "down"):
+            return ("vermilion", 2)
+        if c.face in ("north", "south"):
+            dx = c.p[0] - 8
+            r = math.hypot(dx, y - 7.5)
+            if r < 0.8:
+                return ("vermilion", 1)
+            if r < 2.4:
+                return ("porcelain", 2 if r < 1.6 else 1)
+        rib = c.i[1] % 2 == 0
+        return ("vermilion", 3 - abs(y - 7.5) * 0.25 - (0.8 if rib else 0))
+    skin = Paint("vermilion", 2, decal=paper, ao=0.6)
+    for (d, lo, hi) in ((5, 12.5, 13), (7, 11.5, 12.5), (8, 10, 11.5), (9, 5, 10), (8, 3.5, 5), (7, 2.5, 3.5), (5, 2, 2.5)):
+        cyl(m, "paper", (8, 8), d, lo, hi, skin)
+    cyl(m, "cap_rim", (8, 8), 6, 1.5, 2, LACQ)
+    cyl(m, "bottom", (8, 8), 4, 1.25, 1.5, LACQ)
+    m.box("tassel", (7.5, 0, 7.5), (8.5, 1.25, 8.5), flat("vermilion", 1))
     return display(m, (1, 1, 1), 0)
 
 
 # ================================================================================================
-# 장식품 · 소품
+# 장식품 · 화분
 # ================================================================================================
 
 def bonsai():
-    """분재: a twisted pine in a shallow glazed pot, with moss and cloud-shaped foliage pads."""
-    m = MModel("bonsai")
+    """분재: a pine trained into an S-curved trunk in a shallow glazed pot, its needles in flat cloud pads that
+    float apart on the branches, moss and a stone on the soil."""
+    m = BModel("bonsai")
     m.group("pot")
-    m.box("pot", (2, 1, 4), (14, 4, 12), Mat("indigo", "plain", 2, noise=0.04))
+    m.box("pot", (2, 1, 4), (14, 3.5, 12), Paint("indigo", 1, noise=0.03))
+    m.box("pot_lip", (1.5, 3.5, 3.5), (14.5, 4.25, 12.5), Paint("indigo", 2, noise=0.02))
     for (x, z) in ((2.5, 4.5), (12.5, 4.5), (2.5, 10.5), (12.5, 10.5)):
-        m.box("foot", (x, 0, z), (x + 1, 1, z + 1), Mat("indigo", "plain", 1, noise=0))
-    m.box("soil", (3, 4, 5), (13, 4.25, 11), SOIL)
-    m.box("moss", (3.5, 4.25, 5.5), (12.5, 4.75, 10.5), MOSS)
-    m.box("rock", (10, 4.75, 8), (12, 6, 10), STONE)
+        m.box("foot", (x, 0, z), (x + 1, 1, z + 1), flat("indigo", 0))
+    m.box("soil", (2.5, 4.25, 4.5), (13.5, 4.5, 11.5), moss_on(SOIL, amount=0.45, cell=2))
+    m.box("stone", (10, 4.5, 8.5), (12.5, 5.75, 10.5), STONE_LIGHT)
     m.group("trunk")
-    tr = BARK
-    m.box("trunk", (6, 4.75, 7), (8, 8, 9), tr)
-    m.box("trunk", (7, 8, 7), (9, 10, 9), tr)
-    m.box("trunk", (8, 10, 7.25), (9.75, 12.5, 8.75), tr)
-    m.box("branch", (3.5, 9, 7.5), (7, 10, 8.5), tr)
-    m.box("branch", (9.75, 11.5, 7.5), (12, 12.5, 8.5), tr)
-    m.box("trunk", (7.5, 12.5, 7.5), (9, 14.5, 8.75), tr)
+    for (a, b) in (((6.5, 4.5, 7), (9, 6, 9.5)),         # root flare
+                   ((5.5, 6, 7.25), (7.5, 8.5, 9)),       # S: lean left
+                   ((6.5, 8.5, 7.25), (8.5, 10.5, 9)),    # back right
+                   ((7.5, 10.5, 7.25), (9.25, 12.5, 8.75)),
+                   ((6.75, 12.5, 7.5), (8.5, 14, 8.75))):  # and left again to the apex
+        m.box("trunk", a, b, BARK)
+    m.box("branch", (2.5, 9, 7.75), (5.5, 9.75, 8.75), BARK)
+    m.box("branch", (9.25, 11.5, 7.75), (12.5, 12.25, 8.75), BARK)
+    m.box("branch", (8, 8.5, 9), (9, 9.25, 11), BARK)
     m.group("foliage")
-    m.box("pad", (1, 10, 5), (7, 12, 11), LEAF_DARK)
-    m.box("pad", (2, 12, 6), (6, 12.75, 10), LEAF)
-    m.box("pad", (9.5, 12.5, 5.5), (14.5, 14.25, 10.5), LEAF_DARK)
-    m.box("pad", (10.5, 14.25, 6.5), (13.5, 15, 9.5), LEAF)
-    m.box("pad", (5.5, 14.5, 5.5), (10.5, 16, 10.5), LEAF_DARK)
+
+    def needles(c):
+        r = h3(c.i[0], c.i[1], c.i[2], 7)
+        if c.face == "up":
+            return ("leaf_dark", 3 if r < 0.35 else 2)
+        if c.face == "down":
+            return ("leaf_dark", 0)
+        return ("leaf_dark", 2 if r < 0.3 else 1)
+    pad = Paint("leaf_dark", 2, decal=needles)
+    for (cx, y, cz, w, d) in ((3.5, 9.75, 8, 6, 5), (11.5, 12.25, 7.5, 6, 5), (7.5, 14, 8, 8, 6), (9, 9.25, 11.5, 4, 3)):
+        m.box("pad", (cx - w / 2, y, cz - d / 2), (cx + w / 2, y + 1.25, cz + d / 2), pad)
+        m.box("pad_top", (cx - w / 2 + 1, y + 1.25, cz - d / 2 + 1), (cx + w / 2 - 1, y + 2, cz + d / 2 - 1), pad)
     return display(m, (1, 1, 1), 0)
 
 
 def ikebana():
-    """이케바나 꽃꽂이: a shallow celadon dish holding a tall camellia branch, red blooms and leaves."""
-    m = MModel("ikebana")
+    """이케바나 꽃꽂이: a shallow celadon suiban with water, a tall camellia branch (heaven), a shorter one leaning
+    the other way (man), low leaves in front (earth): red and white blooms with gold stamens, glossy leaves."""
+    m = BModel("ikebana")
     m.group("dish")
-    cyl(m, "dish", "y", (8, 8), 11, 0, 1.5, CELADON, cap=CELADON)
-    ring(m, "dish_rim", (8, 8), 11, 9, 1.5, 2.5, CELADON_DARK)
-    m.box("water", (4, 1.5, 4), (12, 1.75, 12), Mat("water", "plain", 2, bevel=None, noise=0))
-    m.group("stems")
-    stem = Mat("leaf_dark", "plain", 1, bevel=None, noise=0)
-    m.box("stem", (7.5, 1.75, 7.5), (8, 13, 8), stem)
-    m.box("stem", (8.5, 1.75, 8.5), (9, 9, 9), stem)
-    m.box("stem", (6.5, 1.75, 8.5), (7, 6.5, 9), stem)
-    m.box("twig", (4, 12, 7.5), (7.5, 12.5, 8), BARK)
-    m.box("twig", (3.5, 12.5, 7.5), (4.5, 15, 8), BARK)
-    m.group("flowers")
-    white = Mat("porcelain", "plain", 2, noise=0)
-    red = Mat("vermilion", "plain", 3, noise=0)
-    m.box("bloom", (6.75, 13, 6.75), (8.75, 14.75, 8.75), white)
-    m.box("bloom_eye", (7.5, 14.75, 7.5), (8, 15, 8), Mat("gold", "plain", 2, bevel=None, noise=0))
-    m.box("bloom", (7.75, 9, 7.75), (9.75, 10.75, 9.75), red)
-    m.box("bloom", (5.75, 6.5, 7.75), (7.75, 8, 9.75), red)
-    m.box("bud", (3.25, 15, 7.25), (4.75, 16, 8.25), Mat("sakura", "plain", 2, noise=0))
-    m.group("leaves")
-    for (x, y, z, w, d) in ((8, 5, 6, 3, 1.5), (5, 4, 9.5, 1.5, 3), (9, 11, 9, 2.5, 1.5), (5.5, 9.5, 6.5, 2, 1.5)):
-        m.box("leaf", (x, y, z), (x + w, y + 0.5, z + d), LEAF)
+
+    def water(c):
+        if c.face == "up" and math.hypot(c.p[0] - 8, c.p[2] - 8) < 4.6:
+            return ("water", 2 if (c.i[0] + c.i[2]) % 5 else 3)
+        return None
+    cyl(m, "dish", (8, 8), 12, 0, 2, CELADON(decal=water))
+    m.group("branches")
+    tw = Paint("bark", 1, noise=0)
+    # shin rises and leans left (+x, the viewer's left), soe leans right
+    for (a, b) in (((7.5, 2, 7.5), (8.5, 6, 8.5)), ((8, 6, 7.5), (9, 10, 8.5)), ((8.75, 10, 7.5), (9.75, 13, 8.5)),
+                   ((9.5, 13, 7.5), (10.25, 15, 8.25)),
+                   ((7, 2, 8), (7.75, 5, 8.75)), ((6, 5, 8), (7, 7.5, 8.75)), ((4.75, 7.5, 8), (6, 8.5, 8.75))):
+        m.box("stem", a, b, tw)
+    red = Paint("vermilion", 3, noise=0, rim=0.6)
+    white = Paint("porcelain", 2, noise=0, rim=0.6)
+    stamen = flat("gold", 3, light=False)
+    for (x, y, z, p) in ((9.75, 15, 7.75, red), (7.5, 11, 6.5, red), (3.75, 8.5, 8.25, white), (10.5, 7, 9.75, red)):
+        m.box("bloom", (x - 1.5, y, z - 1), (x + 1.5, y + 0.75, z + 1), p(base=p.base - 1))
+        m.box("bloom", (x - 1, y, z - 1.5), (x + 1, y + 0.75, z - 1), p(base=p.base - 1))
+        m.box("bloom", (x - 1, y, z + 1), (x + 1, y + 0.75, z + 1.5), p(base=p.base - 1))
+        m.box("bloom_top", (x - 1, y + 0.75, z - 1), (x + 1, y + 1.5, z + 1), p)
+        m.box("stamen", (x - 0.5, y + 1.5, z - 0.5), (x + 0.5, y + 1.75, z + 0.5), stamen)
+    leaf = Paint("leaf_dark", 2, noise=0, rim=0.8)
+    for (x, y, z, w, d) in ((9.5, 4, 6, 2.5, 1.5), (5, 3.5, 9, 1.5, 2.5), (10, 9, 9, 2, 1.5), (6, 9.5, 6.5, 2, 1.5),
+                            (10.25, 12, 6.5, 1.5, 1.5), (4.5, 2.5, 6.5, 2.5, 1.5), (9.5, 2.5, 10, 2.5, 1.5)):
+        m.box("leaf", (x, y, z), (x + w, y + 0.5, z + d), leaf)
     return display(m, (1, 1, 1), 0)
 
 
+def _leaf_spray(rows, x, y, z, axis):
+    """Decal of a leaf spray on a flat plane running along `axis` from (x, z), its top row at y (cut out)."""
+    def decal(c):
+        u = (c.p[0] - x) if axis == "x" else (c.p[2] - z)
+        col, row = math.floor(u), math.floor(y - c.p[1])
+        if 0 <= row < len(rows) and 0 <= col < len(rows[row]) and rows[row][col] == "#":
+            tip = row >= len(rows) - 2
+            return ("leaf", 2 if tip else 3) if c.face in ("north", "east") else ("leaf", 1 if tip else 2)
+        return ("raw", (0, 0, 0, 0))
+    return decal
+
+
 def bamboo_pot():
-    """대나무 화분 1x2: a hinoki planter with three bamboo culms (nodes, leaf sprays)."""
-    m = MModel("bamboo_pot")
+    """대나무 화분 1x2: a hinoki planter with black iron bands, white pebbles, three bamboo culms with nodes
+    and drooping sprays of leaves."""
+    m = BModel("bamboo_pot")
     m.group("planter")
-    m.box("planter", (3, 0, 3), (13, 6, 13), HINOKI)
+    m.box("planter", (3, 0, 3), (13, 6, 13), Paint("hinoki", 2, "planks", axis="y", width=3))
     for y in (1, 4.5):
-        m.box("band", (2.75, y, 2.75), (13.25, y + 0.75, 13.25), LACQUER)
-    m.box("soil", (4, 6, 4), (12, 6.25, 12), SOIL)
-    m.box("pebbles", (4.5, 6.25, 4.5), (8, 6.75, 8), STONE_LIGHT)
+        m.box("band", (2.75, y, 2.75), (13.25, y + 0.75, 13.25), flat("iron", 1, rim=0.6))
+    m.box("rim", (2.75, 6, 2.75), (13.25, 6.5, 13.25), HINOKI)
+
+    def pebbles(c):
+        r = h3(c.i[0], 0, c.i[2], 3)
+        return ("porcelain", 2 if r < 0.35 else 1) if r < 0.75 else ("millstone", 3)
+    m.box("pebbles", (3.5, 6.5, 3.5), (12.5, 6.75, 12.5), Paint("porcelain", 1, decal=pebbles))
     m.group("culms")
-    for (x, z, h) in ((5, 7, 30), (9, 5, 25), (8.5, 10, 21)):
-        m.box("culm", (x, 6.25, z), (x + 1.5, h, z + 1.5), BAMBOO)
-        y = 11.25
-        while y < h - 2:
-            m.box("node", (x - 0.25, y, z - 0.25), (x + 1.75, y + 0.5, z + 1.75), BAMBOO_DARK)
-            y += 5.5
+    for (x, z, h, off) in ((5, 7, 31, 1), (9, 5, 26, 3), (8.5, 10, 22, 0)):
+        m.box("culm", (x, 6.75, z), (x + 1.5, h, z + 1.5), Paint("bamboo", 3, "bamboo", axis="y", node=5, node_off=off))
     m.group("leaves")
-    for (x, y, z, w, d) in ((1, 28, 6.5, 4, 1), (6.5, 29, 7, 4, 1.5), (4.5, 26, 4.5, 1.5, 3),
-                            (10.5, 23.5, 4.5, 4, 1), (8, 22, 2, 1.5, 3), (10, 19.5, 10.5, 4, 1.5), (7, 18, 11.5, 1.5, 3)):
-        m.box("leaf", (x, y, z), (x + w, y + 0.5, z + d), LEAF)
+    leaf_rows = ["...##...",
+                 "..####..",
+                 ".##.###.",
+                 "##...###",
+                 "#.....##"]
+    for (x, y, z, axis) in ((1.5, 30, 7.75, "x"), (7.0, 31.5, 7.25, "z"), (9.5, 25, 5.75, "x"), (4.5, 25.5, 4, "z"),
+                            (9, 21, 10.75, "x"), (5.5, 18.5, 12, "z")):
+        p = Paint("leaf", 2, decal=_leaf_spray(leaf_rows, x, y, z, axis), ao=0.3)
+        if axis == "x":
+            m.box("leaf", (x, y - 5, z), (x + 8, y, z), p)
+        else:
+            m.box("leaf", (x, y - 5, z), (x, y, z + 8), p)
     return display(m, (1, 2, 1), 0)
 
 
 def sakura_pot():
-    """벚꽃 화분 1x2: a small cherry tree in a glazed pot, clouds of blossom."""
-    m = MModel("sakura_pot")
+    """벚꽃 화분 1x2: a small cherry tree in a round glazed pot: a gnarled trunk that splits into three
+    branches, each ending in a cloud of blossom (five-petalled flowers, lighter on top), petals on the soil."""
+    m = BModel("sakura_pot")
     m.group("pot")
-    cyl(m, "pot", "y", (8, 8), 9, 0, 5, Mat("indigo", "plain", 2, noise=0.04), cap=SOIL)
-    ring(m, "rim", (8, 8), 10, 8, 5, 6, Mat("indigo", "plain", 3, noise=0.04))
-    m.box("soil", (5, 5, 5), (11, 5.5, 11), SOIL)
+    cyl(m, "pot", (8, 8), 9, 0.5, 5, Paint("onggi", 2, noise=0.02))
+    cyl(m, "pot_foot", (8, 8), 7, 0, 0.5, flat("onggi", 1))
+    cyl(m, "rim", (8, 8), 10, 5, 6, Paint("onggi", 3, noise=0.02))
+
+    def petals(c):
+        if c.face == "up" and h3(c.i[0], 0, c.i[2], 9) < 0.18:
+            return ("sakura", 2)
+        return None
+    m.box("soil", (4.5, 6, 4.5), (11.5, 6.25, 11.5), SOIL(decal=petals))
     m.group("tree")
-    m.box("trunk", (7, 5.5, 7), (9, 11, 9), BARK)
-    m.box("trunk", (7.5, 11, 7.5), (9, 15, 9), BARK)
-    m.box("branch", (4, 13, 7.5), (7.5, 14, 8.5), BARK)
-    m.box("branch", (9, 15, 7.5), (12, 16, 8.5), BARK)
-    m.box("branch", (7.75, 15, 9), (8.75, 17, 11.5), BARK)
+    for (a, b) in (((7, 6.25, 7), (9.5, 9, 9.5)), ((7.5, 9, 7.25), (9.5, 12.5, 9.25)), ((7, 12.5, 7.5), (9, 14.5, 9))):
+        m.box("trunk", a, b, BARK)
+    for (a, b) in (((3.5, 14, 7.75), (7, 15, 8.75)), ((2.5, 15, 7.75), (3.5, 17, 8.75)),       # left
+                   ((9, 14.5, 7.5), (12.5, 15.5, 8.5)), ((12.5, 15.5, 7.5), (13.5, 18, 8.5)),  # right
+                   ((7.75, 14.5, 9), (8.75, 15.5, 11.5)), ((7.5, 14.5, 7.75), (8.5, 21, 8.75))):  # back, up
+        m.box("branch", a, b, BARK)
     m.group("blossom")
-    for (x0, y0, z0, x1, y1, z1, mat) in ((1, 14, 4, 7, 18, 11, SAKURA), (9, 16, 3, 15, 20.5, 10, SAKURA),
-                                          (4, 18, 6, 11, 23, 13, SAKURA_LIGHT), (2, 17.5, 9, 6, 20, 12.5, SAKURA),
-                                          (10, 20.5, 6.5, 14, 22.5, 11, SAKURA_LIGHT), (6, 23, 7, 10, 24.5, 11, SAKURA_LIGHT)):
-        m.box("blossom", (x0, y0, z0), (x1, y1, z1), mat)
+
+    def bloom(c):
+        x, y, z = c.i
+        r = h3(x, y, z, 21)
+        flower = (x + 2 * y + 3 * z) % 5 == 0
+        if c.face == "down":
+            return ("sakura", 0 if r < 0.5 else 1)
+        if flower:
+            return ("pink", 2) if r < 0.4 else ("sakura", 3)
+        if c.face == "up":
+            return ("sakura", 3 if r < 0.7 else 2)
+        return ("sakura", 2 if r < 0.75 else 1)
+    pink = Paint("sakura", 2, decal=bloom, rim=0.7)
+    for (c, w, h, d) in (((3, 16, 8), 6, 4, 6), ((13, 17.5, 8), 6, 4, 6), ((8, 20.5, 8), 8, 5, 7),
+                         ((8.5, 15.25, 12.25), 5, 3.5, 4), ((10.5, 23.5, 9.25), 4, 2.5, 4), ((5.25, 20.25, 6.75), 4, 3, 4)):
+        puff(m, "blossom", c, w, h, d, pink)
     return display(m, (1, 2, 1), 0)
 
 
+# ================================================================================================
+# 다구 · 소품
+# ================================================================================================
+
 def tea_set():
-    """다기 세트: a dark tray with a side-handled clay teapot and three green-tea cups."""
-    m = MModel("tea_set")
+    """다기 세트: a hinoki tray with a red-clay kyūsu (the straight side handle, a short spout) and three
+    celadon yunomi of green tea."""
+    m = BModel("tea_set")
     m.group("tray")
-    m.box("tray", (2, 0, 3), (14, 0.75, 13), DARK_PLANKS)
-    for (a, b) in (((2, 0.75, 3), (14, 1.5, 3.75)), ((2, 0.75, 12.25), (14, 1.5, 13)),
-                   ((2, 0.75, 3.75), (2.75, 1.5, 12.25)), ((13.25, 0.75, 3.75), (14, 1.5, 12.25))):
-        m.box("tray_rim", a, b, DARK)
-    m.group("teapot")
-    pot = Mat("onggi", "plain", 3, noise=0.05)
-    cyl(m, "pot", "y", (6, 8), 5, 0.75, 4.25, pot, cap=pot)
-    cyl(m, "lid", "y", (6, 8), 3, 4.25, 4.75, Mat("onggi", "plain", 2, noise=0), cap=Mat("onggi", "plain", 2, noise=0))
-    m.box("knob", (5.5, 4.75, 7.5), (6.5, 5.25, 8.5), Mat("onggi", "plain", 1, noise=0))
-    m.box("spout", (3, 2.25, 7.5), (3.5, 3.25, 8.5), pot)
-    m.box("spout_tip", (2.5, 3, 7.5), (3, 3.75, 8.5), pot)
-    m.box("handle", (6.5, 2, 3.5), (7.5, 3, 5.5), pot)
+    m.box("tray", (1, 0, 2), (15, 0.75, 14), Paint("hinoki", 2, "planks", axis="x", width=3))
+    for (a, b) in (((1, 0.75, 2), (15, 1.5, 2.75)), ((1, 0.75, 13.25), (15, 1.5, 14)),
+                   ((1, 0.75, 2.75), (1.75, 1.5, 13.25)), ((14.25, 0.75, 2.75), (15, 1.5, 13.25))):
+        m.box("tray_rim", a, b, HINOKI)
+    m.group("kyusu")
+    clay = Paint("terracotta", 1, "speckle", rim=0.8)
+    cyl(m, "pot", (5.5, 8), 4, 0.75, 1.5, clay)
+    cyl(m, "pot", (5.5, 8), 6, 1.5, 3.5, clay)
+    cyl(m, "pot", (5.5, 8), 5, 3.5, 4.25, clay)
+    cyl(m, "lid", (5.5, 8), 3, 4.25, 4.75, flat("terracotta", 2))
+    m.box("knob", (5, 4.75, 7.5), (6, 5.5, 8.5), flat("terracotta", 0))
+    m.box("spout", (1.5, 2, 7.5), (2.5, 3, 8.5), clay)
+    m.box("spout_tip", (0.75, 2.75, 7.5), (1.5, 3.75, 8.5), clay)
+    m.box("handle", (4.75, 2.25, 2.25), (6.25, 3.25, 5), Paint("terracotta", 1, "grain", axis="z"))
     m.group("cups")
-    for (x, z) in ((10.5, 5), (11, 8.75), (8.75, 11)):
-        cyl(m, "cup", "y", (x, z), 2, 0.75, 2.5, CELADON, cap=GREEN_TEA)
+    for (x, z) in ((10.75, 4.5), (12.5, 8), (10.5, 11.5)):
+        cup(m, "cup", (x, z), 0.75, 3, CELADON(decal=tea_top(x, z)))
     return display(m, (1, 1, 1), 0)
 
 
 def tea_kettle():
-    """화로와 찻주전자: a cast-iron kettle with hobnails and an arched handle on a blue-and-white brazier
-    with glowing charcoal."""
-    m = MModel("tea_kettle")
+    """화로와 찻주전자: a cast-iron tetsubin with hobnail (arare) bumps, a bronze knob and an arched handle,
+    on an iron trivet over glowing charcoal (it flickers) in a blue-and-white porcelain brazier."""
+    m = BModel("tea_kettle")
     m.group("brazier")
-    cyl(m, "brazier", "y", (8, 8), 13, 0.5, 6, "jp_hibachi")
-    cyl(m, "brazier_foot", "y", (8, 8), 10, 0, 0.5, Mat("indigo", "plain", 2, noise=0))
-    ring(m, "brazier_rim", (8, 8), 13, 10, 6, 7, Mat("indigo", "plain", 2, noise=0))
-    m.box("ash", (4, 6, 4), (12, 6.25, 12), Mat("millstone", "speckle", 4, bevel=None))
-    for (x, z) in ((4.5, 4.5), (9.5, 10), (5, 10), (10, 4.75)):
-        m.box("ember", (x, 6.25, z), (x + 1.5, 7, z + 1.5), EMBER)
-    m.box("trivet", (5.5, 6.25, 7.5), (10.5, 7.5, 8.5), IRON)
-    m.group("kettle")
-    kt = Mat("iron", "speckle", 3)
-    cyl(m, "kettle", "y", (8, 8), 7, 7.5, 8.5, kt, cap=kt)
-    cyl(m, "kettle", "y", (8, 8), 9, 8.5, 12, kt, cap=kt)
-    cyl(m, "kettle_lid", "y", (8, 8), 4, 12, 12.75, Mat("iron", "plain", 2, noise=0), cap=Mat("iron", "plain", 3, noise=0))
+
+    def blue_white(c):
+        if c.face == "up":
+            return None
+        y = c.p[1]
+        ang = math.atan2(c.p[2] - 8, c.p[0] - 8)
+        if abs(y - (3.2 + 0.9 * math.sin(ang * 6))) < 0.6:
+            return ("indigo", 2)
+        if 4.6 < y < 5.4:
+            return ("indigo", 3)
+        if y < 1.4:
+            return ("indigo", 2)
+        return ("porcelain", 2)
+    cyl(m, "hibachi", (8, 8), 13, 0.5, 6, Paint("porcelain", 2, decal=blue_white))
+    cyl(m, "hibachi_foot", (8, 8), 10, 0, 0.5, flat("indigo", 1))
+    cyl(m, "hibachi_rim", (8, 8), 13, 6, 6.5, flat("indigo", 2))
+
+    def ash(c):
+        return ("millstone", 4 if h3(c.i[0], 0, c.i[2], 11) < 0.6 else 3)
+    m.box("ash", (3.5, 6.5, 3.5), (12.5, 6.75, 12.5), Paint("millstone", 4, decal=ash))
+
+    def embers(c):
+        r = h3(c.i[0], c.i[1], c.i[2], 13)
+        return ("fire", 2 + (1 if (c.frame + int(r * 12)) % 12 < 4 else 0) - (1 if r < 0.3 else 0))
+    for (x, z) in ((4.25, 4.25), (10, 10.25), (4.5, 10), (10.25, 4.5), (7.25, 3.75)):
+        m.box("charcoal", (x, 6.75, z), (x + 1.5, 7.5, z + 1.5),
+              Paint("fire", 2, glow=True, light=False, noise=0, decal=embers, frames=12, frametime=4))
+    gotoku = flat("iron", 1)
+    m.box("gotoku", (5, 6.75, 7.5), (11, 7.75, 8.5), gotoku)
+    m.box("gotoku", (7.5, 6.75, 5), (8.5, 7.75, 7.5), gotoku)
+    m.box("gotoku", (7.5, 6.75, 8.5), (8.5, 7.75, 11), gotoku)
+    m.group("tetsubin")
+
+    def arare(c):
+        if c.face in ("up", "down"):
+            return None
+        u = c.i[0] if c.face in ("north", "south") else c.i[2]
+        if (u + c.i[1]) % 2 == 0 and 8.5 < c.p[1] < 11.5:
+            return ("iron", 3)
+        return None
+    iron = Paint("iron", 2, decal=arare, rim=0.8)
+    cyl(m, "kettle", (8, 8), 7, 7.75, 8.5, iron)
+    cyl(m, "kettle", (8, 8), 9, 8.5, 11.5, iron)
+    cyl(m, "kettle", (8, 8), 7, 11.5, 12.25, iron)
+    cyl(m, "lid", (8, 8), 4, 12.25, 12.75, flat("iron", 3))
     m.box("knob", (7.5, 12.75, 7.5), (8.5, 13.5, 8.5), BRASS)
-    m.box("spout", (2.5, 9.5, 7.5), (3.5, 11.5, 8.5), kt)
-    m.box("spout_tip", (2, 11, 7.5), (2.5, 12.5, 8.5), kt)
+    m.box("spout", (2.5, 9.5, 7.5), (3.5, 11, 8.5), iron)
+    m.box("spout_tip", (2, 10.5, 7.5), (2.5, 12, 8.5), iron)
+    handle = flat("iron", 1, rim=0.5)
     for x in (3, 12.5):
-        m.box("lug", (x, 11.5, 7.5), (x + 0.5, 13, 8.5), IRON)
-    m.box("handle", (3, 13, 7.75), (3.5, 15, 8.25), IRON)
-    m.box("handle", (12.5, 13, 7.75), (13, 15, 8.25), IRON)
-    m.box("handle", (3, 15, 7.75), (13, 15.5, 8.25), IRON)
+        m.box("lug", (x, 11.5, 7.5), (x + 0.5, 12.75, 8.5), handle)
+        m.box("handle", (x, 12.75, 7.75), (x + 0.5, 15, 8.25), handle)
+    m.box("handle", (3, 15, 7.75), (13, 15.5, 8.25), handle)
     return display(m, (1, 1, 1), 0)
 
 
 def sake_set():
-    """사케 병과 잔: two white tokkuri bottles with an indigo band and two cups on a red lacquer tray."""
-    m = MModel("sake_set")
+    """사케 병과 잔: two white tokkuri painted with an indigo wave and two small cups with the blue bull's-eye
+    (janome) inside, on a red lacquer tray."""
+    m = BModel("sake_set")
     m.group("tray")
-    m.box("tray", (2.5, 0, 3.5), (13.5, 0.75, 12.5), LACQUER_RED)
-    m.box("tray_rim", (2.5, 0.75, 3.5), (13.5, 1.25, 4), LACQUER_RED)
-    m.box("tray_rim", (2.5, 0.75, 12), (13.5, 1.25, 12.5), LACQUER_RED)
-    m.group("bottles")
-    for (x, z, h) in ((5, 9.5, 0), (9.5, 6.5, 0.25)):
-        cyl(m, "bottle", "y", (x, z), 4, 0.75, 3.5 + h, WHITE)
-        cyl(m, "bottle_band", "y", (x, z), 4, 3.5 + h, 4.5 + h, Mat("indigo", "plain", 2, noise=0))
-        cyl(m, "bottle", "y", (x, z), 3, 4.5 + h, 6 + h, WHITE)
-        cyl(m, "bottle_neck", "y", (x, z), 1.5, 6 + h, 8 + h, WHITE)
-        cyl(m, "bottle_lip", "y", (x, z), 2, 8 + h, 8.5 + h, WHITE, cap=Mat("porcelain", "plain", 0, bevel=None, noise=0))
+    m.box("tray", (2, 0, 3), (14, 0.75, 13), LACQ_RED)
+    for (a, b) in (((2, 0.75, 3), (14, 1.5, 3.5)), ((2, 0.75, 12.5), (14, 1.5, 13)),
+                   ((2, 0.75, 3.5), (2.5, 1.5, 12.5)), ((13.5, 0.75, 3.5), (14, 1.5, 12.5))):
+        m.box("tray_rim", a, b, LACQ_RED)
+    m.group("tokkuri")
+    for (x, z, h) in ((5, 9.5, 0), (9.5, 6.5, 0.5)):
+        def brush(c, x=x, z=z, h=h):
+            if c.face in ("up", "down"):
+                return None
+            yi = c.i[1]
+            if yi in (2, 4) and c.p[1] < 4.5 + h:
+                return ("indigo", 2)                   # two brushed bands round the belly
+            if yi == 3 and (c.i[0] + c.i[2]) % 2 == 0:
+                return ("indigo", 3)                   # and a row of dots between them
+            return None
+
+        def mouth(c, x=x, z=z):
+            if c.face == "up" and abs(c.p[0] - x) < 0.6 and abs(c.p[2] - z) < 0.6:
+                return ("porcelain", 0)
+            return None
+        white = Paint("porcelain", 2, noise=0, decal=brush, rim=0.8)
+        cyl(m, "bottle", (x, z), 3, 0.75, 1.25, white)
+        cyl(m, "bottle", (x, z), 5, 1.25, 4.5 + h, white)
+        cyl(m, "bottle", (x, z), 3, 4.5 + h, 5.5 + h, white)
+        cyl(m, "neck", (x, z), 2, 5.5 + h, 7.75 + h, white)
+        cyl(m, "lip", (x, z), 3, 7.75 + h, 8.25 + h, Paint("porcelain", 2, noise=0, rim=0.8, decal=mouth))
     m.group("cups")
-    for (x, z) in ((11.5, 10.25), (5, 5.5)):
-        cyl(m, "cup", "y", (x, z), 2, 0.75, 1.75, WHITE, cap=Mat("rice", "plain", 1, bevel=None, noise=0))
+    for (x, z) in ((11.5, 10.5), (4.5, 5.5)):
+        def janome(c, x=x, z=z):
+            if c.face == "up" and math.hypot(c.p[0] - x, c.p[2] - z) < 0.8:
+                return ("indigo", 2)
+            return None
+        cup(m, "ochoko", (x, z), 0.75, 2, Paint("porcelain", 2, noise=0, decal=janome))
     return display(m, (1, 1, 1), 0)
 
 
 def taiko_drum():
-    """다이코 북 1x2: a barrel drum lying on a dark wooden stand, tacked skin heads with the three-comma
-    tomoe, and two drumsticks."""
-    m = MModel("taiko_drum")
+    """다이코 북 1x2: a barrel drum of deep-red lacquered wood lying on a stand, cream cowhide heads tacked on with
+    a ring of iron studs and painted with the three-comma tomoe, brass carrying rings, two sticks."""
+    m = BModel("taiko_drum")
+    cy = 14
 
-    def head(dx, dy, r):
-        if r > 1.0:
-            return (0, 0, 0, 0)
-        if r > 0.86:
-            return ramp("brass", 2) if (int((math.atan2(dy, dx) + math.pi) / (2 * math.pi) * 20) % 2 == 0) else ramp("cream", 1)
-        # a red ring with three round dots inside it (a simple crest that reads at 16 px)
-        if 0.5 < r < 0.64:
-            return ramp("vermilion", 1)
+    def skin(c):
+        if c.face not in ("north", "south"):
+            return None
+        x, y = c.p[0] - 8, c.p[1] - cy
+        dx, dy = x / 6.5, y / 6.5
+        r = math.hypot(dx, dy)
+        if r > 0.8:
+            stud = int((math.atan2(dy, dx) + math.pi) / (2 * math.pi) * 16 + 0.5) % 2 == 0
+            return ("brass", 3) if stud and r > 0.88 else ("leather", 1)     # the laced rim and its studs
+        if 0.52 < r < 0.68:
+            return ("vermilion", 1)                    # the crest: a ring round three comma heads
         for k in range(3):
-            a = math.radians(90 + 120 * k)
-            if math.hypot(dx - 0.24 * math.cos(a), dy - 0.24 * math.sin(a)) < 0.17:
-                return ramp("vermilion", 1)
-        return ramp("cream", 2 if dx + dy < 0 else 1)
-
-    skin = _disc_pic("jp_taiko_head", 13, head)
+            a = math.radians(90 + 120 * k) * (1 if c.face == "north" else -1)
+            if math.hypot(dx - 0.25 * math.cos(a), dy - 0.25 * math.sin(a)) < 0.17:
+                return ("vermilion", 1)
+            if math.hypot(dx - 0.37 * math.cos(a - 0.6), dy - 0.37 * math.sin(a - 0.6)) < 0.09:
+                return ("vermilion", 1)
+        return ("cream", 2 if dx - dy < 0.2 else 1)
+    body = Paint("crimson", 2, "planks", axis="z", width=3, rim=0.8)
     m.group("drum")
-    cyl(m, "body", "z", (8, 14), 14, 3, 13, Mat("vermilion", "planks", 2, period=4), cap=skin)
-    for z in (3.5, 11.75):
-        cyl(m, "tacks", "z", (8, 14), 14.5, z, z + 0.75, BRASS)
-    cyl(m, "skin_rim", "z", (8, 14), 13, 2.5, 3, Mat("cream", "plain", 1, noise=0), cap=skin)
-    cyl(m, "skin_rim", "z", (8, 14), 13, 13, 13.5, Mat("cream", "plain", 1, noise=0), cap=skin)
+    cyl(m, "body", (8, cy), 13, 3, 4, body, axis="z")
+    cyl(m, "body", (8, cy), 14, 4, 12, body, axis="z")
+    cyl(m, "body", (8, cy), 13, 12, 13, body, axis="z")
+    cyl(m, "head", (8, cy), 13, 2.5, 3, Paint("cream", 2, decal=skin, noise=0), axis="z")
+    cyl(m, "head", (8, cy), 13, 13, 13.5, Paint("cream", 2, decal=skin, noise=0), axis="z")
+    for z in (3.25, 12.25):
+        cyl(m, "studs", (8, cy), 13.5, z, z + 0.5, flat("iron", 1), axis="z")
+    for x in (0.5, 15):
+        m.box("kan", (x, cy - 0.75, 7.25), (x + 0.5, cy + 0.75, 8.75), BRASS)
     m.group("stand")
     for x in (0, 14.5):
         m.box("foot", (x, 0, 2), (x + 1.5, 1.5, 14), DARK)
-        m.box("leg", (x, 1.5, 7.25), (x + 1.5, 14, 8.75), DARK)
-        m.box("brace", (x, 5, 4), (x + 1.5, 6, 7.25), DARK)
-        m.box("brace", (x, 5, 8.75), (x + 1.5, 6, 12), DARK)
-    m.box("cradle", (1.5, 6, 7.25), (14.5, 7, 8.75), DARK)
+        m.box("leg", (x, 1.5, 7.25), (x + 1.5, 9.5, 8.75), DARK)
+        m.box("brace", (x, 4.5, 4), (x + 1.5, 5.5, 7.25), DARK)
+        m.box("brace", (x, 4.5, 8.75), (x + 1.5, 5.5, 12), DARK)
+    m.box("cradle", (1.5, 6, 7), (14.5, 7, 9), DARK)
     m.group("sticks")
-    m.box("bachi", (0.25, 14, 3), (0.75, 14.5, 13), HINOKI_GRAIN)
-    m.box("bachi", (15.25, 14, 3), (15.75, 14.5, 13), HINOKI_GRAIN)
+    stick = Paint("hinoki", 3, "grain", axis="z", noise=0)
+    m.box("bachi", (2.5, 0, 0.25), (13.5, 0.75, 1.0), stick(axis="x"))
+    m.box("bachi", (3.0, 0, 1.25), (14, 0.75, 2.0), stick(axis="x"))
     return display(m, (1, 1.4, 1), 0)
 
 
 def maneki_neko():
-    """마네키네코: a white calico cat sitting with its paw raised, a red collar with a gold bell, a gold coin."""
-    m = MModel("maneki_neko")
+    """마네키네코: a white calico cat sitting on a red cushion, its paw raised to beckon, eyes closed in a smile,
+    a red collar with a golden bell and a gold koban coin."""
+    m = BModel("maneki_neko")
+    white = Paint("feather", 2, noise=0.0, rim=0.8)
+    face = [".........",
+            ".........",
+            ".KK...KK.",
+            "K..K.K..K",
+            "....P....",
+            "PP.W.W.PP",
+            "...WWW..."]
+    colours = {"K": ("rubber", 0), "P": ("pink", 2), "W": ("feather", 0)}
 
-    def face(px):
-        for y in range(7):
-            for x in range(9):
-                px[x, y] = ramp("feather", 2)
-        for (x, y) in ((2, 2), (6, 2)):                      # eyes
-            px[x, y] = ramp("rubber", 1)
-        px[4, 3] = ramp("pink", 1)                           # nose
-        px[4, 4] = ramp("feather", 0)                        # mouth
-        for (x, y) in ((1, 4), (7, 4)):
-            px[x, y] = ramp("pink", 3)                       # cheeks
-
-    white = Mat("feather", "plain", 2, noise=0.03)
+    def calico(c):
+        x, y, z = c.p
+        if c.face != "down" and y > 2 and vnoise(x, y, z, 3.0, 4) > 0.72:
+            return ("fox", 3)
+        if c.face != "down" and y > 2 and vnoise(x + 40, y, z, 2.5, 8) > 0.8:
+            return ("rubber", 1)
+        return None
+    m.group("cushion")
+    cushion(m, 2.5, 2.5, 11)
     m.group("body")
-    m.box("base", (3.5, 0, 4.5), (12.5, 1, 12.5), Mat("feather", "plain", 1, noise=0))
-    m.box("body", (4, 1, 5), (12, 7, 12), white)
-    m.box("patch", (9, 3.5, 12), (12, 6.5, 12.25), Mat("fox", "plain", 3, bevel=None, noise=0))
-    m.box("tail", (10, 1, 12), (12.5, 2.5, 13.5), white)
+    body = white(decal=calico)
+    m.box("body", (4.5, 2.75, 5.5), (11.5, 8, 11.5), body)
+    m.box("chest", (5, 2.75, 5), (11, 7.25, 5.5), white)
+    m.box("tail", (10, 2.75, 11.5), (12.5, 4.25, 13), body)
+    m.box("paw", (5.25, 2.75, 3.75), (7, 4.25, 5), white)
     m.group("head")
-    m.box("head", (3.5, 7, 4), (12.5, 14, 11), white, faces={"north": picture("jp_neko_face", 9, 7, face)[0]},
-          uv={"north": [0, 0, 9, 7]})
-    m.box("patch", (9, 13, 5), (11.5, 14.25, 9), Mat("fox", "plain", 3, bevel=None, noise=0))
-    m.box("patch", (4.5, 14, 7), (6.5, 14.25, 10), Mat("rubber", "plain", 2, bevel=None, noise=0))
+    m.box("head", (3.5, 8, 4), (12.5, 14.5, 11), white(decal=chain(picture(face, colours, 12.5, 14.5), calico)))
+    m.box("head_top", (4.5, 14.5, 5), (11.5, 15, 10), white(decal=calico))
+    ear = Paint("feather", 2, noise=0, decal=lambda c: ("pink", 2) if c.face == "north" else None)
     for x in (4, 10):
-        m.box("ear", (x, 14, 6), (x + 2, 15.25, 8), white, faces={"north": Mat("pink", "plain", 2, bevel=None, noise=0)})
-        m.box("ear_tip", (x + 0.5, 15.25, 6.5), (x + 1.5, 16, 7.5), white)
+        m.box("ear", (x, 15, 6), (x + 2, 16, 8), ear)
     m.group("collar")
-    m.box("collar", (3.75, 6, 4.75), (12.25, 6.75, 11.75), Mat("vermilion", "plain", 2, noise=0))
-    m.box("bell", (7.25, 4.75, 4), (8.75, 6.25, 4.75), Mat("gold", "metal", 3))
+    m.box("collar", (4.25, 7, 4.75), (11.75, 7.75, 11.75), flat("vermilion", 2, rim=0.5))
+    m.box("bell", (7.25, 5.5, 4), (8.75, 7, 4.75), Paint("gold", 3, "metal"))
     m.group("paws")
-    m.box("paw_up", (12.5, 8, 5.5), (14.5, 13.5, 7.5), white)
-    m.box("paw_pad", (12.75, 12, 5.25), (14.25, 13.25, 5.5), PINK)
-    m.box("paw", (5, 1, 3.5), (7, 3, 5), white)
-    m.box("coin", (8, 1, 3.75), (11, 5.5, 4.25), Mat("gold", "metal", 2))
-    m.box("coin_line", (9, 2, 3.5), (10, 4.5, 3.75), Mat("gold", "plain", 1, bevel=None, noise=0))
+    m.box("paw_up", (12.5, 9, 6), (14.25, 14, 7.75), white)
+    m.box("paw_pad", (12.75, 12.5, 5.75), (14, 13.5, 6), flat("pink", 2))
+
+    def koban(c):
+        if c.face == "north" and c.i[0] in (9, 10) and 3 <= c.i[1] <= 4:
+            return ("gold", 1)
+        return None
+    m.box("koban", (8.5, 2.75, 4.125), (11.5, 5.25, 4.875), Paint("gold", 3, noise=0, decal=koban, rim=0.8))
     return display(m, (1, 1, 1), 0)
 
 
 def daruma():
-    """다루마: a round red tumbling doll, white face with one eye painted in (a wish not yet granted),
-    gold lettering on the belly."""
-    m = MModel("daruma")
+    """다루마: a round red tumbling doll: a white face with thick brows, a curled moustache and beard, one eye
+    painted in (the wish is still to come true), gold patterns on the belly and the sides."""
+    m = BModel("daruma")
+    face = ["KKK...KKK",        # the bold brows
+            ".OOO.OOO.",
+            ".OKO.O.O.",        # one eye painted in, the other still blank
+            ".OOO.OOO.",
+            "....P....",
+            "KKKK.KKKK",        # moustache
+            ".KKKKKKK."]        # beard
+    colours = {"K": ("rubber", 0), "O": ("porcelain", 1), "P": ("pink", 1)}
 
-    def face(px):
-        art = ["RRWWWRR",
-               "RKWWWKR",      # brows
-               "WEWWWOW",      # one eye painted in (E), the other still blank (O)
-               "WWWPWWW",
-               "WWMMMWW",      # beard
-               "RWWMWWR",
-               "RRRRRRR",
-               "RRGGGRR"]      # gold lettering
-        col = {"R": ramp("vermilion", 2), "W": ramp("porcelain", 2), "K": ramp("rubber", 1), "E": ramp("rubber", 0),
-               "O": ramp("porcelain", 1), "P": ramp("pink", 1), "G": ramp("gold", 2), "M": ramp("millstone", 1)}
-        for y, row in enumerate(art):
-            for x, ch in enumerate(row):
-                px[x, y] = col[ch]
+    def white_face(c):
+        if c.face == "north":
+            dx, dy = (c.p[0] - 8) / 4.6, (c.p[1] - 7.5) / 3.6
+            if dx * dx + dy * dy < 1:
+                return ("porcelain", 2)
+        return None
 
-    red = Mat("vermilion", "plain", 2, noise=0.03)
+    def belly(c):
+        if c.face == "north" and 1.5 < c.p[1] < 3.0 and abs(c.p[0] - 8) < 3.5:
+            return ("gold", 2 if (c.i[0] + c.i[1]) % 2 else 3)
+        if c.face in ("east", "west") and abs(c.p[1] - 6) < 0.5:
+            return ("gold", 2)
+        return None
+    red = Paint("vermilion", 2, noise=0.02, decal=chain(picture(face, colours, 12.5, 11), white_face, belly), rim=0.8)
     m.group("doll")
-    m.box("bottom", (4.5, 0, 4.5), (11.5, 1, 11.5), red)
-    m.box("core", (4, 1, 4), (12, 9, 12), red)
-    m.box("bulge_x", (3, 1.5, 5), (4, 8.5, 11), red)
-    m.box("bulge_x", (12, 1.5, 5), (13, 8.5, 11), red)
-    m.box("bulge_z", (5, 1.5, 12), (11, 8.5, 13), red)
-    flat(m, "face", (4.5, 1.5, 3), (11.5, 9.5, 4), red, picture("jp_daruma_face", 7, 8, face))
-    m.box("top", (5, 9, 5), (11, 10.5, 11), red)
-    m.box("crown", (6.5, 10.5, 6.5), (9.5, 11.25, 9.5), red)
-    m.box("trim", (4, 0.5, 3.75), (12, 1, 4), Mat("gold", "plain", 2, bevel=None, noise=0))
+    for (d, lo, hi) in ((9, 0, 1), (11, 1, 3), (12, 3, 8), (11, 8, 10.5), (9, 10.5, 12), (6, 12, 13)):
+        cyl(m, "body", (8, 8), d, lo, hi, red)
+    # the face sits on a flat front, so it reads whole from every angle
+    m.box("face", (3.5, 3.5, 1.75), (12.5, 11, 2.5), red)
     return display(m, (1, 1, 1), 0)
 
 
 def omamori_rack():
-    """오마모리 걸이: a small roofed wooden stand with charms in red, blue, white and pink hanging on cords."""
-    m = MModel("omamori_rack")
+    """오마모리 걸이: a small shrine stand: vermilion posts, a copper roof gone green, a bar of brocade charms
+    (red, indigo, white, pink) with gold knots, and two wooden ema plaques at its foot."""
+    m = BModel("omamori_rack")
     m.group("stand")
+    post = Paint("vermilion", 2, "grain", axis="y", noise=0.02)
     for x in (1.5, 13):
         m.box("foot", (x - 0.5, 0, 5), (x + 2, 1, 11), DARK)
-        m.box("post", (x, 1, 7.25), (x + 1.5, 12.5, 8.75), DARK)
-    m.box("bar", (3, 10, 7.5), (13, 11, 8.5), HINOKI_GRAIN)
-    m.box("roof", (0, 12.5, 6), (16, 13.5, 10), DARK_PLANKS)
-    m.box("roof_ridge", (0.5, 13.5, 7), (15.5, 14.5, 9), DARK_PLANKS)
-    m.box("roof_cap", (1, 14.5, 7.5), (15, 15, 8.5), LACQUER)
+        m.box("post", (x, 1, 7.25), (x + 1.5, 12.5, 8.75), post)
+    m.box("bar", (3, 10, 7.5), (13, 11, 8.5), DARK)
+    m.box("bar", (3, 3, 7.5), (13, 3.75, 8.5), DARK)
+    m.group("roof")
+    copper = Paint("celadon", 1, "planks", axis="x", width=2)
+    m.box("roof", (0, 12.5, 5.5), (16, 13.25, 10.5), copper)
+    m.box("roof", (0.5, 13.25, 6.25), (15.5, 14, 9.75), copper)
+    m.box("roof", (1, 14, 7), (15, 14.75, 9), copper)
+    m.box("ridge", (0.5, 14.75, 7.5), (15.5, 15.5, 8.5), flat("celadon", 0))
     m.group("charms")
-    for k, (x, ramp_name) in enumerate(((3.75, "vermilion"), (6.25, "indigo"), (8.75, "porcelain"), (11.25, "sakura"))):
-        mat = Mat(ramp_name, "plain", 2, noise=0)
-        m.box("cord", (x + 0.75, 8.5, 7.75), (x + 1.25, 10, 8.25), Mat("gold", "plain", 2, bevel=None, noise=0))
-        top = 8.5 - (k % 2) * 0.5
-        m.box("charm", (x, top - 4, 7.5), (x + 2, top, 8.5), mat)
-        m.box("charm_label", (x + 0.5, top - 2.5, 7.25), (x + 1.5, top - 0.5, 7.5), Mat("gold", "plain", 2, bevel=None, noise=0))
+    for k, (x, ramp_name) in enumerate(((3.5, "vermilion"), (6, "indigo"), (8.5, "porcelain"), (11, "sakura"))):
+        def brocade(c):
+            if c.face in ("north", "south") and (c.i[0] + c.i[1]) % 3 == 0:
+                return ("gold", 2)
+            return None
+        top = 9.5 - (k % 2) * 0.75
+        m.box("knot", (x + 0.5, top, 7.75), (x + 1.5, 10, 8.25), flat("gold", 3))
+        m.box("charm", (x, top - 4, 7.5), (x + 2, top, 8.5), Paint(ramp_name, 2, noise=0, decal=brocade, rim=0.8))
+    m.group("ema")
+    ema = Paint("hinoki", 2, "grain", axis="x", noise=0,
+                decal=lambda c: ("rubber", 1) if c.face == "north" and c.i[1] == 1 and c.i[0] % 2 == 0 else None)
+    for x in (4, 9.5):
+        m.box("ema", (x, 0.25, 7.25), (x + 2.5, 2.75, 7.75), ema)
     return display(m, (1, 1, 1), 0)
 
 
 def wind_chime():
-    """풍경: a glass bell painted with goldfish, a clapper and a paper strip; hangs from the top of its block."""
-    m = MModel("wind_chime")
+    """풍경: a glass furin painted with red goldfish and a blue rim, a clapper on a string, the tanzaku strip with
+    a brushed wish. Hangs from the top of its block."""
+    m = BModel("wind_chime", floor=None, planes=(("y>", 16),))
     m.group("chime")
     m.box("hook", (7.75, 14.5, 7.75), (8.25, 16, 8.25), IRON)
-    glass = Mat("glass", "plain", 2, noise=0)
-    m.box("knob", (7.25, 13.5, 7.25), (8.75, 14.5, 8.75), glass)
-    cyl(m, "bell", "y", (8, 8), 3, 12, 13.5, glass, cap=glass)
-    cyl(m, "bell", "y", (8, 8), 5, 9.5, 12, "jp_furin", cap=glass)
-    m.box("string", (7.75, 6, 7.75), (8.25, 9.5, 8.25), Mat("cream", "plain", 1, bevel=None, noise=0))
-    m.box("clapper", (7.5, 8.5, 7.5), (8.5, 9.25, 8.5), glass)
-    m.box("tanzaku", (7, 1.5, 7.875), (9, 6, 8.125), Mat("sakura", "plain", 3, noise=0),
-          faces={"north": Mat("sakura", "panel", 3, noise=0)})
+
+    fish = ["##.",
+            ".##"]
+
+    def glass(c):
+        if c.face == "down":
+            return ("glass", 3) if math.hypot(c.p[0] - 8, c.p[2] - 8) > 2.4 else ("glass", 0)
+        if c.face == "up":
+            return None
+        y = c.p[1]
+        if y < 10.25:
+            return ("indigo", 3)                       # the blue painted rim
+        if c.face in ("north", "south"):
+            col = math.floor(9.5 - c.p[0]) if c.face == "north" else math.floor(c.p[0] - 6.5)
+            row = math.floor(12 - y)
+            if 0 <= row < 2 and 0 <= col < 3 and fish[row][col] == "#":
+                return ("vermilion", 2)                # a goldfish on each side
+        if c.face in ("north", "east") and c.i[1] in (11, 12) and (c.i[0] if c.face == "north" else c.i[2]) == 9:
+            return ("glass", 3)                        # a glint running down the glass
+        return None
+    gl = Paint("glass", 1, noise=0, decal=glass, rim=1.0, ao=0.5)
+    cyl(m, "bell", (8, 8), 4, 13.25, 14.5, gl)
+    cyl(m, "bell", (8, 8), 6, 9.5, 13.25, gl)
+    m.box("string", (7.75, 5.5, 7.75), (8.25, 9.5, 8.25), flat("cream", 1))
+    m.box("clapper", (7.5, 8.5, 7.5), (8.5, 9.25, 8.5), flat("glass", 3))
+
+    def wish(c):
+        if c.face in ("north", "south") and c.i[0] == 7 and c.i[1] in (1, 3, 4):
+            return ("rubber", 1)                       # a short wish brushed down the strip
+        return None
+    m.box("tanzaku", (7, 1, 7.875), (9, 5.5, 8.125), Paint("sakura", 3, noise=0, decal=wish, rim=0.3))
     return display(m, (1, 1, 1), 0)
 
 
+# ================================================================================================
+# 큰 장식 · 정원
+# ================================================================================================
+
 def wagasa():
-    """우산 (노다테 가사) 1x3: a big red garden parasol on a bamboo pole in a stone foot; stand under it
-    (its canopy reaches a block out on every side)."""
-    m = MModel("wagasa", dy=-16)
+    """우산 (노다테 가사) 1x3: a big red garden parasol (janome: a white ring round the top) on a bamboo pole in a
+    stone foot. Its canopy is a shallow cone of thin rings, the ribs painted straight across them so it reads
+    as one smooth surface; underneath, the bamboo ribs, the coloured binding threads and the hub with its
+    struts. Stand under it (the canopy reaches a block out on every side)."""
+    m = BModel("wagasa", dy=-16)
+    cx = cz = 8
 
-    def under(dx, dy, r):
-        if r > 1.0:
-            return (0, 0, 0, 0)
-        a = math.atan2(dy, dx)
-        rib = (a / (2 * math.pi) * 24) % 1.0 < 0.18
-        if r < 0.12:
-            return ramp("bamboo", 1)
-        if r < 0.2:
-            return ramp("rubber", 2)
-        return ramp("bamboo", 2) if rib else ramp("vermilion", 1 if r > 0.85 else 2)
-
-    under_tex = _disc_pic("jp_wagasa_under", 32, under)
-    m.group("pole")
-    cyl(m, "foot", "y", (8, 8), 7, 0, 2, STONE_DARK, cap=STONE)
-    cyl(m, "foot2", "y", (8, 8), 4, 2, 3, STONE, cap=STONE)
-    m.box("pole", (7.25, 3, 7.25), (8.75, 34, 8.75), BAMBOO)
-    for y in (12, 22):
-        m.box("node", (7, y, 7), (9, y + 0.5, 9), BAMBOO_DARK)
+    def rib(c):
+        dx, dz = c.p[0] - cx, c.p[2] - cz
+        r = math.hypot(dx, dz)
+        a = math.atan2(dz, dx)
+        on_rib = (a / (2 * math.pi) * 32) % 1.0 < 0.2 and r > 2.5
+        if c.face == "down":
+            if r < 2:
+                return ("bamboo", 1)
+            if 3.5 < r < 5:                                                    # kagari-ito: coloured threads
+                if math.floor(r * 2) % 2 == 0:
+                    return (("vermilion", 3), ("indigo", 2), ("bamboo", 3), ("porcelain", 2))[int((a + math.pi) * 2) % 4]
+                return ("rubber", 1)
+            return ("bamboo", 2) if on_rib else ("vermilion", 1 if r > 14 else 2)
+        if 6.5 < r < 8.5:
+            return ("porcelain", 1 if on_rib else 2)                           # janome: the white ring
+        if on_rib:
+            return ("vermilion", 1)
+        return ("vermilion", 2.6 - r * 0.06 if c.face == "up" else 2.2 - r * 0.06)
+    canopy = Paint("vermilion", 2, decal=rib, rim=0, ao=0.3)
     m.group("canopy")
-    canopy = Mat("vermilion", "plain", 2)
-    light = Mat("vermilion", "plain", 3)
-    cyl(m, "canopy", "y", (8, 8), 32, 34, 35, canopy, cap=light, cap2=under_tex)
-    cyl(m, "canopy", "y", (8, 8), 26, 35, 36.5, canopy, cap=light)
-    cyl(m, "canopy", "y", (8, 8), 18, 36.5, 38, canopy, cap=light)
-    cyl(m, "canopy", "y", (8, 8), 10, 38, 39.5, canopy, cap=light)
-    cyl(m, "top", "y", (8, 8), 4, 39.5, 41, LACQUER, cap=LACQUER)
-    ring(m, "ring", (8, 8), 22, 20, 36.5, 36.75, Mat("porcelain", "plain", 2, bevel=None, noise=0))
+    for k, d in enumerate((32, 29, 26, 23, 19, 15, 11, 6)):
+        cyl(m, "canopy", (cx, cz), d, 34 + 0.5 * k, 34.5 + 0.5 * k, canopy)
+    cyl(m, "kashira", (cx, cz), 3, 38, 39, LACQ)
+    m.box("kashira_tip", (7.5, 39, 7.5), (8.5, 39.5, 8.5), LACQ)
+    m.group("pole")
+    cyl(m, "foot", (cx, cz), 7, 0, 2, STONE_DARK)
+    cyl(m, "foot", (cx, cz), 4, 2, 3, STONE)
+    m.box("pole", (7.25, 3, 7.25), (8.75, 34, 8.75), Paint("bamboo", 3, "bamboo", axis="y", node=8, node_off=2))
+    cyl(m, "rokuro", (cx, cz), 3, 27, 29, flat("hinoki", 3))
+    # the struts from the hub up to the canopy (tilted 22.5 degrees, one per side)
+    strut = flat("bamboo", 2, ao=0)
+    m.box("strut", (8.75, 28, 7.75), (15.75, 28.5, 8.25), strut, rotation=("z", 22.5, (8.75, 28, 8)))
+    m.box("strut", (0.25, 28, 7.75), (7.25, 28.5, 8.25), strut, rotation=("z", -22.5, (7.25, 28, 8)))
+    m.box("strut", (7.75, 28, 8.75), (8.25, 28.5, 15.75), strut, rotation=("x", -22.5, (8, 28, 8.75)))
+    m.box("strut", (7.75, 28, 0.25), (8.25, 28.5, 7.25), strut, rotation=("x", 22.5, (8, 28, 7.25)))
     return display(m, (2, 2.6, 2), -16)
 
 
 def kimono_rack():
-    """기모노 걸이 (이코) 2x2: a black lacquer T-frame with a kimono spread across it: indigo with cherry
-    blossoms, a white collar and a red obi."""
-    m = MModel("kimono_rack")
-    W, H = 30, 24
-    art = Image.new("RGBA", (W, H))
-    px = art.load()
-    rnd = random.Random(631)
-    for y in range(H):
-        for x in range(W):
-            px[x, y] = ramp("indigo", 2 if (x + y) % 9 else 1)
-    for _ in range(18):
-        cx, cy = rnd.randrange(1, W - 1), rnd.randrange(1, H - 1)
-        for (dx, dy) in ((0, 0), (1, 0), (-1, 0), (0, 1), (0, -1)):
-            px[cx + dx, cy + dy] = ramp("sakura", 3 if (dx, dy) == (0, 0) else 1)
-    for y in range(12):                     # the collar: a white V, two pixels wide, from the neck to the obi
-        for x in (11 + y // 3, 12 + y // 3, 17 - y // 3, 18 - y // 3):
-            px[x, y] = ramp("porcelain", 2 if x < 15 else 1)
-    for y in range(12, 15):                 # obi
-        for x in range(8, 22):
-            px[x, y] = ramp("vermilion", 2 if y != 13 else 3)
+    """기모노 걸이 (이코) 2x2: a black lacquer rack (its top bar's ends curl up like a torii's) with a furisode
+    spread across it: deep indigo fading lighter to the hem, cherry blossoms and a flowing stream, the long
+    sleeves hanging low, a white collar and a red-and-gold obi."""
+    m = BModel("kimono_rack")
     m.group("frame")
     for x in (2, 28.5):
-        m.box("foot", (x - 1.5, 0, 4), (x + 3, 1.5, 12), LACQUER)
-        m.box("post", (x, 1.5, 7.25), (x + 1.5, 28, 8.75), LACQUER)
-    m.box("top_bar", (0, 28, 7), (32, 29.5, 9), LACQUER)
-    m.box("top_bar_end", (0, 29.5, 7), (2, 30, 9), LACQUER)
-    m.box("top_bar_end", (30, 29.5, 7), (32, 30, 9), LACQUER)
-    m.box("low_bar", (3.5, 9, 7.5), (28.5, 10, 8.5), LACQUER)
+        m.box("foot", (x - 1.5, 0, 4), (x + 3, 1.5, 12), LACQ)
+        m.box("post", (x, 1.5, 7.25), (x + 1.5, 28, 8.75), LACQ)
+    m.box("top_bar", (0, 28, 7), (32, 29.5, 9), LACQ)
+    m.box("top_bar_end", (0, 29.5, 7), (2, 30.25, 9), LACQ)
+    m.box("top_bar_end", (30, 29.5, 7), (32, 30.25, 9), LACQ)
+    m.box("low_bar", (3.5, 9, 7.5), (28.5, 10, 8.5), LACQ)
     m.group("kimono")
-    back = "jp_kimono_back"
-    T.SURFACES[back] = lambda: Image.new("RGBA", (S, S), ramp("indigo", 1))
-    # sleeves and shoulders (y 16..28), then the body (y 4..16), cut from the picture into <= 16 px faces
-    pieces = [(1, 16, 16, 28), (16, 16, 31, 28), (7, 4, 16, 16), (16, 4, 25, 16)]
-    for k, (x0, y0, x1, y1) in enumerate(pieces):
-        # model +x is the viewer's left: the picture's column 0 is at model x 31
-        src = _cut(f"jp_kimono_{k}", art, int(31 - x1), int(28 - y1), int(x1 - x0), int(y1 - y0))
-        flat(m, "cloth", (x0, y0, 5.5), (x1, y1, 6.5), INDIGO, src, (back, [0, 0, x1 - x0, y1 - y0]))
+
+    def cloth(c):
+        if c.face != "north":
+            return ("indigo", 1) if c.face == "south" else None
+        col = 31 - c.p[0]                  # 0 at the viewer's left
+        y = c.p[1]
+        ci, yi = math.floor(col), math.floor(y)
+        for side in (-1, 1):               # the collar: a white V from the neck down to the obi
+            xv = 15.5 + side * (1 + (27.5 - y) / 3.2)
+            if 16 <= y <= 27.5 and abs(col - xv) < 0.9:
+                return ("porcelain", 2 if side < 0 else 1)
+        if 13 <= y < 16.5 and 8 <= col < 23:            # the obi
+            if yi == 14:
+                return ("gold", 3 if ci % 3 else 2)
+            return ("vermilion", 2)
+        if abs(y - (6 + 2.2 * math.sin(col * 0.45))) < 0.55:
+            return ("water", 3)                         # a flowing stream
+        r = h3(ci // 3, yi // 3, 0, 31)
+        fx, fy = ci // 3 * 3 + 1 + int(r * 2), yi // 3 * 3 + 1
+        if r < 0.24 and (ci, yi) in ((fx, fy), (fx + 1, fy), (fx - 1, fy), (fx, fy + 1), (fx, fy - 1)):
+            return ("sakura", 3 if (ci, yi) == (fx, fy) else 2)
+        return ("indigo", 1 if y > 22 else 2 if y > 10 else 3)      # bokashi: dark shoulders, lighter hem
+    silk = Paint("indigo", 2, decal=cloth, ao=0.6, rim=0.5)
+    # the long furisode sleeves hang to y 11, the body to its hem at y 3
+    for (x0, y0, x1, y1) in ((1, 11, 9, 28), (23, 11, 31, 28), (9, 3, 23, 28)):
+        m.box("cloth", (x0, y0, 5.5), (x1, y1, 6.5), silk)
     return display(m, (2, 2, 1), 0)
 
 
 def torii():
-    """도리이 3x3: a small vermilion shrine gate with black top beam and name plaque; walk through the middle."""
-    m = MModel("torii", dy=-16)
-    red, black = VERMILION, LACQUER
+    """도리이 3x3: a myōjin torii: vermilion posts on black bases, the black kasagi on top with its ends swept up,
+    the shimaki under it, the nuki tie beam through the posts with wedges, and the name plaque on its strut.
+    Walk through the middle."""
+    m = BModel("torii", dy=-16)
+    red = Paint("vermilion", 2, "grain", axis="long", noise=0.04)
+    black = LACQ
     m.group("posts")
     for cx in (-10, 26):
-        cyl(m, "post", "y", (cx, 8), 5, 2, 38, red, cap=red)
-        cyl(m, "post_foot", "y", (cx, 8), 6, 0, 2, black, cap=black)
+        cyl(m, "hashira", (cx, 8), 5, 3, 38, red)
+        cyl(m, "kamaki", (cx, 8), 6, 0, 3, black)
     m.group("beams")
     m.box("nuki", (-16, 28, 7), (-12.5, 30.5, 9), red)
     m.box("nuki", (-7.5, 28, 7), (23.5, 30.5, 9), red)
     m.box("nuki", (28.5, 28, 7), (32, 30.5, 9), red)
-    m.box("shimaki", (-15, 38, 6), (31, 40, 10), red)
-    m.box("kasagi", (-16, 40, 5.5), (32, 42.5, 10.5), black)
-    m.box("kasagi_end", (-16, 42.5, 5.5), (-12, 43.5, 10.5), black)
-    m.box("kasagi_end", (28, 42.5, 5.5), (32, 43.5, 10.5), black)
+    for x in (-15, 29.5):
+        m.box("kusabi", (x, 28.25, 6.5), (x + 1.5, 30.25, 7), black)
+    m.box("shimaki", (-14, 37.5, 6.25), (30, 40, 9.75), red)
+    m.box("kasagi", (-10, 40, 5.5), (26, 42.5, 10.5), black)        # it sweeps up towards its ends
+    for (x0, x1, lo, hi) in ((-14, -10, 40.5, 43), (26, 30, 40.5, 43), (-16, -14, 41.25, 44), (30, 32, 41.25, 44)):
+        m.box("kasagi", (x0, lo, 5.5), (x1, hi, 10.5), black)
     m.group("plaque")
-    m.box("strut", (6.5, 30.5, 7.25), (9.5, 32, 8.75), red)
-    m.box("strut", (6.5, 37, 7.25), (9.5, 38, 8.75), red)
+    m.box("gakuzuka", (6.5, 30.5, 7.25), (9.5, 32, 8.75), red)
+    m.box("gakuzuka", (6.5, 36.5, 7.25), (9.5, 37.5, 8.75), red)
+    glyph = [".....", "..#..", "..#..", "..#..", "....."]           # one brushed column of characters
 
-    def plaque(px):
-        for y in range(5):
-            for x in range(4):
-                px[x, y] = ramp("rubber", 2)
-        for (x, y) in ((1, 1), (2, 1), (1, 3), (2, 3), (2, 2)):
-            px[x, y] = ramp("gold", 2)
-    flat(m, "gaku", (6, 32, 6.5), (10, 37, 9.5), black, picture("jp_torii_plaque", 4, 5, plaque),
-         picture("jp_torii_plaque", 4, 5, plaque))
+    def plaque(c):
+        if c.face in ("north", "south"):
+            col = math.floor(10.5 - c.p[0]) if c.face == "north" else math.floor(c.p[0] - 5.5)
+            row = math.floor(36.5 - c.p[1])
+            if 0 <= row < 5 and 0 <= col < 5:
+                if col in (0, 4) or row in (0, 4):
+                    return ("gold", 1)
+                if glyph[row][col] == "#":
+                    return ("gold", 3)
+        return None
+    m.box("gaku", (5.5, 32, 6.5), (10.5, 36.5, 9.5), LACQ(decal=plaque))
     return display(m, (3, 3, 1), -16)
 
 
 def stepping_stones():
-    """징검돌: flat garden stones to make a path (walk over them)."""
-    m = MModel("stepping_stones")
+    """징검돌: three flat garden stones of different greys, rounded and slightly domed, moss between them
+    (walk over them)."""
+    m = BModel("stepping_stones")
     m.group("stones")
-    m.box("stone", (2, 0, 3), (11, 1, 11), STONE)
-    m.box("stone_top", (3, 1, 4), (10, 1.5, 10), STONE_LIGHT)
-    m.box("stone", (11, 0, 10), (15, 0.75, 14), STONE)
-    m.box("stone", (1, 0, 12), (4, 0.75, 15), STONE_DARK)
+    for (x0, z0, x1, z1, h, p) in ((2, 3, 10.5, 10.5, 1.25, STONE), (10.5, 9.5, 15, 14.5, 1.0, STONE_LIGHT),
+                                   (1, 11.5, 5.5, 15, 0.75, STONE_DARK)):
+        m.box("stone", (x0 + 1, 0, z0), (x1 - 1, h, z1), p)
+        m.box("stone", (x0, 0, z0 + 1), (x0 + 1, h - 0.25, z1 - 1), p)
+        m.box("stone", (x1 - 1, 0, z0 + 1), (x1, h - 0.25, z1 - 1), p)
+        m.box("stone_top", (x0 + 2, h, z0 + 1.5), (x1 - 2, h + 0.5, z1 - 1.5), p)
+    m.group("moss")
+    for (x, z, w, d) in ((10.75, 4, 3, 2), (0.5, 7.5, 1.5, 2.5), (6, 11.25, 3, 1.5), (12, 1, 2, 1.5)):
+        m.box("moss", (x, 0, z), (x + w, 0.25, z + d), Paint("leaf_dark", 1, "speckle", rim=0))
     return display(m, (1, 1, 1), 0)
 
 
 def koi_pond():
-    """잉어 연못 2x2: a stone-rimmed pond with rippling water, two koi near the surface, lily pads and a flower."""
-    m = MModel("koi_pond")
-    m.group("rim")
-    m.box("rim", (0, 0, 0), (32, 3, 3), STONE)
-    m.box("rim", (0, 0, 29), (32, 3, 32), STONE)
-    m.box("rim", (0, 0, 3), (3, 3, 29), STONE)
-    m.box("rim", (29, 0, 3), (32, 3, 29), STONE)
-    m.box("rock", (23, 3, 1), (29, 5, 6), STONE_LIGHT)
-    m.box("rock", (1, 3, 25), (5, 4.5, 30), STONE_DARK)
-    m.box("moss", (24, 5, 2), (27, 5.25, 5), MOSS)
+    """잉어 연못 2x2: a garden pond edged with natural rocks of different sizes, deep water darker in the middle,
+    two koi (a red-and-white kohaku and a golden ogon) that swim round and round (an animated texture), lily
+    pads and a lotus flower."""
+    m = BModel("koi_pond")
     m.group("water")
-    m.box("water", (3, 0, 3), (29, 2, 29), "jp_water", faces={"north": None, "south": None, "east": None, "west": None})
-    m.group("koi")
-    white = Mat("porcelain", "plain", 2, noise=0, bevel=None)
-    orange = Mat("fox", "plain", 3, noise=0, bevel=None)
-    # koi 1 swimming along x (kohaku: white with orange), koi 2 along z (orange with a white head)
-    m.box("koi", (8, 2, 9), (14, 2.5, 11), white)
-    m.box("koi_spot", (9.5, 2.5, 9.5), (12, 2.75, 10.5), orange)
-    m.box("koi_tail", (5.5, 2, 8.5), (8, 2.25, 11.5), orange)
-    m.box("koi", (19, 2, 15), (21, 2.5, 21), orange)
-    m.box("koi_head", (19, 2, 21), (21, 2.5, 22.5), white)
-    m.box("koi_tail", (18.5, 2, 12.5), (21.5, 2.25, 15), orange)
+    N = 48
+
+    def koi_at(px, pz, k):
+        """(ramp, step) of a koi under the texel at (px, pz) in frame k, or None."""
+        for (r, phase, sense, kind) in ((7.5, 0.0, 1, "kohaku"), (5.0, 0.5, -1, "ogon")):
+            th = 2 * math.pi * (k / N + phase) * sense
+            hx, hz = 16 + r * math.cos(th), 16 + r * math.sin(th)
+            dirx, dirz = -math.sin(th) * sense, math.cos(th) * sense
+            dx, dz = px - hx, pz - hz
+            along = dx * dirx + dz * dirz
+            across = abs(-dx * dirz + dz * dirx)
+            if along > 2.5 or along < -4.2:
+                continue
+            if along > 1.5:
+                w = 1.0 - (along - 1.5) * 0.6              # the round head
+            elif along > -0.5:
+                w = 1.25
+            elif along > -3.0:
+                w = 1.25 - (-0.5 - along) * 0.38           # the body thins to the tail
+            else:
+                w = 0.3 + (-3.0 - along) * 0.9             # the tail fin fans out
+            if across >= w:
+                continue
+            if along < -3.0:
+                return ("porcelain", 1) if kind == "kohaku" else ("gold", 1)
+            if kind == "kohaku":
+                red = across < 0.8 and (along > 1.1 or -1.8 < along < 0.1)
+                return ("vermilion", 2) if red else ("porcelain", 2)
+            return ("gold", 3 if across < 0.45 else 2)
+        return None
+
+    def water(c):
+        px, pz = c.p[0], c.p[2]
+        depth = math.hypot(px - 16, pz - 16) / 13.0
+        koi = koi_at(px, pz, c.frame)
+        if koi:
+            return (koi[0], koi[1] - (0.4 if depth < 0.5 else 0.1))
+        ripple = (c.i[0] + c.i[2] + c.frame // 2) % 12 == 0 and h3(c.i[0], 0, c.i[2], 17) < 0.5
+        return ("water", (0.7 if depth < 0.5 else 1.2 if depth < 0.85 else 1.8) + (0.9 if ripple else 0))
+    m.box("water", (3, 0.25, 3), (29, 1.75, 29), Paint("water", 1, decal=water, frames=N, frametime=3, ao=0.8),
+          faces={f: Paint("water", 0, noise=0) for f in ("north", "south", "east", "west", "down")})
+    m.group("rocks")
+    rock = moss_on(STONE, amount=0.66)
+    rocks = [  # x0, z0, x1, z1, height, paint
+        (0, 0, 9, 3.5, 3.0, rock), (9, 0, 17, 3, 2.25, STONE_LIGHT), (17, 0, 24, 3.25, 2.75, rock), (24, 0, 32, 6, 4.0, rock),
+        (0, 3.5, 3, 12, 2.5, STONE_LIGHT), (0, 12, 3.5, 20, 3.0, rock), (0, 20, 3, 27, 2.25, STONE_DARK), (0, 27, 6, 32, 3.5, rock),
+        (29, 6, 32, 15, 2.5, STONE_DARK), (28.5, 15, 32, 22, 3.25, rock), (29, 22, 32, 32, 2.5, STONE_LIGHT),
+        (6, 29, 14, 32, 2.75, rock), (14, 29.5, 21, 32, 2.25, STONE_DARK), (21, 28.5, 29, 32, 3.0, rock)]
+    for (x0, z0, x1, z1, h, p) in rocks:
+        m.box("rock", (x0, 0, z0), (x1, h, z1), p)
+        if min(x1 - x0, z1 - z0) >= 4:
+            m.box("rock_top", (x0 + 1, h, z0 + 1), (x1 - 1, h + 0.75, z1 - 1), p)
     m.group("lilies")
-    pad = Mat("leaf", "plain", 2, noise=0.05, bevel=(1, -1))
-    for (x, z, d) in ((22, 22, 5), (9, 20, 4), (16, 6, 3)):
-        cyl(m, "pad", "y", (x, z), d, 2, 2.25, pad, cap=pad)
-    m.box("flower", (21, 2.25, 21), (23, 3.25, 23), Mat("sakura", "plain", 2, noise=0))
-    m.box("flower_eye", (21.75, 3.25, 21.75), (22.25, 3.5, 22.25), Mat("gold", "plain", 2, bevel=None, noise=0))
+    pad = Paint("leaf", 2, noise=0.05, rim=0.8,
+                decal=lambda c: ("leaf", 1) if c.face == "up" and (c.i[0] + c.i[2]) % 7 == 0 else None)
+    for (x, z, d) in ((7, 7.5, 5), (24, 23, 5), (8, 23.5, 4), (24.5, 9, 3)):
+        cyl(m, "pad", (x, z), d, 1.75, 2.0, pad)
+    m.box("lotus", (23, 2.0, 22), (25, 3.0, 24), Paint("sakura", 2, noise=0, rim=0.8))
+    m.box("lotus_eye", (23.75, 3.0, 22.75), (24.25, 3.25, 23.25), flat("gold", 3, light=False))
     return display(m, (2, 1, 2), 0)
 
 

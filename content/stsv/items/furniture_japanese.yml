@@ -35,7 +35,7 @@ zabuton:
 chabudai:
   material: paper
   name: "<#b18440>좌식 탁자"
-  lore: ["<gray>일본풍 가구 · 1×1칸", "<gray>둥근 상판의 낮은 밥상. 찻잔 두 개가 놓여 있습니다.", "<dark_gray>방석과 함께 놓아 보세요"]
+  lore: ["<gray>일본풍 가구 · 1×1칸", "<gray>둥근 상판의 낮은 밥상. 녹차 두 잔과 꽃경단 한 꼬치.", "<dark_gray>방석과 함께 놓아 보세요"]
   model: chabudai
   icon: chabudai_icon
   max-stack: 16
@@ -106,7 +106,7 @@ hanging_scroll:
 noren:
   material: paper
   name: "<#38699d>노렌"
-  lore: ["<gray>일본풍 가구 · 1×1칸", "<gray>문간에 거는 쪽빛 가림막. 흰 문장이 있습니다.", "<dark_gray>천장 아래를 우클릭하면 매달립니다", "<dark_gray>지나갈 수 있음"]
+  lore: ["<gray>일본풍 가구 · 1×1칸", "<gray>문간에 거는 쪽빛 가림막. 흰 세 비늘 문장이 있습니다.", "<dark_gray>천장 아래를 우클릭하면 매달립니다", "<dark_gray>지나갈 수 있음"]
   model: noren
   icon: noren_icon
   max-stack: 16
@@ -117,7 +117,7 @@ noren:
 bamboo_fence:
   material: paper
   name: "<#9da448>대나무 울타리"
-  lore: ["<gray>일본풍 가구 · 1×1칸", "<gray>쪼갠 대나무를 검은 끈으로 엮은 울타리.", "<gray>나란히 놓으면 이어집니다."]
+  lore: ["<gray>일본풍 가구 · 1×1칸", "<gray>볕에 바랜 쪼갠 대나무를 푸른 대 띠에 검은 끈으로 묶은 울타리.", "<gray>나란히 놓으면 이어집니다."]
   model: bamboo_fence
   icon: bamboo_fence_icon
   max-stack: 16
@@ -128,7 +128,7 @@ bamboo_fence:
 andon:
   material: paper
   name: "<#fcd89c>등롱"
-  lore: ["<gray>일본풍 가구 · 1×1칸", "<gray>나무 틀에 한지를 바른 바닥 등.", "<yellow>빛 14"]
+  lore: ["<gray>일본풍 가구 · 1×1칸", "<gray>나무 틀에 한지를 바른 바닥 등. 불빛이 이따금 일렁입니다.", "<yellow>빛 14"]
   model: andon
   icon: andon_icon
   max-stack: 16
@@ -139,7 +139,7 @@ andon:
 stone_lantern:
   material: paper
   name: "<#a8a49b>석등"
-  lore: ["<gray>일본풍 가구 · 1×1칸, 높이 2", "<gray>정원에 세우는 돌 등롱. 화창에 불이 비칩니다.", "<yellow>빛 15"]
+  lore: ["<gray>일본풍 가구 · 1×1칸, 높이 2", "<gray>정원에 세우는 돌 등롱. 화창에 불이 일렁이고", "<gray>옆면에는 해와 달이 뚫려 있습니다.", "<yellow>빛 15"]
   model: stone_lantern
   icon: stone_lantern_icon
   max-stack: 16
@@ -245,7 +245,7 @@ taiko_drum:
 maneki_neko:
   material: paper
   name: "<#ffffff>마네키네코"
-  lore: ["<gray>일본풍 가구 · 1×1칸", "<gray>앞발을 들어 손님과 복을 부르는 고양이.", "<gold>금화를 안고 있습니다."]
+  lore: ["<gray>일본풍 가구 · 1×1칸", "<gray>빨간 방석에 앉아 앞발을 들어 손님과 복을 부르는 고양이.", "<gold>금화를 안고 있습니다."]
   model: maneki_neko
   icon: maneki_neko_icon
   max-stack: 16
@@ -265,7 +265,7 @@ daruma:
 omamori_rack:
   material: paper
   name: "<#b18440>오마모리 걸이"
-  lore: ["<gray>일본풍 가구 · 1×1칸", "<gray>지붕 달린 나무 걸이에 부적 주머니 넷."]
+  lore: ["<gray>일본풍 가구 · 1×1칸", "<gray>푸른 구리 지붕을 얹은 붉은 걸이에 부적 주머니 넷과 에마 둘."]
   model: omamori_rack
   icon: omamori_rack_icon
   max-stack: 16
@@ -287,7 +287,7 @@ wind_chime:
 wagasa:
   material: paper
   name: "<#e06439>노다테 우산"
-  lore: ["<gray>일본풍 가구 · 1×1칸, 높이 3", "<gray>정원에 세우는 커다란 붉은 종이우산.", "<gray>우산 그늘 아래에 설 수 있습니다."]
+  lore: ["<gray>일본풍 가구 · 1×1칸, 높이 3", "<gray>흰 뱀눈 테를 두른 커다란 붉은 정원 우산.", "<gray>우산 그늘 아래에 설 수 있습니다."]
   model: wagasa
   icon: wagasa_icon
   max-stack: 16
@@ -330,7 +330,7 @@ stepping_stones:
 koi_pond:
   material: paper
   name: "<#4ca8ca>잉어 연못"
-  lore: ["<gray>일본풍 가구 · 2×2칸", "<gray>돌로 두른 작은 연못. 잉어 두 마리와 연잎.", "<dark_gray>밟고 지나갈 수 있음"]
+  lore: ["<gray>일본풍 가구 · 2×2칸", "<gray>자연석을 두른 작은 연못. 잉어 두 마리가", "<gray>연잎 사이를 빙글빙글 헤엄칩니다.", "<dark_gray>밟고 지나갈 수 있음"]
   model: koi_pond
   icon: koi_pond_icon
   max-stack: 16

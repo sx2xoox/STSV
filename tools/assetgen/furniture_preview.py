@@ -85,17 +85,23 @@ def render(data, tag):
     return Image.open(png).convert("RGB")
 
 
-def views_of(pid):
+THREE_VIEWS = [{"x": 0, "y": 0, "w": 1000, "h": 1000, "az": 35, "el": 24, "k": 2.8},
+               {"x": 1000, "y": 0, "w": 600, "h": 500, "az": 215, "el": 22, "k": 3.1},
+               {"x": 1000, "y": 500, "w": 600, "h": 500, "az": 125, "el": 55, "k": 3.1}]
+# close-ups: front 3/4, back 3/4, from above, and low from the front left (about a player's eye level)
+FOUR_VIEWS = [{"x": 0, "y": 0, "w": 800, "h": 1000, "az": 30, "el": 20, "k": 2.6},
+              {"x": 800, "y": 0, "w": 800, "h": 500, "az": 210, "el": 25, "k": 2.9},
+              {"x": 800, "y": 500, "w": 400, "h": 500, "az": 120, "el": 60, "k": 3.0},
+              {"x": 1200, "y": 500, "w": 400, "h": 500, "az": -40, "el": 5, "k": 2.8}]
+
+
+def views_of(pid, views=THREE_VIEWS):
     tex, els = piece(pid)
-    _fn, (w, h, d), floor = F.PIECES[pid]
     lo = [min(e["from"][i] for e in els) for i in range(3)]
     hi = [max(e["to"][i] for e in els) for i in range(3)]
     centre = [(lo[i] + hi[i]) / 2 for i in range(3)]
     radius = max(10.0, sum((hi[i] - lo[i]) ** 2 for i in range(3)) ** 0.5 / 2)
-    data = {"textures": tex, "elements": els, "grid": True, "center": centre, "radius": radius,
-            "views": [{"x": 0, "y": 0, "w": 1000, "h": 1000, "az": 35, "el": 24, "k": 2.8},
-                      {"x": 1000, "y": 0, "w": 600, "h": 500, "az": 215, "el": 22, "k": 3.1},
-                      {"x": 1000, "y": 500, "w": 600, "h": 500, "az": 125, "el": 55, "k": 3.1}]}
+    data = {"textures": tex, "elements": els, "grid": True, "center": centre, "radius": radius, "views": views}
     return render(data, pid)
 
 
@@ -167,26 +173,26 @@ def room(out):
         textures.update(tex)
         elements += els
     data = {"textures": textures, "elements": elements, "grid": False,
-            "views": [{"x": 0, "y": 0, "w": 1600, "h": 1000, "az": 28, "el": 34, "k": 1.75}]}
+            "views": [{"x": 0, "y": 0, "w": 1600, "h": 1000, "az": 28, "el": 36, "k": 2.15}]}
     render(data, "room").save(out, optimize=True)
     print(f"scene   {out.relative_to(REPO)}")
 
 
 def piece_images(pids, out_dir, ko):
-    """One large picture per piece (three angles, its Korean name, size and icon), to judge details."""
+    """One large picture per piece (four angles, its Korean name, size and icon), to judge details."""
     out_dir = Path(out_dir)
     out_dir.mkdir(parents=True, exist_ok=True)
     font = ImageFont.truetype(FONT, 34)
     small = ImageFont.truetype(FONT, 22)
     paths = []
     for k, pid in enumerate(pids):
-        im = views_of(pid)
+        im = views_of(pid, FOUR_VIEWS)
         head = 64
         out = Image.new("RGB", (im.width, im.height + head), (40, 43, 52))
         out.paste(im, (0, head))
         d = ImageDraw.Draw(out)
         d.text((18, 12), ko.get(pid, pid), font=font, fill=(245, 242, 232))
-        d.text((420, 22), f"{size_text(pid)}  ·  {pid}  ·  왼쪽: 앞 3/4, 오른쪽 위: 뒤, 오른쪽 아래: 위에서", font=small, fill=(180, 180, 188))
+        d.text((420, 22), f"{size_text(pid)}  ·  {pid}  ·  왼쪽: 앞 3/4, 오른쪽 위: 뒤, 아래: 위에서 · 눈높이", font=small, fill=(180, 180, 188))
         icon = FI.ICONS[pid]().resize((128, 128), Image.NEAREST)
         bg = Image.new("RGBA", (140, 140), (139, 139, 139, 255))
         bg.alpha_composite(icon, (6, 6))

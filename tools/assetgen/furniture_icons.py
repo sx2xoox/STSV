@@ -76,10 +76,13 @@ def chabudai():
         c.rect(x, y0, x + 1.6, y1, "wood_dark", 0, normal=FRONT)
     c.ellipse(8, 7.5, 7.6, 3.6, "wood_dark", 1, dome=0.2)
     c.ellipse(8, 6.6, 7.6, 3.6, "wood", 2, dome=0.25, gloss=0)
-    c.cyl(4.6, 4.3, 6.4, 6.6, "celadon", 3)
-    c.cyl(9.4, 5.3, 11.4, 7.6, "celadon", 3)
-    c.put(5, 4, "bamboo", 3, z=4)
-    c.put(10, 5, "bamboo", 3, z=4)
+    c.cyl(3.6, 4.3, 5.6, 6.6, "celadon", 3)
+    c.cyl(10.4, 5.3, 12.4, 7.6, "celadon", 3)
+    c.put(4, 4, "bamboo", 3, z=4)
+    c.put(11, 5, "bamboo", 3, z=4)
+    for (x, mat) in ((6, "pink"), (7, "rice"), (8, "sprout")):    # a skewer of hanami dango
+        c.put(x, 6, mat, 2, z=5)
+        c.put(x, 5, mat, 3, z=5)
     return c.render()
 
 
@@ -157,6 +160,10 @@ def hanging_scroll():
     c.line(8, 0, 12, 1, "crimson", 2)
     c.rect(3, 1, 13, 2.5, "wood_dark", 1, normal=FRONT)
     c.rect(4, 2.5, 12, 14, "celadon", 0, normal=FRONT, hi=3)
+    c.rect(4, 2.5, 12, 4, "indigo", 0.5, step=1)                 # brocade bands top and bottom
+    c.rect(4, 12, 12, 14, "indigo", 0.5, step=1)
+    c.line(6, 2.5, 6, 5, "indigo", 2, z=3)                       # the two futai ribbons
+    c.line(10, 2.5, 10, 5, "indigo", 2, z=3)
     c.rect(5, 4, 11, 12, "paper", 1, step=4)
     c.ellipse(9, 5.6, 1.2, 1.2, "cream", 2, gloss=0, lo=2, hi=3)
     c.poly([(5, 11.5), (7, 7.5), (8.5, 9), (9.5, 8), (11, 11.5)], "millstone", 2, normal=FRONT, lo=1, hi=2)
@@ -171,28 +178,31 @@ def hanging_scroll():
 
 @icon("noren")
 def noren():
+    """Three indigo strips on a bamboo rod, the white mitsu-uroko crest across them, a white hem."""
     c = Canvas()
     c.rect(0, 1, 16, 2.5, "bamboo", 2, normal=FRONT)
     for x0 in (1, 6, 11):
         c.rect(x0, 2.5, x0 + 4, 14, "indigo", 1, normal=FRONT, lo=2, hi=3)
-        c.rect(x0, 11, x0 + 4, 12, "porcelain", 2, step=3)
-    for (x, y) in ((7, 5), (8, 5), (6, 6), (9, 6), (6, 7), (9, 7), (7, 8), (8, 8)):
+        c.rect(x0, 12, x0 + 4, 13.5, "porcelain", 2, step=3)
+    for (x, y) in ((7, 4), (8, 4), (6, 5), (7, 5), (8, 5), (9, 5),
+                   (4, 7), (5, 7), (3, 8), (4, 8), (5, 8), (6, 8),
+                   (10, 7), (11, 7), (9, 8), (10, 8), (11, 8), (12, 8)):
         c.put(x, y, "porcelain", 4, z=3)
     return c.render()
 
 
 @icon("bamboo_fence")
 def bamboo_fence():
+    """Sun-bleached split slats between green rails, dark palm-cord ties, a green cap."""
     c = Canvas()
     for x in range(1, 15):
-        c.rect(x, 2, x + 1, 15, "bamboo", 0, step=3 if x % 2 else 2)
-    for x in range(1, 15):
-        c.put(x, 5 + (x * 3) % 4, "bamboo", 1, z=1)
-    c.rect(0, 1, 16, 2.5, "bamboo", 2, normal=UP)
-    for y in (5, 10):
-        c.rect(0, y, 16, y + 1.5, "bamboo", 2, normal=FRONT, lo=1, hi=2)
-        c.rect(4, y - 0.5, 5, y + 2, "rubber", 3, step=1)
-        c.rect(11, y - 0.5, 12, y + 2, "rubber", 3, step=1)
+        c.rect(x, 3, x + 1, 15.5, "straw", 0, step=3 if x % 2 else 2)
+        c.put(x, 5 + (x * 3) % 7, "straw", 1, z=1)          # the nodes, staggered
+    c.rect(0, 1.5, 16, 3, "bamboo", 2, normal=UP)
+    for y in (6, 11):
+        c.rect(0, y, 16, y + 1.5, "bamboo", 2, normal=FRONT, lo=2, hi=3)
+        c.rect(3, y - 0.5, 4, y + 2, "bark", 3, step=0)
+        c.rect(12, y - 0.5, 13, y + 2, "bark", 3, step=0)
     return c.render()
 
 
@@ -225,9 +235,12 @@ def stone_lantern():
     c.rect(4, 8, 12, 9.5, m, 2, normal=UP)
     c.rect(5, 5, 11, 8, m, 2, normal=FRONT)
     c.rect(6.5, 5.5, 9.5, 8, "glow_amber", 3, normal=FRONT, lo=3, hi=4)
-    c.poly([(1, 5.5), (5, 2.5), (11, 2.5), (15, 5.5)], m, 4, normal=UP)
+    c.poly([(0.5, 5.5), (5, 2.5), (11, 2.5), (15.5, 5.5)], m, 4, normal=UP)
+    c.put(0, 4, m, 3, z=5)                                    # the roof's corners curl up
+    c.put(15, 4, m, 3, z=5)
     c.ellipse(8, 1.6, 1.4, 1.4, m, 5)
-    c.put(3, 5, "leaf", 3, z=6)
+    for (x, y) in ((4, 4), (5, 4), (11, 4), (5, 14), (6, 14)):
+        c.put(x, y, "leaf", 3, z=6)                            # moss
     return c.render()
 
 
@@ -239,8 +252,13 @@ def chochin():
         for x in range(3, 14):
             if (x, y) in c.px:
                 c.px[(x, y)][1] = max(1, c.px[(x, y)][1] - 1)
-    c.rect(5, 2, 11, 3.5, "rubber", 2, normal=UP)
-    c.rect(5, 13.5, 11, 15, "rubber", 2, normal=FRONT)
+    c.ellipse(7.5, 8.5, 2.2, 2.2, "porcelain", 3, gloss=0, lo=2, hi=3)   # the white crest
+    c.put(7, 8, "vermilion", 1, z=4)
+    c.put(8, 8, "vermilion", 1, z=4)
+    c.put(7, 9, "vermilion", 1, z=4)
+    c.put(8, 9, "vermilion", 1, z=4)
+    c.rect(5.5, 2, 10.5, 3.5, "rubber", 2, normal=UP)
+    c.rect(5.5, 13.5, 10.5, 15, "rubber", 2, normal=FRONT)
     c.rect(7.5, 0, 8.5, 2, "iron", 3, step=3)
     return c.render()
 
@@ -301,9 +319,11 @@ def bamboo_pot():
 @icon("sakura_pot")
 def sakura_pot():
     c = Canvas()
-    c.cyl(4.5, 11, 11.5, 16, "indigo", 0)
-    c.rect(4, 10.5, 12, 11.5, "indigo", 1, step=3)
+    c.cyl(4.5, 11, 11.5, 16, "onggi", 0)
+    c.rect(4, 10.5, 12, 11.5, "onggi", 1, step=3)
     c.tube([(7.5, 11), (8, 8), (9, 6)], [1.1, 1, 0.8], "bark", 2)
+    c.line(7, 8, 4, 7, "bark", 2, z=2)                          # the branches reaching out
+    c.line(9, 7, 12, 6, "bark", 2, z=2)
     c.ellipse(4.5, 6, 3.6, 2.8, "sakura", 3, dome=0.7)
     c.ellipse(11.5, 5.2, 3.6, 2.8, "sakura", 3, dome=0.7)
     c.ellipse(8, 3, 4.2, 2.8, "sakura", 4, dome=0.7)
@@ -389,8 +409,10 @@ def taiko_drum():
 def maneki_neko():
     c = Canvas()
     w = "feather"
-    c.ellipse(7.5, 12, 5, 3.8, w, 0)
-    c.rect(2.5, 14.5, 12.5, 16, w, 0, step=2)
+    c.rect(1, 14, 14, 16, "crimson", 0, normal=UP)                 # the red cushion it sits on
+    c.put(0, 15, "gold", 3, z=1)
+    c.put(14, 15, "gold", 3, z=1)
+    c.ellipse(7.5, 11.5, 5, 3.5, w, 0.5)
     c.ellipse(7.5, 6.5, 5, 4, w, 1)
     c.poly([(3, 4), (3.5, 0.5), (6, 3)], w, 2, normal=FRONT)
     c.poly([(9, 3), (11.5, 0.5), (12, 4)], w, 2, normal=FRONT)
@@ -431,9 +453,9 @@ def daruma():
 @icon("omamori_rack")
 def omamori_rack():
     c = Canvas()
-    c.poly([(0, 3.5), (3, 1), (13, 1), (16, 3.5)], "wood_dark", 3, normal=UP)
+    c.poly([(0, 3.5), (3, 1), (13, 1), (16, 3.5)], "celadon", 3, normal=UP)      # copper gone green
     for x in (1.5, 13):
-        c.rect(x, 3.5, x + 1.5, 15, "wood_dark", 2, normal=FRONT)
+        c.rect(x, 3.5, x + 1.5, 15, "vermilion", 2, normal=FRONT)
     c.rect(1, 14.5, 4, 16, "wood_dark", 2, normal=UP)
     c.rect(12, 14.5, 15, 16, "wood_dark", 2, normal=UP)
     c.rect(3, 5, 13, 6, "hinoki", 1, normal=FRONT)
@@ -472,6 +494,8 @@ def wagasa():
     c.poly([(0.5, 7.5), (8, 1.5), (15.5, 7.5), (8, 9)], "vermilion", 1, normal=UP)
     for x in (2.5, 5, 8, 11, 13.5):
         c.line(8, 2, x, 7.5, "vermilion", 2, z=2)
+    for (x, y) in ((5, 4), (6, 3), (7, 3), (8, 3), (9, 3), (10, 3), (11, 4)):
+        c.put(x, y, "porcelain", 3, z=3)                          # janome: the white ring
     c.rect(7, 0.5, 9, 2, "rubber", 4, step=2)
     return c.render()
 
