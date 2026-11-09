@@ -255,6 +255,7 @@ def icons():
         out[f"period_{key}"] = period(label)
     out.update(hub_icons())
     out.update(price_icons())
+    out.update(wardrobe_icons())
     return out
 
 
@@ -806,3 +807,249 @@ def price_icons():
         im.alpha_composite(draw(_with_digits([""] * 16, f"{n}%")))
         out[f"bid_{n}"] = im
     return out
+
+
+# ------------------------------------------------------------------------------------------------
+# The cosmetics' category tabs (옷장 /치장 and 치장 뽑기 /뽑기), the 보기 filter, and the not-owned card.
+# Same two greys + outline; colour only for the cosmetic itself (gold halo, yellow chick, orange tail,
+# red hat band, gold burst).
+# ------------------------------------------------------------------------------------------------
+
+COLOURS.update({
+    "y": (250, 218, 92), "Y": (196, 156, 48),              # chick yellow
+    "f": (242, 146, 62), "F": (176, 92, 36),               # fox orange
+})
+
+TAB_ALL = [     # 전체: four tiles
+    "",
+    "",
+    "..#####.#####",
+    "..####s.####s",
+    "..####s.####s",
+    "..####s.####s",
+    "..sssss.sssss",
+    "",
+    "..#####.#####",
+    "..####s.####s",
+    "..####s.####s",
+    "..####s.####s",
+    "..sssss.sssss",
+]
+
+TAB_HEAD = [    # 머리: a hat with a red band and a wide brim
+    "",
+    "",
+    "",
+    ".....######",
+    "....########",
+    "....#######s",
+    "....#######s",
+    "....rrrrrrrR",
+    "....rrrrrrrR",
+    "..############",
+    ".##############",
+    "..sssssssssssss",
+]
+
+TAB_ABOVE = [   # 머리 위: a gold halo floating over a head
+    "",
+    "...gggggggggg",
+    "..gG........gG",
+    "...GGGGGGGGGG",
+    "",
+    ".....######",
+    "....########",
+    "....#######s",
+    "....#k###k#s",
+    "....#######s",
+    "....#######s",
+    ".....ssssss",
+]
+
+TAB_SHOULDER = [    # 어깨: a chick sitting on a shoulder, the head beside it
+    "",
+    "",
+    "..####",
+    ".#####s....yy",
+    ".#####s...yyyyf",
+    ".#####s...yykyF",
+    "..ssss...yyyyyY",
+    "...##....yyyyyY",
+    ".........YYYYY",
+    ".##############",
+    ".#############s",
+    ".#############s",
+    "..sssssssssssss",
+]
+
+TAB_BACK = [    # 등: a pair of wings
+    "",
+    "",
+    ".##..........##",
+    ".###........###",
+    ".####......####",
+    ".#####....#####",
+    ".s#####..#####s",
+    "..ss####.####ss",
+    "...ss###.###ss",
+    "....ss##.##ss",
+    ".....s##.##s",
+    "......s#.#s",
+]
+
+def _tail():
+    """꼬리: a bushy fox tail rising from the lower left and curling up to the right, white tip."""
+    import math
+    rows = [["."] * 16 for _ in range(16)]
+    for k in range(200):
+        t = k / 199
+        # quadratic curve from the root (lower left) round the lower right to the tip (top)
+        cx = (1 - t) ** 2 * 2.5 + 2 * (1 - t) * t * 13.0 + t * t * 10.5
+        cy = (1 - t) ** 2 * 12.5 + 2 * (1 - t) * t * 13.5 + t * t * 2.5
+        r = 0.7 + 2.3 * math.sin(math.pi * min(1.0, t * 1.15)) ** 0.7
+        for y in range(16):
+            for x in range(16):
+                if (x + 0.5 - cx) ** 2 + (y + 0.5 - cy) ** 2 <= r * r:
+                    rows[y][x] = "#" if t > 0.78 else "f"
+    for y in range(16):          # shade the lower right edge
+        for x in range(16):
+            if rows[y][x] != "." and (x + 1 > 15 or rows[y][x + 1] == "." or y + 1 > 15 or rows[y + 1][x] == "."):
+                if (x + 1 <= 15 and rows[y][x + 1] == ".") or (y + 1 <= 15 and rows[y + 1][x] == "."):
+                    rows[y][x] = "s" if rows[y][x] == "#" else "F"
+    return ["".join(r) for r in rows]
+
+TAB_PET = [     # 펫: a paw print
+    "",
+    "",
+    "....##...##",
+    "...###s.###s",
+    "...###s.###s",
+    "....ss...ss",
+    ".##.........##",
+    "###s.......###s",
+    "###s.#####.###s",
+    ".ss.#######.ss",
+    "...#########s",
+    "...#########s",
+    "....#######s",
+    ".....sssss",
+]
+
+TAB_TRAIL = [   # 발자취: two shoe prints (sole and heel) walking up to the right
+    "",
+    "..........###",
+    ".........#####",
+    ".........####s",
+    ".........####s",
+    "..........sss",
+    "...###...###",
+    "..#####..##s",
+    "..####s",
+    "..####s",
+    "...sss",
+    "...###",
+    "...##s",
+]
+
+TAB_KILL = [    # 처치 효과: a sword with a gold burst at its tip
+    "",
+    "..........g...g",
+    "...........g.g",
+    ".........gg.g.g",
+    "...........g.g",
+    ".........##g...g",
+    "........##s",
+    ".......##s",
+    "......##s",
+    "..o..##s",
+    "...o##s",
+    "...oOs",
+    "..oO.o",
+    ".oO",
+]
+
+FILTER = [      # 보기 (전부 / 가진 것 / 없는 것): a funnel
+    "",
+    "",
+    "..###########",
+    "..##########s",
+    "...########s",
+    "....######s",
+    ".....####s",
+    "......##s",
+    "......##s",
+    "......##s",
+    "......##s",
+    ".......s",
+]
+
+SELF_VIEW = [   # 내 화면에 표시: an eye (blue iris)
+    "",
+    "",
+    "",
+    "",
+    ".....######",
+    "...###sssss##",
+    "..##s..www..s#",
+    ".##...wwkkW..s#",
+    "..##..wwkkW..##",
+    "...##..WWW..##",
+    ".....s#####s",
+]
+
+LOCKED_CARD = (12, 14, 18)      # the not-owned card's face (darker than the slot it sits in)
+
+
+def locked_layers():
+    """The not-owned cosmetic: a dark card (layer 0, drawn as is) and its rim and question mark in greys
+    (layer 1, tinted by the item: the rarity's colour). Shaded so the tint keeps a light and a dark side."""
+    card = Image.new("RGBA", (16, 16), (0, 0, 0, 0))
+    mark = Image.new("RGBA", (16, 16), (0, 0, 0, 0))
+    for y in range(1, 15):
+        for x in range(1, 15):
+            if (x in (1, 14)) and (y in (1, 14)):
+                continue
+            card.putpixel((x, y), LOCKED_CARD + (255,))
+            if x in (1, 14) or y in (1, 14) or (x in (2, 13) and y in (2, 13)):
+                v = 120 if (x <= 2 or y <= 2) else 84     # rim: lit top-left, darker bottom-right
+                mark.putpixel((x, y), (v, v, v, 255))
+    qm = [
+        "..####..",
+        ".##..##.",
+        ".##..##.",
+        ".....##.",
+        "....##..",
+        "...##...",
+        "...##...",
+        "........",
+        "...##...",
+        "...##...",
+    ]
+    for dy, row in enumerate(qm):
+        for dx, ch in enumerate(row):
+            if ch == "#":
+                x, y = 4 + dx, 3 + dy
+                lit = row[dx + 1:dx + 2] == "#" or (dy + 1 < len(qm) and qm[dy + 1][dx] == "#")
+                v = 255 if lit else 196
+                mark.putpixel((x, y), (v, v, v, 255))
+    return card, mark
+
+
+def locked_preview(rgb):
+    """The not-owned card as the game draws it with a rarity colour (menu previews)."""
+    card, mark = locked_layers()
+    out = card.copy()
+    px, mp = out.load(), mark.load()
+    for y in range(16):
+        for x in range(16):
+            r, g, b, a = mp[x, y]
+            if a:
+                px[x, y] = (r * rgb[0] // 255, g * rgb[1] // 255, b * rgb[2] // 255, 255)
+    return out
+
+
+def wardrobe_icons():
+    return {"tab_all": draw(TAB_ALL), "tab_head": draw(TAB_HEAD), "tab_above": draw(TAB_ABOVE),
+            "tab_shoulder": draw(TAB_SHOULDER), "tab_back": draw(TAB_BACK), "tab_tail": draw(_tail()),
+            "tab_pet": draw(TAB_PET), "tab_trail": draw(TAB_TRAIL), "tab_kill": draw(TAB_KILL), "filter": draw(FILTER),
+            "self_view": draw(SELF_VIEW)}

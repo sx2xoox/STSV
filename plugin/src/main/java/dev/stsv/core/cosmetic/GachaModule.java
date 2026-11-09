@@ -3,6 +3,7 @@ package dev.stsv.core.cosmetic;
 import dev.stsv.core.STSVPlugin;
 import dev.stsv.core.content.ContentPack;
 import dev.stsv.core.content.CustomItem;
+import dev.stsv.core.content.CustomItem.CosmeticSlot;
 import dev.stsv.core.content.CustomItem.Rarity;
 import dev.stsv.core.economy.EconomyModule;
 import dev.stsv.core.gui.menu.MenuHandler;
@@ -115,6 +116,11 @@ public final class GachaModule implements StsvModule, Listener, CommandExecutor 
         if (rules != null && pool.isEmpty()) plugin.getLogger().warning("[치장 뽑기] 뽑을 치장이 없습니다 (gacha.yml pool)");
     }
 
+    /** Can this cosmetic come out of the 치장 뽑기? */
+    public boolean inPool(String id) {
+        return pool.stream().anyMatch(e -> e.id().equals(id));
+    }
+
     public boolean available() {
         return rules != null && !pool.isEmpty() && plugin.economy() != null;
     }
@@ -174,6 +180,8 @@ public final class GachaModule implements StsvModule, Listener, CommandExecutor 
         /** "1" or "multi" armed by a first click (a pull is paid on the second) */
         private String armed;
         private long armedAt;
+        /** the category tab: "all" or a slot id (CosmeticBrowser.TABS) */
+        private String tab = "all";
 
         Menu(Runnable back) {
             this.back = back;
@@ -195,8 +203,15 @@ public final class GachaModule implements StsvModule, Listener, CommandExecutor 
             long full = rules.singlePrice() * rules.multiCount();
             m.put("discount", String.valueOf(full <= 0 ? 0 : Math.round(100.0 * (full - rules.multiPrice()) / full)));
             m.put("floor", rules.multiFloor().color + rules.multiFloor().label);
-            m.put("owned", String.valueOf(pool.stream().filter(e -> owned.contains(e.id())).count()));
-            m.put("total", String.valueOf(pool.size()));
+            List<CustomItem> all = poolItems();
+            List<CustomItem> here = all.stream().filter(c -> CosmeticBrowser.inTab(tab, c.cosmetic().slot())).toList();
+            m.put("owned", String.valueOf(here.stream().filter(c -> owned.contains(c.key().asString())).count()));
+            m.put("total", String.valueOf(here.size()));
+            m.put("owned_all", String.valueOf(all.stream().filter(c -> owned.contains(c.key().asString())).count()));
+            m.put("total_all", String.valueOf(all.size()));
+            CosmeticBrowser.counts(all, c -> c.cosmetic().slot(), c -> owned.contains(c.key().asString())).forEach((k, n) -> m.put("n_" + k, n));
+            CosmeticSlot slot = CosmeticSlot.parse(tab);
+            m.put("tab", slot == null ? Lang.raw("wardrobe.tab-all") : Lang.raw("cosmetic.slot." + slot.id));
             m.put("confirm_single", Lang.raw(armed("1") ? "gacha.confirm-again" : "gacha.confirm-click"));
             m.put("confirm_multi", Lang.raw(armed("multi") ? "gacha.confirm-again" : "gacha.confirm-click"));
             return m;
@@ -204,30 +219,30 @@ public final class GachaModule implements StsvModule, Listener, CommandExecutor 
 
         @Override
         public ItemStack button(MenuView v, MenuSpec.Button b, ItemStack base) {
-            if (base != null && (b.action().equals("gacha:pull:1") && armed("1") || b.action().equals("gacha:pull:multi") && armed("multi"))) {
+            if (base != null && (b.action().equals("gacha:pull:1") && armed("1") || b.action().equals("gacha:pull:multi") && armed("multi")
+                    || b.action().equals("gacha:tab:" + tab))) {
                 base.editMeta(meta -> meta.setEnchantmentGlintOverride(true));
             }
             return base;
         }
 
-        /** The pool, best first: what can come out (no chances shown). */
+        /** What can come out on the open tab (no chances shown), like the wardrobe: dex order, '?' cards for the ones not had yet. */
         @Override
         public List<ItemStack> list(MenuView v) {
             Set<String> owned = plugin.cosmetics().owned(v.player().getUniqueId());
             List<ItemStack> out = new ArrayList<>();
-            for (GachaRules.Entry e : sortedPool()) {
-                Optional<CustomItem> c = plugin.content().item(e.id());
-                if (c.isEmpty()) continue;
-                ItemStack it = c.get().create(1);
-                boolean own = owned.contains(e.id());
-                it.editMeta(meta -> {
-                    List<Component> lore = new ArrayList<>();
-                    lore.add(Lang.item("wardrobe.lore-rarity", "color", e.rarity().color, "rarity", e.rarity().label,
-                            "slot", Lang.raw("cosmetic.slot." + c.get().cosmetic().slot().id)));
-                    lore.addAll(Lang.items(own ? "gacha.lore-owned" : "gacha.lore-new"));
-                    meta.lore(lore);
-                    meta.setEnchantmentGlintOverride(own);
-                });
+            for (CustomItem c : poolItems()) {
+                if (!CosmeticBrowser.inTab(tab, c.cosmetic().slot())) continue;
+                boolean own = owned.contains(c.key().asString());
+                List<Component> lore = new ArrayList<>();
+                lore.add(CosmeticBrowser.rarityLine(c));
+                lore.addAll(Lang.items(own ? "gacha.lore-owned" : "gacha.lore-new"));
+                if (!own) {
+                    out.add(CosmeticBrowser.locked(c, lore));
+                    continue;
+                }
+                ItemStack it = c.create(1);
+                it.editMeta(meta -> meta.lore(lore));
                 out.add(it);
             }
             return out;
@@ -236,6 +251,17 @@ public final class GachaModule implements StsvModule, Listener, CommandExecutor 
         @Override
         public void onAction(MenuView v, String action, ClickType click) {
             Player p = v.player();
+            if (action.startsWith("gacha:tab:")) {
+                String next = action.substring("gacha:tab:".length());
+                if (next.equals(tab) || !CosmeticBrowser.TABS.contains(next)) return;
+                tab = next;
+                p.playSound(p.getLocation(), Sound.UI_BUTTON_CLICK, 0.5f, 1.6f);
+                // the title names the tab: open the menu again (next tick, never inside its own click)
+                Bukkit.getScheduler().runTask(plugin, () -> {
+                    if (p.isOnline()) plugin.menus().open(p, MENU, this);
+                });
+                return;
+            }
             switch (action) {
                 case "gacha:pull:1", "gacha:pull:multi" -> {
                     String which = action.endsWith("multi") ? "multi" : "1";
@@ -259,10 +285,10 @@ public final class GachaModule implements StsvModule, Listener, CommandExecutor 
         }
     }
 
-    private List<GachaRules.Entry> sortedPool() {
-        return pool.stream().sorted(Comparator.comparing(GachaRules.Entry::rarity).reversed()
-                .thenComparing(e -> plugin.content().item(e.id()).map(c -> c.cosmetic().slot().ordinal()).orElse(0))
-                .thenComparing(GachaRules.Entry::id)).toList();
+    /** The pool's cosmetics in the order every cosmetic list uses (slot, rarity, name: CosmeticBrowser.order). */
+    private List<CustomItem> poolItems() {
+        return pool.stream().map(e -> plugin.content().item(e.id())).flatMap(Optional::stream)
+                .filter(c -> c.cosmetic() != null).sorted(CosmeticBrowser.order()).toList();
     }
 
     // ------------------------------------------------------------------------------------------

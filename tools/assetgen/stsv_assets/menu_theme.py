@@ -3,7 +3,7 @@ The one look of every STSV menu (core and contents): charcoal, flat, a thin gold
 Draws the 176 x (114 + 18 rows) background of a menu from its own layout (menus/*.yml), so drawing and
 menu always agree:
   - list cells (the paged area) and `inset` cells: recessed slots
-  - buttons: raised tiles with a dark rim
+  - buttons: raised tiles with a dark rim; `tabs` buttons (category tabs) with a dim gold cap
   - `graph: true`: a dark chart screen over rows 0-1 with guides (the stock chart is drawn there by the
     title font)
   - `flow: true`: a small arrow in an empty cell between two used cells of a row, one of them a slot
@@ -68,6 +68,12 @@ def tile(im, x, y):
     _bevel(im, x + 1, y + 1, 16, 16, TILE_LIGHT, TILE_DARK, fill=TILE)
 
 
+def tab(im, x, y):
+    """A category tab: a button tile with a dim gold cap (the open tab glows in the game)."""
+    tile(im, x, y)
+    _rect(im, x + 2, y + 1, x + 16, y + 2, GOLD_DIM)
+
+
 def _arrow(im, x, y):
     """A small right arrow centred in the 18 x 18 cell at (x, y)."""
     cx, cy = x + 9, y + 9
@@ -105,12 +111,15 @@ def background(menu):
     lst = menu.get("list")
     buttons = set(menu.get("buttons", {}) or {})
     inset = set(menu.get("inset", "") or "")
+    tabs = set(menu.get("tabs", "") or "")
     layout = menu["layout"]
     for r, row in enumerate(layout):
         for c, ch in enumerate(row):
             x, y = 7 + 18 * c, 17 + 18 * r
             if (lst and ch == lst) or ch in inset:
                 slot(im, x, y)
+            elif ch in buttons and ch in tabs:
+                tab(im, x, y)
             elif ch in buttons:
                 tile(im, x, y)
             elif ch == "." and menu.get("flow") and 0 < c < 8 and row[c - 1] != "." and row[c + 1] != "." \

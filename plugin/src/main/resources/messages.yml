@@ -19,8 +19,12 @@ wardrobe:
   took-off: "<gray>벗었습니다: </gray>{cosmetic}"
   wearing: "<green>착용: </green>{cosmetic}"
   wearing-replace: "<green>착용: </green>{cosmetic} <gray>({old} 대신)"
-  preview-only: "<red>🔒 미리보기만 가능합니다"
-  preview-only-obtain: "<red>🔒 미리보기만 가능합니다 <gray>(획득: {obtain})"
+  # 없는 치장을 눌렀을 때 (마네킹에 입혀 보기만 하고 얻는 곳 안내): 얻는 곳마다
+  locked-hint:
+    gacha: "<gray>🔒 아직 없는 치장 · <white>치장 뽑기</white>에서 얻을 수 있어요 <dark_gray>(Shift+클릭: 뽑기 열기)"
+    achievement: "<gray>🔒 아직 없는 치장 · <white>업적 보상</white>으로 얻을 수 있어요 <dark_gray>(/업적)"
+    limited: "<gray>🔒 아직 없는 치장 · <gold>한정</gold> <white>주간 순위 1위 · 상인 행렬</white>에서만 얻어요"
+    other: "<gray>🔒 아직 없는 치장 · 입혀 보기만 할 수 있어요"
   # 미리보기 화면 제목: 위 = 치장 이름, 아래 = 상태 + 안내
   title: "<gold>치장"
   hint: "<gray>웅크리기: 메뉴"
@@ -34,7 +38,13 @@ wardrobe:
   # 탭 (부위 이름은 cosmetic.slot)
   tab-all: "전체"
   tab-worn: "착용 중"
-  tab-effect: "효과"
+  # 보기 버튼 (전부 → 가진 것만 → 없는 것만)
+  view:
+    all: "전부"
+    owned: "가진 것만"
+    missing: "없는 것만"
+  view-on: "<white>▶ {view}"
+  view-off: "<dark_gray>  {view}"
   take-off-all: "모든 치장 벗기"
   take-off-slot: "{slot} 치장 벗기"
   self-on: "<green>켜짐"
@@ -46,9 +56,18 @@ wardrobe:
   lore-worn: ["<green>✔ 착용 중", "<gray>클릭: <white>벗기"]
   lore-owned: ["<green>보유 중", "<gray>클릭: <white>착용"]
   lore-replaces: "<dark_gray>(지금 착용 중인 {cosmetic} 대신)"
-  lore-locked: ["<red>🔒 미보유"]
-  lore-obtain: "<gray>획득: <white>{obtain}"
-  lore-locked-click: "<gray>클릭: <white>미리보기"
+  # 없는 치장: 어두운 '?' 카드 (테두리·물음표 = 등급 색), 이름은 회색
+  locked-name: "<dark_gray>{cosmetic}"
+  lore-locked: ["<red>🔒 아직 없음"]
+  lore-source: "<gray>얻는 곳: {source}"
+  source:
+    gacha: "<white>치장 뽑기 <gray>(/뽑기)"
+    achievement: "<white>업적 보상 <gray>(/업적)"
+    limited: "<gold>한정 <gray>(주간 순위 1위 · 상인 행렬)"
+    other: "<white>특별 보상"
+  lore-obtain: "<dark_gray>{obtain}"
+  lore-locked-click: "<gray>클릭: <white>마네킹에 입혀 보기"
+  lore-locked-gacha: "<gray>Shift+클릭: <white>치장 뽑기 열기"
 
 cosmetic:
   voucher-unknown: "<red>이 교환권의 치장을 찾을 수 없습니다. 관리자에게 알려주세요."
@@ -75,7 +94,7 @@ gacha:
   dropped: "<yellow>인벤토리가 가득 차서 교환권 {count}장을 발밑에 떨어뜨렸습니다. <gray>(나만 주울 수 있음)"
   confirm-click: "<yellow>클릭: 뽑기"
   confirm-again: "<gold><b>한 번 더 클릭하면 뽑습니다</b>"
-  lore-new: ["<gray>아직 없음 <dark_gray>· <white>나오면 바로 내 치장"]
+  lore-new: ["<red>🔒 아직 없음 <dark_gray>· <white>나오면 바로 내 치장"]
   lore-owned: ["<green>보유 중 <dark_gray>· <gray>또 나오면 <white>교환권", "<dark_gray>교환권은 거래소에서 사고팔 수 있음"]
   # 뽑는 장면 (제목 / 부제목)
   roll-title: "<#f0e2b0>치장 뽑기{dots}"

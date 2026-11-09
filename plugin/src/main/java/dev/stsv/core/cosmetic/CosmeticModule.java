@@ -231,11 +231,10 @@ public final class CosmeticModule implements StsvModule, Listener {
     // Ownership & equipping
     // ------------------------------------------------------------------------------------------
 
-    /** Every cosmetic, by slot, then rarity, then id. */
+    /** Every cosmetic, by slot, then rarity, then name (CosmeticBrowser.order). */
     public List<CustomItem> cosmetics() {
         return plugin.content().items().stream().filter(i -> i.cosmetic() != null)
-                .sorted(java.util.Comparator.comparing((CustomItem i) -> i.cosmetic().slot())
-                        .thenComparing(i -> i.cosmetic().rarity()).thenComparing(i -> i.key().asString()))
+                .sorted(CosmeticBrowser.order())
                 .toList();
     }
 
@@ -608,8 +607,10 @@ public final class CosmeticModule implements StsvModule, Listener {
         final Map<CosmeticSlot, ItemDisplay> models = new EnumMap<>(CosmeticSlot.class);
         /** ticks since the wardrobe opened (effect previews) */
         long previewTicks;
-        /** tab: "all", "worn", "effect" or a slot id */
+        /** tab: "all", "worn" or a slot id */
         String tab = "all";
+        /** 보기: everything, only what the player has, or only what they lack */
+        CosmeticBrowser.View view = CosmeticBrowser.View.ALL;
         /** the menu is being reopened on another tab (its page must not be kept) */
         boolean tabbing;
         dev.stsv.core.gui.menu.MenuView menu;
@@ -841,24 +842,27 @@ public final class CosmeticModule implements StsvModule, Listener {
                         c.cosmetic().fx(), s.previewTicks, slot == CosmeticSlot.KILL, true));
     }
 
-    /** Slots a tab shows: one slot, "effect" (trail and kill), or null (all, worn). */
+    /** Slots a tab shows: one slot, or null (all, worn). */
     private static List<CosmeticSlot> tabSlots(String tab) {
-        if (tab.equals("effect")) return List.of(CosmeticSlot.TRAIL, CosmeticSlot.KILL);
         CosmeticSlot slot = CosmeticSlot.parse(tab);
         return slot == null ? null : List.of(slot);
     }
 
-    /** Cosmetics shown on the open tab. */
-    private List<CustomItem> shown(Player p, Session s) {
+    private static boolean isWorn(Map<CosmeticSlot, CustomItem> worn, CustomItem c) {
+        CustomItem w = worn.get(c.cosmetic().slot());
+        return w != null && w.key().equals(c.key());
+    }
+
+    /** Cosmetics of the open tab (every one, owned or not), before the 보기 filter. */
+    private List<CustomItem> onTab(Player p, Session s) {
         Map<CosmeticSlot, CustomItem> worn = worn(p);
-        return cosmetics().stream().filter(c -> switch (s.tab) {
-            case "all" -> true;
-            case "worn" -> worn.get(c.cosmetic().slot()) != null && worn.get(c.cosmetic().slot()).key().equals(c.key());
-            default -> {
-                List<CosmeticSlot> slots = tabSlots(s.tab);
-                yield slots != null && slots.contains(c.cosmetic().slot());
-            }
-        }).toList();
+        return cosmetics().stream().filter(c -> s.tab.equals("worn") ? isWorn(worn, c)
+                : CosmeticBrowser.inTab(s.tab, c.cosmetic().slot())).toList();
+    }
+
+    /** Cosmetics shown on the open tab: in dex order, owned and not-owned in place, less what 보기 hides. */
+    private List<CustomItem> shown(Player p, Session s) {
+        return onTab(p, s).stream().filter(c -> s.view.shows(owns(p, c))).toList();
     }
 
     private static String slotName(CosmeticSlot slot) {
@@ -867,8 +871,13 @@ public final class CosmeticModule implements StsvModule, Listener {
 
     private String tabName(String tab) {
         CosmeticSlot slot = CosmeticSlot.parse(tab);
-        return slot != null ? slotName(slot) : tab.equals("worn") ? Lang.raw("wardrobe.tab-worn")
-                : tab.equals("effect") ? Lang.raw("wardrobe.tab-effect") : Lang.raw("wardrobe.tab-all");
+        return slot != null ? slotName(slot) : tab.equals("worn") ? Lang.raw("wardrobe.tab-worn") : Lang.raw("wardrobe.tab-all");
+    }
+
+    /** Where a cosmetic comes from (the 치장 뽑기 pool, an achievement, a limited reward). */
+    private CosmeticBrowser.Source source(CustomItem c) {
+        boolean pool = plugin.gacha() != null && plugin.gacha().inPool(c.key().asString());
+        return CosmeticBrowser.source(c.cosmetic().rarity(), c.cosmetic().obtain(), pool);
     }
 
     private static String names(java.util.Collection<CustomItem> items) {
@@ -900,8 +909,19 @@ public final class CosmeticModule implements StsvModule, Listener {
             Player p = v.player();
             Map<CosmeticSlot, CustomItem> worn = worn(p);
             Map<String, String> out = new HashMap<>();
-            out.put("owned", String.valueOf(cosmetics().stream().filter(c -> owns(p, c)).count()));
-            out.put("total", String.valueOf(cosmetics().size()));
+            List<CustomItem> all = cosmetics();
+            List<CustomItem> tab = onTab(p, s);
+            out.put("owned", String.valueOf(tab.stream().filter(c -> owns(p, c)).count()));
+            out.put("total", String.valueOf(tab.size()));
+            out.put("owned_all", String.valueOf(all.stream().filter(c -> owns(p, c)).count()));
+            out.put("total_all", String.valueOf(all.size()));
+            CosmeticBrowser.counts(all, c -> c.cosmetic().slot(), c -> owns(p, c)).forEach((k, n) -> out.put("n_" + k, n));
+            out.put("n_worn", worn.size() + "/" + CosmeticSlot.values().length);
+            out.put("view", Lang.raw("wardrobe.view." + s.view.key()));
+            for (CosmeticBrowser.View each : CosmeticBrowser.View.values()) {
+                out.put("view_" + each.key(), Lang.raw(each == s.view ? "wardrobe.view-on" : "wardrobe.view-off",
+                        "view", Lang.raw("wardrobe.view." + each.key())));
+            }
             out.put("worn", names(worn.values()));
             out.put("previewing", Optional.ofNullable(s.previewing).flatMap(id -> plugin.content().item(id))
                     .map(CosmeticModule::displayName).orElse(Lang.raw("common.none")));
@@ -938,25 +958,31 @@ public final class CosmeticModule implements StsvModule, Listener {
             Map<CosmeticSlot, CustomItem> worn = worn(p);
             List<ItemStack> out = new ArrayList<>();
             for (CustomItem c : shown(p, s)) {
-                boolean owned = owns(p, c);
                 CustomItem w = worn.get(c.cosmetic().slot());
-                boolean isWorn = w != null && w.key().equals(c.key());
-                CustomItem.Rarity r = c.cosmetic().rarity();
+                boolean isWorn = isWorn(worn, c);
+                List<Component> lore = new ArrayList<>();
+                lore.add(CosmeticBrowser.rarityLine(c));
+                lore.add(Text.item(""));
+                if (!owns(p, c)) {
+                    // not owned: the dark '?' card of its rarity, where it comes from, and what a click does
+                    CosmeticBrowser.Source src = source(c);
+                    lore.addAll(Lang.items("wardrobe.lore-locked"));
+                    lore.addAll(CosmeticBrowser.obtainLines(c, src));
+                    lore.add(Lang.item("wardrobe.lore-locked-click"));
+                    if (src == CosmeticBrowser.Source.GACHA) lore.add(Lang.item("wardrobe.lore-locked-gacha"));
+                    ItemStack it = CosmeticBrowser.locked(c, lore);
+                    if (c.key().asString().equals(s.previewing)) it.editMeta(m -> m.setEnchantmentGlintOverride(true));
+                    out.add(it);
+                    continue;
+                }
+                if (isWorn) {
+                    lore.addAll(Lang.items("wardrobe.lore-worn"));
+                } else {
+                    lore.addAll(Lang.items("wardrobe.lore-owned"));
+                    if (w != null) lore.add(Lang.item("wardrobe.lore-replaces", "cosmetic", displayName(w)));
+                }
                 ItemStack it = c.create(1);
                 it.editMeta(m -> {
-                    List<Component> lore = new ArrayList<>();
-                    lore.add(Lang.item("wardrobe.lore-rarity", "color", r.color, "rarity", r.label, "slot", slotName(c.cosmetic().slot())));
-                    lore.add(Text.item(""));
-                    if (isWorn) {
-                        lore.addAll(Lang.items("wardrobe.lore-worn"));
-                    } else if (owned) {
-                        lore.addAll(Lang.items("wardrobe.lore-owned"));
-                        if (w != null) lore.add(Lang.item("wardrobe.lore-replaces", "cosmetic", displayName(w)));
-                    } else {
-                        lore.addAll(Lang.items("wardrobe.lore-locked"));
-                        if (c.cosmetic().obtain() != null) lore.add(Lang.item("wardrobe.lore-obtain", "obtain", c.cosmetic().obtain()));
-                        lore.add(Lang.item("wardrobe.lore-locked-click"));
-                    }
                     m.lore(lore);
                     m.setEnchantmentGlintOverride(isWorn || c.key().asString().equals(s.previewing));
                 });
@@ -989,11 +1015,17 @@ public final class CosmeticModule implements StsvModule, Listener {
                         ? Lang.mm("wardrobe.wearing-replace", "cosmetic", displayName(c), "old", displayName(before.get()))
                         : Lang.mm("wardrobe.wearing", "cosmetic", displayName(c)));
             } else {
+                CosmeticBrowser.Source src = source(c);
+                if (click.isShiftClick() && src == CosmeticBrowser.Source.GACHA && plugin.gacha() != null) {
+                    // shift-click on a cosmetic of the 치장 뽑기: straight to the 뽑기 (out of the wardrobe first)
+                    p.playSound(p.getLocation(), Sound.UI_BUTTON_CLICK, 0.6f, 1.2f);
+                    Bukkit.getScheduler().runTask(plugin, () -> plugin.gacha().open(p, null));
+                    return;
+                }
                 s.look.put(slot, id);
                 s.previewing = id;
                 p.playSound(p.getLocation(), Sound.UI_BUTTON_CLICK, 0.6f, 1.4f);
-                dev.stsv.core.hud.HudModule.flash(p, c.cosmetic().obtain() == null ? Lang.mm("wardrobe.preview-only")
-                        : Lang.mm("wardrobe.preview-only-obtain", "obtain", c.cosmetic().obtain()));
+                dev.stsv.core.hud.HudModule.flash(p, Lang.mm("wardrobe.locked-hint." + src.key()));
             }
             showOnMannequin(p, s);
             showPreview(p, s, c);
@@ -1032,6 +1064,12 @@ public final class CosmeticModule implements StsvModule, Listener {
                     p.playSound(p.getLocation(), Sound.ITEM_ARMOR_EQUIP_GENERIC, 0.8f, 0.8f);
                     showOnMannequin(p, s);
                     showPreview(p, s, null);
+                }
+                case "wardrobe:view" -> {
+                    s.view = s.view.next();
+                    s.page = 0;
+                    p.playSound(p.getLocation(), Sound.UI_BUTTON_CLICK, 0.5f, 1.3f);
+                    v.page(0);
                 }
                 case "wardrobe:self" -> {
                     boolean on = !selfView(p);

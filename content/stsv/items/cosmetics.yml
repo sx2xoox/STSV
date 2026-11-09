@@ -398,21 +398,21 @@ kill_thunder:
 tomato_voucher:
   material: paper
   name: "<#e21806>토마토 탈 교환권"
-  lore: ["<gray>우클릭: 토마토 탈을 계정에 등록합니다.", "<dark_gray>등록 후 /치장 에서 착용"]
+  lore: ["<gray>◆ 일반 <dark_gray>· <gray>머리 치장", "<gray>우클릭: 토마토 탈을 계정에 등록합니다.", "<dark_gray>등록 후 /치장 에서 착용"]
   texture: tomato_voucher
   voucher: { cosmetic: tomato_mask }
 
 eggplant_voucher:
   material: paper
   name: "<#8c5bd6>가지 탈 교환권"
-  lore: ["<gray>우클릭: 가지 탈을 계정에 등록합니다.", "<dark_gray>등록 후 /치장 에서 착용"]
+  lore: ["<#5ab0ff>◆ 희귀 <dark_gray>· <gray>머리 치장", "<gray>우클릭: 가지 탈을 계정에 등록합니다.", "<dark_gray>등록 후 /치장 에서 착용"]
   texture: eggplant_voucher
   voucher: { cosmetic: eggplant_mask }
 
 mushroom_voucher:
   material: paper
   name: "<#e8334a>버섯 탈 교환권"
-  lore: ["<gray>우클릭: 버섯 탈을 계정에 등록합니다.", "<dark_gray>등록 후 /치장 에서 착용"]
+  lore: ["<#c58cff>◆ 영웅 <dark_gray>· <gray>머리 치장", "<gray>우클릭: 버섯 탈을 계정에 등록합니다.", "<dark_gray>등록 후 /치장 에서 착용"]
   texture: mushroom_voucher
   voucher: { cosmetic: mushroom_mask }
 
@@ -420,48 +420,48 @@ mushroom_voucher:
 crown_voucher:
   material: paper
   name: "<#ffd34d>왕관 교환권"
-  lore: ["<gray>우클릭: 왕관을 계정에 등록합니다.", "<gold>전설 치장", "<dark_gray>등록 후 /치장 에서 착용"]
+  lore: ["<gradient:#ffd36b:#ff8a3d>◆ 전설</gradient> <dark_gray>· <gray>머리 치장", "<gray>우클릭: 왕관을 계정에 등록합니다.", "<dark_gray>등록 후 /치장 에서 착용"]
   texture: crown_voucher
   voucher: { cosmetic: crown }
 
 halo_voucher:
   material: paper
   name: "<#fff2b0>천사의 고리 교환권"
-  lore: ["<gray>우클릭: 천사의 고리를 계정에 등록합니다.", "<gold>전설 치장", "<dark_gray>등록 후 /치장 에서 착용"]
+  lore: ["<gradient:#ffd36b:#ff8a3d>◆ 전설</gradient> <dark_gray>· <gray>머리 위 치장", "<gray>우클릭: 천사의 고리를 계정에 등록합니다.", "<dark_gray>등록 후 /치장 에서 착용"]
   texture: halo_voucher
   voucher: { cosmetic: halo }
 
 angel_wings_voucher:
   material: paper
   name: "<#ffffff>천사 날개 교환권"
-  lore: ["<gray>우클릭: 천사 날개를 계정에 등록합니다.", "<gold>전설 치장", "<dark_gray>등록 후 /치장 에서 착용"]
+  lore: ["<gradient:#ffd36b:#ff8a3d>◆ 전설</gradient> <dark_gray>· <gray>등 치장", "<gray>우클릭: 천사 날개를 계정에 등록합니다.", "<dark_gray>등록 후 /치장 에서 착용"]
   texture: angel_wings_voucher
   voucher: { cosmetic: angel_wings }
 
 demon_wings_voucher:
   material: paper
   name: "<#c0303a>악마 날개 교환권"
-  lore: ["<gray>우클릭: 악마 날개를 계정에 등록합니다.", "<gold>전설 치장", "<dark_gray>등록 후 /치장 에서 착용"]
+  lore: ["<gradient:#ffd36b:#ff8a3d>◆ 전설</gradient> <dark_gray>· <gray>등 치장", "<gray>우클릭: 악마 날개를 계정에 등록합니다.", "<dark_gray>등록 후 /치장 에서 착용"]
   texture: demon_wings_voucher
   voucher: { cosmetic: demon_wings }
 
 haetae_voucher:
   material: paper
   name: "<#7fd3a0>아기 해태 교환권"
-  lore: ["<gray>우클릭: 아기 해태를 계정에 등록합니다.", "<gold>전설 펫", "<dark_gray>등록 후 /치장 에서 꺼내기"]
+  lore: ["<gradient:#ffd36b:#ff8a3d>◆ 전설</gradient> <dark_gray>· <gray>펫 치장", "<gray>우클릭: 아기 해태를 계정에 등록합니다.", "<dark_gray>등록 후 /치장 에서 꺼내기"]
   texture: haetae_voucher
   voucher: { cosmetic: haetae }
 
 gumiho_voucher:
   material: paper
   name: "<#45e7ed>꼬마 구미호 교환권"
-  lore: ["<gray>우클릭: 꼬마 구미호를 계정에 등록합니다.", "<gold>전설 펫", "<dark_gray>등록 후 /치장 에서 꺼내기"]
+  lore: ["<gradient:#ffd36b:#ff8a3d>◆ 전설</gradient> <dark_gray>· <gray>펫 치장", "<gray>우클릭: 꼬마 구미호를 계정에 등록합니다.", "<dark_gray>등록 후 /치장 에서 꺼내기"]
   texture: gumiho_voucher
   voucher: { cosmetic: gumiho }
 
 phoenix_voucher:
   material: paper
   name: "<#ff8a3d>아기 봉황 교환권"
-  lore: ["<gray>우클릭: 아기 봉황을 계정에 등록합니다.", "<gold>전설 펫", "<dark_gray>등록 후 /치장 에서 꺼내기"]
+  lore: ["<gradient:#ffd36b:#ff8a3d>◆ 전설</gradient> <dark_gray>· <gray>펫 치장", "<gray>우클릭: 아기 봉황을 계정에 등록합니다.", "<dark_gray>등록 후 /치장 에서 꺼내기"]
   texture: phoenix_voucher
   voucher: { cosmetic: phoenix }
