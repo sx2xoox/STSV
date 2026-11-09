@@ -159,12 +159,12 @@ jobs:
     description:
       - "증류 시간 레벨당 -1%"
       - "Lv10 증류 결과 하나마다 15% 확률로 +1"
-      - "Lv20 숙성 시간 절반"
+      - "Lv20 숙성 시간 30% 단축"
       - "Lv30 증류 결과 +1 확률 15% → 35%"
     machine-bonus:
       speed: 0.01
       extra: { level: 10, chance: 0.15 }
-      aging: { level: 20, factor: 0.5 }
+      aging: { level: 20, factor: 0.7 }
       yield: { level: 30, chance: 0.20 }
     xp:
       brew: 4
