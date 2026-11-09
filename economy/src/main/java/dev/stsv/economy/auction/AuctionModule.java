@@ -93,40 +93,44 @@ public final class AuctionModule extends EcoModule {
 
     /** /경매 등록 &lt;시작가&gt;: puts the held stack up. */
     public void startPlayer(Player p, long startPrice) {
-        ItemStack hand = p.getInventory().getItemInMainHand();
-        if (hand.isEmpty() || core.economy().isCheque(hand)) {
-            p.sendMessage(Lang.msg("auction.hold-item"));
-            return;
-        }
+        startPlayer(p, p.getInventory().getHeldItemSlot(), startPrice);
+    }
+
+    /** Why this player cannot put the stack in this slot up now (a message key), or null. */
+    public String problem(Player p, int slot) {
+        ItemStack it = slot < 0 ? null : p.getInventory().getItem(slot);
+        if (it == null || it.isEmpty() || core.economy().isCheque(it)) return "auction.hold-item";
+        if (store.playerRunning() >= rules.maxRunning()) return "auction.full";
+        if (store.running().stream().anyMatch(a -> p.getUniqueId().equals(a.seller))) return "auction.one-each";
+        if (!core.economy().has(p.getUniqueId(), rules.auctionDeposit())) return "auction.no-deposit";
+        return null;
+    }
+
+    /** Puts the stack in one inventory slot (0-8 hotbar, 9-35 the rest) up; true when the auction started. */
+    public boolean startPlayer(Player p, int slot, long startPrice) {
         if (startPrice < rules.minStart()) {
             p.sendMessage(Lang.msg("auction.min-start", "min", EconomyModule.format(rules.minStart())));
-            return;
+            return false;
         }
-        if (store.playerRunning() >= rules.maxRunning()) {
-            p.sendMessage(Lang.msg("auction.full", "max", rules.maxRunning()));
-            return;
+        String problem = problem(p, slot);
+        if (problem != null) {
+            p.sendMessage(Lang.msg(problem, "max", rules.maxRunning(), "deposit", EconomyModule.format(rules.auctionDeposit())));
+            return false;
         }
-        if (store.running().stream().anyMatch(a -> p.getUniqueId().equals(a.seller))) {
-            p.sendMessage(Lang.msg("auction.one-each"));
-            return;
-        }
-        if (!core.economy().has(p.getUniqueId(), rules.auctionDeposit())) {
-            p.sendMessage(Lang.msg("auction.no-deposit", "deposit", EconomyModule.format(rules.auctionDeposit())));
-            return;
-        }
-        ItemStack item = hand.clone();
+        ItemStack item = p.getInventory().getItem(slot).clone();
         Auction a;
         try {
             a = create(p.getUniqueId(), p.getUniqueId(), item, startPrice, rules.auctionDeposit(), false, rules.auctionMinutes());
         } catch (RuntimeException e) {
             eco.getLogger().warning("경매 등록 실패: " + e);
             p.sendMessage(dev.stsv.core.util.Text.msg("<red>저장소 오류로 등록하지 못했습니다. 물건과 돈은 그대로입니다."));
-            return;
+            return false;
         }
         // stored: now take the item and the deposit (same tick, the balance checked above still holds)
-        p.getInventory().setItemInMainHand(null);
+        p.getInventory().setItem(slot, null);
         core.economy().move(p.getUniqueId(), null, rules.auctionDeposit(), EconomyStore.Kind.ESCROW, "auction_deposit", null);
         announceStart(a, p.getName());
+        return true;
     }
 
     /** A server auction (rare: counts toward the weekly win limit). */
@@ -250,7 +254,12 @@ public final class AuctionModule extends EcoModule {
             rareWins.merge(a.bidder + "|" + a.week, 1, Integer::sum);
         }
         eco.mail().deliver(a.bidder, Items.fromBytes(a.item), "auction_win");
-        core.profiles().add(a.bidder, "auctions_won", 1);
+        // achievements and missions: only at a meaningful price, once a day per seller (no wash trades); server auctions always
+        ItemStack won = Items.fromBytes(a.item);
+        if (eco.credit().credit(dev.stsv.economy.TradeCredit.AUCTION, a.bidder, a.seller, a.bid,
+                eco.market().shopValue(Items.key(won), a.amount), rules, now())) {
+            core.profiles().add(a.bidder, "auctions_won", 1);
+        }
         Bukkit.broadcast(Lang.msg("auction.sold", "id", a.id, "item", name(a), "player", Players.name(a.bidder),
                 "price", EconomyModule.format(a.bid), "bids", a.bids));
         for (Player p : Bukkit.getOnlinePlayers()) p.playSound(p.getLocation(), Sound.UI_TOAST_CHALLENGE_COMPLETE, 0.5f, 1.2f);
@@ -288,13 +297,36 @@ public final class AuctionModule extends EcoModule {
         core.menus().open(p, "economy:auction", new View());
     }
 
+    /** The actions of the 경매장 list (economy:auction) besides the built-in ones. */
+    public static final java.util.Set<String> ACTIONS = java.util.Set.of("auction:sell");
+
+    /** The auction as shown in the list and on top of the 입찰 menu: the item with the auction's lines under its own. */
+    private ItemStack display(Auction a, List<Component> more) {
+        ItemStack it = Items.fromBytes(a.item);
+        List<Component> extra = Lang.items("auction.lore", "id", a.id,
+                "price", EconomyModule.format(a.bidder == null ? a.startPrice : a.bid),
+                "player", a.bidder == null ? Lang.raw("auction.no-bids") : Players.name(a.bidder),
+                "seller", a.seller == null ? Lang.raw("auction.server") : Players.name(a.seller),
+                "min", EconomyModule.format(a.minNext(rules.minRaise())), "left", dev.stsv.economy.event.EventModule.hoursText(a.ends - now()),
+                "bids", a.bids);
+        if (a.rare) extra.addAll(Lang.items("auction.lore-rare", "limit", rules.rareWeeklyWins()));
+        extra.addAll(more);
+        it.editMeta(meta -> {
+            List<Component> lore = meta.hasLore() ? new ArrayList<>(meta.lore()) : new ArrayList<>();
+            lore.addAll(extra);
+            meta.lore(lore);
+        });
+        return it;
+    }
+
     private final class View implements MenuHandler {
         private List<Auction> shown = List.of();
-        private long armed = -1, armedAt;
 
         @Override
         public Map<String, String> placeholders(MenuView v) {
             return Map.of("count", String.valueOf(store.running().size()), "max", String.valueOf(rules.maxRunning()),
+                    "minutes", String.valueOf(Math.round(rules.auctionMinutes())), "deposit", EconomyModule.format(rules.auctionDeposit()),
+                    "extend", String.valueOf(rules.extendSeconds()),
                     "balance", EconomyModule.format(core.economy().balance(v.player().getUniqueId())));
         }
 
@@ -302,24 +334,10 @@ public final class AuctionModule extends EcoModule {
         public List<ItemStack> list(MenuView v) {
             shown = new ArrayList<>(store.running());
             List<ItemStack> out = new ArrayList<>();
+            UUID me = v.player().getUniqueId();
             for (Auction a : shown) {
-                ItemStack it = Items.fromBytes(a.item);
-                boolean isArmed = armed == a.id && now() - armedAt < 5000;
-                List<Component> extra = Lang.items("auction.lore", "id", a.id,
-                        "price", EconomyModule.format(a.bidder == null ? a.startPrice : a.bid),
-                        "player", a.bidder == null ? Lang.raw("auction.no-bids") : Players.name(a.bidder),
-                        "seller", a.seller == null ? Lang.raw("auction.server") : Players.name(a.seller),
-                        "min", EconomyModule.format(a.minNext(rules.minRaise())), "left", dev.stsv.economy.event.EventModule.hoursText(a.ends - now()),
-                        "bids", a.bids);
-                if (a.rare) extra.addAll(Lang.items("auction.lore-rare", "limit", rules.rareWeeklyWins()));
-                extra.addAll(Lang.items(isArmed ? "auction.lore-confirm" : "auction.lore-click", "min", EconomyModule.format(a.minNext(rules.minRaise()))));
-                it.editMeta(meta -> {
-                    List<Component> lore = meta.hasLore() ? new ArrayList<>(meta.lore()) : new ArrayList<>();
-                    lore.addAll(extra);
-                    meta.lore(lore);
-                    if (isArmed) meta.setEnchantmentGlintOverride(true);
-                });
-                out.add(it);
+                String click = me.equals(a.seller) ? "auction.lore-own" : me.equals(a.bidder) ? "auction.lore-top" : "auction.lore-click";
+                out.add(display(a, Lang.items(click, "min", EconomyModule.format(a.minNext(rules.minRaise())))));
             }
             return out;
         }
@@ -329,17 +347,249 @@ public final class AuctionModule extends EcoModule {
             if (index >= shown.size()) return;
             Auction a = shown.get(index);
             Player p = v.player();
-            if (armed != a.id || now() - armedAt > 5000) {
-                armed = a.id;
-                armedAt = now();
-                p.playSound(p.getLocation(), Sound.UI_BUTTON_CLICK, 0.5f, 1.4f);
+            Bukkit.getScheduler().runTask(eco, () -> openBid(p, a.id));
+        }
+
+        @Override
+        public void onAction(MenuView v, String action, ClickType click) {
+            if (action.equals("auction:sell")) Bukkit.getScheduler().runTask(eco, () -> openSell(v.player()));
+        }
+    }
+
+    // ------------------------------------------------------------------------------------------
+    // 경매 등록 (economy:auction_sell)
+    // ------------------------------------------------------------------------------------------
+
+    /** The 경매 등록 menu: the held stack first (another one by clicking it below), then the start price. */
+    public void openSell(Player p) {
+        new SellMenu(p).open(p);
+    }
+
+    private final class SellMenu extends dev.stsv.economy.market.PriceMenu {
+        private int slot;
+
+        SellMenu(Player p) {
+            super(eco, rules.minStart());
+            int held = p.getInventory().getHeldItemSlot();
+            ItemStack hand = p.getInventory().getItem(held);
+            slot = hand == null || hand.isEmpty() ? -1 : held;
+            price = suggested(p);
+        }
+
+        private ItemStack item(Player p) {
+            ItemStack it = slot < 0 ? null : p.getInventory().getItem(slot);
+            return it == null || it.isEmpty() ? null : it;
+        }
+
+        private long shopPrice(Player p) {
+            ItemStack it = item(p);
+            return it == null ? 0 : (long) Math.ceil(eco.market().shopValue(Items.key(it), it.getAmount()) - 1e-9);
+        }
+
+        /** The shop's value of the stack, else 100 G (never under the least start price). */
+        private long suggested(Player p) {
+            long shop = shopPrice(p);
+            return Math.max(rules.minStart(), shop > 0 ? shop : 100);
+        }
+
+        @Override
+        protected long shopPrice(MenuView v) {
+            return shopPrice(v.player());
+        }
+
+        @Override
+        protected long min(MenuView v) {
+            return rules.minStart();
+        }
+
+        @Override
+        protected String menuId() {
+            return "economy:auction_sell";
+        }
+
+        @Override
+        protected Map<String, String> values(MenuView v) {
+            Player p = v.player();
+            ItemStack it = item(p);
+            long fee = eco.feesWaived() ? 0 : TradeRules.fee(price, rules.auctionFee());
+            Map<String, String> m = new HashMap<>();
+            m.put("item", it == null ? Lang.raw("price.no-item") : Items.mmName(it) + " ×" + it.getAmount());
+            m.put("min", EconomyModule.format(rules.minStart()));
+            m.put("deposit", EconomyModule.format(rules.auctionDeposit()));
+            m.put("minutes", String.valueOf(Math.round(rules.auctionMinutes())));
+            m.put("extend", String.valueOf(rules.extendSeconds()));
+            m.put("fee_rate", String.valueOf(Math.round(rules.auctionFee() * 100)));
+            m.put("receive", EconomyModule.format(price - fee));
+            m.put("running", String.valueOf(store.playerRunning()));
+            m.put("max", String.valueOf(rules.maxRunning()));
+            long shop = shopPrice(p);
+            m.put("shop", shop > 0 ? EconomyModule.format(shop) : Lang.raw("price.no-shop"));
+            m.put("credit", EconomyModule.format(rules.creditFloor(it == null ? 0 : eco.market().shopValue(Items.key(it), it.getAmount()))));
+            return m;
+        }
+
+        @Override
+        public ItemStack button(MenuView v, dev.stsv.core.gui.menu.MenuSpec.Button b, ItemStack base) {
+            Player p = v.player();
+            if (b.key() == 'S') {
+                ItemStack it = item(p);
+                if (it == null) return base;
+                ItemStack show = it.clone();
+                show.editMeta(meta -> {
+                    List<Component> lore = meta.hasLore() ? new ArrayList<>(meta.lore()) : new ArrayList<>();
+                    lore.addAll(Lang.items("price.picked-lore"));
+                    meta.lore(lore);
+                });
+                return show;
+            }
+            if (b.key() == 'C') {
+                String problem = problem(p, slot);
+                if (problem != null) return dev.stsv.economy.market.PriceMenu.blocked(base, problem.equals("auction.hold-item") ? "price.pick-item" : problem,
+                        "max", rules.maxRunning(), "deposit", EconomyModule.format(rules.auctionDeposit()));
+            }
+            return base;
+        }
+
+        @Override
+        public void onPlayerInventoryClick(MenuView v, int clicked, ClickType click) {
+            Player p = v.player();
+            if (clicked < 0 || clicked > 35) return;
+            ItemStack it = p.getInventory().getItem(clicked);
+            if (it == null || it.isEmpty()) return;
+            slot = clicked;
+            if (!edited) price = suggested(p);
+            p.playSound(p.getLocation(), Sound.UI_BUTTON_CLICK, 0.5f, 1.6f);
+            v.refresh();
+        }
+
+        @Override
+        protected void confirm(MenuView v) {
+            Player p = v.player();
+            if (problem(p, slot) != null) {
+                p.playSound(p.getLocation(), Sound.BLOCK_NOTE_BLOCK_BASS, 0.6f, 0.8f);
+                return;
+            }
+            long at = price;
+            Bukkit.getScheduler().runTask(eco, () -> {
+                if (startPlayer(p, slot, at)) AuctionModule.this.open(p);
+            });
+        }
+
+        @Override
+        protected void back(Player p) {
+            AuctionModule.this.open(p);
+        }
+    }
+
+    // ------------------------------------------------------------------------------------------
+    // 입찰 (economy:auction_bid)
+    // ------------------------------------------------------------------------------------------
+
+    /** The 입찰 menu of one auction (from the 경매장 list, or /경매 입찰 &lt;번호&gt;). */
+    public void openBid(Player p, long id) {
+        Auction a = store.get(id);
+        if (a == null || now() >= a.ends) {
+            p.sendMessage(Lang.msg("auction.no-such"));
+            return;
+        }
+        new BidMenu(a).open(p);
+    }
+
+    private final class BidMenu extends dev.stsv.economy.market.PriceMenu {
+        private final long id;
+
+        BidMenu(Auction a) {
+            super(eco, a.minNext(rules.minRaise()));
+            this.id = a.id;
+        }
+
+        /** The auction while it runs, else null (ended, cancelled). */
+        private Auction auction() {
+            Auction a = store.get(id);
+            return a == null || now() >= a.ends ? null : a;
+        }
+
+        @Override
+        protected long min(MenuView v) {
+            Auction a = auction();
+            return a == null ? 1 : a.minNext(rules.minRaise());
+        }
+
+        @Override
+        protected String menuId() {
+            return "economy:auction_bid";
+        }
+
+        @Override
+        protected Map<String, String> values(MenuView v) {
+            Auction a = auction();
+            long min = min(v);
+            long balance = core.economy().balance(v.player().getUniqueId());
+            Map<String, String> m = new HashMap<>();
+            m.put("id", String.valueOf(id));
+            m.put("min", EconomyModule.format(min));
+            m.put("raise", String.valueOf(Math.round(rules.minRaise() * 100)));
+            m.put("bid5", EconomyModule.format(dev.stsv.economy.market.PriceInput.raise(min, 5)));
+            m.put("bid10", EconomyModule.format(dev.stsv.economy.market.PriceInput.raise(min, 10)));
+            m.put("current", a == null ? "-" : EconomyModule.format(a.bidder == null ? a.startPrice : a.bid));
+            m.put("bidder", a == null || a.bidder == null ? Lang.raw("auction.no-bids") : Players.name(a.bidder));
+            m.put("left", a == null ? "-" : clock(a.ends - now()));
+            m.put("balance", EconomyModule.format(balance));
+            m.put("after", EconomyModule.format(balance - Math.max(min, price)));
+            return m;
+        }
+
+        @Override
+        public ItemStack button(MenuView v, dev.stsv.core.gui.menu.MenuSpec.Button b, ItemStack base) {
+            Auction a = auction();
+            UUID me = v.player().getUniqueId();
+            if (b.key() == 'S') return a == null ? base : display(a, List.of());
+            if (b.key() == 'C') {
+                if (a == null) return dev.stsv.economy.market.PriceMenu.blocked(base, "auction.no-such");
+                if (me.equals(a.seller)) {
+                    base.editMeta(meta -> {
+                        meta.setItemModel(new org.bukkit.NamespacedKey("economy", a.bidder == null ? "gui/cancel" : "gui/confirm_off"));
+                        meta.itemName(Lang.item(a.bidder == null ? "auction.cancel-button" : "auction.has-bids"));
+                        meta.lore(Lang.items(a.bidder == null ? "auction.cancel-lore" : "price.blocked-lore"));
+                    });
+                    return base;
+                }
+                if (me.equals(a.bidder)) return dev.stsv.economy.market.PriceMenu.blocked(base, "auction.already-top");
+                if (!core.economy().has(me, price)) return dev.stsv.economy.market.PriceMenu.blocked(base, "auction.not-enough");
+            }
+            return base;
+        }
+
+        @Override
+        protected void confirm(MenuView v) {
+            Player p = v.player();
+            Auction a = auction();
+            if (a == null) {
+                p.playSound(p.getLocation(), Sound.BLOCK_NOTE_BLOCK_BASS, 0.6f, 0.8f);
+                return;
+            }
+            if (p.getUniqueId().equals(a.seller)) {
+                String refused = cancel(p, id);
+                if (refused != null) HudModule.flash(p, Lang.mm(refused));
+                else Bukkit.getScheduler().runTask(eco, () -> AuctionModule.this.open(p));
+                return;
+            }
+            long min = a.minNext(rules.minRaise());
+            long at = Math.max(price, min);
+            String refused = bid(p, id, at);
+            if (refused != null) {
+                HudModule.flash(p, Lang.mm(refused, "min", EconomyModule.format(min), "limit", rules.rareWeeklyWins()));
+                p.playSound(p.getLocation(), Sound.BLOCK_NOTE_BLOCK_BASS, 0.6f, 0.8f);
                 v.refresh();
                 return;
             }
-            armed = -1;
-            String refused = bid(p, a.id, a.minNext(rules.minRaise()));
-            if (refused != null) HudModule.flash(p, Lang.mm(refused, "min", EconomyModule.format(a.minNext(rules.minRaise())), "limit", rules.rareWeeklyWins()));
-            v.refresh();
+            p.playSound(p.getLocation(), Sound.ENTITY_EXPERIENCE_ORB_PICKUP, 0.6f, 1.3f);
+            Bukkit.getScheduler().runTask(eco, () -> AuctionModule.this.open(p));
+        }
+
+        @Override
+        protected void back(Player p) {
+            AuctionModule.this.open(p);
         }
     }
 }

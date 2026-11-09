@@ -120,8 +120,8 @@ shop:
                "<gray>내 판매 기록: <white>{sold}</white> / 적정 {quota} <dark_gray>(시간이 지나면 줄어듦)", "<gray>오늘 판 개수: <white>{mine}</white> <dark_gray>(한도 {cap})"]
 
 market:
-  usage: "<red>/거래소 등록 <가격> <gray>(손에 든 묶음 전체의 가격)"
-  help: "<gray>/거래소 · /거래소 등록 <가격> · /거래소 내목록 · /거래소 검색 <이름>"
+  usage: "<red>/거래소 등록 <가격> <gray>(손에 든 묶음 전체의 가격) · 가격 없이 /거래소 등록 = 등록 화면"
+  help: "<gray>/거래소 · /거래소 등록 [가격] · /거래소 내목록 · /거래소 검색 <이름>"
   hold-item: "<red>팔 물건을 손에 드세요."
   no-cheques: "<red>수표는 거래소에 올릴 수 없습니다."
   full: "<red>등록은 {limit}건까지입니다."
@@ -138,6 +138,10 @@ market:
   mode-all: "전체"
   mode-mine: "내 등록품"
   mode-search: "검색: {search}"
+  no-search: "없음"
+  show-all: "전체 보기"
+  show-mine: "내 등록품만 보기"
+  search-ask: "<gold>찾을 물건 이름</gold><gray>을 입력하세요. <dark_gray>(예: 다이아몬드, 루비)"
   lore: ["", "<gray>가격: </gray>{price} <dark_gray>(개당 {unit})", "<gray>판매자: <white>{seller}", "<gray>남은 시간: {left}"]
   lore-crash: ["", "<color:#4d9bff>가격: {price} (개당 {unit})", "<gray>판매자: <white>{seller}", "<gray>남은 시간: {left}"]
   lore-buy: ["<yellow>두 번 클릭: 구매"]
@@ -145,7 +149,7 @@ market:
   lore-own: ["<yellow>클릭: 등록 취소"]
 
 auction:
-  usage: "<red>/경매 등록 <시작가> <gray>(손에 든 물건)</gray> | /경매 입찰 <번호> <금액> | /경매 취소 <번호>"
+  usage: "<red>/경매 등록 [시작가] <gray>(손에 든 물건, 시작가 없이 = 등록 화면)</gray> | /경매 입찰 <번호> [금액] | /경매 취소 <번호>"
   hold-item: "<red>경매에 올릴 물건을 손에 드세요."
   min-start: "<red>시작가는 {min} 이상이어야 합니다."
   full: "<red>지금은 경매 자리가 없습니다. <gray>(서버 전체 동시 {max}건)"
@@ -174,8 +178,21 @@ auction:
   lore: ["", "<gray>경매 <white>#{id}</white> <gray>판매자 <white>{seller}", "<gray>현재가: </gray>{price} <gray>({player})",
          "<gray>최소 입찰: </gray>{min}", "<gray>남은 시간: {left} <dark_gray>(입찰 {bids}회)"]
   lore-rare: ["<light_purple>희귀품: 1인 주 {limit}개 낙찰 제한"]
-  lore-click: ["<yellow>두 번 클릭: {min} 입찰"]
-  lore-confirm: ["<gold><b>한 번 더 클릭하면 {min} 입찰</b>"]
+  lore-click: ["<yellow>클릭: 입찰 화면 <gray>(최소 {min})"]
+  lore-top: ["<green>내가 최고 입찰자", "<gray>클릭: 입찰 화면"]
+  lore-own: ["<aqua>내 경매", "<gray>클릭: 보기 · 입찰 전이면 취소"]
+  cancel-button: "<red>경매 취소"
+  cancel-lore: ["<gray>입찰이 없을 때만 취소할 수 있음", "<gray>물건은 우편함으로, 보증금은 돌려받음", "<yellow>클릭: 취소"]
+
+# 거래소 판매 등록 · 경매 등록 · 입찰 화면의 가격 정하기
+price:
+  ask: "<gold>금액</gold><gray>을 입력하세요. <dark_gray>(예: 1500, 1,500, 3만, 2만5천)"
+  bad: "<red>금액으로 읽을 수 없습니다: <white>{text}"
+  no-item: "<gray>(물건을 고르세요)"
+  no-shop: "<gray>상점이 사지 않는 물건"
+  pick-item: "<red>팔 물건을 고르세요 <gray>(아래 내 인벤토리 클릭)"
+  picked-lore: ["", "<dark_gray>다른 물건: 아래 내 인벤토리에서 클릭"]
+  blocked-lore: ["<gray>지금은 진행할 수 없습니다"]
 
 trade:
   usage: "<red>/거래 <플레이어> | /거래 수락 | /거래 거절"
@@ -238,6 +255,10 @@ job:
   all: "전체"
 
 machine:
+  # 레시피 창 (기계의 레시피 목록 버튼 = 보기만, 줄의 상태 칸 = 그 줄에 고정)
+  recipes-lane: " <#b9a6d6>· {lane}번 줄"
+  recipes-pick: "<yellow>클릭: 이 줄에서 만들 것 고르기"
+  recipes-view: "<gray>보기 전용 <dark_gray>· 줄을 바꾸려면 기계에서 그 줄의 상태 칸 클릭"
   wild-refused: "<red>기계는 건축월드에만 설치할 수 있습니다."
   tier:
     "0": "기본"

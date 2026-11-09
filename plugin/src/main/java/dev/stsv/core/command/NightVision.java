@@ -26,14 +26,21 @@ public final class NightVision implements CommandExecutor, Listener {
 
     private final STSVPlugin plugin;
     private final NamespacedKey key;
+    /** Kept on the player (namespace = the plugin STSV). */
+    private static final NamespacedKey KEY = new NamespacedKey("stsv", "night_vision");
 
     public NightVision(STSVPlugin plugin) {
         this.plugin = plugin;
-        this.key = new NamespacedKey(plugin, "night_vision");
+        this.key = KEY;
     }
 
     private boolean on(Player p) {
         return p.getPersistentDataContainer().has(key);
+    }
+
+    /** Whether the player has night vision turned on (for the hub's button). */
+    public static boolean isOn(Player p) {
+        return p.getPersistentDataContainer().has(KEY);
     }
 
     private static void apply(Player p) {

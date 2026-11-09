@@ -51,6 +51,7 @@ public final class EcoPlugin extends JavaPlugin {
     public static final String ADMIN_OWNER = "경제 서버";
 
     private Kv kv;
+    private TradeCredit credit;
     private CalendarModule calendar;
     private EventModule events;
     private MailModule mail;
@@ -92,6 +93,8 @@ public final class EcoPlugin extends JavaPlugin {
         rules = TradeRules.parse(data("trade.yml"));
         kv = new Kv(core.db());
         kv.init();
+        credit = new TradeCredit(core.db());
+        credit.init();
         add(calendar = new CalendarModule(this));
         add(events = new EventModule(this));
         add(mail = new MailModule(this));
@@ -188,6 +191,7 @@ public final class EcoPlugin extends JavaPlugin {
         shop.reset();
         activity.store().reset();
         mail.store().reset();
+        credit.reset();
         for (Runnable r : resets) r.run();
         // admin-set places stay; so do the crop-age migrations (the planted crops are the core's and stay too) and the
         // one-time press refund (machines upgraded after a reset paid today's prices: a next start must not refund them)
@@ -217,6 +221,8 @@ public final class EcoPlugin extends JavaPlugin {
     public AuctionModule auction() { return auction; }
     public TradeModule trade() { return trade; }
     public TradeRules rules() { return rules; }
+    /** Which 거래소 sales and auction wins count for achievements and missions (anti wash-trading). */
+    public TradeCredit credit() { return credit; }
     public JobModule jobs() { return jobs; }
 
     /** 수수료 면제: no fees on the 거래소, 경매 or 송금 while it runs. */

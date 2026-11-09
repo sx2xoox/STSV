@@ -66,25 +66,33 @@ public final class MarketModule extends EcoModule {
 
     /** /거래소 등록 &lt;가격&gt;: lists the held stack. */
     public void list(Player p, long price) {
-        ItemStack hand = p.getInventory().getItemInMainHand();
-        if (hand.isEmpty()) {
-            p.sendMessage(Lang.msg("market.hold-item"));
-            return;
-        }
-        if (core.economy().isCheque(hand)) {
-            p.sendMessage(Lang.msg("market.no-cheques"));
-            return;
+        list(p, p.getInventory().getHeldItemSlot(), price);
+    }
+
+    /**
+     * Why the stack in this inventory slot cannot be listed now (a message key), or null. The 판매 등록 menu shows it on its
+     * 확인 button before anything is tried.
+     */
+    public String problem(Player p, int slot) {
+        ItemStack it = slot < 0 ? null : p.getInventory().getItem(slot);
+        if (it == null || it.isEmpty()) return "market.hold-item";
+        if (core.economy().isCheque(it)) return "market.no-cheques";
+        if (store.count(p.getUniqueId()) >= limit(p.getUniqueId())) return "market.full";
+        return null;
+    }
+
+    /** Lists the stack in one slot of the player's inventory (0-8 hotbar, 9-35 the rest); true when it is listed. */
+    public boolean list(Player p, int slot, long price) {
+        String problem = problem(p, slot);
+        if (problem != null) {
+            p.sendMessage(Lang.msg(problem, "limit", limit(p.getUniqueId())));
+            return false;
         }
         if (price <= 0) {
             p.sendMessage(Lang.msg("market.usage"));
-            return;
+            return false;
         }
-        int limit = limit(p.getUniqueId());
-        if (store.count(p.getUniqueId()) >= limit) {
-            p.sendMessage(Lang.msg("market.full", "limit", limit));
-            return;
-        }
-        ItemStack item = hand.clone();
+        ItemStack item = p.getInventory().getItem(slot).clone();
         long now = now();
         MarketStore.Listing l;
         try {
@@ -93,12 +101,24 @@ public final class MarketModule extends EcoModule {
         } catch (RuntimeException e) {
             eco.getLogger().warning("거래소 등록 실패: " + e);
             p.sendMessage(dev.stsv.core.util.Text.msg("<red>저장소 오류로 등록하지 못했습니다. 물건은 그대로입니다."));
-            return;
+            return false;
         }
-        p.getInventory().setItemInMainHand(null);   // only once it is safely listed
+        p.getInventory().setItem(slot, null);   // only once it is safely listed
         p.sendMessage(Lang.msg("market.listed", "item", name(l), "count", l.amount(), "price", EconomyModule.format(price),
-                "fee", EconomyModule.format(eco.feesWaived() ? 0 : TradeRules.fee(price, rules.marketFee())), "hours", (long) rules.marketHours()));
+                "fee", EconomyModule.format(fee(price)), "hours", (long) rules.marketHours()));
         p.playSound(p.getLocation(), Sound.ITEM_BOOK_PAGE_TURN, 0.7f, 1.2f);
+        return true;
+    }
+
+    /** The 거래소 fee on a sale at this price (0 during 수수료 면제). */
+    public long fee(long price) {
+        return eco.feesWaived() ? 0 : TradeRules.fee(price, rules.marketFee());
+    }
+
+    /** What the shop pays for this many of an item at its base price (0: the shop does not buy it). For the 시세 button and credit. */
+    public double shopValue(String itemKey, int amount) {
+        var e = eco.shop().catalog().sell().get(itemKey);
+        return e == null ? 0 : e.base() * Math.max(1, amount);
     }
 
     /** Buys a listing: claimed in the database first, then paid, then delivered. */
@@ -121,12 +141,16 @@ public final class MarketModule extends EcoModule {
                 HudModule.flash(p, Lang.mm("market.not-enough", "price", EconomyModule.format(l.price())));
                 return;
             }
-            long fee = eco.feesWaived() ? 0 : TradeRules.fee(l.price(), rules.marketFee());
+            long fee = fee(l.price());
             if (fee > 0 && !core.economy().withdraw(l.seller(), fee, "market_fee")) {
                 eco.getLogger().warning("거래소 수수료를 걷지 못함: 판매자 " + l.seller() + " 글 " + l.id());
             }
             eco.mail().deliver(p.getUniqueId(), Items.fromBytes(l.item()), "market_buy");
-            core.profiles().add(l.seller(), "market_sold", 1);
+            // achievements and missions: only at a meaningful price, once a day per buyer (no wash trades)
+            if (eco.credit().credit(dev.stsv.economy.TradeCredit.MARKET, l.seller(), p.getUniqueId(), l.price(),
+                    shopValue(l.itemKey(), l.amount()), rules, now())) {
+                core.profiles().add(l.seller(), "market_sold", 1);
+            }
             p.sendMessage(Lang.msg("market.bought", "item", name(l), "count", l.amount(), "price", EconomyModule.format(l.price()),
                     "seller", Players.name(l.seller())));
             p.playSound(p.getLocation(), Sound.ENTITY_EXPERIENCE_ORB_PICKUP, 0.6f, 1.3f);
@@ -200,7 +224,10 @@ public final class MarketModule extends EcoModule {
 
         @Override
         public Map<String, String> placeholders(MenuView v) {
-            return Map.of("mode", Lang.raw(mine ? "market.mode-mine" : search != null ? "market.mode-search" : "market.mode-all", "search", search == null ? "" : search),
+            return Map.of("mode", Lang.raw(mine ? "market.mode-mine" : search != null ? "market.mode-search" : "market.mode-all", "search", search == null ? "" : titleText(search, 8)),
+                    "search", search == null ? Lang.raw("market.no-search") : titleText(search, 16),
+                    "mine_toggle", Lang.raw(mine ? "market.show-all" : "market.show-mine"),
+                    "fee", String.valueOf(Math.round(rules.marketFee() * 100)), "hours", String.valueOf((long) rules.marketHours()),
                     "count", String.valueOf(shown.size()),
                     "mine", String.valueOf(store.count(v.player().getUniqueId())), "limit", String.valueOf(limit(v.player().getUniqueId())),
                     "balance", EconomyModule.format(core.economy().balance(v.player().getUniqueId())));
@@ -265,8 +292,151 @@ public final class MarketModule extends EcoModule {
             switch (action) {
                 case "market:mine" -> Bukkit.getScheduler().runTask(eco, () -> open(p, null, !mine));
                 case "market:refresh" -> v.refresh();
+                case "market:sell" -> Bukkit.getScheduler().runTask(eco, () -> openSell(p));
+                case "market:search" -> Bukkit.getScheduler().runTask(eco, () -> {
+                    if (click.isRightClick()) {
+                        open(p, null, false);
+                        return;
+                    }
+                    core.menus().prompt(p, Lang.msg("market.search-ask"), text -> {
+                        if (p.isOnline()) open(p, text == null || text.isBlank() ? search : text.trim(), false);
+                    });
+                });
                 default -> { }
             }
+        }
+    }
+
+    /** The actions of the 거래소 list (economy:market) besides the built-in ones. */
+    public static final java.util.Set<String> ACTIONS = java.util.Set.of("market:mine", "market:refresh", "market:sell", "market:search");
+
+    /** Short and without tags, for a menu title (a search word is the player's own text). */
+    static String titleText(String s, int max) {
+        String t = s.length() > max ? s.substring(0, max) + "…" : s;
+        return net.kyori.adventure.text.minimessage.MiniMessage.miniMessage().escapeTags(t);
+    }
+
+    // ------------------------------------------------------------------------------------------
+    // 판매 등록 (economy:market_sell)
+    // ------------------------------------------------------------------------------------------
+
+    /** The 판매 등록 menu: the held stack first (any other one by clicking it in the inventory below), then the price. */
+    public void openSell(Player p) {
+        new SellMenu(p).open(p);
+    }
+
+    private final class SellMenu extends PriceMenu {
+        private int slot;
+
+        SellMenu(Player p) {
+            super(eco, 100);
+            int held = p.getInventory().getHeldItemSlot();
+            ItemStack hand = p.getInventory().getItem(held);
+            slot = hand == null || hand.isEmpty() ? -1 : held;
+            price = suggested(p);
+        }
+
+        private ItemStack item(Player p) {
+            ItemStack it = slot < 0 ? null : p.getInventory().getItem(slot);
+            return it == null || it.isEmpty() ? null : it;
+        }
+
+        /** The shop's value of the stack (rounded up), else 100 G. */
+        private long suggested(Player p) {
+            long shop = shopPrice(p);
+            return shop > 0 ? shop : 100;
+        }
+
+        private long shopPrice(Player p) {
+            ItemStack it = item(p);
+            return it == null ? 0 : (long) Math.ceil(shopValue(Items.key(it), it.getAmount()) - 1e-9);
+        }
+
+        @Override
+        protected long shopPrice(MenuView v) {
+            return shopPrice(v.player());
+        }
+
+        @Override
+        protected long min(MenuView v) {
+            return 1;
+        }
+
+        @Override
+        protected String menuId() {
+            return "economy:market_sell";
+        }
+
+        @Override
+        protected Map<String, String> values(MenuView v) {
+            Player p = v.player();
+            ItemStack it = item(p);
+            long fee = fee(price);
+            Map<String, String> m = new java.util.HashMap<>();
+            m.put("item", it == null ? Lang.raw("price.no-item") : Items.mmName(it) + " ×" + it.getAmount());
+            m.put("unit", it == null ? "-" : EconomyModule.format(Math.round((double) price / it.getAmount())));
+            m.put("fee_rate", String.valueOf(Math.round(rules.marketFee() * 100)));
+            m.put("fee", EconomyModule.format(fee));
+            m.put("receive", EconomyModule.format(price - fee));
+            m.put("hours", String.valueOf((long) rules.marketHours()));
+            m.put("mine", String.valueOf(store.count(p.getUniqueId())));
+            m.put("limit", String.valueOf(limit(p.getUniqueId())));
+            long shop = shopPrice(p);
+            m.put("shop", shop > 0 ? EconomyModule.format(shop) : Lang.raw("price.no-shop"));
+            m.put("credit", EconomyModule.format(rules.creditFloor(it == null ? 0 : shopValue(Items.key(it), it.getAmount()))));
+            return m;
+        }
+
+        @Override
+        public ItemStack button(MenuView v, dev.stsv.core.gui.menu.MenuSpec.Button b, ItemStack base) {
+            Player p = v.player();
+            if (b.key() == 'S') {
+                ItemStack it = item(p);
+                if (it == null) return base;
+                ItemStack show = it.clone();
+                show.editMeta(meta -> {
+                    List<Component> lore = meta.hasLore() ? new ArrayList<>(meta.lore()) : new ArrayList<>();
+                    lore.addAll(Lang.items("price.picked-lore"));
+                    meta.lore(lore);
+                });
+                return show;
+            }
+            if (b.key() == 'C') {
+                String problem = problem(p, slot);
+                if (problem != null) return PriceMenu.blocked(base, problem.equals("market.hold-item") ? "price.pick-item" : problem,
+                        "limit", limit(p.getUniqueId()));
+            }
+            return base;
+        }
+
+        @Override
+        public void onPlayerInventoryClick(MenuView v, int clicked, ClickType click) {
+            Player p = v.player();
+            if (clicked < 0 || clicked > 35) return;
+            ItemStack it = p.getInventory().getItem(clicked);
+            if (it == null || it.isEmpty()) return;
+            slot = clicked;
+            if (!edited) price = suggested(p);
+            p.playSound(p.getLocation(), Sound.UI_BUTTON_CLICK, 0.5f, 1.6f);
+            v.refresh();
+        }
+
+        @Override
+        protected void confirm(MenuView v) {
+            Player p = v.player();
+            if (problem(p, slot) != null) {
+                p.playSound(p.getLocation(), Sound.BLOCK_NOTE_BLOCK_BASS, 0.6f, 0.8f);
+                return;
+            }
+            long at = price;
+            Bukkit.getScheduler().runTask(eco, () -> {
+                if (MarketModule.this.list(p, slot, at)) MarketModule.this.open(p, null, true);
+            });
+        }
+
+        @Override
+        protected void back(Player p) {
+            MarketModule.this.open(p, null, false);
         }
     }
 }

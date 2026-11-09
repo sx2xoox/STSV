@@ -1,6 +1,6 @@
 # 직거래 창 (칸 위치는 플러그인 고정). 여기서는 제목과 배경만: 왼쪽 = 신청한 사람, 오른쪽 = 받은 사람
 trade:
-  title: "<#f3e3b0>{a} ⇄ {b}"
+  title: "<#f0e2b0>{a} <#8f86a6>⇄ <#f0e2b0>{b}"
   rows: 6
   background: economy:gui/trade
   # 그림 생성기용: 이 글자 칸은 버튼이 아니라 물건 칸 모양으로 그림

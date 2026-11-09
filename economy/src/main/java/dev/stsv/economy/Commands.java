@@ -82,7 +82,7 @@ final class Commands {
         eco.command("거래소", new Simple(player((p, a) -> {
             if (a.length == 0) eco.market().open(p, null, false);
             else if (a[0].equals("등록")) {
-                if (a.length < 2) p.sendMessage(Lang.msg("market.usage"));
+                if (a.length < 2) eco.market().openSell(p);
                 else eco.market().list(p, amount(a[1]));
             } else if (a[0].equals("내목록")) eco.market().open(p, null, true);
             else if (a[0].equals("검색") && a.length > 1) eco.market().open(p, String.join(" ", java.util.Arrays.copyOfRange(a, 1, a.length)), false);
@@ -95,10 +95,14 @@ final class Commands {
             }
             switch (a[0]) {
                 case "등록" -> {
-                    if (a.length < 2) p.sendMessage(Lang.msg("auction.usage"));
+                    if (a.length < 2) eco.auction().openSell(p);
                     else eco.auction().startPlayer(p, amount(a[1]));
                 }
                 case "입찰" -> {
+                    if (a.length == 2 && amount(a[1]) > 0) {
+                        eco.auction().openBid(p, amount(a[1]));
+                        return;
+                    }
                     if (a.length < 3) {
                         p.sendMessage(Lang.msg("auction.usage"));
                         return;

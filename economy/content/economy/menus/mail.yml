@@ -1,6 +1,6 @@
 # /우편함
 mail:
-  title: "<#f3e3b0>우편함 ({count})"
+  title: "<#f0e2b0>우편함 <#b9a6d6>· {count}개"
   rows: 6
   background: economy:gui/mail
   layout:
@@ -23,6 +23,7 @@ mail:
       icon: economy:gui/chest
       material: CHEST
       name: "<green>전부 꺼내기"
+      lore: ["<gray>우편함의 물건을 인벤토리로 모두 옮기기", "<dark_gray>자리가 모자라면 남은 것은 그대로"]
     P:
       action: page:prev
       icon: stsv:gui/prev

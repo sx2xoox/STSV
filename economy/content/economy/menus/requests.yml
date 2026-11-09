@@ -1,6 +1,6 @@
 # /의뢰: 아래 8건 = 오늘 의뢰, 위 = 이번 주 공동 의뢰
 requests:
-  title: "<#f3e3b0>의뢰 게시판 · {day}일차"
+  title: "<#f0e2b0>의뢰 게시판 <#b9a6d6>· {day}일차"
   rows: 3
   background: economy:gui/requests
   layout:

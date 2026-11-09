@@ -69,11 +69,13 @@ achievement_list:
       icon: stsv:gui/back
       material: ARROW
       name: "<yellow>분류로"
+      lore: ["<gray>업적 분류 목록으로"]
     C:
       action: "achievements:claim_all"
       icon: stsv:gui/chest
       material: CHEST
       name: "<yellow>이 분류 보상 모두 받기"
+      lore: ["<gray>이 분류에서 받을 수 있는 보상을 한 번에", "<dark_gray>빈칸이 모자라면 남은 보상은 그대로"]
     P:
       action: page:prev
       icon: stsv:gui/prev

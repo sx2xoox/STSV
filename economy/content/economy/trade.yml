@@ -14,3 +14,7 @@ auction:           # 경매 /경매
   min-start: 10
 trade:             # 직거래 /거래
   distance: 10
+credit:            # 업적·미션에 세는 거래 (market_sold 거래소 판매, auctions_won 경매 낙찰): 짜고 치는 거래 방지
+  min-price: 100   # 이 값 이상에 팔린 것만 셈
+  shop-ratio: 1.0  # 그리고 상점이 같은 물건에 주는 값(기준가 × 개수)의 이 배수 이상 (상점이 안 사는 물건은 min-price 만)
+  pair-hours: 24   # 같은 두 사람 사이의 거래는 이 시간에 한 번만 셈 (거래 자체는 언제나 됨)

@@ -153,6 +153,7 @@ public final class HubModule implements StsvModule, Listener {
             m.put("title", plugin.profiles() == null ? Lang.raw("common.none") : plugin.profiles().wornTitleName(p.getUniqueId()).orElse(Lang.raw("common.none")));
             m.put("points", plugin.achievements() == null ? "0" : String.format(java.util.Locale.ROOT, "%,d", plugin.achievements().points(p.getUniqueId())));
             m.put("cosmetics", plugin.cosmetics() == null ? "0" : plugin.cosmetics().owned(p).size() + "/" + plugin.cosmetics().cosmetics().size());
+            m.put("night_vision", Lang.raw(dev.stsv.core.command.NightVision.isOn(p) ? "hub.on" : "hub.off"));
             m.put("fee", String.valueOf(Math.round((plugin.economy() == null ? 0 : plugin.economy().feeRate()) * 100)));
             for (Function<Player, Map<String, String>> f : providers.values()) {
                 try {
@@ -180,7 +181,7 @@ public final class HubModule implements StsvModule, Listener {
             Player p = v.player();
             Bukkit.getScheduler().runTask(plugin, () -> {
                 if (pick.startsWith("run:")) {
-                    p.performCommand(pick.substring(4));
+                    plugin.menus().run(v, pick.substring(4));
                 } else if (pick.startsWith("suggest:")) {
                     v.close();
                     p.sendMessage(Lang.msg("hub.suggest", "command", pick.substring(8)));

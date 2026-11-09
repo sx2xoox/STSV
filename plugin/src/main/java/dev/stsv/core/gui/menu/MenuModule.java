@@ -2,16 +2,23 @@ package dev.stsv.core.gui.menu;
 
 import dev.stsv.core.STSVPlugin;
 import dev.stsv.core.module.StsvModule;
+import dev.stsv.core.util.Lang;
 import dev.stsv.core.util.Text;
+import io.papermc.paper.event.player.AsyncChatEvent;
+import net.kyori.adventure.text.Component;
+import net.kyori.adventure.text.serializer.plain.PlainTextComponentSerializer;
 import org.bukkit.Bukkit;
 import org.bukkit.Sound;
 import org.bukkit.entity.Player;
 import org.bukkit.event.EventHandler;
+import org.bukkit.event.EventPriority;
 import org.bukkit.event.HandlerList;
 import org.bukkit.event.Listener;
 import org.bukkit.event.inventory.InventoryClickEvent;
 import org.bukkit.event.inventory.InventoryCloseEvent;
 import org.bukkit.event.inventory.InventoryDragEvent;
+import org.bukkit.event.player.PlayerQuitEvent;
+import org.bukkit.scheduler.BukkitTask;
 
 import java.util.ArrayList;
 import java.util.Collection;
@@ -19,6 +26,9 @@ import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Optional;
+import java.util.UUID;
+import java.util.concurrent.ConcurrentHashMap;
+import java.util.function.Consumer;
 
 /**
  * Chest menus from content packs ({@link MenuSpec}), opened by modules with a {@link MenuHandler}.
@@ -128,10 +138,74 @@ public final class MenuModule implements StsvModule, Listener {
         } else if (action.startsWith("menu:")) {
             Bukkit.getScheduler().runTask(plugin, () -> open(p, action.substring(5), MenuHandler.NONE));
         } else if (action.startsWith("command:")) {
-            Bukkit.getScheduler().runTask(plugin, () -> p.performCommand(action.substring(8)));
+            Bukkit.getScheduler().runTask(plugin, () -> run(view, action.substring(8)));
         } else {
             view.handler().onAction(view, action, e.getClick());
         }
+    }
+
+    /**
+     * Runs a command for the menu's player (main thread). A command that opens a menu of its own replaces this one; one that only
+     * answers in chat (balance, rankings, a toggle) closes this menu, so the answer is seen and the click visibly did something.
+     */
+    public void run(MenuView view, String command) {
+        Player p = view.player();
+        p.performCommand(command);
+        if (p.isOnline() && p.getOpenInventory().getTopInventory().getHolder(false) == view) view.close();
+    }
+
+    // ------------------------------------------------------------------------------------------
+    // Typed answers (an amount, a search word): the menu closes, the next chat line is the answer
+    // ------------------------------------------------------------------------------------------
+
+    /** Seconds a typed answer is waited for. */
+    public static final int PROMPT_SECONDS = 60;
+    private final Map<UUID, Prompt> prompts = new ConcurrentHashMap<>();
+
+    private record Prompt(Consumer<String> answer, BukkitTask timeout) {}
+
+    /**
+     * Asks the player to type an answer in chat: closes their menu, shows the question, and hands the next chat line (which is
+     * not sent to anyone) to answer on the main thread. "취소" (or "cancel") gives answer null, so the caller can reopen its menu;
+     * no answer in {@link #PROMPT_SECONDS} seconds, or leaving, drops the question.
+     */
+    public void prompt(Player p, Component question, Consumer<String> answer) {
+        if (p.getOpenInventory().getTopInventory().getHolder(false) instanceof MenuView v) v.close();
+        Prompt old = prompts.remove(p.getUniqueId());
+        if (old != null) old.timeout().cancel();
+        UUID id = p.getUniqueId();
+        BukkitTask timeout = Bukkit.getScheduler().runTaskLater(plugin, () -> {
+            if (prompts.remove(id) != null && p.isOnline()) p.sendMessage(Lang.msg("menu.prompt-timeout"));
+        }, PROMPT_SECONDS * 20L);
+        prompts.put(id, new Prompt(answer, timeout));
+        p.sendMessage(question);
+        p.sendMessage(Lang.msg("menu.prompt", "seconds", PROMPT_SECONDS));
+        p.playSound(p.getLocation(), Sound.BLOCK_NOTE_BLOCK_HAT, 0.6f, 1.4f);
+    }
+
+    /** True while the player is asked to type something (their next chat line is an answer, not chat). */
+    public boolean prompting(Player p) {
+        return prompts.containsKey(p.getUniqueId());
+    }
+
+    @EventHandler(priority = EventPriority.LOWEST)
+    public void onChat(AsyncChatEvent e) {
+        Prompt pr = prompts.remove(e.getPlayer().getUniqueId());
+        if (pr == null) return;
+        e.setCancelled(true);
+        pr.timeout().cancel();
+        String text = PlainTextComponentSerializer.plainText().serialize(e.originalMessage()).trim();
+        boolean cancel = text.equals("취소") || text.equalsIgnoreCase("cancel");
+        Player p = e.getPlayer();
+        Bukkit.getScheduler().runTask(plugin, () -> {
+            if (p.isOnline()) pr.answer().accept(cancel ? null : text);
+        });
+    }
+
+    @EventHandler
+    public void onQuit(PlayerQuitEvent e) {
+        Prompt pr = prompts.remove(e.getPlayer().getUniqueId());
+        if (pr != null) pr.timeout().cancel();
     }
 
     @EventHandler

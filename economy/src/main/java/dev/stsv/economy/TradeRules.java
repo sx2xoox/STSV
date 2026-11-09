@@ -7,7 +7,8 @@ public record TradeRules(
         double marketFee, int marketMax, double marketHours,
         double auctionFee, long auctionDeposit, double auctionMinutes, int extendSeconds, double minRaise,
         int maxRunning, int rareWeeklyWins, long minStart,
-        double tradeDistance) {
+        double tradeDistance,
+        long creditMinPrice, double creditShopRatio, double creditPairHours) {
 
     public static TradeRules parse(ConfigurationSection c) {
         return new TradeRules(
@@ -15,12 +16,18 @@ public record TradeRules(
                 c.getDouble("auction.fee", 0.07), c.getLong("auction.deposit", 100), c.getDouble("auction.minutes", 30),
                 c.getInt("auction.extend-seconds", 60), c.getDouble("auction.min-raise", 0.05), c.getInt("auction.max-running", 3),
                 c.getInt("auction.rare-weekly-wins", 2), c.getLong("auction.min-start", 10),
-                c.getDouble("trade.distance", 10));
+                c.getDouble("trade.distance", 10),
+                c.getLong("credit.min-price", 100), c.getDouble("credit.shop-ratio", 1.0), c.getDouble("credit.pair-hours", 24));
     }
 
     /** A fee on an amount, rounded up (at least 1 when the rate is above 0 and the amount is positive). */
     public static long fee(long amount, double rate) {
         if (rate <= 0 || amount <= 0) return 0;
         return Math.max(1, (long) Math.ceil(amount * rate - 1e-9));   // 100 x 0.07 is 7.000000000000001 in floating point
+    }
+
+    /** The least price at which a sale counts for achievements and missions (see {@link TradeCredit}). */
+    public long creditFloor(double shopValue) {
+        return TradeCredit.floor(shopValue, creditMinPrice, creditShopRatio);
     }
 }

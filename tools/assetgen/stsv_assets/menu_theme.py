@@ -11,8 +11,8 @@ menu always agree:
   - empty cells: plain panel, nothing drawn
 No light strip for the client's "Inventory" label: the core resource pack blanks container.inventory
 (content/stsv/assets/minecraft/lang), and a divider marks where the player's inventory starts.
-Slot geometry of the large chest: container slot (r, c) frame at x = 7 + 18c, y = 17 + 18r; player
-inventory at y = 31 + 18 rows (+ 18 per row), hotbar 58 below that.
+Slot geometry of the large chest: container slot (r, c) frame at x = 7 + 18c, y = 17 + 18r (its item at +1, +1); the
+player's inventory items at y = 31 + 18 rows, so their frames at y = 30 + 18 rows (+ 18 per row), hotbar 58 below that.
 """
 
 from PIL import Image, ImageDraw
@@ -120,7 +120,7 @@ def background(menu):
     g = 18 * rows + 23
     _rect(im, 7, g, W - 7, g + 1, EDGE_DARK)
     _rect(im, 7, g + 1, W - 7, g + 2, SLOT_BOTTOM)
-    inv = 31 + 18 * rows
+    inv = 30 + 18 * rows   # the frame, 1 px above the client's item position 31 + 18 rows
     for r in range(3):
         for c in range(9):
             slot(im, 7 + 18 * c, inv + 18 * r)

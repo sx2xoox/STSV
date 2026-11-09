@@ -54,6 +54,32 @@ public record MenuSpec(String id, String title, int rows, NamespacedKey backgrou
         return out;
     }
 
+    /** Room for a title on the 176 px panel: it starts at x 8 and must end before the right edge's 8 px. */
+    public static final int TITLE_ROOM = WIDTH - 16;
+
+    /**
+     * About how wide the client draws a title (MiniMessage, placeholders already filled), in pixels with the default font:
+     * Hangul and other wide glyphs 9, most ASCII 6, narrow letters and punctuation 2 to 5, a space 4. Tags count 0.
+     */
+    public static int titleWidth(String mini) {
+        String s = mini.replaceAll("<[^<>]*>", "");
+        int w = 0;
+        for (int i = 0; i < s.length(); ) {
+            int c = s.codePointAt(i);
+            i += Character.charCount(c);
+            w += switch (c) {
+                case ' ' -> 4;
+                case 'i', '!', '.', ',', ':', ';', '|', '\'', '·' -> 2;
+                case 'l', '`' -> 3;
+                case 'I', 't', '[', ']', '(', ')', '*', '"' -> 4;
+                case 'f', 'k', '<', '>', '{', '}' -> 5;
+                case '@', '~' -> 7;
+                default -> c < 0x80 ? 6 : c < 0x1100 ? 6 : 9;
+            };
+        }
+        return w;
+    }
+
     /** Text placed before the title so the background image covers the whole screen. */
     public String backgroundPrefix() {
         if (background == null) return "";

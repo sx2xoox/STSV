@@ -222,8 +222,15 @@ hub:
   hotkey-off: "/메뉴"
   # hub:suggest: 이름이나 금액을 이어서 써야 하는 명령어
   suggest: "<click:suggest_command:'/{command} '><hover:show_text:'<gray>클릭하면 채팅창에 /{command} 가 입력됩니다'><yellow><u>[/{command} 입력하기]</u></yellow></hover></click> <gray>← 클릭한 뒤 이어서 쓰세요."
+  on: "<green>켜짐"
+  off: "<gray>꺼짐"
 
-# 건축월드 / 야생월드
+# 메뉴에서 값을 채팅으로 입력받을 때 (금액 직접 입력, 검색어)
+menu:
+  prompt: "<gray>채팅창에 입력하세요. <dark_gray>(다른 사람에게는 보이지 않음 · 그만두려면 <white>취소</white> · {seconds}초)"
+  prompt-timeout: "<gray>입력 시간이 지나 그만두었습니다."
+
+# 야간 투시 (/야간투시)
 night-vision:
   enabled: "<green>야간 투시를 켰습니다.</green> <gray>(끄려면 다시 /야간투시)"
   disabled: "<gray>야간 투시를 껐습니다."

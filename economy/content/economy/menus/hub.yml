@@ -1,14 +1,14 @@
 # /메뉴, 웅크린 채 F (Shift+F): 통합 메뉴 (경제 서버판). 경제 플러그인이 켜져 있는 동안 코어의 stsv:hub 대신 열림.
 # 코어 판(contents/stsv/menus/hub.yml)의 버튼을 모두 담고 경제 기능 두 줄을 더함 (같은 글자 = 같은 버튼).
 # 버튼 동작: command:<명령어>, close, hub:<왼쪽>|<오른쪽> (각각 run:<명령어> 또는 suggest:<명령어>)
-# 자리표시자: 코어 {player} {world} {balance} {title} {points} {cosmetics} {fee} {hotkey} {warmup} {cooldown}
+# 자리표시자: 코어 {player} {world} {balance} {title} {points} {cosmetics} {fee} {hotkey} {warmup} {cooldown} {night_vision}
 #             경제 {job} {level} {events} {land} {free}
 hub:
-  title: "<#f3e3b0>통합 메뉴 <#8f86a6>· {world}"
+  title: "<#f0e2b0>통합 메뉴 <#8f86a6>· {world}"
   rows: 6
   background: economy:gui/hub
   layout:
-    - ".P.B.Y.t."
+    - ".BY.P.tn."
     - ".ACDEFGH."
     - ".IJKLMNO."
     - ".QgR.STZ."
@@ -48,6 +48,12 @@ hub:
       material: ENDER_PEARL
       name: "<white>텔레포트 요청"
       lore: ["<gray>다른 플레이어에게 가기 (상대가 수락하면)", "<gray>우클릭: 내 쪽으로 부르기", "<dark_gray>/tpa <플레이어> · /tpahere <플레이어>", "<dark_gray>받은 요청: /tpaccept · /tpdeny · 안 받기: /tpatoggle"]
+    n:
+      action: "command:야간투시"
+      icon: stsv:gui/night_vision
+      material: ENDER_EYE
+      name: "<white>야간 투시 <gray>· {night_vision}"
+      lore: ["<gray>어두운 곳도 밝게 보기 (켜기·끄기)", "<gray>켜 두면 접속을 끊거나 죽어도 유지", "<dark_gray>/야간투시"]
 
     # 사고팔기
     A:
@@ -63,17 +69,17 @@ hub:
       name: "<white>시세"
       lore: ["<gray>오늘 상점이 사 주는 값과 24시간 변화"]
     D:
-      action: "command:거래소"
+      action: "hub:run:거래소|run:거래소 등록"
       icon: economy:gui/bag
       material: WRITABLE_BOOK
       name: "<white>거래소"
-      lore: ["<gray>값을 정해 올리고, 누구나 바로 사는 장터", "<dark_gray>등록: 들고 /거래소 등록 <가격>"]
+      lore: ["<gray>값을 정해 올리고, 누구나 바로 사는 장터", "<dark_gray>우클릭: 판매 등록 (물건 고르고 가격 정하기)"]
     E:
-      action: "command:경매"
+      action: "hub:run:경매|run:경매 등록"
       icon: economy:gui/hammer
       material: ANVIL
       name: "<white>경매"
-      lore: ["<gray>30분 공개 입찰", "<dark_gray>등록: 들고 /경매 등록 <시작가>"]
+      lore: ["<gray>공개 입찰 (마지막 순간 입찰은 시간 연장)", "<dark_gray>우클릭: 경매 등록 (물건 고르고 시작가 정하기)"]
     F:
       action: "hub:suggest:거래"
       icon: economy:gui/trade
@@ -140,7 +146,7 @@ hub:
     # 나, 기록
     Q:
       action: "command:치장"
-      icon: stsv:gui/take_off
+      icon: stsv:gui/dress_up
       material: LEATHER_CHESTPLATE
       name: "<white>치장"
       lore: ["<gray>모자, 날개, 펫... 입어 보고 꾸미기", "<gray>보유: <white>{cosmetics}"]

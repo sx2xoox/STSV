@@ -2,6 +2,7 @@
 #   tier: easy(쉬움 10점) / normal(보통 25점) / hard(어려움 50점) / very_hard(매우 어려움 100점)
 #   stat: 누적 기록 (플레이 시간은 초) / value: 플러그인이 알려 주는 값.  goal: 목표.  hidden: 달성 전엔 ???
 #   rewards: gold, items ["아이디 x개수"], title, cosmetic, commands (보상은 /업적 에서 직접 받음)
+#   market_sold / auctions_won: 제값(100G 이상이고 상점 시세 이상) 거래만, 같은 상대와는 하루 1번만 셈 (trade.yml credit)
 
 category: { name: "거래·투자", icon: minecraft:emerald, order: 41 }
 achievements:
@@ -23,7 +24,7 @@ achievements:
     rewards: { gold: 300 }
   market_1:
     name: "첫 거래소 판매"
-    description: "거래소에서 물건 1번 팔기"
+    description: "거래소에서 물건 1번 팔기 (100G 이상)"
     tier: easy
     icon: minecraft:emerald
     stat: market_sold
@@ -31,7 +32,7 @@ achievements:
     rewards: { gold: 300 }
   auction_1:
     name: "낙찰!"
-    description: "경매 1번 낙찰"
+    description: "경매 1번 낙찰 (100G 이상)"
     tier: easy
     icon: minecraft:bell
     stat: auctions_won
@@ -71,7 +72,7 @@ achievements:
     rewards: { gold: 30000, title: economy:big_hand }
   market_2:
     name: "거래소 단골"
-    description: "거래소에서 물건 100번 팔기"
+    description: "거래소에서 100번 팔기 (같은 사람에게는 하루 1번만 셈)"
     tier: hard
     icon: minecraft:emerald_block
     stat: market_sold
@@ -79,7 +80,7 @@ achievements:
     rewards: { gold: 20000, title: economy:market_regular }
   auction_2:
     name: "경매의 신"
-    description: "경매 30번 낙찰"
+    description: "경매 30번 낙찰 (같은 판매자에게는 하루 1번만 셈)"
     tier: very_hard
     icon: minecraft:bell
     stat: auctions_won

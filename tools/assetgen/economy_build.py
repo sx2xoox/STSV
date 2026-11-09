@@ -92,6 +92,9 @@ def main():
 
     sheet(E, PREVIEWS / "economy_items.png")
     gui_sheet(G, menus, PREVIEWS / "economy_menus.png")
+    # the 거래소 / 경매 menus and the hub, bigger: the screens players use to sell and bid
+    gui_sheet(G, menus, PREVIEWS / "trade_menus.png", scale=3, cols=3,
+              only=("hub", "market", "market_sell", "auction", "auction_sell", "auction_bid"))
     import economy_goods as GO
     GO.sheet(PREVIEWS / "goods.png")
     if render:
@@ -184,14 +187,19 @@ def sheet(E, path, cols=9, scale=4):
     out.save(path)
 
 
-def gui_sheet(G, menus, path, scale=2):
-    ims = [G.background(spec) for spec in menus.values() if spec.get("background")]
-    cols = 4
-    rows = (len(ims) + cols - 1) // cols
-    out = Image.new("RGBA", (cols * 184, rows * 230), (40, 40, 48, 255))
-    for k, im in enumerate(ims):
-        out.alpha_composite(im, ((k % cols) * 184 + 4, (k // cols) * 230 + 4))
-    out.resize((out.width * scale // 2 * 2 // 2, out.height * scale // 2 * 2 // 2), Image.NEAREST).save(path)
+def gui_sheet(G, menus, path, scale=2, only=None, cols=4):
+    """Menus with what their buttons show (icons, item textures, sample items in the lists), for review."""
+    import economy_icons as E
+    from stsv_assets import menu_preview as P
+    from stsv_assets import ui_icons as U
+    textures = PACK / "textures"
+    samples = [Image.open(textures / f"{n}.png").convert("RGBA") for n in ("ruby", "steel_ingot", "kimchi", "salmon_fillet", "rice", "pearl_perfume")
+               if (textures / f"{n}.png").exists()]
+    gui = {"stsv": U.icons(), NS: {name: fn() for name, fn in E.GUI.items()}}
+    find = P.lookup(gui, {NS: textures, "stsv": REPO / "content" / "stsv" / "textures"})
+    keys = [k for k in (only or menus) if menus[k].get("background")]
+    ims = [P.render(menus[k], find, samples) for k in keys]
+    P.sheet(ims, path, cols=cols, scale=scale)
 
 
 if __name__ == "__main__":

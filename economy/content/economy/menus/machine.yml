@@ -1,7 +1,7 @@
 # 직업 기계 창. 칸 위치는 플러그인 고정: 줄 k(0~3) = 재료 9(k+1)+1~3, 상태 9(k+1)+5, 결과 9(k+1)+7.
 # 위: 레시피 목록(0), 기계 정보(4), 강화(8). 아래: 결과 전부 받기(48), 닫기(50). 여기서는 제목·배경·버튼 모양만
 machine:
-  title: "<#f3e3b0>{machine}"
+  title: "<#f0e2b0>{machine}"
   rows: 6
   background: economy:gui/machine
   # 그림 생성기용: 이 글자 칸은 버튼이 아니라 물건 칸 모양으로 그림, flow = 줄 사이 빈칸에 화살표
@@ -27,7 +27,7 @@ machine:
 # 기계 레시피 목록: 줄의 상태 칸을 누르면 열림. 클릭 = 그 줄에 고정, 맨 앞 '자동' = 넣은 재료로 알아서.
 # 한 화면 36칸: 넘치면 ◀ ▶ 로 넘김 (조리대는 자동 + 37개)
 machine_recipes:
-  title: "<#f3e3b0>{machine} 레시피 <dark_gray>· {lane}번 줄"
+  title: "<#f0e2b0>{machine} 레시피{lane_text}"
   rows: 6
   background: economy:gui/machine_recipes
   layout:
@@ -44,12 +44,13 @@ machine_recipes:
       icon: stsv:gui/info
       material: BOOK
       name: "<white>{machine} · {tier}"
-      lore: ["<gray>클릭: 이 줄에서 만들 것 고르기", "<gray>잠긴 레시피는 강화하면 열립니다.", "<dark_gray>시간은 이 기계·내 직업 기준"]
+      lore: ["{pick_hint}", "<gray>잠긴 레시피는 강화하면 열립니다.", "<dark_gray>시간은 이 기계·내 직업 기준"]
     B:
       action: "machine:back"
       icon: economy:gui/back
       material: ARROW
       name: "<white>기계로 돌아가기"
+      lore: ["<gray>기계 창으로"]
     P:
       action: page:prev
       icon: stsv:gui/prev
