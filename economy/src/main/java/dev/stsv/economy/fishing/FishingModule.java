@@ -153,8 +153,10 @@ public final class FishingModule extends EcoModule implements WeeklyListener {
             ItemStack rod = p.getInventory().getItem(e.getHand() == null ? org.bukkit.inventory.EquipmentSlot.HAND : e.getHand());
             int lure = rod == null ? 0 : rod.getEnchantmentLevel(org.bukkit.enchantments.Enchantment.LURE);
             int[] w = spec.bite().ticks(lure, eco.jobs().effect(u, "fisher", "bite"));
+            int[] parts = FishSpec.Bite.split(w[0], w[1]);   // the fish's swim to the float is part of the bite too
             e.getHook().setApplyLure(false);
-            e.getHook().setWaitTime(w[0], w[1]);
+            e.getHook().setWaitTime(parts[0], parts[1]);
+            e.getHook().setLureTime(parts[2], parts[3]);
             return;
         }
         if (e.getState() != PlayerFishEvent.State.CAUGHT_FISH || !(e.getCaught() instanceof Item caught)) return;

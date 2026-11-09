@@ -63,6 +63,7 @@ public final class STSVPlugin extends JavaPlugin {
         modules = new ModuleManager(this);
         // Order matters: content first (others read it), resource pack last (it needs every item).
         modules.register(database = new DatabaseModule());
+        modules.register(new dev.stsv.core.account.AltModule());
         modules.register(content = new ContentModule());
         modules.register(menus = new dev.stsv.core.gui.menu.MenuModule());
         modules.register(worlds = new dev.stsv.core.world.WorldsModule());

@@ -15,7 +15,7 @@ achievements:
     rewards: { gold: 300 }
   stock_1:
     name: "첫 투자"
-    description: "주식 1번 거래"
+    description: "주식 1번 거래 (한 번에 500G 이상)"
     tier: easy
     icon: minecraft:paper
     stat: stock_trades
@@ -47,7 +47,7 @@ achievements:
     rewards: { gold: 8000, items: ["minecraft:experience_bottle x32"] }
   stock_2:
     name: "개미 투자자"
-    description: "주식 100번 거래"
+    description: "주식 100번 거래 (한 번에 500G 이상)"
     tier: normal
     icon: minecraft:map
     stat: stock_trades
@@ -63,7 +63,7 @@ achievements:
     rewards: { gold: 30000, title: economy:fixer }
   stock_3:
     name: "큰손"
-    description: "주식 1,000번 거래"
+    description: "주식 1,000번 거래 (한 번에 500G 이상)"
     tier: hard
     icon: minecraft:filled_map
     stat: stock_trades

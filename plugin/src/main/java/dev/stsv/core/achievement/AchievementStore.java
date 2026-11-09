@@ -88,6 +88,13 @@ public final class AchievementStore {
         db.execute("INSERT INTO achievement_base (player, id, base) VALUES (?, ?, ?)", player.toString(), id, value);
     }
 
+    /** Counts this achievement for the player again from this value (an admin took it back: only what comes after counts). */
+    public void restartBase(UUID player, String id, double value) {
+        Map<String, Double> b = bases.get(player);
+        if (b != null) b.put(id, value);
+        db.execute(db.upsert("achievement_base", List.of("player", "id"), List.of("base")), player.toString(), id, value);
+    }
+
     public boolean loaded(UUID player) {
         return online.containsKey(player);
     }

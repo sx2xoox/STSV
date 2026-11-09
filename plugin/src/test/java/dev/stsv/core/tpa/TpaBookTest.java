@@ -147,4 +147,21 @@ class TpaBookTest {
         assertEquals(32, config.getInt("elevator.max-distance"));
         assertEquals(0.5, config.getDouble("elevator.cooldown-seconds"));
     }
+
+    @Test
+    void switchingKindsDoesNotFloodTheTarget() {
+        TpaBook b = new TpaBook(60_000, 30_000);
+        b.gap(5_000);
+        assertEquals(TpaBook.Status.NEW, b.add(req(ALEX, "Alex", STEVE, "Steve", TpaBook.Kind.TO, 0)).status());
+        assertEquals(TpaBook.Status.SAME, b.add(req(ALEX, "Alex", STEVE, "Steve", TpaBook.Kind.TO, 1_000)).status());
+        TpaBook.Added flip = b.add(req(ALEX, "Alex", STEVE, "Steve", TpaBook.Kind.HERE, 1_000));
+        assertEquals(TpaBook.Status.TOO_SOON, flip.status(), "/tpa then /tpahere at once: refused, nothing sent");
+        assertEquals(TpaBook.Kind.TO, b.outgoing(ALEX, 1_000).kind(), "the first request stays as it was");
+        assertEquals(4_000, b.gapLeft(ALEX, 1_000));
+        assertEquals(TpaBook.Status.TOO_SOON, b.add(req(ALEX, "Alex", NOOR, "Noor", TpaBook.Kind.TO, 4_999)).status(), "another target too");
+        assertEquals(TpaBook.Status.REPLACED, b.add(req(ALEX, "Alex", STEVE, "Steve", TpaBook.Kind.HERE, 5_000)).status());
+        assertEquals(TpaBook.Status.TOO_SOON, b.add(req(ALEX, "Alex", STEVE, "Steve", TpaBook.Kind.TO, 6_000)).status());
+        assertEquals(TpaBook.Status.REPLACED, b.add(req(ALEX, "Alex", STEVE, "Steve", TpaBook.Kind.TO, 6_000), true).status(), "admins have no gap");
+        assertEquals(TpaBook.Status.NEW, b.add(req(STEVE, "Steve", ALEX, "Alex", TpaBook.Kind.TO, 6_000)).status(), "the gap is per sender");
+    }
 }

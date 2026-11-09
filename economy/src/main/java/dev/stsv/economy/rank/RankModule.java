@@ -26,9 +26,15 @@ import java.util.concurrent.ConcurrentHashMap;
 
 /**
  * 순위. The weekly ranking is what each player earned this week: their net worth now minus their net
- * worth when the week started (Monday 05:00, or when they first joined that week). On Monday the
- * week is settled: the top 5 are announced and the winner gets a 기념비 건립권. Net worth = cash +
- * money held in auction bids + money spent on land.
+ * worth when the week started (Monday 05:00, or when they first joined that week), not counting money other players
+ * handed them. On Monday the week is settled: the top 5 are announced and the winner gets a 기념비 건립권.
+ * <p>
+ * Net worth ({@link #worth}) = cash + money held in auction bids and listing deposits + money spent on land + the
+ * 금고 of the land they own + their shares at today's price + their cheques nobody cashed yet: moving money into any
+ * of these does not lower the starting point. Money between players (/송금, trades, the market, auctions, a cheque
+ * someone else cashes, a member's 금고 deposit, a land handed over with its 금고) moves the starting point with it
+ * ({@link #handOver}): the receiver did not earn it, the giver did not lose it. What is left is what came from the
+ * server (selling to the shop, jobs, missions, requests, dividends) and what shares gained, minus taxes and fees.
  */
 public final class RankModule extends EcoModule implements WeeklyListener {
 
@@ -38,7 +44,10 @@ public final class RankModule extends EcoModule implements WeeklyListener {
 
     private Db db;
     private int week;
-    private final Map<UUID, Long> base = new ConcurrentHashMap<>();
+    private final WeekBases base = new WeekBases();
+    private volatile Winner lastWinner;
+    /** kv: net money a player got from other players, ever (the 순자산 achievements count what they made themselves) */
+    private static final String RECEIVED = "rank.received.";
 
     public RankModule(EcoPlugin eco) {
         super(eco);
@@ -57,12 +66,14 @@ public final class RankModule extends EcoModule implements WeeklyListener {
                 "CREATE TABLE IF NOT EXISTS eco_week_winner (week INT NOT NULL PRIMARY KEY, player VARCHAR(36) NOT NULL, earned BIGINT NOT NULL, at BIGINT NOT NULL)")));
         // the week the stored starting points belong to: after a stop over a Monday that week still gets settled
         loadWeek((int) eco.kv().getLong("rank.week", eco.calendar().week()));
+        lastWinner = readLastWinner();
         for (Player p : Bukkit.getOnlinePlayers()) baseOf(p.getUniqueId());
         eco.calendar().onWeekly(this);
         eco.onReset(() -> {
             db.execute("DELETE FROM eco_week_base");
             db.execute("DELETE FROM eco_week_winner");
             base.clear();
+            lastWinner = null;
             week = 1;   // the calendar starts again at day 1
         });
     }
@@ -81,9 +92,54 @@ public final class RankModule extends EcoModule implements WeeklyListener {
 
     public long worth(UUID player) {
         long w = core.economy().balance(player);
-        for (Auction a : eco.auction().store().running()) if (player.equals(a.bidder)) w += a.bid;
+        for (Auction a : eco.auction().store().running()) {
+            if (player.equals(a.bidder)) w += a.bid;
+            if (player.equals(a.seller)) w += a.deposit;
+        }
         w += eco.land().store().spent(player);
+        dev.stsv.economy.land.Land own = eco.land().store().index().ownedBy(player);
+        if (own != null) w += own.vault;
+        if (eco.stocks() != null) w += Math.round(eco.stocks().value(player));
+        w += core.economy().store().outstanding(player);
         return w;
+    }
+
+    /**
+     * Net worth the player made themselves: {@link #worth} minus the net money other players ever handed them (the
+     * 순자산 achievements: passing money around does not earn them for everyone it passes through).
+     */
+    public long ownWorth(UUID player) {
+        return Math.max(0, worth(player) - eco.kv().getLong(RECEIVED + player, 0));
+    }
+
+    /** Money went from one player to another outside the balances (a member's 금고 deposit, a land handed over). */
+    public void handOver(UUID from, UUID to, long amount) {
+        if (from == null || to == null || from.equals(to) || amount <= 0) return;
+        received(from, -amount);
+        received(to, amount);
+    }
+
+    /**
+     * A player got (delta > 0) or gave (delta < 0) money to another player: this week's starting point moves with it,
+     * so it is not earnings (nor a loss), and the all-time count for {@link #ownWorth} too.
+     */
+    private void received(UUID player, long delta) {
+        if (delta == 0) return;
+        Long moved = base.shift(player, delta);   // none yet: the start is taken from the worth after this (baseOf), already right
+        if (moved != null) db.execute(db.upsert("eco_week_base", List.of("week", "player"), List.of("base")), week, player.toString(), moved);
+        eco.kv().set(RECEIVED + player, eco.kv().getLong(RECEIVED + player, 0) + delta);
+    }
+
+    /** /송금, trades, market purchases, auction sales: player to player (TRANSFER), each side gets its own event. */
+    @EventHandler
+    public void onTransfer(dev.stsv.core.economy.BalanceChangeEvent e) {
+        if (e.kind() == dev.stsv.core.economy.EconomyStore.Kind.TRANSFER) received(e.player(), e.delta());
+    }
+
+    /** A cheque cashed by someone else than its writer: the writer's cheque became the casher's money. */
+    @EventHandler
+    public void onCheque(dev.stsv.core.economy.ChequeCashedEvent e) {
+        if (e.issuer() != null) handOver(e.issuer(), e.casher(), e.amount());
     }
 
     /** Net worth at the start of this week; someone new this week starts from what they have now. */
@@ -121,7 +177,12 @@ public final class RankModule extends EcoModule implements WeeklyListener {
         return out;
     }
 
+    /** The last settled week's winner (kept in memory: /순위 must not wait on the database). */
     public Winner lastWinner() {
+        return lastWinner;
+    }
+
+    private Winner readLastWinner() {
         List<Winner> w = db.sync(c -> Db.query(c, "SELECT week, player, earned FROM eco_week_winner ORDER BY week DESC LIMIT 1",
                 rs -> new Winner(rs.getInt(1), UUID.fromString(rs.getString(2)), rs.getLong(3))));
         return w.isEmpty() ? null : w.getFirst();
@@ -186,6 +247,7 @@ public final class RankModule extends EcoModule implements WeeklyListener {
             }
             Entry top = all.getFirst();
             db.execute(db.upsert("eco_week_winner", List.of("week"), List.of("player", "earned", "at")), endedWeek, top.player().toString(), top.amount(), now());
+            lastWinner = new Winner(endedWeek, top.player(), top.amount());
             int rights = eco.vanity().grantMonument(top.player());
             Player winner = Bukkit.getPlayer(top.player());
             if (winner != null) winner.sendMessage(Lang.msg("rank.monument-right", "count", rights));

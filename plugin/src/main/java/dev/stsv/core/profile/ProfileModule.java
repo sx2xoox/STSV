@@ -250,14 +250,25 @@ public final class ProfileModule implements StsvModule, Listener {
         if (killer != null) count(killer.getUniqueId(), "mob_kills", 1);
     }
 
+    /** Placing and breaking on one spot over and over is not counted ({@link BlockCountGuard}): 10 minutes, 200k spots. */
+    private final BlockCountGuard blockCounts = new BlockCountGuard(200_000, 10 * 60_000L);
+
+    private record Spot(UUID world, int x, int y, int z) {}
+
+    private static Object spot(org.bukkit.block.Block b) {
+        return new Spot(b.getWorld().getUID(), b.getX(), b.getY(), b.getZ());
+    }
+
     @EventHandler(priority = EventPriority.MONITOR, ignoreCancelled = true)
     public void onBreak(BlockBreakEvent e) {
-        count(e.getPlayer().getUniqueId(), "blocks_broken", 1);
+        if (blockCounts.breakBlock(spot(e.getBlock()), System.currentTimeMillis())) count(e.getPlayer().getUniqueId(), "blocks_broken", 1);
     }
 
     @EventHandler(priority = EventPriority.MONITOR, ignoreCancelled = true)
     public void onPlace(BlockPlaceEvent e) {
-        count(e.getPlayer().getUniqueId(), "blocks_placed", 1);
+        // furniture asks protection with a place event per cell before it is placed: that is not a block placed
+        if (plugin.furniture() != null && plugin.furniture().probing()) return;
+        if (blockCounts.place(spot(e.getBlock()), System.currentTimeMillis())) count(e.getPlayer().getUniqueId(), "blocks_placed", 1);
     }
 
     // ------------------------------------------------------------------------------------------

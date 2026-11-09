@@ -242,6 +242,8 @@ public final class VanityModule extends EcoModule {
     // 세무 조사: a donation to the state; enough of it earns a title
     // ------------------------------------------------------------------------------------------
 
+    private final java.util.Map<java.util.UUID, Long> donationTold = new java.util.concurrent.ConcurrentHashMap<>();
+
     public void donate(Player p, long amount) {
         List<dev.stsv.economy.event.ActiveEvent> events = eco.events().active("tax_audit");
         if (events.isEmpty()) {
@@ -261,7 +263,16 @@ public final class VanityModule extends EcoModule {
         String key = "donation." + e.id() + "." + p.getUniqueId();
         long total = eco.kv().getLong(key, 0) + amount;
         eco.kv().set(key, total);
-        Bukkit.broadcast(Lang.msg("vanity.donated", "player", p.getName(), "amount", EconomyModule.format(amount)));
+        // the whole server hears of a donation at most once a minute per player, and not of small change (/기부 1 spam)
+        long now = System.currentTimeMillis();
+        Long told = donationTold.get(p.getUniqueId());
+        boolean loud = amount >= Math.max(100, min / 10) && (told == null || now - told >= 60_000L);
+        if (loud) {
+            donationTold.put(p.getUniqueId(), now);
+            Bukkit.broadcast(Lang.msg("vanity.donated", "player", p.getName(), "amount", EconomyModule.format(amount)));
+        } else {
+            p.sendMessage(Lang.msg("vanity.donated", "player", p.getName(), "amount", EconomyModule.format(amount)));
+        }
         String title = e.params().getOrDefault("donation-title", "economy:patron");
         if (total >= min && !eco.kv().has(key + ".title")) {
             eco.kv().set(key + ".title", "1");

@@ -124,6 +124,14 @@ public final class EconomyModule implements StsvModule, Listener {
         return true;
     }
 
+    /**
+     * Money held outside every balance (a land 금고) is destroyed, e.g. a tax paid from it: recorded as SINK in the
+     * ledger (the daily statistics, the stock dividends), no balance changes. The money went in as ESCROW.
+     */
+    public void burn(long amount, String reason, String note) {
+        store.burn(amount, reason, note, System.currentTimeMillis());
+    }
+
     /** Admin: exact balance. */
     public void set(UUID player, long value, String note) {
         long before = store.balance(player);
@@ -224,19 +232,21 @@ public final class EconomyModule implements StsvModule, Listener {
         ItemStack taken = hand.asOne();
         hand.subtract(1);
         UUID player = p.getUniqueId();
-        store.claimCheque(id, player, System.currentTimeMillis()).whenComplete((amount, err) -> Bukkit.getScheduler().runTask(plugin, () -> {
+        store.claim(id, player, System.currentTimeMillis()).whenComplete((claim, err) -> Bukkit.getScheduler().runTask(plugin, () -> {
             if (err != null) {
                 plugin.getLogger().warning("수표 입금 실패 (" + id + "): " + err.getMessage());
                 giveBack(p, taken);
                 if (p.isOnline()) p.sendMessage(Lang.msg("economy.cheque-error"));
                 return;
             }
+            long amount = claim.amount();
             if (amount < 0) {
                 if (p.isOnline()) p.sendMessage(Lang.msg("economy.cheque-used"));
                 plugin.getLogger().warning("사용된 수표를 다시 쓰려 함: " + p.getName() + " (" + id + ")");
                 return;
             }
             move(null, player, amount, EconomyStore.Kind.CHEQUE, "cheque_cash", id);
+            Bukkit.getPluginManager().callEvent(new ChequeCashedEvent(claim.issuer(), player, amount));
             if (p.isOnline()) {
                 HudModule.flash(p, Lang.mm("economy.cheque-cashed", "amount", format(amount)));
                 p.playSound(p.getLocation(), Sound.ENTITY_EXPERIENCE_ORB_PICKUP, 0.8f, 1.2f);

@@ -91,7 +91,8 @@ public final class StsvCommand implements TabExecutor {
         switch (sub) {
             case "give" -> give(sender, args);
             case "browse" -> {
-                if (sender instanceof Player p) plugin.itemBrowser().open(p, 0);
+                if (sender instanceof Player p) plugin.itemBrowser().open(p, null,
+                        rawArgs.length > 1 ? String.join(" ", java.util.Arrays.copyOfRange(rawArgs, 1, rawArgs.length)) : null, 0);
                 else sender.sendMessage(Text.msg("<red>플레이어만 사용할 수 있습니다."));
             }
             case "list" -> {
@@ -144,7 +145,7 @@ public final class StsvCommand implements TabExecutor {
                 sender.sendMessage(Text.msg("<gray>명령어 목록"));
                 for (String line : List.of(
                         "지급 <플레이어> <아이템> [개수] <dark_gray>- 아이템 지급",
-                        "아이템목록 <dark_gray>- 아이템 목록 GUI",
+                        "아이템목록 [검색어] <dark_gray>- 아이템 목록 GUI (분류별 탭, 검색)",
                         "목록 | 정보 <dark_gray>- 아이템 목록 / 손에 든 아이템 정보",
                         "레시피 생성 <id> <종류> [시간] [경험치] <dark_gray>- 레시피 편집기",
                         "레시피 삭제 <id> | 레시피 목록",
@@ -275,7 +276,7 @@ public final class StsvCommand implements TabExecutor {
                     }
                     switch (sub) {
                         case "give" -> eco.move(null, uuid, value, dev.stsv.core.economy.EconomyStore.Kind.ADMIN, "admin_give", note);
-                        case "take" -> eco.set(uuid, eco.balance(uuid) - value, note);
+                        case "take" -> eco.set(uuid, Math.max(0, eco.balance(uuid) - value), note);   // never below zero
                         default -> eco.set(uuid, value, note);
                     }
                     sender.sendMessage(Text.msg("<green>" + args[2] + " 잔액: </green>" + dev.stsv.core.economy.EconomyModule.format(eco.balance(uuid))));

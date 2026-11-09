@@ -4,6 +4,7 @@ import dev.stsv.core.STSVPlugin;
 import dev.stsv.core.hud.HudModule;
 import dev.stsv.core.module.StsvModule;
 import dev.stsv.core.util.Lang;
+import dev.stsv.core.world.SafeSpot;
 import dev.stsv.core.world.WorldsModule;
 import org.bukkit.Bukkit;
 import org.bukkit.Location;
@@ -73,6 +74,7 @@ public final class TpaModule implements StsvModule, Listener, TabExecutor {
 
     private void load() {
         book.settings(plugin.getConfig().getInt("tpa.timeout-seconds") * 1000L, plugin.getConfig().getInt("tpa.cooldown-seconds") * 1000L);
+        book.gap(plugin.getConfig().getInt("tpa.request-gap-seconds") * 1000L);
     }
 
     // ------------------------------------------------------------------------------------------
@@ -142,7 +144,11 @@ public final class TpaModule implements StsvModule, Listener, TabExecutor {
             p.sendMessage(Lang.msg("tpa.blocked", "player", target.getName()));
             return;
         }
-        TpaBook.Added added = book.add(new TpaBook.Request(p.getUniqueId(), p.getName(), target.getUniqueId(), target.getName(), kind, now));
+        TpaBook.Added added = book.add(new TpaBook.Request(p.getUniqueId(), p.getName(), target.getUniqueId(), target.getName(), kind, now), admin(p));
+        if (added.status() == TpaBook.Status.TOO_SOON) {
+            p.sendMessage(Lang.msg("tpa.too-soon", "seconds", seconds(book.gapLeft(p.getUniqueId(), now))));
+            return;
+        }
         if (added.status() == TpaBook.Status.SAME) {
             p.sendMessage(Lang.msg("tpa.already", "player", target.getName(), "seconds", seconds(book.expiresIn(added.previous(), now))));
             return;
@@ -230,6 +236,11 @@ public final class TpaModule implements StsvModule, Listener, TabExecutor {
             mover.sendMessage(Lang.msg("tpa.busy", "player", inWardrobe(mover) ? mover.getName() : destName));
             return;
         }
+        if (!safeArrival(dest)) {
+            mover.sendMessage(Lang.msg("tpa.unsafe", "player", destName));
+            dest.sendMessage(Lang.msg("tpa.unsafe-other", "player", mover.getName()));
+            return;
+        }
         Location to = dest.getLocation();
         mover.teleportAsync(to, PlayerTeleportEvent.TeleportCause.COMMAND).thenAccept(ok -> {
             if (!ok) {
@@ -241,6 +252,21 @@ public final class TpaModule implements StsvModule, Listener, TabExecutor {
             HudModule.flash(mover, Lang.mm("tpa.arrived", "player", destName));
             if (dest.isOnline()) HudModule.flash(dest, Lang.mm("tpa.arrived-other", "player", mover.getName()));
         });
+    }
+
+    /**
+     * Is where dest stands a safe place to bring someone ({@link SafeSpot#arrival}): checked when the warm-up ends, so
+     * a player who stepped into lava (with fire resistance) or took off with an elytra meanwhile cannot pull the
+     * other one into it.
+     */
+    private static boolean safeArrival(Player dest) {
+        org.bukkit.entity.Entity root = dest.isInsideVehicle() && dest.getVehicle() != null ? dest.getVehicle() : dest;
+        boolean climbing = root instanceof org.bukkit.entity.LivingEntity le && le.isClimbing();
+        boolean airborne = dest.isFlying() || dest.isGliding() || (!root.isOnGround() && !root.isInWater() && !climbing);
+        org.bukkit.block.Block feet = dest.getLocation().getBlock();
+        org.bukkit.block.Block head = feet.getRelative(org.bukkit.block.BlockFace.UP), below = feet.getRelative(org.bukkit.block.BlockFace.DOWN);
+        return SafeSpot.arrival(feet.getType(), feet.getType().isOccluding(), head.getType(), head.getType().isOccluding(), below.getType(),
+                airborne, dest.isInLava());
     }
 
     // ------------------------------------------------------------------------------------------

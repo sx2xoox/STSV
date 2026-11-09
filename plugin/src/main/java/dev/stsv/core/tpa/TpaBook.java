@@ -35,16 +35,22 @@ public final class TpaBook {
         }
     }
 
-    /** NEW = sent; REPLACED = sent, the sender's earlier live request (previous) dropped; SAME = that very request is already pending, nothing sent. */
-    public enum Status { NEW, REPLACED, SAME }
+    /**
+     * NEW = sent; REPLACED = sent, the sender's earlier live request (previous) dropped; SAME = that very request is
+     * already pending, nothing sent; TOO_SOON = the sender sent one less than the request gap ago (switching between
+     * /tpa and /tpahere to the same player included), nothing sent.
+     */
+    public enum Status { NEW, REPLACED, SAME, TOO_SOON }
 
     public record Added(Status status, Request previous) {}
 
     private final Map<UUID, Request> bySender = new LinkedHashMap<>();
     private final Set<UUID> blocking = new HashSet<>();
     private final Map<UUID, Long> lastTrip = new HashMap<>();
+    private final Map<UUID, Long> lastSent = new HashMap<>();
     private long timeoutMs;
     private long cooldownMs;
+    private long gapMs;
 
     public TpaBook(long timeoutMs, long cooldownMs) {
         settings(timeoutMs, cooldownMs);
@@ -53,6 +59,17 @@ public final class TpaBook {
     public void settings(long timeoutMs, long cooldownMs) {
         this.timeoutMs = Math.max(1000, timeoutMs);
         this.cooldownMs = Math.max(0, cooldownMs);
+    }
+
+    /** The least time between two requests one player sends (tpa.request-gap-seconds), so a target cannot be flooded. */
+    public void gap(long gapMs) {
+        this.gapMs = Math.max(0, gapMs);
+    }
+
+    /** Milliseconds before the player may send another request (0 = now). */
+    public long gapLeft(UUID sender, long now) {
+        Long last = lastSent.get(sender);
+        return last == null ? 0 : Math.max(0, last + gapMs - now);
     }
 
     public boolean expired(Request r, long now) {
@@ -65,8 +82,15 @@ public final class TpaBook {
     }
 
     public Added add(Request r) {
+        return add(r, false);
+    }
+
+    /** exempt = no request gap (admins). */
+    public Added add(Request r, boolean exempt) {
         Request old = live(bySender.get(r.sender()), r.at());
         if (old != null && old.target().equals(r.target()) && old.kind() == r.kind()) return new Added(Status.SAME, old);
+        if (!exempt && gapLeft(r.sender(), r.at()) > 0) return new Added(Status.TOO_SOON, old);
+        lastSent.put(r.sender(), r.at());
         bySender.remove(r.sender());   // re-insert at the end: the newest last
         bySender.put(r.sender(), r);
         return old == null ? new Added(Status.NEW, null) : new Added(Status.REPLACED, old);
@@ -137,6 +161,7 @@ public final class TpaBook {
             }
         }
         blocking.remove(player);
+        lastSent.remove(player);
         return out;
     }
 

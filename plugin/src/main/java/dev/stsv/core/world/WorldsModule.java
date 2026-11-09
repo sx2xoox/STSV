@@ -84,6 +84,9 @@ public final class WorldsModule implements StsvModule, Listener {
     private final Map<UUID, Long> portalTold = new ConcurrentHashMap<>();
     private volatile boolean resetting;
     private WildSpotFiller spots;
+    private volatile boolean peaceful;
+    private PeacefulBuild peacefulBuild;
+    private BukkitTask peacefulSweep;
 
     @Override
     public String id() {
@@ -97,6 +100,9 @@ public final class WorldsModule implements StsvModule, Listener {
         load();
         spots.start();
         Bukkit.getPluginManager().registerEvents(this, plugin);
+        peacefulBuild = new PeacefulBuild(() -> peaceful, this::isBuild);
+        Bukkit.getPluginManager().registerEvents(peacefulBuild, plugin);
+        peacefulSweep = Bukkit.getScheduler().runTaskTimer(plugin, peacefulBuild::sweep, 100L, 100L);
         plugin.admin().add(ADMIN_OWNER, "야생초기화", "[확인]", "야생월드와 그 지옥·엔드를 새 시드로 다시 만듦 (안의 플레이어는 건축월드로)", this::resetCommand,
                 (s, a) -> a.length == 1 ? List.of("확인") : List.of());
         plugin.admin().add(ADMIN_OWNER, "야생스팟", "[채우기 <개수>|비우기]", "/야생월드 의 준비된 자리(렉 방지) 상태 / 서버가 한가할 때 빠르게 더 채우기 / 모두 버리기",
@@ -114,6 +120,8 @@ public final class WorldsModule implements StsvModule, Listener {
         pending.values().forEach(w -> w.task().cancel());
         pending.clear();
         if (spots != null) spots.stop();
+        if (peacefulSweep != null) peacefulSweep.cancel();
+        if (peacefulBuild != null) HandlerList.unregisterAll(peacefulBuild);
         plugin.admin().removeAll(ADMIN_OWNER);
         HandlerList.unregisterAll(this);
     }
@@ -121,6 +129,7 @@ public final class WorldsModule implements StsvModule, Listener {
     private void load() {
         var section = plugin.getConfig().getConfigurationSection("worlds");
         rules = WorldRules.parse(section);
+        peaceful = plugin.getConfig().getBoolean("worlds.build-peaceful");
         spots.settings(WildSpotRules.parse(section));
         if (section != null) for (String word : section.getStringList("keep-inventory")) {
             if (WorldRules.role(word) == null) plugin.getLogger().warning("[월드] worlds.keep-inventory 의 '" + word + "' 는 알 수 없는 월드입니다 (build, wild, nether, end)");
@@ -369,6 +378,43 @@ public final class WorldsModule implements StsvModule, Listener {
     // The server's default nether and end are not played in while there is a wild world: whoever logs in there
     // goes to the wild world's spawn (the worlds and their data stay; vanilla still needs them loaded)
     // ------------------------------------------------------------------------------------------
+
+    // ------------------------------------------------------------------------------------------
+    // /관리자 야생초기화 while a player was offline in the wild set: their saved position names the old world (Paper
+    // puts them in the new one at the same coordinates: in rock, over a drop, in the sea). The world they left is
+    // kept on the player when they quit (its id: a regenerated world has a new one); on join in another wild-set
+    // world of that name they are moved to the build world's spawn, as those online during the reset were.
+    // ------------------------------------------------------------------------------------------
+
+    private static final NamespacedKey LEFT_IN = new NamespacedKey("stsv", "left_in_world");
+
+    private void rememberWorld(Player p) {
+        World w = p.getWorld();
+        if (WorldRules.wildSet(kind(w))) p.getPersistentDataContainer().set(LEFT_IN, PersistentDataType.STRING, w.getName() + ";" + w.getUID());
+        else p.getPersistentDataContainer().remove(LEFT_IN);
+    }
+
+    /** Was the player saved in a wild-set world that has been regenerated since? (by the world's id) */
+    static boolean regenerated(String saved, String worldName, String worldId) {
+        if (saved == null) return false;
+        int cut = saved.lastIndexOf(';');
+        if (cut < 0) return false;
+        return saved.substring(0, cut).equals(worldName) && !saved.substring(cut + 1).equals(worldId);
+    }
+
+    @EventHandler(priority = EventPriority.LOWEST)
+    public void onJoinRegenerated(PlayerJoinEvent e) {
+        Player p = e.getPlayer();
+        World w = p.getWorld();
+        String saved = p.getPersistentDataContainer().get(LEFT_IN, PersistentDataType.STRING);
+        if (!WorldRules.wildSet(kind(w)) || !regenerated(saved, w.getName(), w.getUID().toString())) return;
+        p.getPersistentDataContainer().remove(LEFT_IN);
+        p.setFallDistance(0);
+        p.setFireTicks(0);
+        p.teleport(buildWorld().getSpawnLocation().add(0.5, 0, 0.5), PlayerTeleportEvent.TeleportCause.PLUGIN);
+        p.sendMessage(Lang.msg("worlds.reset-moved-offline", "world", Lang.raw("worlds.wild")));
+        plugin.getLogger().info("[월드] " + p.getName() + ": 접속하지 않은 사이 새로 만든 " + w.getName() + " 에 있어 건축월드 스폰으로 옮김");
+    }
 
     @EventHandler(priority = EventPriority.MONITOR)
     public void onJoin(PlayerJoinEvent e) {
@@ -633,6 +679,7 @@ public final class WorldsModule implements StsvModule, Listener {
     public void onQuit(PlayerQuitEvent e) {
         cancel(e.getPlayer(), null);
         remember(e.getPlayer(), e.getPlayer().getLocation());
+        rememberWorld(e.getPlayer());
     }
 
     @EventHandler(priority = EventPriority.MONITOR, ignoreCancelled = true)

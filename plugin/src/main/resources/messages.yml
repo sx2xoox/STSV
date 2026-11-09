@@ -202,6 +202,9 @@ night-vision:
   enabled: "<green>야간 투시를 켰습니다.</green> <gray>(끄려면 다시 /야간투시)"
   disabled: "<gray>야간 투시를 껐습니다."
 
+alts:
+  refused: "<red><b>접속할 수 없습니다</b></red>\n\n<gray>이 IP에서는 이미 다른 계정이 이 서버에 접속하고 있습니다.\n<white>부계정은 허용되지 않습니다</white> (한 IP에 한 계정).\n\n<dark_gray>같은 집·같은 인터넷을 쓰는 가족이나 친구라면 관리자에게 이 계정 이름을 알려 주세요."
+
 worlds:
   build: "건축월드"
   wild: "야생월드"
@@ -212,6 +215,7 @@ worlds:
   keep-inventory: "<gold>{world}</gold><gray>에서는 죽어도 <white>아이템과 경험치</white>가 그대로 남습니다."
   portal-build: "<red>건축월드에서는 지옥·엔드로 갈 수 없습니다 <gray>→ <white>/야생월드</white>의 포털로"
   portal-unavailable: "<red>지금은 포털 너머의 월드로 갈 수 없습니다. 잠시 뒤 다시 해 보세요."
+  reset-moved-offline: "<yellow>접속하지 않은 사이 {world}이(가) 새로 만들어졌습니다. 안전하게 <white>건축월드</white> 스폰으로 옮겨 드렸습니다."
   retired-moved: "<yellow>이 월드는 더 이상 쓰지 않습니다. <white>{world}</white> 스폰으로 옮겨 드렸습니다."
   already: "<yellow>이미 {world}에 있습니다."
   no-wild: "<red>야생월드가 없습니다. <gray>(config.yml worlds.wild-world)"
@@ -254,6 +258,9 @@ tpa:
   offline: "<red><white>{player}</white>님은 지금 접속해 있지 않습니다."
   blocked: "<red><white>{player}</white>님은 텔레포트 요청을 받지 않고 있습니다."
   cooldown: "<red>텔레포트 요청은 <white>{seconds}초</white> 뒤에 다시 보낼 수 있습니다."
+  too-soon: "<red>텔레포트 요청은 <white>{seconds}초</white>에 한 번만 보낼 수 있습니다."
+  unsafe: "<red><white>{player}</white>님이 지금 안전한 곳에 서 있지 않아(공중, 용암·불 속 등) 이동을 취소했습니다. <gray>다시 요청해 주세요."
+  unsafe-other: "<red><white>{player}</white>님이 오려 했지만 지금 서 있는 곳이 안전하지 않아(공중, 용암·불 속 등) 취소되었습니다."
   already: "<yellow><white>{player}</white>님에게 이미 요청을 보냈습니다. <gray>({seconds}초 뒤 만료 · 취소: /tpacancel)"
   replaced: "<gray><white>{player}</white>님에게 보낸 이전 요청은 취소했습니다."
   sent: "<green><white>{player}</white>님에게 <white>가겠다는</white> 요청을 보냈습니다. <gray>({seconds}초 안에 수락하면 이동 · <click:run_command:'/tpacancel'><hover:show_text:'<gray>클릭하면 요청을 취소합니다'><u>취소</u></hover></click>)"
