@@ -343,7 +343,7 @@ sell:
       economy:grilled_fish_set: { base: 294, q: 4 }   # 생선구이 정식
       economy:hanjeongsik: { base: 1584, q: 1 }   # 한정식
       economy:gyeranmari: { base: 13, q: 32 }   # 계란말이
-      economy:hotteok: { base: 7, q: 32 }   # 호떡
+      economy:hotteok: { base: 11, q: 32 }   # 호떡
       economy:gamjajeon: { base: 7, q: 32 }   # 감자전
       economy:bulgogi: { base: 17, q: 16 }   # 불고기
       economy:jeyuk: { base: 51, q: 8 }   # 제육볶음
@@ -370,7 +370,7 @@ sell:
       economy:pearl_perfume: { base: 776, q: 2 }   # 진주 향수
       economy:vintage_wine: { base: 889, q: 2 }   # 빈티지 포도주
       economy:flower_tea: { base: 14, q: 32 }   # 꽃잎 차
-      economy:cider: { base: 41, q: 16 }   # 사과주
+      economy:cider: { base: 60, q: 8 }   # 사과주
       economy:strawberry_wine: { base: 56, q: 8 }   # 딸기주
       economy:mead: { base: 51, q: 8 }   # 꿀술
       economy:cheongju: { base: 311, q: 4 }   # 청주

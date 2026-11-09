@@ -225,7 +225,7 @@ kitchen:
     - { in: { economy:bibimbap: 1, economy:grilled_fish_set: 1, economy:doenjang: 1 }, out: economy:hanjeongsik, seconds: 1200, tier: 3 }   # 한정식 1584G
     # ── 추가 ──
     - { in: { egg: 4, economy:green_onion: 14 }, out: economy:gyeranmari, seconds: 50 }   # 계란말이 13G
-    - { in: { wheat: 16, sugar: 1 }, out: economy:hotteok, amount: 2, seconds: 75 }   # 호떡 7G
+    - { in: { economy:flour: 1, sugar: 1 }, out: economy:hotteok, amount: 2, seconds: 50 }   # 호떡 11G (호박전처럼 밀가루 반죽)
     - { in: { potato: 16, egg: 1 }, out: economy:gamjajeon, amount: 2, seconds: 75 }   # 감자전 7G
     - { in: { beef: 3, economy:onion: 15, economy:green_onion: 14 }, out: economy:bulgogi, amount: 2, seconds: 150 }   # 불고기 17G
     - { in: { porkchop: 3, economy:chili_powder: 1, economy:onion: 15 }, out: economy:jeyuk, amount: 2, seconds: 75 }   # 제육볶음 51G
@@ -273,7 +273,7 @@ still:
     - { in: { economy:wine: 3, economy:oak_barrel: 1 }, out: economy:vintage_wine, amount: 2, seconds: 4500, tier: 3, aging: true }   # 빈티지 포도주 889G
     # ── 추가 (숙성은 오래 걸리는 만큼 남음) ──
     - { in: { "#small_flowers": 4, sugar: 1 }, out: economy:flower_tea, seconds: 70 }   # 꽃잎 차 14G
-    - { in: { apple: 16, sugar: 1 }, out: economy:cider, amount: 2, seconds: 900, aging: true }   # 사과주 41G
+    - { in: { economy:apple_juice: 8, sugar: 1 }, out: economy:cider, amount: 4, seconds: 720, aging: true }   # 사과주 60G (포도주처럼 즙을 숙성)
     - { in: { economy:strawberry: 64, sugar: 2 }, out: economy:strawberry_wine, amount: 2, seconds: 900, tier: 1, aging: true }   # 딸기주 56G
     - { in: { honey_bottle: 10 }, out: economy:mead, amount: 2, seconds: 1200, tier: 1, aging: true }   # 꿀술 51G
     - { in: { economy:makgeolli: 4, economy:rice: 1 }, out: economy:cheongju, amount: 2, seconds: 1680, tier: 2, aging: true }   # 청주 311G (막걸리를 맑게 거름)
