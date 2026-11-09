@@ -88,8 +88,11 @@ public final class PackModule implements StsvModule, Listener {
 
     public void rebuild() throws IOException {
         ConfigurationSection cfg = cfg();
+        Map<String, byte[]> extra = new java.util.TreeMap<>(plugin.hud() == null ? Map.of() : plugin.hud().packFiles());
+        // the game's own text font with its Korean from Neo둥근모 (DefaultFont)
+        if (cfg.getBoolean("default-font")) extra.putAll(DefaultFont.files());
         PackBuilder.Built built = new PackBuilder()
-                .extra(plugin.hud() == null ? Map.of() : plugin.hud().packFiles())
+                .extra(extra)
                 .build(
                 plugin.content().packs(), plugin.content().items(),
                 cfg.getInt("pack-format", 97), "STSV server resources");
