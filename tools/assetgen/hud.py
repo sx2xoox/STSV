@@ -156,7 +156,7 @@ FILLS = {   # light, body, shade
 }
 SAT = (255, 228, 92)
 FILL_H = 7
-INNER = 50                     # the inside of a bar (the frame is 52 x 9)
+INNER = 59                     # the inside of a bar (the frame is 61 x 9; HudLayout.INNER)
 PIECES = (1, 2, 4, 8, 16, 32)
 
 OUTLINE = (16, 18, 22)
@@ -250,7 +250,7 @@ def digit(ch):
 
 
 # ------------------------------------------------------------------------------------------------
-# Bars: a 52 x 9 frame, fills of 1 .. 32 px (7 px tall) and a leading edge, segment ticks
+# Bars: a 61 x 9 frame, fills of 1 .. 32 px (7 px tall) and a leading edge, segment ticks
 # ------------------------------------------------------------------------------------------------
 
 def frame(rim):

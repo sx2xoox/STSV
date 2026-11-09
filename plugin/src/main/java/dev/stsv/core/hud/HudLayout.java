@@ -16,9 +16,9 @@ import java.util.Map;
  * <ul>
  *   <li>action bar: centred on the screen's middle, pen line at (guiHeight - 72); a glyph's top is at pen line
  *       + 7 - ascent, so a glyph whose top should be D pixels above the bottom of the screen gets ascent D - 65.
- *       The bars take the rows of the game's hearts (top 39 above the bottom) and armor (49), within the
- *       hotbar's width (x -91 .. 91), and leave the middle (|x| &lt; 14) to the experience level the game draws
- *       there.</li>
+ *       The bars take the rows of the game's hearts (top 39 above the bottom) and armor (49), across the
+ *       hotbar's width (frames and icons within x -91 .. 91, the numbers just past its ends, as wide on both
+ *       sides), and leave the middle (|x| &lt; 14) to the experience level the game draws there.</li>
  *   <li>boss bar title (the first boss bar): centred, pen line at y 3 from the top; a glyph top at y gets ascent
  *       10 - y. The sidebar panel lives there, its right edge {@code right} pixels right of the screen's
  *       middle, its top {@code top} pixels below the top of the screen.</li>
@@ -103,10 +103,14 @@ public final class HudLayout {
     static final int DEFAULT_RIGHT = 212;
     // action bar rows (distance of a glyph's top from the bottom of the screen)
     static final int ROW1 = 39, ROW2 = 49;
-    // a bar: [number][icon][frame] on the left half, mirrored on the right; the fill grows away from the icon
-    static final int INNER = 50, FRAME_W = INNER + 2, ICON = 9;
-    static final int LEFT_FRAME = -65, LEFT_ICON = -75, LEFT_NUMBER_END = -76;
-    static final int RIGHT_FRAME = 14, RIGHT_ICON = 67, RIGHT_NUMBER = 77;
+    // a bar: [number][icon][frame] on the left half, mirrored on the right; the fill grows away from the icon.
+    // The frames start at the edge of the level's room (|x| < 14) and, with the icons, reach nearly to the
+    // hotbar's ends (x -84 .. 84); the numbers sit just past them. Parts are a pitch of (INNER + 1) / n px: the
+    // fill and a one-pixel tick, the last part ending at the frame. INNER + 1 = 60, so the usual 10 hearts /
+    // drumsticks / armor points / bubbles are 5 px each and 12 (more hearts) 4 px, 6, 5, 4, 3 and 2 just as even.
+    static final int INNER = 59, FRAME_W = INNER + 2, ICON = 9, MIDDLE = 14;
+    static final int LEFT_FRAME = -(MIDDLE - 1) - FRAME_W, LEFT_ICON = LEFT_FRAME - 1 - ICON, LEFT_NUMBER_END = LEFT_ICON - 1;
+    static final int RIGHT_FRAME = MIDDLE, RIGHT_ICON = RIGHT_FRAME + FRAME_W + 1, RIGHT_NUMBER = RIGHT_ICON + ICON + 1;
     static final int DIGIT_PITCH = 4;
     static final int[] FILL_PIECES = {32, 16, 8, 4, 2, 1};
     // the panel at its normal size (HEAD: title strip down to the first row; ROW: row pitch; FOOT: bevel,
@@ -465,10 +469,13 @@ public final class HudLayout {
         }
     }
 
-    /** Where the ticks between `segments` equal parts of an inside `size` px wide go (none for one part). */
+    /**
+     * Where the ticks between `segments` equal parts of an inside `size` px wide go (none for one part): every part
+     * is its fill and the tick after it, the last one ends at the frame, so (size + 1) / segments px apart.
+     */
     static List<Integer> ticks(int segments, int size) {
         List<Integer> out = new ArrayList<>();
-        for (int j = 1; j < segments; j++) out.add((int) Math.round(j * (double) size / segments));
+        for (int j = 1; j < segments; j++) out.add((int) Math.round(j * (size + 1.0) / segments) - 1);
         return out;
     }
 
@@ -505,10 +512,13 @@ public final class HudLayout {
         }
     }
 
-    /** Pixels of a bar of `size` filled for value / max: at least 1 for anything above 0, never past full. */
+    /**
+     * Pixels of a bar of `size` filled for value / max: at least 1 for anything above 0, never past full. Measured
+     * like the ticks ({@link #ticks}): a whole number of parts fills them up to the tick after the last one.
+     */
     static int fill(double value, double max, int size) {
         if (value <= 0 || max <= 0) return 0;
-        return (int) Math.max(1, Math.min(size, Math.round(value / max * size)));
+        return (int) Math.max(1, Math.min(size, Math.round(value / max * (size + 1)) - 1));
     }
 
     /** Health as shown: whole points rounded up, as the game counts its half hearts (alive is never 0). */
