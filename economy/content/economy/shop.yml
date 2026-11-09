@@ -1,19 +1,30 @@
 # 관리자 상점 /상점: 구매 · 판매 → 카테고리 → 품목. 시세 /시세
-# 판매(sell): 플레이어가 상점에 팔 때. 매입가는 사람마다 따로: P = max(floor·base, base·e^(-S/Q)) × 배수(수요 고시·품귀·폭락·고가 매입상),
-#   S = 그 사람이 그 물건을 판 양 (매시간 hourly-recovery 만큼, 매일 05시에 daily-decay 만큼 줄어듦), Q = q × depth (접속 인원과 무관).
-#   내가 판 만큼 내 값만 내려가고, 다른 사람이 판 것은 내 값에 영향 없음. cap = 1인 하루 판매 한도(선택).
-#   S = Q 만큼 팔면 기준가의 37%, floor 에서 멈춤. depth 를 올리면 덜 떨어지고, 내리면 더 빨리 떨어짐.
+# 판매(sell): 플레이어가 상점에 팔 때. 매입가는 사람마다 따로: P = base × max(floor, (1 + S/Q)^(-curve-exponent)) × 배수
+#   (수요 고시·품귀·폭락·고가 매입상), S = 그 사람이 그 물건을 판 양 (매시간 hourly-recovery 만큼, 매일 05시에 daily-decay 만큼
+#   줄어듦), Q = q × depth (접속 인원과 무관). 내가 판 만큼 내 값만 내려가고, 다른 사람이 판 것은 내 값에 영향 없음.
+#   cap = 1인 하루 판매 한도(선택).
+#   많이 팔수록 계속 조금씩 싸짐 (벽처럼 멈추지 않음): S = Q 에서 기준가의 71%, 3Q 50%, 8Q 33%, 15Q 에서야 floor 25%.
+#   depth 를 올리면 덜 떨어지고, curve-exponent 를 올리면 더 빨리 떨어짐.
 #   시세판·24시간 변화·/시세(콘솔)는 시장가 = base × 배수 (최근 안 판 사람이 받는 값)
 #   q 는 기준가 구간으로 정함 (모든 판매 줄 같은 규칙): 3G 미만 128 · 6G 미만 64 · 15G 미만 32 · 50G 미만 16 · 150G 미만 8
-#   · 500G 미만 4 · 1000G 미만 2 · 그 위 1. 커스텀 작물은 1인 하루 한도 cap = 6 × q. 그 밖에 cap 이 있는 것은 다이아몬드(32)·네더라이트 파편(4)
+#   · 500G 미만 4 · 1000G 미만 2 · 그 위 1. 커스텀 작물은 1인 하루 한도 cap = 4 × q. 그 밖에 cap 이 있는 것은 다이아몬드(32)·네더라이트 파편(4)
 # 구매(buy): 플레이어가 상점에서 살 때 (고정가). 장비와 고급 재료는 팔지 않음: 플레이어끼리 거래.
 # 카테고리는 한쪽에 7개까지 (화면 한 줄, 구매는 상인 행렬 자리 포함). 카테고리 = name, icon(아이템 id), items.
-floor: 0.4
+# 아무리 많이 팔아도 이 아래로는 안 내려감 (기준가의 25%: 15Q 넘게 팔아야 닿음)
+floor: 0.25
 daily-decay: 0.5
-# 하락 완만함: q(1인 적정량) 에 곱함. 3 = 한 사람이 q 의 3배를 팔면 그 사람 값이 기준가의 37% (q 만 팔면 72%)
-depth: 3
-# 하루 중에도 회복: 매시간 각자 판 양(S)이 이 비율만큼 줄어듦 (0.08 = 약 8시간이면 절반)
-hourly-recovery: 0.08
+# 하락 완만함: q(1인 적정량) 에 곱함. 6 = 한 사람이 q 의 6배를 팔면 그 사람 값이 기준가의 71% (q 만 팔면 93%)
+depth: 6
+# 하락 모양: (1 + S/Q) 의 -0.5 제곱. 처음엔 완만하고, 많이 팔수록 손해가 커지지만 멈추지는 않음
+curve-exponent: 0.5
+# 하루 중에도 회복: 매시간 각자 판 양(S)이 이 비율만큼 줄어듦 (0.12 = 약 5시간 반이면 절반)
+hourly-recovery: 0.12
+# 판매 소득세 (누진): 그날(05시부터) 상점에 판 금액 중 over 를 넘는 부분에만 rate. 적게 파는 사람은 안 냄
+#   예) 하루 20,000G 판매 → 세금 0 · 50,000G → 2,000G · 80,000G → 7,000G · 150,000G → 26,000G
+income-tax:
+  - { over: 30000, rate: 0.10 }
+  - { over: 60000, rate: 0.20 }
+  - { over: 100000, rate: 0.30 }
 
 sell:
   minerals:
@@ -48,23 +59,23 @@ sell:
       leather: { base: 5, q: 64, job: farmer }
       white_wool: { base: 2, q: 128, job: farmer }
       # 채소·과일 (커스텀 작물)
-      economy:tomato: { base: 6, q: 32, job: farmer, cap: 192 }
-      economy:chili_pepper: { base: 7, q: 32, job: farmer, cap: 192 }
-      economy:strawberry: { base: 9, q: 32, job: farmer, cap: 192 }
-      economy:onion: { base: 8, q: 32, job: farmer, cap: 192 }
-      economy:garlic: { base: 5, q: 64, job: farmer, cap: 384 }
-      economy:napa_cabbage: { base: 18, q: 16, job: farmer, cap: 96 }
-      economy:paddy: { base: 4, q: 64, job: farmer, cap: 384 }
-      economy:soybean: { base: 4, q: 64, job: farmer, cap: 384 }
-      economy:corn: { base: 10, q: 32, job: farmer, cap: 192 }
-      economy:green_onion: { base: 5, q: 64, job: farmer, cap: 384 }
-      economy:radish: { base: 14, q: 32, job: farmer, cap: 192 }
-      economy:lettuce: { base: 5, q: 64, job: farmer, cap: 384 }
-      economy:cucumber: { base: 7, q: 32, job: farmer, cap: 192 }
-      economy:grapes: { base: 10, q: 32, job: farmer, cap: 192 }
-      economy:eggplant: { base: 8, q: 32, job: farmer, cap: 192 }
-      economy:zucchini: { base: 9, q: 32, job: farmer, cap: 192 }
-      economy:muskmelon: { base: 26, q: 16, job: farmer, cap: 96 }
+      economy:tomato: { base: 6, q: 32, job: farmer, cap: 128 }
+      economy:chili_pepper: { base: 7, q: 32, job: farmer, cap: 128 }
+      economy:strawberry: { base: 9, q: 32, job: farmer, cap: 128 }
+      economy:onion: { base: 8, q: 32, job: farmer, cap: 128 }
+      economy:garlic: { base: 5, q: 64, job: farmer, cap: 256 }
+      economy:napa_cabbage: { base: 18, q: 16, job: farmer, cap: 64 }
+      economy:paddy: { base: 4, q: 64, job: farmer, cap: 256 }
+      economy:soybean: { base: 4, q: 64, job: farmer, cap: 256 }
+      economy:corn: { base: 10, q: 32, job: farmer, cap: 128 }
+      economy:green_onion: { base: 5, q: 64, job: farmer, cap: 256 }
+      economy:radish: { base: 14, q: 32, job: farmer, cap: 128 }
+      economy:lettuce: { base: 5, q: 64, job: farmer, cap: 256 }
+      economy:cucumber: { base: 7, q: 32, job: farmer, cap: 128 }
+      economy:grapes: { base: 10, q: 32, job: farmer, cap: 128 }
+      economy:eggplant: { base: 8, q: 32, job: farmer, cap: 128 }
+      economy:zucchini: { base: 9, q: 32, job: farmer, cap: 128 }
+      economy:muskmelon: { base: 26, q: 16, job: farmer, cap: 64 }
   fish:
     name: "수산물"
     icon: economy:mackerel
@@ -363,6 +374,8 @@ buy:
       - { item: fishing_rod, price: 40 }
       - { item: shears, price: 40 }
       - { item: bucket, price: 60 }
+      # 수선(Mending) 책: 주민 거래가 막혀 있어 낚시 보물로만 나오던 것. 일부러 비쌈 (돈이 빠지는 곳): 도구·갑옷 하나에 한 권
+      - { item: 'minecraft:enchanted_book[stored_enchantments={mending:1}]', price: 30000 }
   # 직업 기계: 조합대에서도 만들 수 있음. 강화 단계 0
   machines:
     name: "기계"

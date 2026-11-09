@@ -8,11 +8,17 @@ price:
   base: 500
   step: 50
 
+# 재산세 (매일 05시, 금고에서 먼저, 모자라면 소유자 지갑). 누진: 큰 땅일수록 청크 하나가 비쌈
+#   예) 혼자 사는 땅 (무료 2): 5청크 300G · 10청크 800G · 20청크 2,800G · 30청크 5,300G · 40청크 8,300G 하루
+#   구성원이 있으면 누진 기준이 늘어남 (함께 사는 큰 땅은 덜 비쌈)
 tax:
-  per-chunk: 13              # 무료를 넘는 청크 하나의 하루 재산세 (05시, 금고에서 먼저, 모자라면 소유자 지갑)
+  per-chunk: 100             # 무료를 넘는 청크 하나의 하루 재산세
   progressive-base: 10       # 땅 전체 청크가 progressive-base + 구성원 1명당 progressive-per-member 를 넘으면
   progressive-per-member: 5
-  progressive-factor: 2      # 넘는 청크는 세금 2배
+  progressive-factor: 2      # 넘는 청크는 세금 2배 (200G)
+  progressive-base-2: 25     # 땅 전체 청크가 progressive-base-2 + 구성원 1명당 progressive-per-member-2 를 넘으면
+  progressive-per-member-2: 10
+  progressive-factor-2: 3    # 넘는 청크는 세금 3배 (300G)
   warn-days: 3               # 3일 연속 못 내면, 낼 수 있게 될 때까지 가장 최근 청크부터 해제
   low-vault-days: 3          # 금고가 이 일수의 세금보다 적으면 소유자·구성원에게 알림 (0 = 끔)
 

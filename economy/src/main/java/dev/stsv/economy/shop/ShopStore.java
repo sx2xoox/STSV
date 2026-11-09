@@ -89,6 +89,20 @@ public final class ShopStore {
         return playerDay.getOrDefault(player + "|" + item, 0);
     }
 
+    /** The day's counts row that holds what a player sold today in gold (판매 소득세), beside the items' counts. */
+    static final String INCOME = "#income";
+
+    /** Gold this player got from the shop today, before the 판매 소득세 (starts over at the daily reset). */
+    public long income(UUID player) {
+        return playerDay.getOrDefault(player + "|" + INCOME, 0);
+    }
+
+    public void addIncome(UUID player, long gold) {
+        if (gold <= 0) return;
+        int p = playerDay.merge(player + "|" + INCOME, (int) Math.min(Integer.MAX_VALUE, gold), (a, b) -> (int) Math.min(Integer.MAX_VALUE, (long) a + b));
+        db.execute(db.upsert("eco_shop_player", List.of("player", "item"), List.of("amount")), player.toString(), INCOME, p);
+    }
+
     public void record(UUID player, String item, int count) {
         double s = sold.computeIfAbsent(player, k -> new ConcurrentHashMap<>()).merge(item, (double) count, Double::sum);
         int p = playerDay.merge(player + "|" + item, count, Integer::sum);

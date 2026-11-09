@@ -195,18 +195,23 @@ class RulesTest {
 
     @Test
     void sellPriceFallsWithWhatThePlayerSold() {
-        double q = 32, base = 10, floor = 0.35;
+        double q = 32, base = 10, floor = 0.25;
         assertEquals(10, PriceModel.unit(base, 0, q, floor, 1), 1e-9, "nothing sold lately: the market price");
-        assertEquals(10 * Math.exp(-1), PriceModel.unit(base, 32, q, floor, 1), 1e-9, "S = Q (the player's own quota): 37% of the base");
-        assertEquals(10 * Math.exp(-0.5), PriceModel.unit(base, 16, q, floor, 1), 1e-9);
-        assertEquals(3.5, PriceModel.unit(base, 1000, q, floor, 1), 1e-9, "never below the floor");
-        assertTrue(PriceModel.atFloor(base, 1000, q, floor));
+        assertEquals(10 / Math.sqrt(2), PriceModel.unit(base, 32, q, floor, 1), 1e-9, "S = Q (the player's own quota): 71% of the base");
+        assertEquals(5, PriceModel.unit(base, 96, q, floor, 1), 1e-9, "S = 3Q: half");
+        assertEquals(10 / Math.sqrt(1.5), PriceModel.unit(base, 16, q, floor, 1), 1e-9);
+        assertEquals(2.5, PriceModel.unit(base, 10_000, q, floor, 1), 1e-9, "never below the floor");
+        assertTrue(PriceModel.atFloor(base, 10_000, q, floor));
         assertFalse(PriceModel.atFloor(base, 10, q, floor));
-        // the floor is where e^(-S/Q) = floor: S = Q ln(1/floor)
-        assertTrue(PriceModel.atFloor(base, q * Math.log(1 / floor) + 1e-6, q, floor));
-        assertFalse(PriceModel.atFloor(base, q * Math.log(1 / floor) - 1e-3, q, floor));
+        // the floor is where (1 + S/Q)^(-1/2) = floor: S = Q (1/floor^2 - 1) = 15Q
+        assertTrue(PriceModel.atFloor(base, 15 * q + 1e-6, q, floor));
+        assertFalse(PriceModel.atFloor(base, 15 * q - 1e-3, q, floor));
+        // no wall: every further unit before the floor pays a little less than the one before it
+        for (int s = 0; s < 15 * q; s++) assertTrue(PriceModel.unit(base, s + 1, q, floor, 1) < PriceModel.unit(base, s, q, floor, 1));
         assertEquals(15, PriceModel.unit(base, 0, q, floor, 1.5), 1e-9, "수요 고시 x1.5");
-        assertEquals(3.5 * 3, PriceModel.unit(base, 1000, q, floor, 3), 1e-9, "the floor is multiplied too (품귀 x3)");
+        assertEquals(2.5 * 3, PriceModel.unit(base, 10_000, q, floor, 3), 1e-9, "the floor is multiplied too (품귀 x3)");
+        // another exponent (shop.yml curve-exponent): 1 = falls faster
+        assertEquals(5, PriceModel.unit(base, 32, q, floor, 1, 1.0), 1e-9);
     }
 
     @Test
@@ -228,14 +233,14 @@ class RulesTest {
 
     @Test
     void eachPlayersPriceIsTheirOwn() {
-        double q = 32 * 3, base = 10, floor = 0.4;
-        // A sold 300 today, B nothing: A's price is low, B still gets the market price; how many play does not enter
-        double a = PriceModel.unit(base, 300, q, floor, 1), b = PriceModel.unit(base, 0, q, floor, 1);
+        double q = 32 * 6, base = 10, floor = 0.25;
+        // A sold 3,000 today, B nothing: A's price is low, B still gets the market price; how many play does not enter
+        double a = PriceModel.unit(base, 3000, q, floor, 1), b = PriceModel.unit(base, 0, q, floor, 1);
         assertEquals(base * floor, a, 1e-9);
         assertEquals(base, b, 1e-9);
-        // B sells 32 after A's 300: B's units start at the market price and fall only by B's own 32
-        assertEquals(10 * Math.exp(-32.0 / q), PriceModel.unit(base, 32, q, floor, 1), 1e-9);
-        assertTrue(PriceModel.total(base, 0, q, floor, 1, 32) > 32 * PriceModel.unit(base, 300, q, floor, 1) * 2);
+        // B sells 32 after A's 3,000: B's units start at the market price and fall only by B's own 32
+        assertEquals(10 / Math.sqrt(1 + 32.0 / q), PriceModel.unit(base, 32, q, floor, 1), 1e-9);
+        assertTrue(PriceModel.total(base, 0, q, floor, 1, 32) > 32 * PriceModel.unit(base, 3000, q, floor, 1) * 2);
     }
 
     // ------------------------------------------------------------------------------------------ jobs
@@ -262,12 +267,12 @@ class RulesTest {
         JobSpec.Job miner = spec.jobs().get("miner");
         assertEquals(10, miner.xp("break", "minecraft:diamond_ore"), 1e-9);
         assertEquals(0, miner.xp("break", "minecraft:stone"), 1e-9);
-        assertEquals(0.01, miner.range("extra", 1, 30), 1e-9);
-        assertEquals(0.30, miner.range("extra", 30, 30), 1e-9);
-        assertEquals(0.01 + 0.29 * 14 / 29, miner.range("extra", 15, 30), 1e-9, "evenly between");
+        assertEquals(0.05, miner.range("extra", 1, 30), 1e-9);
+        assertEquals(0.60, miner.range("extra", 30, 30), 1e-9);
+        assertEquals(0.05 + 0.55 * 14 / 29, miner.range("extra", 15, 30), 1e-9, "evenly between");
         assertEquals(0, miner.range("extra", 0, 30), 1e-9, "no level, no effect");
         assertEquals(List.of("economy:rough_ruby"), miner.finds().drops("minecraft:redstone_ore"));
-        assertEquals(0.08, miner.finds().chance().at(30, 30), 1e-9);
+        assertEquals(0.12, miner.finds().chance().at(30, 30), 1e-9);
         assertEquals(0.01, miner.finds().outsider(), 1e-9);
         // machine bonuses switch on at their level
         assertEquals(0, miner.bonus("extra", 9), 1e-9);
@@ -285,7 +290,10 @@ class RulesTest {
         assertEquals(miner, spec.ofMachine("gem_bench"));
         // fishing: the rare-bite chance and the Lv20 doubles (the fish themselves are in fish.yml)
         JobSpec.Finds fish = spec.jobs().get("fisher").finds();
-        assertEquals(0.15, fish.chance().at(30, 30), 1e-9);
+        assertEquals(0.22, fish.chance().at(30, 30), 1e-9);
+        assertEquals(0.06, fish.chance().at(1, 30), 1e-9);
+        assertEquals(0.15, spec.jobs().get("fisher").bonus("save", 20), 1e-9, "Lv20: the fish bench keeps an input 15% of the time");
+        assertEquals(0, spec.jobs().get("fisher").bonus("save", 19), 1e-9);
         assertTrue(fish.doubleItems().contains("economy:pearl"));
         assertEquals(20, fish.doubleLevel());
         JobSpec.Job farmer = spec.jobs().get("farmer");
@@ -339,6 +347,40 @@ class RulesTest {
                 assertEquals(0.2, spec.jobs().get("miner").bonus("yield", 30), 1e-9);
             }
         }
+    }
+
+    /** 직업 변경 비용: by the level of the job changed TO, straight between the points (owner: 1,000 / 2,000 / 3,000 / 5,000). */
+    @Test
+    void changingJobsCostsByTheTargetLevel() {
+        List<String> problems = new ArrayList<>();
+        JobSpec spec = JobSpec.parse(ContentTest.yaml("jobs.yml"), problems);
+        assertEquals(List.of(), problems);
+        JobSpec.ChangeCost c = spec.changeCost();
+        assertEquals(1000, c.at(1), "a job never worked (Lv1)");
+        assertEquals(2000, c.at(10));
+        assertEquals(3000, c.at(20));
+        assertEquals(5000, c.at(30));
+        assertEquals(1444, c.at(5), "evenly between Lv1 and Lv10");
+        assertEquals(2500, c.at(15));
+        assertEquals(4000, c.at(25));
+        assertEquals(1000, c.at(0), "flat before the first point");
+        assertEquals(5000, c.at(40), "flat after the last point");
+        for (int lv = 1; lv < 30; lv++) assertTrue(c.at(lv + 1) >= c.at(lv), "never cheaper for a higher level: Lv" + lv);
+        assertEquals(1000, c.min());
+        assertEquals(5000, c.max());
+        assertEquals(0, spec.changeDays(), "any time: no waiting days");
+
+        // an old file with one number: the same at every level; a bad point is a problem, not a crash
+        YamlConfiguration y = new YamlConfiguration();
+        y.set("change-cost", 1500);
+        assertEquals(1500, JobSpec.parse(y, new ArrayList<>()).changeCost().at(30));
+        YamlConfiguration bad = new YamlConfiguration();
+        bad.set("change-cost.x", 10);
+        bad.set("change-cost.5", 700);
+        List<String> p2 = new ArrayList<>();
+        JobSpec.ChangeCost b = JobSpec.parse(bad, p2).changeCost();
+        assertTrue(p2.stream().anyMatch(s -> s.startsWith("change-cost.x")), p2.toString());
+        assertEquals(700, b.at(30));
     }
 
     @Test
@@ -445,7 +487,8 @@ class RulesTest {
         assertTrue(still.recipes().stream().filter(r -> r.output().equals("economy:vintage_wine")).findFirst().orElseThrow().aging());
         MachineSpec.Settings s = MachineSpec.Settings.parse(ContentTest.yaml("machines.yml"));
         assertEquals(3, s.maxTier());
-        assertEquals(5000, s.cost(1));
+        assertEquals(10000, s.cost(1));
+        assertEquals(100000, s.cost(3));
         assertEquals(30, s.level(3));
         assertEquals(4, s.lanes(3));
         assertEquals(0.30, s.speed(2), 1e-9);
@@ -459,6 +502,15 @@ class RulesTest {
         // presses upgraded at the global price before get the difference back
         assertEquals(4000, MachineSpec.Settings.refund(s, press, 1)); assertEquals(20000, MachineSpec.Settings.refund(s, press, 2));
         assertEquals(60000, MachineSpec.Settings.refund(s, press, 3)); assertEquals(0, MachineSpec.Settings.refund(s, s, 3), "job machines");
+        // the refund pays back what was paid then (5,000 / 20,000 / 50,000), not today's dearer global price
+        assertTrue(s.cost(1) > 5000);
+        // the same upgrade bought again costs more: +50% for every one bought before (machines.yml upgrade.repeat)
+        double repeat = ContentTest.yaml("machines.yml").getDouble("upgrade.repeat");
+        assertEquals(0.5, repeat, 1e-9);
+        assertEquals(100_000, MachineSpec.Settings.repeatCost(s.cost(3), 0, repeat), "the first 3강 of a kind");
+        assertEquals(150_000, MachineSpec.Settings.repeatCost(s.cost(3), 1, repeat), "the second");
+        assertEquals(200_000, MachineSpec.Settings.repeatCost(s.cost(3), 2, repeat));
+        assertEquals(100_000, MachineSpec.Settings.repeatCost(s.cost(3), 5, 0), "repeat 0: off");
     }
 
     // ------------------------------------------------------------------------------------------ stocks
@@ -668,13 +720,23 @@ class RulesTest {
         assertEquals(500, r.price(2, 2), "the first paid chunk");
         assertEquals(550, r.price(3, 2), "each paid chunk makes the next dearer");
         assertEquals(0, r.tax(2, 2, 0, 1), "free chunks are not taxed");
-        assertEquals(13, r.tax(3, 2, 0, 1));
-        assertEquals(8 * 13, r.tax(10, 2, 0, 1));
-        assertEquals(8 * 13 + 2 * 26, r.tax(12, 2, 0, 1), "past 10 chunks: double");
+        assertEquals(100, r.tax(3, 2, 0, 1));
+        assertEquals(8 * 100, r.tax(10, 2, 0, 1));
+        assertEquals(8 * 100 + 2 * 200, r.tax(12, 2, 0, 1), "past 10 chunks: double");
         assertEquals(15, r.progressiveLimit(1), "10 + 5 per member");
-        assertEquals(8 * 13, r.tax(12, 4, 1, 1), "two people: 4 free, double only past 15");
-        assertEquals(2 * 13, r.tax(3, 2, 0, 2), "세무 조사");
+        assertEquals(8 * 100, r.tax(12, 4, 1, 1), "two people: 4 free, double only past 15");
+        assertEquals(2 * 100, r.tax(3, 2, 0, 2), "세무 조사");
         assertEquals(0, r.tax(0, 2, 0, 1));
+        // the second step: past 25 chunks (+10 a member) three times
+        assertEquals(25, r.progressiveLimit2(0));
+        assertEquals(35, r.progressiveLimit2(1));
+        assertEquals(8 * 100 + 15 * 200 + 5 * 300, r.tax(30, 2, 0, 1), "a 30-chunk land alone: 5,300 a day");
+        assertEquals(8 * 100 + 15 * 200 + 15 * 300, r.tax(40, 2, 0, 1));
+        assertEquals(11 * 100 + 20 * 200 + 5 * 300, r.tax(40, 4, 1, 1), "two people: 4 free, double past 15, triple past 35");
+        for (int size = 3; size < 60; size++) assertTrue(r.tax(size + 1, 2, 0, 1) > r.tax(size, 2, 0, 1), "every chunk costs more: " + size);
+        // an old land.yml without the second step: only the first one
+        LandRules old = new LandRules(2, 500, 50, 13, 10, 5, 2, 3, 3, 5);
+        assertEquals(8 * 13 + 30 * 26, old.tax(40, 2, 0, 1));
     }
 
     // ------------------------------------------------------------------------------------------ requests, report
@@ -801,8 +863,9 @@ class RulesTest {
         assertTrue(f.bite().ticks(10, 0.8)[0] >= 1, "never below one tick");
         JobSpec jobs = JobSpec.parse(ContentTest.yaml("jobs.yml"), new ArrayList<>());
         JobSpec.Job fisher = jobs.jobs().get("fisher");
-        assertEquals(0.0, fisher.range("bite", 1, 30), 1e-9);
-        assertEquals(0.40, fisher.range("bite", 30, 30), 1e-9);
+        assertEquals(0.10, fisher.range("bite", 1, 30), 1e-9);
+        assertEquals(0.50, fisher.range("bite", 30, 30), 1e-9);
+        assertArrayEquals(new int[] {11, 66}, f.bite().ticks(3, 0.50), "Lure III and a Lv30 fisher: -45% then -50%");
     }
 
     @Test
@@ -1048,8 +1111,9 @@ class RulesTest {
     }
 
     /**
-     * The sell price curve as shipped, for one player (prices are per player, so how many play does not enter): selling their
-     * own daily quota q still pays well over half, and the floor is still reached when they sell a lot.
+     * The sell price curve as shipped, for one player (prices are per player, so how many play does not enter): selling a lot
+     * is a loss, not a wall (owner decision: a gentler curve). One stack of melon liqueur (q 4) pays over 60% of its base
+     * (45% before), ten stacks still about a third, and only past 15 quotas does the price reach the floor.
      */
     @Test
     void sellPriceFallsGently() throws Exception {
@@ -1057,13 +1121,47 @@ class RulesTest {
                 java.nio.file.Path.of(System.getProperty("stsv.content")).resolve("economy/shop.yml").toFile());
         dev.stsv.economy.shop.ShopCatalog c = dev.stsv.economy.shop.ShopCatalog.parse(y, new java.util.ArrayList<>());
         var curve = c.curve();
+        double e = curve.exponent();
         // an item one player sells 64 of a day (a stack): after that stack their price still pays well over half
-        double afterQuota = dev.stsv.economy.shop.PriceModel.unit(10, 64, curve.quota(64), c.floor(), 1) / 10;
-        assertTrue(afterQuota > 0.55, "after one day's quota: " + afterQuota);
-        // and the floor is still reached when a lot is sold
-        double afterMany = dev.stsv.economy.shop.PriceModel.unit(10, 2000, curve.quota(64), c.floor(), 1) / 10;
-        assertEquals(c.floor(), afterMany, 1e-9);
+        double afterQuota = dev.stsv.economy.shop.PriceModel.unit(10, 64, curve.quota(64), c.floor(), 1, e) / 10;
+        assertTrue(afterQuota > 0.85, "after one day's stack: " + afterQuota);
+        // melon liqueur (base 442, q 4): 1 stack / 10 stacks, average per unit
+        double one = dev.stsv.economy.shop.PriceModel.total(442, 0, curve.quota(4), c.floor(), 1, 64, e) / 64 / 442;
+        double ten = dev.stsv.economy.shop.PriceModel.total(442, 0, curve.quota(4), c.floor(), 1, 640, e) / 640 / 442;
+        assertTrue(one > 0.6, "one stack: " + one);
+        assertTrue(ten > 0.3 && ten < one, "ten stacks: " + ten);
+        // the floor exists but is far: reached only after 15 quotas
+        assertTrue(c.floor() >= 0.2 && c.floor() <= 0.3, "floor " + c.floor());
+        assertFalse(dev.stsv.economy.shop.PriceModel.atFloor(10, 14 * curve.quota(64), curve.quota(64), c.floor(), e));
+        assertEquals(c.floor(), dev.stsv.economy.shop.PriceModel.unit(10, 100 * curve.quota(64), curve.quota(64), c.floor(), 1, e) / 10, 1e-9);
         assertTrue(curve.hourlyRecovery() > 0 && curve.hourlyRecovery() < 0.5);
+    }
+
+    /** 판매 소득세: progressive on a player's shop sales of the day; only the part above each threshold, at its rate. */
+    @Test
+    void theShopIncomeTaxIsProgressive() throws Exception {
+        List<String> problems = new ArrayList<>();
+        dev.stsv.economy.shop.IncomeTax t = dev.stsv.economy.shop.IncomeTax.parse(ContentTest.yaml("shop.yml"), problems);
+        assertEquals(List.of(), problems);
+        assertEquals(0, t.taxOn(20_000), "a small seller pays nothing");
+        assertEquals(0, t.taxOn(30_000));
+        assertEquals(2_000, t.taxOn(50_000));
+        assertEquals(7_000, t.taxOn(80_000));
+        assertEquals(26_000, t.taxOn(150_000));
+        // one big sale = the same sales one by one (only the day's total counts)
+        long split = t.tax(0, 25_000) + t.tax(25_000, 40_000) + t.tax(65_000, 85_000);
+        assertEquals(t.taxOn(150_000), split);
+        // selling more never leaves less
+        for (long g = 0; g < 300_000; g += 777) assertTrue(g + 777 - t.taxOn(g + 777) >= g - t.taxOn(g), "at " + g);
+        assertEquals(0.3, t.rateAt(120_000), 1e-9);
+        assertEquals(0, t.rateAt(10_000), 1e-9);
+        // a file without income-tax: no tax; a bad bracket is a problem
+        assertEquals(0, dev.stsv.economy.shop.IncomeTax.parse(new YamlConfiguration(), problems).taxOn(1_000_000));
+        YamlConfiguration bad = new YamlConfiguration();
+        bad.set("income-tax", List.of(Map.of("over", 100, "rate", 1.5)));
+        List<String> p2 = new ArrayList<>();
+        dev.stsv.economy.shop.IncomeTax.parse(bad, p2);
+        assertEquals(1, p2.size());
     }
 
     /** The codex achievements count what the codex holds: their goals match the shop's 판매 categories. */

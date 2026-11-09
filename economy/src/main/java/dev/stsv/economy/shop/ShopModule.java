@@ -46,6 +46,8 @@ public final class ShopModule extends EcoModule implements DailyListener {
     private static final long DAY = 86_400_000L;
 
     private ShopCatalog catalog;
+    /** 판매 소득세 (shop.yml income-tax) */
+    private IncomeTax incomeTax = IncomeTax.NONE;
     private ShopStore store;
     /** fractions of a gold piece owed to a player per item, so selling one at a time loses nothing */
     private final Map<String, Double> remainder = new ConcurrentHashMap<>();
@@ -112,6 +114,7 @@ public final class ShopModule extends EcoModule implements DailyListener {
     private void load() {
         List<String> problems = new ArrayList<>();
         catalog = ShopCatalog.parse(eco.data("shop.yml"), problems);
+        incomeTax = IncomeTax.parse(eco.data("shop.yml"), problems);
         for (String id : catalog.sell().keySet()) if (Items.create(id, 1).isEmpty()) problems.add("sell: 없는 아이템 " + id);
         for (ShopCatalog.Good g : catalog.goods()) {
             if (g.kind().equals("item") && Items.create(g.id(), 1).isEmpty()) problems.add("buy: 없는 아이템 " + g.id());
@@ -184,13 +187,13 @@ public final class ShopModule extends EcoModule implements DailyListener {
     public double price(UUID player, String item) {
         ShopCatalog.SellEntry e = catalog.sell().get(item);
         if (e == null) return 0;
-        return PriceModel.unit(e.base(), store.sold(player, item), depthQ(e), catalog.floor(), multiplier(item));
+        return PriceModel.unit(e.base(), store.sold(player, item), depthQ(e), catalog.floor(), multiplier(item), exponent());
     }
 
     /** Is this player's own price at the floor? */
     public boolean atFloor(UUID player, String item) {
         ShopCatalog.SellEntry e = catalog.sell().get(item);
-        return e != null && PriceModel.atFloor(e.base(), store.sold(player, item), depthQ(e), catalog.floor());
+        return e != null && PriceModel.atFloor(e.base(), store.sold(player, item), depthQ(e), catalog.floor(), exponent());
     }
 
     /** The market price's 24h change in percent, or null if there is no price from a day ago yet. */
@@ -204,7 +207,16 @@ public final class ShopModule extends EcoModule implements DailyListener {
     // Selling to the shop
     // ------------------------------------------------------------------------------------------
 
-    public record Sale(int count, long paid, double unitAfter) {}
+    /** paid = what the shop paid, tax = the 판매 소득세 taken from it (the player keeps paid - tax). */
+    public record Sale(int count, long paid, double unitAfter, long tax) {
+        public long net() {
+            return paid - tax;
+        }
+    }
+
+    public IncomeTax incomeTax() {
+        return incomeTax;
+    }
 
     /**
      * Sells up to count of the stack's kind from the player's inventory. Returns what happened, or
@@ -230,13 +242,13 @@ public final class ShopModule extends EcoModule implements DailyListener {
         double total;
         ActiveEvent premium = premiumFor(id);
         if (premium == null) {
-            total = PriceModel.total(e.base(), s, depthQ(e), catalog.floor(), multiplier(id), n);
+            total = PriceModel.total(e.base(), s, depthQ(e), catalog.floor(), multiplier(id), n, exponent());
         } else {
             // the 고가 매입상 pays double for what is left of its stock; the rest sells at the usual price
             int left = (int) premium.number("left." + id, 0), high = Math.min(n, left);
             double normal = baseMultiplier(id);
-            total = PriceModel.total(e.base(), s, depthQ(e), catalog.floor(), normal * premium.number("multiplier", 2), high)
-                    + PriceModel.total(e.base(), s + high, depthQ(e), catalog.floor(), normal, n - high);
+            total = PriceModel.total(e.base(), s, depthQ(e), catalog.floor(), normal * premium.number("multiplier", 2), high, exponent())
+                    + PriceModel.total(e.base(), s + high, depthQ(e), catalog.floor(), normal, n - high, exponent());
             java.util.Map<String, String> params = new java.util.LinkedHashMap<>(premium.params());
             params.put("left." + id, String.valueOf(left - high));
             eco.events().update(premium, params);
@@ -251,18 +263,22 @@ public final class ShopModule extends EcoModule implements DailyListener {
         int removed = Items.remove(p.getInventory(), same, n, first);
         if (removed != n) eco.getLogger().warning("판매 수량 불일치: " + p.getName() + " " + id + " " + removed + "/" + n);
         store.record(p.getUniqueId(), id, removed);
+        // 판매 소득세: progressive on what this player sold to the shop today (only the part above each bracket)
+        long tax = incomeTax.tax(store.income(who), paid);
+        store.addIncome(who, paid);
         if (paid > 0) core.economy().move(null, p.getUniqueId(), paid, EconomyStore.Kind.FAUCET, "shop_sell", id + " x" + removed);
+        if (tax > 0) core.economy().withdraw(p.getUniqueId(), tax, "shop_income_tax");
         core.profiles().add(p.getUniqueId(), "shop_sold", removed);
-        core.profiles().add(p.getUniqueId(), "shop_income", paid);
+        core.profiles().add(p.getUniqueId(), "shop_income", paid - tax);
         eco.stocks().recordSale(p.getUniqueId(), id, paid);
         if (atFloor(who, id)) floorHits.add(id);
-        return new Sale(removed, paid, price(who, id));
+        return new Sale(removed, paid, price(who, id), tax);
     }
 
     private void sellFeedback(Player p, ItemStack sample, Object result) {
         if (result instanceof Sale s) {
-            HudModule.flash(p, Lang.mm("shop.sold", "item", Items.mmName(sample), "count", s.count(),
-                    "amount", EconomyModule.format(s.paid()), "unit", String.format("%.1f", s.unitAfter())));
+            HudModule.flash(p, Lang.mm(s.tax() > 0 ? "shop.sold-taxed" : "shop.sold", "item", Items.mmName(sample), "count", s.count(),
+                    "amount", EconomyModule.format(s.net()), "tax", EconomyModule.format(s.tax()), "unit", String.format("%.1f", s.unitAfter())));
             p.playSound(p.getLocation(), Sound.ENTITY_EXPERIENCE_ORB_PICKUP, 0.5f, 1.4f);
         } else {
             HudModule.flash(p, Lang.mm((String) result));
@@ -271,7 +287,7 @@ public final class ShopModule extends EcoModule implements DailyListener {
 
     /** Sells every sellable item in the inventory, or only these items (상점의 "전부 팔기"). */
     public long sellAll(Player p, java.util.Collection<String> only) {
-        long total = 0;
+        long total = 0, taxed = 0;
         int kinds = 0;
         Map<String, ItemStack> samples = new LinkedHashMap<>();
         for (ItemStack it : p.getInventory().getStorageContents()) {
@@ -282,12 +298,14 @@ public final class ShopModule extends EcoModule implements DailyListener {
         for (ItemStack sample : samples.values()) {
             Object r = sell(p, sample, Integer.MAX_VALUE);
             if (r instanceof Sale s) {
-                total += s.paid();
+                total += s.net();
+                taxed += s.tax();
                 kinds++;
             }
         }
         if (kinds > 0) {
-            HudModule.flash(p, Lang.mm("shop.sold-all", "kinds", kinds, "amount", EconomyModule.format(total)));
+            HudModule.flash(p, Lang.mm(taxed > 0 ? "shop.sold-all-taxed" : "shop.sold-all", "kinds", kinds, "amount", EconomyModule.format(total),
+                    "tax", EconomyModule.format(taxed)));
             p.playSound(p.getLocation(), Sound.ENTITY_EXPERIENCE_ORB_PICKUP, 0.6f, 1.2f);
         } else {
             HudModule.flash(p, Lang.mm("shop.nothing-to-sell"));
@@ -613,6 +631,11 @@ public final class ShopModule extends EcoModule implements DailyListener {
                 "marks", marks(viewer, id));
     }
 
+    /** The price curve's exponent (shop.yml curve-exponent). */
+    private double exponent() {
+        return catalog.curve().exponent();
+    }
+
     /** One player's daily amount as the curve counts it (q x depth): the Q of their own curve. */
     private double depthQ(ShopCatalog.SellEntry e) {
         return catalog.curve().quota(e.q());
@@ -884,7 +907,7 @@ public final class ShopModule extends EcoModule implements DailyListener {
             if (n <= 0) continue;
             kinds++;
             count += n;
-            value += PriceModel.total(e.base(), store.sold(who, id), depthQ(e), catalog.floor(), multiplier(id), n);
+            value += PriceModel.total(e.base(), store.sold(who, id), depthQ(e), catalog.floor(), multiplier(id), n, exponent());
         }
         return new Holding(kinds, count, (long) Math.floor(value));
     }

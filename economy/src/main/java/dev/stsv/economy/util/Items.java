@@ -54,6 +54,16 @@ public final class Items {
     public static Optional<ItemStack> create(String id, int amount) {
         String key = normalize(id);
         if (!key.startsWith("minecraft:")) return STSVPlugin.get().content().item(key).map(i -> i.create(amount));
+        if (key.indexOf('[') > 0) {
+            // a vanilla item with components, as /give writes it: minecraft:enchanted_book[stored_enchantments={mending:1}]
+            try {
+                ItemStack it = org.bukkit.Bukkit.getItemFactory().createItemStack(key);
+                it.setAmount(Math.max(1, amount));
+                return it.isEmpty() ? Optional.empty() : Optional.of(it);
+            } catch (IllegalArgumentException e) {
+                return Optional.empty();
+            }
+        }
         Material m = Material.matchMaterial(key);
         return m == null || !m.isItem() ? Optional.empty() : Optional.of(new ItemStack(m, Math.max(1, amount)));
     }

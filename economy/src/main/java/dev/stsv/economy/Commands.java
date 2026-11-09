@@ -161,7 +161,7 @@ final class Commands {
                 default -> {
                     String id = jobId(eco, a[0]);
                     String refused = id == null ? "job.no-such" : eco.jobs().choose(p, id);
-                    if (refused != null) p.sendMessage(Lang.msg(refused, "cost", dev.stsv.core.economy.EconomyModule.format(eco.jobs().spec().changeCost()),
+                    if (refused != null) p.sendMessage(Lang.msg(refused, "cost", dev.stsv.core.economy.EconomyModule.format(id == null ? 0 : eco.jobs().changeCost(p.getUniqueId(), id)),
                             "left", dev.stsv.economy.event.EventModule.hoursText(eco.jobs().changeWait(p.getUniqueId()))));
                 }
             }

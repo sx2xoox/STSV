@@ -60,6 +60,8 @@ shop:
   cap-reached: "<red>오늘은 이 물건을 더 팔 수 없습니다. <gray>(1인 하루 한도)"
   sold: "<green>판매</green> <white>{item} ×{count}</white> <gray>→</gray> {amount} <dark_gray>(다음 개당 {unit} G)"
   sold-all: "<green>전부 판매</green> <white>{kinds}종</white> <gray>→</gray> {amount}"
+  sold-taxed: "<green>판매</green> <white>{item} ×{count}</white> <gray>→</gray> {amount} <dark_gray>(판매 소득세 {tax} · 다음 개당 {unit} G)"
+  sold-all-taxed: "<green>전부 판매</green> <white>{kinds}종</white> <gray>→</gray> {amount} <dark_gray>(판매 소득세 {tax})"
   nothing-to-sell: "<gray>상점이 살 만한 물건이 없습니다."
   no-room: "<red>인벤토리에 자리가 없습니다."
   not-enough: "<red>돈이 부족합니다. <gray>(필요 {price})"
@@ -224,7 +226,7 @@ job:
   lore-xp: "<gray>경험치 <white>{xp}</white> <gray>/ {next}"
   lore-current: ["<green>✔ 내 직업"]
   lore-pick: ["<yellow>두 번 클릭: 선택 (처음은 무료)"]
-  lore-change: ["<yellow>두 번 클릭: 변경 <gray>({cost}, 레벨은 그대로 남음)"]
+  lore-change: ["<yellow>두 번 클릭: 변경 <gray>({cost}: 이 직업의 내 레벨에 따라, 레벨은 그대로 남음)"]
   lore-confirm: ["<gold><b>한 번 더 클릭하면 선택합니다</b>"]
   ranking-header: "<gold>직업 순위</gold> {job} <gray>(경험치)"
   ranking-line: " <gray>{rank}.</gray> <white>{player}</white> <{color}>{job}<gray> Lv{level} <gray>경험치 {xp} · 숙련 {mastery}"
@@ -258,7 +260,7 @@ machine:
   shop-bought: "<red>상점에서 산 물건은 기계에 넣을 수 없습니다 <gray>(그걸로 만든 것, 다 자라기 전에 뽑은 것 포함 · 직접 기르거나 캐거나 잡은 것만)"
   fish-not-used: "<yellow>이 기계에서 쓰지 않는 물고기입니다 <gray>(크기가 지워지지 않게 그대로 둠)"
   upgrade: "<gold>강화 → {tier}"
-  upgrade-lore: ["<gray>비용 <white>{cost}", "<gray>필요: 설치한 사람이 <{color}>{job}<gray> Lv{level}", "<gray>강화하면: 줄 {lanes}개 · 속도 +{speed}% · 새 레시피 {recipes}개 · 새 모습"]
+  upgrade-lore: ["<gray>비용 <white>{cost} <dark_gray>(같은 기계를 또 강화할수록 50%씩 더)", "<gray>필요: 설치한 사람이 <{color}>{job}<gray> Lv{level}", "<gray>강화하면: 줄 {lanes}개 · 속도 +{speed}% · 새 레시피 {recipes}개 · 새 모습"]
   # 공용 기계 (직업 없음: 압착기)
   info-lore-common: ["<gray>설치: <white>{owner}", "<gray>줄 <white>{lanes}</white>개 · 속도 <white>+{speed}%", "<gray>공용 기계: 누구나 같은 속도 (경험치·직업 효과 없음)", "<dark_gray>재료를 넣은 사람이 그 줄의 운영자"]
   upgrade-lore-common: ["<gray>비용 <white>{cost}", "<gray>필요: 설치한 사람 (직업 레벨 필요 없음)", "<gray>강화하면: 줄 {lanes}개 · 속도 +{speed}% · 새 레시피 {recipes}개 · 새 모습"]
@@ -408,7 +410,7 @@ land:
   here: "<gray>여기는 <white>{owner}</white>의 땅입니다. <dark_gray>(청크 {x}, {z})"
   here-wild: "<gray>여기는 주인 없는 땅입니다 (블록 변경 불가). <dark_gray>(청크 {x}, {z}) <gray>→ <white>/땅 구매"
   none-yet: "<gray>아직 땅이 없습니다. 서 있는 청크에서 <white>/땅 구매</white> <gray>(처음 {free}청크는 무료)"
-  info: "<gold>{owner}의 땅</gold> <gray>({role}) · 청크 <white>{size}</white> (무료 {free}, 사는 사람 {residents}명) · 다음 청크 {next}\n<gray>재산세 하루 {tax} <dark_gray>({limit}청크 넘는 부분 2배)</dark_gray> · 금고 {vault} <dark_gray>(미납 {warnings}/{warn-days}일)"
+  info: "<gold>{owner}의 땅</gold> <gray>({role}) · 청크 <white>{size}</white> (무료 {free}, 사는 사람 {residents}명) · 다음 청크 {next}\n<gray>재산세 하루 {tax} <dark_gray>({limit}청크 넘는 부분 {factor}배, {limit2}청크 넘는 부분 {factor2}배)</dark_gray> · 금고 {vault} <dark_gray>(미납 {warnings}/{warn-days}일)"
   info-members: "<gray>구성원 {count}명: <white>{list}"
   info-own-too: "<dark_gray>내 소유 땅도 따로 있음: 청크 {size}, 하루 세금 {tax} (내 무료 청크는 구성원인 땅에 더해짐)"
   already-mine: "<yellow>이미 내 땅입니다."
