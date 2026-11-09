@@ -96,13 +96,23 @@ public final class EconomyCommand implements TabExecutor {
                 return;
             }
             long fee = eco().fee(amount);
-            if (!eco().has(p.getUniqueId(), amount + fee)) {
-                p.sendMessage(Lang.msg("economy.not-enough", "need", EconomyModule.format(amount + fee), "balance", EconomyModule.format(eco().balance(p.getUniqueId()))));
+            long total;
+            try {
+                total = Math.addExact(amount, fee);   // a huge amount must not wrap around to a negative total
+            } catch (ArithmeticException e) {
+                p.sendMessage(Lang.msg("economy.not-number"));
+                return;
+            }
+            if (!eco().has(p.getUniqueId(), total)) {
+                p.sendMessage(Lang.msg("economy.not-enough", "need", EconomyModule.format(total), "balance", EconomyModule.format(eco().balance(p.getUniqueId()))));
                 return;
             }
             if (!confirmed(p, "pay " + to + " " + amount, amount, args[0] + " " + EconomyModule.format(amount))) return;
-            // checked above for both: neither can fail now (same tick)
-            eco().transfer(p.getUniqueId(), to, amount, "pay");
+            // checked above for both, but nothing is told unless the money really moved
+            if (!eco().has(p.getUniqueId(), total) || !eco().transfer(p.getUniqueId(), to, amount, "pay")) {
+                p.sendMessage(Lang.msg("economy.not-enough", "need", EconomyModule.format(total), "balance", EconomyModule.format(eco().balance(p.getUniqueId()))));
+                return;
+            }
             if (fee > 0) eco().withdraw(p.getUniqueId(), fee, "transfer_fee");
             p.sendMessage(Lang.msg("economy.paid", "player", args[0], "amount", EconomyModule.format(amount), "fee", EconomyModule.format(fee)));
             p.playSound(p.getLocation(), Sound.ENTITY_EXPERIENCE_ORB_PICKUP, 0.6f, 1.6f);

@@ -146,11 +146,9 @@ public final class EcoPlugin extends JavaPlugin {
         a.provide("economy:job_level", (p, job) -> job == null ? jobs.level(p.getUniqueId()) : jobs.level(p.getUniqueId(), job));
         a.provide("economy:job_level_max", (p, x) -> jobs.spec().jobs().keySet().stream().mapToInt(j -> jobs.level(p.getUniqueId(), j)).max().orElse(0));
         a.provide("economy:jobs_total", (p, x) -> jobs.spec().jobs().keySet().stream().mapToInt(j -> jobs.level(p.getUniqueId(), j)).sum());
-        a.provide("economy:net_worth", (p, x) -> rank.worth(p.getUniqueId()));
-        a.provide("economy:land_chunks", (p, x) -> {
-            var l = land.store().index().ownedBy(p.getUniqueId());
-            return l == null ? 0 : l.chunks().size();
-        });
+        // not farmable by passing money or a land around: only what the player made or claimed themselves counts
+        a.provide("economy:net_worth", (p, x) -> rank.ownWorth(p.getUniqueId()));
+        a.provide("economy:land_chunks", (p, x) -> land.ownChunks(p.getUniqueId()));
         a.provide("economy:fish_species", (p, x) -> codex.fishSpecies(p.getUniqueId()));
         a.provide("economy:codex", (p, tab) -> codex.count(p.getUniqueId(), tab));
     }
@@ -250,6 +248,26 @@ public final class EcoPlugin extends JavaPlugin {
         File f = pack().dir().resolve(file).toFile();
         if (!f.exists()) getLogger().warning("contents/economy/" + file + " 이 없습니다");
         return YamlConfiguration.loadConfiguration(f);
+    }
+
+    /**
+     * Like {@link #data}, but null when the file is missing or does not parse (data() quietly gives an empty
+     * configuration then): for files where empty means "delete everything".
+     */
+    public YamlConfiguration dataStrict(String file) {
+        File f = pack().dir().resolve(file).toFile();
+        if (!f.exists()) {
+            getLogger().severe("contents/economy/" + file + " 이 없습니다");
+            return null;
+        }
+        YamlConfiguration y = new YamlConfiguration();
+        try {
+            y.load(f);
+            return y;
+        } catch (java.io.IOException | org.bukkit.configuration.InvalidConfigurationException e) {
+            getLogger().severe("contents/economy/" + file + " 을(를) 읽을 수 없습니다: " + e.getMessage());
+            return null;
+        }
     }
 
     /** An admin-set place (/관리자 위치 &lt;이름&gt;), or null. */

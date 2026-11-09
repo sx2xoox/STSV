@@ -62,7 +62,10 @@ public final class PackModule implements StsvModule, Listener {
 
     @Override
     public void reload() throws IOException {
+        String before = current == null ? null : current.sha1();
         rebuild();
+        // the same pack again: nobody's screen goes through a resource reload for nothing
+        if (current != null && current.sha1().equals(before)) return;
         Bukkit.getOnlinePlayers().forEach(this::send);
     }
 

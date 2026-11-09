@@ -104,6 +104,7 @@ public final class TradeModule extends EcoModule {
             from.sendMessage(Lang.msg("trade.busy"));
             return;
         }
+        dropExpired();
         // they asked us first: accept instead
         if (from.getUniqueId().equals(requests.get(to.getUniqueId()))) {
             from.sendMessage(Lang.msg("trade.already-asked"));
@@ -122,6 +123,17 @@ public final class TradeModule extends EcoModule {
                 .append(Component.text(" "))
                 .append(Lang.mm("trade.deny-button").clickEvent(ClickEvent.runCommand("/거래 거절"))));
         to.playSound(to.getLocation(), Sound.BLOCK_NOTE_BLOCK_PLING, 0.7f, 1.4f);
+    }
+
+    /** A request lives 60 seconds: older ones are forgotten (they used to block asking the same player again). */
+    private void dropExpired() {
+        long now = now();
+        requestTime.entrySet().removeIf(e -> {
+            if (now - e.getValue() <= 60_000L) return false;
+            requests.remove(e.getKey());
+            return true;
+        });
+        requests.keySet().removeIf(k -> !requestTime.containsKey(k));
     }
 
     public void accept(Player to) {
@@ -403,7 +415,15 @@ public final class TradeModule extends EcoModule {
 
     @EventHandler
     public void onQuit(PlayerQuitEvent e) {
-        requests.remove(e.getPlayer().getUniqueId());
+        UUID gone = e.getPlayer().getUniqueId();
+        requests.remove(gone);
+        requestTime.remove(gone);
+        // requests the leaver made to others go too
+        requests.entrySet().removeIf(r -> {
+            if (!gone.equals(r.getValue())) return false;
+            requestTime.remove(r.getKey());
+            return true;
+        });
         Session s = sessions.get(e.getPlayer().getUniqueId());
         if (s != null) s.cancel("trade.cancelled-left");
     }

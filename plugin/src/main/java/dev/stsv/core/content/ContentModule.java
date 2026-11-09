@@ -41,6 +41,8 @@ public final class ContentModule implements StsvModule, org.bukkit.event.Listene
     private Path contentsDir;
     private final List<ContentPack> packs = new ArrayList<>();
     private final Map<NamespacedKey, CustomItem> items = new LinkedHashMap<>();
+    /** item -> the items/*.yml it came from, without ".yml" (e.g. "crops", "jobs"): the admin item browser's grouping */
+    private final Map<NamespacedKey, String> sources = new java.util.HashMap<>();
 
     @Override
     public String id() {
@@ -82,6 +84,11 @@ public final class ContentModule implements StsvModule, org.bukkit.event.Listene
         return Collections.unmodifiableCollection(items.values());
     }
 
+    /** The items file an item was defined in, relative to the pack's items folder, without ".yml" ("" if unknown). */
+    public String source(CustomItem item) {
+        return sources.getOrDefault(item.key(), "");
+    }
+
     public List<ContentPack> packs() {
         return Collections.unmodifiableList(packs);
     }
@@ -113,6 +120,7 @@ public final class ContentModule implements StsvModule, org.bukkit.event.Listene
     private void load() throws IOException {
         packs.clear();
         items.clear();
+        sources.clear();
         Files.createDirectories(contentsDir);
         try (Stream<Path> dirs = Files.list(contentsDir)) {
             for (Path dir : dirs.filter(Files::isDirectory).sorted().toList()) {
@@ -130,6 +138,9 @@ public final class ContentModule implements StsvModule, org.bukkit.event.Listene
                         CustomItem item = parseItem(pack, id, sec);
                         if (items.putIfAbsent(item.key(), item) != null) {
                             log.warning("중복 아이템 id 무시: " + item.key() + " (" + file + ")");
+                        } else {
+                            String rel = pack.items().relativize(file).toString().replace('\\', '/');
+                            sources.put(item.key(), rel.substring(0, rel.lastIndexOf('.')));
                         }
                     } catch (IllegalArgumentException e) {
                         log.warning("아이템 '" + id + "' 읽기 실패 (" + file.getFileName() + "): " + e.getMessage());

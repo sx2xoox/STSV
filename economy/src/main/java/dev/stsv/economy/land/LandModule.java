@@ -1,6 +1,7 @@
 package dev.stsv.economy.land;
 
 import dev.stsv.core.economy.EconomyModule;
+import dev.stsv.core.economy.EconomyStore;
 import dev.stsv.core.furniture.FurnitureBreakEvent;
 import dev.stsv.core.furniture.FurnitureInteractEvent;
 import dev.stsv.core.hud.HudModule;
@@ -20,7 +21,7 @@ import org.bukkit.Sound;
 import org.bukkit.block.Block;
 import org.bukkit.block.BlockFace;
 import org.bukkit.entity.Entity;
-import org.bukkit.entity.Monster;
+import org.bukkit.entity.Enemy;
 import org.bukkit.entity.Player;
 import org.bukkit.entity.Projectile;
 import org.bukkit.entity.Villager;
@@ -95,6 +96,22 @@ public final class LandModule extends EcoModule implements DailyListener {
         rules = LandRules.parse(eco.data("land.yml"));
         eco.calendar().onDaily(this);
         eco.onReset(store::reset);
+        // once: the chunks every owner has now count as claimed by them (the land achievements count only those)
+        if (!eco.kv().has("land.claims-counted")) {
+            for (Land l : store.index().all()) if (l.owner != null) eco.kv().set(CLAIMED + l.owner, l.size());
+            eco.kv().set("land.claims-counted", 1);
+        }
+    }
+
+    private static final String CLAIMED = "land.claimed.";
+
+    /**
+     * Chunks a player owns that they claimed themselves (the land achievements): a land handed over with /땅 양도
+     * does not count for the new owner, so passing one land around does not earn the achievement for everyone.
+     */
+    public int ownChunks(UUID player) {
+        Land l = store.index().ownedBy(player);
+        return l == null ? 0 : (int) Math.min(l.size(), eco.kv().getLong(CLAIMED + player, 0));
     }
 
     @Override
@@ -209,6 +226,7 @@ public final class LandModule extends EcoModule implements DailyListener {
         boolean first = land == null;
         if (first) land = store.create(u, now());
         store.claim(land, c, now());
+        eco.kv().set(CLAIMED + u, eco.kv().getLong(CLAIMED + u, 0) + 1);
         if (price > 0) store.addSpent(u, price);
         p.sendMessage(Lang.msg(price > 0 ? "land.bought" : "land.claimed-free", "x", c.x(), "z", c.z(), "price", EconomyModule.format(price),
                 "size", land.size(), "free", free(land), "next", EconomyModule.format(rules.price(land.size(), free(land)))));
@@ -246,7 +264,7 @@ public final class LandModule extends EcoModule implements DailyListener {
 
     private void disband(Land l, String key) {
         if (l.vault > 0 && l.owner != null) {
-            core.economy().deposit(l.owner, l.vault, "land_vault_refund");
+            core.economy().move(null, l.owner, l.vault, EconomyStore.Kind.ESCROW, "land_vault_refund", null);
         }
         tell(l, Lang.msg(key, "vault", EconomyModule.format(l.vault)));
         store.delete(l);
@@ -359,6 +377,7 @@ public final class LandModule extends EcoModule implements DailyListener {
             UUID old = l.owner;
             store.member(l, t, false, now());
             store.setOwner(l, t);
+            if (l.vault > 0) eco.rank().handOver(old, t, l.vault);   // the 금고 is now the new owner's
             if (store.index().memberOf(old) == null) store.member(l, old, true, now());
             tell(l, Lang.msg("land.transferred", "from", Players.name(old), "to", name));
         });
@@ -401,11 +420,13 @@ public final class LandModule extends EcoModule implements DailyListener {
             p.sendMessage(Lang.msg("land.usage"));
             return;
         }
-        if (!core.economy().withdraw(p.getUniqueId(), amount, "land_vault")) {
+        // held, not destroyed (ESCROW): it comes back out, or is destroyed when tax is paid from it (pay)
+        if (!core.economy().move(p.getUniqueId(), null, amount, EconomyStore.Kind.ESCROW, "land_vault", null)) {
             p.sendMessage(Lang.msg("land.not-enough", "price", EconomyModule.format(amount)));
             return;
         }
         store.vault(l, p.getUniqueId(), amount, "deposit", now());
+        if (!l.isOwner(p.getUniqueId()) && l.owner != null) eco.rank().handOver(p.getUniqueId(), l.owner, amount);   // a member gave it
         tell(l, Lang.msg("land.deposited", "player", p.getName(), "amount", EconomyModule.format(amount), "vault", EconomyModule.format(l.vault)));
     }
 
@@ -420,7 +441,7 @@ public final class LandModule extends EcoModule implements DailyListener {
             return;
         }
         store.vault(l, p.getUniqueId(), -amount, "withdraw", now());
-        core.economy().deposit(p.getUniqueId(), amount, "land_vault");
+        core.economy().move(null, p.getUniqueId(), amount, EconomyStore.Kind.ESCROW, "land_vault", null);
         tell(l, Lang.msg("land.withdrew", "player", p.getName(), "amount", EconomyModule.format(amount), "vault", EconomyModule.format(l.vault)));
     }
 
@@ -618,10 +639,13 @@ public final class LandModule extends EcoModule implements DailyListener {
         return tax <= 0 || l.vault + core.economy().balance(l.owner) >= tax;
     }
 
-    /** The 금고 first, the owner's wallet for the rest. (금고 money already left circulation when it was put in.) */
+    /** The 금고 first, the owner's wallet for the rest. (금고 money was held, not destroyed: it is destroyed now.) */
     private void pay(Land l, long tax) {
         long fromVault = Math.min(l.vault, tax);
-        if (fromVault > 0) store.vault(l, null, -fromVault, "tax", now());
+        if (fromVault > 0) {
+            store.vault(l, null, -fromVault, "tax", now());
+            core.economy().burn(fromVault, "land_tax", "vault #" + l.id);
+        }
         long rest = tax - fromVault;
         if (rest > 0) core.economy().withdraw(l.owner, rest, "land_tax");
     }
@@ -676,9 +700,11 @@ public final class LandModule extends EcoModule implements DailyListener {
         deny(e.getPlayer(), e.getBlock().getLocation(), e);
     }
 
+    /** Scooping water or lava changes blocks; milking a cow or goat (the event names the block it stands on) only uses it. */
     @EventHandler(priority = EventPriority.LOW, ignoreCancelled = true)
     public void onBucketFill(PlayerBucketFillEvent e) {
-        deny(e.getPlayer(), e.getBlock().getLocation(), e);
+        boolean milk = e.getItemStack() != null && e.getItemStack().getType() == Material.MILK_BUCKET;
+        deny(e.getPlayer(), e.getBlock().getLocation(), e, !milk);
     }
 
     private static boolean harmless(Material m) {
@@ -698,13 +724,18 @@ public final class LandModule extends EcoModule implements DailyListener {
         boolean usesBlock = interactive(b) && !harmless(b.getType()) && !(e.getPlayer().isSneaking() && e.getItem() != null);
         // in the town (server claims) doors, gates and buttons work for everyone
         Land here = at(b.getLocation());
-        if (usesBlock && here != null && here.server() && passage(b.getType())) usesBlock = false;
+        boolean townPassage = here != null && here.server() && passage(b.getType());
+        if (usesBlock && townPassage) usesBlock = false;
         Material item = e.getItem() == null ? Material.AIR : e.getItem().getType();
         String n = item.name();
-        // items that change blocks or hang things on them: fire, bone meal, frames, stands; tools that till, strip, flatten or wax
+        // tools that till, strip, flatten or wax; on a town door only an axe or honeycomb on copper (scrape, wax) changes it
+        boolean toolChanges = townPassage
+                ? (n.endsWith("_AXE") || item == Material.HONEYCOMB) && b.getType().name().contains("COPPER")
+                : !usesBlock && (n.endsWith("_HOE") || n.endsWith("_SHOVEL") || n.endsWith("_AXE") || item == Material.HONEYCOMB);
+        // items that change blocks or hang things on them: fire, bone meal, frames, stands
         boolean changes = item == Material.FLINT_AND_STEEL || item == Material.FIRE_CHARGE || item == Material.BONE_MEAL
                 || item == Material.ARMOR_STAND || item == Material.ITEM_FRAME || item == Material.GLOW_ITEM_FRAME || item == Material.PAINTING
-                || (!usesBlock && (n.endsWith("_HOE") || n.endsWith("_SHOVEL") || n.endsWith("_AXE") || item == Material.HONEYCOMB));
+                || toolChanges;
         // items that only bring something out (mobs, boats, carts)
         boolean usesItem = n.endsWith("_SPAWN_EGG") || n.endsWith("_BOAT") || n.endsWith("_RAFT") || n.endsWith("MINECART");
         if (changes) deny(e.getPlayer(), b.getLocation(), e, true);
@@ -731,8 +762,18 @@ public final class LandModule extends EcoModule implements DailyListener {
         return n.endsWith("_DOOR") || n.endsWith("_TRAPDOOR") || n.endsWith("_FENCE_GATE") || n.endsWith("_BUTTON") || m == Material.LEVER || m == Material.BELL;
     }
 
+    /** Right-clicking these is fine anywhere (players, villagers: trading is the villager rule's business, hostile mobs). */
     private static boolean freeToTouch(Entity en) {
-        return en instanceof Player || en instanceof Villager || en instanceof WanderingTrader || en instanceof Monster;
+        return en instanceof Player || en instanceof Villager || en instanceof WanderingTrader || en instanceof Enemy;
+    }
+
+    /**
+     * Hitting these is fine anywhere: players (PvP has its own rule) and hostile mobs, phantoms, slimes, ghasts,
+     * shulkers and hoglins included. Not villagers or wandering traders: on someone's land or in the town only its
+     * people may hurt them.
+     */
+    private static boolean freeToHit(Entity en) {
+        return en instanceof Player || en instanceof Enemy;
     }
 
     @EventHandler(priority = EventPriority.LOW, ignoreCancelled = true)
@@ -773,7 +814,7 @@ public final class LandModule extends EcoModule implements DailyListener {
 
     @EventHandler(priority = EventPriority.LOW, ignoreCancelled = true)
     public void onDamage(EntityDamageByEntityEvent e) {
-        if (freeToTouch(e.getEntity())) return;
+        if (freeToHit(e.getEntity())) return;
         Player by = e.getDamager() instanceof Player p ? p : e.getDamager() instanceof Projectile pr && pr.getShooter() instanceof Player p ? p : null;
         // hitting animals and the like is using, not building (others' land still says no)
         if (by != null) deny(by, e.getEntity().getLocation(), e, false);
@@ -803,6 +844,42 @@ public final class LandModule extends EcoModule implements DailyListener {
     @EventHandler(priority = EventPriority.LOW, ignoreCancelled = true)
     public void onBlockExplode(BlockExplodeEvent e) {
         e.blockList().removeIf(b -> zone(b.getLocation()) != null);
+    }
+
+    /**
+     * Mobs changing blocks: endermen taking blocks, ravagers breaking crops and leaves, withers and the dragon breaking
+     * blocks, silverfish hiding in stone, zombies and vindicators breaking doors. Not in a land or the build world.
+     * Falling blocks (sand, gravel) may land where they started (in the same land); a player's arrow or trident (a
+     * pot, a chorus flower) asks as that player. Animals (sheep eating grass, villagers farming, rabbits, foxes) and
+     * golems keep their vanilla ways.
+     */
+    @EventHandler(priority = EventPriority.LOW, ignoreCancelled = true)
+    public void onEntityChangeBlock(org.bukkit.event.entity.EntityChangeBlockEvent e) {
+        Entity en = e.getEntity();
+        if (en instanceof Player) return;   // a player's own change comes through the block events
+        Location at = e.getBlock().getLocation();
+        Object z = zone(at);
+        if (z == null) return;
+        if (en instanceof org.bukkit.entity.FallingBlock fb) {
+            Location from = fb.getOrigin();
+            if (from != null && from.getWorld() != null && zone(from) != z) e.setCancelled(true);
+            return;
+        }
+        if (en instanceof Projectile pr) {
+            if (pr.getShooter() instanceof Player p) deny(p, at, e);
+            else e.setCancelled(true);
+            return;
+        }
+        if (en instanceof Enemy || en instanceof org.bukkit.entity.Wither || en instanceof org.bukkit.entity.EnderDragon) e.setCancelled(true);
+    }
+
+    /** A dispenser does not pour, place or shoot into another land (or from outside into one). */
+    @EventHandler(priority = EventPriority.LOW, ignoreCancelled = true)
+    public void onDispense(org.bukkit.event.block.BlockDispenseEvent e) {
+        Block b = e.getBlock();
+        if (b.getType() != Material.DISPENSER || !(b.getBlockData() instanceof org.bukkit.block.data.Directional d)) return;
+        Object to = zone(b.getRelative(d.getFacing()).getLocation());
+        if (to != null && to != zone(b.getLocation())) e.setCancelled(true);
     }
 
     @EventHandler(priority = EventPriority.LOW, ignoreCancelled = true)

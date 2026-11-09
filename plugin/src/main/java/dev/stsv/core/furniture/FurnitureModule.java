@@ -239,16 +239,31 @@ public final class FurnitureModule implements StsvModule, Listener {
         d.setTransformation(new Transformation(spec.translation(), new Quaternionf(), spec.scale(), new Quaternionf()));
     }
 
+    private boolean probing;
+
+    /**
+     * True while {@link #place} asks protection plugins with place events for the cells (main thread): those are
+     * questions, not blocks placed (records and missions must not count them).
+     */
+    public boolean probing() {
+        return probing;
+    }
+
     public Optional<Furniture> place(Player player, CustomItem item, Block anchor, Block against, EquipmentSlot hand) {
         FurnitureSpec spec = item.furniture();
         Plan plan = plan(player, item, anchor);
         if (!plan.fits()) return Optional.empty();
-        for (Block b : plan.cells()) {
-            // Ask protection plugins (WorldGuard, claims, season rules...) through a regular place event.
-            BlockPlaceEvent check = new BlockPlaceEvent(b, b.getState(), against, player.getInventory().getItem(hand),
-                    player, true, hand);
-            Bukkit.getPluginManager().callEvent(check);
-            if (check.isCancelled() || !check.canBuild()) return Optional.empty();
+        probing = true;
+        try {
+            for (Block b : plan.cells()) {
+                // Ask protection plugins (WorldGuard, claims, season rules...) through a regular place event.
+                BlockPlaceEvent check = new BlockPlaceEvent(b, b.getState(), against, player.getInventory().getItem(hand),
+                        player, true, hand);
+                Bukkit.getPluginManager().callEvent(check);
+                if (check.isCancelled() || !check.canBuild()) return Optional.empty();
+            }
+        } finally {
+            probing = false;
         }
 
         World world = anchor.getWorld();

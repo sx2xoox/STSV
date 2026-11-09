@@ -37,7 +37,11 @@ public final class EconomyStore {
         CHEQUE,
         /** an admin correction */
         ADMIN,
-        /** held by the server for a while (an auction bid, a trade): paid back or passed on later */
+        /**
+         * held outside the player's balance for a while, neither created nor destroyed: an auction bid or deposit (paid
+         * back or passed on later), money put in a land 금고 (paid back, or destroyed later as tax: {@link #burn}),
+         * the price of shares (paid back when they are sold, at that day's price)
+         */
         ESCROW
     }
 
@@ -50,6 +54,11 @@ public final class EconomyStore {
 
     private final Db db;
     private final Map<UUID, Long> balances = new ConcurrentHashMap<>();
+    /** issuer -> the money in their cheques nobody cashed yet (part of what they own) */
+    private final Map<UUID, Long> outstanding = new ConcurrentHashMap<>();
+
+    /** A cashed cheque: its amount (-1 = already used or never issued) and who wrote it (null then). */
+    public record Claim(long amount, UUID issuer) {}
 
     public EconomyStore(Db db) {
         this.db = db;
@@ -75,6 +84,25 @@ public final class EconomyStore {
         for (Object[] r : db.sync(c -> Db.query(c, "SELECT player, balance FROM account", rs -> new Object[]{rs.getString(1), rs.getLong(2)}))) {
             balances.put(UUID.fromString((String) r[0]), (Long) r[1]);
         }
+        db.sync(c -> {
+            loadOutstanding(c);
+            return null;
+        });
+    }
+
+    private void loadOutstanding(Connection c) throws SQLException {
+        Map<UUID, Long> fresh = new HashMap<>();
+        for (Object[] r : Db.query(c, "SELECT issuer, SUM(amount) FROM cheque WHERE cashed_by IS NULL GROUP BY issuer",
+                rs -> new Object[]{rs.getString(1), rs.getLong(2)})) {
+            fresh.put(UUID.fromString((String) r[0]), (Long) r[1]);
+        }
+        outstanding.clear();
+        outstanding.putAll(fresh);
+    }
+
+    /** The money in the cheques a player wrote that nobody cashed yet. */
+    public long outstanding(UUID issuer) {
+        return outstanding.getOrDefault(issuer, 0L);
     }
 
     // ------------------------------------------------------------------------------------------
@@ -134,6 +162,15 @@ public final class EconomyStore {
             apply(player, null, -delta);
             write(player, null, -delta, Kind.ADMIN, "admin_set", note, now);
         }
+    }
+
+    /**
+     * Money held outside every balance (a land 금고) is destroyed: one SINK line in the ledger, no balance changes.
+     * (Money put there was recorded as ESCROW, so it is counted as destroyed only now, once.)
+     */
+    public void burn(long amount, String reason, String note, long now) {
+        if (amount <= 0) return;
+        write(null, null, amount, Kind.SINK, reason, note, now);
     }
 
     private void apply(UUID from, UUID to, long amount) {
@@ -219,6 +256,7 @@ public final class EconomyStore {
                     if (entries.stream().noneMatch(x -> x.id() == cash.id())) entries.add(cash);
                 }
             }
+            loadOutstanding(c);   // voided cheques are no longer anybody's
             return entries;
         }).thenApply(entries -> {
             String inc = db.increment("account", List.of("player"), "balance");
@@ -281,6 +319,7 @@ public final class EconomyStore {
     public synchronized String issueCheque(UUID player, long amount, long now) {
         String id = UUID.randomUUID().toString();
         if (!move(player, null, amount, Kind.CHEQUE, "cheque_issue", id, now)) return null;
+        outstanding.merge(player, amount, Long::sum);
         db.execute("INSERT INTO cheque (id, amount, issuer, issued_at) VALUES (?, ?, ?, ?)", id, amount, player.toString(), now);
         return id;
     }
@@ -291,10 +330,17 @@ public final class EconomyStore {
      * with {@link #move}), or -1 if it was already used or never issued.
      */
     public CompletableFuture<Long> claimCheque(String id, UUID player, long now) {
+        return claim(id, player, now).thenApply(Claim::amount);
+    }
+
+    /** {@link #claimCheque}, also saying who wrote the cheque. */
+    public CompletableFuture<Claim> claim(String id, UUID player, long now) {
         return db.async(c -> {
             int changed = Db.update(c, "UPDATE cheque SET cashed_by = ?, cashed_at = ? WHERE id = ? AND cashed_by IS NULL", player.toString(), now, id);
-            if (changed != 1) return -1L;
-            return Db.query(c, "SELECT amount FROM cheque WHERE id = ?", rs -> rs.getLong(1), id).getFirst();
+            if (changed != 1) return new Claim(-1, null);
+            Claim claim = Db.query(c, "SELECT amount, issuer FROM cheque WHERE id = ?", rs -> new Claim(rs.getLong(1), UUID.fromString(rs.getString(2))), id).getFirst();
+            outstanding.computeIfPresent(claim.issuer(), (k, v) -> v - claim.amount() > 0 ? v - claim.amount() : null);
+            return claim;
         });
     }
 
@@ -303,6 +349,7 @@ public final class EconomyStore {
     /** Testing: wipes every balance, the ledger and all cheques. */
     public synchronized CompletableFuture<Void> reset() {
         balances.clear();
+        outstanding.clear();
         return db.async(c -> {
             transaction(c, () -> {
                 Db.update(c, "DELETE FROM account");

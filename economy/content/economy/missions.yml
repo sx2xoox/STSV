@@ -5,7 +5,7 @@
 #   ores_mined 광석 캐기 · crops_harvested 작물 수확 · animals_bred 동물 번식 · fish_caught 낚시 · rare_finds 발견품(광부 원석, 어부 희귀 어획)
 #   made_miner/made_farmer/made_fisher/made_blacksmith/made_cook/made_alchemist 그 직업 기계로 만든 수 · machine_made 아무 직업 기계
 #   job_xp 직업 경험치 (미션 보상 경험치는 안 셈) · shop_sold 상점에 판 개수 · shop_income 상점 판매 수입(G) · requests_done 의뢰
-#   stock_trades 주식 거래 · market_sold 거래소에서 팔린 수 · playtime 플레이 시간(초) · mob_kills 몹 처치 · blocks_broken · blocks_placed
+#   stock_trades 주식 거래(한 번에 500G 이상만) · market_sold 거래소에서 팔린 수 · playtime 플레이 시간(초) · mob_kills 몹 처치 · blocks_broken · blocks_placed
 # 보상: gold, xp (끝냈을 때 직업의 경험치), items ["아이디 x개수"] (인벤토리가 차면 우편함). 다 끝내면 bonus.
 # rerolls: 기간마다 미션을 다른 것으로 바꿀 수 있는 횟수 (/미션 에서 우클릭). weight: 클수록 자주 뽑힘 (기본 10)
 

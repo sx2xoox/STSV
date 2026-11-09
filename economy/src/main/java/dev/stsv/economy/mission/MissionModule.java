@@ -226,7 +226,7 @@ public final class MissionModule extends EcoModule implements DailyListener {
     /** Reward parts as MiniMessage (the XP line names the job the player has now). */
     List<String> rewardLines(MissionSpec.Reward r, String job) {
         List<String> out = new ArrayList<>();
-        if (r.gold() > 0) out.add("<gold>" + EconomyModule.format(r.gold()) + " G");
+        if (r.gold() > 0) out.add(EconomyModule.format(r.gold()));   // format already says "G"
         if (r.xp() > 0) {
             JobSpec.Job j = job == null ? null : eco.jobs().spec().jobs().get(job);
             out.add(j == null ? Lang.raw("mission.reward-xp-none", "xp", fmt(r.xp()))

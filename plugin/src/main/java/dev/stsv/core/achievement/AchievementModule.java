@@ -258,7 +258,7 @@ public final class AchievementModule implements StsvModule, Listener {
     /** Reward parts as MiniMessage, for lore and chat. */
     List<String> rewardLines(AchievementSpec.Rewards r) {
         List<String> out = new ArrayList<>();
-        if (r.gold() > 0) out.add("<gold>" + EconomyModule.format(r.gold()) + " G");
+        if (r.gold() > 0) out.add(EconomyModule.format(r.gold()));   // format already says "G"
         for (AchievementSpec.ItemReward i : r.items()) out.add("<white>" + itemName(i.id()) + " ×" + i.amount());
         if (r.title() != null) out.add(Lang.raw("achievement.reward-title", "title", plugin.profiles().title(r.title()).map(t -> t.name()).orElse(r.title())));
         if (r.cosmetic() != null) out.add(Lang.raw("achievement.reward-cosmetic", "cosmetic",
@@ -608,7 +608,10 @@ public final class AchievementModule implements StsvModule, Listener {
                     s.sendMessage(Text.msg("<red>그런 업적이 없습니다."));
                 } else {
                     store.revoke(p.getUniqueId(), a.id());
-                    s.sendMessage(Text.msg("<green>기록 삭제: " + a.id() + " <gray>(받은 보상은 그대로)"));
+                    // a stat achievement counts again from now: else the next check finds it reached and its reward is paid twice
+                    if (a.condition().stat()) store.restartBase(p.getUniqueId(), a.id(), plugin.profiles().stat(p.getUniqueId(), a.condition().key()));
+                    s.sendMessage(Text.msg("<green>기록 삭제: " + a.id() + " <gray>(받은 보상은 그대로"
+                            + (a.condition().stat() ? ", 지금부터 다시 셈)" : ". 조건을 지금도 채우면 곧 다시 달성됨)")));
                 }
             }
             default -> s.sendMessage(Text.msg("<red>/관리자 업적 정보|지급|회수 <플레이어> [업적]"));

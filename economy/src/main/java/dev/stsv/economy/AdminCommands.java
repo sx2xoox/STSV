@@ -170,10 +170,18 @@ final class AdminCommands {
                         s.sendMessage(Text.msg("<red>손에 물건을 들고 /관리자 경매 시작 <시작가> [분]"));
                         return;
                     }
+                    long start;
+                    double minutes;
+                    try {   // read the numbers before the item leaves the hand: a typo must not eat it
+                        start = Long.parseLong(args[1]);
+                        minutes = args.length > 2 ? Double.parseDouble(args[2]) : eco.rules().auctionMinutes();
+                    } catch (NumberFormatException e) {
+                        s.sendMessage(Text.msg("<red>시작가와 분은 숫자: /관리자 경매 시작 <시작가> [분]"));
+                        return;
+                    }
                     var item = p.getInventory().getItemInMainHand().clone();
                     p.getInventory().setItemInMainHand(null);
-                    var au = eco.auction().startServer(p.getUniqueId(), item, Long.parseLong(args[1]),
-                            args.length > 2 ? Double.parseDouble(args[2]) : eco.rules().auctionMinutes());
+                    var au = eco.auction().startServer(p.getUniqueId(), item, start, minutes);
                     s.sendMessage(Text.msg("<green>서버 경매 #" + au.id + " 시작"));
                 }
                 case "종료" -> s.sendMessage(Text.msg(args.length > 1 && eco.auction().endNow(Long.parseLong(args[1])) ? "<green>종료" : "<red>없는 경매"));

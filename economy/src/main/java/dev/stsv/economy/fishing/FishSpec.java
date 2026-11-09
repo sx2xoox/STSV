@@ -28,6 +28,18 @@ public record FishSpec(Map<String, Rarity> rarities, Map<String, Group> groups, 
             int hi = Math.max(lo, (int) Math.round(max * 20 * f));
             return new int[] {lo, hi};
         }
+
+        /**
+         * A bite in vanilla is two waits: until the fish appears (the hook's wait time), then the fish swimming to the
+         * float (the lure time, 1~4 s whatever the wait was). The whole {lo, hi} bite is split between them, a fifth
+         * for the swim (at least 1 tick each), so the float goes under within lo~hi as fish.yml says:
+         * {waitLo, waitHi, lureLo, lureHi}.
+         */
+        public static int[] split(int lo, int hi) {
+            int lureLo = Math.max(1, lo / 5), lureHi = Math.max(lureLo, hi / 5);
+            int waitLo = Math.max(1, lo - lureLo), waitHi = Math.max(waitLo, hi - lureHi);
+            return new int[] {waitLo, waitHi, lureLo, lureHi};
+        }
     }
 
     /** speed = needle cells per tick, zone = green cells, hits = successes needed. */

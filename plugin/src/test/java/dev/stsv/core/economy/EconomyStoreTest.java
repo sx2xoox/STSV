@@ -129,4 +129,33 @@ class EconomyStoreTest {
         assertEquals(0, reopen(db).balances().size(), "reset clears the database");
         db.close();
     }
+
+    @Test
+    void outstandingChequesAndHeldMoney(@TempDir Path dir) throws Exception {
+        Db db = DatabaseModule.sqlite(dir.resolve("stsv.db"), LOG);
+        EconomyStore s = reopen(db);
+        UUID a = UUID.randomUUID(), b = UUID.randomUUID();
+        s.open(a, 1000, 1);
+        s.open(b, 0, 1);
+        String one = s.issueCheque(a, 300, 2), two = s.issueCheque(a, 200, 3);
+        assertEquals(500, s.outstanding(a), "money in cheques nobody cashed is still the writer's");
+        assertEquals(500, reopen(db).outstanding(a), "and survives a restart");
+        EconomyStore.Claim c = s.claim(one, b, 4).get();
+        assertEquals(300, c.amount());
+        assertEquals(a, c.issuer());
+        assertEquals(200, s.outstanding(a));
+        assertEquals(-1, s.claim(one, b, 5).get().amount());
+        assertEquals(200, s.outstanding(a));
+        assertEquals(200, s.claimCheque(two, a, 6).get());
+        assertEquals(0, s.outstanding(a));
+
+        // a land vault: in as ESCROW (neither made nor destroyed), out as tax: destroyed once, with no account
+        assertTrue(s.move(a, null, 100, EconomyStore.Kind.ESCROW, "land_vault", null, 10));
+        s.burn(60, "land_tax", "vault", 11);
+        s.burn(0, "land_tax", "vault", 12);
+        EconomyStore.Stats st = s.stats(10).get();
+        assertEquals(60, st.sink(), "only the tax counts as destroyed, not the deposit");
+        assertEquals(0, st.faucet());
+        db.close();
+    }
 }

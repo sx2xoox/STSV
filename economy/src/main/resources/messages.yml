@@ -32,6 +32,7 @@ weekday:
 
 pvp:
   disabled: "<red>이 서버는 PvP가 꺼져 있습니다."
+  hazard: "<red>다른 플레이어 바로 옆에는 용암을 붓거나 불을 붙일 수 없습니다. <gray>(PvP 꺼짐)"
 
 villager:
   trade-off: "<red>이 서버는 주민 거래가 꺼져 있습니다. <gray>(/상점 · /거래소)"
@@ -54,6 +55,8 @@ mail:
     trade_cancel: "취소된 직거래"
     stall_release: "노점이 없어지며 돌려받은 물건"
     stall_evicted: "노점 임대료 미납"
+    mission: "미션 보상"
+    mission_bonus: "미션 완료 보너스"
 
 shop:
   not-buying: "<red>상점이 사지 않는 물건입니다. <gray>(이름 바꾼/인챈트/닳은 물건도 안 삼)"

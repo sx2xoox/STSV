@@ -102,9 +102,19 @@ public final class StockModule extends EcoModule implements DailyListener, Weekl
 
     private void load() {
         List<String> problems = new ArrayList<>();
-        spec = StockSpec.parse(eco.data("stocks.yml"), problems);
+        org.bukkit.configuration.file.YamlConfiguration yaml = eco.dataStrict("stocks.yml");   // null: it does not parse
+        StockSpec parsed = yaml == null ? null : StockSpec.parse(yaml, problems);
         news = NewsSpec.parse(eco.data("news.yml"), problems);
         problems.forEach(p -> eco.getLogger().warning("[stocks.yml/news.yml] " + p));
+        // a broken or empty stocks.yml must not delist every company (holders would be paid out, delisting is for good):
+        // keep what was loaded before, or run on the stored companies with default rules until the file is fixed
+        if (!usable(parsed)) {
+            eco.getLogger().severe("[stocks.yml] 파일을 읽을 수 없거나 회사가 하나도 없습니다. 회사를 상장폐지하지 않고 "
+                    + (spec != null ? "이전 설정을 그대로 씁니다" : "저장된 회사와 기본 규칙으로 운영합니다") + ". 고친 뒤 /관리자 리로드 하세요.");
+            if (spec == null) spec = parsed != null ? parsed : StockSpec.parse(new org.bukkit.configuration.file.YamlConfiguration(), new ArrayList<>());
+            return;
+        }
+        spec = parsed;
         for (StockSpec.Company c : spec.companies().values()) {
             StockStore.Co co = store.create(c.id());
             boolean fresh = co.name == null;
@@ -125,6 +135,11 @@ public final class StockModule extends EcoModule implements DailyListener, Weekl
         for (StockStore.Co co : List.copyOf(store.companies().values())) {
             if (!co.delisted && !co.listed && !spec.companies().containsKey(co.id)) delist(co);
         }
+    }
+
+    /** May this stocks.yml replace the running one (and delist the companies it no longer has)? It parsed and lists companies. */
+    static boolean usable(StockSpec parsed) {
+        return parsed != null && !parsed.companies().isEmpty();
     }
 
     public StockSpec spec() {
@@ -390,7 +405,8 @@ public final class StockModule extends EcoModule implements DailyListener, Weekl
             w.invested = w.startValue;
             store.save(w);
         }
-        // dividends: part of the money destroyed last week goes back to shareholders
+        // dividends: part of the money destroyed last week goes back to shareholders. Only real sinks count (taxes,
+        // fees, shop sales): money put in a land 금고 or in shares is ESCROW (held, it comes back), not destroyed
         core.economy().store().stats(weekStart - 7L * 86_400_000L).thenAccept(st -> sync(() -> payDividends(st.sink() * spec.settings().dividendShare())));
     }
 
@@ -452,9 +468,13 @@ public final class StockModule extends EcoModule implements DailyListener, Weekl
         double cost = c.price * qty;
         boolean first = !eco.kv().has("stock.first." + u);
         long fee = first || feeFree() ? 0 : (long) Math.ceil(cost * spec.settings().fee());
-        long total = (long) Math.ceil(cost) + fee;
+        long principal = (long) Math.ceil(cost);
+        long total = principal + fee;
         params.put("cost", money(total));
-        if (!core.economy().withdraw(u, total, "stock_buy")) return "stock.not-enough";
+        // the price is held in the shares (ESCROW: it comes back when they are sold), only the fee is destroyed (SINK)
+        if (!core.economy().has(u, total)) return "stock.not-enough";
+        if (!core.economy().move(u, null, principal, EconomyStore.Kind.ESCROW, "stock_buy", c.name + " x" + qty)) return "stock.not-enough";
+        if (fee > 0) core.economy().withdraw(u, fee, "stock_fee");
         long nowMs = now();
         h.shares += qty;
         h.cost += cost;
@@ -491,9 +511,12 @@ public final class StockModule extends EcoModule implements DailyListener, Weekl
         if (qty <= 0) return "stock.bad-amount";
         double gross = c.price * qty;
         long fee = feeFree() ? 0 : (long) Math.ceil(gross * spec.settings().fee());
-        long net = Math.max(0, (long) Math.floor(gross) - fee);
+        long whole = (long) Math.floor(gross);
+        long net = Math.max(0, whole - fee);
         double basis = h.cost * qty / h.shares;
-        core.economy().move(null, u, net, EconomyStore.Kind.FAUCET, "stock_sell", c.name + " x" + qty);
+        // the shares' worth comes back out of the market (ESCROW); the fee taken from it is destroyed (SINK)
+        core.economy().move(null, u, whole, EconomyStore.Kind.ESCROW, "stock_sell", c.name + " x" + qty);
+        if (whole - net > 0) core.economy().withdraw(u, whole - net, "stock_fee");
         h.cost -= basis;
         h.shares -= qty;
         h.locked = Math.min(h.locked, h.shares);
@@ -509,10 +532,15 @@ public final class StockModule extends EcoModule implements DailyListener, Weekl
         return null;
     }
 
+    /** A trade worth less than this (G) is not counted in stock_trades. */
+    static final long COUNTED_TRADE_MIN = 500;
+
     private void trade(Player p, StockStore.Co c, boolean buying, long qty) {
         Map<String, Object> params = new HashMap<>();
         String refused = buying ? buy(p, c, qty, params) : sell(p, c, qty, params);
-        if (refused == null) core.profiles().add(p.getUniqueId(), "stock_trades", 1);
+        // a trade counts for the 주식 missions and achievements only from COUNTED_TRADE_MIN: not one share bought and sold 1,000 times
+        long done = ((Number) params.getOrDefault("count", qty)).longValue();
+        if (refused == null && c != null && c.price * done >= COUNTED_TRADE_MIN) core.profiles().add(p.getUniqueId(), "stock_trades", 1);
         params.put("company", c == null ? "-" : c.name);
         params.put("count", params.getOrDefault("count", qty));
         List<Object> flat = new ArrayList<>();
@@ -559,7 +587,7 @@ public final class StockModule extends EcoModule implements DailyListener, Weekl
     public void delist(StockStore.Co c) {
         for (StockStore.Hold h : store.holders(c.id)) {
             long pay = (long) Math.floor(h.shares * c.price);
-            if (pay > 0) core.economy().move(null, h.player, pay, EconomyStore.Kind.FAUCET, "stock_delist", c.name);
+            if (pay > 0) core.economy().move(null, h.player, pay, EconomyStore.Kind.ESCROW, "stock_delist", c.name);
             h.shares = 0;
             store.save(h);
         }
