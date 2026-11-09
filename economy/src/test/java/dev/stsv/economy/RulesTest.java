@@ -532,8 +532,8 @@ class RulesTest {
         assertTrue(still.recipes().stream().filter(r -> r.output().equals("economy:vintage_wine")).findFirst().orElseThrow().aging());
         MachineSpec.Settings s = MachineSpec.Settings.parse(ContentTest.yaml("machines.yml"));
         assertEquals(3, s.maxTier());
-        assertEquals(10000, s.cost(1));
-        assertEquals(100000, s.cost(3));
+        assertEquals(5000, s.cost(1));
+        assertEquals(50000, s.cost(3));
         assertEquals(30, s.level(3));
         assertEquals(4, s.lanes(3));
         assertEquals(0.30, s.speed(2), 1e-9);
@@ -547,22 +547,21 @@ class RulesTest {
         // the processing jobs' machines start with two lanes (machines.yml lanes), the rest of the table is the global one
         MachineSpec.Settings forgeT = s.forMachine(m.get("forge"));
         assertEquals(2, forgeT.lanes(0));
-        assertEquals(10000, forgeT.cost(1)); assertEquals(30, forgeT.level(3)); assertEquals(0.30, forgeT.speed(2), 1e-9);
+        assertEquals(5000, forgeT.cost(1)); assertEquals(30, forgeT.level(3)); assertEquals(0.30, forgeT.speed(2), 1e-9);
         assertEquals(0, MachineSpec.Settings.refund(s, forgeT, 3), "own lanes, the same costs: nothing to refund");
         assertEquals(2, s.forMachine(m.get("kitchen")).lanes(0));
         assertEquals(2, s.forMachine(m.get("still")).lanes(0));
         // presses upgraded at the global price before get the difference back
         assertEquals(4000, MachineSpec.Settings.refund(s, press, 1)); assertEquals(20000, MachineSpec.Settings.refund(s, press, 2));
         assertEquals(60000, MachineSpec.Settings.refund(s, press, 3)); assertEquals(0, MachineSpec.Settings.refund(s, s, 3), "job machines");
-        // the refund pays back what was paid then (5,000 / 20,000 / 50,000), not today's dearer global price
-        assertTrue(s.cost(1) > 5000);
-        // the same upgrade bought again costs more: +50% for every one bought before (machines.yml upgrade.repeat)
+        // the refund pays back what was paid then (5,000 / 20,000 / 50,000, which is also today's global price)
+        // the same upgrade bought again can cost more (machines.yml upgrade.repeat); the owner turned it off for now
         double repeat = ContentTest.yaml("machines.yml").getDouble("upgrade.repeat");
-        assertEquals(0.5, repeat, 1e-9);
-        assertEquals(100_000, MachineSpec.Settings.repeatCost(s.cost(3), 0, repeat), "the first 3강 of a kind");
-        assertEquals(150_000, MachineSpec.Settings.repeatCost(s.cost(3), 1, repeat), "the second");
-        assertEquals(200_000, MachineSpec.Settings.repeatCost(s.cost(3), 2, repeat));
-        assertEquals(100_000, MachineSpec.Settings.repeatCost(s.cost(3), 5, 0), "repeat 0: off");
+        assertEquals(0, repeat, 1e-9);
+        assertEquals(50_000, s.cost(3), "3강 back at 50,000 G");
+        assertEquals(50_000, MachineSpec.Settings.repeatCost(s.cost(3), 5, repeat), "repeat 0: every one the same");
+        assertEquals(75_000, MachineSpec.Settings.repeatCost(s.cost(3), 1, 0.5), "the rule still works when switched on");
+        assertEquals(100_000, MachineSpec.Settings.repeatCost(s.cost(3), 2, 0.5));
     }
 
     // ------------------------------------------------------------------------------------------ stocks
