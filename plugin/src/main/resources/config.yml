@@ -7,6 +7,10 @@ resource-pack:
   pack-format: 97
   required: true
   prompt: "<gradient:#ffb35c:#ff6a3d>STSV</gradient> <gray>서버 전용 리소스팩이 필요합니다."
+  # 게임 기본 글꼴(채팅, 아이템 이름·설명, 메뉴 제목, 표지판, 스코어보드)의 한글을 픽셀 글꼴 Neo둥근모로 바꿉니다.
+  # 바닐라 한글과 같은 방식(16px 글자를 8px 줄에)이라 줄 간격·굵게·그림자는 그대로. 영문·숫자·기호는 마인크래프트 그대로.
+  # false = 바닐라 글꼴
+  default-font: true
   # 리소스팩을 서버가 직접 배포합니다.
   host:
     enabled: true

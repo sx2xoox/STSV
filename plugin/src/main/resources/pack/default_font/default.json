@@ -1,0 +1,1 @@
+{"providers":[{"type":"reference","id":"minecraft:include/space"},{"type":"reference","id":"minecraft:include/default","filter":{"uniform":false}},{"type":"space","advances":{"　":8},"filter":{"uniform":false}},{"type":"unihex","hex_file":"stsv:font/default/korean.zip","size_overrides":[],"filter":{"uniform":false}},{"type":"reference","id":"minecraft:include/unifont"}]}

@@ -81,6 +81,8 @@ def main():
     print("gui core menus (backgrounds, button icons, inventory label off)")
     import hud
     print(f"hud glyph sheets (plugin/src/main/resources/pack/hud): {hud.write()}")
+    import default_font
+    print(f"default font, Korean from Neo둥근모 (plugin/src/main/resources/pack/default_font): {default_font.write()}")
 
     if render:
         # world objects side by side (fan blade placed where the machine spins it)
