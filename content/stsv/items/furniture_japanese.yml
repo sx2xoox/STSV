@@ -118,12 +118,12 @@ noren:
 bamboo_fence:
   material: paper
   name: "<#9da448>대나무 울타리"
-  lore: ["<gray>일본풍 가구 · 1×1칸", "<gray>볕에 바랜 쪼갠 대나무를 푸른 대 띠에 검은 끈으로 묶은 울타리.", "<gray>나란히 놓으면 이어집니다."]
+  lore: ["<gray>일본풍 가구 · 1×1칸, 높이 2", "<gray>볕에 바랜 쪼갠 대나무를 푸른 대 띠에 검은 끈으로 묶은 가림 울타리.", "<gray>나란히 놓으면 이어집니다."]
   model: bamboo_fence
   icon: bamboo_fence_icon
   max-stack: 16
   furniture:
-    cells: [[0, 0, 0]]
+    cells: [[0, 0, 0], [0, 1, 0]]
 
 # ── 조명 (진짜 빛을 냅니다) ─────────────────────────────────
 andon:

@@ -193,16 +193,16 @@ def noren():
 
 @icon("bamboo_fence")
 def bamboo_fence():
-    """Sun-bleached split slats between green rails, dark palm-cord ties, a green cap."""
+    """Sun-bleached split slats between green rails, dark palm-cord ties, a green cap: a tall screen fence."""
     c = Canvas()
-    for x in range(1, 15):
-        c.rect(x, 3, x + 1, 15.5, "straw", 0, step=3 if x % 2 else 2)
-        c.put(x, 5 + (x * 3) % 7, "straw", 1, z=1)          # the nodes, staggered
-    c.rect(0, 1.5, 16, 3, "bamboo", 2, normal=UP)
-    for y in (6, 11):
-        c.rect(0, y, 16, y + 1.5, "bamboo", 2, normal=FRONT, lo=2, hi=3)
-        c.rect(3, y - 0.5, 4, y + 2, "bark", 3, step=0)
-        c.rect(12, y - 0.5, 13, y + 2, "bark", 3, step=0)
+    for x in range(3, 13):
+        c.rect(x, 1.5, x + 1, 15.5, "straw", 0, step=3 if x % 2 else 2)
+        c.put(x, 4 + (x * 3) % 9, "straw", 1, z=1)          # the nodes, staggered
+    c.rect(2, 0, 14, 1.5, "bamboo", 2, normal=UP)
+    for y in (4, 8.5, 13):
+        c.rect(2, y, 14, y + 1.5, "bamboo", 2, normal=FRONT, lo=2, hi=3)
+        c.rect(4, y - 0.5, 5, y + 2, "bark", 3, step=0)
+        c.rect(11, y - 0.5, 12, y + 2, "bark", 3, step=0)
     return c.render()
 
 
@@ -405,48 +405,73 @@ def taiko_drum():
     return c.render()
 
 
+def _pixels(c, rows, colours, x0, y0, z):
+    """Pixel art on top of the shapes: rows of characters from (x0, y0); '.' leaves the pixel as it is."""
+    for j, row in enumerate(rows):
+        for i, ch in enumerate(row):
+            if ch in colours:
+                mat, step = colours[ch]
+                c.put(x0 + i, y0 + j, mat, step, z=z)
+
+
 @icon("maneki_neko")
 def maneki_neko():
+    """The beckoning cat as its 3D model shows it: a big white head with eyes closed in a smile, a pink nose
+    over an ω mouth, rosy cheeks and whiskers, the raised paw beside it, a red collar and bell, a gold koban,
+    the red cushion."""
     c = Canvas()
     w = "feather"
-    c.rect(1, 14, 14, 16, "crimson", 0, normal=UP)                 # the red cushion it sits on
+    c.rect(1, 14, 15, 16, "crimson", 0, normal=UP)              # the red cushion it sits on
     c.put(0, 15, "gold", 3, z=1)
-    c.put(14, 15, "gold", 3, z=1)
-    c.ellipse(7.5, 11.5, 5, 3.5, w, 0.5)
-    c.ellipse(7.5, 6.5, 5, 4, w, 1)
-    c.poly([(3, 4), (3.5, 0.5), (6, 3)], w, 2, normal=FRONT)
-    c.poly([(9, 3), (11.5, 0.5), (12, 4)], w, 2, normal=FRONT)
+    c.put(15, 15, "gold", 3, z=1)
+    c.rect(4, 10, 12, 14.5, w, 1, normal=FRONT)                 # the body
+    c.rect(2, 3, 14, 10, w, 2, normal=FRONT)                    # the head
+    c.poly([(3, 3), (4, 0.5), (6, 3)], w, 2, step=3)            # the ears
+    c.poly([(10, 3), (12, 0.5), (13, 3)], w, 2, step=3)
     c.put(4, 2, "pink", 3, z=3)
     c.put(11, 2, "pink", 3, z=3)
-    c.rect(12, 1.5, 15, 7, w, 3, normal=FRONT)
-    c.put(13, 2, "pink", 3, z=4)
-    for (x, y) in ((5, 6), (6, 6), (9, 6), (10, 6)):
-        c.put(x, y, "rubber", 1, z=4)
-    c.put(7, 7, "pink", 2, z=4)
-    c.put(8, 7, "pink", 2, z=4)
-    c.rect(3, 9.5, 12, 10.5, "vermilion", 4, step=3)
-    c.put(7, 11, "gold", 4, z=5)
-    c.put(8, 11, "gold", 3, z=5)
-    c.ellipse(10.5, 12.5, 1.6, 2.2, "gold", 5)
-    c.put(9, 4, "fox", 3, z=4)
-    c.put(10, 4, "fox", 3, z=4)
+    c.put(12, 1, "fox", 3, z=3)                                 # a calico patch on one ear
+    c.put(12, 2, "fox", 2, z=3)
+    c.rect(0, 2, 2, 9, w, 3, step=3)                            # the raised paw, its pad to the front
+    c.put(0, 3, "pink", 3, z=4)
+    c.put(1, 3, "pink", 3, z=4)
+    c.put(0, 4, "pink", 2, z=4)
+    c.put(1, 4, "pink", 2, z=4)
+    _pixels(c, ["............",
+                "..KK....KK..",     # eyes closed in a smile (y 4, 5)
+                ".K..K..K..K.",
+                ".B...PP...B.",     # nose; rosy cheeks
+                "...K.KK.K...",     # the mouth: ω
+                "....K..K...."],
+            {"K": ("rubber", 0), "P": ("pink", 1), "B": ("pink", 3)}, 2, 3, 2)
+    c.rect(3, 10, 13, 11, "vermilion", 4, step=3)               # the collar and its bell
+    c.put(8, 11, "gold", 4, z=6)
+    c.ellipse(5.5, 12.5, 1.6, 1.9, "gold", 6)                   # the koban
     return c.render()
 
 
 @icon("daruma")
 def daruma():
+    """The doll as its 3D model shows it: a big white face with bold brows, one eye blank and one painted in,
+    a red nose and a curled moustache; gold at the hem."""
     c = Canvas()
-    c.ellipse(8, 8.8, 6.6, 6.8, "vermilion", 0)
-    c.ellipse(8, 6.6, 3.7, 3.2, "porcelain", 1, gloss=0, lo=3, hi=4)
-    for (x, y) in ((5, 5), (6, 5), (9, 5), (10, 5)):
-        c.put(x, y, "rubber", 1, z=2)
-    c.put(6, 6, "rubber", 0, z=2)          # the painted eye
-    c.put(10, 6, "porcelain", 2, z=2)      # the blank one
+    c.ellipse(8, 8.5, 7.2, 7.4, "vermilion", 0)
+    c.rect(3, 2, 13, 13, "porcelain", 1, step=4)
+    for (x, y) in ((3, 2), (12, 2), (3, 12), (12, 12)):
+        c.erase([(x, y)])
+    _pixels(c, ["KKK....KKK",       # the brows
+                "..........",
+                ".KK....KK.",       # the eyes: blank | painted (with a glint)
+                "K..K..KWKK",
+                ".KK....KK.",
+                "....RR....",       # the nose
+                ".K......K.",       # the moustache, its ends curled up
+                "..KKKKKK.."],
+            {"K": ("rubber", 0), "W": ("porcelain", 4), "R": ("vermilion", 1)}, 3, 3, 1)
     for x in range(5, 11):
-        c.put(x, 8, "rubber", 2, z=2)
-    c.put(8, 7, "pink", 2, z=2)
-    for (x, y) in ((7, 11), (8, 11), (9, 11), (8, 12), (8, 13)):
-        c.put(x, y, "gold", 4, z=3)
+        c.put(x, 14, "gold", 3, z=3)                 # the gold band at the hem
+    c.put(1, 7, "gold", 3, z=3)                      # gold clouds on its sides
+    c.put(14, 7, "gold", 2, z=3)
     return c.render()
 
 

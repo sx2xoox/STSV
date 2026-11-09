@@ -156,6 +156,7 @@ class JapaneseFurnitureTest {
             assertFalse(shapes.get(id).barriers().isEmpty(), id);
         }
         assertTrue(shapes.get("shoji_screen").barrier(new int[]{0, 1, 0}), "a screen two blocks tall blocks at head height");
+        assertTrue(shapes.get("bamboo_fence").barrier(new int[]{0, 1, 0}), "the kenninji fence screens at eye level (1.75 blocks)");
         FurnitureShape.Shape torii = shapes.get("torii");
         for (int y = 0; y < 2; y++) {
             assertFalse(torii.barrier(new int[]{0, y, 0}), "walk through the torii's middle");
