@@ -129,12 +129,6 @@ cosmetics:
     back: [0, -0.62, -0.12]
     tail: [0, -1.02, -0.12]
 
-bosses:
-  # 보스 모델이 보이는 거리 배율 (1.0 = 기본 엔티티 거리). 큰 보스는 멀리서도 보이게
-  view-range: 2.0
-  # 보스 모델이 판정보다 위/아래로 떠 보이면 조정 (블록, 위 = +)
-  rider-offset-adjust: 0.0
-
 # 저장소: 치장 보유, 플레이어 기록 등 월드와 별개로 남는 데이터
 database:
   # sqlite = 플러그인 폴더의 파일 하나 (설정 불필요) / mysql = 여러 서버가 같은 데이터를 공유 (MariaDB 도 가능)
@@ -154,9 +148,9 @@ profiles:
   title-in-chat: true
   title-in-tab: true
   # /프로필 에 보여줄 통계 (순서대로)
-  shown-stats: [playtime, mob_kills, player_kills, deaths, boss_kills, blocks_broken, blocks_placed]
+  shown-stats: [playtime, mob_kills, player_kills, deaths, blocks_broken, blocks_placed]
   # 콘텐츠 기간이 끝날 때 명예의 전당에 남길 부문과 인원
-  hall-of-fame: [playtime, mob_kills, player_kills, boss_kills, deaths]
+  hall-of-fame: [playtime, mob_kills, player_kills, deaths]
   hall-size: 3
 
 

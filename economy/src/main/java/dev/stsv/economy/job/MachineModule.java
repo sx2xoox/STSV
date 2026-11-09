@@ -1034,6 +1034,17 @@ public final class MachineModule extends EcoModule {
     // Clicks: inputs of open lanes take anything, outputs only give, the rest are buttons
     // ------------------------------------------------------------------------------------------
 
+    /** Machines go in the build world only: the wild world and its nether and end are reset now and then, and are free for all. */
+    @EventHandler(priority = EventPriority.HIGH, ignoreCancelled = true)
+    public void onPlaceInWild(dev.stsv.core.furniture.FurniturePlaceEvent e) {
+        var item = e.getFurniture().item();
+        String behavior = item.furniture() == null ? null : item.furniture().behavior();
+        if (behavior == null || !behavior.startsWith("economy:machine/") || core.worlds() == null) return;
+        if (!dev.stsv.core.world.WorldRules.wildSet(core.worlds().kind(e.getFurniture().location().getWorld()))) return;
+        e.setCancelled(true);
+        HudModule.flash(e.getPlayer(), Lang.mm("machine.wild-refused"));
+    }
+
     @EventHandler(priority = EventPriority.HIGH)
     public void onClick(InventoryClickEvent e) {
         if (!(e.getInventory().getHolder(false) instanceof Machine m) || !(e.getWhoClicked() instanceof Player p)) return;

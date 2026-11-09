@@ -18,7 +18,7 @@ from stsv_assets.palette import PALETTE
 HERE = Path(__file__).parent
 REPO = HERE.parent.parent
 CONTENT = REPO / "content" / "stsv"
-# the TEST set (every kind of item, recipe and boss once) is a test fixture, never shipped
+# the TEST set (every kind of item and recipe once) is a test fixture, never shipped
 FIXTURE = REPO / "plugin" / "src" / "test" / "fixtures" / "stsv"
 SHIPPED_MODELS = ("tomato_mask", "eggplant_mask", "mushroom_mask")
 PREVIEWS = REPO / "docs" / "previews"
@@ -35,12 +35,12 @@ def main():
     render = "--render" in sys.argv
     sys.path.insert(0, str(HERE))
     from models.test_items import ALL as ITEMS
-    from models import test_golem, executioner, cosmetics
-    ALL = {**ITEMS, **test_golem.ALL, **executioner.ALL, **cosmetics.ALL}
+    from models import cosmetics
+    ALL = {**ITEMS, **cosmetics.ALL}
     import special
 
     def home(name):
-        return CONTENT if name in SHIPPED_MODELS or name in executioner.ALL or name in cosmetics.ALL else FIXTURE
+        return CONTENT if name in SHIPPED_MODELS or name in cosmetics.ALL else FIXTURE
 
     for d in (CONTENT / "models", CONTENT / "textures", FIXTURE / "models", FIXTURE / "textures", BUILD, PREVIEWS):
         d.mkdir(parents=True, exist_ok=True)
@@ -58,7 +58,7 @@ def main():
         built[name] = model
         model.write(home(name) / "models" / f"{name}.bbmodel", BUILD / f"{name}.preview.json")
         print(f"model   {name}: {len(model.elements)} elements")
-        if render and not hasattr(model, "pivot"):   # boss bones are shown assembled/posed instead
+        if render:
             render_preview(BUILD / f"{name}.preview.json", PREVIEWS / f"{name}.png")
 
     for name, fn in T.ICONS.items():
@@ -80,31 +80,6 @@ def main():
                   ("test_rug", 78, 0), ("tomato_mask", 100, 0)]
         scene(built, lineup, BUILD / "lineup.preview.json")
         render_preview(BUILD / "lineup.preview.json", PREVIEWS / "lineup.png")
-        # boss in its rest pose: every bone model placed at its pivot (bone space = assembly - pivot + 8)
-        golem = [(name, test_golem.PIVOTS[bone][0] - 8, test_golem.PIVOTS[bone][2] - 8, test_golem.PIVOTS[bone][1] - 8)
-                 for name, bone in test_golem.ASSEMBLY]
-        golem.append(("test_golem_rock", 40, -8, 0))
-        scene(built, golem, BUILD / "golem.preview.json")
-        render_preview(BUILD / "golem.preview.json", PREVIEWS / "test_golem.png")
-        alert = [(n.replace("body", "body_alert").replace("head", "head_alert") if n.endswith(("body", "head")) else n, *rest)
-                 for n, *rest in golem[:-1]]
-        scene(built, alert, BUILD / "golem_alert.preview.json")
-        render_preview(BUILD / "golem_alert.preview.json", PREVIEWS / "test_golem_phase2.png")
-        # executioner: key frames of every attack, lined up (what each pattern looks like at its hit tick)
-        from stsv_assets import rig
-        ex = executioner
-        rig.pose_sheet(ex.SPEC, built, [("idle", 0), ("slash_a", 8), ("slash_a", 10), ("slash_b", 8), ("overhead", 12),
-                                        ("overhead", 17), ("spin", 10), ("leap", 16)],
-                       ex.model_of, BUILD / "executioner.preview.json", spacing=76)
-        render_preview(BUILD / "executioner.preview.json", PREVIEWS / "executioner_attacks.png")
-        # close-up: normal look, and the last phase (glowing blade, red eyes)
-        for name, kw in (("executioner", {}), ("executioner_phase3", {"lit": True, "alert": True})):
-            rig.pose_sheet(ex.SPEC, built, [("idle", 0)], lambda b, kw=kw: ex.model_of(b, **kw),
-                           BUILD / f"{name}.preview.json", az=62, el=8, k=1.45)
-            render_preview(BUILD / f"{name}.preview.json", PREVIEWS / f"{name}.png")
-        rig.pose_sheet(ex.SPEC, built, [("grab", 12), ("grab_slam", 18), ("thrust", 10), ("plant", 30), ("roar", 20)],
-                       lambda b: ex.model_of(b, lit=True), BUILD / "executioner2.preview.json", spacing=76)
-        render_preview(BUILD / "executioner2.preview.json", PREVIEWS / "executioner_attacks2.png")
         armor_preview(BUILD / "armor.preview.json")
         render_preview(BUILD / "armor.preview.json", PREVIEWS / "armor_worn.png")
 

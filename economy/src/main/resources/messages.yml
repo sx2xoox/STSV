@@ -164,8 +164,6 @@ auction:
   seller-paid: "<green>경매 대금</green> {price} <gray>(수수료 {fee}, 보증금 {deposit} 반환)"
   not-yours: "<red>내 경매가 아닙니다."
   has-bids: "<red>입찰이 있는 경매는 취소할 수 없습니다."
-  world-boss-detail: "{x}, {z} 에 출현! 전리품은 경매로만 팝니다"
-  boss-reward: "<gold>월드 보스 피해 {rank}위</gold> <white>{player}</white> <gray>보상 </gray>{amount}"
   lore: ["", "<gray>경매 <white>#{id}</white> <gray>판매자 <white>{seller}", "<gray>현재가: </gray>{price} <gray>({player})",
          "<gray>최소 입찰: </gray>{min}", "<gray>남은 시간: {left} <dark_gray>(입찰 {bids}회)"]
   lore-rare: ["<light_purple>희귀품: 1인 주 {limit}개 낙찰 제한"]
@@ -233,6 +231,7 @@ job:
   all: "전체"
 
 machine:
+  wild-refused: "<red>기계는 건축월드에만 설치할 수 있습니다."
   tier:
     "0": "기본"
     "1": "1강"

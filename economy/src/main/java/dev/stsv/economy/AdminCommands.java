@@ -82,22 +82,21 @@ final class AdminCommands {
         }, (s, args) -> args.length == 1 ? List.of("시작", "종료", "다음", "목록")
                 : args.length == 2 && (args[0].equals("시작") || args[0].equals("종료")) ? new ArrayList<>(events.specs().keySet()) : List.of());
 
-        add("위치", "<시세판|주식판|월드보스|기념비N>", "지금 서 있는 곳을 저장 (시세판, 주식판, 월드 보스, 기념비 자리)", (s, args) -> {
+        add("위치", "<시세판|주식판|기념비N>", "지금 서 있는 곳을 저장 (시세판, 주식판, 기념비 자리)", (s, args) -> {
             if (!(s instanceof Player p) || args.length < 1) {
-                s.sendMessage(Text.msg("<red>/관리자 위치 <시세판|월드보스|기념비1...>"));
+                s.sendMessage(Text.msg("<red>/관리자 위치 <시세판|주식판|기념비1...>"));
                 return;
             }
             String key = switch (args[0]) {
                 case "시세판" -> "price-board";
                 case "주식판" -> "stock-board";
-                case "월드보스" -> "world-boss";
                 default -> args[0].startsWith("기념비") ? "monument-" + args[0].substring(3) : args[0];
             };
             eco.setLocation(key, p.getLocation());
             s.sendMessage(Text.msg("<green>저장: " + key));
             if (key.equals("price-board")) eco.shop().updateBoard();
             if (key.equals("stock-board")) eco.stocks().updateBoard();
-        }, (s, args) -> List.of("시세판", "주식판", "월드보스", "기념비1", "기념비2", "기념비3"));
+        }, (s, args) -> List.of("시세판", "주식판", "기념비1", "기념비2", "기념비3"));
 
         add("주식", "상장 <이름> <산업> <발행수> <시작가> | 상장폐지 <회사> | 가격 <회사> <가격> | 뉴스 <회사> <+/-%> [내용] | 정지 <회사> | 재개 <회사> | 성격 <회사> <변동성|민감도|배당> <값> | 움직이기 [횟수]",
                 "주식 관리: 회사 상장·상장폐지(보유자에게 현재가로 정산), 주가 지정, 회사 뉴스, 거래 정지·재개, 성격 바꾸기, 주가를 N번(기본 6번 = 1시간어치) 움직이기 (테스트)", (s, args) -> {

@@ -83,14 +83,3 @@ events:
     hours: 0             # 바로 끝나는 사건: 주식 산업 하나를 골라 그 회사들이 회사마다 따로 5~15% 오르거나 내림
     color: blue
     weight: 2
-  # 보류: 저절로 일어나지 않습니다 (관리자가 시험용으로만)
-  world_boss:
-    name: "월드 보스"
-    hours: 1
-    color: purple
-    chain: false
-    boss: executioner
-    start-price: 1000
-    reward-1: 3000
-    reward-2: 2000
-    reward-3: 1000

@@ -101,7 +101,6 @@ class RulesTest {
         for (int i = 0; i < 3000; i++) {
             EventSpec next = chain.pick(events, last, false, r);
             assertNotEquals(last, next.id());
-            assertNotEquals("world_boss", next.id());
             seen.merge(next.id(), 1, Integer::sum);
             last = next.id();
         }
@@ -115,7 +114,9 @@ class RulesTest {
         assertTrue(chain.night(t(2026, 11, 6, 8, 59), kst));
         assertFalse(chain.night(t(2026, 11, 6, 9, 0), kst));
         assertFalse(chain.night(t(2026, 11, 6, 0, 30), kst));
-        assertNull(chain.pick(Map.of("a", events.get("world_boss")), null, false, r), "nothing may come: the chain waits");
+        EventSpec held = new EventSpec("held", "보류", 1, "purple", Map.of("chain", "false"));
+        assertFalse(held.chained(), "chain: false = only when an admin starts it");
+        assertNull(chain.pick(Map.of("a", held), null, false, r), "nothing may come: the chain waits");
     }
 
     @Test
@@ -141,10 +142,9 @@ class RulesTest {
         Map<String, EventSpec> events = EventSpec.parse(ContentTest.yaml("events.yml"), problems);
         assertTrue(problems.isEmpty(), problems.toString());
         assertEquals(List.of("shortage", "crash", "harvest", "mining_boom", "tax_audit", "merchant", "urgent_order", "premium_buyer", "fee_free",
-                "earnings", "world_boss"), List.copyOf(events.keySet()));
+                "earnings"), List.copyOf(events.keySet()));
         assertEquals(0, events.get("earnings").hours(), "실적 발표 happens at once");
         assertEquals(List.of("miner", "blacksmith"), EventSpec.list(events.get("mining_boom").params().get("jobs")));
-        assertFalse(events.get("world_boss").chained(), "the world boss is on hold");
         assertEquals(24, events.get("shortage").hours(), "품귀 lasts a day");
         assertEquals(3.0, events.get("shortage").number("multiplier", 0));
         assertFalse(events.containsKey("lawless"), "무법 지대 is gone");

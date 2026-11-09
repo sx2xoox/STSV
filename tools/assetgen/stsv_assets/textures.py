@@ -439,34 +439,8 @@ def _dev_screen_frame(k, ramp_name="test_teal"):
     return im
 
 
-def _visor_frame(k, ramp_name="test_teal"):
-    """Eye strip for a 9x4 visor (texture rows 6..9, columns 3.5..12.5): two eyes, a blink on frame 7."""
-    im = _new()
-    px = im.load()
-    for y in range(S):
-        for x in range(S):
-            px[x, y] = ramp(ramp_name, 0 if y in (6, 9) else 1)
-    if k != 7:
-        for ex in (5, 9):
-            for (dx, dy) in ((0, 0), (1, 0), (0, 1), (1, 1)):
-                px[ex + dx, 7 + dy] = ramp(ramp_name, 3 if dy == 0 else 2)
-    return im
-
-
 def dev_screen():
     return _dev_screen_frame(0)
-
-
-def dev_screen_alert():
-    return _dev_screen_frame(0, "ruby")
-
-
-def dev_visor():
-    return _visor_frame(0)
-
-
-def dev_visor_alert():
-    return _visor_frame(0, "ruby")
 
 
 def dev_fan():
@@ -476,126 +450,6 @@ def dev_fan():
         for x in range(S):
             px[x, y] = ramp("test_grey", 3 if y < 8 else 2)
     return im
-
-
-# ------------------------------------------------------------------------------------------------
-# Boss: the executioner
-# ------------------------------------------------------------------------------------------------
-
-def blacksteel_plate(seed=230):
-    """Blackened armour plate: lit top/left rim, shaded bottom/right rim, one hammered seam, corner rivets."""
-    rnd = random.Random(seed)
-    im = _new()
-    px = im.load()
-    for y in range(S):
-        for x in range(S):
-            i = 2
-            if x == 0 or y == 0:
-                i = 4
-            elif x == S - 1 or y == S - 1:
-                i = 0
-            elif y == 8:
-                i = 1
-            elif y == 9:
-                i = 3
-            else:
-                i = _j(rnd, i, 0.10)
-            px[x, y] = ramp("blacksteel", i)
-    for (x, y) in ((2, 2), (13, 2), (2, 12), (13, 12)):
-        px[x, y] = ramp("blacksteel", 4)
-        px[x + 1, y + 1] = ramp("blacksteel", 0)
-    return im
-
-
-def blacksteel_dark(seed=231):
-    """Shadowed plate for faceplates and gauntlets: no rivets, a soft diagonal sheen."""
-    rnd = random.Random(seed)
-    im = _new()
-    px = im.load()
-    for y in range(S):
-        for x in range(S):
-            i = 1 if (x + y) % 9 else 2
-            if x == 0 or y == 0:
-                i = 3
-            elif x == S - 1 or y == S - 1:
-                i = 0
-            px[x, y] = ramp("blacksteel", _j(rnd, i, 0.08))
-    return im
-
-
-def chainmail():
-    """Rows of rings, offset every other row."""
-    im = _new()
-    px = im.load()
-    for y in range(S):
-        for x in range(S):
-            ox = 2 if (y // 2) % 2 else 0
-            ring = (x + ox) % 4
-            i = 0 if y % 2 == 1 and ring == 3 else 3 if ring == 1 and y % 2 == 0 else 2 if ring in (0, 2) else 1
-            px[x, y] = ramp("steel", i)
-    return im
-
-
-def crimson_cloth(seed=232):
-    """Heavy cloth hanging in vertical folds (a fold every 4 px), lighter at the top of each weave."""
-    rnd = random.Random(seed)
-    im = _new()
-    px = im.load()
-    for y in range(S):
-        for x in range(S):
-            fold = x % 4
-            i = 2 if fold in (1, 2) else 1 if fold == 3 else 3
-            if y % 2 and fold == 0:
-                i = 2
-            px[x, y] = ramp("crimson", max(0, _j(rnd, i, 0.06)))
-    return im
-
-
-def leather_wrap():
-    """Grip wrap: diagonal bands."""
-    im = _new()
-    px = im.load()
-    for y in range(S):
-        for x in range(S):
-            d = (x + y) % 4
-            px[x, y] = ramp("leather", 3 if d == 0 else 2 if d == 1 else 1)
-    return im
-
-
-def greatsword_blade():
-    """Long blade face: a dark fuller down the middle, polished flats either side."""
-    im = _new()
-    px = im.load()
-    for y in range(S):
-        for x in range(S):
-            i = 2
-            if x in (7, 8):
-                i = 0               # fuller (groove)
-            elif x in (6, 9):
-                i = 1
-            elif x in (2, 13):
-                i = 3               # polished ridge
-            px[x, y] = ramp("blade", i)
-    return im
-
-
-def _ember_frame(k):
-    """Glowing edge: heat pulses travelling along the blade (frame k of 8)."""
-    im = _new()
-    px = im.load()
-    n = size("fire")
-    for y in range(S):
-        for x in range(S):
-            d = (y + 2 * k) % 8
-            i = 4 if d == 0 else 3 if d in (1, 7) else 2      # red-orange embers, hotter pulses
-            if x in (0, 15):
-                i -= 1
-            px[x, y] = ramp("fire", i)
-    return im
-
-
-def ember_edge():
-    return _ember_frame(0)
 
 
 def tomato_skin(seed=210):
@@ -893,18 +747,6 @@ SURFACES = {
     "dev_stripe": dev_stripe,
     "dev_screen": dev_screen,
     "dev_fan": dev_fan,
-    "dev_screen_alert": dev_screen_alert,
-    "dev_visor": dev_visor,
-    "dev_visor_alert": dev_visor_alert,
-    "blacksteel_plate": blacksteel_plate,
-    "blacksteel_dark": blacksteel_dark,
-    "chainmail": chainmail,
-    "crimson_cloth": crimson_cloth,
-    "leather_wrap": leather_wrap,
-    "greatsword_blade": greatsword_blade,
-    "ember_edge": ember_edge,
-    "eyes_spectral": lambda: _visor_frame(0, "spectral"),
-    "eyes_rage": lambda: _visor_frame(0, "ruby"),
     "tomato_skin": tomato_skin,
     "eggplant_skin": eggplant_skin,
     "tomato_body": tomato_body,
@@ -929,12 +771,6 @@ SURFACES = {
 # SURFACES[name] must return the first frame (used for previews and validation).
 ANIMATED = {
     "dev_screen": (lambda: [_dev_screen_frame(k) for k in range(8)], 2),
-    "dev_screen_alert": (lambda: [_dev_screen_frame(k, "ruby") for k in range(8)], 1),
-    "dev_visor": (lambda: [_visor_frame(k) for k in range(8)], 6),
-    "dev_visor_alert": (lambda: [_visor_frame(k, "ruby") for k in range(8)], 6),
-    "ember_edge": (lambda: [_ember_frame(k) for k in range(8)], 1),
-    "eyes_spectral": (lambda: [_visor_frame(k, "spectral") for k in range(8)], 6),
-    "eyes_rage": (lambda: [_visor_frame(k, "ruby") for k in range(8)], 4),
     "energy": (lambda: [_energy_frame(k) for k in range(8)], 2),
 }
 

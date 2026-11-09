@@ -37,14 +37,13 @@ public final class StsvCommand implements TabExecutor {
 
     static {
         String[][] root = {{"지급", "give"}, {"아이템목록", "browse"}, {"목록", "list"}, {"정보", "info"}, {"레시피", "recipe"},
-                {"연료", "fuel"}, {"스킨", "skin"}, {"치장", "cosmetic"}, {"보스", "boss"},
+                {"연료", "fuel"}, {"스킨", "skin"}, {"치장", "cosmetic"},
                 {"기간", "period"}, {"칭호", "title"}, {"통계", "stat"}, {"경제", "economy"}, {"보고서", "report"}, {"초기화", "reset"}, {"리로드", "reload"}, {"리소스팩", "pack"}, {"도움말", "help"}};
         for (String[] r : root) ROOT.put(r[0], r[1]);
         sub("recipe", "생성", "create", "삭제", "delete", "목록", "list");
         sub("fuel", "설정", "set", "제거", "remove", "목록", "list");
         sub("skin", "해제", "remove");
         sub("cosmetic", "지급", "give", "회수", "take", "정보", "info");
-        sub("boss", "소환", "spawn", "목록", "list", "제거", "remove", "패턴", "force", "디버그", "debug", "좌표소환", "spawnat");
         sub("period", "시작", "start", "종료", "end", "정보", "info");
         sub("title", "지급", "give", "회수", "take", "목록", "list");
         sub("stat", "추가", "add");
@@ -135,7 +134,6 @@ public final class StsvCommand implements TabExecutor {
             }
             case "cosmetic" -> cosmetic(sender, args);
             case "fuel" -> fuel(sender, args);
-            case "boss" -> boss(sender, args);
             case "period" -> period(sender, args);
             case "title" -> title(sender, args);
             case "stat" -> stat(sender, args);
@@ -153,8 +151,6 @@ public final class StsvCommand implements TabExecutor {
                         "연료 설정 <틱> | 연료 제거 | 연료 목록 <dark_gray>- 손에 든 아이템의 화로 연료 시간",
                         "스킨 해제 <dark_gray>- 손에 든 아이템의 스킨 해제",
                         "치장 지급|회수 <플레이어> <치장> | 치장 정보 [플레이어] <dark_gray>- 치장 지급/회수/상태",
-                        "보스 소환 <보스> | 보스 목록 | 보스 제거 <dark_gray>- 보스 소환/목록/모두 제거",
-                        "보스 패턴 <패턴> | 보스 디버그 | 보스 좌표소환 <보스> <x> <y> <z> [월드] <dark_gray>- 보스 테스트",
                         "기간 시작 <id> <이름> | 기간 종료 | 기간 정보 <dark_gray>- 콘텐츠 기간 (기록, 명예의 전당)",
                         "칭호 지급|회수 <플레이어> <칭호> | 칭호 목록 <dark_gray>- 칭호",
                         "통계 추가 <플레이어> <통계> <값> <dark_gray>- 기록 보정",
@@ -425,47 +421,6 @@ public final class StsvCommand implements TabExecutor {
         }));
     }
 
-    private void boss(CommandSender sender, String[] args) {
-        String sub = args.length > 1 ? args[1].toLowerCase(Locale.ROOT) : "";
-        switch (sub) {
-            case "spawn" -> {
-                if (!(sender instanceof Player p) || args.length < 3) {
-                    sender.sendMessage(Text.msg("<red>/관리자 보스 소환 <보스> <gray>(바라보는 곳에 소환)"));
-                    return;
-                }
-                org.bukkit.block.Block aim = p.getTargetBlockExact(24);
-                org.bukkit.Location at = aim != null ? aim.getLocation().add(0.5, 1, 0.5)
-                        : p.getLocation().add(p.getLocation().getDirection().setY(0).normalize().multiply(5));
-                at.setYaw(p.getLocation().getYaw() + 180);
-                plugin.bosses().spawn(args[2], at).ifPresentOrElse(
-                        b -> sender.sendMessage(Text.msg("<green>소환: <white>" + args[2])),
-                        () -> sender.sendMessage(Text.msg("<red>알 수 없는 보스: " + args[2])));
-            }
-            case "list" -> {
-                sender.sendMessage(Text.msg("<gray>보스 " + plugin.bosses().specs().size() + "종, 살아있는 보스 "
-                        + plugin.bosses().active().size() + "마리"));
-                for (dev.stsv.core.boss.BossSpec s : plugin.bosses().specs()) {
-                    sender.sendMessage(Text.mm(" <dark_gray>-</dark_gray> <white>" + s.id() + "</white> " + s.name()
-                            + " <gray>(체력 " + (int) s.health() + ", 패턴 " + String.join(", ", s.skills().keySet()) + ")"));
-                }
-            }
-            case "remove" -> sender.sendMessage(Text.msg("<gray>보스 " + plugin.bosses().removeAll() + "마리 제거"));
-            // admin testing (also from the console)
-            case "spawnat" -> {
-                if (args.length < 6) {
-                    sender.sendMessage(Text.msg("<red>/관리자 보스 좌표소환 <보스> <x> <y> <z> [월드]"));
-                    return;
-                }
-                org.bukkit.World w = args.length > 6 ? org.bukkit.Bukkit.getWorld(args[6]) : org.bukkit.Bukkit.getWorlds().getFirst();
-                org.bukkit.Location at = new org.bukkit.Location(w, Double.parseDouble(args[3]), Double.parseDouble(args[4]), Double.parseDouble(args[5]));
-                sender.sendMessage(Text.msg(plugin.bosses().spawn(args[2], at).isPresent() ? "<green>소환" : "<red>알 수 없는 보스"));
-            }
-            case "force" -> sender.sendMessage(Text.msg("<gray>패턴 시작: " + (args.length > 2 ? plugin.bosses().force(args[2]) : 0) + "마리"));
-            case "debug" -> plugin.bosses().debug().forEach(line -> sender.sendMessage(Text.mm("<gray>" + line)));
-            default -> sender.sendMessage(Text.msg("<red>/관리자 보스 <소환|목록|제거|패턴|디버그|좌표소환>"));
-        }
-    }
-
     private void give(CommandSender sender, String[] args) {
         if (args.length < 3) {
             sender.sendMessage(Text.msg("<red>/관리자 지급 <플레이어> <아이템> [개수]"));
@@ -678,14 +633,6 @@ public final class StsvCommand implements TabExecutor {
             }
             case "reset" -> {
                 if (raw.length == 3) return filter(List.of("확인"), raw[2]);
-            }
-            case "boss" -> {
-                if (raw.length == 3 && (args[1].equals("spawn") || args[1].equals("spawnat"))) {
-                    return filter(plugin.bosses().specs().stream().map(dev.stsv.core.boss.BossSpec::id).toList(), raw[2]);
-                }
-                if (raw.length == 3 && args[1].equals("force")) {
-                    return filter(plugin.bosses().specs().stream().flatMap(b -> b.skills().keySet().stream()).distinct().toList(), raw[2]);
-                }
             }
             case "cosmetic" -> {
                 if (raw.length == 3) return filter(onlineNames(), raw[2]);

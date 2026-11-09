@@ -14,11 +14,11 @@ class KoreanCommandsTest {
 
     @Test
     void koreanWordsMapToTheHandlers() {
-        assertArrayEquals(new String[]{"boss", "spawn", "executioner"}, StsvCommand.normalize(new String[]{"보스", "소환", "executioner"}));
+        assertArrayEquals(new String[]{"fuel", "set", "200"}, StsvCommand.normalize(new String[]{"연료", "설정", "200"}));
         assertArrayEquals(new String[]{"recipe", "create", "my_recipe", "blasting"}, StsvCommand.normalize(new String[]{"레시피", "생성", "my_recipe", "용광로"}));
         assertArrayEquals(new String[]{"period", "end"}, StsvCommand.normalize(new String[]{"기간", "종료"}));
         assertArrayEquals(new String[]{"title", "give", "Steve", "stsv:test_title_orange"}, StsvCommand.normalize(new String[]{"칭호", "지급", "Steve", "stsv:test_title_orange"}));
-        assertArrayEquals(new String[]{"boss", "spawn", "x"}, StsvCommand.normalize(new String[]{"BOSS", "Spawn", "x"}), "English still accepted");
+        assertArrayEquals(new String[]{"cosmetic", "give", "x"}, StsvCommand.normalize(new String[]{"COSMETIC", "Give", "x"}), "English still accepted");
         assertArrayEquals(new String[]{"cosmetic", "give", "Steve", "목록"}, StsvCommand.normalize(new String[]{"치장", "지급", "Steve", "목록"}),
                 "only command words are translated, never names or ids");
         assertArrayEquals(new String[]{"economy", "revert", "Steve", "30"}, StsvCommand.normalize(new String[]{"경제", "되돌리기", "Steve", "30"}));

@@ -109,14 +109,6 @@ skin:
   none-held: "<red>손에 든 아이템에 스킨이 없습니다."
   removed: "<green>스킨을 해제했습니다."
 
-boss:
-  defeated-title: "<gold><b>처치!"
-  defeated-subtitle: "{boss}"
-  defeated: "{boss} <gold>처치!"
-  rank: "  <gray>{rank}. <white>{player} <dark_gray>- <yellow>{percent}%"
-  leash-reset: "{boss} <gray>이(가) 제자리로 돌아가 체력을 회복했습니다."
-  rescued: "<green><b>구출!</b> <white>{player}<gray> 이(가) 풀려났습니다."
-
 profile:
   not-found: "<red>그런 플레이어의 기록이 없습니다."
   menu-title: "<#f0e2b0>{player} <#b9a6d6>· 프로필"
@@ -159,8 +151,6 @@ stats:
   mob_kills: "몹 처치"
   blocks_broken: "블록 파괴"
   blocks_placed: "블록 설치"
-  boss_kills: "보스 처치"
-  boss_damage: "보스 피해량"
 time:
   hours-minutes: "{h}시간 {m}분"
   minutes: "{m}분"

@@ -100,7 +100,7 @@ class StoresTest {
         s.init();
         UUID seller = UUID.randomUUID(), bidder = UUID.randomUUID();
         Auction a = s.create(seller, seller, ITEM, "검", 1, 100, 100, false, 1, 5000, 0);
-        Auction rare = s.create(null, null, ITEM, "보스 전리품", 1, 1000, 0, true, 2, 5000, 0);
+        Auction rare = s.create(null, null, ITEM, "대경매 물품", 1, 1000, 0, true, 2, 5000, 0);
         assertEquals(1, s.playerRunning(), "server auctions do not take a player slot");
         a.bid = 150;
         a.bidder = bidder;
@@ -121,7 +121,7 @@ class StoresTest {
         assertNull(r2, "finished auctions leave the running list");
         db.sync(c -> null);
         assertEquals(0, again.rareWinsSync(bidder, 2), "the stored bidder is the one saved before finish");
-        Auction rare2 = again.create(null, null, ITEM, "보스 전리품 2", 1, 1000, 0, true, 2, 5000, 0);
+        Auction rare2 = again.create(null, null, ITEM, "대경매 물품 2", 1, 1000, 0, true, 2, 5000, 0);
         rare2.bid = 3000;
         rare2.bidder = bidder;
         again.finish(rare2, AuctionStore.SOLD);

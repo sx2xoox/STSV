@@ -1,6 +1,5 @@
 package dev.stsv.economy.auction;
 
-import dev.stsv.core.boss.BossDefeatEvent;
 import dev.stsv.core.economy.EconomyModule;
 import dev.stsv.core.economy.EconomyStore;
 import dev.stsv.core.gui.menu.MenuHandler;
@@ -10,21 +9,17 @@ import dev.stsv.core.util.Lang;
 import dev.stsv.economy.EcoModule;
 import dev.stsv.economy.EcoPlugin;
 import dev.stsv.economy.TradeRules;
-import dev.stsv.economy.event.ActiveEvent;
 import dev.stsv.economy.util.Items;
 import dev.stsv.economy.util.Players;
 import net.kyori.adventure.bossbar.BossBar;
 import net.kyori.adventure.text.Component;
 import org.bukkit.Bukkit;
-import org.bukkit.Location;
 import org.bukkit.Sound;
 import org.bukkit.entity.Player;
-import org.bukkit.event.EventHandler;
 import org.bukkit.event.inventory.ClickType;
 import org.bukkit.inventory.ItemStack;
 
 import java.util.ArrayList;
-import java.util.Comparator;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
@@ -34,8 +29,8 @@ import java.util.concurrent.ConcurrentHashMap;
 /**
  * 경매: 30 minutes of open bidding with server-wide announcements. Bids are held (escrow) and given
  * back when someone bids higher; a bid in the last minute adds a minute. 7% fee and a 100G deposit
- * (returned when it sells). At most 3 player auctions at once. Server auctions (world boss loot,
- * 대경매) count toward a weekly limit of rare wins per player.
+ * (returned when it sells). At most 3 player auctions at once. Server auctions (대경매)
+ * count toward a weekly limit of rare wins per player.
  */
 public final class AuctionModule extends EcoModule {
 
@@ -66,7 +61,6 @@ public final class AuctionModule extends EcoModule {
         store.init();
         rules = eco.rules();
         every(20L, this::tick);
-        eco.events().onStart("world_boss", this::spawnWorldBoss);
         eco.onReset(() -> {
             hideBars();
             store.reset();
@@ -284,46 +278,6 @@ public final class AuctionModule extends EcoModule {
         eco.mail().deliver(a.seller != null ? a.seller : p.getUniqueId(), Items.fromBytes(a.item), "auction_cancel");
         Bukkit.broadcast(Lang.msg("auction.cancelled", "id", a.id, "item", name(a)));
         return null;
-    }
-
-    // ------------------------------------------------------------------------------------------
-    // World boss: the loot is only sold by auction; the best fighters get money
-    // ------------------------------------------------------------------------------------------
-
-    private void spawnWorldBoss(ActiveEvent e) {
-        String boss = e.params().getOrDefault("boss", "executioner");
-        Location at = eco.location("world-boss");
-        if (at == null) at = Bukkit.getWorlds().getFirst().getSpawnLocation();
-        Location spawn = at;
-        e.params().put("boss", boss);
-        e.params().put("detail", Lang.raw("auction.world-boss-detail", "x", at.getBlockX(), "z", at.getBlockZ()));
-        // a moment later, so the announcement comes first
-        Bukkit.getScheduler().runTaskLater(eco, () -> {
-            if (core.bosses().spawn(boss, spawn).isEmpty()) eco.getLogger().warning("월드 보스 소환 실패: " + boss);
-        }, 100L);
-    }
-
-    @EventHandler
-    public void onBossDefeat(BossDefeatEvent e) {
-        List<ActiveEvent> events = eco.events().active("world_boss");
-        ActiveEvent ev = events.stream().filter(x -> e.bossId().equals(x.param("boss"))).findFirst().orElse(null);
-        if (ev == null) return;
-        long start = (long) ev.number("start-price", 1000);
-        double minutes = ev.number("auction-minutes", rules.auctionMinutes());
-        for (ItemStack it : e.drops()) startServer(null, it, start, minutes);
-        e.drops().clear();
-        // rewards for the top fighters
-        long[] rewards = {(long) ev.number("reward-1", 3000), (long) ev.number("reward-2", 2000), (long) ev.number("reward-3", 1000)};
-        List<Map.Entry<UUID, Double>> top = e.damage().entrySet().stream()
-                .sorted(Map.Entry.<UUID, Double>comparingByValue(Comparator.reverseOrder())).limit(3).toList();
-        for (int i = 0; i < top.size(); i++) {
-            UUID u = top.get(i).getKey();
-            if (rewards[i] > 0 && core.economy().hasAccount(u)) {
-                core.economy().deposit(u, rewards[i], "world_boss");
-                Bukkit.broadcast(Lang.msg("auction.boss-reward", "rank", i + 1, "player", Players.name(u), "amount", EconomyModule.format(rewards[i])));
-            }
-        }
-        eco.events().end("world_boss");
     }
 
     // ------------------------------------------------------------------------------------------

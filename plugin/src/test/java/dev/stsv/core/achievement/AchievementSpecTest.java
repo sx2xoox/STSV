@@ -63,10 +63,12 @@ class AchievementSpecTest {
     @Test
     void shippedAchievementsAreValid() throws Exception {
         Map<String, Path> packs = Map.of("stsv", REPO.resolve("content/stsv"), "economy", REPO.resolve("economy/content/economy"));
-        Set<String> stats = Set.of("playtime", "deaths", "mob_kills", "blocks_broken", "blocks_placed", "boss_kills", "boss_damage",
+        Set<String> stats = Set.of("playtime", "deaths", "mob_kills", "blocks_broken", "blocks_placed",
                 "ores_mined", "crops_harvested", "fish_caught", "rare_finds", "animals_bred", "machine_made", "shop_sold", "shop_income",
                 "requests_done", "stock_trades", "market_sold", "auctions_won",
                 "missions_daily", "missions_weekly", "missions_daily_all", "missions_weekly_all");
+        // nothing counts these since the boss system was removed: the achievements stay defined (currently unreachable)
+        Set<String> uncounted = Set.of("boss_kills", "boss_damage");
         Set<String> providers = Set.of("stsv:achievements", "stsv:points", "stsv:titles", "stsv:cosmetics", "stsv:balance",
                 "economy:job_level", "economy:job_level_max", "economy:jobs_total", "economy:net_worth", "economy:land_chunks", "economy:fish_species", "economy:codex");
         Set<String> titles = new HashSet<>(), items = new HashSet<>();
@@ -94,7 +96,7 @@ class AchievementSpecTest {
         for (AchievementSpec a : all.values()) {
             perTier.merge(a.tier(), 1, Integer::sum);
             if (a.condition().stat()) {
-                if (!stats.contains(a.condition().key())) problems.add(a.id() + ": unknown stat " + a.condition().key());
+                if (!stats.contains(a.condition().key()) && !uncounted.contains(a.condition().key())) problems.add(a.id() + ": unknown stat " + a.condition().key());
             } else if (!providers.contains(a.condition().key())) {
                 problems.add(a.id() + ": unknown provider " + a.condition().key());
             }

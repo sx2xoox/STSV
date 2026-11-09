@@ -3,8 +3,8 @@ package dev.stsv.economy.auction;
 import java.util.UUID;
 
 /**
- * One auction. Mutable while it runs (main thread only). seller == null: a server auction (world boss
- * loot, 대경매) whose money disappears from the economy and which counts toward the weekly rare-win limit.
+ * One auction. Mutable while it runs (main thread only). seller == null: a server auction (대경매)
+ * whose money disappears from the economy and which counts toward the weekly rare-win limit.
  */
 public final class Auction {
 

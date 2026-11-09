@@ -1,6 +1,5 @@
 package dev.stsv.core;
 
-import dev.stsv.core.boss.BossModule;
 import dev.stsv.core.command.ProfileCommand;
 import dev.stsv.core.command.StsvCommand;
 import dev.stsv.core.data.DatabaseModule;
@@ -39,7 +38,6 @@ public final class STSVPlugin extends JavaPlugin {
     private PackModule pack;
     private SkinModule skins;
     private CosmeticModule cosmetics;
-    private BossModule bosses;
     private dev.stsv.core.profile.ProfileModule profiles;
     private dev.stsv.core.hud.HudModule hud;
     private dev.stsv.core.economy.EconomyModule economy;
@@ -81,7 +79,6 @@ public final class STSVPlugin extends JavaPlugin {
         modules.register(achievements = new dev.stsv.core.achievement.AchievementModule());
         modules.register(hub = new dev.stsv.core.gui.HubModule());
         modules.register(new ItemEffectsModule());
-        modules.register(bosses = new BossModule());
         modules.register(pack = new PackModule());
         modules.enableAll();
 
@@ -178,7 +175,6 @@ public final class STSVPlugin extends JavaPlugin {
     public PackModule pack() { return pack; }
     public SkinModule skins() { return skins; }
     public CosmeticModule cosmetics() { return cosmetics; }
-    public BossModule bosses() { return bosses; }
     public dev.stsv.core.profile.ProfileModule profiles() { return profiles; }
     public dev.stsv.core.hud.HudModule hud() { return hud; }
     public dev.stsv.core.economy.EconomyModule economy() { return economy; }
