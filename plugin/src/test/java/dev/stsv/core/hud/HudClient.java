@@ -18,16 +18,22 @@ import java.util.Map;
 /**
  * Lays a component out the way the game does, from the generated font JSON only (not from the layout's own
  * bookkeeping): a line is centred (starts at -(width / 2)), every character moves the pen by its advance, and a
- * bitmap glyph's top is at pen line + 7 - ascent. Gives every visible glyph's position, sheet and cell.
+ * bitmap glyph's top is at pen line + 7 - ascent, drawn height / cell height times its size. Gives every visible
+ * glyph's position, sheet, cell and scale.
  */
 final class HudClient {
 
-    /** A visible glyph: x of its left edge from the screen's middle, y of its top from the pen line. */
-    record Draw(int x, int y, String sheet, String cell, int color, boolean shadow) {}
+    /** A visible glyph: x of its left edge from the screen's middle, y of its top from the pen line, its scale. */
+    record Draw(int x, int y, String sheet, String cell, int color, boolean shadow, int scale) {
+
+        Draw(int x, int y, String sheet, String cell, int color, boolean shadow) {
+            this(x, y, sheet, cell, color, shadow, 1);
+        }
+    }
 
     record Laid(int width, List<Draw> draws) {}
 
-    private record Provider(String type, String sheet, int ascent, Map<Integer, String> cells, Map<Integer, Integer> advances) {}
+    private record Provider(String type, String sheet, int ascent, int scale, Map<Integer, String> cells, Map<Integer, Integer> advances) {}
 
     private final Map<Key, List<Provider>> fonts = new HashMap<>();
     private final HudSheets sheets;
@@ -45,11 +51,15 @@ final class HudClient {
                 Map<Integer, Integer> adv = new HashMap<>();
                 if (type.equals("space")) {
                     for (var a : p.getAsJsonObject("advances").entrySet()) adv.put(a.getKey().codePointAt(0), a.getValue().getAsInt());
-                    list.add(new Provider(type, null, 0, cells, adv));
+                    list.add(new Provider(type, null, 0, 1, cells, adv));
                 } else if (type.equals("bitmap")) {
                     String file = p.get("file").getAsString();
                     if (!file.startsWith("stsv:")) throw new AssertionError("a HUD font uses a file outside the pack: " + file);
                     String sheet = file.substring(file.lastIndexOf('/') + 1).replace(".png", "");
+                    int height = p.get("height").getAsInt();
+                    HudSheets.Sheet sh = sheets.sheet(sheet);
+                    if (height % sh.height() != 0) throw new AssertionError("a HUD glyph drawn at a fraction of its size: " + sheet + " " + height);
+                    int scale = height / sh.height();
                     int r = 0;
                     for (JsonElement row : p.getAsJsonArray("chars")) {
                         int[] cps = row.getAsString().codePoints().toArray();
@@ -58,13 +68,14 @@ final class HudClient {
                             HudSheets.Sheet s = sheets.sheet(sheet);
                             int k = r * s.cols() + c;
                             cells.put(cps[c], s.names().get(k));
-                            adv.put(cps[c], s.advances()[k]);
+                            // the game: (int) (0.5 + rightmost visible column x height / cell height) + 1
+                            adv.put(cps[c], (int) (0.5 + s.widths()[k] * (height / (float) s.cellH())) + 1);
                         }
                         r++;
                     }
-                    list.add(new Provider(type, sheet, p.get("ascent").getAsInt(), cells, adv));
+                    list.add(new Provider(type, sheet, p.get("ascent").getAsInt(), scale, cells, adv));
                 } else {
-                    list.add(new Provider(type, null, 0, cells, adv));
+                    list.add(new Provider(type, null, 0, 1, cells, adv));
                 }
             }
             fonts.put(key, list);
@@ -103,7 +114,7 @@ final class HudClient {
             if (p != null && p.type().equals("bitmap")) {
                 int color = g.style().color() == null ? 0xFFFFFF : g.style().color().value();
                 boolean shadow = g.style().shadowColor() != null && g.style().shadowColor().alpha() > 0;
-                out.add(new Draw(pen, 7 - p.ascent(), p.sheet(), p.cells().get(g.cp()), color, shadow));
+                out.add(new Draw(pen, 7 - p.ascent(), p.sheet(), p.cells().get(g.cp()), color, shadow, p.scale()));
             }
             pen += advance(g);
         }

@@ -3,13 +3,16 @@ package dev.stsv.core.hud;
 import dev.stsv.core.STSVPlugin;
 import dev.stsv.core.module.StsvModule;
 import dev.stsv.core.util.Lang;
+import io.papermc.paper.entity.TeleportFlag;
 import net.kyori.adventure.bossbar.BossBar;
 import net.kyori.adventure.text.Component;
 import org.bukkit.Bukkit;
 import org.bukkit.GameMode;
+import org.bukkit.Location;
 import org.bukkit.NamespacedKey;
 import org.bukkit.attribute.Attribute;
 import org.bukkit.attribute.AttributeInstance;
+import org.bukkit.attribute.AttributeModifier;
 import org.bukkit.command.Command;
 import org.bukkit.command.CommandExecutor;
 import org.bukkit.command.CommandSender;
@@ -17,17 +20,39 @@ import org.bukkit.command.TabCompleter;
 import org.bukkit.configuration.ConfigurationSection;
 import org.bukkit.entity.LivingEntity;
 import org.bukkit.entity.Player;
+import org.bukkit.entity.Projectile;
 import org.bukkit.event.EventHandler;
 import org.bukkit.event.EventPriority;
 import org.bukkit.event.HandlerList;
 import org.bukkit.event.Listener;
+import org.bukkit.event.block.Action;
+import org.bukkit.event.block.BlockBreakEvent;
+import org.bukkit.event.block.BlockPlaceEvent;
+import org.bukkit.event.entity.EntityDamageByEntityEvent;
+import org.bukkit.event.entity.EntityDamageEvent;
+import org.bukkit.event.entity.PlayerDeathEvent;
+import org.bukkit.event.player.PlayerChangedWorldEvent;
+import org.bukkit.event.player.PlayerDropItemEvent;
+import org.bukkit.event.player.PlayerGameModeChangeEvent;
+import org.bukkit.event.player.PlayerInteractAtEntityEvent;
+import org.bukkit.event.player.PlayerInteractEntityEvent;
+import org.bukkit.event.player.PlayerInteractEvent;
+import org.bukkit.event.player.PlayerItemConsumeEvent;
+import org.bukkit.event.player.PlayerItemHeldEvent;
 import org.bukkit.event.player.PlayerJoinEvent;
 import org.bukkit.event.player.PlayerQuitEvent;
 import org.bukkit.event.player.PlayerResourcePackStatusEvent;
+import org.bukkit.event.player.PlayerSwapHandItemsEvent;
+import org.bukkit.event.player.PlayerTeleportEvent;
+import org.bukkit.event.player.PlayerToggleSneakEvent;
 import org.bukkit.persistence.PersistentDataType;
 import org.bukkit.potion.PotionEffectType;
 import org.bukkit.scheduler.BukkitTask;
 
+import java.io.IOException;
+import java.nio.charset.StandardCharsets;
+import java.nio.file.Files;
+import java.nio.file.Path;
 import java.util.ArrayList;
 import java.util.Comparator;
 import java.util.HashMap;
@@ -55,8 +80,8 @@ import java.util.function.Function;
  *       hearts.</li>
  *   <li>scoreboard: the sidebar on the player's own scoreboard, the game's hearts.</li>
  * </ul>
- * Every player can hide the sidebar (/사이드바, kept on the player: HudToggle) and put the panel against their own
- * screen's right edge (/사이드바 위치, HudPosition).
+ * Every player can hide the sidebar (/사이드바, kept on the player: HudToggle) and move it and change its size with
+ * the mouse (/사이드바 위치: see the edit mode below; the place is kept on the player).
  *
  * Sidebar: contents add rows ({@link #sidebar}), each asked every refresh, null to hide; shown top to bottom by
  * their order under a title. Component.empty() is a gap (a divider line in the panel). A tab in a row separates
@@ -66,6 +91,13 @@ import java.util.function.Function;
  * Contents add lines ({@link #line}): each is asked every refresh and may answer null to stay hidden; the visible
  * ones are joined left to right by their order. A one-off action-bar message must go through {@link #flash} so the
  * status line steps aside for a few seconds instead of overwriting it (and, in pack mode, so the health bars stay).
+ *
+ * Edit mode (/사이드바 위치, HudEdit): the player stands still (walk and fly speed 0, no jumping; nothing else about
+ * them changes: no protection, no other movement) while turning the view moves the panel, drawn every tick with
+ * corner brackets; the wheel changes its size; left click or F saves, sneaking or /사이드바 위치 취소 cancels, a
+ * minute cancels. Being hurt, dying, leaving, being teleported, changing game mode or being pushed off the spot
+ * cancels too, and every way out gives the speeds back (also after a crash: they are written on the player first).
+ * Items, blocks and entities cannot be used meanwhile.
  */
 public final class HudModule implements StsvModule, Listener, CommandExecutor, TabCompleter {
 
@@ -77,6 +109,9 @@ public final class HudModule implements StsvModule, Listener, CommandExecutor, T
 
     public enum Mode { PACK, SCOREBOARD }
 
+    /** The panel's letter subsets keep at most this many syllables (the repository's texts are about 800). */
+    static final int MAX_PANEL_LETTERS = 1024;
+
     private final Map<String, Line> rows = new LinkedHashMap<>();
     private final Map<UUID, org.bukkit.scoreboard.Scoreboard> boards = new ConcurrentHashMap<>();
     private final Map<UUID, List<Component>> shown = new ConcurrentHashMap<>();
@@ -87,9 +122,9 @@ public final class HudModule implements StsvModule, Listener, CommandExecutor, T
     private final Map<String, Line> lines = new LinkedHashMap<>();
     private final Map<UUID, Long> pausedUntil = new ConcurrentHashMap<>();
     private final Map<String, BossBar> bars = new LinkedHashMap<>();
-    private BukkitTask ticker, barTicker;
+    private BukkitTask ticker, barTicker, editTicker;
     private long flashMillis;
-    private long tick;
+    private long tick, editClock;
 
     // pack mode
     private Mode mode = Mode.SCOREBOARD;
@@ -99,12 +134,13 @@ public final class HudModule implements StsvModule, Listener, CommandExecutor, T
     private BossBar.Color panelColour = BossBar.Color.WHITE;
     private int resendTicks = 20;
     private final Map<String, String> icons = new HashMap<>();
-    private NamespacedKey toggleKey, positionKey;
+    private NamespacedKey toggleKey, positionKey, placeKey, frozenKey, jumpKey;
     private final Map<UUID, BossBar> panels = new ConcurrentHashMap<>();
     private final Set<UUID> packReady = ConcurrentHashMap.newKeySet();
     private final Set<UUID> packRefused = ConcurrentHashMap.newKeySet();
     private final Map<UUID, Flash> flashes = new ConcurrentHashMap<>();
     private final Map<UUID, Sent> sent = new ConcurrentHashMap<>();
+    private final Map<UUID, Editing> editing = new ConcurrentHashMap<>();
 
     @Override
     public String id() {
@@ -117,9 +153,15 @@ public final class HudModule implements StsvModule, Listener, CommandExecutor, T
         instance = this;
         toggleKey = new NamespacedKey(plugin, "hud_sidebar");
         positionKey = new NamespacedKey(plugin, "hud_sidebar_right");
+        placeKey = new NamespacedKey(plugin, "hud_sidebar_place");
+        frozenKey = new NamespacedKey(plugin, "hud_edit_speeds");
+        jumpKey = new NamespacedKey(plugin, "hud_edit");
         Bukkit.getPluginManager().registerEvents(this, plugin);
         // a plugin reload with players online: they already have the pack
-        for (Player p : Bukkit.getOnlinePlayers()) packReady.add(p.getUniqueId());
+        for (Player p : Bukkit.getOnlinePlayers()) {
+            packReady.add(p.getUniqueId());
+            thaw(p);
+        }
         start();
     }
 
@@ -146,11 +188,14 @@ public final class HudModule implements StsvModule, Listener, CommandExecutor, T
         if (wanted == Mode.PACK) {
             try {
                 if (sheets == null) sheets = HudSheets.load();
-                layout = new HudLayout(sheets, settings(cfg));
+                layout = new HudLayout(HudLayout.panelSheets(sheets, panelLetters()), settings(cfg));
             } catch (Exception e) {
                 plugin.getLogger().warning("리소스팩 HUD 를 준비하지 못해 스코어보드 사이드바를 씁니다: " + e);
                 wanted = Mode.SCOREBOARD;
             }
+        }
+        if (wanted != Mode.PACK || !sidebarOn) {
+            for (Player p : Bukkit.getOnlinePlayers()) endEdit(p, HudEdit.Outcome.CANCELLED, "hud.edit-cancelled", true);
         }
         if (mode != wanted) {
             // switching looks: take the old one off everyone
@@ -165,8 +210,10 @@ public final class HudModule implements StsvModule, Listener, CommandExecutor, T
         long every = Math.max(5, cfg.getInt("hud.refresh-ticks"));
         if (ticker != null) ticker.cancel();
         if (barTicker != null) barTicker.cancel();
+        if (editTicker != null) editTicker.cancel();
         ticker = Bukkit.getScheduler().runTaskTimer(plugin, this::refresh, every, every);
         barTicker = Bukkit.getScheduler().runTaskTimer(plugin, this::refreshBars, 2L, 2L);
+        editTicker = Bukkit.getScheduler().runTaskTimer(plugin, this::editTick, 1L, 1L);
     }
 
     static HudLayout.Settings settings(org.bukkit.configuration.Configuration cfg) {
@@ -176,6 +223,56 @@ public final class HudModule implements StsvModule, Listener, CommandExecutor, T
                 cfg.getBoolean("hud.health.armor", d.armor()));
     }
 
+    /**
+     * The syllables the panel's letters keep: the repository's (bundled), the messages' and those of every yml
+     * file of the STSV plugins on this server (contents, configs: a job or event added on the server shows), at
+     * most MAX_PANEL_LETTERS (the most used ones first).
+     */
+    private Set<Integer> panelLetters() {
+        Map<Integer, Integer> counts = new HashMap<>();
+        for (String s : Lang.allText()) count(s, counts);
+        java.io.File parent = plugin.getDataFolder().getParentFile();
+        java.io.File[] dirs = parent == null ? null : parent.listFiles(f -> f.isDirectory() && f.getName().startsWith("STSV"));
+        long budget = 64L << 20;
+        if (dirs != null) {
+            for (java.io.File dir : dirs) {
+                try (var files = Files.walk(dir.toPath())) {
+                    for (Path f : (Iterable<Path>) files::iterator) {
+                        if (budget <= 0) break;
+                        if (!f.toString().endsWith(".yml") || f.toString().contains("generated") || !Files.isRegularFile(f)) continue;
+                        long size = Files.size(f);
+                        if (size > (4L << 20)) continue;
+                        budget -= size;
+                        count(Files.readString(f, StandardCharsets.UTF_8), counts);
+                    }
+                } catch (IOException | java.io.UncheckedIOException e) {
+                    plugin.getLogger().warning("사이드바 글자를 모으지 못한 폴더: " + dir + " (" + e.getMessage() + ")");
+                }
+            }
+        }
+        return pickLetters(sheets.panelLetters(), counts, MAX_PANEL_LETTERS, n ->
+                plugin.getLogger().warning("사이드바 패널 글꼴에 한글 " + n + "자를 넣지 못했습니다 (자주 쓰는 " + MAX_PANEL_LETTERS + "자만): 패널에서 ? 로 보임"));
+    }
+
+    static void count(String text, Map<Integer, Integer> counts) {
+        text.codePoints().filter(c -> c >= 0xAC00 && c <= 0xD7A3).forEach(c -> counts.merge(c, 1, Integer::sum));
+    }
+
+    /** The base letters and then the most counted others, at most max in all; dropped(n) is told how many did not fit. */
+    static Set<Integer> pickLetters(Set<Integer> base, Map<Integer, Integer> counts, int max, java.util.function.IntConsumer dropped) {
+        Set<Integer> out = new java.util.TreeSet<>(base);
+        List<Map.Entry<Integer, Integer>> rest = new ArrayList<>();
+        for (var e : counts.entrySet()) if (!out.contains(e.getKey())) rest.add(e);
+        rest.sort(Map.Entry.<Integer, Integer>comparingByValue().reversed().thenComparing(Map.Entry.comparingByKey()));
+        int left = 0;
+        for (var e : rest) {
+            if (out.size() < max) out.add(e.getKey());
+            else left++;
+        }
+        if (left > 0) dropped.accept(left);
+        return out;
+    }
+
     @Override
     public void reload() {
         start();
@@ -183,8 +280,10 @@ public final class HudModule implements StsvModule, Listener, CommandExecutor, T
 
     @Override
     public void disable() {
+        for (Player p : Bukkit.getOnlinePlayers()) endEdit(p, HudEdit.Outcome.CANCELLED, null, true);
         if (ticker != null) ticker.cancel();
         if (barTicker != null) barTicker.cancel();
+        if (editTicker != null) editTicker.cancel();
         for (Player p : Bukkit.getOnlinePlayers()) {
             clearSidebar(p);
             hidePanel(p);
@@ -205,7 +304,9 @@ public final class HudModule implements StsvModule, Listener, CommandExecutor, T
      */
     public Map<String, byte[]> packFiles() {
         if (mode != Mode.PACK || layout == null) return Map.of();
-        return HudPack.files(sheets, layout, sidebarOn ? panelColour.name() : null, healthOn);
+        Map<String, byte[]> files = HudPack.files(layout, sidebarOn ? panelColour.name() : null, healthOn);
+        plugin.getLogger().info("HUD 글꼴: 클라이언트 메모리 약 " + (HudPack.clientMemory(layout) * 10 / (1 << 20)) / 10.0 + "MB");
+        return files;
     }
 
     /** The pack HUD is drawn for this player (pack mode and their client loaded the pack). */
@@ -417,6 +518,21 @@ public final class HudModule implements StsvModule, Listener, CommandExecutor, T
         return tidy;
     }
 
+    /** The panel's rows: icons by row id, a gap becomes a divider above the next row. */
+    private List<HudLayout.Row> panelRows(List<Entry> tidy) {
+        List<HudLayout.Row> out = new ArrayList<>();
+        boolean divider = false;
+        for (Entry e : tidy) {
+            if (e.text().equals(Component.empty())) {
+                divider = true;
+                continue;
+            }
+            out.add(new HudLayout.Row(icons.get(e.id()), e.text(), divider));
+            divider = false;
+        }
+        return out;
+    }
+
     /** Whether this player wants the sidebar (/사이드바). */
     public boolean sidebarShown(Player p) {
         return HudToggle.shown(store(p));
@@ -438,21 +554,18 @@ public final class HudModule implements StsvModule, Listener, CommandExecutor, T
     }
 
     private void refreshSidebar(Player p) {
+        Editing ed = editing.get(p.getUniqueId());
+        if (ed != null && packFor(p)) {
+            clearSidebar(p);
+            ed.rows = editRows(p);
+            drawEdit(p, ed);
+            return;
+        }
         boolean want = sidebarOn && sidebarShown(p);
         if (packFor(p)) {
             clearSidebar(p);
-            List<Entry> tidy = want ? entries(p) : List.of();
-            List<HudLayout.Row> out = new ArrayList<>();
-            boolean divider = false;
-            for (Entry e : tidy) {
-                if (e.text().equals(Component.empty())) {
-                    divider = true;
-                    continue;
-                }
-                out.add(new HudLayout.Row(icons.get(e.id()), e.text(), divider));
-                divider = false;
-            }
-            Component panel = out.isEmpty() ? null : layout.panel(out, panelRight(p));
+            List<HudLayout.Row> out = want ? panelRows(entries(p)) : List.of();
+            Component panel = out.isEmpty() ? null : layout.panel(out, placement(p), false);
             if (panel == null) hidePanel(p);
             else showPanel(p, panel);
             return;
@@ -471,10 +584,11 @@ public final class HudModule implements StsvModule, Listener, CommandExecutor, T
     private static final net.kyori.adventure.text.TextReplacementConfig TAB_TO_SPACE =
             net.kyori.adventure.text.TextReplacementConfig.builder().matchLiteral("\t").replacement(" ").build();
 
-    /** The panel's right edge for this player: their own (/사이드바 위치) or the server's (hud.sidebar.right). */
-    int panelRight(Player p) {
-        Integer own = p.getPersistentDataContainer().get(positionKey, PersistentDataType.INTEGER);
-        return own != null ? own : layout.settings().sidebarRight();
+    /** This player's panel place: their own (/사이드바 위치) or the server's (hud.sidebar.right, hud.sidebar.y). */
+    HudLayout.Placement placement(Player p) {
+        var pdc = p.getPersistentDataContainer();
+        return HudEdit.stored(pdc.get(placeKey, PersistentDataType.INTEGER_ARRAY), pdc.get(positionKey, PersistentDataType.INTEGER),
+                layout.defaults());
     }
 
     private void showPanel(Player p, Component panel) {
@@ -538,7 +652,7 @@ public final class HudModule implements StsvModule, Listener, CommandExecutor, T
     }
 
     // ------------------------------------------------------------------------------------------
-    // /사이드바 [켜기|끄기]
+    // /사이드바 [켜기|끄기|위치 [기본|취소|저장]]
     // ------------------------------------------------------------------------------------------
 
     @Override
@@ -548,7 +662,7 @@ public final class HudModule implements StsvModule, Listener, CommandExecutor, T
             return true;
         }
         if (args.length >= 1 && (args[0].equals("위치") || args[0].equalsIgnoreCase("pos") || args[0].equalsIgnoreCase("position"))) {
-            position(p, java.util.Arrays.copyOfRange(args, 1, args.length));
+            position(p, args.length >= 2 ? args[1].trim().toLowerCase(Locale.ROOT) : "");
             return true;
         }
         Boolean on = HudToggle.apply(store(p), args.length == 0 ? null : args[0]);
@@ -561,51 +675,346 @@ public final class HudModule implements StsvModule, Listener, CommandExecutor, T
         return true;
     }
 
-    /** /사이드바 위치 ...: where this player's panel goes (HudPosition). */
-    private void position(Player p, String[] args) {
-        if (mode != Mode.PACK || layout == null) {
-            p.sendMessage(Lang.msg("hud.position-scoreboard"));
-            return;
-        }
-        HudPosition.Change c = HudPosition.parse(args, panelRight(p));
-        var pdc = p.getPersistentDataContainer();
-        switch (c.kind()) {
-            case USAGE -> {
-                p.sendMessage(Lang.msg("hud.position-usage", "right", panelRight(p)));
-                return;
+    /** /사이드바 위치 [기본|취소|저장]: the edit mode, or back to the server's place. */
+    private void position(Player p, String arg) {
+        switch (arg) {
+            case "" -> {
+                if (editing.containsKey(p.getUniqueId())) endEdit(p, HudEdit.Outcome.SAVED, "hud.edit-saved", true);
+                else startEdit(p);
             }
-            case RESET -> {
+            case "저장", "save" -> {
+                if (editing.containsKey(p.getUniqueId())) endEdit(p, HudEdit.Outcome.SAVED, "hud.edit-saved", true);
+                else p.sendMessage(Lang.msg("hud.edit-not-editing"));
+            }
+            case "취소", "cancel" -> {
+                if (editing.containsKey(p.getUniqueId())) endEdit(p, HudEdit.Outcome.CANCELLED, "hud.edit-cancelled", true);
+                else p.sendMessage(Lang.msg("hud.edit-not-editing"));
+            }
+            case "기본", "reset", "default", "초기화" -> {
+                endEdit(p, HudEdit.Outcome.CANCELLED, null, true);
+                var pdc = p.getPersistentDataContainer();
+                pdc.remove(placeKey);
                 pdc.remove(positionKey);
                 p.sendMessage(Lang.msg("hud.position-reset"));
+                refreshSidebar(p);
             }
-            case WINDOW -> {
-                pdc.set(positionKey, PersistentDataType.INTEGER, c.right());
-                p.sendMessage(Lang.msg("hud.position-window", "width", c.width(), "height", c.height(), "scale", c.scale(),
-                        "right", c.right()));
-            }
-            default -> {
-                pdc.set(positionKey, PersistentDataType.INTEGER, c.right());
-                p.sendMessage(Lang.msg("hud.position-moved", "right", c.right()));
-            }
+            default -> p.sendMessage(Lang.msg("hud.position-usage"));
         }
-        refreshSidebar(p);
     }
-
-    private static final List<String> WINDOWS = List.of("1920x1080", "2560x1440", "1280x720", "1366x768", "1600x900",
-            "1920x1200", "2560x1080", "3440x1440", "3840x2160");
 
     @Override
     public List<String> onTabComplete(CommandSender sender, Command command, String alias, String[] args) {
         List<String> options;
         if (args.length == 1) options = List.of("켜기", "끄기", "위치");
-        else if (args.length == 2 && args[0].equals("위치")) {
-            options = new ArrayList<>(WINDOWS);
-            options.addAll(List.of("기본", "+5", "-5"));
-        } else if (args.length == 3 && args[0].equals("위치") && args[1].contains("x")) {
-            options = List.of("자동", "1", "2", "3", "4", "5", "6");
-        } else return List.of();
+        else if (args.length == 2 && args[0].equals("위치")) options = List.of("기본", "취소", "저장");
+        else return List.of();
         String typed = args[args.length - 1];
         return options.stream().filter(s -> s.startsWith(typed)).toList();
+    }
+
+    // ------------------------------------------------------------------------------------------
+    // Edit mode: move the panel with the mouse
+    // ------------------------------------------------------------------------------------------
+
+    /** A player moving their panel: the edit, where they stand, their view and speeds before, the rows shown. */
+    private static final class Editing {
+        final HudEdit edit;
+        final Location spot;
+        final float yaw, pitch, walk, fly;
+        List<HudLayout.Row> rows;
+        boolean turning;
+        long guided;
+
+        Editing(HudEdit edit, Location spot, float yaw, float pitch, float walk, float fly, List<HudLayout.Row> rows) {
+            this.edit = edit;
+            this.spot = spot;
+            this.yaw = yaw;
+            this.pitch = pitch;
+            this.walk = walk;
+            this.fly = fly;
+            this.rows = rows;
+        }
+    }
+
+    /** How far (blocks) a player may be pushed while editing before it cancels. */
+    private static final double MAX_DRIFT = 1.5;
+
+    public boolean editing(Player p) {
+        return editing.containsKey(p.getUniqueId());
+    }
+
+    private void startEdit(Player p) {
+        if (mode != Mode.PACK || layout == null) {
+            p.sendMessage(Lang.msg("hud.position-scoreboard"));
+            return;
+        }
+        if (!sidebarOn) {
+            p.sendMessage(Lang.msg("hud.edit-off"));
+            return;
+        }
+        if (!packFor(p)) {
+            p.sendMessage(Lang.msg("hud.edit-unavailable"));
+            return;
+        }
+        if (p.isInsideVehicle() || p.isGliding() || p.isSleeping() || p.isDead()) {
+            p.sendMessage(Lang.msg("hud.edit-busy"));
+            return;
+        }
+        List<HudLayout.Row> rows = editRows(p);
+        HudLayout.Placement from = placement(p);
+        from = layout.fit(from, layout.lines(rows, from.size()));
+        Location at = p.getLocation();
+        Editing e = new Editing(new HudEdit(from, at.getYaw(), 0f, editClock), at.clone(), at.getYaw(), at.getPitch(),
+                p.getWalkSpeed(), p.getFlySpeed(), rows);
+        freeze(p, e);
+        editing.put(p.getUniqueId(), e);
+        turn(p, e, at.getYaw(), 0f);   // look straight ahead: the whole up-down turn is free for moving
+        p.sendMessage(Lang.msg("hud.edit-start"));
+        clearSidebar(p);
+        drawEdit(p, e);
+        guide(p, e);
+    }
+
+    /** The rows while editing: the real ones (even if the player hid the sidebar), or a sample row. */
+    private List<HudLayout.Row> editRows(Player p) {
+        List<HudLayout.Row> out = panelRows(entries(p));
+        return out.isEmpty() ? List.of(new HudLayout.Row("star", Lang.mm("hud.edit-sample"), false)) : out;
+    }
+
+    private HudEdit.Fit fit(Editing e) {
+        return want -> layout.fit(want, layout.lines(e.rows, want.size()));
+    }
+
+    private void drawEdit(Player p, Editing e) {
+        Component panel = layout.panel(e.rows, e.edit.current(), true);
+        if (panel == null) hidePanel(p);
+        else showPanel(p, panel);
+    }
+
+    private void guide(Player p, Editing e) {
+        e.guided = editClock;
+        flash(p, Lang.mm("hud.edit-guide", "size", e.edit.size().label, "left", e.edit.secondsLeft(editClock)), 2500);
+    }
+
+    private void editTick() {
+        editClock++;
+        for (UUID u : List.copyOf(editing.keySet())) {
+            Player p = Bukkit.getPlayer(u);
+            Editing e = editing.get(u);
+            if (e == null) continue;
+            if (p == null || !p.isOnline()) {
+                editing.remove(u);
+                continue;
+            }
+            try {
+                if (e.edit.timedOut(editClock)) {
+                    endEdit(p, HudEdit.Outcome.TIMED_OUT, "hud.edit-timeout", true);
+                    continue;
+                }
+                Location now = p.getLocation();
+                if (now.getWorld() != e.spot.getWorld() || now.distanceSquared(e.spot) > MAX_DRIFT * MAX_DRIFT) {
+                    endEdit(p, HudEdit.Outcome.CANCELLED, "hud.edit-moved", false);
+                    continue;
+                }
+                if (e.edit.look(now.getYaw(), now.getPitch(), fit(e))) drawEdit(p, e);
+                if (editClock - e.guided >= 20) guide(p, e);
+            } catch (RuntimeException ex) {
+                plugin.getLogger().warning("사이드바 편집 오류: " + ex);
+                endEdit(p, HudEdit.Outcome.CANCELLED, "hud.edit-cancelled", false);
+            }
+        }
+    }
+
+    /**
+     * Ends a player's edit (if any): speeds and view back, the place kept when saved, the message (null: none).
+     * view: turn the player back to where they looked before (not when something else moves them).
+     */
+    private void endEdit(Player p, HudEdit.Outcome how, String message, boolean view) {
+        Editing e = editing.remove(p.getUniqueId());
+        if (e == null || e.edit.end(how) == null) return;
+        thaw(p, e.walk, e.fly);
+        if (view && p.isOnline() && !p.isDead()) turn(p, e, e.yaw, e.pitch);
+        if (how == HudEdit.Outcome.SAVED) {
+            var pdc = p.getPersistentDataContainer();
+            pdc.set(placeKey, PersistentDataType.INTEGER_ARRAY, HudEdit.store(e.edit.result()));
+            pdc.remove(positionKey);
+        }
+        if (p.isOnline()) {
+            clearFlash(p);
+            if (message != null) p.sendMessage(Lang.msg(message, "size", e.edit.result().size().label));
+            refreshSidebar(p);
+        }
+    }
+
+    /**
+     * Stands the player still: walk and fly speed 0 (the game then also leaves the field of view alone) and no
+     * jumping. The speeds before are written on the player first, so a crash cannot leave them frozen.
+     */
+    private void freeze(Player p, Editing e) {
+        p.getPersistentDataContainer().set(frozenKey, PersistentDataType.STRING, e.walk + "," + e.fly);
+        p.setWalkSpeed(0f);
+        p.setFlySpeed(0f);
+        AttributeInstance jump = p.getAttribute(Attribute.JUMP_STRENGTH);
+        if (jump != null && jump.getModifier(jumpKey) == null) {
+            jump.addTransientModifier(new AttributeModifier(jumpKey, -1, AttributeModifier.Operation.MULTIPLY_SCALAR_1));
+        }
+    }
+
+    private void thaw(Player p, float walk, float fly) {
+        p.setWalkSpeed(Math.max(-1f, Math.min(1f, walk)));
+        p.setFlySpeed(Math.max(-1f, Math.min(1f, fly)));
+        AttributeInstance jump = p.getAttribute(Attribute.JUMP_STRENGTH);
+        if (jump != null) jump.removeModifier(jumpKey);
+        p.getPersistentDataContainer().remove(frozenKey);
+    }
+
+    /** A player who left (or the server stopped) mid-edit without being thawed: the speeds written on them. */
+    private void thaw(Player p) {
+        String saved = p.getPersistentDataContainer().get(frozenKey, PersistentDataType.STRING);
+        if (saved == null || editing.containsKey(p.getUniqueId())) return;
+        float walk = 0.2f, fly = 0.1f;
+        try {
+            String[] v = saved.split(",");
+            walk = Float.parseFloat(v[0]);
+            fly = Float.parseFloat(v[1]);
+        } catch (RuntimeException ignored) {
+            // the game's defaults
+        }
+        thaw(p, walk, fly);
+    }
+
+    /**
+     * Turns the player's view: a teleport to where they stand (they are standing still), keeping their speed and
+     * fall distance.
+     */
+    private void turn(Player p, Editing e, float yaw, float pitch) {
+        Location l = p.getLocation();
+        l.setYaw(yaw);
+        l.setPitch(pitch);
+        float fall = p.getFallDistance();
+        e.turning = true;
+        try {
+            p.teleport(l, PlayerTeleportEvent.TeleportCause.PLUGIN, TeleportFlag.Relative.VELOCITY_X,
+                    TeleportFlag.Relative.VELOCITY_Y, TeleportFlag.Relative.VELOCITY_Z);
+        } finally {
+            e.turning = false;
+        }
+        p.setFallDistance(fall);
+    }
+
+    private Editing editingOf(Player p) {
+        return p == null ? null : editing.get(p.getUniqueId());
+    }
+
+    private void confirm(Player p, Editing e) {
+        if (e.edit.canConfirm(editClock)) endEdit(p, HudEdit.Outcome.SAVED, "hud.edit-saved", true);
+    }
+
+    @EventHandler(priority = EventPriority.LOWEST)
+    public void onEditSneak(PlayerToggleSneakEvent ev) {
+        if (ev.isSneaking() && editingOf(ev.getPlayer()) != null) {
+            endEdit(ev.getPlayer(), HudEdit.Outcome.CANCELLED, "hud.edit-cancelled", true);
+        }
+    }
+
+    /** The scroll wheel: the size (the held slot stays). */
+    @EventHandler(priority = EventPriority.LOWEST)
+    public void onEditWheel(PlayerItemHeldEvent ev) {
+        Editing e = editingOf(ev.getPlayer());
+        if (e == null) return;
+        ev.setCancelled(true);
+        if (e.edit.scroll(HudEdit.wheel(ev.getPreviousSlot(), ev.getNewSlot()), fit(e))) {
+            drawEdit(ev.getPlayer(), e);
+            guide(ev.getPlayer(), e);
+        }
+    }
+
+    @EventHandler(priority = EventPriority.LOWEST)
+    public void onEditSwap(PlayerSwapHandItemsEvent ev) {
+        Editing e = editingOf(ev.getPlayer());
+        if (e == null) return;
+        ev.setCancelled(true);
+        confirm(ev.getPlayer(), e);
+    }
+
+    @EventHandler(priority = EventPriority.LOWEST)
+    public void onEditInteract(PlayerInteractEvent ev) {
+        Editing e = editingOf(ev.getPlayer());
+        if (e == null) return;
+        ev.setUseInteractedBlock(org.bukkit.event.Event.Result.DENY);
+        ev.setUseItemInHand(org.bukkit.event.Event.Result.DENY);
+        if (ev.getAction() == Action.LEFT_CLICK_AIR || ev.getAction() == Action.LEFT_CLICK_BLOCK) confirm(ev.getPlayer(), e);
+    }
+
+    @EventHandler(priority = EventPriority.LOWEST)
+    public void onEditInteractEntity(PlayerInteractEntityEvent ev) {
+        if (editingOf(ev.getPlayer()) != null) ev.setCancelled(true);
+    }
+
+    @EventHandler(priority = EventPriority.LOWEST)
+    public void onEditInteractAtEntity(PlayerInteractAtEntityEvent ev) {
+        if (editingOf(ev.getPlayer()) != null) ev.setCancelled(true);
+    }
+
+    /** Hitting something while editing: no hit, it saves (a left click). */
+    @EventHandler(priority = EventPriority.LOWEST)
+    public void onEditAttack(EntityDamageByEntityEvent ev) {
+        Player attacker = ev.getDamager() instanceof Player p ? p
+                : ev.getDamager() instanceof Projectile pr && pr.getShooter() instanceof Player p ? p : null;
+        Editing e = editingOf(attacker);
+        if (e == null) return;
+        ev.setCancelled(true);
+        if (ev.getDamager() == attacker) confirm(attacker, e);
+    }
+
+    /** No protection while editing: a real hit cancels the edit. */
+    @EventHandler(priority = EventPriority.MONITOR, ignoreCancelled = true)
+    public void onEditHurt(EntityDamageEvent ev) {
+        if (ev.getEntity() instanceof Player p && editingOf(p) != null && ev.getFinalDamage() > 0) {
+            endEdit(p, HudEdit.Outcome.CANCELLED, "hud.edit-hurt", false);
+        }
+    }
+
+    @EventHandler(priority = EventPriority.LOWEST)
+    public void onEditDrop(PlayerDropItemEvent ev) {
+        if (editingOf(ev.getPlayer()) != null) ev.setCancelled(true);
+    }
+
+    @EventHandler(priority = EventPriority.LOWEST)
+    public void onEditBreak(BlockBreakEvent ev) {
+        if (editingOf(ev.getPlayer()) != null) ev.setCancelled(true);
+    }
+
+    @EventHandler(priority = EventPriority.LOWEST)
+    public void onEditPlace(BlockPlaceEvent ev) {
+        if (editingOf(ev.getPlayer()) != null) ev.setCancelled(true);
+    }
+
+    @EventHandler(priority = EventPriority.LOWEST)
+    public void onEditConsume(PlayerItemConsumeEvent ev) {
+        if (editingOf(ev.getPlayer()) != null) ev.setCancelled(true);
+    }
+
+    /** Something else moves the player (a command, a portal, another plugin): the edit ends, the teleport goes on. */
+    @EventHandler(priority = EventPriority.MONITOR, ignoreCancelled = true)
+    public void onEditTeleport(PlayerTeleportEvent ev) {
+        Editing e = editingOf(ev.getPlayer());
+        if (e != null && !e.turning) endEdit(ev.getPlayer(), HudEdit.Outcome.CANCELLED, "hud.edit-cancelled", false);
+    }
+
+    @EventHandler(priority = EventPriority.MONITOR, ignoreCancelled = true)
+    public void onEditGameMode(PlayerGameModeChangeEvent ev) {
+        if (editingOf(ev.getPlayer()) != null) endEdit(ev.getPlayer(), HudEdit.Outcome.CANCELLED, "hud.edit-cancelled", false);
+    }
+
+    @EventHandler(priority = EventPriority.LOWEST)
+    public void onEditDeath(PlayerDeathEvent ev) {
+        if (editingOf(ev.getPlayer()) != null) endEdit(ev.getPlayer(), HudEdit.Outcome.CANCELLED, null, false);
+    }
+
+    @EventHandler
+    public void onEditWorld(PlayerChangedWorldEvent ev) {
+        if (editingOf(ev.getPlayer()) != null) endEdit(ev.getPlayer(), HudEdit.Outcome.CANCELLED, null, false);
     }
 
     // ------------------------------------------------------------------------------------------
@@ -633,6 +1042,7 @@ public final class HudModule implements StsvModule, Listener, CommandExecutor, T
 
     @EventHandler
     public void onJoin(PlayerJoinEvent e) {
+        thaw(e.getPlayer());
         for (BossBar bar : bars.values()) e.getPlayer().showBossBar(bar);
     }
 
@@ -649,6 +1059,7 @@ public final class HudModule implements StsvModule, Listener, CommandExecutor, T
                 refreshSidebar(e.getPlayer());
             }
             case DECLINED, FAILED_DOWNLOAD, INVALID_URL, FAILED_RELOAD, DISCARDED -> {
+                endEdit(e.getPlayer(), HudEdit.Outcome.CANCELLED, "hud.edit-cancelled", true);
                 packReady.remove(u);
                 packRefused.add(u);
                 hidePanel(e.getPlayer());
@@ -658,8 +1069,9 @@ public final class HudModule implements StsvModule, Listener, CommandExecutor, T
         }
     }
 
-    @EventHandler
+    @EventHandler(priority = EventPriority.LOWEST)
     public void onQuit(PlayerQuitEvent e) {
+        endEdit(e.getPlayer(), HudEdit.Outcome.CANCELLED, null, false);
         UUID u = e.getPlayer().getUniqueId();
         pausedUntil.remove(u);
         shown.remove(u);

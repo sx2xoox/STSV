@@ -82,9 +82,9 @@ commands:
     usage: /야간투시
     permission: stsv.nightvision
   사이드바:
-    description: 오른쪽 사이드바 켜기·끄기, 화면 오른쪽 끝에 맞추기 (접속을 끊어도 유지)
+    description: 오른쪽 사이드바 켜기·끄기, 마우스로 위치·크기 바꾸기 (접속을 끊어도 유지)
     aliases: [hud, sidebar]
-    usage: /사이드바 [켜기|끄기|위치 <가로>x<세로> [GUI 크기]]
+    usage: /사이드바 [켜기|끄기|위치 [기본|취소|저장]]
     permission: stsv.hud
   tpa:
     description: 다른 플레이어에게 가겠다고 요청 (상대가 수락하면 잠깐 가만히 있은 뒤 이동)
@@ -118,7 +118,7 @@ commands:
     permission: stsv.tpa
 permissions:
   stsv.hud:
-    description: /사이드바 (내 사이드바 켜기·끄기)
+    description: /사이드바 (내 사이드바 켜기·끄기, 위치·크기)
     default: true
   stsv.tpa:
     description: 텔레포트 요청 (/텔포, /텔포여기, /수락, /거절, /텔포취소, /텔포차단)

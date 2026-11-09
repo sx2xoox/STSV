@@ -21,12 +21,20 @@ import java.util.Map;
  *       there.</li>
  *   <li>boss bar title (the first boss bar): centred, pen line at y 3 from the top; a glyph top at y gets ascent
  *       10 - y. The sidebar panel lives there, its right edge {@code right} pixels right of the screen's
- *       middle, below the status effect icons.</li>
+ *       middle, its top {@code top} pixels below the top of the screen.</li>
  * </ul>
  * Nothing in the game anchors a server's text to the right edge of the screen, and the server is never told the
  * window size or GUI scale, so the panel is placed from the middle: by default where the right edge of a 16:9
  * window at its automatic GUI scale is (720p, 1440p and 4K all give a GUI width of 427: 213 px right of the
- * middle), and per player exactly at their own right edge once they give their window size (HudPosition).
+ * middle), below the status effect icons, and per player wherever they move it with the mouse (HudEdit).
+ *
+ * The panel comes in three sizes ({@link Size}): Galmuri7 (small), Galmuri9 (normal) and Galmuri7 drawn twice as
+ * big (large), every pixel a whole number of GUI pixels, so all three are as crisp as the game's own text. A
+ * glyph's height on screen is fixed by its font, so every row a panel can be drawn at needs its own font: each
+ * size has a column of row fonts {@code ROW} px apart (its "slots") from a top a little under the screen's top
+ * to a little below the default place, and a panel of n rows takes n consecutive slots. It moves sideways to any
+ * pixel and up and down a row at a time. The row fonts hold only the Hangul syllables the server's texts use
+ * (HudSheets.subset), so the 30 or so of them cost little more client memory than the 7 full ones of before.
  *
  * A centred line starts at -(width / 2). Every part drawn here is measured exactly (HudSheets, HudText), so each
  * piece is placed by absolute x: the bars do not move when a message of any length is shown on the same action
@@ -40,17 +48,13 @@ public final class HudLayout {
         public Settings {
             sidebarMaxWidth = Math.max(80, Math.min(260, sidebarMaxWidth));
             sidebarRows = Math.max(1, Math.min(12, sidebarRows));
-            sidebarY = Math.max(0, Math.min(400, sidebarY));
-            sidebarRight = clampRight(sidebarRight);
+            sidebarY = Math.max(MIN_TOP, Math.min(300, sidebarY));
+            sidebarRight = clampPanelRight(sidebarRight);
         }
 
         public static Settings defaults() {
             return new Settings(DEFAULT_RIGHT, 54, 132, 7, true);
         }
-    }
-
-    public static int clampRight(int right) {
-        return Math.max(-400, Math.min(2400, right));
     }
 
     public enum Tint { NORMAL, POISON, WITHER, FROZEN }
@@ -105,10 +109,107 @@ public final class HudLayout {
     static final int RIGHT_FRAME = 14, RIGHT_ICON = 67, RIGHT_NUMBER = 77;
     static final int DIGIT_PITCH = 4;
     static final int[] FILL_PIECES = {32, 16, 8, 4, 2, 1};
-    // the panel (HEAD: title strip down to the first row; ROW: row pitch; FOOT: bevel, outline, shadow)
+    // the panel at its normal size (HEAD: title strip down to the first row; ROW: row pitch; FOOT: bevel,
+    // outline, shadow); every size scales its own cut of these (Style) by its scale
     static final int HEAD = 19, ROW = 13, FOOT = 3, CAP = 4, PAD = 5, ICON_GAP = 3, TEXT_X = PAD + ICON + ICON_GAP;
     static final int VALUE_GAP = 8, MIN_WIDTH = 64, MARK_X = 5;
-    static final int[] SEGMENTS = {64, 32, 16, 8, 4, 2, 1};
+    static final int[] SEGMENTS = {16, 8, 4, 2, 1};
+    /** The highest a panel's top may go, and how far sideways its right edge may go (GUI px from the middle). */
+    static final int MIN_TOP = 2, MAX_RIGHT = 960, MIN_RIGHT = -900;
+    /** The corner brackets of a panel being moved: cells of 8 x 12 (art 8 x 8), 3 px out from the panel. */
+    static final int EDIT_OUT = 3, EDIT_CELL_H = 12;
+
+    /**
+     * A cut of the panel art (tools/assetgen/hud.py STYLES): strip heights, the gold line's and the server mark's
+     * rows in the title, where a divider goes above a row, how far the letters sit below a row's top.
+     */
+    enum Style {
+        M("_m", 19, 13, 3, 15, 4, -2, 0),
+        S("_s", 16, 11, 3, 13, 3, -1, 1);
+
+        final String suffix;
+        final int head, row, foot, gold, mark, divider, textDy;
+
+        Style(String suffix, int head, int row, int foot, int gold, int mark, int divider, int textDy) {
+            this.suffix = suffix;
+            this.head = head;
+            this.row = row;
+            this.foot = foot;
+            this.gold = gold;
+            this.mark = mark;
+            this.divider = divider;
+            this.textDy = textDy;
+        }
+    }
+
+    /**
+     * The panel's sizes: its letters (Galmuri7 or Galmuri9, the panel's own subsets of them), its art and its scale.
+     * maxRows caps the rows of a size (null: hud.sidebar.max-rows); below: slots under the default place for a
+     * panel of maxRows rows (a shorter panel goes as many rows lower as it is shorter).
+     */
+    public enum Size {
+        SMALL(1, "작게", "s", Style.S, "text7", PANEL_HANGUL7, 1, 7, null, 1),
+        NORMAL(2, "보통", "m", Style.M, "text", PANEL_HANGUL, 1, 9, null, 0),
+        LARGE(3, "크게", "l", Style.S, "text7", PANEL_HANGUL7, 2, 14, 6, 0);
+
+        /** What is stored for a player (never reorder these). */
+        public final int code;
+        public final String label;
+        final String id;
+        final Style style;
+        final String textSheet, hangulSheet;
+        final int scale, letterHeight;
+        final Integer maxRows;
+        final int below;
+
+        Size(int code, String label, String id, Style style, String textSheet, String hangulSheet, int scale,
+             int letterHeight, Integer maxRows, int below) {
+            this.code = code;
+            this.label = label;
+            this.id = id;
+            this.style = style;
+            this.textSheet = textSheet;
+            this.hangulSheet = hangulSheet;
+            this.scale = scale;
+            this.letterHeight = letterHeight;
+            this.maxRows = maxRows;
+            this.below = below;
+        }
+
+        public static Size of(int code) {
+            for (Size s : values()) if (s.code == code) return s;
+            return NORMAL;
+        }
+
+        /** One step bigger (dir > 0) or smaller (dir < 0), staying at the ends. */
+        public Size step(int dir) {
+            int i = ordinal() + Integer.signum(dir);
+            return values()[Math.max(0, Math.min(values().length - 1, i))];
+        }
+
+        int head() {
+            return style.head * scale;
+        }
+
+        int row() {
+            return style.row * scale;
+        }
+
+        int foot() {
+            return style.foot * scale;
+        }
+
+        /** A panel length (padding, icon, gaps) at this size. */
+        int px(int normal) {
+            return normal * scale;
+        }
+    }
+
+    /** Where a player's panel is: its size, its right edge (px right of the screen's middle) and its top. */
+    public record Placement(Size size, int right, int top) {}
+
+    /** The panel's letter sheets: subsets of hangul / hangul7 made by {@link #panelSheets}. */
+    static final String PANEL_HANGUL = "hangul_panel", PANEL_HANGUL7 = "hangul_panel7";
 
     static final TextColor GOLD = TextColor.color(0xFFD25A), LOW = TextColor.color(0xFF7A70),
             POISON = TextColor.color(0xC4E67A), WITHER = TextColor.color(0xB4AAB8), FROZEN = TextColor.color(0xB4E6FF),
@@ -117,11 +218,23 @@ public final class HudLayout {
     private final HudSheets sheets;
     private final Settings settings;
     private final HudFont bar = new HudFont("bar");
-    private final HudFont panel = new HudFont("panel");
     private final HudFont line = new HudFont("line");
-    private final List<HudFont> rows = new ArrayList<>();
+    private final Map<Size, Column> columns = new java.util.EnumMap<>(Size.class);
 
+    /**
+     * One size's column of slots: the top of the highest place (top0; the rest are ROW apart), the number of slots,
+     * the most rows a panel of this size has, its picture font and a text font per slot.
+     */
+    private record Column(int top0, int slots, int maxRows, HudFont pictures, List<HudFont> rows) {}
+
+    /** The sheets with the panel's letter subsets: the Hangul syllables of `letters` (from the server's texts). */
+    public static HudSheets panelSheets(HudSheets base, java.util.Collection<Integer> letters) {
+        return base.subset("hangul", PANEL_HANGUL, letters).subset("hangul7", PANEL_HANGUL7, letters);
+    }
+
+    /** sheets: with the panel's letter subsets ({@link #panelSheets}). */
     public HudLayout(HudSheets sheets, Settings settings) {
+        if (!sheets.has(PANEL_HANGUL) || !sheets.has(PANEL_HANGUL7)) throw new IllegalArgumentException("no panel letter sheets");
         this.sheets = sheets;
         this.settings = settings;
         for (int d : new int[]{ROW1, ROW2}) {
@@ -134,21 +247,50 @@ public final class HudLayout {
         bar.add(sheets.sheet("line"), action(ROW1 - 7));
         line.text(sheets, 9);
         line.fallback();
-        panel.add(sheets.sheet("panel_head"), boss(settings.sidebarY()));
-        for (int i = 0; i < settings.sidebarRows(); i++) {
-            int top = rowTop(i);
-            panel.add(sheets.sheet("panel_row"), boss(top));
-            panel.add(sheets.sheet("icons"), boss(top));
-            panel.add(sheets.sheet("panel_foot"), boss(rowTop(i + 1)));
-            if (i > 0) panel.add(sheets.sheet("panel_div"), boss(top - 2));
-            HudFont f = new HudFont("row" + i);
-            f.text(sheets, boss(top));
+        for (Size size : Size.values()) columns.put(size, column(size));
+    }
+
+    private Column column(Size size) {
+        int pitch = size.row(), k = size.scale;
+        int y = Math.max(0, settings.sidebarY());
+        int above = Math.max(0, (y - MIN_TOP) / pitch);
+        int top0 = y - above * pitch;
+        int maxRows = size.maxRows == null ? settings.sidebarRows() : Math.min(size.maxRows, settings.sidebarRows());
+        int slots = maxRows + above + size.below;
+        HudFont pictures = new HudFont("panel_" + size.id);
+        String st = size.style.suffix;
+        List<HudFont> rows = new ArrayList<>();
+        for (int j = 0; j < slots; j++) {
+            int head = top0 + j * pitch, row = head + size.head();
+            pictures.add(sheets.sheet("panel_head" + st), boss(head), k);
+            pictures.add(sheets.sheet("panel_mark"), boss(head + size.style.mark * k), k);
+            pictures.add(sheets.sheet("panel_mark"), boss(head + size.style.gold * k), k);
+            pictures.add(sheets.sheet("panel_edit"), editAscent(head - EDIT_OUT * k, k), k);
+            pictures.add(sheets.sheet("panel_row" + st), boss(row), k);
+            pictures.add(sheets.sheet("icons"), boss(row), k);
+            if (j > 0) pictures.add(sheets.sheet("panel_div"), boss(row + size.style.divider * k), k);
+            int foot = row + pitch;
+            pictures.add(sheets.sheet("panel_foot" + st), boss(foot), k);
+            pictures.add(sheets.sheet("panel_edit"), boss(foot - EDIT_OUT * k), k);
+            HudFont f = new HudFont("row_" + size.id + j);
+            f.text(sheets, size.textSheet, size.hangulSheet, boss(row + size.style.textDy * k), k);
             rows.add(f);
         }
+        return new Column(top0, slots, maxRows, pictures, List.copyOf(rows));
+    }
+
+    /** A top bracket's ascent: 3 px over the panel, or as high as its cell allows (a bracket cell is 12 px tall). */
+    private static int editAscent(int y, int k) {
+        return Math.min(boss(y), EDIT_CELL_H * k);
     }
 
     public Settings settings() {
         return settings;
+    }
+
+    /** The sheets the fonts are made of (with the panel's letter subsets). */
+    public HudSheets sheets() {
+        return sheets;
     }
 
     /** Ascent of an action-bar glyph whose top is d pixels above the bottom of the screen. */
@@ -161,15 +303,14 @@ public final class HudLayout {
         return 10 - y;
     }
 
-    int rowTop(int i) {
-        return settings.sidebarY() + HEAD + ROW * i;
-    }
-
     /** Every font file (pack path -> JSON). */
     public Map<String, JsonObject> fonts() {
         Map<String, JsonObject> out = new LinkedHashMap<>();
-        List<HudFont> all = new ArrayList<>(List.of(bar, panel, line));
-        all.addAll(rows);
+        List<HudFont> all = new ArrayList<>(List.of(bar, line));
+        for (Column c : columns.values()) {
+            all.add(c.pictures());
+            all.addAll(c.rows());
+        }
         for (HudFont f : all) out.put(f.path(), f.json());
         return out;
     }
@@ -376,83 +517,170 @@ public final class HudLayout {
         return String.valueOf((int) Math.ceil(hp - 1e-6));
     }
 
+
     // ------------------------------------------------------------------------------------------
     // Sidebar panel (the first boss bar's title)
     // ------------------------------------------------------------------------------------------
 
+    /** Where the panel goes for players who never moved it: normal size, hud.sidebar.right and hud.sidebar.y. */
+    public Placement defaults() {
+        return new Placement(Size.NORMAL, settings.sidebarRight(), settings.sidebarY());
+    }
+
+    /** The most rows a panel of this size shows. */
+    public int maxRows(Size size) {
+        return columns.get(size).maxRows();
+    }
+
+    /** The highest top of this size. */
+    public int minTop(Size size) {
+        return columns.get(size).top0();
+    }
+
+    /** The lowest top of this size for a panel of `rows` rows. */
+    public int maxTop(Size size, int rows) {
+        Column c = columns.get(size);
+        return c.top0() + (c.slots() - Math.max(1, Math.min(rows, c.maxRows()))) * size.row();
+    }
+
+    /**
+     * The placement as a panel of `rows` rows is drawn: the right edge within MIN_RIGHT .. MAX_RIGHT, the top on its
+     * size's rows (the nearest one) between the highest and the lowest it can take.
+     */
+    public Placement fit(Placement p, int rows) {
+        Size size = p.size() == null ? Size.NORMAL : p.size();
+        Column c = columns.get(size);
+        int pitch = size.row();
+        int k = Math.round((p.top() - c.top0()) / (float) pitch);
+        k = Math.max(0, Math.min((maxTop(size, rows) - c.top0()) / pitch, k));
+        return new Placement(size, clampPanelRight(p.right()), c.top0() + k * pitch);
+    }
+
+    static int clampPanelRight(int right) {
+        return Math.max(MIN_RIGHT, Math.min(MAX_RIGHT, right));
+    }
+
     /** A panel line: icon (or null), the text (or the label) and the value against the right edge (or null). */
     private record Line(String icon, List<HudText.Cell> text, List<HudText.Cell> value, boolean divider) {}
 
-    /**
-     * The panel with the server mark and its rows, its right edge {@code right} px right of the screen's middle,
-     * or null when there is nothing to show. Zero net advance.
-     */
+    /** The panel at the default place (normal size, its right edge {@code right} px right of the middle). */
     public Component panel(List<Row> entries, int right) {
-        HudFont measure = rows.getFirst();
-        int textMax = settings.sidebarMaxWidth() - TEXT_X - PAD;
+        return panel(entries, new Placement(Size.NORMAL, right, settings.sidebarY()), false);
+    }
+
+    /** How many lines these rows take at a size (wrapped rows take two). */
+    public int lines(List<Row> entries, Size size) {
+        return lay(entries, size).size();
+    }
+
+    private List<Line> lay(List<Row> entries, Size size) {
+        HudFont measure = columns.get(size).rows().getFirst();
+        int maxRows = maxRows(size);
+        int textMax = maxWidth(size) - size.px(TEXT_X) - size.px(PAD);
+        int valueGap = size.px(VALUE_GAP);
         List<Line> lines = new ArrayList<>();
         for (Row r : entries) {
-            if (lines.size() >= settings.sidebarRows()) break;
+            if (lines.size() >= maxRows) break;
             List<HudText.Cell> cells = HudText.onPanel(HudText.supported(measure, HudText.cells(r.text())));
             List<List<HudText.Cell>> parts = HudText.split(cells);
             if (parts != null && !parts.get(1).isEmpty()
-                    && HudText.width(measure, parts.get(0)) + VALUE_GAP + HudText.width(measure, parts.get(1)) <= textMax) {
+                    && HudText.width(measure, parts.get(0)) + valueGap + HudText.width(measure, parts.get(1)) <= textMax) {
                 lines.add(new Line(r.icon(), parts.get(0), parts.get(1), r.divider() && !lines.isEmpty()));
                 continue;
             }
-            List<List<HudText.Cell>> wrapped = HudText.wrap(measure, cells, textMax, Math.min(2, settings.sidebarRows() - lines.size()));
+            List<List<HudText.Cell>> wrapped = HudText.wrap(measure, cells, textMax, Math.min(2, maxRows - lines.size()));
             for (int i = 0; i < wrapped.size(); i++) {
                 lines.add(new Line(i == 0 ? r.icon() : null, wrapped.get(i), null, i == 0 && r.divider() && !lines.isEmpty()));
             }
         }
+        return lines;
+    }
+
+    /** hud.sidebar.max-width is for the normal size; the others keep the same room for their letters. */
+    int maxWidth(Size size) {
+        return Math.round(settings.sidebarMaxWidth() * size.letterHeight / 9f);
+    }
+
+    /**
+     * The panel with the server mark and its rows at a placement (fitted to its rows, see {@link #fit}), or null
+     * when there is nothing to show. With edit, corner brackets mark it as being moved. Zero net advance.
+     */
+    public Component panel(List<Row> entries, Placement place, boolean edit) {
+        Size size = place.size() == null ? Size.NORMAL : place.size();
+        Column col = columns.get(size);
+        List<Line> lines = lay(entries, size);
         if (lines.isEmpty()) return null;
-        int widest = 0;
+        Placement at = fit(new Placement(size, place.right(), place.top()), lines.size());
+        int k = size.scale, slot0 = (at.top() - col.top0()) / size.row();
+        HudFont pic = col.pictures(), measure = col.rows().getFirst();
+        int widest = 0, valueGap = size.px(VALUE_GAP);
         for (Line l : lines) {
             int w = HudText.width(measure, l.text());
-            if (l.value() != null) w += VALUE_GAP + HudText.width(measure, l.value());
+            if (l.value() != null) w += valueGap + HudText.width(measure, l.value());
             widest = Math.max(widest, w);
         }
-        int markWidth = sheets.sheet("panel_head").width("mark");
-        int width = Math.max(Math.max(MIN_WIDTH, MARK_X + markWidth + PAD), Math.min(settings.sidebarMaxWidth(), TEXT_X + widest + PAD));
-        int x = right - width, y = settings.sidebarY();
+        int markWidth = sheets.sheet("panel_mark").advanceAt(sheets.sheet("panel_mark").index("mark"), k) - 1;
+        int pad = size.px(PAD), textX = size.px(TEXT_X);
+        int width = Math.max(Math.max(size.px(MIN_WIDTH), size.px(MARK_X) + markWidth + pad), Math.min(maxWidth(size), textX + widest + pad));
+        width = (width + k - 1) / k * k;   // whole art pixels: every strip and divider is a whole number of pieces
+        int right = at.right(), x = right - width, top = at.top();
+        String st = size.style.suffix;
 
         Ink ink = new Ink(0);
-        strip(ink, "panel_head", boss(y), x, width);
-        for (int i = 0; i < lines.size(); i++) strip(ink, "panel_row", boss(rowTop(i)), x, width);
-        strip(ink, "panel_foot", boss(rowTop(lines.size())), x, width);
-        ink.to(panel, x + MARK_X).glyph(panel, panel.glyph("panel_head", "accent", boss(y)));
-        ink.to(panel, x + MARK_X).glyph(panel, panel.glyph("panel_head", "mark", boss(y)));
+        strip(ink, pic, "panel_head" + st, boss(top), x, width, k);
+        for (int i = 0; i < lines.size(); i++) strip(ink, pic, "panel_row" + st, boss(rowTop(size, col, slot0 + i)), x, width, k);
+        int foot = rowTop(size, col, slot0 + lines.size());
+        strip(ink, pic, "panel_foot" + st, boss(foot), x, width, k);
+        ink.to(pic, x + size.px(MARK_X)).glyph(pic, pic.glyph("panel_mark", "accent", boss(top + size.style.gold * k), k));
+        ink.to(pic, x + size.px(MARK_X)).glyph(pic, pic.glyph("panel_mark", "mark", boss(top + size.style.mark * k), k));
         for (int i = 1; i < lines.size(); i++) {
-            if (lines.get(i).divider()) segments(ink, "panel_div", boss(rowTop(i) - 2), x + PAD, width - 2 * PAD);
+            if (!lines.get(i).divider()) continue;
+            int y = rowTop(size, col, slot0 + i) + size.style.divider * k;
+            segments(ink, pic, "panel_div", boss(y), x + pad, width - 2 * pad, k);
         }
         for (int i = 0; i < lines.size(); i++) {
             Line l = lines.get(i);
+            int row = rowTop(size, col, slot0 + i);
             if (l.icon() != null && sheets.sheet("icons").has(l.icon())) {
-                ink.to(panel, x + PAD).glyph(panel, panel.glyph("icons", l.icon(), boss(rowTop(i))));
+                ink.to(pic, x + pad).glyph(pic, pic.glyph("icons", l.icon(), boss(row), k));
             }
-            HudFont f = rows.get(i);
-            ink.to(f, x + TEXT_X).text(f, l.text());
-            if (l.value() != null) ink.to(f, x + width - PAD - HudText.width(f, l.value())).text(f, l.value());
+            HudFont f = col.rows().get(slot0 + i);
+            ink.to(f, x + textX).text(f, l.text());
+            if (l.value() != null) ink.to(f, x + width - pad - HudText.width(f, l.value())).text(f, l.value());
         }
-        ink.to(panel, 0);
+        if (edit) {
+            int up = editAscent(top - EDIT_OUT * k, k), down = boss(foot - EDIT_OUT * k);
+            int left = x - EDIT_OUT * k, rightBracket = right - (8 - EDIT_OUT) * k;
+            ink.to(pic, left).glyph(pic, pic.glyph("panel_edit", "tl", up, k));
+            ink.to(pic, rightBracket).glyph(pic, pic.glyph("panel_edit", "tr", up, k));
+            ink.to(pic, left).glyph(pic, pic.glyph("panel_edit", "bl", down, k));
+            ink.to(pic, rightBracket).glyph(pic, pic.glyph("panel_edit", "br", down, k));
+        }
+        ink.to(pic, 0);
         return ink.build();
     }
 
-    /** One horizontal strip of the panel: left cap, fills, right cap (with the shadow column). */
-    private void strip(Ink ink, String sheet, int ascent, int x, int width) {
-        ink.to(panel, x).glyph(panel, panel.glyph(sheet, "l", ascent));
-        segments(ink, sheet, ascent, x + CAP, width - 2 * CAP);
-        ink.to(panel, x + width - CAP).glyph(panel, panel.glyph(sheet, "r", ascent));
+    /** The top of a size's slot j (where that row's strip, icon and letters start). */
+    private static int rowTop(Size size, Column col, int j) {
+        return col.top0() + j * size.row() + size.head();
     }
 
-    /** `length` px of a strip sheet's fill pieces from x on. */
-    private void segments(Ink ink, String sheet, int ascent, int x, int length) {
+    /** One horizontal strip of the panel: left cap, fills, right cap (with the shadow column). */
+    private void strip(Ink ink, HudFont pic, String sheet, int ascent, int x, int width, int k) {
+        int cap = CAP * k;
+        ink.to(pic, x).glyph(pic, pic.glyph(sheet, "l", ascent, k));
+        segments(ink, pic, sheet, ascent, x + cap, width - 2 * cap, k);
+        ink.to(pic, x + width - cap).glyph(pic, pic.glyph(sheet, "r", ascent, k));
+    }
+
+    /** `length` px of a strip sheet's fill pieces from x on (a piece of n px is n x scale wide on screen). */
+    private void segments(Ink ink, HudFont pic, String sheet, int ascent, int x, int length, int k) {
         int px = x, left = length;
         for (int s : SEGMENTS) {
-            while (left >= s) {
-                ink.to(panel, px).glyph(panel, panel.glyph(sheet, String.valueOf(s), ascent));
-                px += s;
-                left -= s;
+            while (left >= s * k) {
+                ink.to(pic, px).glyph(pic, pic.glyph(sheet, String.valueOf(s), ascent, k));
+                px += s * k;
+                left -= s * k;
             }
         }
     }

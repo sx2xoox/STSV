@@ -49,15 +49,16 @@ public final class HudPack {
     }
 
     /**
-     * Every file (pack path -> bytes).
+     * Every file (pack path -> bytes): the sheets the fonts use (the panel's letter subsets among them), the fonts.
      *
      * @param bossBarColour the BossBar.Color name whose bar the panel uses (its sprites become see-through), or
      *                      null when the panel is off
      * @param healthBars    whether the bars replace the hearts, hunger, armor and air bubbles
      */
-    public static Map<String, byte[]> files(HudSheets sheets, HudLayout layout, String bossBarColour, boolean healthBars) {
+    public static Map<String, byte[]> files(HudLayout layout, String bossBarColour, boolean healthBars) {
         Map<String, byte[]> out = new TreeMap<>();
-        for (HudSheets.Sheet s : sheets.all()) out.put("assets/stsv/textures/font/hud/" + s.name() + ".png", s.png());
+        HudSheets sheets = layout.sheets();
+        for (String name : used(layout)) out.put("assets/stsv/textures/font/hud/" + name + ".png", sheets.sheet(name).png());
         // the letters are drawn from Galmuri9 (SIL OFL 1.1): its notice travels with them
         try (java.io.InputStream in = HudPack.class.getResourceAsStream(HudSheets.ROOT + "LICENSE-galmuri.txt")) {
             if (in != null) out.put("assets/stsv/textures/font/hud/LICENSE-galmuri.txt", in.readAllBytes());
@@ -83,19 +84,33 @@ public final class HudPack {
      * (4 bytes a pixel) once per provider, so a sheet used at several heights is loaded that many times. (Glyphs
      * drawn are also copied into the font atlas, a few 256 x 256 pages shared by every font.)
      */
-    public static long clientMemory(HudSheets sheets, HudLayout layout) {
+    public static long clientMemory(HudLayout layout) {
         long bytes = 0;
         for (var font : layout.fonts().values()) {
             for (var e : font.getAsJsonArray("providers")) {
                 var p = e.getAsJsonObject();
                 if (!p.get("type").getAsString().equals("bitmap")) continue;
-                String file = p.get("file").getAsString();
-                String name = file.substring(file.lastIndexOf('/') + 1).replace(".png", "");
-                HudSheets.Sheet s = sheets.sheet(name);
+                HudSheets.Sheet s = layout.sheets().sheet(sheetOf(p.get("file").getAsString()));
                 bytes += 4L * s.cols() * s.cellW() * s.rows() * s.cellH();
             }
         }
         return bytes;
+    }
+
+    /** The sheets the fonts draw from (a sheet only cut from, like the whole hangul7, is not shipped). */
+    static java.util.Set<String> used(HudLayout layout) {
+        java.util.Set<String> out = new java.util.TreeSet<>();
+        for (var font : layout.fonts().values()) {
+            for (var e : font.getAsJsonArray("providers")) {
+                var p = e.getAsJsonObject();
+                if (p.get("type").getAsString().equals("bitmap")) out.add(sheetOf(p.get("file").getAsString()));
+            }
+        }
+        return out;
+    }
+
+    private static String sheetOf(String file) {
+        return file.substring(file.lastIndexOf('/') + 1).replace(".png", "");
     }
 
     static byte[] blank(int w, int h) {

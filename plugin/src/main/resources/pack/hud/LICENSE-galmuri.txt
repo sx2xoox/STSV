@@ -1,4 +1,5 @@
-text.png and hangul.png hold letters drawn from Galmuri9 (https://galmuri.quiple.dev), version 2.40.3.
+text.png and hangul.png hold letters drawn from Galmuri9, text7.png and hangul7.png from Galmuri7
+(https://galmuri.quiple.dev), version 2.40.3. The pack's hangul_panel*.png hold some of their letters.
 The other HUD pictures are STSV's own.
 
 Copyright (c) 2019–2025 Lee Minseo (quiple@quiple.dev)
