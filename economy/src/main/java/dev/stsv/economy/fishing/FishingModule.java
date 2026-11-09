@@ -278,7 +278,7 @@ public final class FishingModule extends EcoModule implements WeeklyListener {
             String sub = g.popTicks > 0 ? g.pop : "";
             p.showTitle(Title.title(Text.mm(RingGlyphs.title(g.ring, g.species.shape())), Text.mm(sub),
                     Title.Times.times(Duration.ZERO, Duration.ofMillis(300), Duration.ZERO)));
-            p.sendActionBar(Text.mm(status(g)));
+            dev.stsv.core.hud.HudModule.flash(p, Text.mm(status(g)), 400);   // above the health bars in pack HUD mode
         }
     }
 
@@ -294,7 +294,7 @@ public final class FishingModule extends EcoModule implements WeeklyListener {
     private void escaped(Player p) {
         games.remove(p.getUniqueId());
         p.clearTitle();
-        p.sendActionBar(Lang.mm("fishing.escaped"));
+        dev.stsv.core.hud.HudModule.flash(p, Lang.mm("fishing.escaped"));
         p.playSound(p.getLocation(), Sound.ENTITY_FISHING_BOBBER_RETRIEVE, 1f, 0.6f);
     }
 
@@ -337,7 +337,7 @@ public final class FishingModule extends EcoModule implements WeeklyListener {
         String head = (idx >= 0 ? RingGlyphs.icon(idx) + " " : "") + "<" + r.color() + ">" + s.name();
         String sub = pearl ? "" : Lang.raw(g.ring.allPerfect() ? "fishing.result-perfect" : "fishing.result", "size", String.format("%.1f", size));
         p.showTitle(Title.title(Text.mm(head), Text.mm(sub), Title.Times.times(Duration.ofMillis(150), Duration.ofMillis(2500), Duration.ofMillis(600))));
-        p.sendActionBar(Component.empty());
+        dev.stsv.core.hud.HudModule.clearFlash(p);
         p.playSound(p.getLocation(), Sound.ENTITY_PLAYER_LEVELUP, 0.6f, 1.4f + r.index() * 0.1f);
         p.sendMessage(Lang.msg(pearl ? "fishing.caught-pearl" : g.ring.allPerfect() ? "fishing.caught-perfect" : "fishing.caught",
                 "color", r.color(), "fish", s.name(), "size", String.format("%.1f", size), "count", count > 1 ? " ×" + count : ""));

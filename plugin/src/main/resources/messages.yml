@@ -186,6 +186,10 @@ hud:
   separator: "  <dark_gray>|</dark_gray>  "
   # 오른쪽 사이드바 제목
   sidebar-title: "<gradient:#ffb35c:#ff6a3d><b>STSV</b></gradient>"
+  # /사이드바
+  sidebar-on: "<green>사이드바를 켰습니다. <gray>(/사이드바 로 끄기)"
+  sidebar-off: "<gray>사이드바를 껐습니다. <dark_gray>(/사이드바 로 다시 켜기)"
+  sidebar-usage: "<gray>사용법: <white>/사이드바 <gray>[켜기|끄기] <dark_gray>(그냥 /사이드바 = 켜기·끄기 전환)"
 
 economy:
   # 금액 표시 형식: {amount} = 1,234
