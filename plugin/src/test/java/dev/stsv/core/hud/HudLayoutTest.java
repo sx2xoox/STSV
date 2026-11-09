@@ -77,24 +77,26 @@ class HudLayoutTest {
         HudClient.Laid laid = client.lay(layout.actionBar(HEALTHY, null));
         assertEquals(0, laid.width(), "the bars alone take no width");
         HudClient.Draw heart = find(laid, "icons", "heart");
-        assertEquals(-84, heart.x());
+        assertEquals(-94, heart.x());
         assertEquals(39, fromBottom(heart));
         HudClient.Draw frame = laid.draws().stream().filter(d -> d.sheet().equals("frame") && d.x() < 0 && fromBottom(d) == 39).findFirst().orElseThrow();
-        assertEquals(-74, frame.x());
-        assertEquals(61, width(frame));
+        assertEquals(-84, frame.x());
+        assertEquals(71, width(frame));
         HudClient.Draw food = find(laid, "icons", "food");
-        assertEquals(76, food.x());
+        assertEquals(86, food.x());
         assertEquals(39, fromBottom(food));
         HudClient.Draw armor = find(laid, "icons", "armor");
-        assertEquals(-84, armor.x());
+        assertEquals(-94, armor.x());
         assertEquals(49, fromBottom(armor));
         for (HudClient.Draw d : laid.draws()) {
             if (d.sheet().equals("digits")) {
-                assertTrue(d.x() >= -91 - 9 && d.x() + width(d) <= 91 + 9, "numbers just past the hotbar's ends: " + d);
+                assertTrue(d.x() >= -94 - 1 - 9 && d.x() + width(d) <= 95 + 1 + 9, "numbers just past the icons: " + d);
             } else {
-                assertTrue(d.x() >= -91 && d.x() + width(d) <= 91, "bars and icons within the hotbar's width: " + d);
+                // (pixels -94 .. 94, mirrored about the middle column as the level number is centred on it)
+                assertTrue(d.x() >= -94 && d.x() + width(d) <= 95, "bars and icons a little past the hotbar's ends (91): " + d);
             }
             assertTrue(d.x() + width(d) <= -13 || d.x() >= 14, "the middle stays free for the level number: " + d);
+            // (so above the hotbar and the off-hand slot beside it, whose tops are 22 and 23 above the bottom)
             assertTrue(fromBottom(d) <= 49 && fromBottom(d) - sheets.sheet(d.sheet()).cellH() >= 30, "between the XP bar and the item name: " + d);
         }
         assertEquals(HudLayout.fill(18, 20, HudLayout.INNER), filled(laid, "red", 39));
@@ -102,10 +104,10 @@ class HudLayoutTest {
         assertEquals(HudLayout.fill(12, 20, HudLayout.INNER), filled(laid, "armor", 49));
         // the health fill starts at the frame's inside, next to the heart; the hunger fill grows from its drumstick
         int hpLeft = laid.draws().stream().filter(d -> d.cell().startsWith("red/")).mapToInt(HudClient.Draw::x).min().orElseThrow();
-        assertEquals(-73, hpLeft);
+        assertEquals(-83, hpLeft);
         int foodRight = laid.draws().stream().filter(d -> d.cell().startsWith("food/") && !d.cell().endsWith("edge"))
                 .mapToInt(d -> d.x() + width(d)).max().orElseThrow();
-        assertEquals(74, foodRight);
+        assertEquals(84, foodRight);
     }
 
     @Test
@@ -120,8 +122,10 @@ class HudLayoutTest {
             int lIcon = laid.draws().stream().filter(d -> d.sheet().equals("icons") && d.x() < 0 && fromBottom(d) == row).findFirst().orElseThrow().x();
             int rIcon = laid.draws().stream().filter(d -> d.sheet().equals("icons") && d.x() > 0 && fromBottom(d) == row).findFirst().orElseThrow().x();
             assertEquals(-(rIcon + HudLayout.ICON), lIcon - 1, "icons mirrored: " + row);
-            // the frames with their icons take nearly all of the hotbar's 182 px; the frames start at the level's room
-            assertTrue(lIcon <= -84 && rIcon + HudLayout.ICON >= 84, "as wide as the hotbar: " + lIcon + " / " + rIcon);
+            // the frames with their icons take all of the hotbar's 182 px and a little more (3 px a side); the
+            // frames start at the level's room
+            assertEquals(-94, lIcon);
+            assertEquals(95, rIcon + HudLayout.ICON, "a little past the hotbar: " + lIcon + " / " + rIcon);
             assertEquals(-13, left.x() + width(left));
             assertEquals(14, right.x());
         }
@@ -130,7 +134,8 @@ class HudLayoutTest {
         int rightEnd = laid.draws().stream().filter(d -> d.sheet().equals("digits") && d.x() > 0 && fromBottom(d) == 38).mapToInt(d -> d.x() + width(d)).max().orElseThrow();
         assertEquals(-rightEnd, leftStart - 1);
         // every part is as wide as the others: (inside + 1) / parts, its fill and a tick
-        for (int n : new int[]{2, 3, 4, 5, 6, 10, 12}) {
+        assertEquals(70, HudLayout.INNER + 1);
+        for (int n : new int[]{2, 5, 7, 10, 14}) {
             List<Integer> ticks = HudLayout.ticks(n, HudLayout.INNER);
             int prev = -1;
             for (int t : ticks) {
@@ -138,6 +143,18 @@ class HudLayoutTest {
                 prev = t;
             }
             assertEquals((HudLayout.INNER + 1) / n - 1, HudLayout.INNER - prev - 1, n + " parts, the last: " + ticks);
+        }
+        // any other count (3, 4, 6, 8, 9, 11 .. 13 parts): a pixel apart at most
+        for (int n = 2; n <= HudLayout.MAX_SEGMENTS; n++) {
+            List<Integer> parts = new java.util.ArrayList<>();
+            int prev = -1;
+            for (int t : HudLayout.ticks(n, HudLayout.INNER)) {
+                parts.add(t - prev - 1);
+                prev = t;
+            }
+            parts.add(HudLayout.INNER - prev - 1);
+            int lo = parts.stream().mapToInt(Integer::intValue).min().orElseThrow(), hi = parts.stream().mapToInt(Integer::intValue).max().orElseThrow();
+            assertTrue(hi - lo <= 1, n + " parts: " + parts);
         }
     }
 
@@ -149,19 +166,21 @@ class HudLayoutTest {
         assertEquals("12", number(laid, 49, true));
         for (HudClient.Draw d : laid.draws()) {
             if (!d.sheet().equals("digits")) continue;
-            boolean onFrame = d.x() + width(d) > -74 - 1 && d.x() < -74 + 61 + 1 || d.x() + width(d) > 13 && d.x() < 14 + 61 + 1;
-            boolean onIcon = d.x() + width(d) > -84 && d.x() < -84 + 9 || d.x() + width(d) > 76 && d.x() < 76 + 9;
+            boolean onFrame = d.x() + width(d) > -84 - 1 && d.x() < -84 + 71 + 1 || d.x() + width(d) > 13 && d.x() < 14 + 71 + 1;
+            boolean onIcon = d.x() + width(d) > -94 && d.x() < -94 + 9 || d.x() + width(d) > 86 && d.x() < 86 + 9;
             assertFalse(onIcon, "a number on an icon: " + d);
             assertFalse(onFrame, "a number on a bar: " + d);
         }
         // right-aligned against the heart on the left, left-aligned against the drumstick on the right
         int leftEnd = laid.draws().stream().filter(d -> d.sheet().equals("digits") && d.x() < 0 && fromBottom(d) == 38)
                 .mapToInt(d -> d.x() + width(d)).max().orElseThrow();
-        assertEquals(-85, leftEnd);
+        assertEquals(-95, leftEnd);
         int rightStart = laid.draws().stream().filter(d -> d.sheet().equals("digits") && d.x() > 0).mapToInt(HudClient.Draw::x).min().orElseThrow();
-        assertEquals(86, rightStart);
+        assertEquals(96, rightStart);
         HudClient.Laid big = client.lay(layout.actionBar(new HudLayout.Health(100, 100, 0, 20, 20f, 0, HudLayout.Tint.NORMAL, false), null));
-        assertTrue(big.draws().stream().allMatch(d -> d.x() >= -91 - 9), "three digits still sit close to the hotbar");
+        assertTrue(big.draws().stream().allMatch(d -> d.x() >= -94 - 1 - 13), "three digits still sit close to the hotbar");
+        // on screen at GUI 4 of a 1280 x 720 window (320 GUI px wide: 160 each side of the middle)
+        assertTrue(big.draws().stream().allMatch(d -> d.x() >= -160 + 40 && d.x() + width(d) <= 160 - 40), "well on screen");
     }
 
     @Test
@@ -215,13 +234,13 @@ class HudLayoutTest {
         var h = HEALTHY.withMount(new HudLayout.Mount(21, 30)).withAir(new HudLayout.Air(140, 300));
         HudClient.Laid laid = client.lay(layout.actionBar(h, null));
         HudClient.Draw mount = find(laid, "icons", "mount");
-        assertEquals(76, mount.x());
+        assertEquals(86, mount.x());
         assertEquals(39, fromBottom(mount));
         assertFalse(drawn(laid, "icons", "food"), "riding: the mount's bar takes the hunger bar's place");
         assertEquals("21", number(laid, 39, false));
         assertEquals(HudLayout.fill(21, 30, HudLayout.INNER), filled(laid, "mount", 39));
         HudClient.Draw air = find(laid, "icons", "air");
-        assertEquals(76, air.x());
+        assertEquals(86, air.x());
         assertEquals(49, fromBottom(air));
         assertEquals("5", number(laid, 49, false), "bubbles left, as the game counts them");
         assertEquals(HudLayout.fill(140, 300, HudLayout.INNER), filled(laid, "air", 49));
@@ -236,33 +255,49 @@ class HudLayoutTest {
 
     @Test
     void damageAndHealingFlash() {
-        var hit = client.lay(layout.actionBar(HEALTHY.withFlash(HudLayout.Flash.LOST, 20), null));
+        var hit = client.lay(layout.actionBar(HEALTHY.justChanged(20), null));
         assertEquals(HudLayout.fill(20, 20, HudLayout.INNER) - HudLayout.fill(18, 20, HudLayout.INNER), filled(hit, "lost", 39), "the part just lost");
         find(hit, "frame", "frame_hit");
-        var heal = client.lay(layout.actionBar(HEALTHY.withFlash(HudLayout.Flash.GAIN, 10), null));
+        var heal = client.lay(layout.actionBar(HEALTHY.justChanged(10), null));
         assertEquals(HudLayout.fill(18, 20, HudLayout.INNER) - HudLayout.fill(10, 20, HudLayout.INNER), filled(heal, "gain", 39), "the part just gained");
         find(heal, "frame", "frame_heal");
         var plain = client.lay(layout.actionBar(HEALTHY, null));
         assertFalse(drawn(plain, "fill", "lost/") || drawn(plain, "fill", "gain/"));
+        // a trail on the hunger and armor bars too, grown from the fill away from the icon; the armor bar stays
+        // while its trail drains even when the armor is gone
+        var anim = new HudLayout.Anim(0, 0, 9, 5);
+        var both = client.lay(layout.actionBar(HEALTHY.withAnim(anim), null));
+        assertEquals(9, filled(both, "lost", 39));
+        assertEquals(5, filled(both, "lost", 49));
+        int food = HudLayout.fill(17, 20, HudLayout.INNER);
+        int trailLeft = both.draws().stream().filter(d -> d.cell().startsWith("lost/") && fromBottom(d) == 38).mapToInt(HudClient.Draw::x).min().orElseThrow();
+        assertEquals(14 + HudLayout.INNER - (food + 9 - 1), trailLeft, "the hunger trail just left of its fill");
+        var bare = client.lay(layout.actionBar(new HudLayout.Health(18, 20, 0, 17, 5f, 0, HudLayout.Tint.NORMAL, false).withAnim(new HudLayout.Anim(0, 0, 0, 20)), null));
+        find(bare, "icons", "armor");
+        assertEquals(20, filled(bare, "lost", 49));
+        // never past the inside
+        var over = client.lay(layout.actionBar(HEALTHY.withAnim(new HudLayout.Anim(500, 0, 0, 0)), null));
+        assertEquals(HudLayout.INNER - HudLayout.fill(18, 20, HudLayout.INNER), filled(over, "lost", 39));
     }
 
     @Test
     void segmentTicks() {
         assertEquals(10, HudLayout.segments(20, 2));
         assertEquals(12, HudLayout.segments(24, 2));
-        assertEquals(8, HudLayout.segments(30, 2), "more than 12 hearts: a tick every two");
+        assertEquals(14, HudLayout.segments(28, 2), "up to 14 hearts: a part each (5 px)");
+        assertEquals(8, HudLayout.segments(30, 2), "more than 14 hearts: a tick every two");
         assertEquals(10, HudLayout.segments(40, 2));
         assertEquals(10, HudLayout.segments(300, 30));
         assertEquals(1, HudLayout.segments(1, 2));
-        assertEquals(List.of(5, 11, 17, 23, 29, 35, 41, 47, 53), HudLayout.ticks(10, 59));
-        assertEquals(List.of(4, 9, 14, 19, 24, 29, 34, 39, 44, 49, 54), HudLayout.ticks(12, 59));
-        assertEquals(List.of(), HudLayout.ticks(1, 59));
+        assertEquals(List.of(6, 13, 20, 27, 34, 41, 48, 55, 62), HudLayout.ticks(10, 69));
+        assertEquals(List.of(4, 9, 14, 19, 24, 29, 34, 39, 44, 49, 54, 59, 64), HudLayout.ticks(14, 69));
+        assertEquals(List.of(), HudLayout.ticks(1, 69));
         HudClient.Laid laid = client.lay(layout.actionBar(HEALTHY, null));
         List<HudClient.Draw> hp = laid.draws().stream().filter(d -> d.sheet().equals("tick") && d.x() < 0 && fromBottom(d) == 38).toList();
         assertEquals(9, hp.size());
         int k = HudLayout.fill(18, 20, HudLayout.INNER);
-        assertEquals(53, k, "nine hearts fill nine parts, up to the ninth tick");
-        for (HudClient.Draw t : hp) assertEquals(t.x() + 73 < k ? "on" : "off", t.cell(), "dark over the fill, faint beyond it");
+        assertEquals(62, k, "nine hearts fill nine parts, up to the ninth tick");
+        for (HudClient.Draw t : hp) assertEquals(t.x() + 83 < k ? "on" : "off", t.cell(), "dark over the fill, faint beyond it");
     }
 
     @Test
@@ -272,12 +307,12 @@ class HudLayoutTest {
         assertEquals("1", HudLayout.healthText(0.2));
         assertEquals("0", HudLayout.healthText(0));
         assertEquals("20", HudLayout.healthText(20.0000001));
-        assertEquals(0, HudLayout.fill(0, 20, 59));
-        assertEquals(1, HudLayout.fill(0.01, 20, 59));
-        assertEquals(59, HudLayout.fill(40, 20, 59));
-        assertEquals(59, HudLayout.fill(20, 20, 59));
-        assertEquals(29, HudLayout.fill(10, 20, 59), "five of ten parts: up to the fifth tick");
-        assertEquals(2, HudLayout.fill(1, 20, 59), "half a heart: half a part");
+        assertEquals(0, HudLayout.fill(0, 20, 69));
+        assertEquals(1, HudLayout.fill(0.01, 20, 69));
+        assertEquals(69, HudLayout.fill(40, 20, 69));
+        assertEquals(69, HudLayout.fill(20, 20, 69));
+        assertEquals(34, HudLayout.fill(10, 20, 69), "five of ten parts: up to the fifth tick");
+        assertEquals(3, HudLayout.fill(1, 20, 69), "half a heart: half a part");
         assertEquals(9, HudLayout.numbersWidth(2));
         assertEquals(0, HudLayout.numbersWidth(0));
     }
@@ -519,7 +554,8 @@ class HudLayoutTest {
         List<HudLayout.Row> rows = new java.util.ArrayList<>();
         for (int i = 0; i < 7; i++) rows.add(new HudLayout.Row("coin", mm("<gray>잔액\t<gold>12,345,678 G <white>농부 Lv" + i), i == 3));
         int panel = gson.serialize(layout.panel(rows, 212)).length();
-        var worst = HEALTHY.withMount(new HudLayout.Mount(20, 30)).withAir(new HudLayout.Air(100, 300)).withFlash(HudLayout.Flash.LOST, 20);
+        var worst = HEALTHY.withMount(new HudLayout.Mount(20, 30)).withAir(new HudLayout.Air(100, 300))
+                .withAnim(new HudLayout.Anim(7, 0, 7, 7));
         int bars = gson.serialize(layout.actionBar(worst, mm("<green>도감 등록 <white>토마토 <dark_gray>· <gray>작물 12/40"))).length();
         assertTrue(panel < 16_000, "panel JSON " + panel);
         assertTrue(bars < 8_000, "action bar JSON " + bars);

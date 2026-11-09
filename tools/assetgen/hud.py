@@ -156,7 +156,7 @@ FILLS = {   # light, body, shade
 }
 SAT = (255, 228, 92)
 FILL_H = 7
-INNER = 59                     # the inside of a bar (the frame is 61 x 9; HudLayout.INNER)
+INNER = 69                     # the inside of a bar (the frame is 71 x 9; HudLayout.INNER)
 PIECES = (1, 2, 4, 8, 16, 32)
 
 OUTLINE = (16, 18, 22)
@@ -711,7 +711,7 @@ def preview(draws_path: Path, out_dir: Path):
                     im = im.resize((sc["thumb"], im.height * sc["thumb"] // im.width), Image.LANCZOS)
                 _label(im, f"{sc['width']} x {sc['height']} · GUI {sc['scale']} · {sc['label']}")
             panels.append(im)
-        if page.endswith("states"):
+        if page.endswith("states") or page.endswith("anim"):
             cols = 2
             cw = max(p.width for p in panels)
             rows = [panels[i:i + cols] for i in range(0, len(panels), cols)]

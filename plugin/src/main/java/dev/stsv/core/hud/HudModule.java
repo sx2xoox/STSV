@@ -73,11 +73,11 @@ import java.util.function.Function;
  *   <li>pack (default): drawn with the server resource pack's fonts (HudLayout). The sidebar is a charcoal and
  *       gold panel with the server mark and an icon per row, in the title of a boss bar whose bar the pack makes
  *       see-through; the hearts, hunger, armor, air bubbles and a mount's hearts are replaced by segmented bars
- *       with their numbers beside them on the action bar (status colours, absorption, saturation, a short flash
- *       when health drops or jumps), and one-off messages are shown on the same action bar above them, so both
- *       are always visible. Nothing touches the player's scoreboard, so other plugins' scoreboards and teams keep
- *       working. Players whose client refused the pack get the scoreboard sidebar instead and keep the game's
- *       hearts.</li>
+ *       with their numbers beside them on the action bar (status colours, absorption, saturation, the part
+ *       just lost draining away and a heal glowing, HudTrail), and one-off messages are shown on the same action
+ *       bar above them, so both are always visible. Nothing touches the player's scoreboard, so other plugins'
+ *       scoreboards and teams keep working. Players whose client refused the pack get the scoreboard sidebar
+ *       instead and keep the game's hearts.</li>
  *   <li>scoreboard: the sidebar on the player's own scoreboard, the game's hearts.</li>
  * </ul>
  * Every player can hide the sidebar (/사이드바, kept on the player: HudToggle) and move it and change its size with
@@ -410,7 +410,7 @@ public final class HudModule implements StsvModule, Listener, CommandExecutor, T
         if (!healthOn || layout == null || !packFor(p)) return null;
         GameMode gm = p.getGameMode();
         if (gm == GameMode.CREATIVE || gm == GameMode.SPECTATOR || p.isDead()) {
-            flashTracks.remove(p.getUniqueId());
+            motions.remove(p.getUniqueId());
             return null;
         }
         AttributeInstance maxAttr = p.getAttribute(Attribute.MAX_HEALTH);
@@ -432,22 +432,43 @@ public final class HudModule implements StsvModule, Listener, CommandExecutor, T
             int step = Math.max(1, maxAir / HudLayout.INNER);
             h = h.withAir(new HudLayout.Air(air <= 0 ? 0 : Math.min(maxAir, -Math.floorDiv(-air, step) * step), maxAir));
         }
-        FlashTrack t = flashTracks.get(p.getUniqueId());
-        double total = h.total();
-        if (t == null) t = new FlashTrack(total, null, 0, 0);
-        else if (total <= t.last() - 0.5) t = new FlashTrack(total, HudLayout.Flash.LOST, t.flash() == HudLayout.Flash.LOST ? t.from() : t.last(), tick + FLASH_TICKS);
-        else if (total >= t.last() + 2) t = new FlashTrack(total, HudLayout.Flash.GAIN, t.flash() == HudLayout.Flash.GAIN ? t.from() : t.last(), tick + FLASH_TICKS);
-        else t = new FlashTrack(total, t.flash(), t.from(), t.until());
-        if (t.flash() != null && tick >= t.until()) t = new FlashTrack(total, null, 0, 0);
-        flashTracks.put(p.getUniqueId(), t);
-        return t.flash() == null ? h : h.withFlash(t.flash(), t.from());
+        return motions.computeIfAbsent(p.getUniqueId(), k -> new Motion()).apply(h, tick);
     }
 
-    /** The health last seen and the flash running (until the tick given). */
-    private record FlashTrack(double last, HudLayout.Flash flash, double from, long until) {}
+    /**
+     * A player's bars in motion (HudTrail): health, the right bar of the first row (hunger, or the mount's health:
+     * started afresh when it changes) and armor. Stepped once per bar loop (more sends in one tick only look); a
+     * heal of a heart or more glows. Air is left still: it runs down a pixel at a time anyway.
+     */
+    static final class Motion {
+        private final HudTrail health = new HudTrail(), armor = new HudTrail();
+        private HudTrail right = new HudTrail();
+        private boolean riding;
+        private double total = -1;
+        private long tick = Long.MIN_VALUE;
 
-    private static final int FLASH_TICKS = 12;
-    private final Map<UUID, FlashTrack> flashTracks = new ConcurrentHashMap<>();
+        HudLayout.Health apply(HudLayout.Health h, long now) {
+            int hp = HudLayout.healthPx(h), r = HudLayout.rightPx(h), a = HudLayout.armorPx(h);
+            if (now != tick) {
+                tick = now;
+                if (riding != (h.mount() != null)) {
+                    riding = h.mount() != null;
+                    right = new HudTrail();
+                }
+                health.step(hp, total >= 0 && h.total() >= total + 2);
+                right.step(r, false);
+                armor.step(a, false);
+                total = h.total();
+            }
+            return h.withAnim(new HudLayout.Anim(health.trail(hp), health.glow(hp), right.trail(r), armor.trail(a)));
+        }
+
+        boolean settled() {
+            return health.settled() && right.settled() && armor.settled();
+        }
+    }
+
+    private final Map<UUID, Motion> motions = new ConcurrentHashMap<>();
 
     private void refreshBars() {
         tick += 2;
@@ -1081,6 +1102,6 @@ public final class HudModule implements StsvModule, Listener, CommandExecutor, T
         packRefused.remove(u);
         flashes.remove(u);
         sent.remove(u);
-        flashTracks.remove(u);
+        motions.remove(u);
     }
 }

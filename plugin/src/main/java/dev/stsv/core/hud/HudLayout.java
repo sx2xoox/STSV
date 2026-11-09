@@ -17,8 +17,9 @@ import java.util.Map;
  *   <li>action bar: centred on the screen's middle, pen line at (guiHeight - 72); a glyph's top is at pen line
  *       + 7 - ascent, so a glyph whose top should be D pixels above the bottom of the screen gets ascent D - 65.
  *       The bars take the rows of the game's hearts (top 39 above the bottom) and armor (49), across the
- *       hotbar's width (frames and icons within x -91 .. 91, the numbers just past its ends, as wide on both
- *       sides), and leave the middle (|x| &lt; 14) to the experience level the game draws there.</li>
+ *       hotbar's width and a little past it (frames and icons within x -94 .. 94, the hotbar is -91 .. 91, the
+ *       numbers just past them, as wide on both sides), and leave the middle (|x| &lt; 14) to the experience
+ *       level the game draws there.</li>
  *   <li>boss bar title (the first boss bar): centred, pen line at y 3 from the top; a glyph top at y gets ascent
  *       10 - y. The sidebar panel lives there, its right edge {@code right} pixels right of the screen's
  *       middle, its top {@code top} pixels below the top of the screen.</li>
@@ -59,8 +60,13 @@ public final class HudLayout {
 
     public enum Tint { NORMAL, POISON, WITHER, FROZEN }
 
-    /** A short flash of the health bar: the part just lost or just gained, for a moment after the change. */
-    public enum Flash { LOST, GAIN }
+    /**
+     * The bars' motion (HudTrail), in pixels of a bar's inside: the light trail of the part just lost past the
+     * health, the right bar (hunger or the mount) and the armor, and the glow of the health just gained below it.
+     */
+    public record Anim(int health, int glow, int right, int armor) {
+        public static final Anim NONE = new Anim(0, 0, 0, 0);
+    }
 
     /** The health of what the player rides (a living mount: it takes the hunger bar's place, as in the game). */
     public record Mount(double health, double max) {}
@@ -68,27 +74,35 @@ public final class HudLayout {
     /** The air left, shown under water and while it refills (as the game shows its bubbles). */
     public record Air(int remaining, int max) {}
 
-    /**
-     * What the bars show. flashFrom: health + absorption before the change the flash shows (with flash only).
-     */
+    /** What the bars show, and how they are moving (anim). */
     public record Health(double health, double max, double absorption, int food, float saturation, int armor,
-                         Tint tint, boolean hungry, Mount mount, Air air, Flash flash, double flashFrom) {
+                         Tint tint, boolean hungry, Mount mount, Air air, Anim anim) {
+
+        public Health {
+            if (anim == null) anim = Anim.NONE;
+        }
 
         public Health(double health, double max, double absorption, int food, float saturation, int armor, Tint tint,
                       boolean hungry) {
-            this(health, max, absorption, food, saturation, armor, tint, hungry, null, null, null, 0);
+            this(health, max, absorption, food, saturation, armor, tint, hungry, null, null, Anim.NONE);
         }
 
         public Health withMount(Mount m) {
-            return new Health(health, max, absorption, food, saturation, armor, tint, hungry, m, air, flash, flashFrom);
+            return new Health(health, max, absorption, food, saturation, armor, tint, hungry, m, air, anim);
         }
 
         public Health withAir(Air a) {
-            return new Health(health, max, absorption, food, saturation, armor, tint, hungry, mount, a, flash, flashFrom);
+            return new Health(health, max, absorption, food, saturation, armor, tint, hungry, mount, a, anim);
         }
 
-        public Health withFlash(Flash f, double from) {
-            return new Health(health, max, absorption, food, saturation, armor, tint, hungry, mount, air, f, f == null ? 0 : from);
+        public Health withAnim(Anim a) {
+            return new Health(health, max, absorption, food, saturation, armor, tint, hungry, mount, air, a);
+        }
+
+        /** As the moment after health + absorption went from `from` to what it is: the whole lost part trailing, or the gained part glowing. */
+        public Health justChanged(double from) {
+            int now = healthPx(this), before = fill(from, Math.max(max, total()), INNER);
+            return withAnim(new Anim(Math.max(0, before - now), Math.max(0, now - before), anim.right(), anim.armor()));
         }
 
         /** Health and absorption together. */
@@ -104,14 +118,16 @@ public final class HudLayout {
     // action bar rows (distance of a glyph's top from the bottom of the screen)
     static final int ROW1 = 39, ROW2 = 49;
     // a bar: [number][icon][frame] on the left half, mirrored on the right; the fill grows away from the icon.
-    // The frames start at the edge of the level's room (|x| < 14) and, with the icons, reach nearly to the
-    // hotbar's ends (x -84 .. 84); the numbers sit just past them. Parts are a pitch of (INNER + 1) / n px: the
-    // fill and a one-pixel tick, the last part ending at the frame. INNER + 1 = 60, so the usual 10 hearts /
-    // drumsticks / armor points / bubbles are 5 px each and 12 (more hearts) 4 px, 6, 5, 4, 3 and 2 just as even.
-    static final int INNER = 59, FRAME_W = INNER + 2, ICON = 9, MIDDLE = 14;
+    // The frames start at the edge of the level's room (|x| < 14) and, with the icons, reach a little past the
+    // hotbar's ends (x -94 .. 94, the hotbar -91 .. 91); the numbers sit just past them (two digits to 105, on
+    // screen at GUI 4 of a 1280 x 720 window, 160 px each side; above the off-hand slot, which is under row 23).
+    // Parts are a pitch of (INNER + 1) / n px: the fill and a one-pixel tick, the last part ending at the frame.
+    // INNER + 1 = 70, so the usual 10 hearts / drumsticks / armor points / bubbles are 7 px each, 14 (more
+    // hearts) 5 px, 7, 5 and 2 just as even; other counts differ by a pixel at most (segments).
+    static final int INNER = 69, FRAME_W = INNER + 2, ICON = 9, MIDDLE = 14;
     static final int LEFT_FRAME = -(MIDDLE - 1) - FRAME_W, LEFT_ICON = LEFT_FRAME - 1 - ICON, LEFT_NUMBER_END = LEFT_ICON - 1;
     static final int RIGHT_FRAME = MIDDLE, RIGHT_ICON = RIGHT_FRAME + FRAME_W + 1, RIGHT_NUMBER = RIGHT_ICON + ICON + 1;
-    static final int DIGIT_PITCH = 4;
+    static final int DIGIT_PITCH = 4, MAX_SEGMENTS = 14;
     static final int[] FILL_PIECES = {32, 16, 8, 4, 2, 1};
     // the panel at its normal size (HEAD: title strip down to the first row; ROW: row pitch; FOOT: bevel,
     // outline, shadow); every size scales its own cut of these (Style) by its scale
@@ -340,9 +356,9 @@ public final class HudLayout {
         int end = ink.pen();
         if (h != null) {
             healthBar(ink, h);
-            if (h.mount() != null) mountBar(ink, h.mount());
+            if (h.mount() != null) mountBar(ink, h.mount(), h.anim().right());
             else foodBar(ink, h);
-            if (h.armor() > 0 && settings.armor()) armorBar(ink, h);
+            if ((h.armor() > 0 || h.anim().armor() > 0) && settings.armor()) armorBar(ink, h);
             if (h.air() != null) airBar(ink, h.air());
             ink.to(bar, end);
         }
@@ -354,9 +370,29 @@ public final class HudLayout {
 
     private enum Side { LEFT, RIGHT }
 
+    /** Pixels of the health bar filled by health and absorption together (what its trail and glow are measured from). */
+    static int healthPx(Health h) {
+        return Math.max(fill(h.health(), Math.max(h.max(), h.total()), INNER), fill(h.total(), Math.max(h.max(), h.total()), INNER));
+    }
+
+    /** Pixels of the right bar of the first row filled: the mount's health when riding, the hunger otherwise. */
+    static int rightPx(Health h) {
+        return h.mount() != null ? fill(h.mount().health(), Math.max(1, h.mount().max()), INNER) : fill(h.food(), 20, INNER);
+    }
+
+    /** Pixels of the armor bar filled. */
+    static int armorPx(Health h) {
+        return fill(h.armor(), Math.max(20, h.armor()), INNER);
+    }
+
+    /** A trail of `length` px past the fill (never past the inside). */
+    private static Span trail(int filled, int length) {
+        return new Span("lost", filled, Math.min(INNER, filled + length));
+    }
+
     private void healthBar(Ink ink, Health h) {
         double scale = Math.max(h.max(), h.total());
-        int kh = fill(h.health(), scale, INNER), kt = Math.max(kh, fill(h.total(), scale, INNER));
+        int kh = fill(h.health(), scale, INNER), kt = healthPx(h);
         String colour = switch (h.tint()) {
             case POISON -> "poison";
             case WITHER -> "wither";
@@ -365,15 +401,12 @@ public final class HudLayout {
         };
         List<Span> spans = new ArrayList<>(List.of(new Span(colour, 0, kh), new Span("abs", kh, kt)));
         String rim = "frame";
-        if (h.flash() != null) {
-            int kf = fill(h.flashFrom(), scale, INNER);
-            if (h.flash() == Flash.LOST && kf > kt) {
-                spans.add(new Span("lost", kt, kf));
-                rim = "frame_hit";
-            } else if (h.flash() == Flash.GAIN && kf < kt) {
-                spans.add(new Span("gain", kf, kt));
-                rim = "frame_heal";
-            }
+        if (h.anim().health() > 0 && kt < INNER) {
+            spans.add(trail(kt, h.anim().health()));
+            rim = "frame_hit";
+        } else if (h.anim().glow() > 0) {
+            spans.add(new Span("gain", Math.max(0, kt - h.anim().glow()), kt));
+            rim = "frame_heal";
         }
         String heart = switch (h.tint()) {
             case POISON -> "heart_poison";
@@ -392,25 +425,25 @@ public final class HudLayout {
     }
 
     private void foodBar(Ink ink, Health h) {
-        int k = fill(h.food(), 20, INNER);
+        int k = rightPx(h);
         drawBar(ink, Side.RIGHT, ROW1, h.hungry() ? "food_hunger" : "food", "frame",
-                List.of(new Span(h.hungry() ? "hunger" : "food", 0, k)), k, 10);
+                List.of(new Span(h.hungry() ? "hunger" : "food", 0, k), trail(k, h.anim().right())), k, 10);
         int s = fill(Math.min(h.saturation(), Math.max(0, h.food())), 20, INNER);
         if (s > 0) pieces(ink, "line", "sat", action(ROW1 - 7), Side.RIGHT, 0, s);
         number(ink, Side.RIGHT, ROW1, String.valueOf(Math.max(0, h.food())), h.hungry() ? HUNGER : null);
     }
 
-    private void mountBar(Ink ink, Mount m) {
+    private void mountBar(Ink ink, Mount m, int trail) {
         double scale = Math.max(1, m.max());
         int k = fill(m.health(), scale, INNER);
-        drawBar(ink, Side.RIGHT, ROW1, "mount", "frame", List.of(new Span("mount", 0, k)), k, segments(scale, 2));
+        drawBar(ink, Side.RIGHT, ROW1, "mount", "frame", List.of(new Span("mount", 0, k), trail(k, trail)), k, segments(scale, 2));
         number(ink, Side.RIGHT, ROW1, healthText(m.health()), m.health() <= scale / 4 ? LOW : null);
     }
 
     private void armorBar(Ink ink, Health h) {
         int scale = Math.max(20, h.armor());
-        int k = fill(h.armor(), scale, INNER);
-        drawBar(ink, Side.LEFT, ROW2, "armor", "frame", List.of(new Span("armor", 0, k)), k, segments(scale, 2));
+        int k = armorPx(h);
+        drawBar(ink, Side.LEFT, ROW2, "armor", "frame", List.of(new Span("armor", 0, k), trail(k, h.anim().armor())), k, segments(scale, 2));
         number(ink, Side.LEFT, ROW2, String.valueOf(h.armor()), null);
     }
 
@@ -479,10 +512,14 @@ public final class HudLayout {
         return out;
     }
 
-    /** Parts of `per` (a heart = 2 health) in a bar of max, doubled until there are at most 12. */
+    /**
+     * Parts of `per` (a heart = 2 health) in a bar of max, doubled until there are at most MAX_SEGMENTS: up to 14
+     * hearts a part each (14 of 5 px, as even as 10; 11 to 13 a pixel apart at most), more two (or four) a part
+     * (40 health: 10 again).
+     */
     static int segments(double max, int per) {
         int n = (int) Math.ceil(max / per - 1e-9);
-        while (n > 12) {
+        while (n > MAX_SEGMENTS) {
             per *= 2;
             n = (int) Math.ceil(max / per - 1e-9);
         }

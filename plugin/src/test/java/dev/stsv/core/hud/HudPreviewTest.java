@@ -35,7 +35,7 @@ class HudPreviewTest {
     }
 
     static Scene state(String label, HudLayout.Health health, Component message, int level, boolean water) {
-        return new Scene(1920, 1080, 3, label, null, false, health, message, false, level, 0, water, new int[]{-106, 82, 212, 82}, 1, 0);
+        return new Scene(1920, 1080, 3, label, null, false, health, message, false, level, 0, water, new int[]{-116, 82, 232, 82}, 1, 0);
     }
 
     /** The panel moved with the mouse to `margin` px from the right edge of this screen, at a size and a top. */
@@ -67,7 +67,7 @@ class HudPreviewTest {
                 full(1920, 1080, 2, "마우스로 오른쪽 끝에 · 크게 · 방어 12 · 안내 문구", atRight(1920, 1080, 2, HudLayout.Size.LARGE, 54), normal, codex, 23, 2),
                 full(1920, 1080, 3, "마우스로 오른쪽 끝에 · 보통 · 독 · 허기 · 흡수 4 · 피해 직후",
                         atRight(1920, 1080, 3, HudLayout.Size.NORMAL, 54), new HudLayout.Health(7, 20, 4, 6, 0f, 7, HudLayout.Tint.POISON, true)
-                                .withFlash(HudLayout.Flash.LOST, 15), Lang.mm("tpa.arrived", "player", "Steve"), 5, 1),
+                                .justChanged(15), Lang.mm("tpa.arrived", "player", "Steve"), 5, 1),
                 full(1920, 1080, 4, "자동 · 기본 위치 · 물속 · 말 타기",
                         null, new HudLayout.Health(20, 20, 0, 20, 12f, 0, HudLayout.Tint.NORMAL, false)
                                 .withMount(new HudLayout.Mount(17, 26)).withAir(new HudLayout.Air(170, 300)), null, 30, 0)));
@@ -84,16 +84,19 @@ class HudPreviewTest {
                 edit(1920, 1080, 3, "마우스로 왼쪽 위로 · 보통", new HudLayout.Placement(HudLayout.Size.NORMAL, -60, 28))));
         pages.put("hud_states", List.of(
                 state("보통 · 방어 12 · 포화 5", normal, null, 23, false),
-                state("피해 직후 (잃은 만큼 하얗게, 테두리 빨강)", normal.withFlash(HudLayout.Flash.LOST, 20), null, 23, false),
+                state("피해 직후 (잃은 만큼 하얗게, 테두리 빨강)", normal.justChanged(20), null, 23, false),
                 state("회복 직후 (황금 사과: 흡수 4)", new HudLayout.Health(20, 20, 4, 18, 9f, 12, HudLayout.Tint.NORMAL, false)
-                        .withFlash(HudLayout.Flash.GAIN, 14), null, 23, false),
+                        .justChanged(14), null, 23, false),
                 state("독 · 허기 · 체력 낮음", new HudLayout.Health(3, 20, 0, 4, 0f, 0, HudLayout.Tint.POISON, true), null, 7, false),
                 state("시듦", new HudLayout.Health(9, 20, 0, 14, 0f, 5, HudLayout.Tint.WITHER, false), null, 12, false),
                 state("동상 (가루눈)", new HudLayout.Health(11, 20, 0, 20, 14f, 20, HudLayout.Tint.FROZEN, false), null, 0, false),
                 state("물속 (공기 6칸)", normal.withAir(new HudLayout.Air(172, 300)), null, 23, true),
                 state("말 타기 (말 체력 21 / 30)", normal.withMount(new HudLayout.Mount(21, 30)), null, 23, false),
+                state("최대 체력 28 (칸 = 하트 1개, 14칸)", new HudLayout.Health(23, 28, 0, 20, 20f, 8, HudLayout.Tint.NORMAL, false), null, 31, false),
                 state("최대 체력 40 · 방어 30 (칸 = 하트 2개)", new HudLayout.Health(33, 40, 0, 20, 20f, 30, HudLayout.Tint.NORMAL, false), null, 147, false),
                 state("안내 문구와 함께", normal, codex, 23, false)));
+
+        pages.put("hud_anim", anim());
 
         JsonObject root = new JsonObject();
         JsonObject out = new JsonObject();
@@ -139,6 +142,29 @@ class HudPreviewTest {
         for (byte[] b : HudPack.files(layout, "WHITE", true).values()) pack += b.length;
         Files.writeString(Path.of("build", "hud-memory.txt"), "client memory (font sheets as RGBA): "
                 + HudPack.clientMemory(layout) + " bytes\nHUD files in the pack (uncompressed): " + pack + " bytes\n");
+    }
+
+    /**
+     * A drop drawn as the bar loop steps it (every 2 ticks, 0.1 s): one hit (health 18 to 8, hunger 17 to 12) on
+     * the left, hits in a row (health 20, 14, 9, 5; hunger down a point twice) on the right, row by row in time.
+     */
+    static List<Scene> anim() {
+        double[][] one = {{18, 17}, {8, 12}, {8, 12}, {8, 12}, {8, 12}, {8, 12}, {8, 12}, {8, 12}, {8, 12}};
+        double[][] row = {{20, 17}, {14, 16}, {14, 16}, {9, 16}, {9, 16}, {5, 15}, {5, 15}, {5, 15}, {5, 15}};
+        HudModule.Motion a = new HudModule.Motion(), b = new HudModule.Motion();
+        List<Scene> out = new java.util.ArrayList<>();
+        for (int i = 0; i < one.length; i++) {
+            String t = String.format("%.1f초", i * 0.1);
+            HudLayout.Health ha = a.apply(new HudLayout.Health(one[i][0], 20, 0, (int) one[i][1], 3f, 12, HudLayout.Tint.NORMAL, false), i * 2L);
+            HudLayout.Health hb = b.apply(new HudLayout.Health(row[i][0], 20, 0, (int) row[i][1], 3f, 12, HudLayout.Tint.NORMAL, false), i * 2L);
+            out.add(frame((i == 0 ? "한 번 맞음 · 맞기 전" : i == 1 ? "한 번 맞음 · " + t + " (바로 줄고 잃은 만큼 남음)" : "한 번 맞음 · " + t), ha));
+            out.add(frame((i == 0 ? "연달아 맞음 · 맞기 전" : "연달아 맞음 · " + t + (i == 3 || i == 5 ? " (또 맞음: 남은 자리부터)" : "")), hb));
+        }
+        return out;
+    }
+
+    static Scene frame(String label, HudLayout.Health health) {
+        return new Scene(1920, 1080, 3, label, null, false, health, null, false, 23, 0, false, new int[]{-116, 54, 232, 28}, 1, 0);
     }
 
     /** The panel moved with the mouse to 2 px from the left edge of this screen (its width measured as drawn). */
