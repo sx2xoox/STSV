@@ -247,7 +247,7 @@ job:
   locked-plant: "<red><{color}>{job}<gray> Lv{level}만 심을 수 있는 씨앗입니다."
   bought-meal: "<red>상점에서 산 뼛가루는 작물에 쓸 수 없습니다"
   found: "<aqua>발견!</aqua> <white>{item}"
-  found-special: "<light_purple>특별 재료!</light_purple> <white>{item}</white> <gray>(상점은 안 삼: 필요한 직업에게)"
+  found-special: "<light_purple>특별 재료!</light_purple> <white>{item}"
   saved: "<green>재료 절약</green> <white>{item}</white> <gray>1개를 돌려받았습니다"
   lore-xp: "<gray>경험치 <white>{xp}</white> <gray>/ {next}"
   lore-current: ["<green>✔ 내 직업"]
