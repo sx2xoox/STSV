@@ -191,6 +191,7 @@ e5bf8e4b0823d7ecbf01fc477d2b3ce6b85ca491 stsv/items/cosmetics.yml
 684f20b6ff81ba8f70b0712c2ba7c82f840adb6d stsv/items/decor.yml
 c0798ada1b895205b34f70af6e36018b01b6ed25 stsv/items/economy.yml
 15a3b5f618682b2f05fc6e1c9c0fb41905071783 stsv/items/furniture_japanese.yml
+2362a4273701e51c6e0e27ba9861cdfc2ba45e9f stsv/items/furniture_japanese.yml
 3ac2d9b3e5e7a49f93ca1fe3e1d7451dd7bee8c8 stsv/items/furniture_japanese.yml
 6be73d49a7fd6861959360927bbe0cba87f5e2c7 stsv/items/machines.yml
 09e63107dca5cb144d69b7995e1542d0a1069233 stsv/items/materials.yml
