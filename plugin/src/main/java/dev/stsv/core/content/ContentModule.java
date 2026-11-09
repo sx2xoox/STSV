@@ -176,9 +176,14 @@ public final class ContentModule implements StsvModule, org.bukkit.event.Listene
         ModelRef model = null;
         boolean handheld = sec.getBoolean("handheld", false);
         if (sec.isString("model")) {
-            model = new ModelRef(ModelRef.Kind.BBMODEL, sec.getString("model"), handheld);
+            // icon: a flat 2D picture in inventories and menus, the 3D model everywhere else (furniture)
+            String icon = sec.getString("icon");
+            model = new ModelRef(ModelRef.Kind.BBMODEL, sec.getString("model"), handheld, icon);
             if (!Files.exists(pack.models().resolve(model.value() + ".bbmodel"))) {
                 throw new IllegalArgumentException("models/" + model.value() + ".bbmodel 파일이 없음");
+            }
+            if (icon != null && !Files.exists(pack.textures().resolve(icon + ".png"))) {
+                throw new IllegalArgumentException("icon: textures/" + icon + ".png 파일이 없음");
             }
         } else if (sec.isString("texture")) {
             model = new ModelRef(ModelRef.Kind.TEXTURE, sec.getString("texture"), handheld);
@@ -409,6 +414,11 @@ public final class ContentModule implements StsvModule, org.bukkit.event.Listene
     }
 
     private FurnitureSpec parseFurniture(ConfigurationSection f) {
+        return furnitureSpec(f, currentPack);
+    }
+
+    /** An item's furniture section (relative part model names are .bbmodels of {@code pack}). */
+    public static FurnitureSpec furnitureSpec(ConfigurationSection f, ContentPack currentPack) {
         List<int[]> cells = new ArrayList<>();
         for (Object o : f.getList("cells", List.of(List.of(0, 0, 0)))) {
             if (!(o instanceof List<?> l) || l.size() != 3) throw new IllegalArgumentException("cells 항목은 [x, y, z] 형식");
@@ -439,7 +449,7 @@ public final class ContentModule implements StsvModule, org.bukkit.event.Listene
             if (cells.stream().noneMatch(x -> java.util.Arrays.equals(x, fc))) {
                 throw new IllegalArgumentException("seat.cell " + java.util.Arrays.toString(cell) + " 이 cells 안에 없음");
             }
-            seats.add(new FurnitureSpec.Seat(cell, s.getDouble("height", 0.5)));
+            seats.add(new FurnitureSpec.Seat(cell, s.getDouble("height", 0.5), (float) s.getDouble("facing", 0)));
         }
         // parts: [ { model: test_fan_blade, position: [16, 31, 8], spin: { axis: y, rpm: 40 } } ]
         List<FurnitureSpec.Part> parts = new ArrayList<>();
@@ -461,9 +471,27 @@ public final class ContentModule implements StsvModule, org.bukkit.event.Listene
             }
             parts.add(new FurnitureSpec.Part(key, vec(p.getDoubleList("position"), 8), axis, rpm));
         }
+        // light: 14                              a light block of level 14 in the anchor cell
+        // light: { level: 14, cell: [0, 1, 0] }    ...in another cell (the lantern head of a tall lamp)
+        FurnitureSpec.Light light = null;
+        if (f.contains("light")) {
+            int level = f.isConfigurationSection("light") ? f.getInt("light.level", 15) : f.getInt("light");
+            if (level < 1 || level > 15) throw new IllegalArgumentException("light 는 1 ~ 15");
+            int[] cell = {0, 0, 0};
+            List<?> c = f.isConfigurationSection("light") ? f.getList("light.cell") : null;
+            if (c != null) {
+                if (c.size() != 3) throw new IllegalArgumentException("light.cell 은 [x, y, z] 형식");
+                cell = new int[]{num(c.get(0)), num(c.get(1)), num(c.get(2))};
+            }
+            final int[] lc = cell;
+            if (cells.stream().noneMatch(x -> java.util.Arrays.equals(x, lc))) {
+                throw new IllegalArgumentException("light.cell " + java.util.Arrays.toString(cell) + " 이 cells 안에 없음");
+            }
+            light = new FurnitureSpec.Light(level, cell);
+        }
         return new FurnitureSpec(cells, f.getBoolean("solid", true), rotation, f.getString("behavior"),
                 vec(f.getDoubleList("translation"), 0), vec(f.getDoubleList("scale"), 1),
-                Math.clamp(f.getInt("brightness", -1), -1, 15), List.copyOf(seats), List.copyOf(parts));
+                Math.clamp(f.getInt("brightness", -1), -1, 15), List.copyOf(seats), List.copyOf(parts), light);
     }
 
     /**

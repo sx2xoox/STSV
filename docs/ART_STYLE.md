@@ -86,6 +86,10 @@
 4. 미리보기를 보고 수정을 반복합니다. `docs/previews/lineup.png`에서 **기존 모델들과 나란히** 놓고 어울리는지 확인합니다.
 5. `content/stsv/items/*.yml`에 아이템을 등록합니다. 서버에서는 `/관리자 리로드`로 바로 반영됩니다.
 
+**꾸미기 가구** (`models/furniture_japanese.py`, 아이콘 `furniture_icons.py`): 인벤토리에는 2D 아이콘(`icon: <id>_icon`), 설치하면 3D 모델이
+보입니다. 등불은 `furniture.light`로 진짜 빛을 냅니다. `python3 furniture_preview.py`가 `docs/previews/furniture_japanese*.png`
+(세 방향 시트, 아이콘, 방·정원 장면)를 만듭니다. 그림이 여러 상자에 걸치는 경우(후스마, 기모노) 정면에서 보면 모델의 +x가 **왼쪽**입니다.
+
 ### Blockbench로 손볼 때
 `.bbmodel`을 Blockbench에서 직접 수정했다면, 그 모델은 **"손으로 관리하는 모델"**이 됩니다.
 `build.py`의 `MODELS`에서 그 모델을 빼서 다음 빌드 때 덮어쓰이지 않게 하세요. 텍스처는 계속 팔레트 색만 쓰면 됩니다.

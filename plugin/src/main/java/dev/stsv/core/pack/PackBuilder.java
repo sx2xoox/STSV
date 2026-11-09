@@ -2,6 +2,7 @@ package dev.stsv.core.pack;
 
 import com.google.gson.Gson;
 import com.google.gson.GsonBuilder;
+import com.google.gson.JsonArray;
 import com.google.gson.JsonObject;
 import dev.stsv.core.content.ContentPack;
 import dev.stsv.core.content.CustomItem;
@@ -58,7 +59,7 @@ public final class PackBuilder {
             String ns = colon < 0 ? "minecraft" : id.substring(0, colon), path = id.substring(colon + 1);
             JsonObject def = parse(json.get("assets/" + ns + "/items/" + path + ".json"));
             if (def == null || !def.has("model") || !def.get("model").isJsonObject()) return null;
-            JsonObject ref = def.getAsJsonObject("model");
+            JsonObject ref = placedModel(def.getAsJsonObject("model"));
             String type = ref.has("type") ? ref.get("type").getAsString() : "";
             if (!(type.equals("minecraft:model") || type.equals("model")) || !ref.has("model")) return null;
             String modelId = ref.get("model").getAsString();
@@ -67,6 +68,26 @@ public final class PackBuilder {
             JsonObject model = parse(json.get("assets/" + mns + "/models/" + mpath + ".json"));
             if (model == null || !model.has("elements") || model.getAsJsonArray("elements").isEmpty()) return null;
             return new Model(mns + ":" + mpath, model);
+        }
+
+        /**
+         * What an item display (display context "fixed") shows of an item model: a select on the display context
+         * (a 2D icon in the GUI, the 3D model elsewhere) is followed to its "fixed" case, or its fallback.
+         */
+        private static JsonObject placedModel(JsonObject ref) {
+            String type = ref.has("type") ? ref.get("type").getAsString() : "";
+            if (!(type.equals("minecraft:select") || type.equals("select")) || !ref.has("property")
+                    || !ref.get("property").getAsString().replaceFirst("^minecraft:", "").equals("display_context")) return ref;
+            if (ref.has("cases") && ref.get("cases").isJsonArray()) {
+                for (com.google.gson.JsonElement c : ref.getAsJsonArray("cases")) {
+                    if (!c.isJsonObject() || !c.getAsJsonObject().has("when") || !c.getAsJsonObject().has("model")) continue;
+                    com.google.gson.JsonElement when = c.getAsJsonObject().get("when");
+                    boolean fixed = when.isJsonArray() ? when.getAsJsonArray().contains(new com.google.gson.JsonPrimitive("fixed"))
+                            : when.isJsonPrimitive() && when.getAsString().equals("fixed");
+                    if (fixed && c.getAsJsonObject().get("model").isJsonObject()) return c.getAsJsonObject().getAsJsonObject("model");
+                }
+            }
+            return ref.has("fallback") && ref.get("fallback").isJsonObject() ? ref.getAsJsonObject("fallback") : ref;
         }
 
         private static JsonObject parse(byte[] data) {
@@ -243,8 +264,26 @@ public final class PackBuilder {
         model.addProperty("type", "minecraft:model");
         model.addProperty("model", ns + ":" + modelPath);
         JsonObject def = new JsonObject();
-        def.add("model", model);
+        def.add("model", ref.kind() == ModelRef.Kind.BBMODEL && ref.icon() != null ? withIcon(model, ns + ":item/" + ref.icon()) : model);
         json("assets/" + item.key().getNamespace() + "/items/" + item.key().getKey() + ".json", def);
+    }
+
+    /** The 3D model, except in inventories and menus (display context "gui"): the flat icon there, like vanilla's trident. */
+    static JsonObject withIcon(JsonObject model3d, String iconModel) {
+        JsonObject icon = new JsonObject();
+        icon.addProperty("type", "minecraft:model");
+        icon.addProperty("model", iconModel);
+        JsonObject gui = new JsonObject();
+        gui.addProperty("when", "gui");
+        gui.add("model", icon);
+        JsonArray cases = new JsonArray();
+        cases.add(gui);
+        JsonObject select = new JsonObject();
+        select.addProperty("type", "minecraft:select");
+        select.addProperty("property", "minecraft:display_context");
+        select.add("cases", cases);
+        select.add("fallback", model3d);
+        return select;
     }
 
     private JsonObject readJson(String path) {

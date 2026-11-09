@@ -276,7 +276,8 @@ public final class FurnitureModule implements StsvModule, Listener {
         StringBuilder partData = new StringBuilder();
         for (Block b : plan.cells()) {
             // collision only where the model is solid enough; the other cells are cleared (grass, snow, water...)
-            if (spec.solid()) b.setType(plan.shape().barriers().contains(b) ? Material.BARRIER : Material.AIR, false);
+            if (b.equals(plan.shape().light())) setLight(b, spec.light().level());
+            else if (spec.solid()) b.setType(plan.shape().barriers().contains(b) ? Material.BARRIER : Material.AIR, false);
             cellData.append(b.getX()).append(',').append(b.getY()).append(',').append(b.getZ()).append(';');
         }
         // click targets: a few interaction entities fitted to the model, never outside the cells
@@ -429,10 +430,11 @@ public final class FurnitureModule implements StsvModule, Listener {
     // ------------------------------------------------------------------------------------------
 
     /**
-     * A piece's click boxes {minX, minY, minZ, size, height} and barrier blocks in the world.
+     * A piece's click boxes {minX, minY, minZ, size, height} and barrier blocks in the world, and the block of its
+     * light (FurnitureSpec.Light: never a barrier), or null.
      * hash: what was applied (stored on the piece; a different one means boxes / barriers must be redone).
      */
-    public record Placed(List<double[]> boxes, Set<Block> barriers, String hash) {}
+    public record Placed(List<double[]> boxes, Set<Block> barriers, Block light, String hash) {}
 
     /**
      * The model-space shape of an item showing these models (item model ids; null = the item's own / its
@@ -506,7 +508,9 @@ public final class FurnitureModule implements StsvModule, Listener {
                 boxes.add(new double[]{p[0], p[1], p[2], p[3], p[4]});
             }
             if (spec.solid()) barriers.addAll(cells);
-            return new Placed(boxes, barriers, "full:" + (spec.solid() ? "s" : "n") + cells.size());
+            Block light = lightBlock(spec, anchor, yaw, cells);
+            if (light != null) barriers.remove(light);
+            return new Placed(boxes, barriers, light, "full:" + (spec.solid() ? "s" : "n") + cells.size() + lightHash(spec));
         }
         for (FurnitureShape.Box b : shape.boxes()) {
             double[] o = boxOffset(b, yaw);
@@ -518,7 +522,31 @@ public final class FurnitureModule implements StsvModule, Listener {
             Block b = anchor.getRelative(o[0], o[1], o[2]);
             if (inCells.contains(b)) barriers.add(b);
         }
-        return new Placed(boxes, barriers, shape.hash());
+        Block light = lightBlock(spec, anchor, yaw, cells);
+        if (light != null) barriers.remove(light);
+        return new Placed(boxes, barriers, light, shape.hash() + lightHash(spec));
+    }
+
+    /** The block of the piece's light cell, or null (no light). */
+    private static Block lightBlock(FurnitureSpec spec, Block anchor, float yaw, List<Block> cells) {
+        if (spec.light() == null) return null;
+        int[] o = rotate(spec.light().cell(), yaw);
+        Block b = anchor.getRelative(o[0], o[1], o[2]);
+        return cells.contains(b) ? b : null;
+    }
+
+    /** Part of the stored shape hash, so a light added, moved or dimmed later is applied to placed pieces too. */
+    private static String lightHash(FurnitureSpec spec) {
+        FurnitureSpec.Light l = spec.light();
+        return l == null ? "" : "|L" + l.level() + "@" + l.cell()[0] + "," + l.cell()[1] + "," + l.cell()[2];
+    }
+
+    /** An invisible vanilla light block of this level (replaces only air, a barrier of the piece or its old light). */
+    private static void setLight(Block b, int level) {
+        if (b.getType() == Material.LIGHT && b.getBlockData() instanceof org.bukkit.block.data.Levelled l && l.getLevel() == level) return;
+        org.bukkit.block.data.Levelled data = (org.bukkit.block.data.Levelled) Material.LIGHT.createBlockData();
+        data.setLevel(level);
+        b.setBlockData(data, false);
     }
 
     /**
@@ -652,10 +680,19 @@ public final class FurnitureModule implements StsvModule, Listener {
      * should go but a player or mob stands stays open for now (false: try again), so nobody is shut inside a block.
      */
     private boolean applyBarriers(FurnitureSpec spec, Placed want, List<Block> cells) {
-        if (!spec.solid()) return true;
+        if (!spec.solid() && spec.light() == null) return true;
         boolean done = true;
         for (Block b : cells) {
             Material now = b.getType();
+            if (b.equals(want.light())) {
+                if (b.isEmpty() || now == Material.BARRIER || now == Material.LIGHT) setLight(b, spec.light().level());
+                continue;
+            }
+            if (now == Material.LIGHT) {
+                b.setType(Material.AIR, false); // the light moved to another cell
+                now = Material.AIR;
+            }
+            if (!spec.solid()) continue;
             if (want.barriers().contains(b)) {
                 if (now == Material.BARRIER) continue;
                 if (!(b.isEmpty() || b.isReplaceable())) continue; // something else is there (never ours to remove)
@@ -754,7 +791,7 @@ public final class FurnitureModule implements StsvModule, Listener {
             String[] xyz = cell.split(",");
             if (xyz.length != 3) continue;
             Block b = world.getBlockAt(Integer.parseInt(xyz[0]), Integer.parseInt(xyz[1]), Integer.parseInt(xyz[2]));
-            if (b.getType() == Material.BARRIER) b.setType(Material.AIR, false);
+            if (b.getType() == Material.BARRIER || b.getType() == Material.LIGHT) b.setType(Material.AIR, false);
         }
         reserved.remove(display.getUniqueId());
         refreshAt.remove(display.getUniqueId());
@@ -861,6 +898,7 @@ public final class FurnitureModule implements StsvModule, Listener {
         Block anchor = furniture.display().getLocation().getBlock();
 
         Location best = null;
+        float facing = 0;
         for (FurnitureSpec.Seat seat : spec.seats()) {
             int[] o = rotate(seat.cell(), yaw);
             Block cell = anchor.getRelative(o[0], o[1], o[2]);
@@ -868,10 +906,15 @@ public final class FurnitureModule implements StsvModule, Listener {
             boolean taken = at.getWorld().getNearbyEntitiesByType(ItemDisplay.class, at, 0.2).stream()
                     .anyMatch(d -> d.getPersistentDataContainer().has(keySeat) && !d.getPassengers().isEmpty());
             if (taken) continue;
-            if (best == null || at.distanceSquared(clicked) < best.distanceSquared(clicked)) best = at;
+            if (best == null || at.distanceSquared(clicked) < best.distanceSquared(clicked)) {
+                best = at;
+                facing = seat.facing();
+            }
         }
         if (best == null) return false;
 
+        // a seat may face another way than the piece (cushions round a low table look at the table)
+        yaw = ((yaw + facing) % 360f + 360f) % 360f;
         best.setYaw(yaw);
         best.setPitch(0);
         String owner = furniture.display().getUniqueId().toString();
@@ -895,17 +938,22 @@ public final class FurnitureModule implements StsvModule, Listener {
         });
     }
 
-    /** Step out in front of the furniture; if that is blocked, stand on top of the seat block. */
+    /**
+     * Step out in front of the seat; if that is blocked (a cushion facing a low table), behind it, then to a side;
+     * if all are blocked, stand on top of the seat block.
+     */
     private Location exitLocation(ItemDisplay seat, float riderYaw) {
         Block cell = seat.getLocation().getBlock();
-        double r = Math.toRadians(seat.getYaw());
-        Block front = cell.getRelative((int) Math.round(-Math.sin(r)), 0, (int) Math.round(Math.cos(r)));
-        Location out;
-        if (front.isPassable() && front.getRelative(BlockFace.UP).isPassable()) {
-            out = front.getLocation().add(0.5, 0, 0.5);
-        } else {
-            out = cell.getLocation().add(0.5, 1, 0.5);
+        Location out = null;
+        for (int turn : new int[]{0, 180, 90, -90}) {
+            double r = Math.toRadians(seat.getYaw() + turn);
+            Block to = cell.getRelative((int) Math.round(-Math.sin(r)), 0, (int) Math.round(Math.cos(r)));
+            if (to.isPassable() && to.getRelative(BlockFace.UP).isPassable() && !to.getRelative(BlockFace.DOWN).isPassable()) {
+                out = to.getLocation().add(0.5, 0, 0.5);
+                break;
+            }
         }
+        if (out == null) out = cell.getLocation().add(0.5, 1, 0.5);
         out.setYaw(riderYaw);
         return out;
     }

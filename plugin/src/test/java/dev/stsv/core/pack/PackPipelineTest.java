@@ -38,7 +38,8 @@ class PackPipelineTest {
 
     private static final Set<String> GLOWING = Set.of("test_machine", "test_greatsword", "test_slash",
             "halo", "crown", "wizard_hat", "butterfly_wings",   // cosmetics: the halo, gems, stars, wing spots
-            "mole", "gumiho", "phoenix");                       // pets: the helmet lamp, fox-fire tails, flame tips
+            "mole", "gumiho", "phoenix",                        // pets: the helmet lamp, fox-fire tails, flame tips
+            "andon", "stone_lantern", "tea_kettle");            // furniture: lamp paper, the lantern's fire, embers
     private static final Set<String> ROTATED = Set.of("test_sword", "test_sword_skin", "test_greatsword", "test_slash", "test_rod", "test_rod_cast",
             "angel_wings", "demon_wings", "butterfly_wings",   // wings swept back 22.5 degrees
             "gumiho");                                          // nine tails fanned out
