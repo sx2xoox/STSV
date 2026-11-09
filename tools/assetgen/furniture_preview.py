@@ -9,8 +9,12 @@ docs/previews/furniture_japanese.png        every piece from three angles (front
 docs/previews/furniture_japanese_icons.png  the 2D inventory icons, large and at their real 16 px size
 docs/previews/furniture_japanese_room.png   a room and a garden furnished with them, at about in-game distance
 docs/previews/furniture_scale.png           every piece next to a player and a block, all at one scale
+docs/previews/furniture_footprints.png      every piece from straight above, placed facing each of the four ways,
+                                            its cells outlined and its model's bounds with the margins (a piece
+                                            sits in the middle of its cells: the same margin on both sides)
 
     python3 furniture_preview.py --scale [out.png]     # only the scale sheet
+    python3 furniture_preview.py --footprints [out.png]  # only the footprint sheet
     python3 furniture_preview.py --pieces <dir> [ids]  # one large four-view picture per piece
 """
 
@@ -45,14 +49,39 @@ def names_ko():
     return {k: re.sub(r"<[^>]+>", "", v["name"]) for k, v in items.items() if isinstance(v, dict) and "name" in v}
 
 
+_FURNITURE = {}
+
+
+def furniture(pid):
+    """The piece's furniture settings from the item file (cells, translation, scale)."""
+    if not _FURNITURE:
+        _FURNITURE.update({k: v["furniture"] for k, v in yaml.safe_load(ITEMS.read_text()).items()
+                           if isinstance(v, dict) and "furniture" in v})
+    return _FURNITURE[pid]
+
+
+def placement(pid):
+    """Model point -> where the item display shows it, in the furniture's model space (16 = 1 block, cell
+    (0,0,0) spans 0..16), as FurnitureShape.mainPlacement does: the translation (blocks, x / z flipped by the
+    item display's half turn) and the scale around the model's centre."""
+    f = furniture(pid)
+    t = f.get("translation", [0, 0, 0])
+    s = f.get("scale", [1, 1, 1])
+    t = (-t[0], t[1], -t[2])
+    return lambda p: [8 + 16 * t[i] + s[i] * (p[i] - 8) for i in range(3)]
+
+
 def piece(pid, ox=0, oz=0, turn=0):
-    """Preview data of a piece standing on the floor (y 0), moved by (ox, oz) model units and turned by
-    `turn` quarter turns around the anchor cell's centre (as placing it facing another way would)."""
-    fn, _size, floor = F.PIECES[pid]
+    """Preview data of a piece standing on the floor (y 0) as the item file places it, moved by (ox, oz) model
+    units and turned by `turn` quarter turns around the anchor cell's centre (as placing it facing another way
+    would)."""
+    fn = F.PIECES[pid][0]
     data = fn().to_preview()
+    place = placement(pid)
 
     def tr(p):
-        x, y, z = p[0] - 8, p[1] - floor, p[2] - 8
+        x, y, z = place(p)
+        x, z = x - 8, z - 8
         for _ in range(turn % 4):
             x, z = -z, x
         return [x + 8 + ox, y, z + 8 + oz]
@@ -106,7 +135,8 @@ def views_of(pid, views=THREE_VIEWS):
     hi = [max(e["to"][i] for e in els) for i in range(3)]
     centre = [(lo[i] + hi[i]) / 2 for i in range(3)]
     radius = max(10.0, sum((hi[i] - lo[i]) ** 2 for i in range(3)) ** 0.5 / 2)
-    data = {"textures": tex, "elements": els, "grid": True, "center": centre, "radius": radius, "views": views}
+    data = {"textures": tex, "elements": els, "grid": True, "gridAt": [0, 0], "center": centre, "radius": radius,
+            "views": views}
     return render(data, pid)
 
 
@@ -186,7 +216,7 @@ def room(out):
 # the real thing each piece stands for, roughly (w x d x h, metres; 1 block ~ 1 m, a player 1.8 m)
 REAL = {
     "tatami": "1.8×0.9 m, 두께 5 cm", "zabuton": "55×60 cm, 두께 10 cm", "chabudai": "지름 75 cm, 높이 35 cm",
-    "kotatsu": "탁자 80 cm, 이불 1.9 m", "futon": "1×2 m", "shoji_screen": "폭 1.8 m, 높이 1.7 m",
+    "kotatsu": "탁자 80 cm, 이불 1.9 m", "futon": "2인용 1.4×2.1 m", "shoji_screen": "폭 1.8 m, 높이 1.7 m",
     "fusuma_panel": "문 한 짝 0.9×1.8 m", "hanging_scroll": "폭 0.55 m, 길이 1.8 m", "noren": "폭 0.9 m, 길이 0.9~1.5 m",
     "bamboo_fence": "높이 1.2~1.8 m", "andon": "폭 30 cm, 높이 75 cm", "stone_lantern": "높이 1.5~2 m",
     "chochin": "지름 30~45 cm, 높이 50~70 cm", "bonsai": "높이 30~60 cm", "ikebana": "수반 35 cm, 높이 60~90 cm",
@@ -278,6 +308,98 @@ def scale_sheet(pids, out, ko):
     print(f"scale   {out.relative_to(REPO) if out.is_relative_to(REPO) else out}")
 
 
+def _solid(rgb):
+    """A 16 x 16 texture of one colour, as a data URL (outlines drawn into a preview)."""
+    import base64
+    import io
+    buf = io.BytesIO()
+    Image.new("RGBA", (16, 16), (*rgb, 255)).save(buf, "PNG")
+    return "data:image/png;base64," + base64.b64encode(buf.getvalue()).decode()
+
+
+def _outline(x0, z0, x1, z1, y, w, tex):
+    """Four thin flat strips (only their top faces) round the rectangle x0..x1 / z0..z1 at height y."""
+    face = {"up": {"uv": [0, 0, 16, 16], "texture": tex}}
+    strips = ((x0, z0, x1, z0 + w), (x0, z1 - w, x1, z1), (x0, z0, x0 + w, z1), (x1 - w, z0, x1, z1))
+    return [{"from": [a, y, b], "to": [c, y + 0.01, d], "glow": True, "shade": False, "rotation": None, "faces": face}
+            for (a, b, c, d) in strips]
+
+
+def _bounds(els):
+    """x / z bounds of preview elements (rotated ones by their turned corners)."""
+    xs, zs = [], []
+    for e in els:
+        corners = [[(e["from"], e["to"])[i >> k & 1][k] for k in range(3)] for i in range(8)]
+        if e.get("rotation"):
+            axis, angle, o = e["rotation"]
+            a = math.radians(angle)
+            u, v = {"x": (1, 2), "y": (2, 0), "z": (0, 1)}[axis]
+            for p in corners:
+                pu, pv = p[u] - o[u], p[v] - o[v]
+                p[u], p[v] = o[u] + pu * math.cos(a) - pv * math.sin(a), o[v] + pu * math.sin(a) + pv * math.cos(a)
+        xs += [p[0] for p in corners]
+        zs += [p[2] for p in corners]
+    return min(xs), max(xs), min(zs), max(zs)
+
+
+def footprint_sheet(pids, out, ko):
+    """Every piece seen from straight above, placed facing each of the four ways: its cells outlined (blue), the
+    bounds of its model (orange) and the margins between them, which are the same on both sides (the piece sits
+    in the middle of its cells; JapaneseFurnitureTest checks it on the shipped models)."""
+    cols, tile, label, ppu = 3, 150, 54, 2.0
+    rows = (len(pids) + cols - 1) // cols
+    fov = 2
+    dist = (tile / ppu) / 2 / math.tan(math.radians(fov / 2))
+    textures = {"_cells": _solid((90, 170, 255)), "_bounds": _solid((255, 150, 40))}
+    elements, views, info = [], [], []
+    for k, pid in enumerate(pids):
+        cells = furniture(pid)["cells"]
+        for turn in range(4):
+            base = (k * 4 + turn) * 200                  # far apart: one scene, one view per placement
+            tex, els = piece(pid, base, 0, turn)
+            textures.update(tex)
+            elements += els
+            top = max(e["to"][1] for e in els) + 0.5
+            sq = []
+            for (cx, _cy, cz) in cells:
+                x, z = cx * 16, cz * 16                  # the cell's offset from the anchor's, turned like piece()
+                for _ in range(turn):
+                    x, z = -z, x
+                sq.append((x + base, z))
+            for (x, z) in set(sq):
+                elements += _outline(x, z, x + 16, z + 16, top, 0.6, "_cells")
+            fx0, fx1 = min(q[0] for q in sq), max(q[0] for q in sq) + 16
+            fz0, fz1 = min(q[1] for q in sq), max(q[1] for q in sq) + 16
+            bx0, bx1, bz0, bz1 = _bounds(els)
+            elements += _outline(bx0, bz0, bx1, bz1, top + 0.2, 0.6, "_bounds")
+            col, row = (k % cols) * 4 + turn, k // cols
+            views.append({"x": col * tile, "y": row * tile, "w": tile, "h": tile, "az": 0, "el": 89.5, "k": dist,
+                          "radius": 1, "fov": fov, "far": 8000, "center": [(fx0 + fx1) / 2, 0, (fz0 + fz1) / 2]})
+            if turn == 0:
+                info.append((pid, (bx0 - fx0, fx1 - bx1), (bz0 - fz0, fz1 - bz1)))
+    data = {"textures": textures, "elements": elements, "grid": False, "size": [cols * 4 * tile, rows * tile],
+            "views": views}
+    im = render(data, "footprints")
+    font = ImageFont.truetype(FONT, 19)
+    small = ImageFont.truetype(FONT, 14)
+    head = 52
+    sheet = Image.new("RGB", (cols * 4 * tile, head + rows * (tile + label)), (27, 29, 34))
+    d = ImageDraw.Draw(sheet)
+    d.text((14, 12), "칸과 모델 (위에서) · 파랑 = 차지하는 칸, 주황 = 모델의 범위 · 놓는 방향 4가지 (앞 = 아래쪽) · 여백은 양쪽이 같게",
+           font=font, fill=(235, 232, 222))
+    for k, (pid, mx, mz) in enumerate(info):
+        x, oy = (k % cols) * 4 * tile, head + (k // cols) * (tile + label)
+        sheet.paste(im.crop((x, (k // cols) * tile, x + 4 * tile, (k // cols + 1) * tile)), (x, oy))
+        d.rectangle((x, oy + tile, x + 4 * tile - 2, oy + tile + label - 2), fill=(40, 43, 52))
+        d.text((x + 8, oy + tile + 4), ko.get(pid, pid), font=font, fill=(245, 242, 232))
+        ok = abs(mx[0] - mx[1]) <= 1 and abs(mz[0] - mz[1]) <= 1
+        note = "" if ok else ("  (벽에 거는 것: 뒤는 벽에 붙음)" if pid == "hanging_scroll" else "  !")
+        d.text((x + 8, oy + tile + 30), f"여백 x {mx[0] / 16:.2f} / {mx[1] / 16:.2f} · z {mz[0] / 16:.2f} / {mz[1] / 16:.2f}칸{note}",
+               font=small, fill=(170, 200, 170) if ok else (230, 190, 120))
+    sheet.save(out, optimize=True)
+    print(f"sheet   {out.relative_to(REPO) if out.is_relative_to(REPO) else out}")
+
+
 def piece_images(pids, out_dir, ko):
     """One large picture per piece (four angles, its Korean name, size and icon), to judge details."""
     out_dir = Path(out_dir)
@@ -310,6 +432,9 @@ def main():
     if args[:1] == ["--scale"]:
         scale_sheet(list(F.PIECES), Path(args[1]) if len(args) > 1 else PREVIEWS / "furniture_scale.png", ko)
         return
+    if args[:1] == ["--footprints"]:
+        footprint_sheet(list(F.PIECES), Path(args[1]) if len(args) > 1 else PREVIEWS / "furniture_footprints.png", ko)
+        return
     if args[:1] == ["--pieces"]:
         piece_images(args[2:] or list(F.PIECES), args[1], ko)
         return
@@ -323,6 +448,7 @@ def main():
     icon_sheet(pids, PREVIEWS / "furniture_japanese_icons.png", ko)
     room(PREVIEWS / "furniture_japanese_room.png")
     scale_sheet(pids, PREVIEWS / "furniture_scale.png", ko)
+    footprint_sheet(pids, PREVIEWS / "furniture_footprints.png", ko)
 
 
 if __name__ == "__main__":

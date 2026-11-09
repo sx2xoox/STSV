@@ -8,6 +8,10 @@ Coordinates: model units (16 = 1 block), front = north (z 0), the anchor cell is
 floor. Pieces that reach over a block to the left/right or to the front use negative x / z (the kotatsu's
 cushions, the torii's posts); pieces three blocks tall are drawn from y 0 and moved down a block (dy -16,
 furniture translation [0, 1, 0]), like the forge. Seen from the front, model +x is on the viewer's LEFT.
+Every piece sits in the middle of its cells (a size that is not a whole number of blocks, e.g. the futon's
+1.5 x 2.5, leaves the same margin on both sides; JapaneseFurnitureTest checks it, docs/previews/
+furniture_footprints.png shows it); a piece wider than a model may be (over 3 blocks: the torii) is drawn at its
+real size and shrunk (BModel scale), the item display scaling it back up (furniture.scale).
 
 Collision and click boxes come from the model itself (FurnitureShape: a cell gets a barrier when the model
 fills 30% of it, voxels of 1/4 block), so low and thin things (mats, cushions, curtains, stepping stones) are
@@ -173,9 +177,9 @@ def tatami():
     return display(m, (2, 1, 1), 0)
 
 
-def cushion(m, x0, z0, w, colour="crimson"):
-    """Zabuton: a square floor cushion 2.75 high, softly domed, with a piped seam, a tuft in the middle and a
-    gold tassel at each corner."""
+def cushion(m, x0, z0, w, colour="crimson", h=1.0):
+    """Zabuton: a square floor cushion 2.75 high (times h), softly domed, with a piped seam, a tuft in the middle
+    and a gold tassel at each corner."""
     cloth = Paint(colour, 2, "weave", rim=0.8)
 
     def seam(c):
@@ -185,14 +189,15 @@ def cushion(m, x0, z0, w, colour="crimson"):
             if 1 < min(dx, dz) < 2:
                 return (colour, 3)
         return None
-    m.box("cushion", (x0, 0, z0), (x0 + w, 1.25, z0 + w), cloth)
-    m.box("cushion", (x0 + 0.5, 1.25, z0 + 0.5), (x0 + w - 0.5, 2.25, z0 + w - 0.5), cloth(decal=seam))
-    m.box("cushion_top", (x0 + 2.5, 2.25, z0 + 2.5), (x0 + w - 2.5, 2.75, z0 + w - 2.5), cloth)
+    y1, y2, y3, y4 = (round(v * h * 4) / 4 for v in (1.25, 2.25, 2.75, 3.0))
+    m.box("cushion", (x0, 0, z0), (x0 + w, y1, z0 + w), cloth)
+    m.box("cushion", (x0 + 0.5, y1, z0 + 0.5), (x0 + w - 0.5, y2, z0 + w - 0.5), cloth(decal=seam))
+    m.box("cushion_top", (x0 + 2.5, y2, z0 + 2.5), (x0 + w - 2.5, y3, z0 + w - 2.5), cloth)
     c = w / 2
-    m.box("tuft", (x0 + c - 0.5, 2.75, z0 + c - 0.5), (x0 + c + 0.5, 3.0, z0 + c + 0.5), flat(colour, 0))
+    m.box("tuft", (x0 + c - 0.5, y3, z0 + c - 0.5), (x0 + c + 0.5, y4, z0 + c + 0.5), flat(colour, 0))
     tassel = Paint("gold", 2, noise=0, rim=0.5)
     for (dx, dz) in ((-0.5, -0.5), (w - 0.5, -0.5), (-0.5, w - 0.5), (w - 0.5, w - 0.5)):
-        m.box("tassel", (x0 + dx + 0.125, 0.25, z0 + dz + 0.125), (x0 + dx + 0.875, 1.5, z0 + dz + 0.875), tassel)
+        m.box("tassel", (x0 + dx + 0.125, 0.25, z0 + dz + 0.125), (x0 + dx + 0.875, y1 + 0.25, z0 + dz + 0.875), tassel)
 
 
 def zabuton():
@@ -204,38 +209,41 @@ def zabuton():
 
 
 def chabudai():
-    """좌식 탁자: a round low table on folding legs, two cups of green tea and a skewer of hanami dango."""
+    """좌식 탁자: a round low table on folding legs (a whole block across, its top 9 px up: still a floor table,
+    and never over the cushions round it), two cups of green tea and a skewer of hanami dango."""
     m = BModel("chabudai")
     m.group("table")
     top = Paint("wood", 2, "planks", axis="x", width=3, rim=1.0)
 
     def edge(c):
-        if c.face == "up" and math.hypot(c.p[0] - 8, c.p[2] - 8) > 6.6:
+        if c.face == "up" and math.hypot(c.p[0] - 8, c.p[2] - 8) > 7.1:
             return ("wood", 1)
         return None
-    cyl(m, "top", (8, 8), 15, 6, 7.5, top(decal=edge))
-    cyl(m, "apron", (8, 8), 12, 5, 6, DARK)
+    cyl(m, "top", (8, 8), 16, 7.25, 9, top(decal=edge))
+    cyl(m, "apron", (8, 8), 13, 6, 7.25, DARK)
     leg = Paint("wood_dark", 1, "grain", axis="y")
-    for (x, z) in ((4, 4), (10.5, 4), (4, 10.5), (10.5, 10.5)):
-        m.box("leg", (x, 0, z), (x + 1.5, 5, z + 1.5), leg)
-    m.box("brace", (5.5, 1.5, 4.25), (10.5, 2.25, 5.25), DARK)
-    m.box("brace", (5.5, 1.5, 10.75), (10.5, 2.25, 11.75), DARK)
+    for (x, z) in ((3.5, 3.5), (11, 3.5), (3.5, 11), (11, 11)):
+        m.box("leg", (x, 0, z), (x + 1.5, 6, z + 1.5), leg)
+    m.box("brace", (5, 1.75, 3.75), (11, 2.5, 4.75), DARK)
+    m.box("brace", (5, 1.75, 11.25), (11, 2.5, 12.25), DARK)
     m.group("tea")
-    for (x, z) in ((5.5, 6.5), (9.5, 10.5)):
-        m.box("cup_foot", (x - 1, 7.5, z - 1), (x + 1, 7.75, z + 1), flat("celadon", 1))
-        cup(m, "cup", (x, z), 7.75, 10, CELADON(decal=tea_top(x, z)))
+    for (x, z) in ((5.5, 6.5), (10, 11)):
+        m.box("cup_foot", (x - 1, 9, z - 1), (x + 1, 9.25, z + 1), flat("celadon", 1))
+        cup(m, "cup", (x, z), 9.25, 11.75, CELADON(decal=tea_top(x, z)))
     m.group("dango")
-    cyl(m, "plate", (10, 5.5), 5, 7.5, 8, PORCELAIN)
-    m.box("skewer", (7.5, 8.75, 5.25), (13, 9.0, 5.75), flat("bamboo", 3))
+    cyl(m, "plate", (10.5, 5.5), 5, 9, 9.5, PORCELAIN)
+    m.box("skewer", (8, 10.25, 5.25), (13.5, 10.5, 5.75), flat("bamboo", 3))
     for k, ramp_name in enumerate(("pink", "rice", "sprout")):
-        x = 8.25 + 1.5 * k
-        m.box("dango", (x, 8, 4.75), (x + 1.5, 9.5, 6.25), Paint(ramp_name, 1 if ramp_name == "rice" else 2, noise=0))
+        x = 8.75 + 1.5 * k
+        m.box("dango", (x, 9.5, 4.75), (x + 1.5, 11, 6.25), Paint(ramp_name, 1 if ramp_name == "rice" else 2, noise=0))
     return display(m, (1, 1, 1), 0)
 
 
 def kotatsu():
-    """고타츠: the heated table under its quilt (the quilt falls in folds to the floor), a wooden board, a
-    basket of mandarins, and a cushion on each side (plus-shaped, 3x3 blocks without the corners)."""
+    """고타츠: the heated table under its quilt (the quilt falls in folds and spreads out on the floor), a wooden
+    board, a basket of mandarins, and a cushion on each side (plus-shaped, 3x3 blocks without the corners).
+    The table stays a block wide above the floor layer (y 4 up): anything more over the cushions' cells would
+    fill them enough for a barrier where people sit; so it grows in height and in the quilt's spread instead."""
     m = BModel("kotatsu")
     m.group("table")
 
@@ -245,43 +253,48 @@ def kotatsu():
         v = i[2] if c.face == "up" else i[1]
         on_u, on_v = u % 6 in (1, 2), v % 6 in (1, 2)
         step = 1 if on_u and on_v else 2 if on_u or on_v else 3
-        if c.side and c.p[1] < 5.5 and u % 4 == 0:      # folds where the quilt falls to the floor
+        if c.side and c.p[1] < 6.5 and u % 4 == 0:      # folds where the quilt falls to the floor
             step -= 1
         return ("fox", step)
     quilt = Paint("fox", 3, decal=plaid, rim=0.7)
-    m.box("quilt_hem", (0, 0, 0), (16, 1, 16), quilt)
-    m.box("quilt", (0.5, 1, 0.5), (15.5, 5.5, 15.5), quilt)
-    m.box("quilt_top", (1, 5.5, 1), (15, 6, 15), quilt)
+    # the quilt spreads out on the floor in three steps (all under y 4, the cushions' layer)
+    m.box("quilt_spread", (-1.5, 0, -1.5), (17.5, 1, 17.5), quilt)
+    m.box("quilt_spread", (-1, 1, -1), (17, 2.25, 17), quilt)
+    m.box("quilt_hem", (-0.5, 2.25, -0.5), (16.5, 3.5, 16.5), quilt)
+    m.box("quilt", (0.25, 3.5, 0.25), (15.75, 6.75, 15.75), quilt)
+    m.box("quilt_top", (0.75, 6.75, 0.75), (15.25, 7.25, 15.25), quilt)
 
     def board_edge(c):
         if c.face == "up" and (c.i[0] in (0, 15) or c.i[2] in (0, 15)):
             return ("wood_dark", 1)
         return None
-    m.box("board", (0, 6, 0), (16, 7.25, 16), Paint("wood", 2, "planks", axis="x", width=4, decal=board_edge))
+    m.box("board", (0, 7.25, 0), (16, 8.75, 16), Paint("wood", 2, "planks", axis="x", width=4, decal=board_edge))
     m.group("mikan")
-    m.box("basket", (5, 7.25, 5), (11, 8.75, 11), Paint("straw", 2, "weave"))
-    m.box("basket_inside", (5.75, 8.75, 5.75), (10.25, 9.0, 10.25), Paint("straw", 1, "weave"))
+    m.box("basket", (4.5, 8.75, 4.5), (11.5, 10.5, 11.5), Paint("straw", 2, "weave"))
+    m.box("basket_inside", (5.25, 10.5, 5.25), (10.75, 10.75, 10.75), Paint("straw", 1, "weave"))
     orange = Paint("fox", 3, noise=0, rim=1.0)
-    for (x, z, y) in ((5.75, 6, 9.0), (8.25, 6.25, 9.0), (6.25, 8.5, 9.0), (8.5, 8.5, 9.0), (7, 7.25, 10.75)):
-        m.box("mikan", (x, y, z), (x + 1.75, y + 1.75, z + 1.75), orange)
-        m.box("mikan_stem", (x + 0.75, y + 1.75, z + 0.75), (x + 1.0, y + 2.0, z + 1.0), flat("leaf_dark", 1))
-    m.box("leaf", (8.75, 12.5, 7.75), (10.25, 12.75, 8.75), flat("leaf", 3))
+    for (x, z, y) in ((5.25, 5.5, 10.75), (8.25, 5.75, 10.75), (5.75, 8.5, 10.75), (8.5, 8.5, 10.75), (7, 7, 12.75)):
+        m.box("mikan", (x, y, z), (x + 2, y + 2, z + 2), orange)
+        m.box("mikan_stem", (x + 0.75, y + 2, z + 0.75), (x + 1.25, y + 2.25, z + 1.25), flat("leaf_dark", 1))
+    m.box("leaf", (8.25, 14.75, 7.5), (9.75, 15.0, 8.5), flat("leaf", 3))
     m.group("cushions")
-    cushion(m, 2, -14, 12)
-    cushion(m, 2, 18, 12)
-    cushion(m, -14, 2, 12)
-    cushion(m, 18, 2, 12)
+    # 14 px cushions (were 12), each centred on its side's cell, a touch taller: the seats are at y 3 (0.19)
+    cushion(m, 1, -15.5, 14, h=1.15)
+    cushion(m, 1, 17.5, 14, h=1.15)
+    cushion(m, -15.5, 1, 14, h=1.15)
+    cushion(m, 17.5, 1, 14, h=1.15)
     return display(m, (3, 1, 3), 0)
 
 
 def futon():
-    """이불 세트 1x2: a white mattress, an indigo quilt with a hemp-leaf (asanoha) pattern that drapes over
-    the sides, its white collar folded back, and a striped buckwheat pillow."""
-    m = BModel("futon")
+    """이불 세트 2x3 칸 (1.5 x 2.5 blocks, centred: a quarter block free all round): a white mattress, an indigo
+    quilt with a hemp-leaf (asanoha) pattern that drapes over the sides, its white collar folded back, and two
+    striped buckwheat pillows side by side."""
+    m = BModel("futon", shift=(0, 0, -16))           # drawn over z 0..48, its cells are z -1..1 (anchor in the middle)
     m.group("futon")
     cotton = Paint("rice", 1, "weave", rim=0.8)
-    m.box("shikibuton", (1, 0, 1), (15, 1.5, 31), cotton)
-    m.box("shikibuton", (1.5, 1.5, 1.5), (14.5, 2, 30.5), cotton)
+    m.box("shikibuton", (4.5, 0, 4.5), (27.5, 1.5, 44), cotton)
+    m.box("shikibuton", (5, 1.5, 5), (27, 2, 43.5), cotton)
 
     def asanoha(c):
         if c.face == "down":
@@ -298,21 +311,22 @@ def futon():
             return ("porcelain", 1)                    # a dot in the middle of each
         return ("indigo", 2)
     quilt = Paint("indigo", 2, decal=asanoha, rim=0.8)
-    m.box("kakebuton", (0.5, 2, 0.5), (15.5, 3.5, 20.5), quilt)
-    m.box("drape", (0, 0.5, 0.5), (0.5, 3.5, 20.5), quilt)
-    m.box("drape", (15.5, 0.5, 0.5), (16, 3.5, 20.5), quilt)
-    m.box("drape", (0.5, 0.5, 0), (15.5, 3.5, 0.5), quilt)
-    m.box("collar", (0.5, 3.5, 17.5), (15.5, 4, 21), Paint("rice", 2, "weave", rim=0.8))
+    m.box("kakebuton", (4.5, 2, 4.5), (27.5, 3.5, 33), quilt)
+    m.box("drape", (4, 0.5, 4.5), (4.5, 3.5, 33), quilt)
+    m.box("drape", (27.5, 0.5, 4.5), (28, 3.5, 33), quilt)
+    m.box("drape", (4.5, 0.5, 4), (27.5, 3.5, 4.5), quilt)
+    m.box("collar", (4.5, 3.5, 29), (27.5, 4, 33.5), Paint("rice", 2, "weave", rim=0.8))
     m.group("pillow")
 
     def stripes(c):
         return ("indigo", 3) if c.i[0] % 3 == 0 else ("rice", 1)
     # kept under a quarter block, like the rest of the futon, so it never blocks a sleeper
     pillow = Paint("rice", 1, decal=stripes, rim=0.6)
-    m.box("makura", (4.5, 2, 24), (11.5, 4, 28), pillow)
-    for x0 in (4, 11.5):
-        m.box("makura_end", (x0, 2.25, 24.5), (x0 + 0.5, 3.75, 27.5), pillow)
-    return display(m, (1, 1, 2), 0)
+    for x in (7.5, 17.5):                     # two pillows, mirrored about the futon's middle (x 16)
+        m.box("makura", (x, 2, 36.5), (x + 7, 4, 40.5), pillow)
+        for x0 in (x - 0.5, x + 7):
+            m.box("makura_end", (x0, 2.25, 37), (x0 + 0.5, 3.75, 40), pillow)
+    return display(m, (2, 1, 3), 0)
 
 
 # ================================================================================================
@@ -353,24 +367,30 @@ def shoji_screen():
 
 
 def _fusuma_art(col, row):
-    """The painting over both doors, 26 x 25 px (col 0 at the viewer's left, row 0 at the top): gold leaf
-    squares, drifting gold clouds, Mt Fuji in indigo with its snow cap, a red sun, a pine in the corner."""
-    peak = 9
-    half = (row - peak) * 0.95 + 1.0
-    fuji = row >= peak and abs(col + 0.5 - 13) <= half
-    if math.hypot(col + 0.5 - 20.5, row + 0.5 - 5.5) < 3.1:
-        return ("vermilion", 2 if col + row < 25 else 1)
-    for (cx, cy, rx) in ((4, 12, 4), (7, 16, 3), (2, 19, 3), (5, 22, 3)):
+    """The painting over both doors, 26 x 44 px (col 0 at the viewer's left, row 0 at the top): gold leaf
+    squares, drifting gold clouds, the red sun high up, Mt Fuji in indigo with its snow cap rising above a
+    sea of gold cloud, a pine in the lower corner."""
+    peak = 13
+    half = (row - peak) * 0.72 + 1.0
+    fuji = peak <= row < 34 and abs(col + 0.5 - 14) <= half
+    if math.hypot(col + 0.5 - 20.5, row + 0.5 - 7.5) < 3.6:
+        return ("vermilion", 2 if col + row < 27 else 1)
+    for (cx, cy, rx) in ((4, 24, 4), (7, 29, 3), (2, 33, 3), (6, 37, 3), (3, 40, 3)):
         if row in (cy, cy + 1) and abs(col - cx) <= (rx if row == cy + 1 else rx - 1):
             return ("leaf_dark", 2 if row == cy else 1)
-    if (col in (3, 4) and row >= 13) or (col == 5 and 15 <= row <= 16) or (col == 2 and 19 <= row <= 20):
+    if (col in (3, 4) and row >= 25) or (col == 5 and 27 <= row <= 29) or (col == 2 and 33 <= row <= 34) \
+            or (col == 5 and 36 <= row <= 37):
         return ("bark", 1 if col == 4 else 2)
+    # the sea of cloud Fuji rises from, and drifting clouds lower down
+    for (x0, x1, y) in ((3, 26, 32), (0, 26, 34), (9, 24, 38), (14, 26, 41)):
+        if (row == y and x0 <= col < x1) or (row == y + 1 and x0 + 1 <= col < x1 - 1):
+            return ("gold", 3)
     if fuji:
-        snow = row < peak + 4 + (1 if col % 3 == 0 else 0) - (1 if col % 4 == 1 else 0)
+        snow = row < peak + 7 + (1 if col % 3 == 0 else 0) - (1 if col % 4 == 1 else 0)
         if snow:
-            return ("porcelain", 2 if col < 13 else 1)
-        return ("indigo", 3 if col < 13 else 2)
-    for (x0, x1, y) in ((1, 10, 9), (15, 25, 13), (18, 26, 14), (0, 7, 3), (10, 22, 22)):
+            return ("porcelain", 2 if col < 14 else 1)
+        return ("indigo", 3 if col < 14 else 2)
+    for (x0, x1, y) in ((0, 7, 3), (8, 16, 6), (1, 11, 13), (18, 26, 16), (0, 6, 20)):
         if (row == y and x0 <= col < x1) or (row == y + 1 and x0 + 1 <= col < x1 - 1):
             return ("gold", 3)
     # gold leaf squares: every other square a shade warmer, no hard grid lines
@@ -378,17 +398,18 @@ def _fusuma_art(col, row):
 
 
 def fusuma_panel():
-    """후스마 장식 2x2: two sliding doors in black lacquer frames, painted as one picture across both (Mt Fuji and
-    the red sun on gold leaf), round recessed handles; the backs are patterned karakami paper."""
-    m = BModel("fusuma_panel")
+    """후스마 장식 2x3: two sliding doors three blocks tall in black lacquer frames, painted as one picture across
+    both (Mt Fuji and the red sun on gold leaf), round recessed handles; the backs are patterned karakami paper.
+    Drawn from y 0 and moved down a block (furniture translation [0, 1, 0]), like the torii."""
+    m = BModel("fusuma_panel", dy=-16)
 
     def art(c):
         if c.face == "north":
             col = math.floor(31 - c.p[0] - 1.5)
             if col >= 13:
                 col -= 3                      # the two middle stiles hide 3 px of the picture's seam
-            row = math.floor(27.5 - c.p[1])
-            if 0 <= col < 26 and 0 <= row < 25:
+            row = math.floor(46.5 - c.p[1])
+            if 0 <= col < 26 and 0 <= row < 44:
                 return _fusuma_art(col, row)
         if c.face == "south":
             u, v = c.i[0] % 4, c.i[1] % 4
@@ -396,21 +417,21 @@ def fusuma_panel():
         return None
     m.group("frames")
     for x0 in (0, 16):
-        m.box("frame", (x0, 1, 7), (x0 + 1.5, 29, 9), LACQ)
-        m.box("frame", (x0 + 14.5, 1, 7), (x0 + 16, 29, 9), LACQ)
-        m.box("frame", (x0 + 1.5, 27.5, 7), (x0 + 14.5, 29, 9), LACQ)
+        m.box("frame", (x0, 1, 7), (x0 + 1.5, 48, 9), LACQ)
+        m.box("frame", (x0 + 14.5, 1, 7), (x0 + 16, 48, 9), LACQ)
+        m.box("frame", (x0 + 1.5, 46.5, 7), (x0 + 14.5, 48, 9), LACQ)
         m.box("frame", (x0 + 1.5, 1, 7), (x0 + 14.5, 2.5, 9), LACQ)
     m.group("paintings")
     for x0 in (0, 16):
-        m.box("paper", (x0 + 1.5, 2.5, 7.5), (x0 + 14.5, 27.5, 8.5), Paint("gold", 2, decal=art, ao=0.5, rim=0.3))
-        # the hikite: a round dark pull set into each door, on the side away from where they meet
+        m.box("paper", (x0 + 1.5, 2.5, 7.5), (x0 + 14.5, 46.5, 8.5), Paint("gold", 2, decal=art, ao=0.5, rim=0.3))
+        # the hikite: a round dark pull set into each door, on the side away from where they meet, at hand height
         hx = x0 + (3 if x0 == 16 else 11.5)
-        m.box("hikite_rim", (hx - 0.25, 13.25, 7.25), (hx + 1.75, 15.75, 7.5), flat("brass", 1))
-        m.box("hikite", (hx, 13.5, 7.125), (hx + 1.5, 15.5, 7.25), flat("rubber", 0, rim=0))
+        m.box("hikite_rim", (hx - 0.25, 21.25, 7.25), (hx + 1.75, 23.75, 7.5), flat("brass", 1))
+        m.box("hikite", (hx, 21.5, 7.125), (hx + 1.5, 23.5, 7.25), flat("rubber", 0, rim=0))
     m.group("feet")
     for x in (1, 27):
         m.box("foot", (x, 0, 4), (x + 4, 1, 12), LACQ)
-    return display(m, (2, 2, 1), 0)
+    return display(m, (2, 3, 1), -16)
 
 
 def hanging_scroll():
@@ -672,7 +693,7 @@ def chochin():
 def bonsai():
     """분재: a pine trained into an S-curved trunk in a shallow glazed pot, its needles in flat cloud pads that
     float apart on the branches, moss and a stone on the soil."""
-    m = BModel("bonsai")
+    m = BModel("bonsai", shift=(0.5, 0, -0.25))      # centred in its block (the pads reach further left)
     m.group("pot")
     m.box("pot", (2, 1, 4), (14, 3.5, 12), Paint("indigo", 1, noise=0.03))
     m.box("pot_lip", (1.5, 3.5, 3.5), (14.5, 4.25, 12.5), Paint("indigo", 2, noise=0.02))
@@ -777,8 +798,9 @@ def bamboo_pot():
                  ".##.###.",
                  "##...###",
                  "#.....##"]
-    for (x, y, z, axis) in ((1.5, 30, 7.75, "x"), (7.0, 31.5, 7.25, "z"), (9.5, 25, 5.75, "x"), (4.5, 25.5, 4, "z"),
-                            (9, 21, 10.75, "x"), (5.5, 18.5, 12, "z")):
+    # the sprays balanced round the planter, so the piece stays centred in its block
+    for (x, y, z, axis) in ((0.5, 30, 7.75, "x"), (7.0, 31.5, 7.25, "z"), (8.5, 25, 5.75, "x"), (4.5, 25.5, 1, "z"),
+                            (8, 21, 10.75, "x"), (5.5, 18.5, 7.5, "z")):
         p = Paint("leaf", 2, decal=_leaf_spray(leaf_rows, x, y, z, axis), ao=0.3)
         if axis == "x":
             m.box("leaf", (x, y - 5, z), (x + 8, y, z), p)
@@ -823,7 +845,7 @@ def sakura_pot():
         return ("sakura", 2 if r < 0.75 else 1)
     pink = Paint("sakura", 2, decal=bloom, rim=0.7)
     for (c, w, h, d) in (((3, 16, 8), 6, 4, 6), ((13, 17.5, 8), 6, 4, 6), ((8, 20.5, 8), 8, 5, 7),
-                         ((8.5, 15.25, 12.25), 5, 3.5, 4), ((10.5, 23.5, 9.25), 4, 2.5, 4), ((5.25, 20.25, 6.75), 4, 3, 4)):
+                         ((8.5, 15.25, 11.75), 5, 3.5, 4), ((10.5, 23.5, 9.25), 4, 2.5, 4), ((5.25, 20.25, 6.75), 4, 3, 4)):
         puff(m, "blossom", c, w, h, d, pink)
     return display(m, (1, 2, 1), 0)
 
@@ -963,7 +985,7 @@ def sake_set():
 def taiko_drum():
     """다이코 북 1x2: a barrel drum of deep-red lacquered wood lying on a stand, cream cowhide heads tacked on with
     a ring of iron studs and painted with the three-comma tomoe, brass carrying rings, two sticks."""
-    m = BModel("taiko_drum")
+    m = BModel("taiko_drum", shift=(0, 0, 0.875))    # centred in its block with the sticks in front
     cy = 14
 
     def skin(c):
@@ -1106,7 +1128,7 @@ def daruma():
     bold black brows, two large round eyes (the one on the viewer's right painted in, the other still a blank
     white circle: the wish is still to come true), a red nose, a bushy moustache whose ends curl up; gold
     clouds on its sides, a gold band at the hem and a gold mark on its back."""
-    m = BModel("daruma")
+    m = BModel("daruma", shift=(0, 0, -1.5))         # centred in its block (its front is pressed flat)
     # the face, 14 px wide (column 0 at the viewer's left, x 15 -> 14), from y 14 down: W white, K black ink,
     # R red (nose), G gold, '.' the red lacquer
     face = ["....WWWWWW....",   # y 13
@@ -1323,42 +1345,50 @@ def kimono_rack():
 
 
 def torii():
-    """도리이 3x3: a myōjin torii: vermilion posts on black bases, the black kasagi on top with its ends swept up,
-    the shimaki under it, the nuki tie beam through the posts with wedges, and the name plaque on its strut.
-    Walk through the middle."""
-    m = BModel("torii", dy=-16)
+    """도리이 4x4 (3.75 x 3.3 blocks): a myōjin torii: vermilion posts on black bases, the black kasagi on top with
+    its ends swept up, the shimaki under it, the nuki tie beam through the posts with wedges (2.1 blocks up: a
+    player walks under it with room to spare), and the name plaque on its strut. Walk through the middle: two
+    blocks wide between the posts (cells x 0 and 1; the posts stand in cells -1 and 2).
+    Bigger than a model may be: drawn at its real size round x 16, shrunk by 1.25 and scaled back up by the item
+    display (furniture.scale 1.25, translation [-0.5, 1, 0]), so its texels are the same 1/16 block as the rest."""
+    m = BModel("torii", shift=(-8, -16, 0), scale=1.25)
     red = Paint("vermilion", 2, "grain", axis="long", noise=0.04)
     black = LACQ
     m.group("posts")
-    for cx in (-10, 26):
-        cyl(m, "hashira", (cx, 8), 5, 3, 38, red)
-        cyl(m, "kamaki", (cx, 8), 6, 0, 3, black)
+    for cx in (-6, 38):
+        cyl(m, "hashira", (cx, 8), 6, 3.5, 46, red)
+        cyl(m, "kamaki", (cx, 8), 7, 0, 3.5, black)
     m.group("beams")
-    m.box("nuki", (-16, 28, 7), (-12.5, 30.5, 9), red)
-    m.box("nuki", (-7.5, 28, 7), (23.5, 30.5, 9), red)
-    m.box("nuki", (28.5, 28, 7), (32, 30.5, 9), red)
-    for x in (-15, 29.5):
-        m.box("kusabi", (x, 28.25, 6.5), (x + 1.5, 30.25, 7), black)
-    m.box("shimaki", (-14, 37.5, 6.25), (30, 40, 9.75), red)
-    m.box("kasagi", (-10, 40, 5.5), (26, 42.5, 10.5), black)        # it sweeps up towards its ends
-    for (x0, x1, lo, hi) in ((-14, -10, 40.5, 43), (26, 30, 40.5, 43), (-16, -14, 41.25, 44), (30, 32, 41.25, 44)):
-        m.box("kasagi", (x0, lo, 5.5), (x1, hi, 10.5), black)
+    m.box("nuki", (-14, 34, 6.75), (-9, 37, 9.25), red)
+    m.box("nuki", (-3, 34, 6.75), (35, 37, 9.25), red)
+    m.box("nuki", (41, 34, 6.75), (46, 37, 9.25), red)
+    for x in (-12.5, 43):
+        m.box("kusabi", (x, 34.25, 6.25), (x + 1.5, 36.75, 6.75), black)
+    m.box("shimaki", (-12, 45.5, 5.75), (44, 48.5, 10.25), red)
+    m.box("kasagi", (-8, 48.5, 5), (40, 51.5, 11), black)        # it sweeps up towards its ends
+    for (x0, x1, lo, hi) in ((-12, -8, 49, 52), (40, 44, 49, 52), (-14, -12, 50, 53), (44, 46, 50, 53)):
+        m.box("kasagi", (x0, lo, 5), (x1, hi, 11), black)
     m.group("plaque")
-    m.box("gakuzuka", (6.5, 30.5, 7.25), (9.5, 32, 8.75), red)
-    m.box("gakuzuka", (6.5, 36.5, 7.25), (9.5, 37.5, 8.75), red)
-    glyph = [".....", "..#..", "..#..", "..#..", "....."]           # one brushed column of characters
+    m.box("gakuzuka", (14, 37, 7), (18, 38.5, 9), red)
+    m.box("gakuzuka", (14, 44.5, 7), (18, 45.5, 9), red)
+    glyph = ["......",                                              # two brushed characters in a column
+             "..##..",
+             "......",
+             "..##..",
+             "...#..",
+             "......"]
 
     def plaque(c):
         if c.face in ("north", "south"):
-            col = math.floor(10.5 - c.p[0]) if c.face == "north" else math.floor(c.p[0] - 5.5)
-            row = math.floor(36.5 - c.p[1])
-            if 0 <= row < 5 and 0 <= col < 5:
-                if col in (0, 4) or row in (0, 4):
+            col = math.floor(19 - c.p[0]) if c.face == "north" else math.floor(c.p[0] - 13)
+            row = math.floor(44.5 - c.p[1])
+            if 0 <= row < 6 and 0 <= col < 6:
+                if col in (0, 5) or row in (0, 5):
                     return ("gold", 1)
                 if glyph[row][col] == "#":
                     return ("gold", 3)
         return None
-    m.box("gaku", (5.5, 32, 6.5), (10.5, 36.5, 9.5), LACQ(decal=plaque))
+    m.box("gaku", (13, 38.5, 6.25), (19, 44.5, 9.75), LACQ(decal=plaque))
     return display(m, (3, 3, 1), -16)
 
 
@@ -1457,9 +1487,9 @@ PIECES = {
     "zabuton": (zabuton, (1, 1, 1), 0),
     "chabudai": (chabudai, (1, 1, 1), 0),
     "kotatsu": (kotatsu, (3, 1, 3), 0),
-    "futon": (futon, (1, 1, 2), 0),
+    "futon": (futon, (2, 1, 3), 0),
     "shoji_screen": (shoji_screen, (2, 2, 1), 0),
-    "fusuma_panel": (fusuma_panel, (2, 2, 1), 0),
+    "fusuma_panel": (fusuma_panel, (2, 3, 1), -16),
     "hanging_scroll": (hanging_scroll, (1, 2, 1), 0),
     "noren": (noren, (1, 1, 1), 0),
     "bamboo_fence": (bamboo_fence, (1, 2, 1), 0),
@@ -1480,7 +1510,7 @@ PIECES = {
     "wind_chime": (wind_chime, (1, 1, 1), 0),
     "wagasa": (wagasa, (1, 3, 1), -16),
     "kimono_rack": (kimono_rack, (2, 2, 1), 0),
-    "torii": (torii, (3, 3, 1), -16),
+    "torii": (torii, (4, 4, 1), -16),
     "stepping_stones": (stepping_stones, (1, 1, 1), 0),
     "koi_pond": (koi_pond, (2, 1, 2), 0),
 }

@@ -106,7 +106,7 @@ def kotatsu():
 @icon("futon")
 def futon():
     c = Canvas()
-    a, b, cc, d = (1, 10), (8.5, 2.5), (15, 6.5), (7.5, 14)
+    a, b, cc, d = (0.5, 9.5), (7.5, 2.5), (15.5, 6.5), (8.5, 14)
     c.poly([a, d, (d[0], d[1] + 1.5), (a[0], a[1] + 1.5)], "porcelain", 0, normal=(-0.3, 0.2, 1))
     c.poly([d, cc, (cc[0], cc[1] + 1.5), (d[0], d[1] + 1.5)], "porcelain", 0, normal=SIDE)
     c.poly([a, b, cc, d], "porcelain", 1, normal=UP)
@@ -118,7 +118,8 @@ def futon():
     for (x, y) in ((4, 10), (6, 8), (8, 11), (10, 9), (6, 12)):
         c.put(x, y, "porcelain", 3, z=3)
     c.line(qb[0], qb[1] + 0.5, qc[0], qc[1] + 0.5, "porcelain", 3, z=3)
-    _diamond(c, 11.2, 5.0, 2.6, 1.6, "straw", 4)
+    for (x, y) in ((9.4, 4.4), (12.9, 6.3)):    # two pillows side by side at the head
+        _diamond(c, x, y, 1.8, 1.1, "straw", 4)
     return c.render()
 
 
@@ -142,14 +143,14 @@ def shoji_screen():
 @icon("fusuma_panel")
 def fusuma_panel():
     c = Canvas()
-    c.rect(1, 1, 15, 15, "rubber", 0, normal=FRONT)
-    c.rect(2, 2, 7.5, 14, "gold", 1, step=3)
-    c.rect(8.5, 2, 14, 14, "gold", 1, step=3)
-    c.poly([(3, 14), (8, 6), (13, 14)], "indigo", 2, normal=FRONT, lo=2, hi=4)
-    c.poly([(6.3, 8.8), (8, 6), (9.7, 8.8)], "porcelain", 3, step=4)
-    c.ellipse(12, 4.5, 1.4, 1.4, "vermilion", 3, gloss=0)
-    c.line(2, 10, 5, 10, "gold", 4, z=4)
-    c.line(10, 9, 13, 9, "gold", 4, z=4)
+    # two doors three blocks tall (2 x 3): a tall frame, Fuji rising out of gold cloud, the red sun high up
+    c.rect(2.5, 0.5, 13.5, 16, "rubber", 0, normal=FRONT)
+    c.rect(3.5, 2, 7.5, 15, "gold", 1, step=3)
+    c.rect(8.5, 2, 12.5, 15, "gold", 1, step=3)
+    c.poly([(3.5, 12), (8, 5), (12.5, 12)], "indigo", 2, normal=FRONT, lo=2, hi=4)
+    c.poly([(6.6, 7.2), (8, 5), (9.4, 7.2)], "porcelain", 3, step=4)
+    c.ellipse(11, 3.5, 1.3, 1.3, "vermilion", 3, gloss=0)
+    c.line(3.5, 11.5, 12.5, 11.5, "gold", 4, z=4)
     return c.render()
 
 

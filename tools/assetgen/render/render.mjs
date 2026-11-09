@@ -65,8 +65,10 @@ for (const el of M.elements) {
 const center = M.center ? new THREE.Vector3(...M.center) : box.getCenter(new THREE.Vector3());
 const radius = M.radius || box.getSize(new THREE.Vector3()).length() / 2;
 if (M.grid !== false) {
+  // "gridAt": [x, z] where grid lines cross (furniture: [0, 0], so the lines are the cells' edges)
   const grid = new THREE.GridHelper(96, 6, 0x3a3f4a, 0x3a3f4a);
-  grid.position.set(8, -0.01, 8);
+  const [gx, gz] = M.gridAt || [8, 8];
+  grid.position.set(gx, -0.01, gz);
   scene.add(grid);
 }
 const views = M.views || [
