@@ -1961,6 +1961,10 @@ def seafood_feast():
 import goods_art as _GA   # noqa: E402
 
 ICONS.update(_GA.ICONS)
+# special materials and the goods made from them (goods_special.py)
+import goods_special as _GS   # noqa: E402
+
+ICONS.update(_GS.ICONS)
 
 
 # ================================================================================================
@@ -2006,6 +2010,10 @@ GROUPS = [
                      "potato_vodka": "감자 보드카"}),
     ("압착기 · 공용", {"seed_oil": "씨앗 기름", "compost": "퇴비", "compressed_stone": "압축 석재", "compressed_dirt": "압축 흙",
                    "refined_oil": "정제유", "soap": "비누", "fertilizer": "비료", "scented_candle": "향초", "stone_lantern": "석등"}),
+    ("특별 재료 (농부·어부·광부가 자주 얻음)", {k: _GS.NAMES[k] for k in ("wild_ginseng", "golden_ear", "silk_cocoon", "red_coral",
+                                                     "ambergris", "abalone", "meteoric_iron", "rough_crystal")}),
+    ("특별 재료·도매 생선 레시피", {k: v for k, v in _GS.NAMES.items() if k not in ("wild_ginseng", "golden_ear", "silk_cocoon", "red_coral",
+                                                                         "ambergris", "abalone", "meteoric_iron", "rough_crystal")}),
 ]
 NAMES = {k: v for _, g in GROUPS for k, v in g.items()}
 

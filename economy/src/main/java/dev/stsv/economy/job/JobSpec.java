@@ -14,7 +14,32 @@ import java.util.Set;
  * contents/economy/jobs.yml: the six jobs, the level curve (Lv1-30, XP kept per job), what each action is
  * worth, the effects that grow with the level and the ones that unlock at a level. Pure data (unit-tested).
  */
-public record JobSpec(int maxLevel, double a, double b, ChangeCost changeCost, int changeDays, Map<String, Job> jobs) {
+public record JobSpec(int maxLevel, double a, double b, ChangeCost changeCost, int changeDays, Map<String, Job> jobs,
+                      Map<String, Special> specials) {
+
+    /** jobs.yml without a specials section (older content, tests). */
+    public JobSpec(int maxLevel, double a, double b, ChangeCost changeCost, int changeDays, Map<String, Job> jobs) {
+        this(maxLevel, a, b, changeCost, changeDays, jobs, Map.of());
+    }
+
+    /**
+     * A special material (jobs.yml specials): anyone can find it, the job it belongs to far more often. Rolled once per event
+     * ({@code from}: harvest = a ripe crop harvested, catch = a fish caught, break = an ore block broken without silk touch). The
+     * admin shop does not buy it: players trade it; {@code value} is its reference price (recipes, the codex, the item's lore).
+     */
+    public record Special(String item, String job, String from, Range chance, double outsider, double value) {
+        /** Chance per event for a player of {@code playerJob} at their level in it. */
+        public double chance(String playerJob, int level, int maxLevel) {
+            return job.equals(playerJob) ? chance.at(level, maxLevel) : outsider;
+        }
+    }
+
+    /** The specials rolled on an event kind (harvest / catch / break), in file order. */
+    public List<Special> specials(String from) {
+        List<Special> out = new ArrayList<>();
+        for (Special s : specials.values()) if (s.from().equals(from)) out.add(s);
+        return out;
+    }
 
     /**
      * What changing jobs costs, by the level the player has in the job they change TO (levels are kept per job): straight
@@ -77,7 +102,19 @@ public record JobSpec(int maxLevel, double a, double b, ChangeCost changeCost, i
 
     public record Job(String id, String name, String color, String icon, String machine, List<String> description,
                       Map<String, Range> ranges, Map<String, Bonus> bonuses, Map<String, Map<String, Double>> xp, Finds finds,
-                      double harvestPerLevel, double harvestPctPerLevel, Bonus growth, int growthRadius, int areaHarvest) {
+                      Range harvestBonus, Range harvestPctRange, Bonus growth, int growthRadius, int rowHarvest, int areaHarvest) {
+
+        /** Vanilla crops: extra produce a harvest at a level (the fraction is a chance). */
+        public double harvestBonus(int level, int maxLevel) {
+            return harvestBonus == null ? 0 : harvestBonus.at(level, maxLevel);
+        }
+
+        /** The width of one hand harvest at a level: 9 (3x3) from area-harvest, 3 (a row of three) from row-harvest, else 1. */
+        public int harvestSpan(int level) {
+            if (areaHarvest > 0 && level >= areaHarvest) return 9;
+            if (rowHarvest > 0 && level >= rowHarvest) return 3;
+            return 1;
+        }
 
         public double range(String key, int level, int maxLevel) {
             Range r = ranges.get(key);
@@ -97,9 +134,9 @@ public record JobSpec(int maxLevel, double a, double b, ChangeCost changeCost, i
             return b.value();
         }
 
-        /** Chance per produce unit of one more on a custom crop at a level (before events): harvest-pct-per-level x level. */
-        public double harvestPct(int level) {
-            return harvestPctPerLevel * level;
+        /** Chance per produce unit of one more on a custom crop at a level (before events): harvest-pct [Lv1, Lv30]. */
+        public double harvestPct(int level, int maxLevel) {
+            return harvestPctRange == null ? 0 : harvestPctRange.at(level, maxLevel);
         }
 
         /** XP for an action on a thing ("break" / "minecraft:diamond_ore"); "*" is the fallback. */
@@ -141,6 +178,16 @@ public record JobSpec(int maxLevel, double a, double b, ChangeCost changeCost, i
         String s = id.trim().toLowerCase(Locale.ROOT);
         if (s.startsWith("#")) return s;
         return s.contains(":") ? s : "minecraft:" + s;
+    }
+
+    /**
+     * A [Lv1, Lv30] effect, or the older per-level number (value x level: the same straight line, Lv1 = value, Lv30 = 30 x value).
+     */
+    private static Range perLevelOr(ConfigurationSection c, String key, String perLevelKey, int maxLevel) {
+        Range r = range(c, key);
+        if (r != null) return r;
+        double p = c.getDouble(perLevelKey, 0);
+        return new Range(p, p * maxLevel);
     }
 
     private static Range range(ConfigurationSection c, String key) {
@@ -208,14 +255,29 @@ public record JobSpec(int maxLevel, double a, double b, ChangeCost changeCost, i
                 String machine = j.getString("machine");
                 jobs.put(id, new Job(id, j.getString("name", id), j.getString("color", "white"), j.getString("icon", "minecraft:paper"),
                         machine, j.getStringList("description"), ranges, bonuses, xp, finds,
-                        j.getDouble("harvest-per-level", 0), j.getDouble("harvest-pct-per-level", 0), growth, j.getInt("growth.radius", 6),
-                        j.getInt("area-harvest", 0)));
+                        perLevelOr(j, "harvest-bonus", "harvest-per-level", max), perLevelOr(j, "harvest-pct", "harvest-pct-per-level", max),
+                        growth, j.getInt("growth.radius", 6), j.getInt("row-harvest", 0), j.getInt("area-harvest", 0)));
+            }
+        }
+        Map<String, Special> specials = new LinkedHashMap<>();
+        ConfigurationSection ss = c.getConfigurationSection("specials");
+        if (ss != null) {
+            for (String k : ss.getKeys(false)) {
+                ConfigurationSection s = ss.getConfigurationSection(k);
+                if (s == null) continue;
+                String item = norm(k), job = s.getString("job", ""), from = s.getString("from", "");
+                Range chance = range(s, "chance");
+                if (!jobs.containsKey(job)) problems.add("specials." + k + ": 모르는 직업 " + job);
+                if (!List.of("harvest", "catch", "break").contains(from)) problems.add("specials." + k + ": from 은 harvest, catch, break 중 하나");
+                if (chance == null) problems.add("specials." + k + ": chance [Lv1, Lv30] 필요");
+                specials.put(item, new Special(item, job, from, chance == null ? new Range(0, 0) : chance, s.getDouble("outsider", 0),
+                        s.getDouble("value", 0)));
             }
         }
         if (jobs.isEmpty()) problems.add("jobs: 직업이 없음");
         ConfigurationSection curve = c.getConfigurationSection("xp-curve");
         double a = curve == null ? 40 : curve.getDouble("a", 40), b = curve == null ? 60 : curve.getDouble("b", 60);
-        return new JobSpec(max, a, b, changeCost(c, problems), c.getInt("change-days", 7), jobs);
+        return new JobSpec(max, a, b, changeCost(c, problems), c.getInt("change-days", 7), jobs, specials);
     }
 
     /** change-cost: one number (the same for every level) or { level: gold, ... } points. */

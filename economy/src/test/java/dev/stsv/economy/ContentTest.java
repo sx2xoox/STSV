@@ -209,12 +209,17 @@ class ContentTest {
         if (!titles.contains("master_angler")) problems.add("title master_angler");
         assertEquals(3, fish.species().values().stream().filter(x -> x.item().startsWith("minecraft:")).count(), "cod, salmon, pufferfish");
 
-        // the shape: 6 jobs, 6 finds, 123 job machine goods + 9 press goods, 6 job machines + the press,
+        // the shape: 6 jobs, 6 finds, 8 special materials, 148 job machine goods + 9 press goods, 6 job machines + the press,
         // 32 crop items (15 seeds, 17 harvests), 92 fish
         assertEquals(6, jobs.jobs().size());
-        assertEquals(6 + 132 + 7 + 32 + 92, ours.size(), "6 finds + 132 goods + 7 machines + 32 crop items + 92 fish");
+        assertEquals(6 + 8 + 157 + 7 + 32 + 92, ours.size(), "6 finds + 8 specials + 157 goods + 7 machines + 32 crop items + 92 fish");
         assertEquals(7, machines.size());
-        assertEquals(132, machines.values().stream().flatMap(x -> x.recipes().stream()).map(MachineSpec.Recipe::output).distinct().count());
+        assertEquals(157, machines.values().stream().flatMap(x -> x.recipes().stream()).map(MachineSpec.Recipe::output).distinct().count());
+        // every special material is an item of ours, and the shop does not buy it (players trade it)
+        for (String sp : jobs.specials().keySet()) {
+            if (!exists(sp, ours)) problems.add("special item: " + sp);
+            if (shop.sell().containsKey(sp)) problems.add("the shop buys the special " + sp);
+        }
         assertTrue(events.keySet().containsAll(List.of("shortage", "crash", "harvest", "merchant", "tax_audit")));
         assertFalse(Files.exists(PACK.resolve("season.yml")), "no season plan any more");
         // every job product can actually be made: by a recipe, a machine, a job drop or a fishing rod
@@ -257,6 +262,7 @@ class ContentTest {
             if (spec.extra().containsKey("job") && !jobs.jobs().containsKey(spec.extra().get("job"))) problems.add("crop job " + spec.extra().get("job"));
         }
         for (var g : shop.goods()) if (g.kind().equals("item")) makeable.add(g.id());
+        makeable.addAll(jobs.specials().keySet());   // special materials: found by harvesting, fishing or mining (jobs.yml specials)
         for (String id : ours) if (!makeable.contains(id)) problems.add("nobody can make " + id);
         assertTrue(problems.isEmpty(), String.join("\n", problems));
     }

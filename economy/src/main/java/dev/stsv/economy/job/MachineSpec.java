@@ -14,7 +14,7 @@ import java.util.function.BiPredicate;
  * tier, and the upgrade table. Pure data and matching (unit-tested).
  */
 public record MachineSpec(String id, String name, String item, String job, String model, List<String> parts, Effect effect,
-                          List<Recipe> recipes, List<Long> upgradeCost) {
+                          List<Recipe> recipes, List<Long> upgradeCost, List<Integer> lanes) {
 
     /**
      * inputs: item id (or "#tag") -> count; output id and amount; seconds at base speed; tier = the upgrade
@@ -67,11 +67,14 @@ public record MachineSpec(String id, String name, String item, String job, Strin
         }
 
         /**
-         * One machine's table: its own upgrade costs if machines.yml gives it some ("press: upgrade: cost: [...]"),
-         * the global levels, lanes, speeds and XP rate for everything else.
+         * One machine's table: its own upgrade costs if machines.yml gives it some ("press: upgrade: cost: [...]"), its own lanes
+         * per tier if it gives them ("forge: lanes: [2, 2, 3, 4]": the processing jobs' machines start with two), the global
+         * levels, lanes, speeds and XP rate for everything else.
          */
         public Settings forMachine(MachineSpec s) {
-            return s.upgradeCost().isEmpty() ? this : new Settings(s.upgradeCost(), level, lanes, speed, xpPerGold);
+            if (s.upgradeCost().isEmpty() && s.lanes().isEmpty()) return this;
+            return new Settings(s.upgradeCost().isEmpty() ? cost : s.upgradeCost(), level, s.lanes().isEmpty() ? lanes : s.lanes(), speed,
+                    xpPerGold);
         }
 
         /**
@@ -218,7 +221,7 @@ public record MachineSpec(String id, String name, String item, String job, Strin
                         ef.getString("sound"), (float) ef.getDouble("volume", 0.4), (float) ef.getDouble("pitch", 1));
             }
             out.put(id, new MachineSpec(id, m.getString("name", id), JobSpec.norm(item), m.getString("job"), m.getString("model", id),
-                    m.getStringList("parts"), effect, recipes, List.copyOf(m.getLongList("upgrade.cost"))));
+                    m.getStringList("parts"), effect, recipes, List.copyOf(m.getLongList("upgrade.cost")), List.copyOf(m.getIntegerList("lanes"))));
         }
         return out;
     }

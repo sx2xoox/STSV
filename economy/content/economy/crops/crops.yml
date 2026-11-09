@@ -65,7 +65,7 @@ cabbage:
   max-age: 6
   height: 0.6
   harvest:
-    - { item: napa_cabbage, min: 1, max: 1 }
+    - { item: napa_cabbage, min: 2, max: 2 }
     - { item: cabbage_seeds, min: 1, max: 2 }
 
 rice:
@@ -110,7 +110,7 @@ radish:
   stages: 4
   height: 0.6
   harvest:
-    - { item: radish, min: 1, max: 2 }
+    - { item: radish, min: 2, max: 4 }
     - { item: radish_seeds, min: 1, max: 2 }
 
 lettuce:
@@ -176,5 +176,5 @@ muskmelon:
   regrow: 5
   height: 0.6
   harvest:
-    - { item: muskmelon, min: 1, max: 1 }
+    - { item: muskmelon, min: 2, max: 2 }
     - { item: muskmelon_seeds, min: 0, max: 1 }

@@ -7,7 +7,9 @@
 #   depth 를 올리면 덜 떨어지고, curve-exponent 를 올리면 더 빨리 떨어짐.
 #   시세판·24시간 변화·/시세(콘솔)는 시장가 = base × 배수 (최근 안 판 사람이 받는 값)
 #   q 는 기준가 구간으로 정함 (모든 판매 줄 같은 규칙): 3G 미만 128 · 6G 미만 64 · 15G 미만 32 · 50G 미만 16 · 150G 미만 8
-#   · 500G 미만 4 · 1000G 미만 2 · 그 위 1. 커스텀 작물은 1인 하루 한도 cap = 4 × q. 그 밖에 cap 이 있는 것은 다이아몬드(32)·네더라이트 파편(4)
+#   · 500G 미만 4 · 1000G 미만 2 · 그 위 1. 커스텀 작물은 하루 한도 없음 (밭에서 나는 만큼 다 팔림, 곡선 바닥 25% 와 소득세가 위를 누름).
+#   cap 이 있는 것은 다이아몬드(32)·네더라이트 파편(4)
+# 작물 값(2026-11): 농부가 한 시간에 줍는 양(약 300묶음)에 맞춰 개당 값을 낮춤. 그 작물을 쓰는 레시피·의뢰는 개수를 그만큼 늘림(값 그대로)
 # 구매(buy): 플레이어가 상점에서 살 때 (고정가). 장비와 고급 재료는 팔지 않음: 플레이어끼리 거래.
 # 카테고리는 화면 한 줄: 판매 7개까지, 구매 9개까지 (상인 행렬 자리 포함, 짝수 개면 가운데 칸을 비우고 양쪽으로 나눔).
 # 카테고리 = name, icon(아이템 id), items.
@@ -34,10 +36,10 @@ sell:
     items:
       diamond: { base: 60, q: 8, job: miner, cap: 32 }
       emerald: { base: 25, q: 16, job: miner }
-      gold_ingot: { base: 18, q: 16, job: miner }
-      iron_ingot: { base: 10, q: 32, job: miner }
-      copper_ingot: { base: 3, q: 64, job: miner }
-      coal: { base: 4, q: 64, job: miner }
+      gold_ingot: { base: 22, q: 16, job: miner }
+      iron_ingot: { base: 12.5, q: 32, job: miner }
+      copper_ingot: { base: 4, q: 64, job: miner }
+      coal: { base: 5, q: 64, job: miner }
       redstone: { base: 1, q: 128, job: miner }
       lapis_lazuli: { base: 2, q: 128, job: miner }
       quartz: { base: 2, q: 128, job: miner }
@@ -49,10 +51,10 @@ sell:
     name: "농산물"
     icon: wheat
     items:
-      wheat: { base: 2, q: 128, job: farmer }
-      potato: { base: 2, q: 128, job: farmer }
-      carrot: { base: 2, q: 128, job: farmer }
-      beetroot: { base: 2, q: 128, job: farmer }
+      wheat: { base: 0.5, q: 128, job: farmer }
+      potato: { base: 0.5, q: 128, job: farmer }
+      carrot: { base: 0.5, q: 128, job: farmer }
+      beetroot: { base: 0.5, q: 128, job: farmer }
       melon_slice: { base: 0.5, q: 128, job: farmer }
       pumpkin: { base: 3, q: 64, job: farmer }
       sugar_cane: { base: 1, q: 128, job: farmer }
@@ -60,23 +62,23 @@ sell:
       leather: { base: 5, q: 64, job: farmer }
       white_wool: { base: 2, q: 128, job: farmer }
       # 채소·과일 (커스텀 작물)
-      economy:tomato: { base: 6, q: 32, job: farmer, cap: 128 }
-      economy:chili_pepper: { base: 7, q: 32, job: farmer, cap: 128 }
-      economy:strawberry: { base: 9, q: 32, job: farmer, cap: 128 }
-      economy:onion: { base: 8, q: 32, job: farmer, cap: 128 }
-      economy:garlic: { base: 5, q: 64, job: farmer, cap: 256 }
-      economy:napa_cabbage: { base: 18, q: 16, job: farmer, cap: 64 }
-      economy:paddy: { base: 4, q: 64, job: farmer, cap: 256 }
-      economy:soybean: { base: 4, q: 64, job: farmer, cap: 256 }
-      economy:corn: { base: 10, q: 32, job: farmer, cap: 128 }
-      economy:green_onion: { base: 5, q: 64, job: farmer, cap: 256 }
-      economy:radish: { base: 14, q: 32, job: farmer, cap: 128 }
-      economy:lettuce: { base: 5, q: 64, job: farmer, cap: 256 }
-      economy:cucumber: { base: 7, q: 32, job: farmer, cap: 128 }
-      economy:grapes: { base: 10, q: 32, job: farmer, cap: 128 }
-      economy:eggplant: { base: 8, q: 32, job: farmer, cap: 128 }
-      economy:zucchini: { base: 9, q: 32, job: farmer, cap: 128 }
-      economy:muskmelon: { base: 26, q: 16, job: farmer, cap: 64 }
+      economy:tomato: { base: 0.4, q: 128, job: farmer }
+      economy:chili_pepper: { base: 0.45, q: 128, job: farmer }
+      economy:strawberry: { base: 0.65, q: 128, job: farmer }
+      economy:onion: { base: 0.55, q: 128, job: farmer }
+      economy:garlic: { base: 0.35, q: 128, job: farmer }
+      economy:napa_cabbage: { base: 0.6, q: 128, job: farmer }
+      economy:paddy: { base: 0.3, q: 128, job: farmer }
+      economy:soybean: { base: 0.3, q: 128, job: farmer }
+      economy:corn: { base: 0.7, q: 128, job: farmer }
+      economy:green_onion: { base: 0.35, q: 128, job: farmer }
+      economy:radish: { base: 0.45, q: 128, job: farmer }
+      economy:lettuce: { base: 0.35, q: 128, job: farmer }
+      economy:cucumber: { base: 0.5, q: 128, job: farmer }
+      economy:grapes: { base: 0.7, q: 128, job: farmer }
+      economy:eggplant: { base: 0.55, q: 128, job: farmer }
+      economy:zucchini: { base: 0.65, q: 128, job: farmer }
+      economy:muskmelon: { base: 0.9, q: 128, job: farmer }
   fish:
     name: "수산물"
     icon: economy:mackerel
@@ -209,10 +211,10 @@ sell:
       economy:compost: { base: 4, q: 64 }   # 퇴비
       economy:compressed_stone: { base: 5, q: 64 }   # 압축 석재
       economy:compressed_dirt: { base: 3, q: 64 }   # 압축 흙
-      economy:refined_oil: { base: 48, q: 16 }   # 정제유
-      economy:soap: { base: 33, q: 16 }   # 비누 (2강)
+      economy:refined_oil: { base: 49, q: 16 }   # 정제유
+      economy:soap: { base: 34, q: 16 }   # 비누 (2강)
       economy:fertilizer: { base: 12, q: 32 }   # 비료 (2강)
-      economy:scented_candle: { base: 81, q: 8 }   # 향초 (3강)
+      economy:scented_candle: { base: 83, q: 8 }   # 향초 (3강)
       economy:stone_lantern: { base: 68, q: 8 }   # 석등 (3강)
   # ── 직업 생산품 (기준가 = 재료값 × 배율: 원재료만 1.2~1.6, 기계 생산품 하나 1.75~1.85, 둘 이상 2.15~2.3.
   #    숙성은 1분에 원재료만 3~10G (재료값의 그 기계 숙성 최저 배율까지, 없으면 3배), 기계 생산품을 쓰면 12~25G (2.6~3.6배).
@@ -224,59 +226,70 @@ sell:
       # 세공대 (광부)
       economy:ruby: { base: 38, q: 16 }   # 루비
       economy:sapphire: { base: 38, q: 16 }   # 사파이어
-      economy:coke: { base: 48, q: 16 }   # 코크스
-      economy:copper_plate: { base: 36, q: 16 }   # 구리판
-      economy:ruby_ring: { base: 133, q: 8 }   # 루비 반지
-      economy:pearl_necklace: { base: 551, q: 2 }   # 진주 목걸이
-      economy:jeweled_crown: { base: 2114, q: 1 }   # 보석 왕관
+      economy:coke: { base: 60, q: 8 }   # 코크스
+      economy:copper_plate: { base: 48, q: 16 }   # 구리판
+      economy:ruby_ring: { base: 147, q: 8 }   # 루비 반지
+      economy:pearl_necklace: { base: 568, q: 2 }   # 진주 목걸이
+      economy:jeweled_crown: { base: 2283, q: 1 }   # 보석 왕관
       economy:cut_emerald: { base: 36, q: 16 }   # 세공 에메랄드
       economy:lapis_beads: { base: 45, q: 16 }   # 청금석 구슬
-      economy:gold_ring: { base: 57, q: 8 }   # 금반지
+      economy:gold_ring: { base: 70, q: 8 }   # 금반지
       economy:cut_diamond: { base: 90, q: 8 }   # 세공 다이아몬드
-      economy:sapphire_brooch: { base: 133, q: 8 }   # 사파이어 브로치
-      economy:diamond_ring: { base: 323, q: 4 }   # 다이아 반지
-      economy:copper_bracelet: { base: 50, q: 8 }   # 구리 팔찌 (원재료만)
-      economy:amethyst_pendant: { base: 35, q: 16 }   # 자수정 펜던트 (원재료만)
+      economy:sapphire_brooch: { base: 147, q: 8 }   # 사파이어 브로치
+      economy:diamond_ring: { base: 352, q: 4 }   # 다이아 반지
+      economy:copper_bracelet: { base: 55, q: 8 }   # 구리 팔찌 (원재료만)
+      economy:amethyst_pendant: { base: 41.5, q: 16 }   # 자수정 펜던트 (원재료만)
       economy:quartz_figurine: { base: 51, q: 8 }   # 석영 조각상 (원재료만)
+      economy:cut_crystal: { base: 68, q: 8 }   # 세공 수정
+      economy:coral_brooch: { base: 208, q: 4 }   # 산호 브로치
+      economy:silk_pearl_necklace: { base: 741, q: 2 }   # 명주 진주 목걸이
+      economy:ambergris_norigae: { base: 702, q: 2 }   # 용연향 노리개
       # 대장간 (대장장이)
-      economy:iron_plate: { base: 60, q: 8 }   # 철판
-      economy:iron_chain: { base: 45, q: 16 }   # 쇠사슬
-      economy:gold_leaf: { base: 14, q: 32 }   # 금박
-      economy:steel_ingot: { base: 122, q: 8 }   # 강철괴
-      economy:oak_barrel: { base: 119, q: 8 }   # 참나무통
-      economy:steel_toolset: { base: 640, q: 2 }   # 강철 공구 세트
-      economy:ornate_armor: { base: 1364, q: 1 }   # 장식용 갑옷
-      economy:iron_nails: { base: 3, q: 64 }   # 쇠못
-      economy:copper_pot: { base: 55, q: 8 }   # 구리 냄비
-      economy:gamasot: { base: 156, q: 4 }   # 가마솥
-      economy:iron_lantern: { base: 112, q: 8 }   # 철 랜턴
-      economy:ornamental_sword: { base: 625, q: 2 }   # 장식용 도검
-      economy:homi: { base: 31, q: 16 }   # 호미 (원재료만)
-      economy:sickle: { base: 49, q: 16 }   # 낫 (원재료만)
-      economy:wind_chime: { base: 30, q: 16 }   # 풍경 (원재료만)
+      economy:iron_plate: { base: 77, q: 8 }   # 철판
+      economy:iron_chain: { base: 57.75, q: 8 }   # 쇠사슬
+      economy:gold_leaf: { base: 17, q: 16 }   # 금박
+      economy:steel_ingot: { base: 154, q: 4 }   # 강철괴
+      economy:oak_barrel: { base: 151, q: 4 }   # 참나무통
+      economy:steel_toolset: { base: 840, q: 2 }   # 강철 공구 세트
+      economy:ornate_armor: { base: 1701, q: 1 }   # 장식용 갑옷
+      economy:iron_nails: { base: 3.85, q: 64 }   # 쇠못
+      economy:copper_pot: { base: 75, q: 8 }   # 구리 냄비
+      economy:gamasot: { base: 194, q: 4 }   # 가마솥
+      economy:iron_lantern: { base: 144, q: 8 }   # 철 랜턴
+      economy:ornamental_sword: { base: 770, q: 2 }   # 장식용 도검
+      economy:homi: { base: 39, q: 16 }   # 호미 (원재료만)
+      economy:sickle: { base: 61, q: 8 }   # 낫 (원재료만)
+      economy:wind_chime: { base: 40, q: 16 }   # 풍경 (원재료만)
+      economy:iron_pan: { base: 142, q: 8 }   # 무쇠 팬
+      economy:iron_brazier: { base: 213, q: 4 }   # 무쇠 화로
+      economy:sheath: { base: 56, q: 8 }   # 칼집 (가죽에 쇠못)
+      economy:padlock: { base: 248, q: 4 }   # 금박 자물쇠
+      economy:crystal_lantern: { base: 325, q: 4 }   # 수정 랜턴
+      economy:coral_inlay_box: { base: 449, q: 4 }   # 산호 자개함 (전복 껍데기 자개)
+      economy:meteor_sword: { base: 1760, q: 1 }   # 운철검
   foodstuff:
     name: "식재료"
     icon: economy:doenjang
     items:
       # 가공대 (농부)
-      economy:rice: { base: 24, q: 16 }   # 쌀
-      economy:flour: { base: 12, q: 32 }   # 밀가루
-      economy:tofu: { base: 24, q: 16 }   # 두부
-      economy:chili_powder: { base: 42, q: 16 }   # 고춧가루
-      economy:corn_flour: { base: 30, q: 16 }   # 옥수수 가루
-      economy:grape_juice: { base: 60, q: 8 }   # 포도즙
-      economy:dried_zucchini: { base: 42, q: 16 }   # 호박고지
-      economy:tomato_sauce: { base: 36, q: 16 }   # 토마토 소스
-      economy:doenjang: { base: 48, q: 16 }   # 된장
-      economy:gochujang: { base: 163, q: 4 }   # 고추장
-      economy:jang_set: { base: 970, q: 2 }   # 전통 장 세트
-      economy:potato_starch: { base: 18, q: 16 }   # 감자 전분
-      economy:brown_sugar: { base: 9, q: 32 }   # 흑설탕
-      economy:apple_juice: { base: 12, q: 32 }   # 사과즙
-      economy:jocheong: { base: 122, q: 8 }   # 조청
-      economy:soy_sauce: { base: 48, q: 16 }   # 간장
-      economy:gangnaengi: { base: 45, q: 16 }   # 강냉이 (원재료만)
-      economy:onion_juice: { base: 40, q: 16 }   # 양파즙 (원재료만)
+      economy:rice: { base: 22, q: 16 }   # 쌀
+      economy:flour: { base: 11, q: 32 }   # 밀가루
+      economy:tofu: { base: 22, q: 16 }   # 두부
+      economy:chili_powder: { base: 39, q: 16 }   # 고춧가루
+      economy:corn_flour: { base: 28, q: 16 }   # 옥수수 가루
+      economy:grape_juice: { base: 55, q: 8 }   # 포도즙
+      economy:dried_zucchini: { base: 39, q: 16 }   # 호박고지
+      economy:tomato_sauce: { base: 33, q: 16 }   # 토마토 소스
+      economy:doenjang: { base: 18, q: 16 }   # 된장
+      economy:gochujang: { base: 152, q: 4 }   # 고추장
+      economy:jang_set: { base: 761, q: 2 }   # 전통 장 세트
+      economy:potato_starch: { base: 17, q: 16 }   # 감자 전분
+      economy:brown_sugar: { base: 8.5, q: 32 }   # 흑설탕
+      economy:apple_juice: { base: 11, q: 32 }   # 사과즙
+      economy:jocheong: { base: 114, q: 8 }   # 조청
+      economy:soy_sauce: { base: 32, q: 16 }   # 간장
+      economy:gangnaengi: { base: 42, q: 16 }   # 강냉이 (원재료만)
+      economy:onion_juice: { base: 39, q: 16 }   # 양파즙 (원재료만)
       economy:mumallaengi: { base: 34, q: 16 }   # 무말랭이 (원재료만)
       # 손질대 (어부)
       economy:cod_fillet: { base: 15, q: 16 }   # 생선 필렛
@@ -288,9 +301,9 @@ sell:
       economy:sukhoe: { base: 62, q: 8 }   # 숙회
       economy:tuna_sashimi: { base: 139, q: 8 }   # 참치 회
       economy:polished_pearl: { base: 179, q: 4 }   # 연마 진주
-      economy:fishcake: { base: 35, q: 16 }   # 어묵
+      economy:fishcake: { base: 34, q: 16 }   # 어묵
       economy:caviar: { base: 228, q: 4 }   # 캐비아
-      economy:seafood_feast: { base: 1192, q: 1 }   # 해물 한상
+      economy:seafood_feast: { base: 1185, q: 1 }   # 해물 한상
       economy:shrimp_meat: { base: 26, q: 16 }   # 새우살
       economy:gwamegi: { base: 16, q: 16 }   # 과메기
       economy:gulbi: { base: 144, q: 8 }   # 굴비
@@ -303,36 +316,44 @@ sell:
     icon: economy:bibimbap
     items:
       # 조리대 (요리사)
-      economy:kimchi: { base: 79, q: 8 }   # 김치
-      economy:kkakdugi: { base: 68, q: 8 }   # 깍두기
-      economy:oi_sobagi: { base: 55, q: 8 }   # 오이소박이
+      economy:kimchi: { base: 77, q: 8 }   # 김치
+      economy:kkakdugi: { base: 65, q: 8 }   # 깍두기
+      economy:oi_sobagi: { base: 52, q: 8 }   # 오이소박이
       economy:eggplant_stirfry: { base: 22, q: 16 }   # 가지볶음
-      economy:hobakjeon: { base: 20, q: 16 }   # 호박전
-      economy:saengseonjeon: { base: 33, q: 16 }   # 생선전
-      economy:sundubu_jjigae: { base: 74, q: 8 }   # 순두부찌개
-      economy:tuna_sushi: { base: 175, q: 4 }   # 참치 초밥
-      economy:braised_mackerel: { base: 220, q: 4 }   # 고등어조림
-      economy:maeuntang: { base: 172, q: 4 }   # 매운탕
+      economy:hobakjeon: { base: 19, q: 16 }   # 호박전
+      economy:saengseonjeon: { base: 32, q: 16 }   # 생선전
+      economy:fish_platter: { base: 27, q: 16 }   # 모둠 생선구이
+      economy:bogeo_jiri: { base: 33, q: 16 }   # 복어 지리
+      economy:pollack_stew: { base: 46, q: 16 }   # 동태찌개
+      economy:agujjim: { base: 63, q: 8 }   # 아귀찜
+      economy:golden_injeolmi: { base: 52, q: 8 }   # 황금 인절미
+      economy:ginseng_samgyetang: { base: 131, q: 8 }   # 산삼 삼계탕
+      economy:abalone_porridge: { base: 56, q: 8 }   # 전복죽
+      economy:japchae: { base: 42, q: 16 }   # 잡채 (감자 전분 당면)
+      economy:sundubu_jjigae: { base: 69, q: 8 }   # 순두부찌개
+      economy:tuna_sushi: { base: 176, q: 4 }   # 참치 초밥
+      economy:braised_mackerel: { base: 180, q: 4 }   # 고등어조림
+      economy:maeuntang: { base: 164, q: 4 }   # 매운탕
       economy:steamed_crab: { base: 153, q: 4 }   # 게찜
-      economy:grilled_eel: { base: 480, q: 4 }   # 장어구이
-      economy:strawberry_cake: { base: 95, q: 8 }   # 딸기 케이크
-      economy:tomato_pasta: { base: 125, q: 8 }   # 토마토 파스타
-      economy:corn_bread: { base: 57, q: 8 }   # 옥수수빵
-      economy:bibimbap: { base: 424, q: 4 }   # 비빔밥
-      economy:grilled_fish_set: { base: 302, q: 4 }   # 생선구이 정식
-      economy:hanjeongsik: { base: 1702, q: 1 }   # 한정식
+      economy:grilled_eel: { base: 458, q: 4 }   # 장어구이
+      economy:strawberry_cake: { base: 92, q: 8 }   # 딸기 케이크
+      economy:tomato_pasta: { base: 117, q: 8 }   # 토마토 파스타
+      economy:corn_bread: { base: 53, q: 8 }   # 옥수수빵
+      economy:bibimbap: { base: 402, q: 4 }   # 비빔밥
+      economy:grilled_fish_set: { base: 294, q: 4 }   # 생선구이 정식
+      economy:hanjeongsik: { base: 1584, q: 1 }   # 한정식
       economy:gyeranmari: { base: 13, q: 32 }   # 계란말이
       economy:hotteok: { base: 7, q: 32 }   # 호떡
       economy:gamjajeon: { base: 7, q: 32 }   # 감자전
       economy:bulgogi: { base: 17, q: 16 }   # 불고기
-      economy:jeyuk: { base: 53, q: 8 }   # 제육볶음
+      economy:jeyuk: { base: 51, q: 8 }   # 제육볶음
       economy:samgyetang: { base: 32, q: 16 }   # 삼계탕
-      economy:doenjang_jjigae: { base: 89, q: 8 }   # 된장찌개
-      economy:kimchi_jjigae: { base: 120, q: 8 }   # 김치찌개
-      economy:tteokbokki: { base: 280, q: 4 }   # 떡볶이
+      economy:doenjang_jjigae: { base: 54, q: 8 }   # 된장찌개
+      economy:kimchi_jjigae: { base: 116, q: 8 }   # 김치찌개
+      economy:tteokbokki: { base: 262, q: 4 }   # 떡볶이
       economy:godeungeo_gui: { base: 14, q: 32 }   # 고등어구이 (원재료만)
-      economy:oi_muchim: { base: 34, q: 16 }   # 오이무침 (원재료만)
-      economy:beoseot_bokkeum: { base: 21, q: 16 }   # 버섯볶음 (원재료만)
+      economy:oi_muchim: { base: 36, q: 16 }   # 오이무침 (원재료만)
+      economy:beoseot_bokkeum: { base: 22, q: 16 }   # 버섯볶음 (원재료만)
       economy:gamja_jorim: { base: 12, q: 32 }   # 감자조림 (원재료만)
       economy:pajeon: { base: 16, q: 16 }   # 파전 (원재료만)
       economy:miyeokguk: { base: 13, q: 32 }   # 미역국 (원재료만)
@@ -341,23 +362,29 @@ sell:
       economy:dakbokkeumtang: { base: 46, q: 16 }   # 닭볶음탕 (원재료만)
       economy:gamjatang: { base: 44, q: 16 }   # 감자탕 (원재료만)
       # 증류기 (연금술사)
-      economy:makgeolli: { base: 50, q: 8 }   # 막걸리
-      economy:soju: { base: 180, q: 4 }   # 소주
-      economy:melon_syrup: { base: 21, q: 16 }   # 멜론 시럽
-      economy:wine: { base: 156, q: 4 }   # 포도주
-      economy:melon_liqueur: { base: 442, q: 4 }   # 멜론 리큐어
-      economy:pearl_perfume: { base: 795, q: 2 }   # 진주 향수
-      economy:vintage_wine: { base: 900, q: 2 }   # 빈티지 포도주
+      economy:makgeolli: { base: 49, q: 16 }   # 막걸리
+      economy:soju: { base: 175, q: 4 }   # 소주
+      economy:melon_syrup: { base: 20, q: 16 }   # 멜론 시럽
+      economy:wine: { base: 143, q: 8 }   # 포도주
+      economy:melon_liqueur: { base: 546, q: 2 }   # 멜론 리큐어
+      economy:pearl_perfume: { base: 776, q: 2 }   # 진주 향수
+      economy:vintage_wine: { base: 889, q: 2 }   # 빈티지 포도주
       economy:flower_tea: { base: 14, q: 32 }   # 꽃잎 차
       economy:cider: { base: 41, q: 16 }   # 사과주
-      economy:strawberry_wine: { base: 72, q: 8 }   # 딸기주
+      economy:strawberry_wine: { base: 56, q: 8 }   # 딸기주
       economy:mead: { base: 51, q: 8 }   # 꿀술
-      economy:cheongju: { base: 320, q: 4 }   # 청주
-      economy:pumpkin_makgeolli: { base: 30, q: 16 }   # 단호박 막걸리 (원재료만)
+      economy:cheongju: { base: 311, q: 4 }   # 청주
+      economy:pumpkin_makgeolli: { base: 26, q: 16 }   # 단호박 막걸리 (원재료만)
       economy:bokbunja_wine: { base: 42, q: 16 }   # 복분자주 (원재료만)
       economy:rum: { base: 80, q: 8 }   # 럼 (원재료만)
-      economy:corn_whiskey: { base: 166, q: 4 }   # 옥수수 위스키 (원재료만)
-      economy:potato_vodka: { base: 166, q: 4 }   # 감자 보드카 (원재료만)
+      economy:corn_whiskey: { base: 127, q: 8 }   # 옥수수 위스키 (원재료만)
+      economy:potato_vodka: { base: 83, q: 8 }   # 감자 보드카 (원재료만)
+      economy:sikhye: { base: 41, q: 16 }   # 식혜 (쌀을 삭혀 달게)
+      economy:ginseng_liquor: { base: 1005, q: 1 }   # 인삼주
+      economy:golden_cheongju: { base: 399, q: 4 }   # 황금 청주
+      economy:meteor_elixir: { base: 1089, q: 1 }   # 운철 단약 (꿀에 개어 빚은 환약)
+      economy:ambergris_perfume: { base: 1307, q: 1 }   # 용연향 향수
+      economy:crystal_vintage: { base: 746, q: 2 }   # 수정병 빈티지
 
 buy:
   tools:

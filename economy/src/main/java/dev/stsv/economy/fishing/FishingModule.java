@@ -332,6 +332,7 @@ public final class FishingModule extends EcoModule implements WeeklyListener {
         p.incrementStatistic(Statistic.FISH_CAUGHT);
         eco.jobs().rewardAction(p, "catch", s.item(), 1);
         if (r.index() >= 2) eco.jobs().rewardAction(p, "find", s.item(), 1);
+        eco.jobs().rollSpecials(p, "catch", null);
         // the title: the fish's picture and name, its size below
         int idx = order.indexOf(s.id());
         String head = (idx >= 0 ? RingGlyphs.icon(idx) + " " : "") + "<" + r.color() + ">" + s.name();
