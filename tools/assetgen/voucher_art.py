@@ -390,7 +390,27 @@ def icon_phoenix_voucher():
     ], _r3corea_bird, ("crimson", 0))
 
 
+def _generic_voucher(stub):
+    """The voucher of a cosmetic from the 치장 뽑기 (a duplicate): the ticket of its rarity (stone common, sapphire
+    rare, crystal epic) with a four-pointed sparkle in the rarity's colour; the item name says which cosmetic."""
+    ic = _core_ticket(stub)
+    top = {"stone": 3, "sapphire": 3, "crystal": 4}[stub]
+    _core_paint(ic, [
+        "...1...",
+        "...2...",
+        "..121..",
+        "12rWr21",
+        "..121..",
+        "...2...",
+        "...1...",
+    ], {"1": (stub, 1), "2": (stub, max(2, top - 1)), "r": (stub, top), "W": ("lamp", 3)}, 6, 5)
+    return _core_finish(ic)
+
+
 ICONS = {
+    "cosmetic_voucher_common": lambda: _generic_voucher("stone"),
+    "cosmetic_voucher_rare": lambda: _generic_voucher("sapphire"),
+    "cosmetic_voucher_epic": lambda: _generic_voucher("crystal"),
     "cheque": icon_cheque,
     "crown_voucher": icon_crown_voucher,
     "demon_wings_voucher": icon_demon_wings_voucher,

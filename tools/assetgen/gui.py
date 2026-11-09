@@ -18,7 +18,9 @@ MENUS_DIR = Path(__file__).resolve().parents[2] / "content/stsv/menus"
 # the core's own buttons (stsv:gui/<name>); contents use them too (pages, close, info)
 CORE_ICONS = ("prev", "next", "prev_off", "next_off", "exit", "info", "take_off", "clear", "back", "chest",
               # the hub (/메뉴): worlds, teleport requests, titles, rankings, money
-              "house", "pine", "tag", "podium", "send", "coins", "crown", "trophy", "pearl")
+              "house", "pine", "tag", "podium", "send", "coins", "crown", "trophy", "pearl",
+              # 치장 뽑기
+              "gacha")
 
 
 def menus():

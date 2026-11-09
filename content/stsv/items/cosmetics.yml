@@ -1,5 +1,5 @@
 # ─────────────────────────────────────────────────────────────────────────────────────────────
-#  [치장] 보유해야 입을 수 있음. 교환권 우클릭 / 상점 구매 → 보유 → /치장 에서 착용
+#  [치장] 보유해야 입을 수 있음. 치장 뽑기(/뽑기, gacha.yml) · 교환권 우클릭 → 보유 → /치장 에서 착용
 #  rarity: common(일반) / rare(희귀) / epic(영웅) / legendary(전설)
 #  slot: head(머리) / above(머리 위) / shoulder(어깨) / back(등) / tail(꼬리). 부위마다 하나씩 착용
 #    머리: 투구 칸은 그대로 두고 다른 사람에게 보이는 머리만 바뀜
@@ -10,21 +10,21 @@ tomato_mask:
   name: "<#e21806>토마토 탈"
   model: tomato_mask
   max-stack: 1
-  cosmetic: { slot: head, rarity: common, obtain: "토마토 탈 교환권" }
+  cosmetic: { slot: head, rarity: common, obtain: "치장 뽑기 (/뽑기) · 교환권" }
 
 eggplant_mask:
   material: paper
   name: "<#8c5bd6>가지 탈"
   model: eggplant_mask
   max-stack: 1
-  cosmetic: { slot: head, rarity: rare, obtain: "가지 탈 교환권" }
+  cosmetic: { slot: head, rarity: rare, obtain: "치장 뽑기 (/뽑기) · 교환권" }
 
 mushroom_mask:
   material: paper
   name: "<#e8334a>버섯 탈"
   model: mushroom_mask
   max-stack: 1
-  cosmetic: { slot: head, rarity: epic, obtain: "버섯 탈 교환권" }
+  cosmetic: { slot: head, rarity: epic, obtain: "치장 뽑기 (/뽑기) · 교환권" }
 
 # ── 머리 ──────────────────────────────────────────────────────────────────────────
 straw_hat:
@@ -33,7 +33,7 @@ straw_hat:
   lore: ["<gray>여름 들판의 필수품"]
   model: straw_hat
   max-stack: 1
-  cosmetic: { slot: head, rarity: common, obtain: "상점 · 치장" }
+  cosmetic: { slot: head, rarity: common, obtain: "치장 뽑기 (/뽑기)" }
 
 cat_ears:
   material: paper
@@ -41,7 +41,7 @@ cat_ears:
   lore: ["<gray>쫑긋 선 귀"]
   model: cat_ears
   max-stack: 1
-  cosmetic: { slot: head, rarity: common, obtain: "상점 · 치장" }
+  cosmetic: { slot: head, rarity: common, obtain: "치장 뽑기 (/뽑기)" }
 
 frog_hat:
   material: paper
@@ -49,7 +49,7 @@ frog_hat:
   lore: ["<gray>눈이 똘망똘망한 개구리"]
   model: frog_hat
   max-stack: 1
-  cosmetic: { slot: head, rarity: rare, obtain: "상점 · 치장" }
+  cosmetic: { slot: head, rarity: rare, obtain: "치장 뽑기 (/뽑기)" }
 
 wizard_hat:
   material: paper
@@ -57,7 +57,7 @@ wizard_hat:
   lore: ["<gray>별이 박힌 뾰족 모자"]
   model: wizard_hat
   max-stack: 1
-  cosmetic: { slot: head, rarity: rare, obtain: "상점 · 치장" }
+  cosmetic: { slot: head, rarity: rare, obtain: "치장 뽑기 (/뽑기)" }
 
 gat:
   material: paper
@@ -65,7 +65,7 @@ gat:
   lore: ["<gray>선비의 품격, 갓끈까지"]
   model: gat
   max-stack: 1
-  cosmetic: { slot: head, rarity: epic, obtain: "상점 · 치장" }
+  cosmetic: { slot: head, rarity: epic, obtain: "치장 뽑기 (/뽑기)" }
 
 crown:
   material: paper
@@ -82,7 +82,7 @@ sprout:
   lore: ["<gray>머리에서 쏙 돋아난 새싹"]
   model: sprout
   max-stack: 1
-  cosmetic: { slot: above, rarity: common, obtain: "상점 · 치장" }
+  cosmetic: { slot: above, rarity: common, obtain: "치장 뽑기 (/뽑기)" }
 
 heart:
   material: paper
@@ -90,7 +90,7 @@ heart:
   lore: ["<gray>두근두근 떠다니는 하트"]
   model: heart
   max-stack: 1
-  cosmetic: { slot: above, rarity: rare, obtain: "상점 · 치장", bob: true }
+  cosmetic: { slot: above, rarity: rare, obtain: "치장 뽑기 (/뽑기)", bob: true }
 
 rain_cloud:
   material: paper
@@ -98,7 +98,7 @@ rain_cloud:
   lore: ["<gray>나만 따라다니는 먹구름"]
   model: rain_cloud
   max-stack: 1
-  cosmetic: { slot: above, rarity: epic, obtain: "상점 · 치장", bob: true }
+  cosmetic: { slot: above, rarity: epic, obtain: "치장 뽑기 (/뽑기)", bob: true }
 
 halo:
   material: paper
@@ -115,7 +115,7 @@ chick:
   lore: ["<gray>어깨 위의 삐약이"]
   model: chick
   max-stack: 1
-  cosmetic: { slot: shoulder, rarity: common, obtain: "상점 · 치장" }
+  cosmetic: { slot: shoulder, rarity: common, obtain: "치장 뽑기 (/뽑기)" }
 
 slime:
   material: paper
@@ -123,7 +123,7 @@ slime:
   lore: ["<gray>말랑말랑 어깨 친구"]
   model: slime
   max-stack: 1
-  cosmetic: { slot: shoulder, rarity: rare, obtain: "상점 · 치장" }
+  cosmetic: { slot: shoulder, rarity: rare, obtain: "치장 뽑기 (/뽑기)" }
 
 shoulder_cat:
   material: paper
@@ -131,7 +131,7 @@ shoulder_cat:
   lore: ["<gray>어깨 위가 제일 편한 고양이"]
   model: shoulder_cat
   max-stack: 1
-  cosmetic: { slot: shoulder, rarity: epic, obtain: "상점 · 치장" }
+  cosmetic: { slot: shoulder, rarity: epic, obtain: "치장 뽑기 (/뽑기)" }
 
 # ── 등 ──────────────────────────────────────────────────────────────────────────
 school_bag:
@@ -140,7 +140,7 @@ school_bag:
   lore: ["<gray>준비물 챙겼니?"]
   model: school_bag
   max-stack: 1
-  cosmetic: { slot: back, rarity: common, obtain: "상점 · 치장" }
+  cosmetic: { slot: back, rarity: common, obtain: "치장 뽑기 (/뽑기)" }
 
 bear_backpack:
   material: paper
@@ -148,7 +148,7 @@ bear_backpack:
   lore: ["<gray>등에 업힌 곰돌이"]
   model: bear_backpack
   max-stack: 1
-  cosmetic: { slot: back, rarity: rare, obtain: "상점 · 치장" }
+  cosmetic: { slot: back, rarity: rare, obtain: "치장 뽑기 (/뽑기)" }
 
 bunny_backpack:
   material: paper
@@ -156,7 +156,7 @@ bunny_backpack:
   lore: ["<gray>귀가 쫑긋한 토끼 가방"]
   model: bunny_backpack
   max-stack: 1
-  cosmetic: { slot: back, rarity: rare, obtain: "상점 · 치장" }
+  cosmetic: { slot: back, rarity: rare, obtain: "치장 뽑기 (/뽑기)" }
 
 butterfly_wings:
   material: paper
@@ -164,7 +164,7 @@ butterfly_wings:
   lore: ["<gray>푸르게 빛나는 날개"]
   model: butterfly_wings
   max-stack: 1
-  cosmetic: { slot: back, rarity: epic, obtain: "상점 · 치장" }
+  cosmetic: { slot: back, rarity: epic, obtain: "치장 뽑기 (/뽑기)" }
 
 angel_wings:
   material: paper
@@ -189,7 +189,7 @@ cat_tail:
   lore: ["<gray>살랑살랑"]
   model: cat_tail
   max-stack: 1
-  cosmetic: { slot: tail, rarity: common, obtain: "상점 · 치장" }
+  cosmetic: { slot: tail, rarity: common, obtain: "치장 뽑기 (/뽑기)" }
 
 fox_tail:
   material: paper
@@ -197,7 +197,7 @@ fox_tail:
   lore: ["<gray>복슬복슬, 끝은 하얗게"]
   model: fox_tail
   max-stack: 1
-  cosmetic: { slot: tail, rarity: rare, obtain: "상점 · 치장" }
+  cosmetic: { slot: tail, rarity: rare, obtain: "치장 뽑기 (/뽑기)" }
 
 # ── 펫 (옆에서 따라다님. float: true = 떠다님, particle = 가끔 흘리는 파티클) ────────────────────────
 puppy:
@@ -206,7 +206,7 @@ puppy:
   lore: ["<gray>졸졸 따라오는 시바견"]
   model: puppy
   max-stack: 1
-  cosmetic: { slot: pet, rarity: common, obtain: "상점 · 치장" }
+  cosmetic: { slot: pet, rarity: common, obtain: "치장 뽑기 (/뽑기)" }
 
 penguin:
   material: paper
@@ -214,7 +214,7 @@ penguin:
   lore: ["<gray>뒤뚱뒤뚱"]
   model: penguin
   max-stack: 1
-  cosmetic: { slot: pet, rarity: rare, obtain: "상점 · 치장" }
+  cosmetic: { slot: pet, rarity: rare, obtain: "치장 뽑기 (/뽑기)" }
 
 ghost:
   material: paper
@@ -222,7 +222,7 @@ ghost:
   lore: ["<gray>무섭지 않은 유령, 둥실둥실"]
   model: ghost
   max-stack: 1
-  cosmetic: { slot: pet, rarity: epic, obtain: "상점 · 치장", float: true }
+  cosmetic: { slot: pet, rarity: epic, obtain: "치장 뽑기 (/뽑기)", float: true }
 
 baby_dragon:
   material: paper
@@ -230,7 +230,7 @@ baby_dragon:
   lore: ["<gray>파닥파닥 날아서 따라옴"]
   model: baby_dragon
   max-stack: 1
-  cosmetic: { slot: pet, rarity: epic, obtain: "상점 · 치장", float: true }
+  cosmetic: { slot: pet, rarity: epic, obtain: "치장 뽑기 (/뽑기)", float: true }
 
 cat:
   material: paper
@@ -238,7 +238,7 @@ cat:
   lore: ["<gray>꼬리를 바짝 세우고 졸졸"]
   model: cat
   max-stack: 1
-  cosmetic: { slot: pet, rarity: common, obtain: "상점 · 치장" }
+  cosmetic: { slot: pet, rarity: common, obtain: "치장 뽑기 (/뽑기)" }
 
 turtle:
   material: paper
@@ -246,7 +246,7 @@ turtle:
   lore: ["<gray>느긋해 보여도 꼭 따라옴"]
   model: turtle
   max-stack: 1
-  cosmetic: { slot: pet, rarity: common, obtain: "상점 · 치장" }
+  cosmetic: { slot: pet, rarity: common, obtain: "치장 뽑기 (/뽑기)" }
 
 bunny:
   material: paper
@@ -254,7 +254,7 @@ bunny:
   lore: ["<gray>깡충깡충, 솜뭉치 꼬리"]
   model: bunny
   max-stack: 1
-  cosmetic: { slot: pet, rarity: rare, obtain: "상점 · 치장" }
+  cosmetic: { slot: pet, rarity: rare, obtain: "치장 뽑기 (/뽑기)" }
 
 panda:
   material: paper
@@ -262,7 +262,7 @@ panda:
   lore: ["<gray>뒤뚱뒤뚱, 대나무 냄새가 남"]
   model: panda
   max-stack: 1
-  cosmetic: { slot: pet, rarity: epic, obtain: "상점 · 치장" }
+  cosmetic: { slot: pet, rarity: epic, obtain: "치장 뽑기 (/뽑기)" }
 
 # 업적 보상 펫 (상점에 없음)
 mole:
@@ -328,35 +328,35 @@ petal_trail:
   name: "<#ffb7d5>꽃잎 발자취"
   lore: ["<gray>걸음마다 벚꽃잎이 흩날림"]
   max-stack: 1
-  cosmetic: { slot: trail, rarity: common, obtain: "상점 · 치장", particle: cherry_leaves, count: 2, spread: 0.3, height: 0.8 }
+  cosmetic: { slot: trail, rarity: common, obtain: "치장 뽑기 (/뽑기)", particle: cherry_leaves, count: 2, spread: 0.3, height: 0.8 }
 
 note_trail:
   material: note_block
   name: "<#7fe07a>음표 발자취"
   lore: ["<gray>걸음마다 통통 튀는 음표"]
   max-stack: 1
-  cosmetic: { slot: trail, rarity: rare, obtain: "상점 · 치장", particle: note, count: 3, spread: 0.3, speed: 1, height: 0.5 }
+  cosmetic: { slot: trail, rarity: rare, obtain: "치장 뽑기 (/뽑기)", particle: note, count: 3, spread: 0.3, speed: 1, height: 0.5 }
 
 heart_trail:
   material: poppy
   name: "<#ff7aa2>하트 발자취"
   lore: ["<gray>걸음마다 하트"]
   max-stack: 1
-  cosmetic: { slot: trail, rarity: rare, obtain: "상점 · 치장", particle: heart, count: 1, spread: 0.2 }
+  cosmetic: { slot: trail, rarity: rare, obtain: "치장 뽑기 (/뽑기)", particle: heart, count: 1, spread: 0.2 }
 
 flame_trail:
   material: blaze_powder
   name: "<#ff8a3d>불꽃 발자취"
   lore: ["<gray>걸은 자리에 작은 불꽃"]
   max-stack: 1
-  cosmetic: { slot: trail, rarity: epic, obtain: "상점 · 치장", particle: flame, count: 3, spread: 0.12, speed: 0.01 }
+  cosmetic: { slot: trail, rarity: epic, obtain: "치장 뽑기 (/뽑기)", particle: flame, count: 3, spread: 0.12, speed: 0.01 }
 
 rainbow_trail:
   material: amethyst_shard
   name: "<gradient:#ff5f57:#ffd36b:#7fe07a:#5ab0ff:#c58cff>무지개 발자취</gradient>"
   lore: ["<gray>색이 계속 바뀌는 빛 가루"]
   max-stack: 1
-  cosmetic: { slot: trail, rarity: epic, obtain: "상점 · 치장", particle: dust, color: rainbow, count: 4, spread: 0.2 }
+  cosmetic: { slot: trail, rarity: epic, obtain: "치장 뽑기 (/뽑기)", particle: dust, color: rainbow, count: 4, spread: 0.2 }
 
 # ── 처치 효과 (내가 잡은 몹·플레이어 자리에서 터짐. lightning = 피해 없는 번개) ────────────────
 kill_hearts:
@@ -364,35 +364,35 @@ kill_hearts:
   name: "<#ff7aa2>하트 뿅"
   lore: ["<gray>잡으면 하트가 뿅"]
   max-stack: 1
-  cosmetic: { slot: kill, rarity: common, obtain: "상점 · 치장", particle: heart, count: 8, spread: 0.4, sound: entity.experience_orb.pickup }
+  cosmetic: { slot: kill, rarity: common, obtain: "치장 뽑기 (/뽑기)", particle: heart, count: 8, spread: 0.4, sound: entity.experience_orb.pickup }
 
 kill_snow:
   material: snowball
   name: "<#e8f0ff>눈보라"
   lore: ["<gray>잡으면 눈송이가 흩날림"]
   max-stack: 1
-  cosmetic: { slot: kill, rarity: rare, obtain: "상점 · 치장", particle: snowflake, count: 40, spread: 0.6, speed: 0.05, sound: block.powder_snow.break }
+  cosmetic: { slot: kill, rarity: rare, obtain: "치장 뽑기 (/뽑기)", particle: snowflake, count: 40, spread: 0.6, speed: 0.05, sound: block.powder_snow.break }
 
 kill_firework:
   material: firework_rocket
   name: "<#ffd36b>축포"
   lore: ["<gray>잡으면 폭죽이 펑"]
   max-stack: 1
-  cosmetic: { slot: kill, rarity: rare, obtain: "상점 · 치장", particle: firework, count: 40, spread: 0.3, speed: 0.15, sound: entity.firework_rocket.blast }
+  cosmetic: { slot: kill, rarity: rare, obtain: "치장 뽑기 (/뽑기)", particle: firework, count: 40, spread: 0.3, speed: 0.15, sound: entity.firework_rocket.blast }
 
 kill_soul:
   material: soul_lantern
   name: "<#5ad8ff>영혼 회수"
   lore: ["<gray>잡으면 푸른 영혼이 피어오름"]
   max-stack: 1
-  cosmetic: { slot: kill, rarity: epic, obtain: "상점 · 치장", particle: soul_fire_flame, count: 30, spread: 0.3, speed: 0.04, sound: particle.soul_escape }
+  cosmetic: { slot: kill, rarity: epic, obtain: "치장 뽑기 (/뽑기)", particle: soul_fire_flame, count: 30, spread: 0.3, speed: 0.04, sound: particle.soul_escape }
 
 kill_thunder:
   material: lightning_rod
   name: "<#c58cff>천벌"
   lore: ["<gray>잡으면 하늘에서 번개 (피해 없음)"]
   max-stack: 1
-  cosmetic: { slot: kill, rarity: epic, obtain: "상점 · 치장", lightning: true, particle: electric_spark, count: 25, spread: 0.4, speed: 0.1 }
+  cosmetic: { slot: kill, rarity: epic, obtain: "치장 뽑기 (/뽑기)", lightning: true, particle: electric_spark, count: 25, spread: 0.4, speed: 0.1 }
 
 # ── 교환권 ──────────────────────────────────────────────────────────────────────────────
 tomato_voucher:

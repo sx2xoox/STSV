@@ -1,0 +1,80 @@
+# /뽑기: 치장 뽑기. 위 = 뽑기 버튼, 가운데 = 나오는 치장(좋은 등급부터, 확률은 보여 주지 않음), 아래 = 페이지 · 옷장 · 뒤로.
+# 동작: gacha:pull:1 (1회), gacha:pull:multi (묶음), gacha:back (연 곳으로, 없으면 닫기). 뽑기는 두 번 눌러야 함.
+# 자리표시자: {balance} {single} {multi} {count} {discount} {floor} {owned} {total} {confirm_single} {confirm_multi}
+# 가격·확률·천장: contents/stsv/gacha.yml
+gacha:
+  title: "<#f0e2b0>치장 뽑기 <#8f86a6>· 모은 치장 {owned}/{total}"
+  rows: 6
+  background: stsv:gui/gacha
+  layout:
+    - "..O.I.T.."
+    - ".LLLLLLL."
+    - ".LLLLLLL."
+    - ".LLLLLLL."
+    - ".LLLLLLL."
+    - "P..W.B..N"
+  list: L
+  buttons:
+    O:
+      action: "gacha:pull:1"
+      icon: stsv:gui/gacha
+      material: SNOWBALL
+      name: "<white>1회 뽑기 <dark_gray>· <gold>{single}"
+      lore:
+        - "<gray>아래 치장 중 하나가 나옵니다."
+        - "<gray>이미 가진 치장이면 <white>교환권</white>으로 (팔 수 있음)"
+        - ""
+        - "<gray>잔액: {balance}"
+        - "{confirm_single}"
+    T:
+      action: "gacha:pull:multi"
+      icon: stsv:gui/gacha
+      material: SNOWBALL
+      name: "<white>{count}회 뽑기 <dark_gray>· <gold>{multi}"
+      lore:
+        - "<gray>{count}번 한꺼번에 ({discount}% 할인)"
+        - "<gray>{floor}<gray> 이상 하나는 반드시 나옵니다."
+        - "<gray>이미 가진 치장이면 <white>교환권</white>으로 (팔 수 있음)"
+        - ""
+        - "<gray>잔액: {balance}"
+        - "{confirm_multi}"
+    I:
+      action: ""
+      icon: stsv:gui/info
+      material: BOOK
+      name: "<gold>치장 뽑기"
+      lore:
+        - "<gray>모은 치장: <white>{owned}/{total}"
+        - ""
+        - "<gray>아래에 있는 치장이 나옵니다 (일반 · 희귀 · 영웅)."
+        - "<gray>새 치장은 바로 내 것이 되고, /치장 에서 입습니다."
+        - "<gray>이미 가진 치장은 <white>교환권</white>으로 나옵니다:"
+        - "<gray>  거래소에서 팔거나, 친구에게 주거나, 우클릭해 등록."
+        - "<gray>영웅 치장이 나오면 서버 전체에 알립니다."
+        - "<gold>전설 치장</gold><gray>은 뽑기에 없습니다 (주간 순위 1위 · 상인 행렬)."
+    W:
+      action: "command:치장"
+      icon: stsv:gui/take_off
+      material: LEATHER_CHESTPLATE
+      name: "<white>치장 (옷장)"
+      lore: ["<gray>가진 치장 입어 보기"]
+    B:
+      action: "gacha:back"
+      icon: stsv:gui/back
+      material: ARROW
+      name: "<yellow>뒤로"
+      lore: ["<gray>연 곳으로 (없으면 닫기)"]
+    P:
+      action: page:prev
+      icon: stsv:gui/prev
+      material: ARROW
+      name: "<yellow>◀ 이전 페이지"
+      lore: ["<gray>{page} / {pages}"]
+      off: { icon: stsv:gui/prev_off, material: GRAY_DYE, name: "<dark_gray>◀ 첫 페이지" }
+    N:
+      action: page:next
+      icon: stsv:gui/next
+      material: ARROW
+      name: "<yellow>다음 페이지 ▶"
+      lore: ["<gray>{page} / {pages}"]
+      off: { icon: stsv:gui/next_off, material: GRAY_DYE, name: "<dark_gray>마지막 페이지 ▶" }

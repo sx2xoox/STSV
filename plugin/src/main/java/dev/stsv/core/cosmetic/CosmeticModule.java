@@ -480,7 +480,9 @@ public final class CosmeticModule implements StsvModule, Listener {
             Location last = trailAt.get(p.getUniqueId());
             if (last != null && last.getWorld() == here.getWorld() && last.distanceSquared(here) < 0.15 * 0.15) continue;
             trailAt.put(p.getUniqueId(), here);
-            CosmeticEffects.play(viewersOf(p, 48), here.clone().add(0, c.cosmetic().fx().height(), 0), c.cosmetic().fx(), ticks, false);
+            // behind the wearer: others see them a few ticks late, a mark at their feet would be under the legs
+            Location mark = CosmeticEffects.trailMark(last, here).add(0, c.cosmetic().fx().height(), 0);
+            CosmeticEffects.play(viewersOf(p, mark, 48), mark, c.cosmetic().fx(), ticks, false);
         }
     }
 
@@ -492,15 +494,14 @@ public final class CosmeticModule implements StsvModule, Listener {
         CustomItem c = worn(killer).get(CosmeticSlot.KILL);
         if (c == null || c.cosmetic().fx() == null) return;
         Location at = e.getEntity().getLocation().add(0, e.getEntity().getHeight() / 2, 0);
-        CosmeticEffects.play(viewersOf(killer, 64), at, c.cosmetic().fx(), ticks, true);
+        CosmeticEffects.play(viewersOf(killer, at, 64), at, c.cosmetic().fx(), ticks, true);
     }
 
-    /** Players near the wearer who can see them (and the wearer). */
-    private static List<Player> viewersOf(Player p, double range) {
+    /** Everyone near the effect who can see the wearer, and the wearer (CosmeticEffects.shownTo). */
+    private static List<Player> viewersOf(Player p, Location at, double range) {
         List<Player> out = new ArrayList<>();
-        Location at = p.getLocation();
-        for (Player v : p.getWorld().getPlayers()) {
-            if ((v == p || v.canSee(p)) && v.getLocation().distanceSquared(at) <= range * range) out.add(v);
+        for (Player v : at.getWorld().getPlayers()) {
+            if (CosmeticEffects.shownTo(v == p, v.canSee(p), v.getLocation().distanceSquared(at), range)) out.add(v);
         }
         return out;
     }
@@ -1040,6 +1041,9 @@ public final class CosmeticModule implements StsvModule, Listener {
                     v.refresh();
                 }
                 case "wardrobe:exit" -> Bukkit.getScheduler().runTask(plugin, () -> exitWardrobe(p, true));
+                case "wardrobe:gacha" -> Bukkit.getScheduler().runTask(plugin, () -> {
+                    if (plugin.gacha() != null) plugin.gacha().open(p, null);
+                });
                 default -> { }
             }
         }
@@ -1263,6 +1267,7 @@ public final class CosmeticModule implements StsvModule, Listener {
                 + " / 리소스팩 적용: " + packViews.containsKey(p.getUniqueId())
                 + " / 본인 화면 표시: " + selfShown.contains(p.getUniqueId()));
         out.add("치장 화면 안: " + inWardrobe(p));
+        if (plugin.gacha() != null) out.add(plugin.gacha().info(p.getUniqueId()));
         return out;
     }
 }

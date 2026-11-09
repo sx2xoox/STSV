@@ -38,6 +38,7 @@ public final class STSVPlugin extends JavaPlugin {
     private PackModule pack;
     private SkinModule skins;
     private CosmeticModule cosmetics;
+    private dev.stsv.core.cosmetic.GachaModule gacha;
     private dev.stsv.core.profile.ProfileModule profiles;
     private dev.stsv.core.hud.HudModule hud;
     private dev.stsv.core.economy.EconomyModule economy;
@@ -78,6 +79,7 @@ public final class STSVPlugin extends JavaPlugin {
         modules.register(profiles = new dev.stsv.core.profile.ProfileModule());
         modules.register(economy = new dev.stsv.core.economy.EconomyModule());
         modules.register(achievements = new dev.stsv.core.achievement.AchievementModule());
+        modules.register(gacha = new dev.stsv.core.cosmetic.GachaModule());
         modules.register(hub = new dev.stsv.core.gui.HubModule());
         modules.register(new ItemEffectsModule());
         modules.register(pack = new PackModule());
@@ -112,6 +114,8 @@ public final class STSVPlugin extends JavaPlugin {
         }
         PluginCommand wardrobe = getCommand("치장");
         if (wardrobe != null) wardrobe.setExecutor(new WardrobeCommand(this));
+        PluginCommand gachaCommand = getCommand("뽑기");
+        if (gachaCommand != null) gachaCommand.setExecutor(gacha);
         PluginCommand ach = getCommand("업적");
         if (ach != null) ach.setExecutor((sender, cmdObj, label, args) -> {
             if (sender instanceof org.bukkit.entity.Player p) {
@@ -176,6 +180,8 @@ public final class STSVPlugin extends JavaPlugin {
     public PackModule pack() { return pack; }
     public SkinModule skins() { return skins; }
     public CosmeticModule cosmetics() { return cosmetics; }
+    /** 치장 뽑기 */
+    public dev.stsv.core.cosmetic.GachaModule gacha() { return gacha; }
     public dev.stsv.core.profile.ProfileModule profiles() { return profiles; }
     public dev.stsv.core.hud.HudModule hud() { return hud; }
     public dev.stsv.core.economy.EconomyModule economy() { return economy; }
