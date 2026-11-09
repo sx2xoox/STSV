@@ -17,8 +17,9 @@ import java.util.Map;
  *   <li>action bar: centred on the screen's middle, pen line at (guiHeight - 72); a glyph's top is at pen line
  *       + 7 - ascent, so a glyph whose top should be D pixels above the bottom of the screen gets ascent D - 65.
  *       The bars take the rows of the game's hearts (top 39 above the bottom) and armor (49), across the
- *       hotbar's width (frames and icons within x -91 .. 91, the numbers just past its ends, as wide on both
- *       sides), and leave the middle (|x| &lt; 14) to the experience level the game draws there.</li>
+ *       hotbar's width and a little past it (frames and icons within x -94 .. 94, the hotbar is -91 .. 91, the
+ *       numbers just past them, as wide on both sides), and leave the middle (|x| &lt; 14) to the experience
+ *       level the game draws there.</li>
  *   <li>boss bar title (the first boss bar): centred, pen line at y 3 from the top; a glyph top at y gets ascent
  *       10 - y. The sidebar panel lives there, its right edge {@code right} pixels right of the screen's
  *       middle, its top {@code top} pixels below the top of the screen.</li>
@@ -104,14 +105,16 @@ public final class HudLayout {
     // action bar rows (distance of a glyph's top from the bottom of the screen)
     static final int ROW1 = 39, ROW2 = 49;
     // a bar: [number][icon][frame] on the left half, mirrored on the right; the fill grows away from the icon.
-    // The frames start at the edge of the level's room (|x| < 14) and, with the icons, reach nearly to the
-    // hotbar's ends (x -84 .. 84); the numbers sit just past them. Parts are a pitch of (INNER + 1) / n px: the
-    // fill and a one-pixel tick, the last part ending at the frame. INNER + 1 = 60, so the usual 10 hearts /
-    // drumsticks / armor points / bubbles are 5 px each and 12 (more hearts) 4 px, 6, 5, 4, 3 and 2 just as even.
-    static final int INNER = 59, FRAME_W = INNER + 2, ICON = 9, MIDDLE = 14;
+    // The frames start at the edge of the level's room (|x| < 14) and, with the icons, reach a little past the
+    // hotbar's ends (x -94 .. 94, the hotbar -91 .. 91); the numbers sit just past them (two digits to 105, on
+    // screen at GUI 4 of a 1280 x 720 window, 160 px each side; above the off-hand slot, which is under row 23).
+    // Parts are a pitch of (INNER + 1) / n px: the fill and a one-pixel tick, the last part ending at the frame.
+    // INNER + 1 = 70, so the usual 10 hearts / drumsticks / armor points / bubbles are 7 px each, 14 (more
+    // hearts) 5 px, 7, 5 and 2 just as even; other counts differ by a pixel at most (segments).
+    static final int INNER = 69, FRAME_W = INNER + 2, ICON = 9, MIDDLE = 14;
     static final int LEFT_FRAME = -(MIDDLE - 1) - FRAME_W, LEFT_ICON = LEFT_FRAME - 1 - ICON, LEFT_NUMBER_END = LEFT_ICON - 1;
     static final int RIGHT_FRAME = MIDDLE, RIGHT_ICON = RIGHT_FRAME + FRAME_W + 1, RIGHT_NUMBER = RIGHT_ICON + ICON + 1;
-    static final int DIGIT_PITCH = 4;
+    static final int DIGIT_PITCH = 4, MAX_SEGMENTS = 14;
     static final int[] FILL_PIECES = {32, 16, 8, 4, 2, 1};
     // the panel at its normal size (HEAD: title strip down to the first row; ROW: row pitch; FOOT: bevel,
     // outline, shadow); every size scales its own cut of these (Style) by its scale
@@ -479,10 +482,14 @@ public final class HudLayout {
         return out;
     }
 
-    /** Parts of `per` (a heart = 2 health) in a bar of max, doubled until there are at most 12. */
+    /**
+     * Parts of `per` (a heart = 2 health) in a bar of max, doubled until there are at most MAX_SEGMENTS: up to 14
+     * hearts a part each (14 of 5 px, as even as 10; 11 to 13 a pixel apart at most), more two (or four) a part
+     * (40 health: 10 again).
+     */
     static int segments(double max, int per) {
         int n = (int) Math.ceil(max / per - 1e-9);
-        while (n > 12) {
+        while (n > MAX_SEGMENTS) {
             per *= 2;
             n = (int) Math.ceil(max / per - 1e-9);
         }

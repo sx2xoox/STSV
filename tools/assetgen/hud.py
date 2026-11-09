@@ -156,7 +156,7 @@ FILLS = {   # light, body, shade
 }
 SAT = (255, 228, 92)
 FILL_H = 7
-INNER = 59                     # the inside of a bar (the frame is 61 x 9; HudLayout.INNER)
+INNER = 69                     # the inside of a bar (the frame is 71 x 9; HudLayout.INNER)
 PIECES = (1, 2, 4, 8, 16, 32)
 
 OUTLINE = (16, 18, 22)

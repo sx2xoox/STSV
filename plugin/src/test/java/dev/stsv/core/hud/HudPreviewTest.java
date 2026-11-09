@@ -35,7 +35,7 @@ class HudPreviewTest {
     }
 
     static Scene state(String label, HudLayout.Health health, Component message, int level, boolean water) {
-        return new Scene(1920, 1080, 3, label, null, false, health, message, false, level, 0, water, new int[]{-106, 82, 212, 82}, 1, 0);
+        return new Scene(1920, 1080, 3, label, null, false, health, message, false, level, 0, water, new int[]{-116, 82, 232, 82}, 1, 0);
     }
 
     /** The panel moved with the mouse to `margin` px from the right edge of this screen, at a size and a top. */
@@ -92,6 +92,7 @@ class HudPreviewTest {
                 state("동상 (가루눈)", new HudLayout.Health(11, 20, 0, 20, 14f, 20, HudLayout.Tint.FROZEN, false), null, 0, false),
                 state("물속 (공기 6칸)", normal.withAir(new HudLayout.Air(172, 300)), null, 23, true),
                 state("말 타기 (말 체력 21 / 30)", normal.withMount(new HudLayout.Mount(21, 30)), null, 23, false),
+                state("최대 체력 28 (칸 = 하트 1개, 14칸)", new HudLayout.Health(23, 28, 0, 20, 20f, 8, HudLayout.Tint.NORMAL, false), null, 31, false),
                 state("최대 체력 40 · 방어 30 (칸 = 하트 2개)", new HudLayout.Health(33, 40, 0, 20, 20f, 30, HudLayout.Tint.NORMAL, false), null, 147, false),
                 state("안내 문구와 함께", normal, codex, 23, false)));
 
