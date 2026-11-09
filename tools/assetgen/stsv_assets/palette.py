@@ -154,23 +154,26 @@ def _toward(h, target, amount):
     return h + max(-abs(d), min(abs(d), amount)) * (1 if d >= 0 else -1)
 
 
+def color_at(hue, chroma, center, span, steps, accent, t):
+    """The colour at ladder position t (0 = darkest step, 1 = lightest; may lie outside 0..1, see ladder())."""
+    L = center + span * (t - 0.5)
+    if isinstance(hue, tuple):
+        h = hue[0] + (hue[1] - hue[0]) * max(0.0, min(1.0, t))
+    else:
+        h = hue
+    edge = min(1.5, abs(t - 0.5) * 2)              # 0 at the middle, 1 at both ends
+    shift = HUE_SHIFT * min(1.0, edge) * (0.5 if accent else 1.0)
+    h = _toward(h, LIGHT_HUE if t > 0.5 else SHADOW_HUE, shift)
+    c = chroma * (ACCENT_CHROMA_BOOST if accent else CHROMA_BOOST) * (1 - EDGE_CHROMA_FALLOFF * edge)
+    if chroma < 0.02:                               # near-greys still pick up a hint of the light colour
+        c = max(c, 0.010)
+    if not 0 <= t <= 1:
+        L = min(0.97, L)                            # continued ladders (ladder()) stop short of white
+    return oklch_to_rgb(max(L, MIN_LIGHTNESS), c, h % 360)
+
+
 def build_ramp(hue, chroma, center, span, steps, accent=False):
-    out = []
-    for i in range(steps):
-        t = i / (steps - 1) if steps > 1 else 0.5
-        L = center + span * (t - 0.5)
-        if isinstance(hue, tuple):
-            h = hue[0] + (hue[1] - hue[0]) * t
-        else:
-            h = hue
-        edge = abs(t - 0.5) * 2                     # 0 at the middle, 1 at both ends
-        shift = HUE_SHIFT * edge * (0.5 if accent else 1.0)
-        h = _toward(h, LIGHT_HUE if t > 0.5 else SHADOW_HUE, shift)
-        c = chroma * (ACCENT_CHROMA_BOOST if accent else CHROMA_BOOST) * (1 - EDGE_CHROMA_FALLOFF * edge)
-        if chroma < 0.02:                           # near-greys still pick up a hint of the light colour
-            c = max(c, 0.010)
-        out.append(oklch_to_rgb(max(L, MIN_LIGHTNESS), c, h % 360))
-    return out
+    return [color_at(hue, chroma, center, span, steps, accent, i / (steps - 1) if steps > 1 else 0.5) for i in range(steps)]
 
 
 PALETTE = {name: build_ramp(*spec) for name, spec in MATERIALS.items()}
@@ -184,3 +187,22 @@ def ramp(name: str, i: int):
 
 def size(name: str) -> int:
     return len(PALETTE[name])
+
+
+_LADDER = {}
+
+
+def ladder(name: str, i: int):
+    """Step i of a material's ramp, continued past both ends with the same lightness step (baked furniture
+    shading: ambient occlusion one or two steps below the darkest colour, rims above the lightest). Inside the
+    ramp it is exactly ramp(name, i)."""
+    key = (name, i)
+    if key not in _LADDER:
+        spec = MATERIALS.get(name)
+        if spec is None or 0 <= i < spec[4]:
+            _LADDER[key] = ramp(name, i)
+        else:
+            i = max(-3, min(spec[4] + 2, i))
+            _LADDER[key] = (*color_at(*spec, t=i / (spec[4] - 1)), 255)
+    return _LADDER[key]
+

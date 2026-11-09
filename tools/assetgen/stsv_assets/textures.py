@@ -777,10 +777,21 @@ ANIMATED = {
 
 def animation_strip(name):
     frames = ANIMATED[name][0]()
-    strip = Image.new("RGBA", (S, S * len(frames)))
+    w, h = frames[0].size
+    strip = Image.new("RGBA", (w, h * len(frames)))
     for i, f in enumerate(frames):
-        strip.paste(f, (0, i * S))
+        strip.paste(f, (0, i * h))
     return strip
+
+
+_SIZE_CACHE = {}
+
+
+def size_of(name):
+    """(width, height) of a surface (of one frame if animated): 16 x 16 except baked atlases (bake.py)."""
+    if name not in _SIZE_CACHE:
+        _SIZE_CACHE[name] = SURFACES[name]().size
+    return _SIZE_CACHE[name]
 
 
 # Textures with lines that must continue from one face to the next (seams, bands).
@@ -794,7 +805,7 @@ _ALPHA_CACHE = {}
 def has_transparency(name):
     if name not in _ALPHA_CACHE:
         im = SURFACES[name]()
-        _ALPHA_CACHE[name] = any(im.getpixel((x, y))[3] < 255 for y in range(S) for x in range(S))
+        _ALPHA_CACHE[name] = im.mode == "RGBA" and im.getchannel("A").getextrema()[0] < 255
     return _ALPHA_CACHE[name]
 
 

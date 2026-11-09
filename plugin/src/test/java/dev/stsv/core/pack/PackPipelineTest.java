@@ -42,7 +42,8 @@ class PackPipelineTest {
             "andon", "stone_lantern", "tea_kettle");            // furniture: lamp paper, the lantern's fire, embers
     private static final Set<String> ROTATED = Set.of("test_sword", "test_sword_skin", "test_greatsword", "test_slash", "test_rod", "test_rod_cast",
             "angel_wings", "demon_wings", "butterfly_wings",   // wings swept back 22.5 degrees
-            "gumiho");                                          // nine tails fanned out
+            "gumiho",                                           // nine tails fanned out
+            "wagasa");                                          // the parasol's struts, tilted up to its canopy
 
     @org.junit.jupiter.params.ParameterizedTest
     @org.junit.jupiter.params.provider.MethodSource("models")
