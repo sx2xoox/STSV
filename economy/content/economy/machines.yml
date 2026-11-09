@@ -82,9 +82,9 @@ gem_bench:
     - { in: { copper_ingot: 8 }, out: economy:copper_plate, seconds: 75 }   # 구리판 48G
     - { in: { economy:rough_ruby: 4 }, out: economy:ruby, amount: 4, seconds: 225, tier: 1 }   # 루비 38G
     - { in: { economy:rough_sapphire: 4 }, out: economy:sapphire, amount: 4, seconds: 225, tier: 1 }   # 사파이어 38G
-    - { in: { gold_ingot: 2, economy:ruby: 1 }, out: economy:ruby_ring, seconds: 300, tier: 1 }   # 루비 반지 147G
+    - { in: { economy:ruby: 1, economy:gold_ring: 1 }, out: economy:ruby_ring, seconds: 480, tier: 1 }   # 루비 반지 238G (다이아 반지처럼 금반지에 보석을 박음)
     - { in: { economy:polished_pearl: 1, gold_ingot: 2, economy:sapphire: 1 }, out: economy:pearl_necklace, seconds: 165, tier: 2 }   # 진주 목걸이 568G
-    - { in: { gold_ingot: 8, economy:ruby_ring: 2, economy:pearl_necklace: 1 }, out: economy:jeweled_crown, seconds: 1200, tier: 3 }   # 보석 왕관 2283G
+    - { in: { gold_ingot: 8, economy:ruby_ring: 2, economy:pearl_necklace: 1 }, out: economy:jeweled_crown, seconds: 1200, tier: 3 }   # 보석 왕관 2684G
     # ── 추가 (원석·광물만으로: 다른 기계를 거치지 않음) ──
     - { in: { emerald: 1 }, out: economy:cut_emerald, seconds: 60 }   # 세공 에메랄드 36G
     - { in: { lapis_lazuli: 16 }, out: economy:lapis_beads, seconds: 110 }   # 청금석 구슬 45G

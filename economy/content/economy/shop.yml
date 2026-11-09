@@ -228,9 +228,9 @@ sell:
       economy:sapphire: { base: 38, q: 16 }   # 사파이어
       economy:coke: { base: 60, q: 8 }   # 코크스
       economy:copper_plate: { base: 48, q: 16 }   # 구리판
-      economy:ruby_ring: { base: 147, q: 8 }   # 루비 반지
+      economy:ruby_ring: { base: 238, q: 4 }   # 루비 반지
       economy:pearl_necklace: { base: 568, q: 2 }   # 진주 목걸이
-      economy:jeweled_crown: { base: 2283, q: 1 }   # 보석 왕관
+      economy:jeweled_crown: { base: 2684, q: 1 }   # 보석 왕관
       economy:cut_emerald: { base: 36, q: 16 }   # 세공 에메랄드
       economy:lapis_beads: { base: 45, q: 16 }   # 청금석 구슬
       economy:gold_ring: { base: 70, q: 8 }   # 금반지

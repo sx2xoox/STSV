@@ -519,8 +519,8 @@ class RulesTest {
         assertEquals(1, gems.auto(Map.of("economy:rough_ruby", 4), 0, tags).amount(), "the bulk recipe is 1강");
         assertEquals(4, gems.auto(Map.of("economy:rough_ruby", 4), 1, tags).amount(), "from 1강: four rough gems are cut at once (same yield, faster)");
         assertEquals(1, gems.auto(Map.of("economy:rough_ruby", 3), 1, tags).amount(), "not enough for the bulk one");
-        assertNull(gems.auto(Map.of("minecraft:gold_ingot", 2, "economy:ruby", 1), 0, tags), "the ring is 1강");
-        assertEquals("economy:ruby_ring", gems.auto(Map.of("minecraft:gold_ingot", 2, "economy:ruby", 1), 1, tags).output());
+        assertNull(gems.auto(Map.of("economy:gold_ring", 1, "economy:ruby", 1), 0, tags), "the ring is 1강");
+        assertEquals("economy:ruby_ring", gems.auto(Map.of("economy:gold_ring", 1, "economy:ruby", 1), 1, tags).output(), "a ruby set in a gold ring, like the diamond ring");
         assertNull(gems.auto(Map.of("economy:rough_ruby", 1, "minecraft:dirt", 1), 3, tags), "a stray item stops the 자동");
         assertNull(gems.auto(Map.of(), 3, tags));
         MachineSpec forge = m.get("forge");
