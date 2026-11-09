@@ -778,6 +778,8 @@ public final class StockModule extends EcoModule implements DailyListener, Weekl
         @Override
         public ItemStack button(MenuView v, dev.stsv.core.gui.menu.MenuSpec.Button b, ItemStack base) {
             if (b.key() == 'S') base.editMeta(meta -> meta.setItemModel(new org.bukkit.NamespacedKey("economy", SORT_ICONS.getOrDefault(sort, "gui/refresh"))));
+            // the tab being shown glints (as in /도감 and /치장)
+            if (b.action().equals("stock:tab:" + tab)) base.editMeta(meta -> meta.setEnchantmentGlintOverride(true));
             return base;
         }
 

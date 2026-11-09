@@ -1,6 +1,6 @@
 # /직업: 두 번 클릭해서 선택. 레벨은 직업마다 따로 남음
 jobs:
-  title: "<#f3e3b0>직업"
+  title: "<#f0e2b0>직업"
   rows: 4
   background: economy:gui/jobs
   layout:
@@ -21,6 +21,7 @@ jobs:
       icon: economy:gui/trophy
       material: GOLDEN_HELMET
       name: "<yellow>직업 순위"
+      lore: ["<gray>직업별 레벨 순위 (채팅으로)"]
     X:
       action: close
       icon: stsv:gui/exit

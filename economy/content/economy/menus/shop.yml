@@ -2,7 +2,7 @@
 
 # 첫 화면
 shop:
-  title: "<#f3e3b0>상점"
+  title: "<#f0e2b0>상점"
   rows: 3
   background: economy:gui/shop
   layout:
@@ -36,7 +36,7 @@ shop:
 
 # 구매 카테고리 (상인 행렬은 사건이 열려 있을 때만)
 shop_buy:
-  title: "<#f3e3b0>상점 · 구매"
+  title: "<#f0e2b0>상점 <#b9a6d6>· 구매"
   rows: 3
   background: economy:gui/shop_buy
   layout:
@@ -56,6 +56,7 @@ shop_buy:
       icon: economy:gui/back
       material: ARROW
       name: "<yellow>처음으로"
+      lore: ["<gray>상점 첫 화면으로"]
     X:
       action: close
       icon: stsv:gui/exit
@@ -64,7 +65,7 @@ shop_buy:
 
 # 판매 카테고리: 카테고리를 고르거나, 내 인벤토리 물건을 바로 클릭해서 팔기
 shop_sell:
-  title: "<#f3e3b0>상점 · 판매"
+  title: "<#f0e2b0>상점 <#b9a6d6>· 판매"
   rows: 3
   background: economy:gui/shop_sell
   layout:
@@ -96,6 +97,7 @@ shop_sell:
       icon: economy:gui/back
       material: ARROW
       name: "<yellow>처음으로"
+      lore: ["<gray>상점 첫 화면으로"]
     X:
       action: close
       icon: stsv:gui/exit
@@ -104,7 +106,7 @@ shop_sell:
 
 # 구매 품목 (한 카테고리)
 shop_buy_items:
-  title: "<#f3e3b0>구매 · {category}"
+  title: "<#f0e2b0>구매 <#b9a6d6>· {category}"
   rows: 6
   background: economy:gui/shop_buy_items
   layout:
@@ -127,6 +129,7 @@ shop_buy_items:
       icon: economy:gui/back
       material: ARROW
       name: "<yellow>구매 카테고리로"
+      lore: ["<gray>다른 구매 카테고리 고르기"]
     P:
       action: page:prev
       icon: stsv:gui/prev
@@ -149,7 +152,7 @@ shop_buy_items:
 
 # 판매 품목 (한 카테고리): 품목 클릭 = 인벤토리의 그 물건 팔기, 내 인벤토리 클릭도 그대로 팔기
 shop_sell_items:
-  title: "<#f3e3b0>판매 · {category}"
+  title: "<#f0e2b0>판매 <#b9a6d6>· {category}"
   rows: 6
   background: economy:gui/shop_sell_items
   layout:
@@ -184,6 +187,7 @@ shop_sell_items:
       icon: economy:gui/back
       material: ARROW
       name: "<yellow>판매 카테고리로"
+      lore: ["<gray>다른 판매 카테고리 고르기"]
     P:
       action: page:prev
       icon: stsv:gui/prev

@@ -18,7 +18,9 @@ MENUS_DIR = Path(__file__).resolve().parents[2] / "content/stsv/menus"
 # the core's own buttons (stsv:gui/<name>); contents use them too (pages, close, info)
 CORE_ICONS = ("prev", "next", "prev_off", "next_off", "exit", "info", "take_off", "clear", "back", "chest",
               # the hub (/메뉴): worlds, teleport requests, titles, rankings, money
-              "house", "pine", "tag", "podium", "send", "coins", "crown", "trophy", "pearl")
+              "house", "pine", "tag", "podium", "send", "coins", "crown", "trophy", "pearl",
+              # the hub's 치장 (a mannequin: the hanger is the wardrobe's "take off") and 야간 투시
+              "dress_up", "night_vision")
 
 
 def menus():
@@ -71,31 +73,14 @@ def write(content_pack: Path):
 
 
 def preview(path: Path, scale=3):
-    """The core menus side by side with their button icons and sample items in the list cells
-    (no title text: there is no Minecraft font here)."""
+    """The core menus side by side with their button icons, the player's head and sample items in the list cells
+    (stsv_assets/menu_preview.py; no title text: there is no Minecraft font here)."""
+    from stsv_assets import menu_preview as P
     specs = {k: s for k, s in menus().items() if s.get("background")}
-    every = U.icons()
-    samples = [Image.open(p).convert("RGBA") for p in sorted((Path(__file__).parent.parent.parent / "content/stsv/textures").glob("*.png"))]
-    ims = []
-    for key, spec in specs.items():
-        im = T.background(spec)
-        lst = spec.get("list")
-        k = 0
-        for r, row in enumerate(spec["layout"]):
-            for c, ch in enumerate(row):
-                x, y = 7 + 18 * c, 17 + 18 * r
-                if lst and ch == lst and samples and k < len(samples) * 2:
-                    im.alpha_composite(samples[k % len(samples)].resize((16, 16), Image.NEAREST), (x + 1, y + 1))
-                    k += 1
-                elif ch in (spec.get("buttons") or {}):
-                    icon = (spec["buttons"][ch] or {}).get("icon", "")
-                    name = icon.split("/")[-1] if icon.startswith("stsv:gui/") else None
-                    own = MENUS_DIR.parent / "textures" / (icon.split(":", 1)[-1] + ".png")   # a content item (the cheque)
-                    if name in every:
-                        im.alpha_composite(every[name], (x + 1, y + 1))
-                    elif icon.startswith("stsv:") and own.exists():
-                        im.alpha_composite(Image.open(own).convert("RGBA").resize((16, 16), Image.NEAREST), (x + 1, y + 1))
-        ims.append(im)
+    textures = MENUS_DIR.parent / "textures"
+    samples = [Image.open(p).convert("RGBA").resize((16, 16), Image.NEAREST) for p in sorted(textures.glob("*.png"))]
+    find = P.lookup({"stsv": U.icons()}, {"stsv": textures})
+    ims = [P.render(spec, find, samples) for spec in specs.values()]
     canvas = Image.new("RGBA", (len(ims) * (T.W + 8) + 8, max(i.height for i in ims) + 16), (32, 34, 40, 255))
     for k, im in enumerate(ims):
         canvas.alpha_composite(im, (8 + k * (T.W + 8), 8))

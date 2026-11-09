@@ -3,13 +3,13 @@
 # 버튼 동작: command:<명령어> (플레이어로 실행), menu:<메뉴>, close,
 #            hub:<왼쪽>|<오른쪽>  각각 run:<명령어> (실행) 또는 suggest:<명령어> (닫고 채팅창에 "/명령어 " 넣기 안내).
 #            오른쪽을 빼면 모든 클릭이 왼쪽
-# 자리표시자: {player} {world} {balance} {title} {points} {cosmetics} {fee} {hotkey} {warmup} {cooldown}
+# 자리표시자: {player} {world} {balance} {title} {points} {cosmetics} {fee} {hotkey} {warmup} {cooldown} {night_vision}
 hub:
   title: "<#f0e2b0>통합 메뉴 <#8f86a6>· {world}"
   rows: 4
   background: stsv:gui/hub
   layout:
-    - ".P.B.Y.t."
+    - ".BY.P.tn."
     - "..QRSTZ.."
     - "...UVW..."
     - "....X...."
@@ -44,9 +44,15 @@ hub:
       material: ENDER_PEARL
       name: "<white>텔레포트 요청"
       lore: ["<gray>다른 플레이어에게 가기 (상대가 수락하면)", "<gray>우클릭: 내 쪽으로 부르기", "<dark_gray>/tpa <플레이어> · /tpahere <플레이어>", "<dark_gray>받은 요청: /tpaccept · /tpdeny · 안 받기: /tpatoggle"]
+    n:
+      action: "command:야간투시"
+      icon: stsv:gui/night_vision
+      material: ENDER_EYE
+      name: "<white>야간 투시 <gray>· {night_vision}"
+      lore: ["<gray>어두운 곳도 밝게 보기 (켜기·끄기)", "<gray>켜 두면 접속을 끊거나 죽어도 유지", "<dark_gray>/야간투시"]
     Q:
       action: "command:치장"
-      icon: stsv:gui/take_off
+      icon: stsv:gui/dress_up
       material: LEATHER_CHESTPLATE
       name: "<white>치장"
       lore: ["<gray>모자, 날개, 펫... 입어 보고 꾸미기", "<gray>보유: <white>{cosmetics}"]

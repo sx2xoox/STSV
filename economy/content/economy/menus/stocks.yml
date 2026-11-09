@@ -1,6 +1,6 @@
 # /주식: 위 = 산업 탭, 가운데 = 회사 (클릭하면 회사 화면), 아래 = 정렬·뉴스·도움말
 stocks:
-  title: "<#f3e3b0>주식 <gray>· {tab} · {sort}"
+  title: "<#f0e2b0>주식 <#b9a6d6>· {tab} <#8f86a6>· {sort}"
   rows: 6
   background: economy:gui/stocks
   layout:
@@ -12,13 +12,13 @@ stocks:
     - "P..SXI..Q"
   list: L
   buttons:
-    A: { action: "stock:tab:all", icon: economy:gui/chart, material: PAPER, name: "<white>전체" }
-    B: { action: "stock:tab:mining", icon: economy:ruby, material: PAPER, name: "<#9fb4c8>광업" }
-    C: { action: "stock:tab:agriculture", icon: economy:rice, material: PAPER, name: "<#8bc34a>농업" }
-    D: { action: "stock:tab:fisheries", icon: economy:salmon_fillet, material: PAPER, name: "<#4fc3f7>수산" }
-    E: { action: "stock:tab:steel", icon: economy:steel_ingot, material: PAPER, name: "<#ff8a65>철강" }
-    F: { action: "stock:tab:food", icon: economy:kimchi, material: PAPER, name: "<#ffb74d>식품" }
-    G: { action: "stock:tab:pharma", icon: economy:pearl_perfume, material: PAPER, name: "<#ba68c8>제약" }
+    A: { action: "stock:tab:all", icon: economy:gui/chart, material: PAPER, name: "<white>전체", lore: ["<gray>모든 회사 보기"] }
+    B: { action: "stock:tab:mining", icon: economy:ruby, material: PAPER, name: "<#9fb4c8>광업", lore: ["<gray>광업 회사만 보기"] }
+    C: { action: "stock:tab:agriculture", icon: economy:rice, material: PAPER, name: "<#8bc34a>농업", lore: ["<gray>농업 회사만 보기"] }
+    D: { action: "stock:tab:fisheries", icon: economy:salmon_fillet, material: PAPER, name: "<#4fc3f7>수산", lore: ["<gray>수산 회사만 보기"] }
+    E: { action: "stock:tab:steel", icon: economy:steel_ingot, material: PAPER, name: "<#ff8a65>철강", lore: ["<gray>철강 회사만 보기"] }
+    F: { action: "stock:tab:food", icon: economy:kimchi, material: PAPER, name: "<#ffb74d>식품", lore: ["<gray>식품 회사만 보기"] }
+    G: { action: "stock:tab:pharma", icon: economy:pearl_perfume, material: PAPER, name: "<#ba68c8>제약", lore: ["<gray>제약 회사만 보기"] }
     H:
       action: "stock:tab:mine"
       icon: economy:gui/bag
@@ -50,7 +50,7 @@ stocks:
 
 # 회사 화면: 위 두 줄 = 봉 그래프 (제목 글꼴로 그림), 아래 = 기간, 사기, 팔기
 stock:
-  title: "{graph}<#f3e3b0>{name} <white>{price} {change}"
+  title: "{graph}<#f0e2b0>{name} <white>{price} {change}"
   rows: 6
   background: economy:gui/stock
   # 그림 생성기용: 위 두 줄에 그래프 판을 그림
@@ -88,9 +88,9 @@ stock:
       material: PAPER
       name: "<aqua>내 주식 {have}주"
       lore: ["<gray>평가액 <white>{value}", "<gray>손익 {pl}", "{mydiv}", "<gray>지금 팔 수 있는 수 {sellable}주 <dark_gray>(산 지 10분 뒤부터)"]
-    "4": { action: "stock:sell:1", icon: economy:gui/sell_1, material: RED_DYE, name: "<#4d9bff>1주 팔기" }
-    "5": { action: "stock:sell:10", icon: economy:gui/sell_10, material: RED_DYE, name: "<#4d9bff>10주 팔기" }
-    "6": { action: "stock:sell:100", icon: economy:gui/sell_100, material: RED_DYE, name: "<#4d9bff>100주 팔기" }
+    "4": { action: "stock:sell:1", icon: economy:gui/sell_1, material: RED_DYE, name: "<#4d9bff>1주 팔기", lore: ["<gray>팔 수 있는 {sellable}주 중에서 <dark_gray>({fee})"] }
+    "5": { action: "stock:sell:10", icon: economy:gui/sell_10, material: RED_DYE, name: "<#4d9bff>10주 팔기", lore: ["<gray>팔 수 있는 {sellable}주 중에서 <dark_gray>({fee})"] }
+    "6": { action: "stock:sell:100", icon: economy:gui/sell_100, material: RED_DYE, name: "<#4d9bff>100주 팔기", lore: ["<gray>팔 수 있는 {sellable}주 중에서 <dark_gray>({fee})"] }
     Z: { action: "stock:sell:all", icon: economy:gui/sell_all, material: REDSTONE, name: "<#4d9bff>전부 팔기", lore: ["<gray>팔 수 있는 {sellable}주 전부"] }
-    R: { action: "stock:back", icon: economy:gui/back, material: ARROW, name: "<white>목록으로" }
+    R: { action: "stock:back", icon: economy:gui/back, material: ARROW, name: "<white>목록으로", lore: ["<gray>회사 목록으로 돌아가기"] }
     X: { action: close, icon: stsv:gui/exit, material: OAK_DOOR, name: "<red>닫기" }

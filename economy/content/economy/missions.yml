@@ -5,7 +5,7 @@
 #   ores_mined 광석 캐기 · crops_harvested 작물 수확 · animals_bred 동물 번식 · fish_caught 낚시 · rare_finds 발견품(광부 원석, 어부 희귀 어획)
 #   made_miner/made_farmer/made_fisher/made_blacksmith/made_cook/made_alchemist 그 직업 기계로 만든 수 · machine_made 아무 직업 기계
 #   job_xp 직업 경험치 (미션 보상 경험치는 안 셈) · shop_sold 상점에 판 개수 · shop_income 상점 판매 수입(G) · requests_done 의뢰
-#   stock_trades 주식 거래 · market_sold 거래소에서 팔린 수 · playtime 플레이 시간(초) · mob_kills 몹 처치 · blocks_broken · blocks_placed
+#   stock_trades 주식 거래 · market_sold 거래소에서 팔린 수 (100G·상점 시세 이상, 같은 구매자는 하루 1번: trade.yml credit) · playtime 플레이 시간(초) · mob_kills 몹 처치 · blocks_broken · blocks_placed
 # 보상: gold, xp (끝냈을 때 직업의 경험치), items ["아이디 x개수"] (인벤토리가 차면 우편함). 다 끝내면 bonus.
 # rerolls: 기간마다 미션을 다른 것으로 바꿀 수 있는 횟수 (/미션 에서 우클릭). weight: 클수록 자주 뽑힘 (기본 10)
 
@@ -85,5 +85,5 @@ weekly:
     income:      { name: "상점 판매로 8,000G 벌기", stat: shop_income, goal: 8000, unit: "G", group: shop, icon: gold_block, gold: 1200, xp: 400 }
     requests:    { name: "의뢰 12건 완료", stat: requests_done, goal: 12, unit: "건", icon: writable_book, gold: 1500, xp: 500 }
     stocks:      { name: "주식 20번 거래", stat: stock_trades, goal: 20, unit: "번", icon: book, gold: 1000, xp: 300, weight: 5 }
-    market:      { name: "거래소에서 5개 팔기", stat: market_sold, goal: 5, unit: "개", icon: emerald, gold: 1200, xp: 400, weight: 4 }
+    market:      { name: "거래소에서 5번 팔기", stat: market_sold, goal: 5, unit: "번", icon: emerald, gold: 1200, xp: 400, weight: 4 }
     machine:     { name: "직업 기계로 100개 만들기", stat: machine_made, goal: 100, unit: "개", group: machine, icon: crafting_table, gold: 1200, xp: 400 }

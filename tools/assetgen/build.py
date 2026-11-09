@@ -197,11 +197,14 @@ def armor_preview(path: Path):
 
 def style_sheet(path: Path):
     """Palette ramps + every surface texture + every icon on one image: the visual style reference."""
-    cell, pad = 96, 12
+    # a fixed number of columns (one long row of every icon made an image no browser could open)
+    cell, pad, cols = 64, 10, 30
     rows = list(PALETTE.items())
     surf, icons = list(T.SURFACES.items()), list(T.ICONS.items())
-    width = pad + max(len(surf), len(icons)) * (cell + pad)
-    height = pad + len(rows) * 22 + pad + 2 * (cell + pad + 16) + pad
+    line = cell + pad + 14
+    width = pad + cols * (cell + pad)
+    grid_rows = sum((len(items) + cols - 1) // cols for items in (surf, icons))
+    height = pad + len(rows) * 22 + pad + grid_rows * line + 2 * pad
     im = Image.new("RGBA", (width, height), (27, 29, 34, 255))
     d = ImageDraw.Draw(im)
     y = pad
@@ -213,14 +216,15 @@ def style_sheet(path: Path):
     y += pad
     for items in (surf, icons):
         for i, (name, fn) in enumerate(items):
-            x = pad + i * (cell + pad)
+            x = pad + (i % cols) * (cell + pad)
+            top = y + (i // cols) * line
             tex = fn().resize((cell, cell), Image.NEAREST)
             bg = Image.new("RGBA", (cell, cell), (45, 48, 56, 255))
             bg.alpha_composite(tex)
-            im.paste(bg, (x, y))
-            d.text((x, y + cell + 2), name, fill=(200, 200, 200, 255))
-        y += cell + pad + 16
-    im.save(path)
+            im.paste(bg, (x, top))
+            d.text((x, top + cell + 2), name if len(name) <= 11 else name[:10] + "~", fill=(200, 200, 200, 255))
+        y += (len(items) + cols - 1) // cols * line + pad
+    im.save(path, optimize=True)
     print(f"sheet   {path.relative_to(REPO)}")
 
 

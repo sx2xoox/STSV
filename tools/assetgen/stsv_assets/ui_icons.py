@@ -254,6 +254,7 @@ def icons():
     for key, label in (("10", "10m"), ("24", "24h"), ("7", "7d")):
         out[f"period_{key}"] = period(label)
     out.update(hub_icons())
+    out.update(price_icons())
     return out
 
 
@@ -570,3 +571,208 @@ def hub_icons():
             "trade": draw(TRADE), "mail": draw(MAIL), "pickaxe": draw(PICKAXE), "checklist": draw(CHECKLIST),
             "scroll": draw(SCROLL), "book": draw(BOOK), "flag": draw(FLAG), "alert": draw(ALERT), "monument": draw(MONUMENT),
             "candles": _candles()}
+
+
+# ------------------------------------------------------------------------------------------------
+# The hub's 치장 and 야간 투시 buttons, and the price picker of 판매 등록 / 경매 등록 / 입찰 (economy)
+# ------------------------------------------------------------------------------------------------
+
+DIGITS.update({
+    "5": ["###", "#..", "##.", "..#", "##."],
+    "k": ["#..", "#.#", "##.", "#.#", "#.#"],
+    "%": ["#.#", "..#", ".#.", "#..", "#.#"],
+})
+
+DRESS_UP = [    # 치장: a mannequin in a blue coat wearing a red top hat (the wardrobe's hanger means "take off")
+    "",
+    "......rrrr",
+    "......rrrrR",
+    "......rrrrR",
+    "....rrrrrrrrR",
+    ".......##s",
+    "......####s",
+    ".......##s",
+    "...bbbbbbbbbB",
+    "...bbbbgbbbbB",
+    "....bbbbbbbB",
+    ".....bbgbbB",
+    "......bbbB",
+    ".......oO",
+    ".......oO",
+    "....ssssssss",
+]
+
+
+def _night_vision():
+    """야간 투시: a light crescent moon with a gold star beside it."""
+    rows = []
+    for y in range(16):
+        row = ""
+        for x in range(16):
+            dx, dy = x + 0.5 - 7, y + 0.5 - 9
+            ox, oy = x + 0.5 - 9.6, y + 0.5 - 6.6
+            if dx * dx + dy * dy <= 5.6 ** 2 and ox * ox + oy * oy > 4.4 ** 2:
+                row += "s" if dx + dy > 3.5 else "#"
+            else:
+                row += "."
+        rows.append(row)
+    rows = [list(r) for r in rows]
+    for (x, y) in ((12, 1), (11, 2), (12, 2), (13, 2), (12, 3)):
+        rows[y][x] = "g"
+    return draw(["".join(r) for r in rows])
+
+
+COIN = [".gggg.", "gggggG", "ggGGgG", "gggggG", ".GGGG."]
+INGOT = ["..gggggg", ".gggggggG", "gggggggGG", "GGGGGGGG"]
+BLOCK = ["ggggggggg", "gHHHHHHgG", "gHgggggGG", "gHgggggGG", "gHgggggGG", "gGGGGGGGG", "GGGGGGGGG"]
+
+
+def _stamp(rows, shape, x0, y0):
+    for yy, line in enumerate(shape):
+        for xx, c in enumerate(line):
+            if c != ".":
+                rows[y0 + yy][x0 + xx] = c
+
+
+def _step(label, shapes):
+    """A price step button: gold (more coins, an ingot, a block for bigger steps) over its amount."""
+    rows = [list("." * 16) for _ in range(16)]
+    for shape, x, y in shapes:
+        _stamp(rows, shape, x, y)
+    rows = _with_digits(["".join(r) for r in rows], label)
+    return draw(rows)
+
+
+PRICE_TAG = [   # 판매 등록: a gold price tag on its string
+    "",
+    "",
+    "..ss",
+    "...s",
+    "....s",
+    ".....gggggggggg",
+    "....ggggggggggG",
+    "...ggkggggGGggG",
+    "...ggkgggGggGgG",
+    "....gggggggGGgG",
+    ".....ggggggggggG",
+    "......GGGGGGGGGG",
+]
+
+PICK = [        # 팔 물건 고르기: an arrow down into a tray
+    "",
+    "......##",
+    "......##s",
+    "......##s",
+    "......##s",
+    "...########",
+    "....######s",
+    ".....####s",
+    "......##s",
+    "",
+    "..#.........#",
+    "..#.........#s",
+    "..###########s",
+    "...sssssssssss",
+]
+
+TYPE = [        # 직접 입력: a pencil writing on a line
+    "",
+    "...........rr",
+    "..........rrrR",
+    ".........ssrR",
+    "........ggssR",
+    ".......ggggG",
+    "......ggggG",
+    ".....ggggG",
+    "....ggggG",
+    "....ooG",
+    "...ooO",
+    "...kO",
+    "",
+    ".############",
+    "..ssssssssssss",
+]
+
+CONFIRM = [     # 확인: a green tick
+    "",
+    "",
+    "",
+    "............ee",
+    "...........eeE",
+    "..........eeE",
+    ".........eeE",
+    "..ee....eeE",
+    "..eee..eeE",
+    "...eeeeeE",
+    "....eeeE",
+    ".....eE",
+]
+
+CANCEL = [      # 경매 취소: a red cross
+    "",
+    "",
+    "",
+    "...rr.....rr",
+    "...rrr...rrrR",
+    "....rrr.rrrR",
+    ".....rrrrrR",
+    "......rrrR",
+    ".....rrrrrR",
+    "....rrrRrrrR",
+    "...rrrR.RrrrR",
+    "...rrR...RrrR",
+    "....R.....R",
+]
+
+GAVEL = [       # 최소 입찰: an auction gavel (wooden head, handle) over its block
+    "",
+    "....oooo",
+    "...oooooO",
+    "...ooOooO.",
+    "...oooooOo",
+    "....ooOOoooo",
+    ".........oooo",
+    "..........oooo",
+    "...........oooO",
+    "............ooO",
+    "",
+    "..##########",
+    ".############s",
+    "..sssssssssss",
+]
+
+
+def _search():
+    """검색: a magnifying glass, a light rim round blue glass, a wooden handle."""
+    import math
+    rows = [["."] * 16 for _ in range(16)]
+    for y in range(16):
+        for x in range(16):
+            r = math.hypot(x + 0.5 - 6.5, y + 0.5 - 6.5)
+            if r <= 3.4:
+                rows[y][x] = "w" if (x + y) % 7 else "#"
+            elif r <= 5.0:
+                rows[y][x] = "s" if x + y > 14 else "#"
+    for k in range(4):
+        for (dx, dy) in ((0, 0), (1, 0), (0, 1)):
+            x, y = 10 + k + dx, 10 + k + dy
+            if x < 15 and y < 15:
+                rows[y][x] = "o" if dx == 0 and dy == 0 else "O"
+    return ["".join(r) for r in rows]
+
+
+def price_icons():
+    out = {"dress_up": draw(DRESS_UP), "night_vision": _night_vision(), "price_tag": draw(PRICE_TAG), "pick": draw(PICK),
+           "type": draw(TYPE), "confirm": draw(CONFIRM), "cancel": draw(CANCEL), "search": draw(_search()), "bid_min": draw(GAVEL)}
+    out["confirm_off"] = _dimmed(out["confirm"])
+    out["step_1"] = _step("1", [(COIN, 5, 2)])
+    out["step_10"] = _step("10", [(COIN, 2, 3), (COIN, 8, 2)])
+    out["step_100"] = _step("100", [(COIN, 2, 3), (COIN, 8, 3), (COIN, 5, 0)])
+    out["step_1k"] = _step("1k", [(INGOT, 3, 3)])
+    out["step_10k"] = _step("10k", [(BLOCK, 3, 0)])
+    rise = _art("rise")
+    for n in (5, 10):
+        im = rise.copy()
+        im.alpha_composite(draw(_with_digits([""] * 16, f"{n}%")))
+        out[f"bid_{n}"] = im
+    return out

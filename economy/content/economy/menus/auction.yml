@@ -1,21 +1,33 @@
 # /경매
 auction:
-  title: "<#f3e3b0>경매장"
+  title: "<#f0e2b0>경매장 <#b9a6d6>· {count}건 진행 중"
   rows: 4
   background: economy:gui/auction
   layout:
-    - "....I...."
+    - "...SIG..."
     - ".LLLLLLL."
     - ".LLLLLLL."
     - "P...X...N"
   list: L
   buttons:
+    S:
+      action: "auction:sell"
+      icon: economy:gui/hammer
+      material: ANVIL
+      name: "<green>경매 등록"
+      lore: ["<gray>내 물건을 골라 시작가를 정하고 올리기", "<gray>{minutes}분 공개 입찰 · 보증금 {deposit}", "<gray>서버 전체 동시 {max}건, 한 사람 1건", "<yellow>클릭: 등록 화면"]
     I:
       action: ""
       icon: stsv:gui/info
       material: BOOK
-      name: "<white>진행 중 {count}건"
-      lore: ["<gray>등록: 물건을 들고 <white>/경매 등록 <시작가>", "<gray>입찰: 두 번 클릭(최소 입찰가) 또는 <white>/경매 입찰 <번호> <금액>", "<gray>잔액: {balance}"]
+      name: "<white>진행 중 {count} / {max}건"
+      lore: ["<gray>물건 클릭: 입찰 화면 (금액 고르기)", "<gray>막판 입찰은 마감이 {extend}초 늘어남", "<gray>낙찰품은 우편함으로", "<gray>잔액: {balance}"]
+    G:
+      action: "command:우편함"
+      icon: economy:gui/mail
+      material: PAPER
+      name: "<white>우편함"
+      lore: ["<gray>낙찰품, 유찰·취소된 물건을 받는 곳"]
     P:
       action: page:prev
       icon: stsv:gui/prev
@@ -35,3 +47,200 @@ auction:
       icon: stsv:gui/exit
       material: OAK_DOOR
       name: "<red>닫기"
+
+# 경매 등록 (/경매 등록, 경매장의 '경매 등록', 통합 메뉴 경매 우클릭). 가격 버튼 동작은 market.yml 의 market_sell 참고
+auction_sell:
+  title: "<#f0e2b0>경매장 <#b9a6d6>· 경매 등록"
+  rows: 4
+  background: economy:gui/auction_sell
+  inset: "S"
+  layout:
+    - "....S...."
+    - "..abcde.."
+    - "...TPR..."
+    - "B...C...X"
+  buttons:
+    S:
+      action: ""
+      icon: economy:gui/pick
+      material: PAPER
+      name: "<white>경매에 올릴 물건 고르기"
+      lore: ["<gray>아래 내 인벤토리에서 물건을 클릭하세요", "<dark_gray>묶음 전체가 올라감"]
+    a:
+      action: "price:step:1"
+      icon: economy:gui/step_1
+      material: GOLD_NUGGET
+      name: "<white>±1 G"
+      lore: ["<gray>좌클릭: <green>+1 G <gray>· 우클릭: <red>-1 G", "<dark_gray>Shift: 10배"]
+    b:
+      action: "price:step:10"
+      icon: economy:gui/step_10
+      material: GOLD_NUGGET
+      name: "<white>±10 G"
+      lore: ["<gray>좌클릭: <green>+10 G <gray>· 우클릭: <red>-10 G", "<dark_gray>Shift: 10배"]
+    c:
+      action: "price:step:100"
+      icon: economy:gui/step_100
+      material: GOLD_INGOT
+      name: "<white>±100 G"
+      lore: ["<gray>좌클릭: <green>+100 G <gray>· 우클릭: <red>-100 G", "<dark_gray>Shift: 10배"]
+    d:
+      action: "price:step:1000"
+      icon: economy:gui/step_1k
+      material: GOLD_INGOT
+      name: "<white>±1,000 G"
+      lore: ["<gray>좌클릭: <green>+1,000 G <gray>· 우클릭: <red>-1,000 G", "<dark_gray>Shift: 10배"]
+    e:
+      action: "price:step:10000"
+      icon: economy:gui/step_10k
+      material: GOLD_BLOCK
+      name: "<white>±10,000 G"
+      lore: ["<gray>좌클릭: <green>+10,000 G <gray>· 우클릭: <red>-10,000 G", "<dark_gray>Shift: 10배"]
+    T:
+      action: "price:type"
+      icon: economy:gui/type
+      material: WRITABLE_BOOK
+      name: "<white>직접 입력"
+      lore: ["<gray>채팅창에 금액을 입력", "<dark_gray>예: 1500, 1,500, 3만, 2만5천"]
+    P:
+      action: ""
+      icon: stsv:gui/coins
+      material: GOLD_INGOT
+      name: "<gold>시작가: {price}"
+      lore:
+        - "<gray>{item}"
+        - "<gray>최소 시작가: <white>{min}"
+        - ""
+        - "<gray>보증금: <white>{deposit} <dark_gray>(지금 냄 · 팔리면 돌려받고, 유찰되면 잃음)"
+        - "<gray>시간: <white>{minutes}분 <dark_gray>(막판 입찰은 {extend}초 연장)"
+        - "<gray>낙찰되면 수수료 {fee_rate}%: 시작가 그대로 팔리면 <green>{receive}</green> 받음"
+        - "<gray>진행 중: <white>{running} / {max}건 <dark_gray>(한 사람 1건)"
+        - ""
+        - "<dark_gray>업적·미션: {credit} 이상 낙찰만 · 같은 판매자는 하루 1번"
+    R:
+      action: "price:shop"
+      icon: economy:gui/chart
+      material: PAPER
+      name: "<white>시세로 맞추기"
+      lore: ["<gray>상점이 사 주는 값 × 개수", "<gray>지금: <white>{shop}"]
+    B:
+      action: "price:back"
+      icon: economy:gui/back
+      material: ARROW
+      name: "<white>경매장으로"
+      lore: ["<gray>등록하지 않고 돌아가기"]
+    C:
+      action: "price:confirm"
+      icon: economy:gui/confirm
+      material: LIME_DYE
+      name: "<green>경매 시작 · {price}"
+      lore: ["<gray>{item}", "<gray>보증금 <white>{deposit}</white> 를 내고 {minutes}분 경매 시작", "<yellow>클릭: 경매 시작 (서버 전체에 알림)"]
+    X:
+      action: close
+      icon: stsv:gui/exit
+      material: OAK_DOOR
+      name: "<red>닫기"
+
+
+# 입찰 (경매장에서 물건 클릭, /경매 입찰 <번호>). 위 = 경매 물건, 가운데 = 금액 (최소 입찰가 아래로는 안 내려감)
+auction_bid:
+  title: "<#f0e2b0>경매장 <#b9a6d6>· #{id} 입찰"
+  rows: 4
+  background: economy:gui/auction_bid
+  inset: "S"
+  layout:
+    - "....S...."
+    - "..abcde.."
+    - "..mpPqT.."
+    - "B...C...X"
+  buttons:
+    S:
+      action: ""
+      icon: economy:gui/hammer
+      material: PAPER
+      name: "<white>경매 #{id}"
+      lore: ["<gray>끝났거나 없는 경매"]
+    a:
+      action: "price:step:1"
+      icon: economy:gui/step_1
+      material: GOLD_NUGGET
+      name: "<white>±1 G"
+      lore: ["<gray>좌클릭: <green>+1 G <gray>· 우클릭: <red>-1 G", "<dark_gray>Shift: 10배"]
+    b:
+      action: "price:step:10"
+      icon: economy:gui/step_10
+      material: GOLD_NUGGET
+      name: "<white>±10 G"
+      lore: ["<gray>좌클릭: <green>+10 G <gray>· 우클릭: <red>-10 G", "<dark_gray>Shift: 10배"]
+    c:
+      action: "price:step:100"
+      icon: economy:gui/step_100
+      material: GOLD_INGOT
+      name: "<white>±100 G"
+      lore: ["<gray>좌클릭: <green>+100 G <gray>· 우클릭: <red>-100 G", "<dark_gray>Shift: 10배"]
+    d:
+      action: "price:step:1000"
+      icon: economy:gui/step_1k
+      material: GOLD_INGOT
+      name: "<white>±1,000 G"
+      lore: ["<gray>좌클릭: <green>+1,000 G <gray>· 우클릭: <red>-1,000 G", "<dark_gray>Shift: 10배"]
+    e:
+      action: "price:step:10000"
+      icon: economy:gui/step_10k
+      material: GOLD_BLOCK
+      name: "<white>±10,000 G"
+      lore: ["<gray>좌클릭: <green>+10,000 G <gray>· 우클릭: <red>-10,000 G", "<dark_gray>Shift: 10배"]
+    m:
+      action: "price:min"
+      icon: economy:gui/bid_min
+      material: IRON_NUGGET
+      name: "<white>최소 입찰가"
+      lore: ["<gray>{min}", "<dark_gray>지금가 + {raise}% (첫 입찰은 시작가)"]
+    p:
+      action: "price:raise:5"
+      icon: economy:gui/bid_5
+      material: GOLD_NUGGET
+      name: "<white>최소 +5%"
+      lore: ["<gray>{bid5}", "<dark_gray>한 번에 앞서 나가기"]
+    q:
+      action: "price:raise:10"
+      icon: economy:gui/bid_10
+      material: GOLD_INGOT
+      name: "<white>최소 +10%"
+      lore: ["<gray>{bid10}", "<dark_gray>한 번에 크게 앞서 나가기"]
+    T:
+      action: "price:type"
+      icon: economy:gui/type
+      material: WRITABLE_BOOK
+      name: "<white>직접 입력"
+      lore: ["<gray>채팅창에 금액을 입력", "<dark_gray>예: 1500, 1,500, 3만, 2만5천"]
+    P:
+      action: ""
+      icon: stsv:gui/coins
+      material: GOLD_INGOT
+      name: "<gold>입찰가: {price}"
+      lore:
+        - "<gray>지금가: <white>{current} <dark_gray>({bidder})"
+        - "<gray>최소 입찰가: <white>{min}"
+        - "<gray>남은 시간: <white>{left}"
+        - ""
+        - "<gray>입찰하면 <white>{price}</white> 를 맡김 <dark_gray>(밀리면 바로 돌려받음)"
+        - "<gray>잔액: {balance} <dark_gray>→ {after}"
+    B:
+      action: "price:back"
+      icon: economy:gui/back
+      material: ARROW
+      name: "<white>경매장으로"
+      lore: ["<gray>입찰하지 않고 돌아가기"]
+    C:
+      action: "price:confirm"
+      icon: economy:gui/confirm
+      material: LIME_DYE
+      name: "<green>입찰하기 · {price}"
+      lore: ["<gray>경매 #{id}", "<yellow>클릭: 입찰 (서버 전체에 알림)"]
+    X:
+      action: close
+      icon: stsv:gui/exit
+      material: OAK_DOOR
+      name: "<red>닫기"
+

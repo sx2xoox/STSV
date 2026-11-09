@@ -858,7 +858,10 @@ public final class MachineModule extends EcoModule {
 
         @Override
         public Map<String, String> placeholders(MenuView v) {
-            return Map.of("machine", m.spec.name(), "lane", lane < 0 ? "-" : String.valueOf(lane + 1), "tier", tierName(m.tier));
+            // the recipe book (lane < 0) only shows; a lane's picker pins what that lane makes
+            return Map.of("machine", m.spec.name(), "lane", lane < 0 ? "-" : String.valueOf(lane + 1), "tier", tierName(m.tier),
+                    "lane_text", lane < 0 ? "" : Lang.raw("machine.recipes-lane", "lane", lane + 1),
+                    "pick_hint", Lang.raw(lane < 0 ? "machine.recipes-view" : "machine.recipes-pick"));
         }
 
         @Override

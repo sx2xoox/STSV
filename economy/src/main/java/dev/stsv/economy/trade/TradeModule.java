@@ -42,7 +42,11 @@ public final class TradeModule extends EcoModule {
 
     // the window: rows 0-4 cols 0-3 = A's offer, cols 5-8 = B's offer; bottom row = controls
     static final int A_MONEY = 45, A_BIG = 46, A_BUTTON = 47, CANCEL = 49, B_BUTTON = 51, B_BIG = 52, B_MONEY = 53;
-    private static final ItemStack DIVIDER = pane(Material.BLACK_STAINED_GLASS_PANE);
+
+    /** A name for the window title: two long names would run past the panel (16 characters each), so 7 + "…". */
+    static String shortName(String name) {
+        return name.length() > 8 ? name.substring(0, 7) + "…" : name;
+    }
 
     private final Map<UUID, UUID> requests = new ConcurrentHashMap<>();   // target -> asker
     private final Map<UUID, Long> requestTime = new ConcurrentHashMap<>();
@@ -79,12 +83,6 @@ public final class TradeModule extends EcoModule {
 
     static boolean isB(int slot) {
         return slot < 45 && slot % 9 > 4;
-    }
-
-    private static ItemStack pane(Material m) {
-        ItemStack it = new ItemStack(m);
-        it.editMeta(meta -> meta.itemName(Component.text(" ")));
-        return it;
     }
 
     // ------------------------------------------------------------------------------------------
@@ -183,7 +181,7 @@ public final class TradeModule extends EcoModule {
             this.a = a;
             this.b = b;
             String title = core.menus().menu("economy:trade").map(m -> m.backgroundPrefix() + m.title()).orElse("<dark_gray>직거래")
-                    .replace("{a}", a.getName()).replace("{b}", b.getName());
+                    .replace("{a}", shortName(a.getName())).replace("{b}", shortName(b.getName()));
             inv = Bukkit.createInventory(this, 54, Text.mm(title));
         }
 
@@ -201,9 +199,8 @@ public final class TradeModule extends EcoModule {
         }
 
         void open() {
-            for (int r = 0; r < 5; r++) inv.setItem(r * 9 + 4, DIVIDER);
-            inv.setItem(48, DIVIDER);
-            inv.setItem(50, DIVIDER);
+            // the middle column and the cells beside 취소 stay empty: the background draws the divide, and clicks there
+            // are refused like any cell that is not the clicker's own
             draw();
             a.openInventory(inv);
             b.openInventory(inv);

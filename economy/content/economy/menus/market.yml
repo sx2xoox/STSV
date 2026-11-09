@@ -1,10 +1,10 @@
 # /거래소: 개당 최저가 순
 market:
-  title: "<#f3e3b0>거래소 · {mode}"
+  title: "<#f0e2b0>거래소 <#b9a6d6>· {mode}"
   rows: 6
   background: economy:gui/market
   layout:
-    - "M...I...R"
+    - "M..SIF..R"
     - "LLLLLLLLL"
     - "LLLLLLLLL"
     - "LLLLLLLLL"
@@ -17,18 +17,31 @@ market:
       icon: economy:gui/ledger
       material: WRITABLE_BOOK
       name: "<white>내 등록품 / 전체"
-      lore: ["<gray>내 등록품: {mine} / {limit}"]
+      lore: ["<gray>내 등록품: {mine} / {limit}", "<yellow>클릭: {mine_toggle}"]
+    S:
+      action: "market:sell"
+      icon: economy:gui/price_tag
+      material: NAME_TAG
+      name: "<green>판매 등록"
+      lore: ["<gray>내 물건을 골라 값을 정하고 올리기", "<gray>팔리면 수수료 {fee}%, {hours}시간 뒤 만료", "<yellow>클릭: 등록 화면"]
     I:
       action: ""
       icon: stsv:gui/info
       material: BOOK
       name: "<white>잔액: {balance}"
-      lore: ["<gray>등록: 물건을 들고 <white>/거래소 등록 <가격>", "<gray>검색: <white>/거래소 검색 <이름>", "<gray>두 번 클릭하면 구매"]
+      lore: ["<gray>두 번 클릭하면 구매", "<gray>내 등록품 클릭: 등록 취소 (우편함으로)", "<dark_gray>명령어: /거래소 등록 <가격> · /거래소 검색 <이름>"]
+    F:
+      action: "market:search"
+      icon: economy:gui/search
+      material: SPYGLASS
+      name: "<white>검색"
+      lore: ["<gray>이름으로 찾기 (채팅창에 입력)", "<gray>지금: <white>{search}", "<dark_gray>우클릭: 검색 지우기"]
     R:
       action: "market:refresh"
       icon: economy:gui/refresh
       material: CLOCK
       name: "<white>새로고침"
+      lore: ["<gray>목록 다시 불러오기"]
     P:
       action: page:prev
       icon: stsv:gui/prev
@@ -43,6 +56,102 @@ market:
       name: "<yellow>다음 페이지 ▶"
       lore: ["<gray>{page} / {pages}"]
       off: { icon: stsv:gui/next_off, material: GRAY_DYE, name: "<dark_gray>마지막 페이지 ▶" }
+    X:
+      action: close
+      icon: stsv:gui/exit
+      material: OAK_DOOR
+      name: "<red>닫기"
+
+# 거래소 판매 등록 (/거래소 등록, 거래소의 '판매 등록', 통합 메뉴 거래소 우클릭)
+# 위 = 팔 물건 (처음엔 손에 든 것, 아래 내 인벤토리를 클릭하면 바뀜), 가운데 = 가격 정하기, 아래 = 돌아가기 · 등록 · 닫기
+# 가격 버튼 동작 (경매 등록·입찰도 같음): price:step:<n> (좌클릭 +n, 우클릭 -n, Shift = ×10), price:type (채팅으로 입력),
+#   price:shop (상점 시세 × 개수로), price:min, price:raise:<%>, price:confirm, price:back
+market_sell:
+  title: "<#f0e2b0>거래소 <#b9a6d6>· 판매 등록"
+  rows: 4
+  background: economy:gui/market_sell
+  inset: "S"
+  layout:
+    - "....S...."
+    - "..abcde.."
+    - "...TPR..."
+    - "B...C...X"
+  buttons:
+    S:
+      action: ""
+      icon: economy:gui/pick
+      material: PAPER
+      name: "<white>팔 물건 고르기"
+      lore: ["<gray>아래 내 인벤토리에서 물건을 클릭하세요", "<dark_gray>묶음 전체가 올라감"]
+    a:
+      action: "price:step:1"
+      icon: economy:gui/step_1
+      material: GOLD_NUGGET
+      name: "<white>±1 G"
+      lore: ["<gray>좌클릭: <green>+1 G <gray>· 우클릭: <red>-1 G", "<dark_gray>Shift: 10배"]
+    b:
+      action: "price:step:10"
+      icon: economy:gui/step_10
+      material: GOLD_NUGGET
+      name: "<white>±10 G"
+      lore: ["<gray>좌클릭: <green>+10 G <gray>· 우클릭: <red>-10 G", "<dark_gray>Shift: 10배"]
+    c:
+      action: "price:step:100"
+      icon: economy:gui/step_100
+      material: GOLD_INGOT
+      name: "<white>±100 G"
+      lore: ["<gray>좌클릭: <green>+100 G <gray>· 우클릭: <red>-100 G", "<dark_gray>Shift: 10배"]
+    d:
+      action: "price:step:1000"
+      icon: economy:gui/step_1k
+      material: GOLD_INGOT
+      name: "<white>±1,000 G"
+      lore: ["<gray>좌클릭: <green>+1,000 G <gray>· 우클릭: <red>-1,000 G", "<dark_gray>Shift: 10배"]
+    e:
+      action: "price:step:10000"
+      icon: economy:gui/step_10k
+      material: GOLD_BLOCK
+      name: "<white>±10,000 G"
+      lore: ["<gray>좌클릭: <green>+10,000 G <gray>· 우클릭: <red>-10,000 G", "<dark_gray>Shift: 10배"]
+    T:
+      action: "price:type"
+      icon: economy:gui/type
+      material: WRITABLE_BOOK
+      name: "<white>직접 입력"
+      lore: ["<gray>채팅창에 금액을 입력", "<dark_gray>예: 1500, 1,500, 3만, 2만5천"]
+    P:
+      action: ""
+      icon: stsv:gui/coins
+      material: GOLD_INGOT
+      name: "<gold>가격: {price}"
+      lore:
+        - "<gray>{item}"
+        - "<gray>개당: <white>{unit}"
+        - ""
+        - "<gray>팔리면 수수료 {fee_rate}%: <red>-{fee}"
+        - "<gray>받는 돈: <green>{receive}"
+        - "<gray>{hours}시간 안에 안 팔리면 우편함으로 돌아옴"
+        - "<gray>내 등록품: <white>{mine} / {limit}"
+        - ""
+        - "<dark_gray>업적·미션: {credit} 이상만 · 같은 구매자는 하루 1번"
+    R:
+      action: "price:shop"
+      icon: economy:gui/chart
+      material: PAPER
+      name: "<white>시세로 맞추기"
+      lore: ["<gray>상점이 사 주는 값 × 개수", "<gray>지금: <white>{shop}"]
+    B:
+      action: "price:back"
+      icon: economy:gui/back
+      material: ARROW
+      name: "<white>거래소로"
+      lore: ["<gray>등록하지 않고 돌아가기"]
+    C:
+      action: "price:confirm"
+      icon: economy:gui/confirm
+      material: LIME_DYE
+      name: "<green>등록하기 · {price}"
+      lore: ["<gray>{item}", "<gray>받는 돈: <green>{receive}", "<yellow>클릭: 거래소에 올리기"]
     X:
       action: close
       icon: stsv:gui/exit

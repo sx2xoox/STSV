@@ -23,6 +23,7 @@ titles:
       icon: stsv:gui/clear
       material: BARRIER
       name: "<red>칭호 해제"
+      lore: ["<gray>지금 단 칭호 떼기"]
     P:
       action: page:prev
       icon: stsv:gui/prev
