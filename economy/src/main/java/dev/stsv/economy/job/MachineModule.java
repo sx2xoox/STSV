@@ -206,6 +206,8 @@ public final class MachineModule extends EcoModule {
         repeat = Math.max(0, data.getDouble("upgrade.repeat", 0));
         Map<String, String> made = new HashMap<>();
         for (MachineSpec s : specs.values()) {
+            if (!s.lanes().isEmpty() && s.lanes().size() != settings.lanes().size())
+                problems.add(s.id() + ".lanes: 단계 수가 다름 (" + s.lanes().size() + " / " + settings.lanes().size() + ")");
             if (!s.upgradeCost().isEmpty() && s.upgradeCost().size() != settings.level().size())
                 problems.add(s.id() + ".upgrade.cost: 강화 단계 수가 다름 (" + s.upgradeCost().size() + " / " + settings.level().size() + ")");
             if (Items.create(s.item(), 1).isEmpty()) problems.add(s.id() + ": 없는 아이템 " + s.item());

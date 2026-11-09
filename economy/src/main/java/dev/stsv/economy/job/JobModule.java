@@ -458,10 +458,10 @@ public final class JobModule extends EcoModule {
         Bukkit.getScheduler().runTask(eco, () -> natural.remove(b.getLocation()));
     }
 
-    /** Extra produce for a farmer: harvest-per-level x level, the fraction as a chance. */
+    /** Extra produce for a farmer on a vanilla crop: harvest-bonus at the level, the fraction as a chance. */
     private int farmerBonus(UUID u) {
         if (!"farmer".equals(job(u))) return 0;
-        double b = spec.jobs().get("farmer").harvestPerLevel() * level(u) * boost("farmer");
+        double b = spec.jobs().get("farmer").harvestBonus(level(u), spec.maxLevel()) * boost("farmer");
         int n = (int) Math.floor(b);
         if (ThreadLocalRandom.current().nextDouble() < b - n) n++;
         return n;
@@ -513,6 +513,7 @@ public final class JobModule extends EcoModule {
                     reward(p, "find", Items.key(g), 1);
                 });
             }
+            if (!silk) rollSpecials(p, "break", e.getBlock().getLocation().add(0.5, 0.5, 0.5));
         }
         if (mature(s) || m == Material.MELON || m == Material.PUMPKIN) {
             Material crop = produce(m);
@@ -520,6 +521,31 @@ public final class JobModule extends EcoModule {
             if (crop != null && bonus > 0) {
                 e.getBlock().getWorld().dropItemNaturally(e.getBlock().getLocation().add(0.5, 0.3, 0.5), new ItemStack(crop, bonus));
             }
+            rollSpecials(p, "harvest", e.getBlock().getLocation().add(0.5, 0.3, 0.5));
+        }
+    }
+
+    /**
+     * Special materials (jobs.yml specials) for one event: each one of that kind rolls once, the job's chance at the player's level
+     * in it (events' boosts too) or the outsider chance. A find drops at the spot (or goes to the bag for a catch: at == null).
+     */
+    public void rollSpecials(Player p, String from, org.bukkit.Location at) {
+        UUID u = p.getUniqueId();
+        String job = job(u);
+        ThreadLocalRandom r = ThreadLocalRandom.current();
+        for (JobSpec.Special s : spec.specials(from)) {
+            double chance = s.job().equals(job) ? s.chance().at(level(u), spec.maxLevel()) * boost(job) : s.outsider();
+            if (chance <= 0 || r.nextDouble() >= chance) continue;
+            Items.create(s.item(), 1).ifPresent(g -> {
+                if (at == null) {
+                    for (ItemStack left : p.getInventory().addItem(g).values()) p.getWorld().dropItemNaturally(p.getLocation(), left);
+                } else {
+                    at.getWorld().dropItemNaturally(at, g);
+                }
+                HudModule.flash(p, Lang.mm("job.found-special", "item", Items.mmName(g)));
+                p.playSound(p.getLocation(), Sound.BLOCK_AMETHYST_BLOCK_CHIME, 1f, 1.5f);
+                reward(p, "find", s.item(), 1);
+            });
         }
     }
 
@@ -534,17 +560,24 @@ public final class JobModule extends EcoModule {
         return j.finds().outsider();
     }
 
-    /** 농부 Lv30: a ripe crop harvested by hand takes the ripe ones around it (3x3) along. */
+    /**
+     * 농부 row-harvest (Lv10): a ripe crop harvested by hand takes the ripe ones left and right of it (1x3, across the way the
+     * player faces) along; area-harvest (Lv20): the ripe ones all around it (3x3).
+     */
     private void spread(Player p, Block center) {
         UUID u = p.getUniqueId();
         JobSpec.Job farmer = spec.jobs().get("farmer");
-        if (farmer == null || farmer.areaHarvest() <= 0 || !"farmer".equals(job(u)) || level(u) < farmer.areaHarvest()) return;
-        if (spreading.contains(u)) return;
+        if (farmer == null || !"farmer".equals(job(u))) return;
+        int span = farmer.harvestSpan(level(u));
+        if (span <= 1 || spreading.contains(u)) return;
+        // across the facing: facing mostly along x -> the row runs along z, and the other way round
+        boolean alongX = Math.abs(p.getLocation().getDirection().getX()) >= Math.abs(p.getLocation().getDirection().getZ());
         Bukkit.getScheduler().runTask(eco, () -> {
             if (!p.isOnline() || !spreading.add(u)) return;
             try {
                 for (int dx = -1; dx <= 1; dx++) for (int dz = -1; dz <= 1; dz++) {
                     if (dx == 0 && dz == 0) continue;
+                    if (span == 3 && (alongX ? dx != 0 : dz != 0)) continue;
                     Block nb = center.getRelative(dx, 0, dz);
                     // someone else's land stays theirs: the same check as the player's own harvest there (silent here)
                     if (eco.land() != null && !eco.land().allowed(p, nb.getLocation())) continue;
@@ -617,7 +650,8 @@ public final class JobModule extends EcoModule {
             case HARVEST -> {
                 reward(p, "harvest", e.crop().id(), 1);
                 // the farmer's harvest bonus: a share of the produce (+2% a level), so every crop gains alike
-                double pct = "farmer".equals(job(u)) ? spec.jobs().get("farmer").harvestPct(level(u)) * boost("farmer") : 0;
+                double pct = "farmer".equals(job(u)) ? spec.jobs().get("farmer").harvestPct(level(u), spec.maxLevel()) * boost("farmer") : 0;
+                rollSpecials(p, "harvest", e.location().clone().add(0.5, 0.3, 0.5));
                 for (ItemStack it : e.drops()) {
                     if (pct > 0 && e.crop().produce().equals(Items.key(it))) {
                         int n = it.getAmount(), whole = (int) Math.floor(pct);

@@ -148,11 +148,9 @@ class BalanceTest {
     // ------------------------------------------------------------------------------------------ R10 q ladder
     /** base below the limit -> q. */
     static final double[][] Q_LADDER = {{3, 128}, {6, 64}, {15, 32}, {50, 16}, {150, 8}, {500, 4}, {1000, 2}, {Double.POSITIVE_INFINITY, 1}};
-    /** R10c: per-player daily cap of a raw custom crop = 4 x q (6 x q before the gentler sell curve: the same cap would pay ~60% more). */
-    static final int CROP_CAP_X_Q = 4;
     // ------------------------------------------------------------------------------------------ R8 crops
-    /** G per plot per 24 min at base price, no job. */
-    static final Map<String, Range> CROP_BAND = Map.of("regrow", new Range(23.0, 37.0), "replant", new Range(14.0, 21.0));
+    /** G per plot per 24 min at base price, no job (balance2 23-37 / 14-21 x 0.07: crops cut to about 7% in the 2026-11 parity rebalance). */
+    static final Map<String, Range> CROP_BAND = Map.of("regrow", new Range(1.6, 2.6), "replant", new Range(1.0, 1.5));
     static final double CROP_SPREAD = 2.7;
     static final Range CROP_REGROW_OVER_REPLANT = new Range(1.5, 2.0);
     /** Bone meal: one +1 age per this many ages grown naturally (at most one banked). */
@@ -165,7 +163,7 @@ class BalanceTest {
     static final int ROUTE_STEPS = 2;
     // ------------------------------------------------------------------------------------------ R11 chains
     /** Best full-chain multiple of each job machine (any of its goods), max / min over the six. */
-    static final double CHAIN_SPREAD = 2.5;
+    static final double CHAIN_SPREAD = 3.0;   // 2.5 before 2026-11: melon liqueur became an aged drink, the still's chain carries the aging premium
     // ------------------------------------------------------------------------------------------ R12 fishing ring
     // (the ring's own constants: Ring.SEG, HIT_SPEEDUP, MIN_ZONE, DRIFT_EVERY)
     /** Every hit: the needle is on green for at least 2 server ticks (100 ms) at every phase. */
@@ -859,7 +857,10 @@ class BalanceTest {
         rule("R10", bad);
     }
 
-    /** R10c: a raw custom crop has a per-player daily cap of 4 x q (owner decision 8: caps on raw custom crops only). */
+    /**
+     * R10c: a raw custom crop has no per-player daily cap: selling more always pays a little more (the curve's floor and the sales tax
+     * soften it). The 4 x q cap of balance2 made farmers' crops pile up in chests (2026-11 parity rebalance).
+     */
     @Test
     void r10cCropCaps() {
         List<String> bad = new ArrayList<>();
@@ -867,9 +868,8 @@ class BalanceTest {
         for (CropRow c : w.cropRows()) items.add(c.item());
         for (String i : items) {
             ShopCatalog.SellEntry e = w.shop.sell().get(i);
-            double want = CROP_CAP_X_Q * (e == null ? 0 : e.q());
             Integer cap = e == null ? null : e.cap();
-            if (cap == null || cap != want) bad.add(i + ": cap " + (cap == null ? "None" : cap) + " (want " + whole(want) + ")");
+            if (cap != null && cap > 0) bad.add(i + ": cap " + cap + " (want none)");
         }
         rule("R10c", bad);
     }
@@ -1069,7 +1069,7 @@ class BalanceTest {
     }
 
     /**
-     * R8: G per plot per 24 min at base price, no job, regrow 23-37 and replant 14-21; best / worst <= 2.7; regrow mean / replant mean
+     * R8: G per plot per 24 min at base price, no job, regrow 1.6-2.6 and replant 1.0-1.5; best / worst <= 2.7; regrow mean / replant mean
      * 1.5-2.0. The bone-meal rule speeds every crop by the same 8/7, so the spread and the ratio hold with meal too; with at most one
      * meal banked, one meal never ripens a crop from its planting or regrow age.
      */
@@ -1161,7 +1161,7 @@ class BalanceTest {
 
     /**
      * R11: the best full-chain multiple of each job machine (any of its goods: base / raw cost with machine goods expanded through their
-     * lowest-tier recipe) stays within 2.5x of every other machine's, so no machine's own chain is a money printer; every job machine has
+     * lowest-tier recipe) stays within 3.0x of every other machine's, so no machine's own chain is a money printer; every job machine has
      * a capstone (CAPSTONE).
      */
     @Test
@@ -1322,6 +1322,133 @@ class BalanceTest {
      * One machine recipe, valued on typical inputs: input value (typ; lo / hi with every group at its cheapest / dearest member),
      * output value (ov), ratio, the dearest member's ratio (worst), G/min, class, the main input.
      */
+    // ============================================================================================ job identity, parity (2026-11)
+
+    /** R15: the job's chance at least this many times anyone's, at Lv1 / Lv30. */
+    static final double[] SPECIAL_EDGE = {3.0, 10.0};
+    /** R15: other jobs whose machines take a special (or the good its own job's machine makes of it). */
+    static final int SPECIAL_USERS = 2;
+    /** R16: the farmer's same-field edge: harvest-pct at Lv1 at least, the row (1x3) and 3x3 harvests from these levels at the latest. */
+    static final double FARMER_PCT_LV1 = 0.20;
+    static final int FARMER_ROW = 10, FARMER_AREA = 20;
+    /** R17: a job's day vs the jobs' mean at the same level and hours; the named exceptions (each with its reason) within the wide band. */
+    static final double PARITY_BAND = 0.15, PARITY_BAND_WIDE = 0.35;
+    /** R17: more hours pay more: 3h / 1h and 6h / 3h before the sales tax, and after it. */
+    static final double[] HOURS_RATIO = {2.0, 1.5}, HOURS_AFTER_TAX = {1.8, 1.3};
+    /** R17: the Lv30 3h jobs' mean, G a day (balance2's money supply ~100k). */
+    static final Range MONEY_SUPPLY = new Range(85000, 115000);
+
+    /**
+     * R15: a special material is not bought by the shop (players trade it), has a reference value, its job finds it at least 3x (Lv1)
+     * / 10x (Lv30) as often as anyone else, and recipes of at least two other jobs' machines take it (or the good its own job's
+     * machine makes of it).
+     */
+    @Test
+    void r15Specials() {
+        List<String> bad = new ArrayList<>();
+        Map<String, String> machineOf = new HashMap<>();
+        for (MachineSpec m : w.machines.values()) if (m.job() != null) machineOf.put(m.job(), m.id());
+        for (JobSpec.Special s : w.jobs.specials().values()) {
+            if (w.sell.containsKey(s.item())) bad.add(s.item() + ": the shop buys it");
+            if (s.value() <= 0) bad.add(s.item() + ": no reference value");
+            double lo = s.chance().lo(), hi = s.chance().hi(), out = s.outsider();
+            if (out > 0 && (lo < SPECIAL_EDGE[0] * out || hi < SPECIAL_EDGE[1] * out)) {
+                bad.add(s.item() + ": chance " + py(lo) + ".." + py(hi) + " vs anyone " + py(out));
+            }
+            Set<String> forms = new HashSet<>(Set.of(s.item()));
+            for (Row r : w.rows) if (r.m().equals(machineOf.get(s.job())) && r.ins().containsKey(s.item())) forms.add(r.out());
+            Set<String> users = new TreeSet<>();
+            for (Row r : w.rows) {
+                String job = w.machines.get(r.m()).job();
+                if (job != null && !job.equals(s.job()) && r.ins().keySet().stream().anyMatch(forms::contains)) users.add(job);
+            }
+            if (users.size() < SPECIAL_USERS) bad.add(s.item() + ": used by " + users + " (want " + SPECIAL_USERS + " other jobs)");
+        }
+        rule("R15", bad);
+    }
+
+    /** R16: on the same field a farmer clearly out-harvests anyone (custom crops +20% from Lv1, a row from Lv10, 3x3 from Lv20). */
+    @Test
+    void r16FarmerEdge() {
+        List<String> bad = new ArrayList<>();
+        JobSpec.Job f = w.jobs.jobs().get("farmer");
+        if (f.harvestPct(1, MAX_LEVEL) < FARMER_PCT_LV1 - 1e-9) bad.add("harvest-pct Lv1 " + py(f.harvestPct(1, MAX_LEVEL)));
+        if (f.harvestSpan(FARMER_ROW) < 3) bad.add("no row harvest at Lv" + FARMER_ROW);
+        if (f.harvestSpan(FARMER_AREA) < 9) bad.add("no 3x3 harvest at Lv" + FARMER_AREA);
+        if (f.harvestBonus(1, MAX_LEVEL) <= 0) bad.add("harvest-bonus Lv1 must be > 0");
+        rule("R16", bad);
+    }
+
+    /** The parity model's table: economy/src/test/resources/balance/parity.json next to the content (null when another tree is checked). */
+    static com.google.gson.JsonObject parityTable() {
+        Path p = ROOT.toAbsolutePath().getParent().getParent().resolve("src/test/resources/balance/parity.json");
+        try {
+            return com.google.gson.JsonParser.parseString(java.nio.file.Files.readString(p)).getAsJsonObject();
+        } catch (java.io.IOException e) {
+            return null;
+        }
+    }
+
+    /**
+     * R17: the parity model's table (written by the parity scripts from this content): at every level and 1 / 3 / 6 hours every
+     * job's day is within 15% of the jobs' mean (the exceptions the table names, each with its reason, within 35%); more hours pay
+     * more for every job (3h >= 2 x 1h and 6h >= 1.5 x 3h before the sales tax, 1.8 / 1.3 after it); the Lv30 3h mean stays near the
+     * money supply balance2 set.
+     */
+    @Test
+    void r17Parity() {
+        List<String> bad = new ArrayList<>();
+        var t = parityTable();
+        if (t == null) {
+            rule("R17", List.of("parity.json missing"));
+            return;
+        }
+        Set<String> exc = new HashSet<>();
+        for (var e : t.getAsJsonArray("exceptions")) exc.add(e.getAsJsonObject().get("point").getAsString());
+        for (var point : t.getAsJsonObject("net").entrySet()) {
+            var row = point.getValue().getAsJsonObject();
+            double mean = row.entrySet().stream().mapToDouble(e -> e.getValue().getAsDouble()).average().orElse(0);
+            for (var e : row.entrySet()) {
+                double d = e.getValue().getAsDouble() / mean - 1;
+                double lim = exc.contains(point.getKey() + "|" + e.getKey()) ? PARITY_BAND_WIDE : PARITY_BAND;
+                if (Math.abs(d) > lim + 1e-9) bad.add(point.getKey() + " " + e.getKey() + ": " + Math.round(d * 1000) / 10.0 + "% of the mean");
+            }
+        }
+        for (var lv : t.getAsJsonObject("hours").entrySet()) {
+            for (var e : lv.getValue().getAsJsonObject().entrySet()) {
+                var a = e.getValue().getAsJsonArray();
+                if (a.get(0).getAsDouble() < HOURS_RATIO[0] - 1e-9 || a.get(1).getAsDouble() < HOURS_RATIO[1] - 1e-9
+                        || a.get(2).getAsDouble() < HOURS_AFTER_TAX[0] - 1e-9 || a.get(3).getAsDouble() < HOURS_AFTER_TAX[1] - 1e-9) {
+                    bad.add("Lv" + lv.getKey() + " " + e.getKey() + ": hours " + a);
+                }
+            }
+        }
+        var lv30 = t.getAsJsonObject("net").getAsJsonObject("regular|30");
+        double m = lv30.entrySet().stream().mapToDouble(e -> e.getValue().getAsDouble()).average().orElse(0);
+        if (!MONEY_SUPPLY.has(m)) bad.add("Lv30 3h mean " + Math.round(m) + " not in " + MONEY_SUPPLY);
+        rule("R17", bad);
+    }
+
+    /** R18: with trade (one player a job, 0.7-1.3 x base) every gatherer earns more than selling only to the shop, every processor more than gathering its own staple. */
+    @Test
+    void r18Trade() {
+        List<String> bad = new ArrayList<>();
+        var t = parityTable();
+        if (t == null) {
+            rule("R18", List.of("parity.json missing"));
+            return;
+        }
+        for (var point : t.getAsJsonObject("trade").entrySet()) {
+            for (var e : point.getValue().getAsJsonObject().entrySet()) {
+                var v = e.getValue().getAsJsonObject();
+                if (v.get("trade").getAsDouble() <= v.get("solo").getAsDouble()) {
+                    bad.add(point.getKey() + " " + e.getKey() + ": trade " + v.get("trade") + " <= solo " + v.get("solo"));
+                }
+            }
+        }
+        rule("R18", bad);
+    }
+
     record Row(String m, int idx, String out, String name, int amt, double sec, int tier, boolean aging, Map<String, Integer> ins,
                Map<String, Double> part, Set<String> wholePart, double typ, double hi, double ov, double ratio, double worst, double gmin,
                String cls, String main, List<String> groups) {}
@@ -1397,7 +1524,10 @@ class BalanceTest {
             if (item.startsWith("#")) return new Num(TAG_VALUE.getOrDefault(item, 0.0), false);
             if (sell.containsKey(item)) return new Num(sell.get(item), false);
             Number s = SHADOW.get(item);
-            return s == null ? new Num(0.0, false) : new Num(s.doubleValue(), s instanceof Integer);
+            if (s != null) return new Num(s.doubleValue(), s instanceof Integer);
+            // a special material (jobs.yml specials): the shop does not buy it, its reference value prices the recipes that take it
+            JobSpec.Special sp = jobs.specials().get(item);
+            return new Num(sp == null ? 0.0 : sp.value(), false);
         }
 
         /** Values of everything a key takes (a group's members, nested groups expanded, tags by their table value). */

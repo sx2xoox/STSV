@@ -310,12 +310,44 @@ class RulesTest {
         assertTrue(fish.doubleItems().contains("economy:pearl"));
         assertEquals(20, fish.doubleLevel());
         JobSpec.Job farmer = spec.jobs().get("farmer");
-        assertEquals(30, farmer.areaHarvest());
+        // the same field gives a farmer clearly more: a row (1x3) from Lv10, 3x3 from Lv20
+        assertEquals(1, farmer.harvestSpan(9));
+        assertEquals(3, farmer.harvestSpan(10));
+        assertEquals(9, farmer.harvestSpan(20));
         assertEquals(10, farmer.growth().level());
-        // the custom-crop harvest bonus: a chance per produce unit, +2% a level
-        assertEquals(0.02, farmer.harvestPctPerLevel(), 1e-9);
-        assertEquals(0.60, farmer.harvestPct(30), 1e-9);
-        assertEquals(0.1, farmer.harvestPerLevel(), 1e-9);
+        // the custom-crop harvest bonus: a chance per produce unit, 20% at Lv1 to 80% at Lv30
+        assertEquals(0.20, farmer.harvestPct(1, 30), 1e-9);
+        assertEquals(0.80, farmer.harvestPct(30, 30), 1e-9);
+        assertEquals(1.0, farmer.harvestBonus(1, 30), 1e-9);
+        assertEquals(3.0, farmer.harvestBonus(30, 30), 1e-9);
+        // special materials: anyone may find them, their own job far more often; the shop does not buy them
+        assertEquals(8, spec.specials().size());
+        for (JobSpec.Special s : spec.specials().values()) {
+            assertTrue(s.chance(s.job(), 1, 30) >= 3 * s.outsider(), s.item());
+            assertTrue(s.chance(s.job(), 30, 30) >= 10 * s.outsider(), s.item());
+            assertEquals(s.outsider(), s.chance("nobody", 30, 30), 1e-12);
+            assertTrue(s.value() > 0, s.item());
+        }
+        assertEquals(3, spec.specials("harvest").size());
+        assertEquals(3, spec.specials("catch").size());
+        assertEquals(2, spec.specials("break").size());
+    }
+
+    /** The old per-level farmer keys still read as the same straight line (value x level). */
+    @Test
+    void farmerPerLevelKeysStillRead() {
+        var y = new org.bukkit.configuration.file.YamlConfiguration();
+        y.set("jobs.farmer.name", "농부");
+        y.set("jobs.farmer.harvest-pct-per-level", 0.02);
+        y.set("jobs.farmer.harvest-per-level", 0.1);
+        y.set("jobs.farmer.area-harvest", 30);
+        JobSpec s = JobSpec.parse(y, new ArrayList<>());
+        JobSpec.Job f = s.jobs().get("farmer");
+        assertEquals(0.02 * 12, f.harvestPct(12, 30), 1e-9);
+        assertEquals(0.1 * 30, f.harvestBonus(30, 30), 1e-9);
+        assertEquals(1, f.harvestSpan(29));
+        assertEquals(9, f.harvestSpan(30));
+        assertTrue(s.specials().isEmpty());
     }
 
     /** Every job bonus rolls per unit, so a 4 -> 4 bulk recipe gains exactly four times what a 1 -> 1 one does. */
@@ -511,7 +543,14 @@ class RulesTest {
         assertEquals(1000, press.cost(1)); assertEquals(4000, press.cost(2)); assertEquals(10000, press.cost(3));
         assertEquals(3, press.maxTier(), "the global levels are kept: the press still goes to 3강");
         assertEquals(4, press.lanes(3)); assertEquals(0.30, press.speed(2), 1e-9); assertEquals(30, press.level(3));
-        assertSame(s, s.forMachine(m.get("forge")), "job machines keep the global table");
+        assertSame(s, s.forMachine(m.get("gem_bench")), "a job machine without its own lanes keeps the global table");
+        // the processing jobs' machines start with two lanes (machines.yml lanes), the rest of the table is the global one
+        MachineSpec.Settings forgeT = s.forMachine(m.get("forge"));
+        assertEquals(2, forgeT.lanes(0));
+        assertEquals(10000, forgeT.cost(1)); assertEquals(30, forgeT.level(3)); assertEquals(0.30, forgeT.speed(2), 1e-9);
+        assertEquals(0, MachineSpec.Settings.refund(s, forgeT, 3), "own lanes, the same costs: nothing to refund");
+        assertEquals(2, s.forMachine(m.get("kitchen")).lanes(0));
+        assertEquals(2, s.forMachine(m.get("still")).lanes(0));
         // presses upgraded at the global price before get the difference back
         assertEquals(4000, MachineSpec.Settings.refund(s, press, 1)); assertEquals(20000, MachineSpec.Settings.refund(s, press, 2));
         assertEquals(60000, MachineSpec.Settings.refund(s, press, 3)); assertEquals(0, MachineSpec.Settings.refund(s, s, 3), "job machines");
