@@ -78,9 +78,65 @@ class WardrobeGuiTest {
         assertTrue(m.backgroundPrefix().startsWith("<white>"), "glyph must not be tinted by the dark default title colour");
     }
 
+    private static MenuSpec menu(String id) throws Exception {
+        List<MenuSpec> menus = MenuSpec.loadAll(List.of(new ContentPack("stsv", "stsv", PACK)), new ArrayList<>());
+        return menus.stream().filter(m -> m.id().equals(id)).findFirst().orElseThrow();
+    }
+
+    /**
+     * 옷장 and 치장 뽑기 browse cosmetics the same way: the top row is the category tabs, 전체 then every slot in
+     * order, each named with its "owned/total" count and drawn with its own icon; 7 x 4 cosmetics below.
+     */
+    @Test
+    void bothCosmeticScreensHaveTheCategoryTabs() throws Exception {
+        for (String[] menu : List.of(new String[]{"stsv:wardrobe", "wardrobe"}, new String[]{"stsv:gacha", "gacha"})) {
+            MenuSpec m = menu(menu[0]);
+            assertEquals(28, m.slots(m.list()).size(), menu[0] + ": 7 x 4 per page");
+            String top = m.layout().getFirst();
+            assertEquals(CosmeticBrowser.TABS.size(), top.length(), menu[0] + ": 전체 + one tab per slot fill the top row");
+            for (int c = 0; c < top.length(); c++) {
+                MenuSpec.Button b = m.buttons().get(top.charAt(c));
+                String tab = CosmeticBrowser.TABS.get(c);
+                assertEquals(menu[1] + ":tab:" + tab, b.action(), menu[0] + " column " + c);
+                assertTrue(b.on().name().contains("{n_" + tab + "}"), menu[0] + " " + tab + ": shows owned/total");
+                assertEquals(org.bukkit.NamespacedKey.fromString("stsv:gui/tab_" + tab), b.on().icon(), menu[0] + " " + tab + " icon");
+            }
+            assertTrue(m.title().contains("{tab}") && m.title().contains("{owned}/{total}"), menu[0] + " title");
+        }
+        // the wardrobe keeps its 착용 중 view and gets the 보기 filter
+        MenuSpec w = menu("stsv:wardrobe");
+        List<String> actions = w.buttons().values().stream().map(MenuSpec.Button::action).toList();
+        assertTrue(actions.contains("wardrobe:tab:worn") && actions.contains("wardrobe:view") && actions.contains("wardrobe:gacha"), actions.toString());
+    }
+
+    /** The not-owned card: one shared model, its second layer tinted by the item's first custom_model_data colour. */
+    @Test
+    void theNotOwnedCardIsOneTintedModel() throws Exception {
+        JsonObject def = com.google.gson.JsonParser.parseString(Files.readString(ASSETS.resolve("items/gui/locked.json"))).getAsJsonObject();
+        JsonObject model = def.getAsJsonObject("model");
+        assertEquals("stsv:item/gui/locked", model.get("model").getAsString());
+        assertEquals(CosmeticBrowser.LOCKED_MODEL.asString(), "stsv:gui/locked");
+        JsonObject tint = model.getAsJsonArray("tints").get(1).getAsJsonObject();
+        assertEquals("minecraft:custom_model_data", tint.get("type").getAsString());
+        assertEquals(0, tint.get("index").getAsInt());
+        JsonObject m = com.google.gson.JsonParser.parseString(Files.readString(ASSETS.resolve("models/item/gui/locked.json"))).getAsJsonObject();
+        for (String layer : List.of("layer0", "layer1")) {
+            String tex = m.getAsJsonObject("textures").get(layer).getAsString();
+            assertTrue(Files.exists(ASSETS.resolve("textures/" + tex.substring("stsv:".length()) + ".png")), tex);
+        }
+        // dark: the card's face is darker than the slot it sits in
+        BufferedImage card = ImageIO.read(ASSETS.resolve("textures/item/gui/locked.png").toFile());
+        int rgb = card.getRGB(7, 12);
+        assertTrue(((rgb >> 16) & 0xff) < 28 && ((rgb >> 8) & 0xff) < 28 && (rgb & 0xff) < 37, Integer.toHexString(rgb));
+    }
+
     @Test
     void layoutSlotsLandOnDrawnCells() throws Exception {
-        MenuSpec m = wardrobe(new ArrayList<>());
+        layoutSlotsLandOnDrawnCells(wardrobe(new ArrayList<>()));
+        layoutSlotsLandOnDrawnCells(menu("stsv:gacha"));
+    }
+
+    private static void layoutSlotsLandOnDrawnCells(MenuSpec m) throws Exception {
         BufferedImage image = ImageIO.read(ASSETS.resolve("textures/" + m.background().getKey() + ".png").toFile());
         List<Integer> cosmetic = m.slots(m.list());
         List<Integer> buttons = new ArrayList<>();

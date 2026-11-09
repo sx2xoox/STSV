@@ -91,7 +91,7 @@ class MenuActionsTest {
     static final Map<String, String> SAMPLES = Map.ofEntries(
             Map.entry("world", "야생 지옥"), Map.entry("done", "999"), Map.entry("total", "999"), Map.entry("points", "99,999"),
             Map.entry("category", "거래·투자"), Map.entry("category_done", "99"), Map.entry("category_total", "99"),
-            Map.entry("owned", "999"), Map.entry("tab", "머리 위"), Map.entry("title", "<gold>[전설의 강태공]</gold> Abcdefghijklmnop"));
+            Map.entry("owned", "999"), Map.entry("tab", "처치 효과"), Map.entry("title", "<gold>[전설의 강태공]</gold> Abcdefghijklmnop"));
 
     @Test
     void everyTitleFitsThePanel() throws Exception {

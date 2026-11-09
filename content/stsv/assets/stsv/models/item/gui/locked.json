@@ -1,0 +1,7 @@
+{
+  "parent": "minecraft:item/generated",
+  "textures": {
+    "layer0": "stsv:item/gui/locked",
+    "layer1": "stsv:item/gui/locked_mark"
+  }
+}

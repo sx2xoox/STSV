@@ -390,35 +390,205 @@ def icon_phoenix_voucher():
     ], _r3corea_bird, ("crimson", 0))
 
 
-def _generic_voucher(stub):
-    """The voucher of a cosmetic from the 치장 뽑기 (a duplicate): the ticket of its rarity (stone common, sapphire
-    rare, crystal epic) with a four-pointed sparkle in the rarity's colour; the item name says which cosmetic."""
-    ic = _core_ticket(stub)
-    top = {"stone": 3, "sapphire": 3, "crystal": 4}[stub]
-    _core_paint(ic, [
-        "...1...",
-        "...2...",
-        "..121..",
-        "12rWr21",
-        "..121..",
-        "...2...",
-        "...1...",
-    ], {"1": (stub, 1), "2": (stub, max(2, top - 1)), "r": (stub, top), "W": ("lamp", 3)}, 6, 5)
+# ------------------------------------------------------------------------------------------------
+# every cosmetic voucher: one layout, made from the cosmetic itself
+# ------------------------------------------------------------------------------------------------
+#
+# The ticket of the cosmetic's rarity (stub stone common, sapphire rare, crystal epic; legendary: the dark card
+# with the gold stub and perforation) with a small picture of the cosmetic peeking over its top edge:
+#   - a cosmetic with a model (content/stsv/models/<model>.bbmodel): the model as the menu shows it (its own gui
+#     view, stsv_assets/minirender.py), fitted into PEEK x PEEK, snapped to the palette, dark outline
+#   - a particle cosmetic (발자취, 처치 효과): the particle's glyph (_P, by the cosmetic's particle); a 발자취
+#     trails two small steps of its colour down to the left, a 처치 효과 bursts four sparks around it
+# so a new cosmetic gets a matching voucher with no drawing (a voucher's texture is the voucher's own id).
+
+from pathlib import Path   # noqa: E402
+
+import yaml                 # noqa: E402
+from PIL import Image       # noqa: E402
+
+from stsv_assets import minirender   # noqa: E402
+from stsv_assets.palette import PALETTE   # noqa: E402
+
+CONTENT = Path(__file__).resolve().parents[2] / "content" / "stsv"
+STUB = {"common": "stone", "rare": "sapphire", "epic": "crystal", "legendary": "gold"}
+PEEK = 11                     # the picture's box (without its outline)
+PEEK_AT = (3, 0)              # its outline's top-left corner: over the ticket's right part, out of its top edge
+FLAT = True                   # faces in flat colours: a model's texture speckle is noise at this size
+MIN_LUMA = 62                 # black cosmetics (gat, cat ears) lifted to charcoal so the dark outline still shows
+
+# particle glyphs (7 x 7 at most): legend letter -> (ramp, step); the first letter is the glyph's main colour
+_P = {
+    "heart": ([".RR.RR.", "RHrRRrr", "RrrrrrQ", ".rrrrQ.", "..rrQ..", "...Q..."],
+              {"r": ("pink", 2), "R": ("pink", 3), "H": ("feather", 3), "Q": ("ruby", 1)}),
+    "note": (["...GGG.", "...GgG.", "...G...", "...G...", ".ggG...", "gGGg...", ".gg...."],
+             {"G": ("slime", 3), "g": ("slime", 1)}),
+    "cherry_leaves": (["...SS..", "..SsS..", ".SssS.S", "SssSSsS", ".SSsssS", "..SssS.", "...S..."],
+                      {"S": ("sakura", 2), "s": ("sakura", 0)}),
+    "flame": (["...Y...", "..YY...", "..YOY..", ".YOOY..", ".OoOOY.", "OooFoO.", ".OFFFO."],
+              {"O": ("fire", 3), "Y": ("fire", 4), "o": ("fire", 2), "F": ("lamp", 3)}),
+    "small_flame": (["..Y..", ".YO..", ".OoY.", "OoFO.", ".FFO."],
+                    {"O": ("fire", 3), "Y": ("fire", 4), "o": ("fire", 2), "F": ("lamp", 3)}),
+    "soul_fire_flame": (["...C...", "..CC...", "..CsC..", ".CssC..", ".sScsC.", "sSSWSs.", ".sWWWs."],
+                        {"C": ("glow_cyan", 2), "s": ("glow_cyan", 1), "S": ("glow_cyan", 0), "c": ("glow_cyan", 3),
+                         "W": ("feather", 3)}),
+    "snowflake": (["...I...", ".I.I.I.", "..III..", "IIIWIII", "..III..", ".I.I.I.", "...I..."],
+                  {"I": ("ice", 2), "W": ("feather", 3)}),
+    "firework": (["Y..Y..Y", ".Y.Y.Y.", "..WWW..", "YYWWWYY", "..WWW..", ".Y.Y.Y.", "Y..Y..Y"],
+                 {"Y": ("gold", 3), "W": ("feather", 3)}),
+    "electric_spark": (["....LL.", "...LL..", "..LLL..", ".LLLLL.", "...LL..", "..LL...", ".LL...."],
+                       {"L": ("lamp", 3)}),
+    "end_rod": (["...W...", "...W...", ".WWWWW.", "...W...", "...W..."], {"W": ("feather", 3)}),
+}
+# dust: dots in the cosmetic's colour (rainbow: one of each)
+_RAINBOW = [("ruby", 3), ("fire", 3), ("lamp", 3), ("slime", 3), ("sapphire", 3), ("magic", 3)]
+
+
+def items():
+    """Every item of the content's items/*.yml: id -> section."""
+    out = {}
+    for f in sorted((CONTENT / "items").glob("*.yml")):
+        data = yaml.safe_load(f.read_text(encoding="utf-8")) or {}
+        out.update({k: v for k, v in data.items() if isinstance(v, dict)})
+    return out
+
+
+def vouchers():
+    """voucher id -> (cosmetic id, the cosmetic's section)"""
+    every = items()
+    out = {}
+    for key, sec in every.items():
+        target = (sec.get("voucher") or {}).get("cosmetic")
+        if target:
+            target = target.split(":", 1)[-1]
+            out[key] = (target, every[target])
+    return out
+
+
+_SNAP = [c for name, steps in PALETTE.items() if not name.startswith("test_") for c in steps]
+_EDGE = PALETTE["iron"][0] + (255,)
+
+
+def _snap(c):
+    return min(_SNAP, key=lambda p: (p[0] - c[0]) ** 2 + (p[1] - c[1]) ** 2 + (p[2] - c[2]) ** 2)
+
+
+def model_peek(model_name, size=PEEK, flat=FLAT):
+    """The cosmetic's model in a size x size box, palette colours only, with a dark outline ((size + 2) square)."""
+    im = minirender.render(minirender.load(CONTENT / "models" / f"{model_name}.bbmodel"), size, fit=True, flat=flat)
+    px = im.load()
+    for y in range(size):
+        for x in range(size):
+            if px[x, y][3]:
+                c = px[x, y][:3]
+                lift = max(0, MIN_LUMA - (0.3 * c[0] + 0.59 * c[1] + 0.11 * c[2]))
+                px[x, y] = _snap(tuple(min(255, int(v + lift)) for v in c)) + (255,)
+    pad = Image.new("RGBA", (size + 2, size + 2), (0, 0, 0, 0))
+    pad.alpha_composite(im, (1, 1))
+    return minirender.outlined(pad, _EDGE)
+
+
+BADGE = (10.0, 7.0, 6.0)      # the particle badge: centre x, y and radius (x 4-15, y 1-12, like a model's picture)
+
+
+def _particle_picture(ic, cosmetic):
+    """A 발자취 or 처치 효과: its particle on a round night-sky badge (pale particles read on it, and it fills
+    the same place as a model's picture). 처치 효과: the glyph in the middle with four sparks bursting out;
+    발자취: the glyph up to the right and two small steps of its colour trailing down to the left."""
+    cx, cy, r = BADGE
+    disc = {(x, y) for y in range(16) for x in range(16) if (x + 0.5 - cx) ** 2 + (y + 0.5 - cy) ** 2 <= r * r}
+    for (x, y) in disc:
+        rim = any((x + a, y + b) not in disc for a, b in ((1, 0), (-1, 0), (0, 1), (0, -1)))
+        ic.put(x, y, "iron", 0 if rim else 1 if y > cy else 2)
+    particle = cosmetic.get("particle", "")
+    kill = cosmetic.get("slot") == "kill"
+    if particle == "dust":
+        dots = _RAINBOW if cosmetic.get("color") == "rainbow" else [("feather", 3)] * 6
+        spots = [(7, 5), (10, 3), (13, 5), (13, 9), (10, 10), (7, 9)] if kill else [(12, 3), (9, 4), (12, 6), (8, 7), (10, 9), (6, 10)]
+        for (x, y), c in zip(spots, dots):
+            for dx, dy in ((0, 0), (1, 0), (0, 1), (1, 1)):
+                ic.put(x + dx, y + dy, *c)
+        return
+    name = particle if particle in _P else "end_rod"
+    rows, legend = _P[name]
+    w, h = max(len(row) for row in rows), len(rows)
+    main = next(iter(legend.values()))
+    if kill:
+        gx, gy = int(cx) - w // 2, int(cy) - h // 2
+        _core_paint(ic, rows, legend, gx, gy)
+        spark = ("lamp", 3) if name in ("flame", "small_flame", "firework", "electric_spark") else ("feather", 3)
+        for x, y in ((gx - 1, gy - 1), (gx + w, gy - 1), (gx - 1, gy + h), (gx + w, gy + h)):
+            ic.put(x, y, *spark)
+    else:
+        _core_paint(ic, rows, legend, int(cx) - w // 2 + 1, int(cy) - h // 2 - 1)
+        for x, y in ((5, 8), (7, 10)):
+            for dx, dy in ((0, 0), (1, 0), (0, 1), (1, 1)):
+                ic.put(x + dx, y + dy, *main)
+
+
+# pictures drawn by hand on the same ticket (same stub, perforation and picture place): they win over the
+# generated picture of their cosmetic (the masks and most legendary ones, drawn before the generator existed)
+HAND_DRAWN = {
+    "tomato_voucher": icon_tomato_voucher,
+    "eggplant_voucher": icon_eggplant_voucher,
+    "mushroom_voucher": icon_mushroom_voucher,
+    "crown_voucher": icon_crown_voucher,
+    "halo_voucher": icon_halo_voucher,
+    "angel_wings_voucher": icon_angel_wings_voucher,
+    "demon_wings_voucher": icon_demon_wings_voucher,
+    "haetae_voucher": icon_haetae_voucher,
+    "phoenix_voucher": icon_phoenix_voucher,
+}
+
+
+def voucher(cosmetic):
+    """The generated voucher icon of a cosmetic (its section in cosmetics.yml)."""
+    c = cosmetic.get("cosmetic") or {}
+    rarity = c.get("rarity", "common")
+    ic = _core_ticket(STUB[rarity], dark=rarity == "legendary")
+    if cosmetic.get("model"):
+        im = _core_finish(ic)
+        im.alpha_composite(model_peek(cosmetic["model"]), PEEK_AT)
+        return im
+    _particle_picture(ic, c)
     return _core_finish(ic)
 
 
-ICONS = {
-    "cosmetic_voucher_common": lambda: _generic_voucher("stone"),
-    "cosmetic_voucher_rare": lambda: _generic_voucher("sapphire"),
-    "cosmetic_voucher_epic": lambda: _generic_voucher("crystal"),
-    "cheque": icon_cheque,
-    "crown_voucher": icon_crown_voucher,
-    "demon_wings_voucher": icon_demon_wings_voucher,
-    "eggplant_voucher": icon_eggplant_voucher,
-    "haetae_voucher": icon_haetae_voucher,
-    "halo_voucher": icon_halo_voucher,
-    "mushroom_voucher": icon_mushroom_voucher,
-    "tomato_voucher": icon_tomato_voucher,
-    "angel_wings_voucher": icon_angel_wings_voucher,
-    "phoenix_voucher": icon_phoenix_voucher,
-}
+def voucher_icons():
+    """texture name (= the voucher's id) -> generator, for every voucher in the content"""
+    return {key: HAND_DRAWN.get(key, lambda sec=sec: voucher(sec)) for key, (_, sec) in vouchers().items()}
+
+
+ICONS = {"cheque": icon_cheque}
+ICONS.update(voucher_icons())
+
+SLOT_KO = {"head": "머리", "above": "머리 위", "shoulder": "어깨", "back": "등", "tail": "꼬리", "pet": "펫",
+           "trail": "발자취", "kill": "처치 효과"}
+_SLOTS = list(SLOT_KO)
+_RARITIES = list(STUB)
+
+
+def contact_sheet(path, font_path="/usr/share/fonts/opentype/unifont/unifont.otf"):
+    """docs/previews/vouchers.png: every voucher at 16 px (as in a slot) and at 4x, by category then rarity."""
+    import re
+    from PIL import ImageDraw, ImageFont
+    every = sorted(vouchers().items(), key=lambda kv: (_SLOTS.index(kv[1][1]["cosmetic"]["slot"]),
+                                                       _RARITIES.index(kv[1][1]["cosmetic"]["rarity"]), kv[0]))
+    cols, cell_w, cell_h = 8, 120, 100
+    rows = (len(every) + cols - 1) // cols
+    sheet = Image.new("RGBA", (cols * cell_w + 16, rows * cell_h + 16), (32, 34, 40, 255))
+    draw = ImageDraw.Draw(sheet)
+    try:
+        font = ImageFont.truetype(font_path, 16)
+    except OSError:
+        font = ImageFont.load_default()
+    for i, (key, (_, sec)) in enumerate(every):
+        x, y = 8 + (i % cols) * cell_w, 8 + (i // cols) * cell_h
+        im = ICONS[key]()
+        sheet.alpha_composite(im.resize((64, 64), Image.NEAREST), (x + 2, y + 2))
+        sheet.alpha_composite(im, (x + 72, y + 26))
+        name = re.sub(r"<[^>]+>", "", sec.get("name", key))
+        c = sec["cosmetic"]
+        draw.text((x + 2, y + 66), name[:7], font=font, fill=(236, 232, 222))
+        draw.text((x + 2, y + 82), SLOT_KO[c["slot"]], font=font, fill=(150, 156, 170))
+    sheet.save(path)

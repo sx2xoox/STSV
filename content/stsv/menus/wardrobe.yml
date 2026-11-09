@@ -2,74 +2,94 @@
 #   layout      한 줄 9칸. '.' = 빈칸, 글자 = 그 버튼, list 글자 = 페이지가 넘어가는 목록 칸
 #   background  <네임스페이스>:<경로> = assets/<ns>/textures/<경로>.png. 크기는 176 x (114 + 18 x rows) 픽셀
 #               (6줄이면 176x222). 칸 (줄 r, 열 c)의 18x18 테두리는 x = 7 + 18c, y = 17 + 18r
+#   tabs        분류 탭 버튼 글자들 (배경에 탭 모양으로 그려짐, tools/assetgen/gui.py)
 #   buttons     action: page:prev / page:next / close / menu:<메뉴> / command:<명령어> / 모듈 전용 동작
 #               icon = 아이템 모델(리소스팩), material = 바닐라 아이템. off = 쓸 수 없을 때 모습(첫/마지막 페이지)
 #   {이름}       자리표시자. {page} {pages} 는 공통, 나머지는 메뉴를 여는 모듈이 채움
 #   filler      none / glass (배경 그림이 없을 때 빈칸을 유리판으로)
+#
+# 옷장 (/치장): 위 = 분류 탭 (전체 + 부위 8개, 이름 옆 = 가진 수/전체 수), 가운데 = 그 분류의 치장 전부
+# (등급순 → 이름순, 가진 것은 그대로, 없는 것은 등급 색 '?' 카드), 아래 = 보기 · 착용 중 · 벗기 · 안내 · 뽑기 · 내 화면 · 나가기.
+# 자리표시자: {tab} {owned} {total} (지금 탭) · {n_<탭>} = "가진 수/전체 수" · {worn_<부위>} · {view} {view_all} {view_owned} {view_missing}
 wardrobe:
-  title: "<#f0e2b0>치장 <#b9a6d6>· {tab} <#8f86a6>· 보유 {owned}/{total}"
+  title: "<#f0e2b0>치장 <#b9a6d6>· {tab} <#8f86a6>· {owned}/{total}"
   rows: 6
   background: stsv:gui/wardrobe
+  tabs: "ABCDEFGHK"
   layout:
-    - "ABCDEFGHJ"
+    - "ABCDEFGHK"
     - ".LLLLLLL."
     - ".LLLLLLL."
     - ".LLLLLLL."
     - ".LLLLLLL."
-    - "P.TIgSX.N"
+    - "PVJTIgSXN"
   list: L
   buttons:
-    # 탭: 지금 탭은 반짝임. 아이콘은 그 부위 치장 모델
+    # 분류 탭: 지금 탭은 반짝임
     A:
       action: "wardrobe:tab:all"
+      icon: stsv:gui/tab_all
       material: ARMOR_STAND
-      name: "<white>전체"
+      name: "<white>전체 <gray>{n_all}"
       lore: ["<gray>모든 치장"]
     B:
       action: "wardrobe:tab:head"
-      icon: stsv:straw_hat
+      icon: stsv:gui/tab_head
       material: LEATHER_HELMET
-      name: "<white>머리"
+      name: "<white>머리 <gray>{n_head}"
       lore: ["<gray>모자, 귀, 왕관, 탈", "<gray>착용: <white>{worn_head}"]
     C:
       action: "wardrobe:tab:above"
-      icon: stsv:halo
+      icon: stsv:gui/tab_above
       material: GLOWSTONE_DUST
-      name: "<white>머리 위"
+      name: "<white>머리 위 <gray>{n_above}"
       lore: ["<gray>머리 위에 떠 있는 것", "<gray>착용: <white>{worn_above}"]
     D:
       action: "wardrobe:tab:shoulder"
-      icon: stsv:chick
+      icon: stsv:gui/tab_shoulder
       material: FEATHER
-      name: "<white>어깨"
+      name: "<white>어깨 <gray>{n_shoulder}"
       lore: ["<gray>어깨에 올라탄 친구", "<gray>착용: <white>{worn_shoulder}"]
     E:
       action: "wardrobe:tab:back"
-      icon: stsv:angel_wings
+      icon: stsv:gui/tab_back
       material: ELYTRA
-      name: "<white>등"
+      name: "<white>등 <gray>{n_back}"
       lore: ["<gray>날개, 인형 가방, 책가방", "<gray>착용: <white>{worn_back}"]
     F:
       action: "wardrobe:tab:tail"
-      icon: stsv:fox_tail
+      icon: stsv:gui/tab_tail
       material: RABBIT_FOOT
-      name: "<white>꼬리"
+      name: "<white>꼬리 <gray>{n_tail}"
       lore: ["<gray>착용: <white>{worn_tail}"]
     G:
       action: "wardrobe:tab:pet"
-      icon: stsv:puppy
+      icon: stsv:gui/tab_pet
       material: BONE
-      name: "<white>펫"
+      name: "<white>펫 <gray>{n_pet}"
       lore: ["<gray>옆에서 따라다니는 친구", "<gray>착용: <white>{worn_pet}"]
     H:
-      action: "wardrobe:tab:effect"
+      action: "wardrobe:tab:trail"
+      icon: stsv:gui/tab_trail
       material: BLAZE_POWDER
-      name: "<white>효과"
-      lore: ["<gray>발자취, 처치 효과", "<gray>발자취: <white>{worn_trail}", "<gray>처치 효과: <white>{worn_kill}"]
+      name: "<white>발자취 <gray>{n_trail}"
+      lore: ["<gray>걸은 자리에 남는 파티클", "<gray>착용: <white>{worn_trail}"]
+    K:
+      action: "wardrobe:tab:kill"
+      icon: stsv:gui/tab_kill
+      material: IRON_SWORD
+      name: "<white>처치 효과 <gray>{n_kill}"
+      lore: ["<gray>내가 잡은 자리에서 터지는 효과", "<gray>착용: <white>{worn_kill}"]
+    V:
+      action: wardrobe:view
+      icon: stsv:gui/filter
+      material: HOPPER
+      name: "<white>보기: {view}"
+      lore: ["{view_all}", "{view_owned}", "{view_missing}", "", "<gray>클릭: <white>바꾸기"]
     J:
       action: "wardrobe:tab:worn"
       material: PLAYER_HEAD
-      name: "<white>착용 중"
+      name: "<white>착용 중 <gray>{n_worn}"
       lore: ["<gray>지금 입고 있는 치장만"]
     P:
       action: page:prev
@@ -97,17 +117,20 @@ wardrobe:
       material: ARMOR_STAND
       name: "<gold>치장"
       lore:
+        - "<gray>모은 치장: <white>{owned_all}/{total_all}"
         - "<gray>착용 중: <white>{worn}"
         - "<gray>미리보기: <white>{previewing}"
-        - "<gray>페이지: <white>{page} / {pages}"
         - ""
-        - "<gray>부위마다 하나씩: 머리, 머리 위, 어깨, 등, 꼬리, 펫, 발자취, 처치 효과"
+        - "<gray>위 탭: 부위별 분류 (이름 옆 = 가진 수/전체)"
+        - "<gray>밝은 치장 = 가진 것, <dark_gray>어두운 '?' 카드<gray> = 아직 없는 것"
+        - "<gray>  (카드 색 = 등급: 회색 일반 · 파랑 희귀 · 보라 영웅 · 금색 전설)"
         - "<gray>치장 클릭: 착용 / 착용 중이면 벗기 (창이 닫히고 미리보기)"
-        - "<gray>미보유 치장은 마네킹에 입혀 보기만 됩니다."
+        - "<gray>없는 치장 클릭: 마네킹에 입혀 보기만 + 얻는 곳 안내"
         - "<gray>미리보기 화면에서 웅크리기: 이 메뉴 다시 열기"
         - "<gray>나가기 버튼: 원래 자리로"
     S:
       action: wardrobe:self
+      icon: stsv:gui/self_view
       material: SPYGLASS
       name: "<white>내 화면에 표시: {self}"
       lore:

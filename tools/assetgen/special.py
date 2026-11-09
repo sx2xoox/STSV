@@ -128,24 +128,10 @@ TEST_ICONS = {
     "test_skin_book": _themed(I.skin_book),
 }
 # icons of the shipped content (content/stsv/textures)
-ICONS = {
-    "tomato_voucher": lambda: I.voucher("tomato"),
-    "eggplant_voucher": lambda: I.voucher("eggplant"),
-    "mushroom_voucher": lambda: I.voucher("toadstool", gem="cream"),
-    # legendary cosmetics (weekly ranking, 상인 행렬): a gold band
-    "crown_voucher": lambda: I.voucher("gold", gem="ruby"),
-    "halo_voucher": lambda: I.voucher("gold", gem="lamp"),
-    "angel_wings_voucher": lambda: I.voucher("gold", gem="feather"),
-    "demon_wings_voucher": lambda: I.voucher("gold", gem="crimson"),
-    "haetae_voucher": lambda: I.voucher("gold", gem="bottle_green"),
-    "gumiho_voucher": lambda: I.voucher("gold", gem="spectral"),
-    "phoenix_voucher": lambda: I.voucher("gold", gem="fox"),
-    "cheque": I.cheque,
-}
-# the vouchers and the cheque redrawn by hand: one ticket each with a picture of what it gives (voucher_art.py)
+# the cheque and every cosmetic voucher (one ticket each with a picture of the cosmetic it gives: voucher_art.py)
 import voucher_art as _VA   # noqa: E402
 
-ICONS.update(_VA.ICONS)
+ICONS = dict(_VA.ICONS)
 
 
 def equipment():
