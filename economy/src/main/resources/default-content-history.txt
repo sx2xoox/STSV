@@ -497,6 +497,7 @@ a9da3a8fd8cddd4f586a7f10b8d0c1446f35ae50 economy/jobs.yml
 b90ba603922561b2ae839e2a464aaf0a02bf534c economy/jobs.yml
 bb28629d5110c886cbb56e5102d74d4530805a3b economy/jobs.yml
 bedd7e954d7116d1607aa00c7ba4a9795f0aa523 economy/jobs.yml
+c378f50dfee4100b870cbf1a2dcfeda3d769f63c economy/jobs.yml
 ff0625280f3226b2202f7925e901ba4550b80ac5 economy/jobs.yml
 223a5033033c0056f9f841680055e379d8a79b65 economy/land.yml
 83cf4a0d5d9e27b11c5672fccc7dc96c085a0b9d economy/land.yml
@@ -519,6 +520,7 @@ e3a08e1c5f36a134948fc1e88398d37140f49b56 economy/land.yml
 918246db47b863b1f3ee873e5544983f480c42b2 economy/machines.yml
 a48501a9970b4d9f2d0a464706a808ca2519cbf6 economy/machines.yml
 a6519a931ddf6b42402f8b5060505f54ae6eeb68 economy/machines.yml
+bc2e53ccfb11af2c2518ecefb24d9c90bbbba4fd economy/machines.yml
 ce719590f220d9ab8a6f9e70403d5138664ebdf8 economy/machines.yml
 d5eac3c5c75db22c688273009a5e88df76c7ed2c economy/machines.yml
 1e27f6cf4904fa2bfa8715298d12c840f02ec1ff economy/menus/auction.yml
@@ -979,6 +981,7 @@ f3c85fd1b590e11695e565a57503fb208ab98154 economy/requests.yml
 3cca046c63ef567f283829790176c6f1c9f6cdd4 economy/shop.yml
 505160b5d0c3e732a1cd52c8200a3c37e7c34c54 economy/shop.yml
 588235b4e1745d74b7f738d204babb38f77fc608 economy/shop.yml
+5bbea2ec9023651c9d59ba45ee307ba4000b59d7 economy/shop.yml
 7697fdc399921ffcea5b2be43f6ef6a8caee2cac economy/shop.yml
 83ea0e0a9a4e74d71dbf74fc9b4a7aaada752c24 economy/shop.yml
 8f130d0693ee5dafedc2209626f6af1fd083f43d economy/shop.yml
