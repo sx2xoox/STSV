@@ -1,6 +1,7 @@
 # 탈것 (지금은 관리자만 지급: /관리자 아이템목록 의 '탈것' 탭, /관리자 지급). 상점·뽑기·레시피에는 없음.
 # 땅에 우클릭 = 내 방향으로 세우기 · 우클릭 = 타기 · 웅크리고 우클릭 = 아이템으로 회수 (주인·관리자)
 # 1톤 트럭은 웅크리고 짐칸을 우클릭하면 짐칸(보관함)이 열림. 짐칸에 물건이 있으면 회수할 수 없음.
+# 리어카(hand_cart)는 타지 않고 끔: 맨 아래 설명. 주인이 /탈것 권한 <플레이어> 로 허락한 사람도 운전·끌기·짐칸을 쓸 수 있음.
 #
 # vehicle 설정 (블록 단위, 위치는 [오른쪽, 위, 앞] = 탈것 기준)
 #   body-scale     몸체 모델을 보여 줄 배율 (모델이 너무 커서 절반 크기로 그려 둔 것을 2배로)
@@ -22,7 +23,7 @@
 #                  idle-volume 서 있을 때 크기 (0 = 조용), idle-pitch 서 있을 때 음높이, top-pitch 최고 속도 때 음높이 (0.5 ~ 2),
 #                  segment-ticks 소리 조각 하나의 길이 (틱, 음높이 1 기준. sounds.py 의 ENGINE_PERIOD 와 같아야 함)
 #   lights         경광등 (운전 중 Ctrl = 사이렌 켜기·끄기): dark 꺼진 모델, flash 모델들 (번갈아 보임), at 위치
-#   cargo          짐칸 (보관함): pages 쪽 수 (한 쪽 45칸), stages 짐 모델 (차는 정도: 1~25% / ~50% / ~75% / 그 이상),
+#   cargo          짐칸 (보관함): slots 칸 수 (45 의 배수, 한 쪽 45칸: 90 = 2쪽, 최대 540), stages 짐 모델 (차는 정도: 1~25% / ~50% / ~75% / 그 이상),
 #                  at 짐 모델 위치, behind = 이 앞 위치보다 뒤를 웅크리고 우클릭하면 짐칸이 열림
 
 police_car:
@@ -109,7 +110,7 @@ light_truck:
             vanilla: block.note_block.didgeridoo, pitch: 0.9, times: 2, gap: 4 }
     engine: { sound: stsv:vehicle.light_truck.engine, volume: 0.4, idle-volume: 0.2, idle-pitch: 0.55, top-pitch: 1.3, segment-ticks: 10 }
     cargo:
-      pages: 2
+      slots: 90
       behind: 0.7
       at: [0, 0.8125, -0.8125]
       stages: [truck_cargo_1, truck_cargo_2, truck_cargo_3, truck_cargo_4]
@@ -150,3 +151,45 @@ golf_cart:
     horn: { sound: stsv:vehicle.golf_cart.horn, release: stsv:vehicle.golf_cart.horn_end, volume: 1.5,
             vanilla: block.note_block.bit, pitch: 1.8, times: 1 }
     engine: { sound: stsv:vehicle.golf_cart.engine, volume: 0.22, idle-volume: 0, idle-pitch: 0.7, top-pitch: 1.5, segment-ticks: 10 }
+
+# 리어카: 타는 것이 아니라 끄는 탈것 (seats 없음). 우클릭 = 손잡이 잡기 / 놓기, 웅크리기 = 놓기.
+#   pull.hitch             끄는 사람이 서는 곳 (가운데 = 바퀴 축에서 앞으로 몇 블록)
+#   pull.slowdown          끄는 동안 걷는 속도를 이만큼 줄임 (0.3 = 30% 느리게). 달리기는 안 됨
+#   pull.release-distance  리어카가 걸려 끄는 사람이 손잡이에서 이만큼 멀어지면 저절로 놓침 (블록)
+#   pull.rest-tilt         아무도 잡지 않으면 손잡이 쪽으로 이만큼 기울어 손잡이 끝이 땅에 닿음 (도)
+#   pull.sound             굴러갈 때 작은 소리 (key 소리, volume 크기, pitch 음높이, every 몇 블록마다). 빼면 소리 없음
+#   cargo.slots            짐칸 칸 수 (45 의 배수, 한 쪽 45칸, 최대 540)
+hand_cart:
+  material: paper
+  name: "<#d3a86a>리어카"
+  lore:
+    - "<gray>짐을 나르는 나무 손수레. 바퀴 둘, 긴 손잡이."
+    - "<gray>짐칸 보관함 270칸 (6쪽) · 타지 않고 끌고 다님"
+    - "<dark_gray>땅에 우클릭: 세우기 · 우클릭: 손잡이 잡기 / 놓기"
+    - "<dark_gray>끄는 동안 걸음이 느려지고 달릴 수 없음 · 웅크리기: 놓기"
+    - "<dark_gray>웅크리고 짐칸 우클릭: 짐칸 열기 (놓은 뒤)"
+    - "<dark_gray>웅크리고 손잡이 우클릭: 아이템으로 회수 (주인, 짐칸이 비어 있어야 함)"
+  model: hand_cart
+  icon: hand_cart_icon
+  max-stack: 1
+  vehicle:
+    body-scale: 2
+    step-height: 1.0
+    size: [2.3, 1.65, 1.25]
+    click-height: 1.2
+    wheel: wheel_handcart
+    wheel-radius: 0.375
+    wheels:
+      - { at: [-0.71875, 0.375, 0] }
+      - { at: [0.71875, 0.375, 0] }
+    pull:
+      hitch: 1.9
+      slowdown: 0.3
+      release-distance: 4
+      rest-tilt: 16
+      sound: { key: block.wood.step, volume: 0.12, pitch: 0.6, every: 1.8 }
+    cargo:
+      slots: 270
+      behind: 1.2
+      at: [0, 0.875, 0]
+      stages: [hand_cart_cargo_1, hand_cart_cargo_2, hand_cart_cargo_3, hand_cart_cargo_4]

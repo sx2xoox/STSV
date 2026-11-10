@@ -114,6 +114,66 @@ class VehicleStoreTest {
         assertFalse(store.reissue(id, 40, 5000).join(), "not while it is in the world (send it back instead)");
     }
 
+    /** The hand cart's 270 slots: a big load (stacks with names, books, shulker contents) saved whole and read back. */
+    @Test
+    void aFull270SlotBedIsKeptWhole() {
+        long id = store.create("stsv:hand_cart", owner, "Owner", at(0, 0, 0), 1, 1000).join().id();
+        byte[] load = new byte[270 * 2048];   // ~2 KB per slot, far more than plain stacks take
+        new java.util.Random(7).nextBytes(load);
+        store.cargo(id, load, 2000).join();
+        assertArrayEquals(load, new VehicleStore(db).placed().getFirst().cargo(), "after a restart, byte for byte");
+        assertTrue(store.takeIn(id, 5, false, 3000).join(), "picked up (an admin's 회수 keeps the load the same way)");
+        assertArrayEquals(load, store.get(id).join().cargo(), "the load stays with the row in any state");
+    }
+
+    /** /탈것 권한: allowed players are kept per owner, survive a restart, and are taken back. */
+    @Test
+    void grantsRoundTrip() {
+        UUID friend = UUID.randomUUID(), other = UUID.randomUUID();
+        assertTrue(store.grant(owner, friend, "Friend", 1000).join(), "newly allowed");
+        assertFalse(store.grant(owner, friend, "Friend2", 1500).join(), "already allowed: only the name is refreshed");
+        assertTrue(store.grant(owner, other, "Other", 2000).join());
+        assertTrue(store.grant(buyer, friend, "Friend", 2500).join(), "another owner's list is its own");
+
+        List<VehicleStore.Grant> mine = store.grants(owner).join();
+        assertEquals(List.of(friend, other), mine.stream().map(VehicleStore.Grant::player).toList(), "oldest first");
+        assertEquals("Friend2", mine.getFirst().playerName());
+        assertEquals(1000, mine.getFirst().created());
+
+        // a restart: everything loads again
+        VehicleStore again = new VehicleStore(db);
+        again.init();
+        List<VehicleStore.Grant> all = again.grants();
+        assertEquals(3, all.size());
+        assertTrue(all.stream().anyMatch(g -> g.owner().equals(buyer) && g.player().equals(friend)));
+
+        assertTrue(store.revoke(owner, friend).join());
+        assertFalse(store.revoke(owner, friend).join(), "already taken back");
+        assertEquals(List.of(other), store.grants(owner).join().stream().map(VehicleStore.Grant::player).toList());
+        assertEquals(1, store.grants(buyer).join().size(), "the other owner's grant stays");
+    }
+
+    /** A database from before /탈것 권한 (vehicles schema 1) gets the grant table on start; its vehicles stay. */
+    @Test
+    void anOlderDatabaseGetsTheGrantTable(@TempDir Path older) throws Exception {
+        Db old = DatabaseModule.sqlite(older.resolve("old.db"), Logger.getLogger("test"));
+        try {
+            old.migrate("vehicles", List.of(List.of("CREATE TABLE IF NOT EXISTS stsv_vehicle (id INTEGER PRIMARY KEY AUTOINCREMENT, "
+                    + "item VARCHAR(128) NOT NULL, owner CHAR(36) NOT NULL, owner_name VARCHAR(16) NOT NULL, state VARCHAR(8) NOT NULL, "
+                    + "token BIGINT NOT NULL, world CHAR(36), world_name VARCHAR(64), x DOUBLE, y DOUBLE, z DOUBLE, yaw DOUBLE, cargo BLOB, "
+                    + "created BIGINT NOT NULL, updated BIGINT NOT NULL)")));
+            VehicleStore before = new VehicleStore(old);
+            long id = before.create("stsv:light_truck", owner, "Owner", at(0, 0, 0), 1, 1000).join().id();
+            VehicleStore after = new VehicleStore(old);
+            after.init();
+            assertTrue(after.grant(owner, buyer, "Buyer", 2000).join());
+            assertEquals(1, after.grants().size());
+            assertEquals(id, after.placed().getFirst().id(), "the vehicles are still there");
+        } finally {
+            old.close();
+        }
+    }
+
     @Test
     void listAndDelete() {
         long a = store.create("stsv:police_car", owner, "Owner", at(0, 0, 0), 1, 1000).join().id();

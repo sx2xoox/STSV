@@ -27,8 +27,9 @@ import java.util.function.Predicate;
  * @param seats        the first is the driver's
  * @param lights       the roof light bar (Ctrl = siren on / off), or null
  * @param horn         the horn (space), or null
- * @param cargo        a storage bed (the truck), or null
+ * @param cargo        a storage bed (the truck, the hand cart), or null
  * @param engine       its driving sound, or null (silent)
+ * @param pull         pulled by a player on foot instead of driven (the hand cart: no seats), or null
  */
 public record VehicleSpec(
         float bodyScale,
@@ -37,7 +38,7 @@ public record VehicleSpec(
         double length, double width, double height, double clickHeight,
         NamespacedKey wheelModel, double wheelRadius, List<Wheel> wheels,
         List<Vec> seats,
-        Lights lights, Horn horn, Cargo cargo, Engine engine
+        Lights lights, Horn horn, Cargo cargo, Engine engine, Pull pull
 ) {
 
     /** A point on the vehicle: right, up, forward (blocks) from its ground centre. */
@@ -64,18 +65,36 @@ public record VehicleSpec(
     public record Engine(String sound, float volume, float idleVolume, float idlePitch, float topPitch, int segmentTicks) {}
 
     /**
-     * A storage bed: pages of 45 slots (a chest page, its bottom row the page buttons).
+     * A storage bed: pages of 45 slots (a chest page, its bottom row the page buttons). In the item file as
+     * {@code slots} (a multiple of 45: 270 = 6 pages) or {@code pages}.
      *
      * @param behind clicks this far forward or further back open it (blocks, the bed's front edge)
      * @param stages load models by how full it is (see {@link CargoStages})
      */
     public record Cargo(int pages, double behind, Vec at, List<NamespacedKey> stages) {
         public static final int PAGE = 45;
+        /** The most pages a bed may have (540 slots). */
+        public static final int MAX_PAGES = 12;
 
         public int slots() {
             return pages * PAGE;
         }
     }
+
+    /**
+     * Pulled on foot (the hand cart, see {@link CartPull}): nobody rides it; a player takes its handles and it follows
+     * them like a trailer, turning about its wheels.
+     *
+     * @param hitch    where the puller stands: this far forward of the cart's centre (its axle), blocks
+     * @param slowdown the share of walking speed the puller loses (0.3 = 30 % slower); sprinting adds nothing to it
+     * @param release  the puller lets go once they are this far from where its handles are (the cart stuck behind)
+     * @param restTilt degrees it tips forward onto its handles when nobody holds them (0 = it stays level)
+     * @param roll     a quiet rolling sound while it moves, or null
+     */
+    public record Pull(double hitch, double slowdown, double release, double restTilt, Roll roll) {}
+
+    /** A sound played every {@code every} blocks the cart rolls (a vanilla or pack sound key). */
+    public record Roll(String sound, float volume, float pitch, double every) {}
 
     /** Collision boxes (squares) along the length: as many as cover it, each this share of the width. */
     static final double SQUARE = 0.9;
@@ -87,8 +106,11 @@ public record VehicleSpec(
      * @param modelExists whether the pack has models/&lt;name&gt;.bbmodel (a full "ns:id" model is not checked)
      */
     public static VehicleSpec parse(ConfigurationSection v, String namespace, Predicate<String> modelExists) {
-        double speed = positive(v, "speed");
-        double reverse = positive(v, "reverse-speed");
+        Pull pull = v.isConfigurationSection("pull") ? pull(v.getConfigurationSection("pull")) : null;
+        // a pulled cart is not driven: its driving numbers only matter for rolling to a stop (defaults: a walk)
+        boolean driven = pull == null;
+        double speed = driven ? positive(v, "speed") : v.getDouble("speed", 4.3);
+        double reverse = driven ? positive(v, "reverse-speed") : v.getDouble("reverse-speed", 2);
         List<Double> size = v.getDoubleList("size");
         if (size.size() != 3 || size.stream().anyMatch(d -> d <= 0)) throw new IllegalArgumentException("vehicle.size 는 [길이, 너비, 높이] (블록)");
         double wheelRadius = positive(v, "wheel-radius");
@@ -100,7 +122,8 @@ public record VehicleSpec(
         }
         List<Vec> seats = new ArrayList<>();
         for (Map<?, ?> m : v.getMapList("seats")) seats.add(vec(section(m), "at", "vehicle.seats.at"));
-        if (seats.isEmpty()) throw new IllegalArgumentException("vehicle.seats 가 비어 있음 (첫 자리가 운전석)");
+        if (seats.isEmpty() && driven) throw new IllegalArgumentException("vehicle.seats 가 비어 있음 (첫 자리가 운전석)");
+        if (!seats.isEmpty() && !driven) throw new IllegalArgumentException("vehicle.seats: 끄는 탈것(pull)에는 자리가 없음 (비워 두세요)");
 
         Lights lights = null;
         if (v.isConfigurationSection("lights")) {
@@ -137,8 +160,16 @@ public record VehicleSpec(
         Cargo cargo = null;
         if (v.isConfigurationSection("cargo")) {
             ConfigurationSection c = v.getConfigurationSection("cargo");
-            int pages = c.getInt("pages", 1);
-            if (pages < 1 || pages > 6) throw new IllegalArgumentException("vehicle.cargo.pages 는 1 ~ 6");
+            int pages;
+            if (c.contains("slots")) {
+                int slots = c.getInt("slots");
+                if (slots < Cargo.PAGE || slots > Cargo.PAGE * Cargo.MAX_PAGES || slots % Cargo.PAGE != 0)
+                    throw new IllegalArgumentException("vehicle.cargo.slots 는 45 의 배수, 45 ~ " + Cargo.PAGE * Cargo.MAX_PAGES + " (한 쪽 45칸)");
+                pages = slots / Cargo.PAGE;
+            } else {
+                pages = c.getInt("pages", 1);
+                if (pages < 1 || pages > Cargo.MAX_PAGES) throw new IllegalArgumentException("vehicle.cargo.pages 는 1 ~ " + Cargo.MAX_PAGES);
+            }
             List<NamespacedKey> stages = new ArrayList<>();
             for (String s : c.getStringList("stages")) stages.add(model(s, "vehicle.cargo.stages", namespace, modelExists));
             cargo = new Cargo(pages, c.getDouble("behind", 0), vec(c, "at", "vehicle.cargo.at"), List.copyOf(stages));
@@ -147,10 +178,46 @@ public record VehicleSpec(
         if (bodyScale <= 0 || bodyScale > 4) throw new IllegalArgumentException("vehicle.body-scale 은 0 초과 4 이하");
         double step = v.getDouble("step-height", 1.0);
         if (step < 0 || step > 1.5) throw new IllegalArgumentException("vehicle.step-height 는 0 ~ 1.5");
-        return new VehicleSpec((float) bodyScale, speed, reverse, positive(v, "acceleration"), positive(v, "brake"),
-                v.getDouble("coast", 2.0), positive(v, "turn-rate"), positive(v, "turn-speed"), step,
+        return new VehicleSpec((float) bodyScale, speed, reverse,
+                driven ? positive(v, "acceleration") : v.getDouble("acceleration", 3), driven ? positive(v, "brake") : v.getDouble("brake", 8),
+                v.getDouble("coast", driven ? 2.0 : 8.0), driven ? positive(v, "turn-rate") : v.getDouble("turn-rate", 90),
+                driven ? positive(v, "turn-speed") : v.getDouble("turn-speed", 1), step,
                 size.get(0), size.get(1), size.get(2), v.getDouble("click-height", Math.min(1.2, size.get(2))),
-                wheel, wheelRadius, List.copyOf(wheels), List.copyOf(seats), lights, horn, cargo, engine);
+                wheel, wheelRadius, List.copyOf(wheels), List.copyOf(seats), lights, horn, cargo, engine, pull);
+    }
+
+    private static Pull pull(ConfigurationSection p) {
+        double hitch = p.getDouble("hitch", 0);
+        if (hitch < 0.5 || hitch > 4) throw new IllegalArgumentException("vehicle.pull.hitch 는 0.5 ~ 4 (블록, 가운데에서 끄는 사람까지)");
+        double slow = p.getDouble("slowdown", 0.3);
+        if (slow < 0 || slow > 0.9) throw new IllegalArgumentException("vehicle.pull.slowdown 은 0 ~ 0.9 (0.3 = 30% 느리게)");
+        double release = p.getDouble("release-distance", 4);
+        if (release < 1.5 || release > 16) throw new IllegalArgumentException("vehicle.pull.release-distance 는 1.5 ~ 16 (블록)");
+        double tilt = p.getDouble("rest-tilt", 0);
+        if (tilt < 0 || tilt > 45) throw new IllegalArgumentException("vehicle.pull.rest-tilt 는 0 ~ 45 (도)");
+        Roll roll = null;
+        if (p.isConfigurationSection("sound")) {
+            ConfigurationSection r = p.getConfigurationSection("sound");
+            float volume = (float) r.getDouble("volume", 0.15), pitch = (float) r.getDouble("pitch", 1);
+            double every = r.getDouble("every", 1.5);
+            if (volume <= 0 || volume > 1) throw new IllegalArgumentException("vehicle.pull.sound.volume 은 0 초과 1 이하");
+            if (pitch < VehicleSounds.MIN_PITCH || pitch > VehicleSounds.MAX_PITCH) throw new IllegalArgumentException("vehicle.pull.sound.pitch 는 0.5 ~ 2");
+            if (every < 0.5 || every > 8) throw new IllegalArgumentException("vehicle.pull.sound.every 는 0.5 ~ 8 (블록)");
+            roll = new Roll(soundKey(r.getString("key"), "vehicle.pull.sound.key", true), volume, pitch, every);
+        }
+        return new Pull(hitch, slow, release, tilt, roll);
+    }
+
+    /** Pulled on foot (no seats, no driver). */
+    public boolean pulled() {
+        return pull != null;
+    }
+
+    /** The point the cart tips about: its axle (the wheels' middle, at their hub height). */
+    public Vec axle() {
+        double f = 0;
+        for (Wheel w : wheels) f += w.at().forward();
+        return new Vec(0, wheelRadius, wheels.isEmpty() ? 0 : f / wheels.size());
     }
 
     /** A sound event key ("ns:path" or a vanilla "path"), checked; null when absent and not required. */

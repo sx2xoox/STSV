@@ -109,3 +109,29 @@ def golf_cart():
                "y": ("lamp", 5), "r": ("signal_red", 3), "k": ("rubber", 1), "h": ("car_white", 4),
                "H": ("car_white", 5)}
     return _draw(rows, colours).render()
+
+
+@icon("hand_cart")
+def hand_cart():
+    # the open wooden bed with a crate and a sack peeking over its boards, the long handles to the left (the cart's
+    # front) ending in a rubber grip, one big spoked wheel with an iron tyre under the middle
+    rows = ["................",
+            "................",
+            "................",
+            "........cCc.....",
+            ".....s..cCc.uUus",
+            ".....sWWWWWWWWWs",
+            ".....sbbbbbbbbbs",
+            ".....snnnnnnnnns",
+            ".....sbbbbbbbbbs",
+            "gHHHHFFFFFFFFFFF",
+            "g.......kkkk....",
+            ".......kSiiSk...",
+            ".......kixxik...",
+            ".......kSiiSk...",
+            "........kkkk....",
+            "................"]
+    colours = {"c": ("wood", 3), "C": ("wood", 4), "u": ("burlap", 3), "U": ("burlap", 4), "s": ("wood_dark", 3),
+               "W": ("wood", 4), "b": ("wood", 3), "n": ("wood_dark", 2), "F": ("wood_dark", 2), "H": ("wood_dark", 3),
+               "g": ("rubber", 2), "k": ("iron", 1), "S": ("wood_dark", 2), "i": ("wood", 3), "x": ("iron", 3)}
+    return _draw(rows, colours).render()

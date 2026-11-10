@@ -1,6 +1,7 @@
 """
-Drivable vehicles (content/stsv/items/vehicles.yml): 경찰차 (a generic patrol car), 1톤 트럭 (a small cab-over
-pickup with an open drop-side bed) and 골프 카트 (two seats, canopy, a bag rack). No real agency emblem, no brand.
+Vehicles (content/stsv/items/vehicles.yml): 경찰차 (a generic patrol car), 1톤 트럭 (a small cab-over pickup with
+an open drop-side bed) and 골프 카트 (two seats, canopy, a bag rack) are driven; 리어카 (a two-wheeled wooden hand
+cart with a big open bed and long pull handles) is pulled on foot. No real agency emblem, no brand.
 
 Every vehicle is several models, each shown by its own item display that the plugin moves every tick
 (plugin: dev.stsv.core.vehicle):
@@ -8,11 +9,15 @@ Every vehicle is several models, each shown by its own item display that the plu
                              long): drawn at its real size and shrunk by 2 around the middle (BModel scale 2), the
                              item display scales it back up (vehicle.scale 2 in the item file), so a texel stays
                              1/16 block like every other model.
-  wheels    wheel_road, wheel_cart     one wheel, hub at model (8, 8, 8), axle along x. The plugin turns it about
-                             its axle (rolling) and, for front wheels, about y (steering).
+  wheels    wheel_road, wheel_cart, wheel_handcart   one wheel, hub at model (8, 8, 8), axle along x. The plugin
+                             turns it about its axle (rolling) and, for front wheels, about y (steering).
   parts     police_lightbar_off / _a / _b   the roof light bar: dark, left (red) lit, right (blue) lit; the plugin
                              swaps them to flash. Attachment point (bottom middle) at model (8, 8, 8).
             truck_cargo_1..4  what lies on the truck's bed, by how full its storage is (25 / 50 / 75 / 100 %).
+            hand_cart_cargo_1..4  the same for the hand cart's bed (crates, sacks, a tarped bundle).
+
+The hand cart is drawn level, as it is while someone pulls it (its handles at hand height); left alone it tips
+forward onto its handles (the plugin turns the body about the axle: vehicles.yml pull.rest-tilt).
 
 Drawn coordinates (all models): 16 px a block, the vehicle's ground centre at (0, 0, 0), front = north (-z),
 model +x = the vehicle's RIGHT side (seen from the front, +x is on the viewer's left). Korean cars drive on the
@@ -203,6 +208,51 @@ def _wheel(name, d, width, cap="blade", cap_d=None, spokes=5, holes=True):
 def wheel_road():
     """Car and truck wheel: 0.69 block across (11 px), 4 px wide, a five-spoke chrome hub cap."""
     return _wheel("wheel_road", 11, 4, cap="blade", cap_d=7)
+
+
+def wheel_handcart():
+    """The hand cart's wheel: a wooden wheel with an iron tyre, painted spokes, an iron hub (diameter 12 px)."""
+    m = BModel("wheel_handcart", shift=(8, 8, 8), floor=None)
+    d, width = 12, 2
+    r = d / 2
+
+    def rim(c):
+        y, z = c.p[1], c.p[2]
+        rr = math.hypot(y, z)
+        if c.face in ("east", "west"):
+            if rr > r - 1:
+                return ("iron", 1 if y < 0 else 2)            # the iron tyre's edge
+            if rr > r - 2.2:
+                return ("wood_dark", 1.2)                     # the felloe (wooden ring)
+            return ("wood_dark", 0.4)
+        # the running face: the iron tyre, a rivet now and then
+        a = math.atan2(z, y)
+        k = math.floor((a + math.pi) / (2 * math.pi) * 24)
+        if k % 6 == 0 and abs(c.p[0]) < 0.5:
+            return ("blade", 2)
+        return ("iron", 2 if k % 2 else 1.6)
+    cyl(m, "tyre", (0, 0), d, -width / 2, width / 2, Paint("iron", 2, noise=0, rim=0.3, decal=rim), axis="x")
+
+    def hub(c):
+        y, z = c.p[1], c.p[2]
+        rr = math.hypot(y, z)
+        if c.face not in ("east", "west"):
+            return ("wood_dark", 1)
+        if rr > r - 2.2:
+            return ("wood_dark", 1.4 if y > 0 else 0.9)       # the felloe
+        if rr < 1.3:
+            return ("iron", 3) if rr < 0.7 else ("iron", 1.5)  # the hub cap
+        a = math.atan2(z, y)
+        t = (a * 8 / (2 * math.pi)) % 1.0
+        if t < 0.28:
+            return ("wood", 2.6 if y > 0 else 1.8)            # a spoke, the lit half brighter
+        return ("wood_dark", -0.2)                            # the dark gap between spokes
+    p = Paint("wood_dark", 1, noise=0, rim=0.2, ao=0.3, decal=hub)
+    w2 = width / 2
+    cyl(m, "hub", (0, 0), d - 1, w2, w2 + 0.5, p, axis="x")
+    cyl(m, "hub", (0, 0), d - 1, -w2 - 0.5, -w2, p, axis="x")
+    m.display = presets.furniture(gui_scale=0.6)
+    return m
 
 
 def wheel_cart():
@@ -1025,6 +1075,124 @@ def _split_seat(lo, hi, seat):
 
 
 # ================================================================================================
+# 리어카 (a two-wheeled wooden hand cart, pulled on foot) 2.3 x 1.65 blocks of bed, 3.4 blocks with its handles
+# ================================================================================================
+
+# Drawn px, ground centre (the axle, under the bed's middle) at (0, 0, 0), handles to the north (-z, the cart's front).
+# The puller stands between the handles 1.9 blocks ahead of the axle (vehicles.yml pull.hitch) with the cross bar
+# just in front of them at hand height; the rails are 17 px apart inside (a player with arms is 16 px wide).
+CART = {"half": 13, "front": -18, "back": 18, "floor": 12.5, "deck": 14, "top": 19.5, "rail": (8.5, 10),
+        "rail_y": (10.5, 12.5), "grip": -36, "hub": 6}
+
+
+def hand_cart():
+    m = BModel("hand_cart", shift=(8, 8, 8), scale=2.0)
+    C = CART
+    H, F, B, DECK, TOP = C["half"], C["front"], C["back"], C["deck"], C["top"]
+    R0, R1 = C["rail"]
+    RY0, RY1 = C["rail_y"]
+    G = C["grip"]
+
+    m.group("bed")
+
+    def floor(c):
+        x, y, z = c.p
+        fx = math.floor(x)
+        if c.face == "up":
+            # boards along the bed, 4 px wide, a dark seam between, worn lighter down the middle where loads slide
+            if (fx + H) % 4 == 3:
+                return ("wood", 0.4)
+            if abs(z) % 12 < 0.6 and (fx + H) % 8 < 4:
+                return ("iron", 1.5)                         # a nail row across each board
+            return ("wood", 2.6 if abs(x) < 6 else 2.1)
+        if c.face == "down":
+            return ("wood_dark", 0.8)
+        return ("wood_dark", 1.6)
+    m.box("floor", (-H, C["floor"], F), (H, DECK, B), Paint("wood", 2, "grain", axis="z", noise=0, decal=floor))
+
+    def boards(c):
+        x, y, z = c.p
+        fy = math.floor(y)
+        along = z if c.face in ("east", "west") else x
+        span = B if c.face in ("east", "west") else H
+        if c.face == "up":
+            return ("wood", 2.8)
+        if c.face == "down":
+            return ("wood_dark", 0.8)
+        # iron corner straps bent round each corner, nailed
+        if abs(along) > span - 1.6:
+            if fy in (15, 18) and abs(along) < span - 0.6:
+                return ("blade", 2)                           # nail heads
+            return ("iron", 1.8 if fy >= 17 else 1.3)
+        # two boards on edge with a dark seam, a lit top edge
+        if fy == 16:
+            return ("wood_dark", 0.2)
+        if y > TOP - 1:
+            return ("wood", 2.9)
+        # a strap across the side at each stake
+        if c.face in ("east", "west") and any(abs(z - k) < 0.8 for k in (-9, 9)):
+            return ("iron", 1.6)
+        return None
+    sides = Paint("wood", 2, "grain", axis="z", noise=0, decal=boards)
+    ends = Paint("wood", 2, "grain", axis="x", noise=0, decal=boards)
+    for s in (1, -1):
+        xa, xb = sorted(((H - 1) * s, H * s))
+        m.box("side", (xa, DECK, F), (xb, TOP, B), sides)
+    m.box("front_board", (-H + 1, DECK, F), (H - 1, TOP, F + 1), ends)
+    m.box("tail_board", (-H + 1, DECK, B - 1), (H - 1, TOP, B), ends)
+
+    def stake(c):
+        if c.face == "up":
+            return ("wood", 3)
+        if math.floor(c.p[1]) in (15, 19):
+            return ("iron", 1.5)                              # bands round the stake
+        return None
+    for s in (1, -1):
+        xa, xb = sorted((H * s, (H + 0.5) * s))
+        for z in (-9, 9):
+            m.box("stake", (xa, C["floor"], z - 0.75), (xb, TOP + 1, z + 0.75), Paint("wood_dark", 2, "grain", axis="y", noise=0, decal=stake))
+
+    m.group("frame")
+
+    def rail(c):
+        x, y, z = c.p
+        if c.face in ("up", "down") or c.face in ("east", "west"):
+            if z < G + 1.5 + 6 and z > G + 1.5 and c.face != "down":
+                return ("leather", 1.6 if math.floor(z) % 2 else 1.1)   # wrapped grips at the bend
+            if abs(z - F) < 1 or abs(z - (B - 2)) < 1:
+                return ("iron", 1.6)                          # iron collars where the bed sits on it
+        return None
+    rails = Paint("wood_dark", 2, "grain", axis="z", noise=0, decal=rail)
+    for s in (1, -1):
+        xa, xb = sorted((R0 * s, R1 * s))
+        m.box("rail", (xa, RY0, G), (xb, RY1, B - 2), rails)
+
+    def crossbar(c):
+        x = c.p[0]
+        if abs(x) < 5.5 and c.face != "down":
+            # the hand grip: a rubber wrap with ribs
+            return ("rubber", 2.4 if math.floor(x) % 2 else 1.6)
+        if abs(abs(x) - 5.5) < 0.6:
+            return ("iron", 1.6)
+        return None
+    m.box("crossbar", (-R0, RY0, G), (R0, RY1, G + 1.5), Paint("wood_dark", 2, "grain", axis="x", noise=0, decal=crossbar))
+
+    m.group("axle")
+
+    def iron_part(c):
+        if c.face == "up":
+            return ("iron", 2.6)
+        return None
+    m.box("axle", (-R1, C["hub"] - 0.75, -0.75), (R1, C["hub"] + 0.75, 0.75), IRON(decal=iron_part))
+    for s in (1, -1):
+        xa, xb = sorted((R0 * s, R1 * s))
+        # the hanger from the rail down to the axle (a leaf spring's shackle)
+        m.box("hanger", (xa, C["hub"] + 0.75, -2), (xb, RY0, 2), IRON(decal=iron_part))
+    m.display = _held_display(m)
+    return m
+
+
+# ================================================================================================
 # The police light bar: three looks the plugin swaps to flash (no entity animation needed)
 # ================================================================================================
 
@@ -1209,6 +1377,30 @@ def truck_cargo(stage):
     return m
 
 
+def hand_cart_cargo(stage):
+    """What lies in the hand cart's bed (24 x 34 px inside, floor middle at model (8, 8, 8)), by how full it is."""
+    m = BModel(f"hand_cart_cargo_{stage}", shift=(8, 8, 8))
+    if stage >= 1:
+        _crate(m, -12, 0, 5.5, 11, 9, 11)
+        _sack(m, 0.5, 0, 9, 9, 7)
+    if stage >= 2:
+        _crate(m, 0.5, 0, -5, 11.5, 10, 10.5, ramp="wood_dark")
+        _crate(m, -12, 0, -5.5, 11, 8, 10.5)
+        _sack(m, -11.5, 0, -16, 9, 7, band="denim")
+    if stage >= 3:
+        _crate(m, 0.5, 0, -16.5, 11.5, 9, 11)
+        _crate(m, -11.5, 9, 6, 10, 8, 10, ramp="wood_dark")
+        _sack(m, 1, 10, -4.5, 9, 7, 5, band="leaf_dark")
+        _sack(m, 0.5, 5, 9.5, 9, 6, 5)
+    if stage >= 4:
+        _crate(m, -12, 8, -5.5, 11, 9, 10.5)
+        _sack(m, -11.5, 5, -16, 9, 7, 5)
+        _tarp(m, -12, 12, 10, -16.5, -5.5, 6)
+        _sack(m, 1, 10, 9.5, 9, 6, 5, band="denim")
+    m.display = presets.furniture(gui_scale=0.4)
+    return m
+
+
 # ================================================================================================
 
 ALL = {
@@ -1217,8 +1409,11 @@ ALL = {
     "golf_cart": golf_cart,
     "wheel_road": wheel_road,
     "wheel_cart": wheel_cart,
+    "hand_cart": hand_cart,
+    "wheel_handcart": wheel_handcart,
     "police_lightbar_off": police_lightbar_off,
     "police_lightbar_a": police_lightbar_a,
     "police_lightbar_b": police_lightbar_b,
     **{f"truck_cargo_{k}": (lambda k=k: truck_cargo(k)) for k in range(1, 5)},
+    **{f"hand_cart_cargo_{k}": (lambda k=k: hand_cart_cargo(k)) for k in range(1, 5)},
 }

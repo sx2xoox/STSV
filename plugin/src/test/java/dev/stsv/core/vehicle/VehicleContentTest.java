@@ -17,17 +17,25 @@ import static org.junit.jupiter.api.Assertions.assertNull;
 import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
-/** The shipped vehicles (content/stsv/items/vehicles.yml): they read, drive at sensible speeds, and are admin-only. */
+/** The shipped vehicles (content/stsv/items/vehicles.yml): they read, drive at sensible speeds, and are admin-only. The hand
+ * cart is pulled on foot and carries the most. */
 class VehicleContentTest {
 
     private static final Path CONTENT = Path.of(System.getProperty("stsv.content"));
+    /** The driven ones (seats, horn, engine). */
     private static final List<String> IDS = List.of("police_car", "light_truck", "golf_cart");
+    /** Every vehicle item. */
+    private static final List<String> ALL = List.of("police_car", "light_truck", "golf_cart", "hand_cart");
 
     private static Map<String, VehicleSpec> shipped() {
+        return shipped(IDS);
+    }
+
+    private static Map<String, VehicleSpec> shipped(List<String> ids) {
         Path pack = CONTENT.resolve("stsv");
         YamlConfiguration y = YamlConfiguration.loadConfiguration(pack.resolve("items/vehicles.yml").toFile());
         java.util.Map<String, VehicleSpec> out = new java.util.LinkedHashMap<>();
-        for (String id : IDS) {
+        for (String id : ids) {
             ConfigurationSection s = y.getConfigurationSection(id + ".vehicle");
             assertNotNull(s, id);
             out.put(id, VehicleSpec.parse(s, "stsv", m -> Files.exists(pack.resolve("models/" + m + ".bbmodel"))));
@@ -84,6 +92,8 @@ class VehicleContentTest {
         assertTrue(cart.horn().pitch() > police.horn().pitch() && police.horn().pitch() > truck.horn().pitch(), "high, mid, low");
         assertNotNull(truck.cargo());
         assertTrue(truck.cargo().slots() > 54, "bigger than a large chest");
+        assertEquals(90, truck.cargo().slots(), "the truck keeps 90 (vehicles.yml cargo.slots: the owner may raise it)");
+        for (VehicleSpec s : v.values()) assertFalse(s.pulled(), "driven, not pulled");
         assertEquals(4, truck.cargo().stages().size());
         assertTrue(truck.cargo().behind() < truck.length() / 2 && truck.cargo().behind() > -truck.length() / 2);
         assertNull(police.cargo());
@@ -130,17 +140,80 @@ class VehicleContentTest {
         }
     }
 
+    /** 리어카: pulled on foot (no seats), two wheels on a middle axle, a 270-slot bed in six pages, slower walking. */
+    @Test
+    void theHandCartIsPulledAndCarriesTheMost() {
+        Map<String, VehicleSpec> all = shipped(ALL);
+        VehicleSpec cart = all.get("hand_cart");
+        assertTrue(cart.pulled());
+        assertTrue(cart.seats().isEmpty(), "nobody rides it");
+        assertNull(cart.horn());
+        assertNull(cart.engine(), "no engine");
+        assertNull(cart.lights());
+        assertEquals(2, cart.wheels().size(), "two wheels");
+        assertTrue(cart.wheels().stream().noneMatch(VehicleSpec.Wheel::steer), "nothing steers: it turns about its axle");
+        assertEquals(0, cart.axle().forward(), 1e-9, "the axle under the middle of the bed");
+        assertEquals(cart.wheelRadius(), cart.axle().up(), 1e-9);
+        assertEquals(1.0, cart.stepHeight(), 1e-9, "one-block ledges, like the others");
+
+        assertEquals(270, cart.cargo().slots(), "a huge bed");
+        assertEquals(6, cart.cargo().pages(), "six pages of 45");
+        assertEquals(4, cart.cargo().stages().size(), "a load shown by how full it is");
+        for (Map.Entry<String, VehicleSpec> e : all.entrySet()) {
+            if (e.getValue().cargo() != null && !e.getKey().equals("hand_cart")) {
+                assertTrue(cart.cargo().slots() > e.getValue().cargo().slots(), "more than the " + e.getKey());
+            }
+        }
+
+        VehicleSpec.Pull pull = cart.pull();
+        assertEquals(0.3, pull.slowdown(), 1e-9, "30 % slower while pulling");
+        assertEquals(4, pull.release(), 1e-9, "lets go about 4 blocks from the handles");
+        assertTrue(pull.hitch() - 0.4 > cart.length() / 2, "the puller stands clear of the bed (in front of it, between the handles)");
+        assertTrue(pull.hitch() < 2.5, "and holds the handles, not a rope");
+        assertTrue(pull.restTilt() > 5 && pull.restTilt() < 30, "left alone it rests on its handles");
+        assertNotNull(pull.roll(), "a quiet rolling sound");
+        assertTrue(pull.roll().volume() <= 0.2, "quiet");
+        assertTrue(cart.width() < 2 && cart.length() < 3, "fits a 2-wide path");
+    }
+
     @Test
     void aBrokenSectionSaysWhat() {
         YamlConfiguration y = new YamlConfiguration();
         y.set("v.speed", 5);
         IllegalArgumentException e = assertThrows(IllegalArgumentException.class, () -> VehicleSpec.parse(y.getConfigurationSection("v"), "t", m -> true));
         assertTrue(e.getMessage().startsWith("vehicle."), e.getMessage());
+
+        // a pulled cart: no driving numbers needed, but no seats either; its bed in whole pages
+        YamlConfiguration c = new YamlConfiguration();
+        c.set("v.size", List.of(2.0, 1.5, 1.0));
+        c.set("v.wheel", "wheel");
+        c.set("v.wheel-radius", 0.375);
+        c.set("v.pull.hitch", 1.9);
+        c.set("v.cargo.slots", 270);
+        c.set("v.cargo.at", List.of(0.0, 0.8, 0.0));
+        VehicleSpec ok = VehicleSpec.parse(c.getConfigurationSection("v"), "t", m -> true);
+        assertTrue(ok.pulled());
+        assertEquals(6, ok.cargo().pages());
+        c.set("v.cargo.slots", 100);
+        assertTrue(assertThrows(IllegalArgumentException.class, () -> VehicleSpec.parse(c.getConfigurationSection("v"), "t", m -> true))
+                .getMessage().startsWith("vehicle.cargo.slots"), "slots in whole pages of 45");
+        c.set("v.cargo.slots", 45 * 13);
+        assertThrows(IllegalArgumentException.class, () -> VehicleSpec.parse(c.getConfigurationSection("v"), "t", m -> true));
+        c.set("v.cargo.slots", 540);
+        assertEquals(12, VehicleSpec.parse(c.getConfigurationSection("v"), "t", m -> true).cargo().pages(), "up to 540");
+        c.set("v.seats", List.of(Map.of("at", List.of(0.0, 0.5, 0.0))));
+        assertTrue(assertThrows(IllegalArgumentException.class, () -> VehicleSpec.parse(c.getConfigurationSection("v"), "t", m -> true))
+                .getMessage().startsWith("vehicle.seats"), "nobody rides a pulled cart");
     }
 
-    /** Vehicles are admin items for now: no shop, no gacha, no recipe gives one. */
+    /** Vehicles are admin items for now (the hand cart too): no shop, no gacha, no recipe gives one. */
     @Test
     void onlyAdminsHandThemOut() throws Exception {
+        YamlConfiguration items = YamlConfiguration.loadConfiguration(CONTENT.resolve("stsv/items/vehicles.yml").toFile());
+        for (String id : ALL) {
+            assertNotNull(items.getConfigurationSection(id + ".vehicle"), id + " is a vehicle item (the admin browser's 탈것 tab)");
+            for (String key : List.of("price", "shop", "buy", "sell", "recipe", "gacha")) assertFalse(items.contains(id + "." + key), id + "." + key);
+        }
         List<Path> roots = List.of(CONTENT.resolve("stsv"), CONTENT.getParent().resolve("economy/content/economy"));
         for (Path root : roots) {
             if (!Files.isDirectory(root)) continue;
@@ -148,7 +221,7 @@ class VehicleContentTest {
                 for (Path f : files.filter(p -> p.toString().endsWith(".yml")).toList()) {
                     if (f.getFileName().toString().equals("vehicles.yml")) continue;
                     String text = Files.readString(f);
-                    for (String id : IDS) assertFalse(text.contains(id), f + " mentions " + id);
+                    for (String id : ALL) assertFalse(text.contains(id), f + " mentions " + id);
                 }
             }
         }

@@ -37,15 +37,21 @@ import org.bukkit.event.block.Action;
 import org.bukkit.event.entity.EntityDamageEvent;
 import org.bukkit.event.entity.EntityDismountEvent;
 import org.bukkit.event.entity.EntityMountEvent;
+import org.bukkit.event.entity.PlayerDeathEvent;
 import org.bukkit.event.inventory.InventoryAction;
 import org.bukkit.event.inventory.InventoryClickEvent;
 import org.bukkit.event.inventory.InventoryCloseEvent;
 import org.bukkit.event.inventory.InventoryDragEvent;
+import org.bukkit.event.player.PlayerChangedWorldEvent;
+import org.bukkit.event.player.PlayerGameModeChangeEvent;
 import org.bukkit.event.player.PlayerInputEvent;
 import org.bukkit.event.player.PlayerInteractEntityEvent;
 import org.bukkit.event.player.PlayerInteractEvent;
 import org.bukkit.event.player.PlayerJoinEvent;
 import org.bukkit.event.player.PlayerQuitEvent;
+import org.bukkit.event.player.PlayerTeleportEvent;
+import org.bukkit.event.player.PlayerToggleSneakEvent;
+import org.bukkit.event.player.PlayerToggleSprintEvent;
 import org.bukkit.event.world.ChunkLoadEvent;
 import org.bukkit.event.world.ChunkUnloadEvent;
 import org.bukkit.inventory.EquipmentSlot;
@@ -64,6 +70,7 @@ import java.security.SecureRandom;
 import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.HashSet;
+import java.util.LinkedHashMap;
 import java.util.LinkedHashSet;
 import java.util.List;
 import java.util.Map;
@@ -75,7 +82,7 @@ import java.util.function.BiPredicate;
 
 /**
  * 탈것: vehicles placed from an item, ridden and driven with the player's own keys, picked up again
- * (content/stsv/items/vehicles.yml: 경찰차, 1톤 트럭, 골프 카트; README "탈것").
+ * (content/stsv/items/vehicles.yml: 경찰차, 1톤 트럭, 골프 카트, 리어카; README "탈것").
  *
  * <h2>How it is shown and kept</h2>
  * The database ({@link VehicleStore}) holds every vehicle; nothing of it is saved with a chunk. While a vehicle's chunk is
@@ -106,8 +113,16 @@ import java.util.function.BiPredicate;
  * short tail) and the engine hums while someone drives (short segments re-played back to back, their pitch following
  * the speed). Both are bound to the body, so they move with the vehicle (tools/assetgen/sounds.py makes them).
  *
- * <h2>Rules</h2> {@link VehicleAccess} (who drives, opens the bed, picks up), {@link VehicleSeats} (which seat, where to step
- * out). Vehicles cannot be hurt and hurt nobody; mobs cannot get in.
+ * <h2>Pulled carts (리어카)</h2> A vehicle with {@code pull:} has no seats: right-clicking it takes its handles, and every
+ * tick it follows the puller like a trailer ({@link CartPull}: turning about its wheels, gravity, steps, walls, hazards).
+ * The puller walks normally but slower ({@link PullSpeed}: a transient movement-speed modifier, sprinting blocked) and
+ * lets go by sneaking or right-clicking it again; they let go by themselves when it gets stuck and they walk on (more
+ * than its release distance from the handles), and whenever they quit, die, change worlds, teleport, get into
+ * something, or the cart is picked up or goes. Nobody holding it, it rests tipped onto its handles.
+ *
+ * <h2>Rules</h2> {@link VehicleAccess} (who drives, pulls, opens the bed, picks up), {@link VehicleSeats} (which seat, where
+ * to step out). Owners allow other players for all their vehicles with /탈것 권한 ({@link VehicleCommand}, kept in
+ * {@link VehicleStore}). Vehicles cannot be hurt and hurt nobody; mobs cannot get in.
  */
 public final class VehicleModule implements StsvModule, Listener {
 
@@ -135,6 +150,10 @@ public final class VehicleModule implements StsvModule, Listener {
     private final Set<String> warned = new HashSet<>();
     /** seats this module empties itself (their dismount is handled where it happens, not in onDismount) */
     private final Set<UUID> ejecting = new HashSet<>();
+    /** who pulls which cart (player -> vehicle id) */
+    private final Map<UUID, Long> pulling = new HashMap<>();
+    /** /탈것 권한: owner -> the players they allowed (-> name when allowed), oldest first */
+    private final Map<UUID, Map<UUID, String>> grants = new HashMap<>();
     private BiPredicate<UUID, UUID> trust;
     private BiConsumer<UUID, ItemStack> mailbox;
     private BukkitTask task;
@@ -161,6 +180,9 @@ public final class VehicleModule implements StsvModule, Listener {
         store = new VehicleStore(plugin.db());
         store.init();
         for (VehicleStore.Row r : store.placed()) if (r.pos() != null) parked.put(r.id(), r);
+        for (VehicleStore.Grant g : store.grants()) grants.computeIfAbsent(g.owner(), k -> new LinkedHashMap<>()).put(g.player(), g.playerName());
+        // a plugin reload while someone pulled: nobody pulls now
+        for (Player p : Bukkit.getOnlinePlayers()) PullSpeed.remove(p.getAttribute(Attribute.MOVEMENT_SPEED));
         // a plugin reload: the last run's entities (never saved, so only ever after a reload in the same run)
         for (World w : Bukkit.getWorlds()) for (Entity e : w.getEntities()) if (isVehiclePart(e)) e.remove();
         Bukkit.getPluginManager().registerEvents(this, plugin);
@@ -169,6 +191,12 @@ public final class VehicleModule implements StsvModule, Listener {
                 "탈것 목록 / 주인에게 아이템으로 돌려주기 / 주변 탈것 지우기", this::command,
                 (s, a) -> a.length == 1 ? List.of("목록", "회수", "제거") : a.length == 2 && a[0].equals("제거") ? List.of("8", "16", "32") : List.of());
         plugin.admin().report("STSV 탈것", (s, a) -> s.sendMessage(Lang.mm("vehicle.report", "live", live.size(), "parked", parked.size())));
+        org.bukkit.command.PluginCommand command = plugin.getCommand("탈것");
+        if (command != null) {
+            VehicleCommand c = new VehicleCommand(this);
+            command.setExecutor(c);
+            command.setTabCompleter(c);
+        }
         spawnSoon = true;
         plugin.getLogger().info("탈것 " + parked.size() + "대 (청크를 불러오면 보임)");
     }
@@ -188,6 +216,7 @@ public final class VehicleModule implements StsvModule, Listener {
                 for (int i = 0; i < v.seats.length; i++) leave(v, i);
                 v.seats = new LiveVehicle.Seat[v.item.vehicle().seats().size()];
             }
+            if (v.puller != null && !v.item.vehicle().pulled()) release(v, null);
             v.spec = v.item.vehicle();
             v.cargo = resized(cargo, v.spec);
             removeParts(v, false);
@@ -197,7 +226,10 @@ public final class VehicleModule implements StsvModule, Listener {
 
     @Override
     public void disable() {
-        for (LiveVehicle v : List.copyOf(live.values())) despawn(v, true);
+        for (LiveVehicle v : List.copyOf(live.values())) {
+            release(v, null);
+            despawn(v, true);
+        }
         if (task != null) task.cancel();
         plugin.admin().removeAll("STSV 탈것");
         HandlerList.unregisterAll(this);
@@ -261,6 +293,76 @@ public final class VehicleModule implements StsvModule, Listener {
 
     private static boolean admin(Player p) {
         return p.hasPermission("stsv.admin");
+    }
+
+    /** The owner allowed this player (/탈것 권한). */
+    boolean granted(UUID owner, UUID player) {
+        Map<UUID, String> g = grants.get(owner);
+        return g != null && g.containsKey(player);
+    }
+
+    /** Whether a player may drive this vehicle, pull it and open its bed (VehicleAccess). */
+    private boolean mayDrive(LiveVehicle v, Player p) {
+        UUID id = p.getUniqueId();
+        return VehicleAccess.mayDrive(v.owner, id, admin(p), trusted(v.owner, id), granted(v.owner, id));
+    }
+
+    // ------------------------------------------------------------------------------------------
+    // /탈것 권한 (VehicleCommand): who else may drive, pull and open the beds of an owner's vehicles
+    // ------------------------------------------------------------------------------------------
+
+    /** The most players one owner may allow. */
+    static final int MAX_GRANTS = 45;
+
+    /** The players an owner allowed (player -> their name when allowed), oldest first. */
+    Map<UUID, String> grantsOf(UUID owner) {
+        Map<UUID, String> g = grants.get(owner);
+        return g == null ? Map.of() : java.util.Collections.unmodifiableMap(new LinkedHashMap<>(g));
+    }
+
+    /** Allows a player (saved first; then = true when newly allowed, on the main thread; null = the database failed). */
+    void grant(UUID owner, UUID player, String name, java.util.function.Consumer<Boolean> then) {
+        store.grant(owner, player, name, System.currentTimeMillis()).whenComplete((added, err) -> Bukkit.getScheduler().runTask(plugin, () -> {
+            if (err != null) {
+                plugin.getLogger().log(java.util.logging.Level.WARNING, "[탈것] 권한 저장 실패", err);
+                then.accept(null);
+                return;
+            }
+            grants.computeIfAbsent(owner, k -> new LinkedHashMap<>()).put(player, name);
+            then.accept(added);
+        }));
+    }
+
+    /**
+     * Takes a permission back (then = true when it was there; null = the database failed). Whoever loses it right now is
+     * let out of what they use: the handles of a cart, the driver's seat (they step out), an open bed.
+     */
+    void revoke(UUID owner, UUID player, java.util.function.Consumer<Boolean> then) {
+        store.revoke(owner, player).whenComplete((removed, err) -> Bukkit.getScheduler().runTask(plugin, () -> {
+            if (err != null) {
+                plugin.getLogger().log(java.util.logging.Level.WARNING, "[탈것] 권한 취소 실패", err);
+                then.accept(null);
+                return;
+            }
+            Map<UUID, String> g = grants.get(owner);
+            if (g != null) {
+                g.remove(player);
+                if (g.isEmpty()) grants.remove(owner);
+            }
+            Player p = Bukkit.getPlayer(player);
+            if (p != null) {
+                for (LiveVehicle v : List.copyOf(live.values())) {
+                    if (!v.owner.equals(owner) || mayDrive(v, p)) continue;
+                    if (player.equals(v.puller)) release(v, "vehicle.grant-lost");
+                    if (v.seatOf(p) == 0) {
+                        leave(v, 0);
+                        p.sendMessage(Lang.msg("vehicle.grant-lost"));
+                    }
+                    if (player.equals(v.cargoViewer)) closeCargo(v);
+                }
+            }
+            then.accept(removed);
+        }));
     }
 
     // ------------------------------------------------------------------------------------------
@@ -341,7 +443,9 @@ public final class VehicleModule implements StsvModule, Listener {
         World w = clicked.getWorld();
         Block base = clicked.isReplaceable() ? clicked : clicked.getRelative(face);
         WorldTerrain terrain = new WorldTerrain(w);
-        VehiclePhysics.State st = new VehiclePhysics.State(base.getX() + 0.5, base.getY(), base.getZ() + 0.5, VehiclePhysics.wrap(p.getYaw()));
+        // a car faces where the player looks; a cart turns its handles towards them (ready to take)
+        float yaw = VehiclePhysics.wrap(p.getYaw() + (s.pulled() ? 180 : 0));
+        VehiclePhysics.State st = new VehiclePhysics.State(base.getX() + 0.5, base.getY(), base.getZ() + 0.5, yaw);
         // on the ground under the spot (a slab, a carpet, a step down)
         st.y += VehiclePhysics.collide(VehiclePhysics.footprint(st.x, st.y, st.z, st.yaw, s), 0, -1.5, 0, terrain)[1];
         if (VehiclePhysics.collides(st.x, st.y, st.z, st.yaw, s, terrain) || VehiclePhysics.hazard(st.x, st.y, st.z, st.yaw, s, terrain)
@@ -433,9 +537,10 @@ public final class VehicleModule implements StsvModule, Listener {
         for (VehicleStore.Row r : List.copyOf(parked.values())) spawnIfLoaded(r);
     }
 
-    /** How far from its centre a vehicle's entities reach (click boxes, seats), blocks. */
+    /** How far from its centre a vehicle's entities reach (click boxes, seats, a cart's handles), blocks. */
     private static double reach(VehicleSpec s) {
-        return Math.hypot(s.length(), s.width()) / 2 + 1;
+        double r = Math.hypot(s.length(), s.width()) / 2 + 1;
+        return s.pulled() ? Math.max(r, s.pull().hitch() + 1) : r;
     }
 
     /**
@@ -497,14 +602,14 @@ public final class VehicleModule implements StsvModule, Listener {
 
     private void spawnParts(LiveVehicle v) {
         VehicleSpec s = v.spec;
-        float k = s.bodyScale();
-        v.body = display(v, v.item.create(1), new Transformation(new Vector3f(), new Quaternionf(), new Vector3f(k, k, k), new Quaternionf()));
+        v.tiltShown = tilt(v);
+        v.body = display(v, v.item.create(1), body(v, v.tiltShown));
         for (int i = 0; i < s.wheels().size(); i++) v.wheels.add(display(v, model(s.wheelModel()), wheel(v, i)));
         if (s.lights() != null) {
             v.lightsShown = v.siren ? 0 : -1;
             v.lights = display(v, model(v.siren ? s.lights().flash().getFirst() : s.lights().dark()), part(s.lights().at()));
         }
-        if (s.cargo() != null) v.load = display(v, model(stageModel(v)), part(s.cargo().at()));
+        if (s.cargo() != null) v.load = display(v, model(stageModel(v)), tilted(s, s.cargo().at(), 1, v.tiltShown));
         for (int i = 0; i < s.squares(); i++) {
             double[] c = VehiclePhysics.world(v.st.x, v.st.y, v.st.z, v.st.yaw, new VehicleSpec.Vec(0, 0, s.squareOffset(i)));
             v.hits.add(v.world.spawn(new Location(v.world, c[0], c[1], c[2]), Interaction.class, h -> {
@@ -515,6 +620,44 @@ public final class VehicleModule implements StsvModule, Listener {
                 h.getPersistentDataContainer().set(PART, PersistentDataType.LONG, v.id);
             }));
         }
+        if (s.pulled()) {
+            double[] c = CartPull.hitch(v.st, s);
+            v.handle = v.world.spawn(new Location(v.world, c[0], c[1], c[2]), Interaction.class, h -> {
+                h.setPersistent(false);
+                h.setInteractionWidth(HANDLE_WIDTH);
+                h.setInteractionHeight(HANDLE_HEIGHT);   // below the puller's eyes: their own clicks pass over it
+                h.setResponsive(true);
+                h.getPersistentDataContainer().set(PART, PersistentDataType.LONG, v.id);
+            });
+        }
+    }
+
+    /** A cart's handle click box (it stands where the puller stands). */
+    private static final float HANDLE_WIDTH = 0.7f, HANDLE_HEIGHT = 0.9f;
+
+    /** How far a cart tips forward now: onto its handles when nobody holds them, level while pulled (degrees). */
+    private static float tilt(LiveVehicle v) {
+        return v.spec.pulled() && v.puller == null ? (float) v.spec.pull().restTilt() : 0f;
+    }
+
+    private static Transformation body(LiveVehicle v, float tilt) {
+        return tilted(v.spec, new VehicleSpec.Vec(0, 0, 0), v.spec.bodyScale(), tilt);
+    }
+
+    /**
+     * A model at a vehicle point, scaled, tipped forward by tilt degrees about the vehicle's axle (a cart resting on its
+     * handles): the display's rotation turns about the vehicle's ground centre, so the translation moves the turn onto
+     * the axle (t = P + R (at - P)).
+     */
+    private static Transformation tilted(VehicleSpec s, VehicleSpec.Vec at, float scale, float tilt) {
+        Vector3f t = local(at);
+        Quaternionf r = new Quaternionf();
+        if (tilt != 0) {
+            r.rotateX((float) Math.toRadians(tilt));   // display +z is forward: +x rotation lowers the front
+            Vector3f pivot = local(s.axle());
+            t = new Vector3f(t).sub(pivot).rotate(r).add(pivot);
+        }
+        return new Transformation(t, r, new Vector3f(scale, scale, scale), new Quaternionf());
     }
 
     private static Transformation part(VehicleSpec.Vec at) {
@@ -534,9 +677,11 @@ public final class VehicleModule implements StsvModule, Listener {
         if (v.body != null) v.body.remove();
         if (v.lights != null) v.lights.remove();
         if (v.load != null) v.load.remove();
+        if (v.handle != null) v.handle.remove();
         v.wheels.forEach(Entity::remove);
         v.hits.forEach(Entity::remove);
         v.body = v.lights = v.load = null;
+        v.handle = null;
         v.wheels.clear();
         v.hits.clear();
     }
@@ -546,6 +691,7 @@ public final class VehicleModule implements StsvModule, Listener {
      * where it is, shown again when its chunk loads); false: the caller takes it out of the world.
      */
     private void despawn(LiveVehicle v, boolean save) {
+        release(v, "vehicle.pull-lost");
         closeCargo(v);
         removeParts(v, true);
         live.remove(v.id);
@@ -604,14 +750,16 @@ public final class VehicleModule implements StsvModule, Listener {
             despawn(v, true);
             return;
         }
-        if (v.body == null || !v.body.isValid() || v.hits.stream().anyMatch(h -> !h.isValid()) || v.wheels.stream().anyMatch(w -> !w.isValid())) {
+        if (v.body == null || !v.body.isValid() || v.hits.stream().anyMatch(h -> !h.isValid()) || v.wheels.stream().anyMatch(w -> !w.isValid())
+                || (v.spec.pulled() && (v.handle == null || !v.handle.isValid()))) {
             removeParts(v, false);
             spawnParts(v);
         }
-        Player driver = v.rider(0);
+        Player driver = v.spec.pulled() ? null : v.rider(0);
+        Player puller = puller(v);
         DriveInput in = driver != null ? DriveInput.of(driver.getCurrentInput()) : DriveInput.NONE;
         WorldTerrain terrain = new WorldTerrain(v.world);
-        boolean active = driver != null || v.st.speed != 0 || !v.st.onGround || v.st.steer != 0;
+        boolean active = driver != null || puller != null || v.st.speed != 0 || !v.st.onGround || v.st.steer != 0;
         if (!active && (ticks + v.id) % 10 == 0 && !VehiclePhysics.supported(v.st, v.spec, terrain)) {
             v.st.onGround = false;   // the ground under it went: it falls
             active = true;
@@ -619,12 +767,18 @@ public final class VehicleModule implements StsvModule, Listener {
         if (active) {
             double x = v.st.x, y = v.st.y, z = v.st.z, steer = v.st.steer, roll = v.st.roll;
             float yaw = v.st.yaw;
-            VehiclePhysics.step(v.st, in, v.spec, terrain, settings.maxSpeed());
+            if (puller != null) {
+                Location at = puller.getLocation();
+                CartPull.step(v.st, at.getX(), at.getZ(), v.spec, terrain);
+            } else {
+                VehiclePhysics.step(v.st, in, v.spec, terrain, settings.maxSpeed());
+            }
             if (v.st.bumped) v.world.playSound(at(v), Sound.ENTITY_ZOMBIE_ATTACK_IRON_DOOR, SoundCategory.NEUTRAL, 0.35f, 1.4f);
             boolean moved = Math.abs(v.st.x - x) + Math.abs(v.st.y - y) + Math.abs(v.st.z - z) > 1e-5 || v.st.yaw != yaw;
             if (moved) {
                 move(v);
                 v.dirty = true;
+                if (v.spec.pulled()) rolling(v, Math.hypot(v.st.x - x, v.st.z - z));
             }
             if (moved || v.st.steer != steer || v.st.roll != roll) {
                 for (int i = 0; i < v.wheels.size(); i++) {
@@ -640,11 +794,13 @@ public final class VehicleModule implements StsvModule, Listener {
                 return;
             }
         }
+        if (puller != null) pulled(v, puller);
+        if (v.spec.pulled() && tilt(v) != v.tiltShown) tiltTo(v, tilt(v));
         lights(v);
         horn(v, driver != null && in.jump());
         engine(v, driver);
         if (v.cargoViewer != null) watchCargo(v);
-        if (v.dirty && (ticks - v.savedAt >= settings.saveTicks() || (v.st.speed == 0 && driver == null))) save(v);
+        if (v.dirty && (ticks - v.savedAt >= settings.saveTicks() || (v.st.speed == 0 && driver == null && v.puller == null))) save(v);
     }
 
     /** Puts every entity of the vehicle where it is now (the client glides there over the smoothing ticks). */
@@ -654,6 +810,10 @@ public final class VehicleModule implements StsvModule, Listener {
         for (ItemDisplay w : v.wheels) w.teleport(at);
         if (v.lights != null) v.lights.teleport(at);
         if (v.load != null) v.load.teleport(at);
+        if (v.handle != null) {
+            double[] h = CartPull.hitch(v.st, v.spec);
+            v.handle.teleport(new Location(v.world, h[0], h[1], h[2]));
+        }
         for (int i = 0; i < v.hits.size(); i++) {
             double[] c = VehiclePhysics.world(v.st.x, v.st.y, v.st.z, v.st.yaw, new VehicleSpec.Vec(0, 0, v.spec.squareOffset(i)));
             v.hits.get(i).teleport(new Location(v.world, c[0], c[1], c[2]));
@@ -728,6 +888,10 @@ public final class VehicleModule implements StsvModule, Listener {
         LiveVehicle v = live.get(id);
         Player p = e.getPlayer();
         if (v == null || busy.contains(id) || p.isInsideVehicle() || !click(p)) return;
+        if (v.spec.pulled()) {
+            cartClick(v, p, e.getRightClicked());
+            return;
+        }
         if (p.isSneaking()) {
             if (v.spec.cargo() != null && inBed(v, p)) openCargo(v, p, 0);
             else pickUp(v, p);
@@ -755,7 +919,7 @@ public final class VehicleModule implements StsvModule, Listener {
     }
 
     private void board(LiveVehicle v, Player p) {
-        boolean mayDrive = VehicleAccess.mayDrive(v.owner, p.getUniqueId(), admin(p), trusted(v.owner, p.getUniqueId()));
+        boolean mayDrive = mayDrive(v, p);
         boolean[] taken = v.taken();
         int seat = VehicleSeats.pick(taken, mayDrive);
         if (seat < 0) {
@@ -910,6 +1074,196 @@ public final class VehicleModule implements StsvModule, Listener {
     }
 
     // ------------------------------------------------------------------------------------------
+    // Pulling a hand cart (CartPull, PullSpeed)
+    // ------------------------------------------------------------------------------------------
+
+    /** The quiet "let go" message (a flash); every other reason to let go is a chat line. */
+    private static final String LET_GO = "vehicle.pull-let-go";
+
+    /** A right-click on a cart: its puller lets go; sneaking: the bed (the handles: pick up); else take the handles. */
+    private void cartClick(LiveVehicle v, Player p, Entity clicked) {
+        if (p.getUniqueId().equals(v.puller)) {
+            release(v, LET_GO);
+            return;
+        }
+        if (p.isSneaking()) {
+            if (v.spec.cargo() == null || clicked.equals(v.handle)) pickUp(v, p);
+            else openCargo(v, p, 0);
+            return;
+        }
+        takeHandles(v, p);
+    }
+
+    private void takeHandles(LiveVehicle v, Player p) {
+        if (p.getGameMode() == GameMode.SPECTATOR) return;
+        Long other = pulling.get(p.getUniqueId());
+        if (other != null && other != v.id) {
+            refuse(p, Lang.mm("vehicle.pull-already"));
+            return;
+        }
+        if (v.puller != null) {
+            refuse(p, Lang.mm("vehicle.pull-taken"));
+            return;
+        }
+        if (!mayDrive(v, p)) {
+            refuse(p, Lang.mm("vehicle.pull-denied", "owner", v.ownerName));
+            return;
+        }
+        if (v.cargoViewer != null) {
+            refuse(p, Lang.mm("vehicle.cargo-busy"));
+            return;
+        }
+        v.puller = p.getUniqueId();
+        v.pullerSprinting = p.isSprinting();
+        v.rolled = 0;
+        pulling.put(p.getUniqueId(), v.id);
+        PullSpeed.apply(p.getAttribute(Attribute.MOVEMENT_SPEED), v.spec.pull().slowdown(), v.pullerSprinting);
+        if (v.pullerSprinting) noSprint(p);
+        v.world.playSound(at(v), Sound.BLOCK_WOODEN_TRAPDOOR_CLOSE, SoundCategory.NEUTRAL, 0.5f, 0.8f);
+        HudModule.flash(p, Lang.mm("vehicle.pulling", "percent", Math.round(v.spec.pull().slowdown() * 100)));
+    }
+
+    /** The cart's puller, or null; someone who can no longer pull it (gone, dead, elsewhere, riding) lets go. */
+    private Player puller(LiveVehicle v) {
+        if (v.puller == null) return null;
+        Player p = Bukkit.getPlayer(v.puller);
+        if (p == null || !p.isValid() || p.isDead() || !p.getWorld().equals(v.world) || p.isInsideVehicle()
+                || p.getGameMode() == GameMode.SPECTATOR) {
+            release(v, p == null ? null : "vehicle.pull-lost");
+            return null;
+        }
+        return p;
+    }
+
+    /** After the cart followed its puller this tick: too far from the handles (stuck) = let go; sprinting gains nothing. */
+    private void pulled(LiveVehicle v, Player p) {
+        Location at = p.getLocation();
+        if (CartPull.tooFar(v.st, v.spec, at.getX(), at.getY(), at.getZ())) {
+            release(v, "vehicle.pull-stuck");
+            return;
+        }
+        boolean sprinting = p.isSprinting();
+        if (sprinting) noSprint(p);
+        if (sprinting != v.pullerSprinting) {
+            v.pullerSprinting = sprinting;
+            PullSpeed.apply(p.getAttribute(Attribute.MOVEMENT_SPEED), v.spec.pull().slowdown(), sprinting);
+        }
+    }
+
+    /**
+     * Stops a puller's sprint: the client sprints on its own, and only stops (and cannot start again) while it thinks
+     * its food is 6 or less, so it is told that (the real food is unchanged, and the next health update or letting go
+     * tells it the truth; the server's HUD shows the real one). Meanwhile the speed modifier takes the sprint's bonus away.
+     */
+    private static void noSprint(Player p) {
+        if (p.getAllowFlight()) return;   // flying modes sprint whatever the food; the modifier is enough
+        p.sendHealthUpdate(p.getHealth(), Math.min(6, p.getFoodLevel()), p.getSaturation());
+    }
+
+    /**
+     * The puller lets go: their speed comes back (the modifier off, their real food re-sent) and the cart stops where
+     * it is (it tips back onto its handles). key: what they are told (null = nothing; LET_GO = a flash, else chat).
+     */
+    void release(LiveVehicle v, String key) {
+        if (v.puller == null) return;
+        UUID id = v.puller;
+        v.puller = null;
+        v.pullerSprinting = false;
+        v.st.speed = 0;
+        v.dirty = true;
+        pulling.remove(id, v.id);
+        Player p = Bukkit.getPlayer(id);
+        if (p == null) return;
+        PullSpeed.remove(p.getAttribute(Attribute.MOVEMENT_SPEED));
+        if (p.isOnline()) p.sendHealthUpdate();
+        if (key == null || !p.isOnline()) return;
+        if (key.equals(LET_GO)) {
+            HudModule.flash(p, Lang.mm(key));
+            v.world.playSound(at(v), Sound.BLOCK_WOODEN_TRAPDOOR_OPEN, SoundCategory.NEUTRAL, 0.4f, 0.7f);
+        } else {
+            p.sendMessage(Lang.msg(key));
+        }
+    }
+
+    /** Whatever cart this player pulls, they let go of it. */
+    private void releasePlayer(Player p, String key) {
+        Long id = pulling.get(p.getUniqueId());
+        if (id == null) return;
+        LiveVehicle v = live.get(id);
+        if (v != null && p.getUniqueId().equals(v.puller)) {
+            release(v, key);
+        } else {
+            pulling.remove(p.getUniqueId());
+            PullSpeed.remove(p.getAttribute(Attribute.MOVEMENT_SPEED));
+        }
+    }
+
+    /** A cart rolling: now and then a quiet wooden roll (vehicles.yml pull.sound), by the distance it made. */
+    private void rolling(LiveVehicle v, double moved) {
+        VehicleSpec.Roll r = v.spec.pull().roll();
+        if (r == null) return;
+        v.rolled += moved;
+        if (v.rolled < r.every()) return;
+        v.rolled %= r.every();
+        float pitch = r.pitch() * (0.94f + 0.12f * (float) Math.random());
+        v.world.playSound(at(v), r.sound(), SoundCategory.NEUTRAL, r.volume(), Math.clamp(pitch, VehicleSounds.MIN_PITCH, VehicleSounds.MAX_PITCH));
+    }
+
+    /** Tips a cart onto its handles (let go) or levels it (pulled), turning smoothly over a few ticks. */
+    private void tiltTo(LiveVehicle v, float tilt) {
+        v.tiltShown = tilt;
+        int ticks = 6;
+        if (v.body != null) {
+            v.body.setInterpolationDelay(0);
+            v.body.setInterpolationDuration(ticks);
+            v.body.setTransformation(body(v, tilt));
+        }
+        if (v.load != null && v.spec.cargo() != null) {
+            v.load.setInterpolationDelay(0);
+            v.load.setInterpolationDuration(ticks);
+            v.load.setTransformation(tilted(v.spec, v.spec.cargo().at(), 1, tilt));
+        }
+    }
+
+    @EventHandler
+    public void onSneak(PlayerToggleSneakEvent e) {
+        if (e.isSneaking() && pulling.containsKey(e.getPlayer().getUniqueId())) releasePlayer(e.getPlayer(), LET_GO);
+    }
+
+    @EventHandler
+    public void onSprint(PlayerToggleSprintEvent e) {
+        if (e.isSprinting() && pulling.containsKey(e.getPlayer().getUniqueId())) noSprint(e.getPlayer());
+    }
+
+    @EventHandler
+    public void onDeath(PlayerDeathEvent e) {
+        releasePlayer(e.getPlayer(), null);
+    }
+
+    @EventHandler
+    public void onWorldChange(PlayerChangedWorldEvent e) {
+        releasePlayer(e.getPlayer(), "vehicle.pull-lost");
+    }
+
+    @EventHandler(priority = EventPriority.MONITOR, ignoreCancelled = true)
+    public void onTeleport(PlayerTeleportEvent e) {
+        if (!pulling.containsKey(e.getPlayer().getUniqueId())) return;
+        Location from = e.getFrom(), to = e.getTo();
+        if (!from.getWorld().equals(to.getWorld()) || from.distanceSquared(to) > 1) releasePlayer(e.getPlayer(), "vehicle.pull-lost");
+    }
+
+    @EventHandler(priority = EventPriority.MONITOR, ignoreCancelled = true)
+    public void onGameMode(PlayerGameModeChangeEvent e) {
+        if (e.getNewGameMode() == GameMode.SPECTATOR) releasePlayer(e.getPlayer(), "vehicle.pull-lost");
+    }
+
+    /** A puller getting into anything (a boat, a horse, a car's seat) lets go. */
+    @EventHandler(priority = EventPriority.MONITOR, ignoreCancelled = true)
+    public void onPullerMount(EntityMountEvent e) {
+        if (e.getEntity() instanceof Player p && pulling.containsKey(p.getUniqueId())) releasePlayer(p, null);
+    }
+
+    // ------------------------------------------------------------------------------------------
     // Sounds: horn and engine (VehicleSounds)
     // ------------------------------------------------------------------------------------------
 
@@ -1010,6 +1364,7 @@ public final class VehicleModule implements StsvModule, Listener {
     @EventHandler
     public void onQuit(PlayerQuitEvent e) {
         Player p = e.getPlayer();
+        releasePlayer(p, null);
         lastClick.remove(p.getUniqueId());
         inputs.remove(p.getUniqueId());
         Long id = partOf(p.getVehicle());
@@ -1032,6 +1387,7 @@ public final class VehicleModule implements StsvModule, Listener {
 
     @EventHandler
     public void onJoin(PlayerJoinEvent e) {
+        PullSpeed.remove(e.getPlayer().getAttribute(Attribute.MOVEMENT_SPEED));   // transient, but never left on anyone
         deliverOwed(e.getPlayer());
     }
 
@@ -1041,10 +1397,12 @@ public final class VehicleModule implements StsvModule, Listener {
 
     private void pickUp(LiveVehicle v, Player p) {
         boolean own = p.getUniqueId().equals(v.owner);
-        VehicleAccess.PickUp r = VehicleAccess.pickUp(v.owner, p.getUniqueId(), admin(p), v.hasRiders(), v.cargoEmpty(), v.cargoViewer != null);
+        VehicleAccess.PickUp r = VehicleAccess.pickUp(v.owner, p.getUniqueId(), admin(p), v.hasRiders(), v.puller != null, v.cargoEmpty(),
+                v.cargoViewer != null);
         switch (r) {
             case NOT_OWNER -> refuse(p, Lang.mm("vehicle.not-owner", "owner", v.ownerName));
             case RIDERS -> refuse(p, Lang.mm("vehicle.riders"));
+            case PULLED -> refuse(p, Lang.mm("vehicle.pull-taken"));
             case VIEWER -> refuse(p, Lang.mm("vehicle.cargo-busy"));
             case CARGO -> refuse(p, Lang.mm("vehicle.cargo-not-empty"));
             case OK -> {
@@ -1180,27 +1538,40 @@ public final class VehicleModule implements StsvModule, Listener {
 
     private void openCargo(LiveVehicle v, Player p, int page) {
         VehicleSpec.Cargo c = v.spec.cargo();
-        if (!VehicleAccess.mayOpenCargo(v.owner, p.getUniqueId(), admin(p), trusted(v.owner, p.getUniqueId()))) {
-            refuse(p, Lang.mm("vehicle.cargo-denied", "owner", v.ownerName));
-            return;
-        }
-        if (v.cargoViewer != null && !v.cargoViewer.equals(p.getUniqueId())) {
-            refuse(p, Lang.mm("vehicle.cargo-busy"));
-            return;
-        }
-        if (v.st.speed != 0) {
-            refuse(p, Lang.mm("vehicle.cargo-moving"));
-            return;
+        UUID id = p.getUniqueId();
+        boolean other = v.cargoViewer != null && !v.cargoViewer.equals(id);
+        switch (VehicleAccess.openCargo(v.owner, id, admin(p), trusted(v.owner, id), granted(v.owner, id), other, v.st.speed != 0, v.puller != null)) {
+            case DENIED -> {
+                refuse(p, Lang.mm("vehicle.cargo-denied", "owner", v.ownerName));
+                return;
+            }
+            case BUSY -> {
+                refuse(p, Lang.mm("vehicle.cargo-busy"));
+                return;
+            }
+            case PULLED -> {
+                refuse(p, Lang.mm("vehicle.cargo-pulled"));
+                return;
+            }
+            case MOVING -> {
+                refuse(p, Lang.mm("vehicle.cargo-moving"));
+                return;
+            }
+            case OK -> { }
         }
         syncCargo(v);
-        page = Math.clamp(page, 0, c.pages() - 1);
+        if (v.cargo == null) v.cargo = resized(null, v.spec);
+        int pages = CargoPages.pages(v.cargo.length);   // a load left past a smaller bed (fewer slots in the file) stays reachable
+        page = CargoPages.clamp(page, pages);
         CargoHolder h = new CargoHolder(v.id, page);
-        Inventory inv = Bukkit.createInventory(h, 54, Lang.mm("vehicle.cargo-title", "page", page + 1, "pages", c.pages()));
+        Inventory inv = Bukkit.createInventory(h, 54, Lang.mm("vehicle.cargo-title", "vehicle", Text.plain(label(v.item)), "page", page + 1,
+                "pages", pages));
         h.inventory = inv;
-        for (int i = 0; i < VehicleSpec.Cargo.PAGE; i++) inv.setItem(i, v.cargo[page * VehicleSpec.Cargo.PAGE + i]);
+        List<ItemStack> shown = CargoPages.page(v.cargo, page);
+        for (int i = 0; i < VehicleSpec.Cargo.PAGE; i++) inv.setItem(i, shown.get(i));
         for (int i = PREV; i <= NEXT; i++) inv.setItem(i, button(Material.GRAY_STAINED_GLASS_PANE, " ", null));
         if (page > 0) inv.setItem(PREV, button(Material.ARROW, Lang.raw("vehicle.cargo-prev"), null));
-        if (page < c.pages() - 1) inv.setItem(NEXT, button(Material.ARROW, Lang.raw("vehicle.cargo-next"), null));
+        if (page < pages - 1) inv.setItem(NEXT, button(Material.ARROW, Lang.raw("vehicle.cargo-next"), null));
         inv.setItem(INFO, button(Material.CHEST, Lang.raw("vehicle.cargo-info", "used", v.cargoUsed(), "slots", c.slots()), null));
         v.cargoViewer = p.getUniqueId();
         v.cargoInv = inv;
@@ -1223,17 +1594,11 @@ public final class VehicleModule implements StsvModule, Listener {
     /** What the open page holds goes into the bed (and the shown load follows). Saved when it changed. */
     private void syncCargo(LiveVehicle v) {
         if (v.cargo == null || v.cargoInv == null) return;
-        boolean changed = false;
-        for (int i = 0; i < VehicleSpec.Cargo.PAGE; i++) {
-            ItemStack now = v.cargoInv.getItem(i);
-            now = now == null || now.isEmpty() ? null : now.clone();
-            int at = v.cargoPage * VehicleSpec.Cargo.PAGE + i;
-            ItemStack was = v.cargo[at];
-            if (!java.util.Objects.equals(was, now)) {
-                v.cargo[at] = now;
-                changed = true;
-            }
-        }
+        Inventory inv = v.cargoInv;
+        boolean changed = CargoPages.store(v.cargo, v.cargoPage, i -> {
+            ItemStack now = inv.getItem(i);
+            return now == null || now.isEmpty() ? null : now.clone();
+        });
         if (!changed) return;
         store.cargo(v.id, encode(v.cargo), System.currentTimeMillis());
         int stage = stageOf(v);
@@ -1266,7 +1631,7 @@ public final class VehicleModule implements StsvModule, Listener {
             v.cargoInv = null;
             return;
         }
-        if (v.st.speed != 0 || !p.getWorld().equals(v.world) || p.getLocation().distanceSquared(at(v)) > 64) closeCargo(v);
+        if (v.st.speed != 0 || v.puller != null || !p.getWorld().equals(v.world) || p.getLocation().distanceSquared(at(v)) > 64) closeCargo(v);
     }
 
     private LiveVehicle cargoOf(Inventory top) {
@@ -1365,13 +1730,7 @@ public final class VehicleModule implements StsvModule, Listener {
 
     /** The bed sized for the vehicle (never smaller than what it holds: fewer pages in the file must not lose a load). */
     private static ItemStack[] resized(ItemStack[] cargo, VehicleSpec s) {
-        int slots = s.cargo() == null ? 0 : s.cargo().slots();
-        int used = 0;
-        if (cargo != null) for (int i = 0; i < cargo.length; i++) if (cargo[i] != null) used = i + 1;
-        if (slots == 0 && used == 0) return null;
-        ItemStack[] out = new ItemStack[Math.max(slots, used)];
-        if (cargo != null) System.arraycopy(cargo, 0, out, 0, Math.min(cargo.length, out.length));
-        return out;
+        return CargoPages.resized(cargo, s.cargo() == null ? 0 : s.cargo().slots(), ItemStack[]::new);
     }
 
     // ------------------------------------------------------------------------------------------
