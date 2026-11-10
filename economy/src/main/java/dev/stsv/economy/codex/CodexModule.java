@@ -1,5 +1,6 @@
 package dev.stsv.economy.codex;
 
+import dev.stsv.core.nickname.Names;
 import dev.stsv.core.data.Db;
 import dev.stsv.core.gui.menu.MenuHandler;
 import dev.stsv.core.gui.menu.MenuSpec;
@@ -187,11 +188,11 @@ public final class CodexModule extends EcoModule {
         Set<String> mine = registered(u);
         if (mine.containsAll(c.items())) {
             core.profiles().grantTitle(u, "economy:codex_" + c.id());
-            Bukkit.broadcast(Lang.msg("codex.tab-done", "player", p.getName(), "tab", c.name()));
+            Bukkit.broadcast(Lang.msg("codex.tab-done", "player", Names.mini(p), "tab", c.name()));
         }
         if (tabs().stream().allMatch(t -> mine.containsAll(t.items()))) {
             core.profiles().grantTitle(u, "economy:codex_all");
-            Bukkit.broadcast(Lang.msg("codex.all-done", "player", p.getName()));
+            Bukkit.broadcast(Lang.msg("codex.all-done", "player", Names.mini(p)));
         }
         FishSpec spec = eco.fishing().spec();
         FishSpec.Species species = spec.species().values().stream().filter(s -> ShopCatalog.norm(s.item()).equals(item)).findFirst().orElse(null);
@@ -200,11 +201,11 @@ public final class CodexModule extends EcoModule {
         if (grp != null && spec.species().values().stream().filter(x -> x.group().equals(grp.id()))
                 .allMatch(x -> mine.contains(ShopCatalog.norm(x.item())))) {
             if (grp.title() != null) core.profiles().grantTitle(u, grp.title());
-            Bukkit.broadcast(Lang.msg("fishing.group-done", "player", p.getName(), "group", grp.name()));
+            Bukkit.broadcast(Lang.msg("fishing.group-done", "player", Names.mini(p), "group", grp.name()));
         }
         if (spec.species().values().stream().allMatch(x -> mine.contains(ShopCatalog.norm(x.item())))) {
             core.profiles().grantTitle(u, "economy:master_angler");
-            Bukkit.broadcast(Lang.msg("fishing.all-done", "player", p.getName()));
+            Bukkit.broadcast(Lang.msg("fishing.all-done", "player", Names.mini(p)));
         }
     }
 

@@ -10,6 +10,7 @@ import org.bukkit.attribute.AttributeInstance;
 import org.bukkit.entity.Entity;
 import org.bukkit.entity.ItemDisplay;
 import org.bukkit.entity.Player;
+import org.bukkit.entity.TextDisplay;
 import org.bukkit.persistence.PersistentDataType;
 import org.bukkit.plugin.Plugin;
 import org.bukkit.util.Transformation;
@@ -165,6 +166,28 @@ final class CosmeticAttachments {
     private long ticks;
 
     /**
+     * Name tags (nicknames): a text display riding the player on the clients like the models, drawn where the
+     * game draws a name tag, seen by everyone who sees the player but never by the player themselves. Hidden while
+     * the player is invisible, dead or spectating; faint and not seen through walls while sneaking (as the game's
+     * own name tag). The wanted text is kept apart from the display, so a display lost to a respawn, a world change
+     * or a teleport is made again by {@link #tick}.
+     */
+    private static final class Tag {
+        final TextDisplay display;
+        boolean sneaking;
+        float scale;
+
+        Tag(TextDisplay display) {
+            this.display = display;
+        }
+    }
+
+    private final Map<UUID, net.kyori.adventure.text.Component> tagText = new HashMap<>();
+    private final Map<UUID, Tag> tags = new HashMap<>();
+    /** blocks above the top of the hitbox where the bottom of the tag is (the game's name tag: about 0.25) */
+    private float tagHeight = 0.25f;
+
+    /**
      * @param packets  null: no client-side riding, the displays are teleported along every tick
      * @param selfView whether a wearer sees their own displays
      */
@@ -240,12 +263,17 @@ final class CosmeticAttachments {
         relinkAt.remove(p.getUniqueId());
         Map<CosmeticSlot, Worn> have = worn.remove(p.getUniqueId());
         if (have != null) have.values().forEach(w -> w.display.remove());
+        Tag t = tags.remove(p.getUniqueId());
+        if (t != null) t.display.remove();
         if (packets != null) packets.link(p.getEntityId(), new int[0], new int[0]);
     }
 
     void removeAll() {
         for (Map<CosmeticSlot, Worn> have : worn.values()) have.values().forEach(w -> w.display.remove());
         worn.clear();
+        tags.values().forEach(t -> t.display.remove());
+        tags.clear();
+        tagText.clear();
         bodies.clear();
         relinkAt.clear();
     }
@@ -259,7 +287,9 @@ final class CosmeticAttachments {
 
     private void link(Player p) {
         if (packets == null) return;
-        int[] ids = worn.getOrDefault(p.getUniqueId(), Map.of()).values().stream().mapToInt(w -> w.display.getEntityId()).toArray();
+        java.util.stream.IntStream models = worn.getOrDefault(p.getUniqueId(), Map.of()).values().stream().mapToInt(w -> w.display.getEntityId());
+        Tag t = tags.get(p.getUniqueId());
+        int[] ids = (t == null ? models : java.util.stream.IntStream.concat(models, java.util.stream.IntStream.of(t.display.getEntityId()))).toArray();
         int[] real = p.getPassengers().stream().mapToInt(Entity::getEntityId).toArray();
         packets.link(p.getEntityId(), ids, real);
     }
@@ -350,6 +380,7 @@ final class CosmeticAttachments {
                 packets.resendLink(p, viewers);
             }
         }
+        tickTags(sweep, resend);
     }
 
     /** The wearer's own view was switched: show or hide their displays to them now. */
@@ -433,6 +464,132 @@ final class CosmeticAttachments {
             default -> p.isGliding() || p.isRiptiding() || p.isSleeping();
         };
     }
+
+    // ------------------------------------------------------------------------------------------
+    // Name tags
+    // ------------------------------------------------------------------------------------------
+
+    void tagHeight(float blocks) {
+        this.tagHeight = blocks;
+        for (Tag t : tags.values()) t.display.setTransformation(tagTransformation(t.scale));
+    }
+
+    /** The name tag above the player (null: none). */
+    void nameTag(Player p, net.kyori.adventure.text.Component text) {
+        UUID id = p.getUniqueId();
+        if (text == null) {
+            tagText.remove(id);
+            Tag t = tags.remove(id);
+            if (t != null) {
+                t.display.remove();
+                link(p);
+            }
+            return;
+        }
+        tagText.put(id, text);
+        Tag t = tags.get(id);
+        if (t != null && t.display.isValid() && t.display.getWorld() == p.getWorld()) {
+            t.display.text(text);
+            return;
+        }
+        if (!p.isDead()) spawnTag(p, text);
+    }
+
+    /** Debug: the name tag's display id, -1 none. */
+    int tagDisplay(Player p) {
+        Tag t = tags.get(p.getUniqueId());
+        return t == null ? -1 : t.display.getEntityId();
+    }
+
+    /** The game shows no name tag on invisible players; dead and spectating players show none to others either. */
+    static boolean tagHidden(Player p) {
+        return p.isDead() || p.getGameMode() == org.bukkit.GameMode.SPECTATOR || p.isInvisible()
+                || p.hasPotionEffect(org.bukkit.potion.PotionEffectType.INVISIBILITY);
+    }
+
+    private boolean shouldSeeTag(Player viewer, Player owner) {
+        return viewer != owner && viewer.canSee(owner) && !tagHidden(owner);
+    }
+
+    private Transformation tagTransformation(float playerScale) {
+        return new Transformation(new Vector3f(0, tagHeight * playerScale, 0), new AxisAngle4f(), new Vector3f(1, 1, 1), new AxisAngle4f());
+    }
+
+    /** A sneaking player's tag: faint, as the game draws it. */
+    static final byte SNEAK_TAG_OPACITY = (byte) 0x50;
+
+    private void spawnTag(Player p, net.kyori.adventure.text.Component text) {
+        Tag old = tags.remove(p.getUniqueId());
+        if (old != null) old.display.remove();
+        float scale = scale(p);
+        boolean sneak = p.isSneaking();
+        TextDisplay d = p.getWorld().spawn(p.getLocation().add(0, p.getHeight(), 0), TextDisplay.class, e -> {
+            e.setVisibleByDefault(false);   // shown once linked
+            e.setPersistent(false);
+            e.getPersistentDataContainer().set(tag, PersistentDataType.BYTE, (byte) 1);
+            e.text(text);
+            e.setBillboard(org.bukkit.entity.Display.Billboard.CENTER);
+            e.setAlignment(TextDisplay.TextAlignment.CENTER);
+            e.setDefaultBackground(true);   // the game's name tag background
+            e.setShadowed(false);
+            e.setSeeThrough(!sneak);
+            e.setTextOpacity(sneak ? SNEAK_TAG_OPACITY : (byte) -1);
+            e.setTeleportDuration(packets == null ? 3 : 1);
+            e.setShadowRadius(0);
+            e.setTransformation(tagTransformation(scale));
+        });
+        Tag t = new Tag(d);
+        t.sneaking = sneak;
+        t.scale = scale;
+        tags.put(p.getUniqueId(), t);
+        link(p);
+        for (Player v : p.getWorld().getPlayers()) if (shouldSeeTag(v, p)) v.showEntity(plugin, d);
+        relinkAt.put(p.getUniqueId(), new ArrayList<>(List.of(ticks + 2, ticks + 10)));
+    }
+
+    private void tickTags(boolean sweep, boolean resend) {
+        for (Map.Entry<UUID, net.kyori.adventure.text.Component> e : new ArrayList<>(tagText.entrySet())) {
+            Player p = Bukkit.getPlayer(e.getKey());
+            if (p == null) {
+                tagText.remove(e.getKey());
+                Tag gone = tags.remove(e.getKey());
+                if (gone != null) gone.display.remove();
+                continue;
+            }
+            Tag t = tags.get(e.getKey());
+            if (t == null || !t.display.isValid() || t.display.getWorld() != p.getWorld()) {
+                if (sweep && !p.isDead()) spawnTag(p, e.getValue());
+                continue;
+            }
+            TextDisplay d = t.display;
+            boolean sneak = p.isSneaking();
+            if (sneak != t.sneaking) {
+                t.sneaking = sneak;
+                d.setSeeThrough(!sneak);
+                d.setTextOpacity(sneak ? SNEAK_TAG_OPACITY : (byte) -1);
+            }
+            float scale = scale(p);
+            if (scale != t.scale) {
+                t.scale = scale;
+                d.setTransformation(tagTransformation(scale));
+            }
+            Location target = p.getLocation().add(0, p.getHeight(), 0);
+            double drift = d.getLocation().distanceSquared(target);
+            if ((packets == null && drift > 1e-4) || drift > 1.0) d.teleport(target);
+            if (sweep) {
+                for (Player v : p.getWorld().getPlayers()) {
+                    boolean want = shouldSeeTag(v, p);
+                    if (want != v.canSee(d)) {
+                        if (want) v.showEntity(plugin, d);
+                        else v.hideEntity(plugin, d);
+                    }
+                }
+            }
+            // the models' loop re-sends the link of players who wear models; this one the rest
+            if (packets != null && !worn.containsKey(e.getKey()) && (resend || dueRelink(p))) packets.resendLink(p, new ArrayList<>(p.getTrackedBy()));
+        }
+    }
+
 
     // ------------------------------------------------------------------------------------------
     // Wardrobe mannequin (not riding anything: placed at its hitbox top, turned with it)

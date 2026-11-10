@@ -200,7 +200,7 @@ final class AdminCommands {
             String sub = args.length > 0 ? args[0] : "확인";
             boolean needsArg = sub.equals("등급") || sub.equals("물고기");
             int at = needsArg ? 2 : 1;
-            Player target = args.length > at ? Bukkit.getPlayerExact(args[at]) : s instanceof Player p ? p : null;
+            Player target = args.length > at ? Players.online(args[at]) : s instanceof Player p ? p : null;
             if (target == null) {
                 s.sendMessage(Text.msg("<red>" + (args.length > at ? "접속 중이 아닌 플레이어: " + args[at] : "플레이어를 적어 주세요")));
                 return;
@@ -263,7 +263,7 @@ final class AdminCommands {
                         .filter(n -> n.startsWith(a)).limit(40).toList();
             }
             int at = args[0].equals("등급") || args[0].equals("물고기") ? 3 : 2;
-            if (args.length == at) return Bukkit.getOnlinePlayers().stream().map(Player::getName).toList();
+            if (args.length == at) return Players.complete(s, "");
             return List.of();
         });
 
@@ -307,10 +307,10 @@ final class AdminCommands {
         }, (s, args) -> {
             if (args.length == 1) {
                 List<String> out = new ArrayList<>(List.of("경험치", "레벨"));
-                Bukkit.getOnlinePlayers().forEach(p -> out.add(p.getName()));
+                out.addAll(Players.complete(s, ""));
                 return out;
             }
-            if (args.length == 2 && (args[0].equals("경험치") || args[0].equals("레벨"))) return Bukkit.getOnlinePlayers().stream().map(Player::getName).toList();
+            if (args.length == 2 && (args[0].equals("경험치") || args[0].equals("레벨"))) return Players.complete(s, "");
             if (args.length == 2) return eco.jobs().spec().jobs().values().stream().map(j -> j.name()).toList();
             return List.of();
         });
@@ -357,7 +357,7 @@ final class AdminCommands {
             s.sendMessage(Text.msg("<gray>기념비 " + eco.vanity().monuments().size() + "개"));
             for (var m : eco.vanity().monuments()) s.sendMessage(Text.mm(" <white>#" + m.slot() + " " + Players.name(m.player()) + " <gray>\"" + m.text() + "\""));
         }, (s, args) -> args.length == 1 ? List.of("지급", "목록")
-                : args.length == 2 ? Bukkit.getOnlinePlayers().stream().map(Player::getName).toList() : List.of());
+                : args.length == 2 ? Players.complete(s, "") : List.of());
 
         // /관리자 보고서 [일차]: the economy's health under the server's
         admin.report(EcoPlugin.ADMIN_OWNER, (s, args) -> {

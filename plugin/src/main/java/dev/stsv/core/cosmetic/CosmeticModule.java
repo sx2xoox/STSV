@@ -191,6 +191,24 @@ public final class CosmeticModule implements StsvModule, Listener {
                 || p.hasPotionEffect(org.bukkit.potion.PotionEffectType.INVISIBILITY);
     }
 
+    /**
+     * The name tag drawn above a player instead of the game's own (nicknames): a text display that follows them
+     * like the worn models. null removes it. The game's tag must be hidden by the caller (scoreboard team).
+     */
+    public void nameTag(Player p, net.kyori.adventure.text.Component text) {
+        if (attachments != null) attachments.nameTag(p, text);
+    }
+
+    /** Blocks above the top of the hitbox for the bottom of the name tag. */
+    public void nameTagHeight(double blocks) {
+        if (attachments != null) attachments.tagHeight((float) blocks);
+    }
+
+    /** Debug: the entity id of the player's name tag display, -1 if none. */
+    public int nameTagDisplay(Player p) {
+        return attachments == null ? -1 : attachments.tagDisplay(p);
+    }
+
     /** Whether the player sees their own models above the head, on the shoulder, back and tail. */
     public boolean selfView(Player p) {
         return p.getPersistentDataContainer().getOrDefault(keySelfView, PersistentDataType.BYTE, (byte) 0) == 1;

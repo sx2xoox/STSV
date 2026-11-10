@@ -46,6 +46,11 @@ commands:
     aliases: [hall]
     usage: /명예의전당 [기간]
     permission: stsv.profile
+  닉네임:
+    description: 한글 닉네임 정하기·바꾸기·해제, 닉네임 색 (채팅, 탭 목록, 머리 위 이름에 표시)
+    aliases: [nick, nickname, 별명]
+    usage: /닉네임 <이름|해제|색 [#RRGGBB [#RRGGBB]|기본]>
+    permission: stsv.nickname
   돈:
     description: 잔액 보기, 부자 순위
     aliases: [money, balance]
@@ -134,6 +139,9 @@ permissions:
     default: true
   stsv.travel:
     description: /건축월드, /야생월드
+    default: true
+  stsv.nickname:
+    description: /닉네임 (닉네임, 닉네임 색)
     default: true
   stsv.economy:
     description: 돈, 송금, 수표

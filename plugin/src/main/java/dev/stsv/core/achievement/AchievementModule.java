@@ -1,5 +1,6 @@
 package dev.stsv.core.achievement;
 
+import dev.stsv.core.nickname.Names;
 import dev.stsv.core.STSVPlugin;
 import dev.stsv.core.achievement.AchievementSpec.Category;
 import dev.stsv.core.achievement.AchievementSpec.Tier;
@@ -207,7 +208,7 @@ public final class AchievementModule implements StsvModule, Listener {
         }
         p.sendMessage(msg);
         if (t.ordinal() >= Tier.HARD.ordinal()) {
-            Component all = Lang.msg("achievement.broadcast", "player", p.getName(), "name", a.name(), "color", t.color, "tier", t.label);
+            Component all = Lang.msg("achievement.broadcast", "player", Names.mini(p), "name", a.name(), "color", t.color, "tier", t.label);
             for (Player o : Bukkit.getOnlinePlayers()) if (o != p) o.sendMessage(all);
         }
     }
@@ -542,7 +543,7 @@ public final class AchievementModule implements StsvModule, Listener {
             p.sendMessage(Lang.msg("achievement.rank-header"));
             for (int i = 0; i < Math.min(10, list.size()); i++) {
                 Rank r = list.get(i);
-                p.sendMessage(Lang.mm("achievement.rank-line", "rank", i + 1, "player", r.name(),
+                p.sendMessage(Lang.mm("achievement.rank-line", "rank", i + 1, "player", Names.mini(r.player()),
                         "points", String.format(Locale.ROOT, "%,d", r.points()), "done", r.done()));
             }
             for (int i = 10; i < list.size(); i++) {
@@ -578,7 +579,7 @@ public final class AchievementModule implements StsvModule, Listener {
             s.sendMessage(Text.msg("<red>/관리자 업적 정보|지급|회수 <플레이어> [업적]"));
             return;
         }
-        Player p = Bukkit.getPlayerExact(args[1]);
+        Player p = Names.online(args[1]).orElse(null);
         if (p == null || !store.loaded(p.getUniqueId())) {
             s.sendMessage(Text.msg("<red>접속 중인 플레이어만 됩니다."));
             return;
@@ -624,7 +625,7 @@ public final class AchievementModule implements StsvModule, Listener {
 
     private List<String> adminComplete(org.bukkit.command.CommandSender s, String[] args) {
         if (args.length == 1) return List.of("정보", "지급", "회수");
-        if (args.length == 2) return Bukkit.getOnlinePlayers().stream().map(Player::getName).toList();
+        if (args.length == 2) return Names.complete(s, args[1]);
         if (args.length == 3) return specs.keySet().stream().filter(k -> k.contains(args[2])).limit(50).toList();
         return List.of();
     }

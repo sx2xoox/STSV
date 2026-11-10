@@ -28,6 +28,10 @@ CORE_ICONS = ("prev", "next", "prev_off", "next_off", "exit", "info", "take_off"
 # rarity's colour (custom_model_data colors[0], CosmeticBrowser.locked); one model for every cosmetic
 LOCKED = "locked"
 LOCKED_DEFAULT_TINT = 0xAAAAAA
+# a nickname colour tile (/닉네임 색, NicknameModule.swatch): custom_model_data colors[0] = the colour (a gradient's
+# start), colors[1] = the lower-right half (a gradient's end, else the same colour)
+SWATCH = "swatch"
+SWATCH_FILES = (f"{SWATCH}.png", f"{SWATCH}_half.png", f"{SWATCH}_rim.png")
 
 
 def menus():
@@ -64,8 +68,9 @@ def write(content_pack: Path):
         im.save(folders["bg"] / f"{name}.png")
 
     ics = icons()
-    keep = {"tex": {f"{n}.png" for n in ics} | {f"{LOCKED}.png", f"{LOCKED}_mark.png"},
-            "model": {f"{n}.json" for n in ics} | {f"{LOCKED}.json"}, "def": {f"{n}.json" for n in ics} | {f"{LOCKED}.json"}}
+    keep = {"tex": {f"{n}.png" for n in ics} | {f"{LOCKED}.png", f"{LOCKED}_mark.png"} | set(SWATCH_FILES),
+            "model": {f"{n}.json" for n in ics} | {f"{LOCKED}.json", f"{SWATCH}.json"},
+            "def": {f"{n}.json" for n in ics} | {f"{LOCKED}.json", f"{SWATCH}.json"}}
     for k, names in keep.items():
         for f in folders[k].iterdir():
             if f.is_file() and f.name not in names:
@@ -86,6 +91,16 @@ def write(content_pack: Path):
         {"type": "minecraft:constant", "value": -1},
         {"type": "minecraft:custom_model_data", "index": 0, "default": LOCKED_DEFAULT_TINT}]}}
     (folders["def"] / f"{LOCKED}.json").write_text(json.dumps(definition, indent=2))
+    for im, file in zip(U.swatch_layers(), SWATCH_FILES):
+        im.save(folders["tex"] / file)
+    model = {"parent": "minecraft:item/generated", "textures": {
+        f"layer{k}": f"stsv:item/gui/{file[:-4]}" for k, file in enumerate(SWATCH_FILES)}}
+    (folders["model"] / f"{SWATCH}.json").write_text(json.dumps(model, indent=2))
+    definition = {"model": {"type": "minecraft:model", "model": f"stsv:item/gui/{SWATCH}", "tints": [
+        {"type": "minecraft:custom_model_data", "index": 0, "default": 0xFFFFFF},
+        {"type": "minecraft:custom_model_data", "index": 1, "default": 0xFFFFFF},
+        {"type": "minecraft:constant", "value": -1}]}}
+    (folders["def"] / f"{SWATCH}.json").write_text(json.dumps(definition, indent=2))
     T.lang_files(content_pack / "assets")
     return backgrounds, ics
 

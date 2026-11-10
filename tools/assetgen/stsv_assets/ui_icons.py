@@ -1048,6 +1048,30 @@ def locked_preview(rgb):
     return out
 
 
+def swatch_layers():
+    """The nickname colour tile (/닉네임 색): a rounded square in light greys (layer 0, tinted by the item's first
+    colour), its lower-right half again (layer 1, tinted by the second colour: a gradient's end, or the same colour)
+    and a dark rim with a glint, drawn as is (layer 2). The greys keep a lit top-left and a darker bottom-right."""
+    fill = Image.new("RGBA", (16, 16), (0, 0, 0, 0))
+    half = Image.new("RGBA", (16, 16), (0, 0, 0, 0))
+    rim = Image.new("RGBA", (16, 16), (0, 0, 0, 0))
+    lo, hi = 2, 13
+    for y in range(lo, hi + 1):
+        for x in range(lo, hi + 1):
+            if x in (lo, hi) and y in (lo, hi):
+                continue
+            if x in (lo, hi) or y in (lo, hi):
+                rim.putpixel((x, y), (24, 26, 32, 200))
+                continue
+            v = 255 - int(40 * ((x - lo) + (y - lo)) / (2 * (hi - lo)))
+            fill.putpixel((x, y), (v, v, v, 255))
+            if x + y > lo + hi:
+                half.putpixel((x, y), (v, v, v, 255))
+    for x, y in ((4, 4), (5, 4), (4, 5)):
+        rim.putpixel((x, y), (255, 255, 255, 150))
+    return fill, half, rim
+
+
 def wardrobe_icons():
     return {"tab_all": draw(TAB_ALL), "tab_head": draw(TAB_HEAD), "tab_above": draw(TAB_ABOVE),
             "tab_shoulder": draw(TAB_SHOULDER), "tab_back": draw(TAB_BACK), "tab_tail": draw(_tail()),

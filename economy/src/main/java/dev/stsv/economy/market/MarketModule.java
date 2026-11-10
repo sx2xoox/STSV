@@ -1,5 +1,6 @@
 package dev.stsv.economy.market;
 
+import dev.stsv.core.nickname.Names;
 import dev.stsv.core.economy.EconomyModule;
 import dev.stsv.core.gui.menu.MenuHandler;
 import dev.stsv.core.gui.menu.MenuView;
@@ -157,7 +158,7 @@ public final class MarketModule extends EcoModule {
             Player seller = Bukkit.getPlayer(l.seller());
             if (seller != null) {
                 seller.sendMessage(Lang.msg("market.sold", "item", name(l), "count", l.amount(), "price", EconomyModule.format(l.price()),
-                        "fee", EconomyModule.format(fee), "buyer", p.getName()));
+                        "fee", EconomyModule.format(fee), "buyer", Names.mini(p)));
                 seller.playSound(seller.getLocation(), Sound.ENTITY_EXPERIENCE_ORB_PICKUP, 0.6f, 1.6f);
                 store.told(l.id());
             }

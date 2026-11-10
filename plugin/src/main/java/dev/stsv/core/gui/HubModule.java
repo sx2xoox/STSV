@@ -1,5 +1,6 @@
 package dev.stsv.core.gui;
 
+import dev.stsv.core.nickname.Names;
 import dev.stsv.core.STSVPlugin;
 import dev.stsv.core.economy.EconomyModule;
 import dev.stsv.core.gui.menu.MenuHandler;
@@ -144,7 +145,7 @@ public final class HubModule implements StsvModule, Listener {
         public Map<String, String> placeholders(MenuView v) {
             Player p = v.player();
             Map<String, String> m = new HashMap<>();
-            m.put("player", p.getName());
+            m.put("player", Names.mini(p));
             m.put("hotkey", Lang.raw(hotkey ? "hub.hotkey-on" : "hub.hotkey-off"));
             m.put("world", plugin.worlds() == null ? p.getWorld().getName() : plugin.worlds().displayName(p.getWorld()));
             m.put("warmup", String.valueOf(plugin.worlds() == null ? 0 : plugin.worlds().rules().warmup()));

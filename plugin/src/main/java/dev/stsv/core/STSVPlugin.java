@@ -47,6 +47,7 @@ public final class STSVPlugin extends JavaPlugin {
     private dev.stsv.core.gui.HubModule hub;
     private dev.stsv.core.world.WorldsModule worlds;
     private dev.stsv.core.tpa.TpaModule tpa;
+    private dev.stsv.core.nickname.NicknameModule nicknames;
     private ItemBrowser itemBrowser;
     private final dev.stsv.core.command.AdminRegistry admin = new dev.stsv.core.command.AdminRegistry();
     private RecipeEditor recipeEditor;
@@ -78,6 +79,7 @@ public final class STSVPlugin extends JavaPlugin {
         modules.register(cosmetics = new CosmeticModule());
         modules.register(profiles = new dev.stsv.core.profile.ProfileModule());
         modules.register(economy = new dev.stsv.core.economy.EconomyModule());
+        modules.register(nicknames = new dev.stsv.core.nickname.NicknameModule());
         modules.register(achievements = new dev.stsv.core.achievement.AchievementModule());
         modules.register(gacha = new dev.stsv.core.cosmetic.GachaModule());
         modules.register(hub = new dev.stsv.core.gui.HubModule());
@@ -147,6 +149,11 @@ public final class STSVPlugin extends JavaPlugin {
                 tc.setTabCompleter(tpa);
             }
         }
+        PluginCommand nick = getCommand("닉네임");
+        if (nick != null) {
+            nick.setExecutor(nicknames);
+            nick.setTabCompleter(nicknames);
+        }
         PluginCommand nightVision = getCommand("야간투시");
         if (nightVision != null) {
             dev.stsv.core.command.NightVision nv = new dev.stsv.core.command.NightVision(this);
@@ -198,6 +205,8 @@ public final class STSVPlugin extends JavaPlugin {
     public dev.stsv.core.world.WorldsModule worlds() { return worlds; }
     /** 텔레포트 요청 (/텔포, /텔포여기, /수락, /거절, /텔포취소, /텔포차단). */
     public dev.stsv.core.tpa.TpaModule tpa() { return tpa; }
+    /** 닉네임 (/닉네임, /닉네임 색). Names of players for messages: {@link dev.stsv.core.nickname.Names}. */
+    public dev.stsv.core.nickname.NicknameModule nicknames() { return nicknames; }
     public ItemBrowser itemBrowser() { return itemBrowser; }
     /** What content plugins add to /관리자 (sub commands, 보고서 sections, 초기화 targets). */
     public dev.stsv.core.command.AdminRegistry admin() { return admin; }

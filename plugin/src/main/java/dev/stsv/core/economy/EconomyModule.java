@@ -1,5 +1,6 @@
 package dev.stsv.core.economy;
 
+import dev.stsv.core.nickname.Names;
 import dev.stsv.core.STSVPlugin;
 import dev.stsv.core.hud.HudModule;
 import dev.stsv.core.module.StsvModule;
@@ -207,7 +208,7 @@ public final class EconomyModule implements StsvModule, Listener {
         changed(player.getUniqueId(), before, EconomyStore.Kind.CHEQUE, "cheque_issue");
         ItemStack item = plugin.content().item("stsv:cheque").map(i -> i.create(1)).orElseGet(() -> new ItemStack(org.bukkit.Material.PAPER));
         ItemMeta meta = item.getItemMeta();
-        Object[] args = {"amount", String.format("%,d G", amount), "issuer", player.getName(), "date", DATE.format(Instant.ofEpochMilli(now))};
+        Object[] args = {"amount", String.format("%,d G", amount), "issuer", Names.mini(player), "date", DATE.format(Instant.ofEpochMilli(now))};
         meta.itemName(Lang.item("economy.cheque-name", args));
         meta.lore(Lang.items("economy.cheque-lore", args));
         meta.getPersistentDataContainer().set(CHEQUE, PersistentDataType.STRING, id);

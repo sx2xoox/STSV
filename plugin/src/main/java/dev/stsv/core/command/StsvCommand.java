@@ -216,14 +216,10 @@ public final class StsvCommand implements TabExecutor {
                 sender.sendMessage(Text.msg("<red>/관리자 칭호 " + (sub.equals("give") ? "지급" : "회수") + " <플레이어> <칭호>"));
                 return;
             }
-            profiles.store().findByName(args[2]).thenAccept(found -> org.bukkit.Bukkit.getScheduler().runTask(plugin, () -> {
-                if (found.isEmpty()) {
-                    sender.sendMessage(Text.msg("<red>접속한 적 없는 플레이어: " + args[2]));
-                    return;
-                }
-                boolean ok = sub.equals("give") ? profiles.grantTitle(found.get(), args[3]) : profiles.revokeTitle(found.get(), args[3]);
+            findPlayer(sender, args[2], uuid -> {
+                boolean ok = sub.equals("give") ? profiles.grantTitle(uuid, args[3]) : profiles.revokeTitle(uuid, args[3]);
                 sender.sendMessage(Text.msg(ok ? "<green>완료" : "<red>알 수 없는 칭호: " + args[3]));
-            }));
+            });
             return;
         }
         sender.sendMessage(Text.msg("<gray>칭호 " + profiles.titles().size() + "개"));
@@ -242,14 +238,10 @@ public final class StsvCommand implements TabExecutor {
             sender.sendMessage(Text.msg("<red>값은 숫자"));
             return;
         }
-        plugin.profiles().store().findByName(args[2]).thenAccept(found -> org.bukkit.Bukkit.getScheduler().runTask(plugin, () -> {
-            if (found.isEmpty()) {
-                sender.sendMessage(Text.msg("<red>접속한 적 없는 플레이어: " + args[2]));
-                return;
-            }
-            plugin.profiles().add(found.get(), args[3], value);
+        findPlayer(sender, args[2], uuid -> {
+            plugin.profiles().add(uuid, args[3], value);
             sender.sendMessage(Text.msg("<green>" + args[2] + " " + args[3] + " " + (value >= 0 ? "+" : "") + value));
-        }));
+        });
     }
 
     private static final Map<String, String> KIND_NAMES = Map.of("FAUCET", "생성", "SINK", "소멸", "TRANSFER", "거래",
@@ -294,7 +286,7 @@ public final class StsvCommand implements TabExecutor {
                     for (var e : list) {
                         boolean in = uuid.equals(e.to());
                         UUID other = in ? e.from() : e.to();
-                        String otherName = other == null ? "" : " <gray>" + (in ? "← " : "→ ") + Optional.ofNullable(Bukkit.getOfflinePlayer(other).getName()).orElse("?");
+                        String otherName = other == null ? "" : " <gray>" + (in ? "← " : "→ ") + dev.stsv.core.nickname.Names.mini(other);
                         sender.sendMessage(Text.mm((e.reverted() ? "<st>" : "") + " <dark_gray>" + time.format(java.time.Instant.ofEpochMilli(e.at()))
                                 + "</dark_gray> " + (in ? "<green>+" : "<red>-") + String.format("%,d", e.amount()) + "</green></red>"
                                 + " <gray>[" + KIND_NAMES.getOrDefault(e.kind().name(), e.kind().name()) + "] <white>" + e.reason()
@@ -411,15 +403,15 @@ public final class StsvCommand implements TabExecutor {
 
     /** Online player by name, else anyone who ever joined; reports unknown names. Callback on the main thread. */
     private void findPlayer(CommandSender sender, String name, java.util.function.Consumer<UUID> then) {
-        Player online = Bukkit.getPlayerExact(name);
-        if (online != null) {
-            then.accept(online.getUniqueId());
-            return;
-        }
-        plugin.profiles().store().findByName(name).thenAccept(found -> Bukkit.getScheduler().runTask(plugin, () -> {
+        dev.stsv.core.nickname.Names.find(name, found -> {
             if (found.isEmpty()) sender.sendMessage(Text.msg("<red>접속한 적 없는 플레이어: " + name));
             else then.accept(found.get());
-        }));
+        });
+    }
+
+    /** An online player by account name or nickname. */
+    private static Player online(String name) {
+        return dev.stsv.core.nickname.Names.online(name).orElse(null);
     }
 
     private void give(CommandSender sender, String[] args) {
@@ -427,7 +419,7 @@ public final class StsvCommand implements TabExecutor {
             sender.sendMessage(Text.msg("<red>/관리자 지급 <플레이어> <아이템> [개수]"));
             return;
         }
-        Player target = Bukkit.getPlayerExact(args[1]);
+        Player target = online(args[1]);
         if (target == null) {
             sender.sendMessage(Text.msg("<red>플레이어를 찾을 수 없습니다: " + args[1]));
             return;
@@ -520,7 +512,7 @@ public final class StsvCommand implements TabExecutor {
 
     private void cosmetic(CommandSender sender, String[] args) {
         if (args.length >= 2 && args[1].equalsIgnoreCase("info")) {
-            Player target = args.length > 2 ? Bukkit.getPlayerExact(args[2]) : sender instanceof Player p ? p : null;
+            Player target = args.length > 2 ? online(args[2]) : sender instanceof Player p ? p : null;
             if (target == null) {
                 sender.sendMessage(Text.msg("<red>/관리자 치장 정보 [플레이어]"));
                 return;
@@ -533,7 +525,7 @@ public final class StsvCommand implements TabExecutor {
             sender.sendMessage(Text.msg("<red>/관리자 치장 <지급|회수> <플레이어> <치장>"));
             return;
         }
-        Player target = Bukkit.getPlayerExact(args[2]);
+        Player target = online(args[2]);
         Optional<CustomItem> c = plugin.content().item(args[3]).filter(i -> i.cosmetic() != null);
         if (target == null || c.isEmpty()) {
             sender.sendMessage(Text.msg("<red>플레이어 또는 치장을 찾을 수 없습니다."));
@@ -651,8 +643,9 @@ public final class StsvCommand implements TabExecutor {
         return root.equals("give") ? filter(onlineNames(), prefix) : List.of();
     }
 
+    /** Online players' account names and nicknames. */
     private static List<String> onlineNames() {
-        return Bukkit.getOnlinePlayers().stream().map(Player::getName).toList();
+        return dev.stsv.core.nickname.Names.complete(null, "");
     }
 
     private static List<String> filter(List<String> options, String prefix) {

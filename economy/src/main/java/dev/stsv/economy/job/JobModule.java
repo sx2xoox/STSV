@@ -1,5 +1,6 @@
 package dev.stsv.economy.job;
 
+import dev.stsv.core.nickname.Names;
 import dev.stsv.core.economy.EconomyModule;
 import dev.stsv.core.gui.menu.MenuHandler;
 import dev.stsv.core.gui.menu.MenuView;
@@ -203,7 +204,7 @@ public final class JobModule extends EcoModule {
         p.playSound(p.getLocation(), Sound.UI_TOAST_CHALLENGE_COMPLETE, 0.7f, 1.1f);
         int tens = after / 10 * 10;
         if (tens > before && tens >= 10) {
-            Bukkit.broadcast(Lang.msg("job.levelup-broadcast", "player", p.getName(), "color", j.color(), "job", j.name(), "level", tens));
+            Bukkit.broadcast(Lang.msg("job.levelup-broadcast", "player", Names.mini(p), "color", j.color(), "job", j.name(), "level", tens));
         }
     }
 

@@ -1,5 +1,6 @@
 package dev.stsv.core.cosmetic;
 
+import dev.stsv.core.nickname.Names;
 import dev.stsv.core.STSVPlugin;
 import dev.stsv.core.content.ContentPack;
 import dev.stsv.core.content.CustomItem;
@@ -409,7 +410,7 @@ public final class GachaModule implements StsvModule, Listener, CommandExecutor 
             }
         }
         if (r.compareTo(rules.broadcastFrom()) >= 0) {
-            Bukkit.broadcast(Lang.msg("gacha.broadcast", "player", p.getName(), "color", r.color, "rarity", r.label, "cosmetic", name));
+            Bukkit.broadcast(Lang.msg("gacha.broadcast", "player", Names.mini(p), "color", r.color, "rarity", r.label, "cosmetic", name));
         }
     }
 

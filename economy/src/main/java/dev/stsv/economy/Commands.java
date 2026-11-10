@@ -130,14 +130,14 @@ final class Commands {
                 case "수락" -> eco.trade().accept(p);
                 case "거절" -> eco.trade().deny(p);
                 default -> {
-                    org.bukkit.entity.Player to = org.bukkit.Bukkit.getPlayerExact(a[0]);
+                    org.bukkit.entity.Player to = dev.stsv.economy.util.Players.online(a[0]);
                     if (to == null) p.sendMessage(Lang.msg("trade.not-online"));
                     else eco.trade().request(p, to);
                 }
             }
         }), (s, a) -> {
             List<String> out = new java.util.ArrayList<>(List.of("수락", "거절"));
-            for (var pl : org.bukkit.Bukkit.getOnlinePlayers()) out.add(pl.getName());
+            if (a.length == 1) out.addAll(dev.stsv.core.nickname.Names.completeOthers(s, a[0]));
             return a.length == 1 ? out : List.of();
         }));
         eco.command("직업", new Simple(player((p, a) -> {
@@ -243,7 +243,7 @@ final class Commands {
         }), (s, a) -> {
             if (a.length == 1) return List.of("정보", "구매", "포기", "보기", "초대", "수락", "거절", "추방", "나가기", "양도", "금고", "해체", "도움말");
             if (a.length == 2 && (a[0].equals("초대") || a[0].equals("추방") || a[0].equals("양도"))) {
-                return org.bukkit.Bukkit.getOnlinePlayers().stream().map(x -> x.getName()).toList();
+                return dev.stsv.core.nickname.Names.complete(s, a[1]);
             }
             if (a.length == 2 && a[0].equals("금고")) return List.of("입금", "출금");
             if (a.length == 2 && (a[0].equals("구매") || a[0].equals("해체"))) return List.of("확인");

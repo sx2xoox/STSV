@@ -1,5 +1,6 @@
 package dev.stsv.economy.mission;
 
+import dev.stsv.core.nickname.Names;
 import dev.stsv.core.economy.EconomyModule;
 import dev.stsv.core.gui.menu.MenuHandler;
 import dev.stsv.core.gui.menu.MenuSpec;
@@ -210,7 +211,7 @@ public final class MissionModule extends EcoModule implements DailyListener {
                 Text.mm(String.join("<gray>, </gray>", got))));
         p.sendMessage(Lang.msg(daily ? "mission.bonus-daily" : "mission.bonus-weekly", "rewards", String.join("<gray>, </gray>", got)));
         p.playSound(p.getLocation(), Sound.UI_TOAST_CHALLENGE_COMPLETE, 0.8f, 1.2f);
-        if (!daily) Bukkit.broadcast(Lang.msg("mission.bonus-weekly-broadcast", "player", p.getName()));
+        if (!daily) Bukkit.broadcast(Lang.msg("mission.bonus-weekly-broadcast", "player", Names.mini(p)));
     }
 
     /** Pays a reward; returns its parts as MiniMessage. */
@@ -434,7 +435,7 @@ public final class MissionModule extends EcoModule implements DailyListener {
             s.sendMessage(Text.msg(usage));
             return;
         }
-        Player p = Bukkit.getPlayerExact(args[1]);
+        Player p = dev.stsv.economy.util.Players.online(args[1]);
         MissionStore.State st = p == null ? null : states.get(p.getUniqueId());
         if (st == null) {
             s.sendMessage(Text.msg("<red>접속 중이고 미션을 불러온 플레이어만 됩니다."));
@@ -498,7 +499,7 @@ public final class MissionModule extends EcoModule implements DailyListener {
 
     private List<String> adminComplete(org.bukkit.command.CommandSender s, String[] args) {
         if (args.length == 1) return List.of("정보", "완료", "새로뽑기");
-        if (args.length == 2) return Bukkit.getOnlinePlayers().stream().map(Player::getName).toList();
+        if (args.length == 2) return dev.stsv.economy.util.Players.complete(s, args[1]);
         if (args.length == 3 && args[0].equals("완료")) return List.of("일일1", "일일2", "일일3", "주간1", "주간2", "주간3");
         return List.of();
     }
