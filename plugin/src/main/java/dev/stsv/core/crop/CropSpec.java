@@ -87,6 +87,36 @@ public record CropSpec(String id, String name, String seed, int stages, int maxA
                 c.getDouble("height", 0.9), extra);
     }
 
+    /**
+     * Every crop of these content packs (contents/&lt;pack&gt;/crops/*.yml, files in name order, crops in file order).
+     * A crop that does not parse is left out with a warning; a later pack's crop of the same id replaces the earlier one.
+     */
+    public static List<CropSpec> loadAll(java.util.Collection<dev.stsv.core.content.ContentPack> packs, java.util.function.Consumer<String> warn) {
+        Map<String, CropSpec> out = new LinkedHashMap<>();
+        for (dev.stsv.core.content.ContentPack pack : packs) {
+            java.nio.file.Path dir = pack.dir().resolve("crops");
+            if (!java.nio.file.Files.isDirectory(dir)) continue;
+            try (java.util.stream.Stream<java.nio.file.Path> files = java.nio.file.Files.list(dir)) {
+                for (java.nio.file.Path f : files.filter(p -> p.toString().endsWith(".yml")).sorted().toList()) {
+                    org.bukkit.configuration.file.YamlConfiguration y = org.bukkit.configuration.file.YamlConfiguration.loadConfiguration(f.toFile());
+                    for (String key : y.getKeys(false)) {
+                        ConfigurationSection sec = y.getConfigurationSection(key);
+                        if (sec == null) continue;
+                        try {
+                            CropSpec spec = parse(pack.namespace(), key, sec);
+                            out.put(spec.id(), spec);
+                        } catch (IllegalArgumentException e) {
+                            warn.accept(pack.namespace() + ":" + key + ": " + e.getMessage());
+                        }
+                    }
+                }
+            } catch (java.io.IOException e) {
+                warn.accept(dir + ": " + e.getMessage());
+            }
+        }
+        return new ArrayList<>(out.values());
+    }
+
     private static String seedOrItem(String namespace, String id) {
         String s = id.trim().toLowerCase(Locale.ROOT);
         return s.contains(":") ? s : namespace + ":" + s;

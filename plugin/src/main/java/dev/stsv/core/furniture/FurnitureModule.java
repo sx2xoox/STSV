@@ -1165,6 +1165,8 @@ public final class FurnitureModule implements StsvModule, Listener {
     @EventHandler(priority = EventPriority.HIGH)
     public void onUse(PlayerInteractEvent e) {
         if (e.getAction() != Action.RIGHT_CLICK_BLOCK || e.getHand() == null || e.getClickedBlock() == null) return;
+        // a click someone already took whole (a crop block's click, a refused click on someone's land): no placing
+        if (e.useInteractedBlock() == org.bukkit.event.Event.Result.DENY && e.useItemInHand() == org.bukkit.event.Event.Result.DENY) return;
         Player player = e.getPlayer();
         ItemStack hand = player.getInventory().getItem(e.getHand());
         Optional<CustomItem> item = plugin.content().itemOf(hand).filter(CustomItem::isFurniture);
