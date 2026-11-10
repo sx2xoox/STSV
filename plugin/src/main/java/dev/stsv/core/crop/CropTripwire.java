@@ -338,8 +338,10 @@ final class CropTripwire implements Listener {
         ChunkSnapshot snap = c.getChunkSnapshot(false, false, false);
         Bukkit.getScheduler().runTaskAsynchronously(plugin, () -> {
             List<int[]> found = new ArrayList<>();
-            for (int sy = minY >> 4; sy < (maxY + 15) >> 4; sy++) {
-                if (snap.isSectionEmpty(sy)) continue;
+            int minSection = minY >> 4;
+            for (int sy = minSection; sy < (maxY + 15) >> 4; sy++) {
+                // the snapshot's sections are numbered from the world's bottom (0 = minY), not by section Y
+                if (CropBlocks.sectionEmpty(snap::isSectionEmpty, sy, minSection)) continue;
                 for (int y = Math.max(minY, sy << 4); y < Math.min(maxY, (sy + 1) << 4); y++) {
                     for (int x = 0; x < 16; x++) for (int z = 0; z < 16; z++) {
                         if (snap.getBlockType(x, y, z) == Material.TRIPWIRE) found.add(new int[]{x, y, z});

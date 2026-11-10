@@ -185,4 +185,21 @@ class CropBlocksTest {
         assertEquals(CropModule.Render.BLOCKS, CropModule.Render.of("blocks"));
         assertEquals(CropModule.Render.ENTITIES, CropModule.Render.of("Entities"));
     }
+
+    /** The stray-string scan asked the snapshot with the section Y (−4 in a world from y −64): it wants the index from the bottom. */
+    @org.junit.jupiter.api.Test
+    void snapshotSectionsAreCountedFromTheWorldBottom() {
+        boolean[] empty = new boolean[24];   // y −64 .. 319: sections −4 .. 19
+        java.util.Arrays.fill(empty, true);
+        empty[0] = false;                     // the bottom section (y −64 .. −49) has blocks
+        empty[8] = false;                     // section Y 4 (y 64 .. 79)
+        java.util.function.IntPredicate snap = i -> empty[i];   // throws for anything outside 0..23, like the real snapshot
+        org.junit.jupiter.api.Assertions.assertFalse(CropBlocks.sectionEmpty(snap, -4, -4));
+        org.junit.jupiter.api.Assertions.assertFalse(CropBlocks.sectionEmpty(snap, 4, -4));
+        org.junit.jupiter.api.Assertions.assertTrue(CropBlocks.sectionEmpty(snap, 5, -4));
+        org.junit.jupiter.api.Assertions.assertTrue(CropBlocks.sectionEmpty(snap, -5, -4), "below the world: nothing to scan");
+        org.junit.jupiter.api.Assertions.assertTrue(CropBlocks.sectionEmpty(snap, 20, -4), "above the world: nothing to scan");
+        // a world from y 0 (the nether, the end): index = section Y
+        org.junit.jupiter.api.Assertions.assertFalse(CropBlocks.sectionEmpty(i -> i != 3, 3, 0));
+    }
 }

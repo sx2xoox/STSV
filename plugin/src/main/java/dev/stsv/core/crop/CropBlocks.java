@@ -295,4 +295,18 @@ public final class CropBlocks {
         if (mode == Stray.AIR) return -1;
         return thin(code) ? PLAIN_ATTACHED : PLAIN;
     }
+
+    /**
+     * Whether a chunk section is empty, asking a snapshot that numbers its sections from the world's bottom (index 0 = the
+     * section at minY): section Y −4 in a world from y −64 is index 0. Out-of-range sections count as empty.
+     */
+    static boolean sectionEmpty(java.util.function.IntPredicate emptyByIndex, int sectionY, int minSection) {
+        int index = sectionY - minSection;
+        if (index < 0) return true;
+        try {
+            return emptyByIndex.test(index);
+        } catch (IndexOutOfBoundsException e) {
+            return true;
+        }
+    }
 }
