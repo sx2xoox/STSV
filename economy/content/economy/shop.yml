@@ -491,16 +491,13 @@ buy:
       - { item: stsv:torii, price: 20000 }           # 도리이
       - { item: stsv:stepping_stones, price: 500 }   # 징검돌
       - { item: stsv:koi_pond, price: 10000 }        # 잉어 연못
-  # 탈것: 리어카는 끌고 다니는 큰 짐칸(270칸), 트럭은 짐칸 90칸에 빠름, 카트·경찰차는 사람을 태움. 연료 없음
+  # 탈것: 리어카만 팖 (끌고 다니는 큰 짐칸 270칸). 골프 카트·1톤 트럭·경찰차는 관리자만 지급
   vehicles:
     name: "탈것"
-    icon: stsv:golf_cart
+    icon: stsv:hand_cart
     single: true          # 한 번에 1대씩
     items:
-      - { item: stsv:hand_cart, price: 25000 }       # 리어카 (짐칸 270칸, 끌고 감)
-      - { item: stsv:golf_cart, price: 50000 }       # 골프 카트 (2인승, 6칸/초)
-      - { item: stsv:light_truck, price: 120000 }    # 1톤 트럭 (짐칸 90칸, 8칸/초)
-      - { item: stsv:police_car, price: 200000 }     # 경찰차 (4인승, 10칸/초, 사이렌)
+      - { item: stsv:hand_cart, price: 100000 }      # 리어카 (짐칸 270칸, 끌고 감)
   # 치장: 직접 팔지 않고 치장 뽑기로 (코어의 /뽑기 화면이 열림). 가격·확률·나오는 치장은 contents/stsv/gacha.yml
   # (특정 치장 하나를 얻는 데 드는 돈의 기댓값을 예전 상점가에 맞춤). 이미 가진 치장은 교환권(거래소에서 사고팔 수 있음)으로 나옴.
   # 전설 치장(왕관, 천사의 고리, 천사·악마 날개, 한정 펫 3종)은 뽑기에도 없음: 주간 순위 1위 보상, 상인 행렬 사건 (아래 merchant.rare)

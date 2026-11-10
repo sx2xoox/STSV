@@ -123,10 +123,10 @@ class ContentTest {
         assertTrue(furniture.single(), "no shift-click 8 at once: a 20,000 G piece by mistake");
         assertTrue(shop.buyCategories().stream().filter(c -> !c.id().equals("furniture") && !c.id().equals("vehicles"))
                 .noneMatch(ShopCatalog.BuyCategory::single), "only the furniture and the vehicles");
-        // vehicles: the four core vehicles, one at a time, the dearest last
+        // vehicles: only the hand cart is sold (the others are admin-only), one at a time
         ShopCatalog.BuyCategory vehicles = shop.buyCategories().stream().filter(c -> c.id().equals("vehicles")).findFirst().orElseThrow();
         assertTrue(vehicles.single(), "one vehicle a purchase");
-        assertEquals(List.of("stsv:hand_cart", "stsv:golf_cart", "stsv:light_truck", "stsv:police_car"),
+        assertEquals(List.of("stsv:hand_cart"),
                 vehicles.goods().stream().map(ShopCatalog.Good::id).toList());
         assertTrue(furniture.goods().size() <= 36, "one page");
         assertTrue(pieces.contains(furniture.icon()), "a piece is the icon");
