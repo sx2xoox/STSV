@@ -164,8 +164,8 @@ public final class NicknameModule implements StsvModule, Listener, TabExecutor {
         firstColorFree = c.getBoolean("colors.first-free", true);
         minBrightness = c.getDouble("colors.min-brightness", 0.35);
         List<String> problems = new ArrayList<>();
-        palette = presets(c.getConfigurationSection("colors.palette"), false, problems);
-        gradients = presets(c.getConfigurationSection("colors.gradients"), true, problems);
+        palette = presets(dev.stsv.core.util.Cfg.listed(c.getConfigurationSection("colors.palette")), false, problems);
+        gradients = presets(dev.stsv.core.util.Cfg.listed(c.getConfigurationSection("colors.gradients")), true, problems);
         problems.forEach(m -> plugin.getLogger().warning("config.yml nicknames.colors " + m));
     }
 

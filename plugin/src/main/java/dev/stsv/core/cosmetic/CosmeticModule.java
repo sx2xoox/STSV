@@ -168,7 +168,7 @@ public final class CosmeticModule implements StsvModule, Listener {
 
     private void loadAnchors() {
         List<String> problems = new ArrayList<>();
-        attachments.anchors(CosmeticAttachments.anchorsFrom(plugin.getConfig().getConfigurationSection("cosmetics.anchors"), problems));
+        attachments.anchors(CosmeticAttachments.anchorsFrom(dev.stsv.core.util.Cfg.listed(plugin.getConfig().getConfigurationSection("cosmetics.anchors")), problems));
         problems.forEach(m -> plugin.getLogger().warning("config.yml " + m));
     }
 
