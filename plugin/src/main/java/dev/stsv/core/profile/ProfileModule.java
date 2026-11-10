@@ -238,8 +238,8 @@ public final class ProfileModule implements StsvModule, Listener {
         e.renderer((source, name, message, viewer) -> chatLine(format, title, name, message));
     }
 
-    /** The vanilla "&lt;name&gt; message" without the angle brackets: "{name}: {message}" by default (config profiles.chat-format). */
-    static final String DEFAULT_CHAT_FORMAT = "{title}{name}<gray>:</gray> {message}";
+    /** The vanilla "&lt;name&gt; message" without the angle brackets: "{name} » {message}" by default (config profiles.chat-format). */
+    static final String DEFAULT_CHAT_FORMAT = "{title}{name} <dark_gray>»</dark_gray> {message}";
 
     /**
      * One chat line from the format: {title} (with a space after it, or nothing when no title is worn), {name} (the

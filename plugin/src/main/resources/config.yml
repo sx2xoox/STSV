@@ -204,7 +204,7 @@ profiles:
   title-in-chat: true
   # 채팅 한 줄 모양. {title} 칭호(없으면 빈칸), {name} 닉네임, {message} 내용. 나머지는 MiniMessage
   # 바닐라처럼 <이름> 으로 쓰려면: "{title}<{name}> {message}"
-  chat-format: "{title}{name}<gray>:</gray> {message}"
+  chat-format: "{title}{name} <dark_gray>»</dark_gray> {message}"
   title-in-tab: true
   # /프로필 에 보여줄 통계 (순서대로)
   shown-stats: [playtime, mob_kills, player_kills, deaths, blocks_broken, blocks_placed]
