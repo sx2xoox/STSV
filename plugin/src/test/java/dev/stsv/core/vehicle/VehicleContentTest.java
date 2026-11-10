@@ -41,9 +41,9 @@ class VehicleContentTest {
         VehicleSpec police = v.get("police_car"), truck = v.get("light_truck"), cart = v.get("golf_cart");
         // speeds: cart < truck < police car, all moderate (chunk loading keeps up) and under the server cap of 10
         assertTrue(cart.speed() < truck.speed() && truck.speed() < police.speed());
-        assertEquals(5, cart.speed(), 0.5);
-        assertEquals(7, truck.speed(), 0.5);
-        assertEquals(9, police.speed(), 0.5);
+        assertEquals(6, cart.speed(), 0.5);
+        assertEquals(8, truck.speed(), 0.5);
+        assertEquals(10, police.speed(), 0.5);
         for (VehicleSpec s : v.values()) {
             assertTrue(s.speed() <= 10 && s.reverseSpeed() < s.speed());
             assertEquals(4, s.wheels().size());

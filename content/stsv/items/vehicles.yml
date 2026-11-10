@@ -34,7 +34,7 @@ police_car:
   max-stack: 1
   vehicle:
     body-scale: 2
-    speed: 9
+    speed: 10
     reverse-speed: 3.5
     acceleration: 3.0
     brake: 9
@@ -76,7 +76,7 @@ light_truck:
   max-stack: 1
   vehicle:
     body-scale: 2
-    speed: 7
+    speed: 8
     reverse-speed: 3
     acceleration: 2.2
     brake: 8
@@ -118,7 +118,7 @@ golf_cart:
   max-stack: 1
   vehicle:
     body-scale: 2
-    speed: 5
+    speed: 6
     reverse-speed: 2.5
     acceleration: 2.5
     brake: 8
