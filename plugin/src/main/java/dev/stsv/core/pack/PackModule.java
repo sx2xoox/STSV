@@ -93,6 +93,8 @@ public final class PackModule implements StsvModule, Listener {
         if (cfg.getBoolean("default-font")) extra.putAll(DefaultFont.files());
         PackBuilder.Built built = new PackBuilder()
                 .extra(extra)
+                // custom crops as tripwire blocks (crops.render: blocks), or vanilla string (entities)
+                .cropBlocks(plugin.crops() == null || plugin.crops().blocks())
                 .build(
                 plugin.content().packs(), plugin.content().items(),
                 cfg.getInt("pack-format", 97), "STSV server resources");

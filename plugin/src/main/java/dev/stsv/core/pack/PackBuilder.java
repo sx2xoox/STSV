@@ -109,6 +109,16 @@ public final class PackBuilder {
     private final Map<String, byte[]> files = new TreeMap<>(); // sorted -> deterministic zip -> stable hash
     private final List<String> warnings = new ArrayList<>();
     private Map<String, byte[]> extra = Map.of();
+    private boolean cropBlocks = true;
+
+    /**
+     * Custom crops as blocks (the default): every crop stage as a tripwire state (CropBlocks), with block models made from
+     * the stage's item model. Off (crops.render: entities): vanilla string stays string, crops use their item models.
+     */
+    public PackBuilder cropBlocks(boolean on) {
+        this.cropBlocks = on;
+        return this;
+    }
 
     /**
      * Files the core makes itself (the resource-pack HUD: fonts, glyph sheets, see-through vanilla sprites). They go
@@ -144,6 +154,7 @@ public final class PackBuilder {
         for (CustomItem item : items) {
             writeItemDefinition(item);
         }
+        if (cropBlocks) writeCropBlocks(packs);
         // cosmetics seen by their wearer: head items that look like themselves in the inventory
         java.util.Set<String> cosmeticViews = dev.stsv.core.cosmetic.CosmeticViews.write(items, this::readJson, this::json, warnings);
         // menu backgrounds: one generated font with a glyph per background (see MenuSpec)
@@ -232,6 +243,148 @@ public final class PackBuilder {
     private final Map<String, byte[]> optimizedPngs = new java.util.HashMap<>();
 
     private final java.util.Set<String> sharedTextures = new java.util.HashSet<>();
+
+    // ------------------------------------------------------------------------------------------
+    // Crops as blocks
+    // ------------------------------------------------------------------------------------------
+
+    /** Where the tripwire's look is decided: every state, a crop stage's four turned models or vanilla string. */
+    public static final String TRIPWIRE = "assets/minecraft/blockstates/tripwire.json";
+
+    /**
+     * The crop stages' block models (four turns each, picked at random per block), their textures in the block atlas
+     * (darkened per face, CropBlockModels) and assets/minecraft/blockstates/tripwire.json. States that show no crop keep
+     * vanilla's string models. Fails the build when the states run out.
+     */
+    private void writeCropBlocks(Collection<ContentPack> packs) throws IOException {
+        List<dev.stsv.core.crop.CropSpec> specs = dev.stsv.core.crop.CropSpec.loadAll(packs, w -> warnings.add("[작물] " + w));
+        if (specs.isEmpty()) return;
+        dev.stsv.core.crop.CropBlocks.Allocation alloc;
+        try {
+            alloc = dev.stsv.core.crop.CropBlocks.load(packs, specs);
+        } catch (dev.stsv.core.crop.CropBlocks.Full e) {
+            throw new IOException(e.getMessage(), e);
+        }
+        alloc.problems().forEach(p -> warnings.add(dev.stsv.core.crop.CropBlocks.FILE + ": " + p));
+        if (!alloc.added().isEmpty()) {
+            warnings.add(dev.stsv.core.crop.CropBlocks.FILE + " 에 없는 작물 단계 " + alloc.added().size() + "개에 빈 상태를 줌: "
+                    + String.join(", ", alloc.added()) + " (tools/assetgen/crop_blocks.py 로 적어 두면 다음에도 같은 상태)");
+        }
+        Map<String, dev.stsv.core.crop.CropSpec> byId = new java.util.HashMap<>();
+        for (dev.stsv.core.crop.CropSpec s : specs) byId.put(s.id(), s);
+        Map<String, String[]> written = new java.util.HashMap<>();   // item model id -> its four block models
+        JsonObject variants = new JsonObject();
+        for (int code = 0; code < dev.stsv.core.crop.CropBlocks.STATES; code++) {
+            String key = alloc.keyOf(code);
+            String[] models = null;
+            if (key != null) {
+                int slash = key.lastIndexOf('/');
+                dev.stsv.core.crop.CropSpec spec = byId.get(key.substring(0, slash));
+                int stage = Integer.parseInt(key.substring(slash + 1));
+                if (spec != null && stage < spec.stages()) {
+                    String itemModel = spec.models().get(stage);
+                    models = written.get(itemModel);
+                    if (models == null && !written.containsKey(itemModel)) {
+                        models = cropBlockModels(itemModel);
+                        written.put(itemModel, models);
+                    }
+                }
+            }
+            com.google.gson.JsonElement v;
+            if (models != null) {
+                JsonArray turns = new JsonArray();
+                for (String m : models) {
+                    JsonObject o = new JsonObject();
+                    o.addProperty("model", m);
+                    turns.add(o);
+                }
+                v = turns;
+            } else {
+                dev.stsv.core.crop.CropBlocks.Vanilla van = dev.stsv.core.crop.CropBlocks.vanilla(code);
+                JsonObject o = new JsonObject();
+                o.addProperty("model", van.model());
+                if (van.y() != 0) o.addProperty("y", van.y());
+                v = o;
+            }
+            variants.add(dev.stsv.core.crop.CropBlocks.properties(code), v);
+        }
+        JsonObject state = new JsonObject();
+        state.add("variants", variants);
+        if (files.containsKey(TRIPWIRE)) warnings.add("파일 충돌, 작물 블록의 것으로 덮어씀: " + TRIPWIRE);
+        json(TRIPWIRE, state);
+    }
+
+    /** The four turned block models of a crop stage's item model ("ns:model/name"), or null (with a warning) if it has none. */
+    private String[] cropBlockModels(String itemModelId) {
+        int c = itemModelId.indexOf(':');
+        String ns = itemModelId.substring(0, c), path = itemModelId.substring(c + 1);
+        JsonObject def = readJson("assets/" + ns + "/items/" + path + ".json");
+        String modelId = def != null && def.has("model") && def.get("model").isJsonObject() && def.getAsJsonObject("model").has("model")
+                ? def.getAsJsonObject("model").get("model").getAsString() : null;
+        JsonObject model = null;
+        if (modelId != null) {
+            int mc = modelId.indexOf(':');
+            String mns = mc < 0 ? "minecraft" : modelId.substring(0, mc), mpath = modelId.substring(mc + 1);
+            model = readJson("assets/" + mns + "/models/" + mpath + ".json");
+        }
+        if (model == null || !model.has("elements")) {
+            warnings.add("[작물] 블록으로 만들 모델이 없음: " + itemModelId + " (실 모양으로 보임)");
+            return null;
+        }
+        String name = BBModelConverter.sanitize(path.substring(path.lastIndexOf('/') + 1));
+        String[] out = new String[4];
+        for (int k = 0; k < 4; k++) {
+            CropBlockModels.Converted conv = CropBlockModels.convert(model, k, this::cropBlockTexture);
+            if (k == 0) conv.warnings().forEach(w -> warnings.add("[작물] " + itemModelId + ": " + w));
+            String id = ns + ":block/crop/" + name + "_r" + (90 * k);
+            json("assets/" + ns + "/models/block/crop/" + name + "_r" + (90 * k) + ".json", conv.model());
+            out[k] = id;
+        }
+        return out;
+    }
+
+    /** A crop model's texture copied into the block atlas (textures/block/crop), darkened for its shade class. */
+    private String cropBlockTexture(String ref, String cls) {
+        int c = ref.indexOf(':');
+        String ns = c < 0 ? "minecraft" : ref.substring(0, c), path = ref.substring(c + 1);
+        byte[] png = files.get("assets/" + ns + "/textures/" + path + ".png");
+        if (png == null) {
+            if (!path.startsWith("block/") || cls != null) warnings.add("[작물] 블록에 쓸 수 없는 텍스처: " + ref);
+            return ref;
+        }
+        String name = (path.startsWith("item/") ? path.substring(5) : path).replace('/', '_') + (cls == null ? "" : "_" + cls);
+        String dst = "assets/" + ns + "/textures/block/crop/" + name + ".png";
+        if (!files.containsKey(dst)) {
+            files.put(dst, cls == null ? png : darken(png, CropBlockModels.ratio(cls)));
+            byte[] meta = files.get("assets/" + ns + "/textures/" + path + ".png.mcmeta");
+            if (meta != null) files.put(dst + ".mcmeta", meta);
+        }
+        return ns + ":block/crop/" + name;
+    }
+
+    /** The picture with its colour (not alpha) times this factor, rounded half to even. */
+    static byte[] darken(byte[] png, double ratio) {
+        try {
+            java.awt.image.BufferedImage img = javax.imageio.ImageIO.read(new java.io.ByteArrayInputStream(png));
+            if (img == null) return png;
+            int w = img.getWidth(), h = img.getHeight();
+            int[] argb = img.getRGB(0, 0, w, h, null, 0, w);
+            for (int i = 0; i < argb.length; i++) {
+                int a = argb[i] >>> 24, r = (argb[i] >> 16) & 0xFF, g = (argb[i] >> 8) & 0xFF, b = argb[i] & 0xFF;
+                r = (int) Math.min(255, Math.rint(r * ratio));
+                g = (int) Math.min(255, Math.rint(g * ratio));
+                b = (int) Math.min(255, Math.rint(b * ratio));
+                argb[i] = (a << 24) | (r << 16) | (g << 8) | b;
+            }
+            java.awt.image.BufferedImage out = new java.awt.image.BufferedImage(w, h, java.awt.image.BufferedImage.TYPE_INT_ARGB);
+            out.setRGB(0, 0, w, h, argb, 0, w);
+            ByteArrayOutputStream bytes = new ByteArrayOutputStream();
+            javax.imageio.ImageIO.write(out, "png", bytes);
+            return PngOptimizer.optimize(bytes.toByteArray());
+        } catch (IOException e) {
+            return png;
+        }
+    }
 
     private static String hash(byte[] png, byte[] meta) {
         try {

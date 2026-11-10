@@ -53,6 +53,10 @@ def main():
     # crop art preview (growth stages, harvest and seed icons)
     import economy_crops as CR
     CR.sheet(PREVIEWS / "crops.png")
+    # crops as blocks: the tripwire state of each new crop stage (append-only file, see crop_blocks.py)
+    import crop_blocks as CB
+    n, added = CB.build(PACK)
+    print(f"crop blocks {n} states" + (f" (+{len(added)})" if added else ""))
 
     # menu backgrounds + button icons
     assets = PACK / "assets" / NS

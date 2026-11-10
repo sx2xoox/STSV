@@ -199,6 +199,11 @@ class DisplayViewTest {
         assertEquals(0, t.get(DisplayCensus.Group.CROP_HIT).inRange);       // click boxes are never drawn
         assertArrayEquals(new long[]{102, 35, 1, 33 * 8 + 950}, t.drawnTotal());
         assertEquals(0, t.get(DisplayCensus.Group.BOARD).all);
+        // crops as blocks: only counted, never in the drawn (entity) totals
+        t.addBlocks(DisplayCensus.Group.CROP_BLOCK, 500);
+        t.addBlocks(DisplayCensus.Group.CROP_BLOCK, 0);
+        assertEquals(500, t.get(DisplayCensus.Group.CROP_BLOCK).all);
+        assertArrayEquals(new long[]{102, 35, 1, 33 * 8 + 950}, t.drawnTotal());
     }
 
     @Test

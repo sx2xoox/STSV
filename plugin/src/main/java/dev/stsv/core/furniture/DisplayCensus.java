@@ -24,7 +24,8 @@ import java.util.Map;
  * /관리자 보고서 주변 [반경]: the 3D models (display entities) and click boxes (interaction entities) around the admin, by
  * kind, with how many of them a client standing there draws (within their view distance, at Entity Distance 100%) and
  * about how many model faces that is. A client draws every display on its own each frame, so these are the numbers
- * behind the frame rate near a big base.
+ * behind the frame rate near a big base. Crops drawn as blocks (crops.render: blocks) are counted apart: they are part of
+ * the chunk's mesh like any block, not entities.
  */
 public final class DisplayCensus {
 
@@ -32,7 +33,9 @@ public final class DisplayCensus {
     public enum Group {
         CROP("crop", true), SMALL("small", true), LARGE("large", true), MACHINE("machine", true), PART("part", true),
         COSMETIC("cosmetic", true), BOARD("board", true), OTHER_DISPLAY("other-display", true),
-        CROP_HIT("crop-hit", false), FURNITURE_HIT("furniture-hit", false), OTHER_HIT("other-hit", false);
+        CROP_HIT("crop-hit", false), FURNITURE_HIT("furniture-hit", false), OTHER_HIT("other-hit", false),
+        /** crops drawn as blocks (not entities) */
+        CROP_BLOCK("crop-block", false);
 
         public final String key;
         public final boolean drawn;
@@ -66,6 +69,11 @@ public final class DisplayCensus {
             c.inRange++;
             if (!box) c.noBox++;
             c.faces += faces;
+        }
+
+        /** Things that are blocks, not entities (crops as blocks): only counted. */
+        public void addBlocks(Group g, int n) {
+            if (n > 0) counts.computeIfAbsent(g, k -> new Count()).all += n;
         }
 
         public Count get(Group g) {
@@ -118,6 +126,10 @@ public final class DisplayCensus {
             } else {
                 t.add(g, distance, 0, false, 0);
             }
+        }
+        var crops = plugin.crops();
+        if (crops != null && crops.running() && crops.blocks()) {
+            t.addBlocks(Group.CROP_BLOCK, crops.countNear(eye, radius));
         }
         return t;
     }
@@ -181,7 +193,9 @@ public final class DisplayCensus {
             Count c = t.get(g);
             if (c.all == 0) continue;
             String name = Lang.raw("models.group." + g.key);
-            if (g.drawn) {
+            if (g == Group.CROP_BLOCK) {
+                to.sendMessage(Lang.mm("models.line-block", "name", name, "count", c.all));
+            } else if (g.drawn) {
                 to.sendMessage(Lang.mm("models.line", "name", name, "count", c.all, "drawn", c.inRange, "faces", String.format("%,d", c.faces),
                         "nobox", c.noBox == 0 ? "" : Lang.raw("models.no-box", "count", c.noBox)));
             } else {
@@ -191,7 +205,8 @@ public final class DisplayCensus {
         long[] all = t.drawnTotal();
         if (all[0] == 0) to.sendMessage(Lang.mm("models.none"));
         else to.sendMessage(Lang.mm("models.total", "count", all[0], "drawn", all[1], "faces", String.format("%,d", all[3])));
-        to.sendMessage(Lang.mm("models.settings", "crops", DisplayView.blocksText(v.blocks(DisplayView.Kind.CROP)),
+        boolean cropBlocks = plugin.crops() != null && plugin.crops().blocks();
+        to.sendMessage(Lang.mm("models.settings", "crops", cropBlocks ? Lang.raw("models.crops-as-blocks") : DisplayView.blocksText(v.blocks(DisplayView.Kind.CROP)),
                 "small", DisplayView.blocksText(v.blocks(DisplayView.Kind.SMALL)), "large", DisplayView.blocksText(v.blocks(DisplayView.Kind.LARGE)),
                 "machines", DisplayView.blocksText(v.blocks(DisplayView.Kind.MACHINE)),
                 "culling", Lang.raw(v.culling() ? "models.culling-active" : "models.culling-inactive"),
