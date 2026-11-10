@@ -60,6 +60,8 @@ class PackIntegrityTest {
                 checkModel(path, json(path), vanillaModels);
             } else if (path.matches("assets/[^/]+/equipment/.+\\.json")) {
                 checkEquipment(path, json(path));
+            } else if (path.matches("assets/[^/]+/sounds\\.json")) {
+                checkSounds(path, json(path));
             }
         }
         checkItemsYaml();
@@ -89,6 +91,26 @@ class PackIntegrityTest {
                 String[] id = split(ref);
                 if (id[0].equals("minecraft")) continue;
                 require(path, "assets/" + id[0] + "/textures/" + id[1] + ".png");
+            }
+        }
+    }
+
+    /** Every sound of a sounds.json (not one naming another event) is an .ogg in the pack (vanilla sounds are not ours). */
+    private void checkSounds(String path, JsonObject sounds) {
+        String ns = path.split("/")[1];
+        for (Map.Entry<String, JsonElement> event : sounds.entrySet()) {
+            JsonElement list = event.getValue().getAsJsonObject().get("sounds");
+            if (list == null || !list.isJsonArray() || list.getAsJsonArray().isEmpty()) {
+                problems.add(path + ": " + event.getKey() + " 에 소리가 없음");
+                continue;
+            }
+            for (JsonElement s : list.getAsJsonArray()) {
+                JsonObject o = s.isJsonObject() ? s.getAsJsonObject() : null;
+                if (o != null && o.has("type") && o.get("type").getAsString().equals("event")) continue;
+                String name = o != null ? o.get("name").getAsString() : s.getAsString();
+                String[] id = name.contains(":") ? name.split(":", 2) : new String[]{ns, name};
+                if (id[0].equals("minecraft")) continue;
+                require(path + " " + event.getKey(), "assets/" + id[0] + "/sounds/" + id[1] + ".ogg");
             }
         }
     }

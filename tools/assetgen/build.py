@@ -1,7 +1,7 @@
 """
 Builds every STSV asset into the default content pack (content/stsv) and renders previews (docs/previews).
 
-    python3 build.py            # assets only
+    python3 build.py            # assets only (sounds too: needs ffmpeg with libvorbis)
     python3 build.py --render   # + preview PNGs (needs: cd render && npm install)
 """
 
@@ -76,6 +76,10 @@ def main():
     for name, fn in vehicle_icons.ICONS.items():
         fn().save(CONTENT / "textures" / f"{name}_icon.png")
     print(f"icons   {len(vehicle_icons.ICONS)} vehicles")
+    # vehicles: horn and engine sounds (synthesized, Ogg Vorbis) + assets/stsv/sounds.json
+    import sounds
+    clips = sounds.write()
+    print(f"sounds  {len(clips)} vehicle clips, {sum(size for _, size in clips) / 1024:.0f} KB (assets/stsv/sounds)")
 
     names = special.write(FIXTURE)
     print(f"special (test fixture) {', '.join(names)}")

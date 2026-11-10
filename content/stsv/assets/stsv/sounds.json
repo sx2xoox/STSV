@@ -1,0 +1,65 @@
+{
+  "vehicle.police_car.horn": {
+    "sounds": [
+      {
+        "name": "stsv:vehicle/police_car_horn"
+      }
+    ]
+  },
+  "vehicle.police_car.horn_end": {
+    "sounds": [
+      {
+        "name": "stsv:vehicle/police_car_horn_end"
+      }
+    ]
+  },
+  "vehicle.police_car.engine": {
+    "sounds": [
+      {
+        "name": "stsv:vehicle/police_car_engine"
+      }
+    ]
+  },
+  "vehicle.light_truck.horn": {
+    "sounds": [
+      {
+        "name": "stsv:vehicle/light_truck_horn"
+      }
+    ]
+  },
+  "vehicle.light_truck.horn_end": {
+    "sounds": [
+      {
+        "name": "stsv:vehicle/light_truck_horn_end"
+      }
+    ]
+  },
+  "vehicle.light_truck.engine": {
+    "sounds": [
+      {
+        "name": "stsv:vehicle/light_truck_engine"
+      }
+    ]
+  },
+  "vehicle.golf_cart.horn": {
+    "sounds": [
+      {
+        "name": "stsv:vehicle/golf_cart_horn"
+      }
+    ]
+  },
+  "vehicle.golf_cart.horn_end": {
+    "sounds": [
+      {
+        "name": "stsv:vehicle/golf_cart_horn_end"
+      }
+    ]
+  },
+  "vehicle.golf_cart.engine": {
+    "sounds": [
+      {
+        "name": "stsv:vehicle/golf_cart_engine"
+      }
+    ]
+  }
+}

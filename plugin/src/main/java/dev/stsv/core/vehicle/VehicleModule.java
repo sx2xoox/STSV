@@ -19,9 +19,12 @@ import org.bukkit.NamespacedKey;
 import org.bukkit.Sound;
 import org.bukkit.SoundCategory;
 import org.bukkit.World;
+import org.bukkit.attribute.Attribute;
+import org.bukkit.attribute.AttributeInstance;
 import org.bukkit.block.Block;
 import org.bukkit.block.BlockFace;
 import org.bukkit.command.CommandSender;
+import org.bukkit.entity.ArmorStand;
 import org.bukkit.entity.Entity;
 import org.bukkit.entity.Interaction;
 import org.bukkit.entity.ItemDisplay;
@@ -51,6 +54,7 @@ import org.bukkit.inventory.InventoryHolder;
 import org.bukkit.inventory.ItemStack;
 import org.bukkit.persistence.PersistentDataType;
 import org.bukkit.scheduler.BukkitTask;
+import org.bukkit.util.EulerAngle;
 import org.bukkit.util.Transformation;
 import org.jetbrains.annotations.NotNull;
 import org.joml.Quaternionf;
@@ -77,7 +81,7 @@ import java.util.function.BiPredicate;
  * The database ({@link VehicleStore}) holds every vehicle; nothing of it is saved with a chunk. While a vehicle's chunk is
  * loaded it is a {@link LiveVehicle}: an item display for the body, one per wheel (spun and, at the front, steered through
  * their display transformation), the light bar and the load, a few click boxes (interaction entities) along it and, for
- * each rider, a seat (an item display without an item) they ride. The chunk unloads (or the server stops): its position
+ * each rider, a seat (a carrier display with a chair on it, see below). The chunk unloads (or the server stops): its position
  * is saved and the entities go. A crash leaves nothing behind and nothing doubled; the vehicle is where it was last saved.
  *
  * <h2>Moving smoothly</h2>
@@ -85,7 +89,22 @@ import java.util.function.BiPredicate;
  * parts are then teleported to the new place and yaw, and the client glides between ticks (display teleport duration
  * and transformation interpolation: vehicles.smoothing-ticks). The seats are teleported with their riders on them
  * (Paper keeps passengers on a teleport, see {@link #carry}): a rider stays seated, their client places them on the
- * gliding seat, and their camera stays their own (a display entity does not steer or turn its passenger).
+ * gliding seat, and their camera stays their own (neither seat entity steers or turns its passenger).
+ *
+ * <h2>Seats: body forward, head free</h2>
+ * A seat is two entities ({@link LiveVehicle.Seat}): a carrier display, teleported with the vehicle (it glides like the
+ * body), and on it a chair, an invisible marker armor stand facing the vehicle, which the rider sits on. Clients draw a
+ * rider's body from their mount only when the mount is a living entity (LivingEntityRenderer.solveBodyRot, as on a horse
+ * or a pig): body = the mount's facing, the head turning up to 85 degrees either way ({@link VehicleSeats#riderBodyYaw}).
+ * On a display entity (no body of its own) the client turns the body after the head like someone standing, so looking
+ * around turned the whole body. The chair is turned with the car every tick (its rotation is sent at once, see
+ * {@link #face}), so the body turns with the car as it steers. The marker has no hitbox, physics, AI, drops or health bar
+ * (max health 1: no vehicle hearts in place of the food bar); the camera is not clamped (only boats clamp their rider's
+ * view, and a boat would be driven by its rider's client) and steering stays on the car's yaw.
+ *
+ * <h2>Sounds</h2> {@link VehicleSounds}: the horn sounds while space is held (the pack's clip, stopped on release, plus a
+ * short tail) and the engine hums while someone drives (short segments re-played back to back, their pitch following
+ * the speed). Both are bound to the body, so they move with the vehicle (tools/assetgen/sounds.py makes them).
  *
  * <h2>Rules</h2> {@link VehicleAccess} (who drives, opens the bed, picks up), {@link VehicleSeats} (which seat, where to step
  * out). Vehicles cannot be hurt and hurt nobody; mobs cannot get in.
@@ -124,8 +143,11 @@ public final class VehicleModule implements StsvModule, Listener {
 
     /** config.yml vehicles.* */
     record Settings(double maxSpeed, int smoothing, float viewRange, boolean culling, int saveTicks, boolean sirenSound, String sirenKey,
-                    float sirenVolume, float pitchHigh, float pitchLow, int sirenInterval, int flashTicks, int hornCooldown,
-                    double yawOffset) {}
+                    float sirenVolume, float pitchHigh, float pitchLow, int sirenInterval, int flashTicks, boolean customHorn,
+                    VehicleSounds.HornRules horn, boolean engine, double engineVolume, double yawOffset) {}
+
+    /** The longest hold the horn clips cover (tools/assetgen/sounds.py HORN_HOLD), seconds. */
+    static final double HORN_CLIP_SECONDS = 5.0;
 
     @Override
     public String id() {
@@ -158,12 +180,13 @@ public final class VehicleModule implements StsvModule, Listener {
         for (LiveVehicle v : List.copyOf(live.values())) {
             Optional<CustomItem> item = plugin.content().item(v.item.key().asString()).filter(CustomItem::isVehicle);
             if (item.isEmpty()) continue;
+            quiet(v, false);   // its sounds stop under the keys they were started with
             syncCargo(v);
             ItemStack[] cargo = v.cargo;
             v.item = item.get();
             if (v.seats.length != v.item.vehicle().seats().size()) {
                 for (int i = 0; i < v.seats.length; i++) leave(v, i);
-                v.seats = new ItemDisplay[v.item.vehicle().seats().size()];
+                v.seats = new LiveVehicle.Seat[v.item.vehicle().seats().size()];
             }
             v.spec = v.item.vehicle();
             v.cargo = resized(cargo, v.spec);
@@ -189,7 +212,12 @@ public final class VehicleModule implements StsvModule, Listener {
                 plugin.getConfig().getBoolean("vehicles.siren.sound-enabled"), plugin.getConfig().getString("vehicles.siren.sound"),
                 (float) plugin.getConfig().getDouble("vehicles.siren.volume"), (float) plugin.getConfig().getDouble("vehicles.siren.pitch-high"),
                 (float) plugin.getConfig().getDouble("vehicles.siren.pitch-low"), Math.max(2, plugin.getConfig().getInt("vehicles.siren.interval")),
-                Math.max(1, plugin.getConfig().getInt("vehicles.siren.flash-ticks")), Math.max(1, plugin.getConfig().getInt("vehicles.horn-cooldown")),
+                Math.max(1, plugin.getConfig().getInt("vehicles.siren.flash-ticks")), plugin.getConfig().getBoolean("vehicles.horn.custom-sound"),
+                new VehicleSounds.HornRules(Math.clamp(plugin.getConfig().getInt("vehicles.horn.min-ticks"), 1, 20),
+                        (int) Math.round(Math.clamp(plugin.getConfig().getDouble("vehicles.horn.max-hold-seconds"), 0.5, HORN_CLIP_SECONDS) * 20),
+                        Math.clamp(plugin.getConfig().getInt("vehicles.horn.cooldown"), 0, 200)),
+                plugin.getConfig().getBoolean("vehicles.engine.enabled"),
+                Math.clamp(plugin.getConfig().getDouble("vehicles.engine.volume"), 0, 2),
                 plugin.getConfig().getDouble("furniture.display-yaw-offset"));
     }
 
@@ -501,6 +529,7 @@ public final class VehicleModule implements StsvModule, Listener {
 
     /** Removes the drawn parts (and the seats too when seats = true: riders step out first). */
     private void removeParts(LiveVehicle v, boolean seats) {
+        quiet(v, false);
         if (seats) for (int i = 0; i < v.seats.length; i++) leave(v, i);
         if (v.body != null) v.body.remove();
         if (v.lights != null) v.lights.remove();
@@ -612,6 +641,8 @@ public final class VehicleModule implements StsvModule, Listener {
             }
         }
         lights(v);
+        horn(v, driver != null && in.jump());
+        engine(v, driver);
         if (v.cargoViewer != null) watchCargo(v);
         if (v.dirty && (ticks - v.savedAt >= settings.saveTicks() || (v.st.speed == 0 && driver == null))) save(v);
     }
@@ -628,14 +659,30 @@ public final class VehicleModule implements StsvModule, Listener {
             v.hits.get(i).teleport(new Location(v.world, c[0], c[1], c[2]));
         }
         for (int i = 0; i < v.seats.length; i++) {
-            ItemDisplay seat = v.seats[i];
+            LiveVehicle.Seat seat = v.seats[i];
             if (seat == null) continue;
-            if (!seat.isValid()) {
-                v.seats[i] = null;
+            if (!seat.valid()) {
+                leave(v, i);   // something took the seat apart: its rider steps out, what is left goes
                 continue;
             }
-            carry(seat, seatLocation(v, i));
+            carry(seat.carrier(), seatLocation(v, i));
+            face(seat.chair(), v.st.yaw);
         }
+    }
+
+    /** A tiny head pose the chair switches to and back (it is invisible): see {@link #face}. */
+    private static final EulerAngle NUDGE = new EulerAngle(0.001, 0, 0);
+
+    /**
+     * Turns a chair (and so its rider's body) to the vehicle's yaw. A passenger's rotation reaches clients only on the
+     * armor stand's update interval (every 3rd tick) unless its entity data changed that tick, so the chair also switches
+     * its (invisible) head pose: the turn is sent the same tick and the rider's body keeps up with the car's.
+     */
+    private static void face(ArmorStand chair, float yaw) {
+        if (Math.abs(VehicleSeats.signed(chair.getYaw() - yaw)) < 0.05f) return;
+        chair.setRotation(yaw, 0);
+        chair.setBodyYaw(yaw);   // the server's own idea of it too (cosmetics read it), even where armor stands do not tick
+        chair.setHeadPose(chair.getHeadPose().getX() == 0 ? NUDGE : EulerAngle.ZERO);
     }
 
     /**
@@ -715,18 +762,38 @@ public final class VehicleModule implements StsvModule, Listener {
             refuse(p, Lang.mm("vehicle.full"));
             return;
         }
-        ItemDisplay s = v.world.spawn(seatLocation(v, seat), ItemDisplay.class, d -> {
+        Location at = seatLocation(v, seat);
+        ItemDisplay carrier = v.world.spawn(at, ItemDisplay.class, d -> {
             d.setPersistent(false);
             d.setTeleportDuration(settings.smoothing());
             d.getPersistentDataContainer().set(PART, PersistentDataType.LONG, v.id);
-            d.getPersistentDataContainer().set(SEAT, PersistentDataType.INTEGER, seat);
+        });
+        ArmorStand chair = v.world.spawn(at, ArmorStand.class, a -> {
+            a.setPersistent(false);
+            a.setMarker(true);          // no hitbox: not clicked, hit, pushed or collided with
+            a.setInvisible(true);
+            a.setGravity(false);
+            a.setInvulnerable(true);
+            a.setSilent(true);
+            a.setBasePlate(false);
+            AttributeInstance health = a.getAttribute(Attribute.MAX_HEALTH);
+            if (health != null) health.setBaseValue(1);   // a mount with 0 hearts: the rider keeps their food bar
+            a.setHealth(1);
+            a.setRotation(v.st.yaw, 0);
+            a.setBodyYaw(v.st.yaw);
+            a.getPersistentDataContainer().set(PART, PersistentDataType.LONG, v.id);
+            a.getPersistentDataContainer().set(SEAT, PersistentDataType.INTEGER, seat);
         });
         p.setRotation(v.st.yaw, p.getPitch());
-        if (!s.addPassenger(p)) {
-            s.remove();
+        if (!carrier.addPassenger(chair) || !chair.addPassenger(p)) {
+            ejecting.add(chair.getUniqueId());
+            chair.eject();
+            ejecting.remove(chair.getUniqueId());
+            chair.remove();
+            carrier.remove();
             return;
         }
-        v.seats[seat] = s;
+        v.seats[seat] = new LiveVehicle.Seat(carrier, chair);
         if (seat == 0) {
             HudModule.flash(p, Lang.mm("vehicle.driving", "keys", Lang.raw(v.spec.lights() != null ? "vehicle.keys-siren" : "vehicle.keys-horn")));
         } else if (!mayDrive && !taken[0]) {
@@ -736,38 +803,50 @@ public final class VehicleModule implements StsvModule, Listener {
 
     /** A rider leaves a seat (it goes; they step out beside the vehicle, see onDismount). */
     private void leave(LiveVehicle v, int seat) {
-        ItemDisplay s = seat < v.seats.length ? v.seats[seat] : null;
+        LiveVehicle.Seat s = seat < v.seats.length ? v.seats[seat] : null;
         if (s == null) return;
         Player p = v.rider(seat);
         v.seats[seat] = null;
         Location exit = exit(v, seat);
-        ejecting.add(s.getUniqueId());
-        s.eject();
-        ejecting.remove(s.getUniqueId());
-        s.remove();
+        ejecting.add(s.chair().getUniqueId());
+        s.chair().eject();
+        ejecting.remove(s.chair().getUniqueId());
+        s.chair().remove();
+        s.carrier().remove();
         if (p != null && p.isOnline() && !p.isDead()) {
             exit.setYaw(p.getYaw());
             exit.setPitch(p.getPitch());
             p.teleport(exit);
         }
-        if (seat == 0) v.siren = false;
+        if (seat == 0) driverLeft(v);
+    }
+
+    /** The driver's seat emptied: the siren goes off, the horn and the engine stop. */
+    private void driverLeft(LiveVehicle v) {
+        v.siren = false;
+        quiet(v, true);
     }
 
     @EventHandler
     public void onDismount(EntityDismountEvent e) {
-        if (!(e.getDismounted() instanceof ItemDisplay seat)) return;
-        Long id = partOf(seat);
-        Integer index = seat.getPersistentDataContainer().get(SEAT, PersistentDataType.INTEGER);
-        if (id == null || index == null || ejecting.contains(seat.getUniqueId())) return;
+        // a rider leaving their chair (a chair leaving its carrier is noticed by move: Seat.valid)
+        if (!(e.getDismounted() instanceof ArmorStand chair) || !(e.getEntity() instanceof Player)) return;
+        Long id = partOf(chair);
+        Integer index = chair.getPersistentDataContainer().get(SEAT, PersistentDataType.INTEGER);
+        if (id == null || index == null || ejecting.contains(chair.getUniqueId())) return;
         LiveVehicle v = live.get(id);
         Entity rider = e.getEntity();
-        if (v != null && index < v.seats.length && v.seats[index] == seat) {
+        Entity carrier = chair.getVehicle();
+        if (v != null && index < v.seats.length && v.seats[index] != null && v.seats[index].chair().equals(chair)) {
+            carrier = v.seats[index].carrier();
             v.seats[index] = null;
-            if (index == 0) v.siren = false;
+            if (index == 0) driverLeft(v);
         }
+        Entity seatCarrier = carrier;
         Bukkit.getScheduler().runTask(plugin, () -> {
-            Location exit = v != null && live.containsKey(v.id) ? exit(v, index) : seat.getLocation();
-            seat.remove();
+            Location exit = v != null && live.containsKey(v.id) ? exit(v, index) : chair.getLocation();
+            chair.remove();
+            if (seatCarrier != null && isVehiclePart(seatCarrier)) seatCarrier.remove();
             // not someone teleported away meanwhile (a command, a world change): only a rider still by the seat steps out
             if (rider instanceof Player p && p.isOnline() && !p.isDead() && !p.isInsideVehicle() && p.getWorld().equals(exit.getWorld())
                     && p.getLocation().distanceSquared(exit) < 64) {
@@ -809,10 +888,11 @@ public final class VehicleModule implements StsvModule, Listener {
 
     @EventHandler(ignoreCancelled = true)
     public void onMount(EntityMountEvent e) {
-        if (isVehiclePart(e.getMount()) && !(e.getEntity() instanceof Player)) e.setCancelled(true);
+        // only players get in (a vehicle's own chair sits on its carrier)
+        if (isVehiclePart(e.getMount()) && !(e.getEntity() instanceof Player) && !isVehiclePart(e.getEntity())) e.setCancelled(true);
     }
 
-    /** Space = horn, Ctrl = siren (patrol car), once per press (DriveInput.presses). */
+    /** Ctrl = siren (patrol car), once per press (DriveInput.presses). Space (the horn) is read every tick: see horn. */
     @EventHandler
     public void onInput(PlayerInputEvent e) {
         Player p = e.getPlayer();
@@ -822,27 +902,109 @@ public final class VehicleModule implements StsvModule, Listener {
         LiveVehicle v = id == null ? null : live.get(id);
         if (v == null || v.seatOf(p) != 0) return;
         for (DriveInput.Press press : DriveInput.presses(before, now, v.spec.lights() != null)) {
-            switch (press) {
-                case SIREN -> {
-                    v.siren = !v.siren;
-                    HudModule.flash(p, Lang.mm(v.siren ? "vehicle.siren-on" : "vehicle.siren-off"));
-                }
-                case HORN -> honk(v);
+            if (press == DriveInput.Press.SIREN) {
+                v.siren = !v.siren;
+                HudModule.flash(p, Lang.mm(v.siren ? "vehicle.siren-on" : "vehicle.siren-off"));
             }
         }
     }
 
-    /** The horn: its sound once or a few times (빵빵), then a short rest before it sounds again. */
-    private void honk(LiveVehicle v) {
+    // ------------------------------------------------------------------------------------------
+    // Sounds: horn and engine (VehicleSounds)
+    // ------------------------------------------------------------------------------------------
+
+    /** Players near the vehicle who hear a sound of this volume (Minecraft: 16 blocks, or 16 x volume above 1). */
+    private List<Player> listeners(LiveVehicle v, float volume) {
+        double range = 16 * Math.max(1, volume) + 2;
+        Location c = at(v);
+        List<Player> out = new ArrayList<>();
+        for (Player p : v.world.getPlayers()) if (p.getLocation().distanceSquared(c) <= range * range) out.add(p);
+        return out;
+    }
+
+    /** Plays a sound bound to the body (it moves with the vehicle) to everyone in range; returns who was sent it. */
+    private List<Player> play(LiveVehicle v, String key, float volume, float pitch) {
+        List<Player> to = listeners(v, volume);
+        boolean bound = v.body != null && v.body.isValid();
+        for (Player p : to) {
+            if (bound) p.playSound(v.body, key, SoundCategory.NEUTRAL, volume, pitch);
+            else p.playSound(at(v), key, SoundCategory.NEUTRAL, volume, pitch);
+        }
+        return to;
+    }
+
+    /** Stops a sound for everyone who was sent it. */
+    private static void stop(Set<UUID> heard, String key) {
+        for (UUID id : heard) {
+            Player p = Bukkit.getPlayer(id);
+            if (p != null) p.stopSound(key, SoundCategory.NEUTRAL);
+        }
+        heard.clear();
+    }
+
+    /** The horn this tick: held = the driver holds space. */
+    private void horn(LiveVehicle v, boolean held) {
         VehicleSpec.Horn h = v.spec.horn();
-        if (h == null || ticks - v.lastHorn < settings.hornCooldown()) return;
-        v.lastHorn = ticks;
-        v.world.playSound(at(v), h.sound(), SoundCategory.NEUTRAL, h.volume(), h.pitch());
+        if (h == null) return;
+        switch (v.horn.tick(held, ticks, settings.horn())) {
+            case START -> {
+                if (settings.customHorn()) for (Player p : play(v, h.sound(), h.volume(), 1f)) v.hornHeard.add(p.getUniqueId());
+                else honk(v, h);
+            }
+            case STOP -> hornOff(v, h, true);
+            case NONE -> { }
+        }
+    }
+
+    /** Stops the horn for everyone who was sent it and (tail) plays its short release. */
+    private void hornOff(LiveVehicle v, VehicleSpec.Horn h, boolean tail) {
+        if (v.hornHeard.isEmpty()) return;   // the vanilla horn: nothing to stop
+        stop(v.hornHeard, h.sound());
+        if (tail && h.release() != null) play(v, h.release(), h.volume(), 1f);
+    }
+
+    /**
+     * Without the pack's sounds (vehicles.horn.custom-sound: false): the vanilla sound once or a few times (빵빵) per
+     * press; holding does not make it longer.
+     */
+    private void honk(LiveVehicle v, VehicleSpec.Horn h) {
+        v.world.playSound(at(v), h.vanilla(), SoundCategory.NEUTRAL, h.volume(), h.pitch());
         for (int i = 1; i < h.times(); i++) {
             Bukkit.getScheduler().runTaskLater(plugin, () -> {
-                if (live.get(v.id) == v) v.world.playSound(at(v), h.sound(), SoundCategory.NEUTRAL, h.volume(), h.pitch());
+                if (live.get(v.id) == v) v.world.playSound(at(v), h.vanilla(), SoundCategory.NEUTRAL, h.volume(), h.pitch());
             }, (long) i * h.gap());
         }
+    }
+
+    /** The engine while someone drives: the next segment as the last one starts fading, at the speed's pitch. */
+    private void engine(LiveVehicle v, Player driver) {
+        VehicleSpec.Engine e = v.spec.engine();
+        if (e == null || driver == null || !settings.engine()) {
+            if (v.engineOn) engineOff(v);
+            return;
+        }
+        if (v.engineOn && ticks < v.engineAt) return;
+        double top = Math.min(v.spec.speed(), settings.maxSpeed());
+        float pitch = VehicleSounds.enginePitch(v.st.speed, top, e);
+        float volume = VehicleSounds.engineVolume(v.st.speed, top, e, settings.engineVolume());
+        v.engineOn = true;
+        v.engineAt = ticks + VehicleSounds.engineGap(e.segmentTicks(), pitch);
+        if (volume > 0.005f) for (Player p : play(v, e.sound(), volume, pitch)) v.engineHeard.add(p.getUniqueId());
+    }
+
+    private void engineOff(LiveVehicle v) {
+        v.engineOn = false;
+        VehicleSpec.Engine e = v.spec.engine();
+        if (e != null) stop(v.engineHeard, e.sound());
+        v.engineHeard.clear();
+    }
+
+    /** Every sound of the vehicle stops now (tail: a sounding horn plays its release). */
+    private void quiet(LiveVehicle v, boolean tail) {
+        VehicleSpec.Horn h = v.spec.horn();
+        v.horn.cut(ticks, settings.horn());
+        if (h != null) hornOff(v, h, tail);
+        engineOff(v);
     }
 
     @EventHandler

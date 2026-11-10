@@ -26,21 +26,44 @@ class VehicleRulesTest {
     }
 
     @Test
-    void spaceHonksCtrlTogglesTheSirenOncePerPress() {
+    void ctrlTogglesTheSirenOncePerPress() {
         DriveInput none = DriveInput.NONE;
         DriveInput space = new DriveInput(false, false, false, false, true, false, false);
         DriveInput ctrl = new DriveInput(false, false, false, false, false, false, true);
         DriveInput both = new DriveInput(true, false, false, false, true, false, true);
-        assertEquals(List.of(DriveInput.Press.HORN), DriveInput.presses(none, space, true), "space: horn, on every vehicle");
-        assertEquals(List.of(DriveInput.Press.HORN), DriveInput.presses(none, space, false));
-        assertEquals(List.of(), DriveInput.presses(space, space, true), "held space: no more honking");
-        assertEquals(List.of(), DriveInput.presses(space, none, true), "letting go does nothing");
+        assertEquals(List.of(), DriveInput.presses(none, space, true), "space is the horn: held, not pressed (VehicleSounds)");
         assertEquals(List.of(DriveInput.Press.SIREN), DriveInput.presses(none, ctrl, true), "Ctrl: siren on the patrol car");
         assertEquals(List.of(), DriveInput.presses(none, ctrl, false), "Ctrl on a vehicle without a light bar: nothing");
         assertEquals(List.of(), DriveInput.presses(ctrl, ctrl, true), "held Ctrl: no toggling back and forth");
-        assertEquals(List.of(DriveInput.Press.HORN, DriveInput.Press.SIREN), DriveInput.presses(none, both, true), "both at once");
-        assertEquals(List.of(DriveInput.Press.HORN), DriveInput.presses(null, space, true), "the first input seen counts as a press");
-        assertTrue(both.forward(), "driving keys are read alongside");
+        assertEquals(List.of(), DriveInput.presses(ctrl, none, true), "letting go does nothing");
+        assertEquals(List.of(DriveInput.Press.SIREN), DriveInput.presses(none, both, true));
+        assertEquals(List.of(DriveInput.Press.SIREN), DriveInput.presses(null, ctrl, true), "the first input seen counts as a press");
+        assertTrue(both.forward() && both.jump(), "driving keys and the horn are read alongside");
+    }
+
+    @Test
+    void aSeatedRidersBodyFacesTheVehicleAndOnlyTheHeadTurns() {
+        // looking around within 85 degrees: the body stays exactly on the vehicle's facing
+        for (float head = -85; head <= 85; head += 5) {
+            float body = VehicleSeats.riderBodyYaw(30, 30 + head);
+            float expect = Math.abs(head) > 50 ? 30 + head * 0.2f : 30;
+            assertEquals(0, VehicleSeats.signed(body - expect), 1e-3, "head turned " + head);
+        }
+        assertEquals(30, VehicleSeats.riderBodyYaw(30, 30), 1e-4, "looking ahead");
+        assertEquals(30, VehicleSeats.riderBodyYaw(30, 70), 1e-4, "40 degrees aside: the head alone turns");
+        assertEquals(44, VehicleSeats.riderBodyYaw(30, 100), 1e-4, "70 aside: the shoulders twist along by a fifth");
+        // looking further back: the body turns only enough to keep the head 85 off, never with the whole view
+        assertEquals(30 + 15 + 17, VehicleSeats.riderBodyYaw(30, 130), 1e-4, "100 aside: body 15 + twist 17");
+        assertEquals(VehicleSeats.signed(-90 + 85 - 17), VehicleSeats.riderBodyYaw(0, -90 + 360), 1e-4, "the other way round, wrapped");
+        float back = VehicleSeats.riderBodyYaw(0, 180);
+        assertEquals(85, Math.abs(VehicleSeats.signed(180 - back)) + 17, 1e-3, "straight back: head 85 off the body (+ twist)");
+        // the car turns: the body turns with it (the head stays where the camera looks)
+        assertEquals(VehicleSeats.signed(120), VehicleSeats.riderBodyYaw(120, 100), 1e-4);
+        // angles wrap anywhere
+        assertEquals(VehicleSeats.signed(350), VehicleSeats.riderBodyYaw(350 + 720, 10), 1e-3);
+        assertEquals(-170, VehicleSeats.signed(190), 1e-6);
+        assertEquals(-180, VehicleSeats.signed(180), 1e-6);
+        assertEquals(179, VehicleSeats.signed(-181), 1e-6);
     }
 
     @Test

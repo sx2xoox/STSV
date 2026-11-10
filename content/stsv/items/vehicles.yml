@@ -14,8 +14,13 @@
 #   wheel          바퀴 모델, wheel-radius 바퀴 반지름 (굴러가는 빠르기)
 #   wheels         바퀴 위치. steer: true = 앞바퀴 (조향 각도가 보임)
 #   seats          좌석 위치 (앉는 면의 높이). 첫 번째가 운전석
-#   horn           경적 (운전 중 스페이스, 누를 때마다 한 번): sound 바닐라 소리, pitch 음높이, volume (1 = 16블록쯤까지 들림),
-#                  times 몇 번 울릴지 (2 = 빵빵), gap 그 사이 틱
+#   horn           경적 (운전 중 스페이스를 누르고 있는 동안): sound 누르는 동안의 소리, release 뗄 때 끝소리 (둘 다 리소스팩 소리,
+#                  tools/assetgen/sounds.py 가 만듦), volume (1 = 16블록쯤까지 들림, 1.5 = 24블록).
+#                  config.yml vehicles.horn.custom-sound: false 일 때만: vanilla 바닐라 소리, pitch 음높이,
+#                  times 누를 때마다 몇 번 울릴지 (2 = 빵빵), gap 그 사이 틱
+#   engine         운전 중 엔진 소리 (리소스팩 소리, 짧은 조각을 이어서 틀어 줌): sound, volume 달릴 때 크기 (1 이하, 16블록까지),
+#                  idle-volume 서 있을 때 크기 (0 = 조용), idle-pitch 서 있을 때 음높이, top-pitch 최고 속도 때 음높이 (0.5 ~ 2),
+#                  segment-ticks 소리 조각 하나의 길이 (틱, 음높이 1 기준. sounds.py 의 ENGINE_PERIOD 와 같아야 함)
 #   lights         경광등 (운전 중 Ctrl = 사이렌 켜기·끄기): dark 꺼진 모델, flash 모델들 (번갈아 보임), at 위치
 #   cargo          짐칸 (보관함): pages 쪽 수 (한 쪽 45칸), stages 짐 모델 (차는 정도: 1~25% / ~50% / ~75% / 그 이상),
 #                  at 짐 모델 위치, behind = 이 앞 위치보다 뒤를 웅크리고 우클릭하면 짐칸이 열림
@@ -56,7 +61,9 @@ police_car:
       - { at: [0.45, 0.28, 0.15] }
       - { at: [-0.45, 0.28, -0.7] }
       - { at: [0.45, 0.28, -0.7] }
-    horn: { sound: block.note_block.didgeridoo, pitch: 1.4, volume: 1.5, times: 1 }
+    horn: { sound: stsv:vehicle.police_car.horn, release: stsv:vehicle.police_car.horn_end, volume: 1.5,
+            vanilla: block.note_block.didgeridoo, pitch: 1.4, times: 1 }
+    engine: { sound: stsv:vehicle.police_car.engine, volume: 0.35, idle-volume: 0.16, idle-pitch: 0.6, top-pitch: 1.45, segment-ticks: 10 }
     lights:
       dark: police_lightbar_off
       flash: [police_lightbar_a, police_lightbar_b]
@@ -98,7 +105,9 @@ light_truck:
       - { at: [0.42, 0.65, 1.3] }
       - { at: [-0.45, 0.82, -0.35] }
       - { at: [0.45, 0.82, -0.35] }
-    horn: { sound: block.note_block.didgeridoo, pitch: 0.9, volume: 1.5, times: 2, gap: 4 }
+    horn: { sound: stsv:vehicle.light_truck.horn, release: stsv:vehicle.light_truck.horn_end, volume: 1.5,
+            vanilla: block.note_block.didgeridoo, pitch: 0.9, times: 2, gap: 4 }
+    engine: { sound: stsv:vehicle.light_truck.engine, volume: 0.4, idle-volume: 0.2, idle-pitch: 0.55, top-pitch: 1.3, segment-ticks: 10 }
     cargo:
       pages: 2
       behind: 0.7
@@ -138,4 +147,6 @@ golf_cart:
     seats:
       - { at: [-0.28, 0.625, -0.3] }
       - { at: [0.28, 0.625, -0.3] }
-    horn: { sound: block.note_block.bit, pitch: 1.8, volume: 1.5, times: 1 }
+    horn: { sound: stsv:vehicle.golf_cart.horn, release: stsv:vehicle.golf_cart.horn_end, volume: 1.5,
+            vanilla: block.note_block.bit, pitch: 1.8, times: 1 }
+    engine: { sound: stsv:vehicle.golf_cart.engine, volume: 0.22, idle-volume: 0, idle-pitch: 0.7, top-pitch: 1.5, segment-ticks: 10 }
