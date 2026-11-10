@@ -37,12 +37,14 @@ def main():
     from models.test_items import ALL as ITEMS
     from models import cosmetics
     from models import furniture_japanese as furniture
+    from models import vehicles
     import furniture_icons
-    ALL = {**ITEMS, **cosmetics.ALL, **furniture.ALL}
+    import vehicle_icons
+    ALL = {**ITEMS, **cosmetics.ALL, **furniture.ALL, **vehicles.ALL}
     import special
 
     def home(name):
-        return CONTENT if name in SHIPPED_MODELS or name in cosmetics.ALL or name in furniture.ALL else FIXTURE
+        return CONTENT if name in SHIPPED_MODELS or name in cosmetics.ALL or name in furniture.ALL or name in vehicles.ALL else FIXTURE
 
     for d in (CONTENT / "models", CONTENT / "textures", FIXTURE / "models", FIXTURE / "textures", BUILD, PREVIEWS):
         d.mkdir(parents=True, exist_ok=True)
@@ -70,6 +72,10 @@ def main():
     for name, fn in furniture_icons.ICONS.items():
         fn().save(CONTENT / "textures" / f"{name}_icon.png")
     print(f"icons   {len(furniture_icons.ICONS)} furniture")
+    # vehicles: 2D inventory icons (placed: body, wheels and parts as 3D models); preview sheet: vehicle_preview.py
+    for name, fn in vehicle_icons.ICONS.items():
+        fn().save(CONTENT / "textures" / f"{name}_icon.png")
+    print(f"icons   {len(vehicle_icons.ICONS)} vehicles")
 
     names = special.write(FIXTURE)
     print(f"special (test fixture) {', '.join(names)}")

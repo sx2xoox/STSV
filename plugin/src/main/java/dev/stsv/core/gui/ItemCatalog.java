@@ -11,16 +11,17 @@ import java.util.function.Function;
 
 /**
  * How the admin item browser (/관리자 아이템목록) groups the custom items: by what they are (machines and furniture,
- * cosmetics and their vouchers, gear and tools, food) and by the content file they come from (crops, fish, job goods),
+ * vehicles, cosmetics and their vouchers, gear and tools, food) and by the content file they come from (crops, fish, job goods),
  * and a search over the id and the shown name. Pure (unit-tested).
  */
 public final class ItemCatalog {
 
     private ItemCatalog() {}
 
-    /** Browser tabs, in order (with "전체" before them: 9 tabs on the top row). */
+    /** Browser tabs, in order (with "전체" before them: the top row, then the free slots of the bottom row). */
     public enum Category {
         MACHINE("기계·가구", Material.FURNACE),
+        VEHICLE("탈것", Material.MINECART),
         COSMETIC("치장·교환권", Material.LEATHER_HELMET),
         GEAR("장비·도구·스킨", Material.IRON_PICKAXE),
         CROP("작물·씨앗", Material.WHEAT),
@@ -40,11 +41,17 @@ public final class ItemCatalog {
 
     /** What the grouping looks at; source = the items file it came from without ".yml" ("crops", "fish", "jobs", ...). */
     public record Facts(String id, String name, String source, Material material, boolean furniture, boolean cosmetic,
-                        boolean voucher, boolean gear, boolean food) {}
+                        boolean voucher, boolean gear, boolean food, boolean vehicle) {
+        public Facts(String id, String name, String source, Material material, boolean furniture, boolean cosmetic,
+                     boolean voucher, boolean gear, boolean food) {
+            this(id, name, source, material, furniture, cosmetic, voucher, gear, food, false);
+        }
+    }
 
     public static Facts facts(CustomItem i, String source) {
         return new Facts(i.key().asString(), i.name() == null ? "" : i.name(), source == null ? "" : source, i.material(),
-                i.isFurniture(), i.cosmetic() != null, i.voucher() != null, i.skin() != null || i.equipment() != null, i.food() != null);
+                i.isFurniture(), i.cosmetic() != null, i.voucher() != null, i.skin() != null || i.equipment() != null, i.food() != null,
+                i.isVehicle());
     }
 
     private static final String[] TOOLS = {"_SWORD", "_AXE", "_PICKAXE", "_SHOVEL", "_HOE", "_HELMET", "_CHESTPLATE", "_LEGGINGS", "_BOOTS",
@@ -58,6 +65,7 @@ public final class ItemCatalog {
     }
 
     public static Category of(Facts f) {
+        if (f.vehicle()) return Category.VEHICLE;
         if (f.furniture()) return Category.MACHINE;
         if (f.cosmetic() || f.voucher()) return Category.COSMETIC;
         if (f.gear() || tool(f.material())) return Category.GEAR;

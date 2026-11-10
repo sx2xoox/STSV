@@ -57,6 +57,7 @@ mail:
     stall_evicted: "노점 임대료 미납"
     mission: "미션 보상"
     mission_bonus: "미션 완료 보너스"
+    vehicle_return: "관리자가 돌려보낸 탈것"
 
 shop:
   not-buying: "<red>상점이 사지 않는 물건입니다. <gray>(이름 바꾼/인챈트/닳은 물건도 안 삼)"
