@@ -274,15 +274,6 @@ ICONS = {}    # item -> callable returning the 16x16 icon
 # Sprites shared by many plants
 # ------------------------------------------------------------------------------------------------
 
-# two seed leaves on a short stem: the first stage of every broad-leaved crop
-COTYLEDON = [
-    ".ed.ed.",
-    "edc.dcb",
-    "..cbc..",
-    "...b...",
-    "...a...",
-]
-
 # leaf clusters (light from the top-left; mostly mid and dark steps, like vanilla foliage)
 LEAF = {
     "s": ["43", "21"],
@@ -297,35 +288,34 @@ GLOSSY = {"5": "y", "4": "y", "3": "x", "2": "w", "1": "v"}     # leaf -> leaf_d
 YOUNG = {"5": "e", "4": "d", "3": "c", "2": "b", "1": "a"}      # leaf -> sprout
 DRY = {"5": "l", "4": "k", "3": "j", "2": "i", "1": "h"}        # leaf -> straw
 
-# thin blades: the first stage of onions, garlic, green onions, rice and corn
-BLADES = [
-    "d...e",
-    "c..d.",
-    ".c.d.",
-    ".cc..",
-    "..b..",
-]
-
 FLOWER_Y = [".Z.", "ZYZ", ".Z."]
 FLOWER_W = [".V.", "VYV", ".V."]
-
-
-def seedlings(sprite=COTYLEDON, xs=(1, 9), bottom=15, g=None):
-    g = g or Grid()
-    for k, x in enumerate(xs):
-        g.sprite(sprite, x, bottom - len(sprite) + 1 + (k % 2))
-    return g
-
-
-def seedling(sprite=COTYLEDON, bottom=15):
-    """One seedling in the middle (column 8), for plants that grow alone (cross layout)."""
-    return Grid().sprite(sprite, 8 - len(sprite[0]) // 2, bottom - len(sprite) + 1)
 
 
 def leaves(g, spots, recolor=None):
     for name, x, y in spots:
         g.sprite(LEAF[name], x, y, recolor)
     return g
+
+
+# Each crop's sprout is its own drawing (they used to share one seed-leaf / one blade sprite and looked the same): leaf shape,
+# leaf count, height and stem colour hint at the grown plant. A sprite's stem column is `at`.
+
+def twin(sprite, at, bottom=15, drop=1, mirror=True, g=None):
+    """Hash layout: the sprite with its stem on columns 4 and 12 (the plane crossings: four sprouts per block),
+    the second one a row lower and mirrored so the four do not look stamped."""
+    g = g or Grid()
+    for k, cx in enumerate((4, 12)):
+        spr, a = sprite, at
+        if mirror and k:
+            spr, a = [r[::-1] for r in sprite], len(sprite[0]) - 1 - at
+        g.sprite(spr, cx - a, bottom - len(spr) + 1 + drop * k)
+    return g
+
+
+def single(sprite, at, bottom=15, g=None):
+    """Cross layout: one sprout, its stem on column 8."""
+    return (g or Grid()).sprite(sprite, 8 - at, bottom - len(sprite) + 1)
 
 
 # ================================================================================================
@@ -360,9 +350,21 @@ def _young(g, x0, top, recolor=None):
     return g
 
 
+# sprout: long narrow seed leaves held out flat, the first jagged true leaf already above them; a yellow bud later
+TOMATO_SPROUT = [
+    "....5....",
+    "..4.43.4.",
+    "..43232..",
+    "...3221..",
+    "edd.2.dde",
+    "..cc2cc..",
+    "....2....",
+    "....1....",
+]
+
 STAGES["tomato"] = [
-    image(seedlings().rows()),
-    image(_young(_young(Grid(), 1, 7), 9, 8).rows()),
+    image(twin(TOMATO_SPROUT, 4).rows()),
+    image(_young(_young(Grid(), 1, 7), 9, 8).put(4, 6, "Y").put(11, 7, "Y").rows()),
     image(_tomato_bush(flowers=True).rows(), TOMATO),
     image(_tomato_bush(fruit=TOMATO_GREEN, flowers=True).rows(), TOMATO),
     image(_tomato_bush(fruit=TOMATO_RIPE).rows(), TOMATO),
@@ -403,9 +405,21 @@ def _chili_young(g, x0, top):
     return g
 
 
+# sprout: two slender seed leaves in a tall pale V on a thin stem; a white bud later
+CHILI_SPROUT = [
+    "e.....e",
+    "d.....d",
+    "dc...cd",
+    ".c.e.c.",
+    "..cdc..",
+    "...b...",
+    "...b...",
+    "...a...",
+]
+
 STAGES["chili"] = [
-    image(seedlings().rows()),
-    image(_chili_young(_chili_young(Grid(), 0, 8), 8, 9).rows()),
+    image(twin(CHILI_SPROUT, 3).rows()),
+    image(_chili_young(_chili_young(Grid(), 0, 8), 8, 9).put(3, 7, "W").put(12, 8, "W").rows()),
     image(_chili_bush(flowers=True).rows()),
     image(_chili_bush(pods=POD_GREEN, flowers=True).rows()),
     image(_chili_bush(pods=POD_RED).rows(), CHILI),
@@ -415,7 +429,8 @@ STAGES["chili"] = [
 # 딸기: low rosettes, white flowers, red berries near the ground
 # ================================================================================================
 
-STRAW = {"P": ("toadstool", 4), "Q": ("toadstool", 3), "S": ("toadstool", 2), "R": ("toadstool", 1), "T": ("toadstool", 0)}
+STRAW = {"P": ("toadstool", 4), "Q": ("toadstool", 3), "S": ("toadstool", 2), "R": ("toadstool", 1), "T": ("toadstool", 0),
+         "X": ("wine", 2)}
 TRIO = [".4.4.", "43234", ".212.", "..1.."]
 BERRY = [".3.", "QPS", "SZR", ".R."]
 BERRY_WHITE = [".3.", "VVW", "WVW", ".W."]
@@ -437,9 +452,18 @@ BERRY_SOLID = Part((0, -1, 0), (2, 1, 2), ["QZ", "SR"], ["3P", "PQ"], STRAW)
 BERRIES = [BERRY_SOLID.moved(x, z) for x, z in ((5, 1), (1, 5))]
 
 
+# sprout: low and wide, three-part leaves on thin stalks and a white bud (a red-stalked bud later)
+STRAW_SPROUT = [
+    ".4.4...V..",
+    "43234..2..",
+    ".212.2.243",
+    "...2..2.32",
+    "....12....",
+]
+
 STAGES["strawberry"] = [
-    image(seedlings(TRIO, xs=(2, 10)).rows()),
-    image(_strawberry(big=False).rows()),
+    image(twin(STRAW_SPROUT, 4).rows(), STRAW),
+    image(_strawberry(big=False).sprite(["V", "X"], 4, 9).sprite(["V", "X"], 13, 9).rows(), STRAW),
     image(_strawberry(flowers=True).rows()),
     Stage(image(_strawberry().rows()), parts=[b for p in BERRIES for b in four(p)]),
 ]
@@ -472,9 +496,22 @@ def _flopped(g, cx, base):
     return g
 
 
+# sprout: thin round tubes, one still bent over in a crook with the dry seed coat on its tip, a pale foot
+ONION_SPROUT = [
+    ".44..",
+    "j..4.",
+    "...4.",
+    "4..3.",
+    "3..3.",
+    ".3.3.",
+    "..32.",
+    "..EE.",
+]
+
 STAGES["onion"] = [
-    Stage(image(seedlings(BLADES, xs=(2, 10)).rows())),
-    Stage(image(_tubes(_tubes(Grid(), 3, 9), 11, 10).rows())),
+    Stage(image(twin(ONION_SPROUT, 2).rows(), ONION)),
+    Stage(image(_tubes(_tubes(Grid(), 3, 9), 11, 10).put(4, 7, "4").put(3, 7, "4").put(3, 8, "j").put(12, 8, "4").put(13, 8, "4").put(13, 9, "j")
+                .put(4, 15, "E").put(12, 15, "E").rows(), ONION)),
     Stage(image(_tubes(_tubes(Grid(), 3, 4), 11, 5).rows()), parts=four(ONION_YOUNG)),
     Stage(image(_flopped(_flopped(Grid(), 4, 12), 12, 12).rows()), parts=four(ONION_BULB) + four(ONION_NECK)),
 ]
@@ -499,9 +536,20 @@ def _fan(g, x, top, recolor=None):
 GARLIC_BULB = Part((2, -1, 2), (6, 2, 6), ["BAAB", "AGBC", "BCGD"], ["CBBC", "BAAB", "BAAB", "CBBC"], GARLIC)
 GARLIC_NECK = Part((3, 2, 3), (5, 3, 5), ["kj"], ["jk", "kj"])
 
+# sprout: two or three flat leaves fanning out of a white clove that still shows at the soil
+GARLIC_SPROUT = [
+    "4.....",
+    "43..4.",
+    ".43.43",
+    ".32.3.",
+    "..332.",
+    "..AB..",
+    ".ABBC.",
+]
+
 STAGES["garlic"] = [
-    Stage(image(seedlings(BLADES, xs=(2, 10)).rows())),
-    Stage(image(_fan(_fan(Grid(), 3, 9), 11, 10).rows())),
+    Stage(image(twin(GARLIC_SPROUT, 2).rows(), GARLIC)),
+    Stage(image(_fan(_fan(Grid(), 3, 9), 11, 10).sprite(["AB", "BC"], 3, 14).sprite(["AB", "BC"], 11, 14).rows(), GARLIC)),
     Stage(image(_fan(_fan(Grid(), 3, 4), 11, 5).line([(4, 15), (5, 3), (7, 1), (8, 2)], "2").sprite(["W"], 8, 2).rows())),
     Stage(image(_fan(_fan(Grid(), 3, 7, DRY), 11, 8, DRY).rows()), parts=four(GARLIC_BULB) + four(GARLIC_NECK)),
 ]
@@ -540,8 +588,19 @@ CABBAGE_HEAD = Part((5, -1, 5), (11, 10, 11), [
     "322221",
 ], ["CBBBBC", "BAABAB", "BABAAB", "BAABAB", "BABAAB", "CBBBBC"], CABBAGE)
 
+# sprout: broad spoon leaves spread low, each with the white midrib of a napa leaf
+CABBAGE_SPROUT = [
+    ".443.....344.",
+    "44432...23443",
+    "43V32.4.23V32",
+    ".32W2.3.2W21.",
+    "...2WW2WW2...",
+    ".....WWW.....",
+    "......W......",
+]
+
 STAGES["cabbage"] = [
-    Stage(image(seedling().rows()), "cross"),
+    Stage(image(single(CABBAGE_SPROUT, 6).rows(), CABBAGE), "cross"),
     Stage(image(_cabbage_leaves(Grid(), False).rows(), CABBAGE), "cross"),
     Stage(image(_cabbage_leaves(Grid(), True).sprite(UPRIGHT, 4, 7).sprite(UPRIGHT, 8, 7).rows(), CABBAGE), "cross",
           [CABBAGE_HEART]),
@@ -582,9 +641,20 @@ def _rice(top_shift, blades, heads=None):
     return g
 
 
+# sprout: a bright fountain of hair-fine blades (rice nursery green), no stem, no white foot
+RICE_SPROUT = [
+    "...e...",
+    "e..d..e",
+    "d..d.d.",
+    ".d.dd..",
+    ".cdcc.c",
+    "..ccbc.",
+    "...b...",
+]
+
 STAGES["rice"] = [
-    image(seedlings(BLADES, xs=(2, 10)).rows()),
-    image(_tuft(_tuft(_tuft(Grid(), 3, 9, "432"), 8, 8, "432"), 12, 10, "432").rows()),
+    image(twin(RICE_SPROUT, 3).rows()),
+    image(_tuft(_tuft(_tuft(Grid(), 3, 9, "edc"), 8, 8, "edc"), 12, 10, "edc").rows()),
     image(_rice(0, "432").rows()),
     image(_rice(0, "432", "ed4").rows()),
     image(_rice(1, "dcb", "lkj").rows()),
@@ -620,6 +690,7 @@ def _soy(stage):
     for cx in (4, 12):
         if stage == 1:
             _soy_plant(g, cx, 9, SOY_YOUNG)
+            g.sprite(["lk", "kj"], cx - 3, 13).sprite(["kl", "jk"], cx + 2, 13)      # the seed leaves still there
         elif stage == 2:
             _soy_plant(g, cx, 1, SOY_FULL)
             for dx, y in ((-1, 7), (1, 10), (-1, 12), (1, 4)):      # small purple flowers where leaves meet the stem
@@ -632,8 +703,17 @@ def _soy(stage):
     return g
 
 
+# sprout: short and stocky, two fat pale bean halves right under a first three-part leaf
+SOY_SPROUT = [
+    "..4.4..",
+    ".43234.",
+    "ld212dl",
+    "kj.1.jk",
+    "...1...",
+]
+
 STAGES["soybean"] = [
-    Stage(image(seedlings().rows())),
+    Stage(image(twin(SOY_SPROUT, 3).rows(), SOY)),
     Stage(image(_soy(1).rows())),
     Stage(image(_soy(2).rows(), SOY)),
     Stage(image(_soy(3).rows(), SOY)),
@@ -663,8 +743,21 @@ def _blade(g, x, y, right=True, length=6, light="4", dark="2"):
     return g
 
 
+# sprout: a rolled spike with two broad strap leaves arching out of it: tall, and wider blades than rice
+CORN_SPROUT = [
+    "....4.....",
+    "....43....",
+    ".44.43....",
+    "4..443..4.",
+    "....43.43.",
+    "....4343.2",
+    "....432...",
+    "....32....",
+    "....32....",
+]
+
 STAGES["corn"] = [
-    image(seedling(BLADES).rows()),
+    image(single(CORN_SPROUT, 4).rows()),
     image(_blade(_blade(_blade(_stalk(Grid(), 7, 10), 7, 13, False, 5), 8, 11, True, 6), 7, 10, False, 4, "4", "3").rows()),
     image(_blade(_blade(_blade(_blade(_blade(_stalk(Grid(), 7, 2), 7, 13, False, 7), 8, 10, True, 7), 7, 7, False, 6), 8, 4, True, 6),
                  7, 3, False, 4, "4", "3").line([(7, 2), (7, 0)], "4").rows()),
@@ -708,10 +801,21 @@ def _scallion(g, x, top, base):
 STEM_YOUNG = Part((3, -1, 3), (5, 1, 5), ["VV", "WW"], ["xy", "yx"])
 STEM = Part((3, -1, 3), (5, 3, 5), ["xV", "VV", "VW", "WW"], ["xy", "yx"])
 
+# sprout: three dark straight tubes standing upright side by side on a white foot
+SCALLION_SPROUT = [
+    "..y..",
+    "x.y..",
+    "x.y.w",
+    "x.y.w",
+    "x.y.w",
+    "xxyww",
+    ".VWW.",
+]
+
 STAGES["green_onion"] = [
-    Stage(image(seedlings(BLADES, xs=(2, 10)).rows())),
-    Stage(image(Grid().line([(3, 15), (3, 10)], "x").line([(4, 15), (5, 9)], "y").line([(11, 15), (11, 9)], "x")
-                .line([(12, 15), (13, 10)], "w").rows())),
+    Stage(image(twin(SCALLION_SPROUT, 2).rows())),
+    Stage(image(Grid().line([(3, 14), (3, 10)], "x").line([(4, 14), (5, 9)], "y").line([(11, 14), (11, 9)], "x")
+                .line([(12, 14), (13, 10)], "w").sprite(["VW"], 3, 15).sprite(["VW"], 11, 15).rows())),
     Stage(image(_scallion(_scallion(Grid(), 2, 6, 14), 10, 7, 14).rows()), parts=four(STEM_YOUNG)),
     Stage(image(_scallion(_scallion(Grid(), 2, 1, 12), 10, 2, 12).rows()), parts=four(STEM)),
 ]
@@ -720,7 +824,7 @@ STAGES["green_onion"] = [
 # 무: a rosette of rough leaves; the white root with a green shoulder pushes out of the ground
 # ================================================================================================
 
-RADISH = {"A": ("garlic", 3), "B": ("garlic", 2), "C": ("garlic", 1), "D": ("garlic", 0)}
+RADISH = {"A": ("garlic", 3), "B": ("garlic", 2), "C": ("garlic", 1), "D": ("garlic", 0), "R": ("wine", 2)}
 ROUGH = [".44.", "4432", "4321", ".21."]
 
 
@@ -745,8 +849,18 @@ RADISH_ROOT = Part((5, -1, 5), (11, 5, 11), [
 
 RADISH_CROWN = Part((6, 5, 6), (10, 6, 10), ["cddc"], ["cddc", "d22d", "d22d", "cddc"], RADISH)
 
+# sprout: notched, heart-shaped seed leaves on a red stem
+RADISH_SPROUT = [
+    "d.d...d.d",
+    "dcd...dcd",
+    ".cbR.Rbc.",
+    "...RRR...",
+    "....R....",
+    "....R....",
+]
+
 STAGES["radish"] = [
-    Stage(image(seedling().rows()), "cross"),
+    Stage(image(single(RADISH_SPROUT, 4).rows(), RADISH), "cross"),
     Stage(image(_rosette(Grid(), [(1, 11), (5, 10), (9, 10), (12, 11)]).rows()), "cross"),
     Stage(image(_rosette(Grid(), [(0, 8), (3, 6), (8, 6), (12, 8), (2, 10), (10, 10)]).rows()), "cross", [RADISH_TOP]),
     Stage(image(_rosette(Grid(), [(0, 4), (3, 2), (8, 2), (12, 4), (1, 7), (11, 7)], crown=(7, 9)).rows()), "cross",
@@ -764,8 +878,18 @@ LETTUCE_HEART = [
     Part((6, 1, 6), (10, 2, 10), ["edde"], ["edde", "dccd", "dccd", "edde"]),
 ]
 
+# sprout: a low, very pale rosette of round leaves with frilled edges
+LETTUCE_SPROUT = [
+    "..e.d....",
+    ".eddd.e.d",
+    "e.dcdeddc",
+    ".dcccdcb.",
+    "..bcbcb..",
+    "....b....",
+]
+
 STAGES["lettuce"] = [
-    Stage(image(seedling().rows()), "cross"),
+    Stage(image(single(LETTUCE_SPROUT, 4).rows()), "cross"),
     Stage(image(Grid().sprite(RUFFLE, 3, 12).sprite(RUFFLE, 8, 12).sprite(RUFFLE, 6, 11).rows()), "cross"),
     Stage(image(Grid().sprite(RUFFLE, 0, 11).sprite(RUFFLE, 5, 10).sprite(RUFFLE, 10, 11).sprite(RUFFLE, 3, 12)
                 .sprite(RUFFLE, 8, 12).rows()), "cross"),
@@ -800,9 +924,24 @@ CUKE_YOUNG = Part((0, 0, 0), (1, 3, 1), ["B", "A", "Y"], ["B"], dict(CUKE, Y=("p
 CUKE_RIPE = Part((0, 0, 0), (2, 6, 2), ["2B", "BA", "EB", "BC", "CE", "DC"], ["2B", "BC"], CUKE)
 CUKE_SHORT = Part((0, 0, 0), (2, 4, 2), ["BA", "BE", "EC", "DC"], ["2B", "BC"], CUKE)
 
+# sprout: upright, seed leaves, a first heart leaf and a tendril already reaching up; later a little stake to climb
+CUKE_SPROUT = [
+    "......ddd.",
+    ".....d...c",
+    ".....c.c.c",
+    "..AA.c..c.",
+    ".ABEBc....",
+    "..BC2.....",
+    "edd2..dde.",
+    "..cc2cc...",
+    "....2.....",
+    "....1.....",
+]
+
 STAGES["cucumber"] = [Stage(st, "cross", parts) for st, parts in (
-    (image(seedling().rows()), []),
-    (image(Grid().sprite(BIG, 0, 10).sprite(BIG, 10, 9).line([(4, 15), (5, 12), (9, 11)], "2").sprite(BIG, 5, 11).rows()), []),
+    (image(single(CUKE_SPROUT, 4).rows(), CUKE), []),
+    (image(Grid().col(8, 6, 15, "onm").sprite(BIG, 0, 10).sprite(BIG, 10, 9).line([(4, 15), (5, 12), (9, 11)], "2").sprite(BIG, 5, 11)
+           .put(9, 8, "c").put(9, 7, "c").put(10, 7, "c").put(7, 6, "c").rows()), []),
     (image(_vine().rows()), []),
     (image(_vine(flowers=True).rows()), [CUKE_YOUNG.moved(4, 9).lifted(6), CUKE_YOUNG.moved(11, 6).lifted(8),
                                         CUKE_YOUNG.moved(6, 3).lifted(3)]),
@@ -847,7 +986,7 @@ STAGES["grape"] = [
 # ================================================================================================
 
 EGG = {"A": ("aubergine", 4), "B": ("aubergine", 3), "C": ("aubergine", 2), "D": ("aubergine", 1), "E": ("aubergine", 0),
-       "S": ("aubergine", 1), "P": ("petal_purple", 1), "Q": ("petal_purple", 0), "Y": ("petal_yellow", 1)}
+       "S": ("aubergine", 1), "P": ("petal_purple", 1), "Q": ("petal_purple", 0), "Y": ("petal_yellow", 1), "T": ("grape", 2)}
 EGG_LEAF = [".443.", "44332", "43321", ".321."]        # broad, soft, slightly grey leaf
 EGG_FLOWER = [".P.", "QYP", ".Q."]
 
@@ -877,8 +1016,20 @@ def _eggplant(x, z, y, dx=1, dz=0):
     return [EGG_TOP.moved(x, z).lifted(y + 4), EGG_BOTTOM.moved(x + dx, z + dz).lifted(y)]
 
 
+# sprout: soft grey-green leaves on a purple stem
+EGG_SPROUT = [
+    "...443...",
+    "..44332..",
+    "...3T1...",
+    "edd.T.dde",
+    ".ccbTbcc.",
+    "....T....",
+    "....T....",
+    "....S....",
+]
+
 STAGES["eggplant"] = [
-    Stage(image(seedling().rows()), "cross"),
+    Stage(image(single(EGG_SPROUT, 4).rows(), EGG), "cross"),
     Stage(image(Grid().line([(8, 15), (8, 10)], "S").sprite(EGG_LEAF, 3, 9).sprite(EGG_LEAF, 8, 8).sprite(EGG_LEAF, 5, 11).rows(), EGG),
           "cross"),
     Stage(image(_egg_bush(2).rows(), EGG), "cross"),
@@ -917,8 +1068,19 @@ ZUC_YOUNG = Part((0, -1, 0), (3, 0, 1), ["2BY"], ["2AY"], ZUC, end=["B"])
 ZUC_X = Part((0, -1, 0), (6, 2, 3), ["3AMABA", "2BABMB", "2CBCBC"], ["3ABMAB", "3AABAA", "2BABAB"], ZUC, end=["ABA", "BMB", "CBC"])
 ZUC_Z = Part((0, -1, 0), (3, 2, 6), ["ABA", "BMB", "CBC"], ["323", "ABA", "BAM", "AMB", "BAB", "ABA"], ZUC, end=["ABAMA3", "BMBAB2", "CBCBC2"])
 
+# sprout: squat, big fleshy pale seed leaves close to the soil and a first broad leaf with silver patches, no tendrils
+ZUC_SPROUT = [
+    "....44.4...",
+    "...4M54M4..",
+    "...345M43..",
+    ".AAB.32BAA.",
+    "AABBC2CBBAA",
+    ".BCC.2.CCB.",
+    ".....1.....",
+]
+
 STAGES["zucchini"] = [
-    Stage(image(seedling().rows()), "cross"),
+    Stage(image(single(ZUC_SPROUT, 5).rows(), ZUC), "cross"),
     Stage(image(_squash(8).rows(), ZUC), "cross"),
     Stage(image(_squash(3).rows(), ZUC), "cross"),
     Stage(image(_squash(3, flowers=True).rows(), ZUC), "cross", [ZUC_YOUNG.moved(3, 10), ZUC_YOUNG.moved(10, 4)]),
@@ -945,6 +1107,8 @@ def _melon_vine(spread, flowers=False):
     for x, y in ((3, 10), (2, 9), (13, 10), (14, 9), (6, 8)):                            # curling tendrils
         if spread > 1:
             g.put(x, y, "c")
+    if spread == 1:                                                                     # the first tendrils
+        g.sprite([".cc", "c.c", ".c."], 12, 8).sprite(["cc.", "c..", ".c."], 2, 9)
     if flowers:
         for x, y in ((2, 8), (12, 7), (7, 10)):
             g.sprite(["Y.Y", ".O.", "Y.Y"], x, y)
@@ -963,8 +1127,17 @@ MELON = [
     Part((6, 6, 7), (9, 7, 8), ["ikj"], ["jkl"], end=["j"]),                     # the bit of vine across it
 ]
 
+# sprout: low and creeping, seed leaves near the soil, a runner along the ground with a round leaf and a tendril curl
+MELON_SPROUT = [
+    "..44.........c",
+    ".4544......c..",
+    ".3443.ed.de.c.",
+    "..33..cdcdc2..",
+    "...2222b.2....",
+]
+
 STAGES["muskmelon"] = [
-    Stage(image(seedling().rows()), "cross"),
+    Stage(image(single(MELON_SPROUT, 7).rows(), MEL), "cross"),
     Stage(image(_melon_vine(1).rows()), "cross"),
     Stage(image(_melon_vine(2, flowers=True).rows(), MEL), "cross"),
     Stage(image(_melon_vine(2).rows(), MEL), "cross", [MELON_YOUNG]),
