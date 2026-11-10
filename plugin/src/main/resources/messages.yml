@@ -377,3 +377,32 @@ crop:
   no-seed: "<yellow>씨앗이 없어 다시 심지 못했습니다."
   meal-wait: "<yellow>아직 뼛가루가 듣지 않습니다 <gray>(저절로 {ages}단계 더 자라야 함 · 7단계마다 한 번)"
   unknown: "<red>작물 정의를 찾을 수 없습니다 ({crop}). 관리자에게 알려주세요. <gray>(작물은 그대로 둡니다)"
+
+# /관리자 보고서 주변 [반경]: 관리자 주변의 3D 모델(디스플레이 엔티티)과 클릭 상자(상호작용 엔티티)를 종류별로 셈.
+# "보이는 거리 안" = 그 자리에 선 플레이어(엔티티 거리 100%)가 그리는 수 (화면 밖은 클라이언트가 건너뜀), 면 = 그 모델들의 면 수 합
+models:
+  usage: "<red>/관리자 보고서 주변 [반경] <gray>(블록, 기본 {radius}, 최대 {max} · 게임 안에서만)"
+  title: "<gold>주변 {radius}블록 안의 3D 모델 <gray>({world} {x}, {y}, {z})"
+  line: " <gray>{name} <white>{count}</white>개 <dark_gray>· <gray>보이는 거리 안 <white>{drawn}</white>개, 면 <white>{faces}</white>{nobox}"
+  no-box: " <dark_gray>(화면 밖에서도 그림 {count}개)"
+  line-hit: " <gray>{name} <white>{count}</white>개 <dark_gray>(그리지 않음, 클릭용)"
+  none: " <gray>이 플러그인의 3D 모델이 없습니다."
+  total: "<gray>합계: 모델 <white>{count}</white>개 중 <yellow>{drawn}</yellow>개를 그림 <dark_gray>(매 프레임 하나씩)</dark_gray>, 면 약 <yellow>{faces}</yellow>개"
+  settings: "<dark_gray>보이는 거리: 작물 {crops} · 작은 가구 {small} · 큰 가구 {large} · 기계 {machines}블록 · 화면 밖 건너뛰기 {culling} · 도는 부품: {animate}"
+  culling-active: "켬"
+  culling-inactive: "끔"
+  animate-always: "늘 돎"
+  animate-range: "{blocks}블록 안에 사람이 있을 때만 돎"
+  hint: "<dark_gray>바꾸기: config.yml 의 display 항목을 고친 뒤 /관리자 리로드. 보이는 거리 안의 모델이 수천 개면 프레임이 크게 떨어짐"
+  group:
+    crop: "작물"
+    small: "작은 가구 (1칸)"
+    large: "큰 가구"
+    machine: "기계"
+    part: "기계의 도는 부품"
+    cosmetic: "치장·펫"
+    board: "시세판·기념비"
+    other-display: "다른 디스플레이 (다른 플러그인 등)"
+    crop-hit: "작물 클릭 상자"
+    furniture-hit: "가구 클릭 상자"
+    other-hit: "다른 클릭 상자"

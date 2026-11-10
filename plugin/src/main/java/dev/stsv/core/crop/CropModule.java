@@ -2,6 +2,7 @@ package dev.stsv.core.crop;
 
 import dev.stsv.core.STSVPlugin;
 import dev.stsv.core.content.ContentPack;
+import dev.stsv.core.furniture.DisplayView;
 import dev.stsv.core.hud.HudModule;
 import dev.stsv.core.module.StsvModule;
 import dev.stsv.core.util.Lang;
@@ -76,7 +77,8 @@ import java.util.stream.Stream;
  */
 public final class CropModule implements StsvModule, Listener {
 
-    private static final NamespacedKey TAG = new NamespacedKey("stsv", "crop");
+    /** on a crop's display and click box: the crop's id */
+    public static final NamespacedKey TAG = new NamespacedKey("stsv", "crop");
     /** vanilla farmland crops harvested by right-click -> what replants them */
     private static final Map<Material, Material> VANILLA = Map.of(Material.WHEAT, Material.WHEAT_SEEDS, Material.CARROTS, Material.CARROT,
             Material.POTATOES, Material.POTATO, Material.BEETROOTS, Material.BEETROOT_SEEDS);
@@ -102,6 +104,8 @@ public final class CropModule implements StsvModule, Listener {
     private Replant replanting;
     private boolean seedTaken;
     private boolean running;
+    /** view distance and culling box of the crop displays (config display.*) */
+    private DisplayView.Settings view;
 
     @Override
     public String id() {
@@ -119,6 +123,7 @@ public final class CropModule implements StsvModule, Listener {
     @Override
     public void enable(STSVPlugin plugin) {
         this.plugin = plugin;
+        view = DisplayView.Settings.of(plugin.getConfig());
         store = new CropStore(plugin.db());
         store.init();
         load();
@@ -137,6 +142,7 @@ public final class CropModule implements StsvModule, Listener {
 
     @Override
     public void reload() {
+        view = DisplayView.Settings.of(plugin.getConfig());
         load();
         warnedUnknown.clear();
         for (Long id : new ArrayList<>(shown.keySet())) refresh(crops.get(id));
@@ -349,7 +355,8 @@ public final class CropModule implements StsvModule, Listener {
             e.getPersistentDataContainer().set(TAG, PersistentDataType.LONG, s.id);
             e.setItemStack(look(spec, s));
             e.setItemDisplayTransform(ItemDisplay.ItemDisplayTransform.FIXED);
-            e.setViewRange((float) plugin.getConfig().getDouble("furniture.view-range"));
+            // the many small models of a farm: a shorter distance, and a box so off-screen ones are skipped (DisplayView)
+            DisplayView.apply(e, view.viewRange(DisplayView.Kind.CROP), DisplayView.cropBox(spec.height()), view.culling());
             e.setBillboard(Display.Billboard.FIXED);
         });
         Interaction hit = at.getWorld().spawn(at.clone().add(0, -0.5, 0), Interaction.class, i -> {
@@ -380,6 +387,7 @@ public final class CropModule implements StsvModule, Listener {
             return;
         }
         sh.display().setItemStack(look(spec, s));
+        DisplayView.apply(sh.display(), view.viewRange(DisplayView.Kind.CROP), DisplayView.cropBox(spec.height()), view.culling());
         sh.hit().setInteractionHeight(height(s, spec));
     }
 

@@ -138,7 +138,8 @@ final class CosmeticPets {
             else pet.yaw = turnToward(pet.yaw, owner.getYaw(), 6);
             Location at = location(p.getWorld(), pet.pos, pet.yaw, pet.item, pet.t);
             if (!floating(pet.item) && moved > 0.03) at.add(0, Math.abs(Math.sin(pet.t * 0.55)) * 0.12, 0);   // hop
-            pet.display.teleport(at);
+            // a pet that has caught up stands still: no move sent until it walks, turns or bobs again
+            if (moved(pet.display.getLocation(), at)) pet.display.teleport(at);
             // a pet with a particle (the legendary ones) lets one go every half second, for whoever sees the pet
             CustomItem.Fx fx = pet.item.cosmetic() == null ? null : pet.item.cosmetic().fx();
             if (fx != null && fx.particle() != null && pet.t % 10 == 0) {
@@ -158,6 +159,14 @@ final class CosmeticPets {
                 }
             }
         }
+    }
+
+    /** Far enough apart (or turned enough) to be worth a move packet: 1/4096 block is the protocol's own step. */
+    static boolean moved(Location now, Location to) {
+        double dx = now.getX() - to.getX(), dy = now.getY() - to.getY(), dz = now.getZ() - to.getZ();
+        if (dx * dx + dy * dy + dz * dz > 1e-8) return true;
+        float d = Math.abs(now.getYaw() - to.getYaw()) % 360f;
+        return Math.min(d, 360f - d) > 0.05f;
     }
 
     private static float turnToward(float from, float to, float maxStep) {
