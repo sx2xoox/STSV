@@ -299,10 +299,10 @@ nicknames:
   colors:
     enabled: true
     # 한 가지 색으로 바꾸는 값(G). first-free: true 면 처음 고르는 한 가지 색은 무료
-    cost: 2000
-    first-free: true
-    # 그라데이션(두 색)으로 바꾸는 값(G). 처음이어도 이 값
-    gradient-cost: 5000
+    cost: 10000
+    first-free: false
+    # 그라데이션(두 색)으로 바꾸는 값(G)
+    gradient-cost: 30000
     # 최소 밝기 (0~1, 사람 눈 기준 밝기). 채팅·탭 목록 배경이 어두워 이보다 어두운 색은 거절 (기본 0.35: 순수한 파랑, 짙은 회색, 검정 계열 거절)
     min-brightness: 0.35
     # 메뉴의 한 가지 색, 이름: "#RRGGBB" (메뉴 네 줄 = 36개)

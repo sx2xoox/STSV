@@ -159,9 +159,9 @@ public final class NicknameModule implements StsvModule, Listener, TabExecutor {
         tabRealName = c.getBoolean("tab-real-name", false);
         if (plugin.cosmetics() != null) plugin.cosmetics().nameTagHeight(c.getDouble("name-tag-height", 0.25));
         colorsOn = c.getBoolean("colors.enabled", true);
-        colorCost = Math.max(0, c.getLong("colors.cost", 2000));
-        gradientCost = Math.max(0, c.getLong("colors.gradient-cost", 5000));
-        firstColorFree = c.getBoolean("colors.first-free", true);
+        colorCost = Math.max(0, c.getLong("colors.cost", 10000));
+        gradientCost = Math.max(0, c.getLong("colors.gradient-cost", 30000));
+        firstColorFree = c.getBoolean("colors.first-free", false);
         minBrightness = c.getDouble("colors.min-brightness", 0.35);
         List<String> problems = new ArrayList<>();
         palette = presets(dev.stsv.core.util.Cfg.listed(c.getConfigurationSection("colors.palette")), false, problems);
