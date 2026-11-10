@@ -79,8 +79,10 @@ import java.util.UUID;
 public final class FurnitureModule implements StsvModule, Listener {
 
     private STSVPlugin plugin;
-    private NamespacedKey keyItem, keyCells, keyParts, keyOwner, keyYaw, keySeat, keySpin, keySpinOff, keyShapeBoxes, keyShapeBarriers;
+    private NamespacedKey keyItem, keyCells, keyParts, keyOwner, keyYaw, keySeat, keySpin, keySpinOff, keyShapeBoxes, keyShapeBarriers, keyPartOf;
     private boolean active;
+    /** view distances, culling boxes, animation range (config display.*): read on enable and reload */
+    private DisplayView.Settings view;
     /** fitted shapes, per item + models shown (+ settings); emptied when the resource pack is rebuilt */
     private final Map<String, FurnitureShape.Shape> shapes = new HashMap<>();
     private final Map<String, Optional<dev.stsv.core.pack.PackBuilder.Model>> resolved = new HashMap<>();
@@ -115,6 +117,8 @@ public final class FurnitureModule implements StsvModule, Listener {
         keySpinOff = new NamespacedKey(plugin, "spin_off");
         keyShapeBoxes = new NamespacedKey(plugin, "furniture_shape_boxes");
         keyShapeBarriers = new NamespacedKey(plugin, "furniture_shape_barriers");
+        keyPartOf = new NamespacedKey(plugin, "furniture_part_of");
+        view = DisplayView.Settings.of(plugin.getConfig());
         active = true;
         Bukkit.getPluginManager().registerEvents(this, plugin);
         Bukkit.getPluginManager().registerEvents(guard = new ReservedCellGuard(this), plugin);
@@ -127,6 +131,21 @@ public final class FurnitureModule implements StsvModule, Listener {
         }
         spinTask = Bukkit.getScheduler().runTaskTimer(plugin, this::tickSpin, 1L, SPIN_STEP);
         refreshTask = Bukkit.getScheduler().runTaskTimer(plugin, this::tickRefresh, 1L, 1L);
+    }
+
+    /** Config reloaded: every loaded piece (and its parts) gets the new view distance and culling box. */
+    @Override
+    public void reload() {
+        view = DisplayView.Settings.of(plugin.getConfig());
+        for (World w : Bukkit.getWorlds()) {
+            for (ItemDisplay d : w.getEntitiesByClass(ItemDisplay.class)) {
+                if (d.getPersistentDataContainer().has(keyItem)) applyView(d, true);
+            }
+        }
+    }
+
+    public DisplayView.Settings view() {
+        return view;
     }
 
     @Override
@@ -272,7 +291,7 @@ public final class FurnitureModule implements StsvModule, Listener {
         loc.setPitch(0);
         ItemDisplay display = world.spawn(loc, ItemDisplay.class, d -> {
             applyModel(d, item);
-            d.setViewRange((float) plugin.getConfig().getDouble("furniture.view-range"));
+            DisplayView.apply(d, view.viewRange(DisplayView.kindOf(spec)), DisplayView.furnitureBox(spec), view.culling());
             if (spec.brightness() >= 0) d.setBrightness(new Display.Brightness(spec.brightness(), 15));
             d.setPersistent(true);
             d.getPersistentDataContainer().set(keyItem, PersistentDataType.STRING, item.key().asString());
@@ -298,7 +317,7 @@ public final class FurnitureModule implements StsvModule, Listener {
         // click targets: a few interaction entities fitted to the model, never outside the cells
         for (double[] box : plan.shape().boxes()) partData.append(spawnHit(world, box, display.getUniqueId()).getUniqueId()).append(';');
         for (FurnitureSpec.Part part : spec.parts()) {
-            ItemDisplay pe = spawnPart(display, plan, part);
+            ItemDisplay pe = spawnPart(item, plan, part);
             partData.append(pe.getUniqueId()).append(';');
         }
         PersistentDataContainer pdc = display.getPersistentDataContainer();
@@ -371,7 +390,7 @@ public final class FurnitureModule implements StsvModule, Listener {
         return new double[]{mx * Math.cos(r) - mz * Math.sin(r), y, mx * Math.sin(r) + mz * Math.cos(r)};
     }
 
-    private ItemDisplay spawnPart(ItemDisplay owner, Plan plan, FurnitureSpec.Part part) {
+    private ItemDisplay spawnPart(CustomItem owner, Plan plan, FurnitureSpec.Part part) {
         double[] o = modelToWorld(part.position(), plan.yaw());
         Location loc = plan.anchor().getLocation().add(0.5 + o[0], 0.5 + o[1], 0.5 + o[2]);
         loc.setYaw(displayYaw(plan.yaw()));
@@ -380,7 +399,9 @@ public final class FurnitureModule implements StsvModule, Listener {
             it.editMeta(m -> m.setItemModel(part.model()));
             d.setItemStack(it);
             d.setItemDisplayTransform(ItemDisplay.ItemDisplayTransform.FIXED);
-            d.setViewRange((float) plugin.getConfig().getDouble("furniture.view-range"));
+            d.getPersistentDataContainer().set(keyPartOf, PersistentDataType.STRING, owner.key().asString());
+            // same distance as its piece; no culling box (the part's model size is not known here, and parts are few)
+            DisplayView.apply(d, view.viewRange(DisplayView.kindOf(owner.furniture())), DisplayView.NO_BOX, false);
             d.setPersistent(true);
             if (part.spinAxis() != null && part.rpm() != 0) {
                 d.getPersistentDataContainer().set(keySpin, PersistentDataType.STRING, part.spinAxis() + ":" + part.rpm());
@@ -394,12 +415,24 @@ public final class FurnitureModule implements StsvModule, Listener {
 
     private void tickSpin() {
         if (spinning.isEmpty()) return;
+        // nobody close enough to see it turn: it holds still (no rotation sent); the angle comes from the world time,
+        // so it picks up where it would be when someone comes near
+        Map<UUID, List<double[]>> players = new HashMap<>();
+        if (view.animateRange() > 0) {
+            for (Player p : Bukkit.getOnlinePlayers()) {
+                Location l = p.getLocation();
+                players.computeIfAbsent(l.getWorld().getUID(), k -> new ArrayList<>()).add(new double[]{l.getX(), l.getY(), l.getZ()});
+            }
+        }
         for (java.util.Iterator<UUID> it = spinning.iterator(); it.hasNext(); ) {
             Entity e = Bukkit.getEntity(it.next());
             if (!(e instanceof ItemDisplay d) || !d.isValid()) {
                 it.remove();
                 continue;
             }
+            Location at = d.getLocation();
+            if (!DisplayView.anyoneWithin(at.getX(), at.getY(), at.getZ(), players.getOrDefault(at.getWorld().getUID(), List.of()),
+                    view.animateRange())) continue;
             String spec = d.getPersistentDataContainer().get(keySpin, PersistentDataType.STRING);
             if (spec == null) {
                 it.remove();
@@ -431,7 +464,31 @@ public final class FurnitureModule implements StsvModule, Listener {
     @EventHandler
     public void onEntityAdd(com.destroystokyo.paper.event.entity.EntityAddToWorldEvent e) {
         track(e.getEntity());
-        if (e.getEntity() instanceof ItemDisplay d) loaded(d);
+        if (e.getEntity() instanceof ItemDisplay d) {
+            loaded(d);
+            String of = d.getPersistentDataContainer().get(keyPartOf, PersistentDataType.STRING);
+            if (of != null) plugin.content().item(of).ifPresent(item -> applyPartView(d, item));
+        }
+    }
+
+    /**
+     * A piece's view distance and culling box (DisplayView), and its loaded parts' distance. Placed pieces get them when
+     * they load, so pieces placed before (all at the old single distance) follow the settings too.
+     */
+    private void applyView(ItemDisplay d, boolean withParts) {
+        Optional<Furniture> of = fromDisplay(d);
+        if (of.isEmpty() || of.get().item().furniture() == null) return;
+        CustomItem item = of.get().item();
+        FurnitureSpec spec = item.furniture();
+        DisplayView.apply(d, view.viewRange(DisplayView.kindOf(spec)), DisplayView.furnitureBox(spec), view.culling());
+        if (withParts) for (ItemDisplay part : parts(of.get())) applyPartView(part, item);
+    }
+
+    private void applyPartView(ItemDisplay part, CustomItem owner) {
+        PersistentDataContainer pdc = part.getPersistentDataContainer();
+        // parts placed before this key: marked when their piece is next checked, so they find their distance on load
+        if (!pdc.has(keyPartOf)) pdc.set(keyPartOf, PersistentDataType.STRING, owner.key().asString());
+        DisplayView.apply(part, view.viewRange(DisplayView.kindOf(owner.furniture())), DisplayView.NO_BOX, false);
     }
 
     @EventHandler
@@ -622,6 +679,7 @@ public final class FurnitureModule implements StsvModule, Listener {
      * and after the models or furniture.barrier-fill changed. Returns false to try again a little later.
      */
     private boolean refresh(ItemDisplay d) {
+        applyView(d, true); // a tick after loading: its parts are in the world by now
         if (plugin.pack() == null || plugin.pack().current() == null) return true; // modelsChanged() checks again
         Optional<Furniture> of = fromDisplay(d);
         if (of.isEmpty() || of.get().item().furniture() == null) return true;
@@ -739,6 +797,7 @@ public final class FurnitureModule implements StsvModule, Listener {
             if (xyz.length == 3) cells.add(new int[]{Integer.parseInt(xyz[0]), Integer.parseInt(xyz[1]), Integer.parseInt(xyz[2])});
         }
         reserved.add(d.getWorld().getUID(), d.getUniqueId(), cells);
+        applyView(d, false); // its parts a tick later (refresh), when the whole chunk is in
         refreshLater(d.getUniqueId(), 1);
     }
 

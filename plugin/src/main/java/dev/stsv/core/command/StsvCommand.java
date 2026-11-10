@@ -49,6 +49,7 @@ public final class StsvCommand implements TabExecutor {
         sub("stat", "추가", "add");
         sub("economy", "지급", "give", "회수", "take", "설정", "set", "기록", "history", "되돌리기", "revert", "통계", "stats");
         sub("reset", "경제", "economy", "기록", "records");
+        sub("report", "주변", "near");
         String[][] types = {{"모양조합", "shaped"}, {"무형조합", "shapeless"}, {"화로", "furnace"}, {"용광로", "blasting"},
                 {"훈연기", "smoking"}, {"모닥불", "campfire"}, {"석재절단기", "stonecutting"}};
         for (String[] t : types) RECIPE_TYPES.put(t[0], t[1]);
@@ -159,6 +160,7 @@ public final class StsvCommand implements TabExecutor {
                         "경제 기록 <플레이어> [개수] | 경제 되돌리기 <플레이어> <분> <dark_gray>- 거래 기록 / 최근 N분 거래 취소",
                         "경제 통계 <dark_gray>- 최근 24시간 생성·소멸, 총 통화량, 빈부격차",
                         "보고서 <dark_gray>- 서버 상태(TPS, 렉, 메모리, 청크, 엔티티)와 콘텐츠 보고서",
+                        "보고서 주변 [반경] <dark_gray>- 내 주변의 3D 모델(가구·작물·기계) 수와 그려지는 수 (프레임 드랍 확인)",
                         "초기화 " + String.join("|", resetWords()) + " <dark_gray>- 테스트용 초기화 (확인 필요)",
                         "리로드 | 리소스팩")) {
                     sender.sendMessage(Text.mm(" <white>/" + label + " " + line));
@@ -328,6 +330,10 @@ public final class StsvCommand implements TabExecutor {
 
     /** /관리자 보고서: how the server is running, then what each content plugin reports. */
     private void report(CommandSender sender, String[] args) {
+        if (args.length > 0 && (args[0].equals("주변") || args[0].equalsIgnoreCase("near"))) {
+            nearbyModels(sender, args);
+            return;
+        }
         double[] tps = Bukkit.getTPS();
         double mspt = Bukkit.getAverageTickTime();
         long[] ticks = Bukkit.getTickTimes();
@@ -358,6 +364,24 @@ public final class StsvCommand implements TabExecutor {
                 plugin.getLogger().log(java.util.logging.Level.WARNING, "보고서", e);
             }
         }
+    }
+
+    /** /관리자 보고서 주변 [반경]: this plugin's 3D models around the admin (DisplayCensus). */
+    private void nearbyModels(CommandSender sender, String[] args) {
+        int max = dev.stsv.core.furniture.DisplayCensus.MAX_RADIUS, def = dev.stsv.core.furniture.DisplayCensus.RADIUS;
+        int radius = def;
+        if (args.length > 1) {
+            try {
+                radius = Integer.parseInt(args[1]);
+            } catch (NumberFormatException e) {
+                radius = -1;
+            }
+        }
+        if (!(sender instanceof Player p) || radius < 1 || radius > max) {
+            sender.sendMessage(dev.stsv.core.util.Lang.msg("models.usage", "radius", def, "max", max));
+            return;
+        }
+        new dev.stsv.core.furniture.DisplayCensus(plugin).show(sender, p, radius);
     }
 
     private static String tpsText(double t) {
