@@ -14,7 +14,9 @@
 #   wheel          바퀴 모델, wheel-radius 바퀴 반지름 (굴러가는 빠르기)
 #   wheels         바퀴 위치. steer: true = 앞바퀴 (조향 각도가 보임)
 #   seats          좌석 위치 (앉는 면의 높이). 첫 번째가 운전석
-#   lights         경광등 (점프 키 = 사이렌 켜기·끄기): dark 꺼진 모델, flash 모델들 (번갈아 보임), at 위치
+#   horn           경적 (운전 중 스페이스, 누를 때마다 한 번): sound 바닐라 소리, pitch 음높이, volume (1 = 16블록쯤까지 들림),
+#                  times 몇 번 울릴지 (2 = 빵빵), gap 그 사이 틱
+#   lights         경광등 (운전 중 Ctrl = 사이렌 켜기·끄기): dark 꺼진 모델, flash 모델들 (번갈아 보임), at 위치
 #   cargo          짐칸 (보관함): pages 쪽 수 (한 쪽 45칸), stages 짐 모델 (차는 정도: 1~25% / ~50% / ~75% / 그 이상),
 #                  at 짐 모델 위치, behind = 이 앞 위치보다 뒤를 웅크리고 우클릭하면 짐칸이 열림
 
@@ -23,7 +25,7 @@ police_car:
   name: "<#6f93e8>경찰차"
   lore:
     - "<gray>흰 바탕에 파란 띠를 두른 순찰차. 4인승."
-    - "<gray>최고 속도 9블록/초 · 점프 키: 사이렌·경광등 켜기/끄기"
+    - "<gray>최고 속도 9블록/초 · 스페이스: 경적 · Ctrl: 사이렌"
     - "<dark_gray>땅에 우클릭: 세우기 · 우클릭: 타기"
     - "<dark_gray>W·S 앞뒤, A·D 방향, 웅크리기: 내리기"
     - "<dark_gray>웅크리고 우클릭: 아이템으로 회수 (주인)"
@@ -54,6 +56,7 @@ police_car:
       - { at: [0.45, 0.28, 0.15] }
       - { at: [-0.45, 0.28, -0.7] }
       - { at: [0.45, 0.28, -0.7] }
+    horn: { sound: block.note_block.didgeridoo, pitch: 1.4, volume: 1.5, times: 1 }
     lights:
       dark: police_lightbar_off
       flash: [police_lightbar_a, police_lightbar_b]
@@ -65,7 +68,7 @@ light_truck:
   lore:
     - "<gray>앞이 납작한 소형 화물차. 운전석 2인 + 짐칸 2인."
     - "<gray>짐칸 보관함 90칸 (큰 상자보다 큼) · 최고 속도 7블록/초"
-    - "<dark_gray>땅에 우클릭: 세우기 · 우클릭: 타기 · 점프 키: 경적"
+    - "<dark_gray>땅에 우클릭: 세우기 · 우클릭: 타기 · 스페이스: 경적"
     - "<dark_gray>웅크리고 짐칸 우클릭: 짐칸 열기"
     - "<dark_gray>웅크리고 운전석 쪽 우클릭: 아이템으로 회수 (짐칸이 비어 있어야 함)"
   model: light_truck
@@ -95,7 +98,7 @@ light_truck:
       - { at: [0.42, 0.65, 1.3] }
       - { at: [-0.45, 0.82, -0.35] }
       - { at: [0.45, 0.82, -0.35] }
-    horn: { sound: block.note_block.didgeridoo, pitch: 1.3 }
+    horn: { sound: block.note_block.didgeridoo, pitch: 0.9, volume: 1.5, times: 2, gap: 4 }
     cargo:
       pages: 2
       behind: 0.7
@@ -107,7 +110,7 @@ golf_cart:
   name: "<#e9dfb8>골프 카트"
   lore:
     - "<gray>지붕 달린 2인승 카트. 뒤에 골프백 거치대."
-    - "<gray>최고 속도 5블록/초 · 점프 키: 경적"
+    - "<gray>최고 속도 5블록/초 · 스페이스: 경적"
     - "<dark_gray>땅에 우클릭: 세우기 · 우클릭: 타기"
     - "<dark_gray>웅크리고 우클릭: 아이템으로 회수 (주인)"
   model: golf_cart
@@ -135,4 +138,4 @@ golf_cart:
     seats:
       - { at: [-0.28, 0.625, -0.3] }
       - { at: [0.28, 0.625, -0.3] }
-    horn: { sound: block.note_block.bit, pitch: 1.6 }
+    horn: { sound: block.note_block.bit, pitch: 1.8, volume: 1.5, times: 1 }

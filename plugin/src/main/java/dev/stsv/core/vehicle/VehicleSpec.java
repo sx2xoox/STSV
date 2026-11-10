@@ -25,8 +25,8 @@ import java.util.function.Predicate;
  * @param length       collision size [length, width, height] (blocks)
  * @param clickHeight  how high its click boxes reach (below a seated rider's eyes, so they do not block the view)
  * @param seats        the first is the driver's
- * @param lights       the roof light bar (jump key = siren), or null
- * @param horn         the horn (jump key), or null (a vehicle with lights has no horn)
+ * @param lights       the roof light bar (Ctrl = siren on / off), or null
+ * @param horn         the horn (space), or null
  * @param cargo        a storage bed (the truck), or null
  */
 public record VehicleSpec(
@@ -47,7 +47,11 @@ public record VehicleSpec(
     /** dark: the light bar switched off; flash: the looks shown in turn while the siren is on. */
     public record Lights(NamespacedKey dark, List<NamespacedKey> flash, Vec at) {}
 
-    public record Horn(String sound, float pitch) {}
+    /**
+     * The horn (space): a vanilla sound key played `times` times (빵 / 빵빵), `gap` ticks apart, at this pitch; volume 1 =
+     * heard about 16 blocks away (1.5 = 24).
+     */
+    public record Horn(String sound, float pitch, float volume, int times, int gap) {}
 
     /**
      * A storage bed: pages of 45 slots (a chest page, its bottom row the page buttons).
@@ -101,7 +105,10 @@ public record VehicleSpec(
         if (v.isConfigurationSection("horn")) {
             String sound = v.getString("horn.sound");
             if (sound == null || sound.isBlank()) throw new IllegalArgumentException("vehicle.horn.sound 가 없음");
-            horn = new Horn(sound.trim(), (float) v.getDouble("horn.pitch", 1.0));
+            int times = v.getInt("horn.times", 1);
+            if (times < 1 || times > 4) throw new IllegalArgumentException("vehicle.horn.times 는 1 ~ 4");
+            horn = new Horn(sound.trim(), (float) v.getDouble("horn.pitch", 1.0), (float) v.getDouble("horn.volume", 1.5), times,
+                    Math.clamp(v.getInt("horn.gap", 4), 1, 20));
         }
         Cargo cargo = null;
         if (v.isConfigurationSection("cargo")) {

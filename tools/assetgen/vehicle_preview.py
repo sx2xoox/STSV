@@ -215,5 +215,21 @@ def main(out):
     print(f"sheet   {out.relative_to(REPO) if out.is_relative_to(REPO) else out}")
 
 
+def close_up(vid, out, cargo=0, lights="a"):
+    """One vehicle large from four sides (for working on a model): python3 vehicle_preview.py --one <id> <out.png>"""
+    t, e, spec = vehicle(vid, (0, 0, 0), cargo=cargo, lights=lights)
+    L, W, H = spec["size"]
+    r = max(L, 1.5 * H) * 8
+    views = [{"x": 0, "y": 0, "w": 800, "h": 500, "az": -35, "el": 18, "k": 3.6, "radius": r, "fov": 26, "center": [0, H * 7, 0]},
+             {"x": 800, "y": 0, "w": 800, "h": 500, "az": 145, "el": 22, "k": 3.6, "radius": r, "fov": 26, "center": [0, H * 7, 0]},
+             {"x": 0, "y": 500, "w": 800, "h": 500, "az": 30, "el": 8, "k": 3.6, "radius": r, "fov": 26, "center": [0, H * 7, 0]},
+             {"x": 800, "y": 500, "w": 800, "h": 500, "az": -100, "el": 40, "k": 3.6, "radius": r, "fov": 26, "center": [0, H * 7, 0]}]
+    render({"textures": t, "elements": e, "grid": False, "views": views}, "one_" + vid).save(out)
+    print(f"close-up {out}")
+
+
 if __name__ == "__main__":
-    main(Path(sys.argv[1]) if len(sys.argv) > 1 else PREVIEWS / "vehicles.png")
+    if len(sys.argv) > 1 and sys.argv[1] == "--one":
+        close_up(sys.argv[2], Path(sys.argv[3]), cargo=int(sys.argv[4]) if len(sys.argv) > 4 else 0)
+    else:
+        main(Path(sys.argv[1]) if len(sys.argv) > 1 else PREVIEWS / "vehicles.png")

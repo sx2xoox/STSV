@@ -112,7 +112,7 @@ public final class VehicleModule implements StsvModule, Listener {
     /** vehicles with a database step on the way (placing, picking up): nothing else may touch them meanwhile */
     private final Set<Long> busy = new HashSet<>();
     private final Map<UUID, Long> lastClick = new HashMap<>();
-    private final Map<UUID, Boolean> jumping = new HashMap<>();
+    private final Map<UUID, DriveInput> inputs = new HashMap<>();
     private final Set<String> warned = new HashSet<>();
     /** seats this module empties itself (their dismount is handled where it happens, not in onDismount) */
     private final Set<UUID> ejecting = new HashSet<>();
@@ -384,9 +384,8 @@ public final class VehicleModule implements StsvModule, Listener {
         if (live.containsKey(r.id()) || busy.contains(r.id())) return live.get(r.id());
         World w = Bukkit.getWorld(r.pos().world());
         if (w == null) return null;
-        int cx = (int) Math.floor(r.pos().x()) >> 4, cz = (int) Math.floor(r.pos().z()) >> 4;
-        if (!w.isChunkLoaded(cx, cz) || !w.getChunkAt(cx, cz).isEntitiesLoaded()) return null;
         Optional<CustomItem> item = plugin.content().item(r.item()).filter(CustomItem::isVehicle);
+        if (item.isPresent() && !areaLoaded(w, r.pos().x(), r.pos().z(), item.get().vehicle(), true)) return null;
         if (item.isEmpty()) {
             if (warned.add(r.item())) plugin.getLogger().warning("[탈것] 알 수 없는 탈것 아이템 " + r.item() + " (#" + r.id() + "): 보이지 않음");
             return null;
@@ -404,6 +403,35 @@ public final class VehicleModule implements StsvModule, Listener {
 
     private void spawnLoaded() {
         for (VehicleStore.Row r : List.copyOf(parked.values())) spawnIfLoaded(r);
+    }
+
+    /** How far from its centre a vehicle's entities reach (click boxes, seats), blocks. */
+    private static double reach(VehicleSpec s) {
+        return Math.hypot(s.length(), s.width()) / 2 + 1;
+    }
+
+    /**
+     * Are the chunks under the whole vehicle loaded (and their entities, when spawning)? A vehicle is shown only then, so
+     * none of its entities ever stands in an unloaded chunk (spawning one there would load it).
+     */
+    private static boolean areaLoaded(World w, double x, double z, VehicleSpec s, boolean entities) {
+        double r = reach(s);
+        for (int cx = (int) Math.floor(x - r) >> 4; cx <= (int) Math.floor(x + r) >> 4; cx++) {
+            for (int cz = (int) Math.floor(z - r) >> 4; cz <= (int) Math.floor(z + r) >> 4; cz++) {
+                if (!w.isChunkLoaded(cx, cz)) return false;
+                if (entities && !w.getChunkAt(cx, cz).isEntitiesLoaded()) return false;
+            }
+        }
+        return true;
+    }
+
+    /** Does the vehicle's area reach into this chunk? */
+    private static boolean touches(LiveVehicle v, Chunk c) {
+        if (!v.world.equals(c.getWorld())) return false;
+        double r = reach(v.spec);
+        int x0 = (int) Math.floor(v.st.x - r) >> 4, x1 = (int) Math.floor(v.st.x + r) >> 4;
+        int z0 = (int) Math.floor(v.st.z - r) >> 4, z1 = (int) Math.floor(v.st.z + r) >> 4;
+        return c.getX() >= x0 && c.getX() <= x1 && c.getZ() >= z0 && c.getZ() <= z1;
     }
 
     private Location at(LiveVehicle v) {
@@ -513,13 +541,14 @@ public final class VehicleModule implements StsvModule, Listener {
     }
 
     @EventHandler
+    public void onEntitiesLoad(org.bukkit.event.world.EntitiesLoadEvent e) {
+        spawnSoon = true;
+    }
+
+    /** A chunk under a vehicle goes: the vehicle is saved and hidden first (its entities are never saved with chunks). */
+    @EventHandler
     public void onChunkUnload(ChunkUnloadEvent e) {
-        Chunk c = e.getChunk();
-        for (LiveVehicle v : List.copyOf(live.values())) {
-            if (v.world.equals(c.getWorld()) && ((int) Math.floor(v.st.x) >> 4) == c.getX() && ((int) Math.floor(v.st.z) >> 4) == c.getZ()) {
-                despawn(v, true);
-            }
-        }
+        for (LiveVehicle v : List.copyOf(live.values())) if (touches(v, e.getChunk())) despawn(v, true);
     }
 
     // ------------------------------------------------------------------------------------------
@@ -542,7 +571,7 @@ public final class VehicleModule implements StsvModule, Listener {
     }
 
     private void tick(LiveVehicle v) {
-        if (!v.world.isChunkLoaded((int) Math.floor(v.st.x) >> 4, (int) Math.floor(v.st.z) >> 4)) {
+        if (!areaLoaded(v.world, v.st.x, v.st.z, v.spec, false)) {
             despawn(v, true);
             return;
         }
@@ -699,7 +728,7 @@ public final class VehicleModule implements StsvModule, Listener {
         }
         v.seats[seat] = s;
         if (seat == 0) {
-            HudModule.flash(p, Lang.mm("vehicle.driving", "jump", Lang.raw(v.spec.lights() != null ? "vehicle.jump-siren" : "vehicle.jump-horn")));
+            HudModule.flash(p, Lang.mm("vehicle.driving", "keys", Lang.raw(v.spec.lights() != null ? "vehicle.keys-siren" : "vehicle.keys-horn")));
         } else if (!mayDrive && !taken[0]) {
             HudModule.flash(p, Lang.mm("vehicle.passenger", "owner", v.ownerName));
         }
@@ -783,25 +812,36 @@ public final class VehicleModule implements StsvModule, Listener {
         if (isVehiclePart(e.getMount()) && !(e.getEntity() instanceof Player)) e.setCancelled(true);
     }
 
+    /** Space = horn, Ctrl = siren (patrol car), once per press (DriveInput.presses). */
     @EventHandler
     public void onInput(PlayerInputEvent e) {
         Player p = e.getPlayer();
-        boolean now = e.getInput().isJump();
-        Boolean before = jumping.put(p.getUniqueId(), now);
-        if (!DriveInput.pressed(before != null && before, now)) return;
+        DriveInput now = DriveInput.of(e.getInput());
+        DriveInput before = inputs.put(p.getUniqueId(), now);
         Long id = partOf(p.getVehicle());
         LiveVehicle v = id == null ? null : live.get(id);
         if (v == null || v.seatOf(p) != 0) return;
-        if (v.spec.lights() != null) {
-            v.siren = !v.siren;
-            HudModule.flash(p, Lang.mm(v.siren ? "vehicle.siren-on" : "vehicle.siren-off"));
-        } else if (v.spec.horn() != null && ticks - v.lastHorn >= settings.hornCooldown()) {
-            v.lastHorn = ticks;
-            VehicleSpec.Horn h = v.spec.horn();
-            v.world.playSound(at(v), h.sound(), SoundCategory.NEUTRAL, 1.4f, h.pitch());
+        for (DriveInput.Press press : DriveInput.presses(before, now, v.spec.lights() != null)) {
+            switch (press) {
+                case SIREN -> {
+                    v.siren = !v.siren;
+                    HudModule.flash(p, Lang.mm(v.siren ? "vehicle.siren-on" : "vehicle.siren-off"));
+                }
+                case HORN -> honk(v);
+            }
+        }
+    }
+
+    /** The horn: its sound once or a few times (빵빵), then a short rest before it sounds again. */
+    private void honk(LiveVehicle v) {
+        VehicleSpec.Horn h = v.spec.horn();
+        if (h == null || ticks - v.lastHorn < settings.hornCooldown()) return;
+        v.lastHorn = ticks;
+        v.world.playSound(at(v), h.sound(), SoundCategory.NEUTRAL, h.volume(), h.pitch());
+        for (int i = 1; i < h.times(); i++) {
             Bukkit.getScheduler().runTaskLater(plugin, () -> {
-                if (live.containsKey(v.id)) v.world.playSound(at(v), h.sound(), SoundCategory.NEUTRAL, 1.4f, h.pitch());
-            }, 4L);
+                if (live.get(v.id) == v) v.world.playSound(at(v), h.sound(), SoundCategory.NEUTRAL, h.volume(), h.pitch());
+            }, (long) i * h.gap());
         }
     }
 
@@ -809,7 +849,7 @@ public final class VehicleModule implements StsvModule, Listener {
     public void onQuit(PlayerQuitEvent e) {
         Player p = e.getPlayer();
         lastClick.remove(p.getUniqueId());
-        jumping.remove(p.getUniqueId());
+        inputs.remove(p.getUniqueId());
         Long id = partOf(p.getVehicle());
         LiveVehicle v = id == null ? null : live.get(id);
         if (v != null) {

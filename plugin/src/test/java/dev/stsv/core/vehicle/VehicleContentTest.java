@@ -62,9 +62,15 @@ class VehicleContentTest {
         assertEquals(2, cart.seats().size());
         assertNotNull(police.lights(), "light bar + siren");
         assertEquals(2, police.lights().flash().size());
-        assertNull(police.horn());
-        assertNotNull(truck.horn());
-        assertNotNull(cart.horn());
+        // every vehicle honks (space), each its own way: the cart high and short, the truck low and twice, the car between
+        for (VehicleSpec s : v.values()) {
+            assertNotNull(s.horn());
+            assertTrue(s.horn().volume() >= 1.4, "heard about 24 blocks away");
+        }
+        assertEquals(1, cart.horn().times());
+        assertEquals(2, truck.horn().times(), "빵빵");
+        assertEquals(1, police.horn().times());
+        assertTrue(cart.horn().pitch() > police.horn().pitch() && police.horn().pitch() > truck.horn().pitch(), "high, mid, low");
         assertNotNull(truck.cargo());
         assertTrue(truck.cargo().slots() > 54, "bigger than a large chest");
         assertEquals(4, truck.cargo().stages().size());

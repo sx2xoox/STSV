@@ -26,6 +26,24 @@ class VehicleRulesTest {
     }
 
     @Test
+    void spaceHonksCtrlTogglesTheSirenOncePerPress() {
+        DriveInput none = DriveInput.NONE;
+        DriveInput space = new DriveInput(false, false, false, false, true, false, false);
+        DriveInput ctrl = new DriveInput(false, false, false, false, false, false, true);
+        DriveInput both = new DriveInput(true, false, false, false, true, false, true);
+        assertEquals(List.of(DriveInput.Press.HORN), DriveInput.presses(none, space, true), "space: horn, on every vehicle");
+        assertEquals(List.of(DriveInput.Press.HORN), DriveInput.presses(none, space, false));
+        assertEquals(List.of(), DriveInput.presses(space, space, true), "held space: no more honking");
+        assertEquals(List.of(), DriveInput.presses(space, none, true), "letting go does nothing");
+        assertEquals(List.of(DriveInput.Press.SIREN), DriveInput.presses(none, ctrl, true), "Ctrl: siren on the patrol car");
+        assertEquals(List.of(), DriveInput.presses(none, ctrl, false), "Ctrl on a vehicle without a light bar: nothing");
+        assertEquals(List.of(), DriveInput.presses(ctrl, ctrl, true), "held Ctrl: no toggling back and forth");
+        assertEquals(List.of(DriveInput.Press.HORN, DriveInput.Press.SIREN), DriveInput.presses(none, both, true), "both at once");
+        assertEquals(List.of(DriveInput.Press.HORN), DriveInput.presses(null, space, true), "the first input seen counts as a press");
+        assertTrue(both.forward(), "driving keys are read alongside");
+    }
+
+    @Test
     void theDriverSeatGoesToWhoMayDriveOthersRideAlong() {
         assertEquals(0, VehicleSeats.pick(new boolean[4], true), "the owner takes the wheel");
         assertEquals(1, VehicleSeats.pick(new boolean[4], false), "a stranger never gets the driver's seat");

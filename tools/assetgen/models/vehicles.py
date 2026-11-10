@@ -253,12 +253,12 @@ def police_car():
 
     def side_window(c):
         x, y, z = c.p
-        if c.nu <= 1 or c.nv <= 1:
-            return raw("car_white", 2)
         front = -15 + (y - 15)          # the windscreen's edge at this height
         back = 39 - y                   # the rear window's
-        if z < front - 0.01 or z > back + 0.01:
-            return ("raw", CLEAR)
+        if z < front - 0.3 or z > back + 0.3:
+            return ("raw", CLEAR)       # outside the window's shape, its thin edges included
+        if c.nu <= 1 or c.nv <= 1:
+            return raw("car_white", 2)
         if z < front + 1.5 or z > back - 2 or y > 24.2:
             return raw("car_white", 2)  # A and C pillars, the roof rail
         if 0.5 <= z < 2.5:
@@ -364,11 +364,11 @@ def light_truck():
 
     def window(c):
         x, y, z = c.p
+        front = F + 0.5 + (y - WIN) * math.tan(math.radians(22.5))
+        if z < front - 0.3:
+            return ("raw", CLEAR)
         if c.nu <= 1 or c.nv <= 1:
             return raw("truck_blue", 2)
-        front = F + 0.5 + (y - WIN) * math.tan(math.radians(22.5))
-        if z < front - 0.01:
-            return ("raw", CLEAR)
         if z < front + 1 or y > ROOF - 1 or z > CB - 5:
             return raw("truck_blue", 2)       # pillars, rail, the cab's back corner
         if (math.floor(z) + math.floor(y)) % 17 == 0 and y < ROOF - 3:
