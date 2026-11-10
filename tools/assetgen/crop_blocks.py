@@ -84,7 +84,7 @@ def allocate(existing, crop_list):
 
 def write(path, states):
     lines = ["# 커스텀 작물 블록: 작물 단계마다 보여 줄 트립와이어(실) 블록 상태. 자동 생성 (tools/assetgen/crop_blocks.py).",
-             "# 덧붙이기만 합니다: 이미 있는 줄은 고치거나 옮기거나 지우지 마세요 (심어 둔 작물의 모습이 바뀜).",
+             "# 뒤에 붙이기만 합니다: 이미 있는 줄은 고치거나 옮기거나 지우지 마세요 (심어 둔 작물의 모습이 바뀜).",
              "# 새 작물·단계는 맨 아래에 붙습니다. 값 = 상태 번호: attached 64, disarmed 32, east 16, north 8, powered 4, south 2, west 1",
              "# (attached = 얇은 선택 테두리, 이른 단계에 씀). 0 과 64 는 진짜 실 모양으로 남겨 둠.",
              "states:"]

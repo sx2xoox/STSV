@@ -696,7 +696,7 @@ public final class CropModule implements StsvModule, Listener {
         if (render != Render.BLOCKS || e.getAction() == Action.PHYSICAL) return;
         Player p = e.getPlayer();
         if (p.getGameMode() == GameMode.SPECTATOR) return;
-        CropState s = aimed(p, e.getClickedBlock(), e.getInteractionPoint());
+        CropState s = aimed(p, e.getClickedBlock(), e.getBlockFace(), e.getInteractionPoint());
         if (s == null) return;
         e.setCancelled(true);
         boolean left = e.getAction() == Action.LEFT_CLICK_BLOCK || e.getAction() == Action.LEFT_CLICK_AIR;
@@ -732,10 +732,12 @@ public final class CropModule implements StsvModule, Listener {
     }
 
     /** The crop a player's click aims at (crops as blocks), or null. */
-    private CropState aimed(Player p, Block clicked, Location point) {
+    private CropState aimed(Player p, Block clicked, BlockFace face, Location point) {
         if (clicked != null) {
             CropState s = at(clicked.getWorld(), clicked.getX(), clicked.getY(), clicked.getZ());
             if (s != null) return s;
+            // the top of the soil under a crop is the crop (its thin outline leaves most of the plant to the soil)
+            if (face == BlockFace.UP && (s = at(clicked.getWorld(), clicked.getX(), clicked.getY() + 1, clicked.getZ())) != null) return s;
         }
         Location eye = p.getEyeLocation();
         org.bukkit.util.Vector d = eye.getDirection();
