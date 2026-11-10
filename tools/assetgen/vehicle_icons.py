@@ -42,7 +42,7 @@ def police_car():
             "....wgGggwgGw...",
             "...wgGgggwggGw..",
             ".wWWWWWWWWWWWWw.",
-            ".yVnVnnVVVVVVVr.",
+            ".yVVVVVVVVVVVVr.",
             "sVbbbbbbbbbbbbVs",
             ".VVkkVVVVVVVkkVV",
             ".NkhHkNNNNNkhHkN",
@@ -51,7 +51,7 @@ def police_car():
             "................",
             "................"]
     colours = {"w": ("car_white", 5), "W": ("car_white", 4), "V": ("car_white", 3), "g": ("tint", 2),
-               "G": ("glass", 4), "m": ("blade", 4), "n": ("police_blue", 2), "b": ("police_blue", 3),
+               "G": ("glass", 4), "m": ("blade", 4), "b": ("police_blue", 3),
                "N": ("police_blue", 1), "s": ("blade", 3),
                "r": ("signal_red", 2), "R": ("signal_red", 4), "u": ("signal_blue", 2), "U": ("signal_blue", 4),
                "y": ("lamp", 5), **TIRES}

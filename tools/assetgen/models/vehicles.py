@@ -70,37 +70,9 @@ def lamp(on=True):
 
 # --- small pixel lettering --------------------------------------------------------------------------
 
-# 경찰: generic "police" lettering, two syllables of 7 x 9 px and a 1 px gap (15 x 9 px)
-KYEONG = ["###..#.",
-          "..#.##.",
-          "..#..#.",
-          ".#..##.",
-          "#....#.",
-          ".......",
-          "..###..",
-          ".#...#.",
-          "..###.."]
-CHAL = [".#...#.",
-        "###..#.",
-        "#.#..##",
-        ".....#.",
-        "#####..",
-        "....#..",
-        "#####..",
-        "#......",
-        "#####.."]
-
 # 3 x 5 digits (roof number, cart number)
 DIGITS = {"1": [".#.", "##.", ".#.", ".#.", "###"], "2": ["##.", "..#", ".#.", "#..", "###"],
           "7": ["###", "..#", ".#.", ".#.", ".#."], "3": ["##.", "..#", ".#.", "..#", "##."]}
-
-
-def text_pixel(col, row):
-    """'경찰' at column col, row row (0 = top), 15 x 9 px."""
-    if not (0 <= row < 9 and 0 <= col < 15) or col == 7:
-        return False
-    g, x = (KYEONG, col) if col < 7 else (CHAL, col - 8)
-    return g[row][x] == "#"
 
 
 def digits_pixel(text, col, row):
@@ -318,7 +290,7 @@ def police_car():
                 return ("car_white", 2)
             return None
         if c.face in ("east", "west"):
-            # navy rocker, a light-blue accent line, the blue stripe, door seams and handles, 경찰 on the front doors,
+            # navy rocker, a light-blue accent line, the blue stripe (unbroken along the car), door seams and handles,
             # the arch trim round the wells, marker lamps at the corners, the fuel door
             az = abs(z)
             if (fz in (-30, -17, 16, 29) and fy < 12 and 15.5 < az < 30.5) or (fy == 12 and 16 <= az < 30):
@@ -335,17 +307,8 @@ def police_car():
                 if fz == 31 and fy == 12:
                     return ("car_white", 2)
                 return ("car_white", 0.4)               # fuel door
-            if DOOR[0] < fz < DOOR[1]:
-                # the front door: 경찰 in navy on white, no stripe
-                row = 14 - fy
-                col = (-fz) if c.face == "east" else (fz + 14)
-                if text_pixel(col, row):
-                    return ("police_blue", 0)
-                if fy == 12 and 1 <= fz <= 2:
-                    return ("tint", 0)                  # the handle's recess
-                return white(y)
-            if fy == 12 and 14 <= fz <= 15:
-                return ("tint", 0)
+            if fy == 12 and (1 <= fz <= 2 or 14 <= fz <= 15):
+                return ("tint", 0)                      # the handles' recesses
             if fy == 6:
                 return ("signal_blue", 2)
             if 8 <= fy <= 10:
