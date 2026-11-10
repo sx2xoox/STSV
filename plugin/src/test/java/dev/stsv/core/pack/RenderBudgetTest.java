@@ -50,6 +50,12 @@ class RenderBudgetTest {
         assertEquals(RenderBudget.Category.FURNITURE_LARGE, kinds.get("stsv:wagasa"));
         assertEquals(RenderBudget.Category.PET, kinds.get("stsv:cat"));
         assertEquals(RenderBudget.Category.COSMETIC, kinds.get("stsv:gat"));
+        // vehicles: bodies, the wheels they turn, the light bar's looks and the truck's load stages
+        for (String body : List.of("stsv:police_car", "stsv:light_truck", "stsv:golf_cart")) assertEquals(RenderBudget.Category.VEHICLE, kinds.get(body));
+        assertEquals(RenderBudget.Category.VEHICLE_WHEEL, kinds.get("stsv:wheel_road"));
+        assertEquals(RenderBudget.Category.VEHICLE_WHEEL, kinds.get("stsv:wheel_cart"));
+        for (String m : List.of("stsv:police_lightbar_off", "stsv:police_lightbar_a", "stsv:police_lightbar_b", "stsv:truck_cargo_1",
+                "stsv:truck_cargo_4")) assertEquals(RenderBudget.Category.VEHICLE_PART, kinds.get(m));
         if (packs.containsKey("economy")) {
             assertEquals(RenderBudget.Category.MACHINE_3, kinds.get("economy:kitchen_3"));
             assertEquals(RenderBudget.Category.MACHINE_0, kinds.get("economy:mill_0"));

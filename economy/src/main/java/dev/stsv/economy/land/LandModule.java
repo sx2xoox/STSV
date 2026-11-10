@@ -95,6 +95,11 @@ public final class LandModule extends EcoModule implements DailyListener {
         store = new LandStore(core.db());
         store.init(now());
         rules = LandRules.parse(eco.data("land.yml"));
+        // 탈것: the people of the owner's land (where the owner lives) may drive it and open its bed
+        if (core.vehicles() != null) core.vehicles().trust((owner, player) -> {
+            Land home = store.index().home(owner);
+            return home != null && home.allows(player);
+        });
         eco.calendar().onDaily(this);
         eco.onReset(store::reset);
         // once: the chunks every owner has now count as claimed by them (the land achievements count only those)
@@ -102,6 +107,11 @@ public final class LandModule extends EcoModule implements DailyListener {
             for (Land l : store.index().all()) if (l.owner != null) eco.kv().set(CLAIMED + l.owner, l.size());
             eco.kv().set("land.claims-counted", 1);
         }
+    }
+
+    @Override
+    protected void stop() {
+        if (core.vehicles() != null) core.vehicles().trust(null);
     }
 
     private static final String CLAIMED = "land.claimed.";
@@ -769,9 +779,13 @@ public final class LandModule extends EcoModule implements DailyListener {
         return n.endsWith("_DOOR") || n.endsWith("_TRAPDOOR") || n.endsWith("_FENCE_GATE") || n.endsWith("_BUTTON") || m == Material.LEVER || m == Material.BELL;
     }
 
-    /** Right-clicking these is fine anywhere (players, villagers: trading is the villager rule's business, hostile mobs). */
+    /**
+     * Right-clicking these is fine anywhere (players, villagers: trading is the villager rule's business, hostile mobs,
+     * vehicles: anyone may drive through any land, and the core's vehicle rules say who may drive, open or pick up one).
+     */
     private static boolean freeToTouch(Entity en) {
-        return en instanceof Player || en instanceof Villager || en instanceof WanderingTrader || en instanceof Enemy;
+        return en instanceof Player || en instanceof Villager || en instanceof WanderingTrader || en instanceof Enemy
+                || dev.stsv.core.vehicle.VehicleModule.isVehiclePart(en);
     }
 
     /**

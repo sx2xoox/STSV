@@ -41,6 +41,13 @@ public final class MailModule extends EcoModule {
     protected void start() {
         store = new MailStore(core.db());
         store.init();
+        // a vehicle an admin sends back to its owner (/관리자 탈것 회수): into the inventory, else the mailbox
+        if (core.vehicles() != null) core.vehicles().mailbox((owner, item) -> deliver(owner, item, "vehicle_return"));
+    }
+
+    @Override
+    protected void stop() {
+        if (core.vehicles() != null) core.vehicles().mailbox(null);
     }
 
     public MailStore store() {

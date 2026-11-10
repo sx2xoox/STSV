@@ -302,9 +302,18 @@ public final class ContentModule implements StsvModule, org.bukkit.event.Listene
             if (!voucher.contains(":")) voucher = pack.namespace() + ":" + voucher;
         }
 
+        // vehicle: { speed: 9, size: [4.6, 1.9, 1.65], wheels: [...], seats: [...] }   (content/stsv/items/vehicles.yml)
+        dev.stsv.core.vehicle.VehicleSpec vehicle = null;
+        if (sec.isConfigurationSection("vehicle")) {
+            if (furniture != null) throw new IllegalArgumentException("vehicle 과 furniture 는 같이 쓸 수 없음");
+            if (model == null || model.kind() != ModelRef.Kind.BBMODEL) throw new IllegalArgumentException("vehicle 은 model: (몸체 .bbmodel) 이 필요함");
+            vehicle = dev.stsv.core.vehicle.VehicleSpec.parse(sec.getConfigurationSection("vehicle"), pack.namespace(),
+                    m -> Files.exists(pack.models().resolve(m + ".bbmodel")));
+        }
+
         return new CustomItem(key, pack, material, sec.getString("name"), sec.getStringList("lore"), model,
                 maxStack, glint, sec.getBoolean("unbreakable", false), furniture, fuel, equipment, food, skin, cosmetic,
-                effects, voucher);
+                effects, voucher, vehicle);
     }
 
     /**

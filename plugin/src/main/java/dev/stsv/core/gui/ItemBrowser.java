@@ -28,13 +28,16 @@ import java.util.concurrent.ConcurrentHashMap;
 
 /**
  * Admin GUI listing every custom item ({@link ItemCatalog}): category tabs on the top row (전체 and one per
- * category that has items), 36 items a page, page arrows and a search on the bottom row. Click an item = 1,
+ * category that has items; more than nine go on in the free slots between the bottom row's buttons), 36 items a page,
+ * page arrows and a search on the bottom row. Click an item = 1,
  * shift-click = a full stack. Search: the compass (then type in chat, "취소" to stop), or /관리자 아이템목록 &lt;검색어&gt;.
  */
 public final class ItemBrowser implements Listener {
 
     private static final int TOP = 9, PAGE_SIZE = 36;
     private static final int PREV = 45, SEARCH = 47, INFO = 49, CLEAR = 51, NEXT = 53;
+    /** Where the tabs go, in order: the top row, then the bottom row's free slots. */
+    static final int[] TAB_SLOTS = {0, 1, 2, 3, 4, 5, 6, 7, 8, 46, 48, 50, 52};
     private static final long ASK_MS = 60_000;
 
     private final STSVPlugin plugin;
@@ -88,7 +91,7 @@ public final class ItemBrowser implements Listener {
         for (ItemCatalog.Category c : ItemCatalog.Category.values()) {
             if (!ItemCatalog.pick(all, this::facts, c, holder.query).isEmpty()) holder.tabs.add(c);
         }
-        for (int i = 0; i < Math.min(TOP, holder.tabs.size()); i++) {
+        for (int i = 0; i < Math.min(TAB_SLOTS.length, holder.tabs.size()); i++) {
             ItemCatalog.Category c = holder.tabs.get(i);
             int n = ItemCatalog.pick(all, this::facts, c, holder.query).size();
             boolean on = c == category;
@@ -99,7 +102,7 @@ public final class ItemBrowser implements Listener {
                 m.setEnchantmentGlintOverride(true);
                 tab.setItemMeta(m);
             }
-            inv.setItem(i, tab);
+            inv.setItem(TAB_SLOTS[i], tab);
         }
 
         for (int i = 0; i < PAGE_SIZE && page * PAGE_SIZE + i < items.size(); i++) {
@@ -130,8 +133,9 @@ public final class ItemBrowser implements Listener {
         e.setCancelled(true);
         if (!(e.getWhoClicked() instanceof Player player) || e.getClickedInventory() != e.getInventory()) return;
         int slot = e.getSlot();
-        if (slot < TOP) {
-            if (slot < holder.tabs.size()) open(player, holder.tabs.get(slot), holder.query, 0);
+        for (int i = 0; i < TAB_SLOTS.length; i++) {
+            if (TAB_SLOTS[i] != slot) continue;
+            if (i < holder.tabs.size()) open(player, holder.tabs.get(i), holder.query, 0);
             return;
         }
         switch (slot) {

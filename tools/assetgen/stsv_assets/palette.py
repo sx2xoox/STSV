@@ -141,6 +141,12 @@ MATERIALS = {
     "sakura":      (355, 0.075, 0.84, 0.22, 4, False),   # cherry blossom pink
     "celadon":     (165, 0.050, 0.68, 0.26, 4, False),   # pale green glaze: cups, pots, scroll mount
     "washi_lit":   (80, 0.075, 0.90, 0.14, 3, True),     # lamp paper lit from inside
+    # --- vehicles (models/vehicles.py) -----------------------------------------------------------
+    "car_white":   (250, 0.008, 0.86, 0.22, 4, False),   # car paint: patrol car, golf cart canopy trim
+    "police_blue": (258, 0.105, 0.42, 0.24, 4, False),   # patrol car stripes and lettering
+    "truck_blue":  (238, 0.070, 0.64, 0.26, 4, False),   # light-blue cab of the 1-ton truck
+    "tint":        (225, 0.028, 0.34, 0.20, 4, False),   # tinted glass frames, dark trim
+    "signal_blue": (258, 0.170, 0.55, 0.10, 2, True),    # the blue half of the light bar
     # --- TEST-ONLY materials: "dev texture" colours, never used by real content -----------------
     "test_orange": (55, 0.150, 0.70, 0.30, 4, True),
     "test_grey":   (250, 0.012, 0.62, 0.30, 4, False),

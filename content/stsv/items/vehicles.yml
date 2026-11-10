@@ -1,0 +1,138 @@
+# 탈것 (지금은 관리자만 지급: /관리자 아이템목록 의 '탈것' 탭, /관리자 지급). 상점·뽑기·레시피에는 없음.
+# 땅에 우클릭 = 내 방향으로 세우기 · 우클릭 = 타기 · 웅크리고 우클릭 = 아이템으로 회수 (주인·관리자)
+# 1톤 트럭은 웅크리고 짐칸을 우클릭하면 짐칸(보관함)이 열림. 짐칸에 물건이 있으면 회수할 수 없음.
+#
+# vehicle 설정 (블록 단위, 위치는 [오른쪽, 위, 앞] = 탈것 기준)
+#   body-scale     몸체 모델을 보여 줄 배율 (모델이 너무 커서 절반 크기로 그려 둔 것을 2배로)
+#   speed          최고 속도 (블록/초, 서버 설정 vehicles.max-speed 를 넘지 않음)
+#   reverse-speed  후진 최고 속도
+#   acceleration   가속 (블록/초²), brake = 브레이크, coast = 아무 키도 안 누를 때 줄어드는 정도
+#   turn-rate      방향을 트는 빠르기 (도/초). turn-speed (블록/초) 보다 느리면 그만큼 천천히 돌고, 서 있으면 돌지 않음
+#   step-height    그대로 올라갈 수 있는 턱 높이 (1 = 한 블록, 반 블록·계단은 부드럽게)
+#   size           [길이, 너비, 높이] 블록과 부딪히는 크기
+#   click-height   우클릭으로 잡히는 높이 (타고 있는 사람의 시야를 가리지 않게 지붕보다 낮게)
+#   wheel          바퀴 모델, wheel-radius 바퀴 반지름 (굴러가는 빠르기)
+#   wheels         바퀴 위치. steer: true = 앞바퀴 (조향 각도가 보임)
+#   seats          좌석 위치 (앉는 면의 높이). 첫 번째가 운전석
+#   lights         경광등 (점프 키 = 사이렌 켜기·끄기): dark 꺼진 모델, flash 모델들 (번갈아 보임), at 위치
+#   cargo          짐칸 (보관함): pages 쪽 수 (한 쪽 45칸), stages 짐 모델 (차는 정도: 1~25% / ~50% / ~75% / 그 이상),
+#                  at 짐 모델 위치, behind = 이 앞 위치보다 뒤를 웅크리고 우클릭하면 짐칸이 열림
+
+police_car:
+  material: paper
+  name: "<#6f93e8>경찰차"
+  lore:
+    - "<gray>흰 바탕에 파란 띠를 두른 순찰차. 4인승."
+    - "<gray>최고 속도 9블록/초 · 점프 키: 사이렌·경광등 켜기/끄기"
+    - "<dark_gray>땅에 우클릭: 세우기 · 우클릭: 타기"
+    - "<dark_gray>W·S 앞뒤, A·D 방향, 웅크리기: 내리기"
+    - "<dark_gray>웅크리고 우클릭: 아이템으로 회수 (주인)"
+  model: police_car
+  icon: police_car_icon
+  max-stack: 1
+  vehicle:
+    body-scale: 2
+    speed: 9
+    reverse-speed: 3.5
+    acceleration: 3.0
+    brake: 9
+    coast: 2
+    turn-rate: 72
+    turn-speed: 3
+    step-height: 1.0
+    size: [4.6, 1.9, 1.65]
+    click-height: 1.1
+    wheel: wheel_road
+    wheel-radius: 0.344
+    wheels:
+      - { at: [-0.8125, 0.344, 1.4375], steer: true }
+      - { at: [0.8125, 0.344, 1.4375], steer: true }
+      - { at: [-0.8125, 0.344, -1.4375] }
+      - { at: [0.8125, 0.344, -1.4375] }
+    seats:
+      - { at: [-0.45, 0.28, 0.15] }
+      - { at: [0.45, 0.28, 0.15] }
+      - { at: [-0.45, 0.28, -0.7] }
+      - { at: [0.45, 0.28, -0.7] }
+    lights:
+      dark: police_lightbar_off
+      flash: [police_lightbar_a, police_lightbar_b]
+      at: [0, 1.656, -0.281]
+
+light_truck:
+  material: paper
+  name: "<#8fb4e0>1톤 트럭"
+  lore:
+    - "<gray>앞이 납작한 소형 화물차. 운전석 2인 + 짐칸 2인."
+    - "<gray>짐칸 보관함 90칸 (큰 상자보다 큼) · 최고 속도 7블록/초"
+    - "<dark_gray>땅에 우클릭: 세우기 · 우클릭: 타기 · 점프 키: 경적"
+    - "<dark_gray>웅크리고 짐칸 우클릭: 짐칸 열기"
+    - "<dark_gray>웅크리고 운전석 쪽 우클릭: 아이템으로 회수 (짐칸이 비어 있어야 함)"
+  model: light_truck
+  icon: light_truck_icon
+  max-stack: 1
+  vehicle:
+    body-scale: 2
+    speed: 7
+    reverse-speed: 3
+    acceleration: 2.2
+    brake: 8
+    coast: 2
+    turn-rate: 58
+    turn-speed: 3
+    step-height: 1.0
+    size: [4.9, 1.8, 2.05]
+    click-height: 1.3
+    wheel: wheel_road
+    wheel-radius: 0.344
+    wheels:
+      - { at: [-0.75, 0.344, 1.6875], steer: true }
+      - { at: [0.75, 0.344, 1.6875], steer: true }
+      - { at: [-0.75, 0.344, -1.0625] }
+      - { at: [0.75, 0.344, -1.0625] }
+    seats:
+      - { at: [-0.42, 0.65, 1.3] }
+      - { at: [0.42, 0.65, 1.3] }
+      - { at: [-0.45, 0.82, -0.35] }
+      - { at: [0.45, 0.82, -0.35] }
+    horn: { sound: block.note_block.didgeridoo, pitch: 1.3 }
+    cargo:
+      pages: 2
+      behind: 0.7
+      at: [0, 0.8125, -0.8125]
+      stages: [truck_cargo_1, truck_cargo_2, truck_cargo_3, truck_cargo_4]
+
+golf_cart:
+  material: paper
+  name: "<#e9dfb8>골프 카트"
+  lore:
+    - "<gray>지붕 달린 2인승 카트. 뒤에 골프백 거치대."
+    - "<gray>최고 속도 5블록/초 · 점프 키: 경적"
+    - "<dark_gray>땅에 우클릭: 세우기 · 우클릭: 타기"
+    - "<dark_gray>웅크리고 우클릭: 아이템으로 회수 (주인)"
+  model: golf_cart
+  icon: golf_cart_icon
+  max-stack: 1
+  vehicle:
+    body-scale: 2
+    speed: 5
+    reverse-speed: 2.5
+    acceleration: 2.5
+    brake: 8
+    coast: 2.5
+    turn-rate: 85
+    turn-speed: 2
+    step-height: 1.0
+    size: [2.5, 1.3, 2.0]
+    click-height: 1.0
+    wheel: wheel_cart
+    wheel-radius: 0.219
+    wheels:
+      - { at: [-0.53, 0.219, 0.781], steer: true }
+      - { at: [0.53, 0.219, 0.781], steer: true }
+      - { at: [-0.53, 0.219, -0.781] }
+      - { at: [0.53, 0.219, -0.781] }
+    seats:
+      - { at: [-0.28, 0.625, -0.3] }
+      - { at: [0.28, 0.625, -0.3] }
+    horn: { sound: block.note_block.bit, pitch: 1.6 }

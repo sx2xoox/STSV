@@ -34,7 +34,8 @@ class ItemCatalogTest {
                         if (s == null) continue;
                         out.add(new ItemCatalog.Facts(ns + ":" + id, s.getString("name", ""), source,
                                 Material.matchMaterial(s.getString("material", "paper")), s.contains("furniture"), s.contains("cosmetic"),
-                                s.contains("voucher"), s.contains("skin") || s.contains("equipment"), s.contains("food")));
+                                s.contains("voucher"), s.contains("skin") || s.contains("equipment"), s.contains("food"),
+                                s.contains("vehicle")));
                     }
                 }
             }
@@ -58,12 +59,13 @@ class ItemCatalogTest {
         assertEquals(Category.GOODS, of(all, "economy:ruby"));
         assertEquals(Category.GOODS, of(all, "economy:soju"));
         assertEquals(Category.OTHER, of(all, "stsv:cheque"));
+        for (String v : List.of("stsv:police_car", "stsv:light_truck", "stsv:golf_cart")) assertEquals(Category.VEHICLE, of(all, v));
         Map<Category, Integer> count = new EnumMap<>(Category.class);
         for (ItemCatalog.Facts f : all) count.merge(ItemCatalog.of(f), 1, Integer::sum);
         for (Category c : List.of(Category.MACHINE, Category.COSMETIC, Category.CROP, Category.FISH, Category.FOOD, Category.GOODS)) {
             assertTrue(count.getOrDefault(c, 0) > 0, c + " is empty: " + count);
         }
-        assertTrue(Category.values().length + 1 <= 9, "전체 and every category fit the top row");
+        assertTrue(Category.values().length + 1 <= ItemBrowser.TAB_SLOTS.length, "전체 and every category have a tab slot");
     }
 
     @Test

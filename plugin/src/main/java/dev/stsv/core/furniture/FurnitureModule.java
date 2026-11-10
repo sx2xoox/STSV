@@ -268,22 +268,31 @@ public final class FurnitureModule implements StsvModule, Listener {
         return probing;
     }
 
+    /**
+     * May the player build in all these blocks? Asks protection plugins (WorldGuard, claims, the land and build-world
+     * rules...) with a regular place event per block, which is only a question ({@link #probing()}). Furniture and
+     * vehicles are placed only where this says yes.
+     */
+    public boolean mayBuild(Player player, java.util.Collection<Block> cells, Block against, EquipmentSlot hand) {
+        probing = true;
+        try {
+            for (Block b : cells) {
+                BlockPlaceEvent check = new BlockPlaceEvent(b, b.getState(), against, player.getInventory().getItem(hand),
+                        player, true, hand);
+                Bukkit.getPluginManager().callEvent(check);
+                if (check.isCancelled() || !check.canBuild()) return false;
+            }
+            return true;
+        } finally {
+            probing = false;
+        }
+    }
+
     public Optional<Furniture> place(Player player, CustomItem item, Block anchor, Block against, EquipmentSlot hand) {
         FurnitureSpec spec = item.furniture();
         Plan plan = plan(player, item, anchor);
         if (!plan.fits()) return Optional.empty();
-        probing = true;
-        try {
-            for (Block b : plan.cells()) {
-                // Ask protection plugins (WorldGuard, claims, season rules...) through a regular place event.
-                BlockPlaceEvent check = new BlockPlaceEvent(b, b.getState(), against, player.getInventory().getItem(hand),
-                        player, true, hand);
-                Bukkit.getPluginManager().callEvent(check);
-                if (check.isCancelled() || !check.canBuild()) return Optional.empty();
-            }
-        } finally {
-            probing = false;
-        }
+        if (!mayBuild(player, plan.cells(), against, hand)) return Optional.empty();
 
         World world = anchor.getWorld();
         Location loc = anchor.getLocation().add(0.5, 0.5, 0.5);

@@ -42,8 +42,22 @@ public record CustomItem(
         Skin skin,
         Cosmetic cosmetic,
         Effects effects,
-        String voucher
+        String voucher,
+        dev.stsv.core.vehicle.VehicleSpec vehicle
 ) {
+
+    /** Without a vehicle section (everything but vehicles). */
+    public CustomItem(NamespacedKey key, ContentPack pack, Material material, String name, List<String> lore, ModelRef model,
+                      Integer maxStack, Boolean glint, boolean unbreakable, FurnitureSpec furniture, Integer fuel, Equipment equipment,
+                      Food food, Skin skin, Cosmetic cosmetic, Effects effects, String voucher) {
+        this(key, pack, material, name, lore, model, maxStack, glint, unbreakable, furniture, fuel, equipment, food, skin, cosmetic,
+                effects, voucher, null);
+    }
+
+    /** A drivable vehicle (dev.stsv.core.vehicle): placed on the ground, ridden, picked up again. */
+    public boolean isVehicle() {
+        return vehicle != null;
+    }
 
     /**
      * Visual weapon effects.

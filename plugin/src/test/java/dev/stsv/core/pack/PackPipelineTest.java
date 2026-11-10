@@ -39,11 +39,14 @@ class PackPipelineTest {
     private static final Set<String> GLOWING = Set.of("test_machine", "test_greatsword", "test_slash",
             "halo", "crown", "wizard_hat", "butterfly_wings",   // cosmetics: the halo, gems, stars, wing spots
             "mole", "gumiho", "phoenix",                        // pets: the helmet lamp, fox-fire tails, flame tips
-            "andon", "stone_lantern", "tea_kettle");            // furniture: lamp paper, the lantern's fire, embers
+            "andon", "stone_lantern", "tea_kettle",             // furniture: lamp paper, the lantern's fire, embers
+            "police_car", "light_truck", "golf_cart",           // vehicles: head and tail lights
+            "police_lightbar_a", "police_lightbar_b");          // the light bar's lit halves
     private static final Set<String> ROTATED = Set.of("test_sword", "test_sword_skin", "test_greatsword", "test_slash", "test_rod", "test_rod_cast",
             "angel_wings", "demon_wings", "butterfly_wings",   // wings swept back 22.5 degrees
             "gumiho",                                           // nine tails fanned out
-            "wagasa");                                          // the parasol's struts, tilted up to its canopy
+            "wagasa",                                           // the parasol's struts, tilted up to its canopy
+            "police_car", "light_truck");                       // raked windscreens (45 / 22.5 degrees)
 
     @org.junit.jupiter.params.ParameterizedTest
     @org.junit.jupiter.params.provider.MethodSource("models")
