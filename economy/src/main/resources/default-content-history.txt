@@ -576,6 +576,7 @@ e1c96b81524e1aec79354163933f7556164b468b economy/menus/requests.yml
 78bcfb4ea72a3e5c7182369d15bfa29c63543e0a economy/menus/shop.yml
 bcf1502a90b3f21d2de15aedade012da92426ca1 economy/menus/shop.yml
 c5e44327d68a3c5821fcefc4ca747e9bfb18a45b economy/menus/shop.yml
+f1934c32be48457d7b5fd939d463fef995bed9db economy/menus/shop.yml
 c89368821d7b63b653cc41b0b75c1606cd53f693 economy/menus/stall.yml
 1140b7ab5c1b7a7ec97bd91dba3fcfc8317e230d economy/menus/stocks.yml
 3544a2dc6fcc2dd9cf48d319aa5b399d988dfbbc economy/menus/stocks.yml
@@ -1017,6 +1018,7 @@ f3c85fd1b590e11695e565a57503fb208ab98154 economy/requests.yml
 8f130d0693ee5dafedc2209626f6af1fd083f43d economy/shop.yml
 97a44bb8e507a0fc1028ad8029f5f2484c916eb9 economy/shop.yml
 a170b33bc19245b3e27bce40a99340c49738aa9b economy/shop.yml
+a3c47ca293fef5a0aae03fcf95d190cd063355f6 economy/shop.yml
 a5b911c79658d23800ecf92439177e3b62c26887 economy/shop.yml
 ada43bed52b1621230f3b439992393754b084f5b economy/shop.yml
 b135e1e69245d2b67e44ae3b3a72120cebd694b3 economy/shop.yml
@@ -1033,6 +1035,7 @@ ec3b7dc1bcc2fd929b084083b54b32f423237fba economy/shop.yml
 ecfab7de2a1344fa8f2a4c9bfc520085e44299d0 economy/shop.yml
 ef5178fe77d66bf66a429bcbac5d9b744a8ee873 economy/shop.yml
 f2d6bdda870b52bd26589f14062edfea304be813 economy/shop.yml
+f7298110749e63fc0a6f69e9b8404c4f73ad18bc economy/shop.yml
 fb7960b46853d6b6a83c4dea63567130b34ed488 economy/shop.yml
 fd684f520ec2ea64e736e9d82fa39b70f289880a economy/shop.yml
 f67b979d934ac0d6e127aafb77be1d7b12f8d757 economy/stocks.yml
