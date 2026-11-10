@@ -112,7 +112,7 @@ public final class CropModule implements StsvModule, Listener {
     private final BlockData[] stateData = new BlockData[CropBlocks.STATES];
     private CropTripwire tripwire;
     /** player -> tick of their last hit on a crop block (a held button sweeps: see hit) */
-    private final Map<UUID, Integer> lastHit = new HashMap<>();
+    private final Map<UUID, Integer> lastHit = new HashMap<>(), lastUse = new HashMap<>();
     private final Set<String> warnedNoState = new HashSet<>();
     private final Map<UUID, Long> byHit = new HashMap<>();
     private final Set<String> warnedUnknown = new HashSet<>();
@@ -504,8 +504,9 @@ public final class CropModule implements StsvModule, Listener {
         if (w == null || want == null) return true;
         Block b = w.getBlockAt(s.x, s.y, s.z);
         BlockData now = b.getBlockData();
-        boolean empty = b.isEmpty() || (b.isReplaceable() && !b.isLiquid());
-        switch (CropBlocks.placement(now.getMaterial() == Material.TRIPWIRE, now.equals(want), empty)) {
+        boolean tripwire = now.getMaterial() == Material.TRIPWIRE;
+        boolean empty = !tripwire && (b.isEmpty() || (b.isReplaceable() && !b.isLiquid()));
+        switch (CropBlocks.placement(tripwire, tripwire && now.equals(want), empty)) {
             case OK -> {
                 return true;
             }
@@ -701,8 +702,22 @@ public final class CropModule implements StsvModule, Listener {
         e.setCancelled(true);
         boolean left = e.getAction() == Action.LEFT_CLICK_BLOCK || e.getAction() == Action.LEFT_CLICK_AIR;
         if (!left && e.getHand() != EquipmentSlot.HAND) return;
-        if (left) hit(p, s);
-        else use(p, s);
+        int now = Bukkit.getCurrentTick();
+        if (left) {
+            // the arm swing of a right-click comes in as a left click in the air: not a hit
+            Integer used = lastUse.get(p.getUniqueId());
+            if (e.getAction() == Action.LEFT_CLICK_AIR && used != null && now - used >= 0 && now - used <= 1) return;
+            hit(p, s);
+        } else {
+            lastUse.put(p.getUniqueId(), now);
+            use(p, s);
+        }
+    }
+
+    @EventHandler
+    public void onQuit(org.bukkit.event.player.PlayerQuitEvent e) {
+        lastHit.remove(e.getPlayer().getUniqueId());
+        lastUse.remove(e.getPlayer().getUniqueId());
     }
 
     /** Anything else breaking a crop block (another plugin's area tool): the crop is broken as by a hit. Never drops string. */

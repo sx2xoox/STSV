@@ -156,6 +156,12 @@ final class CropTripwire implements Listener {
         return false;
     }
 
+    @EventHandler
+    public void onQuit(org.bukkit.event.player.PlayerQuitEvent e) {
+        noticed.remove(e.getPlayer().getUniqueId());
+        resend.remove(e.getPlayer().getUniqueId());
+    }
+
     private void notice(Player p, String key) {
         long now = System.currentTimeMillis();
         Long last = noticed.get(p.getUniqueId());
