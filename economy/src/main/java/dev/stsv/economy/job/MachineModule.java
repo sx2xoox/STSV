@@ -420,7 +420,8 @@ public final class MachineModule extends EcoModule {
     private ItemStack product(Machine m, MachineSpec.Recipe r, int amount, UUID op) {
         ItemStack it = Items.create(r.output(), amount).orElse(null);
         if (it == null || op == null) return it;
-        String name = Players.name(op);
+        // the account name: goods stack by this line, a nickname change must not split them
+        String name = Players.accountName(op);
         it.editMeta(meta -> {
             List<Component> lore = meta.hasLore() ? new ArrayList<>(meta.lore()) : new ArrayList<>();
             lore.add(Lang.item("machine.maker", "player", name));

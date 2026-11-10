@@ -178,6 +178,52 @@ profile:
   achievements-tier: "<dark_gray> · </dark_gray>{color}{tier} <gray>{done}/{total}"
   achievements-recent: "<gray>최근 달성:"
   achievements-click: "<yellow>클릭: /업적 <dark_gray>(내 업적)"
+  # 닉네임이 있는 플레이어의 프로필: 실제 계정 이름
+  real-name: "<gray>계정 이름: <white>{name}"
+
+# 닉네임 (/닉네임, /닉네임 색). {name} = 닉네임(색 포함), {cost} = 금액
+nickname:
+  disabled: "<red>이 서버에서는 닉네임을 쓸 수 없습니다."
+  none: "<gray>아직 닉네임이 없습니다."
+  current: "<gray>지금 닉네임: <white>{name}"
+  usage: "<gray>/닉네임 <이름> <dark_gray>- 한글·영문·숫자 {min}~{max}자 (다음 변경: {cost}) <dark_gray>· /닉네임 해제 <dark_gray>(무료)"
+  usage-color: "<gray>/닉네임 색 <dark_gray>- 색 고르기 메뉴 · /닉네임 색 #RRGGBB <dark_gray>({cost}) · <gray>/닉네임 색 #RRGGBB #RRGGBB <dark_gray>(그라데이션, {gradient}) · <gray>/닉네임 색 기본"
+  free: "<green>무료</green>"
+  set: "<green>닉네임을 </green>{name}<green>(으)로 정했습니다!"
+  set-paid: "<green>닉네임을 </green>{name}<green>(으)로 바꿨습니다. <gray>(</gray>{cost}<gray>)"
+  removed: "<gray>닉네임을 해제했습니다. 이제 <white>{name}</white>(으)로 보입니다."
+  same: "<yellow>지금 쓰는 닉네임과 같습니다."
+  length: "<red>닉네임은 {min}~{max}자로 정해 주세요. <gray>(한글 한 글자 = 1자)"
+  characters: "<red>닉네임에는 한글, 영문, 숫자만 쓸 수 있습니다. <gray>(띄어쓰기·기호·색 코드는 안 됨, 색은 /닉네임 색)"
+  banned: "<red>쓸 수 없는 말이 들어 있습니다."
+  reserved: "<red>명령어 단어는 닉네임으로 쓸 수 없습니다."
+  taken: "<red>다른 플레이어가 쓰는 닉네임입니다: <white>{name}"
+  taken-real: "<red>다른 플레이어의 계정 이름과 같은 닉네임은 쓸 수 없습니다: <white>{name}"
+  cooldown: "<red>닉네임은 {time} 뒤에 다시 바꿀 수 있습니다."
+  not-enough: "<red>돈이 부족합니다. <gray>(필요 </gray>{cost}<gray>, 잔액 </gray>{balance}<gray>)"
+  confirm: "<yellow>닉네임을 <white>{name}</white>(으)로 바꾸는 데 </yellow>{cost}<yellow> 듭니다. 15초 안에 같은 명령을 한 번 더 입력하면 바뀝니다."
+  failed: "<red>저장하지 못해 되돌렸습니다. <gray>(돈은 돌려드렸습니다. 잠시 뒤 다시 해 보세요)"
+  admin-changed: "<gray>관리자가 닉네임을 바꿨습니다: </gray>{name}"
+  admin-taken: "<yellow>관리자가 내 닉네임을 다른 플레이어에게 주어 닉네임이 해제되었습니다."
+  # 채팅에서 닉네임에 마우스를 올리면
+  hover: "<gray>계정 이름: <white>{name}"
+  # 탭 목록 (config nicknames.tab-real-name)
+  tab-real: " <dark_gray>({name})"
+  color-disabled: "<red>이 서버에서는 닉네임 색을 쓸 수 없습니다."
+  color-bad: "<red>색은 #RRGGBB 형식으로 적어 주세요. <gray>(예: /닉네임 색 #ffb7c5, 그라데이션: /닉네임 색 #ffb347 #ff5e8a, 없애기: /닉네임 색 기본)"
+  color-dark: "<red>너무 어두워서 채팅과 탭 목록에서 읽기 어려운 색입니다: {hex} <gray>(더 밝은 색을 골라 주세요)"
+  color-same: "<yellow>지금 쓰는 색과 같습니다."
+  color-confirm: "<yellow>닉네임 색을 </yellow>{name}<yellow>(으)로 바꾸는 데 </yellow>{cost}<yellow> 듭니다. 15초 안에 같은 명령을 한 번 더 입력하면 바뀝니다."
+  color-confirm-click: "<yellow>닉네임 색을 </yellow>{name}<yellow>(으)로 바꾸는 데 </yellow>{cost}<yellow> 듭니다. 15초 안에 한 번 더 클릭하면 바뀝니다."
+  color-set: "<green>닉네임 색을 바꿨습니다: </green>{name}"
+  color-set-paid: "<green>닉네임 색을 바꿨습니다: </green>{name} <gray>(</gray>{cost}<gray>)"
+  color-removed: "<gray>닉네임 색을 없앴습니다."
+  color-none: "기본"
+  # 색 고르기 메뉴의 칸: {label} = 색 이름, {hex} = 색 값
+  tile-color: ["<gray>{label} <dark_gray>{hex}"]
+  tile-gradient: ["<gray>{label} <dark_gray>(그라데이션) {hex}"]
+  tile-click: "<yellow>클릭: 이 색으로 <gray>({cost})"
+  tile-worn: "<green>✔ 지금 쓰는 색"
 
 hall:
   header: "<gold><b>명예의 전당</b> <gray>{period}"
@@ -342,7 +388,7 @@ tpa:
   sent-here: "<green><white>{player}</white>님에게 <white>내 쪽으로 오라는</white> 요청을 보냈습니다. <gray>({seconds}초 안에 수락하면 이동 · <click:run_command:'/tpacancel'><hover:show_text:'<gray>클릭하면 요청을 취소합니다'><u>취소</u></hover></click>)"
   request: "<gold>{player}</gold><gray>님이 <white>나에게 오고 싶어 합니다.</white> {buttons} <dark_gray>({seconds}초 안에 · /tpaccept /tpdeny)"
   request-here: "<gold>{player}</gold><gray>님이 <white>나를 자기 쪽으로 부릅니다.</white> {buttons} <dark_gray>({seconds}초 안에 · /tpaccept /tpdeny)"
-  buttons: "<click:run_command:'/tpaccept {player}'><hover:show_text:'<green>{player}님의 요청 수락'><green><b>[수락]</b></green></hover></click> <click:run_command:'/tpdeny {player}'><hover:show_text:'<red>{player}님의 요청 거절'><red><b>[거절]</b></red></hover></click>"
+  buttons: "<click:run_command:'/tpaccept {name}'><hover:show_text:'<green>{player}님의 요청 수락'><green><b>[수락]</b></green></hover></click> <click:run_command:'/tpdeny {name}'><hover:show_text:'<red>{player}님의 요청 거절'><red><b>[거절]</b></red></hover></click>"
   none: "<red>받은 텔레포트 요청이 없습니다."
   none-from: "<red><white>{player}</white>님에게서 받은 텔레포트 요청이 없습니다."
   none-out: "<red>보낸 텔레포트 요청이 없습니다."

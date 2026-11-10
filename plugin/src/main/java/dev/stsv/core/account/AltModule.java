@@ -25,6 +25,7 @@ import java.util.HexFormat;
 import java.util.List;
 import java.util.Locale;
 import java.util.Set;
+import java.util.Optional;
 import java.util.UUID;
 import java.util.function.Consumer;
 import java.util.stream.Collectors;
@@ -72,7 +73,7 @@ public final class AltModule implements StsvModule, Listener {
         plugin.admin().add(ADMIN_OWNER, "부계정", "<허용|해제|목록|정보|초기화> ...",
                 "한 IP에 한 계정: 같은 IP를 쓰는 계정 허용·해제, 허용 목록, 플레이어나 IP의 주인 보기, IP 주인 초기화", this::command,
                 (s, a) -> a.length == 1 ? List.of("허용", "해제", "목록", "정보", "초기화")
-                        : a.length == 2 && !a[0].equals("목록") ? Bukkit.getOnlinePlayers().stream().map(Player::getName).toList() : List.of());
+                        : a.length == 2 && !a[0].equals("목록") ? dev.stsv.core.nickname.Names.complete(s, a[1]) : List.of());
     }
 
     @Override
@@ -242,6 +243,11 @@ public final class AltModule implements StsvModule, Listener {
         Player online = Bukkit.getPlayerExact(name);
         if (online != null) {
             then.accept(online.getUniqueId());
+            return;
+        }
+        Optional<UUID> nick = dev.stsv.core.nickname.Names.byNickname(name);
+        if (nick.isPresent()) {
+            then.accept(nick.get());
             return;
         }
         UUID wasRefused = refused.get(name.toLowerCase(Locale.ROOT));

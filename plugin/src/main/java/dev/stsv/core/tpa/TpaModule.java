@@ -3,6 +3,7 @@ package dev.stsv.core.tpa;
 import dev.stsv.core.STSVPlugin;
 import dev.stsv.core.hud.HudModule;
 import dev.stsv.core.module.StsvModule;
+import dev.stsv.core.nickname.Names;
 import dev.stsv.core.util.Lang;
 import dev.stsv.core.world.SafeSpot;
 import dev.stsv.core.world.WorldsModule;
@@ -105,10 +106,13 @@ public final class TpaModule implements StsvModule, Listener, TabExecutor {
         List<String> names = new ArrayList<>();
         switch (command.getName()) {
             case "tpa", "tpahere" -> {
-                for (Player o : Bukkit.getOnlinePlayers()) if (!o.equals(p) && p.canSee(o)) names.add(o.getName());
+                return Names.completeOthers(p, args[0]);
             }
             case "tpaccept", "tpdeny" -> {
-                for (TpaBook.Request r : book.incoming(p.getUniqueId(), System.currentTimeMillis())) names.add(r.senderName());
+                for (TpaBook.Request r : book.incoming(p.getUniqueId(), System.currentTimeMillis())) {
+                    names.add(r.senderName());
+                    Names.nickname(r.sender()).ifPresent(names::add);
+                }
             }
             default -> { }
         }
@@ -124,8 +128,8 @@ public final class TpaModule implements StsvModule, Listener, TabExecutor {
             p.sendMessage(Lang.msg("tpa.usage"));
             return;
         }
-        Player target = Bukkit.getPlayerExact(name);
-        if (target == null) target = Bukkit.getPlayer(name);   // unique start of a name
+        // account name or nickname, else a unique start of either
+        Player target = Names.online(name).orElse(null);
         if (target == null || !p.canSee(target)) {
             p.sendMessage(Lang.msg("tpa.offline", "player", safe(name)));
             return;
@@ -141,7 +145,7 @@ public final class TpaModule implements StsvModule, Listener, TabExecutor {
             return;
         }
         if (book.blocking(target.getUniqueId())) {
-            p.sendMessage(Lang.msg("tpa.blocked", "player", target.getName()));
+            p.sendMessage(Lang.msg("tpa.blocked", "player", Names.mini(target)));
             return;
         }
         TpaBook.Added added = book.add(new TpaBook.Request(p.getUniqueId(), p.getName(), target.getUniqueId(), target.getName(), kind, now), admin(p));
@@ -150,20 +154,20 @@ public final class TpaModule implements StsvModule, Listener, TabExecutor {
             return;
         }
         if (added.status() == TpaBook.Status.SAME) {
-            p.sendMessage(Lang.msg("tpa.already", "player", target.getName(), "seconds", seconds(book.expiresIn(added.previous(), now))));
+            p.sendMessage(Lang.msg("tpa.already", "player", Names.mini(target), "seconds", seconds(book.expiresIn(added.previous(), now))));
             return;
         }
         if (added.status() == TpaBook.Status.REPLACED) {
             TpaBook.Request old = added.previous();
-            p.sendMessage(Lang.msg("tpa.replaced", "player", old.targetName()));
+            p.sendMessage(Lang.msg("tpa.replaced", "player", Names.mini(old.target())));
             Player oldTarget = Bukkit.getPlayer(old.target());
-            if (oldTarget != null && !oldTarget.equals(target)) oldTarget.sendMessage(Lang.msg("tpa.cancelled-target", "player", p.getName()));
+            if (oldTarget != null && !oldTarget.equals(target)) oldTarget.sendMessage(Lang.msg("tpa.cancelled-target", "player", Names.mini(p)));
         }
         long timeout = seconds(book.expiresIn(book.outgoing(p.getUniqueId(), now), now));
         boolean here = kind == TpaBook.Kind.HERE;
-        p.sendMessage(Lang.msg(here ? "tpa.sent-here" : "tpa.sent", "player", target.getName(), "seconds", timeout));
-        target.sendMessage(Lang.msg(here ? "tpa.request-here" : "tpa.request", "player", p.getName(), "seconds", timeout,
-                "buttons", Lang.raw("tpa.buttons", "player", p.getName())));
+        p.sendMessage(Lang.msg(here ? "tpa.sent-here" : "tpa.sent", "player", Names.mini(target), "seconds", timeout));
+        target.sendMessage(Lang.msg(here ? "tpa.request-here" : "tpa.request", "player", Names.mini(p), "seconds", timeout,
+                "buttons", Lang.raw("tpa.buttons", "player", Names.mini(p), "name", p.getName())));
         target.playSound(target.getLocation(), Sound.BLOCK_NOTE_BLOCK_PLING, 0.6f, 1.4f);
     }
 
@@ -173,19 +177,21 @@ public final class TpaModule implements StsvModule, Listener, TabExecutor {
 
     private void answer(Player p, String name, boolean accept) {
         long now = System.currentTimeMillis();
-        TpaBook.Request r = book.take(p.getUniqueId(), name, now);
+        // a nickname (or the start of one) finds the account name the requests are filed under
+        String from = name == null || name.isBlank() ? name : Names.online(name).map(Player::getName).orElse(name);
+        TpaBook.Request r = book.take(p.getUniqueId(), from, now);
         if (r == null) {
             p.sendMessage(name == null || name.isBlank() ? Lang.msg("tpa.none") : Lang.msg("tpa.none-from", "player", safe(name)));
             return;
         }
         Player sender = Bukkit.getPlayer(r.sender());
         if (sender == null) {
-            p.sendMessage(Lang.msg("tpa.offline", "player", r.senderName()));
+            p.sendMessage(Lang.msg("tpa.offline", "player", Names.mini(r.sender())));
             return;
         }
         if (!accept) {
-            p.sendMessage(Lang.msg("tpa.denied", "player", sender.getName()));
-            sender.sendMessage(Lang.msg("tpa.denied-sender", "player", p.getName()));
+            p.sendMessage(Lang.msg("tpa.denied", "player", Names.mini(sender)));
+            sender.sendMessage(Lang.msg("tpa.denied-sender", "player", Names.mini(p)));
             return;
         }
         boolean to = r.kind() == TpaBook.Kind.TO;
@@ -193,12 +199,12 @@ public final class TpaModule implements StsvModule, Listener, TabExecutor {
         Player dest = to ? p : sender;
         if (inWardrobe(mover) || inWardrobe(dest)) {
             Player busy = inWardrobe(mover) ? mover : dest;
-            p.sendMessage(Lang.msg("tpa.busy", "player", busy.getName()));
-            sender.sendMessage(Lang.msg("tpa.busy", "player", busy.getName()));
+            p.sendMessage(Lang.msg("tpa.busy", "player", Names.mini(busy)));
+            sender.sendMessage(Lang.msg("tpa.busy", "player", Names.mini(busy)));
             return;
         }
-        p.sendMessage(Lang.msg("tpa.accepted", "player", sender.getName()));
-        sender.sendMessage(Lang.msg("tpa.accepted-sender", "player", p.getName()));
+        p.sendMessage(Lang.msg("tpa.accepted", "player", Names.mini(sender)));
+        sender.sendMessage(Lang.msg("tpa.accepted-sender", "player", Names.mini(p)));
         int more = book.incoming(p.getUniqueId(), now).size();
         if (more > 0) p.sendMessage(Lang.msg("tpa.more", "count", more));
         start(mover, dest, r.sender());
@@ -208,7 +214,7 @@ public final class TpaModule implements StsvModule, Listener, TabExecutor {
     private void start(Player mover, Player dest, UUID requester) {
         WorldsModule worlds = plugin.worlds();
         UUID destId = dest.getUniqueId();
-        String destName = dest.getName(), moverName = mover.getName();
+        String destName = Names.mini(dest), moverName = Names.mini(mover);
         Runnable go = () -> go(mover, destId, destName, requester);
         if (worlds == null) {
             go.run();
@@ -233,12 +239,12 @@ public final class TpaModule implements StsvModule, Listener, TabExecutor {
             return;
         }
         if (inWardrobe(mover) || inWardrobe(dest)) {
-            mover.sendMessage(Lang.msg("tpa.busy", "player", inWardrobe(mover) ? mover.getName() : destName));
+            mover.sendMessage(Lang.msg("tpa.busy", "player", inWardrobe(mover) ? Names.mini(mover) : destName));
             return;
         }
         if (!safeArrival(dest)) {
             mover.sendMessage(Lang.msg("tpa.unsafe", "player", destName));
-            dest.sendMessage(Lang.msg("tpa.unsafe-other", "player", mover.getName()));
+            dest.sendMessage(Lang.msg("tpa.unsafe-other", "player", Names.mini(mover)));
             return;
         }
         Location to = dest.getLocation();
@@ -250,7 +256,7 @@ public final class TpaModule implements StsvModule, Listener, TabExecutor {
             book.tripDone(requester, System.currentTimeMillis());
             mover.playSound(mover.getLocation(), Sound.ENTITY_ENDERMAN_TELEPORT, 0.6f, 1.2f);
             HudModule.flash(mover, Lang.mm("tpa.arrived", "player", destName));
-            if (dest.isOnline()) HudModule.flash(dest, Lang.mm("tpa.arrived-other", "player", mover.getName()));
+            if (dest.isOnline()) HudModule.flash(dest, Lang.mm("tpa.arrived-other", "player", Names.mini(mover)));
         });
     }
 
@@ -279,9 +285,9 @@ public final class TpaModule implements StsvModule, Listener, TabExecutor {
             p.sendMessage(Lang.msg("tpa.none-out"));
             return;
         }
-        p.sendMessage(Lang.msg("tpa.cancelled", "player", r.targetName()));
+        p.sendMessage(Lang.msg("tpa.cancelled", "player", Names.mini(r.target())));
         Player target = Bukkit.getPlayer(r.target());
-        if (target != null) target.sendMessage(Lang.msg("tpa.cancelled-target", "player", p.getName()));
+        if (target != null) target.sendMessage(Lang.msg("tpa.cancelled-target", "player", Names.mini(p)));
     }
 
     private void toggle(Player p) {
@@ -297,9 +303,9 @@ public final class TpaModule implements StsvModule, Listener, TabExecutor {
     private void expire() {
         for (TpaBook.Request r : book.expire(System.currentTimeMillis())) {
             Player sender = Bukkit.getPlayer(r.sender());
-            if (sender != null) sender.sendMessage(Lang.msg("tpa.expired", "player", r.targetName()));
+            if (sender != null) sender.sendMessage(Lang.msg("tpa.expired", "player", Names.mini(r.target())));
             Player target = Bukkit.getPlayer(r.target());
-            if (target != null) target.sendMessage(Lang.msg("tpa.expired-target", "player", r.senderName()));
+            if (target != null) target.sendMessage(Lang.msg("tpa.expired-target", "player", Names.mini(r.sender())));
         }
     }
 
@@ -314,7 +320,7 @@ public final class TpaModule implements StsvModule, Listener, TabExecutor {
         for (TpaBook.Request r : book.forget(p.getUniqueId(), System.currentTimeMillis())) {
             boolean sent = r.sender().equals(p.getUniqueId());
             Player other = Bukkit.getPlayer(sent ? r.target() : r.sender());
-            if (other != null && !other.equals(p)) other.sendMessage(Lang.msg("tpa.left", "player", p.getName()));
+            if (other != null && !other.equals(p)) other.sendMessage(Lang.msg("tpa.left", "player", Names.mini(p)));
         }
     }
 

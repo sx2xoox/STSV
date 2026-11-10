@@ -2,6 +2,7 @@ package dev.stsv.core.command;
 
 import dev.stsv.core.STSVPlugin;
 import dev.stsv.core.economy.EconomyModule;
+import dev.stsv.core.nickname.Names;
 import dev.stsv.core.util.Lang;
 import org.bukkit.Bukkit;
 import org.bukkit.Sound;
@@ -17,7 +18,6 @@ import java.util.List;
 import java.util.Map;
 import java.util.Optional;
 import java.util.UUID;
-import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.function.Consumer;
 
@@ -54,8 +54,7 @@ public final class EconomyCommand implements TabExecutor {
             sender.sendMessage(Lang.msg("economy.top-header"));
             int rank = 1;
             for (Map.Entry<UUID, Long> e : eco().store().top(10)) {
-                String name = Bukkit.getOfflinePlayer(e.getKey()).getName();
-                sender.sendMessage(Lang.mm("economy.top-line", "rank", rank++, "player", name == null ? "?" : name,
+                sender.sendMessage(Lang.mm("economy.top-line", "rank", rank++, "player", Names.mini(e.getKey()),
                         "balance", EconomyModule.format(e.getValue())));
             }
             return;
@@ -63,7 +62,7 @@ public final class EconomyCommand implements TabExecutor {
         if (args.length > 0) {
             find(args[0], found -> {
                 if (found.isEmpty() || !eco().hasAccount(found.get())) sender.sendMessage(Lang.msg("economy.not-found"));
-                else sender.sendMessage(Lang.msg("economy.balance-other", "player", args[0], "balance", EconomyModule.format(eco().balance(found.get()))));
+                else sender.sendMessage(Lang.msg("economy.balance-other", "player", Names.mini(found.get()), "balance", EconomyModule.format(eco().balance(found.get()))));
             });
             return;
         }
@@ -107,18 +106,18 @@ public final class EconomyCommand implements TabExecutor {
                 p.sendMessage(Lang.msg("economy.not-enough", "need", EconomyModule.format(total), "balance", EconomyModule.format(eco().balance(p.getUniqueId()))));
                 return;
             }
-            if (!confirmed(p, "pay " + to + " " + amount, amount, args[0] + " " + EconomyModule.format(amount))) return;
+            if (!confirmed(p, "pay " + to + " " + amount, amount, Names.mini(to) + " " + EconomyModule.format(amount))) return;
             // checked above for both, but nothing is told unless the money really moved
             if (!eco().has(p.getUniqueId(), total) || !eco().transfer(p.getUniqueId(), to, amount, "pay")) {
                 p.sendMessage(Lang.msg("economy.not-enough", "need", EconomyModule.format(total), "balance", EconomyModule.format(eco().balance(p.getUniqueId()))));
                 return;
             }
             if (fee > 0) eco().withdraw(p.getUniqueId(), fee, "transfer_fee");
-            p.sendMessage(Lang.msg("economy.paid", "player", args[0], "amount", EconomyModule.format(amount), "fee", EconomyModule.format(fee)));
+            p.sendMessage(Lang.msg("economy.paid", "player", Names.mini(to), "amount", EconomyModule.format(amount), "fee", EconomyModule.format(fee)));
             p.playSound(p.getLocation(), Sound.ENTITY_EXPERIENCE_ORB_PICKUP, 0.6f, 1.6f);
             Player target = Bukkit.getPlayer(to);
             if (target != null) {
-                target.sendMessage(Lang.msg("economy.received", "player", p.getName(), "amount", EconomyModule.format(amount)));
+                target.sendMessage(Lang.msg("economy.received", "player", Names.mini(p), "amount", EconomyModule.format(amount)));
                 target.playSound(target.getLocation(), Sound.ENTITY_EXPERIENCE_ORB_PICKUP, 0.8f, 1.2f);
             }
         });
@@ -193,15 +192,9 @@ public final class EconomyCommand implements TabExecutor {
         return v == Math.rint(v) ? String.valueOf((long) v) : String.valueOf(v);
     }
 
-    /** Online player by exact name, otherwise anyone who ever joined (callback on the main thread). */
+    /** An account name or nickname, online or anyone who ever joined (callback on the main thread). */
     private void find(String name, Consumer<Optional<UUID>> then) {
-        Player online = Bukkit.getPlayerExact(name);
-        if (online != null) {
-            then.accept(Optional.of(online.getUniqueId()));
-            return;
-        }
-        CompletableFuture<Optional<UUID>> f = plugin.profiles().store().findByName(name);
-        f.thenAccept(found -> Bukkit.getScheduler().runTask(plugin, () -> then.accept(found)));
+        Names.find(name, then);
     }
 
     @Override
@@ -209,7 +202,7 @@ public final class EconomyCommand implements TabExecutor {
         if (args.length != 1 || cmd.getName().equals("수표")) return List.of();
         List<String> out = new ArrayList<>();
         if (cmd.getName().equals("돈")) out.add("순위");
-        for (Player p : Bukkit.getOnlinePlayers()) out.add(p.getName());
+        out.addAll(Names.complete(sender, args[0]));
         return out.stream().filter(n -> n.toLowerCase().startsWith(args[0].toLowerCase())).toList();
     }
 }

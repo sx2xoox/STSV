@@ -1,5 +1,6 @@
 package dev.stsv.economy.vanity;
 
+import dev.stsv.core.nickname.Names;
 import dev.stsv.core.content.CustomItem;
 import dev.stsv.core.data.Db;
 import dev.stsv.core.economy.EconomyModule;
@@ -110,7 +111,7 @@ public final class VanityModule extends EcoModule {
             core.profiles().grantTitle(p.getUniqueId(), v.id());
             bought.add(p.getUniqueId() + "|" + v.id());
         }
-        Bukkit.broadcast(Lang.msg("vanity.bought-broadcast", "player", p.getName(), "item", name(v), "price", EconomyModule.format(v.price())));
+        Bukkit.broadcast(Lang.msg("vanity.bought-broadcast", "player", Names.mini(p), "item", name(v), "price", EconomyModule.format(v.price())));
         return null;
     }
 
@@ -191,9 +192,9 @@ public final class VanityModule extends EcoModule {
         monuments.put(slot, m);
         db.execute("INSERT INTO eco_monument (slot, player, text, at, price) VALUES (?, ?, ?, ?, ?)", slot, p.getUniqueId().toString(), clean, m.at(), price);
         show(m);
-        Bukkit.broadcast(Lang.msg("vanity.monument-built", "player", p.getName(), "text", clean));
+        Bukkit.broadcast(Lang.msg("vanity.monument-built", "player", Names.mini(p), "text", clean));
         for (Player o : Bukkit.getOnlinePlayers()) {
-            o.showTitle(Title.title(Lang.mm("vanity.monument-title"), Lang.mm("vanity.monument-subtitle", "player", p.getName()),
+            o.showTitle(Title.title(Lang.mm("vanity.monument-title"), Lang.mm("vanity.monument-subtitle", "player", Names.mini(p)),
                     Title.Times.times(Duration.ofMillis(300), Duration.ofMillis(3000), Duration.ofMillis(800))));
             o.playSound(o.getLocation(), Sound.BLOCK_BEACON_ACTIVATE, 0.8f, 1f);
         }
@@ -269,9 +270,9 @@ public final class VanityModule extends EcoModule {
         boolean loud = amount >= Math.max(100, min / 10) && (told == null || now - told >= 60_000L);
         if (loud) {
             donationTold.put(p.getUniqueId(), now);
-            Bukkit.broadcast(Lang.msg("vanity.donated", "player", p.getName(), "amount", EconomyModule.format(amount)));
+            Bukkit.broadcast(Lang.msg("vanity.donated", "player", Names.mini(p), "amount", EconomyModule.format(amount)));
         } else {
-            p.sendMessage(Lang.msg("vanity.donated", "player", p.getName(), "amount", EconomyModule.format(amount)));
+            p.sendMessage(Lang.msg("vanity.donated", "player", Names.mini(p), "amount", EconomyModule.format(amount)));
         }
         String title = e.params().getOrDefault("donation-title", "economy:patron");
         if (total >= min && !eco.kv().has(key + ".title")) {

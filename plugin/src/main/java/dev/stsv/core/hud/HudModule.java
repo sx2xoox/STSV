@@ -641,7 +641,12 @@ public final class HudModule implements StsvModule, Listener, CommandExecutor, T
             return;
         }
         if (tidy.equals(shown.get(u)) && boards.containsKey(u) && p.getScoreboard() == boards.get(u)) return;
-        org.bukkit.scoreboard.Scoreboard sb = boards.computeIfAbsent(u, k -> Bukkit.getScoreboardManager().getNewScoreboard());
+        org.bukkit.scoreboard.Scoreboard sb = boards.computeIfAbsent(u, k -> {
+            org.bukkit.scoreboard.Scoreboard fresh = Bukkit.getScoreboardManager().getNewScoreboard();
+            // the nicknames' teams (the game's name tag hidden): a player's scoreboard decides what they see
+            if (plugin.nicknames() != null) plugin.nicknames().decorate(fresh);
+            return fresh;
+        });
         org.bukkit.scoreboard.Objective o = sb.getObjective(OBJECTIVE);
         if (o == null) {
             o = sb.registerNewObjective(OBJECTIVE, org.bukkit.scoreboard.Criteria.DUMMY, Lang.mm("hud.sidebar-title"));

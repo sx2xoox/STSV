@@ -1,5 +1,6 @@
 package dev.stsv.economy.fishing;
 
+import dev.stsv.core.nickname.Names;
 import dev.stsv.core.gui.menu.MenuHandler;
 import dev.stsv.core.gui.menu.MenuView;
 import dev.stsv.core.util.Lang;
@@ -358,7 +359,7 @@ public final class FishingModule extends EcoModule implements WeeklyListener {
         double best = cur.length == 4 && cur[0].equals(String.valueOf(week)) ? Double.parseDouble(cur[3]) : 0;
         if (size <= best) return;
         eco.kv().set("fish.week", week + ";" + p.getUniqueId() + ";" + s.id() + ";" + size);
-        if (best > 0) Bukkit.broadcast(Lang.msg("fishing.week-record", "player", p.getName(), "fish", s.name(), "size", String.format("%.1f", size)));
+        if (best > 0) Bukkit.broadcast(Lang.msg("fishing.week-record", "player", Names.mini(p), "fish", s.name(), "size", String.format("%.1f", size)));
     }
 
     @Override

@@ -217,9 +217,17 @@ public final class ProfileModule implements StsvModule, Listener {
         return t == null || t.equipped() == null ? Optional.empty() : title(t.equipped());
     }
 
+    /** The tab list name again (title, nickname changed). */
+    public void refreshName(Player p) {
+        showName(p);
+    }
+
     private void showName(Player p) {
-        if (!plugin.getConfig().getBoolean("profiles.title-in-tab")) return;
-        p.playerListName(worn(p.getUniqueId()).map(t -> Text.mm(t.name() + " ").append(Component.text(p.getName()))).orElse(null));
+        boolean titled = plugin.getConfig().getBoolean("profiles.title-in-tab");
+        boolean nick = dev.stsv.core.nickname.Names.decorated(p.getUniqueId());
+        Component name = nick && plugin.nicknames() != null ? plugin.nicknames().tabName(p) : Component.text(p.getName());
+        Optional<Title> t = titled ? worn(p.getUniqueId()) : Optional.empty();
+        p.playerListName(t.isPresent() ? Text.mm(t.get().name() + " ").append(name) : nick ? name : null);
     }
 
     @EventHandler(priority = EventPriority.HIGH, ignoreCancelled = true)
@@ -463,6 +471,9 @@ public final class ProfileModule implements StsvModule, Listener {
                 m.setOwningPlayer(op);
                 m.itemName(Lang.item("profile.head-name", "player", name));
                 List<Component> lore = new ArrayList<>();
+                if (dev.stsv.core.nickname.Names.nickname(target).isPresent()) {
+                    lore.add(Lang.item("profile.real-name", "name", dev.stsv.core.nickname.Names.real(target)));
+                }
                 lore.add(titlesOf.equipped() == null ? Lang.item("profile.title-none")
                         : Lang.item("profile.title-current", "title", title(titlesOf.equipped()).map(Title::name).orElse(titlesOf.equipped())));
                 if (achievements != null) lore.add(Lang.item("profile.achievement-points", "points",
@@ -583,7 +594,7 @@ public final class ProfileModule implements StsvModule, Listener {
                 for (var cat : hall.entrySet()) {
                     to.sendMessage(Lang.mm("hall.category", "stat", statName(cat.getKey())));
                     for (ProfileStore.Rank r : cat.getValue()) {
-                        to.sendMessage(Lang.mm("hall.line", "rank", r.rank(), "player", r.name(), "value", format(cat.getKey(), r.value())));
+                        to.sendMessage(Lang.mm("hall.line", "rank", r.rank(), "player", dev.stsv.core.nickname.Names.mini(r.player()), "value", format(cat.getKey(), r.value())));
                     }
                 }
                 if (ended.size() > 1) {

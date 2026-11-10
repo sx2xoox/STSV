@@ -1,5 +1,6 @@
 package dev.stsv.economy.shop;
 
+import dev.stsv.core.nickname.Names;
 import dev.stsv.core.economy.EconomyModule;
 import dev.stsv.core.economy.EconomyStore;
 import dev.stsv.core.gui.menu.MenuHandler;
@@ -252,7 +253,7 @@ public final class ShopModule extends EcoModule implements DailyListener {
             java.util.Map<String, String> params = new java.util.LinkedHashMap<>(premium.params());
             params.put("left." + id, String.valueOf(left - high));
             eco.events().update(premium, params);
-            if (left - high <= 0) Bukkit.broadcast(Lang.msg("shop.premium-sold-out", "item", itemName(id), "player", p.getName()));
+            if (left - high <= 0) Bukkit.broadcast(Lang.msg("shop.premium-sold-out", "item", itemName(id), "player", Names.mini(p)));
         }
         // rare and legend fish: by their size (0.7 - 1.5x)
         total *= Items.sizeFactor(p.getInventory(), same, n, first);
@@ -884,7 +885,7 @@ public final class ShopModule extends EcoModule implements DailyListener {
             if (buy(v.player(), l.id(), l.amount(), l.price(), "merchant")) {
                 String key = "shop.merchant." + event.id() + "." + l.index();
                 eco.kv().set(key, eco.kv().getLong(key, 0) + 1);
-                if (left(event, l) == 0) Bukkit.broadcast(Lang.msg("shop.merchant-sold-out", "item", itemName(l.id()), "player", v.player().getName()));
+                if (left(event, l) == 0) Bukkit.broadcast(Lang.msg("shop.merchant-sold-out", "item", itemName(l.id()), "player", Names.mini(v.player())));
             }
             v.refresh();
         }

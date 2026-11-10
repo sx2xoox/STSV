@@ -1,5 +1,6 @@
 package dev.stsv.economy.auction;
 
+import dev.stsv.core.nickname.Names;
 import dev.stsv.core.economy.EconomyModule;
 import dev.stsv.core.economy.EconomyStore;
 import dev.stsv.core.gui.menu.MenuHandler;
@@ -129,7 +130,7 @@ public final class AuctionModule extends EcoModule {
         // stored: now take the item and the deposit (same tick, the balance checked above still holds)
         p.getInventory().setItem(slot, null);
         core.economy().move(p.getUniqueId(), null, rules.auctionDeposit(), EconomyStore.Kind.ESCROW, "auction_deposit", null);
-        announceStart(a, p.getName());
+        announceStart(a, Names.mini(p));
         return true;
     }
 
@@ -185,12 +186,12 @@ public final class AuctionModule extends EcoModule {
             core.economy().move(null, previous, previousBid, EconomyStore.Kind.ESCROW, "auction_refund", "#" + a.id);
             Player prev = Bukkit.getPlayer(previous);
             if (prev != null) {
-                prev.sendMessage(Lang.msg("auction.outbid", "id", a.id, "item", name(a), "player", p.getName(), "price", EconomyModule.format(amount),
+                prev.sendMessage(Lang.msg("auction.outbid", "id", a.id, "item", name(a), "player", Names.mini(p), "price", EconomyModule.format(amount),
                         "min", EconomyModule.format(a.minNext(rules.minRaise()))));
                 prev.playSound(prev.getLocation(), Sound.BLOCK_NOTE_BLOCK_BASS, 0.8f, 0.8f);
             }
         }
-        Bukkit.broadcast(Lang.msg(extended ? "auction.bid-extended" : "auction.bid", "id", a.id, "item", name(a), "player", p.getName(),
+        Bukkit.broadcast(Lang.msg(extended ? "auction.bid-extended" : "auction.bid", "id", a.id, "item", name(a), "player", Names.mini(p),
                 "price", EconomyModule.format(amount), "seconds", rules.extendSeconds()));
         return null;
     }

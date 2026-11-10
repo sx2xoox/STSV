@@ -1,5 +1,6 @@
 package dev.stsv.economy.land;
 
+import dev.stsv.core.nickname.Names;
 import dev.stsv.core.economy.EconomyModule;
 import dev.stsv.core.economy.EconomyStore;
 import dev.stsv.core.furniture.FurnitureBreakEvent;
@@ -287,18 +288,18 @@ public final class LandModule extends EcoModule implements DailyListener {
             }
             UUID t = found.get();
             if (l.allows(t)) {
-                p.sendMessage(Lang.msg("land.already-member", "player", name));
+                p.sendMessage(Lang.msg("land.already-member", "player", Players.name(t)));
                 return;
             }
             if (store.index().memberOf(t) != null) {
-                p.sendMessage(Lang.msg("land.member-elsewhere", "player", name));
+                p.sendMessage(Lang.msg("land.member-elsewhere", "player", Players.name(t)));
                 return;
             }
             invites.put(t, new Invite(l.id, p.getUniqueId(), now() + rules.inviteMinutes() * 60_000L));
-            p.sendMessage(Lang.msg("land.invited", "player", name, "minutes", rules.inviteMinutes()));
+            p.sendMessage(Lang.msg("land.invited", "player", Players.name(t), "minutes", rules.inviteMinutes()));
             Player tp = Bukkit.getPlayer(t);
             if (tp != null) {
-                tp.sendMessage(Lang.msg("land.invite", "owner", p.getName(), "size", l.size(), "members", l.members.size(), "minutes", rules.inviteMinutes()));
+                tp.sendMessage(Lang.msg("land.invite", "owner", Names.mini(p), "size", l.size(), "members", l.members.size(), "minutes", rules.inviteMinutes()));
                 if (store.index().ownedBy(t) != null) tp.sendMessage(Lang.msg("land.invite-own-land", "free", rules.freePerPerson()));
                 tp.playSound(tp.getLocation(), Sound.BLOCK_NOTE_BLOCK_PLING, 0.7f, 1.4f);
             }
@@ -314,18 +315,18 @@ public final class LandModule extends EcoModule implements DailyListener {
             return;
         }
         if (store.index().memberOf(u) != null) {
-            p.sendMessage(Lang.msg("land.member-elsewhere", "player", p.getName()));
+            p.sendMessage(Lang.msg("land.member-elsewhere", "player", Names.mini(p)));
             return;
         }
         store.member(l, u, true, now());
-        tell(l, Lang.msg("land.joined", "player", p.getName(), "owner", ownerName(l), "free", free(l)));
+        tell(l, Lang.msg("land.joined", "player", Names.mini(p), "owner", ownerName(l), "free", free(l)));
     }
 
     public void decline(Player p) {
         Invite inv = invites.remove(p.getUniqueId());
         p.sendMessage(Lang.msg(inv == null ? "land.no-invite" : "land.declined"));
         Player by = inv == null ? null : Bukkit.getPlayer(inv.by());
-        if (by != null) by.sendMessage(Lang.msg("land.declined-by", "player", p.getName()));
+        if (by != null) by.sendMessage(Lang.msg("land.declined-by", "player", Names.mini(p)));
     }
 
     public void kick(Player p, String name) {
@@ -340,7 +341,7 @@ public final class LandModule extends EcoModule implements DailyListener {
                 return;
             }
             store.member(l, found.get(), false, now());
-            tell(l, Lang.msg("land.kicked", "player", name, "free", free(l)));
+            tell(l, Lang.msg("land.kicked", "player", Players.name(found.get()), "free", free(l)));
             Player tp = Bukkit.getPlayer(found.get());
             if (tp != null) tp.sendMessage(Lang.msg("land.kicked-you", "owner", ownerName(l)));
         });
@@ -354,7 +355,7 @@ public final class LandModule extends EcoModule implements DailyListener {
         }
         store.member(l, p.getUniqueId(), false, now());
         p.sendMessage(Lang.msg("land.left", "owner", ownerName(l)));
-        tell(l, Lang.msg("land.left-notice", "player", p.getName(), "free", free(l)));
+        tell(l, Lang.msg("land.left-notice", "player", Names.mini(p), "free", free(l)));
     }
 
     /** Hands the land to a member; the old owner stays on as a member (unless they live elsewhere). */
@@ -371,7 +372,7 @@ public final class LandModule extends EcoModule implements DailyListener {
                 return;
             }
             if (store.index().ownedBy(t) != null) {
-                p.sendMessage(Lang.msg("land.owns-another", "player", name));
+                p.sendMessage(Lang.msg("land.owns-another", "player", Players.name(t)));
                 return;
             }
             UUID old = l.owner;
@@ -379,7 +380,7 @@ public final class LandModule extends EcoModule implements DailyListener {
             store.setOwner(l, t);
             if (l.vault > 0) eco.rank().handOver(old, t, l.vault);   // the 금고 is now the new owner's
             if (store.index().memberOf(old) == null) store.member(l, old, true, now());
-            tell(l, Lang.msg("land.transferred", "from", Players.name(old), "to", name));
+            tell(l, Lang.msg("land.transferred", "from", Players.name(old), "to", Players.name(t)));
         });
     }
 
@@ -427,7 +428,7 @@ public final class LandModule extends EcoModule implements DailyListener {
         }
         store.vault(l, p.getUniqueId(), amount, "deposit", now());
         if (!l.isOwner(p.getUniqueId()) && l.owner != null) eco.rank().handOver(p.getUniqueId(), l.owner, amount);   // a member gave it
-        tell(l, Lang.msg("land.deposited", "player", p.getName(), "amount", EconomyModule.format(amount), "vault", EconomyModule.format(l.vault)));
+        tell(l, Lang.msg("land.deposited", "player", Names.mini(p), "amount", EconomyModule.format(amount), "vault", EconomyModule.format(l.vault)));
     }
 
     public void withdraw(Player p, long amount) {
@@ -442,7 +443,7 @@ public final class LandModule extends EcoModule implements DailyListener {
         }
         store.vault(l, p.getUniqueId(), -amount, "withdraw", now());
         core.economy().move(null, p.getUniqueId(), amount, EconomyStore.Kind.ESCROW, "land_vault", null);
-        tell(l, Lang.msg("land.withdrew", "player", p.getName(), "amount", EconomyModule.format(amount), "vault", EconomyModule.format(l.vault)));
+        tell(l, Lang.msg("land.withdrew", "player", Names.mini(p), "amount", EconomyModule.format(amount), "vault", EconomyModule.format(l.vault)));
     }
 
     // ------------------------------------------------------------------------------------------

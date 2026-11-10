@@ -1,8 +1,8 @@
 package dev.stsv.core.command;
 
 import dev.stsv.core.STSVPlugin;
+import dev.stsv.core.nickname.Names;
 import dev.stsv.core.util.Lang;
-import org.bukkit.Bukkit;
 import org.bukkit.command.Command;
 import org.bukkit.command.CommandSender;
 import org.bukkit.command.TabExecutor;
@@ -31,25 +31,21 @@ public final class ProfileCommand implements TabExecutor {
             return true;
         }
         if (args.length == 0) {
-            plugin.profiles().openProfile(p, p.getUniqueId(), p.getName());
+            plugin.profiles().openProfile(p, p.getUniqueId(), Names.mini(p));
             return true;
         }
-        Player online = Bukkit.getPlayerExact(args[0]);
-        if (online != null) {
-            plugin.profiles().openProfile(p, online.getUniqueId(), online.getName());
-            return true;
-        }
-        plugin.profiles().store().findByName(args[0]).thenAccept(found -> Bukkit.getScheduler().runTask(plugin, () -> {
+        // account name or nickname, online or not
+        Names.find(args[0], found -> {
             if (found.isEmpty()) p.sendMessage(Lang.msg("profile.not-found"));
-            else plugin.profiles().openProfile(p, found.get(), args[0]);
-        }));
+            else plugin.profiles().openProfile(p, found.get(), Names.mini(found.get()));
+        });
         return true;
     }
 
     @Override
     public List<String> onTabComplete(@NotNull CommandSender sender, @NotNull Command cmd, @NotNull String label, String @NotNull [] args) {
         if (cmd.getName().equals("프로필") && args.length == 1) {
-            return Bukkit.getOnlinePlayers().stream().map(Player::getName).filter(n -> n.toLowerCase().startsWith(args[0].toLowerCase())).toList();
+            return Names.complete(sender, args[0]);
         }
         return List.of();
     }

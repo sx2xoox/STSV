@@ -1,0 +1,8 @@
+{
+  "parent": "minecraft:item/generated",
+  "textures": {
+    "layer0": "stsv:item/gui/swatch",
+    "layer1": "stsv:item/gui/swatch_half",
+    "layer2": "stsv:item/gui/swatch_rim"
+  }
+}

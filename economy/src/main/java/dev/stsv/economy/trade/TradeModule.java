@@ -1,5 +1,6 @@
 package dev.stsv.economy.trade;
 
+import dev.stsv.core.nickname.Names;
 import dev.stsv.core.economy.EconomyModule;
 import dev.stsv.core.hud.HudModule;
 import dev.stsv.core.util.Lang;
@@ -43,9 +44,25 @@ public final class TradeModule extends EcoModule {
     // the window: rows 0-4 cols 0-3 = A's offer, cols 5-8 = B's offer; bottom row = controls
     static final int A_MONEY = 45, A_BIG = 46, A_BUTTON = 47, CANCEL = 49, B_BUTTON = 51, B_BIG = 52, B_MONEY = 53;
 
-    /** A name for the window title: two long names would run past the panel (16 characters each), so 7 + "…". */
+    /**
+     * A name for the window title: two long names would run past the panel, so at most about 8 English letters
+     * wide (48 px; a Hangul syllable is 9 px), else cut to 42 px + "…" (16 English letters: 7 + "…").
+     */
     static String shortName(String name) {
-        return name.length() > 8 ? name.substring(0, 7) + "…" : name;
+        if (dev.stsv.core.gui.menu.MenuSpec.titleWidth(name) <= 48) return name;
+        StringBuilder b = new StringBuilder();
+        for (int i = 0; i < name.length(); ) {
+            int cp = name.codePointAt(i);
+            i += Character.charCount(cp);
+            if (dev.stsv.core.gui.menu.MenuSpec.titleWidth(b.toString() + Character.toString(cp)) > 42) break;
+            b.appendCodePoint(cp);
+        }
+        return b + "…";
+    }
+
+    /** The player in the window title: nickname (or account name) shortened, in their colour. */
+    private static String titleName(Player p) {
+        return dev.stsv.core.nickname.NickColor.mini(Names.color(p.getUniqueId()), shortName(Names.plain(p)));
     }
 
     private final Map<UUID, UUID> requests = new ConcurrentHashMap<>();   // target -> asker
@@ -114,8 +131,8 @@ public final class TradeModule extends EcoModule {
         }
         requests.put(to.getUniqueId(), from.getUniqueId());
         requestTime.put(to.getUniqueId(), now());
-        from.sendMessage(Lang.msg("trade.asked", "player", to.getName()));
-        to.sendMessage(Lang.msg("trade.request", "player", from.getName())
+        from.sendMessage(Lang.msg("trade.asked", "player", Names.mini(to)));
+        to.sendMessage(Lang.msg("trade.request", "player", Names.mini(from))
                 .append(Component.text(" "))
                 .append(Lang.mm("trade.accept-button").clickEvent(ClickEvent.runCommand("/거래 수락")))
                 .append(Component.text(" "))
@@ -165,7 +182,7 @@ public final class TradeModule extends EcoModule {
         }
         to.sendMessage(Lang.msg("trade.denied-you"));
         Player asker = Bukkit.getPlayer(askerId);
-        if (asker != null) asker.sendMessage(Lang.msg("trade.denied", "player", to.getName()));
+        if (asker != null) asker.sendMessage(Lang.msg("trade.denied", "player", Names.mini(to)));
     }
 
     private boolean near(Player a, Player b) {
@@ -193,7 +210,7 @@ public final class TradeModule extends EcoModule {
             this.a = a;
             this.b = b;
             String title = core.menus().menu("economy:trade").map(m -> m.backgroundPrefix() + m.title()).orElse("<dark_gray>직거래")
-                    .replace("{a}", shortName(a.getName())).replace("{b}", shortName(b.getName()));
+                    .replace("{a}", titleName(a)).replace("{b}", titleName(b));
             inv = Bukkit.createInventory(this, 54, Text.mm(title));
         }
 
@@ -234,7 +251,7 @@ public final class TradeModule extends EcoModule {
         private ItemStack money(Player owner, TradeState.Side s) {
             ItemStack it = new ItemStack(Material.GOLD_INGOT);
             it.editMeta(m -> {
-                m.itemName(Lang.item("trade.money-name", "player", owner.getName(), "amount", EconomyModule.format(state.money(s))));
+                m.itemName(Lang.item("trade.money-name", "player", Names.mini(owner), "amount", EconomyModule.format(state.money(s))));
                 m.lore(Lang.items("trade.money-lore"));
             });
             return it;
@@ -254,7 +271,7 @@ public final class TradeModule extends EcoModule {
             ItemStack it = new ItemStack(conf ? Material.LIME_CONCRETE : ready ? Material.YELLOW_CONCRETE : Material.RED_CONCRETE);
             String key = conf ? "trade.state-confirmed" : ready ? (state.bothReady() ? "trade.state-press-confirm" : "trade.state-ready") : "trade.state-not-ready";
             it.editMeta(m -> {
-                m.itemName(Lang.item(key, "player", owner.getName()));
+                m.itemName(Lang.item(key, "player", Names.mini(owner)));
                 m.lore(Lang.items("trade.button-lore"));
             });
             return it;
@@ -289,7 +306,7 @@ public final class TradeModule extends EcoModule {
             for (ItemStack it : fromB) eco.mail().deliver(a.getUniqueId(), it, "trade");
             end();
             for (Player p : List.of(a, b)) {
-                p.sendMessage(Lang.msg("trade.done", "player", (p.equals(a) ? b : a).getName()));
+                p.sendMessage(Lang.msg("trade.done", "player", Names.mini(p.equals(a) ? b : a)));
                 p.playSound(p.getLocation(), Sound.ENTITY_PLAYER_LEVELUP, 0.6f, 1.4f);
             }
             eco.getLogger().info("직거래 " + a.getName() + " ⇄ " + b.getName() + ": " + ma + "G + " + fromA.size() + "묶음 / " + mb + "G + " + fromB.size() + "묶음");

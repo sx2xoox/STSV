@@ -1,0 +1,49 @@
+# /닉네임 색: 닉네임 색 고르기. 위 네 줄 = 한 가지 색, 다섯째 줄 = 그라데이션 (config.yml nicknames.colors 의 palette, gradients 순서).
+# 칸 이름은 내 닉네임을 그 색으로 보여 줌. 클릭 = 그 색으로 (값이 있으면 15초 안에 한 번 더 클릭해 확인)
+# 자리표시자: {name} (지금 내 이름, 색 포함) {current} (지금 색 이름) {cost} {gradient-cost}
+nick_colors:
+  title: "<#f0e2b0>닉네임 색 <#b9a6d6>· {current}"
+  rows: 6
+  background: stsv:gui/nick_colors
+  layout:
+    - "CCCCCCCCC"
+    - "CCCCCCCCC"
+    - "CCCCCCCCC"
+    - "CCCCCCCCC"
+    - "CCCCCCCCC"
+    - "P..OXI..N"
+  list: C
+  buttons:
+    I:
+      action: ""
+      icon: stsv:gui/info
+      material: BOOK
+      name: "<white>지금: {name}"
+      lore: ["<gray>채팅, 탭 목록, 머리 위 이름, 순위·거래소 등", "<gray>내 이름이 나오는 모든 곳에 이 색으로 보입니다.", "",
+             "<gray>한 가지 색 </gray>{cost}<gray> · 그라데이션 </gray>{gradient-cost}", "",
+             "<dark_gray>/닉네임 색 #RRGGBB [#RRGGBB] 로 원하는 색 직접 입력"]
+    O:
+      action: "nickcolor:clear"
+      icon: stsv:gui/clear
+      material: BARRIER
+      name: "<white>기본"
+      lore: ["<gray>색 없이 (무료)"]
+    P:
+      action: page:prev
+      icon: stsv:gui/prev
+      material: ARROW
+      name: "<yellow>◀ 이전 페이지"
+      lore: ["<gray>{page} / {pages}"]
+      off: { icon: stsv:gui/prev_off, material: GRAY_DYE, name: "<dark_gray>◀ 첫 페이지" }
+    N:
+      action: page:next
+      icon: stsv:gui/next
+      material: ARROW
+      name: "<yellow>다음 페이지 ▶"
+      lore: ["<gray>{page} / {pages}"]
+      off: { icon: stsv:gui/next_off, material: GRAY_DYE, name: "<dark_gray>마지막 페이지 ▶" }
+    X:
+      action: close
+      icon: stsv:gui/exit
+      material: OAK_DOOR
+      name: "<red>닫기"
