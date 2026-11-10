@@ -45,8 +45,8 @@ sell:
       quartz: { base: 2, q: 128, job: miner }
       netherite_scrap: { base: 150, q: 4, job: miner, cap: 4 }
       # 광부 발견품
-      economy:rough_ruby: { base: 25, q: 16, job: miner }   # 루비 원석
-      economy:rough_sapphire: { base: 25, q: 16, job: miner }   # 사파이어 원석
+      economy:rough_ruby: { base: 23, q: 16, job: miner }   # 루비 원석
+      economy:rough_sapphire: { base: 50, q: 8, job: miner }   # 사파이어 원석
   farm:
     name: "농산물"
     icon: wheat
@@ -224,25 +224,25 @@ sell:
     icon: economy:ruby_ring
     items:
       # 세공대 (광부)
-      economy:ruby: { base: 38, q: 16 }   # 루비
-      economy:sapphire: { base: 38, q: 16 }   # 사파이어
+      economy:ruby: { base: 35, q: 16 }   # 루비
+      economy:sapphire: { base: 76, q: 8 }   # 사파이어
       economy:coke: { base: 60, q: 8 }   # 코크스
       economy:copper_plate: { base: 48, q: 16 }   # 구리판
-      economy:ruby_ring: { base: 238, q: 4 }   # 루비 반지
-      economy:pearl_necklace: { base: 568, q: 2 }   # 진주 목걸이
-      economy:jeweled_crown: { base: 2684, q: 1 }   # 보석 왕관
+      economy:ruby_ring: { base: 231, q: 4 }   # 루비 반지
+      economy:pearl_necklace: { base: 651, q: 2 }   # 진주 목걸이
+      economy:jeweled_crown: { base: 2836, q: 1 }   # 보석 왕관
       economy:cut_emerald: { base: 36, q: 16 }   # 세공 에메랄드
       economy:lapis_beads: { base: 45, q: 16 }   # 청금석 구슬
       economy:gold_ring: { base: 70, q: 8 }   # 금반지
       economy:cut_diamond: { base: 90, q: 8 }   # 세공 다이아몬드
-      economy:sapphire_brooch: { base: 147, q: 8 }   # 사파이어 브로치
+      economy:sapphire_brooch: { base: 216, q: 4 }   # 사파이어 브로치
       economy:diamond_ring: { base: 352, q: 4 }   # 다이아 반지
       economy:copper_bracelet: { base: 92, q: 8 }   # 구리 팔찌
       economy:amethyst_pendant: { base: 41.5, q: 16 }   # 자수정 펜던트 (원재료만)
       economy:quartz_figurine: { base: 51, q: 8 }   # 석영 조각상 (원재료만)
       economy:cut_crystal: { base: 68, q: 8 }   # 세공 수정
       economy:coral_brooch: { base: 208, q: 4 }   # 산호 브로치
-      economy:silk_pearl_necklace: { base: 741, q: 2 }   # 명주 진주 목걸이
+      economy:silk_pearl_necklace: { base: 825, q: 2 }   # 명주 진주 목걸이
       economy:ambergris_norigae: { base: 702, q: 2 }   # 용연향 노리개
       # 대장간 (대장장이)
       economy:iron_plate: { base: 77, q: 8 }   # 철판
@@ -251,7 +251,7 @@ sell:
       economy:steel_ingot: { base: 154, q: 4 }   # 강철괴
       economy:oak_barrel: { base: 151, q: 4 }   # 참나무통
       economy:steel_toolset: { base: 840, q: 2 }   # 강철 공구 세트
-      economy:ornate_armor: { base: 1701, q: 1 }   # 장식용 갑옷
+      economy:ornate_armor: { base: 1688, q: 1 }   # 장식용 갑옷
       economy:iron_nails: { base: 3.85, q: 64 }   # 쇠못
       economy:copper_pot: { base: 75, q: 8 }   # 구리 냄비
       economy:gamasot: { base: 194, q: 4 }   # 가마솥

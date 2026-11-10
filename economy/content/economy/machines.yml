@@ -76,21 +76,21 @@ gem_bench:
   parts: [gem_bench_wheel]
   effect: { particle: crit, at: [8, 24, 5], sound: block.grindstone.use, volume: 0.35, pitch: 1.4 }
   recipes:
-    - { in: { economy:rough_ruby: 1 }, out: economy:ruby, seconds: 75 }   # 루비 38G
-    - { in: { economy:rough_sapphire: 1 }, out: economy:sapphire, seconds: 75 }   # 사파이어 38G
+    - { in: { economy:rough_ruby: 1 }, out: economy:ruby, seconds: 75 }   # 루비 35G
+    - { in: { economy:rough_sapphire: 1 }, out: economy:sapphire, seconds: 150 }   # 사파이어 76G
     - { in: { coal: 8 }, out: economy:coke, seconds: 100 }   # 코크스 60G
     - { in: { copper_ingot: 8 }, out: economy:copper_plate, seconds: 75 }   # 구리판 48G
-    - { in: { economy:rough_ruby: 4 }, out: economy:ruby, amount: 4, seconds: 225, tier: 1 }   # 루비 38G
-    - { in: { economy:rough_sapphire: 4 }, out: economy:sapphire, amount: 4, seconds: 225, tier: 1 }   # 사파이어 38G
-    - { in: { economy:ruby: 1, economy:gold_ring: 1 }, out: economy:ruby_ring, seconds: 480, tier: 1 }   # 루비 반지 238G (다이아 반지처럼 금반지에 보석을 박음)
-    - { in: { economy:polished_pearl: 1, gold_ingot: 2, economy:sapphire: 1 }, out: economy:pearl_necklace, seconds: 165, tier: 2 }   # 진주 목걸이 568G
-    - { in: { gold_ingot: 8, economy:ruby_ring: 2, economy:pearl_necklace: 1 }, out: economy:jeweled_crown, seconds: 1200, tier: 3 }   # 보석 왕관 2684G
+    - { in: { economy:rough_ruby: 4 }, out: economy:ruby, amount: 4, seconds: 225, tier: 1 }   # 루비 35G
+    - { in: { economy:rough_sapphire: 4 }, out: economy:sapphire, amount: 4, seconds: 450, tier: 1 }   # 사파이어 76G
+    - { in: { economy:ruby: 1, economy:gold_ring: 1 }, out: economy:ruby_ring, seconds: 480, tier: 1 }   # 루비 반지 231G (다이아 반지처럼 금반지에 보석을 박음)
+    - { in: { economy:polished_pearl: 1, gold_ingot: 2, economy:sapphire: 1 }, out: economy:pearl_necklace, seconds: 165, tier: 2 }   # 진주 목걸이 651G
+    - { in: { gold_ingot: 8, economy:ruby_ring: 2, economy:pearl_necklace: 1 }, out: economy:jeweled_crown, seconds: 1200, tier: 3 }   # 보석 왕관 2836G
     # ── 추가 (원석·광물만으로: 다른 기계를 거치지 않음) ──
     - { in: { emerald: 1 }, out: economy:cut_emerald, seconds: 60 }   # 세공 에메랄드 36G
     - { in: { lapis_lazuli: 16 }, out: economy:lapis_beads, seconds: 110 }   # 청금석 구슬 45G
     - { in: { gold_ingot: 2 }, out: economy:gold_ring, seconds: 355 }   # 금반지 70G
     - { in: { diamond: 1 }, out: economy:cut_diamond, seconds: 140, tier: 1 }   # 세공 다이아몬드 90G
-    - { in: { economy:sapphire: 1, gold_ingot: 2 }, out: economy:sapphire_brooch, seconds: 300, tier: 1 }   # 사파이어 브로치 147G
+    - { in: { economy:sapphire: 1, gold_ingot: 2 }, out: economy:sapphire_brooch, seconds: 300, tier: 1 }   # 사파이어 브로치 216G
     - { in: { economy:cut_diamond: 1, economy:gold_ring: 1 }, out: economy:diamond_ring, seconds: 600, tier: 2 }   # 다이아 반지 352G
     - { in: { copper_ingot: 4, economy:cut_emerald: 1 }, out: economy:copper_bracelet, seconds: 150 }   # 구리 팔찌 92G (세공 에메랄드를 박음)
     # 원재료만으로 (다른 기계의 생산품 없이: 효율은 낮음)
@@ -99,7 +99,7 @@ gem_bench:
     # ── 새 레시피 (특별 재료: 다른 직업이 자주 얻는 재료 · 어부가 많이 잡는 생선) ──
     - { in: { economy:rough_crystal: 1 }, out: economy:cut_crystal, seconds: 110 }   # 세공 수정 68G
     - { in: { economy:red_coral: 1, gold_ingot: 2 }, out: economy:coral_brooch, seconds: 360, tier: 1 }   # 산호 브로치 208G
-    - { in: { economy:polished_pearl: 1, economy:silk_cocoon: 2, economy:sapphire: 1 }, out: economy:silk_pearl_necklace, seconds: 600, tier: 2 }   # 명주 진주 목걸이 741G
+    - { in: { economy:polished_pearl: 1, economy:silk_cocoon: 2, economy:sapphire: 1 }, out: economy:silk_pearl_necklace, seconds: 960, tier: 2 }   # 명주 진주 목걸이 825G
     - { in: { economy:ambergris: 1, economy:gold_ring: 1, economy:silk_cocoon: 1 }, out: economy:ambergris_norigae, seconds: 600, tier: 2 }   # 용연향 노리개 702G
 
 mill:
@@ -178,7 +178,7 @@ forge:
     - { in: { iron_ingot: 2, economy:coke: 1 }, out: economy:steel_ingot, seconds: 135, tier: 1 }   # 강철괴 154G
     - { in: { oak_log: 6, economy:iron_plate: 1 }, out: economy:oak_barrel, seconds: 135, tier: 1 }   # 참나무통 151G
     - { in: { economy:steel_ingot: 2, economy:iron_chain: 1, "#logs": 2 }, out: economy:steel_toolset, seconds: 360, tier: 2 }   # 강철 공구 세트 840G
-    - { in: { economy:steel_ingot: 4, economy:gold_leaf: 4, economy:ruby: 2 }, out: economy:ornate_armor, seconds: 655, tier: 3 }   # 장식용 갑옷 1701G
+    - { in: { economy:steel_ingot: 4, economy:gold_leaf: 4, economy:ruby: 2 }, out: economy:ornate_armor, seconds: 655, tier: 3 }   # 장식용 갑옷 1688G
     # ── 추가 ──
     - { in: { iron_ingot: 1 }, out: economy:iron_nails, amount: 5, seconds: 15 }   # 쇠못 3.85G
     - { in: { copper_ingot: 12 }, out: economy:copper_pot, seconds: 135 }   # 구리 냄비 75G
