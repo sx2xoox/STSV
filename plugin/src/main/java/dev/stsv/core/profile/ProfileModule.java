@@ -232,12 +232,47 @@ public final class ProfileModule implements StsvModule, Listener {
 
     @EventHandler(priority = EventPriority.HIGH, ignoreCancelled = true)
     public void onChat(AsyncChatEvent e) {
-        if (!plugin.getConfig().getBoolean("profiles.title-in-chat")) return;
-        Optional<Title> t = worn(e.getPlayer().getUniqueId());
-        if (t.isEmpty()) return;
-        Component title = Text.mm(t.get().name());
-        e.renderer((source, name, message, viewer) -> Component.empty().append(title).append(Component.text(" <"))
-                .append(name).append(Component.text("> ")).append(message));
+        Optional<Title> t = plugin.getConfig().getBoolean("profiles.title-in-chat") ? worn(e.getPlayer().getUniqueId()) : Optional.empty();
+        Component title = t.map(x -> Text.mm(x.name())).orElse(null);
+        String format = plugin.getConfig().getString("profiles.chat-format");
+        e.renderer((source, name, message, viewer) -> chatLine(format, title, name, message));
+    }
+
+    /** The vanilla "&lt;name&gt; message" without the angle brackets: "{name}: {message}" by default (config profiles.chat-format). */
+    static final String DEFAULT_CHAT_FORMAT = "{title}{name}<gray>:</gray> {message}";
+
+    /**
+     * One chat line from the format: {title} (with a space after it, or nothing when no title is worn), {name} (the
+     * player's display name, i.e. the nickname with its hover), {message}. Anything else in the format is MiniMessage.
+     */
+    static Component chatLine(String format, Component title, Component name, Component message) {
+        String f = format == null || format.isBlank() ? DEFAULT_CHAT_FORMAT : format;
+        boolean hasTitleTag = f.contains("{title}");
+        Component out = Component.empty();
+        if (title != null && !hasTitleTag) out = out.append(title).append(Component.text(" "));
+        int i = 0;
+        while (i < f.length()) {
+            int open = f.indexOf('{', i);
+            if (open < 0) {
+                out = out.append(Text.mm(f.substring(i)));
+                break;
+            }
+            int close = f.indexOf('}', open);
+            String key = close < 0 ? "" : f.substring(open + 1, close);
+            if (!key.equals("title") && !key.equals("name") && !key.equals("message")) {
+                out = out.append(Text.mm(f.substring(i, close < 0 ? f.length() : close + 1)));
+                i = close < 0 ? f.length() : close + 1;
+                continue;
+            }
+            if (open > i) out = out.append(Text.mm(f.substring(i, open)));
+            switch (key) {
+                case "title" -> { if (title != null) out = out.append(title).append(Component.text(" ")); }
+                case "name" -> out = out.append(name);
+                default -> out = out.append(message);
+            }
+            i = close + 1;
+        }
+        return out;
     }
 
     // ------------------------------------------------------------------------------------------
