@@ -110,7 +110,7 @@ class ContentTest {
         assertTrue(shop.sellCategories().size() <= ShopCatalog.MAX_SELL_CATEGORIES && shop.buyCategories().size() + 1 <= ShopCatalog.MAX_BUY_CATEGORIES);
         assertEquals(List.of("minerals", "farm", "fish", "materials", "crafts", "foodstuff", "dishes"),
                 shop.sellCategories().stream().map(ShopCatalog.Category::id).toList());
-        assertEquals(List.of("tools", "machines", "seeds", "supplies", "furniture", "cosmetics", "titles"),
+        assertEquals(List.of("tools", "machines", "seeds", "supplies", "furniture", "vehicles", "cosmetics", "titles"),
                 shop.buyCategories().stream().map(ShopCatalog.BuyCategory::id).toList());
         // 가구: every Japanese-style piece of the core (content/stsv/items/furniture_japanese.yml), in the file's order (room, light,
         // plants, props, garden), one at a time, on one page of the item menu (36 cells); the shop does not buy furniture back
@@ -121,7 +121,13 @@ class ContentTest {
         assertEquals(pieces, furniture.goods().stream().map(ShopCatalog.Good::id).toList());
         assertTrue(furniture.goods().stream().allMatch(g -> g.kind().equals("item") && g.amount() == 1), "one piece a purchase");
         assertTrue(furniture.single(), "no shift-click 8 at once: a 20,000 G piece by mistake");
-        assertTrue(shop.buyCategories().stream().filter(c -> !c.id().equals("furniture")).noneMatch(ShopCatalog.BuyCategory::single), "only the furniture");
+        assertTrue(shop.buyCategories().stream().filter(c -> !c.id().equals("furniture") && !c.id().equals("vehicles"))
+                .noneMatch(ShopCatalog.BuyCategory::single), "only the furniture and the vehicles");
+        // vehicles: the four core vehicles, one at a time, the dearest last
+        ShopCatalog.BuyCategory vehicles = shop.buyCategories().stream().filter(c -> c.id().equals("vehicles")).findFirst().orElseThrow();
+        assertTrue(vehicles.single(), "one vehicle a purchase");
+        assertEquals(List.of("stsv:hand_cart", "stsv:golf_cart", "stsv:light_truck", "stsv:police_car"),
+                vehicles.goods().stream().map(ShopCatalog.Good::id).toList());
         assertTrue(furniture.goods().size() <= 36, "one page");
         assertTrue(pieces.contains(furniture.icon()), "a piece is the icon");
         for (String id : pieces) if (shop.sell().containsKey(id)) problems.add("furniture is not sold to the shop: " + id);

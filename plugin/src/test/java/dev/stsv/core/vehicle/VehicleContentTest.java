@@ -206,7 +206,7 @@ class VehicleContentTest {
                 .getMessage().startsWith("vehicle.seats"), "nobody rides a pulled cart");
     }
 
-    /** Vehicles are admin items for now (the hand cart too): no shop, no gacha, no recipe gives one. */
+    /** Vehicles come from the admin browser and the economy shop's 탈것 category only: no gacha, no recipe gives one. */
     @Test
     void onlyAdminsHandThemOut() throws Exception {
         YamlConfiguration items = YamlConfiguration.loadConfiguration(CONTENT.resolve("stsv/items/vehicles.yml").toFile());
@@ -219,7 +219,7 @@ class VehicleContentTest {
             if (!Files.isDirectory(root)) continue;
             try (Stream<Path> files = Files.walk(root)) {
                 for (Path f : files.filter(p -> p.toString().endsWith(".yml")).toList()) {
-                    if (f.getFileName().toString().equals("vehicles.yml")) continue;
+                    if (f.getFileName().toString().equals("vehicles.yml") || f.getFileName().toString().equals("shop.yml")) continue;
                     String text = Files.readString(f);
                     for (String id : ALL) assertFalse(text.contains(id), f + " mentions " + id);
                 }
