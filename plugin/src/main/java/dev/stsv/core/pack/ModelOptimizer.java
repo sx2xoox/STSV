@@ -21,11 +21,8 @@ import java.util.TreeSet;
  *       not shipped and the client does not stitch them.</li>
  * </ul>
  *
- * Tried and left out on purpose, because they change pixels (measured with before/after renders):
- * removing faces buried inside other boxes (the renderer shows such faces through seams, along shared edges and,
- * far away, through depth-buffer ties, so removing them changes those pixels) and packing face textures into an
- * atlas (a texture at another place in a texture changes the floating point rounding of UVs: pixels on texel
- * edges flip).
+ * Hidden faces and merged boxes (which change a pixel here and there on edges, never a texel) are {@link FaceReducer}'s,
+ * run right after {@link #removeZeroAreaFaces}.
  */
 public final class ModelOptimizer {
 

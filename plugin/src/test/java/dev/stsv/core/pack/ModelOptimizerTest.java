@@ -30,7 +30,7 @@ import static org.junit.jupiter.api.Assertions.assertNotNull;
 import static org.junit.jupiter.api.Assertions.assertSame;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
-/** The lossless model and texture clean-up, and that the real pack keeps every model exactly as converted. */
+/** The lossless model and texture clean-up (fewer faces for the same look: FaceReducerTest). */
 class ModelOptimizerTest {
 
     private static final List<String> ALL = List.of("north", "east", "south", "west", "up", "down");
@@ -54,7 +54,7 @@ class ModelOptimizerTest {
 
     @Test
     void buriedFacesAreKept() {
-        // a box inside another: its faces can show through depth ties far away, so nothing is removed
+        // a box inside another: not this step's business (FaceReducer removes hidden faces)
         JsonObject m = model(cube(0, 0, 0, 16, 16, 16, "o", ALL), cube(4, 4, 4, 8, 8, 8, "o", ALL));
         String before = m.toString();
         assertEquals(0, ModelOptimizer.removeZeroAreaFaces(m));
@@ -120,61 +120,6 @@ class ModelOptimizerTest {
         assertSame(rgbPng, PngOptimizer.optimize(rgbPng), "an RGB image decodes to 3 channels; it stays as it is");
         byte[] junk = {1, 2, 3};
         assertSame(junk, PngOptimizer.optimize(junk));
-    }
-
-    // ------------------------------------------------------------------------------------------
-    // the real packs: every built model is its converted model, with the same texels behind every face
-    // ------------------------------------------------------------------------------------------
-
-    @Test
-    void builtModelsAreTheConvertedModelsWithTheSameTexels() throws Exception {
-        Path content = Path.of(System.getProperty("stsv.content")), fixtures = Path.of(System.getProperty("stsv.fixtures"));
-        int faces = 0;
-        // the core pack, the test fixtures and, next to the core in this repository, the economy pack (machines, crops)
-        Map<Path, String> roots = new java.util.LinkedHashMap<>();
-        roots.put(content.resolve("stsv"), "stsv");
-        roots.put(fixtures.resolve("stsv"), "stsv");
-        Path economy = content.getParent().resolve("economy/content/economy");
-        if (Files.isDirectory(economy.resolve("models"))) roots.put(economy, "economy");
-        for (Map.Entry<Path, String> pack : roots.entrySet()) {
-            Path root = pack.getKey();
-            String ns = pack.getValue();
-            Map<String, byte[]> files = unzip(new PackBuilder().build(List.of(new ContentPack(ns, ns, root)), List.of(), 97, "t").zip());
-            List<Path> models;
-            try (var s = Files.list(root.resolve("models"))) {
-                models = s.filter(p -> p.toString().endsWith(".bbmodel")).sorted().toList();
-            }
-            for (Path p : models) {
-                String name = p.getFileName().toString().replace(".bbmodel", "");
-                BBModelConverter.Result r = BBModelConverter.convert(p, ns + ":item/" + name);
-                // through JSON text, as the client reads it (the converter holds floats, the pack text decimals)
-                JsonObject before = JsonParser.parseString(r.model().toString()).getAsJsonObject();
-                JsonObject after = JsonParser.parseString(new String(files.get("assets/" + ns + "/models/item/" + name + ".json"), StandardCharsets.UTF_8)).getAsJsonObject();
-                for (String k : new TreeSet<>(before.keySet())) {
-                    if (!k.equals("elements") && !k.equals("textures")) assertEquals(before.get(k), after.get(k), name + ": " + k);
-                }
-                assertEquals(new TreeSet<>(before.keySet()), new TreeSet<>(after.keySet()), name);
-                assertArrayEquals(pixels(texture(r, before, "particle")), pixels(files.get(packTexture(after, "particle"))), name + ": particle");
-
-                JsonArray be = before.getAsJsonArray("elements"), ae = after.getAsJsonArray("elements");
-                assertEquals(be.size(), ae.size(), name + ": same elements");
-                for (int i = 0; i < be.size(); i++) {
-                    JsonObject b = be.get(i).getAsJsonObject(), a = ae.get(i).getAsJsonObject();
-                    assertEquals(new TreeSet<>(b.keySet()), new TreeSet<>(a.keySet()), name);
-                    for (String k : b.keySet()) if (!k.equals("faces")) assertEquals(b.get(k), a.get(k), name + " " + k);
-                    assertEquals(b.getAsJsonObject("faces").keySet(), a.getAsJsonObject("faces").keySet(), name + ": same faces");
-                    for (Map.Entry<String, JsonElement> f : b.getAsJsonObject("faces").entrySet()) {
-                        JsonObject fb = f.getValue().getAsJsonObject(), fa = a.getAsJsonObject("faces").getAsJsonObject(f.getKey());
-                        for (String k : fb.keySet()) if (!k.equals("texture")) assertEquals(fb.get(k), fa.get(k), name + " " + k);
-                        assertEquals(fb.keySet(), fa.keySet(), name);
-                        String key = fb.get("texture").getAsString().substring(1);
-                        assertArrayEquals(pixels(texture(r, before, key)), pixels(files.get(packTexture(after, fa.get("texture").getAsString().substring(1)))), name + " texels");
-                        faces++;
-                    }
-                }
-            }
-        }
-        assertTrue(faces > 1000, "checked " + faces + " faces");
     }
 
     // ------------------------------------------------------------------------------------------

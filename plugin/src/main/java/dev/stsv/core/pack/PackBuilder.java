@@ -110,6 +110,25 @@ public final class PackBuilder {
     private final List<String> warnings = new ArrayList<>();
     private Map<String, byte[]> extra = Map.of();
     private boolean cropBlocks = true;
+    private boolean reduceFaces = true;
+    /** item model ids ("ns:model/name") of crop stages: their models are left as converted (see {@link #convertModels}) */
+    private final java.util.Set<String> cropModels = new java.util.HashSet<>();
+    /** model name ("ns:name") -> {faces as converted, faces shipped} */
+    private final Map<String, int[]> faceCounts = new TreeMap<>();
+
+    /**
+     * Hidden faces removed and neighbouring boxes merged in every 3D model ({@link FaceReducer}, on by default). Off only
+     * to compare (the models exactly as converted).
+     */
+    public PackBuilder reduceFaces(boolean on) {
+        this.reduceFaces = on;
+        return this;
+    }
+
+    /** Faces of each converted model of the last build ("ns:name" -> {as converted, as shipped}). */
+    public Map<String, int[]> faceCounts() {
+        return java.util.Collections.unmodifiableMap(faceCounts);
+    }
 
     /**
      * Custom crops as blocks (the default): every crop stage as a tripwire state (CropBlocks), with block models made from
@@ -135,7 +154,11 @@ public final class PackBuilder {
         warnings.clear();
         sharedTextures.clear();
         optimizedPngs.clear();
+        faceCounts.clear();
+        cropModels.clear();
         zipCache = null;
+        // crops are drawn as blocks from their models (CropBlockModels): they keep their faces exactly as made
+        for (dev.stsv.core.crop.CropSpec spec : dev.stsv.core.crop.CropSpec.loadAll(packs, w -> {})) cropModels.addAll(spec.models());
 
         JsonObject pack = new JsonObject();
         pack.addProperty("description", description);
@@ -215,6 +238,19 @@ public final class PackBuilder {
                 }
                 // lossless clean-up: faces without area, then textures nothing uses (see ModelOptimizer)
                 ModelOptimizer.removeZeroAreaFaces(model);
+                int converted = FaceReducer.faces(model);
+                // fewer faces for the same picture (FaceReducer): hidden faces go, neighbouring boxes merge
+                if (reduceFaces && refs != null && !cropModels.contains(ns + ":model/" + name)) {
+                    String atlasKey = "merged";
+                    while (refs.has(atlasKey)) atlasKey += "_";
+                    Reduced reduced = reduced(model, pngOf, metaOf.keySet(), atlasKey);
+                    model.add("elements", com.google.gson.JsonParser.parseString(reduced.elements()));
+                    if (reduced.atlas() != null) {
+                        pngOf.put(atlasKey, reduced.atlas());
+                        refs.addProperty(atlasKey, folder + name + "_" + atlasKey);
+                    }
+                }
+                faceCounts.put(ns + ":" + name, new int[]{converted, FaceReducer.faces(model)});
                 ModelOptimizer.dropUnusedTextures(model);
 
                 // identical textures (the same face on several models, e.g. the tiers of a machine) are stored
@@ -237,6 +273,54 @@ public final class PackBuilder {
                 json("assets/" + ns + "/models/item/" + name + ".json", model);
             }
         }
+    }
+
+    /** A model's reduced elements (JSON text) and the atlas of its new faces (PNG, or null). */
+    private record Reduced(String elements, byte[] atlas) {}
+
+    /**
+     * Reductions already worked out, by the model and its pictures (a hash of both): a reload (or the next build of the same
+     * content) does not do them again. Bounded; the least recently used go first.
+     */
+    private static final Map<String, Reduced> REDUCED = java.util.Collections.synchronizedMap(new java.util.LinkedHashMap<>(256, 0.75f, true) {
+        @Override
+        protected boolean removeEldestEntry(Map.Entry<String, Reduced> eldest) {
+            return size() > 4096;
+        }
+    });
+
+    private static Reduced reduced(JsonObject model, Map<String, byte[]> pngOf, java.util.Set<String> animated, String atlasKey) throws IOException {
+        String key;
+        try {
+            MessageDigest md = MessageDigest.getInstance("SHA-256");
+            md.update(model.toString().getBytes(StandardCharsets.UTF_8));
+            md.update(atlasKey.getBytes(StandardCharsets.UTF_8));
+            for (String k : new java.util.TreeSet<>(pngOf.keySet())) {
+                md.update((k + (animated.contains(k) ? "*" : "") + "|").getBytes(StandardCharsets.UTF_8));
+                md.update(pngOf.get(k));
+            }
+            key = HexFormat.of().formatHex(md.digest());
+        } catch (NoSuchAlgorithmException e) {
+            throw new IllegalStateException(e);
+        }
+        Reduced hit = REDUCED.get(key);
+        if (hit != null) return hit;
+        Map<String, java.awt.image.BufferedImage> images = new java.util.HashMap<>();
+        for (Map.Entry<String, byte[]> t : pngOf.entrySet()) {
+            java.awt.image.BufferedImage img = javax.imageio.ImageIO.read(new java.io.ByteArrayInputStream(t.getValue()));
+            if (img != null) images.put(t.getKey(), img);
+        }
+        JsonObject copy = model.deepCopy();
+        FaceReducer.Result r = FaceReducer.reduce(copy, images, animated, atlasKey);
+        byte[] atlas = null;
+        if (r.atlas() != null) {
+            ByteArrayOutputStream png = new ByteArrayOutputStream();
+            javax.imageio.ImageIO.write(r.atlas(), "png", png);
+            atlas = png.toByteArray();
+        }
+        Reduced out = new Reduced(copy.getAsJsonArray("elements").toString(), atlas);
+        REDUCED.put(key, out);
+        return out;
     }
 
     /** original PNG (by content hash) -> its losslessly re-encoded form, so each picture is optimised once per build */

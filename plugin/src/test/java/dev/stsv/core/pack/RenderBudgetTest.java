@@ -1,0 +1,90 @@
+package dev.stsv.core.pack;
+
+import dev.stsv.core.content.ContentPack;
+import org.bukkit.configuration.ConfigurationSection;
+import org.bukkit.configuration.file.YamlConfiguration;
+import org.junit.jupiter.api.Test;
+
+import java.nio.file.Files;
+import java.nio.file.Path;
+import java.util.HashSet;
+import java.util.LinkedHashMap;
+import java.util.List;
+import java.util.Map;
+import java.util.Set;
+import java.util.TreeMap;
+
+import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertTrue;
+
+/**
+ * 렌더 예산 (RenderBudget): every shipped 3D model, as the pack sends it, within the face budget of its kind. Crops are
+ * blocks (part of the chunk mesh, not drawn one by one) and are not counted.
+ */
+class RenderBudgetTest {
+
+    @Test
+    void everyShippedModelFitsItsBudget() throws Exception {
+        Path content = Path.of(System.getProperty("stsv.content"));
+        Map<String, Path> packs = new LinkedHashMap<>();
+        packs.put("stsv", content.resolve("stsv"));
+        Path economy = content.getParent().resolve("economy/content/economy");
+        if (Files.isDirectory(economy.resolve("models"))) packs.put("economy", economy);
+
+        Map<String, Integer> faces = new TreeMap<>();
+        Map<String, RenderBudget.Category> kinds = new LinkedHashMap<>();
+        Set<String> crops = new HashSet<>();
+        for (Map.Entry<String, Path> p : packs.entrySet()) {
+            String ns = p.getKey();
+            ContentPack cp = new ContentPack(ns, ns, p.getValue());
+            PackBuilder b = new PackBuilder();
+            b.build(List.of(cp), List.of(), 97, "t");
+            b.faceCounts().forEach((m, c) -> faces.put(m, c[1]));
+            kinds.putAll(RenderBudget.categories(ns, items(p.getValue())));
+            for (var spec : dev.stsv.core.crop.CropSpec.loadAll(List.of(cp), w -> {})) {
+                for (String id : spec.models()) crops.add(id.replace(":model/", ":"));
+            }
+        }
+        // the kinds are found: furniture, machines by tier, their spinning parts, cosmetics and pets
+        assertEquals(RenderBudget.Category.FURNITURE_SMALL, kinds.get("stsv:andon"));
+        assertEquals(RenderBudget.Category.FURNITURE_LARGE, kinds.get("stsv:wagasa"));
+        assertEquals(RenderBudget.Category.PET, kinds.get("stsv:cat"));
+        assertEquals(RenderBudget.Category.COSMETIC, kinds.get("stsv:gat"));
+        if (packs.containsKey("economy")) {
+            assertEquals(RenderBudget.Category.MACHINE_3, kinds.get("economy:kitchen_3"));
+            assertEquals(RenderBudget.Category.MACHINE_0, kinds.get("economy:mill_0"));
+            assertEquals(RenderBudget.Category.MACHINE_PART, kinds.get("economy:mill_stone_2"));
+            assertTrue(crops.contains("economy:tomato_4"));
+        }
+        // every model an item shows was built
+        for (String m : kinds.keySet()) assertTrue(faces.containsKey(m), "no model for " + m);
+
+        List<String> over = RenderBudget.over(faces, kinds, crops);
+        assertEquals(List.of(), over, "렌더 예산 초과:\n" + String.join("\n", over));
+    }
+
+    @Test
+    void aHeavyModelIsNamedWithItsFacesAndBudget() {
+        Map<String, RenderBudget.Category> kinds = Map.of("x:lamp", RenderBudget.Category.FURNITURE_SMALL);
+        List<String> over = RenderBudget.over(Map.of("x:lamp", 5000, "x:ok", 10, "x:crop_1", 9999), kinds, Set.of("x:crop_1"));
+        assertEquals(1, over.size());
+        assertTrue(over.get(0).startsWith("x:lamp: 면 5000개 > 예산 " + RenderBudget.Category.FURNITURE_SMALL.faces), over.get(0));
+    }
+
+    /** Every item of a content pack (items/*.yml), by id. */
+    private static Map<String, ConfigurationSection> items(Path pack) throws Exception {
+        Map<String, ConfigurationSection> out = new LinkedHashMap<>();
+        Path dir = pack.resolve("items");
+        if (!Files.isDirectory(dir)) return out;
+        try (var s = Files.list(dir)) {
+            for (Path f : s.filter(p -> p.toString().endsWith(".yml")).sorted().toList()) {
+                YamlConfiguration y = YamlConfiguration.loadConfiguration(f.toFile());
+                for (String id : y.getKeys(false)) {
+                    ConfigurationSection sec = y.getConfigurationSection(id);
+                    if (sec != null) out.put(id, sec);
+                }
+            }
+        }
+        return out;
+    }
+}

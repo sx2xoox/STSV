@@ -12,7 +12,8 @@ sees the whole model, so a face can show what hand-painted block models show:
     stands against (Minecraft's own face shading still darkens the sides: up 1.0, north/south 0.8, east/west 0.6);
   * one atlas PNG per model (plus one for cut-out planes and one for animated faces), sized in multiples of
     16 so mipmaps keep all levels. Faces nobody can see (buried in other parts, the bottom on the floor) all
-    share one pixel.
+    share one pixel. When the plugin builds the resource pack, FaceReducer drops the buried ones, merges boxes and
+    re-cuts stepped round parts into fewer boxes, texel for texel (faces = frame cost; docs/ART_STYLE.md, 렌더 예산).
 
 All colours are palette ramp steps (palette.ladder continues a ramp one or two steps past its ends for
 occlusion and rims), so the baked models stay in the pack's palette.
