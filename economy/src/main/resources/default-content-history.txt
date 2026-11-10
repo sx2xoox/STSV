@@ -523,6 +523,7 @@ a6519a931ddf6b42402f8b5060505f54ae6eeb68 economy/machines.yml
 bc2e53ccfb11af2c2518ecefb24d9c90bbbba4fd economy/machines.yml
 ce719590f220d9ab8a6f9e70403d5138664ebdf8 economy/machines.yml
 d5eac3c5c75db22c688273009a5e88df76c7ed2c economy/machines.yml
+fdc8a4b2ad4252723bb0e5142446630cbbe2f489 economy/machines.yml
 1e27f6cf4904fa2bfa8715298d12c840f02ec1ff economy/menus/auction.yml
 ccbf1bf26a99f023e4b6dca6804a3fad3ce3bf4c economy/menus/auction.yml
 2f89e3bb5f119646751a566e9d5facb6ab418225 economy/menus/codex.yml
@@ -982,6 +983,7 @@ f3c85fd1b590e11695e565a57503fb208ab98154 economy/requests.yml
 505160b5d0c3e732a1cd52c8200a3c37e7c34c54 economy/shop.yml
 588235b4e1745d74b7f738d204babb38f77fc608 economy/shop.yml
 5bbea2ec9023651c9d59ba45ee307ba4000b59d7 economy/shop.yml
+667a869159752de48de02c4b362d5b9996a04155 economy/shop.yml
 7697fdc399921ffcea5b2be43f6ef6a8caee2cac economy/shop.yml
 83ea0e0a9a4e74d71dbf74fc9b4a7aaada752c24 economy/shop.yml
 8f130d0693ee5dafedc2209626f6af1fd083f43d economy/shop.yml
