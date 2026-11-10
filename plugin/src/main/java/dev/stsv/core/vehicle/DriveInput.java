@@ -6,9 +6,9 @@ import java.util.List;
 /**
  * The driver's keys this tick (Paper's player input: W/S/A/D, jump, sneak, sprint). Pure.
  *
- * <p>W = forward, S = backward (brake, then reverse), A / D = steer left / right, space (jump) = horn,
- * Ctrl (sprint) = the patrol car's siren on / off, sneak = get out (vanilla dismounts the rider on its own).
- * Horn and siren act once per press ({@link #presses}): holding the key does nothing more.
+ * <p>W = forward, S = backward (brake, then reverse), A / D = steer left / right, space (jump) = horn (sounds while
+ * held: {@link VehicleSounds.HornState}), Ctrl (sprint) = the patrol car's siren on / off, sneak = get out (vanilla
+ * dismounts the rider on its own). The siren toggles once per press ({@link #presses}): holding Ctrl does nothing more.
  */
 public record DriveInput(boolean forward, boolean backward, boolean left, boolean right, boolean jump, boolean sneak,
                          boolean sprint) {
@@ -35,17 +35,16 @@ public record DriveInput(boolean forward, boolean backward, boolean left, boolea
         return now && !before;
     }
 
-    /** What a key press does. */
-    public enum Press { HORN, SIREN }
+    /** What a key press does (the horn is not a press: it sounds while space is held). */
+    public enum Press { SIREN }
 
     /**
-     * The actions of an input change: space pressed = HORN (every vehicle), Ctrl pressed = SIREN (only one with a
-     * light bar). Held keys give nothing (no spam); both pressed together give both.
+     * The actions of an input change: Ctrl pressed = SIREN (only on a vehicle with a light bar). A held key gives
+     * nothing more (no toggling back and forth).
      */
     public static List<Press> presses(DriveInput before, DriveInput now, boolean hasSiren) {
         DriveInput b = before == null ? NONE : before;
-        List<Press> out = new ArrayList<>(2);
-        if (pressed(b.jump(), now.jump())) out.add(Press.HORN);
+        List<Press> out = new ArrayList<>(1);
         if (hasSiren && pressed(b.sprint(), now.sprint())) out.add(Press.SIREN);
         return out;
     }

@@ -178,8 +178,22 @@ vehicles:
     interval: 8
     # 경광등 색이 바뀌는 간격 (틱)
     flash-ticks: 4
-  # 경적(운전 중 스페이스, 누를 때마다 한 번. 소리는 탈것마다 vehicles.yml 의 horn)을 다시 울릴 수 있을 때까지 (틱, 12 = 0.6초)
-  horn-cooldown: 12
+  # 경적: 운전 중 스페이스를 누르고 있는 동안 울리고, 떼면 곧 멈춤 (짧게 누르면 짧게 "빵"). 소리는 탈것마다 vehicles.yml 의 horn
+  horn:
+    # true = 리소스팩의 STSV 경적 소리 (누르는 동안 이어서 울리고 떼면 끝소리). false = 바닐라 소리 (vehicles.yml 의 horn.vanilla, 누를 때마다 한 번)
+    custom-sound: true
+    # 짧게 눌러도 이만큼은 울림 (틱, 4 = 0.2초)
+    min-ticks: 4
+    # 계속 누르고 있어도 이 시간(초)이 지나면 멈춤. 다시 울리려면 스페이스를 뗐다가 눌러야 함 (최대 5 = 소리 파일 길이)
+    max-hold-seconds: 5
+    # 멈춘 뒤 다시 울릴 수 있을 때까지 (틱, 6 = 0.3초). 연타해도 1초에 두 번쯤만 울림
+    cooldown: 6
+  # 운전 중 엔진 소리 (리소스팩 소리, 탈것마다 vehicles.yml 의 engine). 빠를수록 음이 높아지고, 서 있으면 작게 (골프 카트는 조용)
+  engine:
+    # false = 엔진 소리 없음
+    enabled: true
+    # 소리 크기 배율 (탈것마다의 크기 × 이 값, 0 ~ 2). 16블록까지 들림
+    volume: 1.0
 
 editor:
   # /관리자 레시피 생성 에서 네임스페이스 없이 id 를 쓰면 이 콘텐츠 팩에 저장됩니다

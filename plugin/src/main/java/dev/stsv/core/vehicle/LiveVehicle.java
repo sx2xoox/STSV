@@ -2,6 +2,7 @@ package dev.stsv.core.vehicle;
 
 import dev.stsv.core.content.CustomItem;
 import org.bukkit.World;
+import org.bukkit.entity.ArmorStand;
 import org.bukkit.entity.Entity;
 import org.bukkit.entity.Interaction;
 import org.bukkit.entity.ItemDisplay;
@@ -10,7 +11,9 @@ import org.bukkit.inventory.Inventory;
 import org.bukkit.inventory.ItemStack;
 
 import java.util.ArrayList;
+import java.util.HashSet;
 import java.util.List;
+import java.util.Set;
 import java.util.UUID;
 
 /**
@@ -32,14 +35,31 @@ final class LiveVehicle {
     ItemDisplay body, lights, load;
     final List<ItemDisplay> wheels = new ArrayList<>();
     final List<Interaction> hits = new ArrayList<>();
-    /** seat entity per seat (null = empty), the rider being its passenger */
-    ItemDisplay[] seats;
+    /**
+     * An occupied seat: the carrier (an item display without an item, teleported with the vehicle every tick: it glides
+     * like the body) and on it the chair the rider sits on: a marker armor stand facing the vehicle. The chair being a
+     * living entity is what keeps the rider's body facing forward (see {@link VehicleSeats#riderBodyYaw}).
+     */
+    record Seat(ItemDisplay carrier, ArmorStand chair) {
+        boolean valid() {
+            return carrier.isValid() && chair.isValid() && carrier.equals(chair.getVehicle());
+        }
+    }
+
+    /** per seat (null = empty) */
+    Seat[] seats;
 
     boolean siren;
     int flash;
     /** what the light bar shows: -1 = dark, else the flash look */
     int lightsShown = -1;
-    long lastHorn = Long.MIN_VALUE / 2;
+    /** the horn (held space) and who was sent its sound (they are sent the stop) */
+    final VehicleSounds.HornState horn = new VehicleSounds.HornState();
+    final Set<UUID> hornHeard = new HashSet<>();
+    /** the engine sound: when the next segment is due (plugin ticks), whether it runs, who was sent a segment */
+    long engineAt;
+    boolean engineOn;
+    final Set<UUID> engineHeard = new HashSet<>();
 
     /** the storage bed (null without one), the page open and who has it open */
     ItemStack[] cargo;
@@ -60,14 +80,14 @@ final class LiveVehicle {
         this.ownerName = ownerName;
         this.world = world;
         this.st = st;
-        this.seats = new ItemDisplay[spec.seats().size()];
+        this.seats = new Seat[spec.seats().size()];
     }
 
     /** The player in a seat, or null. */
     Player rider(int seat) {
-        ItemDisplay s = seat < seats.length ? seats[seat] : null;
-        if (s == null || !s.isValid()) return null;
-        for (Entity e : s.getPassengers()) if (e instanceof Player p) return p;
+        Seat s = seat < seats.length ? seats[seat] : null;
+        if (s == null || !s.chair().isValid()) return null;
+        for (Entity e : s.chair().getPassengers()) if (e instanceof Player p) return p;
         return null;
     }
 
@@ -108,7 +128,11 @@ final class LiveVehicle {
         if (load != null) out.add(load);
         out.addAll(wheels);
         out.addAll(hits);
-        for (ItemDisplay s : seats) if (s != null) out.add(s);
+        for (Seat s : seats) {
+            if (s == null) continue;
+            out.add(s.carrier());
+            out.add(s.chair());
+        }
         return out;
     }
 

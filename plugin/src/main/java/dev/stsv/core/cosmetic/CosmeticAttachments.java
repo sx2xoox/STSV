@@ -428,8 +428,10 @@ final class CosmeticAttachments {
         }
         Entity vehicle = p.getVehicle();
         if (vehicle != null) {
-            // horses turn their rider's body with theirs, boats and the rest to their own facing
-            b.yaw = vehicle instanceof org.bukkit.entity.LivingEntity le ? le.getBodyYaw() : vehicle.getYaw();
+            // on a living mount (a horse, a vehicle's seat) clients draw the body facing the mount's way, the head turning up
+            // to 85 degrees (VehicleSeats.riderBodyYaw); boats and the rest turn it to their own facing
+            b.yaw = vehicle instanceof org.bukkit.entity.LivingEntity le
+                    ? dev.stsv.core.vehicle.VehicleSeats.riderBodyYaw(le.getBodyYaw(), p.getYaw()) : vehicle.getYaw();
         } else {
             b.yaw = nextBody(b.yaw, l.getX() - b.x, l.getZ() - b.z, l.getYaw(), b.swing > 0, p.isBlocking());
         }

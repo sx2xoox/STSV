@@ -62,11 +62,22 @@ class VehicleContentTest {
         assertEquals(2, cart.seats().size());
         assertNotNull(police.lights(), "light bar + siren");
         assertEquals(2, police.lights().flash().size());
-        // every vehicle honks (space), each its own way: the cart high and short, the truck low and twice, the car between
-        for (VehicleSpec s : v.values()) {
-            assertNotNull(s.horn());
-            assertTrue(s.horn().volume() >= 1.4, "heard about 24 blocks away");
+        // every vehicle honks (space held) with its own sounds from the pack, and an engine sound
+        for (Map.Entry<String, VehicleSpec> e : v.entrySet()) {
+            VehicleSpec.Horn h = e.getValue().horn();
+            assertNotNull(h);
+            assertTrue(h.volume() >= 1.4 && h.volume() <= 1.6, "heard about 24 blocks away");
+            assertEquals("stsv:vehicle." + e.getKey() + ".horn", h.sound());
+            assertEquals("stsv:vehicle." + e.getKey() + ".horn_end", h.release());
+            VehicleSpec.Engine en = e.getValue().engine();
+            assertNotNull(en, e.getKey());
+            assertEquals("stsv:vehicle." + e.getKey() + ".engine", en.sound());
+            assertTrue(en.volume() <= 0.5, "quiet: a background hum, heard 16 blocks away at most");
+            assertTrue(en.idleVolume() < en.volume() && en.idlePitch() < en.topPitch(), "quieter and lower standing");
+            assertEquals(ENGINE_SEGMENT_TICKS, en.segmentTicks(), "the segment length of the sound files");
         }
+        assertEquals(0, cart.engine().idleVolume(), "the electric cart is silent standing");
+        // the vanilla fallback (vehicles.horn.custom-sound: false): the cart high, the truck low and twice, the car between
         assertEquals(1, cart.horn().times());
         assertEquals(2, truck.horn().times(), "빵빵");
         assertEquals(1, police.horn().times());
@@ -76,6 +87,47 @@ class VehicleContentTest {
         assertEquals(4, truck.cargo().stages().size());
         assertTrue(truck.cargo().behind() < truck.length() / 2 && truck.cargo().behind() > -truck.length() / 2);
         assertNull(police.cargo());
+    }
+
+    /** tools/assetgen/sounds.py ENGINE_PERIOD (0.5 s) in ticks. */
+    private static final int ENGINE_SEGMENT_TICKS = 10;
+    /** sounds.py ENGINE_FADE: each engine clip is one period plus its fade-out. */
+    private static final double ENGINE_FADE = 0.15;
+    /** sounds.py HORN_HOLD: the hold clip covers the longest hold the server allows. */
+    private static final double HORN_HOLD = VehicleModule.HORN_CLIP_SECONDS;
+
+    /**
+     * Every vehicle sound is in the pack: an event in assets/stsv/sounds.json pointing at an .ogg that exists, the hold
+     * clip as long as the longest hold, the engine clip one segment plus its fade (the server times segments by it).
+     */
+    @Test
+    void theirSoundsAreInThePack() throws Exception {
+        Path assets = CONTENT.resolve("stsv/assets/stsv");
+        com.google.gson.JsonObject sounds = com.google.gson.JsonParser.parseString(Files.readString(assets.resolve("sounds.json"))).getAsJsonObject();
+        for (Map.Entry<String, VehicleSpec> e : shipped().entrySet()) {
+            VehicleSpec s = e.getValue();
+            for (String key : List.of(s.horn().sound(), s.horn().release(), s.engine().sound())) {
+                assertTrue(key.startsWith("stsv:"), key);
+                String event = key.substring("stsv:".length());
+                assertTrue(sounds.has(event), "sounds.json has " + event);
+                com.google.gson.JsonArray list = sounds.getAsJsonObject(event).getAsJsonArray("sounds");
+                assertFalse(list.isEmpty(), event);
+                for (com.google.gson.JsonElement el : list) {
+                    String name = el.isJsonObject() ? el.getAsJsonObject().get("name").getAsString() : el.getAsString();
+                    assertTrue(name.startsWith("stsv:"), name);
+                    Path ogg = assets.resolve("sounds/" + name.substring("stsv:".length()) + ".ogg");
+                    assertTrue(Files.isRegularFile(ogg), ogg + " exists");
+                    assertTrue(Files.size(ogg) < 64 * 1024, ogg + " stays small");
+                    double seconds = OggLength.seconds(ogg);
+                    if (key.equals(s.horn().sound())) assertTrue(seconds >= HORN_HOLD, ogg + ": " + seconds + " s covers the longest hold");
+                    if (key.equals(s.horn().release())) assertTrue(seconds > 0.1 && seconds < 0.5, ogg + ": a short tail");
+                    if (key.equals(s.engine().sound())) {
+                        assertEquals(s.engine().segmentTicks() / 20.0 + ENGINE_FADE, seconds, 0.02, ogg + ": one segment + its fade");
+                    }
+                    assertEquals(1, OggLength.channels(ogg), ogg + ": mono (positional)");
+                }
+            }
+        }
     }
 
     @Test

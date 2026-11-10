@@ -28,6 +28,7 @@ import java.util.function.Predicate;
  * @param lights       the roof light bar (Ctrl = siren on / off), or null
  * @param horn         the horn (space), or null
  * @param cargo        a storage bed (the truck), or null
+ * @param engine       its driving sound, or null (silent)
  */
 public record VehicleSpec(
         float bodyScale,
@@ -36,7 +37,7 @@ public record VehicleSpec(
         double length, double width, double height, double clickHeight,
         NamespacedKey wheelModel, double wheelRadius, List<Wheel> wheels,
         List<Vec> seats,
-        Lights lights, Horn horn, Cargo cargo
+        Lights lights, Horn horn, Cargo cargo, Engine engine
 ) {
 
     /** A point on the vehicle: right, up, forward (blocks) from its ground centre. */
@@ -48,10 +49,19 @@ public record VehicleSpec(
     public record Lights(NamespacedKey dark, List<NamespacedKey> flash, Vec at) {}
 
     /**
-     * The horn (space): a vanilla sound key played `times` times (빵 / 빵빵), `gap` ticks apart, at this pitch; volume 1 =
-     * heard about 16 blocks away (1.5 = 24).
+     * The horn (space, held: {@link VehicleSounds}). sound: the resource pack's hold clip (sounds while space is down, stopped
+     * on release), release: its short tail played on release (null = none); volume 1 = heard about 16 blocks away (1.5 =
+     * 24). Without the pack's sounds (config vehicles.horn.custom-sound: false) the vanilla sound key plays instead, once
+     * per press: `times` times (빵 / 빵빵), `gap` ticks apart, at this pitch.
      */
-    public record Horn(String sound, float pitch, float volume, int times, int gap) {}
+    public record Horn(String sound, String release, float volume, String vanilla, float pitch, int times, int gap) {}
+
+    /**
+     * The driving sound: a resource pack sound of one segment (segmentTicks long at pitch 1, see tools/assetgen/sounds.py),
+     * re-played back to back while someone drives. Pitch from idlePitch (standing) to topPitch (top speed), loudness from
+     * idleVolume (0 = silent while standing) to volume (at most 1: heard 16 blocks away).
+     */
+    public record Engine(String sound, float volume, float idleVolume, float idlePitch, float topPitch, int segmentTicks) {}
 
     /**
      * A storage bed: pages of 45 slots (a chest page, its bottom row the page buttons).
@@ -103,12 +113,26 @@ public record VehicleSpec(
         }
         Horn horn = null;
         if (v.isConfigurationSection("horn")) {
-            String sound = v.getString("horn.sound");
-            if (sound == null || sound.isBlank()) throw new IllegalArgumentException("vehicle.horn.sound 가 없음");
+            String sound = soundKey(v.getString("horn.sound"), "vehicle.horn.sound", true);
+            String release = soundKey(v.getString("horn.release"), "vehicle.horn.release", false);
+            String vanilla = soundKey(v.getString("horn.vanilla", "block.note_block.didgeridoo"), "vehicle.horn.vanilla", true);
             int times = v.getInt("horn.times", 1);
             if (times < 1 || times > 4) throw new IllegalArgumentException("vehicle.horn.times 는 1 ~ 4");
-            horn = new Horn(sound.trim(), (float) v.getDouble("horn.pitch", 1.0), (float) v.getDouble("horn.volume", 1.5), times,
+            horn = new Horn(sound, release, (float) v.getDouble("horn.volume", 1.5), vanilla, (float) v.getDouble("horn.pitch", 1.0), times,
                     Math.clamp(v.getInt("horn.gap", 4), 1, 20));
+        }
+        Engine engine = null;
+        if (v.isConfigurationSection("engine")) {
+            ConfigurationSection e = v.getConfigurationSection("engine");
+            float volume = (float) e.getDouble("volume", 0.4), idleVolume = (float) e.getDouble("idle-volume", 0);
+            if (volume <= 0 || volume > 1 || idleVolume < 0 || idleVolume > volume)
+                throw new IllegalArgumentException("vehicle.engine: 0 <= idle-volume <= volume <= 1");
+            float idlePitch = (float) e.getDouble("idle-pitch", 0.7), topPitch = (float) e.getDouble("top-pitch", 1.4);
+            if (idlePitch < VehicleSounds.MIN_PITCH || topPitch > VehicleSounds.MAX_PITCH || idlePitch > topPitch)
+                throw new IllegalArgumentException("vehicle.engine: 0.5 <= idle-pitch <= top-pitch <= 2");
+            int segment = e.getInt("segment-ticks", 10);
+            if (segment < 4 || segment > 100) throw new IllegalArgumentException("vehicle.engine.segment-ticks 는 4 ~ 100");
+            engine = new Engine(soundKey(e.getString("sound"), "vehicle.engine.sound", true), volume, idleVolume, idlePitch, topPitch, segment);
         }
         Cargo cargo = null;
         if (v.isConfigurationSection("cargo")) {
@@ -126,7 +150,18 @@ public record VehicleSpec(
         return new VehicleSpec((float) bodyScale, speed, reverse, positive(v, "acceleration"), positive(v, "brake"),
                 v.getDouble("coast", 2.0), positive(v, "turn-rate"), positive(v, "turn-speed"), step,
                 size.get(0), size.get(1), size.get(2), v.getDouble("click-height", Math.min(1.2, size.get(2))),
-                wheel, wheelRadius, List.copyOf(wheels), List.copyOf(seats), lights, horn, cargo);
+                wheel, wheelRadius, List.copyOf(wheels), List.copyOf(seats), lights, horn, cargo, engine);
+    }
+
+    /** A sound event key ("ns:path" or a vanilla "path"), checked; null when absent and not required. */
+    private static String soundKey(String key, String what, boolean required) {
+        if (key == null || key.isBlank()) {
+            if (required) throw new IllegalArgumentException(what + " 가 없음");
+            return null;
+        }
+        String k = key.trim();
+        if (NamespacedKey.fromString(k) == null) throw new IllegalArgumentException(what + ": 잘못된 소리 이름 " + k);
+        return k;
     }
 
     private static double positive(ConfigurationSection v, String key) {

@@ -422,7 +422,8 @@ public final class HudModule implements StsvModule, Listener, CommandExecutor, T
                 : p.isFrozen() ? HudLayout.Tint.FROZEN : HudLayout.Tint.NORMAL;
         HudLayout.Health h = new HudLayout.Health(p.getHealth(), max, p.getAbsorptionAmount(), p.getFoodLevel(), p.getSaturation(),
                 armor, tint, p.hasPotionEffect(PotionEffectType.HUNGER));
-        if (p.getVehicle() instanceof LivingEntity mount) {
+        // a vehicle's seat is a living entity too (VehicleModule: the rider's body faces forward), but has no health to show
+        if (p.getVehicle() instanceof LivingEntity mount && !dev.stsv.core.vehicle.VehicleModule.isVehiclePart(mount)) {
             AttributeInstance m = mount.getAttribute(Attribute.MAX_HEALTH);
             h = h.withMount(new HudLayout.Mount(mount.getHealth(), m == null ? mount.getHealth() : m.getValue()));
         }
