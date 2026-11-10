@@ -21,6 +21,9 @@ import java.util.concurrent.CompletableFuture;
  * their next join, once).
  *
  * <p>The storage bed's contents (serialized items) stay on the row, whatever state it is in.
+ *
+ * <p>Grants ({@code stsv_vehicle_grant}, /탈것 권한): the players an owner allows to drive, pull and open the beds of all
+ * their vehicles, one row per (owner, player), with the player's name as it was then (listed while they are offline).
  */
 public final class VehicleStore {
 
@@ -42,6 +45,9 @@ public final class VehicleStore {
     public record Row(long id, String item, UUID owner, String ownerName, State state, long token, Pos pos, byte[] cargo,
                       long created, long updated) {}
 
+    /** An owner allowed a player (all the owner's vehicles). */
+    public record Grant(UUID owner, UUID player, String playerName, long created) {}
+
     private final Db db;
 
     public VehicleStore(Db db) {
@@ -57,7 +63,47 @@ public final class VehicleStore {
                         + "world_name VARCHAR(64), x DOUBLE, y DOUBLE, z DOUBLE, yaw DOUBLE, cargo " + blob + ", "
                         + "created BIGINT NOT NULL, updated BIGINT NOT NULL)",
                 "CREATE INDEX stsv_vehicle_owner ON stsv_vehicle (owner)",
-                "CREATE INDEX stsv_vehicle_state ON stsv_vehicle (state)")));
+                "CREATE INDEX stsv_vehicle_state ON stsv_vehicle (state)"),
+                // 2: /탈것 권한 (who else may drive, pull and open the beds of an owner's vehicles)
+                List.of("CREATE TABLE IF NOT EXISTS stsv_vehicle_grant (owner CHAR(36) NOT NULL, player CHAR(36) NOT NULL, "
+                        + "player_name VARCHAR(16) NOT NULL, created BIGINT NOT NULL, PRIMARY KEY (owner, player))")));
+    }
+
+    // ------------------------------------------------------------------------------------------
+    // Grants (/탈것 권한)
+    // ------------------------------------------------------------------------------------------
+
+    private static Grant grant(ResultSet rs) throws SQLException {
+        return new Grant(UUID.fromString(rs.getString(1)), UUID.fromString(rs.getString(2)), rs.getString(3), rs.getLong(4));
+    }
+
+    /** Allows a player (their name refreshed when already allowed). true = newly allowed. */
+    public CompletableFuture<Boolean> grant(UUID owner, UUID player, String playerName, long now) {
+        return db.async(c -> {
+            int n = Db.update(c, "UPDATE stsv_vehicle_grant SET player_name = ? WHERE owner = ? AND player = ?", cut(playerName),
+                    owner.toString(), player.toString());
+            if (n > 0) return false;
+            Db.update(c, "INSERT INTO stsv_vehicle_grant (owner, player, player_name, created) VALUES (?, ?, ?, ?)", owner.toString(),
+                    player.toString(), cut(playerName), now);
+            return true;
+        });
+    }
+
+    /** Takes a permission back. true = it was there. */
+    public CompletableFuture<Boolean> revoke(UUID owner, UUID player) {
+        return db.async(c -> Db.update(c, "DELETE FROM stsv_vehicle_grant WHERE owner = ? AND player = ?", owner.toString(), player.toString()) > 0);
+    }
+
+    /** Every grant (loaded at start; there are few). */
+    public List<Grant> grants() {
+        return db.sync(c -> Db.query(c, "SELECT owner, player, player_name, created FROM stsv_vehicle_grant ORDER BY created, player",
+                VehicleStore::grant));
+    }
+
+    /** One owner's grants, oldest first. */
+    public CompletableFuture<List<Grant>> grants(UUID owner) {
+        return db.async(c -> Db.query(c, "SELECT owner, player, player_name, created FROM stsv_vehicle_grant WHERE owner = ? ORDER BY created, player",
+                VehicleStore::grant, owner.toString()));
     }
 
     private static final String COLS = "id, item, owner, owner_name, state, token, world, world_name, x, y, z, yaw, cargo, created, updated";

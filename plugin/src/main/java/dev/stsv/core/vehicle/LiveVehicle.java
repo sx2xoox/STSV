@@ -61,6 +61,17 @@ final class LiveVehicle {
     boolean engineOn;
     final Set<UUID> engineHeard = new HashSet<>();
 
+    /**
+     * A hand cart: the click box at its handles' end (null for driven vehicles), who holds the handles (null = nobody),
+     * whether the puller was sprinting last tick (their speed modifier follows it), the distance rolled since its last
+     * rolling sound and the tilt shown (degrees forward: resting on its handles, or level while pulled; NaN = not set).
+     */
+    Interaction handle;
+    UUID puller;
+    boolean pullerSprinting;
+    double rolled;
+    float tiltShown = Float.NaN;
+
     /** the storage bed (null without one), the page open and who has it open */
     ItemStack[] cargo;
     int stage;
@@ -126,6 +137,7 @@ final class LiveVehicle {
         if (body != null) out.add(body);
         if (lights != null) out.add(lights);
         if (load != null) out.add(load);
+        if (handle != null) out.add(handle);
         out.addAll(wheels);
         out.addAll(hits);
         for (Seat s : seats) {

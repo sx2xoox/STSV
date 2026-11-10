@@ -17,7 +17,7 @@ class VehiclePhysicsTest {
     /** A car-like spec: 9 b/s, 3 b/s², brake 9, coast 2, 72°/s from 3 b/s, step 1, 4.6 x 1.9 x 1.65. */
     static VehicleSpec car() {
         return new VehicleSpec(2f, 9, 3.5, 3, 9, 2, 72, 3, 1.0, 4.6, 1.9, 1.65, 1.1,
-                new NamespacedKey("t", "model/wheel"), 0.344, List.of(), List.of(new VehicleSpec.Vec(-0.45, 0.28, 0.15)), null, null, null, null);
+                new NamespacedKey("t", "model/wheel"), 0.344, List.of(), List.of(new VehicleSpec.Vec(-0.45, 0.28, 0.15)), null, null, null, null, null);
     }
 
     /** Blocks by position: full blocks, or a box {minY, maxY} inside the cell (a slab), and media. */

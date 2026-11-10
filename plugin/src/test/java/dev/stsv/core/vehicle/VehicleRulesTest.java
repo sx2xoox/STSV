@@ -90,25 +90,61 @@ class VehicleRulesTest {
 
     @Test
     void whoMayDriveAndOpenTheBed() {
-        assertTrue(VehicleAccess.mayDrive(owner, owner, false, false));
-        assertTrue(VehicleAccess.mayDrive(owner, friend, false, true), "someone of the owner's land");
-        assertTrue(VehicleAccess.mayDrive(owner, stranger, true, false), "an admin");
-        assertFalse(VehicleAccess.mayDrive(owner, stranger, false, false));
-        assertTrue(VehicleAccess.mayOpenCargo(owner, friend, false, true));
-        assertFalse(VehicleAccess.mayOpenCargo(owner, stranger, false, false));
+        assertTrue(VehicleAccess.mayDrive(owner, owner, false, false, false));
+        assertTrue(VehicleAccess.mayDrive(owner, friend, false, true, false), "someone of the owner's land");
+        assertTrue(VehicleAccess.mayDrive(owner, stranger, true, false, false), "an admin");
+        assertFalse(VehicleAccess.mayDrive(owner, stranger, false, false, false));
+        assertTrue(VehicleAccess.mayOpenCargo(owner, friend, false, true, false));
+        assertFalse(VehicleAccess.mayOpenCargo(owner, stranger, false, false, false));
+    }
+
+    /** /탈것 권한 <플레이어>: the allowed player drives, pulls and opens the beds of all the owner's vehicles. */
+    @Test
+    void anAllowedPlayerDrivesPullsAndOpensTheBedButNeverPicksUp() {
+        UUID allowed = UUID.randomUUID();
+        assertTrue(VehicleAccess.mayDrive(owner, allowed, false, false, true), "allowed by the owner");
+        assertTrue(VehicleAccess.mayPull(owner, allowed, false, false, true), "pulls the hand cart");
+        assertTrue(VehicleAccess.mayOpenCargo(owner, allowed, false, false, true), "opens the bed");
+        assertFalse(VehicleAccess.mayPull(owner, stranger, false, false, false), "nobody else pulls it");
+        assertTrue(VehicleAccess.mayPull(owner, friend, false, true, false), "the owner's land members pull it (as they drive)");
+        assertTrue(VehicleAccess.mayPull(owner, stranger, true, false, false), "admins");
+        assertTrue(VehicleAccess.mayPull(owner, owner, false, false, false), "the owner");
+        assertEquals(VehicleAccess.PickUp.NOT_OWNER, VehicleAccess.pickUp(owner, allowed, false, false, false, true, false),
+                "pick-up stays the owner's and the admins'");
+        assertEquals(VehicleAccess.CargoOpen.OK, VehicleAccess.openCargo(owner, allowed, false, false, true, false, false, false));
+        assertEquals(VehicleAccess.CargoOpen.DENIED, VehicleAccess.openCargo(owner, stranger, false, false, false, false, false, false));
+        // who may be allowed: anyone but the owner
+        assertTrue(VehicleAccess.mayGrant(owner, allowed));
+        assertFalse(VehicleAccess.mayGrant(owner, owner), "not yourself");
+        assertFalse(VehicleAccess.mayGrant(owner, null));
+    }
+
+    @Test
+    void theBedOpensOnlyStandingStillUnpulledForOneViewer() {
+        assertEquals(VehicleAccess.CargoOpen.OK, VehicleAccess.openCargo(owner, owner, false, false, false, false, false, false));
+        assertEquals(VehicleAccess.CargoOpen.BUSY, VehicleAccess.openCargo(owner, owner, false, false, false, true, false, false),
+                "one viewer at a time");
+        assertEquals(VehicleAccess.CargoOpen.PULLED, VehicleAccess.openCargo(owner, owner, false, false, false, false, false, true),
+                "not while someone pulls it");
+        assertEquals(VehicleAccess.CargoOpen.MOVING, VehicleAccess.openCargo(owner, owner, false, false, false, false, true, false),
+                "not while it moves");
+        assertEquals(VehicleAccess.CargoOpen.DENIED, VehicleAccess.openCargo(owner, stranger, false, false, false, true, true, true),
+                "a stranger is refused first");
     }
 
     @Test
     void pickingUp() {
-        assertEquals(VehicleAccess.PickUp.OK, VehicleAccess.pickUp(owner, owner, false, false, true, false));
-        assertEquals(VehicleAccess.PickUp.NOT_OWNER, VehicleAccess.pickUp(owner, friend, false, false, true, false),
+        assertEquals(VehicleAccess.PickUp.OK, VehicleAccess.pickUp(owner, owner, false, false, false, true, false));
+        assertEquals(VehicleAccess.PickUp.NOT_OWNER, VehicleAccess.pickUp(owner, friend, false, false, false, true, false),
                 "land members drive it but do not take it away");
-        assertEquals(VehicleAccess.PickUp.OK, VehicleAccess.pickUp(owner, stranger, true, false, true, false), "an admin (back to its owner)");
-        assertEquals(VehicleAccess.PickUp.RIDERS, VehicleAccess.pickUp(owner, owner, false, true, true, false));
-        assertEquals(VehicleAccess.PickUp.CARGO, VehicleAccess.pickUp(owner, owner, false, false, false, false),
+        assertEquals(VehicleAccess.PickUp.OK, VehicleAccess.pickUp(owner, stranger, true, false, false, true, false), "an admin (back to its owner)");
+        assertEquals(VehicleAccess.PickUp.RIDERS, VehicleAccess.pickUp(owner, owner, false, true, false, true, false));
+        assertEquals(VehicleAccess.PickUp.PULLED, VehicleAccess.pickUp(owner, owner, false, false, true, true, false),
+                "someone holds the cart's handles");
+        assertEquals(VehicleAccess.PickUp.CARGO, VehicleAccess.pickUp(owner, owner, false, false, false, false, false),
                 "짐칸을 비워야 회수할 수 있어요: the load never goes into an item");
-        assertEquals(VehicleAccess.PickUp.CARGO, VehicleAccess.pickUp(owner, stranger, true, false, false, false), "not even for an admin");
-        assertEquals(VehicleAccess.PickUp.VIEWER, VehicleAccess.pickUp(owner, owner, false, false, true, true), "someone has the bed open");
+        assertEquals(VehicleAccess.PickUp.CARGO, VehicleAccess.pickUp(owner, stranger, true, false, false, false, false), "not even for an admin");
+        assertEquals(VehicleAccess.PickUp.VIEWER, VehicleAccess.pickUp(owner, owner, false, false, false, true, true), "someone has the bed open");
     }
 
     @Test
