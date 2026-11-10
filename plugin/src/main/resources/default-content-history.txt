@@ -31,6 +31,7 @@ c4de0b92cb679cb6b34481c392019bfb1ae15234 stsv/assets/stsv/items/gui/prev.json
 e80e4ddf0fdb40b8960edd7b61da2dc645b3f1f2 stsv/assets/stsv/items/gui/prev_off.json
 d4ee29ef91adc75ca0554bd34f8897a9d2db4aaf stsv/assets/stsv/items/gui/self_view.json
 68c735b0a535c4029a3cc44a06892b61df6f83a3 stsv/assets/stsv/items/gui/send.json
+dabfdd5f64a717b6315f41e72b9e2cf10bca8f4c stsv/assets/stsv/items/gui/swatch.json
 627e91880b400cbecc1c6986a19ee38eba7009db stsv/assets/stsv/items/gui/tab_above.json
 b2bc2b99a019d0391592db1fa16af2a8b2718497 stsv/assets/stsv/items/gui/tab_all.json
 23d245318a1d59873949955f74f16ba94558bd0c stsv/assets/stsv/items/gui/tab_back.json
@@ -75,6 +76,7 @@ ee46949cc4797d16455281215125f9c51bc6ee05 stsv/assets/stsv/models/item/gui/podium
 617a96320dc128c3189ad88a8db8c042714b1100 stsv/assets/stsv/models/item/gui/prev_off.json
 d970c49366879db3126cb1157c82158f47d2df4b stsv/assets/stsv/models/item/gui/self_view.json
 1dfcce217298468d7796512c7626feb924dc93bb stsv/assets/stsv/models/item/gui/send.json
+3e2241fb340895f44ea5b373611f790df0c285d1 stsv/assets/stsv/models/item/gui/swatch.json
 08cdf1cd4afc7b2504c7d48d862a940729695373 stsv/assets/stsv/models/item/gui/tab_above.json
 525a1203d515674c6080fe6701d8e670b149c0ec stsv/assets/stsv/models/item/gui/tab_all.json
 2bdf291d994d8d60297bceb5fdaaf6efd481dfce stsv/assets/stsv/models/item/gui/tab_back.json
@@ -123,6 +125,7 @@ b232d00246debaf5287f1141e9eb41c49866d4b1 stsv/assets/stsv/textures/gui/gacha.png
 d318cb6f77792b920351746d8daab7f591026e2d stsv/assets/stsv/textures/gui/hub.png
 f143ea43013e5e181444c336949ec2c691a830a2 stsv/assets/stsv/textures/gui/hub.png
 ff512210be7f2ac3b22290c9e9806d16b125b6fd stsv/assets/stsv/textures/gui/hub.png
+45cf194d1a1da00467fac587a4cc6ae243dca6ac stsv/assets/stsv/textures/gui/nick_colors.png
 4dc094b3513fa372bcf9bbe1572e30732a0ebaaa stsv/assets/stsv/textures/gui/profile.png
 54f6c1fc3a50548fe6e717e2c099166bc6b964db stsv/assets/stsv/textures/gui/profile.png
 f9feb75be03aed11b32d4c3b4d2185c2e02995f9 stsv/assets/stsv/textures/gui/profile.png
@@ -175,6 +178,9 @@ b61b84e347d47d604f011b345d13c44c123596d7 stsv/assets/stsv/textures/item/gui/prev
 f1d20f157142426242ed970f767a713757787817 stsv/assets/stsv/textures/item/gui/prev_off.png
 94df8adb0be69f32976b1188ca62ddab0462a532 stsv/assets/stsv/textures/item/gui/self_view.png
 0e864c3d8bd6e15e3871e817948090fcd51c00c2 stsv/assets/stsv/textures/item/gui/send.png
+79e478d40f423c0408e26dfc5f5bc772203b0e04 stsv/assets/stsv/textures/item/gui/swatch.png
+d29511089050f29633f69ad8d98397de8b7bf95c stsv/assets/stsv/textures/item/gui/swatch_half.png
+a29d224ebe07e4a4c2ad71236fcb4bff00cd1e4b stsv/assets/stsv/textures/item/gui/swatch_rim.png
 303e01f48466da031e3fd41756d298dadc5800c0 stsv/assets/stsv/textures/item/gui/tab_above.png
 cb911e969db8d4f4cff1ab646d428a5a1683b3c6 stsv/assets/stsv/textures/item/gui/tab_all.png
 e76a7c390c857fe60d63aea6bae53d38081aadc7 stsv/assets/stsv/textures/item/gui/tab_back.png
@@ -256,6 +262,7 @@ d36a2ba7c55817dad0b0b3e1d3ff3eb2001575b8 stsv/menus/gacha.yml
 8e8df5e09afb5edd5d3125d213040a5f798b1297 stsv/menus/hub.yml
 d48723035ec973e823e53aea43938afe20c35b8f stsv/menus/hub.yml
 f2031937eb2d3b1437cd503aa54a63d5079c6c25 stsv/menus/hub.yml
+807ba516b941d1f13daf96be3a4d67495af4f885 stsv/menus/nick_colors.yml
 393048777e347699c60d26eb75435c5a0f3299a5 stsv/menus/profile.yml
 5697005d78e38a17efc0aa104ab23b5690d2711d stsv/menus/profile.yml
 b8a79ec2eacff89eb8786243e5224e700189d909 stsv/menus/profile.yml
