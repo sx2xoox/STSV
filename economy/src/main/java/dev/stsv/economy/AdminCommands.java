@@ -315,18 +315,19 @@ final class AdminCommands {
             return List.of();
         });
 
-        add("땅", "서버 [반지름] | 해제 [반지름] | 정보", "운영자 땅(스폰 마을): 둘레 청크를 서버 땅으로 / 둘레 청크를 누구 땅이든 해제 / 서 있는 땅 정보. 반지름은 청크 수 (0 = 지금 청크)", (s, args) -> {
+        add("땅", "서버 [반지름] | 서버해제 [반지름] | 해제 [반지름] | 정보", "운영자 땅(스폰 마을): 둘레 청크를 서버 땅으로 / 둘레의 서버 땅만 해제 (플레이어 땅은 그대로) / 둘레 청크를 누구 땅이든 해제 / 서 있는 땅 정보. 반지름은 청크 수 (0 = 지금 청크)", (s, args) -> {
             if (!(s instanceof Player p) || args.length < 1) {
-                s.sendMessage(Text.msg("<red>/관리자 땅 서버 [반지름] | 해제 [반지름] | 정보"));
+                s.sendMessage(Text.msg("<red>/관리자 땅 서버 [반지름] | 서버해제 [반지름] | 해제 [반지름] | 정보"));
                 return;
             }
             int radius = args.length > 1 ? Math.clamp(Integer.parseInt(args[1]), 0, 32) : 0;
             switch (args[0]) {
                 case "서버" -> s.sendMessage(Text.msg("<green>서버 땅으로: 청크 " + eco.land().claimServer(p, radius) + "개"));
+                case "서버해제" -> s.sendMessage(Text.msg("<yellow>서버 땅 해제: 청크 " + eco.land().releaseServerAround(p, radius) + "개"));
                 case "해제" -> s.sendMessage(Text.msg("<yellow>해제: 청크 " + eco.land().releaseAround(p, radius) + "개"));
                 default -> eco.land().adminInfo(p);
             }
-        }, (s, args) -> args.length == 1 ? List.of("서버", "해제", "정보") : List.of());
+        }, (s, args) -> args.length == 1 ? List.of("서버", "서버해제", "해제", "정보") : List.of());
 
         add("수요고시", "", "이번 주 수요 고시를 지금 새로 뽑기", (s, args) -> {
             var picked = eco.shop().announceNotice(System.currentTimeMillis());

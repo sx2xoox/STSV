@@ -581,6 +581,22 @@ public final class LandModule extends EcoModule implements DailyListener {
         return n;
     }
 
+    /** Releases only the server's land (spawn town) within radius; players' land is left alone. */
+    public int releaseServerAround(Player p, int radius) {
+        String w = p.getWorld().getName();
+        int cx = p.getLocation().getBlockX() >> 4, cz = p.getLocation().getBlockZ() >> 4, n = 0;
+        for (int dx = -radius; dx <= radius; dx++) {
+            for (int dz = -radius; dz <= radius; dz++) {
+                Land l = store.index().at(new ChunkPos(w, cx + dx, cz + dz));
+                if (l == null || !l.server()) continue;
+                store.release(l, new ChunkPos(w, cx + dx, cz + dz));
+                n++;
+                if (l.size() == 0) store.delete(l);
+            }
+        }
+        return n;
+    }
+
     /** /관리자 땅 정보: everything about the land you stand in. */
     public void adminInfo(Player p) {
         Land l = at(p.getLocation());
