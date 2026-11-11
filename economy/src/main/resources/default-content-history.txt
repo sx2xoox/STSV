@@ -1774,3 +1774,4 @@ bf065b2a8d7ad484bcccbd991b77dbdc2c3b121a economy/trade.yml
 d0c9b12037ae38a665675f16f7ca07ca5716eda3 economy/trade.yml
 29a09fd0739fce2641e0de9cfcb91d7cc1484342 economy/weights.yml
 77e5e817bc6376f4228b5fbfb7b56e82e6ac7e60 economy/weights.yml
+ef55663029060f245c43998d567e6de09599efe1 economy/weights.yml
