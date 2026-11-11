@@ -68,6 +68,18 @@ class RenderBudgetTest {
         }
         for (String m : List.of("stsv:bicycle_crank", "stsv:cargo_bicycle_cargo_1", "stsv:cargo_bicycle_cargo_4", "stsv:atv_cargo_1",
                 "stsv:atv_cargo_4")) assertEquals(RenderBudget.Category.VEHICLE_PART, kinds.get(m), m);
+        // articulated vehicles (vehicles_farm.yml): the pulling units' bodies, the trailers, the ox's legs and head, the
+        // spinning parts (a flywheel, the tractor's big rear wheels) counted as wheels, the trailers' load stages
+        for (String body : List.of("stsv:ox_cart", "stsv:power_tiller", "stsv:tractor")) assertEquals(RenderBudget.Category.VEHICLE, kinds.get(body));
+        for (String t : List.of("stsv:ox_cart_wagon", "stsv:power_tiller_trailer", "stsv:tractor_wagon")) {
+            assertEquals(RenderBudget.Category.VEHICLE_TRAILER, kinds.get(t));
+        }
+        for (String a : List.of("stsv:ox_leg_fore", "stsv:ox_leg_hind", "stsv:ox_head")) assertEquals(RenderBudget.Category.VEHICLE_ANIMAL, kinds.get(a));
+        for (String w : List.of("stsv:wheel_oxcart", "stsv:wheel_tiller", "stsv:wheel_tractor_front", "stsv:wheel_tractor_rear",
+                "stsv:power_tiller_flywheel")) assertEquals(RenderBudget.Category.VEHICLE_WHEEL, kinds.get(w));
+        for (String c : List.of("stsv:ox_cart_cargo_4", "stsv:power_tiller_cargo_4", "stsv:tractor_wagon_cargo_4")) {
+            assertEquals(RenderBudget.Category.VEHICLE_PART, kinds.get(c));
+        }
         if (packs.containsKey("economy")) {
             assertEquals(RenderBudget.Category.MACHINE_3, kinds.get("economy:kitchen_3"));
             assertEquals(RenderBudget.Category.MACHINE_0, kinds.get("economy:mill_0"));

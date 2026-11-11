@@ -49,7 +49,8 @@ class PackPipelineTest {
             "wagasa",                                           // the parasol's struts, tilted up to its canopy
             "police_car", "light_truck",                        // raked windscreens (45 / 22.5 degrees)
             "cargo_bicycle", "delivery_scooter", "atv",         // road vehicles: frame tubes, forks, stays, steering posts
-            "cargo_van", "box_truck");                          // a raked windscreen, a roof deflector and a tilted steering wheel
+            "cargo_van", "box_truck",                          // a raked windscreen, a roof deflector and a tilted steering wheel
+            "ox_cart", "power_tiller", "tractor");              // the ox's traces, the tiller's handlebars, the tractor's steering wheel
 
     @org.junit.jupiter.params.ParameterizedTest
     @org.junit.jupiter.params.provider.MethodSource("models")

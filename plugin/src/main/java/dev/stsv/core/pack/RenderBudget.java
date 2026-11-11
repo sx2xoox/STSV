@@ -31,6 +31,8 @@ public final class RenderBudget {
         VEHICLE("탈것 몸체", 600),
         VEHICLE_WHEEL("탈것 바퀴", 80),
         VEHICLE_PART("탈것 부품 (경광등·짐·페달)", 240),
+        VEHICLE_TRAILER("탈것 트레일러 몸체 (하나)", 400),
+        VEHICLE_ANIMAL("탈것 끄는 동물의 다리·머리 (하나)", 160),
         OTHER("그 밖의 3D 모델", 300);
 
         public final String label;
@@ -76,6 +78,7 @@ public final class RenderBudget {
                 shown.addAll(v.getStringList("cargo.stages"));
                 for (Map<?, ?> sp : v.getMapList("spinners")) if (sp.get("model") != null) shown.add(sp.get("model").toString());
                 for (String p : shown) out.put(local(namespace, p), Category.VEHICLE_PART);
+                trainCategories(namespace, v.getConfigurationSection("train"), out);
             } else if (f != null && (f.contains("behavior") || f.contains("parts"))) {
                 // a machine: its tier looks <base>_0 .. <base>_3, and the same for each spinning part
                 String base = model.replaceFirst("_\\d+$", "");
@@ -95,6 +98,27 @@ public final class RenderBudget {
             }
         }
         return out;
+    }
+
+    /**
+     * An articulated vehicle's towed units and moving parts (vehicle.train): each trailer's body, its wheel and load
+     * stages; the draft animal's legs and head; spinning parts (a flywheel, a tractor's big rear wheels) as wheels.
+     */
+    private static void trainCategories(String namespace, ConfigurationSection train, Map<String, Category> out) {
+        if (train == null) return;
+        for (Map<?, ?> t : train.getMapList("trailers")) {
+            if (t.get("model") != null) out.put(local(namespace, t.get("model").toString()), Category.VEHICLE_TRAILER);
+            if (t.get("wheel") != null) out.put(local(namespace, t.get("wheel").toString()), Category.VEHICLE_WHEEL);
+            if (t.get("cargo") instanceof Map<?, ?> c && c.get("stages") instanceof List<?> stages) {
+                for (Object st : stages) out.put(local(namespace, st.toString()), Category.VEHICLE_PART);
+            }
+        }
+        ConfigurationSection a = train.getConfigurationSection("animal");
+        if (a != null) {
+            for (Map<?, ?> l : a.getMapList("legs")) if (l.get("model") != null) out.put(local(namespace, l.get("model").toString()), Category.VEHICLE_ANIMAL);
+            if (a.getString("head.model") != null) out.put(local(namespace, a.getString("head.model")), Category.VEHICLE_ANIMAL);
+        }
+        for (Map<?, ?> p : train.getMapList("parts")) if (p.get("model") != null) out.put(local(namespace, p.get("model").toString()), Category.VEHICLE_WHEEL);
     }
 
     /** "name" or "ns:name" or "ns:model/name" -> "ns:name". */
