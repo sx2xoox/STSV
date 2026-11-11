@@ -182,7 +182,7 @@ class RoadPreviewTest {
             if (inside(y)) put.put(key(x, y, z), m);
         }
 
-        public boolean playerLand(int x, int z) {
+        public boolean protectedLand(int x, int z) {
             return false;
         }
 

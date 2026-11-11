@@ -11,7 +11,8 @@ import org.junit.jupiter.api.Test;
 
 /**
  * The sign model as the game draws it lines up with the words RoadSign puts on it: the panel's bottom 3 blocks and its top
- * 4.5 blocks over the road (0.51.0 lifted the model 0.5 too little, so the words looked pushed up off the panel).
+ * 4.5 blocks over the road (0.51.0 lifted the model 0.5 too little, so the words looked pushed up off the panel); its back
+ * is solid as deep as {@link RoadSign#BACK}, so words seen from behind are hidden.
  */
 class RoadSignModelTest {
 
@@ -33,12 +34,24 @@ class RoadSignModelTest {
         Path f = Path.of(System.getProperty("stsv.content")).resolve("economy/models/" + model + ".bbmodel");
         JsonObject m = JsonParser.parseString(Files.readString(f)).getAsJsonObject();
         double bottom = Double.NaN, upTo = Double.NaN;
+        JsonObject plate = null, backing = null;
         for (JsonElement e : m.getAsJsonArray("elements")) {
             JsonObject o = e.getAsJsonObject();
+            if (o.get("name").getAsString().equals("backing")) backing = o;
             if (!o.get("name").getAsString().equals("plate")) continue;
+            plate = o;
             bottom = o.getAsJsonArray("from").get(1).getAsDouble();
             upTo = o.getAsJsonArray("to").get(1).getAsDouble();
         }
+        // the back is solid, as big as the panel and RoadSign.BACK deep behind its face: words seen from behind stay hidden
+        assertEquals(true, plate != null && backing != null, model);
+        for (int k = 0; k < 2; k++) {
+            assertEquals(plate.getAsJsonArray("from").get(k).getAsDouble(), backing.getAsJsonArray("from").get(k).getAsDouble(), 1e-9, model + " backing " + k);
+            assertEquals(plate.getAsJsonArray("to").get(k).getAsDouble(), backing.getAsJsonArray("to").get(k).getAsDouble(), 1e-9, model + " backing " + k);
+        }
+        assertEquals(plate.getAsJsonArray("to").get(2).getAsDouble(), backing.getAsJsonArray("from").get(2).getAsDouble(), 1e-9, "the backing on the plate");
+        double deep = (backing.getAsJsonArray("to").get(2).getAsDouble() - plate.getAsJsonArray("from").get(2).getAsDouble()) / 16 * RoadSigns.SCALE;
+        assertEquals(true, deep >= RoadSign.BACK - 1e-9, model + ": solid " + deep + " behind the face");
         float lift = RoadSigns.lift(guide);
         // FIXED draws model (8, 8, 8) on the entity, scaled round it, then the lift
         assertEquals(RoadSign.PANEL_BOTTOM, lift + (bottom - 8) / 16 * RoadSigns.SCALE, 1e-6);

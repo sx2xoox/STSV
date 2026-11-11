@@ -17,10 +17,27 @@ import java.util.Map;
  */
 public final class RoadJob {
 
-    public enum Phase { SURVEY, PLAN, PREPARE, BUILD, DONE }
+    /** PEEK: a preview's own (/관리자 국도 &lt;하역장&gt; 미리보기): the ground under the route read, the corridor looked at; never built. */
+    public enum Phase { SURVEY, PLAN, PREPARE, BUILD, DONE, PEEK }
 
-    /** A surveyed cell (a chunk): its middle's ground height, water depth, unevenness, a player's land. */
-    public record Cell(double height, double water, double rough, boolean blocked) {}
+    /**
+     * A surveyed cell (a chunk): its middle's ground height, water depth, unevenness, and why the road keeps out of it
+     * ({@link RoadGuard.Why#code}: 1 a player's land, 2 the server's, 3 a roads.avoid box; 0 open).
+     */
+    public record Cell(double height, double water, double rough, int why) {
+        public Cell(double height, double water, double rough, boolean blocked) {
+            this(height, water, rough, blocked ? RoadGuard.Why.PLAYER.code : 0);
+        }
+
+        public boolean blocked() {
+            return why != 0;
+        }
+
+        /** The same ground, another reason. */
+        public Cell why(int code) {
+            return code == why ? this : new Cell(height, water, rough, code);
+        }
+    }
 
     /** A point of the route: its ground's top block, whether it is water and the water's top block (-1 = not read yet). */
     public static final class Ground {
@@ -71,6 +88,18 @@ public final class RoadJob {
     public int route;
     /** which set of signs is this road's: signs of an older one (or cleared: /관리자 국도 표지판 정리) go when their chunk loads */
     public int signs;
+    /**
+     * A preview (/관리자 국도 &lt;하역장&gt; 미리보기): planned and looked at, never built; saved as &lt;dock&gt;.preview.txt, and
+     * /관리자 국도 &lt;하역장&gt; takes its plan when it is fresh and goes the same way ({@link #samePlan}).
+     */
+    public boolean preview;
+    /** Where it was asked to start (before a branch moved the start onto another road): what a preview is matched by. NaN: the start. */
+    public double askedX = Double.NaN, askedZ = Double.NaN;
+    /**
+     * Undone (/관리자 국도 &lt;하역장&gt; 되돌리기): nothing of it stands any more; the file only keeps its number and set of
+     * signs (an old sign still in an unloaded chunk goes when it loads). Counts as no road.
+     */
+    public boolean removed;
 
     public static long key(int cx, int cz) {
         return ((long) cx << 32) ^ (cz & 0xffffffffL);
@@ -84,9 +113,64 @@ public final class RoadJob {
         return (int) key;
     }
 
-    /** The file it is saved in (without .txt): the dock's name, a patch's with ".tail". */
+    /** The file it is saved in (without .txt): the dock's name, a patch's with ".tail", a preview's with ".preview". */
     public String file() {
-        return tail ? dock + ".tail" : dock;
+        return preview ? dock + ".preview" : tail ? dock + ".tail" : dock;
+    }
+
+    /** Where it was asked to start from. */
+    public double[] asked() {
+        return Double.isNaN(askedX) ? new double[]{startX, startZ} : new double[]{askedX, askedZ};
+    }
+
+    /** How long a preview's plan may be taken over (ms): an hour. */
+    public static final long PREVIEW_FRESH = 60 * 60 * 1000L;
+
+    /**
+     * Whether this finished preview may stand in for a new job (its survey and plan taken over): fresh (made within
+     * {@link #PREVIEW_FRESH} of now), finished (every point's ground read), in the same world, from the same start (and
+     * straight way out of a terminal) to the same end and gate.
+     */
+    public boolean samePlan(RoadJob j, long now) {
+        if (!preview || phase != Phase.DONE || corners.isEmpty() || now - started > PREVIEW_FRESH || now < started) return false;
+        if (world == null || !world.equals(j.world)) return false;
+        for (Ground g : ground) if (!g.read()) return false;
+        double[] a = asked(), b = j.asked();
+        return near(a[0], b[0]) && near(a[1], b[1]) && near(endX, j.endX) && near(endZ, j.endZ) && same(gateX, j.gateX) && same(gateZ, j.gateZ)
+                && gateY == j.gateY && same(leadX, j.leadX) && same(leadZ, j.leadZ);
+    }
+
+    private static boolean near(double a, double b) {
+        return Math.abs(a - b) < 0.01;
+    }
+
+    private static boolean same(double a, double b) {
+        return (Double.isNaN(a) && Double.isNaN(b)) || near(a, b);
+    }
+
+    /** Takes a preview's survey and plan (its corridor, route, ground and branch): this job goes on from PREPARE. */
+    public void adopt(RoadJob pv) {
+        cells.clear();
+        cells.putAll(pv.cells);
+        corners.clear();
+        for (double[] c : pv.corners) corners.add(c.clone());
+        ground.clear();
+        for (Ground g : pv.ground) {
+            Ground c = new Ground();
+            c.ground = g.ground;
+            c.surface = g.surface;
+            c.water = g.water;
+            ground.add(c);
+        }
+        double[] a = asked();
+        askedX = a[0];
+        askedZ = a[1];
+        startX = pv.startX;
+        startZ = pv.startZ;
+        branchOf = pv.branchOf;
+        branchKm = pv.branchKm;
+        cursor = 0;
+        phase = Phase.PREPARE;
     }
 
     /** Whether it leaves straight out of a terminal's exit first (not when it branches off another road). */
@@ -217,6 +301,10 @@ public final class RoadJob {
         j.started = started;
         j.route = route;
         j.signs = signs;
+        j.preview = preview;
+        j.askedX = askedX;
+        j.askedZ = askedZ;
+        j.removed = removed;
         return j;
     }
 
@@ -234,6 +322,9 @@ public final class RoadJob {
         b.append("signs=").append(signs).append('\n');
         if (gated()) b.append("gate=").append(num(gateX)).append(',').append(gateY).append(',').append(num(gateZ)).append('\n');
         if (tail) b.append("tail=true\n");
+        if (preview) b.append("preview=true\n");
+        if (removed) b.append("removed=true\n");
+        if (!Double.isNaN(askedX)) b.append("asked=").append(num(askedX)).append(',').append(num(askedZ)).append('\n');
         if (!Double.isNaN(leadX)) b.append("lead=").append(num(leadX)).append(',').append(num(leadZ)).append('\n');
         if (branchOf != null) b.append("branch=").append(branchOf).append(',').append(num(branchKm)).append('\n');
         if (halves != null) {
@@ -244,7 +335,7 @@ public final class RoadJob {
         for (Map.Entry<Long, Cell> e : cells.entrySet()) {
             Cell c = e.getValue();
             b.append("cell=").append(cx(e.getKey())).append(',').append(cz(e.getKey())).append(',').append(num(c.height())).append(',')
-                    .append(num(c.water())).append(',').append(num(c.rough())).append(',').append(c.blocked() ? 1 : 0).append('\n');
+                    .append(num(c.water())).append(',').append(num(c.rough())).append(',').append(c.why()).append('\n');
         }
         for (double[] c : corners) b.append("corner=").append(num(c[0])).append(',').append(num(c[1])).append('\n');
         for (Ground g : ground) {
@@ -283,6 +374,12 @@ public final class RoadJob {
                     j.gateZ = Double.parseDouble(p[2]);
                 }
                 case "tail" -> j.tail = Boolean.parseBoolean(v);
+                case "preview" -> j.preview = Boolean.parseBoolean(v);
+                case "removed" -> j.removed = Boolean.parseBoolean(v);
+                case "asked" -> {
+                    j.askedX = Double.parseDouble(p[0]);
+                    j.askedZ = Double.parseDouble(p[1]);
+                }
                 case "lead" -> {
                     j.leadX = Double.parseDouble(p[0]);
                     j.leadZ = Double.parseDouble(p[1]);
@@ -296,7 +393,7 @@ public final class RoadJob {
                     for (int i = 0; i < p.length; i++) j.halves[i] = Integer.parseInt(p[i].trim());
                 }
                 case "cell" -> j.cells.put(key(Integer.parseInt(p[0]), Integer.parseInt(p[1])),
-                        new Cell(Double.parseDouble(p[2]), Double.parseDouble(p[3]), Double.parseDouble(p[4]), p[5].equals("1")));
+                        new Cell(Double.parseDouble(p[2]), Double.parseDouble(p[3]), Double.parseDouble(p[4]), Integer.parseInt(p[5].trim())));
                 case "corner" -> j.corners.add(new double[]{Double.parseDouble(p[0]), Double.parseDouble(p[1])});
                 case "ground" -> {
                     Ground g = new Ground();
