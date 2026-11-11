@@ -25,7 +25,10 @@ renderer.setPixelRatio(1); renderer.autoClear = false; renderer.setClearColor(0x
 const loader = new THREE.TextureLoader();
 const tex = {};
 await Promise.all(Object.entries(M.textures).map(([k, src]) => new Promise(res => loader.load(src, t => {
-  t.magFilter = THREE.NearestFilter; t.minFilter = THREE.NearestFilter; t.colorSpace = THREE.SRGBColorSpace; tex[k] = t; res();
+  t.magFilter = THREE.NearestFilter; t.minFilter = THREE.NearestFilter; t.colorSpace = THREE.SRGBColorSpace; tex[k] = t;
+  // optional "repeat": true tiles a texture over a face bigger than 16 (uv past 16): merged faces keep their block grid
+  if (M.repeat) t.wrapS = t.wrapT = THREE.RepeatWrapping;
+  res();
 }))));
 const SHADE = { up: 1.0, down: 0.5, north: 0.8, south: 0.8, east: 0.6, west: 0.6 };
 function corners(f, a, b) {
@@ -64,7 +67,9 @@ for (const el of M.elements) {
     g.setAttribute('position', new THREE.Float32BufferAttribute(idx.flatMap(i => c[i]), 3));
     g.setAttribute('uv', new THREE.Float32BufferAttribute(idx.flatMap(i => uv[i]), 2));
     const s = el.glow || el.shade === false ? 1 : SHADE[f];
-    scene.add(new THREE.Mesh(g, new THREE.MeshBasicMaterial({ map: tex[face.texture], color: new THREE.Color(s, s, s), side: THREE.FrontSide, alphaTest: 0.1 })));
+    // optional "opacity" (below 1): see-through (water)
+    const see = el.opacity !== undefined && el.opacity < 1 ? { transparent: true, opacity: el.opacity, depthWrite: false } : {};
+    scene.add(new THREE.Mesh(g, new THREE.MeshBasicMaterial({ map: tex[face.texture], color: new THREE.Color(s, s, s), side: THREE.FrontSide, alphaTest: 0.1, ...see })));
   }
 }
 const center = M.center ? new THREE.Vector3(...M.center) : box.getCenter(new THREE.Vector3());

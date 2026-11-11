@@ -6,8 +6,9 @@ package dev.stsv.economy.road;
  * <ol>
  *   <li>The target is the ground (over water: one above the surface, a bridge deck), smoothed over a few blocks so single
  *       bumps do not move the road.</li>
- *   <li>{@link #grade}: the target clamped forward then backward so it changes at most 1 in 3 per block (gentle grades:
- *       cut where the ground is higher, fill where it is lower). After the backward pass every step is within the grade.</li>
+ *   <li>{@link #fit}: the profile nearest the target that changes at most 1 in 3 per block (gentle grades: cut where the
+ *       ground is higher, fill where it is lower, a bridge or a tunnel where that would be deep), the least work over the
+ *       whole road.</li>
  *   <li>{@link #levels}: rounded to blocks. A grade of 1 in 3 rounds to a one-block step at most every three blocks.</li>
  *   <li>{@link #parts}: a bridge where it crosses water or runs more than {@code bridgeGap} over the ground (a ravine), a
  *       tunnel where the ground stands {@code tunnelCover} or more over it (a steep hill), else road on cut and fill. Short
@@ -78,7 +79,67 @@ public final class RoadProfile {
             t[0] = target[0];
             t[n - 1] = target[n - 1];
         }
-        return levels(grade(t, MAX_GRADE));
+        return levels(fit(t, water, MAX_GRADE));
+    }
+
+    /** What being h above the target costs a point: fill (per block), then bridge; cut, then tunnel (cheaper a block). */
+    static double cost(double h) {
+        if (h >= 0) return h <= 3 ? h : 3 + (h - 3) * 0.3;
+        double d = -h;
+        return Math.min(d, 5);
+    }
+
+    /**
+     * The profile nearest the target that never changes more than maxStep a point: the least cut, fill, bridge and tunnel
+     * ({@link #cost}) over the whole road, found by trying every height (in steps of maxStep) at every point. Never under
+     * the target over water (the deck); the ends held at their targets. Unlike {@link #grade} it looks both ways: over a
+     * hill it rises and falls symmetrically (or tunnels level) instead of climbing as long as the ground does and coming
+     * down on a long bridge after it.
+     */
+    public static double[] fit(double[] t, boolean[] water, double maxStep) {
+        int n = t.length;
+        if (n == 0) return new double[0];
+        double min = Double.POSITIVE_INFINITY, max = Double.NEGATIVE_INFINITY;
+        for (double v : t) {
+            min = Math.min(min, v);
+            max = Math.max(max, v);
+        }
+        double base = Math.floor(min) - 1;
+        int m = (int) Math.ceil((Math.ceil(max) + 1 - base) / maxStep) + 1;
+        double[] cost = new double[m], next = new double[m];
+        byte[][] from = new byte[n][m];
+        final double END = 1000, MOVE = 0.01, INF = 1e18;
+        for (int k = 0; k < m; k++) cost[k] = END * Math.abs(base + k * maxStep - t[0]);
+        for (int i = 1; i < n; i++) {
+            for (int k = 0; k < m; k++) {
+                double best = cost[k];
+                byte d = 0;
+                if (k > 0 && cost[k - 1] + MOVE < best) {
+                    best = cost[k - 1] + MOVE;
+                    d = -1;
+                }
+                if (k < m - 1 && cost[k + 1] + MOVE < best) {
+                    best = cost[k + 1] + MOVE;
+                    d = 1;
+                }
+                double h = base + k * maxStep - t[i];
+                double c = water[i] && h < -1e-9 ? INF : cost(h);
+                if (i == n - 1) c += END * Math.abs(h);
+                next[k] = best + c;
+                from[i][k] = d;
+            }
+            double[] s = cost;
+            cost = next;
+            next = s;
+        }
+        int k = 0;
+        for (int j = 1; j < m; j++) if (cost[j] < cost[k]) k = j;
+        double[] out = new double[n];
+        for (int i = n - 1; i >= 0; i--) {
+            out[i] = base + k * maxStep;
+            if (i > 0) k += from[i][k];
+        }
+        return out;
     }
 
     /** What each point is (see the class doc). */
