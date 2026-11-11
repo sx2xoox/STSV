@@ -293,6 +293,17 @@ public final class CosmeticModule implements StsvModule, Listener {
         return changed;
     }
 
+    /**
+     * What a player carries on their back for real, shown in the back slot in place of their back cosmetic (the 지게,
+     * vehicle.JigeModule): player -> a look with a cosmetic placement (not a real cosmetic item), or null. Call
+     * {@link #refresh} when it changes.
+     */
+    private java.util.function.Function<Player, CustomItem> backOverride;
+
+    public void backOverride(java.util.function.Function<Player, CustomItem> f) {
+        this.backOverride = f;
+    }
+
     /** The head slot. */
     public Optional<CustomItem> equipped(Player p) {
         return Optional.ofNullable(worn(p).get(CosmeticSlot.HEAD));
@@ -394,6 +405,14 @@ public final class CosmeticModule implements StsvModule, Listener {
     public void refresh(Player p) {
         if (!p.isOnline() || sessions.containsKey(p.getUniqueId())) return;
         Map<CosmeticSlot, CustomItem> all = concealed(p) ? Map.of() : worn(p);
+        java.util.function.Function<Player, CustomItem> over = backOverride;
+        CustomItem back = over == null || concealed(p) ? null : over.apply(p);
+        if (back != null) {
+            Map<CosmeticSlot, CustomItem> with = new EnumMap<>(CosmeticSlot.class);
+            with.putAll(all);
+            with.put(CosmeticSlot.BACK, back);   // something carried on the back for real (the 지게) goes over the back cosmetic
+            all = with;
+        }
         attachments.set(p, all);
         pets.set(p, all.get(CosmeticSlot.PET));
         Optional<CustomItem> worn = Optional.ofNullable(all.get(CosmeticSlot.HEAD));

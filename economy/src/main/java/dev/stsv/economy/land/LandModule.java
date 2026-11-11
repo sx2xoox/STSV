@@ -561,6 +561,47 @@ public final class LandModule extends EcoModule implements DailyListener {
         return n;
     }
 
+    /**
+     * 하역장: claims these chunks (x, z) of a world for the server where nobody owns them yet. Returns the ones newly claimed
+     * (released again when the dock is removed), or null, claiming nothing, when a player owns one of them.
+     */
+    public List<long[]> claimServerChunks(String world, java.util.Collection<long[]> chunks) {
+        for (long[] c : chunks) {
+            Land l = store.index().at(new ChunkPos(world, (int) c[0], (int) c[1]));
+            if (l != null && !l.server()) return null;
+        }
+        Land server = store.index().server();
+        if (server == null) server = store.create(null, now());
+        List<long[]> claimed = new ArrayList<>();
+        for (long[] c : chunks) {
+            ChunkPos pos = new ChunkPos(world, (int) c[0], (int) c[1]);
+            if (store.index().at(pos) != null) continue;
+            store.claim(server, pos, now());
+            claimed.add(c);
+        }
+        return claimed;
+    }
+
+    /** 하역장 제거: gives back the chunks a dock claimed for the server (only those still the server's). */
+    public int releaseServerChunks(String world, java.util.Collection<long[]> chunks) {
+        int n = 0;
+        for (long[] c : chunks) {
+            ChunkPos pos = new ChunkPos(world, (int) c[0], (int) c[1]);
+            Land l = store.index().at(pos);
+            if (l == null || !l.server()) continue;
+            store.release(l, pos);
+            n++;
+            if (l.size() == 0) store.delete(l);
+        }
+        return n;
+    }
+
+    /** Is this block column in a player's land (not the server's)? The 국도 never builds there. */
+    public boolean playerLand(String world, int bx, int bz) {
+        Land l = store.index().at(world, bx, bz);
+        return l != null && !l.server();
+    }
+
     /** Releases every chunk within radius, whoever owns it. Lands left empty end (금고 back to the owner). */
     public int releaseAround(Player p, int radius) {
         String w = p.getWorld().getName();

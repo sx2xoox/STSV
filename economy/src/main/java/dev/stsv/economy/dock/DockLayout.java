@@ -266,9 +266,8 @@ public final class DockLayout {
         fill(5, top + 2, 12, 5, top + 2, 14, "minecraft:glass");
         set(8, top + 3, 13, "minecraft:red_concrete");   // a warning light
         // the cable down to the hook (a display model)
-        for (int y = top - 2; y >= 9; y--) set(0, y, 13, "minecraft:chain");
-        props.add(new Prop(0.5, 7.0, 13.5, "dock_crane_hook", 1.5f, 0));
-        // a container on its way, hanging under the hook? no: the hook stays clear of the zone's vehicles (above 7)
+        for (int y = top - 2; y >= 9; y--) set(0, y, 13, "minecraft:iron_chain");
+        props.add(new Prop(0.5, 6.5, 13.5, "dock_crane_hook", 2f, 0));
     }
 
     private static final String[][] COLOURS = {
@@ -289,9 +288,9 @@ public final class DockLayout {
         }
         // loose containers and a forklift as display models (in the pack's style)
         props.add(new Prop(16.5, 0, 2.5, "dock_container_blue", 2f, 90));
-        props.add(new Prop(13.0, 9, 23.0, "dock_container_red", 2f, 0));
-        props.add(new Prop(-5.5, 0, 31.5, "dock_forklift", 1.5f, 200));
-        props.add(new Prop(-5.5, 0, 26.5, "dock_pallet", 1f, 0));
+        props.add(new Prop(12.5, 3, 25.5, "dock_container_red", 2f, 0));
+        props.add(new Prop(-5.5, 0, 31.5, "dock_forklift", 2f, 200));
+        props.add(new Prop(-5.5, 0, 26.5, "dock_pallet", 2f, 0));
     }
 
     private void container(int x0, int y0, int z0, String[] c) {
@@ -300,7 +299,7 @@ public final class DockLayout {
                 for (int z = z0; z <= z0 + 6; z++) {
                     boolean door = z == z0;
                     boolean rib = Math.floorMod(z, 2) == 0;
-                    boolean edge = (x == x0 || x == x0 + 2) && (y == y0 || y == y0 + 2) || (z == z0 || z == z0 + 6) && (x == x0 || x == x0 + 2);
+                    boolean edge = (z == z0 || z == z0 + 6) && (x == x0 || x == x0 + 2 || y == y0 || y == y0 + 2);   // the end frames
                     String b = edge ? "minecraft:gray_concrete" : door ? c[1] : rib ? c[0] : c[1];
                     set(x, y, z, b);
                 }

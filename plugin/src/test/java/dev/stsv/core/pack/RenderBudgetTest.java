@@ -68,6 +68,13 @@ class RenderBudgetTest {
         }
         for (String m : List.of("stsv:bicycle_crank", "stsv:cargo_bicycle_cargo_1", "stsv:cargo_bicycle_cargo_4", "stsv:atv_cargo_1",
                 "stsv:atv_cargo_4")) assertEquals(RenderBudget.Category.VEHICLE_PART, kinds.get(m), m);
+        // the 통통배 (its propeller is its wheel, its catch its load) and the 지게's looks on the back
+        assertEquals(RenderBudget.Category.VEHICLE, kinds.get("stsv:fishing_boat"));
+        assertEquals(RenderBudget.Category.VEHICLE_WHEEL, kinds.get("stsv:boat_propeller"));
+        for (int k = 1; k <= 4; k++) assertEquals(RenderBudget.Category.VEHICLE_PART, kinds.get("stsv:boat_catch_" + k));
+        for (String m : List.of("stsv:jige", "stsv:jige_load_1", "stsv:jige_load_2", "stsv:jige_load_3")) {
+            assertEquals(RenderBudget.Category.CARRIER, kinds.get(m));
+        }
         // articulated vehicles (vehicles_farm.yml): the pulling units' bodies, the trailers, the ox's legs and head, the
         // spinning parts (a flywheel, the tractor's big rear wheels) counted as wheels, the trailers' load stages
         for (String body : List.of("stsv:ox_cart", "stsv:power_tiller", "stsv:tractor")) assertEquals(RenderBudget.Category.VEHICLE, kinds.get(body));

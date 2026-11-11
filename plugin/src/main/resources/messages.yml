@@ -462,6 +462,9 @@ models:
 vehicle:
   placed: "<green>{vehicle}</green><green>을(를) 세웠어요. <gray>우클릭: 타기 · 웅크리고 우클릭: 아이템으로 회수 <dark_gray>(#{id})"
   no-room: "<red>여기에는 세울 자리가 없어요. <gray>(트인 평지, {length}×{width}칸)"
+  # 통통배 (물 위에서만)
+  boat-on-water: "<red>배는 물 위에만 띄울 수 있어요. <gray>(물을 바라보고 우클릭)"
+  boat-no-room: "<red>여기에는 배를 띄울 자리가 없어요. <gray>(땅·얼음·장애물 없는 물 위 {length}×{width}칸)"
   stale: "<red>이 탈것 아이템은 더 이상 쓸 수 없어요. <gray>(이미 세워져 있거나 복사된 아이템)"
   error: "<red>탈것을 처리하지 못했어요. 잠시 뒤 다시 해 주세요."
   full: "<red>빈자리가 없어요."
@@ -527,3 +530,16 @@ vehicle:
   revoked: "<gray><white>{player}</white>님의 탈것 권한을 거뒀어요."
   revoked-you: "<gray><white>{owner}</white>님이 탈것 권한을 거뒀어요."
   grant-lost: "<yellow>주인이 탈것 권한을 거둬서 그 탈것에서 손을 뗐어요."
+
+# 지게 (가슴 칸에 입는 짐 지게: content/stsv/items/vehicles_misc.yml)
+jige:
+  worn: "<#d9b07a>지게</#d9b07a><gray>를 짊어졌어요 · 웅크리고 빈손 우클릭 또는 /지게: 짐 열기 <dark_gray>(걸음 {percent}% 느리게)"
+  title: "<dark_gray>지게 ({used}/{slots}칸)"
+  title-weight: "<dark_gray>지게 ({used}/{slots}칸 · 무게 {weight}/{payload})"
+  not-worn: "<red>지게를 가슴 칸에 입어야 짐을 열 수 있어요."
+  loading: "<gray>지게를 짊어지는 중이에요. 잠시 뒤 다시 열어 주세요."
+  stale: "<red>이 지게는 쓸 수 없어요. <gray>(복사된 아이템이거나, 같은 지게를 먼저 다른 곳에서 짊어짐)"
+  held: "<red>같은 지게를 다른 사람이 지고 있어요. <gray>(그 사람이 벗은 뒤에 쓸 수 있어요)"
+  error: "<red>지게를 불러오지 못했어요. 벗었다가 다시 입어 보세요."
+  kept: "<gray>지게는 죽어도 떨어뜨리지 않아요. <dark_gray>(짐도 그대로)"
+  item-number: "<dark_gray>지게 #{id}"

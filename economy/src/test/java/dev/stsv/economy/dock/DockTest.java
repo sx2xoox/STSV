@@ -1,0 +1,443 @@
+package dev.stsv.economy.dock;
+
+import dev.stsv.core.data.DatabaseModule;
+import dev.stsv.core.data.Db;
+import dev.stsv.economy.job.MachineSpec;
+import dev.stsv.economy.shop.ShopCatalog;
+import org.bukkit.Material;
+import org.bukkit.configuration.file.YamlConfiguration;
+import org.junit.jupiter.api.Test;
+import org.junit.jupiter.api.io.TempDir;
+
+import java.io.InputStreamReader;
+import java.nio.charset.StandardCharsets;
+import java.nio.file.Files;
+import java.nio.file.Path;
+import java.util.ArrayList;
+import java.util.HashSet;
+import java.util.List;
+import java.util.Map;
+import java.util.Set;
+import java.util.UUID;
+import java.util.logging.Logger;
+import java.util.stream.Stream;
+
+import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertFalse;
+import static org.junit.jupiter.api.Assertions.assertNotNull;
+import static org.junit.jupiter.api.Assertions.assertNull;
+import static org.junit.jupiter.api.Assertions.assertTrue;
+
+/**
+ * 하역장 and 적재 무게 against the real content: what a dock buys (finished goods) and for how much (90 % of the base, no
+ * curve), the weights and what they mean for a scooter against a truck, the dock's layout and its zone in the world, the
+ * docks and their sales kept in the database, the route statistics of the scout.
+ */
+class DockTest {
+
+    static final Path PACK = Path.of(System.getProperty("stsv.content")).resolve("economy");
+
+    @TempDir
+    Path dir;
+
+    static YamlConfiguration yaml(String f) {
+        return YamlConfiguration.loadConfiguration(PACK.resolve(f).toFile());
+    }
+
+    static ShopCatalog shop() {
+        List<String> problems = new ArrayList<>();
+        ShopCatalog c = ShopCatalog.parse(yaml("shop.yml"), problems);
+        assertTrue(problems.isEmpty(), String.join("\n", problems));
+        return c;
+    }
+
+    static Map<String, MachineSpec> machines() {
+        List<String> problems = new ArrayList<>();
+        Map<String, MachineSpec> m = MachineSpec.parse(yaml("machines.yml"), problems);
+        assertTrue(problems.isEmpty(), String.join("\n", problems));
+        return m;
+    }
+
+    static DockGoods goods() {
+        return DockGoods.of(machines(), shop(), config().getDouble("docks.price-ratio"));
+    }
+
+    static YamlConfiguration config() {
+        try (var in = DockTest.class.getResourceAsStream("/config.yml")) {
+            return YamlConfiguration.loadConfiguration(new InputStreamReader(in, StandardCharsets.UTF_8));
+        } catch (Exception e) {
+            throw new RuntimeException(e);
+        }
+    }
+
+    static WeightTable weights() {
+        List<String> problems = new ArrayList<>();
+        WeightTable w = WeightTable.parse(yaml("weights.yml"), problems);
+        assertTrue(problems.isEmpty(), String.join("\n", problems));
+        return w;
+    }
+
+    // ------------------------------------------------------------------------------------------
+    // What a dock buys and for how much
+    // ------------------------------------------------------------------------------------------
+
+    @Test
+    void theOwnersNumbersAreTheDefaults() {
+        YamlConfiguration c = config();
+        assertEquals(6000, c.getDouble("docks.min-distance"), "the owner's 6,000 blocks");
+        assertEquals(0.9, c.getDouble("docks.price-ratio"), 1e-9);
+        assertEquals(1.2, c.getDouble("roads.speed-bonus"), 1e-9);
+        for (String k : List.of("docks", "roads")) {
+            for (String key : c.getConfigurationSection(k).getKeys(true)) {
+                String last = key.substring(key.lastIndexOf('.') + 1);
+                assertFalse(List.of("on", "off", "yes", "no").contains(last), "YAML key " + k + "." + key);
+            }
+        }
+    }
+
+    @Test
+    void docksBuyFinishedGoodsOnly() {
+        ShopCatalog shop = shop();
+        Map<String, MachineSpec> machines = machines();
+        Set<String> finished = DockGoods.finished(machines, shop);
+        Set<String> outputs = new HashSet<>();
+        for (MachineSpec m : machines.values()) for (MachineSpec.Recipe r : m.recipes()) outputs.add(r.output());
+        // exactly: recipe outputs the shop buys
+        for (String id : shop.sell().keySet()) assertEquals(outputs.contains(id), finished.contains(id), id);
+        assertTrue(finished.size() >= 150, "every job's products: " + finished.size());
+        for (String id : List.of("economy:kimchi", "economy:ruby_ring", "economy:jeweled_crown", "economy:wine", "economy:oak_barrel",
+                "economy:steel_ingot", "economy:compressed_stone", "economy:hanjeongsik", "economy:seafood_feast"))
+            assertTrue(finished.contains(id), id);
+        // raw materials: ore, crops, fish, logs, mob drops, finds and specials are not finished goods
+        for (String id : List.of("minecraft:diamond", "minecraft:iron_ingot", "minecraft:wheat", "minecraft:oak_log", "minecraft:bone",
+                "economy:rough_ruby", "economy:tomato", "economy:mackerel", "economy:pearl", "minecraft:cod"))
+            assertFalse(finished.contains(id), id);
+        // every shop category of products has some, the raw ones none
+        Map<String, ShopCatalog.Category> cats = new java.util.LinkedHashMap<>();
+        for (ShopCatalog.Category c : shop.sellCategories()) cats.put(c.id(), c);
+        for (String raw : List.of("minerals", "farm", "fish")) for (String id : cats.get(raw).items()) assertFalse(finished.contains(id), raw + " " + id);
+        for (String made : List.of("crafts", "foodstuff", "dishes")) assertTrue(cats.get(made).items().stream().anyMatch(finished::contains), made);
+    }
+
+    @Test
+    void theDockPaysNinetyPercentOfTheBaseWhateverWasSold() {
+        ShopCatalog shop = shop();
+        DockGoods g = goods();
+        double kimchi = shop.sell().get("economy:kimchi").base(), ring = shop.sell().get("economy:ruby_ring").base();
+        assertEquals(kimchi * 0.9, g.unit("economy:kimchi"), 1e-9);
+        assertEquals(0, g.unit("minecraft:diamond"), "not bought");
+        List<DockGoods.Slot> bed = List.of(
+                new DockGoods.Slot(0, "economy:kimchi", 64, true),
+                new DockGoods.Slot(3, "economy:ruby_ring", 10, true),
+                new DockGoods.Slot(4, "economy:kimchi", 36, true),
+                new DockGoods.Slot(5, "minecraft:diamond", 32, true),        // raw: stays
+                new DockGoods.Slot(6, "economy:ruby_ring", 5, false));       // bought from the shop or renamed: stays
+        DockGoods.Plan p = g.plan(bed);
+        assertEquals(Set.of(0, 3, 4), p.slots());
+        assertEquals(2, p.kept());
+        assertEquals(2, p.lines().size());
+        assertEquals(100, p.lines().getFirst().count());
+        assertEquals((long) Math.floor(100 * kimchi * 0.9 + 10 * ring * 0.9 + 1e-6), p.total());
+        // no curve: the same load again (and ten times as much) pays the same per item
+        assertEquals(p.total(), g.plan(bed).total());
+        List<DockGoods.Slot> big = new ArrayList<>();
+        for (int i = 0; i < 1000; i++) big.add(new DockGoods.Slot(i, "economy:kimchi", 64, true));
+        assertEquals((long) Math.floor(64_000 * kimchi * 0.9 + 1e-6), g.plan(big).total(), "64,000 kimchi at the same price");
+        assertTrue(g.plan(List.of(new DockGoods.Slot(0, "minecraft:diamond", 64, true))).empty());
+    }
+
+    @Test
+    void aDockSaleNeverTouchesTheShopsRecordsOrTax() throws Exception {
+        // the shop curve (ShopStore.record), the market price (events, notices), the income tax and the stock market's
+        // activity are moved only by ShopModule.sell: the dock pays straight from the base price and calls none of them
+        String src = Files.readString(Path.of("src/main/java/dev/stsv/economy/dock/DockModule.java"));
+        for (String touch : List.of("shop().sell(", "shop().store()", "recordSale", "incomeTax", "addIncome", "multiplier(", "marketPrice("))
+            assertFalse(src.contains(touch), "the dock must not call " + touch);
+        assertTrue(src.contains("EconomyStore.Kind.FAUCET, \"dock_sell\""), "paid as its own kind of income");
+        String goods = Files.readString(Path.of("src/main/java/dev/stsv/economy/dock/DockGoods.java"));
+        assertFalse(goods.contains("PriceModel"), "no curve");
+    }
+
+    // ------------------------------------------------------------------------------------------
+    // 적재 무게
+    // ------------------------------------------------------------------------------------------
+
+    /** Material#isBlock needs a running server: the blocks these tests weigh. */
+    static boolean block(String id) {
+        return Set.of("minecraft:stone", "minecraft:dirt", "minecraft:oak_log", "minecraft:cobblestone").contains(id);
+    }
+
+    @Test
+    void everyWeightNamesARealItemAndEveryGoodHasOne() {
+        WeightTable w = weights();
+        Set<String> ours = new HashSet<>();
+        try (Stream<Path> s = Files.list(PACK.resolve("items"))) {
+            for (Path f : s.toList()) for (String k : YamlConfiguration.loadConfiguration(f.toFile()).getKeys(false)) ours.add("economy:" + k);
+        } catch (Exception e) {
+            throw new RuntimeException(e);
+        }
+        for (String id : w.items().keySet()) {
+            if (id.startsWith("economy:")) assertTrue(ours.contains(id), "weights.yml: " + id);
+            else assertNotNull(Material.matchMaterial(id), "weights.yml: " + id);
+        }
+        for (String id : goods().finished()) assertTrue(w.weight(id, DockTest::block) > 0, id);
+        // the brief's examples
+        assertEquals(0.3, w.weight("economy:ruby_ring", DockTest::block), 1e-9, "jewelry");
+        assertEquals(0.2, w.weight("economy:ruby", DockTest::block), 1e-9, "gems");
+        assertEquals(0.5, w.weight("economy:jeweled_crown", DockTest::block), 1e-9);
+        assertEquals(1, w.weight("economy:kimchi", DockTest::block), 1e-9, "dishes: the default");
+        assertEquals(1.5, w.weight("economy:soju", DockTest::block), 1e-9, "bottled");
+        assertEquals(5, w.weight("economy:oak_barrel", DockTest::block), 1e-9, "barrels");
+        assertEquals(1, w.weight("minecraft:iron_ingot", DockTest::block), 1e-9, "ingots");
+        assertEquals(3, w.weight("minecraft:iron_pickaxe", DockTest::block), 1e-9, "tools");
+        assertEquals(8, w.weight("minecraft:diamond_chestplate", DockTest::block), 1e-9, "armor");
+        assertEquals(2, w.weight("minecraft:stone", DockTest::block), 1e-9, "blocks");
+        assertEquals(2, w.weight("minecraft:oak_log", DockTest::block), 1e-9);
+        assertEquals(1, w.weight("minecraft:bread", DockTest::block), 1e-9, "the default");
+        assertEquals(0.2, w.weight("minecraft:diamond", DockTest::block), 1e-9);
+        assertEquals("jewelry", w.category("economy:ruby_ring"));
+        assertNull(w.category("minecraft:bread"));
+    }
+
+    record Haul(String id, int count, long value, double weight) {}
+
+    /** The most valuable load of one good a vehicle of this payload and these slots carries (stacks of 64). */
+    static Haul best(String id, double payload, int slots, DockGoods g, WeightTable w) {
+        double unit = w.weight(id, DockTest::block);
+        int n = (int) Math.min(Math.floor(payload / unit + 1e-9), slots * 64L);
+        return new Haul(id, n, (long) Math.floor(n * g.unit(id)), n * unit);
+    }
+
+    @Test
+    void lightLuxuryGoodsSuitTheScooterAndHeavyGoodsNeedATruck() {
+        DockGoods g = goods();
+        WeightTable w = weights();
+        // value per weight: jewelry and gems far above dishes, dishes above barrels and ironware, bulk press goods last
+        double jewel = density(g, w, "economy:ruby_ring", "economy:pearl_necklace", "economy:diamond_ring", "economy:gold_ring");
+        double dish = density(g, w, "economy:kimchi", "economy:bibimbap", "economy:bulgogi", "economy:japchae");
+        double heavy = density(g, w, "economy:oak_barrel", "economy:gamasot", "economy:iron_brazier", "economy:jang_set");
+        double bulk = density(g, w, "economy:compressed_stone", "economy:compressed_dirt", "economy:compost");
+        assertTrue(jewel > 5 * dish && dish > heavy && heavy > bulk, jewel + " > " + dish + " > " + heavy + " > " + bulk);
+        // 배달 오토바이 (60, 54 slots) vs 1톤 트럭 (1000, 450) vs 탑차 (2500, 720)
+        Haul scooterRings = best("economy:ruby_ring", 60, 54, g, w), scooterBarrels = best("economy:oak_barrel", 60, 54, g, w);
+        Haul truckBarrels = best("economy:oak_barrel", 1000, 450, g, w), truckKimchi = best("economy:kimchi", 1000, 450, g, w);
+        Haul boxKimchi = best("economy:kimchi", 2500, 720, g, w);
+        assertEquals(200, scooterRings.count(), "60 / 0.3");
+        assertEquals(12, scooterBarrels.count(), "60 / 5");
+        assertEquals(200, truckBarrels.count());
+        assertTrue(scooterRings.value() > 10 * scooterBarrels.value(), "a scooter of rings is worth it, of barrels not");
+        assertTrue(truckBarrels.value() > 10 * scooterBarrels.value(), "barrels want a truck");
+        assertTrue(boxKimchi.value() > 2 * truckKimchi.value());
+        System.out.println("[적재 무게] 오토바이: 루비 반지 " + scooterRings + " / 참나무통 " + scooterBarrels
+                + " · 1톤: 참나무통 " + truckBarrels + " / 김치 " + truckKimchi + " · 탑차: 김치 " + boxKimchi);
+    }
+
+    private static double density(DockGoods g, WeightTable w, String... ids) {
+        double s = 0;
+        for (String id : ids) s += g.unit(id) / w.weight(id, DockTest::block);
+        return s / ids.length;
+    }
+
+    @Test
+    void weightRulesMatchByPattern() {
+        List<String> problems = new ArrayList<>();
+        YamlConfiguration y = new YamlConfiguration();
+        y.set("default", 1);
+        y.set("block", 2);
+        y.set("rules", List.of(Map.of("match", "*_ingot|netherite_scrap", "weight", 1.5), Map.of("match", "economy:*_ring", "weight", 0.25)));
+        y.set("items.minecraft:gold_ingot", 0.9);
+        y.set("categories.gems.weight", 0.2);
+        y.set("categories.gems.items", List.of("diamond", "economy:ruby"));
+        WeightTable w = WeightTable.parse(y, problems);
+        assertTrue(problems.isEmpty(), problems.toString());
+        assertEquals(1.5, w.weight("iron_ingot", id -> false), 1e-9);
+        assertEquals(1.5, w.weight("minecraft:netherite_scrap", id -> false), 1e-9);
+        assertEquals(0.9, w.weight("minecraft:gold_ingot", id -> false), 1e-9, "its own line wins");
+        assertEquals(0.25, w.weight("economy:gold_ring", id -> false), 1e-9, "a namespaced pattern");
+        assertEquals(0.2, w.weight("minecraft:diamond", id -> true), 1e-9, "a category over the block weight");
+        assertEquals(2, w.weight("minecraft:stone", id -> true), 1e-9);
+        assertEquals(1, w.weight("economy:tofu", id -> true), 1e-9, "custom items are never 'blocks'");
+        y.set("categories.more.weight", 1);
+        y.set("categories.more.items", List.of("diamond"));
+        WeightTable.parse(y, problems);
+        assertFalse(problems.isEmpty(), "an item in two categories is reported");
+    }
+
+    // ------------------------------------------------------------------------------------------
+    // The structure and its zone
+    // ------------------------------------------------------------------------------------------
+
+    @Test
+    void theLayoutStaysInItsBoundsAndKeepsTheZoneClear() throws Exception {
+        for (DockLayout.Kind kind : DockLayout.Kind.values()) {
+            DockLayout.Layout l = DockLayout.of(kind, "서해");
+            DockLayout.Box b = l.bounds();
+            for (DockLayout.Block x : l.blocks()) {
+                assertTrue(b.contains(x.x(), x.y(), x.z()), kind + " block out of bounds " + x);
+                assertTrue(x.data().startsWith("minecraft:"), x.data());
+                assertNotNull(Material.matchMaterial(x.data()), x.data());
+            }
+            for (DockLayout.Column c : l.columns()) assertTrue(b.contains(c.x(), c.fromY(), c.z()) && c.fromY() - c.depth() >= b.minY(), "column " + c);
+            for (DockLayout.Prop p : l.props()) assertTrue(b.contains(p.x(), p.y(), p.z()), "prop " + p);
+            for (DockLayout.Box c : l.clear()) assertTrue(b.contains(c.minX(), c.minY(), c.minZ()) && b.contains(c.maxX(), c.maxY(), c.maxZ()), "clear " + c);
+            // the zone: inside the pad, nothing standing in it (only paint and lights in its floor), the crane's hook high above
+            DockLayout.Box z = DockLayout.ZONE;
+            for (DockLayout.Block x : l.blocks()) {
+                if (x.y() >= 0 && x.y() <= 5 && x.x() >= z.minX() && x.x() <= z.maxX() && x.z() >= z.minZ() && x.z() <= z.maxZ())
+                    throw new AssertionError(kind + ": something stands in the unloading zone: " + x);
+            }
+            assertTrue(l.blocks().stream().anyMatch(x -> x.y() == -1 && x.x() == z.minX() && x.z() == z.minZ() + 2 && x.data().equals("minecraft:yellow_concrete")),
+                    "a painted yellow border");
+            for (DockLayout.Prop p : l.props()) if (p.model().equals("dock_crane_hook")) assertTrue(p.y() >= 6, "the hook over the trucks");
+            // the counter is right beside the zone and is a real block of the layout
+            DockLayout.Block c = l.counter();
+            assertTrue(c.x() >= z.minX() - 2 && c.x() <= z.maxX() + 2 && c.z() >= z.minZ() - 1 && c.z() <= z.maxZ(), "counter by the zone");
+            assertTrue(l.blocks().stream().anyMatch(x -> x.x() == c.x() && x.y() == c.y() && x.z() == c.z() && x.data().equals(c.data())));
+            assertTrue(l.blocks().stream().anyMatch(x -> x.data().equals("minecraft:lantern")), "lights");
+            assertTrue(l.props().stream().anyMatch(p -> p.model().equals("dock_forklift")));
+            assertTrue(l.props().stream().anyMatch(p -> p.model().startsWith("dock_container")));
+            assertEquals(1, l.signs().size());
+            for (DockLayout.Prop p : l.props()) assertTrue(Files.exists(PACK.resolve("models/" + p.model() + ".bbmodel")), "models/" + p.model());
+            if (kind == DockLayout.Kind.PORT) {
+                assertEquals(3, l.zones().size(), "the pad's zone and the water on both sides of the pier");
+                assertTrue(l.blocks().stream().anyMatch(x -> x.z() > DockLayout.DEPTH && x.data().equals("minecraft:spruce_planks")), "a pier");
+                for (DockLayout.Box m : List.of(DockLayout.MOORING_LEFT, DockLayout.MOORING_RIGHT))
+                    for (DockLayout.Block x : l.blocks()) assertFalse(m.contains(x.x(), x.y(), x.z()) && x.y() >= -1, "mooring water is clear: " + x);
+            } else {
+                assertEquals(1, l.zones().size());
+                for (DockLayout.Block x : l.blocks()) assertTrue(x.z() <= DockLayout.DEPTH, "a land dock has no pier");
+            }
+            export(kind, l);
+        }
+    }
+
+    /** The layout for the preview (tools/assetgen/dock_preview.py → docs/previews/docks.png). */
+    private static void export(DockLayout.Kind kind, DockLayout.Layout l) throws Exception {
+        StringBuilder b = new StringBuilder("{\"kind\":\"").append(kind.name()).append("\",\"blocks\":[");
+        boolean first = true;
+        for (DockLayout.Block x : l.blocks()) {
+            if (!first) b.append(',');
+            first = false;
+            b.append('[').append(x.x()).append(',').append(x.y()).append(',').append(x.z()).append(",\"").append(x.data()).append("\"]");
+        }
+        b.append("],\"columns\":[");
+        first = true;
+        for (DockLayout.Column c : l.columns()) {
+            if (!first) b.append(',');
+            first = false;
+            b.append('[').append(c.x()).append(',').append(c.fromY()).append(',').append(c.z()).append(",\"").append(c.data()).append("\"]");
+        }
+        b.append("],\"props\":[");
+        first = true;
+        for (DockLayout.Prop p : l.props()) {
+            if (!first) b.append(',');
+            first = false;
+            b.append('[').append(p.x()).append(',').append(p.y()).append(',').append(p.z()).append(",\"").append(p.model()).append("\",")
+                    .append(p.scale()).append(',').append(p.yaw()).append(']');
+        }
+        b.append("],\"signs\":[");
+        first = true;
+        for (DockLayout.Sign s : l.signs()) {
+            if (!first) b.append(',');
+            first = false;
+            b.append('[').append(s.x()).append(',').append(s.y()).append(',').append(s.z()).append(']');
+        }
+        b.append("],\"zones\":[");
+        first = true;
+        for (DockLayout.Box z : l.zones()) {
+            if (!first) b.append(',');
+            first = false;
+            b.append('[').append(z.minX()).append(',').append(z.minZ()).append(',').append(z.maxX()).append(',').append(z.maxZ()).append(']');
+        }
+        b.append("]}");
+        Path out = Path.of("build/docks/" + kind.name().toLowerCase(java.util.Locale.ROOT) + ".json");
+        Files.createDirectories(out.getParent());
+        Files.writeString(out, b.toString());
+    }
+
+    @Test
+    void theZoneTurnsWithTheDockAndAnyUnitOfATrainCounts() {
+        for (int facing = 0; facing < 4; facing++) {
+            Dock d = new Dock("동해", DockLayout.Kind.PORT, "world", 1000, 63, -2000, facing, "", 0);
+            double[] c = d.centre();
+            assertTrue(d.inZone("world", c[0], c[1] + 0.5, c[2]), "facing " + facing);
+            assertFalse(d.inZone("other", c[0], c[1], c[2]));
+            double[] gate = d.world(0, 0, -6);
+            assertFalse(d.inZone("world", gate[0], gate[1], gate[2]), "the road's end is outside the zone");
+            // a tractor with its front outside and its last trailer inside
+            assertTrue(d.anyInZone("world", List.of(new double[]{gate[0], gate[1], gate[2]}, new double[]{c[0], c[1], c[2]})));
+            // a boat moored beside the pier, on the water (a block under the pad's floor)
+            double[] boat = d.world(-8, -1.6, 55);
+            assertTrue(d.inZone("world", boat[0], boat[1], boat[2]), "a moored boat, facing " + facing);
+            // the counter and the dock's turned blocks
+            int[] counter = d.counter();
+            int[] again = d.block(-9, 0, 4);
+            assertEquals(List.of(again[0], again[1], again[2]), List.of(counter[0], counter[1], counter[2]));
+            assertEquals(facing, Dock.facing(Dock.yaw(facing)));
+        }
+        assertEquals(0, Dock.facing(10));
+        assertEquals(1, Dock.facing(95));
+        assertEquals(3, Dock.facing(-80));
+        assertTrue(Dock.validName("서해_1"));
+        assertFalse(Dock.validName("a b"));
+        assertFalse(Dock.validName("x".repeat(17)));
+        // a land dock has no water zone
+        Dock land = new Dock("내륙", DockLayout.Kind.LAND, "world", 0, 64, 0, 0, "", 0);
+        double[] boat = land.world(-8, -1.6, 55);
+        assertFalse(land.inZone("world", boat[0], boat[1], boat[2]));
+    }
+
+    // ------------------------------------------------------------------------------------------
+    // Kept in the database
+    // ------------------------------------------------------------------------------------------
+
+    @Test
+    void docksAndTheirSalesAreKept() throws Exception {
+        Db db = DatabaseModule.sqlite(dir.resolve("d.db"), Logger.getLogger("test"));
+        try {
+            DockStore s = new DockStore(db);
+            s.init();
+            Dock a = new Dock("서해", DockLayout.Kind.PORT, "world", 7000, 62, 10, 3, "437,0;437,1", 100);
+            s.save(a).join();
+            s.save(new Dock("내륙", DockLayout.Kind.LAND, "world", -5000, 70, 5000, 1, "", 200)).join();
+            UUID owner = UUID.randomUUID(), seller = UUID.randomUUID();
+            s.log(new DockStore.Sale(1000, "서해", 12, owner, seller, "economy:kimchi x100", 6930, 7012.5, 7400)).join();
+            s.log(new DockStore.Sale(2000, "내륙", -3, seller, seller, "economy:ruby_ring x10", 2079, 6100, 6200)).join();
+            DockStore again = new DockStore(db);
+            again.init();
+            List<Dock> all = again.all();
+            assertEquals(2, all.size());
+            assertEquals(a, all.getFirst());
+            assertEquals(List.of(new long[]{437, 0}[0], new long[]{437, 1}[1]), List.of(a.claimed().get(0)[0], a.claimed().get(1)[1]));
+            assertTrue(again.delete("내륙").join());
+            assertEquals(1, again.all().size());
+            List<DockStore.Sale> sales = again.sales(null, 10).join();
+            assertEquals(2, sales.size());
+            assertEquals(2079, sales.getFirst().paid(), "newest first");
+            assertEquals(1, again.sales("서해", 10).join().size());
+            assertEquals(owner, again.sales("서해", 10).join().getFirst().owner());
+        } finally {
+            db.close();
+        }
+    }
+
+    // ------------------------------------------------------------------------------------------
+    // The scout's numbers
+    // ------------------------------------------------------------------------------------------
+
+    @Test
+    void theScoutCountsWaterAndSteepness() {
+        int[] h = {64, 64, 70, 70, 50, 50, 50, 64, 64};
+        boolean[] w = {false, false, false, true, true, false, true, false, false};
+        RouteStats s = RouteStats.of(h, w, 32, new int[]{64, 66, 65}, new boolean[]{false, false, false}, new boolean[]{true, false});
+        assertEquals(2, s.crossings());
+        assertEquals(96, s.water());
+        assertEquals(64, s.longestWater());
+        assertEquals(6, s.climb(), "only between two dry samples");
+        assertEquals(2, s.siteRange());
+        assertTrue(s.shore());
+        assertFalse(s.siteWater());
+        RouteStats flat = RouteStats.of(new int[]{64, 64, 64}, new boolean[3], 32, new int[]{64}, new boolean[]{false}, new boolean[0]);
+        assertTrue(flat.score() < s.score());
+    }
+}

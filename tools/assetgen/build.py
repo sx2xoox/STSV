@@ -40,16 +40,18 @@ def main():
     from models import vehicles
     from models import vehicles_road
     from models import vehicles_farm
+    from models import vehicles_misc
     import furniture_icons
     import vehicle_icons
     import vehicle_icons_road
     import vehicle_icons_farm
-    ALL = {**ITEMS, **cosmetics.ALL, **furniture.ALL, **vehicles.ALL, **vehicles_road.ALL, **vehicles_farm.ALL}
+    import vehicle_icons_misc
+    ALL = {**ITEMS, **cosmetics.ALL, **furniture.ALL, **vehicles.ALL, **vehicles_road.ALL, **vehicles_farm.ALL, **vehicles_misc.ALL}
     import special
 
     def home(name):
         return CONTENT if name in SHIPPED_MODELS or name in cosmetics.ALL or name in furniture.ALL or name in vehicles.ALL \
-            or name in vehicles_road.ALL or name in vehicles_farm.ALL else FIXTURE
+            or name in vehicles_road.ALL or name in vehicles_farm.ALL or name in vehicles_misc.ALL else FIXTURE
 
     for d in (CONTENT / "models", CONTENT / "textures", FIXTURE / "models", FIXTURE / "textures", BUILD, PREVIEWS):
         d.mkdir(parents=True, exist_ok=True)
@@ -89,6 +91,9 @@ def main():
     for name, fn in vehicle_icons_farm.ICONS.items():
         fn().save(CONTENT / "textures" / f"{name}_icon.png")
     print(f"icons   {len(vehicle_icons_farm.ICONS)} farm vehicles")
+    # 통통배, 지게: icons (vehicle_icons_misc.py), preview sheet: vehicle_misc_preview.py
+    for name, fn in vehicle_icons_misc.ICONS.items():
+        fn().save(CONTENT / "textures" / f"{name}_icon.png")
     # vehicles: horn and engine sounds (synthesized, Ogg Vorbis) + assets/stsv/sounds.json
     import sounds
     clips = sounds.write()

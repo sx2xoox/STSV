@@ -76,6 +76,16 @@ class CargoTripTest {
     }
 
     @Test
+    void aJigeKeepsItsTripOnlyWhenPutOnAgainWhereItCameOff() {
+        VehicleTrip.Seen seen = new VehicleTrip.Seen("world", 100, 200);
+        assertTrue(seen.near("world", 110, 205, JigeModule.REWEAR_REACH), "taken off and put on again in place (a relog)");
+        assertFalse(seen.near("world", 100, 260, JigeModule.REWEAR_REACH), "carried off in the inventory: the trip starts again");
+        assertFalse(seen.near("world_nether", 100, 200, JigeModule.REWEAR_REACH));
+        assertEquals(-5, VehicleTripStore.jige(5), "a 지게's trip row: its id negated (vehicles are positive)");
+        assertTrue(JigeModule.MAX_WALK < VehicleTrip.MAX_STEP && JigeModule.MAX_WALK >= 20, "a second of riding a horse counts, a teleport not");
+    }
+
+    @Test
     void tripsAreKeptOverARestart() throws Exception {
         Db db = DatabaseModule.sqlite(dir.resolve("t.db"), Logger.getLogger("test"));
         try {
@@ -85,10 +95,14 @@ class CargoTripTest {
             s.save(8, new VehicleTrip.Snapshot("other", 1, 2, 3, 4)).join();
             s.save(7, new VehicleTrip.Snapshot("world", 13, -41, 7000, 5678)).join();   // replaced
             s.delete(8).join();
+            s.save(-3, new VehicleTrip.Snapshot("world", 5, 6, 70, 9), new VehicleTrip.Seen("world", 50, 60)).join();
             VehicleTripStore again = new VehicleTripStore(db);
             again.init();
             Map<Long, VehicleTrip> all = again.all();
-            assertEquals(1, all.size());
+            assertEquals(2, all.size());
+            assertEquals(new VehicleTrip.Seen("world", 50, 60), all.get(-3L).seen);
+            assertEquals(70, all.get(-3L).snapshot().odometer(), 1e-9);
+            assertEquals(null, all.get(7L).seen);
             VehicleTrip.Snapshot t = all.get(7L).snapshot();
             assertEquals("world", t.world());
             assertEquals(13, t.x(), 1e-9);
@@ -153,7 +167,7 @@ class CargoTripTest {
 
     private static Map<String, VehicleSpec> all() {
         Map<String, VehicleSpec> out = new LinkedHashMap<>();
-        for (String file : new String[]{"vehicles.yml", "vehicles_road.yml", "vehicles_farm.yml"}) {
+        for (String file : new String[]{"vehicles.yml", "vehicles_road.yml", "vehicles_farm.yml", "vehicles_misc.yml"}) {
             YamlConfiguration y = YamlConfiguration.loadConfiguration(PACK.resolve("items/" + file).toFile());
             for (String id : y.getKeys(false)) {
                 ConfigurationSection s = y.getConfigurationSection(id + ".vehicle");
@@ -178,6 +192,7 @@ class CargoTripTest {
         want.put("ox_cart", 400.0);
         want.put("power_tiller", 500.0);
         want.put("tractor_trailer", 2000.0);
+        want.put("fishing_boat", 800.0);
         Map<String, VehicleSpec> all = all();
         for (Map.Entry<String, Double> e : want.entrySet()) {
             VehicleSpec s = all.get(e.getKey());
@@ -188,6 +203,10 @@ class CargoTripTest {
         // every vehicle with a bed has a payload of its own in its file (the default is only for new ones)
         for (Map.Entry<String, VehicleSpec> e : all.entrySet())
             if (e.getValue().cargo() != null) assertTrue(want.containsKey(e.getKey()), e.getKey() + ": payload 를 정하세요");
+        // the 지게 (worn): 30
+        YamlConfiguration misc = YamlConfiguration.loadConfiguration(PACK.resolve("items/vehicles_misc.yml").toFile());
+        assertEquals(30, JigeSpec.parse(misc.getConfigurationSection("jige.jige"), "stsv",
+                m -> Files.exists(PACK.resolve("models/" + m + ".bbmodel"))).payload(), 1e-9);
         // the ladder: each generation carries more than the one before
         assertTrue(150 > 20 && 60 > 20 && 600 > 120 && 1000 > 600 && 2500 > 1000);
     }

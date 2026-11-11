@@ -17,6 +17,16 @@ public final class VehicleTrip {
     private long changed;
     /** changed since it was last written to the database */
     boolean dirty;
+    /** a 지게: where its wearer last had it on (null for vehicles, or not known) */
+    Seen seen;
+
+    /** Where a worn carrier was last seen on its wearer. */
+    public record Seen(String world, double x, double z) {
+        /** Is a wearer here now still where it was taken off (in the same world, within reach blocks)? */
+        public boolean near(String inWorld, double atX, double atZ, double reach) {
+            return world != null && world.equals(inWorld) && Math.hypot(atX - x, atZ - z) <= reach;
+        }
+    }
 
     public VehicleTrip(String world, double x, double z, double odometer, long changed) {
         this.world = world;

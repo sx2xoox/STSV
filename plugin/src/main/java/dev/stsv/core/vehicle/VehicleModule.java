@@ -327,6 +327,16 @@ public final class VehicleModule implements StsvModule, Listener {
         this.cargoClick = click;
     }
 
+    /** The dock hook (the 지게 asks it too: JigeModule). */
+    java.util.function.BiPredicate<Player, Hauled> cargoClickHook() {
+        return cargoClick;
+    }
+
+    /** Are there weights (a content plugin set {@link #cargoWeight})? */
+    public boolean weighs() {
+        return cargoWeight != null;
+    }
+
     /** A shown vehicle's load (null: not shown now, or no bed). */
     public Hauled hauled(long id) {
         LiveVehicle v = live.get(id);
@@ -617,6 +627,18 @@ public final class VehicleModule implements StsvModule, Listener {
     @SuppressWarnings("deprecation") // isInteractable is approximate but has no replacement; furniture uses it too
     @EventHandler(priority = EventPriority.HIGH)
     public void onUse(PlayerInteractEvent e) {
+        if (e.getAction() == Action.RIGHT_CLICK_AIR && e.getHand() != null) {
+            // a boat is put on the water, which the client clicks through (in the air, or at the bottom under it)
+            Player p = e.getPlayer();
+            ItemStack hand = p.getInventory().getItem(e.getHand());
+            Optional<CustomItem> boat = plugin.content().itemOf(hand).filter(i -> i.isVehicle() && i.vehicle().floats());
+            if (boat.isEmpty()) return;
+            e.setCancelled(true);
+            if ((e.getHand() == EquipmentSlot.HAND || e.getHand() == EquipmentSlot.OFF_HAND) && !p.isInsideVehicle() && click(p)) {
+                launch(p, boat.get(), hand, e.getHand());
+            }
+            return;
+        }
         if (e.getAction() != Action.RIGHT_CLICK_BLOCK || e.getHand() == null || e.getClickedBlock() == null) return;
         Player p = e.getPlayer();
         ItemStack hand = p.getInventory().getItem(e.getHand());
@@ -627,7 +649,8 @@ public final class VehicleModule implements StsvModule, Listener {
         e.setCancelled(true);
         if (e.getHand() != EquipmentSlot.HAND && e.getHand() != EquipmentSlot.OFF_HAND) return;
         if (p.isInsideVehicle() || !click(p)) return;
-        place(p, item.get(), hand, e.getHand(), clicked, e.getBlockFace());
+        if (item.get().vehicle().floats()) launch(p, item.get(), hand, e.getHand());
+        else place(p, item.get(), hand, e.getHand(), clicked, e.getBlockFace());
     }
 
     /** One action per 6 ticks (a right-click can arrive twice). */
@@ -673,6 +696,50 @@ public final class VehicleModule implements StsvModule, Listener {
             p.playSound(p.getLocation(), Sound.BLOCK_NOTE_BLOCK_BASS, 0.6f, 0.6f);
             return;
         }
+        commit(p, item, hand, w, st, units);
+    }
+
+    /**
+     * A boat goes on the water the player looks at (through the water: the first water block on their line of sight,
+     * 6 blocks at most), facing where they look, floating at its draft (BoatPhysics). Only where every point of its hull
+     * is over water and nothing is in the way; the land's rules as for blocks in the cells at the water's surface.
+     */
+    private void launch(Player p, CustomItem item, ItemStack hand, EquipmentSlot slot) {
+        VehicleSpec s = item.vehicle();
+        World w = p.getWorld();
+        org.bukkit.util.RayTraceResult hit = p.rayTraceBlocks(6, org.bukkit.FluidCollisionMode.ALWAYS);
+        Block water = hit == null ? null : hit.getHitBlock();
+        WorldWater terrain = new WorldWater(w);
+        if (water == null || terrain.cell(water.getX(), water.getY(), water.getZ()) != BoatPhysics.Cell.WATER) {
+            refuse(p, Lang.mm("vehicle.boat-on-water"));
+            return;
+        }
+        double x = hit.getHitPosition().getX(), z = hit.getHitPosition().getZ();
+        float yaw = VehiclePhysics.wrap(p.getYaw());
+        double y = BoatPhysics.launchHeight(x, water.getY(), z, s, terrain);
+        if (Double.isNaN(y) || y < w.getMinHeight() || !BoatPhysics.canLaunch(x, y, z, yaw, s, terrain)) {
+            refuse(p, Lang.mm("vehicle.boat-no-room", "length", fmt(s.length()), "width", fmt(s.width())));
+            return;
+        }
+        VehiclePhysics.State st = new VehiclePhysics.State(x, y, z, yaw);
+        Set<Block> cells = new LinkedHashSet<>();
+        int wl = (int) Math.floor(y + s.water().draft());
+        for (double[] b : VehiclePhysics.footprint(st.x, st.y, st.z, st.yaw, s)) {
+            for (int bx = (int) Math.floor(b[0]); bx <= (int) Math.floor(b[3] - 1e-6); bx++)
+                for (int bz = (int) Math.floor(b[2]); bz <= (int) Math.floor(b[5] - 1e-6); bz++) cells.add(w.getBlockAt(bx, wl, bz));
+        }
+        if (!plugin.furniture().mayBuild(p, cells, water, slot)) {
+            p.playSound(p.getLocation(), Sound.BLOCK_NOTE_BLOCK_BASS, 0.6f, 0.6f);
+            return;
+        }
+        commit(p, item, hand, w, st, List.of());
+    }
+
+    /**
+     * The vehicle item in the hand becomes a vehicle in the world at st (a new row, or its row placed with its token);
+     * units: an articulated vehicle's towed units where they were laid out (empty for the rest).
+     */
+    private void commit(Player p, CustomItem item, ItemStack hand, World w, VehiclePhysics.State st, List<VehiclePhysics.State> units) {
         long id = idOf(hand), token = tokenOf(hand);
         if (id > 0 && busy.contains(id)) return;
         // the item goes now (it is the vehicle); a fresh admin item in creative stays, like furniture
@@ -698,13 +765,14 @@ public final class VehicleModule implements StsvModule, Listener {
                 return;
             }
             parked.put(row.id(), row);
-            if (s.train() != null) trainSaved.put(row.id(), units);
+            if (item.vehicle().train() != null) trainSaved.put(row.id(), units);
             // out of an item: whatever its bed holds starts its trip here (a load cannot skip the road in an item)
             VehicleTrip trip = VehicleTrip.start(w.getName(), st.x, st.z, System.currentTimeMillis());
             trips.put(row.id(), trip);
             saveTrip(row.id());
             LiveVehicle v = spawnIfLoaded(row);
-            w.playSound(new Location(w, st.x, st.y, st.z), Sound.BLOCK_IRON_DOOR_CLOSE, 0.8f, 1.2f);
+            w.playSound(new Location(w, st.x, st.y, st.z), item.vehicle().floats() ? Sound.ENTITY_GENERIC_SPLASH : Sound.BLOCK_IRON_DOOR_CLOSE,
+                    0.8f, 1.2f);
             p.sendMessage(Lang.msg("vehicle.placed", "vehicle", label(item), "id", row.id()));
         }));
     }
@@ -838,6 +906,7 @@ public final class VehicleModule implements StsvModule, Listener {
                 h.getPersistentDataContainer().set(PART, PersistentDataType.LONG, v.id);
             }));
         }
+        for (int i = 0; i < v.seats.length; i++) hideBoxes(v, v.rider(i), true);
         if (s.pulled()) {
             double[] c = CartPull.hitch(v.st, s);
             v.handle = v.world.spawn(new Location(v.world, c[0], c[1], c[2]), Interaction.class, h -> {
@@ -905,7 +974,9 @@ public final class VehicleModule implements StsvModule, Listener {
             t.rotate(l);
             steer = l.mul(steer);
         }
-        return new Transformation(t, steer, new Vector3f(1, 1, 1), new Quaternionf().rotateX((float) v.st.roll));
+        // a boat's propeller spins about the boat's length, a wheel about its axle
+        Quaternionf spin = v.spec.floats() ? new Quaternionf().rotateZ((float) v.st.roll) : new Quaternionf().rotateX((float) v.st.roll);
+        return new Transformation(t, steer, new Vector3f(1, 1, 1), spin);
     }
 
     /** A spinning part (a pedal crank): turned by its ratio of the wheels' roll, leaning with the body. */
@@ -1035,7 +1106,9 @@ public final class VehicleModule implements StsvModule, Listener {
         Player puller = puller(v);
         DriveInput in = driver != null ? DriveInput.of(driver.getCurrentInput()) : DriveInput.NONE;
         WorldTerrain terrain = new WorldTerrain(v.world);
-        boolean active = driver != null || puller != null || v.st.speed != 0 || !v.st.onGround || v.st.steer != 0 || v.lean != 0;
+        // a boat always follows the water under it (it rises and falls with it, settles aground when it goes)
+        boolean active = driver != null || puller != null || v.st.speed != 0 || !v.st.onGround || v.st.steer != 0 || v.lean != 0
+                || v.spec.floats();
         if (!active && (ticks + v.id) % 10 == 0 && !VehiclePhysics.supported(v.st, v.spec, terrain)) {
             v.st.onGround = false;   // the ground under it went: it falls
             active = true;
@@ -1052,12 +1125,18 @@ public final class VehicleModule implements StsvModule, Listener {
             if (puller != null) {
                 Location at = puller.getLocation();
                 CartPull.step(v.st, at.getX(), at.getZ(), v.spec, terrain);
+            } else if (v.spec.floats()) {
+                v.boatMode = BoatPhysics.step(v.st, in, v.spec, new WorldWater(v.world), settings.maxSpeed());
+                v.boatTurn = VehicleSeats.signed(v.st.yaw - yaw);
             } else if (v.train != null) {
                 TrainPhysics.step(v.st, v.train.units, in, v.spec, terrain, new WorldGround(v.world), settings.maxSpeed(), roadBonus(v));
             } else {
                 VehiclePhysics.step(v.st, in, v.spec, terrain, settings.maxSpeed(), 1f, roadBonus(v), settings.maxSpeed());
             }
-            if (v.st.bumped) v.world.playSound(at(v), Sound.ENTITY_ZOMBIE_ATTACK_IRON_DOOR, SoundCategory.NEUTRAL, 0.35f, 1.4f);
+            if (v.st.bumped) {
+                if (v.spec.floats()) v.world.playSound(at(v), Sound.BLOCK_WOOD_HIT, SoundCategory.NEUTRAL, 0.8f, 0.6f);
+                else v.world.playSound(at(v), Sound.ENTITY_ZOMBIE_ATTACK_IRON_DOOR, SoundCategory.NEUTRAL, 0.35f, 1.4f);
+            }
             boolean moved = Math.abs(v.st.x - x) + Math.abs(v.st.y - y) + Math.abs(v.st.z - z) > 1e-5 || v.st.yaw != yaw
                     || (trainWas != null && !java.util.Arrays.equals(trainWas, trainPlace(v)));
             double[] fw = VehiclePhysics.forward(v.st.yaw);
@@ -1082,7 +1161,8 @@ public final class VehicleModule implements StsvModule, Listener {
                 if (d < -Math.PI * 2) d += Math.PI * 4;
                 v.spin += d;
             }
-            if (moved || v.st.steer != steer || v.st.roll != roll || leaned) {
+            // (a boat's parts rock with the waves instead: see boat)
+            if (!v.spec.floats() && (moved || v.st.steer != steer || v.st.roll != roll || leaned)) {
                 for (int i = 0; i < v.wheels.size(); i++) glide(v.wheels.get(i), wheel(v, i));
                 for (int i = 0; i < v.spinners.size(); i++) glide(v.spinners.get(i), spinner(v, i));
             }
@@ -1095,6 +1175,7 @@ public final class VehicleModule implements StsvModule, Listener {
         if (puller != null) pulled(v, puller);
         if (v.train != null) v.train.animate(v, settings, along, driver != null, Math.min(v.spec.speed(), settings.maxSpeed()));
         if (v.spec.pulled() && tilt(v) != v.tiltShown) tiltTo(v, tilt(v));
+        if (v.spec.floats()) boat(v, driver);
         lights(v);
         horn(v, driver != null && in.jump());
         engine(v, driver);
@@ -1199,6 +1280,78 @@ public final class VehicleModule implements StsvModule, Listener {
     }
 
     // ------------------------------------------------------------------------------------------
+    // Boats (BoatPhysics, BoatMotion)
+    // ------------------------------------------------------------------------------------------
+
+    /**
+     * A boat this tick: every few ticks its drawn parts rock on the waves (body, load and propeller about the
+     * waterline's middle, the client gliding between); while driven, puffs of smoke from its stack in the engine's
+     * rhythm ("통통통", faster with speed), and the bow splashes under way.
+     */
+    private void boat(LiveVehicle v, Player driver) {
+        VehicleSpec.Water wa = v.spec.water();
+        double top = Math.min(v.spec.speed(), settings.maxSpeed());
+        if ((ticks + v.id) % BoatMotion.TICKS == 0) {
+            BoatMotion.Rock r = BoatMotion.rock(ticks, v.id, v.st.speed, top, v.boatTurn, wa.rock(), v.boatMode == BoatPhysics.Mode.FLOAT);
+            Quaternionf q = BoatMotion.rotation(r);
+            Vector3f pivot = new Vector3f(0, (float) wa.draft(), 0);
+            rock(v.body, body(v, 0), q, pivot, r.bob());
+            if (v.load != null && v.spec.cargo() != null) rock(v.load, tilted(v.spec, v.spec.cargo().at(), 1, 0, 0), q, pivot, r.bob());
+            for (int i = 0; i < v.wheels.size(); i++) rock(v.wheels.get(i), wheel(v, i), q, pivot, r.bob());
+        }
+        if (driver == null) return;
+        if (wa.exhaust() != null && settings.engine()) {
+            int every = (int) Math.max(3, Math.round(9 - 5 * Math.abs(v.st.speed) / Math.max(top, 1e-9)));
+            if (ticks % every == 0) {
+                double[] c = VehiclePhysics.world(v.st.x, v.st.y, v.st.z, v.st.yaw, wa.exhaust());
+                v.world.spawnParticle(org.bukkit.Particle.SMOKE, c[0], c[1], c[2], 3, 0.03, 0.05, 0.03, 0.015);
+            }
+        }
+        if (Math.abs(v.st.speed) > 1.5 && v.boatMode == BoatPhysics.Mode.FLOAT && ticks % 4 == 0) {
+            for (double side : new double[]{-1, 1}) {
+                double[] c = VehiclePhysics.world(v.st.x, v.st.y, v.st.z, v.st.yaw,
+                        new VehicleSpec.Vec(side * v.spec.width() * 0.3, wa.draft() + 0.1, Math.signum(v.st.speed) * (v.spec.length() / 2 - 0.5)));
+                v.world.spawnParticle(org.bukkit.Particle.SPLASH, c[0], c[1], c[2], 6, 0.15, 0.05, 0.15, 0.1);
+            }
+        }
+    }
+
+    private static void rock(ItemDisplay d, Transformation t, Quaternionf q, Vector3f pivot, float bob) {
+        if (d == null || !d.isValid()) return;
+        d.setInterpolationDelay(0);
+        d.setInterpolationDuration(BoatMotion.TICKS);
+        d.setTransformation(new Transformation(BoatMotion.rocked(t.getTranslation(), pivot, q, bob), new Quaternionf(q).mul(t.getLeftRotation()),
+                t.getScale(), t.getRightRotation()));
+    }
+
+    /** A boat's riders do not see its click boxes: they would catch a fishing rod's cast (nothing in it is clicked from inside). */
+    private void hideBoxes(LiveVehicle v, Player rider, boolean hide) {
+        if (!v.spec.floats() || rider == null) return;
+        for (Interaction h : v.hits) {
+            if (hide) rider.hideEntity(plugin, h);
+            else rider.showEntity(plugin, h);
+        }
+    }
+
+    /** A fishing hook passes through vehicles (a boat's riders fish over its side). */
+    @EventHandler(ignoreCancelled = true)
+    public void onHookHit(org.bukkit.event.entity.ProjectileHitEvent e) {
+        if (e.getEntity() instanceof org.bukkit.entity.FishHook && isVehiclePart(e.getHitEntity())) e.setCancelled(true);
+    }
+
+    /** Where a boat's rider steps out when there is no shore beside it: into the water beside their seat. */
+    private Location wetExit(LiveVehicle v, List<double[]> tries) {
+        int wl = (int) Math.floor(v.st.y + v.spec.water().draft());
+        for (double[] c : tries.subList(0, Math.min(4, tries.size()))) {
+            int bx = (int) Math.floor(c[0]), bz = (int) Math.floor(c[2]);
+            if (!v.world.isChunkLoaded(bx >> 4, bz >> 4)) continue;
+            Block feet = v.world.getBlockAt(bx, wl, bz);
+            if (feet.getType() == Material.WATER && feet.getRelative(BlockFace.UP).isPassable()) return new Location(v.world, bx + 0.5, wl + 0.2, bz + 0.5);
+        }
+        return null;
+    }
+
+    // ------------------------------------------------------------------------------------------
     // Riding
     // ------------------------------------------------------------------------------------------
 
@@ -1286,6 +1439,7 @@ public final class VehicleModule implements StsvModule, Listener {
             return;
         }
         v.seats[seat] = new LiveVehicle.Seat(carrier, chair);
+        hideBoxes(v, p, true);
         if (seat == 0) {
             HudModule.flash(p, Lang.mm("vehicle.driving", "keys", Lang.raw(v.spec.lights() != null ? "vehicle.keys-siren"
                     : v.spec.train() != null && v.spec.train().animal() != null ? "vehicle.keys-moo" : "vehicle.keys-horn")));
@@ -1306,6 +1460,7 @@ public final class VehicleModule implements StsvModule, Listener {
         ejecting.remove(s.chair().getUniqueId());
         s.chair().remove();
         s.carrier().remove();
+        if (p != null && p.isOnline()) hideBoxes(v, p, false);
         if (p != null && p.isOnline() && !p.isDead()) {
             exit.setYaw(p.getYaw());
             exit.setPitch(p.getPitch());
@@ -1330,6 +1485,7 @@ public final class VehicleModule implements StsvModule, Listener {
         LiveVehicle v = live.get(id);
         Entity rider = e.getEntity();
         Entity carrier = chair.getVehicle();
+        if (v != null && rider instanceof Player rp) hideBoxes(v, rp, false);
         if (v != null && index < v.seats.length && v.seats[index] != null && v.seats[index].chair().equals(chair)) {
             carrier = v.seats[index].carrier();
             v.seats[index] = null;
@@ -1363,6 +1519,10 @@ public final class VehicleModule implements StsvModule, Listener {
                 Block feet = v.world.getBlockAt(bx, by + dy, bz);
                 if (safe(feet)) return new Location(v.world, bx + 0.5, feet.getY() + floorHeight(feet.getRelative(BlockFace.DOWN)), bz + 0.5);
             }
+        }
+        if (v.spec.floats()) {
+            Location wet = wetExit(v, tries);
+            if (wet != null) return wet;
         }
         double[] top = tries.getLast();
         return new Location(v.world, top[0], top[1], top[2]);

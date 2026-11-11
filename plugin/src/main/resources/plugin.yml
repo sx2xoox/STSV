@@ -96,6 +96,11 @@ commands:
     aliases: [vehicle, vehicles]
     usage: /탈것 권한 [플레이어] | 권한취소 <플레이어>
     permission: stsv.vehicle
+  지게:
+    description: 지고 있는 지게의 짐 열기 (가슴 칸에 지게를 입었을 때)
+    aliases: [jige]
+    usage: /지게
+    permission: stsv.jige
   tpa:
     description: 다른 플레이어에게 가겠다고 요청 (상대가 수락하면 잠깐 가만히 있은 뒤 이동)
     aliases: [텔포, 텔포요청]
@@ -129,6 +134,9 @@ commands:
 permissions:
   stsv.vehicle:
     description: /탈것 권한 (내 탈것을 쓸 수 있는 플레이어 정하기)
+    default: true
+  stsv.jige:
+    description: /지게 (지고 있는 지게의 짐 열기)
     default: true
   stsv.hud:
     description: /사이드바 (내 사이드바 켜기·끄기, 위치·크기)

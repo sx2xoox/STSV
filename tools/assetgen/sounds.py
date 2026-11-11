@@ -45,7 +45,7 @@ HORN_HOLD = 5.0             # seconds of steady tone in the hold clip (the longe
 HORN_TAIL = 0.22            # seconds of the release tail
 ENGINE_FADE = 0.15          # seconds of each engine segment's fade-in and fade-out (the overlap)
 ENGINE_PERIOD = 0.5         # seconds from one segment's start to the next at pitch 1 (= 10 ticks)
-VEHICLES = ("police_car", "light_truck", "golf_cart")
+VEHICLES = ("police_car", "light_truck", "golf_cart", "fishing_boat")
 # more vehicles' sounds, each module with NAMES [(vehicle, kind)] and clips() -> {(vehicle, kind): (samples, ogg quality)}:
 # written and listed in sounds.json with these (sounds_farm.py: the ox cart, the power tiller, the tractor)
 EXTRA = ("sounds_farm",)
@@ -120,6 +120,8 @@ HORNS = {
     "light_truck": dict(tones=(277.0, 349.0), rolloff=0.95, drive=2.6, formant=(1300.0, 600.0, 1.8), top=4500, seed=12),
     # a small electric beep: one high tone, nearly pure, thin
     "golf_cart": dict(tones=(1245.0,), rolloff=2.2, drive=1.2, formant=(2500.0, 700.0, 0.4), top=7000, seed=13),
+    # 통통배's 뱃고동: a deep, hollow ship's horn "뿌우" (a low fifth, a dark wide bell, little buzz)
+    "fishing_boat": dict(tones=(138.6, 207.7), rolloff=1.25, drive=1.5, formant=(620.0, 380.0, 2.2), top=2600, seed=14),
 }
 
 
@@ -265,9 +267,37 @@ def cart_engine(n, t):
     return whine / np.sqrt(np.mean(whine ** 2)) + 0.04 * hiss / (np.sqrt(np.mean(hiss ** 2)) + 1e-12)
 
 
-ENGINES = {"police_car": police_engine, "light_truck": truck_engine, "golf_cart": cart_engine}
+BOAT_PULSES = 3             # 통통배: thumps per segment (ENGINE_PERIOD at pitch 1: 6 a second)
+
+
+def boat_engine(n, t):
+    """
+    통통배: a single-cylinder inboard's "통통통". Every 1/6 s (at pitch 1: the server's pitch makes it 3.6 a second idling,
+    8 at full speed) a hollow thump: a low knock dying in ~60 ms with the exhaust pipe ringing, a short pop of exhaust
+    noise; a soft low rumble between. The thumps sit at 1/6, 2/6 and 3/6 of the period, none in the fade-in, so where
+    two segments overlap there is one thump, not two (the next segment's first comes a sixth of a second later).
+    """
+    rng = np.random.default_rng(31)
+    out = 0.18 * resonant_noise(rng, n, [(46.0, 8.0, 1.0), (92.0, 12.0, 0.5)], floor=0.4, floor_cutoff=220.0)
+    period = ENGINE_PERIOD / BOAT_PULSES
+    for k in range(1, BOAT_PULSES + 1):
+        t0 = k * period
+        dt = t - t0
+        on = dt >= 0
+        d = np.where(on, dt, 0.0)
+        knock = np.sin(2 * np.pi * 62.0 * d) * np.exp(-d / 0.055) + 0.45 * np.sin(2 * np.pi * 124.0 * d + 0.6) * np.exp(-d / 0.035)
+        ring = 0.35 * np.sin(2 * np.pi * 185.0 * d) * np.exp(-d / 0.08)
+        attack = np.clip(d / 0.004, 0, 1)
+        pop_noise = eq(rng.standard_normal(n), lambda f: peak(f, 520.0, 260.0, 1.0) * highpass(f, 200, 2) * lowpass(f, 1400, 2))
+        pop_noise /= np.sqrt(np.mean(pop_noise ** 2)) + 1e-12
+        pop = 0.35 * pop_noise * np.exp(-d / 0.022)
+        out += np.where(on, (knock + ring + pop) * attack, 0.0) * (1.0 + 0.06 * (k % 2))
+    return eq(out, lambda f: lowpass(f, 1600, 2) * highpass(f, 30, 2))
+
+
+ENGINES = {"police_car": police_engine, "light_truck": truck_engine, "golf_cart": cart_engine, "fishing_boat": boat_engine}
 # how loud each segment is in the file (the server scales it further: vehicles.yml engine volume, config engine.volume)
-ENGINE_LEVEL = {"police_car": 0.8, "light_truck": 0.85, "golf_cart": 0.6}
+ENGINE_LEVEL = {"police_car": 0.8, "light_truck": 0.85, "golf_cart": 0.6, "fishing_boat": 0.85}
 # a vehicle whose horn is not a horn (the bicycle's bell): its own hold clip and tail
 HOLDS, TAILS = {}, {}
 
