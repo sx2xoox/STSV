@@ -185,6 +185,8 @@ public final class RoadModule extends EcoModule {
             if (en instanceof Display d) {
                 if (v == null) v = view();
                 RoadSigns.view(d, v);
+                if (d instanceof org.bukkit.entity.ItemDisplay m && m.getItemDisplayTransform() == org.bukkit.entity.ItemDisplay.ItemDisplayTransform.FIXED
+                        && m.getTransformation().getScale().y() == RoadSigns.SCALE) RoadSigns.model(m);   // signs placed by 0.51.0 stood low
             }
         }
     }

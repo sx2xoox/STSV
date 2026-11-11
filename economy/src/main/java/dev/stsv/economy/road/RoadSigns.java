@@ -53,9 +53,7 @@ final class RoadSigns {
             setUp(d, dock, set, view);
             d.setItemStack(shown);
             d.setItemDisplayTransform(ItemDisplay.ItemDisplayTransform.FIXED);
-            // the model's floor (model y 0) on the point: FIXED draws model (8, 8, 8) at the entity
-            d.setTransformation(new Transformation(new Vector3f(0, 0.5f * SCALE, 0), new Quaternionf(), new Vector3f(SCALE, SCALE, SCALE),
-                    new Quaternionf()));
+            model(d);
         });
         for (RoadSign.Text t : RoadSign.texts(words)) {
             double[] o = RoadSign.offset(yaw, t.right(), t.out());
@@ -99,6 +97,23 @@ final class RoadSigns {
             d.setTransformation(new Transformation(new Vector3f(), new Quaternionf().rotateX((float) (-Math.PI / 2)),
                     new Vector3f(PAINT, PAINT, PAINT), new Quaternionf()));
         });
+    }
+
+    /**
+     * Where the road lies in the model (model px): models/roads.py draws the road's surface at y 0 and bakes it with
+     * shift -16, scale 2 (model point = 8 + (drawn - 16 - 8) / 2), so the road is at model y -4.
+     */
+    static final float MODEL_ROAD_Y = -4f;
+
+    /**
+     * The model's transformation: FIXED draws model (8, 8, 8) on the entity, scaled by {@link #SCALE} round it, so the
+     * road (model y {@link #MODEL_ROAD_Y}) is (8 - MODEL_ROAD_Y) / 16 x SCALE = 1.5 below the entity unless lifted that much.
+     * (0.51.0 lifted it 1.0: the panel stood half a block low and its words looked pushed up.) Also mends signs placed then.
+     */
+    static void model(ItemDisplay d) {
+        float lift = (8f - MODEL_ROAD_Y) / 16f * SCALE;
+        d.setTransformation(new Transformation(new Vector3f(0, lift, 0), new Quaternionf(), new Vector3f(SCALE, SCALE, SCALE),
+                new Quaternionf()));
     }
 
     /** White, digits bold ({@link RoadSign#bold}), the server's default font. */
