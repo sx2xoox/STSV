@@ -602,6 +602,15 @@ public final class LandModule extends EcoModule implements DailyListener {
         return l != null && !l.server();
     }
 
+    /**
+     * Who owns a chunk (chunk x, z): 0 nobody, 1 a player, 2 the server (spawn town, docks, terminals). The 국도 keeps out
+     * of both kinds ({@code RoadGuard}).
+     */
+    public int owner(String world, int cx, int cz) {
+        Land l = store.index().at(new ChunkPos(world, cx, cz));
+        return l == null ? 0 : l.server() ? 2 : 1;
+    }
+
     /** Releases every chunk within radius, whoever owns it. Lands left empty end (금고 back to the owner). */
     public int releaseAround(Player p, int radius) {
         String w = p.getWorld().getName();

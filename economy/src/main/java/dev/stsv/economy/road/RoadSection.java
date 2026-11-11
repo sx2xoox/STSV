@@ -34,7 +34,7 @@ import java.util.TreeMap;
  * a lantern hanging from it, 4 clear blocks over the road; direction signs ({@link RoadSign}: the site puts the model and
  * its words) a little way from the start, every {@code markerEvery} and just before the gate, all where the road is plain
  * road ({@link #signs}). Approaching the dock's gate (the end) the road widens ({@link #widen}), a crosswalk is painted
- * across it and "하역장 입구" on it. A column of a player's land is left alone; a surface column there stops the road
+ * across it and "하역장 입구" on it. A column of protected land ({@link Site#protectedLand}) is left alone; a surface column there stops the road
  * (nothing of that cross-section is built).
  */
 public final class RoadSection {
@@ -63,7 +63,11 @@ public final class RoadSection {
             set(x, y, z, Material.matchMaterial(b < 0 ? data : data.substring(0, b)));
         }
 
-        boolean playerLand(int x, int z);
+        /**
+         * A column the road never touches ({@link RoadGuard}): a player's land, the server's land (but the chunks open to
+         * this road: its dock's, its terminal's), a roads.avoid box.
+         */
+        boolean protectedLand(int x, int z);
 
         /**
          * A direction sign ({@link RoadSign}): the point between its posts (x, z; y the road's surface), its face towards
@@ -228,8 +232,8 @@ public final class RoadSection {
                 if (allowed(x, y, z)) s.set(x, y, z, data);
             }
 
-            public boolean playerLand(int x, int z) {
-                return s.playerLand(x, z);
+            public boolean protectedLand(int x, int z) {
+                return s.protectedLand(x, z);
             }
 
             public void roadSign(double x, double y, double z, float yaw, String dock, double km, int route, RoadSign.Kind kind) {
@@ -383,7 +387,7 @@ public final class RoadSection {
     // ------------------------------------------------------------------------------------------
 
     /**
-     * Builds the cross-section at point i. Null: built; else {x, z} of the surface column that is a player's land (then
+     * Builds the cross-section at point i. Null: built; else {x, z} of the surface column that is protected land (then
      * nothing of it is built and the road stops there).
      */
     public int[] build(int i) {
@@ -407,7 +411,7 @@ public final class RoadSection {
                 if (Math.abs(lat) > reach + 0.5 || !owns(i, bx + 0.5, bz + 0.5)) continue;
                 if ((i == 0 && along < -0.5) || (i == points.size() - 1 && along > 0.5)) continue;   // not past the ends
                 double ao = Math.abs(lat);
-                if (site.playerLand(bx, bz)) {
+                if (site.protectedLand(bx, bz)) {
                     if (ao <= 3.5 + e) return new int[]{bx, bz};
                     continue;   // a shoulder in someone's land: left alone
                 }
@@ -604,7 +608,7 @@ public final class RoadSection {
      * touches it).
      */
     private void lamp(Col post, List<Col> cols, int side, int e, int h, boolean deck) {
-        if (site.playerLand(post.x(), post.z())) return;
+        if (site.protectedLand(post.x(), post.z())) return;
         for (Col c : cols) {   // the post, its arm and lantern: never in or over another road's lanes
             if (Math.signum(c.lat()) != side || Math.abs(c.lat()) < 1.5 + e || Math.abs(c.lat()) > Math.abs(post.lat()) + 0.01) continue;
             RoadNetwork.Spot o = old(c.x(), c.z());
@@ -686,7 +690,7 @@ public final class RoadSection {
 
     /**
      * A direction sign on the right at point i, facing the traffic coming from the start: its posts on the kerb and the
-     * shoulder (a stone brick footing where the shoulder is not solid), none where a post would stand in a player's land
+     * shoulder (a stone brick footing where the shoulder is not solid), none where a post would stand in protected land
      * or another road's lanes; then the site puts the panel. (The signs where roads meet, for the way back and to
      * confirm the way: {@link RoadGuide}, put up once the road is built.)
      */
@@ -696,7 +700,7 @@ public final class RoadSection {
         for (int k = 0; k < 2; k++) {
             double o = RoadSign.LATERAL + (k == 0 ? -RoadSign.POSTS : RoadSign.POSTS);
             posts[k] = new int[]{(int) Math.floor(p[0] + rx * o), (int) Math.floor(p[1] + rz * o)};
-            if (site.playerLand(posts[k][0], posts[k][1])) return;
+            if (site.protectedLand(posts[k][0], posts[k][1])) return;
             RoadNetwork.Spot s = old(posts[k][0], posts[k][1]);
             if (s != null && s.paved()) return;   // never in another road's lanes
         }

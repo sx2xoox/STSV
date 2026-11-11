@@ -16,6 +16,11 @@ a white arrow cut out of a flat plane, one display each, scaled to the line.
 
 The panel's numbers are RoadSign's: its bottom 3 blocks over the road (y 48), 48 x 24 px, its face 3 px in front of the
 point (z 5), the shield's 3.5 (z 4.5), the posts 0.75 either side (x 8 -+ 12).
+
+The back is a solid steel box as big as the panel, BACK px deep behind the face (RoadSign.BACK): the words are text
+displays, which the game draws from both sides; seen from behind (a sign for the other direction, from the far side of
+the road) they must be hidden by something thicker than the 1 px plate, as the game pulls text a little towards the eye
+(polygon offset) and from a distance the mirrored words showed through the thin plate. The rails clamp it from behind.
 """
 
 import math
@@ -28,6 +33,7 @@ BOTTOM, PW, PH = 48, 48, 24
 FACE_Z, SHIELD_Z = 5, 4.5
 POSTS = (-4, 20)                   # post centres (x): right and left of the driver
 SHIELD = (3, 3, 10, 10)           # u0, v0, u1, v1 on the panel
+BACK = 3                           # the solid back's depth behind the face (px): up to the posts' caps
 ARROW = (3, 11, 11, 22)            # u0, v0, u1, v1: the box the arrow is drawn in
 
 
@@ -99,9 +105,9 @@ def road_sign():
     m.box("shield", (32 - SHIELD[2], BOTTOM + SHIELD[1], SHIELD_Z), (32 - SHIELD[0], BOTTOM + SHIELD[3], FACE_Z),
           Paint("police_blue", 2, noise=0, decal=shield, rim=0.2, ao=0.3))
     m.group("frame")
-    m.box("backing", (x0 + 1, y0 + 1, FACE_Z + 1), (x1 - 1, y1 - 1, FACE_Z + 2), back)
+    m.box("backing", (x0, y0, FACE_Z + 1), (x1, y1, FACE_Z + BACK), back)
     for y in (y0 + 4, y1 - 6):
-        m.box("rail", (x0 + 2, y, FACE_Z + 2), (x1 - 2, y + 2, FACE_Z + 3.5), steel_x)
+        m.box("rail", (x0 + 2, y, FACE_Z + BACK), (x1 - 2, y + 2, FACE_Z + BACK + 1.5), steel_x)
     m.group("posts")
     for cx in POSTS:
         m.box("post", (cx - 1.5, 1, FACE_Z + 3.5), (cx + 1.5, y1 - 1, FACE_Z + 6.5), steel)
@@ -149,9 +155,9 @@ def road_sign_guide():
     m.box("plate", (x0, y0, FACE_Z), (x1, y1, FACE_Z + 1), back,
           faces={"north": Paint("sign_green", 2, noise=0, decal=guide_face, rim=0.3, ao=0.4)})
     m.group("frame")
-    m.box("backing", (x0 + 1, y0 + 1, FACE_Z + 1), (x1 - 1, y1 - 1, FACE_Z + 2), back)
+    m.box("backing", (x0, y0, FACE_Z + 1), (x1, y1, FACE_Z + BACK), back)
     for y in (y0 + 5, y1 - 7):
-        m.box("rail", (x0 + 2, y, FACE_Z + 2), (x1 - 2, y + 2, FACE_Z + 3.5), steel_x)
+        m.box("rail", (x0 + 2, y, FACE_Z + BACK), (x1 - 2, y + 2, FACE_Z + BACK + 1.5), steel_x)
     m.group("posts")
     for cx in G_POSTS:
         m.box("post", (cx - 1.5, 1, FACE_Z + 3.5), (cx + 1.5, y1 - 1, FACE_Z + 6.5), steel)

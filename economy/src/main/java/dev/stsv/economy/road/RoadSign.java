@@ -46,6 +46,13 @@ public final class RoadSign {
     public static final double PANEL_BOTTOM = 3.0, PANEL_TOP = 4.5, PANEL_WIDTH = 3.0;
     /** How far in front of the sign's point (between the posts) the panel's face is, and the shield's (blocks). */
     public static final double FACE = 3 / 16.0, SHIELD_FACE = 3.5 / 16.0;
+    /**
+     * How deep the panel is solid behind its face (blocks: the plate and a backing as big as it, models/roads.py BACK).
+     * The words are text displays, which the game draws from both sides and pulls a little towards the eye; from behind
+     * (a sign for the traffic the other way, seen from the far side of the road) only a back this deep hides them
+     * (0.51-3.54's 1 px plate let them show through, mirrored, from a few dozen blocks: "거꾸로 된 표지판").
+     */
+    public static final double BACK = 3 / 16.0;
     /** The posts: this far either side of the middle (blocks). */
     public static final double POSTS = 0.75;
 
