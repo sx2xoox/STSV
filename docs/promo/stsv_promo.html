@@ -1,0 +1,1098 @@
+<!doctype html>
+<html lang="ko">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>STSV 소개 영상</title>
+<style>
+  @font-face { font-family: 'NeoDGM'; src: url('fonts/neodgm.woff2') format('woff2'); font-display: block; }
+  @font-face { font-family: 'GalmuriB'; src: url('fonts/Galmuri11-Bold.woff2') format('woff2'); font-display: block; }
+  :root { --bg: #111216; --fg: #ece6d6; --dim: #8d8a83; }
+  html, body { margin: 0; height: 100%; background: var(--bg); color: var(--fg); font-family: 'NeoDGM', monospace; }
+  body { display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 12px; overflow: hidden; }
+  #stage { width: min(100vw, calc((100vh - 48px) * 16 / 9)); aspect-ratio: 16 / 9; display: block; image-rendering: pixelated; background: #1c1d22; cursor: pointer; }
+  #bar { width: min(100vw - 32px, calc((100vh - 48px) * 16 / 9)); display: flex; gap: 12px; align-items: center; font-size: 16px; color: var(--dim); }
+  #bar input { flex: 1; accent-color: #f2b134; }
+  #bar button { font: inherit; background: #25272e; color: var(--fg); border: 2px solid #3a3d47; padding: 2px 10px; cursor: pointer; }
+  body.capture { display: block; }
+  body.capture #bar { display: none; }
+  body.capture #stage { width: 1920px; height: 1080px; }
+</style>
+</head>
+<body>
+<canvas id="stage" width="1920" height="1080"></canvas>
+<div id="bar"><button id="play">일시정지</button><input id="seek" type="range" min="0" max="60" step="0.01" value="0"><span id="clock">0.0s</span></div>
+<script>
+'use strict';
+// ─────────────────────────────────────────────────────────────
+// STSV 소개 모션그래픽 · 1920×1080 · 60초 · 화면 연출만 (소리 없음)
+// render(t) 는 시간 t(초)만 보고 그리므로, 같은 t 는 언제나 같은 화면.
+// ?t=12.5 로 특정 장면에서 멈춰 보기, ?capture=1 은 프레임 추출용.
+// ─────────────────────────────────────────────────────────────
+const W = 1920, H = 1080, DURATION = 60;
+const cv = document.getElementById('stage');
+const ctx = cv.getContext('2d');
+
+const C = {
+  bg: '#1c1d22', bg2: '#202128', panel: '#25272e', panel2: '#2d3038', line: '#3a3d47', edge: '#14151a',
+  gold: '#f2b134', goldD: '#b97d17', goldL: '#ffd67a',
+  wood: '#b8834f', woodD: '#7a5230', woodL: '#dcae74',
+  green: '#7cc44a', greenD: '#3f7f2a', cream: '#f3e9d2', text: '#ece6d6', dim: '#9a978f',
+  red: '#ef4b4b', blue: '#3f8cff', sky: '#6fa4e0', water: '#2b6c9c', purple: '#a974e0', pink: '#f07fae'
+};
+
+// ── 수학 ──────────────────────────────────────────────────────
+const clamp = (v, a = 0, b = 1) => Math.max(a, Math.min(b, v));
+const lerp = (a, b, k) => a + (b - a) * k;
+const prog = (t, a, d) => clamp((t - a) / d);
+const eOut = k => 1 - Math.pow(1 - k, 3);
+const eIn = k => k * k * k;
+const eInOut = k => k < .5 ? 4 * k * k * k : 1 - Math.pow(-2 * k + 2, 3) / 2;
+const eBack = k => { const c = 1.9; return 1 + (c + 1) * Math.pow(k - 1, 3) + c * Math.pow(k - 1, 2); };
+function hash(n) { n = Math.imul(n ^ 0x9e3779b9, 0x85ebca6b); n ^= n >>> 13; n = Math.imul(n, 0xc2b2ae35); n ^= n >>> 16; return (n >>> 0) / 4294967296; }
+function rng(seed) { let s = seed >>> 0; return () => { s = (s + 0x6D2B79F5) >>> 0; let t = s; t = Math.imul(t ^ t >>> 15, t | 1); t ^= t + Math.imul(t ^ t >>> 7, t | 61); return ((t ^ t >>> 14) >>> 0) / 4294967296; }; }
+const fmt = n => Math.round(n).toLocaleString('en-US');
+
+// ── 에셋 ──────────────────────────────────────────────────────
+const IMG = {};
+const CROP_ITEMS = ['tomato','chili_pepper','strawberry','onion','garlic','napa_cabbage','paddy','soybean','corn','green_onion','radish','lettuce','cucumber','grapes','eggplant','zucchini','muskmelon'];
+const CROP_STAGES = [5,5,4,4,4,4,5,4,5,4,4,4,5,5,5,5,5];
+const ITEMS = ['kimchi','napa_cabbage','chili_powder','chili_pepper','rough_ruby','ruby','ruby_ring','jeweled_crown','vintage_wine','makgeolli','rice','wild_ginseng','golden_ear','red_coral','ambergris','meteoric_iron','meteor_sword','steel_ingot','mackerel','salted_mackerel','grapes','wine','ginseng_liquor','tomato','corn','radish','eggplant','muskmelon','flour','gold_ring','pearl_necklace','tuna_sushi','bluefin_tuna','marlin','clownfish','octopus','king_crab','golden_crucian','sunfish','whale_shark','oak_barrel','cut_diamond','sapphire','bibimbap','samgyetang','pearl','giant_squid','dragon_carp','sickle','homi','iron_pan','copper_pot','soju','strawberry_cake','golden_injeolmi','paddy','garlic','silk_cocoon','onion','strawberry','soybean','green_onion','lettuce','cucumber','zucchini','godeungeo_gui','kotatsu_icon','torii_icon','maneki_neko_icon','daruma_icon','wagasa_icon','chochin_icon','crown_voucher','cat_ears_voucher','angel_wings_voucher','heart_trail_voucher','cheque'];
+function assetList() {
+  const a = [];
+  for (const m of ['gem','mill','fish','forge','cook','still']) for (let l = 0; l < 4; l++) a.push(`m_${m}${l}`);
+  a.push('room','c_straw','c_wizard','c_crown','c_frog','c_gat');
+  ITEMS.forEach(i => a.push('i_' + i));
+  CROP_STAGES.forEach((n, r) => { for (let s = 0; s < n; s++) a.push(`crop_${r}_${s}`); });
+  return a;
+}
+function loadAll() {
+  const names = assetList();
+  const imgs = names.map(n => new Promise(res => {
+    const im = new Image(); im.onload = () => { IMG[n] = im; res(); }; im.onerror = () => { console.warn('missing', n); res(); }; im.src = `assets/${n}.png`;
+  }));
+  const fonts = [document.fonts.load('64px NeoDGM', '많이하면STSV0123'), document.fonts.load('48px GalmuriB', '0123456789,G')];
+  return Promise.all([...imgs, ...fonts]).then(() => document.fonts.ready);
+}
+
+// ── 그리기 도우미 ────────────────────────────────────────────
+function rect(x, y, w, h, c) { ctx.fillStyle = c; ctx.fillRect(Math.round(x), Math.round(y), Math.round(w), Math.round(h)); }
+function img(name, x, y, w, h, smooth = false) {
+  const im = IMG[name]; if (!im) return;
+  ctx.imageSmoothingEnabled = smooth; if (smooth) ctx.imageSmoothingQuality = 'high';
+  ctx.drawImage(im, Math.round(x), Math.round(y), Math.round(w), Math.round(h));
+  ctx.imageSmoothingEnabled = false;
+}
+// 이미지를 (cx,cy) 중심, 상자 bw×bh 안에 맞춰 그림
+function imgFit(name, cx, cy, bw, bh, smooth = true, s = 1) {
+  const im = IMG[name]; if (!im) return;
+  const k = Math.min(bw / im.width, bh / im.height) * s; const w = im.width * k, h = im.height * k;
+  img(name, cx - w / 2, cy - h / 2, w, h, smooth);
+}
+function icon(name, x, y, px = 4) { img('i_' + name, x, y, 16 * px, 16 * px, false); }
+function iconC(name, cx, cy, px = 4) { icon(name, cx - 8 * px, cy - 8 * px, px); }
+
+// 글자: 한글은 Neo둥근모, 숫자 묶음은 굵은 갈무리11 로 자동 전환. y 는 글줄의 가운데.
+const NUM_RE = /([+\-−]?[0-9][0-9,.:]*(?:\s?[%G])?)/;
+function runs(s) { return s.split(NUM_RE).filter(x => x !== '').map(x => ({ t: x, n: NUM_RE.test(x) && /^[+\-−]?[0-9]/.test(x) })); }
+function numSize(size) { return Math.max(12, Math.round(size * 0.9 / 12) * 12); }
+function fontFor(r, size) { return r.n ? `${numSize(size)}px GalmuriB` : `${size}px NeoDGM`; }
+function measure(s, size) { let w = 0; for (const r of runs(s)) { ctx.font = fontFor(r, size); w += ctx.measureText(r.t).width; } return w; }
+function text(s, x, y, o = {}) {
+  const size = o.size || 32, align = o.align || 'left';
+  const w = measure(s, size);
+  let cx = align === 'center' ? x - w / 2 : align === 'right' ? x - w : x;
+  ctx.textBaseline = 'middle'; ctx.textAlign = 'left';
+  const sh = o.shadow === false ? 0 : Math.max(2, Math.round(size / 16) * 2);
+  const parts = runs(s);
+  if (o.alpha !== undefined) ctx.globalAlpha *= o.alpha;
+  for (const pass of sh ? [0, 1] : [1]) {
+    let px = cx;
+    for (const r of parts) {
+      ctx.font = fontFor(r, size);
+      const yy = Math.round(y + (r.n ? size * 0.04 : 0));
+      if (pass === 0) { ctx.fillStyle = o.shadowColor || 'rgba(0,0,0,.6)'; ctx.fillText(r.t, Math.round(px + sh / 2), yy + sh / 2); }
+      else { ctx.fillStyle = (r.n && o.numColor) || o.color || C.text; ctx.fillText(r.t, Math.round(px), yy); }
+      px += ctx.measureText(r.t).width;
+    }
+  }
+  if (o.alpha !== undefined) ctx.globalAlpha /= o.alpha;
+  return w;
+}
+// 글자에 가로 그라데이션 (닉네임용)
+function gradText(s, x, y, size, c1, c2, align = 'center') {
+  ctx.font = `${size}px NeoDGM`; ctx.textBaseline = 'middle'; ctx.textAlign = 'left';
+  const w = ctx.measureText(s).width; const x0 = align === 'center' ? x - w / 2 : x;
+  ctx.fillStyle = 'rgba(0,0,0,.6)'; ctx.fillText(s, Math.round(x0 + 3), Math.round(y + 3));
+  const g = ctx.createLinearGradient(x0, 0, x0 + w, 0); g.addColorStop(0, c1); g.addColorStop(1, c2);
+  ctx.fillStyle = g; ctx.fillText(s, Math.round(x0), Math.round(y));
+}
+
+// 픽셀 테두리 패널 (게임 메뉴와 같은 숯색 UI)
+function panel(x, y, w, h, o = {}) {
+  x = Math.round(x); y = Math.round(y); w = Math.round(w); h = Math.round(h);
+  const b = o.b || 4;
+  rect(x, y, w, h, o.edge || C.edge);
+  rect(x + b, y + b, w - 2 * b, h - 2 * b, o.fill || C.panel);
+  rect(x + b, y + b, w - 2 * b, b, o.hi || 'rgba(255,255,255,.06)');
+  if (o.accent) rect(x + b, y + b, w - 2 * b, o.accentH || 4, o.accent);
+}
+function chip(s, x, y, o = {}) {
+  const size = o.size || 32, padX = o.padX || 16, h = o.h || size + 20;
+  const w = measure(s, size) + padX * 2 + (o.icon ? size + 12 : 0);
+  const x0 = o.align === 'center' ? x - w / 2 : o.align === 'right' ? x - w : x;
+  panel(x0, y - h / 2, w, h, { fill: o.fill || C.panel2, edge: o.edge || C.edge, b: 4 });
+  if (o.border) { ctx.strokeStyle = o.border; ctx.lineWidth = 4; ctx.strokeRect(x0 + 2, y - h / 2 + 2, w - 4, h - 4); }
+  let tx = x0 + padX;
+  if (o.icon) { icon(o.icon, tx, y - size / 2, size / 16); tx += size + 12; }
+  text(s, tx, y, { size, color: o.color || C.text, numColor: o.numColor, shadow: o.shadow });
+  return w;
+}
+
+// 정육면체(복셀) 한 개: 앞면 s×s, 윗면·옆면은 깊이 d
+function cube(x, y, s, d, base, alpha = 1) {
+  const [r, g, b] = base;
+  const sh = (k) => `rgba(${Math.round(r * k)},${Math.round(g * k)},${Math.round(b * k)},${alpha})`;
+  x = Math.round(x); y = Math.round(y);
+  ctx.fillStyle = sh(1.18);
+  ctx.beginPath(); ctx.moveTo(x, y); ctx.lineTo(x + d, y - d); ctx.lineTo(x + s + d, y - d); ctx.lineTo(x + s, y); ctx.closePath(); ctx.fill();
+  ctx.fillStyle = sh(0.62);
+  ctx.beginPath(); ctx.moveTo(x + s, y); ctx.lineTo(x + s + d, y - d); ctx.lineTo(x + s + d, y + s - d); ctx.lineTo(x + s, y + s); ctx.closePath(); ctx.fill();
+  ctx.fillStyle = sh(0.92); ctx.fillRect(x, y, s, s);
+  const q = Math.max(2, Math.round(s / 10));
+  ctx.fillStyle = `rgba(255,255,255,${0.22 * alpha})`; ctx.fillRect(x, y, s, q); ctx.fillRect(x, y, q, s);
+  ctx.fillStyle = `rgba(0,0,0,${0.22 * alpha})`; ctx.fillRect(x, y + s - q, s, q); ctx.fillRect(x + s - q, y, q, s);
+}
+const hex = h => [parseInt(h.slice(1, 3), 16), parseInt(h.slice(3, 5), 16), parseInt(h.slice(5, 7), 16)];
+
+// 픽셀 금화 (8×8 도트)
+const COIN = ['..####..', '.#yyyy#.', '#yyhyyy#', '#yhyyyo#', '#yyyyoo#', '#yyyooo#', '.#oooo#.', '..####..'];
+function coin(cx, cy, px = 5, spin = 0) {
+  const sx = Math.max(0.15, Math.abs(Math.cos(spin)));
+  const cols = { '#': '#6b4208', y: C.gold, h: '#fff0b8', o: C.goldD };
+  for (let r = 0; r < 8; r++) for (let c = 0; c < 8; c++) {
+    const ch = COIN[r][c]; if (ch === '.') continue;
+    ctx.fillStyle = cols[ch];
+    ctx.fillRect(Math.round(cx + (c - 4) * px * sx), Math.round(cy + (r - 4) * px), Math.ceil(px * sx), px);
+  }
+}
+
+// ── 배경 ─────────────────────────────────────────────────────
+let VIGNETTE = null;
+function makeVignette() {
+  const c = document.createElement('canvas'); c.width = W; c.height = H; const g = c.getContext('2d');
+  const gr = g.createRadialGradient(W / 2, H / 2, H * 0.35, W / 2, H / 2, H * 1.0);
+  gr.addColorStop(0, 'rgba(0,0,0,0)'); gr.addColorStop(1, 'rgba(0,0,0,.55)'); g.fillStyle = gr; g.fillRect(0, 0, W, H);
+  VIGNETTE = c;
+}
+function background(t, tint) {
+  rect(0, 0, W, H, C.bg);
+  // 느리게 떠오르는 먼지 블록
+  for (let i = 0; i < 46; i++) {
+    const s = 6 + Math.floor(hash(i * 7 + 1) * 4) * 4;
+    const x = hash(i * 13 + 2) * W;
+    const sp = 14 + hash(i * 3 + 5) * 26;
+    const y = H + 40 - ((hash(i * 17 + 9) * (H + 80) + t * sp) % (H + 80));
+    ctx.fillStyle = i % 5 === 0 ? 'rgba(242,177,52,.10)' : 'rgba(255,255,255,.035)';
+    ctx.fillRect(Math.round(x), Math.round(y), s, s);
+  }
+  if (tint) { ctx.fillStyle = tint; ctx.fillRect(0, 0, W, H); }
+}
+function vignette() { if (VIGNETTE) ctx.drawImage(VIGNETTE, 0, 0); }
+
+// 장면 제목 (왼쪽 위): 금색 블록 + 제목 + 부제
+function title(t, main, sub, o = {}) {
+  const k = eOut(prog(t, 0.25, 0.6));
+  const x = o.x || 90, y = o.y || 82;
+  ctx.globalAlpha = k;
+  const dx = Math.round((1 - k) * -40);
+  cube(x + dx, y - 22, 40, 10, hex(C.gold));
+  text(main, x + 70 + dx, y, { size: 64, color: C.cream });
+  ctx.globalAlpha = eOut(prog(t, 0.55, 0.6));
+  if (sub) text(sub, x + 72, y + 64, { size: 32, color: C.dim, numColor: C.goldL });
+  ctx.globalAlpha = 1;
+}
+
+// ── 복셀 글자 (STSV) ─────────────────────────────────────────
+const GLYPH = {
+  S: ['.####', '#....', '#....', '.###.', '....#', '....#', '####.'],
+  T: ['#####', '..#..', '..#..', '..#..', '..#..', '..#..', '..#..'],
+  V: ['#...#', '#...#', '#...#', '#...#', '.#.#.', '.#.#.', '..#..']
+};
+function wordCubes(word, s, gap) {
+  const cubes = []; let col0 = 0;
+  for (const ch of word) {
+    const g = GLYPH[ch];
+    for (let r = 0; r < 7; r++) for (let c = 0; c < 5; c++) if (g[r][c] === '#') cubes.push({ r, c: col0 + c });
+    col0 += 5 + gap;
+  }
+  const cols = col0 - gap;
+  cubes.sort((a, b) => b.r - a.r || a.c - b.c); // 아래 줄 먼저, 왼쪽 먼저 (윗면·옆면 겹침 순서)
+  return { cubes, cols, w: cols * s };
+}
+function drawVoxelWord(t, cx, top, s, o = {}) {
+  const d = Math.round(s * 0.32);
+  const { cubes, cols, w } = wordCubes('STSV', s, 1);
+  const x0 = Math.round(cx - w / 2);
+  const shine = o.shine !== undefined ? o.shine : -99;
+  cubes.forEach((q, i) => {
+    const rnd = hash(i * 31 + 7);
+    const delay = o.instant ? -9 : 0.15 + (q.c / cols) * 1.1 + rnd * 0.22 + (6 - q.r) * 0.025;
+    const k = prog(t, delay, 0.55);
+    if (k <= 0) return;
+    const tx = x0 + q.c * s, ty = top + q.r * s;
+    let y = lerp(ty - 760 - rnd * 260, ty, eOut(Math.min(1, k * 1.15)));
+    if (k > 0.85) y -= Math.sin((k - 0.85) / 0.15 * Math.PI) * s * 0.18;
+    const x = lerp(tx + (rnd - .5) * 260, tx, eOut(k));
+    const bob = o.bob ? Math.sin(t * 2 + q.c * 0.35) * 4 : 0;
+    // 금빛이 왼쪽에서 오른쪽으로 쓸고 지나감
+    const sh = clamp(1 - Math.abs((q.c - (shine * (cols + 8) - 4))) / 3);
+    const base = [242 + 13 * sh, 177 + 60 * sh, 52 + 120 * sh].map(v => Math.min(255, v));
+    cube(x, y + bob, s, d, base);
+  });
+}
+
+// ── 화면 전환: 블록이 쌓였다가 부서짐 ────────────────────────
+const TILE = {};
+function makeTiles() {
+  const defs = {
+    grass: (x, y, r) => y < 4 + (r() < .3 ? 1 : 0) ? ['#6aa83f', '#5c9636', '#7dbb4c'][Math.floor(r() * 3)] : ['#8a5a3b', '#7a4f33', '#96643f', '#6b4429'][Math.floor(r() * 4)],
+    dirt: (x, y, r) => ['#8a5a3b', '#7a4f33', '#96643f', '#6b4429'][Math.floor(r() * 4)],
+    stone: (x, y, r) => ['#7b7d83', '#6d6f75', '#878990', '#62646a'][Math.floor(r() * 4)],
+    plank: (x, y, r) => (y % 4 === 3) ? '#7a5230' : ((x + (Math.floor(y / 4) % 2) * 8) % 16 === 0 ? '#86592f' : ['#b8834f', '#ad7a48', '#c08c57'][Math.floor(r() * 3)]),
+    gold: (x, y, r) => (x === 0 || y === 0) ? '#ffe39a' : (x === 15 || y === 15) ? '#b97d17' : ['#f2b134', '#f6c04f', '#e8a52a'][Math.floor(r() * 3)],
+    leaf: (x, y, r) => ['#3f7f2a', '#4a9033', '#356f24', '#58a03a'][Math.floor(r() * 4)],
+    ore: (x, y, r) => { const v = r(); return v < .12 ? '#f2b134' : ['#7b7d83', '#6d6f75', '#878990'][Math.floor(r() * 3)]; }
+  };
+  for (const [name, f] of Object.entries(defs)) {
+    const c = document.createElement('canvas'); c.width = 16; c.height = 16; const g = c.getContext('2d');
+    const r = rng(name.length * 977 + name.charCodeAt(0));
+    for (let y = 0; y < 16; y++) for (let x = 0; x < 16; x++) { g.fillStyle = f(x, y, r); g.fillRect(x, y, 1, 1); }
+    TILE[name] = c;
+  }
+}
+const CELL = 64, GC = 30, GR = 17;
+function tileAt(c, r, set) { return set[Math.floor(hash(c * 131 + r * 71 + set.length) * set.length)]; }
+function drawTile(name, x, y, s, rot = 0, alpha = 1) {
+  ctx.imageSmoothingEnabled = false;
+  if (rot || alpha < 1) {
+    ctx.save(); ctx.globalAlpha = alpha; ctx.translate(x + s / 2, y + s / 2); ctx.rotate(rot);
+    ctx.drawImage(TILE[name], -s / 2, -s / 2, s, s); ctx.restore();
+  } else ctx.drawImage(TILE[name], Math.round(x), Math.round(y), s, s);
+  if (!rot) { ctx.fillStyle = 'rgba(0,0,0,.18)'; ctx.fillRect(Math.round(x), Math.round(y + s - 4), s, 4); }
+}
+// phase: -1..0 덮기(블록이 쌓임), 0..1 걷기(블록이 부서짐). style 은 전환마다 다름
+const COVER = 0.75, REVEAL = 0.85;
+function transition(local, idx) {
+  const sets = [['grass', 'dirt'], ['plank', 'plank', 'gold'], ['grass', 'leaf', 'dirt'], ['stone', 'ore'], ['plank', 'grass'], ['gold', 'plank', 'gold']];
+  const set = sets[idx % sets.length];
+  if (local < 0) { // 덮기: 아래 줄부터 쌓이거나(짝수) 왼쪽부터 쏟아짐(홀수)
+    const k = (local + COVER) / COVER;
+    for (let r = GR - 1; r >= 0; r--) for (let c = 0; c < GC; c++) {
+      const j = hash(c * 17 + r * 29 + idx * 5);
+      const order = idx % 2 === 0 ? (GR - 1 - r) / GR * 0.62 : c / GC * 0.52 + (GR - 1 - r) / GR * 0.12;
+      const d = order + j * 0.1;
+      const kk = clamp((k - d * (1 - 0.3)) / 0.3);
+      if (kk <= 0) continue;
+      const ty = r * CELL, tx = c * CELL;
+      const y = lerp(-CELL * 2 - j * 200, ty, eIn(kk));
+      drawTile(tileAt(c, r, set), tx, y, CELL);
+    }
+  } else { // 걷기: 금이 가고 네 조각으로 흩어짐(짝수) 또는 아래로 무너짐(홀수)
+    const k = local / REVEAL;
+    const cx = GC / 2, cy = GR / 2;
+    for (let r = 0; r < GR; r++) for (let c = 0; c < GC; c++) {
+      const j = hash(c * 23 + r * 41 + idx * 3);
+      const dist = Math.hypot(c - cx, (r - cy) * 1.6) / Math.hypot(cx, cy * 1.6);
+      const d = idx % 2 === 0 ? dist * 0.42 + j * 0.16 : (GR - 1 - r) / GR * 0.25 + j * 0.3;
+      const kk = clamp((k - d) / 0.42);
+      const tx = c * CELL, ty = r * CELL, name = tileAt(c, r, set);
+      if (kk <= 0) { drawTile(name, tx, ty, CELL); continue; }
+      if (kk >= 1) continue;
+      if (idx % 2 === 0) {
+        if (kk < 0.22) { // 금 가기
+          drawTile(name, tx, ty, CELL);
+          ctx.fillStyle = 'rgba(20,20,24,.85)';
+          const n = Math.ceil(kk / 0.22 * 4);
+          for (let s = 0; s < n; s++) { const a = hash(c * 7 + r * 3 + s); ctx.fillRect(tx + 8 + a * 44, ty + 8 + s * 12, 12, 4); ctx.fillRect(tx + 16 + a * 30, ty + 12 + s * 12, 4, 8); }
+        } else { // 네 조각
+          const q = (kk - 0.22) / 0.78;
+          for (let p = 0; p < 4; p++) {
+            const ox = (p % 2) * 32, oy = Math.floor(p / 2) * 32;
+            const vx = ((p % 2) - 0.5) * (240 + j * 200), vy = -260 - hash(p + c * 9 + r) * 220;
+            const x = tx + ox + vx * q, y = ty + oy + vy * q + 1700 * q * q;
+            ctx.save(); ctx.globalAlpha = 1 - q * 0.6; ctx.translate(x + 16, y + 16); ctx.rotate((p - 1.5) * q * 2.4);
+            ctx.drawImage(TILE[name], ox / 4, oy / 4, 8, 8, -16, -16, 32, 32); ctx.restore();
+          }
+        }
+      } else {
+        const y = ty + 1400 * kk * kk; const rot = (j - .5) * kk * 1.6;
+        drawTile(name, tx, y, CELL, rot, 1);
+      }
+    }
+  }
+}
+
+// ═════════════════════════ 장면 ═════════════════════════════
+
+// 0. 오프닝: 복셀 블록이 모여 STSV
+function sceneIntro(t) {
+  background(t);
+  // 바닥에 은은한 금빛
+  const g = ctx.createRadialGradient(W / 2, 470, 40, W / 2, 470, 760);
+  g.addColorStop(0, 'rgba(242,177,52,.13)'); g.addColorStop(1, 'rgba(242,177,52,0)');
+  ctx.fillStyle = g; ctx.fillRect(0, 0, W, H);
+  ctx.globalAlpha = eOut(prog(t, 0.6, 0.5));
+  chip('마인크래프트 한국어 서버', W / 2, 160, { size: 32, align: 'center', color: C.goldL, fill: '#26231c' });
+  ctx.globalAlpha = 1;
+  drawVoxelWord(t, W / 2 + 6, 250, 44, { shine: prog(t, 2.0, 1.1) });
+  // 부제: 한 글자씩 튀어오름
+  const sub = '많이 하면 많이 번다';
+  const size = 80;
+  ctx.font = `${size}px NeoDGM`;
+  const full = ctx.measureText(sub).width;
+  let x = W / 2 - full / 2;
+  [...sub].forEach((ch, i) => {
+    const k = prog(t, 2.05 + i * 0.07, 0.35);
+    ctx.font = `${size}px NeoDGM`;
+    const cw = ctx.measureText(ch).width;
+    if (k > 0) {
+      const yy = 690 - eBack(k) * 24 + 24;
+      ctx.globalAlpha = clamp(k * 2);
+      text(ch, x, yy, { size, color: ch === ' ' ? C.text : (i >= 6 ? C.gold : C.cream) });
+      ctx.globalAlpha = 1;
+    }
+    x += cw;
+  });
+  // 설명 한 줄
+  ctx.globalAlpha = eOut(prog(t, 3.1, 0.6));
+  text('직업, 생산, 거래가 맞물려 돌아가는 한국형 경제·생활 서버', W / 2, 800 + (1 - eOut(prog(t, 3.1, 0.6))) * 20, { size: 48, align: 'center', color: C.woodL });
+  ctx.globalAlpha = 1;
+  // 금화 비
+  coinRain(t, 2.2, 22);
+  vignette();
+}
+function coinRain(t, start, n, seed = 1) {
+  for (let i = 0; i < n; i++) {
+    const t0 = start + hash(i * 19 + seed) * 2.6;
+    const k = t - t0; if (k < 0) continue;
+    const x = 80 + hash(i * 37 + seed) * (W - 160);
+    const y = -40 + k * (260 + hash(i * 3 + seed) * 200) + k * k * 120;
+    if (y > H + 40) continue;
+    ctx.globalAlpha = 0.85; coin(x, y, 4, k * 5 + i); ctx.globalAlpha = 1;
+  }
+}
+
+// 1. 직업 6종 카드
+const JOBS = [
+  { name: '광부', icon: 'rough_ruby', m: 'gem', mn: '세공대', p: 'jeweled_crown', pn: '보석 왕관', price: '2,836 G' },
+  { name: '농부', icon: 'napa_cabbage', m: 'mill', mn: '가공대', p: 'chili_powder', pn: '고춧가루', price: '39 G' },
+  { name: '어부', icon: 'mackerel', m: 'fish', mn: '손질대', p: 'salted_mackerel', pn: '간고등어', price: '15 G' },
+  { name: '대장장이', icon: 'steel_ingot', m: 'forge', mn: '대장간', p: 'meteor_sword', pn: '운철검', price: '1,760 G' },
+  { name: '요리사', icon: 'iron_pan', m: 'cook', mn: '조리대', p: 'kimchi', pn: '김치', price: '77 G' },
+  { name: '연금술사', icon: 'oak_barrel', m: 'still', mn: '증류기', p: 'vintage_wine', pn: '빈티지 포도주', price: '593 G' }
+];
+const UPG_START = 5.6;
+function sceneJobs(t) {
+  background(t);
+  title(t, '직업 6종', '레벨 1 ~ 30 · 직업마다 전용 3D 기계');
+  // 강화 안내 (오른쪽 위)
+  const uk = eOut(prog(t, UPG_START - 0.3, 0.5));
+  if (uk > 0) {
+    ctx.globalAlpha = uk;
+    const lv = upgradeLevel(t, 0);
+    const steps = ['기본', '1강', '2강', '3강'];
+    let x = 1830;
+    for (let i = 3; i >= 0; i--) {
+      const on = i <= lv;
+      const w = chip(steps[i], x, 70, { size: 32, align: 'right', color: on ? '#1c1d22' : C.dim, fill: on ? C.gold : C.panel2, shadow: false });
+      x -= w + (i > 0 ? 34 : 0);
+      if (i > 0) text('›', x + 17, 70, { size: 32, align: 'center', color: on ? C.gold : C.line });
+    }
+    text('강화할수록 기계가 커지고 작업 줄이 늘어나요', 1830, 132, { size: 32, align: 'right', color: C.cream });
+    ctx.globalAlpha = 1;
+  }
+  const cw = 560, ch = 390, gx = 30, gy = 34, x0 = (W - (3 * cw + 2 * gx)) / 2, y0 = 196;
+  JOBS.forEach((j, i) => {
+    const x = x0 + (i % 3) * (cw + gx), y = y0 + Math.floor(i / 3) * (ch + gy);
+    const fs = 0.45 + i * 0.5;
+    const k = prog(t, fs, 0.6);
+    if (k <= 0) return;
+    // 뒤집기: 앞 절반은 뒷면(나무판 + 금화), 뒤 절반은 앞면
+    const sx = Math.abs(Math.cos(k * Math.PI));
+    const lift = Math.sin(k * Math.PI) * 18;
+    ctx.save();
+    ctx.translate(x + cw / 2, y + ch / 2 - lift); ctx.scale(Math.max(0.02, sx), 1); ctx.translate(-cw / 2, -ch / 2);
+    if (k < 0.5) cardBack(cw, ch);
+    else cardFront(t, j, i, cw, ch, fs);
+    ctx.restore();
+  });
+  vignette();
+}
+function cardBack(w, h) {
+  panel(0, 0, w, h, { fill: C.woodD, edge: '#3d2814' });
+  ctx.imageSmoothingEnabled = false;
+  for (let yy = 8; yy < h - 8; yy += 64) for (let xx = 8; xx < w - 8; xx += 64) ctx.drawImage(TILE.plank, xx, yy, Math.min(64, w - 8 - xx), Math.min(64, h - 8 - yy));
+  coin(w / 2, h / 2, 12);
+}
+function upgradeLevel(t, i) {
+  const s = UPG_START + i * 0.12;
+  return t < s ? 0 : Math.min(3, 1 + Math.floor((t - s) / 0.75));
+}
+function cardFront(t, j, i, w, h, fs) {
+  panel(0, 0, w, h, { fill: C.panel, accent: C.gold, accentH: 4 });
+  // 머리줄
+  rect(4, 8, w - 8, 84, '#2a2c34');
+  icon(j.icon, 22, 18, 4);
+  text(j.name, 104, 52, { size: 48, color: C.cream });
+  // 레벨이 1 → 30 으로 오름
+  const lvk = eOut(prog(t, fs + 0.4, 1.4));
+  const lv = Math.max(1, Math.round(lerp(1, 30, lvk)));
+  text(`Lv ${lv}`, w - 24, 52, { size: 32, align: 'right', color: C.dim, numColor: lv === 30 ? C.gold : C.cream });
+  // 기계 (강화 단계에 따라 모습이 바뀜)
+  const lvU = upgradeLevel(t, i);
+  const flash = t >= UPG_START + i * 0.12 ? 1 - clamp(((t - UPG_START - i * 0.12) % 0.75) / 0.3) : 0;
+  const scl = [0.84, 0.9, 0.95, 1.0][lvU] * (1 + flash * 0.04);
+  rect(12, 96, 336, 286, '#1b1d22');
+  if (flash > 0 && t < UPG_START + i * 0.12 + 2.3) {
+    const gl = ctx.createRadialGradient(178, 236, 10, 178, 236, 200);
+    gl.addColorStop(0, `rgba(255,214,122,${0.45 * flash})`); gl.addColorStop(1, 'rgba(255,214,122,0)');
+    ctx.fillStyle = gl; ctx.fillRect(12, 96, 336, 286);
+  }
+  imgFit(`m_${j.m}${lvU}`, 178, 236, 340, 290, true, scl);
+  chip(j.mn, 24, 352, { size: 32, fill: '#1e1f25', color: C.goldL });
+  // 작업 줄 표시 (기계마다 다름: 표시용 막대)
+  const lanes = [1, 2, 3, 4][lvU];
+  for (let b = 0; b < 4; b++) rect(24 + b * 22 + measure(j.mn, 32) + 50, 344, 14, 16, b < lanes ? C.green : C.line);
+  // 대표 완성품
+  rect(352, 100, 4, h - 116, C.line);
+  text('완성품', 458, 130, { size: 32, align: 'center', color: C.dim });
+  const pk = eBack(prog(t, fs + 0.55, 0.45));
+  ctx.save(); ctx.translate(458, 222); ctx.scale(pk, pk); iconC(j.p, 0, 0, 7); ctx.restore();
+  text(j.pn, 458, 316, { size: j.pn.length > 5 ? 26 : 32, align: 'center', color: C.cream });
+  text(j.price, 458, 354, { size: 32, align: 'center', color: C.gold });
+}
+
+// 2. 협업 경제: 원재료 → 기계 → 완성품 → 금화
+const LANES = [
+  { ins: [['napa_cabbage', '농부'], ['chili_powder', '농부'], ['garlic', '농부']], m: 'm_cook3', mn: '조리대', who: '요리사', out: 'kimchi', on: '김치', g: 77 },
+  { ins: [['meteoric_iron', '광부'], ['steel_ingot', '대장장이'], ['silk_cocoon', '농부']], m: 'm_forge3', mn: '대장간', who: '대장장이', out: 'meteor_sword', on: '운철검', g: 1760 },
+  { ins: [['wine', '연금술사'], ['oak_barrel', '대장장이']], m: 'm_still3', mn: '증류기', who: '연금술사', out: 'vintage_wine', on: '빈티지 포도주', g: 593 }
+];
+const COL = { in: 290, m: 800, out: 1260, g: 1640 };
+const ECON_PERIOD = 2.6;
+function econCycles(t, li) { const s = 0.9 + li * 0.75; return t < s ? [] : Array.from({ length: Math.floor((t - s) / ECON_PERIOD) + 1 }, (_, n) => ({ n, k: t - s - n * ECON_PERIOD })); }
+function sceneEconomy(t) {
+  background(t);
+  title(t, '협업 경제', '농부·어부·광부가 재료를 대고, 요리사·연금술사·대장장이가 완성품을 만들어요');
+  // 열 머리
+  const hk = eOut(prog(t, 0.6, 0.5));
+  ctx.globalAlpha = hk;
+  [['원재료', COL.in], ['가공', COL.m], ['완성품', COL.out], ['금화', COL.g]].forEach(([s, x], i) => {
+    text(s, x, 222, { size: 32, align: 'center', color: C.goldL });
+    if (i < 3) text('→', x + (i === 0 ? 255 : i === 1 ? 230 : 190), 222, { size: 32, align: 'center', color: C.gold });
+  });
+  ctx.globalAlpha = 1;
+  // 지갑 합계
+  let earned = 0;
+  LANES.forEach((L, li) => econCycles(t, li).forEach(c => { if (c.k > 2.25) earned += L.g; }));
+  const wk = eOut(prog(t, 0.3, 0.5));
+  ctx.globalAlpha = wk;
+  panel(1400, 40, 430, 100, { fill: C.panel, accent: C.gold });
+  coin(1446, 92, 5, t * 2);
+  text('지갑', 1486, 92, { size: 32, color: C.dim });
+  text(`${fmt(12345 + earned)} G`, 1800, 92, { size: 48, align: 'right', color: C.gold });
+  ctx.globalAlpha = 1;
+  LANES.forEach((L, li) => econLane(t, L, li));
+  // 특별 재료
+  const sk = eOut(prog(t, 5.6, 0.6));
+  if (sk > 0) {
+    const y = 900;
+    ctx.globalAlpha = sk;
+    panel(90, y - 10 + (1 - sk) * 40, 1740, 160, { fill: '#26231c', accent: C.gold });
+    text('특별 재료', 130, y + 44 + (1 - sk) * 40, { size: 48, color: C.gold });
+    text('해당 직업이 더 많이 얻어요', 130, y + 100 + (1 - sk) * 40, { size: 32, color: C.cream });
+    ctx.globalAlpha = 1;
+    const SP = [['wild_ginseng', '산삼', '농부'], ['golden_ear', '황금 이삭', '농부'], ['red_coral', '붉은 산호', '어부'], ['ambergris', '용연향', '어부'], ['meteoric_iron', '운철', '광부']];
+    SP.forEach(([ic, nm, jb], i) => {
+      const k = eBack(prog(t, 6.0 + i * 0.18, 0.45));
+      if (k <= 0) return;
+      const x = 610 + i * 250, yy = y + 70;
+      ctx.save(); ctx.translate(x, yy - 10); ctx.scale(k, k); iconC(ic, 0, 0, 4); ctx.restore();
+      ctx.globalAlpha = clamp(k);
+      text(nm, x + 44, yy - 32, { size: 32, color: C.cream });
+      text(jb, x + 44, yy + 12, { size: 32, color: C.green });
+      ctx.globalAlpha = 1;
+    });
+  }
+  vignette();
+}
+function econLane(t, L, li) {
+  const cy = 350 + li * 192;
+  const k0 = eOut(prog(t, 0.5 + li * 0.2, 0.5));
+  if (k0 <= 0) return;
+  ctx.globalAlpha = k0;
+  const ox = (1 - k0) * -60;
+  panel(90 + ox, cy - 84, 1740, 168, { fill: C.bg2, edge: C.edge });
+  // 컨베이어 점선
+  const dash = (x1, x2) => { for (let x = x1; x < x2; x += 28) { const xx = x + ((t * 60) % 28); if (xx < x2) rect(xx + ox, cy + 2, 14, 6, C.line); } };
+  dash(COL.in + 140, COL.m - 150); dash(COL.m + 150, COL.out - 80); dash(COL.out + 80, COL.g - 110);
+  // 원재료 아이콘 + 누가 대는지
+  const n = L.ins.length, sp = 112;
+  L.ins.forEach(([ic, jb], i) => {
+    const x = COL.in - (n - 1) * sp / 2 + i * sp + ox;
+    iconC(ic, x, cy - 18, 4);
+    text(jb, x, cy + 50, { size: jb.length > 2 ? 24 : 32, align: 'center', color: C.green });
+  });
+  // 기계
+  let shake = 0;
+  econCycles(t, li).forEach(c => { if (c.k > 0.85 && c.k < 1.45) shake = Math.sin(c.k * 60) * 3; });
+  imgFit(L.m, COL.m + ox + shake, cy - 6, 240, 150, true);
+  chip(`${L.mn} · ${L.who}`, COL.m + ox, cy + 60, { size: 24, align: 'center', fill: '#1e1f25', color: C.goldL, h: 40 });
+  // 완성품
+  iconC(L.out, COL.out + ox, cy - 16, 6);
+  text(L.on, COL.out + ox, cy + 56, { size: L.on.length > 5 ? 26 : 32, align: 'center', color: C.cream });
+  // 금액
+  text(`+${fmt(L.g)} G`, COL.g + 130 + ox, cy, { size: 48, align: 'right', color: C.gold });
+  ctx.globalAlpha = 1;
+  // 움직이는 토큰
+  econCycles(t, li).forEach(c => {
+    const k = c.k;
+    if (k < 0.9) { // 재료가 기계로
+      const q = eInOut(k / 0.9);
+      L.ins.forEach(([ic], i) => {
+        const sx = COL.in - (n - 1) * sp / 2 + i * sp;
+        const x = lerp(sx, COL.m - 30, q), y = cy - 18 - Math.sin(q * Math.PI) * 60;
+        ctx.globalAlpha = 1 - clamp((q - 0.8) / 0.2);
+        iconC(ic, x, y, 3); ctx.globalAlpha = 1;
+      });
+    } else if (k < 1.45) { // 가공 중 반짝임
+      const q = (k - 0.9) / 0.55;
+      for (let s = 0; s < 6; s++) {
+        const a = s / 6 * Math.PI * 2 + q * 3; const r = 40 + q * 70;
+        ctx.globalAlpha = 1 - q; rect(COL.m + Math.cos(a) * r - 5, cy - 20 + Math.sin(a) * r * 0.6 - 5, 10, 10, C.goldL); ctx.globalAlpha = 1;
+      }
+    } else if (k < 2.25) { // 완성품이 나옴
+      const q = eOut((k - 1.45) / 0.8);
+      const x = lerp(COL.m + 60, COL.out, q), y = cy - 16 - Math.sin(q * Math.PI) * 70;
+      ctx.globalAlpha = 1 - clamp((q - 0.85) / 0.15);
+      iconC(L.out, x, y, lerp(3, 6, q) | 0); ctx.globalAlpha = 1;
+    } else if (k < 2.6) { // 금화로
+      const q = (k - 2.25) / 0.35;
+      for (let s = 0; s < 4; s++) {
+        const x = lerp(COL.out + 50, COL.g - 70, eOut(clamp(q * 1.3 - s * 0.1))), y = cy - Math.sin(q * Math.PI) * (40 + s * 12);
+        coin(x, y, 4, q * 8 + s);
+      }
+      // 금액 반짝
+      ctx.globalAlpha = 1 - q; rect(COL.g - 110, cy - 34, 250, 68, 'rgba(242,177,52,.18)'); ctx.globalAlpha = 1;
+    }
+  });
+}
+
+// 3. 3분할: 농사 / 낚시 / 주식
+function sceneTriple(t) {
+  background(t);
+  title(t, '키우고, 낚고, 굴리고', null);
+  const pw = 586, gap = 30, x0 = (W - 3 * pw - 2 * gap) / 2, y0 = 160, ph = 890;
+  [farmPanel, fishPanel, stockPanel].forEach((f, i) => {
+    const k = eOut(prog(t, 0.3 + i * 0.25, 0.7));
+    if (k <= 0) return;
+    const x = x0 + i * (pw + gap), y = y0 + (1 - k) * 160;
+    ctx.globalAlpha = clamp(k * 1.5);
+    panel(x, y, pw, ph, { fill: C.panel, accent: [C.green, C.sky, C.red][i] });
+    ctx.save(); ctx.beginPath(); ctx.rect(x + 4, y + 4, pw - 8, ph - 8); ctx.clip();
+    f(t, x, y, pw, ph);
+    ctx.restore();
+    ctx.globalAlpha = 1;
+  });
+  vignette();
+}
+function panelHead(x, y, a, b) {
+  text(a, x + 28, y + 50, { size: 48, color: C.cream });
+  text(b, x + 28, y + 104, { size: 32, color: C.dim, numColor: C.goldL });
+}
+// 농사: 타임랩스로 자라고, 우클릭 수확 → 자동 다시 심기
+function farmPanel(t, x, y, w, h) {
+  panelHead(x, y, '농사', '직접 그린 작물 15종 이상');
+  const fx = x + 28, fy = y + 156, cols = 4, rows = 4, cw = (w - 56) / cols, rh = 126;
+  rect(fx - 8, fy - 8, w - 40, rows * rh + 16, '#2a3a22');
+  ctx.save(); ctx.beginPath(); ctx.rect(fx - 8, fy - 8, w - 40, rows * rh + 16); ctx.clip();
+  const day = Math.min(7, 1 + Math.floor(clamp((t - 0.8) / 5.2) * 6));
+  chip(`${day}일차`, x + w - 28, y + 50, { size: 32, align: 'right', fill: '#1e1f25', color: C.goldL, h: 52 });
+  const harvestAt = 6.6;
+  for (let r = 0; r < rows; r++) for (let c = 0; c < cols; c++) {
+    const id = r * cols + c;
+    const crop = [0, 5, 8, 13, 14, 10, 1, 16, 12, 2, 6, 15, 3, 9, 4, 11][id];
+    const flip = hash(id * 13 + 3) < 0.5; // 무작위 방향
+    const px = fx + c * cw, py = fy + r * rh;
+    // 경작지
+    rect(px + 4, py + rh - 34, cw - 8, 26, '#5a3a22'); rect(px + 4, py + rh - 34, cw - 8, 6, '#6e4a2c');
+    const hv = harvestAt + (r + c) * 0.12; // 수확 물결
+    const max = CROP_STAGES[crop] - 1;
+    let stage;
+    if (t < hv) stage = Math.min(max, Math.floor(clamp((t - 0.8 - hash(id) * 0.6) / 5.0) * (max + 1)));
+    else stage = Math.min(max, Math.floor((t - hv - 0.4) / 0.9) < 0 ? 0 : Math.floor((t - hv - 0.4) / 0.9));
+    const im = IMG[`crop_${crop}_${Math.max(0, stage)}`];
+    if (im) {
+      const s = 1.0; const iw = im.width * s, ih = im.height * s;
+      ctx.save(); ctx.translate(px + cw / 2, py + rh - 22 - ih); if (flip) ctx.scale(-1, 1);
+      ctx.imageSmoothingEnabled = false; ctx.drawImage(im, -iw / 2, 0, iw, ih); ctx.restore();
+    }
+    // 수확: 열매가 튀어오름
+    const q = (t - hv) / 0.8;
+    if (q > 0 && q < 1) {
+      ctx.globalAlpha = 1 - q;
+      iconC(CROP_ITEMS[crop], px + cw / 2, py + rh - 70 - eOut(q) * 70, 4);
+      ctx.globalAlpha = 1;
+    }
+  }
+  ctx.restore();
+  // 커서와 안내
+  if (t > harvestAt - 0.3 && t < harvestAt + 1.2) {
+    const q = clamp((t - harvestAt + 0.3) / 1.4);
+    const cx = fx + q * (w - 80), cyy = fy + q * rows * rh - 40;
+    rect(cx, cyy, 8, 28, '#fff'); rect(cx, cyy, 22, 8, '#fff'); rect(cx + 8, cyy + 8, 8, 8, '#fff');
+  }
+  const ly = fy + rows * rh + 52;
+  const tags = [['우클릭 수확', 6.4], ['자동 다시 심기', 7.2], ['심을 때마다 방향이 무작위', 1.2]];
+  tags.forEach(([s, at], i) => {
+    const k = eOut(prog(t, at, 0.4));
+    ctx.globalAlpha = k;
+    chip(s, x + 28, ly + i * 64, { size: 32, fill: i === 2 ? '#1e1f25' : '#27361f', color: i === 2 ? C.cream : C.green, h: 52 });
+    ctx.globalAlpha = 1;
+  });
+}
+// 링 타이밍 낚시
+const CATCHES = [
+  { at: 2.3, f: 'golden_crucian', n: '황금 붕어', cm: 31.5, dex: 41 },
+  { at: 5.1, f: 'clownfish', n: '흰동가리', cm: 9.8, dex: 42 },
+  { at: 7.9, f: 'bluefin_tuna', n: '참다랑어', cm: 214.6, dex: 43 }
+];
+let RING = null;
+function fishPanel(t, x, y, w, h) {
+  panelHead(x, y, '낚시', '물고기 97종 · 크기 기록 · 도감');
+  // 물
+  const wy = y + 150;
+  const g = ctx.createLinearGradient(0, wy, 0, wy + 520);
+  g.addColorStop(0, '#5f97d6'); g.addColorStop(0.42, '#86b6e2'); g.addColorStop(0.43, '#1f4f7a'); g.addColorStop(1, '#173a5c');
+  ctx.fillStyle = g; ctx.fillRect(x + 4, wy, w - 8, 520);
+  for (let i = 0; i < 9; i++) { const xx = x + 20 + ((i * 97 + t * 30) % (w - 60)); rect(xx, wy + 240 + (i % 3) * 70, 40, 4, 'rgba(255,255,255,.12)'); }
+  // 지금 진행 중인 판
+  let ci = CATCHES.findIndex(c => t < c.at + 0.9); if (ci < 0) ci = CATCHES.length - 1;
+  const c = CATCHES[ci];
+  const prev = ci > 0 ? CATCHES[ci - 1].at + 0.9 : 0.6;
+  const start = prev, spin = 4.2;
+  const needle = (Math.min(t, c.at) - start) * spin - Math.PI / 2;
+  const zone = (c.at - start) * spin - Math.PI / 2; // 바늘이 멈추는 곳 = 초록 칸
+  const cx = x + w / 2, cy = wy + 210;
+  drawRing(cx, cy, 5, zone, needle, t >= c.at && t < c.at + 0.9 ? (ci === 2 ? '#ffd23f' : '#ffffff') : null);
+  // 맞힘 표시
+  if (t >= c.at && t < c.at + 0.9) {
+    const q = (t - c.at) / 0.9;
+    text('완벽!', cx, cy - 170 - q * 20, { size: 48, align: 'center', color: C.gold, alpha: 1 - clamp((q - 0.6) / 0.4) });
+    // 물고기가 튀어오름
+    const fxp = lerp(cx, cx, q), fyp = cy + 160 - Math.sin(q * Math.PI) * 220;
+    iconC(c.f, fxp, fyp, 6);
+  }
+  // 기록 카드
+  const shown = CATCHES.filter(cc => t >= cc.at + 0.6);
+  const last = shown[shown.length - 1];
+  const ry = y + 690;
+  panel(x + 24, ry, w - 48, 170, { fill: '#1e1f25' });
+  if (last) {
+    const k = eBack(prog(t, last.at + 0.6, 0.4));
+    ctx.save(); ctx.translate(x + 100, ry + 85); ctx.scale(k, k); iconC(last.f, 0, 0, 6); ctx.restore();
+    text(last.n, x + 180, ry + 50, { size: 32, color: C.cream });
+    text(`${last.cm.toFixed(1)}cm`, x + 180, ry + 112, { size: 48, color: C.gold });
+    if (last === CATCHES[2]) chip('신기록!', x + w - 48, ry + 50, { size: 32, align: 'right', fill: C.red, color: '#fff', h: 50 });
+    text(`도감 ${last.dex}/97`, x + w - 50, ry + 120, { size: 32, align: 'right', color: C.dim, numColor: C.cream });
+  } else {
+    text('링 타이밍 미니게임', x + w / 2, ry + 85, { size: 32, align: 'center', color: C.dim });
+  }
+}
+// 저해상도로 그린 링을 크게 늘려 도트 느낌
+function drawRing(cx, cy, px, zone, needle, glow) {
+  const S = 64;
+  if (!RING) { RING = document.createElement('canvas'); RING.width = S; RING.height = S; }
+  const g = RING.getContext('2d'); g.clearRect(0, 0, S, S);
+  const R1 = 30, R0 = 21, m = S / 2;
+  for (let yy = 0; yy < S; yy++) for (let xx = 0; xx < S; xx++) {
+    const dx = xx + 0.5 - m, dy = yy + 0.5 - m, d = Math.hypot(dx, dy);
+    if (d > R1 + 1 || d < R0 - 1) continue;
+    let col;
+    if (d > R1 || d < R0) col = glow || '#1a1b20';
+    else {
+      let a = Math.atan2(dy, dx) - zone; a = Math.atan2(Math.sin(a), Math.cos(a));
+      const aa = Math.abs(a);
+      col = aa < 0.32 ? '#3cc24a' : aa < 0.5 ? '#f2c335' : aa < 0.6 ? '#d63a32' : ((Math.round((Math.atan2(dy, dx) + Math.PI) / (Math.PI * 2) * 12) % 3 === 0 && Math.abs(d - (R0 + R1) / 2) < 1.2) ? '#55585f' : '#3b3d44');
+    }
+    g.fillStyle = col; g.fillRect(xx, yy, 1, 1);
+  }
+  g.fillStyle = 'rgba(30,60,90,.65)';
+  for (let yy = 0; yy < S; yy++) for (let xx = 0; xx < S; xx++) { const d = Math.hypot(xx + 0.5 - m, yy + 0.5 - m); if (d < R0 - 1) g.fillRect(xx, yy, 1, 1); }
+  // 바늘
+  g.fillStyle = '#ffffff';
+  for (let r = R0 - 6; r <= R1 + 2; r += 0.5) g.fillRect(Math.floor(m + Math.cos(needle) * r), Math.floor(m + Math.sin(needle) * r), 1, 1);
+  ctx.imageSmoothingEnabled = false;
+  ctx.drawImage(RING, Math.round(cx - S * px / 2), Math.round(cy - S * px / 2), S * px, S * px);
+}
+// 주식: 빨강 상승 / 파랑 하락 캔들
+let CANDLES = null;
+function makeCandles() {
+  const r = rng(42); let p = 1980; CANDLES = [];
+  for (let i = 0; i < 60; i++) {
+    const drift = i > 26 && i < 44 ? 14 : i >= 44 && i < 48 ? -10 : 0.5;
+    const o = p, c = o + drift + (r() - 0.5) * 34;
+    const hi = Math.max(o, c) + r() * 14, lo = Math.min(o, c) - r() * 14;
+    CANDLES.push({ o, c, hi, lo }); p = c;
+  }
+}
+function stockPanel(t, x, y, w, h) {
+  panelHead(x, y, '주식', '42개 종목 · 뉴스 · 배당');
+  const step = 0.32, n = 15;
+  const idx = Math.min(CANDLES.length - 1, n + Math.floor(Math.max(0, t - 0.6) / step));
+  const frac = clamp(((t - 0.6) % step) / step);
+  const list = CANDLES.slice(idx - n, idx + 1);
+  const cur = list[list.length - 1];
+  const live = lerp(cur.o, cur.c, eOut(frac));
+  const base = CANDLES[n].o;
+  const pct = (live - base) / base * 100;
+  // 시세판 머리
+  const hy = y + 160;
+  rect(x + 24, hy, w - 48, 70, '#1e1f25');
+  text('한성제철', x + 44, hy + 35, { size: 32, color: C.cream });
+  text(`${fmt(live)} G`, x + 330, hy + 35, { size: 32, align: 'right', color: C.text });
+  text(`${pct >= 0 ? '▲' : '▼'}${Math.abs(pct).toFixed(1)}%`, x + w - 44, hy + 35, { size: 32, align: 'right', color: pct >= 0 ? C.red : C.blue });
+  // 차트
+  const cx0 = x + 34, cy0 = hy + 90, cw = w - 68, chh = 330;
+  rect(cx0 - 10, cy0, cw + 20, chh, '#17181d');
+  for (let i = 1; i < 4; i++) for (let xx = 0; xx < cw; xx += 16) rect(cx0 + xx, cy0 + i * chh / 4, 8, 2, '#2a2c33');
+  let mn = Infinity, mx = -Infinity; list.forEach(k => { mn = Math.min(mn, k.lo); mx = Math.max(mx, k.hi); });
+  mn -= 20; mx += 20;
+  const Y = v => cy0 + chh - 14 - (v - mn) / (mx - mn) * (chh - 28);
+  const bw = cw / (n + 1);
+  list.forEach((k, i) => {
+    const isLive = i === list.length - 1;
+    const c = isLive ? live : k.c;
+    const up = c >= k.o, col = up ? C.red : C.blue;
+    const xx = cx0 + i * bw + bw / 2;
+    const hi = isLive ? Math.max(k.o, c) + 6 : k.hi, lo = isLive ? Math.min(k.o, c) - 6 : k.lo;
+    rect(xx - 2, Y(hi), 4, Y(lo) - Y(hi), col);
+    const top = Y(Math.max(k.o, c)), bot = Y(Math.min(k.o, c));
+    rect(xx - bw * 0.32, top, bw * 0.64, Math.max(6, bot - top), col);
+  });
+  // 뉴스와 배당 알림
+  const ny = cy0 + chh + 24;
+  const news = [[2.4, '[뉴스] 광산 호황! 철강 강세', C.red], [6.8, '[배당] 이번 주 배당 +120 G 지급', C.gold]];
+  news.forEach(([at, s, col], i) => {
+    const k = eOut(prog(t, at, 0.45));
+    if (k <= 0) return;
+    ctx.globalAlpha = k;
+    panel(x + 24 + (1 - k) * 60, ny + i * 74, w - 48, 62, { fill: '#2b2622', accent: col });
+    text(s, x + 44 + (1 - k) * 60, ny + i * 74 + 33, { size: 32, color: C.cream, numColor: C.gold });
+    ctx.globalAlpha = 1;
+  });
+  // 다른 종목들
+  const ly = ny + 168;
+  const rows = [['동해수산', 1650, -0.9], ['진성식품', 1350, 2.4]];
+  rows.forEach(([nm, p, d], i) => {
+    const wob = Math.sin(t * 1.3 + i) * 0.3;
+    const dd = d + wob;
+    text(nm, x + 44, ly + i * 46, { size: 32, color: C.dim });
+    text(`${fmt(p * (1 + dd / 100))}`, x + 330, ly + i * 46, { size: 32, align: 'right', color: C.text });
+    text(`${dd >= 0 ? '▲' : '▼'}${Math.abs(dd).toFixed(1)}%`, x + w - 44, ly + i * 46, { size: 32, align: 'right', color: dd >= 0 ? C.red : C.blue });
+  });
+}
+
+// 4. 땅과 꾸미기
+const CLAIM = [[3, 2], [4, 2], [3, 3], [4, 3], [5, 3], [4, 4]];
+function sceneLand(t) {
+  background(t);
+  title(t, '땅 · 꾸미기', '청크 단위로 땅을 사고, 구성원을 들이고, 금고로 세금을 내요');
+  // ── 왼쪽: 청크 지도
+  const mx = 90, my = 200, cs = 96, mc = 8, mr = 5;
+  const mk = eOut(prog(t, 0.3, 0.6));
+  ctx.globalAlpha = mk;
+  panel(mx - 12, my - 12, mc * cs + 24, mr * cs + 24, { fill: '#1e1f25' });
+  for (let r = 0; r < mr; r++) for (let c = 0; c < mc; c++) {
+    const water = (c === 0 && r > 1) || (c === 1 && r === 4) || (c === 7 && r < 2);
+    for (let yy = 0; yy < 4; yy++) for (let xx = 0; xx < 4; xx++) {
+      const h = hash((c * 4 + xx) * 97 + (r * 4 + yy) * 13);
+      const col = water ? (h < .5 ? '#2f6aa0' : '#2a5f91') : h < 0.08 ? '#2f6a26' : ['#5e9c3a', '#649f3e', '#57923a', '#6aa843'][Math.floor(h * 4)];
+      rect(mx + c * cs + xx * 24, my + r * cs + yy * 24, 24, 24, col);
+      if (!water && h > 0.94) { rect(mx + c * cs + xx * 24 + 4, my + r * cs + yy * 24 + 2, 16, 14, '#2f6a26'); rect(mx + c * cs + xx * 24 + 10, my + r * cs + yy * 24 + 16, 4, 6, '#6b4429'); }
+    }
+  }
+  for (let c = 0; c <= mc; c++) rect(mx + c * cs - 1, my, 2, mr * cs, 'rgba(0,0,0,.35)');
+  for (let r = 0; r <= mr; r++) rect(mx, my + r * cs - 1, mc * cs, 2, 'rgba(0,0,0,.35)');
+  ctx.globalAlpha = 1;
+  let owned = 0;
+  CLAIM.forEach(([c, r], i) => {
+    const at = 0.9 + i * 0.3;
+    const k = prog(t, at, 0.3);
+    if (k <= 0) return;
+    owned++;
+    const x = mx + c * cs, y = my + r * cs;
+    ctx.globalAlpha = 0.38 * k; rect(x, y, cs, cs, C.gold); ctx.globalAlpha = 1;
+    ctx.strokeStyle = C.goldL; ctx.lineWidth = 4; ctx.setLineDash([12, 8]); ctx.lineDashOffset = -t * 30;
+    ctx.strokeRect(x + 2, y + 2, cs - 4, cs - 4); ctx.setLineDash([]);
+    const q = (t - at) / 0.9;
+    if (q > 0 && q < 1) text('+1 청크', x + cs / 2, y + 30 - q * 50, { size: 32, align: 'center', color: C.goldL, alpha: 1 - q });
+  });
+  // 집이 들어섬 (복셀)
+  const hk = prog(t, 3.0, 0.8);
+  if (hk > 0) {
+    const bx = mx + 3 * cs + 40, by = my + 3 * cs + 60, s = 22, d = 8;
+    const parts = [];
+    for (let r = 0; r < 4; r++) for (let c = 0; c < 6; c++) parts.push({ c, r, col: (r === 1 && (c === 1 || c === 4)) ? '#9fd3ff' : (r === 0 && c === 3 || r === 1 && c === 3) ? '#5c3a1e' : '#c99a5f' });
+    for (let c = -1; c < 7; c++) parts.push({ c, r: 4, col: '#b8423a' });
+    for (let c = 0; c < 6; c++) parts.push({ c, r: 5, col: '#a33a33' });
+    parts.sort((a, b) => a.r - b.r || a.c - b.c);
+    parts.forEach((p, i) => {
+      const k = clamp(hk * parts.length / 4 - i / 4);
+      if (k <= 0) return;
+      cube(bx + p.c * s, by - p.r * s - (1 - eOut(clamp(k))) * 80, s, d, hex(p.col), clamp(k * 2));
+    });
+  }
+  // 정보 줄
+  const iy = my + mr * cs + 50;
+  ctx.globalAlpha = eOut(prog(t, 1.0, 0.4));
+  chip(`내 땅 ${owned}청크`, mx, iy, { size: 32, fill: '#26231c', color: C.goldL, h: 56 });
+  ctx.globalAlpha = eOut(prog(t, 3.4, 0.4));
+  const w2 = chip('구성원 3명', mx + 250, iy, { size: 32, fill: C.panel2, color: C.cream, h: 56 });
+  ['#e0a070', '#c98a5a', '#f0b98a'].forEach((col, i) => { rect(mx + 250 + w2 + 16 + i * 44, iy - 20, 36, 40, col); rect(mx + 250 + w2 + 24 + i * 44, iy - 6, 6, 6, '#222'); rect(mx + 250 + w2 + 38 + i * 44, iy - 6, 6, 6, '#222'); });
+  ctx.globalAlpha = eOut(prog(t, 3.9, 0.4));
+  chip('금고 4,800 G · 세금 −120 G/일', mx, iy + 72, { size: 32, fill: C.panel2, color: C.cream, numColor: C.gold, h: 56 });
+  ctx.globalAlpha = 1;
+  // 두 세계
+  const wy = iy + 150;
+  [['건축월드', '평화로움 · 내 땅에서만 건축', C.green, 'grass', 0, 470], ['야생월드', '자원 · 모험', C.red, 'ore', 486, 306]].forEach(([a, b, col, tile, ox, cw], i) => {
+    const k = eOut(prog(t, 4.4 + i * 0.3, 0.5));
+    if (k <= 0) return;
+    const x = mx - 12 + ox, y = wy + (1 - k) * 40;
+    ctx.globalAlpha = k;
+    panel(x, y, cw, 140, { fill: C.panel, accent: col });
+    ctx.imageSmoothingEnabled = false; ctx.drawImage(TILE[tile], x + 24, y + 28, 64, 64);
+    text(a, x + 108, y + 52, { size: 48, color: C.cream });
+    text(b, x + 24, y + 112, { size: 32, color: col });
+    ctx.globalAlpha = 1;
+  });
+  // ── 오른쪽: 가구 방
+  const rx = 1000, ry = 190;
+  const rk = eOut(prog(t, 2.2, 0.8));
+  if (rk > 0) {
+    ctx.globalAlpha = rk;
+    imgFit('room', rx + 420, ry + 180 + (1 - rk) * 60, 820, 370, true);
+    ctx.globalAlpha = 1;
+  }
+  const fk = eOut(prog(t, 3.0, 0.5));
+  if (fk > 0) {
+    ctx.globalAlpha = fk;
+    text('일본풍 3D 가구 30종', rx, ry + 392, { size: 48, color: C.cream, numColor: C.gold });
+    const F = [['kotatsu_icon', '고타츠'], ['torii_icon', '도리이'], ['maneki_neko_icon', '마네키네코'], ['daruma_icon', '다루마']];
+    let fx = rx;
+    F.forEach(([ic, nm], i) => {
+      const k = eBack(prog(t, 3.2 + i * 0.12, 0.4));
+      ctx.save(); ctx.translate(fx + 24, ry + 452); ctx.scale(k, k); iconC(ic, 0, 0, 3); ctx.restore();
+      fx += 56 + text(nm, fx + 56, ry + 452, { size: 32, color: C.woodL }) + 30;
+    });
+    ctx.globalAlpha = 1;
+  }
+  // 치장 뽑기
+  const ck = eOut(prog(t, 4.6, 0.5));
+  if (ck > 0) {
+    const cy = 700;
+    ctx.globalAlpha = ck;
+    panel(rx - 12, cy, 852, 340, { fill: C.panel, accent: C.purple });
+    // 캐릭터와 닉네임
+    const looks = ['c_straw', 'c_wizard', 'c_frog', 'c_gat', 'c_crown'];
+    const spinEnd = 6.6;
+    const li = t < spinEnd ? Math.floor((t - 4.6) * 9) % looks.length : 4;
+    const bump = t >= spinEnd ? eBack(prog(t, spinEnd, 0.4)) : 1;
+    ctx.save(); ctx.translate(rx + 140, cy + 232); ctx.scale(bump, bump); imgFit(looks[li], 0, 0, 200, 196, true); ctx.restore();
+    gradText('황금농부', rx + 140, cy + 46, 48, '#ffe27a', '#ff7a3d');
+    chip('[전설의 어부]', rx + 140, cy + 98, { size: 24, align: 'center', fill: '#1e1f25', color: C.sky, h: 36 });
+    if (t >= spinEnd) {
+      const q = prog(t, spinEnd, 0.8);
+      for (let s = 0; s < 10; s++) { const a = s / 10 * Math.PI * 2; ctx.globalAlpha = (1 - q) * ck; rect(rx + 140 + Math.cos(a) * (60 + q * 120) - 5, cy + 220 + Math.sin(a) * (60 + q * 100) - 5, 10, 10, C.gold); }
+      ctx.globalAlpha = ck;
+    }
+    // 오른쪽 설명
+    const tx = rx + 300;
+    text('치장 뽑기', tx, cy + 50, { size: 48, color: C.cream });
+    const vouchers = ['crown_voucher', 'cat_ears_voucher', 'angel_wings_voucher', 'heart_trail_voucher'];
+    vouchers.forEach((v, i) => iconC(v, tx + 300 + i * 60, cy + 50, 3));
+    // 두 줄: 모자·등·어깨 / 펫·발자국 효과
+    [['모자', '등', '어깨'], ['펫', '발자국 효과']].forEach((row, ri) => {
+      let cx = tx;
+      row.forEach((s, i) => {
+        const on = t >= spinEnd && ri === 0 && i === 0;
+        cx += chip(s, cx, cy + 116 + ri * 60, { size: 32, fill: on ? C.purple : C.panel2, color: on ? '#fff' : C.cream, h: 50, padX: 14 }) + 12;
+      });
+    });
+    text('칭호 · 한글 닉네임', tx, cy + 238, { size: 32, color: C.text });
+    text('색 · 그라데이션 닉네임', tx, cy + 288, { size: 32, color: C.text });
+    ctx.globalAlpha = 1;
+  }
+  vignette();
+}
+
+// 5. 성장과 목표: 알림이 쏟아짐 (게임 화면 위 HUD)
+const TOASTS = [
+  ['업적 달성', '첫 월척 · 60cm 넘는 물고기', 'golden_crucian', C.gold],
+  ['일일 미션', '배추 수확 3/3 완료', 'napa_cabbage', C.green],
+  ['서버 사건', '광산 호황! 광물 판매가가 올라요', 'rough_ruby', C.red],
+  ['도감 등록', '물고기 52/97 · 용잉어', 'dragon_carp', C.sky],
+  ['긴급 납품', '김치를 빨리 낼수록 비싸게', 'kimchi', C.pink],
+  ['주간 미션', '막걸리 빚기 2/3', 'makgeolli', C.green],
+  ['상인 행렬', '떠돌이 상인이 광장에 도착', 'cheque', C.purple],
+  ['레벨 업', '요리사 Lv 30 달성', 'iron_pan', C.gold]
+];
+function sceneProgress(t) {
+  // 게임 화면 느낌: 하늘과 언덕
+  const g = ctx.createLinearGradient(0, 0, 0, H);
+  g.addColorStop(0, '#6f9fe0'); g.addColorStop(0.5, '#9cc4ea'); g.addColorStop(0.5, '#5b8a44'); g.addColorStop(1, '#4b7a36');
+  ctx.fillStyle = g; ctx.fillRect(0, 0, W, H);
+  for (let i = 0; i < 14; i++) { const x = ((i * 211 + t * 12) % (W + 300)) - 150; rect(x, 120 + (i % 4) * 60, 160 + (i % 3) * 40, 24, 'rgba(255,255,255,.55)'); }
+  for (let x = 0; x < W; x += 24) { const h = 30 + Math.sin(x * 0.006) * 24 + Math.sin(x * 0.017) * 10; rect(x, H / 2 - h, 24, h, '#628f49'); }
+  ctx.fillStyle = 'rgba(16,17,22,.30)'; ctx.fillRect(0, 0, W, H);
+  // 제목 띠
+  panel(0, 20, 1060, 150, { fill: 'rgba(28,29,34,.92)', edge: 'rgba(20,21,26,.95)' });
+  title(t, '성장과 목표', '업적 · 미션 · 도감 · 주간 순위 · 서버 사건', { y: 70 });
+  // 알림 토스트
+  TOASTS.forEach(([cat, msg, ic, col], i) => {
+    const at = 0.5 + i * 0.5;
+    const k = prog(t, at, 0.45);
+    if (k <= 0) return;
+    const x = 60 + (1 - eBack(k)) * -700, y = 196 + i * 104;
+    panel(x, y, 760, 92, { fill: 'rgba(37,39,46,.96)' });
+    rect(x + 4, y + 4, 10, 84, col);
+    iconC(ic, x + 64, y + 46, 3);
+    text(cat, x + 110, y + 28, { size: 24, color: col });
+    text(msg, x + 110, y + 64, { size: 32, color: C.cream, numColor: C.goldL });
+    if (k < 1) { ctx.globalAlpha = 1 - k; rect(x, y, 760, 92, '#fff'); ctx.globalAlpha = 1; }
+  });
+  // 주간 순위: 기념비
+  const pk = eOut(prog(t, 1.4, 0.6));
+  if (pk > 0) {
+    const px = 900, py = 230;
+    ctx.globalAlpha = pk;
+    panel(px, py, 500, 640, { fill: 'rgba(37,39,46,.96)', accent: C.gold });
+    text('주간 순위', px + 250, py + 52, { size: 48, align: 'center', color: C.cream });
+    const pods = [[1, '바다사나이', 2, '#c9ccd3'], [0, '황금농부', 3, C.gold], [2, '망치왕', 1, '#c98a5a']];
+    pods.forEach(([slot, nm, hgt, col], i) => {
+      const k = eOut(prog(t, 1.8 + i * 0.25, 0.5));
+      const order = [1, 0, 2][slot];
+      const x = px + 60 + order * 135;
+      for (let s = 0; s < hgt; s++) cube(x, py + 480 - s * 70 - (1 - k) * 200, 70, 22, hex(col), clamp(k * 2));
+      text(`${slot + 1}`, x + 35, py + 516, { size: 48, align: 'center', color: '#1c1d22', shadow: false, alpha: clamp(k * 2) });
+      text(nm, x + 35, py + 480 - hgt * 70 - 44, { size: 24, align: 'center', color: C.cream, alpha: clamp(k * 2) });
+    });
+    // 1위 왕관
+    const ck = eBack(prog(t, 2.6, 0.5));
+    if (ck > 0) { ctx.save(); ctx.translate(px + 60 + 135 + 35, py + 480 - 3 * 70 - 110); ctx.scale(ck, ck); iconC('jeweled_crown', 0, 0, 4); ctx.restore(); }
+    text('1위 기념비 · 전설 치장', px + 250, py + 596, { size: 32, align: 'center', color: C.goldL, alpha: eOut(prog(t, 2.8, 0.4)) });
+    ctx.globalAlpha = 1;
+  }
+  // 사이드바 지갑 HUD
+  const hk = eOut(prog(t, 0.8, 0.5));
+  if (hk > 0) {
+    const x = 1450 + (1 - hk) * 420, y = 230;
+    panel(x, y, 410, 330, { fill: 'rgba(37,39,46,.96)' });
+    text('◆ STSV', x + 26, y + 40, { size: 32, color: C.gold });
+    rect(x + 20, y + 66, 370, 4, C.goldD);
+    const bal = 12345 + Math.floor(clamp((t - 1) / 5) * 4200 / 5) * 5;
+    const rowsH = [['잔액', `${fmt(bal)} G`, C.gold], ['직업', '요리사 Lv30', C.green], ['미션', '2/3 · 주간 1/3', C.cream], ['사건', '광산 호황', C.red]];
+    rowsH.forEach(([a, b, col], i) => {
+      text(a, x + 26, y + 112 + i * 54, { size: 32, color: C.dim });
+      text(b, x + 384, y + 112 + i * 54, { size: 32, align: 'right', color: col, numColor: col === C.green ? C.cream : col });
+    });
+    text('직접 만든 HUD', x + 205, y + 380, { size: 32, align: 'center', color: C.cream, alpha: eOut(prog(t, 3.2, 0.5)) });
+  }
+  // 체력·배고픔 바
+  const bk = eOut(prog(t, 1.1, 0.5));
+  if (bk > 0) {
+    const x = 1450, y = 950 + (1 - bk) * 120;
+    panel(x, y - 50, 410, 140, { fill: 'rgba(28,29,34,.9)' });
+    const hp = 20, food = 17;
+    text(`${hp}`, x + 26, y - 6, { size: 24, color: C.text });
+    for (let i = 0; i < 10; i++) { rect(x + 70 + i * 32, y - 20, 28, 28, '#2a1416'); rect(x + 72 + i * 32, y - 18, 24, 24, i < hp / 2 ? '#e2443f' : '#3a2a2c'); rect(x + 72 + i * 32, y - 18, 24, 6, 'rgba(255,255,255,.25)'); }
+    text(`${food}`, x + 26, y + 46, { size: 24, color: C.text });
+    for (let i = 0; i < 10; i++) { rect(x + 70 + i * 32, y + 32, 28, 28, '#2a1d12'); rect(x + 72 + i * 32, y + 34, 24, 24, i < Math.round(food / 2) ? '#e08a3a' : '#3a2e24'); rect(x + 72 + i * 32, y + 34, 24, 6, 'rgba(255,255,255,.25)'); }
+  }
+}
+
+// 6. 마무리
+function sceneOutro(t) {
+  background(t);
+  const g = ctx.createRadialGradient(W / 2, 400, 40, W / 2, 400, 820);
+  g.addColorStop(0, 'rgba(242,177,52,.16)'); g.addColorStop(1, 'rgba(242,177,52,0)');
+  ctx.fillStyle = g; ctx.fillRect(0, 0, W, H);
+  drawVoxelWord(t * 1.4, W / 2 + 6, 170, 44, { bob: true, shine: prog(t, 1.4, 1.0) });
+  const k = eBack(prog(t, 1.3, 0.6));
+  ctx.save(); ctx.translate(W / 2, 640); ctx.scale(k, k);
+  text('지금 STSV에서', 0, 0, { size: 112, align: 'center', color: C.gold });
+  ctx.restore();
+  ctx.globalAlpha = eOut(prog(t, 1.9, 0.6));
+  text('많이 하면 많이 번다', W / 2, 772, { size: 64, align: 'center', color: C.cream });
+  ctx.globalAlpha = eOut(prog(t, 2.4, 0.6));
+  text('직업 · 생산 · 거래 · 땅 · 꾸미기 — 마인크래프트 한국어 경제·생활 서버', W / 2, 870, { size: 32, align: 'center', color: C.dim });
+  ctx.globalAlpha = 1;
+  coinRain(t, 1.0, 26, 7);
+  vignette();
+}
+
+// ── 시간표 ───────────────────────────────────────────────────
+const SCENES = [
+  [0, 5.5, sceneIntro],
+  [5.5, 16, sceneJobs],
+  [16, 26.5, sceneEconomy],
+  [26.5, 37, sceneTriple],
+  [37, 46.5, sceneLand],
+  [46.5, 55, sceneProgress],
+  [55, 60, sceneOutro]
+];
+function render(T) {
+  T = clamp(T, 0, DURATION);
+  ctx.setTransform(1, 0, 0, 1, 0, 0); ctx.globalAlpha = 1; ctx.imageSmoothingEnabled = false;
+  let si = SCENES.findIndex(([a, b]) => T >= a && T < b); if (si < 0) si = SCENES.length - 1;
+  const [a, , f] = SCENES[si];
+  f(T - a);
+  // 다음 장면 경계에서 덮기, 이 장면 시작에서 걷기
+  for (let i = 1; i < SCENES.length; i++) {
+    const B = SCENES[i][0];
+    if (T >= B - COVER && T < B) transition(T - B, i - 1);
+    else if (T >= B && T < B + REVEAL) transition(T - B, i - 1);
+  }
+  // 첫 0.4초 페이드 인
+  if (T < 0.4) { ctx.fillStyle = `rgba(28,29,34,${1 - T / 0.4})`; ctx.fillRect(0, 0, W, H); }
+}
+
+// ── 재생 ─────────────────────────────────────────────────────
+const params = new URLSearchParams(location.search);
+const capture = params.has('capture');
+if (capture) document.body.classList.add('capture');
+let playing = !capture && !params.has('t'), t0 = performance.now(), cur = parseFloat(params.get('t') || '0');
+const seek = document.getElementById('seek'), clock = document.getElementById('clock'), btn = document.getElementById('play');
+function setT(v) { cur = v; t0 = performance.now() - v * 1000; }
+function loop(now) {
+  if (playing) { cur = (now - t0) / 1000; if (cur >= DURATION + 1.5) setT(0); }
+  render(Math.min(cur, DURATION));
+  seek.value = Math.min(cur, DURATION); clock.textContent = Math.min(cur, DURATION).toFixed(1) + 's';
+  requestAnimationFrame(loop);
+}
+btn.onclick = () => { playing = !playing; btn.textContent = playing ? '일시정지' : '재생'; if (playing) setT(cur); };
+cv.onclick = () => btn.onclick();
+seek.oninput = () => { setT(parseFloat(seek.value)); };
+document.addEventListener('keydown', e => { if (e.code === 'Space') { e.preventDefault(); btn.onclick(); } });
+window.STSV = { render, DURATION, ready: false };
+loadAll().then(() => {
+  makeVignette(); makeTiles(); makeCandles();
+  window.STSV.ready = true;
+  btn.textContent = playing ? '일시정지' : '재생';
+  setT(cur);
+  if (!capture) requestAnimationFrame(loop); else render(cur);
+});
+</script>
+</body>
+</html>
