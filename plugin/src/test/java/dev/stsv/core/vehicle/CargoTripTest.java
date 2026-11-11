@@ -118,34 +118,45 @@ class CargoTripTest {
     // Weight and payload
     // ------------------------------------------------------------------------------------------
 
-    /** A stack as "id x count", weighing weight x count. */
+    /**
+     * A stack as "id x count", weighing weight x count. The economy server's weights: a finished good weighs what one fetches
+     * at the default dock price / 500 G (연마 진주 179 G x 0.9 / 500 = 0.3222, 석등 68 G x 0.9 / 500 = 0.1224).
+     */
     record Stack(String id, int n) {}
+
+    static final double PEARL = 179 * 0.9 / 500, LANTERN = 68 * 0.9 / 500;
 
     private static double weigh(Stack s) {
         return switch (s.id()) {
-            case "ring" -> 0.3;
-            case "barrel" -> 5;
+            case "pearl" -> PEARL;
+            case "lantern" -> LANTERN;
             default -> 1;
         } * s.n();
     }
 
     @Test
     void weightsAddUpAndThePayloadRefusesTheRest() {
-        Stack[] bed = {new Stack("ring", 64), null, new Stack("barrel", 4), new Stack("kimchi", 10)};
-        assertEquals(64 * 0.3 + 20 + 10, CargoWeights.total(bed, CargoTripTest::weigh), 1e-9);
-        double payload = 60;   // a delivery scooter
-        double used = CargoWeights.total(bed, CargoTripTest::weigh);   // 49.2
-        assertTrue(CargoWeights.fits(used, 10, payload));
-        assertFalse(CargoWeights.fits(used, 11, payload));
-        assertEquals(2, CargoWeights.fitting(used, 5, 64, payload), "two barrels more, not 64");
-        assertEquals(36, CargoWeights.fitting(used, 0.3, 64, payload));
-        assertEquals(0, CargoWeights.fitting(payload, 0.3, 64, payload), "full");
+        Stack[] bed = {new Stack("pearl", 64), null, new Stack("lantern", 64), new Stack("kimchi", 10)};
+        double used = CargoWeights.total(bed, CargoTripTest::weigh);   // 20.62 + 7.83 + 10 = 38.45
+        assertEquals(64 * PEARL + 64 * LANTERN + 10, used, 1e-9);
+        double payload = 60;   // a delivery scooter: 60 x 500 = 30,000 G of finished goods at most
+        assertTrue(CargoWeights.fits(used, 21, payload));
+        assertFalse(CargoWeights.fits(used, 22, payload));
+        assertEquals(64, CargoWeights.fitting(used, PEARL, 64, payload), "a whole stack of pearls more (20.62)");
+        assertEquals(7, CargoWeights.fitting(used + 64 * PEARL, LANTERN, 128, payload), "then 7 lanterns, not 128");
+        assertEquals(186, CargoWeights.fitting(0, PEARL, 1000, payload), "an empty scooter: 186 pearls");
+        assertEquals(490, CargoWeights.fitting(0, LANTERN, 1000, payload), "or 490 lanterns: either about 30,000 G");
+        assertEquals(0, CargoWeights.fitting(payload, PEARL, 64, payload), "full");
         assertEquals(64, CargoWeights.fitting(payload, 0, 64, payload), "weightless things always fit");
         // 0.1 x 3 is a hair over 0.3: still fits exactly
         assertTrue(CargoWeights.fits(0.1 + 0.1 + 0.1, 0, 0.3));
         assertTrue(CargoWeights.fits(0.1 + 0.1, 0.1, 0.3));
-        assertEquals("49.2", CargoWeights.format(used));
+        assertEquals("38.5", CargoWeights.format(used));
         assertEquals("60", CargoWeights.format(60));
+        assertEquals("0.32", CargoWeights.format(PEARL), "one item: two decimals under 1");
+        assertEquals("0.12", CargoWeights.format(LANTERN));
+        assertEquals("0.5", CargoWeights.format(0.5), "no trailing zero");
+        assertEquals("1", CargoWeights.format(0.999));
         // raw materials (economy weights.yml raw = 1/64): a hand cart (150) full of 135 stacks still has room
         double crop = 1.0 / 64;
         Stack[] cart = new Stack[135];

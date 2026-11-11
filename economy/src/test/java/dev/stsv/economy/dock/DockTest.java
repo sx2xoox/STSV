@@ -30,7 +30,7 @@ import static org.junit.jupiter.api.Assertions.assertTrue;
 
 /**
  * 하역장 and 적재 무게 against the real content: what a dock buys (finished goods) and for how much (the base x the global
- * docks.price-ratio, 90 % by default, no curve; a dock's own price: TerminalTest), the weights and what they mean for a scooter against a truck, the dock's layout and its zone in the world, the
+ * docks.price-ratio, 90 % by default, no curve; a dock's own price: TerminalTest), the weights (every finished good about 500 G per weight unit) and what a payload carries, the dock's layout and its zone in the world, the
  * docks and their sales kept in the database, the route statistics of the scout.
  */
 class DockTest {
@@ -74,7 +74,7 @@ class DockTest {
         List<String> problems = new ArrayList<>();
         WeightTable w = WeightTable.parse(yaml("weights.yml"), problems);
         assertTrue(problems.isEmpty(), String.join("\n", problems));
-        return w.withGoods(goods().finished());   // as DockModule.load
+        return w.withGoods(goods());   // as DockModule.load
     }
 
     // ------------------------------------------------------------------------------------------
@@ -162,44 +162,55 @@ class DockTest {
     // 적재 무게
     // ------------------------------------------------------------------------------------------
 
-    /** Material#isBlock needs a running server: the blocks these tests weigh. */
-    static boolean block(String id) {
-        return Set.of("minecraft:stone", "minecraft:dirt", "minecraft:oak_log", "minecraft:cobblestone").contains(id);
-    }
-
     @Test
-    void everyWeightNamesARealItemAndEveryGoodHasOne() {
+    void everyFinishedGoodIsWorthAbout500GPerWeight() {
         WeightTable w = weights();
+        DockGoods g = goods();
         Set<String> ours = new HashSet<>();
         try (Stream<Path> s = Files.list(PACK.resolve("items"))) {
             for (Path f : s.toList()) for (String k : YamlConfiguration.loadConfiguration(f.toFile()).getKeys(false)) ours.add("economy:" + k);
         } catch (Exception e) {
             throw new RuntimeException(e);
         }
+        // own lines (items): real items, finished goods only (anything else weighs raw), and none by default
         for (String id : w.items().keySet()) {
             if (id.startsWith("economy:")) assertTrue(ours.contains(id), "weights.yml: " + id);
             else assertNotNull(Material.matchMaterial(id), "weights.yml: " + id);
+            assertTrue(g.buys(id), "weights.yml lists " + id + ", which no dock buys: it is raw");
         }
-        DockGoods g = goods();
+        assertTrue(w.items().isEmpty(), "every finished good weighs by its price: " + w.items());
+        assertEquals(500, w.valuePerWeight(), 1e-9, "the owner's 500 G per weight unit");
+        // every finished good: what one fetches at the default dock price / its weight = 500 G (+-1 %), but the clamped
+        int clamped = 0;
+        double lo = Double.MAX_VALUE, hi = 0;
         for (String id : g.finished()) {
-            assertTrue(w.weight(id, DockTest::block) > 0, id);
+            double unit = w.weight(id);
+            assertTrue(unit >= WeightTable.MIN, id);
             assertFalse(w.isRaw(id), "a finished good has a real weight: " + id);
+            if (unit <= WeightTable.MIN + 1e-12) {
+                clamped++;
+                assertTrue(g.unit(id) / unit <= 500 * 1.01, id + ": clamped, so worth less per weight, never more");
+                continue;
+            }
+            double perWeight = g.unit(id) / unit;
+            assertEquals(500, perWeight, 5, id + ": " + g.unit(id) + " G / " + unit);
+            lo = Math.min(lo, perWeight);
+            hi = Math.max(hi, perWeight);
         }
-        // only finished goods are listed: anything else weighs raw (weights.yml "items/categories 에는 완제품만")
-        for (String id : w.items().keySet()) assertTrue(g.buys(id), "weights.yml lists " + id + ", which no dock buys: it is raw");
-        // the brief's examples: finished goods
-        assertEquals(0.3, w.weight("economy:ruby_ring", DockTest::block), 1e-9, "jewelry");
-        assertEquals(0.2, w.weight("economy:ruby", DockTest::block), 1e-9, "gems (cut, made by a machine)");
-        assertEquals(0.2, w.weight("economy:cut_diamond", DockTest::block), 1e-9, "an intermediate the dock buys keeps its weight");
-        assertEquals(1, w.weight("economy:flour", DockTest::block), 1e-9, "flour: a recipe input, but the dock buys it");
-        assertEquals(0.5, w.weight("economy:jeweled_crown", DockTest::block), 1e-9);
-        assertEquals(1, w.weight("economy:kimchi", DockTest::block), 1e-9, "dishes: the default");
-        assertEquals(1.5, w.weight("economy:soju", DockTest::block), 1e-9, "bottled");
-        assertEquals(5, w.weight("economy:oak_barrel", DockTest::block), 1e-9, "barrels");
-        assertEquals(8, w.weight("economy:gamasot", DockTest::block), 1e-9, "heavy");
-        assertEquals(1, w.weight("economy:steel_ingot", DockTest::block), 1e-9, "metal");
-        assertEquals("jewelry", w.category("economy:ruby_ring"));
-        assertNull(w.category("economy:kimchi"));
+        assertTrue(clamped <= 3, "only a very cheap good is clamped: " + clamped);
+        System.out.println("[적재 무게] 완제품 " + g.finished().size() + "종, 무게 1 에 " + lo + " ~ " + hi + " G, 최소 무게에 걸린 것 " + clamped);
+        // the default ratio (docks.price-ratio 0.9), not a dock's own: base x 0.9 / 500
+        assertEquals(0.9, g.ratio(), 1e-9);
+        assertEquals(179 * 0.9 / 500, w.weight("economy:polished_pearl"), 1e-9, "연마 진주 (was 0.2: 805 G per weight)");
+        assertEquals(68 * 0.9 / 500, w.weight("economy:stone_lantern"), 1e-9, "석등 (was 8: 8 G per weight)");
+        assertEquals(231 * 0.9 / 500, w.weight("economy:ruby_ring"), 1e-9, "루비 반지");
+        assertEquals(77 * 0.9 / 500, w.weight("economy:kimchi"), 1e-9, "김치");
+        assertEquals(151 * 0.9 / 500, w.weight("economy:oak_barrel"), 1e-9, "참나무통");
+        assertEquals(2836 * 0.9 / 500, w.weight("economy:jeweled_crown"), 1e-9, "보석 왕관: dear, so heavy");
+        assertTrue(w.weight("economy:flour") > 0 && !w.isRaw("economy:flour"), "flour: a recipe input, but the dock buys it");
+        assertTrue(w.weight("economy:cut_diamond") > 0 && !w.isRaw("economy:cut_diamond"), "an intermediate the dock buys");
+        // a dock paying more (/관리자 하역장 가격 110) pays more per weight; the weights stay as they are (one table for every dock)
+        assertEquals(500 * 1.1 / 0.9, g.unit("economy:kimchi", 1.1) / w.weight("economy:kimchi"), 1e-6);
         // raw: everything a dock does not buy, a stack of 64 = 1
         assertEquals(1.0 / 64, w.raw(), 1e-12);
         for (String id : List.of("minecraft:wheat", "minecraft:wheat_seeds", "economy:tomato", "economy:tomato_seeds", "minecraft:potato",
@@ -209,10 +220,9 @@ class DockTest {
                 "minecraft:iron_pickaxe", "minecraft:diamond_chestplate", "minecraft:bread", "minecraft:shulker_box")) {
             assertFalse(g.buys(id), id);
             assertTrue(w.isRaw(id), id);
-            assertEquals(1.0 / 64, w.weight(id, DockTest::block), 1e-12, id);
-            assertNull(w.category(id), id);
+            assertEquals(1.0 / 64, w.weight(id), 1e-12, id);
         }
-        assertEquals(1, 64 * w.weight("minecraft:wheat", DockTest::block), 1e-9, "a stack of wheat weighs 1");
+        assertEquals(1, 64 * w.weight("minecraft:wheat"), 1e-9, "a stack of wheat weighs 1");
     }
 
     /** Every vehicle with a bed in the core's content: id -> {payload, slots} (a train: all its trailers' slots). */
@@ -243,7 +253,7 @@ class DockTest {
 
     /** How many stacks of 64 of this item a bed of this payload and these slots takes. */
     static double stacks(String id, double[] bed, WeightTable w) {
-        return Math.min(bed[1], Math.floor(bed[0] / (64 * w.weight(id, DockTest::block)) + 1e-9));
+        return Math.min(bed[1], Math.floor(bed[0] / (64 * w.weight(id)) + 1e-9));
     }
 
     @Test
@@ -260,7 +270,7 @@ class DockTest {
         for (String crop : List.of("minecraft:wheat", "minecraft:potato", "economy:tomato", "minecraft:cod", "minecraft:oak_log", "minecraft:cobblestone")) {
             // the hand cart full of 64-stacks: every slot used, weight to spare
             assertEquals(135, stacks(crop, cart, w), crop + ": a cart takes a full stack in each of its 135 slots");
-            assertTrue(135 * 64 * w.weight(crop, DockTest::block) <= 150, crop);
+            assertTrue(135 * 64 * w.weight(crop) <= 150, crop);
             assertEquals(360, stacks(crop, tiller, w), crop + " on a tiller");
             assertEquals(450, stacks(crop, truck, w), crop + " on a truck");
         }
@@ -272,88 +282,92 @@ class DockTest {
         }
         assertEquals(30, stacks("minecraft:wheat", all.get("jige"), w), "a 지게: 30 stacks of 54 slots");
         assertEquals(20, stacks("minecraft:wheat", all.get("cargo_bicycle"), w));
-        // before: wheat weighed 2 (a block) and the cart took 75 of it; now 8,640
         assertEquals(135 * 64, stacks("minecraft:wheat", cart, w) * 64, 1e-9);
         // a shulker box counts what it holds at its own weight (DockModule.weigh): 27 stacks of wheat + the box itself
-        assertEquals(27 + 1.0 / 64, w.weight("minecraft:shulker_box", DockTest::block) + 27 * 64 * w.weight("minecraft:wheat", DockTest::block), 1e-9);
+        assertEquals(27 + 1.0 / 64, w.weight("minecraft:shulker_box") + 27 * 64 * w.weight("minecraft:wheat"), 1e-9);
     }
 
     record Haul(String id, int count, long value, double weight) {}
 
     /** The most valuable load of one good a vehicle of this payload and these slots carries (stacks of 64). */
     static Haul best(String id, double payload, int slots, DockGoods g, WeightTable w) {
-        double unit = w.weight(id, DockTest::block);
+        double unit = w.weight(id);
         int n = (int) Math.min(Math.floor(payload / unit + 1e-9), slots * 64L);
         return new Haul(id, n, (long) Math.floor(n * g.unit(id)), n * unit);
     }
 
     @Test
-    void lightLuxuryGoodsSuitTheScooterAndHeavyGoodsNeedATruck() {
+    void aPayloadCarriesAtMostAbout500GPerWeightOfAnyFinishedGood() {
         DockGoods g = goods();
         WeightTable w = weights();
-        // value per weight: jewelry and gems far above dishes, dishes above barrels and ironware, bulk press goods last
-        double jewel = density(g, w, "economy:ruby_ring", "economy:pearl_necklace", "economy:diamond_ring", "economy:gold_ring");
-        double dish = density(g, w, "economy:kimchi", "economy:bibimbap", "economy:bulgogi", "economy:japchae");
-        double heavy = density(g, w, "economy:oak_barrel", "economy:gamasot", "economy:iron_brazier", "economy:jang_set");
-        double bulk = density(g, w, "economy:compressed_stone", "economy:compressed_dirt", "economy:compost");
-        assertTrue(jewel > 5 * dish && dish > heavy && heavy > bulk, jewel + " > " + dish + " > " + heavy + " > " + bulk);
-        // 배달 오토바이 (60, 54 slots) vs 1톤 트럭 (1000, 450) vs 탑차 (2500, 720)
-        Haul scooterRings = best("economy:ruby_ring", 60, 54, g, w), scooterBarrels = best("economy:oak_barrel", 60, 54, g, w);
-        Haul truckBarrels = best("economy:oak_barrel", 1000, 450, g, w), truckKimchi = best("economy:kimchi", 1000, 450, g, w);
-        Haul boxKimchi = best("economy:kimchi", 2500, 720, g, w);
-        assertEquals(200, scooterRings.count(), "60 / 0.3");
-        assertEquals(12, scooterBarrels.count(), "60 / 5");
-        assertEquals(200, truckBarrels.count());
-        assertTrue(scooterRings.value() > 10 * scooterBarrels.value(), "a scooter of rings is worth it, of barrels not");
-        assertTrue(truckBarrels.value() > 10 * scooterBarrels.value(), "barrels want a truck");
-        assertTrue(boxKimchi.value() > 2 * truckKimchi.value());
-        System.out.println("[적재 무게] 오토바이: 루비 반지 " + scooterRings + " / 참나무통 " + scooterBarrels
-                + " · 1톤: 참나무통 " + truckBarrels + " / 김치 " + truckKimchi + " · 탑차: 김치 " + boxKimchi);
-    }
-
-    private static double density(DockGoods g, WeightTable w, String... ids) {
-        double s = 0;
-        for (String id : ids) s += g.unit(id) / w.weight(id, DockTest::block);
-        return s / ids.length;
+        Map<String, double[]> all = vehicles();
+        // every vehicle, every finished good: a full load is worth at most payload x 500 G (+1 %)
+        for (Map.Entry<String, double[]> e : all.entrySet()) {
+            double payload = e.getValue()[0];
+            int slots = (int) e.getValue()[1];
+            long most = 0;
+            for (String id : g.finished()) {
+                Haul h = best(id, payload, slots, g, w);
+                assertTrue(h.weight() <= payload + 1e-6, e.getKey() + " " + h);
+                assertTrue(h.value() <= payload * 500 * 1.01, e.getKey() + " " + h);
+                most = Math.max(most, h.value());
+            }
+            // and a load of a good that is not slot-limited comes close to it
+            assertTrue(most >= payload * 500 * 0.98, e.getKey() + ": " + most + " of " + payload * 500);
+        }
+        // 연마 진주 (0.32) and 석등 (0.12): before 805 G and 8 G per weight, now the same on a 배달 오토바이 (60, 54 slots)
+        Haul scooterPearls = best("economy:polished_pearl", 60, 54, g, w), scooterLanterns = best("economy:stone_lantern", 60, 54, g, w);
+        assertEquals(186, scooterPearls.count(), "60 / 0.3222");
+        assertEquals(490, scooterLanterns.count(), "60 / 0.1224");
+        for (Haul h : List.of(scooterPearls, scooterLanterns)) assertEquals(30_000, h.value(), 300, h.toString());
+        // 1톤 트럭 (1000, 450 slots) and 탑차 (2500, 720): 500,000 G and 1,250,000 G of anything dear enough
+        Haul truckBarrels = best("economy:oak_barrel", 1000, 450, g, w), boxKimchi = best("economy:kimchi", 2500, 720, g, w);
+        assertEquals(500_000, truckBarrels.value(), 5_000, truckBarrels.toString());
+        assertEquals(1_250_000, boxKimchi.value(), 12_500, boxKimchi.toString());
+        // a very cheap good may fill the slots before the payload: 씨앗 기름 (8 G, 0.0144) in a 리어카 (150, 135 slots)
+        Haul cartOil = best("economy:seed_oil", 150, 135, g, w);
+        assertEquals(135 * 64, cartOil.count(), "slot-limited");
+        assertTrue(cartOil.weight() < 150 && cartOil.value() < 150 * 500, cartOil.toString());
+        System.out.println("[적재 무게] 오토바이: 연마 진주 " + scooterPearls + " / 석등 " + scooterLanterns
+                + " · 1톤: 참나무통 " + truckBarrels + " · 탑차: 김치 " + boxKimchi + " · 리어카: 씨앗 기름 " + cartOil);
     }
 
     @Test
-    void weightRulesMatchByPattern() {
+    void weightsFollowThePrice() {
         List<String> problems = new ArrayList<>();
         YamlConfiguration y = new YamlConfiguration();
-        y.set("default", 1);
-        y.set("block", 2);
-        y.set("rules", List.of(Map.of("match", "*_ingot|netherite_scrap", "weight", 1.5), Map.of("match", "economy:*_ring", "weight", 0.25)));
+        y.set("finished-value-per-weight", 250);
         y.set("items.minecraft:gold_ingot", 0.9);
-        y.set("categories.gems.weight", 0.2);
-        y.set("categories.gems.items", List.of("diamond", "economy:ruby"));
         WeightTable parsed = WeightTable.parse(y, problems);
         assertTrue(problems.isEmpty(), problems.toString());
-        assertEquals(WeightTable.RAW, parsed.weight("iron_ingot", id -> false), 1e-12, "no goods given: raw");
-        assertEquals(0.2, parsed.weight("diamond", id -> false), 1e-9, "its own entry over raw");
-        // as if these were finished goods (rules, block and default apply to finished goods only)
-        WeightTable w = parsed.withGoods(Set.of("iron_ingot", "minecraft:netherite_scrap", "minecraft:gold_ingot", "economy:gold_ring",
-                "minecraft:diamond", "minecraft:stone", "economy:tofu"));
-        assertEquals(WeightTable.RAW, w.weight("minecraft:wheat", id -> true), 1e-12, "not a good: raw, never the block weight");
-        assertEquals(WeightTable.RAW, w.weight("minecraft:copper_ingot", id -> false), 1e-12, "a rule matches, but not a good: raw");
-        assertEquals(1.5, w.weight("iron_ingot", id -> false), 1e-9);
-        assertEquals(1.5, w.weight("minecraft:netherite_scrap", id -> false), 1e-9);
-        assertEquals(0.9, w.weight("minecraft:gold_ingot", id -> false), 1e-9, "its own line wins");
-        assertEquals(0.25, w.weight("economy:gold_ring", id -> false), 1e-9, "a namespaced pattern");
-        assertEquals(0.2, w.weight("minecraft:diamond", id -> true), 1e-9, "a category over the block weight");
-        assertEquals(2, w.weight("minecraft:stone", id -> true), 1e-9);
-        assertEquals(1, w.weight("economy:tofu", id -> true), 1e-9, "custom items are never 'blocks'");
+        assertEquals(WeightTable.RAW, parsed.weight("iron_ingot"), 1e-12, "no goods given: raw");
+        assertEquals(0.9, parsed.weight("gold_ingot"), 1e-9, "its own line over raw");
+        // as if these were finished goods, each fetching this much at the default dock price
+        WeightTable w = parsed.withGoods(Map.of("iron_ingot", 100.0, "minecraft:gold_ingot", 1000.0, "economy:tofu", 25.0, "economy:dust", 0.0));
+        assertEquals(WeightTable.RAW, w.weight("minecraft:wheat"), 1e-12, "not a good: raw");
+        assertEquals(0.4, w.weight("minecraft:iron_ingot"), 1e-9, "100 G / 250");
+        assertEquals(0.1, w.weight("economy:tofu"), 1e-9);
+        assertEquals(0.9, w.weight("minecraft:gold_ingot"), 1e-9, "its own line wins over the price");
+        assertTrue(w.overridden("gold_ingot") && !w.overridden("iron_ingot"));
+        assertEquals(WeightTable.MIN, w.weight("economy:dust"), 1e-12, "nothing weighs 0");
+        assertFalse(w.isRaw("economy:dust"));
+        assertEquals(500, WeightTable.parse(new YamlConfiguration(), problems).valuePerWeight(), 1e-9, "500 G when weights.yml does not say");
         y.set("raw", 0.02);
-        assertEquals(0.02, WeightTable.parse(y, problems).weight("minecraft:wheat", id -> true), 1e-12, "raw as weights.yml says");
+        assertEquals(0.02, WeightTable.parse(y, problems).weight("minecraft:wheat"), 1e-12, "raw as weights.yml says");
+        assertTrue(problems.isEmpty(), problems.toString());
         y.set("raw", 0);
         WeightTable.parse(y, problems);
         assertFalse(problems.isEmpty(), "raw must be over 0");
         problems.clear();
         y.set("raw", null);
-        y.set("categories.more.weight", 1);
-        y.set("categories.more.items", List.of("diamond"));
+        y.set("finished-value-per-weight", 0);
+        assertEquals(500, WeightTable.parse(y, problems).valuePerWeight(), 1e-9);
+        assertFalse(problems.isEmpty(), "finished-value-per-weight must be over 0");
+        problems.clear();
+        y.set("finished-value-per-weight", null);
+        y.set("categories.gems.weight", 0.2);
         WeightTable.parse(y, problems);
-        assertFalse(problems.isEmpty(), "an item in two categories is reported");
+        assertEquals(1, problems.size(), "the old categories are reported, not used: " + problems);
     }
 
     // ------------------------------------------------------------------------------------------

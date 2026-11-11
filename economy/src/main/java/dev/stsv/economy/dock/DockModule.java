@@ -59,7 +59,8 @@ import java.util.UUID;
  * <ul>
  *   <li><b>Weights</b>: weights.yml ({@link WeightTable}) gives the core a weight for every stack (shulker boxes and bundles
  *       with what is in them): vehicles and the 지게 take no more than their payload. Finished goods ({@link DockGoods})
- *       weigh what weights.yml says, everything else raw (a stack of 64 = 1): slots limit raw hauls, weight the dock trade.</li>
+ *       weigh what one fetches at the default dock price / finished-value-per-weight (500 G per weight unit, whichever
+ *       dock), everything else raw (a stack of 64 = 1): slots limit raw hauls, weight the dock trade.</li>
  *   <li><b>Docks</b>: built by command ({@link DockLayout}, {@link DockBuilder}), kept in the database ({@link DockStore}),
  *       their ground claimed as the server's land. At a dock, sneak + right-click on a vehicle's bed whose vehicle (any unit
  *       of a train, a boat at the pier) stands in the unloading zone, or on the 하역 창구, or sneak + right-click with an empty
@@ -179,8 +180,9 @@ public final class DockModule extends EcoModule {
                         Math.clamp(eco.getConfig().getInt("docks.scout-concurrent-online"), 1, 16)));
         goods = DockGoods.of(eco.machines().specs(), eco.shop().catalog(), rules.ratio());
         List<String> problems = new ArrayList<>();
-        // only what the dock buys has a real weight; everything else weighs weights.yml raw (README "적재 무게")
-        weights = WeightTable.parse(eco.data("weights.yml"), problems).withGoods(goods.finished());
+        // only what the dock buys has a real weight, by its price at the default ratio (never a dock's own): what one fetches
+        // / finished-value-per-weight; everything else weighs weights.yml raw (README "적재 무게")
+        weights = WeightTable.parse(eco.data("weights.yml"), problems).withGoods(goods);
         problems.forEach(p -> eco.getLogger().warning("[weights.yml] " + p));
         unitWeight.clear();
         if (core.vehicles() != null) core.vehicles().weightsChanged();   // the beds' weights are worked out again
@@ -242,10 +244,7 @@ public final class DockModule extends EcoModule {
     double weigh(ItemStack it) {
         if (it == null || it.isEmpty()) return 0;
         String id = idOf(it);
-        double unit = unitWeight.computeIfAbsent(id, k -> weights.weight(k, v -> {
-            Material m = Material.matchMaterial(v);
-            return m != null && m.isBlock();
-        }));
+        double unit = unitWeight.computeIfAbsent(id, weights::weight);
         double inner = 0;
         Material type = it.getType();
         if ((Tag.SHULKER_BOXES.isTagged(type) || Tag.ITEMS_BUNDLES.isTagged(type)) && it.hasItemMeta()) {

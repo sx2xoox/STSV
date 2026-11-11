@@ -1,99 +1,24 @@
-# 적재 무게: 탈것 짐칸에 실을 때 물건 1개의 무게 (README "적재 무게"). 묶음은 개수만큼 (장신구 64개 = 0.3 × 64 = 19.2).
+# 적재 무게: 탈것 짐칸에 실을 때 물건 1개의 무게 (README "적재 무게"). 묶음은 개수만큼 (연마 진주 64개 = 0.32 × 64 = 20.6).
 # 탈것마다 실을 수 있는 무게(payload)는 코어 content/stsv/items/vehicles*.yml 의 cargo.payload (기차는 vehicle.payload).
 # 넣으려는 물건이 payload 를 넘으면 짐칸이 받지 않음 (쉬프트 클릭은 들어가는 만큼만). 셜커 상자·번들은 안에 든 것까지 셈
 # (상자 자체는 원재료 무게, 안에 든 것은 그것의 무게).
 #
-# 원재료는 아주 가볍게: 진짜 무게는 하역장이 사는 것(완제품 = 직업 기계 레시피 결과 ∩ 상점 판매, README "하역장")만.
+# 진짜 무게는 하역장이 사는 것(완제품 = 직업 기계 레시피 결과 ∩ 상점 판매, README "하역장")만.
 # 그 밖의 모든 것(작물·씨앗·잡은 물고기·광석·원석·보석 원석·원목·나무·돌·흙·바닐라 블록·전리품·바닐라 도구와 갑옷 ...)은
-# 아래 items/categories 에 따로 적지 않았으면 raw (64개 한 묶음 = 1). 그래서 원재료는 짐칸 칸 수가 한계이고
-# (리어카 135칸 = 작물 135묶음 = 135, payload 150 안), 무게는 하역장 장사(완제품)에서만 한계가 됨.
-# 레시피 재료로도 쓰이는 중간재(밀가루·세공한 보석·강철 괴 ...)도 하역장이 사므로 완제품: 진짜 무게.
+# raw (64개 한 묶음 = 1). 그래서 원재료는 짐칸 칸 수가 한계이고 (리어카 135칸 = 작물 135묶음 = 135, payload 150 안),
+# 무게는 하역장 장사(완제품)에서만 한계가 됨. 레시피 재료로도 쓰이는 중간재(밀가루·세공한 보석·강철 괴 ...)도 하역장이 사므로 완제품.
 #
 # 물건 하나의 무게는 처음 맞는 것:
-#   1. items      물건 하나씩 따로 정한 값
-#   2. categories 분류에 든 물건 (분류마다 weight 하나)
-#   3. raw        완제품이 아닌 모든 것 (원재료)
-#   4. rules      완제품의 이름 규칙 (위에서부터 처음 맞는 것). '*' 는 아무 글자, '|' 는 또는. 네임스페이스가 없으면 이름만 봄
-#   5. block      완제품 중 바닐라 블록 (놓을 수 있는 것) 1개
-#   6. default    그 밖의 완제품 (요리·식재료·손질한 생선 ...)
-# items/categories 에는 완제품만 적음 (DockTest 가 확인): 원재료에 무게를 주려면 그 테스트도 고칠 것.
+#   1. items  물건 하나씩 따로 정한 값 (완제품만, DockTest 가 확인. 원재료에 무게를 주려면 그 테스트도 고칠 것)
+#   2. 완제품  기본 매입가 ÷ finished-value-per-weight. 기본 매입가 = 상점 기준가 × 기본 docks.price-ratio (0.9).
+#              하역장마다 따로 정한 매입가는 쓰지 않음: 어느 하역장으로 가든 무게는 같음. 아주 싼 것도 0.001 보다 가볍지 않음.
+#   3. raw    완제품이 아닌 모든 것 (원재료)
 #
-# 의도: 가볍고 비싼 것(보석·장신구·향수)은 작고 빠른 탈것(배달 오토바이 60)으로도 큰돈이 되고,
-# 무겁고 싼 것(술통·장 세트·무쇠 그릇·압축 석재)은 트럭(1톤 1000, 탑차 2500)이어야 남는 장사.
-default: 1
-block: 2
+# 의도: 완제품은 무게 1 에 모두 약 500 G. 비싼 것은 무겁고 싼 것은 가벼워서, 탈것의 payload P 로 한 번에 실어 갈 수 있는
+# 값은 물건과 상관없이 최대 약 P × 500 G (배달 오토바이 60 = 30,000 G, 1톤 트럭 1000 = 500,000 G, 탑차 2500 = 1,250,000 G).
+# 싼 완제품은 한 개가 아주 가벼워서 무게보다 칸 수가 먼저 찰 수 있음.
+finished-value-per-weight: 500
 raw: 0.015625     # 1/64: 원재료 64개 한 묶음 = 1
 
-categories:
-  # 장신구: 반지·목걸이·브로치·노리개 (0.1 ~ 0.5)
-  jewelry:
-    weight: 0.3
-    items: [economy:ruby_ring, economy:gold_ring, economy:diamond_ring, economy:copper_bracelet, economy:amethyst_pendant,
-            economy:sapphire_brooch, economy:coral_brooch, economy:pearl_necklace, economy:silk_pearl_necklace,
-            economy:ambergris_norigae, economy:lapis_beads]
-  # 보석: 세공한 보석·다듬은 진주 (원석·바닐라 다이아몬드·에메랄드·진주는 원재료라 raw)
-  gems:
-    weight: 0.2
-    items: [economy:ruby, economy:sapphire, economy:cut_emerald, economy:cut_diamond, economy:cut_crystal, economy:polished_pearl]
-  # 작은 병: 향수·단약
-  perfume:
-    weight: 0.5
-    items: [economy:pearl_perfume, economy:ambergris_perfume, economy:meteor_elixir, economy:caviar]
-  # 병에 든 술·음료·즙·장류 (1.5)
-  bottled:
-    weight: 1.5
-    items: [economy:makgeolli, economy:soju, economy:melon_syrup, economy:wine, economy:melon_liqueur, economy:vintage_wine,
-            economy:flower_tea, economy:cider, economy:strawberry_wine, economy:mead, economy:cheongju, economy:pumpkin_makgeolli,
-            economy:bokbunja_wine, economy:rum, economy:corn_whiskey, economy:potato_vodka, economy:sikhye, economy:ginseng_liquor,
-            economy:golden_cheongju, economy:crystal_vintage, economy:grape_juice, economy:apple_juice, economy:onion_juice,
-            economy:soy_sauce, economy:fish_sauce, economy:jocheong, economy:seed_oil, economy:refined_oil]
-  # 항아리·통: 숙성한 장, 젓갈, 삭힌 것 (2)
-  crocks:
-    weight: 2
-    items: [economy:doenjang, economy:gochujang, economy:jeotgal, economy:hongeo]
-  # 술통·장 세트: 크고 무거운 숙성품 (5)
-  barrels:
-    weight: 5
-    items: [economy:oak_barrel, economy:jang_set]
-  # 금속 재료: 괴·판 (1 안팎)
-  metal:
-    weight: 1
-    items: [economy:steel_ingot, economy:copper_plate, economy:coke]
-  # 연장·그릇·장식 철물 (3)
-  tools:
-    weight: 3
-    items: [economy:homi, economy:sickle, economy:iron_lantern, economy:crystal_lantern, economy:ornamental_sword, economy:meteor_sword,
-            economy:quartz_figurine, economy:coral_inlay_box]
-  # 무쇠·구리 살림: 팬·냄비 (4)
-  cookware:
-    weight: 4
-    items: [economy:iron_pan, economy:copper_pot]
-  # 아주 무거운 철물: 가마솥·화로·갑옷·공구 세트·석등 (6 ~ 8)
-  heavy:
-    weight: 8
-    items: [economy:gamasot, economy:iron_brazier, economy:ornate_armor, economy:stone_lantern]
-  # 상차림: 한 상 가득 (3)
-  feasts:
-    weight: 3
-    items: [economy:hanjeongsik, economy:seafood_feast]
-  # 그 밖의 요리·식재료·손질한 생선은 default (1). 잡은 물고기(큰 물고기 포함)는 원재료라 raw
-
-items:
-  economy:jeweled_crown: 0.5      # 보석 왕관
-  economy:gold_leaf: 0.1          # 금박
-  economy:iron_nails: 0.05        # 쇠못 (작음)
-  economy:iron_plate: 1.5         # 철판
-  economy:iron_chain: 2           # 쇠사슬
-  economy:steel_toolset: 6        # 강철 공구 세트
-  economy:padlock: 1              # 금박 자물쇠
-  economy:sheath: 1               # 칼집
-  economy:wind_chime: 0.5         # 풍경
-  economy:scented_candle: 0.5     # 향초
-  economy:soap: 0.5               # 비누
-  economy:grilled_fish_set: 2     # 생선구이 정식 (쟁반)
-  economy:compressed_stone: 2     # 압축 석재 (블록만 한 덩어리)
-  economy:compressed_dirt: 2      # 압축 흙
-
-# 완제품의 이름 규칙: 지금 완제품은 모두 위 분류·물건이나 default 로 정해져 있어 비어 있음.
-# 쓰는 법: - { match: "*_ingot|netherite_scrap", weight: 1 }  (완제품이 아니면 맞아도 raw)
-rules: []
+# 물건마다 따로 정한 무게 (완제품만). 비워 두면 모두 위 규칙대로. 쓰는 법: economy:jeweled_crown: 0.5
+items: {}
