@@ -10,6 +10,8 @@ import dev.stsv.core.vehicle.JigeModule;
 import dev.stsv.economy.EcoModule;
 import dev.stsv.economy.EcoPlugin;
 import dev.stsv.economy.road.ChunkQueue;
+import dev.stsv.economy.road.RoadModule;
+import dev.stsv.economy.road.RoadOrigin;
 import dev.stsv.economy.util.Items;
 import dev.stsv.economy.util.Players;
 import net.kyori.adventure.text.Component;
@@ -464,8 +466,9 @@ public final class DockModule extends EcoModule {
         for (Dock d : docks.values()) {
             double[] c = d.centre();
             World w = Bukkit.getWorld(d.world());
-            Location spawn = w == null ? null : w.getSpawnLocation();
-            long far = spawn == null ? -1 : Math.round(Math.hypot(c[0] - spawn.getX(), c[2] - spawn.getZ()));
+            RoadOrigin.Use u = w == null ? null : eco.roads() != null ? eco.roads().from(w)
+                    : new RoadOrigin.Use(w.getName(), w.getSpawnLocation().getX(), 0, w.getSpawnLocation().getZ(), false);
+            long far = u == null || !u.world().equals(d.world()) ? -1 : Math.round(Math.hypot(c[0] - u.x(), c[2] - u.z()));
             s.sendMessage(Lang.mm("dock.list-line", "name", d.name(), "kind", d.kind().word, "world", d.world(), "x", d.x(), "y", d.y(), "z", d.z(),
                     "far", far));
         }
@@ -564,6 +567,7 @@ public final class DockModule extends EcoModule {
         final CommandSender to;
         final World world;
         final int distance, step;
+        final String from;
         final ChunkQueue queue;
         /** per direction: samples along the way, over the site, ahead of it: x, z -> {ground, water, surface} */
         final List<List<int[]>> route = new ArrayList<>(), site = new ArrayList<>(), ahead = new ArrayList<>();
@@ -571,17 +575,18 @@ public final class DockModule extends EcoModule {
         final Map<Long, List<int[]>> byChunk = new HashMap<>();
         long lastNote;
 
-        Scout(CommandSender to, World world, int distance) {
+        Scout(CommandSender to, World world, double cx, double cz, String from, int distance) {
             this.to = to;
             this.world = world;
             this.distance = distance;
+            this.from = from;
             this.step = rules.scoutStep();
             this.queue = new ChunkQueue(world, rules.scoutConcurrent(), c -> {
                 List<int[]> want = byChunk.remove(dev.stsv.economy.road.RoadJob.key(c.getX(), c.getZ()));
                 if (want == null) return;
                 for (int[] xz : want) sampled.put(dev.stsv.economy.road.RoadJob.key(xz[0], xz[1]), sampleColumn(world, xz[0], xz[1]));
             });
-            Location spawn = world.getSpawnLocation();
+            Location spawn = new Location(world, cx, 0, cz);
             for (int d = 0; d < 8; d++) {
                 double yaw = Math.toRadians(d * 45);
                 double fx = -Math.sin(yaw), fz = Math.cos(yaw);
@@ -645,7 +650,7 @@ public final class DockModule extends EcoModule {
                 rows.add(new Row(d, RouteStats.of(h, w, step, sh, sw, aw), end[0], end[1]));
             }
             rows.sort(Comparator.comparingDouble(r -> r.stats().score()));
-            to.sendMessage(Lang.msg("dock.scout-head", "distance", distance, "world", world.getName()));
+            to.sendMessage(Lang.msg("dock.scout-head", "distance", distance, "world", world.getName(), "from", from));
             int rank = 1;
             for (Row r : rows) {
                 RouteStats st = r.stats();
@@ -683,10 +688,16 @@ public final class DockModule extends EcoModule {
             s.sendMessage(Lang.msg("dock.busy"));
             return;
         }
-        World w = core.worlds() != null && core.worlds().buildWorld() != null ? core.worlds().buildWorld()
+        World fallback = core.worlds() != null && core.worlds().buildWorld() != null ? core.worlds().buildWorld()
                 : s instanceof Player p ? p.getWorld() : Bukkit.getWorlds().getFirst();
-        scout = new Scout(s, w, distance);
-        s.sendMessage(Lang.msg("dock.scout-start", "chunks", scout.queue.left(), "distance", distance));
+        // from the network's reference point (/관리자 국도 기준점), else the build world's spawn
+        RoadOrigin.Use u = eco.roads() != null ? eco.roads().from(fallback)
+                : new RoadOrigin.Use(fallback.getName(), fallback.getSpawnLocation().getX(), 0, fallback.getSpawnLocation().getZ(), false);
+        World w = Bukkit.getWorld(u.world());
+        if (w == null) w = fallback;
+        String from = eco.roads() != null ? RoadModule.fromWords(u) : Lang.raw("road.from-spawn", "world", w.getName(), "x", (long) u.x(), "y", 0, "z", (long) u.z());
+        scout = new Scout(s, w, u.x(), u.z(), from, distance);
+        s.sendMessage(Lang.msg("dock.scout-start", "chunks", scout.queue.left(), "distance", distance, "from", from));
     }
 
     public Rules rules() {

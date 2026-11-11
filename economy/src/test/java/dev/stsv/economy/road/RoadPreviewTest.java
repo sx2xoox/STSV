@@ -25,11 +25,15 @@ import static org.junit.jupiter.api.Assertions.assertTrue;
  *   <li>(c) a river: a bridge with railings and piers</li>
  *   <li>(d) a steep hill: a tunnel with its lights</li>
  *   <li>(e) a forest the road bends through: trees cleared</li>
+ *   <li>(f) the dock's gate: the road runs straight in, widens, a crosswalk and "하역장 입구" on it, and joins the dock's
+ *       floor at its level</li>
  * </ol>
  */
 class RoadPreviewTest {
 
     static final int RIVER0 = 1190, RIVER1 = 1210, WATER_TOP = 62;
+    /** (f) the dock: its floor's top block y, its front edge (the gate's row, z) and middle (x); the pad behind it. */
+    static final int PAD_Y = 64, GATE_Z = 170, GATE_X = 1436, PAD_HALF = 22, PAD_DEPTH = 24;
 
     /** A world of its own: land from {@link #ground}, trees, a river, and whatever the road put over it. */
     static final class Land implements RoadSection.Site {
@@ -79,15 +83,26 @@ class RoadPreviewTest {
         static int[] tree(int cx, int cz) {
             int h = hash(cx, cz);
             int x = cx * 5 + Math.floorMod(h, 3), z = cz * 5 + Math.floorMod(h >> 4, 3);
-            boolean forest = x >= 1312;
+            boolean forest = x >= 1312 && z < GATE_Z - 30;
             boolean meadow = x >= 940 && x < 1050 && Math.abs(z) > 9 && Math.floorMod(h >> 8, 9) == 0;
             if (!forest && !meadow) return null;
             if (forest && Math.floorMod(h >> 8, 10) >= 7) return null;
             return new int[]{x, z, 4 + Math.floorMod(h >> 12, 3)};
         }
 
+        static boolean pad(int x, int z) {
+            return Math.abs(x - GATE_X) <= PAD_HALF && z >= GATE_Z && z <= GATE_Z + PAD_DEPTH;
+        }
+
         /** The land as it was. */
         static Material base(int x, int y, int z) {
+            if (pad(x, z)) {   // (f) the dock's pad, as DockLayout lays it: a rim, a floor, a low wall open at the gate
+                if (y == PAD_Y) return z == GATE_Z || Math.abs(x - GATE_X) == PAD_HALF ? Material.STONE_BRICKS
+                        : Math.floorMod(x, 4) == 0 || Math.floorMod(z, 4) == 0 ? Material.ANDESITE : Material.POLISHED_ANDESITE;
+                if (y < PAD_Y) return y >= PAD_Y - 3 ? Material.STONE_BRICKS : Material.STONE;
+                if (y == PAD_Y + 1 && ((z == GATE_Z && Math.abs(x - GATE_X) > 8) || Math.abs(x - GATE_X) == PAD_HALF)) return Material.STONE_BRICK_WALL;
+                return Material.AIR;
+            }
             int g = ground(x, z);
             boolean river = river(x);
             if (y <= g) return y == g ? (river && g < WATER_TOP + 1 ? Material.SAND : Material.GRASS_BLOCK) : y >= g - 3 ? Material.DIRT : Material.STONE;
@@ -173,9 +188,21 @@ class RoadPreviewTest {
 
     /** The route: straight along x through scenes (a) to (d), then bending through the forest. */
     static final List<double[]> CORNERS = List.of(new double[]{0.5, 0.5}, new double[]{1336.5, 0.5}, new double[]{1376.5, 12.5},
-            new double[]{1408.5, 40.5}, new double[]{1428.5, 80.5}, new double[]{1436.5, 130.5});
+            new double[]{1408.5, 40.5}, new double[]{1428.5, 80.5}, new double[]{GATE_X + 0.5, GATE_Z - dev.stsv.economy.dock.Dock.APPROACH + 0.5},
+            new double[]{GATE_X + 0.5, GATE_Z + 0.5});
+    /** As Dock.APPROACH: the route's last stretch runs straight in to the gate. */
+    static final int Dock_APPROACH = dev.stsv.economy.dock.Dock.APPROACH;
 
-    record Built(Land land, List<double[]> points, int[] levels, RoadProfile.Part[] parts, int[] ground, RoadSection section) {}
+    /**
+     * halves: the road's height (half blocks, {@link RoadProfile#halves}); levels: the full block under it (the surface
+     * block itself at a whole level, the slab's support at a half one).
+     */
+    record Built(Land land, List<double[]> points, int[] halves, int[] levels, RoadProfile.Part[] parts, int[] ground, RoadSection section) {
+        /** The block the surface is in at point i (the slab's own block at a half level). */
+        int top(int i) {
+            return RoadSection.surfaceY(halves[i]);
+        }
+    }
 
     static Built build() {
         Land land = new Land();
@@ -189,12 +216,15 @@ class RoadPreviewTest {
             water[i] = s[1] == 1;
             surface[i] = s[2];
         }
-        int[] levels = RoadProfile.plan(ground, water, surface);   // BUILD, as RoadModule.profile()
-        RoadProfile.Part[] parts = RoadProfile.parts(levels, ground, water, RoadModule.BRIDGE_GAP, RoadModule.TUNNEL_COVER, RoadModule.MIN_RUN);
+        ground[n - 1] = PAD_Y;   // BUILD, as RoadModule.profile(): the last point is the gate, level with the dock's floor
+        water[n - 1] = false;
+        int[] halves = RoadProfile.planHalves(ground, water, surface);
+        int[] levels = RoadProfile.blocks(halves);
+        RoadProfile.Part[] parts = RoadProfile.partsHalves(halves, ground, water, RoadModule.BRIDGE_GAP, RoadModule.TUNNEL_COVER, RoadModule.MIN_RUN);
         RoadSection section = new RoadSection(land, new RoadSection.Style(Material.GRAY_CONCRETE, Material.YELLOW_CONCRETE, Material.SMOOTH_STONE,
-                40, 1000), points, levels, parts, "서해", 1);
+                40, 1000), points, halves, parts, "서해", 1);
         for (int i = 0; i < n; i++) assertEquals(null, section.build(i));
-        return new Built(land, points, levels, parts, ground, section);
+        return new Built(land, points, halves, levels, parts, ground, section);
     }
 
     static int index(List<double[]> points, double x) {
@@ -222,7 +252,8 @@ class RoadPreviewTest {
         Sign start = land.signs.get(0), km = land.signs.get(1), end = land.signs.get(2);
         assertEquals(new RoadSign.Words("서해 하역장 방면", RoadSign.km((pts.size() - 1 - 24) / 1000.0), "국도 1호선", "1"), start.words());
         assertEquals(24.5, start.x(), 1e-9);
-        assertEquals(new RoadSign.Words("서해 하역장", "0.5 km", "국도 1호선", "1"), km.words(), "what is left, not rounded down to nothing");
+        assertEquals(new RoadSign.Words("서해 하역장", RoadSign.km((pts.size() - 1 - 1000) / 1000.0), "국도 1호선", "1"), km.words());
+        assertEquals("0.5 km", RoadSign.km(0.474), "what is left, not rounded down to nothing");
         assertEquals(new RoadSign.Words("서해 하역장 도착", "", "국도 1호선", "1"), end.words());
         assertEquals(Map.of(RoadSection.SIGN_START, RoadSign.Kind.START, 1000, RoadSign.Kind.KM, pts.size() - 1 - RoadSection.SIGN_END, RoadSign.Kind.ARRIVAL),
                 b.section().signs());
@@ -231,7 +262,10 @@ class RoadPreviewTest {
         assertEquals(0.5 + RoadSign.LATERAL, km.z(), 1e-9);
         assertEquals(b.levels()[1000] + 1, km.y(), 1e-9);
         assertEquals(90f, km.yaw(), 1e-3f);
-        assertEquals(Material.LANTERN, land.get(1000, b.levels()[1000] + 4, -4), "the light at the sign: on the other side");
+        // the light at the sign: on the other side, its post on the verge, its arm over the edge lane, 4 clear under the lantern
+        assertEquals(Material.STONE_BRICK_WALL, land.get(1000, b.top(1000) + 3, -4), "the post");
+        assertEquals(Material.STONE_BRICK_WALL, land.get(1000, b.top(1000) + 6, -3), "the arm");
+        assertEquals(Material.LANTERN, land.get(1000, b.top(1000) + 5, -2), "the lantern hangs over the edge lane");
         // the panel hangs over the kerb and the shoulder, never the lanes, and nothing the road built is in it or in the posts' way
         assertTrue(RoadSign.LATERAL - RoadSign.PANEL_WIDTH / 2 >= 2.5);
         int at = b.levels()[1000];
@@ -249,18 +283,19 @@ class RoadPreviewTest {
             }
         }
         assertTrue(filled > 20 && cut > 20, "filled " + filled + ", cut " + cut);
-        assertTrue(RoadProfile.closestSteps(b.levels()) >= 3);
+        for (int i = 3; i < b.halves().length; i++) assertTrue(Math.abs(b.halves()[i] - b.halves()[i - 3]) <= 2, "never over a block in three");
         // (c) the river: a bridge with railings over the water
         int mid = index(pts, (RIVER0 + RIVER1) / 2.0);
         assertEquals(RoadProfile.Part.BRIDGE, b.parts()[mid]);
         assertEquals(Material.STONE_BRICK_WALL, land.get(1196, b.levels()[mid] + 1, 3));
         assertEquals(Material.STONE_BRICK_WALL, land.get(1196, b.levels()[mid] + 1, -3));
-        assertEquals(Material.LANTERN, land.get(1200, b.levels()[mid] + 4, 3), "the bridge's light stands on its railing");
+        assertEquals(Material.STONE_BRICK_WALL, land.get(1200, b.top(mid) + 4, 3), "the bridge's light stands on its railing");
+        assertEquals(Material.LANTERN, land.get(1200, b.top(mid) + 5, 2), "its lantern over the edge lane");
         // (d) the steep hill: a tunnel, lit
         int in = index(pts, 1272);
         assertEquals(RoadProfile.Part.TUNNEL, b.parts()[in]);
         boolean lit = false;
-        for (int x = 1240; x < 1310; x++) lit |= land.get(x, b.levels()[index(pts, x)] + 5, 0) == Material.SEA_LANTERN;
+        for (int x = 1240; x < 1310; x++) lit |= land.get(x, b.top(index(pts, x)) + 5, 0) == Material.SEA_LANTERN;
         assertTrue(lit, "lights in the tunnel's ceiling");
         // (e) the forest: no tree left over the road
         for (int i = index(pts, 1320); i < pts.size(); i++) {
@@ -272,12 +307,13 @@ class RoadPreviewTest {
 
     /**
      * Across the lanes, everywhere (straight, diagonal, round the bends, on bridges and in tunnels): the surface is there
-     * (no gaps), nothing stands on it for two blocks (no light or railing in the lanes), and side by side it never steps
-     * more than one block (a vehicle drives up one).
+     * (no gaps), nothing stands on it for four blocks (no light, arm or railing in the lanes), and side by side it never
+     * steps more than half a block (a slab: a vehicle glides over it).
      */
     static void lanesAreWholeAndClear(Built b) {
         Land land = b.land();
         List<double[]> pts = b.points();
+        java.util.Set<Material> paved = b.section().style().paved();
         Map<Long, Integer> top = new HashMap<>();
         for (int i = 0; i < pts.size(); i++) {
             double[] p = pts.get(i), a = pts.get(Math.max(0, i - 2)), c = pts.get(Math.min(pts.size() - 1, i + 2));
@@ -285,27 +321,26 @@ class RoadPreviewTest {
             double rx = -hz / len, rz = hx / len;
             for (double o = -1.7; o <= 1.7 + 1e-9; o += 0.1) {   // a column within 2.41 of the middle: always a lane
                 int x = (int) Math.floor(p[0] + rx * o), z = (int) Math.floor(p[1] + rz * o);
-                int l = b.levels()[i], y = l + 1;
+                int l = b.levels()[i], y = l + 2;
                 while (y >= l - 1 && land.get(x, y, z) == Material.AIR) y--;
                 Material m = land.get(x, y, z);
-                assertTrue(m == Material.GRAY_CONCRETE || m == Material.YELLOW_CONCRETE, "the lane at point " + i + " (" + x + ", " + z + "): " + m + " at " + y);
-                assertEquals(Material.AIR, land.get(x, y + 1, z), "over the lane at point " + i + " (" + x + ", " + z + ")");
-                assertEquals(Material.AIR, land.get(x, y + 2, z), "over the lane at point " + i + " (" + x + ", " + z + ")");
-                top.put(RoadJob.key(x, z), y);
+                assertTrue(paved.contains(m), "the lane at point " + i + " (" + x + ", " + z + "): " + m + " at " + y);
+                for (int k = 1; k <= 4; k++) assertEquals(Material.AIR, land.get(x, y + k, z), "over the lane at point " + i + " (" + x + ", " + z + ") +" + k);
+                top.put(RoadJob.key(x, z), 2 * y + (m.name().endsWith("_SLAB") ? 1 : 2));
             }
         }
         for (Map.Entry<Long, Integer> e : top.entrySet()) {
             int x = RoadJob.cx(e.getKey()), z = RoadJob.cz(e.getKey());
             for (int[] d : new int[][]{{1, 0}, {0, 1}}) {
                 Integer n = top.get(RoadJob.key(x + d[0], z + d[1]));
-                if (n != null) assertTrue(Math.abs(n - e.getValue()) <= 1, "a step of " + Math.abs(n - e.getValue()) + " at " + x + ", " + z);
+                if (n != null) assertTrue(Math.abs(n - e.getValue()) <= 1, "a step of " + Math.abs(n - e.getValue()) / 2.0 + " at " + x + ", " + z);
             }
         }
     }
 
     /** The land round the road for the preview: columns of runs [y, length, block] from Y0 up. */
     static void export(Built b) throws Exception {
-        int x0 = 940, x1 = 1480, z0 = -40, z1 = 150, y0 = 44;
+        int x0 = 940, x1 = 1480, z0 = -40, z1 = 196, y0 = 44;
         List<String> palette = new ArrayList<>();
         Map<Material, Integer> index = new HashMap<>();
         StringBuilder cols = new StringBuilder();
@@ -356,7 +391,7 @@ class RoadPreviewTest {
         s.append("],\"points\":[");
         for (int i = 0; i < b.points().size(); i++) {
             double[] p = b.points().get(i);
-            s.append(i > 0 ? "," : "").append('[').append(String.format(Locale.ROOT, "%.2f,%.2f", p[0], p[1])).append(',').append(b.levels()[i])
+            s.append(i > 0 ? "," : "").append('[').append(String.format(Locale.ROOT, "%.2f,%.2f", p[0], p[1])).append(',').append(b.top(i))
                     .append(",\"").append(b.parts()[i].name().charAt(0)).append("\"]");
         }
         s.append("],\"cols\":[").append(cols).append("]}");

@@ -14,6 +14,12 @@ import org.bukkit.Material;
 import org.bukkit.Tag;
 import org.bukkit.World;
 import org.bukkit.block.Block;
+import org.bukkit.block.BlockFace;
+import org.bukkit.block.data.BlockData;
+import org.bukkit.block.data.MultipleFacing;
+import org.bukkit.block.data.type.Fence;
+import org.bukkit.block.data.type.GlassPane;
+import org.bukkit.block.data.type.Wall;
 import org.bukkit.command.CommandSender;
 import org.bukkit.entity.Display;
 import org.bukkit.entity.Entity;
@@ -55,16 +61,24 @@ import java.util.UUID;
  */
 public final class RoadModule extends EcoModule {
 
-    record Settings(Material surface, Material line, Material kerb, double bonus, int lightEvery, int markerEvery, int corridor, int pregen,
-                    int perTick, int concurrent) {}
+    record Settings(Material surface, Material line, Material kerb, Material edge, double bonus, int lightEvery, int markerEvery, int corridor,
+                    int pregen, int perTick, int concurrent) {
+
+        RoadSection.Style style() {
+            return new RoadSection.Style(surface, line, kerb, edge, lightEvery, markerEvery);
+        }
+    }
 
     private Settings settings;
+    private java.util.Set<Material> paved = java.util.Set.of();
+    /** the network's reference point (/관리자 국도 기준점), or null: the build world's spawn */
+    private RoadOrigin origin;
     private RoadJob job;
     private UUID admin;
     private ChunkQueue queue;
     /** PREPARE: points waiting for their chunk; BUILD: the road's heights and parts */
     private final Map<Long, List<Integer>> waiting = new HashMap<>();
-    private int[] levels;
+    private int[] halves;
     private RoadProfile.Part[] parts;
     private List<double[]> points;
     private RoadSection builder;
@@ -87,29 +101,30 @@ public final class RoadModule extends EcoModule {
     protected void start() {
         load();
         if (core.vehicles() != null) core.vehicles().surfaceBonus(b -> {
-            Material m = b.getType();
-            return m == settings.surface() || m == settings.line() ? settings.bonus() : 1;
+            return paved.contains(b.getType()) ? settings.bonus() : 1;
         });
-        STSVPlugin.get().admin().add(EcoPlugin.ADMIN_OWNER, "국도", "<하역장> [여기서|새로] | 중지 | 상태 | 표지판 정리 <하역장>",
-                "국도: 건축월드 스폰(또는 지금 자리)에서 하역장까지 길 놓기 (멈췄던 것은 이어서, 새로 = 처음부터) / 멈추기 / 진행 상황 / 그 길의 표지판 모두 치우기",
+        STSVPlugin.get().admin().add(EcoPlugin.ADMIN_OWNER, "국도",
+                "<하역장> [기준점|여기서|새로|이어짓기] | 기준점 [설정|보기|초기화] | 중지 | 상태 | 표지판 정리 <하역장>",
+                "국도: 기준점(없으면 건축월드 스폰, 여기서 = 지금 자리)에서 하역장 입구까지 길 놓기 (멈췄던 것은 이어서, 새로 = 처음부터, "
+                        + "이어짓기 = 다 지은 길의 끝에서 입구까지 모자란 곳만) / 기준점 정하기 / 멈추기 / 진행 상황 / 그 길의 표지판 모두 치우기",
                 this::command, (s, a) -> {
                     if (a.length == 1) {
                         List<String> out = new ArrayList<>(eco.docks().names());
-                        out.add("중지");
-                        out.add("상태");
-                        out.add("표지판");
+                        out.addAll(List.of("기준점", "중지", "상태", "표지판"));
                         return out;
                     }
+                    if (a[0].equals("기준점")) return a.length == 2 ? List.of("설정", "보기", "초기화") : List.of();
                     if (a[0].equals("표지판")) return a.length == 2 ? List.of("정리") : a.length == 3 ? new ArrayList<>(eco.docks().names()) : List.of();
-                    return a.length == 2 ? List.of("여기서", "새로") : List.of();
+                    return a.length == 2 ? List.of("기준점", "여기서", "새로", "이어짓기") : List.of();
                 });
         // a road that was being built when the server stopped goes on
         try {
             Path dir = folder();
             if (Files.isDirectory(dir)) {
                 try (var files = Files.list(dir)) {
-                    for (Path f : files.filter(p -> p.toString().endsWith(".txt")).toList()) {
+                    for (Path f : files.filter(p -> p.toString().endsWith(".txt") && !p.getFileName().toString().equals(ORIGIN)).toList()) {
                         RoadJob j = RoadJob.read(Files.readString(f, StandardCharsets.UTF_8));
+                        if (j.dock == null) continue;
                         known(j);
                         if (j.running && j.phase != RoadJob.Phase.DONE && job == null) {
                             job = j;
@@ -177,11 +192,16 @@ public final class RoadModule extends EcoModule {
      * on). How many entities went now.
      */
     public int clearSigns(String dock) {
-        RoadJob j = job != null && job.dock.equals(dock) ? job : saved(dock);
+        boolean running = job != null && job.dock.equals(dock);
+        RoadJob j = running && !job.tail ? job : saved(dock), t = running && job.tail ? job : savedTail(dock);
         if (j != null) {
             j.signs++;
-            known(j);
             write(j);
+            if (t != null) {   // its patch keeps the same set of signs
+                t.signs = j.signs;
+                write(t);
+            }
+            known(j);
         } else {
             sets.merge(dock, 1, Integer::sum);
         }
@@ -200,10 +220,93 @@ public final class RoadModule extends EcoModule {
         settings = new Settings(material(eco.getConfig().getString("roads.surface"), Material.GRAY_CONCRETE),
                 material(eco.getConfig().getString("roads.center-line"), Material.YELLOW_CONCRETE),
                 material(eco.getConfig().getString("roads.kerb"), Material.SMOOTH_STONE),
+                material(eco.getConfig().getString("roads.edge-line"), Material.SMOOTH_QUARTZ),
                 Math.clamp(eco.getConfig().getDouble("roads.speed-bonus"), 1, 2), Math.max(8, eco.getConfig().getInt("roads.light-every")),
                 Math.max(100, eco.getConfig().getInt("roads.marker-every")), Math.clamp(eco.getConfig().getInt("roads.corridor"), 2, 24),
                 Math.clamp(eco.getConfig().getInt("roads.pregen-radius"), 0, 6), Math.clamp(eco.getConfig().getInt("roads.build-per-tick"), 1, 20),
                 Math.clamp(eco.getConfig().getInt("roads.concurrent"), 1, 16));
+        paved = settings.style().paved();
+        origin = readOrigin();
+    }
+
+    // ------------------------------------------------------------------------------------------
+    // The reference point (/관리자 국도 기준점)
+    // ------------------------------------------------------------------------------------------
+
+    static final String ORIGIN = "origin.txt";
+
+    private RoadOrigin readOrigin() {
+        Path f = folder().resolve(ORIGIN);
+        try {
+            return Files.exists(f) ? RoadOrigin.read(Files.readString(f, StandardCharsets.UTF_8)) : null;
+        } catch (IOException e) {
+            eco.getLogger().warning("[국도] 기준점을 읽지 못함: " + e);
+            return null;
+        }
+    }
+
+    /** The network's reference point, or null (none set: the build world's spawn). */
+    public RoadOrigin origin() {
+        return origin;
+    }
+
+    /** Sets (or with null clears) the reference point and saves it. */
+    public void origin(RoadOrigin o) {
+        origin = o;
+        Path f = folder().resolve(ORIGIN);
+        try {
+            if (o == null) Files.deleteIfExists(f);
+            else {
+                Files.createDirectories(folder());
+                Files.writeString(f, o.write(), StandardCharsets.UTF_8);
+            }
+        } catch (IOException e) {
+            eco.getLogger().warning("[국도] 기준점 저장 실패: " + e);
+        }
+    }
+
+    /** The build world (or this one): where measuring falls back to its spawn. */
+    public World buildWorld(World fallback) {
+        return core.worlds() != null && core.worlds().buildWorld() != null ? core.worlds().buildWorld() : fallback;
+    }
+
+    /**
+     * Where roads start and docks are measured from: the reference point when set (and its world exists), else the build
+     * world's spawn ({@link RoadOrigin#pick}).
+     */
+    public RoadOrigin.Use from(World fallback) {
+        World bw = buildWorld(fallback);
+        Location sp = bw.getSpawnLocation();
+        return RoadOrigin.pick(origin, n -> Bukkit.getWorld(n) != null, bw.getName(), sp.getX(), sp.getY(), sp.getZ());
+    }
+
+    /** "기준점 (x, y, z)" or "건축월드 스폰 (x, y, z)": which one a message measured from. */
+    public static String fromWords(RoadOrigin.Use u) {
+        return Lang.raw(u.origin() ? "road.from-origin" : "road.from-spawn", "x", Math.round(Math.floor(u.x())), "y", Math.round(Math.floor(u.y())),
+                "z", Math.round(Math.floor(u.z())), "world", u.world());
+    }
+
+    private void originCommand(CommandSender s, String[] a) {
+        String sub = a.length > 1 ? a[1] : "보기";
+        switch (sub) {
+            case "설정" -> {
+                if (!(s instanceof Player p)) {
+                    s.sendMessage(Lang.msg("common.players-only"));
+                    return;
+                }
+                Location l = p.getLocation();
+                origin(new RoadOrigin(l.getWorld().getName(), l.getBlockX() + 0.5, l.getBlockY(), l.getBlockZ() + 0.5));
+                s.sendMessage(Lang.msg("road.origin-set", "world", l.getWorld().getName(), "x", l.getBlockX(), "y", l.getBlockY(), "z", l.getBlockZ()));
+            }
+            case "초기화" -> {
+                origin(null);
+                s.sendMessage(Lang.msg("road.origin-cleared", "from", fromWords(from(s instanceof Player p ? p.getWorld() : Bukkit.getWorlds().getFirst()))));
+            }
+            default -> {
+                RoadOrigin.Use u = from(s instanceof Player p ? p.getWorld() : Bukkit.getWorlds().getFirst());
+                s.sendMessage(Lang.msg(u.origin() ? "road.origin-show" : "road.origin-none", "from", fromWords(u)));
+            }
+        }
     }
 
     private Material material(String id, Material fallback) {
@@ -227,14 +330,23 @@ public final class RoadModule extends EcoModule {
         known(j);
         try {
             Files.createDirectories(folder());
-            Files.writeString(folder().resolve(j.dock + ".txt"), j.write(), StandardCharsets.UTF_8);
+            Files.writeString(folder().resolve(j.file() + ".txt"), j.write(), StandardCharsets.UTF_8);
         } catch (IOException e) {
             eco.getLogger().warning("[국도] 저장 실패: " + e);
         }
     }
 
     private RoadJob saved(String dock) {
-        Path f = folder().resolve(dock + ".txt");
+        return savedFile(dock);
+    }
+
+    /** A dock's patch (/관리자 국도 이어짓기), or null. */
+    private RoadJob savedTail(String dock) {
+        return savedFile(dock + ".tail");
+    }
+
+    private RoadJob savedFile(String file) {
+        Path f = folder().resolve(file + ".txt");
         try {
             return Files.exists(f) ? RoadJob.read(Files.readString(f, StandardCharsets.UTF_8)) : null;
         } catch (IOException | RuntimeException e) {
@@ -260,6 +372,10 @@ public final class RoadModule extends EcoModule {
             s.sendMessage(Lang.msg("road.signs-cleared", "dock", d.name(), "entities", clearSigns(d.name())));
             return;
         }
+        if (a[0].equals("기준점")) {
+            originCommand(s, a);
+            return;
+        }
         if (a[0].equals("중지")) {
             if (job == null || !job.running) {
                 s.sendMessage(Lang.msg("road.none"));
@@ -280,16 +396,23 @@ public final class RoadModule extends EcoModule {
             s.sendMessage(Lang.msg("road.busy", "dock", job.dock));
             return;
         }
-        boolean here = a.length > 1 && a[1].equals("여기서"), fresh = a.length > 1 && a[1].equals("새로");
+        String how = a.length > 1 ? a[1] : "";
+        boolean here = how.equals("여기서"), fresh = how.equals("새로"), atOrigin = how.equals("기준점");
         World w = Bukkit.getWorld(d.world());
         if (w == null) {
             s.sendMessage(Lang.msg("dock.unknown", "name", a[0]));
             return;
         }
-        RoadJob old = here || fresh ? null : saved(d.name());
+        if (how.equals("이어짓기")) {
+            patch(s, d, w);
+            return;
+        }
+        RoadJob old = here || fresh || atOrigin ? null : saved(d.name());
+        String fromText;
         if (old != null && old.phase != RoadJob.Phase.DONE) {
             old.running = true;
             job = old;
+            fromText = Lang.raw("road.from-saved");
         } else {
             Location from;
             if (here) {
@@ -298,8 +421,21 @@ public final class RoadModule extends EcoModule {
                     return;
                 }
                 from = p.getLocation();
+                fromText = Lang.raw("road.from-here", "x", from.getBlockX(), "z", from.getBlockZ());
             } else {
-                from = w.getSpawnLocation();
+                RoadOrigin.Use u = from(w);
+                if (atOrigin && !u.origin()) {
+                    s.sendMessage(Lang.msg("road.origin-missing"));
+                    return;
+                }
+                if (!u.world().equals(w.getName())) {
+                    // the reference point is in another world than the dock: from the dock world's spawn
+                    s.sendMessage(Lang.msg("road.origin-other-world", "world", u.world()));
+                    Location sp = w.getSpawnLocation();
+                    u = new RoadOrigin.Use(w.getName(), sp.getX(), sp.getY(), sp.getZ(), false);
+                }
+                from = new Location(w, u.x(), u.y(), u.z());
+                fromText = fromWords(u);
             }
             RoadJob j = new RoadJob();
             j.dock = d.name();
@@ -313,17 +449,87 @@ public final class RoadModule extends EcoModule {
             j.world = w.getName();
             j.startX = from.getBlockX() + 0.5;
             j.startZ = from.getBlockZ() + 0.5;
-            int[] gate = d.entrance();
-            j.endX = gate[0] + 0.5;
-            j.endZ = gate[2] + 0.5;
+            int[] in = d.entrance(), gate = d.gate();
+            j.endX = in[0] + 0.5;
+            j.endZ = in[2] + 0.5;
+            j.gateX = gate[0] + 0.5;
+            j.gateZ = gate[2] + 0.5;
+            j.gateY = gate[1];
             j.started = now();
             job = j;
         }
         admin = s instanceof Player p ? p.getUniqueId() : null;
         reset();
         save();
+        double[] last = job.last();
         s.sendMessage(Lang.msg("road.started", "dock", job.dock, "phase", phaseName(job.phase),
-                "length", Math.round(Math.hypot(job.endX - job.startX, job.endZ - job.startZ))));
+                "length", Math.round(Math.hypot(last[0] - job.startX, last[1] - job.startZ)), "from", fromText));
+    }
+
+    /**
+     * /관리자 국도 &lt;하역장&gt; 이어짓기: an unfinished road (or patch) goes on; a finished road that stops short of the dock's
+     * gate (built before roads went up to it, or the dock's gate moved) gets the missing piece: a short road of its own
+     * from the old road's end to the gate, built on the old road's level there, without touching the rest.
+     */
+    private void patch(CommandSender s, Dock d, World w) {
+        RoadJob old = saved(d.name()), tail = savedTail(d.name());
+        if (old == null) {
+            s.sendMessage(Lang.msg("road.patch-none", "dock", d.name()));
+            return;
+        }
+        RoadJob go;
+        if (old.phase != RoadJob.Phase.DONE) go = old;
+        else if (tail != null && tail.phase != RoadJob.Phase.DONE) go = tail;
+        else {
+            int[] gate = d.gate();
+            double gx = gate[0] + 0.5, gz = gate[2] + 0.5;
+            RoadJob from = tail != null ? tail : old;
+            double[] end = from.last();
+            if (Math.hypot(end[0] - gx, end[1] - gz) < 1) {
+                s.sendMessage(Lang.msg("road.patch-connected", "dock", d.name()));
+                return;
+            }
+            go = tailJob(from, gate);
+        }
+        go.running = true;
+        job = go;
+        admin = s instanceof Player p ? p.getUniqueId() : null;
+        reset();
+        save();
+        double[] last = job.last();
+        s.sendMessage(Lang.msg(job.tail ? "road.patch-started" : "road.patch-resumed", "dock", job.dock, "phase", phaseName(job.phase),
+                "length", Math.round(Math.hypot(last[0] - job.startX, last[1] - job.startZ)), "x", Math.round(Math.floor(job.startX)),
+                "z", Math.round(Math.floor(job.startZ))));
+    }
+
+    /** How far back along the old road a patch starts (points): room to meet the gate's level at the road's grade. */
+    static final int TAIL_BACK = 16;
+
+    /**
+     * The missing piece of a finished road: from {@link #TAIL_BACK} points before its end, along it to its end, then
+     * straight to the gate (no survey: it is short and in the open). Its first point stands on the old road, so it starts
+     * at the old road's level (read from the world like any ground); the old road's last stretch is built again on the way.
+     */
+    static RoadJob tailJob(RoadJob old, int[] gate) {
+        RoadJob j = new RoadJob();
+        j.tail = true;
+        j.dock = old.dock;
+        j.world = old.world;
+        j.route = old.route;
+        j.signs = old.signs;
+        List<double[]> pts = old.points();
+        double[] end = old.last(), from = pts.isEmpty() ? end : pts.get(Math.max(0, pts.size() - 1 - TAIL_BACK));
+        j.startX = from[0];
+        j.startZ = from[1];
+        j.endX = j.gateX = gate[0] + 0.5;
+        j.endZ = j.gateZ = gate[2] + 0.5;
+        j.gateY = gate[1];
+        j.corners.add(new double[]{j.startX, j.startZ});
+        if (Math.hypot(end[0] - from[0], end[1] - from[1]) > 0.5) j.corners.add(end.clone());
+        j.corners.add(new double[]{j.endX, j.endZ});
+        for (int i = 0; i < j.points().size(); i++) j.ground.add(new RoadJob.Ground());
+        j.phase = RoadJob.Phase.PREPARE;
+        return j;
     }
 
     private String phaseName(RoadJob.Phase p) {
@@ -346,7 +552,7 @@ public final class RoadModule extends EcoModule {
         queue = null;
         waiting.clear();
         requested.clear();
-        levels = null;
+        halves = null;
         parts = null;
         points = null;
         builder = null;
@@ -462,13 +668,7 @@ public final class RoadModule extends EcoModule {
             return;
         }
         List<int[]> corners = RoadPlanner.smooth(f, cells, RoadPlanner.Weights.DEFAULT);
-        job.corners.clear();
-        job.corners.add(new double[]{job.startX, job.startZ});
-        for (int i = 1; i < corners.size() - 1; i++) job.corners.add(new double[]{corners.get(i)[0] * 16 + 8.5, corners.get(i)[1] * 16 + 8.5});
-        job.corners.add(new double[]{job.endX, job.endZ});
-        job.ground.clear();
-        for (int i = 0; i < job.points().size(); i++) job.ground.add(new RoadJob.Ground());
-        job.cursor = 0;
+        job.route(corners);   // start ... the end in front of the gate, then the gate itself
         tell(Lang.msg("road.planned", "dock", job.dock, "length", job.ground.size(), "corners", job.corners.size(),
                 "cost", Math.round(RoadPlanner.cost(f, cells, RoadPlanner.Weights.DEFAULT))));
         next(RoadJob.Phase.PREPARE);
@@ -526,14 +726,18 @@ public final class RoadModule extends EcoModule {
             water[i] = g.water;
             surface[i] = g.surface;
         }
-        levels = RoadProfile.plan(ground, water, surface);
-        parts = RoadProfile.parts(levels, ground, water, BRIDGE_GAP, TUNNEL_COVER, MIN_RUN);
+        if (job.gated() && n > 0) {   // the last point is the gate: the road ends level with the dock's floor
+            ground[n - 1] = job.gateY;
+            water[n - 1] = false;
+        }
+        halves = RoadProfile.planHalves(ground, water, surface);
+        parts = RoadProfile.partsHalves(halves, ground, water, BRIDGE_GAP, TUNNEL_COVER, MIN_RUN);
     }
 
-    static final int BRIDGE_GAP = 3, TUNNEL_COVER = 5, MIN_RUN = 4, HALF = RoadSection.HALF;
+    static final int BRIDGE_GAP = 3, TUNNEL_COVER = 5, MIN_RUN = 4, HALF = RoadSection.HALF, REACH = HALF + RoadSection.WIDEN + 1;
 
     private void build(World w) {
-        if (levels == null) profile();
+        if (halves == null) profile();
         if (queue == null) queue = new ChunkQueue(w, settings.concurrent(), c -> {
             c.addPluginChunkTicket(eco);
             held.put(RoadJob.key(c.getX(), c.getZ()), c);
@@ -583,7 +787,7 @@ public final class RoadModule extends EcoModule {
 
     private boolean ready(World w, double[] p) {
         for (int dx = -1; dx <= 1; dx++) for (int dz = -1; dz <= 1; dz++)
-            if (!w.isChunkLoaded(((int) Math.floor(p[0]) + dx * (HALF + 1)) >> 4, ((int) Math.floor(p[1]) + dz * (HALF + 1)) >> 4)) return false;
+            if (!w.isChunkLoaded(((int) Math.floor(p[0]) + dx * REACH) >> 4, ((int) Math.floor(p[1]) + dz * REACH) >> 4)) return false;
         return true;
     }
 
@@ -594,8 +798,7 @@ public final class RoadModule extends EcoModule {
                 job.route = nextRoute();
                 save();
             }
-            builder = new RoadSection(site(w), new RoadSection.Style(settings.surface(), settings.line(), settings.kerb(),
-                    settings.lightEvery(), settings.markerEvery()), points, levels, parts, job.dock, job.route);
+            builder = new RoadSection(site(w), settings.style(), points, halves, parts, job.dock, job.route);
         }
         int[] land = builder.build(i);
         if (land == null) return true;
@@ -609,6 +812,64 @@ public final class RoadModule extends EcoModule {
     private static boolean natural(Material m) {
         return Tag.LOGS.isTagged(m) || Tag.LEAVES.isTagged(m) || m == Material.VINE || m == Material.BEE_NEST || m == Material.MANGROVE_ROOTS
                 || m == Material.MUSHROOM_STEM || m == Material.BROWN_MUSHROOM_BLOCK || m == Material.RED_MUSHROOM_BLOCK || m == Material.SNOW;
+    }
+
+    private final Map<String, BlockData> blockData = new HashMap<>();
+    private static final BlockFace[] SIDES = {BlockFace.NORTH, BlockFace.EAST, BlockFace.SOUTH, BlockFace.WEST};
+
+    private static boolean joins(BlockData d) {
+        return d instanceof Wall || d instanceof Fence || d instanceof GlassPane;
+    }
+
+    /**
+     * A wall, fence or pane placed without physics stands alone (a post): this joins it to its neighbours (and them to it),
+     * as placing it by hand would, so railings, guardrails and lamp arms run as one.
+     */
+    static void connect(Block b) {
+        if (joins(b.getBlockData())) join(b);
+        for (BlockFace f : SIDES) {
+            Block n = b.getRelative(f);
+            if (joins(n.getBlockData())) join(n);
+        }
+        Block below = b.getRelative(BlockFace.DOWN);
+        if (below.getBlockData() instanceof Wall) join(below);   // a post under an arm stays a post
+    }
+
+    /** Sets a wall's or a fence's sides from what is next to it. */
+    private static void join(Block b) {
+        BlockData d = b.getBlockData();
+        boolean changed = false;
+        boolean[] on = new boolean[4];
+        int count = 0;
+        for (int k = 0; k < 4; k++) {
+            Block n = b.getRelative(SIDES[k]);
+            on[k] = joins(n.getBlockData()) || n.getType().isOccluding();
+            if (on[k]) count++;
+        }
+        if (d instanceof Wall wall) {
+            for (int k = 0; k < 4; k++) {
+                Wall.Height h = on[k] ? Wall.Height.LOW : Wall.Height.NONE;
+                if (wall.getHeight(SIDES[k]) != h) {
+                    wall.setHeight(SIDES[k], h);
+                    changed = true;
+                }
+            }
+            boolean straight = count == 2 && ((on[0] && on[2]) || (on[1] && on[3]));
+            BlockData above = b.getRelative(BlockFace.UP).getBlockData();
+            boolean up = !straight || above instanceof Wall || above.getMaterial() == Material.LANTERN;
+            if (wall.isUp() != up) {
+                wall.setUp(up);
+                changed = true;
+            }
+        } else if (d instanceof MultipleFacing mf) {
+            for (int k = 0; k < 4; k++) {
+                if (mf.getAllowedFaces().contains(SIDES[k]) && mf.hasFace(SIDES[k]) != on[k]) {
+                    mf.setFace(SIDES[k], on[k]);
+                    changed = true;
+                }
+            }
+        }
+        if (changed) b.setBlockData(d, false);
     }
 
     /** The world as {@link RoadSection} sees it. */
@@ -641,6 +902,19 @@ public final class RoadModule extends EcoModule {
                 if (!inside(y)) return;
                 Block b = w.getBlockAt(x, y, z);
                 if (b.getType() != m) b.setType(m, false);
+                RoadModule.connect(b);
+            }
+
+            public void set(int x, int y, int z, String data) {
+                if (!inside(y)) return;
+                Block b = w.getBlockAt(x, y, z);
+                b.setBlockData(blockData.computeIfAbsent(data, Bukkit::createBlockData), false);
+                RoadModule.connect(b);
+            }
+
+            public void roadText(double x, double y, double z, float yaw, String text) {
+                if (!inside((int) Math.floor(y))) return;
+                RoadSigns.paint(w, x, y, z, yaw, text, job.dock, job.signs, view());
             }
 
             public boolean playerLand(int x, int z) {

@@ -49,6 +49,8 @@ roads:
   surface: gray_concrete
   center-line: yellow_concrete
   kerb: smooth_stone
+  # 양쪽 차선 가장자리의 흰 선 (반 칸 오르내림에는 그 블록의 반 블록, 없으면 바닥의 반 블록)
+  edge-line: smooth_quartz
   # 길 바닥(surface, center-line) 위를 달리는 탈것의 최고 속도 배율 (1 = 없음, 최대 2). 서버 상한(코어 vehicles.max-speed)은 넘지 않음
   speed-bonus: 1.2
   # 가로등 간격, 방향 표지판(남은 거리) 간격 (블록, 길을 따라). 출발 뒤·입구 앞 표지판은 따로 하나씩

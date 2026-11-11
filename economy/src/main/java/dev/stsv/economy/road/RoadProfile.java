@@ -9,7 +9,10 @@ package dev.stsv.economy.road;
  *   <li>{@link #fit}: the profile nearest the target that changes at most 1 in 3 per block (gentle grades: cut where the
  *       ground is higher, fill where it is lower, a bridge or a tunnel where that would be deep), the least work over the
  *       whole road.</li>
- *   <li>{@link #levels}: rounded to blocks. A grade of 1 in 3 rounds to a one-block step at most every three blocks.</li>
+ *   <li>{@link #levels}: rounded to blocks. A grade of 1 in 3 rounds to a one-block step at most every three blocks.
+ *       {@link #halves}: rounded to half blocks instead (what is built: {@link #planHalves}), so the road climbs half a
+ *       block (a slab) at a time, never two half steps on neighbouring points: still 1 in 3 at most, and a vehicle glides
+ *       up and down it.</li>
  *   <li>{@link #parts}: a bridge where it crosses water or runs more than {@code bridgeGap} over the ground (a ravine), a
  *       tunnel where the ground stands {@code tunnelCover} or more over it (a steep hill), else road on cut and fill. Short
  *       bridges and tunnels (shorter than minRun) become road (filled, or cut open); water stays a bridge.</li>
@@ -67,10 +70,44 @@ public final class RoadProfile {
     }
 
     /**
-     * The road's surface y at each point: ground[i] is the ground's top block y, water[i] whether the point is over water
-     * (then surface[i] is the water's top block y). The ends stay at their ground (start and the dock's gate).
+     * Half blocks (h: a full surface block at y = h / 2 when h is even, a bottom slab at y = (h + 1) / 2 on a full block
+     * when odd; the surface's top at h / 2 + 1), with the same hysteresis as {@link #levels} by half a block, and
+     * never more than a block (two half steps) in three points: the grade of 1 in 3.
      */
-    public static int[] plan(int[] ground, boolean[] water, int[] surface) {
+    public static int[] halves(double[] p) {
+        int[] out = new int[p.length];
+        if (p.length == 0) return out;
+        out[0] = (int) Math.floor(p[0] * 2 + 0.5);
+        for (int i = 1; i < p.length; i++) {
+            int l = out[i - 1];
+            double q = p[i] * 2;
+            if (q >= l + 1 - 1e-9) l++;
+            else if (q <= l - 1 + 1e-9) l--;
+            // never more than a block (two half steps) in three points: the grade holds whatever the rounding did
+            if (i >= 3 && Math.abs(l - out[i - 3]) > 2) l = out[i - 1];
+            out[i] = l;
+        }
+        return out;
+    }
+
+    /** The full block under a half-block level (the slab's support, or the surface block itself). */
+    public static int block(int half) {
+        return Math.floorDiv(half, 2);
+    }
+
+    /** The full blocks under half-block levels ({@link #parts} and the like work on these). */
+    public static int[] blocks(int[] halves) {
+        int[] out = new int[halves.length];
+        for (int i = 0; i < halves.length; i++) out[i] = block(halves[i]);
+        return out;
+    }
+
+    /** The road's surface at each point in half blocks ({@link #halves}); the ends at their ground. */
+    public static int[] planHalves(int[] ground, boolean[] water, int[] surface) {
+        return halves(fit(target(ground, water, surface), water, MAX_GRADE));
+    }
+
+    private static double[] target(int[] ground, boolean[] water, int[] surface) {
         int n = ground.length;
         double[] target = new double[n];
         for (int i = 0; i < n; i++) target[i] = water[i] ? surface[i] + 2 : ground[i];
@@ -79,7 +116,15 @@ public final class RoadProfile {
             t[0] = target[0];
             t[n - 1] = target[n - 1];
         }
-        return levels(fit(t, water, MAX_GRADE));
+        return t;
+    }
+
+    /**
+     * The road's surface y at each point: ground[i] is the ground's top block y, water[i] whether the point is over water
+     * (then surface[i] is the water's top block y). The ends stay at their ground (start and the dock's gate).
+     */
+    public static int[] plan(int[] ground, boolean[] water, int[] surface) {
+        return levels(fit(target(ground, water, surface), water, MAX_GRADE));
     }
 
     /** What being h above the target costs a point: fill (per block), then bridge; cut, then tunnel (cheaper a block). */
@@ -140,6 +185,13 @@ public final class RoadProfile {
             if (i > 0) k += from[i][k];
         }
         return out;
+    }
+
+    /** What each point is, for a road in half blocks ({@link #halves}): the block its surface is in counts. */
+    public static Part[] partsHalves(int[] halves, int[] ground, boolean[] water, int bridgeGap, int tunnelCover, int minRun) {
+        int[] top = new int[halves.length];
+        for (int i = 0; i < halves.length; i++) top[i] = Math.floorDiv(halves[i] + 1, 2);
+        return parts(top, ground, water, bridgeGap, tunnelCover, minRun);
     }
 
     /** What each point is (see the class doc). */
