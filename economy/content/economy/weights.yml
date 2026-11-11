@@ -1,18 +1,28 @@
-# 적재 무게: 탈것 짐칸에 실을 때 물건 1개의 무게 (README "적재 무게"). 묶음은 개수만큼 (보석 64개 = 0.3 × 64 = 19.2).
+# 적재 무게: 탈것 짐칸에 실을 때 물건 1개의 무게 (README "적재 무게"). 묶음은 개수만큼 (장신구 64개 = 0.3 × 64 = 19.2).
 # 탈것마다 실을 수 있는 무게(payload)는 코어 content/stsv/items/vehicles*.yml 의 cargo.payload (기차는 vehicle.payload).
-# 넣으려는 물건이 payload 를 넘으면 짐칸이 받지 않음 (쉬프트 클릭은 들어가는 만큼만). 셜커 상자·번들은 안에 든 것까지 셈.
+# 넣으려는 물건이 payload 를 넘으면 짐칸이 받지 않음 (쉬프트 클릭은 들어가는 만큼만). 셜커 상자·번들은 안에 든 것까지 셈
+# (상자 자체는 원재료 무게, 안에 든 것은 그것의 무게).
+#
+# 원재료는 아주 가볍게: 진짜 무게는 하역장이 사는 것(완제품 = 직업 기계 레시피 결과 ∩ 상점 판매, README "하역장")만.
+# 그 밖의 모든 것(작물·씨앗·잡은 물고기·광석·원석·보석 원석·원목·나무·돌·흙·바닐라 블록·전리품·바닐라 도구와 갑옷 ...)은
+# 아래 items/categories 에 따로 적지 않았으면 raw (64개 한 묶음 = 1). 그래서 원재료는 짐칸 칸 수가 한계이고
+# (리어카 135칸 = 작물 135묶음 = 135, payload 150 안), 무게는 하역장 장사(완제품)에서만 한계가 됨.
+# 레시피 재료로도 쓰이는 중간재(밀가루·세공한 보석·강철 괴 ...)도 하역장이 사므로 완제품: 진짜 무게.
 #
 # 물건 하나의 무게는 처음 맞는 것:
 #   1. items      물건 하나씩 따로 정한 값
 #   2. categories 분류에 든 물건 (분류마다 weight 하나)
-#   3. rules      이름 규칙 (위에서부터 처음 맞는 것). '*' 는 아무 글자, '|' 는 또는. 네임스페이스가 없으면 이름만 봄
-#   4. block      바닐라 블록 (놓을 수 있는 것) 1개
-#   5. default    그 밖의 모든 것
+#   3. raw        완제품이 아닌 모든 것 (원재료)
+#   4. rules      완제품의 이름 규칙 (위에서부터 처음 맞는 것). '*' 는 아무 글자, '|' 는 또는. 네임스페이스가 없으면 이름만 봄
+#   5. block      완제품 중 바닐라 블록 (놓을 수 있는 것) 1개
+#   6. default    그 밖의 완제품 (요리·식재료·손질한 생선 ...)
+# items/categories 에는 완제품만 적음 (DockTest 가 확인): 원재료에 무게를 주려면 그 테스트도 고칠 것.
 #
 # 의도: 가볍고 비싼 것(보석·장신구·향수)은 작고 빠른 탈것(배달 오토바이 60)으로도 큰돈이 되고,
 # 무겁고 싼 것(술통·장 세트·무쇠 그릇·압축 석재)은 트럭(1톤 1000, 탑차 2500)이어야 남는 장사.
 default: 1
 block: 2
+raw: 0.015625     # 1/64: 원재료 64개 한 묶음 = 1
 
 categories:
   # 장신구: 반지·목걸이·브로치·노리개 (0.1 ~ 0.5)
@@ -21,11 +31,10 @@ categories:
     items: [economy:ruby_ring, economy:gold_ring, economy:diamond_ring, economy:copper_bracelet, economy:amethyst_pendant,
             economy:sapphire_brooch, economy:coral_brooch, economy:pearl_necklace, economy:silk_pearl_necklace,
             economy:ambergris_norigae, economy:lapis_beads]
-  # 보석: 원석·세공한 보석·진주
+  # 보석: 세공한 보석·다듬은 진주 (원석·바닐라 다이아몬드·에메랄드·진주는 원재료라 raw)
   gems:
     weight: 0.2
-    items: [diamond, emerald, economy:ruby, economy:sapphire, economy:cut_emerald, economy:cut_diamond, economy:cut_crystal,
-            economy:polished_pearl, economy:pearl, economy:rough_ruby, economy:rough_sapphire, economy:rough_crystal]
+    items: [economy:ruby, economy:sapphire, economy:cut_emerald, economy:cut_diamond, economy:cut_crystal, economy:polished_pearl]
   # 작은 병: 향수·단약
   perfume:
     weight: 0.5
@@ -63,16 +72,11 @@ categories:
   heavy:
     weight: 8
     items: [economy:gamasot, economy:iron_brazier, economy:ornate_armor, economy:stone_lantern]
-  # 큰 물고기 (3)
-  big_fish:
-    weight: 3
-    items: [economy:marlin, economy:sailfish, economy:whale_shark, economy:sunfish, economy:yellowfin_tuna, economy:bluefin_tuna,
-            economy:giant_squid, economy:greenland_shark, economy:sturgeon, economy:arapaima, economy:taimen, economy:king_crab]
   # 상차림: 한 상 가득 (3)
   feasts:
     weight: 3
     items: [economy:hanjeongsik, economy:seafood_feast]
-  # 그 밖의 요리·식재료·손질한 생선은 default (1)
+  # 그 밖의 요리·식재료·손질한 생선은 default (1). 잡은 물고기(큰 물고기 포함)는 원재료라 raw
 
 items:
   economy:jeweled_crown: 0.5      # 보석 왕관
@@ -90,13 +94,6 @@ items:
   economy:compressed_stone: 2     # 압축 석재 (블록만 한 덩어리)
   economy:compressed_dirt: 2      # 압축 흙
 
-rules:
-  - { match: "*_nugget", weight: 0.1 }
-  - { match: "*_ingot|netherite_scrap", weight: 1 }
-  - { match: "redstone|lapis_lazuli|quartz|glowstone_dust|*_dye|string|feather|paper", weight: 0.2 }
-  - { match: "*_sword|*_pickaxe|*_axe|*_shovel|*_hoe|bow|crossbow|trident|fishing_rod|shears|mace", weight: 3 }
-  - { match: "*_helmet|*_boots", weight: 4 }
-  - { match: "*_leggings", weight: 6 }
-  - { match: "*_chestplate|elytra", weight: 8 }
-  - { match: "*_log|*_wood|*_stem|*_hyphae", weight: 2 }
-  - { match: "*shulker_box", weight: 2 }   # 안에 든 것은 따로 더함
+# 완제품의 이름 규칙: 지금 완제품은 모두 위 분류·물건이나 default 로 정해져 있어 비어 있음.
+# 쓰는 법: - { match: "*_ingot|netherite_scrap", weight: 1 }  (완제품이 아니면 맞아도 raw)
+rules: []

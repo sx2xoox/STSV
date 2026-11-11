@@ -74,7 +74,7 @@ class DockTest {
         List<String> problems = new ArrayList<>();
         WeightTable w = WeightTable.parse(yaml("weights.yml"), problems);
         assertTrue(problems.isEmpty(), String.join("\n", problems));
-        return w;
+        return w.withGoods(goods().finished());   // as DockModule.load
     }
 
     // ------------------------------------------------------------------------------------------
@@ -180,23 +180,102 @@ class DockTest {
             if (id.startsWith("economy:")) assertTrue(ours.contains(id), "weights.yml: " + id);
             else assertNotNull(Material.matchMaterial(id), "weights.yml: " + id);
         }
-        for (String id : goods().finished()) assertTrue(w.weight(id, DockTest::block) > 0, id);
-        // the brief's examples
+        DockGoods g = goods();
+        for (String id : g.finished()) {
+            assertTrue(w.weight(id, DockTest::block) > 0, id);
+            assertFalse(w.isRaw(id), "a finished good has a real weight: " + id);
+        }
+        // only finished goods are listed: anything else weighs raw (weights.yml "items/categories 에는 완제품만")
+        for (String id : w.items().keySet()) assertTrue(g.buys(id), "weights.yml lists " + id + ", which no dock buys: it is raw");
+        // the brief's examples: finished goods
         assertEquals(0.3, w.weight("economy:ruby_ring", DockTest::block), 1e-9, "jewelry");
-        assertEquals(0.2, w.weight("economy:ruby", DockTest::block), 1e-9, "gems");
+        assertEquals(0.2, w.weight("economy:ruby", DockTest::block), 1e-9, "gems (cut, made by a machine)");
+        assertEquals(0.2, w.weight("economy:cut_diamond", DockTest::block), 1e-9, "an intermediate the dock buys keeps its weight");
+        assertEquals(1, w.weight("economy:flour", DockTest::block), 1e-9, "flour: a recipe input, but the dock buys it");
         assertEquals(0.5, w.weight("economy:jeweled_crown", DockTest::block), 1e-9);
         assertEquals(1, w.weight("economy:kimchi", DockTest::block), 1e-9, "dishes: the default");
         assertEquals(1.5, w.weight("economy:soju", DockTest::block), 1e-9, "bottled");
         assertEquals(5, w.weight("economy:oak_barrel", DockTest::block), 1e-9, "barrels");
-        assertEquals(1, w.weight("minecraft:iron_ingot", DockTest::block), 1e-9, "ingots");
-        assertEquals(3, w.weight("minecraft:iron_pickaxe", DockTest::block), 1e-9, "tools");
-        assertEquals(8, w.weight("minecraft:diamond_chestplate", DockTest::block), 1e-9, "armor");
-        assertEquals(2, w.weight("minecraft:stone", DockTest::block), 1e-9, "blocks");
-        assertEquals(2, w.weight("minecraft:oak_log", DockTest::block), 1e-9);
-        assertEquals(1, w.weight("minecraft:bread", DockTest::block), 1e-9, "the default");
-        assertEquals(0.2, w.weight("minecraft:diamond", DockTest::block), 1e-9);
+        assertEquals(8, w.weight("economy:gamasot", DockTest::block), 1e-9, "heavy");
+        assertEquals(1, w.weight("economy:steel_ingot", DockTest::block), 1e-9, "metal");
         assertEquals("jewelry", w.category("economy:ruby_ring"));
-        assertNull(w.category("minecraft:bread"));
+        assertNull(w.category("economy:kimchi"));
+        // raw: everything a dock does not buy, a stack of 64 = 1
+        assertEquals(1.0 / 64, w.raw(), 1e-12);
+        for (String id : List.of("minecraft:wheat", "minecraft:wheat_seeds", "economy:tomato", "economy:tomato_seeds", "minecraft:potato",
+                "minecraft:cod", "economy:mackerel", "economy:marlin", "economy:bluefin_tuna", "minecraft:iron_ore", "minecraft:raw_iron",
+                "minecraft:iron_ingot", "minecraft:diamond", "minecraft:emerald", "economy:rough_ruby", "economy:pearl", "minecraft:oak_log",
+                "minecraft:oak_planks", "minecraft:stone", "minecraft:cobblestone", "minecraft:dirt", "minecraft:bone", "minecraft:string",
+                "minecraft:iron_pickaxe", "minecraft:diamond_chestplate", "minecraft:bread", "minecraft:shulker_box")) {
+            assertFalse(g.buys(id), id);
+            assertTrue(w.isRaw(id), id);
+            assertEquals(1.0 / 64, w.weight(id, DockTest::block), 1e-12, id);
+            assertNull(w.category(id), id);
+        }
+        assertEquals(1, 64 * w.weight("minecraft:wheat", DockTest::block), 1e-9, "a stack of wheat weighs 1");
+    }
+
+    /** Every vehicle with a bed in the core's content: id -> {payload, slots} (a train: all its trailers' slots). */
+    static Map<String, double[]> vehicles() {
+        Map<String, double[]> out = new java.util.LinkedHashMap<>();
+        Path items = PACK.getParent().getParent().getParent().resolve("content/stsv/items");
+        for (String file : List.of("vehicles.yml", "vehicles_road.yml", "vehicles_farm.yml", "vehicles_misc.yml")) {
+            YamlConfiguration y = YamlConfiguration.loadConfiguration(items.resolve(file).toFile());
+            for (String id : y.getKeys(false)) {
+                var v = y.getConfigurationSection(id + ".vehicle");
+                var jige = y.getConfigurationSection(id + ".jige");
+                if (jige != null) {
+                    out.put(id, new double[]{jige.getDouble("payload"), jige.getInt("slots")});
+                    continue;
+                }
+                if (v == null) continue;
+                int slots = v.getInt("cargo.slots");
+                for (Map<?, ?> t : v.getMapList("train.trailers"))
+                    if (t.get("cargo") instanceof Map<?, ?> c && c.get("slots") instanceof Number n) slots += n.intValue();
+                if (slots == 0) continue;
+                double payload = v.contains("cargo.payload") ? v.getDouble("cargo.payload") : v.getDouble("payload");
+                assertTrue(payload > 0, id + ": payload");
+                out.put(id, new double[]{payload, slots});
+            }
+        }
+        return out;
+    }
+
+    /** How many stacks of 64 of this item a bed of this payload and these slots takes. */
+    static double stacks(String id, double[] bed, WeightTable w) {
+        return Math.min(bed[1], Math.floor(bed[0] / (64 * w.weight(id, DockTest::block)) + 1e-9));
+    }
+
+    @Test
+    void rawHarvestsFillTheSlotsNotThePayload() {
+        WeightTable w = weights();
+        Map<String, double[]> all = vehicles();
+        double[] cart = all.get("hand_cart"), tiller = all.get("power_tiller"), truck = all.get("light_truck");
+        assertEquals(150, cart[0], 1e-9);
+        assertEquals(135, cart[1], 1e-9);
+        assertEquals(500, tiller[0], 1e-9);
+        assertEquals(360, tiller[1], 1e-9);
+        assertEquals(1000, truck[0], 1e-9);
+        assertEquals(450, truck[1], 1e-9);
+        for (String crop : List.of("minecraft:wheat", "minecraft:potato", "economy:tomato", "minecraft:cod", "minecraft:oak_log", "minecraft:cobblestone")) {
+            // the hand cart full of 64-stacks: every slot used, weight to spare
+            assertEquals(135, stacks(crop, cart, w), crop + ": a cart takes a full stack in each of its 135 slots");
+            assertTrue(135 * 64 * w.weight(crop, DockTest::block) <= 150, crop);
+            assertEquals(360, stacks(crop, tiller, w), crop + " on a tiller");
+            assertEquals(450, stacks(crop, truck, w), crop + " on a truck");
+        }
+        // every vehicle is slot-limited for raw hauls, but the two smallest (짐자전거 20, 지게 30: one stack per 1)
+        for (Map.Entry<String, double[]> e : all.entrySet()) {
+            double[] bed = e.getValue();
+            boolean small = e.getKey().equals("cargo_bicycle") || e.getKey().equals("jige");
+            assertEquals(!small, stacks("minecraft:wheat", bed, w) == bed[1], e.getKey() + " " + bed[0] + " / " + bed[1]);
+        }
+        assertEquals(30, stacks("minecraft:wheat", all.get("jige"), w), "a 지게: 30 stacks of 54 slots");
+        assertEquals(20, stacks("minecraft:wheat", all.get("cargo_bicycle"), w));
+        // before: wheat weighed 2 (a block) and the cart took 75 of it; now 8,640
+        assertEquals(135 * 64, stacks("minecraft:wheat", cart, w) * 64, 1e-9);
+        // a shulker box counts what it holds at its own weight (DockModule.weigh): 27 stacks of wheat + the box itself
+        assertEquals(27 + 1.0 / 64, w.weight("minecraft:shulker_box", DockTest::block) + 27 * 64 * w.weight("minecraft:wheat", DockTest::block), 1e-9);
     }
 
     record Haul(String id, int count, long value, double weight) {}
@@ -248,8 +327,15 @@ class DockTest {
         y.set("items.minecraft:gold_ingot", 0.9);
         y.set("categories.gems.weight", 0.2);
         y.set("categories.gems.items", List.of("diamond", "economy:ruby"));
-        WeightTable w = WeightTable.parse(y, problems);
+        WeightTable parsed = WeightTable.parse(y, problems);
         assertTrue(problems.isEmpty(), problems.toString());
+        assertEquals(WeightTable.RAW, parsed.weight("iron_ingot", id -> false), 1e-12, "no goods given: raw");
+        assertEquals(0.2, parsed.weight("diamond", id -> false), 1e-9, "its own entry over raw");
+        // as if these were finished goods (rules, block and default apply to finished goods only)
+        WeightTable w = parsed.withGoods(Set.of("iron_ingot", "minecraft:netherite_scrap", "minecraft:gold_ingot", "economy:gold_ring",
+                "minecraft:diamond", "minecraft:stone", "economy:tofu"));
+        assertEquals(WeightTable.RAW, w.weight("minecraft:wheat", id -> true), 1e-12, "not a good: raw, never the block weight");
+        assertEquals(WeightTable.RAW, w.weight("minecraft:copper_ingot", id -> false), 1e-12, "a rule matches, but not a good: raw");
         assertEquals(1.5, w.weight("iron_ingot", id -> false), 1e-9);
         assertEquals(1.5, w.weight("minecraft:netherite_scrap", id -> false), 1e-9);
         assertEquals(0.9, w.weight("minecraft:gold_ingot", id -> false), 1e-9, "its own line wins");
@@ -257,6 +343,13 @@ class DockTest {
         assertEquals(0.2, w.weight("minecraft:diamond", id -> true), 1e-9, "a category over the block weight");
         assertEquals(2, w.weight("minecraft:stone", id -> true), 1e-9);
         assertEquals(1, w.weight("economy:tofu", id -> true), 1e-9, "custom items are never 'blocks'");
+        y.set("raw", 0.02);
+        assertEquals(0.02, WeightTable.parse(y, problems).weight("minecraft:wheat", id -> true), 1e-12, "raw as weights.yml says");
+        y.set("raw", 0);
+        WeightTable.parse(y, problems);
+        assertFalse(problems.isEmpty(), "raw must be over 0");
+        problems.clear();
+        y.set("raw", null);
         y.set("categories.more.weight", 1);
         y.set("categories.more.items", List.of("diamond"));
         WeightTable.parse(y, problems);

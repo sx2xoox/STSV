@@ -54,7 +54,8 @@ import java.util.UUID;
  *
  * <ul>
  *   <li><b>Weights</b>: weights.yml ({@link WeightTable}) gives the core a weight for every stack (shulker boxes and bundles
- *       with what is in them): vehicles and the 지게 take no more than their payload.</li>
+ *       with what is in them): vehicles and the 지게 take no more than their payload. Finished goods ({@link DockGoods})
+ *       weigh what weights.yml says, everything else raw (a stack of 64 = 1): slots limit raw hauls, weight the dock trade.</li>
  *   <li><b>Docks</b>: built by command ({@link DockLayout}, {@link DockBuilder}), kept in the database ({@link DockStore}),
  *       their ground claimed as the server's land. At a dock, sneak + right-click on a vehicle's bed whose vehicle (any unit
  *       of a train, a boat at the pier) stands in the unloading zone, or on the 하역 창구, or sneak + right-click with an empty
@@ -127,11 +128,12 @@ public final class DockModule extends EcoModule {
         rules = new Rules(eco.getConfig().getDouble("docks.min-distance"), eco.getConfig().getDouble("docks.price-ratio"),
                 eco.getConfig().getInt("docks.build-per-tick"), Math.max(16, eco.getConfig().getInt("docks.scout-step")),
                 eco.getConfig().getInt("docks.scout-concurrent"));
+        goods = DockGoods.of(eco.machines().specs(), eco.shop().catalog(), rules.ratio());
         List<String> problems = new ArrayList<>();
-        weights = WeightTable.parse(eco.data("weights.yml"), problems);
+        // only what the dock buys has a real weight; everything else weighs weights.yml raw (README "적재 무게")
+        weights = WeightTable.parse(eco.data("weights.yml"), problems).withGoods(goods.finished());
         problems.forEach(p -> eco.getLogger().warning("[weights.yml] " + p));
         unitWeight.clear();
-        goods = DockGoods.of(eco.machines().specs(), eco.shop().catalog(), rules.ratio());
     }
 
     private static String key(String name) {

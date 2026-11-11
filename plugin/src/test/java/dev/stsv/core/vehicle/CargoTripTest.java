@@ -146,6 +146,15 @@ class CargoTripTest {
         assertTrue(CargoWeights.fits(0.1 + 0.1, 0.1, 0.3));
         assertEquals("49.2", CargoWeights.format(used));
         assertEquals("60", CargoWeights.format(60));
+        // raw materials (economy weights.yml raw = 1/64): a hand cart (150) full of 135 stacks still has room
+        double crop = 1.0 / 64;
+        Stack[] cart = new Stack[135];
+        java.util.Arrays.fill(cart, new Stack("wheat", 64));
+        double full = CargoWeights.total(cart, s -> s.n() * crop);
+        assertEquals(135, full, 1e-9);
+        assertEquals(64, CargoWeights.fitting(full - 1, crop, 64, 150), "the last stack goes in whole");
+        assertEquals("135", CargoWeights.format(full));
+        assertEquals("1.3", CargoWeights.format(83 * crop));
     }
 
     @Test
