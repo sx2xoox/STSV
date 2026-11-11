@@ -71,6 +71,19 @@ public final class RoadSection {
          */
         void roadSign(double x, double y, double z, float yaw, String dock, double km, int route, RoadSign.Kind kind);
 
+        /** Another road already built at a column ({@link RoadNetwork}), or null: what this road keeps clear of. */
+        default RoadNetwork.Spot road(int x, int z) {
+            return null;
+        }
+
+        /** What is at a block, or null when the site cannot tell (then nothing is spared for being a light). */
+        default Material get(int x, int y, int z) {
+            return null;
+        }
+
+        /** A junction's direction sign (both roads' docks): as {@link #roadSign}, its words given. */
+        default void junctionSign(double x, double y, double z, float yaw, RoadSign.Words words) {}
+
         /** Words painted on the road (a text display lying on it, read by the traffic coming from the start: yaw as a sign's). */
         default void roadText(double x, double y, double z, float yaw, String text) {}
     }
@@ -112,7 +125,17 @@ public final class RoadSection {
     /** The words painted before the gate. */
     public static final String GATE_WORDS = "하역장 입구";
 
-    private final Site site;
+    private final Site site, world;
+    /** the old road's surface where this one's middle runs over it (half blocks) or MIN_VALUE; where it goes over it */
+    private int[] cross;
+    private boolean[] over;
+    /** how many points to the nearest level crossing (a junction), MAX_VALUE: none */
+    private int[] toJunction;
+    /** the road it branches off at its start: its dock and how far that dock is from the junction (blocks) */
+    private String branchOf;
+    private double branchLeft;
+    /** set while a junction paves an old road's kerb or shoulder (the only time it is touched) */
+    private boolean paving;
     private final Style style;
     private final List<double[]> points;
     private final int[] halves;
@@ -123,7 +146,8 @@ public final class RoadSection {
 
     /** halves: the road's height at each point in half blocks ({@link RoadProfile#halves}). */
     public RoadSection(Site site, Style style, List<double[]> points, int[] halves, RoadProfile.Part[] parts, String dock, int route) {
-        this.site = site;
+        this.world = site;
+        this.site = guard(site);
         this.style = style;
         this.points = points;
         this.halves = halves;
@@ -135,6 +159,112 @@ public final class RoadSection {
 
     public Style style() {
         return style;
+    }
+
+    /**
+     * The other roads this one meets ({@link RoadNetwork#crossings}, {@link RoadProfile#planNetwork}): cross[i] the old
+     * road's surface where this one's middle is on it, over[i] where it goes over it. Level crossings become junctions
+     * (no centre line or kerbs across the old lanes, wider corners, a crosswalk on this road either side).
+     */
+    public RoadSection network(int[] cross, boolean[] over) {
+        this.cross = cross;
+        this.over = over;
+        int n = points.size();
+        toJunction = new int[n];
+        java.util.Arrays.fill(toJunction, Integer.MAX_VALUE);
+        for (int i = 0; i < n; i++) {
+            if (cross[i] == Integer.MIN_VALUE || over[i]) continue;
+            for (int k = Math.max(0, i - 12); k <= Math.min(n - 1, i + 12); k++) toJunction[k] = Math.min(toJunction[k], Math.abs(k - i));
+        }
+        return this;
+    }
+
+    /** It starts on another road (a branch): its junction sign names both docks. */
+    public RoadSection branch(String dock, double left) {
+        this.branchOf = dock;
+        this.branchLeft = left;
+        return this;
+    }
+
+    private RoadNetwork.Spot old(int x, int z) {
+        return world.road(x, z);
+    }
+
+    /** Whether a level crossing is this close (points). */
+    private int junction(int i) {
+        return toJunction == null ? Integer.MAX_VALUE : toJunction[i];
+    }
+
+    /**
+     * The site as this road may touch it: never an old road's lanes or kerbs from under its fill to over its lights (but
+     * for a junction's paving, level with them), never an old road's light on its shoulder.
+     */
+    private Site guard(Site s) {
+        return new Site() {
+            boolean allowed(int x, int y, int z) {
+                RoadNetwork.Spot o = s.road(x, z);
+                if (o == null) return true;
+                int oy = o.y();
+                if (o.paved() && y >= oy - 8 && y <= oy + 6) return paving && !o.lane() || (paving && y > oy);
+                if (!o.paved() && y > oy && y <= oy + 6) {
+                    Material m = s.get(x, y, z);
+                    return m != Material.STONE_BRICK_WALL && m != Material.LANTERN;   // its street lights stay
+                }
+                return true;
+            }
+
+            public boolean inside(int y) {
+                return s.inside(y);
+            }
+
+            public boolean air(int x, int y, int z) {
+                return s.air(x, y, z);
+            }
+
+            public boolean liquid(int x, int y, int z) {
+                return s.liquid(x, y, z);
+            }
+
+            public boolean natural(int x, int y, int z) {
+                return s.natural(x, y, z);
+            }
+
+            public boolean fillable(int x, int y, int z) {
+                return s.fillable(x, y, z) && allowed(x, y, z);
+            }
+
+            public void set(int x, int y, int z, Material m) {
+                if (allowed(x, y, z)) s.set(x, y, z, m);
+            }
+
+            public void set(int x, int y, int z, String data) {
+                if (allowed(x, y, z)) s.set(x, y, z, data);
+            }
+
+            public boolean playerLand(int x, int z) {
+                return s.playerLand(x, z);
+            }
+
+            public void roadSign(double x, double y, double z, float yaw, String dock, double km, int route, RoadSign.Kind kind) {
+                s.roadSign(x, y, z, yaw, dock, km, route, kind);
+            }
+
+            public void junctionSign(double x, double y, double z, float yaw, RoadSign.Words words) {
+                s.junctionSign(x, y, z, yaw, words);
+            }
+
+            public void roadText(double x, double y, double z, float yaw, String text) {
+                s.roadText(x, y, z, yaw, text);
+            }
+
+            public RoadNetwork.Spot road(int x, int z) {
+                return s.road(x, z);
+            }
+
+            public Material get(int x, int y, int z) {
+                return s.get(x, y, z);
+            }
+        };
     }
 
     // ------------------------------------------------------------------------------------------
@@ -282,7 +412,9 @@ public final class RoadSection {
         double rx = -hz, rz = hx;   // the right hand
         int h = halves[i];
         RoadProfile.Part part = parts[i];
-        int e = widen(i), reach = HALF + e;
+        int dj = junction(i);
+        // wider at the dock's gate, and round a junction's corners
+        int e = Math.max(widen(i), dj <= 2 ? WIDEN : dj <= 5 ? 1 : 0), reach = HALF + e;
         List<Col> cols = new ArrayList<>();
         int px = (int) Math.floor(p[0]), pz = (int) Math.floor(p[1]);
         for (int bx = px - reach - 1; bx <= px + reach + 1; bx++) {
@@ -301,13 +433,27 @@ public final class RoadSection {
         }
         boolean dash = (i / 4) % 2 == 0;
         int d = points.size() - 1 - i;
-        boolean cross = e > 0 && d >= CROSS_FROM && d <= CROSS_TO;
+        boolean onOld = cross != null && cross[i] != Integer.MIN_VALUE && !over[i];
+        // crosswalks: before the gate, and on this road either side of a junction
+        boolean cross = (widen(i) > 0 && d >= CROSS_FROM && d <= CROSS_TO) || (!onOld && dj >= 3 && dj <= 5);
+        if (dj <= 3) dash = false;   // the centre line stops short of a junction
         // a tunnel's ends: a portal (a stone brick face round the opening)
         boolean portal = part == RoadProfile.Part.TUNNEL && (i == 0 || i == points.size() - 1 || parts[i - 1] != part || parts[i + 1] != part);
         boolean half = (h & 1) == 1;
         for (Col c : cols) {
             double ao = Math.abs(c.lat()) - e;   // as if the road were its usual width: the extra goes to the lanes
             double lane = Math.abs(c.lat());
+            RoadNetwork.Spot o = old(c.x(), c.z());
+            boolean overIt = over != null && over[i];
+            if (o != null && o.paved() && !overIt) {
+                // another road here, level with this one (a junction) or this road's shoulder over it: its lanes stay as
+                // they are; its kerbs and shoulders under this road's lanes and kerbs are paved over, level, as one surface
+                if (o.lane() || ao > 3.5 || Math.abs(o.half() - h) > 1 || part != RoadProfile.Part.ROAD) continue;   // its kerb
+                paving = true;
+                road(c.x(), c.z(), o.half(), 0, at(style.surface(), (o.half() & 1) == 1), i, c.lat());
+                paving = false;
+                continue;
+            }
             Material top;
             if (ao <= 2.5) {
                 if (cross) top = Math.floorMod(Math.round(c.lat()), 2) == 0 ? style.edge() : style.surface();
@@ -334,6 +480,10 @@ public final class RoadSection {
         }
         RoadSign.Kind sign = signs.get(i);
         if (sign != null) sign(p, rx, rz, h, RoadSign.yaw(-hx, -hz), i, sign);
+        if (branchOf != null && i == junctionSignAt()) {
+            RoadSign.Words w = RoadSign.junction(dock, (points.size() - 1 - i) / 1000.0, branchOf, (branchLeft + i) / 1000.0, route);
+            sign(p, rx, rz, h, RoadSign.yaw(-hx, -hz), i, w);
+        }
         if (d == WORDS_AT && e > 0 && part == RoadProfile.Part.ROAD) site.roadText(p[0], top(h) + 0.01, p[1], RoadSign.yaw(-hx, -hz), GATE_WORDS);
         return null;
     }
@@ -434,7 +584,7 @@ public final class RoadSection {
         if (half) site.set(x, base, z, Material.STONE_BRICKS);
         for (int k = y + 1; k <= y + 4; k++) site.set(x, k, z, Material.AIR);
         if (ao > 2.5) site.set(x, y + 1, z, Material.STONE_BRICK_WALL);   // the railing
-        if (pillar && ao <= 2.5) {
+        if (pillar && ao <= 2.5 && old(x, z) == null) {   // never a pier on another road
             for (int k = 1; k <= 64; k++) {
                 if (!site.fillable(x, base - k, z)) break;
                 site.set(x, base - k, z, Material.STONE_BRICKS);
@@ -474,6 +624,11 @@ public final class RoadSection {
      */
     private void lamp(Col post, List<Col> cols, int side, int e, int h, boolean deck) {
         if (site.playerLand(post.x(), post.z())) return;
+        for (Col c : cols) {   // the post, its arm and lantern: never in or over another road's lanes
+            if (Math.signum(c.lat()) != side || Math.abs(c.lat()) < 1.5 + e || Math.abs(c.lat()) > Math.abs(post.lat()) + 0.01) continue;
+            RoadNetwork.Spot o = old(c.x(), c.z());
+            if (o != null && o.paved()) return;
+        }
         int y = surfaceY(h), base = RoadProfile.block(h);
         if (!deck && site.fillable(post.x(), base, post.z())) site.set(post.x(), base, post.z(), Material.STONE_BRICKS);
         for (int k = deck ? y + 1 : base + 1; k <= y + 6; k++) site.set(post.x(), k, post.z(), Material.STONE_BRICK_WALL);
@@ -490,19 +645,42 @@ public final class RoadSection {
         site.set(end.x(), y + 5, end.z(), "minecraft:lantern[hanging=true]");
     }
 
+    /** Where a branch's junction sign stands: the first plain point a little past the junction, -1: none. */
+    int junctionSignAt() {
+        int from = 0;
+        while (from < points.size() && cross != null && cross[from] != Integer.MIN_VALUE) from++;
+        return plain(parts, from + JUNCTION_SIGN, 1, 40);
+    }
+
+    /** How far past a branch's junction its sign stands (points). */
+    static final int JUNCTION_SIGN = 10;
+
+    private void sign(double[] p, double rx, double rz, int h, float yaw, int i, RoadSign.Words words) {
+        place(p, rx, rz, h, yaw, i, words, null);
+    }
+
+    private void sign(double[] p, double rx, double rz, int h, float yaw, int i, RoadSign.Kind kind) {
+        place(p, rx, rz, h, yaw, i, null, kind);
+    }
+
     /**
      * A direction sign on the right at point i, facing the traffic coming from the start: its posts on the kerb and the
-     * shoulder (a stone brick footing where the shoulder is not solid), none where a post would stand in a player's land.
+     * shoulder (a stone brick footing where the shoulder is not solid), none where a post would stand in a player's land
+     * or another road's lanes; then the site puts the panel (the kind's words, or these words for a junction).
      */
-    private void sign(double[] p, double rx, double rz, int h, float yaw, int i, RoadSign.Kind kind) {
+    private void place(double[] p, double rx, double rz, int h, float yaw, int i, RoadSign.Words words, RoadSign.Kind kind) {
         int[][] posts = new int[2][];
         int level = RoadProfile.block(h);
         for (int k = 0; k < 2; k++) {
             double o = RoadSign.LATERAL + (k == 0 ? -RoadSign.POSTS : RoadSign.POSTS);
             posts[k] = new int[]{(int) Math.floor(p[0] + rx * o), (int) Math.floor(p[1] + rz * o)};
             if (site.playerLand(posts[k][0], posts[k][1])) return;
+            RoadNetwork.Spot s = old(posts[k][0], posts[k][1]);
+            if (s != null && s.paved()) return;   // never in another road's lanes
         }
         for (int[] c : posts) if (site.fillable(c[0], level, c[1]) && !site.liquid(c[0], level, c[1])) site.set(c[0], level, c[1], Material.STONE_BRICKS);
-        site.roadSign(p[0] + rx * RoadSign.LATERAL, level + 1, p[1] + rz * RoadSign.LATERAL, yaw, dock, (points.size() - 1 - i) / 1000.0, route, kind);
+        double x = p[0] + rx * RoadSign.LATERAL, z = p[1] + rz * RoadSign.LATERAL;
+        if (words != null) site.junctionSign(x, level + 1, z, yaw, words);
+        else site.roadSign(x, level + 1, z, yaw, dock, (points.size() - 1 - i) / 1000.0, route, kind);
     }
 }

@@ -27,6 +27,9 @@ import static org.junit.jupiter.api.Assertions.assertTrue;
  *   <li>(e) a forest the road bends through: trees cleared</li>
  *   <li>(f) the dock's gate: the road runs straight in, widens, a crosswalk and "하역장 입구" on it, and joins the dock's
  *       floor at its level</li>
+ *   <li>(g) a junction: another dock's road (built after) branches off it, level, with a crosswalk, wider corners and
+ *       its junction sign; the main road's lanes left as they were</li>
+ *   <li>(h) an overpass: an older road in a cutting crosses under it; the main road goes over it, its piers clear of it</li>
  * </ol>
  */
 class RoadPreviewTest {
@@ -39,6 +42,12 @@ class RoadPreviewTest {
     static final class Land implements RoadSection.Site {
         final Map<Long, Material> put = new HashMap<>();
         final List<Sign> signs = new ArrayList<>();
+        /** words painted on the road: x, y, z, yaw and the words */
+        final List<Object[]> paints = new ArrayList<>();
+
+        public void roadText(double x, double y, double z, float yaw, String text) {
+            paints.add(new Object[]{x, y, z, yaw, text});
+        }
 
         static long key(int x, int y, int z) {
             return ((long) (x + (1 << 20)) << 42) | ((long) (z + (1 << 20)) << 21) | (y + 1024);
@@ -84,7 +93,7 @@ class RoadPreviewTest {
             int h = hash(cx, cz);
             int x = cx * 5 + Math.floorMod(h, 3), z = cz * 5 + Math.floorMod(h >> 4, 3);
             boolean forest = x >= 1312 && z < GATE_Z - 30;
-            boolean meadow = x >= 940 && x < 1050 && Math.abs(z) > 9 && Math.floorMod(h >> 8, 9) == 0;
+            boolean meadow = x >= 978 && x < 1050 && Math.abs(z) > 9 && Math.floorMod(h >> 8, 9) == 0;
             if (!forest && !meadow) return null;
             if (forest && Math.floorMod(h >> 8, 10) >= 7) return null;
             return new int[]{x, z, 4 + Math.floorMod(h >> 12, 3)};
@@ -123,7 +132,7 @@ class RoadPreviewTest {
             return Material.AIR;
         }
 
-        Material get(int x, int y, int z) {
+        public Material get(int x, int y, int z) {
             Material m = put.get(key(x, y, z));
             return m != null ? m : base(x, y, z);
         }
@@ -167,6 +176,16 @@ class RoadPreviewTest {
             signs.add(new Sign(x, y, z, yaw, kind, RoadSign.words(kind, dock, km, route)));
         }
 
+        public void junctionSign(double x, double y, double z, float yaw, RoadSign.Words words) {
+            signs.add(new Sign(x, y, z, yaw, RoadSign.Kind.JUNCTION, words));
+        }
+
+        RoadNetwork net = RoadNetwork.NONE;
+
+        public RoadNetwork.Spot road(int x, int z) {
+            return net.at(x, z);
+        }
+
         /** The ground under a point as RoadModule reads it (DockModule.sampleColumn): ground, water (1/0), the surface. */
         int[] sample(int x, int z) {
             int top = 200;
@@ -204,8 +223,41 @@ class RoadPreviewTest {
         }
     }
 
+    /** (h) the older road in a cutting: across the strip at x 955, down to 6 under the land at 1 in 3. */
+    static final double UNDER_X = 955.5;
+    /** (g) the road that branches off the strip at x 1160 (another dock's, built after it). */
+    static final double BRANCH_X = 1170.5;
+
+    static final RoadSection.Style STYLE = new RoadSection.Style(Material.GRAY_CONCRETE, Material.YELLOW_CONCRETE, Material.SMOOTH_STONE, 40, 1000);
+
+    /** A straight road built over the land among the roads there (as RoadModule: its ground, the crossings, the profile). */
+    static RoadNetwork.Road side(Land land, String dock, List<double[]> pts, int[] fixed, String branchOf) {
+        int n = pts.size();
+        int[] ground = new int[n], surface = new int[n];
+        boolean[] water = new boolean[n];
+        for (int i = 0; i < n; i++) {
+            int[] s = land.sample((int) Math.floor(pts.get(i)[0]), (int) Math.floor(pts.get(i)[1]));
+            ground[i] = s[0];
+            surface[i] = s[2];
+        }
+        int[] cross = land.net.crossings(pts);
+        RoadProfile.Plan plan = fixed != null ? new RoadProfile.Plan(fixed, new boolean[n]) : RoadProfile.planNetwork(ground, water, surface, cross);
+        RoadProfile.Part[] parts = RoadProfile.partsHalves(plan.halves(), ground, water, RoadModule.BRIDGE_GAP, RoadModule.TUNNEL_COVER, RoadModule.MIN_RUN);
+        if (fixed != null) java.util.Arrays.fill(parts, RoadProfile.Part.ROAD);   // in a cutting, open to the sky
+        RoadSection sec = new RoadSection(land, STYLE, pts, plan.halves(), parts, dock, 2).network(cross, plan.over());
+        if (branchOf != null) sec.branch(branchOf, 1234);
+        for (int i = 0; i < n; i++) assertEquals(null, sec.build(i));
+        return new RoadNetwork.Road(dock, pts, plan.halves());
+    }
+
     static Built build() {
         Land land = new Land();
+        // (h) first: an older road in a cutting, 6 down at its middle
+        List<double[]> under = RoadPlanner.densify(List.of(new double[]{UNDER_X, -40.5}, new double[]{UNDER_X, 40.5}), 1);
+        int[] dip = new int[under.size()];
+        for (int i = 0; i < dip.length; i++) dip[i] = 2 * Math.max(58, 64 - Math.min(i, dip.length - 1 - i) / 3);
+        RoadNetwork.Road old = side(land, "남해", under, dip, null);
+        land.net = RoadNetwork.of(List.of(old));
         List<double[]> points = RoadPlanner.densify(CORNERS, 1);
         int n = points.size();
         int[] ground = new int[n], surface = new int[n];
@@ -218,12 +270,17 @@ class RoadPreviewTest {
         }
         ground[n - 1] = PAD_Y;   // BUILD, as RoadModule.profile(): the last point is the gate, level with the dock's floor
         water[n - 1] = false;
-        int[] halves = RoadProfile.planHalves(ground, water, surface);
+        int[] cross = land.net.crossings(points);
+        RoadProfile.Plan plan = RoadProfile.planNetwork(ground, water, surface, cross);
+        int[] halves = plan.halves();
         int[] levels = RoadProfile.blocks(halves);
         RoadProfile.Part[] parts = RoadProfile.partsHalves(halves, ground, water, RoadModule.BRIDGE_GAP, RoadModule.TUNNEL_COVER, RoadModule.MIN_RUN);
-        RoadSection section = new RoadSection(land, new RoadSection.Style(Material.GRAY_CONCRETE, Material.YELLOW_CONCRETE, Material.SMOOTH_STONE,
-                40, 1000), points, halves, parts, "서해", 1);
+        for (int i = 0; i < n; i++) if (plan.over()[i]) parts[i] = RoadProfile.Part.BRIDGE;
+        RoadSection section = new RoadSection(land, STYLE, points, halves, parts, "서해", 1).network(cross, plan.over());
         for (int i = 0; i < n; i++) assertEquals(null, section.build(i));
+        // (g) after: another dock's road branches off it
+        land.net = RoadNetwork.of(List.of(old, new RoadNetwork.Road("서해", points, halves)));
+        side(land, "동해", RoadPlanner.densify(List.of(new double[]{BRANCH_X, 0.5}, new double[]{BRANCH_X, -39.5}), 1), null, "서해");
         return new Built(land, points, halves, levels, parts, ground, section);
     }
 
@@ -248,7 +305,7 @@ class RoadPreviewTest {
         }
         List<double[]> pts = b.points();
         // (a) the direction signs: at the start, the 1 km one, before the gate; street lights
-        assertEquals(List.of(RoadSign.Kind.START, RoadSign.Kind.KM, RoadSign.Kind.ARRIVAL), land.signs.stream().map(Sign::kind).toList());
+        assertEquals(List.of(RoadSign.Kind.START, RoadSign.Kind.KM, RoadSign.Kind.ARRIVAL, RoadSign.Kind.JUNCTION), land.signs.stream().map(Sign::kind).toList());
         Sign start = land.signs.get(0), km = land.signs.get(1), end = land.signs.get(2);
         assertEquals(new RoadSign.Words("서해 하역장 방면", RoadSign.km((pts.size() - 1 - 24) / 1000.0), "국도 1호선", "1"), start.words());
         assertEquals(24.5, start.x(), 1e-9);
@@ -297,6 +354,19 @@ class RoadPreviewTest {
         boolean lit = false;
         for (int x = 1240; x < 1310; x++) lit |= land.get(x, b.top(index(pts, x)) + 5, 0) == Material.SEA_LANTERN;
         assertTrue(lit, "lights in the tunnel's ceiling");
+        // (f) the gate: painted words before it, the road level with the dock's floor at its edge
+        assertTrue(land.paints.stream().anyMatch(q -> RoadSection.GATE_WORDS.equals(q[4]) && Math.abs((double) q[2] - (GATE_Z - RoadSection.WORDS_AT + 0.5)) < 1));
+        assertEquals(PAD_Y, b.top(pts.size() - 1));
+        // (g) the branch: the main road's lanes at the junction untouched by it, its junction sign names both docks
+        Sign j = land.signs.getLast();
+        assertEquals("동해 · 서해 하역장", j.words().big());
+        int jl = b.top(index(pts, BRANCH_X));
+        for (int z = -2; z <= 2; z++) assertTrue(b.section().style().paved().contains(land.get((int) BRANCH_X, jl, z)), "the main road at the junction");
+        // (h) over the old road in its cutting: a bridge, 4 and more clear over the old lanes, no pier on them
+        int ov = index(pts, UNDER_X);
+        assertEquals(RoadProfile.Part.BRIDGE, b.parts()[ov]);
+        for (int y = 59; y <= 62; y++) assertEquals(Material.AIR, land.get((int) UNDER_X, y, 0), "under the overpass at " + y);
+        assertTrue(b.top(ov) >= 58 + RoadNetwork.CLEARANCE);
         // (e) the forest: no tree left over the road
         for (int i = index(pts, 1320); i < pts.size(); i++) {
             double[] p = pts.get(i);
@@ -387,6 +457,12 @@ class RoadPreviewTest {
             }
             s.append("]}");
             first = false;
+        }
+        s.append("],\"paints\":[");
+        for (int i = 0; i < b.land().paints.size(); i++) {
+            Object[] p = b.land().paints.get(i);
+            s.append(i > 0 ? "," : "").append(String.format(Locale.ROOT, "{\"x\":%.4f,\"y\":%.4f,\"z\":%.4f,\"yaw\":%.3f,\"text\":\"%s\",\"scale\":%.2f}",
+                    p[0], p[1], p[2], p[3], p[4], RoadSigns.PAINT));
         }
         s.append("],\"points\":[");
         for (int i = 0; i < b.points().size(); i++) {

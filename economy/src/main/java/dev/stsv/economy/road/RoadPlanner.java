@@ -14,7 +14,9 @@ import java.util.PriorityQueue;
  * <p>A step's cost is its length (1 across, √2 diagonally) plus: a little for every block of height it changes and much
  * more for what goes past the road's grade (1 in 3: the cut, fill or tunnel it will take), the cell's own roughness, and
  * for a cell of water a crossing price plus its depth (bridges are long and dear). A cell of a player's land is never
- * entered, nor cut at a corner (a diagonal step needs both cells beside it free): the road goes round claims.
+ * entered, nor cut at a corner (a diagonal step needs both cells beside it free): the road goes round claims. A step
+ * along an existing road (both cells on one: {@link Field#road}) costs a fifth, one beside it more: a new road follows the
+ * network from the origin and branches off it ({@link RoadNetwork#branch}) instead of running alongside.
  */
 public final class RoadPlanner {
 
@@ -36,11 +38,25 @@ public final class RoadPlanner {
 
         /** A player's land: never entered. */
         boolean blocked(int cx, int cz);
+
+        /** An existing road runs through it (another dock's 국도: {@link RoadNetwork}): following it costs little. */
+        default boolean road(int cx, int cz) {
+            return false;
+        }
+
+        /** Next to such a cell but not on it: running alongside an existing road costs more (merge onto it instead). */
+        default boolean nearRoad(int cx, int cz) {
+            return false;
+        }
     }
 
     /** How much each thing costs per cell step (see the class doc). */
-    public record Weights(double climb, double steep, double rough, double water, double depth) {
-        public static final Weights DEFAULT = new Weights(0.02, 0.6, 0.03, 6, 0.4);
+    public record Weights(double climb, double steep, double rough, double water, double depth, double reuse, double beside) {
+        public static final Weights DEFAULT = new Weights(0.02, 0.6, 0.03, 6, 0.4, 0.2, 0.6);
+
+        public Weights(double climb, double steep, double rough, double water, double depth) {
+            this(climb, steep, rough, water, depth, 1, 0);
+        }
     }
 
     /** The road's grade: one block up or down in this many along. */
@@ -56,6 +72,9 @@ public final class RoadPlanner {
         c += w.rough() * f.rough(bx, bz) * len;
         double water = f.water(bx, bz);
         if (water > 0) c += len * (w.water() + w.depth() * water);
+        // along an existing road: it is there already (nothing is built: the new road branches off it later)
+        if (f.road(ax, az) && f.road(bx, bz)) return c * w.reuse();
+        if (f.nearRoad(bx, bz) && !f.road(bx, bz)) c += w.beside() * len;
         return c;
     }
 

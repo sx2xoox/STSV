@@ -33,6 +33,11 @@ public final class RoadJob {
     }
 
     public String dock, world;
+    /** the road it branches off at its start ({@link RoadNetwork#branch}): that road's dock and how far its gate is from here; null: none */
+    public String branchOf;
+    public double branchKm;
+    /** the road's surface at each point, half blocks ({@link RoadProfile#halves}), once worked out (BUILD): what other roads keep clear of */
+    public int[] halves;
     /** where the route is planned from and to (the end: just in front of the dock's gate, in line with it) */
     public double startX, startZ, endX, endZ;
     /**
@@ -106,7 +111,20 @@ public final class RoadJob {
 
     /** The surveyed corridor as the planner sees it. */
     public RoadPlanner.Field field() {
+        return field(null);
+    }
+
+    /** The surveyed corridor and the roads already there ({@link RoadNetwork}; null: none). */
+    public RoadPlanner.Field field(RoadNetwork net) {
         return new RoadPlanner.Field() {
+            public boolean road(int x, int z) {
+                return net != null && net.cell(x, z);
+            }
+
+            public boolean nearRoad(int x, int z) {
+                return net != null && net.near(x, z);
+            }
+
             public boolean known(int x, int z) {
                 return cells.containsKey(key(x, z));
             }
@@ -161,6 +179,12 @@ public final class RoadJob {
         b.append("signs=").append(signs).append('\n');
         if (gated()) b.append("gate=").append(num(gateX)).append(',').append(gateY).append(',').append(num(gateZ)).append('\n');
         if (tail) b.append("tail=true\n");
+        if (branchOf != null) b.append("branch=").append(branchOf).append(',').append(num(branchKm)).append('\n');
+        if (halves != null) {
+            b.append("halves=");
+            for (int i = 0; i < halves.length; i++) b.append(i > 0 ? "," : "").append(halves[i]);
+            b.append('\n');
+        }
         for (Map.Entry<Long, Cell> e : cells.entrySet()) {
             Cell c = e.getValue();
             b.append("cell=").append(cx(e.getKey())).append(',').append(cz(e.getKey())).append(',').append(num(c.height())).append(',')
@@ -203,6 +227,14 @@ public final class RoadJob {
                     j.gateZ = Double.parseDouble(p[2]);
                 }
                 case "tail" -> j.tail = Boolean.parseBoolean(v);
+                case "branch" -> {
+                    j.branchOf = p[0];
+                    j.branchKm = Double.parseDouble(p[1]);
+                }
+                case "halves" -> {
+                    j.halves = new int[p.length];
+                    for (int i = 0; i < p.length; i++) j.halves[i] = Integer.parseInt(p[i].trim());
+                }
                 case "cell" -> j.cells.put(key(Integer.parseInt(p[0]), Integer.parseInt(p[1])),
                         new Cell(Double.parseDouble(p[2]), Double.parseDouble(p[3]), Double.parseDouble(p[4]), p[5].equals("1")));
                 case "corner" -> j.corners.add(new double[]{Double.parseDouble(p[0]), Double.parseDouble(p[1])});

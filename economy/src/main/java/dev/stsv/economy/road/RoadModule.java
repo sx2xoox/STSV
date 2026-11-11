@@ -78,7 +78,9 @@ public final class RoadModule extends EcoModule {
     private ChunkQueue queue;
     /** PREPARE: points waiting for their chunk; BUILD: the road's heights and parts */
     private final Map<Long, List<Integer>> waiting = new HashMap<>();
-    private int[] halves;
+    private int[] halves, cross;
+    private boolean[] over;
+    private RoadNetwork net;
     private RoadProfile.Part[] parts;
     private List<double[]> points;
     private RoadSection builder;
@@ -553,6 +555,9 @@ public final class RoadModule extends EcoModule {
         waiting.clear();
         requested.clear();
         halves = null;
+        cross = null;
+        over = null;
+        net = null;
         parts = null;
         points = null;
         builder = null;
@@ -656,7 +661,8 @@ public final class RoadModule extends EcoModule {
     }
 
     private void plan() {
-        RoadPlanner.Field f = job.field();
+        RoadNetwork net = network(job);
+        RoadPlanner.Field f = job.field(net);
         int sx = (int) Math.floor(job.startX) >> 4, sz = (int) Math.floor(job.startZ) >> 4;
         int ex = (int) Math.floor(job.endX) >> 4, ez = (int) Math.floor(job.endZ) >> 4;
         List<int[]> cells = RoadPlanner.path(f, sx, sz, ex, ez, RoadPlanner.Weights.DEFAULT, 400_000);
@@ -666,6 +672,17 @@ public final class RoadModule extends EcoModule {
             reset();
             tell(Lang.msg("road.no-route", "dock", job.dock));
             return;
+        }
+        // along the roads already there from the start: the new road begins where the route leaves them (a branch)
+        RoadNetwork.Branch b = net.branch(cells, job.endX, job.endZ, settings.lightEvery());
+        job.branchOf = null;
+        if (b != null) {
+            job.startX = b.x();
+            job.startZ = b.z();
+            job.branchOf = b.dock();
+            job.branchKm = b.left() / 1000.0;
+            cells = cells.subList(b.cell(), cells.size());
+            tell(Lang.msg("road.branch", "dock", job.dock, "other", b.dock(), "x", Math.round(Math.floor(b.x())), "z", Math.round(Math.floor(b.z()))));
         }
         List<int[]> corners = RoadPlanner.smooth(f, cells, RoadPlanner.Weights.DEFAULT);
         job.route(corners);   // start ... the end in front of the gate, then the gate itself
@@ -730,8 +747,57 @@ public final class RoadModule extends EcoModule {
             ground[n - 1] = job.gateY;
             water[n - 1] = false;
         }
-        halves = RoadProfile.planHalves(ground, water, surface);
+        net = network(job);
+        cross = net.crossings(points);
+        RoadProfile.Plan plan = RoadProfile.planNetwork(ground, water, surface, cross);
+        halves = plan.halves();
+        over = plan.over();
         parts = RoadProfile.partsHalves(halves, ground, water, BRIDGE_GAP, TUNNEL_COVER, MIN_RUN);
+        for (int i = 0; i < n; i++) if (over[i]) parts[i] = RoadProfile.Part.BRIDGE;   // over another road
+        job.halves = halves;   // what roads built later keep clear of
+    }
+
+    /** The other roads already built in the job's world (every dock's but its own): {@link RoadNetwork}. */
+    private RoadNetwork network(RoadJob j) {
+        List<RoadNetwork.Road> roads = new ArrayList<>();
+        try {
+            Path dir = folder();
+            if (!Files.isDirectory(dir)) return RoadNetwork.NONE;
+            try (var files = Files.list(dir)) {
+                for (Path f : files.filter(p -> p.toString().endsWith(".txt") && !p.getFileName().toString().equals(ORIGIN)).toList()) {
+                    RoadJob o = RoadJob.read(Files.readString(f, StandardCharsets.UTF_8));
+                    if (o.dock == null || o.dock.equals(j.dock) || !j.world.equals(o.world)) continue;
+                    RoadNetwork.Road r = built(o);
+                    if (r != null) roads.add(r);
+                }
+            }
+        } catch (IOException | RuntimeException e) {
+            eco.getLogger().warning("[국도] 다른 길을 읽지 못함: " + e);
+        }
+        return RoadNetwork.of(roads);
+    }
+
+    /** What of a saved road is built: its points up to where building got, their heights (worked out again for an older road). */
+    static RoadNetwork.Road built(RoadJob o) {
+        if (o.phase != RoadJob.Phase.BUILD && o.phase != RoadJob.Phase.DONE) return null;
+        List<double[]> pts = o.points();
+        int upTo = o.phase == RoadJob.Phase.DONE ? pts.size() : Math.min(o.cursor, pts.size());
+        if (upTo <= 0 || o.ground.size() < pts.size()) return null;
+        int[] h = o.halves;
+        if (h == null || h.length != pts.size()) {   // saved before heights were: as that road was built (whole blocks)
+            int n = pts.size();
+            int[] g = new int[n], sf = new int[n];
+            boolean[] wt = new boolean[n];
+            for (int i = 0; i < n; i++) {
+                g[i] = o.ground.get(i).ground;
+                wt[i] = o.ground.get(i).water;
+                sf[i] = o.ground.get(i).surface;
+            }
+            int[] lv = RoadProfile.plan(g, wt, sf);
+            h = new int[n];
+            for (int i = 0; i < n; i++) h[i] = lv[i] * 2;
+        }
+        return new RoadNetwork.Road(o.dock, pts.subList(0, upTo), java.util.Arrays.copyOf(h, upTo));
     }
 
     static final int BRIDGE_GAP = 3, TUNNEL_COVER = 5, MIN_RUN = 4, HALF = RoadSection.HALF, REACH = HALF + RoadSection.WIDEN + 1;
@@ -798,7 +864,8 @@ public final class RoadModule extends EcoModule {
                 job.route = nextRoute();
                 save();
             }
-            builder = new RoadSection(site(w), settings.style(), points, halves, parts, job.dock, job.route);
+            builder = new RoadSection(site(w), settings.style(), points, halves, parts, job.dock, job.route).network(cross, over);
+            if (job.branchOf != null) builder.branch(job.branchOf, job.branchKm * 1000);
         }
         int[] land = builder.build(i);
         if (land == null) return true;
@@ -924,6 +991,19 @@ public final class RoadModule extends EcoModule {
             public void roadSign(double x, double y, double z, float yaw, String dock, double km, int route, RoadSign.Kind kind) {
                 if (!inside((int) Math.floor(y))) return;
                 RoadSigns.place(w, x, y, z, yaw, RoadSign.words(kind, dock, km, route), dock, job.signs, view());
+            }
+
+            public void junctionSign(double x, double y, double z, float yaw, RoadSign.Words words) {
+                if (!inside((int) Math.floor(y))) return;
+                RoadSigns.place(w, x, y, z, yaw, words, job.dock, job.signs, view());
+            }
+
+            public RoadNetwork.Spot road(int x, int z) {
+                return net == null ? null : net.at(x, z);
+            }
+
+            public Material get(int x, int y, int z) {
+                return inside(y) ? w.getBlockAt(x, y, z).getType() : Material.AIR;
             }
         };
     }

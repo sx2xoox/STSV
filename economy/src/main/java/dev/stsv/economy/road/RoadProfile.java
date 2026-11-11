@@ -142,19 +142,26 @@ public final class RoadProfile {
      * down on a long bridge after it.
      */
     public static double[] fit(double[] t, boolean[] water, double maxStep) {
+        return fit(t, water, maxStep, null, null);
+    }
+
+    /** {@link #fit}, never under lo[i] nor over hi[i] at point i (null: no bound; NaN: none there). */
+    public static double[] fit(double[] t, boolean[] water, double maxStep, double[] lo, double[] hi) {
         int n = t.length;
         if (n == 0) return new double[0];
         double min = Double.POSITIVE_INFINITY, max = Double.NEGATIVE_INFINITY;
-        for (double v : t) {
-            min = Math.min(min, v);
-            max = Math.max(max, v);
+        for (int i = 0; i < n; i++) {
+            min = Math.min(min, t[i]);
+            max = Math.max(max, t[i]);
+            if (lo != null && !Double.isNaN(lo[i])) max = Math.max(max, lo[i]);
+            if (hi != null && !Double.isNaN(hi[i])) min = Math.min(min, hi[i]);
         }
         double base = Math.floor(min) - 1;
         int m = (int) Math.ceil((Math.ceil(max) + 1 - base) / maxStep) + 1;
         double[] cost = new double[m], next = new double[m];
         byte[][] from = new byte[n][m];
         final double END = 1000, MOVE = 0.01, INF = 1e18;
-        for (int k = 0; k < m; k++) cost[k] = END * Math.abs(base + k * maxStep - t[0]);
+        for (int k = 0; k < m; k++) cost[k] = END * Math.abs(base + k * maxStep - t[0]) + (outside(base + k * maxStep, lo, hi, 0) ? INF : 0);
         for (int i = 1; i < n; i++) {
             for (int k = 0; k < m; k++) {
                 double best = cost[k];
@@ -168,7 +175,7 @@ public final class RoadProfile {
                     d = 1;
                 }
                 double h = base + k * maxStep - t[i];
-                double c = water[i] && h < -1e-9 ? INF : cost(h);
+                double c = (water[i] && h < -1e-9) || outside(base + k * maxStep, lo, hi, i) ? INF : cost(h);
                 if (i == n - 1) c += END * Math.abs(h);
                 next[k] = best + c;
                 from[i][k] = d;
@@ -185,6 +192,98 @@ public final class RoadProfile {
             if (i > 0) k += from[i][k];
         }
         return out;
+    }
+
+    private static boolean outside(double v, double[] lo, double[] hi, int i) {
+        return (lo != null && !Double.isNaN(lo[i]) && v < lo[i] - 1e-9) || (hi != null && !Double.isNaN(hi[i]) && v > hi[i] + 1e-9);
+    }
+
+    /**
+     * A road among others ({@link RoadNetwork}): its surface in half blocks, and which points go over an old road.
+     * cross[i]: the old road's surface (half blocks) where this road's middle runs over its lanes, else MIN_VALUE.
+     */
+    public record Plan(int[] halves, boolean[] over) {}
+
+    /** How far (blocks) from an old road's level the free profile may be at a crossing and still meet it level (a junction). */
+    public static final double MEET = 2.0;
+    /** Points either side of a crossing that go over with it (the new road's own width over the old one's). */
+    public static final int OVER_REACH = 7;
+
+    /**
+     * The profile as {@link #planHalves}, meeting each old road it crosses: level with it where the free profile is
+     * within {@link #MEET} of it there (a junction: never cut into or filled over), else at least
+     * {@link RoadNetwork#CLEARANCE} over its surface across it and {@link #OVER_REACH} points either side (an overpass).
+     */
+    public static Plan planNetwork(int[] ground, boolean[] water, int[] surface, int[] cross) {
+        int n = ground.length;
+        double[] t = target(ground, water, surface);
+        double[] free = fit(t, water, MAX_GRADE);
+        double[] lo = new double[n], hi = new double[n];
+        java.util.Arrays.fill(lo, Double.NaN);
+        java.util.Arrays.fill(hi, Double.NaN);
+        boolean[] over = new boolean[n], level = new boolean[n];
+        int i = 0;
+        while (i < n) {
+            if (cross[i] == Integer.MIN_VALUE) {
+                i++;
+                continue;
+            }
+            int j = i;
+            double far = 0;
+            int top = cross[i];
+            while (j + 1 < n && cross[j + 1] != Integer.MIN_VALUE) j++;
+            for (int k = i; k <= j; k++) {
+                far = Math.max(far, Math.abs(free[k] - cross[k] / 2.0));
+                top = Math.max(top, cross[k]);
+            }
+            if (far <= MEET || i == 0) {   // level (the start of a branch is always on its trunk)
+                for (int k = i; k <= j; k++) {
+                    lo[k] = cross[k] / 2.0 - 0.34;
+                    hi[k] = cross[k] / 2.0 + 0.34;
+                    level[k] = true;
+                }
+            } else {
+                double deck = RoadSection.surfaceY(top) + RoadNetwork.CLEARANCE;
+                for (int k = Math.max(1, i - OVER_REACH); k <= Math.min(n - 2, j + OVER_REACH); k++) {
+                    lo[k] = Double.isNaN(lo[k]) ? deck : Math.max(lo[k], deck);
+                    hi[k] = Double.NaN;
+                    over[k] = true;
+                }
+            }
+            i = j + 1;
+        }
+        int[] h = halves(fit(t, water, MAX_GRADE, lo, hi));
+        boolean[] fixed = new boolean[n];
+        for (int k = 0; k < n; k++) {
+            if (level[k] && !over[k]) h[k] = cross[k];
+            if (over[k]) h[k] = Math.max(h[k], (int) Math.ceil(lo[k] * 2));
+            fixed[k] = level[k] || over[k];
+        }
+        relax(h, fixed);
+        return new Plan(h, over);
+    }
+
+    /**
+     * Half levels pulled into the grade round the fixed ones (a junction's, an overpass's): never more than half a block
+     * between neighbours, nor a block in three points; the fixed stay as they are.
+     */
+    static void relax(int[] h, boolean[] fixed) {
+        int n = h.length;
+        for (int round = 0; round < 8; round++) {
+            boolean changed = false;
+            for (int k = 1; k < n; k++) changed |= clamp(h, fixed, k, k - 1, k - 3);
+            for (int k = n - 2; k >= 0; k--) changed |= clamp(h, fixed, k, k + 1, k + 3);
+            if (!changed) return;
+        }
+    }
+
+    private static boolean clamp(int[] h, boolean[] fixed, int k, int near, int far) {
+        if (fixed[k]) return false;
+        int v = Math.clamp(h[k], h[near] - 1, h[near] + 1);
+        if (far >= 0 && far < h.length) v = Math.clamp(v, h[far] - 2, h[far] + 2);
+        if (v == h[k]) return false;
+        h[k] = v;
+        return true;
     }
 
     /** What each point is, for a road in half blocks ({@link #halves}): the block its surface is in counts. */

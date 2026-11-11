@@ -35,7 +35,9 @@ public final class RoadSign {
         /** every roads.marker-every: the distance left */
         KM,
         /** just before the gate: "서해 하역장 도착" */
-        ARRIVAL
+        ARRIVAL,
+        /** a little past where a road branches off another: both docks and how far each is */
+        JUNCTION
     }
 
     /** How far right of the road's middle the sign stands (blocks): its panel spans 2.5 .. 5.5, over the kerb and shoulder. */
@@ -62,8 +64,18 @@ public final class RoadSign {
             case START -> name + " 방면";
             case KM -> name;
             case ARRIVAL -> name + " 도착";
+            case JUNCTION -> name;
         };
         return new Words(big, kind == Kind.ARRIVAL ? "" : km(km), "국도 " + route + "호선", String.valueOf(route));
+    }
+
+    /**
+     * A junction's sign (where a road branches off another), facing the traffic on the branch: "서해 · 동해 하역장", both
+     * distances in the same order ("3.2 · 1.1 km"), the branch's route number.
+     */
+    public static Words junction(String dock, double km, String other, double otherKm, int route) {
+        return new Words(dock + " · " + other + " 하역장", km(km).replace(" km", "") + " · " + km(otherKm), "국도 " + route + "호선",
+                String.valueOf(route));
     }
 
     /** "7.0 km": to 0.1 km, never below 0.1 (a sign never says 0 km left). */

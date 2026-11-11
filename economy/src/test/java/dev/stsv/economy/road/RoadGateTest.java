@@ -60,7 +60,7 @@ class RoadGateTest {
             return ((long) (x + (1 << 20)) << 42) | ((long) (z + (1 << 20)) << 21) | (y + 1024);
         }
 
-        Material get(int x, int y, int z) {
+        public Material get(int x, int y, int z) {
             Material m = put.get(key(x, y, z));
             if (m != null) return m;
             if (z >= 100 && Math.abs(x) <= 22) return y <= 61 ? Material.POLISHED_ANDESITE : Material.AIR;

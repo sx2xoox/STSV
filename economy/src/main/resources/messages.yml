@@ -741,6 +741,7 @@ road:
   origin-cleared: "<yellow>국도 기준점을 지웠어요. <gray>이제 {from} 에서 재요."
   origin-missing: "<red>국도 기준점이 없어요. <gray>/관리자 국도 기준점 설정 (지금 자리) 뒤에 다시"
   origin-other-world: "<yellow>기준점이 다른 월드({world})에 있어서 이 하역장 월드의 스폰에서 출발해요."
+  branch: "<gray>{dock} 국도: 기준점에서 {other} 국도를 따라가다 ({x}, {z})에서 갈라져요 <dark_gray>(겹치는 길은 새로 짓지 않음)"
   patch-none: "<red>{dock} 하역장까지 지은 국도가 없어요. <gray>/관리자 국도 {dock} 로 먼저 지으세요."
   patch-connected: "<green>{dock} 국도는 이미 하역장 입구까지 닿아 있어요."
   patch-started: "<green>{dock} 국도의 끝({x}, {z})에서 하역장 입구까지 모자란 {length}블록을 이어 지어요. <gray>(나머지 길은 그대로, 지금 단계: {phase})"
