@@ -1,7 +1,7 @@
 """
 하역장 props (economy: /관리자 하역장 설치 builds the dock from real blocks, plugin dev.stsv.economy.dock.DockLayout; these
-display models add the detail blocks cannot): the gantry crane's hook block, a forklift, a pallet of goods and shipping
-containers in two colours. Each is shown by an item display (FIXED, scale 2 in the layout) standing on its base:
+display models add the detail blocks cannot): the gantry crane's hook block, a forklift, a pallet of goods and the
+shipping containers (every one in the yard: one model in six colours, stacked 2.5 blocks apart, barrier blocks inside). Each is shown by an item display (FIXED, scale 2 in the layout) standing on its base:
 
     drawn at real size (16 px a block) round x = z = 8, its floor at y = 0, front = north (-z);
     BModel(scale=2, shift=(0, -8, 0)) shrinks it by 2 so the model's floor is model y 0 and it fits -16..32;
@@ -27,10 +27,10 @@ YELLOW = Paint("hazard", 1, "metal")
 
 
 def container(name, ramp):
-    """A 20-foot shipping container: 6 long, 2 wide, 2.4 high; ribbed sides, a corner-post frame, two doors at the back
-    with lock bars, a pale code panel."""
+    """A 20-foot shipping container: 6 long, 2 wide, 2.5 high (so they stack on whole and half blocks); corrugated sides
+    and roof, a corner-post frame with cast corner fittings, two doors at the back with lock bars, a pale code panel."""
     m = _model(name)
-    x0, x1, z0, z1, top = -8, 24, -38, 54, 38
+    x0, x1, z0, z1, top = -8, 24, -39, 55, 40
     rib = Paint(ramp, 2, "planks", axis="y", width=2, rim=0.6)
     plain = Paint(ramp, 2, "metal")
     m.group("box")
@@ -48,6 +48,10 @@ def container(name, ramp):
         m.box("lockbar", (x, 3, z1 - 1), (x + 1, top - 3, z1 + 0.5), STEEL)
         m.box("handle", (x - 1, 14, z1 - 0.5), (x + 2, 15, z1 + 1), STEEL)
     m.box("seam", (7.5, 2, z1 - 1), (8.5, top - 2, z1 + 0.25), DARK)
+    m.group("castings")   # the corner fittings that lock a stack together: a little proud of the frame, darker
+    for (x, z) in ((x0, z0), (x1 - 3, z0), (x0, z1 - 3), (x1 - 3, z1 - 3)):
+        for y in (-0.25, top - 3.25):
+            m.box("casting", (x - 0.25, y, z - 0.25), (x + 3.25, y + 3.5, z + 3.25), Paint("iron", 0, "metal"))
     m.box("code", (x0 + 3, top - 9, z0 + 0.5), (x0 + 14, top - 4, z0 + 1.25), Paint("paper", 1, noise=0.02))
     return m
 
@@ -126,9 +130,12 @@ def pallet():
     return m
 
 
+# the containers' colours (DockLayout.CONTAINER_COLOURS) and their paint ramps
+CONTAINER_RAMPS = {"red": "vermilion", "blue": "police_blue", "green": "sign_green", "yellow": "hazard", "white": "car_white",
+                   "teal": "celadon"}
+
 ALL = {
-    "dock_container_red": lambda: container("dock_container_red", "vermilion"),
-    "dock_container_blue": lambda: container("dock_container_blue", "police_blue"),
+    **{f"dock_container_{c}": (lambda c=c, r=r: container(f"dock_container_{c}", r)) for c, r in CONTAINER_RAMPS.items()},
     "dock_crane_hook": crane_hook,
     "dock_forklift": forklift,
     "dock_pallet": pallet,

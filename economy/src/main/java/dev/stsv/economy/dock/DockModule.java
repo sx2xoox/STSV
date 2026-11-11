@@ -100,10 +100,11 @@ public final class DockModule extends EcoModule {
             core.vehicles().cargoWeight(this::weigh);
             core.vehicles().cargoClick(this::bedClicked);
         }
-        STSVPlugin.get().admin().add(EcoPlugin.ADMIN_OWNER, "하역장", "설치 <이름> [육지|항구] | 목록 | 제거 <이름> | 후보 <거리> | 기록 [이름]",
-                "하역장: 지금 자리에 짓기(보는 방향) / 목록 / 기록 지우기 / 건축월드 스폰에서 8방향으로 후보지 살피기 / 판매 기록", this::command,
-                (s, a) -> a.length == 1 ? List.of("설치", "목록", "제거", "후보", "기록")
-                        : a.length == 2 && (a[0].equals("제거") || a[0].equals("기록")) ? new ArrayList<>(names())
+        STSVPlugin.get().admin().add(EcoPlugin.ADMIN_OWNER, "하역장", "설치 <이름> [육지|항구] | 목록 | 제거 <이름> | 다시꾸미기 <이름> | 후보 <거리> | 기록 [이름]",
+                "하역장: 지금 자리에 짓기(보는 방향) / 목록 / 기록 지우기 / 땅은 그대로 장식(컨테이너·모델·블록)만 다시 / 국도 기준점(없으면 건축월드 스폰)에서 8방향으로 후보지 살피기 / 판매 기록",
+                this::command,
+                (s, a) -> a.length == 1 ? List.of("설치", "목록", "제거", "다시꾸미기", "후보", "기록")
+                        : a.length == 2 && (a[0].equals("제거") || a[0].equals("기록") || a[0].equals("다시꾸미기")) ? new ArrayList<>(names())
                         : a.length == 2 && a[0].equals("후보") ? List.of("7000", "5000")
                         : a.length == 3 && a[0].equals("설치") ? List.of("육지", "항구") : List.of());
         every(1L, () -> {
@@ -455,6 +456,7 @@ public final class DockModule extends EcoModule {
         switch (sub) {
             case "설치" -> install(s, a);
             case "제거" -> remove(s, a.length > 1 ? a[1] : null);
+            case "다시꾸미기" -> redecorate(s, a.length > 1 ? a[1] : null);
             case "후보" -> scout(s, a.length > 1 ? a[1] : null);
             case "기록" -> sales(s, a.length > 1 ? a[1] : null);
             default -> list(s);
@@ -518,6 +520,39 @@ public final class DockModule extends EcoModule {
             if (q != null) q.sendMessage(Lang.msg("dock.built", "name", d.name()));
             eco.getLogger().info("[하역장] " + d.name() + " (" + kind.word + ") 지음: " + d.world() + " " + d.x() + ", " + d.y() + ", " + d.z());
         });
+        building.start();
+    }
+
+    /**
+     * /관리자 하역장 다시꾸미기 &lt;이름&gt;: the dock's decorations as the current layout has them, in place: its blocks put again
+     * (no clearing, no foundations: the ground stays as it is), the containers that were blocks taken away, its models and
+     * floating name spawned again. For a dock built before the containers became models.
+     */
+    private void redecorate(CommandSender s, String name) {
+        Dock d = name == null ? null : docks.get(key(name));
+        if (d == null) {
+            s.sendMessage(Lang.msg("dock.unknown", "name", name == null ? "" : name));
+            return;
+        }
+        if (building != null) {
+            s.sendMessage(Lang.msg("dock.busy"));
+            return;
+        }
+        World w = Bukkit.getWorld(d.world());
+        if (w == null) {
+            s.sendMessage(Lang.msg("dock.unknown", "name", d.name()));
+            return;
+        }
+        UUID who = s instanceof Player p ? p.getUniqueId() : null;
+        s.sendMessage(Lang.msg("dock.redecorating", "name", d.name()));
+        building = new DockBuilder(eco, d, w, rules.buildPerTick(), pct -> {
+            Player q = who == null ? null : Bukkit.getPlayer(who);
+            if (q != null) q.sendActionBar(Lang.mm("dock.progress", "name", d.name(), "pct", pct));
+        }, () -> {
+            building = null;
+            Player q = who == null ? null : Bukkit.getPlayer(who);
+            (q != null ? q : Bukkit.getConsoleSender()).sendMessage(Lang.msg("dock.redecorated", "name", d.name()));
+        }).decorOnly();
         building.start();
     }
 

@@ -46,7 +46,7 @@ final class DockBuilder {
 
     private record Op(int kind, int x, int y, int z, int depth, BlockData data) {}
 
-    private static final int CLEAR = 0, COLUMN = 1, BLOCK = 2;
+    private static final int CLEAR = 0, COLUMN = 1, BLOCK = 2, LEGACY = 3;
 
     private final Plugin plugin;
     private final Dock dock;
@@ -60,6 +60,14 @@ final class DockBuilder {
     private ChunkQueue loads;
     private BukkitTask task;
     private int next, chunks;
+    /** only the decorations (/관리자 하역장 다시꾸미기): no clearing, no foundations; old block containers go */
+    private boolean decorOnly;
+
+    /** Puts the layout's blocks and models again without touching the ground (see {@link #decorOnly}). */
+    DockBuilder decorOnly() {
+        decorOnly = true;
+        return this;
+    }
 
     DockBuilder(Plugin plugin, Dock dock, World world, int perTick, IntConsumer progress, Runnable done) {
         this.plugin = plugin;
@@ -74,12 +82,18 @@ final class DockBuilder {
     void start() {
         Map<String, BlockData> parsed = new HashMap<>();
         BlockData air = Material.AIR.createBlockData();
-        for (DockLayout.Box b : layout.clear()) {
+        if (decorOnly) {
+            // the containers that were blocks (docks built before they became models): gone where the layout puts nothing
+            java.util.Set<String> taken = new HashSet<>();
+            for (DockLayout.Block b : layout.blocks()) taken.add(b.x() + "," + b.y() + "," + b.z());
+            for (int[] c : DockLayout.legacyContainerCells()) if (!taken.contains(c[0] + "," + c[1] + "," + c[2])) ops.add(new Op(LEGACY, c[0], c[1], c[2], 0, air));
+        }
+        for (DockLayout.Box b : decorOnly ? List.<DockLayout.Box>of() : layout.clear()) {
             for (int x = b.minX(); x <= b.maxX(); x++)
                 for (int z = b.minZ(); z <= b.maxZ(); z++)
                     for (int y = b.minY(); y <= b.maxY(); y++) ops.add(new Op(CLEAR, x, y, z, 0, air));
         }
-        for (DockLayout.Column c : layout.columns())
+        for (DockLayout.Column c : decorOnly ? List.<DockLayout.Column>of() : layout.columns())
             ops.add(new Op(COLUMN, c.x(), c.fromY(), c.z(), c.depth(), parsed.computeIfAbsent(c.data(), Bukkit::createBlockData)));
         for (DockLayout.Block b : layout.blocks())
             ops.add(new Op(BLOCK, b.x(), b.y(), b.z(), 0, parsed.computeIfAbsent(b.data(), Bukkit::createBlockData)));
@@ -123,6 +137,10 @@ final class DockBuilder {
         switch (o.kind()) {
             case CLEAR -> {
                 if (!b.getType().isAir()) b.setType(Material.AIR, false);
+            }
+            case LEGACY -> {   // only what a block container was made of
+                String n = b.getType().name();
+                if (n.endsWith("_CONCRETE") || n.endsWith("_TERRACOTTA")) b.setType(Material.AIR, false);
             }
             case COLUMN -> {
                 for (int k = 0; k < o.depth(); k++) {

@@ -18,9 +18,10 @@ import java.util.Map;
  *        z=0  └────── 입구 (x -8..8): 국도가 여기로 ──────────────────────────────────────┘
  * </pre>
  *
- * Real blocks for everything that stands (pad, warehouse, platform, crane, containers, lamps, fences, the pier), a few
- * display models for detail (the crane's hook, a forklift, loose containers: models/dock_*.bbmodel in the pack's style),
- * a sign at the entrance and a floating name over the crane.
+ * Real blocks for everything built (pad, warehouse, platform, crane, lamps, fences, the pier); display models for what
+ * is moved about (the crane's hook, a forklift, a pallet, and every shipping container: one model in a few colours,
+ * stacked, with barrier blocks inside so it is as solid as a block: models/dock_*.bbmodel in the pack's style), a sign at
+ * the entrance and a floating name over the crane.
  */
 public final class DockLayout {
 
@@ -270,41 +271,72 @@ public final class DockLayout {
         props.add(new Prop(0.5, 6.5, 13.5, "dock_crane_hook", 2f, 0));
     }
 
-    private static final String[][] COLOURS = {
-            {"minecraft:red_concrete", "minecraft:red_terracotta"}, {"minecraft:blue_concrete", "minecraft:blue_terracotta"},
-            {"minecraft:green_concrete", "minecraft:green_terracotta"}, {"minecraft:orange_concrete", "minecraft:orange_terracotta"},
-            {"minecraft:white_concrete", "minecraft:white_terracotta"}, {"minecraft:cyan_concrete", "minecraft:cyan_terracotta"}};
+    /**
+     * The container model's colours (models/docks.py: dock_container_&lt;colour&gt;, one model, its paint ramps differing), in
+     * the order the stacks take them.
+     */
+    public static final List<String> CONTAINER_COLOURS = List.of("red", "blue", "green", "yellow", "white", "teal");
+    /** A container (the model, at real size): 2 wide, 6 long, 2.5 high; stacked 2.5 apart. */
+    public static final int CONTAINER_WIDTH = 2, CONTAINER_LENGTH = 6;
+    public static final double CONTAINER_HEIGHT = 2.5;
+
+    /**
+     * A container: its footprint's corner block (x0, z0; along z, or along x when turned), how many are stacked there and
+     * the first one's colour (the stack takes the next ones up).
+     */
+    public record Stack(int x0, int z0, int high, boolean turned, int colour) {
+        public int width() {
+            return turned ? CONTAINER_LENGTH : CONTAINER_WIDTH;
+        }
+
+        public int length() {
+            return turned ? CONTAINER_WIDTH : CONTAINER_LENGTH;
+        }
+
+        /** How high its barriers go: every block the stack's models reach into. */
+        public int barrierHeight() {
+            return (int) Math.ceil(high * CONTAINER_HEIGHT - 1e-9);
+        }
+    }
+
+    /** The container yard: four rows of stacks 1 to 3 high, and one set down by the gate, turned across. */
+    public static final List<Stack> STACKS = List.of(
+            new Stack(11, 6, 3, false, 0), new Stack(11, 14, 2, false, 3), new Stack(11, 22, 1, false, 5), new Stack(11, 30, 2, false, 2),
+            new Stack(15, 6, 2, false, 1), new Stack(15, 14, 3, false, 4), new Stack(15, 22, 2, false, 0), new Stack(15, 30, 1, false, 3),
+            new Stack(19, 6, 1, false, 5), new Stack(19, 14, 2, false, 2), new Stack(19, 22, 3, false, 1), new Stack(19, 30, 2, false, 4),
+            new Stack(14, 1, 1, true, 1));
 
     private void containers() {
-        // stacks of shipping containers: 3 wide, 3 high, 7 long, ribbed sides, a door end; 1 to 3 high
-        int[][] stacks = {{11, 6, 3}, {11, 14, 2}, {11, 22, 1}, {11, 30, 2}, {15, 6, 2}, {15, 14, 3}, {15, 22, 2}, {15, 30, 1},
-                {19, 6, 1}, {19, 14, 2}, {19, 22, 3}, {19, 30, 2}};
-        int n = 0;
-        for (int[] s : stacks) {
-            for (int level = 0; level < s[2]; level++) {
-                String[] c = COLOURS[(n++ * 5 + 3) % COLOURS.length];
-                container(s[0], level * 3, s[1], c);
+        // shipping containers: all the same 3D model in a few colours, stacked 2.5 apart; inside each, barrier blocks over
+        // its whole footprint up to its top, so nobody walks or drives through one
+        for (Stack st : STACKS) {
+            double cx = st.x0() + st.width() / 2.0, cz = st.z0() + st.length() / 2.0;
+            for (int level = 0; level < st.high(); level++) {
+                String colour = CONTAINER_COLOURS.get((st.colour() + level) % CONTAINER_COLOURS.size());
+                props.add(new Prop(cx, level * CONTAINER_HEIGHT, cz, "dock_container_" + colour, 2f, st.turned() ? 90 : 0));
             }
+            fill(st.x0(), 0, st.z0(), st.x0() + st.width() - 1, st.barrierHeight() - 1, st.z0() + st.length() - 1, BARRIER);
         }
-        // loose containers and a forklift as display models (in the pack's style)
-        props.add(new Prop(16.5, 0, 2.5, "dock_container_blue", 2f, 90));
-        props.add(new Prop(12.5, 3, 25.5, "dock_container_red", 2f, 0));
+        // a forklift and a pallet by the warehouse
         props.add(new Prop(-5.5, 0, 31.5, "dock_forklift", 2f, 200));
         props.add(new Prop(-5.5, 0, 26.5, "dock_pallet", 2f, 0));
     }
 
-    private void container(int x0, int y0, int z0, String[] c) {
-        for (int x = x0; x <= x0 + 2; x++) {
-            for (int y = y0; y <= y0 + 2; y++) {
-                for (int z = z0; z <= z0 + 6; z++) {
-                    boolean door = z == z0;
-                    boolean rib = Math.floorMod(z, 2) == 0;
-                    boolean edge = (z == z0 || z == z0 + 6) && (x == x0 || x == x0 + 2 || y == y0 || y == y0 + 2);   // the end frames
-                    String b = edge ? "minecraft:gray_concrete" : door ? c[1] : rib ? c[0] : c[1];
-                    set(x, y, z, b);
-                }
-            }
-        }
+    public static final String BARRIER = "minecraft:barrier";
+
+    /**
+     * Where the containers stood when they were blocks (docks built before they became models: 3 wide, 3 high, 7 long
+     * stacks): what /관리자 하역장 다시꾸미기 clears (where the new layout puts nothing).
+     */
+    public static List<int[]> legacyContainerCells() {
+        int[][] stacks = {{11, 6, 3}, {11, 14, 2}, {11, 22, 1}, {11, 30, 2}, {15, 6, 2}, {15, 14, 3}, {15, 22, 2}, {15, 30, 1},
+                {19, 6, 1}, {19, 14, 2}, {19, 22, 3}, {19, 30, 2}};
+        List<int[]> out = new ArrayList<>();
+        for (int[] st : stacks)
+            for (int x = st[0]; x <= st[0] + 2; x++)
+                for (int y = 0; y < st[2] * 3; y++)
+                    for (int z = st[1]; z <= st[1] + 6; z++) out.add(new int[]{x, y, z});
+        return out;
     }
 
     private void lamps(Kind kind) {

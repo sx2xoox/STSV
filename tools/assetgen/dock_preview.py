@@ -95,7 +95,7 @@ def scene(data, ox):
     full = {}
     for x, y, z, block in data["blocks"]:
         name = block.split(":")[1]
-        if name == "air":
+        if name in ("air", "barrier"):   # barriers: invisible (inside the containers)
             continue
         full[(x, y, z)] = name
     for (x, y, z), name in sorted(full.items()):
