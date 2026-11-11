@@ -140,6 +140,9 @@ public final class VehicleModule implements StsvModule, Listener {
 
     private STSVPlugin plugin;
     private VehicleStore store;
+    /** where the towed units of articulated vehicles stand (TrainStore), and those not shown now: id -> units */
+    private TrainStore trains;
+    private final Map<Long, List<VehiclePhysics.State>> trainSaved = new HashMap<>();
     private Settings settings;
     /** vehicles in the world whose chunk is not loaded (shown when it loads) */
     private final Map<Long, VehicleStore.Row> parked = new HashMap<>();
@@ -181,6 +184,9 @@ public final class VehicleModule implements StsvModule, Listener {
         store = new VehicleStore(plugin.db());
         store.init();
         for (VehicleStore.Row r : store.placed()) if (r.pos() != null) parked.put(r.id(), r);
+        trains = new TrainStore(plugin.db());
+        trains.init();
+        trainSaved.putAll(trains.all());
         for (VehicleStore.Grant g : store.grants()) grants.computeIfAbsent(g.owner(), k -> new LinkedHashMap<>()).put(g.player(), g.playerName());
         // a plugin reload while someone pulled: nobody pulls now
         for (Player p : Bukkit.getOnlinePlayers()) PullSpeed.remove(p.getAttribute(Attribute.MOVEMENT_SPEED));
@@ -221,6 +227,8 @@ public final class VehicleModule implements StsvModule, Listener {
             v.spec = v.item.vehicle();
             v.cargo = resized(cargo, v.spec);
             removeParts(v, false);
+            v.train = v.spec.train() == null ? null
+                    : new TrainView(v.spec.train(), TrainPhysics.restore(v.st, v.spec.train(), v.train == null ? null : v.train.units));
             spawnParts(v);
         }
     }
@@ -467,9 +475,17 @@ public final class VehicleModule implements StsvModule, Listener {
             refuse(p, Lang.mm("vehicle.no-room", "length", fmt(s.length()), "width", fmt(s.width())));
             return;
         }
+        // an articulated vehicle: its towed units laid out straight behind it, each on the ground there (TrainPhysics)
+        List<VehiclePhysics.State> units = s.train() == null ? List.of() : TrainPhysics.straight(st, s.train());
+        if (s.train() != null && !TrainPhysics.fits(units, s.train(), terrain)) {
+            refuse(p, Lang.mm("vehicle.no-room", "length", fmt(s.train().reach() + s.length() / 2), "width", fmt(s.width())));
+            return;
+        }
         // the land's and the build world's rules, as for a block in every cell it takes (asked like furniture asks)
         Set<Block> cells = new LinkedHashSet<>();
-        for (double[] b : VehiclePhysics.footprint(st.x, st.y, st.z, st.yaw, s)) {
+        List<double[]> squares = new ArrayList<>(VehiclePhysics.footprint(st.x, st.y, st.z, st.yaw, s));
+        for (int i = 0; i < units.size(); i++) squares.addAll(TrainPhysics.footprint(units.get(i), s.train().trailers().get(i)));
+        for (double[] b : squares) {
             int y = (int) Math.floor(st.y + 0.01);
             for (int x = (int) Math.floor(b[0]); x <= (int) Math.floor(b[3] - 1e-6); x++)
                 for (int z = (int) Math.floor(b[2]); z <= (int) Math.floor(b[5] - 1e-6); z++) cells.add(w.getBlockAt(x, y, z));
@@ -478,7 +494,7 @@ public final class VehicleModule implements StsvModule, Listener {
             p.playSound(p.getLocation(), Sound.BLOCK_NOTE_BLOCK_BASS, 0.6f, 0.6f);
             return;
         }
-        commit(p, item, hand, w, st);
+        commit(p, item, hand, w, st, units);
     }
 
     /**
@@ -514,11 +530,14 @@ public final class VehicleModule implements StsvModule, Listener {
             p.playSound(p.getLocation(), Sound.BLOCK_NOTE_BLOCK_BASS, 0.6f, 0.6f);
             return;
         }
-        commit(p, item, hand, w, st);
+        commit(p, item, hand, w, st, List.of());
     }
 
-    /** The vehicle item in the hand becomes a vehicle in the world at st (a new row, or its row placed with its token). */
-    private void commit(Player p, CustomItem item, ItemStack hand, World w, VehiclePhysics.State st) {
+    /**
+     * The vehicle item in the hand becomes a vehicle in the world at st (a new row, or its row placed with its token);
+     * units: an articulated vehicle's towed units where they were laid out (empty for the rest).
+     */
+    private void commit(Player p, CustomItem item, ItemStack hand, World w, VehiclePhysics.State st, List<VehiclePhysics.State> units) {
         long id = idOf(hand), token = tokenOf(hand);
         if (id > 0 && busy.contains(id)) return;
         // the item goes now (it is the vehicle); a fresh admin item in creative stays, like furniture
@@ -544,6 +563,7 @@ public final class VehicleModule implements StsvModule, Listener {
                 return;
             }
             parked.put(row.id(), row);
+            if (item.vehicle().train() != null) trainSaved.put(row.id(), units);
             LiveVehicle v = spawnIfLoaded(row);
             w.playSound(new Location(w, st.x, st.y, st.z), item.vehicle().floats() ? Sound.ENTITY_GENERIC_SPLASH : Sound.BLOCK_IRON_DOOR_CLOSE,
                     0.8f, 1.2f);
@@ -581,6 +601,7 @@ public final class VehicleModule implements StsvModule, Listener {
         VehiclePhysics.State st = new VehiclePhysics.State(r.pos().x(), r.pos().y(), r.pos().z(), r.pos().yaw());
         st.onGround = true;
         LiveVehicle v = new LiveVehicle(r.id(), item.get(), r.owner(), r.ownerName(), w, st);
+        if (v.spec.train() != null) v.train = new TrainView(v.spec.train(), TrainPhysics.restore(st, v.spec.train(), trainSaved.remove(r.id())));
         v.cargo = resized(decode(r.cargo()), v.spec);
         v.stage = stageOf(v);
         parked.remove(r.id());
@@ -596,6 +617,7 @@ public final class VehicleModule implements StsvModule, Listener {
     /** How far from its centre a vehicle's entities reach (click boxes, seats, a cart's handles), blocks. */
     private static double reach(VehicleSpec s) {
         double r = Math.hypot(s.length(), s.width()) / 2 + 1;
+        if (s.train() != null) r = Math.max(r, s.train().reach() + s.length() / 2);
         return s.pulled() ? Math.max(r, s.pull().hitch() + 1) : r;
     }
 
@@ -666,7 +688,8 @@ public final class VehicleModule implements StsvModule, Listener {
             v.lightsShown = v.siren ? 0 : -1;
             v.lights = display(v, model(v.siren ? s.lights().flash().getFirst() : s.lights().dark()), part(s.lights().at()));
         }
-        if (s.cargo() != null) v.load = display(v, model(stageModel(v)), tilted(s, s.cargo().at(), 1, v.tiltShown, v.lean));
+        if (s.cargo() != null && !s.cargo().stages().isEmpty())
+            v.load = display(v, model(stageModel(v)), tilted(s, s.cargo().at(), 1, v.tiltShown, v.lean));
         for (int i = 0; i < s.squares(); i++) {
             double[] c = VehiclePhysics.world(v.st.x, v.st.y, v.st.z, v.st.yaw, new VehicleSpec.Vec(0, 0, s.squareOffset(i)));
             v.hits.add(v.world.spawn(new Location(v.world, c[0], c[1], c[2]), Interaction.class, h -> {
@@ -688,6 +711,7 @@ public final class VehicleModule implements StsvModule, Listener {
                 h.getPersistentDataContainer().set(PART, PersistentDataType.LONG, v.id);
             });
         }
+        if (v.train != null) v.train.spawn(v, settings, v.cargo);
     }
 
     /** A cart's handle click box (it stands where the puller stands). */
@@ -781,6 +805,7 @@ public final class VehicleModule implements StsvModule, Listener {
         if (v.lights != null) v.lights.remove();
         if (v.load != null) v.load.remove();
         if (v.handle != null) v.handle.remove();
+        if (v.train != null) v.train.remove();
         v.wheels.forEach(Entity::remove);
         v.spinners.forEach(Entity::remove);
         v.hits.forEach(Entity::remove);
@@ -806,6 +831,13 @@ public final class VehicleModule implements StsvModule, Listener {
             store.cargo(v.id, encode(v.cargo), now);
             parked.put(v.id, new VehicleStore.Row(v.id, v.item.key().asString(), v.owner, v.ownerName, VehicleStore.State.WORLD, 0, v.pos(),
                     encode(v.cargo), now, now));
+            if (v.train != null) {
+                trains.save(v.id, v.train.units, now);
+                trainSaved.put(v.id, v.train.units);
+            }
+        } else if (v.train != null) {
+            trainSaved.remove(v.id);   // into an item (or gone): placed again, it stands straight
+            trains.delete(v.id);
         }
     }
 
@@ -813,6 +845,7 @@ public final class VehicleModule implements StsvModule, Listener {
         v.dirty = false;
         v.savedAt = ticks;
         store.move(v.id, v.pos(), System.currentTimeMillis());
+        if (v.train != null) trains.save(v.id, v.train.units, System.currentTimeMillis());
     }
 
     @EventHandler
@@ -857,7 +890,7 @@ public final class VehicleModule implements StsvModule, Listener {
         }
         if (v.body == null || !v.body.isValid() || v.hits.stream().anyMatch(h -> !h.isValid()) || v.wheels.stream().anyMatch(w -> !w.isValid())
                 || v.spinners.stream().anyMatch(w -> !w.isValid())
-                || (v.spec.pulled() && (v.handle == null || !v.handle.isValid()))) {
+                || (v.spec.pulled() && (v.handle == null || !v.handle.isValid())) || (v.train != null && v.train.broken())) {
             removeParts(v, false);
             spawnParts(v);
         }
@@ -872,15 +905,23 @@ public final class VehicleModule implements StsvModule, Listener {
             v.st.onGround = false;   // the ground under it went: it falls
             active = true;
         }
+        if (!active && v.train != null && (ticks + v.id) % 10 == 5 && !TrainPhysics.supported(v.train.units, v.spec.train(), terrain)) {
+            for (VehiclePhysics.State u : v.train.units) u.onGround = false;   // under a towed unit
+            active = true;
+        }
+        double along = 0;
         if (active) {
             double x = v.st.x, y = v.st.y, z = v.st.z, steer = v.st.steer, roll = v.st.roll;
             float yaw = v.st.yaw;
+            double[] trainWas = v.train == null ? null : trainPlace(v);
             if (puller != null) {
                 Location at = puller.getLocation();
                 CartPull.step(v.st, at.getX(), at.getZ(), v.spec, terrain);
             } else if (v.spec.floats()) {
                 v.boatMode = BoatPhysics.step(v.st, in, v.spec, new WorldWater(v.world), settings.maxSpeed());
                 v.boatTurn = VehicleSeats.signed(v.st.yaw - yaw);
+            } else if (v.train != null) {
+                TrainPhysics.step(v.st, v.train.units, in, v.spec, terrain, new WorldGround(v.world), settings.maxSpeed());
             } else {
                 VehiclePhysics.step(v.st, in, v.spec, terrain, settings.maxSpeed());
             }
@@ -888,7 +929,10 @@ public final class VehicleModule implements StsvModule, Listener {
                 if (v.spec.floats()) v.world.playSound(at(v), Sound.BLOCK_WOOD_HIT, SoundCategory.NEUTRAL, 0.8f, 0.6f);
                 else v.world.playSound(at(v), Sound.ENTITY_ZOMBIE_ATTACK_IRON_DOOR, SoundCategory.NEUTRAL, 0.35f, 1.4f);
             }
-            boolean moved = Math.abs(v.st.x - x) + Math.abs(v.st.y - y) + Math.abs(v.st.z - z) > 1e-5 || v.st.yaw != yaw;
+            boolean moved = Math.abs(v.st.x - x) + Math.abs(v.st.y - y) + Math.abs(v.st.z - z) > 1e-5 || v.st.yaw != yaw
+                    || (trainWas != null && !java.util.Arrays.equals(trainWas, trainPlace(v)));
+            double[] fw = VehiclePhysics.forward(v.st.yaw);
+            along = (v.st.x - x) * fw[0] + (v.st.z - z) * fw[1];
             if (moved) {
                 move(v);
                 v.dirty = true;
@@ -920,6 +964,7 @@ public final class VehicleModule implements StsvModule, Listener {
             }
         }
         if (puller != null) pulled(v, puller);
+        if (v.train != null) v.train.animate(v, settings, along, driver != null, Math.min(v.spec.speed(), settings.maxSpeed()));
         if (v.spec.pulled() && tilt(v) != v.tiltShown) tiltTo(v, tilt(v));
         if (v.spec.floats()) boat(v, driver);
         lights(v);
@@ -934,6 +979,19 @@ public final class VehicleModule implements StsvModule, Listener {
         d.setInterpolationDelay(0);
         d.setInterpolationDuration(settings.smoothing());
         d.setTransformation(t);
+    }
+
+    /** Every towed unit's place and yaw (to tell whether the train moved). */
+    private static double[] trainPlace(LiveVehicle v) {
+        double[] out = new double[v.train.units.size() * 4];
+        for (int i = 0; i < v.train.units.size(); i++) {
+            VehiclePhysics.State u = v.train.units.get(i);
+            out[i * 4] = u.x;
+            out[i * 4 + 1] = u.y;
+            out[i * 4 + 2] = u.z;
+            out[i * 4 + 3] = u.yaw;
+        }
+        return out;
     }
 
     /** Puts every entity of the vehicle where it is now (the client glides there over the smoothing ticks). */
@@ -959,9 +1017,11 @@ public final class VehicleModule implements StsvModule, Listener {
                 leave(v, i);   // something took the seat apart: its rider steps out, what is left goes
                 continue;
             }
-            carry(seat.carrier(), seatLocation(v, i));
-            face(seat.chair(), v.st.yaw);
+            Location to = seatLocation(v, i);
+            carry(seat.carrier(), to);
+            face(seat.chair(), to.getYaw());
         }
+        if (v.train != null) v.train.move(v, settings);
     }
 
     /** A tiny head pose the chair switches to and back (it is invisible): see {@link #face}. */
@@ -990,6 +1050,7 @@ public final class VehicleModule implements StsvModule, Listener {
     }
 
     private Location seatLocation(LiveVehicle v, int i) {
+        if (v.train != null) return v.train.seat(v, i);   // a seat may be on a towed unit
         double[] c = VehiclePhysics.world(v.st.x, v.st.y, v.st.z, v.st.yaw, v.spec.seats().get(i));
         return new Location(v.world, c[0], c[1], c[2], v.st.yaw, 0);
     }
@@ -1070,10 +1131,9 @@ public final class VehicleModule implements StsvModule, Listener {
     }
 
     /** Where a boat's rider steps out when there is no shore beside it: into the water beside their seat. */
-    private Location wetExit(LiveVehicle v, List<VehicleSpec.Vec> tries) {
+    private Location wetExit(LiveVehicle v, List<double[]> tries) {
         int wl = (int) Math.floor(v.st.y + v.spec.water().draft());
-        for (VehicleSpec.Vec t : tries.subList(0, Math.min(4, tries.size()))) {
-            double[] c = VehiclePhysics.world(v.st.x, v.st.y, v.st.z, v.st.yaw, t);
+        for (double[] c : tries.subList(0, Math.min(4, tries.size()))) {
             int bx = (int) Math.floor(c[0]), bz = (int) Math.floor(c[2]);
             if (!v.world.isChunkLoaded(bx >> 4, bz >> 4)) continue;
             Block feet = v.world.getBlockAt(bx, wl, bz);
@@ -1100,7 +1160,12 @@ public final class VehicleModule implements StsvModule, Listener {
             return;
         }
         if (p.isSneaking()) {
-            if (v.spec.cargo() != null && inBed(v, p)) openCargo(v, p, 0);
+            if (v.train != null) {
+                // a trailer: its bed; the driven unit (the ox, the tiller, the tractor): the whole train back into an item
+                int page = v.spec.train().firstPage(v.train.unit(e.getRightClicked()));
+                if (page >= 0) openCargo(v, p, page);
+                else pickUp(v, p);
+            } else if (v.spec.cargo() != null && inBed(v, p)) openCargo(v, p, 0);
             else pickUp(v, p);
         } else {
             board(v, p);
@@ -1150,12 +1215,12 @@ public final class VehicleModule implements StsvModule, Listener {
             AttributeInstance health = a.getAttribute(Attribute.MAX_HEALTH);
             if (health != null) health.setBaseValue(1);   // a mount with 0 hearts: the rider keeps their food bar
             a.setHealth(1);
-            a.setRotation(v.st.yaw, 0);
-            a.setBodyYaw(v.st.yaw);
+            a.setRotation(at.getYaw(), 0);
+            a.setBodyYaw(at.getYaw());
             a.getPersistentDataContainer().set(PART, PersistentDataType.LONG, v.id);
             a.getPersistentDataContainer().set(SEAT, PersistentDataType.INTEGER, seat);
         });
-        p.setRotation(v.st.yaw, p.getPitch());
+        p.setRotation(at.getYaw(), p.getPitch());
         if (!carrier.addPassenger(chair) || !chair.addPassenger(p)) {
             ejecting.add(chair.getUniqueId());
             chair.eject();
@@ -1167,7 +1232,8 @@ public final class VehicleModule implements StsvModule, Listener {
         v.seats[seat] = new LiveVehicle.Seat(carrier, chair);
         hideBoxes(v, p, true);
         if (seat == 0) {
-            HudModule.flash(p, Lang.mm("vehicle.driving", "keys", Lang.raw(v.spec.lights() != null ? "vehicle.keys-siren" : "vehicle.keys-horn")));
+            HudModule.flash(p, Lang.mm("vehicle.driving", "keys", Lang.raw(v.spec.lights() != null ? "vehicle.keys-siren"
+                    : v.spec.train() != null && v.spec.train().animal() != null ? "vehicle.keys-moo" : "vehicle.keys-horn")));
         } else if (!mayDrive && !taken[0]) {
             HudModule.flash(p, Lang.mm("vehicle.passenger", "owner", v.ownerName));
         }
@@ -1233,9 +1299,11 @@ public final class VehicleModule implements StsvModule, Listener {
 
     /** A safe spot beside the vehicle for a rider of this seat (VehicleSeats.exits, in order); on top of it if none. */
     private Location exit(LiveVehicle v, int seat) {
-        List<VehicleSpec.Vec> tries = VehicleSeats.exits(v.spec, v.spec.seats().get(Math.min(seat, v.spec.seats().size() - 1)));
-        for (VehicleSpec.Vec t : tries) {
-            double[] c = VehiclePhysics.world(v.st.x, v.st.y, v.st.z, v.st.yaw, t);
+        int at = Math.min(seat, v.spec.seats().size() - 1);
+        List<double[]> tries = new ArrayList<>();
+        if (v.train != null) tries.addAll(v.train.exits(v, at));   // beside the seat's own unit
+        else for (VehicleSpec.Vec t : VehicleSeats.exits(v.spec, v.spec.seats().get(at))) tries.add(VehiclePhysics.world(v.st.x, v.st.y, v.st.z, v.st.yaw, t));
+        for (double[] c : tries) {
             int bx = (int) Math.floor(c[0]), bz = (int) Math.floor(c[2]), by = (int) Math.floor(c[1] + 0.01);
             if (!v.world.isChunkLoaded(bx >> 4, bz >> 4)) continue;
             for (int dy : new int[]{0, 1, -1}) {
@@ -1247,7 +1315,7 @@ public final class VehicleModule implements StsvModule, Listener {
             Location wet = wetExit(v, tries);
             if (wet != null) return wet;
         }
-        double[] top = VehiclePhysics.world(v.st.x, v.st.y, v.st.z, v.st.yaw, tries.getLast());
+        double[] top = tries.getLast();
         return new Location(v.world, top[0], top[1], top[2]);
     }
 
@@ -1794,8 +1862,17 @@ public final class VehicleModule implements StsvModule, Listener {
         int pages = CargoPages.pages(v.cargo.length);   // a load left past a smaller bed (fewer slots in the file) stays reachable
         page = CargoPages.clamp(page, pages);
         CargoHolder h = new CargoHolder(v.id, page);
+        String name = Text.plain(label(v.item));
+        int shownPage = page + 1, shownPages = pages;
+        if (v.train != null && v.spec.train().trailers().size() > 1) {
+            // a train of several trailers: its pages in a group per trailer ("... · 트레일러 2 짐칸 (1/8)"), turned through in one go
+            int[] g = v.train.group(page);
+            name += " · " + Lang.raw("vehicle.train-trailer", "n", g[0]);
+            shownPage = page - g[1] + 1;
+            shownPages = g[2];
+        }
         Inventory inv = Bukkit.createInventory(h, CargoPages.viewSize(v.cargo.length), Lang.mm("vehicle.cargo-title", "vehicle",
-                Text.plain(label(v.item)), "page", page + 1, "pages", pages));
+                name, "page", shownPage, "pages", shownPages));
         h.inventory = inv;
         List<ItemStack> shown = CargoPages.page(v.cargo, page);
         for (int i = 0; i < prev(inv); i++) inv.setItem(i, CargoPages.inBed(v.cargo.length, page, i) ? shown.get(i) : locked());
@@ -1838,6 +1915,7 @@ public final class VehicleModule implements StsvModule, Listener {
             v.stage = stage;
             if (v.load != null) v.load.setItemStack(model(stageModel(v)));
         }
+        if (v.train != null) v.train.loads(v.cargo);
         ItemStack info = v.cargoInv.getItem(info(v.cargoInv));
         if (info != null && v.spec.cargo() != null) {
             v.cargoInv.setItem(info(v.cargoInv), button(Material.CHEST, Lang.raw("vehicle.cargo-info", "used", v.cargoUsed(), "slots", v.spec.cargo().slots()), null));
@@ -1863,7 +1941,8 @@ public final class VehicleModule implements StsvModule, Listener {
             v.cargoInv = null;
             return;
         }
-        if (v.st.speed != 0 || v.puller != null || !p.getWorld().equals(v.world) || p.getLocation().distanceSquared(at(v)) > 64) closeCargo(v);
+        if (v.st.speed != 0 || v.puller != null || !p.getWorld().equals(v.world)
+                || (v.train != null ? v.train.distanceSquared(v, p.getLocation()) : p.getLocation().distanceSquared(at(v))) > 64) closeCargo(v);
     }
 
     private LiveVehicle cargoOf(Inventory top) {

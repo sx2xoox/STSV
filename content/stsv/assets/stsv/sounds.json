@@ -187,5 +187,61 @@
         "name": "stsv:vehicle/box_truck_engine"
       }
     ]
+  },
+  "vehicle.ox_cart.horn": {
+    "sounds": [
+      {
+        "name": "stsv:vehicle/ox_cart_horn"
+      }
+    ]
+  },
+  "vehicle.ox_cart.horn_end": {
+    "sounds": [
+      {
+        "name": "stsv:vehicle/ox_cart_horn_end"
+      }
+    ]
+  },
+  "vehicle.power_tiller.horn": {
+    "sounds": [
+      {
+        "name": "stsv:vehicle/power_tiller_horn"
+      }
+    ]
+  },
+  "vehicle.power_tiller.horn_end": {
+    "sounds": [
+      {
+        "name": "stsv:vehicle/power_tiller_horn_end"
+      }
+    ]
+  },
+  "vehicle.power_tiller.engine": {
+    "sounds": [
+      {
+        "name": "stsv:vehicle/power_tiller_engine"
+      }
+    ]
+  },
+  "vehicle.tractor_trailer.horn": {
+    "sounds": [
+      {
+        "name": "stsv:vehicle/tractor_trailer_horn"
+      }
+    ]
+  },
+  "vehicle.tractor_trailer.horn_end": {
+    "sounds": [
+      {
+        "name": "stsv:vehicle/tractor_trailer_horn_end"
+      }
+    ]
+  },
+  "vehicle.tractor_trailer.engine": {
+    "sounds": [
+      {
+        "name": "stsv:vehicle/tractor_trailer_engine"
+      }
+    ]
   }
 }

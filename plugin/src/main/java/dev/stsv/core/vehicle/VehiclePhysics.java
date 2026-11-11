@@ -315,11 +315,16 @@ public final class VehiclePhysics {
      * @param cap the server's top speed (blocks/s)
      */
     public static void step(State st, DriveInput in, VehicleSpec s, Terrain t, double cap) {
+        step(st, in, s, t, cap, 1f);
+    }
+
+    /** One tick, turning only turnScale (0 .. 1) as much as usual (a train near its jack-knife limit: {@link TrainPhysics}). */
+    public static void step(State st, DriveInput in, VehicleSpec s, Terrain t, double cap, float turnScale) {
         st.bumped = false;
         double slow = slowdown(st.x, st.y, st.z, st.yaw, s, t);
         st.speed = nextSpeed(st.speed, in.forward(), in.backward(), s, slow, cap);
 
-        float turn = yawRate(st.speed, in.steer(), s);
+        float turn = yawRate(st.speed, in.steer(), s) * turnScale;
         if (turn != 0) {
             float yaw = wrap(st.yaw + turn);
             if (!collides(st.x, st.y, st.z, yaw, s, t)) st.yaw = yaw;

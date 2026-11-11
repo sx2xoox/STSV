@@ -1,0 +1,233 @@
+# 농사 탈것: 끄는 쪽(소, 경운기, 트랙터) + 그 뒤에 매달린 짐칸(트레일러). 관리자만 지급: /관리자 아이템목록 의 '탈것' 탭, /관리자 지급.
+# 상점·뽑기·레시피에는 없음. 세우기·타기·회수·짐칸·/탈것 권한은 vehicles.yml 의 탈것과 같음 (README "탈것").
+# 웅크리고 짐칸(트레일러)을 우클릭하면 그 짐칸이 열리고, 웅크리고 끄는 쪽(소·경운기·트랙터)을 우클릭하면 통째로 회수 (짐칸이 모두 비어 있어야 함).
+#
+# 끄는 쪽의 설정은 vehicles.yml 맨 위 설명과 같음 (size, wheels, seats, horn, engine ...). 덧붙는 것:
+#   seats[].unit      그 자리가 있는 칸: 0 = 끄는 쪽 (기본), 1 = 첫 트레일러, 2 = 둘째 ...
+#   train             매달린 짐칸들 (TrainSpec)
+#     jackknife       두 칸 사이의 가장 큰 각도 (도). 넘지 않음
+#     slow-from       그 각도의 이만큼(0.6 = 60%)부터 더 꺾는 쪽으로는 방향이 천천히 바뀌고, 끝에서는 더 꺾이지 않음
+#     ground          땅마다 최고 속도 (1 = 그대로): farmland 밭, path 흙길, dirt 흙, grass 잔디.
+#                     빼면 보통 바퀴 수레 값 (밭 0.6, 흙길 0.9, 흙 0.85, 잔디 0.95). 모래·자갈·눈·진흙은 다른 탈것과 같이
+#                     75% (VehiclePhysics ROUGH), all-terrain: true 면 그대로
+#     trailers        앞에서부터. 첫째는 끄는 쪽에, 그다음은 바로 앞 트레일러에 매달림
+#       model         트레일러 몸체 (.bbmodel, body-scale 은 탈것과 같음)
+#       hitch         매달린 곳: 바로 앞 칸 위의 한 점 [오른쪽, 위, 앞] (그 칸 기준)
+#       tongue        트레일러 바퀴 축(가운데)에서 그 점까지 (블록). 트레일러는 바퀴 축을 중심으로 그 점을 향해 돎
+#       size, click-height, wheel, wheel-radius, wheels, step-height   끄는 쪽과 같은 뜻 (트레일러 자신의 것)
+#       cargo         그 트레일러의 짐칸: slots (45 의 배수, 트레일러마다 최대 540), at, stages (짐 모델 4단계)
+#                     모든 트레일러의 짐칸이 한 보관함 (쪽을 넘기면 다음 트레일러로). 짐 모델은 트레일러마다 자기 칸만큼
+#     animal          끄는 동물 (소): stride 한 걸음 주기의 거리 (블록), swing 다리를 흔드는 각도, legs 다리 모델·위치(엉덩이)·
+#                     phase (걸음 주기 안의 차례, 0 ~ 1), head 머리 모델·위치(목 뿌리)·bob (걸을 때 끄덕이는 깊이, 블록),
+#                     steps 발굽 소리 (key, volume, pitch, every 몇 블록마다)
+#     parts           끄는 쪽의 도는 부품: model, at, axis (x 가로축 / z 세로축), spin: engine (운전 중에 돎: idle 서 있을 때,
+#                     top 최고 속도일 때 틱마다 도는 각도) 또는 roll (바퀴처럼 굴러감: radius 반지름)
+
+# ------------------------------------------------------------------------------------------------
+# 2세대 · 소달구지: 한우 한 마리가 끄는 나무 수레. 경적 대신 "음메"
+# ------------------------------------------------------------------------------------------------
+ox_cart:
+  material: paper
+  name: "<#d0a05e>소달구지"
+  lore:
+    - "<gold>2세대</gold> <gray>· 누런 한우가 끄는 나무 수레"
+    - "<gray>2인승 (수레 앞 의자) · 짐칸 270칸 (6쪽) · 최고 속도 4블록/초"
+    - "<gray>스페이스: 음메 · 걸으면 발굽 소리, 엔진은 없음"
+    - "<dark_gray>땅에 우클릭: 세우기 · 수레 우클릭: 타기"
+    - "<dark_gray>W·S 앞뒤, A·D 방향, 웅크리기: 내리기"
+    - "<dark_gray>웅크리고 수레 우클릭: 짐칸 열기"
+    - "<dark_gray>웅크리고 소 우클릭: 아이템으로 회수 (주인, 짐칸이 비어 있어야 함)"
+  model: ox_cart
+  icon: ox_cart_icon
+  max-stack: 1
+  vehicle:
+    body-scale: 2
+    speed: 4
+    reverse-speed: 1.5
+    acceleration: 1.6
+    brake: 6
+    coast: 2.5
+    turn-rate: 70
+    turn-speed: 1.5
+    step-height: 1.0
+    size: [2.9, 0.95, 1.8]
+    click-height: 1.5
+    wheel: wheel_oxcart
+    wheel-radius: 0.5625
+    wheels: []
+    seats:
+      - { at: [-0.3, 1.03, 0.875], unit: 1 }
+      - { at: [0.3, 1.03, 0.875], unit: 1 }
+    horn: { sound: stsv:vehicle.ox_cart.horn, release: stsv:vehicle.ox_cart.horn_end, volume: 1.5,
+            vanilla: entity.cow.ambient, pitch: 0.7, times: 1 }
+    train:
+      jackknife: 45
+      slow-from: 0.55
+      ground: { farmland: 0.75, path: 1.0, dirt: 0.95, grass: 1.0 }
+      trailers:
+        - model: ox_cart_wagon
+          hitch: [0, 0.8, -1.33]
+          tongue: 1.75
+          size: [2.15, 1.35, 1.15]
+          click-height: 1.1
+          wheel: wheel_oxcart
+          wheel-radius: 0.5625
+          wheels:
+            - { at: [-0.84, 0.5625, 0] }
+            - { at: [0.84, 0.5625, 0] }
+          cargo:
+            slots: 270
+            at: [0, 0.84, -0.19]
+            stages: [ox_cart_cargo_1, ox_cart_cargo_2, ox_cart_cargo_3, ox_cart_cargo_4]
+      animal:
+        stride: 1.5
+        swing: 24
+        legs:
+          - { model: ox_leg_hind, at: [-0.22, 0.875, -0.9375], phase: 0 }
+          - { model: ox_leg_fore, at: [-0.22, 0.875, 0.1875], phase: 0.25 }
+          - { model: ox_leg_hind, at: [0.22, 0.875, -0.9375], phase: 0.5 }
+          - { model: ox_leg_fore, at: [0.22, 0.875, 0.1875], phase: 0.75 }
+        head: { model: ox_head, at: [0, 1.3125, 0.5], bob: 0.04 }
+        steps: { key: entity.cow.step, volume: 0.3, pitch: 0.8, every: 0.75 }
+
+# ------------------------------------------------------------------------------------------------
+# 3세대 · 경운기 + 짐칸: 두 바퀴 경운기가 짐칸을 끔. 운전석은 짐칸 앞 의자 (손잡이가 그 앞까지 옴). 통통통 엔진
+#   밭(farmland)을 밟아 망가뜨리지 않고, 밭과 흙길에서 거의 느려지지 않음
+# ------------------------------------------------------------------------------------------------
+power_tiller:
+  material: paper
+  name: "<#e06439>경운기"
+  lore:
+    - "<gold>3세대</gold> <gray>· 통통통, 짐칸을 단 두 바퀴 경운기"
+    - "<gray>2인승 (짐칸 앞 의자) · 짐칸 360칸 (8쪽) · 최고 속도 5블록/초"
+    - "<gray>밭·흙길에서도 거의 느려지지 않고 밭을 망가뜨리지 않음"
+    - "<dark_gray>땅에 우클릭: 세우기 · 우클릭: 타기 · 스페이스: 경적"
+    - "<dark_gray>W·S 앞뒤, A·D 방향, 웅크리기: 내리기"
+    - "<dark_gray>웅크리고 짐칸 우클릭: 짐칸 열기"
+    - "<dark_gray>웅크리고 경운기 우클릭: 아이템으로 회수 (주인, 짐칸이 비어 있어야 함)"
+  model: power_tiller
+  icon: power_tiller_icon
+  max-stack: 1
+  vehicle:
+    body-scale: 2
+    speed: 5
+    reverse-speed: 2
+    acceleration: 2.0
+    brake: 7
+    coast: 2.5
+    turn-rate: 60
+    turn-speed: 2
+    step-height: 1.0
+    size: [2.3, 1.45, 2.0]
+    click-height: 1.3
+    wheel: wheel_tiller
+    wheel-radius: 0.40625
+    wheels:
+      - { at: [-0.609, 0.40625, -0.5625] }
+      - { at: [0.609, 0.40625, -0.5625] }
+    seats:
+      - { at: [-0.3, 1.03, 0.84], unit: 1 }
+      - { at: [0.3, 1.03, 0.84], unit: 1 }
+    horn: { sound: stsv:vehicle.power_tiller.horn, release: stsv:vehicle.power_tiller.horn_end, volume: 1.5,
+            vanilla: block.note_block.bit, pitch: 1.3, times: 2, gap: 3 }
+    engine: { sound: stsv:vehicle.power_tiller.engine, volume: 0.45, idle-volume: 0.3, idle-pitch: 0.75, top-pitch: 1.35, segment-ticks: 10 }
+    train:
+      jackknife: 40
+      slow-from: 0.6
+      ground: { farmland: 0.95, path: 1.0, dirt: 1.0, grass: 0.95 }
+      trailers:
+        - model: power_tiller_trailer
+          hitch: [0, 0.47, -0.9375]
+          tongue: 1.78
+          size: [2.1, 1.95, 1.4]
+          click-height: 1.1
+          wheel: wheel_tiller
+          wheel-radius: 0.40625
+          wheels:
+            - { at: [-0.84375, 0.40625, 0] }
+            - { at: [0.84375, 0.40625, 0] }
+          cargo:
+            slots: 360
+            at: [0, 0.65625, -0.16]
+            stages: [power_tiller_cargo_1, power_tiller_cargo_2, power_tiller_cargo_3, power_tiller_cargo_4]
+      parts:
+        - { model: power_tiller_flywheel, at: [0.4219, 0.9375, 0.53125], axis: x, spin: engine, idle: 18, top: 40 }
+
+# ------------------------------------------------------------------------------------------------
+# 5세대 · 트랙터 + 트레일러: 트랙터가 트레일러 두 대를 줄줄이 끔 (짐칸 360칸 × 2 = 720칸, 쪽을 넘기면 둘째 트레일러).
+#   험한 땅(흙, 밭, 잔디, 진흙)에서 느려지지 않음
+# ------------------------------------------------------------------------------------------------
+tractor_trailer:
+  material: paper
+  name: "<#f28023>트랙터 + 트레일러"
+  lore:
+    - "<gold>5세대</gold> <gray>· 트레일러 두 대를 줄줄이 끄는 농업용 트랙터"
+    - "<gray>운전석 + 펜더 옆자리 1 · 짐칸 720칸 (트레일러마다 360칸) · 최고 속도 6블록/초"
+    - "<gray>흙·밭·잔디·진흙에서도 느려지지 않음 · 디젤 엔진"
+    - "<dark_gray>땅에 우클릭: 세우기 · 우클릭: 타기 · 스페이스: 경적"
+    - "<dark_gray>W·S 앞뒤, A·D 방향, 웅크리기: 내리기"
+    - "<dark_gray>웅크리고 트레일러 우클릭: 그 트레일러의 짐칸 열기"
+    - "<dark_gray>웅크리고 트랙터 우클릭: 아이템으로 회수 (주인, 짐칸이 모두 비어 있어야 함)"
+  model: tractor
+  icon: tractor_trailer_icon
+  max-stack: 1
+  vehicle:
+    body-scale: 2
+    speed: 6
+    reverse-speed: 2.5
+    acceleration: 2.0
+    brake: 7
+    coast: 2
+    turn-rate: 55
+    turn-speed: 2
+    step-height: 1.0
+    size: [3.4, 1.9, 3.0]
+    all-terrain: true
+    click-height: 1.6
+    wheel: wheel_tractor_front
+    wheel-radius: 0.375
+    wheels:
+      - { at: [-0.609, 0.375, 0.96875], steer: true }
+      - { at: [0.609, 0.375, 0.96875], steer: true }
+    seats:
+      - { at: [0, 1.1875, -0.875] }
+      - { at: [-0.75, 1.5625, -0.75] }
+    horn: { sound: stsv:vehicle.tractor_trailer.horn, release: stsv:vehicle.tractor_trailer.horn_end, volume: 1.5,
+            vanilla: block.note_block.didgeridoo, pitch: 0.8, times: 1 }
+    engine: { sound: stsv:vehicle.tractor_trailer.engine, volume: 0.45, idle-volume: 0.25, idle-pitch: 0.6, top-pitch: 1.3, segment-ticks: 10 }
+    train:
+      jackknife: 50
+      slow-from: 0.6
+      ground: { farmland: 1.0, path: 1.0, dirt: 1.0, grass: 1.0 }
+      trailers:
+        - model: tractor_wagon
+          hitch: [0, 0.53, -2.125]
+          tongue: 2.11
+          size: [2.65, 1.65, 1.6]
+          click-height: 1.3
+          wheel: wheel_tiller
+          wheel-radius: 0.40625
+          wheels:
+            - { at: [-0.609, 0.40625, 0] }
+            - { at: [0.609, 0.40625, 0] }
+          cargo:
+            slots: 360
+            at: [0, 0.9375, 0]
+            stages: [tractor_wagon_cargo_1, tractor_wagon_cargo_2, tractor_wagon_cargo_3, tractor_wagon_cargo_4]
+        - model: tractor_wagon
+          hitch: [0, 0.52, -1.4375]
+          tongue: 2.11
+          size: [2.65, 1.65, 1.6]
+          click-height: 1.3
+          wheel: wheel_tiller
+          wheel-radius: 0.40625
+          wheels:
+            - { at: [-0.609, 0.40625, 0] }
+            - { at: [0.609, 0.40625, 0] }
+          cargo:
+            slots: 360
+            at: [0, 0.9375, 0]
+            stages: [tractor_wagon_cargo_1, tractor_wagon_cargo_2, tractor_wagon_cargo_3, tractor_wagon_cargo_4]
+      parts:
+        - { model: wheel_tractor_rear, at: [-0.765625, 0.6875, -0.875], axis: x, spin: roll, radius: 0.6875 }
+        - { model: wheel_tractor_rear, at: [0.765625, 0.6875, -0.875], axis: x, spin: roll, radius: 0.6875 }

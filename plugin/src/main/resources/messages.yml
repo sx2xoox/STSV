@@ -471,6 +471,8 @@ vehicle:
   driving: "<gray>W·S 앞뒤 · A·D 방향 · {keys} · 웅크리기: 내리기"
   keys-siren: "스페이스: 경적 · Ctrl: 사이렌"
   keys-horn: "스페이스: 경적"
+  keys-moo: "스페이스: 음메 (소 울음)"
+  train-trailer: "트레일러 {n}"
   passenger: "<gray>{owner}님의 탈것에 탔어요 <dark_gray>(운전은 주인, 주인이 허락한 사람, 그 땅 구성원만)"
   siren-on: "<red>●</red><blue>●</blue> <white>사이렌 켬"
   siren-off: "<gray>사이렌 끔"
