@@ -41,12 +41,15 @@ class PackPipelineTest {
             "mole", "gumiho", "phoenix",                        // pets: the helmet lamp, fox-fire tails, flame tips
             "andon", "stone_lantern", "tea_kettle",             // furniture: lamp paper, the lantern's fire, embers
             "police_car", "light_truck", "golf_cart",           // vehicles: head and tail lights
-            "police_lightbar_a", "police_lightbar_b");          // the light bar's lit halves
+            "police_lightbar_a", "police_lightbar_b",           // the light bar's lit halves
+            "cargo_bicycle", "cargo_van");                      // road vehicles: the bicycle's lamps, the van's head and tail lights
     private static final Set<String> ROTATED = Set.of("test_sword", "test_sword_skin", "test_greatsword", "test_slash", "test_rod", "test_rod_cast",
             "angel_wings", "demon_wings", "butterfly_wings",   // wings swept back 22.5 degrees
             "gumiho",                                           // nine tails fanned out
             "wagasa",                                           // the parasol's struts, tilted up to its canopy
-            "police_car", "light_truck");                       // raked windscreens (45 / 22.5 degrees)
+            "police_car", "light_truck",                        // raked windscreens (45 / 22.5 degrees)
+            "cargo_bicycle", "delivery_scooter", "atv",         // road vehicles: frame tubes, forks, stays, steering posts
+            "cargo_van", "box_truck");                          // a raked windscreen, a roof deflector and a tilted steering wheel
 
     @org.junit.jupiter.params.ParameterizedTest
     @org.junit.jupiter.params.provider.MethodSource("models")

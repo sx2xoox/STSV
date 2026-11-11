@@ -34,6 +34,11 @@ final class LiveVehicle {
 
     ItemDisplay body, lights, load;
     final List<ItemDisplay> wheels = new ArrayList<>();
+    /** parts turned with the wheels (VehicleSpec.Extras#spinners: a pedal crank), in the spec's order */
+    final List<ItemDisplay> spinners = new ArrayList<>();
+    /** degrees the body leans to the left now (two-wheelers in a turn: VehicleSpec.Extras#lean); how far the wheels rolled (radians, unbounded) */
+    float lean;
+    double spin;
     final List<Interaction> hits = new ArrayList<>();
     /**
      * An occupied seat: the carrier (an item display without an item, teleported with the vehicle every tick: it glides
@@ -139,6 +144,7 @@ final class LiveVehicle {
         if (load != null) out.add(load);
         if (handle != null) out.add(handle);
         out.addAll(wheels);
+        out.addAll(spinners);
         out.addAll(hits);
         for (Seat s : seats) {
             if (s == null) continue;
