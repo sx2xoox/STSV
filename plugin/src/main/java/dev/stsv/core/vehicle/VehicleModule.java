@@ -167,6 +167,7 @@ public final class VehicleModule implements StsvModule, Listener {
     private BiPredicate<Player, Hauled> cargoClick;
     /** the economy server's 출발 터미널: why a load (by Hauled id) is sealed now, or null */
     private java.util.function.LongFunction<net.kyori.adventure.text.Component> cargoSeal;
+    private java.util.function.LongConsumer tripBroken;
     /** every vehicle's trip since its load last changed (VehicleTrip), by id */
     private VehicleTripStore tripStore;
     private final Map<Long, VehicleTrip> trips = new HashMap<>();
@@ -218,6 +219,8 @@ public final class VehicleModule implements StsvModule, Listener {
             command.setTabCompleter(c);
         }
         spawnSoon = true;
+        // once every plugin has loaded its worlds (the first tick): vehicles left in a world that is no more go home
+        Bukkit.getScheduler().runTask(plugin, this::returnStranded);
         plugin.getLogger().info("탈것 " + parked.size() + "대 (청크를 불러오면 보임)");
     }
 
@@ -295,6 +298,11 @@ public final class VehicleModule implements StsvModule, Listener {
         this.mailbox = mailbox;
     }
 
+    /** The mailbox hook (the 지게's 회수 sends its new item there too: JigeModule), or null. */
+    BiConsumer<UUID, ItemStack> mailboxHook() {
+        return mailbox;
+    }
+
     /**
      * 적재 무게: what an item (a whole stack) weighs (the economy server: weights.yml). With it, a bed takes no more than its
      * vehicle's payload ({@link VehicleSpec.Cargo#payload}, {@link CargoGuard}) and its view shows the weight. null = no limit.
@@ -337,6 +345,26 @@ public final class VehicleModule implements StsvModule, Listener {
      */
     public void cargoSeal(java.util.function.LongFunction<net.kyori.adventure.text.Component> seal) {
         this.cargoSeal = seal;
+    }
+
+    /**
+     * 출발 터미널: told a load's id ({@link Hauled#id}) when its trip was broken off, not just started again by a change
+     * (a 지게's wearer teleported or changed worlds: the load skipped the road). The economy server voids its seal at once.
+     * null = nobody listens.
+     */
+    public void tripBroken(java.util.function.LongConsumer broken) {
+        this.tripBroken = broken;
+    }
+
+    /** A load's trip was broken off ({@link #tripBroken}). */
+    void broken(long id) {
+        java.util.function.LongConsumer b = tripBroken;
+        if (b == null) return;
+        try {
+            b.accept(id);
+        } catch (RuntimeException ex) {
+            plugin.getLogger().log(java.util.logging.Level.WARNING, "[탈것] 운송 무효 처리 실패", ex);
+        }
     }
 
     /** Why this load is sealed now (a message), or null. */
@@ -410,6 +438,20 @@ public final class VehicleModule implements StsvModule, Listener {
     }
 
     /**
+     * Closes this load's open view (a vehicle's bed, whoever has it open; a 지게's, on its wearer), what was done in it
+     * stored first. 출발 터미널: done before sealing, so nobody keeps taking things out of a sealed load through a view
+     * opened before; the load's {@link Hauled#version} afterwards tells whether it changed meanwhile.
+     */
+    public void closeLoad(long id) {
+        if (id < 0) {
+            plugin.modules().get("jige", JigeModule.class).ifPresent(j -> j.closeView(-id));
+            return;
+        }
+        LiveVehicle v = live.get(id);
+        if (v != null) closeCargo(v);
+    }
+
+    /**
      * Takes things out of a shown vehicle's bed (a dock sale): the slots `take` picks, only if the bed is still as it was at
      * `version` (else null and nothing changes). An open bed view is closed first. The load changed: its trip starts again here.
      */
@@ -428,9 +470,19 @@ public final class VehicleModule implements StsvModule, Listener {
         return out;
     }
 
-    /** The trip of a vehicle (one shown before trips were kept starts where it stands, now). */
+    /**
+     * The trip of a vehicle (one shown before trips were kept starts where it stands, now). A new one is saved at once: a
+     * load inspected and sealed on it (출발 터미널) carries its start time, and a crash before the next save would make it
+     * start again at another time (the seal void).
+     */
     private VehicleTrip trip(LiveVehicle v) {
-        return trips.computeIfAbsent(v.id, k -> VehicleTrip.start(v.world.getName(), v.st.x, v.st.z, System.currentTimeMillis()));
+        VehicleTrip t = trips.get(v.id);
+        if (t == null) {
+            t = VehicleTrip.start(v.world.getName(), v.st.x, v.st.z, System.currentTimeMillis());
+            trips.put(v.id, t);
+            saveTrip(v.id);
+        }
+        return t;
     }
 
     private void saveTrip(long id) {
@@ -1569,10 +1621,37 @@ public final class VehicleModule implements StsvModule, Listener {
 
     /** A safe spot beside the vehicle for a rider of this seat (VehicleSeats.exits, in order); on top of it if none. */
     private Location exit(LiveVehicle v, int seat) {
+        Location safe = safeExit(v, seat);
+        if (safe != null) return safe;
+        double[] top = exitTries(v, seat).getLast();
+        return new Location(v.world, top[0], top[1], top[2]);
+    }
+
+    /**
+     * Where someone may be brought to a player sitting in a vehicle (/tpa to a rider: their own spot is a seat above the
+     * ground): the safe spot beside their seat a rider steps out to. null = they ride no vehicle, or there is none.
+     */
+    public Location besideRider(Player rider) {
+        Long id = partOf(rider.getVehicle());
+        LiveVehicle v = id == null ? null : live.get(id);
+        int seat = v == null ? -1 : v.seatOf(rider);
+        if (seat < 0) return null;
+        Location at = safeExit(v, seat);
+        if (at != null) at.setYaw(rider.getYaw());
+        return at;
+    }
+
+    private List<double[]> exitTries(LiveVehicle v, int seat) {
         int at = Math.min(seat, v.spec.seats().size() - 1);
         List<double[]> tries = new ArrayList<>();
         if (v.train != null) tries.addAll(v.train.exits(v, at));   // beside the seat's own unit
         else for (VehicleSpec.Vec t : VehicleSeats.exits(v.spec, v.spec.seats().get(at))) tries.add(VehiclePhysics.world(v.st.x, v.st.y, v.st.z, v.st.yaw, t));
+        return tries;
+    }
+
+    /** A safe spot beside the vehicle for a rider of this seat (in the water beside a boat with no shore), or null. */
+    private Location safeExit(LiveVehicle v, int seat) {
+        List<double[]> tries = exitTries(v, seat);
         for (double[] c : tries) {
             int bx = (int) Math.floor(c[0]), bz = (int) Math.floor(c[2]), by = (int) Math.floor(c[1] + 0.01);
             if (!v.world.isChunkLoaded(bx >> 4, bz >> 4)) continue;
@@ -1581,12 +1660,7 @@ public final class VehicleModule implements StsvModule, Listener {
                 if (safe(feet)) return new Location(v.world, bx + 0.5, feet.getY() + floorHeight(feet.getRelative(BlockFace.DOWN)), bz + 0.5);
             }
         }
-        if (v.spec.floats()) {
-            Location wet = wetExit(v, tries);
-            if (wet != null) return wet;
-        }
-        double[] top = tries.getLast();
-        return new Location(v.world, top[0], top[1], top[2]);
+        return v.spec.floats() ? wetExit(v, tries) : null;
     }
 
     private static boolean safe(Block feet) {
@@ -1949,6 +2023,19 @@ public final class VehicleModule implements StsvModule, Listener {
 
     private void pickUp(LiveVehicle v, Player p) {
         boolean own = p.getUniqueId().equals(v.owner);
+        boolean[] taken = v.taken();
+        boolean passengers = false;
+        for (int i = 1; i < taken.length; i++) passengers |= taken[i];
+        if (VehicleAccess.ejectPassengers(v.owner, p.getUniqueId(), admin(p), taken.length > 0 && taken[0], passengers)
+                && v.puller == null && v.cargoViewer == null && v.cargoEmpty() && (!own || room(p))) {
+            // only passengers aboard: they step out beside it (VehicleSeats exits), then it is picked up
+            for (int i = 1; i < taken.length; i++) {
+                Player rider = v.rider(i);
+                if (rider == null) continue;
+                leave(v, i);
+                rider.sendMessage(Lang.msg("vehicle.passenger-out", "owner", v.ownerName));
+            }
+        }
         VehicleAccess.PickUp r = VehicleAccess.pickUp(v.owner, p.getUniqueId(), admin(p), v.hasRiders(), v.puller != null, v.cargoEmpty(),
                 v.cargoViewer != null);
         switch (r) {
@@ -1982,10 +2069,20 @@ public final class VehicleModule implements StsvModule, Listener {
                         return;
                     }
                     ItemStack it = itemFor(item, back.id(), token);
-                    if (p.isOnline()) give(p, it);
-                    else deliver(back.owner(), back.id(), token, it, false);
-                    p.playSound(p.getLocation(), Sound.ENTITY_ITEM_PICKUP, 0.7f, 0.9f);
-                    p.sendMessage(Lang.msg("vehicle.picked-up", "vehicle", label(item)));
+                    if (p.isOnline() && room(p) && p.getInventory().addItem(it).isEmpty()) {
+                        p.playSound(p.getLocation(), Sound.ENTITY_ITEM_PICKUP, 0.7f, 0.9f);
+                        p.sendMessage(Lang.msg("vehicle.picked-up", "vehicle", label(item)));
+                        return;
+                    }
+                    // they left (or filled their inventory) while it was stored: owed, so the item is handed over later
+                    // (the mailbox, or their next join) and never lost; an ITEM row with no item would be gone for good
+                    store.owe(back.id(), token, System.currentTimeMillis()).whenComplete((owed, err2) -> Bukkit.getScheduler().runTask(plugin, () -> {
+                        if (err2 != null || !Boolean.TRUE.equals(owed)) {
+                            plugin.getLogger().warning("[탈것] #" + back.id() + " 회수한 아이템을 주지 못했고 돌려줄 예정으로도 못 바꿈: /관리자 탈것 회수 " + back.id());
+                            return;
+                        }
+                        deliver(back.owner(), back.id(), token, it, "vehicle.picked-up-later");
+                    }));
                 }));
             }
         }
@@ -1997,6 +2094,54 @@ public final class VehicleModule implements StsvModule, Listener {
      * Its bed's load stays with it.
      */
     void recall(long id, CommandSender by) {
+        recall(id, by, "vehicle.returned");
+    }
+
+    /**
+     * /관리자 야생초기화 (WorldsModule, before those worlds unload): every vehicle standing in them goes back to its owner as
+     * an item (owed: the mailbox, or their next join), told why. Its bed's load stays with its number (a bed is never in
+     * an item: it is there again when the vehicle is placed). The new worlds have the same names but new ids: left
+     * standing, those vehicles would never be shown again.
+     */
+    public void worldsReset(java.util.Collection<World> worlds) {
+        Set<UUID> uids = new HashSet<>();
+        Set<String> names = new HashSet<>();
+        for (World w : worlds) {
+            uids.add(w.getUID());
+            names.add(w.getName());
+        }
+        Set<Long> ids = new java.util.TreeSet<>();
+        for (LiveVehicle v : live.values()) if (uids.contains(v.world.getUID()) || names.contains(v.world.getName())) ids.add(v.id);
+        for (VehicleStore.Row r : parked.values()) {
+            if (r.pos() != null && (uids.contains(r.pos().world()) || names.contains(r.pos().worldName()))) ids.add(r.id());
+        }
+        sendHome(ids, "야생월드 초기화");
+    }
+
+    /**
+     * At start and after a wild reset: vehicles whose world is no more (VehicleStore#worldGone: a world of that name with
+     * another id, or none and no folder of that name) go back to their owners as {@link #worldsReset} does. A world that
+     * is only not loaded now (its folder is there) keeps its vehicles.
+     */
+    public void returnStranded() {
+        Set<Long> ids = new java.util.TreeSet<>();
+        for (VehicleStore.Row r : parked.values()) {
+            if (r.pos() == null) continue;
+            String name = r.pos().worldName();
+            if (VehicleStore.worldGone(Bukkit.getWorld(r.pos().world()) != null, name != null && Bukkit.getWorld(name) != null,
+                    name != null && new java.io.File(Bukkit.getWorldContainer(), name).isDirectory())) ids.add(r.id());
+        }
+        sendHome(ids, "월드가 없어짐");
+    }
+
+    private void sendHome(Set<Long> ids, String why) {
+        if (ids.isEmpty()) return;
+        plugin.getLogger().info("[탈것] " + why + ": 탈것 " + ids.size() + "대를 주인에게 아이템으로 돌려보냄 " + ids);
+        for (long id : ids) recall(id, null, "vehicle.returned-world");
+    }
+
+    /** {@link #recall(long, CommandSender)}, telling the owner with this message (with {id}) when it is handed over. */
+    private void recall(long id, CommandSender by, String tell) {
         if (busy.contains(id)) {
             if (by != null) by.sendMessage(Lang.msg("vehicle.admin-busy", "id", id));
             return;
@@ -2026,18 +2171,22 @@ public final class VehicleModule implements StsvModule, Listener {
                         if (by != null) by.sendMessage(Lang.msg("vehicle.admin-unknown", "id", id));
                         return;
                     }
+                    if (trainSaved.remove(id) != null) trains.delete(id);   // an item now: placed again, it stands straight
                     Optional<CustomItem> item = plugin.content().item(row.item()).filter(CustomItem::isVehicle);
                     if (item.isEmpty()) {
                         if (by != null) by.sendMessage(Lang.msg("vehicle.admin-unknown", "id", id));
                         return;
                     }
-                    deliver(row.owner(), id, token, itemFor(item.get(), id, token), true);
+                    deliver(row.owner(), id, token, itemFor(item.get(), id, token), tell);
                     if (by != null) by.sendMessage(Lang.msg("vehicle.returned-owner", "id", id, "owner", row.ownerName()));
                 }));
     }
 
-    /** Hands an owed vehicle's item to its owner: the mailbox (economy server), else now if online with room, else on join. */
-    private void deliver(UUID owner, long id, long token, ItemStack it, boolean byAdmin) {
+    /**
+     * Hands an owed vehicle's item to its owner: the mailbox (economy server), else now if online with room, else on join.
+     * tell: the message (with {id}) the owner gets when it is handed over while they are online (null = none).
+     */
+    private void deliver(UUID owner, long id, long token, ItemStack it, String tell) {
         BiConsumer<UUID, ItemStack> box = mailbox;
         Player o = Bukkit.getPlayer(owner);
         if (box == null && (o == null || !room(o))) {
@@ -2052,7 +2201,7 @@ public final class VehicleModule implements StsvModule, Listener {
                 if (now != null) give(now, it);
             }
             Player now = Bukkit.getPlayer(owner);
-            if (now != null && byAdmin) now.sendMessage(Lang.msg("vehicle.returned", "id", id));
+            if (now != null && tell != null) now.sendMessage(Lang.msg(tell, "id", id));
         }));
     }
 
@@ -2060,7 +2209,7 @@ public final class VehicleModule implements StsvModule, Listener {
         store.owed(p.getUniqueId()).thenAccept(rows -> Bukkit.getScheduler().runTask(plugin, () -> {
             for (VehicleStore.Row r : rows) {
                 plugin.content().item(r.item()).filter(CustomItem::isVehicle)
-                        .ifPresent(item -> deliver(r.owner(), r.id(), r.token(), itemFor(item, r.id(), r.token()), true));
+                        .ifPresent(item -> deliver(r.owner(), r.id(), r.token(), itemFor(item, r.id(), r.token()), "vehicle.returned"));
             }
         }));
     }
@@ -2186,7 +2335,7 @@ public final class VehicleModule implements StsvModule, Listener {
         });
         if (!changed) return;
         // things came or went (not just moved between slots): the load's trip starts again here
-        cargoChanged(v, !CargoWeights.sameContents(before, v.cargo, ItemStack::isSimilar, ItemStack::getAmount));
+        cargoChanged(v, !CargoWeights.sameContents(before, v.cargo, VehicleModule::cargoKey, ItemStack::isSimilar, ItemStack::getAmount));
         ItemStack info = v.cargoInv.getItem(info(v.cargoInv));
         if (info != null && v.spec.cargo() != null) v.cargoInv.setItem(info(v.cargoInv), infoButton(v));
     }
@@ -2331,6 +2480,16 @@ public final class VehicleModule implements StsvModule, Listener {
     private static NamespacedKey stageModel(LiveVehicle v) {
         VehicleSpec.Cargo c = v.spec.cargo();
         return c == null || v.stage <= 0 ? null : c.stages().get(v.stage - 1);
+    }
+
+    /**
+     * A cheap key that similar stacks share (CargoWeights#sameContents groups by it before asking isSimilar): the custom
+     * item's id, else the material.
+     */
+    static Object cargoKey(ItemStack it) {
+        if (!it.hasItemMeta()) return it.getType();
+        String id = it.getItemMeta().getPersistentDataContainer().get(CustomItem.idKey(), PersistentDataType.STRING);
+        return id == null ? it.getType() : id;
     }
 
     /** The bed's contents for the database (null = empty). */

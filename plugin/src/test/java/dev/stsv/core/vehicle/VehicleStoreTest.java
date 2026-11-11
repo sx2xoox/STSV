@@ -62,6 +62,30 @@ class VehicleStoreTest {
         assertEquals(181.5f, b.pos().yaw(), 1e-6);
     }
 
+    /** Picked up while its owner quit (or filled their inventory): owed, so it is handed over on their next join, once. */
+    @Test
+    void aPickUpNobodyReceivedIsOwedNotLost() {
+        long id = store.create("stsv:light_truck", owner, "Owner", at(0, 0, 0), 1, 1000).join().id();
+        assertTrue(store.takeIn(id, 222, false, 2000).join(), "an item now (state ITEM)");
+        assertTrue(store.owed(owner).join().isEmpty(), "an ITEM row is never handed over by itself");
+        assertFalse(store.owe(id, 999, 2001).join(), "another token: not this item");
+        assertTrue(store.owe(id, 222, 2001).join(), "nobody got the item: owed");
+        assertFalse(store.owe(id, 222, 2002).join(), "once");
+        assertEquals(1, store.owed(owner).join().size(), "handed over on their next join");
+        assertTrue(store.delivered(id, 222, 3000).join());
+        assertFalse(store.owe(store.create("stsv:light_truck", owner, "Owner", at(1, 1, 0), 5, 1000).join().id(), 5, 3001).join(),
+                "a vehicle in the world is never owed this way");
+    }
+
+    /** A wild reset makes its worlds again with the same names and new ids: what stood there is gone, not merely unloaded. */
+    @Test
+    void aWorldIsGoneWhenMadeAgainOrDeleted() {
+        assertFalse(VehicleStore.worldGone(true, true, true), "its world is loaded");
+        assertTrue(VehicleStore.worldGone(false, true, true), "a world of that name with another id: made again");
+        assertTrue(VehicleStore.worldGone(false, false, false), "no such world and no folder: deleted");
+        assertFalse(VehicleStore.worldGone(false, false, true), "only not loaded now (its folder is there): it waits");
+    }
+
     @Test
     void pickedUpIsOneItemAndOnlyItsLatestCopyPlacesIt() {
         long id = store.create("stsv:light_truck", owner, "Owner", at(0, 0, 0), 1, 1000).join().id();

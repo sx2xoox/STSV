@@ -119,6 +119,20 @@ class VehicleRulesTest {
         assertFalse(VehicleAccess.mayGrant(owner, null));
     }
 
+    /** Passengers alone cannot keep the owner from picking up their vehicle: they are put out beside it first. */
+    @Test
+    void passengersAloneStepOutForTheOwnerButADriverStays() {
+        assertTrue(VehicleAccess.ejectPassengers(owner, owner, false, false, true), "the owner, only passengers aboard");
+        assertTrue(VehicleAccess.ejectPassengers(owner, stranger, true, false, true), "an admin");
+        assertFalse(VehicleAccess.ejectPassengers(owner, stranger, false, false, true), "anyone else: no");
+        assertFalse(VehicleAccess.ejectPassengers(owner, friend, false, false, true), "not even a friend (pick-up is the owner's)");
+        assertFalse(VehicleAccess.ejectPassengers(owner, owner, false, true, true), "someone drives: nobody is put out");
+        assertFalse(VehicleAccess.ejectPassengers(owner, owner, false, false, false), "nobody aboard: nothing to do");
+        // once they are out the pick-up goes on as usual
+        assertEquals(VehicleAccess.PickUp.OK, VehicleAccess.pickUp(owner, owner, false, false, false, true, false));
+        assertEquals(VehicleAccess.PickUp.RIDERS, VehicleAccess.pickUp(owner, owner, false, true, false, true, false));
+    }
+
     @Test
     void theBedOpensOnlyStandingStillUnpulledForOneViewer() {
         assertEquals(VehicleAccess.CargoOpen.OK, VehicleAccess.openCargo(owner, owner, false, false, false, false, false, false));

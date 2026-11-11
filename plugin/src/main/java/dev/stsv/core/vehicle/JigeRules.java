@@ -78,6 +78,17 @@ public final class JigeRules {
         return true;
     }
 
+    /**
+     * The farthest a wearer may be teleported (blocks, level) and still have walked it: stepping out of a vehicle's seat
+     * puts them beside it (within 8). Further, or into another world, the load skipped the road.
+     */
+    public static final double TELEPORT_STEP = 8;
+
+    /** Does a teleport of a wearer break their load's trip off (it starts again, a seal on it is void)? */
+    public static boolean teleportBreaks(boolean sameWorld, double distance) {
+        return !sameWorld || !(distance <= TELEPORT_STEP);
+    }
+
     /** On death a 지게 item is kept, worn or carried (whatever the keepInventory rule). */
     public static boolean keptOnDeath(boolean isJige) {
         return isJige;

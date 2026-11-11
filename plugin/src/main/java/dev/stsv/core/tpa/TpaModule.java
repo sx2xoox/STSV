@@ -242,12 +242,14 @@ public final class TpaModule implements StsvModule, Listener, TabExecutor {
             mover.sendMessage(Lang.msg("tpa.busy", "player", inWardrobe(mover) ? Names.mini(mover) : destName));
             return;
         }
-        if (!safeArrival(dest)) {
+        // dest sits in a vehicle (their spot is a seat above the ground): the safe spot beside it a rider steps out to
+        Location beside = plugin.vehicles() == null ? null : plugin.vehicles().besideRider(dest);
+        if (beside == null && !safeArrival(dest)) {
             mover.sendMessage(Lang.msg("tpa.unsafe", "player", destName));
             dest.sendMessage(Lang.msg("tpa.unsafe-other", "player", Names.mini(mover)));
             return;
         }
-        Location to = dest.getLocation();
+        Location to = beside != null ? beside : dest.getLocation();
         mover.teleportAsync(to, PlayerTeleportEvent.TeleportCause.COMMAND).thenAccept(ok -> {
             if (!ok) {
                 mover.sendMessage(Lang.msg("tpa.failed"));

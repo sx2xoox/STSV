@@ -832,3 +832,4 @@ terminal:
   cancel-owner: "<red>운송은 탈것 주인만 취소할 수 있어요."
   cancelled: "<yellow>{dock} 하역장 운송을 취소했어요. <gray>짐칸 봉인이 풀렸어요."
   voided: "<red>짐이 검사 때와 달라 {terminal} → {dock} 운송이 무효가 됐어요. <gray>(봉인 풀림)"
+  voided-teleport: "<red>지게를 진 채 순간이동해서 {terminal} → {dock} 운송이 무효가 됐어요. <gray>(봉인 풀림: 짐은 길을 따라 날라야 해요)"
