@@ -9,8 +9,57 @@ import java.util.List;
  *
  * @param facing 0 south (+z), 1 west (-x), 2 north (-z), 3 east (+x): the way the admin looked (Minecraft's yaw / 90)
  * @param chunks the chunks it claimed as server land ("x,z;x,z"): released again by 제거
+ * @param price  what it pays, in percent of the shop base price ({@link #MIN_PRICE} .. {@link #MAX_PRICE}), set by
+ *               /관리자 하역장 가격; {@link #DEFAULT_PRICE} (0) = the global docks.price-ratio (terminals: always 0)
  */
-public record Dock(String name, DockLayout.Kind kind, String world, int x, int y, int z, int facing, String chunks, long created) {
+public record Dock(String name, DockLayout.Kind kind, String world, int x, int y, int z, int facing, String chunks, long created, int price) {
+
+    /** A dock's own price: 1 % .. 300 % of the base; 0 = none of its own (the global ratio). */
+    public static final int MIN_PRICE = 1, MAX_PRICE = 300, DEFAULT_PRICE = 0;
+    /** {@link #parsePrice}: not a price. */
+    public static final int BAD_PRICE = -1;
+    /** The word that puts a dock back on the global ratio. */
+    public static final String DEFAULT_WORD = "기본";
+
+    /** A dock (or terminal) on the global ratio. */
+    public Dock(String name, DockLayout.Kind kind, String world, int x, int y, int z, int facing, String chunks, long created) {
+        this(name, kind, world, x, y, z, facing, chunks, created, DEFAULT_PRICE);
+    }
+
+    /** The same dock with its own price (percent), or {@link #DEFAULT_PRICE} for the global ratio. */
+    public Dock withPrice(int pct) {
+        return new Dock(name, kind, world, x, y, z, facing, chunks, created, pct);
+    }
+
+    /** Has the admin set its own price? */
+    public boolean ownPrice() {
+        return price != DEFAULT_PRICE;
+    }
+
+    /** What it pays as a share of the base: its own price, else the global ratio. */
+    public double ratio(double global) {
+        return ownPrice() ? price / 100.0 : global;
+    }
+
+    /**
+     * The price an admin typed: "95", "110", "110%" -> 95, 110; "기본" -> {@link #DEFAULT_PRICE}; anything else, or outside
+     * {@link #MIN_PRICE} .. {@link #MAX_PRICE} -> {@link #BAD_PRICE}.
+     */
+    public static int parsePrice(String text) {
+        if (text == null) return BAD_PRICE;
+        String t = text.trim();
+        if (t.equals(DEFAULT_WORD)) return DEFAULT_PRICE;
+        if (t.endsWith("%")) t = t.substring(0, t.length() - 1).trim();
+        if (t.isEmpty() || t.length() > 4 || !t.chars().allMatch(c -> c >= '0' && c <= '9')) return BAD_PRICE;
+        int v = Integer.parseInt(t);
+        return v >= MIN_PRICE && v <= MAX_PRICE ? v : BAD_PRICE;
+    }
+
+    /** A ratio as a percent for people: 90, 110, 92.5 (one decimal at most). */
+    public static String percent(double ratio) {
+        double p = Math.round(ratio * 1000) / 10.0;
+        return p == Math.rint(p) ? Long.toString((long) p) : String.format(java.util.Locale.ROOT, "%.1f", p);
+    }
 
     /** The facing of a yaw (degrees, Minecraft: 0 = south, 90 = west). */
     public static int facing(float yaw) {

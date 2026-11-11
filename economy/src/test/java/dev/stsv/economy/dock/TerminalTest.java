@@ -158,4 +158,162 @@ class TerminalTest {
         assertTrue(north.anyInZone("world", List.of(DockModule.bay(north))), "its bay's middle is in its bay");
         assertFalse(south.anyInZone("world", List.of(DockModule.bay(north))));
     }
+
+    // ------------------------------------------------------------------------------------------
+    // Each dock's own price (/관리자 하역장 가격)
+    // ------------------------------------------------------------------------------------------
+
+    @Test
+    void theAdminTypesAPercentOrTheDefaultWord() {
+        assertEquals(95, Dock.parsePrice("95"));
+        assertEquals(110, Dock.parsePrice("110"));
+        assertEquals(110, Dock.parsePrice("110%"));
+        assertEquals(110, Dock.parsePrice(" 110 % "));
+        assertEquals(1, Dock.parsePrice("1"), "the lowest");
+        assertEquals(300, Dock.parsePrice("300"), "the highest");
+        assertEquals(Dock.DEFAULT_PRICE, Dock.parsePrice("기본"), "back to docks.price-ratio");
+        for (String bad : new String[]{null, "", "%", "0", "301", "1000", "-5", "+5", "9.5", "1,10", "abc", "99999999999", "기본값"})
+            assertEquals(Dock.BAD_PRICE, Dock.parsePrice(bad), "refused: " + bad);
+        assertEquals("90", Dock.percent(0.9));
+        assertEquals("110", Dock.percent(1.1));
+        assertEquals("92.5", Dock.percent(0.925));
+        assertEquals("100", Dock.percent(1.0));
+    }
+
+    @Test
+    void aDockWithoutItsOwnPricePaysTheGlobalRatio() {
+        Dock d = new Dock("서해", DockLayout.Kind.PORT, "world", 7000, 62, 10, 3, "", 20);
+        assertFalse(d.ownPrice(), "built without one");
+        assertEquals(Dock.DEFAULT_PRICE, d.price());
+        assertEquals(0.9, d.ratio(0.9), 1e-12);
+        assertEquals(0.75, d.ratio(0.75), 1e-12, "follows docks.price-ratio when it changes");
+        Dock own = d.withPrice(110);
+        assertTrue(own.ownPrice());
+        assertEquals(1.1, own.ratio(0.9), 1e-12, "its own, whatever the global ratio");
+        assertEquals(d, own.withPrice(Dock.DEFAULT_PRICE), "기본: the same dock as before");
+        DockGoods g = DockTest.goods();
+        double kimchi = DockTest.shop().sell().get("economy:kimchi").base();
+        List<DockGoods.Slot> bed = List.of(new DockGoods.Slot(0, "economy:kimchi", 100, true));
+        assertEquals(g.plan(bed).total(), g.plan(bed, d).total(), "no price of its own = the global plan");
+        assertEquals((long) Math.floor(100 * kimchi * 1.1 + 1e-6), g.plan(bed, own).total());
+        // a stored price that is none (NULL) or out of range reads as the default
+        assertEquals(Dock.DEFAULT_PRICE, DockStore.price(null));
+        assertEquals(Dock.DEFAULT_PRICE, DockStore.price(0));
+        assertEquals(Dock.DEFAULT_PRICE, DockStore.price(301));
+        assertEquals(95, DockStore.price(95));
+        assertEquals(95, DockStore.price(95L), "MySQL may give a long");
+    }
+
+    @Test
+    void aDocksPriceIsKeptAndAnOldTableGainsTheColumn() throws Exception {
+        Db db = DatabaseModule.sqlite(dir.resolve("p.db"), Logger.getLogger("test"));
+        try {
+            // a server from before prices: version 1 of the table, a dock on it
+            db.migrate("eco-docks", List.of(List.of(
+                    "CREATE TABLE IF NOT EXISTS stsv_eco_dock (name VARCHAR(32) PRIMARY KEY, kind VARCHAR(8) NOT NULL, world VARCHAR(64) NOT NULL, "
+                            + "x INT NOT NULL, y INT NOT NULL, z INT NOT NULL, facing INT NOT NULL, chunks TEXT, created BIGINT NOT NULL)",
+                    "CREATE TABLE IF NOT EXISTS stsv_eco_dock_sale (id INTEGER PRIMARY KEY AUTOINCREMENT, at BIGINT NOT NULL, dock VARCHAR(32) NOT NULL, "
+                            + "vehicle BIGINT NOT NULL, owner CHAR(36) NOT NULL, seller CHAR(36) NOT NULL, items TEXT, paid BIGINT NOT NULL, "
+                            + "distance DOUBLE NOT NULL, odometer DOUBLE NOT NULL)")));
+            db.execute("INSERT INTO stsv_eco_dock (name, kind, world, x, y, z, facing, chunks, created) VALUES ('서해', 'PORT', 'world', 7000, 62, 10, 3, '', 20)").join();
+            DockStore s = new DockStore(db);
+            s.init();
+            Dock sea = s.all().getFirst();
+            assertFalse(sea.ownPrice(), "an old dock: the default");
+            Dock inland = new Dock("내륙", DockLayout.Kind.LAND, "world", -5000, 70, 5000, 1, "", 30).withPrice(95);
+            s.save(inland).join();
+            assertTrue(s.price("서해", 110).join());
+            assertFalse(s.price("없는곳", 110).join(), "no such dock");
+            DockStore again = new DockStore(db);
+            again.init();
+            List<Dock> all = again.all();
+            assertEquals(List.of(sea.withPrice(110), inland), all, "both prices back after a restart");
+            assertTrue(again.price("서해", Dock.DEFAULT_PRICE).join());
+            Dock back = again.all().getFirst();
+            assertEquals(sea, back, "기본: NULL again, the global ratio");
+            assertFalse(back.ownPrice());
+            // the column is NULL, not 0, for the default
+            assertEquals(List.of(true), db.sync(c -> Db.query(c, "SELECT price_pct IS NULL FROM stsv_eco_dock WHERE name = '서해'",
+                    rs -> rs.getBoolean(1))));
+        } finally {
+            db.close();
+        }
+    }
+
+    static final List<DockGoods.Slot> BED = List.of(
+            new DockGoods.Slot(0, "economy:kimchi", 100, true),
+            new DockGoods.Slot(1, "economy:ruby_ring", 10, true),
+            new DockGoods.Slot(2, "minecraft:diamond", 5, true));   // raw: not bought anywhere
+
+    /** What {@link #BED} fetches at a ratio, from the shop's base prices. */
+    static long at(double ratio) {
+        var sell = DockTest.shop().sell();
+        return (long) Math.floor(100 * sell.get("economy:kimchi").base() * ratio + 10 * sell.get("economy:ruby_ring").base() * ratio + 1e-6);
+    }
+
+    @Test
+    void theInspectionShowsWhatTheLoadFetchesAtEachDockNearestFirst() {
+        DockGoods g = DockTest.goods();
+        Dock terminal = new Dock("본사", DockLayout.Kind.TERMINAL, "world", 0, 64, 0, 0, "", 0);
+        Dock far = new Dock("먼곳", DockLayout.Kind.LAND, "world", 0, 64, 10_000, 0, "", 1).withPrice(110);
+        Dock near = new Dock("가까운곳", DockLayout.Kind.LAND, "world", 6_000, 64, 0, 0, "", 2).withPrice(85);
+        Dock middle = new Dock("가운데", DockLayout.Kind.PORT, "world", -8_000, 62, 0, 1, "", 3);   // no price of its own
+        Dock nether = new Dock("지옥", DockLayout.Kind.LAND, "nether", 100, 64, 0, 0, "", 4).withPrice(300);
+        List<DockModule.Offer> offers = DockModule.offers(g, BED, terminal, List.of(far, near, middle, nether));
+        assertEquals(List.of("가까운곳", "가운데", "먼곳"), offers.stream().map(o -> o.dock().name()).toList(), "by distance, another world left out");
+        assertEquals(0.85, offers.get(0).ratio(), 1e-12);
+        assertEquals(0.9, offers.get(1).ratio(), 1e-12, "the default: docks.price-ratio");
+        assertEquals(1.1, offers.get(2).ratio(), 1e-12);
+        assertEquals(at(0.85), offers.get(0).total());
+        assertEquals(at(0.9), offers.get(1).total());
+        assertEquals(at(1.1), offers.get(2).total());
+        assertTrue(offers.get(0).total() < offers.get(1).total() && offers.get(1).total() < offers.get(2).total(), "nearer pays less, farther more");
+        String manifest = CargoTrip.manifest(g.plan(BED).lines());
+        for (DockModule.Offer o : offers) {
+            assertEquals(manifest, CargoTrip.manifest(o.plan().lines()), "the same goods go wherever it goes: " + o.dock().name());
+            assertEquals(1, o.plan().kept(), "the diamond stays");
+        }
+        assertTrue(DockModule.offers(g, BED, terminal, List.of(nether)).isEmpty());
+    }
+
+    @Test
+    void aSealedTripKeepsItsValueWhenThePriceChangesLater() throws Exception {
+        DockGoods g = DockTest.goods();
+        Dock terminal = new Dock("본사", DockLayout.Kind.TERMINAL, "world", 0, 64, 0, 0, "", 0);
+        Dock far = new Dock("먼곳", DockLayout.Kind.LAND, "world", 0, 64, 10_000, 0, "", 1).withPrice(110);
+        DockModule.Offer shown = DockModule.offers(g, BED, terminal, List.of(far)).getFirst();
+        CargoTrip t = CargoTrip.seal(42, OWNER, terminal.name(), far, g, BED, 1000L, 120, DockModule.straight(terminal, far), 5000L);
+        assertEquals(shown.total(), t.total(), "sealed at what the inspection showed");
+        assertEquals(at(1.1), t.total());
+        assertEquals(1.1, t.ratio(), 1e-12);
+        assertEquals("먼곳", t.dock());
+        assertEquals(CargoTrip.manifest(g.plan(BED).lines()), t.manifest());
+        assertTrue(t.sealedNow());
+        // the admin lowers the price after the seal: new inspections see it, the sealed trip does not
+        Dock cheaper = far.withPrice(80);
+        assertEquals(at(0.8), DockModule.offers(g, BED, terminal, List.of(cheaper)).getFirst().total());
+        assertEquals(at(1.1), t.total(), "the promised value");
+        assertEquals(CargoTrip.Check.OK, t.check("먼곳", 1000L, t.manifest(), 120 + 9000), "it still sells there");
+        assertEquals(at(1.1), t.end(CargoTrip.Status.DONE, 9000).total(), "and is paid what was sealed");
+        // and over a restart
+        Db db = DatabaseModule.sqlite(dir.resolve("s.db"), Logger.getLogger("test"));
+        try {
+            TripStore s = new TripStore(db);
+            s.init();
+            CargoTrip stored = s.open(t);
+            TripStore again = new TripStore(db);
+            again.init();
+            CargoTrip back = again.sealed().getFirst();
+            assertEquals(stored, back);
+            assertEquals(at(1.1), back.total());
+            assertEquals(1.1, back.ratio(), 1e-12, "the ratio it was sealed with, on record");
+        } finally {
+            db.close();
+        }
+        // a dock on the default: sealed at docks.price-ratio
+        Dock plain = far.withPrice(Dock.DEFAULT_PRICE);
+        CargoTrip d = CargoTrip.seal(42, OWNER, terminal.name(), plain, g, BED, 1000L, 120, 10_000, 5000L);
+        assertEquals(g.ratio(), d.ratio(), 1e-12);
+        assertEquals(g.plan(BED).total(), d.total());
+    }
 }

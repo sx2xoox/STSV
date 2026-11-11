@@ -62,9 +62,10 @@ import java.util.UUID;
  *       their ground claimed as the server's land. At a dock, sneak + right-click on a vehicle's bed whose vehicle (any unit
  *       of a train, a boat at the pier) stands in the unloading zone, or on the 하역 창구, or sneak + right-click with an empty
  *       hand wearing a 지게 in the zone, opens the 하역장 판매 menu.</li>
- *   <li><b>Selling</b>: only finished goods ({@link DockGoods}) in the vehicle's bed, at 90 % of their base price, and only if
- *       the load changed at least docks.min-distance blocks away and the vehicle drove that far since. The money goes to
- *       the vehicle's owner; who may sell = who may open the bed. Every sale is logged.</li>
+ *   <li><b>Selling</b>: only finished goods ({@link DockGoods}) in the vehicle's bed, inspected and sealed for this dock at a
+ *       departure terminal ({@link CargoTrip}), at the value sealed then: base price x the dock's ratio at seal time (its
+ *       own, /관리자 하역장 가격, else docks.price-ratio). The money goes to the vehicle's owner; who may sell = who may open
+ *       the bed. Every sale is logged.</li>
  * </ul>
  */
 public final class DockModule extends EcoModule {
@@ -115,12 +116,15 @@ public final class DockModule extends EcoModule {
                 (s, a) -> a.length == 1 ? List.of("설치", "목록", "제거", "다시꾸미기")
                         : a.length == 2 && (a[0].equals("제거") || a[0].equals("다시꾸미기")) ? terminals.values().stream().map(Dock::name).toList()
                         : List.of());
-        STSVPlugin.get().admin().add(EcoPlugin.ADMIN_OWNER, "하역장", "설치 <이름> [육지|항구] | 목록 | 제거 <이름> | 다시꾸미기 <이름> | 후보 <거리> | 기록 [이름]",
-                "하역장: 지금 자리에 짓기(보는 방향) / 목록 / 기록 지우기 / 땅은 그대로 장식(컨테이너·모델·블록)만 다시 / 국도 기준점(없으면 건축월드 스폰)에서 8방향으로 후보지 살피기 / 판매 기록",
+        STSVPlugin.get().admin().add(EcoPlugin.ADMIN_OWNER, "하역장",
+                "설치 <이름> [육지|항구] | 목록 | 가격 <이름> <퍼센트|기본> | 제거 <이름> | 다시꾸미기 <이름> | 후보 <거리> | 기록 [이름]",
+                "하역장: 지금 자리에 짓기(보는 방향) / 목록(매입가·거리) / 그 하역장 매입가(기준가의 1~300%, 기본 = docks.price-ratio) / 기록 지우기 / "
+                        + "땅은 그대로 장식(컨테이너·모델·블록)만 다시 / 국도 기준점(없으면 건축월드 스폰)에서 8방향으로 후보지 살피기 / 판매 기록",
                 this::command,
-                (s, a) -> a.length == 1 ? List.of("설치", "목록", "제거", "다시꾸미기", "후보", "기록")
-                        : a.length == 2 && (a[0].equals("제거") || a[0].equals("기록") || a[0].equals("다시꾸미기")) ? new ArrayList<>(names())
+                (s, a) -> a.length == 1 ? List.of("설치", "목록", "가격", "제거", "다시꾸미기", "후보", "기록")
+                        : a.length == 2 && (a[0].equals("제거") || a[0].equals("기록") || a[0].equals("다시꾸미기") || a[0].equals("가격")) ? new ArrayList<>(names())
                         : a.length == 2 && a[0].equals("후보") ? List.of("7000", "5000")
+                        : a.length == 3 && a[0].equals("가격") ? List.of(Dock.DEFAULT_WORD, "95", "100", "110")
                         : a.length == 3 && a[0].equals("설치") ? List.of("육지", "항구") : List.of());
         every(1L, () -> {
             if (scout != null) scout.tick();
@@ -332,7 +336,8 @@ public final class DockModule extends EcoModule {
         if (o != null && o != tell) o.sendMessage(Lang.msg("terminal.voided", "dock", t.dock(), "terminal", t.terminal()));
     }
 
-    DockGoods.Plan plan(Hauled h) {
+    /** The bed as the dock trade sees it. */
+    static List<DockGoods.Slot> bed(Hauled h) {
         List<DockGoods.Slot> bed = new ArrayList<>();
         ItemStack[] c = h.contents();
         for (int i = 0; i < c.length; i++) {
@@ -340,7 +345,23 @@ public final class DockModule extends EcoModule {
             String id = Items.key(c[i]);
             bed.add(new DockGoods.Slot(i, id, c[i].getAmount(), Items.plain(c[i], id)));
         }
-        return goods.plan(bed);
+        return bed;
+    }
+
+    /** What a load would sell (its manifest and slots: the same at every dock), priced at the global ratio. */
+    DockGoods.Plan plan(Hauled h) {
+        return goods.plan(bed(h));
+    }
+
+    /** What a dock pays as a share of the base now: its own price, else docks.price-ratio. */
+    double ratio(Dock d) {
+        return d.ratio(rules.ratio());
+    }
+
+    /** A dock's price for people: "110%", or "90% (기본)" on the global ratio. */
+    String priceWords(Dock d) {
+        String pct = Dock.percent(ratio(d));
+        return d.ownPrice() ? Lang.raw("dock.price-own", "pct", pct) : Lang.raw("dock.price-default", "pct", pct);
     }
 
     /** The menu: what goes and for how much, the trip, a confirm button (or why not), the bed. */
@@ -372,10 +393,12 @@ public final class DockModule extends EcoModule {
             HudModule.flash(p, Lang.mm("dock.not-yours", "owner", h.ownerName()));
             return;
         }
-        DockGoods.Plan plan = plan(h);
         String why = refusal(d, h);
         if ("dock.why-mismatch".equals(why)) voidTrip(sealed.get(h.id()), p);
         CargoTrip trip = sealed.get(h.id());
+        // the lines at the ratio this load was sealed with for this dock (its promised value), else at the dock's ratio now
+        boolean promised = trip != null && trip.ratio() > 0 && trip.dock().equalsIgnoreCase(d.name());
+        DockGoods.Plan plan = goods.plan(bed(h), promised ? trip.ratio() : ratio(d));
         boolean ok = why == null && !plan.empty();
         Sale s = new Sale(d, h, plan, ok);
         Inventory inv = Bukkit.createInventory(s, 54, Lang.mm("dock.title"));
@@ -393,19 +416,22 @@ public final class DockModule extends EcoModule {
         }
         for (int i = LIST; i < 54; i++) inv.setItem(i, pane(Material.GRAY_STAINED_GLASS_PANE, " "));
         ItemStack info = pane(Material.MAP, Lang.raw("dock.info-title", "vehicle", h.name(), "owner", h.ownerName()));
-        info.editMeta(m -> m.lore(List.of(
+        List<Component> infoLore = new ArrayList<>(List.of(
                 trip == null ? Lang.item("dock.info-no-trip") : Lang.item("dock.info-trip", "terminal", trip.terminal(), "dock", trip.dock()),
                 trip == null ? Lang.item("dock.info-no-trip-how") : Lang.item("dock.info-driven", "driven", Math.round(trip.driven(h.trip().odometer())),
                         "needed", Math.round(trip.needed())),
                 Lang.item("dock.info-weight", "weight", dev.stsv.core.vehicle.CargoWeights.format(h.weight()),
                         "payload", dev.stsv.core.vehicle.CargoWeights.format(h.payload())),
                 Lang.item("dock.info-kept", "kept", plan.kept()),
-                Lang.item("dock.info-price", "pct", Math.round(rules.ratio() * 100)))));
+                Lang.item("dock.info-price", "price", priceWords(d))));
+        if (trip != null) infoLore.add(Lang.item("dock.info-promised", "total", EconomyModule.format(trip.total())));
+        info.editMeta(m -> m.lore(infoLore));
         inv.setItem(INFO, info);
         inv.setItem(CANCEL, pane(Material.BARRIER, Lang.raw("dock.cancel")));
         inv.setItem(BED, pane(Material.CHEST, Lang.raw("dock.open-bed")));
         if (ok) {
-            ItemStack confirm = pane(Material.EMERALD_BLOCK, Lang.raw("dock.confirm", "total", EconomyModule.format(plan.total())));
+            // what it pays: the value sealed at inspection (the dock's ratio then), whatever its price is now
+            ItemStack confirm = pane(Material.EMERALD_BLOCK, Lang.raw("dock.confirm", "total", EconomyModule.format(trip.total())));
             confirm.editMeta(m -> m.lore(List.of(Lang.item("dock.confirm-to", "owner", h.ownerName()))));
             inv.setItem(CONFIRM, confirm);
         } else {
@@ -465,7 +491,8 @@ public final class DockModule extends EcoModule {
             p.sendMessage(Lang.msg("dock.changed"));
             return;
         }
-        if (!mayUse(p, h) || dockOf(h) != s.dock || refusal(s.dock, h) != null) {
+        Dock here = dockOf(h);   // by name: its price may have been set since the menu opened (a new record)
+        if (!mayUse(p, h) || here == null || !here.name().equals(s.dock.name()) || refusal(here, h) != null) {
             p.sendMessage(Lang.msg("dock.changed"));
             return;
         }
@@ -516,21 +543,65 @@ public final class DockModule extends EcoModule {
             case "다시꾸미기" -> redecorate(s, a.length > 1 ? a[1] : null);
             case "후보" -> scout(s, a.length > 1 ? a[1] : null);
             case "기록" -> sales(s, a.length > 1 ? a[1] : null);
+            case "가격" -> price(s, a.length > 1 ? a[1] : null, a.length > 2 ? a[2] : null);
             default -> list(s);
         }
     }
 
     private void list(CommandSender s) {
-        s.sendMessage(Lang.msg("dock.list", "count", docks.size()));
+        s.sendMessage(Lang.msg("dock.list", "count", docks.size(), "pct", Dock.percent(rules.ratio())));
         for (Dock d : docks.values()) {
             double[] c = d.centre();
             World w = Bukkit.getWorld(d.world());
             RoadOrigin.Use u = w == null ? null : eco.roads() != null ? eco.roads().from(w)
                     : new RoadOrigin.Use(w.getName(), w.getSpawnLocation().getX(), 0, w.getSpawnLocation().getZ(), false);
-            long far = u == null || !u.world().equals(d.world()) ? -1 : Math.round(Math.hypot(c[0] - u.x(), c[2] - u.z()));
+            String far = u == null || !u.world().equals(d.world()) ? Lang.raw("dock.list-far-none")
+                    : Lang.raw("dock.list-far", "far", String.format(Locale.ROOT, "%,d", Math.round(Math.hypot(c[0] - u.x(), c[2] - u.z()))));
+            List<String> fromTerminals = new ArrayList<>();
+            for (Dock t : terminals.values()) {
+                double st = straight(t, d);
+                if (Double.isFinite(st)) fromTerminals.add(Lang.raw("dock.list-terminal", "terminal", t.name(),
+                        "far", String.format(Locale.ROOT, "%,d", Math.round(st))));
+            }
             s.sendMessage(Lang.mm("dock.list-line", "name", d.name(), "kind", d.kind().word, "world", d.world(), "x", d.x(), "y", d.y(), "z", d.z(),
-                    "far", far));
+                    "price", priceWords(d), "far", far,
+                    "terminals", fromTerminals.isEmpty() ? "" : Lang.raw("dock.list-terminals", "list", String.join(", ", fromTerminals))));
         }
+    }
+
+    /**
+     * /관리자 하역장 가격 &lt;이름&gt; &lt;퍼센트|기본&gt;: what this dock pays, in percent of the shop base price (1 .. 300), or the
+     * global docks.price-ratio again. Trips sealed before keep the value they were sealed with.
+     */
+    private void price(CommandSender s, String name, String pctText) {
+        String global = Dock.percent(rules.ratio());
+        if (name == null) {
+            s.sendMessage(Lang.msg("dock.price-usage", "pct", global));
+            return;
+        }
+        Dock d = docks.get(key(name));
+        if (d == null) {
+            s.sendMessage(Lang.msg("dock.unknown", "name", name));
+            return;
+        }
+        if (pctText == null) {
+            s.sendMessage(Lang.msg("dock.price-show", "name", d.name(), "price", priceWords(d)));
+            s.sendMessage(Lang.msg("dock.price-usage", "pct", global));
+            return;
+        }
+        int pct = Dock.parsePrice(pctText);
+        if (pct == Dock.BAD_PRICE) {
+            s.sendMessage(Lang.msg("dock.price-bad", "value", pctText, "min", Dock.MIN_PRICE, "max", Dock.MAX_PRICE));
+            return;
+        }
+        Dock priced = d.withPrice(pct);
+        docks.put(key(d.name()), priced);
+        store.price(d.name(), pct);
+        long open = sealed.values().stream().filter(t -> t.dock().equalsIgnoreCase(d.name())).count();
+        eco.getLogger().info("[하역장] " + d.name() + " 매입가: " + (pct == Dock.DEFAULT_PRICE ? "기본 (" + global + "%)" : pct + "%")
+                + " (" + s.getName() + ", 봉인된 운송 " + open + "건은 봉인 때 값 그대로)");
+        s.sendMessage(pct == Dock.DEFAULT_PRICE ? Lang.msg("dock.price-reset", "name", d.name(), "pct", global, "open", open)
+                : Lang.msg("dock.price-set", "name", d.name(), "pct", pct, "open", open));
     }
 
     private void install(CommandSender s, String[] a) {
@@ -717,19 +788,45 @@ public final class DockModule extends EcoModule {
         else inspect(p, t, best);
     }
 
+    /** A destination at inspection: a dock, how far it is from the terminal, its ratio now and what this load fetches there. */
+    record Offer(Dock dock, double far, double ratio, DockGoods.Plan plan) {
+        long total() {
+            return plan.total();
+        }
+    }
+
+    /**
+     * The destinations of a load at a terminal: every dock in its world, nearest first, each with what the load fetches at
+     * that dock's ratio now (its own price, else the global one). Pure (unit-tested).
+     */
+    static List<Offer> offers(DockGoods goods, List<DockGoods.Slot> bed, Dock terminal, java.util.Collection<Dock> docks) {
+        List<Offer> out = new ArrayList<>();
+        for (Dock d : docks) {
+            double far = straight(terminal, d);
+            if (!Double.isFinite(far)) continue;
+            double r = d.ratio(goods.ratio());
+            out.add(new Offer(d, far, r, goods.plan(bed, r)));
+        }
+        out.sort(Comparator.comparingDouble(Offer::far));
+        return out;
+    }
+
     /** The 화물 검사 menu: the manifest (what the docks buy and what it is worth), where it goes, the seal. */
     final class Inspect implements InventoryHolder {
         final Dock terminal;
         final long vehicle, version;
+        final List<DockGoods.Slot> bed;
+        /** at the global ratio: the manifest, the slots, what is kept (the same at every dock) */
         final DockGoods.Plan plan;
-        final List<Dock> choices = new ArrayList<>();
-        Dock chosen;
+        final List<Offer> choices = new ArrayList<>();
+        Offer chosen;
         Inventory inventory;
 
-        Inspect(Dock terminal, Hauled h, DockGoods.Plan plan) {
+        Inspect(Dock terminal, Hauled h, List<DockGoods.Slot> bed, DockGoods.Plan plan) {
             this.terminal = terminal;
             this.vehicle = h.id();
             this.version = h.version();
+            this.bed = bed;
             this.plan = plan;
         }
 
@@ -750,9 +847,9 @@ public final class DockModule extends EcoModule {
             HudModule.flash(p, Lang.mm("terminal.moving"));
             return;
         }
-        Inspect in = new Inspect(t, h, plan(h));
-        for (Dock d : docks.values()) if (Double.isFinite(straight(t, d))) in.choices.add(d);
-        in.choices.sort(Comparator.comparingDouble(d -> straight(t, d)));
+        List<DockGoods.Slot> bed = bed(h);
+        Inspect in = new Inspect(t, h, bed, goods.plan(bed));
+        in.choices.addAll(offers(goods, bed, t, docks.values()));
         if (in.choices.size() == 1) in.chosen = in.choices.getFirst();
         Inventory inv = Bukkit.createInventory(in, 54, Lang.mm("terminal.title"));
         in.inventory = inv;
@@ -765,7 +862,8 @@ public final class DockModule extends EcoModule {
         Inventory inv = in.inventory;
         inv.clear();
         int slot = 0;
-        for (DockGoods.Line l : in.plan.lines()) {
+        // the goods priced at the chosen dock (none chosen yet: at the global ratio)
+        for (DockGoods.Line l : (in.chosen != null ? in.chosen.plan() : in.plan).lines()) {
             if (slot >= I_LIST) break;
             ItemStack icon = Items.create(l.id(), 1).orElse(new ItemStack(Material.PAPER));
             icon.setAmount(Math.clamp(l.count(), 1, icon.getMaxStackSize()));
@@ -777,12 +875,14 @@ public final class DockModule extends EcoModule {
         }
         for (int i = I_DOCKS; i < 54; i++) inv.setItem(i, pane(Material.GRAY_STAINED_GLASS_PANE, " "));
         for (int i = 0; i < Math.min(9, in.choices.size()); i++) {
-            Dock d = in.choices.get(i);
-            boolean on = d == in.chosen;
-            double far = straight(in.terminal, d);
+            Offer o = in.choices.get(i);
+            Dock d = o.dock();
+            boolean on = o == in.chosen;
+            double far = o.far();
             ItemStack icon = pane(on ? Material.FILLED_MAP : Material.MAP, Lang.raw(on ? "terminal.dock-chosen" : "terminal.dock", "dock", d.name()));
             icon.editMeta(m -> {
                 List<Component> lore = new ArrayList<>();
+                lore.add(Lang.item("terminal.dock-price", "price", priceWords(d), "total", EconomyModule.format(o.total())));
                 lore.add(Lang.item("terminal.dock-far", "far", Math.round(far), "needed", Math.round(far * CargoTrip.MIN_DRIVEN)));
                 if (far < rules.minDistance()) lore.add(Lang.item("terminal.dock-near", "min", Math.round(rules.minDistance())));
                 lore.add(Lang.item(on ? "terminal.dock-on" : "terminal.dock-pick"));
@@ -797,14 +897,16 @@ public final class DockModule extends EcoModule {
                         "payload", dev.stsv.core.vehicle.CargoWeights.format(h.payload())),
                 Lang.item("terminal.info-kept", "kept", in.plan.kept()),
                 Lang.item("terminal.info-seal"),
-                Lang.item("dock.info-price", "pct", Math.round(rules.ratio() * 100)))));
+                Lang.item("terminal.info-price"))));
         inv.setItem(INFO, info);
         inv.setItem(CANCEL, pane(Material.BARRIER, Lang.raw("dock.cancel")));
         inv.setItem(BED, pane(Material.CHEST, Lang.raw("terminal.open-bed")));
         boolean ok = in.chosen != null && !in.plan.empty();
         if (ok) {
-            ItemStack confirm = pane(Material.EMERALD_BLOCK, Lang.raw("terminal.confirm", "dock", in.chosen.name(), "total", EconomyModule.format(in.plan.total())));
-            confirm.editMeta(m -> m.lore(List.of(Lang.item("terminal.confirm-lore"))));
+            Offer o = in.chosen;
+            ItemStack confirm = pane(Material.EMERALD_BLOCK, Lang.raw("terminal.confirm", "dock", o.dock().name(), "total", EconomyModule.format(o.total())));
+            confirm.editMeta(m -> m.lore(List.of(Lang.item("terminal.confirm-lore"),
+                    Lang.item("terminal.confirm-promise", "pct", Dock.percent(o.ratio())))));
             inv.setItem(CONFIRM, confirm);
         } else {
             ItemStack no = pane(Material.GRAY_DYE, Lang.raw("dock.cannot"));
@@ -821,19 +923,26 @@ public final class DockModule extends EcoModule {
             p.sendMessage(Lang.msg("dock.changed"));
             return;
         }
-        DockGoods.Plan plan = plan(h);
-        if (plan.empty() || !CargoTrip.manifest(plan.lines()).equals(CargoTrip.manifest(in.plan.lines())) || in.chosen == null
-                || dock(in.chosen.name()) == null) {
+        List<DockGoods.Slot> bed = bed(h);
+        DockGoods.Plan plan = goods.plan(bed);
+        Dock to = in.chosen == null ? null : dock(in.chosen.dock().name());   // the dock as it is now (its price too)
+        if (plan.empty() || !CargoTrip.manifest(plan.lines()).equals(CargoTrip.manifest(in.plan.lines())) || to == null) {
             p.sendMessage(Lang.msg("dock.changed"));
             return;
         }
-        CargoTrip t = trips.open(new CargoTrip(0, h.id(), h.owner(), in.terminal.name(), in.chosen.name(), CargoTrip.manifest(plan.lines()),
-                plan.total(), h.trip().changed(), h.trip().odometer(), straight(in.terminal, in.chosen), now(), CargoTrip.Status.SEALED, 0));
+        // the value at the dock's ratio now, fixed from here on: a later price change does not touch this trip
+        CargoTrip draft = CargoTrip.seal(h.id(), h.owner(), in.terminal.name(), to, goods, bed, h.trip().changed(), h.trip().odometer(),
+                straight(in.terminal, to), now());
+        if (draft.total() != in.chosen.total()) {   // its price was set while the menu was open: never seal another value than shown
+            p.sendMessage(Lang.msg("terminal.price-changed", "dock", to.name(), "price", priceWords(to), "total", EconomyModule.format(draft.total())));
+            return;
+        }
+        CargoTrip t = trips.open(draft);
         sealed.put(h.id(), t);
         eco.getLogger().info("[출발 터미널] " + in.terminal.name() + ": " + p.getName() + " 님이 " + h.name() + " #" + Math.abs(h.id()) + " 검사, "
-                + in.chosen.name() + " 하역장으로 봉인 (" + plan.total() + " G): " + CargoTrip.words(t.manifest()));
+                + to.name() + " 하역장으로 봉인 (" + t.total() + " G, 매입가 " + Dock.percent(t.ratio()) + "%): " + CargoTrip.words(t.manifest()));
         p.sendMessage(Lang.msg("terminal.sealed-now", "dock", t.dock(), "far", Math.round(t.straight()), "needed", Math.round(t.needed()),
-                "total", EconomyModule.format(t.total())));
+                "total", EconomyModule.format(t.total()), "pct", Dock.percent(t.ratio())));
         p.playSound(p.getLocation(), Sound.BLOCK_IRON_TRAPDOOR_CLOSE, 0.8f, 1.2f);
     }
 
@@ -865,6 +974,7 @@ public final class DockModule extends EcoModule {
         info.editMeta(m -> m.lore(List.of(
                 Lang.item("terminal.sealed-goods", "goods", CargoTrip.words(t.manifest())),
                 Lang.item("terminal.sealed-total", "total", EconomyModule.format(t.total())),
+                t.ratio() > 0 ? Lang.item("terminal.sealed-promise", "pct", Dock.percent(t.ratio())) : Lang.item("terminal.sealed-promise-old"),
                 Lang.item("dock.info-driven", "driven", Math.round(t.driven(h.trip().odometer())), "needed", Math.round(t.needed())))));
         inv.setItem(S_INFO, info);
         ItemStack cancel = pane(Material.SHEARS, Lang.raw("terminal.cancel"));

@@ -29,8 +29,8 @@ import static org.junit.jupiter.api.Assertions.assertNull;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
 /**
- * 하역장 and 적재 무게 against the real content: what a dock buys (finished goods) and for how much (90 % of the base, no
- * curve), the weights and what they mean for a scooter against a truck, the dock's layout and its zone in the world, the
+ * 하역장 and 적재 무게 against the real content: what a dock buys (finished goods) and for how much (the base x the global
+ * docks.price-ratio, 90 % by default, no curve; a dock's own price: TerminalTest), the weights and what they mean for a scooter against a truck, the dock's layout and its zone in the world, the
  * docks and their sales kept in the database, the route statistics of the scout.
  */
 class DockTest {
