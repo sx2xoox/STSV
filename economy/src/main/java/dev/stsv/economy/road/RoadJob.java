@@ -45,6 +45,10 @@ public final class RoadJob {
     /** the next point to build */
     public int cursor;
     public long started;
+    /** the road's number on its signs (국도 n호선): roads numbered in the order they were first made; 0 = not given yet */
+    public int route;
+    /** which set of signs is this road's: signs of an older one (or cleared: /관리자 국도 표지판 정리) go when their chunk loads */
+    public int signs;
 
     public static long key(int cx, int cz) {
         return ((long) cx << 32) ^ (cz & 0xffffffffL);
@@ -111,6 +115,8 @@ public final class RoadJob {
         b.append("running=").append(running).append('\n');
         b.append("cursor=").append(cursor).append('\n');
         b.append("started=").append(started).append('\n');
+        b.append("route=").append(route).append('\n');
+        b.append("signs=").append(signs).append('\n');
         for (Map.Entry<Long, Cell> e : cells.entrySet()) {
             Cell c = e.getValue();
             b.append("cell=").append(cx(e.getKey())).append(',').append(cz(e.getKey())).append(',').append(num(c.height())).append(',')
@@ -145,6 +151,8 @@ public final class RoadJob {
                 case "running" -> j.running = Boolean.parseBoolean(v);
                 case "cursor" -> j.cursor = Integer.parseInt(v);
                 case "started" -> j.started = Long.parseLong(v);
+                case "route" -> j.route = Integer.parseInt(v);
+                case "signs" -> j.signs = Integer.parseInt(v);
                 case "cell" -> j.cells.put(key(Integer.parseInt(p[0]), Integer.parseInt(p[1])),
                         new Cell(Double.parseDouble(p[2]), Double.parseDouble(p[3]), Double.parseDouble(p[4]), p[5].equals("1")));
                 case "corner" -> j.corners.add(new double[]{Double.parseDouble(p[0]), Double.parseDouble(p[1])});

@@ -740,6 +740,8 @@ road:
   player-land: "<red>{dock} 국도가 플레이어 땅({x}, {z})에 닿아 멈췄어요. <gray>/관리자 국도 {dock} 새로 = 길을 다시 찾기"
   error: "<red>국도를 짓다 오류가 나서 멈췄어요. <gray>(서버 로그)"
   done: "<green>{dock} 하역장까지 국도 완성! <gray>({length}블록)"
+  signs-cleared: "<green>{dock} 국도 표지판을 치웠어요 <gray>(불러와 있던 엔티티 {entities}개, 나머지는 그 청크를 불러올 때)"
+  signs-usage: "<gray>/관리자 국도 표지판 정리 <하역장>"
   bar-survey: "<gold>{dock} 국도 · 살피기 <white>청크 {done}</white> <gray>/ 남은 {left}"
   bar-prepare: "<gold>{dock} 국도 · 청크 만들기 <white>{done}</white> <gray>/ 남은 {left}"
   bar-build: "<gold>{dock} 국도 · 짓기 <white>{pct}%</white> <gray>({at} / {total}블록)"

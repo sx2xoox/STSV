@@ -11,7 +11,10 @@ import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
-/** 국도: the A* (water, steepness and players' land avoided), the straightening, the grade, bridges and tunnels, the saved job. */
+/**
+ * 국도: the A* (water, steepness and players' land avoided), the straightening, the grade, bridges and tunnels, the saved job,
+ * the direction signs' words and where they go.
+ */
 class RoadTest {
 
     /** A grid of cells: flat ground at 64 unless set. */
@@ -214,7 +217,12 @@ class RoadTest {
         j.ground.add(a);
         j.ground.add(b);
         j.ground.add(new RoadJob.Ground());
+        j.route = 7;
+        j.signs = 3;
         RoadJob r = RoadJob.read(j.write());
+        assertEquals(7, r.route);
+        assertEquals(3, r.signs);
+        assertEquals(0, RoadJob.read("dock=동해\n").route, "saved before roads had numbers: given one when it is built");
         assertEquals("서해", r.dock);
         assertEquals(RoadJob.Phase.BUILD, r.phase);
         assertTrue(r.running);
@@ -242,5 +250,64 @@ class RoadTest {
         assertTrue(c.contains(RoadJob.key(0, 6)) && c.contains(RoadJob.key(437, -6)));
         assertFalse(c.contains(RoadJob.key(200, 7)));
         assertEquals(13 * (437 + 1 + 12), c.size(), "13 chunks wide, from 6 before the start to 6 past the end");
+    }
+
+    @Test
+    void signWordsFitTheirPlacesOnThePanel() {
+        RoadSign.Words w = RoadSign.words(RoadSign.Kind.KM, "서해", 6.04, 7);
+        assertEquals(new RoadSign.Words("서해 하역장", "6.0 km", "국도 7호선", "7"), w);
+        assertEquals("0.1 km", RoadSign.km(0.02), "never 0 km left");
+        assertEquals("12.3 km", RoadSign.km(12.345));
+        assertEquals("서해 하역장 방면", RoadSign.words(RoadSign.Kind.START, "서해", 7, 1).big());
+        assertEquals("", RoadSign.words(RoadSign.Kind.ARRIVAL, "서해", 0.02, 1).km(), "at the gate: no distance");
+        // every text inside the panel (3 x 1.5, its bottom 3 over the road), in front of its face, never wider than its slot
+        for (String dock : List.of("서해", "부산신항만", "A")) {
+            for (RoadSign.Kind kind : RoadSign.Kind.values()) {
+                for (RoadSign.Text t : RoadSign.texts(RoadSign.words(kind, dock, 6543.21, 12))) {
+                    double half = RoadSign.width(t.text()) * t.scale() / 40 / 2, h = 10 * t.scale() / 40.0;
+                    assertTrue(Math.abs(t.right()) + half <= RoadSign.PANEL_WIDTH / 2 - 1 / 16.0, t.text() + " sticks out sideways");
+                    assertTrue(t.up() >= RoadSign.PANEL_BOTTOM && t.up() + h <= RoadSign.PANEL_TOP, t.text() + " sticks out up or down: " + t.up());
+                    assertTrue(t.out() > RoadSign.FACE && t.out() < RoadSign.FACE + 0.1, t.text() + " not on the face");
+                    assertTrue(t.scale() > 0.5f, t.text() + " too small to read: " + t.scale());
+                }
+            }
+        }
+        // the big line is the biggest, and big: a Hangul syllable at least a third of a block wide... a fifth for a long name
+        List<RoadSign.Text> ts = RoadSign.texts(w);
+        assertEquals("서해 하역장", ts.get(0).text());
+        assertTrue(ts.stream().allMatch(t -> t.scale() <= ts.get(0).scale()));
+        assertTrue(ts.get(0).scale() >= 1.5f, "scale " + ts.get(0).scale());
+        assertEquals(List.of("서해 하역장", "국도 7호선", "6.0 km", "7"), ts.stream().map(RoadSign.Text::text).toList());
+        assertEquals(1.5f, RoadSign.scale("7", RoadSign.KM));
+    }
+
+    @Test
+    void signsFaceTheTrafficFromTheStartOnItsRight() {
+        // facing west (yaw 90): the traffic comes from the west going east; its right is south (+z), the face is to the west
+        float yaw = RoadSign.yaw(-1, 0);
+        assertEquals(90f, yaw, 1e-4f);
+        double[] o = RoadSign.offset(yaw, 1, 0);
+        assertEquals(0, o[0], 1e-9);
+        assertEquals(1, o[1], 1e-9, "the viewer's right: south");
+        o = RoadSign.offset(yaw, 0, 1);
+        assertEquals(-1, o[0], 1e-9, "out of the face: west");
+        o = RoadSign.offset(0, 1, 1);   // facing south: right is east
+        assertEquals(1, o[0], 1e-9);
+        assertEquals(1, o[1], 1e-9);
+    }
+
+    @Test
+    void signsGoOnPlainRoadAwayFromBridgesAndEachOther() {
+        RoadProfile.Part[] parts = new RoadProfile.Part[3500];
+        java.util.Arrays.fill(parts, RoadProfile.Part.ROAD);
+        for (int i = 990; i < 1010; i++) parts[i] = RoadProfile.Part.BRIDGE;   // the 1 km point on a bridge
+        Map<Integer, RoadSign.Kind> s = RoadSection.signs(parts, 1000);
+        assertEquals(Map.of(24, RoadSign.Kind.START, 1013, RoadSign.Kind.KM, 2000, RoadSign.Kind.KM, 3000, RoadSign.Kind.KM,
+                3479, RoadSign.Kind.ARRIVAL), s);
+        // 3,100 long: the 3 km sign would be 99 before the arrival sign: left out
+        assertFalse(RoadSection.signs(java.util.Arrays.copyOf(parts, 3100), 1000).containsValue(RoadSign.Kind.KM)
+                && RoadSection.signs(java.util.Arrays.copyOf(parts, 3100), 1000).containsKey(3000));
+        // too short for signs
+        assertTrue(RoadSection.signs(java.util.Arrays.copyOf(parts, 120), 1000).isEmpty());
     }
 }

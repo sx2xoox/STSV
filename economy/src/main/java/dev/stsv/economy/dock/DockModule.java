@@ -526,7 +526,7 @@ public final class DockModule extends EcoModule {
         store.delete(d.name());
         int land = eco.land().releaseServerChunks(d.world(), d.claimed());
         World w = Bukkit.getWorld(d.world());
-        int gone = w == null ? 0 : DockBuilder.removeEntities(w, d.name(), d);
+        int gone = (w == null ? 0 : DockBuilder.removeEntities(w, d.name(), d)) + (eco.roads() == null ? 0 : eco.roads().clearSigns(d.name()));
         s.sendMessage(Lang.msg("dock.removed", "name", d.name(), "land", land, "entities", gone));
     }
 

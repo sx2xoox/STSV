@@ -1,7 +1,6 @@
 package dev.stsv.economy.road;
 
 import org.bukkit.Material;
-import org.bukkit.block.BlockFace;
 import org.junit.jupiter.api.Test;
 
 import java.nio.file.Files;
@@ -21,7 +20,7 @@ import static org.junit.jupiter.api.Assertions.assertTrue;
  * five scenes, checked, and written to build/roads/strip.json for the preview (tools/assetgen/road_preview.py →
  * docs/previews/road.png):
  * <ol>
- *   <li>(a) flat grassland: street lights, the 1 km sign</li>
+ *   <li>(a) flat grassland: street lights, the 1 km direction sign</li>
  *   <li>(b) a hill climbed at 1 in 3: a dip filled, the hill cut, the slope across it cut on one side and filled on the other</li>
  *   <li>(c) a river: a bridge with railings and piers</li>
  *   <li>(d) a steep hill: a tunnel with its lights</li>
@@ -35,7 +34,7 @@ class RoadPreviewTest {
     /** A world of its own: land from {@link #ground}, trees, a river, and whatever the road put over it. */
     static final class Land implements RoadSection.Site {
         final Map<Long, Material> put = new HashMap<>();
-        final Map<Long, Object[]> signs = new LinkedHashMap<>();   // facing, lines
+        final List<Sign> signs = new ArrayList<>();
 
         static long key(int x, int y, int z) {
             return ((long) (x + (1 << 20)) << 42) | ((long) (z + (1 << 20)) << 21) | (y + 1024);
@@ -149,9 +148,8 @@ class RoadPreviewTest {
             return false;
         }
 
-        public void sign(int x, int y, int z, BlockFace facing, String[] lines) {
-            set(x, y, z, Material.SPRUCE_SIGN);
-            signs.put(key(x, y, z), new Object[]{x, y, z, facing, lines});
+        public void roadSign(double x, double y, double z, float yaw, String dock, double km, int route, RoadSign.Kind kind) {
+            signs.add(new Sign(x, y, z, yaw, kind, RoadSign.words(kind, dock, km, route)));
         }
 
         /** The ground under a point as RoadModule reads it (DockModule.sampleColumn): ground, water (1/0), the surface. */
@@ -170,11 +168,14 @@ class RoadPreviewTest {
         }
     }
 
+    /** A direction sign as the site was asked for it. */
+    record Sign(double x, double y, double z, float yaw, RoadSign.Kind kind, RoadSign.Words words) {}
+
     /** The route: straight along x through scenes (a) to (d), then bending through the forest. */
     static final List<double[]> CORNERS = List.of(new double[]{0.5, 0.5}, new double[]{1336.5, 0.5}, new double[]{1376.5, 12.5},
             new double[]{1408.5, 40.5}, new double[]{1428.5, 80.5}, new double[]{1436.5, 130.5});
 
-    record Built(Land land, List<double[]> points, int[] levels, RoadProfile.Part[] parts, int[] ground) {}
+    record Built(Land land, List<double[]> points, int[] levels, RoadProfile.Part[] parts, int[] ground, RoadSection section) {}
 
     static Built build() {
         Land land = new Land();
@@ -191,9 +192,9 @@ class RoadPreviewTest {
         int[] levels = RoadProfile.plan(ground, water, surface);   // BUILD, as RoadModule.profile()
         RoadProfile.Part[] parts = RoadProfile.parts(levels, ground, water, RoadModule.BRIDGE_GAP, RoadModule.TUNNEL_COVER, RoadModule.MIN_RUN);
         RoadSection section = new RoadSection(land, new RoadSection.Style(Material.GRAY_CONCRETE, Material.YELLOW_CONCRETE, Material.SMOOTH_STONE,
-                40, 1000), points, levels, parts, "서해");
+                40, 1000), points, levels, parts, "서해", 1);
         for (int i = 0; i < n; i++) assertEquals(null, section.build(i));
-        return new Built(land, points, levels, parts, ground);
+        return new Built(land, points, levels, parts, ground, section);
     }
 
     static int index(List<double[]> points, double x) {
@@ -216,13 +217,28 @@ class RoadPreviewTest {
             assertTrue(land.get(x, y - 1, z) != Material.AIR, "floating " + m + " at " + x + ", " + y + ", " + z);
         }
         List<double[]> pts = b.points();
-        // (a) the 1 km sign beside the road, street lights
-        assertEquals(1, land.signs.size());
-        Object[] sign = land.signs.values().iterator().next();
-        assertEquals(1000, (int) sign[0]);
-        assertEquals("1 km 지점", ((String[]) sign[4])[2]);
-        assertEquals("남은 길 0.5 km", ((String[]) sign[4])[3], "what is left, not rounded down to nothing");
-        assertEquals(Material.LANTERN, land.get(1000, b.levels()[1000] + 4, -4));
+        // (a) the direction signs: at the start, the 1 km one, before the gate; street lights
+        assertEquals(List.of(RoadSign.Kind.START, RoadSign.Kind.KM, RoadSign.Kind.ARRIVAL), land.signs.stream().map(Sign::kind).toList());
+        Sign start = land.signs.get(0), km = land.signs.get(1), end = land.signs.get(2);
+        assertEquals(new RoadSign.Words("서해 하역장 방면", RoadSign.km((pts.size() - 1 - 24) / 1000.0), "국도 1호선", "1"), start.words());
+        assertEquals(24.5, start.x(), 1e-9);
+        assertEquals(new RoadSign.Words("서해 하역장", "0.5 km", "국도 1호선", "1"), km.words(), "what is left, not rounded down to nothing");
+        assertEquals(new RoadSign.Words("서해 하역장 도착", "", "국도 1호선", "1"), end.words());
+        assertEquals(Map.of(RoadSection.SIGN_START, RoadSign.Kind.START, 1000, RoadSign.Kind.KM, pts.size() - 1 - RoadSection.SIGN_END, RoadSign.Kind.ARRIVAL),
+                b.section().signs());
+        // the 1 km sign: on the right of the traffic from the start (+z), 4 out, on the road's surface, its face to the west (the traffic)
+        assertEquals(1000.5, km.x(), 1e-9);
+        assertEquals(0.5 + RoadSign.LATERAL, km.z(), 1e-9);
+        assertEquals(b.levels()[1000] + 1, km.y(), 1e-9);
+        assertEquals(90f, km.yaw(), 1e-3f);
+        assertEquals(Material.LANTERN, land.get(1000, b.levels()[1000] + 4, -4), "the light at the sign: on the other side");
+        // the panel hangs over the kerb and the shoulder, never the lanes, and nothing the road built is in it or in the posts' way
+        assertTrue(RoadSign.LATERAL - RoadSign.PANEL_WIDTH / 2 >= 2.5);
+        int at = b.levels()[1000];
+        for (int z = 3; z <= 5; z++) {
+            for (int y = at + 1; y <= at + 5; y++) assertEquals(Material.AIR, land.get(1000, y, z), "in the sign at 1000, " + y + ", " + z);
+            assertTrue(land.get(1000, at, z) != Material.AIR, "a post on nothing at z " + z);
+        }
         // (b) the hill: a dip filled, the hill cut, never steeper than 1 in 3
         int filled = 0, cut = 0;
         for (int x = 1046; x < 1150; x++) {
@@ -321,14 +337,20 @@ class RoadPreviewTest {
         StringBuilder s = new StringBuilder("{\"x0\":").append(x0).append(",\"z0\":").append(z0).append(",\"w\":").append(x1 - x0 + 1)
                 .append(",\"d\":").append(z1 - z0 + 1).append(",\"y0\":").append(y0).append(",\"palette\":[");
         for (int i = 0; i < palette.size(); i++) s.append(i > 0 ? "," : "").append('"').append(palette.get(i)).append('"');
+        // the signs as RoadSigns puts them: the model at the point, each text display where RoadSign puts it
         s.append("],\"signs\":[");
         boolean first = true;
-        for (Object[] g : b.land().signs.values()) {
-            s.append(first ? "" : ",").append('[').append(g[0]).append(',').append(g[1]).append(',').append(g[2]).append(",\"")
-                    .append(((BlockFace) g[3]).name().toLowerCase(Locale.ROOT)).append("\",[");
-            String[] lines = (String[]) g[4];
-            for (int i = 0; i < lines.length; i++) s.append(i > 0 ? "," : "").append('"').append(lines[i]).append('"');
-            s.append("]]");
+        for (Sign g : b.land().signs) {
+            s.append(first ? "" : ",").append(String.format(Locale.ROOT, "{\"x\":%.4f,\"y\":%.4f,\"z\":%.4f,\"yaw\":%.3f,\"kind\":\"%s\",\"texts\":[",
+                    g.x(), g.y(), g.z(), g.yaw(), g.kind()));
+            boolean ft = true;
+            for (RoadSign.Text t : RoadSign.texts(g.words())) {
+                double[] o = RoadSign.offset(g.yaw(), t.right(), t.out());
+                s.append(ft ? "" : ",").append(String.format(Locale.ROOT, "{\"text\":\"%s\",\"x\":%.4f,\"y\":%.4f,\"z\":%.4f,\"scale\":%.4f}",
+                        t.text(), g.x() + o[0], g.y() + t.up(), g.z() + o[1], t.scale()));
+                ft = false;
+            }
+            s.append("]}");
             first = false;
         }
         s.append("],\"points\":[");

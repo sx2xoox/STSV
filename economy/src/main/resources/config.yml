@@ -51,7 +51,7 @@ roads:
   kerb: smooth_stone
   # 길 바닥(surface, center-line) 위를 달리는 탈것의 최고 속도 배율 (1 = 없음, 최대 2). 서버 상한(코어 vehicles.max-speed)은 넘지 않음
   speed-bonus: 1.2
-  # 가로등 간격, km 표지판 간격 (블록, 길을 따라)
+  # 가로등 간격, 방향 표지판(남은 거리) 간격 (블록, 길을 따라). 출발 뒤·입구 앞 표지판은 따로 하나씩
   light-every: 40
   marker-every: 1000
   # 길을 찾을 때 직선에서 양옆으로 살펴볼 청크 수 (넓을수록 돌아가는 길을 더 잘 찾지만 오래 걸림)

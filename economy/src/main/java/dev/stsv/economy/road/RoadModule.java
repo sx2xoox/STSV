@@ -1,6 +1,7 @@
 package dev.stsv.economy.road;
 
 import dev.stsv.core.STSVPlugin;
+import dev.stsv.core.furniture.DisplayView;
 import dev.stsv.core.util.Lang;
 import dev.stsv.economy.EcoModule;
 import dev.stsv.economy.EcoPlugin;
@@ -13,12 +14,12 @@ import org.bukkit.Material;
 import org.bukkit.Tag;
 import org.bukkit.World;
 import org.bukkit.block.Block;
-import org.bukkit.block.BlockFace;
-import org.bukkit.block.data.BlockData;
-import org.bukkit.block.data.Rotatable;
-import org.bukkit.block.sign.Side;
 import org.bukkit.command.CommandSender;
+import org.bukkit.entity.Display;
+import org.bukkit.entity.Entity;
 import org.bukkit.entity.Player;
+import org.bukkit.event.EventHandler;
+import org.bukkit.event.world.EntitiesLoadEvent;
 
 import java.io.IOException;
 import java.nio.charset.StandardCharsets;
@@ -44,9 +45,13 @@ import java.util.UUID;
  *   <li>PREPARE: the chunks along the route and roads.pregen-radius round it generated; the ground under every point read.</li>
  *   <li>BUILD: a 5-wide surface with a dashed centre line and kerbs, cut and fill at a grade of 1 in 3 at most, bridges with
  *       railings over water and ravines, tunnels through steep hills, trees cleared, street lights every roads.light-every
- *       blocks, a km sign every roads.marker-every ({@link RoadProfile}). Never in a player's land: a column there is left
- *       alone (the shoulders), and the road stops if its surface would need one (the land was claimed after planning).</li>
+ *       blocks, direction signs ({@link RoadSign}: at the start, every roads.marker-every, before the gate) ({@link RoadProfile},
+ *       {@link RoadSection}). Never in a player's land: a column there is left alone (the shoulders), and the road stops if
+ *       its surface would need one (the land was claimed after planning).</li>
  * </ol>
+ *
+ * Each road has a number (국도 n호선, {@link RoadJob#route}: in the order the roads were first made) and a set of signs
+ * ({@link RoadJob#signs}); /관리자 국도 표지판 정리 &lt;하역장&gt; removes its signs (those in unloaded chunks when they load).
  */
 public final class RoadModule extends EcoModule {
 
@@ -66,6 +71,8 @@ public final class RoadModule extends EcoModule {
     private final Map<Long, Chunk> held = new HashMap<>();
     private final Set<Long> requested = new HashSet<>();
     private long ticks;
+    /** every saved road's number and set of signs, by dock */
+    private final Map<String, Integer> routes = new HashMap<>(), sets = new HashMap<>();
 
     public RoadModule(EcoPlugin eco) {
         super(eco);
@@ -83,15 +90,17 @@ public final class RoadModule extends EcoModule {
             Material m = b.getType();
             return m == settings.surface() || m == settings.line() ? settings.bonus() : 1;
         });
-        STSVPlugin.get().admin().add(EcoPlugin.ADMIN_OWNER, "국도", "<하역장> [여기서|새로] | 중지 | 상태",
-                "국도: 건축월드 스폰(또는 지금 자리)에서 하역장까지 길 놓기 (멈췄던 것은 이어서, 새로 = 처음부터) / 멈추기 / 진행 상황",
+        STSVPlugin.get().admin().add(EcoPlugin.ADMIN_OWNER, "국도", "<하역장> [여기서|새로] | 중지 | 상태 | 표지판 정리 <하역장>",
+                "국도: 건축월드 스폰(또는 지금 자리)에서 하역장까지 길 놓기 (멈췄던 것은 이어서, 새로 = 처음부터) / 멈추기 / 진행 상황 / 그 길의 표지판 모두 치우기",
                 this::command, (s, a) -> {
                     if (a.length == 1) {
                         List<String> out = new ArrayList<>(eco.docks().names());
                         out.add("중지");
                         out.add("상태");
+                        out.add("표지판");
                         return out;
                     }
+                    if (a[0].equals("표지판")) return a.length == 2 ? List.of("정리") : a.length == 3 ? new ArrayList<>(eco.docks().names()) : List.of();
                     return a.length == 2 ? List.of("여기서", "새로") : List.of();
                 });
         // a road that was being built when the server stopped goes on
@@ -101,6 +110,7 @@ public final class RoadModule extends EcoModule {
                 try (var files = Files.list(dir)) {
                     for (Path f : files.filter(p -> p.toString().endsWith(".txt")).toList()) {
                         RoadJob j = RoadJob.read(Files.readString(f, StandardCharsets.UTF_8));
+                        known(j);
                         if (j.running && j.phase != RoadJob.Phase.DONE && job == null) {
                             job = j;
                             eco.getLogger().info("[국도] " + j.dock + " 까지 짓던 길을 이어서 (" + j.phase + ")");
@@ -118,6 +128,64 @@ public final class RoadModule extends EcoModule {
     public void reload() {
         load();
         builder = null;   // the new blocks and spacings from the next cross-section on
+        DisplayView.Settings v = view();   // the signs already up: display.view-distance.road-signs
+        for (World w : Bukkit.getWorlds()) for (Display d : w.getEntitiesByClass(Display.class)) if (RoadSigns.dock(d) != null) RoadSigns.view(d, v);
+    }
+
+    /** The core's display settings (view distances, culling). */
+    private DisplayView.Settings view() {
+        return core.furniture() != null ? core.furniture().view() : DisplayView.Settings.of(core.getConfig());
+    }
+
+    /** A road's number and set of signs, remembered. */
+    private void known(RoadJob j) {
+        if (j.dock == null) return;
+        if (j.route > 0) routes.put(j.dock, j.route);
+        sets.put(j.dock, j.signs);
+    }
+
+    /** The number of the next new road: one more than any road's so far. */
+    private int nextRoute() {
+        int max = 0;
+        for (int r : routes.values()) max = Math.max(max, r);
+        return max + 1;
+    }
+
+    /**
+     * A sign whose dock is gone (/관리자 하역장 제거) or that belongs to an older set of its road's signs (rebuilt, or cleared
+     * with /관리자 국도 표지판 정리) goes when its chunk loads; the others take the current view distance.
+     */
+    @EventHandler
+    public void onEntitiesLoad(EntitiesLoadEvent e) {
+        DisplayView.Settings v = null;
+        for (Entity en : e.getEntities()) {
+            String dock = RoadSigns.dock(en);
+            if (dock == null) continue;
+            if ((eco.docks() != null && eco.docks().dock(dock) == null) || RoadSigns.set(en) != sets.getOrDefault(dock, 0)) {
+                en.remove();
+                continue;
+            }
+            if (en instanceof Display d) {
+                if (v == null) v = view();
+                RoadSigns.view(d, v);
+            }
+        }
+    }
+
+    /**
+     * Removes a dock's road signs: those in loaded chunks now, the rest when their chunk loads (its road's set of signs moves
+     * on). How many entities went now.
+     */
+    public int clearSigns(String dock) {
+        RoadJob j = job != null && job.dock.equals(dock) ? job : saved(dock);
+        if (j != null) {
+            j.signs++;
+            known(j);
+            write(j);
+        } else {
+            sets.merge(dock, 1, Integer::sum);
+        }
+        return RoadSigns.remove(dock);
     }
 
     @Override
@@ -152,9 +220,14 @@ public final class RoadModule extends EcoModule {
     }
 
     private void save() {
+        write(job);
+    }
+
+    private void write(RoadJob j) {
+        known(j);
         try {
             Files.createDirectories(folder());
-            Files.writeString(folder().resolve(job.dock + ".txt"), job.write(), StandardCharsets.UTF_8);
+            Files.writeString(folder().resolve(j.dock + ".txt"), j.write(), StandardCharsets.UTF_8);
         } catch (IOException e) {
             eco.getLogger().warning("[국도] 저장 실패: " + e);
         }
@@ -176,6 +249,15 @@ public final class RoadModule extends EcoModule {
     private void command(CommandSender s, String[] a) {
         if (a.length == 0 || a[0].equals("상태")) {
             status(s);
+            return;
+        }
+        if (a[0].equals("표지판")) {
+            Dock d = a.length > 2 && a[1].equals("정리") ? eco.docks().dock(a[2]) : null;
+            if (d == null) {
+                s.sendMessage(a.length > 2 ? Lang.msg("dock.unknown", "name", a[2]) : Lang.msg("road.signs-usage"));
+                return;
+            }
+            s.sendMessage(Lang.msg("road.signs-cleared", "dock", d.name(), "entities", clearSigns(d.name())));
             return;
         }
         if (a[0].equals("중지")) {
@@ -221,6 +303,13 @@ public final class RoadModule extends EcoModule {
             }
             RoadJob j = new RoadJob();
             j.dock = d.name();
+            // a new road to the dock: its number stays, the old road's signs go (a set of its own)
+            RoadJob prev = saved(d.name());
+            j.route = prev != null && prev.route > 0 ? prev.route : nextRoute();
+            if (prev != null) {
+                j.signs = prev.signs + 1;
+                RoadSigns.remove(d.name());
+            }
             j.world = w.getName();
             j.startX = from.getBlockX() + 0.5;
             j.startZ = from.getBlockZ() + 0.5;
@@ -500,8 +589,14 @@ public final class RoadModule extends EcoModule {
 
     /** One cross-section of the road at point i ({@link RoadSection}). False: it stopped (its surface would go into a player's land). */
     private boolean section(World w, int i) {
-        if (builder == null) builder = new RoadSection(site(w), new RoadSection.Style(settings.surface(), settings.line(), settings.kerb(),
-                settings.lightEvery(), settings.markerEvery()), points, levels, parts, job.dock);
+        if (builder == null) {
+            if (job.route <= 0) {   // a road saved before roads had numbers
+                job.route = nextRoute();
+                save();
+            }
+            builder = new RoadSection(site(w), new RoadSection.Style(settings.surface(), settings.line(), settings.kerb(),
+                    settings.lightEvery(), settings.markerEvery()), points, levels, parts, job.dock, job.route);
+        }
         int[] land = builder.build(i);
         if (land == null) return true;
         job.running = false;
@@ -552,17 +647,9 @@ public final class RoadModule extends EcoModule {
                 return eco.land().playerLand(w.getName(), x, z);
             }
 
-            public void sign(int x, int y, int z, BlockFace facing, String[] lines) {
-                if (!inside(y)) return;
-                Block b = w.getBlockAt(x, y, z);
-                BlockData data = Material.SPRUCE_SIGN.createBlockData();
-                if (data instanceof Rotatable r) r.setRotation(facing);
-                b.setBlockData(data, false);
-                if (b.getState() instanceof org.bukkit.block.Sign s) {
-                    for (int k = 0; k < lines.length && k < 4; k++) s.getSide(Side.FRONT).line(k, Component.text(lines[k]));
-                    s.setWaxed(true);
-                    s.update(true, false);
-                }
+            public void roadSign(double x, double y, double z, float yaw, String dock, double km, int route, RoadSign.Kind kind) {
+                if (!inside((int) Math.floor(y))) return;
+                RoadSigns.place(w, x, y, z, yaw, RoadSign.words(kind, dock, km, route), dock, job.signs, view());
             }
         };
     }
