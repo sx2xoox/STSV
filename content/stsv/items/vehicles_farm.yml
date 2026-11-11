@@ -7,8 +7,9 @@
 #   train             매달린 짐칸들 (TrainSpec)
 #     jackknife       두 칸 사이의 가장 큰 각도 (도). 넘지 않음
 #     slow-from       그 각도의 이만큼(0.6 = 60%)부터 더 꺾는 쪽으로는 방향이 천천히 바뀌고, 끝에서는 더 꺾이지 않음
-#     ground          땅마다 최고 속도 (1 = 그대로): farmland 밭, path 흙길, dirt 흙, grass 잔디, mud 진흙, sand 모래·자갈.
-#                     빼면 보통 바퀴 수레 값 (밭 0.6, 흙길 0.9, 흙 0.85, 잔디 0.95, 진흙 0.5, 모래 0.7)
+#     ground          땅마다 최고 속도 (1 = 그대로): farmland 밭, path 흙길, dirt 흙, grass 잔디.
+#                     빼면 보통 바퀴 수레 값 (밭 0.6, 흙길 0.9, 흙 0.85, 잔디 0.95). 모래·자갈·눈·진흙은 다른 탈것과 같이
+#                     75% (VehiclePhysics ROUGH), all-terrain: true 면 그대로
 #     trailers        앞에서부터. 첫째는 끄는 쪽에, 그다음은 바로 앞 트레일러에 매달림
 #       model         트레일러 몸체 (.bbmodel, body-scale 은 탈것과 같음)
 #       hitch         매달린 곳: 바로 앞 칸 위의 한 점 [오른쪽, 위, 앞] (그 칸 기준)
@@ -62,7 +63,7 @@ ox_cart:
     train:
       jackknife: 45
       slow-from: 0.55
-      ground: { farmland: 0.75, path: 1.0, dirt: 0.95, grass: 1.0, mud: 0.6, sand: 0.75 }
+      ground: { farmland: 0.75, path: 1.0, dirt: 0.95, grass: 1.0 }
       trailers:
         - model: ox_cart_wagon
           hitch: [0, 0.8, -1.33]
@@ -133,7 +134,7 @@ power_tiller:
     train:
       jackknife: 40
       slow-from: 0.6
-      ground: { farmland: 0.95, path: 1.0, dirt: 1.0, grass: 0.95, mud: 0.8, sand: 0.8 }
+      ground: { farmland: 0.95, path: 1.0, dirt: 1.0, grass: 0.95 }
       trailers:
         - model: power_tiller_trailer
           hitch: [0, 0.47, -0.9375]
@@ -181,6 +182,7 @@ tractor_trailer:
     turn-speed: 2
     step-height: 1.0
     size: [3.4, 1.9, 3.0]
+    all-terrain: true
     click-height: 1.6
     wheel: wheel_tractor_front
     wheel-radius: 0.375
@@ -196,7 +198,7 @@ tractor_trailer:
     train:
       jackknife: 50
       slow-from: 0.6
-      ground: { farmland: 1.0, path: 1.0, dirt: 1.0, grass: 1.0, mud: 1.0, sand: 0.9 }
+      ground: { farmland: 1.0, path: 1.0, dirt: 1.0, grass: 1.0 }
       trailers:
         - model: tractor_wagon
           hitch: [0, 0.53, -2.125]

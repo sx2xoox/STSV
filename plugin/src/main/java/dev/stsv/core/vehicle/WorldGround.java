@@ -5,7 +5,7 @@ import org.bukkit.World;
 
 /**
  * The real world's ground for {@link TrainPhysics}: which kind of block a train rolls over (farmland, dirt paths, dirt,
- * grass, mud, sand), for its speed ({@link TrainSpec#ground}). Never loads a chunk.
+ * grass), for its speed ({@link TrainSpec#ground}). Never loads a chunk.
  */
 final class WorldGround implements TrainPhysics.Ground {
 
@@ -27,8 +27,6 @@ final class WorldGround implements TrainPhysics.Ground {
             case DIRT_PATH -> TrainSpec.Surface.PATH;
             case DIRT, COARSE_DIRT, ROOTED_DIRT, PODZOL, MYCELIUM -> TrainSpec.Surface.DIRT;
             case GRASS_BLOCK, MOSS_BLOCK -> TrainSpec.Surface.GRASS;
-            case MUD, MUDDY_MANGROVE_ROOTS, CLAY -> TrainSpec.Surface.MUD;
-            case SAND, RED_SAND, GRAVEL, SUSPICIOUS_SAND, SUSPICIOUS_GRAVEL -> TrainSpec.Surface.SAND;
             default -> TrainSpec.Surface.OTHER;
         };
     }

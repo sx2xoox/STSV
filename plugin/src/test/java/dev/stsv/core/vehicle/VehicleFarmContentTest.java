@@ -108,9 +108,13 @@ class VehicleFarmContentTest {
             assertTrue(tiller.train().ground(g) >= ox.train().ground(g), "the tiller beats the ox cart on " + g);
             assertTrue(TrainSpec.DEFAULT_GROUND.get(g) < tiller.train().ground(g), "and a plain cart");
         }
-        for (TrainSpec.Surface g : List.of(TrainSpec.Surface.DIRT, TrainSpec.Surface.FARMLAND, TrainSpec.Surface.GRASS, TrainSpec.Surface.MUD)) {
+        for (TrainSpec.Surface g : List.of(TrainSpec.Surface.DIRT, TrainSpec.Surface.FARMLAND, TrainSpec.Surface.GRASS)) {
             assertEquals(1.0, tractor.train().ground(g), 1e-9, "the tractor on " + g);
         }
+        // mud, sand, gravel, snow: the shared rough ground (VehiclePhysics ROUGH); the tractor is all-terrain, the others slow
+        assertTrue(tractor.extras().allTerrain(), "the tractor: no slowdown in mud");
+        assertFalse(ox.extras().allTerrain());
+        assertFalse(tiller.extras().allTerrain());
     }
 
     @Test

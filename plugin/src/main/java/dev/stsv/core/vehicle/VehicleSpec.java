@@ -30,6 +30,7 @@ import java.util.function.Predicate;
  * @param cargo        a storage bed (the truck, the hand cart), or null
  * @param engine       its driving sound, or null (silent)
  * @param pull         pulled by a player on foot instead of driven (the hand cart: no seats), or null
+ * @param extras       two-wheelers' lean, spinning parts (a pedal crank), all-terrain ({@link Extras#NONE}: none of them)
  * @param train        towed units behind it (articulated: the ox cart, the power tiller, the tractor), or null; then
  *                     {@code cargo} is all their beds together ({@link TrainSpec#cargo})
  */
@@ -40,17 +41,44 @@ public record VehicleSpec(
         double length, double width, double height, double clickHeight,
         NamespacedKey wheelModel, double wheelRadius, List<Wheel> wheels,
         List<Vec> seats,
-        Lights lights, Horn horn, Cargo cargo, Engine engine, Pull pull, TrainSpec train
+        Lights lights, Horn horn, Cargo cargo, Engine engine, Pull pull, Extras extras, TrainSpec train
 ) {
 
-    /** A vehicle without towed units. */
+    /** Without extras (no lean, no spinning parts, slowed on rough ground like a car) and without towed units. */
     public VehicleSpec(float bodyScale, double speed, double reverseSpeed, double acceleration, double brake, double coast,
                        double turnRate, double turnSpeed, double stepHeight, double length, double width, double height, double clickHeight,
                        NamespacedKey wheelModel, double wheelRadius, List<Wheel> wheels, List<Vec> seats,
                        Lights lights, Horn horn, Cargo cargo, Engine engine, Pull pull) {
         this(bodyScale, speed, reverseSpeed, acceleration, brake, coast, turnRate, turnSpeed, stepHeight, length, width, height, clickHeight,
-                wheelModel, wheelRadius, wheels, seats, lights, horn, cargo, engine, pull, null);
+                wheelModel, wheelRadius, wheels, seats, lights, horn, cargo, engine, pull, Extras.NONE, null);
     }
+
+    /** Without towed units. */
+    public VehicleSpec(float bodyScale, double speed, double reverseSpeed, double acceleration, double brake, double coast,
+                       double turnRate, double turnSpeed, double stepHeight, double length, double width, double height, double clickHeight,
+                       NamespacedKey wheelModel, double wheelRadius, List<Wheel> wheels, List<Vec> seats,
+                       Lights lights, Horn horn, Cargo cargo, Engine engine, Pull pull, Extras extras) {
+        this(bodyScale, speed, reverseSpeed, acceleration, brake, coast, turnRate, turnSpeed, stepHeight, length, width, height, clickHeight,
+                wheelModel, wheelRadius, wheels, seats, lights, horn, cargo, engine, pull, extras, null);
+    }
+
+    /**
+     * What some vehicles have besides the usual (content/stsv/items/vehicles_road.yml).
+     *
+     * @param lean       degrees the body (with its wheels, load and spinning parts) leans into a full turn at turn-speed or
+     *                   faster (a bicycle, a motorbike); 0 = it stays upright
+     * @param spinners   parts that turn with the wheels (a bicycle's pedal crank)
+     * @param allTerrain not slowed on rough ground (sand, gravel, snow, mud) or soul sand ({@link VehiclePhysics#slowdown})
+     */
+    public record Extras(double lean, List<Spinner> spinners, boolean allTerrain) {
+        public static final Extras NONE = new Extras(0, List.of(), false);
+    }
+
+    /**
+     * A part turned about its own x axis (across the vehicle) as the wheels roll: ratio turns for every wheel turn
+     * (0.5 = a pedal crank geared 2:1). Drawn like a wheel: its axle at model (8, 8, 8).
+     */
+    public record Spinner(NamespacedKey model, Vec at, double ratio) {}
 
     /** A point on the vehicle: right, up, forward (blocks) from its ground centre. */
     public record Vec(double right, double up, double forward) {}
@@ -77,18 +105,24 @@ public record VehicleSpec(
 
     /**
      * A storage bed: pages of 45 slots (a chest page, its bottom row the page buttons). In the item file as
-     * {@code slots} (a multiple of 45: 270 = 6 pages) or {@code pages}.
+     * {@code slots} (whole rows of 9: 27 = a small chest, 180 = 4 pages) or {@code pages}. A last page that is not
+     * full shows its missing slots locked (a one-page bed of fewer rows opens as a smaller chest: {@link CargoPages#viewSize}).
      *
+     * @param pages  pages of 45 slots it is shown in (the last one may be part full)
      * @param behind clicks this far forward or further back open it (blocks, the bed's front edge)
-     * @param stages load models by how full it is (see {@link CargoStages})
+     * @param stages load models by how full it is (see {@link CargoStages}); none for a closed box
+     * @param slots  how many slots it holds
      */
-    public record Cargo(int pages, double behind, Vec at, List<NamespacedKey> stages) {
+    public record Cargo(int pages, double behind, Vec at, List<NamespacedKey> stages, int slots) {
         public static final int PAGE = 45;
-        /** The most pages a bed may have (540 slots). */
-        public static final int MAX_PAGES = 12;
+        /** The most pages a bed may have (810 slots: the 탑차's 720 and some room). */
+        public static final int MAX_PAGES = 18;
+        /** Slots come in whole rows. */
+        public static final int ROW = 9;
 
-        public int slots() {
-            return pages * PAGE;
+        /** A bed of whole pages. */
+        public Cargo(int pages, double behind, Vec at, List<NamespacedKey> stages) {
+            this(pages, behind, at, stages, pages * PAGE);
         }
     }
 
@@ -171,19 +205,19 @@ public record VehicleSpec(
         Cargo cargo = null;
         if (v.isConfigurationSection("cargo")) {
             ConfigurationSection c = v.getConfigurationSection("cargo");
-            int pages;
+            int slots;
             if (c.contains("slots")) {
-                int slots = c.getInt("slots");
-                if (slots < Cargo.PAGE || slots > Cargo.PAGE * Cargo.MAX_PAGES || slots % Cargo.PAGE != 0)
-                    throw new IllegalArgumentException("vehicle.cargo.slots 는 45 의 배수, 45 ~ " + Cargo.PAGE * Cargo.MAX_PAGES + " (한 쪽 45칸)");
-                pages = slots / Cargo.PAGE;
+                slots = c.getInt("slots");
+                if (slots < Cargo.ROW || slots > Cargo.PAGE * Cargo.MAX_PAGES || slots % Cargo.ROW != 0)
+                    throw new IllegalArgumentException("vehicle.cargo.slots 는 9 의 배수, 9 ~ " + Cargo.PAGE * Cargo.MAX_PAGES + " (한 쪽 45칸)");
             } else {
-                pages = c.getInt("pages", 1);
+                int pages = c.getInt("pages", 1);
                 if (pages < 1 || pages > Cargo.MAX_PAGES) throw new IllegalArgumentException("vehicle.cargo.pages 는 1 ~ " + Cargo.MAX_PAGES);
+                slots = pages * Cargo.PAGE;
             }
             List<NamespacedKey> stages = new ArrayList<>();
             for (String s : c.getStringList("stages")) stages.add(model(s, "vehicle.cargo.stages", namespace, modelExists));
-            cargo = new Cargo(pages, c.getDouble("behind", 0), vec(c, "at", "vehicle.cargo.at"), List.copyOf(stages));
+            cargo = new Cargo(CargoPages.pages(slots), c.getDouble("behind", 0), vec(c, "at", "vehicle.cargo.at"), List.copyOf(stages), slots);
         }
         TrainSpec train = null;
         if (v.isConfigurationSection("train")) {
@@ -196,12 +230,24 @@ public record VehicleSpec(
         if (bodyScale <= 0 || bodyScale > 4) throw new IllegalArgumentException("vehicle.body-scale 은 0 초과 4 이하");
         double step = v.getDouble("step-height", 1.0);
         if (step < 0 || step > 1.5) throw new IllegalArgumentException("vehicle.step-height 는 0 ~ 1.5");
+        double lean = v.getDouble("lean", 0);
+        if (lean < 0 || lean > 25) throw new IllegalArgumentException("vehicle.lean 은 0 ~ 25 (도)");
+        List<Spinner> spinners = new ArrayList<>();
+        for (Map<?, ?> m : v.getMapList("spinners")) {
+            ConfigurationSection sp = section(m);
+            double ratio = sp.getDouble("ratio", 1);
+            if (ratio <= 0 || ratio > 4) throw new IllegalArgumentException("vehicle.spinners.ratio 는 0 초과 4 이하 (바퀴 한 바퀴에 몇 바퀴)");
+            spinners.add(new Spinner(model(sp.getString("model"), "vehicle.spinners.model", namespace, modelExists),
+                    vec(sp, "at", "vehicle.spinners.at"), ratio));
+        }
+        Extras extras = lean == 0 && spinners.isEmpty() && !v.getBoolean("all-terrain")
+                ? Extras.NONE : new Extras(lean, List.copyOf(spinners), v.getBoolean("all-terrain"));
         return new VehicleSpec((float) bodyScale, speed, reverse,
                 driven ? positive(v, "acceleration") : v.getDouble("acceleration", 3), driven ? positive(v, "brake") : v.getDouble("brake", 8),
                 v.getDouble("coast", driven ? 2.0 : 8.0), driven ? positive(v, "turn-rate") : v.getDouble("turn-rate", 90),
                 driven ? positive(v, "turn-speed") : v.getDouble("turn-speed", 1), step,
                 size.get(0), size.get(1), size.get(2), v.getDouble("click-height", Math.min(1.2, size.get(2))),
-                wheel, wheelRadius, List.copyOf(wheels), List.copyOf(seats), lights, horn, cargo, engine, pull, train);
+                wheel, wheelRadius, List.copyOf(wheels), List.copyOf(seats), lights, horn, cargo, engine, pull, extras, train);
     }
 
     private static Pull pull(ConfigurationSection p) {
@@ -277,9 +323,10 @@ public record VehicleSpec(
         return new YamlConfiguration().createSection("entry", map);
     }
 
-    /** Every model the vehicle shows besides its body (wheel, light bar looks, load stages), for the render budget. */
+    /** Every model the vehicle shows besides its body (light bar looks, load stages, spinning parts), for the render budget. */
     public List<NamespacedKey> partModels() {
         List<NamespacedKey> out = new ArrayList<>();
+        for (Spinner sp : extras.spinners()) out.add(sp.model());
         if (lights != null) {
             out.add(lights.dark());
             out.addAll(lights.flash());

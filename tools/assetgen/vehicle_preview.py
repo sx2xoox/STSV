@@ -210,9 +210,10 @@ def main(out):
     # stage resting on its handles (as it is loaded)
     cart = items()["hand_cart"]["vehicle"]
     cw6 = 1600 // 6
-    cart_cells = [("끄는 모습 · 옆 (걸음 30% 느리게)", "pulled", 0, -90, 6, 3.7), ("끄는 모습 · 앞", "pulled", 0, -35, 20, 3.5)]
+    slow, slots = round(cart["pull"]["slowdown"] * 100), cart["cargo"]["slots"]
+    cart_cells = [(f"끄는 모습 · 옆 (걸음 {slow}% 느리게)", "pulled", 0, -90, 6, 3.7), ("끄는 모습 · 앞", "pulled", 0, -35, 20, 3.5)]
     cart_cells += [(f"리어카 짐 {n}" if i == 0 else f"짐 {n}", "rest", i + 1, 150, 32, 2.6)
-                   for i, n in enumerate(["~25%", "~50%", "~75%", "가득 (270칸)"])]
+                   for i, n in enumerate(["~25%", "~50%", "~75%", f"가득 ({slots}칸)"])]
     for k, (label, pose, stage, az, el, kk) in enumerate(cart_cells):
         ox = (12000 + k * 1200, 0, 0)
         t, e, spec = vehicle("hand_cart", ox, cargo=stage or None, pose=pose)

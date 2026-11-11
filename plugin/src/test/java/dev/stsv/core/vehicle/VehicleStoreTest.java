@@ -126,6 +126,16 @@ class VehicleStoreTest {
         assertArrayEquals(load, store.get(id).join().cargo(), "the load stays with the row in any state");
     }
 
+    /** The biggest bed a vehicle may have (810 slots, the box truck's 720 and room): saved whole and read back. */
+    @Test
+    void aFull810SlotBedIsKeptWhole() {
+        long id = store.create("stsv:box_truck", owner, "Owner", at(0, 0, 0), 1, 1000).join().id();
+        byte[] load = new byte[VehicleSpec.Cargo.PAGE * VehicleSpec.Cargo.MAX_PAGES * 2048];   // ~2 KB per slot: 1.6 MB
+        new java.util.Random(8).nextBytes(load);
+        store.cargo(id, load, 2000).join();
+        assertArrayEquals(load, new VehicleStore(db).placed().getFirst().cargo(), "after a restart, byte for byte");
+    }
+
     /** /탈것 권한: allowed players are kept per owner, survive a restart, and are taken back. */
     @Test
     void grantsRoundTrip() {

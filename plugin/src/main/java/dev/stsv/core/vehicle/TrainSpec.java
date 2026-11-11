@@ -21,7 +21,8 @@ import java.util.function.Predicate;
  * train:
  *   jackknife: 55            # the largest angle between two units (degrees)
  *   slow-from: 0.6           # steering slows down from this share of it on (0.6 = from 33 degrees), to nothing at it
- *   ground: { farmland: 0.6, path: 0.85, dirt: 0.8, grass: 0.9, mud: 0.5, sand: 0.7 }   # top speed share on that ground
+ *   ground: { farmland: 0.6, path: 0.9, dirt: 0.85, grass: 0.95 }   # top speed share on that ground (loose ground -
+ *                            sand, gravel, snow, mud - is every vehicle's ROUGH: VehiclePhysics, all-terrain: true skips it)
  *   trailers:                # in order: the first hangs on the driven unit, every next one on the one before it
  *     - model: ox_cart_cart  # its body (.bbmodel), body-scale like the vehicle's
  *       hitch: [0, 1.0, 0.6] # where it hangs: a point on the unit in front of it ([right, up, forward], that unit's frame)
@@ -54,11 +55,11 @@ public record TrainSpec(double jackknife, double slowFrom, List<Trailer> trailer
                         Animal animal, List<Part> parts, double reach) {
 
     /** Kinds of ground the train cares about (see {@link TrainPhysics.Ground}). */
-    public enum Surface { OTHER, FARMLAND, PATH, DIRT, GRASS, MUD, SAND }
+    public enum Surface { OTHER, FARMLAND, PATH, DIRT, GRASS }
 
     /** Without a {@code ground:} section: what a wheeled cart feels on rough ground. */
     public static final Map<Surface, Double> DEFAULT_GROUND = Map.of(Surface.FARMLAND, 0.6, Surface.PATH, 0.9, Surface.DIRT, 0.85,
-            Surface.GRASS, 0.95, Surface.MUD, 0.5, Surface.SAND, 0.7);
+            Surface.GRASS, 0.95);
 
     /**
      * One towed unit. unit: its collision box and wheels as a vehicle of their own (no seats, never driven), used for its
@@ -117,7 +118,7 @@ public record TrainSpec(double jackknife, double slowFrom, List<Trailer> trailer
                 try {
                     s = Surface.valueOf(k.toUpperCase(Locale.ROOT));
                 } catch (IllegalArgumentException e) {
-                    throw new IllegalArgumentException("vehicle.train.ground: 모르는 땅 " + k + " (farmland, path, dirt, grass, mud, sand)");
+                    throw new IllegalArgumentException("vehicle.train.ground: 모르는 땅 " + k + " (farmland, path, dirt, grass)");
                 }
                 double f = g.getDouble(k);
                 if (f < 0.2 || f > 1) throw new IllegalArgumentException("vehicle.train.ground." + k + " 는 0.2 ~ 1");

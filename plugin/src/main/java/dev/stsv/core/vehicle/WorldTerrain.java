@@ -54,8 +54,12 @@ final class WorldTerrain implements VehiclePhysics.Terrain {
                 || m == Material.TALL_SEAGRASS || (b.getBlockData() instanceof Waterlogged w && w.isWaterlogged())) {
             return VehiclePhysics.Medium.WATER;
         }
-        if (m == Material.SOUL_SAND || m == Material.HONEY_BLOCK || m == Material.COBWEB || m == Material.POWDER_SNOW
+        if (m == Material.HONEY_BLOCK || m == Material.COBWEB || m == Material.POWDER_SNOW
                 || m == Material.SWEET_BERRY_BUSH) return VehiclePhysics.Medium.SLOW;
+        if (m == Material.SOUL_SAND) return VehiclePhysics.Medium.SINK;
+        if (m == Material.SAND || m == Material.RED_SAND || m == Material.SUSPICIOUS_SAND || m == Material.GRAVEL
+                || m == Material.SUSPICIOUS_GRAVEL || m == Material.SNOW || m == Material.SNOW_BLOCK || m == Material.MUD)
+            return VehiclePhysics.Medium.ROUGH;   // sand, gravel, snow (layers too), mud: slower unless all-terrain
         return VehiclePhysics.Medium.AIR;
     }
 }

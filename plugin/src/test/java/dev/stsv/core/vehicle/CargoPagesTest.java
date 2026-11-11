@@ -11,7 +11,8 @@ import static org.junit.jupiter.api.Assertions.assertNull;
 import static org.junit.jupiter.api.Assertions.assertSame;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
-/** A bed of N pages of 45 (the hand cart's 270 = 6 pages, the truck's 90 = 2): paging, putting back, resizing. */
+/** A bed of N pages of 45 (the box truck's 720 = 16 pages, the hand cart's 135 = 3, the bicycle's 27 = one short page):
+ * paging, locked slots past the end, the view's size, putting back, resizing. */
 class CargoPagesTest {
 
     @Test
@@ -84,5 +85,44 @@ class CargoPagesTest {
         same[3] = "a";
         assertArrayEquals(same, CargoPages.resized(same, 270, String[]::new));
         assertSame(null, CargoPages.resized(new String[45], 0, String[]::new), "an empty bed on a vehicle without one: gone");
+    }
+
+    /** Beds of whole rows of 9: the last page may be part full, its missing slots locked; up to 810 slots (18 pages). */
+    @Test
+    void partPagesAndTheBiggestBed() {
+        assertEquals(18, CargoPages.pages(810), "the most a bed may hold");
+        assertEquals(16, CargoPages.pages(720), "the box truck");
+        assertEquals(10, CargoPages.pages(450), "the 1-ton truck");
+        assertEquals(3, CargoPages.pages(135), "the hand cart");
+        assertEquals(2, CargoPages.pages(54), "45 + 9");
+        assertEquals(1, CargoPages.pages(27));
+        // the bicycle's 27: one chest of 3 rows + the button row; nothing past slot 26
+        assertEquals(36, CargoPages.viewSize(27));
+        assertTrue(CargoPages.inBed(27, 0, 26));
+        assertFalse(CargoPages.inBed(27, 0, 27));
+        assertEquals(18, CargoPages.viewSize(9), "one row + the buttons");
+        assertEquals(54, CargoPages.viewSize(45), "a full page");
+        assertEquals(54, CargoPages.viewSize(54), "several pages: always the double chest");
+        // the scooter's 54: page 2 shows 9 slots, the rest locked
+        assertTrue(CargoPages.inBed(54, 1, 8));
+        assertFalse(CargoPages.inBed(54, 1, 9));
+        assertFalse(CargoPages.inBed(54, 0, 45), "the button row is never the bed");
+        assertFalse(CargoPages.inBed(54, 0, -1));
+        // the box truck's 720: the last slot of page 16
+        assertTrue(CargoPages.inBed(720, 15, 44));
+        assertEquals(719, CargoPages.index(15, 44));
+        // a full 810 bed pages through and back without losing a slot
+        String[] bed = new String[810];
+        for (int i = 0; i < bed.length; i++) bed[i] = "s" + i;
+        for (int page = 0; page < 18; page++) {
+            List<String> shown = CargoPages.page(bed, page);
+            assertEquals("s" + (page * 45), shown.getFirst());
+            assertFalse(CargoPages.store(bed, page, shown::get), "unchanged");
+        }
+        assertEquals(810, CargoPages.used(bed));
+        // a short last page puts back only what is in the bed
+        String[] small = new String[54];
+        assertTrue(CargoPages.store(small, 1, i -> "x"));
+        assertEquals(9, CargoPages.used(small), "only the 9 slots of page 2");
     }
 }

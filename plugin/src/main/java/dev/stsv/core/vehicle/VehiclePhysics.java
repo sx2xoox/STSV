@@ -9,8 +9,9 @@ import java.util.List;
  *
  * <ul>
  *   <li><b>Speed</b> ({@link #nextSpeed}): W speeds up (gently towards the top speed), S brakes and, once stopped,
- *       reverses; W while reversing brakes; both keys brake; no key coasts down. In water or on soul sand the top speed
- *       drops ({@link #slowdown}); over it the vehicle brakes down to it.</li>
+ *       reverses; W while reversing brakes; both keys brake; no key coasts down. In water, on soul sand or on rough
+ *       ground (sand, gravel, snow, mud) the top speed drops ({@link #slowdown}: an all-terrain vehicle only in water and
+ *       on sticky blocks); over it the vehicle brakes down to it.</li>
  *   <li><b>Turning</b> ({@link #yawRate}): A / D turn by the turn rate times how fast it goes (up to turn-speed), so it
  *       never turns in place; reversing turns the other way, like a car.</li>
  *   <li><b>Collision</b>: the footprint is a row of axis-aligned squares along the length ({@link #footprint}) that turn
@@ -36,8 +37,15 @@ public final class VehiclePhysics {
 
     private VehiclePhysics() {}
 
-    /** What a block is, besides its collision boxes. */
-    public enum Medium { AIR, WATER, LAVA, SLOW }
+    /**
+     * What a block is, besides its collision boxes. SLOW: sticky (honey, cobweb, powder snow, berry bushes), slows
+     * everything; SINK: soul sand; ROUGH: loose or soft ground (sand, gravel, snow, mud). An all-terrain vehicle
+     * ({@link VehicleSpec.Extras#allTerrain}) is not slowed by the last two.
+     */
+    public enum Medium { AIR, WATER, LAVA, SLOW, SINK, ROUGH }
+
+    /** The top-speed factor on rough ground (sand, gravel, snow, mud) for a vehicle that is not all-terrain. */
+    public static final double ROUGH_FACTOR = 0.75;
 
     /** The world as the physics sees it. */
     public interface Terrain {
@@ -272,15 +280,23 @@ public final class VehiclePhysics {
         return false;
     }
 
-    /** The top-speed factor where the vehicle is: 0.4 in water, 0.5 on soul sand / honey / mud, else 1. */
+    /**
+     * The top-speed factor where the vehicle is: 0.4 in water, 0.5 on honey / cobwebs / powder snow and on soul sand,
+     * 0.75 on sand, gravel, snow or mud, else 1. An all-terrain vehicle ignores soul sand and rough ground.
+     */
     public static double slowdown(double x, double y, double z, float yaw, VehicleSpec s, Terrain t) {
         double f = 1;
+        boolean allTerrain = s.extras().allTerrain();
         double[] fw = forward(yaw);
         for (int i = 0; i < s.squares(); i++) {
             double o = s.squareOffset(i);
             int bx = floor(x + fw[0] * o), bz = floor(z + fw[1] * o);
-            if (t.medium(bx, floor(y + 0.1), bz) == Medium.WATER) f = Math.min(f, 0.4);
-            if (t.medium(bx, floor(y - 0.1), bz) == Medium.SLOW || t.medium(bx, floor(y + 0.1), bz) == Medium.SLOW) f = Math.min(f, 0.5);
+            Medium in = t.medium(bx, floor(y + 0.1), bz), under = t.medium(bx, floor(y - 0.1), bz);
+            if (in == Medium.WATER) f = Math.min(f, 0.4);
+            if (under == Medium.SLOW || in == Medium.SLOW) f = Math.min(f, 0.5);
+            if (allTerrain) continue;
+            if (under == Medium.SINK || in == Medium.SINK) f = Math.min(f, 0.5);
+            if (under == Medium.ROUGH || in == Medium.ROUGH) f = Math.min(f, ROUGH_FACTOR);
         }
         return f;
     }
