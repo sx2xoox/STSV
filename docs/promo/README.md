@@ -32,25 +32,28 @@ node docs/promo/tools/render.js video docs/promo/stsv_promo.mp4   # Playwright +
 
 # 업데이트 영상: 운송수단 & 하역장
 
-1920×1080 · 49.2초 · 30fps · 소리 없음. 픽셀 느낌 대신 브랜드 광고 톤(짙은 남색 바탕, 금색·도로 표지판 초록, Pretendard).
+1920×1080 · 47.6초 · 30fps · 소리 없음. 검정·흰색에 형광 연두(#ccff00) 하나, Pretendard.
 
 - `stsv_vehicles.mp4` — 완성 영상
 - `vehicles/stsv_vehicles.html` — 같은 영상을 캔버스로 재생 (`python3 -m http.server -d docs/promo` 후 `/vehicles/stsv_vehicles.html`)
-- `vehicles/assets/` — `docs/previews/`의 탈것·검사소·하역장·국도 그림에서 잘라 낸 것 (탈것은 배경 제거)
+- `vehicles/assets/` — 탈것(배경과 크기 비교용 인형 제거), 짐칸, 검사소, 하역장: `docs/previews/`에서 잘라 냄.
+  `drive_*.png`: 국도 코드가 실제로 깐 블록(RoadPreviewTest)을 운전석 높이에서 찍은 장면
 - `vehicles/fonts/` — Pretendard(OFL) 부분 글꼴
 
-| 시간 | 장면 |
-| --- | --- |
-| 0–4.2s | 암전 → 흰 차선 → "운송수단 & 하역장" 단어별 등장 |
-| 4.2–13.6s | 1세대 → 5세대 → 특수: 큰 숫자가 넘어가고 탈것 카드 두 장씩 |
-| 13.6–19.8s | 짐칸에 짐이 쌓이고 금색 적재 게이지 → "보석은 가볍게. 술통은 무겁게." |
-| 19.8–26.6s | 화물 검사소 체크 → "봉인" 도장, 화면 흔들림 |
-| 26.6–36.8s | 교차로·다리·터널·숲길·고가 빠른 컷, 표지판 거리 7.0 → 0.5 km |
-| 36.8–44.2s | 하역장 도착, "+543,448 G" 카운트업, "멀수록 더 받는다" |
-| 44.2–49.2s | "많이 벌려면, 직접 실어 날라라." → "지금 STSV에서" (주소 칸은 비움) |
+| 시간 | 장면 | 전환 |
+| --- | --- | --- |
+| 0–4.0s | 차선 → "운송수단 & 하역장" | 빨려 들어가는 줌 |
+| 4.0–13.4s | 1~5세대, 특수: 큰 숫자 슬롯 + 탈것 카드 | 기울어진 형광 와이프 |
+| 13.4–19.4s | 짐칸이 차오름: "실은 만큼 쌓이는." → "보석은 가볍게. 술통은 무겁게." | 밀어내기 |
+| 19.4–25.8s | 화물 검사소 체크 → "봉인" 도장 → "검사 끝나는 대로." | 펀치 줌 |
+| 25.8–36.0s | 국도·다리·터널·숲길·고가, 표지판 7.0 → 0.5 km | 빨려 들어가는 줌 |
+| 36.0–42.6s | "+543,448 G" → "멀수록 더 받는." | 가는 틈 |
+| 42.6–47.6s | "직접 실어 나른 만큼." → "지금 STSV에서" (주소 칸은 비움) | |
 
 ```bash
-python3 docs/promo/tools/prep_vehicles.py                        # 그림 다시 자르기
+python3 docs/promo/tools/prep_vehicles.py                        # 탈것·짐칸·검사소·하역장 다시 자르기
+(cd economy && ./gradlew test --tests dev.stsv.economy.road.RoadPreviewTest)   # 국도 블록 (JDK 25)
+(cd tools/assetgen/render && npm install) && python3 docs/promo/tools/road_shots.py   # 국도 운전석 장면
 docs/promo/tools/subset_fonts.sh <Pretendard 원본 폴더>            # 문구를 바꿨을 때
 PAGE=vehicles/stsv_vehicles.html node docs/promo/tools/render.js video docs/promo/stsv_vehicles.mp4
 ```
