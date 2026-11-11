@@ -10,20 +10,40 @@ import java.util.UUID;
 /**
  * An inspected trip (README "출발 터미널"): a load checked at a departure terminal's 화물 검사소 and sealed for one dock.
  * While it is {@link Status#SEALED} the bed (or 지게) cannot be opened; at that dock's unloading zone exactly its manifest
- * sells (at the price shown at inspection), if the load is still what was sealed and the vehicle drove at least
+ * sells (at the price shown at inspection, the dock's ratio when sealed: {@link #total}), if the load is still what was sealed and the vehicle drove at least
  * {@link #MIN_DRIVEN} of the straight way from the terminal to the dock since. The owner may cancel it (unsealed, void).
  * Pure (unit-tested): {@link TripStore} keeps it, DockModule runs it.
  *
  * @param vehicle   the vehicle's id (a 지게's: its negated id, as {@code Hauled#id})
  * @param manifest  what was sealed: {@link #manifest} of the goods the dock buys ("id:count;..." sorted)
- * @param total     what they sell for at the dock (as shown at inspection)
+ * @param total     what they sell for at the dock, at its ratio <b>at seal time</b> (as shown at inspection): the promised
+ *                  value. Changing the dock's price afterwards (/관리자 하역장 가격) does not change it.
  * @param changed   when the load last changed, as its trip said at inspection: any later change (the bed opened, a sale,
  *                  a 지게 taken off far away) shows as another time
  * @param odometer  the load's trip odometer at inspection (what it drives after counts from there)
  * @param straight  the straight way from the terminal to the dock (blocks)
+ * @param ratio     the dock's ratio when it was sealed (0: a trip sealed before docks had prices of their own)
  */
 public record CargoTrip(long id, long vehicle, UUID owner, String terminal, String dock, String manifest, long total, long changed,
-                        double odometer, double straight, long sealed, Status status, long ended) {
+                        double odometer, double straight, long sealed, Status status, long ended, double ratio) {
+
+    /** A trip whose ratio is not on record. */
+    public CargoTrip(long id, long vehicle, UUID owner, String terminal, String dock, String manifest, long total, long changed,
+                     double odometer, double straight, long sealed, Status status, long ended) {
+        this(id, vehicle, owner, terminal, dock, manifest, total, changed, odometer, straight, sealed, status, ended, 0);
+    }
+
+    /**
+     * A load sealed now for a dock: the manifest and the total of the plan at the dock's ratio as it is now (its own price,
+     * else the global one). That total is fixed from here on.
+     */
+    public static CargoTrip seal(long vehicle, UUID owner, String terminal, Dock dock, DockGoods goods, List<DockGoods.Slot> bed, long changed,
+                                 double odometer, double straight, long at) {
+        double r = dock.ratio(goods.ratio());
+        DockGoods.Plan plan = goods.plan(bed, r);
+        return new CargoTrip(0, vehicle, owner, terminal, dock.name(), manifest(plan.lines()), plan.total(), changed, odometer, straight, at,
+                Status.SEALED, 0, r);
+    }
 
     public enum Status { SEALED, DONE, VOID, CANCELLED }
 
@@ -90,12 +110,12 @@ public record CargoTrip(long id, long vehicle, UUID owner, String terminal, Stri
 
     /** The trip ended (sold, voided, cancelled) at a time. */
     public CargoTrip end(Status s, long at) {
-        return new CargoTrip(id, vehicle, owner, terminal, dock, manifest, total, changed, odometer, straight, sealed, s, at);
+        return new CargoTrip(id, vehicle, owner, terminal, dock, manifest, total, changed, odometer, straight, sealed, s, at, ratio);
     }
 
     /** With the id the store gave it. */
     public CargoTrip withId(long newId) {
-        return new CargoTrip(newId, vehicle, owner, terminal, dock, manifest, total, changed, odometer, straight, sealed, status, ended);
+        return new CargoTrip(newId, vehicle, owner, terminal, dock, manifest, total, changed, odometer, straight, sealed, status, ended, ratio);
     }
 
     @Override

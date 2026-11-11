@@ -27,16 +27,18 @@ public final class TripStore {
                         + "terminal VARCHAR(32) NOT NULL, dock VARCHAR(32) NOT NULL, manifest " + text + ", total BIGINT NOT NULL, "
                         + "changed BIGINT NOT NULL, odometer DOUBLE NOT NULL, straight DOUBLE NOT NULL, sealed BIGINT NOT NULL, "
                         + "status VARCHAR(12) NOT NULL, ended BIGINT NOT NULL)",
-                "CREATE INDEX stsv_eco_cargo_trip_status ON stsv_eco_cargo_trip (status)")));
+                "CREATE INDEX stsv_eco_cargo_trip_status ON stsv_eco_cargo_trip (status)"),
+                // 2: the dock's ratio at seal time (docks have prices of their own); 0 = sealed before that
+                List.of("ALTER TABLE stsv_eco_cargo_trip ADD COLUMN ratio DOUBLE NOT NULL DEFAULT 0")));
     }
 
     /** A new sealed trip: stored, with its id. */
     public CargoTrip open(CargoTrip t) {
         long newId = db.sync(c -> {
             try (var st = c.prepareStatement("INSERT INTO stsv_eco_cargo_trip (vehicle, owner, terminal, dock, manifest, total, changed, odometer, "
-                    + "straight, sealed, status, ended) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)", java.sql.Statement.RETURN_GENERATED_KEYS)) {
+                    + "straight, sealed, status, ended, ratio) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)", java.sql.Statement.RETURN_GENERATED_KEYS)) {
                 Object[] v = {t.vehicle(), t.owner().toString(), t.terminal(), t.dock(), t.manifest(), t.total(), t.changed(), t.odometer(),
-                        t.straight(), t.sealed(), t.status().name(), t.ended()};
+                        t.straight(), t.sealed(), t.status().name(), t.ended(), t.ratio()};
                 for (int i = 0; i < v.length; i++) st.setObject(i + 1, v[i]);
                 st.executeUpdate();
                 try (var rs = st.getGeneratedKeys()) {
@@ -52,12 +54,12 @@ public final class TripStore {
         return db.execute("UPDATE stsv_eco_cargo_trip SET status = ?, ended = ? WHERE id = ?", t.status().name(), t.ended(), t.id());
     }
 
-    private static final String COLS = "id, vehicle, owner, terminal, dock, manifest, total, changed, odometer, straight, sealed, status, ended";
+    private static final String COLS = "id, vehicle, owner, terminal, dock, manifest, total, changed, odometer, straight, sealed, status, ended, ratio";
 
     private static CargoTrip row(java.sql.ResultSet rs) throws java.sql.SQLException {
         return new CargoTrip(rs.getLong(1), rs.getLong(2), UUID.fromString(rs.getString(3)), rs.getString(4), rs.getString(5), rs.getString(6),
                 rs.getLong(7), rs.getLong(8), rs.getDouble(9), rs.getDouble(10), rs.getLong(11), CargoTrip.Status.valueOf(rs.getString(12)),
-                rs.getLong(13));
+                rs.getLong(13), rs.getDouble(14));
     }
 
     /** Every trip still sealed. */

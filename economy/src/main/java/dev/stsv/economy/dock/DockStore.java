@@ -30,7 +30,9 @@ public final class DockStore {
                 "CREATE TABLE IF NOT EXISTS stsv_eco_dock_sale (" + id + ", at BIGINT NOT NULL, dock VARCHAR(32) NOT NULL, vehicle BIGINT NOT NULL, "
                         + "owner CHAR(36) NOT NULL, seller CHAR(36) NOT NULL, items " + text + ", paid BIGINT NOT NULL, distance DOUBLE NOT NULL, "
                         + "odometer DOUBLE NOT NULL)",
-                "CREATE INDEX stsv_eco_dock_sale_at ON stsv_eco_dock_sale (at)")));
+                "CREATE INDEX stsv_eco_dock_sale_at ON stsv_eco_dock_sale (at)"),
+                // 2: each dock's own price (percent of the base, /관리자 하역장 가격); NULL = the global docks.price-ratio
+                List.of("ALTER TABLE stsv_eco_dock ADD COLUMN price_pct INT")));
         db.migrate("eco-terminals", List.of(List.of(
                 "CREATE TABLE IF NOT EXISTS stsv_eco_terminal (name VARCHAR(32) PRIMARY KEY, kind VARCHAR(8) NOT NULL, world VARCHAR(64) NOT NULL, "
                         + "x INT NOT NULL, y INT NOT NULL, z INT NOT NULL, facing INT NOT NULL, chunks " + text + ", created BIGINT NOT NULL)")));
@@ -53,14 +55,31 @@ public final class DockStore {
     }
 
     public List<Dock> all() {
-        return db.sync(c -> Db.query(c, "SELECT name, kind, world, x, y, z, facing, chunks, created FROM stsv_eco_dock ORDER BY created, name",
+        return db.sync(c -> Db.query(c, "SELECT name, kind, world, x, y, z, facing, chunks, created, price_pct FROM stsv_eco_dock ORDER BY created, name",
                 rs -> new Dock(rs.getString(1), DockLayout.Kind.valueOf(rs.getString(2)), rs.getString(3), rs.getInt(4), rs.getInt(5), rs.getInt(6),
-                        rs.getInt(7), rs.getString(8), rs.getLong(9))));
+                        rs.getInt(7), rs.getString(8), rs.getLong(9), price(rs.getObject(10)))));
+    }
+
+    /** A stored price_pct: NULL (or anything out of range) = the global ratio. */
+    static int price(Object stored) {
+        if (!(stored instanceof Number n)) return Dock.DEFAULT_PRICE;
+        int v = n.intValue();
+        return v >= Dock.MIN_PRICE && v <= Dock.MAX_PRICE ? v : Dock.DEFAULT_PRICE;
+    }
+
+    private static Integer column(Dock d) {
+        return d.ownPrice() ? d.price() : null;
     }
 
     public CompletableFuture<Void> save(Dock d) {
-        return db.execute(db.upsert("stsv_eco_dock", List.of("name"), List.of("kind", "world", "x", "y", "z", "facing", "chunks", "created")),
-                d.name(), d.kind().name(), d.world(), d.x(), d.y(), d.z(), d.facing(), d.chunks(), d.created());
+        return db.execute(db.upsert("stsv_eco_dock", List.of("name"), List.of("kind", "world", "x", "y", "z", "facing", "chunks", "created", "price_pct")),
+                d.name(), d.kind().name(), d.world(), d.x(), d.y(), d.z(), d.facing(), d.chunks(), d.created(), column(d));
+    }
+
+    /** A dock's own price (percent), or {@link Dock#DEFAULT_PRICE} for the global ratio again; false if there is no such dock. */
+    public CompletableFuture<Boolean> price(String name, int pct) {
+        return db.async(c -> Db.update(c, "UPDATE stsv_eco_dock SET price_pct = ? WHERE name = ?",
+                pct == Dock.DEFAULT_PRICE ? null : pct, name) == 1);
     }
 
     public CompletableFuture<Boolean> delete(String name) {

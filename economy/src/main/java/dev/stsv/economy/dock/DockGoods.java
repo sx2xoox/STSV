@@ -17,9 +17,10 @@ import java.util.Set;
  * buys (shop.yml sell). Raw materials (ore, crops, fish, logs, mob drops) are not made by a machine, so no dock buys them;
  * nor anything the shop does not buy. Generic: a new recipe whose output the shop buys is a finished good at once.
  *
- * <p><b>Price</b> = the item's shop base price (기준가) x ratio (docks.price-ratio, 0.9), fixed: no 수요 고시, no events, no
- * seller's own curve, no income tax. A dock sale never touches the shop's record of what anyone sold, so it moves neither
- * the seller's own shop price nor the market price.
+ * <p><b>Price</b> = the item's shop base price (기준가) x the dock's ratio: its own (/관리자 하역장 가격, {@link Dock#ratio}),
+ * else the global docks.price-ratio ({@link #ratio()}). Fixed otherwise: no 수요 고시, no events, no seller's own curve, no
+ * income tax. A dock sale never touches the shop's record of what anyone sold, so it moves neither the seller's own shop
+ * price nor the market price. A sealed trip ({@link CargoTrip}) keeps the total at the ratio it was sealed with.
  */
 public final class DockGoods {
 
@@ -56,13 +57,19 @@ public final class DockGoods {
         return finished;
     }
 
+    /** The global ratio (docks.price-ratio): what a dock without its own price pays. */
     public double ratio() {
         return ratio;
     }
 
-    /** What the dock pays for one (0 if it does not buy it). */
+    /** What a dock on the global ratio pays for one (0 if it does not buy it). */
     public double unit(String id) {
-        return buys(id) ? base.getOrDefault(id, 0.0) * ratio : 0;
+        return unit(id, ratio);
+    }
+
+    /** What a dock paying this ratio pays for one (0 if it does not buy it). */
+    public double unit(String id, double atRatio) {
+        return buys(id) ? base.getOrDefault(id, 0.0) * atRatio : 0;
     }
 
     /** One slot of a vehicle's bed: its index, item id, count, and whether it is plain (no shop mark, no rename...). */
@@ -81,14 +88,27 @@ public final class DockGoods {
         }
     }
 
-    /** What the dock would take out of a bed and pay. */
+    /** What a dock on the global ratio would take out of a bed and pay. */
     public Plan plan(List<Slot> bed) {
+        return plan(bed, ratio);
+    }
+
+    /** What this dock would take out of a bed and pay (at its own ratio, else the global one). */
+    public Plan plan(List<Slot> bed, Dock dock) {
+        return plan(bed, dock.ratio(ratio));
+    }
+
+    /**
+     * What a dock paying this ratio would take out of a bed and pay. Which slots go (and so the manifest) does not depend
+     * on the ratio, only what they fetch.
+     */
+    public Plan plan(List<Slot> bed, double atRatio) {
         Map<String, int[]> counts = new LinkedHashMap<>();
         Set<Integer> slots = new LinkedHashSet<>();
         int kept = 0;
         for (Slot s : bed) {
             if (s == null || s.amount() <= 0) continue;
-            if (!s.plain() || !buys(s.id()) || unit(s.id()) <= 0) {
+            if (!s.plain() || !buys(s.id()) || base.getOrDefault(s.id(), 0.0) <= 0) {
                 kept++;
                 continue;
             }
@@ -98,7 +118,7 @@ public final class DockGoods {
         List<Line> lines = new ArrayList<>();
         double sum = 0;
         for (Map.Entry<String, int[]> e : counts.entrySet()) {
-            double u = unit(e.getKey()), t = u * e.getValue()[0];
+            double u = unit(e.getKey(), atRatio), t = u * e.getValue()[0];
             lines.add(new Line(e.getKey(), e.getValue()[0], u, t));
             sum += t;
         }
