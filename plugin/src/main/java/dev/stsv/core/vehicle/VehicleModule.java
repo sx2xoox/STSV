@@ -160,6 +160,13 @@ public final class VehicleModule implements StsvModule, Listener {
     private final Map<UUID, Map<UUID, String>> grants = new HashMap<>();
     private BiPredicate<UUID, UUID> trust;
     private BiConsumer<UUID, ItemStack> mailbox;
+    /** 하역장 · 적재 무게 · 국도 hooks of a content plugin (the economy server); null = none */
+    private java.util.function.ToDoubleFunction<ItemStack> cargoWeight;
+    private java.util.function.ToDoubleFunction<Block> surfaceBonus;
+    private BiPredicate<Player, Hauled> cargoClick;
+    /** every vehicle's trip since its load last changed (VehicleTrip), by id */
+    private VehicleTripStore tripStore;
+    private final Map<Long, VehicleTrip> trips = new HashMap<>();
     private BukkitTask task;
     private long ticks;
     private boolean spawnSoon;
@@ -187,6 +194,9 @@ public final class VehicleModule implements StsvModule, Listener {
         trains = new TrainStore(plugin.db());
         trains.init();
         trainSaved.putAll(trains.all());
+        tripStore = new VehicleTripStore(plugin.db());
+        tripStore.init();
+        trips.putAll(tripStore.all());
         for (VehicleStore.Grant g : store.grants()) grants.computeIfAbsent(g.owner(), k -> new LinkedHashMap<>()).put(g.player(), g.playerName());
         // a plugin reload while someone pulled: nobody pulls now
         for (Player p : Bukkit.getOnlinePlayers()) PullSpeed.remove(p.getAttribute(Attribute.MOVEMENT_SPEED));
@@ -280,6 +290,188 @@ public final class VehicleModule implements StsvModule, Listener {
      */
     public void mailbox(BiConsumer<UUID, ItemStack> mailbox) {
         this.mailbox = mailbox;
+    }
+
+    /**
+     * 적재 무게: what an item (a whole stack) weighs (the economy server: weights.yml). With it, a bed takes no more than its
+     * vehicle's payload ({@link VehicleSpec.Cargo#payload}, {@link CargoGuard}) and its view shows the weight. null = no limit.
+     */
+    public void cargoWeight(java.util.function.ToDoubleFunction<ItemStack> weight) {
+        this.cargoWeight = weight;
+    }
+
+    /** What a stack weighs (0 without a weight hook). */
+    public double weightOf(ItemStack it) {
+        java.util.function.ToDoubleFunction<ItemStack> w = cargoWeight;
+        if (w == null || it == null || it.isEmpty()) return 0;
+        try {
+            return Math.max(0, w.applyAsDouble(it));
+        } catch (RuntimeException e) {
+            return 0;
+        }
+    }
+
+    /**
+     * 국도: a top-speed factor by the block under a driven vehicle's centre (1 = none; the economy server: 1.2 on its road
+     * surface). Never over vehicles.max-speed. null = none.
+     */
+    public void surfaceBonus(java.util.function.ToDoubleFunction<Block> bonus) {
+        this.surfaceBonus = bonus;
+    }
+
+    /**
+     * 하역장: a sneak + right-click on a bed asks this first (player, the load); true = handled (the economy server opens its
+     * dock sale menu at a dock), false = the bed opens as usual. null = beds always open.
+     */
+    public void cargoClick(BiPredicate<Player, Hauled> click) {
+        this.cargoClick = click;
+    }
+
+    /** A shown vehicle's load (null: not shown now, or no bed). */
+    public Hauled hauled(long id) {
+        LiveVehicle v = live.get(id);
+        return v == null || v.spec.cargo() == null ? null : hauled(v);
+    }
+
+    /** The loads of the shown vehicles with a bed that have a unit within radius of a place (any unit of a train). */
+    public List<Hauled> hauledNear(Location at, double radius) {
+        List<Hauled> out = new ArrayList<>();
+        double r2 = radius * radius;
+        for (LiveVehicle v : live.values()) {
+            if (v.spec.cargo() == null || !v.world.equals(at.getWorld()) || busy.contains(v.id)) continue;
+            Hauled h = hauled(v);
+            for (double[] p : h.points()) {
+                double dx = p[0] - at.getX(), dz = p[2] - at.getZ();
+                if (dx * dx + dz * dz <= r2) {
+                    out.add(h);
+                    break;
+                }
+            }
+        }
+        return out;
+    }
+
+    private Hauled hauled(LiveVehicle v) {
+        syncCargo(v);
+        List<double[]> points = new ArrayList<>();
+        points.add(new double[]{v.st.x, v.st.y, v.st.z});
+        if (v.train != null) for (VehiclePhysics.State u : v.train.units) points.add(new double[]{u.x, u.y, u.z});
+        ItemStack[] copy = new ItemStack[v.cargo == null ? 0 : v.cargo.length];
+        for (int i = 0; i < copy.length; i++) copy[i] = v.cargo[i] == null || v.cargo[i].isEmpty() ? null : v.cargo[i].clone();
+        return new Hauled(v.id, v.item.key().asString(), Text.plain(label(v.item)), v.owner, v.ownerName, v.world, List.copyOf(points),
+                trip(v).snapshot(), copy, v.spec.cargo().payload(), CargoWeights.total(v.cargo, this::weightOf), v.cargoVersion,
+                v.st.speed != 0 || v.puller != null);
+    }
+
+    /** May this player use a vehicle's bed (owner, allowed with /탈것 권한, the owner's land, an admin)? */
+    public boolean mayUse(Player p, long id) {
+        LiveVehicle v = live.get(id);
+        return v != null && mayDrive(v, p);
+    }
+
+    /** Opens a shown vehicle's bed for a player as a sneak + right-click would, without asking {@link #cargoClick}. */
+    public void openBed(Player p, long id) {
+        LiveVehicle v = live.get(id);
+        if (v != null && v.spec.cargo() != null && !busy.contains(id)) openCargo(v, p, 0);
+    }
+
+    /**
+     * Takes things out of a shown vehicle's bed (a dock sale): the slots `take` picks, only if the bed is still as it was at
+     * `version` (else null and nothing changes). An open bed view is closed first. The load changed: its trip starts again here.
+     */
+    public List<ItemStack> unload(long id, long version, java.util.function.IntPredicate take) {
+        LiveVehicle v = live.get(id);
+        if (v == null || v.cargo == null || busy.contains(id)) return null;
+        closeCargo(v);
+        if (v.cargoVersion != version) return null;
+        List<ItemStack> out = new ArrayList<>();
+        for (int i = 0; i < v.cargo.length; i++) {
+            if (v.cargo[i] == null || !take.test(i)) continue;
+            out.add(v.cargo[i]);
+            v.cargo[i] = null;
+        }
+        if (!out.isEmpty()) cargoChanged(v, true);
+        return out;
+    }
+
+    /** The trip of a vehicle (one shown before trips were kept starts where it stands, now). */
+    private VehicleTrip trip(LiveVehicle v) {
+        return trips.computeIfAbsent(v.id, k -> VehicleTrip.start(v.world.getName(), v.st.x, v.st.z, System.currentTimeMillis()));
+    }
+
+    private void saveTrip(long id) {
+        VehicleTrip t = trips.get(id);
+        if (t == null || !t.dirty) return;
+        t.dirty = false;
+        tripStore.save(id, t.snapshot());
+    }
+
+    /** The bed changed: saved, its version moves on, its load shows; contents = things came or went (the trip starts again). */
+    private void cargoChanged(LiveVehicle v, boolean contents) {
+        v.cargoVersion++;
+        store.cargo(v.id, encode(v.cargo), System.currentTimeMillis());
+        if (contents) {
+            trip(v).reset(v.world.getName(), v.st.x, v.st.z, System.currentTimeMillis());
+            saveTrip(v.id);
+        }
+        int stage = stageOf(v);
+        if (stage != v.stage) {
+            v.stage = stage;
+            if (v.load != null) v.load.setItemStack(model(stageModel(v)));
+        }
+        if (v.train != null) v.train.loads(v.cargo);
+    }
+
+    /** What a bed weighs now, its open page as the view shows it (a click not yet stored). */
+    private double weightNow(LiveVehicle v) {
+        if (v.cargo == null) return 0;
+        Inventory inv = v.cargoInv;
+        double sum = 0;
+        for (int i = 0; i < v.cargo.length; i++) {
+            int slot = i - v.cargoPage * CargoPages.PAGE;
+            ItemStack it = inv != null && slot >= 0 && slot < CargoPages.PAGE ? (slot < prev(inv) ? inv.getItem(slot) : null) : v.cargo[i];
+            sum += weightOf(it);
+        }
+        return sum;
+    }
+
+    /** The bed's view: how full (slots) and, with weights, how heavy. */
+    private ItemStack infoButton(LiveVehicle v) {
+        String lore = cargoWeight == null ? null : Lang.raw("vehicle.cargo-weight", "weight", CargoWeights.format(weightNow(v)),
+                "payload", CargoWeights.format(v.spec.cargo().payload()));
+        return button(Material.CHEST, Lang.raw("vehicle.cargo-info", "used", v.cargoUsed(), "slots", v.spec.cargo().slots()), lore);
+    }
+
+    /** Refuses what would carry the vehicle past its payload (a flash and a low note). */
+    private void tooHeavy(LiveVehicle v, Player p, double now, double adding) {
+        refuse(p, Lang.mm("vehicle.cargo-too-heavy", "weight", CargoWeights.format(now), "payload", CargoWeights.format(v.spec.cargo().payload()),
+                "adding", CargoWeights.format(adding), "left", CargoWeights.format(Math.max(0, v.spec.cargo().payload() - now))));
+    }
+
+    /** 국도: the top-speed factor of the block under the vehicle (1 without a hook). */
+    private double roadBonus(LiveVehicle v) {
+        java.util.function.ToDoubleFunction<Block> b = surfaceBonus;
+        if (b == null) return 1;
+        int x = (int) Math.floor(v.st.x), y = (int) Math.floor(v.st.y - 0.1), z = (int) Math.floor(v.st.z);
+        if (!v.world.isChunkLoaded(x >> 4, z >> 4)) return 1;
+        try {
+            return Math.clamp(b.applyAsDouble(v.world.getBlockAt(x, y, z)), 1, 2);
+        } catch (RuntimeException e) {
+            return 1;
+        }
+    }
+
+    /** A sneak + right-click on a vehicle's bed: the content plugin's turn first (a dock), else the bed opens. */
+    private void bedClick(LiveVehicle v, Player p, int page) {
+        BiPredicate<Player, Hauled> c = cargoClick;
+        if (c != null && v.spec.cargo() != null) {
+            try {
+                if (c.test(p, hauled(v))) return;
+            } catch (RuntimeException ex) {
+                plugin.getLogger().log(java.util.logging.Level.WARNING, "[탈것] 짐칸 클릭 처리 실패", ex);
+            }
+        }
+        openCargo(v, p, page);
     }
 
     /** Is this entity part of a vehicle (body, wheel, click box, seat)? Land protection lets everyone touch these. */
@@ -507,6 +699,10 @@ public final class VehicleModule implements StsvModule, Listener {
             }
             parked.put(row.id(), row);
             if (s.train() != null) trainSaved.put(row.id(), units);
+            // out of an item: whatever its bed holds starts its trip here (a load cannot skip the road in an item)
+            VehicleTrip trip = VehicleTrip.start(w.getName(), st.x, st.z, System.currentTimeMillis());
+            trips.put(row.id(), trip);
+            saveTrip(row.id());
             LiveVehicle v = spawnIfLoaded(row);
             w.playSound(new Location(w, st.x, st.y, st.z), Sound.BLOCK_IRON_DOOR_CLOSE, 0.8f, 1.2f);
             p.sendMessage(Lang.msg("vehicle.placed", "vehicle", label(item), "id", row.id()));
@@ -764,6 +960,7 @@ public final class VehicleModule implements StsvModule, Listener {
         closeCargo(v);
         removeParts(v, true);
         live.remove(v.id);
+        saveTrip(v.id);
         if (save) {
             long now = System.currentTimeMillis();
             store.move(v.id, v.pos(), now);
@@ -781,6 +978,7 @@ public final class VehicleModule implements StsvModule, Listener {
     }
 
     private void save(LiveVehicle v) {
+        saveTrip(v.id);
         v.dirty = false;
         v.savedAt = ticks;
         store.move(v.id, v.pos(), System.currentTimeMillis());
@@ -855,9 +1053,9 @@ public final class VehicleModule implements StsvModule, Listener {
                 Location at = puller.getLocation();
                 CartPull.step(v.st, at.getX(), at.getZ(), v.spec, terrain);
             } else if (v.train != null) {
-                TrainPhysics.step(v.st, v.train.units, in, v.spec, terrain, new WorldGround(v.world), settings.maxSpeed());
+                TrainPhysics.step(v.st, v.train.units, in, v.spec, terrain, new WorldGround(v.world), settings.maxSpeed(), roadBonus(v));
             } else {
-                VehiclePhysics.step(v.st, in, v.spec, terrain, settings.maxSpeed());
+                VehiclePhysics.step(v.st, in, v.spec, terrain, settings.maxSpeed(), 1f, roadBonus(v), settings.maxSpeed());
             }
             if (v.st.bumped) v.world.playSound(at(v), Sound.ENTITY_ZOMBIE_ATTACK_IRON_DOOR, SoundCategory.NEUTRAL, 0.35f, 1.4f);
             boolean moved = Math.abs(v.st.x - x) + Math.abs(v.st.y - y) + Math.abs(v.st.z - z) > 1e-5 || v.st.yaw != yaw
@@ -865,6 +1063,7 @@ public final class VehicleModule implements StsvModule, Listener {
             double[] fw = VehiclePhysics.forward(v.st.yaw);
             along = (v.st.x - x) * fw[0] + (v.st.z - z) * fw[1];
             if (moved) {
+                trip(v).moved(Math.hypot(v.st.x - x, v.st.z - z));   // the odometer (a train: its towing unit)
                 move(v);
                 v.dirty = true;
                 if (v.spec.pulled()) rolling(v, Math.hypot(v.st.x - x, v.st.z - z));
@@ -1020,9 +1219,9 @@ public final class VehicleModule implements StsvModule, Listener {
             if (v.train != null) {
                 // a trailer: its bed; the driven unit (the ox, the tiller, the tractor): the whole train back into an item
                 int page = v.spec.train().firstPage(v.train.unit(e.getRightClicked()));
-                if (page >= 0) openCargo(v, p, page);
+                if (page >= 0) bedClick(v, p, page);
                 else pickUp(v, p);
-            } else if (v.spec.cargo() != null && inBed(v, p)) openCargo(v, p, 0);
+            } else if (v.spec.cargo() != null && inBed(v, p)) bedClick(v, p, 0);
             else pickUp(v, p);
         } else {
             board(v, p);
@@ -1220,7 +1419,7 @@ public final class VehicleModule implements StsvModule, Listener {
         }
         if (p.isSneaking()) {
             if (v.spec.cargo() == null || clicked.equals(v.handle)) pickUp(v, p);
-            else openCargo(v, p, 0);
+            else bedClick(v, p, 0);
             return;
         }
         takeHandles(v, p);
@@ -1729,10 +1928,10 @@ public final class VehicleModule implements StsvModule, Listener {
         for (int i = prev(inv); i <= next(inv); i++) inv.setItem(i, button(Material.GRAY_STAINED_GLASS_PANE, " ", null));
         if (page > 0) inv.setItem(prev(inv), button(Material.ARROW, Lang.raw("vehicle.cargo-prev"), null));
         if (page < pages - 1) inv.setItem(next(inv), button(Material.ARROW, Lang.raw("vehicle.cargo-next"), null));
-        inv.setItem(info(inv), button(Material.CHEST, Lang.raw("vehicle.cargo-info", "used", v.cargoUsed(), "slots", c.slots()), null));
-        v.cargoViewer = p.getUniqueId();
         v.cargoInv = inv;
         v.cargoPage = page;
+        inv.setItem(info(inv), infoButton(v));
+        v.cargoViewer = p.getUniqueId();
         p.openInventory(inv);
         p.playSound(p.getLocation(), Sound.BLOCK_BARREL_OPEN, 0.6f, 1.0f);
     }
@@ -1753,23 +1952,17 @@ public final class VehicleModule implements StsvModule, Listener {
         if (v.cargo == null || v.cargoInv == null) return;
         Inventory inv = v.cargoInv;
         int view = prev(inv);
+        ItemStack[] before = v.cargo.clone();   // the stacks are replaced by clones below, never changed in place
         boolean changed = CargoPages.store(v.cargo, v.cargoPage, i -> {
             if (i >= view) return null;   // a small view (one short page): only its rows, all of the bed
             ItemStack now = inv.getItem(i);
             return now == null || now.isEmpty() ? null : now.clone();
         });
         if (!changed) return;
-        store.cargo(v.id, encode(v.cargo), System.currentTimeMillis());
-        int stage = stageOf(v);
-        if (stage != v.stage) {
-            v.stage = stage;
-            if (v.load != null) v.load.setItemStack(model(stageModel(v)));
-        }
-        if (v.train != null) v.train.loads(v.cargo);
+        // things came or went (not just moved between slots): the load's trip starts again here
+        cargoChanged(v, !CargoWeights.sameContents(before, v.cargo, ItemStack::isSimilar, ItemStack::getAmount));
         ItemStack info = v.cargoInv.getItem(info(v.cargoInv));
-        if (info != null && v.spec.cargo() != null) {
-            v.cargoInv.setItem(info(v.cargoInv), button(Material.CHEST, Lang.raw("vehicle.cargo-info", "used", v.cargoUsed(), "slots", v.spec.cargo().slots()), null));
-        }
+        if (info != null && v.spec.cargo() != null) v.cargoInv.setItem(info(v.cargoInv), infoButton(v));
     }
 
     private void closeCargo(LiveVehicle v) {
@@ -1829,9 +2022,44 @@ public final class VehicleModule implements StsvModule, Listener {
             }
             return;
         }
+        if (cargoWeight != null && e.getWhoClicked() instanceof Player p && !payloadAllows(v, p, e, top)) return;
         Bukkit.getScheduler().runTask(plugin, () -> {
             if (cargoOf(top) == v) syncCargo(v);
         });
+    }
+
+    /**
+     * 적재 무게: lets a click through only if the bed stays within the payload (else cancelled, with a message). A shift-click
+     * of a stack that does not all fit moves what fits.
+     */
+    private boolean payloadAllows(LiveVehicle v, Player p, InventoryClickEvent e, Inventory top) {
+        CargoGuard.Move m = CargoGuard.click(e, top);
+        if (m.refused()) {
+            e.setCancelled(true);
+            return false;
+        }
+        if (m.in() == null || m.inAmount() <= 0) return true;
+        double now = weightNow(v), unit = weightOf(m.in().asOne()), out = weightOf(m.out());
+        double adding = unit * m.inAmount();
+        if (CargoWeights.fits(now - out, adding, v.spec.cargo().payload())) return true;
+        e.setCancelled(true);
+        if (e.getAction() == InventoryAction.MOVE_TO_OTHER_INVENTORY && e.getClickedInventory() != null) {
+            int n = CargoWeights.fitting(now, unit, m.inAmount(), v.spec.cargo().payload());
+            if (n > 0) {
+                ItemStack part = m.in().clone();
+                part.setAmount(n);
+                int left = 0;
+                for (ItemStack l : top.addItem(part).values()) left += l.getAmount();
+                int moved = n - left;
+                ItemStack source = e.getClickedInventory().getItem(e.getSlot());
+                if (source != null && moved > 0) source.setAmount(source.getAmount() - moved);
+                Bukkit.getScheduler().runTask(plugin, () -> {
+                    if (cargoOf(top) == v) syncCargo(v);
+                });
+            }
+        }
+        tooHeavy(v, p, now, adding);
+        return false;
     }
 
     @EventHandler
@@ -1842,6 +2070,15 @@ public final class VehicleModule implements StsvModule, Listener {
         for (int raw : e.getRawSlots()) {
             if (v == null || (raw < top.getSize() && (raw >= prev(top) || !CargoPages.inBed(v.cargo.length, ((CargoHolder) top.getHolder(false)).page, raw)))) {
                 e.setCancelled(true);
+                return;
+            }
+        }
+        if (cargoWeight != null && e.getWhoClicked() instanceof Player p) {
+            int added = CargoGuard.dragged(e, top);
+            double now = weightNow(v), adding = added * weightOf(e.getOldCursor().asOne());
+            if (!CargoWeights.fits(now, adding, v.spec.cargo().payload())) {
+                e.setCancelled(true);
+                tooHeavy(v, p, now, adding);
                 return;
             }
         }
@@ -1971,6 +2208,8 @@ public final class VehicleModule implements StsvModule, Listener {
             v.cargo = null;
             despawn(v, false);
             store.delete(v.id);
+            trips.remove(v.id);
+            tripStore.delete(v.id);
             plugin.getLogger().info("[탈것] " + p.getName() + " 님이 #" + v.id + " (" + v.item.key() + ", 주인 " + v.ownerName + ") 를 지움");
             removed++;
         }

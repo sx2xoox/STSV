@@ -98,7 +98,13 @@ class VehicleContentTest {
         for (VehicleSpec s : v.values()) assertFalse(s.pulled(), "driven, not pulled");
         assertEquals(4, truck.cargo().stages().size());
         assertTrue(truck.cargo().behind() < truck.length() / 2 && truck.cargo().behind() > -truck.length() / 2);
-        assertNull(police.cargo());
+        // 적재 무게: the police car's trunk and the golf cart's bag rack are small beds (27 slots, payload 100)
+        assertEquals(27, police.cargo().slots());
+        assertEquals(27, cart.cargo().slots());
+        assertTrue(police.cargo().stages().isEmpty() && cart.cargo().stages().isEmpty(), "closed: no load shown");
+        assertEquals(100, police.cargo().payload());
+        assertEquals(100, cart.cargo().payload());
+        assertEquals(1000, truck.cargo().payload());
     }
 
     /** tools/assetgen/sounds.py ENGINE_PERIOD (0.5 s) in ticks. */

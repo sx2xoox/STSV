@@ -484,6 +484,8 @@ vehicle:
   cargo-prev: "<yellow>이전 쪽"
   cargo-next: "<yellow>다음 쪽"
   cargo-info: "<gold>짐칸 {used}/{slots}칸"
+  cargo-weight: "<gray>무게 <white>{weight}</white> / {payload}"
+  cargo-too-heavy: "<red>너무 무거워요: 지금 {weight} / 최대 {payload} <gray>(넣으려는 무게 {adding}, 더 실을 수 있는 무게 {left})"
   no-room-inventory: "<red>인벤토리에 빈칸이 있어야 회수할 수 있어요."
   picked-up: "<green>{vehicle}</green><green>을(를) 아이템으로 회수했어요."
   returned: "<green>관리자가 탈것 #{id}을(를) 아이템으로 돌려보냈어요."

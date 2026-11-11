@@ -83,6 +83,8 @@ final class LiveVehicle {
     /** the storage bed (null without one), the page open and who has it open */
     ItemStack[] cargo;
     int stage;
+    /** moves on whenever the bed changes (a dock sale takes out only what it showed: VehicleModule#unload) */
+    long cargoVersion;
     UUID cargoViewer;
     Inventory cargoInv;
     int cargoPage;

@@ -112,8 +112,11 @@ public record VehicleSpec(
      * @param behind clicks this far forward or further back open it (blocks, the bed's front edge)
      * @param stages load models by how full it is (see {@link CargoStages}); none for a closed box
      * @param slots  how many slots it holds
+     * @param payload  the most weight it carries (kg-like units: README "적재 무게"; the weights come from a content plugin,
+     *                 {@link VehicleModule#cargoWeight}); in the item file {@code cargo.payload} (a train: {@code vehicle.payload},
+     *                 the whole train), else {@link #defaultPayload}
      */
-    public record Cargo(int pages, double behind, Vec at, List<NamespacedKey> stages, int slots) {
+    public record Cargo(int pages, double behind, Vec at, List<NamespacedKey> stages, int slots, double payload) {
         public static final int PAGE = 45;
         /** The most pages a bed may have (810 slots: the 탑차's 720 and some room). */
         public static final int MAX_PAGES = 18;
@@ -123,6 +126,21 @@ public record VehicleSpec(
         /** A bed of whole pages. */
         public Cargo(int pages, double behind, Vec at, List<NamespacedKey> stages) {
             this(pages, behind, at, stages, pages * PAGE);
+        }
+
+        /** A bed with the payload its slots give ({@link #defaultPayload}). */
+        public Cargo(int pages, double behind, Vec at, List<NamespacedKey> stages, int slots) {
+            this(pages, behind, at, stages, slots, defaultPayload(slots));
+        }
+
+        /** The payload of a bed whose file gives none: 2 per slot (a 450-slot truck about 900). */
+        public static double defaultPayload(int slots) {
+            return Math.max(1, slots * 2.0);
+        }
+
+        /** The same bed carrying this much. */
+        public Cargo withPayload(double payload) {
+            return new Cargo(pages, behind, at, stages, slots, payload);
         }
     }
 
@@ -218,6 +236,7 @@ public record VehicleSpec(
             List<NamespacedKey> stages = new ArrayList<>();
             for (String s : c.getStringList("stages")) stages.add(model(s, "vehicle.cargo.stages", namespace, modelExists));
             cargo = new Cargo(CargoPages.pages(slots), c.getDouble("behind", 0), vec(c, "at", "vehicle.cargo.at"), List.copyOf(stages), slots);
+            if (c.contains("payload")) cargo = cargo.withPayload(payload(c.getDouble("payload"), "vehicle.cargo.payload"));
         }
         TrainSpec train = null;
         if (v.isConfigurationSection("train")) {
@@ -225,6 +244,11 @@ public record VehicleSpec(
             if (cargo != null) throw new IllegalArgumentException("vehicle.cargo: 트레일러가 있으면 짐칸은 트레일러마다 (train.trailers.cargo)");
             train = TrainSpec.parse(v, namespace, modelExists);
             cargo = train.cargo();
+        }
+        // the whole vehicle's payload (a train: all its trailers together); over cargo.payload
+        if (v.contains("payload")) {
+            if (cargo == null) throw new IllegalArgumentException("vehicle.payload: 짐칸이 없는 탈것");
+            cargo = cargo.withPayload(payload(v.getDouble("payload"), "vehicle.payload"));
         }
         double bodyScale = v.getDouble("body-scale", 1);
         if (bodyScale <= 0 || bodyScale > 4) throw new IllegalArgumentException("vehicle.body-scale 은 0 초과 4 이하");
@@ -248,6 +272,11 @@ public record VehicleSpec(
                 driven ? positive(v, "turn-speed") : v.getDouble("turn-speed", 1), step,
                 size.get(0), size.get(1), size.get(2), v.getDouble("click-height", Math.min(1.2, size.get(2))),
                 wheel, wheelRadius, List.copyOf(wheels), List.copyOf(seats), lights, horn, cargo, engine, pull, extras, train);
+    }
+
+    private static double payload(double d, String what) {
+        if (!(d > 0) || d > 100_000) throw new IllegalArgumentException(what + " 는 0 초과 100000 이하 (적재 무게)");
+        return d;
     }
 
     private static Pull pull(ConfigurationSection p) {

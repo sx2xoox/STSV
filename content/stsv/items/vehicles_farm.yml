@@ -41,6 +41,7 @@ ox_cart:
   icon: ox_cart_icon
   max-stack: 1
   vehicle:
+    payload: 400          # 적재 무게: 트레일러 짐칸 모두 합쳐서 (README '적재 무게')
     body-scale: 2
     speed: 4
     reverse-speed: 1.5
@@ -109,6 +110,7 @@ power_tiller:
   icon: power_tiller_icon
   max-stack: 1
   vehicle:
+    payload: 500          # 적재 무게: 트레일러 짐칸 모두 합쳐서 (README '적재 무게')
     body-scale: 2
     speed: 5
     reverse-speed: 2
@@ -172,6 +174,7 @@ tractor_trailer:
   icon: tractor_trailer_icon
   max-stack: 1
   vehicle:
+    payload: 2000          # 적재 무게: 트레일러 짐칸 모두 합쳐서 (README '적재 무게')
     body-scale: 2
     speed: 6
     reverse-speed: 2.5

@@ -1,0 +1,102 @@
+# 적재 무게: 탈것 짐칸에 실을 때 물건 1개의 무게 (README "적재 무게"). 묶음은 개수만큼 (보석 64개 = 0.3 × 64 = 19.2).
+# 탈것마다 실을 수 있는 무게(payload)는 코어 content/stsv/items/vehicles*.yml 의 cargo.payload (기차는 vehicle.payload).
+# 넣으려는 물건이 payload 를 넘으면 짐칸이 받지 않음 (쉬프트 클릭은 들어가는 만큼만). 셜커 상자·번들은 안에 든 것까지 셈.
+#
+# 물건 하나의 무게는 처음 맞는 것:
+#   1. items      물건 하나씩 따로 정한 값
+#   2. categories 분류에 든 물건 (분류마다 weight 하나)
+#   3. rules      이름 규칙 (위에서부터 처음 맞는 것). '*' 는 아무 글자, '|' 는 또는. 네임스페이스가 없으면 이름만 봄
+#   4. block      바닐라 블록 (놓을 수 있는 것) 1개
+#   5. default    그 밖의 모든 것
+#
+# 의도: 가볍고 비싼 것(보석·장신구·향수)은 작고 빠른 탈것(배달 오토바이 60)으로도 큰돈이 되고,
+# 무겁고 싼 것(술통·장 세트·무쇠 그릇·압축 석재)은 트럭(1톤 1000, 탑차 2500)이어야 남는 장사.
+default: 1
+block: 2
+
+categories:
+  # 장신구: 반지·목걸이·브로치·노리개 (0.1 ~ 0.5)
+  jewelry:
+    weight: 0.3
+    items: [economy:ruby_ring, economy:gold_ring, economy:diamond_ring, economy:copper_bracelet, economy:amethyst_pendant,
+            economy:sapphire_brooch, economy:coral_brooch, economy:pearl_necklace, economy:silk_pearl_necklace,
+            economy:ambergris_norigae, economy:lapis_beads]
+  # 보석: 원석·세공한 보석·진주
+  gems:
+    weight: 0.2
+    items: [diamond, emerald, economy:ruby, economy:sapphire, economy:cut_emerald, economy:cut_diamond, economy:cut_crystal,
+            economy:polished_pearl, economy:pearl, economy:rough_ruby, economy:rough_sapphire, economy:rough_crystal]
+  # 작은 병: 향수·단약
+  perfume:
+    weight: 0.5
+    items: [economy:pearl_perfume, economy:ambergris_perfume, economy:meteor_elixir, economy:caviar]
+  # 병에 든 술·음료·즙·장류 (1.5)
+  bottled:
+    weight: 1.5
+    items: [economy:makgeolli, economy:soju, economy:melon_syrup, economy:wine, economy:melon_liqueur, economy:vintage_wine,
+            economy:flower_tea, economy:cider, economy:strawberry_wine, economy:mead, economy:cheongju, economy:pumpkin_makgeolli,
+            economy:bokbunja_wine, economy:rum, economy:corn_whiskey, economy:potato_vodka, economy:sikhye, economy:ginseng_liquor,
+            economy:golden_cheongju, economy:crystal_vintage, economy:grape_juice, economy:apple_juice, economy:onion_juice,
+            economy:soy_sauce, economy:fish_sauce, economy:jocheong, economy:seed_oil, economy:refined_oil]
+  # 항아리·통: 숙성한 장, 젓갈, 삭힌 것 (2)
+  crocks:
+    weight: 2
+    items: [economy:doenjang, economy:gochujang, economy:jeotgal, economy:hongeo]
+  # 술통·장 세트: 크고 무거운 숙성품 (5)
+  barrels:
+    weight: 5
+    items: [economy:oak_barrel, economy:jang_set]
+  # 금속 재료: 괴·판 (1 안팎)
+  metal:
+    weight: 1
+    items: [economy:steel_ingot, economy:copper_plate, economy:coke]
+  # 연장·그릇·장식 철물 (3)
+  tools:
+    weight: 3
+    items: [economy:homi, economy:sickle, economy:iron_lantern, economy:crystal_lantern, economy:ornamental_sword, economy:meteor_sword,
+            economy:quartz_figurine, economy:coral_inlay_box]
+  # 무쇠·구리 살림: 팬·냄비 (4)
+  cookware:
+    weight: 4
+    items: [economy:iron_pan, economy:copper_pot]
+  # 아주 무거운 철물: 가마솥·화로·갑옷·공구 세트·석등 (6 ~ 8)
+  heavy:
+    weight: 8
+    items: [economy:gamasot, economy:iron_brazier, economy:ornate_armor, economy:stone_lantern]
+  # 큰 물고기 (3)
+  big_fish:
+    weight: 3
+    items: [economy:marlin, economy:sailfish, economy:whale_shark, economy:sunfish, economy:yellowfin_tuna, economy:bluefin_tuna,
+            economy:giant_squid, economy:greenland_shark, economy:sturgeon, economy:arapaima, economy:taimen, economy:king_crab]
+  # 상차림: 한 상 가득 (3)
+  feasts:
+    weight: 3
+    items: [economy:hanjeongsik, economy:seafood_feast]
+  # 그 밖의 요리·식재료·손질한 생선은 default (1)
+
+items:
+  economy:jeweled_crown: 0.5      # 보석 왕관
+  economy:gold_leaf: 0.1          # 금박
+  economy:iron_nails: 0.05        # 쇠못 (작음)
+  economy:iron_plate: 1.5         # 철판
+  economy:iron_chain: 2           # 쇠사슬
+  economy:steel_toolset: 6        # 강철 공구 세트
+  economy:padlock: 1              # 금박 자물쇠
+  economy:sheath: 1               # 칼집
+  economy:wind_chime: 0.5         # 풍경
+  economy:scented_candle: 0.5     # 향초
+  economy:soap: 0.5               # 비누
+  economy:grilled_fish_set: 2     # 생선구이 정식 (쟁반)
+  economy:compressed_stone: 2     # 압축 석재 (블록만 한 덩어리)
+  economy:compressed_dirt: 2      # 압축 흙
+
+rules:
+  - { match: "*_nugget", weight: 0.1 }
+  - { match: "*_ingot|netherite_scrap", weight: 1 }
+  - { match: "redstone|lapis_lazuli|quartz|glowstone_dust|*_dye|string|feather|paper", weight: 0.2 }
+  - { match: "*_sword|*_pickaxe|*_axe|*_shovel|*_hoe|bow|crossbow|trident|fishing_rod|shears|mace", weight: 3 }
+  - { match: "*_helmet|*_boots", weight: 4 }
+  - { match: "*_leggings", weight: 6 }
+  - { match: "*_chestplate|elytra", weight: 8 }
+  - { match: "*_log|*_wood|*_stem|*_hyphae", weight: 2 }
+  - { match: "*shulker_box", weight: 2 }   # 안에 든 것은 따로 더함

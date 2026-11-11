@@ -152,6 +152,12 @@ public final class TrainPhysics {
      */
     public static boolean step(VehiclePhysics.State head, List<VehiclePhysics.State> units, DriveInput in, VehicleSpec s,
                                VehiclePhysics.Terrain t, Ground g, double cap) {
+        return step(head, units, in, s, t, g, cap, 1);
+    }
+
+    /** One tick with a road's speed bonus for the driven unit (국도: {@link VehiclePhysics#step(VehiclePhysics.State, DriveInput, VehicleSpec, VehiclePhysics.Terrain, double, float, double, double)}). */
+    public static boolean step(VehiclePhysics.State head, List<VehiclePhysics.State> units, DriveInput in, VehicleSpec s,
+                               VehiclePhysics.Terrain t, Ground g, double cap, double bonus) {
         TrainSpec train = s.train();
         List<VehiclePhysics.State> before = new ArrayList<>();
         before.add(copy(head));
@@ -159,7 +165,7 @@ public final class TrainPhysics {
 
         double ground = groundFactor(head, s, units, g);
         float scale = units.isEmpty() ? 1f : turnScale(angle(head, units.getFirst()), VehiclePhysics.yawRate(head.speed, in.steer(), s), train);
-        VehiclePhysics.step(head, in, s, t, Math.min(s.speed(), cap) * ground, scale);
+        VehiclePhysics.step(head, in, s, t, Math.min(s.speed(), cap) * ground, scale, bonus, cap * ground);
         if (follow(head, units, train, t)) return true;
         double speed = head.speed;
         set(head, before.getFirst());
