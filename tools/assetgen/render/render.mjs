@@ -45,10 +45,15 @@ for (const el of M.elements) {
     const ax = { x: new THREE.Vector3(1,0,0), y: new THREE.Vector3(0,1,0), z: new THREE.Vector3(0,0,1) }[axis];
     rot = { m: new THREE.Matrix4().makeRotationAxis(ax, angle * Math.PI / 180), o: new THREE.Vector3(...origin) };
   }
+  // optional "post": more rotations [axis, angle, origin] after the element's own (a whole unit turned, a leg swung)
+  const post = (el.post || []).map(([axis, angle, origin]) => ({
+    m: new THREE.Matrix4().makeRotationAxis({ x: new THREE.Vector3(1,0,0), y: new THREE.Vector3(0,1,0), z: new THREE.Vector3(0,0,1) }[axis],
+      angle * Math.PI / 180), o: new THREE.Vector3(...origin) }));
   for (const [f, face] of Object.entries(el.faces)) {
     const c = corners(f, el.from, el.to).map(p => {
       const v = new THREE.Vector3(...p);
       if (rot) v.sub(rot.o).applyMatrix4(rot.m).add(rot.o);
+      for (const r of post) v.sub(r.o).applyMatrix4(r.m).add(r.o);
       box.expandByPoint(v);
       return [v.x, v.y, v.z];
     });

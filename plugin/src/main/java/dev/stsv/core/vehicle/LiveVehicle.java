@@ -72,6 +72,9 @@ final class LiveVehicle {
     double rolled;
     float tiltShown = Float.NaN;
 
+    /** an articulated vehicle's towed units and moving parts (TrainView), or null */
+    TrainView train;
+
     /** the storage bed (null without one), the page open and who has it open */
     ItemStack[] cargo;
     int stage;
@@ -140,6 +143,7 @@ final class LiveVehicle {
         if (handle != null) out.add(handle);
         out.addAll(wheels);
         out.addAll(hits);
+        if (train != null) out.addAll(train.entities());
         for (Seat s : seats) {
             if (s == null) continue;
             out.add(s.carrier());

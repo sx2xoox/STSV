@@ -30,6 +30,8 @@ import java.util.function.Predicate;
  * @param cargo        a storage bed (the truck, the hand cart), or null
  * @param engine       its driving sound, or null (silent)
  * @param pull         pulled by a player on foot instead of driven (the hand cart: no seats), or null
+ * @param train        towed units behind it (articulated: the ox cart, the power tiller, the tractor), or null; then
+ *                     {@code cargo} is all their beds together ({@link TrainSpec#cargo})
  */
 public record VehicleSpec(
         float bodyScale,
@@ -38,8 +40,17 @@ public record VehicleSpec(
         double length, double width, double height, double clickHeight,
         NamespacedKey wheelModel, double wheelRadius, List<Wheel> wheels,
         List<Vec> seats,
-        Lights lights, Horn horn, Cargo cargo, Engine engine, Pull pull
+        Lights lights, Horn horn, Cargo cargo, Engine engine, Pull pull, TrainSpec train
 ) {
+
+    /** A vehicle without towed units. */
+    public VehicleSpec(float bodyScale, double speed, double reverseSpeed, double acceleration, double brake, double coast,
+                       double turnRate, double turnSpeed, double stepHeight, double length, double width, double height, double clickHeight,
+                       NamespacedKey wheelModel, double wheelRadius, List<Wheel> wheels, List<Vec> seats,
+                       Lights lights, Horn horn, Cargo cargo, Engine engine, Pull pull) {
+        this(bodyScale, speed, reverseSpeed, acceleration, brake, coast, turnRate, turnSpeed, stepHeight, length, width, height, clickHeight,
+                wheelModel, wheelRadius, wheels, seats, lights, horn, cargo, engine, pull, null);
+    }
 
     /** A point on the vehicle: right, up, forward (blocks) from its ground centre. */
     public record Vec(double right, double up, double forward) {}
@@ -174,6 +185,13 @@ public record VehicleSpec(
             for (String s : c.getStringList("stages")) stages.add(model(s, "vehicle.cargo.stages", namespace, modelExists));
             cargo = new Cargo(pages, c.getDouble("behind", 0), vec(c, "at", "vehicle.cargo.at"), List.copyOf(stages));
         }
+        TrainSpec train = null;
+        if (v.isConfigurationSection("train")) {
+            if (!driven) throw new IllegalArgumentException("vehicle.train: 끄는 탈것(pull)에는 트레일러를 달 수 없음");
+            if (cargo != null) throw new IllegalArgumentException("vehicle.cargo: 트레일러가 있으면 짐칸은 트레일러마다 (train.trailers.cargo)");
+            train = TrainSpec.parse(v, namespace, modelExists);
+            cargo = train.cargo();
+        }
         double bodyScale = v.getDouble("body-scale", 1);
         if (bodyScale <= 0 || bodyScale > 4) throw new IllegalArgumentException("vehicle.body-scale 은 0 초과 4 이하");
         double step = v.getDouble("step-height", 1.0);
@@ -183,7 +201,7 @@ public record VehicleSpec(
                 v.getDouble("coast", driven ? 2.0 : 8.0), driven ? positive(v, "turn-rate") : v.getDouble("turn-rate", 90),
                 driven ? positive(v, "turn-speed") : v.getDouble("turn-speed", 1), step,
                 size.get(0), size.get(1), size.get(2), v.getDouble("click-height", Math.min(1.2, size.get(2))),
-                wheel, wheelRadius, List.copyOf(wheels), List.copyOf(seats), lights, horn, cargo, engine, pull);
+                wheel, wheelRadius, List.copyOf(wheels), List.copyOf(seats), lights, horn, cargo, engine, pull, train);
     }
 
     private static Pull pull(ConfigurationSection p) {
@@ -267,6 +285,7 @@ public record VehicleSpec(
             out.addAll(lights.flash());
         }
         if (cargo != null) out.addAll(cargo.stages());
+        if (train != null) out.addAll(train.models());
         return out;
     }
 

@@ -43,6 +43,14 @@ HORN_TAIL = 0.22            # seconds of the release tail
 ENGINE_FADE = 0.15          # seconds of each engine segment's fade-in and fade-out (the overlap)
 ENGINE_PERIOD = 0.5         # seconds from one segment's start to the next at pitch 1 (= 10 ticks)
 VEHICLES = ("police_car", "light_truck", "golf_cart")
+# more vehicles' sounds, each module with NAMES [(vehicle, kind)] and clips() -> {(vehicle, kind): (samples, ogg quality)}:
+# written and listed in sounds.json with these (sounds_farm.py: the ox cart, the power tiller, the tractor)
+EXTRA = ("sounds_farm",)
+
+
+def _extra():
+    import importlib
+    return [importlib.import_module(m) for m in EXTRA]
 
 
 # ----------------------------------------------------------------------------------------------
@@ -287,6 +295,9 @@ def sounds_json():
     for v in VEHICLES:
         for kind in ("horn", "horn_end", "engine"):
             out[f"vehicle.{v}.{kind}"] = {"sounds": [{"name": f"stsv:vehicle/{v}_{kind}"}]}
+    for mod in _extra():
+        for v, kind in mod.NAMES:
+            out[f"vehicle.{v}.{kind}"] = {"sounds": [{"name": f"stsv:vehicle/{v}_{kind}"}]}
     return out
 
 
@@ -300,6 +311,11 @@ def write():
             "engine": (normalize(engine_segment(ENGINES[v]), ENGINE_LEVEL[v]), 0),
         }
         for kind, (samples, quality) in clips.items():
+            path = OUT / f"{v}_{kind}.ogg"
+            encode(samples, path, quality)
+            written.append((path, path.stat().st_size))
+    for mod in _extra():
+        for (v, kind), (samples, quality) in mod.clips().items():
             path = OUT / f"{v}_{kind}.ogg"
             encode(samples, path, quality)
             written.append((path, path.stat().st_size))
