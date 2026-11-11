@@ -547,7 +547,7 @@ public final class DockModule extends EcoModule {
             s.sendMessage(Lang.msg("dock.usage"));
             return;
         }
-        if (docks.containsKey(key(a[1]))) {
+        if (docks.containsKey(key(a[1])) || terminals.containsKey(key(a[1]))) {
             s.sendMessage(Lang.msg("dock.exists", "name", a[1]));
             return;
         }
@@ -975,7 +975,7 @@ public final class DockModule extends EcoModule {
             s.sendMessage(Lang.msg("terminal.usage"));
             return;
         }
-        if (terminals.containsKey(key(name))) {
+        if (terminals.containsKey(key(name)) || docks.containsKey(key(name))) {   // one name, one place (their displays carry it)
             s.sendMessage(Lang.msg("terminal.exists", "name", name));
             return;
         }

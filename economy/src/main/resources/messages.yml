@@ -776,7 +776,7 @@ road:
 # 출발 터미널 (README "출발 터미널")
 terminal:
   usage: "<red>/관리자 출발지 설치 <이름> <gray>(서 있는 자리에, 보는 쪽이 안쪽·뒤가 출구) | 목록 | 제거 <이름> | 다시꾸미기 <이름>"
-  exists: "<red>{name} 출발 터미널이 이미 있어요."
+  exists: "<red>{name} 이름의 출발 터미널이나 하역장이 이미 있어요."
   unknown: "<red>그런 출발 터미널이 없어요: {name}"
   building: "<green>{name} 출발 터미널을 짓기 시작해요. <gray>(청크 {chunks}개, 서버 땅으로 새로 {claimed}청크) 국도 기준점이 그 출구로 바뀜"
   built: "<green>{name} 출발 터미널을 다 지었어요. <gray>검사대(노란 선 안)에 세우고 화물 검사소 창구(지도 탁자)를 우클릭"
