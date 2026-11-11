@@ -236,6 +236,8 @@ public final class RoadModule extends EcoModule {
     // ------------------------------------------------------------------------------------------
 
     static final String ORIGIN = "origin.txt";
+    /** How far a road runs straight out of a terminal's exit before its route turns (blocks). */
+    static final int LEAD = 20;
 
     private RoadOrigin readOrigin() {
         Path f = folder().resolve(ORIGIN);
@@ -417,6 +419,7 @@ public final class RoadModule extends EcoModule {
             fromText = Lang.raw("road.from-saved");
         } else {
             Location from;
+            boolean fromOrigin = false;
             if (here) {
                 if (!(s instanceof Player p) || !p.getWorld().equals(w)) {
                     s.sendMessage(Lang.msg("road.here-world"));
@@ -438,6 +441,7 @@ public final class RoadModule extends EcoModule {
                 }
                 from = new Location(w, u.x(), u.y(), u.z());
                 fromText = fromWords(u);
+                fromOrigin = u.origin();
             }
             RoadJob j = new RoadJob();
             j.dock = d.name();
@@ -451,6 +455,13 @@ public final class RoadModule extends EcoModule {
             j.world = w.getName();
             j.startX = from.getBlockX() + 0.5;
             j.startZ = from.getBlockZ() + 0.5;
+            if (fromOrigin && origin != null && origin.directed()) {
+                // a terminal's exit: straight out for a stretch first
+                j.startX = origin.x();
+                j.startZ = origin.z();
+                j.leadX = origin.x() + origin.dx() * LEAD;
+                j.leadZ = origin.z() + origin.dz() * LEAD;
+            }
             int[] in = d.entrance(), gate = d.gate();
             j.endX = in[0] + 0.5;
             j.endZ = in[2] + 0.5;
@@ -643,7 +654,8 @@ public final class RoadModule extends EcoModule {
                         new RoadJob.Cell(mid[0], mid[1] == 1 ? Math.max(1, mid[2] - mid[0]) : 0, hi - lo, blocked));
             });
             int n = 0;
-            for (long k : corridor(job.startX, job.startZ, job.endX, job.endZ, settings.corridor())) {
+            double[] from = job.from();
+            for (long k : corridor(from[0], from[1], job.endX, job.endZ, settings.corridor())) {
                 if (job.cells.containsKey(k)) continue;
                 queue.add(RoadJob.cx(k), RoadJob.cz(k));
                 n++;
@@ -663,7 +675,8 @@ public final class RoadModule extends EcoModule {
     private void plan() {
         RoadNetwork net = network(job);
         RoadPlanner.Field f = job.field(net);
-        int sx = (int) Math.floor(job.startX) >> 4, sz = (int) Math.floor(job.startZ) >> 4;
+        double[] from = job.from();
+        int sx = (int) Math.floor(from[0]) >> 4, sz = (int) Math.floor(from[1]) >> 4;
         int ex = (int) Math.floor(job.endX) >> 4, ez = (int) Math.floor(job.endZ) >> 4;
         List<int[]> cells = RoadPlanner.path(f, sx, sz, ex, ez, RoadPlanner.Weights.DEFAULT, 400_000);
         if (cells.isEmpty()) {
@@ -676,7 +689,7 @@ public final class RoadModule extends EcoModule {
         // along the roads already there from the start: the new road begins where the route leaves them (a branch)
         RoadNetwork.Branch b = net.branch(cells, job.endX, job.endZ, settings.lightEvery());
         job.branchOf = null;
-        if (b != null) {
+        if (b != null) {   // (no straight way out of the terminal: the road it follows has it)
             job.startX = b.x();
             job.startZ = b.z();
             job.branchOf = b.dock();

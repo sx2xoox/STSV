@@ -80,6 +80,10 @@ public final class DockModule extends EcoModule {
     private final Map<String, Double> unitWeight = new HashMap<>();
     private DockBuilder building;
     private Scout scout;
+    /** 출발 터미널 (by name, lower case) and the sealed trips (by load id) */
+    private final Map<String, Dock> terminals = new LinkedHashMap<>();
+    private TripStore trips;
+    private final Map<Long, CargoTrip> sealed = new HashMap<>();
 
     public DockModule(EcoPlugin eco) {
         super(eco);
@@ -95,11 +99,22 @@ public final class DockModule extends EcoModule {
         store = new DockStore(core.db());
         store.init();
         for (Dock d : store.all()) docks.put(key(d.name()), d);
+        for (Dock t : store.terminals()) terminals.put(key(t.name()), t);
+        trips = new TripStore(core.db());
+        trips.init();
+        for (CargoTrip t : trips.sealed()) sealed.put(t.vehicle(), t);
         load();
         if (core.vehicles() != null) {
             core.vehicles().cargoWeight(this::weigh);
             core.vehicles().cargoClick(this::bedClicked);
+            core.vehicles().cargoSeal(this::seal);
         }
+        STSVPlugin.get().admin().add(EcoPlugin.ADMIN_OWNER, "출발지", "설치 <이름> | 목록 | 제거 <이름> | 다시꾸미기 <이름>",
+                "출발 터미널: 지금 자리에 짓기(보는 방향, 앞이 출구) — 화물 검사소·검사대·주차장, 국도 기준점이 그 출구로 / 목록 / 기록 지우기 / 장식만 다시",
+                this::terminalCommand,
+                (s, a) -> a.length == 1 ? List.of("설치", "목록", "제거", "다시꾸미기")
+                        : a.length == 2 && (a[0].equals("제거") || a[0].equals("다시꾸미기")) ? terminals.values().stream().map(Dock::name).toList()
+                        : List.of());
         STSVPlugin.get().admin().add(EcoPlugin.ADMIN_OWNER, "하역장", "설치 <이름> [육지|항구] | 목록 | 제거 <이름> | 다시꾸미기 <이름> | 후보 <거리> | 기록 [이름]",
                 "하역장: 지금 자리에 짓기(보는 방향) / 목록 / 기록 지우기 / 땅은 그대로 장식(컨테이너·모델·블록)만 다시 / 국도 기준점(없으면 건축월드 스폰)에서 8방향으로 후보지 살피기 / 판매 기록",
                 this::command,
@@ -122,6 +137,7 @@ public final class DockModule extends EcoModule {
         if (core.vehicles() != null) {
             core.vehicles().cargoWeight(null);
             core.vehicles().cargoClick(null);
+            core.vehicles().cargoSeal(null);
         }
         if (building != null) building.cancel();
         if (scout != null) scout.queue.stop();
@@ -194,15 +210,34 @@ public final class DockModule extends EcoModule {
     /** A sneak + right-click on a bed (or a 지게 opened) inside a dock's zone: the sale menu instead. */
     private boolean bedClicked(Player p, Hauled h) {
         Dock d = dockOf(h);
-        if (d == null) return false;
-        open(p, d, h);
-        return true;
+        if (d != null) {
+            open(p, d, h);
+            return true;
+        }
+        CargoTrip t = sealed.get(h.id());
+        if (t != null) {   // sealed on the way: what it is, and the owner may call it off
+            sealedMenu(p, h, t);
+            return true;
+        }
+        Dock term = terminalOf(h);
+        if (term != null) {   // in a terminal's bay: the inspection
+            inspect(p, term, h);
+            return true;
+        }
+        return false;
     }
 
     @EventHandler(priority = EventPriority.HIGH)
     public void onCounter(PlayerInteractEvent e) {
         if (e.getAction() != Action.RIGHT_CLICK_BLOCK || e.getClickedBlock() == null || e.getHand() != EquipmentSlot.HAND) return;
         Block b = e.getClickedBlock();
+        for (Dock t : terminals.values()) {
+            int[] c = t.counter();
+            if (!t.world().equals(b.getWorld().getName()) || b.getX() != c[0] || b.getY() != c[1] || b.getZ() != c[2]) continue;
+            e.setCancelled(true);
+            inspectAt(e.getPlayer(), t);
+            return;
+        }
         for (Dock d : docks.values()) {
             int[] c = d.counter();
             if (!d.world().equals(b.getWorld().getName()) || b.getX() != c[0] || b.getY() != c[1] || b.getZ() != c[2]) continue;
@@ -270,14 +305,31 @@ public final class DockModule extends EcoModule {
     // 하역장 판매 (the menu)
     // ------------------------------------------------------------------------------------------
 
-    /** Why a load may not be sold here (a message key), or null. */
+    /**
+     * Why a load may not be sold here (a message key), or null: it must be an inspected trip (출발 터미널) for this dock, its
+     * load as it was sealed, driven at least {@link CargoTrip#MIN_DRIVEN} of the straight way since.
+     */
     String refusal(Dock d, Hauled h) {
         if (h.moving()) return "dock.why-moving";
-        double[] c = d.centre();
-        double straight = h.trip().straight(d.world(), c[0], c[2]);
-        if (!Double.isFinite(straight) || straight < rules.minDistance()) return "dock.why-near";
-        if (h.trip().odometer() < rules.minDistance()) return "dock.why-odometer";
-        return null;
+        CargoTrip t = sealed.get(h.id());
+        if (t == null) return "dock.why-no-trip";
+        return switch (t.check(d.name(), h.trip().changed(), CargoTrip.manifest(plan(h).lines()), h.trip().odometer())) {
+            case OTHER_DOCK -> "dock.why-other-dock";
+            case MISMATCH -> "dock.why-mismatch";
+            case SHORT -> "dock.why-short";
+            case OK -> null;
+        };
+    }
+
+    /** A trip whose load is not what was sealed: void (unsealed, never paid). */
+    private void voidTrip(CargoTrip t, Player tell) {
+        CargoTrip v = t.end(CargoTrip.Status.VOID, now());
+        sealed.remove(t.vehicle());
+        trips.end(v);
+        eco.getLogger().info("[출발 터미널] 운송 #" + t.id() + " 무효 (짐이 검사 때와 다름): " + t);
+        if (tell != null) tell.sendMessage(Lang.msg("terminal.voided", "dock", t.dock(), "terminal", t.terminal()));
+        Player o = Bukkit.getPlayer(t.owner());
+        if (o != null && o != tell) o.sendMessage(Lang.msg("terminal.voided", "dock", t.dock(), "terminal", t.terminal()));
     }
 
     DockGoods.Plan plan(Hauled h) {
@@ -322,6 +374,8 @@ public final class DockModule extends EcoModule {
         }
         DockGoods.Plan plan = plan(h);
         String why = refusal(d, h);
+        if ("dock.why-mismatch".equals(why)) voidTrip(sealed.get(h.id()), p);
+        CargoTrip trip = sealed.get(h.id());
         boolean ok = why == null && !plan.empty();
         Sale s = new Sale(d, h, plan, ok);
         Inventory inv = Bukkit.createInventory(s, 54, Lang.mm("dock.title"));
@@ -338,12 +392,11 @@ public final class DockModule extends EcoModule {
             inv.setItem(slot++, icon);
         }
         for (int i = LIST; i < 54; i++) inv.setItem(i, pane(Material.GRAY_STAINED_GLASS_PANE, " "));
-        double[] c = d.centre();
-        double straight = h.trip().straight(d.world(), c[0], c[2]);
         ItemStack info = pane(Material.MAP, Lang.raw("dock.info-title", "vehicle", h.name(), "owner", h.ownerName()));
         info.editMeta(m -> m.lore(List.of(
-                Lang.item("dock.info-distance", "distance", Double.isFinite(straight) ? Math.round(straight) : "-", "min", Math.round(rules.minDistance())),
-                Lang.item("dock.info-odometer", "odometer", Math.round(h.trip().odometer()), "min", Math.round(rules.minDistance())),
+                trip == null ? Lang.item("dock.info-no-trip") : Lang.item("dock.info-trip", "terminal", trip.terminal(), "dock", trip.dock()),
+                trip == null ? Lang.item("dock.info-no-trip-how") : Lang.item("dock.info-driven", "driven", Math.round(trip.driven(h.trip().odometer())),
+                        "needed", Math.round(trip.needed())),
                 Lang.item("dock.info-weight", "weight", dev.stsv.core.vehicle.CargoWeights.format(h.weight()),
                         "payload", dev.stsv.core.vehicle.CargoWeights.format(h.payload())),
                 Lang.item("dock.info-kept", "kept", plan.kept()),
@@ -356,9 +409,10 @@ public final class DockModule extends EcoModule {
             confirm.editMeta(m -> m.lore(List.of(Lang.item("dock.confirm-to", "owner", h.ownerName()))));
             inv.setItem(CONFIRM, confirm);
         } else {
-            String reason = plan.empty() ? "dock.why-nothing" : why;
+            String reason = why != null ? why : "dock.why-nothing";
             ItemStack no = pane(Material.GRAY_DYE, Lang.raw("dock.cannot"));
-            no.editMeta(m -> m.lore(List.of(Lang.item(reason, "min", Math.round(rules.minDistance())))));
+            no.editMeta(m -> m.lore(List.of(Lang.item(reason, "dock", trip == null ? "" : trip.dock(),
+                    "needed", trip == null ? 0 : Math.round(trip.needed())))));
             inv.setItem(CONFIRM, no);
         }
         p.openInventory(inv);
@@ -416,21 +470,24 @@ public final class DockModule extends EcoModule {
             return;
         }
         DockGoods.Plan plan = plan(h);
-        if (plan.empty() || plan.total() != s.plan.total()) {
+        CargoTrip trip = sealed.get(h.id());
+        if (plan.empty() || trip == null || !CargoTrip.manifest(plan.lines()).equals(trip.manifest())) {
             p.sendMessage(Lang.msg("dock.changed"));
             return;
         }
-        double[] c = s.dock.centre();
-        double straight = h.trip().straight(s.dock.world(), c[0], c[2]), odometer = h.trip().odometer();
+        double straight = trip.straight(), odometer = trip.driven(h.trip().odometer());
         List<ItemStack> taken = h.id() < 0 ? jigeModule().unload(p, h.version(), plan.slots()::contains)
                 : core.vehicles().unload(h.id(), h.version(), plan.slots()::contains);
         if (taken == null) {
             p.sendMessage(Lang.msg("dock.changed"));
             return;
         }
-        // what was taken is what was priced (the version matched): pay the owner
+        // what was taken is what was sealed (the version matched): pay the owner what it was worth at inspection
         UUID owner = h.owner();
-        long paid = plan.total();
+        long paid = trip.total();
+        CargoTrip done = trip.end(CargoTrip.Status.DONE, now());
+        sealed.remove(h.id());
+        trips.end(done);
         StringBuilder items = new StringBuilder();
         for (DockGoods.Line l : plan.lines()) {
             if (!items.isEmpty()) items.append(", ");
@@ -508,6 +565,11 @@ public final class DockModule extends EcoModule {
         Dock d = new Dock(draft.name(), kind, draft.world(), draft.x(), draft.y(), draft.z(), draft.facing(), Dock.chunkText(claimed), draft.created());
         docks.put(key(d.name()), d);
         store.save(d);
+        for (Dock t : terminals.values()) {
+            double far = straight(t, d);
+            if (far < rules.minDistance()) s.sendMessage(Lang.msg("terminal.too-close", "terminal", t.name(), "dock", d.name(), "far", Math.round(far),
+                    "min", Math.round(rules.minDistance())));
+        }
         s.sendMessage(Lang.msg("dock.building", "name", d.name(), "kind", kind.word, "chunks", d.chunksTouched().size(), "claimed", claimed.size()));
         if (core.worlds() != null && !core.worlds().isBuild(at.getWorld())) s.sendMessage(Lang.msg("dock.not-build-world"));
         UUID who = p.getUniqueId();
@@ -575,7 +637,7 @@ public final class DockModule extends EcoModule {
     public void onEntitiesLoad(EntitiesLoadEvent e) {
         for (Entity en : e.getEntities()) {
             String name = en.getPersistentDataContainer().get(DockBuilder.TAG, PersistentDataType.STRING);
-            if (name != null && !docks.containsKey(key(name))) en.remove();
+            if (name != null && !docks.containsKey(key(name)) && !terminals.containsKey(key(name))) en.remove();
         }
     }
 
@@ -589,6 +651,383 @@ public final class DockModule extends EcoModule {
                         "distance", Math.round(x.distance()), "items", x.items()));
             }
         }));
+    }
+
+    // ------------------------------------------------------------------------------------------
+    // 출발 터미널: the inspection (화물 검사) and the seal
+    // ------------------------------------------------------------------------------------------
+
+    /** Why a load is sealed (the core asks before its bed or 지게 opens), or null. */
+    private Component seal(long id) {
+        CargoTrip t = sealed.get(id);
+        return t == null ? null : Lang.mm("terminal.sealed", "dock", t.dock(), "terminal", t.terminal());
+    }
+
+    /** The trip sealed for a load (by its id), or null. */
+    public CargoTrip trip(long id) {
+        return sealed.get(id);
+    }
+
+    /** The terminal whose bay holds any unit of this load, or null. */
+    Dock terminalOf(Hauled h) {
+        for (Dock t : terminals.values()) if (t.anyInZone(h.world().getName(), h.points())) return t;
+        return null;
+    }
+
+    /** Where a terminal's loads are measured from: the middle of its bay. */
+    static double[] bay(Dock t) {
+        DockLayout.Box b = DockLayout.BAY;
+        return t.world((b.minX() + b.maxX() + 1) / 2.0 - 0.5, 0, (b.minZ() + b.maxZ() + 1) / 2.0 - 0.5);
+    }
+
+    /** The straight way from a terminal's bay to a dock's zone (blocks; infinite in another world). */
+    static double straight(Dock terminal, Dock dock) {
+        if (!terminal.world().equals(dock.world())) return Double.POSITIVE_INFINITY;
+        double[] a = bay(terminal), b = dock.centre();
+        return Math.hypot(a[0] - b[0], a[2] - b[2]);
+    }
+
+    /** The counter: the player's 지게 in the bay, else the nearest load in the bay they may use. */
+    private void inspectAt(Player p, Dock t) {
+        Hauled jige = jige(p);
+        if (jige != null && terminalOf(jige) == t && !empty(jige)) {
+            Hauled j = jige;
+            if (sealed.containsKey(j.id())) sealedMenu(p, j, sealed.get(j.id()));
+            else inspect(p, t, j);
+            return;
+        }
+        Hauled best = null;
+        double bestD = Double.MAX_VALUE;
+        double[] c = bay(t);
+        if (core.vehicles() != null) {
+            for (Hauled h : core.vehicles().hauledNear(new Location(p.getWorld(), c[0], c[1], c[2]), 48)) {
+                if (terminalOf(h) != t || empty(h) || !core.vehicles().mayUse(p, h.id())) continue;
+                double dd = p.getLocation().distanceSquared(new Location(p.getWorld(), h.centre()[0], h.centre()[1], h.centre()[2]));
+                if (dd < bestD) {
+                    bestD = dd;
+                    best = h;
+                }
+            }
+        }
+        if (best == null) {
+            HudModule.flash(p, Lang.mm("terminal.bay-nothing"));
+            return;
+        }
+        if (sealed.containsKey(best.id())) sealedMenu(p, best, sealed.get(best.id()));
+        else inspect(p, t, best);
+    }
+
+    /** The 화물 검사 menu: the manifest (what the docks buy and what it is worth), where it goes, the seal. */
+    final class Inspect implements InventoryHolder {
+        final Dock terminal;
+        final long vehicle, version;
+        final DockGoods.Plan plan;
+        final List<Dock> choices = new ArrayList<>();
+        Dock chosen;
+        Inventory inventory;
+
+        Inspect(Dock terminal, Hauled h, DockGoods.Plan plan) {
+            this.terminal = terminal;
+            this.vehicle = h.id();
+            this.version = h.version();
+            this.plan = plan;
+        }
+
+        @Override
+        public @NotNull Inventory getInventory() {
+            return inventory;
+        }
+    }
+
+    static final int I_DOCKS = 27, I_LIST = 27;
+
+    void inspect(Player p, Dock t, Hauled h) {
+        if (!mayUse(p, h)) {
+            HudModule.flash(p, Lang.mm("dock.not-yours", "owner", h.ownerName()));
+            return;
+        }
+        if (h.moving()) {
+            HudModule.flash(p, Lang.mm("terminal.moving"));
+            return;
+        }
+        Inspect in = new Inspect(t, h, plan(h));
+        for (Dock d : docks.values()) if (Double.isFinite(straight(t, d))) in.choices.add(d);
+        in.choices.sort(Comparator.comparingDouble(d -> straight(t, d)));
+        if (in.choices.size() == 1) in.chosen = in.choices.getFirst();
+        Inventory inv = Bukkit.createInventory(in, 54, Lang.mm("terminal.title"));
+        in.inventory = inv;
+        draw(in, h);
+        p.openInventory(inv);
+        p.playSound(p.getLocation(), Sound.BLOCK_BARREL_OPEN, 0.6f, 1.1f);
+    }
+
+    private void draw(Inspect in, Hauled h) {
+        Inventory inv = in.inventory;
+        inv.clear();
+        int slot = 0;
+        for (DockGoods.Line l : in.plan.lines()) {
+            if (slot >= I_LIST) break;
+            ItemStack icon = Items.create(l.id(), 1).orElse(new ItemStack(Material.PAPER));
+            icon.setAmount(Math.clamp(l.count(), 1, icon.getMaxStackSize()));
+            List<Component> lore = new ArrayList<>();
+            lore.add(Lang.item("dock.line", "count", l.count(), "unit", String.format(Locale.ROOT, "%.1f", l.unit()),
+                    "total", EconomyModule.format((long) Math.floor(l.total()))));
+            icon.editMeta(m -> m.lore(lore));
+            inv.setItem(slot++, icon);
+        }
+        for (int i = I_DOCKS; i < 54; i++) inv.setItem(i, pane(Material.GRAY_STAINED_GLASS_PANE, " "));
+        for (int i = 0; i < Math.min(9, in.choices.size()); i++) {
+            Dock d = in.choices.get(i);
+            boolean on = d == in.chosen;
+            double far = straight(in.terminal, d);
+            ItemStack icon = pane(on ? Material.FILLED_MAP : Material.MAP, Lang.raw(on ? "terminal.dock-chosen" : "terminal.dock", "dock", d.name()));
+            icon.editMeta(m -> {
+                List<Component> lore = new ArrayList<>();
+                lore.add(Lang.item("terminal.dock-far", "far", Math.round(far), "needed", Math.round(far * CargoTrip.MIN_DRIVEN)));
+                if (far < rules.minDistance()) lore.add(Lang.item("terminal.dock-near", "min", Math.round(rules.minDistance())));
+                lore.add(Lang.item(on ? "terminal.dock-on" : "terminal.dock-pick"));
+                m.lore(lore);
+                if (on) m.setEnchantmentGlintOverride(true);
+            });
+            inv.setItem(I_DOCKS + i, icon);
+        }
+        ItemStack info = pane(Material.WRITABLE_BOOK, Lang.raw("terminal.info-title", "vehicle", h.name(), "owner", h.ownerName()));
+        info.editMeta(m -> m.lore(List.of(
+                Lang.item("dock.info-weight", "weight", dev.stsv.core.vehicle.CargoWeights.format(h.weight()),
+                        "payload", dev.stsv.core.vehicle.CargoWeights.format(h.payload())),
+                Lang.item("terminal.info-kept", "kept", in.plan.kept()),
+                Lang.item("terminal.info-seal"),
+                Lang.item("dock.info-price", "pct", Math.round(rules.ratio() * 100)))));
+        inv.setItem(INFO, info);
+        inv.setItem(CANCEL, pane(Material.BARRIER, Lang.raw("dock.cancel")));
+        inv.setItem(BED, pane(Material.CHEST, Lang.raw("terminal.open-bed")));
+        boolean ok = in.chosen != null && !in.plan.empty();
+        if (ok) {
+            ItemStack confirm = pane(Material.EMERALD_BLOCK, Lang.raw("terminal.confirm", "dock", in.chosen.name(), "total", EconomyModule.format(in.plan.total())));
+            confirm.editMeta(m -> m.lore(List.of(Lang.item("terminal.confirm-lore"))));
+            inv.setItem(CONFIRM, confirm);
+        } else {
+            ItemStack no = pane(Material.GRAY_DYE, Lang.raw("dock.cannot"));
+            no.editMeta(m -> m.lore(List.of(Lang.item(in.plan.empty() ? "terminal.why-nothing" : in.choices.isEmpty() ? "terminal.why-no-docks"
+                    : "terminal.why-pick"))));
+            inv.setItem(CONFIRM, no);
+        }
+    }
+
+    /** Seals the load for the chosen dock, checked again against the load as it is now (same bed, in the bay, still). */
+    private void seal(Player p, Inspect in) {
+        Hauled h = again(p, in.vehicle);
+        if (h == null || h.version() != in.version || !mayUse(p, h) || terminalOf(h) != in.terminal || h.moving() || sealed.containsKey(h.id())) {
+            p.sendMessage(Lang.msg("dock.changed"));
+            return;
+        }
+        DockGoods.Plan plan = plan(h);
+        if (plan.empty() || !CargoTrip.manifest(plan.lines()).equals(CargoTrip.manifest(in.plan.lines())) || in.chosen == null
+                || dock(in.chosen.name()) == null) {
+            p.sendMessage(Lang.msg("dock.changed"));
+            return;
+        }
+        CargoTrip t = trips.open(new CargoTrip(0, h.id(), h.owner(), in.terminal.name(), in.chosen.name(), CargoTrip.manifest(plan.lines()),
+                plan.total(), h.trip().changed(), h.trip().odometer(), straight(in.terminal, in.chosen), now(), CargoTrip.Status.SEALED, 0));
+        sealed.put(h.id(), t);
+        eco.getLogger().info("[출발 터미널] " + in.terminal.name() + ": " + p.getName() + " 님이 " + h.name() + " #" + Math.abs(h.id()) + " 검사, "
+                + in.chosen.name() + " 하역장으로 봉인 (" + plan.total() + " G): " + CargoTrip.words(t.manifest()));
+        p.sendMessage(Lang.msg("terminal.sealed-now", "dock", t.dock(), "far", Math.round(t.straight()), "needed", Math.round(t.needed()),
+                "total", EconomyModule.format(t.total())));
+        p.playSound(p.getLocation(), Sound.BLOCK_IRON_TRAPDOOR_CLOSE, 0.8f, 1.2f);
+    }
+
+    /** A sealed load away from its dock: where it goes, how far it has come, and (its owner) calling the trip off. */
+    final class SealedView implements InventoryHolder {
+        final CargoTrip trip;
+        final long vehicle;
+        Inventory inventory;
+
+        SealedView(CargoTrip trip, long vehicle) {
+            this.trip = trip;
+            this.vehicle = vehicle;
+        }
+
+        @Override
+        public @NotNull Inventory getInventory() {
+            return inventory;
+        }
+    }
+
+    static final int S_INFO = 11, S_CANCEL = 15;
+
+    private void sealedMenu(Player p, Hauled h, CargoTrip t) {
+        SealedView v = new SealedView(t, h.id());
+        Inventory inv = Bukkit.createInventory(v, 27, Lang.mm("terminal.sealed-title"));
+        v.inventory = inv;
+        for (int i = 0; i < 27; i++) inv.setItem(i, pane(Material.GRAY_STAINED_GLASS_PANE, " "));
+        ItemStack info = pane(Material.WRITABLE_BOOK, Lang.raw("terminal.sealed-info", "terminal", t.terminal(), "dock", t.dock()));
+        info.editMeta(m -> m.lore(List.of(
+                Lang.item("terminal.sealed-goods", "goods", CargoTrip.words(t.manifest())),
+                Lang.item("terminal.sealed-total", "total", EconomyModule.format(t.total())),
+                Lang.item("dock.info-driven", "driven", Math.round(t.driven(h.trip().odometer())), "needed", Math.round(t.needed())))));
+        inv.setItem(S_INFO, info);
+        ItemStack cancel = pane(Material.SHEARS, Lang.raw("terminal.cancel"));
+        cancel.editMeta(m -> m.lore(List.of(Lang.item("terminal.cancel-lore"))));
+        inv.setItem(S_CANCEL, cancel);
+        p.openInventory(inv);
+    }
+
+    @EventHandler
+    public void onTerminalClick(InventoryClickEvent e) {
+        Object holder = e.getView().getTopInventory().getHolder(false);
+        if (!(holder instanceof Inspect) && !(holder instanceof SealedView)) return;
+        e.setCancelled(true);
+        if (!(e.getWhoClicked() instanceof Player p) || e.getClickedInventory() != e.getView().getTopInventory()) return;
+        if (holder instanceof Inspect in) {
+            int slot = e.getSlot();
+            if (slot >= I_DOCKS && slot < I_DOCKS + Math.min(9, in.choices.size())) {
+                in.chosen = in.choices.get(slot - I_DOCKS);
+                Hauled h = again(p, in.vehicle);
+                if (h != null) draw(in, h);
+                p.playSound(p.getLocation(), Sound.UI_BUTTON_CLICK, 0.5f, 1.2f);
+                return;
+            }
+            switch (slot) {
+                case CANCEL -> p.closeInventory();
+                case BED -> {
+                    p.closeInventory();
+                    Bukkit.getScheduler().runTask(eco, () -> {
+                        if (in.vehicle < 0) {
+                            JigeModule j = jigeModule();
+                            if (j != null) j.openFor(p);
+                        } else if (core.vehicles() != null) core.vehicles().openBed(p, in.vehicle);
+                    });
+                }
+                case CONFIRM -> {
+                    if (in.chosen == null || in.plan.empty()) return;
+                    p.closeInventory();
+                    Bukkit.getScheduler().runTask(eco, () -> seal(p, in));
+                }
+                default -> { }
+            }
+        } else if (holder instanceof SealedView v && e.getSlot() == S_CANCEL) {
+            p.closeInventory();
+            CargoTrip t = sealed.get(v.vehicle);
+            if (t == null || t.id() != v.trip.id()) return;
+            if (!t.owner().equals(p.getUniqueId()) && !p.hasPermission("stsv.admin")) {
+                p.sendMessage(Lang.msg("terminal.cancel-owner"));
+                return;
+            }
+            CargoTrip c = t.end(CargoTrip.Status.CANCELLED, now());
+            sealed.remove(v.vehicle);
+            trips.end(c);
+            eco.getLogger().info("[출발 터미널] 운송 #" + t.id() + " 취소: " + p.getName());
+            p.sendMessage(Lang.msg("terminal.cancelled", "dock", t.dock()));
+        }
+    }
+
+    @EventHandler
+    public void onTerminalDrag(InventoryDragEvent e) {
+        Object holder = e.getView().getTopInventory().getHolder(false);
+        if (holder instanceof Inspect || holder instanceof SealedView) e.setCancelled(true);
+    }
+
+    // ------------------------------------------------------------------------------------------
+    // /관리자 출발지
+    // ------------------------------------------------------------------------------------------
+
+    private void terminalCommand(CommandSender s, String[] a) {
+        String sub = a.length == 0 ? "목록" : a[0];
+        String name = a.length > 1 ? a[1] : null;
+        switch (sub) {
+            case "설치" -> installTerminal(s, name);
+            case "제거" -> {
+                Dock t = name == null ? null : terminals.get(key(name));
+                if (t == null) {
+                    s.sendMessage(Lang.msg("terminal.unknown", "name", name == null ? "" : name));
+                    return;
+                }
+                terminals.remove(key(t.name()));
+                store.deleteTerminal(t.name());
+                int land = eco.land().releaseServerChunks(t.world(), t.claimed());
+                World w = Bukkit.getWorld(t.world());
+                int gone = w == null ? 0 : DockBuilder.removeEntities(w, t.name(), t);
+                s.sendMessage(Lang.msg("terminal.removed", "name", t.name(), "land", land, "entities", gone));
+            }
+            case "다시꾸미기" -> {
+                Dock t = name == null ? null : terminals.get(key(name));
+                if (t == null) {
+                    s.sendMessage(Lang.msg("terminal.unknown", "name", name == null ? "" : name));
+                    return;
+                }
+                rebuild(s, t, true);
+            }
+            default -> {
+                s.sendMessage(Lang.msg("terminal.list", "count", terminals.size()));
+                for (Dock t : terminals.values()) s.sendMessage(Lang.mm("terminal.list-line", "name", t.name(), "world", t.world(), "x", t.x(), "y", t.y(),
+                        "z", t.z()));
+            }
+        }
+    }
+
+    private void installTerminal(CommandSender s, String name) {
+        if (!(s instanceof Player p)) {
+            s.sendMessage(Lang.msg("common.players-only"));
+            return;
+        }
+        if (name == null || !Dock.validName(name)) {
+            s.sendMessage(Lang.msg("terminal.usage"));
+            return;
+        }
+        if (terminals.containsKey(key(name))) {
+            s.sendMessage(Lang.msg("terminal.exists", "name", name));
+            return;
+        }
+        if (building != null) {
+            s.sendMessage(Lang.msg("dock.busy"));
+            return;
+        }
+        Location at = p.getLocation();
+        Dock draft = new Dock(name, DockLayout.Kind.TERMINAL, at.getWorld().getName(), at.getBlockX(), at.getBlockY(), at.getBlockZ(),
+                Dock.facing(at.getYaw()), "", now());
+        List<long[]> claimed = eco.land().claimServerChunks(draft.world(), draft.chunksTouched());
+        if (claimed == null) {
+            s.sendMessage(Lang.msg("dock.player-land"));
+            return;
+        }
+        Dock t = new Dock(draft.name(), draft.kind(), draft.world(), draft.x(), draft.y(), draft.z(), draft.facing(), Dock.chunkText(claimed), draft.created());
+        terminals.put(key(t.name()), t);
+        store.saveTerminal(t);
+        // the 국도 start from its exit, straight out first
+        if (eco.roads() != null) {
+            int[] g = t.gate(), f = Dock.forward(t.facing());
+            eco.roads().origin(new RoadOrigin(t.world(), g[0] + 0.5, g[1], g[2] + 0.5, -f[0], -f[1]));
+        }
+        s.sendMessage(Lang.msg("terminal.building", "name", t.name(), "chunks", t.chunksTouched().size(), "claimed", claimed.size()));
+        for (Dock d : docks.values()) {
+            double far = straight(t, d);
+            if (far < rules.minDistance()) s.sendMessage(Lang.msg("terminal.too-close", "terminal", t.name(), "dock", d.name(), "far", Math.round(far),
+                    "min", Math.round(rules.minDistance())));
+        }
+        rebuild(s, t, false);
+    }
+
+    /** Builds a terminal (all of it, or only its decorations again). */
+    private void rebuild(CommandSender s, Dock t, boolean decorOnly) {
+        if (building != null) {
+            s.sendMessage(Lang.msg("dock.busy"));
+            return;
+        }
+        World w = Bukkit.getWorld(t.world());
+        if (w == null) return;
+        UUID who = s instanceof Player p ? p.getUniqueId() : null;
+        building = new DockBuilder(eco, t, w, rules.buildPerTick(), pct -> {
+            Player q = who == null ? null : Bukkit.getPlayer(who);
+            if (q != null) q.sendActionBar(Lang.mm("dock.progress", "name", t.name(), "pct", pct));
+        }, () -> {
+            building = null;
+            Player q = who == null ? null : Bukkit.getPlayer(who);
+            (q != null ? q : Bukkit.getConsoleSender()).sendMessage(Lang.msg("terminal.built", "name", t.name()));
+            eco.getLogger().info("[출발 터미널] " + t.name() + " 지음: " + t.world() + " " + t.x() + ", " + t.y() + ", " + t.z());
+        });
+        if (decorOnly) building.decorOnly();
+        building.start();
     }
 
     // ------------------------------------------------------------------------------------------

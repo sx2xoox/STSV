@@ -362,7 +362,7 @@ class DockTest {
 
     @Test
     void theLayoutStaysInItsBoundsAndKeepsTheZoneClear() throws Exception {
-        for (DockLayout.Kind kind : DockLayout.Kind.values()) {
+        for (DockLayout.Kind kind : DockLayout.Kind.docks()) {
             DockLayout.Layout l = DockLayout.of(kind, "서해");
             DockLayout.Box b = l.bounds();
             for (DockLayout.Block x : l.blocks()) {
@@ -405,7 +405,7 @@ class DockTest {
     }
 
     /** The layout for the preview (tools/assetgen/dock_preview.py → docs/previews/docks.png). */
-    private static void export(DockLayout.Kind kind, DockLayout.Layout l) throws Exception {
+    static void export(DockLayout.Kind kind, DockLayout.Layout l) throws Exception {
         StringBuilder b = new StringBuilder("{\"kind\":\"").append(kind.name()).append("\",\"blocks\":[");
         boolean first = true;
         for (DockLayout.Block x : l.blocks()) {

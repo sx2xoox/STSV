@@ -45,6 +45,11 @@ public final class RoadJob {
      * on into the dock. NaN / MIN_VALUE: none (a road saved before roads went up to the gate: it ends at end).
      */
     public double gateX = Double.NaN, gateZ = Double.NaN;
+    /**
+     * Where a road leaving a departure terminal's exit runs straight out to before its route turns (the start is the exit),
+     * NaN: none.
+     */
+    public double leadX = Double.NaN, leadZ = Double.NaN;
     public int gateY = Integer.MIN_VALUE;
     /**
      * A patch (/관리자 국도 &lt;하역장&gt; 이어짓기): the missing piece from an older road's end to the gate, saved beside the road
@@ -84,6 +89,16 @@ public final class RoadJob {
         return tail ? dock + ".tail" : dock;
     }
 
+    /** Whether it leaves straight out of a terminal's exit first (not when it branches off another road). */
+    public boolean led() {
+        return !Double.isNaN(leadX) && branchOf == null;
+    }
+
+    /** Where the route is planned from: the end of the straight way out, else the start. */
+    public double[] from() {
+        return led() ? new double[]{leadX, leadZ} : new double[]{startX, startZ};
+    }
+
     /** Whether it goes up to the dock's gate. */
     public boolean gated() {
         return !Double.isNaN(gateX) && gateY != Integer.MIN_VALUE;
@@ -101,6 +116,7 @@ public final class RoadJob {
     public void route(List<int[]> cells) {
         corners.clear();
         corners.add(new double[]{startX, startZ});
+        if (led()) corners.add(new double[]{leadX, leadZ});
         for (int i = 1; i < cells.size() - 1; i++) corners.add(new double[]{cells.get(i)[0] * 16 + 8.5, cells.get(i)[1] * 16 + 8.5});
         corners.add(new double[]{endX, endZ});
         if (gated() && Math.hypot(gateX - endX, gateZ - endZ) > 0.5) corners.add(new double[]{gateX, gateZ});
@@ -179,6 +195,7 @@ public final class RoadJob {
         b.append("signs=").append(signs).append('\n');
         if (gated()) b.append("gate=").append(num(gateX)).append(',').append(gateY).append(',').append(num(gateZ)).append('\n');
         if (tail) b.append("tail=true\n");
+        if (!Double.isNaN(leadX)) b.append("lead=").append(num(leadX)).append(',').append(num(leadZ)).append('\n');
         if (branchOf != null) b.append("branch=").append(branchOf).append(',').append(num(branchKm)).append('\n');
         if (halves != null) {
             b.append("halves=");
@@ -227,6 +244,10 @@ public final class RoadJob {
                     j.gateZ = Double.parseDouble(p[2]);
                 }
                 case "tail" -> j.tail = Boolean.parseBoolean(v);
+                case "lead" -> {
+                    j.leadX = Double.parseDouble(p[0]);
+                    j.leadZ = Double.parseDouble(p[1]);
+                }
                 case "branch" -> {
                     j.branchOf = p[0];
                     j.branchKm = Double.parseDouble(p[1]);

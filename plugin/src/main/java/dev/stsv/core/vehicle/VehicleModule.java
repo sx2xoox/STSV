@@ -165,6 +165,8 @@ public final class VehicleModule implements StsvModule, Listener {
     private java.util.function.ToDoubleFunction<ItemStack> cargoWeight;
     private java.util.function.ToDoubleFunction<Block> surfaceBonus;
     private BiPredicate<Player, Hauled> cargoClick;
+    /** the economy server's 출발 터미널: why a load (by Hauled id) is sealed now, or null */
+    private java.util.function.LongFunction<net.kyori.adventure.text.Component> cargoSeal;
     /** every vehicle's trip since its load last changed (VehicleTrip), by id */
     private VehicleTripStore tripStore;
     private final Map<Long, VehicleTrip> trips = new HashMap<>();
@@ -326,6 +328,27 @@ public final class VehicleModule implements StsvModule, Listener {
      */
     public void cargoClick(BiPredicate<Player, Hauled> click) {
         this.cargoClick = click;
+    }
+
+    /**
+     * 출발 터미널: an inspected load is sealed until it is sold at its dock or its trip is cancelled. Given a load's id
+     * ({@link Hauled#id}: a vehicle's, a 지게's negated), this says why it cannot be opened now, or null (it can). null = no
+     * seals.
+     */
+    public void cargoSeal(java.util.function.LongFunction<net.kyori.adventure.text.Component> seal) {
+        this.cargoSeal = seal;
+    }
+
+    /** Why this load is sealed now (a message), or null. */
+    public net.kyori.adventure.text.Component sealed(long id) {
+        java.util.function.LongFunction<net.kyori.adventure.text.Component> s = cargoSeal;
+        if (s == null) return null;
+        try {
+            return s.apply(id);
+        } catch (RuntimeException ex) {
+            plugin.getLogger().log(java.util.logging.Level.WARNING, "[탈것] 봉인 확인 실패", ex);
+            return null;
+        }
     }
 
     /** The dock hook (the 지게 asks it too: JigeModule). */
@@ -2082,6 +2105,11 @@ public final class VehicleModule implements StsvModule, Listener {
     }
 
     private void openCargo(LiveVehicle v, Player p, int page) {
+        net.kyori.adventure.text.Component seal = sealed(v.id);
+        if (seal != null) {   // 출발 터미널: inspected and sealed until its dock
+            refuse(p, seal);
+            return;
+        }
         VehicleSpec.Cargo c = v.spec.cargo();
         UUID id = p.getUniqueId();
         boolean other = v.cargoViewer != null && !v.cargoViewer.equals(id);

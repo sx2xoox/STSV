@@ -208,8 +208,9 @@ final class DockBuilder {
         double[] l = dock.at(layout.label()[0], layout.label()[1], layout.label()[2]);
         world.spawn(new Location(world, l[0], l[1], l[2]), TextDisplay.class, t -> {
             t.setPersistent(true);
-            t.text(dev.stsv.core.util.Text.mm("<gold><bold>" + DockLayout.title(dock.name()) + "</bold>\n<gray>" + dock.kind().word
-                    + " · 웅크리고 짐칸 우클릭 = 판매"));
+            t.text(dev.stsv.core.util.Text.mm(dock.kind() == DockLayout.Kind.TERMINAL
+                    ? "<aqua><bold>" + DockLayout.terminalTitle(dock.name()) + "</bold>\n<gray>검사대에 세우고 창구 우클릭 = 화물 검사"
+                    : "<gold><bold>" + DockLayout.title(dock.name()) + "</bold>\n<gray>" + dock.kind().word + " · 웅크리고 짐칸 우클릭 = 판매"));
             t.setBillboard(Display.Billboard.CENTER);
             t.setTransformation(new Transformation(new Vector3f(), new Quaternionf(), new Vector3f(2.5f, 2.5f, 2.5f), new Quaternionf()));
             t.setViewRange(3f);

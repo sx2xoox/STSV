@@ -25,7 +25,7 @@ class DockContainersTest {
 
     @Test
     void everyContainerIsTheModelStackedAndSolid() {
-        for (DockLayout.Kind kind : DockLayout.Kind.values()) {
+        for (DockLayout.Kind kind : DockLayout.Kind.docks()) {
             DockLayout.Layout l = DockLayout.of(kind, "서해");
             Set<String> barriers = new HashSet<>();
             for (DockLayout.Block b : l.blocks()) if (b.data().equals(DockLayout.BARRIER)) barriers.add(key(b.x(), b.y(), b.z()));

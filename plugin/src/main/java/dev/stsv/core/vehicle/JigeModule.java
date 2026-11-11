@@ -484,6 +484,11 @@ public final class JigeModule implements StsvModule, Listener, TabExecutor {
             case STALE -> p.sendMessage(Lang.msg("jige.stale"));
             case OK -> {
                 if (s.view != null && p.getOpenInventory().getTopInventory() == s.view) return;
+                net.kyori.adventure.text.Component seal = plugin.vehicles() == null ? null : plugin.vehicles().sealed(VehicleTripStore.jige(s.id));
+                if (seal != null) {   // 출발 터미널: inspected and sealed until its dock
+                    HudModule.flash(p, seal);
+                    return;
+                }
                 Holder h = new Holder(s.id);
                 Inventory inv = Bukkit.createInventory(h, s.load.length, weighs()
                         ? Lang.mm("jige.title-weight", "used", s.used(), "slots", s.load.length, "weight", CargoWeights.format(weight(s.load)),

@@ -26,7 +26,9 @@ import java.util.Map;
 public final class DockLayout {
 
     public enum Kind {
-        LAND("육지"), PORT("항구");
+        LAND("육지"), PORT("항구"),
+        /** a departure terminal (출발 터미널: /관리자 출발지 설치): where loads are inspected and sealed ({@link #terminal}) */
+        TERMINAL("출발 터미널");
 
         public final String word;
 
@@ -34,10 +36,16 @@ public final class DockLayout {
             this.word = word;
         }
 
+        /** A dock's kind by its word (육지, 항구; default 육지), or null: never a terminal. */
         public static Kind of(String s) {
             if (s == null) return LAND;
-            for (Kind k : values()) if (k.word.equals(s) || k.name().equalsIgnoreCase(s)) return k;
+            for (Kind k : docks()) if (k.word.equals(s) || k.name().equalsIgnoreCase(s)) return k;
             return null;
+        }
+
+        /** The kinds of dock (not the terminal). */
+        public static List<Kind> docks() {
+            return List.of(LAND, PORT);
         }
     }
 
@@ -105,6 +113,7 @@ public final class DockLayout {
     }
 
     public static Layout of(Kind kind, String name) {
+        if (kind == Kind.TERMINAL) return terminal(name);
         DockLayout d = new DockLayout();
         d.pad(kind);
         d.warehouse();
@@ -124,6 +133,130 @@ public final class DockLayout {
         Box bounds = new Box(-HALF_WIDTH, -FOUNDATION - 2, -2, HALF_WIDTH, CLEAR, maxZ);
         return new Layout(kind, List.copyOf(d.clear), List.copyOf(d.columns), List.copyOf(out), List.copyOf(d.props), List.copyOf(d.signs),
                 zones, new Block(-9, 0, 4, "minecraft:cartography_table"), new double[]{0, 17.5, 13}, bounds);
+    }
+
+    // ------------------------------------------------------------------------------------------
+    // 출발 터미널
+    // ------------------------------------------------------------------------------------------
+
+    /** The terminal's plan: half its width, its depth, how high it is cleared. */
+    public static final int T_HALF = 14, T_DEPTH = 28, T_CLEAR = 14;
+    /** The inspection bay: a vehicle (any unit of it) or a 지게's wearer inside may be inspected. */
+    public static final Box BAY = new Box(-4, -3, 6, 4, 6, 16);
+    /** The 화물 검사소's counter (right-click: the inspection menu): by the bay, at the booth's window. */
+    public static final Block T_COUNTER = new Block(-6, 0, 11, "minecraft:cartography_table");
+
+    /** The name a terminal gets on its sign and over its bay. */
+    public static String terminalTitle(String name) {
+        return name + " 출발 터미널";
+    }
+
+    /**
+     * A departure terminal (README "출발 터미널"), in the same coordinates as a dock (the admin's place, x right, z the way
+     * they look, the gate at the front where the 국도 starts):
+     *
+     * <pre>
+     *        z=28 ┌──────── 주차장 (흰 칸, z 19 ~ 27) ─────────────┐
+     *             │ 화물 검사소 (x -13..-8)  │ 검사대 (노란 선 x -4..4, z 6..16, 위에 지붕) │
+     *             │ 창구 (x -6) · 표지판      │ 출구 차단기 (x 5, z 4)                       │
+     *        z=0  └────────── 출구 (x -6..6): 국도가 여기서 출발 ─────────┘
+     * </pre>
+     */
+    static Layout terminal(String name) {
+        DockLayout d = new DockLayout();
+        d.clear.add(new Box(-T_HALF, 0, -1, T_HALF, T_CLEAR, T_DEPTH));
+        for (int x = -T_HALF; x <= T_HALF; x++) {
+            for (int z = -1; z <= T_DEPTH; z++) {
+                boolean rim = Math.abs(x) == T_HALF || z == -1 || z == T_DEPTH;
+                d.set(x, -1, z, rim ? "minecraft:stone_bricks"
+                        : (Math.floorMod(x, 4) == 0 || Math.floorMod(z, 4) == 0) ? "minecraft:andesite" : "minecraft:polished_andesite");
+                d.columns.add(new Column(x, z, -2, FOUNDATION, rim ? "minecraft:stone_bricks" : "minecraft:stone"));
+            }
+        }
+        // a low wall round it, open at the exit (x -6..6 at the front)
+        for (int x = -T_HALF; x <= T_HALF; x++) {
+            if (Math.abs(x) > 6) d.set(x, 0, -1, "minecraft:stone_brick_wall");
+            d.set(x, 0, T_DEPTH, "minecraft:stone_brick_wall");
+        }
+        for (int z = 0; z < T_DEPTH; z++) {
+            d.set(-T_HALF, 0, z, "minecraft:stone_brick_wall");
+            d.set(T_HALF, 0, z, "minecraft:stone_brick_wall");
+        }
+        d.inspectionBay();
+        d.booth();
+        // the parking apron behind: white bays four wide
+        for (int x = -12; x <= 12; x += 4) for (int z = 20; z <= 26; z++) d.set(x, -1, z, "minecraft:white_concrete");
+        for (int x = -12; x <= 12; x++) d.set(x, -1, 19, "minecraft:white_concrete");
+        // lamp posts round it and at the exit
+        for (int[] p : new int[][]{{-13, 0}, {13, 0}, {-13, 27}, {13, 27}, {-7, 0}, {7, 0}, {0, 27}, {13, 14}}) {
+            d.fill(p[0], 0, p[1], p[0], 3, p[1], "minecraft:stone_brick_wall");
+            d.set(p[0], 4, p[1], "minecraft:lantern");
+        }
+        // the sign at the exit, left of it, facing the road
+        d.signs.add(new Sign(-8, 0, -1, List.of("[출발 터미널]", name, "검사대에 세우고", "창구 우클릭 = 화물 검사")));
+        d.set(-8, -1, -1, "minecraft:polished_andesite");
+        d.set(T_COUNTER.x(), T_COUNTER.y(), T_COUNTER.z(), T_COUNTER.data());
+        d.set(T_COUNTER.x(), T_COUNTER.y() + 1, T_COUNTER.z(), "minecraft:lantern");
+        List<Block> out = new ArrayList<>(d.blocks.values());
+        out.sort(Comparator.comparingInt(Block::y));
+        return new Layout(Kind.TERMINAL, List.copyOf(d.clear), List.copyOf(d.columns), List.copyOf(out), List.copyOf(d.props), List.copyOf(d.signs),
+                List.of(BAY), T_COUNTER, new double[]{0, 9.5, 11}, new Box(-T_HALF, -FOUNDATION - 2, -2, T_HALF, T_CLEAR, T_DEPTH));
+    }
+
+    /** The bay: painted lines, a hatched stop line, a canopy on four posts with lights, a lift gate at its exit. */
+    private void inspectionBay() {
+        Box b = BAY;
+        for (int x = b.minX(); x <= b.maxX(); x++) {
+            set(x, -1, b.minZ(), "minecraft:yellow_concrete");
+            set(x, -1, b.maxZ(), "minecraft:yellow_concrete");
+            set(x, -1, b.minZ() - 1, Math.floorMod(x, 2) == 0 ? "minecraft:yellow_concrete" : "minecraft:black_concrete");   // stop line
+        }
+        for (int z = b.minZ(); z <= b.maxZ(); z++) {
+            set(b.minX(), -1, z, "minecraft:yellow_concrete");
+            set(b.maxX(), -1, z, "minecraft:yellow_concrete");
+        }
+        // the canopy: posts just outside the lines, a roof 6 up (yellow fascia, lights in it)
+        for (int x : new int[]{b.minX() - 1, b.maxX() + 1}) for (int z : new int[]{b.minZ(), b.maxZ()}) fill(x, 0, z, x, 5, z, "minecraft:gray_concrete");
+        for (int x = b.minX() - 1; x <= b.maxX() + 1; x++) {
+            for (int z = b.minZ(); z <= b.maxZ(); z++) {
+                boolean edge = x == b.minX() - 1 || x == b.maxX() + 1 || z == b.minZ() || z == b.maxZ();
+                set(x, 6, z, edge ? "minecraft:yellow_concrete" : "minecraft:smooth_stone");
+            }
+        }
+        for (int x : new int[]{-2, 2}) for (int z : new int[]{9, 13}) set(x, 6, z, "minecraft:sea_lantern");
+        // the lift gate at the exit end: a post and its arm, raised (red and white), beside the lane
+        set(b.maxX() + 1, 0, b.minZ() - 2, "minecraft:polished_andesite");
+        set(b.maxX() + 1, 1, b.minZ() - 2, "minecraft:stone_brick_wall");
+        for (int y = 2; y <= 5; y++) set(b.maxX() + 1, y, b.minZ() - 2, y % 2 == 0 ? "minecraft:red_concrete" : "minecraft:white_concrete");
+    }
+
+    /** The 화물 검사소: a small office beside the bay, its window and counter facing it. */
+    private void booth() {
+        int x0 = -13, x1 = -8, z0 = 7, z1 = 15, top = 4;
+        for (int x = x0; x <= x1; x++) {
+            for (int z = z0; z <= z1; z++) {
+                boolean wall = x == x0 || x == x1 || z == z0 || z == z1;
+                if (!wall) {
+                    set(x, -1, z, "minecraft:smooth_stone");
+                    continue;
+                }
+                boolean corner = (x == x0 || x == x1) && (z == z0 || z == z1);
+                for (int y = 0; y <= top; y++) {
+                    String b = corner || y == 0 ? "minecraft:light_gray_concrete"
+                            : y == top ? "minecraft:yellow_concrete"
+                            : x == x1 && z >= 9 && z <= 13 && y <= 2 ? "minecraft:glass"
+                            : "minecraft:white_concrete";
+                    set(x, y, z, b);
+                }
+            }
+        }
+        fill(-11, 0, z0, -10, 1, z0, "minecraft:air");   // the door, to the exit side
+        for (int x = x0 - 1; x <= x1 + 1; x++) for (int z = z0 - 1; z <= z1 + 1; z++) {
+            boolean eave = x == x0 - 1 || x == x1 + 1 || z == z0 - 1 || z == z1 + 1;
+            set(x, top + 1, z, eave ? "minecraft:gray_concrete" : "minecraft:dark_prismarine");
+        }
+        set(-10, top, 11, "minecraft:sea_lantern");
+        set(-12, 0, 11, "minecraft:lectern");
     }
 
     // ------------------------------------------------------------------------------------------
