@@ -33,7 +33,29 @@ public final class RoadJob {
     }
 
     public String dock, world;
+    /** the road it branches off at its start ({@link RoadNetwork#branch}): that road's dock and how far its gate is from here; null: none */
+    public String branchOf;
+    public double branchKm;
+    /** the road's surface at each point, half blocks ({@link RoadProfile#halves}), once worked out (BUILD): what other roads keep clear of */
+    public int[] halves;
+    /** where the route is planned from and to (the end: just in front of the dock's gate, in line with it) */
     public double startX, startZ, endX, endZ;
+    /**
+     * The dock's gate (the middle of its front edge, y its floor): the road's last point, at the floor's level, so it runs
+     * on into the dock. NaN / MIN_VALUE: none (a road saved before roads went up to the gate: it ends at end).
+     */
+    public double gateX = Double.NaN, gateZ = Double.NaN;
+    /**
+     * Where a road leaving a departure terminal's exit runs straight out to before its route turns (the start is the exit),
+     * NaN: none.
+     */
+    public double leadX = Double.NaN, leadZ = Double.NaN;
+    public int gateY = Integer.MIN_VALUE;
+    /**
+     * A patch (/관리자 국도 &lt;하역장&gt; 이어짓기): the missing piece from an older road's end to the gate, saved beside the road
+     * (&lt;dock&gt;.tail.txt); the road's own file stays as it is.
+     */
+    public boolean tail;
     public Phase phase = Phase.SURVEY;
     /** false: stopped (/관리자 국도 중지); a restart does not resume it until it is started again */
     public boolean running = true;
@@ -62,9 +84,63 @@ public final class RoadJob {
         return (int) key;
     }
 
+    /** The file it is saved in (without .txt): the dock's name, a patch's with ".tail". */
+    public String file() {
+        return tail ? dock + ".tail" : dock;
+    }
+
+    /** Whether it leaves straight out of a terminal's exit first (not when it branches off another road). */
+    public boolean led() {
+        return !Double.isNaN(leadX) && branchOf == null;
+    }
+
+    /** Where the route is planned from: the end of the straight way out, else the start. */
+    public double[] from() {
+        return led() ? new double[]{leadX, leadZ} : new double[]{startX, startZ};
+    }
+
+    /** Whether it goes up to the dock's gate. */
+    public boolean gated() {
+        return !Double.isNaN(gateX) && gateY != Integer.MIN_VALUE;
+    }
+
+    /** Where the road ends: the gate, or (an old road) the planned end. */
+    public double[] last() {
+        return gated() ? new double[]{gateX, gateZ} : new double[]{endX, endZ};
+    }
+
+    /**
+     * The route's corners from the planner's cells (chunk x, z: their middles; the first and last are replaced by the
+     * start and the end), then the gate when there is one: the road always runs from the start up to the gate.
+     */
+    public void route(List<int[]> cells) {
+        corners.clear();
+        corners.add(new double[]{startX, startZ});
+        if (led()) corners.add(new double[]{leadX, leadZ});
+        for (int i = 1; i < cells.size() - 1; i++) corners.add(new double[]{cells.get(i)[0] * 16 + 8.5, cells.get(i)[1] * 16 + 8.5});
+        corners.add(new double[]{endX, endZ});
+        if (gated() && Math.hypot(gateX - endX, gateZ - endZ) > 0.5) corners.add(new double[]{gateX, gateZ});
+        ground.clear();
+        for (int i = 0; i < points().size(); i++) ground.add(new Ground());
+        cursor = 0;
+    }
+
     /** The surveyed corridor as the planner sees it. */
     public RoadPlanner.Field field() {
+        return field(null);
+    }
+
+    /** The surveyed corridor and the roads already there ({@link RoadNetwork}; null: none). */
+    public RoadPlanner.Field field(RoadNetwork net) {
         return new RoadPlanner.Field() {
+            public boolean road(int x, int z) {
+                return net != null && net.cell(x, z);
+            }
+
+            public boolean nearRoad(int x, int z) {
+                return net != null && net.near(x, z);
+            }
+
             public boolean known(int x, int z) {
                 return cells.containsKey(key(x, z));
             }
@@ -117,6 +193,15 @@ public final class RoadJob {
         b.append("started=").append(started).append('\n');
         b.append("route=").append(route).append('\n');
         b.append("signs=").append(signs).append('\n');
+        if (gated()) b.append("gate=").append(num(gateX)).append(',').append(gateY).append(',').append(num(gateZ)).append('\n');
+        if (tail) b.append("tail=true\n");
+        if (!Double.isNaN(leadX)) b.append("lead=").append(num(leadX)).append(',').append(num(leadZ)).append('\n');
+        if (branchOf != null) b.append("branch=").append(branchOf).append(',').append(num(branchKm)).append('\n');
+        if (halves != null) {
+            b.append("halves=");
+            for (int i = 0; i < halves.length; i++) b.append(i > 0 ? "," : "").append(halves[i]);
+            b.append('\n');
+        }
         for (Map.Entry<Long, Cell> e : cells.entrySet()) {
             Cell c = e.getValue();
             b.append("cell=").append(cx(e.getKey())).append(',').append(cz(e.getKey())).append(',').append(num(c.height())).append(',')
@@ -153,6 +238,24 @@ public final class RoadJob {
                 case "started" -> j.started = Long.parseLong(v);
                 case "route" -> j.route = Integer.parseInt(v);
                 case "signs" -> j.signs = Integer.parseInt(v);
+                case "gate" -> {
+                    j.gateX = Double.parseDouble(p[0]);
+                    j.gateY = Integer.parseInt(p[1]);
+                    j.gateZ = Double.parseDouble(p[2]);
+                }
+                case "tail" -> j.tail = Boolean.parseBoolean(v);
+                case "lead" -> {
+                    j.leadX = Double.parseDouble(p[0]);
+                    j.leadZ = Double.parseDouble(p[1]);
+                }
+                case "branch" -> {
+                    j.branchOf = p[0];
+                    j.branchKm = Double.parseDouble(p[1]);
+                }
+                case "halves" -> {
+                    j.halves = new int[p.length];
+                    for (int i = 0; i < p.length; i++) j.halves[i] = Integer.parseInt(p[i].trim());
+                }
                 case "cell" -> j.cells.put(key(Integer.parseInt(p[0]), Integer.parseInt(p[1])),
                         new Cell(Double.parseDouble(p[2]), Double.parseDouble(p[3]), Double.parseDouble(p[4]), p[5].equals("1")));
                 case "corner" -> j.corners.add(new double[]{Double.parseDouble(p[0]), Double.parseDouble(p[1])});

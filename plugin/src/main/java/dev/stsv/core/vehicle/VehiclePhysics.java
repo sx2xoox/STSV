@@ -17,9 +17,11 @@ import java.util.List;
  *   <li><b>Collision</b>: the footprint is a row of axis-aligned squares along the length ({@link #footprint}) that turn
  *       with the vehicle. Moves are clipped against the blocks' collision boxes axis by axis (as vanilla entities move),
  *       so it never goes into a wall, leaves or a fence; a turn that would push a square into a block is not made.</li>
- *   <li><b>Steps</b>: blocked sideways while on the ground, it tries the same move lifted by its step height and set down
- *       again (a block, a slab, stairs). Going down, it follows the ground for up to half a block instead of falling
- *       (stairs and slabs stay smooth); further down it falls with gravity (vanilla's 0.08 a tick, 2 % drag).</li>
+ *   <li><b>Steps</b>: blocked sideways while on the ground, landing, or only just off it ({@link #COYOTE} ticks: down a
+ *       block and straight up the next one, as a road's grade makes them), it tries the same move lifted by its step
+ *       height and set down again (a block, a slab, stairs). Going down, it follows the ground instead of falling: half a
+ *       block at once (stairs and slabs stay smooth), up to a block {@link #DESCENT} a tick ({@link #land}); further
+ *       down it falls with gravity (vanilla's 0.08 a tick, 2 % drag). Landing never costs it speed.</li>
  *   <li><b>Hazards</b>: it does not drive onto or into lava, into water deeper than a block, or into unloaded
  *       chunks (the terrain says unloaded blocks are solid): it stops there.</li>
  * </ul>
@@ -30,7 +32,10 @@ public final class VehiclePhysics {
     public static final double GRAVITY = 0.08;          // blocks/tick², as vanilla entities
     public static final double DRAG = 0.98;
     public static final double MAX_FALL = 2.0;           // blocks/tick
-    public static final double SNAP = 0.55;              // follows the ground down this far without falling
+    public static final double SNAP = 0.55;              // follows the ground down this far at once
+    public static final double STEP_DOWN = 1.05;         // follows the ground down this far without falling (a block)
+    public static final double DESCENT = 0.5;            // ... going down at most this much a tick
+    public static final int COYOTE = 6;                  // ticks off the ground it still steps up a ledge
     public static final double MAX_STEER = 30;           // degrees the front wheels turn
     public static final double STEER_SPEED = 6;          // degrees a tick they turn towards it
     static final double EPS = 1e-7;
@@ -69,6 +74,8 @@ public final class VehiclePhysics {
         public double steer, roll;
         /** hit something hard this tick (speed lost) */
         public boolean bumped;
+        /** ticks since it was last on the ground (0 = on it) */
+        public int air;
 
         public State(double x, double y, double z, float yaw) {
             this.x = x;
@@ -242,15 +249,20 @@ public final class VehiclePhysics {
         return out;
     }
 
+    /** Whether it may step up a ledge this tick: on the ground, or only just off it (falling for at most {@link #COYOTE} ticks). */
+    public static boolean canStep(State st) {
+        return st.onGround || (st.air <= COYOTE && st.vy <= 0);
+    }
+
     /**
-     * Moves (dx, dy, dz) as far as the blocks allow, stepping up ledges up to stepHeight when blocked sideways on the
-     * ground. Returns the movement made {dx, dy, dz}.
+     * Moves (dx, dy, dz) as far as the blocks allow, stepping up ledges up to stepHeight when blocked sideways while it
+     * may step ({@link #canStep}) or as it lands. Returns the movement made {dx, dy, dz}.
      */
-    static double[] move(List<double[]> sq, double dx, double dy, double dz, boolean onGround, double stepHeight, Terrain t) {
+    static double[] move(List<double[]> sq, double dx, double dy, double dz, boolean canStep, double stepHeight, Terrain t) {
         double[] m = collide(sq, dx, dy, dz, t);
         boolean blockedSideways = Math.abs(m[0] - dx) > EPS || Math.abs(m[2] - dz) > EPS;
         boolean landing = dy < 0 && m[1] > dy + EPS;
-        if (blockedSideways && (onGround || landing) && stepHeight > 0) {
+        if (blockedSideways && (canStep || landing) && stepHeight > 0) {
             // lift, move sideways at that height, set down again: keep it if that got further
             double lift = collide(sq, 0, stepHeight, 0, t)[1];
             List<double[]> up = moved(sq, 0, lift, 0);
@@ -348,7 +360,7 @@ public final class VehiclePhysics {
         double dx = f[0] * dist, dz = f[1] * dist;
 
         List<double[]> sq = footprint(st.x, st.y, st.z, st.yaw, s);
-        double[] m = move(sq, dx, st.vy, dz, st.onGround, s.stepHeight(), t);
+        double[] m = move(sq, dx, st.vy, dz, canStep(st), s.stepHeight(), t);
         // not onto lava or into deep water (unless already in it: then it may drive out)
         if ((m[0] != 0 || m[2] != 0) && hazard(st.x + m[0], st.y + m[1], st.z + m[2], st.yaw, s, t)
                 && !hazard(st.x, st.y, st.z, st.yaw, s, t)) {
@@ -356,19 +368,9 @@ public final class VehiclePhysics {
             st.bumped = Math.abs(st.speed) > 2;
             st.speed = 0;
         }
-        boolean wasOnGround = st.onGround;
-        st.onGround = st.vy < 0 && m[1] > st.vy + EPS;
-        if (!st.onGround && wasOnGround && m[1] <= 0) {
-            // ground a little lower (going down a slab or stairs): follow it instead of falling
-            double[] snap = collide(moved(sq, m[0], m[1], m[2]), 0, -SNAP, 0, t);
-            if (snap[1] > -SNAP + EPS) {
-                m[1] += snap[1];
-                st.onGround = true;
-            }
-        }
-        if (st.onGround || (st.vy > 0 && m[1] < st.vy - EPS)) st.vy = 0;
+        land(st, sq, m, t);
 
-        // speed lost against a wall
+        // speed lost against a wall (never by landing: only what the blocks took off the move sideways)
         double want = Math.hypot(dx, dz), got = Math.hypot(m[0], m[2]);
         if (want > 1e-4 && got < want * 0.5 && !st.bumped) {
             st.bumped = Math.abs(st.speed) > 2;
@@ -379,6 +381,27 @@ public final class VehiclePhysics {
         st.y += m[1];
         st.z += m[2];
         st.roll = (st.roll + Math.signum(st.speed) * got / Math.max(0.05, s.wheelRadius())) % (Math.PI * 4);
+    }
+
+    /**
+     * After the move m (changed here): whether it is on the ground now. Ground a little lower than it was on (a slab,
+     * stairs, a block down) is followed instead of fallen to: up to {@link #SNAP} at once, else {@link #DESCENT} a tick,
+     * as far as {@link #STEP_DOWN} (it counts as on the ground meanwhile, so it keeps stepping and steering). vy and the
+     * time in the air follow.
+     */
+    static void land(State st, List<double[]> sq, double[] m, Terrain t) {
+        boolean wasOnGround = st.onGround;
+        st.onGround = st.vy < 0 && m[1] > st.vy + EPS;
+        if (!st.onGround && wasOnGround && m[1] <= 0) {
+            double[] below = collide(moved(sq, m[0], m[1], m[2]), 0, -STEP_DOWN, 0, t);
+            if (below[1] > -STEP_DOWN + EPS) {
+                double drop = -below[1];
+                m[1] -= drop <= SNAP ? drop : Math.min(drop, Math.max(0, DESCENT + m[1]));
+                st.onGround = true;
+            }
+        }
+        if (st.onGround || (st.vy > 0 && m[1] < st.vy - EPS)) st.vy = 0;
+        st.air = st.onGround ? 0 : st.air + 1;
     }
 
     /** Whether something holds it up (a parked vehicle checks now and then: the block under it may be gone). */

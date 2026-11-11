@@ -31,6 +31,25 @@ public final class DockStore {
                         + "owner CHAR(36) NOT NULL, seller CHAR(36) NOT NULL, items " + text + ", paid BIGINT NOT NULL, distance DOUBLE NOT NULL, "
                         + "odometer DOUBLE NOT NULL)",
                 "CREATE INDEX stsv_eco_dock_sale_at ON stsv_eco_dock_sale (at)")));
+        db.migrate("eco-terminals", List.of(List.of(
+                "CREATE TABLE IF NOT EXISTS stsv_eco_terminal (name VARCHAR(32) PRIMARY KEY, kind VARCHAR(8) NOT NULL, world VARCHAR(64) NOT NULL, "
+                        + "x INT NOT NULL, y INT NOT NULL, z INT NOT NULL, facing INT NOT NULL, chunks " + text + ", created BIGINT NOT NULL)")));
+    }
+
+    /** The departure terminals (출발 터미널: a {@link Dock} of kind TERMINAL each, in a table of their own). */
+    public List<Dock> terminals() {
+        return db.sync(c -> Db.query(c, "SELECT name, world, x, y, z, facing, chunks, created FROM stsv_eco_terminal ORDER BY created, name",
+                rs -> new Dock(rs.getString(1), DockLayout.Kind.TERMINAL, rs.getString(2), rs.getInt(3), rs.getInt(4), rs.getInt(5),
+                        rs.getInt(6), rs.getString(7), rs.getLong(8))));
+    }
+
+    public CompletableFuture<Void> saveTerminal(Dock d) {
+        return db.execute(db.upsert("stsv_eco_terminal", List.of("name"), List.of("kind", "world", "x", "y", "z", "facing", "chunks", "created")),
+                d.name(), d.kind().name(), d.world(), d.x(), d.y(), d.z(), d.facing(), d.chunks(), d.created());
+    }
+
+    public CompletableFuture<Boolean> deleteTerminal(String name) {
+        return db.async(c -> Db.update(c, "DELETE FROM stsv_eco_terminal WHERE name = ?", name) == 1);
     }
 
     public List<Dock> all() {

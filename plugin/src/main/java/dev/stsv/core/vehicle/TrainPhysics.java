@@ -202,20 +202,10 @@ public final class TrainPhysics {
 
         st.vy = st.onGround ? -VehiclePhysics.GRAVITY : Math.max(-VehiclePhysics.MAX_FALL, (st.vy - VehiclePhysics.GRAVITY) * VehiclePhysics.DRAG);
         List<double[]> sq = VehiclePhysics.footprint(st.x, st.y, st.z, st.yaw, u);
-        double[] m = VehiclePhysics.move(sq, dx, st.vy, dz, st.onGround, u.stepHeight(), t);
+        double[] m = VehiclePhysics.move(sq, dx, st.vy, dz, VehiclePhysics.canStep(st), u.stepHeight(), t);
         if ((m[0] != 0 || m[2] != 0) && VehiclePhysics.hazard(st.x + m[0], st.y + m[1], st.z + m[2], st.yaw, u, t)
                 && !VehiclePhysics.hazard(st.x, st.y, st.z, st.yaw, u, t)) return false;   // not onto lava or into deep water
-        boolean wasOnGround = st.onGround;
-        st.onGround = st.vy < 0 && m[1] > st.vy + VehiclePhysics.EPS;
-        if (!st.onGround && wasOnGround && m[1] <= 0) {
-            List<double[]> moved = VehiclePhysics.footprint(st.x + m[0], st.y + m[1], st.z + m[2], st.yaw, u);
-            double[] snap = VehiclePhysics.collide(moved, 0, -VehiclePhysics.SNAP, 0, t);
-            if (snap[1] > -VehiclePhysics.SNAP + VehiclePhysics.EPS) {
-                m[1] += snap[1];
-                st.onGround = true;
-            }
-        }
-        if (st.onGround || (st.vy > 0 && m[1] < st.vy - VehiclePhysics.EPS)) st.vy = 0;
+        VehiclePhysics.land(st, sq, m, t);
         st.x += m[0];
         st.y += m[1];
         st.z += m[2];
@@ -268,5 +258,6 @@ public final class TrainPhysics {
         to.steer = from.steer;
         to.roll = from.roll;
         to.bumped = from.bumped;
+        to.air = from.air;
     }
 }

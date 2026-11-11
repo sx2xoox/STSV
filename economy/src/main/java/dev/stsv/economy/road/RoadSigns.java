@@ -76,6 +76,31 @@ final class RoadSigns {
         }
     }
 
+    /** How big words painted on the road are (a line about a block deep, "하역장 입구" about 5 wide). */
+    static final float PAINT = 4f;
+
+    /**
+     * Words painted on the road (RoadSection: "하역장 입구" before a dock's gate): a text display lying on the surface at (x,
+     * y, z), its top towards where the road goes (yaw: the way a sign there faces, back at the traffic), so a driver
+     * coming reads it. Tagged like a sign (cleared with them). An old one of the same dock there goes first.
+     */
+    static void paint(World w, double x, double y, double z, float yaw, String words, String dock, int set, DisplayView.Settings view) {
+        Location at = new Location(w, x, y, z, yaw, 0);
+        for (Entity e : w.getNearbyEntities(at, 2, 1, 2)) if (e instanceof TextDisplay && dock.equals(dock(e))) e.remove();
+        w.spawn(at, TextDisplay.class, d -> {
+            setUp(d, dock, set, view);
+            d.text(Component.text(words, NamedTextColor.WHITE));
+            d.setBillboard(Display.Billboard.FIXED);
+            d.setAlignment(TextDisplay.TextAlignment.CENTER);
+            d.setDefaultBackground(false);
+            d.setBackgroundColor(Color.fromARGB(0, 0, 0, 0));
+            d.setShadowed(false);
+            // its face up (turned back about its width): its top runs away from the traffic, along the road
+            d.setTransformation(new Transformation(new Vector3f(), new Quaternionf().rotateX((float) (-Math.PI / 2)),
+                    new Vector3f(PAINT, PAINT, PAINT), new Quaternionf()));
+        });
+    }
+
     /** White, digits bold ({@link RoadSign#bold}), the server's default font. */
     static Component text(String s) {
         var b = Component.text().color(NamedTextColor.WHITE);

@@ -81,9 +81,20 @@ public record Dock(String name, DockLayout.Kind kind, String world, int x, int y
         return world((z.minX() + z.maxX() + 1) / 2.0 - 0.5, 0, (z.minZ() + z.maxZ() + 1) / 2.0 - 0.5);
     }
 
-    /** Where the road ends: just outside the gate, in front of the dock. */
+    /** How far in front of the gate the road's route is planned to: the last stretch runs straight in, in line with the gate. */
+    public static final int APPROACH = 20;
+
+    /** Where a road's route is planned to: {@link #APPROACH} blocks straight out in front of the gate. */
     public int[] entrance() {
-        return block(0, 0, -6);
+        return block(0, 0, -APPROACH);
+    }
+
+    /**
+     * Where the road ends: the gate, the middle of the pad's front edge (dock z -1), y the pad's floor (one under where the
+     * admin stood): the road's last cross-section is built on it, at the floor's level, so it runs on into the dock.
+     */
+    public int[] gate() {
+        return block(0, -1, -1);
     }
 
     public int[] counter() {
