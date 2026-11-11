@@ -62,6 +62,7 @@ public final class RoadModule extends EcoModule {
     private int[] levels;
     private RoadProfile.Part[] parts;
     private List<double[]> points;
+    private RoadSection builder;
     private final Map<Long, Chunk> held = new HashMap<>();
     private final Set<Long> requested = new HashSet<>();
     private long ticks;
@@ -116,6 +117,7 @@ public final class RoadModule extends EcoModule {
     @Override
     public void reload() {
         load();
+        builder = null;   // the new blocks and spacings from the next cross-section on
     }
 
     @Override
@@ -258,6 +260,7 @@ public final class RoadModule extends EcoModule {
         levels = null;
         parts = null;
         points = null;
+        builder = null;
         release();
     }
 
@@ -438,7 +441,7 @@ public final class RoadModule extends EcoModule {
         parts = RoadProfile.parts(levels, ground, water, BRIDGE_GAP, TUNNEL_COVER, MIN_RUN);
     }
 
-    static final int BRIDGE_GAP = 3, TUNNEL_COVER = 5, MIN_RUN = 4, HALF = 5;
+    static final int BRIDGE_GAP = 3, TUNNEL_COVER = 5, MIN_RUN = 4, HALF = RoadSection.HALF;
 
     private void build(World w) {
         if (levels == null) profile();
@@ -495,49 +498,17 @@ public final class RoadModule extends EcoModule {
         return true;
     }
 
-    /** One cross-section of the road at point i. False: it stopped (its surface would go into a player's land). */
+    /** One cross-section of the road at point i ({@link RoadSection}). False: it stopped (its surface would go into a player's land). */
     private boolean section(World w, int i) {
-        double[] p = points.get(i);
-        double[] a = points.get(Math.max(0, i - 2)), b = points.get(Math.min(points.size() - 1, i + 2));
-        double hx = b[0] - a[0], hz = b[1] - a[1], len = Math.max(1e-6, Math.hypot(hx, hz));
-        hx /= len;
-        hz /= len;
-        double rx = -hz, rz = hx;   // the right hand
-        int level = levels[i];
-        RoadProfile.Part part = parts[i];
-        Set<Long> done = new HashSet<>();
-        for (double o = -HALF - 0.5; o <= HALF + 0.5; o += 0.5) {
-            int bx = (int) Math.floor(p[0] + rx * o), bz = (int) Math.floor(p[1] + rz * o);
-            if (!done.add(RoadJob.key(bx, bz))) continue;
-            double ao = Math.abs(o);
-            if (eco.land().playerLand(w.getName(), bx, bz)) {
-                if (ao <= 3.5) {
-                    job.running = false;
-                    save();
-                    reset();
-                    tell(Lang.msg("road.player-land", "dock", job.dock, "x", bx, "z", bz));
-                    return false;
-                }
-                continue;   // a shoulder in someone's land: left alone
-            }
-            boolean dash = (i / 4) % 2 == 0;
-            Material top = ao <= 0.5 && dash ? settings.line() : ao <= 2.5 ? settings.surface() : settings.kerb();
-            switch (part) {
-                case ROAD -> road(w, bx, bz, level, ao, top);
-                case BRIDGE -> bridge(w, bx, bz, level, ao, top, i % 10 == 0);
-                case TUNNEL -> tunnel(w, bx, bz, level, ao, top, i % 8 == 0);
-            }
-        }
-        if (i % settings.lightEvery() == 0 && part != RoadProfile.Part.TUNNEL && i > 0 && i < points.size() - 1) {
-            int side = (i / settings.lightEvery()) % 2 == 0 ? 1 : -1;
-            double o = part == RoadProfile.Part.BRIDGE ? 3.25 : 4.5;
-            lamp(w, (int) Math.floor(p[0] + rx * o * side), (int) Math.floor(p[1] + rz * o * side), level);
-        }
-        if (i > 0 && i % settings.markerEvery() == 0 && part == RoadProfile.Part.ROAD) {
-            int sx = (int) Math.floor(p[0] + rx * 5), sz = (int) Math.floor(p[1] + rz * 5);
-            if (!eco.land().playerLand(w.getName(), sx, sz)) marker(w, sx, sz, level + 1, -hx, -hz, i);
-        }
-        return true;
+        if (builder == null) builder = new RoadSection(site(w), new RoadSection.Style(settings.surface(), settings.line(), settings.kerb(),
+                settings.lightEvery(), settings.markerEvery()), points, levels, parts, job.dock);
+        int[] land = builder.build(i);
+        if (land == null) return true;
+        job.running = false;
+        save();
+        reset();
+        tell(Lang.msg("road.player-land", "dock", job.dock, "x", land[0], "z", land[1]));
+        return false;
     }
 
     private static boolean natural(Material m) {
@@ -545,117 +516,54 @@ public final class RoadModule extends EcoModule {
                 || m == Material.MUSHROOM_STEM || m == Material.BROWN_MUSHROOM_BLOCK || m == Material.RED_MUSHROOM_BLOCK || m == Material.SNOW;
     }
 
-    private static void set(World w, int x, int y, int z, Material m) {
-        if (y < w.getMinHeight() || y >= w.getMaxHeight()) return;
-        Block b = w.getBlockAt(x, y, z);
-        if (b.getType() != m) b.setType(m, false);
-    }
-
-    private static void air(World w, int x, int y, int z) {
-        if (y < w.getMinHeight() || y >= w.getMaxHeight()) return;
-        Block b = w.getBlockAt(x, y, z);
-        if (!b.getType().isAir()) b.setType(Material.AIR, false);
-    }
-
-    /** Trees and the like over a column, up to 30 above the road. */
-    private static void clearTrees(World w, int x, int z, int from) {
-        for (int y = from; y < Math.min(w.getMaxHeight(), from + 30); y++) {
-            Block b = w.getBlockAt(x, y, z);
-            if (natural(b.getType())) b.setType(Material.AIR, false);
-        }
-    }
-
-    private static boolean fillable(Block b) {
-        Material m = b.getType();
-        return m.isAir() || b.isLiquid() || b.isReplaceable() || !m.isSolid() || natural(m);
-    }
-
-    private void road(World w, int x, int z, int level, double ao, Material top) {
-        if (ao <= 3.5) {
-            set(w, x, level, z, top);
-            for (int y = level + 1; y <= level + 5; y++) air(w, x, y, z);   // cut
-            for (int k = 1; k <= 8; k++) {                                   // fill
-                Block b = w.getBlockAt(x, level - k, z);
-                if (b.getY() < w.getMinHeight() || !fillable(b)) break;
-                b.setType(k == 1 ? Material.STONE : Material.COBBLESTONE, false);
+    /** The world as {@link RoadSection} sees it. */
+    private RoadSection.Site site(World w) {
+        return new RoadSection.Site() {
+            public boolean inside(int y) {
+                return y >= w.getMinHeight() && y < w.getMaxHeight();
             }
-            clearTrees(w, x, z, level + 6);
-            return;
-        }
-        // the shoulders: cut the bank down to the road, fill a dip to it (grass on top), clear trees
-        for (int y = level + 1; y <= level + 4; y++) {
-            Block b = w.getBlockAt(x, y, z);
-            if (!b.getType().isAir() && y >= w.getMinHeight() && y < w.getMaxHeight()) b.setType(Material.AIR, false);
-        }
-        Block at = w.getBlockAt(x, level, z);
-        if (fillable(at) && !at.isLiquid()) {
-            at.setType(Material.GRASS_BLOCK, false);
-            for (int k = 1; k <= 3; k++) {
-                Block b = w.getBlockAt(x, level - k, z);
-                if (!fillable(b) || b.isLiquid()) break;
-                b.setType(Material.DIRT, false);
+
+            public boolean air(int x, int y, int z) {
+                return !inside(y) || w.getBlockAt(x, y, z).getType().isAir();
             }
-        }
-        clearTrees(w, x, z, level + 1);
-    }
 
-    private void bridge(World w, int x, int z, int level, double ao, Material top, boolean pillar) {
-        if (ao > 3.5) return;
-        set(w, x, level, z, ao > 2.5 ? Material.STONE_BRICKS : top);
-        for (int y = level + 1; y <= level + 4; y++) air(w, x, y, z);
-        if (ao > 2.5) set(w, x, level + 1, z, Material.STONE_BRICK_WALL);   // the railing
-        if (pillar && ao <= 2.5) {
-            for (int k = 1; k <= 64; k++) {
-                Block b = w.getBlockAt(x, level - k, z);
-                if (b.getY() < w.getMinHeight() || !fillable(b)) break;
-                b.setType(Material.STONE_BRICKS, false);
+            public boolean liquid(int x, int y, int z) {
+                return inside(y) && w.getBlockAt(x, y, z).isLiquid();
             }
-        }
-        clearTrees(w, x, z, level + 5);
-    }
 
-    private void tunnel(World w, int x, int z, int level, double ao, Material top, boolean light) {
-        if (ao <= 3.5) {
-            set(w, x, level, z, top);
-            for (int y = level + 1; y <= level + 4; y++) air(w, x, y, z);
-            set(w, x, level + 5, z, light && ao <= 0.5 ? Material.SEA_LANTERN : Material.STONE_BRICKS);
-        } else if (ao <= 4.5) {
-            for (int y = level; y <= level + 5; y++) set(w, x, y, z, Material.STONE_BRICKS);
-        }
-    }
+            public boolean natural(int x, int y, int z) {
+                return inside(y) && RoadModule.natural(w.getBlockAt(x, y, z).getType());
+            }
 
-    private void lamp(World w, int x, int z, int level) {
-        if (eco.land().playerLand(w.getName(), x, z)) return;
-        for (int y = level + 1; y <= level + 3; y++) set(w, x, y, z, Material.STONE_BRICK_WALL);
-        set(w, x, level + 4, z, Material.LANTERN);
-        Block base = w.getBlockAt(x, level, z);
-        if (fillable(base)) base.setType(Material.STONE_BRICKS, false);
-    }
+            public boolean fillable(int x, int y, int z) {
+                if (!inside(y)) return false;
+                Block b = w.getBlockAt(x, y, z);
+                Material m = b.getType();
+                return m.isAir() || b.isLiquid() || b.isReplaceable() || !m.isSolid() || RoadModule.natural(m);
+            }
 
-    private void marker(World w, int x, int z, int y, double fx, double fz, int at) {
-        Block b = w.getBlockAt(x, y, z);
-        Block under = w.getBlockAt(x, y - 1, z);
-        if (fillable(under)) under.setType(Material.STONE_BRICKS, false);
-        BlockData data = Material.SPRUCE_SIGN.createBlockData();
-        // facing the traffic coming from the start: the sign's front towards (fx, fz)
-        double yaw = Math.toDegrees(Math.atan2(-fx, fz));
-        if (data instanceof Rotatable r) r.setRotation(face((int) Math.round(yaw / 22.5)));
-        b.setBlockData(data, false);
-        if (b.getState() instanceof org.bukkit.block.Sign s) {
-            int total = points.size();
-            s.getSide(Side.FRONT).line(0, Component.text("[국도]"));
-            s.getSide(Side.FRONT).line(1, Component.text(job.dock + " 하역장"));
-            s.getSide(Side.FRONT).line(2, Component.text(at / 1000 + " km 지점"));
-            s.getSide(Side.FRONT).line(3, Component.text("남은 길 " + Math.max(0, (total - at) / 1000) + " km"));
-            s.setWaxed(true);
-            s.update(true, false);
-        }
-    }
+            public void set(int x, int y, int z, Material m) {
+                if (!inside(y)) return;
+                Block b = w.getBlockAt(x, y, z);
+                if (b.getType() != m) b.setType(m, false);
+            }
 
-    private static BlockFace face(int r) {
-        BlockFace[] faces = {BlockFace.SOUTH, BlockFace.SOUTH_SOUTH_WEST, BlockFace.SOUTH_WEST, BlockFace.WEST_SOUTH_WEST, BlockFace.WEST,
-                BlockFace.WEST_NORTH_WEST, BlockFace.NORTH_WEST, BlockFace.NORTH_NORTH_WEST, BlockFace.NORTH, BlockFace.NORTH_NORTH_EAST,
-                BlockFace.NORTH_EAST, BlockFace.EAST_NORTH_EAST, BlockFace.EAST, BlockFace.EAST_SOUTH_EAST, BlockFace.SOUTH_EAST, BlockFace.SOUTH_SOUTH_EAST};
-        return faces[Math.floorMod(r, 16)];
+            public boolean playerLand(int x, int z) {
+                return eco.land().playerLand(w.getName(), x, z);
+            }
+
+            public void sign(int x, int y, int z, BlockFace facing, String[] lines) {
+                if (!inside(y)) return;
+                Block b = w.getBlockAt(x, y, z);
+                BlockData data = Material.SPRUCE_SIGN.createBlockData();
+                if (data instanceof Rotatable r) r.setRotation(facing);
+                b.setBlockData(data, false);
+                if (b.getState() instanceof org.bukkit.block.Sign s) {
+                    for (int k = 0; k < lines.length && k < 4; k++) s.getSide(Side.FRONT).line(k, Component.text(lines[k]));
+                    s.setWaxed(true);
+                    s.update(true, false);
+                }
+            }
+        };
     }
 }
