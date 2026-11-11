@@ -171,21 +171,28 @@ public final class DockModule extends EcoModule {
         return docks.get(key(name));
     }
 
-    private String coverKey = "";
-    private Map<String, java.util.Set<Long>> cover = Map.of();
+    /** the chunks docks and terminals stand in, by world; null: worked out again on the next look (a dock or terminal came or went) */
+    private Map<String, java.util.Set<Long>> cover;
 
-    /** Whether a dock or a departure terminal stands in this chunk (no snow settles there: RoadModule). */
+    /**
+     * Whether a dock or a departure terminal stands in this chunk (no snow settles there: RoadModule, on every snow event:
+     * a lookup, the chunks worked out only after a dock or terminal comes or goes).
+     */
     public boolean covers(String world, int cx, int cz) {
-        String k = docks.keySet() + "|" + terminals.keySet();
-        if (!k.equals(coverKey)) {
-            Map<String, java.util.Set<Long>> c = new java.util.HashMap<>();
+        Map<String, java.util.Set<Long>> c = cover;
+        if (c == null) {
+            c = new java.util.HashMap<>();
             for (Dock d : docks.values()) for (long[] ch : d.chunksTouched()) c.computeIfAbsent(d.world(), w -> new java.util.HashSet<>()).add(ch[0] << 32 ^ (ch[1] & 0xffffffffL));
             for (Dock d : terminals.values()) for (long[] ch : d.chunksTouched()) c.computeIfAbsent(d.world(), w -> new java.util.HashSet<>()).add(ch[0] << 32 ^ (ch[1] & 0xffffffffL));
             cover = c;
-            coverKey = k;
         }
-        java.util.Set<Long> in = cover.get(world);
+        java.util.Set<Long> in = c.get(world);
         return in != null && in.contains((long) cx << 32 ^ (cz & 0xffffffffL));
+    }
+
+    /** The departure terminals (출발 터미널): a 국도 sign for the way back names the one its road started from. */
+    public java.util.Collection<Dock> terminals() {
+        return terminals.values();
     }
 
     public java.util.Collection<Dock> docks() {
@@ -652,6 +659,7 @@ public final class DockModule extends EcoModule {
         }
         Dock d = new Dock(draft.name(), kind, draft.world(), draft.x(), draft.y(), draft.z(), draft.facing(), Dock.chunkText(claimed), draft.created());
         docks.put(key(d.name()), d);
+        cover = null;
         store.save(d);
         for (Dock t : terminals.values()) {
             double far = straight(t, d);
@@ -713,6 +721,7 @@ public final class DockModule extends EcoModule {
             return;
         }
         docks.remove(key(d.name()));
+        cover = null;
         store.delete(d.name());
         int land = eco.land().releaseServerChunks(d.world(), d.claimed());
         World w = Bukkit.getWorld(d.world());
@@ -1071,6 +1080,7 @@ public final class DockModule extends EcoModule {
                     return;
                 }
                 terminals.remove(key(t.name()));
+                cover = null;
                 store.deleteTerminal(t.name());
                 int land = eco.land().releaseServerChunks(t.world(), t.claimed());
                 World w = Bukkit.getWorld(t.world());
@@ -1120,6 +1130,7 @@ public final class DockModule extends EcoModule {
         }
         Dock t = new Dock(draft.name(), draft.kind(), draft.world(), draft.x(), draft.y(), draft.z(), draft.facing(), Dock.chunkText(claimed), draft.created());
         terminals.put(key(t.name()), t);
+        cover = null;
         store.saveTerminal(t);
         // the 국도 start from its exit, straight out first
         if (eco.roads() != null) {
