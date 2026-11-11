@@ -61,5 +61,26 @@
         "name": "stsv:vehicle/golf_cart_engine"
       }
     ]
+  },
+  "vehicle.fishing_boat.horn": {
+    "sounds": [
+      {
+        "name": "stsv:vehicle/fishing_boat_horn"
+      }
+    ]
+  },
+  "vehicle.fishing_boat.horn_end": {
+    "sounds": [
+      {
+        "name": "stsv:vehicle/fishing_boat_horn_end"
+      }
+    ]
+  },
+  "vehicle.fishing_boat.engine": {
+    "sounds": [
+      {
+        "name": "stsv:vehicle/fishing_boat_engine"
+      }
+    ]
   }
 }

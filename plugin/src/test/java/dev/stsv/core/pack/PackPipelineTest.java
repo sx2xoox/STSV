@@ -46,7 +46,8 @@ class PackPipelineTest {
             "angel_wings", "demon_wings", "butterfly_wings",   // wings swept back 22.5 degrees
             "gumiho",                                           // nine tails fanned out
             "wagasa",                                           // the parasol's struts, tilted up to its canopy
-            "police_car", "light_truck");                       // raked windscreens (45 / 22.5 degrees)
+            "police_car", "light_truck",                        // raked windscreens (45 / 22.5 degrees)
+            "jige", "jige_load_1", "jige_load_2", "jige_load_3"); // the 지게's prongs, jutting back and up 22.5 degrees
 
     @org.junit.jupiter.params.ParameterizedTest
     @org.junit.jupiter.params.provider.MethodSource("models")

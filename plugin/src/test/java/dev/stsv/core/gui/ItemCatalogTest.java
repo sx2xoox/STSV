@@ -59,7 +59,8 @@ class ItemCatalogTest {
         assertEquals(Category.GOODS, of(all, "economy:ruby"));
         assertEquals(Category.GOODS, of(all, "economy:soju"));
         assertEquals(Category.OTHER, of(all, "stsv:cheque"));
-        for (String v : List.of("stsv:police_car", "stsv:light_truck", "stsv:golf_cart")) assertEquals(Category.VEHICLE, of(all, v));
+        for (String v : List.of("stsv:police_car", "stsv:light_truck", "stsv:golf_cart", "stsv:fishing_boat")) assertEquals(Category.VEHICLE, of(all, v));
+        assertEquals(Category.VEHICLE, of(all, "stsv:jige"), "the worn 지게 too (it is in a vehicles file, not with the armour)");
         Map<Category, Integer> count = new EnumMap<>(Category.class);
         for (ItemCatalog.Facts f : all) count.merge(ItemCatalog.of(f), 1, Integer::sum);
         for (Category c : List.of(Category.MACHINE, Category.COSMETIC, Category.CROP, Category.FISH, Category.FOOD, Category.GOODS)) {

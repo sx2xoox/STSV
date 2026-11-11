@@ -72,6 +72,10 @@ final class LiveVehicle {
     double rolled;
     float tiltShown = Float.NaN;
 
+    /** a boat: afloat, on ice or aground (BoatPhysics), and how far it turned last tick (degrees: it leans out of turns) */
+    BoatPhysics.Mode boatMode = BoatPhysics.Mode.FLOAT;
+    float boatTurn;
+
     /** the storage bed (null without one), the page open and who has it open */
     ItemStack[] cargo;
     int stage;

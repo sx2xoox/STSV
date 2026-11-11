@@ -31,6 +31,7 @@ public final class RenderBudget {
         VEHICLE("탈것 몸체", 600),
         VEHICLE_WHEEL("탈것 바퀴", 80),
         VEHICLE_PART("탈것 부품 (경광등·짐)", 240),
+        CARRIER("등에 지는 것 (지게, 짐 단계 하나)", 300),
         OTHER("그 밖의 3D 모델", 300);
 
         public final String label;
@@ -68,7 +69,12 @@ public final class RenderBudget {
             ConfigurationSection f = item.getConfigurationSection("furniture");
             ConfigurationSection c = item.getConfigurationSection("cosmetic");
             ConfigurationSection v = item.getConfigurationSection("vehicle");
-            if (v != null) {
+            ConfigurationSection j = item.getConfigurationSection("jige");
+            if (j != null) {
+                // a worn carrier (지게): its look on the back at each stage (the empty frame is also its item model)
+                for (String s : j.getStringList("stages")) out.put(local(namespace, s), Category.CARRIER);
+                out.putIfAbsent(namespace + ":" + model, Category.CARRIER);
+            } else if (v != null) {
                 out.put(namespace + ":" + model, Category.VEHICLE);
                 if (v.getString("wheel") != null) out.put(local(namespace, v.getString("wheel")), Category.VEHICLE_WHEEL);
                 List<String> shown = new java.util.ArrayList<>(v.getStringList("lights.flash"));

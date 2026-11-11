@@ -59,6 +59,13 @@ class RenderBudgetTest {
         assertEquals(RenderBudget.Category.VEHICLE_WHEEL, kinds.get("stsv:wheel_handcart"));
         for (String m : List.of("stsv:police_lightbar_off", "stsv:police_lightbar_a", "stsv:police_lightbar_b", "stsv:truck_cargo_1",
                 "stsv:truck_cargo_4", "stsv:hand_cart_cargo_1", "stsv:hand_cart_cargo_4")) assertEquals(RenderBudget.Category.VEHICLE_PART, kinds.get(m));
+        // the 통통배 (its propeller is its wheel, its catch its load) and the 지게's looks on the back
+        assertEquals(RenderBudget.Category.VEHICLE, kinds.get("stsv:fishing_boat"));
+        assertEquals(RenderBudget.Category.VEHICLE_WHEEL, kinds.get("stsv:boat_propeller"));
+        for (int k = 1; k <= 4; k++) assertEquals(RenderBudget.Category.VEHICLE_PART, kinds.get("stsv:boat_catch_" + k));
+        for (String m : List.of("stsv:jige", "stsv:jige_load_1", "stsv:jige_load_2", "stsv:jige_load_3")) {
+            assertEquals(RenderBudget.Category.CARRIER, kinds.get(m));
+        }
         if (packs.containsKey("economy")) {
             assertEquals(RenderBudget.Category.MACHINE_3, kinds.get("economy:kitchen_3"));
             assertEquals(RenderBudget.Category.MACHINE_0, kinds.get("economy:mill_0"));

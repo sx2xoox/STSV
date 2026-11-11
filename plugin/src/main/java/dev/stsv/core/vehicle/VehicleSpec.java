@@ -30,6 +30,7 @@ import java.util.function.Predicate;
  * @param cargo        a storage bed (the truck, the hand cart), or null
  * @param engine       its driving sound, or null (silent)
  * @param pull         pulled by a player on foot instead of driven (the hand cart: no seats), or null
+ * @param water        floats and moves on water only (the fishing boat, {@link BoatPhysics}), or null
  */
 public record VehicleSpec(
         float bodyScale,
@@ -38,8 +39,25 @@ public record VehicleSpec(
         double length, double width, double height, double clickHeight,
         NamespacedKey wheelModel, double wheelRadius, List<Wheel> wheels,
         List<Vec> seats,
-        Lights lights, Horn horn, Cargo cargo, Engine engine, Pull pull
+        Lights lights, Horn horn, Cargo cargo, Engine engine, Pull pull, Water water
 ) {
+
+    /** A land vehicle (no {@code water:} section). */
+    public VehicleSpec(float bodyScale, double speed, double reverseSpeed, double acceleration, double brake, double coast,
+                       double turnRate, double turnSpeed, double stepHeight, double length, double width, double height, double clickHeight,
+                       NamespacedKey wheelModel, double wheelRadius, List<Wheel> wheels, List<Vec> seats,
+                       Lights lights, Horn horn, Cargo cargo, Engine engine, Pull pull) {
+        this(bodyScale, speed, reverseSpeed, acceleration, brake, coast, turnRate, turnSpeed, stepHeight, length, width, height, clickHeight,
+                wheelModel, wheelRadius, wheels, seats, lights, horn, cargo, engine, pull, null);
+    }
+
+    /**
+     * A boat ({@code water:} in the item file, see {@link BoatPhysics}): it floats with its keel {@code draft} blocks under
+     * the water's surface, can only be pushed at {@code nudge} blocks/s when aground (off a shallow beach), rocks on the
+     * waves by {@code rock} (1 = gently, 0 = still) and puffs smoke from its exhaust stack (null = none) while driven.
+     * Its "wheels" are its propeller (spun about the length, not the width).
+     */
+    public record Water(double draft, double nudge, double rock, Vec exhaust) {}
 
     /** A point on the vehicle: right, up, forward (blocks) from its ground centre. */
     public record Vec(double right, double up, double forward) {}
@@ -107,6 +125,8 @@ public record VehicleSpec(
      */
     public static VehicleSpec parse(ConfigurationSection v, String namespace, Predicate<String> modelExists) {
         Pull pull = v.isConfigurationSection("pull") ? pull(v.getConfigurationSection("pull")) : null;
+        Water water = v.isConfigurationSection("water") ? water(v.getConfigurationSection("water")) : null;
+        if (water != null && pull != null) throw new IllegalArgumentException("vehicle.water: 배(water)는 끄는 탈것(pull)일 수 없음");
         // a pulled cart is not driven: its driving numbers only matter for rolling to a stop (defaults: a walk)
         boolean driven = pull == null;
         double speed = driven ? positive(v, "speed") : v.getDouble("speed", 4.3);
@@ -183,7 +203,23 @@ public record VehicleSpec(
                 v.getDouble("coast", driven ? 2.0 : 8.0), driven ? positive(v, "turn-rate") : v.getDouble("turn-rate", 90),
                 driven ? positive(v, "turn-speed") : v.getDouble("turn-speed", 1), step,
                 size.get(0), size.get(1), size.get(2), v.getDouble("click-height", Math.min(1.2, size.get(2))),
-                wheel, wheelRadius, List.copyOf(wheels), List.copyOf(seats), lights, horn, cargo, engine, pull);
+                wheel, wheelRadius, List.copyOf(wheels), List.copyOf(seats), lights, horn, cargo, engine, pull, water);
+    }
+
+    private static Water water(ConfigurationSection w) {
+        double draft = w.getDouble("draft", 0.375);
+        if (draft < 0.05 || draft > 1) throw new IllegalArgumentException("vehicle.water.draft 는 0.05 ~ 1 (블록, 물 위에서 용골이 잠기는 깊이)");
+        double nudge = w.getDouble("nudge-speed", 1.0);
+        if (nudge < 0 || nudge > 3) throw new IllegalArgumentException("vehicle.water.nudge-speed 는 0 ~ 3 (블록/초)");
+        double rock = w.getDouble("rock", 1.0);
+        if (rock < 0 || rock > 3) throw new IllegalArgumentException("vehicle.water.rock 은 0 ~ 3 (0 = 흔들리지 않음)");
+        Vec exhaust = w.contains("exhaust") ? vec(w, "exhaust", "vehicle.water.exhaust") : null;
+        return new Water(draft, nudge, rock, exhaust);
+    }
+
+    /** Floats on water (a boat). */
+    public boolean floats() {
+        return water != null;
     }
 
     private static Pull pull(ConfigurationSection p) {
