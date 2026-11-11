@@ -82,7 +82,8 @@ import java.util.function.BiPredicate;
 
 /**
  * 탈것: vehicles placed from an item, ridden and driven with the player's own keys, picked up again
- * (content/stsv/items/vehicles.yml: 경찰차, 1톤 트럭, 골프 카트, 리어카; README "탈것").
+ * (content/stsv/items/vehicles.yml: 경찰차, 1톤 트럭, 골프 카트, 리어카; vehicles_road.yml: 짐자전거, 배달 오토바이, 사륜 오토바이,
+ * 소형 화물 밴, 탑차 (two-wheelers lean into turns, the bicycle's crank turns with its wheels: VehicleSpec.Extras); README "탈것").
  *
  * <h2>How it is shown and kept</h2>
  * The database ({@link VehicleStore}) holds every vehicle; nothing of it is saved with a chunk. While a vehicle's chunk is
@@ -660,11 +661,12 @@ public final class VehicleModule implements StsvModule, Listener {
         v.tiltShown = tilt(v);
         v.body = display(v, v.item.create(1), body(v, v.tiltShown));
         for (int i = 0; i < s.wheels().size(); i++) v.wheels.add(display(v, model(s.wheelModel()), wheel(v, i)));
+        for (int i = 0; i < s.extras().spinners().size(); i++) v.spinners.add(display(v, model(s.extras().spinners().get(i).model()), spinner(v, i)));
         if (s.lights() != null) {
             v.lightsShown = v.siren ? 0 : -1;
             v.lights = display(v, model(v.siren ? s.lights().flash().getFirst() : s.lights().dark()), part(s.lights().at()));
         }
-        if (s.cargo() != null) v.load = display(v, model(stageModel(v)), tilted(s, s.cargo().at(), 1, v.tiltShown));
+        if (s.cargo() != null) v.load = display(v, model(stageModel(v)), tilted(s, s.cargo().at(), 1, v.tiltShown, v.lean));
         for (int i = 0; i < s.squares(); i++) {
             double[] c = VehiclePhysics.world(v.st.x, v.st.y, v.st.z, v.st.yaw, new VehicleSpec.Vec(0, 0, s.squareOffset(i)));
             v.hits.add(v.world.spawn(new Location(v.world, c[0], c[1], c[2]), Interaction.class, h -> {
@@ -697,7 +699,7 @@ public final class VehicleModule implements StsvModule, Listener {
     }
 
     private static Transformation body(LiveVehicle v, float tilt) {
-        return tilted(v.spec, new VehicleSpec.Vec(0, 0, 0), v.spec.bodyScale(), tilt);
+        return tilted(v.spec, new VehicleSpec.Vec(0, 0, 0), v.spec.bodyScale(), tilt, v.lean);
     }
 
     /**
@@ -705,7 +707,7 @@ public final class VehicleModule implements StsvModule, Listener {
      * handles): the display's rotation turns about the vehicle's ground centre, so the translation moves the turn onto
      * the axle (t = P + R (at - P)).
      */
-    private static Transformation tilted(VehicleSpec s, VehicleSpec.Vec at, float scale, float tilt) {
+    private static Transformation tilted(VehicleSpec s, VehicleSpec.Vec at, float scale, float tilt, float lean) {
         Vector3f t = local(at);
         Quaternionf r = new Quaternionf();
         if (tilt != 0) {
@@ -713,7 +715,20 @@ public final class VehicleModule implements StsvModule, Listener {
             Vector3f pivot = local(s.axle());
             t = new Vector3f(t).sub(pivot).rotate(r).add(pivot);
         }
+        if (lean != 0) {
+            Quaternionf l = lean(lean);
+            t.rotate(l);
+            r = l.mul(r);
+        }
         return new Transformation(t, r, new Vector3f(scale, scale, scale), new Quaternionf());
+    }
+
+    /**
+     * A lean to the vehicle's left by this many degrees, about its ground centre (the line under its wheels): the
+     * display's +x is the vehicle's left, so its top goes towards +x.
+     */
+    private static Quaternionf lean(float degrees) {
+        return new Quaternionf().rotateZ((float) -Math.toRadians(degrees));
     }
 
     private static Transformation part(VehicleSpec.Vec at) {
@@ -723,9 +738,40 @@ public final class VehicleModule implements StsvModule, Listener {
     private static Transformation wheel(LiveVehicle v, int i) {
         VehicleSpec.Wheel w = v.spec.wheels().get(i);
         Quaternionf steer = w.steer() ? new Quaternionf().rotateY((float) Math.toRadians(v.st.steer)) : new Quaternionf();
+        Vector3f t = local(w.at());
+        if (v.lean != 0) {
+            Quaternionf l = lean(v.lean);
+            t.rotate(l);
+            steer = l.mul(steer);
+        }
+        // a boat's propeller spins about the boat's length, a wheel about its axle
         Quaternionf spin = v.spec.floats() ? new Quaternionf().rotateZ((float) v.st.roll) : new Quaternionf().rotateX((float) v.st.roll);
-        return new Transformation(local(w.at()), steer, new Vector3f(1, 1, 1), spin);
+        return new Transformation(t, steer, new Vector3f(1, 1, 1), spin);
     }
+
+    /** A spinning part (a pedal crank): turned by its ratio of the wheels' roll, leaning with the body. */
+    private static Transformation spinner(LiveVehicle v, int i) {
+        VehicleSpec.Spinner sp = v.spec.extras().spinners().get(i);
+        Vector3f t = local(sp.at());
+        Quaternionf left = new Quaternionf();
+        if (v.lean != 0) {
+            left = lean(v.lean);
+            t.rotate(left);
+        }
+        // kept within two turns (as the wheels' roll): a quaternion repeats every 4 pi, so the client's glide never jumps
+        double angle = (v.spin * sp.ratio()) % (Math.PI * 4);
+        return new Transformation(t, left, new Vector3f(1, 1, 1), new Quaternionf().rotateX((float) angle));
+    }
+
+    /** Degrees a vehicle with a lean should lean now: into the turn, by how far its front wheel is turned and how fast it goes. */
+    static float leanTarget(VehicleSpec s, double steer, double speed) {
+        double lean = s.extras().lean();
+        if (lean <= 0 || speed <= 0) return 0f;
+        return (float) (lean * (steer / VehiclePhysics.MAX_STEER) * Math.min(1, speed / s.turnSpeed()));
+    }
+
+    /** How many degrees a tick the shown lean follows its target (it glides over the smoothing ticks too). */
+    static final float LEAN_STEP = 1.5f;
 
     /** Removes the drawn parts (and the seats too when seats = true: riders step out first). */
     private void removeParts(LiveVehicle v, boolean seats) {
@@ -736,10 +782,12 @@ public final class VehicleModule implements StsvModule, Listener {
         if (v.load != null) v.load.remove();
         if (v.handle != null) v.handle.remove();
         v.wheels.forEach(Entity::remove);
+        v.spinners.forEach(Entity::remove);
         v.hits.forEach(Entity::remove);
         v.body = v.lights = v.load = null;
         v.handle = null;
         v.wheels.clear();
+        v.spinners.clear();
         v.hits.clear();
     }
 
@@ -808,6 +856,7 @@ public final class VehicleModule implements StsvModule, Listener {
             return;
         }
         if (v.body == null || !v.body.isValid() || v.hits.stream().anyMatch(h -> !h.isValid()) || v.wheels.stream().anyMatch(w -> !w.isValid())
+                || v.spinners.stream().anyMatch(w -> !w.isValid())
                 || (v.spec.pulled() && (v.handle == null || !v.handle.isValid()))) {
             removeParts(v, false);
             spawnParts(v);
@@ -817,7 +866,8 @@ public final class VehicleModule implements StsvModule, Listener {
         DriveInput in = driver != null ? DriveInput.of(driver.getCurrentInput()) : DriveInput.NONE;
         WorldTerrain terrain = new WorldTerrain(v.world);
         // a boat always follows the water under it (it rises and falls with it, settles aground when it goes)
-        boolean active = driver != null || puller != null || v.st.speed != 0 || !v.st.onGround || v.st.steer != 0 || v.spec.floats();
+        boolean active = driver != null || puller != null || v.st.speed != 0 || !v.st.onGround || v.st.steer != 0 || v.lean != 0
+                || v.spec.floats();
         if (!active && (ticks + v.id) % 10 == 0 && !VehiclePhysics.supported(v.st, v.spec, terrain)) {
             v.st.onGround = false;   // the ground under it went: it falls
             active = true;
@@ -844,13 +894,24 @@ public final class VehicleModule implements StsvModule, Listener {
                 v.dirty = true;
                 if (v.spec.pulled()) rolling(v, Math.hypot(v.st.x - x, v.st.z - z));
             }
-            if (!v.spec.floats() && (moved || v.st.steer != steer || v.st.roll != roll)) {
-                for (int i = 0; i < v.wheels.size(); i++) {
-                    ItemDisplay w = v.wheels.get(i);
-                    w.setInterpolationDelay(0);
-                    w.setInterpolationDuration(settings.smoothing());
-                    w.setTransformation(wheel(v, i));
-                }
+            // a two-wheeler leans into the turn (body, wheels, load and crank together)
+            float lean = v.lean, target = leanTarget(v.spec, v.st.steer, v.st.speed);
+            if (lean != target) v.lean = Math.abs(target - lean) <= LEAN_STEP ? target : lean + Math.copySign(LEAN_STEP, target - lean);
+            boolean leaned = v.lean != lean;
+            if (leaned) {
+                glide(v.body, body(v, v.tiltShown));
+                if (v.load != null) glide(v.load, tilted(v.spec, v.spec.cargo().at(), 1, v.tiltShown, v.lean));
+            }
+            if (v.st.roll != roll) {
+                double d = v.st.roll - roll;   // the roll wraps at 4 pi: the turn made this tick
+                if (d > Math.PI * 2) d -= Math.PI * 4;
+                if (d < -Math.PI * 2) d += Math.PI * 4;
+                v.spin += d;
+            }
+            // (a boat's parts rock with the waves instead: see boat)
+            if (!v.spec.floats() && (moved || v.st.steer != steer || v.st.roll != roll || leaned)) {
+                for (int i = 0; i < v.wheels.size(); i++) glide(v.wheels.get(i), wheel(v, i));
+                for (int i = 0; i < v.spinners.size(); i++) glide(v.spinners.get(i), spinner(v, i));
             }
             if (v.st.y < v.world.getMinHeight() - 32) {
                 plugin.getLogger().warning("[탈것] #" + v.id + " 이(가) 월드 밖으로 떨어짐: 주인에게 돌려보냄");
@@ -868,11 +929,19 @@ public final class VehicleModule implements StsvModule, Listener {
         if (v.dirty && (ticks - v.savedAt >= settings.saveTicks() || (v.st.speed == 0 && driver == null && v.puller == null))) save(v);
     }
 
+    /** A new display transformation, glided to over the smoothing ticks. */
+    private void glide(ItemDisplay d, Transformation t) {
+        d.setInterpolationDelay(0);
+        d.setInterpolationDuration(settings.smoothing());
+        d.setTransformation(t);
+    }
+
     /** Puts every entity of the vehicle where it is now (the client glides there over the smoothing ticks). */
     private void move(LiveVehicle v) {
         Location at = at(v);
         v.body.teleport(at);
         for (ItemDisplay w : v.wheels) w.teleport(at);
+        for (ItemDisplay w : v.spinners) w.teleport(at);
         if (v.lights != null) v.lights.teleport(at);
         if (v.load != null) v.load.teleport(at);
         if (v.handle != null) {
@@ -957,7 +1026,7 @@ public final class VehicleModule implements StsvModule, Listener {
             Quaternionf q = BoatMotion.rotation(r);
             Vector3f pivot = new Vector3f(0, (float) wa.draft(), 0);
             rock(v.body, body(v, 0), q, pivot, r.bob());
-            if (v.load != null && v.spec.cargo() != null) rock(v.load, tilted(v.spec, v.spec.cargo().at(), 1, 0), q, pivot, r.bob());
+            if (v.load != null && v.spec.cargo() != null) rock(v.load, tilted(v.spec, v.spec.cargo().at(), 1, 0, 0), q, pivot, r.bob());
             for (int i = 0; i < v.wheels.size(); i++) rock(v.wheels.get(i), wheel(v, i), q, pivot, r.bob());
         }
         if (driver == null) return;
@@ -1366,7 +1435,7 @@ public final class VehicleModule implements StsvModule, Listener {
         if (v.load != null && v.spec.cargo() != null) {
             v.load.setInterpolationDelay(0);
             v.load.setInterpolationDuration(ticks);
-            v.load.setTransformation(tilted(v.spec, v.spec.cargo().at(), 1, tilt));
+            v.load.setTransformation(tilted(v.spec, v.spec.cargo().at(), 1, tilt, v.lean));
         }
     }
 
@@ -1679,7 +1748,23 @@ public final class VehicleModule implements StsvModule, Listener {
         }
     }
 
-    private static final int PREV = 45, INFO = 49, NEXT = 53;
+    /** The button row is the view's last row: previous page at its start, the info in its middle, next page at its end. */
+    private static int prev(Inventory inv) {
+        return inv.getSize() - 9;
+    }
+
+    private static int info(Inventory inv) {
+        return inv.getSize() - 5;
+    }
+
+    private static int next(Inventory inv) {
+        return inv.getSize() - 1;
+    }
+
+    /** Fills a view's slots past the bed's end (its last page part full). */
+    private static ItemStack locked() {
+        return button(Material.LIGHT_GRAY_STAINED_GLASS_PANE, " ", null);
+    }
 
     private void openCargo(LiveVehicle v, Player p, int page) {
         VehicleSpec.Cargo c = v.spec.cargo();
@@ -1709,15 +1794,15 @@ public final class VehicleModule implements StsvModule, Listener {
         int pages = CargoPages.pages(v.cargo.length);   // a load left past a smaller bed (fewer slots in the file) stays reachable
         page = CargoPages.clamp(page, pages);
         CargoHolder h = new CargoHolder(v.id, page);
-        Inventory inv = Bukkit.createInventory(h, 54, Lang.mm("vehicle.cargo-title", "vehicle", Text.plain(label(v.item)), "page", page + 1,
-                "pages", pages));
+        Inventory inv = Bukkit.createInventory(h, CargoPages.viewSize(v.cargo.length), Lang.mm("vehicle.cargo-title", "vehicle",
+                Text.plain(label(v.item)), "page", page + 1, "pages", pages));
         h.inventory = inv;
         List<ItemStack> shown = CargoPages.page(v.cargo, page);
-        for (int i = 0; i < VehicleSpec.Cargo.PAGE; i++) inv.setItem(i, shown.get(i));
-        for (int i = PREV; i <= NEXT; i++) inv.setItem(i, button(Material.GRAY_STAINED_GLASS_PANE, " ", null));
-        if (page > 0) inv.setItem(PREV, button(Material.ARROW, Lang.raw("vehicle.cargo-prev"), null));
-        if (page < pages - 1) inv.setItem(NEXT, button(Material.ARROW, Lang.raw("vehicle.cargo-next"), null));
-        inv.setItem(INFO, button(Material.CHEST, Lang.raw("vehicle.cargo-info", "used", v.cargoUsed(), "slots", c.slots()), null));
+        for (int i = 0; i < prev(inv); i++) inv.setItem(i, CargoPages.inBed(v.cargo.length, page, i) ? shown.get(i) : locked());
+        for (int i = prev(inv); i <= next(inv); i++) inv.setItem(i, button(Material.GRAY_STAINED_GLASS_PANE, " ", null));
+        if (page > 0) inv.setItem(prev(inv), button(Material.ARROW, Lang.raw("vehicle.cargo-prev"), null));
+        if (page < pages - 1) inv.setItem(next(inv), button(Material.ARROW, Lang.raw("vehicle.cargo-next"), null));
+        inv.setItem(info(inv), button(Material.CHEST, Lang.raw("vehicle.cargo-info", "used", v.cargoUsed(), "slots", c.slots()), null));
         v.cargoViewer = p.getUniqueId();
         v.cargoInv = inv;
         v.cargoPage = page;
@@ -1740,7 +1825,9 @@ public final class VehicleModule implements StsvModule, Listener {
     private void syncCargo(LiveVehicle v) {
         if (v.cargo == null || v.cargoInv == null) return;
         Inventory inv = v.cargoInv;
+        int view = prev(inv);
         boolean changed = CargoPages.store(v.cargo, v.cargoPage, i -> {
+            if (i >= view) return null;   // a small view (one short page): only its rows, all of the bed
             ItemStack now = inv.getItem(i);
             return now == null || now.isEmpty() ? null : now.clone();
         });
@@ -1751,9 +1838,9 @@ public final class VehicleModule implements StsvModule, Listener {
             v.stage = stage;
             if (v.load != null) v.load.setItemStack(model(stageModel(v)));
         }
-        ItemStack info = v.cargoInv.getItem(INFO);
+        ItemStack info = v.cargoInv.getItem(info(v.cargoInv));
         if (info != null && v.spec.cargo() != null) {
-            v.cargoInv.setItem(INFO, button(Material.CHEST, Lang.raw("vehicle.cargo-info", "used", v.cargoUsed(), "slots", v.spec.cargo().slots()), null));
+            v.cargoInv.setItem(info(v.cargoInv), button(Material.CHEST, Lang.raw("vehicle.cargo-info", "used", v.cargoUsed(), "slots", v.spec.cargo().slots()), null));
         }
     }
 
@@ -1798,12 +1885,12 @@ public final class VehicleModule implements StsvModule, Listener {
             e.setCancelled(true);   // could gather the buttons
             return;
         }
-        if (e.getClickedInventory() == top && e.getSlot() >= PREV) {
-            e.setCancelled(true);
+        if (e.getClickedInventory() == top && (e.getSlot() >= prev(top) || !CargoPages.inBed(v.cargo.length, h.page, e.getSlot()))) {
+            e.setCancelled(true);   // the button row, or a locked slot past the bed's end
             int slot = e.getSlot();
-            if (slot == PREV || slot == NEXT) {
+            if (slot == prev(top) || slot == next(top)) {
                 Player p = (Player) e.getWhoClicked();
-                int to = h.page + (slot == NEXT ? 1 : -1);
+                int to = h.page + (slot == next(top) ? 1 : -1);
                 Bukkit.getScheduler().runTask(plugin, () -> {
                     if (cargoOf(top) != v) return;
                     syncCargo(v);
@@ -1824,7 +1911,7 @@ public final class VehicleModule implements StsvModule, Listener {
         if (!(top.getHolder(false) instanceof CargoHolder)) return;
         LiveVehicle v = cargoOf(top);
         for (int raw : e.getRawSlots()) {
-            if (v == null || (raw < top.getSize() && raw >= PREV)) {
+            if (v == null || (raw < top.getSize() && (raw >= prev(top) || !CargoPages.inBed(v.cargo.length, ((CargoHolder) top.getHolder(false)).page, raw)))) {
                 e.setCancelled(true);
                 return;
             }

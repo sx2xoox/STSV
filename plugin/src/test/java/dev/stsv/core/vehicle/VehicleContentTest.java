@@ -18,7 +18,8 @@ import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
 /** The shipped vehicles (content/stsv/items/vehicles.yml): they read, drive at sensible speeds, and are admin-only. The hand
- * cart is pulled on foot and carries the most. */
+ * cart is pulled on foot (generation 1 of the transport ladder: slow, a small bed); the truck is generation 4 (a big bed).
+ * The road vehicles of the ladder: {@link VehicleRoadContentTest}. */
 class VehicleContentTest {
 
     private static final Path CONTENT = Path.of(System.getProperty("stsv.content"));
@@ -92,7 +93,8 @@ class VehicleContentTest {
         assertTrue(cart.horn().pitch() > police.horn().pitch() && police.horn().pitch() > truck.horn().pitch(), "high, mid, low");
         assertNotNull(truck.cargo());
         assertTrue(truck.cargo().slots() > 54, "bigger than a large chest");
-        assertEquals(90, truck.cargo().slots(), "the truck keeps 90 (vehicles.yml cargo.slots: the owner may raise it)");
+        assertEquals(450, truck.cargo().slots(), "the truck: 450 (10 pages), generation 4 of the ladder");
+        assertEquals(10, truck.cargo().pages());
         for (VehicleSpec s : v.values()) assertFalse(s.pulled(), "driven, not pulled");
         assertEquals(4, truck.cargo().stages().size());
         assertTrue(truck.cargo().behind() < truck.length() / 2 && truck.cargo().behind() > -truck.length() / 2);
@@ -140,9 +142,9 @@ class VehicleContentTest {
         }
     }
 
-    /** 리어카: pulled on foot (no seats), two wheels on a middle axle, a 270-slot bed in six pages, slower walking. */
+    /** 리어카: pulled on foot (no seats), two wheels on a middle axle, a 135-slot bed in three pages, 40 % slower walking. */
     @Test
-    void theHandCartIsPulledAndCarriesTheMost() {
+    void theHandCartIsPulledAndSlow() {
         Map<String, VehicleSpec> all = shipped(ALL);
         VehicleSpec cart = all.get("hand_cart");
         assertTrue(cart.pulled());
@@ -156,17 +158,13 @@ class VehicleContentTest {
         assertEquals(cart.wheelRadius(), cart.axle().up(), 1e-9);
         assertEquals(1.0, cart.stepHeight(), 1e-9, "one-block ledges, like the others");
 
-        assertEquals(270, cart.cargo().slots(), "a huge bed");
-        assertEquals(6, cart.cargo().pages(), "six pages of 45");
+        assertEquals(135, cart.cargo().slots(), "generation 1: three pages (was 270)");
+        assertEquals(3, cart.cargo().pages(), "three pages of 45");
         assertEquals(4, cart.cargo().stages().size(), "a load shown by how full it is");
-        for (Map.Entry<String, VehicleSpec> e : all.entrySet()) {
-            if (e.getValue().cargo() != null && !e.getKey().equals("hand_cart")) {
-                assertTrue(cart.cargo().slots() > e.getValue().cargo().slots(), "more than the " + e.getKey());
-            }
-        }
+        assertTrue(cart.cargo().slots() < all.get("light_truck").cargo().slots(), "less than the truck (generation 4)");
 
         VehicleSpec.Pull pull = cart.pull();
-        assertEquals(0.3, pull.slowdown(), 1e-9, "30 % slower while pulling");
+        assertEquals(0.4, pull.slowdown(), 1e-9, "40 % slower while pulling (was 30 %)");
         assertEquals(4, pull.release(), 1e-9, "lets go about 4 blocks from the handles");
         assertTrue(pull.hitch() - 0.4 > cart.length() / 2, "the puller stands clear of the bed (in front of it, between the handles)");
         assertTrue(pull.hitch() < 2.5, "and holds the handles, not a rope");
@@ -197,10 +195,25 @@ class VehicleContentTest {
         c.set("v.cargo.slots", 100);
         assertTrue(assertThrows(IllegalArgumentException.class, () -> VehicleSpec.parse(c.getConfigurationSection("v"), "t", m -> true))
                 .getMessage().startsWith("vehicle.cargo.slots"), "slots in whole pages of 45");
-        c.set("v.cargo.slots", 45 * 13);
+        c.set("v.cargo.slots", 45 * 19);
+        assertThrows(IllegalArgumentException.class, () -> VehicleSpec.parse(c.getConfigurationSection("v"), "t", m -> true), "at most 810");
+        c.set("v.cargo.slots", 0);
         assertThrows(IllegalArgumentException.class, () -> VehicleSpec.parse(c.getConfigurationSection("v"), "t", m -> true));
+        c.set("v.cargo.slots", 810);
+        VehicleSpec.Cargo max = VehicleSpec.parse(c.getConfigurationSection("v"), "t", m -> true).cargo();
+        assertEquals(18, max.pages(), "up to 810 (was 540)");
+        assertEquals(810, max.slots());
+        assertEquals(810, VehicleSpec.Cargo.PAGE * VehicleSpec.Cargo.MAX_PAGES);
+        c.set("v.cargo.slots", 27);
+        VehicleSpec.Cargo small = VehicleSpec.parse(c.getConfigurationSection("v"), "t", m -> true).cargo();
+        assertEquals(1, small.pages(), "whole rows of 9: one part-full page");
+        assertEquals(27, small.slots());
+        c.set("v.cargo.slots", 54);
+        assertEquals(2, VehicleSpec.parse(c.getConfigurationSection("v"), "t", m -> true).cargo().pages(), "45 + 9");
+        c.set("v.cargo.slots", 50);
+        assertThrows(IllegalArgumentException.class, () -> VehicleSpec.parse(c.getConfigurationSection("v"), "t", m -> true), "rows of 9");
         c.set("v.cargo.slots", 540);
-        assertEquals(12, VehicleSpec.parse(c.getConfigurationSection("v"), "t", m -> true).cargo().pages(), "up to 540");
+        assertEquals(12, VehicleSpec.parse(c.getConfigurationSection("v"), "t", m -> true).cargo().pages());
         c.set("v.seats", List.of(Map.of("at", List.of(0.0, 0.5, 0.0))));
         assertTrue(assertThrows(IllegalArgumentException.class, () -> VehicleSpec.parse(c.getConfigurationSection("v"), "t", m -> true))
                 .getMessage().startsWith("vehicle.seats"), "nobody rides a pulled cart");

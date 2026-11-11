@@ -19,30 +19,32 @@ def icon(vid):
 
 @icon("fishing_boat")
 def fishing_boat():
+    # the bow to the left, raised; the wheelhouse aft with its windows, the stack behind it smoking, the mast and the
+    # 오색 flag; green net and an orange buoy on the fore deck; the white hull on its blue band, a tyre fender, red below
     rows = ["................",
-            "..........fy....",
-            "..........fbg...",
-            "......k...m.....",
-            "......k.RRRRRR..",
-            "......kwGgwGgw..",
-            "......KwgGwgGw..",
-            "a.....SwwwwwwwS.",
-            "aannoo.wwwwwwwSS",
-            ".aBBBBBBBBBBBBBB",
-            ".aHHHHtHHHHHtHHH",
-            "..HHHHttHHHttHH.",
-            "...hhhhhhhhhhh..",
-            "....rrrrrrrrr...",
+            "...........fy...",
+            "...........fgb..",
+            "........s..m....",
+            "........k.RRRRR.",
+            "........k.wGwGW.",
+            "........k.wqwqW.",
+            "a.......kewwwwW.",
+            "aannoo..eewwwwW.",
+            ".abbbbbbbbbbbbbb",
+            ".aHHHHHHHHHHHHHH",
+            "..HHtHHHHHHHtHH.",
+            "...hhhhhhhhhhhh.",
+            "....rrrrrrrrrr..",
             "................",
             "................"]
-    colours = {"f": ("fabric_red", 3), "y": ("petal_yellow", 4), "b": ("denim", 3), "g": ("leaf", 3),
-               "k": ("rubber", 1), "K": ("rubber", 2), "S": ("wood", 3), "m": ("wood", 3),
-               "R": ("water", 4), "w": ("car_white", 4), "W": ("car_white", 3), "G": ("glass", 4), "g2": ("tint", 2),
+    colours = {"f": ("fabric_red", 3), "y": ("petal_yellow", 4), "g": ("leaf", 3), "b": ("denim", 3),
+               "s": ("stone", 4), "k": ("rubber", 1), "m": ("wood", 3), "R": ("water", 4),
+               "w": ("car_white", 5), "W": ("car_white", 3), "G": ("glass", 4), "e": ("wood", 3),
                "a": ("wood_dark", 3), "n": ("leaf_dark", 3), "o": ("fox", 4),
-               "B": ("water", 3), "H": ("car_white", 4), "h": ("car_white", 3), "t": ("rubber", 1), "r": ("fabric_red", 2)}
-    colours["g"] = ("tint", 2)
+               "H": ("car_white", 4), "h": ("car_white", 3), "t": ("rubber", 1), "r": ("fabric_red", 2), "q": ("tint", 2)}
     c = _draw(rows, colours)
-    c.put(11, 2, "leaf", 3, z=1)
+    for x in range(2, 16):
+        c.put(x, 9, "water", 3, z=1)                              # the sea-blue band under the rail
     return c.render()
 
 

@@ -59,6 +59,15 @@ class RenderBudgetTest {
         assertEquals(RenderBudget.Category.VEHICLE_WHEEL, kinds.get("stsv:wheel_handcart"));
         for (String m : List.of("stsv:police_lightbar_off", "stsv:police_lightbar_a", "stsv:police_lightbar_b", "stsv:truck_cargo_1",
                 "stsv:truck_cargo_4", "stsv:hand_cart_cargo_1", "stsv:hand_cart_cargo_4")) assertEquals(RenderBudget.Category.VEHICLE_PART, kinds.get(m));
+        // the road vehicles of the ladder (vehicles_road.yml): bodies, wheels, the bicycle's crank and the open loads
+        for (String body : List.of("stsv:cargo_bicycle", "stsv:delivery_scooter", "stsv:atv", "stsv:cargo_van", "stsv:box_truck")) {
+            assertEquals(RenderBudget.Category.VEHICLE, kinds.get(body), body);
+        }
+        for (String w : List.of("stsv:wheel_bicycle", "stsv:wheel_scooter", "stsv:wheel_atv", "stsv:wheel_van", "stsv:wheel_truck")) {
+            assertEquals(RenderBudget.Category.VEHICLE_WHEEL, kinds.get(w), w);
+        }
+        for (String m : List.of("stsv:bicycle_crank", "stsv:cargo_bicycle_cargo_1", "stsv:cargo_bicycle_cargo_4", "stsv:atv_cargo_1",
+                "stsv:atv_cargo_4")) assertEquals(RenderBudget.Category.VEHICLE_PART, kinds.get(m), m);
         // the 통통배 (its propeller is its wheel, its catch its load) and the 지게's looks on the back
         assertEquals(RenderBudget.Category.VEHICLE, kinds.get("stsv:fishing_boat"));
         assertEquals(RenderBudget.Category.VEHICLE_WHEEL, kinds.get("stsv:boat_propeller"));

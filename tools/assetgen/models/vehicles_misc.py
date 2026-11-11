@@ -393,7 +393,7 @@ def _stern(m):
         row = math.floor(c.p[1])
         if col in (0, 11) or row in (8, 11):
             return ("hinoki", 0.8)
-        return ("police_blue", 1.4) if (col % 3 != 0 and row in (9, 10)) else ("hinoki", 2.8)
+        return ("police_blue", 1.2) if (row == 10 and 2 <= col <= 9 and col % 2 == 0) else ("hinoki", 2.8)   # a few letter marks
     m.box("name_board", (-6, 8, 38), (6, 12, 38.5), Paint("hinoki", 2, noise=0, rim=0.4, decal=plate))
 
 
@@ -448,7 +448,9 @@ def _fish_crate(m, x, z, y=0, w=10, d=7, h=4, ramp="denim", catch="fish"):
             head = (math.floor(a) + 3 * (math.floor(b) // 3)) % 9
             if head == 0:
                 return ("rubber", 0)                              # an eye
-            return ("fish_silver", 3.4 if k == 0 else 2.4)
+            if head == 8:
+                return ("fish_silver", 1.2)                       # the tail fin
+            return ("fish_blue", 1.2) if k == 0 else ("fish_silver", 1.8)   # a dark back, a silver belly
         return (ramp, 1.4)
     m.box("fish_crate", (x, y, z), (x + w, y + h, z + d), Paint(ramp, 2, noise=0, rim=0.5, decal=decal))
 

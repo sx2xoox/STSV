@@ -169,7 +169,7 @@ def sheet(out):
         textures.update(t)
         elements += e
         elements.append(_box((oxk[0] - 150, -40, -150), (oxk[0] + 150, 0, 150), "water"))
-        views.append({"x": k * cw5, "y": ch, "w": cw5, "h": ch, "az": 150, "el": 34, "k": 3.5, "radius": 30, "fov": fov, "far": 4000,
+        views.append({"x": k * cw5, "y": ch, "w": cw5, "h": ch, "az": 155, "el": 42, "k": 4.6, "radius": 30, "fov": fov, "far": 4000,
                       "center": [oxk[0], 16, 26]})
         labels.append((k * cw5, 1, cw5, ["어창 ~25% (생선 상자)", "~50% (그물·아이스박스)", "~75% (부표)", "가득 (270칸, 방수포)"][k - 1], False))
 
@@ -179,7 +179,6 @@ def sheet(out):
         t, e = worn(3, oxj)
         textures.update(t)
         elements += e
-        elements += _xf(block["elements"], lambda p, oxj=oxj: [p[0] + oxj[0] - 40, p[1], p[2] - 4])
         views.append({"x": c * cw, "y": 2 * ch, "w": cw, "h": ch, "az": az, "el": el, "k": 3.9, "radius": 22, "fov": fov, "far": 4000,
                       "center": [oxj[0] - (6 if c == 2 else 0), 19, 4]})
         labels.append((c * cw, 2, cw, label, c == 0))

@@ -82,5 +82,110 @@
         "name": "stsv:vehicle/fishing_boat_engine"
       }
     ]
+  },
+  "vehicle.cargo_bicycle.horn": {
+    "sounds": [
+      {
+        "name": "stsv:vehicle/cargo_bicycle_horn"
+      }
+    ]
+  },
+  "vehicle.cargo_bicycle.horn_end": {
+    "sounds": [
+      {
+        "name": "stsv:vehicle/cargo_bicycle_horn_end"
+      }
+    ]
+  },
+  "vehicle.cargo_bicycle.engine": {
+    "sounds": [
+      {
+        "name": "stsv:vehicle/cargo_bicycle_engine"
+      }
+    ]
+  },
+  "vehicle.delivery_scooter.horn": {
+    "sounds": [
+      {
+        "name": "stsv:vehicle/delivery_scooter_horn"
+      }
+    ]
+  },
+  "vehicle.delivery_scooter.horn_end": {
+    "sounds": [
+      {
+        "name": "stsv:vehicle/delivery_scooter_horn_end"
+      }
+    ]
+  },
+  "vehicle.delivery_scooter.engine": {
+    "sounds": [
+      {
+        "name": "stsv:vehicle/delivery_scooter_engine"
+      }
+    ]
+  },
+  "vehicle.atv.horn": {
+    "sounds": [
+      {
+        "name": "stsv:vehicle/atv_horn"
+      }
+    ]
+  },
+  "vehicle.atv.horn_end": {
+    "sounds": [
+      {
+        "name": "stsv:vehicle/atv_horn_end"
+      }
+    ]
+  },
+  "vehicle.atv.engine": {
+    "sounds": [
+      {
+        "name": "stsv:vehicle/atv_engine"
+      }
+    ]
+  },
+  "vehicle.cargo_van.horn": {
+    "sounds": [
+      {
+        "name": "stsv:vehicle/cargo_van_horn"
+      }
+    ]
+  },
+  "vehicle.cargo_van.horn_end": {
+    "sounds": [
+      {
+        "name": "stsv:vehicle/cargo_van_horn_end"
+      }
+    ]
+  },
+  "vehicle.cargo_van.engine": {
+    "sounds": [
+      {
+        "name": "stsv:vehicle/cargo_van_engine"
+      }
+    ]
+  },
+  "vehicle.box_truck.horn": {
+    "sounds": [
+      {
+        "name": "stsv:vehicle/box_truck_horn"
+      }
+    ]
+  },
+  "vehicle.box_truck.horn_end": {
+    "sounds": [
+      {
+        "name": "stsv:vehicle/box_truck_horn_end"
+      }
+    ]
+  },
+  "vehicle.box_truck.engine": {
+    "sounds": [
+      {
+        "name": "stsv:vehicle/box_truck_engine"
+      }
+    ]
   }
 }
