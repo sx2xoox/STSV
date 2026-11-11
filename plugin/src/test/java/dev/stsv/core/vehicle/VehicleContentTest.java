@@ -241,7 +241,7 @@ class VehicleContentTest {
                     if (f.getFileName().toString().equals("vehicles.yml")) continue;
                     String text0 = Files.readString(f);
                     if (f.getFileName().toString().equals("shop.yml")) {
-                        for (String id : ALL) if (!id.equals("hand_cart")) assertFalse(text0.contains(id), "only the hand cart is sold: " + id);
+                        for (String id : ALL) if (!id.equals("hand_cart")) assertFalse(text0.contains(id), "only generations 1-3 are sold: " + id);
                         continue;
                     }
                     String text = Files.readString(f);

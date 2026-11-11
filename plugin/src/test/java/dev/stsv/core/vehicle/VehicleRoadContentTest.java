@@ -173,7 +173,11 @@ class VehicleRoadContentTest {
                 for (Path f : files.filter(p -> p.toString().endsWith(".yml")).toList()) {
                     if (f.getFileName().toString().startsWith("vehicles")) continue;
                     String text = Files.readString(f);
-                    for (String id : ROAD) assertFalse(text.contains("stsv:" + id) || text.contains(" " + id + ":"), f + " mentions " + id);
+                    boolean shop = f.getFileName().toString().equals("shop.yml");   // generations 1-3 are sold there
+                    for (String id : ROAD) {
+                        if (shop && java.util.Set.of("hand_cart", "jige", "cargo_bicycle", "ox_cart", "delivery_scooter", "power_tiller").contains(id)) continue;
+                        assertFalse(text.contains("stsv:" + id) || text.contains(" " + id + ":"), f + " mentions " + id);
+                    }
                 }
             }
         }

@@ -497,7 +497,15 @@ buy:
     icon: stsv:hand_cart
     single: true          # 한 번에 1대씩
     items:
-      - { item: stsv:hand_cart, price: 100000 }      # 리어카 (짐칸 135칸, 끌고 감)
+      # 1세대
+      - { item: stsv:jige, price: 30000 }            # 지게 (입고 다님, 54칸 · 무게 30, 걸음 10% 느림)
+      - { item: stsv:hand_cart, price: 100000 }      # 리어카 (짐칸 135칸 · 무게 150, 끌고 감)
+      # 2세대
+      - { item: stsv:cargo_bicycle, price: 150000 }  # 짐자전거 (6.5칸/초, 27칸 · 무게 20)
+      - { item: stsv:ox_cart, price: 250000 }        # 소달구지 (4칸/초, 270칸 · 무게 400)
+      # 3세대
+      - { item: stsv:delivery_scooter, price: 400000 } # 배달 오토바이 (9.5칸/초, 54칸 · 무게 60)
+      - { item: stsv:power_tiller, price: 500000 }   # 경운기 + 짐칸 (5칸/초, 360칸 · 무게 500)
   # 치장: 직접 팔지 않고 치장 뽑기로 (코어의 /뽑기 화면이 열림). 가격·확률·나오는 치장은 contents/stsv/gacha.yml
   # (특정 치장 하나를 얻는 데 드는 돈의 기댓값을 예전 상점가에 맞춤). 이미 가진 치장은 교환권(거래소에서 사고팔 수 있음)으로 나옴.
   # 전설 치장(왕관, 천사의 고리, 천사·악마 날개, 한정 펫 3종)은 뽑기에도 없음: 주간 순위 1위 보상, 상인 행렬 사건 (아래 merchant.rare)

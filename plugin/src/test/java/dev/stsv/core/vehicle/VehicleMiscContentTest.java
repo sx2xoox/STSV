@@ -97,7 +97,8 @@ class VehicleMiscContentTest {
                     if (f.getFileName().toString().equals("vehicles_misc.yml")) continue;
                     String text = Files.readString(f);
                     assertFalse(text.contains("fishing_boat"), f + " mentions fishing_boat");
-                    assertFalse(text.matches("(?s).*\\bjige\\b.*"), f + " mentions jige");
+                    if (!f.getFileName().toString().equals("shop.yml"))   // the 지게 (1세대) is sold there
+                        assertFalse(text.matches("(?s).*\\bjige\\b.*"), f + " mentions jige");
                 }
             }
         }
