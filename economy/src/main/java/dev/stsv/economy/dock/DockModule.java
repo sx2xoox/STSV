@@ -171,6 +171,23 @@ public final class DockModule extends EcoModule {
         return docks.get(key(name));
     }
 
+    private String coverKey = "";
+    private Map<String, java.util.Set<Long>> cover = Map.of();
+
+    /** Whether a dock or a departure terminal stands in this chunk (no snow settles there: RoadModule). */
+    public boolean covers(String world, int cx, int cz) {
+        String k = docks.keySet() + "|" + terminals.keySet();
+        if (!k.equals(coverKey)) {
+            Map<String, java.util.Set<Long>> c = new java.util.HashMap<>();
+            for (Dock d : docks.values()) for (long[] ch : d.chunksTouched()) c.computeIfAbsent(d.world(), w -> new java.util.HashSet<>()).add(ch[0] << 32 ^ (ch[1] & 0xffffffffL));
+            for (Dock d : terminals.values()) for (long[] ch : d.chunksTouched()) c.computeIfAbsent(d.world(), w -> new java.util.HashSet<>()).add(ch[0] << 32 ^ (ch[1] & 0xffffffffL));
+            cover = c;
+            coverKey = k;
+        }
+        java.util.Set<Long> in = cover.get(world);
+        return in != null && in.contains((long) cx << 32 ^ (cz & 0xffffffffL));
+    }
+
     public java.util.Collection<Dock> docks() {
         return docks.values();
     }

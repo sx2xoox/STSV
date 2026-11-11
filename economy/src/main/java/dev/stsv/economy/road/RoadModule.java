@@ -25,6 +25,7 @@ import org.bukkit.entity.Display;
 import org.bukkit.entity.Entity;
 import org.bukkit.entity.Player;
 import org.bukkit.event.EventHandler;
+import org.bukkit.event.block.BlockFormEvent;
 import org.bukkit.event.world.EntitiesLoadEvent;
 
 import java.io.IOException;
@@ -112,7 +113,7 @@ public final class RoadModule extends EcoModule {
                 this::command, (s, a) -> {
                     if (a.length == 1) {
                         List<String> out = new ArrayList<>(eco.docks().names());
-                        out.addAll(List.of("기준점", "중지", "상태", "표지판"));
+                        out.addAll(List.of("기준점", "중지", "상태", "표지판", "눈치우기"));
                         return out;
                     }
                     if (a[0].equals("기준점")) return a.length == 2 ? List.of("설정", "보기", "초기화") : List.of();
@@ -166,6 +167,73 @@ public final class RoadModule extends EcoModule {
         int max = 0;
         for (int r : routes.values()) max = Math.max(max, r);
         return max + 1;
+    }
+
+    // ------------------------------------------------------------------------------------------
+    // Snow: never settles on a road (its lanes, kerbs, shoulders) nor in a dock's or terminal's chunks
+    // ------------------------------------------------------------------------------------------
+
+    private final Map<String, RoadNetwork> snowNets = new HashMap<>();
+    private long snowNetsAt;
+
+    /** Every road built in this world (cached a minute; a finished road clears the cache). */
+    RoadNetwork roads(String world) {
+        long now = System.currentTimeMillis();
+        if (now - snowNetsAt > 60_000) {
+            snowNets.clear();
+            snowNetsAt = now;
+        }
+        return snowNets.computeIfAbsent(world, w -> {
+            List<RoadNetwork.Road> roads = new ArrayList<>();
+            try {
+                Path dir = folder();
+                if (!Files.isDirectory(dir)) return RoadNetwork.NONE;
+                try (var files = Files.list(dir)) {
+                    for (Path f : files.filter(p -> p.toString().endsWith(".txt") && !p.getFileName().toString().equals(ORIGIN)).toList()) {
+                        RoadJob o = RoadJob.read(Files.readString(f, StandardCharsets.UTF_8));
+                        if (o.dock == null || !w.equals(o.world)) continue;
+                        RoadNetwork.Road r = built(o);
+                        if (r != null) roads.add(r);
+                    }
+                }
+            } catch (IOException | RuntimeException e) {
+                eco.getLogger().warning("[국도] 눈 막기용 길을 읽지 못함: " + e);
+            }
+            return RoadNetwork.of(roads);
+        });
+    }
+
+    /** Whether snow may not lie at this block (it is over a road's surface, or in a dock's or terminal's chunks). */
+    boolean snowFree(Block b) {
+        String w = b.getWorld().getName();
+        if (eco.docks() != null && eco.docks().covers(w, b.getX() >> 4, b.getZ() >> 4)) return true;
+        RoadNetwork.Spot spot = roads(w).at(b.getX(), b.getZ());
+        return spot != null && b.getY() >= spot.y() && b.getY() <= spot.y() + 3;
+    }
+
+    @EventHandler(ignoreCancelled = true)
+    public void onSnow(BlockFormEvent e) {
+        Material m = e.getNewState().getType();
+        if ((m == Material.SNOW || m == Material.POWDER_SNOW) && snowFree(e.getBlock())) e.setCancelled(true);
+    }
+
+    /** /관리자 국도 눈치우기 [반경]: snow layers on roads and in docks and terminals round the player go (loaded chunks). */
+    private int clearSnow(Player p, int radius) {
+        World w = p.getWorld();
+        int px = p.getLocation().getBlockX(), pz = p.getLocation().getBlockZ(), n = 0;
+        for (int x = px - radius; x <= px + radius; x++) {
+            for (int z = pz - radius; z <= pz + radius; z++) {
+                if (!w.isChunkLoaded(x >> 4, z >> 4)) continue;
+                Block top = w.getHighestBlockAt(x, z);
+                for (Block b = top; b.getY() >= top.getY() - 2; b = b.getRelative(BlockFace.DOWN)) {
+                    if ((b.getType() == Material.SNOW || b.getType() == Material.POWDER_SNOW) && snowFree(b)) {
+                        b.setType(Material.AIR, false);
+                        n++;
+                    }
+                }
+            }
+        }
+        return n;
     }
 
     /**
@@ -367,6 +435,16 @@ public final class RoadModule extends EcoModule {
     private void command(CommandSender s, String[] a) {
         if (a.length == 0 || a[0].equals("상태")) {
             status(s);
+            return;
+        }
+        if (a[0].equals("눈치우기")) {
+            if (!(s instanceof Player p)) return;
+            int r = 64;
+            try {
+                if (a.length > 1) r = Math.clamp(Integer.parseInt(a[1]), 1, 256);
+            } catch (NumberFormatException ignored) {
+            }
+            s.sendMessage(Lang.msg("road.snow-cleared", "blocks", clearSnow(p, r), "radius", r));
             return;
         }
         if (a[0].equals("표지판")) {
@@ -858,6 +936,7 @@ public final class RoadModule extends EcoModule {
                 "total", points.size()));
         if (job.cursor >= points.size()) {
             job.phase = RoadJob.Phase.DONE;
+            snowNets.clear();
             job.running = false;
             save();
             reset();
