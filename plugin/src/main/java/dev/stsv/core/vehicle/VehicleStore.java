@@ -42,6 +42,16 @@ public final class VehicleStore {
     /** Where a vehicle stands: world (uid, name), position of its ground centre, yaw. */
     public record Pos(UUID world, String worldName, double x, double y, double z, float yaw) {}
 
+    /**
+     * Is the world a vehicle stands in gone for good (it goes back to its owner as an item)? Not while a world with its
+     * id is loaded. Gone: a world of its name is loaded with another id (made again: /관리자 야생초기화), or none is and
+     * no folder of that name is left. Only not loaded now (the folder is there): it waits.
+     */
+    public static boolean worldGone(boolean worldLoaded, boolean sameNameLoaded, boolean folderLeft) {
+        if (worldLoaded) return false;
+        return sameNameLoaded || !folderLeft;
+    }
+
     public record Row(long id, String item, UUID owner, String ownerName, State state, long token, Pos pos, byte[] cargo,
                       long created, long updated) {}
 
@@ -173,6 +183,15 @@ public final class VehicleStore {
     public CompletableFuture<Boolean> reissue(long id, long newToken, long now) {
         return db.async(c -> Db.update(c, "UPDATE stsv_vehicle SET state = ?, token = ?, updated = ? WHERE id = ? AND state <> ?",
                 State.OWED.db(), newToken, now, id, State.WORLD.db()) == 1);
+    }
+
+    /**
+     * A vehicle just picked up whose item could not be handed over (its owner left meanwhile, or has no room): owed
+     * instead, so it is delivered on their next join ({@link #delivered}). Only the item of this token; true = done.
+     */
+    public CompletableFuture<Boolean> owe(long id, long token, long now) {
+        return db.async(c -> Db.update(c, "UPDATE stsv_vehicle SET state = ?, updated = ? WHERE id = ? AND token = ? AND state = ?",
+                State.OWED.db(), now, id, token, State.ITEM.db()) == 1);
     }
 
     /** An owed vehicle handed over (once: the second call for the same row finds nothing to change). */

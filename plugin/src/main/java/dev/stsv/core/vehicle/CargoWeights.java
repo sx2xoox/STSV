@@ -1,8 +1,11 @@
 package dev.stsv.core.vehicle;
 
 import java.util.ArrayList;
+import java.util.HashMap;
 import java.util.List;
+import java.util.Map;
 import java.util.function.BiPredicate;
+import java.util.function.Function;
 import java.util.function.ToDoubleFunction;
 import java.util.function.ToIntFunction;
 
@@ -45,32 +48,55 @@ public final class CargoWeights {
 
     /**
      * The same things in both beds, wherever they lie (a stack split in two or moved to another slot is not a change)?
-     * similar = the same kind of item (ItemStack#isSimilar), amount = how many in a slot.
+     * similar = the same kind of item (ItemStack#isSimilar), amount = how many in a slot. Every stack is one kind here
+     * (compared with every kind seen so far): use {@link #sameContents(Object[], Object[], Function, BiPredicate, ToIntFunction)}
+     * with a cheap key for big beds.
      */
     public static <T> boolean sameContents(T[] a, T[] b, BiPredicate<T, T> similar, ToIntFunction<T> amount) {
-        List<T> kinds = new ArrayList<>();
-        List<long[]> counts = new ArrayList<>();
-        add(a, 1, kinds, counts, similar, amount);
-        add(b, -1, kinds, counts, similar, amount);
-        for (long[] c : counts) if (c[0] != 0) return false;
+        return sameContents(a, b, t -> Boolean.TRUE, similar, amount);
+    }
+
+    /**
+     * {@link #sameContents(Object[], Object[], BiPredicate, ToIntFunction)}, grouped first by a cheap key (an item's id:
+     * similar stacks must have the same key), so similar is only asked within a group: about one call per stack for a
+     * bed of many kinds, not one per stack and kind (a 720-slot train of mixed goods synced on every click).
+     */
+    public static <T> boolean sameContents(T[] a, T[] b, Function<T, Object> key, BiPredicate<T, T> similar, ToIntFunction<T> amount) {
+        Map<Object, List<Kind<T>>> groups = new HashMap<>();
+        add(a, 1, groups, key, similar, amount);
+        add(b, -1, groups, key, similar, amount);
+        for (List<Kind<T>> g : groups.values()) for (Kind<T> k : g) if (k.count != 0) return false;
         return true;
     }
 
-    private static <T> void add(T[] bed, int sign, List<T> kinds, List<long[]> counts, BiPredicate<T, T> similar, ToIntFunction<T> amount) {
+    /** One kind of item in a group and how many of it (the first bed adds, the second takes away). */
+    private static final class Kind<T> {
+        final T first;
+        long count;
+
+        Kind(T first) {
+            this.first = first;
+        }
+    }
+
+    private static <T> void add(T[] bed, int sign, Map<Object, List<Kind<T>>> groups, Function<T, Object> key, BiPredicate<T, T> similar,
+                                ToIntFunction<T> amount) {
         if (bed == null) return;
         outer:
         for (T t : bed) {
             if (t == null) continue;
             int n = amount.applyAsInt(t);
             if (n <= 0) continue;
-            for (int i = 0; i < kinds.size(); i++) {
-                if (similar.test(kinds.get(i), t)) {
-                    counts.get(i)[0] += (long) sign * n;
+            List<Kind<T>> kinds = groups.computeIfAbsent(key.apply(t), k -> new ArrayList<>(1));
+            for (Kind<T> k : kinds) {
+                if (similar.test(k.first, t)) {
+                    k.count += (long) sign * n;
                     continue outer;
                 }
             }
-            kinds.add(t);
-            counts.add(new long[]{(long) sign * n});
+            Kind<T> k = new Kind<>(t);
+            k.count = (long) sign * n;
+            kinds.add(k);
         }
     }
 

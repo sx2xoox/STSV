@@ -70,6 +70,22 @@ public final class JigeStore {
         return db.async(c -> get(c, id));
     }
 
+    /**
+     * /관리자 지게 회수: a new token whatever the old one was (every item of it, worn or not, opens nothing from now on);
+     * the new item is made with this one. The load stays. Returns the row, or null (no such 지게).
+     */
+    public CompletableFuture<Row> reissue(long id, long newToken, long now) {
+        return db.async(c -> Db.update(c, "UPDATE stsv_jige SET token = ?, updated = ? WHERE id = ?", newToken, now, id) == 1 ? get(c, id) : null);
+    }
+
+    /** All 지게 (or one owner's), oldest first, at most limit. */
+    public CompletableFuture<List<Row>> list(UUID owner, int limit) {
+        return db.async(c -> owner == null
+                ? Db.query(c, "SELECT " + COLS + " FROM stsv_jige ORDER BY id LIMIT " + Math.max(1, limit), JigeStore::row)
+                : Db.query(c, "SELECT " + COLS + " FROM stsv_jige WHERE owner = ? ORDER BY id LIMIT " + Math.max(1, limit), JigeStore::row,
+                owner.toString()));
+    }
+
     private static String cut(String s) {
         if (s == null) return "?";
         return s.length() <= 16 ? s : s.substring(0, 16);

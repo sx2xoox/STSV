@@ -18,20 +18,27 @@ import org.bukkit.command.CommandSender;
 import org.bukkit.command.TabExecutor;
 import org.bukkit.configuration.ConfigurationSection;
 import org.bukkit.configuration.file.YamlConfiguration;
+import org.bukkit.entity.Item;
 import org.bukkit.entity.Player;
 import org.bukkit.event.EventHandler;
 import org.bukkit.event.EventPriority;
 import org.bukkit.event.HandlerList;
 import org.bukkit.event.Listener;
 import org.bukkit.event.block.Action;
+import org.bukkit.event.entity.EntityCombustEvent;
+import org.bukkit.event.entity.EntityDamageEvent;
+import org.bukkit.event.entity.ItemDespawnEvent;
+import org.bukkit.event.entity.ItemSpawnEvent;
 import org.bukkit.event.entity.PlayerDeathEvent;
 import org.bukkit.event.inventory.InventoryClickEvent;
 import org.bukkit.event.inventory.InventoryCloseEvent;
 import org.bukkit.event.inventory.InventoryDragEvent;
+import org.bukkit.event.player.PlayerChangedWorldEvent;
 import org.bukkit.event.player.PlayerInteractEvent;
 import org.bukkit.event.player.PlayerJoinEvent;
 import org.bukkit.event.player.PlayerQuitEvent;
 import org.bukkit.event.player.PlayerRespawnEvent;
+import org.bukkit.event.player.PlayerTeleportEvent;
 import org.bukkit.inventory.EquipmentSlot;
 import org.bukkit.inventory.Inventory;
 import org.bukkit.inventory.InventoryHolder;
@@ -64,6 +71,9 @@ import java.util.UUID;
  *   <li><b>Taken off</b> freely: the load stays in the database under its id and comes back when it is put on again
  *       ({@link JigeRules}). The item never holds the load; a copy of it opens nothing (its token is old).</li>
  *   <li><b>Death</b>: 지게 items are kept (not dropped); the load is untouched.</li>
+ *   <li><b>On the ground</b> a 지게 item never burns, blows up or despawns; one lost anyway is made again by
+ *       /관리자 지게 회수 (a new token: every old item of it is dead; the load stays with its number).</li>
+ *   <li><b>Teleporting</b> while wearing it breaks its load's trip off at once (a seal on it is void): {@link JigeRules#teleportBreaks}.</li>
  * </ul>
  */
 public final class JigeModule implements StsvModule, Listener, TabExecutor {
@@ -151,6 +161,9 @@ public final class JigeModule implements StsvModule, Listener, TabExecutor {
             command.setTabCompleter(this);
         }
         if (plugin.cosmetics() != null) plugin.cosmetics().backOverride(this::look);
+        plugin.admin().add("STSV", "지게", "목록 [플레이어] | 회수 <번호>",
+                "지게 목록(번호, 주인, 짐, 지고 있는 사람) / 주인에게 새 아이템으로 돌려주기(예전 아이템은 못 씀, 짐은 그대로)", this::admin,
+                (s, a) -> a.length == 1 ? List.of("목록", "회수") : List.of());
         for (Player p : Bukkit.getOnlinePlayers()) JigeSpeed.remove(p.getAttribute(Attribute.MOVEMENT_SPEED));
         task = Bukkit.getScheduler().runTaskTimer(plugin, () -> {
             checks++;
@@ -355,10 +368,11 @@ public final class JigeModule implements StsvModule, Listener, TabExecutor {
             trip = VehicleTrip.start(at.getWorld().getName(), at.getX(), at.getZ(), System.currentTimeMillis());
             trips.put(row.id(), trip);
         }
-        trip.seen = null;
         s.lastWorld = at.getWorld().getName();
         s.lastX = at.getX();
         s.lastZ = at.getZ();
+        // saved now (a new trip too) with where it is worn: after a crash while worn it goes on from about here
+        saveTrip(row.id(), trip, p);
         sessions.put(p.getUniqueId(), s);
         holders.put(row.id(), p.getUniqueId());
         JigeSpeed.apply(p.getAttribute(Attribute.MOVEMENT_SPEED), spec.slowdown());
@@ -518,7 +532,7 @@ public final class JigeModule implements StsvModule, Listener, TabExecutor {
             }
         }
         if (!changed) return;
-        loadChanged(s, !CargoWeights.sameContents(before, s.load, ItemStack::isSimilar, ItemStack::getAmount));
+        loadChanged(s, !CargoWeights.sameContents(before, s.load, VehicleModule::cargoKey, ItemStack::isSimilar, ItemStack::getAmount));
         store.save(s.id, s.token, VehicleModule.encode(s.load), System.currentTimeMillis()).thenAccept(ok -> {
             if (!ok) plugin.getLogger().warning("[지게] #" + s.id + " 저장 실패 (토큰이 바뀜)");
         });
@@ -633,8 +647,17 @@ public final class JigeModule implements StsvModule, Listener, TabExecutor {
         s.lastWorld = p.getWorld().getName();
         s.lastX = p.getX();
         s.lastZ = p.getZ();
+        saveTrip(s.id, trip, p);
+    }
+
+    /**
+     * Writes a 지게's trip, with where its wearer is now as where it was last seen on them (never left empty while worn:
+     * after a crash it is put on again about there, and its trip, and a seal on it, go on).
+     */
+    private void saveTrip(long id, VehicleTrip trip, Player p) {
+        if (p != null) trip.seen = new VehicleTrip.Seen(p.getWorld().getName(), p.getX(), p.getZ());
         trip.dirty = false;
-        tripStore.save(VehicleTripStore.jige(s.id), trip.snapshot());
+        tripStore.save(VehicleTripStore.jige(id), trip.snapshot(), trip.seen);
     }
 
     /**
@@ -647,23 +670,67 @@ public final class JigeModule implements StsvModule, Listener, TabExecutor {
         org.bukkit.Location at = p.getLocation();
         String w = at.getWorld().getName();
         double d = w.equals(s.lastWorld) ? Math.hypot(at.getX() - s.lastX, at.getZ() - s.lastZ) : Double.POSITIVE_INFINITY;
-        if (d > MAX_WALK) trip.reset(w, at.getX(), at.getZ(), System.currentTimeMillis());
-        else trip.moved(d);
+        if (d > MAX_WALK) {
+            broke(p, s, at);
+            return;
+        }
+        trip.moved(d);
         s.lastWorld = w;
         s.lastX = at.getX();
         s.lastZ = at.getZ();
-        if (trip.dirty && checks % 10 == 0) {
-            trip.dirty = false;
-            tripStore.save(VehicleTripStore.jige(s.id), trip.snapshot());
-        }
+        if (trip.dirty && checks % 10 == 0) saveTrip(s.id, trip, p);
+    }
+
+    /**
+     * The load skipped the road (a teleport, another world): its trip starts again where the wearer arrives, saved at
+     * once, and a seal on it is void now (VehicleModule#broken: the economy server's 출발 터미널), not only at the dock.
+     */
+    private void broke(Player p, Session s, org.bukkit.Location to) {
+        VehicleTrip trip = trips.get(s.id);
+        if (trip == null) return;
+        String w = to.getWorld().getName();
+        trip.reset(w, to.getX(), to.getZ(), System.currentTimeMillis());
+        s.lastWorld = w;
+        s.lastX = to.getX();
+        s.lastZ = to.getZ();
+        trip.seen = new VehicleTrip.Seen(w, to.getX(), to.getZ());
+        saveTrip(s.id, trip, null);
+        if (plugin.vehicles() != null) plugin.vehicles().broken(VehicleTripStore.jige(s.id));
+    }
+
+    /**
+     * A wearer teleported (a command, /tpa, a pearl, another plugin): further than {@link JigeRules#TELEPORT_STEP}, or into
+     * another world, the trip is broken off at once ({@link #broke}), not at the next check a second later (a sale could
+     * come first). A short hop (stepping out of a vehicle's seat) is walking: the next check counts it.
+     */
+    @EventHandler(priority = EventPriority.MONITOR, ignoreCancelled = true)
+    public void onTeleport(PlayerTeleportEvent e) {
+        Session s = sessions.get(e.getPlayer().getUniqueId());
+        if (s == null) return;
+        org.bukkit.Location from = e.getFrom(), to = e.getTo();
+        boolean same = from.getWorld() != null && from.getWorld().equals(to.getWorld());
+        if (JigeRules.teleportBreaks(same, same ? Math.hypot(to.getX() - from.getX(), to.getZ() - from.getZ()) : 0)) broke(e.getPlayer(), s, to);
+    }
+
+    /** Into another world (a portal: its own event, not a teleport one): the trip is broken off there. */
+    @EventHandler(priority = EventPriority.MONITOR)
+    public void onWorldChange(PlayerChangedWorldEvent e) {
+        Session s = sessions.get(e.getPlayer().getUniqueId());
+        if (s != null && !e.getPlayer().getWorld().getName().equals(s.lastWorld)) broke(e.getPlayer(), s, e.getPlayer().getLocation());
     }
 
     /** The load on a player's back as a dock sees it (null: they wear no 지게 now). Its id is the 지게's negated. */
     public Hauled hauled(Player p) {
         Session s = sessions.get(p.getUniqueId());
         if (s == null) return null;
+        walked(p, s);   // the way since the last check (a teleport since then breaks the trip off before any sale)
         sync(s);
-        VehicleTrip trip = trips.computeIfAbsent(s.id, k -> VehicleTrip.start(p.getWorld().getName(), p.getX(), p.getZ(), System.currentTimeMillis()));
+        VehicleTrip trip = trips.get(s.id);
+        if (trip == null) {
+            trip = VehicleTrip.start(p.getWorld().getName(), p.getX(), p.getZ(), System.currentTimeMillis());
+            trips.put(s.id, trip);
+            saveTrip(s.id, trip, p);
+        }
         ItemStack[] copy = new ItemStack[s.load.length];
         for (int i = 0; i < copy.length; i++) copy[i] = s.load[i] == null ? null : s.load[i].clone();
         org.bukkit.Location at = p.getLocation();
@@ -703,6 +770,165 @@ public final class JigeModule implements StsvModule, Listener, TabExecutor {
     /** Opens a player's 지게 as /지게 does (without asking a dock first). */
     public void openFor(Player p) {
         open(p);
+    }
+
+    /** Closes a 지게's open view on its wearer, what they did in it stored first (VehicleModule#closeLoad). */
+    void closeView(long id) {
+        UUID who = holders.get(id);
+        Session s = who == null ? null : sessions.get(who);
+        if (s == null || s.id != id || s.view == null) return;
+        sync(s);
+        Player p = Bukkit.getPlayer(who);
+        Inventory view = s.view;
+        s.view = null;
+        if (p != null && p.getOpenInventory().getTopInventory() == view) p.closeInventory();
+    }
+
+    // ------------------------------------------------------------------------------------------
+    // A 지게 item on the ground: never burns, blows up or despawns (its load is bound to it)
+    // ------------------------------------------------------------------------------------------
+
+    @EventHandler(priority = EventPriority.MONITOR, ignoreCancelled = true)
+    public void onItemSpawn(ItemSpawnEvent e) {
+        Item item = e.getEntity();
+        if (jige(item.getItemStack()).isEmpty()) return;
+        item.setUnlimitedLifetime(true);
+        item.setInvulnerable(true);   // fire, lava, explosions, cactus (not the void: /관리자 지게 회수)
+    }
+
+    @EventHandler(ignoreCancelled = true)
+    public void onItemDamage(EntityDamageEvent e) {
+        if (e.getEntity() instanceof Item i && e.getCause() != EntityDamageEvent.DamageCause.VOID && jige(i.getItemStack()).isPresent()) e.setCancelled(true);
+    }
+
+    @EventHandler(ignoreCancelled = true)
+    public void onItemBurn(EntityCombustEvent e) {
+        if (e.getEntity() instanceof Item i && jige(i.getItemStack()).isPresent()) e.setCancelled(true);
+    }
+
+    @EventHandler(ignoreCancelled = true)
+    public void onItemDespawn(ItemDespawnEvent e) {
+        if (jige(e.getEntity().getItemStack()).isPresent()) e.setCancelled(true);
+    }
+
+    // ------------------------------------------------------------------------------------------
+    // /관리자 지게 목록 [플레이어] | 회수 <번호>
+    // ------------------------------------------------------------------------------------------
+
+    /** 지게 with a 회수 on the way */
+    private final Set<Long> recalling = new HashSet<>();
+
+    private void admin(CommandSender s, String[] a) {
+        String sub = a.length == 0 ? "목록" : a[0];
+        switch (sub) {
+            case "목록", "list" -> {
+                String player = a.length > 1 ? a[1] : null;
+                if (player == null) listRows(s, null);
+                else dev.stsv.core.nickname.Names.find(player, found -> {
+                    if (found.isEmpty()) s.sendMessage(Lang.msg("vehicle.admin-no-player", "player", player));
+                    else listRows(s, found.get());
+                });
+            }
+            case "회수", "recall" -> {
+                long id = -1;
+                if (a.length > 1) {
+                    try {
+                        id = Long.parseLong(a[1].startsWith("#") ? a[1].substring(1) : a[1]);
+                    } catch (NumberFormatException ex) {
+                        id = -1;
+                    }
+                }
+                if (id <= 0) s.sendMessage(Lang.msg("jige.admin-usage"));
+                else recall(s, id);
+            }
+            default -> s.sendMessage(Lang.msg("jige.admin-usage"));
+        }
+    }
+
+    private void listRows(CommandSender s, UUID owner) {
+        store.list(owner, 100).thenAccept(rows -> Bukkit.getScheduler().runTask(plugin, () -> {
+            s.sendMessage(Lang.msg("jige.admin-list", "count", rows.size()));
+            for (JigeStore.Row r : rows) {
+                UUID who = holders.get(r.id());
+                Session held = who == null ? null : sessions.get(who);
+                int used = 0;
+                if (held != null && held.id == r.id()) used = held.used();
+                else for (ItemStack it : decode(r.contents())) if (it != null) used++;
+                Player wearer = who == null ? null : Bukkit.getPlayer(who);
+                String worn = wearer == null ? "" : Lang.raw("jige.admin-worn", "player", wearer.getName());
+                s.sendMessage(dev.stsv.core.util.Text.mm(Lang.raw("jige.admin-line", "id", r.id(), "owner", r.ownerName(), "used", used, "worn", worn)));
+            }
+        }));
+    }
+
+    /** The 지게 item to make again (the kind this one is: its wearer's, else the first 지게 item there is). */
+    private Optional<CustomItem> itemFor(long id) {
+        UUID who = holders.get(id);
+        Session held = who == null ? null : sessions.get(who);
+        if (held != null && held.id == id) return Optional.of(held.item);
+        return specs.keySet().stream().sorted(java.util.Comparator.comparing(NamespacedKey::asString)).findFirst()
+                .flatMap(k -> plugin.content().item(k.asString()));
+    }
+
+    /**
+     * /관리자 지게 회수: a lost 지게 (burnt before items were kept from fire, fallen into the void, given away) made again for
+     * its owner with a new token: every old item of it opens nothing from now on. Its load stays bound to its number and is
+     * there when the new item is put on. To the mailbox (economy server), else into the owner's inventory now.
+     */
+    private void recall(CommandSender by, long id) {
+        if (recalling.contains(id)) {
+            by.sendMessage(Lang.msg("jige.admin-busy", "id", id));
+            return;
+        }
+        store.get(id).thenAccept(row -> Bukkit.getScheduler().runTask(plugin, () -> {
+            Optional<CustomItem> item = itemFor(id);
+            if (row == null || item.isEmpty()) {
+                by.sendMessage(Lang.msg("jige.admin-unknown", "id", id));
+                return;
+            }
+            java.util.function.BiConsumer<UUID, ItemStack> box = plugin.vehicles() == null ? null : plugin.vehicles().mailboxHook();
+            Player owner = Bukkit.getPlayer(row.owner());
+            if (box == null && (owner == null || owner.getInventory().firstEmpty() < 0)) {
+                by.sendMessage(Lang.msg("jige.admin-owner-away", "owner", row.ownerName()));
+                return;
+            }
+            if (recalling.contains(id)) return;
+            letGo(id);   // whoever wears it now lets go first: its load is saved with the token they hold
+            recalling.add(id);
+            long token = newToken();
+            store.reissue(id, token, System.currentTimeMillis()).whenComplete((done, err) -> Bukkit.getScheduler().runTask(plugin, () -> {
+                recalling.remove(id);
+                if (err != null || done == null) {
+                    by.sendMessage(Lang.msg("jige.admin-unknown", "id", id));
+                    return;
+                }
+                letGo(id);   // an old copy claimed just before the new token: it holds an old token now
+                ItemStack it = item.get().create(1);
+                stamp(it, id, token);
+                Player o = Bukkit.getPlayer(row.owner());
+                if (box != null) box.accept(row.owner(), it);
+                else if (o != null && o.getInventory().addItem(it).isEmpty()) {
+                    o.playSound(o.getLocation(), Sound.ENTITY_ITEM_PICKUP, 0.7f, 0.9f);
+                } else {
+                    // they left or filled up meanwhile: the admin keeps it to hand over (the old copies are dead already)
+                    if (by instanceof Player admin) for (ItemStack left : admin.getInventory().addItem(it).values()) admin.getWorld().dropItem(admin.getLocation(), left);
+                    by.sendMessage(Lang.msg("jige.admin-kept", "id", id, "owner", row.ownerName()));
+                    plugin.getLogger().info("[지게] #" + id + " 회수: 주인 " + row.ownerName() + " 에게 못 줌, " + by.getName() + " 이(가) 받음");
+                    return;
+                }
+                if (o != null) o.sendMessage(Lang.msg("jige.returned", "id", id));
+                by.sendMessage(Lang.msg("jige.admin-returned", "id", id, "owner", row.ownerName()));
+                plugin.getLogger().info("[지게] " + by.getName() + " 님이 #" + id + " 를 " + row.ownerName() + " 에게 새 아이템으로 돌려보냄 (예전 아이템 무효)");
+            }));
+        }));
+    }
+
+    /** Whoever wears this 지게 now takes it off as far as the plugin knows (saved; the item stays on them, dead after a 회수). */
+    private void letGo(long id) {
+        UUID who = holders.get(id);
+        Session s = who == null ? null : sessions.get(who);
+        Player p = who == null ? null : Bukkit.getPlayer(who);
+        if (s != null && p != null && s.id == id) end(p, s);
     }
 
     private static ItemStack[] decode(byte[] bytes) {

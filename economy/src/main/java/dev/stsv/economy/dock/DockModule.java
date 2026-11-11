@@ -109,6 +109,7 @@ public final class DockModule extends EcoModule {
             core.vehicles().cargoWeight(this::weigh);
             core.vehicles().cargoClick(this::bedClicked);
             core.vehicles().cargoSeal(this::seal);
+            core.vehicles().tripBroken(this::broken);
         }
         STSVPlugin.get().admin().add(EcoPlugin.ADMIN_OWNER, "출발지", "설치 <이름> | 목록 | 제거 <이름> | 다시꾸미기 <이름>",
                 "출발 터미널: 지금 자리에 짓기(보는 방향, 앞이 출구) — 화물 검사소·검사대·주차장, 국도 기준점이 그 출구로 / 목록 / 기록 지우기 / 장식만 다시",
@@ -142,6 +143,7 @@ public final class DockModule extends EcoModule {
             core.vehicles().cargoWeight(null);
             core.vehicles().cargoClick(null);
             core.vehicles().cargoSeal(null);
+            core.vehicles().tripBroken(null);
         }
         if (building != null) building.cancel();
         if (scout != null) scout.queue.stop();
@@ -344,13 +346,23 @@ public final class DockModule extends EcoModule {
 
     /** A trip whose load is not what was sealed: void (unsealed, never paid). */
     private void voidTrip(CargoTrip t, Player tell) {
+        voidTrip(t, tell, "terminal.voided", "짐이 검사 때와 다름");
+    }
+
+    private void voidTrip(CargoTrip t, Player tell, String key, String why) {
         CargoTrip v = t.end(CargoTrip.Status.VOID, now());
         sealed.remove(t.vehicle());
         trips.end(v);
-        eco.getLogger().info("[출발 터미널] 운송 #" + t.id() + " 무효 (짐이 검사 때와 다름): " + t);
-        if (tell != null) tell.sendMessage(Lang.msg("terminal.voided", "dock", t.dock(), "terminal", t.terminal()));
+        eco.getLogger().info("[출발 터미널] 운송 #" + t.id() + " 무효 (" + why + "): " + t);
+        if (tell != null) tell.sendMessage(Lang.msg(key, "dock", t.dock(), "terminal", t.terminal()));
         Player o = Bukkit.getPlayer(t.owner());
-        if (o != null && o != tell) o.sendMessage(Lang.msg("terminal.voided", "dock", t.dock(), "terminal", t.terminal()));
+        if (o != null && o != tell) o.sendMessage(Lang.msg(key, "dock", t.dock(), "terminal", t.terminal()));
+    }
+
+    /** A load's trip was broken off (its 지게's wearer teleported: the core says so at once): its seal is void now. */
+    private void broken(long id) {
+        CargoTrip t = sealed.get(id);
+        if (t != null) voidTrip(t, null, "terminal.voided-teleport", "순간이동");
     }
 
     /** The bed as the dock trade sees it. */
@@ -935,6 +947,9 @@ public final class DockModule extends EcoModule {
 
     /** Seals the load for the chosen dock, checked again against the load as it is now (same bed, in the bay, still). */
     private void seal(Player p, Inspect in) {
+        // whoever still has its bed (or 지게) open loses the view first, what they did stored: they cannot take anything out
+        // of the sealed load through it, and the load checked below is the one sealed (its version moved on if they did)
+        if (core.vehicles() != null) core.vehicles().closeLoad(in.vehicle);
         Hauled h = again(p, in.vehicle);
         if (h == null || h.version() != in.version || !mayUse(p, h) || terminalOf(h) != in.terminal || h.moving() || sealed.containsKey(h.id())) {
             p.sendMessage(Lang.msg("dock.changed"));
@@ -1251,7 +1266,7 @@ public final class DockModule extends EcoModule {
                 rows.add(new Row(d, RouteStats.of(h, w, step, sh, sw, aw), end[0], end[1]));
             }
             rows.sort(Comparator.comparingDouble(r -> r.stats().score()));
-            to.sendMessage(Lang.msg("dock.scout-head", "distance", distance, "world", world.getName(), "from", from));
+            to.sendMessage(Lang.msg("dock.scout-head", "distance", distance, "from", from));
             int rank = 1;
             for (Row r : rows) {
                 RouteStats st = r.stats();

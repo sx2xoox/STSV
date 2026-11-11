@@ -170,6 +170,49 @@ class CargoTripTest {
         assertTrue(CargoWeights.sameContents(new Stack[0], new Stack[3], (a, b) -> true, Stack::n), "empty is empty");
     }
 
+    @Test
+    void aBigMixedBedIsComparedByGroupsQuicklyAndRightly() {
+        // a 720-slot train of 240 kinds (40 materials x 6 variants each, the variants alike by key: custom goods on paper)
+        int slots = 720;
+        Stack[] before = new Stack[slots];
+        for (int i = 0; i < slots; i++) before[i] = i % 7 == 0 ? null : new Stack("m" + i % 40 + "#" + i % 240, 1 + i % 64);
+        java.util.function.Function<Stack, Object> key = s -> s.id().substring(0, s.id().indexOf('#'));
+        long[] calls = {0};
+        java.util.function.BiPredicate<Stack, Stack> similar = (a, b) -> {
+            calls[0]++;
+            return a.id().equals(b.id());
+        };
+        // moved around (reversed) and one kind split over two slots: no change
+        Stack[] moved = new Stack[slots];
+        for (int i = 0; i < slots; i++) moved[i] = before[slots - 1 - i];
+        int split = 1;
+        while (moved[split] == null || moved[split].n() < 2 || moved[split - 1] != null) split++;
+        Stack whole = moved[split];
+        moved[split] = new Stack(whole.id(), whole.n() - 1);
+        moved[split - 1] = new Stack(whole.id(), 1);
+        assertTrue(CargoWeights.sameContents(before, moved, key, similar, Stack::n));
+        assertTrue(CargoWeights.sameContents(before, moved, similar, Stack::n), "the same answer as without keys");
+        // isSimilar only within a group: at most (stacks) x (kinds in a group = 6), not stacks x 240
+        calls[0] = 0;
+        CargoWeights.sameContents(before, moved, key, similar, Stack::n);
+        assertTrue(calls[0] <= 2L * slots * 6, "isSimilar calls: " + calls[0]);
+        // one item fewer, or one swapped for a kind in the same group: a change
+        Stack[] less = moved.clone();
+        less[split] = new Stack(whole.id(), whole.n() - 2);
+        assertFalse(CargoWeights.sameContents(before, less, key, similar, Stack::n));
+        Stack[] swapped = moved.clone();
+        String id = whole.id();
+        String other = id.substring(0, id.indexOf('#')) + "#x";
+        swapped[split - 1] = new Stack(other, 1);
+        assertFalse(CargoWeights.sameContents(before, swapped, key, similar, Stack::n));
+        assertFalse(CargoWeights.sameContents(before, swapped, similar, Stack::n), "the same answer as without keys");
+        // and fast: a thousand syncs of the whole train well under a second
+        long t0 = System.nanoTime();
+        for (int i = 0; i < 1000; i++) CargoWeights.sameContents(before, moved, key, similar, Stack::n);
+        long ms = (System.nanoTime() - t0) / 1_000_000;
+        assertTrue(ms < 2000, "1000 x 720 slots took " + ms + " ms");
+    }
+
     // ------------------------------------------------------------------------------------------
     // Every vehicle's payload (README "적재 무게")
     // ------------------------------------------------------------------------------------------

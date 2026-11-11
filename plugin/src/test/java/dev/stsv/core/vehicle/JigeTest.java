@@ -107,6 +107,38 @@ class JigeTest {
         assertTrue(JigeRules.mayTakeOff(0) && JigeRules.mayTakeOff(54), "taken off full or empty: the load stays bound to its id");
     }
 
+    /** A teleport carries the load off the road: further than a step, or into another world, its trip is broken off. */
+    @Test
+    void aTeleportBreaksTheTripOffButSteppingOutOfASeatDoesNot() {
+        assertFalse(JigeRules.teleportBreaks(true, 0), "nowhere");
+        assertFalse(JigeRules.teleportBreaks(true, 2.5), "out of a vehicle's seat, beside it");
+        assertFalse(JigeRules.teleportBreaks(true, JigeRules.TELEPORT_STEP), "a step");
+        assertTrue(JigeRules.teleportBreaks(true, JigeRules.TELEPORT_STEP + 0.01), "further: a teleport");
+        assertTrue(JigeRules.teleportBreaks(true, 7000), "/tpa to the dock");
+        assertTrue(JigeRules.teleportBreaks(false, 0), "another world, wherever");
+        assertTrue(JigeRules.teleportBreaks(true, Double.NaN), "not known: broken off");
+    }
+
+    /** /관리자 지게 회수: a new token for the 지게 whatever the old one was (every old item dies), the load stays. */
+    @Test
+    void anAdminRecallKillsEveryOldItemAndKeepsTheLoad() {
+        JigeStore.Row a = store.create(owner, "Owner", 111, 1000).join();
+        byte[] load = {1, 2, 3};
+        assertTrue(store.save(a.id(), 111, load, 1100).join());
+        JigeStore.Row b = store.create(UUID.randomUUID(), "Other", 5, 1000).join();
+        assertEquals(2, store.list(null, 100).join().size());
+        assertEquals(List.of(a.id()), store.list(owner, 100).join().stream().map(JigeStore.Row::id).toList(), "one owner's");
+        JigeStore.Row again = store.reissue(a.id(), 222, 1200).join();
+        assertNotNull(again);
+        assertEquals(222, again.token());
+        assertArrayEquals(load, again.contents(), "the load stays with the number");
+        assertNull(store.claim(a.id(), 111, 333, 1300).join(), "the old item (and every copy of it) opens nothing");
+        assertFalse(store.save(a.id(), 111, new byte[]{9}, 1300).join(), "nor saves over the load");
+        assertNotNull(store.claim(a.id(), 222, 333, 1300).join(), "the new item does");
+        assertNull(store.reissue(99999, 1, 1300).join(), "no such 지게");
+        assertEquals(5, store.get(b.id()).join().token(), "the others are untouched");
+    }
+
     @Test
     void openingAndDying() {
         assertEquals(JigeRules.Open.NOT_WORN, JigeRules.open(false, false, false));

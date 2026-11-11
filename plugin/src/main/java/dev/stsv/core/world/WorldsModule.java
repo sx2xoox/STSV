@@ -761,6 +761,8 @@ public final class WorldsModule implements StsvModule, Listener {
                 p.sendMessage(Lang.msg("worlds.reset-moved"));
             }
         }
+        // vehicles standing there go back to their owners as items (the new worlds get new ids: they would never show)
+        if (plugin.vehicles() != null) plugin.vehicles().worldsReset(worlds);
         boolean unloaded = true;
         for (World w : worlds) unloaded &= Bukkit.unloadWorld(w, false);
         if (!unloaded) {
@@ -777,6 +779,7 @@ public final class WorldsModule implements StsvModule, Listener {
             Bukkit.getScheduler().runTask(plugin, () -> {
                 boolean created = createWild(new Random().nextLong());
                 resetting = false;
+                if (plugin.vehicles() != null) plugin.vehicles().returnStranded();   // any left behind (busy during the reset)
                 if (!created || !done) sender.sendMessage(Lang.msg("worlds.reset-failed"));
                 else Bukkit.broadcast(Lang.msg("worlds.reset-done", "world", Lang.raw("worlds.wild")));
             });

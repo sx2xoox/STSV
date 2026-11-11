@@ -11,7 +11,7 @@ import java.util.UUID;
  *       land members: they share a home, so they share its cars) and admins. Anyone else who gets in rides as a
  *       passenger.</li>
  *   <li><b>Pick up</b> (back into an item): its owner and admins only (not the allowed players), only when nobody rides
- *       or pulls it, nobody has its bed open and the bed is empty (the load stays in the vehicle, never in an item, so it
+ *       or pulls it (passengers alone step out first: {@link #ejectPassengers}), nobody has its bed open and the bed is empty (the load stays in the vehicle, never in an item, so it
  *       cannot be copied).</li>
  *   <li>Land: placing it asks the land protection like placing a block (own land, or the wild world); driving through
  *       anyone's land, getting in and out there, and picking up your own vehicle there are allowed (it is your thing,
@@ -61,6 +61,15 @@ public final class VehicleAccess {
     /** Who may be allowed: someone other than the owner. */
     public static boolean mayGrant(UUID owner, UUID player) {
         return owner != null && player != null && !owner.equals(player);
+    }
+
+    /**
+     * Picking up a vehicle with only passengers in it (nobody in the driver's seat): its owner or an admin asks them out
+     * (they step out beside it) and picks it up; else anyone could keep the owner from taking their vehicle by sitting
+     * in it. A driver is never put out (they may be driving).
+     */
+    public static boolean ejectPassengers(UUID owner, UUID player, boolean admin, boolean driver, boolean passengers) {
+        return (admin || player.equals(owner)) && !driver && passengers;
     }
 
     /**
