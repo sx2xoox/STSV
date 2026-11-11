@@ -147,23 +147,47 @@ def text_image(text):
     return im, width
 
 
-def sign_elements(signs, centre, tex):
-    """The direction signs: the model as the plugin's item display shows it, each text display a plane with its words."""
+_MODELS = {}
+
+
+def _model(name, tex):
+    """A pack model's preview elements (built once)."""
     import economy_models as M
-    cx, cy, cz = centre
-    pv = M.ALL["road_sign"]().to_preview()
+    if name not in _MODELS:
+        _MODELS[name] = M.ALL[name]().to_preview()
+    pv = _MODELS[name]
     tex.update(pv["textures"])
+    return pv["elements"]
+
+
+def _placed(elements, at, yaw, scale, lift):
+    """Model elements as an item display (FIXED) shows them at `at` (preview px): model point m -> (m - 8) * scale from
+    the entity, lifted `lift` px; turned 180 degrees, then by the yaw."""
+    ex, ey, ez = at
+    fn = lambda q: [ex + (q[0] - 8) * scale, ey + (q[1] - 8) * scale + lift, ez + (q[2] - 8) * scale]
+    out = []
+    for e in elements:
+        e = json.loads(json.dumps(e))
+        a, b = fn(e["from"]), fn(e["to"])
+        e["from"], e["to"] = [min(a[i], b[i]) for i in range(3)], [max(a[i], b[i]) for i in range(3)]
+        e["post"] = [["y", -(yaw + 180), [ex, ey, ez]]]
+        out.append(e)
+    return out
+
+
+def sign_elements(signs, centre, tex):
+    """The direction signs: the model as the plugin's item display shows it (the small sign lifted 1.5, the guide sign 2:
+    RoadSigns.lift), a guide sign's arrows (each its own model, scaled from 1.5 blocks to its size), each text display a
+    plane with its words."""
+    cx, cy, cz = centre
     els = []
     for sg in signs:
-        ex, ey, ez = (sg["x"] - cx) * 16, (sg["y"] - cy) * 16, (sg["z"] - cz) * 16
-        # model point m -> (m - 8) * 2 from the entity, lifted 1.5 blocks; FIXED turns it 180 degrees, then the yaw
-        fn = lambda q: [ex + (q[0] - 8) * 2, ey + (q[1] - 8) * 2 + 24, ez + (q[2] - 8) * 2]
-        for e in pv["elements"]:
-            e = json.loads(json.dumps(e))
-            a, b = fn(e["from"]), fn(e["to"])
-            e["from"], e["to"] = [min(a[i], b[i]) for i in range(3)], [max(a[i], b[i]) for i in range(3)]
-            e["post"] = [["y", -(sg["yaw"] + 180), [ex, ey, ez]]]
-            els.append(e)
+        at = ((sg["x"] - cx) * 16, (sg["y"] - cy) * 16, (sg["z"] - cz) * 16)
+        guide = sg.get("model") == "guide"
+        els += _placed(_model("road_sign_guide" if guide else "road_sign", tex), at, sg["yaw"], 2, 32 if guide else 24)
+        for a in sg.get("arrows", []):
+            pa = ((a["x"] - cx) * 16, (a["y"] - cy) * 16, (a["z"] - cz) * 16)
+            els += _placed(_model("road_arrow_" + a["arrow"], tex), pa, sg["yaw"], a["size"] / 1.5, 0)
         for t in sg["texts"]:
             im, w = text_image(t["text"])
             key = "text_" + "_".join(f"{ord(c):x}" for c in t["text"])
@@ -461,9 +485,14 @@ def scenes(strip):
         ("f", "(바) 하역장 입구까지",
          "마지막 20칸은 입구로 곧게, 넓어지고 횡단보도와 '하역장 입구' 글씨, 갓길은 하역장 바닥처럼 포장해 그 높이로 이어짐",
          (1412, 1460, 136, 192, 58, 76), {"az": -152, "el": 34, "k": 1.0, "radius": 34, "centre": (1436, 64, 160)}, None),
-        ("g", "(사) 갈림길: 다른 하역장 길이 갈라짐",
-         "먼저 있던 길(가로)의 차로는 그대로, 갓돌만 같은 높이로 포장. 모서리 넓힘, 횡단보도, 두 하역장을 적은 갈림길 표지판",
-         (1146, 1196, -44, 14, 56, 76), {"az": -40, "el": 38, "k": 1.0, "radius": 36, "centre": (1170, 64, -12)}, None),
+        ("g", "(사) 갈림길: 어디로 가는지 미리, 갈라지는 곳에서, 지나서 다시",
+         "줄기 길 오른쪽에 120·40칸 앞 예고 안내판(↖ 동해 하역장 / ↑ 서해 하역장, 거리는 표지판에서), 두 길 사이 V 에 갈림 안내판(↖ ↗), "
+         "지나서 확인 표지판, 반대쪽엔 돌아가는 길(↑ 본사 출발 터미널). 먼저 있던 길의 차로는 그대로, 갓돌만 같은 높이로 포장",
+         (1100, 1196, -64, 18, 56, 84), {"az": -103, "el": 15, "k": 1.0, "radius": 50, "centre": (1150, 69, -8), "fov": 32},
+         lambda x, y, z: x < 1140 and y > lv(x) - 1 and (z < -5 or z > 5)),
+        ("i", "(자) 반 칸 다리: 난간은 온 블록 받침 위에",
+         "반 칸 높이(반 블록) 다리 상판에서도 가장자리는 돌벽돌 온 블록, 난간·가로등은 그 위에 서서 떠 있지 않음. 성토 구간 가드레일은 갓길 흙 위",
+         (874, 946, -12, 12, 46, 76), {"az": -146, "el": 24, "k": 1.0, "radius": 30, "centre": (897, 62, 0), "fov": 28}, None),
         ("h", "(아) 입체 교차: 낮은 길 위로 고가",
          "기존 길보다 너무 높으면 같은 높이로 만나지 않고 그 위로 다리(아래로 6칸 넘게 비움, 교각은 기존 길 밖)",
          (932, 978, -40, 24, 50, 74), {"az": 160, "el": 22, "k": 1.0, "radius": 34, "centre": (955, 60, 2)}, None),
@@ -493,36 +522,55 @@ def _head(d, x, y, title, note, width, font, small):
         d.text((x + 18, y + 46 + k * 24), line, fill=(185, 190, 200), font=small)
 
 
-SIGN_R = 14.5   # how far the camera stands from the row of signs (blocks): four of them, 4.5 apart
+SIGN_R = 31.0   # how far the camera stands from the row of signs (blocks)
+SIGN_FOV = 12.5
+# the signs in the row straight on: which (the strip's sign of that kind; ADVANCE3 = the crossing's three-way one), its label
+FACES = [("START", "출발 24칸 뒤: 방면 + 전체 거리"), ("KM", "1,000칸마다 · 갈림길 지나서: 남은 거리"),
+         ("ADVANCE", "갈림길 120·40칸 앞 (예고)"), ("GORE", "갈라지는 곳 (V 사이)"), ("ADVANCE3", "교차로 앞: 세 갈래"),
+         ("RETURN", "돌아가는 길 (반대쪽)"), ("ARRIVAL", "입구 20칸 앞: 도착")]
+
+
+def _pick(strip, kind):
+    signs = strip.d["signs"]
+    if kind == "ADVANCE3":
+        return next(g for g in signs if g["kind"] == "ADVANCE" and g.get("rows") == 3)
+    if kind == "ADVANCE":   # the near one on the strip before the fork, for its eastbound traffic
+        cands = [g for g in signs if g["kind"] == "ADVANCE" and g.get("rows") == 2 and abs(g["yaw"] - 90) < 1 and g["x"] < 1160]
+        return max(cands, key=lambda g: g["x"])
+    return next(g for g in signs if g["kind"] == kind)
 
 
 def sign_faces(strip, size):
-    """The three kinds of sign (start, every km, arrival) straight on, side by side, as the test placed them: (picture,
-    the kinds in order)."""
-    order = {"START": 0, "KM": 1, "ARRIVAL": 2, "JUNCTION": 3}
-    signs = sorted(strip.d["signs"], key=lambda g: order[g["kind"]])
-    moved = []
-    for n, g in enumerate(signs):
-        # each turned to face north (yaw 180) and set 4.5 blocks apart: a text's place is (right, out) from the sign's point
+    """The kinds of sign straight on, side by side (each its own width, a block apart), as the test placed them: (picture,
+    [(label, x in the picture)])."""
+    picked = [(_pick(strip, k), label) for k, label in FACES]
+    widths = [4.0 if g.get("model") == "guide" else 3.0 for g, _ in picked]
+    total = sum(widths) + (len(widths) - 1) * 1.0
+    moved, left = [], total / 2
+    w, h = size
+    vh = 2 * SIGN_R * math.tan(math.radians(SIGN_FOV / 2))   # blocks seen top to bottom
+    places = []
+    for (g, label), wd in zip(picked, widths):
+        ox = left - wd / 2   # facing north (yaw 180): +x is on the viewer's left
+        left -= wd + 1.0
         r = math.radians(g["yaw"])
         R, F = (math.cos(r), math.sin(r)), (-math.sin(r), math.cos(r))
-        ox = ((len(signs) - 1) / 2 - n) * 4.5   # facing north: +x is on the viewer's left
-        texts = []
-        for t in g["texts"]:
+
+        def local(t):
             dx, dz = t["x"] - g["x"], t["z"] - g["z"]
             right, out = dx * R[0] + dz * R[1], dx * F[0] + dz * F[1]
-            texts.append(dict(t, x=ox - right, y=t["y"] - g["y"], z=-out))
-        moved.append({"x": ox, "y": 0.0, "z": 0.0, "yaw": 180.0, "kind": g["kind"], "texts": texts})
+            return dict(t, x=ox - right, y=t["y"] - g["y"], z=-out)
+        moved.append(dict(g, x=ox, y=0.0, z=0.0, yaw=180.0, texts=[local(t) for t in g["texts"]], arrows=[local(a) for a in g.get("arrows", [])]))
+        places.append((label, w / 2 - ox * h / vh))
     tex = {}
     els = sign_elements(moved, (0, 0, 0), tex)
-    w, h = size
-    v = {"x": 0, "y": 0, "w": w, "h": h, "az": 0, "el": 0, "k": 1.0, "radius": SIGN_R * 16, "fov": 12.5, "far": 40000,
-         "center": [0, 3.75 * 16, 0]}
+    v = {"x": 0, "y": 0, "w": w, "h": h, "az": 0, "el": 0, "k": 1.0, "radius": SIGN_R * 16, "fov": SIGN_FOV, "far": 40000,
+         "center": [0, 4.6 * 16, 0]}
     BUILD.mkdir(exist_ok=True)
     src, png = BUILD / "road_signs.preview.json", BUILD / "road_signs.png"
     src.write_text(json.dumps({"textures": tex, "elements": els, "grid": False, "views": [v], "size": [w, h]}))
     subprocess.run(["node", str(RENDER), str(src), str(png)], check=True, stdout=subprocess.DEVNULL)
-    return Image.open(png).convert("RGB"), [g["kind"] for g in signs]
+    return Image.open(png).convert("RGB"), places
 
 
 def main(out, only=None):
@@ -535,47 +583,48 @@ def main(out, only=None):
     for name, title, note, box, view, cut in scenes(strip):
         if only and name not in only:
             continue
-        rendered[name] = (render(strip, name, box, view, (OW, OH) if name == "overview" else (PW, PH), cut), title, note)
+        wide = name in ("overview",)
+        size = (OW, OH) if wide else (PW * 2, PH) if name == "g" else (PW, PH)
+        rendered[name] = (render(strip, name, box, view, size, cut), title, note)
     if only:
         return   # a try: the panels are in tools/assetgen/build/road_<name>.png
-    panels = [rendered[n] for n in "abcdefgh"]
     over, otitle, onote = rendered["overview"]
-    FH = 420
-    faces, kinds = sign_faces(strip, (OW, FH))
-    ROWS = 3
+    FH = 560
+    faces, places = sign_faces(strip, (OW, FH))
+    ROWS = 4
     sheet = Image.new("RGB", (OW, ROWS * (PH + HEAD) + FH + HEAD + OH + HEAD), (27, 29, 34))
     d = ImageDraw.Draw(sheet)
-    for n, (im, title, note) in enumerate(panels):
-        x, y = (n % 3) * PW, (n // 3) * (PH + HEAD)
+    # (가)~(바) in two rows, (사) the fork two wide beside (아), (자) the half-step bridge beside the blocks
+    cells = [("a", 0, 0), ("b", 1, 0), ("c", 2, 0), ("d", 0, 1), ("e", 1, 1), ("f", 2, 1), ("g", 0, 2), ("h", 2, 2), ("i", 0, 3)]
+    for name, cx, cy in cells:
+        im, title, note = rendered[name]
+        x, y = cx * PW, cy * (PH + HEAD)
         sheet.paste(im, (x, y + HEAD))
-        _head(d, x, y, title, note, PW, font, small)
-    # the last place in the last row: what the blocks are
-    lx, ly = 2 * PW + 30, 2 * (PH + HEAD) + 20
+        _head(d, x, y, title, note, im.width, font, small)
+    # the rest of the last row: what the blocks are
+    lx, ly = PW + 30, 3 * (PH + HEAD) + 20
     d.text((lx, ly), "블록 (/관리자 국도)", fill=(245, 245, 245), font=font)
     legend = [("gray_concrete", "바닥 (roads.surface), 군데군데 기운·금 간 자리"), ("deepslate_tile_slab", "반 칸 오르내림: 반 블록 (경사 1:3 그대로)"),
               ("yellow_concrete", "가운데 점선 (roads.center-line)"), ("smooth_quartz", "흰 가장자리 선 (roads.edge-line), 횡단보도"),
               ("smooth_stone", "갓돌 (roads.kerb)"), ("dirt_path", "갓길 흙길 (12칸마다 배수구), 그 밖은 잔디"),
               ("andesite_wall", "높은 성토 가드레일 · 20칸마다 반사 기둥"), ("stone_brick_wall", "다리 난간, 팔 달린 가로등 (40칸마다, 아래 4칸 비움)"),
-              ("stone_bricks", "다리·교각·굴 (굴 벽: 흰 띠에 노란 줄·조명)")]
+              ("stone_bricks", "다리 가장자리 받침(반 칸 다리에서도 온 블록) · 가로등·표지판 받침 · 교각 · 굴")]
     yy = ly + 46
     for key, text in legend:
         d.rectangle((lx, yy + 2, lx + 26, yy + 26), fill=COLOURS[key], outline=(10, 10, 10))
         d.text((lx + 40, yy), text, fill=(220, 222, 228), font=small)
         yy += 33
-    for k, line in enumerate(("RoadPreviewTest 가 실제 길 코드(RoadProfile, RoadSection)로", "지어 본 블록을 그대로 그린 그림 (바닐라 텍스처 없음)")):
+    for k, line in enumerate(("RoadPreviewTest 가 실제 길 코드(RoadProfile, RoadSection)와 표지판 계획(RoadGuide)으로",
+                              "지어 본 블록과 표지판을 그대로 그린 그림 (바닐라 텍스처 없음)")):
         d.text((lx, yy + 8 + k * 26), line, fill=(150, 155, 165), font=small)
-    # the signs straight on: what RoadPreviewTest's road put up (RoadSign's words and places, the model)
+    # the signs straight on: what RoadPreviewTest's roads put up (RoadSign's words and places, the models)
     fy = ROWS * (PH + HEAD)
     sheet.paste(faces, (0, fy + HEAD))
-    names = {"START": "출발 뒤 24칸: 방면 + 전체 거리", "KM": "1,000칸마다: 남은 거리", "ARRIVAL": "입구 20칸 앞: 도착",
-             "JUNCTION": "갈림길 10칸 뒤: 두 하역장과 거리"}
-    _head(d, 0, fy, "국도 표지판 (3D 모델 + 글씨 디스플레이)",
-          "길 오른쪽(갓돌·갓길 위)에 서서 오는 차를 바라봄, 판 아래는 길 위 3칸 · 판 3×1.5칸. 큰 줄 = 하역장(+방면/도착), "
-          "아랫줄 = 노선 방패(국도 n호선, 길마다 만든 순서) · 남은 거리. 글씨는 서버 기본 글꼴(Neo둥근모), 숫자만 굵게", OW, font, small)
-    for n, kind in enumerate(kinds):
-        cx = OW // 2 + (n - (len(kinds) - 1) / 2) * 4.5 * FH / (2 * SIGN_R * math.tan(math.radians(6.25)))   # sign_faces: 4.5 apart
-        label = names[kind]
-        d.text((cx - d.textlength(label, font=small) / 2, fy + HEAD + 14), label, fill=(185, 190, 200), font=small)
+    _head(d, 0, fy, "국도 표지판 (3D 모델 + 화살표 모델 + 글씨 디스플레이)",
+          "작은 판(3×1.5칸): 오른쪽에 서서 오는 차를 바라봄, 큰 줄 = 하역장, 아랫줄 = 노선 방패 · 거리. 안내판(4×2칸): 갈림길·교차로 앞, "
+          "줄마다 그 길로 가면 나오는 곳, 화살표(↑ ↖ ↗ ← →)는 그 길이 나가는 쪽, 거리는 표지판에서. 판 아래는 길 위 3칸", OW, font, small)
+    for label, x in places:
+        d.text((x - d.textlength(label, font=small) / 2, fy + HEAD + 14), label, fill=(185, 190, 200), font=small)
     oy = fy + FH + HEAD
     sheet.paste(over, (0, oy + HEAD))
     _head(d, 0, oy, otitle, onote, OW, font, small)

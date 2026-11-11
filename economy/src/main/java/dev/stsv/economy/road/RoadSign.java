@@ -36,8 +36,8 @@ public final class RoadSign {
         KM,
         /** just before the gate: "서해 하역장 도착" */
         ARRIVAL,
-        /** a little past where a road branches off another: both docks and how far each is */
-        JUNCTION
+        /** facing the traffic going back: where the road started ("본사 출발 터미널") and how far ({@link RoadGuide}) */
+        RETURN
     }
 
     /** How far right of the road's middle the sign stands (blocks): its panel spans 2.5 .. 5.5, over the kerb and shoulder. */
@@ -58,24 +58,123 @@ public final class RoadSign {
     /** A text display on the sign: its words, where its bottom middle is (blocks: right of the sign's middle, over the road, out of the face), scale. */
     public record Text(String text, double right, double up, double out, float scale) {}
 
+    /** The words of a sign of a kind: dock is the dock's name (RETURN: the name of where the road started, as it is). */
     public static Words words(Kind kind, String dock, double km, int route) {
         String name = dock + " 하역장";
         String big = switch (kind) {
             case START -> name + " 방면";
             case KM -> name;
             case ARRIVAL -> name + " 도착";
-            case JUNCTION -> name;
+            case RETURN -> dock;
         };
         return new Words(big, kind == Kind.ARRIVAL ? "" : km(km), "국도 " + route + "호선", String.valueOf(route));
     }
 
+    // ------------------------------------------------------------------------------------------
+    // Guide signs: a line for each way, its own arrow, where it goes and how far (RoadGuide)
+    // ------------------------------------------------------------------------------------------
+
     /**
-     * A junction's sign (where a road branches off another), facing the traffic on the branch: "서해 · 동해 하역장", both
-     * distances in the same order ("3.2 · 1.1 km"), the branch's route number.
+     * Which way a line of a guide sign points (an arrow model of its own: economy:model/road_arrow_&lt;name&gt;, drawn white
+     * on the green panel). Ahead within 22.5 degrees: UP; up to 67.5: the slanted ones; beyond: LEFT / RIGHT.
      */
-    public static Words junction(String dock, double km, String other, double otherKm, int route) {
-        return new Words(dock + " · " + other + " 하역장", km(km).replace(" km", "") + " · " + km(otherKm), "국도 " + route + "호선",
-                String.valueOf(route));
+    public enum Arrow {
+        LEFT("left"), UP_LEFT("up_left"), UP("up"), UP_RIGHT("up_right"), RIGHT("right");
+
+        public final String model;
+
+        Arrow(String model) {
+            this.model = model;
+        }
+
+        /** The arrow for a turn of this many degrees (minus: to the left). */
+        public static Arrow of(double degrees) {
+            double a = Math.abs(degrees);
+            if (a < 22.5) return UP;
+            if (a < 67.5) return degrees < 0 ? UP_LEFT : UP_RIGHT;
+            return degrees < 0 ? LEFT : RIGHT;
+        }
+    }
+
+    /** A line of a guide sign: its arrow, where that way goes ("동해 하역장", "본사 출발 터미널"), how far ("3.2 km"). */
+    public record Row(Arrow arrow, String name, String km) {}
+
+    /** An arrow on a guide sign: which, its middle (as a {@link Text}'s place), its size (blocks). */
+    public record ArrowAt(Arrow arrow, double right, double up, double out, double size) {}
+
+    /**
+     * The guide sign's panel (economy:model/road_sign_guide): 4 wide and 2 tall, its bottom as high as the small sign's,
+     * standing a little further out ({@link #GUIDE_LATERAL}: 2.5 .. 6.5 from the road's middle, never over the lanes), its
+     * posts this far either side of its middle.
+     */
+    public static final double GUIDE_LATERAL = 4.5, GUIDE_WIDTH = 4.0, GUIDE_TOP = 5.0, GUIDE_POSTS = 1.0;
+    /** Guide panel pixels: 64 x 32. */
+    static final double GW = 64, GH = 32;
+
+    /** How big (px) the arrows of a sign with this many lines are, the largest scale its words take. */
+    static double arrowPx(int lines) {
+        return lines >= 3 ? 8 : 10;
+    }
+
+    static float guideMax(int lines) {
+        return lines >= 3 ? 1.25f : lines == 2 ? 1.5f : 1.75f;
+    }
+
+    /** The middle (v, panel px up from its bottom) of line k of n: the lines share the panel inside its border. */
+    static double rowV(int k, int n) {
+        return GH - 2 - (k + 0.5) * (GH - 4) / n;
+    }
+
+    /** Where a line's words start (u) and end. */
+    static double nameU(int n) {
+        return 3 + arrowPx(n) + 2.5;
+    }
+
+    static final double KM_END = GW - 3;
+
+    /** The one scale every line's words take: the largest (to 1/16) at which the longest line fits, at most guideMax. */
+    static float guideScale(List<Row> rows) {
+        int n = rows.size();
+        float s = guideMax(n);
+        for (Row r : rows) {
+            double w = (width(r.name()) + width(r.km())) * PX;
+            float fit = (float) Math.floor((KM_END - nameU(n) - 3) / w * 16) / 16f;
+            s = Math.min(s, fit);
+        }
+        return Math.max(1 / 16f, s);
+    }
+
+    /** The words of a guide sign: each line's name from just right of its arrow, its distance to the right edge. */
+    public static List<Text> guideTexts(List<Row> rows) {
+        List<Text> out = new ArrayList<>();
+        int n = rows.size();
+        float s = guideScale(rows);
+        for (int k = 0; k < n; k++) {
+            Row r = rows.get(k);
+            double v = rowV(k, n);
+            double nw = width(r.name()) * PX * s, kw = width(r.km()) * PX * s;
+            guide(out, r.name(), nameU(n) + nw / 2, v, s);
+            if (!r.km().isEmpty()) guide(out, r.km(), KM_END - kw / 2, v, s);
+        }
+        return out;
+    }
+
+    private static void guide(List<Text> out, String text, double u, double v, float scale) {
+        double right = (u - GW / 2 - PX * scale) / 16.0;   // as add(): the game draws a text display 1 text pixel right of its point
+        double up = PANEL_BOTTOM + (v - middle(text) * PX * scale) / 16.0;
+        out.add(new Text(text, right, up, FACE + 0.01, scale));
+    }
+
+    /** The arrows of a guide sign, one at the left of each line, just in front of the face. */
+    public static List<ArrowAt> guideArrows(List<Row> rows) {
+        List<ArrowAt> out = new ArrayList<>();
+        int n = rows.size();
+        double size = arrowPx(n);
+        for (int k = 0; k < n; k++) {
+            double u = 3 + size / 2;
+            out.add(new ArrowAt(rows.get(k).arrow(), (u - GW / 2) / 16.0, PANEL_BOTTOM + rowV(k, n) / 16.0, FACE + 0.02, size / 16.0));
+        }
+        return out;
     }
 
     /** "7.0 km": to 0.1 km, never below 0.1 (a sign never says 0 km left). */

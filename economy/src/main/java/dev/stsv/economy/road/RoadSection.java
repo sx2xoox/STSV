@@ -81,9 +81,6 @@ public final class RoadSection {
             return null;
         }
 
-        /** A junction's direction sign (both roads' docks): as {@link #roadSign}, its words given. */
-        default void junctionSign(double x, double y, double z, float yaw, RoadSign.Words words) {}
-
         /** Words painted on the road (a text display lying on it, read by the traffic coming from the start: yaw as a sign's). */
         default void roadText(double x, double y, double z, float yaw, String text) {}
     }
@@ -131,9 +128,6 @@ public final class RoadSection {
     private boolean[] over;
     /** how many points to the nearest level crossing (a junction), MAX_VALUE: none */
     private int[] toJunction;
-    /** the road it branches off at its start: its dock and how far that dock is from the junction (blocks) */
-    private String branchOf;
-    private double branchLeft;
     /** set while a junction paves an old road's kerb or shoulder (the only time it is touched) */
     private boolean paving;
     private final Style style;
@@ -176,13 +170,6 @@ public final class RoadSection {
             if (cross[i] == Integer.MIN_VALUE || over[i]) continue;
             for (int k = Math.max(0, i - 12); k <= Math.min(n - 1, i + 12); k++) toJunction[k] = Math.min(toJunction[k], Math.abs(k - i));
         }
-        return this;
-    }
-
-    /** It starts on another road (a branch): its junction sign names both docks. */
-    public RoadSection branch(String dock, double left) {
-        this.branchOf = dock;
-        this.branchLeft = left;
         return this;
     }
 
@@ -247,10 +234,6 @@ public final class RoadSection {
 
             public void roadSign(double x, double y, double z, float yaw, String dock, double km, int route, RoadSign.Kind kind) {
                 s.roadSign(x, y, z, yaw, dock, km, route, kind);
-            }
-
-            public void junctionSign(double x, double y, double z, float yaw, RoadSign.Words words) {
-                s.junctionSign(x, y, z, yaw, words);
             }
 
             public void roadText(double x, double y, double z, float yaw, String text) {
@@ -371,7 +354,7 @@ public final class RoadSection {
     }
 
     /** The first point from `from` (stepping `dir`, at most `look`) with plain road 3 points either way, or -1. */
-    private static int plain(RoadProfile.Part[] parts, int from, int dir, int look) {
+    static int plain(RoadProfile.Part[] parts, int from, int dir, int look) {
         for (int k = 0; k < look; k++) {
             int i = from + k * dir;
             if (i - 3 < 0 || i + 3 >= parts.length) return -1;
@@ -480,10 +463,6 @@ public final class RoadSection {
         }
         RoadSign.Kind sign = signs.get(i);
         if (sign != null) sign(p, rx, rz, h, RoadSign.yaw(-hx, -hz), i, sign);
-        if (branchOf != null && i == junctionSignAt()) {
-            RoadSign.Words w = RoadSign.junction(dock, (points.size() - 1 - i) / 1000.0, branchOf, (branchLeft + i) / 1000.0, route);
-            sign(p, rx, rz, h, RoadSign.yaw(-hx, -hz), i, w);
-        }
         if (d == WORDS_AT && e > 0 && part == RoadProfile.Part.ROAD) site.roadText(p[0], top(h) + 0.01, p[1], RoadSign.yaw(-hx, -hz), GATE_WORDS);
         return null;
     }
@@ -580,7 +559,9 @@ public final class RoadSection {
         if (ao > 3.5) return;
         int y = surfaceY(h), base = RoadProfile.block(h);
         boolean half = y != base;
-        site.set(x, y, z, ao > 2.5 ? (half ? Material.STONE_BRICK_SLAB : Material.STONE_BRICKS) : top);
+        // the edges: always a full block, a plinth the railing (and a light) stands on, also where the deck is a slab
+        // (a wall on a slab would float half a block over it)
+        site.set(x, y, z, ao > 2.5 ? Material.STONE_BRICKS : top);
         if (half) site.set(x, base, z, Material.STONE_BRICKS);
         for (int k = y + 1; k <= y + 4; k++) site.set(x, k, z, Material.AIR);
         if (ao > 2.5) site.set(x, y + 1, z, Material.STONE_BRICK_WALL);   // the railing
@@ -630,7 +611,7 @@ public final class RoadSection {
             if (o != null && o.paved()) return;
         }
         int y = surfaceY(h), base = RoadProfile.block(h);
-        if (!deck && site.fillable(post.x(), base, post.z())) site.set(post.x(), base, post.z(), Material.STONE_BRICKS);
+        if (!deck) footing(post.x(), base, post.z());
         for (int k = deck ? y + 1 : base + 1; k <= y + 6; k++) site.set(post.x(), k, post.z(), Material.STONE_BRICK_WALL);
         Col end = nearest(cols, side * (2.0 + e), 1.5 + e);
         if (end == null || end.equals(post)) {
@@ -645,30 +626,71 @@ public final class RoadSection {
         site.set(end.x(), y + 5, end.z(), "minecraft:lantern[hanging=true]");
     }
 
-    /** Where a branch's junction sign stands: the first plain point a little past the junction, -1: none. */
-    int junctionSignAt() {
-        int from = 0;
-        while (from < points.size() && cross != null && cross[from] != Integer.MIN_VALUE) from++;
-        return plain(parts, from + JUNCTION_SIGN, 1, 40);
+    /** Whether a block stands on the one under it like a post: a wall or a fence (a railing, a guardrail, a light's post). */
+    static boolean standing(Material m) {
+        String n = m.name();
+        return n.endsWith("_WALL") || n.endsWith("_FENCE");
     }
 
-    /** How far past a branch's junction its sign stands (points). */
-    static final int JUNCTION_SIGN = 10;
+    /** The full block under a wall that stood on this slab: the slab's own block (stone bricks for one without). */
+    static Material plinth(Material slab) {
+        return switch (slab) {
+            case SMOOTH_STONE_SLAB -> Material.SMOOTH_STONE;
+            case DEEPSLATE_TILE_SLAB -> Material.DEEPSLATE_TILES;
+            case SMOOTH_QUARTZ_SLAB -> Material.SMOOTH_QUARTZ;
+            case POLISHED_ANDESITE_SLAB -> Material.POLISHED_ANDESITE;
+            case POLISHED_BLACKSTONE_SLAB -> Material.POLISHED_BLACKSTONE;
+            default -> Material.STONE_BRICKS;
+        };
+    }
 
-    private void sign(double[] p, double rx, double rz, int h, float yaw, int i, RoadSign.Words words) {
-        place(p, rx, rz, h, yaw, i, words, null);
+    /**
+     * A built road's column mended (/관리자 국도 난간고치기): every wall or fence from y `from` to `to` that stands on a slab
+     * (half a block under it: it floated) gets the slab's full block under it, on a verge's path block (a little low) stone
+     * bricks, over air or water stone bricks down to the ground. How many blocks were put. (A road built now never needs
+     * it: {@link #bridge} and the lights stand on full blocks.)
+     */
+    static int plinths(Site s, int x, int z, int from, int to) {
+        int n = 0;
+        for (int y = from; y <= to; y++) {
+            Material m = s.get(x, y, z), below = s.get(x, y - 1, z);
+            if (m == null || below == null || !standing(m) || standing(below)) continue;
+            if (below.name().endsWith("_SLAB")) {
+                s.set(x, y - 1, z, plinth(below));
+                n++;
+            } else if (below == VERGE) {
+                s.set(x, y - 1, z, Material.STONE_BRICKS);
+                n++;
+            } else if (s.fillable(x, y - 1, z)) {
+                for (int k = 1; k <= 8 && s.fillable(x, y - k, z); k++) {
+                    s.set(x, y - k, z, Material.STONE_BRICKS);
+                    n++;
+                }
+            }
+        }
+        return n;
+    }
+
+    /**
+     * A light's footing: a stone brick block at the shoulder's level (in place of the verge's path block, which is a
+     * little lower than a full block) and on down to the ground where that is open: a post never over air or water.
+     */
+    private void footing(int x, int base, int z) {
+        site.set(x, base, z, Material.STONE_BRICKS);
+        for (int k = 1; k <= 8 && site.fillable(x, base - k, z); k++) site.set(x, base - k, z, Material.STONE_BRICKS);
     }
 
     private void sign(double[] p, double rx, double rz, int h, float yaw, int i, RoadSign.Kind kind) {
-        place(p, rx, rz, h, yaw, i, null, kind);
+        place(p, rx, rz, h, yaw, i, kind);
     }
 
     /**
      * A direction sign on the right at point i, facing the traffic coming from the start: its posts on the kerb and the
      * shoulder (a stone brick footing where the shoulder is not solid), none where a post would stand in a player's land
-     * or another road's lanes; then the site puts the panel (the kind's words, or these words for a junction).
+     * or another road's lanes; then the site puts the panel. (The signs where roads meet, for the way back and to
+     * confirm the way: {@link RoadGuide}, put up once the road is built.)
      */
-    private void place(double[] p, double rx, double rz, int h, float yaw, int i, RoadSign.Words words, RoadSign.Kind kind) {
+    private void place(double[] p, double rx, double rz, int h, float yaw, int i, RoadSign.Kind kind) {
         int[][] posts = new int[2][];
         int level = RoadProfile.block(h);
         for (int k = 0; k < 2; k++) {
@@ -680,7 +702,6 @@ public final class RoadSection {
         }
         for (int[] c : posts) if (site.fillable(c[0], level, c[1]) && !site.liquid(c[0], level, c[1])) site.set(c[0], level, c[1], Material.STONE_BRICKS);
         double x = p[0] + rx * RoadSign.LATERAL, z = p[1] + rz * RoadSign.LATERAL;
-        if (words != null) site.junctionSign(x, level + 1, z, yaw, words);
-        else site.roadSign(x, level + 1, z, yaw, dock, (points.size() - 1 - i) / 1000.0, route, kind);
+        site.roadSign(x, level + 1, z, yaw, dock, (points.size() - 1 - i) / 1000.0, route, kind);
     }
 }

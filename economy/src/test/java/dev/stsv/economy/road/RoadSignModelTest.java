@@ -17,18 +17,31 @@ class RoadSignModelTest {
 
     @Test
     void thePanelStandsWhereTheWordsAre() throws Exception {
-        Path f = Path.of(System.getProperty("stsv.content")).resolve("economy/models/road_sign.bbmodel");
+        panel("road_sign", false, RoadSign.PANEL_TOP);
+    }
+
+    /** The guide sign's (at junctions): 2 blocks taller than the road, lifted 2. */
+    @Test
+    void theGuidePanelStandsWhereItsLinesAre() throws Exception {
+        panel("road_sign_guide", true, RoadSign.GUIDE_TOP);
+        for (String a : java.util.List.of("up", "up_left", "up_right", "left", "right")) {
+            assertEquals(true, Files.exists(Path.of(System.getProperty("stsv.content")).resolve("economy/models/road_arrow_" + a + ".bbmodel")), a);
+        }
+    }
+
+    static void panel(String model, boolean guide, double top) throws Exception {
+        Path f = Path.of(System.getProperty("stsv.content")).resolve("economy/models/" + model + ".bbmodel");
         JsonObject m = JsonParser.parseString(Files.readString(f)).getAsJsonObject();
-        double bottom = Double.NaN, top = Double.NaN;
+        double bottom = Double.NaN, upTo = Double.NaN;
         for (JsonElement e : m.getAsJsonArray("elements")) {
             JsonObject o = e.getAsJsonObject();
             if (!o.get("name").getAsString().equals("plate")) continue;
             bottom = o.getAsJsonArray("from").get(1).getAsDouble();
-            top = o.getAsJsonArray("to").get(1).getAsDouble();
+            upTo = o.getAsJsonArray("to").get(1).getAsDouble();
         }
-        float lift = (8f - RoadSigns.MODEL_ROAD_Y) / 16f * RoadSigns.SCALE;
+        float lift = RoadSigns.lift(guide);
         // FIXED draws model (8, 8, 8) on the entity, scaled round it, then the lift
         assertEquals(RoadSign.PANEL_BOTTOM, lift + (bottom - 8) / 16 * RoadSigns.SCALE, 1e-6);
-        assertEquals(RoadSign.PANEL_TOP, lift + (top - 8) / 16 * RoadSigns.SCALE, 1e-6);
+        assertEquals(top, lift + (upTo - 8) / 16 * RoadSigns.SCALE, 1e-6);
     }
 }

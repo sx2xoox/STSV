@@ -10,9 +10,15 @@ number) are text displays on the face, placed by RoadSign; this model leaves the
     BModel(scale=2, shift=(0, -16, 0)) shrinks it by 2 so it fits -16..32 (it is 4.5 blocks tall);
     the plugin's display scale 2 brings it back (and lifts it 1.5 so y 0 is on the road): a texel stays 1/16 block.
 
+Also the guide sign (road_sign_guide: RoadGuide puts it before and at junctions): the same posts and frame round a panel 4
+wide and 2 tall with no arrow of its own, and the arrows for its lines (road_arrow_up / up_left / up_right / left / right):
+a white arrow cut out of a flat plane, one display each, scaled to the line.
+
 The panel's numbers are RoadSign's: its bottom 3 blocks over the road (y 48), 48 x 24 px, its face 3 px in front of the
 point (z 5), the shield's 3.5 (z 4.5), the posts 0.75 either side (x 8 -+ 12).
 """
+
+import math
 
 from stsv_assets import presets
 from stsv_assets.bake import BModel, Paint
@@ -104,4 +110,87 @@ def road_sign():
     return m
 
 
-ALL = {"road_sign": road_sign}
+# --- the guide sign (RoadGuide: at junctions, a line for each way) ---------------------------------------------------
+# RoadSign.GUIDE_*: 4 wide, 2 tall, its bottom as the small sign's (3 blocks over the road), posts 1 block either side.
+GW, GH = 64, 32
+G_POSTS = (-8, 24)                # post centres (x)
+
+
+def _guide_uv(p):
+    """A drawn point -> guide panel (u, v) as the driver sees it (the panel spans x -24 .. 40)."""
+    return 40 - p[0], p[1] - BOTTOM
+
+
+def guide_face(c):
+    """The guide panel's face: green, a white border 1 px in (corners rounded); the arrows and words are displays."""
+    if c.face != "north":
+        return None
+    u, v = _guide_uv(c.p)
+    u, v = int(u), int(v)
+    inner = 1 <= u <= GW - 2 and 1 <= v <= GH - 2
+    edge = u in (1, GW - 2) or v in (1, GH - 2)
+    corner = u in (1, GW - 2) and v in (1, GH - 2)
+    if inner and edge and not corner:
+        return WHITE
+    if (u, v) in ((2, 2), (GW - 3, 2), (2, GH - 3), (GW - 3, GH - 3)):
+        return WHITE
+    return GREEN
+
+
+def road_sign_guide():
+    """Drawn like road_sign but 2 blocks taller than the road, so shifted 24 down (RoadSigns.GUIDE_ROAD_Y = -8)."""
+    m = BModel("road_sign_guide", floor=0, shift=(0, -24, 0), scale=2)
+    m.display = presets.furniture(gui_scale=0.15)
+    steel = Paint("steel", 3, "grain", axis="y", noise=0.03)
+    steel_x = Paint("steel", 2, "grain", axis="x", noise=0.03)
+    back = Paint("steel", 2, noise=0.02)
+    m.group("panel")
+    x0, x1, y0, y1 = 40 - GW, 40, BOTTOM, BOTTOM + GH
+    m.box("plate", (x0, y0, FACE_Z), (x1, y1, FACE_Z + 1), back,
+          faces={"north": Paint("sign_green", 2, noise=0, decal=guide_face, rim=0.3, ao=0.4)})
+    m.group("frame")
+    m.box("backing", (x0 + 1, y0 + 1, FACE_Z + 1), (x1 - 1, y1 - 1, FACE_Z + 2), back)
+    for y in (y0 + 5, y1 - 7):
+        m.box("rail", (x0 + 2, y, FACE_Z + 2), (x1 - 2, y + 2, FACE_Z + 3.5), steel_x)
+    m.group("posts")
+    for cx in G_POSTS:
+        m.box("post", (cx - 1.5, 1, FACE_Z + 3.5), (cx + 1.5, y1 - 1, FACE_Z + 6.5), steel)
+        m.box("cap", (cx - 2, y1 - 1, FACE_Z + 3), (cx + 2, y1, FACE_Z + 7), back)
+        m.box("footing", (cx - 3, -4, FACE_Z + 2), (cx + 3, 1, FACE_Z + 8), Paint("stone", 2, "stone"))
+    return m
+
+
+# --- the arrows on a guide sign's lines (RoadSign.Arrow): white, cut out, one model each --------------------------------
+# Drawn 24 px across (RoadSigns.ARROW_DRAWN = 1.5 blocks) round (8, 8) on the plane z = 8, facing north like the panel;
+# the plugin scales each display to its line's arrow size. Turned (clockwise as the driver sees it) by its angle.
+ARROWS = {"up": 0, "up_right": 45, "right": 90, "up_left": -45, "left": -90}
+HOLE = ("raw", (0, 0, 0, 0))
+
+
+def arrow_at(u, v, deg):
+    """Whether (u, v) (px from the middle, u to the driver's right, v up) is inside the arrow turned deg clockwise."""
+    t = math.radians(deg)
+    a = u * math.sin(t) + v * math.cos(t)          # along the arrow
+    s = u * math.cos(t) - v * math.sin(t)          # across it
+    if -10.5 <= a <= 0.5 and abs(s) <= 2.5:        # the shaft
+        return True
+    return 0 <= a <= 10.5 and abs(s) <= 7.5 * (10.5 - a) / 10.5 + 0.01   # the head
+
+
+def road_arrow(name):
+    deg = ARROWS[name]
+
+    def decal(c):
+        u, v = 8 - c.p[0], c.p[1] - 8
+        return WHITE if arrow_at(u, v, deg) else HOLE
+
+    def build():
+        m = BModel(f"road_arrow_{name}", floor=None)
+        m.display = presets.furniture(gui_scale=0.6)
+        m.box("arrow", (-4, -4, 8), (20, 20, 8), Paint("car_white", 3, noise=0, decal=decal, rim=0, ao=0))
+        return m
+    return build
+
+
+ALL = {"road_sign": road_sign, "road_sign_guide": road_sign_guide}
+ALL.update({f"road_arrow_{n}": road_arrow(n) for n in ARROWS})
