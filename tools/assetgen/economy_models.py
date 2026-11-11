@@ -150,3 +150,7 @@ ALL.update(_crop_builders())
 # 하역장 props (models/docks.py): the crane hook, a forklift, a pallet, shipping containers
 from models import docks as DOCKS   # noqa: E402
 ALL.update(DOCKS.ALL)
+
+# 국도 direction sign (models/roads.py): posts, the green panel, its frame
+from models import roads as ROADS   # noqa: E402
+ALL.update(ROADS.ALL)

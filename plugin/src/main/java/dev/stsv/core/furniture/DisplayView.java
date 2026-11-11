@@ -38,7 +38,9 @@ public final class DisplayView {
         CROP("crops"),
         SMALL("small-furniture"),
         LARGE("large-furniture"),
-        MACHINE("machines");
+        MACHINE("machines"),
+        /** the economy server's 국도 direction signs (model and words): big, few, read from afar */
+        ROAD_SIGN("road-signs");
 
         public final String key;
 
@@ -48,16 +50,18 @@ public final class DisplayView {
     }
 
     /**
-     * @param crops, small, large, machines  view distance in blocks per kind (0 or less: the vanilla 64)
+     * @param crops, small, large, machines, roadSigns  view distance in blocks per kind (0 or less: the vanilla 64)
      * @param multiplier   furniture.view-range (older setting, multiplies all)
      * @param culling      tell the client the model's size so it can skip off-screen ones
      * @param animateRange spinning parts turn only while a player is this close (blocks); 0 = always
      */
-    public record Settings(double crops, double small, double large, double machines, double multiplier, boolean culling, double animateRange) {
+    public record Settings(double crops, double small, double large, double machines, double roadSigns, double multiplier, boolean culling,
+                           double animateRange) {
 
         public static Settings of(Configuration c) {
             return new Settings(c.getDouble("display.view-distance.crops"), c.getDouble("display.view-distance.small-furniture"),
                     c.getDouble("display.view-distance.large-furniture"), c.getDouble("display.view-distance.machines"),
+                    c.getDouble("display.view-distance.road-signs"),
                     c.getDouble("furniture.view-range"), c.getBoolean("display.frustum-culling"), c.getDouble("display.animate-range"));
         }
 
@@ -67,6 +71,7 @@ public final class DisplayView {
                 case SMALL -> small;
                 case LARGE -> large;
                 case MACHINE -> machines;
+                case ROAD_SIGN -> roadSigns;
             };
             return (b > 0 ? b : BLOCKS_PER_RANGE) * (multiplier > 0 ? multiplier : 1.0);
         }

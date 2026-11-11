@@ -44,6 +44,7 @@ class DisplayViewTest {
         assertEquals(32, s.blocks(DisplayView.Kind.SMALL));
         assertEquals(48, s.blocks(DisplayView.Kind.LARGE));
         assertEquals(64, s.blocks(DisplayView.Kind.MACHINE));
+        assertEquals(96, s.blocks(DisplayView.Kind.ROAD_SIGN), "국도 signs: read from afar");
         // view_range is in units of 64 blocks
         assertEquals(0.5f, s.viewRange(DisplayView.Kind.CROP));
         assertEquals(0.75f, s.viewRange(DisplayView.Kind.LARGE));
@@ -54,13 +55,14 @@ class DisplayViewTest {
 
     @Test
     void oldMultiplierStillScalesEverythingAndZeroMeansVanilla() {
-        DisplayView.Settings s = new DisplayView.Settings(32, 0, 48, -5, 1.5, true, 0);
+        DisplayView.Settings s = new DisplayView.Settings(32, 0, 48, -5, 80, 1.5, true, 0);
         assertEquals(48, s.blocks(DisplayView.Kind.CROP));
         assertEquals(96, s.blocks(DisplayView.Kind.SMALL));     // 0 -> vanilla 64, x 1.5
         assertEquals(96, s.blocks(DisplayView.Kind.MACHINE));
+        assertEquals(120, s.blocks(DisplayView.Kind.ROAD_SIGN));
         assertEquals(0.75f, s.viewRange(DisplayView.Kind.CROP));
         // a broken multiplier (0) is ignored rather than hiding everything
-        assertEquals(32, new DisplayView.Settings(32, 32, 48, 64, 0, true, 32).blocks(DisplayView.Kind.CROP));
+        assertEquals(32, new DisplayView.Settings(32, 32, 48, 64, 96, 0, true, 32).blocks(DisplayView.Kind.CROP));
     }
 
     @Test

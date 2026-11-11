@@ -1,10 +1,10 @@
 package dev.stsv.economy.road;
 
 import org.bukkit.Material;
-import org.bukkit.block.BlockFace;
-
 import java.util.ArrayList;
 import java.util.List;
+import java.util.Map;
+import java.util.TreeMap;
 
 /**
  * 국도: which block goes where, one cross-section of the road at a time (README "국도"). Pure: it works on a {@link Site}
@@ -21,8 +21,10 @@ import java.util.List;
  *   <li>TUNNEL: the surface, 4 of air, a stone brick ceiling (a light in it every 8) and walls; at each end a portal (the
  *       walls out to the shoulders and a block higher, a lintel over the opening).</li>
  * </ul>
- * Street lights every {@code lightEvery} (sides taking turns), a km sign every {@code markerEvery}. A column of a player's
- * land is left alone; a surface column there stops the road (nothing of that cross-section is built).
+ * Street lights every {@code lightEvery} (sides taking turns); direction signs ({@link RoadSign}: the site puts the model and
+ * its words) a little way from the start, every {@code markerEvery} and just before the gate, all where the road is plain
+ * road ({@link #signs}). A column of a player's land is left alone; a surface column there stops the road (nothing of that
+ * cross-section is built).
  */
 public final class RoadSection {
 
@@ -46,8 +48,11 @@ public final class RoadSection {
 
         boolean playerLand(int x, int z);
 
-        /** A standing sign, its front towards `facing`, waxed. */
-        void sign(int x, int y, int z, BlockFace facing, String[] lines);
+        /**
+         * A direction sign ({@link RoadSign}): the point between its posts (x, z; y the road's surface), its face towards
+         * yaw (Minecraft: 0 south, 90 west), the dock, the km left to it, the route's number.
+         */
+        void roadSign(double x, double y, double z, float yaw, String dock, double km, int route, RoadSign.Kind kind);
     }
 
     /** The blocks and spacings of roads.* in the config. */
@@ -62,14 +67,57 @@ public final class RoadSection {
     private final int[] levels;
     private final RoadProfile.Part[] parts;
     private final String dock;
+    private final int route;
+    private final Map<Integer, RoadSign.Kind> signs;
 
-    public RoadSection(Site site, Style style, List<double[]> points, int[] levels, RoadProfile.Part[] parts, String dock) {
+    public RoadSection(Site site, Style style, List<double[]> points, int[] levels, RoadProfile.Part[] parts, String dock, int route) {
         this.site = site;
         this.style = style;
         this.points = points;
         this.levels = levels;
         this.parts = parts;
         this.dock = dock;
+        this.route = route;
+        this.signs = signs(parts, style.markerEvery());
+    }
+
+    /** The start sign this far along (blocks), the arrival sign this far before the end; no km sign closer than KM_GAP to either. */
+    static final int SIGN_START = 24, SIGN_END = 20, KM_GAP = 150;
+
+    /**
+     * Where the signs go: point -> kind. Each on plain road (3 points of it either way), moved on (or back, at the end) to
+     * the next such point when it would fall on a bridge or in a tunnel. A road shorter than the gaps has none.
+     */
+    static Map<Integer, RoadSign.Kind> signs(RoadProfile.Part[] parts, int every) {
+        Map<Integer, RoadSign.Kind> out = new TreeMap<>();
+        int n = parts.length;
+        if (n < SIGN_START + SIGN_END + KM_GAP) return out;
+        int start = plain(parts, SIGN_START, 1, 60), end = plain(parts, n - 1 - SIGN_END, -1, 60);
+        if (start >= 0) out.put(start, RoadSign.Kind.START);
+        for (int k = every; k < n; k += every) {
+            int i = plain(parts, k, 1, 60);
+            if (i < 0 || n - 1 - i < KM_GAP || (start >= 0 && i - start < KM_GAP)) continue;
+            out.put(i, RoadSign.Kind.KM);
+        }
+        if (end >= 0 && (start < 0 || end - start >= KM_GAP)) out.put(end, RoadSign.Kind.ARRIVAL);
+        return out;
+    }
+
+    /** The first point from `from` (stepping `dir`, at most `look`) with plain road 3 points either way, or -1. */
+    private static int plain(RoadProfile.Part[] parts, int from, int dir, int look) {
+        for (int k = 0; k < look; k++) {
+            int i = from + k * dir;
+            if (i - 3 < 0 || i + 3 >= parts.length) return -1;
+            boolean ok = true;
+            for (int j = i - 3; j <= i + 3 && ok; j++) ok = parts[j] == RoadProfile.Part.ROAD;
+            if (ok) return i;
+        }
+        return -1;
+    }
+
+    /** The signs of this road (point -> kind). */
+    public Map<Integer, RoadSign.Kind> signs() {
+        return signs;
     }
 
     /**
@@ -114,15 +162,13 @@ public final class RoadSection {
             }
         }
         if (i % style.lightEvery() == 0 && part != RoadProfile.Part.TUNNEL && i > 0 && i < points.size() - 1) {
-            int side = (i / style.lightEvery()) % 2 == 0 ? 1 : -1;
+            int side = (i / style.lightEvery()) % 2 == 0 && !signs.containsKey(i) ? 1 : -1;   // never in a sign's posts
             // on the bridge on its railing, else on the shoulder just past the kerb: never in the lanes
             Col c = nearest(cols, side * (part == RoadProfile.Part.BRIDGE ? 3.0 : 4.0), part == RoadProfile.Part.BRIDGE ? 2.5 : 3.5);
             if (c != null) lamp(c.x(), c.z(), level);
         }
-        if (i > 0 && i % style.markerEvery() == 0 && part == RoadProfile.Part.ROAD) {
-            Col c = nearest(cols, 5, 3.5);
-            if (c != null) marker(c.x(), c.z(), level + 1, -hx, -hz, i);
-        }
+        RoadSign.Kind sign = signs.get(i);
+        if (sign != null) sign(p, rx, rz, level, RoadSign.yaw(-hx, -hz), i, sign);
         return null;
     }
 
@@ -229,19 +275,18 @@ public final class RoadSection {
         if (site.fillable(x, level, z)) site.set(x, level, z, Material.STONE_BRICKS);
     }
 
-    private void marker(int x, int z, int y, double fx, double fz, int at) {
-        if (site.fillable(x, y - 1, z)) site.set(x, y - 1, z, Material.STONE_BRICKS);
-        // facing the traffic coming from the start: the sign's front towards (fx, fz)
-        double yaw = Math.toDegrees(Math.atan2(-fx, fz));
-        int total = points.size();
-        site.sign(x, y, z, face((int) Math.round(yaw / 22.5)), new String[]{"[국도]", dock + " 하역장", at / 1000 + " km 지점",
-                "남은 길 " + String.format(java.util.Locale.ROOT, "%.1f", Math.max(0, total - at) / 1000.0) + " km"});   // 0.5 km, not 0
-    }
-
-    static BlockFace face(int r) {
-        BlockFace[] faces = {BlockFace.SOUTH, BlockFace.SOUTH_SOUTH_WEST, BlockFace.SOUTH_WEST, BlockFace.WEST_SOUTH_WEST, BlockFace.WEST,
-                BlockFace.WEST_NORTH_WEST, BlockFace.NORTH_WEST, BlockFace.NORTH_NORTH_WEST, BlockFace.NORTH, BlockFace.NORTH_NORTH_EAST,
-                BlockFace.NORTH_EAST, BlockFace.EAST_NORTH_EAST, BlockFace.EAST, BlockFace.EAST_SOUTH_EAST, BlockFace.SOUTH_EAST, BlockFace.SOUTH_SOUTH_EAST};
-        return faces[Math.floorMod(r, 16)];
+    /**
+     * A direction sign on the right at point i, facing the traffic coming from the start: its posts on the kerb and the
+     * shoulder (a stone brick footing where the shoulder is not solid), none where a post would stand in a player's land.
+     */
+    private void sign(double[] p, double rx, double rz, int level, float yaw, int i, RoadSign.Kind kind) {
+        int[][] posts = new int[2][];
+        for (int k = 0; k < 2; k++) {
+            double o = RoadSign.LATERAL + (k == 0 ? -RoadSign.POSTS : RoadSign.POSTS);
+            posts[k] = new int[]{(int) Math.floor(p[0] + rx * o), (int) Math.floor(p[1] + rz * o)};
+            if (site.playerLand(posts[k][0], posts[k][1])) return;
+        }
+        for (int[] c : posts) if (site.fillable(c[0], level, c[1]) && !site.liquid(c[0], level, c[1])) site.set(c[0], level, c[1], Material.STONE_BRICKS);
+        site.roadSign(p[0] + rx * RoadSign.LATERAL, level + 1, p[1] + rz * RoadSign.LATERAL, yaw, dock, (points.size() - 1 - i) / 1000.0, route, kind);
     }
 }

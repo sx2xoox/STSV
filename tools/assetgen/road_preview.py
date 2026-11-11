@@ -5,15 +5,21 @@ Preview of the 국도 (economy: /관리자 국도) as the plugin builds it, draw
     python3 tools/assetgen/road_preview.py [out.png]     # docs/previews/road.png (needs: cd render && npm install)
 
 RoadPreviewTest runs the real road (RoadProfile: grade, bridges, tunnels; RoadSection: every block of every cross-section)
-over five scenes of land, and writes the land round it afterwards as columns of blocks. Here each scene is cut out of that
-land and drawn from a 3/4 angle: plain-coloured cubes with a darker rim (vanilla textures are never used: a colour per block
-id, dock_preview's colours plus the land's), the faces nobody can see left out, walls, lanterns and the km sign in their own
-shapes, the water see-through. Where it helps, the land is cut open (the hill beside the road, the tunnel's near half).
+over five scenes of land, and writes the land round it afterwards as columns of blocks, and the direction signs as the
+plugin puts them (RoadSign: the model's point and yaw, each text display's place, scale and words). Here each scene is cut
+out of that land and drawn from a 3/4 angle: plain-coloured cubes with a darker rim (vanilla textures are never used: a
+colour per block id, dock_preview's colours plus the land's), the faces nobody can see left out, walls and lanterns in
+their own shapes, the water see-through. Where it helps, the land is cut open (the hill beside the road, the tunnel's near
+half). The signs are the pack's own model (models/roads.py) placed as the item display shows it (FIXED, scale 2, turned
+180 degrees and then by its yaw), their words drawn as the game draws a text display: Hangul from Neo둥근모 (the pack's
+default font), digits and letters as 5 x 7 pixel glyphs like the game's, bold, centred on the display, a line 10 px high
+on its point, 1/40 block a pixel times its scale.
 """
 
 import base64
 import io
 import json
+import math
 import subprocess
 import sys
 from pathlib import Path
@@ -24,6 +30,7 @@ from PIL import Image, ImageDraw, ImageFont
 HERE = Path(__file__).parent
 sys.path.insert(0, str(HERE))
 import dock_preview as DP  # noqa: E402
+import neodgm  # noqa: E402
 
 REPO = HERE.parent.parent
 DATA = REPO / "economy" / "build" / "roads" / "strip.json"
@@ -38,7 +45,7 @@ COLOURS.update({
     "gray_concrete": (62, 66, 71), "smooth_stone": (168, 168, 168),
 })
 GLOW = {"sea_lantern", "lantern"}
-SHAPED = {"stone_brick_wall", "lantern", "spruce_sign"}
+SHAPED = {"stone_brick_wall", "lantern"}
 # terrain: a faint rim (the grid still reads, but the land is not busy); the road and what is built: a clear one
 SOFT = {"grass_top", "grass_side", "dirt", "stone", "sand", "oak_leaves", "water", "cobblestone"}
 
@@ -75,16 +82,90 @@ def textures():
     return {k: _uri(v) for k, v in out.items()}
 
 
-def sign_texture(lines):
-    """The km sign's face: its four lines on spruce."""
-    im = Image.new("RGBA", (192, 96), (126, 94, 56, 255))
-    d = ImageDraw.Draw(im)
-    d.rectangle((0, 0, 191, 95), outline=(80, 58, 32), width=4)
-    f = ImageFont.truetype(FONT, 17)
-    for i, t in enumerate(lines):
-        w = d.textlength(t, font=f)
-        d.text(((192 - w) / 2, 6 + i * 21), t, fill=(25, 18, 10), font=f)
-    return _uri(im)
+# the game's digits and letters (what a sign's km and route number use): 5 x 7, drawn here (not the game's font file)
+SMALL = {
+    "0": ("01110", "10001", "10011", "10101", "11001", "10001", "01110"),
+    "1": ("00100", "01100", "00100", "00100", "00100", "00100", "11111"),
+    "2": ("01110", "10001", "00001", "00110", "01000", "10000", "11111"),
+    "3": ("01110", "10001", "00001", "00110", "00001", "10001", "01110"),
+    "4": ("00010", "00110", "01010", "10010", "11111", "00010", "00010"),
+    "5": ("11111", "10000", "11110", "00001", "00001", "10001", "01110"),
+    "6": ("00110", "01000", "10000", "11110", "10001", "10001", "01110"),
+    "7": ("11111", "10001", "00001", "00010", "00100", "00100", "00100"),
+    "8": ("01110", "10001", "10001", "01110", "10001", "10001", "01110"),
+    "9": ("01110", "10001", "10001", "01111", "00001", "00010", "01100"),
+    ".": ("0", "0", "0", "0", "0", "1", "1"),
+    "k": ("1000", "1000", "1001", "1010", "1100", "1010", "1001"),
+    "m": ("00000", "00000", "11010", "10101", "10101", "10101", "10101"),
+}
+_HANGUL = None
+
+
+def text_image(text):
+    """A text display's line as the game draws it, white, digits bold (RoadSign.bold): (RGBA picture at 2 px a text
+    pixel, width in text pixels). The picture is 10 text pixels high (the line), the glyphs from its top."""
+    global _HANGUL
+    if _HANGUL is None:
+        _HANGUL = neodgm.load()
+    glyphs, x = [], 0.0
+    for ch in text:
+        if ch == " ":
+            x += 4
+            continue
+        if ch in SMALL:
+            rows = SMALL[ch]
+            pts = [(c * 2 + dx, r * 2 + dy) for r, row in enumerate(rows) for c, b in enumerate(row) if b == "1" for dx in (0, 1) for dy in (0, 1)]
+            bold = ch in "0123456789."
+            glyphs.append((x, pts, 2 if bold else 0))       # bold: 1 text pixel over
+            x += len(rows[0]) + 1 + (1 if bold else 0)
+            continue
+        adv, rows = _HANGUL[ord(ch)]
+        cols = [c for c in range(adv) if any(r[c] for r in rows)]
+        lo, hi = (min(cols), max(cols)) if cols else (0, 0)
+        pts = [(c - lo, r + 1) for r, row in enumerate(rows) for c, b in enumerate(row) if b]
+        glyphs.append((x, pts, 0))
+        x += (hi - lo + 1) / 2 + 1
+    width = int(round(x - 1))
+    im = Image.new("RGBA", (max(2, width * 2 + 2), 20), (0, 0, 0, 0))
+    px = im.load()
+    for gx, pts, bold in glyphs:
+        for (u, v) in pts:
+            for o in (0, bold):
+                X = int(round(gx * 2)) + u + o
+                if 0 <= X < im.width and 0 <= v < 20:
+                    px[X, v] = (250, 252, 255, 255)
+    return im, width
+
+
+def sign_elements(signs, centre, tex):
+    """The direction signs: the model as the plugin's item display shows it, each text display a plane with its words."""
+    import economy_models as M
+    cx, cy, cz = centre
+    pv = M.ALL["road_sign"]().to_preview()
+    tex.update(pv["textures"])
+    els = []
+    for sg in signs:
+        ex, ey, ez = (sg["x"] - cx) * 16, (sg["y"] - cy) * 16, (sg["z"] - cz) * 16
+        # model point m -> (m - 8) * 2 from the entity, lifted 1.5 blocks; FIXED turns it 180 degrees, then the yaw
+        fn = lambda q: [ex + (q[0] - 8) * 2, ey + (q[1] - 8) * 2 + 24, ez + (q[2] - 8) * 2]
+        for e in pv["elements"]:
+            e = json.loads(json.dumps(e))
+            a, b = fn(e["from"]), fn(e["to"])
+            e["from"], e["to"] = [min(a[i], b[i]) for i in range(3)], [max(a[i], b[i]) for i in range(3)]
+            e["post"] = [["y", -(sg["yaw"] + 180), [ex, ey, ez]]]
+            els.append(e)
+        for t in sg["texts"]:
+            im, w = text_image(t["text"])
+            key = "text_" + "_".join(f"{ord(c):x}" for c in t["text"])
+            tex[key] = _uri(im)
+            k = 16 * t["scale"] / 40                        # preview px a text pixel
+            tx, ty, tz = (t["x"] - cx) * 16, (t["y"] - cy) * 16, (t["z"] - cz) * 16
+            # centred on the point (the game moves it 1 text pixel right), standing on it, facing the yaw (+z unturned)
+            frm = (tx + (1 - w / 2) * k, ty, tz)
+            to = (tx + (1 - w / 2) * k + im.width / 2 * k, ty + 10 * k, tz)
+            els.append({"from": list(frm), "to": list(to), "glow": True, "shade": False, "rotation": None,
+                        "faces": {"south": {"uv": [0, 0, 16, 16], "texture": key}}, "post": [["y", -sg["yaw"], [tx, ty, tz]]]})
+    return els
 
 
 class Strip:
@@ -193,7 +274,7 @@ def _texname(name, face):
     return name
 
 
-def elements(strip, a, x0, ymin, z0, centre, signs):
+def elements(strip, a, x0, ymin, z0, centre):
     """Every face that shows, merged into rectangles, and the shaped blocks: elements in preview pixels round `centre`."""
     pal = strip.pal
     names = np.array(pal + ["water_top"])
@@ -290,21 +371,7 @@ def elements(strip, a, x0, ymin, z0, centre, signs):
         elif name == "lantern":
             els.append(_box((X + 5, Y, Z + 5), (X + 11, Y + 7, Z + 11), "lantern", True))
             els.append(_box((X + 6, Y + 7, Z + 6), (X + 10, Y + 9, Z + 10), "iron_chain"))
-        elif name == "spruce_sign":
-            s = signs.get((x0 + i, ymin + j, z0 + k))
-            rot = s["rot"] if s else 0
-            post = [["y", -rot * 22.5, [X + 8, Y, Z + 8]]]
-            els.append(_box((X + 7, Y, Z + 7), (X + 9, Y + 9.33, Z + 9), "spruce_log", post=post))
-            front = s["tex"] if s else "spruce_planks"
-            els.append(_box((X, Y + 9.33, Z + 7), (X + 16, Y + 17.33, Z + 9), "spruce_planks",
-                            faces={"south": front, "north": "spruce_planks", "east": "spruce_planks", "west": "spruce_planks",
-                                   "up": "spruce_planks", "down": "spruce_planks"}, post=post))
     return els
-
-
-ROT = {"south": 0, "south_south_west": 1, "south_west": 2, "west_south_west": 3, "west": 4, "west_north_west": 5, "north_west": 6,
-       "north_north_west": 7, "north": 8, "north_north_east": 9, "north_east": 10, "east_north_east": 11, "east": 12,
-       "east_south_east": 13, "south_east": 14, "south_south_east": 15}
 
 
 def render(strip, name, box, view, size, cut=None):
@@ -312,13 +379,10 @@ def render(strip, name, box, view, size, cut=None):
     x0, x1, z0, z1, ymin, ymax = box
     a = strip.window(x0, x1, z0, z1, ymin, ymax, cut)
     tex = textures()
-    signs = {}
-    for sx, sy, sz, facing, lines in strip.d["signs"]:
-        key = f"sign_{sx}_{sz}"
-        tex[key] = sign_texture(lines)
-        signs[(sx, sy, sz)] = {"rot": ROT[facing], "tex": key}
     centre = view["centre"]
-    els = elements(strip, a, x0, ymin, z0, centre, signs)
+    els = elements(strip, a, x0, ymin, z0, centre)
+    signs = [g for g in strip.d["signs"] if x0 <= g["x"] <= x1 + 1 and z0 <= g["z"] <= z1 + 1]
+    els += sign_elements(signs, centre, tex)
     w, h = size
     v = {"x": 0, "y": 0, "w": w, "h": h, "az": view["az"], "el": view["el"], "k": view["k"], "radius": view["radius"] * 16,
          "fov": view.get("fov", 35), "far": 40000, "center": [0, 0, 0]}
@@ -336,9 +400,9 @@ def scenes(strip):
     near = strip.corridor(24)
     tunnel = (1246, 1298)   # cut open: the near half of the hill and the tunnel, down to the road (the portals left whole)
     return [
-        ("a", "(가) 평지: 가로등과 km 표지판",
-         "폭 5칸 회색 바닥 + 노란 점선 + 양쪽 갓돌, 가로등 40칸마다 양쪽 번갈아, 1,000칸마다 km 표지판",
-         (978, 1024, -16, 16, 58, 74), {"az": -122, "el": 30, "k": 1.0, "radius": 22, "centre": (999, 65, 1)}, None),
+        ("a", "(가) 평지: 가로등과 방향 표지판",
+         "폭 5칸 회색 바닥 + 노란 점선 + 양쪽 갓돌, 가로등 40칸마다 양쪽 번갈아, 1,000칸마다 방향 표지판 (오른쪽, 오는 차를 바라봄)",
+         (978, 1024, -16, 16, 58, 74), {"az": -118, "el": 24, "k": 1.0, "radius": 19, "centre": (1001, 66, 2)}, None),
         ("b", "(나) 언덕 오르기: 깎고 메우기, 경사 1:3",
          "땅은 1:2 로 가팔라도 길은 3칸에 1칸씩. 비탈의 높은 쪽은 깎고 낮은 쪽은 메움 (언덕 중턱을 길 가로로 자른 그림)",
          (1040, 1101, -16, 16, 52, 84), {"az": 72, "el": 20, "k": 1.0, "radius": 52, "centre": (1082, 70, 0)}, None),
@@ -378,15 +442,33 @@ def _head(d, x, y, title, note, width, font, small):
         d.text((x + 18, y + 46 + k * 24), line, fill=(185, 190, 200), font=small)
 
 
-def _sign_inset(strip, small):
-    """The km sign's words, big: what the sign in (a) says."""
-    sx, sy, sz, facing, lines = strip.d["signs"][0]
-    im = Image.open(io.BytesIO(base64.b64decode(sign_texture(lines).split(",", 1)[1]))).convert("RGB")
-    im = im.resize((im.width * 2, im.height * 2), Image.NEAREST)
-    box = Image.new("RGB", (im.width + 16, im.height + 44), (27, 29, 34))
-    box.paste(im, (8, 36))
-    ImageDraw.Draw(box).text((8, 6), f"표지판 ({sx}, {sz}) 앞면", fill=(220, 222, 228), font=small)
-    return box
+def sign_faces(strip, size):
+    """The three kinds of sign (start, every km, arrival) straight on, side by side, as the test placed them: (picture,
+    the kinds in order)."""
+    order = {"START": 0, "KM": 1, "ARRIVAL": 2}
+    signs = sorted(strip.d["signs"], key=lambda g: order[g["kind"]])
+    moved = []
+    for n, g in enumerate(signs):
+        # each turned to face north (yaw 180) and set 4.5 blocks apart: a text's place is (right, out) from the sign's point
+        r = math.radians(g["yaw"])
+        R, F = (math.cos(r), math.sin(r)), (-math.sin(r), math.cos(r))
+        ox = ((len(signs) - 1) / 2 - n) * 4.5   # facing north: +x is on the viewer's left
+        texts = []
+        for t in g["texts"]:
+            dx, dz = t["x"] - g["x"], t["z"] - g["z"]
+            right, out = dx * R[0] + dz * R[1], dx * F[0] + dz * F[1]
+            texts.append(dict(t, x=ox - right, y=t["y"] - g["y"], z=-out))
+        moved.append({"x": ox, "y": 0.0, "z": 0.0, "yaw": 180.0, "kind": g["kind"], "texts": texts})
+    tex = {}
+    els = sign_elements(moved, (0, 0, 0), tex)
+    w, h = size
+    v = {"x": 0, "y": 0, "w": w, "h": h, "az": 0, "el": 0, "k": 1.0, "radius": 11.2 * 16, "fov": 12.5, "far": 40000,
+         "center": [0, 3.75 * 16, 0]}
+    BUILD.mkdir(exist_ok=True)
+    src, png = BUILD / "road_signs.preview.json", BUILD / "road_signs.png"
+    src.write_text(json.dumps({"textures": tex, "elements": els, "grid": False, "views": [v], "size": [w, h]}))
+    subprocess.run(["node", str(RENDER), str(src), str(png)], check=True, stdout=subprocess.DEVNULL)
+    return Image.open(png).convert("RGB"), [g["kind"] for g in signs]
 
 
 def main(out, only=None):
@@ -404,14 +486,14 @@ def main(out, only=None):
         return   # a try: the panels are in tools/assetgen/build/road_<name>.png
     panels = [rendered[n] for n in "abcde"]
     over, otitle, onote = rendered["overview"]
-    sheet = Image.new("RGB", (OW, 2 * (PH + HEAD) + OH + HEAD), (27, 29, 34))
+    FH = 420
+    faces, kinds = sign_faces(strip, (OW, FH))
+    sheet = Image.new("RGB", (OW, 2 * (PH + HEAD) + FH + HEAD + OH + HEAD), (27, 29, 34))
     d = ImageDraw.Draw(sheet)
     for n, (im, title, note) in enumerate(panels):
         x, y = (n % 3) * PW, (n // 3) * (PH + HEAD)
         sheet.paste(im, (x, y + HEAD))
         _head(d, x, y, title, note, PW, font, small)
-    inset = _sign_inset(strip, small)
-    sheet.paste(inset, (PW - inset.width - 12, HEAD + 12))
     # the last place in the second row: what the blocks are
     lx, ly = 2 * PW + 30, PH + HEAD + 30
     d.text((lx, ly), "블록 (/관리자 국도)", fill=(245, 245, 245), font=font)
@@ -426,7 +508,18 @@ def main(out, only=None):
         yy += 36
     for k, line in enumerate(("RoadPreviewTest 가 실제 길 코드(RoadProfile, RoadSection)로", "지어 본 블록을 그대로 그린 그림 (바닐라 텍스처 없음)")):
         d.text((lx, yy + 12 + k * 26), line, fill=(150, 155, 165), font=small)
-    oy = 2 * (PH + HEAD)
+    # the signs straight on: what RoadPreviewTest's road put up (RoadSign's words and places, the model)
+    fy = 2 * (PH + HEAD)
+    sheet.paste(faces, (0, fy + HEAD))
+    names = {"START": "출발 뒤 24칸: 방면 + 전체 거리", "KM": "1,000칸마다: 남은 거리", "ARRIVAL": "입구 20칸 앞: 도착"}
+    _head(d, 0, fy, "국도 표지판 (3D 모델 + 글씨 디스플레이)",
+          "길 오른쪽(갓돌·갓길 위)에 서서 오는 차를 바라봄, 판 아래는 길 위 3칸 · 판 3×1.5칸. 큰 줄 = 하역장(+방면/도착), "
+          "아랫줄 = 노선 방패(국도 n호선, 길마다 만든 순서) · 남은 거리. 글씨는 서버 기본 글꼴(Neo둥근모), 숫자만 굵게", OW, font, small)
+    for n, kind in enumerate(kinds):
+        cx = OW // 2 + (n - (len(kinds) - 1) / 2) * 4.5 * FH / (2 * 11.2 * math.tan(math.radians(6.25)))   # sign_faces: 4.5 apart
+        label = names[kind]
+        d.text((cx - d.textlength(label, font=small) / 2, fy + HEAD + 14), label, fill=(185, 190, 200), font=small)
+    oy = fy + FH + HEAD
     sheet.paste(over, (0, oy + HEAD))
     _head(d, 0, oy, otitle, onote, OW, font, small)
     sheet.save(out, optimize=True)
