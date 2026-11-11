@@ -89,7 +89,7 @@ const views = M.views || [
 for (const v of views) {
   // a view may look at its own centre with its own radius and field of view (scale sheets: one scene, many pieces)
   const vc = v.center ? new THREE.Vector3(...v.center) : center, vr = v.radius || radius;
-  const cam = new THREE.PerspectiveCamera(v.fov || 35, v.w / v.h, 0.1, v.far || 1000);
+  const cam = new THREE.PerspectiveCamera(v.fov || 35, v.w / v.h, v.near || 0.1, v.far || 1000);   // near: far-away near-orthographic views keep their depth precision
   const az = v.az * Math.PI / 180, el = v.el * Math.PI / 180, d = vr * v.k;
   cam.position.set(vc.x + Math.sin(az) * Math.cos(el) * d, vc.y + Math.sin(el) * d, vc.z - Math.cos(az) * Math.cos(el) * d);
   cam.lookAt(vc);

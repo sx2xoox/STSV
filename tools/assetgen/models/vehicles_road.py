@@ -112,8 +112,10 @@ BIKE = {"r": 6.0, "front": -10.0, "rear": 10.0, "bb": (5.5, -1.5), "seat": (14.0
 
 
 def wheel_bicycle():
-    """A 28-inch roadster wheel (12 px): a black tyre with its tread, a bright steel rim lit along its top front,
-    eight wire spokes on a see-through wheel (three 0.5 px planes, the spokes in the middle one) and a hub."""
+    """A 28-inch roadster wheel (12 px): a black tyre, a bright steel rim lit along its top front, eight wire spokes
+    on a see-through wheel and a hub. Three 0.5 px planes: the rim and the spokes in the middle one, the tyre's two
+    walls either side of it only dark rubber (one bright rim, not three side by side: from an angle three bright
+    rings and the tread's blocks read as noise)."""
     m = BModel("wheel_bicycle", shift=(8, 8, 8), floor=None)
     R = 6.0
 
@@ -127,17 +129,17 @@ def wheel_bicycle():
                 return raw("rubber", 1) if r > R - 1.2 else ("raw", CLEAR)    # the plane's thin edges: tread only
             lit = y - 0.5 * z
             if r > R - 1.0:
-                k = math.floor((math.atan2(z, y) + math.pi) / (2 * math.pi) * 30)
-                return raw("rubber", 0 if k % 2 else 1.4 if lit > 2 else 1)    # tread blocks
-            if r > R - 1.9:
-                return raw("blade", 3 if lit > 1.5 else 2 if lit > -2 else 1)  # the rim
+                return raw("rubber", 1.6 if lit > 3 else 1 if lit > -3 else 0.6)   # the tyre's wall, lit on its upper front
             if not spokes:
                 return ("raw", CLEAR)
+            if r > R - 1.9:
+                return raw("blade", 3 if lit > 1.5 else 2 if lit > -2 else 1)  # the rim
             if r < 1.3:
                 return raw("steel", 4)
             # eight spokes, each one texel wide: an X along the diagonals and a + half a texel off the middle
+            # (a darker steel than the rim: at one texel each they would otherwise fill the wheel in)
             if abs(y - z) < 0.3 or abs(y + z) < 0.3 or abs(y - 0.5) < 0.3 or abs(z - 0.5) < 0.3:
-                return raw("blade", 2.6 if lit > 0 else 1.6)
+                return raw("iron", 3.4 if lit > 0 else 2.6)
             return ("raw", CLEAR)
         return Paint("rubber", 1, noise=0, light=False, decal=decal)
     m.box("disc", (-0.25, -R, -R), (0.25, R, R), disc(True))
@@ -149,7 +151,7 @@ def wheel_bicycle():
         if c.face in ("east", "west"):
             return ("blade", 3) if c.u == 0 and c.v == 0 else ("steel", 4)
         return ("steel", 3)
-    m.box("hub", (-1.75, -0.75, -0.75), (1.75, 0.75, 0.75), Paint("steel", 3, noise=0, rim=0, ao=0, decal=hub))
+    m.box("hub", (-2.25, -0.75, -0.75), (2.25, 0.75, 0.75), Paint("steel", 3, noise=0, rim=0, ao=0, decal=hub))   # past the stays and fork
     m.display = presets.furniture(gui_scale=0.6)
     return m
 
@@ -176,21 +178,23 @@ def bicycle_crank():
         if r > 0.9 and 0.3 < t < 0.8:
             return ("raw", CLEAR)                                           # the holes between the spider's arms
         return raw("blade", 2)
-    m.box("chainring", (1.25, -3.5, -3.5), (1.75, 3.5, 3.5), Paint("blade", 2, noise=0, light=False, decal=ring))
-    m.box("spindle", (-2.25, -0.5, -0.5), (1.25, 0.5, 0.5), tube("steel", 4, 2))
+    # the chainring outboard of the chain stay (they shared a side and flickered), under the chain case; the arms
+    # and pedals outside the case
+    m.box("chainring", (1.75, -3.5, -3.5), (2.25, 3.5, 3.5), Paint("blade", 2, noise=0, light=False, decal=ring))
+    m.box("spindle", (-2.75, -0.5, -0.5), (2.75, 0.5, 0.5), tube("steel", 4, 2))
     arm = tube("blade", 3.4, 1.8)
-    m.box("arm", (1.75, -3.75, -0.5), (2.5, 0.5, 0.5), arm)
-    m.box("arm", (-3.0, -0.5, -0.5), (-2.25, 3.75, 0.5), arm)
+    m.box("arm", (2.75, -3.75, -0.5), (3.5, 0.5, 0.5), arm)
+    m.box("arm", (-3.5, -0.5, -0.5), (-2.75, 3.75, 0.5), arm)
 
     def pedal(c):
-        if c.face in ("north", "south") and abs(c.p[0]) > 4.25:
+        if c.face in ("north", "south") and abs(c.p[0]) > 4.75:
             return ("fox", 4)                                               # the reflector
         if c.face == "up":
             return ("rubber", 2 if math.floor(c.p[0] * 2) % 2 else 3)
         return ("rubber", 1)
     p = Paint("rubber", 1, noise=0, rim=0.4, decal=pedal)
-    m.box("pedal", (2.5, -4.25, -1.25), (5.25, -3.25, 1.25), p)
-    m.box("pedal", (-5.75, 3.25, -1.25), (-3.0, 4.25, 1.25), p)
+    m.box("pedal", (3.5, -4.25, -1.25), (6.25, -3.25, 1.25), p)
+    m.box("pedal", (-6.25, 3.25, -1.25), (-3.5, 4.25, 1.25), p)
     m.display = presets.furniture(gui_scale=0.8)
     return m
 
@@ -229,11 +233,11 @@ def bicycle():
         rod(m, "chain_stay", (bb[0], bb[1]), (R, RR), 1, fp, x=sorted((s * 0.75, s * 1.75)))
         rod(m, "seat_stay", (seat[0] - 0.8, seat[1] + 0.3), (R + 0.3, RR - 0.1), 1, fp, x=sorted((s * 0.75, s * 1.75)))
         rod(m, "fork", (hy0, hz0), (R, F), 1, tube("blade", 3.4, 2), x=sorted((s * 1.0, s * 2.0)))
-    m.box("bottom_bracket", (-1.5, bb[0] - 1, bb[1] - 1), (1.5, bb[0] + 1, bb[1] + 1), tube("blade", 3, 1.6))
+    m.box("bottom_bracket", (-2, bb[0] - 1, bb[1] - 1), (2, bb[0] + 1, bb[1] + 1), tube("blade", 3, 1.6))
     m.box("crown", (-2.25, hy0 - 1, hz0 - 1), (2.25, hy0, hz0 + 1), tube("blade", 3.4, 2))
 
     m.group("seat")
-    rod(m, "seat_post", seat, (seat[0] + 2.2, seat[1] + 0.8), 1, tube("blade", 3.4, 2))
+    rod(m, "seat_post", seat, (seat[0] + 3.0, seat[1] + 1.1), 1, tube("blade", 3.4, 2))     # up into the saddle's clamp
 
     def saddle(c):
         x, y, z = c.p
@@ -274,7 +278,7 @@ def bicycle():
         m.box("grip", (xa, top[0] - 0.75, top[1] + 1.5), (xb, top[0] + 0.5, top[1] + 4.0), Paint("rubber", 1, noise=0, decal=grip))
         # rod brake levers running forward under the grips
         xa, xb = sorted((s * 4.0, s * 4.75))
-        m.box("lever", (xa, top[0] - 1.25, top[1] + 0.5), (xb, top[0] - 0.75, top[1] + 3.0), CHROME)
+        m.box("lever", (xa, top[0] - 1.25, top[1]), (xb, top[0] - 0.5, top[1] + 3.0), CHROME)   # hung from the bar
 
     def bell(c):
         if c.face == "up":
@@ -302,7 +306,7 @@ def bicycle():
                 return ("blade", 3 if c.face == "up" else 2.4)
             return (G, 2.6 if c.face == "east" else 2)
         return (G, 1)
-    m.box("chain_case", (2.0, bb[0] - 1.75, bb[1] - 0.5), (2.75, bb[0] + 2.75, RR + 1), Paint(G, 2, noise=0, rim=0.4, decal=case))
+    m.box("chain_case", (2.0, bb[0] - 1.75, bb[1] - 0.75), (2.75, bb[0] + 2.75, RR + 1), Paint(G, 2, noise=0, rim=0.4, decal=case))
 
     m.group("basket")
     bx, bz, by = 5.25, (-20.5, -11.5), (12.25, 19)
@@ -368,7 +372,7 @@ def bicycle_cargo(stage):
                 return ("cabbage", 3 if r < 1.2 else 2 if (math.floor(x) + math.floor(z)) % 3 else 1)
             return ("cucumber", 3 if math.floor(y) % 2 else 2.4)
         cp = Paint("cabbage", 2, noise=0, rim=0.6, decal=cabbage)
-        m.box("cabbage", (-5, fy, -18), (1, fy + 5, -11.75), cp)
+        m.box("cabbage", (-4.5, fy, -18), (1, fy + 5, -12.25), cp)
         m.box("cabbage", (-4.25, fy + 5, -17.25), (0.25, fy + 6, -12.5), cp)
 
         def onion(c):
@@ -400,18 +404,19 @@ def bicycle_cargo(stage):
             return ("paper", 2.2)
         m.box("newspapers", (-4.75, fy + 6, -19.75), (0.75, fy + 8.5, -15.25), Paint("paper", 2, noise=0, rim=0.4, decal=news))
     if stage >= 3:
-        _cart_crate(m, -4, 2.5, 8, 11, 6, y=14, fill=None, ramp="wood")
+        # on the rack behind the saddle (the rider sits over the rack's front end)
+        _cart_crate(m, -4, 7, 8, 10, 6, y=14, fill=None, ramp="wood")
         def apples(c):
             r = h3(math.floor(c.p[0]), 1, math.floor(c.p[2]), 5)
             return ("tomato", 2.4 if r > 0.4 else 1.6) if r > 0.12 else ("sprout", 2)
-        m.box("apples", (-3, 20, 3.5), (3, 20.75, 12.5), Paint("tomato", 2, noise=0, rim=0.2, decal=apples))
+        m.box("apples", (-3, 20, 8), (3, 20.75, 16), Paint("tomato", 2, noise=0, rim=0.2, decal=apples))
 
         def cord(c):
             return ("fabric_red", 2 if math.floor(c.p[2] + c.p[1]) % 2 else 1.2)
-        for z in (5.5, 10.5):
-            m.box("cord", (-4.25, 13.75, z), (4.25, 20.25, z + 0.75), Paint("fabric_red", 2, noise=0, decal=cord))
+        for z in (9.5, 14.5):
+            m.box("cord", (-4.5, 13.75, z), (4.5, 20.25, z + 0.75), Paint("fabric_red", 2, noise=0, decal=cord))
     if stage >= 4:
-        _sack(m, -3.5, 20.75, 4.5, 7, 7, 4, band="denim")
+        _sack(m, -3.5, 20.75, 9, 7, 7, 4, band="denim")
     m.display = presets.furniture(gui_scale=0.4)
     return m
 
@@ -508,10 +513,10 @@ def scooter():
             return ("car_white", lerp(y, 7, 17, 1.4, 2.6))
         if c.face == "north" and abs(x) < 1.0 and y > 8:
             return ("car_white", 2.6)
-        if c.face == "north" and y < 8:
+        if c.face == "north" and y < 10:
             return ("rubber", 1)                               # a black rubber skirt at the bottom
         return paint(c)
-    m.box("leg_shield", (-5, 7, -7.5), (5, 17, -5.75), Paint(MOTO, 2, noise=0, rim=0.5, decal=shield))
+    m.box("leg_shield", (-5, 9, -7.5), (5, 17, -5.75), Paint(MOTO, 2, noise=0, rim=0.5, decal=shield))
     m.box("head", (-2, 15, -6.5), (2, 17.5, -4.75), body)
 
     m.group("frame")
@@ -531,8 +536,8 @@ def scooter():
     for s in (1, -1):
         xa, xb = sorted((s * 3.0, s * 5.5))
         m.box("footpeg", (xa, 5.5, 0), (xb, 6.5, 1.5), Paint("rubber", 1, noise=0))
-        xa, xb = sorted((s * 3.5, s * 5.5))
-        m.box("pillion_peg", (xa, 7.0, 7), (xb, 7.75, 8.25), Paint("rubber", 1, noise=0))
+        xa, xb = sorted((s * 3.0, s * 5.5))
+        m.box("pillion_peg", (xa, 7.25, 7), (xb, 8, 8.25), Paint("rubber", 1, noise=0))   # under the side cover
 
     def muffler(c):
         x, y, z = c.p
@@ -613,16 +618,17 @@ def scooter():
         if fy == 25:
             return ("car_white", 0.8)                          # the lid's seam
         if c.face in ("east", "west"):
-            u, v = z - 13, y - 22.0                            # the bowl sign, its middle
-            if -2.5 <= u < 2.5 and -2 <= v < 0:
-                if v < -1.5 and abs(u) < 1.5:
-                    return (MOTO, 1)                           # the bowl's foot
-                if v >= -1.5 and abs(u) < 2.5 - (-1 - v) * 0.6:
-                    return (MOTO, 2.6 if v > -0.5 else 2)      # the bowl
-            if 0 <= v < 3 and math.floor(u) in (-1, 1) and (math.floor(v) + math.floor(u)) % 2 == 0:
-                return ("car_white", 1.4)                      # steam
-            if abs(u) <= 3.5 and math.floor(v) in (-1,):
-                return None
+            # the bowl sign: a wide bowl (its lit rim, the bowl, a narrow foot) under three wavy wisps of steam (two
+            # dots over a bowl read as a face)
+            u, row = math.floor(z - 13), fy
+            if row == 22 and -3 <= u < 3:
+                return (MOTO, 3.0)                             # the bowl's rim
+            if row == 21 and -2 <= u < 2:
+                return (MOTO, 2.2)                             # the bowl
+            if row == 20 and -1 <= u < 1:
+                return (MOTO, 1.4)                             # its foot
+            if row in (23, 24) and u in ((-2, 0, 2) if row == 23 else (-1, 1, 3)):
+                return ("car_white", 1.0)                      # steam rising, wavy
         if 19 <= fy <= 19 or fy == 18:
             return (MOTO, 2.4 if fy == 19 else 1.8)            # the red band
         if c.face == "south":
@@ -767,8 +773,8 @@ def atv():
             return ("iron", 3) if (math.floor(c.p[0]) + math.floor(c.p[2])) % 3 == 0 else ("iron", 1.6)   # tread plate
         return ("iron", 1.6)
     for s in (1, -1):
-        xa, xb = sorted((s * 4.0, s * 10.5))
-        m.box("footboard", (xa, 6, -4.5), (xb, 7, 4.5), Paint("iron", 2, noise=0, decal=board))
+        xa, xb = sorted((s * 3.5, s * 10.5))
+        m.box("footboard", (xa, 6, -4.5), (xb, 7, 4.5), Paint("iron", 2, noise=0, decal=board))   # off the engine's sides
 
     m.group("bars")
     rod(m, "steering_post", (10.5, -7), (16.5, -5), 1.5, tube("iron", 3, 1.4))
@@ -841,8 +847,8 @@ VAN = {"front": -28, "back": 28, "half": 12, "belt": 15, "roof": 29, "cab_back":
 
 
 def wheel_van():
-    """The van's small steel wheel: 9 px across, 3 px wide, a plain white steel disc with four holes."""
-    return _wheel("wheel_van", 9, 3, cap="car_white", cap_d=5, spokes=4, holes=True)
+    """The van's small steel wheel: 9 px across, 3 px wide, a plain white pressed steel disc."""
+    return _wheel("wheel_van", 9, 3, cap="car_white", cap_d=5, spokes=4, plain=True)
 
 
 def cargo_van():
@@ -902,6 +908,14 @@ def cargo_van():
                 return ("fox", 3)                             # a front side marker
             if c.face == "west" and fz in (BK - 7, BK - 6) and fy == 20:
                 return ("car_white", 0.6)                     # the fuel door
+            if z > CB and fy == 22:
+                return ("car_white", 1.4)                     # a pressed crease along the box (its shadow) ...
+            if z > CB and fy == 23:
+                return ("car_white", 3.0)                     # ... and its lit upper edge
+            if c.face == "west" and fz == DOOR[1] and 5 <= fy < ROOF - 1:
+                return ("car_white", 0.6)                     # the left side's panel seam (the door's twin)
+            if fy < 9 and h3(fz, fy, 5, 75) < 0.12 + (9 - fy) * 0.05:
+                return ("car_white", 0.6)                     # road grime along the sill
             # a cargo pictogram (a parcel) on the box's sides, behind the door
             u, v = z - 20, y - 20
             if -3 <= u < 3 and -3 <= v < 2:
@@ -1144,6 +1158,10 @@ def box_truck():
                 return ("rubber", 1.4)                        # the step under the door
             if F + 1 <= fz <= F + 2 and 15 <= fy <= 16:
                 return ("fox", 3)                             # amber repeater
+            if fy == BELT - 1:
+                return (CAB, 3.0)                             # the shoulder catching the light under the windows
+            if fy < 14 and h3(fz, fy, 3, 71) < 0.10 + (14 - fy) * 0.04:
+                return (CAB, 0.8)                             # road grime thrown up by the front wheel
             return navy(y)
         if c.face == "south":
             return (CAB, 1.2)
@@ -1159,19 +1177,22 @@ def box_truck():
     for s in (1, -1):
         xa, xb = sorted((s * 6, s * 9))
         m.box("rail", (xa, 8.25, F + 6), (xb, 12, BK - 1), Paint("iron", 2, noise=0, decal=rail))
-    m.box("subframe", (-BH + 1, 12, BF), (BH - 1, FLOOR, BK - 0.5), Paint("iron", 2, noise=0, rim=0.6))
+    # the subframe under the box, between the tyres (the rear tyres' tops, 14 px up, stand beside it under the box)
+    m.box("subframe", (-10, 12, BF), (10, FLOOR, BK - 0.5), Paint("iron", 2, noise=0, rim=0.6))
 
     def guard(c):
         x, y, z = c.p
         if c.face in ("east", "west"):
             fy = math.floor(y)
             if fy in (9, 12):
-                return ("blade", 3 if fy == 12 else 2.4)      # two bars of the side guard
+                return raw("blade", 3 if fy == 12 else 2.4)   # two bars of the side guard
+            if fy >= 10 and math.floor(z - (FA + SLOT + 4)) % 14 in (0, 1):
+                return raw("iron", 1.6 if math.floor(z) % 2 else 2.2)   # the brackets up to the box
             return ("raw", CLEAR)
         return raw("blade", 2) if c.nu <= 1 or c.nv <= 1 else ("raw", CLEAR)
     for s in (1, -1):
         xa, xb = sorted((s * (BH - 0.75), s * (BH - 0.25)))
-        m.box("side_guard", (xa, 8.5, FA + SLOT + 4), (xb, 13.5, RA - SLOT - 1.5), Paint("blade", 2, noise=0, light=False, decal=guard))
+        m.box("side_guard", (xa, 8.5, FA + SLOT + 4), (xb, FLOOR, RA - SLOT - 1.5), Paint("blade", 2, noise=0, light=False, decal=guard))
 
         def fuel(c):
             if c.face in ("east", "west") and abs(c.p[1] - 11) < 0.5:
@@ -1289,7 +1310,7 @@ def box_truck():
 
         def step(c):
             return ("blade", 3) if c.face == "up" and math.floor(c.p[2]) % 2 else ("iron", 2)
-        m.box("step", (xa, 4.5, CB - 9), (xb, 5.5, CB - 3), Paint("iron", 2, noise=0, decal=step))
+        m.box("step", (xa, 4.5, CB - 6), (xb, 5.5, CB - 1.5), Paint("iron", 2, noise=0, decal=step))   # behind the front tyre
 
     m.group("inside")
     m.box("dash", (-CH + 0.5, BELT, F + 1.5), (CH - 0.5, BELT + 2.5, F + 5), DARK)
@@ -1305,6 +1326,7 @@ def box_truck():
         return ("raw", CLEAR)
     m.box("wheel", (-11, BELT + 3, F + 5), (-5, BELT + 3.5, F + 10), Paint("rubber", 1, noise=0, light=False, decal=steering),
           rotation=("x", -22.5, (0, BELT + 3, F + 7.5)))
+    m.box("column", (-8.5, BELT + 1.5, F + 5), (-7.5, BELT + 3.25, F + 7.5), PLASTIC)   # the wheel on its column
     seat = dict(bolster=("rubber", 2), insert=("denim", 1), stitch=("denim", 3))
     for s in (1, -1):
         lo, hi = (min(3 * s, 13 * s), BELT, CB - 5), (max(3 * s, 13 * s), BELT + 11, CB - 2)
@@ -1338,7 +1360,14 @@ def box_truck():
             if 22 <= fy <= 24:
                 return ("sapphire", 2.4 if fy == 23 else 1.6)  # a blue stripe along the box
             k = math.floor(z - BF) % 3
-            return ("steel", 4.6 if k == 0 else 3.2 if k == 1 else 3.8)
+            base = 4.6 if k == 0 else 3.2 if k == 1 else 3.8
+            # wear: rain streaks down from the top rail, road spray along the bottom behind the wheels
+            run = h3(fz, 0, 1 if x > 0 else 2, 72)
+            if run < 0.14 and y > TOP - 4 - 14 * h3(fz, 1, 0, 73):
+                return ("steel", base - 0.9)
+            if y < FLOOR + 5 and abs(z - RA) < 13 and h3(fz, fy, 4, 74) < 0.05 + 0.07 * (FLOOR + 5 - y):
+                return ("steel", base - 1.0)                  # (only round the rear wheels)
+            return ("steel", base)
         if c.face == "north":
             if abs(x) > BH - 1.5 or top_rail:
                 return ("blade", 2.6)
@@ -1385,7 +1414,7 @@ def atv_cargo(stage):
                 r = math.hypot((x % 2.5) - 1.25, (yy - y) % 2.5 - 1.25)
                 return ("whetstone", 3 if r < 0.6 else 2) if r < 1.1 else ("bark", 1)   # cut log ends with rings
             return ("bark", 2 if math.floor(x * 2 + yy) % 3 else 1)
-        m.box("firewood", (-7.5, y, -15), (2.5, y + 5, -7.5), Paint("bark", 2, noise=0, rim=0.5, decal=logs))
+        m.box("firewood", (-7.5, y, -15), (2.5, y + 5, -8.25), Paint("bark", 2, noise=0, rim=0.5, decal=logs))   # clear of the lamp pod
     if stage >= 3:
         def toolbox(c):
             x, yy, z = c.p
@@ -1394,11 +1423,11 @@ def atv_cargo(stage):
             if c.face == "up" and abs(x + 4.5) < 1.5:
                 return ("rubber", 1)                          # the handle
             return ("fabric_red", 2.4 if c.face in ("up", "north", "west") else 1.6)
-        m.box("toolbox", (-8.5, y, 9.75), (-1.75, y + 4, 15.25), Paint("fabric_red", 2, noise=0, rim=0.5, decal=toolbox))
+        m.box("toolbox", (-8.5, y, 10.25), (-1.75, y + 4, 15.25), Paint("fabric_red", 2, noise=0, rim=0.5, decal=toolbox))   # inside the rack's rail
         _cart_crate(m, 3.5, -15, 5, 7, 4, y=y, fill="beans")
     if stage >= 4:
         _sack(m, -7, y + 5, -14.5, 9, 6, 4, band="leaf_dark")
-        _sack(m, -8.5, y + 4, 10, 6, 5, 4)
+        _sack(m, -8.5, y + 4, 10.25, 6, 5, 4)
     m.display = presets.furniture(gui_scale=0.4)
     return m
 
