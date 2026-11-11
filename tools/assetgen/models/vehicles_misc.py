@@ -288,7 +288,7 @@ def _wheelhouse(m):
         return ("blade", 2.6 if c.face == "up" else 1.8)
     m.box("searchlight", (-7.5, top + 2, z0 - 1), (-4.5, top + 5, z0 + 2), Paint("blade", 2, noise=0, rim=0.6, decal=light))
     # the air horn: a little trumpet on the roof (the boat's horn)
-    m.box("horn", (4, top + 2.5, z0 - 0.5), (6, top + 4, z0 + 4), Paint("blade", 2, noise=0, rim=0.6,
+    m.box("horn", (4, top + 2, z0 - 0.5), (6, top + 3.5, z0 + 4), Paint("blade", 2, noise=0, rim=0.6,
                                                                           decal=lambda c: ("rubber", 0) if c.face == "north" else None))
 
 

@@ -158,7 +158,8 @@ def upholstery(bolster, insert, stitch, lo, hi):
 # Wheels (hub at model (8, 8, 8), axle along x; the plugin spins them about x)
 # ================================================================================================
 
-def _wheel(name, d, width, cap="blade", cap_d=None, spokes=5, holes=True):
+def _wheel(name, d, width, cap="blade", cap_d=None, spokes=5, holes=True, plain=False):
+    """plain: a plain disc (no holes, no spokes) round the centre cap."""
     m = BModel(name, shift=(8, 8, 8), floor=None)
     r = d / 2
     cap_d = cap_d or d - 4
@@ -194,6 +195,10 @@ def _wheel(name, d, width, cap="blade", cap_d=None, spokes=5, holes=True):
         if rr < 0.8:
             return (cap, 3) if holes else ("blade", 1)   # the centre cap
         a = math.atan2(z, y)
+        if plain:
+            # a plain pressed steel disc, dished towards the centre cap, lit on its upper front (four dark holes on so
+            # small a disc read as a face)
+            return (cap, 2.6 if (y > 0 and z < 0.5) else 1.8)
         t = (a * spokes / (2 * math.pi)) % 1.0
         if holes and 1.2 < rr < rc - 0.8 and 0.5 < t < 0.95:
             return ("iron", 0)                           # the holes between the spokes

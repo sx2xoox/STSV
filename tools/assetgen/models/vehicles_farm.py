@@ -36,7 +36,7 @@ drawn as they are. As everywhere the detail is painted (decals), not modelled (d
 
 import math
 
-from stsv_assets.bake import BModel, Paint, cyl, h3
+from stsv_assets.bake import BModel, Paint, cyl, h3, vnoise
 from stsv_assets import presets
 from models.vehicles import (_held_display, _grain, _cart_crate, _cart_sack, _sack, _crate, _rope_net, _folded_tarp,
                              _tarp, lerp, raw, CLEAR, IRON, DARK)
@@ -165,7 +165,7 @@ def ox_body():
         return ("wood_dark", (2.6 if c.face == "up" else 1.6) + _grain(c, "x", 4))
     m.box("swingletree", (-8, RING[1] - 1, RING[2] - 2.25), (8, RING[1] + 0.75, RING[2] - 1)
           , Paint("wood_dark", 2, noise=0, rim=0.5, decal=tree))
-    m.box("ring", (-1, RING[1] - 1.5, RING[2] - 1), (1, RING[1] + 1, RING[2] + 0.5),
+    m.box("ring", (-1.5, RING[1] - 1.5, RING[2] - 1), (1.5, RING[1] + 1, RING[2] + 0.5),   # wider than the pole in it (and the tail)
           IRON(decal=lambda c: ("iron", 2.8 if c.face == "up" else 1.8)))
     m.display = _held_display(m)
     return m
@@ -306,10 +306,11 @@ def ox_head():
     def strap(c):
         return ("leather", 2.2 if c.face == "up" else 1.6)
     sp = Paint("leather", 2, noise=0, decal=strap)
-    m.box("strap", (-3.75, 4, -4), (3.75, 4.25, -3), sp)
-    m.box("strap", (-3.75, -5.25, -4), (3.75, -5, -3), sp)
+    # (half a pixel thick: thinner flickers or vanishes in the game)
+    m.box("strap", (-4, 4, -4), (4, 4.5, -3), sp)
+    m.box("strap", (-4, -5.5, -4), (4, -5, -3), sp)
     for s_ in (1, -1):
-        xa, xb = sorted((3.5 * s_, 3.75 * s_))
+        xa, xb = sorted((3.5 * s_, 4 * s_))
         m.box("strap", (xa, -5, -4), (xb, 4, -3), sp)
 
     def bell(c):
@@ -471,7 +472,7 @@ def ox_cart_wagon():
     def coil(c):
         k = math.floor(math.hypot(c.p[1] - 15.5, c.p[2] - 6) * 1.5)
         return ("burlap", 2.6 if k % 2 else 1.6)
-    cyl(m, "rope", (15.5, 6), 5, HX + 0.5, HX + 2, Paint("burlap", 2, noise=0, rim=0.3, decal=coil), axis="x")
+    cyl(m, "rope", (15.5, 6), 5, HX + 0.5, HX + 1.5, Paint("burlap", 2, noise=0, rim=0.3, decal=coil), axis="x")   # clear of the wheel
 
     def gourd(c):
         y = c.p[1]
@@ -569,7 +570,7 @@ def ox_cart_cargo(stage):
         for bx, by in ((-10, 3.5), (-6, 3.5), (-2, 3.5), (-8, 7), (-4, 7)):
             _straw_bundle(m, bx, by, -12, 12, 4)
         _straw_bundle(m, 2, 3.5, -11.5, 8, 3.5, axis="x")
-        _rope_net(m, -10.5, 10.5, -12.5, 12.5, 0, 11, rope=("burlap", 1.2))
+        _rope_net(m, -10.75, 10.75, -12.5, 12.5, 0, 11, rope=("burlap", 1.2))   # its sides off the deck's edges
     m.display = presets.furniture(gui_scale=0.4)
     return m
 
@@ -802,7 +803,7 @@ def power_tiller():
         xa, xb = sorted((4 * s, 5 * s))
         # up from the gearbox at 45 degrees, then back level to the grips
         # up from the gearbox at 45 degrees, out to the sides, then the grips
-        m.box("bar", (xa, 12, z(2)), (xb, 13, z(2) + 7 * math.sqrt(2)), tube, rotation=("x", -45, (xa, 12.5, z(2))))
+        m.box("bar", (xa, 11.5, z(2)), (xb, 12.5, z(2) + 7.5 * math.sqrt(2)), tube, rotation=("x", -45, (xa, 12, z(2))))
         xa, xb = sorted((4 * s, 8 * s))
         m.box("bar", (xa, 19, z(9)), (xb, 20, z(10)), tube)
         xa, xb = sorted((7 * s, 8 * s))
@@ -947,9 +948,9 @@ def power_tiller_trailer():
     for s in (1, -1):
         x0 = 6 * s
         m.box("drawbar", (min(x0, x0 + 1 * s), 6.5, T + 3), (max(x0, x0 + 1 * s), 8, -HZ), iron)
-        xa, xb = sorted((1.5 * s, 6 * s))
+        xa, xb = sorted((1.25 * s, 6 * s))
         m.box("drawbar", (xa, 6.5, T + 3), (xb, 8, T + 4), iron)
-    m.box("eye", (-1.5, 6.5, T), (1.5, 8, T + 3), Paint("steel", 3, noise=0, decal=lambda c: ("iron", 0.6) if c.face == "up" and abs(c.p[0]) < 0.6 and abs(c.p[2] - (T + 1)) < 0.6 else ("steel", 3)))
+    m.box("eye", (-1.25, 6.5, T), (1.25, 8, T + 3), Paint("steel", 3, noise=0, decal=lambda c: ("iron", 0.6) if c.face == "up" and abs(c.p[0]) < 0.6 and abs(c.p[2] - (T + 1)) < 0.6 else ("steel", 3)))
     m.display = _held_display(m)
     return m
 
@@ -980,9 +981,24 @@ def tractor():
     m.group("chassis")
 
     def block(c):
+        # the cast engine block: ribs, the head's joint, an oil filter (a pale canister) and the dipstick on its
+        # sides, an oil sump bolted under it, grime and an oil stain low down
         x, y, zz = c.p
-        if c.face in ("east", "west") and math.floor(zz) % 4 == 0 and y < 16:
-            return ("iron", 1.6)
+        if c.face in ("east", "west"):
+            fy = math.floor(y)
+            r = math.hypot(zz - z(-22), y - 11.5)
+            if r < 2.1:
+                return ("blade", 3.2 if r < 1.2 and y > 11.5 else 2.2) if r < 1.6 else ("iron", 1.0)
+            if fy == 15:
+                return ("iron", 3.2)                              # the head's joint, lit
+            if fy == 8:
+                return ("iron", 3.0) if math.floor(zz) % 3 == 0 else ("iron", 1.4)   # the sump's bolted flange
+            if c.face == "west" and math.floor(zz) == math.floor(z(-15)) and 10 <= y < 15:
+                return ("fox", 3.0 if y > 14 else 2.0)            # the dipstick's handle and tube
+            if math.floor(zz) % 4 == 0 and 9 < y < 15:
+                return ("iron", 1.6)                              # ribs cast in the block
+            if y < 10 and h3(math.floor(zz), fy, 2, 65) < 0.3:
+                return ("iron", 1.4)                              # oily grime
         return _paint_metal("iron", 2.4, 0.8)(c)
     m.box("engine_block", (-4.5, 7, z(-34)), (4.5, 17, z(-6)), Paint("iron", 2, noise=0, rim=0.5, decal=block))
     m.box("transmission", (-5, 6, z(-6)), (5, 16, z(7)), dark)
@@ -1103,12 +1119,22 @@ def tractor():
         m.box("canopy_stay", (xa, 45.5, z(-10)), (xb, 46.5, z(6)), tube)
 
     def canopy(c):
+        # the sun canopy's canvas: a sewn hem round its edge, three panels with their seams, sagging a little
+        # between the stays (lit at the front, its middle a step darker), sun-faded patches, a few dark spots
         x, y, zz = c.p
+        fx, fz = math.floor(x + 12), math.floor(zz - z(-12))
         if c.face == "up":
-            return ("cream", 2.8 if math.floor(x + 12) % 6 < 3 else 2.4)
+            if fx in (0, 23) or fz in (0, 20):
+                return ("cream", 1.8)                             # the hem
+            if fx in (8, 15):
+                return ("cream", 1.6)                             # the seams between panels
+            sag = -0.6 if 3 <= fz <= 17 and 2 <= fx % 8 <= 5 else 0
+            fade = 0.4 if vnoise(x, 0, zz, 4, 63) > 0.7 else 0
+            spot = -0.8 if h3(fx, 1, fz, 64) < 0.025 else 0
+            return ("cream", 2.8 + sag + fade + spot + (0.3 if fz < 4 else 0))
         if c.face == "down":
-            return ("cream", 1.4)
-        return ("cream", 2.0 if math.floor(x + zz) % 2 else 1.6)  # the fringe
+            return ("cream", 1.2 if 2 <= fx <= 21 else 1.6)       # the canvas' shaded underside, its hem
+        return ("cream", 2.2 if math.floor(x + zz) % 2 else 1.4)  # the fringe
     m.box("canopy", (-12, 46.5, z(-12)), (12, 47.5, z(9)), Paint("cream", 2, noise=0, rim=0.5, decal=canopy))
 
     m.group("hitch")
@@ -1185,17 +1211,18 @@ def tractor_wagon():
     for s in (1, -1):
         xa, xb = sorted((6 * s, 8 * s))
         m.box("axle_hanger", (xa, 7, -1.5), (xb, 11.5, 1.5), dark)
-    m.box("axle", (-11, 5.5, -1), (11, 7.5, 1), dark)
+    m.box("axle", (-11, 5.75, -0.75), (11, 7.25, 0.75), dark)    # thinner than the hubs it runs into (no flicker)
 
     m.group("drawbar")
     T = -35                                                        # the eye: tongue 2.2 blocks ahead of the axle
-    m.box("drawbar", (-1.5, 7.5, T + 2.5), (1.5, 9.5, -HZ - 1), dark)
+    m.box("drawbar", (-1.25, 7.5, T + 2.5), (1.25, 9.5, -HZ - 1), dark)
     for s in (1, -1):
-        xa, xb = sorted((1.5 * s, 6 * s))
+        xa, xb = sorted((1.25 * s, 6 * s))
         m.box("drawbar_brace", (xa, 9, -HZ - 4), (xb, 11.5, -HZ - 1), dark)
-    m.box("eye", (-1.25, 7.5, T), (1.25, 9.5, T + 2.5), Paint("steel", 3, noise=0, decal=lambda c: ("iron", 0.6) if c.face == "up" and abs(c.p[0]) < 0.6 and abs(c.p[2] - (T + 1.2)) < 0.6 else ("steel", 3)))
+    m.box("eye", (-1, 7.5, T), (1, 9.5, T + 2.5), Paint("steel", 3, noise=0, decal=lambda c: ("iron", 0.6) if c.face == "up" and abs(c.p[0]) < 0.6 and abs(c.p[2] - (T + 1.2)) < 0.6 else ("steel", 3)))
     # the hitch behind (the next wagon hangs here)
     m.box("rear_hitch", (-1.5, 7, HZ + 1), (1.5, 9, HZ + 4), dark)
+    m.box("hitch_bracket", (-1.25, 7.5, HZ - 3), (1.25, Y0, HZ + 1.5), dark)    # up to the floor
     m.box("rear_pin", (-0.5, 6.5, HZ + 2.5), (0.5, 10, HZ + 3.5), Paint("steel", 4, noise=0))
     m.display = _held_display(m)
     return m
