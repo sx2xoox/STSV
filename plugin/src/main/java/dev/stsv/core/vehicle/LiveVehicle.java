@@ -39,6 +39,8 @@ final class LiveVehicle {
     /** degrees the body leans to the left now (two-wheelers in a turn: VehicleSpec.Extras#lean); how far the wheels rolled (radians, unbounded) */
     float lean;
     double spin;
+    /** the brightness its parts are drawn with: the light around it, faded towards (VehicleLight) */
+    final VehicleLight.Shown light = new VehicleLight.Shown();
     final List<Interaction> hits = new ArrayList<>();
     /**
      * An occupied seat: the carrier (an item display without an item, teleported with the vehicle every tick: it glides

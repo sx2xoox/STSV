@@ -41,6 +41,8 @@ final class TrainView {
     private final List<NamespacedKey> loadShown = new ArrayList<>();
     private final List<ItemDisplay> legs = new ArrayList<>(), parts = new ArrayList<>();
     private final double[] spin;
+    /** per towed unit: the brightness its parts are drawn with (VehicleLight); the animal and parts go with the driven unit's */
+    private final List<VehicleLight.Shown> unitLight = new ArrayList<>();
     private ItemDisplay head;
     /** click box -> unit (1 = the first trailer) */
     private final Map<UUID, Integer> unitOf = new HashMap<>();
@@ -61,17 +63,20 @@ final class TrainView {
 
     /** Spawns every entity of the train (the driven unit's own parts are the module's). */
     void spawn(LiveVehicle v, VehicleModule.Settings s, ItemStack[] cargo) {
+        WorldLight world = new WorldLight(v.world);
         for (int i = 0; i < units.size(); i++) {
             TrainSpec.Trailer tr = spec.trailers().get(i);
             VehiclePhysics.State st = units.get(i);
             VehicleSpec u = tr.unit();
-            bodies.add(display(v, st, s, model(tr.model()), scaled(tr.bodyScale()), u));
+            VehicleLight.Shown l = unitLight(i);
+            l.jump(VehicleLight.sample(st.x, st.y, st.z, st.yaw, VehicleLight.probes(u), world));
+            bodies.add(display(v, st, s, model(tr.model()), scaled(tr.bodyScale()), u, l));
             List<ItemDisplay> ws = new ArrayList<>();
-            for (int w = 0; w < u.wheels().size(); w++) ws.add(display(v, st, s, model(u.wheelModel()), wheel(u, w, st.roll), u));
+            for (int w = 0; w < u.wheels().size(); w++) ws.add(display(v, st, s, model(u.wheelModel()), wheel(u, w, st.roll), u, l));
             wheels.add(ws);
             NamespacedKey stage = spec.stage(cargo, i + 1);
             loadShown.add(stage);
-            loads.add(tr.cargo() == null ? null : display(v, st, s, model(stage), part(tr.cargo().at()), u));
+            loads.add(tr.cargo() == null ? null : display(v, st, s, model(stage), part(tr.cargo().at()), u, l));
             List<Interaction> hs = new ArrayList<>();
             for (int q = 0; q < u.squares(); q++) {
                 double[] c = VehiclePhysics.world(st.x, st.y, st.z, st.yaw, new VehicleSpec.Vec(0, 0, u.squareOffset(q)));
@@ -89,10 +94,10 @@ final class TrainView {
         }
         TrainSpec.Animal a = spec.animal();
         if (a != null) {
-            for (TrainSpec.Leg l : a.legs()) legs.add(display(v, v.st, s, model(l.model()), leg(l, 0), v.spec));
-            if (a.head() != null) head = display(v, v.st, s, model(a.head()), headPose(0), v.spec);
+            for (TrainSpec.Leg l : a.legs()) legs.add(display(v, v.st, s, model(l.model()), leg(l, 0), v.spec, v.light));
+            if (a.head() != null) head = display(v, v.st, s, model(a.head()), headPose(0), v.spec, v.light);
         }
-        for (int i = 0; i < spec.parts().size(); i++) parts.add(display(v, v.st, s, model(spec.parts().get(i).model()), spun(i), v.spec));
+        for (int i = 0; i < spec.parts().size(); i++) parts.add(display(v, v.st, s, model(spec.parts().get(i).model()), spun(i), v.spec, v.light));
         animating = true;
     }
 
@@ -127,7 +132,8 @@ final class TrainView {
         unitOf.clear();
     }
 
-    private ItemDisplay display(LiveVehicle v, VehiclePhysics.State st, VehicleModule.Settings s, ItemStack shown, Transformation t, VehicleSpec u) {
+    private ItemDisplay display(LiveVehicle v, VehiclePhysics.State st, VehicleModule.Settings s, ItemStack shown, Transformation t, VehicleSpec u,
+                                VehicleLight.Shown light) {
         return v.world.spawn(at(v.world, st, s), ItemDisplay.class, d -> {
             d.setPersistent(false);
             d.setItemStack(shown);
@@ -135,6 +141,7 @@ final class TrainView {
             d.setTransformation(t);
             d.setTeleportDuration(s.smoothing());
             d.setInterpolationDuration(s.smoothing());
+            d.setBrightness(VehicleModule.brightness(light));
             DisplayView.apply(d, s.viewRange(), new float[]{(float) (Math.hypot(u.length(), u.width()) + 1), (float) (u.height() + 1)}, s.culling());
             d.getPersistentDataContainer().set(VehicleModule.PART, PersistentDataType.LONG, v.id);
         });
@@ -252,6 +259,37 @@ final class TrainView {
             pose(parts.get(i), spun(i), s);
         }
         animating = false;
+    }
+
+    // ------------------------------------------------------------------------------------------
+    // Light (VehicleLight)
+    // ------------------------------------------------------------------------------------------
+
+    private VehicleLight.Shown unitLight(int i) {
+        while (unitLight.size() <= i) unitLight.add(new VehicleLight.Shown());
+        return unitLight.get(i);
+    }
+
+    /** Each towed unit's light: felt around the unit itself (a trailer may stand in a tunnel the front left) and faded to. */
+    void light(boolean feel, boolean fade, VehicleLight.Lookup world) {
+        for (int i = 0; i < units.size() && i < bodies.size(); i++) {
+            VehiclePhysics.State st = units.get(i);
+            VehicleLight.Shown l = unitLight(i);
+            boolean changed = feel && l.felt(VehicleLight.sample(st.x, st.y, st.z, st.yaw, VehicleLight.probes(spec.trailers().get(i).unit()), world));
+            if (fade) changed |= l.fade();
+            if (!changed) continue;
+            org.bukkit.entity.Display.Brightness b = VehicleModule.brightness(l);
+            bodies.get(i).setBrightness(b);
+            if (loads.get(i) != null) loads.get(i).setBrightness(b);
+            for (ItemDisplay w : wheels.get(i)) w.setBrightness(b);
+        }
+    }
+
+    /** The driven unit's moving parts (the animal, flywheels) take the driven unit's light. */
+    void brighten(org.bukkit.entity.Display.Brightness b) {
+        for (ItemDisplay l : legs) l.setBrightness(b);
+        if (head != null) head.setBrightness(b);
+        for (ItemDisplay p : parts) p.setBrightness(b);
     }
 
     private static void pose(ItemDisplay d, Transformation t, VehicleModule.Settings s) {
