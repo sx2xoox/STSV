@@ -25,6 +25,7 @@ import org.bukkit.block.Block;
 import org.bukkit.block.BlockFace;
 import org.bukkit.command.CommandSender;
 import org.bukkit.entity.ArmorStand;
+import org.bukkit.entity.Display;
 import org.bukkit.entity.Entity;
 import org.bukkit.entity.Interaction;
 import org.bukkit.entity.ItemDisplay;
@@ -867,9 +868,43 @@ public final class VehicleModule implements StsvModule, Listener {
             d.setTransformation(t);
             d.setTeleportDuration(settings.smoothing());
             d.setInterpolationDuration(settings.smoothing());
+            d.setBrightness(brightness(v.light));
             DisplayView.apply(d, settings.viewRange(), box(v.spec), settings.culling());
             d.getPersistentDataContainer().set(PART, PersistentDataType.LONG, v.id);
         });
+    }
+
+    /** The brightness a vehicle part is drawn with (null: none felt yet, the world's own light at its origin). */
+    static Display.Brightness brightness(VehicleLight.Shown l) {
+        return l.unset() ? null : new Display.Brightness(l.block(), l.sky());
+    }
+
+    /**
+     * The light around the vehicle (and each towed unit): felt now and then, faded towards step by step, and given to
+     * every drawn part ({@link VehicleLight}: its origin on the ground would light it by the block under it).
+     */
+    private void light(LiveVehicle v, boolean active) {
+        boolean feel = VehicleLight.sampleDue(ticks, v.id, active), fade = VehicleLight.fadeDue(ticks, v.id);
+        if (!feel && !fade) return;
+        WorldLight world = new WorldLight(v.world);
+        boolean changed = feel && v.light.felt(VehicleLight.sample(v.st.x, v.st.y, v.st.z, v.st.yaw, VehicleLight.probes(v.spec), world));
+        if (fade) changed |= v.light.fade();
+        if (changed) {
+            Display.Brightness b = brightness(v.light);
+            for (ItemDisplay d : drawn(v)) d.setBrightness(b);
+            if (v.train != null) v.train.brighten(b);
+        }
+        if (v.train != null) v.train.light(feel, fade, world);
+    }
+
+    /** The driven unit's drawn parts (not the seats' carriers: they show nothing). */
+    private static List<ItemDisplay> drawn(LiveVehicle v) {
+        List<ItemDisplay> out = new ArrayList<>(v.wheels);
+        out.addAll(v.spinners);
+        if (v.body != null) out.add(v.body);
+        if (v.lights != null) out.add(v.lights);
+        if (v.load != null) out.add(v.load);
+        return out;
     }
 
     private static ItemStack model(NamespacedKey key) {
@@ -887,6 +922,8 @@ public final class VehicleModule implements StsvModule, Listener {
     private void spawnParts(LiveVehicle v) {
         VehicleSpec s = v.spec;
         v.tiltShown = tilt(v);
+        // lit as the world around it at once (no fade from dark when it appears)
+        v.light.jump(VehicleLight.sample(v.st.x, v.st.y, v.st.z, v.st.yaw, VehicleLight.probes(s), new WorldLight(v.world)));
         v.body = display(v, v.item.create(1), body(v, v.tiltShown));
         for (int i = 0; i < s.wheels().size(); i++) v.wheels.add(display(v, model(s.wheelModel()), wheel(v, i)));
         for (int i = 0; i < s.extras().spinners().size(); i++) v.spinners.add(display(v, model(s.extras().spinners().get(i).model()), spinner(v, i)));
@@ -1176,6 +1213,7 @@ public final class VehicleModule implements StsvModule, Listener {
         if (v.train != null) v.train.animate(v, settings, along, driver != null, Math.min(v.spec.speed(), settings.maxSpeed()));
         if (v.spec.pulled() && tilt(v) != v.tiltShown) tiltTo(v, tilt(v));
         if (v.spec.floats()) boat(v, driver);
+        light(v, active);
         lights(v);
         horn(v, driver != null && in.jump());
         engine(v, driver);
