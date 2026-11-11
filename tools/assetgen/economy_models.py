@@ -146,3 +146,7 @@ def _crop_builders():
 
 
 ALL.update(_crop_builders())
+
+# 하역장 props (models/docks.py): the crane hook, a forklift, a pallet, shipping containers
+from models import docks as DOCKS   # noqa: E402
+ALL.update(DOCKS.ALL)

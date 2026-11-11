@@ -487,6 +487,8 @@ vehicle:
   cargo-prev: "<yellow>이전 쪽"
   cargo-next: "<yellow>다음 쪽"
   cargo-info: "<gold>짐칸 {used}/{slots}칸"
+  cargo-weight: "<gray>무게 <white>{weight}</white> / {payload}"
+  cargo-too-heavy: "<red>너무 무거워요: 지금 {weight} / 최대 {payload} <gray>(넣으려는 무게 {adding}, 더 실을 수 있는 무게 {left})"
   no-room-inventory: "<red>인벤토리에 빈칸이 있어야 회수할 수 있어요."
   picked-up: "<green>{vehicle}</green><green>을(를) 아이템으로 회수했어요."
   returned: "<green>관리자가 탈것 #{id}을(를) 아이템으로 돌려보냈어요."
@@ -533,6 +535,7 @@ vehicle:
 jige:
   worn: "<#d9b07a>지게</#d9b07a><gray>를 짊어졌어요 · 웅크리고 빈손 우클릭 또는 /지게: 짐 열기 <dark_gray>(걸음 {percent}% 느리게)"
   title: "<dark_gray>지게 ({used}/{slots}칸)"
+  title-weight: "<dark_gray>지게 ({used}/{slots}칸 · 무게 {weight}/{payload})"
   not-worn: "<red>지게를 가슴 칸에 입어야 짐을 열 수 있어요."
   loading: "<gray>지게를 짊어지는 중이에요. 잠시 뒤 다시 열어 주세요."
   stale: "<red>이 지게는 쓸 수 없어요. <gray>(복사된 아이템이거나, 같은 지게를 먼저 다른 곳에서 짊어짐)"

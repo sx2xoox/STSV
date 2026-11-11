@@ -16,10 +16,17 @@ import java.util.function.Predicate;
  * @param stages   the looks on the back: the empty frame first, then by how full it is (a few bundles ... a full load
  *                 under a tarp), as item models ("ns:model/name")
  * @param offset   the look's offset from the back anchor, pixels: x right, y up, z back (as a back cosmetic's offset)
+ * @param payload  the most weight it carries (적재 무게, as a vehicle's {@link VehicleSpec.Cargo#payload}); {@code jige.payload}
  */
-public record JigeSpec(int slots, double slowdown, List<NamespacedKey> stages, org.bukkit.util.Vector offset) {
+public record JigeSpec(int slots, double slowdown, List<NamespacedKey> stages, org.bukkit.util.Vector offset, double payload) {
 
     public static final int MAX_SLOTS = 54;
+    /** A 지게's payload when its file gives none. */
+    public static final double DEFAULT_PAYLOAD = 30;
+
+    public JigeSpec(int slots, double slowdown, List<NamespacedKey> stages, org.bukkit.util.Vector offset) {
+        this(slots, slowdown, stages, offset, DEFAULT_PAYLOAD);
+    }
 
     public static JigeSpec parse(ConfigurationSection j, String namespace, Predicate<String> modelExists) {
         int slots = j.getInt("slots", MAX_SLOTS);
@@ -40,8 +47,10 @@ public record JigeSpec(int slots, double slowdown, List<NamespacedKey> stages, o
         if (stages.size() < 2) throw new IllegalArgumentException("jige.stages 는 빈 지게 + 짐 단계 하나 이상");
         List<Double> off = j.getDoubleList("offset");
         if (j.contains("offset") && off.size() != 3) throw new IllegalArgumentException("jige.offset 은 [x, y, z] (픽셀)");
+        double payload = j.getDouble("payload", DEFAULT_PAYLOAD);
+        if (!(payload > 0) || payload > 100_000) throw new IllegalArgumentException("jige.payload 는 0 초과 100000 이하 (적재 무게)");
         return new JigeSpec(slots, slow, List.copyOf(stages),
-                off.size() == 3 ? new org.bukkit.util.Vector(off.get(0), off.get(1), off.get(2)) : new org.bukkit.util.Vector());
+                off.size() == 3 ? new org.bukkit.util.Vector(off.get(0), off.get(1), off.get(2)) : new org.bukkit.util.Vector(), payload);
     }
 
     /**

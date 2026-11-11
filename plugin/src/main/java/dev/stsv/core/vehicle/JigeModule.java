@@ -90,6 +90,11 @@ public final class JigeModule implements StsvModule, Listener, TabExecutor {
         final ItemStack[] load;
         int stage;
         Inventory view;
+        /** moves on whenever the load changes (a dock sale takes out only what it showed: {@link #unload}) */
+        long version;
+        /** where the wearer was at the last check (the trip's odometer counts the way from there) */
+        String lastWorld;
+        double lastX, lastZ;
 
         Session(long id, long token, CustomItem item, JigeSpec spec, ItemStack[] load) {
             this.id = id;
@@ -115,6 +120,15 @@ public final class JigeModule implements StsvModule, Listener, TabExecutor {
     private final Set<String> told = new HashSet<>();
     /** players told that the 지게 they put on is held by someone else (until they wear another) */
     private final Set<UUID> heldTold = new HashSet<>();
+    /** 하역장: each 지게's trip since its load last changed, by jige id (kept in stsv_vehicle_trip under the negated id) */
+    private VehicleTripStore tripStore;
+    private final Map<Long, VehicleTrip> trips = new HashMap<>();
+    private long checks;
+
+    /** A wearer may take it off and put it on again this close to where it came off without starting the trip again. */
+    static final double REWEAR_REACH = 16;
+    /** The most a wearer covers between two checks (a second) and still walked it: more is a teleport (the trip starts again). */
+    static final double MAX_WALK = 40;
 
     @Override
     public String id() {
@@ -126,6 +140,9 @@ public final class JigeModule implements StsvModule, Listener, TabExecutor {
         this.plugin = plugin;
         store = new JigeStore(plugin.db());
         store.init();
+        tripStore = new VehicleTripStore(plugin.db());
+        tripStore.init();
+        for (Map.Entry<Long, VehicleTrip> e : tripStore.all().entrySet()) if (e.getKey() < 0) trips.put(-e.getKey(), e.getValue());
         load();
         Bukkit.getPluginManager().registerEvents(this, plugin);
         org.bukkit.command.PluginCommand command = plugin.getCommand("지게");
@@ -136,6 +153,7 @@ public final class JigeModule implements StsvModule, Listener, TabExecutor {
         if (plugin.cosmetics() != null) plugin.cosmetics().backOverride(this::look);
         for (Player p : Bukkit.getOnlinePlayers()) JigeSpeed.remove(p.getAttribute(Attribute.MOVEMENT_SPEED));
         task = Bukkit.getScheduler().runTaskTimer(plugin, () -> {
+            checks++;
             for (Player p : Bukkit.getOnlinePlayers()) check(p);
         }, 20L, 20L);
     }
@@ -156,6 +174,11 @@ public final class JigeModule implements StsvModule, Listener, TabExecutor {
                 JigeSpeed.remove(p.getAttribute(Attribute.MOVEMENT_SPEED));
             }
             store.save(s.id, s.token, VehicleModule.encode(s.load), System.currentTimeMillis()).join();
+            VehicleTrip trip = trips.get(s.id);
+            if (trip != null && p != null) {
+                trip.seen = new VehicleTrip.Seen(p.getWorld().getName(), p.getX(), p.getZ());
+                tripStore.save(VehicleTripStore.jige(s.id), trip.snapshot(), trip.seen).join();
+            }
         }
         sessions.clear();
         holders.clear();
@@ -255,7 +278,10 @@ public final class JigeModule implements StsvModule, Listener, TabExecutor {
             case NONE -> {
                 if (s != null) end(p, s);
             }
-            case SAME -> JigeSpeed.apply(p.getAttribute(Attribute.MOVEMENT_SPEED), s.spec.slowdown());
+            case SAME -> {
+                JigeSpeed.apply(p.getAttribute(Attribute.MOVEMENT_SPEED), s.spec.slowdown());
+                walked(p, s);
+            }
             case NEW, CLAIM -> {
                 if (s != null) end(p, s);
                 if (!pending.contains(u)) claim(p, item.get(), chest);
@@ -322,6 +348,17 @@ public final class JigeModule implements StsvModule, Listener, TabExecutor {
         System.arraycopy(stored, 0, load, 0, Math.min(stored.length, load.length));
         Session s = new Session(row.id(), token, item, spec, load);
         s.stage = spec.stage(s.used());
+        // 하역장: the load's trip goes on only if it is put on again where it came off (else it was carried off the road)
+        org.bukkit.Location at = p.getLocation();
+        VehicleTrip trip = trips.get(row.id());
+        if (trip == null || trip.seen == null || !trip.seen.near(at.getWorld().getName(), at.getX(), at.getZ(), REWEAR_REACH)) {
+            trip = VehicleTrip.start(at.getWorld().getName(), at.getX(), at.getZ(), System.currentTimeMillis());
+            trips.put(row.id(), trip);
+        }
+        trip.seen = null;
+        s.lastWorld = at.getWorld().getName();
+        s.lastX = at.getX();
+        s.lastZ = at.getZ();
         sessions.put(p.getUniqueId(), s);
         holders.put(row.id(), p.getUniqueId());
         JigeSpeed.apply(p.getAttribute(Attribute.MOVEMENT_SPEED), spec.slowdown());
@@ -336,6 +373,13 @@ public final class JigeModule implements StsvModule, Listener, TabExecutor {
         if (s.view != null && p.getOpenInventory().getTopInventory() == s.view) p.closeInventory();
         s.view = null;
         store.save(s.id, s.token, VehicleModule.encode(s.load), System.currentTimeMillis());
+        VehicleTrip trip = trips.get(s.id);
+        if (trip != null) {
+            walked(p, s);
+            trip.seen = new VehicleTrip.Seen(p.getWorld().getName(), p.getLocation().getX(), p.getLocation().getZ());
+            trip.dirty = false;
+            tripStore.save(VehicleTripStore.jige(s.id), trip.snapshot(), trip.seen);
+        }
         sessions.remove(p.getUniqueId());
         holders.remove(s.id, p.getUniqueId());
         JigeSpeed.remove(p.getAttribute(Attribute.MOVEMENT_SPEED));
@@ -417,6 +461,16 @@ public final class JigeModule implements StsvModule, Listener, TabExecutor {
         if (!JigeRules.openClick(p.isSneaking(), p.getInventory().getItemInMainHand().isEmpty(), right, useful)) return;
         if (jige(p.getInventory().getChestplate()).isEmpty()) return;
         e.setCancelled(true);
+        // 하역장: at a dock its sale menu comes first (VehicleModule#cargoClick)
+        java.util.function.BiPredicate<Player, Hauled> dock = plugin.vehicles() == null ? null : plugin.vehicles().cargoClickHook();
+        Hauled h = hauled(p);
+        if (dock != null && h != null) {
+            try {
+                if (dock.test(p, h)) return;
+            } catch (RuntimeException ex) {
+                plugin.getLogger().log(java.util.logging.Level.WARNING, "[지게] 하역장 처리 실패", ex);
+            }
+        }
         open(p);
     }
 
@@ -431,8 +485,10 @@ public final class JigeModule implements StsvModule, Listener, TabExecutor {
             case OK -> {
                 if (s.view != null && p.getOpenInventory().getTopInventory() == s.view) return;
                 Holder h = new Holder(s.id);
-                Inventory inv = Bukkit.createInventory(h, s.load.length,
-                        Lang.mm("jige.title", "used", s.used(), "slots", s.load.length));
+                Inventory inv = Bukkit.createInventory(h, s.load.length, weighs()
+                        ? Lang.mm("jige.title-weight", "used", s.used(), "slots", s.load.length, "weight", CargoWeights.format(weight(s.load)),
+                        "payload", CargoWeights.format(s.spec.payload()))
+                        : Lang.mm("jige.title", "used", s.used(), "slots", s.load.length));
                 h.inventory = inv;
                 for (int i = 0; i < s.load.length; i++) inv.setItem(i, s.load[i]);
                 s.view = inv;
@@ -447,6 +503,7 @@ public final class JigeModule implements StsvModule, Listener, TabExecutor {
         Inventory inv = s.view;
         if (inv == null) return;
         boolean changed = false;
+        ItemStack[] before = s.load.clone();
         for (int i = 0; i < s.load.length && i < inv.getSize(); i++) {
             ItemStack now = inv.getItem(i);
             now = now == null || now.isEmpty() ? null : now.clone();
@@ -456,6 +513,7 @@ public final class JigeModule implements StsvModule, Listener, TabExecutor {
             }
         }
         if (!changed) return;
+        loadChanged(s, !CargoWeights.sameContents(before, s.load, ItemStack::isSimilar, ItemStack::getAmount));
         store.save(s.id, s.token, VehicleModule.encode(s.load), System.currentTimeMillis()).thenAccept(ok -> {
             if (!ok) plugin.getLogger().warning("[지게] #" + s.id + " 저장 실패 (토큰이 바뀜)");
         });
@@ -484,6 +542,21 @@ public final class JigeModule implements StsvModule, Listener, TabExecutor {
             e.setCancelled(true);   // a view no longer its 지게's (taken off under it)
             return;
         }
+        if (weighs() && e.getWhoClicked() instanceof Player p) {
+            CargoGuard.Move m = CargoGuard.click(e, top);
+            if (m.refused()) {
+                e.setCancelled(true);
+                return;
+            }
+            if (m.in() != null && m.inAmount() > 0) {
+                double now = viewWeight(top), adding = plugin.vehicles().weightOf(m.in().asOne()) * m.inAmount();
+                if (!CargoWeights.fits(now - plugin.vehicles().weightOf(m.out()), adding, s.spec.payload())) {
+                    e.setCancelled(true);
+                    tooHeavy(p, s, now, adding);
+                    return;
+                }
+            }
+        }
         Bukkit.getScheduler().runTask(plugin, () -> {
             if (sessionOf(top) == s) sync(s);
         });
@@ -498,6 +571,14 @@ public final class JigeModule implements StsvModule, Listener, TabExecutor {
             e.setCancelled(true);
             return;
         }
+        if (weighs() && e.getWhoClicked() instanceof Player p) {
+            double now = viewWeight(top), adding = CargoGuard.dragged(e, top) * plugin.vehicles().weightOf(e.getOldCursor().asOne());
+            if (!CargoWeights.fits(now, adding, s.spec.payload())) {
+                e.setCancelled(true);
+                tooHeavy(p, s, now, adding);
+                return;
+            }
+        }
         Bukkit.getScheduler().runTask(plugin, () -> {
             if (sessionOf(top) == s) sync(s);
         });
@@ -510,6 +591,113 @@ public final class JigeModule implements StsvModule, Listener, TabExecutor {
         sync(s);
         s.view = null;
         if (e.getPlayer() instanceof Player p) p.playSound(p.getLocation(), Sound.BLOCK_BAMBOO_WOOD_TRAPDOOR_CLOSE, 0.6f, 0.8f);
+    }
+
+    // ------------------------------------------------------------------------------------------
+    // 하역장 · 적재 무게 (README): the load's weight, its trip, and the API the economy server's docks use
+    // ------------------------------------------------------------------------------------------
+
+    /** Are there weights (the economy server's weights.yml, through VehicleModule#cargoWeight)? */
+    private boolean weighs() {
+        return plugin.vehicles() != null && plugin.vehicles().weighs();
+    }
+
+    private double weight(ItemStack[] items) {
+        return CargoWeights.total(items, plugin.vehicles()::weightOf);
+    }
+
+    private double viewWeight(Inventory view) {
+        return weight(view.getContents());
+    }
+
+    private void tooHeavy(Player p, Session s, double now, double adding) {
+        HudModule.flash(p, Lang.mm("vehicle.cargo-too-heavy", "weight", CargoWeights.format(now), "payload", CargoWeights.format(s.spec.payload()),
+                "adding", CargoWeights.format(adding), "left", CargoWeights.format(Math.max(0, s.spec.payload() - now))));
+        p.playSound(p.getLocation(), Sound.BLOCK_NOTE_BLOCK_BASS, 0.6f, 0.6f);
+    }
+
+    /** The load changed: its version moves on; things came or went: its trip starts again where the wearer stands. */
+    private void loadChanged(Session s, boolean contents) {
+        s.version++;
+        if (!contents) return;
+        UUID who = holders.get(s.id);
+        Player p = who == null ? null : Bukkit.getPlayer(who);
+        if (p == null) return;
+        VehicleTrip trip = trips.computeIfAbsent(s.id, k -> VehicleTrip.start(p.getWorld().getName(), p.getX(), p.getZ(), 0));
+        trip.reset(p.getWorld().getName(), p.getX(), p.getZ(), System.currentTimeMillis());
+        s.lastWorld = p.getWorld().getName();
+        s.lastX = p.getX();
+        s.lastZ = p.getZ();
+        trip.dirty = false;
+        tripStore.save(VehicleTripStore.jige(s.id), trip.snapshot());
+    }
+
+    /**
+     * The odometer: the way the wearer went since the last check (on foot, on a horse, in a car: they carried it). More than
+     * {@link #MAX_WALK} in a second, or another world, is a teleport: the trip starts again there (a load cannot skip the road).
+     */
+    private void walked(Player p, Session s) {
+        VehicleTrip trip = trips.get(s.id);
+        if (trip == null) return;
+        org.bukkit.Location at = p.getLocation();
+        String w = at.getWorld().getName();
+        double d = w.equals(s.lastWorld) ? Math.hypot(at.getX() - s.lastX, at.getZ() - s.lastZ) : Double.POSITIVE_INFINITY;
+        if (d > MAX_WALK) trip.reset(w, at.getX(), at.getZ(), System.currentTimeMillis());
+        else trip.moved(d);
+        s.lastWorld = w;
+        s.lastX = at.getX();
+        s.lastZ = at.getZ();
+        if (trip.dirty && checks % 10 == 0) {
+            trip.dirty = false;
+            tripStore.save(VehicleTripStore.jige(s.id), trip.snapshot());
+        }
+    }
+
+    /** The load on a player's back as a dock sees it (null: they wear no 지게 now). Its id is the 지게's negated. */
+    public Hauled hauled(Player p) {
+        Session s = sessions.get(p.getUniqueId());
+        if (s == null) return null;
+        sync(s);
+        VehicleTrip trip = trips.computeIfAbsent(s.id, k -> VehicleTrip.start(p.getWorld().getName(), p.getX(), p.getZ(), System.currentTimeMillis()));
+        ItemStack[] copy = new ItemStack[s.load.length];
+        for (int i = 0; i < copy.length; i++) copy[i] = s.load[i] == null ? null : s.load[i].clone();
+        org.bukkit.Location at = p.getLocation();
+        return new Hauled(VehicleTripStore.jige(s.id), s.item.key().asString(), dev.stsv.core.util.Text.plain(s.item.name() == null ? s.item.key().getKey() : s.item.name()),
+                p.getUniqueId(), p.getName(), p.getWorld(), List.of(new double[]{at.getX(), at.getY(), at.getZ()}), trip.snapshot(), copy,
+                s.spec.payload(), weighs() ? weight(s.load) : 0, s.version, false);
+    }
+
+    /**
+     * Takes things off a player's 지게 (a dock sale): the slots `take` picks, only if the load is as it was at `version`
+     * (else null). Its view closes first; its trip starts again here.
+     */
+    public List<ItemStack> unload(Player p, long version, java.util.function.IntPredicate take) {
+        Session s = sessions.get(p.getUniqueId());
+        if (s == null) return null;
+        sync(s);
+        if (s.view != null && p.getOpenInventory().getTopInventory() == s.view) p.closeInventory();
+        s.view = null;
+        if (s.version != version) return null;
+        List<ItemStack> out = new ArrayList<>();
+        for (int i = 0; i < s.load.length; i++) {
+            if (s.load[i] == null || !take.test(i)) continue;
+            out.add(s.load[i]);
+            s.load[i] = null;
+        }
+        if (out.isEmpty()) return out;
+        loadChanged(s, true);
+        store.save(s.id, s.token, VehicleModule.encode(s.load), System.currentTimeMillis());
+        int stage = s.spec.stage(s.used());
+        if (stage != s.stage) {
+            s.stage = stage;
+            refreshLook(p);
+        }
+        return out;
+    }
+
+    /** Opens a player's 지게 as /지게 does (without asking a dock first). */
+    public void openFor(Player p) {
+        open(p);
     }
 
     private static ItemStack[] decode(byte[] bytes) {

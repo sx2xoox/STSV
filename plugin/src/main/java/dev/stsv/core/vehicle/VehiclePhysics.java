@@ -320,8 +320,18 @@ public final class VehiclePhysics {
 
     /** One tick, turning only turnScale (0 .. 1) as much as usual (a train near its jack-knife limit: {@link TrainPhysics}). */
     public static void step(State st, DriveInput in, VehicleSpec s, Terrain t, double cap, float turnScale) {
+        step(st, in, s, t, cap, turnScale, 1, cap);
+    }
+
+    /**
+     * One tick on a road (국도): on good ground (nothing slows it) the top speed is bonus times as high (1.2), but never
+     * over bonusCap (the server's top speed, vehicles.max-speed).
+     */
+    public static void step(State st, DriveInput in, VehicleSpec s, Terrain t, double cap, float turnScale, double bonus, double bonusCap) {
         st.bumped = false;
         double slow = slowdown(st.x, st.y, st.z, st.yaw, s, t);
+        double top = Math.min(s.speed(), cap);
+        if (bonus > 1 && slow >= 1 && top > 0) slow = Math.max(1, Math.min(bonus, bonusCap / top));
         st.speed = nextSpeed(st.speed, in.forward(), in.backward(), s, slow, cap);
 
         float turn = yawRate(st.speed, in.steer(), s) * turnScale;

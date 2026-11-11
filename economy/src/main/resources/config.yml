@@ -30,3 +30,34 @@ rank:
   # 목록에 없는 전설 치장(새로 추가된 것)도 목록 뒤에 붙여서 돌림
   weekly-legendary: [stsv:crown, stsv:angel_wings, stsv:demon_wings, stsv:halo, stsv:haetae, stsv:gumiho, stsv:phoenix]
   weekly-legendary-fallback-gold: 100000
+
+docks:
+  # 하역장 (README "하역장"): 탈것 짐칸에 실어 온 완제품(직업 기계 생산품 중 상점이 사는 것)만 삼.
+  # 짐칸의 짐이 마지막으로 바뀐 곳에서 하역장까지 직선 거리, 그리고 그 뒤로 탈것이 달린 거리 둘 다 이 거리(블록) 이상이어야 함.
+  # 하역장은 마을에서 약 7,000블록 (트럭으로 편도 15분쯤): 어디에 살든 6,000블록 넘게 실어 와야 함
+  min-distance: 6000
+  # 매입가 = 상점 기준가 × 이 비율 (고정: 수요 고시·사건·각자 판 양과 상관없고 판매 소득세도 없음. 상점 시세를 움직이지 않음)
+  price-ratio: 0.9
+  # 하역장을 지을 때 한 틱에 놓는 블록 수 (서버가 멈추지 않게 나눠서)
+  build-per-tick: 3000
+  # 후보지 살피기 (/관리자 하역장 후보): 몇 블록마다 지형을 볼지, 한 번에 불러오는 청크 수 (많을수록 빠르지만 무거움)
+  scout-step: 32
+  scout-concurrent: 4
+
+roads:
+  # 국도 (README "국도"): 길 바닥 블록, 가운데 선, 갓돌 (블록 id)
+  surface: gray_concrete
+  center-line: yellow_concrete
+  kerb: smooth_stone
+  # 길 바닥(surface, center-line) 위를 달리는 탈것의 최고 속도 배율 (1 = 없음, 최대 2). 서버 상한(코어 vehicles.max-speed)은 넘지 않음
+  speed-bonus: 1.2
+  # 가로등 간격, km 표지판 간격 (블록, 길을 따라)
+  light-every: 40
+  marker-every: 1000
+  # 길을 찾을 때 직선에서 양옆으로 살펴볼 청크 수 (넓을수록 돌아가는 길을 더 잘 찾지만 오래 걸림)
+  corridor: 6
+  # 길 둘레로 미리 만들어 둘 청크 (길에서 청크 수)
+  pregen-radius: 2
+  # 한 틱에 놓는 길 칸 수 (길을 따라 블록), 한 번에 불러오는 청크 수
+  build-per-tick: 3
+  concurrent: 4
