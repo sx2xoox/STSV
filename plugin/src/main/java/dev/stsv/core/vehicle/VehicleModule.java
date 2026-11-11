@@ -147,6 +147,11 @@ public final class VehicleModule implements StsvModule, Listener {
     private Settings settings;
     /** vehicles in the world whose chunk is not loaded (shown when it loads) */
     private final Map<Long, VehicleStore.Row> parked = new HashMap<>();
+    /** the bed of a vehicle hidden by this run, as it was (decoded): shown again from its row, it is not decoded again */
+    private record ParkedLoad(VehicleStore.Row row, ItemStack[] cargo) {}
+    private final Map<Long, ParkedLoad> parkedLoads = new HashMap<>();
+    /** moves on whenever what stacks weigh may have changed (the hook set, weights.yml read again): beds are weighed again */
+    private long weightEpoch;
     private final Map<Long, LiveVehicle> live = new HashMap<>();
     /** vehicles with a database step on the way (placing, picking up): nothing else may touch them meanwhile */
     private final Set<Long> busy = new HashSet<>();
@@ -227,6 +232,7 @@ public final class VehicleModule implements StsvModule, Listener {
     @Override
     public void reload() {
         settings = settings();
+        weightEpoch++;
         // the item files may have changed: the shown vehicles take their new settings (parts again, riders stay)
         for (LiveVehicle v : List.copyOf(live.values())) {
             Optional<CustomItem> item = plugin.content().item(v.item.key().asString()).filter(CustomItem::isVehicle);
@@ -309,6 +315,12 @@ public final class VehicleModule implements StsvModule, Listener {
      */
     public void cargoWeight(java.util.function.ToDoubleFunction<ItemStack> weight) {
         this.cargoWeight = weight;
+        weightEpoch++;
+    }
+
+    /** What stacks weigh changed (the content plugin read its weights again): every bed is weighed again when next asked. */
+    public void weightsChanged() {
+        weightEpoch++;
     }
 
     /** What a stack weighs (0 without a weight hook). */
@@ -401,16 +413,24 @@ public final class VehicleModule implements StsvModule, Listener {
         double r2 = radius * radius;
         for (LiveVehicle v : live.values()) {
             if (v.spec.cargo() == null || !v.world.equals(at.getWorld()) || busy.contains(v.id)) continue;
-            Hauled h = hauled(v);
-            for (double[] p : h.points()) {
-                double dx = p[0] - at.getX(), dz = p[2] - at.getZ();
-                if (dx * dx + dz * dz <= r2) {
-                    out.add(h);
-                    break;
-                }
-            }
+            // by where its units stand first: only those near are made into a Hauled (its bed copied, weighed)
+            if (near(v.st, v.train == null ? null : v.train.units, at.getX(), at.getZ(), r2)) out.add(hauled(v));
         }
         return out;
+    }
+
+    /** Is any unit (the vehicle, then a train's towed units: {@link Hauled#points}) within r2 (squared, x and z) of (x, z)? */
+    static boolean near(VehiclePhysics.State st, List<VehiclePhysics.State> units, double x, double z, double r2) {
+        double dx = st.x - x, dz = st.z - z;
+        if (dx * dx + dz * dz <= r2) return true;
+        if (units != null) {
+            for (VehiclePhysics.State u : units) {
+                dx = u.x - x;
+                dz = u.z - z;
+                if (dx * dx + dz * dz <= r2) return true;
+            }
+        }
+        return false;
     }
 
     private Hauled hauled(LiveVehicle v) {
@@ -421,7 +441,7 @@ public final class VehicleModule implements StsvModule, Listener {
         ItemStack[] copy = new ItemStack[v.cargo == null ? 0 : v.cargo.length];
         for (int i = 0; i < copy.length; i++) copy[i] = v.cargo[i] == null || v.cargo[i].isEmpty() ? null : v.cargo[i].clone();
         return new Hauled(v.id, v.item.key().asString(), Text.plain(label(v.item)), v.owner, v.ownerName, v.world, List.copyOf(points),
-                trip(v).snapshot(), copy, v.spec.cargo().payload(), CargoWeights.total(v.cargo, this::weightOf), v.cargoVersion,
+                trip(v).snapshot(), copy, v.spec.cargo().payload(), v.weights.total(v.cargo, this::weightOf, weightEpoch), v.cargoVersion,
                 v.st.speed != 0 || v.puller != null);
     }
 
@@ -466,7 +486,10 @@ public final class VehicleModule implements StsvModule, Listener {
             out.add(v.cargo[i]);
             v.cargo[i] = null;
         }
-        if (!out.isEmpty()) cargoChanged(v, true);
+        if (!out.isEmpty()) {
+            cargoChanged(v, true);
+            flushCargo(v);   // a sale: what was sold is out of the bed in the database before it is paid (never both)
+        }
         return out;
     }
 
@@ -492,10 +515,13 @@ public final class VehicleModule implements StsvModule, Listener {
         tripStore.save(id, t.snapshot());
     }
 
-    /** The bed changed: saved, its version moves on, its load shows; contents = things came or went (the trip starts again). */
+    /**
+     * The bed changed: its version moves on, it is saved soon ({@link CargoSave}: on closing its view, within 2 s, when
+     * hidden or put away), its load shows; contents = things came or went (the trip starts again).
+     */
     private void cargoChanged(LiveVehicle v, boolean contents) {
         v.cargoVersion++;
-        store.cargo(v.id, encode(v.cargo), System.currentTimeMillis());
+        v.cargoSave.changed(ticks);
         if (contents) {
             trip(v).reset(v.world.getName(), v.st.x, v.st.z, System.currentTimeMillis());
             saveTrip(v.id);
@@ -508,15 +534,27 @@ public final class VehicleModule implements StsvModule, Listener {
         if (v.train != null) v.train.loads(v.cargo);
     }
 
-    /** What a bed weighs now, its open page as the view shows it (a click not yet stored). */
+    /** The bed into the database now if it changed since last saved (encoded once; never when it did not change). */
+    private void flushCargo(LiveVehicle v) {
+        if (!v.cargoSave.dirty(v.cargoVersion)) return;
+        byte[] bytes = encode(v.cargo);
+        v.cargoBytes = bytes;
+        v.cargoSave.saved(v.cargoVersion);
+        store.cargo(v.id, bytes, System.currentTimeMillis());
+    }
+
+    /**
+     * What a bed weighs now, its open page as the view shows it (a click not yet stored): the other slots as remembered
+     * ({@link WeightCache}, weighed again only when changed), summed in slot order as weighing every slot would.
+     */
     private double weightNow(LiveVehicle v) {
         if (v.cargo == null) return 0;
         Inventory inv = v.cargoInv;
         double sum = 0;
         for (int i = 0; i < v.cargo.length; i++) {
             int slot = i - v.cargoPage * CargoPages.PAGE;
-            ItemStack it = inv != null && slot >= 0 && slot < CargoPages.PAGE ? (slot < prev(inv) ? inv.getItem(slot) : null) : v.cargo[i];
-            sum += weightOf(it);
+            if (inv != null && slot >= 0 && slot < CargoPages.PAGE) sum += weightOf(slot < prev(inv) ? inv.getItem(slot) : null);
+            else sum += v.weights.weight(v.cargo, i, this::weightOf, weightEpoch);
         }
         return sum;
     }
@@ -884,7 +922,9 @@ public final class VehicleModule implements StsvModule, Listener {
         st.onGround = true;
         LiveVehicle v = new LiveVehicle(r.id(), item.get(), r.owner(), r.ownerName(), w, st);
         if (v.spec.train() != null) v.train = new TrainView(v.spec.train(), TrainPhysics.restore(st, v.spec.train(), trainSaved.remove(r.id())));
-        v.cargo = resized(decode(r.cargo()), v.spec);
+        ParkedLoad kept = parkedLoads.remove(r.id());
+        v.cargo = resized(kept != null && kept.row() == r ? kept.cargo() : decode(r.cargo()), v.spec);   // hidden by this run: as it was
+        v.cargoBytes = r.cargo();
         v.stage = stageOf(v);
         parked.remove(r.id());
         live.put(r.id(), v);
@@ -1144,12 +1184,14 @@ public final class VehicleModule implements StsvModule, Listener {
         removeParts(v, true);
         live.remove(v.id);
         saveTrip(v.id);
+        flushCargo(v);   // the bed, if it changed since last saved (encoded once)
         if (save) {
             long now = System.currentTimeMillis();
             store.move(v.id, v.pos(), now);
-            store.cargo(v.id, encode(v.cargo), now);
-            parked.put(v.id, new VehicleStore.Row(v.id, v.item.key().asString(), v.owner, v.ownerName, VehicleStore.State.WORLD, 0, v.pos(),
-                    encode(v.cargo), now, now));
+            VehicleStore.Row row = new VehicleStore.Row(v.id, v.item.key().asString(), v.owner, v.ownerName, VehicleStore.State.WORLD, 0, v.pos(),
+                    v.cargoBytes, now, now);
+            parked.put(v.id, row);
+            if (v.cargo != null) parkedLoads.put(v.id, new ParkedLoad(row, v.cargo));
             if (v.train != null) {
                 trains.save(v.id, v.train.units, now);
                 trainSaved.put(v.id, v.train.units);
@@ -1176,6 +1218,12 @@ public final class VehicleModule implements StsvModule, Listener {
     @EventHandler
     public void onEntitiesLoad(org.bukkit.event.world.EntitiesLoadEvent e) {
         spawnSoon = true;
+    }
+
+    /** The world is saved (autosave, /save-all): the beds with a change still waiting go with it (players' inventories too). */
+    @EventHandler
+    public void onWorldSave(org.bukkit.event.world.WorldSaveEvent e) {
+        for (LiveVehicle v : live.values()) if (v.world.equals(e.getWorld())) flushCargo(v);
     }
 
     /** A chunk under a vehicle goes: the vehicle is saved and hidden first (its entities are never saved with chunks). */
@@ -1208,6 +1256,7 @@ public final class VehicleModule implements StsvModule, Listener {
             despawn(v, true);
             return;
         }
+        if (v.cargoSave.due(v.cargoVersion, ticks)) flushCargo(v);   // a change in its bed has waited long enough
         if (v.body == null || !v.body.isValid() || v.hits.stream().anyMatch(h -> !h.isValid()) || v.wheels.stream().anyMatch(w -> !w.isValid())
                 || v.spinners.stream().anyMatch(w -> !w.isValid())
                 || (v.spec.pulled() && (v.handle == null || !v.handle.isValid())) || (v.train != null && v.train.broken())) {
@@ -1218,10 +1267,11 @@ public final class VehicleModule implements StsvModule, Listener {
         Player puller = puller(v);
         DriveInput in = driver != null ? DriveInput.of(driver.getCurrentInput()) : DriveInput.NONE;
         WorldTerrain terrain = new WorldTerrain(v.world);
-        // a boat always follows the water under it (it rises and falls with it, settles aground when it goes)
+        // a boat follows the water under it (it rises and falls with it, settles aground when it goes): every tick until it
+        // has settled (left alone, not moving), then now and then (BoatMotion#steps)
         boolean active = driver != null || puller != null || v.st.speed != 0 || !v.st.onGround || v.st.steer != 0 || v.lean != 0
-                || v.spec.floats();
-        if (!active && (ticks + v.id) % 10 == 0 && !VehiclePhysics.supported(v.st, v.spec, terrain)) {
+                || (v.spec.floats() && BoatMotion.steps(driver != null, v.st.speed, v.st.steer, v.boatStill, ticks, v.id));
+        if (!active && !v.spec.floats() && (ticks + v.id) % 10 == 0 && !VehiclePhysics.supported(v.st, v.spec, terrain)) {
             v.st.onGround = false;   // the ground under it went: it falls
             active = true;
         }
@@ -1251,6 +1301,10 @@ public final class VehicleModule implements StsvModule, Listener {
             }
             boolean moved = Math.abs(v.st.x - x) + Math.abs(v.st.y - y) + Math.abs(v.st.z - z) > 1e-5 || v.st.yaw != yaw
                     || (trainWas != null && !java.util.Arrays.equals(trainWas, trainPlace(v)));
+            if (v.spec.floats()) {
+                boolean still = !moved && v.st.y == y && driver == null && v.st.speed == 0 && v.st.steer == 0;
+                v.boatStill = still ? Math.min(v.boatStill + 1, BoatMotion.SETTLE) : 0;
+            }
             double[] fw = VehiclePhysics.forward(v.st.yaw);
             along = (v.st.x - x) * fw[0] + (v.st.z - z) * fw[1];
             if (moved) {
@@ -1404,7 +1458,7 @@ public final class VehicleModule implements StsvModule, Listener {
     private void boat(LiveVehicle v, Player driver) {
         VehicleSpec.Water wa = v.spec.water();
         double top = Math.min(v.spec.speed(), settings.maxSpeed());
-        if ((ticks + v.id) % BoatMotion.TICKS == 0) {
+        if ((ticks + v.id) % BoatMotion.TICKS == 0 && (driver != null || seen(v, BoatMotion.ROCK_SEEN))) {
             BoatMotion.Rock r = BoatMotion.rock(ticks, v.id, v.st.speed, top, v.boatTurn, wa.rock(), v.boatMode == BoatPhysics.Mode.FLOAT);
             Quaternionf q = BoatMotion.rotation(r);
             Vector3f pivot = new Vector3f(0, (float) wa.draft(), 0);
@@ -1427,6 +1481,17 @@ public final class VehicleModule implements StsvModule, Listener {
                 v.world.spawnParticle(org.bukkit.Particle.SPLASH, c[0], c[1], c[2], 6, 0.15, 0.05, 0.15, 0.1);
             }
         }
+    }
+
+    /** Is a player within range (blocks) of the vehicle? */
+    private static boolean seen(LiveVehicle v, double range) {
+        double r2 = range * range;
+        for (Player p : v.world.getPlayers()) {
+            Location l = p.getLocation();
+            double dx = l.getX() - v.st.x, dy = l.getY() - v.st.y, dz = l.getZ() - v.st.z;
+            if (dx * dx + dy * dy + dz * dz <= r2) return true;
+        }
+        return false;
     }
 
     private static void rock(ItemDisplay d, Transformation t, Quaternionf q, Vector3f pivot, float bob) {
@@ -2150,10 +2215,11 @@ public final class VehicleModule implements StsvModule, Listener {
         if (v != null) {
             syncCargo(v);
             store.move(id, v.pos(), System.currentTimeMillis());
-            store.cargo(id, encode(v.cargo), System.currentTimeMillis());
+            flushCargo(v);   // its bed as it is now (if it changed since last saved)
             despawn(v, false);
         }
         VehicleStore.Row parkedRow = parked.remove(id);
+        parkedLoads.remove(id);
         busy.add(id);
         long token = newToken(), now = System.currentTimeMillis();
         boolean inWorld = v != null || parkedRow != null;
@@ -2165,7 +2231,7 @@ public final class VehicleModule implements StsvModule, Listener {
                         if (parkedRow != null) parked.put(id, parkedRow);
                         if (v != null) {
                             parked.put(id, new VehicleStore.Row(id, v.item.key().asString(), v.owner, v.ownerName, VehicleStore.State.WORLD, 0,
-                                    v.pos(), encode(v.cargo), 0, 0));
+                                    v.pos(), v.cargoBytes, 0, 0));
                             spawnSoon = true;
                         }
                         if (by != null) by.sendMessage(Lang.msg("vehicle.admin-unknown", "id", id));
@@ -2343,6 +2409,7 @@ public final class VehicleModule implements StsvModule, Listener {
     private void closeCargo(LiveVehicle v) {
         if (v.cargoViewer == null) return;
         syncCargo(v);
+        flushCargo(v);
         Player p = Bukkit.getPlayer(v.cargoViewer);
         Inventory inv = v.cargoInv;
         v.cargoViewer = null;
@@ -2355,6 +2422,7 @@ public final class VehicleModule implements StsvModule, Listener {
         Player p = Bukkit.getPlayer(v.cargoViewer);
         if (p == null || p.getOpenInventory().getTopInventory() != v.cargoInv) {
             syncCargo(v);
+            flushCargo(v);
             v.cargoViewer = null;
             v.cargoInv = null;
             return;
@@ -2467,6 +2535,7 @@ public final class VehicleModule implements StsvModule, Listener {
         LiveVehicle v = cargoOf(e.getInventory());
         if (v == null) return;
         syncCargo(v);
+        flushCargo(v);   // closed: what was done in it is saved now
         v.cargoViewer = null;
         v.cargoInv = null;
         if (e.getPlayer() instanceof Player p) p.playSound(p.getLocation(), Sound.BLOCK_BARREL_CLOSE, 0.6f, 1.0f);
@@ -2488,7 +2557,7 @@ public final class VehicleModule implements StsvModule, Listener {
      */
     static Object cargoKey(ItemStack it) {
         if (!it.hasItemMeta()) return it.getType();
-        String id = it.getItemMeta().getPersistentDataContainer().get(CustomItem.idKey(), PersistentDataType.STRING);
+        String id = it.getPersistentDataContainer().get(CustomItem.idKey(), PersistentDataType.STRING);   // a view: no copy of its meta
         return id == null ? it.getType() : id;
     }
 

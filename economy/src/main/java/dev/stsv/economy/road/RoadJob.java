@@ -181,6 +181,45 @@ public final class RoadJob {
         return d == Math.rint(d) ? String.valueOf((long) d) : String.format(Locale.ROOT, "%.3f", d);
     }
 
+    /**
+     * A copy to write off the main thread ({@link #write} on it gives the same text): every field and list copied, the
+     * points' ground copied one by one (the job goes on changing them meanwhile).
+     */
+    public RoadJob snapshot() {
+        RoadJob j = new RoadJob();
+        j.dock = dock;
+        j.world = world;
+        j.branchOf = branchOf;
+        j.branchKm = branchKm;
+        j.halves = halves == null ? null : halves.clone();
+        j.startX = startX;
+        j.startZ = startZ;
+        j.endX = endX;
+        j.endZ = endZ;
+        j.gateX = gateX;
+        j.gateZ = gateZ;
+        j.leadX = leadX;
+        j.leadZ = leadZ;
+        j.gateY = gateY;
+        j.tail = tail;
+        j.phase = phase;
+        j.running = running;
+        j.cells.putAll(cells);   // records: never changed
+        for (double[] c : corners) j.corners.add(c.clone());
+        for (Ground g : ground) {
+            Ground c = new Ground();
+            c.ground = g.ground;
+            c.surface = g.surface;
+            c.water = g.water;
+            j.ground.add(c);
+        }
+        j.cursor = cursor;
+        j.started = started;
+        j.route = route;
+        j.signs = signs;
+        return j;
+    }
+
     public String write() {
         StringBuilder b = new StringBuilder();
         b.append("dock=").append(dock).append('\n');

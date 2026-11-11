@@ -1,6 +1,8 @@
 package dev.stsv.economy.dock;
 
+import dev.stsv.economy.road.BlockBudget;
 import dev.stsv.economy.road.ChunkQueue;
+import dev.stsv.economy.road.LoadGate;
 import net.kyori.adventure.text.Component;
 import org.bukkit.Bukkit;
 import org.bukkit.Chunk;
@@ -33,9 +35,10 @@ import java.util.Set;
 import java.util.function.IntConsumer;
 
 /**
- * Puts a {@link DockLayout} into the world for a {@link Dock}, a few thousand blocks a tick (docks.build-per-tick), so the
- * server never stalls: its chunks are loaded (generated if new) asynchronously first and held loaded meanwhile (plugin
- * chunk tickets); then air where it stands, foundations and pier posts down to the ground, the blocks bottom up, the
+ * Puts a {@link DockLayout} into the world for a {@link Dock}, about a thousand blocks a tick (docks.build-blocks-per-tick,
+ * {@link BlockBudget}: a foundation column counts every block it fills), so the server never stalls, pausing while it is
+ * busy ({@link LoadGate}: docks.max-mspt): its chunks are loaded (generated if new) asynchronously first and held loaded
+ * meanwhile (plugin chunk tickets); then air where it stands, foundations and pier posts down to the ground, the blocks bottom up, the
  * sign, and last the display models and the floating name (tagged {@link #TAG} with the dock's name, so 제거 finds them).
  * Terrain is not restored when a dock is removed.
  */
@@ -47,19 +50,22 @@ final class DockBuilder {
     private record Op(int kind, int x, int y, int z, int depth, BlockData data) {}
 
     private static final int CLEAR = 0, COLUMN = 1, BLOCK = 2, LEGACY = 3;
+    /** How far the props and the floating name are drawn (x 64 blocks at 100 % entity distance): about 80 and 96 blocks. */
+    static final float PROP_VIEW = 1.25f, LABEL_VIEW = 1.5f;
 
     private final Plugin plugin;
     private final Dock dock;
     private final World world;
     private final DockLayout.Layout layout;
-    private final int perTick;
+    private final BlockBudget budget;
+    private final LoadGate.Settings gate;
     private final IntConsumer progress;
     private final Runnable done;
     private final List<Op> ops = new ArrayList<>();
     private final Set<Chunk> held = new HashSet<>();
     private ChunkQueue loads;
     private BukkitTask task;
-    private int next, chunks;
+    private int next, chunks, ticks;
     /** only the decorations (/관리자 하역장 다시꾸미기): no clearing, no foundations; old block containers go */
     private boolean decorOnly;
 
@@ -69,12 +75,13 @@ final class DockBuilder {
         return this;
     }
 
-    DockBuilder(Plugin plugin, Dock dock, World world, int perTick, IntConsumer progress, Runnable done) {
+    DockBuilder(Plugin plugin, Dock dock, World world, int blocksPerTick, LoadGate.Settings gate, IntConsumer progress, Runnable done) {
         this.plugin = plugin;
         this.dock = dock;
         this.world = world;
         this.layout = dock.layout();
-        this.perTick = Math.max(100, perTick);
+        this.budget = new BlockBudget(Math.max(100, blocksPerTick));
+        this.gate = gate;
         this.progress = progress;
         this.done = done;
     }
@@ -97,7 +104,7 @@ final class DockBuilder {
             ops.add(new Op(COLUMN, c.x(), c.fromY(), c.z(), c.depth(), parsed.computeIfAbsent(c.data(), Bukkit::createBlockData)));
         for (DockLayout.Block b : layout.blocks())
             ops.add(new Op(BLOCK, b.x(), b.y(), b.z(), 0, parsed.computeIfAbsent(b.data(), Bukkit::createBlockData)));
-        loads = new ChunkQueue(world, 4, c -> {
+        loads = new ChunkQueue(world, gate.most(), c -> {
             c.addPluginChunkTicket(plugin);
             held.add(c);
         });
@@ -114,14 +121,15 @@ final class DockBuilder {
     }
 
     private void tick() {
+        LoadGate.Allow allow = LoadGate.now(gate);   // the server busy: pause or slow down
         if (!loads.finished()) {
-            loads.pump();
+            loads.pump(allow.concurrent());
             return;
         }
-        int end = Math.min(ops.size(), next + perTick);
-        for (; next < end; next++) apply(ops.get(next));
+        budget.tick(allow.share());
+        while (budget.any() && next < ops.size()) budget.spend(apply(ops.get(next++)));
         if (next < ops.size()) {
-            if (next % (perTick * 5) < perTick) progress.accept((int) (next * 100L / ops.size()));
+            if (++ticks % 5 == 0) progress.accept((int) (next * 100L / ops.size()));
             return;
         }
         signs();
@@ -130,10 +138,12 @@ final class DockBuilder {
         done.run();
     }
 
-    private void apply(Op o) {
+    /** Puts one op into the world; what it cost (blocks looked at or set: a column, each one it went down). */
+    private int apply(Op o) {
         int[] w = dock.block(o.x(), o.y(), o.z());
-        if (w[1] < world.getMinHeight() || w[1] >= world.getMaxHeight()) return;
+        if (w[1] < world.getMinHeight() || w[1] >= world.getMaxHeight()) return 1;
         Block b = world.getBlockAt(w[0], w[1], w[2]);
+        int cost = 1;
         switch (o.kind()) {
             case CLEAR -> {
                 if (!b.getType().isAir()) b.setType(Material.AIR, false);
@@ -146,12 +156,14 @@ final class DockBuilder {
                 for (int k = 0; k < o.depth(); k++) {
                     Block at = world.getBlockAt(w[0], w[1] - k, w[2]);
                     if (at.getY() < world.getMinHeight()) break;
+                    cost = k + 1;
                     if (!fillable(at)) break;
                     at.setBlockData(o.data(), false);
                 }
             }
             default -> b.setBlockData(o.data(), false);
         }
+        return cost;
     }
 
     /** Air, water, lava, plants, snow: a foundation or a post goes down through it to the ground. */
@@ -201,7 +213,7 @@ final class DockBuilder {
                 // the model's floor (model y 0) at the point: FIXED draws model (8, 8, 8) at the entity
                 d.setTransformation(new Transformation(new Vector3f(0, 0.5f * p.scale(), 0), new Quaternionf(),
                         new Vector3f(p.scale(), p.scale(), p.scale()), new Quaternionf()));
-                d.setViewRange(2f);
+                d.setViewRange(PROP_VIEW);
                 d.getPersistentDataContainer().set(TAG, PersistentDataType.STRING, dock.name());
             });
         }
@@ -213,7 +225,7 @@ final class DockBuilder {
                     : "<gold><bold>" + DockLayout.title(dock.name()) + "</bold>\n<gray>" + dock.kind().word + " · 웅크리고 짐칸 우클릭 = 판매"));
             t.setBillboard(Display.Billboard.CENTER);
             t.setTransformation(new Transformation(new Vector3f(), new Quaternionf(), new Vector3f(2.5f, 2.5f, 2.5f), new Quaternionf()));
-            t.setViewRange(3f);
+            t.setViewRange(LABEL_VIEW);
             t.getPersistentDataContainer().set(TAG, PersistentDataType.STRING, dock.name());
         });
     }

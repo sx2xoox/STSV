@@ -84,6 +84,8 @@ final class LiveVehicle {
     /** a boat: afloat, on ice or aground (BoatPhysics), and how far it turned last tick (degrees: it leans out of turns) */
     BoatPhysics.Mode boatMode = BoatPhysics.Mode.FLOAT;
     float boatTurn;
+    /** a boat: ticks its hull physics left it where it was, nobody driving (settled: felt only now and then, BoatMotion#steps) */
+    int boatStill;
 
     /** the storage bed (null without one), the page open and who has it open */
     ItemStack[] cargo;
@@ -93,6 +95,11 @@ final class LiveVehicle {
     UUID cargoViewer;
     Inventory cargoInv;
     int cargoPage;
+    /** when the bed goes to the database (CargoSave), and its bytes as last saved or read (null = empty) */
+    final CargoSave cargoSave = new CargoSave(0);
+    byte[] cargoBytes;
+    /** what each slot of the bed weighs (적재 무게), remembered between clicks */
+    final WeightCache<ItemStack> weights = new WeightCache<>();
 
     /** moved since its position was last saved; when that was (plugin ticks) */
     boolean dirty;

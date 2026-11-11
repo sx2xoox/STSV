@@ -33,7 +33,16 @@ public final class ChunkQueue {
 
     /** Starts loads while there is room; call every tick. */
     public void pump() {
-        while (!stopped && inFlight < concurrent && !waiting.isEmpty()) {
+        pump(concurrent);
+    }
+
+    /**
+     * Starts loads while fewer than max (at most the queue's own `concurrent`) are on the way: {@link LoadGate} lowers it
+     * while the server is busy or players are online, 0 starts none (those on the way still arrive).
+     */
+    public void pump(int max) {
+        int limit = Math.min(concurrent, max);
+        while (!stopped && inFlight < limit && !waiting.isEmpty()) {
             long[] c = waiting.poll();
             inFlight++;
             world.getChunkAtAsync((int) c[0], (int) c[1], true).whenComplete((chunk, err) -> {
