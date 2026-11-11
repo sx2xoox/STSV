@@ -18,7 +18,23 @@ public final class BoatMotion {
     /** Degrees the bow rises at full speed; degrees it leans per degree/tick of turning, and at most. */
     static final double BOW_UP = 2.5, LEAN = 1.2, MAX_LEAN = 3.5;
 
+    /**
+     * A boat left alone settles: after this many ticks without moving (nobody aboard driving, no speed, rudder straight)
+     * its hull is felt only every {@link #RECHECK} ticks (the water around it may rise, fall or go), not every tick.
+     */
+    public static final int SETTLE = 20, RECHECK = 10;
+    /** Its parts rock on the waves only while a player is this near (blocks): nobody sees it otherwise. */
+    public static final double ROCK_SEEN = 32;
+
     private BoatMotion() {}
+
+    /**
+     * Does the boat's hull physics run this tick? Always while driven, moving or turning its rudder, or not settled yet
+     * (still: ticks it has not moved); a settled one now and then ({@link #RECHECK}, every boat at its own tick).
+     */
+    public static boolean steps(boolean driven, double speed, double steer, int still, long ticks, long id) {
+        return driven || speed != 0 || steer != 0 || still < SETTLE || Math.floorMod(ticks + id, RECHECK) == 0;
+    }
 
     /** pitch (degrees, + = bow up), roll (degrees, + = leaning to its right) and bob (blocks up). */
     public record Rock(float pitch, float roll, float bob) {

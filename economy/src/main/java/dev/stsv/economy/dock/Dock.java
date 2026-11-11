@@ -2,6 +2,8 @@ package dev.stsv.economy.dock;
 
 import java.util.ArrayList;
 import java.util.List;
+import java.util.Map;
+import java.util.concurrent.ConcurrentHashMap;
 
 /**
  * A 하역장 in the world: its name, kind, where it was built (the admin's block) and which way it faces. Everything else
@@ -111,8 +113,7 @@ public record Dock(String name, DockLayout.Kind kind, String world, int x, int y
     /** Is a world point inside one of the dock's unloading zones? */
     public boolean inZone(String inWorld, double px, double py, double pz) {
         if (!world.equals(inWorld)) return false;
-        for (DockLayout.Box zb : layout().zones()) {
-            int[] b = box(zb);
+        for (int[] b : shape().zones()) {
             if (px >= b[0] && px < b[3] + 1 && py >= b[1] && py < b[4] + 1 && pz >= b[2] && pz < b[5] + 1) return true;
         }
         return false;
@@ -146,13 +147,46 @@ public record Dock(String name, DockLayout.Kind kind, String world, int x, int y
         return block(0, -1, -1);
     }
 
+    /** The 하역 창구 (or a terminal's 화물 검사소 counter) as a world block. */
     public int[] counter() {
-        DockLayout.Block c = layout().counter();
-        return block(c.x(), c.y(), c.z());
+        return shape().counter().clone();
     }
 
+    /** Is this world block the counter? (on every block right-click: nothing made) */
+    public boolean isCounter(String inWorld, int bx, int by, int bz) {
+        int[] c = shape().counter();
+        return bx == c[0] && by == c[1] && bz == c[2] && world.equals(inWorld);
+    }
+
+    /** What it is built of ({@link DockLayout#of}): worked out once per kind and name, the same object every time. */
     public DockLayout.Layout layout() {
-        return DockLayout.of(kind, name);
+        return shape().layout();
+    }
+
+    /** The layout of a kind and name, made once ({@link DockLayout#of} is pure: a few thousand blocks laid out). */
+    private record Plan(DockLayout.Kind kind, String name) {}
+
+    /** Where a dock stands (what its world boxes follow from). */
+    private record Place(DockLayout.Kind kind, String name, int x, int y, int z, int facing) {}
+
+    /** What follows from where a dock stands: its layout, its counter and unloading zones as world blocks and boxes. */
+    private record Shape(DockLayout.Layout layout, int[] counter, int[][] zones) {}
+
+    private static final Map<Plan, DockLayout.Layout> LAYOUTS = new ConcurrentHashMap<>();
+    private static final Map<Place, Shape> SHAPES = new ConcurrentHashMap<>();
+
+    /**
+     * This dock's shape, worked out once for its kind, name, place and facing (a record has no fields of its own to keep
+     * it in; the same dock with another price shares it). Docks are few: the caches stay small.
+     */
+    private Shape shape() {
+        return SHAPES.computeIfAbsent(new Place(kind, name, x, y, z, facing), k -> {
+            DockLayout.Layout l = LAYOUTS.computeIfAbsent(new Plan(kind, name), p -> DockLayout.of(p.kind(), p.name()));
+            DockLayout.Block c = l.counter();
+            int[][] zones = new int[l.zones().size()][];
+            for (int i = 0; i < zones.length; i++) zones[i] = box(l.zones().get(i));
+            return new Shape(l, block(c.x(), c.y(), c.z()), zones);
+        });
     }
 
     /** The chunks the dock's bounds touch. */

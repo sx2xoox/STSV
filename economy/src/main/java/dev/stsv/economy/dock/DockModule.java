@@ -10,6 +10,7 @@ import dev.stsv.core.vehicle.JigeModule;
 import dev.stsv.economy.EcoModule;
 import dev.stsv.economy.EcoPlugin;
 import dev.stsv.economy.road.ChunkQueue;
+import dev.stsv.economy.road.LoadGate;
 import dev.stsv.economy.road.RoadModule;
 import dev.stsv.economy.road.RoadOrigin;
 import dev.stsv.economy.util.Items;
@@ -20,6 +21,7 @@ import org.bukkit.HeightMap;
 import org.bukkit.Location;
 import org.bukkit.Material;
 import org.bukkit.Sound;
+import org.bukkit.Tag;
 import org.bukkit.World;
 import org.bukkit.block.Block;
 import org.bukkit.block.ShulkerBox;
@@ -70,8 +72,13 @@ import java.util.UUID;
  */
 public final class DockModule extends EcoModule {
 
-    /** docks.* in config.yml */
-    record Rules(double minDistance, double ratio, int buildPerTick, int scoutStep, int scoutConcurrent) {}
+    /**
+     * docks.* in config.yml
+     *
+     * @param buildBlocks blocks a tick when building ({@link DockBuilder})
+     * @param gate        when building and the scout pause or slow down, chunk loads at once (nobody / players online)
+     */
+    record Rules(double minDistance, double ratio, int buildBlocks, int scoutStep, LoadGate.Settings gate) {}
 
     private DockStore store;
     private Rules rules;
@@ -85,6 +92,21 @@ public final class DockModule extends EcoModule {
     private final Map<String, Dock> terminals = new LinkedHashMap<>();
     private TripStore trips;
     private final Map<Long, CargoTrip> sealed = new HashMap<>();
+    /**
+     * Loads being sealed now (their trip on its way into the database): locked as if sealed already (their bed does not
+     * open, they are not sealed again) until it is stored.
+     */
+    private final Map<Long, Sealing> sealing = new HashMap<>();
+
+    /** A seal on its way into the database: its trip, and whether the load's trip was broken off meanwhile. */
+    private static final class Sealing {
+        final CargoTrip draft;
+        boolean broken;
+
+        Sealing(CargoTrip draft) {
+            this.draft = draft;
+        }
+    }
 
     public DockModule(EcoPlugin eco) {
         super(eco);
@@ -105,6 +127,7 @@ public final class DockModule extends EcoModule {
         trips.init();
         for (CargoTrip t : trips.sealed()) sealed.put(t.vehicle(), t);
         load();
+        counters = counterTypes();
         if (core.vehicles() != null) {
             core.vehicles().cargoWeight(this::weigh);
             core.vehicles().cargoClick(this::bedClicked);
@@ -151,14 +174,16 @@ public final class DockModule extends EcoModule {
 
     private void load() {
         rules = new Rules(eco.getConfig().getDouble("docks.min-distance"), eco.getConfig().getDouble("docks.price-ratio"),
-                eco.getConfig().getInt("docks.build-per-tick"), Math.max(16, eco.getConfig().getInt("docks.scout-step")),
-                eco.getConfig().getInt("docks.scout-concurrent"));
+                Math.clamp(eco.getConfig().getInt("docks.build-blocks-per-tick"), 100, 50000), Math.max(16, eco.getConfig().getInt("docks.scout-step")),
+                new LoadGate.Settings(eco.getConfig().getDouble("docks.max-mspt"), Math.clamp(eco.getConfig().getInt("docks.scout-concurrent"), 1, 16),
+                        Math.clamp(eco.getConfig().getInt("docks.scout-concurrent-online"), 1, 16)));
         goods = DockGoods.of(eco.machines().specs(), eco.shop().catalog(), rules.ratio());
         List<String> problems = new ArrayList<>();
         // only what the dock buys has a real weight; everything else weighs weights.yml raw (README "적재 무게")
         weights = WeightTable.parse(eco.data("weights.yml"), problems).withGoods(goods.finished());
         problems.forEach(p -> eco.getLogger().warning("[weights.yml] " + p));
         unitWeight.clear();
+        if (core.vehicles() != null) core.vehicles().weightsChanged();   // the beds' weights are worked out again
     }
 
     private static String key(String name) {
@@ -209,22 +234,40 @@ public final class DockModule extends EcoModule {
     // 적재 무게
     // ------------------------------------------------------------------------------------------
 
-    /** What a stack weighs: its count x one item's weight, plus what a shulker box or bundle holds. */
+    /**
+     * What a stack weighs: its count x one item's weight, plus what a shulker box or bundle holds. Asked for many slots on
+     * every click in a big bed: its id is read without copying the item's meta ({@link #idOf}), and only a shulker box or
+     * a bundle has its meta (what it holds) read.
+     */
     double weigh(ItemStack it) {
         if (it == null || it.isEmpty()) return 0;
-        String id = Items.key(it);
+        String id = idOf(it);
         double unit = unitWeight.computeIfAbsent(id, k -> weights.weight(k, v -> {
             Material m = Material.matchMaterial(v);
             return m != null && m.isBlock();
         }));
         double inner = 0;
-        if (it.hasItemMeta()) {
+        Material type = it.getType();
+        if ((Tag.SHULKER_BOXES.isTagged(type) || Tag.ITEMS_BUNDLES.isTagged(type)) && it.hasItemMeta()) {
             var meta = it.getItemMeta();
             if (meta instanceof BlockStateMeta b && b.hasBlockState() && b.getBlockState() instanceof ShulkerBox box)
                 for (ItemStack in : box.getInventory().getContents()) inner += weigh(in);
             if (meta instanceof BundleMeta b) for (ItemStack in : b.getItems()) inner += weigh(in);
         }
         return unit * it.getAmount() + inner;
+    }
+
+    /** {@link Items#key}, read through the stack's data view (no copy of its meta): a known custom item's id, else the material's. */
+    private static String idOf(ItemStack it) {
+        if (it.hasItemMeta()) {
+            String id = it.getPersistentDataContainer().get(dev.stsv.core.content.CustomItem.idKey(), PersistentDataType.STRING);
+            org.bukkit.NamespacedKey k = id == null ? null : org.bukkit.NamespacedKey.fromString(id);
+            if (k != null) {
+                var c = STSVPlugin.get().content().item(k);
+                if (c.isPresent()) return c.get().key().asString();
+            }
+        }
+        return it.getType().getKey().asString();
     }
 
     // ------------------------------------------------------------------------------------------
@@ -257,20 +300,36 @@ public final class DockModule extends EcoModule {
         return false;
     }
 
+    /** What the counters are made of (a dock's 하역 창구, a terminal's): a right-click on anything else is never one. */
+    private java.util.Set<Material> counters = java.util.Set.of();
+
+    private static java.util.Set<Material> counterTypes() {
+        java.util.Set<Material> out = java.util.EnumSet.noneOf(Material.class);
+        for (DockLayout.Kind k : DockLayout.Kind.values()) {
+            String data = DockLayout.of(k, "_").counter().data();
+            int cut = data.indexOf('[');
+            Material m = Material.matchMaterial(cut < 0 ? data : data.substring(0, cut));
+            if (m != null) out.add(m);
+        }
+        return out;
+    }
+
+    /** On every block right-click by anyone: only a counter's material in a dock's or terminal's chunks is looked at further. */
     @EventHandler(priority = EventPriority.HIGH)
     public void onCounter(PlayerInteractEvent e) {
         if (e.getAction() != Action.RIGHT_CLICK_BLOCK || e.getClickedBlock() == null || e.getHand() != EquipmentSlot.HAND) return;
         Block b = e.getClickedBlock();
+        if (!counters.contains(b.getType())) return;
+        String w = b.getWorld().getName();
+        if (!covers(w, b.getX() >> 4, b.getZ() >> 4)) return;
         for (Dock t : terminals.values()) {
-            int[] c = t.counter();
-            if (!t.world().equals(b.getWorld().getName()) || b.getX() != c[0] || b.getY() != c[1] || b.getZ() != c[2]) continue;
+            if (!t.isCounter(w, b.getX(), b.getY(), b.getZ())) continue;
             e.setCancelled(true);
             inspectAt(e.getPlayer(), t);
             return;
         }
         for (Dock d : docks.values()) {
-            int[] c = d.counter();
-            if (!d.world().equals(b.getWorld().getName()) || b.getX() != c[0] || b.getY() != c[1] || b.getZ() != c[2]) continue;
+            if (!d.isCounter(w, b.getX(), b.getY(), b.getZ())) continue;
             e.setCancelled(true);
             counter(e.getPlayer(), d);
             return;
@@ -368,6 +427,8 @@ public final class DockModule extends EcoModule {
 
     /** A load's trip was broken off (its 지게's wearer teleported: the core says so at once): its seal is void now. */
     private void broken(long id) {
+        Sealing on = sealing.get(id);
+        if (on != null) on.broken = true;   // void once it is stored
         CargoTrip t = sealed.get(id);
         if (t != null) voidTrip(t, null, "terminal.voided-teleport", "순간이동");
     }
@@ -681,7 +742,7 @@ public final class DockModule extends EcoModule {
         s.sendMessage(Lang.msg("dock.building", "name", d.name(), "kind", kind.word, "chunks", d.chunksTouched().size(), "claimed", claimed.size()));
         if (core.worlds() != null && !core.worlds().isBuild(at.getWorld())) s.sendMessage(Lang.msg("dock.not-build-world"));
         UUID who = p.getUniqueId();
-        building = new DockBuilder(eco, d, at.getWorld(), rules.buildPerTick(), pct -> {
+        building = new DockBuilder(eco, d, at.getWorld(), rules.buildBlocks(), rules.gate(), pct -> {
             Player q = Bukkit.getPlayer(who);
             if (q != null) q.sendActionBar(Lang.mm("dock.progress", "name", d.name(), "pct", pct));
         }, () -> {
@@ -715,7 +776,7 @@ public final class DockModule extends EcoModule {
         }
         UUID who = s instanceof Player p ? p.getUniqueId() : null;
         s.sendMessage(Lang.msg("dock.redecorating", "name", d.name()));
-        building = new DockBuilder(eco, d, w, rules.buildPerTick(), pct -> {
+        building = new DockBuilder(eco, d, w, rules.buildBlocks(), rules.gate(), pct -> {
             Player q = who == null ? null : Bukkit.getPlayer(who);
             if (q != null) q.sendActionBar(Lang.mm("dock.progress", "name", d.name(), "pct", pct));
         }, () -> {
@@ -746,7 +807,12 @@ public final class DockModule extends EcoModule {
     public void onEntitiesLoad(EntitiesLoadEvent e) {
         for (Entity en : e.getEntities()) {
             String name = en.getPersistentDataContainer().get(DockBuilder.TAG, PersistentDataType.STRING);
-            if (name != null && !docks.containsKey(key(name)) && !terminals.containsKey(key(name))) en.remove();
+            if (name == null) continue;
+            if (!docks.containsKey(key(name)) && !terminals.containsKey(key(name))) en.remove();
+            else if (en instanceof org.bukkit.entity.Display d) {   // built before: drawn as far as new ones (DockBuilder)
+                float v = d instanceof org.bukkit.entity.TextDisplay ? DockBuilder.LABEL_VIEW : DockBuilder.PROP_VIEW;
+                if (d.getViewRange() > v) d.setViewRange(v);
+            }
         }
     }
 
@@ -766,9 +832,10 @@ public final class DockModule extends EcoModule {
     // 출발 터미널: the inspection (화물 검사) and the seal
     // ------------------------------------------------------------------------------------------
 
-    /** Why a load is sealed (the core asks before its bed or 지게 opens), or null. */
+    /** Why a load is sealed (the core asks before its bed or 지게 opens), or null. Being sealed now counts. */
     private Component seal(long id) {
         CargoTrip t = sealed.get(id);
+        if (t == null && sealing.containsKey(id)) t = sealing.get(id).draft;
         return t == null ? null : Lang.mm("terminal.sealed", "dock", t.dock(), "terminal", t.terminal());
     }
 
@@ -960,7 +1027,8 @@ public final class DockModule extends EcoModule {
         // of the sealed load through it, and the load checked below is the one sealed (its version moved on if they did)
         if (core.vehicles() != null) core.vehicles().closeLoad(in.vehicle);
         Hauled h = again(p, in.vehicle);
-        if (h == null || h.version() != in.version || !mayUse(p, h) || terminalOf(h) != in.terminal || h.moving() || sealed.containsKey(h.id())) {
+        if (h == null || h.version() != in.version || !mayUse(p, h) || terminalOf(h) != in.terminal || h.moving() || sealed.containsKey(h.id())
+                || sealing.containsKey(h.id())) {
             p.sendMessage(Lang.msg("dock.changed"));
             return;
         }
@@ -978,13 +1046,30 @@ public final class DockModule extends EcoModule {
             p.sendMessage(Lang.msg("terminal.price-changed", "dock", to.name(), "price", priceWords(to), "total", EconomyModule.format(draft.total())));
             return;
         }
-        CargoTrip t = trips.open(draft);
-        sealed.put(h.id(), t);
-        eco.getLogger().info("[출발 터미널] " + in.terminal.name() + ": " + p.getName() + " 님이 " + h.name() + " #" + Math.abs(h.id()) + " 검사, "
-                + to.name() + " 하역장으로 봉인 (" + t.total() + " G, 매입가 " + Dock.percent(t.ratio()) + "%): " + CargoTrip.words(t.manifest()));
-        p.sendMessage(Lang.msg("terminal.sealed-now", "dock", t.dock(), "far", Math.round(t.straight()), "needed", Math.round(t.needed()),
-                "total", EconomyModule.format(t.total()), "pct", Dock.percent(t.ratio())));
-        p.playSound(p.getLocation(), Sound.BLOCK_IRON_TRAPDOOR_CLOSE, 0.8f, 1.2f);
+        // stored off the main thread; meanwhile the load is locked as if sealed (seal, broken), so nothing changes under it
+        long id = h.id();
+        String vehicleName = h.name();
+        Sealing on = new Sealing(draft);
+        sealing.put(id, on);
+        trips.openAsync(draft).whenComplete((t, err) -> sync(() -> {
+            sealing.remove(id, on);
+            if (err != null || t == null) {
+                eco.getLogger().log(java.util.logging.Level.WARNING, "[출발 터미널] 봉인 저장 실패: " + draft, err);
+                if (p.isOnline()) p.sendMessage(Lang.msg("dock.changed"));   // not sealed: inspect it again
+                return;
+            }
+            sealed.put(id, t);
+            eco.getLogger().info("[출발 터미널] " + in.terminal.name() + ": " + p.getName() + " 님이 " + vehicleName + " #" + Math.abs(id) + " 검사, "
+                    + to.name() + " 하역장으로 봉인 (" + t.total() + " G, 매입가 " + Dock.percent(t.ratio()) + "%): " + CargoTrip.words(t.manifest()));
+            if (on.broken) {   // its 지게's wearer teleported while it was being stored
+                voidTrip(t, p.isOnline() ? p : null, "terminal.voided-teleport", "순간이동");
+                return;
+            }
+            if (!p.isOnline()) return;
+            p.sendMessage(Lang.msg("terminal.sealed-now", "dock", t.dock(), "far", Math.round(t.straight()), "needed", Math.round(t.needed()),
+                    "total", EconomyModule.format(t.total()), "pct", Dock.percent(t.ratio())));
+            p.playSound(p.getLocation(), Sound.BLOCK_IRON_TRAPDOOR_CLOSE, 0.8f, 1.2f);
+        }));
     }
 
     /** A sealed load away from its dock: where it goes, how far it has come, and (its owner) calling the trip off. */
@@ -1170,7 +1255,7 @@ public final class DockModule extends EcoModule {
         World w = Bukkit.getWorld(t.world());
         if (w == null) return;
         UUID who = s instanceof Player p ? p.getUniqueId() : null;
-        building = new DockBuilder(eco, t, w, rules.buildPerTick(), pct -> {
+        building = new DockBuilder(eco, t, w, rules.buildBlocks(), rules.gate(), pct -> {
             Player q = who == null ? null : Bukkit.getPlayer(who);
             if (q != null) q.sendActionBar(Lang.mm("dock.progress", "name", t.name(), "pct", pct));
         }, () -> {
@@ -1208,7 +1293,7 @@ public final class DockModule extends EcoModule {
             this.distance = distance;
             this.from = from;
             this.step = rules.scoutStep();
-            this.queue = new ChunkQueue(world, rules.scoutConcurrent(), c -> {
+            this.queue = new ChunkQueue(world, rules.gate().most(), c -> {
                 List<int[]> want = byChunk.remove(dev.stsv.economy.road.RoadJob.key(c.getX(), c.getZ()));
                 if (want == null) return;
                 for (int[] xz : want) sampled.put(dev.stsv.economy.road.RoadJob.key(xz[0], xz[1]), sampleColumn(world, xz[0], xz[1]));
@@ -1235,7 +1320,7 @@ public final class DockModule extends EcoModule {
         }
 
         void tick() {
-            queue.pump();
+            queue.pump(LoadGate.now(rules.gate()).concurrent());   // the server busy: none, or one at a time
             long t = now();
             if (t - lastNote > 5000 && !queue.finished()) {
                 lastNote = t;

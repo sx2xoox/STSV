@@ -32,9 +32,14 @@ public final class TripStore {
                 List.of("ALTER TABLE stsv_eco_cargo_trip ADD COLUMN ratio DOUBLE NOT NULL DEFAULT 0")));
     }
 
-    /** A new sealed trip: stored, with its id. */
+    /** A new sealed trip: stored, with its id (waits for the database: tests; the plugin uses {@link #openAsync}). */
     public CargoTrip open(CargoTrip t) {
-        long newId = db.sync(c -> {
+        return openAsync(t).join();
+    }
+
+    /** A new sealed trip, stored on the database thread: completes with it and its id. */
+    public CompletableFuture<CargoTrip> openAsync(CargoTrip t) {
+        return db.async(c -> {
             try (var st = c.prepareStatement("INSERT INTO stsv_eco_cargo_trip (vehicle, owner, terminal, dock, manifest, total, changed, odometer, "
                     + "straight, sealed, status, ended, ratio) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)", java.sql.Statement.RETURN_GENERATED_KEYS)) {
                 Object[] v = {t.vehicle(), t.owner().toString(), t.terminal(), t.dock(), t.manifest(), t.total(), t.changed(), t.odometer(),
@@ -45,8 +50,7 @@ public final class TripStore {
                     return rs.next() ? rs.getLong(1) : -1L;
                 }
             }
-        });
-        return t.withId(newId);
+        }).thenApply(t::withId);
     }
 
     /** A trip ended (its status and when). */
