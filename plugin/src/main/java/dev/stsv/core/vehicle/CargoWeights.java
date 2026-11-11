@@ -9,7 +9,8 @@ import java.util.function.ToIntFunction;
 /**
  * 적재 무게: how heavy a bed is and how much more it takes (README "적재 무게"). A vehicle carries at most its payload
  * ({@link VehicleSpec.Cargo#payload}); what one item weighs comes from a content plugin (the economy server's weights.yml,
- * {@link VehicleModule#cargoWeight}): a weight per item, stacks counted by their size. Also tells a real change of a bed's
+ * {@link VehicleModule#cargoWeight}): a weight per item, stacks counted by their size (there only the finished goods a dock
+ * buys are heavy; raw materials weigh 1/64, a stack 1, so slots limit them, not the payload). Also tells a real change of a bed's
  * contents (loading, unloading) from moving things between its slots ({@link #sameContents}). Generic over the item type
  * (null = an empty slot), so it is unit-tested without a server.
  */
