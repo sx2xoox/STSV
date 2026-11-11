@@ -66,11 +66,12 @@ public final class ItemCatalog {
 
     public static Category of(Facts f) {
         if (f.vehicle()) return Category.VEHICLE;
+        String file = f.source().toLowerCase(Locale.ROOT);
+        String last = file.substring(file.lastIndexOf('/') + 1);
+        if (last.startsWith("vehicle")) return Category.VEHICLE;   // the transport files' other items too (the worn 지게)
         if (f.furniture()) return Category.MACHINE;
         if (f.cosmetic() || f.voucher()) return Category.COSMETIC;
         if (f.gear() || tool(f.material())) return Category.GEAR;
-        String file = f.source().toLowerCase(Locale.ROOT);
-        String last = file.substring(file.lastIndexOf('/') + 1);
         if (last.startsWith("crop") || last.startsWith("seed")) return Category.CROP;
         if (last.startsWith("fish")) return Category.FISH;
         if (f.food()) return Category.FOOD;

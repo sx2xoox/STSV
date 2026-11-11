@@ -79,6 +79,9 @@ final class LiveVehicle {
 
     /** an articulated vehicle's towed units and moving parts (TrainView), or null */
     TrainView train;
+    /** a boat: afloat, on ice or aground (BoatPhysics), and how far it turned last tick (degrees: it leans out of turns) */
+    BoatPhysics.Mode boatMode = BoatPhysics.Mode.FLOAT;
+    float boatTurn;
 
     /** the storage bed (null without one), the page open and who has it open */
     ItemStack[] cargo;

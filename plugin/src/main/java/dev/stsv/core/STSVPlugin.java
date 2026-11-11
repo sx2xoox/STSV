@@ -79,6 +79,7 @@ public final class STSVPlugin extends JavaPlugin {
         modules.register(crops = new dev.stsv.core.crop.CropModule());
         modules.register(vehicles = new dev.stsv.core.vehicle.VehicleModule());
         modules.register(cosmetics = new CosmeticModule());
+        modules.register(new dev.stsv.core.vehicle.JigeModule());   // after the cosmetics: it draws in their back slot
         modules.register(profiles = new dev.stsv.core.profile.ProfileModule());
         modules.register(economy = new dev.stsv.core.economy.EconomyModule());
         modules.register(nicknames = new dev.stsv.core.nickname.NicknameModule());
