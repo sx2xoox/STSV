@@ -17,7 +17,10 @@ are). Per vehicle (police_car, light_truck, golf_cart):
                     the pitch follows the speed segment by segment (vehicles.yml engine.segment-ticks = ENGINE_PERIOD*20).
 
 Characters: the golf cart a high thin electric beep and a quiet motor whine; the 1-ton truck a low two-tone horn and a
-diesel hum with a light clatter; the police car a mid two-tone horn and a soft petrol hum.
+diesel hum with a light clatter; the police car a mid two-tone horn and a soft petrol hum. The road vehicles of the
+transport ladder (ROAD, vehicles_road.yml): the bicycle a brass bell "따릉" (struck and trilled; its "engine" a soft
+chain tick), the delivery scooter a buzzy "빽" and a two-stroke ring, the ATV a short two-tone and a single-cylinder
+thump, the van a bright car horn and a small petrol hum, the box truck a deep heavy horn and a bigger diesel.
 
 Deterministic: fixed seeds and a bit-exact encoder, so a rebuild writes the same bytes.
 """
@@ -257,6 +260,131 @@ def cart_engine(n, t):
 ENGINES = {"police_car": police_engine, "light_truck": truck_engine, "golf_cart": cart_engine}
 # how loud each segment is in the file (the server scales it further: vehicles.yml engine volume, config engine.volume)
 ENGINE_LEVEL = {"police_car": 0.8, "light_truck": 0.85, "golf_cart": 0.6}
+# a vehicle whose horn is not a horn (the bicycle's bell): its own hold clip and tail
+HOLDS, TAILS = {}, {}
+
+
+# ----------------------------------------------------------------------------------------------
+# Road vehicles of the transport ladder (vehicles_road.yml): 짐자전거, 배달 오토바이, 사륜 오토바이, 소형 화물 밴, 탑차
+# ----------------------------------------------------------------------------------------------
+
+ROAD = ("cargo_bicycle", "delivery_scooter", "atv", "cargo_van", "box_truck")
+VEHICLES = VEHICLES + ROAD
+
+HORNS.update({
+    # the bicycle's bell: a small brass dome (inharmonic partials), struck once and then trilled: "따릉"
+    "cargo_bicycle": dict(f0=2350.0, seed=31),
+    # a small motorbike horn: one buzzy high tone, "빽"
+    "delivery_scooter": dict(tones=(480.0,), rolloff=0.85, drive=3.0, formant=(2000.0, 700.0, 1.2), top=6000, seed=32),
+    # the ATV: a short two-tone, between the scooter and the van
+    "atv": dict(tones=(392.0, 466.0), rolloff=1.0, drive=2.4, formant=(1900.0, 700.0, 1.4), top=5500, seed=33),
+    # the van: a bright car horn, a fourth apart
+    "cargo_van": dict(tones=(440.0, 587.0), rolloff=1.1, drive=2.0, formant=(2500.0, 900.0, 1.4), top=6500, seed=34),
+    # the box truck: deeper and heavier than the 1-ton truck, a dark wide bell
+    "box_truck": dict(tones=(208.0, 262.0), rolloff=0.9, drive=2.8, formant=(1000.0, 450.0, 2.0), top=4000, seed=35),
+})
+
+# a bicycle bell's partials: (ratio to the strike tone, level, seconds to fade by 1/e); two copies a hair apart beat slowly
+BELL_PARTIALS = ((1.0, 1.0, 0.55), (2.32, 0.45, 0.30), (4.25, 0.22, 0.16), (6.63, 0.10, 0.09))
+BELL_PATTERN = 0.95          # seconds from one "따릉" to the next while the bell lever is worked
+
+
+def bell_strikes(spec, seconds, strikes):
+    """The bell ringing: (time, strength) strikes, each setting every partial ringing and fading on its own."""
+    rng = np.random.default_rng(spec["seed"])
+    t = t_axis(seconds)
+    out = np.zeros(len(t))
+    for at, strength in strikes:
+        dt = t - at
+        on = dt >= 0
+        for ratio, level, decay in BELL_PARTIALS:
+            f = spec["f0"] * ratio
+            for detune in (1.0, 1.0035):
+                ph = rng.uniform(0, 2 * np.pi)
+                out[on] += 0.5 * strength * level * np.exp(-dt[on] / decay) * np.sin(2 * np.pi * f * detune * dt[on] + ph)
+        # the click of the hammer on the dome
+        n = int(0.004 * SR)
+        i = int(at * SR)
+        if i < len(t):
+            k = min(n, len(t) - i)
+            out[i:i + k] += 0.25 * strength * rng.standard_normal(k) * np.linspace(1, 0, k)
+    return eq(out, lambda f: highpass(f, 900, 2) * lowpass(f, 9000, 2))
+
+
+def bell_hold(spec):
+    """The bell held (the lever worked over and over): a strike "따" and a quick trill "릉", again every BELL_PATTERN
+    seconds for HORN_HOLD seconds; the server stops it on release."""
+    seconds = 0.03 + HORN_HOLD + 0.06
+    strikes = []
+    at = 0.0
+    while at < seconds - 0.1:
+        strikes.append((at, 1.0))
+        strikes += [(at + 0.11 + k * 0.042, 0.42 - 0.04 * k) for k in range(6)]
+        at += BELL_PATTERN
+    x = bell_strikes(spec, seconds, strikes)
+    t = t_axis(seconds)
+    x *= np.clip((seconds - t) / 0.06, 0, 1)
+    return x * (0.7 / (np.max(np.abs(x)) + 1e-12))
+
+
+def bell_tail(spec):
+    """The release: the dome still ringing out from the last strike, fading over 0.3 s."""
+    seconds = 0.3
+    x = bell_strikes(spec, seconds, [(0.0, 0.55)])
+    t = t_axis(seconds)
+    x *= np.clip(t / 0.003, 0, 1) * np.clip((seconds - t) / 0.03, 0, 1)
+    return x * (0.45 / (np.max(np.abs(x)) + 1e-12))
+
+
+HOLDS["cargo_bicycle"] = bell_hold
+TAILS["cargo_bicycle"] = bell_tail
+
+
+def bicycle_chain(n, t):
+    """The bicycle has no engine: a soft chain tick (the freewheel's pawls, about 14 a second at pitch 1, a little
+    uneven) over a faint hiss of tyres on the road."""
+    rng = np.random.default_rng(41)
+    out = np.zeros(n)
+    at = rng.uniform(0, 0.03)
+    while at < t[-1]:
+        i = int(at * SR)
+        k = min(int(0.006 * SR), n - i)
+        click = rng.standard_normal(k) * np.exp(-np.arange(k) / (0.0012 * SR))
+        out[i:i + k] += click * rng.uniform(0.7, 1.0)
+        at += 1 / 14 * rng.uniform(0.85, 1.15)
+    out = eq(out, lambda f: peak(f, 4200, 1500, 1.0) * highpass(f, 1800, 2) * lowpass(f, 8000, 2))
+    out /= np.max(np.abs(out)) + 1e-12
+    hiss = eq(rng.standard_normal(n), lambda f: lowpass(f, 1200, 2) * highpass(f, 150, 2))
+    return out + 0.08 * hiss / (np.sqrt(np.mean(hiss ** 2)) + 1e-12)
+
+
+def scooter_engine(n, t):
+    """A small two-stroke: a buzzy ring on 85 Hz, bright harmonics, a light rasp."""
+    rng = np.random.default_rng(42)
+    return combustion(n, t, rng, f0=85.0, count=20, rolloff=0.65, bandwidth=9.0, floor=0.2, warmth=2600, clatter=0.25)
+
+
+def atv_engine(n, t):
+    """A single-cylinder four-stroke: a low thump (28 Hz), its harmonics up into a rough mid, a little clatter."""
+    rng = np.random.default_rng(43)
+    return combustion(n, t, rng, f0=28.0, count=22, rolloff=0.75, bandwidth=6.0, floor=0.5, warmth=1200, clatter=0.2)
+
+
+def van_engine(n, t):
+    """A small petrol van: a little higher and thinner than the patrol car."""
+    rng = np.random.default_rng(44)
+    return combustion(n, t, rng, f0=58.0, count=10, rolloff=1.0, bandwidth=7.0, floor=0.3, warmth=900)
+
+
+def box_truck_engine(n, t):
+    """A bigger diesel: lower than the 1-ton truck (30 Hz), more rumble and clatter."""
+    rng = np.random.default_rng(45)
+    return combustion(n, t, rng, f0=30.0, count=18, rolloff=0.8, bandwidth=9.0, floor=0.55, warmth=900, clatter=0.45)
+
+
+ENGINES.update({"cargo_bicycle": bicycle_chain, "delivery_scooter": scooter_engine, "atv": atv_engine,
+                "cargo_van": van_engine, "box_truck": box_truck_engine})
+ENGINE_LEVEL.update({"cargo_bicycle": 0.5, "delivery_scooter": 0.75, "atv": 0.8, "cargo_van": 0.8, "box_truck": 0.85})
 
 
 # ----------------------------------------------------------------------------------------------
@@ -295,8 +423,8 @@ def write():
     written = []
     for v in VEHICLES:
         clips = {
-            "horn": (horn_hold(HORNS[v]), 1),
-            "horn_end": (horn_tail(HORNS[v]), 1),
+            "horn": (HOLDS.get(v, horn_hold)(HORNS[v]), 1),
+            "horn_end": (TAILS.get(v, horn_tail)(HORNS[v]), 1),
             "engine": (normalize(engine_segment(ENGINES[v]), ENGINE_LEVEL[v]), 0),
         }
         for kind, (samples, quality) in clips.items():

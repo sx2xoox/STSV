@@ -236,6 +236,33 @@ class VehiclePhysicsTest {
         assertEquals(6 - 2.3, se.x, 1e-6, "an unloaded chunk is a wall");
     }
 
+    /** Sand, gravel, snow and mud slow a car to 75 %, soul sand to 50 %; an all-terrain vehicle (the ATV) keeps its speed. */
+    @Test
+    void roughGroundSlowsAllButTheAllTerrain() {
+        VehicleSpec car = car();
+        VehicleSpec atv = new VehicleSpec(2f, 9, 3.5, 3, 9, 2, 72, 3, 1.0, 4.6, 1.9, 1.65, 1.1, new NamespacedKey("t", "model/wheel"), 0.344,
+                List.of(), List.of(new VehicleSpec.Vec(0, 0.28, 0)), null, null, null, null, null,
+                new VehicleSpec.Extras(0, List.of(), true));
+        for (VehiclePhysics.Medium m : List.of(VehiclePhysics.Medium.ROUGH, VehiclePhysics.Medium.SINK)) {
+            Grid g = flat();
+            for (int x = -5; x <= 5; x++) for (int z = -5; z <= 80; z++) g.medium(x, 63, z, m);   // the ground itself
+            VehiclePhysics.State sc = onGround(0.5, 0.5, 0), sa = onGround(0.5, 0.5, 0);
+            for (int i = 0; i < 100; i++) {
+                VehiclePhysics.step(sc, W, car, g, 10);
+                VehiclePhysics.step(sa, W, atv, g, 10);
+            }
+            double f = m == VehiclePhysics.Medium.ROUGH ? VehiclePhysics.ROUGH_FACTOR : 0.5;
+            assertEquals(9 * f, sc.speed, 1e-9, m + ": a car slows");
+            assertEquals(9, sa.speed, 1e-9, m + ": the all-terrain keeps its top speed");
+        }
+        // sticky blocks and water slow it too
+        Grid honey = flat();
+        for (int x = -5; x <= 5; x++) for (int z = -5; z <= 80; z++) honey.medium(x, 63, z, VehiclePhysics.Medium.SLOW);
+        VehiclePhysics.State sh = onGround(0.5, 0.5, 0);
+        for (int i = 0; i < 100; i++) VehiclePhysics.step(sh, W, atv, honey, 10);
+        assertEquals(9 * 0.5, sh.speed, 1e-9, "honey and cobwebs slow everything");
+    }
+
     @Test
     void aTurnIntoAWallIsNotMade() {
         Grid g = flat();

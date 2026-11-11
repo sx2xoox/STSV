@@ -30,7 +30,7 @@ public final class RenderBudget {
         PET("펫", 200),
         VEHICLE("탈것 몸체", 600),
         VEHICLE_WHEEL("탈것 바퀴", 80),
-        VEHICLE_PART("탈것 부품 (경광등·짐)", 240),
+        VEHICLE_PART("탈것 부품 (경광등·짐·페달)", 240),
         OTHER("그 밖의 3D 모델", 300);
 
         public final String label;
@@ -56,7 +56,7 @@ public final class RenderBudget {
     /**
      * The kind of each model the items of a content pack show ("ns:name" -> kind): furniture by its cells (machines, with a
      * behavior or parts, by the tier in their model name "x_0".."x_3", their parts as parts), cosmetics as pets or worn,
-     * vehicles' bodies, their wheel and their other parts (light bar looks, load stages).
+     * vehicles' bodies, their wheel and their other parts (light bar looks, load stages, spinning parts).
      *
      * @param items every item of the pack (id -> its section)
      */
@@ -74,6 +74,7 @@ public final class RenderBudget {
                 List<String> shown = new java.util.ArrayList<>(v.getStringList("lights.flash"));
                 if (v.getString("lights.dark") != null) shown.add(v.getString("lights.dark"));
                 shown.addAll(v.getStringList("cargo.stages"));
+                for (Map<?, ?> sp : v.getMapList("spinners")) if (sp.get("model") != null) shown.add(sp.get("model").toString());
                 for (String p : shown) out.put(local(namespace, p), Category.VEHICLE_PART);
             } else if (f != null && (f.contains("behavior") || f.contains("parts"))) {
                 // a machine: its tier looks <base>_0 .. <base>_3, and the same for each spinning part

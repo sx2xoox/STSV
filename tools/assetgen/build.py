@@ -38,13 +38,16 @@ def main():
     from models import cosmetics
     from models import furniture_japanese as furniture
     from models import vehicles
+    from models import vehicles_road
     import furniture_icons
     import vehicle_icons
-    ALL = {**ITEMS, **cosmetics.ALL, **furniture.ALL, **vehicles.ALL}
+    import vehicle_icons_road
+    ALL = {**ITEMS, **cosmetics.ALL, **furniture.ALL, **vehicles.ALL, **vehicles_road.ALL}
     import special
 
     def home(name):
-        return CONTENT if name in SHIPPED_MODELS or name in cosmetics.ALL or name in furniture.ALL or name in vehicles.ALL else FIXTURE
+        return CONTENT if name in SHIPPED_MODELS or name in cosmetics.ALL or name in furniture.ALL or name in vehicles.ALL \
+            or name in vehicles_road.ALL else FIXTURE
 
     for d in (CONTENT / "models", CONTENT / "textures", FIXTURE / "models", FIXTURE / "textures", BUILD, PREVIEWS):
         d.mkdir(parents=True, exist_ok=True)
@@ -76,6 +79,10 @@ def main():
     for name, fn in vehicle_icons.ICONS.items():
         fn().save(CONTENT / "textures" / f"{name}_icon.png")
     print(f"icons   {len(vehicle_icons.ICONS)} vehicles")
+    # road vehicles of the transport ladder (models/vehicles_road.py; preview sheet: vehicle_preview_road.py)
+    for name, fn in vehicle_icons_road.ICONS.items():
+        fn().save(CONTENT / "textures" / f"{name}_icon.png")
+    print(f"icons   {len(vehicle_icons_road.ICONS)} road vehicles")
     # vehicles: horn and engine sounds (synthesized, Ogg Vorbis) + assets/stsv/sounds.json
     import sounds
     clips = sounds.write()

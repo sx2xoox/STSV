@@ -6,8 +6,9 @@ import java.util.Objects;
 import java.util.function.IntFunction;
 
 /**
- * A storage bed of any number of 45-slot pages (the truck's 2, the hand cart's 6): which slots a page shows, what a
- * page's view puts back, and the bed resized for its vehicle. Generic over the item type, so it is unit-tested without a
+ * A storage bed of any number of 45-slot pages (the 탑차's 16, the hand cart's 4; the last page may be part full: the
+ * bicycle's 27, the scooter's 54 = 45 + 9): which slots a page shows, which of them are locked (past the bed's end), how big
+ * its chest view is, what a page's view puts back, and the bed resized for its vehicle. Generic over the item type, so it is unit-tested without a
  * server; the module uses it with ItemStacks (null = an empty slot).
  */
 public final class CargoPages {
@@ -29,6 +30,21 @@ public final class CargoPages {
     /** The bed slot that a page's slot shows. */
     public static int index(int page, int slot) {
         return page * PAGE + slot;
+    }
+
+    /** Is this slot of a page's view part of a bed of this many slots (else it shows locked)? */
+    public static boolean inBed(int length, int page, int slot) {
+        return slot >= 0 && slot < PAGE && index(page, slot) < length;
+    }
+
+    /**
+     * The chest view's size for a bed this long: a bed of several pages opens as a double chest (45 slots + the button
+     * row), a one-page bed as just its rows of 9 + the button row (27 slots: a 36-slot view).
+     */
+    public static int viewSize(int length) {
+        if (pages(length) > 1) return PAGE + 9;
+        int rows = Math.max(1, (Math.min(Math.max(length, 1), PAGE) + 8) / 9);
+        return rows * 9 + 9;
     }
 
     /** The 45 items a page shows (null past the bed's end). */
