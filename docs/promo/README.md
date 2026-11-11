@@ -27,3 +27,30 @@ python3 docs/promo/tools/prep_assets.py              # 에셋 다시 자르기 (
 node docs/promo/tools/render.js stills /tmp/st 12 24 # 특정 시점 PNG
 node docs/promo/tools/render.js video docs/promo/stsv_promo.mp4   # Playwright + ffmpeg
 ```
+
+---
+
+# 업데이트 영상: 운송수단 & 하역장
+
+1920×1080 · 49.2초 · 30fps · 소리 없음. 픽셀 느낌 대신 브랜드 광고 톤(짙은 남색 바탕, 금색·도로 표지판 초록, Pretendard).
+
+- `stsv_vehicles.mp4` — 완성 영상
+- `vehicles/stsv_vehicles.html` — 같은 영상을 캔버스로 재생 (`python3 -m http.server -d docs/promo` 후 `/vehicles/stsv_vehicles.html`)
+- `vehicles/assets/` — `docs/previews/`의 탈것·검사소·하역장·국도 그림에서 잘라 낸 것 (탈것은 배경 제거)
+- `vehicles/fonts/` — Pretendard(OFL) 부분 글꼴
+
+| 시간 | 장면 |
+| --- | --- |
+| 0–4.2s | 암전 → 흰 차선 → "운송수단 & 하역장" 단어별 등장 |
+| 4.2–13.6s | 1세대 → 5세대 → 특수: 큰 숫자가 넘어가고 탈것 카드 두 장씩 |
+| 13.6–19.8s | 짐칸에 짐이 쌓이고 금색 적재 게이지 → "보석은 가볍게. 술통은 무겁게." |
+| 19.8–26.6s | 화물 검사소 체크 → "봉인" 도장, 화면 흔들림 |
+| 26.6–36.8s | 교차로·다리·터널·숲길·고가 빠른 컷, 표지판 거리 7.0 → 0.5 km |
+| 36.8–44.2s | 하역장 도착, "+543,448 G" 카운트업, "멀수록 더 받는다" |
+| 44.2–49.2s | "많이 벌려면, 직접 실어 날라라." → "지금 STSV에서" (주소 칸은 비움) |
+
+```bash
+python3 docs/promo/tools/prep_vehicles.py                        # 그림 다시 자르기
+docs/promo/tools/subset_fonts.sh <Pretendard 원본 폴더>            # 문구를 바꿨을 때
+PAGE=vehicles/stsv_vehicles.html node docs/promo/tools/render.js video docs/promo/stsv_vehicles.mp4
+```
