@@ -13,7 +13,8 @@ import java.util.function.ToIntFunction;
  * 적재 무게: how heavy a bed is and how much more it takes (README "적재 무게"). A vehicle carries at most its payload
  * ({@link VehicleSpec.Cargo#payload}); what one item weighs comes from a content plugin (the economy server's weights.yml,
  * {@link VehicleModule#cargoWeight}): a weight per item, stacks counted by their size (there only the finished goods a dock
- * buys are heavy; raw materials weigh 1/64, a stack 1, so slots limit them, not the payload). Also tells a real change of a bed's
+ * buys are heavy, each its value at the default dock price / 500 G, so a payload P carries at most about P x 500 G of them;
+ * raw materials weigh 1/64, a stack 1, so slots limit them, not the payload). Also tells a real change of a bed's
  * contents (loading, unloading) from moving things between its slots ({@link #sameContents}). Generic over the item type
  * (null = an empty slot), so it is unit-tested without a server.
  */
@@ -100,9 +101,15 @@ public final class CargoWeights {
         }
     }
 
-    /** A weight for messages: whole numbers as they are, else one decimal. */
+    /**
+     * A weight for messages: whole numbers as they are, else one decimal; under 1 two (one finished good weighs its value /
+     * 500 G, often a fraction: 0.32), without trailing zeros.
+     */
     public static String format(double w) {
-        double r = Math.round(w * 10) / 10.0;
-        return r == Math.rint(r) ? String.valueOf((long) r) : String.format(java.util.Locale.ROOT, "%.1f", r);
+        double scale = Math.abs(w) < 1 ? 100 : 10;
+        double r = Math.round(w * scale) / scale;
+        if (r == Math.rint(r)) return String.valueOf((long) r);
+        String s = String.format(java.util.Locale.ROOT, scale == 100 ? "%.2f" : "%.1f", r);
+        return s.endsWith("0") ? s.substring(0, s.length() - 1) : s;
     }
 }
