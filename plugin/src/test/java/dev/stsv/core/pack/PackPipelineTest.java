@@ -92,7 +92,7 @@ class PackPipelineTest {
                 assertTrue(textures.has(face.get("texture").getAsString().substring(1)), "unknown texture ref");
             }
         }
-        assertEquals(GLOWING.contains(name), glows, "only light sources glow");
+        assertEquals(GLOWING.contains(name) || name.matches(".+_lamp_(head|tail|brake|reverse)"), glows, "only light sources glow");   // + the vehicles' lamp parts (vehicle_lights.py)
         assertEquals(ROTATED.contains(name), rotated, "rotated parts");
         assertTrue(model.has("display"));
     }

@@ -41,6 +41,8 @@ final class LiveVehicle {
     double spin;
     /** the brightness its parts are drawn with: the light around it, faded towards (VehicleLight) */
     final VehicleLight.Shown light = new VehicleLight.Shown();
+    /** 탈것의 느낌: lamps, springs, slope, load share, effort, the engine running (VehicleFeelView) */
+    final VehicleFeelView.State feel = new VehicleFeelView.State();
     final List<Interaction> hits = new ArrayList<>();
     /**
      * An occupied seat: the carrier (an item display without an item, teleported with the vehicle every tick: it glides
@@ -164,6 +166,7 @@ final class LiveVehicle {
         out.addAll(spinners);
         out.addAll(hits);
         if (train != null) out.addAll(train.entities());
+        VehicleFeelView.entities(this, out);
         for (Seat s : seats) {
             if (s == null) continue;
             out.add(s.carrier());

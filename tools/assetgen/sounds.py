@@ -47,8 +47,9 @@ ENGINE_FADE = 0.15          # seconds of each engine segment's fade-in and fade-
 ENGINE_PERIOD = 0.5         # seconds from one segment's start to the next at pitch 1 (= 10 ticks)
 VEHICLES = ("police_car", "light_truck", "golf_cart", "fishing_boat")
 # more vehicles' sounds, each module with NAMES [(vehicle, kind)] and clips() -> {(vehicle, kind): (samples, ogg quality)}:
-# written and listed in sounds.json with these (sounds_farm.py: the ox cart, the power tiller, the tractor)
-EXTRA = ("sounds_farm",)
+# written and listed in sounds.json with these (sounds_farm.py: the ox cart, the power tiller, the tractor; sounds_feel.py:
+# engine start / stop and the reverse beep, content/stsv/vehicle_feel.yml)
+EXTRA = ("sounds_farm", "sounds_feel")
 
 
 def _extra():
