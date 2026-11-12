@@ -78,7 +78,7 @@ def light_truck():
             "................",
             "................",
             "................"]
-    colours = {"v": ("car_white", 5), "t": ("truck_blue", 4), "T": ("truck_blue", 3), "d": ("truck_blue", 2),
+    colours = {"v": ("truck_blue", 5), "t": ("truck_blue", 4), "T": ("truck_blue", 3), "d": ("truck_blue", 2),
                "g": ("tint", 2), "G": ("glass", 4), "i": ("steel", 5), "a": ("steel", 4), "b": ("steel", 3),
                "A": ("steel", 2), "f": ("iron", 2), "F": ("iron", 1), "y": ("lamp", 5), "r": ("signal_red", 3),
                "s": ("blade", 3), "M": ("rubber", 2), **TIRES}

@@ -70,6 +70,13 @@ def _hull_paint(seg_hw):
         if y < WL + 1:
             return ("police_blue", 1.8)                           # the dark boot stripe along the waterline
         along = z if c.face in ("east", "west") else x
+        col = math.floor(along)
+        if h3(col, 3, 1 if x > 0 else 2, 43) < 0.045:
+            # rust weeping from a nail: a run a few rows long below it, fading as it goes down
+            top = 9 + math.floor(h3(col, 4, 1, 43) * 4)
+            run = 2 + math.floor(h3(col, 5, 1, 43) * 4)
+            if top - run < fy <= top:
+                return ("terracotta", 1.5 + 0.35 * (top - fy))
         # planks: a seam every 2 rows, nail heads at the frames, the planks' ends staggered
         if fy % 2 == 0 and math.floor(along + 3 * (fy // 2)) % 13 == 0:
             return (HULL, 1.2)                                    # a butt joint
@@ -77,9 +84,6 @@ def _hull_paint(seg_hw):
             return (HULL, 1.6 if math.floor(along) % 6 else 1.0)  # the seam under the plank, a nail on each frame
         if c.face in ("east", "west") and z < -27 and 7 <= fy <= 9 and math.floor(-z - 27) % 4 in (1, 2):
             return ("police_blue", 1.4)                           # the hull number's marks on the bow
-        streak = h3(math.floor(along), 3, 1, 43)
-        if streak < 0.012 and fy < 11:
-            return ("terracotta", 1.8)                            # rust weeping from a nail
         return (HULL, 2.8 + (0.3 if h3(math.floor(along / 3), fy, 2, 44) > 0.6 else 0))
     return Paint(HULL, 3, noise=0, rim=0.5, decal=decal)
 
@@ -567,6 +571,9 @@ def _frame(m):
         x = 8 + s * 4.75
         m.box("prong", (x - 0.75, 0.5, 10.5), (x + 0.75, 1.75, 19), _pole("z", 4 if s > 0 else 5),
               rotation=("x", -22.5, (x, 1, 10.5)))
+        # the branch's tip turns up at the prong's end (the load cannot slide off), darker where hands grip it
+        m.box("prong_tip", (x - 0.6, 3.75, 17.5), (x + 0.6, 6.5, 18.7),
+              _pole("y", 7 if s > 0 else 8)(decal=lambda c: ("bark", 1.8 if c.face != "up" else 2.4) if c.p[1] > 5.5 else None))
     # the back pad (등태): a mat of woven straw against the back
     def pad(c):
         u = math.floor(c.p[0] * 2) + math.floor(c.p[1] * 2)

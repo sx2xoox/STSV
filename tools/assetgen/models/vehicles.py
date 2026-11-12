@@ -29,10 +29,14 @@ glass, a reflection streak and a tinted sun strip), so riders show through them.
 
 The detail is painted, not modelled (docs/ART_STYLE.md, 렌더 예산): the decals below draw the light on the
 paint (a soft gradient up every side, a darker sill, a highlight along top edges and a reflection band across
-hood, roof and boot), the panel seams, the trim (chrome bumpers with a rubber strip, black window seals), the
-lamps (a bright core in a reflector, a chrome bezel, amber turn signals, red tail lamps with a lit centre), the
+hood, roof and boot), the panel seams, the trim (the patrol car's body-coloured wrap-round bumpers with a black
+lip, intake and fog lamps, the truck's dark plastic bumpers, black window seals, slatted grilles), the lamps (a
+bright core in a reflector or a projector, black housings, LED running lights, amber turn signals, red tail lamps
+with a lit bar and centre), the
 plates (blank, a few digit marks), the tyres' tread and sidewall and the seats' stitching. Only a few small boxes
-were added for it: door handles, mirror arms, seat cushions and head rests, a steering column, mud flaps; on the
+were added for it: door handles, mirror arms, seat cushions and head rests, a steering column, mud flaps, half-pixel
+steps that round the top edges of bodies and roofs (patrol car, truck roof, golf cart cowl), the golf cart's
+fold-down windscreen; on the
 hand cart the slatted floor, the flared wall layers, leaf springs, the prop stand, a rope coil, a lantern and a plate.
 """
 
@@ -317,6 +321,43 @@ def bumper_decal(plate_w=0, plate_rows=(0, 0), strip=5):
     return decal
 
 
+def _sedan_bumper(front):
+    """A body-coloured wrap-round bumper (drawn y 3.5..8): a black lip along the bottom; in front a black intake
+    across it with a fog lamp at each end, behind a dark diffuser and a red reflector at each corner; the plate
+    (generic) in the middle of both. The top catches the light, the ends wrap onto the sides."""
+    def decal(c):
+        x, y, z = c.p
+        fy, ax = math.floor(y), abs(x)
+        if c.face in ("north", "south"):
+            if ax < 4.5 and 4 <= fy <= 7:
+                got = plate(math.floor(x + 4.5), 7 - fy, 9, 4)
+                if got:
+                    return got
+            if y < 4.5:
+                return ("rubber", 1)                    # the black lip
+            if front:
+                if 5 <= fy <= 6 and 5 <= ax < 13.5:
+                    if 10.5 <= ax < 12.5:
+                        return ("lamp", 3.6) if fy == 6 else ("lamp", 2.6)     # fog lamps
+                    return ("tint", 1.4) if fy == 6 and math.floor(x) % 3 else ("rubber", 0)      # slats
+            else:
+                if fy == 5 and 5 <= ax < 13:
+                    return ("tint", 1.2)                # the diffuser
+                if fy == 6 and 12 <= ax < 14:
+                    return ("signal_red", 1.2)          # reflectors
+            if y > 7.5:
+                return ("car_white", 3.0)
+            return ("car_white", lerp(y, 4.5, 7.5, 1.4, 2.4))
+        if c.face == "up":
+            return ("car_white", 3.0)
+        if c.face == "down":
+            return ("rubber", 0)
+        if y < 4.5:
+            return ("rubber", 1)
+        return ("car_white", lerp(y, 4.5, 7.5, 1.2, 2.2))
+    return decal
+
+
 def police_car():
     m = BModel("police_car", shift=(8, 8, 8), scale=2.0)
     W, L = 15, 36           # half width, half length (px)
@@ -343,6 +384,8 @@ def police_car():
                 return ("rubber", 0)                    # wipers at rest
             if fz == -17 and abs(x) < 12.5:
                 return ("rubber", 1) if fz % 2 == 0 or math.floor(x) % 2 else ("tint", 1)   # the cowl vent
+            if y < 14.9:
+                return ("car_white", 3.2)               # the rounded edges (lit steps) round the hood and the boot
             if z < -16:
                 # the hood: two creases (a dark line, a light line), a soft reflection band across it
                 ax = abs(x)
@@ -385,27 +428,32 @@ def police_car():
                 return ("police_blue", 1 if fy < 10 else 1.4)
             return white(y)
         if c.face == "north":
-            # grille in a chrome frame, the hood's front edge
+            # a wide black grille between the lamps (a fine honeycomb, a chrome bar along its top), the hood's edge
             ax = abs(x)
-            if ax < 7 and 8 <= fy <= 11:
-                if fy in (8, 11) or ax >= 6:
-                    return ("blade", 3 if fy == 11 else 2)
-                return ("rubber", 0) if math.floor(x) % 2 == 0 else ("tint", 1.6 if fy == 10 else 1)
-            if 8 <= fy <= 10 and 14 <= ax:
-                return ("police_blue", 1)               # the stripe wraps round the corners
+            if ax < 6.5 and 8 <= fy <= 11:
+                if fy == 11:
+                    return ("blade", 3.4 if ax < 6 else 2.4)
+                if ax >= 6:
+                    return ("tint", 0.6)
+                return ("rubber", 0) if math.floor(x) % 4 == 0 else ("tint", 1.6) if fy == 9 else ("rubber", 0.5)   # slats
+            if y > 13.9:
+                return ("car_white", 3.0)               # the hood's rounded front edge, catching the light
             if fy == 12 and ax < 13:
-                return ("car_white", 0.8)               # the hood's shut line
+                return ("car_white", 1.0)               # the hood's shut line
             return white(y)
         if c.face == "south":
             ax = abs(x)
-            if ax < 4.5 and 8 <= fy <= 11:
-                return plate(math.floor(x + 4.5), 11 - fy, 9, 4)
+            if 8 <= fy <= 11 and ax < 8:
+                # the boot lid: a dark red garnish joining the tail lamps, a chrome lock in its middle
+                if fy == 10:
+                    return ("blade", 3) if ax < 1 else ("signal_red", -0.6)
+                if fy == 9:
+                    return ("car_white", 1.4)           # the garnish's shadow line
+                return white(y)
+            if y > 13.9:
+                return ("car_white", 3.0)
             if fy == 12 and ax < 13:
-                return ("car_white", 0.8)               # the boot lid's shut line
-            if fy == 13 and ax < 1:
-                return ("blade", 3)                     # the lock
-            if 8 <= fy <= 10 and (5.5 <= ax < 8 or ax >= 14):
-                return ("police_blue", 1)
+                return ("car_white", 1.0)               # the boot lid's shut line
             return white(y)
         return None
     paint = WHITE(decal=body)
@@ -416,10 +464,14 @@ def police_car():
     m.box("tail", (-W, 4, 29.5), (W, 12, L), paint)
     for s in (1, -1):
         m.box("sill", (min(11 * s, W * s), 4, -16.5), (max(11 * s, W * s), 12, 16.5), paint)
-    m.box("shoulder", (-W, 12, -L), (W, BELT, L), paint)
-    # bumpers with the plates, door handles, mirrors on short arms
-    m.box("bumper", (-14, 4, -L - 1), (14, 8, -L), CHROME(decal=bumper_decal(9, (4, 7))))
-    m.box("bumper", (-14, 4, L), (14, 8, L + 1), CHROME(decal=bumper_decal()))
+    # the shoulder steps in half a pixel at a time towards the belt line, the hood and the boot lid end short of the
+    # bumpers: the body's top edges read rounded and the hood slopes down to the nose
+    m.box("shoulder", (-W, 12, -L + 0.5), (W, 14, L - 0.5), paint)
+    m.box("belt", (-W + 0.5, 14, -L + 1.5), (W - 0.5, BELT, L - 1.5), paint)
+    # body-coloured wrap-round bumpers (a black lip, an intake with fog lamps in front; a diffuser and reflectors
+    # behind), both plates on them; door handles, mirrors on short arms
+    m.box("bumper", (-W, 3.5, -L - 1), (W, 8, -L), WHITE(decal=_sedan_bumper(True)))
+    m.box("bumper", (-W, 3.5, L), (W, 8, L + 1), WHITE(decal=_sedan_bumper(False)))
     for s in (1, -1):
         xa, xb = sorted((W * s, (W + 0.5) * s))
         for z0 in (1, 14):
@@ -443,35 +495,46 @@ def police_car():
     m.group("lights")
 
     def headlight(c):
-        # chrome bezel, a reflector with a bright core, the amber turn signal at the outer end
-        k = math.floor(abs(c.p[0]) - 8)
+        # a swept lamp in a black housing: a projector (a bright core by a chrome ring), a reflector, the amber
+        # signal at the outer corner, an LED running light along the bottom; the inner top corner cut away
+        k = math.floor(abs(c.p[0]) - 7)
         fy = math.floor(c.p[1])
         if c.face != "north":
-            return ("blade", 2)
+            return ("tint", 1)
+        if fy == 8:
+            return ("lamp", 4.4) if 1 <= k <= 6 else ("tint", 0.6)     # the running light
+        if fy == 10 and k == 0:
+            return ("car_white", 2.2)                                  # the swept inner corner (body colour)
         if k == 0:
-            return ("blade", 3)
-        if k <= 4:
-            if fy == 9:
-                return ("lamp", 4) if k in (2, 3) else ("lamp", 3)
-            return ("lamp", 2) if k in (2, 3) else ("lamp", 1)
+            return ("tint", 0.6)
+        if k in (1, 2):
+            if fy == 9 and k == 2:
+                return ("lamp", 4.6)                                   # the projector's core
+            return ("blade", 3.2) if k == 1 else ("lamp", 3.4)
+        if k in (3, 4):
+            return ("lamp", 2.6 if fy == 10 else 2.0)                  # the reflector
         return ("fox", 4) if fy == 9 else ("fox", 3)
 
     def taillight(c):
-        # reverse lamp (white) inside, the red tail / brake lamp with a lit centre, amber turn signal outside
+        # a red lamp with a lit bar along its top and the brake lamp's bright centre, the white reverse lamp inside,
+        # the amber signal low at the outer corner
         k = math.floor(abs(c.p[0]) - 8)
         fy = math.floor(c.p[1])
         if c.face != "south":
             return ("signal_red", 0)
         if k == 0:
-            return ("lamp", 3) if fy == 10 else ("blade", 3)
-        if k <= 3:
-            if fy == 10:
-                return ("signal_red", 3) if k == 2 else ("signal_red", 2)
-            return ("signal_red", 0) if fy == 9 else ("signal_red", 1)
-        return ("fox", 4) if fy == 10 else ("fox", 3)
+            return ("lamp", 3.4) if fy == 10 else ("tint", 0.8)
+        if fy == 11:
+            return ("signal_red", 3.2)                                 # the lit bar
+        if k >= 5 and fy == 9:
+            return ("fox", 4)
+        if fy == 10:
+            return ("signal_red", 2.6) if k in (3, 4) else ("signal_red", 1.8)
+        return ("signal_red", 0.6) if k < 5 else ("signal_red", 1.4)
     for s in (1, -1):
-        xa, xb = sorted((8 * s, 14 * s))
+        xa, xb = sorted((7 * s, 14.5 * s))
         m.box("headlight", (xa, 8, -L - 0.5), (xb, 11, -L), Paint("lamp", 3, decal=headlight, **lamp()))
+        xa, xb = sorted((8 * s, 14.5 * s))
         m.box("taillight", (xa, 9, L), (xb, 12, L + 0.5), Paint("signal_red", 1, decal=taillight, **lamp()))
 
     m.group("cabin")
@@ -487,9 +550,12 @@ def police_car():
                 return ("car_white", 3)
             return ("car_white", 2)
         if c.face in ("east", "west", "north", "south"):
+            if y > 26:
+                return ("car_white", 3)                                 # the roof's rounded edge
             return ("car_white", 2.4) if y > 25.5 else ("rubber", 1)   # a dark drip rail under the roof's edge
         return None
-    m.box("roof", (-13.5, 25, -5), (13.5, 26.5, 14), WHITE(decal=roof))
+    m.box("roof", (-13.5, 25, -5), (13.5, 26, 14), WHITE(decal=roof))
+    m.box("roof_top", (-13, 26, -4.5), (13, 26.5, 13.5), WHITE(decal=roof))
     m.box("windscreen", (-13, 15, -15), (13, 15 + 10 * math.sqrt(2), -14.5), glass(sun=2, wipers=True, streak=0.25),
           rotation=("x", 45, (0, 15, -15)))
     m.box("rear_window", (-13, 25 - 9 * math.sqrt(2), 14), (13, 25, 14.5), glass(sun=1, streak=0.55),
@@ -617,8 +683,12 @@ def light_truck():
                 return ("truck_blue", 0.4)            # vent slots under the windscreen
             if fy == 6:
                 return ("truck_blue", 0.6)
+            if ax >= 13.2:
+                return ("truck_blue", lerp(y, 7, 19.5, 2.0, 3.4))   # the rounded front corners, catching the light
             return blue(y)
         if c.face in ("east", "west"):
+            if z < F + 0.8 and fy >= 7:
+                return ("truck_blue", 3.0)            # the rounded corner, seen from the side
             if (fz in (FA - 8, FA + 7) and fy < 12) or (fy == 12 and FA - 7 <= fz <= FA + 6):
                 return ("rubber", 1)                  # arch trim
             if fz == DOOR and fy >= 7:
@@ -717,20 +787,29 @@ def light_truck():
         return None
     m.box("cab_back", (-13.5, WIN, CB - 1), (13.5, ROOF, CB), BLUE_CAB(decal=back_wall))
 
-    # the white roof cap: ribs pressed into it, a visor over the windscreen with a dark underside
+    # the roof in the cab's blue: a rounded edge (a lit step half a pixel in), two shallow ribs pressed along it, a
+    # drip rail under its edge, the brow over the windscreen with a dark underside
     def roof(c):
         x, y, z = c.p
+        ax = abs(x)
         if c.face == "up":
-            if abs(x) < 12 and math.floor(z) % 5 == 0 and z > F + 7:
-                return ("car_white", 1.4)
-            if abs(x) < 12 and math.floor(z) % 5 == 1 and z > F + 7:
-                return ("car_white", 3)
-            return ("car_white", 2)
+            if y < ROOF + 1.4:
+                return ("truck_blue", 3.4)            # the rounded edge, catching the light
+            if 5 <= ax < 6:
+                return ("truck_blue", 1.9)            # the ribs: a shadow ...
+            if 6 <= ax < 7:
+                return ("truck_blue", 3.3)            # ... and a lit ridge
+            if 2 <= x < 4:
+                return ("truck_blue", 3.1)            # a reflection band
+            return ("truck_blue", 2.45)
         if c.face == "down":
             return ("rubber", 1)
-        return ("car_white", 2.2)
-    m.box("roof", (-H, ROOF, F + 0.5 + rake), (H, ROOF + 1.5, CB), WHITE(decal=roof))
-    m.box("visor", (-H, ROOF + 0.5, F - 0.5), (H, ROOF + 1.5, F + 0.5 + rake), WHITE(decal=roof))
+        if y < ROOF + 0.5:
+            return ("tint", 1.2)                      # the drip rail
+        return ("truck_blue", 3.0 if y > ROOF + 1 else 2.4)
+    m.box("roof", (-H, ROOF, F + 0.5 + rake), (H, ROOF + 1, CB), BLUE_CAB(decal=roof))
+    m.box("roof_top", (-H + 0.5, ROOF + 1, F + 1 + rake), (H - 0.5, ROOF + 1.5, CB - 0.5), BLUE_CAB(decal=roof))
+    m.box("visor", (-H, ROOF + 0.5, F - 0.5), (H, ROOF + 1, F + 0.5 + rake), BLUE_CAB(decal=roof))
 
     m.group("inside")
     m.box("dash", (-13.5, WIN, F + 2), (13.5, WIN + 2, F + 5), DARK)
@@ -799,7 +878,7 @@ def light_truck():
             return ("steel", 4)
         if fy in (14, 16):
             return ("steel", 2.2)
-        return ("steel", lerp(y, 13, 18.5, 2.6, 3.4))
+        return ("steel", lerp(y, 13, 18.5, 3.2, 4.2))
     sides = STEEL(decal=boards)
     top = T["bed_floor"] + 5.5
     m.box("headboard", (-BH, 13, BF), (BH, top, BF + 1), sides)
@@ -859,13 +938,15 @@ def _truck_bumper(front):
                 if got:
                     return got
             if fy == (6 if front else 7):
-                return ("rubber", 1)
+                return ("rubber", 0.6)
+            if front and fy == 7 and 7 <= abs(x) < 12 and math.floor(x) % 2 == 0:
+                return ("rubber", 0.4)                # the air slots either side of the plate
             if y > c.hi[1] - 1:
-                return ("steel", 4)
-            return ("steel", 2.6)
+                return ("iron", 3.6)
+            return ("iron", 2.4)
         if c.face == "up":
-            return ("steel", 4)
-        return ("steel", 2)
+            return ("iron", 3.6)
+        return ("iron", 1.8)
     return decal
 
 
@@ -900,6 +981,10 @@ def golf_cart():
                 return ("rubber", 1 if fz % 3 else 0)   # a ribbed rubber floor mat
             if z < -9 and fz == -11 and abs(x) < 8:
                 return ("cream", 1.2)                   # the cowl's hinge line
+            if z < -9 and 11.9 < y < 12.9:
+                return ("cream", 3.2)                   # the cowl's rounded edge, lit
+            if z < -9 and abs(x) < 2:
+                return ("cream", 2.8)                   # a soft crown along the cowl's middle
             return ("cream", 2.4)
         if c.face in ("east", "west"):
             if -16 <= fz <= -14 and fy >= 8:
@@ -910,7 +995,7 @@ def golf_cart():
             if fy == 9 and y >= 9 and not -17 <= fz <= -13:
                 return ("leaf_dark", 1.6)               # a green pinstripe (round the number)
             if y < 5 or (fy == 7 and 7.5 <= y):
-                return ("cream", 0.6)                   # darker sill
+                return ("rubber", 1.6) if y < 5 else ("cream", 0.6)   # black rocker panel, the sill line
             return cream(y)
         if c.face == "north":
             ax = abs(x)
@@ -930,7 +1015,8 @@ def golf_cart():
     m.group("body")
     # front cowl over the front wheels (narrow below their tops), the floor, the seat box, the rear deck
     m.box("cowl_low", (-6.5, 3.5, -19), (6.5, 7.5, -9), paint)
-    m.box("cowl", (-H, 7.5, -19), (H, 13, -9), paint)
+    m.box("cowl", (-H, 7.5, -19), (H, 12, -9), paint)
+    m.box("cowl_top", (-H + 0.5, 12, -18), (H - 0.5, 13, -9), paint)     # its rounded top edge
     m.box("floor", (-H, 3.5, -9), (H, 5, 2), paint)
     m.box("seat_box", (-H, 3.5, 2), (H, SEAT_TOP - 1.5, 9), paint)
     m.box("rear_low", (-6.5, 3.5, 9), (6.5, 7.5, 19), paint)
@@ -1008,6 +1094,15 @@ def golf_cart():
         xa, xb = sorted((8 * s, 9 * s))
         m.box("front_strut", (xa, 13, -10.5), (xb, ROOF, -9.5), struts)
         m.box("rear_strut", (xa, 10, 10.5), (xb, ROOF, 11.5), struts)
+
+    def screen(c):
+        # the fold-down windscreen between the front struts: clear, a dark seal round it, the fold's hinge across
+        # its middle, a reflection streak
+        v = c.v
+        if c.nu > 1 and c.nv > 1 and abs(v - c.nv // 2) < 0.5:
+            return raw("rubber", 1)
+        return pane(c, streak=0.3)
+    m.box("windscreen", (-8, 15, -10.25), (8, ROOF, -9.75), Paint("glass", 2, noise=0, light=False, decal=screen))
 
     def canopy(c):
         x, y, z = c.p
@@ -1167,6 +1262,8 @@ def _cart_wall(layer, y0, y1, half, end):
             if abs(along - st) < 0.75 and outward:
                 if layer != "sill" and fy == mid and abs(along - st) < 0.5:
                     return ("steel", 3.6)
+                if layer != "sill" and fy < mid and h3(math.floor(along), fy, 3, 10) < 0.6:
+                    return ("terracotta", 0.6 + 0.4 * (mid - fy))     # rust weeping down the strap from its bolt
                 return ("iron", 2.8 if fy >= y1 - 1 else 2.2)
         if layer == "rim":
             # bolts along the rim rail into the board below it, an iron capping strip along its top
@@ -1492,6 +1589,11 @@ def _crate(m, x, y, z, w=12, h=10, d=12, ramp="wood"):
                 if u > h - 1 or edge < 1:
                     return (ramp, 1.6)                       # frame boards, lit side
                 return (ramp, 0.8)
+            if span >= 8 and h >= 8:
+                # a stencilled "this way up" arrow in the middle of each side (faded, a shipping mark, no text)
+                cu, cv = math.floor(edge - span / 2 + 0.5), math.floor(u - h / 2)
+                if (cv in (-2, -1, 0) and cu == 0) or (cv == 1 and abs(cu) <= 1) or (cv == 2 and cu == 0):
+                    return ("iron", 1.4 if h3(math.floor(edge), math.floor(u), 2, 9) < 0.8 else 2.2)
             if math.floor(u) % 3 == 0:
                 return (ramp, -0.4)                          # the gap between slats
             if math.floor(u) % 3 == 2:

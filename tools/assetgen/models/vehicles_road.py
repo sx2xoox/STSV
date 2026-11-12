@@ -489,13 +489,21 @@ def scooter():
             return ("rubber", 1)
         return red(c, -0.3)
     m.box("cowl", (-3.5, 17, -9.5), (3.5, 21, -4.5), Paint(MOTO, 2, noise=0, rim=0.6, decal=cowl, **{}))
+    # a short clear windshield on the cowl, leaning back
+    m.box("windshield", (-3.5, 21, -9.25), (3.5, 27, -8.75), glass(sun=0, streak=0.35), rotation=("x", 22.5, (0, 21, -9)))
     m.box("handlebar", (-7, 19.25, -5.25), (7, 20, -4.25), tube("blade", 3.4, 2))
 
-    def grip(c):
-        return ("rubber", 2 if math.floor(c.p[0] * 2) % 2 else 1)
+    def muff(c):
+        # padded winter hand muffs (핸들 토시) over the grips: quilted black nylon, the stitched seams lit, an open
+        # cuff towards the rider
+        x, y, z = c.p
+        if c.face == "south":
+            return ("rubber", 0) if 0 < c.u < c.nu - 1 and 0 < c.v < c.nv - 1 else ("rubber", 2)
+        q = (math.floor(z * 1.5) + (math.floor(x * 1.5) if c.face == "up" else math.floor(y * 1.5))) % 3
+        return ("rubber", (2.6 if c.face == "up" else 1.8) + (0.5 if q == 0 else 0))
     for s in (1, -1):
-        xa, xb = sorted((s * 5.0, s * 7.5))
-        m.box("grip", (xa, 19.0, -5.5), (xb, 20.25, -4.0), Paint("rubber", 1, noise=0, decal=grip))
+        xa, xb = sorted((s * 4.75, s * 8.0))
+        m.box("hand_muff", (xa, 18.25, -7.0), (xb, 21.25, -3.25), Paint("rubber", 1, noise=0, rim=0.5, decal=muff))
         xa, xb = sorted((s * 4.0, s * 4.75))
         rod(m, "mirror_stalk", (20, -5), (24.5, -3.5), 0.6, tube("rubber", 2, 1), x=(xa, xb))
         xa, xb = sorted((s * 3.5, s * 6.0))
@@ -731,7 +739,22 @@ def atv():
                 return ("rubber", 1.4)
         return plastic(c)
     m.box("nose", (-4.5, 5.5, -16.5), (4.5, 10.5, -6), Paint(O, 2, noise=0, rim=0.6, decal=nose))
-    m.box("front_fender", (-10.75, 10.5, -15.5), (10.75, 12.5, -4.5), body)
+    def front_fender(c):
+        # twin headlamps set in the fender's front (black housings, a bright core), a black moulded edge under them,
+        # a lit crest along the top
+        x, y, z = c.p
+        if c.face == "north":
+            ax = abs(x)
+            if 5 <= ax < 9 and y >= 10.75:
+                if ax < 5.5 or ax >= 8.5:
+                    return ("tint", 0.6)
+                return ("lamp", 4.4) if (6 <= ax < 7.5 and y >= 11.5) else ("lamp", 2.8)
+            if y < 11:
+                return ("rubber", 1.4)
+        if c.face == "up" and z < -14.5:
+            return (O, 3.4)                                   # the rounded front edge
+        return plastic(c)
+    m.box("front_fender", (-10.75, 10.5, -15.5), (10.75, 12.5, -4.5), Paint(O, 2, noise=0, rim=0.6, decal=front_fender))
     for s in (1, -1):
         xa, xb = sorted((s * 9.75, s * 10.75))
         m.box("fender_lip", (xa, 9.0, -15.5), (xb, 10.5, -14), body)
@@ -924,12 +947,18 @@ def cargo_van():
                 return ("celadon", 2.4)
             return white(y)
         if c.face == "north":
-            if fy == 14 and ax < 11:
-                return ("car_white", 0.8)                     # the nose's top crease
-            if 9 <= fy <= 11 and ax < 5.5:
-                return ("rubber", 0 if fy % 2 else 1) if ax < 5 else ("blade", 3)   # the grille
-            if fy == 12 and ax < 5.5:
-                return ("blade", 3)
+            if fy == 14:
+                return ("car_white", 3.2)                     # the nose's rounded top edge, catching the light
+            if fy == 13 and ax < 11:
+                return ("car_white", 1.2)                     # the hood's shut line under it
+            if ax >= H - 0.8 and fy >= 5:
+                return ("car_white", 3.0)                     # the rounded front corners
+            if 8 <= fy <= 11 and ax < 5.5:
+                if fy == 11:
+                    return ("blade", 3.4)                     # a chrome bar along the grille's top
+                return ("rubber", 0) if math.floor(x) % 4 == 0 else ("tint", 1.6) if fy == 9 else ("rubber", 0.5)   # its slats
+            if 5 <= fy <= 7 and ax < 11:
+                return ("tint", 0.8) if fy == 6 and ax < 8 else ("car_white", 1.6)   # a lower air intake
             return white(y)
         if c.face == "south":
             # the rear hatch: its seams, a tinted window high up (closed: painted), plate, handle
@@ -964,10 +993,19 @@ def cargo_van():
 
     def bumper(c):
         x, y = c.p[0], c.p[1]
-        if c.face in ("north", "south") and math.floor(y) == 4:
-            return ("rubber", 0)
+        fy, ax = math.floor(y), abs(x)
+        if c.face == "north" and 3 <= fy <= 5 and ax < 4.5:
+            got = plate(math.floor(x + 4.5), 5 - fy, 9, 3)
+            if got:
+                return got
+        if c.face == "north" and fy == 5 and 5.5 <= ax < 10:
+            return ("rubber", 0) if math.floor(x) % 2 else ("tint", 1)    # the intake's slots
+        if c.face in ("north", "south") and fy == 6:
+            return ("iron", 3.4)                                         # its lit top edge
+        if c.face in ("north", "south") and fy == 2:
+            return ("rubber", 0.6)
         if c.face == "up":
-            return ("iron", 3)
+            return ("iron", 3.2)
         return ("iron", 2)
     bp = Paint("iron", 2, noise=0, rim=0.5, decal=bumper)
     m.box("bumper", (-H - 0.25, 2.5, F - 1), (H + 0.25, 7, F), bp)
@@ -1136,6 +1174,8 @@ def box_truck():
                 return ("rubber", 1 if fz % 3 else 0)        # the cab floor, through the glass
             return (CAB, 2.6)
         if c.face == "north":
+            if ax >= CH - 1 and fy >= 10:
+                return (CAB, lerp(y, 8, 26, 2.0, 3.4))       # the rounded front corners, catching the light
             if 13 <= fy <= 20 and ax < 10:
                 if fy in (13, 20) or ax >= 9:
                     return ("blade", 3 if fy == 20 else 2.4)  # the grille's chrome frame
@@ -1146,6 +1186,8 @@ def box_truck():
                 return (CAB, 0.6)                             # vent slots
             return navy(y)
         if c.face in ("east", "west"):
+            if z < F + 1 and fy >= 10:
+                return (CAB, 3.0)                             # the rounded corner, seen from the side
             if (fy == 16 and abs(z - FA) <= SLOT + 0.6) or (fy < 16 and abs(abs(z - FA) - SLOT - 0.5) < 0.6):
                 return ("rubber", 1)                          # arch trim
             if fz in (F + 3, CB - 2) and fy >= 10:
@@ -1359,13 +1401,19 @@ def box_truck():
                 return ("blade", 2.6 if fy == FLOOR + 1 else 1.8)
             if 22 <= fy <= 24:
                 return ("sapphire", 2.4 if fy == 23 else 1.6)  # a blue stripe along the box
-            k = math.floor(z - BF) % 3
-            base = 4.6 if k == 0 else 3.2 if k == 1 else 3.8
-            # wear: rain streaks down from the top rail, road spray along the bottom behind the wheels
-            run = h3(fz, 0, 1 if x > 0 else 2, 72)
-            if run < 0.14 and y > TOP - 4 - 14 * h3(fz, 1, 0, 73):
-                return ("steel", base - 0.9)
-            if y < FLOOR + 5 and abs(z - RA) < 13 and h3(fz, fy, 4, 74) < 0.05 + 0.07 * (FLOOR + 5 - y):
+            # smooth riveted aluminium panels between posts every 13 px (a lit edge, a shadow, a rivet line), the panel
+            # lit up its height with a soft sheen band; a little road spray round the rear wheels
+            k = math.floor(z - BF - 1.5) % 13
+            if k == 0:
+                return ("blade", 2.8)                         # the post, its lit face
+            if k == 1:
+                return ("steel", 2.4)                         # its shadow on the panel
+            if k == 12 and fy % 3 == 0:
+                return ("steel", 3.0)                         # a rivet line
+            base = lerp(y, FLOOR + 2, TOP - 2, 4.0, 4.9)
+            if 30 <= fy <= 32 and k in range(4, 10):
+                base += 0.4                                   # the sheen band across each panel
+            if y < FLOOR + 5 and abs(z - RA) < 13 and h3(fz, fy, 4, 74) < 0.04 + 0.06 * (FLOOR + 5 - y):
                 return ("steel", base - 1.0)                  # (only round the rear wheels)
             return ("steel", base)
         if c.face == "north":

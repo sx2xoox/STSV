@@ -67,8 +67,8 @@ def _coat(c, base=2.2):
 
 
 def ox_body():
-    """The ox's torso with hump, rump, brisket and tail; the wooden yoke (멍에) over the withers on a straw collar, the
-    rope traces down its sides to the swingletree behind it (the cart's pole hangs on the ring in its middle). The
+    """The ox's torso with hump, rump, brisket and tail, a straw blanket (덕석) over its back; the wooden yoke (멍에)
+    over the withers on a straw collar, the rope traces down its sides to the swingletree behind it (the cart's pole hangs on the ring in its middle). The
     head and the four legs are separate models (they move)."""
     m = BModel("ox_cart", shift=(8, 8, 8), scale=2.0)
 
@@ -116,6 +116,22 @@ def ox_body():
     tp = Paint(HIDE, 2, noise=0, rim=0.3, decal=tail)
     m.box("tail", (-0.75, 12.5, OZ + 14), (0.75, 25, OZ + 15), tp)
     m.box("tail_tuft", (-1.25, 9, OZ + 13.75), (1.25, 12.5, OZ + 15.25), tp)
+
+    # a woven straw blanket (덕석) over the back (a diagonal weave, lit on top), a red cloth hem round it
+    def mat(c):
+        x, y, z = c.p
+        rel = z - OZ
+        if (c.face == "up" and (abs(x) > 5.7 or rel < -3.4 or rel > 4.4)) or (c.face != "up" and (y < 22 or rel < -3.4 or rel > 4.4)):
+            return ("crimson", 2.2 if c.face == "up" or y > 22 else 1.6)          # the hem
+        if c.face == "down":
+            return ("straw", 0.8)
+        u = math.floor(z * 2) if c.face in ("up", "east", "west") else math.floor(x * 2)
+        v = math.floor(y * 2) if c.face != "up" else math.floor(x * 2)
+        k = (u + v) % 4
+        base = 2.6 if c.face == "up" else lerp(y, 21, 26, 1.6, 2.4)
+        return ("straw", base + (0.5 if k == 0 else -0.4 if k == 2 else 0))
+    mp = Paint("straw", 2, noise=0, rim=0.4, ao=0.5, decal=mat)
+    m.box("mat", (-6.5, 21, OZ - 4), (6.5, 26.5, OZ + 5), mp)
 
     m.group("yoke")
 
@@ -888,6 +904,12 @@ def power_tiller_trailer():
                 return (RED, 1.4)                                 # a pressed groove
             if math.floor(y) == 15 and abs(abs(along) - 4) < 1:
                 return ("steel", 3.2)                             # a latch
+            # years of work: paint chipped to rust along the top edge and the bottom, a rust run under each rib
+            chip = h3(math.floor(along), math.floor(y), 5 if c.face in ("east", "south") else 6, 58)
+            if (y > 15.2 or y < Y0 + 1.5) and chip < 0.18:
+                return ("terracotta", 1.0 + chip * 4)
+            if 1 <= k < 2 and y < 15 and h3(math.floor(along), 0, 7, 59) < 0.5 and y > 15 - 4 * h3(math.floor(along), 1, 7, 59):
+                return ("terracotta", 1.6)
         return _paint_metal(RED, 2.0)(c)
     sp = Paint(RED, 2, noise=0, rim=0.6, decal=side)
     for s in (1, -1):
@@ -897,6 +919,9 @@ def power_tiller_trailer():
 
     # mudguards over the wheels (outside the bed)
     def guard(c):
+        x, y, z = c.p
+        if c.face != "up" and h3(math.floor(x * 2), math.floor(y * 2), math.floor(z * 2), 68) < 0.3:
+            return ("soil", 1.4 + h3(math.floor(x), math.floor(y), math.floor(z), 69))   # dried mud
         if c.face == "up":
             return ("iron", 2.8)
         return ("iron", 1.8)
@@ -1026,6 +1051,10 @@ def tractor():
                 return (ORANGE, 1.4)
             if 17 < y < 21.5 and z(-30) < zz < z(-14):
                 return (ORANGE, 2.0)
+            if math.floor(y) == 16:
+                return ("cream", 2.4 if zz < z(-12) else 1.8)   # a cream stripe along the hood's foot
+            if math.floor(y) == 17 and zz < z(-30):
+                return ("iron", 1.2)                          # ... and a dark pinstripe over it at the front
         if c.face == "up":
             if abs(x) < 0.5:
                 return (ORANGE, 1.6)                              # the hood's centre seam
@@ -1087,11 +1116,20 @@ def tractor():
     m.box("platform", (-8.5, 13, z(-8)), (8.5, 14, z(6)), Paint("iron", 2, noise=0, decal=lambda c: ("iron", 2.6 if (math.floor(c.p[0]) + math.floor(c.p[2])) % 3 == 0 and c.face == "up" else 1.8)))
 
     # the fenders: over the big rear wheels, a flat top, curved ends (stepped), tail lamps on their backs
+    def fender(c):
+        # dried mud flung up by the tyre along the fenders' lower ends and their inner faces, a lit crest on top
+        x, y, zz = c.p
+        if c.face == "up" and y > 23.9:
+            return (ORANGE, 2.9 if abs(abs(x) - 12) < 3 else 2.5)
+        if c.face != "up" and y < 22 and h3(math.floor(x * 2), math.floor(y * 2), math.floor(zz * 2), 66) < 0.35 - 0.1 * (y - 19):
+            return ("soil", 1.6 + h3(math.floor(x), math.floor(y), math.floor(zz), 67))
+        return _paint_metal(ORANGE, 2.2)(c)
+    fp = Paint(ORANGE, 2, noise=0, rim=0.6, decal=fender)
     for s in (1, -1):
         xa, xb = sorted((8.5 * s, 15.5 * s))
-        m.box("fender", (xa, 23, z(-10)), (xb, 24, z(8)), orange)
-        m.box("fender", (xa, 19, z(-12)), (xb, 23, z(-10)), orange)
-        m.box("fender", (xa, 19, z(8)), (xb, 23, z(10)), orange)
+        m.box("fender", (xa, 23, z(-10)), (xb, 24, z(8)), fp)
+        m.box("fender", (xa, 19, z(-12)), (xb, 23, z(-10)), fp)
+        m.box("fender", (xa, 19, z(8)), (xb, 23, z(10)), fp)
         m.box("fender_inner", (min(8.5 * s, 9 * s), 13, z(-10)), (max(8.5 * s, 9 * s), 23, z(8)), dark)
         xa2, xb2 = sorted((12 * s, 14.5 * s))
         m.box("tail_lamp", (xa2, 20, z(10)), (xb2, 22, z(10.5)), Paint("signal_red", 1, noise=0, decal=lambda c: ("signal_red", 1.6 if c.face == "south" else 0.6)))
@@ -1134,7 +1172,7 @@ def tractor():
             return ("cream", 2.8 + sag + fade + spot + (0.3 if fz < 4 else 0))
         if c.face == "down":
             return ("cream", 1.2 if 2 <= fx <= 21 else 1.6)       # the canvas' shaded underside, its hem
-        return ("cream", 2.2 if math.floor(x + zz) % 2 else 1.4)  # the fringe
+        return ("iron", 2.6 if y > 47 else 1.8)                   # the canopy's steel frame round its edge
     m.box("canopy", (-12, 46.5, z(-12)), (12, 47.5, z(9)), Paint("cream", 2, noise=0, rim=0.5, decal=canopy))
 
     m.group("hitch")
