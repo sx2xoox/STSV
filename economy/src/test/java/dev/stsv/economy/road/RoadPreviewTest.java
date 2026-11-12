@@ -263,7 +263,7 @@ class RoadPreviewTest {
             surface[i] = s[2];
         }
         int[] cross = land.net.crossings(pts);
-        RoadProfile.Plan plan = fixed != null ? new RoadProfile.Plan(fixed, new boolean[n]) : RoadProfile.planNetwork(ground, water, surface, cross);
+        RoadProfile.Plan plan = fixed != null ? new RoadProfile.Plan(fixed, new boolean[n]) : RoadProfile.planNetwork(ground, water, surface, cross, land.net.headroom(pts));
         RoadProfile.Part[] parts = RoadProfile.partsHalves(plan.halves(), ground, water, RoadModule.BRIDGE_GAP, RoadModule.TUNNEL_COVER, RoadModule.MIN_RUN);
         if (fixed != null) java.util.Arrays.fill(parts, RoadProfile.Part.ROAD);   // in a cutting, open to the sky
         RoadSection sec = new RoadSection(land, STYLE, pts, plan.halves(), parts, dock, 2).network(cross, plan.over());
@@ -302,7 +302,7 @@ class RoadPreviewTest {
         ground[n - 1] = PAD_Y;   // BUILD, as RoadModule.profile(): the last point is the gate, level with the dock's floor
         water[n - 1] = false;
         int[] cross = land.net.crossings(points);
-        RoadProfile.Plan plan = RoadProfile.planNetwork(ground, water, surface, cross);
+        RoadProfile.Plan plan = RoadProfile.planNetwork(ground, water, surface, cross, land.net.headroom(points));
         int[] halves = plan.halves();
         int[] levels = RoadProfile.blocks(halves);
         RoadProfile.Part[] parts = RoadProfile.partsHalves(halves, ground, water, RoadModule.BRIDGE_GAP, RoadModule.TUNNEL_COVER, RoadModule.MIN_RUN);

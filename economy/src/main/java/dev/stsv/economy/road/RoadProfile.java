@@ -215,6 +215,14 @@ public final class RoadProfile {
      * {@link RoadNetwork#CLEARANCE} over its surface across it and {@link #OVER_REACH} points either side (an overpass).
      */
     public static Plan planNetwork(int[] ground, boolean[] water, int[] surface, int[] cross) {
+        return planNetwork(ground, water, surface, cross, null);
+    }
+
+    /**
+     * {@link #planNetwork(int[], boolean[], int[], int[])}, an overpass's deck over the highest surface of the old road
+     * near the crossing (high[i]: {@link RoadNetwork#headroom}; null: only where it crosses).
+     */
+    public static Plan planNetwork(int[] ground, boolean[] water, int[] surface, int[] cross, int[] high) {
         int n = ground.length;
         double[] t = target(ground, water, surface);
         double[] free = fit(t, water, MAX_GRADE);
@@ -234,7 +242,7 @@ public final class RoadProfile {
             while (j + 1 < n && cross[j + 1] != Integer.MIN_VALUE) j++;
             for (int k = i; k <= j; k++) {
                 far = Math.max(far, Math.abs(free[k] - cross[k] / 2.0));
-                top = Math.max(top, cross[k]);
+                top = Math.max(top, high != null && high[k] != Integer.MIN_VALUE ? Math.max(cross[k], high[k]) : cross[k]);
             }
             if (far <= MEET || i == 0) {   // level (the start of a branch is always on its trunk)
                 for (int k = i; k <= j; k++) {
