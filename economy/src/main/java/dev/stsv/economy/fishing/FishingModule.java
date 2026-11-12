@@ -1,8 +1,6 @@
 package dev.stsv.economy.fishing;
 
 import dev.stsv.core.nickname.Names;
-import dev.stsv.core.gui.menu.MenuHandler;
-import dev.stsv.core.gui.menu.MenuView;
 import dev.stsv.core.util.Lang;
 import dev.stsv.core.util.Text;
 import dev.stsv.economy.EcoModule;
@@ -25,10 +23,7 @@ import org.bukkit.entity.Item;
 import org.bukkit.entity.Player;
 import org.bukkit.event.EventHandler;
 import org.bukkit.event.EventPriority;
-import org.bukkit.event.block.Action;
-import org.bukkit.event.inventory.ClickType;
 import org.bukkit.event.player.PlayerFishEvent;
-import org.bukkit.event.player.PlayerInteractEvent;
 import org.bukkit.event.player.PlayerQuitEvent;
 import org.bukkit.inventory.EquipmentSlot;
 import org.bukkit.inventory.ItemStack;
@@ -44,12 +39,11 @@ import java.util.Set;
 import java.util.UUID;
 
 /**
- * 낚시: until the float dips it is vanilla. When a fish bites and the player reels in, a ring appears in the
- * middle of the screen (a title made of font glyphs, redrawn every tick) with a needle going round; right
- * click when it is on a green cell. The rarity (common, uncommon, rare, legend) sets how many successes,
- * how fast, how narrow. 98 fish by habitat, time and weather; rare and legend fish carry their size (the
- * shop pays 0.7 - 1.5x by it). Every catch goes in the /도감 codex; a full habitat gives a title, all
- * fish [강태공]. The week's biggest catch is announced. Treasure and junk stay vanilla.
+ * 낚시: as in vanilla, right click while the float is pulled under to reel in (too late and the fish is gone). What
+ * comes up is one of 98 fish by habitat, time and weather, its rarity rolled by the job (rare and legend: the fisher's
+ * finds chance, more from a boat); rare and legend fish carry their size (the shop pays 0.7 - 1.5x by it). Every catch
+ * goes in the /도감 codex; a full habitat gives a title, all fish [강태공]. The week's biggest catch is announced.
+ * Treasure and junk stay vanilla.
  */
 public final class FishingModule extends EcoModule implements WeeklyListener {
 
@@ -60,30 +54,12 @@ public final class FishingModule extends EcoModule implements WeeklyListener {
     private FishSpec spec;
     private FishStore store;
     private List<String> order = List.of();
-    private final Map<UUID, Game> games = new HashMap<>();
     /** testing (/관리자 낚시): the next bites of a player, by rarity id ("pearl" too) or by fish */
     private final Map<UUID, Forced> forced = new HashMap<>();
 
     /** rarity: a rarity id or "pearl" (null when a fish is set); species: a fish id; left: bites to go. */
     public record Forced(String rarity, String species, int left) {}
     private final Random rnd = new Random();
-
-    private static final class Game {
-        final Ring ring;
-        final FishSpec.Species species;
-        final int level;
-        final EquipmentSlot hand;
-        String pop;
-        int popTicks;
-        long lastPress;
-
-        Game(Ring ring, FishSpec.Species species, int level, EquipmentSlot hand) {
-            this.ring = ring;
-            this.species = species;
-            this.level = level;
-            this.hand = hand;
-        }
-    }
 
     public FishingModule(EcoPlugin eco) {
         super(eco);
@@ -99,7 +75,6 @@ public final class FishingModule extends EcoModule implements WeeklyListener {
         store = new FishStore(core.db());
         store.init();
         load();
-        every(1L, this::tick);
         eco.calendar().onWeekly(this);
         eco.onReset(() -> {
             store.reset();
@@ -114,7 +89,7 @@ public final class FishingModule extends EcoModule implements WeeklyListener {
 
     @Override
     protected void stop() {
-        games.clear();
+        forced.clear();
     }
 
     private void load() {
@@ -137,29 +112,22 @@ public final class FishingModule extends EcoModule implements WeeklyListener {
     // The bite
     // ------------------------------------------------------------------------------------------
 
-    private static boolean holdsRod(Player p, EquipmentSlot hand) {
-        return p.getInventory().getItem(hand).getType() == Material.FISHING_ROD;
-    }
-
     @EventHandler(priority = EventPriority.HIGH, ignoreCancelled = true)
     public void onFish(PlayerFishEvent e) {
         Player p = e.getPlayer();
         UUID u = p.getUniqueId();
-        if (games.containsKey(u)) {
-            e.setCancelled(true);   // no new cast while a fish is on
-            return;
-        }
         if (e.getState() == PlayerFishEvent.State.FISHING) {
-            // the wait for a bite: fish.yml bite (shorter than vanilla), Lure and the fisher's level as factors
+            // the wait for a bite is vanilla's (Lure as vanilla); a fisher's is shorter by the job's "bite" cut
+            double cut = eco.jobs().effect(u, "fisher", "bite");
+            if (cut <= 0) return;
             ItemStack rod = p.getInventory().getItem(e.getHand() == null ? org.bukkit.inventory.EquipmentSlot.HAND : e.getHand());
             int lure = rod == null ? 0 : rod.getEnchantmentLevel(org.bukkit.enchantments.Enchantment.LURE);
-            int[] w = spec.bite().ticks(lure, eco.jobs().effect(u, "fisher", "bite"));
-            int[] parts = FishSpec.Bite.split(w[0], w[1]);   // the fish's swim to the float is part of the bite too
-            e.getHook().setApplyLure(false);
-            e.getHook().setWaitTime(parts[0], parts[1]);
-            e.getHook().setLureTime(parts[2], parts[3]);
+            int[] wait = FishSpec.waitTicks(lure, cut);
+            e.getHook().setApplyLure(false);   // Lure is in the range already
+            e.getHook().setWaitTime(wait[0], wait[1]);
             return;
         }
+        // reeled in while the float was under (vanilla's catch): ours to fill
         if (e.getState() != PlayerFishEvent.State.CAUGHT_FISH || !(e.getCaught() instanceof Item caught)) return;
         Forced force = forced.get(u);
         if (force == null && !FISH.contains(caught.getItemStack().getType())) return;   // treasure and junk: vanilla
@@ -187,23 +155,14 @@ public final class FishingModule extends EcoModule implements WeeklyListener {
             s = spec.pick(habitat, m, tier, rnd);
         }
         if (s == null) return;
-        FishSpec.Rarity real = spec.rarities().get(s.rarity());
         e.setCancelled(true);
         caught.remove();
         e.getHook().remove();
-        boolean fisher = "fisher".equals(eco.jobs().job(u));
-        int lv = fisher ? eco.jobs().level(u) : 0;
-        Ring ring = new Ring(real, lv * 0.01, 3 + (fisher && lv >= 10 ? 1 : 0), rnd);
         EquipmentSlot hand = e.getHand() == EquipmentSlot.OFF_HAND ? EquipmentSlot.OFF_HAND : EquipmentSlot.HAND;
-        Game game = new Game(ring, s, lv, hand);
-        game.pop = Lang.raw("fishing.hint");
-        game.popTicks = 40;
-        games.put(u, game);
-        p.playSound(p.getLocation(), Sound.ENTITY_FISHING_BOBBER_SPLASH, 1f, 0.8f);
-        p.playSound(p.getLocation(), Sound.BLOCK_NOTE_BLOCK_BELL, 0.6f, 0.6f + real.index() * 0.2f);
+        land(p, s, hand);
     }
 
-    /** A pearl comes up as a rare bite of the sea, its ring a fish's (a mystery until it is up). */
+    /** A pearl comes up as a rare bite of the sea. */
     private FishSpec.Species pearl() {
         String rare = new ArrayList<>(spec.rarities().keySet()).get(2);
         return new FishSpec.Species("pearl", Lang.raw("fishing.pearl"), "salt", rare, 0, 0, 80, "f", "economy:pearl", null);
@@ -222,119 +181,44 @@ public final class FishingModule extends EcoModule implements WeeklyListener {
         return forced.remove(player) != null;
     }
 
-    @EventHandler(priority = EventPriority.HIGHEST)
-    public void onUse(PlayerInteractEvent e) {
-        Game g = games.get(e.getPlayer().getUniqueId());
-        if (g == null || e.getHand() != g.hand) return;
-        if (e.getAction() != Action.RIGHT_CLICK_AIR && e.getAction() != Action.RIGHT_CLICK_BLOCK) return;
-        e.setCancelled(true);
-        // one click at a block can arrive twice (at the block, then in the air): count it once
-        long tick = Bukkit.getCurrentTick();
-        if (tick - g.lastPress < 2) return;
-        g.lastPress = tick;
-        press(e.getPlayer(), g);
-    }
-
     @EventHandler
     public void onQuit(PlayerQuitEvent e) {
-        games.remove(e.getPlayer().getUniqueId());
         forced.remove(e.getPlayer().getUniqueId());
-    }
-
-    private void press(Player p, Game g) {
-        Ring.Result r = g.ring.press();
-        switch (r) {
-            case HIT -> feedback(p, g, "fishing.good", Sound.BLOCK_NOTE_BLOCK_PLING, 0.8f + g.ring.hits * 0.12f);
-            case PERFECT -> feedback(p, g, "fishing.perfect", Sound.BLOCK_NOTE_BLOCK_BELL, 1.0f + g.ring.hits * 0.12f);
-            case MISS -> feedback(p, g, "fishing.miss", Sound.BLOCK_NOTE_BLOCK_BASS, 0.6f);
-            case TRAP -> feedback(p, g, "fishing.trap", Sound.BLOCK_NOTE_BLOCK_BASS, 0.4f);
-            case WON -> win(p, g);
-            case ESCAPED -> escaped(p);
-            default -> { }
-        }
-    }
-
-    private void feedback(Player p, Game g, String key, Sound sound, float pitch) {
-        g.pop = Lang.raw(key);
-        g.popTicks = 12;
-        p.playSound(p.getLocation(), sound, 0.8f, pitch);
-    }
-
-    private void tick() {
-        for (UUID u : List.copyOf(games.keySet())) {
-            Game g = games.get(u);
-            Player p = Bukkit.getPlayer(u);
-            if (p == null || g == null) {
-                games.remove(u);
-                continue;
-            }
-            if (!holdsRod(p, g.hand)) {
-                escaped(p);
-                continue;
-            }
-            if (g.ring.tick() == Ring.Result.ESCAPED) {
-                escaped(p);
-                continue;
-            }
-            if (g.ring.flash == 6 && g.ring.flashKind == 3) feedback(p, g, "fishing.miss", Sound.BLOCK_NOTE_BLOCK_BASS, 0.6f);
-            if (g.popTicks > 0) g.popTicks--;
-            String sub = g.popTicks > 0 ? g.pop : "";
-            p.showTitle(Title.title(Text.mm(RingGlyphs.title(g.ring, g.species.shape())), Text.mm(sub),
-                    Title.Times.times(Duration.ZERO, Duration.ofMillis(300), Duration.ZERO)));
-            dev.stsv.core.hud.HudModule.flash(p, Text.mm(status(g)), 400);   // above the health bars in pack HUD mode
-        }
-    }
-
-    private String status(Game g) {
-        FishSpec.Rarity r = g.ring.rarity();
-        StringBuilder sb = new StringBuilder("<" + r.color() + ">" + r.name() + "  ");
-        for (int i = 0; i < r.hits(); i++) sb.append(i < g.ring.hits ? "<gold>■" : "<dark_gray>■");
-        sb.append("  ");
-        for (int i = 0; i < g.ring.maxHearts; i++) sb.append(i < g.ring.hearts ? "<red>❤" : "<dark_gray>❤");
-        return sb.toString();
-    }
-
-    private void escaped(Player p) {
-        games.remove(p.getUniqueId());
-        p.clearTitle();
-        dev.stsv.core.hud.HudModule.flash(p, Lang.mm("fishing.escaped"));
-        p.playSound(p.getLocation(), Sound.ENTITY_FISHING_BOBBER_RETRIEVE, 1f, 0.6f);
     }
 
     // ------------------------------------------------------------------------------------------
     // The catch
     // ------------------------------------------------------------------------------------------
 
-    private void win(Player p, Game g) {
+    /** The fish on the line comes up: into the inventory, with what vanilla gives for a catch, the codex and the week's record. */
+    private void land(Player p, FishSpec.Species s, EquipmentSlot hand) {
         UUID u = p.getUniqueId();
-        games.remove(u);
-        FishSpec.Species s = g.species;
-        FishSpec.Rarity r = g.ring.rarity();
+        FishSpec.Rarity r = spec.rarities().get(s.rarity());
         boolean fisher = "fisher".equals(eco.jobs().job(u));
+        int level = fisher ? eco.jobs().level(u) : 0;
         boolean pearl = s.id().equals("pearl");
-        double size = pearl ? 0 : FishSpec.size(s, rnd.nextDouble(), g.ring.perfect, g.ring.allPerfect(), fisher && g.level >= 20 ? 0.10 : 0);
+        double size = pearl ? 0 : FishSpec.size(s, rnd.nextDouble(), fisher && level >= 20 ? FishSpec.FISHER_SIZE_BONUS : 0);
         JobSpec.Job fj = eco.jobs().spec().jobs().get("fisher");
-        int count = fisher && fj != null && fj.finds() != null && g.level >= fj.finds().doubleLevel() && fj.finds().doubleItems().contains(s.item()) ? 2 : 1;
+        int count = fisher && fj != null && fj.finds() != null && level >= fj.finds().doubleLevel() && fj.finds().doubleItems().contains(s.item()) ? 2 : 1;
         ItemStack it = Items.create(s.item(), count).orElse(new ItemStack(Material.COD, count));
         double factor = FishSpec.priceFactor(s, size);
         if (!pearl && r.index() >= 2) markSize(it, size, factor);   // rare and legend fish keep their size (they do not stack, the shop pays by it)
         for (ItemStack left : p.getInventory().addItem(it).values()) p.getWorld().dropItemNaturally(p.getLocation(), left);
         // what vanilla would have given: experience, rod wear, the statistic
         p.giveExp(1 + rnd.nextInt(6), true);   // applyMending: like the orb a vanilla catch drops, Mending gear takes it first
-        ItemStack rod = p.getInventory().getItem(g.hand);
-        if (rod.getType() == Material.FISHING_ROD) p.getInventory().setItem(g.hand, rod.damage(1, p));
+        ItemStack rod = p.getInventory().getItem(hand);
+        if (rod.getType() == Material.FISHING_ROD) p.getInventory().setItem(hand, rod.damage(1, p));
         p.incrementStatistic(Statistic.FISH_CAUGHT);
         eco.jobs().rewardAction(p, "catch", s.item(), 1);
         if (r.index() >= 2) eco.jobs().rewardAction(p, "find", s.item(), 1);
         eco.jobs().rollSpecials(p, "catch", null);
         // the title: the fish's picture and name, its size below
         int idx = order.indexOf(s.id());
-        String head = (idx >= 0 ? RingGlyphs.icon(idx) + " " : "") + "<" + r.color() + ">" + s.name();
-        String sub = pearl ? "" : Lang.raw(g.ring.allPerfect() ? "fishing.result-perfect" : "fishing.result", "size", String.format("%.1f", size));
+        String head = (idx >= 0 ? FishSpec.icon(idx) + " " : "") + "<" + r.color() + ">" + s.name();
+        String sub = pearl ? "" : Lang.raw("fishing.result", "size", String.format("%.1f", size));
         p.showTitle(Title.title(Text.mm(head), Text.mm(sub), Title.Times.times(Duration.ofMillis(150), Duration.ofMillis(2500), Duration.ofMillis(600))));
-        dev.stsv.core.hud.HudModule.clearFlash(p);
         p.playSound(p.getLocation(), Sound.ENTITY_PLAYER_LEVELUP, 0.6f, 1.4f + r.index() * 0.1f);
-        p.sendMessage(Lang.msg(pearl ? "fishing.caught-pearl" : g.ring.allPerfect() ? "fishing.caught-perfect" : "fishing.caught",
+        p.sendMessage(Lang.msg(pearl ? "fishing.caught-pearl" : "fishing.caught",
                 "color", r.color(), "fish", s.name(), "size", String.format("%.1f", size), "count", count > 1 ? " ×" + count : ""));
         if (pearl) return;
         boolean first = store.record(u, s.id(), size, now());

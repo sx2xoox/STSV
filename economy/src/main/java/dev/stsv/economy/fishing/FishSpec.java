@@ -9,41 +9,32 @@ import java.util.Map;
 import java.util.Random;
 
 /**
- * contents/economy/fish.yml: the rarities (how hard the ring is), the codex groups and the fish (where, when,
- * how big, how much). Pure data and the catch maths (unit-tested).
+ * contents/economy/fish.yml: the rarities (name and colour), the codex groups and the fish (where, when, how big,
+ * how much); the fisher's shorter wait for a bite. Pure data and the catch maths (unit-tested).
  */
 public record FishSpec(Map<String, Rarity> rarities, Map<String, Group> groups, Map<String, Species> species,
-                       double legendShare, double pearl, Bite bite) {
+                       double legendShare, double pearl) {
+
+    /** Vanilla's wait for a fish (FishingHook: 100 - 600 ticks), what Lure takes off a level (5 s), at most 80% off for the fisher. */
+    public static final int VANILLA_WAIT_MIN = 100, VANILLA_WAIT_MAX = 600, LURE_TICKS = 100;
+    public static final double MAX_FISHER_CUT = 0.8;
 
     /**
-     * How long the float waits for a bite, in seconds (vanilla: 5-30 s). Lure takes lurePerLevel off per level and the fisher's
-     * "bite" effect takes its share off too, both as factors, instead of vanilla's flat -5 s per Lure level (which would make Lure
-     * III bite at once with these shorter waits).
+     * The hook's wait for a fish, {min, max} ticks, as vanilla makes it (a draw in 100 - 600 ticks less 100 a Lure level, drawn again
+     * while it is not above 0: uniform over what is left of the range), then shortened by the fisher's "bite" cut (jobs.yml, 0..0.8).
+     * With no cut the module leaves the hook as vanilla made it; with one it sets this range and turns the hook's own Lure off. The
+     * fish's swim to the float after it (vanilla 1 - 4 s) is never shortened.
      */
-    public record Bite(double min, double max, double lurePerLevel) {
-        /** {min, max} wait in ticks for a cast with this Lure level and the fisher's reduction (0..0.8); at least 1 tick. */
-        public int[] ticks(int lure, double fisherCut) {
-            double f = Math.max(0, 1 - lurePerLevel * Math.max(0, lure)) * (1 - Math.clamp(fisherCut, 0, 0.8));
-            int lo = Math.max(1, (int) Math.round(min * 20 * f));
-            int hi = Math.max(lo, (int) Math.round(max * 20 * f));
-            return new int[] {lo, hi};
-        }
-
-        /**
-         * A bite in vanilla is two waits: until the fish appears (the hook's wait time), then the fish swimming to the
-         * float (the lure time, 1~4 s whatever the wait was). The whole {lo, hi} bite is split between them, a fifth
-         * for the swim (at least 1 tick each), so the float goes under within lo~hi as fish.yml says:
-         * {waitLo, waitHi, lureLo, lureHi}.
-         */
-        public static int[] split(int lo, int hi) {
-            int lureLo = Math.max(1, lo / 5), lureHi = Math.max(lureLo, hi / 5);
-            int waitLo = Math.max(1, lo - lureLo), waitHi = Math.max(waitLo, hi - lureHi);
-            return new int[] {waitLo, waitHi, lureLo, lureHi};
-        }
+    public static int[] waitTicks(int lure, double fisherCut) {
+        int l = Math.max(0, lure) * LURE_TICKS;
+        int hi = Math.max(1, VANILLA_WAIT_MAX - l), lo = Math.clamp(VANILLA_WAIT_MIN - l, 1, hi);
+        double f = 1 - Math.clamp(fisherCut, 0, MAX_FISHER_CUT);
+        int a = Math.max(1, (int) Math.round(lo * f));
+        return new int[] {a, Math.max(a, (int) Math.round(hi * f))};
     }
 
-    /** speed = needle cells per tick, zone = green cells, hits = successes needed. */
-    public record Rarity(String id, int index, String name, String color, int hits, double speed, int zone) {}
+    /** A rarity: its name and colour (the order in fish.yml: common, uncommon, rare, legend). */
+    public record Rarity(String id, int index, String name, String color) {}
 
     public record Group(String id, String name, String title) {}
 
@@ -73,8 +64,8 @@ public record FishSpec(Map<String, Rarity> rarities, Map<String, Group> groups, 
             for (String id : rs.getKeys(false)) {
                 ConfigurationSection r = rs.getConfigurationSection(id);
                 if (r == null) continue;
-                rarities.put(id, new Rarity(id, i++, r.getString("name", id), r.getString("color", "#ffffff"), Math.max(1, r.getInt("hits", 2)),
-                        r.getDouble("speed", 1), Math.max(3, r.getInt("zone", 8))));
+                // an older fish.yml also has the ring's hits, speed and zone here: no longer read
+                rarities.put(id, new Rarity(id, i++, r.getString("name", id), r.getString("color", "#ffffff")));
             }
         }
         if (rarities.size() != 4) problems.add("fish.rarities: 4개 (흔함, 보통, 희귀, 전설) 필요");
@@ -98,9 +89,8 @@ public record FishSpec(Map<String, Rarity> rarities, Map<String, Group> groups, 
             }
         }
         if (species.isEmpty()) problems.add("fish.species: 물고기가 없음");
-        double bMin = Math.max(0.5, c.getDouble("bite.min", 5)), bMax = Math.max(bMin, c.getDouble("bite.max", 30));
-        Bite bite = new Bite(bMin, bMax, Math.clamp(c.getDouble("bite.lure-per-level", 0.15), 0, 0.3));
-        return new FishSpec(rarities, groups, species, c.getDouble("legend-share", 0.2), c.getDouble("pearl", 0.15), bite);
+        // an older fish.yml also has bite: { min, max, lure-per-level }: the wait is vanilla's now, no longer read
+        return new FishSpec(rarities, groups, species, c.getDouble("legend-share", 0.2), c.getDouble("pearl", 0.15));
     }
 
     // ------------------------------------------------------------------------------------------
@@ -192,16 +182,27 @@ public record FishSpec(Map<String, Rarity> rarities, Map<String, Group> groups, 
     // ------------------------------------------------------------------------------------------
 
     /**
-     * The size of a catch: towards the small end (u^1.4), +3% per perfect hit, +10% for an all-perfect catch,
-     * +10% for a fisher of Lv20 (the size bonus), at most 15% past its biggest.
+     * A fisher's catch from Lv20 on: +17% size (+10% until 2026-11, when a Lv20 fisher's typical 2 perfect hits in the ring added
+     * 6% more: 1.10 x 1.06 = 1.17; the ring is gone, the perk took that over).
      */
-    public static double size(Species s, double u, int perfect, boolean allPerfect, double bonus) {
+    public static final double FISHER_SIZE_BONUS = 0.17;
+
+    /**
+     * The size of a catch: towards the small end (u^1.4), + bonus (FISHER_SIZE_BONUS for a fisher of Lv20), at most 15% past its
+     * biggest.
+     */
+    public static double size(Species s, double u, double bonus) {
         double v = s.min() + (s.max() - s.min()) * Math.pow(u, 1.4);
-        v *= 1 + 0.03 * perfect;
-        if (allPerfect) v *= 1.10;
         v *= 1 + bonus;
         return Math.round(Math.min(v, s.max() * 1.15) * 10) / 10.0;
     }
+
+    /** The glyph of a fish's picture in the catch title (font economy:fishicon), by its place in fish.yml; what follows has the usual style again. */
+    public static String icon(int index) {
+        return "<!shadow><white><font:" + ICON_FONT + ">" + (char) (0xE000 + index) + "<reset>";
+    }
+
+    public static final String ICON_FONT = "economy:fishicon";
 
     /** Price factor by size: 0.7 at the smallest, 1.5 at the biggest (and past it). */
     public static double priceFactor(Species s, double size) {

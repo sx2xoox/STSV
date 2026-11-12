@@ -11,8 +11,8 @@ Valuation (the framework's "what a player sees"):
   * a vanilla tag is worth TAG_VALUE (fixed table).
 World.valued(r, pick, case) values one recipe again under a scenario: every group input at its typical (median), cheapest or
 dearest member (pick = "typ" / "lo" / "hi"), and every sized fish (rare, legend: it keeps its size and the shop pays base x
-FishSpec.priceFactor) at the mean price factor of a typical catch (case = None: base, "lv1": any player with no perfect hit,
-"lv20": a Lv20 fisher with 2 perfect hits and +10% size). The rules compare recipes under each scenario (R4d, R5c, R9a, R9b).
+FishSpec.priceFactor) at the mean price factor of a typical catch (case = None: base, "lv1": any player, "lv20": a Lv20 fisher
+with +17% size). The rules compare recipes under each scenario (R4d, R5c, R9a, R9b).
 """
 import statistics
 from pathlib import Path
@@ -30,9 +30,9 @@ TAG_VALUE = {"#small_flowers": 0.2, "#saplings": 0.2, "#leaves": 0.05, "#logs": 
 # sized fish (FishSpec.size / priceFactor): the mean price factor of a typical catch, over u = (i + 0.5) / SIZE_SAMPLES
 SIZED_RARITIES = {"rare", "legend"}      # fish.yml rarities whose catch keeps its size (FishingModule)
 SIZE_SAMPLES = 1000
-SIZE_CASES = {                           # case: (perfect hits, all perfect, size bonus)
-    "lv1": (0, False, 0.0),              # any player: no perfect hit, no fisher bonus
-    "lv20": (2, False, 0.10),            # a Lv20 fisher's typical catch: 2 perfect hits, +10% size (R5b)
+SIZE_CASES = {                           # case: size bonus
+    "lv1": 0.0,                          # any player: no fisher bonus
+    "lv20": 0.17,                        # a Lv20 fisher's catch: +17% size (FishSpec.FISHER_SIZE_BONUS, R5b)
 }
 PICKS = ("typ", "lo", "hi")              # a group input at its median / cheapest / dearest member
 JOB_MACHINES = ["gem_bench", "mill", "fish_bench", "forge", "kitchen", "still"]
@@ -54,15 +54,11 @@ def r2(x):
     return x if not math.isfinite(x) else math.floor(x * 100 + 0.5) / 100
 
 
-def size_of(v, u, perfect, all_perfect, bonus):
-    """FishSpec.size: towards the small end (u^1.4), +3% per perfect hit, +10% all perfect, + the fisher bonus, at most 115% of
-    the biggest, rounded half up to 0.1."""
+def size_of(v, u, bonus):
+    """FishSpec.size: towards the small end (u^1.4), + the fisher bonus, at most 115% of the biggest, rounded half up to 0.1."""
     import math
     lo, hi = v["size"]
     x = lo + (hi - lo) * u ** 1.4
-    x *= 1 + 0.03 * perfect
-    if all_perfect:
-        x *= 1.10
     x *= 1 + bonus
     return math.floor(min(x, hi * 1.15) * 10 + 0.5) / 10
 
@@ -76,9 +72,9 @@ def price_factor(v, size):
 
 def mean_factor(v, case):
     """Mean FishSpec.priceFactor of a typical catch of a species in a SIZE_CASES case."""
-    perfect, allp, bonus = SIZE_CASES[case]
+    bonus = SIZE_CASES[case]
     n = SIZE_SAMPLES
-    return sum(price_factor(v, size_of(v, (i + 0.5) / n, perfect, allp, bonus)) for i in range(n)) / n
+    return sum(price_factor(v, size_of(v, (i + 0.5) / n, bonus)) for i in range(n)) / n
 
 
 def r1(x):
