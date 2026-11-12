@@ -503,6 +503,7 @@ ed327f6a9709803072b357f8ee23b6ad8d16ad3e economy/items/jobs.yml
 065604c00f9e842967b4e3c8e0a9e2e8474b9b97 economy/jobs.yml
 21eedd6dd9c830f2ebfe6fbf1db077e857adf513 economy/jobs.yml
 22ef34afa2a3c5bb98a61b69578e0bd29ff20e63 economy/jobs.yml
+291573d037488af0be2e54639b77fd99dca6f032 economy/jobs.yml
 2b3a9596d06e251abc4975ce3d52c143dd410721 economy/jobs.yml
 4167ffada5cd80159d3273b87a84b52c685e01f0 economy/jobs.yml
 5063db8c3a9abb2be7ad642833451245f45cbf20 economy/jobs.yml
