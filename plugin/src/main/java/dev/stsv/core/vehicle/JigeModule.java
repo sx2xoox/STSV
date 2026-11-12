@@ -107,6 +107,9 @@ public final class JigeModule implements StsvModule, Listener, TabExecutor {
         /** where the wearer was at the last check (the trip's odometer counts the way from there) */
         String lastWorld;
         double lastX, lastZ;
+        /** 탈것의 느낌: the height at the last check, the slope walked, the load's share of the payload (at version shareAt) */
+        double lastY = Double.NaN, grade, share;
+        long shareAt = -1;
 
         Session(long id, long token, CustomItem item, JigeSpec spec, ItemStack[] load) {
             this.id = id;
@@ -308,8 +311,9 @@ public final class JigeModule implements StsvModule, Listener, TabExecutor {
                 notYours.remove(u);
             }
             case SAME -> {
-                JigeSpeed.apply(p.getAttribute(Attribute.MOVEMENT_SPEED), s.spec.slowdown());
-                walked(p, s);
+                double way = walked(p, s);
+                JigeSpeed.apply(p.getAttribute(Attribute.MOVEMENT_SPEED), slowdown(p, s, way));
+                effort(p, s, way);
             }
             case NEW, CLAIM -> {
                 if (s != null) end(p, s);
@@ -700,21 +704,65 @@ public final class JigeModule implements StsvModule, Listener, TabExecutor {
      * The odometer: the way the wearer went since the last check (on foot, on a horse, in a car: they carried it). More than
      * {@link #MAX_WALK} in a second, or another world, is a teleport: the trip starts again there (a load cannot skip the road).
      */
-    private void walked(Player p, Session s) {
+    private double walked(Player p, Session s) {
         VehicleTrip trip = trips.get(s.id);
-        if (trip == null) return;
+        if (trip == null) return 0;
         org.bukkit.Location at = p.getLocation();
         String w = at.getWorld().getName();
         double d = w.equals(s.lastWorld) ? Math.hypot(at.getX() - s.lastX, at.getZ() - s.lastZ) : Double.POSITIVE_INFINITY;
         if (d > MAX_WALK) {
             broke(p, s, at);
-            return;
+            return 0;
         }
         trip.moved(d);
         s.lastWorld = w;
         s.lastX = at.getX();
         s.lastZ = at.getZ();
         if (trip.dirty && checks % 10 == 0) saveTrip(s.id, trip, p);
+        return d;
+    }
+
+    // ------------------------------------------------------------------------------------------
+    // 탈것의 느낌 (VehicleFeel, vehicle_feel.yml vehicles.jige): the load and the slope in the pace, hunger for the way
+    // ------------------------------------------------------------------------------------------
+
+    private VehicleFeel.Spec feel(Session s) {
+        return plugin.vehicles() == null ? VehicleFeel.Spec.plain(VehicleFeel.Power.MUSCLE, VehicleFeel.defaultProfile(VehicleFeel.Power.MUSCLE))
+                : plugin.vehicles().feel(s.item.key().asString(), VehicleFeel.Power.MUSCLE);
+    }
+
+    /** The share of its payload the 지게 carries (by weight; nothing weighed: by the slots used), counted when it changed. */
+    private double share(Session s) {
+        if (s.shareAt != s.version) {
+            s.shareAt = s.version;
+            s.share = weighs() ? VehicleFeel.share(weight(s.load), s.spec.payload()) : Math.min(1, (double) s.used() / Math.max(1, s.load.length));
+        }
+        return s.share;
+    }
+
+    /**
+     * The wearer's slowdown this second: the 지게's own, deeper with its load and uphill (the slope of the way since the
+     * last check), in steps of 2 % (the modifier changes seldom).
+     */
+    private double slowdown(Player p, Session s, double way) {
+        double y = p.getLocation().getY();
+        if (!Double.isNaN(s.lastY) && way > 0.5 && p.getVehicle() == null) {
+            double g = Math.clamp((y - s.lastY) / way, -1, 1);
+            s.grade = s.grade * 0.5 + g * 0.5;
+        } else if (way <= 0.5) {
+            s.grade *= 0.5;
+        }
+        s.lastY = y;
+        double f = VehicleFeel.topFactor(feel(s).profile(), share(s), s.grade, false);
+        return Math.round(VehicleFeel.slowdown(s.spec.slowdown(), f) * 50) / 50.0;
+    }
+
+    /** Carrying it on foot costs a little food by the way, more with a load and uphill (not riding, flying or gliding). */
+    private void effort(Player p, Session s, double way) {
+        if (way <= 0 || p.getVehicle() != null || p.isFlying() || p.isGliding()
+                || p.getGameMode() == org.bukkit.GameMode.CREATIVE || p.getGameMode() == org.bukkit.GameMode.SPECTATOR) return;
+        double ex = VehicleFeel.exhaustion(way, share(s), s.grade, feel(s).effort());
+        if (ex > 0) p.setExhaustion((float) Math.min(40, p.getExhaustion() + ex));
     }
 
     /**

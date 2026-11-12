@@ -180,7 +180,7 @@ class VehicleFarmContentTest {
             if (!Files.isDirectory(root)) continue;
             try (Stream<Path> files = Files.walk(root)) {
                 for (Path f : files.filter(p -> p.toString().endsWith(".yml")).toList()) {
-                    if (f.getFileName().toString().startsWith("vehicles")) continue;
+                    if (f.getFileName().toString().startsWith("vehicle")) continue;   // vehicles*.yml, vehicle_feel.yml
                     String text = Files.readString(f);
                     boolean shop = f.getFileName().toString().equals("shop.yml");   // generations 1-3 are sold there
                     for (String id : IDS) {

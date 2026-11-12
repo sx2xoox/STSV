@@ -26,12 +26,14 @@ import java.util.TreeMap;
  *       down and filled up to the road (grass on dirt); trees cleared.</li>
  *   <li>BRIDGE: the deck (stone bricks at the edges), a railing each side, a pier down to the ground every 10, an
  *       expansion joint across it every {@link #JOINT_EVERY}.</li>
- *   <li>TUNNEL: the surface, 4 of air, a stone brick ceiling (a light in it every 8) and lined walls (a white band with a
- *       yellow stripe, lights in it between the ceiling's); at each end a portal (the walls out to the shoulders and a
- *       block higher, a lintel over the opening).</li>
+ *   <li>TUNNEL: the surface, air up to a stone brick ceiling (a light flush in it every 8) and lined walls (a white band
+ *       with a yellow stripe, lights in it between the ceiling's); at each end a portal (the walls out to the shoulders
+ *       and a block higher, a lintel over the opening). The ceiling is {@link RoadClearance#ceilings}: 4 clear over the
+ *       flat, higher on a grade (it clears the highest surface a long vehicle can stand on under it), a step in it closed
+ *       over with stone bricks.</li>
  * </ul>
  * Street lights every {@code lightEvery} (sides taking turns), a post on the shoulder with an arm over the edge lane and
- * a lantern hanging from it, 4 clear blocks over the road; direction signs ({@link RoadSign}: the site puts the model and
+ * a lantern hanging from it, at the ceiling's height (4 clear blocks over a flat road); direction signs ({@link RoadSign}: the site puts the model and
  * its words) a little way from the start, every {@code markerEvery} and just before the gate, all where the road is plain
  * road ({@link #signs}). Approaching the dock's gate (the end) the road widens ({@link #widen}), a crosswalk is painted
  * across it and "하역장 입구" on it. A column of protected land ({@link Site#protectedLand}) is left alone; a surface column there stops the road
@@ -126,7 +128,8 @@ public final class RoadSection {
     /** The words painted before the gate. */
     public static final String GATE_WORDS = "하역장 입구";
 
-    private final Site site, world;
+    private Site site;
+    private final Site world;
     /** the old road's surface where this one's middle runs over it (half blocks) or MIN_VALUE; where it goes over it */
     private int[] cross;
     private boolean[] over;
@@ -137,6 +140,8 @@ public final class RoadSection {
     private final Style style;
     private final List<double[]> points;
     private final int[] halves;
+    /** the lowest block anything over the road may be in, at each point ({@link RoadClearance#ceilings}) */
+    private int[] ceilings;
     private final RoadProfile.Part[] parts;
     private final String dock;
     private final int route;
@@ -149,6 +154,7 @@ public final class RoadSection {
         this.style = style;
         this.points = points;
         this.halves = halves;
+        this.ceilings = RoadClearance.ceilings(halves);
         this.parts = parts;
         this.dock = dock;
         this.route = route;
@@ -157,6 +163,17 @@ public final class RoadSection {
 
     public Style style() {
         return style;
+    }
+
+    /** The ceilings it builds to (tests: {@link RoadClearance#legacy} builds a tunnel as roads were built before). */
+    RoadSection ceilings(int[] c) {
+        this.ceilings = c;
+        return this;
+    }
+
+    /** The ceiling's block y at point i. */
+    public int ceiling(int i) {
+        return ceilings[i];
     }
 
     /**
@@ -197,7 +214,7 @@ public final class RoadSection {
                 if (o == null) return true;
                 int oy = o.y();
                 if (o.paved() && y >= oy - 8 && y <= oy + 6) return paving && !o.lane() || (paving && y > oy);
-                if (!o.paved() && y > oy && y <= oy + 6) {
+                if (!o.paved() && y > oy && y <= oy + 9) {   // (on a grade a light stands higher: RoadClearance)
                     Material m = s.get(x, y, z);
                     return m != Material.STONE_BRICK_WALL && m != Material.LANTERN;   // its street lights stay
                 }
@@ -401,23 +418,10 @@ public final class RoadSection {
         RoadProfile.Part part = parts[i];
         int dj = junction(i);
         // wider at the dock's gate, and round a junction's corners
-        int e = Math.max(widen(i), dj <= 2 ? WIDEN : dj <= 5 ? 1 : 0), reach = HALF + e;
+        int e = Math.max(widen(i), dj <= 2 ? WIDEN : dj <= 5 ? 1 : 0);
         List<Col> cols = new ArrayList<>();
-        int px = (int) Math.floor(p[0]), pz = (int) Math.floor(p[1]);
-        for (int bx = px - reach - 1; bx <= px + reach + 1; bx++) {
-            for (int bz = pz - reach - 1; bz <= pz + reach + 1; bz++) {
-                double cx = bx + 0.5 - p[0], cz = bz + 0.5 - p[1];
-                double lat = cx * rx + cz * rz, along = cx * hx + cz * hz;
-                if (Math.abs(lat) > reach + 0.5 || !owns(i, bx + 0.5, bz + 0.5)) continue;
-                if ((i == 0 && along < -0.5) || (i == points.size() - 1 && along > 0.5)) continue;   // not past the ends
-                double ao = Math.abs(lat);
-                if (site.protectedLand(bx, bz)) {
-                    if (ao <= 3.5 + e) return new int[]{bx, bz};
-                    continue;   // a shoulder in someone's land: left alone
-                }
-                cols.add(new Col(bx, bz, lat));
-            }
-        }
+        int[] stop = columns(i, e, cols);
+        if (stop != null) return stop;
         boolean dash = (i / 4) % 2 == 0;
         int d = points.size() - 1 - i;
         boolean onOld = cross != null && cross[i] != Integer.MIN_VALUE && !over[i];
@@ -454,7 +458,7 @@ public final class RoadSection {
             }
             switch (part) {
                 case ROAD -> road(c.x(), c.z(), h, ao, at(top, half), i, c.lat());
-                case BRIDGE -> bridge(c.x(), c.z(), h, ao, at(top, half), i % 10 == 0);
+                case BRIDGE -> bridge(c.x(), c.z(), h, ao, at(top, half), i % 10 == 0, ceilings[i]);
                 case TUNNEL -> tunnel(c.x(), c.z(), h, ao, at(top, half), i, c.lat() > 0, portal);
             }
         }
@@ -463,7 +467,7 @@ public final class RoadSection {
             // on the bridge on its railing, else on the shoulder's verge: never in the lanes; its arm over the edge lane
             boolean deck = part == RoadProfile.Part.BRIDGE;
             Col post = nearest(cols, side * ((deck ? 3.0 : 4.0) + e), (deck ? 2.5 : 3.5) + e);
-            if (post != null) lamp(post, cols, side, e, h, deck);
+            if (post != null) lamp(post, cols, side, e, h, deck, ceilings[i]);
         }
         RoadSign.Kind sign = signs.get(i);
         if (sign != null) sign(p, rx, rz, h, RoadSign.yaw(-hx, -hz), i, sign);
@@ -473,6 +477,145 @@ public final class RoadSection {
 
     /** A column of a cross-section and how far right of the middle its centre is (left: below 0). */
     private record Col(int x, int z, double lat) {}
+
+    /**
+     * The columns of the cross-section at point i (e: how much wider each side) into cols, but those in protected land.
+     * Null, or {x, z} of the first surface column in protected land (cols is then not whole).
+     */
+    private int[] columns(int i, int e, List<Col> cols) {
+        double[] p = points.get(i);
+        double[] a = points.get(Math.max(0, i - 2)), b = points.get(Math.min(points.size() - 1, i + 2));
+        double hx = b[0] - a[0], hz = b[1] - a[1], len = Math.max(1e-6, Math.hypot(hx, hz));
+        hx /= len;
+        hz /= len;
+        double rx = -hz, rz = hx;   // the right hand
+        int reach = HALF + e;
+        int px = (int) Math.floor(p[0]), pz = (int) Math.floor(p[1]);
+        for (int bx = px - reach - 1; bx <= px + reach + 1; bx++) {
+            for (int bz = pz - reach - 1; bz <= pz + reach + 1; bz++) {
+                double cx = bx + 0.5 - p[0], cz = bz + 0.5 - p[1];
+                double lat = cx * rx + cz * rz, along = cx * hx + cz * hz;
+                if (Math.abs(lat) > reach + 0.5 || !owns(i, bx + 0.5, bz + 0.5)) continue;
+                if ((i == 0 && along < -0.5) || (i == points.size() - 1 && along > 0.5)) continue;   // not past the ends
+                double ao = Math.abs(lat);
+                if (site.protectedLand(bx, bz)) {
+                    if (ao <= 3.5 + e) return new int[]{bx, bz};
+                    continue;   // a shoulder in someone's land: left alone
+                }
+                cols.add(new Col(bx, bz, lat));
+            }
+        }
+        return null;
+    }
+
+    /**
+     * A tunnel already built mended (/관리자 국도 터널보수): its cross-section at point i built again to today's ceiling
+     * ({@link RoadClearance#ceilings}), but only from where its old ceiling was ({@link RoadClearance#legacy}) up, and only
+     * where the block is the tunnel's own, the ground's or air ({@link #carvable}; water only sealed with a solid block):
+     * never the surface or the lined walls under the old ceiling, a block a player put, protected land, another road's
+     * lanes. On the flat the old and the new ceiling are the same: nothing changes. How many blocks changed (0: not a
+     * tunnel).
+     */
+    public int rebore(int i) {
+        if (parts[i] != RoadProfile.Part.TUNNEL) return 0;
+        int from = surfaceY(halves[i]) + 5;
+        int[] changed = {0};
+        Site filtered = new Site() {
+            boolean may(int x, int y, int z, Material to) {
+                if (y < from || !world.inside(y)) return false;
+                Material now = world.get(x, y, z);
+                if (now == null || now == to) return false;
+                return carvable(now) || (to != Material.AIR && world.liquid(x, y, z));
+            }
+
+            public boolean inside(int y) {
+                return world.inside(y);
+            }
+
+            public boolean air(int x, int y, int z) {
+                return world.air(x, y, z);
+            }
+
+            public boolean liquid(int x, int y, int z) {
+                return world.liquid(x, y, z);
+            }
+
+            public boolean natural(int x, int y, int z) {
+                return world.natural(x, y, z);
+            }
+
+            public boolean fillable(int x, int y, int z) {
+                return world.fillable(x, y, z);
+            }
+
+            public void set(int x, int y, int z, Material m) {
+                if (!may(x, y, z, m)) return;
+                world.set(x, y, z, m);
+                changed[0]++;
+            }
+
+            public void set(int x, int y, int z, String data) {
+                int b = data.indexOf('[');
+                Material m = Material.matchMaterial(b < 0 ? data : data.substring(0, b));
+                if (m == null || !may(x, y, z, m)) return;
+                world.set(x, y, z, data);
+                changed[0]++;
+            }
+
+            public boolean protectedLand(int x, int z) {
+                return world.protectedLand(x, z);
+            }
+
+            public void roadSign(double x, double y, double z, float yaw, String dock, double km, int route, RoadSign.Kind kind) {}
+
+            public RoadNetwork.Spot road(int x, int z) {
+                return world.road(x, z);
+            }
+
+            public Material get(int x, int y, int z) {
+                return world.get(x, y, z);
+            }
+        };
+        Site was = site;
+        site = guard(filtered);
+        try {
+            int dj = junction(i);
+            int e = Math.max(widen(i), dj <= 2 ? WIDEN : dj <= 5 ? 1 : 0);
+            List<Col> cols = new ArrayList<>();
+            columns(i, e, cols);   // protected land: those columns are not in it
+            boolean portal = i == 0 || i == points.size() - 1 || parts[i - 1] != parts[i] || parts[i + 1] != parts[i];
+            for (Col c : cols) {
+                RoadNetwork.Spot o = old(c.x(), c.z());
+                if (o != null && o.paved()) continue;   // another road's lanes or kerbs: never
+                tunnel(c.x(), c.z(), halves[i], Math.abs(c.lat()) - e, style.surface(), i, c.lat() > 0, portal);
+            }
+        } finally {
+            site = was;
+        }
+        return changed[0];
+    }
+
+    /**
+     * What {@link #rebore} may take out of (or put over) a tunnel: air, the blocks a tunnel is built of, the ground's own
+     * blocks (stone and its kinds, deepslate, dirt, sand, gravel, clay, terracotta, ice, snow, ores, roots and plants).
+     * Not water or lava, nor anything made (planks, glass, a chest, bricks but the tunnel's own stone bricks, ...).
+     */
+    static boolean carvable(Material m) {
+        if (m == Material.AIR || m == Material.CAVE_AIR || m == Material.VOID_AIR) return true;
+        switch (m) {
+            case STONE_BRICKS, SEA_LANTERN, WHITE_CONCRETE, YELLOW_TERRACOTTA, POLISHED_ANDESITE,
+                 STONE, DEEPSLATE, TUFF, CALCITE, GRANITE, DIORITE, ANDESITE, SMOOTH_BASALT, DRIPSTONE_BLOCK, POINTED_DRIPSTONE,
+                 DIRT, COARSE_DIRT, ROOTED_DIRT, GRASS_BLOCK, PODZOL, MYCELIUM, MUD, CLAY, GRAVEL, SAND, RED_SAND, SANDSTONE,
+                 RED_SANDSTONE, TERRACOTTA, ICE, PACKED_ICE, BLUE_ICE, SNOW, SNOW_BLOCK, POWDER_SNOW, MOSS_BLOCK, MOSS_CARPET,
+                 GLOW_LICHEN, VINE, HANGING_ROOTS, SHORT_GRASS, TALL_GRASS, FERN, LARGE_FERN, AMETHYST_BLOCK, BUDDING_AMETHYST,
+                 MAGMA_BLOCK, COBWEB -> {
+                return true;
+            }
+            default -> { }
+        }
+        String n = m.name();
+        return n.endsWith("_ORE") || (n.endsWith("_TERRACOTTA") && !n.endsWith("GLAZED_TERRACOTTA")) || n.endsWith("_LOG") || n.endsWith("_LEAVES");
+    }
 
     /** The column whose lat is nearest `want` (on its side, further out than `beyond`), or null. */
     private static Col nearest(List<Col> cols, double want, double beyond) {
@@ -529,7 +672,7 @@ public final class RoadSection {
         int y = surfaceY(h), base = RoadProfile.block(h);
         if (ao <= 3.5) {
             site.set(x, y, z, top);
-            cut(x, z, y, 5);
+            cut(x, z, y, Math.max(5, ceilings[i] - y));   // on a grade: as high as a tunnel's ceiling would be
             if (y != base) site.set(x, base, z, Material.STONE);   // under a slab
             for (int k = 1; k <= 8; k++) {                         // fill
                 if (!site.fillable(x, base - k, z)) break;
@@ -559,7 +702,7 @@ public final class RoadSection {
         clearTrees(x, z, base + 1);
     }
 
-    private void bridge(int x, int z, int h, double ao, Material top, boolean pillar) {
+    private void bridge(int x, int z, int h, double ao, Material top, boolean pillar, int ceiling) {
         if (ao > 3.5) return;
         int y = surfaceY(h), base = RoadProfile.block(h);
         boolean half = y != base;
@@ -567,7 +710,7 @@ public final class RoadSection {
         // (a wall on a slab would float half a block over it)
         site.set(x, y, z, ao > 2.5 ? Material.STONE_BRICKS : top);
         if (half) site.set(x, base, z, Material.STONE_BRICKS);
-        for (int k = y + 1; k <= y + 4; k++) site.set(x, k, z, Material.AIR);
+        for (int k = y + 1; k <= Math.max(y + 4, ceiling - 1); k++) site.set(x, k, z, Material.AIR);
         if (ao > 2.5) site.set(x, y + 1, z, Material.STONE_BRICK_WALL);   // the railing
         if (pillar && ao <= 2.5 && old(x, z) == null) {   // never a pier on another road
             for (int k = 1; k <= 64; k++) {
@@ -575,20 +718,23 @@ public final class RoadSection {
                 site.set(x, base - k, z, Material.STONE_BRICKS);
             }
         }
-        clearTrees(x, z, y + 5);
+        clearTrees(x, z, Math.max(y + 5, ceiling));
     }
 
     private void tunnel(int x, int z, int h, double ao, Material top, int i, boolean right, boolean portal) {
-        int y = surfaceY(h), base = RoadProfile.block(h);
+        int y = surfaceY(h), base = RoadProfile.block(h), c = ceilings[i], cap = c;
+        // where the ceiling steps (on a grade) the higher bore is closed over by the lower ceiling's columns
+        for (int k = Math.max(0, i - 1); k <= Math.min(points.size() - 1, i + 1); k++) cap = Math.max(cap, ceilings[k]);
         if (ao <= 3.5) {
             site.set(x, y, z, top);
             if (y != base) site.set(x, base, z, Material.STONE);
-            for (int k = y + 1; k <= y + 4; k++) site.set(x, k, z, Material.AIR);
-            site.set(x, y + 5, z, i % 8 == 0 && ao <= 0.5 ? Material.SEA_LANTERN : Material.STONE_BRICKS);
-            if (portal) site.set(x, y + 6, z, Material.STONE_BRICKS);   // the portal's lintel
+            for (int k = y + 1; k < c; k++) site.set(x, k, z, Material.AIR);
+            site.set(x, c, z, i % 8 == 0 && ao <= 0.5 ? Material.SEA_LANTERN : Material.STONE_BRICKS);   // the light flush in it
+            for (int k = c + 1; k <= cap; k++) if (site.fillable(x, k, z)) site.set(x, k, z, Material.STONE_BRICKS);
+            if (portal) site.set(x, c + 1, z, Material.STONE_BRICKS);   // the portal's lintel
         } else if (portal) {
-            for (int k = y; k <= y + 6; k++) site.set(x, k, z, Material.STONE_BRICKS);   // the portal: wider, higher
-            clearTrees(x, z, y + 7);
+            for (int k = y; k <= cap + 1; k++) site.set(x, k, z, Material.STONE_BRICKS);   // the portal: wider, higher
+            clearTrees(x, z, cap + 2);
         } else if (ao <= 4.5) {
             // the lined wall: a stone brick footing, a grey dado, a white band with a yellow stripe (a light in it every 8,
             // between the ceiling's, sides taking turns), stone bricks to the ceiling
@@ -598,16 +744,16 @@ public final class RoadSection {
             site.set(x, y + 2, z, Material.WHITE_CONCRETE);
             site.set(x, y + 3, z, light ? Material.SEA_LANTERN : Material.YELLOW_TERRACOTTA);
             site.set(x, y + 4, z, Material.WHITE_CONCRETE);
-            site.set(x, y + 5, z, Material.STONE_BRICKS);
+            for (int k = y + 5; k <= cap; k++) site.set(x, k, z, Material.STONE_BRICKS);   // stone bricks up to the ceiling
         }
     }
 
     /**
-     * A street light: a post at `post` (the verge, or a bridge's railing) up to 6 over the road, an arm along the top to
-     * over the edge lane and a lantern hanging under its end, 5 over the road (4 clear blocks under it: no vehicle
-     * touches it).
+     * A street light: a post at `post` (the verge, or a bridge's railing) up to a block over the ceiling (6 over a flat
+     * road), an arm along the top to over the edge lane and a lantern hanging under its end in the ceiling's block (5
+     * over a flat road, 4 clear blocks under it; higher on a grade: {@link RoadClearance}): no vehicle touches it.
      */
-    private void lamp(Col post, List<Col> cols, int side, int e, int h, boolean deck) {
+    private void lamp(Col post, List<Col> cols, int side, int e, int h, boolean deck, int ceiling) {
         if (site.protectedLand(post.x(), post.z())) return;
         for (Col c : cols) {   // the post, its arm and lantern: never in or over another road's lanes
             if (Math.signum(c.lat()) != side || Math.abs(c.lat()) < 1.5 + e || Math.abs(c.lat()) > Math.abs(post.lat()) + 0.01) continue;
@@ -616,18 +762,19 @@ public final class RoadSection {
         }
         int y = surfaceY(h), base = RoadProfile.block(h);
         if (!deck) footing(post.x(), base, post.z());
-        for (int k = deck ? y + 1 : base + 1; k <= y + 6; k++) site.set(post.x(), k, post.z(), Material.STONE_BRICK_WALL);
+        int arm = Math.max(y + 6, ceiling + 1);
+        for (int k = deck ? y + 1 : base + 1; k <= arm; k++) site.set(post.x(), k, post.z(), Material.STONE_BRICK_WALL);
         Col end = nearest(cols, side * (2.0 + e), 1.5 + e);
         if (end == null || end.equals(post)) {
-            site.set(post.x(), y + 5, post.z(), Material.LANTERN);
+            site.set(post.x(), arm - 1, post.z(), Material.LANTERN);
             return;
         }
         for (Col c : cols) {
             double l = Math.abs(c.lat());
             if (Math.signum(c.lat()) != side || c.equals(post) || l < Math.abs(end.lat()) - 0.01 || l > Math.abs(post.lat()) + 0.01) continue;
-            site.set(c.x(), y + 6, c.z(), Material.STONE_BRICK_WALL);   // the arm
+            site.set(c.x(), arm, c.z(), Material.STONE_BRICK_WALL);   // the arm
         }
-        site.set(end.x(), y + 5, end.z(), "minecraft:lantern[hanging=true]");
+        site.set(end.x(), arm - 1, end.z(), "minecraft:lantern[hanging=true]");
     }
 
     /** Whether a block stands on the one under it like a post: a wall or a fence (a railing, a guardrail, a light's post). */

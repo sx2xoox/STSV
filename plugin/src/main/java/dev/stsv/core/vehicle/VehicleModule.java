@@ -194,6 +194,8 @@ public final class VehicleModule implements StsvModule, Listener {
     private BukkitTask task;
     private long ticks;
     private boolean spawnSoon;
+    /** 탈것의 느낌: load and slope, dust, lamps, engine start / stop, springs, effort (vehicle_feel.yml) */
+    final VehicleFeelView feel = new VehicleFeelView(this);
 
     /** config.yml vehicles.* */
     record Settings(double maxSpeed, int smoothing, float viewRange, boolean culling, int saveTicks, boolean sirenSound, String sirenKey,
@@ -212,6 +214,7 @@ public final class VehicleModule implements StsvModule, Listener {
     public void enable(STSVPlugin plugin) {
         this.plugin = plugin;
         settings = settings();
+        feel.load(plugin);
         store = new VehicleStore(plugin.db());
         store.init();
         jigeStore = new JigeStore(plugin.db());
@@ -253,6 +256,7 @@ public final class VehicleModule implements StsvModule, Listener {
     @Override
     public void reload() {
         settings = settings();
+        feel.load(plugin);
         weightEpoch++;
         // the item files may have changed: the shown vehicles take their new settings (parts again, riders stay)
         for (LiveVehicle v : List.copyOf(live.values())) {
@@ -343,6 +347,21 @@ public final class VehicleModule implements StsvModule, Listener {
     /** What stacks weigh changed (the content plugin read its weights again): every bed is weighed again when next asked. */
     public void weightsChanged() {
         weightEpoch++;
+    }
+
+    /**
+     * 탈것의 느낌 of a vehicle (or a 지게) by its item ("ns:id"): its power, effort and lamps (vehicle_feel.yml); without its
+     * own, a plain one of this power.
+     */
+    public VehicleFeel.Spec feel(String itemKey, VehicleFeel.Power fallback) {
+        return feel.spec(itemKey, fallback);
+    }
+
+    /** The share of its payload a vehicle carries now, 0..1 (by weight; with nothing weighed: by the slots used). */
+    double loadShare(LiveVehicle v) {
+        if (v.cargo == null || v.spec.cargo() == null) return 0;
+        if (cargoWeight == null) return Math.min(1, (double) v.cargoUsed() / Math.max(1, v.spec.cargo().slots()));
+        return VehicleFeel.share(v.weights.total(v.cargo, this::weightOf, weightEpoch), v.spec.cargo().payload());
     }
 
     /** What a stack weighs (0 without a weight hook). */
@@ -1103,7 +1122,7 @@ public final class VehicleModule implements StsvModule, Listener {
         return c.getX() >= x0 && c.getX() <= x1 && c.getZ() >= z0 && c.getZ() <= z1;
     }
 
-    private Location at(LiveVehicle v) {
+    Location at(LiveVehicle v) {
         return new Location(v.world, v.st.x, v.st.y, v.st.z, (float) (v.st.yaw + settings.yawOffset()), 0);
     }
 
@@ -1111,7 +1130,7 @@ public final class VehicleModule implements StsvModule, Listener {
         return new float[]{(float) (Math.hypot(s.length(), s.width()) + 1), (float) (s.height() + 1)};
     }
 
-    private ItemDisplay display(LiveVehicle v, ItemStack shown, Transformation t) {
+    ItemDisplay display(LiveVehicle v, ItemStack shown, Transformation t) {
         return v.world.spawn(at(v), ItemDisplay.class, d -> {
             d.setPersistent(false);
             d.setItemStack(shown);
@@ -1158,7 +1177,7 @@ public final class VehicleModule implements StsvModule, Listener {
         return out;
     }
 
-    private static ItemStack model(NamespacedKey key) {
+    static ItemStack model(NamespacedKey key) {
         if (key == null) return ItemStack.empty();
         ItemStack it = new ItemStack(Material.PAPER);
         it.editMeta(m -> m.setItemModel(key));
@@ -1183,7 +1202,7 @@ public final class VehicleModule implements StsvModule, Listener {
             v.lights = display(v, model(v.siren ? s.lights().flash().getFirst() : s.lights().dark()), part(s.lights().at()));
         }
         if (s.cargo() != null && !s.cargo().stages().isEmpty())
-            v.load = display(v, model(stageModel(v)), tilted(s, s.cargo().at(), 1, v.tiltShown, v.lean));
+            v.load = display(v, model(stageModel(v)), load(v, v.tiltShown));
         for (int i = 0; i < s.squares(); i++) {
             double[] c = VehiclePhysics.world(v.st.x, v.st.y, v.st.z, v.st.yaw, new VehicleSpec.Vec(0, 0, s.squareOffset(i)));
             v.hits.add(v.world.spawn(new Location(v.world, c[0], c[1], c[2]), Interaction.class, h -> {
@@ -1206,6 +1225,7 @@ public final class VehicleModule implements StsvModule, Listener {
             });
         }
         if (v.train != null) v.train.spawn(v, settings, v.cargo);
+        feel.spawn(v);
     }
 
     /** A cart's handle click box (it stands where the puller stands). */
@@ -1216,8 +1236,13 @@ public final class VehicleModule implements StsvModule, Listener {
         return v.spec.pulled() && v.puller == null ? (float) v.spec.pull().restTilt() : 0f;
     }
 
-    private static Transformation body(LiveVehicle v, float tilt) {
-        return tilted(v.spec, new VehicleSpec.Vec(0, 0, 0), v.spec.bodyScale(), tilt, v.lean);
+    static Transformation body(LiveVehicle v, float tilt) {
+        return VehicleFeelView.posed(v, tilted(v.spec, new VehicleSpec.Vec(0, 0, 0), v.spec.bodyScale(), tilt, v.lean), null);
+    }
+
+    /** The load's transformation: tipped and leaned with the body, on its springs and swaying (VehicleFeelView#posed). */
+    static Transformation load(LiveVehicle v, float tilt) {
+        return VehicleFeelView.posed(v, tilted(v.spec, v.spec.cargo().at(), 1, tilt, v.lean), v.spec.cargo().at());
     }
 
     /**
@@ -1300,6 +1325,7 @@ public final class VehicleModule implements StsvModule, Listener {
         if (v.load != null) v.load.remove();
         if (v.handle != null) v.handle.remove();
         if (v.train != null) v.train.remove();
+        feel.remove(v);
         v.wheels.forEach(Entity::remove);
         v.spinners.forEach(Entity::remove);
         v.hits.forEach(Entity::remove);
@@ -1395,7 +1421,8 @@ public final class VehicleModule implements StsvModule, Listener {
         if (v.cargoSave.due(v.cargoVersion, ticks)) flushCargo(v);   // a change in its bed has waited long enough
         if (v.body == null || !v.body.isValid() || v.hits.stream().anyMatch(h -> !h.isValid()) || v.wheels.stream().anyMatch(w -> !w.isValid())
                 || v.spinners.stream().anyMatch(w -> !w.isValid())
-                || (v.spec.pulled() && (v.handle == null || !v.handle.isValid())) || (v.train != null && v.train.broken())) {
+                || (v.spec.pulled() && (v.handle == null || !v.handle.isValid())) || (v.train != null && v.train.broken())
+                || VehicleFeelView.broken(v)) {
             removeParts(v, false);
             spawnParts(v);
         }
@@ -1418,6 +1445,7 @@ public final class VehicleModule implements StsvModule, Listener {
         double along = 0;
         if (active) {
             double x = v.st.x, y = v.st.y, z = v.st.z, steer = v.st.steer, roll = v.st.roll;
+            double[] feltLoad = feel.factors(v, ticks, weightEpoch);   // the load and the slope: {top, accel}
             float yaw = v.st.yaw;
             double[] trainWas = v.train == null ? null : trainPlace(v);
             if (puller != null) {
@@ -1427,9 +1455,10 @@ public final class VehicleModule implements StsvModule, Listener {
                 v.boatMode = BoatPhysics.step(v.st, in, v.spec, new WorldWater(v.world), settings.maxSpeed());
                 v.boatTurn = VehicleSeats.signed(v.st.yaw - yaw);
             } else if (v.train != null) {
-                TrainPhysics.step(v.st, v.train.units, in, v.spec, terrain, new WorldGround(v.world), settings.maxSpeed(), roadBonus(v));
+                TrainPhysics.step(v.st, v.train.units, in, v.spec, terrain, new WorldGround(v.world), settings.maxSpeed(), roadBonus(v),
+                        feltLoad[0], feltLoad[1]);
             } else {
-                VehiclePhysics.step(v.st, in, v.spec, terrain, settings.maxSpeed(), 1f, roadBonus(v), settings.maxSpeed());
+                VehiclePhysics.step(v.st, in, v.spec, terrain, settings.maxSpeed(), 1f, roadBonus(v), settings.maxSpeed(), feltLoad[0], feltLoad[1]);
             }
             if (v.st.bumped) {
                 if (v.spec.floats()) v.world.playSound(at(v), Sound.BLOCK_WOOD_HIT, SoundCategory.NEUTRAL, 0.8f, 0.6f);
@@ -1448,14 +1477,17 @@ public final class VehicleModule implements StsvModule, Listener {
                 move(v);
                 v.dirty = true;
                 if (v.spec.pulled()) rolling(v, Math.hypot(v.st.x - x, v.st.z - z));
+                feel.moved(v, x, y, z, VehicleSeats.signed(v.st.yaw - yaw), puller != null ? puller : driver, ticks);
             }
             // a two-wheeler leans into the turn (body, wheels, load and crank together)
             float lean = v.lean, target = leanTarget(v.spec, v.st.steer, v.st.speed);
             if (lean != target) v.lean = Math.abs(target - lean) <= LEAN_STEP ? target : lean + Math.copySign(LEAN_STEP, target - lean);
             boolean leaned = v.lean != lean;
             if (leaned) {
-                glide(v.body, body(v, v.tiltShown));
-                if (v.load != null) glide(v.load, tilted(v.spec, v.spec.cargo().at(), 1, v.tiltShown, v.lean));
+                Transformation b = body(v, v.tiltShown);
+                glide(v.body, b);
+                feel.glideLamps(v, b, settings.smoothing());
+                if (v.load != null) glide(v.load, load(v, v.tiltShown));
             }
             if (v.st.roll != roll) {
                 double d = v.st.roll - roll;   // the roll wraps at 4 pi: the turn made this tick
@@ -1481,6 +1513,7 @@ public final class VehicleModule implements StsvModule, Listener {
         light(v, active);
         lights(v);
         horn(v, driver != null && in.jump());
+        feel.tick(v, driver, puller != null ? puller : driver, in, ticks, settings.engine() && v.spec.engine() != null);
         engine(v, driver);
         if (v.cargoViewer != null) watchCargo(v);
         if (v.dirty && (ticks - v.savedAt >= settings.saveTicks() || (v.st.speed == 0 && driver == null && v.puller == null))) save(v);
@@ -1514,6 +1547,7 @@ public final class VehicleModule implements StsvModule, Listener {
         for (ItemDisplay w : v.spinners) w.teleport(at);
         if (v.lights != null) v.lights.teleport(at);
         if (v.load != null) v.load.teleport(at);
+        feel.teleport(v, at);
         if (v.handle != null) {
             double[] h = CartPull.hitch(v.st, v.spec);
             v.handle.teleport(new Location(v.world, h[0], h[1], h[2]));
@@ -1564,7 +1598,7 @@ public final class VehicleModule implements StsvModule, Listener {
     private Location seatLocation(LiveVehicle v, int i) {
         if (v.train != null) return v.train.seat(v, i);   // a seat may be on a towed unit
         double[] c = VehiclePhysics.world(v.st.x, v.st.y, v.st.z, v.st.yaw, v.spec.seats().get(i));
-        return new Location(v.world, c[0], c[1], c[2], v.st.yaw, 0);
+        return new Location(v.world, c[0], c[1] + VehicleFeelView.seatLift(v, i), c[2], v.st.yaw, 0);   // a pedalling rider rises and sinks
     }
 
     /** The light bar flashes while the siren is on (and the siren sounds, two tones in turn). */
@@ -1620,7 +1654,7 @@ public final class VehicleModule implements StsvModule, Listener {
     }
 
     /** Is a player within range (blocks) of the vehicle? */
-    private static boolean seen(LiveVehicle v, double range) {
+    static boolean seen(LiveVehicle v, double range) {
         double r2 = range * range;
         for (Player p : v.world.getPlayers()) {
             Location l = p.getLocation();
@@ -1755,6 +1789,12 @@ public final class VehicleModule implements StsvModule, Listener {
         v.seats[seat] = new LiveVehicle.Seat(carrier, chair);
         hideBoxes(v, p, true);
         if (seat == 0) {
+            // the engine starts (its start sound; the hum begins as it ends), unless it is running already
+            int wait = feel.driverIn(v, settings.engine() && v.spec.engine() != null);
+            if (wait > 0) {
+                v.engineOn = true;
+                v.engineAt = ticks + wait;
+            }
             HudModule.flash(p, Lang.mm("vehicle.driving", "keys", Lang.raw(v.spec.lights() != null ? "vehicle.keys-siren"
                     : v.spec.train() != null && v.spec.train().animal() != null ? "vehicle.keys-moo" : "vehicle.keys-horn")));
         } else if (!mayDrive && !taken[0]) {
@@ -1783,10 +1823,20 @@ public final class VehicleModule implements StsvModule, Listener {
         if (seat == 0) driverLeft(v);
     }
 
-    /** The driver's seat emptied: the siren goes off, the horn and the engine stop. */
+    /**
+     * The driver's seat emptied: the siren goes off, the horn stops; the engine stops too (its stop sound) unless riders
+     * are left in a vehicle whose engine idles on for them (vehicle_feel.yml engine-start / engine-stop).
+     */
     private void driverLeft(LiveVehicle v) {
         v.siren = false;
+        if (feel.runsWithout(v)) {
+            VehicleSpec.Horn h = v.spec.horn();
+            v.horn.cut(ticks, settings.horn());
+            if (h != null) hornOff(v, h, true);
+            return;
+        }
         quiet(v, true);
+        feel.engineStop(v, settings.engine() && v.spec.engine() != null);
     }
 
     @EventHandler
@@ -1959,7 +2009,7 @@ public final class VehicleModule implements StsvModule, Listener {
         v.pullerSprinting = p.isSprinting();
         v.rolled = 0;
         pulling.put(p.getUniqueId(), v.id);
-        PullSpeed.apply(p.getAttribute(Attribute.MOVEMENT_SPEED), v.spec.pull().slowdown(), v.pullerSprinting);
+        PullSpeed.apply(p.getAttribute(Attribute.MOVEMENT_SPEED), feel.pullSlowdown(v, ticks, weightEpoch), v.pullerSprinting);
         if (v.pullerSprinting) noSprint(p);
         v.world.playSound(at(v), Sound.BLOCK_WOODEN_TRAPDOOR_CLOSE, SoundCategory.NEUTRAL, 0.5f, 0.8f);
         HudModule.flash(p, Lang.mm("vehicle.pulling", "percent", Math.round(v.spec.pull().slowdown() * 100)));
@@ -1986,9 +2036,10 @@ public final class VehicleModule implements StsvModule, Listener {
         }
         boolean sprinting = p.isSprinting();
         if (sprinting) noSprint(p);
-        if (sprinting != v.pullerSprinting) {
+        // the speed modifier follows the sprint, and (now and then) the load and the slope (VehicleFeel)
+        if (sprinting != v.pullerSprinting || Math.floorMod(ticks + v.id, 10) == 0) {
             v.pullerSprinting = sprinting;
-            PullSpeed.apply(p.getAttribute(Attribute.MOVEMENT_SPEED), v.spec.pull().slowdown(), sprinting);
+            PullSpeed.apply(p.getAttribute(Attribute.MOVEMENT_SPEED), feel.pullSlowdown(v, ticks, weightEpoch), sprinting);
         }
     }
 
@@ -2063,7 +2114,7 @@ public final class VehicleModule implements StsvModule, Listener {
         if (v.load != null && v.spec.cargo() != null) {
             v.load.setInterpolationDelay(0);
             v.load.setInterpolationDuration(ticks);
-            v.load.setTransformation(tilted(v.spec, v.spec.cargo().at(), 1, tilt, v.lean));
+            v.load.setTransformation(load(v, tilt));
         }
     }
 
@@ -2119,7 +2170,7 @@ public final class VehicleModule implements StsvModule, Listener {
     }
 
     /** Plays a sound bound to the body (it moves with the vehicle) to everyone in range; returns who was sent it. */
-    private List<Player> play(LiveVehicle v, String key, float volume, float pitch) {
+    List<Player> play(LiveVehicle v, String key, float volume, float pitch) {
         List<Player> to = listeners(v, volume);
         boolean bound = v.body != null && v.body.isValid();
         for (Player p : to) {
@@ -2175,7 +2226,8 @@ public final class VehicleModule implements StsvModule, Listener {
     /** The engine while someone drives: the next segment as the last one starts fading, at the speed's pitch. */
     private void engine(LiveVehicle v, Player driver) {
         VehicleSpec.Engine e = v.spec.engine();
-        if (e == null || driver == null || !settings.engine()) {
+        // an engine with a start and a stop idles on while riders are left in (VehicleFeelView#runsWithout)
+        if (e == null || (driver == null && !feel.runsWithout(v)) || !settings.engine()) {
             if (v.engineOn) engineOff(v);
             return;
         }

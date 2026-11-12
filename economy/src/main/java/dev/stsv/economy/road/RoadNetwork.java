@@ -56,7 +56,11 @@ public final class RoadNetwork {
     /** How far (points) a branch keeps from the old road's street lights. */
     public static final int CLEAR_OF_LIGHTS = 8;
 
-    /** How far over an old road's surface a new road's deck goes (blocks): its lights (6 high) stay under it. */
+    /**
+     * How far over an old road's highest surface near the crossing ({@link #headroom}) a new road's deck goes (blocks): its
+     * lights (6 high on the flat) stay under it, and 6 clear under the deck is more than a vehicle needs
+     * ({@link RoadClearance#HEADROOM}).
+     */
     public static final int CLEARANCE = 7;
 
     private final List<Road> roads;
@@ -167,6 +171,30 @@ public final class RoadNetwork {
         for (int i = 0; i < points.size(); i++) {
             Spot s = at((int) Math.floor(points.get(i)[0]), (int) Math.floor(points.get(i)[1]));
             out[i] = s != null && s.paved() ? s.half() : Integer.MIN_VALUE;
+        }
+        return out;
+    }
+
+    /** How far (points along the old road) a deck over it looks for its highest surface: a vehicle's length and the deck's width. */
+    public static final int HEADROOM_REACH = RoadClearance.REACH + RoadSection.HALF;
+
+    /**
+     * For each point of a new road: the highest surface (half blocks) of the old road it runs over within
+     * {@link #HEADROOM_REACH} of where it crosses (a deck over it clears that: a long vehicle coming down its grade under
+     * the deck stands on its high end), else {@link Integer#MIN_VALUE}.
+     */
+    public int[] headroom(List<double[]> points) {
+        int[] out = new int[points.size()];
+        for (int i = 0; i < points.size(); i++) {
+            Spot s = at((int) Math.floor(points.get(i)[0]), (int) Math.floor(points.get(i)[1]));
+            if (s == null || !s.paved()) {
+                out[i] = Integer.MIN_VALUE;
+                continue;
+            }
+            int[] h = roads.get(s.road()).halves();
+            int m = s.half();
+            for (int k = Math.max(0, s.point() - HEADROOM_REACH); k <= Math.min(h.length - 1, s.point() + HEADROOM_REACH); k++) m = Math.max(m, h[k]);
+            out[i] = m;
         }
         return out;
     }
