@@ -67,4 +67,18 @@ class LandAccessTest {
         assertTrue(LandAccess.sheltered(Kind.OTHER, land));
         assertFalse(LandAccess.sheltered(Kind.OTHER, null));
     }
+
+    /** Vehicles: anywhere but another's land, the server's land (town, docks, terminals) and roads.avoid boxes. */
+    @Test
+    void vehiclesGoAnywhereButOthersAndTheServers() {
+        assertEquals(LandAccess.VehicleSpot.ALLOW, LandAccess.vehicleSpot(null, stranger, false, false), "unclaimed (build world too) and the wild");
+        assertEquals(LandAccess.VehicleSpot.ALLOW, LandAccess.vehicleSpot(land, owner, false, false), "my land");
+        assertEquals(LandAccess.VehicleSpot.ALLOW, LandAccess.vehicleSpot(land, member, false, false), "the land I live on");
+        assertEquals(LandAccess.VehicleSpot.OTHERS_LAND, LandAccess.vehicleSpot(land, stranger, false, false));
+        assertEquals(LandAccess.VehicleSpot.SERVER_LAND, LandAccess.vehicleSpot(town, owner, false, false), "the town, a dock, a terminal");
+        assertEquals(LandAccess.VehicleSpot.PROTECTED, LandAccess.vehicleSpot(null, owner, false, true), "a roads.avoid box");
+        assertEquals(LandAccess.VehicleSpot.ALLOW, LandAccess.vehicleSpot(town, stranger, true, true), "operators");
+        // blocks keep their rule: the unclaimed build world stays closed to building
+        assertEquals(UNCLAIMED_BUILD, LandAccess.decide(Kind.BUILD, null, owner, false, true));
+    }
 }

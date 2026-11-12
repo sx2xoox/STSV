@@ -79,6 +79,7 @@ public final class MarketModule extends EcoModule {
         ItemStack it = slot < 0 ? null : p.getInventory().getItem(slot);
         if (it == null || it.isEmpty()) return "market.hold-item";
         if (core.economy().isCheque(it)) return "market.no-cheques";
+        if (core.vehicles() != null && core.vehicles().noTrade(it)) return "market.no-vehicles";
         if (store.count(p.getUniqueId()) >= limit(p.getUniqueId())) return "market.full";
         return null;
     }

@@ -101,6 +101,7 @@ public final class AuctionModule extends EcoModule {
     public String problem(Player p, int slot) {
         ItemStack it = slot < 0 ? null : p.getInventory().getItem(slot);
         if (it == null || it.isEmpty() || core.economy().isCheque(it)) return "auction.hold-item";
+        if (core.vehicles() != null && core.vehicles().noTrade(it)) return "auction.no-vehicles";
         if (store.playerRunning() >= rules.maxRunning()) return "auction.full";
         if (store.running().stream().anyMatch(a -> p.getUniqueId().equals(a.seller))) return "auction.one-each";
         if (!core.economy().has(p.getUniqueId(), rules.auctionDeposit())) return "auction.no-deposit";
