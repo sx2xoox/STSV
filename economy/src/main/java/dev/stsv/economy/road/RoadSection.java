@@ -111,6 +111,20 @@ public final class RoadSection {
             out.add(POLISHED_JOINT);
             return out;
         }
+
+        /**
+         * Every block a road's surface is made of: what a vehicle drives on ({@link #paved}), the kerbs and the slabs of
+         * the surface and the kerb (a half step). What {@link RoadFinder} knows a road by.
+         */
+        public java.util.Set<Material> roadBlocks() {
+            java.util.Set<Material> out = paved();
+            out.add(kerb);
+            for (Material m : new Material[]{surface, kerb}) {
+                Material s = slab(m);
+                if (s != null) out.add(s);
+            }
+            return out;
+        }
     }
 
     /** Half the width it touches: the surface ±2.5, the kerbs to ±3.5, the shoulders to ±5.5 (plus {@link #WIDEN} at the gate). */
