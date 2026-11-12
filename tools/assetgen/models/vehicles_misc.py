@@ -70,6 +70,10 @@ def _hull_paint(seg_hw):
         if y < WL + 1:
             return ("police_blue", 1.8)                           # the dark boot stripe along the waterline
         along = z if c.face in ("east", "west") else x
+        if fy == 12:
+            return ("fabric_red", 2.4)                            # a red band under the gunwale ...
+        if fy == 11:
+            return ("petal_yellow", 2.2)                          # ... over a yellow pinstripe
         col = math.floor(along)
         if h3(col, 3, 1 if x > 0 else 2, 43) < 0.045:
             # rust weeping from a nail: a run a few rows long below it, fading as it goes down
@@ -291,6 +295,20 @@ def _wheelhouse(m):
             return ("lamp", 4.6) if math.hypot(c.p[0] + 6, c.p[1] - top - 3.5) < 1.2 else ("blade", 2.4)
         return ("blade", 2.6 if c.face == "up" else 1.8)
     m.box("searchlight", (-7.5, top + 2, z0 - 1), (-4.5, top + 5, z0 + 2), Paint("blade", 2, noise=0, rim=0.6, decal=light))
+    # squid-fishing lamps (집어등): big bare bulbs hung from a bar along the roof's front edge
+    def bar(c):
+        return ("iron", 2.6 if c.face == "up" else 1.6)
+    m.box("lamp_bar", (-12, top + 1.25, z0 - 3), (12, top + 2, z0 - 2.25), Paint("iron", 2, noise=0, rim=0.4, decal=bar))
+
+    def bulb(c):
+        x, y, z = c.p
+        if y > top + 0.5:
+            return ("blade", 3.0 if c.face == "up" else 2.2)       # the socket
+        if c.face in ("north", "west") and y > top - 0.75:
+            return ("feather", 3.4)                               # a glint on the glass
+        return ("glass", 3.0 if c.face != "down" else 2.0)
+    for bx in (-9, -3, 3, 9):
+        m.box("squid_lamp", (bx - 0.75, top - 1.5, z0 - 3.25), (bx + 0.75, top + 1.25, z0 - 2), Paint("glass", 3, noise=0, rim=0.5, decal=bulb))
     # the air horn: a little trumpet on the roof (the boat's horn)
     m.box("horn", (4, top + 2, z0 - 0.5), (6, top + 3.5, z0 + 4), Paint("blade", 2, noise=0, rim=0.6,
                                                                           decal=lambda c: ("rubber", 0) if c.face == "north" else None))
@@ -581,13 +599,17 @@ def _frame(m):
     m.box("pad", (4.5, 0, 8.25), (11.5, 11, 9), Paint("straw", 2, "weave", noise=0, rim=0.4, decal=pad))
     # the straw shoulder straps (밀삐): from the top bar over each shoulder and down the chest
     def strap(c):
-        return ("straw", 2.4 if math.floor(c.p[1] + c.p[2]) % 2 else 1.6)
+        # a braided straw band: chevrons of the braid, its two edges darker
+        x, y, z = c.p
+        edge = abs(abs(x - 8) - 2.75) > 0.6
+        k = (math.floor(y + z) + (1 if x > 8 else 0) + math.floor(abs(x - 8) * 2)) % 3
+        return ("straw", (1.4 if edge else 2.8 if k == 0 else 2.2 if k == 1 else 1.7))
     sp = Paint("straw", 2, noise=0, rim=0.4, decal=strap)
     for s in (1, -1):
         x = 8 + s * 2.75
-        m.box("strap", (x - 0.75, 11.5, 3.5), (x + 0.75, 12.5, 9.25), sp)
-        m.box("strap", (x - 0.75, 4, 3.25), (x + 0.75, 11.5, 3.75), sp)
-        m.box("strap", (x - 0.75, -1, 8.25), (x + 0.75, 0, 9.25), sp)
+        m.box("strap", (x - 1, 11.5, 3.5), (x + 1, 12.5, 9.25), sp)
+        m.box("strap", (x - 1, 4, 3.25), (x + 1, 11.5, 3.75), sp)
+        m.box("strap", (x - 1, -1, 8.25), (x + 1, 0, 9.25), sp)
     # the prop stick (작대기) tucked upright beside the right post, its fork over the top bar
     sp2 = _pole("y", 6)
     m.box("stick", (15.5, -7, 10), (16.5, 16, 11), sp2)
@@ -646,8 +668,13 @@ def _mat_cover(m, x0, x1, y0, y1, z0, z1):
         w = (math.floor(px * 2) + math.floor(py if c.face != "up" else pz)) % 4
         return ("straw", (2.6 if w < 2 else 2.0) + (0.4 if h3(math.floor(px), math.floor(py), math.floor(pz), 91) > 0.85 else 0))
     p = Paint("straw", 2, noise=0, rim=0.5, decal=decal)
-    m.box("mat", (x0, y1 - 2.5, z0), (x1, y1, z1), p)                 # over the top
-    m.box("mat", (x0 + 0.25, y0, z1 - 1), (x1 - 0.25, y1 - 2.5, z1), p)   # down the back
+    m.box("mat", (x0, y1 - 2.5, z0), (x1, y1, z1), p)                 # over the top (the firewood shows below it)
+    # two straw ropes round the whole load, down its back and tied to the frame: twisted, lit on the lay
+    def rope(c):
+        return ("straw", 2.8 if math.floor(c.p[1] * 1.5) % 2 else 1.4)
+    rp = Paint("straw", 2, noise=0, rim=0.3, decal=rope)
+    for rx in (x0 + 3, x1 - 4):
+        m.box("lashing", (rx, y0 - 7, z1 - 0.75), (rx + 1, y1 - 2.5, z1 - 0.25), rp)
 
 
 def _full_load(m):

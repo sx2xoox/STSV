@@ -113,7 +113,7 @@ def golf_cart():
 
 @icon("hand_cart")
 def hand_cart():
-    # the flared wooden bed seen from its left side: a dark rim rail with iron corner caps over two warm boards, iron
+    # the flared wooden bed seen from its left side: a galvanised steel rim rail over two warm boards, steel
     # brackets at both ends, the rope coil hung on the side; a crate of beans and a tied sack over the rim; the lantern
     # hanging in front; the shaft running out to the left to its dark grip and steel ferrule, the prop stand under the
     # front; one chunky wheel (black tyre, steel rim, spokes, a bright hub) under the middle
@@ -136,9 +136,9 @@ def hand_cart():
     colours = {"e": ("burlap", 4), "r": ("straw", 3), "y": ("burlap", 3), "Y": ("burlap", 4),
                "c": ("wood", 4), "v": ("bean", 4), "V": ("bean", 3), "p": ("wood", 2), "w": ("wood", 3),
                "a": ("iron", 3), "n": ("iron", 2), "L": ("glow_amber", 4), "l": ("glow_amber", 5),
-               "I": ("steel", 3), "R": ("wood_dark", 3), "J": ("steel", 3), "j": ("steel", 2),
+               "I": ("steel", 3), "R": ("steel", 4), "J": ("steel", 3), "j": ("steel", 2),
                "U": ("plush", 4), "u": ("plush", 3), "B": ("plush", 4), "q": ("plush", 2),
                "o": ("burlap", 3), "O": ("burlap", 4), "x": ("wood_dark", 1),
-               "f": ("steel", 4), "g": ("leather", 2), "H": ("wood_dark", 3), "S": ("wood_dark", 2), "t": ("steel", 2),
+               "f": ("rubber", 1), "g": ("rubber", 2), "H": ("steel", 4), "S": ("steel", 3), "t": ("steel", 2),
                "z": ("rubber", 1), "m": ("steel", 4), "d": ("iron", 1), "s": ("steel", 3), "h": ("blade", 5)}
     return _draw(rows, colours).render()

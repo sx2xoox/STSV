@@ -220,61 +220,96 @@ def wheel_road():
     return _wheel("wheel_road", 11, 4, cap="blade", cap_d=7)
 
 
+def ring_x(m, name, d_out, d_in, x0, x1, paint):
+    """A flat ring around the x axis (a tyre seen from the side) on the pixel grid, merged into few boxes."""
+    n = int(round(d_out))
+    o = -d_out / 2
+    cells = [[d_in / 2 <= math.hypot(o + i + 0.5, o + j + 0.5) < d_out / 2 for i in range(n)] for j in range(n)]
+    used = [[False] * n for _ in range(n)]
+    for j in range(n):
+        i = 0
+        while i < n:
+            if not cells[j][i] or used[j][i]:
+                i += 1
+                continue
+            i1 = i
+            while i1 < n and cells[j][i1] and not used[j][i1]:
+                i1 += 1
+            j1 = j + 1
+            while j1 < n and all(cells[j1][k] and not used[j1][k] for k in range(i, i1)) \
+                    and (i == 0 or not cells[j1][i - 1] or used[j1][i - 1]) and (i1 == n or not cells[j1][i1]):
+                j1 += 1
+            for jj in range(j, j1):
+                for k in range(i, i1):
+                    used[jj][k] = True
+            # i runs along z, j along y
+            m.box(name, (x0, o + j, o + i), (x1, o + j1, o + i1), paint)
+            i = i1
+
+
 def wheel_handcart():
-    """The hand cart's wheel (diameter 12 px, 3 px wide): a fat rubber tyre with a tread and a bulging sidewall, a
-    steel rim, eight spokes on a dark well (four bright, four in the shade between them), and a domed axle cap
+    """The hand cart's wheel (diameter 12 px): a motorcycle-type wheel, see-through between its spokes. A fat
+    rubber tyre (a ring 2.5 px wide: blocks of tread on the running face, a lit bulge on the sidewall), a bright
+    steel rim on the spokes' plane, eight wire spokes to a hub with a flange each side, a domed axle cap
     standing out on each side (the same model turns on both sides of the cart)."""
     m = BModel("wheel_handcart", shift=(8, 8, 8), floor=None)
-    d, w2 = 12, 1.5
-    # the well inside the rim (6 x 6 px round the axle, rows from the top, columns from the front): eight round steel
-    # spokes, the four across two pixels thick with a lit side (L, towards the front / the top) and a shaded side (l),
-    # the four diagonal ones one pixel (S); . the dark gap, H the hub (under the cap)
-    well = ["S.Ll.S",
-            ".SLlS.",
-            "LLHHLL",
-            "llHHll",
-            ".SLlS.",
-            "S.Ll.S"]
+    d, w2, R_IN = 12, 1.25, 4.5
 
-    def side(c):
+    def tyre(c):
         y, z = c.p[1], c.p[2]
         rr = math.hypot(y, z)
         lit = y - 0.5 * z                                   # light from above and the front
-        if c.face not in ("east", "west"):
-            # the running face: chunky tread blocks, staggered either side of a groove round the middle
-            a = math.atan2(z, y)
-            k = math.floor((a + math.pi) / (2 * math.pi) * 24)
-            col = round(c.p[0])
-            if col == 0:
-                return ("rubber", 0.4 if k % 2 else 1.6)
-            return ("rubber", 2.4 if (k + (col > 0)) % 2 else 1.0)
-        if rr > 4.4:
-            # the tyre's sidewall: a lit bulge on the upper front, its shoulder darker, a moulded ring
-            if rr > 5.2:
-                return ("rubber", 1.4 if lit > 3 else 0.9 if lit > -3 else 0.5)
-            return ("rubber", 2.8 if lit > 2.5 else 2.0 if lit > -2.5 else 1.3)
-        if rr > 3.4:
-            # the steel rim: a glint along its upper front, its far side in shadow
-            return ("steel", 4.6 if lit > 2.5 else 3.4 if lit > -1.5 else 2.2)
-        row, col = math.floor(3 - y), math.floor(z + 3)
-        ch = well[row][col] if 0 <= row < 6 and 0 <= col < 6 else "."
-        if ch in "SL":
-            return ("blade", 2.0 if lit > 0 else 1.4)
-        if ch == "l":
-            return ("steel", 2.6 if lit > 0 else 2.0)
-        if ch == "H":
-            return ("steel", 3)
-        return ("iron", -1.6 if lit > 1 else -1.0)          # the dark well, deepest under the rim's top
-    cyl(m, "tyre", (0, 0), d, -w2, w2, Paint("rubber", 1, noise=0, rim=0.2, ao=0.2, decal=side), axis="x")
+        a = math.atan2(z, y)
+        if c.face in ("east", "west"):
+            # the sidewall: a lit bulge on the upper front, a dark shoulder, a moulded bead round the rim
+            if rr > 5.3:
+                return ("rubber", 1.2 if lit > 3 else 0.8 if lit > -3 else 0.4)
+            if rr < 4.9:
+                return ("rubber", 0.6)
+            return ("rubber", 2.6 if lit > 2.5 else 1.8 if lit > -2.5 else 1.1)
+        if rr < R_IN + 0.3:
+            return ("blade", 2.6 if lit > 0 else 1.6)       # the rim bed, inside the tyre
+        # the running face: chunky tread blocks, staggered either side of a groove round the middle
+        k = math.floor((a + math.pi) / (2 * math.pi) * 22)
+        x = c.p[0]
+        if abs(x) < 0.3:
+            return ("rubber", 0.2)
+        return ("rubber", 2.2 if (k + (x > 0)) % 2 else 0.8)
+    # the ring in eight boxes (four straight runs, four corner blocks: a rounded square at 12 px, few faces)
+    tp = Paint("rubber", 1, noise=0, rim=0.2, ao=0.2, decal=tyre)
+    for sy in (1, -1):
+        m.box("tyre", (-w2, min(sy * R_IN, sy * 6), -3), (w2, max(sy * R_IN, sy * 6), 3), tp)
+        m.box("tyre", (-w2, -3, min(sy * R_IN, sy * 6)), (w2, 3, max(sy * R_IN, sy * 6)), tp)
+        for sz in (1, -1):
+            m.box("tyre", (-w2, min(sy * 3, sy * 5), min(sz * 3, sz * 5)), (w2, max(sy * 3, sy * 5), max(sz * 3, sz * 5)), tp)
 
-    def cap(c):
+    def spokes(c):
+        y, z = c.p[1], c.p[2]
+        r = math.hypot(y, z)
+        if r > R_IN + 0.05:
+            return ("raw", CLEAR)
+        if c.face not in ("east", "west"):
+            return raw("blade", 2) if r > R_IN - 1 else ("raw", CLEAR)
+        lit = y - 0.5 * z
+        if r > R_IN - 1.0:
+            return raw("blade", 4 if lit > 1.5 else 3 if lit > -2 else 2)   # the rim: a glint on its upper front
+        if r < 1.2:
+            return raw("steel", 4 if lit > 0 else 3)                        # the hub's flange
+        # eight wire spokes, one texel each: an X along the diagonals and a + half a texel off the middle
+        if abs(y - z) < 0.3 or abs(y + z) < 0.3 or abs(y - 0.5) < 0.3 or abs(z - 0.5) < 0.3:
+            return raw("steel", 4 if lit > 0 else 3)
+        return ("raw", CLEAR)
+    m.box("disc", (-0.25, -R_IN, -R_IN), (0.25, R_IN, R_IN), Paint("steel", 3, noise=0, light=False, decal=spokes))
+
+    def hub(c):
         y, z = c.p[1], c.p[2]
         if c.face in ("east", "west"):
-            return ("blade", 3.4 if (y > 0 and z < 0) else 2.4)                  # a glint on the dome
-        return ("steel", 3 if c.face == "up" else 2)
-    cp = Paint("blade", 2, noise=0, rim=0, ao=0, decal=cap)
-    m.box("hub", (w2, -1, -1), (w2 + 1, 1, 1), cp)
-    m.box("hub", (-w2 - 1, -1, -1), (-w2, 1, 1), cp)
+            return ("blade", 3.6 if (y > 0 and z < 0) else 2.6)                  # a glint on the dome
+        return ("steel", 3.4 if c.face == "up" else 2.4)
+    hp = Paint("blade", 2, noise=0, rim=0, ao=0, decal=hub)
+    m.box("hub", (-w2 - 1, -0.75, -0.75), (w2 + 1, 0.75, 0.75), hp)
+    m.box("hub", (w2 + 1, -1, -1), (w2 + 1.75, 1, 1), hp)
+    m.box("hub", (-w2 - 1.75, -1, -1), (-w2 - 1, 1, 1), hp)
     m.display = presets.furniture(gui_scale=0.6)
     return m
 
@@ -472,6 +507,17 @@ def police_car():
     # behind), both plates on them; door handles, mirrors on short arms
     m.box("bumper", (-W, 3.5, -L - 1), (W, 8, -L), WHITE(decal=_sedan_bumper(True)))
     m.box("bumper", (-W, 3.5, L), (W, 8, L + 1), WHITE(decal=_sedan_bumper(False)))
+
+    # black flares over the wheel arches (a lip standing half a pixel out, its legs down either side of the well)
+    def flare(c):
+        return ("rubber", 2.2 if c.face == "up" else 1.4 if c.face in ("east", "west") else 0.8)
+    fp = Paint("rubber", 1, noise=0, rim=0.5, decal=flare)
+    for s in (1, -1):
+        xa, xb = sorted((W * s, (W + 0.5) * s))
+        for wz in (-WZ, WZ):
+            m.box("arch_flare", (xa, 11.5, wz - SLOT - 1), (xb, 12.5, wz + SLOT + 1), fp)
+            for zz in (wz - SLOT - 1, wz + SLOT):
+                m.box("arch_flare", (xa, 6, zz), (xb, 11.5, zz + 1), fp)
     for s in (1, -1):
         xa, xb = sorted((W * s, (W + 0.5) * s))
         for z0 in (1, 14):
@@ -722,6 +768,23 @@ def light_truck():
         m.box("cab_side", (xa, 12, FA - SLOT), (xb, WIN, FA + SLOT), paint)
         m.box("cab_side", (xa, 6, FA + SLOT), (xb, WIN, CB), paint)
     m.box("bumper", (-13.5, 5, F - 1), (13.5, 9, F), STEEL(decal=_truck_bumper(True)))
+
+    # black flares round the front wheel arches, a black step under each door
+    def flare(c):
+        return ("rubber", 2.2 if c.face == "up" else 1.4 if c.face in ("east", "west") else 0.8)
+    fl = Paint("rubber", 1, noise=0, rim=0.5, decal=flare)
+    for s in (1, -1):
+        xa, xb = sorted((H * s, (H + 0.5) * s))
+        m.box("arch_flare", (xa, 11.5, FA - SLOT - 1), (xb, 12.5, FA + SLOT + 1), fl)
+        for zz in (FA - SLOT - 1, FA + SLOT):
+            m.box("arch_flare", (xa, 6, zz), (xb, 11.5, zz + 1), fl)
+        xa, xb = sorted(((H - 3) * s, (H + 0.5) * s))
+
+        def tread(c):
+            if c.face == "up":
+                return ("steel", 3.4) if (math.floor(c.p[0] * 2) + math.floor(c.p[2])) % 2 == 0 else ("iron", 2.0)
+            return ("iron", 1.6)
+        m.box("door_step", (xa, 4.5, FA + SLOT + 1.5), (xb, 5.5, CB - 1), Paint("iron", 2, noise=0, rim=0.5, decal=tread))
 
     def headlight(c):
         k = math.floor(abs(c.p[0]) - 8)
@@ -1104,6 +1167,21 @@ def golf_cart():
         return pane(c, streak=0.3)
     m.box("windscreen", (-8, 15, -10.25), (8, ROOF, -9.75), Paint("glass", 2, noise=0, light=False, decal=screen))
 
+    # a rear-view mirror hung under the canopy's front, black flares over the four wheels
+    def mirror(c):
+        if c.face == "south":
+            return ("glass", 3.4) if 0 < c.u < c.nu - 1 and 0 < c.v < c.nv - 1 else ("rubber", 1)
+        return ("rubber", 1.6)
+    m.box("mirror", (-2, ROOF - 2, -9.5), (2, ROOF - 0.5, -9), Paint("rubber", 1, noise=0, decal=mirror))
+
+    def flare(c):
+        return ("rubber", 2.2 if c.face == "up" else 1.4 if c.face in ("east", "west") else 0.8)
+    fl = Paint("rubber", 1, noise=0, rim=0.5, decal=flare)
+    for s in (1, -1):
+        xa, xb = sorted((H * s, (H + 0.5) * s))
+        for wz in (-WZ, WZ):
+            m.box("arch_flare", (xa, 7, wz - 4.5), (xb, 8, wz + 4.5), fl)
+
     def canopy(c):
         x, y, z = c.p
         if c.face == "up":
@@ -1200,7 +1278,7 @@ def _split_seat(lo, hi, seat):
 # The bed flares: every layer of its walls sits half a pixel further out than the one below it (sill, lower board,
 # upper board), capped by a wide rim rail, so the walls lean out without any turned part. The body is warm plank
 # wood (plush), the frame (sills, rim rail, shafts, cross members) dark wood; iron brackets hold every corner.
-CART = {"x0": 11, "z0": 15.5, "floor": 12.5, "deck": 14, "rail": (8.5, 10), "rail_y": (10.5, 12.5), "tip": -36,
+CART = {"x0": 11, "z0": 15.5, "floor": 12.5, "deck": 14, "rail": (8.75, 10), "rail_y": (11, 12.5), "tip": -36,
         "rail_end": 16, "hub": 6, "stand_z": (-21, -20)}
 BODY, FRAME = "plush", "wood_dark"
 # each wall layer: (name, inner offset, outer offset, y0, y1), offsets from the floor's edge (x0 / z0)
@@ -1218,6 +1296,19 @@ def _grain(c, axis, s=0):
     return -0.8 if r < 0.22 else 0.7 if r > 0.84 else 0
 
 
+def _galv(c):
+    """Galvanised steel tube: lit on top and towards the light, a dark underside, a pale spangle now and then, a
+    rust spot or two where the zinc has worn through."""
+    x, y, z = c.p
+    r = h3(math.floor(x * 2), math.floor(y * 2), math.floor(z * 2), 27)
+    if r < 0.025:
+        return ("terracotta", 1.2)
+    base = {"up": 3.8, "down": 1.4, "north": 2.9, "west": 3.1, "south": 2.2, "east": 2.4}[c.face]
+    if c.face not in ("up", "down") and y > c.hi[1] - 0.5:
+        base += 0.6                                           # the tube's rounded top edge
+    return ("steel", base + (0.4 if r > 0.9 else 0))
+
+
 def _cart_wall(layer, y0, y1, half, end):
     """The paint of one wall layer of the bed: a board (or the sill / the rim rail) along a side (end False: it runs
     along z) or across an end. half: how far it reaches along its length (to its corners). Iron corner brackets
@@ -1233,7 +1324,16 @@ def _cart_wall(layer, y0, y1, half, end):
         along = x if end else z
         out = c.face in (("north", "south") if end else ("east", "west"))
         outward = out and ((z * c.n[2]) if end else (x * c.n[0])) > 0
-        g = _grain(c, axis, 3 if frame else 0)
+        if frame:
+            # the sill and the rim rail are the steel frame (galvanised square tube): a welded corner, a bolt where
+            # each stake meets it
+            if abs(along) > half - 1.0 and out:
+                return ("steel", 2.0)                             # the welded corner
+            for st in straps:
+                if abs(along - st) < 0.5 and outward:
+                    return ("blade", 3.2)
+            return _galv(c)
+        g = _grain(c, axis, 0)
         if c.face == "up":
             if layer == "rim":
                 if abs(along) > half - 2.5:
@@ -1251,12 +1351,12 @@ def _cart_wall(layer, y0, y1, half, end):
         if abs(along) > half - 2.5:
             k = half - abs(along)
             if k > 2.0:
-                return ("iron", 0.8)                              # the plate's edge
+                return ("steel", 1.6)                              # the plate's edge
             if layer != "rim" and abs(k - 1.2) < 0.6 and fy == mid:
                 return ("steel", 4)                               # a bolt head
             if layer != "rim" and abs(k - 1.2) < 0.6 and fy == mid - 1 and h3(math.floor(along), fy, 2, 9) < 0.5:
                 return ("terracotta", 0.2)                        # a rust streak under it
-            return ("iron", 3.2 if fy >= y1 - 1 else 2.6)
+            return ("steel", 3.8 if fy >= y1 - 1 else 3.0)
         # iron straps up the walls, a bolt through each board
         for st in straps:
             if abs(along - st) < 0.75 and outward:
@@ -1264,7 +1364,7 @@ def _cart_wall(layer, y0, y1, half, end):
                     return ("steel", 3.6)
                 if layer != "sill" and fy < mid and h3(math.floor(along), fy, 3, 10) < 0.6:
                     return ("terracotta", 0.6 + 0.4 * (mid - fy))     # rust weeping down the strap from its bolt
-                return ("iron", 2.8 if fy >= y1 - 1 else 2.2)
+                return ("steel", 3.6 if fy >= y1 - 1 else 2.8)
         if layer == "rim":
             # bolts along the rim rail into the board below it, an iron capping strip along its top
             if outward and fy == math.floor(y1 - 0.01):
@@ -1340,49 +1440,43 @@ def hand_cart():
 
     m.group("frame")
 
+    # the frame: galvanised steel tube, the two long shafts running from the handles back under the bed, black
+    # rubber grips (ribbed) on the handles, a rubber cap on each end, the cross bar with a grip in its middle
     def rail(c):
-        x, y, z = c.p
-        g = _grain(c, "z", 5)
-        if c.face in ("north", "south"):
-            return (FRAME, 1.6)
-        if TIP + 2.5 < z < TIP + 9:
-            # the grips: darkened and polished by hands, a cord whipping at each end
-            if abs(z - (TIP + 3)) < 0.5 or abs(z - (TIP + 8.5)) < 0.5:
-                return ("burlap", 1.4)
-            return ("leather", 1.4 + (0.9 if c.face == "up" and math.floor(z) % 3 == 0 else 0))
+        z = c.p[2]
         for k in (-16, 15):
-            if abs(z - k) < 0.5:
-                return ("iron", 1.8)                              # iron clamps where the bed sits on the frame
-        return (FRAME, (2.6 if c.face == "up" else 1.8) + g)
-    rails = Paint(FRAME, 2, noise=0, decal=rail)
+            if abs(z - k) < 0.5 and c.face != "down":
+                return ("iron", 2.0)                              # the U-bolts holding the bed on the frame
+        return _galv(c)
+    rails = Paint("steel", 3, noise=0, rim=0.4, decal=rail)
     for s in (1, -1):
         xa, xb = sorted((R0 * s, R1 * s))
         m.box("rail", (xa, RY0, TIP + 1), (xb, RY1, END), rails)
 
-    def ferrule(c):
-        if c.face == "north":
-            return ("iron", 1.2) if abs(c.p[1] - 11.5) < 1 and abs(abs(c.p[0]) - 9.25) < 0.8 else ("steel", 2.6)
-        return ("steel", 3.4 if c.face == "up" else 2.6)
+    def grip(c):
+        x, y, z = c.p
+        if c.face in ("north", "south"):
+            return ("rubber", 1.0)
+        rib = math.floor(z * 2) % 3 == 0
+        base = {"up": 2.6, "west": 2.2, "north": 2.0}.get(c.face, 1.4)
+        return ("rubber", base - (1.0 if rib else 0))
+    gp = Paint("rubber", 2, noise=0, rim=0.5, decal=grip)
     for s in (1, -1):
-        xa, xb = sorted(((R0 - 0.5) * s, (R1 + 0.5) * s))
-        m.box("ferrule", (xa, RY0 - 0.5, TIP), (xb, RY1 + 0.5, TIP + 1), Paint("steel", 2, noise=0, rim=0.6, decal=ferrule))
+        xa, xb = sorted(((R0 - 0.25) * s, (R1 + 0.25) * s))
+        m.box("grip", (xa, RY0 - 0.25, TIP + 3), (xb, RY1 + 0.25, TIP + 9), gp)
+        m.box("end_cap", (xa, RY0 - 0.25, TIP), (xb, RY1 + 0.25, TIP + 1),
+              Paint("rubber", 1, noise=0, rim=0.6, decal=lambda c: ("rubber", 2.2 if c.face in ("up", "north") else 1.2)))
 
     def crossbar(c):
         x = c.p[0]
-        if abs(abs(x) - 7.5) < 0.6:
-            return ("iron", 1.8)                                  # iron straps where it meets the shafts
-        if abs(x) < 6 and c.face != "down":
-            return ("leather", 1.2 + (1.0 if math.floor(x) % 2 == 0 and c.face == "up" else 0))
-        return (FRAME, 2.2 + _grain(c, "x", 6))
-    m.box("crossbar", (-R0, RY0, TIP + 1), (R0, RY1, TIP + 2.5), Paint(FRAME, 2, noise=0, decal=crossbar))
+        if abs(x) < 5 and c.face != "down":
+            return ("rubber", (2.2 if c.face == "up" else 1.4) - (0.8 if math.floor(x * 2) % 3 == 0 else 0))   # its grip
+        return _galv(c)
+    m.box("crossbar", (-R0, RY0, TIP + 1), (R0, RY1, TIP + 2.5), Paint("steel", 3, noise=0, rim=0.4, decal=crossbar))
 
-    # cross members under the floor, between the shafts (the shafts are the frame's two long beams)
-    def member(c):
-        if abs(abs(c.p[0]) - 8) < 0.5:
-            return ("iron", 1.6)
-        return (FRAME, 1.4 + _grain(c, "x", 7))
+    # cross members under the floor, between the shafts (steel angle)
     for z in (-14.5, -7, 5.5, 13):
-        m.box("member", (-R0, 11, z), (R0, FL, z + 1.5), Paint(FRAME, 2, noise=0, decal=member))
+        m.box("member", (-R0, 11, z), (R0, FL, z + 1.5), Paint("steel", 3, noise=0, decal=_galv))
 
     m.group("axle")
 
@@ -1592,7 +1686,7 @@ def _crate(m, x, y, z, w=12, h=10, d=12, ramp="wood"):
             if span >= 8 and h >= 8:
                 # a stencilled "this way up" arrow in the middle of each side (faded, a shipping mark, no text)
                 cu, cv = math.floor(edge - span / 2 + 0.5), math.floor(u - h / 2)
-                if (cv in (-2, -1, 0) and cu == 0) or (cv == 1 and abs(cu) <= 1) or (cv == 2 and cu == 0):
+                if (cv in (-3, -2, -1) and cu == 0) or (cv == 0 and abs(cu) <= 2) or (cv == 1 and abs(cu) <= 1) or (cv == 2 and cu == 0):
                     return ("iron", 1.4 if h3(math.floor(edge), math.floor(u), 2, 9) < 0.8 else 2.2)
             if math.floor(u) % 3 == 0:
                 return (ramp, -0.4)                          # the gap between slats
