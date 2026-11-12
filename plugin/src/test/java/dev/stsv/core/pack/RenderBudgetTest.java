@@ -41,6 +41,8 @@ class RenderBudgetTest {
             b.build(List.of(cp), List.of(), 97, "t");
             b.faceCounts().forEach((m, c) -> faces.put(m, c[1]));
             kinds.putAll(RenderBudget.categories(ns, items(p.getValue())));
+            Path tools = p.getValue().resolve("vehicle_tools.yml");   // 작업기
+            if (Files.isRegularFile(tools)) RenderBudget.toolCategories(ns, YamlConfiguration.loadConfiguration(tools.toFile()), kinds);
             for (var spec : dev.stsv.core.crop.CropSpec.loadAll(List.of(cp), w -> {})) {
                 for (String id : spec.models()) crops.add(id.replace(":model/", ":"));
             }

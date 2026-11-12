@@ -122,6 +122,9 @@ public final class CropModule implements StsvModule, Listener {
     private int lastTick = -1;
     private Replant replanting;
     private boolean seedTaken;
+    /** a machine's harvest (VehicleTools): its drops go here instead of the ground, at this block; null = none */
+    private java.util.function.Consumer<ItemStack> collector;
+    private Block collectAt;
     private boolean running;
     /** view distance and culling box of the crop displays (config display.*) */
     private DisplayView.Settings view;
@@ -869,14 +872,18 @@ public final class CropModule implements StsvModule, Listener {
                     break;
                 }
             }
-            if (!seeded && p.getGameMode() != GameMode.CREATIVE) {
+            if (!seeded && p.getGameMode() != GameMode.CREATIVE && collector == null) {
                 ItemStack taken = takeOne(p, spec.seed());
                 s.carry = taken == null ? null : markOf(taken);
             }
         }
-        for (ItemStack it : ev.drops()) if (it != null && !it.isEmpty()) loc.getWorld().dropItemNaturally(loc, it);
+        for (ItemStack it : ev.drops()) {
+            if (it == null || it.isEmpty()) continue;
+            if (collector != null) collector.accept(it);   // a machine's harvest: into its bed
+            else loc.getWorld().dropItemNaturally(loc, it);
+        }
         if (p.getGameMode() != GameMode.CREATIVE) p.setExhaustion(p.getExhaustion() + 0.005f);   // as breaking a block
-        p.swingMainHand();
+        if (collector == null) p.swingMainHand();
         loc.getWorld().playSound(loc, Sound.BLOCK_CROP_BREAK, 1f, 1f);
         if (again) {
             s.age = spec.regrow() >= 0 ? spec.regrow() : 0;
@@ -993,10 +1000,109 @@ public final class CropModule implements StsvModule, Listener {
         }
         if (!broken || !b.isEmpty() || b.getRelative(BlockFace.DOWN).getType() != Material.FARMLAND) return broken;
         // a seed from the drops (taken above), else from the bag; with neither it is replanted all the same
-        if (!seedTaken && p.getGameMode() != GameMode.CREATIVE) takeOne(p, seed.getKey().asString());
+        if (!seedTaken && p.getGameMode() != GameMode.CREATIVE && collector == null) takeOne(p, seed.getKey().asString());
         b.setType(type);
-        p.swingMainHand();
+        if (collector == null) p.swingMainHand();
         b.getWorld().playSound(b.getLocation().add(0.5, 0.5, 0.5), Sound.ITEM_CROP_PLANT, 0.8f, 1f);
+        return true;
+    }
+
+    // ------------------------------------------------------------------------------------------
+    // Machines (작업기: dev.stsv.core.vehicle.VehicleTools): harvesting into a bed, sowing from it
+    // ------------------------------------------------------------------------------------------
+
+    /** Is a machine's harvest going on right now (its drops go into its bed, not onto the ground)? */
+    public boolean collecting() {
+        return collector != null;
+    }
+
+    /** Is there a ripe crop here (ours, or a vanilla one on farmland) that {@link #harvestAt} would take? */
+    public boolean ripeAt(Block b) {
+        Optional<CropState> ours = at(b);
+        if (ours.isPresent()) {
+            CropSpec spec = specs.get(ours.get().crop);
+            return spec != null && spec.ripe(ours.get().age);
+        }
+        return VANILLA.containsKey(b.getType()) && b.getBlockData() instanceof Ageable a && a.getAge() >= a.getMaximumAge()
+                && b.getRelative(BlockFace.DOWN).getType() == Material.FARMLAND;
+    }
+
+    /**
+     * A harvest by a machine its driver drives (the tractor's harvester): exactly {@link #harvestAt}, the right-click's
+     * harvest (protection, job rewards and bonuses, replanting from one of the seeds it dropped), but every drop it makes
+     * there (its produce and seeds, a job's extra produce or a find at the spot) goes to `into` instead of the ground, and
+     * nothing comes out of the driver's bag. False if there was no ripe crop or it was refused.
+     */
+    public boolean harvestInto(Player p, Block b, java.util.function.Consumer<ItemStack> into) {
+        if (collector != null) return false;
+        collector = into;
+        collectAt = b;
+        try {
+            return harvestAt(p, b);
+        } finally {
+            collector = null;
+            collectAt = null;
+        }
+    }
+
+    /** A machine's vanilla harvest: the block's drops go into its bed (the replanting seed was taken out before: HIGHEST). */
+    @EventHandler(priority = EventPriority.MONITOR, ignoreCancelled = true)
+    public void onCollectDrops(BlockDropItemEvent e) {
+        if (collector == null || collectAt == null || !e.getBlock().equals(collectAt)) return;
+        for (Item item : e.getItems()) {
+            ItemStack st = item.getItemStack();
+            if (!st.isEmpty()) collector.accept(st);
+        }
+        e.getItems().clear();
+    }
+
+    /** Anything else a machine's harvest drops at the spot (a job's extra produce, a find) goes into its bed too. */
+    @EventHandler(priority = EventPriority.HIGHEST, ignoreCancelled = true)
+    public void onCollectSpawn(org.bukkit.event.entity.ItemSpawnEvent e) {
+        if (collector == null || collectAt == null || !e.getLocation().getWorld().equals(collectAt.getWorld())) return;
+        if (e.getLocation().distanceSquared(collectAt.getLocation().add(0.5, 0.5, 0.5)) > 9) return;
+        ItemStack st = e.getEntity().getItemStack();
+        if (!st.isEmpty()) collector.accept(st);
+        e.setCancelled(true);
+    }
+
+    /** Vanilla seeds a machine sows, and what they grow into. */
+    private static final Map<Material, Material> SOWN = Map.of(Material.WHEAT_SEEDS, Material.WHEAT, Material.CARROT, Material.CARROTS,
+            Material.POTATO, Material.POTATOES, Material.BEETROOT_SEEDS, Material.BEETROOTS, Material.MELON_SEEDS, Material.MELON_STEM,
+            Material.PUMPKIN_SEEDS, Material.PUMPKIN_STEM, Material.TORCHFLOWER_SEEDS, Material.TORCHFLOWER_CROP);
+
+    /** Can a machine sow this on farmland: a vanilla seed (not a custom item), or the seed of one of our crops that grows on farmland? */
+    public boolean sowable(ItemStack it) {
+        if (it == null || it.isEmpty()) return false;
+        Optional<CropSpec> ours = seedOf(it);
+        if (ours.isPresent()) return ours.get().soil().contains(Material.FARMLAND.getKey().asString());
+        return SOWN.containsKey(it.getType()) && plugin.content().itemOf(it).isEmpty();
+    }
+
+    /**
+     * A machine sows one of `seed` (a stack in its bed: one is taken from it when sown) into the empty block `at` over
+     * farmland, for its driver: ours as a planting by hand is (the crop's own rules: a job's level, the land: see
+     * {@link CropEvent}), a vanilla seed as its crop block. The caller asked the land's rules for the block first.
+     * False if nothing was sown.
+     */
+    public boolean sowFrom(Player p, Block at, ItemStack seed) {
+        if (!sowable(seed) || !at.isEmpty() || this.at(at).isPresent()) return false;
+        if (at.getRelative(BlockFace.DOWN).getType() != Material.FARMLAND) return false;
+        Optional<CropSpec> ours = seedOf(seed);
+        if (ours.isPresent()) {
+            CropSpec spec = ours.get();
+            CropEvent ev = new CropEvent(CropEvent.Action.PLANT, p, spec, at.getLocation(), List.of());
+            Bukkit.getPluginManager().callEvent(ev);
+            if (ev.isCancelled()) return false;
+            CropState s = new CropState(nextId++, spec.id(), at.getWorld().getName(), at.getX(), at.getY(), at.getZ(), p.getUniqueId(), 0);
+            s.carry = markOf(seed);
+            store.insert(s);
+            index(s);
+            show(s);
+        } else {
+            at.setType(SOWN.get(seed.getType()));
+        }
+        seed.subtract(1);
         return true;
     }
 

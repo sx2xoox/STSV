@@ -191,6 +191,8 @@ public final class VehicleModule implements StsvModule, Listener {
     /** every vehicle's trip since its load last changed (VehicleTrip), by id */
     private VehicleTripStore tripStore;
     private final Map<Long, VehicleTrip> trips = new HashMap<>();
+    /** 작업기: ploughs, rotaries, seed drills, harvesters, the net, the tarp, the roller door (VehicleTools) */
+    private VehicleTools tools;
     private BukkitTask task;
     private long ticks;
     private boolean spawnSoon;
@@ -228,6 +230,7 @@ public final class VehicleModule implements StsvModule, Listener {
         tripStore.init();
         trips.putAll(tripStore.all());
         for (VehicleStore.Grant g : store.grants()) grants.computeIfAbsent(g.owner(), k -> new LinkedHashMap<>()).put(g.player(), g.playerName());
+        tools = new VehicleTools(this, plugin);
         // a plugin reload while someone pulled: nobody pulls now
         for (Player p : Bukkit.getOnlinePlayers()) PullSpeed.remove(p.getAttribute(Attribute.MOVEMENT_SPEED));
         // a plugin reload: the last run's entities (never saved, so only ever after a reload in the same run)
@@ -258,6 +261,7 @@ public final class VehicleModule implements StsvModule, Listener {
         settings = settings();
         feel.load(plugin);
         weightEpoch++;
+        tools.load();
         // the item files may have changed: the shown vehicles take their new settings (parts again, riders stay)
         for (LiveVehicle v : List.copyOf(live.values())) {
             Optional<CustomItem> item = plugin.content().item(v.item.key().asString()).filter(CustomItem::isVehicle);
@@ -276,6 +280,7 @@ public final class VehicleModule implements StsvModule, Listener {
             removeParts(v, false);
             v.train = v.spec.train() == null ? null
                     : new TrainView(v.spec.train(), TrainPhysics.restore(v.st, v.spec.train(), v.train == null ? null : v.train.units));
+            tools.attach(v);
             spawnParts(v);
         }
     }
@@ -628,6 +633,7 @@ public final class VehicleModule implements StsvModule, Listener {
 
     /** A sneak + right-click on a vehicle's bed: the content plugin's turn first (a dock), else the bed opens. */
     private void bedClick(LiveVehicle v, Player p, int page) {
+        if (v.tool != null && mayDrive(v, p) && v.st.speed == 0) tools.bedOpened(v);   // 탑차: its roller door rolls up
         BiPredicate<Player, Hauled> c = cargoClick;
         if (c != null && v.spec.cargo() != null) {
             try {
@@ -1081,6 +1087,7 @@ public final class VehicleModule implements StsvModule, Listener {
         v.cargo = resized(kept != null && kept.row() == r ? kept.cargo() : decode(r.cargo()), v.spec);   // hidden by this run: as it was
         v.cargoBytes = r.cargo();
         v.stage = stageOf(v);
+        tools.attach(v);
         parked.remove(r.id());
         live.put(r.id(), v);
         spawnParts(v);
@@ -1225,6 +1232,7 @@ public final class VehicleModule implements StsvModule, Listener {
             });
         }
         if (v.train != null) v.train.spawn(v, settings, v.cargo);
+        tools.spawned(v);
         feel.spawn(v);
     }
 
@@ -1325,6 +1333,7 @@ public final class VehicleModule implements StsvModule, Listener {
         if (v.load != null) v.load.remove();
         if (v.handle != null) v.handle.remove();
         if (v.train != null) v.train.remove();
+        tools.removed(v);
         feel.remove(v);
         v.wheels.forEach(Entity::remove);
         v.spinners.forEach(Entity::remove);
@@ -1362,6 +1371,7 @@ public final class VehicleModule implements StsvModule, Listener {
             trainSaved.remove(v.id);   // into an item (or gone): placed again, it stands straight
             trains.delete(v.id);
         }
+        if (!save) tools.forget(v.id);   // ... and as it was made, without a tool on
     }
 
     private void save(LiveVehicle v) {
@@ -1452,13 +1462,15 @@ public final class VehicleModule implements StsvModule, Listener {
                 Location at = puller.getLocation();
                 CartPull.step(v.st, at.getX(), at.getZ(), v.spec, terrain);
             } else if (v.spec.floats()) {
-                v.boatMode = BoatPhysics.step(v.st, in, v.spec, new WorldWater(v.world), settings.maxSpeed());
+                v.boatMode = BoatPhysics.step(v.st, in, v.spec, new WorldWater(v.world), Math.min(settings.maxSpeed(), VehicleTools.speedCap(v)));
                 v.boatTurn = VehicleSeats.signed(v.st.yaw - yaw);
             } else if (v.train != null) {
-                TrainPhysics.step(v.st, v.train.units, in, v.spec, terrain, new WorldGround(v.world), settings.maxSpeed(), roadBonus(v),
-                        feltLoad[0], feltLoad[1]);
+                // (a tool on: its working speed at most, VehicleTools#speedCap)
+                TrainPhysics.step(v.st, v.train.units, in, v.spec, terrain, new WorldGround(v.world), Math.min(settings.maxSpeed(), VehicleTools.speedCap(v)),
+                        roadBonus(v), feltLoad[0], feltLoad[1]);
             } else {
-                VehiclePhysics.step(v.st, in, v.spec, terrain, settings.maxSpeed(), 1f, roadBonus(v), settings.maxSpeed(), feltLoad[0], feltLoad[1]);
+                VehiclePhysics.step(v.st, in, v.spec, terrain, Math.min(settings.maxSpeed(), VehicleTools.speedCap(v)), 1f, roadBonus(v),
+                        settings.maxSpeed(), feltLoad[0], feltLoad[1]);
             }
             if (v.st.bumped) {
                 if (v.spec.floats()) v.world.playSound(at(v), Sound.BLOCK_WOOD_HIT, SoundCategory.NEUTRAL, 0.8f, 0.6f);
@@ -1508,6 +1520,7 @@ public final class VehicleModule implements StsvModule, Listener {
         }
         if (puller != null) pulled(v, puller);
         if (v.train != null) v.train.animate(v, settings, along, driver != null, Math.min(v.spec.speed(), settings.maxSpeed()));
+        if (v.tool != null) tools.tick(v, driver);
         if (v.spec.pulled() && tilt(v) != v.tiltShown) tiltTo(v, tilt(v));
         if (v.spec.floats()) boat(v, driver);
         light(v, active);
@@ -1635,6 +1648,7 @@ public final class VehicleModule implements StsvModule, Listener {
             rock(v.body, body(v, 0), q, pivot, r.bob());
             if (v.load != null && v.spec.cargo() != null) rock(v.load, tilted(v.spec, v.spec.cargo().at(), 1, 0, 0), q, pivot, r.bob());
             for (int i = 0; i < v.wheels.size(); i++) rock(v.wheels.get(i), wheel(v, i), q, pivot, r.bob());
+            tools.rock(v, q, pivot, r.bob());
         }
         if (driver == null) return;
         if (wa.exhaust() != null && settings.engine()) {
@@ -1664,7 +1678,7 @@ public final class VehicleModule implements StsvModule, Listener {
         return false;
     }
 
-    private static void rock(ItemDisplay d, Transformation t, Quaternionf q, Vector3f pivot, float bob) {
+    static void rock(ItemDisplay d, Transformation t, Quaternionf q, Vector3f pivot, float bob) {
         if (d == null || !d.isValid()) return;
         d.setInterpolationDelay(0);
         d.setInterpolationDuration(BoatMotion.TICKS);
@@ -1719,8 +1733,12 @@ public final class VehicleModule implements StsvModule, Listener {
         if (p.isSneaking()) {
             if (v.train != null) {
                 // a trailer: its bed; the driven unit (the ox, the tiller, the tractor): the whole train back into an item
-                int page = v.spec.train().firstPage(v.train.unit(e.getRightClicked()));
-                if (page >= 0) bedClick(v, p, page);
+                int unit = v.train.unit(e.getRightClicked());
+                int page = v.spec.train().firstPage(unit);
+                if (page >= 0 && !VehicleTools.bedOpen(v, unit)) {
+                    // 작업기: a tool in this trailer's place (its load stays in it)
+                    refuse(p, Lang.mm("vehicle-tool.bed-shut", "tool", VehicleTools.tool(v).name()));
+                } else if (page >= 0) bedClick(v, p, page);
                 else pickUp(v, p);
             } else if (v.spec.cargo() != null && inBed(v, p)) bedClick(v, p, 0);
             else pickUp(v, p);
@@ -1796,7 +1814,7 @@ public final class VehicleModule implements StsvModule, Listener {
                 v.engineAt = ticks + wait;
             }
             HudModule.flash(p, Lang.mm("vehicle.driving", "keys", Lang.raw(v.spec.lights() != null ? "vehicle.keys-siren"
-                    : v.spec.train() != null && v.spec.train().animal() != null ? "vehicle.keys-moo" : "vehicle.keys-horn")));
+                    : v.spec.train() != null && v.spec.train().animal() != null ? "vehicle.keys-moo" : "vehicle.keys-horn") + tools.keysHint(v)));
         } else if (!mayDrive && !taken[0]) {
             HudModule.flash(p, Lang.mm("vehicle.passenger", "owner", v.ownerName));
         }
@@ -1957,6 +1975,8 @@ public final class VehicleModule implements StsvModule, Listener {
         Long id = partOf(p.getVehicle());
         LiveVehicle v = id == null ? null : live.get(id);
         if (v == null || v.seatOf(p) != 0) return;
+        // 작업기: Ctrl on a vehicle with tools (and no siren) switches the tool
+        if (v.spec.lights() == null && v.tool != null && DriveInput.pressed(before != null && before.sprint(), now.sprint())) tools.ctrl(v, p);
         for (DriveInput.Press press : DriveInput.presses(before, now, v.spec.lights() != null)) {
             if (press == DriveInput.Press.SIREN) {
                 v.siren = !v.siren;
@@ -2753,7 +2773,50 @@ public final class VehicleModule implements StsvModule, Listener {
 
     private static NamespacedKey stageModel(LiveVehicle v) {
         VehicleSpec.Cargo c = v.spec.cargo();
-        return c == null || v.stage <= 0 ? null : c.stages().get(v.stage - 1);
+        return c == null || v.stage <= 0 || VehicleTools.loadHidden(v) ? null : c.stages().get(v.stage - 1);
+    }
+
+    // ------------------------------------------------------------------------------------------
+    // 작업기 (VehicleTools)
+    // ------------------------------------------------------------------------------------------
+
+    /**
+     * 작업기: places a vehicle's tools never change (the economy server: its roads, docks and terminals): (driver, block) ->
+     * true = keep off. Spawn protection, the land's and the build world's rules are asked anyway. null = none.
+     */
+    public void toolGuard(BiPredicate<Player, Block> guard) {
+        tools.guard(guard);
+    }
+
+    /**
+     * 작업기 (the 통통배's net): one fish of the water at this block for the driver trawling there, or null (nothing this
+     * time, not the sea). The economy server: a common or uncommon fish of that water. null = the net catches nothing.
+     */
+    public void netCatch(java.util.function.BiFunction<Player, Block, ItemStack> net) {
+        tools.net(net);
+    }
+
+    long ticks() {
+        return ticks;
+    }
+
+    Settings shownSettings() {
+        return settings;
+    }
+
+    /** The vehicle's own load model again (a cover went on or off). */
+    void loadShown(LiveVehicle v) {
+        if (v.load != null) v.load.setItemStack(model(stageModel(v)));
+    }
+
+    /** What the bed weighs now (0 without weights). */
+    double loadWeight(LiveVehicle v) {
+        return cargoWeight == null ? 0 : weightNow(v);
+    }
+
+    /** A tool put things into the bed or took seeds out of it (its load shows, it is saved soon, its trip starts again). */
+    void toolCargo(LiveVehicle v) {
+        cargoChanged(v, true);
     }
 
     /**

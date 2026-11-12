@@ -33,6 +33,7 @@ public final class RenderBudget {
         VEHICLE_PART("탈것 부품 (경광등·짐·페달)", 240),
         VEHICLE_TRAILER("탈것 트레일러 몸체 (하나)", 400),
         VEHICLE_ANIMAL("탈것 끄는 동물의 다리·머리 (하나)", 160),
+        VEHICLE_TOOL("탈것 작업기 (쟁기·로터리·파종기·수확기·그물·덮개, 하나)", 480),
         CARRIER("등에 지는 것 (지게, 짐 단계 하나)", 300),
         OTHER("그 밖의 3D 모델", 300);
 
@@ -126,6 +127,29 @@ public final class RenderBudget {
             if (a.getString("head.model") != null) out.put(local(namespace, a.getString("head.model")), Category.VEHICLE_ANIMAL);
         }
         for (Map<?, ?> p : train.getMapList("parts")) if (p.get("model") != null) out.put(local(namespace, p.get("model").toString()), Category.VEHICLE_WHEEL);
+    }
+
+    /**
+     * 작업기 (a pack's vehicle_tools.yml, dev.stsv.core.vehicle.VehicleToolSpec): each tool's body as a tool, its moving parts
+     * and the 탑차's roller door (slats, doorway) as vehicle parts.
+     */
+    public static void toolCategories(String namespace, ConfigurationSection file, Map<String, Category> out) {
+        if (file == null) return;
+        for (String id : file.getKeys(false)) {
+            ConfigurationSection v = file.getConfigurationSection(id);
+            if (v == null) continue;
+            for (Map<?, ?> t : v.getMapList("tools")) {
+                if (t.get("model") != null) out.put(local(namespace, t.get("model").toString()), Category.VEHICLE_TOOL);
+                if (t.get("parts") instanceof List<?> parts) {
+                    for (Object p : parts) {
+                        if (p instanceof Map<?, ?> pm && pm.get("model") != null) out.put(local(namespace, pm.get("model").toString()), Category.VEHICLE_PART);
+                    }
+                }
+            }
+            for (String k : List.of("shutter.model", "shutter.inside")) {
+                if (v.getString(k) != null) out.put(local(namespace, v.getString(k)), Category.VEHICLE_PART);
+            }
+        }
     }
 
     /** "name" or "ns:name" or "ns:model/name" -> "ns:name". */

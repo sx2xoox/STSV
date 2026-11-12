@@ -603,6 +603,8 @@ public final class JobModule extends EcoModule {
         if (farmer == null || !"farmer".equals(job(u))) return;
         int span = farmer.harvestSpan(level(u));
         if (span <= 1 || spreading.contains(u)) return;
+        // a machine harvesting (the tractor's harvester, its drops into its bed: the core's 작업기) does its own rows
+        if (core.crops() != null && core.crops().collecting()) return;
         // across the facing: facing mostly along x -> the row runs along z, and the other way round
         boolean alongX = Math.abs(p.getLocation().getDirection().getX()) >= Math.abs(p.getLocation().getDirection().getZ());
         Bukkit.getScheduler().runTask(eco, () -> {

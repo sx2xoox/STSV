@@ -566,6 +566,22 @@ vehicle:
   revoked-you: "<gray><white>{owner}</white>님이 탈것 권한을 거뒀어요."
   grant-lost: "<yellow>주인이 탈것 권한을 거둬서 그 탈것에서 손을 뗐어요."
 
+# 작업기 (쟁기·로터리·파종기·수확기·그물·방수포: content/stsv/vehicle_tools.yml, README "작업기"). {tool} = 작업기 이름
+vehicle-tool:
+  keys: " · Ctrl: 작업기 ({tool})"
+  none: "작업기 없음"
+  switched: "<gold>작업기: <white>{tool}</white> <dark_gray>· Ctrl: 다음 ({list}<dark_gray>)"
+  switch-moving: "<red>멈춘 뒤 작업기를 바꿀 수 있어요."
+  switch-bed: "<red>누가 짐칸을 보고 있어서 작업기를 바꿀 수 없어요."
+  bed-shut: "<red>{tool}을(를) 단 동안은 이 짐칸을 열 수 없어요. <gray>(짐은 그대로: 운전석에서 Ctrl 로 다시 짐칸으로)"
+  no-seed: "<yellow>짐칸에 심을 씨앗이 없어요. <gray>(맨 앞 칸의 씨앗부터 심음)"
+  full: "<yellow>짐칸이 가득 차서 {tool}이(가) 쉬어요. <gray>(칸이나 적재 무게)"
+  net-full: "<yellow>어창이 가득 차서 그물에 든 고기를 놓아줬어요."
+  net-catch: "<aqua>그물에 <white>{fish}</white>{count} <gray>(어창으로)"
+  denied-land: "<red>내가 지을 수 없는 땅이라 {tool} 작업을 하지 않아요. <gray>(남의 땅·서버 땅·건축월드)"
+  denied-guarded: "<red>도로·하역장·터미널에서는 {tool} 작업을 하지 않아요."
+  denied-spawn: "<red>스폰 보호 구역에서는 {tool} 작업을 하지 않아요."
+
 # 지게 (가슴 칸에 입는 짐 지게: content/stsv/items/vehicles_misc.yml)
 jige:
   worn: "<#d9b07a>지게</#d9b07a><gray>를 짊어졌어요 · 웅크리고 빈손 우클릭 또는 /지게: 짐 열기 <dark_gray>(걸음 {percent}% 느리게)"

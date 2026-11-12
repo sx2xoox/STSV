@@ -143,6 +143,8 @@ public final class RoadModule extends EcoModule {
         if (core.vehicles() != null) core.vehicles().surfaceBonus(b -> {
             return paved.contains(b.getType()) ? settings.bonus() : 1;
         });
+        // the vehicles' tools (쟁기, 로터리, 파종기, 수확기) never work on a road, a dock or a terminal
+        if (core.vehicles() != null) core.vehicles().toolGuard((p, b) -> toolsKeepOff(b));
         STSVPlugin.get().admin().add(EcoPlugin.ADMIN_OWNER, "국도",
                 "<하역장> [기준점|여기서|새로|이어짓기] | <하역장> 미리보기 [기준점|여기서] | <하역장> 되돌리기 | 되돌리기 중지 | "
                         + "기준점 [설정|보기|초기화] | 중지 | 상태 | 표지판 정리 <하역장> | "
@@ -252,6 +254,17 @@ public final class RoadModule extends EcoModule {
         return spot != null && b.getY() >= spot.y() && b.getY() <= spot.y() + 3;
     }
 
+    /**
+     * Whether a vehicle's tool must leave this block alone (the core's 작업기 guard): a dock's or terminal's chunks, or a
+     * road's column from a few blocks under its surface (its fill and kerbs) to a few above.
+     */
+    boolean toolsKeepOff(Block b) {
+        String w = b.getWorld().getName();
+        if (eco.docks() != null && eco.docks().covers(w, b.getX() >> 4, b.getZ() >> 4)) return true;
+        RoadNetwork.Spot spot = roads(w).at(b.getX(), b.getZ());
+        return spot != null && b.getY() >= spot.y() - 4 && b.getY() <= spot.y() + 4;
+    }
+
     @EventHandler(ignoreCancelled = true)
     public void onSnow(BlockFormEvent e) {
         Material m = e.getNewState().getType();
@@ -329,6 +342,7 @@ public final class RoadModule extends EcoModule {
     @Override
     protected void stop() {
         if (core.vehicles() != null) core.vehicles().surfaceBonus(null);
+        if (core.vehicles() != null) core.vehicles().toolGuard(null);
         if (job != null) save();
         release();
         if (queue != null) queue.stop();
