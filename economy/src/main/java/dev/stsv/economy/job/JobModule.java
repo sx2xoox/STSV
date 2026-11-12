@@ -279,6 +279,35 @@ public final class JobModule extends EcoModule {
                 "next", lv >= spec.maxLevel() ? Lang.raw("job.max") : String.format("%,.0f", spec.xpFor(lv + 1)));
     }
 
+    private static final java.util.regex.Pattern RANGE = java.util.regex.Pattern.compile("\\{([0-9.]+)~([0-9.]+)}");
+
+    /**
+     * One line of a job's description as the menu shows it, for the viewer's level in that job: "# 제목" is a section title in
+     * the job's colour, "@10 효과" an unlock (✔ once reached, dimmed with its level before), anything else an effect line.
+     * "{5~35.5}" is the value at the viewer's level (Lv1 to the top level, evenly between).
+     */
+    static String describe(String line, String color, int level, int maxLevel) {
+        if (line.startsWith("# ")) return "<" + color + "><b>" + line.substring(2);
+        java.util.regex.Matcher m = RANGE.matcher(line);
+        StringBuilder sb = new StringBuilder();
+        while (m.find()) {
+            double a = Double.parseDouble(m.group(1)), b = Double.parseDouble(m.group(2));
+            double t = maxLevel <= 1 ? 1 : Math.max(0, Math.min(1, (Math.max(1, level) - 1) / (double) (maxLevel - 1)));
+            double v = Math.round((a + (b - a) * t) * 10) / 10.0;
+            String n = v == Math.rint(v) ? String.valueOf((long) v) : String.valueOf(v);
+            m.appendReplacement(sb, java.util.regex.Matcher.quoteReplacement("<white>" + n + "</white>"));
+        }
+        m.appendTail(sb);
+        String text = sb.toString();
+        if (text.startsWith("@")) {
+            int sp = text.indexOf(' ');
+            int need = Integer.parseInt(text.substring(1, sp));
+            String rest = text.substring(sp + 1);
+            return level >= need ? "<green>✔</green> <gray>" + rest : "<dark_gray>Lv" + need + " " + rest.replace("<white>", "").replace("</white>", "");
+        }
+        return "<gray>· " + text;
+    }
+
     private final class JobsMenu implements MenuHandler {
         private final List<String> ids = new ArrayList<>(spec.jobs().keySet());
         private String armed;
@@ -310,7 +339,10 @@ public final class JobModule extends EcoModule {
                     meta.itemName(Text.item("<" + j.color() + "><b>" + j.name() + "</b> <gray>Lv" + pr.get("level")));
                     List<Component> lore = new ArrayList<>();
                     lore.add(Lang.item("job.lore-xp", "xp", pr.get("xp"), "next", pr.get("next")));
-                    for (String line : j.description()) lore.add(Text.item("<gray>" + line));
+                    for (String line : j.description()) {
+                        if (line.startsWith("# ")) lore.add(Component.empty());
+                        lore.add(Text.item(describe(line, j.color(), Integer.parseInt(pr.get("level")), spec.maxLevel())));
+                    }
                     lore.add(Component.empty());
                     lore.addAll(Lang.items(id.equals(mine) ? "job.lore-current" : isArmed ? "job.lore-confirm" : mine == null ? "job.lore-pick" : "job.lore-change",
                             "cost", EconomyModule.format(changeCost(u, id))));
