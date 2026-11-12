@@ -74,6 +74,8 @@ import java.util.UUID;
  *   <li><b>On the ground</b> a 지게 item never burns, blows up or despawns; one lost anyway is made again by
  *       /관리자 지게 회수 (a new token: every old item of it is dead; the load stays with its number).</li>
  *   <li><b>Teleporting</b> while wearing it breaks its load's trip off at once (a seal on it is void): {@link JigeRules#teleportBreaks}.</li>
+ *   <li><b>귀속</b>: a 지게 is its owner's whoever has the item ({@link VehicleOwnership}): only its owner, the players they
+ *       allowed with /탈것 권한, the people of their land and admins can put it on. /탈것 양도 (holding it) gives it away.</li>
  * </ul>
  */
 public final class JigeModule implements StsvModule, Listener, TabExecutor {
@@ -130,6 +132,8 @@ public final class JigeModule implements StsvModule, Listener, TabExecutor {
     private final Set<String> told = new HashSet<>();
     /** players told that the 지게 they put on is held by someone else (until they wear another) */
     private final Set<UUID> heldTold = new HashSet<>();
+    /** player -> the 지게 (id:token:owner) they put on that is someone else's (told once; until they take it off) */
+    private final Map<UUID, String> notYours = new HashMap<>();
     /** 하역장: each 지게's trip since its load last changed, by jige id (kept in stsv_vehicle_trip under the negated id) */
     private VehicleTripStore tripStore;
     private final Map<Long, VehicleTrip> trips = new HashMap<>();
@@ -161,6 +165,7 @@ public final class JigeModule implements StsvModule, Listener, TabExecutor {
             command.setTabCompleter(this);
         }
         if (plugin.cosmetics() != null) plugin.cosmetics().backOverride(this::look);
+        if (plugin.vehicles() != null) plugin.vehicles().jige(this);
         plugin.admin().add("STSV", "지게", "목록 [플레이어] | 회수 <번호>",
                 "지게 목록(번호, 주인, 짐, 지고 있는 사람) / 주인에게 새 아이템으로 돌려주기(예전 아이템은 못 씀, 짐은 그대로)", this::admin,
                 (s, a) -> a.length == 1 ? List.of("목록", "회수") : List.of());
@@ -196,6 +201,7 @@ public final class JigeModule implements StsvModule, Listener, TabExecutor {
         sessions.clear();
         holders.clear();
         if (plugin.cosmetics() != null) plugin.cosmetics().backOverride(null);
+        if (plugin.vehicles() != null) plugin.vehicles().jige(null);
         if (task != null) task.cancel();
         HandlerList.unregisterAll(this);
     }
@@ -229,7 +235,7 @@ public final class JigeModule implements StsvModule, Listener, TabExecutor {
         return plugin.content().itemOf(it).filter(i -> specs.containsKey(i.key()));
     }
 
-    private static long idOf(ItemStack it) {
+    static long idOf(ItemStack it) {
         if (it == null || !it.hasItemMeta()) return 0;
         Long v = it.getItemMeta().getPersistentDataContainer().get(ITEM_ID, PersistentDataType.LONG);
         return v == null ? 0 : v;
@@ -247,8 +253,17 @@ public final class JigeModule implements StsvModule, Listener, TabExecutor {
         return t;
     }
 
-    /** Writes the 지게's id and token on its item (its number in the lore the first time). */
-    private static void stamp(ItemStack it, long id, long token) {
+    /** Is this a 지게 item? */
+    boolean isJige(ItemStack it) {
+        return jige(it).isPresent();
+    }
+
+    /**
+     * Writes the 지게's id and token on its item (its number in the lore the first time), and its owner (귀속) when the
+     * item does not carry one yet.
+     */
+    private static void stamp(ItemStack it, long id, long token, UUID owner, String ownerName) {
+        if (VehicleModule.boundOwner(it) == null) VehicleModule.stampOwner(it, owner, ownerName);
         boolean fresh = idOf(it) <= 0;
         it.editMeta(m -> {
             m.getPersistentDataContainer().set(ITEM_ID, PersistentDataType.LONG, id);
@@ -290,6 +305,7 @@ public final class JigeModule implements StsvModule, Listener, TabExecutor {
         switch (w) {
             case NONE -> {
                 if (s != null) end(p, s);
+                notYours.remove(u);
             }
             case SAME -> {
                 JigeSpeed.apply(p.getAttribute(Attribute.MOVEMENT_SPEED), s.spec.slowdown());
@@ -312,10 +328,22 @@ public final class JigeModule implements StsvModule, Listener, TabExecutor {
         }
         heldTold.remove(u);
         if (id > 0 && told.contains(key)) return;   // a dead copy, already told
+        // 귀속: someone else's 지게 goes on only for who may use their things (VehicleOwnership)
+        UUID bound = VehicleModule.boundOwner(chest);
+        String boundName = VehicleModule.boundOwnerName(chest);
+        String mine = key + ":" + bound;
+        if (mine.equals(notYours.get(u))) return;   // told already
+        VehicleModule vehicles = plugin.vehicles();
+        if (id <= 0 && bound != null && vehicles != null && !vehicles.mayUse(bound, p)) {
+            notYours.put(u, mine);
+            p.sendMessage(Lang.msg("jige.not-yours", "owner", boundName == null ? "?" : boundName));
+            return;
+        }
         JigeSpec spec = specs.get(item.key());
         long next = newToken(), now = System.currentTimeMillis();
         pending.add(u);
-        var step = id > 0 ? store.claim(id, token, next, now) : store.create(u, p.getName(), next, now);
+        var step = id > 0 ? store.claim(id, token, next, now)
+                : store.create(bound != null ? bound : u, bound != null && boundName != null ? boundName : p.getName(), next, now);
         step.whenComplete((row, err) -> Bukkit.getScheduler().runTask(plugin, () -> {
             pending.remove(u);
             if (err != null) {
@@ -329,10 +357,17 @@ public final class JigeModule implements StsvModule, Listener, TabExecutor {
                 plugin.getLogger().warning("[지게] " + p.getName() + " 님이 쓸 수 없는 지게 #" + id + " 을 입음 (복사본이거나 예전 아이템)");
                 return;
             }
+            if (id > 0 && vehicles != null && !vehicles.mayUse(row.owner(), p)) {
+                // someone else's: its token back (the item stays as it was, still theirs), nothing opens
+                store.claim(id, next, token, System.currentTimeMillis());
+                notYours.put(u, mine);
+                if (p.isOnline()) p.sendMessage(Lang.msg("jige.not-yours", "owner", row.ownerName()));
+                return;
+            }
             // the item claimed: still worn (start), moved within the inventory (stamped, not worn), or gone (undone)
             ItemStack worn = p.isOnline() ? p.getInventory().getChestplate() : null;
             if (worn != null && jige(worn).isPresent() && idOf(worn) == id && tokenOf(worn) == token) {
-                stamp(worn, row.id(), next);
+                stamp(worn, row.id(), next, row.owner(), row.ownerName());
                 p.getInventory().setChestplate(worn);
                 start(p, row, next, jige(worn).get(), spec);
                 return;
@@ -346,7 +381,7 @@ public final class JigeModule implements StsvModule, Listener, TabExecutor {
                     }
                 }
             }
-            if (moved != null) stamp(moved, row.id(), next);
+            if (moved != null) stamp(moved, row.id(), next, row.owner(), row.ownerName());
             else if (id > 0) store.claim(id, next, token, System.currentTimeMillis());   // the item left: its old token works again
         }));
     }
@@ -419,6 +454,7 @@ public final class JigeModule implements StsvModule, Listener, TabExecutor {
         if (s != null) end(e.getPlayer(), s);
         pending.remove(e.getPlayer().getUniqueId());
         heldTold.remove(e.getPlayer().getUniqueId());
+        notYours.remove(e.getPlayer().getUniqueId());
     }
 
     /** Death: every 지게 item is kept (JigeRules.keptOnDeath); the load stays in the database. */
@@ -846,6 +882,7 @@ public final class JigeModule implements StsvModule, Listener, TabExecutor {
     }
 
     private void listRows(CommandSender s, UUID owner) {
+        if (plugin.vehicles() != null && plugin.vehicles().ledger() != null) plugin.vehicles().ledger().scanAll();   // what was just thrown away: hidden
         store.list(owner, 100).thenAccept(rows -> Bukkit.getScheduler().runTask(plugin, () -> {
             s.sendMessage(Lang.msg("jige.admin-list", "count", rows.size()));
             for (JigeStore.Row r : rows) {
@@ -859,6 +896,10 @@ public final class JigeModule implements StsvModule, Listener, TabExecutor {
                 s.sendMessage(dev.stsv.core.util.Text.mm(Lang.raw("jige.admin-line", "id", r.id(), "owner", r.ownerName(), "used", used, "worn", worn)));
             }
         }));
+        // after the list (one database thread: in this order)
+        store.goneCount(owner).thenAccept(gone -> {
+            if (gone > 0) Bukkit.getScheduler().runTask(plugin, () -> s.sendMessage(Lang.msg("jige.admin-hidden", "count", gone)));
+        });
     }
 
     /** The 지게 item to make again (the kind this one is: its wearer's, else the first 지게 item there is). */
@@ -904,7 +945,7 @@ public final class JigeModule implements StsvModule, Listener, TabExecutor {
                 }
                 letGo(id);   // an old copy claimed just before the new token: it holds an old token now
                 ItemStack it = item.get().create(1);
-                stamp(it, id, token);
+                stamp(it, id, token, row.owner(), row.ownerName());
                 Player o = Bukkit.getPlayer(row.owner());
                 if (box != null) box.accept(row.owner(), it);
                 else if (o != null && o.getInventory().addItem(it).isEmpty()) {
@@ -929,6 +970,81 @@ public final class JigeModule implements StsvModule, Listener, TabExecutor {
         Session s = who == null ? null : sessions.get(who);
         Player p = who == null ? null : Bukkit.getPlayer(who);
         if (s != null && p != null && s.id == id) end(p, s);
+    }
+
+    // ------------------------------------------------------------------------------------------
+    // /탈것 양도 of a 지게 (VehicleModule#give), /관리자 탈것 정리
+    // ------------------------------------------------------------------------------------------
+
+    /** The 지게 item in a hand as /탈것 양도 sees it (null: not a 지게). */
+    VehicleModule.Subject subject(ItemStack hand) {
+        Optional<CustomItem> item = jige(hand);
+        if (item.isEmpty()) return null;
+        return new VehicleModule.Subject(VehicleModule.Subject.Kind.JIGE, idOf(hand), tokenOf(hand), item.get().key().asString(),
+                VehicleModule.boundOwner(hand), VehicleModule.boundOwnerName(hand), VehicleModule.label(item.get()));
+    }
+
+    /**
+     * Gives the 지게 in the hand to `to` (from: its owner as the giver must be, null for an admin): the item leaves the hand,
+     * its row becomes theirs with a new token (the old item opens nothing), its load goes with it, and a new item goes to
+     * their mailbox or inventory. A 지게 is never owed: the command asks for a mailbox or the player online first.
+     */
+    void give(Player p, VehicleModule.Subject s, UUID from, UUID to, String toName) {
+        VehicleModule vehicles = plugin.vehicles();
+        ItemStack hand = p.getInventory().getItemInMainHand();
+        Optional<CustomItem> item = jige(hand);
+        if (vehicles == null || item.isEmpty() || !item.get().key().asString().equals(s.item()) || idOf(hand) != s.id() || tokenOf(hand) != s.token()) {
+            p.sendMessage(Lang.msg("vehicle.give-nothing"));
+            return;
+        }
+        if (!vehicles.canHandOver(to)) {
+            p.sendMessage(Lang.msg("vehicle.give-offline"));
+            return;
+        }
+        if (s.id() > 0 && recalling.contains(s.id())) {
+            p.sendMessage(Lang.msg("jige.admin-busy", "id", s.id()));
+            return;
+        }
+        ItemStack taken = hand.asOne();
+        hand.subtract(1);
+        long token = newToken(), now = System.currentTimeMillis();
+        java.util.concurrent.CompletableFuture<Long> step;
+        if (s.id() > 0) {
+            recalling.add(s.id());
+            step = store.transfer(s.id(), s.token(), from, to, toName, token, now).thenApply(r -> switch (r) {
+                case DONE -> s.id();
+                case NOT_OWNER -> -1L;
+                case STALE -> -2L;
+            });
+        } else {
+            step = store.create(to, toName, token, now).thenApply(JigeStore.Row::id);
+        }
+        step.whenComplete((id, err) -> Bukkit.getScheduler().runTask(plugin, () -> {
+            if (s.id() > 0) recalling.remove(s.id());
+            if (err != null || id == null || id <= 0) {
+                for (ItemStack left : p.getInventory().addItem(taken).values()) p.getWorld().dropItem(p.getLocation(), left);
+                p.sendMessage(err != null || id == null ? Lang.msg("jige.error")
+                        : id == -1L ? Lang.msg("jige.not-yours", "owner", s.ownerName() == null ? "?" : s.ownerName()) : Lang.msg("jige.stale"));
+                return;
+            }
+            letGo(id);   // a copy someone wears holds an old token now
+            ItemStack it = item.get().create(1);
+            stamp(it, id, token, to, toName);
+            if (!vehicles.handOver(to, it)) {
+                // they left or filled up meanwhile: the giver hands it over (it is theirs already; nobody else can wear it)
+                for (ItemStack left : p.getInventory().addItem(it).values()) p.getWorld().dropItem(p.getLocation(), left);
+                p.sendMessage(Lang.msg("vehicle.give-kept", "player", dev.stsv.core.nickname.Names.mini(to)));
+            }
+            vehicles.given(p, s, id, to, toName);
+        }));
+    }
+
+    /** /관리자 탈것 정리: what the worn 지게 carry (a vehicle item in a load is not lost). */
+    void collectLoads(VehicleLedger.Found into) {
+        for (Session s : sessions.values()) {
+            VehicleLedger.collect(s.load, into);
+            if (s.view != null) VehicleLedger.collect(s.view.getContents(), into);
+        }
     }
 
     private static ItemStack[] decode(byte[] bytes) {

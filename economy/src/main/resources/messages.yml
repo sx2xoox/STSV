@@ -131,6 +131,7 @@ market:
   help: "<gray>/거래소 · /거래소 등록 [가격] · /거래소 내목록 · /거래소 검색 <이름> · /거래소 주문 [개당 가격] [수량] · /거래소 주문목록 · /거래소 내주문"
   hold-item: "<red>팔 물건을 손에 드세요."
   no-cheques: "<red>수표는 거래소에 올릴 수 없습니다."
+  no-vehicles: "<red>탈것·지게는 주인에게 묶여 있어 거래소에 올릴 수 없어요. <gray>(넘겨주려면 손에 들고 /탈것 양도 <플레이어>)"
   full: "<red>등록은 {limit}건까지입니다."
   listed: "<green>등록</green> <white>{item} ×{count}</white> {price} <gray>(팔리면 수수료 {fee}, {hours}시간 뒤 만료)"
   own: "<red>내 등록품입니다. <gray>(클릭해서 취소)"
@@ -158,6 +159,7 @@ market:
 auction:
   usage: "<red>/경매 등록 [시작가] <gray>(손에 든 물건, 시작가 없이 = 등록 화면)</gray> | /경매 입찰 <번호> [금액] | /경매 취소 <번호>"
   hold-item: "<red>경매에 올릴 물건을 손에 드세요."
+  no-vehicles: "<red>탈것·지게는 주인에게 묶여 있어 경매에 올릴 수 없어요. <gray>(넘겨주려면 손에 들고 /탈것 양도 <플레이어>)"
   min-start: "<red>시작가는 {min} 이상이어야 합니다."
   full: "<red>지금은 경매 자리가 없습니다. <gray>(서버 전체 동시 {max}건)"
   one-each: "<red>한 사람은 경매를 하나씩만 열 수 있습니다."
@@ -268,6 +270,7 @@ trade:
   state-confirmed: "<green>{player}: 확정"
   button-lore: ["<gray>1. 둘 다 [준비] → 2. 둘 다 [확정]", "<gray>무엇이든 바뀌면 처음부터 다시"]
   money-changed: "<red>잔액이 바뀌어 다시 확인해야 합니다."
+  no-vehicles: "<red>탈것·지게는 주인에게 묶여 있어 거래로 줄 수 없어요. <gray>(넘겨주려면 손에 들고 /탈것 양도 <플레이어>, 돈은 거래 창에서 따로)"
   done: "<green>거래 완료</green> <gray>({player})"
   cancelled: "<gray>거래가 취소되었습니다. 물건은 돌려받았습니다."
   cancelled-far: "<gray>너무 멀어져서 거래가 취소되었습니다."
@@ -539,6 +542,10 @@ land:
   leave-build: "<dark_gray>주인 없는 땅 · 블록 변경 불가"
   # 건축월드 / 야생월드 (코어 config.yml worlds)
   build-own-only: "<red>건축월드에서는 내 땅에서만 블록을 부수고 놓을 수 있습니다 <gray>→ /땅 구매 (처음 {free}청크 무료) · 자원은 /야생월드"
+  # 탈것 세우기 (배 띄우기): 남의 땅 · 서버 땅(스폰 마을, 하역장, 터미널) · 보호 구역(roads.avoid)만 안 됨. 주인 없는 땅과 야생월드는 됨
+  vehicle-others: "<red>{owner}님의 땅에는 탈것을 세울 수 없어요. <gray>(내 땅, 주인 없는 땅, 야생월드에서는 돼요)"
+  vehicle-server: "<red>서버 땅(마을·하역장·터미널)에는 탈것을 세울 수 없어요. <gray>(타고 지나가는 것은 돼요)"
+  vehicle-protected: "<red>보호 구역에는 탈것을 세울 수 없어요. <gray>(타고 지나가는 것은 돼요)"
   build-world-only: "<red>땅은 건축월드에서만 살 수 있습니다. <gray>/건축월드 로 가서 서 있는 청크에서 <white>/땅 구매</white> <gray>(처음 {free}청크 무료)"
   here-wild-world: "<gray>야생월드에는 땅이 없습니다. 누구나 자유롭게 캐고 지을 수 있습니다 (보호 없음, 가끔 초기화)."
   here-wild-dimension: "<gray>야생월드의 {world}에는 땅이 없습니다. 누구나 자유롭게 캐고 지을 수 있습니다 (보호 없음, 야생월드와 함께 가끔 초기화)."

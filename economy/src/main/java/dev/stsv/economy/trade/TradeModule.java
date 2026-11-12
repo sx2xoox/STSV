@@ -290,7 +290,29 @@ public final class TradeModule extends EcoModule {
             return out;
         }
 
+        /**
+         * 탈것·지게 (bound to their owner, given only with /탈것 양도) never go through a trade: one put into the window
+         * goes back to whoever put it there.
+         */
+        boolean evictLocked() {
+            boolean any = false;
+            for (int i = 0; i < 45; i++) {
+                ItemStack it = inv.getItem(i);
+                if (!(isA(i) || isB(i)) || !locked(it)) continue;
+                Player owner = isA(i) ? a : b;
+                inv.setItem(i, null);
+                for (ItemStack left : owner.getInventory().addItem(it).values()) owner.getWorld().dropItem(owner.getLocation(), left);
+                owner.sendMessage(Lang.msg("trade.no-vehicles"));
+                any = true;
+            }
+            return any;
+        }
+
         void complete() {
+            if (evictLocked()) {   // (never there: put back on every click) the trade does not go through with one
+                changed();
+                return;
+            }
             long ma = state.money(TradeState.Side.A), mb = state.money(TradeState.Side.B);
             if (!core.economy().has(a.getUniqueId(), ma) || !core.economy().has(b.getUniqueId(), mb)) {
                 changed();
@@ -360,6 +382,10 @@ public final class TradeModule extends EcoModule {
                 e.setCancelled(true);
                 ItemStack it = e.getCurrentItem();
                 if (it == null || it.isEmpty()) return;
+                if (locked(it)) {
+                    p.sendMessage(Lang.msg("trade.no-vehicles"));
+                    return;
+                }
                 for (int i = 0; i < 45; i++) {
                     if (s.mine(p, i) && (s.inv.getItem(i) == null || s.inv.getItem(i).isEmpty())) {
                         s.inv.setItem(i, it.clone());
@@ -376,7 +402,10 @@ public final class TradeModule extends EcoModule {
             // item moves in my half: allowed, and both must agree again - reset now (a confirm click in the
             // same tick must not go through), redraw after the move happened
             s.state.changed();
-            Bukkit.getScheduler().runTask(eco, s::draw);
+            Bukkit.getScheduler().runTask(eco, () -> {
+                if (!s.finished) s.evictLocked();
+                s.draw();
+            });
             return;
         }
         e.setCancelled(true);
@@ -417,7 +446,15 @@ public final class TradeModule extends EcoModule {
             }
         }
         s.state.changed();
-        Bukkit.getScheduler().runTask(eco, s::draw);
+        Bukkit.getScheduler().runTask(eco, () -> {
+            if (!s.finished) s.evictLocked();
+            s.draw();
+        });
+    }
+
+    /** A vehicle or 지게 item (or a box holding one): bound to its owner, never traded. */
+    private boolean locked(ItemStack it) {
+        return it != null && !it.isEmpty() && core.vehicles() != null && core.vehicles().noTrade(it);
     }
 
     @EventHandler

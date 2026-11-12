@@ -772,10 +772,35 @@ public final class LandModule extends EcoModule implements DailyListener {
         deny(e.getPlayer(), e.getBlock().getLocation(), e);
     }
 
-    /** Placing blocks, and through it furniture and machines (the core asks with a place event per cell). */
+    /**
+     * Placing blocks, and through it furniture and machines (the core asks with a place event per cell). A vehicle's
+     * placing (the core says so while it asks) has its own rule: {@link LandAccess#vehicleSpot}.
+     */
     @EventHandler(priority = EventPriority.LOW, ignoreCancelled = true)
     public void onPlace(BlockPlaceEvent e) {
+        if (core.vehicles() != null && core.vehicles().placingVehicle()) {
+            denyVehicle(e.getPlayer(), e.getBlock().getLocation(), e);
+            return;
+        }
         deny(e.getPlayer(), e.getBlock().getLocation(), e);
+    }
+
+    /** A vehicle placed or a boat launched: anywhere but another's land, the server's land and roads.avoid boxes. */
+    private void denyVehicle(Player p, Location l, Cancellable e) {
+        Land land = at(l);
+        boolean box = eco.roads() != null && l.getWorld() != null && eco.roads().protectedBox(l.getWorld().getName(), l.getBlockX(), l.getBlockZ());
+        LandAccess.VehicleSpot v = LandAccess.vehicleSpot(land, p.getUniqueId(), p.hasPermission("stsv.economy.land.bypass"), box);
+        if (v == LandAccess.VehicleSpot.ALLOW) return;
+        e.setCancelled(true);
+        long now = now();
+        Long last = warned.get(p.getUniqueId());
+        if (last != null && now - last <= 1500) return;
+        warned.put(p.getUniqueId(), now);
+        HudModule.flash(p, switch (v) {
+            case OTHERS_LAND -> Lang.mm("land.vehicle-others", "owner", ownerName(land));
+            case SERVER_LAND -> Lang.mm("land.vehicle-server");
+            default -> Lang.mm("land.vehicle-protected");
+        });
     }
 
     @EventHandler(priority = EventPriority.LOW, ignoreCancelled = true)

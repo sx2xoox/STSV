@@ -359,6 +359,12 @@ public final class RoadModule extends EcoModule {
         if (!avoid.isEmpty()) eco.getLogger().info("[국도] 피할 구역(roads.avoid) " + avoid.size() + "곳");
     }
 
+    /** Is this block column in a roads.avoid box (a protected build without land: no vehicle is placed there either)? */
+    public boolean protectedBox(String world, int x, int z) {
+        for (RoadGuard.Box b : guardBase.avoid()) if (b.contains(world, x, z)) return true;
+        return false;
+    }
+
     /**
      * What a job's road keeps out of ({@link RoadGuard}): every land and roads.avoid box, but for the server's chunks of its
      * own dock and of the departure terminal it starts from (so it reaches the gate and leaves the exit). Other docks'

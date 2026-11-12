@@ -325,6 +325,8 @@ public final class ShopModule extends EcoModule implements DailyListener {
         // Marked before the room is counted: it stacks only with marked ones. Furniture is not: the shop does not buy it, no
         // machine or request takes it, and a piece picked up again (unmarked) should stack with the ones bought
         if (!Items.furniture(item.get())) Items.markBought(item.get());
+        // 귀속: a vehicle or 지게 is the buyer's, whoever holds the item later (only they place or wear it; /탈것 양도 gives it)
+        if (core.vehicles() != null) core.vehicles().bind(item.get(), p.getUniqueId(), p.getName());
         if (Items.room(p.getInventory(), item.get()) < amount) {
             HudModule.flash(p, Lang.mm("shop.no-room"));
             return false;

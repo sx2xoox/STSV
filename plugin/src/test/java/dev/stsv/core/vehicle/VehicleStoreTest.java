@@ -72,7 +72,7 @@ class VehicleStoreTest {
         assertTrue(store.owe(id, 222, 2001).join(), "nobody got the item: owed");
         assertFalse(store.owe(id, 222, 2002).join(), "once");
         assertEquals(1, store.owed(owner).join().size(), "handed over on their next join");
-        assertTrue(store.delivered(id, 222, 3000).join());
+        assertTrue(store.delivered(id, 222, null, 3000).join());
         assertFalse(store.owe(store.create("stsv:light_truck", owner, "Owner", at(1, 1, 0), 5, 1000).join().id(), 5, 3001).join(),
                 "a vehicle in the world is never owed this way");
     }
@@ -93,12 +93,18 @@ class VehicleStoreTest {
         assertFalse(store.takeIn(id, 333, false, 2001).join(), "a second pick-up of the same vehicle does nothing");
         assertTrue(new VehicleStore(db).placed().isEmpty(), "not in the world any more (no copy left in a chunk)");
 
-        assertNull(store.place(id, 999, owner, "Owner", at(5, 5, 0), 444, 3000).join(), "a wrong token (a forged item)");
-        VehicleStore.Row placed = store.place(id, 222, buyer, "Buyer", at(5, 5, 0), 444, 3000).join();
+        assertEquals(VehicleStore.Placing.STALE, store.place(id, 999, owner, false, at(5, 5, 0), 444, 3000).join().outcome(),
+                "a wrong token (a forged item)");
+        VehicleStore.Placed other = store.place(id, 222, buyer, false, at(5, 5, 0), 444, 3000).join();
+        assertEquals(VehicleStore.Placing.NOT_OWNER, other.outcome(), "귀속: someone else holding the item cannot place it");
+        assertEquals("Owner", other.row().ownerName(), "and is told whose it is");
+        VehicleStore.Row placed = store.place(id, 222, owner, false, at(5, 5, 0), 444, 3000).join().row();
         assertNotNull(placed);
-        assertEquals(buyer, placed.owner(), "whoever places the item owns the vehicle");
-        assertNull(store.place(id, 222, owner, "Owner", at(6, 6, 0), 555, 3001).join(), "a copy of the same item: refused");
-        assertNull(store.place(id, 444, owner, "Owner", at(6, 6, 0), 555, 3001).join(), "and it is out already");
+        assertEquals(owner, placed.owner(), "its owner places it");
+        assertEquals(VehicleStore.Placing.STALE, store.place(id, 222, owner, false, at(6, 6, 0), 555, 3001).join().outcome(),
+                "a copy of the same item: refused");
+        assertEquals(VehicleStore.Placing.STALE, store.place(id, 444, owner, false, at(6, 6, 0), 555, 3001).join().outcome(),
+                "and it is out already");
     }
 
     @Test
@@ -121,8 +127,8 @@ class VehicleStoreTest {
         assertEquals(1, owed.size());
         assertEquals(77, owed.getFirst().token());
         assertTrue(store.owed(buyer).join().isEmpty());
-        assertTrue(store.delivered(id, 77, 3000).join());
-        assertFalse(store.delivered(id, 77, 3001).join(), "a second hand-over finds nothing");
+        assertTrue(store.delivered(id, 77, null, 3000).join());
+        assertFalse(store.delivered(id, 77, null, 3001).join(), "a second hand-over finds nothing");
         assertTrue(store.owed(owner).join().isEmpty());
         assertEquals(VehicleStore.State.ITEM, store.get(id).join().state());
     }
@@ -132,9 +138,10 @@ class VehicleStoreTest {
         long id = store.create("stsv:golf_cart", owner, "Owner", at(0, 0, 0), 1, 1000).join().id();
         store.takeIn(id, 10, false, 2000).join();
         assertTrue(store.reissue(id, 20, 3000).join(), "an admin re-issues a lost item");
-        assertTrue(store.delivered(id, 20, 3001).join());
-        assertNull(store.place(id, 10, owner, "Owner", at(0, 0, 0), 30, 4000).join(), "the lost item no longer works");
-        assertNotNull(store.place(id, 20, owner, "Owner", at(0, 0, 0), 30, 4000).join());
+        assertTrue(store.delivered(id, 20, null, 3001).join());
+        assertEquals(VehicleStore.Placing.STALE, store.place(id, 10, owner, false, at(0, 0, 0), 30, 4000).join().outcome(),
+                "the lost item no longer works");
+        assertEquals(VehicleStore.Placing.PLACED, store.place(id, 20, owner, false, at(0, 0, 0), 30, 4000).join().outcome());
         assertFalse(store.reissue(id, 40, 5000).join(), "not while it is in the world (send it back instead)");
     }
 
@@ -196,8 +203,9 @@ class VehicleStoreTest {
                     + "item VARCHAR(128) NOT NULL, owner CHAR(36) NOT NULL, owner_name VARCHAR(16) NOT NULL, state VARCHAR(8) NOT NULL, "
                     + "token BIGINT NOT NULL, world CHAR(36), world_name VARCHAR(64), x DOUBLE, y DOUBLE, z DOUBLE, yaw DOUBLE, cargo BLOB, "
                     + "created BIGINT NOT NULL, updated BIGINT NOT NULL)")));
-            VehicleStore before = new VehicleStore(old);
-            long id = before.create("stsv:light_truck", owner, "Owner", at(0, 0, 0), 1, 1000).join().id();
+            long id = old.sync(c -> Db.insert(c, "INSERT INTO stsv_vehicle (item, owner, owner_name, state, token, world, world_name, x, y, z, yaw, "
+                    + "created, updated) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)", "stsv:light_truck", owner.toString(), "Owner", "world", 1L,
+                    world.toString(), "world", 0.0, 64.0, 0.0, 0.0, 1000L, 1000L));
             VehicleStore after = new VehicleStore(old);
             after.init();
             assertTrue(after.grant(owner, buyer, "Buyer", 2000).join());
@@ -217,5 +225,136 @@ class VehicleStoreTest {
         assertTrue(store.delete(a).join());
         assertFalse(store.delete(a).join());
         assertEquals(1, store.list(null, 50).join().size());
+    }
+
+    /** An admin places anyone's item for its owner (it stays theirs). */
+    @Test
+    void anAdminPlacesItForItsOwner() {
+        long id = store.create("stsv:golf_cart", owner, "Owner", at(0, 0, 0), 1, 1000).join().id();
+        store.takeIn(id, 2, false, 2000).join();
+        VehicleStore.Placed p = store.place(id, 2, buyer, true, at(1, 1, 0), 3, 3000).join();
+        assertEquals(VehicleStore.Placing.PLACED, p.outcome());
+        assertEquals(owner, p.row().owner(), "placing never changes the owner");
+    }
+
+    /**
+     * The bug: test vehicles deleted (an item thrown away, /clear, deleted in creative) stayed in every list. An item no
+     * longer on the player it was last seen with is GONE (hidden), but comes back the moment it is seen, and still places.
+     */
+    @Test
+    void anItemMissingFromItsHolderIsHiddenButComesBack() {
+        long a = store.create("stsv:golf_cart", owner, "Owner", at(0, 0, 0), 1, 1000).join().id();
+        long b = store.create("stsv:golf_cart", owner, "Owner", at(1, 0, 0), 1, 1000).join().id();
+        store.takeIn(a, 10, false, 2000).join();
+        store.takeIn(b, 20, false, 2000).join();
+        assertEquals(2, store.seen(java.util.Map.of(a, 10L, b, 20L), owner.toString()).join(), "both seen on the owner");
+        assertEquals(owner.toString(), store.get(a).join().holder());
+        // a look at the owner later finds only b: a is gone (deleted in creative, /clear)
+        assertEquals(List.of(a), store.missing(owner, java.util.Set.of(b), 10_000).join());
+        assertEquals(VehicleStore.State.GONE, store.get(a).join().state());
+        assertEquals(List.of(b), store.list(owner, 100).join().stream().map(VehicleStore.Row::id).toList(), "the list shows only what is there");
+        assertEquals(1, store.goneCount(owner).join());
+        assertEquals(List.of(a), store.listGone(null, 100).join().stream().map(VehicleStore.Row::id).toList());
+        // it was in a chest after all: seen again, listed again
+        assertEquals(1, store.seen(java.util.Map.of(a, 10L), VehicleStore.ELSEWHERE).join());
+        assertEquals(VehicleStore.State.ITEM, store.get(a).join().state());
+        assertEquals(2, store.list(owner, 100).join().size());
+        // a lost one still places when it turns up (its token is kept)
+        store.missing(owner, java.util.Set.of(), 10_000).join();
+        assertEquals(VehicleStore.State.GONE, store.get(b).join().state());
+        assertEquals(VehicleStore.Placing.PLACED, store.place(b, 20, owner, false, at(3, 3, 0), 21, 11_000).join().outcome());
+    }
+
+    @Test
+    void missingSparesItemsElsewhereRecentOnesAndOldCopies() {
+        long id = store.create("stsv:golf_cart", owner, "Owner", at(0, 0, 0), 1, 1000).join().id();
+        store.takeIn(id, 10, false, 5000).join();
+        store.seen(java.util.Map.of(id, 10L), owner.toString()).join();
+        assertTrue(store.missing(owner, java.util.Set.of(), 4000).join().isEmpty(), "changed after `before`: on its way, not missing");
+        store.seen(java.util.Map.of(id, 10L), VehicleStore.ELSEWHERE).join();
+        assertTrue(store.missing(owner, java.util.Set.of(), 10_000).join().isEmpty(), "put in a chest: not the player's to lose");
+        assertEquals(0, store.seen(java.util.Map.of(id, 99L), owner.toString()).join(), "an old copy says nothing about the vehicle");
+        assertEquals(VehicleStore.ELSEWHERE, store.get(id).join().holder());
+        assertFalse(store.gone(id, 99).join(), "an old copy burning does not hide it");
+        assertTrue(store.gone(id, 10).join(), "its item burnt in lava: gone");
+        assertTrue(store.list(null, 100).join().isEmpty());
+    }
+
+    /** /관리자 탈것 정리: items found nowhere are hidden; placed and owed vehicles, and items found, stay. */
+    @Test
+    void sweepHidesWhatIsNowhere() {
+        long placed = store.create("stsv:golf_cart", owner, "Owner", at(0, 0, 0), 1, 1000).join().id();
+        long found = store.create("stsv:golf_cart", owner, "Owner", at(1, 0, 0), 1, 1000).join().id();
+        long lost = store.create("stsv:golf_cart", owner, "Owner", at(2, 0, 0), 1, 1000).join().id();
+        long owed = store.create("stsv:golf_cart", owner, "Owner", at(3, 0, 0), 1, 1000).join().id();
+        long fresh = store.create("stsv:golf_cart", owner, "Owner", at(4, 0, 0), 1, 1000).join().id();
+        store.takeIn(found, 2, false, 2000).join();
+        store.takeIn(lost, 3, false, 2000).join();
+        store.takeIn(owed, 4, true, 2000).join();
+        store.takeIn(fresh, 5, false, 9000).join();
+        assertEquals(List.of(lost), store.sweep(java.util.Map.of(found, 2L), 5000).join());
+        assertEquals(List.of(placed, found, owed, fresh), store.list(owner, 100).join().stream().map(VehicleStore.Row::id).toList());
+    }
+
+    /** /탈것 양도: a placed vehicle stays where it is and is the new owner's; only its owner (or an admin) gives it. */
+    @Test
+    void givingAPlacedVehicle() {
+        long id = store.create("stsv:golf_cart", owner, "Owner", at(0, 0, 0), 1, 1000).join().id();
+        assertEquals(VehicleStore.Transfer.NOT_OWNER, store.transfer(id, buyer, buyer, "Buyer", 2000).join());
+        assertEquals(VehicleStore.Transfer.DONE, store.transfer(id, owner, buyer, "Buyer", 2000).join());
+        VehicleStore.Row r = store.get(id).join();
+        assertEquals(buyer, r.owner());
+        assertEquals("Buyer", r.ownerName());
+        assertEquals(VehicleStore.State.WORLD, r.state());
+        assertEquals(VehicleStore.Transfer.DONE, store.transfer(id, null, owner, "Owner", 3000).join(), "an admin");
+        store.takeIn(id, 9, false, 4000).join();
+        assertEquals(VehicleStore.Transfer.STALE, store.transfer(id, owner, buyer, "Buyer", 5000).join(), "not in the world: give the item");
+    }
+
+    /** /탈것 양도 of an item: the old item stops working, a new one (owed) is the new owner's; copies do nothing. */
+    @Test
+    void givingAnItem() {
+        long id = store.create("stsv:golf_cart", owner, "Owner", at(0, 0, 0), 1, 1000).join().id();
+        store.takeIn(id, 10, false, 2000).join();
+        assertEquals(VehicleStore.Transfer.NOT_OWNER, store.transferItem(id, 10, buyer, owner, "Owner", 11, 3000).join(),
+                "holding someone else's item gives nothing");
+        assertEquals(VehicleStore.Transfer.STALE, store.transferItem(id, 99, owner, buyer, "Buyer", 11, 3000).join(), "an old copy");
+        assertEquals(VehicleStore.Transfer.DONE, store.transferItem(id, 10, owner, buyer, "Buyer", 11, 3000).join());
+        VehicleStore.Row r = store.get(id).join();
+        assertEquals(buyer, r.owner());
+        assertEquals(VehicleStore.State.OWED, r.state(), "handed over to them (mailbox, inventory, next join)");
+        assertEquals(1, store.owed(buyer).join().size());
+        assertEquals(VehicleStore.Placing.STALE, store.place(id, 10, owner, true, at(1, 1, 0), 12, 4000).join().outcome(),
+                "the item given away no longer works");
+        assertTrue(store.delivered(id, 11, VehicleStore.ELSEWHERE, 5000).join());
+        assertEquals(VehicleStore.Placing.NOT_OWNER, store.place(id, 11, owner, false, at(1, 1, 0), 12, 6000).join().outcome());
+        assertEquals(VehicleStore.Placing.PLACED, store.place(id, 11, buyer, false, at(1, 1, 0), 12, 6000).join().outcome());
+        // a shop-bought item (no row yet) given away: a new row, owed to them
+        VehicleStore.Row fresh = store.createOwed("stsv:hand_cart", buyer, "Buyer", 50, 7000).join();
+        assertEquals(VehicleStore.State.OWED, fresh.state());
+        assertEquals(buyer, fresh.owner());
+        assertEquals(50, fresh.token());
+    }
+
+    /** A database from before the holder column gets it (and its old rows keep working). */
+    @Test
+    void anOlderDatabaseGetsTheHolderColumn(@TempDir Path older) throws Exception {
+        Db old = DatabaseModule.sqlite(older.resolve("o.db"), Logger.getLogger("test"));
+        try {
+            old.migrate("vehicles", List.of(List.of(
+                    "CREATE TABLE IF NOT EXISTS stsv_vehicle (id INTEGER PRIMARY KEY AUTOINCREMENT, item VARCHAR(128) NOT NULL, owner CHAR(36) NOT NULL, "
+                            + "owner_name VARCHAR(16) NOT NULL, state VARCHAR(8) NOT NULL, token BIGINT NOT NULL, world CHAR(36), "
+                            + "world_name VARCHAR(64), x DOUBLE, y DOUBLE, z DOUBLE, yaw DOUBLE, cargo BLOB, "
+                            + "created BIGINT NOT NULL, updated BIGINT NOT NULL)")));
+            old.sync(c -> Db.update(c, "INSERT INTO stsv_vehicle (item, owner, owner_name, state, token, created, updated) VALUES (?, ?, ?, ?, ?, ?, ?)",
+                    "stsv:golf_cart", owner.toString(), "Owner", "item", 5L, 1L, 1L));
+            VehicleStore after = new VehicleStore(old);
+            after.init();
+            VehicleStore.Row r = after.list(owner, 10).join().getFirst();
+            assertNull(r.holder(), "never seen yet");
+            assertTrue(after.missing(owner, java.util.Set.of(), 10_000).join().isEmpty(), "an item never seen with them is never missing");
+        } finally {
+            old.close();
+        }
     }
 }

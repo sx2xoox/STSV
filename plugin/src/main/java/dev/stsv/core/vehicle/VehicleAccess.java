@@ -13,7 +13,9 @@ import java.util.UUID;
  *   <li><b>Pick up</b> (back into an item): its owner and admins only (not the allowed players), only when nobody rides
  *       or pulls it (passengers alone step out first: {@link #ejectPassengers}), nobody has its bed open and the bed is empty (the load stays in the vehicle, never in an item, so it
  *       cannot be copied).</li>
- *   <li>Land: placing it asks the land protection like placing a block (own land, or the wild world); driving through
+ *   <li>Land: placing it asks the land protection like placing a block, flagged as a vehicle (the economy server: anywhere
+ *       but another's land, the server's land and roads.avoid boxes; only its owner or an admin places it:
+ *       {@link VehicleOwnership}); driving through
  *       anyone's land, getting in and out there, and picking up your own vehicle there are allowed (it is your thing,
  *       and taking it away is what the land's owner wants).</li>
  * </ul>

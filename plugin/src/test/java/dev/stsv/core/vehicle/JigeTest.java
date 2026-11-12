@@ -233,4 +233,32 @@ class JigeTest {
         JigeSpec ok = JigeSpec.parse(y.getConfigurationSection("j"), "t", m -> true);
         assertEquals(27, ok.slots());
     }
+
+    /** A 지게 whose item is lost is hidden from the lists, comes back when seen, and is given away with /탈것 양도. */
+    @Test
+    void aLostJigeIsHiddenAndAGivenOneIsTheNewOwners() {
+        UUID other = UUID.randomUUID();
+        JigeStore.Row a = store.create(owner, "Owner", 111, 1000).join();
+        JigeStore.Row b = store.create(owner, "Owner", 222, 1000).join();
+        store.seen(java.util.Map.of(a.id(), 111L, b.id(), 222L), owner.toString()).join();
+        assertEquals(List.of(a.id()), store.missing(owner, java.util.Set.of(b.id()), 5000).join(), "/clear: a is not on them any more");
+        assertEquals(List.of(b.id()), store.list(owner, 100).join().stream().map(JigeStore.Row::id).toList());
+        assertEquals(1, store.goneCount(owner).join());
+        assertNotNull(store.claim(a.id(), 111, 112, 6000).join(), "it turns up and is worn: it works");
+        assertEquals(2, store.list(owner, 100).join().size(), "and is listed again");
+        assertTrue(store.gone(b.id(), 222).join(), "b fell into the void");
+        assertEquals(List.of(a.id()), store.list(null, 100).join().stream().map(JigeStore.Row::id).toList());
+        assertEquals(List.of(a.id()), store.sweep(java.util.Map.of(), 7000).join(), "/관리자 탈것 정리: found nowhere");
+
+        assertEquals(VehicleStore.Transfer.NOT_OWNER, store.transfer(a.id(), 112, other, other, "Other", 113, 8000).join());
+        assertEquals(VehicleStore.Transfer.STALE, store.transfer(a.id(), 111, owner, other, "Other", 113, 8000).join(), "an old copy");
+        byte[] load = {4, 5, 6};
+        assertTrue(store.save(a.id(), 112, load, 8000).join());
+        assertEquals(VehicleStore.Transfer.DONE, store.transfer(a.id(), 112, owner, other, "Other", 113, 8000).join());
+        JigeStore.Row given = store.get(a.id()).join();
+        assertEquals(other, given.owner());
+        assertEquals(113, given.token(), "the item given away opens nothing; the new one does");
+        assertArrayEquals(load, given.contents(), "the load goes with it");
+        assertFalse(given.gone());
+    }
 }

@@ -92,9 +92,9 @@ commands:
     usage: /사이드바 [켜기|끄기|위치 [기본|취소|저장]]
     permission: stsv.hud
   탈것:
-    description: 내 탈것(운전·리어카 끌기·짐칸)을 쓸 수 있는 플레이어 정하기
+    description: 내 탈것 목록, 탈것 넘겨주기(양도), 내 탈것을 쓸 수 있는 플레이어 정하기
     aliases: [vehicle, vehicles]
-    usage: /탈것 권한 [플레이어] | 권한취소 <플레이어>
+    usage: /탈것 목록 | 양도 <플레이어> | 권한 [플레이어] | 권한취소 <플레이어>
     permission: stsv.vehicle
   지게:
     description: 지고 있는 지게의 짐 열기 (가슴 칸에 지게를 입었을 때)
@@ -133,7 +133,7 @@ commands:
     permission: stsv.tpa
 permissions:
   stsv.vehicle:
-    description: /탈것 권한 (내 탈것을 쓸 수 있는 플레이어 정하기)
+    description: /탈것 (내 탈것 목록, 양도, 내 탈것을 쓸 수 있는 플레이어 정하기)
     default: true
   stsv.jige:
     description: /지게 (지고 있는 지게의 짐 열기)

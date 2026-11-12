@@ -125,6 +125,12 @@ import java.util.function.BiPredicate;
  * <h2>Rules</h2> {@link VehicleAccess} (who drives, pulls, opens the bed, picks up), {@link VehicleSeats} (which seat, where
  * to step out). Owners allow other players for all their vehicles with /탈것 권한 ({@link VehicleCommand}, kept in
  * {@link VehicleStore}). Vehicles cannot be hurt and hurt nobody; mobs cannot get in.
+ *
+ * <h2>Owners</h2> {@link VehicleOwnership}: a vehicle (placed or an item) and a 지게 are bound to their owner (귀속): only
+ * they (or an admin) place the item; /탈것 양도 gives one to someone else. Placing is allowed anywhere but another
+ * player's land and the server's protected places (asked with a place event: the economy server's land module answers
+ * vehicles with its own rule while {@link #placingVehicle()}). {@link VehicleLedger} keeps the lists to what is still
+ * there: an item lost (lava, the void, /clear, deleted in creative) is hidden until it turns up again.
  */
 public final class VehicleModule implements StsvModule, Listener {
 
@@ -135,12 +141,21 @@ public final class VehicleModule implements StsvModule, Listener {
     /** On a vehicle's item: its id and token (VehicleStore). An item without them (made by an admin) is a new vehicle. */
     static final NamespacedKey ITEM_ID = NamespacedKey.fromString("stsv:vehicle_id");
     static final NamespacedKey ITEM_TOKEN = NamespacedKey.fromString("stsv:vehicle_token");
+    /** On a vehicle or 지게 item: its owner (uuid; and their name, for messages): 귀속. None = an admin-made item, not bound yet. */
+    static final NamespacedKey ITEM_OWNER = NamespacedKey.fromString("stsv:vehicle_owner");
+    static final NamespacedKey ITEM_OWNER_NAME = NamespacedKey.fromString("stsv:vehicle_owner_name");
     private static final NamespacedKey BUTTON = NamespacedKey.fromString("stsv:vehicle_button");
     private static final String ADMIN_OWNER = "STSV";
     private static final SecureRandom RANDOM = new SecureRandom();
 
     private STSVPlugin plugin;
     private VehicleStore store;
+    /** the 지게's rows (for the lists and the ledger), where vehicle and 지게 items are, the 지게 module (null = off) */
+    private JigeStore jigeStore;
+    private VehicleLedger ledger;
+    private JigeModule jige;
+    /** true while placing asks the protection plugins (place events): see {@link #placingVehicle()} */
+    private boolean placing;
     /** where the towed units of articulated vehicles stand (TrainStore), and those not shown now: id -> units */
     private TrainStore trains;
     private final Map<Long, List<VehiclePhysics.State>> trainSaved = new HashMap<>();
@@ -199,6 +214,9 @@ public final class VehicleModule implements StsvModule, Listener {
         settings = settings();
         store = new VehicleStore(plugin.db());
         store.init();
+        jigeStore = new JigeStore(plugin.db());
+        jigeStore.init();
+        ledger = new VehicleLedger(plugin, store, jigeStore);
         for (VehicleStore.Row r : store.placed()) if (r.pos() != null) parked.put(r.id(), r);
         trains = new TrainStore(plugin.db());
         trains.init();
@@ -212,10 +230,13 @@ public final class VehicleModule implements StsvModule, Listener {
         // a plugin reload: the last run's entities (never saved, so only ever after a reload in the same run)
         for (World w : Bukkit.getWorlds()) for (Entity e : w.getEntities()) if (isVehiclePart(e)) e.remove();
         Bukkit.getPluginManager().registerEvents(this, plugin);
+        ledger.start();
         task = Bukkit.getScheduler().runTaskTimer(plugin, () -> tick(), 1L, 1L);
-        plugin.admin().add(ADMIN_OWNER, "탈것", "목록 [플레이어] | 회수 <번호> | 제거 [반경]",
-                "탈것 목록 / 주인에게 아이템으로 돌려주기 / 주변 탈것 지우기", this::command,
-                (s, a) -> a.length == 1 ? List.of("목록", "회수", "제거") : a.length == 2 && a[0].equals("제거") ? List.of("8", "16", "32") : List.of());
+        plugin.admin().add(ADMIN_OWNER, "탈것", "목록 [플레이어] | 숨김 [플레이어] | 회수 <번호> | 삭제 <번호> | 제거 [반경] | 정리",
+                "탈것 목록 / 사라진 것으로 보이는 탈것 / 주인에게 아이템으로 돌려주기 / 한 대 지우기 / 주변 탈것 지우기 / 없어진 아이템 숨기기", this::command,
+                (s, a) -> a.length == 1 ? List.of("목록", "숨김", "회수", "삭제", "제거", "정리")
+                        : a.length == 2 && a[0].equals("제거") ? List.of("8", "16", "32")
+                        : a.length == 2 && (a[0].equals("목록") || a[0].equals("숨김")) ? dev.stsv.core.nickname.Names.complete(s, a[1]) : List.of());
         plugin.admin().report("STSV 탈것", (s, a) -> s.sendMessage(Lang.mm("vehicle.report", "live", live.size(), "parked", parked.size())));
         org.bukkit.command.PluginCommand command = plugin.getCommand("탈것");
         if (command != null) {
@@ -262,6 +283,7 @@ public final class VehicleModule implements StsvModule, Listener {
             despawn(v, true);
         }
         if (task != null) task.cancel();
+        if (ledger != null) ledger.stop();
         plugin.admin().removeAll("STSV 탈것");
         HandlerList.unregisterAll(this);
     }
@@ -694,8 +716,8 @@ public final class VehicleModule implements StsvModule, Listener {
     // Items
     // ------------------------------------------------------------------------------------------
 
-    /** The item of a vehicle with its identity (id, token) and number in its lore. */
-    ItemStack itemFor(CustomItem item, long id, long token) {
+    /** The item of a vehicle with its identity (id, token), its owner (귀속) and number in its lore. */
+    ItemStack itemFor(CustomItem item, long id, long token, UUID owner, String ownerName) {
         ItemStack it = item.create(1);
         it.editMeta(m -> {
             m.getPersistentDataContainer().set(ITEM_ID, PersistentDataType.LONG, id);
@@ -704,7 +726,87 @@ public final class VehicleModule implements StsvModule, Listener {
             lore.add(Lang.item("vehicle.item-number", "id", id));
             m.lore(lore);
         });
+        stampOwner(it, owner, ownerName);
         return it;
+    }
+
+    /** Binds an item to its owner (귀속): their uuid and name on it, and a line in its lore. */
+    static void stampOwner(ItemStack it, UUID owner, String ownerName) {
+        if (owner == null) return;
+        String name = ownerName == null ? "?" : ownerName;
+        it.editMeta(m -> {
+            m.getPersistentDataContainer().set(ITEM_OWNER, PersistentDataType.STRING, owner.toString());
+            m.getPersistentDataContainer().set(ITEM_OWNER_NAME, PersistentDataType.STRING, name);
+            List<Component> lore = m.hasLore() ? new ArrayList<>(m.lore()) : new ArrayList<>();
+            lore.add(Lang.item("vehicle.item-owner", "owner", name));
+            m.lore(lore);
+        });
+    }
+
+    /** The owner an item is bound to (null = not bound: an admin-made item, or an item from before items carried it). */
+    static UUID boundOwner(ItemStack it) {
+        if (it == null || it.isEmpty()) return null;
+        String s = it.getPersistentDataContainer().get(ITEM_OWNER, PersistentDataType.STRING);
+        try {
+            return s == null ? null : UUID.fromString(s);
+        } catch (IllegalArgumentException e) {
+            return null;
+        }
+    }
+
+    static String boundOwnerName(ItemStack it) {
+        if (it == null || it.isEmpty()) return null;
+        return it.getPersistentDataContainer().get(ITEM_OWNER_NAME, PersistentDataType.STRING);
+    }
+
+    /** Is this a vehicle item or a 지게 item (both bound to their owner: never traded, only given with /탈것 양도)? */
+    public boolean isVehicleItem(ItemStack it) {
+        if (it == null || it.isEmpty()) return false;
+        if (plugin.content().itemOf(it).filter(CustomItem::isVehicle).isPresent()) return true;
+        JigeModule j = jige;
+        return j != null && j.isJige(it);
+    }
+
+    /**
+     * May this stack not change hands by trading (the market, auctions, a trade window)? A vehicle or 지게 item (bound to
+     * its owner: given only with /탈것 양도), or a shulker box or bundle holding one.
+     */
+    public boolean noTrade(ItemStack it) {
+        return isVehicleItem(it) || VehicleLedger.tracked(it);
+    }
+
+    /**
+     * Binds a vehicle or 지게 item to a player (귀속): a shop sells it to the buyer, and from then on only they place (or
+     * wear) it, whoever holds it; /탈것 양도 gives it to someone else. An item already bound, or already a vehicle with a
+     * number (its owner is kept with it), stays as it is; anything else is left alone.
+     */
+    public void bind(ItemStack it, UUID owner, String ownerName) {
+        if (owner == null || !isVehicleItem(it) || boundOwner(it) != null || idOf(it) > 0 || JigeModule.idOf(it) > 0) return;
+        stampOwner(it, owner, ownerName);
+    }
+
+    /** The 지게 module tells it is there (null: it stops). */
+    void jige(JigeModule j) {
+        this.jige = j;
+    }
+
+    /** Where vehicle and 지게 items are (the 지게 module reads it too). */
+    VehicleLedger ledger() {
+        return ledger;
+    }
+
+    /**
+     * True while a vehicle's placing asks the protection plugins with place events (one per cell it takes): a land
+     * plugin may answer vehicles with its own rule (the economy server: anywhere but another's land and the server's).
+     */
+    public boolean placingVehicle() {
+        return placing;
+    }
+
+    /** Whether a player may use (drive, pull, open, wear) something of this owner's: VehicleAccess. */
+    boolean mayUse(UUID owner, Player p) {
+        UUID id = p.getUniqueId();
+        return VehicleAccess.mayDrive(owner, id, admin(p), trusted(owner, id), granted(owner, id));
     }
 
     private static long idOf(ItemStack it) {
@@ -726,7 +828,7 @@ public final class VehicleModule implements StsvModule, Listener {
     }
 
     /** The item's name as MiniMessage (content names are trusted text), for messages. */
-    private static String label(CustomItem item) {
+    static String label(CustomItem item) {
         return item.name() == null ? item.key().getKey() : item.name();
     }
 
@@ -748,7 +850,8 @@ public final class VehicleModule implements StsvModule, Listener {
             Optional<CustomItem> boat = plugin.content().itemOf(hand).filter(i -> i.isVehicle() && i.vehicle().floats());
             if (boat.isEmpty()) return;
             e.setCancelled(true);
-            if ((e.getHand() == EquipmentSlot.HAND || e.getHand() == EquipmentSlot.OFF_HAND) && !p.isInsideVehicle() && click(p)) {
+            if ((e.getHand() == EquipmentSlot.HAND || e.getHand() == EquipmentSlot.OFF_HAND) && !p.isInsideVehicle() && click(p)
+                    && mayPlaceItem(p, hand)) {
                 launch(p, boat.get(), hand, e.getHand());
             }
             return;
@@ -762,9 +865,18 @@ public final class VehicleModule implements StsvModule, Listener {
         if (clicked.getType().asBlockType().isInteractable() && !p.isSneaking()) return;   // let doors and chests open
         e.setCancelled(true);
         if (e.getHand() != EquipmentSlot.HAND && e.getHand() != EquipmentSlot.OFF_HAND) return;
-        if (p.isInsideVehicle() || !click(p)) return;
+        if (p.isInsideVehicle() || !click(p) || !mayPlaceItem(p, hand)) return;
         if (item.get().vehicle().floats()) launch(p, item.get(), hand, e.getHand());
         else place(p, item.get(), hand, e.getHand(), clicked, e.getBlockFace());
+    }
+
+    /** Only its owner (or an admin) places a bound item (귀속); anyone else is told whose it is. */
+    private boolean mayPlaceItem(Player p, ItemStack hand) {
+        UUID owner = boundOwner(hand);
+        if (VehicleOwnership.mayPlace(owner, p.getUniqueId(), admin(p))) return true;
+        String name = boundOwnerName(hand);
+        refuse(p, Lang.mm("vehicle.not-yours", "owner", name == null ? "?" : name));
+        return false;
     }
 
     /** One action per 6 ticks (a right-click can arrive twice). */
@@ -806,7 +918,7 @@ public final class VehicleModule implements StsvModule, Listener {
             for (int x = (int) Math.floor(b[0]); x <= (int) Math.floor(b[3] - 1e-6); x++)
                 for (int z = (int) Math.floor(b[2]); z <= (int) Math.floor(b[5] - 1e-6); z++) cells.add(w.getBlockAt(x, y, z));
         }
-        if (!plugin.furniture().mayBuild(p, cells, clicked, slot)) {
+        if (!mayPlaceHere(p, cells, clicked, slot)) {
             p.playSound(p.getLocation(), Sound.BLOCK_NOTE_BLOCK_BASS, 0.6f, 0.6f);
             return;
         }
@@ -842,11 +954,21 @@ public final class VehicleModule implements StsvModule, Listener {
             for (int bx = (int) Math.floor(b[0]); bx <= (int) Math.floor(b[3] - 1e-6); bx++)
                 for (int bz = (int) Math.floor(b[2]); bz <= (int) Math.floor(b[5] - 1e-6); bz++) cells.add(w.getBlockAt(bx, wl, bz));
         }
-        if (!plugin.furniture().mayBuild(p, cells, water, slot)) {
+        if (!mayPlaceHere(p, cells, water, slot)) {
             p.playSound(p.getLocation(), Sound.BLOCK_NOTE_BLOCK_BASS, 0.6f, 0.6f);
             return;
         }
         commit(p, item, hand, w, st, List.of());
+    }
+
+    /** Asks the protection plugins about every cell, flagged as a vehicle's placing ({@link #placingVehicle()}). */
+    private boolean mayPlaceHere(Player p, Set<Block> cells, Block against, EquipmentSlot slot) {
+        placing = true;
+        try {
+            return plugin.furniture().mayBuild(p, cells, against, slot);
+        } finally {
+            placing = false;
+        }
     }
 
     /**
@@ -856,6 +978,8 @@ public final class VehicleModule implements StsvModule, Listener {
     private void commit(Player p, CustomItem item, ItemStack hand, World w, VehiclePhysics.State st, List<VehiclePhysics.State> units) {
         long id = idOf(hand), token = tokenOf(hand);
         if (id > 0 && busy.contains(id)) return;
+        UUID bound = boundOwner(hand);
+        String boundName = boundOwnerName(hand);
         // the item goes now (it is the vehicle); a fresh admin item in creative stays, like furniture
         ItemStack taken = hand.asOne();
         boolean consume = id > 0 || p.getGameMode() != GameMode.CREATIVE;
@@ -863,15 +987,26 @@ public final class VehicleModule implements StsvModule, Listener {
         VehicleStore.Pos pos = new VehicleStore.Pos(w.getUID(), w.getName(), st.x, st.y, st.z, st.yaw);
         long newToken = newToken(), now = System.currentTimeMillis();
         if (id > 0) busy.add(id);
-        var done = id > 0 ? store.place(id, token, p.getUniqueId(), p.getName(), pos, newToken, now)
-                : store.create(item.key().asString(), p.getUniqueId(), p.getName(), pos, newToken, now);
-        done.whenComplete((row, err) -> Bukkit.getScheduler().runTask(plugin, () -> {
+        // 귀속: the item's owner owns it (an admin may place it for them); an unbound item is the placer's
+        UUID owner = VehicleOwnership.ownerOnPlacing(bound, p.getUniqueId());
+        String ownerName = bound != null && boundName != null ? boundName : p.getName();
+        java.util.concurrent.CompletableFuture<VehicleStore.Placed> done = id > 0 ? store.place(id, token, p.getUniqueId(), admin(p), pos, newToken, now)
+                : store.create(item.key().asString(), owner, ownerName, pos, newToken, now)
+                .thenApply(r -> new VehicleStore.Placed(VehicleStore.Placing.PLACED, r));
+        done.whenComplete((placed, err) -> Bukkit.getScheduler().runTask(plugin, () -> {
             if (id > 0) busy.remove(id);
             if (err != null) {
                 if (consume) give(p, taken);
                 p.sendMessage(Lang.msg("vehicle.error"));
                 return;
             }
+            if (placed.outcome() == VehicleStore.Placing.NOT_OWNER) {
+                // someone else's (an item from before items carried their owner): it stays theirs, the item stays as it was
+                if (consume) give(p, taken);
+                refuse(p, Lang.mm("vehicle.not-yours", "owner", placed.row().ownerName()));
+                return;
+            }
+            VehicleStore.Row row = placed.row();
             if (row == null) {
                 // a stale or copied item: the vehicle is already out, or was placed from another copy
                 p.sendMessage(Lang.msg("vehicle.stale"));
@@ -888,6 +1023,7 @@ public final class VehicleModule implements StsvModule, Listener {
             w.playSound(new Location(w, st.x, st.y, st.z), item.vehicle().floats() ? Sound.ENTITY_GENERIC_SPLASH : Sound.BLOCK_IRON_DOOR_CLOSE,
                     0.8f, 1.2f);
             p.sendMessage(Lang.msg("vehicle.placed", "vehicle", label(item), "id", row.id()));
+            if (!row.owner().equals(p.getUniqueId())) p.sendMessage(Lang.msg("vehicle.placed-for", "owner", row.ownerName()));
         }));
     }
 
@@ -2148,7 +2284,7 @@ public final class VehicleModule implements StsvModule, Listener {
                         p.sendMessage(Lang.msg("vehicle.error"));
                         return;
                     }
-                    ItemStack it = itemFor(item, back.id(), token);
+                    ItemStack it = itemFor(item, back.id(), token, back.owner(), back.ownerName());
                     if (p.isOnline() && room(p) && p.getInventory().addItem(it).isEmpty()) {
                         p.playSound(p.getLocation(), Sound.ENTITY_ITEM_PICKUP, 0.7f, 0.9f);
                         p.sendMessage(Lang.msg("vehicle.picked-up", "vehicle", label(item)));
@@ -2258,7 +2394,7 @@ public final class VehicleModule implements StsvModule, Listener {
                         if (by != null) by.sendMessage(Lang.msg("vehicle.admin-unknown", "id", id));
                         return;
                     }
-                    deliver(row.owner(), id, token, itemFor(item.get(), id, token), tell);
+                    deliver(row.owner(), id, token, itemFor(item.get(), id, token, row.owner(), row.ownerName()), tell);
                     if (by != null) by.sendMessage(Lang.msg("vehicle.returned-owner", "id", id, "owner", row.ownerName()));
                 }));
     }
@@ -2274,7 +2410,8 @@ public final class VehicleModule implements StsvModule, Listener {
             if (o != null) o.sendMessage(Lang.msg("vehicle.owed-waiting"));
             return;   // stays OWED: handed over when they join with room
         }
-        store.delivered(id, token, System.currentTimeMillis()).whenComplete((ok, err) -> Bukkit.getScheduler().runTask(plugin, () -> {
+        String holder = box != null ? VehicleStore.ELSEWHERE : null;   // a mailbox: elsewhere (VehicleLedger); handed over: seen on them
+        store.delivered(id, token, holder, System.currentTimeMillis()).whenComplete((ok, err) -> Bukkit.getScheduler().runTask(plugin, () -> {
             if (err != null || !Boolean.TRUE.equals(ok)) return;
             if (box != null) box.accept(owner, it);
             else {
@@ -2290,7 +2427,8 @@ public final class VehicleModule implements StsvModule, Listener {
         store.owed(p.getUniqueId()).thenAccept(rows -> Bukkit.getScheduler().runTask(plugin, () -> {
             for (VehicleStore.Row r : rows) {
                 plugin.content().item(r.item()).filter(CustomItem::isVehicle)
-                        .ifPresent(item -> deliver(r.owner(), r.id(), r.token(), itemFor(item, r.id(), r.token()), "vehicle.returned"));
+                        .ifPresent(item -> deliver(r.owner(), r.id(), r.token(), itemFor(item, r.id(), r.token(), r.owner(), r.ownerName()),
+                                "vehicle.owed-delivered"));
             }
         }));
     }
@@ -2614,6 +2752,13 @@ public final class VehicleModule implements StsvModule, Listener {
                 else recall(id, s);
             }
             case "제거", "remove" -> remove(s, a.length > 1 ? a[1] : null);
+            case "숨김", "hidden" -> hidden(s, a.length > 1 ? a[1] : null);
+            case "삭제", "delete" -> {
+                long id = a.length > 1 ? parseId(a[1]) : -1;
+                if (id <= 0) s.sendMessage(Lang.msg("vehicle.admin-usage"));
+                else delete(s, id);
+            }
+            case "정리", "sweep", "cleanup" -> sweep(s);
             default -> s.sendMessage(Lang.msg("vehicle.admin-usage"));
         }
     }
@@ -2636,17 +2781,127 @@ public final class VehicleModule implements StsvModule, Listener {
     }
 
     private void listRows(CommandSender s, UUID owner) {
-        store.list(owner, 100).thenAccept(rows -> Bukkit.getScheduler().runTask(plugin, () -> {
-            s.sendMessage(Lang.msg("vehicle.admin-list", "count", rows.size()));
-            for (VehicleStore.Row r : rows) {
-                String name = plugin.content().item(r.item()).map(i -> i.name() == null ? r.item() : i.name()).orElse(r.item());
-                String where = r.state() == VehicleStore.State.WORLD && r.pos() != null
-                        ? Lang.raw("vehicle.admin-where", "world", r.pos().worldName(), "x", (long) Math.floor(r.pos().x()),
-                        "y", (long) Math.floor(r.pos().y()), "z", (long) Math.floor(r.pos().z()))
-                        + (live.containsKey(r.id()) ? Lang.raw("vehicle.admin-shown") : "")
-                        : Lang.raw(r.state() == VehicleStore.State.OWED ? "vehicle.admin-owed" : "vehicle.admin-item");
-                s.sendMessage(Text.mm(Lang.raw("vehicle.admin-line", "id", r.id(), "name", name, "owner", r.ownerName(), "where", where)));
+        ledger.scanAll();   // what was just thrown away or deleted is hidden already (the list is read after these writes)
+        store.list(owner, 100).thenCombine(store.goneCount(owner), (rows, gone) -> java.util.Map.entry(rows, gone))
+                .thenAccept(r -> Bukkit.getScheduler().runTask(plugin, () -> {
+                    List<VehicleStore.Row> rows = r.getKey();
+                    s.sendMessage(Lang.msg("vehicle.admin-list", "count", rows.size()));
+                    for (VehicleStore.Row row : rows) {
+                        s.sendMessage(Text.mm(Lang.raw("vehicle.admin-line", "id", row.id(), "name", nameOf(row.item()), "owner", row.ownerName(),
+                                "where", where(row, null))));
+                    }
+                    if (r.getValue() > 0) s.sendMessage(Lang.msg("vehicle.admin-hidden", "count", r.getValue()));
+                }));
+    }
+
+    /** A vehicle's name as MiniMessage (content names are trusted), or its item key when that item is no more. */
+    private String nameOf(String item) {
+        return plugin.content().item(item).map(i -> i.name() == null ? item : i.name()).orElse(item);
+    }
+
+    /** Where a vehicle is, as MiniMessage: its place in the world, or its item and who was last seen with it. viewer: "mine" for them. */
+    private String where(VehicleStore.Row r, UUID viewer) {
+        return switch (r.state()) {
+            case WORLD -> r.pos() == null ? Lang.raw("vehicle.admin-item") : Lang.raw("vehicle.admin-where", "world", r.pos().worldName(),
+                    "x", (long) Math.floor(r.pos().x()), "y", (long) Math.floor(r.pos().y()), "z", (long) Math.floor(r.pos().z()))
+                    + (live.containsKey(r.id()) ? Lang.raw("vehicle.admin-shown") : "");
+            case OWED -> Lang.raw(viewer != null ? "vehicle.where-owed" : "vehicle.admin-owed");
+            case GONE -> Lang.raw("vehicle.where-gone");
+            case ITEM -> heldWhere(r.holder(), viewer);
+        };
+    }
+
+    /** An item's place by its holder (VehicleLedger): a player's inventory, elsewhere (a chest, the ground, a mailbox) or not seen yet. */
+    String heldWhere(String holder, UUID viewer) {
+        if (holder == null) return Lang.raw("vehicle.admin-item");
+        if (VehicleStore.ELSEWHERE.equals(holder)) return Lang.raw("vehicle.where-stored");
+        try {
+            UUID u = UUID.fromString(holder);
+            return u.equals(viewer) ? Lang.raw("vehicle.where-mine") : Lang.raw("vehicle.where-held", "player", dev.stsv.core.nickname.Names.mini(u));
+        } catch (IllegalArgumentException e) {
+            return Lang.raw("vehicle.admin-item");
+        }
+    }
+
+    /** /관리자 탈것 숨김 [플레이어]: the vehicles whose item seems lost (hidden from the lists; 회수 makes a new item). */
+    private void hidden(CommandSender s, String player) {
+        java.util.function.Consumer<UUID> show = owner -> store.listGone(owner, 100).thenAccept(rows -> Bukkit.getScheduler().runTask(plugin, () -> {
+            s.sendMessage(Lang.msg("vehicle.admin-hidden-list", "count", rows.size()));
+            for (VehicleStore.Row row : rows) {
+                s.sendMessage(Text.mm(Lang.raw("vehicle.admin-line", "id", row.id(), "name", nameOf(row.item()), "owner", row.ownerName(),
+                        "where", Lang.raw("vehicle.where-gone"))));
             }
+        }));
+        if (player == null) show.accept(null);
+        else dev.stsv.core.nickname.Names.find(player, found -> {
+            if (found.isEmpty()) s.sendMessage(Lang.msg("vehicle.admin-no-player", "player", player));
+            else show.accept(found.get());
+        });
+    }
+
+    /**
+     * /관리자 탈것 삭제 &lt;번호&gt;: one vehicle gone for good, wherever it is (a shown one's bed is dropped beside it; an
+     * item of it stops working). For test vehicles and mistakes.
+     */
+    private void delete(CommandSender s, long id) {
+        if (busy.contains(id)) {
+            s.sendMessage(Lang.msg("vehicle.admin-busy", "id", id));
+            return;
+        }
+        LiveVehicle v = live.get(id);
+        if (v != null) {
+            syncCargo(v);
+            if (v.cargo != null) for (ItemStack it : v.cargo) if (it != null && !it.isEmpty()) v.world.dropItemNaturally(at(v), it);
+            v.cargo = null;
+            despawn(v, false);
+        }
+        parked.remove(id);
+        parkedLoads.remove(id);
+        busy.add(id);
+        store.get(id).thenCompose(row -> store.delete(id).thenApply(ok -> Boolean.TRUE.equals(ok) ? row : null))
+                .whenComplete((row, err) -> Bukkit.getScheduler().runTask(plugin, () -> {
+                    busy.remove(id);
+                    if (err != null || row == null) {
+                        s.sendMessage(Lang.msg("vehicle.admin-unknown", "id", id));
+                        return;
+                    }
+                    trips.remove(id);
+                    tripStore.delete(id);
+                    trainSaved.remove(id);
+                    trains.delete(id);
+                    s.sendMessage(Lang.msg("vehicle.admin-deleted", "id", id, "owner", row.ownerName()));
+                    plugin.getLogger().info("[탈것] " + s.getName() + " 님이 #" + id + " (" + row.item() + ", 주인 " + row.ownerName() + ", "
+                            + row.state() + ") 를 지움");
+                }));
+    }
+
+    /**
+     * /관리자 탈것 정리: every vehicle and 지게 item the server cannot find now (online players, loaded chunks, the beds of
+     * the vehicles, worn 지게) and that did not change in the last minute is hidden from the lists (VehicleLedger#sweep).
+     * Nothing is deleted: one that turns up again is listed again and still works.
+     */
+    private void sweep(CommandSender s) {
+        VehicleLedger.Found beds = new VehicleLedger.Found();
+        for (LiveVehicle v : live.values()) {
+            syncCargo(v);
+            VehicleLedger.collect(v.cargo, beds);
+        }
+        for (VehicleStore.Row r : parked.values()) {
+            ParkedLoad kept = parkedLoads.get(r.id());
+            VehicleLedger.collect(kept != null ? kept.cargo() : decode(r.cargo()), beds);
+        }
+        JigeModule j = jige;
+        if (j != null) j.collectLoads(beds);
+        ledger.sweep(beds).whenComplete((done, err) -> Bukkit.getScheduler().runTask(plugin, () -> {
+            if (err != null) {
+                plugin.getLogger().log(java.util.logging.Level.WARNING, "[탈것] 정리 실패", err);
+                s.sendMessage(Lang.msg("vehicle.error"));
+                return;
+            }
+            s.sendMessage(Lang.msg("vehicle.admin-swept", "found", done.foundVehicles() + done.foundJige(), "vehicles", done.goneVehicles().size(),
+                    "jige", done.goneJige().size()));
+            plugin.getLogger().info("[탈것] " + s.getName() + " 님의 정리: 없어진 탈것 아이템 " + done.goneVehicles() + ", 지게 " + done.goneJige()
+                    + " 를 목록에서 숨김");
         }));
     }
 
@@ -2692,5 +2947,213 @@ public final class VehicleModule implements StsvModule, Listener {
             }
         }
         s.sendMessage(Lang.msg("vehicle.admin-removed", "count", removed, "strays", strays, "radius", radius));
+    }
+
+    // ------------------------------------------------------------------------------------------
+    // 귀속 · /탈것 목록 · /탈것 양도 (VehicleCommand, VehicleOwnership)
+    // ------------------------------------------------------------------------------------------
+
+    /**
+     * What /탈것 양도 gives: the vehicle or 지게 item in the main hand (id 0: an admin-made or shop-bought one with no number
+     * yet), else the vehicle ridden or pulled, else the one looked at. owner null = not bound (or not known from the item).
+     */
+    record Subject(Kind kind, long id, long token, String item, UUID owner, String ownerName, String label) {
+        enum Kind { PLACED, ITEM, JIGE }
+
+        /** The same vehicle, the same item (for the confirmation). */
+        String key() {
+            return kind + ":" + id + ":" + token + ":" + item;
+        }
+    }
+
+    /** The vehicle a player would give now (null = none: nothing held, ridden, pulled or looked at). */
+    Subject subject(Player p) {
+        ItemStack hand = p.getInventory().getItemInMainHand();
+        Optional<CustomItem> held = plugin.content().itemOf(hand).filter(CustomItem::isVehicle);
+        if (held.isPresent()) {
+            return new Subject(Subject.Kind.ITEM, idOf(hand), tokenOf(hand), held.get().key().asString(), boundOwner(hand), boundOwnerName(hand),
+                    label(held.get()));
+        }
+        JigeModule j = jige;
+        if (j != null && j.isJige(hand)) return j.subject(hand);
+        Long id = partOf(p.getVehicle());
+        if (id == null) id = pulling.get(p.getUniqueId());
+        if (id == null) id = partOf(p.getTargetEntity(6));
+        LiveVehicle v = id == null ? null : live.get(id);
+        if (v == null) return null;
+        return new Subject(Subject.Kind.PLACED, v.id, 0, v.item.key().asString(), v.owner, v.ownerName, label(v.item));
+    }
+
+    /** Can an item be handed to this player now (a mailbox, or online with room)? Vehicles wait for them anyway (owed). */
+    boolean canHandOver(UUID to) {
+        Player o = Bukkit.getPlayer(to);
+        return mailbox != null || (o != null && room(o));
+    }
+
+    /** Hands an item to a player: their mailbox, else their inventory now. false = neither (offline or full, no mailbox). */
+    boolean handOver(UUID to, ItemStack it) {
+        BiConsumer<UUID, ItemStack> box = mailbox;
+        if (box != null) {
+            box.accept(to, it);
+            if (ledger != null) ledger.elsewhere(it);
+            return true;
+        }
+        Player o = Bukkit.getPlayer(to);
+        if (o == null || !room(o)) return false;
+        give(o, it);
+        return true;
+    }
+
+    /**
+     * /탈것 양도, confirmed: gives the subject to `to`. A vehicle in the world stays where it is (its bed too) and is theirs;
+     * an item leaves the hand at once and a new one (the old one stops working) goes to them: their mailbox, their
+     * inventory, or on their next join. Both are told; the server log keeps a line.
+     */
+    void give(Player p, Subject s, UUID to, String toName) {
+        UUID from = admin(p) ? null : p.getUniqueId();
+        long now = System.currentTimeMillis();
+        switch (s.kind()) {
+            case PLACED -> {
+                if (busy.contains(s.id())) {
+                    p.sendMessage(Lang.msg("vehicle.admin-busy", "id", s.id()));
+                    return;
+                }
+                busy.add(s.id());
+                store.transfer(s.id(), from, to, toName, now).whenComplete((r, err) -> Bukkit.getScheduler().runTask(plugin, () -> {
+                    busy.remove(s.id());
+                    if (err != null || r == null) {
+                        p.sendMessage(Lang.msg("vehicle.error"));
+                        return;
+                    }
+                    switch (r) {
+                        case NOT_OWNER -> p.sendMessage(Lang.msg("vehicle.not-yours", "owner", s.ownerName() == null ? "?" : s.ownerName()));
+                        case STALE -> p.sendMessage(Lang.msg("vehicle.give-nothing"));
+                        case DONE -> {
+                            ownerChanged(s.id(), to, toName);
+                            given(p, s, s.id(), to, toName);
+                        }
+                    }
+                }));
+            }
+            case ITEM -> {
+                ItemStack hand = p.getInventory().getItemInMainHand();
+                Optional<CustomItem> item = plugin.content().item(s.item()).filter(CustomItem::isVehicle);
+                if (item.isEmpty() || plugin.content().itemOf(hand).filter(i -> i.key().equals(item.get().key())).isEmpty()
+                        || idOf(hand) != s.id() || tokenOf(hand) != s.token()) {
+                    p.sendMessage(Lang.msg("vehicle.give-nothing"));
+                    return;
+                }
+                if (s.id() > 0 && busy.contains(s.id())) {
+                    p.sendMessage(Lang.msg("vehicle.admin-busy", "id", s.id()));
+                    return;
+                }
+                // the item leaves the hand now (back to them if it cannot be given)
+                ItemStack taken = hand.asOne();
+                hand.subtract(1);
+                long token = newToken();
+                java.util.concurrent.CompletableFuture<Long> step;
+                if (s.id() > 0) {
+                    busy.add(s.id());
+                    step = store.transferItem(s.id(), s.token(), from, to, toName, token, now).thenApply(r -> switch (r) {
+                        case DONE -> s.id();
+                        case NOT_OWNER -> -1L;
+                        case STALE -> -2L;
+                    });
+                } else {
+                    step = store.createOwed(s.item(), to, toName, token, now).thenApply(VehicleStore.Row::id);
+                }
+                step.whenComplete((id, err) -> Bukkit.getScheduler().runTask(plugin, () -> {
+                    if (s.id() > 0) busy.remove(s.id());
+                    if (err != null || id == null || id <= 0) {
+                        give(p, taken);
+                        p.sendMessage(err != null || id == null ? Lang.msg("vehicle.error")
+                                : id == -1L ? Lang.msg("vehicle.not-yours", "owner", s.ownerName() == null ? "?" : s.ownerName())
+                                : Lang.msg("vehicle.stale"));
+                        return;
+                    }
+                    if (trainSaved.remove(id) != null) trains.delete(id);
+                    deliver(to, id, token, itemFor(item.get(), id, token, to, toName), null);
+                    given(p, s, id, to, toName);
+                }));
+            }
+            case JIGE -> {
+                JigeModule j = jige;
+                if (j == null) p.sendMessage(Lang.msg("vehicle.give-nothing"));
+                else j.give(p, s, from, to, toName);
+            }
+        }
+    }
+
+    /** A transfer done: the giver, the new owner (if online) and the old owner (an admin gave theirs) are told, and the log. */
+    void given(Player p, Subject s, long id, UUID to, String toName) {
+        String what = s.kind() == Subject.Kind.JIGE ? "지게" : "탈것";
+        p.sendMessage(Lang.msg("vehicle.given", "vehicle", s.label(), "id", id, "player", dev.stsv.core.nickname.Names.mini(to)));
+        Player o = Bukkit.getPlayer(to);
+        if (o != null) {
+            o.sendMessage(Lang.msg(s.kind() == Subject.Kind.PLACED ? "vehicle.given-you-placed" : "vehicle.given-you-item", "vehicle", s.label(),
+                    "id", id, "from", dev.stsv.core.nickname.Names.mini(p.getUniqueId())));
+        }
+        UUID was = s.owner();
+        if (was != null && !was.equals(p.getUniqueId())) {
+            Player old = Bukkit.getPlayer(was);
+            if (old != null) old.sendMessage(Lang.msg("vehicle.given-away", "vehicle", s.label(), "id", id, "player", dev.stsv.core.nickname.Names.mini(to)));
+        }
+        plugin.getLogger().info("[탈것] 양도: " + what + " #" + id + " (" + s.item() + ") " + (s.ownerName() == null ? p.getName() : s.ownerName())
+                + " -> " + toName + " (" + p.getName() + " 님이 함)");
+    }
+
+    /** A vehicle in the world changed hands: shown or not, it is the new owner's; who may no longer use it lets go. */
+    private void ownerChanged(long id, UUID to, String toName) {
+        LiveVehicle v = live.get(id);
+        if (v != null) {
+            v.owner = to;
+            v.ownerName = toName;
+            Player driver = v.rider(0);
+            if (driver != null && !mayDrive(v, driver)) {
+                leave(v, 0);
+                driver.sendMessage(Lang.msg("vehicle.give-lost"));
+            }
+            Player puller = v.puller == null ? null : Bukkit.getPlayer(v.puller);
+            if (puller != null && !mayDrive(v, puller)) release(v, "vehicle.give-lost");
+            Player viewer = v.cargoViewer == null ? null : Bukkit.getPlayer(v.cargoViewer);
+            if (viewer != null && !mayDrive(v, viewer)) closeCargo(v);
+        }
+        VehicleStore.Row r = parked.get(id);
+        if (r != null) {
+            VehicleStore.Row now = new VehicleStore.Row(r.id(), r.item(), to, toName, r.state(), r.token(), r.pos(), r.cargo(), r.created(),
+                    r.updated(), r.holder());
+            parked.put(id, now);
+            ParkedLoad kept = parkedLoads.get(id);
+            if (kept != null && kept.row() == r) parkedLoads.put(id, new ParkedLoad(now, kept.cargo()));
+        }
+    }
+
+    /**
+     * /탈것 목록: the player's own vehicles that are still there (placed, as an item, owed to them) and 지게, each with where
+     * it is. Their inventory is looked through first, so what they just threw away is not listed.
+     */
+    void listMine(Player p) {
+        UUID u = p.getUniqueId();
+        ledger.scan(p, null, true);
+        store.list(u, 100).thenCombine(jigeStore.list(u, 100), java.util.Map::entry).whenComplete((r, err) -> Bukkit.getScheduler().runTask(plugin, () -> {
+            if (!p.isOnline()) return;
+            if (err != null) {
+                p.sendMessage(Lang.msg("vehicle.error"));
+                return;
+            }
+            List<VehicleStore.Row> rows = r.getKey();
+            List<JigeStore.Row> carriers = r.getValue();
+            if (rows.isEmpty() && carriers.isEmpty()) {
+                p.sendMessage(Lang.msg("vehicle.mine-none"));
+                return;
+            }
+            p.sendMessage(Lang.msg("vehicle.mine-list", "count", rows.size() + carriers.size()));
+            for (VehicleStore.Row row : rows) {
+                p.sendMessage(Text.mm(Lang.raw("vehicle.mine-line", "id", row.id(), "name", nameOf(row.item()), "where", where(row, u))));
+            }
+            for (JigeStore.Row row : carriers) {
+                p.sendMessage(Text.mm(Lang.raw("vehicle.mine-jige", "id", row.id(), "where", heldWhere(row.holder(), u))));
+            }
+        }));
     }
 }

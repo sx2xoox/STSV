@@ -31,6 +31,25 @@ public final class LandAccess {
         return world == WorldRules.Kind.BUILD && changes ? Verdict.UNCLAIMED_BUILD : Verdict.ALLOW;
     }
 
+    /** Where a vehicle may be placed (the core asks while placing one): {@link #vehicleSpot}. */
+    public enum VehicleSpot { ALLOW, OTHERS_LAND, SERVER_LAND, PROTECTED }
+
+    /**
+     * Placing a vehicle (and launching a boat): anywhere, the unclaimed build world and the wild worlds included, but on
+     * another player's land (not its owner or a member), the server's land (the spawn town, docks, terminals) and a
+     * roads.avoid box (a protected build without land). Driving through all of them stays allowed (the core's rule).
+     *
+     * @param land          the land there that counts (null: none, or a world where claims are dormant)
+     * @param protectedBox  the spot is in a roads.avoid box
+     * @param bypass        stsv.economy.land.bypass (operators)
+     */
+    public static VehicleSpot vehicleSpot(Land land, UUID player, boolean bypass, boolean protectedBox) {
+        if (bypass) return VehicleSpot.ALLOW;
+        if (land != null && !land.allows(player)) return land.server() ? VehicleSpot.SERVER_LAND : VehicleSpot.OTHERS_LAND;
+        if (protectedBox) return VehicleSpot.PROTECTED;
+        return VehicleSpot.ALLOW;
+    }
+
     /** Do claims count in this world (protect, show)? Not in the wild world, its nether or its end. */
     public static boolean claimsCount(WorldRules.Kind world) {
         return !WorldRules.wildSet(world);
