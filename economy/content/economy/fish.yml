@@ -10,6 +10,28 @@ pearl: 0.15            # 바다에서 희귀가 걸렸을 때 진주가 나올 �
 # 입질까지 기다리는 시간(초). 바닐라는 5~30초. 미끼(Lure) 한 단계마다 15%, 어부 레벨에 따라 jobs.yml 어부 bite 만큼 줄어듦
 bite: { min: 2, max: 12, lure-per-level: 0.15 }
 
+# 통발 (economy:fish_trap): 물속(물 한 칸 이상)에 놓는 가구. minutes 분마다 그 물의 흔함·보통 물고기를 하나씩 모음 (전설은 없고 희귀는
+# 드물게). storage 만큼 차면 멈추니 자주 비워 줘야 함 (우클릭으로 꺼내기). 어부는 jobs.yml trap-speed 만큼 빨리 돌고, trap-uncommon ·
+# trap-rare 만큼 더 좋은 것을 낚음. 자기 땅이나 야생에만 놓을 수 있고, 한 청크에 통발·가두리를 합쳐 per-chunk 개까지.
+# 놓인 동안 따로 돌지 않음: 우클릭·회수할 때 지난 시간만큼 한꺼번에 셈 (storage 를 넘지 않으니 오래 비워 둬도 계산은 짧음).
+trap:
+  minutes: 15          # 한 마리 모으는 시간 (어부 Lv1 약 11분 · Lv30 7.5분)
+  storage: 8           # 안에 쌓이는 수. 가득 차면 멈춤
+  uncommon: 0.25       # 보통 물고기 비율 (어부는 trap-uncommon 을 더함). 나머지는 흔함
+  rare: 0.003          # 희귀 확률 (어부는 trap-rare 를 더함)
+  per-chunk: 8         # 한 청크에 놓을 수 있는 통발·가두리 수
+# 가두리 (economy:fish_pen): 물속에 놓는 큰 어장. 잡은 물고기(흔함·보통, 한 종류)를 seed 마리 이상 넣고 생선 사료를 넣어 두면
+# minutes 분마다 growth 비율(적어도 한 마리)만큼 불어남 (capacity 까지, 한 번에 사료 하나). 사료가 없으면 멈춤.
+# 우클릭(빈손): keep 마리를 남기고 꺼냄 · 웅크리고 우클릭: 전부 꺼냄 (다른 물고기로 바꿀 때). 물고기·사료를 들고 우클릭: 넣기
+pen:
+  minutes: 60          # 한 번 불어나는 시간 (어부는 trap-speed 만큼 빨리)
+  capacity: 32         # 들어가는 물고기 수
+  feed: 16             # 넣어 둘 수 있는 사료 수
+  growth: 0.25         # 한 번에 늘어나는 비율 (16마리 -> 20마리)
+  keep: 16             # 꺼낼 때 남기는 수 (번식용)
+  seed: 2              # 처음 넣을 때 필요한 수
+  per-chunk: 2         # 한 청크에 놓을 수 있는 가두리 수 (통발과 합쳐서도 trap.per-chunk 까지)
+
 rarities:
   common: { name: "흔함", color: "#ffffff", hits: 2, speed: 1.0, zone: 8 }
   uncommon: { name: "보통", color: "#55ff55", hits: 3, speed: 1.35, zone: 7 }

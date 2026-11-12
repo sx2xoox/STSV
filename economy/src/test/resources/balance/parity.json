@@ -1,125 +1,125 @@
 {
  "about": "Parity model (tools/parity: pm2.py + trade2.py, mk_parity.py writes this file) on this content: net G a day per job, level and hours (casual 1h 1 machine, regular 3h 2 machines, hardcore 6h 4 machines); hours = [3h/1h, 6h/3h before the sales tax, the same after it]; trade = one player a job, gatherer goods at p x base; exceptions = curated cells allowed outside 15% (up to 35%), each with its reason. BalanceTest R17 / R18 recompute it from the content and check it.",
- "content_sha1": "4bd8764f5491a35c9d00409f888214e585826a7c",
+ "content_sha1": "b13c1d819fafae49b0a6d388346dc223aeb107cd",
  "net": {
   "casual|1": {
    "miner": 7280,
    "farmer": 4052,
-   "fisher": 6779,
+   "fisher": 6465,
    "blacksmith": 5232,
-   "cook": 5209,
+   "cook": 5238,
    "alchemist": 6684
   },
   "casual|10": {
    "miner": 12419,
-   "farmer": 8962,
-   "fisher": 13667,
+   "farmer": 8915,
+   "fisher": 13284,
    "blacksmith": 9962,
-   "cook": 10457,
+   "cook": 10621,
    "alchemist": 14771
   },
   "casual|15": {
    "miner": 13196,
    "farmer": 9843,
-   "fisher": 16123,
+   "fisher": 15216,
    "blacksmith": 9962,
-   "cook": 10790,
+   "cook": 10976,
    "alchemist": 14967
   },
   "casual|20": {
    "miner": 20955,
-   "farmer": 20066,
-   "fisher": 23771,
+   "farmer": 19823,
+   "fisher": 22518,
    "blacksmith": 30601,
-   "cook": 22803,
+   "cook": 22988,
    "alchemist": 20699
   },
   "casual|30": {
    "miner": 30397,
-   "farmer": 34790,
-   "fisher": 35554,
+   "farmer": 34630,
+   "fisher": 34535,
    "blacksmith": 52303,
-   "cook": 39637,
+   "cook": 40108,
    "alchemist": 43063
   },
   "regular|1": {
    "miner": 18874,
-   "farmer": 14027,
-   "fisher": 18833,
+   "farmer": 14059,
+   "fisher": 18497,
    "blacksmith": 16354,
-   "cook": 13988,
+   "cook": 14219,
    "alchemist": 16565
   },
   "regular|10": {
    "miner": 34638,
-   "farmer": 36301,
-   "fisher": 35185,
+   "farmer": 36139,
+   "fisher": 34765,
    "blacksmith": 28708,
-   "cook": 29746,
+   "cook": 31037,
    "alchemist": 34486
   },
   "regular|15": {
    "miner": 36558,
-   "farmer": 41697,
-   "fisher": 41912,
+   "farmer": 41641,
+   "fisher": 40014,
    "blacksmith": 28708,
-   "cook": 30538,
+   "cook": 31833,
    "alchemist": 35368
   },
   "regular|20": {
    "miner": 56360,
-   "farmer": 51579,
-   "fisher": 61663,
+   "farmer": 51025,
+   "fisher": 58687,
    "blacksmith": 64083,
-   "cook": 57620,
+   "cook": 59771,
    "alchemist": 53302
   },
   "regular|30": {
    "miner": 77346,
-   "farmer": 77039,
-   "fisher": 88278,
+   "farmer": 76308,
+   "fisher": 85108,
    "blacksmith": 96196,
-   "cook": 93557,
+   "cook": 97638,
    "alchemist": 99097
   },
   "hardcore|1": {
    "miner": 33227,
-   "farmer": 41755,
-   "fisher": 34059,
+   "farmer": 39471,
+   "fisher": 34255,
    "blacksmith": 23519,
-   "cook": 25247,
+   "cook": 25624,
    "alchemist": 33056
   },
   "hardcore|10": {
    "miner": 60127,
-   "farmer": 72079,
-   "fisher": 60246,
+   "farmer": 71647,
+   "fisher": 60743,
    "blacksmith": 44877,
-   "cook": 54051,
+   "cook": 56128,
    "alchemist": 63534
   },
   "hardcore|15": {
    "miner": 63917,
-   "farmer": 76031,
-   "fisher": 72260,
+   "farmer": 75600,
+   "fisher": 69849,
    "blacksmith": 44877,
-   "cook": 54725,
+   "cook": 56817,
    "alchemist": 64598
   },
   "hardcore|20": {
    "miner": 97307,
-   "farmer": 98260,
-   "fisher": 101531,
+   "farmer": 96965,
+   "fisher": 96518,
    "blacksmith": 89552,
-   "cook": 97677,
+   "cook": 104288,
    "alchemist": 102419
   },
   "hardcore|30": {
    "miner": 125994,
    "farmer": 135773,
-   "fisher": 143378,
+   "fisher": 137353,
    "blacksmith": 136236,
-   "cook": 159309,
+   "cook": 169559,
    "alchemist": 190646
   }
  },
@@ -132,16 +132,16 @@
     1.76
    ],
    "farmer": [
-    3.462,
-    3.067,
-    3.462,
-    2.977
+    3.47,
+    2.88,
+    3.47,
+    2.808
    ],
    "fisher": [
-    2.778,
-    1.875,
-    2.778,
-    1.809
+    2.861,
+    1.939,
+    2.861,
+    1.852
    ],
    "blacksmith": [
     3.155,
@@ -150,10 +150,10 @@
     1.438
    ],
    "cook": [
-    2.685,
-    2.211,
-    2.685,
-    1.805
+    2.715,
+    2.228,
+    2.715,
+    1.802
    ],
    "alchemist": [
     2.478,
@@ -170,16 +170,16 @@
     1.736
    ],
    "farmer": [
-    4.074,
-    2.093,
-    4.05,
-    1.986
+    4.075,
+    2.088,
+    4.054,
+    1.983
    ],
    "fisher": [
-    2.689,
-    1.864,
-    2.574,
-    1.712
+    2.753,
+    1.926,
+    2.617,
+    1.747
    ],
    "blacksmith": [
     3.067,
@@ -188,10 +188,10 @@
     1.563
    ],
    "cook": [
-    3.057,
-    2.375,
-    2.845,
-    1.817
+    3.158,
+    2.394,
+    2.922,
+    1.808
    ],
    "alchemist": [
     2.476,
@@ -208,16 +208,16 @@
     1.748
    ],
    "farmer": [
-    4.288,
-    1.904,
-    4.236,
-    1.823
+    4.281,
+    1.894,
+    4.231,
+    1.816
    ],
    "fisher": [
-    2.732,
-    1.874,
-    2.599,
-    1.724
+    2.778,
+    1.93,
+    2.63,
+    1.746
    ],
    "blacksmith": [
     3.067,
@@ -226,10 +226,10 @@
     1.563
    ],
    "cook": [
-    3.057,
-    2.382,
-    2.83,
-    1.792
+    3.148,
+    2.395,
+    2.9,
+    1.785
    ],
    "alchemist": [
     2.513,
@@ -246,16 +246,16 @@
     1.727
    ],
    "farmer": [
-    2.649,
-    2.024,
-    2.57,
-    1.905
+    2.65,
+    2.017,
+    2.574,
+    1.9
    ],
    "fisher": [
-    2.889,
-    1.839,
-    2.594,
-    1.647
+    2.923,
+    1.862,
+    2.606,
+    1.645
    ],
    "blacksmith": [
     2.392,
@@ -264,10 +264,10 @@
     1.397
    ],
    "cook": [
-    3.058,
-    2.247,
-    2.527,
-    1.695
+    3.174,
+    2.295,
+    2.6,
+    1.745
    ],
    "alchemist": [
     2.879,
@@ -284,16 +284,16 @@
     1.629
    ],
    "farmer": [
-    2.366,
-    1.921,
-    2.214,
-    1.762
+    2.352,
+    1.942,
+    2.204,
+    1.779
    ],
    "fisher": [
-    2.808,
-    1.787,
-    2.483,
-    1.624
+    2.815,
+    1.796,
+    2.464,
+    1.614
    ],
    "blacksmith": [
     2.211,
@@ -302,10 +302,10 @@
     1.416
    ],
    "cook": [
-    3.057,
-    2.104,
-    2.36,
-    1.703
+    3.167,
+    2.127,
+    2.434,
+    1.737
    ],
    "alchemist": [
     2.756,
@@ -322,12 +322,12 @@
     "trade": 29376
    },
    "farmer": {
-    "solo": 34512,
-    "trade": 35989
+    "solo": 34455,
+    "trade": 35059
    },
    "fisher": {
-    "solo": 37045,
-    "trade": 39680
+    "solo": 36521,
+    "trade": 38338
    },
    "blacksmith": {
     "solo": 15439,
@@ -335,7 +335,7 @@
    },
    "cook": {
     "solo": 11924,
-    "trade": 31756
+    "trade": 33822
    },
    "alchemist": {
     "solo": 17827,
@@ -348,12 +348,12 @@
     "trade": 72513
    },
    "farmer": {
-    "solo": 66521,
-    "trade": 81340
+    "solo": 65835,
+    "trade": 80906
    },
    "fisher": {
-    "solo": 78154,
-    "trade": 86501
+    "solo": 78280,
+    "trade": 83971
    },
    "blacksmith": {
     "solo": 20417,
@@ -361,7 +361,7 @@
    },
    "cook": {
     "solo": 15683,
-    "trade": 95970
+    "trade": 101186
    },
    "alchemist": {
     "solo": 43543,
@@ -374,12 +374,12 @@
     "trade": 31163
    },
    "farmer": {
-    "solo": 34512,
-    "trade": 46749
+    "solo": 34455,
+    "trade": 45776
    },
    "fisher": {
-    "solo": 37045,
-    "trade": 40957
+    "solo": 36521,
+    "trade": 39290
    },
    "blacksmith": {
     "solo": 15439,
@@ -387,7 +387,7 @@
    },
    "cook": {
     "solo": 11924,
-    "trade": 24005
+    "trade": 25605
    },
    "alchemist": {
     "solo": 17827,
@@ -400,12 +400,12 @@
     "trade": 75375
    },
    "farmer": {
-    "solo": 66521,
-    "trade": 92938
+    "solo": 65835,
+    "trade": 92579
    },
    "fisher": {
-    "solo": 78154,
-    "trade": 89864
+    "solo": 78280,
+    "trade": 86552
    },
    "blacksmith": {
     "solo": 20417,
@@ -413,7 +413,7 @@
    },
    "cook": {
     "solo": 15683,
-    "trade": 77293
+    "trade": 82243
    },
    "alchemist": {
     "solo": 43543,
@@ -426,12 +426,12 @@
     "trade": 33925
    },
    "farmer": {
-    "solo": 34512,
-    "trade": 53727
+    "solo": 34455,
+    "trade": 52823
    },
    "fisher": {
-    "solo": 37045,
-    "trade": 42233
+    "solo": 36521,
+    "trade": 40274
    },
    "blacksmith": {
     "solo": 15439,
@@ -439,7 +439,7 @@
    },
    "cook": {
     "solo": 11924,
-    "trade": 17135
+    "trade": 18354
    },
    "alchemist": {
     "solo": 17827,
@@ -452,12 +452,12 @@
     "trade": 79700
    },
    "farmer": {
-    "solo": 66521,
-    "trade": 104200
+    "solo": 65835,
+    "trade": 103821
    },
    "fisher": {
-    "solo": 78154,
-    "trade": 93203
+    "solo": 78280,
+    "trade": 89002
    },
    "blacksmith": {
     "solo": 20417,
@@ -465,7 +465,7 @@
    },
    "cook": {
     "solo": 15683,
-    "trade": 60596
+    "trade": 64958
    },
    "alchemist": {
     "solo": 43543,
@@ -476,132 +476,112 @@
  "exceptions": [
   {
    "point": "casual|1|miner",
-   "dev": 0.24,
+   "dev": 0.25,
    "reason": "광부 Lv1: 1시간에도 원석·특별 재료 몫이 큼"
   },
   {
    "point": "casual|1|farmer",
-   "dev": -0.31,
+   "dev": -0.304,
    "reason": "1h 작은 밭(300~500칸): 밭이 다 익는 속도에 묶여 시간당 수확이 적음"
-  },
-  {
-   "point": "casual|1|fisher",
-   "dev": 0.154,
-   "reason": "1시간만 해도 어부는 낚은 물고기를 바로 팔고 희귀 물고기·특별 재료 몫이 있음 (가공 직업은 1시간에 기계 1대가 재료·줄에 묶임)"
   },
   {
    "point": "casual|10|farmer",
-   "dev": -0.234,
+   "dev": -0.236,
    "reason": "1h 작은 밭(300~500칸): 밭이 다 익는 속도에 묶여 시간당 수확이 적음"
   },
   {
-   "point": "casual|10|fisher",
-   "dev": 0.167,
-   "reason": "짧게 해도 레벨이 오른 어부는 희귀·전설 물고기 비율이 높음"
-  },
-  {
    "point": "casual|10|alchemist",
-   "dev": 0.262,
+   "dev": 0.267,
    "reason": "1시간만 해도 밤새 숙성되는 몫(기계 몫)은 그대로라 짧게 하는 날 상대적으로 큼"
   },
   {
    "point": "casual|15|farmer",
-   "dev": -0.211,
+   "dev": -0.204,
    "reason": "1h 작은 밭(300~500칸): 밭이 다 익는 속도에 묶여 시간당 수확이 적음"
   },
   {
    "point": "casual|15|fisher",
-   "dev": 0.292,
-   "reason": "짧게 해도 레벨이 오른 어부는 희귀·전설 물고기 비율이 높음"
+   "dev": 0.231,
+   "reason": "짧게 해도 레벨이 오른 어부는 희귀·전설 물고기 비율이 높고, 통발·가두리가 밤새 모은 몫은 1시간만 해도 그대로"
   },
   {
    "point": "casual|15|blacksmith",
-   "dev": -0.202,
+   "dev": -0.194,
    "reason": "1h·기계 1대: 대장간 0~1강 2~3줄이 철판 연쇄 제품을 다 못 돌림"
   },
   {
    "point": "casual|15|alchemist",
-   "dev": 0.199,
+   "dev": 0.211,
    "reason": "1시간만 해도 밤새 숙성되는 몫(기계 몫)은 그대로라 짧게 하는 날 상대적으로 큼"
   },
   {
    "point": "casual|20|blacksmith",
-   "dev": 0.322,
+   "dev": 0.335,
    "reason": "1시간만 해도 강화된 대장간 줄이 비싼 연쇄 제품을 만듦"
   },
   {
    "point": "casual|30|miner",
-   "dev": -0.226,
+   "dev": -0.224,
    "reason": "1h: 세공대 재료(석탄·구리·금)를 산 양이 적어 3강 세공대가 놂"
   },
   {
    "point": "casual|30|blacksmith",
-   "dev": 0.331,
+   "dev": 0.335,
    "reason": "1시간만 해도 3강 대장간 4줄이 비싼 연쇄 제품(장식용 갑옷·운철검)을 만듦"
   },
   {
    "point": "regular|15|farmer",
-   "dev": 0.165,
+   "dev": 0.167,
    "reason": "보통 규모 밭(1,200~2,000칸)이 Lv10~15 에 줍는 양 한도에 닿음"
   },
   {
-   "point": "regular|15|fisher",
-   "dev": 0.171,
-   "reason": "어부 Lv1·15: 희귀·전설 물고기와 특별 재료(붉은 산호·용연향·전복) 몫"
-  },
-  {
    "point": "regular|15|blacksmith",
-   "dev": -0.198,
+   "dev": -0.196,
    "reason": "철·구리를 하루에 살 수 있는 양에 묶임"
   },
   {
    "point": "hardcore|1|farmer",
-   "dev": 0.313,
+   "dev": 0.252,
    "reason": "6h 큰 밭(1,000~5,000칸): 밭이 클수록 시간당 수확이 늘어남 (다른 직업은 기계만 늘고 재료·곡선에 묶임)"
   },
   {
    "point": "hardcore|1|blacksmith",
-   "dev": -0.261,
+   "dev": -0.254,
    "reason": "철·구리·금을 하루에 살 수 있는 양에 묶임 (6시간에도 사는 양이 2배까지만)"
   },
   {
    "point": "hardcore|1|cook",
-   "dev": -0.206,
+   "dev": -0.187,
    "reason": "0강 요리가 상점 곡선에 먼저 닿음 (6시간 × 기계 4대)"
   },
   {
    "point": "hardcore|10|farmer",
-   "dev": 0.219,
+   "dev": 0.204,
    "reason": "6h 큰 밭(1,000~5,000칸): 밭이 클수록 시간당 수확이 늘어남 (다른 직업은 기계만 늘고 재료·곡선에 묶임)"
   },
   {
    "point": "hardcore|10|blacksmith",
-   "dev": -0.241,
+   "dev": -0.246,
    "reason": "철·구리·금을 하루에 살 수 있는 양에 묶임 (6시간에도 사는 양이 2배까지만)"
   },
   {
    "point": "hardcore|15|farmer",
-   "dev": 0.212,
+   "dev": 0.207,
    "reason": "6h 큰 밭(1,000~5,000칸): 밭이 클수록 시간당 수확이 늘어남 (다른 직업은 기계만 늘고 재료·곡선에 묶임)"
   },
   {
-   "point": "hardcore|15|fisher",
-   "dev": 0.152,
-   "reason": "어부 Lv15 희귀·전설 비율"
-  },
-  {
    "point": "hardcore|15|blacksmith",
-   "dev": -0.285,
+   "dev": -0.283,
    "reason": "철·구리·금을 하루에 살 수 있는 양에 묶임 (6시간에도 사는 양이 2배까지만)"
   },
   {
    "point": "hardcore|30|miner",
-   "dev": -0.152,
+   "dev": -0.156,
    "reason": "세공대 재료(석탄·구리·금)를 하루에 살 수 있는 양에 묶임"
   },
   {
    "point": "hardcore|30|alchemist",
-   "dev": 0.283,
+   "dev": 0.277,
    "reason": "증류기 4대 × 3강 4줄이 밤새 비싼 숙성주를 채움 (기계 대수에 가장 많이 늘어나는 직업)"
   }
  ]

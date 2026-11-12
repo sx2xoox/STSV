@@ -1965,6 +1965,10 @@ ICONS.update(_GA.ICONS)
 import goods_special as _GS   # noqa: E402
 
 ICONS.update(_GS.ICONS)
+# the fisher's traps and pens, the prepared fish cooks buy and the dishes made from them (goods_fishing.py)
+import goods_fishing as _GF   # noqa: E402
+
+ICONS.update(_GF.ICONS)
 
 
 # ================================================================================================
@@ -2014,6 +2018,7 @@ GROUPS = [
                                                      "ambergris", "abalone", "meteoric_iron", "rough_crystal")}),
     ("특별 재료·도매 생선 레시피", {k: v for k, v in _GS.NAMES.items() if k not in ("wild_ginseng", "golden_ear", "silk_cocoon", "red_coral",
                                                                          "ambergris", "abalone", "meteoric_iron", "rough_crystal")}),
+    ("통발·가두리 · 어부 손질감 · 그 요리", dict(_GF.NAMES)),
 ]
 NAMES = {k: v for _, g in GROUPS for k, v in g.items()}
 

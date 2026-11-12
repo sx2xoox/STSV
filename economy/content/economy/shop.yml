@@ -291,6 +291,7 @@ sell:
       economy:gangnaengi: { base: 42, q: 16 }   # 강냉이 (원재료만)
       economy:onion_juice: { base: 39, q: 16 }   # 양파즙 (원재료만)
       economy:mumallaengi: { base: 34, q: 16 }   # 무말랭이 (원재료만)
+      economy:fish_feed: { base: 7, q: 32 }   # 생선 사료 (가두리 먹이)
       # 손질대 (어부)
       economy:cod_fillet: { base: 15, q: 16 }   # 생선 필렛
       economy:salmon_fillet: { base: 15, q: 16 }   # 연어 필렛
@@ -311,6 +312,10 @@ sell:
       economy:jeotgal: { base: 133, q: 8 }   # 젓갈
       economy:salted_mackerel: { base: 15, q: 16 }   # 간고등어 (원재료만)
       economy:fish_sauce: { base: 75, q: 8 }   # 까나리 액젓 (원재료만)
+      economy:flatfish_hoe: { base: 54, q: 8 }   # 광어회
+      economy:dried_fish: { base: 31, q: 16 }   # 건어물
+      economy:saeujeot: { base: 94, q: 8 }   # 새우젓
+      economy:fish_paste: { base: 28.5, q: 16 }   # 어묵 반죽
   dishes:
     name: "요리·술"
     icon: economy:bibimbap
@@ -361,6 +366,10 @@ sell:
       economy:injeolmi: { base: 27.5, q: 16 }   # 인절미
       economy:dakbokkeumtang: { base: 46, q: 16 }   # 닭볶음탕 (원재료만)
       economy:gamjatang: { base: 44, q: 16 }   # 감자탕 (원재료만)
+      economy:mulhoe: { base: 111, q: 8 }   # 물회 (광어회)
+      economy:eomuktang: { base: 68, q: 8 }   # 어묵탕 (어묵 반죽)
+      economy:bossam: { base: 210, q: 4 }   # 보쌈 (새우젓)
+      economy:dried_fish_stirfry: { base: 106, q: 8 }   # 건어물 볶음 (건어물)
       # 증류기 (연금술사)
       economy:makgeolli: { base: 49, q: 16 }   # 막걸리
       economy:soju: { base: 175, q: 4 }   # 소주
@@ -416,6 +425,9 @@ buy:
       - { item: economy:kitchen, price: 400 }      # 조리대 (요리사)    약 108G
       - { item: economy:still, price: 500 }        # 증류기 (연금술사)  약 129G
       - { item: economy:press, price: 200 }        # 압착기 (공용)      약 40G: 피스톤 2, 깔때기
+      # 통발·가두리 (어부): 물속에 놓으면 저절로 물고기가 모임. 조합대에서도 만들 수 있음
+      - { item: economy:fish_trap, price: 400 }    # 통발              약 60G: 철 4, 실 4, 낚싯대
+      - { item: economy:fish_pen, price: 3000 }    # 가두리            약 260G: 철 블록 2, 통나무 4, 실 2, 통
   seeds:
     name: "씨앗·묘목"
     icon: wheat_seeds

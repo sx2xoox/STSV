@@ -41,3 +41,16 @@ press:
   pattern: ["PLP", "CHC", "CCC"]
   keys: { P: minecraft:piston, L: "#minecraft:logs", H: minecraft:hopper, C: minecraft:cobblestone }
   result: economy:press
+
+# 통발·가두리 (어부): 물속에 놓는 가구 (fish.yml trap · pen)
+fish_trap:
+  type: shaped
+  pattern: ["ISI", "SRS", "ISI"]
+  keys: { I: minecraft:iron_ingot, S: minecraft:string, R: minecraft:fishing_rod }
+  result: economy:fish_trap
+
+fish_pen:
+  type: shaped
+  pattern: ["LBL", "SCS", "LBL"]
+  keys: { L: "#minecraft:logs", B: minecraft:iron_block, S: minecraft:string, C: minecraft:barrel }
+  result: economy:fish_pen

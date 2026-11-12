@@ -62,7 +62,8 @@ class MachineShapesTest {
         YamlConfiguration jobs = YamlConfiguration.loadConfiguration(ECONOMY.resolve("items/jobs.yml").toFile());
         for (String id : jobs.getKeys(false)) {
             ConfigurationSection f = jobs.getConfigurationSection(id + ".furniture");
-            if (f == null) continue;
+            // machines: the furniture with tier looks (model <id>_0); the 통발 and 가두리 have one look
+            if (f == null || !jobs.getString(id + ".model", "").endsWith("_0")) continue;
             specs.put(id, spec(f));
         }
         for (Map.Entry<String, FurnitureSpec> e : specs.entrySet()) {

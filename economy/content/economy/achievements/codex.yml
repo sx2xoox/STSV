@@ -54,6 +54,6 @@ achievements:
     tier: very_hard
     icon: minecraft:lectern
     value: economy:codex
-    goal: 310
+    goal: 319
     unit: "개"
     rewards: { gold: 150000, items: ["minecraft:beacon x1"] }

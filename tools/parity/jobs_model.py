@@ -221,6 +221,123 @@ def add(out, item, c, fac):
     o[0] = tot
 
 
+# ------------------------------------------------------------------------------------------------ traps and pens
+# The rod (fishing_hour) is a stopwatch rate: a bite, the ring and a recast back to back, about 8-9.5 s a fish all hour. A real
+# fishing hour also moves between the three waters (one an hour, often far apart: deep ocean, warm ocean, mushroom fields), takes
+# the catch somewhere (rare and legend fish keep their size and do not stack: at Lv30 about 90 unstackable fish an hour) and loses
+# casts to the shore, a mob or a boat. The miner's ORES and the farmer's CLICKS_PER_H are hours with the walking in; the rod's
+# share of a fishing hour is ROD_HOUR (45 minutes of the 60).
+ROD_HOUR = 0.75
+# 통발 / 가두리 (fish.yml trap, pen; jobs.yml fisher trap-*): a fisher keeps TRAPS[lv] traps and PENS[lv] pens (bought or crafted,
+# fish.yml per-chunk a chunk), visits every one once an active hour (TRAP_VISIT_S / PEN_VISIT_S each: walking the line, the click,
+# topping up the feed; that time comes off the rod) and empties them once more at the start of the next session (what they made
+# overnight, up to their storage). A trap a fisher tends hourly never stands full while they play (storage >= an hour of catches).
+TRAP_VISIT_S = 6
+PEN_VISIT_S = 20
+TRAPS = {1: 14, 10: 16, 15: 16, 20: 24, 30: 32}
+PENS = {1: 0, 10: 1, 15: 1, 20: 2, 30: 4}
+TRAP_ORDER = ["common", "uncommon", "rare"]
+PEN_FEED = "economy:fish_feed"   # 생선 사료 (the mill), one a growth cycle
+
+
+def trap_cfg(W_, lv, fisher=True):
+    """(minutes a catch, storage, uncommon share, rare chance) of a trap whose owner is a fisher of lv (else anyone)."""
+    t = W_.fish["trap"]
+    cut = min(0.8, W_.lin("fisher", "trap-speed", lv)) if fisher else 0.0
+    unc = t["uncommon"] + (W_.lin("fisher", "trap-uncommon", lv) if fisher else 0.0)
+    rare = t["rare"] + (W_.lin("fisher", "trap-rare", lv) if fisher else 0.0)
+    return t["minutes"] * (1 - cut), int(t["storage"]), unc, rare
+
+
+def trap_pool(W_, habitat):
+    """{rarity: [(species id, spec)]} a trap in that water catches (no fish of a moment, no legend; the mushroom island's
+    missing commons come from the sea around it, as FishSpec.pick)."""
+    out = {}
+    for r in TRAP_ORDER:
+        for h in (habitat, "sea" if habitat == "mushroom" else None):
+            if h is None:
+                continue
+            ps = [(k, s) for k, s in W_.fish["species"].items() if s["rarity"] == r and not s.get("when") and
+                  (s["habitat"] == h or (s["habitat"] == "salt" and h in SEA) or (s["habitat"] == "fresh" and h not in SEA))]
+            if ps:
+                out[r] = ps
+                break
+    return out
+
+
+def trap_catch(W_, lv, habitat, n, fisher=True):
+    """{item: (count, mean price factor)} of n trap catches in a water: rare with the rare chance, else uncommon by its share; a
+    rarity the water lacks falls back a rarity (FishSpec.pick)."""
+    _, _, unc, rare = trap_cfg(W_, lv, fisher)
+    pool = trap_pool(W_, habitat)
+    p = {"rare": rare, "uncommon": (1 - rare) * unc, "common": (1 - rare) * (1 - unc)}
+    out = defaultdict(lambda: [0.0, 0.0])
+    for r in TRAP_ORDER:
+        i = TRAP_ORDER.index(r)
+        while i >= 0 and TRAP_ORDER[i] not in pool:
+            i -= 1
+        if i < 0:
+            continue
+        ps = pool[TRAP_ORDER[i]]
+        for k, s in ps:
+            item = M.norm(s["item"]) if "item" in s else "economy:" + k
+            fac = W_.w.factor(item, "lv1") if W_.w.sized(item) else 1.0
+            add(out, item, n * p[r] / len(ps), fac)
+    return {k: tuple(v) for k, v in out.items()}
+
+
+def trap_waters_catch(W_, lv, waters, n, fisher=True):
+    """n trap catches spread evenly over the waters (the fisher's traps sit where they fish: the rod's best_waters)."""
+    out = defaultdict(lambda: [0.0, 0.0])
+    for h in waters:
+        for i, (c, f) in trap_catch(W_, lv, h, n / len(waters), fisher).items():
+            add(out, i, c, f)
+    return {k: tuple(v) for k, v in out.items()}
+
+
+def trap_hour(W_, lv, fisher=True):
+    """Catches of one trap in an active hour (emptied every hour) and overnight (up to its storage)."""
+    mins, storage, _, _ = trap_cfg(W_, lv, fisher)
+    return min(storage, 60 / mins), storage
+
+
+def pen_cfg(W_, lv, fisher=True):
+    p = W_.fish["pen"]
+    cut = min(0.8, W_.lin("fisher", "trap-speed", lv)) if fisher else 0.0
+    return p["minutes"] * (1 - cut), int(p["capacity"]), int(p["feed"]), float(p["growth"]), int(p["keep"])
+
+
+def pen_grow(count, cycles, capacity, growth, feed):
+    """PenMath.grow: each cycle the pen grows by growth x count (at least one fish), up to its capacity, eating one feed; with no
+    feed it waits. Returns (count, feed used). Fractional cycles grow by their share (the model's hours)."""
+    used = 0
+    k = 0.0
+    while k < cycles - 1e-9 and count < capacity and used < feed:
+        step = min(1.0, cycles - k)
+        count = min(capacity, count + max(1, math.floor(count * growth)) * step)
+        used += step
+        k += step
+    return count, used
+
+
+def pen_day(W_, lv, hours, fisher=True):
+    """One pen over a day (one session of `hours` active hours, harvested down to its keep every hour, then left overnight):
+    (fish an active hour, fish waiting at the next session, feed a day)."""
+    mins, cap, feed, growth, keep = pen_cfg(W_, lv, fisher)
+    per_h = 60 / mins
+    grown, used = pen_grow(keep, per_h, cap, growth, feed)
+    night, used_n = pen_grow(keep, (24 - hours) * 60 / mins, cap, growth, feed)
+    return grown - keep, night - keep, used * hours + used_n
+
+
+def pen_species(W_, n):
+    """The n species a fisher farms: the dearest commons and uncommons (no fish of a moment), each pen a different one."""
+    ps = [(W_.base.get("economy:" + k if "item" not in s else M.norm(s["item"]), 0), "economy:" + k if "item" not in s else M.norm(s["item"]))
+          for k, s in W_.fish["species"].items() if s["rarity"] in ("common", "uncommon") and not s.get("when")]
+    ps.sort(reverse=True)
+    return [i for _, i in ps[:n]]
+
+
 def mining_hour(W_, lv, miner=True):
     out = defaultdict(lambda: [0.0, 1.0])
     extra = W_.lin("miner", "extra", lv) if miner else 0.0
@@ -593,14 +710,35 @@ def best_waters(W_, lv):
     return [h for _, h in vals[:3]]
 
 
+def trap_report(W_, lv, hours=3):
+    """One line per owner (a fisher of lv, anyone else): a trap's and a pen's day (catches, value at base)."""
+    out = []
+    waters = best_waters(W_, lv)
+    for fisher in (True, False):
+        h, night = trap_hour(W_, lv, fisher)
+        per = trap_waters_catch(W_, lv, waters, 1.0, fisher)
+        v = sum(W_.base.get(i, 0) * c * f for i, (c, f) in per.items())
+        day = h * hours + night
+        ph, pn, pf = pen_day(W_, lv, hours, fisher)
+        out.append(f"Lv{lv:2} {'fisher' if fisher else 'anyone'}: trap {day:4.1f} fish/day ({v:4.1f} G each) = {day * v:5.0f} G; "
+                   f"pen {ph * hours + pn:4.1f} fish/day, {pf:.0f} feed")
+    return out
+
+
 if __name__ == "__main__":
-    root = sys.argv[1]
-    kind = sys.argv[2] if len(sys.argv) > 2 else None
-    W_ = W(root)
-    c = curve_of(W_.shop, kind)
-    for job in JOB_MACHINE:
-        row = []
+    # the job table now comes from pm2 (this file's own simulate predates the farmer's ranges); --traps adds what one trap and one
+    # pen make a day, and the rod-only fisher (no traps, no pens) beside the table
+    import pm2 as P
+    root = sys.argv[1] if len(sys.argv) > 1 and not sys.argv[1].startswith("--") else P.WT
+    opt = P.Opt(root=root)
+    for s in P.SC:
         for lv in (1, 15, 30):
-            g, det = simulate(W_, c, job, lv)
-            row.append(g)
-        print(f"{job:10} " + "  ".join(f"Lv{lv}: {g:8.0f} G/day ({g / ACTIVE_H:7.0f}/h)" for lv, g in zip((1, 15, 30), row)))
+            row = {j: P.simulate(j, lv, P.SCALES[s], opt) for j in P.JOBS}
+            m = sum(row.values()) / len(row)
+            rod = P.simulate("fisher", lv, P.SCALES[s], P.Opt(root=root, traps=False))
+            print(f"{s:8} Lv{lv:2} " + " ".join(f"{j[:5]} {v / 1000:6.1f}k({v / m - 1:+4.0%})" for j, v in row.items())
+                  + f" | rod only: fisher {rod / 1000:6.1f}k({rod / m - 1:+4.0%})")
+    if "--traps" in sys.argv:
+        W_ = P.world(root)
+        for lv in (1, 15, 30):
+            print("\n".join(trap_report(W_, lv)))
