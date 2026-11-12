@@ -581,7 +581,10 @@ final class VehicleTools {
             Block ground = find(v.world, c[0], y0, c[1], t.kind());
             if (ground == null) continue;
             Block target = t.kind() == VehicleToolSpec.Kind.TILL ? ground : ground.getRelative(BlockFace.UP);
-            ToolRules.Verdict verdict = mayChange(driver, target);
+            // the harvester's target holds a crop, and placing into a crop cell is always refused (CropModule): its land is
+            // asked through the soil under it instead (same column, same claim); the harvest itself goes through the real
+            // harvest event, which the land rules check again
+            ToolRules.Verdict verdict = mayChange(driver, t.kind() == VehicleToolSpec.Kind.HARVEST ? ground : target);
             if (verdict != ToolRules.Verdict.OK) {
                 if (verdict != ToolRules.Verdict.UNLOADED) notice(driver, s,"vehicle-tool.denied-" + verdict.name().toLowerCase(java.util.Locale.ROOT), t);
                 continue;
