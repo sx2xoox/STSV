@@ -1391,7 +1391,45 @@ public final class DockModule extends EcoModule {
         Material m = w.getBlockAt(x, top, z).getType();
         boolean water = m == Material.WATER || m == Material.ICE || m == Material.KELP || m == Material.KELP_PLANT || m == Material.SEAGRASS
                 || m == Material.TALL_SEAGRASS || m == Material.BUBBLE_COLUMN;
-        return new int[]{water ? floor : w.getHighestBlockYAt(x, z, HeightMap.MOTION_BLOCKING_NO_LEAVES), water ? 1 : 0, top};
+        int ground = water ? floor : w.getHighestBlockYAt(x, z, HeightMap.MOTION_BLOCKING_NO_LEAVES);
+        if (!water && spike(w, x, ground, z)) {
+            int cx = x >> 4, cz = z >> 4;
+            ground = besideSpike(x, z, ground, (bx, bz) -> {
+                // only chunks already loaded: a road's sample never loads another chunk
+                if (((bx >> 4) != cx || (bz >> 4) != cz) && !w.isChunkLoaded(bx >> 4, bz >> 4)) return Integer.MIN_VALUE;
+                int g = w.getHighestBlockYAt(bx, bz, HeightMap.MOTION_BLOCKING_NO_LEAVES);
+                return spike(w, bx, g, bz) ? Integer.MIN_VALUE : g;
+            });
+        }
+        return new int[]{ground, water ? 1 : 0, top};
+    }
+
+    /** Whether the column's top is an ice spike (packed ice in the ice spikes biome): not the ground a road follows. */
+    private static boolean spike(World w, int x, int y, int z) {
+        return w.getBlockAt(x, y, z).getType() == Material.PACKED_ICE && w.getBiome(x, y, z) == org.bukkit.block.Biome.ICE_SPIKES;
+    }
+
+    /** How far round an ice spike {@link #besideSpike} looks for the ground (a big spike's foot is about 7 across). */
+    static final int SPIKE_REACH = 8;
+
+    /**
+     * The ground under an ice spike: the highest ground of the nearest ring of columns round it (out to
+     * {@link #SPIKE_REACH}) that are not spikes (ground(x, z): their ground, MIN_VALUE for a spike or a column not read),
+     * else the spike's own top as it was. Pure (unit-tested): a road over an ice spikes field follows the snow, not the
+     * spikes (README "국도": they read as hills, and the road went up and down through them in a tunnel).
+     */
+    public static int besideSpike(int x, int z, int top, java.util.function.IntBinaryOperator ground) {
+        for (int r = 1; r <= SPIKE_REACH; r++) {
+            int best = Integer.MIN_VALUE;
+            for (int dx = -r; dx <= r; dx++) {
+                for (int dz = -r; dz <= r; dz++) {
+                    if (Math.max(Math.abs(dx), Math.abs(dz)) != r) continue;
+                    best = Math.max(best, ground.applyAsInt(x + dx, z + dz));
+                }
+            }
+            if (best != Integer.MIN_VALUE) return Math.min(best, top);
+        }
+        return top;
     }
 
     private void scout(CommandSender s, String distanceText) {
