@@ -55,6 +55,12 @@ public final class RoadJob {
     public double branchKm;
     /** the road's surface at each point, half blocks ({@link RoadProfile#halves}), once worked out (BUILD): what other roads keep clear of */
     public int[] halves;
+    /**
+     * What the builder made at each point (road, bridge, tunnel: {@link RoadProfile.Part}) as it decided when it built it
+     * (an overpass's deck included); null: a road saved before this was kept (then worked out again from its heights and
+     * ground). What the repairs (/관리자 국도 터널보수) and the signs go by.
+     */
+    public RoadProfile.Part[] parts;
     /** where the route is planned from and to (the end: just in front of the dock's gate, in line with it) */
     public double startX, startZ, endX, endZ;
     /**
@@ -276,6 +282,7 @@ public final class RoadJob {
         j.branchOf = branchOf;
         j.branchKm = branchKm;
         j.halves = halves == null ? null : halves.clone();
+        j.parts = parts == null ? null : parts.clone();
         j.startX = startX;
         j.startZ = startZ;
         j.endX = endX;
@@ -332,6 +339,7 @@ public final class RoadJob {
             for (int i = 0; i < halves.length; i++) b.append(i > 0 ? "," : "").append(halves[i]);
             b.append('\n');
         }
+        if (parts != null) b.append("parts=").append(partsText(parts)).append('\n');
         for (Map.Entry<Long, Cell> e : cells.entrySet()) {
             Cell c = e.getValue();
             b.append("cell=").append(cx(e.getKey())).append(',').append(cz(e.getKey())).append(',').append(num(c.height())).append(',')
@@ -344,12 +352,36 @@ public final class RoadJob {
         return b.toString();
     }
 
+    /** Parts as one letter a point: R road, B bridge, T tunnel. */
+    static String partsText(RoadProfile.Part[] parts) {
+        StringBuilder b = new StringBuilder(parts.length);
+        for (RoadProfile.Part p : parts) b.append(p == RoadProfile.Part.TUNNEL ? 'T' : p == RoadProfile.Part.BRIDGE ? 'B' : 'R');
+        return b.toString();
+    }
+
+    /** {@link #partsText} read back; null: not that (an unknown letter). */
+    static RoadProfile.Part[] partsOf(String v) {
+        RoadProfile.Part[] out = new RoadProfile.Part[v.length()];
+        for (int i = 0; i < out.length; i++) {
+            switch (v.charAt(i)) {
+                case 'R' -> out[i] = RoadProfile.Part.ROAD;
+                case 'B' -> out[i] = RoadProfile.Part.BRIDGE;
+                case 'T' -> out[i] = RoadProfile.Part.TUNNEL;
+                default -> {
+                    return null;
+                }
+            }
+        }
+        return out;
+    }
+
     public static RoadJob read(String text) {
         RoadJob j = new RoadJob();
+        if (text.startsWith("\uFEFF")) text = text.substring(1);   // saved again by an editor (moving the server): its byte order mark
         for (String line : text.split("\n")) {
             int eq = line.indexOf('=');
             if (eq <= 0) continue;
-            String k = line.substring(0, eq), v = line.substring(eq + 1).trim();
+            String k = line.substring(0, eq).trim(), v = line.substring(eq + 1).trim();
             String[] p = v.split(",");
             switch (k) {
                 case "dock" -> j.dock = v;
@@ -392,6 +424,7 @@ public final class RoadJob {
                     j.halves = new int[p.length];
                     for (int i = 0; i < p.length; i++) j.halves[i] = Integer.parseInt(p[i].trim());
                 }
+                case "parts" -> j.parts = partsOf(v);
                 case "cell" -> j.cells.put(key(Integer.parseInt(p[0]), Integer.parseInt(p[1])),
                         new Cell(Double.parseDouble(p[2]), Double.parseDouble(p[3]), Double.parseDouble(p[4]), Integer.parseInt(p[5].trim())));
                 case "corner" -> j.corners.add(new double[]{Double.parseDouble(p[0]), Double.parseDouble(p[1])});

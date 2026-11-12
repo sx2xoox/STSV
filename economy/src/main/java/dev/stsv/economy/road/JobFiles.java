@@ -4,6 +4,7 @@ import java.io.IOException;
 import java.nio.charset.StandardCharsets;
 import java.nio.file.AtomicMoveNotSupportedException;
 import java.nio.file.Files;
+import java.nio.file.InvalidPathException;
 import java.nio.file.Path;
 import java.nio.file.StandardCopyOption;
 import java.util.ArrayList;
@@ -24,6 +25,13 @@ import java.util.function.Supplier;
  * each file's newest only, through a temporary file (a crash mid-write keeps the old one). Until a text is on disk every
  * read here sees it ({@link #read}, {@link #texts}), so a save is never missed by the next read. {@link #close} writes
  * what is left (the plugin stopping). No Bukkit types (unit-tested).
+ *
+ * <p>The files are named after their dock (서해.txt). A JVM started without a UTF-8 locale (LANG unset, C or POSIX: a
+ * new host, a service, a container) cannot turn such a name into a path (InvalidPathException), and lists the files
+ * copied from the old host with names it cannot turn back: every road read failed, and the snow guard and the repairs
+ * found no road. So the files are listed by their own bytes ({@link #name}: what is on disk, read as UTF-8, whatever the
+ * locale) and read by the path listed; a name the JVM cannot spell is found among them; one that is not there yet cannot
+ * be made then (warned of once, with the fix: {@link #encodingProblem}) and stays in memory for this run.
  */
 final class JobFiles {
 
@@ -40,6 +48,77 @@ final class JobFiles {
     JobFiles(Path dir, Consumer<String> warn) {
         this.dir = dir;
         this.warn = warn;
+    }
+
+    /**
+     * Why Korean file names cannot be made on this server, or null: the JVM's file name encoding (sun.jnu.encoding, from
+     * the locale it was started in) is not UTF-8.
+     */
+    static String encodingProblem() {
+        String e = System.getProperty("sun.jnu.encoding", "UTF-8");
+        return e.equalsIgnoreCase("UTF-8") || e.equalsIgnoreCase("UTF8") ? null : e;
+    }
+
+    private volatile boolean warnedEncoding;
+
+    /**
+     * A file's path by name: its own where the JVM can spell the name; else the file already there under that name (found
+     * by its bytes), or null (none: it cannot be made on this server).
+     */
+    private Path path(String name) {
+        try {
+            return dir.resolve(name);
+        } catch (InvalidPathException e) {
+            Path p = listed().get(name);
+            if (p == null && !warnedEncoding) {
+                warnedEncoding = true;
+                warn.accept("[국도] 한글 이름 파일을 만들 수 없음 (" + name + "): 서버 JVM 의 파일 이름 인코딩이 " + System.getProperty("sun.jnu.encoding")
+                        + " 이에요. 서버 시작 스크립트에 LANG=C.UTF-8 (또는 LC_ALL=C.UTF-8)을 넣고 다시 켜세요. 그때까지 새 길 기록은 메모리에만 있어요.");
+            }
+            return p;
+        }
+    }
+
+    /** The files in the folder by name ({@link #name}); none when there is no folder. */
+    private Map<String, Path> listed() {
+        Map<String, Path> out = new java.util.TreeMap<>();
+        if (!Files.isDirectory(dir)) return out;
+        try (var files = Files.list(dir)) {
+            files.forEach(p -> out.put(name(p), p));
+        } catch (IOException | RuntimeException e) {
+            warn.accept("[국도] 폴더를 읽지 못함: " + dir + ": " + e);
+        }
+        return out;
+    }
+
+    /** A file's name as it is on disk (its bytes, read as UTF-8), whatever the JVM's locale makes of it. */
+    static String name(Path p) {
+        String raw = p.toUri().getRawPath();
+        if (raw.endsWith("/")) raw = raw.substring(0, raw.length() - 1);
+        return decode(raw.substring(raw.lastIndexOf('/') + 1));
+    }
+
+    /** %XX escapes (a URI's raw path) to the UTF-8 text they spell. */
+    static String decode(String s) {
+        java.io.ByteArrayOutputStream b = new java.io.ByteArrayOutputStream(s.length());
+        for (int i = 0; i < s.length(); i++) {
+            char c = s.charAt(i);
+            int v = c == '%' && i + 2 < s.length() ? hex(s.charAt(i + 1)) * 16 + hex(s.charAt(i + 2)) : -1;
+            if (v >= 0) {
+                b.write(v);
+                i += 2;
+            } else {
+                byte[] u = String.valueOf(c).getBytes(StandardCharsets.UTF_8);
+                b.write(u, 0, u.length);
+            }
+        }
+        return b.toString(StandardCharsets.UTF_8);
+    }
+
+    /** A hex digit's value; a negative number for anything else. */
+    private static int hex(char c) {
+        int d = Character.digit(c, 16);
+        return d < 0 ? -1000 : d;
     }
 
     /** A file to be deleted: reads see it gone at once. */
@@ -79,13 +158,19 @@ final class JobFiles {
     private void flush(String name) {
         Text text = pending.get(name);
         if (text == null) return;   // a newer write of it already went
+        boolean keep = false;
         try {
+            Path f = path(name);
             if (text == GONE) {
-                Files.deleteIfExists(dir.resolve(name));
+                if (f != null) Files.deleteIfExists(f);
+                return;
+            }
+            if (f == null) {   // a name this server cannot make: kept in memory (reads see it) until it can
+                keep = true;
                 return;
             }
             Files.createDirectories(dir);
-            Path f = dir.resolve(name), tmp = dir.resolve(name + ".tmp");
+            Path tmp = dir.resolve("write-" + Integer.toHexString(name.hashCode()) + ".tmp");   // never a name the locale cannot spell
             Files.writeString(tmp, text.get(), StandardCharsets.UTF_8);
             try {
                 Files.move(tmp, f, StandardCopyOption.REPLACE_EXISTING, StandardCopyOption.ATOMIC_MOVE);
@@ -95,7 +180,7 @@ final class JobFiles {
         } catch (IOException | RuntimeException e) {
             warn.accept("[국도] 저장 실패: " + name + ": " + e);
         } finally {
-            pending.remove(name, text);   // only this text: a newer one stays for its own turn
+            if (!keep) pending.remove(name, text);   // only this text: a newer one stays for its own turn
         }
     }
 
@@ -115,7 +200,9 @@ final class JobFiles {
                 byte[] b = bytes.get();
                 if (b == null || b.length == 0) return;
                 Files.createDirectories(dir);
-                Files.write(dir.resolve(name), b, java.nio.file.StandardOpenOption.CREATE, java.nio.file.StandardOpenOption.APPEND);
+                Path f = path(name);
+                if (f == null) return;   // a name this server cannot make (warned)
+                Files.write(f, b, java.nio.file.StandardOpenOption.CREATE, java.nio.file.StandardOpenOption.APPEND);
             } catch (IOException | RuntimeException e) {
                 warn.accept("[국도] 저장 실패: " + name + ": " + e);
             }
@@ -130,9 +217,9 @@ final class JobFiles {
         run(() -> {
             byte[] b = null;
             try {
-                Path f = dir.resolve(name);
-                if (Files.exists(f)) b = Files.readAllBytes(f);
-            } catch (IOException e) {
+                Path f = path(name);
+                if (f != null && Files.exists(f)) b = Files.readAllBytes(f);
+            } catch (IOException | RuntimeException e) {
                 warn.accept("[국도] 읽기 실패: " + name + ": " + e);
             }
             then.accept(b);
@@ -143,7 +230,8 @@ final class JobFiles {
     boolean exists(String name) {
         Text p = pending.get(name);
         if (p != null) return p != GONE;
-        return Files.exists(dir.resolve(name));
+        Path f = path(name);
+        return f != null && Files.exists(f);
     }
 
     private void run(Runnable r) {
@@ -159,8 +247,8 @@ final class JobFiles {
         Text p = pending.get(name);
         if (p == GONE) return null;
         if (p != null) return p.get();
-        Path f = dir.resolve(name);
-        return Files.exists(f) ? Files.readString(f, StandardCharsets.UTF_8) : null;
+        Path f = path(name);
+        return f != null && Files.exists(f) ? Files.readString(f, StandardCharsets.UTF_8) : null;
     }
 
     /**
@@ -168,24 +256,38 @@ final class JobFiles {
      * those waiting to be written included.
      */
     List<String> texts(String except) throws IOException {
+        return new ArrayList<>(named(except).values());
+    }
+
+    /**
+     * {@link #texts}, by file name (in order); a file that cannot be read is left out (and warned of) rather than the
+     * whole listing failing.
+     */
+    Map<String, String> named(String except) throws IOException {
+        // those waiting first, then the disk (a text is on disk before it stops waiting: none is missed in between), by
+        // the names on disk and read by the paths listed (whatever the locale)
         TreeSet<String> names = new TreeSet<>();
-        if (Files.isDirectory(dir)) {
-            try (var files = Files.list(dir)) {
-                files.map(p -> p.getFileName().toString()).filter(n -> n.endsWith(".txt")).forEach(names::add);
-            }
-        }
         for (String n : pending.keySet()) if (n.endsWith(".txt")) names.add(n);
+        Map<String, Path> disk = listed();
+        for (String n : disk.keySet()) if (n.endsWith(".txt")) names.add(n);
         names.remove(except);
         names.removeIf(n -> n.endsWith(".preview.txt"));
-        List<String> out = new ArrayList<>();
+        Map<String, String> out = new java.util.LinkedHashMap<>();
         for (String n : names) {
             String t;
             try {
-                t = read(n);
+                Text p = pending.get(n);
+                if (p == GONE) continue;
+                Path f = disk.get(n);
+                if (p == null && f == null) f = path(n);   // written since the listing
+                t = p != null ? p.get() : f != null && Files.exists(f) ? Files.readString(f, StandardCharsets.UTF_8) : null;
             } catch (java.nio.file.NoSuchFileException e) {
                 continue;
+            } catch (IOException | RuntimeException e) {
+                warn.accept("[국도] 읽기 실패: " + n + ": " + e);
+                continue;
             }
-            if (t != null) out.add(t);
+            if (t != null) out.put(n, t);
         }
         return out;
     }

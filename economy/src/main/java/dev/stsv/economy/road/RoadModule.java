@@ -7,6 +7,7 @@ import dev.stsv.economy.EcoModule;
 import dev.stsv.economy.EcoPlugin;
 import dev.stsv.economy.dock.Dock;
 import net.kyori.adventure.text.Component;
+import net.kyori.adventure.text.JoinConfiguration;
 import org.bukkit.Bukkit;
 import org.bukkit.Chunk;
 import org.bukkit.Location;
@@ -84,6 +85,8 @@ public final class RoadModule extends EcoModule {
 
     private Settings settings;
     private java.util.Set<Material> paved = java.util.Set.of();
+    /** every block a road's surface is made of ({@link RoadSection.Style#roadBlocks}): what a road is found by without its file */
+    private java.util.Set<Material> roadBlocks = java.util.Set.of();
     /** the network's reference point (/관리자 국도 기준점), or null: the build world's spawn */
     private RoadOrigin origin;
     private RoadJob job;
@@ -139,6 +142,9 @@ public final class RoadModule extends EcoModule {
     @Override
     protected void start() {
         files = new JobFiles(folder(), m -> eco.getLogger().warning(m));
+        if (JobFiles.encodingProblem() != null)
+            eco.getLogger().warning("[국도] 서버 JVM 의 파일 이름 인코딩이 " + JobFiles.encodingProblem() + " 이에요 (LANG 없음 / C / POSIX): 한글 이름 길 파일("
+                    + "roads/서해.txt)은 읽기만 하고 새로 만들 수 없어요. 서버 시작 스크립트에 export LANG=C.UTF-8 (또는 LC_ALL=C.UTF-8)을 넣고 다시 켜세요.");
         load();
         if (core.vehicles() != null) core.vehicles().surfaceBonus(b -> {
             return paved.contains(b.getType()) ? settings.bonus() : 1;
@@ -148,14 +154,14 @@ public final class RoadModule extends EcoModule {
         STSVPlugin.get().admin().add(EcoPlugin.ADMIN_OWNER, "국도",
                 "<하역장> [기준점|여기서|새로|이어짓기] | <하역장> 미리보기 [기준점|여기서] | <하역장> 되돌리기 | 되돌리기 중지 | "
                         + "기준점 [설정|보기|초기화] | 중지 | 상태 | 표지판 정리 <하역장> | "
-                        + "표지판 다시세우기 [하역장|전체] | 난간고치기 [하역장|전체] | 터널보수 [하역장|전체] | 눈치우기 [반경]",
+                        + "표지판 다시세우기 [하역장|전체] | 난간고치기 [하역장|전체] | 터널보수 [하역장|전체|여기 [반경]] | 눈치우기 [반경]",
                 "국도: 기준점(없으면 건축월드 스폰, 여기서 = 지금 자리)에서 하역장 입구까지 길 놓기 (멈췄던 것은 이어서, 새로 = 처음부터, "
                         + "이어짓기 = 다 지은 길의 끝에서 입구까지 모자란 곳만, 개인·서버 땅과 roads.avoid 는 피함) / 미리보기 = 살피고 길만 찾아 "
                         + "입자·요약·땅 밖 건물 경고 (짓지 않음, 60분 안에 같은 출발이면 그 길로 지음) / 되돌리기 = 그 길이 바꾼 블록을 원래대로 "
                         + "(그사이 바뀐 블록은 그대로) / 기준점 정하기 / 멈추기 / 진행 상황 / 그 길의 표지판 모두 치우기 / "
                         + "다 지은 길의 표지판(갈림길 안내·돌아가는 길·km)을 저장된 길에서 다시 계산해 바꿔 세우기 / 반 칸 위에 떠 있던 난간·기둥 밑에 받침 넣기 / "
-                        + "이미 지은 굴을 오르내리는 곳에서 높여 모든 탈것(탑차)이 지나가게 / "
-                        + "둘레(기본 64, 최대 " + SNOW_MAX + "블록) 도로·하역장·터미널의 눈 치우기",
+                        + "이미 지은 굴을 오르내리는 곳에서 높여 모든 탈것(탑차)이 지나가게 (여기 = 둘레(기본 48)의 굴, 저장된 길이 없어도 블록을 보고) / "
+                        + "둘레(기본 64, 최대 " + SNOW_MAX + "블록) 도로·하역장·터미널의 눈 치우기 (저장된 길이 없어도 길 블록 위의 눈)",
                 this::command, (s, a) -> {
                     if (a.length == 1) {
                         List<String> out = new ArrayList<>(eco.docks().names());
@@ -165,15 +171,32 @@ public final class RoadModule extends EcoModule {
                     if (a[0].equals("기준점")) return a.length == 2 ? List.of("설정", "보기", "초기화") : List.of();
                     if (a[0].equals("되돌리기")) return a.length == 2 ? List.of("중지") : List.of();
                     if (a.length == 3 && a[1].equals("미리보기")) return List.of("기준점", "여기서");
-                    if (a[0].equals("난간고치기") || a[0].equals("터널보수")) return a.length == 2 ? withAll() : List.of();
+                    if (a[0].equals("터널보수")) {
+                        if (a.length == 2) {
+                            List<String> out = withAll();
+                            out.add(HERE);
+                            return out;
+                        }
+                        return a.length == 3 && a[1].equals(HERE) ? List.of("32", "48", "64", "128") : List.of();
+                    }
+                    if (a[0].equals("눈치우기")) return a.length == 2 ? List.of("32", "64", "128") : List.of();
+                    if (a[0].equals("난간고치기")) return a.length == 2 ? withAll() : List.of();
                     if (a[0].equals("표지판")) return a.length == 2 ? List.of("정리", "다시세우기")
                             : a.length == 3 ? (a[1].equals("다시세우기") ? withAll() : new ArrayList<>(eco.docks().names())) : List.of();
                     return a.length == 2 ? List.of("기준점", "여기서", "새로", "이어짓기", "미리보기", "되돌리기") : List.of();
                 });
         // a road that was being built when the server stopped goes on
         try {
-            for (String text : files.texts(ORIGIN)) {
-                RoadJob j = RoadJob.read(text);
+            Map<String, String> named = files.named(ORIGIN);
+            eco.getLogger().info("[국도] 저장된 길 파일 " + named.size() + "개 (" + folder() + ")");
+            for (Map.Entry<String, String> e : named.entrySet()) {
+                RoadJob j;
+                try {   // one file that cannot be read never keeps the others from being read
+                    j = RoadJob.read(e.getValue());
+                } catch (RuntimeException ex) {
+                    eco.getLogger().warning("[국도] 길 파일을 읽지 못함 (건너뜀): " + e.getKey() + ": " + ex);
+                    continue;
+                }
                 if (j.dock == null) continue;
                 known(j);
                 if (j.running && !j.removed && j.phase != RoadJob.Phase.DONE && job == null) {
@@ -230,24 +253,23 @@ public final class RoadModule extends EcoModule {
 
     /** Reads every saved road (on an async thread: files and pure work only) and lays out each world's network. */
     private Map<String, RoadNetwork> buildSnowNets() {
-        Map<String, List<RoadNetwork.Road>> byWorld = new HashMap<>();
-        try {
-            for (String text : files.texts(ORIGIN)) {
-                RoadJob o = RoadJob.read(text);
-                if (o.dock == null || o.world == null) continue;
-                RoadNetwork.Road r = built(o);
-                if (r != null) byWorld.computeIfAbsent(o.world, k -> new ArrayList<>()).add(r);
-            }
-        } catch (IOException | RuntimeException e) {
-            eco.getLogger().warning("[국도] 눈 막기용 길을 읽지 못함: " + e);
-        }
         Map<String, RoadNetwork> out = new HashMap<>();
-        byWorld.forEach((w, rs) -> out.put(w, RoadNetwork.of(rs)));
+        saved().built(null).forEach((w, rs) -> out.put(w, RoadNetwork.of(rs)));
         return out;
     }
 
-    /** Whether snow may not lie at this block (it is over a road's surface, or in a dock's or terminal's chunks). */
+    /**
+     * Whether snow may not lie at this block: over a saved road's surface, in a dock's or terminal's chunks, or (a road
+     * whose file is lost, its world renamed) right on a road's own block outside anyone's land.
+     */
     boolean snowFree(Block b) {
+        if (savedSnowFree(b)) return true;
+        Block under = b.getRelative(BlockFace.DOWN);
+        return roadBlocks.contains(under.getType()) && guardBase.column(b.getWorld().getName(), b.getX(), b.getZ()) == null;
+    }
+
+    /** Over a saved road's surface, or in a dock's or terminal's chunks. */
+    private boolean savedSnowFree(Block b) {
         String w = b.getWorld().getName();
         if (eco.docks() != null && eco.docks().covers(w, b.getX() >> 4, b.getZ() >> 4)) return true;
         RoadNetwork.Spot spot = roads(w).at(b.getX(), b.getZ());
@@ -271,26 +293,69 @@ public final class RoadModule extends EcoModule {
         if ((m == Material.SNOW || m == Material.POWDER_SNOW) && snowFree(e.getBlock())) e.setCancelled(true);
     }
 
-    /** The widest /관리자 국도 눈치우기 (blocks each way): 128 is about 66k columns, done at once. */
+    /** The widest /관리자 국도 눈치우기 (blocks each way). */
     static final int SNOW_MAX = 128;
 
-    /** /관리자 국도 눈치우기 [반경]: snow layers on roads and in docks and terminals round the player go (loaded chunks). */
-    private int clearSnow(Player p, int radius) {
+    /**
+     * /관리자 국도 눈치우기 [반경]: the snow round the player (the chunks loaded now) on roads, in docks and terminals goes,
+     * a chunk at a time (roads.blocks-per-tick, paused while the server is busy: roads.max-mspt). A road is found by its
+     * saved file (from its surface to 3 over it) or, where no saved road is, by its blocks (a snow layer right on a road's
+     * own block, outside anyone's land: {@link RoadFinder#snow}). The snow is looked for over the highest block that stops
+     * movement, which a snow layer is not (it was looked for under it before, so none was ever found on a road). One
+     * message when done, with what was cleared where and what was looked at.
+     */
+    private void clearSnow(Player p, int radius, java.util.function.Consumer<Component> to, java.util.function.Consumer<Component> bar) {
         World w = p.getWorld();
-        int px = p.getLocation().getBlockX(), pz = p.getLocation().getBlockZ(), n = 0;
-        for (int x = px - radius; x <= px + radius; x++) {
-            for (int z = pz - radius; z <= pz + radius; z++) {
-                if (!w.isChunkLoaded(x >> 4, z >> 4)) continue;
-                Block top = w.getHighestBlockAt(x, z);
-                for (Block b = top; b.getY() >= top.getY() - 2; b = b.getRelative(BlockFace.DOWN)) {
-                    if ((b.getType() == Material.SNOW || b.getType() == Material.POWDER_SNOW) && snowFree(b)) {
-                        b.setType(Material.AIR, false);
-                        n++;
+        String wn = w.getName();
+        int px = p.getLocation().getBlockX(), pz = p.getLocation().getBlockZ();
+        RoadNetwork net = roads(wn);
+        Set<Material> road = roadBlocks;
+        Batch b = new Batch(w, Lang.raw("road.batch-snow"));
+        b.blocks = new BlockBudget(settings.blocksPerTick());
+        int[] n = new int[3];
+        int[] seen = {0, 0};   // chunks, saved road columns
+        Set<String> near = new HashSet<>();
+        for (int cx = (px - radius) >> 4; cx <= (px + radius) >> 4; cx++) {
+            for (int cz = (pz - radius) >> 4; cz <= (pz + radius) >> 4; cz++) {
+                if (!w.isChunkLoaded(cx, cz)) continue;
+                int x0 = Math.max(cx << 4, px - radius), x1 = Math.min((cx << 4) + 15, px + radius);
+                int z0 = Math.max(cz << 4, pz - radius), z1 = Math.min((cz << 4) + 15, pz + radius);
+                int ccx = cx, ccz = cz;
+                b.add((cx << 4) + 8, (cz << 4) + 8, 7, () -> {
+                    seen[0]++;
+                    boolean dock = eco.docks() != null && eco.docks().covers(wn, ccx, ccz);
+                    int cleared = 0;
+                    for (int x = x0; x <= x1; x++) {
+                        for (int z = z0; z <= z1; z++) {
+                            RoadNetwork.Spot spot = net.at(x, z);
+                            if (spot != null) {
+                                seen[1]++;
+                                near.add(spot.dock());
+                            }
+                            int top = w.getHighestBlockYAt(x, z, org.bukkit.HeightMap.MOTION_BLOCKING);
+                            for (RoadFinder.Snow sn : RoadFinder.snow((xx, yy, zz) -> w.getBlockAt(xx, yy, zz).getType(), x, z, top, spot, dock, road)) {
+                                if (sn.why() == 2 && guardBase.column(wn, x, z) != null) continue;   // someone's land: theirs
+                                w.getBlockAt(x, sn.y(), z).setType(Material.AIR, false);
+                                n[sn.why()]++;
+                                cleared++;
+                            }
+                        }
                     }
-                }
+                    b.cost = 48 + cleared;
+                });
             }
         }
-        return n;
+        b.bar = bar;
+        b.done = () -> {
+            List<Component> lines = new ArrayList<>();
+            lines.add(Lang.msg(n[0] + n[1] + n[2] > 0 ? "road.snow-cleared" : "road.snow-none", "blocks", n[0] + n[1] + n[2], "radius", radius,
+                    "saved", n[0], "docks", n[1], "found", n[2], "chunks", seen[0], "columns", seen[1], "roads", near.size(),
+                    "world-roads", net.roads().size()));
+            if (JobFiles.encodingProblem() != null) lines.add(Lang.mm("road.files-encoding", "encoding", JobFiles.encodingProblem()));
+            to.accept(lines(lines));
+        };
+        if (b.empty()) b.done.run();
+        else batches.add(b);
     }
 
     /**
@@ -366,6 +431,7 @@ public final class RoadModule extends EcoModule {
                         Math.clamp(eco.getConfig().getInt("roads.concurrent-online"), 1, 16)));
         budget = new BlockBudget(settings.blocksPerTick());
         paved = settings.style().paved();
+        roadBlocks = java.util.EnumSet.copyOf(settings.style().roadBlocks());
         origin = readOrigin();
         List<RoadGuard.Box> avoid = RoadGuard.boxes(eco.getConfig().getMapList("roads.avoid"), m -> eco.getLogger().warning(m));
         guardBase = new RoadGuard((w, cx, cz) -> eco.land() == null ? 0 : eco.land().owner(w, cx, cz),
@@ -564,40 +630,68 @@ public final class RoadModule extends EcoModule {
     // /관리자 국도
     // ------------------------------------------------------------------------------------------
 
+    /** "여기": /관리자 국도 터널보수 여기 [반경] */
+    static final String HERE = "여기";
+
+    /** a[i] as a radius (1 .. SNOW_MAX), else def. */
+    private static int radius(String[] a, int i, int def) {
+        try {
+            return a.length > i ? Math.clamp(Integer.parseInt(a[i]), 1, SNOW_MAX) : def;
+        } catch (NumberFormatException e) {
+            return def;
+        }
+    }
+
+    /** Where a long job's answers go: the player who asked while online, else the console. */
+    private static java.util.function.Consumer<Component> answer(CommandSender s) {
+        UUID who = s instanceof Player p ? p.getUniqueId() : null;
+        return c -> {
+            Player q = who == null ? null : Bukkit.getPlayer(who);
+            if (q != null) q.sendMessage(c);
+            else Bukkit.getConsoleSender().sendMessage(c);
+        };
+    }
+
+    /** Where a long job's progress goes: the action bar of the player who asked, while online. */
+    private static java.util.function.Consumer<Component> bar(CommandSender s) {
+        UUID who = s instanceof Player p ? p.getUniqueId() : null;
+        return c -> {
+            Player q = who == null ? null : Bukkit.getPlayer(who);
+            if (q != null) q.sendActionBar(c);
+        };
+    }
+
     private void command(CommandSender s, String[] a) {
         if (a.length == 0 || a[0].equals("상태")) {
             status(s);
             return;
         }
         if (a[0].equals("눈치우기")) {
-            if (!(s instanceof Player p)) return;
-            int r = 64;
-            try {
-                if (a.length > 1) r = Math.clamp(Integer.parseInt(a[1]), 1, SNOW_MAX);
-            } catch (NumberFormatException ignored) {
+            if (!(s instanceof Player p)) {
+                s.sendMessage(Lang.msg("road.here-player"));
+                return;
             }
-            s.sendMessage(Lang.msg("road.snow-cleared", "blocks", clearSnow(p, r), "radius", r));
+            clearSnow(p, radius(a, 1, 64), answer(s), bar(s));
+            return;
+        }
+        if (a[0].equals("터널보수") && a.length > 1 && a[1].equals(HERE)) {
+            if (!(s instanceof Player p)) {
+                s.sendMessage(Lang.msg("road.here-player"));
+                return;
+            }
+            reboreHere(p, radius(a, 2, 48), answer(s), bar(s));
             return;
         }
         if (a[0].equals("난간고치기") || a[0].equals("터널보수") || (a[0].equals("표지판") && a.length > 1 && a[1].equals("다시세우기"))) {
             boolean rails = a[0].equals("난간고치기"), bore = a[0].equals("터널보수");
             String target = a.length > (rails || bore ? 1 : 2) ? a[rails || bore ? 1 : 2] : ALL;
-            if (!target.equals(ALL) && eco.docks().dock(target) == null) {
+            if (!target.equals(ALL) && eco.docks().dock(target) != null) target = eco.docks().dock(target).name();
+            else if (!target.equals(ALL) && !(rails || bore)) {   // the signs name their dock: it must stand
                 s.sendMessage(Lang.msg("dock.unknown", "name", target));
                 return;
             }
-            if (!target.equals(ALL)) target = eco.docks().dock(target).name();
-            Player p = s instanceof Player pl ? pl : null;
-            UUID who = p == null ? null : p.getUniqueId();
-            java.util.function.Consumer<Component> to = c -> {
-                Player q = who == null ? null : Bukkit.getPlayer(who);
-                if (q != null) q.sendMessage(c);
-                else Bukkit.getConsoleSender().sendMessage(c);
-            };
-            java.util.function.Consumer<Component> bar = c -> {
-                Player q = who == null ? null : Bukkit.getPlayer(who);
-                if (q != null) q.sendActionBar(c);
-            };
+            // the repairs: a dock renamed or removed leaves its road; its saved name will do (checked with the roads)
+            java.util.function.Consumer<Component> to = answer(s), bar = bar(s);
             if (bore) rebore(to, bar, target);
             else if (rails) fixRails(to, bar, target);
             else resign(to, bar, target);
@@ -827,6 +921,7 @@ public final class RoadModule extends EcoModule {
     }
 
     private void status(CommandSender s) {
+        if (JobFiles.encodingProblem() != null) s.sendMessage(Lang.msg("road.files-encoding", "encoding", JobFiles.encodingProblem()));
         if (undoRun != null) s.sendMessage(Lang.msg("road.undo-busy", "dock", undoRun.dock));
         if (job == null) {
             s.sendMessage(Lang.msg("road.none"));
@@ -1088,7 +1183,24 @@ public final class RoadModule extends EcoModule {
         halves = pr.halves();
         over = pr.over();
         parts = pr.parts();
-        job.halves = halves;   // what roads built later keep clear of
+        // what roads built later keep clear of, and what the repairs go by: as built (a road resumed after a restart, its
+        // profile worked out again with the roads built since, keeps what of it already stands as it was built)
+        int built = Math.min(job.cursor, points.size());
+        job.halves = kept(job.halves, halves, built);
+        job.parts = kept(job.parts, parts, built);
+    }
+
+    /** now, but its first `built` entries as they were (when there were as many): what of a road already stands. */
+    static int[] kept(int[] was, int[] now, int built) {
+        int[] out = now.clone();
+        if (was != null && was.length == now.length) System.arraycopy(was, 0, out, 0, Math.min(built, now.length));
+        return out;
+    }
+
+    static RoadProfile.Part[] kept(RoadProfile.Part[] was, RoadProfile.Part[] now, int built) {
+        RoadProfile.Part[] out = now.clone();
+        if (was != null && was.length == now.length) System.arraycopy(was, 0, out, 0, Math.min(built, now.length));
+        return out;
     }
 
     /** A road's heights (half blocks), where it goes over another, its parts, the other roads' surface under it, its ground. */
@@ -1118,18 +1230,7 @@ public final class RoadModule extends EcoModule {
 
     /** The other roads already built in the job's world (every dock's but its own): {@link RoadNetwork}. */
     private RoadNetwork network(RoadJob j) {
-        List<RoadNetwork.Road> roads = new ArrayList<>();
-        try {
-            for (String text : files.texts(ORIGIN)) {
-                RoadJob o = RoadJob.read(text);
-                if (o.dock == null || o.dock.equals(j.dock) || !j.world.equals(o.world)) continue;
-                RoadNetwork.Road r = built(o);
-                if (r != null) roads.add(r);
-            }
-        } catch (IOException | RuntimeException e) {
-            eco.getLogger().warning("[국도] 다른 길을 읽지 못함: " + e);
-        }
-        return RoadNetwork.of(roads);
+        return RoadNetwork.of(saved().built(j.dock).getOrDefault(j.world, List.of()));
     }
 
     /** What of a saved road is built: its points up to where building got, their heights (worked out again for an older road). */
@@ -1138,21 +1239,29 @@ public final class RoadModule extends EcoModule {
         List<double[]> pts = o.points();
         int upTo = o.phase == RoadJob.Phase.DONE ? pts.size() : Math.min(o.cursor, pts.size());
         if (upTo <= 0 || o.ground.size() < pts.size()) return null;
+        return new RoadNetwork.Road(o.dock, pts.subList(0, upTo), java.util.Arrays.copyOf(halvesOf(o, pts.size()), upTo));
+    }
+
+    /** A saved road's heights at all n of its points: as saved, or (saved before heights were) as that road was built. */
+    private static int[] halvesOf(RoadJob o, int n) {
         int[] h = o.halves;
-        if (h == null || h.length != pts.size()) {   // saved before heights were: as that road was built (whole blocks)
-            int n = pts.size();
-            int[] g = new int[n], sf = new int[n];
-            boolean[] wt = new boolean[n];
-            for (int i = 0; i < n; i++) {
-                g[i] = o.ground.get(i).ground;
-                wt[i] = o.ground.get(i).water;
-                sf[i] = o.ground.get(i).surface;
-            }
-            int[] lv = RoadProfile.plan(g, wt, sf);
-            h = new int[n];
-            for (int i = 0; i < n; i++) h[i] = lv[i] * 2;
+        if (h != null && h.length == n) return h;
+        int[] g = new int[n], sf = new int[n];   // whole blocks
+        boolean[] wt = new boolean[n];
+        for (int i = 0; i < n; i++) {
+            g[i] = o.ground.get(i).ground;
+            wt[i] = o.ground.get(i).water;
+            sf[i] = o.ground.get(i).surface;
         }
-        return new RoadNetwork.Road(o.dock, pts.subList(0, upTo), java.util.Arrays.copyOf(h, upTo));
+        int[] lv = RoadProfile.plan(g, wt, sf);
+        h = new int[n];
+        for (int i = 0; i < n; i++) h[i] = lv[i] * 2;
+        return h;
+    }
+
+    /** What a saved road is at each of its points (its ground saved): as the builder recorded it, or worked out again. */
+    static RoadProfile.Part[] partsOf(RoadJob o) {
+        return parts(o, halvesOf(o, o.points().size()));
     }
 
     static final int BRIDGE_GAP = 3, TUNNEL_COVER = 5, MIN_RUN = 4, HALF = RoadSection.HALF, REACH = HALF + RoadSection.WIDEN + 1;
@@ -1177,30 +1286,35 @@ public final class RoadModule extends EcoModule {
         if (main == null || main.phase != RoadJob.Phase.DONE) return null;
         RoadNetwork.Road m = built(main);
         if (m == null) return null;
-        List<double[]> pts = new ArrayList<>(m.points());
-        int[] h = m.halves();
-        RoadProfile.Part[] parts = parts(main, h);
+        Spliced s = new Spliced(m.points(), m.halves(), parts(main, m.halves()));
         RoadNetwork.Road t = tail != null && tail.phase == RoadJob.Phase.DONE ? built(tail) : null;
-        if (t != null) {   // the patch starts TAIL_BACK points before the old end, on the old road
-            int cut = Math.max(0, pts.size() - 1 - TAIL_BACK);
-            int[] th = t.halves();
-            RoadProfile.Part[] tp = parts(tail, th);
-            List<double[]> all = new ArrayList<>(pts.subList(0, cut));
-            all.addAll(t.points());
-            int[] hh = java.util.Arrays.copyOf(h, cut + th.length);
-            System.arraycopy(th, 0, hh, cut, th.length);
-            RoadProfile.Part[] pp = java.util.Arrays.copyOf(parts, cut + tp.length);
-            System.arraycopy(tp, 0, pp, cut, tp.length);
-            pts = all;
-            h = hh;
-            parts = pp;
-        }
-        return new RoadGuide.Road(main.dock, pts, h, parts, main.route, home);
+        if (t != null) s = splice(s, t, parts(tail, t.halves()));
+        return new RoadGuide.Road(main.dock, s.points(), s.halves(), s.parts(), main.route, home);
     }
 
-    /** What a saved road is at each point (road, bridge, tunnel) from its heights and the ground it read. */
+    /** A road's points, heights and parts. */
+    record Spliced(List<double[]> points, int[] halves, RoadProfile.Part[] parts) {}
+
+    /** A finished road with its patch (t, its parts tp) in place of its last stretch: the patch starts TAIL_BACK points before the old end, on the old road. */
+    static Spliced splice(Spliced road, RoadNetwork.Road t, RoadProfile.Part[] tp) {
+        int cut = Math.max(0, road.points().size() - 1 - TAIL_BACK);
+        int[] th = t.halves();
+        List<double[]> all = new ArrayList<>(road.points().subList(0, cut));
+        all.addAll(t.points());
+        int[] hh = java.util.Arrays.copyOf(road.halves(), cut + th.length);
+        System.arraycopy(th, 0, hh, cut, th.length);
+        RoadProfile.Part[] pp = java.util.Arrays.copyOf(road.parts(), cut + th.length);
+        System.arraycopy(tp, 0, pp, cut, th.length);
+        return new Spliced(all, hh, pp);
+    }
+
+    /**
+     * What a saved road is at each point (road, bridge, tunnel): as the builder recorded it ({@link RoadJob#parts}), else
+     * (a road saved before that was kept) worked out again from its heights and the ground it read.
+     */
     static RoadProfile.Part[] parts(RoadJob j, int[] halves) {
         int n = halves.length;
+        if (j.parts != null && j.parts.length == j.ground.size() && n <= j.parts.length) return java.util.Arrays.copyOf(j.parts, n);
         int[] ground = new int[n];
         boolean[] water = new boolean[n];
         for (int i = 0; i < n; i++) {
@@ -1215,20 +1329,19 @@ public final class RoadModule extends EcoModule {
         return RoadProfile.partsHalves(halves, ground, water, BRIDGE_GAP, TUNNEL_COVER, MIN_RUN);
     }
 
-    /** Every saved road (its job and its patch, or null) by world, then dock. */
-    private Map<String, Map<String, RoadJob[]>> savedRoads() {
-        Map<String, Map<String, RoadJob[]>> out = new java.util.TreeMap<>();
+    /** Every saved road (its job and its patch, or null) by world, then dock: {@link SavedRoads} (a file that cannot be read left out alone). */
+    private SavedRoads saved() {
         try {
-            for (String text : files.texts(ORIGIN)) {   // by file name
-                RoadJob o = RoadJob.read(text);
-                if (o.dock == null || o.world == null) continue;
-                RoadJob[] pair = out.computeIfAbsent(o.world, k -> new java.util.TreeMap<>()).computeIfAbsent(o.dock, k -> new RoadJob[2]);
-                pair[o.tail ? 1 : 0] = o;
-            }
+            return SavedRoads.of(files.named(ORIGIN), m -> eco.getLogger().warning(m));
         } catch (IOException | RuntimeException e) {
-            eco.getLogger().warning("[국도] 저장된 길을 읽지 못함: " + e);
+            eco.getLogger().warning("[국도] 저장된 길을 읽지 못함 (" + folder() + "): " + e);
+            return new SavedRoads();
         }
-        return out;
+    }
+
+    /** Every saved road by world, then dock. */
+    private Map<String, Map<String, RoadJob[]>> savedRoads() {
+        return saved().byWorld;
     }
 
     /**
@@ -1368,22 +1481,20 @@ public final class RoadModule extends EcoModule {
      * over air its footing down to the ground ({@link RoadSection#plinths}). Never in any road's lanes.
      */
     void fixRails(java.util.function.Consumer<Component> to, java.util.function.Consumer<Component> bar, String target) {
-        Homes homes = homes();
+        String running = runningDock();
         Bukkit.getScheduler().runTaskAsynchronously(eco, () -> {
-            // off the main thread: the roads read and laid out (which columns are whose lanes)
+            // off the main thread: the roads read and laid out (which columns are whose lanes); every road built, as it
+            // was built (finished or not, its dock standing or not: TunnelRepair)
             Map<String, List<RoadGuide.Road>> mine = new HashMap<>();
             Map<String, RoadNetwork> nets = new HashMap<>();
-            for (Map.Entry<String, Map<String, RoadJob[]>> e : savedRoads().entrySet()) {
-                List<RoadNetwork.Road> all = new ArrayList<>();
-                List<RoadGuide.Road> these = new ArrayList<>();
-                for (RoadGuide.Road r : guideRoads(homes, e.getKey(), e.getValue())) {
-                    all.add(new RoadNetwork.Road(r.dock(), r.points(), r.halves()));
-                    if (target.equals(ALL) || r.dock().equals(target)) these.add(r);
-                }
-                if (these.isEmpty()) continue;
-                mine.put(e.getKey(), these);
-                nets.put(e.getKey(), RoadNetwork.of(all));
+            List<TunnelRepair.Entry> all = TunnelRepair.select(savedRoads(), running, w -> true);
+            Map<String, List<RoadNetwork.Road>> built = builtRoads(all);
+            for (TunnelRepair.Entry e : all) {
+                TunnelRepair.Road r = e.road();
+                if (r == null || !(target.equals(ALL) || r.dock().equalsIgnoreCase(target))) continue;
+                mine.computeIfAbsent(r.world(), k -> new ArrayList<>()).add(new RoadGuide.Road(r.dock(), r.points(), r.halves(), r.parts(), r.route(), ""));
             }
+            mine.keySet().forEach(w -> nets.put(w, RoadNetwork.of(built.get(w))));
             Bukkit.getScheduler().runTask(eco, () -> fixRails(to, bar, mine, nets));
         });
     }
@@ -1428,80 +1539,358 @@ public final class RoadModule extends EcoModule {
     }
 
     /**
+     * A tunnel repair asked for and not finished (its roads being read, or its work waiting): another one is refused till
+     * then (asked twice, it would answer twice and do the work twice).
+     */
+    private boolean boring;
+
+    /** The dock of the road being built right now (the builder makes its own tunnels high enough), or null. */
+    private String runningDock() {
+        return job != null && job.running && !job.preview && job.phase != RoadJob.Phase.DONE ? job.dock : null;
+    }
+
+    private static Set<String> loadedWorlds() {
+        Set<String> out = new HashSet<>();
+        for (World w : Bukkit.getWorlds()) out.add(w.getName());
+        return out;
+    }
+
+    /** What /관리자 국도 터널보수 read off the main thread: the roads, every one's reason, those asked for, the other roads round each. */
+    private record Selection(SavedRoads saved, List<TunnelRepair.Entry> these, Map<String, RoadNetwork> others) {}
+
+    /** Every built road of each world as the network sees it (what a repair keeps off). */
+    private static Map<String, List<RoadNetwork.Road>> builtRoads(List<TunnelRepair.Entry> all) {
+        Map<String, List<RoadNetwork.Road>> out = new HashMap<>();
+        for (TunnelRepair.Entry e : all) {
+            TunnelRepair.Road r = e.road();
+            if (r != null) out.computeIfAbsent(r.world(), k -> new ArrayList<>()).add(new RoadNetwork.Road(r.dock(), r.points(), r.halves()));
+        }
+        return out;
+    }
+
+    private static RoadNetwork others(List<RoadNetwork.Road> roads, String dock) {
+        List<RoadNetwork.Road> rest = new ArrayList<>();
+        if (roads != null) for (RoadNetwork.Road o : roads) if (!o.dock().equals(dock)) rest.add(o);
+        return RoadNetwork.of(rest);
+    }
+
+    /**
      * /관리자 국도 터널보수 [하역장|전체]: the tunnels of roads already built, made as high as a road builds them now
      * ({@link RoadClearance}: on a grade the ceiling clears the highest surface a vehicle's length away, so the box truck
-     * no longer sticks coming down). A cross-section at a time ({@link RoadSection#rebore}: only from the old ceiling up,
-     * only the tunnel's own blocks, the ground's and air; never a player's block, protected land or another road's lanes;
-     * a flat tunnel is left as it is), chunks loaded a few at a time, roads.blocks-per-tick blocks a tick, paused or
-     * slowed while the server is busy (roads.max-mspt). What changes goes into the road's undo record when it has one.
+     * no longer sticks coming down). Every road that was built is mended, as the builder built it ({@link TunnelRepair}:
+     * finished or stopped part way, its dock standing or not, its parts as recorded). A cross-section at a time
+     * ({@link RoadSection#rebore}: only from the old ceiling up, only the tunnel's own blocks, the ground's and air; never
+     * a player's block, protected land or another road's lanes; a flat tunnel is left as it is), chunks loaded a few at a
+     * time, roads.blocks-per-tick blocks a tick, paused or slowed while the server is busy (roads.max-mspt). What changes
+     * goes into the road's undo record when it has one. One answer: how many roads were read, built, with tunnels, and why
+     * each road left out is.
      */
     void rebore(java.util.function.Consumer<Component> to, java.util.function.Consumer<Component> bar, String target) {
-        Homes homes = homes();
+        if (boring) {
+            to.accept(Lang.msg("road.tunnels-busy"));
+            return;
+        }
+        boring = true;
+        Set<String> worlds = loadedWorlds();
+        String running = runningDock();
         Bukkit.getScheduler().runTaskAsynchronously(eco, () -> {
-            // off the main thread: the roads read, their parts worked out, the other roads round each laid out
-            Map<String, List<RoadGuide.Road>> mine = new HashMap<>();
-            Map<String, Map<String, RoadNetwork>> others = new HashMap<>();
-            for (Map.Entry<String, Map<String, RoadJob[]>> e : savedRoads().entrySet()) {
-                List<RoadGuide.Road> all = guideRoads(homes, e.getKey(), e.getValue());
-                List<RoadGuide.Road> these = new ArrayList<>();
-                Map<String, RoadNetwork> nets = new HashMap<>();
-                for (RoadGuide.Road r : all) {
-                    if (!(target.equals(ALL) || r.dock().equals(target)) || !java.util.Arrays.asList(r.parts()).contains(RoadProfile.Part.TUNNEL)) continue;
-                    these.add(r);
-                    List<RoadNetwork.Road> rest = new ArrayList<>();
-                    for (RoadGuide.Road o : all) if (!o.dock().equals(r.dock())) rest.add(new RoadNetwork.Road(o.dock(), o.points(), o.halves()));
-                    nets.put(r.dock(), RoadNetwork.of(rest));
-                }
-                if (these.isEmpty()) continue;
-                mine.put(e.getKey(), these);
-                others.put(e.getKey(), nets);
+            // off the main thread: the roads read, their parts, the other roads round each laid out
+            Selection sel = null;
+            try {
+                SavedRoads saved = saved();
+                List<TunnelRepair.Entry> all = TunnelRepair.select(saved.byWorld, running, worlds::contains);
+                List<TunnelRepair.Entry> these = new ArrayList<>();
+                for (TunnelRepair.Entry e : all) if (target.equals(ALL) || e.dock().equalsIgnoreCase(target)) these.add(e);
+                Map<String, List<RoadNetwork.Road>> built = builtRoads(all);
+                Map<String, RoadNetwork> others = new HashMap<>();
+                for (TunnelRepair.Entry e : these)
+                    if (e.why() == TunnelRepair.Why.OK) others.put(e.world() + "\0" + e.dock(), others(built.get(e.world()), e.dock()));
+                sel = new Selection(saved, these, others);
+            } catch (RuntimeException e) {
+                eco.getLogger().log(java.util.logging.Level.WARNING, "[국도] 터널보수: 길을 읽다 오류", e);
             }
-            Bukkit.getScheduler().runTask(eco, () -> rebore(to, bar, mine, others));
+            Selection done = sel;
+            Bukkit.getScheduler().runTask(eco, () -> guarded(to, () -> {
+                if (done == null) {
+                    boring = false;
+                    to.accept(Lang.msg("road.tunnels-error"));
+                    return;
+                }
+                rebore(to, bar, target, done);
+            }));
         });
     }
 
-    private void rebore(java.util.function.Consumer<Component> to, java.util.function.Consumer<Component> bar, Map<String, List<RoadGuide.Road>> mine,
-                        Map<String, Map<String, RoadNetwork>> others) {
+    private void rebore(java.util.function.Consumer<Component> to, java.util.function.Consumer<Component> bar, String target, Selection sel) {
+        if (!target.equals(ALL) && sel.these().isEmpty()) {
+            boring = false;
+            to.accept(Lang.msg("road.tunnels-no-road", "dock", target));
+            return;
+        }
         int roadsN = 0, points = 0;
         long[] changed = {0};
         Map<String, RoadUndo.Recorder> recs = new HashMap<>();
-        for (Map.Entry<String, List<RoadGuide.Road>> e : mine.entrySet()) {
-            World w = Bukkit.getWorld(e.getKey());
+        Map<String, Batch> byWorld = new java.util.LinkedHashMap<>();
+        for (TunnelRepair.Entry e : sel.these()) {
+            if (e.why() != TunnelRepair.Why.OK) continue;
+            World w = Bukkit.getWorld(e.world());
             if (w == null) continue;
-            Batch b = new Batch(w, Lang.raw("road.batch-tunnels"));
-            b.blocks = new BlockBudget(settings.blocksPerTick());
-            for (RoadGuide.Road r : e.getValue()) {
-                roadsN++;
-                RoadUndo.Recorder rec = hasUndo(r.dock()) ? recs.computeIfAbsent(r.dock(), k -> new RoadUndo.Recorder()) : null;
-                RoadSection sec = new RoadSection(site(w, rec, guardBase, others.get(e.getKey()).get(r.dock())), settings.style(), r.points(), r.halves(),
-                        r.parts(), r.dock(), r.route());
-                for (int i = 0; i < r.parts().length; i++) {
-                    if (r.parts()[i] != RoadProfile.Part.TUNNEL) continue;
-                    points++;
-                    int at = i;
-                    double[] p = r.points().get(i);
-                    b.add(p[0], p[1], RoadSection.HALF + RoadSection.WIDEN + 2, () -> {
-                        int n = sec.rebore(at);
-                        changed[0] += n;
-                        b.cost = n;
-                    });
-                }
+            Batch b = byWorld.computeIfAbsent(e.world(), k -> tunnelBatch(w));
+            TunnelRepair.Road r = e.road();
+            roadsN++;
+            RoadUndo.Recorder rec = hasUndo(r.dock()) ? recs.computeIfAbsent(r.dock(), k -> new RoadUndo.Recorder()) : null;
+            RoadSection sec = new RoadSection(site(w, rec, guardBase, sel.others().get(e.world() + "\0" + e.dock())), settings.style(), r.points(),
+                    r.halves(), r.parts(), r.dock(), r.route());
+            for (int i = 0; i < r.parts().length; i++) {
+                if (r.parts()[i] != RoadProfile.Part.TUNNEL) continue;
+                points++;
+                int at = i;
+                double[] p = r.points().get(i);
+                b.add(p[0], p[1], RoadSection.HALF + RoadSection.WIDEN + 2, () -> {
+                    int n = sec.rebore(at);
+                    changed[0] += n;
+                    b.cost = n;
+                });
             }
+        }
+        TunnelRepair.Count c = TunnelRepair.count(sel.these(), sel.saved().unreadable.size());
+        List<Component> lines = new ArrayList<>();
+        lines.add(Lang.msg("road.tunnels-summary", "saved", c.saved(), "built", c.done() + c.partial(), "done", c.done(), "partial", c.partial(),
+                "tunnels", c.tunnels()));
+        if (sel.saved().files == 0) lines.add(Lang.mm("road.tunnels-folder", "folder", folder().toString()));
+        if (JobFiles.encodingProblem() != null) lines.add(Lang.mm("road.files-encoding", "encoding", JobFiles.encodingProblem()));
+        if (!sel.saved().unreadable.isEmpty())
+            lines.add(Lang.mm("road.tunnels-unreadable", "count", sel.saved().unreadable.size(), "files", String.join(", ", sel.saved().unreadable)));
+        reasons(sel.these(), roadsN == 0, lines);
+        if (roadsN == 0) {
+            boring = false;
+            lines.add(Lang.mm("road.tunnels-none"));
+            lines.add(Lang.mm("road.tunnels-hint"));
+            to.accept(lines(lines));
+            return;
+        }
+        int[] left = {byWorld.size()};
+        for (Batch b : byWorld.values()) {
             b.done = () -> {
+                if (--left[0] > 0) return;
                 recs.forEach((dock, rec) -> {
                     RoadUndo.Taken t = rec.take();
                     if (t != null) files.append(dock + ".undo", t::record);
                 });
+                boring = false;
                 to.accept(Lang.msg("road.tunnels-done", "blocks", changed[0]));
             };
             b.bar = bar;
-            if (!b.empty()) batches.add(b);
+            batches.add(b);
         }
-        if (roadsN == 0) {
-            to.accept(Lang.msg("road.tunnels-none"));
+        lines.add(Lang.mm("road.tunnels-start", "roads", roadsN, "points", points));
+        to.accept(lines(lines));
+    }
+
+    /** Runs a step of a tunnel repair; an error ends it (logged, answered) so the next one is not refused for ever. */
+    private void guarded(java.util.function.Consumer<Component> to, Runnable step) {
+        try {
+            step.run();
+        } catch (RuntimeException e) {
+            boring = false;
+            eco.getLogger().log(java.util.logging.Level.WARNING, "[국도] 터널보수 오류", e);
+            to.accept(Lang.msg("road.tunnels-error"));
+        }
+    }
+
+    private Batch tunnelBatch(World w) {
+        Batch b = new Batch(w, Lang.raw("road.batch-tunnels"));
+        b.blocks = new BlockBudget(settings.blocksPerTick());
+        return b;
+    }
+
+    /** Lines as one message (one chat message: never a line each, so an answer never looks sent twice). */
+    private static Component lines(List<Component> lines) {
+        return Component.join(JoinConfiguration.newlines(), lines);
+    }
+
+    /** At most this many roads' reasons listed. */
+    static final int REASON_LINES = 12;
+
+    /** Why each road is left out (all: every one not mended; else only those that look wrong: no ground, no world). */
+    private void reasons(List<TunnelRepair.Entry> entries, boolean all, List<Component> lines) {
+        int n = 0, more = 0;
+        for (TunnelRepair.Entry e : entries) {
+            if (e.why() == TunnelRepair.Why.OK) continue;
+            if (!all && e.why() != TunnelRepair.Why.NO_GROUND && e.why() != TunnelRepair.Why.NO_WORLD) continue;
+            if (n >= REASON_LINES) {
+                more++;
+                continue;
+            }
+            n++;
+            TunnelRepair.Road r = e.road();
+            String why = Lang.raw("road.tunnel-why." + e.why().key, "points", r == null ? 0 : r.length(), "tunnels", r == null ? 0 : r.tunnels(),
+                    "world", e.world(), "guess", e.why() == TunnelRepair.Why.NO_TUNNEL && !e.recorded() ? Lang.raw("road.tunnel-why.guessed") : "");
+            lines.add(Lang.mm("road.tunnels-why-line", "dock", e.dock(), "world", e.world(), "phase", phaseName(e.phase()), "pct", e.pct(), "why", why));
+        }
+        if (more > 0) lines.add(Lang.mm("road.tunnels-why-more", "count", more));
+    }
+
+    /** A saved road's tunnel points near the admin, the road as built (in the admin's world), the other roads round it. */
+    private record Near(TunnelRepair.Road road, List<Integer> at, RoadNetwork others) {}
+
+    /**
+     * /관리자 국도 터널보수 여기 [반경]: the tunnels within the radius of the admin, whatever the saved roads say. First the
+     * saved roads' tunnel points there (any built road, its world renamed moving the server included: as
+     * {@link #rebore(java.util.function.Consumer, java.util.function.Consumer, String)}), then every tunnel found by its
+     * blocks that no saved road there mends ({@link RoadFinder}: a lane under a stone brick ceiling with a lined wall
+     * beside it; only from its old ceiling up, the ground's and the tunnel's own blocks; never protected land). The chunks
+     * round loaded a few at a time, roads.blocks-per-tick, roads.max-mspt. A message at the start and one at the end with
+     * what was found and changed (or why nothing was).
+     */
+    private void reboreHere(Player p, int radius, java.util.function.Consumer<Component> to, java.util.function.Consumer<Component> bar) {
+        if (boring) {
+            to.accept(Lang.msg("road.tunnels-busy"));
             return;
         }
-        to.accept(Lang.msg("road.tunnels-start", "roads", roadsN, "points", points));
+        boring = true;
+        World w = p.getWorld();
+        String wn = w.getName();
+        int px = p.getLocation().getBlockX(), py = p.getLocation().getBlockY(), pz = p.getLocation().getBlockZ();
+        Set<String> worlds = loadedWorlds();
+        String running = runningDock();
+        Bukkit.getScheduler().runTaskAsynchronously(eco, () -> {
+            List<Near> near = new ArrayList<>();
+            Set<Long> handled = new HashSet<>();
+            try {
+                List<TunnelRepair.Entry> all = TunnelRepair.select(savedRoads(), running, worlds::contains);
+                // the roads of this world, and of a world no longer on the server (renamed): taken as this one's
+                List<TunnelRepair.Entry> here = new ArrayList<>();
+                for (TunnelRepair.Entry e : all) if (e.road() != null && (e.world().equals(wn) || !worlds.contains(e.world()))) here.add(e);
+                List<RoadNetwork.Road> roads = new ArrayList<>();
+                for (TunnelRepair.Entry e : here) roads.add(new RoadNetwork.Road(e.dock(), e.road().points(), e.road().halves()));
+                for (TunnelRepair.Entry e : here) {
+                    if (e.why() != TunnelRepair.Why.OK && e.why() != TunnelRepair.Why.NO_WORLD) continue;
+                    List<Integer> at = e.road().tunnelsNear(px + 0.5, pz + 0.5, radius);
+                    if (at.isEmpty()) continue;
+                    near.add(new Near(e.road().in(wn), at, others(roads, e.dock())));
+                    for (int i : at) {
+                        double[] q = e.road().points().get(i);
+                        int qx = (int) Math.floor(q[0]), qz = (int) Math.floor(q[1]), r = RoadSection.HALF + RoadSection.WIDEN + 2;
+                        for (int dx = -r; dx <= r; dx++) for (int dz = -r; dz <= r; dz++) handled.add(RoadFinder.key(qx + dx, qz + dz));
+                    }
+                }
+            } catch (RuntimeException e) {
+                eco.getLogger().log(java.util.logging.Level.WARNING, "[국도] 터널보수 여기: 길을 읽다 오류", e);
+            }
+            Bukkit.getScheduler().runTask(eco, () -> guarded(to, () -> reboreHere(w, px, py, pz, radius, near, handled, to, bar)));
+        });
+    }
+
+    private void reboreHere(World w, int px, int py, int pz, int radius, List<Near> near, Set<Long> handled, java.util.function.Consumer<Component> to,
+                            java.util.function.Consumer<Component> bar) {
+        String wn = w.getName();
+        long[] changed = {0, 0};   // by the saved roads, by the blocks found
+        int points = 0;
+        Map<String, RoadUndo.Recorder> recs = new HashMap<>();
+        if (!near.isEmpty()) {
+            Batch a = tunnelBatch(w);
+            for (Near n : near) {
+                TunnelRepair.Road r = n.road();
+                RoadUndo.Recorder rec = hasUndo(r.dock()) ? recs.computeIfAbsent(r.dock(), k -> new RoadUndo.Recorder()) : null;
+                RoadSection sec = new RoadSection(site(w, rec, guardBase, n.others()), settings.style(), r.points(), r.halves(), r.parts(), r.dock(), r.route());
+                for (int i : n.at()) {
+                    points++;
+                    double[] p = r.points().get(i);
+                    a.add(p[0], p[1], RoadSection.HALF + RoadSection.WIDEN + 2, () -> {
+                        int c = sec.rebore(i);
+                        changed[0] += c;
+                        a.cost = c;
+                    });
+                }
+            }
+            a.bar = bar;
+            a.done = () -> recs.forEach((dock, rec) -> {
+                RoadUndo.Taken t = rec.take();
+                if (t != null) files.append(dock + ".undo", t::record);
+            });
+            batches.add(a);
+        }
+        // then every tunnel there found by its blocks (after the saved roads' are mended: those are left to them)
+        RoadFinder.Found found = new RoadFinder.Found();
+        Set<Material> road = roadBlocks;
+        int lo = Math.max(w.getMinHeight(), py - 32), hi = Math.min(w.getMaxHeight() - RoadFinder.LOOK_UP - 2, py + 32);
+        RoadFinder.Blocks blocks = (x, y, z) -> y < w.getMinHeight() || y >= w.getMaxHeight() ? Material.AIR : w.getBlockAt(x, y, z).getType();
+        Batch scan = new Batch(w, Lang.raw("road.batch-tunnel-scan"));
+        scan.blocks = new BlockBudget(settings.blocksPerTick());
+        int chunks = 0;
+        for (int cx = (px - radius) >> 4; cx <= (px + radius) >> 4; cx++) {
+            for (int cz = (pz - radius) >> 4; cz <= (pz + radius) >> 4; cz++) {
+                int x0 = Math.max(cx << 4, px - radius), x1 = Math.min((cx << 4) + 15, px + radius);
+                int z0 = Math.max(cz << 4, pz - radius), z1 = Math.min((cz << 4) + 15, pz + radius);
+                chunks++;
+                scan.add((cx << 4) + 8, (cz << 4) + 8, 7, () -> {
+                    for (int x = x0; x <= x1; x++) for (int z = z0; z <= z1; z++) RoadFinder.scan(blocks, x, z, lo, hi, road, found);
+                    scan.cost = (x1 - x0 + 1) * (z1 - z0 + 1);   // a column read top to bottom: about a block set
+                });
+            }
+        }
+        int savedPoints = points;
+        scan.bar = bar;
+        scan.done = () -> {
+            if (!eco.isEnabled()) return;
+            Bukkit.getScheduler().runTaskAsynchronously(eco, () -> {   // the plan: a few hundred thousand look-ups for a long tunnel
+                RoadFinder.Plan plan;
+                try {
+                    plan = RoadFinder.plan(found, handled::contains);
+                } catch (RuntimeException e) {
+                    eco.getLogger().log(java.util.logging.Level.WARNING, "[국도] 터널보수 여기: 굴을 찾다 오류", e);
+                    plan = new RoadFinder.Plan(List.of(), 0, 0);
+                }
+                RoadFinder.Plan planned = plan;
+                Bukkit.getScheduler().runTask(eco, () -> guarded(to, () -> carve(w, planned, found, near.size(), savedPoints, changed, radius, to, bar)));
+            });
+        };
+        batches.add(scan);
+        to.accept(Lang.msg("road.here-start", "radius", radius, "roads", near.size(), "points", points, "chunks", chunks, "world", wn));
+    }
+
+    /** /관리자 국도 터널보수 여기: the tunnels found by their blocks raised, then the one answer. */
+    private void carve(World w, RoadFinder.Plan plan, RoadFinder.Found found, int roads, int points, long[] changed, int radius,
+                       java.util.function.Consumer<Component> to, java.util.function.Consumer<Component> bar) {
+        String wn = w.getName();
+        Runnable answer = () -> {
+            boring = false;
+            boolean none = roads == 0 && plan.lanes() == 0;
+            to.accept(Lang.msg(none ? "road.here-none" : "road.here-done", "radius", radius, "blocks", changed[0] + changed[1], "roads", roads,
+                    "points", points, "saved", changed[0], "found", changed[1], "lanes", plan.lanes(), "low", plan.bores().size(), "high", plan.high(),
+                    "surfaces", found.surfaceCount(), "tunnels", found.tunnelCount(), "columns", found.columns));
+        };
+        if (plan.bores().isEmpty()) {
+            answer.run();
+            return;
+        }
+        Map<Long, Integer> targets = RoadFinder.targets(plan.bores());
+        RoadFinder.Site site = new RoadFinder.Site() {
+            public Material get(int x, int y, int z) {
+                return y < w.getMinHeight() || y >= w.getMaxHeight() ? Material.AIR : w.getBlockAt(x, y, z).getType();
+            }
+
+            public boolean protectedLand(int x, int z) {
+                return guardBase.column(wn, x, z) != null;
+            }
+
+            public void set(int x, int y, int z, Material m) {
+                if (y < w.getMinHeight() || y >= w.getMaxHeight()) return;
+                change(w.getBlockAt(x, y, z), plainData.computeIfAbsent(m, Material::createBlockData), null);
+            }
+        };
+        Batch b = tunnelBatch(w);
+        for (RoadFinder.Bore bore : plan.bores()) {
+            b.add(bore.x() + 0.5, bore.z() + 0.5, 2, () -> {
+                int n = RoadFinder.bore(site, bore, targets, found);
+                changed[1] += n;
+                b.cost = n;
+            });
+        }
+        b.bar = bar;
+        b.done = answer;
+        batches.add(b);
     }
 
     /**
