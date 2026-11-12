@@ -46,12 +46,12 @@ def wheel(c, cx, cy, r, tyre=("rubber", 1), rim=("blade", 3), hub=("blade", 5), 
 
 @icon("cargo_bicycle")
 def cargo_bicycle():
-    # a green roadster from its left side: a wire basket with green onions over the front wheel, a crate on the rear
+    # a black roadster from its left side: a wire basket with green onions over the front wheel, a crate on the rear
     # rack, a brown saddle, chrome bars and fork, two spoked wheels
     c = Canvas()
     wheel(c, 3, 12, 3, spokes=True)
     wheel(c, 12, 12, 3, spokes=True)
-    G = "bottle_green"
+    G = "blacksteel"
     c.line(5, 7, 10, 7, G, 3, 2)            # top tube
     c.line(5, 8, 8, 11, G, 2, 2)            # down tube
     c.line(8, 11, 10, 6, G, 3, 2)           # seat tube

@@ -43,9 +43,10 @@ def lens(x0, x1, y0, y1, z, round_=False, mirror=True):
 
 
 LAMPS = {
-    # models/vehicles.py police_car: headlight / taillight boxes (reverse white inside, red, amber outside)
-    "police_car": dict(scale=2.0, head=lens(9, 12, 8, 11, -36.5), tail=lens(9, 12, 9, 12, 36.5),
-                       reverse=lens(8, 9, 9, 12, 36.5), body=("vehicles", "police_car")),
+    # models/vehicles.py police_car: swept headlights (projector + reflector over the running light), taillights
+    # with a lit bar along the top (the white reverse lamp at their inner end)
+    "police_car": dict(scale=2.0, head=lens(8, 12, 8, 11, -36.5), tail=lens(9, 14.5, 9.5, 12, 36.5),
+                       reverse=lens(8, 9, 10, 11, 36.5), body=("vehicles", "police_car")),
     # light_truck: headlight boxes (amber strip on top), taillights on the bed's back (amber inside: the reverse lamp)
     "light_truck": dict(scale=2.0, head=lens(8.5, 12.5, 9, 12, -39.5), tail=lens(11, 13.5, 7, 9.5, 38.5),
                         reverse=lens(10, 11, 7, 9.5, 38.5), body=("vehicles", "light_truck")),
@@ -55,7 +56,8 @@ LAMPS = {
     "delivery_scooter": dict(scale=2.0, head=lens(-1.6, 1.6, 17.4, 20.6, -9.5, True, False),
                              tail=lens(-1.75, 1.75, 11, 12.5, 15, False, False), body=("vehicles_road", "delivery_scooter")),
     # atv: two lamps in the nose and one in the handlebar pod, tail lamps on the tail's back
-    "atv": dict(scale=2.0, head=lens(1.5, 4, 7.5, 9.5, -16.5) + lens(-1.4, 1.4, 16.1, 18.9, -8, True, False),
+    "atv": dict(scale=2.0, head=lens(1.5, 4, 7.5, 9.5, -16.5) + lens(-1.4, 1.4, 16.1, 18.9, -8, True, False)
+                + lens(5.5, 8.5, 10.75, 12.5, -15.5),
                 tail=lens(1.5, 3.5, 8, 9.5, 16), body=("vehicles_road", "atv")),
     # cargo_van: tall tail lamps (amber top, red middle, white reverse at the bottom)
     "cargo_van": dict(scale=2.0, head=lens(6, 10, 9, 12.5, -28.5), tail=lens(9.5, 11.75, 12, 19, 28.5),
@@ -65,8 +67,9 @@ LAMPS = {
                       reverse=lens(5.5, 8, 8, 10.5, 52), body=("vehicles_road", "box_truck")),
     # vehicles_farm.py power_tiller: one round lamp on the hopper's front corner (the trailer's lamps are not drawn here)
     "power_tiller": dict(scale=2.0, head=lens(-4.9, -2.1, 26.1, 28.9, -16, True, False), body=("vehicles_farm", "power_tiller")),
-    # tractor: two lamps in the grille's top corners, tail lamps on the fenders' backs
-    "tractor": dict(scale=2.0, head=lens(3.5, 5.5, 18, 20, -23), tail=lens(12, 14.5, 20, 22, 24.5), body=("vehicles_farm", "tractor")),
+    # tractor: two round lamps standing on the hood's front corners, tail lamps on the fenders' backs
+    "tractor": dict(scale=2.0, head=lens(4.25, 6.75, 21.5, 24, -23.5, True), tail=lens(12, 14.5, 20, 22, 24.5),
+                    body=("vehicles_farm", "tractor")),
 }
 
 # colours (palette ramps, ART_STYLE: lamps glow)
