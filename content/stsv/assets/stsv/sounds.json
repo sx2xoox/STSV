@@ -243,5 +243,138 @@
         "name": "stsv:vehicle/tractor_trailer_engine"
       }
     ]
+  },
+  "vehicle.police_car.engine_start": {
+    "sounds": [
+      {
+        "name": "stsv:vehicle/police_car_engine_start"
+      }
+    ]
+  },
+  "vehicle.police_car.engine_stop": {
+    "sounds": [
+      {
+        "name": "stsv:vehicle/police_car_engine_stop"
+      }
+    ]
+  },
+  "vehicle.cargo_van.engine_start": {
+    "sounds": [
+      {
+        "name": "stsv:vehicle/cargo_van_engine_start"
+      }
+    ]
+  },
+  "vehicle.cargo_van.engine_stop": {
+    "sounds": [
+      {
+        "name": "stsv:vehicle/cargo_van_engine_stop"
+      }
+    ]
+  },
+  "vehicle.light_truck.engine_start": {
+    "sounds": [
+      {
+        "name": "stsv:vehicle/light_truck_engine_start"
+      }
+    ]
+  },
+  "vehicle.light_truck.engine_stop": {
+    "sounds": [
+      {
+        "name": "stsv:vehicle/light_truck_engine_stop"
+      }
+    ]
+  },
+  "vehicle.box_truck.engine_start": {
+    "sounds": [
+      {
+        "name": "stsv:vehicle/box_truck_engine_start"
+      }
+    ]
+  },
+  "vehicle.box_truck.engine_stop": {
+    "sounds": [
+      {
+        "name": "stsv:vehicle/box_truck_engine_stop"
+      }
+    ]
+  },
+  "vehicle.tractor_trailer.engine_start": {
+    "sounds": [
+      {
+        "name": "stsv:vehicle/tractor_trailer_engine_start"
+      }
+    ]
+  },
+  "vehicle.tractor_trailer.engine_stop": {
+    "sounds": [
+      {
+        "name": "stsv:vehicle/tractor_trailer_engine_stop"
+      }
+    ]
+  },
+  "vehicle.delivery_scooter.engine_start": {
+    "sounds": [
+      {
+        "name": "stsv:vehicle/delivery_scooter_engine_start"
+      }
+    ]
+  },
+  "vehicle.delivery_scooter.engine_stop": {
+    "sounds": [
+      {
+        "name": "stsv:vehicle/delivery_scooter_engine_stop"
+      }
+    ]
+  },
+  "vehicle.atv.engine_start": {
+    "sounds": [
+      {
+        "name": "stsv:vehicle/atv_engine_start"
+      }
+    ]
+  },
+  "vehicle.atv.engine_stop": {
+    "sounds": [
+      {
+        "name": "stsv:vehicle/atv_engine_stop"
+      }
+    ]
+  },
+  "vehicle.power_tiller.engine_start": {
+    "sounds": [
+      {
+        "name": "stsv:vehicle/power_tiller_engine_start"
+      }
+    ]
+  },
+  "vehicle.power_tiller.engine_stop": {
+    "sounds": [
+      {
+        "name": "stsv:vehicle/power_tiller_engine_stop"
+      }
+    ]
+  },
+  "vehicle.golf_cart.engine_start": {
+    "sounds": [
+      {
+        "name": "stsv:vehicle/golf_cart_engine_start"
+      }
+    ]
+  },
+  "vehicle.golf_cart.engine_stop": {
+    "sounds": [
+      {
+        "name": "stsv:vehicle/golf_cart_engine_stop"
+      }
+    ]
+  },
+  "vehicle.common.reverse_beep": {
+    "sounds": [
+      {
+        "name": "stsv:vehicle/common_reverse_beep"
+      }
+    ]
   }
 }

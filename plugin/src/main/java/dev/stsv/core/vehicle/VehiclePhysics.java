@@ -96,8 +96,13 @@ public final class VehiclePhysics {
      * @param cap  the server's top speed (vehicles.max-speed)
      */
     public static double nextSpeed(double v, boolean forward, boolean backward, VehicleSpec s, double slow, double cap) {
+        return nextSpeed(v, forward, backward, s, slow, cap, 1);
+    }
+
+    /** The speed after one tick, accelerating at accel times the vehicle's own rate (a load, a slope: {@link VehicleFeel}). */
+    public static double nextSpeed(double v, boolean forward, boolean backward, VehicleSpec s, double slow, double cap, double accel) {
         double max = Math.min(s.speed(), cap) * slow, rev = Math.min(s.reverseSpeed(), cap) * slow;
-        double a = s.acceleration() * DT, b = s.brake() * DT, c = s.coast() * DT;
+        double a = s.acceleration() * DT * accel, b = s.brake() * DT, c = s.coast() * DT;
         if (forward && backward) {
             v = toward(v, 0, b);
         } else if (forward) {
@@ -340,11 +345,24 @@ public final class VehiclePhysics {
      * over bonusCap (the server's top speed, vehicles.max-speed).
      */
     public static void step(State st, DriveInput in, VehicleSpec s, Terrain t, double cap, float turnScale, double bonus, double bonusCap) {
+        step(st, in, s, t, cap, turnScale, bonus, bonusCap, 1, 1);
+    }
+
+    /**
+     * One tick with the vehicle's feel ({@link VehicleFeel}: its load and the slope): the top speed topScale times as high
+     * (never over bonusCap), the acceleration accelScale times.
+     */
+    public static void step(State st, DriveInput in, VehicleSpec s, Terrain t, double cap, float turnScale, double bonus, double bonusCap,
+                            double topScale, double accelScale) {
         st.bumped = false;
         double slow = slowdown(st.x, st.y, st.z, st.yaw, s, t);
         double top = Math.min(s.speed(), cap);
         if (bonus > 1 && slow >= 1 && top > 0) slow = Math.max(1, Math.min(bonus, bonusCap / top));
-        st.speed = nextSpeed(st.speed, in.forward(), in.backward(), s, slow, cap);
+        if (topScale != 1) {
+            slow *= Math.max(0, topScale);
+            if (topScale > 1 && top > 0) slow = Math.min(slow, Math.max(1, bonusCap / top));   // downhill: never past the server's top
+        }
+        st.speed = nextSpeed(st.speed, in.forward(), in.backward(), s, slow, cap, accelScale);
 
         float turn = yawRate(st.speed, in.steer(), s) * turnScale;
         if (turn != 0) {
