@@ -90,4 +90,4 @@ achievements:
     value: economy:job_level:fisher
     goal: 30
     unit: "레벨"
-    rewards: { gold: 50000, items: ["economy:caviar x3"], title: economy:master_fisher }
+    rewards: { gold: 50000, items: ["economy:treasure_fish_meat x3"], title: economy:master_fisher }

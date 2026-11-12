@@ -93,7 +93,7 @@ class BalanceTest {
     static final List<String> JOB_MACHINES = List.of("gem_bench", "mill", "fish_bench", "forge", "kitchen", "still");
     /** The top good of each machine (full-chain multiple). */
     static final Map<String, String> CAPSTONE = linked(
-            "gem_bench", "economy:jeweled_crown", "mill", "economy:jang_set", "fish_bench", "economy:seafood_feast",
+            "gem_bench", "economy:jeweled_crown", "mill", "economy:jang_set", "fish_bench", "economy:treasure_fish_meat",
             "forge", "economy:ornate_armor", "kitchen", "economy:hanjeongsik", "still", "economy:vintage_wine");
 
     // ------------------------------------------------------------------------------------------ R1 / R2 bands
@@ -1160,9 +1160,20 @@ class BalanceTest {
     }
 
     /**
+     * Job machines with no chain at all (every recipe raw-only: the 손질대's tier processing since 2026-11). Their best good is a
+     * one-step multiple (1.2-1.6), so R11 leaves them out of the spread (their raw recipes are R1 / R5's).
+     */
+    static Set<String> rawOnlyMachines() {
+        Set<String> out = new HashSet<>();
+        for (String m : JOB_MACHINES) if (w.rows.stream().filter(r -> r.m.equals(m)).allMatch(r -> r.cls.equals("R"))) out.add(m);
+        return out;
+    }
+
+    /**
      * R11: the best full-chain multiple of each job machine (any of its goods: base / raw cost with machine goods expanded through their
      * lowest-tier recipe) stays within 3.0x of every other machine's, so no machine's own chain is a money printer; every job machine has
-     * a capstone (CAPSTONE).
+     * a capstone (CAPSTONE). A raw-only machine (rawOnlyMachines: the 손질대 since its 2026-11 tier processing) has no chain and is left
+     * out of the spread.
      */
     @Test
     void r11ChainSpread() {
@@ -1175,7 +1186,9 @@ class BalanceTest {
             return;
         }
         Map<String, Map.Entry<String, Double>> best = new LinkedHashMap<>();
+        Set<String> rawOnly = rawOnlyMachines();
         for (String m : JOB_MACHINES) {
+            if (rawOnly.contains(m)) continue;
             Map.Entry<String, Double> top = null;
             for (Row r : w.rows) {
                 if (!r.m.equals(m) || !w.sell.containsKey(r.out)) continue;

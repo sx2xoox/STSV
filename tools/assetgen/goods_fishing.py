@@ -95,6 +95,57 @@ def fish_paste():
 
 
 # ================================================================================================
+# 손질대: 아무 물고기나 등급별로 손질 (2026-11). One family: a thick boneless portion lying corner to corner on a sheet of
+# butcher paper, tied with a band in the rarity's colour (fish.yml rarities: white, green, blue, gold); the flesh gets richer
+# with the tier (pale white -> salmon pink -> rosy marbled -> deep red, fat-streaked, with a glint)
+# ================================================================================================
+
+def _portion(flesh, fat, band, glint=False):
+    c = Canvas()
+    c.poly([(0.4, 9.2), (8.8, 1.6), (15.6, 7.4), (7.2, 15.4)], "washi_lit", 0, normal=(-0.1, 0.45, 0.9), lo=2, hi=4)
+    paper = c.last()
+    c.tone([(x, y) for x, y in paper if (x + 2 * y) % 7 == 0], -1)
+    # the portion: skin side a dark edge below, the cut face lit from the top left
+    c.tube([(3.6, 11.4), (12.0, 4.8)], [3.0, 2.7], "fish_silver", 1, flat=0.7, lo=1, hi=2)
+    c.tube([(3.4, 10.8), (11.8, 4.2)], [2.8, 2.5], flesh, 2, flat=0.7, lo=1, hi=4)
+    slab = c.last()
+    c.lit_edge(slab)
+    # flake / fat lines across the cut face
+    for x, y in ((4, 8), (6, 6), (8, 5), (10, 3)):
+        c.line(x, y, x + 2, y + 2, *fat, z=3)
+    # the band around the middle, across the slab
+    c.line(5, 5, 9, 10, band, 4, z=4).line(6, 5, 10, 10, band, 2, z=4)
+    if glint:
+        c.dots([(4, 9), (11, 4)], "snow", 5)
+        c.put(13, 2, "lamp", 5, z=6).put(13, 1, "lamp", 3, z=6).put(12, 2, "lamp", 3, z=6).put(14, 2, "lamp", 3, z=6)
+    return c
+
+
+@icon
+def fish_meat():
+    """생선살 (흔함): a pale white fish portion with flake lines, tied with plain twine."""
+    return _portion("cream", ("rice", 3), "straw")
+
+
+@icon
+def fine_fish_meat():
+    """고급 생선살 (보통): a salmon-pink portion with cream fat lines, a green band."""
+    return _portion("salmon", ("cream", 4), "sprout")
+
+
+@icon
+def prime_fish_meat():
+    """특선 생선살 (희귀): a rosy sashimi-grade portion, marbled, a blue band."""
+    return _portion("seabream", ("pink", 5), "signal_blue")
+
+
+@icon
+def treasure_fish_meat():
+    """진귀한 생선살 (전설): a deep red, fat-streaked portion like tuna belly, a gold band and a glint."""
+    return _portion("tuna_meat", ("cream", 4), "gold", glint=True)
+
+
+# ================================================================================================
 # 조리대: 어부의 손질감으로 만드는 요리
 # ================================================================================================
 
@@ -193,6 +244,7 @@ def fish_pen_icon():
 
 
 NAMES = {
+    "fish_meat": "생선살", "fine_fish_meat": "고급 생선살", "prime_fish_meat": "특선 생선살", "treasure_fish_meat": "진귀한 생선살",
     "fish_feed": "생선 사료", "flatfish_hoe": "광어회", "dried_fish": "건어물", "saeujeot": "새우젓", "fish_paste": "어묵 반죽",
     "mulhoe": "물회", "eomuktang": "어묵탕", "bossam": "보쌈", "dried_fish_stirfry": "건어물 볶음",
     "fish_trap_icon": "통발", "fish_pen_icon": "가두리",

@@ -48,9 +48,9 @@ pool:
   - { item: economy:rice, min: 4, max: 12, job: farmer, xp: 25, from-day: 2, weight: 6 }
   - { item: economy:chili_powder, min: 2, max: 8, job: farmer, xp: 25, from-day: 2, weight: 6 }
   - { item: economy:doenjang, min: 1, max: 4, job: farmer, xp: 60, from-day: 8, weight: 4 }
-  - { item: economy:cod_fillet, min: 8, max: 24, job: fisher, xp: 25, from-day: 2, weight: 6 }
-  - { item: economy:seabream_sashimi, min: 2, max: 6, job: fisher, xp: 50, from-day: 5, weight: 4 }
-  - { item: economy:sukhoe, min: 2, max: 4, job: fisher, xp: 50, from-day: 5, weight: 3 }
+  - { item: economy:fish_meat, min: 8, max: 24, job: fisher, xp: 25, from-day: 2, weight: 6 }
+  - { item: economy:prime_fish_meat, min: 2, max: 6, job: fisher, xp: 50, from-day: 5, weight: 4 }
+  - { item: economy:fine_fish_meat, min: 4, max: 12, job: fisher, xp: 30, from-day: 2, weight: 3 }
   - { item: economy:iron_plate, min: 2, max: 6, job: blacksmith, xp: 30, from-day: 2, weight: 6 }
   - { item: economy:steel_ingot, min: 1, max: 4, job: blacksmith, xp: 60, from-day: 8, weight: 4 }
   - { item: economy:kimchi, min: 2, max: 8, job: cook, xp: 30, from-day: 2, weight: 6 }
@@ -74,5 +74,5 @@ pool:
 community:
   - { name: "철의 도시", item: iron_ingot, target: 20000, reward: 500 }
   - { name: "겨울 대비 석탄", item: coal, target: 30000, reward: 1000 }
-  - { name: "대어 축제", item: economy:cod_fillet, target: 2500, reward: 2250 }
+  - { name: "대어 축제", item: economy:fish_meat, target: 2500, reward: 2250 }
   - { name: "왕관의 보석", item: diamond, target: 2000, reward: 3000 }

@@ -30,7 +30,7 @@ risk:
 industries:
   mining:      { name: "광업", job: miner, icon: economy:ruby, color: "#9fb4c8" }
   agriculture: { name: "농업", job: farmer, icon: economy:rice, color: "#8bc34a" }
-  fisheries:   { name: "수산", job: fisher, icon: economy:salmon_fillet, color: "#4fc3f7" }
+  fisheries:   { name: "수산", job: fisher, icon: economy:fish_meat, color: "#4fc3f7" }
   steel:       { name: "철강", job: blacksmith, icon: economy:steel_ingot, color: "#ff8a65" }
   food:        { name: "식품", job: cook, icon: economy:kimchi, color: "#ffb74d" }
   pharma:      { name: "제약", job: alchemist, icon: economy:pearl_perfume, color: "#ba68c8" }

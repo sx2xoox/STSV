@@ -303,7 +303,7 @@ class RulesTest {
         assertEquals(miner, spec.ofMachine("gem_bench"));
         // fishing: the rare-bite chance and the Lv20 doubles (the fish themselves are in fish.yml)
         JobSpec.Finds fish = spec.jobs().get("fisher").finds();
-        assertEquals(0.22, fish.chance().at(30, 30), 1e-9);
+        assertEquals(0.36, fish.chance().at(30, 30), 1e-9, "2026-11: 22 -> 36% when the fish bench became tier processing");
         assertEquals(0.06, fish.chance().at(1, 30), 1e-9);
         assertEquals(0.15, spec.jobs().get("fisher").bonus("save", 20), 1e-9, "Lv20: the fish bench keeps an input 15% of the time");
         assertEquals(0, spec.jobs().get("fisher").bonus("save", 19), 1e-9);
@@ -434,10 +434,12 @@ class RulesTest {
         Map<String, MachineSpec> m = MachineSpec.parse(y, new ArrayList<>());
         Map<String, MachineSpec.Group> groups = MachineSpec.groups(y, new ArrayList<>());
         java.util.function.BiPredicate<String, String> tags = (tag, item) -> groups.containsKey(tag) && groups.get(tag).items().contains(item);
-        // every member is a fish of fish.yml, none is a legend, and a fish is in one cooking group only
+        // 2026-11 tier processing: every fish of fish.yml (and the vanilla tropical fish the shop buys) is in exactly one fish group,
+        // each group is one rarity, and the 손질대 is the only machine that takes them
         FishSpec f = fish();
-        java.util.Set<String> fishItems = new HashSet<>();
-        f.species().values().forEach(sp -> fishItems.add(sp.item()));
+        Map<String, String> rarityOf = new java.util.HashMap<>();
+        f.species().values().forEach(sp -> rarityOf.put(sp.item(), sp.rarity()));
+        rarityOf.put("minecraft:tropical_fish", "common");
         Map<String, String> seen = new java.util.HashMap<>();
         // the press's groups (seeds, compostables, stones, dirts) are not fish
         java.util.Set<String> pressGroups = new HashSet<>();
@@ -445,25 +447,32 @@ class RulesTest {
         assertEquals(4, pressGroups.size());
         for (var g : groups.values()) {
             if (pressGroups.contains(g.id())) continue;
+            java.util.Set<String> rarities = new HashSet<>();
             for (String it : g.items()) {
-                assertTrue(fishItems.contains(it), g.id() + ": " + it + " is a fish");
-                var sp = f.species().values().stream().filter(x -> x.item().equals(it)).findFirst().orElseThrow();
-                assertNotEquals("legend", sp.rarity(), it + " is a legend: sold, not cooked");
+                assertTrue(rarityOf.containsKey(it), g.id() + ": " + it + " is a fish");
+                rarities.add(rarityOf.get(it));
                 assertNull(seen.put(it, g.id()), it + " in two groups");
             }
+            assertEquals(1, rarities.size(), g.id() + " mixes rarities " + rarities);
+            for (var mm : m.values()) {
+                boolean uses = mm.recipes().stream().anyMatch(r -> r.inputs().containsKey("#" + g.id()));
+                assertEquals(mm.id().equals("fish_bench"), uses, g.id() + " on " + mm.id());
+            }
         }
-        // any fish of a group will do, mixed too
+        assertEquals(rarityOf.keySet(), seen.keySet(), "every fish can be processed");
+        // any fish of a group will do, mixed too; rare fish from 1강, legends from 2강
         MachineSpec bench = m.get("fish_bench");
-        assertEquals("economy:cod_fillet", bench.auto(Map.of("economy:sandfish", 1, "minecraft:cod", 1), 0, tags).output());
-        assertEquals("economy:sukhoe", bench.auto(Map.of("economy:octopus", 1), 1, tags).output());
-        assertNull(bench.auto(Map.of("economy:octopus", 1), 0, tags), "숙회 is 1강");
+        assertEquals("economy:fish_meat", bench.auto(Map.of("economy:sandfish", 1, "minecraft:cod", 1), 0, tags).output());
+        assertEquals("economy:fine_fish_meat", bench.auto(Map.of("economy:rockfish", 2, "economy:carp", 2), 0, tags).output());
+        assertEquals("economy:prime_fish_meat", bench.auto(Map.of("economy:octopus", 1), 1, tags).output());
+        assertNull(bench.auto(Map.of("economy:octopus", 1), 0, tags), "rare fish open at 1강");
+        assertEquals("economy:treasure_fish_meat", bench.auto(Map.of("economy:marlin", 1), 2, tags).output());
+        assertNull(bench.auto(Map.of("economy:marlin", 1), 1, tags), "legends open at 2강");
         MachineSpec kitchen = m.get("kitchen");
-        assertEquals("economy:maeuntang", kitchen.auto(Map.of("economy:carp", 1, "economy:loach", 1, "economy:chili_powder", 1,
-                "economy:tofu", 1), 1, tags).output());
-        assertNull(kitchen.auto(Map.of("economy:guppy", 2, "economy:chili_powder", 1, "economy:tofu", 1), 3, tags),
-                "an aquarium fish is not food");
-        assertEquals("economy:saengseonjeon", kitchen.auto(Map.of("economy:rockfish", 1, "economy:lenok", 1, "economy:flour", 1,
-                "minecraft:egg", 1), 0, tags).output());
+        assertEquals("economy:maeuntang", kitchen.auto(Map.of("economy:fish_meat", 1, "economy:chili_powder", 1, "economy:tofu", 1), 1, tags).output());
+        assertNull(kitchen.auto(Map.of("economy:carp", 2, "economy:chili_powder", 1, "economy:tofu", 1), 3, tags),
+                "the kitchen takes processed fish, not the catch");
+        assertEquals("economy:saengseonjeon", kitchen.auto(Map.of("economy:fish_meat", 2, "economy:flour", 1, "minecraft:egg", 1), 0, tags).output());
     }
 
     /** A sized fish goes into a lane (and loses its size) only where a recipe open at the machine's tier uses it. */
@@ -475,11 +484,12 @@ class RulesTest {
         java.util.function.BiPredicate<String, String> tags = (tag, item) -> groups.containsKey(tag) && groups.get(tag).items().contains(item);
         MachineSpec fishBench = m.get("fish_bench"), kitchen = m.get("kitchen"), press = m.get("press");
         assertTrue(fishBench.takes("economy:croaker", 1, tags));
-        assertFalse(fishBench.takes("economy:croaker", 0, tags), "굴비 opens at 1강");
-        assertTrue(kitchen.takes("economy:snow_crab", 2, tags), "through #economy:crab");
-        assertFalse(kitchen.takes("economy:king_crab", 3, tags), "a trophy");
+        assertFalse(fishBench.takes("economy:croaker", 0, tags), "rare fish open at 1강");
+        assertTrue(fishBench.takes("economy:whale_shark", 2, tags));
+        assertFalse(fishBench.takes("economy:whale_shark", 1, tags), "legends open at 2강");
+        assertFalse(kitchen.takes("economy:snow_crab", 3, tags), "the kitchen takes processed fish only");
         assertFalse(press.takes("economy:whale_shark", 3, tags));
-        assertTrue(fishBench.takes("economy:sardine", 0, tags), "through #economy:blue_fish (common, never sized)");
+        assertTrue(fishBench.takes("economy:sardine", 0, tags), "through #economy:fish_common (common, never sized)");
     }
 
     /** The press: every seed (vanilla or a custom crop's) makes seed oil, mixed in one lane; each good is one recipe. */
