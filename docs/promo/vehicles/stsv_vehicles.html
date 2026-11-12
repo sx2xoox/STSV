@@ -1,0 +1,566 @@
+<!doctype html>
+<html lang="ko">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>운송수단 & 하역장</title>
+<style>
+  @font-face { font-family: 'Pretendard'; font-weight: 500; src: url('fonts/Pretendard-Medium.woff2') format('woff2'); font-display: block; }
+  @font-face { font-family: 'Pretendard'; font-weight: 700; src: url('fonts/Pretendard-Bold.woff2') format('woff2'); font-display: block; }
+  @font-face { font-family: 'Pretendard'; font-weight: 800; src: url('fonts/Pretendard-ExtraBold.woff2') format('woff2'); font-display: block; }
+  @font-face { font-family: 'Pretendard'; font-weight: 900; src: url('fonts/Pretendard-Black.woff2') format('woff2'); font-display: block; }
+  :root { --bg: #000; --fg: #fff; --dim: #777; }
+  html, body { margin: 0; height: 100%; background: var(--bg); color: var(--fg); font-family: 'Pretendard', sans-serif; font-weight: 500; }
+  body { display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 12px; overflow: hidden; }
+  #stage { width: min(100vw, calc((100vh - 48px) * 16 / 9)); aspect-ratio: 16 / 9; display: block; background: #000; cursor: pointer; }
+  #bar { width: min(100vw - 32px, calc((100vh - 48px) * 16 / 9)); display: flex; gap: 12px; align-items: center; font-size: 14px; color: var(--dim); font-variant-numeric: tabular-nums; }
+  #bar input { flex: 1; accent-color: #ccff00; }
+  #bar button { font: inherit; background: transparent; color: var(--fg); border: 1px solid #333; border-radius: 6px; padding: 3px 12px; cursor: pointer; }
+  body.capture { display: block; }
+  body.capture #bar { display: none; }
+  body.capture #stage { width: 1920px; height: 1080px; }
+</style>
+</head>
+<body>
+<canvas id="stage" width="1920" height="1080"></canvas>
+<div id="bar"><button id="play">일시정지</button><input id="seek" type="range" min="0" max="49" step="0.01" value="0"><span id="clock">0.0s</span></div>
+<script>
+'use strict';
+// ─────────────────────────────────────────────────────────────
+// STSV 업데이트 "운송수단 & 하역장" · 1920×1080 · 소리 없음
+// 색은 검정 · 흰색 · 형광 하나. render(t) 는 시간 t(초)만 보고 그린다.
+// ?t=12.5 로 그 시점에 멈춤, ?capture=1 은 프레임 추출용.
+// ─────────────────────────────────────────────────────────────
+const W = 1920, H = 1080;
+const MAIN = document.getElementById('stage');
+const mainCtx = MAIN.getContext('2d');
+let ctx = mainCtx; // 장면은 언제나 ctx 에 그림 (전환 중에는 화면 밖 캔버스로 바뀜)
+const C = { bg: '#000000', ink: '#ffffff', neon: '#ccff00', line: 'rgba(255,255,255,.14)' };
+
+// ── 이징 ─────────────────────────────────────────────────────
+const clamp = (v, a = 0, b = 1) => Math.max(a, Math.min(b, v));
+const lerp = (a, b, k) => a + (b - a) * k;
+const prog = (t, a, d) => clamp((t - a) / d);
+const xOut = k => k >= 1 ? 1 : 1 - Math.pow(2, -10 * k);
+const xIn = k => k <= 0 ? 0 : Math.pow(2, 10 * k - 10);
+const xInOut = k => k <= 0 ? 0 : k >= 1 ? 1 : k < .5 ? Math.pow(2, 20 * k - 10) / 2 : (2 - Math.pow(2, -20 * k + 10)) / 2;
+const sOut = k => 1 - Math.pow(1 - k, 2);
+const fmt = n => Math.round(n).toLocaleString('en-US');
+
+// ── 에셋 ─────────────────────────────────────────────────────
+const IMG = {};
+const PNG = ['jige', 'hand_cart', 'cargo_bike', 'ox_cart', 'scooter', 'tiller', 'light_truck', 'cargo_van', 'box_truck', 'tractor', 'boat', 'atv',
+  'load0', 'load1', 'load2', 'load3', 'load4', 'terminal', 'dock_land'];
+const ROAD = ['drive_flat', 'drive_bridge', 'drive_tunnel', 'drive_forest', 'drive_overpass'];
+function loadAll() {
+  const one = (n, ext) => new Promise(res => { const im = new Image(); im.onload = () => { IMG[n] = im; res(); }; im.onerror = () => { console.warn('missing', n); res(); }; im.src = `assets/${n}.${ext}`; });
+  const fonts = [500, 700, 800, 900].map(w => document.fonts.load(`${w} 64px Pretendard`, '운송수단하역장0123456789'));
+  return Promise.all([...PNG.map(n => one(n, 'png')), ...ROAD.map(n => one(n, 'png')), ...fonts]).then(() => document.fonts.ready);
+}
+
+// ── 글자 ─────────────────────────────────────────────────────
+function setFont(size, w = 800, ls = 0) { ctx.font = `${w} ${size}px Pretendard`; ctx.letterSpacing = `${ls}px`; }
+function tw(s, size, w = 800, ls = 0) { setFont(size, w, ls); return ctx.measureText(s).width; }
+// y 는 글줄 가운데. k 를 주면 마스크 안에서 아래→위로 탁 올라옴, out 을 주면 위로 빠져나감
+function text(s, x, y, o = {}) {
+  const size = o.size || 40, w = o.w || 800, ls = o.ls !== undefined ? o.ls : -size * 0.03;
+  setFont(size, w, ls);
+  const width = ctx.measureText(s).width;
+  const x0 = o.align === 'center' ? x - width / 2 : o.align === 'right' ? x - width : x;
+  ctx.textAlign = 'left'; ctx.textBaseline = 'middle';
+  const a = o.alpha === undefined ? 1 : o.alpha;
+  if (a <= 0) return width;
+  ctx.save(); ctx.globalAlpha *= a;
+  let dy = 0;
+  if (o.k !== undefined || o.out !== undefined) {
+    const k = o.k === undefined ? 1 : clamp(o.k), ko = clamp(o.out || 0);
+    if (k <= 0 || ko >= 1) { ctx.restore(); return width; }
+    ctx.beginPath(); ctx.rect(x0 - size, y - size * 0.7, width + size * 2, size * 1.4); ctx.clip();
+    dy = (1 - xOut(k)) * size * 1.2 - xIn(ko) * size * 1.3;
+  }
+  if (o.glow) { ctx.shadowColor = o.glow; ctx.shadowBlur = o.glowBlur || 40; }
+  ctx.fillStyle = o.color || C.ink; ctx.fillText(s, x0, y + dy + size * 0.04);
+  ctx.restore();
+  return width;
+}
+function richLine(parts, x, y, o = {}) {
+  const size = o.size || 40, w = o.w || 800, ls = o.ls !== undefined ? o.ls : -size * 0.03;
+  const widths = parts.map(([s]) => tw(s, size, w, ls));
+  const total = widths.reduce((a, b) => a + b, 0);
+  let cx = o.align === 'center' ? x - total / 2 : o.align === 'right' ? x - total : x;
+  parts.forEach(([s, col, kk], i) => { text(s, cx, y, { ...o, align: 'left', color: col, k: kk !== undefined ? kk : o.k }); cx += widths[i]; });
+  return total;
+}
+// 탭 숫자: 숫자마다 같은 폭 칸
+function tabular(s, x, y, o = {}) {
+  const size = o.size || 80, w = o.w || 900;
+  setFont(size, w, 0);
+  const dw = Math.max(...'0123456789'.split('').map(d => ctx.measureText(d).width));
+  const cw = ch => /[0-9]/.test(ch) ? dw : ctx.measureText(ch).width;
+  const chars = [...s];
+  const total = chars.reduce((a, ch) => a + cw(ch), 0) + (o.track || 0) * (chars.length - 1);
+  let cx = o.align === 'center' ? x - total / 2 : o.align === 'right' ? x - total : x;
+  ctx.textBaseline = 'middle'; ctx.textAlign = 'center';
+  ctx.save();
+  if (o.alpha !== undefined) ctx.globalAlpha *= o.alpha;
+  if (o.glow) { ctx.shadowColor = o.glow; ctx.shadowBlur = o.glowBlur || 50; }
+  ctx.fillStyle = o.color || C.ink;
+  for (const ch of chars) { const c = cw(ch); ctx.fillText(ch, cx + c / 2, y + size * 0.04); cx += c + (o.track || 0); }
+  ctx.restore();
+  return total;
+}
+
+// ── 그리기 도우미 ───────────────────────────────────────────
+function rr(x, y, w, h, r) { ctx.beginPath(); ctx.roundRect(x, y, w, h, r); }
+// 카메라: (cx,cy) 를 중심으로 확대·축소
+function cam(s, cx = W / 2, cy = H / 2) { ctx.translate(cx, cy); ctx.scale(s, s); ctx.translate(-cx, -cy); }
+function card(x, y, w, h, a = 1) {
+  ctx.save(); ctx.globalAlpha *= a;
+  rr(x, y, w, h, 20);
+  ctx.fillStyle = 'rgba(255,255,255,.045)'; ctx.fill();
+  ctx.lineWidth = 1; ctx.strokeStyle = 'rgba(255,255,255,.14)'; ctx.stroke();
+  ctx.restore();
+}
+function floorShadow(cx, cy, w, h, a = .6) {
+  ctx.save();
+  const g = ctx.createRadialGradient(cx, cy, 0, cx, cy, w / 2);
+  g.addColorStop(0, `rgba(0,0,0,${a})`); g.addColorStop(1, 'rgba(0,0,0,0)');
+  ctx.translate(cx, cy); ctx.scale(1, h / w); ctx.fillStyle = g; ctx.fillRect(-w / 2, -w / 2, w, w);
+  ctx.restore();
+}
+function sprite(name, cx, cy, bw, bh, s = 1, alpha = 1) {
+  const im = IMG[name]; if (!im) return;
+  const k = Math.min(bw / im.width, bh / im.height) * s;
+  const w = im.width * k, h = im.height * k;
+  ctx.save(); ctx.globalAlpha *= alpha; ctx.imageSmoothingEnabled = false;
+  ctx.drawImage(im, Math.round(cx - w / 2), Math.round(cy - h / 2), Math.round(w), Math.round(h));
+  ctx.restore();
+}
+// 게임 장면을 살짝 기울인 3D 카드로 (세로 띠로 원근), 확대는 nearest
+function tiltCard(name, src, x, y, w, h, tilt = 0.08, o = {}) {
+  const im = IMG[name]; if (!im) return;
+  const [sx, sy, sw, sh] = src;
+  const N = 96;
+  ctx.save();
+  if (o.alpha !== undefined) ctx.globalAlpha *= o.alpha;
+  floorShadow(x + w / 2, y + h + 30, w * 0.9, 70, 0.8);
+  ctx.imageSmoothingEnabled = false;
+  if (o.mono) ctx.filter = 'grayscale(1) contrast(1.1) brightness(.85)';
+  const hAt = u => h * (1 - tilt * (tilt > 0 ? u : (u - 1)));
+  for (let i = 0; i < N; i++) {
+    const u0 = i / N, u1 = (i + 1) / N, hh = hAt((u0 + u1) / 2);
+    ctx.drawImage(im, sx + sw * u0, sy, sw / N, sh, x + w * u0, y + (h - hh) / 2, Math.ceil(w / N) + 1, hh);
+  }
+  ctx.filter = 'none';
+  const top = u => y + (h - hAt(u)) / 2;
+  ctx.beginPath(); ctx.moveTo(x, top(0)); ctx.lineTo(x + w, top(1)); ctx.lineTo(x + w, y + h - (top(1) - y)); ctx.lineTo(x, y + h - (top(0) - y)); ctx.closePath();
+  const fade = ctx.createLinearGradient(0, y, 0, y + h);
+  fade.addColorStop(0, 'rgba(0,0,0,.3)'); fade.addColorStop(0.2, 'rgba(0,0,0,0)'); fade.addColorStop(0.7, 'rgba(0,0,0,0)'); fade.addColorStop(1, 'rgba(0,0,0,.8)');
+  ctx.fillStyle = fade; ctx.fill();
+  ctx.lineWidth = 1; ctx.strokeStyle = 'rgba(255,255,255,.18)'; ctx.stroke();
+  ctx.restore();
+}
+// 화면 가득 사진. z: 배율, px/py: 이동
+function fullPhoto(name, z = 1, px = 0, py = 0, dark = 0.35, o = {}) {
+  const im = IMG[name]; if (!im) return;
+  const base = Math.max(W / im.width, H / im.height) * z;
+  const w = im.width * base, h = im.height * base;
+  ctx.save(); ctx.imageSmoothingEnabled = !o.pixel; ctx.imageSmoothingQuality = 'high';
+  if (o.mono) ctx.filter = 'grayscale(1) contrast(1.15)';
+  ctx.drawImage(im, W / 2 - w / 2 + px, H / 2 - h / 2 + py, w, h);
+  ctx.restore();
+  ctx.fillStyle = `rgba(0,0,0,${dark})`; ctx.fillRect(0, 0, W, H);
+}
+
+// ── 배경 ─────────────────────────────────────────────────────
+let VIG = null;
+function makeBG() {
+  VIG = document.createElement('canvas'); VIG.width = W; VIG.height = H;
+  const g = VIG.getContext('2d');
+  const v = g.createRadialGradient(W / 2, H / 2, H * 0.4, W / 2, H / 2, H * 1.05);
+  v.addColorStop(0, 'rgba(0,0,0,0)'); v.addColorStop(1, 'rgba(0,0,0,.7)');
+  g.fillStyle = v; g.fillRect(0, 0, W, H);
+}
+function bg() {
+  ctx.fillStyle = '#050505'; ctx.fillRect(0, 0, W, H);
+  const g = ctx.createRadialGradient(W / 2, H * 0.42, 0, W / 2, H * 0.42, 1100);
+  g.addColorStop(0, 'rgba(255,255,255,.055)'); g.addColorStop(1, 'rgba(255,255,255,0)');
+  ctx.fillStyle = g; ctx.fillRect(0, 0, W, H);
+}
+const vignette = () => ctx.drawImage(VIG, 0, 0);
+function laneDashes(y, t, o = {}) {
+  const dash = o.dash || 120, gap = o.gap || 80, speed = o.speed || 260, hgt = o.h || 5;
+  ctx.save(); ctx.globalAlpha *= o.alpha === undefined ? 1 : o.alpha;
+  ctx.fillStyle = o.color || '#fff';
+  const off = (t * speed) % (dash + gap);
+  for (let x = -dash - off; x < W; x += dash + gap) ctx.fillRect(Math.round(x), y - hgt / 2, dash, hgt);
+  ctx.restore();
+}
+
+// ═════════════════════════ 장면 ═════════════════════════════
+
+// 0. 암전 → 차선 → 제목
+function sIntro(l) {
+  ctx.fillStyle = '#000'; ctx.fillRect(0, 0, W, H);
+  ctx.globalAlpha = xOut(prog(l, 1.1, 1.4)); bg(); ctx.globalAlpha = 1;
+  ctx.save();
+  cam(1 + 0.06 * sOut(prog(l, 1.5, 2.8)));   // 천천히 다가감
+  const ly = 700;
+  const k = prog(l, 0.35, 0.55);
+  if (k > 0) {
+    const head = xOut(k) * (W + 200);
+    const split = xInOut(prog(l, 1.0, 0.6));
+    ctx.save(); ctx.beginPath(); ctx.rect(-200, 0, head + 200, H); ctx.clip();
+    if (split <= 0) { ctx.fillStyle = '#fff'; ctx.fillRect(-200, ly - 3, W + 400, 6); }
+    else laneDashes(ly, Math.max(0, l - 1.0) * (0.4 + split), { gap: 80 * split, h: 6, speed: 320 });
+    ctx.restore();
+    if (k < 1) { const g = ctx.createLinearGradient(head - 300, 0, head, 0); g.addColorStop(0, 'rgba(204,255,0,0)'); g.addColorStop(1, 'rgba(204,255,0,.9)'); ctx.fillStyle = g; ctx.fillRect(head - 300, ly - 10, 300, 20); }
+  }
+  const size = 200, cy = 500, gap = 48;
+  const words = [['운송수단', C.ink, 1.25], ['&', C.neon, 1.5], ['하역장', C.ink, 1.72]];
+  const ws = words.map(([s]) => tw(s, size, 900, -size * 0.035));
+  let x = W / 2 - (ws.reduce((a, b) => a + b, 0) + gap * 2) / 2;
+  words.forEach(([s, col, at], i) => { text(s, x, cy, { size, w: 900, ls: -size * 0.035, color: col, k: prog(l, at, 0.55) }); x += ws[i] + gap; });
+  ctx.restore();
+  vignette();
+}
+
+// 1. 세대별 운송수단
+const GENS = [
+  { n: '1', v: [['jige', '지게'], ['hand_cart', '리어카']] },
+  { n: '2', v: [['cargo_bike', '짐자전거'], ['ox_cart', '소달구지']] },
+  { n: '3', v: [['scooter', '배달 오토바이'], ['tiller', '경운기']] },
+  { n: '4', v: [['light_truck', '1톤 트럭'], ['cargo_van', '소형 화물 밴']] },
+  { n: '5', v: [['box_truck', '탑차'], ['tractor', '트랙터 + 트레일러']] },
+  { n: '특수', v: [['boat', '통통배'], ['atv', '사륜 오토바이']] }
+];
+const GEN_T0 = 0.08, GEN_STEP = 1.45;
+function sGens(l) {
+  bg();
+  let gi = clamp(Math.floor((l - GEN_T0) / GEN_STEP), 0, GENS.length - 1);
+  // 세대가 바뀔 때마다 화면이 살짝 당겨짐
+  const sinceChange = l - (GEN_T0 + gi * GEN_STEP);
+  const punch = gi > 0 ? 0.045 * (1 - xOut(clamp(sinceChange / 0.5))) : 0;
+  ctx.save(); cam(1 + punch + 0.02 * prog(l, 0, 9.4));
+  // 큰 숫자: 슬롯처럼 한 칸씩
+  const numY = 520, numX = 140;
+  ctx.save(); ctx.beginPath(); ctx.rect(0, numY - 260, 860, 470); ctx.clip();
+  const REEL = 620;
+  for (let i = Math.max(0, gi - 1); i <= Math.min(GENS.length - 1, gi + 1); i++) {
+    const kin = xOut(prog(l, GEN_T0 + i * GEN_STEP, 0.5));
+    const kout = i < GENS.length - 1 ? xOut(prog(l, GEN_T0 + (i + 1) * GEN_STEP, 0.5)) : 0;
+    if (kin <= 0 || kout >= 1) continue;
+    const dy = (1 - kin) * REEL - kout * REEL;
+    const g = GENS[i], isNum = g.n.length === 1;
+    const nw = tabular(g.n, numX, numY + dy + (isNum ? 0 : 30), { size: isNum ? 480 : 300, w: 900, color: C.neon });
+    if (isNum) text('세대', numX + nw + 24, numY + dy + 150, { size: 84, w: 900 });
+  }
+  ctx.restore();
+  for (let i = 0; i < GENS.length; i++) { ctx.fillStyle = i <= gi && l >= GEN_T0 ? C.neon : 'rgba(255,255,255,.16)'; ctx.fillRect(140 + i * 74, 820, 60, 4); }
+  // 탈것 카드 두 장: 옆에서 미끄러져 들어오며 살짝 크게 → 제자리
+  const cw = 470, ch = 480, cy = 290;
+  for (let i = Math.max(0, gi - 1); i <= gi; i++) {
+    const s = GEN_T0 + i * GEN_STEP, next = GEN_T0 + (i + 1) * GEN_STEP;
+    GENS[i].v.forEach(([img, name], j) => {
+      const kin = prog(l, s + 0.05 + j * 0.08, 0.6);
+      const kout = i < GENS.length - 1 ? prog(l, next - 0.2 + j * 0.04, 0.25) : 0;
+      if (kin <= 0 || kout >= 1) return;
+      const x = 880 + j * (cw + 30) + (1 - xOut(kin)) * 1000 - xIn(kout) * 300;
+      const a = 1 - xIn(kout);
+      const sc = 1 + 0.12 * (1 - xOut(kin)) - 0.08 * xIn(kout);
+      ctx.save(); cam(sc, x + cw / 2, cy + ch / 2);
+      card(x, cy, cw, ch, a);
+      ctx.save(); ctx.beginPath(); ctx.roundRect(x, cy, cw, ch, 20); ctx.clip();
+      floorShadow(x + cw / 2, cy + 320, 330, 46, 0.85 * a);
+      sprite(img, x + cw / 2, cy + 205, cw - 70, 260, 1 + 0.08 * prog(l, s, GEN_STEP + 0.6), a);
+      ctx.restore();
+      text(name, x + 34, cy + 420, { size: name.length > 7 ? 38 : 44, w: 800, alpha: a });
+      ctx.restore();
+    });
+  }
+  ctx.restore();
+  vignette();
+}
+
+// 2. 짐칸: 실은 만큼 쌓이는
+function sLoad(l) {
+  bg();
+  ctx.save(); cam(1 + 0.05 * sOut(prog(l, 0, 6.2)), 600, 540);   // 짐칸 쪽으로 천천히 당김
+  const ck = xOut(prog(l, 0.05, 0.7));
+  const stageF = clamp((l - 0.5) / 2.4) * 4;
+  const si = Math.floor(stageF), sf = stageF - si;
+  const x = 150, y = 210 + (1 - ck) * 140, w = 740, h = 690;
+  const z = 1 + 0.1 * prog(l, 0, 6.2);
+  const src = () => { const sw = 320 / z, sh = 298 / z; return [(320 - sw) * 0.55, (298 - sh) * 0.35, sw, sh]; };
+  // 단계가 바뀔 때마다 카드가 톡 튐
+  const bump = 1 + 0.025 * (1 - xOut(clamp(sf / 0.35))) * (si > 0 && si < 4 || (si === 4 && stageF < 4.4) ? 1 : 0);
+  ctx.save(); cam(bump, x + w / 2, y + h / 2); ctx.globalAlpha = ck;
+  tiltCard(`load${si}`, src(), x, y, w, h, 0.07);
+  if (si < 4 && sf > 0.8) { ctx.globalAlpha = ck * (sf - 0.8) / 0.2; tiltCard(`load${si + 1}`, src(), x, y, w, h, 0.07); }
+  ctx.restore();
+  // 형광 게이지
+  const gx = 950, gy0 = 236, gh = 640, fill = clamp(stageF / 4);
+  ctx.globalAlpha = xOut(prog(l, 0.3, 0.5));
+  ctx.fillStyle = 'rgba(255,255,255,.12)'; ctx.fillRect(gx, gy0, 4, gh);
+  const fy = gy0 + gh * (1 - fill);
+  ctx.fillStyle = C.neon; ctx.fillRect(gx, fy, 4, gy0 + gh - fy);
+  ctx.save(); ctx.shadowColor = C.neon; ctx.shadowBlur = 20; ctx.fillRect(gx - 7, fy - 1.5, 18, 3); ctx.restore();
+  tabular(`${Math.round(fill * 100)}%`, gx + 34, fy, { size: 44, w: 800 });
+  ctx.globalAlpha = 1;
+  ctx.restore();
+  // 큰 문구: 먼저 "실은 만큼 쌓이는." → "보석은 가볍게. 술통은 무겁게."
+  const tx = 1130, swap = prog(l, 3.05, 0.3);
+  text('실은 만큼', tx, 430, { size: 112, w: 900, k: prog(l, 0.6, 0.55), out: swap });
+  richLine([['쌓이는', C.ink], ['.', C.neon]], tx, 570, { size: 112, w: 900, k: prog(l, 0.78, 0.55), out: swap });
+  richLine([['보석은 ', C.ink], ['가볍게.', C.neon]], tx, 430, { size: 112, w: 900, k: prog(l, 3.3, 0.55) });
+  richLine([['술통은 ', C.ink], ['무겁게.', C.neon]], tx, 570, { size: 112, w: 900, k: prog(l, 3.62, 0.55) });
+  vignette();
+}
+
+// 3. 화물 검사소: 체크 → 봉인
+const STAMP = 3.0;
+function sInspect(l) {
+  bg();
+  const hit = prog(l, STAMP + 0.14, 0.45);
+  const punch = hit > 0 ? 0.06 * (1 - xOut(hit)) : 0;
+  ctx.save(); cam(1.0 + 0.04 * prog(l, 0, 6.8) + punch);
+  const after = xOut(prog(l, STAMP - 0.05, 0.3));
+  const im = IMG.terminal;
+  if (im) {
+    const z = lerp(1.0, 1.1, prog(l, 0, 7)), sw = im.width / z, sh = im.height / z;
+    tiltCard('terminal', [(im.width - sw) * 0.5, (im.height - sh) * 0.4, sw, sh], 960, 170, 860, 612, -0.06, { alpha: xOut(prog(l, 0.05, 0.7)) * (1 - 0.65 * after), mono: true });
+  }
+  ctx.save(); ctx.globalAlpha = 1 - 0.75 * after;
+  text('화물 검사소', 140, 300, { size: 124, w: 900, k: prog(l, 0.2, 0.55) });
+  ['짐 목록', '목적지', '무게'].forEach((s, i) => {
+    const at = 0.9 + i * 0.5, y = 500 + i * 100;
+    const a = xOut(prog(l, at - 0.3, 0.35)), k = xOut(prog(l, at, 0.3));
+    ctx.save(); ctx.globalAlpha *= a;
+    ctx.lineWidth = 2; ctx.strokeStyle = k > 0 ? C.neon : 'rgba(255,255,255,.4)';
+    rr(140, y - 22, 44, 44, 8); ctx.stroke();
+    if (k > 0) {
+      ctx.lineWidth = 5; ctx.lineCap = 'round'; ctx.strokeStyle = C.neon;
+      const p1 = [152, y + 1], p2 = [160, y + 10], p3 = [174, y - 10], kk = k * 2;
+      ctx.beginPath(); ctx.moveTo(...p1);
+      if (kk < 1) ctx.lineTo(lerp(p1[0], p2[0], kk), lerp(p1[1], p2[1], kk));
+      else { ctx.lineTo(...p2); ctx.lineTo(lerp(p2[0], p3[0], kk - 1), lerp(p2[1], p3[1], kk - 1)); }
+      ctx.stroke(); ctx.lineCap = 'butt';
+    }
+    const ww = text(s, 216, y, { size: 56, w: 800, color: k > 0.5 ? C.ink : 'rgba(255,255,255,.55)' });
+    ctx.fillStyle = C.neon; ctx.fillRect(216, y + 40, ww * k, 3);
+    ctx.restore();
+  });
+  ctx.restore();
+  // 봉인 도장
+  const sk = prog(l, STAMP, 0.14);
+  if (sk > 0) {
+    const s = lerp(2.4, 1, xIn(sk));
+    ctx.save(); ctx.translate(W / 2, 520); ctx.rotate(-0.08); ctx.scale(s, s); ctx.globalAlpha = clamp(sk * 3);
+    rr(-310, -170, 620, 340, 26); ctx.fillStyle = 'rgba(0,0,0,.92)'; ctx.fill();
+    ctx.lineWidth = 10; ctx.strokeStyle = C.neon; ctx.stroke();
+    ctx.lineWidth = 3; rr(-286, -146, 572, 292, 16); ctx.stroke();
+    text('봉인', 0, 0, { size: 230, w: 900, color: C.neon, align: 'center', ls: 6 });
+    ctx.restore();
+    const rk = prog(l, STAMP + 0.14, 0.35);
+    if (rk > 0 && rk < 1) { ctx.save(); ctx.globalAlpha = Math.pow(1 - rk, 2) * 0.6; ctx.strokeStyle = C.neon; ctx.lineWidth = 2; rr(W / 2 - 330 - rk * 300, 520 - 190 - rk * 180, 660 + rk * 600, 380 + rk * 360, 40); ctx.stroke(); ctx.restore(); }
+  }
+  ctx.restore();
+  text('검사 끝나는 대로.', W / 2, 860, { size: 72, w: 900, align: 'center', k: prog(l, STAMP + 0.75, 0.5) });
+  vignette();
+}
+function shakeFor(T) {
+  const l = T - SC.inspect[0] - (STAMP + 0.14);
+  if (l < 0 || l > 0.36) return [0, 0];
+  const a = 18 * Math.pow(1 - l / 0.36, 2);
+  return [Math.sin(l * 95) * a, Math.cos(l * 77) * a * 0.7];
+}
+
+// 4. 국도: 실제 국도 블록을 운전석 높이에서 찍은 장면, 컷마다 확 당겨 들어감
+const SHOTS = [
+  { img: 'drive_flat', word: '국도', p: [0, 0] },
+  { img: 'drive_bridge', word: '다리', p: [0, 0] },
+  { img: 'drive_tunnel', word: '터널', p: [0, 0], tunnel: true },
+  { img: 'drive_forest', word: '숲길', p: [-40, 0] },
+  { img: 'drive_overpass', word: '고가', p: [0, 0] }
+];
+const SHOT_T = [0, 2.0, 4.0, 5.9, 7.9, 10.2];
+const DIST = [7.0, 5.5, 3.8, 2.1, 0.5];
+function sRoad(l) {
+  let si = SHOT_T.findIndex((t, i) => l >= t && l < SHOT_T[i + 1]); if (si < 0) si = SHOTS.length - 1;
+  const sh = SHOTS[si], ls = l - SHOT_T[si], dur = SHOT_T[si + 1] - SHOT_T[si];
+  // 컷 시작: 1.35배에서 탁 당겨진 뒤 천천히 계속 밀고 들어감
+  const z = lerp(1.32, 1.06, xOut(clamp(ls / 0.5))) + 0.08 * (ls / dur);
+  const k = ls / dur;
+  fullPhoto(sh.img, z, sh.p[0] * k, sh.p[1] * k, sh.tunnel ? 0.3 : 0.18, { pixel: true });
+  if (sh.tunnel) tunnelStreaks(ls);
+  const g = ctx.createLinearGradient(0, H * 0.45, 0, H);
+  g.addColorStop(0, 'rgba(0,0,0,0)'); g.addColorStop(1, 'rgba(0,0,0,.85)');
+  ctx.fillStyle = g; ctx.fillRect(0, 0, W, H);
+  // 컷 사이: 흰 번쩍임 한 프레임 정도
+  if (si > 0 && ls < 0.12) { ctx.fillStyle = `rgba(255,255,255,${0.5 * (1 - ls / 0.12)})`; ctx.fillRect(0, 0, W, H); }
+  text(sh.word, 140, 850, { size: 220, w: 900, k: prog(l, SHOT_T[si] + 0.06, 0.45) });
+  const p = clamp(l / 10.2);
+  ctx.fillStyle = 'rgba(255,255,255,.2)'; ctx.fillRect(140, 990, W - 280, 2);
+  ctx.fillStyle = C.neon; ctx.fillRect(140, 990, (W - 280) * p, 2);
+  ctx.save(); ctx.shadowColor = C.neon; ctx.shadowBlur = 16; ctx.beginPath(); ctx.arc(140 + (W - 280) * p, 991, 7, 0, Math.PI * 2); ctx.fillStyle = C.neon; ctx.fill(); ctx.restore();
+  roadSign(l);
+}
+function tunnelStreaks(l) {
+  ctx.save(); ctx.globalCompositeOperation = 'lighter';
+  for (let i = 0; i < 28; i++) {
+    const seed = Math.sin(i * 91.7) * 43758.5, r = seed - Math.floor(seed);
+    const yy = 100 + ((i * 137) % 860), sp = 2800 + r * 1800;
+    const x = ((l * sp + i * 400) % (W + 900)) - 450, len = 300 + r * 420;
+    const gr = ctx.createLinearGradient(x, 0, x + len, 0);
+    gr.addColorStop(0, 'rgba(255,255,255,0)'); gr.addColorStop(1, `rgba(255,255,255,${0.25 + r * 0.35})`);
+    ctx.fillStyle = gr; ctx.fillRect(x, yy, len, 2 + (i % 3));
+  }
+  ctx.restore();
+}
+function roadSign(l) {
+  const ek = xOut(prog(l, 0.25, 0.6));
+  if (ek <= 0) return;
+  const x = 1220, y = 100 - (1 - ek) * 280, w = 560, h = 260;
+  let d = DIST[0];
+  for (let i = 1; i < DIST.length; i++) d = lerp(d, DIST[i], xOut(prog(l, SHOT_T[i] - 0.1, 0.6)));
+  ctx.save(); ctx.shadowColor = 'rgba(0,0,0,.6)'; ctx.shadowBlur = 40; ctx.shadowOffsetY = 16;
+  rr(x, y, w, h, 16); ctx.fillStyle = 'rgba(0,0,0,.88)'; ctx.fill(); ctx.restore();
+  ctx.lineWidth = 3; ctx.strokeStyle = '#fff'; rr(x + 12, y + 12, w - 24, h - 24, 10); ctx.stroke();
+  ctx.fillStyle = '#fff';
+  ctx.beginPath(); ctx.moveTo(x + 76, y + 44); ctx.lineTo(x + 114, y + 92); ctx.lineTo(x + 88, y + 92); ctx.lineTo(x + 88, y + 150); ctx.lineTo(x + 64, y + 150); ctx.lineTo(x + 64, y + 92); ctx.lineTo(x + 38, y + 92); ctx.closePath(); ctx.fill();
+  text('서해 하역장', x + 150, y + 82, { size: 52, w: 800 });
+  const nw = tw('km', 44, 800, 0);
+  tabular(d.toFixed(1), x + w - 48 - nw - 12, y + 182, { size: 128, w: 900, color: C.neon, align: 'right' });
+  text('km', x + w - 48, y + 206, { size: 44, w: 800, align: 'right', ls: 0 });
+}
+
+// 5. 하역장: 금액이 화면 가득
+function sDock(l) {
+  bg();
+  fullPhoto('dock_land', lerp(1.28, 1.0, xOut(prog(l, 0, 3.0))) , -60 * prog(l, 0, 7.4), 20, 0.72, { mono: true, pixel: true });
+  const g = ctx.createRadialGradient(W / 2, 540, 100, W / 2, 540, 900);
+  g.addColorStop(0, 'rgba(0,0,0,.2)'); g.addColorStop(1, 'rgba(0,0,0,.8)');
+  ctx.fillStyle = g; ctx.fillRect(0, 0, W, H);
+  const ck = prog(l, 0.4, 1.9), v = 543448 * xOut(ck);
+  const settle = prog(l, 2.3, 0.6);
+  const s = lerp(1.5, 1, xOut(prog(l, 0.35, 0.7))) + (settle > 0 ? 0.05 * (1 - xOut(settle)) : 0);
+  ctx.save(); ctx.globalAlpha = xOut(prog(l, 0.35, 0.3));
+  ctx.translate(W / 2, 500); ctx.scale(s, s);
+  tabular(`+${fmt(v)} G`, 0, 0, { size: 236, w: 900, color: C.neon, align: 'center', track: -6, glow: settle > 0 ? `rgba(204,255,0,${0.45 * (1 - settle) + 0.12})` : null, glowBlur: 60 });
+  ctx.restore();
+  text('멀수록 더 받는.', W / 2, 730, { size: 84, w: 900, align: 'center', k: prog(l, 2.5, 0.5) });
+  vignette();
+}
+
+// 6. 마무리
+function sOutro(l) {
+  ctx.fillStyle = '#000'; ctx.fillRect(0, 0, W, H);
+  ctx.globalAlpha = 0.7; bg(); ctx.globalAlpha = 1;
+  ctx.save(); cam(lerp(1.12, 1, xOut(prog(l, 0, 1.6))));
+  const up = xInOut(prog(l, 2.0, 0.7));
+  richLine([['직접 실어 나른 ', C.ink, prog(l, 0.25, 0.55)], ['만큼', C.neon, prog(l, 0.5, 0.55)], ['.', C.ink, prog(l, 0.5, 0.55)]], W / 2, lerp(540, 380, up), { size: lerp(108, 72, up), w: 900, align: 'center', alpha: 1 - 0.3 * up });
+  richLine([['지금 ', C.ink], ['STSV', C.neon], ['에서', C.ink]], W / 2, 570, { size: 160, w: 900, align: 'center', k: prog(l, 2.35, 0.55) });
+  const bk = xOut(prog(l, 2.95, 0.6));
+  if (bk > 0) { ctx.save(); ctx.globalAlpha = bk; ctx.lineWidth = 1.5; ctx.strokeStyle = 'rgba(255,255,255,.4)'; const bw = 640 * (0.6 + 0.4 * bk); rr(W / 2 - bw / 2, 720, bw, 92, 46); ctx.stroke(); ctx.restore(); }
+  ctx.restore();
+  const lk = prog(l, 3.2, 0.6);
+  if (lk > 0) { ctx.save(); ctx.beginPath(); ctx.rect(0, 0, xOut(lk) * W, H); ctx.clip(); laneDashes(940, l, { h: 5, speed: 200, alpha: 0.8 }); ctx.restore(); }
+  vignette();
+}
+
+// ── 시간표와 전환 ───────────────────────────────────────────
+const SC = { intro: [0, 4.0], gens: [4.0, 13.4], load: [13.4, 19.4], inspect: [19.4, 25.8], road: [25.8, 36.0], dock: [36.0, 42.6], outro: [42.6, 47.6] };
+const ORDER = [['intro', sIntro], ['gens', sGens], ['load', sLoad], ['inspect', sInspect], ['road', sRoad], ['dock', sDock], ['outro', sOutro]];
+// 경계마다 다른 전환: 빨려 들어가기 · 기울어진 와이프 · 밀어내기 · 펀치 줌 · 빨려 들어가기 · 가는 틈
+const TRANS = ['zoom', 'wipe', 'push', 'punch', 'zoom', 'slit'];
+const PRE = 0.32, POST = 0.48;
+const DURATION = SC.outro[1];
+const BUF = [document.createElement('canvas'), document.createElement('canvas')];
+BUF.forEach(c => { c.width = W; c.height = H; });
+function drawSceneTo(target, idx, T) {
+  const prev = ctx; ctx = target;
+  ctx.setTransform(1, 0, 0, 1, 0, 0); ctx.globalAlpha = 1; ctx.filter = 'none';
+  const [key, fn] = ORDER[idx];
+  fn(T - SC[key][0]);
+  ctx = prev;
+}
+function composite(type, p, A, B) {
+  const c = mainCtx;
+  c.fillStyle = '#000'; c.fillRect(0, 0, W, H);
+  const at = (img, s, x = 0, y = 0, a = 1) => { c.save(); c.globalAlpha = a; c.translate(W / 2 + x, H / 2 + y); c.scale(s, s); c.drawImage(img, -W / 2, -H / 2); c.restore(); };
+  if (type === 'zoom') {          // 앞 장면이 카메라를 지나치고, 뒤 장면이 멀리서 다가옴
+    const ko = clamp(p / 0.5), ki = clamp((p - 0.3) / 0.7);
+    if (ko < 1) at(A, 1 + 1.6 * xIn(ko), 0, 0, 1 - xIn(ko));
+    if (ki > 0) at(B, lerp(0.55, 1, xOut(ki)), 0, 0, xOut(ki));
+  } else if (type === 'punch') {  // 앞 장면 움츠림 → 뒤 장면이 크게 박힘
+    const ko = clamp(p / 0.42), ki = clamp((p - 0.36) / 0.64);
+    if (ko < 1) at(A, 1 - 0.12 * xIn(ko), 0, 0, 1 - xIn(ko) * 0.9);
+    if (ki > 0) { at(B, lerp(1.45, 1, xOut(ki)), 0, 0, clamp(ki * 4)); if (ki < 0.15) { c.fillStyle = `rgba(204,255,0,${0.35 * (1 - ki / 0.15)})`; c.fillRect(0, 0, W, H); } }
+  } else if (type === 'push') {   // 옆으로 밀어냄, 이음매에 형광 선
+    const k = xInOut(p);
+    at(A, 1 - 0.06 * k, -W * k, 0); at(B, 1.06 - 0.06 * k, W * (1 - k), 0);
+    c.fillStyle = C.neon; c.fillRect(W * (1 - k) - 3, 0, 6, H);
+  } else if (type === 'wipe') {   // 기울어진 형광 가장자리가 쓸고 지나가며 뒤 장면을 드러냄
+    const skew = 300, k = xInOut(p), edge = lerp(-60, W + skew + 60, k);
+    at(A, 1 + 0.08 * k);
+    c.save(); c.beginPath(); c.moveTo(-skew - 10, 0); c.lineTo(edge, 0); c.lineTo(edge - skew, H); c.lineTo(-skew - 10, H); c.closePath(); c.clip();
+    at(B, 1.1 - 0.1 * k); c.restore();
+    c.beginPath(); c.moveTo(edge, 0); c.lineTo(edge - skew, H); c.lineWidth = 8; c.strokeStyle = C.neon; c.stroke();
+  } else if (type === 'slit') {   // 위아래가 닫혔다가 가운데에서 열림
+    const kc = xIn(clamp(p / 0.45)), kopen = xOut(clamp((p - 0.55) / 0.45));
+    if (p < 0.5) { at(A, 1 + 0.05 * kc); c.fillStyle = '#000'; const hh = H / 2 * kc; c.fillRect(0, 0, W, hh); c.fillRect(0, H - hh, W, hh); c.fillStyle = C.neon; c.fillRect(0, hh - 2, W, 3); c.fillRect(0, H - hh - 1, W, 3); }
+    else { const hh = H / 2 * (1 - kopen); at(B, 1.05 - 0.05 * kopen); c.fillStyle = '#000'; c.fillRect(0, 0, W, hh); c.fillRect(0, H - hh, W, hh); }
+  }
+}
+function render(T) {
+  T = clamp(T, 0, DURATION);
+  mainCtx.setTransform(1, 0, 0, 1, 0, 0); mainCtx.globalAlpha = 1; mainCtx.letterSpacing = '0px';
+  for (let i = 1; i < ORDER.length; i++) {
+    const B = SC[ORDER[i][0]][0];
+    if (T >= B - PRE && T < B + POST) {
+      drawSceneTo(BUF[0].getContext('2d'), i - 1, T);
+      drawSceneTo(BUF[1].getContext('2d'), i, T);
+      composite(TRANS[i - 1], (T - (B - PRE)) / (PRE + POST), BUF[0], BUF[1]);
+      return fadeEnd(T);
+    }
+  }
+  const idx = ORDER.findIndex(([k]) => T >= SC[k][0] && T < SC[k][1]);
+  const [sx, sy] = shakeFor(T);
+  mainCtx.fillStyle = '#000'; mainCtx.fillRect(0, 0, W, H);
+  if (sx || sy) {
+    drawSceneTo(BUF[0].getContext('2d'), idx < 0 ? ORDER.length - 1 : idx, T);
+    mainCtx.save(); mainCtx.translate(W / 2 + sx, H / 2 + sy); mainCtx.scale(1.03, 1.03); mainCtx.drawImage(BUF[0], -W / 2, -H / 2); mainCtx.restore();
+  } else drawSceneTo(mainCtx, idx < 0 ? ORDER.length - 1 : idx, T);
+  fadeEnd(T);
+}
+function fadeEnd(T) { if (T > DURATION - 0.5) { mainCtx.fillStyle = `rgba(0,0,0,${(T - DURATION + 0.5) / 0.5})`; mainCtx.fillRect(0, 0, W, H); } }
+
+// ── 재생 ─────────────────────────────────────────────────────
+const params = new URLSearchParams(location.search);
+const capture = params.has('capture');
+if (capture) document.body.classList.add('capture');
+let playing = !capture && !params.has('t'), t0 = performance.now(), cur = parseFloat(params.get('t') || '0');
+const seek = document.getElementById('seek'), clock = document.getElementById('clock'), btn = document.getElementById('play');
+seek.max = DURATION;
+function setT(v) { cur = v; t0 = performance.now() - v * 1000; }
+function loop(now) {
+  if (playing) { cur = (now - t0) / 1000; if (cur >= DURATION + 1.2) setT(0); }
+  render(Math.min(cur, DURATION));
+  seek.value = Math.min(cur, DURATION); clock.textContent = Math.min(cur, DURATION).toFixed(1) + 's';
+  requestAnimationFrame(loop);
+}
+btn.onclick = () => { playing = !playing; btn.textContent = playing ? '일시정지' : '재생'; if (playing) setT(cur); };
+MAIN.onclick = () => btn.onclick();
+seek.oninput = () => setT(parseFloat(seek.value));
+document.addEventListener('keydown', e => { if (e.code === 'Space') { e.preventDefault(); btn.onclick(); } });
+window.PROMO = { render, DURATION, ready: false };
+loadAll().then(() => {
+  makeBG();
+  window.PROMO.ready = true;
+  btn.textContent = playing ? '일시정지' : '재생';
+  setT(cur);
+  if (!capture) requestAnimationFrame(loop); else render(cur);
+});
+</script>
+</body>
+</html>
