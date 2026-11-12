@@ -188,13 +188,13 @@ public final class ShopModule extends EcoModule implements DailyListener {
     public double price(UUID player, String item) {
         ShopCatalog.SellEntry e = catalog.sell().get(item);
         if (e == null) return 0;
-        return PriceModel.unit(e.base(), store.sold(player, item), depthQ(e), catalog.floor(), multiplier(item), exponent());
+        return PriceModel.unit(e.base(), store.sold(player, item), depthQ(e), catalog.floor(e), multiplier(item), exponent());
     }
 
     /** Is this player's own price at the floor? */
     public boolean atFloor(UUID player, String item) {
         ShopCatalog.SellEntry e = catalog.sell().get(item);
-        return e != null && PriceModel.atFloor(e.base(), store.sold(player, item), depthQ(e), catalog.floor(), exponent());
+        return e != null && PriceModel.atFloor(e.base(), store.sold(player, item), depthQ(e), catalog.floor(e), exponent());
     }
 
     /** The market price's 24h change in percent, or null if there is no price from a day ago yet. */
@@ -243,13 +243,13 @@ public final class ShopModule extends EcoModule implements DailyListener {
         double total;
         ActiveEvent premium = premiumFor(id);
         if (premium == null) {
-            total = PriceModel.total(e.base(), s, depthQ(e), catalog.floor(), multiplier(id), n, exponent());
+            total = PriceModel.total(e.base(), s, depthQ(e), catalog.floor(e), multiplier(id), n, exponent());
         } else {
             // the 고가 매입상 pays double for what is left of its stock; the rest sells at the usual price
             int left = (int) premium.number("left." + id, 0), high = Math.min(n, left);
             double normal = baseMultiplier(id);
-            total = PriceModel.total(e.base(), s, depthQ(e), catalog.floor(), normal * premium.number("multiplier", 2), high, exponent())
-                    + PriceModel.total(e.base(), s + high, depthQ(e), catalog.floor(), normal, n - high, exponent());
+            total = PriceModel.total(e.base(), s, depthQ(e), catalog.floor(e), normal * premium.number("multiplier", 2), high, exponent())
+                    + PriceModel.total(e.base(), s + high, depthQ(e), catalog.floor(e), normal, n - high, exponent());
             java.util.Map<String, String> params = new java.util.LinkedHashMap<>(premium.params());
             params.put("left." + id, String.valueOf(left - high));
             eco.events().update(premium, params);
@@ -908,7 +908,7 @@ public final class ShopModule extends EcoModule implements DailyListener {
             if (n <= 0) continue;
             kinds++;
             count += n;
-            value += PriceModel.total(e.base(), store.sold(who, id), depthQ(e), catalog.floor(), multiplier(id), n, exponent());
+            value += PriceModel.total(e.base(), store.sold(who, id), depthQ(e), catalog.floor(e), multiplier(id), n, exponent());
         }
         return new Holding(kinds, count, (long) Math.floor(value));
     }

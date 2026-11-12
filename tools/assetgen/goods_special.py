@@ -505,7 +505,7 @@ NAMES = {
     "abalone": "전복", "meteoric_iron": "운철", "rough_crystal": "수정 원석",
     "cut_crystal": "세공 수정", "coral_brooch": "산호 브로치", "silk_pearl_necklace": "명주 진주 목걸이", "ambergris_norigae": "용연향 노리개",
     "iron_pan": "무쇠 팬", "iron_brazier": "무쇠 화로", "sheath": "칼집", "padlock": "금박 자물쇠", "crystal_lantern": "수정 랜턴", "coral_inlay_box": "산호 자개함", "meteor_sword": "운철검",
-    "fish_platter": "모둠 생선구이", "bogeo_jiri": "복어 지리", "pollack_stew": "동태찌개", "agujjim": "아귀찜", "golden_injeolmi": "황금 인절미",
+    "fish_platter": "모둠 생선구이", "bogeo_jiri": "생선 지리", "pollack_stew": "생선찌개", "agujjim": "매운 생선찜", "golden_injeolmi": "황금 인절미",
     "ginseng_samgyetang": "산삼 삼계탕", "abalone_porridge": "전복죽", "japchae": "잡채", "sikhye": "식혜",
     "ginseng_liquor": "인삼주", "golden_cheongju": "황금 청주", "meteor_elixir": "운철 단약", "ambergris_perfume": "용연향 향수",
     "crystal_vintage": "수정병 빈티지",

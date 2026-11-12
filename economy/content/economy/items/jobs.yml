@@ -487,7 +487,7 @@ sundubu_jjigae:
 
 tuna_sushi:
   material: paper
-  name: "<#ffb74d>참치 초밥"
+  name: "<#ffb74d>특선 생선 초밥"
   texture: tuna_sushi
   food:
     nutrition: 8
@@ -535,7 +535,7 @@ grilled_fish_set:
 
 braised_mackerel:
   material: paper
-  name: "<#ffb74d>고등어조림"
+  name: "<#ffb74d>생선조림"
   texture: braised_mackerel
   food:
     nutrition: 8
@@ -551,7 +551,7 @@ maeuntang:
 
 steamed_crab:
   material: paper
-  name: "<#ffb74d>게찜"
+  name: "<#ffb74d>해물찜"
   texture: steamed_crab
   food:
     nutrition: 8
@@ -559,7 +559,7 @@ steamed_crab:
 
 grilled_eel:
   material: paper
-  name: "<#ffb74d>장어구이"
+  name: "<#ffb74d>생선 양념구이"
   texture: grilled_eel
   food:
     nutrition: 10
@@ -647,7 +647,7 @@ tteokbokki:
 
 godeungeo_gui:
   material: paper
-  name: "<#ffb74d>고등어구이"
+  name: "<#ffb74d>생선구이"
   texture: godeungeo_gui
   food:
     nutrition: 5
@@ -926,7 +926,7 @@ fish_platter:
 
 bogeo_jiri:
   material: paper
-  name: "<#ffb74d>복어 지리"
+  name: "<#ffb74d>생선 지리"
   texture: bogeo_jiri
   food:
     nutrition: 6
@@ -934,7 +934,7 @@ bogeo_jiri:
 
 pollack_stew:
   material: paper
-  name: "<#ffb74d>동태찌개"
+  name: "<#ffb74d>생선찌개"
   texture: pollack_stew
   food:
     nutrition: 7
@@ -942,7 +942,7 @@ pollack_stew:
 
 agujjim:
   material: paper
-  name: "<#ffb74d>아귀찜"
+  name: "<#ffb74d>매운 생선찜"
   texture: agujjim
   food:
     nutrition: 7

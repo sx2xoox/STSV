@@ -7,13 +7,15 @@
 #   depth 를 올리면 덜 떨어지고, curve-exponent 를 올리면 더 빨리 떨어짐.
 #   시세판·24시간 변화·/시세(콘솔)는 시장가 = base × 배수 (최근 안 판 사람이 받는 값)
 #   q 는 기준가 구간으로 정함 (모든 판매 줄 같은 규칙): 3G 미만 128 · 6G 미만 64 · 15G 미만 32 · 50G 미만 16 · 150G 미만 8
-#   · 500G 미만 4 · 1000G 미만 2 · 그 위 1. 커스텀 작물은 하루 한도 없음 (밭에서 나는 만큼 다 팔림, 곡선 바닥 25% 와 소득세가 위를 누름).
+#   · 500G 미만 4 · 1000G 미만 2 · 그 위 1. 단 커스텀 작물은 q 3 · 바닥 5% (줄마다 floor 0.05: 밭에서 한꺼번에 쏟아지므로 짧은 곡선,
+#   64개 팔면 기준가의 64%, 많이 쏟을수록 5%까지 내려감). 커스텀 작물은 하루 한도 없음 (밭에서 나는 만큼 다 팔림).
 #   cap 이 있는 것은 다이아몬드(32)·네더라이트 파편(4)
-# 작물 값(2026-11): 농부가 한 시간에 줍는 양(약 300묶음)에 맞춰 개당 값을 낮춤. 그 작물을 쓰는 레시피·의뢰는 개수를 그만큼 늘림(값 그대로)
+# 작물 값(2026-11 농부 재조정): 개당 값을 2026-11 첫 조정의 약 3.6배로 되돌리고(대략 예전 값의 1/4, 수확이 2배가 된 배추·무·멜론은 1/8),
+#   레시피 개수를 1·2·4·8·16·32·64 로 맞춤. 많이 쏟아 파는 것은 작물의 짧은 곡선(q 3)과 작물만의 낮은 바닥(5%)이 누름. 생산품 값은 그대로.
 # 구매(buy): 플레이어가 상점에서 살 때 (고정가). 장비와 고급 재료는 팔지 않음: 플레이어끼리 거래.
 # 카테고리는 화면 한 줄: 판매 7개까지, 구매 9개까지 (상인 행렬 자리 포함, 짝수 개면 가운데 칸을 비우고 양쪽으로 나눔).
 # 카테고리 = name, icon(아이템 id), items.
-# 아무리 많이 팔아도 이 아래로는 안 내려감 (기준가의 25%: 15Q 넘게 팔아야 닿음)
+# 아무리 많이 팔아도 이 아래로는 안 내려감 (기준가의 25%: 15Q 넘게 팔아야 닿음). 판매 줄에 floor 를 따로 적으면 그 물건만 그 바닥 (커스텀 작물 0.05)
 floor: 0.25
 daily-decay: 0.5
 # 하락 완만함: q(1인 적정량) 에 곱함. 6 = 한 사람이 q 의 6배를 팔면 그 사람 값이 기준가의 71% (q 만 팔면 93%)
@@ -62,23 +64,23 @@ sell:
       leather: { base: 5, q: 64, job: farmer }
       white_wool: { base: 2, q: 128, job: farmer }
       # 채소·과일 (커스텀 작물)
-      economy:tomato: { base: 0.4, q: 128, job: farmer }
-      economy:chili_pepper: { base: 0.45, q: 128, job: farmer }
-      economy:strawberry: { base: 0.65, q: 128, job: farmer }
-      economy:onion: { base: 0.55, q: 128, job: farmer }
-      economy:garlic: { base: 0.35, q: 128, job: farmer }
-      economy:napa_cabbage: { base: 0.6, q: 128, job: farmer }
-      economy:paddy: { base: 0.3, q: 128, job: farmer }
-      economy:soybean: { base: 0.3, q: 128, job: farmer }
-      economy:corn: { base: 0.7, q: 128, job: farmer }
-      economy:green_onion: { base: 0.35, q: 128, job: farmer }
-      economy:radish: { base: 0.45, q: 128, job: farmer }
-      economy:lettuce: { base: 0.35, q: 128, job: farmer }
-      economy:cucumber: { base: 0.5, q: 128, job: farmer }
-      economy:grapes: { base: 0.7, q: 128, job: farmer }
-      economy:eggplant: { base: 0.55, q: 128, job: farmer }
-      economy:zucchini: { base: 0.65, q: 128, job: farmer }
-      economy:muskmelon: { base: 0.9, q: 128, job: farmer }
+      economy:tomato: { base: 1.5, q: 3, job: farmer, floor: 0.05 }
+      economy:chili_pepper: { base: 1.75, q: 3, job: farmer, floor: 0.05 }
+      economy:strawberry: { base: 2.375, q: 3, job: farmer, floor: 0.05 }
+      economy:onion: { base: 2, q: 3, job: farmer, floor: 0.05 }
+      economy:garlic: { base: 1.25, q: 3, job: farmer, floor: 0.05 }
+      economy:napa_cabbage: { base: 2.25, q: 3, job: farmer, floor: 0.05 }
+      economy:paddy: { base: 1, q: 3, job: farmer, floor: 0.05 }
+      economy:soybean: { base: 1, q: 3, job: farmer, floor: 0.05 }
+      economy:corn: { base: 2.625, q: 3, job: farmer, floor: 0.05 }
+      economy:green_onion: { base: 1.25, q: 3, job: farmer, floor: 0.05 }
+      economy:radish: { base: 1.75, q: 3, job: farmer, floor: 0.05 }
+      economy:lettuce: { base: 1.25, q: 3, job: farmer, floor: 0.05 }
+      economy:cucumber: { base: 1.875, q: 3, job: farmer, floor: 0.05 }
+      economy:grapes: { base: 2.5, q: 3, job: farmer, floor: 0.05 }
+      economy:eggplant: { base: 2, q: 3, job: farmer, floor: 0.05 }
+      economy:zucchini: { base: 2.375, q: 3, job: farmer, floor: 0.05 }
+      economy:muskmelon: { base: 3.25, q: 3, job: farmer, floor: 0.05 }
   fish:
     name: "수산물"
     icon: economy:mackerel
@@ -310,19 +312,19 @@ sell:
       economy:hobakjeon: { base: 19, q: 16 }   # 호박전
       economy:saengseonjeon: { base: 31, q: 16 }   # 생선전
       economy:fish_platter: { base: 26.5, q: 16 }   # 모둠 생선구이
-      economy:bogeo_jiri: { base: 31, q: 16 }   # 복어 지리
-      economy:pollack_stew: { base: 56, q: 8 }   # 동태찌개
-      economy:agujjim: { base: 58, q: 8 }   # 아귀찜
+      economy:bogeo_jiri: { base: 31, q: 16 }   # 생선 지리
+      economy:pollack_stew: { base: 56, q: 8 }   # 생선찌개
+      economy:agujjim: { base: 58, q: 8 }   # 매운 생선찜
       economy:golden_injeolmi: { base: 52, q: 8 }   # 황금 인절미
       economy:ginseng_samgyetang: { base: 131, q: 8 }   # 산삼 삼계탕
       economy:abalone_porridge: { base: 56, q: 8 }   # 전복죽
       economy:japchae: { base: 42, q: 16 }   # 잡채 (감자 전분 당면)
       economy:sundubu_jjigae: { base: 69, q: 8 }   # 순두부찌개
-      economy:tuna_sushi: { base: 176, q: 4 }   # 참치 초밥
-      economy:braised_mackerel: { base: 186, q: 4 }   # 고등어조림
+      economy:tuna_sushi: { base: 176, q: 4 }   # 특선 생선 초밥
+      economy:braised_mackerel: { base: 186, q: 4 }   # 생선조림
       economy:maeuntang: { base: 164, q: 4 }   # 매운탕
-      economy:steamed_crab: { base: 190, q: 4 }   # 게찜
-      economy:grilled_eel: { base: 458, q: 4 }   # 장어구이
+      economy:steamed_crab: { base: 190, q: 4 }   # 해물찜
+      economy:grilled_eel: { base: 458, q: 4 }   # 생선 양념구이
       economy:strawberry_cake: { base: 92, q: 8 }   # 딸기 케이크
       economy:tomato_pasta: { base: 117, q: 8 }   # 토마토 파스타
       economy:corn_bread: { base: 53, q: 8 }   # 옥수수빵
@@ -338,7 +340,7 @@ sell:
       economy:doenjang_jjigae: { base: 54, q: 8 }   # 된장찌개
       economy:kimchi_jjigae: { base: 116, q: 8 }   # 김치찌개
       economy:tteokbokki: { base: 259, q: 4 }   # 떡볶이
-      economy:godeungeo_gui: { base: 13.5, q: 32 }   # 고등어구이
+      economy:godeungeo_gui: { base: 13.5, q: 32 }   # 생선구이
       economy:oi_muchim: { base: 36, q: 16 }   # 오이무침 (원재료만)
       economy:beoseot_bokkeum: { base: 22, q: 16 }   # 버섯볶음 (원재료만)
       economy:gamja_jorim: { base: 12, q: 32 }   # 감자조림 (원재료만)

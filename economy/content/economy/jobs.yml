@@ -30,11 +30,11 @@ jobs:
     icon: minecraft:iron_pickaxe
     machine: gem_bench
     description:
-      - "광석 추가 드롭 5 → 60% (섬세한 손길 제외)"
+      - "광석 추가 드롭 5 → 80% (섬세한 손길 제외)"
       - "보석 원석 발견 3 → 12% (직업이 아니면 1%) · 특별 재료(운철·수정 원석)를 자주 얻음"
       - "Lv10 세공 결과 하나마다 15% 확률로 +1 · Lv20 재료 하나마다 15% 확률로 아낌"
       - "Lv30 세공 결과 +1 확률 15% → 35%"
-    extra: [0.05, 0.60]          # 광석 드롭 +1 확률
+    extra: [0.05, 0.80]          # 광석 드롭 +1 확률
     finds:
       chance: [0.03, 0.12]       # 원석 발견 확률
       outsider: 0.01             # 다른 직업일 때
@@ -188,4 +188,4 @@ specials:
   economy:ambergris: { job: fisher, from: catch, chance: [0.000897, 0.011538], outsider: 0.000224, value: 260 }   # 용연향
   economy:abalone: { job: fisher, from: catch, chance: [0.005833, 0.075], outsider: 0.001458, value: 40 }   # 전복
   economy:meteoric_iron: { job: miner, from: break, chance: [0.033333, 0.111111], outsider: 0.008333, value: 180 }   # 운철
-  economy:rough_crystal: { job: miner, from: break, chance: [0.133333, 0.444444], outsider: 0.033333, value: 45 }   # 수정 원석
+  economy:rough_crystal: { job: miner, from: break, chance: [0.05, 0.30], outsider: 0.0125, value: 45 }   # 수정 원석

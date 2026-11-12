@@ -148,9 +148,16 @@ class BalanceTest {
     // ------------------------------------------------------------------------------------------ R10 q ladder
     /** base below the limit -> q. */
     static final double[][] Q_LADDER = {{3, 128}, {6, 64}, {15, 32}, {50, 16}, {150, 8}, {500, 4}, {1000, 2}, {Double.POSITIVE_INFINITY, 1}};
+    /** R10: a raw custom crop's q: a short curve (a field pours crops out; 64 sold pay 64% of base), with its own 5% floor (R10c). */
+    static final int CROP_Q = 3;
+    /** R10c: a raw custom crop's own floor (shop.yml floor on the line): dumping a field keeps falling toward 5%. */
+    static final double CROP_FLOOR = 0.05;
     // ------------------------------------------------------------------------------------------ R8 crops
-    /** G per plot per 24 min at base price, no job (balance2 23-37 / 14-21 x 0.07: crops cut to about 7% in the 2026-11 parity rebalance). */
-    static final Map<String, Range> CROP_BAND = Map.of("regrow", new Range(1.6, 2.6), "replant", new Range(1.0, 1.5));
+    /**
+     * G per plot per 24 min at base price, no job (balance2 23-37 / 14-21 x 0.07: crops cut to about 7% in the 2026-11 parity rebalance;
+     * about x3.6 again in the 2026-11 farmer rebalance, about balance2 x 0.25).
+     */
+    static final Map<String, Range> CROP_BAND = Map.of("regrow", new Range(5.7, 9.3), "replant", new Range(3.5, 5.3));
     static final double CROP_SPREAD = 2.7;
     static final Range CROP_REGROW_OVER_REPLANT = new Range(1.5, 2.0);
     /** Bone meal: one +1 age per this many ages grown naturally (at most one banked). */
@@ -846,13 +853,16 @@ class BalanceTest {
 
     /**
      * R10: every sell line's q (one player's daily room) follows the price-tier ladder: base <3: 128, <6: 64, <15: 32, <50: 16, <150:
-     * 8, <500: 4, <1000: 2, else 1.
+     * 8, <500: 4, <1000: 2, else 1; a raw custom crop has q {@link #CROP_Q}.
      */
     @Test
     void r10QLadder() {
         List<String> bad = new ArrayList<>();
+        Set<String> crops = new HashSet<>();
+        for (CropRow c : w.cropRows()) crops.add(c.item());
         for (ShopCatalog.SellEntry e : w.shop.sell().values()) {
-            if (e.q() != qFor(e.base())) bad.add(e.id() + " base " + g(e.base()) + ": q " + whole(e.q()) + " (ladder " + qFor(e.base()) + ")");
+            int want = crops.contains(e.id()) ? CROP_Q : qFor(e.base());
+            if (e.q() != want) bad.add(e.id() + " base " + g(e.base()) + ": q " + whole(e.q()) + " (want " + want + ")");
         }
         rule("R10", bad);
     }
@@ -870,6 +880,7 @@ class BalanceTest {
             ShopCatalog.SellEntry e = w.shop.sell().get(i);
             Integer cap = e == null ? null : e.cap();
             if (cap != null && cap > 0) bad.add(i + ": cap " + cap + " (want none)");
+            if (e != null && (e.floor() == null || Math.abs(e.floor() - CROP_FLOOR) > 1e-9)) bad.add(i + ": floor " + e.floor() + " (want " + py(CROP_FLOOR) + ")");
         }
         rule("R10c", bad);
     }

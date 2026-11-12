@@ -281,8 +281,8 @@ class RulesTest {
         assertEquals(10, miner.xp("break", "minecraft:diamond_ore"), 1e-9);
         assertEquals(0, miner.xp("break", "minecraft:stone"), 1e-9);
         assertEquals(0.05, miner.range("extra", 1, 30), 1e-9);
-        assertEquals(0.60, miner.range("extra", 30, 30), 1e-9);
-        assertEquals(0.05 + 0.55 * 14 / 29, miner.range("extra", 15, 30), 1e-9, "evenly between");
+        assertEquals(0.80, miner.range("extra", 30, 30), 1e-9, "2026-11: 60 -> 80% when the rough crystal became rarer");
+        assertEquals(0.05 + 0.75 * 14 / 29, miner.range("extra", 15, 30), 1e-9, "evenly between");
         assertEquals(0, miner.range("extra", 0, 30), 1e-9, "no level, no effect");
         assertEquals(List.of("economy:rough_ruby"), miner.finds().drops("minecraft:redstone_ore"));
         assertEquals(0.12, miner.finds().chance().at(30, 30), 1e-9);
@@ -1196,6 +1196,11 @@ class RulesTest {
         assertFalse(dev.stsv.economy.shop.PriceModel.atFloor(10, 14 * curve.quota(64), curve.quota(64), c.floor(), e));
         assertEquals(c.floor(), dev.stsv.economy.shop.PriceModel.unit(10, 100 * curve.quota(64), curve.quota(64), c.floor(), 1, e) / 10, 1e-9);
         assertTrue(curve.hourlyRecovery() > 0 && curve.hourlyRecovery() < 0.5);
+        // a sell line may set its own floor (the raw custom crops: 5%); every other line keeps the shop's
+        var tomato = c.sell().get("economy:tomato");
+        assertEquals(0.05, c.floor(tomato), 1e-9);
+        assertEquals(c.floor(), c.floor(c.sell().get("minecraft:diamond")), 1e-9);
+        assertEquals(0.05, dev.stsv.economy.shop.PriceModel.unit(1, 1e6, curve.quota(tomato.q()), c.floor(tomato), 1, e), 1e-9);
     }
 
     /** 판매 소득세: progressive on a player's shop sales of the day; only the part above each threshold, at its rate. */
