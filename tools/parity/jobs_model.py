@@ -404,6 +404,21 @@ class Routes:
         self.makes = {}
         for r in self.recipes:
             self.makes.setdefault(M.norm(r["out"]), r)
+        # route keys the greedy machine loop can pick: every good through its first recipe at the cheapest group member (as
+        # before), plus (2026-11, the 손질대's tier processing) every other member of a group input and every later recipe of the
+        # same good that takes a group (any fish of a band -> its tier item): key "out|recipe|member" -> (recipe, member fill)
+        self.routes = {o: (r, {}) for o, r in self.makes.items()}
+        for i, r in enumerate(self.recipes):
+            o = M.norm(r["out"])
+            gk = [M.norm(k) for k in r["in"] if M.norm(k) in W_.w.groups]
+            if len(gk) != 1:
+                continue
+            members = [x for x in W_.w.groups[gk[0]] if not x.startswith("#")]
+            cheapest = min((W_.value(x), x) for x in members)[1] if members else None
+            for m in members:
+                if self.makes[o] is r and m == cheapest:
+                    continue
+                self.routes[f"{o}|{i}|{m}"] = (r, {gk[0]: m})
 
     def batch_secs(self, r):
         t = float(r.get("seconds", 10)) / (1 + self.speed) * self.t_mult
@@ -411,21 +426,27 @@ class Routes:
             t *= self.age_mult
         return max(1.0, t)
 
+    def real(self, key):
+        """The good a route key makes."""
+        return key.split("|", 1)[0]
+
     def unit(self, item, depth=0):
-        """(lane seconds, {input: count}) for one unit of item made here."""
+        """(lane seconds, {input: count}) for one unit of item (or of a route key, see routes) made here."""
         if item in self.cache:
             return self.cache[item]
-        r = self.makes[item]
+        r, fill = self.routes[item] if "|" in item else (self.makes[item], {})
         per = 1.0 / (int(r.get("amount", 1)) * self.out_mult)
         secs = self.batch_secs(r) * per
         ins = defaultdict(float)
         for k, n in r["in"].items():
             k = M.norm(k)
             need = n * (1 - self.save) * per
-            if k in self.W.w.groups:
+            if k in fill:
+                k = fill[k]
+            elif k in self.W.w.groups:
                 vals = [(self.W.value(x), x) for x in self.W.w.groups[k] if not x.startswith("#")]
                 k = min(vals)[1] if vals else k
-            if k in self.makes and depth < 6 and k != item:
+            if k in self.makes and depth < 6 and k != self.real(item):
                 s2, i2 = self.unit(k, depth + 1)
                 secs += s2 * need
                 for a, b in i2.items():
@@ -539,8 +560,9 @@ def run_machine(W_, L, routes, lanes_secs, own, mk, pending, steps=200, handle=m
         if budget <= 1e-6:
             break
         best = None
-        for g in routes.makes:
-            secs, ins = routes.unit(g)
+        for key in routes.routes:
+            g = routes.real(key)
+            secs, ins = routes.unit(key)
             n = min(chunk, budget) / secs
             per_item = 1 + sum(ins.values())       # items handled a unit: its inputs and itself
             n = min(n, handle / per_item)

@@ -19,14 +19,21 @@ import static org.junit.jupiter.api.Assertions.assertNotNull;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
 /**
- * The content of the fisher's update: the 통발 and 가두리 (water furniture, sold and crafted), the 손질대's prepared fish that only
- * the fisher's machine makes and the 조리대 dishes that need them (so cooks buy from fishers), the mill's fish feed (from crops:
- * farmers sell it to fishers), round input counts, and the fisher's job effects.
+ * The content of the fisher's update: the 통발 and 가두리 (water furniture, sold and crafted), the 손질대's tier processing (2026-11:
+ * any fish of a rarity becomes that rarity's 생선살, the only fish goods the cooks' dishes take, so cooks buy from fishers), the
+ * mill's fish feed (from crops: farmers sell it to fishers), round input counts, and the fisher's job effects.
  */
 class FishingGearContentTest {
 
-    static final List<String> PREPARED = List.of("economy:flatfish_hoe", "economy:dried_fish", "economy:saeujeot", "economy:fish_paste");
-    static final List<String> DISHES = List.of("economy:mulhoe", "economy:eomuktang", "economy:bossam", "economy:dried_fish_stirfry");
+    /** 흔함 -> 생선살, 보통 -> 고급 생선살, 희귀 -> 특선 생선살, 전설 -> 진귀한 생선살, and the machine tier each opens at. */
+    static final Map<String, String> TIER = Map.of("common", "economy:fish_meat", "uncommon", "economy:fine_fish_meat",
+            "rare", "economy:prime_fish_meat", "legend", "economy:treasure_fish_meat");
+    static final Map<String, Integer> OPENS = Map.of("common", 0, "uncommon", 0, "rare", 1, "legend", 2);
+    /** The goods the 손질대 made before the tier processing: kept as items the shop still buys (shop.yml legacy), made by nothing. */
+    static final List<String> LEGACY = List.of("economy:cod_fillet", "economy:salmon_fillet", "economy:dried_pollack", "economy:prepared_puffer",
+            "economy:smoked_salmon", "economy:seabream_sashimi", "economy:sukhoe", "economy:tuna_sashimi", "economy:fishcake", "economy:caviar",
+            "economy:seafood_feast", "economy:shrimp_meat", "economy:gwamegi", "economy:gulbi", "economy:hongeo", "economy:jeotgal",
+            "economy:salted_mackerel", "economy:fish_sauce", "economy:flatfish_hoe", "economy:dried_fish", "economy:saeujeot", "economy:fish_paste");
     static final Set<Integer> ROUND = Set.of(1, 2, 4, 8, 16, 32, 64);
 
     static Map<String, MachineSpec> machines() {
@@ -40,64 +47,99 @@ class FishingGearContentTest {
         return m.recipes().stream().filter(r -> r.output().equals(out)).toList();
     }
 
-    @Test
-    void theFishersPreparedFishComeFromTheFishBenchOnly() {
-        Map<String, MachineSpec> ms = machines();
-        for (String p : PREPARED) {
-            assertEquals(1, making(ms.get("fish_bench"), p).size(), p + " on the 손질대");
-            for (MachineSpec m : ms.values()) if (!m.id().equals("fish_bench")) assertTrue(making(m, p).isEmpty(), p + " only on the 손질대");
+    /** Each fish group's rarity (its members are all of one rarity: RulesTest). */
+    static Map<String, String> groupRarity() {
+        YamlConfiguration y = TrapSpecTest.yaml("machines.yml");
+        FishSpec f = FishSpec.parse(TrapSpecTest.yaml("fish.yml"), new ArrayList<>());
+        Map<String, String> byItem = new java.util.HashMap<>();
+        f.species().values().forEach(sp -> byItem.put(sp.item(), sp.rarity()));
+        byItem.put("minecraft:tropical_fish", "common");
+        Map<String, String> out = new java.util.HashMap<>();
+        for (var g : MachineSpec.groups(y, new ArrayList<>()).values()) {
+            String r = byItem.get(g.items().getFirst());
+            if (r != null) out.put("#" + g.id(), r);
         }
-        // they take fish (the 새우젓: the bench's own shrimp meat; the 어묵 반죽: white fish and flour)
-        assertTrue(making(ms.get("fish_bench"), "economy:flatfish_hoe").getFirst().inputs().containsKey("economy:flatfish"));
-        assertTrue(making(ms.get("fish_bench"), "economy:dried_fish").getFirst().inputs().containsKey("economy:filefish"));
-        assertTrue(making(ms.get("fish_bench"), "economy:saeujeot").getFirst().inputs().containsKey("economy:shrimp_meat"));
-        assertTrue(making(ms.get("fish_bench"), "economy:fish_paste").getFirst().inputs().containsKey("#economy:white_fish"));
+        return out;
     }
 
     @Test
-    void goodDishesNeedThemSoCooksBuyFromFishers() {
+    void theFishBenchProcessesAnyFishByRarity() {
         Map<String, MachineSpec> ms = machines();
-        MachineSpec kitchen = ms.get("kitchen");
-        for (String d : DISHES) {
-            List<MachineSpec.Recipe> rs = making(kitchen, d);
-            assertEquals(1, rs.size(), d + " on the 조리대");
-            assertTrue(rs.getFirst().inputs().keySet().stream().anyMatch(PREPARED::contains), d + " takes one of the fisher's prepared fish");
+        Map<String, String> rarity = groupRarity();
+        MachineSpec bench = ms.get("fish_bench");
+        for (MachineSpec.Recipe r : bench.recipes()) {
+            if (r.output().equals("economy:polished_pearl")) {
+                assertEquals(Map.of("economy:pearl", 1), r.inputs(), "연마 진주 stays as it was");
+                continue;
+            }
+            assertEquals(1, r.inputs().size(), r.output() + ": one fish group");
+            String g = r.inputs().keySet().iterator().next();
+            assertTrue(rarity.containsKey(g), r.output() + " takes a fish group: " + g);
+            assertEquals(TIER.get(rarity.get(g)), r.output(), g + " makes its rarity's 생선살");
+            assertEquals(OPENS.get(rarity.get(g)), r.tier(), g + " opens at its rarity's tier");
         }
-        // every prepared fish is wanted by at least one dish
-        for (String p : PREPARED) {
-            assertTrue(DISHES.stream().anyMatch(d -> making(kitchen, d).getFirst().inputs().containsKey(p)), p + " is used by a dish");
+        // the tier items come from the 손질대 only; the old goods from nothing
+        for (String t : TIER.values()) {
+            assertFalse(making(bench, t).isEmpty(), t + " on the 손질대");
+            for (MachineSpec m : ms.values()) if (!m.id().equals("fish_bench")) assertTrue(making(m, t).isEmpty(), t + " only on the 손질대");
         }
-        // the dishes are worth cooking: each sells for more than the 손질감 it takes (shop.yml)
+        for (String old : LEGACY) for (MachineSpec m : ms.values()) assertTrue(making(m, old).isEmpty(), old + " is not made any more");
+    }
+
+    @Test
+    void cooksCookTheTierItemsAndTheOldGoodsStillSell() {
+        Map<String, MachineSpec> ms = machines();
+        Map<String, String> rarity = groupRarity();
+        // no machine but the 손질대 takes a fish or a fish group; the kitchen's fish dishes take the tier items, each used somewhere
+        Set<String> fishGroups = rarity.keySet();
+        FishSpec f = FishSpec.parse(TrapSpecTest.yaml("fish.yml"), new ArrayList<>());
+        Set<String> fish = new java.util.HashSet<>();
+        f.species().values().forEach(sp -> fish.add(sp.item()));
+        for (MachineSpec m : ms.values()) {
+            if (m.id().equals("fish_bench")) continue;
+            for (MachineSpec.Recipe r : m.recipes()) for (String in : r.inputs().keySet()) {
+                assertFalse(fishGroups.contains(in) || fish.contains(in), m.id() + " " + r.output() + " takes " + in);
+                assertFalse(LEGACY.contains(in), m.id() + " " + r.output() + " takes the old " + in);
+            }
+        }
+        for (String t : TIER.values()) {
+            assertTrue(ms.get("kitchen").recipes().stream().anyMatch(r -> r.inputs().containsKey(t)), t + " is cooked");
+        }
+        // the shop buys the tier items in their tabs, and the old goods only as 예전 물건 (no tab, no codex)
         List<String> problems = new ArrayList<>();
         ShopCatalog shop = ShopCatalog.parse(TrapSpecTest.yaml("shop.yml"), problems);
-        for (String d : DISHES) assertTrue(shop.sell().containsKey(d), d + " sells");
-        for (String p : PREPARED) assertTrue(shop.sell().containsKey(p), p + " sells");
+        assertTrue(problems.isEmpty(), String.join("\n", problems));
+        Set<String> tabbed = new java.util.HashSet<>();
+        shop.sellCategories().forEach(c -> tabbed.addAll(c.items()));
+        for (String t : TIER.values()) assertTrue(tabbed.contains(t), t + " sells in a tab");
+        for (String old : LEGACY) {
+            assertTrue(shop.sell().containsKey(old), old + " still sells");
+            assertFalse(tabbed.contains(old), old + " is in no tab (예전 물건)");
+        }
     }
 
     @Test
     void theNewRecipesTakeRoundCounts() {
         Map<String, MachineSpec> ms = machines();
-        List<String> outs = new ArrayList<>(PREPARED);
-        outs.addAll(DISHES);
-        outs.add("economy:fish_feed");
+        Set<String> tier = Set.copyOf(TIER.values());
         for (MachineSpec m : ms.values()) {
             for (MachineSpec.Recipe r : m.recipes()) {
-                if (!outs.contains(r.output())) continue;
-                for (var in : r.inputs().entrySet()) assertTrue(ROUND.contains(in.getValue()), r.output() + ": " + in.getKey() + " x" + in.getValue());
-                assertTrue(ROUND.contains(r.amount()), r.output() + " amount " + r.amount());
+                boolean fishy = tier.contains(r.output()) || r.inputs().keySet().stream().anyMatch(tier::contains)
+                        || r.output().equals("economy:fish_feed");
+                if (!fishy) continue;
+                for (var in : r.inputs().entrySet()) {
+                    // crops keep the counts the crop rework set (balance2): only the fish and the tier items are round
+                    if (in.getKey().startsWith("#economy:fish_") || tier.contains(in.getKey()) || r.output().equals("economy:fish_feed")) {
+                        assertTrue(ROUND.contains(in.getValue()), r.output() + ": " + in.getKey() + " x" + in.getValue());
+                    }
+                }
             }
         }
-        // the feed is the farmer's: made on the mill from crops only
+        // the feed is the farmer's: made on the mill from crops only, appended (the lanes keep their pinned recipes by number)
         List<MachineSpec.Recipe> feed = making(ms.get("mill"), "economy:fish_feed");
         assertEquals(1, feed.size());
         assertEquals(Set.of("economy:soybean", "economy:corn"), feed.getFirst().inputs().keySet());
-        // appended: the lanes keep their pinned recipes by number
-        for (String mid : List.of("fish_bench", "kitchen", "mill")) {
-            List<MachineSpec.Recipe> rs = ms.get(mid).recipes();
-            int first = rs.size();
-            for (int i = 0; i < rs.size(); i++) if (outs.contains(rs.get(i).output())) first = Math.min(first, i);
-            for (int i = first; i < rs.size(); i++) assertTrue(outs.contains(rs.get(i).output()), mid + ": new recipes at the end");
-        }
+        assertEquals("economy:fish_feed", ms.get("mill").recipes().getLast().output());
     }
 
     @Test

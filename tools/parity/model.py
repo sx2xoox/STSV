@@ -37,7 +37,7 @@ SIZE_CASES = {                           # case: (perfect hits, all perfect, siz
 PICKS = ("typ", "lo", "hi")              # a group input at its median / cheapest / dearest member
 JOB_MACHINES = ["gem_bench", "mill", "fish_bench", "forge", "kitchen", "still"]
 CAPSTONE = {  # the top good of each machine (full-chain multiple)
-    "gem_bench": "economy:jeweled_crown", "mill": "economy:jang_set", "fish_bench": "economy:seafood_feast",
+    "gem_bench": "economy:jeweled_crown", "mill": "economy:jang_set", "fish_bench": "economy:treasure_fish_meat",
     "forge": "economy:ornate_armor", "kitchen": "economy:hanjeongsik", "still": "economy:vintage_wine",
 }
 

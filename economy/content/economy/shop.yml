@@ -292,30 +292,12 @@ sell:
       economy:onion_juice: { base: 39, q: 16 }   # 양파즙 (원재료만)
       economy:mumallaengi: { base: 34, q: 16 }   # 무말랭이 (원재료만)
       economy:fish_feed: { base: 7, q: 32 }   # 생선 사료 (가두리 먹이)
-      # 손질대 (어부)
-      economy:cod_fillet: { base: 15, q: 16 }   # 생선 필렛
-      economy:salmon_fillet: { base: 15, q: 16 }   # 연어 필렛
-      economy:dried_pollack: { base: 23, q: 16 }   # 북어
-      economy:prepared_puffer: { base: 9, q: 32 }   # 손질한 복어
-      economy:smoked_salmon: { base: 53, q: 8 }   # 훈제 연어
-      economy:seabream_sashimi: { base: 45, q: 16 }   # 모둠회
-      economy:sukhoe: { base: 62, q: 8 }   # 숙회
-      economy:tuna_sashimi: { base: 139, q: 8 }   # 참치 회
+      # 손질대 (어부): 아무 물고기나 등급별로 손질 (machines.yml fish_bench). 예전 손질감은 맨 아래 legacy
+      economy:fish_meat: { base: 15, q: 16 }   # 생선살 (흔함)
+      economy:fine_fish_meat: { base: 28, q: 16 }   # 고급 생선살 (보통)
+      economy:prime_fish_meat: { base: 46, q: 16 }   # 특선 생선살 (희귀)
+      economy:treasure_fish_meat: { base: 216, q: 4 }   # 진귀한 생선살 (전설)
       economy:polished_pearl: { base: 179, q: 4 }   # 연마 진주
-      economy:fishcake: { base: 34, q: 16 }   # 어묵
-      economy:caviar: { base: 228, q: 4 }   # 캐비아
-      economy:seafood_feast: { base: 1185, q: 1 }   # 해물 한상
-      economy:shrimp_meat: { base: 26, q: 16 }   # 새우살
-      economy:gwamegi: { base: 16, q: 16 }   # 과메기
-      economy:gulbi: { base: 144, q: 8 }   # 굴비
-      economy:hongeo: { base: 69, q: 8 }   # 삭힌 홍어
-      economy:jeotgal: { base: 133, q: 8 }   # 젓갈
-      economy:salted_mackerel: { base: 15, q: 16 }   # 간고등어 (원재료만)
-      economy:fish_sauce: { base: 75, q: 8 }   # 까나리 액젓 (원재료만)
-      economy:flatfish_hoe: { base: 54, q: 8 }   # 광어회
-      economy:dried_fish: { base: 31, q: 16 }   # 건어물
-      economy:saeujeot: { base: 94, q: 8 }   # 새우젓
-      economy:fish_paste: { base: 28.5, q: 16 }   # 어묵 반죽
   dishes:
     name: "요리·술"
     icon: economy:bibimbap
@@ -326,20 +308,20 @@ sell:
       economy:oi_sobagi: { base: 52, q: 8 }   # 오이소박이
       economy:eggplant_stirfry: { base: 22, q: 16 }   # 가지볶음
       economy:hobakjeon: { base: 19, q: 16 }   # 호박전
-      economy:saengseonjeon: { base: 32, q: 16 }   # 생선전
-      economy:fish_platter: { base: 27, q: 16 }   # 모둠 생선구이
-      economy:bogeo_jiri: { base: 33, q: 16 }   # 복어 지리
+      economy:saengseonjeon: { base: 31, q: 16 }   # 생선전
+      economy:fish_platter: { base: 26.5, q: 16 }   # 모둠 생선구이
+      economy:bogeo_jiri: { base: 31, q: 16 }   # 복어 지리
       economy:pollack_stew: { base: 56, q: 8 }   # 동태찌개
-      economy:agujjim: { base: 63, q: 8 }   # 아귀찜
+      economy:agujjim: { base: 58, q: 8 }   # 아귀찜
       economy:golden_injeolmi: { base: 52, q: 8 }   # 황금 인절미
       economy:ginseng_samgyetang: { base: 131, q: 8 }   # 산삼 삼계탕
       economy:abalone_porridge: { base: 56, q: 8 }   # 전복죽
       economy:japchae: { base: 42, q: 16 }   # 잡채 (감자 전분 당면)
       economy:sundubu_jjigae: { base: 69, q: 8 }   # 순두부찌개
       economy:tuna_sushi: { base: 176, q: 4 }   # 참치 초밥
-      economy:braised_mackerel: { base: 180, q: 4 }   # 고등어조림
+      economy:braised_mackerel: { base: 186, q: 4 }   # 고등어조림
       economy:maeuntang: { base: 164, q: 4 }   # 매운탕
-      economy:steamed_crab: { base: 153, q: 4 }   # 게찜
+      economy:steamed_crab: { base: 190, q: 4 }   # 게찜
       economy:grilled_eel: { base: 458, q: 4 }   # 장어구이
       economy:strawberry_cake: { base: 92, q: 8 }   # 딸기 케이크
       economy:tomato_pasta: { base: 117, q: 8 }   # 토마토 파스타
@@ -355,8 +337,8 @@ sell:
       economy:samgyetang: { base: 32, q: 16 }   # 삼계탕
       economy:doenjang_jjigae: { base: 54, q: 8 }   # 된장찌개
       economy:kimchi_jjigae: { base: 116, q: 8 }   # 김치찌개
-      economy:tteokbokki: { base: 262, q: 4 }   # 떡볶이
-      economy:godeungeo_gui: { base: 14, q: 32 }   # 고등어구이 (원재료만)
+      economy:tteokbokki: { base: 259, q: 4 }   # 떡볶이
+      economy:godeungeo_gui: { base: 13.5, q: 32 }   # 고등어구이
       economy:oi_muchim: { base: 36, q: 16 }   # 오이무침 (원재료만)
       economy:beoseot_bokkeum: { base: 22, q: 16 }   # 버섯볶음 (원재료만)
       economy:gamja_jorim: { base: 12, q: 32 }   # 감자조림 (원재료만)
@@ -366,10 +348,10 @@ sell:
       economy:injeolmi: { base: 27.5, q: 16 }   # 인절미
       economy:dakbokkeumtang: { base: 46, q: 16 }   # 닭볶음탕 (원재료만)
       economy:gamjatang: { base: 44, q: 16 }   # 감자탕 (원재료만)
-      economy:mulhoe: { base: 111, q: 8 }   # 물회 (광어회)
-      economy:eomuktang: { base: 68, q: 8 }   # 어묵탕 (어묵 반죽)
-      economy:bossam: { base: 210, q: 4 }   # 보쌈 (새우젓)
-      economy:dried_fish_stirfry: { base: 106, q: 8 }   # 건어물 볶음 (건어물)
+      economy:mulhoe: { base: 103, q: 8 }   # 물회 (특선 생선살)
+      economy:eomuktang: { base: 72, q: 8 }   # 어묵탕 (생선살)
+      economy:bossam: { base: 206, q: 4 }   # 보쌈 (특선 생선살)
+      economy:dried_fish_stirfry: { base: 106, q: 8 }   # 건어물 볶음 (생선살)
       # 증류기 (연금술사)
       economy:makgeolli: { base: 49, q: 16 }   # 막걸리
       economy:soju: { base: 175, q: 4 }   # 소주
@@ -394,6 +376,35 @@ sell:
       economy:meteor_elixir: { base: 1089, q: 1 }   # 운철 단약 (꿀에 개어 빚은 환약)
       economy:ambergris_perfume: { base: 1307, q: 1 }   # 용연향 향수
       economy:crystal_vintage: { base: 960, q: 2 }   # 수정병 빈티지
+
+  # 예전 물건 (2026-11 손질대를 등급별 손질로 바꾸기 전의 손질감): 이제 만들 수 없지만 가진 것은 그 값에 팔 수 있음.
+  # legacy: 상점 판매 탭·도감·하역장 완제품 목록에는 안 나옴. 판매 화면에서 내 인벤토리의 그 물건을 누르거나 '가진 것 전부 팔기'로 팜
+  legacy:
+    name: "예전 물건"
+    legacy: true
+    items:
+      economy:cod_fillet: { base: 15, q: 16 }   # 생선 필렛
+      economy:salmon_fillet: { base: 15, q: 16 }   # 연어 필렛
+      economy:dried_pollack: { base: 23, q: 16 }   # 북어
+      economy:prepared_puffer: { base: 9, q: 32 }   # 손질한 복어
+      economy:smoked_salmon: { base: 53, q: 8 }   # 훈제 연어
+      economy:seabream_sashimi: { base: 45, q: 16 }   # 모둠회
+      economy:sukhoe: { base: 62, q: 8 }   # 숙회
+      economy:tuna_sashimi: { base: 139, q: 8 }   # 참치 회
+      economy:fishcake: { base: 34, q: 16 }   # 어묵
+      economy:caviar: { base: 228, q: 4 }   # 캐비아
+      economy:seafood_feast: { base: 1185, q: 1 }   # 해물 한상
+      economy:shrimp_meat: { base: 26, q: 16 }   # 새우살
+      economy:gwamegi: { base: 16, q: 16 }   # 과메기
+      economy:gulbi: { base: 144, q: 8 }   # 굴비
+      economy:hongeo: { base: 69, q: 8 }   # 삭힌 홍어
+      economy:jeotgal: { base: 133, q: 8 }   # 젓갈
+      economy:salted_mackerel: { base: 15, q: 16 }   # 간고등어 (원재료만)
+      economy:fish_sauce: { base: 75, q: 8 }   # 까나리 액젓 (원재료만)
+      economy:flatfish_hoe: { base: 54, q: 8 }   # 광어회
+      economy:dried_fish: { base: 31, q: 16 }   # 건어물
+      economy:saeujeot: { base: 94, q: 8 }   # 새우젓
+      economy:fish_paste: { base: 28.5, q: 16 }   # 어묵 반죽
 
 buy:
   tools:

@@ -139,7 +139,11 @@ class ContentTest {
             if (c.items().isEmpty() || !exists(c.icon(), ours)) problems.add("sell category " + c.id());
             inCategories.addAll(c.items());
         }
-        assertEquals(List.copyOf(shop.sell().keySet()), inCategories, "each sold item in one category");
+        // every item the shop buys is in one category; the 손질대's old goods (sell.legacy) have no tab: sold from the inventory only
+        YamlConfiguration shopYaml = yaml("shop.yml");
+        List<String> tabbed = shop.sell().keySet().stream().filter(id -> !shopYaml.contains("sell.legacy.items." + id)).toList();
+        assertEquals(tabbed, inCategories, "each sold item in one category");
+        assertEquals(22, shop.sell().size() - tabbed.size(), "the 22 old 손질대 goods");
         // 치장: the core's 치장 뽑기 instead of goods; no cosmetic is sold directly any more
         assertTrue(shop.buyCategories().stream().anyMatch(c -> c.id().equals("cosmetics") && c.gacha() && c.goods().isEmpty()));
         assertTrue(shop.goods().stream().noneMatch(g -> g.kind().equals("cosmetic")), "cosmetics come from the gacha");
@@ -215,14 +219,19 @@ class ContentTest {
         if (!titles.contains("master_angler")) problems.add("title master_angler");
         assertEquals(3, fish.species().values().stream().filter(x -> x.item().startsWith("minecraft:")).count(), "cod, salmon, pufferfish");
 
-        // the shape: 6 jobs, 6 finds, 8 special materials, 157 job machine goods + 9 press goods (the fisher's 4 prepared fish, the
-        // cook's 4 dishes of them and the mill's fish feed among them), 6 job machines + the press, the 통발 and the 가두리,
-        // 32 crop items (15 seeds, 17 harvests), 92 fish
+        // the shape: 6 jobs, 6 finds, 8 special materials, 139 job machine goods + 9 press goods (the 손질대's 4 tier items and its
+        // 연마 진주 among them), 22 old 손질대 goods (예전 물건: the shop buys them, nothing makes them), 6 job machines + the press, the
+        // 통발 and the 가두리, 32 crop items (15 seeds, 17 harvests), 92 fish
         assertEquals(6, jobs.jobs().size());
-        assertEquals(6 + 8 + 166 + 7 + 2 + 32 + 92, ours.size(),
-                "6 finds + 8 specials + 166 goods + 7 machines + 2 fishing gear + 32 crop items + 92 fish");
+        assertEquals(6 + 8 + 148 + 22 + 7 + 2 + 32 + 92, ours.size(),
+                "6 finds + 8 specials + 148 goods + 22 old goods + 7 machines + 2 fishing gear + 32 crop items + 92 fish");
         assertEquals(7, machines.size());
-        assertEquals(166, machines.values().stream().flatMap(x -> x.recipes().stream()).map(MachineSpec.Recipe::output).distinct().count());
+        assertEquals(148, machines.values().stream().flatMap(x -> x.recipes().stream()).map(MachineSpec.Recipe::output).distinct().count());
+        YamlConfiguration legacy = yaml("shop.yml");
+        Set<String> oldGoods = new HashSet<>();
+        for (String k : legacy.getConfigurationSection("sell.legacy.items").getKeys(false)) oldGoods.add(JobSpec.norm(k));
+        assertTrue(legacy.getBoolean("sell.legacy.legacy"), "the old goods have no tab");
+        assertEquals(22, oldGoods.size());
         // every special material is an item of ours, and the shop does not buy it (players trade it)
         for (String sp : jobs.specials().keySet()) {
             if (!exists(sp, ours)) problems.add("special item: " + sp);
@@ -271,7 +280,8 @@ class ContentTest {
         }
         for (var g : shop.goods()) if (g.kind().equals("item")) makeable.add(g.id());
         makeable.addAll(jobs.specials().keySet());   // special materials: found by harvesting, fishing or mining (jobs.yml specials)
-        for (String id : ours) if (!makeable.contains(id)) problems.add("nobody can make " + id);
+        for (String id : ours) if (!makeable.contains(id) && !oldGoods.contains(id)) problems.add("nobody can make " + id);
+        for (String id : oldGoods) if (makeable.contains(id)) problems.add("an old good is made again: " + id + " (move it out of sell.legacy)");
         assertTrue(problems.isEmpty(), String.join("\n", problems));
     }
 
@@ -509,11 +519,14 @@ class ContentTest {
                     .allMatch(in -> !madeOn.containsKey(in) || madeOn.get(in).equals(m.id()));
             long n = m.recipes().stream().filter(alone).count();
             if (n < 5) problems.add(m.id() + ": only " + n + " recipes without other machines");
-            // a good made by two recipes of one machine: only the bulk kind (same inputs, more at once) is allowed
+            // a good made by two recipes of one machine: only the bulk kind (same inputs, more at once) is allowed, and the 손질대's
+            // tier items (2026-11: one 생선살 of a rarity from each price band of that rarity's fish, every route one fish group)
             Map<String, List<MachineSpec.Recipe>> same = new java.util.HashMap<>();
             for (var r : m.recipes()) same.computeIfAbsent(r.output(), k -> new ArrayList<>()).add(r);
             for (var e : same.entrySet()) {
-                if (e.getValue().stream().map(r -> r.inputs().keySet()).distinct().count() > 1) problems.add(m.id() + " " + e.getKey() + ": two routes");
+                boolean bands = m.id().equals("fish_bench") && e.getValue().stream()
+                        .allMatch(r -> r.inputs().size() == 1 && r.inputs().keySet().iterator().next().startsWith("#economy:fish_"));
+                if (!bands && e.getValue().stream().map(r -> r.inputs().keySet()).distinct().count() > 1) problems.add(m.id() + " " + e.getKey() + ": two routes");
             }
             int quick = (int) m.recipes().stream().filter(r -> r.seconds() <= 60).count();
             int slow = (int) m.recipes().stream().filter(r -> r.seconds() >= 300).count();

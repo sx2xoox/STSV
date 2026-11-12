@@ -89,7 +89,7 @@ jobs:
     icon: minecraft:fishing_rod
     machine: fish_bench
     description:
-      - "희귀·전설 입질 6 → 22% (직업이 아니면 1%) · 특별 재료(붉은 산호·용연향·전복)를 자주 얻음"
+      - "희귀·전설 입질 6 → 36% (직업이 아니면 1%) · 특별 재료(붉은 산호·용연향·전복)를 자주 얻음"
       - "입질 대기 시간 10 → 50% 줄어듦"
       - "초록 구간 레벨당 +1%, Lv10 하트 +1, Lv20 크기 +10%"
       - "Lv10 손질 결과 하나마다 15% 확률로 +1"
@@ -101,9 +101,9 @@ jobs:
     trap-speed: [0.25, 0.50]     # 통발·가두리가 한 번 도는 시간이 줄어드는 비율 (fish.yml trap · pen 의 minutes)
     trap-uncommon: [0.15, 0.30]  # 통발: 보통 물고기 비율에 더함 (fish.yml trap.uncommon 0.25 -> 0.40 ~ 0.55)
     trap-rare: [0.007, 0.027]    # 통발: 희귀 확률에 더함 (fish.yml trap.rare 0.3% -> 1% ~ 3%)
-    boat-rare: [0.02, 0.04]      # 통통배를 타고 낚을 때 희귀·전설 입질 확률에 더함 (Lv1 6% -> 8% · Lv30 22% -> 26%)
+    boat-rare: [0.02, 0.04]      # 통통배를 타고 낚을 때 희귀·전설 입질 확률에 더함 (Lv1 6% -> 8% · Lv30 36% -> 40%)
     finds:
-      chance: [0.06, 0.22]
+      chance: [0.06, 0.36]
       outsider: 0.01
       double: { level: 20, items: [economy:pearl, economy:bluefin_tuna, economy:sturgeon] }
     machine-bonus:

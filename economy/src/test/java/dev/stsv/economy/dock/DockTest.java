@@ -104,10 +104,15 @@ class DockTest {
         for (MachineSpec m : machines.values()) for (MachineSpec.Recipe r : m.recipes()) outputs.add(r.output());
         // exactly: recipe outputs the shop buys
         for (String id : shop.sell().keySet()) assertEquals(outputs.contains(id), finished.contains(id), id);
-        assertTrue(finished.size() >= 150, "every job's products: " + finished.size());
+        assertTrue(finished.size() >= 140, "every job's products: " + finished.size());
         for (String id : List.of("economy:kimchi", "economy:ruby_ring", "economy:jeweled_crown", "economy:wine", "economy:oak_barrel",
-                "economy:steel_ingot", "economy:compressed_stone", "economy:hanjeongsik", "economy:seafood_feast"))
+                "economy:steel_ingot", "economy:compressed_stone", "economy:hanjeongsik", "economy:treasure_fish_meat"))
             assertTrue(finished.contains(id), id);
+        // the 손질대's old goods (shop.yml legacy: still sold to the shop, made by nothing) are not finished goods any more
+        for (String id : List.of("economy:seafood_feast", "economy:caviar", "economy:cod_fillet")) {
+            assertTrue(shop.sell().containsKey(id), id);
+            assertFalse(finished.contains(id), id);
+        }
         // raw materials: ore, crops, fish, logs, mob drops, finds and specials are not finished goods
         for (String id : List.of("minecraft:diamond", "minecraft:iron_ingot", "minecraft:wheat", "minecraft:oak_log", "minecraft:bone",
                 "economy:rough_ruby", "economy:tomato", "economy:mackerel", "economy:pearl", "minecraft:cod"))

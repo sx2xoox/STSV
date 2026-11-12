@@ -25,7 +25,7 @@ daily:
     xp_farmer:   { name: "농부 경험치 150 모으기", stat: job_xp, goal: 150, job: farmer, icon: experience_bottle, gold: 150 }
     # 어부
     fish:        { name: "물고기 15마리 낚기", stat: fish_caught, goal: 15, unit: "마리", job: fisher, icon: cod, gold: 150, xp: 40 }
-    fish_bench:  { name: "손질대에서 6개 만들기", stat: made_fisher, goal: 6, unit: "개", job: fisher, group: machine, icon: economy:cod_fillet, gold: 150, xp: 40 }
+    fish_bench:  { name: "손질대에서 6개 만들기", stat: made_fisher, goal: 6, unit: "개", job: fisher, group: machine, icon: economy:fish_meat, gold: 150, xp: 40 }
     xp_fisher:   { name: "어부 경험치 150 모으기", stat: job_xp, goal: 150, job: fisher, icon: experience_bottle, gold: 150 }
     # 대장장이
     forge:       { name: "대장간에서 4개 만들기", stat: made_blacksmith, goal: 4, unit: "개", job: blacksmith, group: machine, icon: economy:iron_plate, gold: 150, xp: 40 }
@@ -64,7 +64,7 @@ weekly:
     xp_farmer:   { name: "농부 경험치 1,500 모으기", stat: job_xp, goal: 1500, job: farmer, icon: experience_bottle, gold: 1200 }
     # 어부
     fish:        { name: "물고기 120마리 낚기", stat: fish_caught, goal: 120, unit: "마리", job: fisher, icon: salmon, gold: 1200, xp: 400 }
-    fish_bench:  { name: "손질대에서 50개 만들기", stat: made_fisher, goal: 50, unit: "개", job: fisher, group: machine, icon: economy:cod_fillet, gold: 1200, xp: 400 }
+    fish_bench:  { name: "손질대에서 50개 만들기", stat: made_fisher, goal: 50, unit: "개", job: fisher, group: machine, icon: economy:fish_meat, gold: 1200, xp: 400 }
     finds_fisher: { name: "희귀 어획 10번", stat: rare_finds, goal: 10, unit: "번", job: fisher, icon: economy:pearl, gold: 1200, xp: 400, weight: 6 }
     xp_fisher:   { name: "어부 경험치 1,500 모으기", stat: job_xp, goal: 1500, job: fisher, icon: experience_bottle, gold: 1200 }
     # 대장장이

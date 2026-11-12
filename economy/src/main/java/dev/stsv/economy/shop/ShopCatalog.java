@@ -167,7 +167,9 @@ public record ShopCatalog(
                         sell.put(x.id(), x);
                         ids.add(x.id());
                     }
-                    sellCats.add(new Category(key, e.getString("name", key), norm(e.getString("icon", "chest")), ids));
+                    // legacy: goods no recipe makes any more (예전 물건): the shop still buys them (an inventory click or
+                    // 전부 팔기), but they have no tab, so the codex, the dock's finished goods and the tab totals leave them out
+                    if (!e.getBoolean("legacy")) sellCats.add(new Category(key, e.getString("name", key), norm(e.getString("icon", "chest")), ids));
                 } else {
                     // an older file: items straight under sell
                     SellEntry x = sellEntry(s, key, "sell", problems);

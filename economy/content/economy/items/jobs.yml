@@ -213,40 +213,72 @@ mumallaengi:
   name: "<#8bc34a>무말랭이"
   texture: mumallaengi
 
-# ── 손질대 · 어부 ─────────────────────────────────────────
+# ── 손질대 · 어부: 아무 물고기나 등급별로 손질 (2026-11) ─────────────────
+fish_meat:
+  material: paper
+  name: "<#4fc3f7>생선살"
+  lore: ["<gray>흔한 물고기를 손질한 살 · 요리사가 생선 요리에 씀"]
+  texture: fish_meat
+
+fine_fish_meat:
+  material: paper
+  name: "<#55ff55>고급 생선살"
+  lore: ["<gray>보통 물고기를 손질한 살 · 요리사가 생선 요리에 씀"]
+  texture: fine_fish_meat
+
+prime_fish_meat:
+  material: paper
+  name: "<#5aa8ff>특선 생선살"
+  lore: ["<gray>희귀 물고기를 손질한 살 · 요리사가 회·게찜·보쌈에 씀"]
+  texture: prime_fish_meat
+
+treasure_fish_meat:
+  material: paper
+  name: "<#ffaa00>진귀한 생선살"
+  lore: ["<gray>전설 물고기를 손질한 살 · 요리사가 참치 초밥에 씀"]
+  texture: treasure_fish_meat
+
+# ── 손질대 · 어부 (연마 진주) · 예전 손질감 (2026-11 전: 이제 만들 수 없고 상점에 팔 수만 있음) ─────────
 cod_fillet:
   material: paper
   name: "<#4fc3f7>생선 필렛"
+  lore: ["<dark_gray>예전 물건: 이제 만들 수 없음", "<gray>상점에서 그대로 팔 수 있음 (판매 화면에서 이 물건을 누르거나 전부 팔기)"]
   texture: cod_fillet
 
 salmon_fillet:
   material: paper
   name: "<#4fc3f7>연어 필렛"
+  lore: ["<dark_gray>예전 물건: 이제 만들 수 없음", "<gray>상점에서 그대로 팔 수 있음 (판매 화면에서 이 물건을 누르거나 전부 팔기)"]
   texture: salmon_fillet
 
 dried_pollack:
   material: paper
   name: "<#4fc3f7>북어"
+  lore: ["<dark_gray>예전 물건: 이제 만들 수 없음", "<gray>상점에서 그대로 팔 수 있음 (판매 화면에서 이 물건을 누르거나 전부 팔기)"]
   texture: dried_pollack
 
 prepared_puffer:
   material: paper
   name: "<#4fc3f7>손질한 복어"
+  lore: ["<dark_gray>예전 물건: 이제 만들 수 없음", "<gray>상점에서 그대로 팔 수 있음 (판매 화면에서 이 물건을 누르거나 전부 팔기)"]
   texture: prepared_puffer
 
 smoked_salmon:
   material: paper
   name: "<#4fc3f7>훈제 연어"
+  lore: ["<dark_gray>예전 물건: 이제 만들 수 없음", "<gray>상점에서 그대로 팔 수 있음 (판매 화면에서 이 물건을 누르거나 전부 팔기)"]
   texture: smoked_salmon
 
 seabream_sashimi:
   material: paper
   name: "<#4fc3f7>모둠회"
+  lore: ["<dark_gray>예전 물건: 이제 만들 수 없음", "<gray>상점에서 그대로 팔 수 있음 (판매 화면에서 이 물건을 누르거나 전부 팔기)"]
   texture: seabream_sashimi
 
 tuna_sashimi:
   material: paper
   name: "<#4fc3f7>참치 회"
+  lore: ["<dark_gray>예전 물건: 이제 만들 수 없음", "<gray>상점에서 그대로 팔 수 있음 (판매 화면에서 이 물건을 누르거나 전부 팔기)"]
   texture: tuna_sashimi
 
 polished_pearl:
@@ -257,56 +289,67 @@ polished_pearl:
 sukhoe:
   material: paper
   name: "<#4fc3f7>숙회"
+  lore: ["<dark_gray>예전 물건: 이제 만들 수 없음", "<gray>상점에서 그대로 팔 수 있음 (판매 화면에서 이 물건을 누르거나 전부 팔기)"]
   texture: sukhoe
 
 fishcake:
   material: paper
   name: "<#4fc3f7>어묵"
+  lore: ["<dark_gray>예전 물건: 이제 만들 수 없음", "<gray>상점에서 그대로 팔 수 있음 (판매 화면에서 이 물건을 누르거나 전부 팔기)"]
   texture: fishcake
 
 caviar:
   material: paper
   name: "<#4fc3f7>캐비아"
+  lore: ["<dark_gray>예전 물건: 이제 만들 수 없음", "<gray>상점에서 그대로 팔 수 있음 (판매 화면에서 이 물건을 누르거나 전부 팔기)"]
   texture: caviar
 
 seafood_feast:
   material: paper
   name: "<#4fc3f7>해물 한상"
+  lore: ["<dark_gray>예전 물건: 이제 만들 수 없음", "<gray>상점에서 그대로 팔 수 있음 (판매 화면에서 이 물건을 누르거나 전부 팔기)"]
   texture: seafood_feast
 
 shrimp_meat:
   material: paper
   name: "<#4fc3f7>새우살"
+  lore: ["<dark_gray>예전 물건: 이제 만들 수 없음", "<gray>상점에서 그대로 팔 수 있음 (판매 화면에서 이 물건을 누르거나 전부 팔기)"]
   texture: shrimp_meat
 
 gwamegi:
   material: paper
   name: "<#4fc3f7>과메기"
+  lore: ["<dark_gray>예전 물건: 이제 만들 수 없음", "<gray>상점에서 그대로 팔 수 있음 (판매 화면에서 이 물건을 누르거나 전부 팔기)"]
   texture: gwamegi
 
 gulbi:
   material: paper
   name: "<#4fc3f7>굴비"
+  lore: ["<dark_gray>예전 물건: 이제 만들 수 없음", "<gray>상점에서 그대로 팔 수 있음 (판매 화면에서 이 물건을 누르거나 전부 팔기)"]
   texture: gulbi
 
 hongeo:
   material: paper
   name: "<#4fc3f7>삭힌 홍어"
+  lore: ["<dark_gray>예전 물건: 이제 만들 수 없음", "<gray>상점에서 그대로 팔 수 있음 (판매 화면에서 이 물건을 누르거나 전부 팔기)"]
   texture: hongeo
 
 jeotgal:
   material: paper
   name: "<#4fc3f7>젓갈"
+  lore: ["<dark_gray>예전 물건: 이제 만들 수 없음", "<gray>상점에서 그대로 팔 수 있음 (판매 화면에서 이 물건을 누르거나 전부 팔기)"]
   texture: jeotgal
 
 salted_mackerel:
   material: paper
   name: "<#4fc3f7>간고등어"
+  lore: ["<dark_gray>예전 물건: 이제 만들 수 없음", "<gray>상점에서 그대로 팔 수 있음 (판매 화면에서 이 물건을 누르거나 전부 팔기)"]
   texture: salted_mackerel
 
 fish_sauce:
   material: paper
   name: "<#4fc3f7>까나리 액젓"
+  lore: ["<dark_gray>예전 물건: 이제 만들 수 없음", "<gray>상점에서 그대로 팔 수 있음 (판매 화면에서 이 물건을 누르거나 전부 팔기)"]
   texture: fish_sauce
 
 # ── 대장간 · 대장장이 ─────────────────────────────────────────
@@ -977,21 +1020,25 @@ fish_feed:
 flatfish_hoe:
   material: paper
   name: "<#4fc3f7>광어회"
+  lore: ["<dark_gray>예전 물건: 이제 만들 수 없음", "<gray>상점에서 그대로 팔 수 있음 (판매 화면에서 이 물건을 누르거나 전부 팔기)"]
   texture: flatfish_hoe
 
 dried_fish:
   material: paper
   name: "<#4fc3f7>건어물"
+  lore: ["<dark_gray>예전 물건: 이제 만들 수 없음", "<gray>상점에서 그대로 팔 수 있음 (판매 화면에서 이 물건을 누르거나 전부 팔기)"]
   texture: dried_fish
 
 saeujeot:
   material: paper
   name: "<#4fc3f7>새우젓"
+  lore: ["<dark_gray>예전 물건: 이제 만들 수 없음", "<gray>상점에서 그대로 팔 수 있음 (판매 화면에서 이 물건을 누르거나 전부 팔기)"]
   texture: saeujeot
 
 fish_paste:
   material: paper
   name: "<#4fc3f7>어묵 반죽"
+  lore: ["<dark_gray>예전 물건: 이제 만들 수 없음", "<gray>상점에서 그대로 팔 수 있음 (판매 화면에서 이 물건을 누르거나 전부 팔기)"]
   texture: fish_paste
 
 mulhoe:

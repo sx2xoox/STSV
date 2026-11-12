@@ -15,7 +15,7 @@ stocks:
     A: { action: "stock:tab:all", icon: economy:gui/chart, material: PAPER, name: "<white>전체", lore: ["<gray>모든 회사 보기"] }
     B: { action: "stock:tab:mining", icon: economy:ruby, material: PAPER, name: "<#9fb4c8>광업", lore: ["<gray>광업 회사만 보기"] }
     C: { action: "stock:tab:agriculture", icon: economy:rice, material: PAPER, name: "<#8bc34a>농업", lore: ["<gray>농업 회사만 보기"] }
-    D: { action: "stock:tab:fisheries", icon: economy:salmon_fillet, material: PAPER, name: "<#4fc3f7>수산", lore: ["<gray>수산 회사만 보기"] }
+    D: { action: "stock:tab:fisheries", icon: economy:fish_meat, material: PAPER, name: "<#4fc3f7>수산", lore: ["<gray>수산 회사만 보기"] }
     E: { action: "stock:tab:steel", icon: economy:steel_ingot, material: PAPER, name: "<#ff8a65>철강", lore: ["<gray>철강 회사만 보기"] }
     F: { action: "stock:tab:food", icon: economy:kimchi, material: PAPER, name: "<#ffb74d>식품", lore: ["<gray>식품 회사만 보기"] }
     G: { action: "stock:tab:pharma", icon: economy:pearl_perfume, material: PAPER, name: "<#ba68c8>제약", lore: ["<gray>제약 회사만 보기"] }
