@@ -53,6 +53,7 @@ class PackPipelineTest {
             "cargo_van", "box_truck",                          // a raked windscreen, a roof deflector and a tilted steering wheel
             "ox_cart", "power_tiller", "tractor",              // the ox's traces, the tiller's handlebars, the tractor's steering wheel
             "jige", "jige_load_1", "jige_load_2", "jige_load_3",  // the 지게 prongs, jutting back and up 22.5 degrees
+            "wheel_atv",                                       // the ATV tyre's knobs, every 45 degrees round it
             // 작업기: the plough's beam and handle, hood plates and shields, tines on the slant, links and arms, the tarp's shoulders
             "ox_plough", "tiller_rotary", "tiller_rotary_tines", "tractor_rotary", "tractor_rotary_tines", "tractor_seeder",
             "tractor_header", "tractor_header_reel", "boat_trawl", "truck_tarp");
