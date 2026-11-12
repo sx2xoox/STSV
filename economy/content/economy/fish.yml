@@ -1,14 +1,13 @@
-# 낚시. 찌가 잠기기 전까지는 바닐라와 같고, 걸리면 화면 가운데 고리에서 바늘이 돕니다: 초록 칸에 오면 우클릭.
-# 흔함 2번 · 보통 3번 · 희귀 4번 · 전설 6번 성공하면 잡힘. 빈 곳을 누르거나 바늘이 두 바퀴 돌도록 안 누르면 하트 하나,
-# 빨간 함정은 둘. 성공할 때마다 빨라지고 칸이 좁아짐. 금색 칸 = 완벽 (크기 +3%, 전부 완벽이면 +10% 더).
+# 낚시. 바닐라처럼 찌가 물에 잠길 때 우클릭하면 낚아 올림 (늦으면 놓침). 무엇이 걸릴지는 아래 물고기 중에서:
+# 그 물(서식지)과 때(시간·날씨)에 사는 것, 등급은 아래 확률로.
 # 희귀·전설이 걸릴 확률은 jobs.yml 어부의 finds.chance (직업이 아니면 outsider), 그중 전설이 legend-share.
 # 크기는 size 범위 안에서 정해지고 희귀·전설은 아이템에 크기가 붙어 매입가가 0.7 ~ 1.5배 (흔함·보통은 쌓이게 크기 없음).
 # 물고기 그림·이 파일은 tools/assetgen/economy_fish.py 가 만듭니다.
 
-legend-share: 0.05     # 희귀·전설 입질 중 전설 비율 (어부 Lv30 이 낚는 전설 수가 링을 고치기 전과 같게)
+legend-share: 0.05     # 희귀·전설 입질 중 전설 비율
 pearl: 0.15            # 바다에서 희귀가 걸렸을 때 진주가 나올 확률
-# 입질까지 기다리는 시간(초). 바닐라는 5~30초. 미끼(Lure) 한 단계마다 15%, 어부 레벨에 따라 jobs.yml 어부 bite 만큼 줄어듦
-bite: { min: 2, max: 12, lure-per-level: 0.15 }
+# 입질까지 기다리는 시간은 바닐라 그대로 (5~30초, 미끼(Lure) 한 단계마다 5초 덜, 그다음 물고기가 찌까지 1~4초).
+# 어부는 jobs.yml 어부 bite 만큼 기다리는 시간이 줄어듦.
 
 # 통발 (economy:fish_trap): 물속(물 한 칸 이상)에 놓는 가구. minutes 분마다 그 물의 흔함·보통 물고기를 하나씩 모음 (전설은 없고 희귀는
 # 드물게). storage 만큼 차면 멈추니 자주 비워 줘야 함 (우클릭으로 꺼내기). 어부는 jobs.yml trap-speed 만큼 빨리 돌고, trap-uncommon ·
@@ -33,10 +32,10 @@ pen:
   per-chunk: 2         # 한 청크에 놓을 수 있는 가두리 수 (통발과 합쳐서도 trap.per-chunk 까지)
 
 rarities:
-  common: { name: "흔함", color: "#ffffff", hits: 2, speed: 1.0, zone: 8 }
-  uncommon: { name: "보통", color: "#55ff55", hits: 3, speed: 1.35, zone: 7 }
-  rare: { name: "희귀", color: "#5aa8ff", hits: 4, speed: 1.75, zone: 9 }
-  legend: { name: "전설", color: "#ffaa00", hits: 6, speed: 2.2, zone: 13 }
+  common: { name: "흔함", color: "#ffffff" }
+  uncommon: { name: "보통", color: "#55ff55" }
+  rare: { name: "희귀", color: "#5aa8ff" }
+  legend: { name: "전설", color: "#ffaa00" }
 
 # 도감 묶음: 다 잡으면 칭호
 groups:

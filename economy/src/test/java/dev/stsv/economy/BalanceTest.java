@@ -2,7 +2,6 @@ package dev.stsv.economy;
 
 import dev.stsv.core.crop.CropSpec;
 import dev.stsv.economy.fishing.FishSpec;
-import dev.stsv.economy.fishing.Ring;
 import dev.stsv.economy.job.JobSpec;
 import dev.stsv.economy.job.MachineSpec;
 import dev.stsv.economy.request.RequestSpec;
@@ -34,8 +33,8 @@ import java.util.stream.Collectors;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
 /**
- * The balance framework as executable checks, one test per rule (R0 ... R14c): what a recipe, a crop, a job bonus, the fishing
- * ring and the shop may pay against each other. A rule collects every recipe that breaks it and fails once with the list (the
+ * The balance framework as executable checks, one test per rule (R0 ... R14c): what a recipe, a crop, a job bonus, a fish's
+ * size and the shop may pay against each other. A rule collects every recipe that breaks it and fails once with the list (the
  * recipe, both numbers and the scenario).
  * <p>
  * Every compared ratio and G per minute is rounded half up to 2 decimals first, as a player reads it. Values: an item is worth its
@@ -84,12 +83,10 @@ class BalanceTest {
     /** A typical catch: the mean price factor over u = (i + 0.5) / SIZE_SAMPLES. */
     static final int SIZE_SAMPLES = 1000;
 
-    /** Perfect hits, all perfect, fisher size bonus. */
-    record SizeCase(int perfect, boolean allPerfect, double bonus) {}
-
-    static final Map<String, SizeCase> SIZE_CASES = Map.of(
-            "lv1", new SizeCase(0, false, 0.0),       // any player: no perfect hit, no fisher bonus
-            "lv20", new SizeCase(2, false, 0.10));    // a Lv20 fisher's typical catch: 2 perfect hits, +10% size (R5b)
+    /** The size bonus of a case. */
+    static final Map<String, Double> SIZE_CASES = Map.of(
+            "lv1", 0.0,                                    // any player: no fisher bonus
+            "lv20", FishSpec.FISHER_SIZE_BONUS);           // a Lv20 fisher's catch: +17% size (R5b)
     static final List<String> JOB_MACHINES = List.of("gem_bench", "mill", "fish_bench", "forge", "kitchen", "still");
     /** The top good of each machine (full-chain multiple). */
     static final Map<String, String> CAPSTONE = linked(
@@ -171,14 +168,6 @@ class BalanceTest {
     // ------------------------------------------------------------------------------------------ R11 chains
     /** Best full-chain multiple of each job machine (any of its goods), max / min over the six. */
     static final double CHAIN_SPREAD = 3.0;   // 2.5 before 2026-11: melon liqueur became an aged drink, the still's chain carries the aging premium
-    // ------------------------------------------------------------------------------------------ R12 fishing ring
-    // (the ring's own constants: Ring.SEG, HIT_SPEEDUP, MIN_ZONE, DRIFT_EVERY)
-    /** Every hit: the needle is on green for at least 2 server ticks (100 ms) at every phase. */
-    static final int MIN_WINDOW_TICKS = 2;
-    /** Ring.newRound: the zone's near end starts AHEAD_MIN + nextInt(span) cells ahead of the needle, span at most AHEAD_SPAN. */
-    static final int AHEAD_MIN = 14, AHEAD_SPAN = 19;
-    /** FishingModule: +1% zone a fisher level (Lv0 = not a fisher), Lv0-30. */
-    static final double FISHER_ZONE_PER_LEVEL = 0.01;
     // ------------------------------------------------------------------------------------------ R13 / R14
     /** Coal: crafts to a coal block and back, or is placed and mined, without its mark. */
     static final Set<String> LAUNDER = Set.of("minecraft:potato", "minecraft:carrot", "minecraft:sugar_cane", "minecraft:bone_meal",
@@ -646,7 +635,7 @@ class BalanceTest {
 
     /**
      * R5b: a job recipe that takes sized fish (rare, legend: they keep their size and sell by it) stays >= 1.20 for its dearest member
-     * caught at a Lv20 fisher's typical size (2 perfect hits, +10% size), so the fishers who supply them do not lose by cooking a
+     * caught at a Lv20 fisher's typical size (+17% size), so the fishers who supply them do not lose by cooking a
      * typical catch.
      */
     @Test
@@ -1219,113 +1208,6 @@ class BalanceTest {
         rule("R11", bad);
     }
 
-    // ============================================================================================ fishing ring
-
-    /** Ring.newRound: zoneW = max(3, round(max(3, zone - hits) x (1 + zoneBonus))). */
-    static int zoneAt(FishSpec.Rarity r, int hits, double zoneBonus) {
-        return Math.max(Ring.MIN_ZONE, (int) Math.round(Math.max(Ring.MIN_ZONE, r.zone() - hits) * (1 + zoneBonus)));
-    }
-
-    static double speedAt(FishSpec.Rarity r, int hits) {
-        return r.speed() + Ring.HIT_SPEEDUP * hits;
-    }
-
-    /** Legends drift their zone (Ring.legend()). */
-    static boolean drifts(FishSpec.Rarity r) {
-        return r.index() >= 3;
-    }
-
-    /**
-     * Ticks the needle stays on green at each hit, continuous: zone cells / relative cells per tick (a drifting zone comes 1/3 cell a
-     * tick towards the needle in the worst case).
-     */
-    static List<Double> windows(FishSpec.Rarity r) {
-        List<Double> out = new ArrayList<>();
-        for (int h = 0; h < r.hits(); h++) out.add(zoneAt(r, h, 0.0) / (speedAt(r, h) + (drifts(r) ? 1.0 / Ring.DRIFT_EVERY : 0.0)));
-        return out;
-    }
-
-    /**
-     * Exact guarantee of Ring.tick() sampling: the needle moves speed cells a tick and a drifting zone one more cell on one tick of every
-     * 3, so two consecutive moves span at most 2 x speed (+ 1). The needle is on green for >= 2 ticks at every phase iff the zone is at
-     * least that wide.
-     */
-    static int minSampledTicks(FishSpec.Rarity r, int hits) {
-        double span = 2 * speedAt(r, hits) + (drifts(r) ? 1 : 0);
-        return zoneAt(r, hits, 0.0) >= span - 1e-9 ? MIN_WINDOW_TICKS : 1;
-    }
-
-    /**
-     * R12: every hit of every rarity leaves the needle on green for >= 2 server ticks at every phase, no fisher bonus: zone >= 2 x speed
-     * (+ 1 cell where the zone drifts), zone = max(3, zone - hits), speed = speed + 0.22 x hits. The rarities stay in order of
-     * difficulty: more hits and a narrower narrowest window (continuous, drift against the needle) from common to legend.
-     */
-    @Test
-    void r12Ring() {
-        List<String> bad = new ArrayList<>();
-        List<FishSpec.Rarity> rs = List.copyOf(w.fish.rarities().values());
-        List<Double> mins = new ArrayList<>();
-        for (FishSpec.Rarity r : rs) {
-            for (int h = 0; h < r.hits(); h++) {
-                if (minSampledTicks(r, h) < MIN_WINDOW_TICKS) {
-                    bad.add(r.id() + " hit " + (h + 1) + ": zone " + zoneAt(r, h, 0.0) + " < 2 x " + fmt(speedAt(r, h), 2)
-                            + (drifts(r) ? " + 1 (drift)" : "") + ": 1 tick on green at some phases");
-                }
-            }
-            mins.add(min(windows(r)));
-        }
-        for (int i = 1; i < rs.size(); i++) {
-            if (!(rs.get(i).hits() > rs.get(i - 1).hits())) bad.add(rs.get(i).id() + " needs no more hits than " + rs.get(i - 1).id());
-        }
-        for (int i = 1; i < rs.size(); i++) {
-            if (!(mins.get(i) < mins.get(i - 1))) {
-                bad.add(rs.get(i).id() + " narrowest window " + fmt(mins.get(i), 2) + " not below " + rs.get(i - 1).id() + " " + fmt(mins.get(i - 1), 2));
-            }
-        }
-        rule("R12", bad);
-    }
-
-    /**
-     * Ring.newRound: the zone's near end is ahead = AHEAD_MIN + nextInt(max(1, min(AHEAD_SPAN, SEG - 13 - zoneW))) cells from the needle,
-     * capped so its far end stays behind the needle.
-     */
-    static List<Integer> aheadRange(int zoneW) {
-        List<Integer> out = new ArrayList<>();
-        int span = Math.max(1, Math.min(AHEAD_SPAN, Ring.SEG - (AHEAD_MIN - 1) - zoneW));
-        for (int a = AHEAD_MIN; a < AHEAD_MIN + span; a++) out.add(a);
-        return out;
-    }
-
-    /**
-     * The zone's far end is ahead + zoneW - 1 cells from the needle's cell: past SEG - 1 it wraps onto the needle's own cell, and a press
-     * in the tick the pause ends (the needle has not moved yet) hits.
-     */
-    static List<Integer> needleOnGreenAtStart(int zoneW, List<Integer> aheads) {
-        return aheads.stream().filter(a -> a + zoneW - 1 >= Ring.SEG).toList();
-    }
-
-    /**
-     * R12b: no round starts with the needle on green: for every rarity, hit (and the re-roll after a miss), fisher level 0-30 (+1% zone
-     * a level) and every distance Ring.newRound can draw, the zone's far end stays behind the needle's cell.
-     */
-    @Test
-    void r12bZoneClearOfNeedle() {
-        List<String> bad = new ArrayList<>();
-        for (FishSpec.Rarity r : w.fish.rarities().values()) {
-            for (int h = 0; h < r.hits(); h++) {
-                for (int lv = 0; lv <= MAX_LEVEL; lv++) {
-                    int zw = zoneAt(r, h, lv * FISHER_ZONE_PER_LEVEL);
-                    List<Integer> hit = needleOnGreenAtStart(zw, aheadRange(zw));
-                    if (!hit.isEmpty()) {
-                        bad.add(r.id() + " hit " + (h + 1) + " Lv" + lv + ": zone " + zw + " from " + hit.getFirst() + " cells ahead covers the needle");
-                        break;
-                    }
-                }
-            }
-        }
-        rule("R12b", bad);
-    }
-
     // ============================================================================================ the model
 
     static List<Row> jobRows() {
@@ -1692,10 +1574,10 @@ class BalanceTest {
         }
 
         /** Mean FishSpec.priceFactor of a typical catch of a species: FishSpec.size over u = (i + 0.5) / SIZE_SAMPLES. */
-        static double meanFactor(FishSpec.Species s, SizeCase c) {
+        static double meanFactor(FishSpec.Species s, double bonus) {
             List<Num> f = new ArrayList<>();
             for (int i = 0; i < SIZE_SAMPLES; i++) {
-                f.add(new Num(FishSpec.priceFactor(s, FishSpec.size(s, (i + 0.5) / SIZE_SAMPLES, c.perfect(), c.allPerfect(), c.bonus())), false));
+                f.add(new Num(FishSpec.priceFactor(s, FishSpec.size(s, (i + 0.5) / SIZE_SAMPLES, bonus)), false));
             }
             return sum(f) / SIZE_SAMPLES;
         }

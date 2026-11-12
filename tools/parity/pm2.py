@@ -79,6 +79,8 @@ class Opt:
     selfgather: bool = False         # processor solo: gathers its own staple (no job perks), buys nothing from gatherer jobs
     no_buy_jobs: tuple = ()          # goods of these jobs cannot be bought (solo)
     traps: bool = True               # the fisher keeps traps and pens (jobs_model TRAPS / PENS); False: the rod only
+    outsider: bool = False           # simulate("fisher") as another job's player fishing: the rod only, no fisher perks (outsider
+    #                                  chances, vanilla wait), no traps, no machine, the catch sold raw (outsider_fishing)
 
 
 _W = {}
@@ -250,6 +252,11 @@ class SLedger(J.Ledger):
 
 
 # ----------------------------------------------------------------------------------------------- one day
+def outsider_fishing(lv, scale, root=WT):
+    """Net G a day of a player of another job who only fishes for the scale's hours (Opt.outsider): no fisher perks, no traps."""
+    return simulate("fisher", lv, scale, Opt(root=root, traps=False, outsider=True))
+
+
 def simulate(job, lv, scale, opt=None, detail=False):
     opt = opt or Opt()
     W_ = world(opt.root)
@@ -262,14 +269,14 @@ def simulate(job, lv, scale, opt=None, detail=False):
     mid = J.JOB_MACHINE[job]
     routes = PRoutes(W_, mid, tier, job, lv)
     lanes_t = W_.mach[mid].get("lanes") or W_.up["lanes"]
-    lanes = lanes_t[tier] * scale.machines
+    lanes = 0 if opt.outsider else lanes_t[tier] * scale.machines
     mk = Market(W_, job, opt, lv, scale)
     habitats = J.best_waters(W_, lv) if job == "fisher" else None
     plots = scale.plots[lv]
     traps = pens = 0
     tending = 0.0
     pen_fish = []
-    if job == "fisher" and opt.traps:
+    if job == "fisher" and opt.traps and not opt.outsider:
         k = TRAP_SCALE.get(scale.name, 1.0)
         traps, pens = round(J.TRAPS[lv] * k), round(J.PENS[lv] * k)
         tending = (traps * J.TRAP_VISIT_S + pens * J.PEN_VISIT_S) / 3600
@@ -306,7 +313,7 @@ def simulate(job, lv, scale, opt=None, detail=False):
             sp_rate = {}
             events = 0.0
             if job == "fisher":
-                catch, n, sp_rate = fishing(W_, lv, habitats[h % len(habitats)], job)
+                catch, n, sp_rate = fishing(W_, lv, habitats[h % len(habitats)], "outsider" if opt.outsider else job)
                 rod = J.ROD_HOUR - tending       # the rod's share of the hour: walking, the catch, the traps and pens
                 for i, (c, f_) in catch.items():
                     own[i] += c * frac * rod

@@ -1,5 +1,5 @@
 """
-Fishing (economy server): the 98 fish, their 16x16 icons, the ring minigame font and the content files
+Fishing (economy server): the 98 fish, their 16x16 icons, the fish icon font and the content files
 made from this one table.
 
     FISH: id -> (name, habitat, rarity 0..3, min cm, max cm, base price, shape, main colour, second colour, extra)
@@ -9,26 +9,25 @@ c crab / shrimp, q octopus / squid / jellyfish. extra: a few marks (stripes, spo
 glow, shark, when=night|dawn|dusk|rain|thunder|fullmoon). habitat "fresh" / "salt" = any water of that kind.
 
 Writes: icons (ICONS, into economy_icons), economy/content/economy/fish.yml, items/fish.yml, the fish part
-of shop.yml (between markers), the codex titles, the ring font (economy:fishring) and the fish icon
-font (economy:fishicon) used in the catch title.
+of shop.yml (between markers), the codex titles and the fish icon font (economy:fishicon) used in the
+catch title.
 """
 
 import json
-import math
 from pathlib import Path
 
-from PIL import Image, ImageDraw
+from PIL import Image
 
 from stsv_assets import palette as P
 from stsv_assets.color import rgb_to_oklch
 from stsv_assets.pixelart import Canvas
 
 E = "economy:"
-RARITY = [  # name, colour, successes, needle speed (cells per tick), zone cells
-    ("common", "흔함", "#ffffff", 2, 1.0, 8),
-    ("uncommon", "보통", "#55ff55", 3, 1.35, 7),
-    ("rare", "희귀", "#5aa8ff", 4, 1.75, 9),
-    ("legend", "전설", "#ffaa00", 6, 2.2, 13),
+RARITY = [  # id, name, colour
+    ("common", "흔함", "#ffffff"),
+    ("uncommon", "보통", "#55ff55"),
+    ("rare", "희귀", "#5aa8ff"),
+    ("legend", "전설", "#ffaa00"),
 ]
 HABITATS = {  # id: (name, codex title id, title text)
     "sea": ("바다", "angler_sea", "[바다 낚시꾼]"),
@@ -159,7 +158,6 @@ FISH = {
 }
 VANILLA = {"cod": "minecraft:cod", "salmon": "minecraft:salmon", "pufferfish": "minecraft:pufferfish"}
 FINDS = {"red_seabream", "bluefin_tuna", "sturgeon"}   # items of the jobs step (finds, 손질대 inputs): their icons stay
-SHAPES = "flpcq"
 
 
 def q_for(base):
@@ -370,189 +368,8 @@ def all_icons():
     return {fid: (GO.ICONS[fid]() if fid in FINDS else picture(fid)) for fid in FISH}
 
 
-# ------------------------------------------------------------------------------------------------
-# The ring (economy:fishring): 56 px glyphs shown at a quarter (height 14) in the title, which the game
-# draws 4x: one glyph pixel = one GUI pixel. Base rings, fish silhouettes, 48 zone cells in green, gold
-# and red, 48 needle directions, and two spaces to stack them.
-# ------------------------------------------------------------------------------------------------
-
-RING, RC, SEG = 56, 28, 48
-# shown at half size (height 28): one glyph pixel = two GUI pixels in the title. The ascent keeps the
-# ring's bottom where the first, smaller ring had it (above the subtitle): it grew upwards
-RING_HEIGHT, RING_ASCENT = 28, 23
-BASE_CH = 0xE000            # base rings: + rim (0 normal, 1 white flash, 2 gold, 3 red)
-CENTER_CH = 0xE010          # silhouettes: + shape * 4 + rarity
-GREEN_CH, GOLD_CH, RED_CH, NEEDLE_CH = 0xE100, 0xE140, 0xE180, 0xE1C0
-BACK_CH, FORWARD_CH = 0xF001, 0xF002
-SILHOUETTE = {   # the preview's 16x16 shapes
-    "f": ['................', '................', '................', '......ooooo.....', '....ooaaaaaoo...', '...oaaaaaaaaao.o', '..oaeaaaaaaaaaoo',
-          '..oaaaaaaaaaaaao', '..obbbbbbbaaaaoo', '...obbbbbbbbao.o', '....oobbbbboo...', '......ooooo.....', '................', '................',
-          '................', '................'],
-    "l": ['................', '................', '................', '................', '................', '..ooo...........', '.oaeaoooooooo...',
-          '.oaaaaaaaaaaaooo', '..obbbbbbbbbbaao', '...oooooooooooo.', '................', '................', '................', '................',
-          '................', '................'],
-    "p": ['................', '................', '......oooo......', '....ooaaaaoo....', '...oaaaaaaaao...', '..oaaeaaeaaaao..', '.oaaaaaaaaaaaao.',
-          '..oaaaaaaaaaao..', '...oaaaaaaaao...', '....ooaaaaoo....', '......oaao......', '.......oo.......', '.......oo.......', '........o.......',
-          '................', '................'],
-    "c": ['................', '................', '..oo........oo..', '.oaao......oaao.', '.oa.o......o.ao.', '..oao.e..e.oao..', '...oaoooooooao..',
-          '...oaaaaaaaaao..', '..oaaaaaaaaaaao.', '..obbbbbbbbbbbo.', '...oooooooooooo.', '...o.o.o..o.o.o.', '................', '................',
-          '................', '................'],
-    "q": ['................', '.....oooooo.....', '....oaaaaaao....', '...oaaaaaaaao...', '...oaeaaaaeao...', '...oaaaaaaaao...', '....oaaaaaao....',
-          '....oaoaoaoao...', '...oa.oa.oa.ao..', '...o..o..o...o..', '................', '................', '................', '................',
-          '................', '................'],
-}
-
-
 def _hex(h, a=255):
     return (int(h[1:3], 16), int(h[3:5], 16), int(h[5:7], 16), a)
-
-
-def _ring_pixels():
-    for y in range(RING):
-        for x in range(RING):
-            dx, dy = x + 0.5 - RC, y + 0.5 - RC
-            r = math.hypot(dx, dy)
-            a = math.atan2(dx, -dy) % (2 * math.pi)
-            yield x, y, r, int(a / (2 * math.pi) * SEG) % SEG
-
-
-def _sheet(cells, cols=8):
-    rows = (len(cells) + cols - 1) // cols
-    sheet = Image.new("RGBA", (cols * RING, rows * RING), (0, 0, 0, 0))
-    for k, im in enumerate(cells):
-        sheet.alpha_composite(im, ((k % cols) * RING, (k // cols) * RING))
-    return sheet, rows
-
-
-def ring_font(assets: Path):
-    font_dir, tex = assets / "economy/font", assets / "economy/textures/font"
-    font_dir.mkdir(parents=True, exist_ok=True)
-    tex.mkdir(parents=True, exist_ok=True)
-    pix = list(_ring_pixels())
-    base = []
-    for rim in ("#141414", "#ffffff", "#ffcc33", "#ff4040"):
-        im = Image.new("RGBA", (RING, RING), (0, 0, 0, 0))
-        for x, y, r, seg in pix:
-            if 23 <= r < 25 or 15.5 <= r < 17:
-                im.putpixel((x, y), _hex(rim))
-            elif 17 <= r < 23:
-                im.putpixel((x, y), _hex("#5a5a5a" if seg % 6 == 0 and r >= 21 else "#3c3c3c", 230))
-            elif r < 15.5:
-                im.putpixel((x, y), (0, 0, 0, 110))
-        base.append(im)
-    centers = []
-    for shape in SHAPES:
-        for (_, _, colour, _, _, _) in RARITY:
-            im = Image.new("RGBA", (RING, RING), (0, 0, 0, 0))
-            dark = tuple(int(v * 0.55) for v in _hex(colour)[:3]) + (255,)
-            for y, row in enumerate(SILHOUETTE[shape]):
-                for x, ch in enumerate(row):
-                    if ch != ".":
-                        im.putpixel((RC - 8 + x, RC - 8 + y), dark if ch in "oe" else _hex(colour))
-            centers.append(im)
-    cells = {}
-    for key, colour in (("green", "#3fbf3f"), ("gold", "#ffc933"), ("red", "#c42a2a")):
-        cells[key] = []
-        for k in range(SEG):
-            im = Image.new("RGBA", (RING, RING), (0, 0, 0, 0))
-            for x, y, r, seg in pix:
-                if seg == k and 17 <= r < 23:
-                    im.putpixel((x, y), _hex(colour))
-            cells[key].append(im)
-    needles = []
-    for k in range(SEG):
-        im = Image.new("RGBA", (RING, RING), (0, 0, 0, 0))
-        a = (k + 0.5) / SEG * 2 * math.pi
-        for w, length, colour in ((3, 24, "#141414"), (1, 23.5, "#ffffff")):
-            r = 7.0
-            while r <= length:
-                x0 = round(RC + math.sin(a) * r - w / 2)
-                y0 = round(RC - math.cos(a) * r - w / 2)
-                for dx in range(w):
-                    for dy in range(w):
-                        if 0 <= x0 + dx < RING and 0 <= y0 + dy < RING:
-                            im.putpixel((x0 + dx, y0 + dy), _hex(colour))
-                r += 0.5
-        needles.append(im)
-
-    providers = [{"type": "space", "advances": {chr(BACK_CH): -(RING_HEIGHT + 1), chr(FORWARD_CH): RING_HEIGHT}}]
-
-    def add(name, images, first):
-        # the game measures a bitmap glyph's advance from its rightmost non-transparent column; a pixel of
-        # alpha 1 (the text shader drops anything under 0.1, so it never shows) in the last column gives
-        # every glyph the full width: advance 0.5 + 56 x 14/56 + 1 = 15, which the back space (-15) undoes
-        for im in images:
-            if im.getpixel((RING - 1, 0))[3] == 0:
-                im.putpixel((RING - 1, 0), (0, 0, 0, 1))
-        sheet, rows = _sheet(images)
-        sheet.save(tex / f"fishring_{name}.png")
-        chars = []
-        for r in range(rows):
-            row = ""
-            for c in range(8):
-                k = r * 8 + c
-                row += chr(first + k) if k < len(images) else "\u0000"
-            chars.append(row)
-        providers.append({"type": "bitmap", "file": f"economy:font/fishring_{name}.png", "ascent": RING_ASCENT,
-                          "height": RING_HEIGHT, "chars": chars})
-
-    add("base", base, BASE_CH)
-    add("center", centers, CENTER_CH)
-    add("green", cells["green"], GREEN_CH)
-    add("gold", cells["gold"], GOLD_CH)
-    add("red", cells["red"], RED_CH)
-    add("needle", needles, NEEDLE_CH)
-    (font_dir / "fishring.json").write_text(json.dumps({"providers": providers}, ensure_ascii=True))
-
-
-RING_STATES = [  # label, rarity index, hits so far, rim, centre shape, zone start cell, needle cell, legend trap
-    ("흔함 · 시작", 0, 0, 0, "f", 14, 3, False),
-    ("보통 · 성공 직후", 1, 1, 1, "l", 30, 22, False),
-    ("희귀 · 완벽", 2, 1, 2, "c", 40, None, False),      # needle None: on the last gold (perfect) cell
-    ("전설 · 함정 2칸", 3, 0, 0, "q", 20, 12, True),
-    ("놓침 (빨간 테)", 1, 0, 3, "p", 5, 30, False),
-]
-
-
-def ring_preview(assets: Path, path: Path, rarity=None):
-    """docs/previews/fishing_ring.png: the ring in five states, drawn from the ring font (ring_font) with the zones of RARITY as
-    Ring.newRound makes them (zone = max(3, zone - hits), 2 gold cells from 5 cells up, a legend's 2 red cells behind its zone)."""
-    rarity = rarity or RARITY
-    font = assets / "economy" / "textures" / "font"
-    R = 56
-
-    def cell(name, k):
-        im = Image.open(font / f"fishring_{name}.png").convert("RGBA")
-        return im.crop(((k % 8) * R, (k // 8) * R, (k % 8) * R + R, (k // 8) * R + R))
-
-    def ring(rim, shape, rar, zone, zw, perf, trap, needle):
-        out = Image.new("RGBA", (R, R), (0, 0, 0, 0))
-        out.alpha_composite(cell("base", rim))
-        out.alpha_composite(cell("center", "flpcq".index(shape) * 4 + rar))
-        off = (zw - perf) // 2
-        for i in range(zw):
-            out.alpha_composite(cell("gold" if off <= i < off + perf else "green", (zone + i) % 48))
-        for t in trap:
-            out.alpha_composite(cell("red", t))
-        out.alpha_composite(cell("needle", needle))
-        return out
-
-    W, H = 260, 330
-    img = Image.new("RGBA", (W * len(RING_STATES), H), (0, 0, 0, 255))
-    d = ImageDraw.Draw(img)
-    for n, (label, rar, hits, rim, shape, zone, needle, legend) in enumerate(RING_STATES):
-        zw = max(3, rarity[rar][5] - hits)
-        perf = 2 if zw >= 5 else 1
-        if needle is None:
-            needle = (zone + (zw - perf) // 2 + perf - 1) % 48
-        trap = [(zone - 1) % 48, (zone - 2) % 48] if legend else []
-        x0 = n * W
-        for y in range(H):   # a sky-and-sea backdrop
-            c = (70 + y // 6, 120 + y // 5, 190) if y < 200 else (30, 70 + (y - 200) // 4, 120)
-            d.line([(x0, y), (x0 + W - 1, y)], fill=c)
-        r = ring(rim, shape, rar, zone, zw, perf, trap, needle)
-        img.alpha_composite(r.resize((R * 3, R * 3), Image.NEAREST), (x0 + (W - R * 3) // 2, 40))
-    img.save(path)
 
 
 def icon_font(assets: Path, icons):
@@ -609,22 +426,21 @@ TRAP_LINES = [
 
 def write_content(pack: Path, icons):
     rar_ids = [r[0] for r in RARITY]
-    out = ["# 낚시. 찌가 잠기기 전까지는 바닐라와 같고, 걸리면 화면 가운데 고리에서 바늘이 돕니다: 초록 칸에 오면 우클릭.",
-           "# 흔함 2번 · 보통 3번 · 희귀 4번 · 전설 6번 성공하면 잡힘. 빈 곳을 누르거나 바늘이 두 바퀴 돌도록 안 누르면 하트 하나,",
-           "# 빨간 함정은 둘. 성공할 때마다 빨라지고 칸이 좁아짐. 금색 칸 = 완벽 (크기 +3%, 전부 완벽이면 +10% 더).",
+    out = ["# 낚시. 바닐라처럼 찌가 물에 잠길 때 우클릭하면 낚아 올림 (늦으면 놓침). 무엇이 걸릴지는 아래 물고기 중에서:",
+           "# 그 물(서식지)과 때(시간·날씨)에 사는 것, 등급은 아래 확률로.",
            "# 희귀·전설이 걸릴 확률은 jobs.yml 어부의 finds.chance (직업이 아니면 outsider), 그중 전설이 legend-share.",
            "# 크기는 size 범위 안에서 정해지고 희귀·전설은 아이템에 크기가 붙어 매입가가 0.7 ~ 1.5배 (흔함·보통은 쌓이게 크기 없음).",
            "# 물고기 그림·이 파일은 tools/assetgen/economy_fish.py 가 만듭니다.",
            "",
-           "legend-share: 0.05     # 희귀·전설 입질 중 전설 비율 (어부 Lv30 이 낚는 전설 수가 링을 고치기 전과 같게)",
+           "legend-share: 0.05     # 희귀·전설 입질 중 전설 비율",
            "pearl: 0.15            # 바다에서 희귀가 걸렸을 때 진주가 나올 확률",
-           "# 입질까지 기다리는 시간(초). 바닐라는 5~30초. 미끼(Lure) 한 단계마다 15%, 어부 레벨에 따라 jobs.yml 어부 bite 만큼 줄어듦",
-           "bite: { min: 2, max: 12, lure-per-level: 0.15 }",
+           "# 입질까지 기다리는 시간은 바닐라 그대로 (5~30초, 미끼(Lure) 한 단계마다 5초 덜, 그다음 물고기가 찌까지 1~4초).",
+           "# 어부는 jobs.yml 어부 bite 만큼 기다리는 시간이 줄어듦.",
            ""] + TRAP_LINES + [
            "",
            "rarities:"]
-    for (rid, name, colour, hits, speed, zone) in RARITY:
-        out.append(f'  {rid}: {{ name: "{name}", color: "{colour}", hits: {hits}, speed: {speed}, zone: {zone} }}')
+    for (rid, name, colour) in RARITY:
+        out.append(f'  {rid}: {{ name: "{name}", color: "{colour}" }}')
     out += ["", "# 도감 묶음: 다 잡으면 칭호", "groups:"]
     for gid, (name, tid, _) in HABITATS.items():
         out.append(f'  {gid}: {{ name: "{name}", title: economy:{tid} }}')

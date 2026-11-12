@@ -168,27 +168,31 @@ class W:
 
 
 # ------------------------------------------------------------------------------------------------ gathering
-def fishing_hour(W_, lv, habitat, fisher=True):
-    """Expected catches of one active hour: {item: (count, mean price factor)}. Lure III."""
-    f = W_.fish
-    bite = f["bite"]
-    cut = W_.lin("fisher", "bite", lv) if fisher else 0.0
-    fac = max(0, 1 - bite["lure-per-level"] * 3) * (1 - cut)
-    wait = (bite["min"] + bite["max"]) / 2 * fac
-    rar = f["rarities"]
+# fishing_hour (2026-11, the ring minigame gone): vanilla's wait for a fish (FishSpec.waitTicks: 100 - 600 ticks less 100 a Lure
+# level, drawn again while not above 0; the fisher's "bite" cut off that), the fish's swim to the float (vanilla 20 - 80 ticks, never
+# shortened), REEL_S from the float going under to the right click and CAST_S to cast again and let the float settle. Until 2026-11
+# the wait was fish.yml's 2 - 12 s less 15% a Lure level and a ring of 4.3 (common) - 6.9 s (legend) stood in the reel's place.
+VANILLA_WAIT = (100, 600)   # ticks
+LURE_TICKS = 100
+SWIM_S = 2.5                # (20 + 80) / 2 ticks
+REEL_S = 0.5
+CAST_S = 1.5
 
-    def ring(r):
-        R = rar[r]
-        t = 0
-        for h in range(R["hits"]):
-            sp = R["speed"] + 0.22 * h
-            zw = max(3, R["zone"] - h)
-            t += 6 + (23 + zw / 2) / sp + 3
-        return t / 20 + 1.0
-    land = {"common": 1, "uncommon": 0.99, "rare": 0.93, "legend": 0.80} if lv < 15 else \
-        {"common": 1, "uncommon": 1, "rare": 0.98, "legend": 0.92} if lv < 30 else \
-        {"common": 1, "uncommon": 1, "rare": 1.0, "legend": 0.97}
-    rare = W_.lin("fisher", "finds", lv) if False else None
+
+def wait_s(lure, cut):
+    """Mean wait for a fish in seconds (FishSpec.waitTicks)."""
+    hi = max(1, VANILLA_WAIT[1] - lure * LURE_TICKS)
+    lo = min(max(1, VANILLA_WAIT[0] - lure * LURE_TICKS), hi)
+    return (lo + hi) / 2 * (1 - min(max(cut, 0.0), 0.8)) / 20
+
+
+def fishing_hour(W_, lv, habitat, fisher=True):
+    """Expected catches of one active hour: {item: (count, mean price factor)}. Lure III.
+
+    A catch = vanilla's wait (wait_s, Lure III, the fisher's cut), the fish's swim, the reel and the recast. Every bite reeled in
+    lands (no minigame since 2026-11; bites missed or lost come off the hour in ROD_HOUR)."""
+    f = W_.fish
+    cut = W_.lin("fisher", "bite", lv) if fisher else 0.0
     finds = W_.jobs["jobs"]["fisher"]["finds"]
     rare = (finds["chance"][0] + (finds["chance"][1] - finds["chance"][0]) * (lv - 1) / 29) if fisher else finds["outsider"]
     ls = f["legend-share"]
@@ -205,7 +209,7 @@ def fishing_hour(W_, lv, habitat, fisher=True):
                 return order[i], ps
             i -= 1
         return None, []
-    secs = sum(p[r] * ring(r) for r in order) + wait + 1.5   # + cast and the float settling
+    secs = wait_s(3, cut) + SWIM_S + REEL_S + CAST_S
     n = 3600 / secs
     out = defaultdict(lambda: [0.0, 0.0])
     case = "lv20" if (fisher and lv >= 20) else "lv1"
@@ -213,7 +217,7 @@ def fishing_hour(W_, lv, habitat, fisher=True):
         rr, ps = pool(r)
         if not ps:
             continue
-        cnt = n * p[r] * land[r]
+        cnt = n * p[r]
         if r == "rare" and habitat in SEA:
             pe = cnt * f["pearl"]
             add(out, "economy:pearl", pe * (2 if fisher and lv >= 20 else 1), 1.0)
@@ -236,7 +240,7 @@ def add(out, item, c, fac):
 
 
 # ------------------------------------------------------------------------------------------------ traps and pens
-# The rod (fishing_hour) is a stopwatch rate: a bite, the ring and a recast back to back, about 8-9.5 s a fish all hour. A real
+# The rod (fishing_hour) is a stopwatch rate: a bite, the reel and a recast back to back, about 8.3-9.6 s a fish all hour. A real
 # fishing hour also moves between the three waters (one an hour, often far apart: deep ocean, warm ocean, mushroom fields), takes
 # the catch somewhere (rare and legend fish keep their size and do not stack: at Lv30 about 90 unstackable fish an hour) and loses
 # casts to the shore, a mob or a boat. The miner's ORES and the farmer's CLICKS_PER_H are hours with the walking in; the rod's
@@ -772,8 +776,9 @@ if __name__ == "__main__":
             row = {j: P.simulate(j, lv, P.SCALES[s], opt) for j in P.JOBS}
             m = sum(row.values()) / len(row)
             rod = P.simulate("fisher", lv, P.SCALES[s], P.Opt(root=root, traps=False))
+            out = P.outsider_fishing(lv, P.SCALES[s], root)
             print(f"{s:8} Lv{lv:2} " + " ".join(f"{j[:5]} {v / 1000:6.1f}k({v / m - 1:+4.0%})" for j, v in row.items())
-                  + f" | rod only: fisher {rod / 1000:6.1f}k({rod / m - 1:+4.0%})")
+                  + f" | rod only: fisher {rod / 1000:6.1f}k({rod / m - 1:+4.0%}), anyone {out / 1000:6.1f}k({out / m - 1:+4.0%})")
     if "--traps" in sys.argv:
         W_ = P.world(root)
         for lv in (1, 15, 30):

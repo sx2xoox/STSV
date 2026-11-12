@@ -659,21 +659,13 @@ report:
   warn-gap: " <red>⚠ 하위 수입이 상위의 1/4 미만 → 의뢰 건수·보상 올리기"
   warn-floor: " <yellow>⚠ 바닥가까지 팔리는 품목이 많음 → 그 품목의 q 올리기, 수요 고시에서 빼기"
 
-# 낚시: 입질이 오면 화면 가운데 링, 바늘이 초록 칸에 올 때 우클릭
+# 낚시: 바닐라처럼 찌가 물에 잠길 때 우클릭으로 낚아 올림
 fishing:
   pearl: "진주"
-  hint: "<gray>바늘이 <green>초록 칸<gray>에 오면 <white>우클릭 <dark_gray>(금색 칸은 완벽)"
-  good: "<green>좋아!"
-  perfect: "<gold><b>완벽!</b>"
-  miss: "<red>놓쳤다…"
-  trap: "<dark_red>함정! <red>하트 두 칸"
-  escaped: "<gray>물고기가 달아났다…"
   size-lore: "<gray>크기 <white>{size}cm <dark_gray>· 매입가 {pct}%"
   size-stripped-lore: "<gray>크기 없음 <dark_gray>· 매입가 {pct}%"
   result: "<white>{size}cm"
-  result-perfect: "<gold>{size}cm <yellow>· 완벽한 낚시!"
   caught: "<gray>낚았다! <{color}>{fish} <white>{size}cm<gray>{count}"
-  caught-perfect: "<gold>완벽한 낚시! <{color}>{fish} <white>{size}cm<gray>{count} <yellow>(크기 +10%)"
   caught-pearl: "<gray>바다 밑에서 <white>진주<gray>를 건졌다!{count}"
   new-species: "<aqua>새 어종! <white>{fish} <gray>· /도감 에 한 마리 내면 등록됩니다"
   group-done: "<gold>{player}<yellow>님이 도감에 <gold>{group}<yellow> 물고기를 모두 등록했습니다!"

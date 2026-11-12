@@ -80,12 +80,10 @@ def main():
     import economy_logos as LG
     LG.sheet(PREVIEWS / "stock_logos.png", LG.all_logos(LG.companies(PACK)))
 
-    # fishing: content made from the fish table, the ring font, the fish icon font, a preview sheet
+    # fishing: content made from the fish table, the fish icon font, a preview sheet
     import economy_fish as FI
     fish_icons = FI.all_icons()
     FI.write_content(PACK, fish_icons)
-    FI.ring_font(PACK / "assets")
-    FI.ring_preview(PACK / "assets", PREVIEWS / "fishing_ring.png")
     FI.icon_font(PACK / "assets", fish_icons)
     FI.sheet(PREVIEWS / "fish.png", fish_icons)
     print(f"fish    {len(FI.FISH)} species")

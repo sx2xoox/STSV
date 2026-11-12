@@ -8,27 +8,20 @@ import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
-/** The fish's swim is part of the advertised bite time; lava and fire are not put right next to another player. */
+/** A fisher's wait is vanilla's, shortened; lava and fire are not put right next to another player. */
 class FlowFixesTest {
 
     @Test
-    void theWholeBiteFitsTheAdvertisedTime() {
-        FishSpec.Bite bite = new FishSpec.Bite(2, 12, 0.15);
+    void theFishersWaitIsVanillasShortened() {
         for (int lure = 0; lure <= 3; lure++) {
-            for (double cut : new double[]{0, 0.2, 0.4}) {
-                int[] t = bite.ticks(lure, cut);
-                int[] p = FishSpec.Bite.split(t[0], t[1]);
-                assertTrue(p[0] >= 1 && p[2] >= 1 && p[0] <= p[1] && p[2] <= p[3], "lure " + lure + " cut " + cut);
-                assertTrue(p[0] + p[2] >= t[0] - 1 && p[0] + p[2] <= t[0] + 1, "shortest bite ~ " + t[0] + " ticks");
-                assertTrue(p[1] + p[3] <= t[1] + 1, "longest bite within " + t[1] + " ticks");
+            int[] v = FishSpec.waitTicks(lure, 0);
+            for (double cut : new double[]{0.32, 0.4, 0.5}) {
+                int[] t = FishSpec.waitTicks(lure, cut);
+                assertTrue(t[0] >= 1 && t[0] <= t[1], "lure " + lure + " cut " + cut);
+                assertTrue(t[1] < v[1], "shorter than vanilla's longest wait");
+                assertEquals(Math.round(v[1] * (1 - cut)), t[1], "lure " + lure + " cut " + cut);
             }
         }
-        int[] fresh = FishSpec.Bite.split(40, 240);   // 2~12 s
-        assertEquals(40, fresh[0] + fresh[2]);
-        assertEquals(240, fresh[1] + fresh[3]);
-        int[] tiny = FishSpec.Bite.split(1, 1);
-        assertEquals(1, tiny[0]);
-        assertEquals(1, tiny[2]);
     }
 
     @Test

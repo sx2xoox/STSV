@@ -198,7 +198,7 @@ public final class TrapModule extends EcoModule {
             ItemStack it = Items.create(s.item(), 1).orElse(null);
             if (it == null) continue;
             if (fish().rarities().get(s.rarity()).index() >= 2) {
-                double size = FishSpec.size(s, rnd.nextDouble(), 0, false, 0);
+                double size = FishSpec.size(s, rnd.nextDouble(), 0);
                 FishingModule.markSize(it, size, FishSpec.priceFactor(s, size));
             }
             stack(t.stored, it);
