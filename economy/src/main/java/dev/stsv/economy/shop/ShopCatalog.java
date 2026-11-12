@@ -72,7 +72,20 @@ public record ShopCatalog(
     /** 수요 고시: every week on this weekday (at the reset hour), count items sell for multiplier x until the next one. */
     public record DemandNotice(java.time.DayOfWeek weekday, int count, double multiplier) {}
 
-    public record SellEntry(String id, double base, double q, Integer cap, String job) {}
+    /**
+     * A 판매 line. {@code floor}: this item's own price floor (share of the base), or null for the shop's floor (shop.yml floor). The raw
+     * custom crops have their own, lower floor: a field pours them out, so dumping one keeps falling toward 5% instead of stopping at 25%.
+     */
+    public record SellEntry(String id, double base, double q, Integer cap, String job, Double floor) {
+        public SellEntry(String id, double base, double q, Integer cap, String job) {
+            this(id, base, q, cap, job, null);
+        }
+    }
+
+    /** The floor of a sell line: its own, else the shop's. */
+    public double floor(SellEntry e) {
+        return e != null && e.floor() != null ? e.floor() : floor;
+    }
 
     /** A 판매 category: the items the shop buys, in order. */
     public record Category(String id, String name, String icon, List<String> items) {}
@@ -270,7 +283,8 @@ public record ShopCatalog(
             return null;
         }
         String id = norm(raw.replace('.', ':'));
-        return new SellEntry(id, e.getDouble("base"), e.getDouble("q"), e.contains("cap") ? e.getInt("cap") : null, e.getString("job"));
+        Double floor = e.contains("floor") ? Math.clamp(e.getDouble("floor"), 0.0, 1.0) : null;
+        return new SellEntry(id, e.getDouble("base"), e.getDouble("q"), e.contains("cap") ? e.getInt("cap") : null, e.getString("job"), floor);
     }
 
     /** { item: id, amount: n, price: p } or { cosmetic: id, price: p } or { title: id, price: p } */

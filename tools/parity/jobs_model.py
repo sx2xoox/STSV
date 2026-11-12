@@ -60,18 +60,26 @@ class Curve:
     def __init__(self, floor, depth, hourly, daily, kind, a=0.5):
         self.F, self.depth, self.hourly, self.daily, self.kind, self.a = floor, depth, hourly, daily, kind, a
 
-    def unit(self, base, s, q):
+    def unit(self, base, s, q, F=None):
+        F = self.F if F is None else F
         if self.kind == "pow":
-            return base * max(self.F, (1 + s / (q * self.depth)) ** (-self.a))
+            return base * max(F, (1 + s / (q * self.depth)) ** (-self.a))
         x = math.exp(-s / (q * self.depth))
         if self.kind == "kink":
-            return base * max(self.F, x)
-        return base * (self.F + (1 - self.F) * x)
+            return base * max(F, x)
+        return base * (F + (1 - F) * x)
 
-    def total(self, base, s, q, n):
-        """Closed form of the sum of n units from s (continuous; within a unit of the discrete sum)."""
+    def total(self, base, s, q, n, F=None):
+        """Closed form of the sum of n units from s (continuous; within a unit of the discrete sum). F: this item's floor
+        (shop.yml sell line `floor`), else the shop's."""
         if n <= 0:
             return 0.0
+        if F is not None and F != self.F:
+            saved, self.F = self.F, F
+            try:
+                return self.total(base, s, q, n)
+            finally:
+                self.F = saved
         Q = q * self.depth
         if self.kind == "pow":
             a = self.a
@@ -129,6 +137,12 @@ class W:
         self.q = {k: float(v) for k, v in self.w.q.items()}
         self.cap = {k: v for k, v in self.w.cap.items() if v}
         self.up = self.mach["upgrade"]
+        # a sell line's own floor (shop.yml `floor` on the line), else the shop's
+        self.floor = {}
+        for cc in self.shop["sell"].values():
+            for k, v in cc["items"].items():
+                if isinstance(v, dict) and "floor" in v:
+                    self.floor[M.norm(k)] = float(v["floor"])
 
     def value(self, item):
         return self.w.value(item)
@@ -470,7 +484,7 @@ class Ledger:
             return 0.0
         if item in self.W.cap and self.sold_today[item] + extra >= self.W.cap[item]:
             return 0.0
-        return self.c.unit(b, self.S[item] + extra, self.W.q[item])
+        return self.c.unit(b, self.S[item] + extra, self.W.q[item], self.W.floor.get(item))
 
     def sell(self, item, n, fac=1.0):
         b = self.W.base.get(item)
@@ -478,7 +492,7 @@ class Ledger:
             return 0.0
         if item in self.W.cap:
             n = min(n, max(0.0, self.W.cap[item] - self.sold_today[item]))
-        g = self.c.total(b, self.S[item], self.W.q[item], n) * fac
+        g = self.c.total(b, self.S[item], self.W.q[item], n, self.W.floor.get(item)) * fac
         self.S[item] += n
         self.sold_today[item] += n
         return g
