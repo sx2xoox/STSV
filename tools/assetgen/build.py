@@ -41,17 +41,20 @@ def main():
     from models import vehicles_road
     from models import vehicles_farm
     from models import vehicles_misc
+    from models import vehicle_lights
     import furniture_icons
     import vehicle_icons
     import vehicle_icons_road
     import vehicle_icons_farm
     import vehicle_icons_misc
-    ALL = {**ITEMS, **cosmetics.ALL, **furniture.ALL, **vehicles.ALL, **vehicles_road.ALL, **vehicles_farm.ALL, **vehicles_misc.ALL}
+    ALL = {**ITEMS, **cosmetics.ALL, **furniture.ALL, **vehicles.ALL, **vehicles_road.ALL, **vehicles_farm.ALL, **vehicles_misc.ALL,
+           **vehicle_lights.ALL}
     import special
 
     def home(name):
         return CONTENT if name in SHIPPED_MODELS or name in cosmetics.ALL or name in furniture.ALL or name in vehicles.ALL \
-            or name in vehicles_road.ALL or name in vehicles_farm.ALL or name in vehicles_misc.ALL else FIXTURE
+            or name in vehicles_road.ALL or name in vehicles_farm.ALL or name in vehicles_misc.ALL \
+            or name in vehicle_lights.ALL else FIXTURE
 
     for d in (CONTENT / "models", CONTENT / "textures", FIXTURE / "models", FIXTURE / "textures", BUILD, PREVIEWS):
         d.mkdir(parents=True, exist_ok=True)
@@ -71,6 +74,9 @@ def main():
         print(f"model   {name}: {len(model.elements)} elements")
         if render:
             render_preview(BUILD / f"{name}.preview.json", PREVIEWS / f"{name}.png")
+    # the lamp parts follow their bodies' lamps (models/vehicle_lights.py LAMPS): say so when a body moved them
+    for warning in vehicle_lights.check():
+        print(f"WARNING {warning}")
 
     for name, fn in T.ICONS.items():
         fn().save(CONTENT / "textures" / f"{name}.png")

@@ -146,23 +146,24 @@ public final class RoadModule extends EcoModule {
         STSVPlugin.get().admin().add(EcoPlugin.ADMIN_OWNER, "국도",
                 "<하역장> [기준점|여기서|새로|이어짓기] | <하역장> 미리보기 [기준점|여기서] | <하역장> 되돌리기 | 되돌리기 중지 | "
                         + "기준점 [설정|보기|초기화] | 중지 | 상태 | 표지판 정리 <하역장> | "
-                        + "표지판 다시세우기 [하역장|전체] | 난간고치기 [하역장|전체] | 눈치우기 [반경]",
+                        + "표지판 다시세우기 [하역장|전체] | 난간고치기 [하역장|전체] | 터널보수 [하역장|전체] | 눈치우기 [반경]",
                 "국도: 기준점(없으면 건축월드 스폰, 여기서 = 지금 자리)에서 하역장 입구까지 길 놓기 (멈췄던 것은 이어서, 새로 = 처음부터, "
                         + "이어짓기 = 다 지은 길의 끝에서 입구까지 모자란 곳만, 개인·서버 땅과 roads.avoid 는 피함) / 미리보기 = 살피고 길만 찾아 "
                         + "입자·요약·땅 밖 건물 경고 (짓지 않음, 60분 안에 같은 출발이면 그 길로 지음) / 되돌리기 = 그 길이 바꾼 블록을 원래대로 "
                         + "(그사이 바뀐 블록은 그대로) / 기준점 정하기 / 멈추기 / 진행 상황 / 그 길의 표지판 모두 치우기 / "
                         + "다 지은 길의 표지판(갈림길 안내·돌아가는 길·km)을 저장된 길에서 다시 계산해 바꿔 세우기 / 반 칸 위에 떠 있던 난간·기둥 밑에 받침 넣기 / "
+                        + "이미 지은 굴을 오르내리는 곳에서 높여 모든 탈것(탑차)이 지나가게 / "
                         + "둘레(기본 64, 최대 " + SNOW_MAX + "블록) 도로·하역장·터미널의 눈 치우기",
                 this::command, (s, a) -> {
                     if (a.length == 1) {
                         List<String> out = new ArrayList<>(eco.docks().names());
-                        out.addAll(List.of("기준점", "중지", "상태", "표지판", "눈치우기", "난간고치기", "되돌리기"));
+                        out.addAll(List.of("기준점", "중지", "상태", "표지판", "눈치우기", "난간고치기", "터널보수", "되돌리기"));
                         return out;
                     }
                     if (a[0].equals("기준점")) return a.length == 2 ? List.of("설정", "보기", "초기화") : List.of();
                     if (a[0].equals("되돌리기")) return a.length == 2 ? List.of("중지") : List.of();
                     if (a.length == 3 && a[1].equals("미리보기")) return List.of("기준점", "여기서");
-                    if (a[0].equals("난간고치기")) return a.length == 2 ? withAll() : List.of();
+                    if (a[0].equals("난간고치기") || a[0].equals("터널보수")) return a.length == 2 ? withAll() : List.of();
                     if (a[0].equals("표지판")) return a.length == 2 ? List.of("정리", "다시세우기")
                             : a.length == 3 ? (a[1].equals("다시세우기") ? withAll() : new ArrayList<>(eco.docks().names())) : List.of();
                     return a.length == 2 ? List.of("기준점", "여기서", "새로", "이어짓기", "미리보기", "되돌리기") : List.of();
@@ -558,9 +559,9 @@ public final class RoadModule extends EcoModule {
             s.sendMessage(Lang.msg("road.snow-cleared", "blocks", clearSnow(p, r), "radius", r));
             return;
         }
-        if (a[0].equals("난간고치기") || (a[0].equals("표지판") && a.length > 1 && a[1].equals("다시세우기"))) {
-            boolean rails = a[0].equals("난간고치기");
-            String target = a.length > (rails ? 1 : 2) ? a[rails ? 1 : 2] : ALL;
+        if (a[0].equals("난간고치기") || a[0].equals("터널보수") || (a[0].equals("표지판") && a.length > 1 && a[1].equals("다시세우기"))) {
+            boolean rails = a[0].equals("난간고치기"), bore = a[0].equals("터널보수");
+            String target = a.length > (rails || bore ? 1 : 2) ? a[rails || bore ? 1 : 2] : ALL;
             if (!target.equals(ALL) && eco.docks().dock(target) == null) {
                 s.sendMessage(Lang.msg("dock.unknown", "name", target));
                 return;
@@ -577,7 +578,8 @@ public final class RoadModule extends EcoModule {
                 Player q = who == null ? null : Bukkit.getPlayer(who);
                 if (q != null) q.sendActionBar(c);
             };
-            if (rails) fixRails(to, bar, target);
+            if (bore) rebore(to, bar, target);
+            else if (rails) fixRails(to, bar, target);
             else resign(to, bar, target);
             return;
         }
@@ -1088,7 +1090,7 @@ public final class RoadModule extends EcoModule {
             water[n - 1] = false;
         }
         int[] cross = net.crossings(points);
-        RoadProfile.Plan plan = RoadProfile.planNetwork(ground, water, surface, cross);
+        RoadProfile.Plan plan = RoadProfile.planNetwork(ground, water, surface, cross, net.headroom(points));
         RoadProfile.Part[] parts = RoadProfile.partsHalves(plan.halves(), ground, water, BRIDGE_GAP, TUNNEL_COVER, MIN_RUN);
         for (int i = 0; i < n; i++) if (plan.over()[i]) parts[i] = RoadProfile.Part.BRIDGE;   // over another road
         return new Profile(plan.halves(), plan.over(), parts, cross, ground);
@@ -1406,6 +1408,83 @@ public final class RoadModule extends EcoModule {
     }
 
     /**
+     * /관리자 국도 터널보수 [하역장|전체]: the tunnels of roads already built, made as high as a road builds them now
+     * ({@link RoadClearance}: on a grade the ceiling clears the highest surface a vehicle's length away, so the box truck
+     * no longer sticks coming down). A cross-section at a time ({@link RoadSection#rebore}: only from the old ceiling up,
+     * only the tunnel's own blocks, the ground's and air; never a player's block, protected land or another road's lanes;
+     * a flat tunnel is left as it is), chunks loaded a few at a time, roads.blocks-per-tick blocks a tick, paused or
+     * slowed while the server is busy (roads.max-mspt). What changes goes into the road's undo record when it has one.
+     */
+    void rebore(java.util.function.Consumer<Component> to, java.util.function.Consumer<Component> bar, String target) {
+        Homes homes = homes();
+        Bukkit.getScheduler().runTaskAsynchronously(eco, () -> {
+            // off the main thread: the roads read, their parts worked out, the other roads round each laid out
+            Map<String, List<RoadGuide.Road>> mine = new HashMap<>();
+            Map<String, Map<String, RoadNetwork>> others = new HashMap<>();
+            for (Map.Entry<String, Map<String, RoadJob[]>> e : savedRoads().entrySet()) {
+                List<RoadGuide.Road> all = guideRoads(homes, e.getKey(), e.getValue());
+                List<RoadGuide.Road> these = new ArrayList<>();
+                Map<String, RoadNetwork> nets = new HashMap<>();
+                for (RoadGuide.Road r : all) {
+                    if (!(target.equals(ALL) || r.dock().equals(target)) || !java.util.Arrays.asList(r.parts()).contains(RoadProfile.Part.TUNNEL)) continue;
+                    these.add(r);
+                    List<RoadNetwork.Road> rest = new ArrayList<>();
+                    for (RoadGuide.Road o : all) if (!o.dock().equals(r.dock())) rest.add(new RoadNetwork.Road(o.dock(), o.points(), o.halves()));
+                    nets.put(r.dock(), RoadNetwork.of(rest));
+                }
+                if (these.isEmpty()) continue;
+                mine.put(e.getKey(), these);
+                others.put(e.getKey(), nets);
+            }
+            Bukkit.getScheduler().runTask(eco, () -> rebore(to, bar, mine, others));
+        });
+    }
+
+    private void rebore(java.util.function.Consumer<Component> to, java.util.function.Consumer<Component> bar, Map<String, List<RoadGuide.Road>> mine,
+                        Map<String, Map<String, RoadNetwork>> others) {
+        int roadsN = 0, points = 0;
+        long[] changed = {0};
+        Map<String, RoadUndo.Recorder> recs = new HashMap<>();
+        for (Map.Entry<String, List<RoadGuide.Road>> e : mine.entrySet()) {
+            World w = Bukkit.getWorld(e.getKey());
+            if (w == null) continue;
+            Batch b = new Batch(w, Lang.raw("road.batch-tunnels"));
+            b.blocks = new BlockBudget(settings.blocksPerTick());
+            for (RoadGuide.Road r : e.getValue()) {
+                roadsN++;
+                RoadUndo.Recorder rec = hasUndo(r.dock()) ? recs.computeIfAbsent(r.dock(), k -> new RoadUndo.Recorder()) : null;
+                RoadSection sec = new RoadSection(site(w, rec, guardBase, others.get(e.getKey()).get(r.dock())), settings.style(), r.points(), r.halves(),
+                        r.parts(), r.dock(), r.route());
+                for (int i = 0; i < r.parts().length; i++) {
+                    if (r.parts()[i] != RoadProfile.Part.TUNNEL) continue;
+                    points++;
+                    int at = i;
+                    double[] p = r.points().get(i);
+                    b.add(p[0], p[1], RoadSection.HALF + RoadSection.WIDEN + 2, () -> {
+                        int n = sec.rebore(at);
+                        changed[0] += n;
+                        b.cost = n;
+                    });
+                }
+            }
+            b.done = () -> {
+                recs.forEach((dock, rec) -> {
+                    RoadUndo.Taken t = rec.take();
+                    if (t != null) files.append(dock + ".undo", t::record);
+                });
+                to.accept(Lang.msg("road.tunnels-done", "blocks", changed[0]));
+            };
+            b.bar = bar;
+            if (!b.empty()) batches.add(b);
+        }
+        if (roadsN == 0) {
+            to.accept(Lang.msg("road.tunnels-none"));
+            return;
+        }
+        to.accept(Lang.msg("road.tunnels-start", "roads", roadsN, "points", points));
+    }
+
+    /**
      * Work done chunk by chunk: each piece needs the chunks round a point loaded; they are loaded (or generated) a few at a
      * time and held while needed (at most about 32), and a piece runs once all of its are in. A chunk that fails to load:
      * its pieces are left out.
@@ -1422,6 +1501,9 @@ public final class RoadModule extends EcoModule {
         java.util.function.Consumer<Component> bar;
         ChunkQueue q;
         int cursor, queued, age;
+        /** blocks a tick (/관리자 국도 터널보수: roads.blocks-per-tick), or null: pieces only; what the last piece set */
+        BlockBudget blocks;
+        long cost;
 
         Batch(World w, String what) {
             this.w = w;
@@ -1453,7 +1535,8 @@ public final class RoadModule extends EcoModule {
             }
             q.pump(allow.concurrent());
             int n = 0, most = allow.run() ? (int) Math.ceil(60 * allow.share()) : 0;   // the server busy: fewer pieces, or none
-            while (cursor < work.size() && n < most) {
+            if (blocks != null) blocks.tick(allow.share());
+            while (cursor < work.size() && n < most && (blocks == null || blocks.any())) {
                 boolean ready = true;
                 for (long k : need.get(cursor)) ready &= holding.containsKey(k);
                 if (!ready) {
@@ -1463,7 +1546,9 @@ public final class RoadModule extends EcoModule {
                     }
                     break;
                 }
+                cost = 0;
                 work.get(cursor).run();
+                if (blocks != null) blocks.spend(Math.max(1, cost));
                 cursor++;
                 n++;
             }
@@ -2087,6 +2172,11 @@ public final class RoadModule extends EcoModule {
      * protected land as the guard says.
      */
     private RoadSection.Site site(World w, RoadUndo.Recorder rec, RoadGuard guard) {
+        return site(w, rec, guard, null);
+    }
+
+    /** As above, the other roads it keeps clear of: roads (null: the job's network). */
+    private RoadSection.Site site(World w, RoadUndo.Recorder rec, RoadGuard guard, RoadNetwork roads) {
         return new RoadSection.Site() {
             public boolean inside(int y) {
                 return y >= w.getMinHeight() && y < w.getMaxHeight();
@@ -2142,7 +2232,8 @@ public final class RoadModule extends EcoModule {
             }
 
             public RoadNetwork.Spot road(int x, int z) {
-                return net == null ? null : net.at(x, z);
+                RoadNetwork n = roads != null ? roads : net;
+                return n == null ? null : n.at(x, z);
             }
 
             public Material get(int x, int y, int z) {

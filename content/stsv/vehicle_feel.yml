@@ -1,0 +1,174 @@
+# 탈것의 느낌: 짐 무게 · 언덕 · 바퀴 밑 흙먼지 · 불빛 · 시동 · 서스펜션 · 사람 힘(배고픔). README "탈것의 느낌".
+# 모든 탈것에 공통 (균형에는 거의 영향 없음: 짐이 가득일 때 최고 속도가 조금 줄어드는 정도).
+# 탈것마다의 설정은 맨 아래 vehicles: 에서 아이템 id 로 (없는 탈것은 power: engine 의 기본값, 불빛·시동 소리 없음).
+# 소리는 tools/assetgen/sounds_feel.py, 불빛 모델은 tools/assetgen/models/vehicle_lights.py 가 만듦.
+
+# ------------------------------------------------------------------------------------------------
+# 짐 무게와 언덕: 무엇이 끄는지(power)에 따라
+#   top-loss      짐을 가득(적재 무게만큼) 실으면 최고 속도가 이만큼 줄어듦 (0.07 = 7%). 짐 무게 ÷ 적재 무게에 비례
+#                 (무게를 모르는 서버: 찬 칸 수 ÷ 칸 수)
+#   accel-loss    짐을 가득 실으면 가속이 이만큼 줄어듦 (느리게 출발)
+#   uphill        오르막: 기울기 1 (한 칸 가며 한 칸 오름) 에서 최고 속도·가속이 이만큼 줄어듦 (빈 차는 그 절반, 짐이 많을수록 더)
+#   downhill      내리막(바퀴 달린 것만): 기울기 1 에서 최고 속도가 이만큼 빨라짐, 그러나 downhill-max 까지만
+#                 (서버 상한 vehicles.max-speed 는 넘지 않음)
+# 기울기는 탈것이 최근 2.5칸쯤 오르내린 높이로 잼 (계단 길 = 0.5)
+# ------------------------------------------------------------------------------------------------
+power:
+  engine:                 # 엔진 (오토바이, 차, 경운기, 트랙터, 배)
+    top-loss: 0.07
+    accel-loss: 0.3
+    uphill: 0.3
+    downhill: 0.15
+    downhill-max: 0.08
+  muscle:                 # 사람 힘 (리어카, 짐자전거, 지게)
+    top-loss: 0.15
+    accel-loss: 0.5
+    uphill: 0.5
+    downhill: 0.2
+    downhill-max: 0.1
+  animal:                 # 소 (소달구지)
+    top-loss: 0.12
+    accel-loss: 0.4
+    uphill: 0.4
+    downhill: 0.1
+    downhill-max: 0.05
+
+# ------------------------------------------------------------------------------------------------
+# 바퀴 밑 흙먼지: 흙·흙길·밭·모래·자갈 = 흙먼지, 진흙 = 진흙 튐, 얕은 물 = 물 튐, 눈 = 눈가루 (잔디·돌·길은 없음)
+#   every       몇 틱마다 (탈것마다 따로, 1초 = 20틱)
+#   min-speed   이보다 빠를 때만 (블록/초)
+#   range       이 거리 안에 플레이어가 있는 탈것만 (블록). 파티클은 32칸 안의 사람에게만 보임
+# ------------------------------------------------------------------------------------------------
+ground-effects:
+  enabled: true
+  every: 3
+  min-speed: 1.5
+  range: 32
+
+# ------------------------------------------------------------------------------------------------
+# 불빛 (엔진 탈것, 운전석에 사람이 있을 때): 어두우면 전조등·미등, 브레이크를 밟으면 브레이크등, 후진하면 후진등
+#   on-below / off-above   주변 밝기(0~15, 블록 불빛과 그 시각의 하늘 밝기 중 큰 것)가 on-below 이하면 켜지고
+#                          off-above 이상이면 꺼짐 (그 사이는 그대로: 깜빡이지 않음)
+#   brake-hold             브레이크등이 켜져 있는 가장 짧은 시간 (틱)
+#   reverse-beep           후진 경고음 "삐-삐-" (탈것마다 reverse-beep: true 일 때): sound, volume (1 = 16칸), every 몇 틱마다
+# 불빛 부품은 늘 가장 밝게 그림 (주변이 어두워도 빛나 보임). 실제로 주변 블록을 밝히지는 않음
+# ------------------------------------------------------------------------------------------------
+lights:
+  on-below: 7
+  off-above: 10
+  brake-hold: 4
+  reverse-beep: { sound: stsv:vehicle.common.reverse_beep, volume: 0.6, every: 14 }
+
+# ------------------------------------------------------------------------------------------------
+# 서스펜션: 턱을 넘거나 내려설 때 몸체가 출렁이고(바퀴는 땅에), 출발·브레이크에 앞뒤로 끄덕이고, 돌 때 짐이 흔들림
+#   bounce      턱 하나에 몸체가 내려앉는 깊이 (블록)
+#   pitch       턱 하나·급브레이크에 앞뒤로 끄덕이는 각도 (도)
+#   sway        짐이 옆으로 흔들리는 가장 큰 각도 (도)
+#   range       이 거리 안에 플레이어가 있을 때만 움직임을 보냄 (블록)
+# 탈것마다 bounce: 0 이면 출렁이지 않음, idle-shake 는 공회전 떨림 (블록, 0 = 없음)
+# ------------------------------------------------------------------------------------------------
+suspension:
+  enabled: true
+  bounce: 0.05
+  pitch: 2.0
+  sway: 2.5
+  range: 40
+
+# ------------------------------------------------------------------------------------------------
+# 사람 힘 (effort): 끌거나 타고 가는 거리만큼 배고픔이 조금 줄어듦 (exhaustion: 4 = 배고픔 반 칸, 달리기는 1블록에 0.1)
+#   per-block           빈 채로 1블록마다
+#   per-block-loaded    짐이 가득일 때 1블록마다 더 (짐 무게 ÷ 적재 무게에 비례)
+#   uphill              오르막에서 더 (기울기 1 에서 이만큼 배)
+# 예: 리어카를 가득 싣고 평지 1000블록 = (0.01 + 0.03) × 1000 = 40 = 배고픔 5칸 (반 칸 10개)
+# ------------------------------------------------------------------------------------------------
+
+# ------------------------------------------------------------------------------------------------
+# 탈것마다 (아이템 id)
+#   power         engine / muscle / animal (위)
+#   lights        불빛 모델: head 전조등, tail 미등, brake 브레이크등, reverse 후진등 (빼면 그 불빛 없음)
+#   reverse-beep  true = 후진할 때 "삐-삐-"
+#   engine-start  시동 소리 (운전석에 탈 때, 엔진이 꺼져 있으면): sound, volume, ticks (이 틱 뒤에 엔진 소리 시작)
+#   engine-stop   시동 끄는 소리 (마지막 사람이 내릴 때): sound, volume. 엔진은 손님만 남아도 공회전으로 계속 돎
+#   idle-shake    공회전(서 있음) 중 몸체가 떠는 폭 (블록)
+#   bounce        서스펜션 배율 (1 = 위의 값 그대로, 0 = 출렁이지 않음)
+#   pedal-bob     페달을 밟을 때 타는 사람이 오르내리는 폭 (블록, 짐자전거)
+#   effort        사람 힘 (위 설명). 지게는 걷는 거리, 리어카는 끄는 거리, 짐자전거는 타고 간 거리
+# ------------------------------------------------------------------------------------------------
+vehicles:
+  police_car:
+    power: engine
+    lights: { head: police_car_lamp_head, tail: police_car_lamp_tail, brake: police_car_lamp_brake, reverse: police_car_lamp_reverse }
+    engine-start: { sound: stsv:vehicle.police_car.engine_start, volume: 0.6, ticks: 20 }
+    engine-stop: { sound: stsv:vehicle.police_car.engine_stop, volume: 0.5 }
+    idle-shake: 0.006
+  light_truck:
+    power: engine
+    lights: { head: light_truck_lamp_head, tail: light_truck_lamp_tail, brake: light_truck_lamp_brake, reverse: light_truck_lamp_reverse }
+    reverse-beep: true
+    engine-start: { sound: stsv:vehicle.light_truck.engine_start, volume: 0.7, ticks: 24 }
+    engine-stop: { sound: stsv:vehicle.light_truck.engine_stop, volume: 0.6 }
+    idle-shake: 0.01
+  golf_cart:
+    power: engine
+    lights: { head: golf_cart_lamp_head, tail: golf_cart_lamp_tail, brake: golf_cart_lamp_brake }
+    engine-start: { sound: stsv:vehicle.golf_cart.engine_start, volume: 0.4, ticks: 8 }
+    engine-stop: { sound: stsv:vehicle.golf_cart.engine_stop, volume: 0.35 }
+    idle-shake: 0
+  hand_cart:
+    power: muscle
+    bounce: 0.8
+    effort: { per-block: 0.01, per-block-loaded: 0.03, uphill: 1.0 }
+  cargo_bicycle:
+    power: muscle
+    bounce: 0.6
+    pedal-bob: 0.035
+    effort: { per-block: 0.006, per-block-loaded: 0.02, uphill: 1.0 }
+  delivery_scooter:
+    power: engine
+    lights: { head: delivery_scooter_lamp_head, tail: delivery_scooter_lamp_tail, brake: delivery_scooter_lamp_brake }
+    engine-start: { sound: stsv:vehicle.delivery_scooter.engine_start, volume: 0.6, ticks: 16 }
+    engine-stop: { sound: stsv:vehicle.delivery_scooter.engine_stop, volume: 0.5 }
+    idle-shake: 0.008
+    bounce: 0.7
+  atv:
+    power: engine
+    lights: { head: atv_lamp_head, tail: atv_lamp_tail, brake: atv_lamp_brake }
+    engine-start: { sound: stsv:vehicle.atv.engine_start, volume: 0.65, ticks: 18 }
+    engine-stop: { sound: stsv:vehicle.atv.engine_stop, volume: 0.55 }
+    idle-shake: 0.012
+  cargo_van:
+    power: engine
+    lights: { head: cargo_van_lamp_head, tail: cargo_van_lamp_tail, brake: cargo_van_lamp_brake, reverse: cargo_van_lamp_reverse }
+    reverse-beep: true
+    engine-start: { sound: stsv:vehicle.cargo_van.engine_start, volume: 0.6, ticks: 20 }
+    engine-stop: { sound: stsv:vehicle.cargo_van.engine_stop, volume: 0.5 }
+    idle-shake: 0.007
+  box_truck:
+    power: engine
+    lights: { head: box_truck_lamp_head, tail: box_truck_lamp_tail, brake: box_truck_lamp_brake, reverse: box_truck_lamp_reverse }
+    reverse-beep: true
+    engine-start: { sound: stsv:vehicle.box_truck.engine_start, volume: 0.75, ticks: 28 }
+    engine-stop: { sound: stsv:vehicle.box_truck.engine_stop, volume: 0.65 }
+    idle-shake: 0.012
+    bounce: 0.8
+  ox_cart:
+    power: animal
+    bounce: 0.8
+  power_tiller:
+    power: engine
+    lights: { head: power_tiller_lamp_head }
+    engine-start: { sound: stsv:vehicle.power_tiller.engine_start, volume: 0.7, ticks: 30 }
+    engine-stop: { sound: stsv:vehicle.power_tiller.engine_stop, volume: 0.6 }
+    idle-shake: 0.02
+  tractor_trailer:
+    power: engine
+    lights: { head: tractor_lamp_head, tail: tractor_lamp_tail, brake: tractor_lamp_brake }
+    engine-start: { sound: stsv:vehicle.tractor_trailer.engine_start, volume: 0.75, ticks: 28 }
+    engine-stop: { sound: stsv:vehicle.tractor_trailer.engine_stop, volume: 0.65 }
+    idle-shake: 0.015
+  fishing_boat:
+    power: engine
+    bounce: 0
+  jige:
+    power: muscle
+    effort: { per-block: 0.008, per-block-loaded: 0.025, uphill: 1.0 }
