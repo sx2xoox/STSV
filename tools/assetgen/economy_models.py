@@ -154,3 +154,7 @@ ALL.update(DOCKS.ALL)
 # 국도 direction sign (models/roads.py): posts, the green panel, its frame
 from models import roads as ROADS   # noqa: E402
 ALL.update(ROADS.ALL)
+
+# 통발 · 가두리 (models/fishing_gear.py): the fisher's water furniture
+from models import fishing_gear as FISHING_GEAR   # noqa: E402
+ALL.update(FISHING_GEAR.ALL)

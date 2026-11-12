@@ -215,12 +215,14 @@ class ContentTest {
         if (!titles.contains("master_angler")) problems.add("title master_angler");
         assertEquals(3, fish.species().values().stream().filter(x -> x.item().startsWith("minecraft:")).count(), "cod, salmon, pufferfish");
 
-        // the shape: 6 jobs, 6 finds, 8 special materials, 148 job machine goods + 9 press goods, 6 job machines + the press,
+        // the shape: 6 jobs, 6 finds, 8 special materials, 157 job machine goods + 9 press goods (the fisher's 4 prepared fish, the
+        // cook's 4 dishes of them and the mill's fish feed among them), 6 job machines + the press, the 통발 and the 가두리,
         // 32 crop items (15 seeds, 17 harvests), 92 fish
         assertEquals(6, jobs.jobs().size());
-        assertEquals(6 + 8 + 157 + 7 + 32 + 92, ours.size(), "6 finds + 8 specials + 157 goods + 7 machines + 32 crop items + 92 fish");
+        assertEquals(6 + 8 + 166 + 7 + 2 + 32 + 92, ours.size(),
+                "6 finds + 8 specials + 166 goods + 7 machines + 2 fishing gear + 32 crop items + 92 fish");
         assertEquals(7, machines.size());
-        assertEquals(157, machines.values().stream().flatMap(x -> x.recipes().stream()).map(MachineSpec.Recipe::output).distinct().count());
+        assertEquals(166, machines.values().stream().flatMap(x -> x.recipes().stream()).map(MachineSpec.Recipe::output).distinct().count());
         // every special material is an item of ours, and the shop does not buy it (players trade it)
         for (String sp : jobs.specials().keySet()) {
             if (!exists(sp, ours)) problems.add("special item: " + sp);

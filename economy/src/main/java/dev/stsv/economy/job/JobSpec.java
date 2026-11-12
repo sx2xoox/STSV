@@ -150,6 +150,13 @@ public record JobSpec(int maxLevel, double a, double b, ChangeCost changeCost, i
         }
     }
 
+    /**
+     * The [Lv1, Lv30] effects a job may have: extra (ore drops), save (gear crafting), bite (a shorter wait for a bite), and the
+     * fisher's trap-speed (traps and pens cycle that share faster), trap-uncommon / trap-rare (added to a trap's chances) and
+     * boat-rare (added to the rare bite chance while riding a boat).
+     */
+    public static final List<String> RANGES = List.of("extra", "save", "bite", "trap-speed", "trap-uncommon", "trap-rare", "boat-rare");
+
     /** Cumulative XP a level needs: a(n-1)² + b(n-1) (Lv1 = 0). */
     public double xpFor(int level) {
         int n = Math.max(1, Math.min(level, maxLevel)) - 1;
@@ -205,7 +212,7 @@ public record JobSpec(int maxLevel, double a, double b, ChangeCost changeCost, i
                 ConfigurationSection j = js.getConfigurationSection(id);
                 if (j == null) continue;
                 Map<String, Range> ranges = new LinkedHashMap<>();
-                for (String k : List.of("extra", "save", "bite")) {
+                for (String k : RANGES) {
                     Range r = range(j, k);
                     if (r != null) ranges.put(k, r);
                 }

@@ -133,6 +133,8 @@ mill:
     - { in: { economy:corn: 43, sugar: 1 }, out: economy:gangnaengi, seconds: 160 }   # 강냉이 42G (튀김)
     - { in: { economy:onion: 58 }, out: economy:onion_juice, seconds: 85 }   # 양파즙 39G
     - { in: { economy:radish: 62 }, out: economy:mumallaengi, seconds: 960 }   # 무말랭이 34G (썰어 말림)
+    # ── 새 레시피: 줄에 고정한 레시피는 목록 순서(번호)로 저장되므로, 새 레시피는 항상 맨 뒤에 붙임 ──
+    - { in: { economy:soybean: 32, economy:corn: 16 }, out: economy:fish_feed, amount: 4, seconds: 160 }   # 생선 사료 7G (가두리 먹이: 어부에게 팔기)
 
 fish_bench:
   name: "손질대"
@@ -163,6 +165,11 @@ fish_bench:
     - { in: { economy:sand_lance: 6 }, out: economy:fish_sauce, amount: 2, seconds: 1200, tier: 1, aging: true }   # 까나리 액젓 75G
     # ── 새 레시피: 줄에 고정한 레시피는 목록 순서(번호)로 저장되므로, 새 레시피는 항상 맨 뒤에 붙임 ──
     - { in: { economy:caviar: 1, economy:smoked_salmon: 4, economy:fishcake: 3 }, out: economy:seafood_feast, seconds: 960, tier: 3 }   # 해물 한상 1185G (캐비아·훈제 연어·어묵 한 상)
+    # ── 새 레시피 (통발·가두리로 늘어난 보통 생선 -> 요리사가 쓰는 손질감: 조리대의 물회·건어물 볶음·보쌈·어묵탕) ──
+    - { in: { economy:flatfish: 2 }, out: economy:flatfish_hoe, seconds: 150 }   # 광어회 54G
+    - { in: { economy:filefish: 4 }, out: economy:dried_fish, amount: 2, seconds: 60 }   # 건어물 31G (쥐포로 말림)
+    - { in: { economy:shrimp_meat: 2 }, out: economy:saeujeot, seconds: 150 }   # 새우젓 94G (새우살을 소금에 절임)
+    - { in: { "#economy:white_fish": 4, economy:flour: 1 }, out: economy:fish_paste, amount: 2, seconds: 80, tier: 1 }   # 어묵 반죽 28.5G
 
 forge:
   name: "대장간"
@@ -255,6 +262,11 @@ kitchen:
     - { in: { chicken: 1, economy:wild_ginseng: 1, economy:garlic: 29 }, out: economy:ginseng_samgyetang, amount: 2, seconds: 520, tier: 1 }   # 산삼 삼계탕 131G
     - { in: { economy:abalone: 1, economy:rice: 1 }, out: economy:abalone_porridge, amount: 2, seconds: 75, tier: 1 }   # 전복죽 56G
     - { in: { economy:potato_starch: 2, economy:onion: 15, carrot: 8 }, out: economy:japchae, amount: 2, seconds: 150 }   # 잡채 42G (감자 전분 당면)
+    # ── 새 레시피 (어부의 손질감: 손질대에서만 나옴 -> 요리사가 어부에게서 삼) ──
+    - { in: { economy:flatfish_hoe: 1, economy:cucumber: 16, economy:chili_powder: 1 }, out: economy:mulhoe, amount: 2, seconds: 300, tier: 1 }   # 물회 111G
+    - { in: { economy:fish_paste: 2, economy:radish: 32, economy:green_onion: 16 }, out: economy:eomuktang, amount: 2, seconds: 200 }   # 어묵탕 68G
+    - { in: { economy:saeujeot: 1, economy:kimchi: 1, porkchop: 4 }, out: economy:bossam, amount: 2, seconds: 360, tier: 2 }   # 보쌈 210G (새우젓·김치에 수육)
+    - { in: { economy:dried_fish: 2, economy:soy_sauce: 1, sugar: 2 }, out: economy:dried_fish_stirfry, amount: 2, seconds: 240, tier: 1 }   # 건어물 볶음 106G
 
 still:
   name: "증류기"

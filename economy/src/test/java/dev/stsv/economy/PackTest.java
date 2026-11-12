@@ -35,9 +35,9 @@ class PackTest {
         try (var s = Files.list(PACK.resolve("models"))) {
             models = s.filter(p -> p.toString().endsWith(".bbmodel")).sorted().toList();
         }
-        assertEquals(7 * 4 + 3 * 4 + 77 + 9 + 1 + 1 + 5, models.size(),
+        assertEquals(7 * 4 + 3 * 4 + 77 + 9 + 1 + 1 + 5 + 2, models.size(),
                 "7 machines in 4 tiers, 3 spinning parts in 4 tiers, 77 growth stages of 17 crops, 9 하역장 props (6 container colours), the 국도 sign, "
-                        + "its guide sign and its 5 arrows");
+                        + "its guide sign and its 5 arrows, the 통발 and the 가두리");
         for (Path p : models) {
             String name = p.getFileName().toString().replace(".bbmodel", "");
             BBModelConverter.Result r = BBModelConverter.convert(p, "economy:item/" + name);

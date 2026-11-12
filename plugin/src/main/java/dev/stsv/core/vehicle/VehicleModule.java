@@ -1693,6 +1693,21 @@ public final class VehicleModule implements StsvModule, Listener {
     }
 
     /**
+     * Is this player sitting in a boat (a vehicle that floats, e.g. the 통통배), in any seat? Content plugins use it for what
+     * fishing from a boat changes (the economy's fisher bonus).
+     */
+    public boolean ridingBoat(Player p) {
+        Long id = p == null ? null : partOf(p.getVehicle());
+        LiveVehicle v = id == null ? null : live.get(id);
+        return v != null && boatSeat(v.spec, v.seatOf(p));
+    }
+
+    /** A seat (index, -1 = not one of its riders) of a vehicle of this kind is a seat in a boat. */
+    static boolean boatSeat(VehicleSpec spec, int seat) {
+        return spec != null && spec.floats() && seat >= 0;
+    }
+
+    /**
      * Where someone may be brought to a player sitting in a vehicle (/tpa to a rider: their own spot is a seat above the
      * ground): the safe spot beside their seat a rider steps out to. null = they ride no vehicle, or there is none.
      */

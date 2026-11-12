@@ -169,7 +169,9 @@ public final class FishingModule extends EcoModule implements WeeklyListener {
         boolean underground = b.getLightFromSky() == 0 && b.getY() < w.getSeaLevel() - 8;
         String habitat = FishSpec.habitat(b.getBiome().getKey().asString(), underground);
         FishSpec.Moment m = new FishSpec.Moment(w.getTime(), w.hasStorm(), w.isThundering(), (int) ((w.getFullTime() / 24000) % 8));
-        double rare = eco.jobs().findChance(u, "fisher");
+        // a fisher fishing from a boat (sitting in a 통통배) gets the job's boat-rare on top
+        boolean onBoat = core.vehicles() != null && core.vehicles().ridingBoat(p);
+        double rare = rareChance(eco.jobs().findChance(u, "fisher"), eco.jobs().effect(u, "fisher", "boat-rare"), onBoat);
         FishSpec.Rarity tier = spec.tier(rare, rnd);
         FishSpec.Species s;
         if (force != null) {
@@ -315,16 +317,7 @@ public final class FishingModule extends EcoModule implements WeeklyListener {
         int count = fisher && fj != null && fj.finds() != null && g.level >= fj.finds().doubleLevel() && fj.finds().doubleItems().contains(s.item()) ? 2 : 1;
         ItemStack it = Items.create(s.item(), count).orElse(new ItemStack(Material.COD, count));
         double factor = FishSpec.priceFactor(s, size);
-        if (!pearl && r.index() >= 2) {
-            // rare and legend fish keep their size (they do not stack, the shop pays by it)
-            it.editMeta(meta -> {
-                List<Component> lore = meta.hasLore() ? new ArrayList<>(meta.lore()) : new ArrayList<>();
-                lore.add(Lang.item("fishing.size-lore", "size", String.format("%.1f", size), "pct", Math.round(factor * 100)));
-                meta.lore(lore);
-                meta.getPersistentDataContainer().set(SIZE, PersistentDataType.DOUBLE, size);
-                meta.getPersistentDataContainer().set(FACTOR, PersistentDataType.DOUBLE, factor);
-            });
-        }
+        if (!pearl && r.index() >= 2) markSize(it, size, factor);   // rare and legend fish keep their size (they do not stack, the shop pays by it)
         for (ItemStack left : p.getInventory().addItem(it).values()) p.getWorld().dropItemNaturally(p.getLocation(), left);
         // what vanilla would have given: experience, rod wear, the statistic
         p.giveExp(1 + rnd.nextInt(6), true);   // applyMending: like the orb a vanilla catch drops, Mending gear takes it first
@@ -350,6 +343,25 @@ public final class FishingModule extends EcoModule implements WeeklyListener {
             p.sendMessage(Lang.msg("fishing.new-species", "fish", s.name()));
         }
         weeklyRecord(p, s, size);
+    }
+
+    /** A rare or legend fish's size on its item: the lore line and the size and price factor the shop reads. */
+    public static void markSize(ItemStack it, double size, double factor) {
+        it.editMeta(meta -> {
+            List<Component> lore = meta.hasLore() ? new ArrayList<>(meta.lore()) : new ArrayList<>();
+            lore.add(Lang.item("fishing.size-lore", "size", String.format("%.1f", size), "pct", Math.round(factor * 100)));
+            meta.lore(lore);
+            meta.getPersistentDataContainer().set(SIZE, PersistentDataType.DOUBLE, size);
+            meta.getPersistentDataContainer().set(FACTOR, PersistentDataType.DOUBLE, factor);
+        });
+    }
+
+    /**
+     * The chance of a rare or legend bite: the job's finds chance (anyone else: the outsider chance) and, while riding a boat
+     * (통통배), the job's boat-rare on top (0 for anyone but a fisher: it is the fisher's effect).
+     */
+    public static double rareChance(double finds, double boatBonus, boolean onBoat) {
+        return Math.clamp(finds + (onBoat ? Math.max(0, boatBonus) : 0), 0, 1);
     }
 
     /** kv fish.week = "week;player;species;size" of the week's biggest catch (by length). */

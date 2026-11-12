@@ -85,8 +85,9 @@ public final class RenderBudget {
                 for (Map<?, ?> sp : v.getMapList("spinners")) if (sp.get("model") != null) shown.add(sp.get("model").toString());
                 for (String p : shown) out.put(local(namespace, p), Category.VEHICLE_PART);
                 trainCategories(namespace, v.getConfigurationSection("train"), out);
-            } else if (f != null && (f.contains("behavior") || f.contains("parts"))) {
-                // a machine: its tier looks <base>_0 .. <base>_3, and the same for each spinning part
+            } else if (f != null && (f.contains("behavior") || f.contains("parts")) && model.matches(".*_\\d+")) {
+                // a machine (a behavior or parts, and a tier look in its model name): its tier looks <base>_0 .. <base>_3, and the
+                // same for each spinning part; furniture with a behavior but one look (the economy's 통발) is furniture below
                 String base = model.replaceFirst("_\\d+$", "");
                 Category[] tiers = {Category.MACHINE_0, Category.MACHINE_1, Category.MACHINE_2, Category.MACHINE_3};
                 for (int t = 0; t < tiers.length; t++) out.put(namespace + ":" + base + "_" + t, tiers[t]);

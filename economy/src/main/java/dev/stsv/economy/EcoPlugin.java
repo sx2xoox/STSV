@@ -70,6 +70,7 @@ public final class EcoPlugin extends JavaPlugin {
     private MetricsModule metrics;
     private StockModule stocks;
     private FishingModule fishing;
+    private dev.stsv.economy.fishing.TrapModule traps;
     private dev.stsv.economy.codex.CodexModule codex;
     private TradeRules rules;
     private dev.stsv.economy.dock.DockModule docks;
@@ -113,6 +114,7 @@ public final class EcoPlugin extends JavaPlugin {
         add(vanity = new VanityModule(this));
         add(stocks = new StockModule(this));
         add(fishing = new FishingModule(this));
+        add(traps = new dev.stsv.economy.fishing.TrapModule(this));   // after fishing: it reads the fish
         add(codex = new dev.stsv.economy.codex.CodexModule(this));
         add(docks = new dev.stsv.economy.dock.DockModule(this));   // after the shop, machines and land: it reads them
         add(roads = new dev.stsv.economy.road.RoadModule(this));
@@ -220,6 +222,7 @@ public final class EcoPlugin extends JavaPlugin {
     public ShopModule shop() { return shop; }
     public StockModule stocks() { return stocks; }
     public FishingModule fishing() { return fishing; }
+    public dev.stsv.economy.fishing.TrapModule traps() { return traps; }
     public dev.stsv.economy.codex.CodexModule codex() { return codex; }
     public MarketModule market() { return market; }
     public AuctionModule auction() { return auction; }

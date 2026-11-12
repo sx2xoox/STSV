@@ -10,7 +10,12 @@ Changes to the parity model (each stated in parity2.md):
     shop does not buy them: they are sold to other players at TRADE x value (the reference value) up to what the others buy, the
     rest kept; a processor buys them at TRADE x value up to one specialist's daily finds;
   * custom crop caps: whatever shop.yml says (none = the curve only);
-  * farmer surplus: crops the field gives a day (every ripe plot harvested) minus what leaves the farmer (shop, mill, others).
+  * farmer surplus: crops the field gives a day (every ripe plot harvested) minus what leaves the farmer (shop, mill, others);
+  * the fisher (2026-11 통발·가두리): the rod fishes ROD_HOUR of an active hour (jobs_model: walking between the waters, the
+    unstackable sized catch, lost casts; the miner's and farmer's hours already have their walking in) less the time the traps and
+    pens take; TRAPS[lv] traps and PENS[lv] pens (x TRAP_SCALE for the scale) are emptied every active hour and once more at the
+    start of the next session (what they made overnight, up to their storage); traps catch in the rod's three waters, pens farm the
+    dearest commons / uncommons and eat 생선 사료 bought from others (Opt.traps = False: the rod only, as before).
 """
 import json
 import math
@@ -58,6 +63,9 @@ if os.environ.get("PARITY_FIXED") == "1":
         "hardcore": Scale("hardcore", 6, 2, PLOTS),
     }
 SC = ("casual", "regular", "hardcore")
+# traps and pens a fisher keeps at a scale, x the regular player's (jobs_model TRAPS / PENS): an hour a day tends half as many, six
+# hours half as many again (like the field and the machines: more hours, a bigger investment)
+TRAP_SCALE = {"casual": 0.5, "regular": 1.0, "hardcore": 1.5}
 
 
 @dataclass
@@ -70,6 +78,7 @@ class Opt:
     special_demand: dict = field(default_factory=dict)  # gatherer: special item -> units a day others buy (None: unlimited at TRADE)
     selfgather: bool = False         # processor solo: gathers its own staple (no job perks), buys nothing from gatherer jobs
     no_buy_jobs: tuple = ()          # goods of these jobs cannot be bought (solo)
+    traps: bool = True               # the fisher keeps traps and pens (jobs_model TRAPS / PENS); False: the rod only
 
 
 _W = {}
@@ -257,6 +266,17 @@ def simulate(job, lv, scale, opt=None, detail=False):
     mk = Market(W_, job, opt, lv, scale)
     habitats = J.best_waters(W_, lv) if job == "fisher" else None
     plots = scale.plots[lv]
+    traps = pens = 0
+    tending = 0.0
+    pen_fish = []
+    if job == "fisher" and opt.traps:
+        k = TRAP_SCALE.get(scale.name, 1.0)
+        traps, pens = round(J.TRAPS[lv] * k), round(J.PENS[lv] * k)
+        tending = (traps * J.TRAP_VISIT_S + pens * J.PEN_VISIT_S) / 3600
+        trap_waters = habitats
+        trap_h, trap_night = J.trap_hour(W_, lv)
+        pen_fish = J.pen_species(W_, pens)
+        pen_h, pen_night, pen_feed = J.pen_day(W_, lv, hours)
     overnight = {}
     last = None
     for d in range(J.DAYS):
@@ -287,10 +307,24 @@ def simulate(job, lv, scale, opt=None, detail=False):
             events = 0.0
             if job == "fisher":
                 catch, n, sp_rate = fishing(W_, lv, habitats[h % len(habitats)], job)
+                rod = J.ROD_HOUR - tending       # the rod's share of the hour: walking, the catch, the traps and pens
                 for i, (c, f_) in catch.items():
-                    own[i] += c * frac
+                    own[i] += c * frac * rod
                     fac[i] = f_
-                events = n * frac
+                events = n * frac * rod
+                # traps and pens (no special materials: those come with a rod's catch), emptied every hour; their overnight
+                # catch at the start of the session
+                if traps:
+                    for i, (c, f_) in J.trap_waters_catch(W_, lv, trap_waters, traps * (trap_h * frac + (trap_night if h == 0 else 0))).items():
+                        fac[i] = (fac.get(i, 1.0) * own[i] + f_ * c) / (own[i] + c) if own[i] + c else f_
+                        own[i] += c
+                for i in pen_fish:
+                    own[i] += pen_h * frac + (pen_night if h == 0 else 0)
+                if h == 0 and pens:
+                    cost = pens * pen_feed * mk.price(J.PEN_FEED)
+                    mk.bought[J.PEN_FEED] += pens * pen_feed
+                    got -= cost
+                    det["(bought)"] -= cost
             elif job == "miner":
                 ores, sp_rate = mining(W_, lv, job)
                 for i, (c, f_) in ores.items():

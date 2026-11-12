@@ -58,6 +58,7 @@ mail:
     mission: "미션 보상"
     mission_bonus: "미션 완료 보너스"
     vehicle_return: "관리자가 돌려보낸 탈것"
+    fish_trap_reset: "야생월드 초기화로 돌려받은 통발·가두리"
 
 shop:
   not-buying: "<red>상점이 사지 않는 물건입니다. <gray>(이름 바꾼/인챈트/닳은 물건도 안 삼)"
@@ -635,6 +636,25 @@ fishing:
   all-done: "<gold><b>{player}님이 도감에 모든 물고기를 등록해 [강태공]이 되었습니다!</b>"
   week-record: "<aqua>이번 주 최대어 갱신! <white>{player}<gray>님의 <white>{fish} <gold>{size}cm"
   week-winner: "<gold>지난주 최대어: <white>{player}<gray>님의 <white>{fish} <gold>{size}cm"
+  # 통발 · 가두리
+  trap-water: "<red>물속에만 놓을 수 있습니다. <gray>(놓을 칸이 모두 물이어야 함)"
+  trap-land: "<red>내 땅이나 야생월드에만 놓을 수 있습니다."
+  trap-chunk: "<red>이 청크에는 통발·가두리를 더 놓을 수 없습니다. <gray>(한 청크에 {max}개까지)"
+  pen-chunk: "<red>이 청크에는 가두리를 더 놓을 수 없습니다. <gray>(한 청크에 {max}개까지)"
+  trap-not-yours: "<red>{owner}님의 통발·가두리입니다."
+  trap-placed: "<aqua>통발을 놓았습니다. <gray>{water} 물고기가 <white>{every}분<gray>마다 하나씩, <white>{storage}마리<gray>까지 모입니다. 가득 차면 멈추니 우클릭으로 비워 주세요."
+  trap-took: "<aqua>통발에서 <white>{count}마리<aqua>를 꺼냈습니다. <gray>(남은 것 {left}/{storage} · 다음 물고기까지 약 {next}분)"
+  trap-empty: "<gray>통발이 비어 있습니다. <dark_gray>(다음 물고기까지 약 {next}분 · {every}분마다 하나, {storage}마리까지)"
+  pen-placed: "<aqua>가두리를 놓았습니다. <gray>잡은 물고기(흔함·보통) <white>{seed}마리 이상<gray>을 들고 우클릭해 넣고, 생선 사료를 들고 우클릭해 먹이를 주세요."
+  pen-empty: "<gray>가두리가 비어 있습니다. <dark_gray>(같은 물고기 {seed}마리 이상을 들고 우클릭)"
+  pen-status: "<aqua>가두리 <white>{fish} {count}/{max}마리 <gray>· 사료 {feed} · {every}분마다 불어남 <dark_gray>(빈손 우클릭: {keep}마리를 남기고 꺼내기 · 웅크리고 우클릭: 전부)"
+  pen-seeded: "<aqua>가두리에 넣었습니다: <white>{fish} <gray>({count}/{max}마리 · 사료가 있으면 불어남)"
+  pen-seed-more: "<yellow>가두리에 넣었습니다: <white>{fish} <gray>({count}마리: {seed}마리 이상이어야 불어남)"
+  pen-other-kind: "<red>이 가두리에는 {fish}만 넣을 수 있습니다. <gray>(다른 물고기로 바꾸려면 웅크리고 우클릭해 전부 꺼내기)"
+  pen-full: "<gray>가두리가 가득 찼습니다. <dark_gray>({count}마리)"
+  pen-fed: "<aqua>생선 사료를 <white>{count}개<aqua> 넣었습니다. <gray>(사료 {feed}/{max})"
+  pen-feed-full: "<gray>사료가 가득 찼습니다. <dark_gray>(사료 {feed})"
+  pen-took: "<aqua>가두리에서 <white>{fish} {count}마리<aqua>를 꺼냈습니다. <gray>(남은 것 {left}마리 · 사료 {feed})"
 
 # /도감
 codex:
