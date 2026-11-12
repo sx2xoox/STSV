@@ -42,19 +42,20 @@ def main():
     from models import vehicles_farm
     from models import vehicles_misc
     from models import vehicle_lights
+    from models import vehicle_tools          # 작업기 (vehicle_tools.yml); preview sheet: vehicle_tools_preview.py
     import furniture_icons
     import vehicle_icons
     import vehicle_icons_road
     import vehicle_icons_farm
     import vehicle_icons_misc
     ALL = {**ITEMS, **cosmetics.ALL, **furniture.ALL, **vehicles.ALL, **vehicles_road.ALL, **vehicles_farm.ALL, **vehicles_misc.ALL,
-           **vehicle_lights.ALL}
+           **vehicle_lights.ALL, **vehicle_tools.ALL}
     import special
 
     def home(name):
         return CONTENT if name in SHIPPED_MODELS or name in cosmetics.ALL or name in furniture.ALL or name in vehicles.ALL \
             or name in vehicles_road.ALL or name in vehicles_farm.ALL or name in vehicles_misc.ALL \
-            or name in vehicle_lights.ALL else FIXTURE
+            or name in vehicle_lights.ALL or name in vehicle_tools.ALL else FIXTURE
 
     for d in (CONTENT / "models", CONTENT / "textures", FIXTURE / "models", FIXTURE / "textures", BUILD, PREVIEWS):
         d.mkdir(parents=True, exist_ok=True)

@@ -99,6 +99,38 @@ final class TrainView {
         }
         for (int i = 0; i < spec.parts().size(); i++) parts.add(display(v, v.st, s, model(spec.parts().get(i).model()), spun(i), v.spec, v.light));
         animating = true;
+        for (Map.Entry<Integer, Integer> h : hidden.entrySet()) shown(h.getKey(), h.getValue(), cargo);
+    }
+
+    // ------------------------------------------------------------------------------------------
+    // 작업기 (VehicleTools): a tool in a trailer's place
+    // ------------------------------------------------------------------------------------------
+
+    /** Hidden parts of towed units (unit 1.. -> bits: 1 body, 2 wheels, 4 load): a tool took their place. */
+    private final Map<Integer, Integer> hidden = new HashMap<>();
+
+    static final int BODY = 1, WHEELS = 2, LOAD = 4;
+
+    /** Hides these parts of a towed unit (0 = shows them all again), now and whenever it is drawn again. */
+    void hide(int unit, int parts, ItemStack[] cargo) {
+        if (unit < 1) return;
+        int was = hidden.getOrDefault(unit, 0);
+        if (parts == 0) hidden.remove(unit);
+        else hidden.put(unit, parts);
+        if (was != parts) shown(unit, parts, cargo);
+    }
+
+    private void shown(int unit, int parts, ItemStack[] cargo) {
+        int i = unit - 1;
+        if (i < 0 || i >= bodies.size()) return;
+        TrainSpec.Trailer tr = spec.trailers().get(i);
+        bodies.get(i).setItemStack((parts & BODY) != 0 ? ItemStack.empty() : model(tr.model()));
+        for (ItemDisplay w : wheels.get(i)) w.setItemStack((parts & WHEELS) != 0 ? ItemStack.empty() : model(tr.unit().wheelModel()));
+        if (loads.get(i) != null) {
+            NamespacedKey stage = (parts & LOAD) != 0 ? null : spec.stage(cargo, unit);
+            loadShown.set(i, stage);
+            loads.get(i).setItemStack(model(stage));
+        }
     }
 
     /** Every entity of the train. */
@@ -303,7 +335,7 @@ final class TrainView {
         Object[] used = cargo == null ? null : new Object[cargo.length];
         if (cargo != null) for (int i = 0; i < cargo.length; i++) used[i] = cargo[i] == null || cargo[i].isEmpty() ? null : cargo[i];
         for (int i = 0; i < loads.size(); i++) {
-            NamespacedKey want = spec.stage(used, i + 1);
+            NamespacedKey want = (hidden.getOrDefault(i + 1, 0) & LOAD) != 0 ? null : spec.stage(used, i + 1);
             if (loads.get(i) == null || java.util.Objects.equals(want, loadShown.get(i))) continue;
             loadShown.set(i, want);
             loads.get(i).setItemStack(model(want));

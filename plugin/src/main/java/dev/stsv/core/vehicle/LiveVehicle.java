@@ -83,6 +83,8 @@ final class LiveVehicle {
 
     /** an articulated vehicle's towed units and moving parts (TrainView), or null */
     TrainView train;
+    /** 작업기: the tool it has on and its drawn parts (VehicleTools), or null (a vehicle without tools) */
+    VehicleTools.State tool;
     /** a boat: afloat, on ice or aground (BoatPhysics), and how far it turned last tick (degrees: it leans out of turns) */
     BoatPhysics.Mode boatMode = BoatPhysics.Mode.FLOAT;
     float boatTurn;
@@ -166,6 +168,7 @@ final class LiveVehicle {
         out.addAll(spinners);
         out.addAll(hits);
         if (train != null) out.addAll(train.entities());
+        if (tool != null) out.addAll(tool.entities());
         VehicleFeelView.entities(this, out);
         for (Seat s : seats) {
             if (s == null) continue;

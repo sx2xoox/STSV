@@ -80,6 +80,7 @@ public final class FishingModule extends EcoModule implements WeeklyListener {
             store.reset();
             eco.kv().remove("fish.week");
         });
+        if (core.vehicles() != null) core.vehicles().netCatch(this::netCatch);   // 통통배의 그물 (코어 작업기)
     }
 
     @Override
@@ -90,6 +91,42 @@ public final class FishingModule extends EcoModule implements WeeklyListener {
     @Override
     protected void stop() {
         forced.clear();
+        if (core.vehicles() != null) core.vehicles().netCatch(null);
+    }
+
+    // ------------------------------------------------------------------------------------------
+    // The 통통배's net (the core's 작업기: trawling slowly on the sea)
+    // ------------------------------------------------------------------------------------------
+
+    /**
+     * One fish of the sea at this block for a driver trawling there (the core asks now and then, far less often than a rod
+     * bites): a common or uncommon fish of that water at any time, as a 통발 catches them (never rare, legend, a pearl or a
+     * special). A fisher gets their usual touch: more uncommons (jobs.yml trap-uncommon), two of the fish the job doubles at
+     * its level, and the job's trap experience. null = not the sea (rivers, lakes, swamps, caves catch nothing).
+     */
+    private ItemStack netCatch(Player p, Block water) {
+        boolean underground = water.getLightFromSky() == 0 && water.getY() < water.getWorld().getSeaLevel() - 8;
+        String habitat = FishSpec.habitat(water.getBiome().getKey().asString(), underground);
+        if (!FishSpec.SALT.contains(habitat)) return null;
+        UUID u = p.getUniqueId();
+        List<FishSpec.Rarity> rarities = new ArrayList<>(spec.rarities().values());
+        if (rarities.size() < 2) return null;
+        double uncommon = netUncommon(eco.jobs().effect(u, "fisher", "trap-uncommon"));
+        FishSpec.Species s = spec.pick(habitat, TrapSpec.ANY_TIME, rarities.get(rnd.nextDouble() < uncommon ? 1 : 0), rnd);
+        if (s == null || spec.rarities().get(s.rarity()).index() >= 2) return null;
+        boolean fisher = "fisher".equals(eco.jobs().job(u));
+        JobSpec.Job fj = eco.jobs().spec().jobs().get("fisher");
+        int count = fisher && fj != null && fj.finds() != null && eco.jobs().level(u) >= fj.finds().doubleLevel()
+                && fj.finds().doubleItems().contains(s.item()) ? 2 : 1;
+        ItemStack it = Items.create(s.item(), count).orElse(null);
+        if (it == null) return null;
+        eco.jobs().rewardAction(p, "trap", s.item(), count);
+        return it;
+    }
+
+    /** The net's uncommon share: a rod's 35 % (common 65 : uncommon 35), more for a fisher (their trap-uncommon). */
+    static double netUncommon(double fisherBonus) {
+        return Math.clamp(0.35 + Math.max(0, fisherBonus), 0, 1);
     }
 
     private void load() {

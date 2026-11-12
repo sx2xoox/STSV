@@ -94,7 +94,8 @@ class VehicleMiscContentTest {
             if (!Files.isDirectory(root)) continue;
             try (Stream<Path> files = Files.walk(root)) {
                 for (Path f : files.filter(p -> p.toString().endsWith(".yml")).toList()) {
-                    if (f.getFileName().toString().equals("vehicles_misc.yml") || f.getFileName().toString().equals("vehicle_feel.yml")) continue;
+                    if (f.getFileName().toString().equals("vehicles_misc.yml") || f.getFileName().toString().equals("vehicle_feel.yml")
+                            || f.getFileName().toString().equals("vehicle_tools.yml")) continue;   // the feel, the tools: no shop
                     String text = Files.readString(f);
                     assertFalse(text.contains("fishing_boat"), f + " mentions fishing_boat");
                     if (!f.getFileName().toString().equals("shop.yml"))   // the 지게 (1세대) is sold there

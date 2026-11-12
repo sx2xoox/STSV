@@ -42,7 +42,8 @@ class PackPipelineTest {
             "andon", "stone_lantern", "tea_kettle",             // furniture: lamp paper, the lantern's fire, embers
             "police_car", "light_truck", "golf_cart",           // vehicles: head and tail lights
             "police_lightbar_a", "police_lightbar_b",           // the light bar's lit halves
-            "cargo_bicycle", "cargo_van");                      // road vehicles: the bicycle's lamps, the van's head and tail lights
+            "cargo_bicycle", "cargo_van",                       // road vehicles: the bicycle's lamps, the van's head and tail lights
+            "boat_trawl");                                      // 작업기: the work lamp on the trawl gallows
     private static final Set<String> ROTATED = Set.of("test_sword", "test_sword_skin", "test_greatsword", "test_slash", "test_rod", "test_rod_cast",
             "angel_wings", "demon_wings", "butterfly_wings",   // wings swept back 22.5 degrees
             "gumiho",                                           // nine tails fanned out
@@ -51,7 +52,10 @@ class PackPipelineTest {
             "cargo_bicycle", "delivery_scooter", "atv",         // road vehicles: frame tubes, forks, stays, steering posts
             "cargo_van", "box_truck",                          // a raked windscreen, a roof deflector and a tilted steering wheel
             "ox_cart", "power_tiller", "tractor",              // the ox's traces, the tiller's handlebars, the tractor's steering wheel
-            "jige", "jige_load_1", "jige_load_2", "jige_load_3"); // the 지게 prongs, jutting back and up 22.5 degrees
+            "jige", "jige_load_1", "jige_load_2", "jige_load_3",  // the 지게 prongs, jutting back and up 22.5 degrees
+            // 작업기: the plough's beam and handle, hood plates and shields, tines on the slant, links and arms, the tarp's shoulders
+            "ox_plough", "tiller_rotary", "tiller_rotary_tines", "tractor_rotary", "tractor_rotary_tines", "tractor_seeder",
+            "tractor_header", "tractor_header_reel", "boat_trawl", "truck_tarp");
 
     @org.junit.jupiter.params.ParameterizedTest
     @org.junit.jupiter.params.provider.MethodSource("models")

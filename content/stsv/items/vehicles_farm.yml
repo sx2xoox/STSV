@@ -37,6 +37,7 @@ ox_cart:
     - "<dark_gray>W·S 앞뒤, A·D 방향, 웅크리기: 내리기"
     - "<dark_gray>웅크리고 수레 우클릭: 짐칸 열기"
     - "<dark_gray>웅크리고 소 우클릭: 아이템으로 회수 (주인, 짐칸이 비어 있어야 함)"
+    - "<gold>작업기</gold> <gray>운전석에서 Ctrl (멈춰서): 달구지 ↔ 쟁기 (지나간 한 줄을 밭으로)"
   model: ox_cart
   icon: ox_cart_icon
   max-stack: 1
@@ -106,6 +107,7 @@ power_tiller:
     - "<dark_gray>W·S 앞뒤, A·D 방향, 웅크리기: 내리기"
     - "<dark_gray>웅크리고 짐칸 우클릭: 짐칸 열기"
     - "<dark_gray>웅크리고 경운기 우클릭: 아이템으로 회수 (주인, 짐칸이 비어 있어야 함)"
+    - "<gold>작업기</gold> <gray>운전석에서 Ctrl (멈춰서): 짐칸 ↔ 로터리 (두 줄 갈기, 짐은 짐칸에 그대로)"
   model: power_tiller
   icon: power_tiller_icon
   max-stack: 1
@@ -170,6 +172,7 @@ tractor_trailer:
     - "<dark_gray>W·S 앞뒤, A·D 방향, 웅크리기: 내리기"
     - "<dark_gray>웅크리고 트레일러 우클릭: 그 트레일러의 짐칸 열기"
     - "<dark_gray>웅크리고 트랙터 우클릭: 아이템으로 회수 (주인, 짐칸이 모두 비어 있어야 함)"
+    - "<gold>작업기</gold> <gray>운전석에서 Ctrl (멈춰서): 로터리 (세 줄 갈기) → 파종기 (트레일러의 씨앗) → 수확기 (트레일러로)"
   model: tractor
   icon: tractor_trailer_icon
   max-stack: 1
