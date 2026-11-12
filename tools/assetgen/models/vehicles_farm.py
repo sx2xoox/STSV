@@ -38,7 +38,7 @@ import math
 
 from stsv_assets.bake import BModel, Paint, cyl, h3, vnoise
 from stsv_assets import presets
-from models.vehicles import (_held_display, _grain, ring_x, _cart_crate, _cart_sack, _sack, _crate, _rope_net, _folded_tarp,
+from models.vehicles import (_held_display, _grain, _cart_crate, _cart_sack, _sack, _crate, _rope_net, _folded_tarp,
                              _tarp, lerp, raw, CLEAR, IRON, DARK)
 
 # ================================================================================================
@@ -357,7 +357,7 @@ OXCART = {"deck": (12, 13.5), "half_x": 10.5, "half_z": 17, "pole_tip": -28, "wh
 
 def wheel_oxcart():
     """A big wooden cart wheel, 18 px across, open between its spokes: an iron tyre with nail heads round a felloe
-    of six wooden segments (a ring 2.5 px deep), eight wooden spokes (two texels wide, lit on their upper side) on a
+    of six wooden segments (an octagon of blocks 2.5 px deep), eight wooden spokes (two texels wide, lit on their upper side) on a
     see-through plane, and a thick iron-banded hub standing out either side."""
     m = BModel("wheel_oxcart", shift=(8, 8, 8), floor=None)
     d, w2, R_IN = 18, 1.25, 6.5
@@ -379,7 +379,14 @@ def wheel_oxcart():
         if abs(u - round(u)) * (2 * math.pi / 6) * rr < 0.5:
             return ("wood_dark", 0.6)                              # a joint between felloe segments
         return ("wood", 2.0 + lerp(lit, -6, 6, -0.5, 0.9) + _grain(c, "y", 9) * 0.5)
-    ring_x(m, "felloe", d, 2 * R_IN, -w2, w2, Paint("wood", 2, noise=0, rim=0.2, ao=0.2, decal=felloe))
+    # the felloe in eight boxes (runs at the top, bottom, front and back, a block at each corner: an octagon) that
+    # tile the ring without overlapping (few faces for so big a wheel: the wheel budget is 80)
+    fp = Paint("wood", 2, noise=0, rim=0.2, ao=0.2, decal=felloe)
+    for sy in (1, -1):
+        m.box("felloe", (-w2, min(sy * 6.5, sy * 9), -4), (w2, max(sy * 6.5, sy * 9), 4), fp)
+        m.box("felloe", (-w2, -4, min(sy * 6.5, sy * 9)), (w2, 4, max(sy * 6.5, sy * 9)), fp)
+        for sz in (1, -1):
+            m.box("felloe", (-w2, min(sy * 4, sy * 6.5), min(sz * 4, sz * 6.5)), (w2, max(sy * 4, sy * 6.5), max(sz * 4, sz * 6.5)), fp)
 
     def spokes(c):
         y, z = c.p[1], c.p[2]
@@ -397,7 +404,7 @@ def wheel_oxcart():
         if dist < 0.9:
             return raw("wood", 3 if lit > 0 else 2) if dist < 0.5 else raw("wood", 1)   # a spoke, its shaded edge
         return ("raw", CLEAR)
-    m.box("spokes", (-0.25, -R_IN, -R_IN), (0.25, R_IN, R_IN), Paint("wood", 2, noise=0, light=False, decal=spokes))
+    m.box("spokes", (-0.25, -R_IN + 0.5, -R_IN + 0.5), (0.25, R_IN - 0.5, R_IN - 0.5), Paint("wood", 2, noise=0, light=False, decal=spokes))
 
     def hub(c):
         if c.face in ("east", "west"):
@@ -891,8 +898,8 @@ def power_tiller_flywheel():
 
 
 def power_tiller_trailer():
-    """The tiller's trailer, axle at (0, 0, 0): a steel bed with a plank floor and red drop sides (stake pockets,
-    hinges, latches), mudguards over the two wheels outside it, the seat box across the front with a vinyl cushion
+    """The tiller's trailer, axle at (0, 0, 0): a steel bed with a plank floor and wooden drop sides in a red
+    steel frame (stake posts, latches, chipped paint), mudguards over the two wheels outside it, the seat box across the front with a vinyl cushion
     and a back rail, a toolbox under it, the A-frame drawbar forward to the tiller's hitch."""
     m = BModel("power_tiller_trailer", shift=(8, 8, 8), scale=2.0)
     HX, HZ, Y0, Y1 = 11, 16, 9, 10.5

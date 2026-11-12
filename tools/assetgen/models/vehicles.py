@@ -220,33 +220,6 @@ def wheel_road():
     return _wheel("wheel_road", 11, 4, cap="blade", cap_d=7)
 
 
-def ring_x(m, name, d_out, d_in, x0, x1, paint):
-    """A flat ring around the x axis (a tyre seen from the side) on the pixel grid, merged into few boxes."""
-    n = int(round(d_out))
-    o = -d_out / 2
-    cells = [[d_in / 2 <= math.hypot(o + i + 0.5, o + j + 0.5) < d_out / 2 for i in range(n)] for j in range(n)]
-    used = [[False] * n for _ in range(n)]
-    for j in range(n):
-        i = 0
-        while i < n:
-            if not cells[j][i] or used[j][i]:
-                i += 1
-                continue
-            i1 = i
-            while i1 < n and cells[j][i1] and not used[j][i1]:
-                i1 += 1
-            j1 = j + 1
-            while j1 < n and all(cells[j1][k] and not used[j1][k] for k in range(i, i1)) \
-                    and (i == 0 or not cells[j1][i - 1] or used[j1][i - 1]) and (i1 == n or not cells[j1][i1]):
-                j1 += 1
-            for jj in range(j, j1):
-                for k in range(i, i1):
-                    used[jj][k] = True
-            # i runs along z, j along y
-            m.box(name, (x0, o + j, o + i), (x1, o + j1, o + i1), paint)
-            i = i1
-
-
 def wheel_handcart():
     """The hand cart's wheel (diameter 12 px): a motorcycle-type wheel, see-through between its spokes. A fat
     rubber tyre (a ring 2.5 px wide: blocks of tread on the running face, a lit bulge on the sidewall), a bright
@@ -1277,10 +1250,11 @@ def _split_seat(lo, hi, seat):
 #
 # The bed flares: every layer of its walls sits half a pixel further out than the one below it (sill, lower board,
 # upper board), capped by a wide rim rail, so the walls lean out without any turned part. The body is warm plank
-# wood (plush), the frame (sills, rim rail, shafts, cross members) dark wood; iron brackets hold every corner.
+# wood (plush); the frame (sills, rim rail, shafts, cross members, stakes and corner brackets) is galvanised steel
+# tube (_galv), the handles have ribbed black rubber grips and end caps; the wheels are spoked (wheel_handcart).
 CART = {"x0": 11, "z0": 15.5, "floor": 12.5, "deck": 14, "rail": (8.75, 10), "rail_y": (11, 12.5), "tip": -36,
         "rail_end": 16, "hub": 6, "stand_z": (-21, -20)}
-BODY, FRAME = "plush", "wood_dark"
+BODY, FRAME = "plush", "wood_dark"          # FRAME: the dark shadow in the rope coil's hole
 # each wall layer: (name, inner offset, outer offset, y0, y1), offsets from the floor's edge (x0 / z0)
 CART_WALLS = (("sill", 0, 1, 12.5, 14), ("board_lo", 0.5, 1.5, 14, 16.5), ("board_hi", 1, 2, 16.5, 18.5),
               ("rim", 0.5, 2.5, 18.5, 20))
@@ -1311,10 +1285,10 @@ def _galv(c):
 
 def _cart_wall(layer, y0, y1, half, end):
     """The paint of one wall layer of the bed: a board (or the sill / the rim rail) along a side (end False: it runs
-    along z) or across an end. half: how far it reaches along its length (to its corners). Iron corner brackets
-    with bolts, iron straps, a butt joint, a scuffed top edge, grime and mud low down."""
+    along z) or across an end. half: how far it reaches along its length (to its corners). The sill and the rim
+    rail are steel tube; the boards have steel corner brackets with bolts, steel stakes, a butt joint, a scuffed top
+    edge, grime low down."""
     frame = layer in ("sill", "rim")
-    ramp = FRAME if frame else BODY
     straps = (-5, 5) if end else (-8.5, 8.5)
     joint = {"board_lo": -3.5, "board_hi": 4.5}.get(layer, 99) * (-0.6 if end else 1)
     axis = "x" if end else "z"
@@ -1335,19 +1309,14 @@ def _cart_wall(layer, y0, y1, half, end):
             return _galv(c)
         g = _grain(c, axis, 0)
         if c.face == "up":
-            if layer == "rim":
-                if abs(along) > half - 2.5:
-                    return ("iron", 2.4)                          # the iron corner cap
-                ding = h3(math.floor(x), 7, math.floor(z), 5)
-                return (ramp, 2.8 + g * 0.5 + (0.6 if ding < 0.1 else 0))   # worn pale by hands and loads
-            return (ramp, 3.2 + (0.5 if h3(math.floor(x), 1, math.floor(z), 4) < 0.15 else 0))
+            return (BODY, 3.2 + (0.5 if h3(math.floor(x), 1, math.floor(z), 4) < 0.15 else 0))
         if c.face == "down":
-            return (ramp, 0.8 if frame else 1.2)
+            return (BODY, 1.2)
         if not out:
-            return (ramp, 1.6 + g)                                # end grain at a corner
+            return (BODY, 1.6 + g)                                # end grain at a corner
         fy = math.floor(y)
         mid = math.floor((y0 + y1) / 2 - 0.01)
-        # iron corner brackets: a bent plate round the corner, a bolt in each board, a little rust under it
+        # steel corner brackets: a bent plate round the corner, a bolt in each board, a little rust under it
         if abs(along) > half - 2.5:
             k = half - abs(along)
             if k > 2.0:
@@ -1357,7 +1326,7 @@ def _cart_wall(layer, y0, y1, half, end):
             if layer != "rim" and abs(k - 1.2) < 0.6 and fy == mid - 1 and h3(math.floor(along), fy, 2, 9) < 0.5:
                 return ("terracotta", 0.2)                        # a rust streak under it
             return ("steel", 3.8 if fy >= y1 - 1 else 3.0)
-        # iron straps up the walls, a bolt through each board
+        # steel stakes up the walls, a bolt through each board
         for st in straps:
             if abs(along - st) < 0.75 and outward:
                 if layer != "sill" and fy == mid and abs(along - st) < 0.5:
@@ -1365,19 +1334,6 @@ def _cart_wall(layer, y0, y1, half, end):
                 if layer != "sill" and fy < mid and h3(math.floor(along), fy, 3, 10) < 0.6:
                     return ("terracotta", 0.6 + 0.4 * (mid - fy))     # rust weeping down the strap from its bolt
                 return ("steel", 3.6 if fy >= y1 - 1 else 2.8)
-        if layer == "rim":
-            # bolts along the rim rail into the board below it, an iron capping strip along its top
-            if outward and fy == math.floor(y1 - 0.01):
-                return ("iron", 3.2) if h3(math.floor(along), 3, 4, 7) > 0.15 else ("iron", 2.4)
-            if outward and math.floor(along + half) % 6 == 3:
-                return ("steel", 3.4)
-            return (FRAME, 2.4 + g)
-        if layer == "sill":
-            # the frame sill: dark, mud splashed up from the wheels
-            mud = h3(math.floor(along), fy, 1, 13)
-            if outward and mud < 0.25:
-                return ("soil", 1.4 if mud < 0.1 else 2.2)
-            return (FRAME, 1.8 + g)
         # a board: a butt joint, a lit top edge with dings, the shadow of the board above, grime low down
         if abs(along - joint) < 0.5:
             return (BODY, 0.2)
@@ -1394,7 +1350,7 @@ def _cart_wall(layer, y0, y1, half, end):
         if layer == "board_lo" and fy < y0 + 2 and h3(math.floor(along / 2), fy, 8, 17) < 0.3:
             return (BODY, 1.2)                                    # grime along the bottom
         return (BODY, 2.1 + g - (0.3 if layer == "board_lo" else 0))
-    return Paint(ramp, 2, noise=0, rim=0.6, decal=decal)
+    return Paint("steel" if frame else BODY, 2, noise=0, rim=0.6, decal=decal)
 
 
 def hand_cart():

@@ -51,7 +51,8 @@ class PackPipelineTest {
             "cargo_bicycle", "delivery_scooter", "atv",         // road vehicles: frame tubes, forks, stays, steering posts
             "cargo_van", "box_truck",                          // a raked windscreen, a roof deflector and a tilted steering wheel
             "ox_cart", "power_tiller", "tractor",              // the ox's traces, the tiller's handlebars, the tractor's steering wheel
-            "jige", "jige_load_1", "jige_load_2", "jige_load_3"); // the 지게 prongs, jutting back and up 22.5 degrees
+            "jige", "jige_load_1", "jige_load_2", "jige_load_3",  // the 지게 prongs, jutting back and up 22.5 degrees
+            "wheel_atv");                                      // the ATV tyre's knobs, every 45 degrees round it
 
     @org.junit.jupiter.params.ParameterizedTest
     @org.junit.jupiter.params.provider.MethodSource("models")
