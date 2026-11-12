@@ -580,6 +580,14 @@ public final class DockModule extends EcoModule {
         if (e.getView().getTopInventory().getHolder(false) instanceof Sale) e.setCancelled(true);
     }
 
+    /** Over its payload (loaded before the weights changed, or while they were off): neither sealed nor sold, told why. */
+    private boolean overloaded(Player p, Hauled h) {
+        if (h.payload() <= 0 || h.weight() <= h.payload() + 1e-6) return false;
+        p.sendMessage(Lang.msg("dock.overloaded", "weight", dev.stsv.core.vehicle.CargoWeights.format(h.weight()),
+                "payload", dev.stsv.core.vehicle.CargoWeights.format(h.payload())));
+        return true;
+    }
+
     /** The sale, checked again against the load as it is now: same bed, still in the zone, still far-hauled. */
     private void confirm(Player p, Sale s) {
         Hauled h = again(p, s.vehicle);
@@ -592,6 +600,7 @@ public final class DockModule extends EcoModule {
             p.sendMessage(Lang.msg("dock.changed"));
             return;
         }
+        if (overloaded(p, h)) return;
         DockGoods.Plan plan = plan(h);
         CargoTrip trip = sealed.get(h.id());
         if (plan.empty() || trip == null || !CargoTrip.manifest(plan.lines()).equals(trip.manifest())) {
@@ -1031,6 +1040,7 @@ public final class DockModule extends EcoModule {
             p.sendMessage(Lang.msg("dock.changed"));
             return;
         }
+        if (overloaded(p, h)) return;
         List<DockGoods.Slot> bed = bed(h);
         DockGoods.Plan plan = goods.plan(bed);
         Dock to = in.chosen == null ? null : dock(in.chosen.dock().name());   // the dock as it is now (its price too)

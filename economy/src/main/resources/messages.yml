@@ -762,6 +762,7 @@ dock:
   not-yours: "<red>{owner}님의 짐이에요. <gray>(주인, 주인이 허락한 사람, 그 땅 구성원만)"
   counter-nothing: "<gray>하역 구역(노란 선 안)에 내가 쓸 수 있는 탈것이 없어요. <dark_gray>(짐칸을 웅크리고 우클릭해도 됨)"
   changed: "<red>짐이나 자리가 바뀌었어요. 다시 열어 주세요."
+  overloaded: "<red>과적이에요: 무게 {weight} / {payload}. 한도 안으로 덜어 내야 봉인하고 팔 수 있어요."
   sold: "<green>하역장에 완제품 {kinds}종을 팔았어요: <gold>{amount}</gold> <gray>(주인 {owner}에게)"
   sold-owner: "<green>{player}님이 {dock} 하역장에서 내 탈것의 짐을 팔았어요: <gold>{amount}"
   usage: "<red>/관리자 하역장 설치 <이름> [육지|항구] <gray>(이름은 16자까지 글자·숫자·_ , 서 있는 자리에 보는 방향으로) | 목록 | 가격 <이름> <퍼센트|기본> | 제거 <이름> | 다시꾸미기 <이름> | 후보 <거리> | 기록 [이름]"
