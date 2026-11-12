@@ -304,7 +304,7 @@ class ContentTest {
         List<String> problems = new ArrayList<>();
         List<MenuSpec> menus = MenuSpec.loadAll(List.of(new ContentPack("economy", "economy", PACK)), problems);
         assertTrue(problems.isEmpty(), String.join("\n", problems));
-        assertEquals(21, menus.size());
+        assertEquals(24, menus.size());
         for (MenuSpec m : menus) {
             // the button grid is mirror-symmetric, row by row (the machine's lanes are fixed by its code; their
             // empty cells hold arrows, so they read as full rows)
@@ -389,7 +389,7 @@ class ContentTest {
         for (java.time.DayOfWeek w : java.time.DayOfWeek.values()) if (!messages.contains("weekday." + w)) missing.add("weekday." + w);
         for (String w : List.of("night", "dawn", "dusk", "rain", "thunder", "fullmoon")) if (!messages.contains("codex.when." + w)) missing.add("codex.when." + w);
         for (int r = 1; r <= 3; r++) if (!messages.contains("stock.risk." + r)) missing.add("stock.risk." + r);
-        for (String r : List.of("market_buy", "market_cancel", "market_expired", "auction_unsold", "auction_win", "auction_cancel",
+        for (String r : List.of("market_buy", "market_cancel", "market_expired", "buy_order", "buy_order_return", "auction_unsold", "auction_win", "auction_cancel",
                 "trade", "trade_cancel", "stall_release", "stall_evicted", "mission", "mission_bonus")) {
             if (!messages.contains("mail.reason." + r)) missing.add("mail.reason." + r);
         }

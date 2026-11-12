@@ -58,6 +58,7 @@ public final class EcoPlugin extends JavaPlugin {
     private ActivityModule activity;
     private ShopModule shop;
     private MarketModule market;
+    private dev.stsv.economy.market.BuyOrderModule orders;
     private AuctionModule auction;
     private TradeModule trade;
     private VanityModule vanity;
@@ -105,6 +106,7 @@ public final class EcoPlugin extends JavaPlugin {
         add(machines = new MachineModule(this));
         add(shop = new ShopModule(this));
         add(market = new MarketModule(this));
+        add(orders = new dev.stsv.economy.market.BuyOrderModule(this));   // after the market and the shop: it reads both
         add(auction = new AuctionModule(this));
         add(trade = new TradeModule(this));
         add(land = new LandModule(this));
@@ -222,6 +224,8 @@ public final class EcoPlugin extends JavaPlugin {
     public FishingModule fishing() { return fishing; }
     public dev.stsv.economy.codex.CodexModule codex() { return codex; }
     public MarketModule market() { return market; }
+    /** 거래소 구매 주문 */
+    public dev.stsv.economy.market.BuyOrderModule orders() { return orders; }
     public AuctionModule auction() { return auction; }
     public TradeModule trade() { return trade; }
     public TradeRules rules() { return rules; }

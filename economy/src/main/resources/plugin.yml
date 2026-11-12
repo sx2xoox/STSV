@@ -19,7 +19,7 @@ commands:
     aliases: [mail]
     permission: stsv.economy.play
   거래소:
-    description: 거래소 (가격을 정해 등록, 누구나 즉시 구매)
+    description: 거래소 (가격을 정해 등록, 누구나 즉시 구매 · 구매 주문 /거래소 주문)
     aliases: [market]
     permission: stsv.economy.play
   경매:

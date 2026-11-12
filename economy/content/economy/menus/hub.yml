@@ -73,7 +73,7 @@ hub:
       icon: economy:gui/bag
       material: WRITABLE_BOOK
       name: "<white>거래소"
-      lore: ["<gray>값을 정해 올리고, 누구나 바로 사는 장터", "<dark_gray>우클릭: 판매 등록 (물건 고르고 가격 정하기)"]
+      lore: ["<gray>값을 정해 올리고, 누구나 바로 사는 장터", "<gray>구매 주문: 살 값을 먼저 걸어 두기 (아래 탭)", "<dark_gray>우클릭: 판매 등록 (물건 고르고 가격 정하기)"]
     E:
       action: "hub:run:경매|run:경매 등록"
       icon: economy:gui/hammer

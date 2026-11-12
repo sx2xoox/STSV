@@ -1,17 +1,30 @@
-# /거래소: 개당 최저가 순
+# /거래소: 개당 최저가 순. 아래 줄 가운데 양옆 = 탭 (판매 목록 · 구매 주문), 지금 탭은 반짝임
 market:
   title: "<#f0e2b0>거래소 <#b9a6d6>· {mode}"
   rows: 6
   background: economy:gui/market
+  tabs: "AB"
   layout:
     - "M..SIF..R"
     - "LLLLLLLLL"
     - "LLLLLLLLL"
     - "LLLLLLLLL"
     - "LLLLLLLLL"
-    - "P...X...N"
+    - "P..AXB..N"
   list: L
   buttons:
+    A:
+      action: "market:listings"
+      icon: economy:gui/price_tag
+      material: NAME_TAG
+      name: "<gold>판매 목록 <gray>(지금)"
+      lore: ["<gray>파는 사람이 올린 물건", "<gray>두 번 클릭하면 구매"]
+    B:
+      action: "market:orders"
+      icon: economy:gui/cart
+      material: MINECART
+      name: "<white>구매 주문"
+      lore: ["<gray>사는 사람이 값을 먼저 건 주문", "<gray>가진 물건을 넘기면 바로 돈을 받음", "<yellow>클릭: 구매 주문 보기"]
     M:
       action: "market:mine"
       icon: economy:gui/ledger
@@ -157,3 +170,235 @@ market_sell:
       icon: stsv:gui/exit
       material: OAK_DOOR
       name: "<red>닫기"
+
+# 거래소 · 구매 주문 탭 (/거래소 주문목록, 거래소 아래 '구매 주문' 탭): 물건별로 묶고 개당 값이 높은 주문부터
+# 남의 주문 클릭 두 번 = 한 묶음 넘기기, Shift 클릭 두 번 = 가진 만큼 넘기기 (같은 클릭을 두 번), 내 주문 클릭 = 취소 (남은 돈 환불)
+# 자리표시자: {mode} {search} {mine_toggle} {count} {mine} {limit} {held} (내 주문에 맡긴 돈) {balance} {fee} {days}
+market_orders:
+  title: "<#f0e2b0>거래소 <#b9a6d6>· {mode}"
+  rows: 6
+  background: economy:gui/market_orders
+  tabs: "AB"
+  layout:
+    - "M..OIF..R"
+    - "LLLLLLLLL"
+    - "LLLLLLLLL"
+    - "LLLLLLLLL"
+    - "LLLLLLLLL"
+    - "P..AXB..N"
+  list: L
+  buttons:
+    M:
+      action: "order:mine"
+      icon: economy:gui/ledger
+      material: WRITABLE_BOOK
+      name: "<white>내 주문 / 전체"
+      lore: ["<gray>내 주문: {mine} / {limit}", "<gray>맡긴 돈: {held}", "<yellow>클릭: {mine_toggle}"]
+    O:
+      action: "order:new"
+      icon: economy:gui/checklist
+      material: WRITABLE_BOOK
+      name: "<green>구매 주문 넣기"
+      lore: ["<gray>살 물건 · 수량 · 개당 값을 정하면", "<gray>전체 값을 바로 맡기고 주문이 올라감", "<gray>{days}일 뒤 만료 (남은 돈 환불)", "<yellow>클릭: 주문 화면"]
+    I:
+      action: ""
+      icon: stsv:gui/info
+      material: BOOK
+      name: "<white>잔액: {balance}"
+      lore: ["<gray>남의 주문 클릭 두 번: 한 묶음 넘기기", "<gray>Shift 클릭 두 번: 가진 만큼 넘기기", "<gray>넘기면 바로 대금 (수수료 {fee}%)",
+             "<gray>물건은 산 사람 우편함으로", "<gray>내 주문 클릭: 취소 (남은 돈 환불)", "<dark_gray>명령어: /거래소 주문 <개당 가격> [수량]"]
+    F:
+      action: "order:search"
+      icon: economy:gui/search
+      material: SPYGLASS
+      name: "<white>검색"
+      lore: ["<gray>이름·분류로 찾기 (채팅창에 입력)", "<gray>지금: <white>{search}", "<dark_gray>우클릭: 검색 지우기"]
+    R:
+      action: "order:refresh"
+      icon: economy:gui/refresh
+      material: CLOCK
+      name: "<white>새로고침"
+      lore: ["<gray>목록 다시 불러오기"]
+    A:
+      action: "order:listings"
+      icon: economy:gui/price_tag
+      material: NAME_TAG
+      name: "<white>판매 목록"
+      lore: ["<gray>파는 사람이 올린 물건", "<yellow>클릭: 판매 목록 보기"]
+    B:
+      action: "order:orders"
+      icon: economy:gui/cart
+      material: MINECART
+      name: "<gold>구매 주문 <gray>(지금)"
+      lore: ["<gray>사는 사람이 값을 먼저 건 주문", "<gray>주문 {count}건"]
+    P:
+      action: page:prev
+      icon: stsv:gui/prev
+      material: ARROW
+      name: "<yellow>◀ 이전 페이지"
+      lore: ["<gray>{page} / {pages}"]
+    N:
+      action: page:next
+      icon: stsv:gui/next
+      material: ARROW
+      name: "<yellow>다음 페이지 ▶"
+      lore: ["<gray>{page} / {pages}"]
+    X:
+      action: close
+      icon: stsv:gui/exit
+      material: OAK_DOOR
+      name: "<red>닫기"
+
+# 구매 주문 넣기 (/거래소 주문, 구매 주문 탭의 '구매 주문 넣기')
+# 위 = 살 물건 (손에 든 것, 아래 내 인벤토리 클릭, 또는 이 칸 클릭 = 상점이 사는 물건 목록에서 고르기)
+# 둘째 줄 = 개당 값 (가격 버튼은 market_sell 과 같음), 넷째 줄 = 수량 (order:qty:1 ±1, order:qty:64 ±64, Shift = ×10, order:qty:type 입력)
+market_order:
+  title: "<#f0e2b0>거래소 <#b9a6d6>· 구매 주문 넣기"
+  rows: 5
+  background: economy:gui/market_order
+  inset: "S"
+  layout:
+    - "....S...."
+    - "..abcde.."
+    - "...TPR..."
+    - "...uQw..."
+    - "B...C...X"
+  buttons:
+    S:
+      action: "order:pick"
+      icon: economy:gui/pick
+      material: PAPER
+      name: "<white>살 물건 고르기"
+      lore: ["<gray>아래 내 인벤토리에서 물건을 클릭하거나", "<yellow>클릭: 상점이 사는 물건 목록에서 고르기"]
+    a:
+      action: "price:step:1"
+      icon: economy:gui/step_1
+      material: GOLD_NUGGET
+      name: "<white>개당 ±1 G"
+      lore: ["<gray>좌클릭: <green>+1 G <gray>· 우클릭: <red>-1 G", "<dark_gray>Shift: 10배"]
+    b:
+      action: "price:step:10"
+      icon: economy:gui/step_10
+      material: GOLD_NUGGET
+      name: "<white>개당 ±10 G"
+      lore: ["<gray>좌클릭: <green>+10 G <gray>· 우클릭: <red>-10 G", "<dark_gray>Shift: 10배"]
+    c:
+      action: "price:step:100"
+      icon: economy:gui/step_100
+      material: GOLD_INGOT
+      name: "<white>개당 ±100 G"
+      lore: ["<gray>좌클릭: <green>+100 G <gray>· 우클릭: <red>-100 G", "<dark_gray>Shift: 10배"]
+    d:
+      action: "price:step:1000"
+      icon: economy:gui/step_1k
+      material: GOLD_INGOT
+      name: "<white>개당 ±1,000 G"
+      lore: ["<gray>좌클릭: <green>+1,000 G <gray>· 우클릭: <red>-1,000 G", "<dark_gray>Shift: 10배"]
+    e:
+      action: "price:step:10000"
+      icon: economy:gui/step_10k
+      material: GOLD_BLOCK
+      name: "<white>개당 ±10,000 G"
+      lore: ["<gray>좌클릭: <green>+10,000 G <gray>· 우클릭: <red>-10,000 G", "<dark_gray>Shift: 10배"]
+    T:
+      action: "price:type"
+      icon: economy:gui/type
+      material: WRITABLE_BOOK
+      name: "<white>개당 값 직접 입력"
+      lore: ["<gray>채팅창에 금액을 입력", "<dark_gray>예: 15, 1,500, 3만"]
+    P:
+      action: ""
+      icon: stsv:gui/coins
+      material: GOLD_INGOT
+      name: "<gold>개당 {price}"
+      lore:
+        - "<gray>{item} ×{amount}"
+        - "<gray>맡길 돈 (전체): <white>{total}"
+        - "<gray>잔액: {balance} <dark_gray>→ {after}"
+        - ""
+        - "<gray>상점 매입가: <white>{shop} <dark_gray>(개당)"
+        - "<gray>지금 최고 주문가: <white>{best}"
+        - "{warn}"
+        - "<gray>파는 사람이 수수료 {fee_rate}%를 냄"
+        - "<gray>{days}일 뒤 만료: 남은 돈은 돌려받음"
+        - "<gray>내 주문: <white>{mine} / {limit}"
+    R:
+      action: "price:shop"
+      icon: economy:gui/chart
+      material: PAPER
+      name: "<white>상점 매입가로 맞추기"
+      lore: ["<gray>상점이 파는 사람에게 주는 개당 값", "<gray>지금: <white>{shop}", "<dark_gray>이보다 높아야 팔 사람이 생김"]
+    u:
+      action: "order:qty:1"
+      icon: economy:gui/buy_1
+      material: IRON_NUGGET
+      name: "<white>수량 ±1"
+      lore: ["<gray>좌클릭: <green>+1 <gray>· 우클릭: <red>-1", "<dark_gray>Shift: ±10"]
+    Q:
+      action: "order:qty:type"
+      icon: economy:gui/chest
+      material: CHEST
+      name: "<gold>수량: {amount}개"
+      lore: ["<gray>최대 {max}개", "<yellow>클릭: 채팅창에 수량 입력"]
+    w:
+      action: "order:qty:64"
+      icon: economy:gui/bag
+      material: BUNDLE
+      name: "<white>수량 ±64 (한 묶음)"
+      lore: ["<gray>좌클릭: <green>+64 <gray>· 우클릭: <red>-64", "<dark_gray>Shift: ±640"]
+    B:
+      action: "price:back"
+      icon: economy:gui/back
+      material: ARROW
+      name: "<white>구매 주문으로"
+      lore: ["<gray>주문하지 않고 돌아가기"]
+    C:
+      action: "price:confirm"
+      icon: economy:gui/confirm
+      material: LIME_DYE
+      name: "<green>주문하기 · {total}"
+      lore: ["<gray>{item} ×{amount}, 개당 {price}", "<gray>전체 값을 지금 맡김", "<yellow>클릭: 구매 주문 올리기"]
+    X:
+      action: close
+      icon: stsv:gui/exit
+      material: OAK_DOOR
+      name: "<red>닫기"
+
+# 구매 주문 넣기의 '살 물건 고르기': 상점이 사는 물건 전부 (상점 분류 순), 클릭하면 그 물건으로 주문 화면에 돌아감
+market_order_pick:
+  title: "<#f0e2b0>거래소 <#b9a6d6>· 살 물건 고르기"
+  rows: 6
+  background: economy:gui/market_order_pick
+  layout:
+    - "....F...."
+    - "LLLLLLLLL"
+    - "LLLLLLLLL"
+    - "LLLLLLLLL"
+    - "LLLLLLLLL"
+    - "P...B...N"
+  list: L
+  buttons:
+    F:
+      action: "order:pick:search"
+      icon: economy:gui/search
+      material: SPYGLASS
+      name: "<white>검색"
+      lore: ["<gray>이름·분류로 찾기 (채팅창에 입력)", "<gray>지금: <white>{search} <dark_gray>({count}종)", "<dark_gray>우클릭: 검색 지우기"]
+    B:
+      action: "order:pick:back"
+      icon: economy:gui/back
+      material: ARROW
+      name: "<white>주문 화면으로"
+      lore: ["<gray>고르지 않고 돌아가기"]
+    P:
+      action: page:prev
+      icon: stsv:gui/prev
+      material: ARROW
+      name: "<yellow>◀ 이전 페이지"
+      lore: ["<gray>{page} / {pages}"]
+    N:
+      action: page:next
+      icon: stsv:gui/next
+      material: ARROW
+      name: "<yellow>다음 페이지 ▶"
+      lore: ["<gray>{page} / {pages}"]

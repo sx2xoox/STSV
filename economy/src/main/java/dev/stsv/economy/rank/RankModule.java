@@ -29,7 +29,7 @@ import java.util.concurrent.ConcurrentHashMap;
  * worth when the week started (Monday 05:00, or when they first joined that week), not counting money other players
  * handed them. On Monday the week is settled: the top 5 are announced and the winner gets a 기념비 건립권.
  * <p>
- * Net worth ({@link #worth}) = cash + money held in auction bids and listing deposits + money spent on land + the
+ * Net worth ({@link #worth}) = cash + money held in auction bids, listing deposits and 구매 주문 + money spent on land + the
  * 금고 of the land they own + their shares at today's price + their cheques nobody cashed yet: moving money into any
  * of these does not lower the starting point. Money between players (/송금, trades, the market, auctions, a cheque
  * someone else cashes, a member's 금고 deposit, a land handed over with its 금고) moves the starting point with it
@@ -96,6 +96,7 @@ public final class RankModule extends EcoModule implements WeeklyListener {
             if (player.equals(a.bidder)) w += a.bid;
             if (player.equals(a.seller)) w += a.deposit;
         }
+        if (eco.orders() != null && eco.orders().store() != null) w += eco.orders().store().escrowOf(player);
         w += eco.land().store().spent(player);
         dev.stsv.economy.land.Land own = eco.land().store().index().ownedBy(player);
         if (own != null) w += own.vault;

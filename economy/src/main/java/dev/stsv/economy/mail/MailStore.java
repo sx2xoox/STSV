@@ -33,7 +33,15 @@ public final class MailStore {
     }
 
     public CompletableFuture<Void> send(UUID player, byte[] item, String reason, long now) {
-        return db.execute("INSERT INTO eco_mail (player, item, reason, at) VALUES (?, ?, ?, ?)", player.toString(), item, reason, now);
+        return db.async(c -> {
+            send(c, player, item, reason, now);
+            return null;
+        });
+    }
+
+    /** The same inside someone else's transaction (a 구매 주문 fill: the claim and the buyer's mail commit together). */
+    public static void send(java.sql.Connection c, UUID player, byte[] item, String reason, long now) throws java.sql.SQLException {
+        Db.update(c, "INSERT INTO eco_mail (player, item, reason, at) VALUES (?, ?, ?, ?)", player.toString(), item, reason, now);
     }
 
     public CompletableFuture<List<Mail>> list(UUID player) {

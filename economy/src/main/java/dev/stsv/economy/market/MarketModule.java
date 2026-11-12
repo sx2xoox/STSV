@@ -27,7 +27,8 @@ import java.util.UUID;
 
 /**
  * 거래소: list an item at a price, anyone buys it at once, even while the seller is offline. 5% fee on
- * sale, 10 listings, 48 hours, then the item comes back by mail.
+ * sale, 10 listings, 48 hours, then the item comes back by mail. Its other tab, 구매 주문 (buyers name a price first), is
+ * {@link BuyOrderModule}.
  */
 public final class MarketModule extends EcoModule {
 
@@ -288,11 +289,19 @@ public final class MarketModule extends EcoModule {
         }
 
         @Override
+        public ItemStack button(MenuView v, dev.stsv.core.gui.menu.MenuSpec.Button b, ItemStack base) {
+            // the 판매 목록 / 구매 주문 tabs: this one shines
+            if (base != null && b.action().equals("market:listings")) base.editMeta(m -> m.setEnchantmentGlintOverride(true));
+            return base;
+        }
+
+        @Override
         public void onAction(MenuView v, String action, ClickType click) {
             Player p = v.player();
             switch (action) {
                 case "market:mine" -> Bukkit.getScheduler().runTask(eco, () -> open(p, null, !mine));
-                case "market:refresh" -> v.refresh();
+                case "market:refresh", "market:listings" -> v.refresh();
+                case "market:orders" -> Bukkit.getScheduler().runTask(eco, () -> eco.orders().open(p, null, false));
                 case "market:sell" -> Bukkit.getScheduler().runTask(eco, () -> openSell(p));
                 case "market:search" -> Bukkit.getScheduler().runTask(eco, () -> {
                     if (click.isRightClick()) {
@@ -309,7 +318,8 @@ public final class MarketModule extends EcoModule {
     }
 
     /** The actions of the 거래소 list (economy:market) besides the built-in ones. */
-    public static final java.util.Set<String> ACTIONS = java.util.Set.of("market:mine", "market:refresh", "market:sell", "market:search");
+    public static final java.util.Set<String> ACTIONS = java.util.Set.of("market:mine", "market:refresh", "market:sell", "market:search",
+            "market:listings", "market:orders");
 
     /** Short and without tags, for a menu title (a search word is the player's own text). */
     static String titleText(String s, int max) {
