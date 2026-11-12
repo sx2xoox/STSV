@@ -2,13 +2,14 @@ package dev.stsv.economy;
 
 import org.bukkit.configuration.ConfigurationSection;
 
-/** contents/economy/trade.yml: fees and limits of the ways to trade (거래소, 경매, 직거래). Pure data. */
+/** contents/economy/trade.yml: fees and limits of the ways to trade (거래소 and its 구매 주문, 경매, 직거래). Pure data. */
 public record TradeRules(
         double marketFee, int marketMax, double marketHours,
         double auctionFee, long auctionDeposit, double auctionMinutes, int extendSeconds, double minRaise,
         int maxRunning, int rareWeeklyWins, long minStart,
         double tradeDistance,
-        long creditMinPrice, double creditShopRatio, double creditPairHours) {
+        long creditMinPrice, double creditShopRatio, double creditPairHours,
+        int orderMax, double orderHours, long orderMinPrice, int orderMaxAmount) {
 
     public static TradeRules parse(ConfigurationSection c) {
         return new TradeRules(
@@ -17,7 +18,9 @@ public record TradeRules(
                 c.getInt("auction.extend-seconds", 60), c.getDouble("auction.min-raise", 0.05), c.getInt("auction.max-running", 3),
                 c.getInt("auction.rare-weekly-wins", 2), c.getLong("auction.min-start", 10),
                 c.getDouble("trade.distance", 10),
-                c.getLong("credit.min-price", 100), c.getDouble("credit.shop-ratio", 1.0), c.getDouble("credit.pair-hours", 24));
+                c.getLong("credit.min-price", 100), c.getDouble("credit.shop-ratio", 1.0), c.getDouble("credit.pair-hours", 24),
+                Math.max(1, c.getInt("orders.max-orders", 10)), Math.max(1, c.getDouble("orders.hours", 168)),
+                Math.max(1, c.getLong("orders.min-price", 1)), Math.max(1, c.getInt("orders.max-amount", 64 * 54)));
     }
 
     /** A fee on an amount, rounded up (at least 1 when the rate is above 0 and the amount is positive). */

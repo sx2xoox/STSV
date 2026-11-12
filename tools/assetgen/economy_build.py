@@ -96,9 +96,10 @@ def main():
 
     sheet(E, PREVIEWS / "economy_items.png")
     gui_sheet(G, menus, PREVIEWS / "economy_menus.png")
-    # the 거래소 / 경매 menus and the hub, bigger: the screens players use to sell and bid
+    # the 거래소 (판매 목록, 구매 주문) / 경매 menus and the hub, bigger: the screens players use to sell, order and bid
     gui_sheet(G, menus, PREVIEWS / "trade_menus.png", scale=3, cols=3,
-              only=("hub", "market", "market_sell", "auction", "auction_sell", "auction_bid"))
+              only=("hub", "market", "market_sell", "market_orders", "market_order", "market_order_pick",
+                    "auction", "auction_sell", "auction_bid"))
     import economy_goods as GO
     GO.sheet(PREVIEWS / "goods.png")
     if render:

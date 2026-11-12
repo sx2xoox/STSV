@@ -79,13 +79,24 @@ public final class Items {
      */
     public static boolean plain(ItemStack item, String id) {
         if (item == null || item.isEmpty()) return false;
-        String key = normalize(id);
-        if (!key(item).equals(key) || shopBought(item)) return false;
-        if (!key.startsWith("minecraft:")) return true;
-        if (!item.hasItemMeta()) return true;
+        String key = normalize(id), have = key(item);
+        if (!have.equals(key) || shopBought(item)) return false;
+        if (!key.startsWith("minecraft:") || !item.hasItemMeta()) return plain(have, key, false, false);
         var meta = item.getItemMeta();
-        if (meta.hasCustomName() || meta.hasEnchants() || meta.hasLore()) return false;
-        return !(meta instanceof org.bukkit.inventory.meta.Damageable d) || !d.hasDamage();
+        boolean changed = meta.hasCustomName() || meta.hasEnchants() || meta.hasLore()
+                || (meta instanceof org.bukkit.inventory.meta.Damageable d && d.hasDamage());
+        return plain(have, key, false, changed);
+    }
+
+    /**
+     * The same rule on what was read from a stack (pure: the shop and the 거래소 구매 주문 match by it). stackKey = {@link #key};
+     * bought = the admin-shop mark; changed = a vanilla item renamed, enchanted, with lore or worn. Custom items match by id
+     * alone (a fish's size is not part of it).
+     */
+    public static boolean plain(String stackKey, String id, boolean bought, boolean changed) {
+        String key = normalize(id);
+        if (!stackKey.equals(key) || bought) return false;
+        return !key.startsWith("minecraft:") || !changed;
     }
 
     /** A rare or legend fish with its size (and price factor) from the catch. */

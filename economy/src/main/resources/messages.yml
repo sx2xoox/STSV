@@ -48,6 +48,8 @@ mail:
     market_buy: "거래소에서 산 물건"
     market_cancel: "거래소 등록 취소"
     market_expired: "거래소 등록 기간 만료"
+    buy_order: "거래소 구매 주문으로 산 물건"
+    buy_order_return: "구매 주문에 넘기지 못한 물건"
     auction_unsold: "경매 유찰"
     auction_win: "경매 낙찰"
     auction_cancel: "경매 취소"
@@ -125,7 +127,7 @@ shop:
 
 market:
   usage: "<red>/거래소 등록 <가격> <gray>(손에 든 묶음 전체의 가격) · 가격 없이 /거래소 등록 = 등록 화면"
-  help: "<gray>/거래소 · /거래소 등록 [가격] · /거래소 내목록 · /거래소 검색 <이름>"
+  help: "<gray>/거래소 · /거래소 등록 [가격] · /거래소 내목록 · /거래소 검색 <이름> · /거래소 주문 [개당 가격] [수량] · /거래소 주문목록 · /거래소 내주문"
   hold-item: "<red>팔 물건을 손에 드세요."
   no-cheques: "<red>수표는 거래소에 올릴 수 없습니다."
   full: "<red>등록은 {limit}건까지입니다."
@@ -187,6 +189,48 @@ auction:
   lore-own: ["<aqua>내 경매", "<gray>클릭: 보기 · 입찰 전이면 취소"]
   cancel-button: "<red>경매 취소"
   cancel-lore: ["<gray>입찰이 없을 때만 취소할 수 있음", "<gray>물건은 우편함으로, 보증금은 돌려받음", "<yellow>클릭: 취소"]
+
+# 거래소 구매 주문: 사는 사람이 값을 먼저 걸고 (전체 값을 맡김), 파는 사람이 물건을 넘기면 바로 대금
+order:
+  usage: "<red>/거래소 주문 <개당 가격> [수량] <gray>(손에 든 물건, 수량 없이 = 든 만큼) · 가격 없이 /거래소 주문 = 주문 화면"
+  hold-item: "<red>살 물건을 손에 드세요. <gray>(또는 /거래소 주문 으로 목록에서 고르기)"
+  pick-item: "<red>살 물건을 고르세요 <gray>(위 칸 클릭 또는 아래 인벤토리 클릭)"
+  not-orderable: "<red>구매 주문은 상점이 사는 물건만 낼 수 있습니다. <gray>(수표·탈것·치장·교환권·가구 불가)"
+  full: "<red>구매 주문은 {limit}건까지입니다."
+  min-price: "<red>개당 값은 {min} 이상이어야 합니다."
+  bad-price: "<red>개당 값이 너무 큽니다."
+  bad-amount: "<red>수량은 1 ~ {max}개입니다."
+  not-enough: "<red>맡길 돈이 부족합니다. <gray>(필요 {total})"
+  placed: "<green>구매 주문</green> <white>{item} ×{count}</white> <gray>개당 </gray>{price} <gray>· 맡긴 돈 </gray>{total} <gray>({days}일 뒤 만료, 남은 돈 환불)"
+  below-shop: "<yellow>주의: 상점 매입가(개당 {shop})보다 낮아서 팔 사람이 적을 수 있습니다."
+  own: "<red>내 주문입니다. <gray>(클릭해서 취소)"
+  gone: "<red>이미 채워졌거나 내려간 주문입니다."
+  no-items: "<red>넘길 {item}이(가) 없습니다. <gray>(이름 바꾼·인챈트·닳은·상점에서 산 물건은 안 받음)"
+  failed: "<red>저장소 오류로 넘기지 못했습니다. 물건은 돌려받았습니다."
+  sold: "<green>구매 주문에 판매</green> <white>{item} ×{count}</white> {price} <gray>(수수료 {fee}, 받은 돈 {receive}, 구매자 {buyer})"
+  filled: "<green>구매 주문</green> <white>{item} ×{count}</white> <gray>도착 ({price}, 판매자 <white>{seller}</white>, 남은 수량 {left}) · 물건은 <white>/우편함"
+  cancelled: "<gray>구매 주문 취소: <white>{item}</white> (돌려받은 돈 {refund})"
+  cancelled-admin: "<gray>관리자가 구매 주문을 내렸습니다: <white>{item}</white> (돌려받은 돈 {refund})"
+  expired: "<gray>구매 주문 기간이 끝났습니다: <white>{item}</white> <gray>(못 채운 {left}개, 돌려받은 돈 {refund})"
+  expired-away: "<gray>자리를 비운 동안 구매 주문 기간이 끝났습니다: <white>{item}</white> <gray>(못 채운 {left}개, 남은 돈은 돌려받음)"
+  away: "<green>자리를 비운 동안 구매 주문이 {fills}번 채워졌습니다: <white>{count}개</white> <gray>· 물건은 <white>/우편함"
+  away-line: " <gray>- <white>{item} ×{count}</white> {price} <dark_gray>({seller})"
+  mode-all: "구매 주문"
+  mode-mine: "내 구매 주문"
+  show-all: "전체 주문 보기"
+  show-mine: "내 주문만 보기"
+  no-best: "없음"
+  warn-below-shop: "<red>상점 매입가보다 낮음: 팔 사람이 적을 수 있음"
+  warn-ok: "<green>상점 매입가 이상: 팔 사람이 생기기 쉬움"
+  qty-ask: "<gold>수량</gold><gray>을 입력하세요. <dark_gray>(예: 500, 3천)"
+  picked-lore: ["", "<dark_gray>클릭: 목록에서 다른 물건 · 아래 인벤토리 클릭: 그 물건"]
+  pick-lore: ["", "<gray>상점 매입가: <white>{shop} <dark_gray>(개당)", "<gray>지금 최고 주문가: <white>{best}", "<yellow>클릭: 이 물건 주문하기"]
+  lore: ["", "<gray>개당: </gray>{price} <dark_gray>(남은 {left} / {amount}개)", "<gray>구매자: <white>{buyer}", "<gray>남은 시간: {time}",
+         "<dark_gray>상점 매입가 {shop} · 크기 무관"]
+  lore-fill: ["<gray>내가 가진 것: <white>{have}개", "<yellow>두 번 클릭: 한 묶음 넘기기 <gray>· Shift 두 번: 가진 만큼"]
+  lore-none: ["<dark_gray>내가 가진 것: 없음"]
+  lore-confirm: ["<gold><b>한 번 더 클릭하면 {count}개를 넘깁니다</b>", "<gray>받는 돈: <green>{receive} <dark_gray>(수수료 {fee})"]
+  lore-own: ["<aqua>내 주문 <gray>· 맡긴 돈 {held}", "<yellow>클릭: 주문 취소 (남은 돈 환불)"]
 
 # 거래소 판매 등록 · 경매 등록 · 입찰 화면의 가격 정하기
 price:

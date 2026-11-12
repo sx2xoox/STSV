@@ -86,8 +86,15 @@ final class Commands {
                 else eco.market().list(p, amount(a[1]));
             } else if (a[0].equals("내목록")) eco.market().open(p, null, true);
             else if (a[0].equals("검색") && a.length > 1) eco.market().open(p, String.join(" ", java.util.Arrays.copyOfRange(a, 1, a.length)), false);
+            // 구매 주문: /거래소 주문 = 주문 화면, /거래소 주문 <개당 가격> [수량] = 손에 든 물건으로 바로 (수량 없이 = 든 만큼)
+            else if (a[0].equals("주문")) {
+                if (a.length < 2) eco.orders().openNew(p, null);
+                else eco.orders().placeHeld(p, dev.stsv.economy.market.PriceInput.parse(a[1]),
+                        a.length < 3 ? -1 : Math.max(0, dev.stsv.economy.market.PriceInput.parse(a[2].replace("개", ""))));
+            } else if (a[0].equals("주문목록")) eco.orders().open(p, null, false);
+            else if (a[0].equals("내주문")) eco.orders().open(p, null, true);
             else p.sendMessage(Lang.msg("market.help"));
-        }), (s, a) -> a.length == 1 ? List.of("등록", "내목록", "검색") : List.of()));
+        }), (s, a) -> a.length == 1 ? List.of("등록", "내목록", "검색", "주문", "주문목록", "내주문") : List.of()));
         eco.command("경매", new Simple(player((p, a) -> {
             if (a.length == 0) {
                 eco.auction().open(p);

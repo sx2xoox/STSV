@@ -109,6 +109,11 @@ class MenuActionsTest {
         handled.put("economy:market_sell", PriceMenu.ACTIONS);
         handled.put("economy:auction_sell", PriceMenu.ACTIONS);
         handled.put("economy:auction_bid", PriceMenu.ACTIONS);
+        handled.put("economy:market_orders", dev.stsv.economy.market.BuyOrderModule.LIST_ACTIONS);
+        handled.put("economy:market_order_pick", dev.stsv.economy.market.BuyOrderModule.PICK_ACTIONS);
+        Set<String> order = new HashSet<>(PriceMenu.ACTIONS);
+        order.addAll(dev.stsv.economy.market.BuyOrderModule.QTY_ACTIONS);
+        handled.put("economy:market_order", order);
         List<String> problems = new ArrayList<>();
         for (MenuSpec m : menus()) {
             Set<String> ok = handled.get(m.id());
