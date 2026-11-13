@@ -85,9 +85,10 @@ class BannerLayoutTest {
     void fireHasAChatBanner() {
         BannerCatalog.Theme fire = C.theme("fire");
         assertTrue(fire.chat() != null && fire.chat().id().equals("fire") && fire.chat().chat() == null);
-        // 15 plate rows: 7 under the middle row (and the picture's empty last row), no more than 4 rows over the plate
-        assertEquals(9, fire.chat().height() - fire.chat().mid());
-        assertTrue(fire.chat().mid() <= 7 + 4 + 1, "rows over the plate's middle: " + fire.chat().mid());
+        // the full banner's plate (17 rows): 8 under the middle row (and the picture's empty last row), over it 8
+        // and one row of glow (and the empty first row): nothing rises over the plate
+        assertEquals(10, fire.chat().height() - fire.chat().mid());
+        assertEquals(10, fire.chat().mid());
     }
 
     @Test

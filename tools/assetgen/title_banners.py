@@ -27,13 +27,14 @@ banners keep a pixel apart): the tab list, the menu, and chat for themes without
 The chat banner (a theme with "chat" in THEMES; fonts <theme>_chat, title_chat, nick_chat): the text at its full
 size does not fit a 9 px chat line (a Galmuri9 letter alone is 9 rows), so a message of such a banner is two chat
 lines, an empty one and the line with the banner and the message (the plugin sends the line break), and the theme
-draws its art again for that block of 18 rows (the same letters, a plate of CHAT_PLATE rows, what is over the plate
-kept to CHAT_ROOM rows). Rows of the block, 0 = the empty line's first:
-    -1        the last row of the line before: only tips of the art
-    0 .. 2    over the plate
-    3 .. 17   the plate; its middle row 10 is the y of the second line's text (its letters are rows 10 .. 17)
-    6 .. 14   the banner's letters (full size, CHAT_LIFT px over where the line's own text would put them)
-Nothing is drawn under row 17, so a message that wraps goes on under the banner, and stacked banners do not touch.
+draws its art again for that block of 18 rows: the same letters and the same plate (CHAT_PLATE rows, the full
+banner's), its effects inside the plate, as nothing may rise over a chat line (at most CHAT_ROOM row over the plate:
+its glow). Rows of the block, 0 = the empty line's first:
+    0         the glow over the plate
+    1 .. 17   the plate; its middle row 9 is one over the y of the second line's text (its letters are rows 10 .. 17)
+    5 .. 13   the banner's letters (full size, CHAT_LIFT px over where the line's own text would put them)
+Nothing is drawn under row 17 or over row 0: a message that wraps goes on under the banner, stacked banners do not
+touch, and the line before is left alone.
 
 What the 26.3 client does with these (read from its code; tools/assetgen/banner_render.py and the plugin test
 BannerClientLayoutTest replay it):
@@ -94,7 +95,7 @@ TTF_UNIT = 64
 TTF_BIG = dict(size=16.0, oversample=1.0, shift=[0.0, 0.0])
 TTF_CHAT = dict(size=8.0, oversample=2.0, shift=[0.0, -1.0])
 # the chat banner (see the top): plate rows, rows over the plate, and how far its text is lifted
-CHAT_PLATE, CHAT_ROOM, CHAT_LIFT = 15, 4, 3
+CHAT_PLATE, CHAT_ROOM, CHAT_LIFT = 17, 1, 4
 TTF_TALL = dict(size=16.0, oversample=1.0, shift=[0.0, -float(CHAT_LIFT)])
 
 # theme list (data driven: add a module in banner_themes/ and a line here). icon = the menu item (a Material name),

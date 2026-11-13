@@ -1,7 +1,8 @@
 """1 fire: a crown of flames along the top, end flames licking outwards, embers and lava drips (approved art t01).
 
-The chat banner (G.chat: the rows it may use over the plate) is the same plate with the fire kept inside two chat
-lines: a low crown, the end flames up to the same height, sparks just over the rim, nothing under the plate."""
+The chat banner (G.chat: the rows it may use over the plate) is the same plate with the fire inside it, as nothing
+may rise over a chat line: flames along the plate's inner bottom (dark behind the letters), the end flames no higher
+than the plate, no crown, embers or drips."""
 import math, random
 from .lib_a import *
 TITLE, SLUG = "화염의 군주", "fire"
@@ -40,6 +41,31 @@ def flush(px, G, L, behind_plate=True):
         old = px[x, y]
         if old[3] == 0 or sum(c) > sum(old[:3]): px[x, y] = c + (255,)
 
+# the fire inside the chat plate: a row of tongues, the same every 16 columns (the plate is tiled 16 columns wide).
+# Under the letters (the plate's two lowest inner rows) it burns bright, behind them only in dark reds.
+INNER_H, INNER_PH, INNER_SPEED = (5.6, 3.2, 4.6, 2.6), (0.0, 2.1, 4.0, 5.6), (1, 2, 1, 3)
+INNER = ((70, 12, 8), (120, 22, 8), (168, 34, 10), (236, 92, 20), (255, 176, 56))
+
+
+def inner_fire(px, G, t):
+    base = G.PY1 - 2                                         # the plate's lowest inner row
+    L = {}
+    for cx in range(G.PX0 - G.PX0 % 16 + 2, G.PX1 + 1, 4):
+        k = (cx // 4) % 4
+        near = max(0.0, min(1.0, (min(cx - G.PX0, G.PX1 - cx) - 3) / 7))   # low at the plate's ends
+        if near > 0:
+            tongue(L, G, cx, base, INNER_H[k] * near, 2.4, INNER_PH[k], 0, t * INNER_SPEED[k])
+    S = set(L)
+    for (x, y), heat in L.items():
+        if (x, y) not in G.core: continue
+        if y >= base - 1:
+            c = INNER[4] if heat > 1.15 else INNER[3] if heat > 0.8 else INNER[2]
+        else:
+            c = INNER[2] if heat > 0.7 else INNER[1] if heat > 0.35 else INNER[0]
+            if any((x + a, y + b) not in S for a, b in ((1, 0), (-1, 0), (0, -1))): c = INNER[0]
+        px[x, y] = c + (255,)
+
+
 def frame(G, i):
     t = 2 * math.pi * i / N
     im, px = G.canvas()
@@ -48,19 +74,16 @@ def frame(G, i):
     room = G.chat                                            # None: the full banner
     back = {}
     # a crown of flames along the top, symmetric profile rising towards both ends (meets the end flames)
-    offs = list(range(1, int(half) - 3, 3))
+    offs = list(range(1, int(half) - 3, 3)) if room is None else []
     jit = [rnd.uniform(-1.5, 1.5) for _ in offs]
     for side in (-1, 1):
         for k, o in enumerate(offs):
             cx = G.CX + side * o
+            prof = 11 + 7 * (o / half) ** 1.8 + jit[k]
             ph = k * 1.9 + (0 if side < 0 else 3.3)
-            if room is None:
-                prof = 11 + 7 * (o / half) ** 1.8 + jit[k]
-            else:                                            # a tongue of height h ends h - 1 rows over the plate
-                prof = room + 1 - 1.4 * (0.5 - jit[k] / 3) * (1 - 0.6 * (o / half) ** 1.8)
             tongue(back, G, cx, G.PY0 + 1, prof, 2.4, ph, side * 0.012 * o / 3, t * (1 + k % 3))
     # the end flames: two tongues per end licking outwards
-    tall = (20, 14, 9) if room is None else (G.PY1 - G.PY0 + room - 2, 11, 7)
+    tall = (20, 14, 9) if room is None else (G.PY1 - G.PY0 - 1, 11, 7)
     for side in (-1, 1):
         ex = G.PX0 + 2 if side < 0 else G.PX1 - 2
         tongue(back, G, ex, G.PY1 - 1, tall[0], 3.8, 2.2, side * 0.45, t * 2)
@@ -72,9 +95,13 @@ def frame(G, i):
     glow(px, G, (255, 90, 20), 150, under=room is None)
     plate(px, G, lambda x, y, g: lerp((58, 14, 10), (10, 4, 6), g), (255, 222, 130), (176, 104, 28),
           bevel=lambda x, y: lerp((150, 34, 10), (255, 110, 30), 0.5 + 0.5 * math.sin(x * 0.4 + y * 0.3 - t * 2)))
+    if room is not None:
+        inner_fire(px, G, t)
     rivets(px, G, (255, 214, 110), (190, 120, 40))
     spikes(px, G, (255, 200, 90), (255, 240, 180))
     gem(px, G, G.DIV, G.MID, (255, 220, 220), (255, 70, 76), (215, 26, 36), (170, 10, 28), (118, 5, 18), top=(255, 120, 100))
+    if room is not None:
+        return im                                            # nothing over or under the plate in chat
     texts(px, G, i,
           lambda g: (255, 252, 226) if g < 0.15 else lerp((255, 226, 120), (232, 160, 40), (g - 0.15) / 0.6) if g < 0.75 else lerp((200, 120, 30), (150, 80, 20), (g - 0.75) / 0.25),
           lambda g: lerp(WHI, YEL, g * 1.6) if g < 0.6 else lerp(YEL, ORA, (g - 0.6) / 0.4), (16, 3, 0))
@@ -86,8 +113,6 @@ def frame(G, i):
     for q in list(front):
         if q in G.text_near: del front[q]
     flush(px, G, front, behind_plate=False)
-    if room is not None:
-        return im                                            # no room for embers and drips in chat
     # embers: 2px sparks rising on a 16-frame cycle, cooling as they climb
     sp = random.Random(8)
     for k in range(12):

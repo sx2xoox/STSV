@@ -39,8 +39,8 @@ public final class BannerText {
     /**
      * Full size (1 texel = 1 GUI pixel, the name tag), the small size (the plate's 16-row band at half size: 8 GUI
      * px, the top 8 of a 9 px chat line or tab row; the menu's lore too), or a theme's chat banner
-     * ({@link BannerCatalog.Theme#chat}: full size, made for two chat lines, the banner on the second; its plate's
-     * middle row is at the y of that line's text, and nothing of it is under the line).
+     * ({@link BannerCatalog.Theme#chat}: full size, made for two chat lines, the banner on the second; it fills
+     * the two lines' 18 rows and nothing of it is over or under them).
      */
     public enum Size {
         BIG("", 1.0), MINI("_mini", 0.5), TALL("_chat", 1.0);
