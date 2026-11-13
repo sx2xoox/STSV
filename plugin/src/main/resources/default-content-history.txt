@@ -320,6 +320,7 @@ c5fc178ca71b9b7b1c5d37d2b14248f4e36be9b4 stsv/bosses/executioner.yml
 8e9f2ee26f8c40047d8d062cb2c16d39b1daedab stsv/bosses/test.yml
 f26409f36ddb64cbf002c8401740b5df0c4de136 stsv/bosses/test.yml
 d5c33416ee0ff9006b9eab755fcf9b51142b711c stsv/emotes.yml
+e743c525f0b1506b53a75bcb006f348e0db35f3b stsv/emotes.yml
 338a0a6fd4f40422799ba1dc2ad779fd6272ebdd stsv/gacha.yml
 e97f597d72c5b4552200c7bad1976608c20b5129 stsv/gacha.yml
 ba297dabb12b4af6b04c70860f78e1cd37e29696 stsv/items/combat.yml
