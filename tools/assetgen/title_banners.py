@@ -111,6 +111,15 @@ THEMES = [
          title=((244, 234, 238), (204, 184, 194)), nick=((255, 150, 150), (226, 36, 48))),
     dict(id="prism", module="prism", icon="AMETHYST_SHARD", name="프리즘", tile=16, centre=0, chat=True,
          title=((255, 255, 255), (224, 228, 248)), nick=((246, 242, 255), (204, 190, 252))),
+    dict(id="royal", module="royal", icon="GOLD_INGOT", name="황금", tile=16, centre=18, chat=True,
+         title=((255, 244, 190), (246, 190, 70)), nick=((255, 250, 226), (255, 206, 96))),
+    dict(id="frost", module="frost", icon="PACKED_ICE", name="서리", tile=16, centre=0, chat=True,
+         title=((248, 252, 255), (150, 208, 246)), nick=((236, 250, 255), (104, 204, 255))),    dict(id="void", module="void", icon="ENDER_EYE", name="심연", tile=16, centre=18, chat=True,
+         title=((246, 232, 255), (170, 110, 240)), nick=((255, 244, 255), (190, 120, 255))),
+    dict(id="toxic", module="toxic", icon="SLIME_BALL", name="맹독", tile=16, centre=0, chat=True,
+         title=((244, 255, 220), (150, 226, 70)), nick=((255, 255, 236), (124, 236, 64))),
+    dict(id="blossom", module="blossom", icon="PINK_PETALS", name="벚꽃", tile=16, centre=0, chat=True,
+         title=((255, 248, 251), (250, 176, 208)), nick=((255, 240, 246), (246, 140, 186))),
 ]
 
 BAYER4 = ((0, 8, 2, 10), (12, 4, 14, 6), (3, 11, 1, 9), (15, 7, 13, 5))

@@ -15,8 +15,11 @@ class BannerLayoutTest {
             new String[]{"최고 부자", "xozne"}, new String[]{"아주 아주 아주 긴 칭호 이름입니다", "Long_Name_12345"});
 
     @Test
-    void shipsTheFiveApprovedThemes() {
-        assertEquals(List.of("fire", "lightning", "neon", "bloodmoon", "prism"), List.copyOf(C.themes().keySet()));
+    void shipsTheTenThemes() {
+        assertEquals(List.of("fire", "lightning", "neon", "bloodmoon", "prism", "royal", "frost", "void", "toxic", "blossom"),
+                List.copyOf(C.themes().keySet()));
+        // every one of them has a chat banner of its own (the banner shown in chat, the tab list and over the head)
+        for (BannerCatalog.Theme t : C.themes().values()) assertTrue(t.chat() != null && t.chat().height() == 18, t.id());
         assertEquals(16, C.frames());
     }
 
@@ -96,7 +99,7 @@ class BannerLayoutTest {
         assertEquals(fire.metrics().nickWidths().keySet(), fire.chat().metrics().nickWidths().keySet(), "every name can be written");
         // something runs along three of them (the shader plays their frames that way): fire a gust of flame,
         // lightning a discharge, the blood moon a flight of bats; their full banners loop
-        for (String id : new String[]{"fire", "lightning", "bloodmoon"}) {
+        for (String id : new String[]{"fire", "lightning", "bloodmoon", "royal", "blossom"}) {
             BannerCatalog.Theme t = C.theme(id);
             assertTrue(t.chat() != null && t.chat().flow() > 0 && t.flow() == 0, id);
             // every part starts on a step of the run: the left end at 0, the tile and the right end whole steps later
@@ -115,7 +118,7 @@ class BannerLayoutTest {
             assertEquals(0, t.chat().centreWidth(), id + ": no centre part (the blood moon stands in its left end)");
         }
         // the neon sign and the crystal loop, and grow in whole cells of 16 columns
-        for (String id : new String[]{"neon", "prism"}) {
+        for (String id : new String[]{"neon", "prism", "frost", "void", "toxic"}) {
             BannerCatalog.Theme t = C.theme(id).chat();
             assertTrue(t != null && t.flow() == 0 && t.grow() > 0, id);
             assertEquals(0, (BannerLayout.of(C, t, "명장 대장장이", "Steve_2024").plateWidth() - t.minPlate()) % t.grow(), id);

@@ -310,7 +310,8 @@ class WithPlain:
 # Previews
 # ------------------------------------------------------------------------------------------------
 
-THEME_NAMES = {"fire": "화염", "lightning": "번개", "neon": "네온", "bloodmoon": "혈월", "prism": "프리즘"}
+THEME_NAMES = {"fire": "화염", "lightning": "번개", "neon": "네온", "bloodmoon": "혈월", "prism": "프리즘",
+               "royal": "황금", "frost": "서리", "void": "심연", "toxic": "맹독", "blossom": "벚꽃"}
 
 
 def find(comps, theme, title, nick, size):
