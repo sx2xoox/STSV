@@ -3,9 +3,9 @@
 A chat line is 9 GUI px high and a Galmuri9 letter alone is 9 rows, so the full banner's text cannot share a line
 with a plate, and the full banner at half size has letters of 4.5 px. The chat banner is drawn like the game draws
 its own Hangul: 1 texel = half a GUI pixel. A line is 18 rows of texels: a plate of exactly these 18 rows (an edge,
-a bevel, 14 rows for the text, a bevel, an edge), nothing over or under it. The text, title and nickname, Hangul,
-Latin and digits, is one face drawn at this resolution: Galmuri11 made half bold (glyph), capitals and Hangul
-11 rows (5.5 px), small letters 8.
+a bevel, 14 rows for the text, a bevel, an edge), nothing over or under it. The text is drawn at this resolution
+(glyph): Hangul in Neo둥근모 (13 rows, 6.5 px), Latin, digits and signs in Galmuri14 made bold (capitals 14 rows,
+7 px: the chat's own height), title and nickname alike.
 
 A theme module gives chat_frame(G, i) (the 16 frames, G a ChatGeo) next to its frame(G, i).
 
@@ -28,41 +28,54 @@ import math
 from PIL import Image
 
 import galmuri
+import neodgm
 from . import state
 
 ROWS = 18                     # the plate: rows 0 .. 17 of the picture, the chat line's 9 px
 TEXT_ROW = 2                  # the text's first row; 14 rows (the letters: glyph)
 SLOPE = 8                     # the plate's pointed ends: columns from its tip to its full height
-PAD, GAP, SPACE = 17, 15, 6   # tip to text (the slope and 9 more), title - gem - name, a space in the title
+PAD, GAP, SPACE = 17, 15, 7   # tip to text (the slope and 9 more), title - gem - name, a space in the title
 NAME = "xozne"
 
-TEXT_BASE = 12                # the cell row under the letters' baseline: capitals and Hangul are rows 1 .. 11
+TEXT_BASE = 14                # the cell row under the letters' baseline: capitals are rows 0 .. 13
 
-_F11 = None
+# Galmuri14's letters that hang under the baseline (g j p q y three rows, Q and the comma two) would cross the
+# plate's whole bottom frame and leave it. Texel rows are taken out of each (out of a stretch of upright strokes,
+# so its shape stays; of p and q the stem's last rows) and what is under them moves up: they hang a single row, on
+# the frame's bevel, and the edge stays whole.
+SQUEEZE = {"g": (9, 7), "j": (10, 8), "p": (16, 15), "q": (16, 15), "y": (11, 8), "Q": (6,), ",": (14,)}
+
+_F14 = _NEO = None
 
 
 def glyph(ch, nick=False):
     """The pixels of a character of the chat banner's text, in cell rows (0 = the text's first row, plate row
-    TEXT_ROW), or None when the font has no picture for it. The title and the nickname, Hangul, Latin and digits
-    alike, are Galmuri11: one face, drawn at the plate's own resolution (a pixel of it is half a GUI pixel), so its
-    curves are twice as fine as a doubled 5 x 7 letter's. Capitals, digits and Hangul are 11 rows (5.5 px), small
-    letters 8, what hangs under the baseline reaches row 13 (signs row 14, on the plate's bevel).
+    TEXT_ROW), or None when the font has no picture for it. Title and nickname are written alike:
 
-    The font's own strokes are one texel, too thin over a plate that moves, and its bold cut is too heavy at this
-    size (two texels every way: small Hangul closes up). So it is made half bold here: a pixel gets another to its
-    right only where that leaves the next stroke a clear column away (never touching it, not even at a corner).
-    Upright strokes come out two texels wide, level ones stay one, and no counter fills in."""
-    global _F11
-    if _F11 is None:
-        _F11 = galmuri.load(11)
-    g = _F11.get(ord(ch))
+    Hangul in Neo둥근모, the font the pack's default font writes Korean with (default_font.py), so a banner's
+    Hangul is the chat's own: 13 rows (6.5 px) on the baseline, a little lower than a capital, as Hangul fills its
+    whole square. Upright strokes two texels, level ones one. The top row of its em square is cell row 0.
+
+    Latin, digits and signs in Galmuri14 made bold (every pixel doubled to its right): capitals and digits 14 rows
+    (7 px, the chat's own height), small letters 10, drawn at the plate's resolution, so their curves are twice
+    as fine as a doubled 5 x 7 letter's."""
+    global _F14, _NEO
+    if 0xAC00 <= ord(ch) <= 0xD7A3:
+        if _NEO is None:
+            _NEO = neodgm.load()
+        g = _NEO.get(ord(ch))
+        return sorted((x, y) for y, row in enumerate(g[1]) for x, b in enumerate(row) if b) or None if g else None
+    if _F14 is None:
+        _F14 = galmuri.load(14)
+    g = _F14.get(ord(ch))
     if not g or not g[3]:
         return None
     adv, xo, yo, bits = g
     top = TEXT_BASE - (yo + len(bits))
     pix = {(xo + x, top + y) for y, r in enumerate(bits) for x, b in enumerate(r) if b}
-    pix |= {(x + 1, y) for x, y in pix if not any((x + 2, y + d) in pix for d in (-1, 0, 1))}
-    return sorted(pix)
+    for out in SQUEEZE.get(ch, ()):                              # from the lowest row up
+        pix = {(x, y - (y > out)) for x, y in pix if y != out}
+    return sorted(pix | {(x + 1, y) for x, y in pix})
 
 
 def outline(pix):
