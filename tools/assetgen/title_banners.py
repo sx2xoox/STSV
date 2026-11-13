@@ -454,7 +454,8 @@ def pixel_ttf(glyphs, family):
     """A TrueType font of pixel squares: glyphs {char: (pixels [(x, row)], advance in pixels)}; a pixel is TTF_UNIT
     units, 16 to the em, cell row r spans 8 - r .. 7 - r pixels above the baseline. Runs of pixels are one rectangle.
     It carries a (do-nothing) prep program: FreeType auto-hints TrueType fonts without any instructions, which moves
-    the strokes of Hangul off the pixel grid; with it the native hinter leaves the grid-aligned outlines alone."""
+    the strokes of Hangul off the pixel grid; with it the native hinter leaves the grid-aligned outlines alone (it
+    has to be longer than seven bytes for FreeType 2.14, see below)."""
     import io
     from fontTools.fontBuilder import FontBuilder
     from fontTools.pens.ttGlyphPen import TTGlyphPen
@@ -499,9 +500,11 @@ def pixel_ttf(glyphs, family):
     fb.setupPost()
     prep = newTable("prep")
     prep.program = ttProgram.Program()
-    prep.program.fromBytecode(bytes([0xB0, 0x00, 0x21]))     # PUSHB 0, POP
+    # PUSHB 0, POP, three times: FreeType 2.14 ignores a font's own hinting (and auto-hints, which blurs a row of
+    # every glyph) when it has no fpgm and a prep of seven bytes or less; 2.13 and 2.14 both leave nine bytes alone
+    prep.program.fromBytecode(bytes([0xB0, 0x00, 0x21] * 3))
     fb.font["prep"] = prep
-    fb.font["maxp"].maxSizeOfInstructions = 3
+    fb.font["maxp"].maxSizeOfInstructions = 9
     fb.font["head"].created = fb.font["head"].modified = 0x7C259DC0     # fixed (2020-01-01): same bytes every run
     out = io.BytesIO()
     fb.font.recalcTimestamp = False
