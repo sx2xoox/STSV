@@ -448,6 +448,24 @@ def encode(samples, path: Path, quality):
                        check=True)
 
 
+# ----------------------------------------------------------------------------------------------
+# 컨버터블 스포츠카 (event vehicle, vehicles.yml sports_car)
+# ----------------------------------------------------------------------------------------------
+
+def sports_engine(n, t):
+    """A high-revving sports engine: a higher firing note (80 Hz at pitch 1: the server plays it from 0.55 at idle to
+    1.9 flat out), many bright harmonics left in (a hard-edged howl, not a hum) and a rasp on top from the exhaust."""
+    rng = np.random.default_rng(41)
+    return combustion(n, t, rng, f0=80.0, count=16, rolloff=0.75, bandwidth=6.0, floor=0.18, warmth=2600, clatter=0.25)
+
+
+VEHICLES = VEHICLES + ("sports_car",)
+# a bright, sharp two-tone: higher and thinner than the patrol car's
+HORNS["sports_car"] = dict(tones=(494.0, 622.0), rolloff=1.0, drive=2.4, formant=(2700.0, 900.0, 1.5), top=7000, seed=41)
+ENGINES["sports_car"] = sports_engine
+ENGINE_LEVEL["sports_car"] = 0.85
+
+
 def sounds_json():
     """Every vehicle sound event: stsv:vehicle.<v>.horn / horn_end / engine -> stsv:vehicle/<v>_<kind>."""
     out = {}

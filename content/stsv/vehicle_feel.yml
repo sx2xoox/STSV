@@ -93,6 +93,10 @@ suspension:
 #   bounce        서스펜션 배율 (1 = 위의 값 그대로, 0 = 출렁이지 않음)
 #   pedal-bob     페달을 밟을 때 타는 사람이 오르내리는 폭 (블록, 짐자전거)
 #   effort        사람 힘 (위 설명). 지게는 걷는 거리, 리어카는 끄는 거리, 짐자전거는 타고 간 거리
+#   sport         스포츠카의 속도감: fov 최고 속도에서 운전자 시야가 넓어지는 비율 (0.3 = 30%, 0 ~ 0.5. 게임 설정 '시야 효과'를
+#                 낮춘 사람은 그만큼 덜 보임), exhaust 배기구 위치 [[오른쪽, 위, 앞], ...],
+#                 backfire 달리다(min-speed 블록/초 이상) 가속을 떼면 배기구에서 불꽃이 튀며 "팡팡": sound, volume,
+#                 launch-smoke true = 서 있다가 가속을 밟으면 뒷바퀴에서 연기
 # ------------------------------------------------------------------------------------------------
 vehicles:
   police_car:
@@ -101,6 +105,18 @@ vehicles:
     engine-start: { sound: stsv:vehicle.police_car.engine_start, volume: 0.6, ticks: 20 }
     engine-stop: { sound: stsv:vehicle.police_car.engine_stop, volume: 0.5 }
     idle-shake: 0.006
+  sports_car:
+    power: engine
+    lights: { head: sports_car_lamp_head, tail: sports_car_lamp_tail, brake: sports_car_lamp_brake }
+    engine-start: { sound: stsv:vehicle.sports_car.engine_start, volume: 0.75, ticks: 22 }
+    engine-stop: { sound: stsv:vehicle.sports_car.engine_stop, volume: 0.55 }
+    idle-shake: 0.008
+    bounce: 0.6
+    sport:
+      fov: 0.3
+      exhaust: [[-0.5, 0.28, -2.3], [-0.31, 0.28, -2.3], [0.31, 0.28, -2.3], [0.5, 0.28, -2.3]]
+      backfire: { sound: stsv:vehicle.sports_car.backfire, volume: 0.9, min-speed: 7 }
+      launch-smoke: true
   light_truck:
     power: engine
     lights: { head: light_truck_lamp_head, tail: light_truck_lamp_tail, brake: light_truck_lamp_brake, reverse: light_truck_lamp_reverse }

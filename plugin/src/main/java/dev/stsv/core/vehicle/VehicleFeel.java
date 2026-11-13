@@ -103,11 +103,12 @@ public final class VehicleFeel {
      * @param idleShake how far its body shakes while idling (blocks, 0 = still)
      * @param bounce    the suspension's share (1 = the file's suspension as it is, 0 = none)
      * @param pedalBob  how far the rider rises and sinks with each pedal stroke (blocks: the bicycle)
+     * @param sport     a sports car's feel of speed ({@link SportFeel}), or null
      */
     public record Spec(Power power, Profile profile, Effort effort, Lamps lamps, boolean reverseBeep, Sound start, Sound stop,
-                       double idleShake, double bounce, double pedalBob) {
+                       double idleShake, double bounce, double pedalBob, SportFeel.Spec sport) {
         public static Spec plain(Power p, Profile profile) {
-            return new Spec(p, profile, Effort.NONE, Lamps.NONE, false, null, null, 0, 1, 0);
+            return new Spec(p, profile, Effort.NONE, Lamps.NONE, false, null, null, 0, 1, 0, null);
         }
 
         /** The engine starts and stops with its own sounds (it runs while anyone rides). */
@@ -234,11 +235,12 @@ public final class VehicleFeel {
         if (shake < 0 || shake > 0.1) throw new IllegalArgumentException("idle-shake 는 0 ~ 0.1 (블록)");
         if (bounce < 0 || bounce > 3) throw new IllegalArgumentException("bounce 는 0 ~ 3");
         if (bob < 0 || bob > 0.2) throw new IllegalArgumentException("pedal-bob 은 0 ~ 0.2 (블록)");
+        SportFeel.Spec sport = v.isConfigurationSection("sport") ? SportFeel.parse(v.getConfigurationSection("sport")) : null;
         return new Spec(power, profiles.getOrDefault(power, defaultProfile(power)), effort, lamps, v.getBoolean("reverse-beep"),
-                start, stop, shake, bounce, bob);
+                start, stop, shake, bounce, bob, sport);
     }
 
-    private static Sound sound(ConfigurationSection s, String what) {
+    static Sound sound(ConfigurationSection s, String what) {
         String key = s.getString("sound");
         if (key == null || key.isBlank() || NamespacedKey.fromString(key.trim()) == null)
             throw new IllegalArgumentException(what + ".sound 가 없거나 잘못됨");

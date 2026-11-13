@@ -47,6 +47,9 @@ LAMPS = {
     # with a lit bar along the top (the white reverse lamp at their inner end)
     "police_car": dict(scale=2.0, head=lens(8, 12, 8, 11, -36.5), tail=lens(9, 14.5, 9.5, 12, 36.5),
                        reverse=lens(8, 9, 10, 11, 36.5), body=("vehicles", "police_car")),
+    # sports_car: slim lamps on the nose (two running lights along the upper edge), tail lamps drawn out to the corners
+    "sports_car": dict(scale=2.0, head=lens(7, 14, 10, 11, -35.5), tail=lens(5, 15.5, 10, 11, 36.5),
+                       body=("vehicles", "sports_car")),
     # light_truck: headlight boxes (amber strip on top), taillights on the bed's back (amber inside: the reverse lamp)
     "light_truck": dict(scale=2.0, head=lens(8.5, 12.5, 9, 12, -39.5), tail=lens(11, 13.5, 7, 9.5, 38.5),
                         reverse=lens(10, 11, 7, 9.5, 38.5), body=("vehicles", "light_truck")),

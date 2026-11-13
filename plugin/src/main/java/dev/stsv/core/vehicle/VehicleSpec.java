@@ -79,9 +79,22 @@ public record VehicleSpec(
      *                   faster (a bicycle, a motorbike); 0 = it stays upright
      * @param spinners   parts that turn with the wheels (a bicycle's pedal crank)
      * @param allTerrain not slowed on rough ground (sand, gravel, snow, mud) or soul sand ({@link VehiclePhysics#slowdown})
+     * @param overCap    its own top speed holds even over the server's (vehicles.max-speed): the sports car
      */
-    public record Extras(double lean, List<Spinner> spinners, boolean allTerrain) {
-        public static final Extras NONE = new Extras(0, List.of(), false);
+    public record Extras(double lean, List<Spinner> spinners, boolean allTerrain, boolean overCap) {
+        public static final Extras NONE = new Extras(0, List.of(), false, false);
+
+        public Extras(double lean, List<Spinner> spinners, boolean allTerrain) {
+            this(lean, spinners, allTerrain, false);
+        }
+    }
+
+    /** The fastest a vehicle that goes over the server's top speed may be set (blocks/s). */
+    public static final double OVER_CAP_MAX = 20;
+
+    /** The top speed the server lets this vehicle reach: the server's cap, or its own speed when it goes over it. */
+    public double cap(double serverCap) {
+        return extras.overCap() ? Math.max(serverCap, speed) : serverCap;
     }
 
     /**
@@ -285,8 +298,10 @@ public record VehicleSpec(
             spinners.add(new Spinner(model(sp.getString("model"), "vehicle.spinners.model", namespace, modelExists),
                     vec(sp, "at", "vehicle.spinners.at"), ratio));
         }
-        Extras extras = lean == 0 && spinners.isEmpty() && !v.getBoolean("all-terrain")
-                ? Extras.NONE : new Extras(lean, List.copyOf(spinners), v.getBoolean("all-terrain"));
+        boolean overCap = v.getBoolean("over-cap");
+        if (overCap && speed > OVER_CAP_MAX) throw new IllegalArgumentException("vehicle.over-cap 인 탈것의 speed 는 " + OVER_CAP_MAX + " 이하");
+        Extras extras = lean == 0 && spinners.isEmpty() && !v.getBoolean("all-terrain") && !overCap
+                ? Extras.NONE : new Extras(lean, List.copyOf(spinners), v.getBoolean("all-terrain"), overCap);
         return new VehicleSpec((float) bodyScale, speed, reverse,
                 driven ? positive(v, "acceleration") : v.getDouble("acceleration", 3), driven ? positive(v, "brake") : v.getDouble("brake", 8),
                 v.getDouble("coast", driven ? 2.0 : 8.0), driven ? positive(v, "turn-rate") : v.getDouble("turn-rate", 90),

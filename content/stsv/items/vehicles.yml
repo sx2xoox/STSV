@@ -1,4 +1,4 @@
-# 탈것 세대 사다리: 1세대 리어카 · 4세대 1톤 트럭 (2·3·5세대와 특수는 vehicles_road.yml). 경찰차·골프 카트는 이벤트 탈것 (세대 없음).
+# 탈것 세대 사다리: 1세대 리어카 · 4세대 1톤 트럭 (2·3·5세대와 특수는 vehicles_road.yml). 경찰차·골프 카트·컨버터블 스포츠카는 이벤트 탈것 (세대 없음).
 # 탈것 (리어카만 경제 서버 상점의 '탈것' 분류에서 팖: 가격은 economy shop.yml. 나머지는 관리자만: /관리자 아이템목록 의 '탈것' 탭, /관리자 지급). 뽑기·레시피에는 없음.
 # 땅에 우클릭 = 내 방향으로 세우기 · 우클릭 = 타기 · 웅크리고 우클릭 = 아이템으로 회수 (주인·관리자)
 # 1톤 트럭은 웅크리고 짐칸을 우클릭하면 짐칸(보관함)이 열림. 짐칸에 물건이 있으면 회수할 수 없음.
@@ -15,6 +15,7 @@
 #   click-height   우클릭으로 잡히는 높이 (타고 있는 사람의 시야를 가리지 않게 지붕보다 낮게)
 #   wheel          바퀴 모델, wheel-radius 바퀴 반지름 (굴러가는 빠르기)
 #   wheels         바퀴 위치. steer: true = 앞바퀴 (조향 각도가 보임)
+#   over-cap       true = 서버 상한(config.yml vehicles.max-speed)을 넘어 자기 speed 까지 냄 (speed 20 이하. 스포츠카)
 #   seats          좌석 위치 (앉는 면의 높이). 첫 번째가 운전석
 #   horn           경적 (운전 중 스페이스를 누르고 있는 동안): sound 누르는 동안의 소리, release 뗄 때 끝소리 (둘 다 리소스팩 소리,
 #                  tools/assetgen/sounds.py 가 만듦), volume (1 = 16블록쯤까지 들림, 1.5 = 24블록).
@@ -76,6 +77,46 @@ police_car:
       behind: -1.3
       at: [0, 0.6, -1.8]
       payload: 100          # 적재 무게 (economy weights.yml 의 무게로, README '적재 무게')
+
+# 이벤트 한정 · 컨버터블 스포츠카: 지붕 없는 2인승. 짐칸 없음 (실용성 없음), 가장 빠르고 가장 빨리 가속함
+sports_car:
+  material: paper
+  name: "<#e23a2e>컨버터블 스포츠카"
+  lore:
+    - "<gold>이벤트 한정</gold> <gray>· 지붕을 연 2인승 스포츠카"
+    - "<gray>짐칸 없음 · 최고 속도 14블록/초 · 가장 빠른 가속"
+    - "<dark_gray>땅에 우클릭: 세우기 · 우클릭: 타기 · 스페이스: 경적"
+    - "<dark_gray>W·S 앞뒤, A·D 방향, 웅크리기: 내리기"
+    - "<dark_gray>웅크리고 우클릭: 아이템으로 회수 (주인)"
+  model: sports_car
+  icon: sports_car_icon
+  max-stack: 1
+  vehicle:
+    body-scale: 2
+    speed: 14
+    over-cap: true          # 서버 상한(config.yml vehicles.max-speed)보다 빨라도 자기 speed 까지 냄 (20 이하)
+    reverse-speed: 4
+    acceleration: 7.0
+    brake: 14
+    coast: 2.5
+    turn-rate: 80
+    turn-speed: 4
+    step-height: 1.0
+    size: [4.5, 2.0, 1.3]
+    click-height: 0.9
+    wheel: wheel_sport
+    wheel-radius: 0.375
+    wheels:
+      - { at: [-0.8125, 0.375, 1.375], steer: true }
+      - { at: [0.8125, 0.375, 1.375], steer: true }
+      - { at: [-0.8125, 0.375, -1.4375] }
+      - { at: [0.8125, 0.375, -1.4375] }
+    seats:
+      - { at: [-0.44, 0.16, -0.19] }
+      - { at: [0.44, 0.16, -0.19] }
+    horn: { sound: stsv:vehicle.sports_car.horn, release: stsv:vehicle.sports_car.horn_end, volume: 1.5,
+            vanilla: block.note_block.didgeridoo, pitch: 1.6, times: 1 }
+    engine: { sound: stsv:vehicle.sports_car.engine, volume: 0.55, idle-volume: 0.22, idle-pitch: 0.55, top-pitch: 1.9, segment-ticks: 10 }
 
 light_truck:
   material: paper

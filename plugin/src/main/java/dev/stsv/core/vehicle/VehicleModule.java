@@ -233,6 +233,7 @@ public final class VehicleModule implements StsvModule, Listener {
         tools = new VehicleTools(this, plugin);
         // a plugin reload while someone pulled: nobody pulls now
         for (Player p : Bukkit.getOnlinePlayers()) PullSpeed.remove(p.getAttribute(Attribute.MOVEMENT_SPEED));
+        VehicleFeelView.viewOffAll();
         // a plugin reload: the last run's entities (never saved, so only ever after a reload in the same run)
         for (World w : Bukkit.getWorlds()) for (Entity e : w.getEntities()) if (isVehiclePart(e)) e.remove();
         Bukkit.getPluginManager().registerEvents(this, plugin);
@@ -1469,8 +1470,10 @@ public final class VehicleModule implements StsvModule, Listener {
                 TrainPhysics.step(v.st, v.train.units, in, v.spec, terrain, new WorldGround(v.world), Math.min(settings.maxSpeed(), VehicleTools.speedCap(v)),
                         roadBonus(v), feltLoad[0], feltLoad[1]);
             } else {
-                VehiclePhysics.step(v.st, in, v.spec, terrain, Math.min(settings.maxSpeed(), VehicleTools.speedCap(v)), 1f, roadBonus(v),
-                        settings.maxSpeed(), feltLoad[0], feltLoad[1]);
+                // (the sports car goes over the server's top speed: VehicleSpec#cap)
+                double cap = v.spec.cap(settings.maxSpeed());
+                VehiclePhysics.step(v.st, in, v.spec, terrain, Math.min(cap, VehicleTools.speedCap(v)), 1f, roadBonus(v),
+                        cap, feltLoad[0], feltLoad[1]);
             }
             if (v.st.bumped) {
                 if (v.spec.floats()) v.world.playSound(at(v), Sound.BLOCK_WOOD_HIT, SoundCategory.NEUTRAL, 0.8f, 0.6f);
@@ -1526,7 +1529,8 @@ public final class VehicleModule implements StsvModule, Listener {
         light(v, active);
         lights(v);
         horn(v, driver != null && in.jump());
-        feel.tick(v, driver, puller != null ? puller : driver, in, ticks, settings.engine() && v.spec.engine() != null);
+        feel.tick(v, driver, puller != null ? puller : driver, in, ticks, settings.engine() && v.spec.engine() != null,
+                Math.min(v.spec.speed(), v.spec.cap(settings.maxSpeed())));
         engine(v, driver);
         if (v.cargoViewer != null) watchCargo(v);
         if (v.dirty && (ticks - v.savedAt >= settings.saveTicks() || (v.st.speed == 0 && driver == null && v.puller == null))) save(v);
@@ -1640,7 +1644,7 @@ public final class VehicleModule implements StsvModule, Listener {
      */
     private void boat(LiveVehicle v, Player driver) {
         VehicleSpec.Water wa = v.spec.water();
-        double top = Math.min(v.spec.speed(), settings.maxSpeed());
+        double top = Math.min(v.spec.speed(), v.spec.cap(settings.maxSpeed()));
         if ((ticks + v.id) % BoatMotion.TICKS == 0 && (driver != null || seen(v, BoatMotion.ROCK_SEEN))) {
             BoatMotion.Rock r = BoatMotion.rock(ticks, v.id, v.st.speed, top, v.boatTurn, wa.rock(), v.boatMode == BoatPhysics.Mode.FLOAT);
             Quaternionf q = BoatMotion.rotation(r);
@@ -2252,7 +2256,7 @@ public final class VehicleModule implements StsvModule, Listener {
             return;
         }
         if (v.engineOn && ticks < v.engineAt) return;
-        double top = Math.min(v.spec.speed(), settings.maxSpeed());
+        double top = Math.min(v.spec.speed(), v.spec.cap(settings.maxSpeed()));
         float pitch = VehicleSounds.enginePitch(v.st.speed, top, e);
         float volume = VehicleSounds.engineVolume(v.st.speed, top, e, settings.engineVolume());
         v.engineOn = true;

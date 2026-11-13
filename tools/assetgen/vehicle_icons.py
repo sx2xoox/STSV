@@ -60,6 +60,33 @@ def police_car():
     return c.render()
 
 
+@icon("sports_car")
+def sports_car():
+    # low and long, open: a tall blunt nose, the raked screen, the head rests, one straight shoulder over big wheels,
+    # a lip on the boot
+    rows = ["................",
+            "................",
+            "................",
+            "................",
+            "................",
+            "......g..E......",
+            ".....gG.eE.e....",
+            ".wwwwwgaaaaawwW.",
+            ".wWWWWWWWWWWWWWw",
+            ".yVVVVVVVVVVVVVt",
+            "sbVkkVVVVVVVkkVV",
+            ".NkhHkNNNNNkhHkN",
+            "..khhk.....khhk.",
+            "...kk.......kk..",
+            "................",
+            "................"]
+    colours = {"w": ("tomato", 4), "W": ("tomato", 3), "V": ("tomato", 2), "N": ("tomato", 0), "g": ("tint", 2),
+               "G": ("glass", 4), "a": ("rubber", 1), "e": ("rubber", 2), "E": ("rubber", 3), "b": ("rubber", 0),
+               "s": ("rubber", 1), "y": ("lamp", 5), "t": ("signal_red", 4),
+               "k": ("rubber", 1), "h": ("steel", 3), "H": ("blade", 4)}
+    return _draw(rows, colours).render()
+
+
 @icon("light_truck")
 def light_truck():
     rows = ["................",

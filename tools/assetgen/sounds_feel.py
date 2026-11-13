@@ -33,12 +33,15 @@ ENGINES = {
     "tractor_trailer": dict(idle=30 * 0.6, crank=(6.5, 0.75), rev=1.9, clatter=0.4, warmth=900, start=1.4 + FADE, stop=0.9, seed=65),
     "delivery_scooter": dict(idle=85 * 0.7, crank=(14.0, 0.25), rev=2.4, clatter=0.25, warmth=2400, start=0.8 + FADE, stop=0.5, seed=66),
     "atv": dict(idle=28 * 0.6 * 2, crank=(9.0, 0.35), rev=2.3, clatter=0.2, warmth=1200, start=0.9 + FADE, stop=0.6, seed=67),
+    # the sports car: a quick starter, a big bark of revs as it catches
+    "sports_car": dict(idle=80 * 0.55, crank=(13.0, 0.3), rev=3.2, clatter=0.15, warmth=2400, start=1.1 + FADE, stop=0.6, seed=70),
 }
 TILLER = dict(idle=8 * 0.75, start=1.5 + FADE, stop=0.8, seed=68)
 CART = dict(start=0.4 + FADE, stop=0.45, seed=69)
 
 VEHICLES = tuple(ENGINES) + ("power_tiller", "golf_cart")
-NAMES = [(v, k) for v in VEHICLES for k in ("engine_start", "engine_stop")] + [("common", "reverse_beep")]
+NAMES = ([(v, k) for v in VEHICLES for k in ("engine_start", "engine_stop")] + [("common", "reverse_beep")]
+         + [("sports_car", "backfire")])
 
 
 # ----------------------------------------------------------------------------------------------
@@ -218,6 +221,23 @@ def reverse_beep():
     return S.normalize(tone * env, 0.55)
 
 
+def backfire():
+    """The sports car lifting off at speed: unburnt fuel popping in the exhaust. Three cracks close together (a hard
+    click, a short low thump under it, a burst of bright noise dying fast), each a little softer; ~0.45 s."""
+    rng = np.random.default_rng(71)
+    n = int(SR * 0.5)
+    t = np.arange(n) / SR
+    out = np.zeros(n)
+    for t0, level in ((0.02, 1.0), (0.13, 0.75), (0.21, 0.55), (0.33, 0.35)):
+        d = np.where(t >= t0, t - t0, 0.0)
+        on = t >= t0
+        crack = S.eq(rng.standard_normal(n), lambda f: S.peak(f, 1700, 900, 1.2) * S.highpass(f, 500, 2) * S.lowpass(f, 5200, 2))
+        crack /= _rms(crack)
+        thump = np.sin(2 * np.pi * 95.0 * d) * np.exp(-d / 0.03)
+        out += np.where(on, level * (0.55 * crack * np.exp(-d / 0.018) + 0.9 * thump) * np.clip(d / 0.0015, 0, 1), 0.0)
+    return _finish(out * envelope(t, 0.0, 0.5, 0.06), 0.85)
+
+
 def clips():
     out = {}
     for v in ENGINES:
@@ -228,4 +248,5 @@ def clips():
     out[("golf_cart", "engine_start")] = (cart_start(), 0)
     out[("golf_cart", "engine_stop")] = (cart_stop(), 0)
     out[("common", "reverse_beep")] = (reverse_beep(), 0)
+    out[("sports_car", "backfire")] = (backfire(), 0)
     return out

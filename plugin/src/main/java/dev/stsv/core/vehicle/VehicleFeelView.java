@@ -79,6 +79,9 @@ final class VehicleFeelView {
         /** a player is near (checked every WATCH_TICKS); near, driven or pulled now */
         boolean near, watched;
         double speedBefore;
+        /** a sports car: the driver whose view is widened now (null: nobody), the exhaust and the tyres */
+        java.util.UUID viewOf;
+        final SportFeel.Throttle throttle = new SportFeel.Throttle();
     }
 
     // ------------------------------------------------------------------------------------------
@@ -159,6 +162,59 @@ final class VehicleFeelView {
         f.springs.reset();
         f.shake = 0;
         f.posed = false;
+        viewOff(f);
+        f.throttle.reset();
+    }
+
+    /** Every driver's view back to normal (the plugin stops). */
+    static void viewOffAll() {
+        for (Player p : org.bukkit.Bukkit.getOnlinePlayers()) SportFeel.remove(p.getAttribute(org.bukkit.attribute.Attribute.MOVEMENT_SPEED));
+    }
+
+    private static void viewOff(State f) {
+        if (f.viewOf == null) return;
+        Player p = org.bukkit.Bukkit.getPlayer(f.viewOf);
+        if (p != null) SportFeel.remove(p.getAttribute(org.bukkit.attribute.Attribute.MOVEMENT_SPEED));
+        f.viewOf = null;
+    }
+
+    /**
+     * A sports car ({@link SportFeel}): the driver's view widens with the speed; lifting off at speed pops the exhaust
+     * (its sound, a few ticks of flame and smoke at the tips); flooring it from a stop smokes the driven wheels.
+     */
+    private void sport(LiveVehicle v, SportFeel.Spec sp, Player driver, DriveInput in, double top) {
+        State f = v.feel;
+        if (driver == null || !driver.getUniqueId().equals(f.viewOf)) viewOff(f);
+        if (driver == null) {
+            f.throttle.reset();
+            return;
+        }
+        if (sp.fov() > 0) {
+            SportFeel.apply(driver.getAttribute(org.bukkit.attribute.Attribute.MOVEMENT_SPEED), SportFeel.amount(v.st.speed, top, sp.fov()));
+            f.viewOf = driver.getUniqueId();
+        }
+        boolean throttle = in.forward() && !in.backward();
+        if (f.throttle.step(throttle, v.st.speed, sp.backfireSpeed(), sp.backfire() != null, sp.launchSmoke()))
+            m.play(v, sp.backfire().key(), sp.backfire().volume(), (float) (0.94 + 0.12 * Math.abs(Math.sin(v.st.x * 12.9898 + v.st.z * 78.233))));
+        if (!f.watched) return;
+        double[] back = VehiclePhysics.forward(v.st.yaw);
+        if (f.throttle.flames > 0) {
+            for (VehicleSpec.Vec e : sp.exhaust()) {
+                double[] c = VehiclePhysics.world(v.st.x, v.st.y, v.st.z, v.st.yaw, e);
+                // flames shot backwards out of the tip (count 0: one particle with this velocity), then smoke
+                if (f.throttle.flames > SportFeel.FLAME_TICKS - 4)
+                    v.world.spawnParticle(Particle.FLAME, c[0], c[1], c[2], 0, -back[0], 0.05, -back[1], 0.12);
+                else
+                    v.world.spawnParticle(Particle.SMOKE, c[0], c[1], c[2], 1, 0.03, 0.03, 0.03, 0.01);
+            }
+        }
+        if (f.throttle.smoke > 0 && v.st.onGround) {
+            for (VehicleSpec.Wheel w : v.spec.wheels()) {
+                if (w.steer()) continue;
+                double[] c = VehiclePhysics.world(v.st.x, v.st.y, v.st.z, v.st.yaw, new VehicleSpec.Vec(w.at().right(), 0.1, w.at().forward() - 0.3));
+                v.world.spawnParticle(Particle.CLOUD, c[0], c[1], c[2], 2, 0.12, 0.05, 0.12, 0.01);
+            }
+        }
     }
 
     static void entities(LiveVehicle v, List<Entity> out) {
@@ -317,12 +373,14 @@ final class VehicleFeelView {
      * After the vehicle's tick: who is near, the lamps, the reverse beep, the engine stopping when the last rider got out,
      * hunger for the way pulled or pedalled, the springs and the idle tremble.
      */
-    void tick(LiveVehicle v, Player driver, Player effortBy, DriveInput in, long ticks, boolean engineSound) {
+    void tick(LiveVehicle v, Player driver, Player effortBy, DriveInput in, long ticks, boolean engineSound, double top) {
         State f = v.feel;
         VehicleFeel.Spec s = spec(v);
         VehicleFeel.Settings set = settings();
         if (Math.floorMod(ticks + v.id, WATCH_TICKS) == 0) f.near = VehicleModule.seen(v, Math.max(set.range(), set.showRange()));
         f.watched = driver != null || effortBy != null || f.near;
+        if (s.sport() != null) sport(v, s.sport(), driver, in, top);
+        else if (f.viewOf != null) viewOff(f);
 
         // the engine: running from the driver's start until the last rider is out (VehicleModule#engine plays its hum)
         if (f.engineRunning && driver == null && !v.hasRiders()) engineStop(v, engineSound);
