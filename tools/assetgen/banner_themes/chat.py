@@ -4,7 +4,7 @@ A chat line is 9 GUI px high and a Galmuri9 letter alone is 9 rows, so the full 
 with a plate, and the full banner at half size has letters of 4.5 px. The chat banner is drawn like the game draws
 its own Hangul: 1 texel = half a GUI pixel. A line is 18 rows of texels: a plate of exactly these 18 rows (an edge,
 a bevel, 14 rows for the text, a bevel, an edge), nothing over or under it. The text, title and nickname, Hangul,
-Latin and digits, is one face drawn at this resolution: Galmuri11 (glyph), capitals and Hangul
+Latin and digits, is one face drawn at this resolution: Galmuri11 made half bold (glyph), capitals and Hangul
 11 rows (5.5 px), small letters 8.
 
 A theme module gives chat_frame(G, i) (the 16 frames, G a ChatGeo) next to its frame(G, i).
@@ -44,14 +44,14 @@ _F11 = None
 def glyph(ch, nick=False):
     """The pixels of a character of the chat banner's text, in cell rows (0 = the text's first row, plate row
     TEXT_ROW), or None when the font has no picture for it. The title and the nickname, Hangul, Latin and digits
-    alike, are Galmuri11 as its designer drew it: one face, at the plate's own resolution (a pixel of it is half a
-    GUI pixel), so its curves are twice as fine as a doubled 5 x 7 letter's. Capitals, digits and Hangul are 11
-    rows (5.5 px), small letters 8, what hangs under the baseline reaches row 13 (signs row 14, on the plate's
-    bevel).
+    alike, are Galmuri11: one face, drawn at the plate's own resolution (a pixel of it is half a GUI pixel), so its
+    curves are twice as fine as a doubled 5 x 7 letter's. Capitals, digits and Hangul are 11 rows (5.5 px), small
+    letters 8, what hangs under the baseline reaches row 13 (signs row 14, on the plate's bevel).
 
-    Nothing is added to the letters. The font's bold cut is too heavy at this size (small Hangul closes up), and
-    making the regular cut bolder by rule (a second pixel beside every pixel that has room for one) leaves strokes
-    of uneven width that stick out here and there."""
+    The font's own strokes are one texel, too thin over a plate that moves, and its bold cut is too heavy at this
+    size (two texels every way: small Hangul closes up). So it is made half bold here: a pixel gets another to its
+    right only where that leaves the next stroke a clear column away (never touching it, not even at a corner).
+    Upright strokes come out two texels wide, level ones stay one, and no counter fills in."""
     global _F11
     if _F11 is None:
         _F11 = galmuri.load(11)
@@ -60,7 +60,9 @@ def glyph(ch, nick=False):
         return None
     adv, xo, yo, bits = g
     top = TEXT_BASE - (yo + len(bits))
-    return sorted((xo + x, top + y) for y, r in enumerate(bits) for x, b in enumerate(r) if b)
+    pix = {(xo + x, top + y) for y, r in enumerate(bits) for x, b in enumerate(r) if b}
+    pix |= {(x + 1, y) for x, y in pix if not any((x + 2, y + d) in pix for d in (-1, 0, 1))}
+    return sorted(pix)
 
 
 def outline(pix):

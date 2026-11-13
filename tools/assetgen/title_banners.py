@@ -28,7 +28,7 @@ The chat banner (a theme with chat=True in THEMES; banner_themes/chat.py; fonts 
 nick_chat, and title_chat_o, nick_chat_o: every letter's outline, drawn dark so the text reads over any effect):
 the theme drawn again for one chat line at twice the resolution (1 texel = half a GUI pixel, as the
 game draws its own Hangul): a plate of exactly the line's 18 rows of texels, 14 of them for the text, and nothing
-is over or under the line. Its text has its own fonts (Galmuri11 as it is drawn, title and nickname alike:
+is over or under the line. Its text has its own fonts (Galmuri11 made half bold, title and nickname alike:
 capitals and Hangul 5.5 px) and its own measures (banners.json text.chat).
 
 What the 26.3 client does with these (read from its code; tools/assetgen/banner_render.py and the plugin test
@@ -558,7 +558,7 @@ def text_fonts(fonts, outlines=False):
     title = table(title_latin, lambda ch: galmuri_ink(F9, ch))
     nick = table(CHARSET, lambda ch: [(x, y + 1) for y, r in enumerate(TALL[ch]) for x, v in enumerate(r) if v == "#"])
     hg = table(hangul, lambda ch: galmuri_ink(F9, ch))
-    # the chat banners' text (banner_themes/chat.py): Galmuri11, title and nickname alike
+    # the chat banners' text (banner_themes/chat.py): Galmuri11 made half bold, title and nickname alike
     table14 = lambda chars: {ch: (pix, chatlib.advance(pix)) for ch in chars for pix in [chatlib.glyph(ch)] if pix}
     title14, nick14, hg14 = table14(title_latin), table14(CHARSET), table14(hangul)
     files = {"title": {**title, **GEM_GLYPHS}, "nick": nick, "hangul": hg,
