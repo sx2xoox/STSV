@@ -274,6 +274,7 @@ title-banners:
   # server 모드에서 장면을 넘기는 간격 (틱, 1틱 = 50ms)
   server-frame-ticks: 2
   # 어디에 보일지
+  # chat: 화염은 글자를 원래 크기로 보여 주려고 채팅 한 마디가 두 줄(빈 줄 + 배너 줄)이 됨. 나머지 테마는 반 크기 한 줄
   chat: true
   tab: true
   name-tag: true

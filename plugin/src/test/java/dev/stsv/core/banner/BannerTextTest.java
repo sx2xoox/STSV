@@ -41,10 +41,12 @@ class BannerTextTest {
     /** Plays the component as the client does (pen + advances) and checks every glyph lands where the layout wants it. */
     @Test
     void everyGlyphLandsWhereTheLayoutPutsIt() {
-        for (BannerCatalog.Theme t : C.themes().values()) {
+        for (BannerCatalog.Theme theme : C.themes().values()) {
             for (String[] w : BannerLayoutTest.WORDS) {
-                BannerLayout l = BannerLayout.of(C, t, w[0], w[1]);
                 for (BannerText.Size size : BannerText.Size.values()) {
+                    BannerCatalog.Theme t = BannerLayoutTest.of(theme, size);
+                    if (t == null) continue;
+                    BannerLayout l = BannerLayout.of(C, t, w[0], w[1]);
                     for (int frame : new int[]{BannerText.ALL_FRAMES, 0, 7}) {
                         List<BannerText.Placed> placed = BannerText.place(C, l, size, frame);
                         Component c = BannerText.component(C, l, size, frame);

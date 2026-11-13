@@ -110,7 +110,9 @@ class BannerPackTest {
                 assertEquals(4, im.getColorModel().getNumComponents(), png);
             }
         }
-        assertEquals(C.themes().size() * 2 + 4, fonts);
+        // per theme: its plate at both sizes, and its chat banner's when it has one; the letters: title and nick, three sizes
+        long chats = C.themes().values().stream().filter(t -> t.chat() != null).count();
+        assertEquals(C.themes().size() * 2 + chats + 6, fonts);
     }
 
     @Test

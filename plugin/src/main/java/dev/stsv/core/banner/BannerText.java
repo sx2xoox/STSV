@@ -37,11 +37,13 @@ public final class BannerText {
     public static final int MARK_RED = 253;
 
     /**
-     * Full size (1 texel = 1 GUI pixel, the name tag) or the chat size (the plate's 16-row chat band at half size:
-     * 8 GUI px, the top 8 of a 9 px chat line or tab row; the menu's lore too).
+     * Full size (1 texel = 1 GUI pixel, the name tag), the small size (the plate's 16-row band at half size: 8 GUI
+     * px, the top 8 of a 9 px chat line or tab row; the menu's lore too), or a theme's chat banner
+     * ({@link BannerCatalog.Theme#chat}: full size, made for two chat lines, the banner on the second; its plate's
+     * middle row is at the y of that line's text, and nothing of it is under the line).
      */
     public enum Size {
-        BIG("", 1.0), MINI("_mini", 0.5);
+        BIG("", 1.0), MINI("_mini", 0.5), TALL("_chat", 1.0);
 
         final String suffix;
         final double scale;
@@ -84,14 +86,14 @@ public final class BannerText {
 
     /** The empty columns before the left end's picture at this size (texels = full-size pixels). */
     static int lead(BannerCatalog.Theme t, Size size) {
-        return size == Size.BIG ? t.leadBig() : t.leadMini();
+        return size == Size.MINI ? t.leadMini() : t.leadBig();
     }
 
     /** Where the banner ends (GUI px from where it starts): the right end's picture, widest frame. */
     public static double end(BannerLayout l, Size size) {
         BannerCatalog.Theme t = l.theme();
         BannerLayout.Piece r = l.pieces().stream().filter(p -> p.glyph().equals("R")).findFirst().orElseThrow();
-        int[] w = size == Size.BIG ? t.glyph("R").big() : t.glyph("R").mini();
+        int[] w = size == Size.MINI ? t.glyph("R").mini() : t.glyph("R").big();
         int max = 0;
         for (int v : w) max = Math.max(max, v);
         return (r.x() + max - lead(t, size)) * size.scale;
@@ -113,7 +115,7 @@ public final class BannerText {
                 continue;
             }
             BannerCatalog.Glyph g = t.glyph(p.glyph());
-            int[] widths = size == Size.BIG ? g.big() : g.mini();
+            int[] widths = size == Size.MINI ? g.mini() : g.big();
             double x = (p.x() - lead) * s;
             if (frame == ALL_FRAMES) {
                 for (int f = 0; f < g.chars().length; f++) {
@@ -131,7 +133,7 @@ public final class BannerText {
                         t.gemAdvances()[k] * s));
             }
         }
-        boolean shadow = size == Size.BIG;
+        boolean shadow = size != Size.MINI;
         letters(out, c.titleWidths(), l.title(), t.titleTint(), title, s, lead, shadow);
         letters(out, c.nickWidths(), l.nick(), t.nickTint(), nick, s, lead, shadow);
         return out;

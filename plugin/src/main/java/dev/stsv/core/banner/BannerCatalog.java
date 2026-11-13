@@ -24,6 +24,9 @@ import java.util.Map;
  * full picture, the chat band), the gem between title and nickname (TrueType layers, one per colour), and the text
  * glyphs (TrueType: the title in Galmuri9, the nickname in the tall 5 x 7 face, both with Galmuri9 Hangul) with their
  * advances in full-size pixels (ink + 1; the chat size is exactly half). files: every pack file.
+ *
+ * <p>A theme may have a chat banner ({@link Theme#chat}): its art drawn again for chat at full size, cut the same
+ * way (fonts {@code <id>_chat}, {@code title_chat}, {@code nick_chat}; {@link BannerText.Size#TALL}).
  */
 public record BannerCatalog(int frames, int ghostLevels, int pad, int gap, int spaceBase, double[] spaceSteps,
                             Map<Integer, Integer> titleWidths, Map<Integer, Integer> nickWidths, int space,
@@ -41,10 +44,12 @@ public record BannerCatalog(int frames, int ghostLevels, int pad, int gap, int s
      * the gem (where it sits against the gap's centre; its layers: code points in the title fonts, colours and
      * advances in full-size pixels), the text tints (start and end colour, title and nickname), and the empty columns
      * before the left end's picture at both sizes (left out: a banner starts where it is drawn).
+     * {@code chat}: its chat banner (the same id, its own parts and measures), null when it has none.
      */
     public record Theme(String id, String name, String icon, int height, int mid, int plateLeft, int plateRight, int tile, int left,
                         int right, int c0, int c1, int width, int fills, int minPlate, int gemX, int[] gemChars, int[][] gemTints,
-                        int[] gemAdvances, Map<String, Glyph> glyphs, int[][] titleTint, int[][] nickTint, int leadBig, int leadMini) {
+                        int[] gemAdvances, Map<String, Glyph> glyphs, int[][] titleTint, int[][] nickTint, int leadBig, int leadMini,
+                        Theme chat) {
 
         public Glyph glyph(String name) {
             Glyph g = glyphs.get(name);
@@ -70,26 +75,35 @@ public record BannerCatalog(int frames, int ghostLevels, int pad, int gap, int s
         JsonObject text = o.getAsJsonObject("text");
         Map<String, Theme> themes = new LinkedHashMap<>();
         for (JsonElement e : o.getAsJsonArray("themes")) {
-            JsonObject t = e.getAsJsonObject();
-            Map<String, Glyph> glyphs = new HashMap<>();
-            for (Map.Entry<String, JsonElement> g : t.getAsJsonObject("glyphs").entrySet()) {
-                JsonObject go = g.getValue().getAsJsonObject();
-                glyphs.put(g.getKey(), new Glyph(go.get("chars").getAsString().codePoints().toArray(), ints(go.getAsJsonArray("big")),
-                        ints(go.getAsJsonArray("mini"))));
-            }
-            JsonObject plate = t.getAsJsonObject("plate");
-            JsonObject tint = t.getAsJsonObject("tint");
-            JsonObject gem = t.getAsJsonObject("gem");
-            themes.put(t.get("id").getAsString(), new Theme(t.get("id").getAsString(), t.get("name").getAsString(),
-                    t.has("icon") ? t.get("icon").getAsString() : "PAPER",
-                    t.get("height").getAsInt(), t.get("mid").getAsInt(), plate.get("left").getAsInt(), plate.get("right").getAsInt(),
-                    t.get("tile").getAsInt(), t.get("left").getAsInt(), t.get("right").getAsInt(), t.get("c0").getAsInt(),
-                    t.get("c1").getAsInt(), t.get("width").getAsInt(), t.get("fills").getAsInt(), t.get("min_plate").getAsInt(),
-                    gem.get("x").getAsInt(), gem.get("chars").getAsString().codePoints().toArray(), colours(gem.getAsJsonArray("tints")),
-                    ints(gem.getAsJsonArray("advances")), Collections.unmodifiableMap(glyphs),
-                    colours(tint.getAsJsonArray("title")), colours(tint.getAsJsonArray("nick")),
-                    t.getAsJsonObject("lead").get("big").getAsInt(), t.getAsJsonObject("lead").get("mini").getAsInt()));
+            Theme t = theme(e.getAsJsonObject());
+            themes.put(t.id(), t);
         }
+        return parse(o, text, themes);
+    }
+
+    private static Theme theme(JsonObject t) {
+        Map<String, Glyph> glyphs = new HashMap<>();
+        for (Map.Entry<String, JsonElement> g : t.getAsJsonObject("glyphs").entrySet()) {
+            JsonObject go = g.getValue().getAsJsonObject();
+            glyphs.put(g.getKey(), new Glyph(go.get("chars").getAsString().codePoints().toArray(), ints(go.getAsJsonArray("big")),
+                    ints(go.getAsJsonArray("mini"))));
+        }
+        JsonObject plate = t.getAsJsonObject("plate");
+        JsonObject tint = t.getAsJsonObject("tint");
+        JsonObject gem = t.getAsJsonObject("gem");
+        return new Theme(t.get("id").getAsString(), t.get("name").getAsString(),
+                t.has("icon") ? t.get("icon").getAsString() : "PAPER",
+                t.get("height").getAsInt(), t.get("mid").getAsInt(), plate.get("left").getAsInt(), plate.get("right").getAsInt(),
+                t.get("tile").getAsInt(), t.get("left").getAsInt(), t.get("right").getAsInt(), t.get("c0").getAsInt(),
+                t.get("c1").getAsInt(), t.get("width").getAsInt(), t.get("fills").getAsInt(), t.get("min_plate").getAsInt(),
+                gem.get("x").getAsInt(), gem.get("chars").getAsString().codePoints().toArray(), colours(gem.getAsJsonArray("tints")),
+                ints(gem.getAsJsonArray("advances")), Collections.unmodifiableMap(glyphs),
+                colours(tint.getAsJsonArray("title")), colours(tint.getAsJsonArray("nick")),
+                t.getAsJsonObject("lead").get("big").getAsInt(), t.getAsJsonObject("lead").get("mini").getAsInt(),
+                t.has("chat") ? theme(t.getAsJsonObject("chat")) : null);
+    }
+
+    private static BannerCatalog parse(JsonObject o, JsonObject text, Map<String, Theme> themes) {
         JsonObject space = o.getAsJsonObject("space");
         JsonArray steps = space.getAsJsonArray("steps");
         double[] st = new double[steps.size()];

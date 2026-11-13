@@ -44,7 +44,7 @@ class BannerLayoutTest {
     /** The parts of the plate follow each other without gaps or overlaps, and the text sits on the plate. */
     @Test
     void platePartsTileExactlyAndTextFits() {
-        for (BannerCatalog.Theme t : C.themes().values()) {
+        for (BannerCatalog.Theme t : plates()) {
             for (String[] w : WORDS) {
                 BannerLayout l = BannerLayout.of(C, t, w[0], w[1]);
                 int x = 0;
@@ -66,9 +66,33 @@ class BannerLayoutTest {
         }
     }
 
+    /** Every theme and every chat banner (a theme's art drawn again for chat: cut and laid out the same way). */
+    static List<BannerCatalog.Theme> plates() {
+        List<BannerCatalog.Theme> out = new java.util.ArrayList<>();
+        for (BannerCatalog.Theme t : C.themes().values()) {
+            out.add(t);
+            if (t.chat() != null) out.add(t.chat());
+        }
+        return out;
+    }
+
+    /** The theme a size draws: the theme itself, or its chat banner (null when it has none). */
+    static BannerCatalog.Theme of(BannerCatalog.Theme t, BannerText.Size size) {
+        return size == BannerText.Size.TALL ? t.chat() : t;
+    }
+
+    @Test
+    void fireHasAChatBanner() {
+        BannerCatalog.Theme fire = C.theme("fire");
+        assertTrue(fire.chat() != null && fire.chat().id().equals("fire") && fire.chat().chat() == null);
+        // 15 plate rows: 7 under the middle row (and the picture's empty last row), no more than 4 rows over the plate
+        assertEquals(9, fire.chat().height() - fire.chat().mid());
+        assertTrue(fire.chat().mid() <= 7 + 4 + 1, "rows over the plate's middle: " + fire.chat().mid());
+    }
+
     @Test
     void longerTextMakesALongerPlate() {
-        for (BannerCatalog.Theme t : C.themes().values()) {
+        for (BannerCatalog.Theme t : plates()) {
             int a = BannerLayout.of(C, t, "단골", "Steve").width();
             int b = BannerLayout.of(C, t, "단골", "Steve_the_Builder").width();
             assertTrue(b > a, t.id());

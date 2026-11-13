@@ -182,10 +182,20 @@ public final class BannerModule implements StsvModule, Listener {
         return s;
     }
 
-    /** The chat name (title and name in one), null when no banner is shown or chat is off for banners. */
+    /**
+     * The chat name (title and name in one), null when no banner is shown or chat is off for banners. A theme with
+     * a chat banner: that one, at full size, which needs an empty chat line over its line ({@link #chatTall}).
+     */
     public Component chatName(Player p) {
         if (!plugin.getConfig().getBoolean("title-banners.chat")) return null;
-        return shown(p).map(t -> BannerText.component(catalog, layout(p, t), BannerText.Size.MINI, frame())).orElse(null);
+        return shown(p).map(t -> t.chat() != null
+                ? BannerText.component(catalog, layout(p, t.chat()), BannerText.Size.TALL, frame())
+                : BannerText.component(catalog, layout(p, t), BannerText.Size.MINI, frame())).orElse(null);
+    }
+
+    /** Whether {@link #chatName} is a chat banner: the message is two chat lines, an empty one and the line itself. */
+    public boolean chatTall(Player p) {
+        return plugin.getConfig().getBoolean("title-banners.chat") && shown(p).map(t -> t.chat() != null).orElse(false);
     }
 
     /** The tab list name, null when none. */

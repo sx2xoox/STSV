@@ -284,19 +284,28 @@ CHAT = [("거상", "예주니0", "ㅎㅇ"), ("거상", "상원", "안녕하세�
         ("아주 아주 긴 칭호 이름", "Long_Name_12345", "길어도 한 줄")]
 
 
+def has(comps, theme, size):
+    return any(c["theme"] == theme and c["size"] == size for c in comps)
+
+
 def chat_panel(fonts, comps, theme, frame=0, k=2):
-    """a chat box: lines 9 GUI px apart, each line's text drawn 8 px over its bottom, its background [-1, 8)"""
-    lines = [plain_runs(f"STSV » {THEME_NAMES[theme]} 배너 (채팅)", 0xFFE070)]
+    """a chat box as the client draws it: lines 9 GUI px apart, every line's background first, then every line's
+    text from the top line down, 8 px over its line's bottom. A theme with a chat banner ("tall"): each of its
+    messages is an empty line and the line itself (the plugin sends the line break)."""
+    tall = has(comps, theme, "tall")
+    lines = [plain_runs(f"STSV » {THEME_NAMES[theme]} 배너 (채팅)", 0xFFE070), plain_runs("Steve » 앞줄 jgpqy", 0xFFFFFF)]
     for title, nick, msg in CHAT:
-        c = find(comps, theme, title, nick, "chat")
+        c = find(comps, theme, title, nick, "tall" if tall else "chat")
+        if tall:
+            lines.append([])
         lines.append(c["runs"] + plain_runs(" » ", 0xA0A0A0) + plain_runs(msg))
     lines.append(plain_runs("STSV » 다음 줄과 겹치지 않음", 0x80FF80))
-    W, H = 220, 9 * len(lines) + 2
+    W, H = (330 if tall else 220), 9 * len(lines) + 2
     cv = Canvas(W, H, k, (36, 40, 34, 255), ox=4, oy=1)
+    for i in range(len(lines)):
+        cv.fill(-4, 9 * i, W - 4, 9 * (i + 1), (0, 0, 0, 127))
     for i, runs in enumerate(lines):
-        bottom = 9 * (i + 1)
-        cv.fill(-4, bottom - 9, W - 4, bottom, (0, 0, 0, 127))
-        draw_text(fonts, cv, runs, 0, bottom - 8, frame)
+        draw_text(fonts, cv, runs, 0, 9 * (i + 1) - 8, frame)
     return cv.im
 
 
@@ -371,13 +380,14 @@ def main():
         blocks.append(stack(row, horizontal=True))
     out.mkdir(parents=True, exist_ok=True)
     stack(blocks).save(out / "title_banners_chat.png")
-    # the chat size's animation: frames 0, 4, 8, 12 of every theme
+    # the animation in chat: frames 0, 4, 8, 12 of every theme (its chat banner, or the small size)
     rows = []
     for t in themes:
-        c = find(comps, t, "거상", "상원", "chat")
+        tall = has(comps, t, "tall")
+        c = find(comps, t, "거상", "상원", "tall" if tall else "chat")
         cells = []
         for f in (0, 4, 8, 12):
-            cv = Canvas(c["width"] + 4, 10, 2, (24, 26, 32, 255), ox=2, oy=1)
+            cv = Canvas(c["width"] + 4, 21 if tall else 10, 2, (24, 26, 32, 255), ox=2, oy=12 if tall else 1)
             draw_text(fonts, cv, c["runs"], 0, 0, f)
             cells.append(up(cv.im, 3))
         rows.append(stack(cells, horizontal=True))

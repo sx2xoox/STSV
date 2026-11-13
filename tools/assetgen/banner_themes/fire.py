@@ -1,4 +1,7 @@
-"""1 fire: a crown of flames along the top, end flames licking outwards, embers and lava drips (approved art t01)."""
+"""1 fire: a crown of flames along the top, end flames licking outwards, embers and lava drips (approved art t01).
+
+The chat banner (G.chat: the rows it may use over the plate) is the same plate with the fire kept inside two chat
+lines: a low crown, the end flames up to the same height, sparks just over the rim, nothing under the plate."""
 import math, random
 from .lib_a import *
 TITLE, SLUG = "화염의 군주", "fire"
@@ -42,6 +45,7 @@ def frame(G, i):
     im, px = G.canvas()
     rnd = random.Random(4)
     half = G.PW / 2
+    room = G.chat                                            # None: the full banner
     back = {}
     # a crown of flames along the top, symmetric profile rising towards both ends (meets the end flames)
     offs = list(range(1, int(half) - 3, 3))
@@ -49,17 +53,23 @@ def frame(G, i):
     for side in (-1, 1):
         for k, o in enumerate(offs):
             cx = G.CX + side * o
-            prof = 11 + 7 * (o / half) ** 1.8 + jit[k]
             ph = k * 1.9 + (0 if side < 0 else 3.3)
+            if room is None:
+                prof = 11 + 7 * (o / half) ** 1.8 + jit[k]
+            else:                                            # a tongue of height h ends h - 1 rows over the plate
+                prof = room + 1 - 1.4 * (0.5 - jit[k] / 3) * (1 - 0.6 * (o / half) ** 1.8)
             tongue(back, G, cx, G.PY0 + 1, prof, 2.4, ph, side * 0.012 * o / 3, t * (1 + k % 3))
     # the end flames: two tongues per end licking outwards
+    tall = (20, 14, 9) if room is None else (G.PY1 - G.PY0 + room - 2, 11, 7)
     for side in (-1, 1):
         ex = G.PX0 + 2 if side < 0 else G.PX1 - 2
-        tongue(back, G, ex, G.PY1 - 1, 20, 3.8, 2.2, side * 0.45, t * 2)
-        tongue(back, G, ex - side * 3, G.PY1 - 3, 14, 2.8, 3.0, side * 0.30, t * 3)
-        tongue(back, G, ex + side * 1, G.PY1, 9, 2.4, 4.4, side * 0.95, t * 2)
+        tongue(back, G, ex, G.PY1 - 1, tall[0], 3.8, 2.2, side * 0.45, t * 2)
+        tongue(back, G, ex - side * 3, G.PY1 - 3, tall[1], 2.8, 3.0, side * 0.30, t * 3)
+        tongue(back, G, ex + side * 1, G.PY1, tall[2], 2.4, 4.4, side * 0.95, t * 2)
+    if room is not None:
+        for q in [q for q in back if q[1] < G.PY0 - room or q[1] > G.PY1]: del back[q]
     flush(px, G, back)
-    glow(px, G, (255, 90, 20), 150)
+    glow(px, G, (255, 90, 20), 150, under=room is None)
     plate(px, G, lambda x, y, g: lerp((58, 14, 10), (10, 4, 6), g), (255, 222, 130), (176, 104, 28),
           bevel=lambda x, y: lerp((150, 34, 10), (255, 110, 30), 0.5 + 0.5 * math.sin(x * 0.4 + y * 0.3 - t * 2)))
     rivets(px, G, (255, 214, 110), (190, 120, 40))
@@ -76,6 +86,8 @@ def frame(G, i):
     for q in list(front):
         if q in G.text_near: del front[q]
     flush(px, G, front, behind_plate=False)
+    if room is not None:
+        return im                                            # no room for embers and drips in chat
     # embers: 2px sparks rising on a 16-frame cycle, cooling as they climb
     sp = random.Random(8)
     for k in range(12):

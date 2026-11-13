@@ -36,7 +36,8 @@ import static org.junit.jupiter.api.Assertions.assertTrue;
  * width = its rightmost column with any alpha + 1, drawn from 7 - ascent; a TrueType glyph is rendered at
  * round(size * oversample) px per em, advance and box / oversample, drawn from 7 - top / oversample + shift; a space
  * glyph moves the pen. Checks that every glyph lands exactly where the layout puts it, that the pen ends right after
- * the banner, and that the chat size stays inside the top 8 GUI px of its 9 px line. Also writes the components for
+ * the banner, that the small size stays inside the top 8 GUI px of its 9 px line, and that a chat banner keeps to
+ * its two chat lines (nothing under its line, its letters at full size on the plate). Also writes the components for
  * tools/assetgen/banner_render.py (the previews) to build/banner-preview/components.json.
  */
 class BannerClientLayoutTest {
@@ -46,8 +47,12 @@ class BannerClientLayoutTest {
             new String[]{"최고 부자", "xozne"}, new String[]{"명장 대장장이", "Steve_2024"}, new String[]{"단골", "홍길동"},
             new String[]{"아주 아주 긴 칭호 이름", "Long_Name_12345"}, new String[]{"", "a"});
 
-    /** One glyph as the client sees it: advance and the box it draws (GUI px, y from the text's top). */
-    record ClientGlyph(double advance, double left, double top, double bottom, boolean gray) {}
+    /** One glyph as the client sees it: advance, the box it draws (GUI px, y from the text's top), its drawn rows. */
+    record ClientGlyph(double advance, double left, double top, double bottom, boolean gray, double inkTop, double inkBottom) {
+        ClientGlyph(double advance, double left, double top, double bottom, boolean gray) {
+            this(advance, left, top, bottom, gray, top, bottom);
+        }
+    }
 
     /** The pack's fonts as the client builds them (providers in order, the first that has a code point wins). */
     static final class Client {
@@ -96,7 +101,18 @@ class BannerClientLayoutTest {
                                     }
                                 }
                                 double top = 7 - p.get("ascent").getAsInt();
-                                return new ClientGlyph((int) (0.5 + width * scale) + 1, 0, top, top + ch * scale, false);
+                                int r0 = ch, r1 = -1;
+                                for (int y = 0; y < ch; y++) {
+                                    for (int x = 0; x < cw; x++) {
+                                        if ((im.getRGB(k * cw + x, r * ch + y) >>> 24) != 0) {
+                                            r0 = Math.min(r0, y);
+                                            r1 = y;
+                                            break;
+                                        }
+                                    }
+                                }
+                                return new ClientGlyph((int) (0.5 + width * scale) + 1, 0, top, top + ch * scale, false,
+                                        top + r0 * scale, top + (r1 + 1) * scale);
                             }
                         }
                     }
@@ -158,11 +174,13 @@ class BannerClientLayoutTest {
     void theClientDrawsEveryGlyphWhereTheLayoutPutsIt() throws Exception {
         System.setProperty("java.awt.headless", "true");
         Client client = new Client();
-        for (BannerCatalog.Theme t : C.themes().values()) {
+        for (BannerCatalog.Theme theme : C.themes().values()) {
             for (List<String[]> words : List.of(WORDS, BannerLayoutTest.WORDS)) {
                 for (String[] w : words) {
-                    BannerLayout l = BannerLayout.of(C, t, w[0], w[1]);
                     for (BannerText.Size size : BannerText.Size.values()) {
+                        BannerCatalog.Theme t = BannerLayoutTest.of(theme, size);
+                        if (t == null) continue;
+                        BannerLayout l = BannerLayout.of(C, t, w[0], w[1]);
                         for (int frame : new int[]{BannerText.ALL_FRAMES, 0, 9}) {
                             List<BannerText.Placed> placed = BannerText.place(C, l, size, frame);
                             double pen = 0, top = Double.MAX_VALUE, bottom = -Double.MAX_VALUE, left = Double.MAX_VALUE;
@@ -183,6 +201,13 @@ class BannerClientLayoutTest {
                                     assertEquals(!part.font().value().startsWith("title_banner/" + t.id()), g.gray(), what);
                                     top = Math.min(top, g.top());
                                     bottom = Math.max(bottom, g.bottom());
+                                    if (size == BannerText.Size.TALL && g.inkBottom() > g.inkTop()) {
+                                        // the second of two chat lines: its text's top is y 0, the line is [-1, 8), the
+                                        // empty line over it [-10, -1); one more row may hold tips of the art
+                                        assertTrue(g.inkTop() >= -11 && g.inkBottom() <= 8, what + ": rows " + g.inkTop() + ".." + g.inkBottom());
+                                        // letters and gem on the plate's inside (rows -5 .. 6: 15 rows less edge and bevel)
+                                        if (g.gray()) assertTrue(g.inkTop() >= -5 && g.inkBottom() <= 6, what + ": letter rows " + g.inkTop() + ".." + g.inkBottom());
+                                    }
                                     left = Math.min(left, pen + g.left());
                                     pen += g.advance();
                                 }
@@ -205,8 +230,10 @@ class BannerClientLayoutTest {
     @Test
     void noEmptyColumnsAroundTheBanner() throws Exception {
         Client client = new Client();
-        for (BannerCatalog.Theme t : C.themes().values()) {
+        for (BannerCatalog.Theme theme : C.themes().values()) {
             for (BannerText.Size size : BannerText.Size.values()) {
+                BannerCatalog.Theme t = BannerLayoutTest.of(theme, size);
+                if (t == null) continue;
                 BannerCatalog.Glyph L = t.glyph("L");
                 int lead = BannerText.lead(t, size);
                 boolean any = false;
@@ -243,15 +270,21 @@ class BannerClientLayoutTest {
     @Test
     void writeComponentsForThePreviews() throws Exception {
         JsonArray out = new JsonArray();
-        for (BannerCatalog.Theme t : C.themes().values()) {
+        for (BannerCatalog.Theme theme : C.themes().values()) {
             for (String[] w : WORDS) {
-                BannerLayout l = BannerLayout.of(C, t, w[0], w[1]);
                 for (BannerText.Size size : BannerText.Size.values()) {
+                    BannerCatalog.Theme t = BannerLayoutTest.of(theme, size);
+                    if (t == null) continue;
+                    BannerLayout l = BannerLayout.of(C, t, w[0], w[1]);
                     JsonObject o = new JsonObject();
                     o.addProperty("theme", t.id());
                     o.addProperty("title", w[0]);
                     o.addProperty("nick", w[1]);
-                    o.addProperty("size", size == BannerText.Size.BIG ? "big" : "chat");
+                    o.addProperty("size", switch (size) {
+                        case BIG -> "big";
+                        case MINI -> "chat";
+                        case TALL -> "tall";
+                    });
                     o.addProperty("width", BannerText.end(l, size));
                     JsonArray runs = new JsonArray();
                     for (TextComponent part : parts(BannerText.component(C, l, size, BannerText.ALL_FRAMES))) {

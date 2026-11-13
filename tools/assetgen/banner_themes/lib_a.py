@@ -48,14 +48,17 @@ def ramp(*stops):
 
 
 class Geo:
-    def __init__(self, title, side=13, top=20, bot=1, gap=11, pad=8, margin=8):
+    def __init__(self, title, side=13, top=20, bot=1, gap=11, pad=8, margin=8, rows=17, chat=None):
+        """rows: the plate's height. chat: None, or how many rows over the plate the chat banner may use (a theme
+        draws its chat banner, which has to fit two chat lines, when it is set; see title_banners.py CHAT)."""
         side += margin; top += margin; bot += margin
         self.title = title
+        self.chat = chat
         self.TT, self.TP = text_pts(title)
         self.TW, self.NP = tall_pts(NAME)
         self.PW = pad + self.TT + gap + self.TW + pad
         self.W = self.PW + 2 * side
-        self.PY0 = top; self.PY1 = top + 16; self.H = self.PY1 + 1 + bot
+        self.PY0 = top; self.PY1 = top + rows - 1; self.H = self.PY1 + 1 + bot
         self.MID = (self.PY0 + self.PY1) // 2
         self.PX0 = side; self.PX1 = self.PX0 + self.PW - 1
         self.TX0 = self.PX0 + pad; self.TX1 = self.TX0 + self.TT - 1
@@ -126,8 +129,8 @@ def line(x0, y0, x1, y1):
     return out
 
 
-def glow(px, G, col, a=150, upper_only=False, ring=1):
-    """soft 1px (or 2px) halo around the plate, only on empty pixels."""
+def glow(px, G, col, a=150, upper_only=False, ring=1, under=True):
+    """soft 1px (or 2px) halo around the plate, only on empty pixels (under=False: none under the plate)."""
     seen = set(G.inside)
     layer = set(G.inside)
     for k in range(ring):
@@ -139,6 +142,8 @@ def glow(px, G, col, a=150, upper_only=False, ring=1):
                     nxt.add(q)
         for q in nxt:
             if upper_only and q[1] > G.MID:
+                continue
+            if not under and q[1] > G.PY1:
                 continue
             if px[q][3] == 0:
                 px[q] = tuple(col) + (int(a * (1 - k * 0.45)),)

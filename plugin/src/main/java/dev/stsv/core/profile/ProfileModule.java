@@ -250,7 +250,12 @@ public final class ProfileModule implements StsvModule, Listener {
         // a title banner (admins' test feature) is the title and the name in one
         Component banner = plugin.banners() == null ? null : plugin.banners().chatName(e.getPlayer());
         if (banner != null) {
-            e.renderer((source, name, message, viewer) -> chatLine(format, null, banner.hoverEvent(name.hoverEvent()).clickEvent(name.clickEvent()), message));
+            // a chat banner is taller than a chat line: an empty line over the message's line makes room for it
+            boolean tall = plugin.banners().chatTall(e.getPlayer());
+            e.renderer((source, name, message, viewer) -> {
+                Component line = chatLine(format, null, banner.hoverEvent(name.hoverEvent()).clickEvent(name.clickEvent()), message);
+                return tall ? Component.newline().append(line) : line;
+            });
             return;
         }
         e.renderer((source, name, message, viewer) -> chatLine(format, title, name, message));
