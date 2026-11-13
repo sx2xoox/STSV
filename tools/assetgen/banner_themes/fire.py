@@ -115,11 +115,8 @@ CHAT_TILE = 64                # the plate's tile: the idle plate repeats every 6
 CHAT_FLOW = 16                # a gust of fire runs along the banner, 16 columns a step (banner_themes/chat.py flow_at)
 CALM = 4                      # frames 0 .. 3: the idle plate; the others: the steps of a gust
 GUST = 108                    # how long a gust is (columns): it has passed a 64-column part in the 12 steps
-# embers that glimmer in the bed while it idles, the same every 64 columns: column, row over the bottom, frame it is dark
-GLIMMER = ((6, 3, 0), (15, 4, 2), (23, 3, 1), (34, 5, 3), (42, 3, 2), (51, 4, 0), (58, 3, 1))
 GEM7 = ("...#...", "..#a#..", ".#aaab.", "#aawabc", ".bbabc.", "..bcc..", "...c...")
 GEM7_COLOURS = {"#": (255, 120, 100), "a": (255, 70, 76), "w": (255, 220, 220), "b": (200, 20, 34), "c": (118, 5, 18)}
-EMBER = ((40, 8, 6), (84, 12, 8), (140, 20, 8), (204, 44, 12), (246, 100, 20), (255, 178, 52), (255, 236, 150))
 
 
 def _lattice(ix, iy, seed):
@@ -142,80 +139,99 @@ def _noise(x, y, cell_x, cell_y, wrap_x, wrap_y, seed):
     return top + (bot - top) * ty
 
 
+def _smooth(t):
+    t = max(0.0, min(1.0, t))
+    return t * t * (3 - 2 * t)
+
+
+def _fbm(x, y, seed):
+    """three octaves of smooth noise, 0 .. 1"""
+    return (0.55 * _noise(x, y, 8, 5, 1 << 20, 1 << 12, seed) + 0.30 * _noise(x, y, 4, 3, 1 << 20, 3 << 10, seed + 1)
+            + 0.15 * _noise(x, y, 2, 2, 1 << 20, 1 << 12, seed + 2))
+
+
+# heat -> colour, a smooth ramp (no flat bands): embers, red, orange, yellow, white hot
+RAMP = ((0.10, (58, 10, 6)), (0.28, (118, 18, 8)), (0.48, (188, 36, 10)), (0.70, (238, 88, 18)), (0.92, (255, 158, 44)),
+        (1.15, (255, 212, 108)), (1.45, (255, 246, 200)))
+
+
+def fire_colour(h, base):
+    """the colour of heat h over the plate's own colour there"""
+    if h <= RAMP[0][0]:
+        return lerp(base, RAMP[0][1], max(0.0, h) / RAMP[0][0])
+    for (h0, c0), (h1, c1) in zip(RAMP, RAMP[1:]):
+        if h <= h1:
+            return lerp(c0, c1, (h - h0) / (h1 - h0))
+    return RAMP[-1][1]
+
+
 def gust_strength(u):
-    """how strong a gust burns u columns behind its front: up fast, a body, a long tail"""
-    if u < 0 or u >= GUST:
+    """how strong a gust burns u columns behind its front: up fast, a body, a long tail (smooth both ways)"""
+    if u <= 0 or u >= GUST:
         return 0.0
-    return min(1.0, (u + 2) / 12) * (1.0 if u < 52 else (GUST - u) / (GUST - 52))
+    return _smooth(u / 14) * (1.0 if u < 48 else 1 - _smooth((u - 48) / (GUST - 48)))
 
 
 def gust_heat(u, y, rows):
-    """A gust of fire, u columns behind its front, at inner row y (0 = top): its heat (as EMBER's steps), or None
-    where it does not burn. Ragged on purpose: tongues of very different heights with gaps between them, leaning
-    back as they rise (the top of a flame trails behind its foot), torn by a finer noise, loose wisps over them."""
+    """A gust of fire, u columns behind its front, at inner row y (0 = top): its heat (RAMP's scale), 0 where there
+    is none. Ragged on purpose: tongues of very different heights with thin stretches between them, leaning back
+    as they rise (the top of a flame trails behind its foot), their edges torn by turbulence, and around every
+    flame a glow that fades out instead of an outline."""
     up = 1 - y / (rows - 1)                                  # 0 at the bottom .. 1 at the top
-    uu = u - 9 * up                                          # the flame leans back: higher is later
+    uu = u - 10 * up                                         # the flame leans back: higher is later
     e = gust_strength(uu)
     if e <= 0:
-        return None
-    tall = _noise(uu, 0, 6, 4, 1 << 20, 16, 7)               # the tongues
-    gaps = _noise(uu + 40, 0, 14, 4, 1 << 20, 16, 9)         # where the gust is thin
-    height = e * (0.22 + 1.5 * tall * tall) * (0.5 + 0.8 * gaps)
-    grain = _noise(uu, y * 1.0 - uu * 0.35, 4, 3, 1 << 20, 3 << 10, 11) - 0.5
-    if up < height + 0.10 * grain:
-        return 0.40 + 1.15 * (max(0.0, height - up) / max(height, 0.05)) ** 0.8 + 0.34 * grain
-    # wisps torn off, over the tongues
-    if up < height + 0.34 and _noise(uu * 1.0, y, 3, 2, 1 << 20, 1 << 10, 13) > 0.80:
-        return 0.50 + 0.3 * e
-    return None
+        return 0.0
+    tall = 0.62 * _noise(uu, 0, 9, 4, 1 << 20, 16, 7) + 0.38 * _noise(uu, 0, 4, 4, 1 << 20, 16, 8)   # the tongues
+    thin = _noise(uu + 40, 0, 22, 4, 1 << 20, 16, 9)         # where the gust is thin
+    height = e * (0.16 + 1.55 * tall ** 1.6) * (0.45 + 0.8 * thin)
+    turb = _fbm(uu, y * 1.3 - uu * 0.5, 11) - 0.5
+    d = height - up + 0.42 * turb * (0.4 + up)
+    if d > 0:
+        return 0.36 + 1.2 * min(1.0, d / max(height, 0.08)) ** 0.75 + 0.25 * turb
+    return 0.36 * math.exp(d / 0.09)
 
 
 def bed_heat(x, y, rows):
-    """the idle plate: a low bed of embers (the same in every frame and every CHAT_TILE columns), a faint glow over it"""
+    """the idle plate: a low bed of embers (the same in every frame and every CHAT_TILE columns), its glow fading upwards"""
     up = 1 - y / (rows - 1)
-    bed = 0.13 + 0.12 * _noise(x, 0, 4, 4, CHAT_TILE, 16, 5)
+    bed = 0.10 + 0.13 * _noise(x, 0, 4, 4, CHAT_TILE, 16, 5)
     grain = _noise(x, y, 4, 4, CHAT_TILE, 32, 2) - 0.5
     if up >= bed:
-        return 0.16 * (1 - up) ** 2 + 0.05 * grain
-    return 0.44 + 0.50 * (1 - up / bed) + 0.16 * grain
+        return 0.30 * math.exp(-(up - bed) / 0.11) + 0.03 * grain
+    return 0.34 + 0.62 * (1 - up / bed) + 0.12 * grain
 
 
 CAP = 10                      # each end of the plate is a cap of solid gold, this many columns from the tip
-GOLD = ((255, 232, 150), (240, 184, 74), (206, 138, 40), (140, 80, 22))     # a cap from its top row to its bottom row
-STUD = ("..oo..", ".ohho.", "ohrrdo", "orrddo", ".oddo.", "..oo..")           # the ember set in a cap
+GOLD = ((255, 236, 160), (244, 192, 84), (210, 142, 44), (138, 78, 22))     # a cap from its top row to its bottom row
 
 
 def frame_colour(G, x, y, e):
     """The plate's frame at a pixel, None inside it. e: how strong the gust burns here (0: the idle plate).
     Top: a gold rail with a sheen that comes and goes along it, a bronze lip under it. Bottom: a lip that glows
-    with the embers, a dark gold rail. Each end: a cap of solid gold (lit from above, a groove where it meets the
-    plate) with an ember set in it. All of it repeats every 64 columns where the plate is tiled."""
+    with the embers, a dark gold rail. Each end: a cap of gold, shaded smoothly (lit from above and from its tip,
+    a soft highlight under its upper edge, a shallow groove where it meets the plate) and warmed by the gust.
+    All of it repeats every 64 columns where the plate is tiled."""
     d = min(x - G.PX0, G.PX1 - x)                            # columns from the nearer tip
     edge = (x, y) in G.edge
     if d < CAP:
-        if d == CAP - 1 and not edge:
-            return (64, 26, 8)                               # the groove
-        r, c = y - (G.MID - 2), d - 2                        # the ember: 6 x 6, a little off the tip
-        if 0 <= r < 6 and 0 <= c < 6 and STUD[r][c] != ".":
-            k = STUD[r][c]
-            if k == "o": return (86, 34, 10)
-            hot = lerp((255, 214, 130), (255, 250, 220), e)
-            return hot if k == "h" else lerp((240, 84, 24), (255, 170, 60), e) if k == "r" else lerp((176, 30, 12), (240, 96, 24), e)
-        if edge:
-            tip = d == 0
-            return (255, 250, 214) if tip else (255, 240, 176) if y <= G.MID else (120, 68, 18)
-        v = (y - 1) / 15
+        v = y / (G.PY1 - G.PY0)
         c = lerp(GOLD[0], GOLD[1], v / 0.35) if v < 0.35 else lerp(GOLD[1], GOLD[2], (v - 0.35) / 0.3) if v < 0.65 else lerp(GOLD[2], GOLD[3], (v - 0.65) / 0.35)
-        if (d + y) % 9 == 4 and y < G.MID: c = lerp(c, (255, 248, 214), 0.7)      # a glint across the cap
-        return c
+        c = lerp(c, (255, 250, 220), 0.30 * (1 - d / CAP) * (1 - v))        # brighter towards the tip, at the top
+        inset = d - G.inset[y]                               # columns from the cap's slanted edge
+        if y < G.MID and inset == 1: c = lerp(c, (255, 252, 230), 0.55)     # the highlight under the upper edge
+        if y > G.MID + 1 and inset <= 1: c = lerp(c, (96, 52, 14), 0.45)    # the lower edge in shade
+        if d == CAP - 1: c = lerp(c, (70, 30, 10), 0.75)                    # the groove
+        elif d == CAP - 2: c = lerp(c, (70, 30, 10), 0.25)
+        return lerp(c, (255, 170, 70), 0.35 * e)
     wave = 0.5 + 0.5 * math.cos(2 * math.pi * (x - G.TILE0) / 64)
     if y == G.PY0:
-        return lerp((232, 170, 64), (255, 244, 190), wave ** 2)
+        return lerp((230, 168, 62), (255, 244, 190), wave ** 2)
     if y == G.PY0 + 1:
         return lerp(lerp((112, 58, 16), (150, 84, 24), wave), (255, 160, 56), 0.8 * e)
     if y == G.PY1 - 1:
         glow = 0.5 + 0.5 * math.sin(x * math.pi / 8)
-        return lerp(lerp((132, 30, 10), (196, 62, 16), glow), (255, 150, 48), 0.25 + 0.75 * e if e > 0 else 0.0)
+        return lerp(lerp((150, 36, 10), (196, 62, 16), glow), (255, 150, 48), 0.25 + 0.75 * e if e > 0 else 0.0)
     if y == G.PY1:
         return lerp((128, 72, 20), (184, 110, 30), wave)
     return None
@@ -244,38 +260,27 @@ def chat_frame(G, i):
         tongue(back, G, ex - side * 5, G.PY1 - 1, 13 * grow, 4.0, 3.0, side * 0.35, t * 3)
         tongue(back, G, ex + side * 3, G.PY1, 11 * grow, 3.6, 4.4, side * 1.0, t * 2)
         tongue(back, G, ex + side * 7, G.PY1, 6 * grow, 2.6, 1.0, side * 1.3, t * 3)
-    for q in [q for q in back if q[1] < G.PY0 or q[1] > G.PY1]: del back[q]
-    flush(px, G, back)
+    # shaded smoothly like the fire inside, fading out at their edges instead of an outline
+    for (x, y), heat in back.items():
+        if G.PY0 <= y <= G.PY1 and (x, y) not in G.inside and 0 <= x < G.W:
+            px[x, y] = fire_colour(0.34 + 0.8 * heat, (150, 24, 8)) + (255 if heat > 0.45 else max(70, int(255 * heat / 0.45)),)
     # the plate: its frame (frame_colour), and inside it the embers and the gust
-    hot = {}
     for (x, y) in G.inside:
         u = behind(x)
         c = frame_colour(G, x, y, gust_strength(u))
         if c is not None:
             pass
         else:
-            h = gust_heat(u, y - top, rows) if u >= 0 else None
-            if h is None:
-                h = bed_heat(x - G.TILE0, y - top, rows)
-            hot[(x, y)] = h
-            c = EMBER[6] if h > 1.42 else EMBER[5] if h > 1.12 else EMBER[4] if h > 0.86 else EMBER[3] if h > 0.62 \
-                else EMBER[2] if h > 0.42 else EMBER[1] if h > 0.24 else lerp((62, 15, 10), (26, 6, 6), (y - top) / (rows - 1)) if h < 0.07 else EMBER[0]
+            h = bed_heat(x - G.TILE0, y - top, rows)
+            if u > 0:
+                h = max(h, gust_heat(u, y - top, rows))
+            c = fire_colour(h, lerp((62, 15, 10), (26, 6, 6), (y - top) / (rows - 1)))
         px[x, y] = c + (255,)
-    if step < 0:
-        # embers glimmering just over the bed
-        for x0 in range(G.TILE0 - CHAT_TILE, G.PX1 + 1, CHAT_TILE):
-            for col, r, dark in GLIMMER:
-                q = (x0 + col, base - r)
-                if q in G.core and i != dark and hot.get(q, 9) <= 0.42:
-                    px[q] = ((226, 108, 30) if (i + col) % 2 else (170, 56, 16)) + (255,)
-    # a finial off each tip: a small diamond on a pin
-    FINIAL = ((1, 2, (255, 244, 190)), (2, 4, (255, 226, 138)), (3, 4, (232, 170, 64)), (4, 2, (190, 116, 32)),
-              (5, 2, (255, 226, 138)), (6, 2, (255, 244, 190)))
+    # a spike off each tip, fading out
     for side, x0 in ((-1, G.PX0), (1, G.PX1)):
-        for k, rows_k, col in FINIAL:
-            for j in range(rows_k):
-                y = G.MID + 1 - rows_k // 2 + j
-                put(px, G, x0 + side * k, y, lerp(col, (120, 68, 18), 0.55) if rows_k == 4 and j == rows_k - 1 else col)
+        for k in range(7):
+            for y in (G.MID, G.MID + 1):
+                put(px, G, x0 + side * (k + 1), y, lerp((255, 246, 200), (150, 84, 22), k / 6) if y == G.MID else lerp((236, 176, 70), (112, 60, 16), k / 6))
     for r, row in enumerate(GEM7):
         for c, v in enumerate(row):
             if v != ".": gem_put(px, G, G.DIV - 3 + c, G.MID - 3 + r, GEM7_COLOURS[v])
