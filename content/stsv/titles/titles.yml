@@ -1,11 +1,16 @@
 # 칭호 (테스트 전용). 채팅/탭 이름 앞에 붙는 모습(name)과 /프로필 에서 보이는 설명(description).
+# category = /칭호 의 분류 탭: achievement(업적) job(직업) codex(도감) ranking(랭킹) shop(상점) event(이벤트·기타).
+#   없으면 파일 이름으로 정함 (achievements.yml → 업적, codex.yml → 도감, 나머지 → 이벤트·기타)
 # 지급: /관리 칭호 지급 <플레이어> <칭호>, 회수: /관리 칭호 회수 <플레이어> <칭호>
 test_title_orange:
   name: "<#ff9a3c>[테스트 칭호]"
   description: "테스트 전용 칭호 (주황)"
+  category: event
 test_title_teal:
   name: "<#3fd6c6>[테스트 칭호]"
   description: "테스트 전용 칭호 (청록)"
+  category: event
 test_title_purple:
   name: "<#c86bff>[테스트 칭호]"
   description: "테스트 전용 칭호 (보라)"
+  category: event

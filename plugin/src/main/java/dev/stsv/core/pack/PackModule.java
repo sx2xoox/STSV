@@ -91,6 +91,8 @@ public final class PackModule implements StsvModule, Listener {
         Map<String, byte[]> extra = new java.util.TreeMap<>(plugin.hud() == null ? Map.of() : plugin.hud().packFiles());
         // the game's own text font with its Korean from Neo둥근모 (DefaultFont)
         if (cfg.getBoolean("default-font")) extra.putAll(DefaultFont.files());
+        // title banners (admin test feature): fonts, glyph sheets, the text shader that animates them
+        if (plugin.banners() != null) extra.putAll(plugin.banners().packFiles());
         PackBuilder.Built built = new PackBuilder()
                 .extra(extra)
                 // custom crops as tripwire blocks (crops.render: blocks), or vanilla string (entities)

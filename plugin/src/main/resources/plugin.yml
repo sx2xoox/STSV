@@ -132,6 +132,9 @@ commands:
     usage: /tpatoggle
     permission: stsv.tpa
 permissions:
+  stsv.title.banner:
+    description: 칭호 배너 (/칭호 의 '칭호 배너' 탭, 관리자 테스트 기능)
+    default: op
   stsv.vehicle:
     description: /탈것 (내 탈것 목록, 양도, 내 탈것을 쓸 수 있는 플레이어 정하기)
     default: true

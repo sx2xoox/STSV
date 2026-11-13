@@ -2,99 +2,132 @@
 vein_hunter:
   name: "<#c58cff>[광맥 사냥꾼]"
   description: "업적: 광석 5,000개 캐기"
+  category: achievement
 appraiser:
   name: "<#c58cff>[보물 감별사]"
   description: "업적: 희귀한 것 100개 발견"
+  category: achievement
 king_below:
   name: "<gradient:#ffd36b:#ff8a3d><b>[지하의 왕]</b></gradient>"
   description: "업적: 광석 50,000개 캐기"
+  category: achievement
 master_miner:
   name: "<gradient:#ffd36b:#ff8a3d><b>[명장 광부]</b></gradient>"
   description: "업적: 광부 레벨 30"
+  category: job
 big_farmer:
   name: "<#c58cff>[대농]"
   description: "업적: 작물 20,000번 수확"
+  category: achievement
 rancher:
   name: "<#c58cff>[목장주]"
   description: "업적: 동물 500번 번식"
+  category: achievement
 lord_of_fields:
   name: "<gradient:#ffd36b:#ff8a3d><b>[들판의 주인]</b></gradient>"
   description: "업적: 작물 100,000번 수확"
+  category: achievement
 master_farmer:
   name: "<gradient:#ffd36b:#ff8a3d><b>[명장 농부]</b></gradient>"
   description: "업적: 농부 레벨 30"
+  category: job
 sea_friend:
   name: "<#c58cff>[바다의 친구]"
   description: "업적: 물고기 1,000마리 낚기"
+  category: achievement
 ichthyologist:
   name: "<#c58cff>[어류학자]"
   description: "업적: 물고기 60종 발견"
+  category: achievement
 legendary_angler:
   name: "<gradient:#ffd36b:#ff8a3d><b>[전설의 강태공]</b></gradient>"
   description: "업적: 물고기 10,000마리 낚기"
+  category: achievement
 master_fisher:
   name: "<gradient:#ffd36b:#ff8a3d><b>[명장 어부]</b></gradient>"
   description: "업적: 어부 레벨 30"
+  category: job
 artisan:
   name: "<#c58cff>[장인]"
   description: "업적: 직업 기계로 10,000개 만들기"
+  category: job
 expert:
   name: "<#c58cff>[달인]"
   description: "업적: 아무 직업이나 레벨 30"
+  category: job
 versatile:
   name: "<#c58cff>[다재다능]"
   description: "업적: 모든 직업 레벨의 합 60"
+  category: job
 grandmaster:
   name: "<gradient:#ffd36b:#ff8a3d><b>[명장]</b></gradient>"
   description: "업적: 직업 기계로 50,000개 만들기"
+  category: job
 all_rounder:
   name: "<gradient:#ffd36b:#ff8a3d><b>[팔방미인]</b></gradient>"
   description: "업적: 여섯 직업 모두 레벨 30 (합 180)"
+  category: job
 master_smith:
   name: "<gradient:#ffd36b:#ff8a3d><b>[명장 대장장이]</b></gradient>"
   description: "업적: 대장장이 레벨 30"
+  category: job
 master_cook:
   name: "<gradient:#ffd36b:#ff8a3d><b>[명장 요리사]</b></gradient>"
   description: "업적: 요리사 레벨 30"
+  category: job
 master_alchemist:
   name: "<gradient:#ffd36b:#ff8a3d><b>[명장 연금술사]</b></gradient>"
   description: "업적: 연금술사 레벨 30"
+  category: job
 merchant:
   name: "<#5ab0ff>[장사꾼]"
   description: "업적: 상점에 팔아 300,000 G 벌기"
+  category: achievement
 logistics_king:
   name: "<#c58cff>[물류왕]"
   description: "업적: 상점에 물건 200,000개 팔기"
+  category: achievement
 rich:
   name: "<#c58cff>[부자]"
   description: "업적: 순자산 1,000,000 G"
+  category: achievement
 great_merchant:
   name: "<gradient:#ffd36b:#ff8a3d><b>[거상]</b></gradient>"
   description: "업적: 상점에 팔아 3,000,000 G 벌기"
+  category: achievement
 chaebol:
   name: "<gradient:#ffd36b:#ff8a3d><b>[재벌]</b></gradient>"
   description: "업적: 순자산 10,000,000 G"
+  category: achievement
 lord:
   name: "<gradient:#ffd36b:#ff8a3d><b>[영주]</b></gradient>"
   description: "업적: 땅 100청크 갖기"
+  category: achievement
 fixer:
   name: "<#c58cff>[해결사]"
   description: "업적: 의뢰 300개 완료"
+  category: achievement
 big_hand:
   name: "<#c58cff>[큰손]"
   description: "업적: 주식 1,000번 거래"
+  category: achievement
 market_regular:
   name: "<#c58cff>[거래소 단골]"
   description: "업적: 거래소에서 물건 100번 팔기"
+  category: achievement
 auction_god:
   name: "<gradient:#ffd36b:#ff8a3d><b>[경매의 신]</b></gradient>"
   description: "업적: 경매 30번 낙찰"
+  category: achievement
 diligent:
   name: "<#5ab0ff>[성실한 일꾼]"
   description: "업적: 일일 미션 100개 끝내기"
+  category: achievement
 workaholic:
   name: "<#c58cff>[일벌레]"
   description: "업적: 일일 미션 500개 끝내기"
+  category: achievement
 perfect_attendance:
   name: "<gradient:#ffd36b:#ff8a3d><b>[일 년 개근]</b></gradient>"
   description: "업적: 일일 미션을 모두 끝낸 날 365일"
+  category: achievement

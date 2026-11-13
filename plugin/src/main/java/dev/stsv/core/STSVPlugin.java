@@ -48,6 +48,7 @@ public final class STSVPlugin extends JavaPlugin {
     private dev.stsv.core.world.WorldsModule worlds;
     private dev.stsv.core.tpa.TpaModule tpa;
     private dev.stsv.core.nickname.NicknameModule nicknames;
+    private dev.stsv.core.banner.BannerModule banners;
     private dev.stsv.core.vehicle.VehicleModule vehicles;
     private ItemBrowser itemBrowser;
     private final dev.stsv.core.command.AdminRegistry admin = new dev.stsv.core.command.AdminRegistry();
@@ -83,6 +84,7 @@ public final class STSVPlugin extends JavaPlugin {
         modules.register(profiles = new dev.stsv.core.profile.ProfileModule());
         modules.register(economy = new dev.stsv.core.economy.EconomyModule());
         modules.register(nicknames = new dev.stsv.core.nickname.NicknameModule());
+        modules.register(banners = new dev.stsv.core.banner.BannerModule());
         modules.register(achievements = new dev.stsv.core.achievement.AchievementModule());
         modules.register(gacha = new dev.stsv.core.cosmetic.GachaModule());
         modules.register(hub = new dev.stsv.core.gui.HubModule());
@@ -210,6 +212,8 @@ public final class STSVPlugin extends JavaPlugin {
     public dev.stsv.core.tpa.TpaModule tpa() { return tpa; }
     /** 닉네임 (/닉네임, /닉네임 색). Names of players for messages: {@link dev.stsv.core.nickname.Names}. */
     public dev.stsv.core.nickname.NicknameModule nicknames() { return nicknames; }
+    /** Title banners (admin test feature); null if it failed to start. */
+    public dev.stsv.core.banner.BannerModule banners() { return banners; }
     /** 탈것 (경찰차, 1톤 트럭, 골프 카트): content plugins set who may drive whose (trust) and where returned ones go (mailbox). */
     public dev.stsv.core.vehicle.VehicleModule vehicles() { return vehicles; }
     public ItemBrowser itemBrowser() { return itemBrowser; }

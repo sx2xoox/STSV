@@ -65,18 +65,19 @@ SPACE = 4                     # a space in the title
 TEXT_CELL_H = 12              # text glyph cells: rows 0..8 above the baseline, shadow and descenders below
 MINI_ROWS = (-8, 10)          # the mini band: rows MID-8 .. MID+9
 
-# theme list (data driven: add a module in banner_themes/ and a line here). tile = P, centre = half width of the
+# theme list (data driven: add a module in banner_themes/ and a line here). icon = the menu item (a Material name),
+# tile = P, centre = half width of the
 # centre ornament slice (0 = none); tints: title / nickname colours, left to right, multiplied into the white glyphs
 THEMES = [
-    dict(id="fire", module="fire", name="화염", tile=16, centre=0,
+    dict(id="fire", module="fire", icon="BLAZE_POWDER", name="화염", tile=16, centre=0,
          title=((255, 222, 128), (255, 176, 64)), nick=((255, 244, 200), (255, 150, 40))),
-    dict(id="lightning", module="lightning", name="번개", tile=32, centre=0,
+    dict(id="lightning", module="lightning", icon="LIGHTNING_ROD", name="번개", tile=32, centre=0,
          title=((236, 244, 255), (168, 196, 246)), nick=((206, 244, 255), (96, 176, 255))),
-    dict(id="neon", module="neon", name="네온", tile=16, centre=4,
+    dict(id="neon", module="neon", icon="GLOW_INK_SAC", name="네온", tile=16, centre=4,
          title=((200, 250, 255), (80, 214, 255)), nick=((255, 180, 238), (255, 70, 206))),
-    dict(id="bloodmoon", module="bloodmoon", name="혈월", tile=16, centre=26,
+    dict(id="bloodmoon", module="bloodmoon", icon="REDSTONE", name="혈월", tile=16, centre=26,
          title=((244, 234, 238), (204, 184, 194)), nick=((255, 150, 150), (226, 36, 48))),
-    dict(id="prism", module="prism", name="프리즘", tile=16, centre=0,
+    dict(id="prism", module="prism", icon="AMETHYST_SHARD", name="프리즘", tile=16, centre=0,
          title=((255, 255, 255), (224, 228, 248)), nick=((246, 242, 255), (204, 190, 252))),
 ]
 
@@ -307,7 +308,7 @@ def theme_sheets(theme, fonts):
         "TR": (c["right"], c["right"] + P) if c["fills"] == 2 else (0, 0),
     }
     sl = slices(P)
-    meta = dict(id=theme["id"], name=theme["name"], height=H, mid=mid, frames=N,
+    meta = dict(id=theme["id"], name=theme["name"], icon=theme["icon"], height=H, mid=mid, frames=N,
                 plate=dict(left=geo["px0"], right=geo["px1"]), tile=P,
                 left=c["left"], right=c["right"], c0=c["c0"], c1=c["c1"], width=W, fills=c["fills"],
                 tint=dict(title=[list(theme["title"][0]), list(theme["title"][1])],

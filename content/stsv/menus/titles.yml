@@ -1,10 +1,16 @@
-# /칭호: 가진 칭호(장착 중 → 보유) 먼저, 그다음 아직 없는 칭호와 얻는 법. 클릭 = 장착 / 해제
+# /칭호: 위 = 분류 탭 (전체 + 칭호 분류 6개, 이름 옆 = 가진 수/전체 수; 오른쪽 끝 = 칭호 배너, 관리자에게만 보임),
+# 가운데 = 그 분류의 칭호 (장착 중 → 보유 → 아직 없는 것과 얻는 법). 클릭 = 장착 / 해제
+# 칭호의 분류는 contents/<팩>/titles/*.yml 의 category (achievement, job, codex, ranking, shop, event)
+# secret = 배경에 칸을 그리지 않는 버튼 (볼 수 있는 사람에게만 아이템이 놓임)
+# 자리표시자: {tab} 지금 탭 · {n_<탭>} 가진 수/전체 수 · {owned} {total} {worn} · {banner} 장착한 배너
 titles:
-  title: "<#f0e2b0>칭호 <#b9a6d6>· {owned} / {total}"
+  title: "<#f0e2b0>칭호 <#b9a6d6>· {tab} <#8f86a6>· {owned} / {total}"
   rows: 6
   background: stsv:gui/titles
+  tabs: "ABCDEFG"
+  secret: "Z"
   layout:
-    - "TTTTTTTTT"
+    - "ABCDEFG.Z"
     - "TTTTTTTTT"
     - "TTTTTTTTT"
     - "TTTTTTTTT"
@@ -12,6 +18,51 @@ titles:
     - "P..OXI..N"
   list: T
   buttons:
+    # 분류 탭: 지금 탭은 반짝임
+    A:
+      action: "titles:tab:all"
+      icon: stsv:gui/tab_all
+      material: NAME_TAG
+      name: "<white>전체 <gray>{n_all}"
+      lore: ["<gray>모든 칭호"]
+    B:
+      action: "titles:tab:achievement"
+      icon: stsv:gui/trophy
+      material: GOLDEN_HELMET
+      name: "<white>업적 <gray>{n_achievement}"
+      lore: ["<gray>업적을 달성하면 받는 칭호", "<dark_gray>/업적"]
+    C:
+      action: "titles:tab:job"
+      material: IRON_PICKAXE
+      name: "<white>직업 <gray>{n_job}"
+      lore: ["<gray>직업 레벨과 직업 기계로 받는 칭호"]
+    D:
+      action: "titles:tab:codex"
+      material: KNOWLEDGE_BOOK
+      name: "<white>도감 <gray>{n_codex}"
+      lore: ["<gray>도감을 채우면 받는 칭호", "<dark_gray>/도감"]
+    E:
+      action: "titles:tab:ranking"
+      icon: stsv:gui/podium
+      material: GOLD_INGOT
+      name: "<white>랭킹 <gray>{n_ranking}"
+      lore: ["<gray>순위에 들면 받는 칭호"]
+    F:
+      action: "titles:tab:shop"
+      icon: stsv:gui/coins
+      material: EMERALD
+      name: "<white>상점 <gray>{n_shop}"
+      lore: ["<gray>칭호 상점에서 사는 칭호"]
+    G:
+      action: "titles:tab:event"
+      material: FIREWORK_ROCKET
+      name: "<white>이벤트·기타 <gray>{n_event}"
+      lore: ["<gray>이벤트, 기부, 테스트 칭호"]
+    Z:
+      action: "titles:tab:banner"
+      material: RED_BANNER
+      name: "<gold>칭호 배너 <gray>{n_banner}"
+      lore: ["<gray>칭호 · 닉네임을 움직이는 판에 담기", "<gray>장착: <white>{banner}", "", "<dark_gray>관리자 테스트 기능"]
     I:
       action: ""
       icon: stsv:gui/info

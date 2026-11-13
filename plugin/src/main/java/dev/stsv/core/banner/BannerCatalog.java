@@ -19,13 +19,14 @@ import java.util.Map;
 
 /**
  * What tools/assetgen/title_banners.py made (plugin resources pack/title_banners/banners.json): every banner theme cut
- * into parts (left end, tiles and their slices, centre ornament, right end, gem) with the code point of each part in
- * each of the 16 frames and the width the game measures for it (rightmost visible column + 1) at both sizes, and the
- * text glyphs (title: Galmuri9, nickname: the tall 5 x 7 face; both with Galmuri9 Hangul) with their widths.
+ * into parts (left end, tiles and their slices, centre ornament, right end) with the code point of each part in
+ * each of the 16 frames and the width the game measures for it (rightmost visible column + 1) at both sizes, the gem
+ * between title and nickname, and the text glyphs (title: Galmuri9, nickname: the tall 5 x 7 face; both with
+ * Galmuri9 Hangul) with their widths (ink + 1: what the game advances at full size). files: every pack file.
  */
 public record BannerCatalog(int frames, int ghostLevels, int pad, int gap, int spaceBase, double[] spaceSteps,
                             Map<Integer, Integer> titleWidths, Map<Integer, Integer> nickWidths, int space,
-                            Map<String, Theme> themes, List<String> ghostFiles) {
+                            Map<String, Theme> themes, List<String> ghostFiles, List<String> files) {
 
     static final String ROOT = "/pack/title_banners/";
 
@@ -33,14 +34,15 @@ public record BannerCatalog(int frames, int ghostLevels, int pad, int gap, int s
     public record Glyph(int[] chars, int[] big, int[] mini) {}
 
     /**
-     * A theme at its canonical size (px, from the left of its picture): the plate's ends, the plate's middle row, the
+     * A theme (its name and menu item) at its canonical size (px, from the left of its picture): the plate's ends, the plate's middle row, the
      * left tile (and so where the left end stops), the right tile (the right end starts one tile after it), the centre
      * ornament [c0, c1), how many fills (1: only the left one, 2: one each side of the centre), the narrowest plate,
-     * where the gem sits against its centre, the text tints (start and end colour, title and nickname).
+     * the gem (where it sits against the gap's centre, its code point in the title fonts, its tint and measured width
+     * at both sizes), the text tints (start and end colour, title and nickname).
      */
-    public record Theme(String id, String name, int height, int mid, int plateLeft, int plateRight, int tile, int left,
-                        int right, int c0, int c1, int width, int fills, int minPlate, int gemX, Map<String, Glyph> glyphs,
-                        int[][] titleTint, int[][] nickTint) {
+    public record Theme(String id, String name, String icon, int height, int mid, int plateLeft, int plateRight, int tile, int left,
+                        int right, int c0, int c1, int width, int fills, int minPlate, int gemX, int gemChar, int[] gemTint,
+                        int gemBig, int gemMini, Map<String, Glyph> glyphs, int[][] titleTint, int[][] nickTint) {
 
         public Glyph glyph(String name) {
             Glyph g = glyphs.get(name);
@@ -75,11 +77,14 @@ public record BannerCatalog(int frames, int ghostLevels, int pad, int gap, int s
             }
             JsonObject plate = t.getAsJsonObject("plate");
             JsonObject tint = t.getAsJsonObject("tint");
+            JsonObject gem = t.getAsJsonObject("gem");
             themes.put(t.get("id").getAsString(), new Theme(t.get("id").getAsString(), t.get("name").getAsString(),
+                    t.has("icon") ? t.get("icon").getAsString() : "PAPER",
                     t.get("height").getAsInt(), t.get("mid").getAsInt(), plate.get("left").getAsInt(), plate.get("right").getAsInt(),
                     t.get("tile").getAsInt(), t.get("left").getAsInt(), t.get("right").getAsInt(), t.get("c0").getAsInt(),
                     t.get("c1").getAsInt(), t.get("width").getAsInt(), t.get("fills").getAsInt(), t.get("min_plate").getAsInt(),
-                    t.getAsJsonObject("gem").get("x").getAsInt(), Collections.unmodifiableMap(glyphs),
+                    gem.get("x").getAsInt(), gem.get("char").getAsString().codePointAt(0), ints(gem.getAsJsonArray("tint")),
+                    gem.get("big").getAsInt(), gem.get("mini").getAsInt(), Collections.unmodifiableMap(glyphs),
                     colours(tint.getAsJsonArray("title")), colours(tint.getAsJsonArray("nick"))));
         }
         JsonObject space = o.getAsJsonObject("space");
@@ -88,9 +93,12 @@ public record BannerCatalog(int frames, int ghostLevels, int pad, int gap, int s
         for (int i = 0; i < st.length; i++) st[i] = steps.get(i).getAsDouble();
         List<String> ghosts = new ArrayList<>();
         for (JsonElement e : o.getAsJsonArray("ghosts")) ghosts.add(e.getAsString());
+        List<String> files = new ArrayList<>();
+        for (JsonElement e : o.getAsJsonArray("files")) files.add(e.getAsString());
         return new BannerCatalog(o.get("frames").getAsInt(), o.get("ghost_levels").getAsInt(), o.get("pad").getAsInt(),
                 o.get("gap").getAsInt(), space.get("base").getAsInt(), st, widths(text.getAsJsonObject("title")),
-                widths(text.getAsJsonObject("nick")), text.get("space").getAsInt(), Collections.unmodifiableMap(themes), List.copyOf(ghosts));
+                widths(text.getAsJsonObject("nick")), text.get("space").getAsInt(), Collections.unmodifiableMap(themes), List.copyOf(ghosts),
+                List.copyOf(files));
     }
 
     private static Map<Integer, Integer> widths(JsonObject o) {
@@ -112,6 +120,24 @@ public record BannerCatalog(int frames, int ghostLevels, int pad, int gap, int s
     }
 
     public Theme theme(String id) {
-        return themes.get(id);
+        return id == null ? null : themes.get(id);
+    }
+
+    private static BannerCatalog loaded;
+
+    /** The jar's catalog, read once. */
+    public static synchronized BannerCatalog get() {
+        if (loaded == null) loaded = load();
+        return loaded;
+    }
+
+    /** A resource of the pack folder (plugin resources pack/title_banners/), e.g. a file of {@link #files}. */
+    public static byte[] resource(String path) {
+        try (InputStream in = BannerCatalog.class.getResourceAsStream(ROOT + path)) {
+            if (in == null) throw new IOException(ROOT + path + " 없음");
+            return in.readAllBytes();
+        } catch (IOException e) {
+            throw new UncheckedIOException(e);
+        }
     }
 }

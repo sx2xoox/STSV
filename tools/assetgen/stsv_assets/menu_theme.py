@@ -112,10 +112,13 @@ def background(menu):
     buttons = set(menu.get("buttons", {}) or {})
     inset = set(menu.get("inset", "") or "")
     tabs = set(menu.get("tabs", "") or "")
+    secret = set(menu.get("secret", "") or "")   # buttons only some players get: no cell drawn
     layout = menu["layout"]
     for r, row in enumerate(layout):
         for c, ch in enumerate(row):
             x, y = 7 + 18 * c, 17 + 18 * r
+            if ch in secret:
+                continue
             if (lst and ch == lst) or ch in inset:
                 slot(im, x, y)
             elif ch in buttons and ch in tabs:
