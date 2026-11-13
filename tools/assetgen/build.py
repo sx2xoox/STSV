@@ -121,6 +121,8 @@ def main():
     print(f"hud glyph sheets (plugin/src/main/resources/pack/hud): {hud.write()}")
     import default_font
     print(f"default font, Korean from Neo둥근모 (plugin/src/main/resources/pack/default_font): {default_font.write()}")
+    import title_banners
+    print(f"title banners (plugin/src/main/resources/pack/title_banners): {title_banners.write()[0]}")
 
     if render:
         # world objects side by side (fan blade placed where the machine spins it)

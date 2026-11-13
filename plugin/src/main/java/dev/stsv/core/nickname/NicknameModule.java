@@ -222,10 +222,23 @@ public final class NicknameModule implements StsvModule, Listener, TabExecutor {
         p.displayName(decorated ? Names.component(u) : null);
         if (plugin.profiles() != null) plugin.profiles().refreshName(p);
         if (!nameTag) return;
+        // a title banner (admins' test feature) is the name tag of its own
+        dev.stsv.core.banner.BannerModule.Tag banner = plugin.banners() == null ? null : plugin.banners().tag(p);
+        if (banner != null) {
+            if (NameTagTeams.apply(p, true) && plugin.cosmetics() != null) plugin.cosmetics().pictureTag(p, banner.text(), banner.size(), banner.lift());
+            return;
+        }
         boolean ours = NameTagTeams.apply(p, decorated);
         if (plugin.cosmetics() != null) {
             plugin.cosmetics().nameTag(p, ours && decorated ? NickColor.component(index.color(u), Names.plain(u)) : null);
         }
+    }
+
+    /** The next frame of a title banner name tag (server-side animation): only the text display's text. */
+    public void bannerFrame(Player p) {
+        if (!nameTag || NameTagTeams.foreign(p) || plugin.cosmetics() == null || plugin.banners() == null) return;
+        dev.stsv.core.banner.BannerModule.Tag banner = plugin.banners().tag(p);
+        if (banner != null) plugin.cosmetics().pictureTag(p, banner.text(), banner.size(), banner.lift());
     }
 
     /** The tab list name (without the title): the coloured nickname, optionally with the account name after it. */
@@ -237,7 +250,8 @@ public final class NicknameModule implements StsvModule, Listener, TabExecutor {
 
     /** The scoreboard of the HUD's scoreboard mode is new: give it the name tag teams. */
     public void decorate(org.bukkit.scoreboard.Scoreboard sb) {
-        if (nameTag) NameTagTeams.copyTo(sb, o -> Names.decorated(o.getUniqueId()));
+        if (nameTag) NameTagTeams.copyTo(sb, o -> Names.decorated(o.getUniqueId())
+                || (plugin.banners() != null && plugin.banners().tag(o) != null));
     }
 
     @EventHandler(priority = EventPriority.LOW)

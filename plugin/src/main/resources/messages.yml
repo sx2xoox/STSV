@@ -172,6 +172,16 @@ profile:
   title-removed: "<gray>칭호를 해제했습니다."
   title-got: "<gold>새 칭호 획득! </gold>{title}"
   other-titles: "<gray>다른 플레이어의 칭호는 볼 수만 있습니다."
+  # /칭호 의 분류 탭 이름 (메뉴 제목의 {tab})
+  title-tab:
+    all: "전체"
+    achievement: "업적"
+    job: "직업"
+    codex: "도감"
+    ranking: "랭킹"
+    shop: "상점"
+    event: "이벤트·기타"
+    banner: "칭호 배너"
   achievement-points: "<gray>업적 점수: <gold>{points}점 <dark_gray>({done}/{total})"
   achievements-name: "<gold>업적 · {points}점"
   achievements-done: "<gray>달성 <white>{done}/{total}"
@@ -182,6 +192,15 @@ profile:
   real-name: "<gray>계정 이름: <white>{name}"
 
 # 닉네임 (/닉네임, /닉네임 색). {name} = 닉네임(색 포함), {cost} = 금액
+# 칭호 배너 (관리자 테스트 기능): /칭호 → '칭호 배너' 탭
+banner:
+  item-name: "<white>{name} 배너"
+  item-lore: ["", "<gray>칭호와 닉네임을 움직이는 판에 담아", "<gray>채팅 · 탭 목록 · 머리 위에 보여 줍니다.", "", "<yellow>클릭: 장착"]
+  item-worn-lore: ["", "<green>✔ 장착 중", "<yellow>클릭: 해제"]
+  off-name: "<red>배너 해제"
+  off-lore: ["<gray>지금 단 칭호 배너 떼기"]
+  equipped: "<green>칭호 배너 장착: <white>{name}"
+  removed: "<gray>칭호 배너를 해제했습니다."
 nickname:
   disabled: "<red>이 서버에서는 닉네임을 쓸 수 없습니다."
   none: "<gray>아직 닉네임이 없습니다."

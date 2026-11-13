@@ -2,24 +2,32 @@
 codex_minerals:
   name: "<#5ab0ff>[광물 박사]"
   description: "도감: 광물 분류 모두 등록"
+  category: codex
 codex_farm:
   name: "<#5ab0ff>[농산물 박사]"
   description: "도감: 농산물 분류 모두 등록"
+  category: codex
 codex_fish:
   name: "<#5ab0ff>[수산물 박사]"
   description: "도감: 수산물 분류 모두 등록"
+  category: codex
 codex_materials:
   name: "<#5ab0ff>[채집가]"
   description: "도감: 원목·전리품 분류 모두 등록"
+  category: codex
 codex_crafts:
   name: "<#c58cff>[감정사]"
   description: "도감: 보석·금속 분류 모두 등록"
+  category: codex
 codex_foodstuff:
   name: "<#c58cff>[식재료 박사]"
   description: "도감: 식재료 분류 모두 등록"
+  category: codex
 codex_dishes:
   name: "<#c58cff>[미식가]"
   description: "도감: 요리·술 분류 모두 등록"
+  category: codex
 codex_all:
   name: "<gradient:#ffd36b:#ff8a3d><b>[살아있는 도감]</b></gradient>"
   description: "도감: 모든 분류 모두 등록"
+  category: codex

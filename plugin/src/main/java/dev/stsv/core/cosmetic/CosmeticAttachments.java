@@ -176,13 +176,25 @@ final class CosmeticAttachments {
         final TextDisplay display;
         boolean sneaking;
         float scale;
+        TagStyle style = TagStyle.PLAIN;
 
         Tag(TextDisplay display) {
             this.display = display;
         }
     }
 
-    private final Map<UUID, net.kyori.adventure.text.Component> tagText = new HashMap<>();
+    /**
+     * How a name tag is drawn: the game's look (background, seen through walls) or a picture of its own (a title
+     * banner: no background, the game's text shadow, never through walls so its letters stay over its plate by
+     * depth), its size and how far above the usual place its baseline sits (blocks, at size 1).
+     */
+    record TagStyle(boolean plain, float size, float lift) {
+        static final TagStyle PLAIN = new TagStyle(true, 1f, 0f);
+    }
+
+    private record TagWant(net.kyori.adventure.text.Component text, TagStyle style) {}
+
+    private final Map<UUID, TagWant> tagText = new HashMap<>();
     private final Map<UUID, Tag> tags = new HashMap<>();
     /** blocks above the top of the hitbox where the bottom of the tag is (the game's name tag: about 0.25) */
     private float tagHeight = 0.25f;
@@ -473,11 +485,15 @@ final class CosmeticAttachments {
 
     void tagHeight(float blocks) {
         this.tagHeight = blocks;
-        for (Tag t : tags.values()) t.display.setTransformation(tagTransformation(t.scale));
+        for (Tag t : tags.values()) t.display.setTransformation(tagTransformation(t.scale, t.style));
     }
 
     /** The name tag above the player (null: none). */
     void nameTag(Player p, net.kyori.adventure.text.Component text) {
+        nameTag(p, text, TagStyle.PLAIN);
+    }
+
+    void nameTag(Player p, net.kyori.adventure.text.Component text, TagStyle style) {
         UUID id = p.getUniqueId();
         if (text == null) {
             tagText.remove(id);
@@ -488,13 +504,18 @@ final class CosmeticAttachments {
             }
             return;
         }
-        tagText.put(id, text);
+        tagText.put(id, new TagWant(text, style));
         Tag t = tags.get(id);
         if (t != null && t.display.isValid() && t.display.getWorld() == p.getWorld()) {
             t.display.text(text);
+            if (!t.style.equals(style)) {
+                t.style = style;
+                styleTag(t.display, style, t.sneaking);
+                t.display.setTransformation(tagTransformation(t.scale, style));
+            }
             return;
         }
-        if (!p.isDead()) spawnTag(p, text);
+        if (!p.isDead()) spawnTag(p, text, style);
     }
 
     /** Debug: the name tag's display id, -1 none. */
@@ -513,14 +534,24 @@ final class CosmeticAttachments {
         return viewer != owner && viewer.canSee(owner) && !tagHidden(owner);
     }
 
-    private Transformation tagTransformation(float playerScale) {
-        return new Transformation(new Vector3f(0, tagHeight * playerScale, 0), new AxisAngle4f(), new Vector3f(1, 1, 1), new AxisAngle4f());
+    private Transformation tagTransformation(float playerScale, TagStyle style) {
+        float k = style.size();
+        return new Transformation(new Vector3f(0, (tagHeight + style.lift() * k) * playerScale, 0), new AxisAngle4f(),
+                new Vector3f(k, k, k), new AxisAngle4f());
+    }
+
+    /** Background, shadow and seeing through walls for the style (sneaking: never through walls). */
+    private static void styleTag(TextDisplay e, TagStyle style, boolean sneak) {
+        e.setDefaultBackground(style.plain());   // the game's name tag background
+        if (!style.plain()) e.setBackgroundColor(org.bukkit.Color.fromARGB(0, 0, 0, 0));
+        e.setShadowed(!style.plain());
+        e.setSeeThrough(style.plain() && !sneak);
     }
 
     /** A sneaking player's tag: faint, as the game draws it. */
     static final byte SNEAK_TAG_OPACITY = (byte) 0x50;
 
-    private void spawnTag(Player p, net.kyori.adventure.text.Component text) {
+    private void spawnTag(Player p, net.kyori.adventure.text.Component text, TagStyle style) {
         Tag old = tags.remove(p.getUniqueId());
         if (old != null) old.display.remove();
         float scale = scale(p);
@@ -532,15 +563,14 @@ final class CosmeticAttachments {
             e.text(text);
             e.setBillboard(org.bukkit.entity.Display.Billboard.CENTER);
             e.setAlignment(TextDisplay.TextAlignment.CENTER);
-            e.setDefaultBackground(true);   // the game's name tag background
-            e.setShadowed(false);
-            e.setSeeThrough(!sneak);
+            styleTag(e, style, sneak);
             e.setTextOpacity(sneak ? SNEAK_TAG_OPACITY : (byte) -1);
             e.setTeleportDuration(packets == null ? 3 : 1);
             e.setShadowRadius(0);
-            e.setTransformation(tagTransformation(scale));
+            e.setTransformation(tagTransformation(scale, style));
         });
         Tag t = new Tag(d);
+        t.style = style;
         t.sneaking = sneak;
         t.scale = scale;
         tags.put(p.getUniqueId(), t);
@@ -550,7 +580,7 @@ final class CosmeticAttachments {
     }
 
     private void tickTags(boolean sweep, boolean resend) {
-        for (Map.Entry<UUID, net.kyori.adventure.text.Component> e : new ArrayList<>(tagText.entrySet())) {
+        for (Map.Entry<UUID, TagWant> e : new ArrayList<>(tagText.entrySet())) {
             Player p = Bukkit.getPlayer(e.getKey());
             if (p == null) {
                 tagText.remove(e.getKey());
@@ -560,20 +590,20 @@ final class CosmeticAttachments {
             }
             Tag t = tags.get(e.getKey());
             if (t == null || !t.display.isValid() || t.display.getWorld() != p.getWorld()) {
-                if (sweep && !p.isDead()) spawnTag(p, e.getValue());
+                if (sweep && !p.isDead()) spawnTag(p, e.getValue().text(), e.getValue().style());
                 continue;
             }
             TextDisplay d = t.display;
             boolean sneak = p.isSneaking();
             if (sneak != t.sneaking) {
                 t.sneaking = sneak;
-                d.setSeeThrough(!sneak);
+                d.setSeeThrough(t.style.plain() && !sneak);
                 d.setTextOpacity(sneak ? SNEAK_TAG_OPACITY : (byte) -1);
             }
             float scale = scale(p);
             if (scale != t.scale) {
                 t.scale = scale;
-                d.setTransformation(tagTransformation(scale));
+                d.setTransformation(tagTransformation(scale, t.style));
             }
             Location target = p.getLocation().add(0, p.getHeight(), 0);
             double drift = d.getLocation().distanceSquared(target);

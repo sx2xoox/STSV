@@ -199,6 +199,14 @@ public final class CosmeticModule implements StsvModule, Listener {
         if (attachments != null) attachments.nameTag(p, text);
     }
 
+    /**
+     * A name tag that is a picture of its own (a title banner): no background, the game's text shadow, not seen
+     * through walls; drawn at {@code size} and lifted by {@code lift} blocks (at size 1) above the usual place.
+     */
+    public void pictureTag(Player p, net.kyori.adventure.text.Component text, float size, float lift) {
+        if (attachments != null) attachments.nameTag(p, text, new CosmeticAttachments.TagStyle(false, size, lift));
+    }
+
     /** Blocks above the top of the hitbox for the bottom of the name tag. */
     public void nameTagHeight(double blocks) {
         if (attachments != null) attachments.tagHeight((float) blocks);

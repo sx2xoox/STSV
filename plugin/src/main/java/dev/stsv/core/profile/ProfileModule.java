@@ -50,7 +50,8 @@ import java.util.stream.Stream;
  */
 public final class ProfileModule implements StsvModule, Listener {
 
-    public record Title(String id, String name, String description) {}
+    /** category: one of {@link TitleCategories#ORDER} (the /칭호 tab it is listed under). */
+    public record Title(String id, String name, String description, String category) {}
 
     private STSVPlugin plugin;
     private ProfileStore store;
@@ -149,9 +150,15 @@ public final class ProfileModule implements StsvModule, Listener {
             try (Stream<Path> files = Files.list(dir)) {
                 for (Path f : files.filter(p -> p.toString().endsWith(".yml")).sorted().toList()) {
                     YamlConfiguration y = YamlConfiguration.loadConfiguration(f.toFile());
+                    String stem = f.getFileName().toString().replaceFirst("\\.yml$", "");
                     for (String key : y.getKeys(false)) {
                         String id = pack.namespace() + ":" + key;
-                        titles.put(id, new Title(id, y.getString(key + ".name", key), y.getString(key + ".description", "")));
+                        String cat = y.getString(key + ".category");
+                        if (TitleCategories.unknown(cat)) {
+                            plugin.getLogger().warning("[칭호] " + id + ": 모르는 category '" + cat + "' (" + String.join(", ", TitleCategories.ORDER) + ")");
+                        }
+                        titles.put(id, new Title(id, y.getString(key + ".name", key), y.getString(key + ".description", ""),
+                                TitleCategories.of(cat, stem)));
                     }
                 }
             }
@@ -226,6 +233,11 @@ public final class ProfileModule implements StsvModule, Listener {
         boolean titled = plugin.getConfig().getBoolean("profiles.title-in-tab");
         boolean nick = dev.stsv.core.nickname.Names.decorated(p.getUniqueId());
         Component name = nick && plugin.nicknames() != null ? plugin.nicknames().tabName(p) : Component.text(p.getName());
+        Component banner = plugin.banners() == null ? null : plugin.banners().tabName(p);
+        if (banner != null) {
+            p.playerListName(banner);
+            return;
+        }
         Optional<Title> t = titled ? worn(p.getUniqueId()) : Optional.empty();
         p.playerListName(t.isPresent() ? Text.mm(t.get().name() + " ").append(name) : nick ? name : null);
     }
@@ -235,6 +247,12 @@ public final class ProfileModule implements StsvModule, Listener {
         Optional<Title> t = plugin.getConfig().getBoolean("profiles.title-in-chat") ? worn(e.getPlayer().getUniqueId()) : Optional.empty();
         Component title = t.map(x -> Text.mm(x.name())).orElse(null);
         String format = plugin.getConfig().getString("profiles.chat-format");
+        // a title banner (admins' test feature) is the title and the name in one
+        Component banner = plugin.banners() == null ? null : plugin.banners().chatName(e.getPlayer());
+        if (banner != null) {
+            e.renderer((source, name, message, viewer) -> chatLine(format, null, banner.hoverEvent(name.hoverEvent()).clickEvent(name.clickEvent()), message));
+            return;
+        }
         e.renderer((source, name, message, viewer) -> chatLine(format, title, name, message));
     }
 
@@ -368,41 +386,101 @@ public final class ProfileModule implements StsvModule, Listener {
         ProfileStore.Titles cur = online.getOrDefault(p.getUniqueId(), new ProfileStore.Titles(java.util.Set.of(), null));
         online.put(p.getUniqueId(), new ProfileStore.Titles(cur.owned(), titleId));
         store.equipTitle(p.getUniqueId(), titleId);
-        showName(p);
+        // a worn title banner shows the title too (its name tag as well)
+        if (plugin.banners() != null && plugin.banners().wornId(p.getUniqueId()).isPresent()) plugin.banners().refresh(p);
+        else showName(p);
     }
 
     // ------------------------------------------------------------------------------------------
-    // /칭호: the player's titles first (worn, then owned), then the ones still to get and how
+    // /칭호: tabs (every title, each category, and the title banners for admins); in a tab the player's titles first
+    // (worn, then owned), then the ones still to get and how. Click = wear / take off.
     // ------------------------------------------------------------------------------------------
 
     public void openTitles(Player p) {
+        openTitles(p, TitleCategories.ALL);
+    }
+
+    public void openTitles(Player p, String tab) {
         store.titles(p.getUniqueId()).thenAccept(t -> Bukkit.getScheduler().runTask(plugin, () -> {
-            if (p.isOnline()) plugin.menus().open(p, "stsv:titles", new TitlesMenu(t));
+            if (p.isOnline()) plugin.menus().open(p, "stsv:titles", new TitlesMenu(t, TitleCategories.open(tab, bannerAdmin(p))));
         }));
+    }
+
+    /** Whether the player gets the title banner tab. */
+    private boolean bannerAdmin(Player p) {
+        return plugin.banners() != null && plugin.banners().usable(p);
+    }
+
+    /** The titles of a tab ({@link TitleCategories#ALL}: every one), worn first, then owned, then the rest. */
+    static List<Title> inTab(java.util.Collection<Title> all, String tab, java.util.Set<String> owned, String equipped) {
+        List<Title> l = new ArrayList<>();
+        for (Title t : all) if (tab.equals(TitleCategories.ALL) || tab.equals(t.category())) l.add(t);
+        l.sort(java.util.Comparator.comparingInt(t -> t.id().equals(equipped) ? 0 : owned.contains(t.id()) ? 1 : 2));
+        return l;
     }
 
     private final class TitlesMenu implements MenuHandler {
         ProfileStore.Titles mine;
+        final String tab;
         List<Title> shown = List.of();
+        List<dev.stsv.core.banner.BannerCatalog.Theme> banners = List.of();
 
-        TitlesMenu(ProfileStore.Titles mine) {
+        TitlesMenu(ProfileStore.Titles mine, String tab) {
             this.mine = mine;
+            this.tab = tab;
+        }
+
+        boolean bannerTab() {
+            return tab.equals(TitleCategories.BANNER);
         }
 
         @Override
         public Map<String, String> placeholders(MenuView v) {
+            Map<String, String> out = new java.util.HashMap<>();
             long have = titles.values().stream().filter(t -> mine.owned().contains(t.id())).count();
-            return Map.of("owned", String.valueOf(have), "total", String.valueOf(titles.size()),
-                    "worn", mine.equipped() == null ? Lang.raw("common.none") : title(mine.equipped()).map(Title::name).orElse(mine.equipped()));
+            out.put("owned", String.valueOf(have));
+            out.put("total", String.valueOf(titles.size()));
+            out.put("worn", mine.equipped() == null ? Lang.raw("common.none") : title(mine.equipped()).map(Title::name).orElse(mine.equipped()));
+            out.put("tab", Lang.raw("profile.title-tab." + tab));
+            for (String c : TitleCategories.ORDER) {
+                long n = titles.values().stream().filter(t -> t.category().equals(c)).count();
+                long o = titles.values().stream().filter(t -> t.category().equals(c) && mine.owned().contains(t.id())).count();
+                out.put("n_" + c, o + "/" + n);
+            }
+            out.put("n_all", have + "/" + titles.size());
+            var b = plugin.banners();
+            out.put("n_banner", b == null || b.catalog() == null ? "0" : String.valueOf(b.catalog().themes().size()));
+            out.put("banner", b == null ? Lang.raw("common.none")
+                    : b.wornId(v.player().getUniqueId()).map(id -> b.catalog().theme(id)).map(dev.stsv.core.banner.BannerCatalog.Theme::name)
+                    .orElse(Lang.raw("common.none")));
+            return out;
+        }
+
+        @Override
+        public ItemStack button(MenuView v, MenuSpec.Button b, ItemStack base) {
+            String a = b.action();
+            if (a.startsWith("titles:tab:")) {
+                String id = a.substring("titles:tab:".length());
+                // the banner tab: admins only, nobody else sees it at all
+                if (id.equals(TitleCategories.BANNER) && !bannerAdmin(v.player())) return null;
+                if (base != null && id.equals(tab)) base.editMeta(m -> m.setEnchantmentGlintOverride(true));
+                return base;
+            }
+            if (a.equals("titles:off") && bannerTab() && base != null) {
+                base.editMeta(m -> {
+                    m.itemName(Lang.item("banner.off-name"));
+                    m.lore(Lang.items("banner.off-lore"));
+                });
+            }
+            return base;
         }
 
         @Override
         public List<ItemStack> list(MenuView v) {
-            List<Title> l = new ArrayList<>(titles.values());
-            l.sort(java.util.Comparator.comparingInt(t -> t.id().equals(mine.equipped()) ? 0 : mine.owned().contains(t.id()) ? 1 : 2));
-            shown = l;
+            if (bannerTab()) return bannerItems(v.player());
+            shown = inTab(titles.values(), tab, mine.owned(), mine.equipped());
             List<ItemStack> out = new ArrayList<>();
-            for (Title t : l) {
+            for (Title t : shown) {
                 boolean owned = mine.owned().contains(t.id());
                 boolean worn = t.id().equals(mine.equipped());
                 ItemStack it = new ItemStack(owned ? Material.NAME_TAG : Material.PAPER);
@@ -417,9 +495,37 @@ public final class ProfileModule implements StsvModule, Listener {
             return out;
         }
 
+        /** The banner themes, each with a preview of the player's own banner in it. */
+        private List<ItemStack> bannerItems(Player p) {
+            var b = plugin.banners();
+            if (b == null || !b.usable(p)) return List.of();
+            banners = b.themes();
+            String worn = b.wornId(p.getUniqueId()).orElse(null);
+            List<ItemStack> out = new ArrayList<>();
+            for (var t : banners) {
+                boolean on = t.id().equals(worn);
+                Material icon = Material.matchMaterial(t.icon());
+                ItemStack it = new ItemStack(icon == null || !icon.isItem() ? Material.PAPER : icon);
+                it.editMeta(m -> {
+                    m.itemName(Lang.item("banner.item-name", "name", t.name()));
+                    List<Component> lore = new ArrayList<>();
+                    lore.add(b.preview(p, t).decoration(net.kyori.adventure.text.format.TextDecoration.ITALIC, false));
+                    lore.addAll(Lang.items(on ? "banner.item-worn-lore" : "banner.item-lore"));
+                    m.lore(lore);
+                    m.setEnchantmentGlintOverride(on);
+                });
+                out.add(it);
+            }
+            return out;
+        }
+
         @Override
         public void onListClick(MenuView v, int index, ClickType click) {
             Player p = v.player();
+            if (bannerTab()) {
+                bannerClick(v, index);
+                return;
+            }
             if (index >= shown.size()) return;
             Title t = shown.get(index);
             if (!mine.owned().contains(t.id())) {
@@ -438,13 +544,42 @@ public final class ProfileModule implements StsvModule, Listener {
             v.refresh();
         }
 
+        private void bannerClick(MenuView v, int index) {
+            Player p = v.player();
+            var b = plugin.banners();
+            if (b == null || !b.usable(p) || index >= banners.size()) return;
+            var t = banners.get(index);
+            boolean on = t.id().equals(b.wornId(p.getUniqueId()).orElse(null));
+            b.wear(p, on ? null : t.id());
+            dev.stsv.core.hud.HudModule.flash(p, on ? Lang.mm("banner.removed") : Lang.mm("banner.equipped", "name", t.name()));
+            p.playSound(p.getLocation(), Sound.UI_BUTTON_CLICK, 0.6f, on ? 1.0f : 1.5f);
+            v.refresh();
+        }
+
         @Override
         public void onAction(MenuView v, String action, ClickType click) {
-            if (!action.equals("titles:off")) return;
             Player p = v.player();
-            equip(p, null);
-            mine = online.getOrDefault(p.getUniqueId(), mine);
-            dev.stsv.core.hud.HudModule.flash(p, Lang.mm("profile.title-removed"));
+            if (action.startsWith("titles:tab:")) {
+                String next = TitleCategories.open(action.substring("titles:tab:".length()), bannerAdmin(p));
+                if (next.equals(tab)) return;
+                p.playSound(p.getLocation(), Sound.UI_BUTTON_CLICK, 0.5f, 1.6f);
+                // the title names the tab: open the menu again (next tick, never inside its own click)
+                Bukkit.getScheduler().runTask(plugin, () -> {
+                    if (p.isOnline()) plugin.menus().open(p, "stsv:titles", new TitlesMenu(online.getOrDefault(p.getUniqueId(), mine), next));
+                });
+                return;
+            }
+            if (!action.equals("titles:off")) return;
+            if (bannerTab()) {
+                var b = plugin.banners();
+                if (b == null || !b.usable(p)) return;
+                b.wear(p, null);
+                dev.stsv.core.hud.HudModule.flash(p, Lang.mm("banner.removed"));
+            } else {
+                equip(p, null);
+                mine = online.getOrDefault(p.getUniqueId(), mine);
+                dev.stsv.core.hud.HudModule.flash(p, Lang.mm("profile.title-removed"));
+            }
             p.playSound(p.getLocation(), Sound.UI_BUTTON_CLICK, 0.6f, 1.0f);
             v.refresh();
         }
