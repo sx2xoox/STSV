@@ -54,11 +54,12 @@ class BannerLayoutTest {
                     x += partWidth(t, p.glyph());
                 }
                 assertEquals(l.width(), x, t.id() + ": the parts make the banner's width");
-                int tw = BannerLayout.width(C.titleWidths(), C.space(), w[0]);
-                int nw = BannerLayout.width(C.nickWidths(), C.space(), w[1]);
-                int content = tw > 0 ? tw + C.gap() + nw : nw;
-                assertEquals(Math.max(t.minPlate(), content + 2 * C.pad()), l.plateWidth());
-                assertTrue(l.textStart() >= t.plateLeft() + C.pad() || l.plateWidth() == t.minPlate(), "padding");
+                BannerCatalog.Metrics m = t.metrics();
+                int tw = BannerLayout.width(m.titleWidths(), m.space(), w[0]);
+                int nw = BannerLayout.width(m.nickWidths(), m.space(), w[1]);
+                int content = tw > 0 ? tw + m.gap() + nw : nw;
+                assertEquals(Math.max(t.minPlate(), content + 2 * m.pad()), l.plateWidth());
+                assertTrue(l.textStart() >= t.plateLeft() + m.pad() || l.plateWidth() == t.minPlate(), "padding");
                 assertTrue(l.textStart() + content <= t.plateLeft() + l.plateWidth(), t.id() + ": text ends on the plate");
                 assertEquals(w[0].isEmpty(), l.pieces().stream().noneMatch(p -> p.glyph().equals("G")), "a gem only between title and name");
                 assertEquals(w[1].replace(" ", "").length(), l.nick().size(), "every letter of the name has a glyph");
@@ -78,17 +79,18 @@ class BannerLayoutTest {
 
     /** The theme a size draws: the theme itself, or its chat banner (null when it has none). */
     static BannerCatalog.Theme of(BannerCatalog.Theme t, BannerText.Size size) {
-        return size == BannerText.Size.TALL ? t.chat() : t;
+        return size == BannerText.Size.CHAT ? t.chat() : t;
     }
 
     @Test
     void fireHasAChatBanner() {
         BannerCatalog.Theme fire = C.theme("fire");
         assertTrue(fire.chat() != null && fire.chat().id().equals("fire") && fire.chat().chat() == null);
-        // the full banner's plate (17 rows): 8 under the middle row (and the picture's empty last row), over it 8
-        // and one row of glow (and the empty first row): nothing rises over the plate
-        assertEquals(10, fire.chat().height() - fire.chat().mid());
-        assertEquals(10, fire.chat().mid());
+        // one chat line at twice the resolution: 18 rows of half pixels, and its own text measures (14-row letters)
+        assertEquals(18, fire.chat().height());
+        assertTrue(fire.chat().metrics() != fire.metrics());
+        assertTrue(fire.chat().metrics().titleWidths().get((int) '가') > fire.metrics().titleWidths().get((int) '가'));
+        assertEquals(fire.metrics().nickWidths().keySet(), fire.chat().metrics().nickWidths().keySet(), "every name can be written");
     }
 
     @Test

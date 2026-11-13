@@ -182,20 +182,17 @@ public final class BannerModule implements StsvModule, Listener {
         return s;
     }
 
-    /**
-     * The chat name (title and name in one), null when no banner is shown or chat is off for banners. A theme with
-     * a chat banner: that one, at full size, which needs an empty chat line over its line ({@link #chatTall}).
-     */
+    /** The chat name (title and name in one), null when no banner is shown or chat is off for banners. */
     public Component chatName(Player p) {
         if (!plugin.getConfig().getBoolean("title-banners.chat")) return null;
-        return shown(p).map(t -> t.chat() != null
-                ? BannerText.component(catalog, layout(p, t.chat()), BannerText.Size.TALL, frame())
-                : BannerText.component(catalog, layout(p, t), BannerText.Size.MINI, frame())).orElse(null);
+        return shown(p).map(t -> inChat(p, t)).orElse(null);
     }
 
-    /** Whether {@link #chatName} is a chat banner: the message is two chat lines, an empty one and the line itself. */
-    public boolean chatTall(Player p) {
-        return plugin.getConfig().getBoolean("title-banners.chat") && shown(p).map(t -> t.chat() != null).orElse(false);
+    /** A theme as chat shows it: its chat banner (one chat line, letters as high as the chat's), else the small size. */
+    private Component inChat(Player p, BannerCatalog.Theme t) {
+        return t.chat() != null
+                ? BannerText.component(catalog, layout(p, t.chat()), BannerText.Size.CHAT, frame())
+                : BannerText.component(catalog, layout(p, t), BannerText.Size.MINI, frame());
     }
 
     /** The tab list name, null when none. */
@@ -217,9 +214,9 @@ public final class BannerModule implements StsvModule, Listener {
 
     public record Tag(Component text, float size, float lift) {}
 
-    /** A theme with the player's own words, at chat size (the menu's preview). */
+    /** A theme with the player's own words, as chat shows it (the menu's preview). */
     public Component preview(Player p, BannerCatalog.Theme t) {
-        return BannerText.component(catalog, layout(p, t), BannerText.Size.MINI, frame());
+        return inChat(p, t);
     }
 
     // ------------------------------------------------------------------------------------------

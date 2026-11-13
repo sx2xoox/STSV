@@ -38,12 +38,12 @@ public final class BannerText {
 
     /**
      * Full size (1 texel = 1 GUI pixel, the name tag), the small size (the plate's 16-row band at half size: 8 GUI
-     * px, the top 8 of a 9 px chat line or tab row; the menu's lore too), or a theme's chat banner
-     * ({@link BannerCatalog.Theme#chat}: full size, made for two chat lines, the banner on the second; it fills
-     * the two lines' 18 rows and nothing of it is over or under them).
+     * px, the top 8 of a 9 px chat line or tab row; its letters are 4.5 px), or a theme's chat banner
+     * ({@link BannerCatalog.Theme#chat}: drawn for one chat line at half size, 18 rows of texels that are exactly
+     * the line's 9 px, with letters as high as the chat's own; laid out from that theme, in its pixels).
      */
     public enum Size {
-        BIG("", 1.0), MINI("_mini", 0.5), TALL("_chat", 1.0);
+        BIG("", 1.0), MINI("_mini", 0.5), CHAT("_chat", 0.5);
 
         final String suffix;
         final double scale;
@@ -133,9 +133,9 @@ public final class BannerText {
                         t.gemAdvances()[k] * s));
             }
         }
-        boolean shadow = size != Size.MINI;
-        letters(out, c.titleWidths(), l.title(), t.titleTint(), title, s, lead, shadow);
-        letters(out, c.nickWidths(), l.nick(), t.nickTint(), nick, s, lead, shadow);
+        boolean shadow = size == Size.BIG;
+        letters(out, t.metrics().titleWidths(), l.title(), t.titleTint(), title, s, lead, shadow);
+        letters(out, t.metrics().nickWidths(), l.nick(), t.nickTint(), nick, s, lead, shadow);
         return out;
     }
 

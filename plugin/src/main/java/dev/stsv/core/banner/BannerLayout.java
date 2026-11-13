@@ -4,8 +4,8 @@ import java.util.ArrayList;
 import java.util.List;
 
 /**
- * Where every part of a banner goes for one title and one nickname, in the big size's pixels (the mini size is the
- * same at half). No Bukkit types (unit-tested); tools/assetgen/banner_render.py draws the plugin's own components for
+ * Where every part of a banner goes for one title and one nickname, in the theme's own pixels: the big size's (the
+ * mini size is the same at half), or a chat banner's (half GUI pixels). No Bukkit types (unit-tested); tools/assetgen/banner_render.py draws the plugin's own components for
  * the previews.
  *
  * <pre>
@@ -27,11 +27,12 @@ public record BannerLayout(BannerCatalog.Theme theme, List<Piece> pieces, List<L
     public record Letter(int codePoint, int x, double along) {}
 
     public static BannerLayout of(BannerCatalog c, BannerCatalog.Theme t, String title, String nick) {
-        int tw = width(c.titleWidths(), c.space(), title);
-        int nw = width(c.nickWidths(), c.space(), nick);
+        BannerCatalog.Metrics m = t.metrics();
+        int tw = width(m.titleWidths(), m.space(), title);
+        int nw = width(m.nickWidths(), m.space(), nick);
         boolean titled = tw > 0;
-        int content = titled ? tw + c.gap() + nw : nw;
-        int pw = Math.max(t.minPlate(), content + 2 * c.pad());
+        int content = titled ? tw + m.gap() + nw : nw;
+        int pw = Math.max(t.minPlate(), content + 2 * m.pad());
         int extra = pw - t.minPlate();
         int cw = t.centreWidth();
         int fl = t.fills() == 2 ? Math.clamp(t.plateLeft() + Math.floorDiv(pw - cw, 2) - t.left(), 0, extra) : extra;
@@ -59,9 +60,9 @@ public record BannerLayout(BannerCatalog.Theme theme, List<Piece> pieces, List<L
         int width = x + (t.width() - t.right() - P);
 
         int start = t.plateLeft() + Math.floorDiv(pw - content, 2);
-        List<Letter> titleLetters = titled ? letters(c.titleWidths(), c.space(), title, start) : List.of();
-        if (titled) pieces.add(new Piece("G", start + tw + c.gap() / 2 + t.gemX()));
-        List<Letter> nickLetters = letters(c.nickWidths(), c.space(), nick, titled ? start + tw + c.gap() : start);
+        List<Letter> titleLetters = titled ? letters(m.titleWidths(), m.space(), title, start) : List.of();
+        if (titled) pieces.add(new Piece("G", start + tw + m.gap() / 2 + t.gemX()));
+        List<Letter> nickLetters = letters(m.nickWidths(), m.space(), nick, titled ? start + tw + m.gap() : start);
         return new BannerLayout(t, List.copyOf(pieces), titleLetters, nickLetters, pw, width, start);
     }
 

@@ -290,17 +290,15 @@ def has(comps, theme, size):
 
 def chat_panel(fonts, comps, theme, frame=0, k=2):
     """a chat box as the client draws it: lines 9 GUI px apart, every line's background first, then every line's
-    text from the top line down, 8 px over its line's bottom. A theme with a chat banner ("tall"): each of its
-    messages is an empty line and the line itself (the plugin sends the line break)."""
-    tall = has(comps, theme, "tall")
+    text from the top line down, 8 px over its line's bottom. A theme with a chat banner ("line") shows that one,
+    the others the small size."""
+    size = "line" if has(comps, theme, "line") else "chat"
     lines = [plain_runs(f"STSV » {THEME_NAMES[theme]} 배너 (채팅)", 0xFFE070), plain_runs("Steve » 앞줄 jgpqy", 0xFFFFFF)]
     for title, nick, msg in CHAT:
-        c = find(comps, theme, title, nick, "tall" if tall else "chat")
-        if tall:
-            lines.append([])
+        c = find(comps, theme, title, nick, size)
         lines.append(c["runs"] + plain_runs(" » ", 0xA0A0A0) + plain_runs(msg))
     lines.append(plain_runs("STSV » 다음 줄과 겹치지 않음", 0x80FF80))
-    W, H = (330 if tall else 220), 9 * len(lines) + 2
+    W, H = (300 if size == "line" else 220), 9 * len(lines) + 2
     cv = Canvas(W, H, k, (36, 40, 34, 255), ox=4, oy=1)
     for i in range(len(lines)):
         cv.fill(-4, 9 * i, W - 4, 9 * (i + 1), (0, 0, 0, 127))
@@ -383,11 +381,11 @@ def main():
     # the animation in chat: frames 0, 4, 8, 12 of every theme (its chat banner, or the small size)
     rows = []
     for t in themes:
-        tall = has(comps, t, "tall")
-        c = find(comps, t, "거상", "상원", "tall" if tall else "chat")
+        line = has(comps, t, "line")
+        c = find(comps, t, "거상", "상원", "line" if line else "chat")
         cells = []
         for f in (0, 4, 8, 12):
-            cv = Canvas(c["width"] + 4, 21 if tall else 10, 2, (24, 26, 32, 255), ox=2, oy=12 if tall else 1)
+            cv = Canvas(c["width"] + 4, 11 if line else 10, 2, (24, 26, 32, 255), ox=2, oy=2 if line else 1)
             draw_text(fonts, cv, c["runs"], 0, 0, f)
             cells.append(up(cv.im, 3))
         rows.append(stack(cells, horizontal=True))

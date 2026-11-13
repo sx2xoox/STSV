@@ -25,14 +25,21 @@ import java.util.Map;
  * glyphs (TrueType: the title in Galmuri9, the nickname in the tall 5 x 7 face, both with Galmuri9 Hangul) with their
  * advances in full-size pixels (ink + 1; the chat size is exactly half). files: every pack file.
  *
- * <p>A theme may have a chat banner ({@link Theme#chat}): its art drawn again for chat at full size, cut the same
- * way (fonts {@code <id>_chat}, {@code title_chat}, {@code nick_chat}; {@link BannerText.Size#TALL}).
+ * <p>A theme may have a chat banner ({@link Theme#chat}): its art drawn again for one chat line at twice the
+ * resolution (a texel is half a GUI pixel), cut the same way, with its own text fonts and measures (fonts
+ * {@code <id>_chat}, {@code title_chat}, {@code nick_chat}; {@link BannerText.Size#CHAT}).
  */
 public record BannerCatalog(int frames, int ghostLevels, int pad, int gap, int spaceBase, double[] spaceSteps,
                             Map<Integer, Integer> titleWidths, Map<Integer, Integer> nickWidths, int space,
                             Map<String, Theme> themes, List<String> ghostFiles, List<String> files) {
 
     static final String ROOT = "/pack/title_banners/";
+
+    /**
+     * The text of a banner in its own pixels: the advance of every letter of the title and of the nickname, a
+     * space in the title, the plate's padding around the text and the gap between title and nickname (the gem's).
+     */
+    public record Metrics(Map<Integer, Integer> titleWidths, Map<Integer, Integer> nickWidths, int space, int pad, int gap) {}
 
     /** One part in every frame: its code point per frame and the game's measured width per frame, big and mini. */
     public record Glyph(int[] chars, int[] big, int[] mini) {}
@@ -44,12 +51,13 @@ public record BannerCatalog(int frames, int ghostLevels, int pad, int gap, int s
      * the gem (where it sits against the gap's centre; its layers: code points in the title fonts, colours and
      * advances in full-size pixels), the text tints (start and end colour, title and nickname), and the empty columns
      * before the left end's picture at both sizes (left out: a banner starts where it is drawn).
-     * {@code chat}: its chat banner (the same id, its own parts and measures), null when it has none.
+     * {@code metrics}: its text's measures. {@code chat}: its chat banner (the same id, its own parts and measures,
+     * in its own pixels: half GUI pixels), null when it has none.
      */
     public record Theme(String id, String name, String icon, int height, int mid, int plateLeft, int plateRight, int tile, int left,
                         int right, int c0, int c1, int width, int fills, int minPlate, int gemX, int[] gemChars, int[][] gemTints,
                         int[] gemAdvances, Map<String, Glyph> glyphs, int[][] titleTint, int[][] nickTint, int leadBig, int leadMini,
-                        Theme chat) {
+                        Metrics metrics, Theme chat) {
 
         public Glyph glyph(String name) {
             Glyph g = glyphs.get(name);
@@ -73,15 +81,20 @@ public record BannerCatalog(int frames, int ghostLevels, int pad, int gap, int s
 
     static BannerCatalog parse(JsonObject o) {
         JsonObject text = o.getAsJsonObject("text");
+        Metrics own = new Metrics(widths(text.getAsJsonObject("title")), widths(text.getAsJsonObject("nick")), text.get("space").getAsInt(),
+                o.get("pad").getAsInt(), o.get("gap").getAsInt());
+        JsonObject ct = text.getAsJsonObject("chat");
+        Metrics chat = ct == null ? own : new Metrics(widths(ct.getAsJsonObject("title")), widths(ct.getAsJsonObject("nick")),
+                ct.get("space").getAsInt(), ct.get("pad").getAsInt(), ct.get("gap").getAsInt());
         Map<String, Theme> themes = new LinkedHashMap<>();
         for (JsonElement e : o.getAsJsonArray("themes")) {
-            Theme t = theme(e.getAsJsonObject());
+            Theme t = theme(e.getAsJsonObject(), own, chat);
             themes.put(t.id(), t);
         }
-        return parse(o, text, themes);
+        return parse(o, own, themes);
     }
 
-    private static Theme theme(JsonObject t) {
+    private static Theme theme(JsonObject t, Metrics own, Metrics chat) {
         Map<String, Glyph> glyphs = new HashMap<>();
         for (Map.Entry<String, JsonElement> g : t.getAsJsonObject("glyphs").entrySet()) {
             JsonObject go = g.getValue().getAsJsonObject();
@@ -100,10 +113,10 @@ public record BannerCatalog(int frames, int ghostLevels, int pad, int gap, int s
                 ints(gem.getAsJsonArray("advances")), Collections.unmodifiableMap(glyphs),
                 colours(tint.getAsJsonArray("title")), colours(tint.getAsJsonArray("nick")),
                 t.getAsJsonObject("lead").get("big").getAsInt(), t.getAsJsonObject("lead").get("mini").getAsInt(),
-                t.has("chat") ? theme(t.getAsJsonObject("chat")) : null);
+                own, t.has("chat") ? theme(t.getAsJsonObject("chat"), chat, chat) : null);
     }
 
-    private static BannerCatalog parse(JsonObject o, JsonObject text, Map<String, Theme> themes) {
+    private static BannerCatalog parse(JsonObject o, Metrics own, Map<String, Theme> themes) {
         JsonObject space = o.getAsJsonObject("space");
         JsonArray steps = space.getAsJsonArray("steps");
         double[] st = new double[steps.size()];
@@ -113,8 +126,8 @@ public record BannerCatalog(int frames, int ghostLevels, int pad, int gap, int s
         List<String> files = new ArrayList<>();
         for (JsonElement e : o.getAsJsonArray("files")) files.add(e.getAsString());
         return new BannerCatalog(o.get("frames").getAsInt(), o.get("ghost_levels").getAsInt(), o.get("pad").getAsInt(),
-                o.get("gap").getAsInt(), space.get("base").getAsInt(), st, widths(text.getAsJsonObject("title")),
-                widths(text.getAsJsonObject("nick")), text.get("space").getAsInt(), Collections.unmodifiableMap(themes), List.copyOf(ghosts),
+                o.get("gap").getAsInt(), space.get("base").getAsInt(), st, own.titleWidths(),
+                own.nickWidths(), own.space(), Collections.unmodifiableMap(themes), List.copyOf(ghosts),
                 List.copyOf(files));
     }
 

@@ -1,6 +1,8 @@
 """
 Galmuri9 and Galmuri7, the 9 px and 7 px Korean pixel fonts the resource-pack HUD writes with
 (tools/assetgen/hud.py: Galmuri9 everywhere, Galmuri7 for the small and large sidebar panel).
+Galmuri14 (fonts/galmuri14.txt, the same way from dist/Galmuri14.bdf) is the title banners' chat text
+(tools/assetgen/banner_themes/chat.py).
 
 Galmuri 2.40.3 by Lee Minseo (quiple), SIL Open Font License 1.1, no reserved font name
 (fonts/LICENSE-galmuri.txt; the same notice ships in the pack next to the sheets made from it).

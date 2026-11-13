@@ -22,19 +22,13 @@ decodes the ghosts back to plain alpha when it builds the pack.
 
 Two sizes: "big" (1 texel = 1 GUI pixel, the name tag above the head) and the small size ("mini": 16 rows of the
 plate, CHAT_ROWS, drawn at half size: 8 GUI px, the top 8 rows of a 9 px chat line or tab list row, so stacked
-banners keep a pixel apart): the tab list, the menu, and chat for themes without a chat banner.
+banners keep a pixel apart): the tab list, and chat for themes without a chat banner. Its letters are 4.5 px.
 
-The chat banner (a theme with "chat" in THEMES; fonts <theme>_chat, title_chat, nick_chat): the text at its full
-size does not fit a 9 px chat line (a Galmuri9 letter alone is 9 rows), so a message of such a banner is two chat
-lines, an empty one and the line with the banner and the message (the plugin sends the line break), and the theme
-draws its art again for that block of 18 rows: the same letters and the same plate (CHAT_PLATE rows, the full
-banner's), its effects inside the plate, as nothing may rise over a chat line (at most CHAT_ROOM row over the plate:
-its glow). Rows of the block, 0 = the empty line's first:
-    0         the glow over the plate
-    1 .. 17   the plate; its middle row 9 is one over the y of the second line's text (its letters are rows 10 .. 17)
-    5 .. 13   the banner's letters (full size, CHAT_LIFT px over where the line's own text would put them)
-Nothing is drawn under row 17 or over row 0: a message that wraps goes on under the banner, stacked banners do not
-touch, and the line before is left alone.
+The chat banner (a theme with chat=True in THEMES; banner_themes/chat.py; fonts <theme>_chat, title_chat,
+nick_chat): the theme drawn again for one chat line at twice the resolution (1 texel = half a GUI pixel, as the
+game draws its own Hangul): a plate of exactly the line's 18 rows of texels, 14 of them text, so the letters are as
+high as the chat's own (7 px) and nothing is over or under the line. Its text has its own fonts (Galmuri14 made
+bold, the nickname face doubled) and its own measures (banners.json text.chat).
 
 What the 26.3 client does with these (read from its code; tools/assetgen/banner_render.py and the plugin test
 BannerClientLayoutTest replay it):
@@ -70,7 +64,7 @@ HERE = Path(__file__).resolve().parent
 sys.path.insert(0, str(HERE))
 
 import galmuri  # noqa: E402
-from banner_themes import state  # noqa: E402
+from banner_themes import chat as chatlib, state  # noqa: E402
 from banner_themes.letters import TALL, CHARSET  # noqa: E402
 
 REPO = HERE.parent.parent
@@ -94,9 +88,11 @@ CHAT_ASCENT = 7               # band row 0 at the text's top (GUI y 0 of the lin
 TTF_UNIT = 64
 TTF_BIG = dict(size=16.0, oversample=1.0, shift=[0.0, 0.0])
 TTF_CHAT = dict(size=8.0, oversample=2.0, shift=[0.0, -1.0])
-# the chat banner (see the top): plate rows, rows over the plate, and how far its text is lifted
-CHAT_PLATE, CHAT_ROOM, CHAT_LIFT = 17, 1, 4
-TTF_TALL = dict(size=16.0, oversample=1.0, shift=[0.0, -float(CHAT_LIFT)])
+# The chat banner (banner_themes/chat.py): its plate's 18 rows are the chat line (GUI y -1 .. 8 around the y of the
+# line's text, the game draws a line's text one pixel under the line's top), so its bitmap glyphs are 9 px high with
+# ascent 8; its text's first row (plate row 2) is at GUI y 0: a TrueType cell row r is drawn at 3 + r / 2 + shift.
+CHAT_HEIGHT, CHAT_ASCENT_HI = 9, 8
+TTF_HI = dict(size=8.0, oversample=2.0, shift=[0.0, -3.0])
 
 # theme list (data driven: add a module in banner_themes/ and a line here). icon = the menu item (a Material name),
 # tile = P, centre = half width of the
@@ -156,20 +152,21 @@ def drop_orphans(im):
 
 
 def render(theme, chat=False):
-    """the 16 frames of a theme without its text (and of its gem alone), cropped to what is drawn; chat: its chat
-    banner, which must keep to the rows of its block"""
+    """the 16 frames of a theme without its text, and of its gem alone, cropped to what is drawn; chat: its chat
+    banner (every row of the picture is kept: they are the chat line's)"""
     import importlib
     m = importlib.import_module("banner_themes." + theme["module"])
-    G = m.Geo(m.TITLE, **m.GEO, **(dict(rows=CHAT_PLATE, chat=CHAT_ROOM) if chat else {}))
+    G = chatlib.ChatGeo(m.TITLE) if chat else m.Geo(m.TITLE, **m.GEO)
+    draw = m.chat_frame if chat else m.frame
     bg, gems = [], []
     for i in range(N):
         state.GEM["mode"] = "bg"
-        f = m.frame(G, i)
+        f = draw(G, i)
         drop_orphans(f)
         bg.append(fix_alpha(f))
         state.GEM["mode"] = "gem"
         state.GEM["pix"] = set()
-        g = m.frame(G, i)
+        g = draw(G, i)
         gem = Image.new("RGBA", g.size, (0, 0, 0, 0))
         gp, sp = gem.load(), g.load()
         for q in state.GEM["pix"]:
@@ -182,9 +179,9 @@ def render(theme, chat=False):
         b = f.getbbox()
         if b:
             box = b if box is None else (min(box[0], b[0]), min(box[1], b[1]), max(box[2], b[2]), max(box[3], b[3]))
-    if chat and (box[1] < G.PY0 - CHAT_ROOM or box[3] - 1 > G.PY1):
-        raise RuntimeError(f"{theme['id']}: the chat banner leaves its rows ({box[1] - G.PY0} .. {box[3] - 1 - G.PY0})")
     box = (max(0, box[0] - 1), max(0, box[1] - 1), min(bg[0].width, box[2] + 1), min(bg[0].height, box[3] + 1))
+    if chat:
+        box = (box[0], 0, box[2], chatlib.ROWS)
     bg = [f.crop(box) for f in bg]
     gems = [f.crop(box) for f in gems]
     ox, oy = box[0], box[1]
@@ -341,7 +338,7 @@ class Codes:
 
 def theme_sheets(theme, fonts, chat=False):
     """a theme's parts as glyphs (fonts <id>, <id>_mini) and its metadata; chat: its chat banner (font <id>_chat,
-    full size only, drawn CHAT_LIFT px higher: the plate's middle row at the y of the line's text)"""
+    half size only)"""
     bg, gems, geo = render(theme, chat)
     c = cut(theme, bg, gems, geo)
     H, W, P = bg[0].height, c["W"], c["P"]
@@ -393,7 +390,7 @@ def theme_sheets(theme, fonts, chat=False):
         rows = cells_for(entries)
         if chat:
             fonts.provider(theme["id"] + "_chat", f"font/title_banner/{theme['id']}/chat_{group.lower()}", rows,
-                           height=H, ascent=mid + 4 + CHAT_LIFT)
+                           height=CHAT_HEIGHT, ascent=CHAT_ASCENT_HI)
             continue
         fonts.provider(theme["id"], f"font/title_banner/{theme['id']}/{group.lower()}", rows,
                        height=H, ascent=mid + 4)
@@ -411,18 +408,23 @@ def theme_sheets(theme, fonts, chat=False):
     left_end = [f.crop((0, 0, c["left"], H)) for f in bg]
     meta["lead"] = dict(big=min(lead(f) for f in left_end), mini=min(lead(band(f, mid)) for f in left_end))
     meta["gem"]["y"] = gy0
-    meta["gem"].update(gem_layers(theme, gems[0].crop((gx0, gy0, gx1, gy1)), gy0, mid))
+    if chat:
+        meta["gem"].update(gem_layers(theme, gems[0].crop((gx0, gy0, gx1, gy1)), gy0, chatlib.TEXT_ROW, GEM_BASE_CHAT, GEM_GLYPHS_CHAT))
+    else:
+        meta["gem"].update(gem_layers(theme, gems[0].crop((gx0, gy0, gx1, gy1)), gy0, mid - 4, GEM_BASE, GEM_GLYPHS))
     return meta, bg, gems
 
 
-GEM_BASE = 0xE100
+GEM_BASE, GEM_BASE_CHAT = 0xE100, 0xE200
 GEM_GLYPHS = {}               # gem code point -> its pixels (cell coordinates), for title.ttf
+GEM_GLYPHS_CHAT = {}          # the chat banners' gems, for title14.ttf
 
 
-def gem_layers(theme, im, top, mid):
+def gem_layers(theme, im, top, row0, base, glyphs):
     """The gem between title and nickname: one TrueType glyph per colour of its frame 0, all on the same spot, each
     tinted with its colour by the plugin (white glyph x text colour = the colour), so the game draws it with the
-    letters, over the plate. Its rows are cell rows (r = art row - MID + 4, see TTF_BIG / TTF_CHAT)."""
+    letters, over the plate. Its rows are cell rows (r = art row - row0, row0 = the art row of the text's first row:
+    MID - 4 on the full banner, see TTF_BIG / TTF_CHAT / TTF_HI)."""
     k = [t["id"] for t in THEMES].index(theme["id"])
     px = im.load()
     by_colour = {}
@@ -430,14 +432,14 @@ def gem_layers(theme, im, top, mid):
         for x in range(im.width):
             r, g, b, a = px[x, y]
             if a:
-                by_colour.setdefault((r, g, b), []).append((x, top + y - mid + 4))
+                by_colour.setdefault((r, g, b), []).append((x, top + y - row0))
     chars, tints, advances = [], [], []
     for j, (col, pix) in enumerate(sorted(by_colour.items(), key=lambda kv: -len(kv[1]))):
-        ch = chr(GEM_BASE + 16 * k + j)
-        GEM_GLYPHS[ch] = (pix, max(x for x, _ in pix) + 2)
+        ch = chr(base + 16 * k + j)
+        glyphs[ch] = (pix, max(x for x, _ in pix) + 2)
         chars.append(ch)
         tints.append(list(col))
-        advances.append(GEM_GLYPHS[ch][1])
+        advances.append(glyphs[ch][1])
     return dict(chars="".join(chars), tints=tints, advances=advances)
 
 
@@ -531,17 +533,28 @@ def text_fonts(fonts):
     title = table(title_latin, lambda ch: galmuri_ink(F9, ch))
     nick = table(CHARSET, lambda ch: [(x, y + 1) for y, r in enumerate(TALL[ch]) for x, v in enumerate(r) if v == "#"])
     hg = table(hangul, lambda ch: galmuri_ink(F9, ch))
-    files = {"title": {**title, **GEM_GLYPHS}, "nick": nick, "hangul": hg}
+    # the chat banners' text (banner_themes/chat.py): Galmuri14 made bold, the nickname face doubled
+    table14 = lambda chars, ink_of: {ch: (pix, chatlib.advance(pix)) for ch in chars for pix in [ink_of(ch)] if pix}
+    title14 = table14(title_latin, chatlib.bold14)
+    nick14 = table14(CHARSET, chatlib.tall2)
+    hg14 = table14(hangul, chatlib.bold14)
+    files = {"title": {**title, **GEM_GLYPHS}, "nick": nick, "hangul": hg,
+             "title14": {**title14, **GEM_GLYPHS_CHAT}, "nick14": nick14, "hangul14": hg14}
     for name, glyphs in files.items():
         fonts.files[f"assets/{NS}/font/title_banner/ttf/{name}.ttf"] = pixel_ttf(glyphs, f"STSV banner {name}")
     for font, parts in (("title", ("title", "hangul")), ("nick", ("nick", "hangul"))):
-        for suffix, params in (("", TTF_BIG), ("_mini", TTF_CHAT), ("_chat", TTF_TALL)):
+        for suffix, params in (("", TTF_BIG), ("_mini", TTF_CHAT)):
             for part in parts:
                 fonts.fonts.setdefault(font + suffix, []).append(
                     {"type": "ttf", "file": f"{NS}:title_banner/ttf/{part}.ttf", **params, "skip": ""})
+        for part in parts:
+            fonts.fonts.setdefault(font + "_chat", []).append(
+                {"type": "ttf", "file": f"{NS}:title_banner/ttf/{part}14.ttf", **TTF_HI, "skip": ""})
     widths = lambda t: {ch: [adv, adv - 1] for ch, (_, adv) in t.items()}
     return dict(title={**widths(title), **widths(hg)}, nick={**widths(nick), **widths(hg)}, space=SPACE,
-                ttf=dict(big=TTF_BIG, mini=TTF_CHAT, chat=TTF_TALL))
+                chat=dict(title={**widths(title14), **widths(hg14)}, nick={**widths(nick14), **widths(hg14)},
+                          space=chatlib.SPACE, pad=chatlib.PAD, gap=chatlib.GAP),
+                ttf=dict(big=TTF_BIG, mini=TTF_CHAT, chat=TTF_HI))
 
 
 # ------------------------------------------------------------------------------------------------
@@ -574,7 +587,6 @@ def write(out_dir: Path = OUT):
             f.write_text(json.dumps(data, ensure_ascii=False, separators=(",", ":")), encoding="utf-8")
         total += f.stat().st_size
     banners = dict(frames=N, ghost_levels=GHOST_LEVELS, pad=PAD, gap=GAP, chat_rows=CHAT_ROWS,
-                   chat=dict(plate=CHAT_PLATE, room=CHAT_ROOM, lift=CHAT_LIFT),
                    space=dict(base=SPACE_BASE, steps=SPACE_STEPS), text=text, themes=themes,
                    ghosts=sorted(p for p in fonts.files if p.endswith(".png")),
                    files=sorted(fonts.files))

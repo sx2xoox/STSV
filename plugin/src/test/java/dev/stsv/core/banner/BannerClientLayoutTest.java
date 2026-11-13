@@ -37,7 +37,7 @@ import static org.junit.jupiter.api.Assertions.assertTrue;
  * round(size * oversample) px per em, advance and box / oversample, drawn from 7 - top / oversample + shift; a space
  * glyph moves the pen. Checks that every glyph lands exactly where the layout puts it, that the pen ends right after
  * the banner, that the small size stays inside the top 8 GUI px of its 9 px line, and that a chat banner keeps to
- * its two chat lines (nothing under or over them, its letters at full size on the plate). Also writes the components for
+ * its chat line (its plate is the line's 9 px, its letters 7 px on it). Also writes the components for
  * tools/assetgen/banner_render.py (the previews) to build/banner-preview/components.json.
  */
 class BannerClientLayoutTest {
@@ -201,12 +201,12 @@ class BannerClientLayoutTest {
                                     assertEquals(!part.font().value().startsWith("title_banner/" + t.id()), g.gray(), what);
                                     top = Math.min(top, g.top());
                                     bottom = Math.max(bottom, g.bottom());
-                                    if (size == BannerText.Size.TALL && g.inkBottom() > g.inkTop()) {
-                                        // the second of two chat lines: its text's top is y 0, the line is [-1, 8), the
-                                        // empty line over it [-10, -1): the banner keeps to these 18 rows
-                                        assertTrue(g.inkTop() >= -10 && g.inkBottom() <= 8, what + ": rows " + g.inkTop() + ".." + g.inkBottom());
-                                        // letters and gem: the 9 rows in the plate's middle, and a row for what hangs under
-                                        if (g.gray()) assertTrue(g.inkTop() >= -5 && g.inkBottom() <= 5, what + ": letter rows " + g.inkTop() + ".." + g.inkBottom());
+                                    if (size == BannerText.Size.CHAT && g.inkBottom() > g.inkTop()) {
+                                        // a chat line is [-1, 8) around its text's top: the plate is exactly that
+                                        if (!g.gray()) assertTrue(g.inkTop() >= -1 && g.inkBottom() <= 8, what + ": rows " + g.inkTop() + ".." + g.inkBottom());
+                                        // letters and gem: 14 half rows from the text's top; what hangs under a
+                                        // letter (g, y, a comma) may reach 1.5 px further
+                                        if (g.gray()) assertTrue(g.inkTop() >= 0 && g.inkBottom() <= 8.5, what + ": letter rows " + g.inkTop() + ".." + g.inkBottom());
                                     }
                                     left = Math.min(left, pen + g.left());
                                     pen += g.advance();
@@ -283,7 +283,7 @@ class BannerClientLayoutTest {
                     o.addProperty("size", switch (size) {
                         case BIG -> "big";
                         case MINI -> "chat";
-                        case TALL -> "tall";
+                        case CHAT -> "line";
                     });
                     o.addProperty("width", BannerText.end(l, size));
                     JsonArray runs = new JsonArray();
