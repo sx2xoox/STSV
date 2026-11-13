@@ -40,7 +40,7 @@ class PackPipelineTest {
             "halo", "crown", "wizard_hat", "butterfly_wings",   // cosmetics: the halo, gems, stars, wing spots
             "mole", "gumiho", "phoenix",                        // pets: the helmet lamp, fox-fire tails, flame tips
             "andon", "stone_lantern", "tea_kettle",             // furniture: lamp paper, the lantern's fire, embers
-            "police_car", "light_truck", "golf_cart",           // vehicles: head and tail lights
+            "police_car", "light_truck", "golf_cart", "sports_car",   // vehicles: head and tail lights
             "police_lightbar_a", "police_lightbar_b",           // the light bar's lit halves
             "cargo_bicycle", "cargo_van",                       // road vehicles: the bicycle's lamps, the van's head and tail lights
             "boat_trawl");                                      // 작업기: the work lamp on the trawl gallows
@@ -48,7 +48,7 @@ class PackPipelineTest {
             "angel_wings", "demon_wings", "butterfly_wings",   // wings swept back 22.5 degrees
             "gumiho",                                           // nine tails fanned out
             "wagasa",                                           // the parasol's struts, tilted up to its canopy
-            "police_car", "light_truck",                        // raked windscreens (45 / 22.5 degrees)
+            "police_car", "light_truck", "sports_car",          // raked windscreens (45 / 22.5 degrees)
             "cargo_bicycle", "delivery_scooter", "atv",         // road vehicles: frame tubes, forks, stays, steering posts
             "cargo_van", "box_truck",                          // a raked windscreen, a roof deflector and a tilted steering wheel
             "ox_cart", "power_tiller", "tractor",              // the ox's traces, the tiller's handlebars, the tractor's steering wheel
