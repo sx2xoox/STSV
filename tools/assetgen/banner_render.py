@@ -205,6 +205,18 @@ def marker_frame(colour):
     return -1
 
 
+_GLITCH = []
+
+
+def GLITCH_TINTS():
+    """the tints of the letters that glitch (the neon chat banner's title and nickname), from banners.json"""
+    if not _GLITCH:
+        neon = next(t for t in json.loads((PACK / "banners.json").read_text(encoding="utf-8"))["themes"] if t["id"] == "neon")
+        tint = neon["chat"].get("tint", neon["tint"])
+        _GLITCH.extend([tint["title"], tint["nick"]])
+    return _GLITCH
+
+
 def draw_text(pack, canvas, runs, x, y, frame=0):
     """the client's text drawing: runs [{font, color, shadow, text}] from (x, y); returns the pen. Coloured glyphs
     first, then grayscale ones (pipeline order); shadows before their glyphs."""
@@ -213,6 +225,13 @@ def draw_text(pack, canvas, runs, x, y, frame=0):
     for run in runs:
         colour = run["color"]
         f = marker_frame(colour)
+        jump = 0.0
+        if (colour >> 16) & 255 == 251 and (colour >> 8) & 255 >= 240 and colour & 255 >= 254:
+            # a letter that glitches: the shader colours it along its word and makes it jump in frames 6 and 13
+            word, along = 255 - (colour & 255), (255 - ((colour >> 8) & 255)) / 15
+            a_, b_ = GLITCH_TINTS()[word]
+            colour = sum(int(round(a_[k] + (b_[k] - a_[k]) * along)) << (16 - 8 * k) for k in range(3))
+            jump = ((2.0, 1.0)[word] if frame == 6 else (-1.0, -2.0)[word] if frame == 13 else 0.0)
         if isinstance(f, tuple):                             # a gust's part: is this its frame at this step?
             _, own, delay = f
             into = frame - 4 - delay                         # steps into the gust, for this part
@@ -225,7 +244,7 @@ def draw_text(pack, canvas, runs, x, y, frame=0):
             g = pack.glyph(run["font"], ord(ch))
             if g.image is not None and show:
                 fa = 255 / GHOST_LEVELS if ghost else 1.0
-                item = (pen + g.left, y + g.top, g.texel, g.image, rgb, g.gray, fa)
+                item = (pen + g.left + jump, y + g.top, g.texel, g.image, rgb, g.gray, fa)
                 if run.get("shadow"):
                     shadows.append((g.gray, (pen + g.left + 1, y + g.top + 1, g.texel, g.image,
                                              tuple(int(c * 0.25) for c in rgb), g.gray, fa)))

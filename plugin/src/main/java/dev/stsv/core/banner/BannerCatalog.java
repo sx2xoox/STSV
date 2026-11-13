@@ -51,6 +51,7 @@ public record BannerCatalog(int frames, int ghostLevels, int pad, int gap, int s
      * the gem (where it sits against the gap's centre; its layers: code points in the title fonts, colours and
      * advances in full-size pixels), the text tints (start and end colour, title and nickname), and the empty columns
      * before the left end's picture at both sizes (left out: a banner starts where it is drawn).
+     * {@code glitch}: the shader moves its letters when it glitches ({@link BannerText#glitch}).
      * {@code grow} (0: any length): the plate only grows by whole steps of this many columns.
      * {@code flow} (0: none): a gust runs along the banner. The shader does not loop the 16 frames but idles on
      * the first four and every few seconds plays the other twelve once, each part as many steps late as it starts
@@ -63,8 +64,8 @@ public record BannerCatalog(int frames, int ghostLevels, int pad, int gap, int s
     public record Theme(String id, String name, String icon, int height, int mid, int plateLeft, int plateRight, int tile, int left,
                         int right, int c0, int c1, int width, int fills, int minPlate, int gemX, int[] gemChars, int[][] gemTints,
                         int[] gemAdvances, Map<String, Glyph> glyphs, int[][] titleTint, int[][] nickTint, int leadBig, int leadMini,
-                        int textRight, int grow, int flow, int flowOrigin, boolean scatter, int[] outline, Metrics metrics,
-                        Theme chat) {
+                        int textRight, int grow, int flow, int flowOrigin, boolean scatter, boolean glitch, int[] outline,
+                        Metrics metrics, Theme chat) {
 
         public Glyph glyph(String name) {
             Glyph g = glyphs.get(name);
@@ -125,6 +126,7 @@ public record BannerCatalog(int frames, int ghostLevels, int pad, int gap, int s
                 t.has("flow") ? t.getAsJsonObject("flow").get("step").getAsInt() : 0,
                 t.has("flow") ? t.getAsJsonObject("flow").get("origin").getAsInt() : 0,
                 t.has("flow") && t.getAsJsonObject("flow").has("scatter") && t.getAsJsonObject("flow").get("scatter").getAsBoolean(),
+                t.has("glitch") && t.get("glitch").getAsBoolean(),
                 t.has("outline") ? ints(t.getAsJsonArray("outline")) : null,
                 own, t.has("chat") ? theme(t.getAsJsonObject("chat"), chat, chat) : null);
     }

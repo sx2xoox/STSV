@@ -291,7 +291,7 @@ class BannerClientLayoutTest {
                         JsonObject r = new JsonObject();
                         r.addProperty("font", part.font().asString());
                         r.addProperty("color", part.color().value());
-                        r.addProperty("shadow", !ShadowColor.none().equals(part.shadowColor()));
+                        r.addProperty("shadow", part.shadowColor() == null);   // the game's own shadow (not none, not a ghost)
                         r.addProperty("text", part.content());
                         runs.add(r);
                     }

@@ -41,6 +41,8 @@ public final class BannerText {
     public static final int MARK_RED = 253;
     /** Red of the marker colours of a banner a gust runs along ({@link BannerCatalog.Theme#flow}; text.vsh). */
     public static final int GUST_RED = 252;
+    /** Red of a letter that glitches ({@link BannerCatalog.Theme#glitch}; text.vsh), and of its ghost (its shadow colour). */
+    public static final int GLITCH_RED = 251, GHOST_RED = 250;
     /** The latest a part of such a banner can be played (steps; the marker's blue is 255 - delay, 224 at least). */
     public static final int MAX_DELAY = 31;
 
@@ -92,6 +94,26 @@ public final class BannerText {
         return -1;
     }
 
+    /**
+     * The colour of a letter that glitches: the shader colours it by its place along its word (0 .. 1; word 0: the
+     * title, 1: the nickname) and makes it jump when the banner glitches.
+     */
+    public static TextColor glitch(int word, double along) {
+        return TextColor.color(GLITCH_RED, 255 - (int) Math.round(Math.clamp(along, 0, 1) * 15), 255 - word);
+    }
+
+    /** The shadow colour of such a letter: not a shadow but the glitch's ghost, which the shader shows beside it. */
+    public static TextColor ghost(int word) {
+        return TextColor.color(GHOST_RED, 255, 255 - word);
+    }
+
+    /** Whether the pack's text shader takes a colour for one of its own (any marker): no other text may use it. */
+    public static boolean reserved(TextColor c) {
+        if (c == null) return false;
+        return frameOf(c) >= 0 || (c.red() == GLITCH_RED && c.green() >= 240 && c.blue() >= 254)
+                || (c.red() == GHOST_RED && c.green() >= 254 && c.blue() >= 254);
+    }
+
     /** The delay (steps) a gust marker stands for, -1 for any other colour. */
     public static int delayOf(TextColor c) {
         return c != null && c.red() == GUST_RED && c.green() >= 240 && c.blue() >= 224 ? 255 - c.blue() : -1;
@@ -117,8 +139,15 @@ public final class BannerText {
         return (int) (0.5 + width * scale) + 1;
     }
 
-    /** One glyph as placed: its font, code point, colour, left edge (GUI px) and the game's advance for it. */
-    public record Placed(Key font, int codePoint, TextColor color, boolean shadow, double x, double advance) {}
+    /**
+     * One glyph as placed: its font, code point, colour, left edge (GUI px) and the game's advance for it. ghost: the
+     * colour its shadow is given instead of a shadow (a glitching letter's), null for none.
+     */
+    public record Placed(Key font, int codePoint, TextColor color, boolean shadow, double x, double advance, TextColor ghost) {
+        public Placed(Key font, int codePoint, TextColor color, boolean shadow, double x, double advance) {
+            this(font, codePoint, color, shadow, x, advance, null);
+        }
+    }
 
     /** The empty columns before the left end's picture at this size (texels = full-size pixels). */
     static int lead(BannerCatalog.Theme t, Size size) {
@@ -176,6 +205,12 @@ public final class BannerText {
             letters(out, t.metrics().titleWidths(), l.title(), dark, font("title_chat_o"), s, lead, false);
             letters(out, t.metrics().nickWidths(), l.nick(), dark, font("nick_chat_o"), s, lead, false);
         }
+        if (size == Size.CHAT && t.glitch() && frame == ALL_FRAMES) {
+            // the shader moves these letters when the banner glitches (and colours them: text.vsh has the tints)
+            glitching(out, t.metrics().titleWidths(), l.title(), 0, title, s, lead);
+            glitching(out, t.metrics().nickWidths(), l.nick(), 1, nick, s, lead);
+            return out;
+        }
         letters(out, t.metrics().titleWidths(), l.title(), t.titleTint(), title, s, lead, shadow);
         letters(out, t.metrics().nickWidths(), l.nick(), t.nickTint(), nick, s, lead, shadow);
         return out;
@@ -188,6 +223,14 @@ public final class BannerText {
         for (BannerLayout.Letter k : letters) {
             out.add(new Placed(font, k.codePoint(), lerp(tint[0], tint[1], k.along()), shadow, (k.x() - lead) * s,
                     widths.get(k.codePoint()) * s));
+        }
+    }
+
+    private static void glitching(List<Placed> out, java.util.Map<Integer, Integer> widths, List<BannerLayout.Letter> letters,
+                                  int word, Key font, double s, int lead) {
+        for (BannerLayout.Letter k : letters) {
+            out.add(new Placed(font, k.codePoint(), glitch(word, k.along()), false, (k.x() - lead) * s, widths.get(k.codePoint()) * s,
+                    ghost(word)));
         }
     }
 
@@ -207,8 +250,9 @@ public final class BannerText {
         double pen = 0;
         for (Placed g : glyphs) {
             Run r = runs.isEmpty() ? null : runs.getLast();
-            if (r == null || !r.font.equals(g.font) || !r.color.equals(g.color) || r.shadow != g.shadow) {
+            if (r == null || !r.font.equals(g.font) || !r.color.equals(g.color) || r.shadow != g.shadow || !Objects.equals(r.ghost, g.ghost)) {
                 r = new Run(g.font, g.color, g.shadow);
+                r.ghost = g.ghost;
                 runs.add(r);
             }
             spaces(c, r.text, g.x() - pen);
@@ -219,7 +263,8 @@ public final class BannerText {
         TextComponent.Builder b = Component.text();
         for (Run r : runs) {
             Style.Builder st = Style.style().font(r.font).color(r.color);
-            if (!r.shadow) st.shadowColor(ShadowColor.none());
+            if (r.ghost != null) st.shadowColor(ShadowColor.shadowColor(0xFF000000 | r.ghost.value()));
+            else if (!r.shadow) st.shadowColor(ShadowColor.none());
             b.append(Component.text(r.text.toString(), st.build()));
         }
         return b.build();
@@ -229,6 +274,7 @@ public final class BannerText {
         final Key font;
         final TextColor color;
         final boolean shadow;
+        TextColor ghost;
         final StringBuilder text = new StringBuilder();
 
         Run(Key font, TextColor color, boolean shadow) {

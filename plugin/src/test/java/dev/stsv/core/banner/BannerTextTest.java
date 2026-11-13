@@ -29,6 +29,7 @@ class BannerTextTest {
                 assertTrue(!g.equals(m));
             }
             assertEquals(-1, BannerText.delayOf(m));
+            assertTrue(BannerText.reserved(m) && BannerText.reserved(BannerText.marker(f, false, 3)));
             assertEquals(BannerText.MAX_DELAY, BannerText.delayOf(BannerText.marker(f, false, 99)), "a part too far right plays with the last");
             assertNotEquals(0xFFFFFF, m.value());
             assertTrue(m.red() >= 250 && m.green() >= 250 && m.blue() >= 250, "almost white without the shader");

@@ -62,18 +62,25 @@ class PuppetTextTest {
         // every colour near white, at every shade a face has, and whatever a shade turns into a marker
         for (PuppetModel.Side side : PuppetModel.Side.values()) {
             for (int r = 240; r < 256; r++) for (int g = 240; g < 256; g++) for (int b = 240; b < 256; b++) {
-                assertEquals(-1, BannerText.frameOf(TextColor.color(PuppetText.colour(r << 16 | g << 8 | b, side.shade))));
+                assertTrue(!BannerText.reserved(TextColor.color(PuppetText.colour(r << 16 | g << 8 | b, side.shade))));
             }
         }
         for (double shade : new double[]{0.99, 0.995, 253 / 255.0, 0.9922}) {
             for (int r = 250; r < 256; r++) for (int g = 250; g < 256; g++) for (int b = 250; b < 256; b++) {
-                assertEquals(-1, BannerText.frameOf(TextColor.color(PuppetText.colour(r << 16 | g << 8 | b, shade))), "shade " + shade);
+                assertTrue(!BannerText.reserved(TextColor.color(PuppetText.colour(r << 16 | g << 8 | b, shade))), "shade " + shade);
+            }
+        }
+        // the letters that glitch and their ghosts are the shader's too
+        for (int word = 0; word < 2; word++) {
+            for (TextColor c : new TextColor[]{BannerText.glitch(word, 0), BannerText.glitch(word, 1), BannerText.glitch(word, 0.4), BannerText.ghost(word)}) {
+                assertTrue(BannerText.reserved(c));
+                assertTrue(!BannerText.reserved(TextColor.color(PuppetText.colour(c.value(), 1.0))), "a skin pixel in " + c);
             }
         }
         // everything else is sent as it is
         assertEquals(0xFFFFFF, PuppetText.colour(0xFFFFFF, 1.0));
         assertEquals(0xFDFBFF, PuppetText.colour(0xFDFBFF, 1.0), "green under 252: no marker");
-        assertEquals(0xFBFFFF, PuppetText.colour(0xFBFFFF, 1.0));
+        assertEquals(0xF9FFFF, PuppetText.colour(0xF9FFFF, 1.0));
         assertEquals(0x123456, PuppetText.colour(0x123456, 1.0));
         assertEquals(0, PuppetText.colour(0, 0.55));
     }

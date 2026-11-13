@@ -127,9 +127,26 @@ def chat_frame(G, i):
         if d <= R + 3.5:
             return lerp(c, (220, 24, 40), (0.62, 0.38, 0.2, 0.08)[min(3, int(d - R))] * (0.55 + 0.45 * pulse))
         return lerp(c, (150, 20, 30), max(0.0, 1 - abs(x - mx) / 46) * (1 - g) * 0.25)
-    C.plate(px, G, fill,
-            lambda x, y: (232, 220, 226) if y < G.MID - 4 else (176, 160, 170) if y <= G.MID + 4 else (110, 96, 108),
-            lambda x, y: lerp((150, 18, 30), (80, 6, 14), (y - G.PY0) / (G.PY1 - G.PY0)))
+    # the frame: old silver, worked into fangs that point into the plate every 16 columns (a silver tooth on the
+    # bevel, its point one row further in), tarnished towards the bottom, stained red where the blood runs
+    drip_x = {(G.PX0 + off_x) if where == "L" else (G.PX1 + off_x) if where == "R" else int(mx) + off_x for where, off_x, _ in CHAT_DRIPS}
+
+    def silver(x, y):
+        c = (236, 226, 232) if y < G.MID - 4 else (176, 160, 170) if y <= G.MID + 4 else (110, 96, 108)
+        if (x - G.TILE0) % 16 in (7, 9) and G.TILE0 <= x < G.R0: c = lerp(c, (60, 44, 56), 0.45)      # the cut beside a fang
+        if any(abs(x - dx) <= 2 for dx in drip_x) and y <= G.MID: c = lerp(c, BLOOD, 0.7 if abs(x - min(drip_x, key=lambda d: abs(x - d))) <= 1 else 0.35)
+        return c
+
+    def fang(x, y):
+        k = (x - G.TILE0) % 16
+        if G.TILE0 <= x < G.R0 and k in (7, 8, 9): return (214, 202, 210) if y <= G.MID else (132, 116, 128)
+        return lerp((150, 18, 30), (80, 6, 14), (y - G.PY0) / (G.PY1 - G.PY0))
+
+    def fanged_fill(x, y, g):
+        if G.TILE0 <= x < G.R0 and (x - G.TILE0) % 16 == 8 and y in (G.PY0 + 2, G.PY1 - 2) and math.hypot(x - mx, y - my) > R:
+            return (176, 160, 170) if y <= G.MID else (104, 90, 102)
+        return fill(x, y, g)
+    C.plate(px, G, fanged_fill, silver, fang)
     # bats: a figure-eight across the face of the moon
     for k, ph in enumerate((0.0, math.pi / 2)):
         a = t + ph
@@ -162,8 +179,10 @@ def chat_frame(G, i):
     # the end thorns
     for side in (-1, 1):
         x0 = G.PX0 if side < 0 else G.PX1
-        for k in range(6):
-            for y in (G.MID, G.MID + 1): C.put(px, G, x0 + side * (k + 1), y, (190, 190, 200) if k < 5 else (255, 255, 255))
-        C.put(px, G, x0 + side, G.MID - 1, (120, 120, 130)); C.put(px, G, x0 + side, G.MID + 2, (80, 80, 90))
+        for k in range(7):                                   # the thorn, and a barb each side of its root
+            for y in (G.MID, G.MID + 1): C.put(px, G, x0 + side * (k + 1), y, (190, 190, 200) if k < 6 else (255, 255, 255))
+        for k in range(3):
+            C.put(px, G, x0 + side * (k + 1), G.MID - 1 - k, (150, 150, 162) if k < 2 else (226, 226, 234))
+            C.put(px, G, x0 + side * (k + 1), G.MID + 2 + k, (104, 104, 116) if k < 2 else (170, 170, 182))
     C.gem7(px, G, {"#": (255, 150, 150), "a": (255, 70, 80), "w": (255, 240, 240), "b": (190, 16, 36), "c": (80, 4, 14)})
     return im

@@ -56,6 +56,16 @@ class BannerPackTest {
         assertTrue(vsh.contains("c.b >= " + (255 - BannerText.MAX_DELAY)) && vsh.contains("bannerDelay = 255 - c.b;"), "a gust marker's delay");
         assertTrue(vsh.contains("layout(location = 5) flat out int bannerDelay;") && fsh.contains("layout(location = 5) flat in int bannerDelay;"));
         assertTrue(fsh.contains("#define STSV_BANNER_CALM_FRAMES 4.0") && fsh.contains("#define STSV_BANNER_GUST_STEP_MS 50.0"));
+        // the letters that glitch: the shader has the neon chat banner's tints
+        assertTrue(vsh.contains("c.r == " + BannerText.GLITCH_RED) && vsh.contains("c.r == " + BannerText.GHOST_RED));
+        assertTrue(vsh.contains("#include <minecraft:globals.glsl>") && vsh.contains("pos.x += jump;"));
+        BannerCatalog.Theme neon = C.theme("neon").chat();
+        assertTrue(neon.glitch());
+        String from = "vec3[2](vec3(%d.0, %d.0, %d.0) / 255.0, vec3(%d.0, %d.0, %d.0) / 255.0)";
+        assertTrue(vsh.contains("STSV_GLITCH_FROM[2] = " + String.format(from, neon.titleTint()[0][0], neon.titleTint()[0][1], neon.titleTint()[0][2],
+                neon.nickTint()[0][0], neon.nickTint()[0][1], neon.nickTint()[0][2])), "the title's and the nickname's first colour");
+        assertTrue(vsh.contains("STSV_GLITCH_TO[2] = " + String.format(from, neon.titleTint()[1][0], neon.titleTint()[1][1], neon.titleTint()[1][2],
+                neon.nickTint()[1][0], neon.nickTint()[1][1], neon.nickTint()[1][2])), "their last colour");
         assertTrue(vsh.contains("252"));
         assertTrue(fsh.contains("#include <minecraft:globals.glsl>") && fsh.contains("GameTime"));
         assertTrue(fsh.contains("#include <minecraft:oit.glsl>") && fsh.contains("OIT_ALPHA_ONLY"), "the game's OIT paths kept");

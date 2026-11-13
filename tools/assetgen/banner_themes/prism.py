@@ -133,7 +133,15 @@ def chat_frame(G, i):
             near = (x - G.TILE0 - 4 * ph) % 64 < 8                               # the glint running along the bevel
             return ((255, 255, 255), 255) if near else (SIL_L, 210)
         return (glass(x, y)[0] or (220, 230, 255)), 170
-    C.plate(px, G, fill, lambda x, y: SIL_L if y < G.MID - 3 else SIL if y <= G.MID + 4 else SIL_D, bev)
+    # the frame: the glass's cut edge, facets 8 columns long that catch the light differently (bright, white,
+    # bright, shaded), a fine dark line where two facets meet
+    def cut_edge(x, y):
+        k = (x - G.TILE0) % 32
+        if k % 8 == 0: return (SIL_D if y <= G.MID else (104, 112, 140)), 255
+        upper = (SIL_L, (255, 255, 255), SIL_L, SIL)[k // 8]
+        lower = (SIL_D, SIL, (132, 142, 168), SIL)[k // 8]
+        return (upper if y < G.MID - 3 else lerp(upper, lower, 0.5) if y <= G.MID + 4 else lower), 255
+    C.plate(px, G, fill, cut_edge, bev)
     # sparkles: at the glass's corners and inside it
     spots = [(G.PX0 + 9, G.PY0 + 1, 0), (G.PX1 - 9, G.PY1 - 1, 8), (G.PX1 - 9, G.PY0 + 1, 6), (G.PX0 + 9, G.PY1 - 1, 14)]
     for x0 in range(G.TILE0, G.R0 - 15, 64):

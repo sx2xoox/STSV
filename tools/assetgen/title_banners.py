@@ -601,6 +601,8 @@ def write(out_dir: Path = OUT):
             meta["chat"] = theme_sheets(t, fonts, chat=True)[0]
             import importlib
             module = importlib.import_module("banner_themes." + t["module"])
+            if getattr(module, "CHAT_GLITCH", False):        # the shader moves its letters when it glitches
+                meta["chat"]["glitch"] = True
             tint = getattr(module, "CHAT_TINT", None)
             if tint:                                         # the chat banner's own text colours and outline
                 meta["chat"]["tint"] = dict(title=[list(c) for c in tint["title"]], nick=[list(c) for c in tint["nick"]])

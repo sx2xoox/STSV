@@ -106,6 +106,11 @@ def chat_geo(Geo):
     return C.framed(Geo, TITLE)
 
 
+# the letters jump with the glitch: the pack's text shader moves them in frames 6 and 13 (and shows a cyan or magenta
+# ghost beside them); it has their colours, THEMES' neon tints (text.vsh STSV_GLITCH_FROM / _TO)
+CHAT_GLITCH = True
+
+
 # the traces inside the plate, the same every 64 columns: each in its own cell of 16 columns (a slice of the tile
 # never cuts one): where it starts in the cell, from the top (1) or the bottom (-1), straight / slanted / straight
 CHAT_TRACES = ((0, 3, 1, 2, 4, 2), (1, 12, -1, 2, 4, 1), (2, 4, 1, 3, 3, 2), (3, 11, -1, 3, 2, 2))
@@ -142,9 +147,21 @@ def chat_frame(G, i):
         if y % 2 == 0: c = lerp(c, (0, 0, 0), 0.35)                 # scanlines
         if y == top + (i * 15 // N) % 14: c = lerp(c, (60, 40, 110), 0.6)   # the rolling bright line
         return c
-    C.plate(px, G, fill,
-            lambda x, y: MAG_D if flick_m else (MAG if y <= G.MID else (220, 40, 170)),
-            lambda x, y: CYA_D if flick_c else (CYA if y <= G.MID else (40, 190, 230)))
+    # the frame: two tubes of neon, magenta round the outside and cyan inside it. A lit tube has a pale hot core;
+    # a mounting clip holds them every 32 columns; their light spills on to the plate (the fill's first rows)
+    def tube(colour, dark, off):
+        def f(x, y):
+            if (x - G.TILE0) % 32 == 16 and G.TILE0 <= x < G.R0: return (38, 30, 58)
+            if off: return dark
+            return lerp(colour, (255, 255, 255), 0.42 if y <= G.MID else 0.18)
+        return f
+
+    def lit_fill(x, y, g):
+        c = fill(x, y, g)
+        depth = min(y - G.PY0, G.PY1 - y) - 2                   # 0 on the row next to the cyan tube
+        if depth < 2 and not flick_c: c = lerp(c, CYA, (0.34, 0.14)[depth])
+        return c
+    C.plate(px, G, lit_fill, tube(MAG, MAG_D, flick_m), tube(CYA, CYA_D, flick_c))
     # circuit traces with travelling pulses; a node lights up when the pulse gets there
     for cell, way, pts in chat_traces(G):
         n = len(pts)
