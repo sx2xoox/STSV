@@ -218,7 +218,7 @@ public final class BannerModule implements StsvModule, Listener {
         float size = (float) plugin.getConfig().getDouble("title-banners.name-tag-size");
         if (t.get().chat() != null) {
             // a chat banner's pixel is half a text pixel: twice the size shows a picture pixel as large as the full
-            // banner's (and its letters as large as an ordinary name tag's at the default 0.5); its plate ends one
+            // banner's (and its plate as high as an ordinary name tag's line at the default 0.5); its plate ends one
             // row under the baseline
             return new Tag(inChat(p, t.get()), size * 2, 1 / 40f);
         }

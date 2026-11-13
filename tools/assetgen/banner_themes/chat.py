@@ -3,11 +3,9 @@
 A chat line is 9 GUI px high and a Galmuri9 letter alone is 9 rows, so the full banner's text cannot share a line
 with a plate, and the full banner at half size has letters of 4.5 px. The chat banner is drawn like the game draws
 its own Hangul: 1 texel = half a GUI pixel. A line is 18 rows of texels: a plate of exactly these 18 rows (an edge,
-a bevel, 14 rows of text, a bevel, an edge), nothing over or under it, the text as high as the chat's own (7 px):
-Hangul in Galmuri11 Bold (11 rows: hangul11), the title's Latin and signs in Galmuri14, made bold (every pixel
-doubled to its right: one more column), the nickname in the tall
-5 x 7 face with every pixel doubled both ways (the full banner's capitals and digits, the same 7 px; its small
-letters are real lowercase, five cells high: letters.SMALL).
+a bevel, 14 rows for the text, a bevel, an edge), nothing over or under it. The text, title and nickname, Hangul,
+Latin and digits, is one face drawn at this resolution: Galmuri11 made half bold (glyph), capitals and Hangul
+11 rows (5.5 px), small letters 8.
 
 A theme module gives chat_frame(G, i) (the 16 frames, G a ChatGeo) next to its frame(G, i).
 
@@ -31,72 +29,39 @@ from PIL import Image
 
 import galmuri
 from . import state
-from .letters import TALL, SMALL_SQUEEZE, chat_cells
 
 ROWS = 18                     # the plate: rows 0 .. 17 of the picture, the chat line's 9 px
-TEXT_ROW = 2                  # the text's first row (a capital's top); 14 rows
-TEXT_ROWS = 14
+TEXT_ROW = 2                  # the text's first row; 14 rows (the letters: glyph)
 SLOPE = 8                     # the plate's pointed ends: columns from its tip to its full height
-PAD, GAP, SPACE = 17, 15, 7   # tip to text (the slope and 9 more), title - gem - name, a space in the title
+PAD, GAP, SPACE = 17, 15, 6   # tip to text (the slope and 9 more), title - gem - name, a space in the title
 NAME = "xozne"
 
-_F14 = None
-
-
-def f14():
-    global _F14
-    if _F14 is None:
-        _F14 = galmuri.load(14)
-    return _F14
-
-
-def bold14(ch):
-    """Galmuri14's pixels of a character, bold, in cell rows (0 = the top row of a capital, 14 = the first under the
-    baseline), or None when the font has no picture for it"""
-    g = f14().get(ord(ch))
-    if not g or not g[3]:
-        return None
-    adv, xo, yo, bits = g
-    top = TEXT_ROWS - (yo + len(bits))
-    pix = {(xo + x, top + y) for y, r in enumerate(bits) for x, b in enumerate(r) if b}
-    return sorted(pix | {(x + 1, y) for x, y in pix})
-
+TEXT_BASE = 12                # the cell row under the letters' baseline: capitals and Hangul are rows 1 .. 11
 
 _F11 = None
 
 
-def hangul11(ch):
-    """Galmuri11 Bold's pixels of a Hangul syllable in cell rows, or None when the font has no picture for it. It is
-    11 rows high where a capital is 14 (5.5 px to 7: Hangul fills its whole square, so as high as a capital it
-    reads larger than the Latin beside it) and stands a row over the baseline, in the middle of a capital's height
-    (rows 2 .. 12)."""
+def glyph(ch, nick=False):
+    """The pixels of a character of the chat banner's text, in cell rows (0 = the text's first row, plate row
+    TEXT_ROW), or None when the font has no picture for it. The title and the nickname, Hangul, Latin and digits
+    alike, are Galmuri11: one face, drawn at the plate's own resolution (a pixel of it is half a GUI pixel), so its
+    curves are twice as fine as a doubled 5 x 7 letter's. Capitals, digits and Hangul are 11 rows (5.5 px), small
+    letters 8, what hangs under the baseline reaches row 13 (signs row 14, on the plate's bevel).
+
+    The font's own strokes are one texel, too thin over a plate that moves, and its bold cut is too heavy at this
+    size (two texels every way: small Hangul closes up). So it is made half bold here: a pixel gets another to its
+    right only where that leaves the next stroke a clear column away (never touching it, not even at a corner).
+    Upright strokes come out two texels wide, level ones stay one, and no counter fills in."""
     global _F11
     if _F11 is None:
-        _F11 = galmuri.load("11bold")
+        _F11 = galmuri.load(11)
     g = _F11.get(ord(ch))
     if not g or not g[3]:
         return None
     adv, xo, yo, bits = g
-    top = TEXT_ROWS - 1 - (yo + len(bits))
-    return sorted((xo + x, top + y) for y, r in enumerate(bits) for x, b in enumerate(r) if b)
-
-
-def glyph(ch, nick=False):
-    """the pixels of a character of the chat banner's text: Hangul (hangul11), the nickname's Latin (tall2), the
-    title's Latin and signs (bold14)"""
-    if 0xAC00 <= ord(ch) <= 0xD7A3:
-        return hangul11(ch)
-    return tall2(ch) if nick and ch in TALL else bold14(ch)
-
-
-def tall2(ch):
-    """the nickname face of a character (capitals seven cells high, real lowercase: letters.SMALL) with every
-    pixel doubled both ways, in cell rows 0 .. 13; what hangs under the baseline (g j p q y) in row 14 only
-    (letters.SMALL_SQUEEZE)"""
-    pix = {(2 * c + dx, 2 * r + dy) for c, r in chat_cells(ch) for dx in (0, 1) for dy in (0, 1)}
-    out = SMALL_SQUEEZE.get(ch)
-    if out is not None:
-        pix = {(x, y - (y > out)) for x, y in pix if y != out}
+    top = TEXT_BASE - (yo + len(bits))
+    pix = {(xo + x, top + y) for y, r in enumerate(bits) for x, b in enumerate(r) if b}
+    pix |= {(x + 1, y) for x, y in pix if not any((x + 2, y + d) in pix for d in (-1, 0, 1))}
     return sorted(pix)
 
 

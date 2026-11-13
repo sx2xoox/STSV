@@ -37,7 +37,7 @@ import static org.junit.jupiter.api.Assertions.assertTrue;
  * round(size * oversample) px per em, advance and box / oversample, drawn from 7 - top / oversample + shift; a space
  * glyph moves the pen. Checks that every glyph lands exactly where the layout puts it, that the pen ends right after
  * the banner, that the small size stays inside the top 8 GUI px of its 9 px line, and that a chat banner keeps to
- * its chat line (its plate is the line's 9 px, its letters 7 px on it). Also writes the components for
+ * its chat line (its plate is the line's 9 px, its letters within 7 px on it). Also writes the components for
  * tools/assetgen/banner_render.py (the previews) to build/banner-preview/components.json.
  */
 class BannerClientLayoutTest {
