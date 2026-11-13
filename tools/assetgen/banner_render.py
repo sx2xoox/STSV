@@ -217,9 +217,14 @@ def GLITCH_TINTS():
     return _GLITCH
 
 
-def draw_text(pack, canvas, runs, x, y, frame=0):
+def draw_text(pack, canvas, runs, x, y, frame=0, clock=None):
     """the client's text drawing: runs [{font, color, shadow, text}] from (x, y); returns the pen. Coloured glyphs
-    first, then grayscale ones (pipeline order); shadows before their glyphs."""
+    first, then grayscale ones (pipeline order); shadows before their glyphs. clock: a time in ms instead of a
+    frame: every glyph is drawn as the shader draws it at that time (text.fsh: a looping banner's frame is the time
+    in steps of 70 ms; a part of a banner a gust runs along plays the gust every 40 steps of 50 ms, as many steps
+    late as its marker says, and idles between on frames 0 .. 3, four steps each)."""
+    if clock is not None:
+        frame = int(clock // 70) % 16
     pen = x
     shadows, coloured, gray = [], [], []
     for run in runs:
@@ -234,8 +239,13 @@ def draw_text(pack, canvas, runs, x, y, frame=0):
             jump = ((2.0, 1.0)[word] if frame == 6 else (-1.0, -2.0)[word] if frame == 13 else 0.0)
         if isinstance(f, tuple):                             # a gust's part: is this its frame at this step?
             _, own, delay = f
-            into = frame - 4 - delay                         # steps into the gust, for this part
-            now = frame if frame < 4 else 4 + into if 0 <= into < 12 else 0
+            if clock is not None:
+                steps = int(clock // 50)
+                at = (steps - delay) % 40
+                now = 4 + at if at < 12 else (steps // 4) % 4
+            else:
+                into = frame - 4 - delay                     # steps into the gust, for this part
+                now = frame if frame < 4 else 4 + into if 0 <= into < 12 else 0
             show, ghost, f = own == now, own > 0, 0
         else:
             show, ghost = f < 0 or f == frame, f > 0
@@ -393,6 +403,24 @@ def nametag(fonts, comps, theme, title, nick, frame=0, k=2):
     return cv.im.crop(box) if box else cv.im
 
 
+def write_gif(frames, target, ms=50):
+    """an animated GIF of the frames (ms each), through ffmpeg when it is there (one palette for the whole film and
+    only what changed in every picture: half the size), else as Pillow writes it"""
+    import shutil, subprocess, tempfile
+    target.parent.mkdir(parents=True, exist_ok=True)
+    ffmpeg = shutil.which("ffmpeg")
+    if not ffmpeg:
+        first = [f.quantize(colors=255, dither=Image.Dither.NONE) for f in frames]
+        first[0].save(target, save_all=True, append_images=first[1:], duration=ms, loop=0)
+        return
+    with tempfile.TemporaryDirectory() as tmp:
+        for k, f in enumerate(frames):
+            f.save(Path(tmp) / f"f{k:04d}.png")
+        subprocess.run([ffmpeg, "-loglevel", "error", "-y", "-framerate", str(1000 // ms), "-i", str(Path(tmp) / "f%04d.png"),
+                        "-filter_complex", "[0:v]split[a][b];[a]palettegen=max_colors=255:stats_mode=full[p];"
+                                           "[b][p]paletteuse=dither=none:diff_mode=rectangle", "-loop", "0", str(target)], check=True)
+
+
 def main():
     args = sys.argv[1:]
     ftdir = args[args.index("--freetype") + 1] if "--freetype" in args else None
@@ -422,6 +450,19 @@ def main():
             cells.append(up(cv.im, 3))
         rows.append(stack(cells, horizontal=True))
     stack(rows).save(out / "title_banners_frames.png")
+    # the chat banners moving as they do in the game: one line per theme, 14 s (seven gusts and 12.5 loops: the
+    # picture ends where it began), a picture every 50 ms
+    if "--gif" in args:
+        target = Path(args[args.index("--gif") + 1])
+        lines = [find(comps, t, "명장 대장장이", "Steve_2024", "line") for t in themes if has(comps, t, "line")]
+        wide = max(c["width"] for c in lines) + 8
+        frames = []
+        for clock in range(0, 14000, 50):
+            cv = Canvas(wide, 12 * len(lines) + 2, 2, (24, 26, 32, 255), ox=4, oy=3)
+            for k, c in enumerate(lines):
+                draw_text(fonts, cv, c["runs"], 0, 12 * k, clock=clock)
+            frames.append(up(cv.im, 2).convert("RGB"))
+        write_gif(frames, target)
     # name tags (full size)
     tags = []
     for t in themes:

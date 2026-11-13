@@ -89,7 +89,12 @@ def glyph(ch, nick=False):
     if g and g[3]:
         adv, xo, yo, bits = g
         top = TEXT_BASE - (yo + len(bits))
-        return sorted(fit({(x, top + y) for y, r in enumerate(bits) for x, b in enumerate(r) if b}))
+        pix = fit({(x, top + y) for y, r in enumerate(bits) for x, b in enumerate(r) if b})
+        if min(y for _, y in pix) >= TEXT_BASE:
+            # a sign that lies wholly under the baseline (the underscore of so many names) would lie on the plate's
+            # frame, where a bright rail hides it: it is written on the letters' last row instead
+            pix = {(x, y - 1) for x, y in pix}
+        return sorted(pix)
     if _F14 is None:
         _F14 = galmuri.load(14)
     g = _F14.get(ord(ch))
