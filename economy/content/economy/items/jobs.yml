@@ -1199,7 +1199,7 @@ press:
     parts:
       - { model: press_screw_0, position: [8, 20, 8], spin: { axis: y, rpm: 30 } }
 
-# ── 통발 · 가두리 (어부 상점·조합대. 물속에 놓는 가구: fish.yml trap · pen) ──────────────────────
+# ── 통발 · 가두리 (어부 상점에서만. 물속에 놓는 가구: fish.yml trap · pen) ──────────────────────
 fish_trap:
   material: paper
   name: "<#4fc3f7>통발"

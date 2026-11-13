@@ -160,9 +160,12 @@ class FishingGearContentTest {
         assertTrue(trap > 0 && pen > 0, "both in the shop");
         assertTrue(pen >= 5 * trap, "the pen is the bigger investment");
         assertFalse(shop.sell().containsKey("economy:fish_trap") || shop.sell().containsKey("economy:fish_pen"), "not bought back");
+        // only from the shop: no crafting recipe makes them (nor a machine)
         YamlConfiguration recipes = TrapSpecTest.yaml("recipes/jobs.yml");
-        assertEquals("economy:fish_trap", recipes.getString("fish_trap.result"));
-        assertEquals("economy:fish_pen", recipes.getString("fish_pen.result"));
+        for (String k : recipes.getKeys(false)) {
+            String result = recipes.isConfigurationSection(k + ".result") ? recipes.getString(k + ".result.item") : recipes.getString(k + ".result");
+            assertFalse(List.of("economy:fish_trap", "economy:fish_pen").contains(result), "recipe " + k);
+        }
     }
 
     static long price(ShopCatalog shop, String id) {
