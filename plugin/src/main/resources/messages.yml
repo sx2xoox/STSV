@@ -201,6 +201,28 @@ banner:
   off-lore: ["<gray>지금 단 칭호 배너 떼기"]
   equipped: "<green>칭호 배너 장착: <white>{name}"
   removed: "<gray>칭호 배너를 해제했습니다."
+# 감정표현 (/감정표현, 관리자 테스트 기능: README "감정표현"). {emote} · {name} = 감정표현 이름
+emote:
+  disabled: "<red>이 서버에서는 감정표현을 쓸 수 없습니다."
+  usage: "<gray>/감정표현 <이름> <dark_gray>- 하기 · <gray>/감정표현 그만 <dark_gray>- 끝내기 (웅크려도 끝납니다)"
+  list: "<gray>감정표현: {emotes}"
+  list-entry: "<click:run_command:'/감정표현 {name}'><hover:show_text:'<gray>클릭하면 <white>{name}</white> 감정표현을 합니다'><white><u>{name}</u></white></hover></click>"
+  list-separator: "<dark_gray>, </dark_gray>"
+  unknown: "<red><white>{name}</white> 감정표현은 없습니다. <gray>/감정표현 으로 목록을 볼 수 있습니다."
+  not-playing: "<gray>지금 하고 있는 감정표현이 없습니다."
+  cooldown: "<red>감정표현은 <white>{seconds}초</white> 뒤에 다시 할 수 있습니다."
+  dismount: "<red>탈것에서 내린 뒤 사용하세요."
+  not-ground: "<red>땅에 서 있을 때 사용하세요."
+  in-water: "<red>물이나 용암 밖에서 사용하세요."
+  burning: "<red>불이 꺼진 뒤 사용하세요."
+  in-combat: "<red>전투 중에는 쓸 수 없습니다. <gray>(피해를 입고 10초 뒤부터)"
+  not-now: "<red>지금은 쓸 수 없습니다."
+  no-room: "<red>주변이 너무 좁아 카메라를 둘 곳이 없습니다. 조금 트인 곳에서 사용하세요."
+  no-skin: "<yellow>스킨을 불러오지 못해 기본 모습의 인형으로 보여 드립니다."
+  hint: "<white>{emote}</white> <gray>· 웅크리면 끝납니다"
+  stopped: "<gray>감정표현을 끝냈습니다."
+  time-up: "<gray>감정표현 시간이 다 되어 끝났습니다."
+  interrupted: "<gray>감정표현이 중단되었습니다."
 nickname:
   disabled: "<red>이 서버에서는 닉네임을 쓸 수 없습니다."
   none: "<gray>아직 닉네임이 없습니다."

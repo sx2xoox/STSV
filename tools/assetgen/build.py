@@ -123,6 +123,8 @@ def main():
     print(f"default font, Korean from Neo둥근모 (plugin/src/main/resources/pack/default_font): {default_font.write()}")
     import title_banners
     print(f"title banners (plugin/src/main/resources/pack/title_banners): {title_banners.write()[0]}")
+    import emotes
+    print(f"emotes: the puppets' pixel font (plugin/src/main/resources/pack/emotes): {emotes.write()}")
 
     if render:
         # world objects side by side (fan blade placed where the machine spins it)
