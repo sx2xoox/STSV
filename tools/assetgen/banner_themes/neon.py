@@ -92,3 +92,52 @@ def frame(G, i):
                     if sum(c[:3]) > 500:
                         put(px, G, x - 1, y, CYA); put(px, G, x + 1, y, MAG)
     return im
+
+
+# ------------------------------------------------------------------------------------------------
+# The chat banner (banner_themes/chat.py: one chat line; idle, then the effect runs along it from left to right)
+# ------------------------------------------------------------------------------------------------
+
+from . import chat as C
+
+
+def chat_geo(Geo):
+    return C.bar(Geo, TITLE)
+
+
+CHAT_GEM = {"#": (255, 200, 244), "a": (255, 110, 220), "w": (255, 240, 252), "b": (200, 40, 170), "c": (90, 16, 90)}
+
+
+def chat_frame(G, i):
+    """a dark plate between a cyan and a magenta tube; a pulse of light runs along it: both tubes flare, their light
+    floods the plate, a slanted beam at its head, streaks of light in its wake"""
+    im, px = G.canvas()
+    top, base = G.PY0 + 2, G.PY1 - 2
+    rows = base - top + 1
+    step = i - C.CALM
+    for (x, y) in G.inside:
+        u = G.flow_at(x, step) if step >= 0 else -1
+        e = C.strength(u, rise=6, body=30, total=100)
+        wave = 0.5 + 0.5 * math.cos(2 * math.pi * (x - G.TILE0) / 64)
+        if y == G.PY0: c = C.lerp(C.lerp((36, 186, 226), (150, 246, 255), wave), (236, 254, 255), 0.85 * e)
+        elif y == G.PY1: c = C.lerp(C.lerp((206, 42, 166), (255, 128, 226), wave), (255, 230, 250), 0.85 * e)
+        else:
+            v = (y - top) / (rows - 1)                       # 0 under the cyan tube .. 1 over the magenta one
+            c = C.lerp((22, 11, 38), (11, 6, 22), v)
+            reach = 2.2 + 5.5 * e                            # how far the tubes' light gets into the plate
+            cy = (0.34 + 0.6 * e) * math.exp(-(y - G.PY0 - 1) / reach)
+            mg = (0.34 + 0.6 * e) * math.exp(-(G.PY1 - 1 - y) / reach)
+            c = C.lerp(c, CYA, min(0.9, cy))
+            c = C.lerp(c, MAG, min(0.9, mg))
+            if u > 0:
+                lean = u - 0.9 * (base - y)                  # the beam leans forward at the top
+                if 0 <= lean < 6: c = C.lerp(c, (232, 250, 255), 0.85 * (1 - lean / 6) * min(1.0, u / 6))
+                streak = C.noise(u, y - top, 16, 1, 1 << 20, 1 << 10, 61)
+                if streak > 0.66: c = C.lerp(c, C.lerp(CYA_L, (255, 170, 236), v), 0.55 * e * (streak - 0.66) / 0.34)
+        # the ends: the light just fades out
+        d = min(x - G.PX0, G.PX1 - x)
+        a = int(255 * C.smooth((d - 0.5) / 10))
+        if a <= 0: continue
+        px[x, y] = tuple(c) + (a,)
+    C.gem7(px, G, CHAT_GEM)
+    return im

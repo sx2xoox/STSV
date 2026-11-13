@@ -128,3 +128,75 @@ def frame(G, i):
             if (int(x), int(y)) in G.inside or y >= G.PY0: continue
             put(px, G, x, y, CORE if d < 3 else HOT)
     return im
+
+
+# ------------------------------------------------------------------------------------------------
+# The chat banner (banner_themes/chat.py: one chat line; idle, then the effect runs along it from left to right)
+# ------------------------------------------------------------------------------------------------
+
+from . import chat as C
+
+
+def chat_geo(Geo):
+    return C.bar(Geo, TITLE)
+
+
+CHAT_VOLT = C.ramp(((0.08, (20, 34, 90)), (0.30, (44, 80, 200)), (0.60, (70, 145, 255)), (0.90, (175, 228, 255)),
+                    (1.20, (250, 252, 255))))
+CHAT_GEM = {"#": (200, 240, 255), "a": (110, 200, 255), "w": (240, 252, 255), "b": (40, 120, 245), "c": (14, 32, 110)}
+
+
+def chat_bolt(u, y, rows):
+    """An arc of lightning shooting along the plate, u columns behind its head, at inner row y: its light (CHAT_VOLT's
+    scale). A jagged core that wanders up and down, a fork that leaves it here and there, a glow around both that
+    falls off smoothly, brighter and dimmer in stretches (it flickers as it passes), an afterglow behind."""
+    e = C.strength(u, rise=3, body=22, total=92)
+    if e <= 0:
+        return 0.0
+    mid = (rows - 1) / 2
+    path = mid + 4.6 * (2 * C.noise(u, 0, 6, 4, 1 << 20, 16, 31) - 1) + 1.6 * (2 * C.noise(u, 0, 2, 4, 1 << 20, 16, 33) - 1)
+    flick = 0.5 + 0.5 * C.lattice(int(u) // 8, 0, 41)
+    d = abs(y - path)
+    light = e * (1.5 if d < 0.75 else 0.0) + e * flick * 1.05 * math.exp(-d / 1.5)
+    fork = C.noise(u, 0, 20, 4, 1 << 20, 16, 43)
+    if fork > 0.52:
+        side = 1 if C.lattice(int(u) // 40, 1, 45) > 0.5 else -1
+        reach = (fork - 0.52) / 0.48
+        d2 = abs(y - (path + side * (2.0 + 5.0 * reach)))
+        light = max(light, e * reach * (1.1 if d2 < 0.7 else 0.0) + e * reach * 0.7 * math.exp(-d2 / 1.2))
+    return light
+
+
+def chat_frame(G, i):
+    """a storm-dark plate; an arc of lightning shoots along it"""
+    im, px = G.canvas()
+    top, base = G.PY0 + 2, G.PY1 - 2
+    rows = base - top + 1
+    step = i - C.CALM
+    hum = math.sin(2 * math.pi * (i % C.CALM) / C.CALM)
+    for (x, y) in G.inside:
+        u = G.flow_at(x, step) if step >= 0 else -1000       # idle: no arc anywhere near
+        e = C.strength(u + 14, rise=18, body=34, total=106)   # the arc's light: it runs a little ahead of its head
+        wave = 0.5 + 0.5 * math.cos(2 * math.pi * (x - G.TILE0) / 64)
+        if y == G.PY0: c = C.lerp(C.lerp((104, 140, 214), (206, 230, 255), wave ** 2), (250, 252, 255), 0.7 * e)
+        elif y == G.PY0 + 1: c = C.lerp((30, 46, 104), (150, 210, 255), 0.8 * e)
+        elif y == G.PY1 - 1: c = C.lerp((26, 40, 92), (120, 190, 255), 0.7 * e)
+        elif y == G.PY1: c = C.lerp(C.lerp((52, 78, 150), (84, 118, 196), wave), (200, 232, 255), 0.6 * e)
+        else:
+            v = (y - top) / (rows - 1)
+            ground = C.lerp((24, 34, 84), (10, 14, 40), v)
+            haze = C.noise(x - G.TILE0, y, 8, 4, 64, 16, 35)
+            ground = C.lerp(ground, (30, 44, 110), 0.22 * haze)
+            c = CHAT_VOLT((chat_bolt(u, y - top, rows) if u > 0 else 0.0) + 0.16 * e, ground)
+        # the ends: the plate frays out into charge, a thin live rim that fades into the air
+        d, edge = C.end_depth(G, x, y, 51)
+        a = 255
+        if d < edge + 3:
+            live = max(0.0, min(1.0, 0.35 + 0.2 * hum + 0.7 * e))
+            if d < edge - 2.4: continue
+            if d < edge - 1.3: c, a = C.lerp((44, 80, 200), (120, 190, 255), live), int(60 + 100 * live)
+            elif d < edge: c = C.lerp((90, 160, 255), (240, 250, 255), live)
+            else: c = C.lerp(C.lerp(c, (10, 14, 40), 0.6), c, ((d - edge) / 3) ** 2)
+        px[x, y] = tuple(c) + (a,)
+    C.gem7(px, G, CHAT_GEM)
+    return im

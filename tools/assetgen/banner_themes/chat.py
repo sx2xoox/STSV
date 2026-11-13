@@ -8,10 +8,22 @@ the title in Galmuri14, made bold (every pixel doubled to its right: one more co
 5 x 7 face with every pixel doubled both ways (the same letters as on the full banner, the same 7 px).
 
 A theme module gives chat_frame(G, i) (the 16 frames, G a ChatGeo) next to its frame(G, i).
+
+How the chat banners look and move (every theme the same way, with its own effect):
+  * the words are the full banner's (same colours, no outline) and stay plain to read: the plate idles quietly
+    (frames 0-3; inside the plate the idle frames are the same picture, so the tiled plate has no seams);
+  * every two seconds the theme's effect runs along the banner from left to right, fast, ragged, never covering
+    all of it (frames 4-15, drawn as a function of ChatGeo.flow_at: the shader plays the parts one after the other);
+  * smooth shading (colour ramps, glows that fade out) instead of flat bands and outlines; no end pieces: the plate
+    is a plain bar whose ends go their own way per theme (burnt away, frayed, faded).
+The helpers under ChatGeo are what the themes share for that.
 """
+import math
+
 from PIL import Image
 
 import galmuri
+from . import state
 from .letters import TALL
 
 ROWS = 18                     # the plate: rows 0 .. 17 of the picture, the chat line's 9 px
@@ -126,3 +138,96 @@ class ChatGeo:
     def canvas(self):
         im = Image.new("RGBA", (self.W, self.H), (0, 0, 0, 0))
         return im, im.load()
+
+
+# ------------------------------------------------------------------------------------------------
+# What the themes' chat banners share
+# ------------------------------------------------------------------------------------------------
+
+TILE, FLOW = 64, 16           # the plate's tile, and how many columns a step an effect runs along the banner
+GUST = 108                    # how long an effect may be (columns): it has passed a 64-column part in the 12 steps
+CALM = 4                      # frames 0 .. 3: the idle plate; the others: the steps of the effect
+GEM7 = ("...#...", "..#a#..", ".#aaab.", "#aawabc", ".bbabc.", "..bcc..", "...c...")
+
+
+def bar(Geo, title):
+    """the geometry of a chat banner as the themes draw it: a plain bar, a 64-column tile, an effect 16 columns a step"""
+    return Geo(title, tile=TILE, flow=FLOW, pointed=False)
+
+
+def lerp(a, b, t):
+    t = max(0.0, min(1.0, t))
+    return tuple(int(round(a[i] + (b[i] - a[i]) * t)) for i in range(3))
+
+
+def smooth(t):
+    t = max(0.0, min(1.0, t))
+    return t * t * (3 - 2 * t)
+
+
+def lattice(ix, iy, seed):
+    """a fixed pseudo-random number in [0, 1) for a lattice point"""
+    h = (ix * 374761393 + iy * 668265263 + seed * 2246822519) & 0xFFFFFFFF
+    h = ((h ^ (h >> 13)) * 1274126177) & 0xFFFFFFFF
+    return ((h ^ (h >> 16)) & 0xFFFF) / 65536.0
+
+
+def noise(x, y, cell_x, cell_y, wrap_x, wrap_y, seed):
+    """smooth value noise that repeats every wrap_x columns and wrap_y rows"""
+    fx, fy = x / cell_x, y / cell_y
+    ix, iy = math.floor(fx), math.floor(fy)
+    tx, ty = fx - ix, fy - iy
+    tx, ty = tx * tx * (3 - 2 * tx), ty * ty * (3 - 2 * ty)
+    nx, ny = wrap_x // cell_x, wrap_y // cell_y
+    v = lambda a, b: lattice(a % nx, b % ny, seed)
+    top = v(ix, iy) + (v(ix + 1, iy) - v(ix, iy)) * tx
+    bot = v(ix, iy + 1) + (v(ix + 1, iy + 1) - v(ix, iy + 1)) * tx
+    return top + (bot - top) * ty
+
+
+def fbm(x, y, seed):
+    """three octaves of smooth noise, 0 .. 1 (not repeating: for an effect, drawn by how far behind its front)"""
+    return (0.55 * noise(x, y, 8, 5, 1 << 20, 1 << 12, seed) + 0.30 * noise(x, y, 4, 3, 1 << 20, 3 << 10, seed + 1)
+            + 0.15 * noise(x, y, 2, 2, 1 << 20, 1 << 12, seed + 2))
+
+
+def strength(u, rise=14, body=48, total=GUST):
+    """how strong an effect is u columns behind its front: up over rise, full to body, a tail to total (smooth)"""
+    if u <= 0 or u >= total:
+        return 0.0
+    return smooth(u / rise) * (1.0 if u < body else 1 - smooth((u - body) / (total - body)))
+
+
+def ramp(stops):
+    """((value, colour), ...) -> f(value, base): the colour for a value, a smooth ramp; under the first stop it
+    fades into base (the plate's own colour there)"""
+    def f(h, base):
+        if h <= stops[0][0]:
+            return lerp(base, stops[0][1], max(0.0, h) / stops[0][0])
+        for (h0, c0), (h1, c1) in zip(stops, stops[1:]):
+            if h <= h1:
+                return lerp(c0, c1, (h - h0) / (h1 - h0))
+        return stops[-1][1]
+    return f
+
+
+def end_depth(G, x, y, seed, shallow=3.5, deep=11.0):
+    """For shaping a plate's end: (columns from the nearer end, how deep the end is eaten away in this row). The
+    depth differs from row to row (smoothly) and between the two ends; with deep under 13 the shaped end and three
+    columns behind it stay inside the 16 columns of the end part."""
+    left = x - G.PX0 < G.PX1 - x
+    d = x - G.PX0 if left else G.PX1 - x
+    return d, shallow + (deep - shallow) * noise(y, 0, 3, 4, 1 << 10, 16, seed if left else seed + 8)
+
+
+def gem7(px, G, colours):
+    """the gem between title and nickname (7 x 7, colours for # a w b c): only in the gem pass, where it is recorded
+    (title_banners.py makes it glyphs of the title font)"""
+    if state.GEM["mode"] != "gem":
+        return
+    for r, row in enumerate(GEM7):
+        for c, v in enumerate(row):
+            if v != ".":
+                q = (G.DIV - 3 + c, G.MID - 3 + r)
+                state.GEM["pix"].add(q)
+                px[q] = tuple(colours[v]) + (255,)

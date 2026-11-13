@@ -101,13 +101,13 @@ TTF_HI = dict(size=8.0, oversample=2.0, shift=[0.0, -3.0])
 THEMES = [
     dict(id="fire", module="fire", icon="BLAZE_POWDER", name="화염", tile=16, centre=0, chat=True,
          title=((255, 222, 128), (255, 176, 64)), nick=((255, 244, 200), (255, 150, 40))),
-    dict(id="lightning", module="lightning", icon="LIGHTNING_ROD", name="번개", tile=32, centre=0,
+    dict(id="lightning", module="lightning", icon="LIGHTNING_ROD", name="번개", tile=32, centre=0, chat=True,
          title=((236, 244, 255), (168, 196, 246)), nick=((206, 244, 255), (96, 176, 255))),
-    dict(id="neon", module="neon", icon="GLOW_INK_SAC", name="네온", tile=16, centre=4,
+    dict(id="neon", module="neon", icon="GLOW_INK_SAC", name="네온", tile=16, centre=4, chat=True,
          title=((200, 250, 255), (80, 214, 255)), nick=((255, 180, 238), (255, 70, 206))),
-    dict(id="bloodmoon", module="bloodmoon", icon="REDSTONE", name="혈월", tile=16, centre=26,
+    dict(id="bloodmoon", module="bloodmoon", icon="REDSTONE", name="혈월", tile=16, centre=26, chat=True,
          title=((244, 234, 238), (204, 184, 194)), nick=((255, 150, 150), (226, 36, 48))),
-    dict(id="prism", module="prism", icon="AMETHYST_SHARD", name="프리즘", tile=16, centre=0,
+    dict(id="prism", module="prism", icon="AMETHYST_SHARD", name="프리즘", tile=16, centre=0, chat=True,
          title=((255, 255, 255), (224, 228, 248)), nick=((246, 242, 255), (204, 190, 252))),
 ]
 

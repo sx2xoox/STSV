@@ -72,3 +72,62 @@ def draw(G, i):
 SLUG = "prism"
 GEO = {}
 frame = draw
+
+
+# ------------------------------------------------------------------------------------------------
+# The chat banner (banner_themes/chat.py: one chat line; idle, then the effect runs along it from left to right)
+# ------------------------------------------------------------------------------------------------
+
+from . import chat as C
+
+
+def chat_geo(Geo):
+    return C.bar(Geo, TITLE)
+
+
+CHAT_GEM = {"#": (255, 255, 255), "a": (230, 236, 255), "w": (255, 255, 255), "b": (170, 180, 250), "c": (110, 110, 190)}
+
+
+def chat_spectrum(s):
+    """the colour of a band of light, s 0 .. 1 across it (red .. violet, smooth)"""
+    k = max(0.0, min(0.999, s)) * (len(SPECTRUM) - 1)
+    return C.lerp(SPECTRUM[int(k)], SPECTRUM[int(k) + 1], k - int(k))
+
+
+def chat_frame(G, i):
+    """a plate of smoked glass you can see through, cut on a slant at both ends; a band of rainbow light slides
+    through it, a fainter one after it"""
+    im, px = G.canvas()
+    top, base = G.PY0 + 2, G.PY1 - 2
+    rows = base - top + 1
+    step = i - C.CALM
+    for (x, y) in G.inside:
+        u = G.flow_at(x, step) if step >= 0 else -1
+        wave = 0.5 + 0.5 * math.cos(2 * math.pi * (x - G.TILE0) / 64)
+        facet = 0.5 + 0.5 * math.sin(2 * math.pi * (x - G.TILE0 + 1.5 * y) / 32)
+        if y == G.PY0: c, a = C.lerp((214, 222, 250), (255, 255, 255), wave ** 2), 236
+        elif y == G.PY0 + 1: c, a = (190, 200, 244), 130
+        elif y == G.PY1 - 1: c, a = (150, 160, 226), 130
+        elif y == G.PY1: c, a = C.lerp((170, 178, 232), (206, 212, 250), wave), 210
+        else:
+            v = (y - top) / (rows - 1)
+            c = C.lerp((150, 162, 214), (112, 120, 180), v)
+            c = C.lerp(c, (206, 214, 250), 0.25 * facet)
+            a = int(96 + 30 * facet)
+        if u > 0:
+            lean = u - 1.0 * (G.PY1 - y)                     # the band leans forward at the top
+            for start, width, weight in ((0, 34, 1.0), (50, 20, 0.45)):
+                s = (lean - start) / width
+                if 0 <= s < 1:
+                    w = weight * C.smooth(s / 0.14) * (1 - C.smooth((s - 0.72) / 0.28))
+                    c = C.lerp(c, chat_spectrum(s), 0.82 * w)
+                    a = int(a + (238 - a) * 0.85 * w)
+        # the ends: the glass is cut on a slant and its edge fades out
+        d = min(x - G.PX0, G.PX1 - x)
+        cut = d - 0.45 * ((G.PY1 - y) if x - G.PX0 < G.PX1 - x else (y - G.PY0))
+        a = int(a * C.smooth((cut - 0.5) / 5))
+        if a <= 0: continue
+        if cut < 2.5: c = C.lerp(c, (255, 255, 255), 0.6 * (1 - cut / 2.5))
+        px[x, y] = tuple(c) + (a,)
+    C.gem7(px, G, CHAT_GEM)
+    return im
