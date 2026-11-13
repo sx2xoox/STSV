@@ -62,27 +62,27 @@ def police_car():
 
 @icon("sports_car")
 def sports_car():
-    # low and long, open: a tall blunt nose, the raked screen, the head rests, one straight shoulder over big wheels,
-    # a lip on the boot
+    # a wedge: the hood sloping down to a thin nose, the raked screen, a head rest and the fairing falling away
+    # behind it, big wheels, the wing on its strut
     rows = ["................",
             "................",
             "................",
             "................",
-            "................",
-            "......g..E......",
-            ".....gG.eE.e....",
-            ".wwwwwgaaaaawwW.",
-            ".wWWWWWWWWWWWWWw",
-            ".yVVVVVVVVVVVVVt",
-            "sbVkkVVVVVVVkkVV",
+            "..............cc",
+            ".......g..E....a",
+            "......gG.eEw..wa",
+            "....wwgaaaaWwwWW",
+            "..wwWWWWWWWWWWWW",
+            ".yVVVVVVVVVbVVVt",
+            "sVVkkVVVVVbVkkVV",
             ".NkhHkNNNNNkhHkN",
             "..khhk.....khhk.",
             "...kk.......kk..",
             "................",
             "................"]
     colours = {"w": ("tomato", 4), "W": ("tomato", 3), "V": ("tomato", 2), "N": ("tomato", 0), "g": ("tint", 2),
-               "G": ("glass", 4), "a": ("rubber", 1), "e": ("rubber", 2), "E": ("rubber", 3), "b": ("rubber", 0),
-               "s": ("rubber", 1), "y": ("lamp", 5), "t": ("signal_red", 4),
+               "G": ("glass", 4), "a": ("rubber", 1), "c": ("rubber", 2), "e": ("rubber", 2), "E": ("rubber", 3),
+               "b": ("rubber", 0), "s": ("rubber", 1), "y": ("lamp", 5), "t": ("signal_red", 4),
                "k": ("rubber", 1), "h": ("steel", 3), "H": ("blade", 4)}
     return _draw(rows, colours).render()
 

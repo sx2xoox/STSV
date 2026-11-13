@@ -653,29 +653,35 @@ def police_car():
 # 컨버터블 스포츠카 (an open two-seater, event vehicle) 4.6 x 2.0 x 1.2 blocks
 # ================================================================================================
 
-RED = Paint("tomato", 2, noise=0, grad=0)
-
-
 def wheel_sport():
     """The sports car's wheel: 0.75 block across (12 px), 5 px wide, a low-profile tyre on a dark five-spoke alloy."""
     return _wheel("wheel_sport", 12, 5, cap="steel", cap_d=9)
 
 
-def sports_car():
-    """A front-engined open 2+2 in the manner of a German sports coupé with its roof down (no real make, no badge): a
-    tall blunt nose with two upright black grilles side by side, slim dark lamps with two running lights each,
-    a long hood with a power dome, one straight shoulder from nose to tail with the arches flared out under it
-    (wider behind), a breather behind each front wheel, a raked windscreen with nothing over the seats, two bucket
-    seats and a small rear bench, the folded roof under a black cover, a short boot with a lip spoiler, lamps
-    drawn out to the corners and four exhaust tips in a black diffuser. Black aero underneath: it sits a pixel and
-    a half off the road. The riders sit low: shoulders at the doors' top."""
-    m = BModel("sports_car", shift=(8, 8, 8), scale=2.0)
+def sports_car(colour="tomato", wing=True, name="sports_car"):
+    """Tuning in mind: the paint (colour: a palette ramp; the seats' inserts and stitching follow it) and the wing
+    are choices, so another colour or a wingless body is one more call (a model each); the wheels are a model of
+    their own already (vehicles.yml wheel).
+
+    A wedge-shaped mid-engined roadster (no real make, no badge). Low and wide: a hood that slopes straight down
+    to a thin nose, the front fenders standing over it with a slanted face each (a black lamp inset with a bright
+    blade), doors lower than the fenders, a big black intake behind each door, a raked windscreen and nothing over
+    the two bucket seats, a fairing sloping back from behind each head rest with a roll hoop before it, a black
+    vented engine cover between them, wide haunches, a wing on two struts with end plates, a black mesh tail with a
+    thin lamp each side and the plate in it, a finned diffuser with two exhaust tips each side. Black carbon splitter,
+    skirts and undertray: it sits a pixel and a half off the road. The riders sit low, shoulders above the doors."""
+    m = BModel(name, shift=(8, 8, 8), scale=2.0)
+    C = colour
+    PAINT = Paint(C, 2, noise=0, grad=0)
     W, L = 16, 36            # half width, half length (px)
     WF, WR, SLOT = -22, 23, 7   # front / rear wheel centres (z), the wells 14 px long
-    BELT = 13                # the shoulder: the hood's, the doors' and the boot's top
+    FLOOR = 6                # the cabin's floor (the core's top)
+    BELT = 11.5              # the doors' top
+    FEND, HAUNCH = 13, 13.5  # the fenders' tops over the wheels
+    DECK = 12.5              # the engine cover
 
-    def red(y, lo=3.5, hi=13):
-        return ("tomato", lerp(y, lo, hi, 0.8, 2.3))
+    def red(y, lo=3.5, hi=13.5):
+        return (C, lerp(y, lo, hi, 0.8, 2.3))
 
     def well(p):
         z = p[2]
@@ -690,119 +696,120 @@ def sports_car():
         if c.face == "down":
             return ("rubber", 0)
         if c.face == "up":
-            if -12 < z < 12 and ax < 11:
+            if -12 < z < 8 and ax < 11:
                 return ("rubber", 1 if fz % 3 else 0)    # the cabin's carpet
-            if z < -12:
-                # the hood: the cowl's dark edge, two creases running back from the grilles, a reflection band
-                if fz >= -14 and ax < 13:
-                    return ("rubber", 1)
-                if 7 <= ax < 8:
-                    return ("tomato", 1.4)
-                if 9 <= x < 11:
-                    return ("tomato", 3.2)
-                return ("tomato", 2.4)
-            if z > 12:
-                # the folded roof's black cover behind the seats, then the boot lid (its seam, a reflection band)
-                if fz <= 17 and ax < 13:
-                    return ("rubber", 2 if fz in (12, 17) or ax >= 12 else 1.4)
-                if fz == 19 and ax < 13 or (fz >= 19 and 12 <= ax < 13):
-                    return ("tomato", 0.8)
-                if 9 <= x < 11:
-                    return ("tomato", 3.2)
-                return ("tomato", 2.4)
-            return ("tomato", 2.7)                       # the doors' tops
+            if -15 <= z < -12:
+                return ("rubber", 1.2) if ax < 13 else (C, 2.6)      # the cowl under the screen
+            if 6 <= ax < 8 and z > 20:
+                return (C, 3.2)                   # a reflection along the deck's shoulders
+            return (C, 2.5)
         if c.face in ("east", "west"):
             if fy <= 3:
                 return ("rubber", 1 if fy == 3 else 0)   # the black side skirt
             if (fz in (WF - SLOT - 1, WF + SLOT, WR - SLOT - 1, WR + SLOT) and fy < 12) or (fy == 12 and (WF - SLOT - 1 <= fz <= WF + SLOT or WR - SLOT - 1 <= fz <= WR + SLOT)):
-                return ("tomato", 0.5)                   # the arches' shadowed lips
-            if -14 <= fz <= -13 and 7 <= fy <= 10:
-                return ("rubber", 0) if fz == -14 else ("blade", 2.4) if fy in (8, 9) else ("rubber", 1)   # the breather: a black slot, a bright strake
-            if fz in (-12, 11) and fy >= 4:
-                return ("tomato", 0.2)                   # door seams
-            if fy == 10 and 5 <= fz <= 7:
-                return ("tint", 0.4)                     # the flush door handle
-            if fz == -35 and 9 <= fy <= 10:
+                return (C, 0.5)                   # the arches' shadowed lips
+            if 8 <= fz <= 14 and 5 <= fy <= 9 and fz - 8 >= (fy - 5) * 0.8 - 0.5:
+                return ("rubber", 0) if (fz + fy) % 2 else ("tint", 1.0)    # the side intake: a mesh, swept back
+            if 5 <= fz <= 7 and 5 <= fy <= 9 and fz - 5 >= (fy - 5) * 0.8 - 0.5:
+                return (C, 0.6)                   # the scoop the door is cut into, leading to it
+            if fz in (-13, 7) and fy >= 4:
+                return (C, 0.2)                   # door seams
+            if fz == -35 and 4 <= fy <= 5:
                 return ("fox", 3.4)                      # amber marker
             if fz == 35 and 9 <= fy <= 10:
-                return ("signal_red", 1.6)               # the tail lamp wrapping round the corner
-            if fy == 11:
-                return ("tomato", 3.0)                   # the shoulder's crease catching the light, nose to tail
-            if fy == 10:
-                return ("tomato", 1.2)
-            if fy == 5 and -12 < fz < 11:
-                return ("tomato", 0.7)                   # the sill's undercut
+                return ("signal_red", 1.6)
+            if fy == 10 and -13 < fz < 8:
+                return (C, 3.0)                   # a light along the door's shoulder
+            if fy == 4 and -13 < fz < 8:
+                return (C, 0.6)                   # the sill's undercut
             return red(y)
         if c.face == "north":
-            # the nose: two upright grilles side by side (a dark rim, upright slats), an intake low at each corner
-            if c.hi[1] <= 11.1 and c.lo[2] < -34.5:
-                if 0.5 <= ax < 5.5 and 4 <= fy <= 10:
-                    if ax < 1.5 or ax >= 4.5 or fy in (4, 10):
-                        return ("steel", 1.2)
-                    return ("rubber", 0) if fx % 2 else ("tint", 1.1)
-                if 8 <= ax < 14 and 4 <= fy <= 6:
+            # the thin nose: one wide black intake (a mesh), body colour at the corners where the lamps sit
+            if c.lo[2] < -35.5 and c.hi[1] <= 6.1:
+                if ax < 9 and 3.5 <= y < 5.5:
                     return ("rubber", 0) if (fx + fy) % 2 else ("tint", 0.9)
-                if fy == 3:
-                    return ("rubber", 1)
-                return red(y, 3, 11)
+                return ("rubber", 1) if fy == 3 else red(y, 3, 6)
             if y > c.hi[1] - 1:
-                return ("tomato", 3.0)
+                return (C, 3.0)
             return red(y)
         if c.face == "south":
-            # the tail: the plate, a black diffuser with fins and two round tips each side
+            # the tail: a black mesh across it (the lamps and the plate sit in it), a finned diffuser with the tips
             if c.lo[2] > 29 and c.hi[1] <= 12.1:
                 if y < 6.5:
-                    if fy in (4, 5) and math.floor(ax) in (4, 5, 7, 8):
-                        return ("blade", 3.0) if fy == 5 else ("rubber", 0)      # a tip: a bright rim over a dark bore
-                    return ("rubber", 0.5) if math.floor(ax) % 3 else ("rubber", 2)
-                if ax < 4.5 and 7 <= fy <= 9:
-                    got = plate(math.floor(x + 4.5), 9 - fy, 9, 3)
-                    if got:
-                        return got
-                if fy >= 11:
-                    return ("tomato", 1.0)               # the lid's shadow line under the spoiler
-                return red(y, 6.5, 12)
+                    if fy in (4, 5) and math.floor(ax) in (7, 8, 10, 11):
+                        return ("steel", 3.2) if fy == 5 else ("rubber", 0)      # a tip: a steel rim over a dark bore
+                    return ("rubber", 0.5) if math.floor(ax) % 3 else ("rubber", 2)      # fins
+                if fy <= 10 and ax < 15:
+                    if ax < 4.5 and 7 <= fy <= 9:
+                        got = plate(math.floor(x + 4.5), 9 - fy, 9, 3)
+                        if got:
+                            return got
+                    return ("rubber", 0) if (fx + fy) % 2 else ("tint", 0.8)             # the mesh
+                return red(y, 6.5, 12) if fy < 11 else (C, 1.2)
             if y > c.hi[1] - 1:
-                return ("tomato", 3.0)
+                return (C, 3.0)
             return red(y)
         return None
-    paint = RED(decal=body)
+    paint = PAINT(decal=body)
     inner = Paint("rubber", 1, noise=0)
 
+    def slab(c):
+        # a sloping panel: lit on top, a reflection band along it
+        if c.face == "up":
+            return (C, 3.2 if 5 <= c.p[0] < 7 else 2.6)
+        return (C, 1.4 if c.face in ("east", "west") else 2.0)
+    sp = PAINT(decal=slab)
+
     m.group("body")
-    # the lower body: a narrow core between the wheels, full width at the nose, the doors and the tail
-    m.box("core", (-11, 3, -30), (11, 9, 30), paint)
-    m.box("nose", (-W, 3, -35), (W, 11, WF - SLOT), paint)
-    m.box("nose_step", (-W + 0.5, 11, -34), (W - 0.5, 12, -33), paint)
+    # the lower body: a narrow core between the wheels, a thin full-width nose, the sills and the tail
+    m.box("core", (-11, 3, WF - SLOT), (11, FLOOR, 30), paint)
+    m.box("nose", (-W, 3, -L), (W, 6, WF - SLOT), paint)
     m.box("tail", (-W, 3, WR + SLOT), (W, 12, L), paint)
     for s in (1, -1):
         xa, xb = sorted((11 * s, W * s))
-        m.box("sill", (xa, 3, -12), (xb, BELT, 12), paint)
-        m.box("rocker_front", (xa, 3, WF + SLOT), (xb, 12, -12), paint)
-        m.box("rocker_rear", (xa, 3, 12), (xb, 12, WR - SLOT), paint)
-    # the upper body: the hood and the boot as slabs over the wheels (one shoulder height), what is under them
-    m.box("bay", (-10.5, 9, -29.5), (10.5, 12, -12), inner)
-    m.box("trunk", (-10.5, 9, 12), (10.5, 12, 29.5), inner)
-    m.box("hood", (-W, 12, -33), (W, BELT, -12), paint)
-    m.box("deck", (-W, 12, 12), (W, BELT, L - 0.5), paint)
+        m.box("sill", (xa, 3, WF + SLOT), (xb, BELT, WR - SLOT), paint)
 
-    def dome(c):
-        if c.face == "up":
-            return ("tomato", 3.1 if abs(c.p[0]) < 1 else 2.7)
-        return ("tomato", 1.6 if c.face in ("east", "west") else 2.2)
-    m.box("power_dome", (-5.5, BELT, -31), (5.5, BELT + 0.5, -14.5), RED(decal=dome))
+    # the hood: one panel sloping from the nose up to the cowl (22.5 degrees), what is under it, the cowl
+    m.box("hood", (-9.5, 5, -30), (9.5, 6, -30 + 17.3), sp, rotation=("x", -22.5, (0, 6, -30)))
+    m.box("bay", (-9.5, 6, -24), (9.5, 8, -15), inner)
+    m.box("bay", (-9.5, 8, -19.5), (9.5, 10, -15), inner)
+    m.box("bay", (-9.5, 10, -16), (9.5, 11.5, -15), inner)
+    m.box("cowl", (-W, BELT, -15), (W, 12.5, -12), paint)
 
-    def lip(c):
-        if c.face == "up":
-            return ("tomato", 3.1)
-        return ("tomato", 1.2 if c.face == "south" else 2.2)
-    m.box("spoiler", (-14, BELT, L - 2.5), (14, BELT + 0.75, L - 0.5), RED(decal=lip))
-    # the arches flared out under the shoulder: a lip over each wheel, the rear ones wider
+    # the front fenders: a flat top over each wheel, a face slanted down to the nose (45 degrees) with the lamp
+    # inset in it, the inner walls
+    def lamp_face(c):
+        # the slanted face: a black inset drawn out towards the outside, a bright blade along its upper edge
+        if c.face != "up":
+            return (C, 1.4 if c.face in ("east", "west") else 2.0)
+        u = math.floor(abs(c.p[0]) - 9.5)          # 0 inside .. 6 outside
+        v = math.floor(c.p[2] + L)                 # 0 at the nose .. 9 at the top
+        if 3 <= v <= 6 and 1 <= u <= 5 and (u >= 2 or v >= 4):
+            return ("lamp", 4.2) if v == 6 and u >= 2 else ("tint", 0.4 if v > 3 else 0.8)
+        return (C, 2.8 if v >= 8 else 2.4)
+    lp = PAINT(decal=lamp_face)
     for s in (1, -1):
-        xa, xb = sorted((W * s, (W + 0.5) * s))
-        m.box("flare_front", (xa, 11.5, WF - SLOT - 1), (xb, 12.5, WF + SLOT + 1), RED(decal=lip))
-        xa, xb = sorted((W * s, (W + 1) * s))
-        m.box("flare_rear", (xa, 11.5, WR - SLOT - 1), (xb, 12.5, WR + SLOT + 1), RED(decal=lip))
+        xa, xb = sorted((9.5 * s, W * s))
+        m.box("fender", (xa, 12, WF - SLOT), (xb, FEND, WF + SLOT), paint)
+        m.box("fender_face", (xa, 5, -L), (xb, 6, -L + 9.9), lp, rotation=("x", -45, (0, 6, -L)))
+        m.box("fender_fill", (xa, 6, -33), (xb, 8, WF - SLOT), paint)
+        m.box("fender_fill", (xa, 8, -31), (xb, 10, WF - SLOT), paint)
+        m.box("fender_fill", (xa, 10, -30), (xb, 12, WF - SLOT), paint)
+        xa, xb = sorted((9.5 * s, 11 * s))
+        m.box("fender_wall", (xa, 6, WF - SLOT), (xb, 12, WF + SLOT), paint)
+
+        # behind the doors: the haunch over the rear wheel, wider than the fender, to the tail
+        xa, xb = sorted((9.5 * s, W * s))
+        m.box("haunch", (xa, BELT, 8), (xb, HAUNCH, WR - SLOT), paint)
+        m.box("haunch", (xa, 12, WR - SLOT), (xb, HAUNCH, L), paint)
+        xa, xb = sorted((9.5 * s, 11 * s))
+        m.box("haunch_wall", (xa, 6, WR - SLOT), (xb, 12, WR + SLOT), inner)
+        xa, xb = sorted((W * s, (W + 0.75) * s))
+        m.box("haunch_flare", (xa, 11.5, WR - SLOT - 1), (xb, 12.75, WR + SLOT + 1), PAINT(decal=slab))
+
+    # the rear deck between the haunches (under the engine cover), the firewall behind the seats
+    m.box("deck", (-9.5, FLOOR, 9), (9.5, DECK, L - 0.5), paint)
+    m.box("firewall", (-9.5, FLOOR, 8), (9.5, DECK, 9), inner)
 
     # black aero: the front splitter, the side skirts, the undertray and the diffuser's floor
     def carbon(c):
@@ -817,33 +824,31 @@ def sports_car():
         m.box("skirt", (xa, 1.5, WF + SLOT + 0.5), (xb, 3, WR - SLOT - 0.5), cp)
     m.box("undertray", (-11, 1.5, -33.5), (11, 3, L - 3), cp)
 
+    # the wing: a carbon blade on two struts, a body-coloured end plate each side
+    if wing:
+        m.box("wing", (-15.25, 16.5, L - 4.5), (15.25, 17.25, L + 0.5), cp)
+    for s in (1, -1) if wing else ():
+        xa, xb = sorted((6 * s, 7 * s))
+        m.box("wing_strut", (xa, DECK, L - 3.5), (xb, 16.5, L - 1.5), cp)
+        xa, xb = sorted((15.25 * s, W * s))
+        m.box("wing_plate", (xa, 14.5, L - 5), (xb, 18.25, L + 1), PAINT(decal=slab))
+
     m.group("lights")
 
     def headlight(c):
-        # a slim dark lamp: two running lights side by side along its upper edge, amber at the outer end
-        k = math.floor(abs(c.p[0]) - 7)
-        fy = math.floor(c.p[1])
-        if c.face != "north":
-            return ("tint", 1)
-        if fy == 10:
-            # two running lights along the lamp's upper edge, amber at the outer end
-            return ("fox", 3.4) if k >= 7 else ("lamp", 4.5) if k != 3 else ("tint", 0.5)
-        return ("tint", 0.5)
+        # a thin running light low on the nose's corner
+        return ("lamp", 4.5) if c.face == "north" else ("tint", 1)
 
     def tail_lamp(c):
-        # drawn out to the corner: a lit line along the top, turning down at the outer end; smoked inside
-        k = math.floor(abs(c.p[0]) - 5)
-        fy = math.floor(c.p[1])
+        # a thin lamp in the mesh, brighter at its outer end
         if c.face != "south":
             return ("signal_red", 0.2)
-        if fy == 10:
-            return ("signal_red", 1.4 if k >= 6 else 0.9)
-        return ("signal_red", 1.2) if k >= 8 else ("rubber", 0.8)
+        return ("signal_red", 1.1 if abs(c.p[0]) >= 12 else 0.6)
     for s in (1, -1):
+        xa, xb = sorted((10 * s, 15.5 * s))
+        m.box("headlight", (xa, 4.5, -L - 0.25), (xb, 5.5, -L), Paint("lamp", 3, decal=headlight, **lamp()))
         xa, xb = sorted((7 * s, 15 * s))
-        m.box("headlight", (xa, 9, -L + 0.5), (xb, 11, -L + 1), Paint("lamp", 3, decal=headlight, **lamp()))
-        xa, xb = sorted((5 * s, 15.5 * s))
-        m.box("tail_lamp", (xa, 9, L), (xb, 11, L + 0.5), Paint("signal_red", 1, decal=tail_lamp, **lamp()))
+        m.box("tail_lamp", (xa, 9.5, L), (xb, 10.5, L + 0.25), Paint("signal_red", 1, decal=tail_lamp, **lamp()))
 
     m.group("cabin")
 
@@ -852,10 +857,10 @@ def sports_car():
         if c.face == "up":
             return ("rubber", 2)
         fy = math.floor(c.p[1])
-        return ("tomato", 1.6) if fy == 11 and (math.floor(c.p[2]) + math.floor(c.p[0])) % 2 else ("rubber", 1.4)
+        return (C, 1.6) if fy == 10 and (math.floor(c.p[2]) + math.floor(c.p[0])) % 2 else ("rubber", 1.4)
     for s in (1, -1):
         xa, xb = sorted((10.5 * s, 11 * s))
-        m.box("door_card", (xa, 9, -12), (xb, BELT, 12), Paint("rubber", 1, noise=0, decal=trim))
+        m.box("door_card", (xa, FLOOR, -12), (xb, BELT, 8), Paint("rubber", 1, noise=0, decal=trim))
 
     def tunnel(c):
         x, y, z = c.p
@@ -864,28 +869,28 @@ def sports_car():
             if -4 <= fz <= -3 and abs(x) < 1:
                 return ("blade", 3)                       # the shifter's gate
             if fz == 4:
-                return ("tomato", 1.8)                    # a stitched arm rest
+                return (C, 1.8)                    # a stitched arm rest
             return ("rubber", 2 if abs(x) < 1.5 else 1.4)
         return ("rubber", 1)
-    m.box("tunnel", (-2, 9, -9.5), (2, 11, 8), Paint("rubber", 1, noise=0, decal=tunnel))
-    m.box("shifter", (-0.5, 11, -4), (0.5, 12.5, -3), CHROME)
+    m.box("tunnel", (-2, FLOOR, -9.5), (2, 8.5, 8), Paint("rubber", 1, noise=0, decal=tunnel))
+    m.box("shifter", (-0.5, 8.5, -4), (0.5, 10, -3), CHROME)
 
     def dash(c):
         x, y, z = c.p
         fy, fx = math.floor(y), math.floor(x)
         if c.face == "south":
-            if -9 <= x < -4 and fy == 12:
+            if -9 <= x < -4 and fy == 11:
                 return ("glow_amber", 2.5) if fx in (-9, -5) else ("tint", 1.2)     # two dials behind the wheel
-            if -1 <= x < 3 and fy == 12:
-                return ("signal_blue", 2) if fx % 2 else ("tint", 2)               # a wide screen
-            if fy == 11:
-                return ("tomato", 1.6) if fx % 2 else ("rubber", 1.4)              # red stitching
+            if -1 <= x < 3 and fy == 11:
+                return ("signal_blue", 2) if fx % 2 else ("tint", 2)               # a screen
+            if fy == 10:
+                return (C, 1.6) if fx % 2 else ("rubber", 1.4)              # red stitching
             return ("rubber", 1)
         if c.face == "up":
             return ("rubber", 2) if math.floor(z) == -11 else ("rubber", 1.2)
         return ("rubber", 1)
-    m.box("dash", (-10.5, 9, -12), (10.5, BELT + 0.5, -9.5), DARK(decal=dash))
-    m.box("column", (-7.5, 12.5, -9.5), (-6.5, 14, -8.5), PLASTIC)
+    m.box("dash", (-10.5, FLOOR, -12), (10.5, 12.25, -9.5), DARK(decal=dash))
+    m.box("column", (-7.5, 11.5, -9.5), (-6.5, 13, -8.5), PLASTIC)
 
     def steering(c):
         u, v = c.u, c.v
@@ -893,44 +898,64 @@ def sports_car():
             return raw("rubber", 1)
         ring = ((v in (0, 3) and 1 <= u <= 3) or (v in (1, 2) and u in (0, 4)))
         if ring:
-            return raw("tomato", 2) if v == 0 and u == 2 else raw("rubber", 1 if v else 2)   # a red mark at twelve
+            return raw(C, 2) if v == 0 and u == 2 else raw("rubber", 1 if v else 2)   # a red mark at twelve
         if v == 2:
             return raw("tint", 2 if u == 2 else 1)
         return ("raw", CLEAR)
-    m.box("wheel", (-9.5, 13.5, -8.5), (-4.5, 17.5, -8), Paint("rubber", 1, noise=0, light=False, decal=steering))
+    m.box("wheel", (-9.5, 12.5, -8.5), (-4.5, 16.5, -8), Paint("rubber", 1, noise=0, light=False, decal=steering))
 
     # the windscreen: raked far back, a black frame round the glass, nothing behind or above it
-    m.box("screen_base", (-13.5, BELT, -13.5), (13.5, BELT + 0.5, -12.25), PLASTIC)
-    m.box("windscreen", (-13.5, BELT + 0.5, -13), (13.5, BELT + 0.5 + 10, -12.5), glass(sun=1, wipers=True, streak=0.25),
-          rotation=("x", 45, (0, BELT + 0.5, -13)))
+    m.box("screen_base", (-13.5, 12.5, -14.5), (13.5, 13, -12.75), PLASTIC)
+    m.box("windscreen", (-13.5, 13, -14), (13.5, 13 + 10, -13.5), glass(sun=1, wipers=True, streak=0.25),
+          rotation=("x", 45, (0, 13, -14)))
 
-    # two bucket seats (black, red inserts, a head rest each) and a small bench behind them
-    seat = dict(bolster=("rubber", 2), insert=("tomato", 1.2), stitch=("tomato", 2.8))
+    # two bucket seats: a deep shell, black with red inserts, a head rest in one piece
+    seat = dict(bolster=("rubber", 2), insert=(C, 1.2), stitch=(C, 2.8))
     for s in (1, -1):
-        lo, hi = (min(2.5 * s, 10 * s), 9, 5), (max(2.5 * s, 10 * s), 17, 7.5)
+        lo, hi = (min(2.5 * s, 10 * s), FLOOR, 4.5), (max(2.5 * s, 10 * s), 16, 7)
         m.box("seat_back", lo, hi, Paint("rubber", 2, noise=0, decal=upholstery(lo=lo, hi=hi, **seat)))
-        m.box("cushion", (lo[0], 9, -3), (hi[0], 10.5, 5), Paint("rubber", 2, noise=0, decal=upholstery(lo=lo, hi=hi, **seat)))
+        m.box("cushion", (lo[0], FLOOR, -3.5), (hi[0], 7.5, 4.5), Paint("rubber", 2, noise=0, decal=upholstery(lo=lo, hi=hi, **seat)))
         xa, xb = sorted((4 * s, 8.5 * s))
-        m.box("headrest", (xa, 17, 5.5), (xb, 20, 7.5), Paint("rubber", 2, noise=0))
-        xa, xb = sorted((4.5 * s, 8 * s))
-        m.box("rear_headrest", (xa, 15, 10.25), (xb, 16.5, 11.5), Paint("rubber", 2, noise=0))
-    lo, hi = (-10, 9, 10), (10, 15, 11.75)
-    m.box("rear_seat", lo, hi, Paint("rubber", 2, noise=0, decal=upholstery(lo=lo, hi=hi, **seat)))
-    m.box("rear_cushion", (-10, 9, 8), (10, 10.5, 10), Paint("rubber", 2, noise=0, decal=upholstery(lo=(-10, 0, 8), hi=(10, 0, 10), **seat)))
+        m.box("headrest", (xa, 16, 5), (xb, 19, 7), Paint("rubber", 2, noise=0))
+
+    m.group("rear")
+    # a roll hoop behind each head rest and a fairing sloping back from it down to the deck (22.5 degrees)
+    def hump(c):
+        if c.face == "up":
+            return (C, 3.1 if 5.5 <= abs(c.p[0]) < 7 else 2.6)
+        return ("rubber", 1) if c.face == "north" else (C, 1.5)
+    hp = PAINT(decal=hump)
+    for s in (1, -1):
+        xa, xb = sorted((3.5 * s, 9.5 * s))
+        m.box("hoop", (xa, DECK, 7.25), (xb, 18.5, 8), Paint("steel", 2, noise=0, rim=0.3))
+        m.box("fairing", (xa, 17.5, 8), (xb, 18.5, 8 + 15), hp, rotation=("x", 22.5, (0, 18.5, 8)))
+        m.box("fairing_fill", (xa + 0.5, DECK, 9), (xb - 0.5, 16.5, 11.5), hp)
+        m.box("fairing_fill", (xa + 0.5, DECK, 11.5), (xb - 0.5, 15, 15), hp)
+        m.box("fairing_fill", (xa + 0.5, DECK, 15), (xb - 0.5, 13.5, 18.5), hp)
+
+    def engine_cover(c):
+        x, y, z = c.p
+        fz = math.floor(z)
+        if c.face == "up":
+            if abs(x) < 2.5 and 11 <= fz <= 28:
+                return ("rubber", 0) if fz % 2 else ("tint", 1.4)       # the vents' slats
+            return ("rubber", 2)
+        return ("rubber", 1)
+    m.box("engine_cover", (-3.25, DECK, 9.5), (3.25, DECK + 0.5, 30), Paint("rubber", 1, noise=0, decal=engine_cover))
 
     def mirror(c):
         if c.face == "south":
             if c.u in (0, c.nu - 1) or c.v in (0, c.nv - 1):
                 return ("rubber", 1)
             return ("glass", 3 if c.u + c.v == 2 else 2)
-        if c.face == "down" or c.p[1] < BELT + 1:
-            return ("rubber", 1)                         # a black foot under a body-coloured cap
+        if c.face == "down":
+            return ("rubber", 1)
         return None
     for s in (1, -1):
         xa, xb = sorted((14.5 * s, 15.5 * s))
-        m.box("mirror_arm", (xa, BELT, -10.5), (xb, BELT + 0.5, -9.75), PLASTIC)
+        m.box("mirror_arm", (xa, 12.5, -11.5), (xb, 13, -10.75), PLASTIC)
         xa, xb = sorted((15 * s, 18 * s))
-        m.box("mirror", (xa, BELT + 0.5, -11), (xb, BELT + 2.5, -9.5), RED(decal=mirror))
+        m.box("mirror", (xa, 13, -12), (xb, 15, -10.5), PAINT(decal=mirror))
     m.display = _held_display(m)
     return m
 
