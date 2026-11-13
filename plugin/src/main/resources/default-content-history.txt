@@ -111,6 +111,7 @@ dccf5e18f91877e03ba923a980976bf729eac2c6 stsv/assets/stsv/models/item/test_cross
 11f3aad65b011817a3d3d705c94a8858baa5bea1 stsv/assets/stsv/models/item/test_crossbow_pulling_1.json
 b848bcee1c6fc1e4965b8fdd04ce48a102af68e5 stsv/assets/stsv/models/item/test_crossbow_pulling_2.json
 1262a0c0381248c6c7db902c710d3e0062b4fd80 stsv/assets/stsv/sounds.json
+1ec35dd14c1ded3e0be4915aa47f1d2c43a1b963 stsv/assets/stsv/sounds.json
 387a6d8995fbd9495a9ecb48f831206eba407253 stsv/assets/stsv/sounds.json
 4a2703c0b069f53e1bf0edb318836824dc239291 stsv/assets/stsv/sounds.json
 4c37c85d540e4ecd1f55cd77518999f6c9914a75 stsv/assets/stsv/sounds.json
@@ -174,6 +175,7 @@ a986c6a7f89698626d1662b25b5591c33484bd6f stsv/assets/stsv/sounds/vehicle/sports_
 c25fb13bfe2978170562345a1ac159e066a82cf9 stsv/assets/stsv/sounds/vehicle/sports_car_engine_stop.ogg
 9a839850fd11966d4a02ed63597fcec06a5d61a2 stsv/assets/stsv/sounds/vehicle/sports_car_horn.ogg
 92d7267be3ebb43d14015aae8d8d0786d57af308 stsv/assets/stsv/sounds/vehicle/sports_car_horn_end.ogg
+c96956d682afb2f7aee2ff36be9d6e4319209bc7 stsv/assets/stsv/sounds/vehicle/sports_car_skid.ogg
 5e4658d3f3ed9b507710db95022a3247fa5a4fcb stsv/assets/stsv/sounds/vehicle/tractor_trailer_engine.ogg
 738d239154bc81be86e81209291bfafbf3e10756 stsv/assets/stsv/sounds/vehicle/tractor_trailer_engine_start.ogg
 cf7f45d696ee1eef24ec59ff1007c511191da030 stsv/assets/stsv/sounds/vehicle/tractor_trailer_engine_stop.ogg
@@ -327,6 +329,7 @@ f481b468b9a16126cb49d893b3b5b94f10c4d9ea stsv/items/furniture_japanese.yml
 428b5ca6c6d24df7d50e2bf1518654d71fd3fb42 stsv/items/vehicles.yml
 51ad9fdad6db3446f949533e1aecbe8e5b699f06 stsv/items/vehicles.yml
 51f80a2b981422e11cd37f25b880c574cc1821de stsv/items/vehicles.yml
+5224490b8b942437a1cfbcd2f357722e323db22d stsv/items/vehicles.yml
 5a5d45bf0bdeb7e828c1335ad9e1118ad2c823b2 stsv/items/vehicles.yml
 793ca7c0fa4a47d56a58681fbac3e01b8f59ece9 stsv/items/vehicles.yml
 b679f6d24bfea7f852d9161450de2ab3e4b08bfa stsv/items/vehicles.yml
@@ -953,6 +956,7 @@ d40bcc50adb9b23653b440fff3bcccae76130e9a stsv/titles/achievements.yml
 057eb05581e3748fcd28a0cdf13a0e2a7322f32a stsv/titles/titles.yml
 fbd51d2ed003db486c357f6655c06a3666b78632 stsv/titles/titles.yml
 ff41499c606083f73e1d60bbfeb04013dd14bb72 stsv/titles/titles.yml
+46d38fb2097ebbeaaaa413738401f782d4f19167 stsv/vehicle_feel.yml
 9aebed0024b7550011cca3aa43e71b37ccc6c909 stsv/vehicle_feel.yml
 f67aacf4521710c17846ff322f2cd18589667a83 stsv/vehicle_feel.yml
 fbf2cc141c9d544e6d8aa652c2dd741b439442ef stsv/vehicle_feel.yml
