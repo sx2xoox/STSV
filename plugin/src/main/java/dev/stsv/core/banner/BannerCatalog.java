@@ -20,9 +20,10 @@ import java.util.Map;
 /**
  * What tools/assetgen/title_banners.py made (plugin resources pack/title_banners/banners.json): every banner theme cut
  * into parts (left end, tiles and their slices, centre ornament, right end) with the code point of each part in
- * each of the 16 frames and the width the game measures for it (rightmost visible column + 1) at both sizes, the gem
- * between title and nickname, and the text glyphs (title: Galmuri9, nickname: the tall 5 x 7 face; both with
- * Galmuri9 Hangul) with their widths (ink + 1: what the game advances at full size). files: every pack file.
+ * each of the 16 frames and the width the game measures for it (rightmost visible column + 1) at both sizes (the
+ * full picture, the chat band), the gem between title and nickname (TrueType layers, one per colour), and the text
+ * glyphs (TrueType: the title in Galmuri9, the nickname in the tall 5 x 7 face, both with Galmuri9 Hangul) with their
+ * advances in full-size pixels (ink + 1; the chat size is exactly half). files: every pack file.
  */
 public record BannerCatalog(int frames, int ghostLevels, int pad, int gap, int spaceBase, double[] spaceSteps,
                             Map<Integer, Integer> titleWidths, Map<Integer, Integer> nickWidths, int space,
@@ -37,12 +38,13 @@ public record BannerCatalog(int frames, int ghostLevels, int pad, int gap, int s
      * A theme (its name and menu item) at its canonical size (px, from the left of its picture): the plate's ends, the plate's middle row, the
      * left tile (and so where the left end stops), the right tile (the right end starts one tile after it), the centre
      * ornament [c0, c1), how many fills (1: only the left one, 2: one each side of the centre), the narrowest plate,
-     * the gem (where it sits against the gap's centre, its code point in the title fonts, its tint and measured width
-     * at both sizes), the text tints (start and end colour, title and nickname).
+     * the gem (where it sits against the gap's centre; its layers: code points in the title fonts, colours and
+     * advances in full-size pixels), the text tints (start and end colour, title and nickname), and the empty columns
+     * before the left end's picture at both sizes (left out: a banner starts where it is drawn).
      */
     public record Theme(String id, String name, String icon, int height, int mid, int plateLeft, int plateRight, int tile, int left,
-                        int right, int c0, int c1, int width, int fills, int minPlate, int gemX, int gemChar, int[] gemTint,
-                        int gemBig, int gemMini, Map<String, Glyph> glyphs, int[][] titleTint, int[][] nickTint) {
+                        int right, int c0, int c1, int width, int fills, int minPlate, int gemX, int[] gemChars, int[][] gemTints,
+                        int[] gemAdvances, Map<String, Glyph> glyphs, int[][] titleTint, int[][] nickTint, int leadBig, int leadMini) {
 
         public Glyph glyph(String name) {
             Glyph g = glyphs.get(name);
@@ -83,9 +85,10 @@ public record BannerCatalog(int frames, int ghostLevels, int pad, int gap, int s
                     t.get("height").getAsInt(), t.get("mid").getAsInt(), plate.get("left").getAsInt(), plate.get("right").getAsInt(),
                     t.get("tile").getAsInt(), t.get("left").getAsInt(), t.get("right").getAsInt(), t.get("c0").getAsInt(),
                     t.get("c1").getAsInt(), t.get("width").getAsInt(), t.get("fills").getAsInt(), t.get("min_plate").getAsInt(),
-                    gem.get("x").getAsInt(), gem.get("char").getAsString().codePointAt(0), ints(gem.getAsJsonArray("tint")),
-                    gem.get("big").getAsInt(), gem.get("mini").getAsInt(), Collections.unmodifiableMap(glyphs),
-                    colours(tint.getAsJsonArray("title")), colours(tint.getAsJsonArray("nick"))));
+                    gem.get("x").getAsInt(), gem.get("chars").getAsString().codePoints().toArray(), colours(gem.getAsJsonArray("tints")),
+                    ints(gem.getAsJsonArray("advances")), Collections.unmodifiableMap(glyphs),
+                    colours(tint.getAsJsonArray("title")), colours(tint.getAsJsonArray("nick")),
+                    t.getAsJsonObject("lead").get("big").getAsInt(), t.getAsJsonObject("lead").get("mini").getAsInt()));
         }
         JsonObject space = o.getAsJsonObject("space");
         JsonArray steps = space.getAsJsonArray("steps");

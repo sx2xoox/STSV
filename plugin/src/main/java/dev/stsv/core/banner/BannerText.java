@@ -16,11 +16,15 @@ import java.util.Objects;
  * the client draws it like any other text (chat, tab list, name tag). No Bukkit types (unit-tested).
  *
  * <ul>
- *   <li>Plate parts come first (coloured glyphs), then the gem and the letters (grayscale glyphs, which the game
- *       draws after every coloured glyph of the same layer, so they are always on top).</li>
- *   <li>The game advances a bitmap glyph by {@code (int) (0.5 + width * scale) + 1}; every glyph is put where the
- *       layout wants it by a space glyph (±0.5 · 2^k px) from where the last one left the pen.</li>
- *   <li>{@link #ALL_FRAMES}: the 16 frames of every part on the same spot, each in its marker colour
+ *   <li>Plate parts are bitmap glyphs (RGBA sheets). The game (26.3) advances one by {@code (int) (0.5 + width *
+ *       scale) + 1}, width = its rightmost column with any alpha + 1 (every PNG is read as RGBA).</li>
+ *   <li>Letters and the gem are TrueType glyphs (pixel squares). The game draws those with its grayscale text pipeline,
+ *       which sorts after the coloured one in a GUI layer, so they are always over the plate (bitmap glyphs of
+ *       different atlas pages are drawn in no fixed order). Their advance is exact: ink + 1 px, half at chat size.</li>
+ *   <li>Every glyph is put where the layout wants it by space glyphs (±0.5 · 2^k px) from where the last one left
+ *       the pen; the empty columns before the left end are left out, and the pen ends where the right end's picture
+ *       ends, so whatever follows starts right after the banner.</li>
+ *   <li>{@link #ALL_FRAMES}: the 16 frames of every plate part on the same spot, each in its marker colour
  *       ({@link #marker}); the pack's text shader shows one at a time, a client without it frame 0 only.
  *       A single frame: that frame's glyphs, plain white (the server-side fallback, or a static banner).</li>
  * </ul>
@@ -32,7 +36,10 @@ public final class BannerText {
     /** Red of a marker colour (text.vsh). */
     public static final int MARK_RED = 253;
 
-    /** Full size (1 texel = 1 GUI pixel, the name tag) or half (the plate's band, for a 9 px chat or tab line). */
+    /**
+     * Full size (1 texel = 1 GUI pixel, the name tag) or the chat size (the plate's 16-row chat band at half size:
+     * 8 GUI px, the top 8 of a 9 px chat line or tab row; the menu's lore too).
+     */
     public enum Size {
         BIG("", 1.0), MINI("_mini", 0.5);
 
@@ -75,10 +82,26 @@ public final class BannerText {
     /** One glyph as placed: its font, code point, colour, left edge (GUI px) and the game's advance for it. */
     public record Placed(Key font, int codePoint, TextColor color, boolean shadow, double x, double advance) {}
 
+    /** The empty columns before the left end's picture at this size (texels = full-size pixels). */
+    static int lead(BannerCatalog.Theme t, Size size) {
+        return size == Size.BIG ? t.leadBig() : t.leadMini();
+    }
+
+    /** Where the banner ends (GUI px from where it starts): the right end's picture, widest frame. */
+    public static double end(BannerLayout l, Size size) {
+        BannerCatalog.Theme t = l.theme();
+        BannerLayout.Piece r = l.pieces().stream().filter(p -> p.glyph().equals("R")).findFirst().orElseThrow();
+        int[] w = size == Size.BIG ? t.glyph("R").big() : t.glyph("R").mini();
+        int max = 0;
+        for (int v : w) max = Math.max(max, v);
+        return (r.x() + max - lead(t, size)) * size.scale;
+    }
+
     /** The glyphs of a banner in drawing order (what {@link #component} writes). */
     public static List<Placed> place(BannerCatalog c, BannerLayout l, Size size, int frame) {
         BannerCatalog.Theme t = l.theme();
         double s = size.scale;
+        int lead = lead(t, size);
         Key plate = font(t.id() + size.suffix);
         Key title = font("title" + size.suffix);
         Key nick = font("nick" + size.suffix);
@@ -91,32 +114,36 @@ public final class BannerText {
             }
             BannerCatalog.Glyph g = t.glyph(p.glyph());
             int[] widths = size == Size.BIG ? g.big() : g.mini();
+            double x = (p.x() - lead) * s;
             if (frame == ALL_FRAMES) {
                 for (int f = 0; f < g.chars().length; f++) {
-                    out.add(new Placed(plate, g.chars()[f], marker(f), false, p.x() * s, advance(widths[f], s)));
+                    out.add(new Placed(plate, g.chars()[f], marker(f), false, x, advance(widths[f], s)));
                 }
             } else {
                 int f = Math.floorMod(frame, g.chars().length);
-                out.add(new Placed(plate, g.chars()[f], WHITE, false, p.x() * s, advance(widths[f], s)));
+                out.add(new Placed(plate, g.chars()[f], WHITE, false, x, advance(widths[f], s)));
             }
         }
         if (gem != null) {
-            out.add(new Placed(title, t.gemChar(), TextColor.color(t.gemTint()[0], t.gemTint()[1], t.gemTint()[2]), false,
-                    gem.x() * s, advance(size == Size.BIG ? t.gemBig() : t.gemMini(), s)));
+            for (int k = 0; k < t.gemChars().length; k++) {
+                int[] col = t.gemTints()[k];
+                out.add(new Placed(title, t.gemChars()[k], TextColor.color(col[0], col[1], col[2]), false, (gem.x() - lead) * s,
+                        t.gemAdvances()[k] * s));
+            }
         }
         boolean shadow = size == Size.BIG;
-        letters(out, c.titleWidths(), l.title(), t.titleTint(), title, s, shadow);
-        letters(out, c.nickWidths(), l.nick(), t.nickTint(), nick, s, shadow);
+        letters(out, c.titleWidths(), l.title(), t.titleTint(), title, s, lead, shadow);
+        letters(out, c.nickWidths(), l.nick(), t.nickTint(), nick, s, lead, shadow);
         return out;
     }
 
     private static final TextColor WHITE = TextColor.color(0xFFFFFF);
 
     private static void letters(List<Placed> out, java.util.Map<Integer, Integer> widths, List<BannerLayout.Letter> letters,
-                                int[][] tint, Key font, double s, boolean shadow) {
+                                int[][] tint, Key font, double s, int lead, boolean shadow) {
         for (BannerLayout.Letter k : letters) {
-            int ink = widths.getOrDefault(k.codePoint(), 1) - 1;
-            out.add(new Placed(font, k.codePoint(), lerp(tint[0], tint[1], k.along()), shadow, k.x() * s, advance(ink, s)));
+            out.add(new Placed(font, k.codePoint(), lerp(tint[0], tint[1], k.along()), shadow, (k.x() - lead) * s,
+                    widths.get(k.codePoint()) * s));
         }
     }
 
@@ -127,8 +154,8 @@ public final class BannerText {
 
     /**
      * The banner as one component: runs of the same font, colour and shadow, with the space glyphs that move the pen
-     * to each glyph's place, and a last space so whatever follows starts right after the banner ({@link
-     * BannerLayout#width()}). Plate glyphs have no shadow; full-size letters keep the game's drop shadow.
+     * to each glyph's place, and a last space so whatever follows starts right after the banner ({@link #end}).
+     * Plate glyphs and the gem have no shadow; full-size letters keep the game's drop shadow.
      */
     public static Component component(BannerCatalog c, BannerLayout l, Size size, int frame) {
         List<Placed> glyphs = place(c, l, size, frame);
@@ -144,8 +171,7 @@ public final class BannerText {
             r.text.appendCodePoint(g.codePoint());
             pen = g.x() + g.advance();
         }
-        double end = l.width() * size.scale;
-        if (!runs.isEmpty()) spaces(c, runs.getLast().text, end - pen);
+        if (!runs.isEmpty()) spaces(c, runs.getLast().text, end(l, size) - pen);
         TextComponent.Builder b = Component.text();
         for (Run r : runs) {
             Style.Builder st = Style.style().font(r.font).color(r.color);

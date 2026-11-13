@@ -5,8 +5,8 @@ import java.util.List;
 
 /**
  * Where every part of a banner goes for one title and one nickname, in the big size's pixels (the mini size is the
- * same at half). No Bukkit types (unit-tested); tools/assetgen/title_banners.py layout() draws the previews the same
- * way.
+ * same at half). No Bukkit types (unit-tested); tools/assetgen/banner_render.py draws the plugin's own components for
+ * the previews.
  *
  * <pre>
  *   L | left fill | C | right fill | R          (the plate: L's plate part .. R's plate part)
