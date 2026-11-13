@@ -23,9 +23,14 @@ Two sizes: "big" (1 texel = 1 GUI pixel, the name tag above the head) and "mini"
 at half size so it fits a 9 px chat / tab list / lore line).
 
 Text: the title in Galmuri9 (ASCII, signs, KS X 1001 Hangul + every syllable the repository's texts use), the
-nickname in the tall 5 x 7 face (banner_themes/letters.py) with Hangul from Galmuri9. Glyphs are white-to-grey
-from top to bottom with a dark drop shadow baked in; the plugin tints them per character with the theme's
-colours (the game multiplies a glyph by its text colour), so one sheet serves every theme.
+nickname in the tall 5 x 7 face (banner_themes/letters.py) with Hangul from Galmuri9. Glyphs are white; the plugin
+tints them per character with the theme's colours (the game multiplies a glyph by its text colour), so one sheet
+serves every theme, and gives the full size the game's drop shadow.
+
+Draw order: the game (26.3) sorts the glyphs of one GUI layer by pipeline, then by atlas texture (an arbitrary
+order), so a letter over a plate glyph from another atlas page could end up under it. The text sheets and the gem
+are one-channel PNGs: the game draws those with its grayscale text pipeline, which is created after the coloured
+one and so always sorts after it. Plate parts are coloured; text and gem always land on top.
 
 Partial alpha: the game discards text pixels under alpha 0.1; faint glows (alpha under 26) are dithered to
 alpha 26 or nothing (4 x 4 Bayer), so their average stays.
@@ -253,8 +258,10 @@ class Fonts:
         self.files = {}           # pack path -> PIL image / bytes / json
         self.fonts = {}           # font name -> providers
 
-    def provider(self, font, path, cells, height, ascent):
-        """cells: rows (frames) of (char, image); one PNG, equal cells"""
+    def provider(self, font, path, cells, height, ascent, gray=False):
+        """cells: rows (frames) of (char, image); one PNG, equal cells. gray: a one-channel PNG of the cells' alpha
+        (white ink): the game draws such glyphs with its grayscale text pipeline, after every coloured glyph of the
+        same layer, so text on a plate is never hidden by it (see the module docstring)"""
         cw = max(1, max(im.width for row in cells for _, im in row))
         ch = max(im.height for row in cells for _, im in row)
         sheet = Image.new("RGBA", (cw * len(cells[0]), ch * len(cells)), (0, 0, 0, 0))
@@ -263,7 +270,7 @@ class Fonts:
             chars.append("".join(c for c, _ in row))
             for k, (_, im) in enumerate(row):
                 sheet.alpha_composite(im, (k * cw, r * ch))
-        self.files[f"assets/{NS}/textures/{path}.png"] = sheet
+        self.files[f"assets/{NS}/textures/{path}.png"] = sheet.getchannel("A") if gray else sheet
         self.fonts.setdefault(font, []).append({"type": "bitmap", "file": f"{NS}:{path}.png", "height": height,
                                                 "ascent": ascent, "chars": chars})
 
@@ -333,9 +340,6 @@ def theme_sheets(theme, fonts):
     for side, x0 in (("TL", c["left"]), ("TR", c["right"]))[:c["fills"]]:
         for (o, w) in sl:
             groups.setdefault(f"S{w}", []).append((f"{side}:{o}:{w}", [f.crop((x0 + o, 0, x0 + o + w, H)) for f in bg]))
-    # the gem: its columns at the plate's full height, so it shares the plate's ascent (a bitmap's ascent may not
-    # exceed its height)
-    groups["G"] = [("G", [g.crop((gx0, 0, gx1, H)) for g in gems])]
 
     for group, entries in groups.items():
         rows = cells_for(entries)
@@ -352,7 +356,49 @@ def theme_sheets(theme, fonts):
                        height=(MINI_ROWS[1] - MINI_ROWS[0]) // 2, ascent=-MINI_ROWS[0] // 2 + 4)
     meta["min_plate"] = (c["left"] - geo["px0"]) + (c["c1"] - c["c0"]) + (geo["px1"] + 1 - c["right"] - P)
     meta["gem"]["y"] = gy0
+    meta["gem"].update(gem_glyph(theme, gems[0].crop((gx0, gy0, gx1, gy1)), gy0, mid, fonts))
     return meta, bg, gems
+
+
+GEM_BASE = 0xE100
+
+
+def gem_glyph(theme, im, top, mid, fonts):
+    """The gem between title and nickname: frame 0 as a grayscale glyph (its brightness and alpha in one channel),
+    tinted with its own colour by the plugin. Grayscale like the text, so it is drawn over the plate (module
+    docstring). A bitmap's ascent may not exceed its height: the cells reach down to the baseline."""
+    k = [t["id"] for t in THEMES].index(theme["id"])
+    ch = chr(GEM_BASE + k)
+    px = im.load()
+    wsum, acc = 0.0, [0.0, 0.0, 0.0]
+    lum = Image.new("L", im.size, 0)
+    lp = lum.load()
+    peak = max(1, max(max(px[x, y][:3]) for y in range(im.height) for x in range(im.width) if px[x, y][3]))
+    for y in range(im.height):
+        for x in range(im.width):
+            r, g, b, a = px[x, y]
+            if a:
+                v = max(r, g, b) / peak
+                lp[x, y] = max(MIN_ALPHA, round(255 * v * a / 255))
+                for j, c in enumerate((r, g, b)):
+                    acc[j] += c * a
+                wsum += a
+    mean = [c / wsum for c in acc]
+    top_c = max(mean) or 1
+    tint = [round(c * 255 / top_c) for c in mean]
+    white = Image.merge("RGBA", (lum.point(lambda v: 255 if v else 0),) * 3 + (lum,))
+    base = mid + 4                         # the baseline row (the plate's mid row is 4 px above it)
+    big = Image.new("RGBA", (im.width, max(base, top + im.height) - top), (0, 0, 0, 0))
+    big.alpha_composite(white, (0, 0))
+    fonts.provider("title", f"font/title_banner/gem/{theme['id']}", [[(ch, big)]], height=big.height,
+                   ascent=base - top, gray=True)
+    # mini: row y is 4 + (mid - y) / 2 px above the baseline, as on the plate's band
+    t2 = top - ((mid - top) % 2)
+    mini = Image.new("RGBA", (im.width, mid + 8 - t2), (0, 0, 0, 0))
+    mini.alpha_composite(white, (0, top - t2))
+    fonts.provider("title_mini", f"font/title_banner/gem/mini_{theme['id']}", [[(ch, mini)]], height=mini.height // 2,
+                   ascent=4 + (mid - t2) // 2, gray=True)
+    return dict(char=ch, tint=tint, big=measured(big), mini=measured(mini))
 
 
 # ------------------------------------------------------------------------------------------------
@@ -364,19 +410,13 @@ SHADE = (44, 44, 48)
 
 
 def text_glyph(ink, cell_w):
-    """ink: [(x, y)] rows 0..8 above the baseline; white at the top to grey at the bottom, shadow baked in"""
+    """ink: [(x, y)] rows 0..8 above the baseline, white (a grayscale glyph: the plugin tints it per letter and gives
+    it the game's own drop shadow in a dark theme colour)"""
     im = Image.new("RGBA", (cell_w, TEXT_CELL_H), (0, 0, 0, 0))
-    S = set(ink)
     px = im.load()
     for x, y in ink:
-        for a, b in SHADOW:
-            q = (x + a, y + b)
-            if q not in S and 0 <= q[0] < cell_w and 0 <= q[1] < TEXT_CELL_H:
-                px[q] = SHADE + (255,)
-    for x, y in ink:
         if 0 <= x < cell_w and 0 <= y < TEXT_CELL_H:
-            v = int(round(255 - 78 * min(1.0, max(0.0, y / 8))))
-            px[x, y] = (v, v, v, 255)
+            px[x, y] = (255, 255, 255, 255)
     return im
 
 
@@ -399,7 +439,7 @@ def text_sheets(fonts):
         for ch in chars:
             im = text_glyph(ink_of(ch), cell_w)
             cells.append((ch, im))
-            widths[ch] = [measured(im), measured(im)]
+            widths[ch] = [measured(im) + 1, measured(im)]
         rows = [cells[k:k + cols] for k in range(0, len(cells), cols)]
         if len(rows) > 1 and len(rows[-1]) < cols:
             pad = cols - len(rows[-1])
@@ -423,7 +463,7 @@ def text_sheets(fonts):
         for size, h, asc in (("", TEXT_CELL_H, 8), ("_mini", TEXT_CELL_H // 2, 6)):
             for sname, rows in sheets:
                 cells = [[(ch if ch is not None else "\u0000", im) for ch, im in row] for row in clean(rows)]
-                fonts.provider(font + size, f"font/title_banner/text/{sname}", cells, height=h, ascent=asc)
+                fonts.provider(font + size, f"font/title_banner/text/{sname}", cells, height=h, ascent=asc, gray=True)
     meta["title"] = {**tl_w, **hg_w}
     meta["nick"] = {**nl_w, **hg_w}
     meta["space"] = SPACE
@@ -527,7 +567,10 @@ def preview():
                     im = Image.open(OUT / f"assets/{NS}/textures/{prov['file'].split(':', 1)[1]}")
                     cw, chh = im.width // len(row), im.height // len(prov["chars"])
                     k = row.index(ch)
-                    return im.crop((k * cw, r * chh, (k + 1) * cw, (r + 1) * chh)), prov["ascent"], prov["height"] / chh
+                    cell = im.crop((k * cw, r * chh, (k + 1) * cw, (r + 1) * chh))
+                    if cell.mode == "L":      # grayscale glyph: the game uses the value as colour and alpha
+                        cell = Image.merge("RGBA", (cell,) * 4)
+                    return cell.convert("RGBA"), prov["ascent"], prov["height"] / chh
         return None, 0, 1
 
     def tint(im, col):
@@ -557,15 +600,19 @@ def preview():
         base = 40   # baseline row on the canvas
         canvas = Image.new("RGBA", (total + 8, 64), (0, 0, 0, 0))
 
-        def put(im, asc, x, s):
+        def put(im, asc, x, s, dy=0):
             if im is not None:
-                canvas.alpha_composite(im, (int(round(x)) + 4, int(round(base - asc / s))))
+                canvas.alpha_composite(im, (int(round(x)) + 4, int(round(base - asc / s)) + dy))
 
         g = meta["glyphs"]
         tints = meta["tint"]
 
+        shadow_px = 1 if size == "" else 0       # the game's drop shadow (1 GUI pixel), at full size only
         for kind, name, x in seq:
-            if kind == "G":
+            if kind == "G" and name == "G":
+                im, asc, s = sheet_glyph("title" + size, meta["gem"]["char"])
+                put(tint(im, meta["gem"]["tint"]), asc, x, s)
+            elif kind == "G":
                 ch = g[name]["chars"][frame]
                 im, asc, s = sheet_glyph(meta["id"] + size, ch)
                 if frame:
@@ -584,6 +631,8 @@ def preview():
                     t = k / n
                     col = tuple(int(round(cols[0][j] + (cols[1][j] - cols[0][j]) * t)) for j in range(3))
                     im, asc, s = sheet_glyph(("title" if kind == "T" else "nick") + size, ch)
+                    if shadow_px:
+                        put(tint(im, tuple(c // 4 for c in col)), asc, x + shadow_px, s, shadow_px)
                     put(tint(im, col), asc, x, s)
                     x += table[ch][0]
         return canvas
