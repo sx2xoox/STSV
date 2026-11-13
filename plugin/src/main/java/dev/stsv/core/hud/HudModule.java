@@ -226,7 +226,8 @@ public final class HudModule implements StsvModule, Listener, CommandExecutor, T
     /**
      * The syllables the panel's letters keep: the repository's (bundled), the messages' and those of every yml
      * file of the STSV plugins on this server (contents, configs: a job or event added on the server shows), at
-     * most MAX_PANEL_LETTERS (the most used ones first).
+     * most MAX_PANEL_LETTERS (the most used ones first). The files' comments are not counted: nobody is shown them,
+     * and every syllable costs each client memory.
      */
     private Set<Integer> panelLetters() {
         Map<Integer, Integer> counts = new HashMap<>();
@@ -243,7 +244,7 @@ public final class HudModule implements StsvModule, Listener, CommandExecutor, T
                         long size = Files.size(f);
                         if (size > (4L << 20)) continue;
                         budget -= size;
-                        count(Files.readString(f, StandardCharsets.UTF_8), counts);
+                        count(stripComments(Files.readString(f, StandardCharsets.UTF_8)), counts);
                     }
                 } catch (IOException | java.io.UncheckedIOException e) {
                     plugin.getLogger().warning("사이드바 글자를 모으지 못한 폴더: " + dir + " (" + e.getMessage() + ")");
@@ -252,6 +253,32 @@ public final class HudModule implements StsvModule, Listener, CommandExecutor, T
         }
         return pickLetters(sheets.panelLetters(), counts, MAX_PANEL_LETTERS, n ->
                 plugin.getLogger().warning("사이드바 패널 글꼴에 한글 " + n + "자를 넣지 못했습니다 (자주 쓰는 " + MAX_PANEL_LETTERS + "자만): 패널에서 ? 로 보임"));
+    }
+
+    /**
+     * A yml file's text without its comments: a '#' at a line's start or after a blank, outside quotes, to the end of
+     * the line (a colour like {@code "<#e06439>"} stays). The same rule as the asset build's (tools/assetgen/hud.py).
+     */
+    static String stripComments(String yaml) {
+        StringBuilder out = new StringBuilder(yaml.length());
+        for (String line : yaml.split("\n", -1)) {
+            char quote = 0;
+            int cut = line.length();
+            for (int i = 0; i < line.length(); i++) {
+                char ch = line.charAt(i);
+                if (quote != 0) {
+                    if (ch == quote) quote = 0;
+                } else if (ch == '"' || ch == '\'') {
+                    quote = ch;
+                } else if (ch == '#' && (i == 0 || line.charAt(i - 1) == ' ' || line.charAt(i - 1) == '\t')) {
+                    cut = i;
+                    break;
+                }
+            }
+            if (!out.isEmpty()) out.append('\n');
+            out.append(line, 0, cut);
+        }
+        return out.toString();
     }
 
     static void count(String text, Map<Integer, Integer> counts) {

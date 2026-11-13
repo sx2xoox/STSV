@@ -9,6 +9,7 @@ import org.junit.jupiter.api.Test;
 
 import java.util.HashSet;
 import java.util.List;
+import java.util.HashMap;
 import java.util.Map;
 import java.util.Set;
 import java.util.stream.Collectors;
@@ -488,6 +489,19 @@ class HudLayoutTest {
         assertNotNull(files.get("assets/stsv/textures/font/hud/LICENSE-galmuri.txt"), "the font's licence travels with it");
         assertNull(files.get("assets/stsv/textures/font/hud/hangul7.png"), "the whole Galmuri7 sheet is only cut from, not shipped");
         assertNotNull(files.get("assets/stsv/textures/font/hud/" + HudLayout.PANEL_HANGUL7 + ".png"));
+    }
+
+    @Test
+    void commentsAreNotCountedForThePanelsLetters() {
+        // a file's comments are for the operator: counting them filled the letter sheets with syllables no player sees
+        String yaml = "a: \"x # y\"  # 설명\n# 전체 주석\nname: \"<#e06439>경운기\"\nb: '따옴표 # 안'\nc: 1 #붙은 주석\nd: 색#아님";
+        assertEquals("a: \"x # y\"  \n\nname: \"<#e06439>경운기\"\nb: '따옴표 # 안'\nc: 1 \nd: 색#아님", HudModule.stripComments(yaml));
+        Map<Integer, Integer> counts = new HashMap<>();
+        HudModule.count(HudModule.stripComments(yaml), counts);
+        assertTrue(counts.containsKey((int) '경') && counts.containsKey((int) '옴') && counts.containsKey((int) '색'));
+        assertFalse(counts.containsKey((int) '설') || counts.containsKey((int) '체') || counts.containsKey((int) '붙'), "nothing from a comment");
+        // the bundled set is the shipped texts' own: with the files' comments it had grown past the memory budget below
+        assertTrue(sheets.panelLetters().size() < 860, "the repository's shown syllables: " + sheets.panelLetters().size());
     }
 
     @Test

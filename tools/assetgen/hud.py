@@ -90,11 +90,33 @@ def _hangul_set():
     return sorted(out)
 
 
+def strip_comments(yaml_text):
+    """A yml file's text without its comments (a '#' at a line's start or after a blank, outside quotes, to the end of
+    the line): what a player can ever be shown. The same rule as the plugin's (HudModule#stripComments)."""
+    out = []
+    for line in yaml_text.split("\n"):
+        quote = None
+        cut = len(line)
+        for i, ch in enumerate(line):
+            if quote:
+                if ch == quote:
+                    quote = None
+            elif ch in "\"'":
+                quote = ch
+            elif ch == "#" and (i == 0 or line[i - 1] in " \t"):
+                cut = i
+                break
+        out.append(line[:cut])
+    return "\n".join(out)
+
+
 def _repo_chars():
+    """Every character of the texts a player can be shown (TEXT_SOURCES, without the files' comments: explanations for
+    the operator would only fill the panel's letter sheets, which every client keeps in memory)."""
     chars = set()
     for pattern in TEXT_SOURCES:
         for f in REPO.glob(pattern):
-            chars.update(f.read_text(encoding="utf-8"))
+            chars.update(strip_comments(f.read_text(encoding="utf-8")))
     return chars
 
 
