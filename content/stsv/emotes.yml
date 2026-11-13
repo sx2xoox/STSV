@@ -36,6 +36,9 @@
 #   pose        모든 장면의 바탕 자세
 #   keyframes   장면: at = 틱 (0 이상 length 미만, 올라가는 순서) 과 바탕 자세에서 바꿀 것.
 #               ease = 앞 장면에서 이 장면으로 오는 빠르기: linear(기본) · sine(천천히-빨리-천천히) · in(점점 빨리) · out(점점 천천히)
+#   props       인형이 지니는 작은 표시 (없어도 됨): 한 가지 색의 작은 그림이 관절 하나에 붙어 같이 움직이고 인형이 보는 쪽을 봄.
+#               joint 관절 (head, chest, arm_l ...), at [x, y, z] 그림의 가운데 (선 자세 기준, 칸), size 그림 한 칸의 크기 (칸),
+#               color "#rrggbb", pixels 그림의 줄 (위부터, '#' = 칠한 칸, 그 밖 = 빈 칸. 16 x 16 칸까지)
 # ------------------------------------------------------------------------------------------------
 
 emotes:
@@ -60,3 +63,72 @@ emotes:
       - { at: 3, ease: sine, hips: [46, 0, -7] }
       - { at: 6, ease: sine, hips: [12, 0, 0] }
       - { at: 9, ease: sine, hips: [46, 0, 7] }
+
+  # L을 가져가: 오른손을 이마에 대고 (이마에 노란 L 표시) 제자리에서 통통 뛰며 다리를 번갈아 옆으로 참
+  take_l:
+    name: "L을 가져가"
+    length: 16
+    step: 1
+    loop: true
+    legs: free
+    camera: { around: 25, up: 8, distance: 3.8 }
+    # 이마의 L: 머리에 붙어 같이 움직이는 노란 표시 (손가락을 그릴 수 없는 인형이라 글자로 보여 줌)
+    props:
+      - { joint: head, at: [1.2, 30.2, 8.4], size: 0.9, color: "#ffd640", pixels: ["##...", "##...", "##...", "##...", "#####", "#####"] }
+    pose:
+      arm_r: [-158, 0, -40]
+      arm_l: [0, 0, 22]
+      head: [4, 0, 0]
+    keyframes:
+      - { at: 0, ease: sine, root: [0, 0, 0], root_rot: [0, 0, 0], thigh_l: [0, 0, 0], thigh_r: [0, 0, 0], shin_l: [0, 0, 0], shin_r: [0, 0, 0], arm_l: [0, 0, 22] }
+      - { at: 4, ease: sine, root: [-1.0, 2.0, 0], root_rot: [0, 0, -7], thigh_l: [-12, 0, 46], shin_l: [18, 0, 0], thigh_r: [0, 0, 5], shin_r: [0, 0, 0], arm_l: [0, 0, 40] }
+      - { at: 8, ease: sine, root: [0, 0, 0], root_rot: [0, 0, 0], thigh_l: [0, 0, 0], thigh_r: [0, 0, 0], shin_l: [0, 0, 0], shin_r: [0, 0, 0], arm_l: [0, 0, 22] }
+      - { at: 12, ease: sine, root: [1.0, 2.0, 0], root_rot: [0, 0, 7], thigh_r: [-12, 0, -46], shin_r: [18, 0, 0], thigh_l: [0, 0, -5], shin_l: [0, 0, 0], arm_l: [0, 0, 8] }
+
+  # 인사: 허리를 깊이 숙였다가 일어남 (한 번)
+  bow:
+    name: "인사"
+    length: 40
+    step: 1
+    loop: false
+    legs: free
+    camera: { around: 40, up: 10, distance: 3.6 }
+    pose: {}
+    keyframes:
+      - { at: 0, chest: [0, 0, 0], head: [0, 0, 0], root: [0, 0, 0], arms: [0, 0, 3] }
+      - { at: 12, ease: sine, chest: [72, 0, 0], head: [14, 0, 0], root: [0, 0, -1.6], arms: [-58, 0, 3] }
+      - { at: 24, ease: linear, chest: [72, 0, 0], head: [14, 0, 0], root: [0, 0, -1.6], arms: [-58, 0, 3] }
+      - { at: 36, ease: sine, chest: [0, 0, 0], head: [0, 0, 0], root: [0, 0, 0], arms: [0, 0, 3] }
+
+  # 디스코: 오른팔로 하늘을 찌르고 왼쪽 아래로 내리기를 되풀이, 골반은 박자에 맞춰 좌우로
+  disco:
+    name: "디스코"
+    length: 32
+    step: 1
+    loop: true
+    legs: planted
+    camera: { around: 20, up: 8, distance: 3.8 }
+    pose:
+      feet: [2.6, 0, 0]
+      arm_l: [0, 0, 28]
+    keyframes:
+      - { at: 0, ease: sine, arm_r: [0, 0, -150], hips: [0, 0, -9], root: [-0.8, -0.6, 0], chest: [0, -8, 4], head: [-10, -18, 0] }
+      - { at: 8, ease: sine, arm_r: [-30, 0, -60], hips: [0, 0, 0], root: [0, -1.6, 0], chest: [6, 0, 0], head: [0, 0, 0] }
+      - { at: 16, ease: sine, arm_r: [-40, 0, 34], hips: [0, 0, 9], root: [0.8, -0.6, 0], chest: [10, 10, -4], head: [14, 18, 0] }
+      - { at: 24, ease: sine, arm_r: [-30, 0, -60], hips: [0, 0, 0], root: [0, -1.6, 0], chest: [6, 0, 0], head: [0, 0, 0] }
+
+  # 만세: 웅크렸다가 두 팔을 번쩍 들고 뛰어오름
+  cheer:
+    name: "만세"
+    length: 24
+    step: 1
+    loop: true
+    legs: free
+    camera: { around: 25, up: 8, distance: 4.0 }
+    pose: {}
+    keyframes:
+      - { at: 0, ease: sine, root: [0, -1.5, 0], thighs: [-24, 0, 0], shins: [48, 0, 0], arms: [-95, 0, 8], chest: [10, 0, 0], head: [6, 0, 0] }
+      - { at: 6, ease: in, root: [0, 0, 0], thighs: [0, 0, 0], shins: [0, 0, 0], arms: [-140, 0, 12], chest: [0, 0, 0], head: [-6, 0, 0] }
+      - { at: 10, ease: out, root: [0, 4.5, 0], thighs: [6, 0, 6], shins: [10, 0, 0], arms: [-172, 0, 20], chest: [-6, 0, 0], head: [-16, 0, 0] }
+      - { at: 14, ease: in, root: [0, 0, 0], thighs: [0, 0, 0], shins: [0, 0, 0], arms: [-150, 0, 14], chest: [0, 0, 0], head: [-4, 0, 0] }
+      - { at: 19, ease: out, root: [0, -1.5, 0], thighs: [-24, 0, 0], shins: [48, 0, 0], arms: [-115, 0, 8], chest: [10, 0, 0], head: [6, 0, 0] }

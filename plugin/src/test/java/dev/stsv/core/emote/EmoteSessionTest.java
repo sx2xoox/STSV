@@ -244,6 +244,18 @@ class EmoteSessionTest {
         for (String k : messages.getConfigurationSection("emote").getKeys(false)) assertTrue(sources.contains("\"emote." + k + "\""), "emote." + k + " is not used");
     }
 
+    /** The quick key (Ctrl + Shift while standing still) and what the buttons run. */
+    @Test
+    void theQuickKeyAndTheButtons() {
+        assertTrue(EmoteMenu.quickKey(true, true, false), "sneak and sprint together, standing still");
+        assertFalse(EmoteMenu.quickKey(true, false, false), "sneaking alone (that ends an emote)");
+        assertFalse(EmoteMenu.quickKey(false, true, false), "sprinting alone");
+        assertFalse(EmoteMenu.quickKey(true, true, true), "not while walking or jumping (a sprint cut short by a sneak)");
+        assertEquals("/감정표현 트월킹", EmoteMenu.command("트월킹"));
+        assertEquals("/감정표현 L을 가져가", EmoteMenu.command("L을 가져가"), "a name of several words is the rest of the command");
+        assertTrue(EmoteMenu.QUICK_KEY_GAP_MS >= 500);
+    }
+
     @Test
     void commandPermissionAndSettings() throws Exception {
         // plugin.yml is a template (the version): read it as text
@@ -258,6 +270,7 @@ class EmoteSessionTest {
         assertEquals("op", y.getString("permissions." + EmoteModule.PERMISSION + ".default"), "an admin test feature for now");
         YamlConfiguration config = resource("config.yml");
         assertTrue(config.getBoolean("emotes.enabled"));
+        assertTrue(config.getBoolean("emotes.quick-key"), "the quick key is on unless it is turned off");
         assertTrue(config.getInt("emotes.max-seconds") >= 5);
         assertTrue(config.getInt("emotes.cooldown-seconds") >= 0);
         assertTrue(config.getInt("emotes.view-distance") >= 16);

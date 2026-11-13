@@ -216,5 +216,109 @@ class EmoteSpecTest {
         assertTrue(stance.get(Channel.CHEST)[0] + stance.get(Channel.HEAD)[0] < 0, "the head looks ahead, a little up");
         assertTrue(stance.get(Channel.ROOT)[1] < -2, "knees bent");
         assertTrue(stance.get(Channel.FOOT_L)[0] > 2 && stance.get(Channel.FOOT_R)[0] < -2, "feet apart");
+        assertTrue(twerk.props().isEmpty());
+    }
+
+    /** The four emotes added after the twerk: "take the L", a bow, disco, a cheer. */
+    @Test
+    void theNewEmotes() {
+        Map<String, EmoteSpec> emotes = EmoteRigTest.shipped();
+        assertEquals(List.of("twerk", "take_l", "bow", "disco", "cheer"), List.copyOf(emotes.keySet()));
+
+        // take the L: a yellow L held to the forehead (a sign on the head, in front of the face), the right hand up at
+        // the brow, and hops with a kick out to each side in turn
+        EmoteSpec l = emotes.get("take_l");
+        assertEquals("L을 가져가", l.name());
+        assertTrue(l.loop() && !l.planted());
+        assertEquals(1, l.props().size());
+        EmoteSpec.Prop sign = l.props().getFirst();
+        assertEquals(EmoteRig.Joint.HEAD, sign.joint());
+        assertTrue(sign.z() > 4.5 && sign.y() > 27 && sign.y() < 32, "before the forehead (the head's box ends at z 4, its hat at 4.5)");
+        // the picture is an L: its left column is filled from top to bottom, its bottom row from left to right, its upper right is empty
+        int[][] g = sign.grid();
+        for (int[] row : g) assertTrue(row[0] != PuppetModel.NONE, "the L's upright");
+        for (int c : g[g.length - 1]) assertTrue(c != PuppetModel.NONE, "the L's foot");
+        assertEquals(PuppetModel.NONE, g[0][g[0].length - 1]);
+        assertEquals(0xffd640, g[0][0]);
+        assertTrue(l.poseAt(0).get(Channel.ARM_R)[0] < -120, "the right arm is up at the head");
+        double left = 0, right = 0, hop = 0;
+        for (int t = 0; t < l.length(); t++) {
+            left = Math.max(left, l.poseAt(t).get(Channel.THIGH_L)[2]);
+            right = Math.max(right, -l.poseAt(t).get(Channel.THIGH_R)[2]);
+            hop = Math.max(hop, l.poseAt(t).get(Channel.ROOT)[1]);
+            assertArrayEquals(l.poseAt(0).get(Channel.ARM_R), l.poseAt(t).get(Channel.ARM_R), 1e-9, "the hand stays at the brow");
+        }
+        assertTrue(left > 35 && right > 35, "a kick out to each side: " + left + ", " + right);
+        assertTrue(hop > 1, "it hops");
+        // a prop's face: flat, on its joint, looking forward, as large as its picture
+        PuppetModel.Face face = PuppetModel.prop(sign);
+        assertEquals(EmoteRig.Joint.HEAD, face.joint());
+        assertEquals(g.length, face.rows());
+        assertEquals(1.0, face.normal().z, 1e-9, "it looks the way the puppet looks");
+        assertEquals(sign.size(), face.cellWidth(), 1e-9);
+        assertEquals(sign.size(), face.cellHeight(), 1e-9);
+
+        // the bow: once, from the waist, and up again
+        EmoteSpec bow = emotes.get("bow");
+        assertEquals("인사", bow.name());
+        assertFalse(bow.loop());
+        assertTrue(bow.poseAt(18).get(Channel.CHEST)[0] > 60, "bent deep in the middle");
+        assertEquals(0, bow.poseAt(0).get(Channel.CHEST)[0], 1e-9);
+        assertEquals(0, bow.poseAt(bow.length()).get(Channel.CHEST)[0], 1e-9, "upright again at the end");
+        assertTrue(bow.finished(bow.length()) && !bow.finished(bow.length() - 1));
+
+        // disco: the right arm from high on the right down across the body, the feet on their spots
+        EmoteSpec disco = emotes.get("disco");
+        assertTrue(disco.loop() && disco.planted());
+        assertTrue(disco.poseAt(0).get(Channel.ARM_R)[2] < -120 && disco.poseAt(disco.length() / 2).get(Channel.ARM_R)[2] > 20);
+
+        // the cheer: a crouch, then a jump with both arms up
+        EmoteSpec cheer = emotes.get("cheer");
+        double top = 0, low = 0;
+        for (int t = 0; t < cheer.length(); t++) {
+            top = Math.max(top, cheer.poseAt(t).get(Channel.ROOT)[1]);
+            low = Math.min(low, cheer.poseAt(t).get(Channel.ROOT)[1]);
+        }
+        assertTrue(top > 3 && low < -1, "it crouches and jumps: " + low + " .. " + top);
+        assertTrue(cheer.poseAt(10).get(Channel.ARM_L)[0] < -150 && cheer.poseAt(10).get(Channel.ARM_R)[0] < -150, "both arms up at the top");
+        for (String id : List.of("bow", "disco", "cheer")) assertTrue(emotes.get(id).props().isEmpty(), id);
+    }
+
+    @Test
+    void aBrokenPropSaysWhat() throws Exception {
+        YamlConfiguration y = new YamlConfiguration();
+        y.loadFromString("""
+                emotes:
+                  a:
+                    name: "가"
+                    length: 4
+                    props:
+                      - { joint: nose, at: [0, 30, 5], color: "#ffffff", pixels: ["#"] }
+                  b:
+                    name: "나"
+                    length: 4
+                    props:
+                      - { joint: head, at: [0, 30, 5], color: "#ffffff", pixels: ["##", "#"] }
+                  c:
+                    name: "다"
+                    length: 4
+                    props:
+                      - { joint: head, at: [0, 30, 5], size: 9, color: "#ffffff", pixels: ["#"] }
+                  d:
+                    name: "라"
+                    length: 4
+                    props:
+                      - { joint: arm_l, at: [5, 10, 2], color: "#10ff20", pixels: ["#.", ".#"] }
+                """);
+        List<String> problems = new ArrayList<>();
+        Map<String, EmoteSpec> got = EmoteSpec.parse(y, problems::add);
+        assertEquals(3, problems.size(), problems.toString());
+        assertTrue(problems.get(0).startsWith("a") && problems.get(1).startsWith("b") && problems.get(2).startsWith("c"), problems.toString());
+        for (String id : List.of("a", "b", "c")) assertTrue(got.get(id).props().isEmpty(), id + ": the emote is kept, the bad prop is not");
+        EmoteSpec.Prop ok = got.get("d").props().getFirst();
+        assertEquals(EmoteRig.Joint.ARM_L, ok.joint());
+        assertEquals(0x10ff20, ok.grid()[0][0]);
+        assertEquals(PuppetModel.NONE, ok.grid()[0][1]);
+        assertEquals(1.0, ok.size(), 1e-9);
     }
 }

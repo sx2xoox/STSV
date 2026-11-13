@@ -19,9 +19,22 @@ import java.util.function.Consumer;
  * @param length  ticks of one round
  * @param step    ticks between two poses sent to the clients (they blend in between)
  * @param planted the legs are solved so the feet stay on their spots ({@link EmoteRig#solveLeg})
+ * @param props   small signs the puppet carries ({@link Prop})
  */
 public record EmoteSpec(String id, String name, int length, int step, boolean loop, boolean planted, Camera camera,
-                        List<Keyframe> keyframes) {
+                        List<Keyframe> keyframes, List<Prop> props) {
+
+    public EmoteSpec(String id, String name, int length, int step, boolean loop, boolean planted, Camera camera, List<Keyframe> keyframes) {
+        this(id, name, length, step, loop, planted, camera, keyframes, List.of());
+    }
+
+    /**
+     * A sign the puppet carries: a little picture of one colour that moves with one of its joints and faces the way
+     * the puppet faces (the yellow L held to the forehead). {@code grid[row][col]} is the colour (0xRRGGBB) or
+     * {@link PuppetModel#NONE}; (x, y, z) is the picture's middle in the puppet's rest pose, skin pixels; a cell of
+     * the picture is {@code size} skin pixels.
+     */
+    public record Prop(EmoteRig.Joint joint, double x, double y, double z, double size, int[][] grid) {}
 
     /**
      * Where the watching camera stands: degrees around the puppet from its front towards its left (180 = straight
@@ -95,10 +108,44 @@ public record EmoteSpec(String id, String name, int length, int step, boolean lo
                     Math.clamp(cam.getDouble("distance", Camera.DEFAULT.distance()), 1.5, 8));
             String legs = e.getString("legs", "free");
             if (!legs.equals("free") && !legs.equals("planted")) problems.accept(id + ": legs 는 planted 또는 free");
+            List<Prop> props = new ArrayList<>();
+            for (Map<?, ?> m : e.getMapList("props")) {
+                Prop prop = prop(m, id, problems);
+                if (prop != null) props.add(prop);
+            }
             out.put(id, new EmoteSpec(id, e.getString("name", id), length, step, e.getBoolean("loop", true), legs.equals("planted"),
-                    camera, List.copyOf(frames)));
+                    camera, List.copyOf(frames), List.copyOf(props)));
         }
         return out;
+    }
+
+    /** A prop entry: joint, at [x, y, z], size, color "#rrggbb", pixels (rows of the picture, '#' = a pixel). */
+    private static Prop prop(Map<?, ?> m, String id, Consumer<String> problems) {
+        String where = id + ".props";
+        EmoteRig.Joint joint = null;
+        for (EmoteRig.Joint j : EmoteRig.Joint.values()) if (j.key().equals(String.valueOf(m.get("joint")).toLowerCase(Locale.ROOT))) joint = j;
+        double[] at = three(m.get("at"));
+        String colour = String.valueOf(m.get("color"));
+        if (joint == null || joint == EmoteRig.Joint.ROOT || at == null || !colour.matches("#[0-9a-fA-F]{6}") || !(m.get("pixels") instanceof List<?> rows) || rows.isEmpty()) {
+            problems.accept(where + ": joint (head, chest, arm_l ...), at [x, y, z], color \"#rrggbb\", pixels [줄, ...] 이 있어야 함");
+            return null;
+        }
+        double size = m.get("size") instanceof Number n ? n.doubleValue() : 1;
+        int cols = String.valueOf(rows.getFirst()).length(), rgb = Integer.parseInt(colour.substring(1), 16);
+        if (size <= 0 || size > 4 || rows.size() > 16 || cols < 1 || cols > 16) {
+            problems.accept(where + ": size 는 0 초과 4 이하, 그림은 16 x 16 칸까지");
+            return null;
+        }
+        int[][] grid = new int[rows.size()][cols];
+        for (int r = 0; r < rows.size(); r++) {
+            String line = String.valueOf(rows.get(r));
+            if (line.length() != cols) {
+                problems.accept(where + ": pixels 의 줄 길이가 서로 다름");
+                return null;
+            }
+            for (int c = 0; c < cols; c++) grid[r][c] = line.charAt(c) == '#' ? rgb : PuppetModel.NONE;
+        }
+        return new Prop(joint, at[0], at[1], at[2], size, grid);
     }
 
     private static Map<?, ?> values(ConfigurationSection s) {

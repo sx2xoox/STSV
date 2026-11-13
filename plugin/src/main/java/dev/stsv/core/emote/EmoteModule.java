@@ -79,6 +79,8 @@ public final class EmoteModule implements StsvModule, Listener, TabExecutor {
     private final Map<UUID, Long> lastEnd = new HashMap<>(), lastHurt = new HashMap<>();
     /** players waiting for their skin (one emote at a time) */
     private final Set<UUID> loading = new HashSet<>();
+    /** when each player last opened the buttons with the quick key (ms) */
+    private final Map<UUID, Long> lastQuick = new HashMap<>();
     /** by id, in the order of the files */
     private Map<String, EmoteSpec> emotes = Map.of();
     private SkinCache skins;
@@ -190,7 +192,9 @@ public final class EmoteModule implements StsvModule, Listener, TabExecutor {
             return true;
         }
         String word = String.join(" ", args).trim();
-        if (word.isEmpty() || LIST.contains(word.toLowerCase(Locale.ROOT))) {
+        if (word.isEmpty() && !emotes.isEmpty()) {
+            EmoteMenu.open(p, emotes.values(), emoting(p));          // the buttons: one click an emote
+        } else if (word.isEmpty() || LIST.contains(word.toLowerCase(Locale.ROOT))) {
             List<String> names = emotes.values().stream().map(e -> Lang.raw("emote.list-entry", "name", e.name())).toList();
             p.sendMessage(Lang.msg("emote.list", "emotes", names.isEmpty() ? Lang.raw("common.none") : String.join(Lang.raw("emote.list-separator"), names)));
             p.sendMessage(Lang.msg("emote.usage"));
@@ -203,6 +207,23 @@ public final class EmoteModule implements StsvModule, Listener, TabExecutor {
             else play(p, emote.get());
         }
         return true;
+    }
+
+    /**
+     * The quick key: Ctrl + Shift (sprint and sneak together) while standing still opens the emote buttons, for those
+     * who may use emotes ({@code emotes.quick-key}). Not while riding, not while an emote plays (sneaking ends that).
+     */
+    @EventHandler
+    public void onQuickKey(org.bukkit.event.player.PlayerInputEvent e) {
+        org.bukkit.Input in = e.getInput();
+        if (!EmoteMenu.quickKey(in.isSneak(), in.isSprint(), in.isForward() || in.isBackward() || in.isLeft() || in.isRight() || in.isJump())) return;
+        Player p = e.getPlayer();
+        if (!enabled() || emotes.isEmpty() || !plugin.getConfig().getBoolean("emotes.quick-key", true)) return;
+        if (!p.hasPermission(PERMISSION) || emoting(p) || p.isInsideVehicle() || p.getGameMode() == GameMode.SPECTATOR) return;
+        long now = System.currentTimeMillis();
+        Long last = lastQuick.put(p.getUniqueId(), now);
+        if (last != null && now - last < EmoteMenu.QUICK_KEY_GAP_MS) return;
+        EmoteMenu.open(p, emotes.values(), false);
     }
 
     @Override
@@ -225,6 +246,7 @@ public final class EmoteModule implements StsvModule, Listener, TabExecutor {
         if (playing != null) {
             playing.spec = spec;
             playing.tick = 0;
+            playing.puppet.props(spec.props(), spec.poseAt(0), spec.planted());
             playing.puppet.pose(spec.poseAt(0), spec.planted(), 4);
             return;
         }
@@ -303,7 +325,7 @@ public final class EmoteModule implements StsvModule, Listener, TabExecutor {
         // whoever cannot see the player now (hidden by another plugin) does not get to see their puppet either
         Set<UUID> never = new HashSet<>();
         for (Player v : Bukkit.getOnlinePlayers()) if (v != p && !v.canSee(p)) never.add(v.getUniqueId());
-        s.puppet = new Puppet(plugin, keyEntity, feet, bodyYaw, skin, spec.poseAt(0), spec.planted(), never);
+        s.puppet = new Puppet(plugin, keyEntity, feet, bodyYaw, skin, spec.poseAt(0), spec.planted(), spec.props(), never);
         s.camera = cam.getWorld().spawn(cam, ItemDisplay.class, d -> {
             d.setVisibleByDefault(false);
             d.setPersistent(false);

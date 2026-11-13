@@ -163,6 +163,15 @@ public final class PuppetModel {
     /** A transparent pixel of the second layer. */
     public static final int NONE = -1;
 
+    /**
+     * A prop as a face: a flat picture that moves with its joint and looks the way the puppet looks (it is not
+     * shaded: a sign is meant to be seen). The puppet's skin faces come first, a prop's face after them.
+     */
+    public static Face prop(EmoteSpec.Prop p) {
+        return new Face(p.joint(), 0, Side.FRONT, false, new Vector3d(p.x(), p.y(), p.z()), new Vector3d(1, 0, 0), new Vector3d(0, 1, 0),
+                p.grid(), p.size(), p.size(), 1.0);
+    }
+
     /** A text display's transformation: translation in blocks from the entity, left rotation, scale. */
     public record Placement(Vector3d translation, Quaterniond rotation, Vector3d scale) {}
 

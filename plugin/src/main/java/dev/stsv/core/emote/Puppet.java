@@ -36,44 +36,84 @@ final class Puppet {
     private static final double SLACK = 8;
 
     private final Plugin plugin;
+    private final NamespacedKey tag;
     private final Location base;
     private final double facing;
+    /** the skin's faces, then the props' */
     private final List<PuppetModel.Face> faces;
+    private final int skinFaces;
     private final List<TextDisplay> displays = new ArrayList<>();
     private final List<PuppetModel.Placement> sent = new ArrayList<>();
     private final Set<UUID> viewers = new HashSet<>();
     private final Set<UUID> never;
+
     /**
      * @param feet    where the puppet stands
      * @param bodyYaw where it looks (degrees)
+     * @param props   the signs it carries in this emote
      * @param never   players who do not get to see it (they could not see the emoting player)
      */
-    Puppet(Plugin plugin, NamespacedKey tag, Location feet, float bodyYaw, PuppetSkin skin, Pose pose, boolean planted, Set<UUID> never) {
+    Puppet(Plugin plugin, NamespacedKey tag, Location feet, float bodyYaw, PuppetSkin skin, Pose pose, boolean planted,
+           List<EmoteSpec.Prop> props, Set<UUID> never) {
         this.plugin = plugin;
+        this.tag = tag;
         this.base = new Location(feet.getWorld(), feet.getX(), feet.getY() + LIFT, feet.getZ(), 0, 0);
         this.facing = -Math.toRadians(bodyYaw);
-        this.faces = PuppetModel.faces(skin);
+        this.faces = new ArrayList<>(PuppetModel.faces(skin));
+        this.skinFaces = faces.size();
         this.never = never;
         Matrix4d[] joints = EmoteRig.matrices(pose, planted);
-        for (PuppetModel.Face face : faces) {
-            PuppetModel.Placement at = PuppetModel.place(face, joints[face.joint().ordinal()], facing, LIFT);
-            sent.add(at);
-            displays.add(base.getWorld().spawn(base, TextDisplay.class, d -> {
-                d.setPersistent(false);
-                d.setVisibleByDefault(false);
-                d.getPersistentDataContainer().set(tag, PersistentDataType.BYTE, (byte) 1);
-                d.text(PuppetText.component(face));
-                d.setLineWidth(PuppetText.LINE_WIDTH);
-                d.setAlignment(TextDisplay.TextAlignment.CENTER);
-                d.setBackgroundColor(Color.fromARGB(0, 0, 0, 0));
-                d.setDefaultBackground(false);
-                d.setShadowed(false);
-                d.setSeeThrough(false);
-                d.setShadowRadius(0);
-                d.setTeleportDuration(0);
-                d.setInterpolationDuration(0);
-                d.setTransformation(transformation(at));
-            }));
+        for (PuppetModel.Face face : faces) add(face, joints);
+        for (EmoteSpec.Prop prop : props) {
+            PuppetModel.Face face = PuppetModel.prop(prop);
+            faces.add(face);
+            add(face, joints);
+        }
+    }
+
+    private TextDisplay add(PuppetModel.Face face, Matrix4d[] joints) {
+        PuppetModel.Placement at = PuppetModel.place(face, joints[face.joint().ordinal()], facing, LIFT);
+        sent.add(at);
+        TextDisplay display = base.getWorld().spawn(base, TextDisplay.class, d -> {
+            d.setPersistent(false);
+            d.setVisibleByDefault(false);
+            d.getPersistentDataContainer().set(tag, PersistentDataType.BYTE, (byte) 1);
+            d.text(PuppetText.component(face));
+            d.setLineWidth(PuppetText.LINE_WIDTH);
+            d.setAlignment(TextDisplay.TextAlignment.CENTER);
+            d.setBackgroundColor(Color.fromARGB(0, 0, 0, 0));
+            d.setDefaultBackground(false);
+            d.setShadowed(false);
+            d.setSeeThrough(false);
+            d.setShadowRadius(0);
+            d.setTeleportDuration(0);
+            d.setInterpolationDuration(0);
+            d.setTransformation(transformation(at));
+        });
+        displays.add(display);
+        return display;
+    }
+
+    /**
+     * Another emote's props (the emote changed while the puppet stood): the old signs go, the new ones come at once
+     * for everyone who sees the puppet.
+     */
+    void props(List<EmoteSpec.Prop> props, Pose pose, boolean planted) {
+        while (faces.size() > skinFaces) {
+            faces.removeLast();
+            sent.removeLast();
+            displays.removeLast().remove();
+        }
+        if (props.isEmpty()) return;
+        Matrix4d[] joints = EmoteRig.matrices(pose, planted);
+        for (EmoteSpec.Prop prop : props) {
+            PuppetModel.Face face = PuppetModel.prop(prop);
+            faces.add(face);
+            TextDisplay d = add(face, joints);
+            for (UUID id : viewers) {
+                Player v = plugin.getServer().getPlayer(id);
+                if (v != null) v.showEntity(plugin, d);
+            }
         }
     }
 

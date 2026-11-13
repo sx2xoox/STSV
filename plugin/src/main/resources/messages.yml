@@ -204,7 +204,15 @@ banner:
 # 감정표현 (/감정표현, 관리자 테스트 기능: README "감정표현"). {emote} · {name} = 감정표현 이름
 emote:
   disabled: "<red>이 서버에서는 감정표현을 쓸 수 없습니다."
-  usage: "<gray>/감정표현 <이름> <dark_gray>- 하기 · <gray>/감정표현 그만 <dark_gray>- 끝내기 (웅크려도 끝납니다)"
+  usage: "<gray>/감정표현 <dark_gray>- 버튼 화면 (제자리에서 Ctrl + Shift 로도 열림) · <gray>/감정표현 <이름> <dark_gray>- 하기 · <gray>/감정표현 그만 <dark_gray>- 끝내기 (웅크려도 끝납니다)"
+  menu-title: "<#f0e2b0>감정표현"
+  menu-hint: "<gray>버튼을 누르면 바로 합니다. 하는 중에는 <white>웅크리면</white> 끝납니다."
+  menu-button: "<white>{name}"
+  menu-tooltip: "<white>{name}</white> <gray>· {kind} · 한 바퀴 {seconds}초"
+  menu-loop: "멈출 때까지 되풀이"
+  menu-once: "한 번 하고 끝"
+  menu-stop: "<red>그만하기"
+  menu-close: "<gray>닫기"
   list: "<gray>감정표현: {emotes}"
   list-entry: "<click:run_command:'/감정표현 {name}'><hover:show_text:'<gray>클릭하면 <white>{name}</white> 감정표현을 합니다'><white><u>{name}</u></white></hover></click>"
   list-separator: "<dark_gray>, </dark_gray>"

@@ -230,8 +230,17 @@ def read_emotes(path=EMOTES):
                 ease = "linear"
             frames.append((at, ease, read_pose(k, base, f"{eid} at {at}", problems)))
         cam = e.get("camera") or {}
+        props = []
+        for pr in e.get("props") or []:
+            rows, colour = [str(r) for r in pr.get("pixels") or []], str(pr.get("color", ""))
+            if pr.get("joint") not in JOINT_NAMES[1:] or len(pr.get("at") or []) != 3 or not rows or len(colour) != 7 or len({len(r) for r in rows}) != 1:
+                problems.append(f"{eid}.props: joint, at [x, y, z], color \"#rrggbb\" and pixels (rows of one length) are needed")
+                continue
+            rgb = tuple(int(colour[i:i + 2], 16) for i in (1, 3, 5))
+            props.append(dict(joint=pr["joint"], at=tuple(float(v) for v in pr["at"]), size=float(pr.get("size", 1)),
+                              grid=[[rgb if ch == "#" else None for ch in r] for r in rows]))
         out[eid] = dict(id=eid, name=e.get("name", eid), length=length, step=step, loop=bool(e.get("loop", True)),
-                        planted=e.get("legs", "free") == "planted", frames=frames,
+                        planted=e.get("legs", "free") == "planted", frames=frames, props=props,
                         camera=(float(cam.get("around", 150)), float(cam.get("up", 14)), float(cam.get("distance", 3.6))))
     return out, problems
 
@@ -624,9 +633,17 @@ def label_font(size):
     return ImageFont.load_default()
 
 
+def prop_face(prop):
+    """A prop as a face (the plugin's PuppetModel.prop): a flat picture on its joint, looking the way the puppet looks,
+    not shaded"""
+    grid = prop["grid"]
+    return dict(name="prop", joint=prop["joint"], layer=0, centre=np.array(prop["at"], float), u=np.array([1.0, 0.0, 0.0]),
+                v=np.array([0.0, 1.0, 0.0]), cols=len(grid[0]), rows=len(grid), cw=prop["size"], ch=prop["size"], grid=grid, shade=1.0)
+
+
 def preview(emote, out: Path, views=None, ticks=None, cell=(176, 236), scale=112):
     """A contact sheet of the loop: one column per tick the plugin sends (every `step`), one row per view"""
-    faces = puppet_faces(sample_skin())
+    faces = puppet_faces(sample_skin()) + [prop_face(p) for p in emote.get("props", [])]
     views = views or [("3/4 back", emote["camera"][0], emote["camera"][1]), ("side", 90, 4)]
     ticks = ticks if ticks is not None else list(range(0, emote["length"], emote["step"]))
     font, pad, head = label_font(13), 6, 22
