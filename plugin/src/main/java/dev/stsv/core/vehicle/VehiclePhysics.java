@@ -178,8 +178,14 @@ public final class VehiclePhysics {
         return false;
     }
 
+    /**
+     * Whether two boxes overlap, touching not counted: by more than {@link #EPS} on every axis, the same measure
+     * {@link #clip} moves by. (A looser one lets a turn beside a wall leave a square a hair inside it; clip then no
+     * longer sees that wall as ahead, the next move goes on into it, and what is in a block can never turn again: a
+     * towed unit, which must turn to follow, was wedged for good.)
+     */
     static boolean overlaps(double[] a, double[] b) {
-        double e = 1e-4;
+        double e = EPS;
         return a[0] < b[3] - e && a[3] > b[0] + e && a[1] < b[4] - e && a[4] > b[1] + e && a[2] < b[5] - e && a[5] > b[2] + e;
     }
 

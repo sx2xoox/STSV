@@ -14,11 +14,14 @@ import java.util.List;
  *       ({@link CartPull#target}: it turns about its axle so its tongue points at the hitch, its axle a tongue's length
  *       behind it), with the same moves (gravity, a one-block step up, never into a block, not onto lava or into deep
  *       water). Reversing pushes it back the same way.</li>
- *   <li><b>Jack-knife limit</b>: two units never stand at more than {@link TrainSpec#jackknife} degrees: a towed unit
- *       past it is turned back to it about its hitch; steering that bends the train further turns slower from
- *       {@link TrainSpec#slowFrom} of the limit on and not at all at it ({@link #turnScale}).</li>
- *   <li><b>Stuck</b>: when a towed unit cannot get where its hitch wants it (a wall, a ledge too high, a turn into a
- *       block, lava ahead), the whole train stays where it was this tick and stops: no unit ever goes into a block and the
+ *   <li><b>Jack-knife limit</b>: driving never bends two units to more than {@link TrainSpec#jackknife} degrees: a
+ *       towed unit is held at it about its hitch; steering that bends the train further turns slower from
+ *       {@link TrainSpec#slowFrom} of the limit on and not at all at it ({@link #turnScale}). Only a block can push a
+ *       unit further ({@link #OVER}).</li>
+ *   <li><b>Pushed aside</b>: a towed unit that meets a block on its way swings about its hitch to the nearest place it
+ *       fits ({@link #followOne}): it slides along a post or a wall's corner instead of holding the train.</li>
+ *   <li><b>Stuck</b>: when a towed unit cannot get to its hitch even so (a gap too narrow, a ledge too high, lava
+ *       ahead), the whole train stays where it was this tick and stops: no unit ever goes into a block and the
  *       train never comes apart.</li>
  * </ul>
  */
@@ -113,7 +116,8 @@ public final class TrainPhysics {
             VehiclePhysics.State st = new VehiclePhysics.State(s.x, s.y, s.z, s.yaw);
             st.onGround = true;
             float rel = angle(front, st);
-            if (Math.abs(rel) > t.jackknife()) st.yaw = VehiclePhysics.wrap(front.yaw - (float) (Math.signum(rel) * t.jackknife()));
+            double most = t.jackknife() + OVER;       // as far as a block may have pushed it (followOne)
+            if (Math.abs(rel) > most) st.yaw = VehiclePhysics.wrap(front.yaw - (float) (Math.signum(rel) * most));
             place(st, front, t.trailers().get(i));
             out.add(st);
             front = st;
@@ -172,7 +176,7 @@ public final class TrainPhysics {
         double ground = groundFactor(head, s, units, g);
         float scale = units.isEmpty() ? 1f : turnScale(angle(head, units.getFirst()), VehiclePhysics.yawRate(head.speed, in.steer(), s), train);
         VehiclePhysics.step(head, in, s, t, Math.min(s.speed(), cap) * ground, scale, bonus, cap * ground, topScale, accelScale);
-        if (follow(head, units, train, t)) return true;
+        if (follow(before.getFirst(), head, units, train, t)) return true;
         double speed = head.speed;
         set(head, before.getFirst());
         for (int i = 0; i < units.size(); i++) set(units.get(i), before.get(i + 1));
@@ -181,26 +185,134 @@ public final class TrainPhysics {
         return false;
     }
 
-    /** Every towed unit follows its hitch (front to back). false = one could not get there (the caller undoes the tick). */
-    public static boolean follow(VehiclePhysics.State head, List<VehiclePhysics.State> units, TrainSpec t, VehiclePhysics.Terrain terrain) {
+    /**
+     * Every towed unit follows its hitch (front to back), was: the driven unit before it moved this tick. false = one
+     * could not get there: every towed unit is where it was (the caller undoes the driven one).
+     */
+    public static boolean follow(VehiclePhysics.State was, VehiclePhysics.State head, List<VehiclePhysics.State> units, TrainSpec t,
+                                 VehiclePhysics.Terrain terrain) {
+        // how far each unit was folded before this tick (by where it stood: its facing may have been waiting for room)
+        double[] folded = new double[units.size()];
+        boolean over = false;
+        VehiclePhysics.State front = was;
+        for (int i = 0; i < units.size(); i++) {
+            VehiclePhysics.State u = units.get(i);
+            TrainSpec.Trailer tr = t.trailers().get(i);
+            double[] h = hitch(front, tr);
+            folded[i] = Math.abs(VehicleSeats.signed(front.yaw - (float) CartPull.target(u.x, u.z, u.yaw, h[0], h[2], tr.tongue())[2]));
+            over |= folded[i] > t.jackknife() + 1e-3;
+            front = copy(u);
+        }
+        if (follow(head, units, t, terrain, folded, true)) return true;
+        // a unit coming back to the limit swings the hitch of the one behind it, which may have no room for that: then
+        // no unit comes back this tick
+        return over && follow(head, units, t, terrain, folded, false);
+    }
+
+    /** Front to back; when a unit fails, all are put back where they were. */
+    private static boolean follow(VehiclePhysics.State head, List<VehiclePhysics.State> units, TrainSpec t, VehiclePhysics.Terrain terrain,
+                                  double[] folded, boolean ease) {
+        List<VehiclePhysics.State> before = new ArrayList<>();
+        for (VehiclePhysics.State u : units) before.add(copy(u));
         VehiclePhysics.State front = head;
         for (int i = 0; i < units.size(); i++) {
-            if (!followOne(front, units.get(i), t.trailers().get(i), t.jackknife(), terrain)) return false;
+            if (!followOne(front, units.get(i), t.trailers().get(i), t.jackknife(), terrain, folded[i], ease)) {
+                for (int k = 0; k < units.size(); k++) set(units.get(k), before.get(k));
+                return false;
+            }
             front = units.get(i);
         }
         return true;
     }
 
-    /** One towed unit after the unit in front of it moved: turn, move (gravity, steps, walls), the wheels roll. */
-    static boolean followOne(VehiclePhysics.State front, VehiclePhysics.State st, TrainSpec.Trailer tr, double cap, VehiclePhysics.Terrain t) {
+    /**
+     * One towed unit after the unit in front of it moved: it goes where its hitch wants it ({@link #target}). When a
+     * block is in the way there, the block pushes it aside: it swings about its hitch, a little at a time
+     * ({@link #DEFLECT_STEP} degrees, to either side, the nearest first, at most {@link #DEFLECT_MAX} a tick and never
+     * more than {@link #OVER} past the jack-knife limit), to the nearest place it fits. So a trailer that brushes a post or a wall's corner
+     * slides along it instead of holding the train, and a train that was held can always back out. false = no place
+     * within that swing (a gap too narrow for it, a wall straight ahead): the caller undoes the tick.
+     */
+    static boolean followOne(VehiclePhysics.State front, VehiclePhysics.State st, TrainSpec.Trailer tr, double cap, VehiclePhysics.Terrain t,
+                             double folded, boolean ease) {
         st.bumped = false;
-        VehicleSpec u = tr.unit();
         double[] h = hitch(front, tr);
-        double[] want = target(st.x, st.z, st.yaw, h[0], h[2], tr.tongue(), front.yaw, cap);
-        float turn = VehicleSeats.signed((float) want[2] - st.yaw);
-        if (Math.abs(turn) > 1e-4) {
-            float yaw = VehiclePhysics.wrap((float) want[2]);
-            if (VehiclePhysics.collides(st.x, st.y, st.z, yaw, u, t)) return false;   // the turn would push it into a block
+        // held at the limit. A unit a block had pushed past it (folded: how far it was folded before this tick) is not
+        // thrown back: it comes back EASE degrees a tick (ease), or stays as far out as it was
+        double held = Math.max(cap, Math.min(folded, cap + OVER) - (ease ? EASE : 0));
+        if (reach(st, tr, target(st.x, st.z, st.yaw, h[0], h[2], tr.tongue(), front.yaw, held), t)) return true;
+        // a block keeps it from the limit: just as its hitch pulls it, then swung aside from there
+        double[] want = target(st.x, st.z, st.yaw, h[0], h[2], tr.tongue(), front.yaw, cap + OVER);
+        if (reach(st, tr, want, t)) return true;
+        for (float d = DEFLECT_STEP; d <= DEFLECT_MAX + 1e-3; d += DEFLECT_STEP) {
+            for (int side = -1; side <= 1; side += 2) {
+                float yaw = VehiclePhysics.wrap((float) want[2] + side * d);
+                if (Math.abs(VehicleSeats.signed(front.yaw - yaw)) > cap + OVER) continue;
+                double[] f = VehiclePhysics.forward(yaw);
+                if (reach(st, tr, new double[]{h[0] - f[0] * tr.tongue(), h[2] - f[1] * tr.tongue(), yaw}, t)) return true;
+            }
+        }
+        // squeezed between blocks, where it cannot swing at all: it goes where its hitch wants it facing as it does
+        // (its way out of a gap it got into; it turns to its hitch again as soon as there is room)
+        VehiclePhysics.State a = copy(st);
+        if (reach(a, tr, want, t, 3)) {
+            set(st, a);
+            return true;
+        }
+        return false;
+    }
+
+    /** Degrees a towed unit swings about its hitch at a time, and at most in a tick, to get past a block. */
+    public static final float DEFLECT_STEP = 0.75f, DEFLECT_MAX = 12f;
+
+    /**
+     * Degrees past the jack-knife limit a block may push a towed unit (a train folded to its limit against a post
+     * could move neither way: backing up, the post now folds it a little further, as it would a real one), and the
+     * degrees a tick it comes back to the limit when it is free again.
+     */
+    public static final float OVER = 15f, EASE = 1.5f;
+
+    /**
+     * Brings a towed unit to a place {x, z, yaw}: turning where it stands and then moving, or (when the turn would push
+     * it into a block there) moving first and turning at the end. With gravity, steps and walls as any vehicle; not onto
+     * lava or into deep water. false = it cannot get there this tick: then it is left as it was.
+     */
+    private static boolean reach(VehiclePhysics.State st, TrainSpec.Trailer tr, double[] want, VehiclePhysics.Terrain t) {
+        for (int how = 0; how < 3; how++) {
+            VehiclePhysics.State a = copy(st);
+            if (reach(a, tr, want, t, how)) {
+                set(st, a);
+                return true;
+            }
+        }
+        return false;
+    }
+
+    /**
+     * A towed unit standing against a block may leave a turn this small (degrees) for a later tick, and one squeezed
+     * between blocks a turn up to TURN_LAG_MAX ({@link #reach}).
+     */
+    public static final float TURN_LAG = 0.5f, TURN_LAG_MAX = 45f;
+
+    /**
+     * how: 0 = turn, then move; 1 = move, then turn; 2 = move and leave the turn for later, when it is at most
+     * {@link #TURN_LAG} (a unit touching a block cannot swing the least bit towards it, but once it has moved off it
+     * can: its place always follows its hitch, only its facing waits); 3 = the same up to {@link #TURN_LAG_MAX}.
+     */
+    private static boolean reach(VehiclePhysics.State st, TrainSpec.Trailer tr, double[] want, VehiclePhysics.Terrain t, int how) {
+        boolean turnFirst = how == 0;
+        VehicleSpec u = tr.unit();
+        float yaw = VehiclePhysics.wrap((float) want[2]);
+        boolean turns = Math.abs(VehicleSeats.signed(yaw - st.yaw)) > 1e-4;
+        if (how >= 2) {
+            if (!turns || Math.abs(VehicleSeats.signed(yaw - st.yaw)) > (how == 2 ? TURN_LAG : TURN_LAG_MAX)) return false;
+            turns = false;
+        }
+        // a unit that is in a block already (a block set into it, a train saved that way) may turn and move as its
+        // hitch says: that is its way out
+        boolean inside = VehiclePhysics.collides(st.x, st.y, st.z, st.yaw, u, t);
+        if (turns && turnFirst) {
+            if (!inside && VehiclePhysics.collides(st.x, st.y, st.z, yaw, u, t)) return false;   // the turn would push it into a block
             st.yaw = yaw;
         }
         double dx = want[0] - st.x, dz = want[1] - st.z;
@@ -215,6 +327,10 @@ public final class TrainPhysics {
         st.x += m[0];
         st.y += m[1];
         st.z += m[2];
+        if (turns && !turnFirst) {
+            if (!inside && VehiclePhysics.collides(st.x, st.y, st.z, yaw, u, t)) return false;   // no room to turn there either
+            st.yaw = yaw;
+        }
         double[] f = VehiclePhysics.forward(st.yaw);
         double along = m[0] * f[0] + m[2] * f[1];
         st.speed = Math.abs(along) < 1e-6 && Math.hypot(m[0], m[2]) < 1e-6 ? 0 : along / VehiclePhysics.DT;

@@ -220,6 +220,104 @@ class TrainPhysicsTest {
         assertTrue(head.z < z);
     }
 
+    static DriveInput keys(boolean forward, int steer) {
+        return new DriveInput(forward, !forward, steer > 0, steer < 0, false, false);
+    }
+
+    static List<VehiclePhysics.State> copies(List<VehiclePhysics.State> l) {
+        List<VehiclePhysics.State> o = new java.util.ArrayList<>();
+        for (VehiclePhysics.State u : l) o.add(TrainPhysics.copy(u));
+        return o;
+    }
+
+    /** Whether some keys get the train half a block away from here within ten seconds. */
+    static boolean canLeave(VehiclePhysics.State head, List<VehiclePhysics.State> units, VehicleSpec s, VehiclePhysics.Terrain t) {
+        for (boolean fwd : new boolean[]{true, false}) for (int steer = -1; steer <= 1; steer++) {
+            VehiclePhysics.State h = TrainPhysics.copy(head);
+            List<VehiclePhysics.State> u = copies(units);
+            for (int i = 0; i < 200; i++) TrainPhysics.step(h, u, keys(fwd, steer), s, t, TrainPhysics.Ground.NONE, 10);
+            if (Math.hypot(h.x - head.x, h.z - head.z) > 0.5) return true;
+        }
+        return false;
+    }
+
+    @Test
+    void aTrailerThatBrushesAPostSlidesPastIt() {
+        // the tiller's bed is wider than the tiller: a post the tiller clears by a hair is in the bed's way. It used
+        // to stop the train dead there (and for good: it could not back out either)
+        VehicleSpec s = VehicleFarmContentTest.shipped().get("power_tiller");
+        var t = flat();
+        for (int y = 64; y <= 65; y++) t.block(1, y, 12);                      // a post, x 1 .. 2
+        double headHalf = s.squareSize() / 2, bedHalf = s.train().trailers().getFirst().unit().squareSize() / 2;
+        assertTrue(bedHalf > headHalf + 0.1, "the bed is the wider one");
+        VehiclePhysics.State head = VehiclePhysicsTest.onGround(1 - headHalf - 0.05, 0.5, 0);   // the tiller passes 0.05 left of it
+        List<VehiclePhysics.State> units = TrainPhysics.straight(head, s.train());
+        int held = 0;
+        for (int i = 0; i < 200; i++) {
+            if (!TrainPhysics.step(head, units, W, s, t, TrainPhysics.Ground.NONE, 10)) held++;
+            inNoBlock(head, units, s, t);
+        }
+        assertTrue(units.getFirst().z > 14, "the bed is past the post (" + units.getFirst().z + ")");
+        assertTrue(held <= 2, "hardly held (" + held + " ticks)");
+        assertTrue(head.speed > 4, "still rolling");
+    }
+
+    @Test
+    void theShippedTrainsNeverWedgeInAFieldOfPosts() {
+        // random keys through fields of posts and short walls: the tiller and the ox cart always have a way out, no
+        // unit is ever in a block and no train comes apart
+        for (String id : List.of("power_tiller", "ox_cart")) {
+            VehicleSpec s = VehicleFarmContentTest.shipped().get(id);
+            int held = 0, ticks = 0;
+            for (int seed = 0; seed < 10; seed++) {
+                java.util.Random r = new java.util.Random(seed);
+                var t = flat();
+                for (int i = 0; i < 60; i++) {
+                    int x = r.nextInt(60) - 30, z = r.nextInt(90) - 30;
+                    if (Math.abs(x) < 3 && Math.abs(z) < 5) continue;
+                    int len = r.nextInt(3) == 0 ? 1 + r.nextInt(4) : 1;
+                    boolean alongX = r.nextBoolean();
+                    for (int k = 0; k < len; k++) for (int y = 64; y <= 65; y++) t.block(x + (alongX ? k : 0), y, z + (alongX ? 0 : k));
+                }
+                VehiclePhysics.State head = VehiclePhysicsTest.onGround(0.5, 0.5, 0);
+                List<VehiclePhysics.State> units = TrainPhysics.straight(head, s.train());
+                int steer = 0, run = 0;
+                boolean fwd = true;
+                for (int i = 0; i < 3000; i++) {
+                    if (i % 30 == 0) steer = r.nextInt(3) - 1;
+                    if (i % 200 == 0) fwd = r.nextInt(6) != 0;
+                    boolean ok = TrainPhysics.step(head, units, keys(fwd, steer), s, t, TrainPhysics.Ground.NONE, 10);
+                    ticks++;
+                    inNoBlock(head, units, s, t);
+                    VehiclePhysics.State front = head;
+                    for (int k = 0; k < units.size(); k++) {
+                        TrainSpec.Trailer tr = s.train().trailers().get(k);
+                        double[] h = TrainPhysics.hitch(front, tr);
+                        assertEquals(tr.tongue(), Math.hypot(h[0] - units.get(k).x, h[2] - units.get(k).z), 0.05, id + ": unit " + (k + 1) + " on its hitch");
+                        assertTrue(Math.abs(TrainPhysics.angle(front, units.get(k))) <= s.train().jackknife() + TrainPhysics.OVER + TrainPhysics.TURN_LAG_MAX + 1e-3,
+                                id + ": unit " + (k + 1) + " not folded over");
+                        front = units.get(k);
+                    }
+                    if (ok) {
+                        run = 0;
+                    } else {
+                        held++;
+                        if (++run == 40) {
+                            assertTrue(canLeave(head, units, s, t), id + " wedged (seed " + seed + ", tick " + i + ", at " + head.x + " " + head.z + ")");
+                            fwd = !fwd;          // a driver backs out
+                            steer = -steer;
+                        }
+                    }
+                    if (Math.abs(head.x) > 33 || head.z > 70 || head.z < -33) {      // back into the field
+                        head = VehiclePhysicsTest.onGround(0.5, 0.5, 0);
+                        units = TrainPhysics.straight(head, s.train());
+                    }
+                }
+            }
+            assertTrue(held < ticks * 0.05, id + ": held " + held + " of " + ticks + " ticks (before the trailers slid past blocks: one in nine)");
+        }
+    }
+
     @Test
     void aTrailerStepsUpAndFallsWithGravity() {
         VehicleSpec s = train(1.6);
