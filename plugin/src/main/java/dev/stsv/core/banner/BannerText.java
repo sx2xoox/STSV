@@ -98,14 +98,18 @@ public final class BannerText {
     }
 
     /**
-     * How many steps after the banner's left end a gust reaches a part (0 for a theme without one): by where the
-     * part's picture starts (a slice: its tile), in the theme's flow columns a step.
+     * How many steps late a part of a banner with a gust is played (0 for a theme without one): by where the
+     * part's picture starts (a slice: its tile), in the theme's flow columns a step, so the gust reaches the parts
+     * in turn; or, for a theme whose parts are scattered, a time of the part's own.
      */
     static int delay(BannerCatalog.Theme t, BannerLayout.Piece p) {
-        if (t.flow() <= 0 || p.glyph().equals("L")) return 0;
+        if (t.flow() <= 0) return 0;
         String[] slice = p.glyph().split(":");
-        int origin = slice.length == 3 ? p.x() - Integer.parseInt(slice[1]) : p.x();
-        return Math.clamp(Math.floorDiv(origin - t.flowOrigin(), t.flow()), 0, MAX_DELAY);
+        int origin = p.glyph().equals("L") ? t.flowOrigin() : slice.length == 3 ? p.x() - Integer.parseInt(slice[1]) : p.x();
+        int steps = Math.floorDiv(origin - t.flowOrigin(), t.flow());
+        // scattered: every part (a tile with its slices) at a time of its own, spread over the whole wait
+        if (t.scatter()) return (int) Math.floorMod((steps * 0x9E3779B1L) >>> 12, 28L);
+        return Math.clamp(steps, 0, MAX_DELAY);
     }
 
     /** How far the game moves the pen after a bitmap glyph whose rightmost visible column + 1 is {@code width}. */

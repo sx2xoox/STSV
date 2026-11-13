@@ -108,6 +108,17 @@ class BannerLayoutTest {
             last = d;
         }
         assertTrue(last > 0);
+        // a scattered theme: the parts have times of their own (a tile and its slices the same), within the wait
+        BannerCatalog.Theme storm = C.theme("lightning").chat();
+        assertTrue(storm.scatter() && storm.flow() > 0 && !fire.chat().scatter());
+        java.util.Set<Integer> times = new java.util.HashSet<>();
+        for (BannerLayout.Piece p : BannerLayout.of(C, storm, "아주 아주 긴 칭호 이름", "Long_Name_12345").pieces()) {
+            if (p.glyph().equals("G")) continue;
+            int d = BannerText.delay(storm, p);
+            assertTrue(d >= 0 && d < 28, p.glyph() + ": " + d);
+            times.add(d);
+        }
+        assertTrue(times.size() >= 3, "not all at once: " + times);
         assertTrue(fire.chat().outline() == null, "its letters are the full banner's: no outline");
     }
 

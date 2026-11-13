@@ -95,49 +95,46 @@ def frame(G, i):
 
 
 # ------------------------------------------------------------------------------------------------
-# The chat banner (banner_themes/chat.py: one chat line; idle, then the effect runs along it from left to right)
+# The chat banner (banner_themes/chat.py: one chat line). A dark sign in a tube of neon: light chases round the tube, the magenta side stutters.
 # ------------------------------------------------------------------------------------------------
 
 from . import chat as C
 
 
 def chat_geo(Geo):
-    return C.bar(Geo, TITLE)
+    return C.bar(Geo, TITLE, "loop")
 
 
 CHAT_GEM = {"#": (255, 200, 244), "a": (255, 110, 220), "w": (255, 240, 252), "b": (200, 40, 170), "c": (90, 16, 90)}
+CHAT_STUTTER = {9: 0.35, 11: 0.5}                            # the frames the magenta half of the tube dims in
 
 
 def chat_frame(G, i):
-    """a dark plate between a cyan and a magenta tube; a pulse of light runs along it: both tubes flare, their light
-    floods the plate, a slanted beam at its head, streaks of light in its wake"""
     im, px = G.canvas()
     top, base = G.PY0 + 2, G.PY1 - 2
     rows = base - top + 1
-    step = i - C.CALM
+    R = 4.0                                                  # the tube goes round the plate: its corners' radius
     for (x, y) in G.inside:
-        u = G.flow_at(x, step) if step >= 0 else -1
-        e = C.strength(u, rise=6, body=30, total=100)
-        wave = 0.5 + 0.5 * math.cos(2 * math.pi * (x - G.TILE0) / 64)
-        if y == G.PY0: c = C.lerp(C.lerp((36, 186, 226), (150, 246, 255), wave), (236, 254, 255), 0.85 * e)
-        elif y == G.PY1: c = C.lerp(C.lerp((206, 42, 166), (255, 128, 226), wave), (255, 230, 250), 0.85 * e)
+        cx, cy = min(x - G.PX0, G.PX1 - x), min(y - G.PY0, G.PY1 - y)
+        rim = R - math.hypot(R - cx - 0.5, R - cy - 0.5) if cx < R and cy < R else min(cx, cy) + 0.5   # into the plate
+        if rim <= 0: continue
+        v = (y - G.PY0) / (G.PY1 - G.PY0)                    # 0: the cyan half .. 1: the magenta half
+        tube = C.lerp(CYA, MAG, C.smooth((v - 0.3) / 0.4))
+        # the chase: a brighter stretch moving right along the top and left along the bottom, 4 columns a frame
+        along = (x - G.TILE0 - 4 * i) if v < 0.5 else (-(x - G.TILE0) - 4 * i)
+        chase = max(0.0, math.cos(2 * math.pi * along / 64)) ** 3
+        lit = (0.55 + 0.45 * chase) * (CHAT_STUTTER.get(i, 1.0) if v > 0.5 else 1.0)
+        dark = C.lerp((16, 8, 30), (8, 5, 18), v)
+        if rim < 1.0:
+            c = C.lerp(C.lerp(dark, tube, 0.55), C.lerp(tube, (255, 255, 255), 0.62), lit)
+            a = int(255 * min(1.0, rim + 0.35))
         else:
-            v = (y - top) / (rows - 1)                       # 0 under the cyan tube .. 1 over the magenta one
-            c = C.lerp((22, 11, 38), (11, 6, 22), v)
-            reach = 2.2 + 5.5 * e                            # how far the tubes' light gets into the plate
-            cy = (0.34 + 0.6 * e) * math.exp(-(y - G.PY0 - 1) / reach)
-            mg = (0.34 + 0.6 * e) * math.exp(-(G.PY1 - 1 - y) / reach)
-            c = C.lerp(c, CYA, min(0.9, cy))
-            c = C.lerp(c, MAG, min(0.9, mg))
-            if u > 0:
-                lean = u - 0.9 * (base - y)                  # the beam leans forward at the top
-                if 0 <= lean < 6: c = C.lerp(c, (232, 250, 255), 0.85 * (1 - lean / 6) * min(1.0, u / 6))
-                streak = C.noise(u, y - top, 16, 1, 1 << 20, 1 << 10, 61)
-                if streak > 0.66: c = C.lerp(c, C.lerp(CYA_L, (255, 170, 236), v), 0.55 * e * (streak - 0.66) / 0.34)
-        # the ends: the light just fades out
-        d = min(x - G.PX0, G.PX1 - x)
-        a = int(255 * C.smooth((d - 0.5) / 10))
-        if a <= 0: continue
+            # inside: the tube's glow falling off, faint bars sliding by behind the words
+            c = C.lerp(dark, tube, 0.62 * lit * math.exp(-(rim - 1.0) / 1.5))
+            if (x - G.TILE0 + i) % 16 == 0: c = C.lerp(c, (70, 36, 128), 0.30)
+            glow = math.exp(-(G.PY1 - 1 - y) / 3.2)
+            c = C.lerp(c, MAG, 0.20 * glow * CHAT_STUTTER.get(i, 1.0))
+            a = 255
         px[x, y] = tuple(c) + (a,)
     C.gem7(px, G, CHAT_GEM)
     return im

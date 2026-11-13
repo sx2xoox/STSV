@@ -9,14 +9,19 @@ the title in Galmuri14, made bold (every pixel doubled to its right: one more co
 
 A theme module gives chat_frame(G, i) (the 16 frames, G a ChatGeo) next to its frame(G, i).
 
-How the chat banners look and move (every theme the same way, with its own effect):
-  * the words are the full banner's (same colours, no outline) and stay plain to read: the plate idles quietly
-    (frames 0-3; inside the plate the idle frames are the same picture, so the tiled plate has no seams);
-  * every two seconds the theme's effect runs along the banner from left to right, fast, ragged, never covering
-    all of it (frames 4-15, drawn as a function of ChatGeo.flow_at: the shader plays the parts one after the other);
-  * smooth shading (colour ramps, glows that fade out) instead of flat bands and outlines; no end pieces: the plate
-    is a plain bar whose ends go their own way per theme (burnt away, frayed, faded).
-The helpers under ChatGeo are what the themes share for that.
+What the chat banners have in common, and what they do not. Like the animated name plates of chat programs,
+every theme is its own little scene with its own motion, its own edges and its own ends: no shared frame.
+  * common: the words are the full banner's (same colours, no outline) and stay plain to read most of the time;
+    smooth shading (colour ramps, glows that fade out) instead of flat bands and outlines; nothing over or under
+    the chat line; where the plate is tiled the picture repeats every TILE columns.
+  * how a theme moves is its own choice of timeline (title_banners.py reads it from the geometry):
+      - a loop: frames 0-15 in turn, 70 ms a frame, the whole banner in step (ChatGeo flow=0): a scene that keeps
+        going (drifting, scrolling, pulsing);
+      - a gust: the plate idles (frames 0-3) and every two seconds frames 4-15 play once, part after part from the
+        left, 50 ms a step (flow=FLOW): something that runs along the whole banner (drawn by ChatGeo.flow_at);
+      - scattered: as a gust, but every part at a time of its own (scatter=True): things that happen here and
+        there (each part's frames 4-15 are its own little event; it must die away towards the part's sides).
+The helpers under ChatGeo are what the themes share.
 """
 import math
 
@@ -90,13 +95,13 @@ class ChatGeo:
     end: columns of plate after the text's right padding that stay free of text (a theme's effect burns there);
     they belong to the right end, which is never tiled, so what is drawn there need not repeat."""
 
-    def __init__(self, title, side=22, end=0, tile=16, flow=0, pointed=True):
+    def __init__(self, title, side=22, end=0, tile=16, flow=0, pointed=True, scatter=False):
         """tile: the plate's tile (title_banners.py cuts it at TILE0). flow: columns a step of a gust that runs
         along the banner from left to right (0: none), see flow_at. pointed: the plate's ends come to a point
         (else it is a plain bar: the theme shapes its ends itself, within the 16 columns of each end part)."""
         self.title = title
         self.END = end
-        self.TILE, self.FLOW = tile, flow
+        self.TILE, self.FLOW, self.SCATTER = tile, flow, scatter
         self.TT, self.TW = width(title), width(NAME, nick=True)
         self.PW = PAD + self.TT + GAP + self.TW + PAD + end
         self.W, self.H = self.PW + 2 * side, ROWS
@@ -150,9 +155,20 @@ CALM = 4                      # frames 0 .. 3: the idle plate; the others: the s
 GEM7 = ("...#...", "..#a#..", ".#aaab.", "#aawabc", ".bbabc.", "..bcc..", "...c...")
 
 
-def bar(Geo, title):
-    """the geometry of a chat banner as the themes draw it: a plain bar, a 64-column tile, an effect 16 columns a step"""
-    return Geo(title, tile=TILE, flow=FLOW, pointed=False)
+def bar(Geo, title, timeline="loop", end=0):
+    """the geometry of a chat banner as the themes draw it: a plain bar with a 64-column tile. timeline: "loop",
+    "gust" or "scatter" (see the top). end: columns after the text that the right end keeps for itself."""
+    return Geo(title, tile=TILE, flow=0 if timeline == "loop" else FLOW, pointed=False, scatter=timeline == "scatter", end=end)
+
+
+def corner(G, x, y, radius=3.0):
+    """0 .. 1: how much of a pixel is inside the plate with rounded corners (its alpha), for a soft rounded bar"""
+    cx = min(x - G.PX0, G.PX1 - x)
+    cy = min(y - G.PY0, G.PY1 - y)
+    if cx >= radius or cy >= radius:
+        return 1.0
+    d = math.hypot(radius - cx - 0.5, radius - cy - 0.5)
+    return max(0.0, min(1.0, radius - d + 0.5))
 
 
 def lerp(a, b, t):

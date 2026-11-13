@@ -53,7 +53,8 @@ public record BannerCatalog(int frames, int ghostLevels, int pad, int gap, int s
      * before the left end's picture at both sizes (left out: a banner starts where it is drawn).
      * {@code flow} (0: none): a gust runs along the banner. The shader does not loop the 16 frames but idles on
      * the first four and every few seconds plays the other twelve once, each part as many steps late as it starts
-     * columns (/ flow) after {@code flowOrigin}; the plate grows by whole steps of flow columns. {@code outline}: the colour of the letters' outline (fonts title_chat_o / nick_chat_o), null for none.
+     * columns (/ flow) after {@code flowOrigin}; the plate grows by whole steps of flow columns. {@code scatter}:
+     * the parts do not play in turn but each at a time of its own (things happen here and there). {@code outline}: the colour of the letters' outline (fonts title_chat_o / nick_chat_o), null for none.
      * {@code textRight}: columns of plate after the text's right padding that stay free of text (an effect has
      * them; they are part of the right end). {@code metrics}: its text's measures. {@code chat}: its chat banner (the same id, its own parts and measures,
      * in its own pixels: half GUI pixels), null when it has none.
@@ -61,7 +62,7 @@ public record BannerCatalog(int frames, int ghostLevels, int pad, int gap, int s
     public record Theme(String id, String name, String icon, int height, int mid, int plateLeft, int plateRight, int tile, int left,
                         int right, int c0, int c1, int width, int fills, int minPlate, int gemX, int[] gemChars, int[][] gemTints,
                         int[] gemAdvances, Map<String, Glyph> glyphs, int[][] titleTint, int[][] nickTint, int leadBig, int leadMini,
-                        int textRight, int flow, int flowOrigin, int[] outline, Metrics metrics, Theme chat) {
+                        int textRight, int flow, int flowOrigin, boolean scatter, int[] outline, Metrics metrics, Theme chat) {
 
         public Glyph glyph(String name) {
             Glyph g = glyphs.get(name);
@@ -120,6 +121,7 @@ public record BannerCatalog(int frames, int ghostLevels, int pad, int gap, int s
                 t.has("text_right") ? t.get("text_right").getAsInt() : 0,
                 t.has("flow") ? t.getAsJsonObject("flow").get("step").getAsInt() : 0,
                 t.has("flow") ? t.getAsJsonObject("flow").get("origin").getAsInt() : 0,
+                t.has("flow") && t.getAsJsonObject("flow").has("scatter") && t.getAsJsonObject("flow").get("scatter").getAsBoolean(),
                 t.has("outline") ? ints(t.getAsJsonArray("outline")) : null,
                 own, t.has("chat") ? theme(t.getAsJsonObject("chat"), chat, chat) : null);
     }

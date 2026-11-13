@@ -92,57 +92,53 @@ frame = draw
 
 
 # ------------------------------------------------------------------------------------------------
-# The chat banner (banner_themes/chat.py: one chat line; idle, then the effect runs along it from left to right)
+# The chat banner (banner_themes/chat.py: one chat line). Night under a blood moon: the moon at the right end, mist drifting past, blood running down from the top.
 # ------------------------------------------------------------------------------------------------
 
 from . import chat as C
 
 
 def chat_geo(Geo):
-    return C.bar(Geo, TITLE)
+    return C.bar(Geo, TITLE, "loop", end=22)
 
 
-CHAT_MIST = C.ramp(((0.10, (74, 8, 16)), (0.35, (140, 12, 24)), (0.60, (204, 20, 36)), (0.85, (240, 62, 68)),
-                    (1.10, (255, 150, 150))))
 CHAT_GEM = {"#": (255, 150, 150), "a": (255, 70, 80), "w": (255, 240, 240), "b": (190, 16, 36), "c": (80, 4, 14)}
-
-
-def chat_mist(u, y, rows):
-    """A red mist drifting along the plate, u columns behind its head, at inner row y (CHAT_MIST's scale): torn
-    clouds with clear air between them, thicker in its middle, leaning back as it moves."""
-    uu = u - 6 * (1 - y / (rows - 1))
-    e = C.strength(uu, rise=20, body=44, total=C.GUST)
-    if e <= 0:
-        return 0.0
-    cloud = C.fbm(uu * 0.8, y * 1.5 + uu * 0.15, 71)
-    veil = C.noise(uu, y, 26, 6, 1 << 20, 1 << 10, 75)
-    return max(0.0, e * (2.3 * cloud - 0.62) * (0.5 + 0.9 * veil))
+# blood hanging from the upper edge, the same every 64 columns: column, how far it hangs, the frame its drop lets go
+CHAT_DRIPS = ((9, 3, 0), (27, 5, 6), (44, 2, 11), (58, 4, 3))
 
 
 def chat_frame(G, i):
-    """a plate the colour of dried blood under a dim red rail; a red mist drifts along it"""
     im, px = G.canvas()
-    top, base = G.PY0 + 2, G.PY1 - 2
-    rows = base - top + 1
-    step = i - C.CALM
+    mx, my, mr = G.PX1 - 19.5, (G.PY0 + G.PY1) / 2, 6.5       # the moon, in the right end
     for (x, y) in G.inside:
-        u = G.flow_at(x, step) if step >= 0 else -1
-        e = C.strength(u, rise=20, body=44, total=C.GUST)
-        wave = 0.5 + 0.5 * math.cos(2 * math.pi * (x - G.TILE0) / 64)
-        if y == G.PY0: c = C.lerp(C.lerp((112, 16, 26), (206, 54, 66), wave ** 2), (255, 130, 130), 0.5 * e)
-        elif y == G.PY0 + 1: c = C.lerp((58, 8, 14), (170, 20, 34), 0.6 * e)
-        elif y == G.PY1 - 1: c = C.lerp((66, 8, 16), (170, 20, 34), 0.6 * e)
-        elif y == G.PY1: c = C.lerp((88, 10, 20), (128, 18, 30), wave)
-        else:
-            v = (y - top) / (rows - 1)
-            ground = C.lerp((46, 8, 15), (17, 4, 8), v)
-            ground = C.lerp(ground, (70, 10, 20), 0.25 * C.noise(x - G.TILE0, y, 8, 4, 64, 16, 73))
-            c = CHAT_MIST(chat_mist(u, y - top, rows), ground) if u > 0 else ground
-        # the ends: the plate thins out into mist
-        d, edge = C.end_depth(G, x, y, 77, shallow=2.0, deep=9.0)
-        a = int(255 * C.smooth((d - edge + 4.5) / 6))
+        v = (y - G.PY0) / (G.PY1 - G.PY0)
+        xt = x - G.TILE0
+        dm = math.hypot(x - mx, y - my)
+        c = C.lerp((40, 6, 14), (14, 3, 8), v)                # the night
+        c = C.lerp(c, (150, 14, 26), 0.75 * math.exp(-max(0.0, dm - mr) / 7.0))   # the moon's glow
+        if dm < mr + 0.5:
+            shade = C.smooth(0.5 + ((x - mx) + (y - my) * 0.6) / (2.4 * mr))      # lit from the upper left
+            moon = C.lerp((244, 84, 70), (150, 18, 30), shade)
+            moon = C.lerp(moon, (120, 12, 24), 0.5 * C.smooth((C.noise(x, y, 3, 3, 1 << 10, 1 << 10, 79) - 0.55) / 0.2))   # seas
+            c = C.lerp(c, moon, max(0.0, min(1.0, mr + 0.5 - dm)))
+        # mist drifting to the left, 4 and 8 columns a frame, thicker towards the bottom
+        mist = 0.6 * C.noise(xt + 4 * i, y, 16, 6, 64, 24, 71) + 0.4 * C.noise(xt + 8 * i, y, 8, 3, 64, 24, 73)
+        c = C.lerp(c, (164, 20, 34), 0.6 * max(0.0, mist - 0.42) * 1.8 * (0.35 + 0.65 * v))
+        # blood along the upper edge, uneven, with drips; a drop falls from each drip once a loop
+        thick = 1.1 + 1.4 * C.noise(xt, 0, 8, 4, 64, 16, 77)
+        row = y - G.PY0
+        if row < thick:
+            c = (232, 44, 54) if row == 0 else C.lerp((176, 14, 26), (120, 8, 18), row / 2)
+        for col, hang, go in CHAT_DRIPS:
+            if xt % 64 == col:
+                fall = (i - go) % 16
+                if row < thick + hang: c = C.lerp((176, 14, 26), (128, 9, 20), row / 6)
+                elif thick + hang + fall * 1.1 <= row < thick + hang + fall * 1.1 + 2 and row < 15: c = (186, 16, 30)
+        # no frame: the lower edge and both ends fade into the dark
+        a = 255 if y < G.PY1 - 1 else 190 if y == G.PY1 - 1 else 96
+        d, edge = C.end_depth(G, x, y, 77, shallow=0.5, deep=6.0)
+        a = int(a * C.smooth((d - edge + 3) / 6))
         if a <= 0: continue
-        if d < edge + 2: c = C.lerp(C.lerp((120, 12, 24), (220, 40, 52), e), c, C.smooth((d - edge + 3) / 5))
         px[x, y] = tuple(c) + (a,)
     C.gem7(px, G, CHAT_GEM)
     return im

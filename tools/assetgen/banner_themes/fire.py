@@ -6,6 +6,7 @@ words plain on it (frames 0-3), and every few seconds a gust of fire runs along 
 covering all of it (frames 4-15, played by the shader part after part: CHAT_FLOW)."""
 import math, random
 from .lib_a import *
+from . import chat as C
 TITLE, SLUG = "화염의 군주", "fire"
 GEO = {}
 STATIC = 4
@@ -203,20 +204,21 @@ def bed_heat(x, y, rows):
 
 
 def frame_colour(G, x, y, e):
-    """The plate's frame at a pixel, None inside it. e: how strong the gust burns here (0: the idle plate).
-    Top: a gold rail with a sheen that comes and goes along it, a bronze lip under it. Bottom: a lip that glows
-    with the embers, a dark gold rail. It repeats every 64 columns where the plate is tiled. (The plate has no end
-    pieces: its ends are burnt away, see burnt.)"""
-    wave = 0.5 + 0.5 * math.cos(2 * math.pi * (x - G.TILE0) / 64)
+    """The strip's upper and lower edge at a pixel, None inside it. e: how strong the gust burns here (0: idle).
+    No frame: the top is charred, with an ember smouldering here and there (the same every 64 columns); the bottom
+    is the edge of the ember bed, glowing. Both heat up as the gust passes."""
+    xt = x - G.TILE0
     if y == G.PY0:
-        return lerp((230, 168, 62), (255, 244, 190), wave ** 2)
+        ember = C.smooth((C.noise(xt, 0, 4, 4, 64, 16, 61) - 0.62) / 0.2)
+        return C.lerp(C.lerp((30, 9, 7), (150, 44, 12), 0.8 * ember), (255, 160, 56), 0.55 * e)
     if y == G.PY0 + 1:
-        return lerp(lerp((112, 58, 16), (150, 84, 24), wave), (255, 160, 56), 0.8 * e)
+        return C.lerp((44, 12, 9), (214, 80, 22), 0.5 * e)
     if y == G.PY1 - 1:
-        glow = 0.5 + 0.5 * math.sin(x * math.pi / 8)
-        return lerp(lerp((150, 36, 10), (196, 62, 16), glow), (255, 150, 48), 0.25 + 0.75 * e if e > 0 else 0.0)
+        glow = C.noise(xt, 0, 4, 4, 64, 16, 63)
+        return C.lerp(C.lerp((170, 44, 12), (246, 110, 28), glow), (255, 196, 96), 0.7 * e)
     if y == G.PY1:
-        return lerp((128, 72, 20), (184, 110, 30), wave)
+        glow = C.noise(xt, 0, 4, 4, 64, 16, 65)
+        return C.lerp(C.lerp((96, 20, 8), (176, 50, 14), glow), (255, 150, 48), 0.6 * e)
     return None
 
 
@@ -242,7 +244,7 @@ def burnt(G, x, y, c, e, flicker):
 
 
 def chat_geo(Geo):
-    return Geo(TITLE, tile=CHAT_TILE, flow=CHAT_FLOW, pointed=False)
+    return C.bar(Geo, TITLE, "gust")
 
 
 def chat_frame(G, i):

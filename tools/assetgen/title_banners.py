@@ -190,7 +190,7 @@ def render(theme, chat=False):
     geo = dict(px0=G.PX0 - ox, px1=G.PX1 - ox, mid=G.MID - oy, cx=int(round(G.CX)) - ox, div=div - ox, title=m.TITLE,
                end=getattr(G, "END", 0), tile=G.TILE if chat else theme["tile"])
     if chat:                                                 # the parts are the geometry's (its gust is drawn by part)
-        geo.update(tile0=G.TILE0 - ox, r0=G.R0 - ox, flow=G.FLOW, flow0=G.FLOW0 - ox)
+        geo.update(tile0=G.TILE0 - ox, r0=G.R0 - ox, flow=G.FLOW, flow0=G.FLOW0 - ox, scatter=G.SCATTER)
     return bg, gems, geo
 
 
@@ -417,7 +417,7 @@ def theme_sheets(theme, fonts, chat=False):
     meta["min_plate"] = (c["left"] - geo["px0"]) + (c["c1"] - c["c0"]) + (geo["px1"] + 1 - c["right"] - P)
     if geo.get("flow"):                                      # a gust runs along the banner (banner_themes/chat.py flow_at)
         assert (c["left"] - geo["flow0"]) % geo["flow"] == 0 and P % geo["flow"] == 0
-        meta["flow"] = dict(step=geo["flow"], origin=geo["flow0"])
+        meta["flow"] = dict(step=geo["flow"], origin=geo["flow0"], scatter=bool(geo.get("scatter")))
     # the empty columns before the left end (cut off the banner: it starts where its picture starts)
     left_end = [f.crop((0, 0, c["left"], H)) for f in bg]
     meta["lead"] = dict(big=min(lead(f) for f in left_end), mini=min(lead(band(f, mid)) for f in left_end))

@@ -75,54 +75,54 @@ frame = draw
 
 
 # ------------------------------------------------------------------------------------------------
-# The chat banner (banner_themes/chat.py: one chat line; idle, then the effect runs along it from left to right)
+# The chat banner (banner_themes/chat.py: one chat line). A bar of cut glass you can see through; colours wander through it, its upper edge glints, it sparkles.
 # ------------------------------------------------------------------------------------------------
 
 from . import chat as C
 
 
 def chat_geo(Geo):
-    return C.bar(Geo, TITLE)
+    return C.bar(Geo, TITLE, "loop")
 
 
 CHAT_GEM = {"#": (255, 255, 255), "a": (230, 236, 255), "w": (255, 255, 255), "b": (170, 180, 250), "c": (110, 110, 190)}
+# sparkles, the same every 64 columns: column, row, the frame it starts in
+CHAT_SPARKLES = ((12, 5, 1), (39, 11, 7), (55, 7, 12))
+CHAT_STAR = ((0,), (0, 1), (0, 1, 2), (0, 1), (0,))          # a sparkle's reach (pixels from its centre) frame by frame
 
 
-def chat_spectrum(s):
-    """the colour of a band of light, s 0 .. 1 across it (red .. violet, smooth)"""
-    k = max(0.0, min(0.999, s)) * (len(SPECTRUM) - 1)
-    return C.lerp(SPECTRUM[int(k)], SPECTRUM[int(k) + 1], k - int(k))
+def chat_hue(s):
+    """a colour of the spectrum, s around the circle (any number: it repeats every 1)"""
+    k = (s % 1.0) * len(SPECTRUM)
+    return C.lerp(SPECTRUM[int(k) % len(SPECTRUM)], SPECTRUM[(int(k) + 1) % len(SPECTRUM)], k - int(k))
 
 
 def chat_frame(G, i):
-    """a plate of smoked glass you can see through, cut on a slant at both ends; a band of rainbow light slides
-    through it, a fainter one after it"""
     im, px = G.canvas()
     top, base = G.PY0 + 2, G.PY1 - 2
     rows = base - top + 1
-    step = i - C.CALM
     for (x, y) in G.inside:
-        u = G.flow_at(x, step) if step >= 0 else -1
-        wave = 0.5 + 0.5 * math.cos(2 * math.pi * (x - G.TILE0) / 64)
-        facet = 0.5 + 0.5 * math.sin(2 * math.pi * (x - G.TILE0 + 1.5 * y) / 32)
-        if y == G.PY0: c, a = C.lerp((214, 222, 250), (255, 255, 255), wave ** 2), 236
-        elif y == G.PY0 + 1: c, a = (190, 200, 244), 130
-        elif y == G.PY1 - 1: c, a = (150, 160, 226), 130
-        elif y == G.PY1: c, a = C.lerp((170, 178, 232), (206, 212, 250), wave), 210
-        else:
-            v = (y - top) / (rows - 1)
-            c = C.lerp((150, 162, 214), (112, 120, 180), v)
-            c = C.lerp(c, (206, 214, 250), 0.25 * facet)
-            a = int(96 + 30 * facet)
-        if u > 0:
-            lean = u - 1.0 * (G.PY1 - y)                     # the band leans forward at the top
-            for start, width, weight in ((0, 34, 1.0), (50, 20, 0.45)):
-                s = (lean - start) / width
-                if 0 <= s < 1:
-                    w = weight * C.smooth(s / 0.14) * (1 - C.smooth((s - 0.72) / 0.28))
-                    c = C.lerp(c, chat_spectrum(s), 0.82 * w)
-                    a = int(a + (238 - a) * 0.85 * w)
-        # the ends: the glass is cut on a slant and its edge fades out
+        xt = x - G.TILE0
+        v = (y - G.PY0) / (G.PY1 - G.PY0)
+        # the glass, and the colours wandering through it on a slant (4 columns a frame, the same every 64)
+        band = (xt + 1.3 * y - 4 * i) / 64
+        soft = 0.5 + 0.5 * math.cos(2 * math.pi * 2 * band)
+        c = C.lerp(C.lerp((156, 166, 216), (112, 120, 182), v), chat_hue(band), 0.22 + 0.30 * soft)
+        a = int(96 + 44 * soft)
+        # its edges: a bright cut along the top with a glint running along it, a shaded one along the bottom
+        if y == G.PY0:
+            glint = max(0.0, math.cos(2 * math.pi * (xt - 4 * i) / 64)) ** 6
+            c, a = C.lerp((214, 222, 250), (255, 255, 255), 0.35 + 0.65 * glint), int(200 + 55 * glint)
+        elif y == G.PY0 + 1: c, a = C.lerp(c, (236, 240, 255), 0.55), 150
+        elif y == G.PY1 - 1: c, a = C.lerp(c, (120, 128, 200), 0.45), 150
+        elif y == G.PY1: c, a = (128, 136, 206), 214
+        for col, row, start in CHAT_SPARKLES:
+            f = (i - start) % 16
+            if f < len(CHAT_STAR):
+                dx, dy = abs(xt % 64 - col), abs((y - top) - row)
+                if (dx == 0 and dy in CHAT_STAR[f]) or (dy == 0 and dx in CHAT_STAR[f]):
+                    c, a = (255, 255, 255), 255 if dx + dy < 2 else 190
+        # its ends: cut on a slant, the cut edge catching the light
         d = min(x - G.PX0, G.PX1 - x)
         cut = d - 0.45 * ((G.PY1 - y) if x - G.PX0 < G.PX1 - x else (y - G.PY0))
         a = int(a * C.smooth((cut - 0.5) / 5))
