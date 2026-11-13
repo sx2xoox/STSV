@@ -558,11 +558,12 @@ def text_fonts(fonts, outlines=False):
     title = table(title_latin, lambda ch: galmuri_ink(F9, ch))
     nick = table(CHARSET, lambda ch: [(x, y + 1) for y, r in enumerate(TALL[ch]) for x, v in enumerate(r) if v == "#"])
     hg = table(hangul, lambda ch: galmuri_ink(F9, ch))
-    # the chat banners' text (banner_themes/chat.py): Galmuri14 made bold, the nickname face doubled
+    # the chat banners' text (banner_themes/chat.py): Galmuri14 made bold, the nickname face doubled, Hangul in
+    # Galmuri11 Bold
     table14 = lambda chars, ink_of: {ch: (pix, chatlib.advance(pix)) for ch in chars for pix in [ink_of(ch)] if pix}
     title14 = table14(title_latin, chatlib.bold14)
     nick14 = table14(CHARSET, chatlib.tall2)
-    hg14 = table14(hangul, chatlib.bold14)
+    hg14 = table14(hangul, chatlib.hangul11)
     files = {"title": {**title, **GEM_GLYPHS}, "nick": nick, "hangul": hg,
              "title14": {**title14, **GEM_GLYPHS_CHAT}, "nick14": nick14, "hangul14": hg14}
     if outlines:                                             # only when a chat banner outlines its letters

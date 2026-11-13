@@ -4,7 +4,8 @@ A chat line is 9 GUI px high and a Galmuri9 letter alone is 9 rows, so the full 
 with a plate, and the full banner at half size has letters of 4.5 px. The chat banner is drawn like the game draws
 its own Hangul: 1 texel = half a GUI pixel. A line is 18 rows of texels: a plate of exactly these 18 rows (an edge,
 a bevel, 14 rows of text, a bevel, an edge), nothing over or under it, the text as high as the chat's own (7 px):
-the title in Galmuri14, made bold (every pixel doubled to its right: one more column), the nickname in the tall
+Hangul in Galmuri11 Bold (11 rows: hangul11), the title's Latin and signs in Galmuri14, made bold (every pixel
+doubled to its right: one more column), the nickname in the tall
 5 x 7 face with every pixel doubled both ways (the full banner's capitals and digits, the same 7 px; its small
 letters are real lowercase, five cells high: letters.SMALL).
 
@@ -61,6 +62,33 @@ def bold14(ch):
     return sorted(pix | {(x + 1, y) for x, y in pix})
 
 
+_F11 = None
+
+
+def hangul11(ch):
+    """Galmuri11 Bold's pixels of a Hangul syllable in cell rows, or None when the font has no picture for it. It is
+    11 rows high where a capital is 14 (5.5 px to 7: Hangul fills its whole square, so as high as a capital it
+    reads larger than the Latin beside it) and stands a row over the baseline, in the middle of a capital's height
+    (rows 2 .. 12)."""
+    global _F11
+    if _F11 is None:
+        _F11 = galmuri.load("11bold")
+    g = _F11.get(ord(ch))
+    if not g or not g[3]:
+        return None
+    adv, xo, yo, bits = g
+    top = TEXT_ROWS - 1 - (yo + len(bits))
+    return sorted((xo + x, top + y) for y, r in enumerate(bits) for x, b in enumerate(r) if b)
+
+
+def glyph(ch, nick=False):
+    """the pixels of a character of the chat banner's text: Hangul (hangul11), the nickname's Latin (tall2), the
+    title's Latin and signs (bold14)"""
+    if 0xAC00 <= ord(ch) <= 0xD7A3:
+        return hangul11(ch)
+    return tall2(ch) if nick and ch in TALL else bold14(ch)
+
+
 def tall2(ch):
     """the nickname face of a character (capitals seven cells high, real lowercase: letters.SMALL) with every
     pixel doubled both ways, in cell rows 0 .. 13; what hangs under the baseline (g j p q y) in row 14 only
@@ -90,7 +118,7 @@ def width(s, nick=False):
         if ch == " ":
             w += SPACE
             continue
-        pix = tall2(ch) if nick and ch in TALL else bold14(ch)
+        pix = glyph(ch, nick)
         if pix:
             w += advance(pix)
     return w
@@ -114,6 +142,8 @@ class ChatGeo:
         self.GROW, self.CENTRE = grow, centre
         self.TT, self.TW = width(title), width(NAME, nick=True)
         self.PW = PAD + self.TT + GAP + self.TW + PAD + end
+        if centre:                                               # room for both ends, a tile each side and the centre
+            self.PW = max(self.PW, 2 * (16 + tile + centre) + end + 2)
         self.W, self.H = self.PW + 2 * side, ROWS
         self.PY0, self.PY1, self.MID = 0, ROWS - 1, ROWS // 2 - 1
         self.PX0 = side

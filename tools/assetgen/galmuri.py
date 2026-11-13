@@ -1,7 +1,8 @@
 """
 Galmuri9 and Galmuri7, the 9 px and 7 px Korean pixel fonts the resource-pack HUD writes with
 (tools/assetgen/hud.py: Galmuri9 everywhere, Galmuri7 for the small and large sidebar panel).
-Galmuri14 (fonts/galmuri14.txt, the same way from dist/Galmuri14.bdf) is the title banners' chat text
+Galmuri14 (fonts/galmuri14.txt, the same way from dist/Galmuri14.bdf) and Galmuri11 Bold (fonts/galmuri11bold.txt,
+from dist/Galmuri11-Bold.bdf) are the title banners' chat text: the signs and the Hangul
 (tools/assetgen/banner_themes/chat.py).
 
 Galmuri 2.40.3 by Lee Minseo (quiple), SIL Open Font License 1.1, no reserved font name
@@ -29,17 +30,19 @@ LICENSE = HERE / "fonts" / "LICENSE-galmuri.txt"
 RANGES = [(0x20, 0x7E), (0xA0, 0xFF), (0x2010, 0x206F), (0x2190, 0x21FF), (0x2200, 0x22FF), (0x2500, 0x25FF),
           (0x2600, 0x26FF), (0x2700, 0x27BF), (0x3000, 0x303F), (0x3131, 0x318E), (0xAC00, 0xD7A3)]
 
-HEADER = ("# Galmuri{size} 2.40.3 (npm package \"galmuri\", dist/Galmuri{size}.bdf), Copyright (c) 2019-2025 Lee Minseo.\n"
+HEADER = ("# {name} 2.40.3 (npm package \"galmuri\", dist/{name}.bdf), Copyright (c) 2019-2025 Lee Minseo.\n"
           "# SIL Open Font License 1.1: see LICENSE-galmuri.txt. Format: tools/assetgen/galmuri.py\n")
 
 
 def data(size=9):
+    """the vendored file of a size (9, 7, 14) or of a named cut ("11bold")"""
     return FONTS / f"galmuri{size}.txt"
 
 
 def vendor(bdf_path):
-    size = int("".join(c for c in Path(bdf_path).stem if c.isdigit()))
-    out = [HEADER.format(size=size)]
+    name = Path(bdf_path).stem                                # Galmuri9, Galmuri11-Bold
+    size = name[len("Galmuri"):].replace("-", "").lower()     # 9, 11bold
+    out = [HEADER.format(name=name)]
     with open(bdf_path, encoding="latin-1") as f:
         cur, bitmap = None, None
         for line in f:
