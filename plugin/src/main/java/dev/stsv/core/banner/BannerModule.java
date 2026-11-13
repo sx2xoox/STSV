@@ -188,25 +188,40 @@ public final class BannerModule implements StsvModule, Listener {
         return shown(p).map(t -> inChat(p, t)).orElse(null);
     }
 
-    /** A theme as chat shows it: its chat banner (one chat line, letters as high as the chat's), else the small size. */
+    /**
+     * A theme as chat shows it, and the tab list and the name tag with it: its chat banner (one line, letters as high
+     * as ordinary text), else the small size.
+     */
     private Component inChat(Player p, BannerCatalog.Theme t) {
-        return t.chat() != null
-                ? BannerText.component(catalog, layout(p, t.chat()), BannerText.Size.CHAT, frame())
-                : BannerText.component(catalog, layout(p, t), BannerText.Size.MINI, frame());
+        if (t.chat() == null) return BannerText.component(catalog, layout(p, t), BannerText.Size.MINI, frame());
+        int f = frame();
+        // a banner a gust runs along, animated by the server: the parts cannot be played one after the other, so it
+        // only idles (its first four frames)
+        if (f >= 0 && t.chat().flow() > 0) f %= 4;
+        return BannerText.component(catalog, layout(p, t.chat()), BannerText.Size.CHAT, f);
     }
 
     /** The tab list name, null when none. */
     public Component tabName(Player p) {
         if (!plugin.getConfig().getBoolean("title-banners.tab")) return null;
-        return shown(p).map(t -> BannerText.component(catalog, layout(p, t), BannerText.Size.MINI, frame())).orElse(null);
+        return shown(p).map(t -> inChat(p, t)).orElse(null);
     }
 
-    /** The name tag (full size), its size and lift; null when none. */
+    /**
+     * The name tag, its size and lift; null when none. A theme with a chat banner shows that one over the head too
+     * (the same banner everywhere); else the full banner.
+     */
     public Tag tag(Player p) {
         if (!plugin.getConfig().getBoolean("title-banners.name-tag")) return null;
         Optional<BannerCatalog.Theme> t = shown(p);
         if (t.isEmpty()) return null;
         float size = (float) plugin.getConfig().getDouble("title-banners.name-tag-size");
+        if (t.get().chat() != null) {
+            // a chat banner's pixel is half a text pixel: twice the size shows a picture pixel as large as the full
+            // banner's (and its letters as large as an ordinary name tag's at the default 0.5); its plate ends one
+            // row under the baseline
+            return new Tag(inChat(p, t.get()), size * 2, 1 / 40f);
+        }
         // the plate reaches (height - ascent) px below the baseline; a text display puts its line's bottom at its origin
         float lift = (t.get().height() - t.get().mid() - 4) / 40f;
         return new Tag(BannerText.component(catalog, layout(p, t.get()), BannerText.Size.BIG, frame()), size, lift);
