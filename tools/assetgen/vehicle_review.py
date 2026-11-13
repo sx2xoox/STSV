@@ -91,6 +91,22 @@ def assemble(vid, ox, view):
             pt, pe = VP.part(sp["model"], sp["at"], ox)
             t.update(pt)
             e = e + pe
+        # moving parts: drawn in the body's space; shut in the first view, as far as they go in the second
+        k = spec.get("body-scale", 1)
+        for mv in spec.get("movers", []):
+            data = VP.V.ALL[mv["model"]]().to_preview()
+            rot, lift = None, [0, 0, 0]
+            if full and mv.get("turn"):
+                # the item file's axis is [right, up, forward]: the drawn x is the vehicle's right, the drawn z its back
+                axis = "xyz"[max(range(3), key=lambda i: abs(mv["axis"][i]))]
+                sign = 1 if mv["axis"]["xyz".index(axis)] > 0 else -1
+                h = mv["hinge"]
+                rot = [axis, sign * mv["turn"] * (1 if axis != "z" else -1), [h[0] * 16 + ox[0], h[1] * 16, -h[2] * 16 + ox[2]]]
+            if full and mv.get("slide"):
+                lift = [mv["slide"][0] * 16, mv["slide"][1] * 16, -mv["slide"][2] * 16]
+            fn = lambda p, lift=lift: [(p[0] - 8) * k + ox[0] + lift[0], (p[1] - 8) * k + lift[1], (p[2] - 8) * k + ox[2] + lift[2]]
+            t.update(data["textures"])
+            e = e + VP._xf(data["elements"], fn, rot)
         return t, e, [], spec["size"][1]
     if vid in FARM:
         t, e, spec, units = VF.train(vid, ox, cargo=4 if full else None, riders=riders)

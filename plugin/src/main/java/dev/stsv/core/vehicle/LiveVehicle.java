@@ -43,6 +43,8 @@ final class LiveVehicle {
     final VehicleLight.Shown light = new VehicleLight.Shown();
     /** 탈것의 느낌: lamps, springs, slope, load share, effort, the engine running (VehicleFeelView) */
     final VehicleFeelView.State feel = new VehicleFeelView.State();
+    /** its moving parts and name plates as they are drawn ({@link VehicleDress}) */
+    final VehicleDress.State dress = new VehicleDress.State();
     final List<Interaction> hits = new ArrayList<>();
     /**
      * An occupied seat: the carrier (an item display without an item, teleported with the vehicle every tick: it glides

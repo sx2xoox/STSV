@@ -162,8 +162,9 @@ def upholstery(bolster, insert, stitch, lo, hi):
 # Wheels (hub at model (8, 8, 8), axle along x; the plugin spins them about x)
 # ================================================================================================
 
-def _wheel(name, d, width, cap="blade", cap_d=None, spokes=5, holes=True, plain=False):
-    """plain: a plain disc (no holes, no spokes) round the centre cap."""
+def _wheel(name, d, width, cap="blade", cap_d=None, spokes=5, holes=True, plain=False, whitewall=False, lip=None):
+    """plain: a plain disc (no holes, no spokes) round the centre cap. whitewall: a pale band round the tyre's side.
+    lip: a ramp for the rim's outer lip (a bright machined edge round a dark wheel)."""
     m = BModel(name, shift=(8, 8, 8), floor=None)
     r = d / 2
     cap_d = cap_d or d - 4
@@ -176,6 +177,8 @@ def _wheel(name, d, width, cap="blade", cap_d=None, spokes=5, holes=True, plain=
             # the sidewall: dark at the tread, a lighter bead round the rim, a fine ring between
             if rr > r - 0.9:
                 return ("rubber", 0)
+            if whitewall and r - 2.4 < rr <= r - 1.0:
+                return ("cream", 3)
             if rr > r - 1.8:
                 return ("rubber", 1)
             return ("rubber", 2)
@@ -195,7 +198,7 @@ def _wheel(name, d, width, cap="blade", cap_d=None, spokes=5, holes=True, plain=
         if c.face not in ("east", "west"):
             return (cap, 1)                          # the cap's thin rim
         if rr > rc - 0.8:
-            return (cap, 1)                          # the rim lip
+            return (lip, 4) if lip else (cap, 1)     # the rim lip
         if rr < 0.8:
             return (cap, 3) if holes else ("blade", 1)   # the centre cap
         a = math.atan2(z, y)

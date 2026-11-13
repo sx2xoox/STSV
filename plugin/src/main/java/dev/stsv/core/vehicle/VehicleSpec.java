@@ -81,9 +81,14 @@ public record VehicleSpec(
      * @param allTerrain not slowed on rough ground (sand, gravel, snow, mud) or soul sand ({@link VehiclePhysics#slowdown})
      * @param overCap    its own top speed holds even over the server's (vehicles.max-speed): the sports car
      * @param drift      it drifts ({@link Drift}), or null
+     * @param dress      its moving parts and name plates ({@link Dress})
      */
-    public record Extras(double lean, List<Spinner> spinners, boolean allTerrain, boolean overCap, Drift drift) {
-        public static final Extras NONE = new Extras(0, List.of(), false, false, null);
+    public record Extras(double lean, List<Spinner> spinners, boolean allTerrain, boolean overCap, Drift drift, Dress dress) {
+        public static final Extras NONE = new Extras(0, List.of(), false, false, null, Dress.NONE);
+
+        public Extras(double lean, List<Spinner> spinners, boolean allTerrain, boolean overCap, Drift drift) {
+            this(lean, spinners, allTerrain, overCap, drift, Dress.NONE);
+        }
 
         public Extras(double lean, List<Spinner> spinners, boolean allTerrain) {
             this(lean, spinners, allTerrain, false, null);
@@ -101,6 +106,43 @@ public record VehicleSpec(
      * Sliding at the full angle costs {@code drag} blocks/s of speed every second.
      */
     public record Drift(double angle, double minSpeed, double build, double recover, double turn, double drag) {}
+
+    /**
+     * What a car wears besides its body ({@code movers:} and {@code plates:} in the item file, drawn by
+     * {@link VehicleDress}).
+     */
+    public record Dress(List<Mover> movers, List<Plate> plates) {
+        public static final Dress NONE = new Dress(List.of(), List.of());
+    }
+
+    /** What moves a part: someone getting in or out, the speed, braking, the engine running. */
+    public enum Channel { NONE, DOOR, SPEED, BRAKE, ENGINE }
+
+    /**
+     * A moving part: a model drawn in the body's own space (it lies on the body at rest), turned about a hinge and
+     * slid as its triggers come on.
+     *
+     * @param hinge     a point of the axis it turns about [right, up, forward] (blocks)
+     * @param axis      the axis' direction [right, up, forward]; the turn follows the right hand rule in the display's
+     *                  frame (its +x is the vehicle's left)
+     * @param turn      degrees it is turned when {@code when} is fully on
+     * @param slide     how far it is moved when {@code slideWhen} is fully on [right, up, forward] (blocks)
+     * @param seats     door: the seats whose riders open it (empty: every seat)
+     * @param from      speed: the share of the top speed at which it is fully out (it starts at half of that)
+     * @param ticks     ticks from rest to fully on
+     */
+    public record Mover(NamespacedKey model, Vec hinge, Vec axis, double turn, Channel when, Vec slide, Channel slideWhen,
+                        List<Integer> seats, double from, int ticks) {}
+
+    /**
+     * A plate with the owner's name on it.
+     *
+     * @param at     the middle of the plate on the body's face [right, up, forward] (blocks)
+     * @param back   it faces backwards (the tail's plate)
+     * @param width  the plate's room (blocks): a long name is written smaller to fit
+     * @param height the height of the writing (blocks)
+     */
+    public record Plate(Vec at, boolean back, double width, double height) {}
 
     /** The fastest a vehicle that goes over the server's top speed may be set (blocks/s). */
     public static final double OVER_CAP_MAX = 20;
@@ -324,8 +366,9 @@ public record VehicleSpec(
             if (drift.turn() < 1 || drift.turn() > 3) throw new IllegalArgumentException("vehicle.drift.turn 은 1 ~ 3 (방향 트는 빠르기의 배수)");
             if (drift.drag() < 0 || drift.drag() > 10) throw new IllegalArgumentException("vehicle.drift.drag 는 0 ~ 10 (블록/초²)");
         }
-        Extras extras = lean == 0 && spinners.isEmpty() && !v.getBoolean("all-terrain") && !overCap && drift == null
-                ? Extras.NONE : new Extras(lean, List.copyOf(spinners), v.getBoolean("all-terrain"), overCap, drift);
+        Dress dress = dress(v, namespace, modelExists);
+        Extras extras = lean == 0 && spinners.isEmpty() && !v.getBoolean("all-terrain") && !overCap && drift == null && dress == Dress.NONE
+                ? Extras.NONE : new Extras(lean, List.copyOf(spinners), v.getBoolean("all-terrain"), overCap, drift, dress);
         return new VehicleSpec((float) bodyScale, speed, reverse,
                 driven ? positive(v, "acceleration") : v.getDouble("acceleration", 3), driven ? positive(v, "brake") : v.getDouble("brake", 8),
                 v.getDouble("coast", driven ? 2.0 : 8.0), driven ? positive(v, "turn-rate") : v.getDouble("turn-rate", 90),
@@ -407,6 +450,51 @@ public record VehicleSpec(
         return d;
     }
 
+    private static Channel channel(String name, String what) {
+        if (name == null || name.isBlank()) return Channel.NONE;
+        try {
+            return Channel.valueOf(name.trim().toUpperCase(java.util.Locale.ROOT));
+        } catch (IllegalArgumentException e) {
+            throw new IllegalArgumentException(what + " 는 door · speed · brake · engine 중 하나");
+        }
+    }
+
+    private static Dress dress(ConfigurationSection v, String namespace, Predicate<String> modelExists) {
+        List<Mover> movers = new ArrayList<>();
+        for (Map<?, ?> map : v.getMapList("movers")) {
+            ConfigurationSection s = section(map);
+            Channel when = channel(s.getString("when"), "vehicle.movers.when");
+            Channel slideWhen = s.contains("slide-when") ? channel(s.getString("slide-when"), "vehicle.movers.slide-when") : when;
+            Vec zero = new Vec(0, 0, 0);
+            boolean turns = s.contains("turn");
+            Vec slide = s.contains("slide") ? vec(s, "slide", "vehicle.movers.slide") : zero;
+            if (!turns && !s.contains("slide")) throw new IllegalArgumentException("vehicle.movers: turn 이나 slide 가 있어야 함");
+            Vec axis = turns ? vec(s, "axis", "vehicle.movers.axis") : new Vec(1, 0, 0);
+            if (axis.right() == 0 && axis.up() == 0 && axis.forward() == 0) throw new IllegalArgumentException("vehicle.movers.axis 는 0 이 아니어야 함");
+            double turn = s.getDouble("turn", 0);
+            if (Math.abs(turn) > 180) throw new IllegalArgumentException("vehicle.movers.turn 은 -180 ~ 180 (도)");
+            double from = s.getDouble("from", 0.6);
+            if (from <= 0 || from > 1) throw new IllegalArgumentException("vehicle.movers.from 은 0 초과 1 이하 (최고 속도의 비율)");
+            int ticks = s.getInt("ticks", 8);
+            if (ticks < 1 || ticks > 100) throw new IllegalArgumentException("vehicle.movers.ticks 는 1 ~ 100");
+            if (turns && when == Channel.NONE) throw new IllegalArgumentException("vehicle.movers.when 이 없음 (door · speed · brake · engine)");
+            movers.add(new Mover(model(s.getString("model"), "vehicle.movers.model", namespace, modelExists),
+                    turns ? vec(s, "hinge", "vehicle.movers.hinge") : zero, axis, turn, turns ? when : Channel.NONE, slide,
+                    s.contains("slide") ? slideWhen : Channel.NONE, List.copyOf(s.getIntegerList("seats")), from, ticks));
+        }
+        List<Plate> plates = new ArrayList<>();
+        for (Map<?, ?> map : v.getMapList("plates")) {
+            ConfigurationSection s = section(map);
+            double width = s.getDouble("width", 0.7), height = s.getDouble("height", 0.14);
+            if (width < 0.2 || width > 3) throw new IllegalArgumentException("vehicle.plates.width 는 0.2 ~ 3 (블록)");
+            if (height < 0.05 || height > 0.5) throw new IllegalArgumentException("vehicle.plates.height 는 0.05 ~ 0.5 (블록)");
+            plates.add(new Plate(vec(s, "at", "vehicle.plates.at"), s.getBoolean("back"), width, height));
+        }
+        if (movers.size() > 8) throw new IllegalArgumentException("vehicle.movers 는 8개까지");
+        if (plates.size() > 2) throw new IllegalArgumentException("vehicle.plates 는 2개까지");
+        return movers.isEmpty() && plates.isEmpty() ? Dress.NONE : new Dress(List.copyOf(movers), List.copyOf(plates));
+    }
+
     private static NamespacedKey model(String name, String what, String namespace, Predicate<String> modelExists) {
         if (name == null || name.isBlank()) throw new IllegalArgumentException(what + " 모델이 없음");
         if (name.contains(":")) {
@@ -432,6 +520,7 @@ public record VehicleSpec(
     public List<NamespacedKey> partModels() {
         List<NamespacedKey> out = new ArrayList<>();
         for (Spinner sp : extras.spinners()) out.add(sp.model());
+        for (Mover mv : extras.dress().movers()) out.add(mv.model());
         if (lights != null) {
             out.add(lights.dark());
             out.addAll(lights.flash());

@@ -198,6 +198,7 @@ public final class VehicleModule implements StsvModule, Listener {
     private boolean spawnSoon;
     /** 탈것의 느낌: load and slope, dust, lamps, engine start / stop, springs, effort (vehicle_feel.yml) */
     final VehicleFeelView feel = new VehicleFeelView(this);
+    final VehicleDress dress = new VehicleDress(this);
 
     /** config.yml vehicles.* */
     record Settings(double maxSpeed, int smoothing, float viewRange, boolean culling, int saveTicks, boolean sirenSound, String sirenKey,
@@ -1131,6 +1132,11 @@ public final class VehicleModule implements StsvModule, Listener {
         return c.getX() >= x0 && c.getX() <= x1 && c.getZ() >= z0 && c.getZ() <= z1;
     }
 
+    /** Ticks the client glides a part to its new place over (vehicles.smoothing-ticks). */
+    int smoothing() {
+        return settings.smoothing();
+    }
+
     Location at(LiveVehicle v) {
         return new Location(v.world, v.st.x, v.st.y, v.st.z, (float) (v.st.yaw + settings.yawOffset()), 0);
     }
@@ -1171,6 +1177,7 @@ public final class VehicleModule implements StsvModule, Listener {
         if (changed) {
             Display.Brightness b = brightness(v.light);
             for (ItemDisplay d : drawn(v)) d.setBrightness(b);
+            dress.brighten(v, b);
             if (v.train != null) v.train.brighten(b);
         }
         if (v.train != null) v.train.light(feel, fade, world);
@@ -1236,6 +1243,7 @@ public final class VehicleModule implements StsvModule, Listener {
         if (v.train != null) v.train.spawn(v, settings, v.cargo);
         tools.spawned(v);
         feel.spawn(v);
+        dress.spawn(v);
     }
 
     /** A cart's handle click box (it stands where the puller stands). */
@@ -1337,6 +1345,7 @@ public final class VehicleModule implements StsvModule, Listener {
         if (v.train != null) v.train.remove();
         tools.removed(v);
         feel.remove(v);
+        dress.remove(v);
         v.wheels.forEach(Entity::remove);
         v.spinners.forEach(Entity::remove);
         v.hits.forEach(Entity::remove);
@@ -1435,7 +1444,7 @@ public final class VehicleModule implements StsvModule, Listener {
         if (v.body == null || !v.body.isValid() || v.hits.stream().anyMatch(h -> !h.isValid()) || v.wheels.stream().anyMatch(w -> !w.isValid())
                 || v.spinners.stream().anyMatch(w -> !w.isValid())
                 || (v.spec.pulled() && (v.handle == null || !v.handle.isValid())) || (v.train != null && v.train.broken())
-                || VehicleFeelView.broken(v)) {
+                || VehicleFeelView.broken(v) || VehicleDress.broken(v)) {
             removeParts(v, false);
             spawnParts(v);
         }
@@ -1534,6 +1543,7 @@ public final class VehicleModule implements StsvModule, Listener {
         feel.tick(v, driver, puller != null ? puller : driver, in, ticks, settings.engine() && v.spec.engine() != null,
                 Math.min(v.spec.speed(), v.spec.cap(settings.maxSpeed())));
         engine(v, driver);
+        dress.tick(v, in, Math.min(v.spec.speed(), v.spec.cap(settings.maxSpeed())), v.feel.engineRunning, ticks);
         if (v.cargoViewer != null) watchCargo(v);
         if (v.dirty && (ticks - v.savedAt >= settings.saveTicks() || (v.st.speed == 0 && driver == null && v.puller == null))) save(v);
     }
@@ -1567,6 +1577,7 @@ public final class VehicleModule implements StsvModule, Listener {
         if (v.lights != null) v.lights.teleport(at);
         if (v.load != null) v.load.teleport(at);
         feel.teleport(v, at);
+        dress.teleport(v, at);
         if (v.handle != null) {
             double[] h = CartPull.hitch(v.st, v.spec);
             v.handle.teleport(new Location(v.world, h[0], h[1], h[2]));
@@ -1811,6 +1822,7 @@ public final class VehicleModule implements StsvModule, Listener {
             return;
         }
         v.seats[seat] = new LiveVehicle.Seat(carrier, chair);
+        dress.door(v, seat, ticks);
         hideBoxes(v, p, true);
         if (seat == 0) {
             // the engine starts (its start sound; the hum begins as it ends), unless it is running already
@@ -1832,6 +1844,7 @@ public final class VehicleModule implements StsvModule, Listener {
         if (s == null) return;
         Player p = v.rider(seat);
         v.seats[seat] = null;
+        dress.door(v, seat, ticks);
         Location exit = exit(v, seat);
         ejecting.add(s.chair().getUniqueId());
         s.chair().eject();

@@ -206,6 +206,19 @@ hyper_car:
     seats:
       - { at: [-0.34, 0.05, -0.1] }
       - { at: [0.34, 0.05, -0.1] }
+    # 움직이는 부품 (몸체와 같은 자리에 그린 모델을 경첩 hinge 둘레로 turn 도 돌리거나 slide 만큼 밀어 냄).
+    #   when / slide-when: door = 그 좌석(seats)에 타고 내릴 때 잠깐 열림, speed = 최고 속도의 from 비율에서 다 나옴(절반부터 시작),
+    #   brake = 달리다 브레이크(반대 페달)를 밟는 동안, engine = 시동이 걸려 있는 동안. ticks = 다 움직이는 데 걸리는 틱.
+    movers:
+      # 문: 앞 위 모서리를 축으로 위로 열림 (시저 도어)
+      - { model: hyper_car_door_l, hinge: [-0.84, 0.72, 0.81], axis: [1, 0, 0], turn: -62, when: door, seats: [0], ticks: 9 }
+      - { model: hyper_car_door_r, hinge: [0.84, 0.72, 0.81], axis: [1, 0, 0], turn: -62, when: door, seats: [1], ticks: 9 }
+      # 윙: 빨라지면 올라오고(slide), 브레이크를 밟으면 앞 모서리를 축으로 세워짐(에어 브레이크)
+      - { model: hyper_car_wing, hinge: [0, 0.86, -1.94], axis: [1, 0, 0], turn: -38, when: brake, slide: [0, 0.19, 0], slide-when: speed, from: 0.6, ticks: 6 }
+    # 이름 번호판: 주인의 닉네임 (at = 판의 가운데, back = 뒤쪽 판, width 안에 들어가게 글자 크기를 맞춤)
+    plates:
+      - { at: [0, 0.27, 2.3125], width: 0.4, height: 0.1 }
+      - { at: [0, 0.22, -2.3125], back: true, width: 0.6, height: 0.11 }
     horn: { sound: stsv:vehicle.hyper_car.horn, release: stsv:vehicle.hyper_car.horn_end, volume: 1.5,
             vanilla: block.note_block.didgeridoo, pitch: 1.8, times: 1 }
     engine: { sound: stsv:vehicle.hyper_car.engine, volume: 0.55, idle-volume: 0.2, idle-pitch: 0.5, top-pitch: 2.0, segment-ticks: 10 }
@@ -247,6 +260,17 @@ grand_sedan:
       - { at: [0.45, 0.3, 0.25] }
       - { at: [-0.45, 0.3, -0.75] }
       - { at: [0.45, 0.3, -0.75] }
+    movers:
+      # 문 넷: 앞문은 앞 모서리, 뒷문은 뒤 모서리가 경첩이라 가운데에서 양쪽으로 열림 (코치 도어)
+      - { model: grand_sedan_door_fl, hinge: [-1.0, 0.6, 1.0], axis: [0, 1, 0], turn: -65, when: door, seats: [0], ticks: 10 }
+      - { model: grand_sedan_door_fr, hinge: [1.0, 0.6, 1.0], axis: [0, 1, 0], turn: 65, when: door, seats: [1], ticks: 10 }
+      - { model: grand_sedan_door_rl, hinge: [-1.0, 0.6, -0.9375], axis: [0, 1, 0], turn: 65, when: door, seats: [2], ticks: 10 }
+      - { model: grand_sedan_door_rr, hinge: [1.0, 0.6, -0.9375], axis: [0, 1, 0], turn: -65, when: door, seats: [3], ticks: 10 }
+      # 마스코트: 시동이 걸리면 라디에이터 위로 올라옴
+      - { model: grand_sedan_mascot, slide: [0, 0.156, 0], slide-when: engine, ticks: 14 }
+    plates:
+      - { at: [0, 0.30, 2.6875], width: 0.7, height: 0.12 }
+      - { at: [0, 0.66, -2.625], back: true, width: 0.56, height: 0.15 }
     horn: { sound: stsv:vehicle.grand_sedan.horn, release: stsv:vehicle.grand_sedan.horn_end, volume: 1.4,
             vanilla: block.note_block.didgeridoo, pitch: 1.0, times: 1 }
     engine: { sound: stsv:vehicle.grand_sedan.engine, volume: 0.32, idle-volume: 0.12, idle-pitch: 0.6, top-pitch: 1.4, segment-ticks: 10 }
@@ -289,6 +313,14 @@ luxury_suv:
       - { at: [0.45, 0.62, 0.375] }
       - { at: [-0.45, 0.62, -0.625] }
       - { at: [0.45, 0.62, -0.625] }
+    movers:
+      - { model: luxury_suv_door_fl, hinge: [-0.9375, 0.9, 1.0625], axis: [0, 1, 0], turn: -62, when: door, seats: [0], ticks: 10 }
+      - { model: luxury_suv_door_fr, hinge: [0.9375, 0.9, 1.0625], axis: [0, 1, 0], turn: 62, when: door, seats: [1], ticks: 10 }
+      - { model: luxury_suv_door_rl, hinge: [-0.9375, 0.9, 0], axis: [0, 1, 0], turn: -62, when: door, seats: [2], ticks: 10 }
+      - { model: luxury_suv_door_rr, hinge: [0.9375, 0.9, 0], axis: [0, 1, 0], turn: 62, when: door, seats: [3], ticks: 10 }
+    plates:
+      - { at: [0, 0.59, 2.375], width: 0.6, height: 0.13 }
+      - { at: [0, 0.59, -2.344], back: true, width: 0.6, height: 0.13 }
     horn: { sound: stsv:vehicle.luxury_suv.horn, release: stsv:vehicle.luxury_suv.horn_end, volume: 1.5,
             vanilla: block.note_block.didgeridoo, pitch: 0.9, times: 1 }
     engine: { sound: stsv:vehicle.luxury_suv.engine, volume: 0.5, idle-volume: 0.22, idle-pitch: 0.6, top-pitch: 1.5, segment-ticks: 10 }

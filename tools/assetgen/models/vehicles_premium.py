@@ -10,14 +10,39 @@ ground centre at (0, 0, 0), front = north (-z), +x = the vehicle's RIGHT side; t
 Tuning in mind, like the event cars: every body takes its paint (and what goes with it) as arguments, so another
 colour is one more call (a model each); the wheels are models of their own.
 
+Parts that move are models of their own (a door, a wing, a mascot: vehicles.yml movers, drawn by the plugin's
+VehicleDress): each is drawn here in its body's own space, exactly where it lies at rest, so the plugin shows it
+with the body's transformation and turns it about its hinge. A car is therefore a Kit: its body and its parts,
+built together (a door takes its panels out of the body's side).
+
 Imported at the end of models/vehicles.py (its ALL carries these): import that module, not this one.
 """
 
 import math
 
 from stsv_assets.bake import BModel, Paint, cyl
+from stsv_assets import presets
 from models.vehicles import (CLEAR, CHROME, DARK, PLASTIC, lerp, lamp, plate, pane, glass, raw, upholstery, bumper_decal,
                              _held_display, _wheel)
+
+
+class Kit:
+    """The models of one car: its body and the parts the plugin moves, all in the body's space."""
+
+    def __init__(self, name, parts):
+        self.body = BModel(name, shift=(8, 8, 8), scale=2.0)
+        self.parts = {}
+        for part in parts:
+            m = BModel(f"{name}_{part}", shift=(8, 8, 8), scale=2.0)
+            m.display = presets.furniture(gui_scale=0.4)
+            m.group(part)
+            self.parts[part] = m
+
+    def __getitem__(self, part):
+        return self.parts[part]
+
+    def all(self):
+        return {self.body.name: self.body, **{m.name: m for m in self.parts.values()}}
 
 
 def _weave(x, z, lo=1.7, hi=2.5):
@@ -63,18 +88,29 @@ def _steering(mark):
 # ================================================================================================
 
 def wheel_hyper():
-    """The hyper car's wheel: 0.75 block across (12 px), 5 px wide, a thin black ten-spoke rim."""
-    return _wheel("wheel_hyper", 12, 5, cap="blacksteel", cap_d=10, spokes=10)
+    """The hyper car's wheel: 0.75 block across (12 px), 5 px wide, a thin black ten-spoke rim with a bright machined lip."""
+    return _wheel("wheel_hyper", 12, 5, cap="blacksteel", cap_d=10, spokes=10, lip="blade")
 
 
 def hyper_car(colour="sapphire", accent="signal_blue", roof=True, name="hyper_car"):
+    return hyper_kit(colour, accent, roof, name).body
+
+
+def hyper_kit(colour="sapphire", accent="signal_blue", roof=True, name="hyper_car"):
     """A wedge that is all cabin and engine: a hood sloping straight down to a thin nose, a fender standing over
     it each side with a slanted face (a black lamp inset, two bright blades), a narrow glass canopy far forward
     (a raked windscreen, a dark glass roof), wide shoulders either side of it, a black intake behind each door, and
     from the roof a long fastback down to the tail: louvres over the engine between two buttresses. A low wing
     across the tail, a light bar the whole width under it, a black mesh with three exhaust tips in its middle, a
-    finned diffuser. Carbon splitter, skirts and undertray. roof False: the canopy is left off (a speedster)."""
-    m = BModel(name, shift=(8, 8, 8), scale=2.0)
+    finned diffuser. Carbon splitter, skirts and undertray. roof False: the canopy is left off (a speedster).
+
+    Its parts: door_l and door_r (each the side between the two seams, its window, its mirror: they swing up about
+    their front top corner) and wing (the blade on its two struts: it lies on the tail, rises with the speed and
+    stands up as an air brake)."""
+    kit = Kit(name, ("door_l", "door_r", "wing"))
+    m = kit.body
+    door = {-1: kit["door_l"], 1: kit["door_r"]}
+    D0, D1 = -13, 6                    # the door: between its two seams
     C, A = colour, accent
     PAINT = Paint(C, 2, noise=0, grad=0)
     W, L = 16, 37
@@ -108,6 +144,9 @@ def hyper_car(colour="sapphire", accent="signal_blue", roof=True, name="hyper_ca
         if c.face in ("east", "west"):
             if fy <= 2:
                 return ("rubber", 0)
+            if ax < 11.5 and D0 <= z < D1:
+                # the cabin's side, seen when a door is up: a bright sill plate over the dark tub
+                return ("blade", 3.4) if fy == 5 else ("rubber", 1)
             if (fz in (WF - SLOT - 1, WF + SLOT, WR - SLOT - 1, WR + SLOT) and fy < 12) or (fy == 12 and (abs(fz - WF + 0.5) <= SLOT + 1 or abs(fz - WR + 0.5) <= SLOT + 1)):
                 return (C, 0.5)                               # the arches' shadowed lips
             if 7 <= fz <= 15 and 4 <= fy <= 10 and fz - 7 >= (fy - 4) * 0.7 - 0.5:
@@ -170,7 +209,9 @@ def hyper_car(colour="sapphire", accent="signal_blue", roof=True, name="hyper_ca
     m.box("tail", (-W, 2, WR + SLOT), (W, 12, L), paint)
     for s in (1, -1):
         xa, xb = sorted((11 * s, W * s))
-        m.box("sill", (xa, 2, WF + SLOT), (xb, BELT, WR - SLOT), paint)
+        m.box("sill", (xa, 2, WF + SLOT), (xb, BELT, D0), paint)
+        m.box("sill", (xa, 2, D1), (xb, BELT, WR - SLOT), paint)
+        door[s].box("door", (xa, 2, D0), (xb, BELT, D1), paint)
 
     m.box("hood", (-9.5, 5, -31), (9.5, 6, -31 + 17.3), sp, rotation=("x", -22.5, (0, 6, -31)))
     m.box("bay", (-9.5, 6, -25), (9.5, 8, -15), inner)
@@ -214,11 +255,14 @@ def hyper_car(colour="sapphire", accent="signal_blue", roof=True, name="hyper_ca
         m.box("skirt", (xa, 0.75, WF + SLOT + 0.5), (xb, 2, WR - SLOT - 0.5), CARBON)
     m.box("undertray", (-11, 0.75, -34.5), (11, 2, L - 3), CARBON)
 
-    # the wing: a low carbon blade across the tail on two short struts
-    m.box("wing", (-14.5, 15, L - 5.5), (14.5, 15.75, L + 0.5), CARBON)
+    # the wing (a part): a carbon blade across the tail, lying just over it; its two struts are down in the tail
+    # until it rises. A painted lip along its trailing edge.
+    wing = kit["wing"]
+    wing.box("wing", (-14.5, HAUNCH + 0.25, L - 6), (14.5, HAUNCH + 1, L + 0.5), CARBON)
+    wing.box("wing_lip", (-14.5, HAUNCH + 1, L - 0.5), (14.5, HAUNCH + 1.5, L + 0.5), PAINT(decal=lambda c: (C, 3.0 if c.face == "up" else 2.0)))
     for s in (1, -1):
         xa, xb = sorted((8 * s, 9 * s))
-        m.box("wing_strut", (xa, HAUNCH, L - 4), (xb, 15, L - 2), CARBON)
+        wing.box("wing_strut", (xa, HAUNCH - 3.5, L - 4.5), (xb, HAUNCH + 0.25, L - 2.5), Paint("steel", 3, noise=0))
 
     m.group("lights")
 
@@ -244,7 +288,7 @@ def hyper_car(colour="sapphire", accent="signal_blue", roof=True, name="hyper_ca
         return (A, 2.4) if fy == 10 and (math.floor(c.p[2]) + math.floor(c.p[0])) % 2 else ("rubber", 1.4)
     for s in (1, -1):
         xa, xb = sorted((10.5 * s, 11 * s))
-        m.box("door_card", (xa, FLOOR, -12), (xb, BELT, 6), Paint("rubber", 1, noise=0, decal=trim))
+        door[s].box("door_card", (xa, FLOOR, -12), (xb, BELT, D1), Paint("rubber", 1, noise=0, decal=trim))
 
     def tunnel(c):
         x, y, z = c.p
@@ -284,9 +328,9 @@ def hyper_car(colour="sapphire", accent="signal_blue", roof=True, name="hyper_ca
 
     for s in (1, -1):
         xa, xb = sorted((14.5 * s, 15.5 * s))
-        m.box("mirror_arm", (xa, 12.5, -11.5), (xb, 13, -10.75), PLASTIC)
+        door[s].box("mirror_arm", (xa, BELT, -11.5), (xb, 13, -10.75), PLASTIC)
         xa, xb = sorted((15 * s, 18 * s))
-        m.box("mirror", (xa, 13, -12), (xb, 15, -10.5), PAINT(decal=_mirror))
+        door[s].box("mirror", (xa, 13, -12), (xb, 15, -10.5), PAINT(decal=_mirror))
 
     if roof:
         m.group("canopy")
@@ -338,10 +382,10 @@ def hyper_car(colour="sapphire", accent="signal_blue", roof=True, name="hyper_ca
                 return raw("glass", 3)
             return ("raw", CLEAR)
         for s in (1, -1):
-            m.box("side_window", (min(CAB * s, (CAB - 0.5) * s), 12.5, -14), (max(CAB * s, (CAB - 0.5) * s), ROOF, 6),
-                  Paint("glass", 2, noise=0, light=False, decal=side_window))
+            door[s].box("side_window", (min(CAB * s, (CAB - 0.5) * s), 12.5, -14), (max(CAB * s, (CAB - 0.5) * s), ROOF, D1),
+                        Paint("glass", 2, noise=0, light=False, decal=side_window))
     m.display = _held_display(m)
-    return m
+    return kit
 
 
 # ================================================================================================
@@ -349,18 +393,29 @@ def hyper_car(colour="sapphire", accent="signal_blue", roof=True, name="hyper_ca
 # ================================================================================================
 
 def wheel_grand():
-    """The grand sedan's wheel: 0.75 block across (12 px), 4 px wide, a polished disc with a small centre cap."""
-    return _wheel("wheel_grand", 12, 4, cap="blade", cap_d=9, plain=True)
+    """The grand sedan's wheel: 0.75 block across (12 px), 4 px wide, a polished disc in a white-walled tyre."""
+    return _wheel("wheel_grand", 12, 4, cap="blade", cap_d=8, plain=True, whitewall=True)
 
 
 def grand_sedan(colour="indigo", upper="blade", leather="cream", name="grand_sedan"):
+    return grand_kit(colour, upper, leather, name).body
+
+
+def grand_kit(colour="indigo", upper="blade", leather="cream", name="grand_sedan"):
     """A formal saloon, long and square-shouldered: a hood half as long again as any other car's with a bright
     spine down it and a small mascot at its front, a tall upright radiator shell of chrome slats standing proud of
     the nose, a square lamp and a round one each side of it, chrome bumpers. Two colours: the body dark, the hood's
     top, the roof and the boot's top pale (a coach line where they meet). An upright windscreen, four doors that
     open from the middle (handles side by side), a thick rear pillar that hides the back seat, a short square
-    boot with tall narrow tail lamps. Inside: four seats of pale leather, a wooden dash."""
-    m = BModel(name, shift=(8, 8, 8), scale=2.0)
+    boot with tall narrow tail lamps. Inside: four seats of pale leather, a wooden dash.
+
+    Its parts: four doors (door_fl, door_fr, door_rl, door_rr: the front ones hinged at their front edge, the rear
+    ones at their rear edge, so a pair opens from the middle like a cabinet) and mascot (down in the radiator shell
+    until the engine runs)."""
+    kit = Kit(name, ("door_fl", "door_fr", "door_rl", "door_rr", "mascot"))
+    m = kit.body
+    DOORS = {(-1, 0): kit["door_fl"], (1, 0): kit["door_fr"], (-1, 1): kit["door_rl"], (1, 1): kit["door_rr"]}
+    DZ = ((-16, 1), (1, 15))           # the front and the rear door: between their seams
     C, U = colour, upper
     PAINT = Paint(C, 2, noise=0, grad=0)
     W, L = 16, 42
@@ -407,6 +462,12 @@ def grand_sedan(colour="indigo", upper="blade", leather="cream", name="grand_sed
             return up(2.2)
         if c.face in ("east", "west"):
             az = abs(z)
+            if ax < 11.5 and DZ[0][0] <= z < DZ[1][1]:
+                # the cabin's side and the doors' insides, seen when a door stands open: a bright sill plate, pale
+                # leather, a strip of wood under the glass
+                if fy <= 5:
+                    return ("blade", 3.4)
+                return ("wood", 2.2) if fy == 14 else (leather, 2.4 if fy < 14 else 3.0)
             if (fz in (WF - SLOT - 1, WF + SLOT, WR - SLOT - 1, WR + SLOT) and fy < 13) or (fy == 13 and (abs(fz - WF + 0.5) <= SLOT + 1 or abs(fz - WR + 0.5) <= SLOT + 1)):
                 return ("blade", 3.2)                           # a bright trim round the arches
             if fy == 4:
@@ -433,11 +494,7 @@ def grand_sedan(colour="indigo", upper="blade", leather="cream", name="grand_sed
             if 9 <= fy <= 12 and ax < 9:
                 if fy == 12:
                     return ("blade", 3.4)                       # a bright strip over the plate's recess
-                if ax < 4.5 and 9 <= fy <= 11:
-                    got = plate(math.floor(x + 4.5), 11 - fy, 9, 3)
-                    if got:
-                        return got
-                return (C, 1.0)
+                return (C, 0.4 if ax < 5 else 1.0)              # the plate's recess (the name plate stands in it)
             return col(y)
         return None
     paint = PAINT(decal=body)
@@ -446,11 +503,21 @@ def grand_sedan(colour="indigo", upper="blade", leather="cream", name="grand_sed
     m.box("core", (-11, 4, -34), (11, 13, 34), paint)
     m.box("nose", (-W, 4, -L), (W, 13, -34), paint)
     m.box("tail", (-W, 4, 34), (W, 13, L), paint)
+    # the sides: ahead of and behind the doors they are the body's, between the seams they are the doors' (parts)
+    m.box("shoulder", (-11, 13, -L + 0.5), (11, 15, L - 0.5), paint)
+    m.box("belt", (-11, 15, -L + 1.5), (11, BELT, L - 1.5), paint)
     for s in (1, -1):
         xa, xb = sorted((11 * s, W * s))
-        m.box("sill", (xa, 4, WF + SLOT), (xb, 13, WR - SLOT), paint)
-    m.box("shoulder", (-W, 13, -L + 0.5), (W, 15, L - 0.5), paint)
-    m.box("belt", (-W + 0.5, 15, -L + 1.5), (W - 0.5, BELT, L - 1.5), paint)
+        xc, xd = sorted((11 * s, (W - 0.5) * s))
+        for z0, z1, za, zb in ((WF + SLOT, DZ[0][0], -L, DZ[0][0]), (DZ[1][1], WR - SLOT, DZ[1][1], L)):
+            m.box("sill", (xa, 4, z0), (xb, 13, z1), paint)
+            m.box("shoulder", (xa, 13, max(za, -L + 0.5) if za < 0 else za), (xb, 15, zb if zb < L else L - 0.5), paint)
+            m.box("belt", (xc, 15, max(za, -L + 1.5) if za < 0 else za), (xd, BELT, zb if zb < L else L - 1.5), paint)
+        for k, (z0, z1) in enumerate(DZ):
+            d = DOORS[(s, k)]
+            d.box("door", (xa, 4, z0), (xb, 13, z1), paint)
+            d.box("door_shoulder", (xa, 13, z0), (xb, 15, z1), paint)
+            d.box("door_belt", (xc, 15, z0), (xd, BELT, z1), paint)
 
     # the radiator shell: tall, upright, standing proud of the nose; chrome slats, a bright frame, the mascot on it
     def shell(c):
@@ -464,17 +531,19 @@ def grand_sedan(colour="indigo", upper="blade", leather="cream", name="grand_sed
             return ("blade", 4.6)
         return ("blade", 2.8)
     m.box("radiator", (-6, 6, -L - 1.5), (6, BELT + 0.5, -L), Paint("blade", 3, noise=0, decal=shell))
-    m.box("mascot", (-0.5, BELT + 0.5, -L - 1), (0.5, BELT + 2.5, -L), Paint("blade", 4, noise=0, rim=0.3))
-    m.box("mascot_wing", (-1.5, BELT + 1.5, -L - 0.5), (1.5, BELT + 2, -L + 0.5), Paint("blade", 4, noise=0, rim=0.3))
+    # the mascot (a part): a small winged figure, drawn down inside the shell; it comes up 2.5 px when the engine runs
+    kit["mascot"].box("mascot", (-0.5, BELT - 2, -L - 1), (0.5, BELT, -L - 0.25), Paint("blade", 4, noise=0, rim=0.3))
+    kit["mascot"].box("mascot_wing", (-1.5, BELT - 1, -L - 1.25), (1.5, BELT - 0.5, -L - 0.5), Paint("blade", 4, noise=0, rim=0.3))
 
     m.box("bumper", (-W, 3.5, -L - 1), (W, 6, -L), CHROME(decal=bumper_decal(plate_w=0, strip=4)))
     m.box("bumper", (-W, 3.5, L), (W, 6.5, L + 1), CHROME(decal=bumper_decal(plate_w=0, strip=4)))
 
     for s in (1, -1):
-        xa, xb = sorted((13.5 * s, 15 * s))
-        m.box("mirror_arm", (xa, BELT, -13.5), (xb, BELT + 1, -12.5), CHROME)
-        xa, xb = sorted((15 * s, 18 * s))
-        m.box("mirror", (xa, BELT, -14), (xb, BELT + 2.5, -12), CHROME(decal=_mirror))
+        d = DOORS[(s, 0)]
+        xa, xb = sorted((14 * s, 15.5 * s))
+        d.box("mirror_arm", (xa, BELT, -13.5), (xb, BELT + 1, -12.5), CHROME)
+        xa, xb = sorted((15.5 * s, 18.5 * s))
+        d.box("mirror", (xa, BELT, -14), (xb, BELT + 2.5, -12), CHROME(decal=_mirror))
 
     m.group("lights")
 
@@ -557,9 +626,12 @@ def grand_sedan(colour="indigo", upper="blade", leather="cream", name="grand_sed
         if d in (-28, -27, -14, -13):
             return raw("glass", 3)
         return ("raw", CLEAR)
+    wp = Paint("glass", 2, noise=0, light=False, decal=side_window)
     for s in (1, -1):
-        m.box("side_window", (min(13.5 * s, 14 * s), BELT, -16), (max(13.5 * s, 14 * s), ROOF, 22),
-              Paint("glass", 2, noise=0, light=False, decal=side_window))
+        xa, xb = min(13.5 * s, 14 * s), max(13.5 * s, 14 * s)
+        m.box("side_window", (xa, BELT, DZ[1][1]), (xb, ROOF, 22), wp)
+        for k, (z0, z1) in enumerate(DZ):
+            DOORS[(s, k)].box("side_window", (xa, BELT, z0), (xb, ROOF, z1), wp)
 
     m.group("inside")
 
@@ -588,7 +660,7 @@ def grand_sedan(colour="indigo", upper="blade", leather="cream", name="grand_sed
           Paint(leather, 2, noise=0, decal=upholstery(lo=(-12, 0, 9), hi=(12, 0, 15), **seat)))
     m.box("arm_rest", (-1.5, BELT + 1.5, 9), (1.5, BELT + 3.5, 15), Paint("wood", 2, noise=0))
     m.display = _held_display(m)
-    return m
+    return kit
 
 
 # ================================================================================================
@@ -601,12 +673,23 @@ def wheel_suv():
 
 
 def luxury_suv(colour="leaf_dark", leather="leather", name="luxury_suv"):
+    return suv_kit(colour, leather, name).body
+
+
+def suv_kit(colour="leaf_dark", leather="leather", name="luxury_suv"):
     """A box on big wheels, every panel flat and every corner square: a short level hood with a turn lamp standing
     on each front corner, a flat grille of three bright bars between two round lamps, a steel bumper with a guard
     bar, black flares over the arches and a running board between them, an upright windscreen, tall square windows,
     a rack of four lamps over the screen and a rail along each side of the roof, and on the flat back a door with
-    the spare wheel on it, a tall narrow lamp low at each corner. Inside: four seats of tan leather."""
-    m = BModel(name, shift=(8, 8, 8), scale=2.0)
+    the spare wheel on it, a tall narrow lamp low at each corner, two bright exhaust pipes out of each side under
+    the rear door. Inside: four seats of tan leather.
+
+    Its parts: four doors (door_fl, door_fr, door_rl, door_rr), each hinged at its front edge; the front ones are
+    stepped (they end over the wheel arch)."""
+    kit = Kit(name, ("door_fl", "door_fr", "door_rl", "door_rr"))
+    m = kit.body
+    DOORS = {(-1, 0): kit["door_fl"], (1, 0): kit["door_fr"], (-1, 1): kit["door_rl"], (1, 1): kit["door_rr"]}
+    DZ = ((-17, 0), (0, 17))           # the doors above the arches' height; below it they end at the wells
     C = colour
     PAINT = Paint(C, 2, noise=0, grad=0)
     W, L = 15, 36
@@ -638,6 +721,11 @@ def luxury_suv(colour="leaf_dark", leather="leather", name="luxury_suv"):
                 return (C, 1.2)
             return (C, 2.8 if ax < 6 else 2.3)
         if c.face in ("east", "west"):
+            if ax < 10.5 and DZ[0][0] <= z < DZ[1][1]:
+                # the cabin's side and the doors' insides, seen when a door stands open
+                if fy <= 8:
+                    return ("blade", 3.0)
+                return ("rubber", 1.4) if fy < 17 else (leather, 2.2)
             if fz in (-17, 0, 17) and fy >= 8:
                 return (C, 0.2)                                 # door seams
             if fy == 17 and (2 <= fz <= 4 or 19 <= fz <= 21):
@@ -672,10 +760,20 @@ def luxury_suv(colour="leaf_dark", leather="leather", name="luxury_suv"):
     m.box("core", (-10, BOTTOM, WF - SLOT), (10, 16, WR + SLOT), paint)
     m.box("nose", (-W, BOTTOM, -L), (W, 16, WF - SLOT), paint)
     m.box("tail", (-W, BOTTOM, WR + SLOT), (W, 16, L), paint)
+    # the sides between the seams are the doors' (parts): the lower half between the wells, the upper half over them too
+    m.box("upper", (-10, 16, -L), (10, BELT, L), paint)
     for s in (1, -1):
         xa, xb = sorted((10 * s, W * s))
-        m.box("sill", (xa, BOTTOM, WF + SLOT), (xb, 16, WR - SLOT), paint)
-    m.box("upper", (-W, 16, -L), (W, BELT, L), paint)
+        m.box("upper", (xa, 16, -L), (xb, BELT, DZ[0][0]), paint)
+        m.box("upper", (xa, 16, DZ[1][1]), (xb, BELT, L), paint)
+        for k, (z0, z1) in enumerate(DZ):
+            d = DOORS[(s, k)]
+            d.box("door", (xa, BOTTOM, max(z0, WF + SLOT)), (xb, 16, min(z1, WR - SLOT)), paint)
+            d.box("door_upper", (xa, 16, z0), (xb, BELT, z1), paint)
+        # two bright exhaust pipes out of the side, lying on the running board under the rear door
+        xa, xb = sorted((W * s, (W + 1.75) * s))
+        for z0 in (5.5, 9):
+            m.box("side_pipe", (xa, 6.5, z0), (xb, 8, z0 + 2.5), CHROME(decal=lambda c: ("rubber", 0) if c.face in ("east", "west") and 0 < c.u < c.nu - 1 and 0 < c.v < c.nv - 1 else None))
 
     # black flares over the arches, a running board between them
     def flare(c):
@@ -694,13 +792,13 @@ def luxury_suv(colour="leaf_dark", leather="leather", name="luxury_suv"):
         xa, xb = sorted((11.5 * s, 13.5 * s))
         m.box("turn_lamp", (xa, BELT, -L + 2), (xb, BELT + 1, -L + 5), Paint("fox", 3, noise=0, rim=0.3))
         xa, xb = sorted((14.5 * s, 15 * s))
-        m.box("mirror_arm", (xa, BELT + 0.75, -15.5), (xb, BELT + 1.75, -14.5), PLASTIC)
+        DOORS[(s, 0)].box("mirror_arm", (xa, BELT + 0.75, -15.5), (xb, BELT + 1.75, -14.5), PLASTIC)
         xa, xb = sorted((15 * s, 18 * s))
-        m.box("mirror", (xa, BELT, -16), (xb, BELT + 3.5, -14), Paint("rubber", 1, noise=0, decal=_mirror))
+        DOORS[(s, 0)].box("mirror", (xa, BELT, -16), (xb, BELT + 3.5, -14), Paint("rubber", 1, noise=0, decal=_mirror))
 
     # steel bumpers; in front a guard bar on two posts
     steel = Paint("steel", 3, noise=0, rim=0.3)
-    m.box("bumper", (-W - 0.5, 8, -L - 2), (W + 0.5, 11, -L), steel(decal=bumper_decal(plate_w=9, plate_rows=(0, 2), strip=2)))
+    m.box("bumper", (-W - 0.5, 8, -L - 2), (W + 0.5, 11, -L), steel(decal=bumper_decal(plate_w=0, strip=2)))
     m.box("bumper", (-W - 0.5, 8, L), (W + 0.5, 11, L + 1.5), steel(decal=bumper_decal(plate_w=0, strip=2)))
     m.box("guard_bar", (-9, 14, -L - 3), (9, 15, -L - 2), steel)
     for s in (1, -1):
@@ -784,9 +882,13 @@ def luxury_suv(colour="leaf_dark", leather="leather", name="luxury_suv"):
         if d in (-33, -32, -17, -16, 0, 1):
             return raw("glass", 3)
         return ("raw", CLEAR)
+    wp = Paint("glass", 2, noise=0, light=False, decal=side_window)
     for s in (1, -1):
-        m.box("side_window", (min(14 * s, 14.5 * s), BELT, -18), (max(14 * s, 14.5 * s), ROOF, L - 0.5),
-              Paint("glass", 2, noise=0, light=False, decal=side_window))
+        xa, xb = min(14 * s, 14.5 * s), max(14 * s, 14.5 * s)
+        m.box("side_window", (xa, BELT, -18), (xb, ROOF, DZ[0][0]), wp)
+        m.box("side_window", (xa, BELT, DZ[1][1]), (xb, ROOF, L - 0.5), wp)
+        for k, (z0, z1) in enumerate(DZ):
+            DOORS[(s, k)].box("side_window", (xa, BELT, z0), (xb, ROOF, z1), wp)
 
     m.group("inside")
 
@@ -816,14 +918,21 @@ def luxury_suv(colour="leaf_dark", leather="leather", name="luxury_suv"):
     m.box("rear_cushion", (-12.5, BELT, 7), (12.5, BELT + 1.5, 13),
           Paint("rubber", 2, noise=0, decal=upholstery(lo=(-12.5, 0, 7), hi=(12.5, 0, 13), **seat)))
     m.display = _held_display(m)
-    return m
+    return kit
+
+
+def _part(kit, name):
+    return lambda: kit().all()[name]
 
 
 ALL = {
     "hyper_car": hyper_car,
     "wheel_hyper": wheel_hyper,
+    **{f"hyper_car_{p}": _part(hyper_kit, f"hyper_car_{p}") for p in ("door_l", "door_r", "wing")},
     "grand_sedan": grand_sedan,
     "wheel_grand": wheel_grand,
+    **{f"grand_sedan_{p}": _part(grand_kit, f"grand_sedan_{p}") for p in ("door_fl", "door_fr", "door_rl", "door_rr", "mascot")},
     "luxury_suv": luxury_suv,
     "wheel_suv": wheel_suv,
+    **{f"luxury_suv_{p}": _part(suv_kit, f"luxury_suv_{p}") for p in ("door_fl", "door_fr", "door_rl", "door_rr")},
 }
