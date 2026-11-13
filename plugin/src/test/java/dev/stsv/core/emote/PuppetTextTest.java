@@ -46,11 +46,13 @@ class PuppetTextTest {
     @Test
     void noPixelIsABannerMarker() {
         String vsh = new String(BannerCatalog.resource("shader/text.vsh"), StandardCharsets.UTF_8);
-        assertTrue(vsh.contains("(c.r == 253 || c.r == 252) && c.g >= 252 && c.b >= 252"), "the shader's test for a banner glyph changed: look at PuppetText.colour again");
+        assertTrue(vsh.contains("c.r == 253 && c.g >= 252 && c.b >= 252") && vsh.contains("c.r == 252 && c.g >= 240 && c.b >= 224"), "the shader's test for a banner glyph changed: look at PuppetText.colour again");
         for (int frame = 0; frame < 16; frame++) {
-            int surge = PuppetText.colour(BannerText.marker(frame, true).value(), 1.0);
-            assertEquals(-1, BannerText.frameOf(TextColor.color(surge)), "frame " + frame + "'s surge marker as a skin colour");
-            assertEquals(254, surge >> 16);
+            for (int delay : new int[]{0, 7, BannerText.MAX_DELAY}) {
+                int gust = PuppetText.colour(BannerText.marker(frame, false, delay).value(), 1.0);
+                assertEquals(-1, BannerText.frameOf(TextColor.color(gust)), "frame " + frame + "'s gust marker as a skin colour");
+                assertTrue(gust >> 16 == 253 || gust >> 16 == 254);
+            }
             int marker = BannerText.marker(frame).value();
             int sent = PuppetText.colour(marker, 1.0);
             assertEquals(-1, BannerText.frameOf(TextColor.color(sent)), "frame " + frame + "'s marker as a skin colour");

@@ -2,8 +2,8 @@
 
 chat_frame: its chat banner (banner_themes/chat.py: one chat line, 18 rows of half pixels). Nothing may rise over a
 chat line, so the fire is inside the plate, and it is not a steady fire: the plate idles as a bed of embers with the
-words plain on it (frames 0-3), then the fire flares up, covers the whole plate and dies down again (frames 4-15;
-the shader plays the frames that way, CHAT_SURGE)."""
+words plain on it (frames 0-3), and every few seconds a gust of fire runs along it from left to right, ragged, never
+covering all of it (frames 4-15, played by the shader part after part: CHAT_FLOW)."""
 import math, random
 from .lib_a import *
 TITLE, SLUG = "화염의 군주", "fire"
@@ -111,13 +111,10 @@ def frame(G, i):
 # The chat banner
 # ------------------------------------------------------------------------------------------------
 
-CHAT_TILE = 64                # the plate's tile: everything drawn on the plate repeats every 64 columns
-CHAT_SURGE = True             # the shader idles on frames 0 .. CALM - 1 and then plays the others once
-CALM = 4
-# how high the fire stands in frames CALM .. 15 (1 = the whole plate): up fast, the plate covered, down again
-SURGE = (0.24, 0.52, 0.86, 1.0, 1.0, 1.0, 1.0, 1.0, 0.84, 0.60, 0.38, 0.20)
-# sparks over the surging fire, the same every 64 columns: column, speed (rows a frame), first row
-SPARKS = ((3, 1, 0), (11, 2, 5), (20, 1, 9), (29, 2, 13), (37, 1, 3), (46, 2, 10), (53, 1, 6), (60, 2, 1))
+CHAT_TILE = 64                # the plate's tile: the idle plate repeats every 64 columns
+CHAT_FLOW = 16                # a gust of fire runs along the banner, 16 columns a step (banner_themes/chat.py flow_at)
+CALM = 4                      # frames 0 .. 3: the idle plate; the others: the steps of a gust
+GUST = 108                    # how long a gust is (columns): it has passed a 64-column part in the 12 steps
 # embers that glimmer in the bed while it idles, the same every 64 columns: column, row over the bottom, frame it is dark
 GLIMMER = ((6, 3, 0), (15, 4, 2), (23, 3, 1), (34, 5, 3), (42, 3, 2), (51, 4, 0), (58, 3, 1))
 GEM7 = ("...#...", "..#a#..", ".#aaab.", "#aawabc", ".bbabc.", "..bcc..", "...c...")
@@ -145,75 +142,96 @@ def _noise(x, y, cell_x, cell_y, wrap_x, wrap_y, seed):
     return top + (bot - top) * ty
 
 
-def fire_heat(x, y, i, rows):
-    """The fire in the plate: 0 (none) .. about 1.6 (white hot) at a column and inner row (0 = top) of frame i.
-    Tongues of flame: every column has a flame height (noise over column and frame), the tongues sway as they rise,
-    and a finer noise climbing 2 rows a frame breaks up their bodies; over the tongues only a faint glow. While the
-    plate idles (frames 0 .. CALM - 1, a loop of their own) the flames are a low bed of embers; in the other frames
-    they stand SURGE high, over the top of the plate at its peak. The same every CHAT_TILE columns."""
+def gust_strength(u):
+    """how strong a gust burns u columns behind its front: up fast, a body, a long tail"""
+    if u < 0 or u >= GUST:
+        return 0.0
+    return min(1.0, (u + 2) / 12) * (1.0 if u < 52 else (GUST - u) / (GUST - 52))
+
+
+def gust_heat(u, y, rows):
+    """A gust of fire, u columns behind its front, at inner row y (0 = top): its heat (as EMBER's steps), or None
+    where it does not burn. Ragged on purpose: tongues of very different heights with gaps between them, leaning
+    back as they rise (the top of a flame trails behind its foot), torn by a finer noise, loose wisps over them."""
     up = 1 - y / (rows - 1)                                  # 0 at the bottom .. 1 at the top
-    grain = _noise(x, y + 2 * i, 4, 4, CHAT_TILE, 32, 2) - 0.5
-    if i < CALM:
-        bed = 0.13 + 0.12 * _noise(x, i * 4, 4, 4, CHAT_TILE, 16, 5)
-        if up >= bed:
-            return 0.16 * (1 - up) ** 2 + 0.05 * grain
-        return 0.44 + 0.50 * (1 - up / bed) + 0.16 * grain
-    level = SURGE[i - CALM]
-    xs = x + 1.7 * math.sin(y * 0.8 - 2 * math.pi * i / 8) * up
-    wave = 0.6 * _noise(xs, i, 4, 4, CHAT_TILE, 16, 1) + 0.4 * _noise(xs + 2, i + 2, 8, 8, CHAT_TILE, 16, 3)
-    height = level * 1.7 * (0.72 + 0.28 * wave)
-    if up >= height:
-        return 0.16 * (1 - up) ** 2 + 0.14 * level + 0.06 * grain
-    return 0.36 + 1.2 * ((height - up) / height) ** 0.85 + 0.30 * grain
+    uu = u - 9 * up                                          # the flame leans back: higher is later
+    e = gust_strength(uu)
+    if e <= 0:
+        return None
+    tall = _noise(uu, 0, 6, 4, 1 << 20, 16, 7)               # the tongues
+    gaps = _noise(uu + 40, 0, 14, 4, 1 << 20, 16, 9)         # where the gust is thin
+    height = e * (0.22 + 1.5 * tall * tall) * (0.5 + 0.8 * gaps)
+    grain = _noise(uu, y * 1.0 - uu * 0.35, 4, 3, 1 << 20, 3 << 10, 11) - 0.5
+    if up < height + 0.10 * grain:
+        return 0.40 + 1.15 * (max(0.0, height - up) / max(height, 0.05)) ** 0.8 + 0.34 * grain
+    # wisps torn off, over the tongues
+    if up < height + 0.34 and _noise(uu * 1.0, y, 3, 2, 1 << 20, 1 << 10, 13) > 0.80:
+        return 0.50 + 0.3 * e
+    return None
+
+
+def bed_heat(x, y, rows):
+    """the idle plate: a low bed of embers (the same in every frame and every CHAT_TILE columns), a faint glow over it"""
+    up = 1 - y / (rows - 1)
+    bed = 0.13 + 0.12 * _noise(x, 0, 4, 4, CHAT_TILE, 16, 5)
+    grain = _noise(x, y, 4, 4, CHAT_TILE, 32, 2) - 0.5
+    if up >= bed:
+        return 0.16 * (1 - up) ** 2 + 0.05 * grain
+    return 0.44 + 0.50 * (1 - up / bed) + 0.16 * grain
+
+
+def chat_geo(Geo):
+    return Geo(TITLE, tile=CHAT_TILE, flow=CHAT_FLOW)
 
 
 def chat_frame(G, i):
-    """The plate as a bed of embers (frames 0 .. CALM - 1), then the fire flaring up over all of it and dying down."""
-    t = 2 * math.pi * i / N
+    """The plate as a bed of embers (frames 0 .. CALM - 1); in the other frames a gust of fire on its way along it."""
     im, px = G.canvas()
     base = G.PY1 - 2                                         # the plate's lowest inner row
     top = G.PY0 + 2
     rows = base - top + 1
-    level = 0.0 if i < CALM else SURGE[i - CALM]
-    # the end flames, licking outwards: low while the plate idles, as high as the plate when it flares
-    grow = 0.42 + 0.58 * level
+    step = i - CALM
+    behind = (lambda x: G.flow_at(x, step)) if step >= 0 else (lambda x: -1)
+    # the end flames, licking outwards: low while the plate idles (flickering in the idle frames' own loop), high
+    # while the gust is at their end of the plate
+    t = 2 * math.pi * (i % CALM) / CALM if step < 0 else 2 * math.pi * i / N
     back = {}
     for side in (-1, 1):
         ex = G.PX0 + 5 if side < 0 else G.PX1 - 5
-        tongue(back, G, ex, G.PY1, 19 * grow, 5.5 * (0.7 + 0.3 * level), 2.2, side * 0.55, t * 2)
+        grow = 0.42 + 0.58 * gust_strength(behind(G.PX0 if side < 0 else G.PX1))
+        tongue(back, G, ex, G.PY1, 19 * grow, 5.5 * (0.6 + 0.4 * grow), 2.2, side * 0.55, t * 2)
         tongue(back, G, ex - side * 5, G.PY1 - 1, 13 * grow, 4.0, 3.0, side * 0.35, t * 3)
         tongue(back, G, ex + side * 3, G.PY1, 11 * grow, 3.6, 4.4, side * 1.0, t * 2)
         tongue(back, G, ex + side * 7, G.PY1, 6 * grow, 2.6, 1.0, side * 1.3, t * 3)
     for q in [q for q in back if q[1] < G.PY0 or q[1] > G.PY1]: del back[q]
     flush(px, G, back)
-    # the plate: gold edge (light over the middle, dark under it), a bevel that glows with the fire, and the fire
+    # the plate: gold edge (light over the middle, dark under it), a bevel that glows as the gust passes, the embers
+    # and the gust
     hot = {}
     for (x, y) in G.inside:
+        u = behind(x)
         if (x, y) in G.edge:
             tip = y in (G.MID, G.MID + 1) and x in (G.PX0, G.PX1)
             c = (255, 240, 180) if tip else (255, 222, 130) if y <= G.MID else (176, 104, 28)
         elif (x, y) in G.bevel:
-            c = lerp(lerp((104, 24, 10), (150, 34, 10), level), lerp((176, 60, 16), (255, 130, 40), level),
-                     0.5 + 0.5 * math.sin(x * math.pi / 8 + y * 0.3 - t * 2))
+            e = gust_strength(u)
+            c = lerp(lerp((104, 24, 10), (150, 34, 10), e), lerp((176, 60, 16), (255, 130, 40), e),
+                     0.5 + 0.5 * math.sin(x * math.pi / 8 + y * 0.3))
         else:
-            h = hot[(x, y)] = fire_heat(x, y - top, i, rows)
+            h = gust_heat(u, y - top, rows) if u >= 0 else None
+            if h is None:
+                h = bed_heat(x - G.TILE0, y - top, rows)
+            hot[(x, y)] = h
             c = EMBER[6] if h > 1.42 else EMBER[5] if h > 1.12 else EMBER[4] if h > 0.86 else EMBER[3] if h > 0.62 \
                 else EMBER[2] if h > 0.42 else EMBER[1] if h > 0.24 else lerp((62, 15, 10), (26, 6, 6), (y - top) / (rows - 1)) if h < 0.07 else EMBER[0]
         px[x, y] = c + (255,)
-    for x0 in range(G.PX0 - G.PX0 % CHAT_TILE, G.PX1 + 1, CHAT_TILE):
-        if i < CALM:
-            # embers glimmering just over the bed
+    if step < 0:
+        # embers glimmering just over the bed
+        for x0 in range(G.TILE0 - CHAT_TILE, G.PX1 + 1, CHAT_TILE):
             for col, r, dark in GLIMMER:
                 q = (x0 + col, base - r)
                 if q in G.core and i != dark and hot.get(q, 9) <= 0.42:
                     px[q] = ((226, 108, 30) if (i + col) % 2 else (170, 56, 16)) + (255,)
-        else:
-            # sparks thrown up by the fire
-            for col, speed, start in SPARKS:
-                p = ((i - CALM) * speed + start) % 16
-                q = (x0 + col + p // 5, base - 3 - p)
-                if q in G.core and q[1] >= top and hot.get(q, 9) <= 0.62 and level > 0.3:
-                    px[q] = ((255, 236, 150) if p < 6 else (255, 170, 60) if p < 11 else (214, 78, 22)) + (255,)
     # a spike off each tip
     for side, x0 in ((-1, G.PX0), (1, G.PX1)):
         for k in range(6):

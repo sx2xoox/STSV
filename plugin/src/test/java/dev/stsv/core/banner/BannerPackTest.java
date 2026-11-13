@@ -52,9 +52,10 @@ class BannerPackTest {
             assertEquals(open, close, "braces balance");
             assertEquals(count(s, "#if"), count(s, "#endif"), "every #if ends");
         }
-        assertTrue(vsh.contains("c.r == " + BannerText.MARK_RED) && vsh.contains("c.r == " + BannerText.SURGE_RED), "the marker reds of BannerText");
-        assertTrue(vsh.contains("16 * (" + BannerText.MARK_RED + " - c.r)"), "a surging banner's frames are 16..31 for the fragment shader");
-        assertTrue(fsh.contains("#define STSV_BANNER_CALM_FRAMES 4.0") && fsh.contains("frame -= 16;"));
+        assertTrue(vsh.contains("c.r == " + BannerText.MARK_RED) && vsh.contains("c.r == " + BannerText.GUST_RED), "the marker reds of BannerText");
+        assertTrue(vsh.contains("c.b >= " + (255 - BannerText.MAX_DELAY)) && vsh.contains("bannerDelay = 255 - c.b;"), "a gust marker's delay");
+        assertTrue(vsh.contains("layout(location = 5) flat out int bannerDelay;") && fsh.contains("layout(location = 5) flat in int bannerDelay;"));
+        assertTrue(fsh.contains("#define STSV_BANNER_CALM_FRAMES 4.0") && fsh.contains("#define STSV_BANNER_GUST_STEP_MS 50.0"));
         assertTrue(vsh.contains("252"));
         assertTrue(fsh.contains("#include <minecraft:globals.glsl>") && fsh.contains("GameTime"));
         assertTrue(fsh.contains("#include <minecraft:oit.glsl>") && fsh.contains("OIT_ALPHA_ONLY"), "the game's OIT paths kept");

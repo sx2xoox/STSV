@@ -58,7 +58,9 @@ class BannerLayoutTest {
                 int tw = BannerLayout.width(m.titleWidths(), m.space(), w[0]);
                 int nw = BannerLayout.width(m.nickWidths(), m.space(), w[1]);
                 int content = tw > 0 ? tw + m.gap() + nw : nw;
-                assertEquals(Math.max(t.minPlate(), content + 2 * m.pad() + t.textRight()), l.plateWidth());
+                int want = Math.max(t.minPlate(), content + 2 * m.pad() + t.textRight());
+                if (t.flow() > 0) want = t.minPlate() + Math.ceilDiv(want - t.minPlate(), t.flow()) * t.flow();
+                assertEquals(want, l.plateWidth());
                 assertTrue(l.textStart() >= t.plateLeft() + m.pad() || l.plateWidth() == t.minPlate(), "padding");
                 assertTrue(l.textStart() + content <= t.plateLeft() + l.plateWidth() - t.textRight(), t.id() + ": text ends before the theme's own columns");
                 assertEquals(w[0].isEmpty(), l.pieces().stream().noneMatch(p -> p.glyph().equals("G")), "a gem only between title and name");
@@ -91,8 +93,21 @@ class BannerLayoutTest {
         assertTrue(fire.chat().metrics() != fire.metrics());
         assertTrue(fire.chat().metrics().titleWidths().get((int) '가') > fire.metrics().titleWidths().get((int) '가'));
         assertEquals(fire.metrics().nickWidths().keySet(), fire.chat().metrics().nickWidths().keySet(), "every name can be written");
-        // it idles and flares up (the shader plays its frames that way); the full banner loops
-        assertTrue(fire.chat().surge() && !fire.surge());
+        // a gust of fire runs along it (the shader plays its frames that way); the full banner loops
+        assertTrue(fire.chat().flow() > 0 && fire.flow() == 0);
+        // every part starts on a step of the gust: the left end at 0, the tile and the right end whole steps later
+        BannerLayout l = BannerLayout.of(C, fire.chat(), "명장 대장장이", "Steve_2024");
+        int last = -1;
+        for (BannerLayout.Piece p : l.pieces()) {
+            if (p.glyph().equals("G")) continue;
+            String[] slice = p.glyph().split(":");
+            int origin = p.glyph().equals("L") ? fire.chat().flowOrigin() : slice.length == 3 ? p.x() - Integer.parseInt(slice[1]) : p.x();
+            assertEquals(0, Math.floorMod(origin - fire.chat().flowOrigin(), fire.chat().flow()), p.glyph() + " at " + p.x());
+            int d = BannerText.delay(fire.chat(), p);
+            assertTrue(d >= last, "later parts are not earlier");
+            last = d;
+        }
+        assertTrue(last > 0);
         assertTrue(fire.chat().outline() == null, "its letters are the full banner's: no outline");
     }
 

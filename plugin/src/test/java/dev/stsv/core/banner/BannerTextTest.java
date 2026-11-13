@@ -22,8 +22,14 @@ class BannerTextTest {
         for (int f = 0; f < 16; f++) {
             TextColor m = BannerText.marker(f);
             assertEquals(f, BannerText.frameOf(m));
-            assertEquals(f, BannerText.frameOf(BannerText.marker(f, true)));
-            assertTrue(!BannerText.marker(f, true).equals(m));
+            for (int delay : new int[]{0, 5, BannerText.MAX_DELAY}) {
+                TextColor g = BannerText.marker(f, false, delay);
+                assertEquals(f, BannerText.frameOf(g));
+                assertEquals(delay, BannerText.delayOf(g));
+                assertTrue(!g.equals(m));
+            }
+            assertEquals(-1, BannerText.delayOf(m));
+            assertEquals(BannerText.MAX_DELAY, BannerText.delayOf(BannerText.marker(f, false, 99)), "a part too far right plays with the last");
             assertNotEquals(0xFFFFFF, m.value());
             assertTrue(m.red() >= 250 && m.green() >= 250 && m.blue() >= 250, "almost white without the shader");
         }

@@ -27,8 +27,9 @@ import java.util.Objects;
  *       the pen; the empty columns before the left end are left out, and the pen ends where the right end's picture
  *       ends, so whatever follows starts right after the banner.</li>
  *   <li>{@link #ALL_FRAMES}: the 16 frames of every plate part on the same spot, each in its marker colour
- *       ({@link #marker}); the pack's text shader shows one at a time (in a loop, or for a theme that surges:
- *       idling on its first frames, then the rest once), a client without it frame 0 only.
+ *       ({@link #marker}); the pack's text shader shows one at a time (in a loop, or for a theme a gust runs
+ *       along: idling on its first frames, then the rest once, part after part from the left), a client without
+ *       it frame 0 only.
  *       A single frame: that frame's glyphs, plain white (the server-side fallback, or a static banner).</li>
  * </ul>
  */
@@ -38,8 +39,10 @@ public final class BannerText {
     public static final int ALL_FRAMES = -1;
     /** Red of a marker colour (text.vsh). */
     public static final int MARK_RED = 253;
-    /** Red of a surging banner's marker colour ({@link BannerCatalog.Theme#surge}; text.vsh, text.fsh). */
-    public static final int SURGE_RED = 252;
+    /** Red of the marker colours of a banner a gust runs along ({@link BannerCatalog.Theme#flow}; text.vsh). */
+    public static final int GUST_RED = 252;
+    /** The latest a part of such a banner can be played (steps; the marker's blue is 255 - delay, 224 at least). */
+    public static final int MAX_DELAY = 31;
 
     /**
      * Full size (1 texel = 1 GUI pixel, the name tag), the small size (the plate's 16-row band at half size: 8 GUI
@@ -71,19 +74,38 @@ public final class BannerText {
 
     /** The colour that marks a banner glyph as frame {@code frame} (0..15) for the shader; all but white. */
     public static TextColor marker(int frame) {
-        return marker(frame, false);
+        return marker(frame, true, 0);
     }
 
-    /** As {@link #marker(int)}; surge: of a banner whose frames the shader plays as idling and then one surge. */
-    public static TextColor marker(int frame, boolean surge) {
+    /** As {@link #marker(int)}; loop: the plain marker; else of a part a gust reaches {@code delay} steps late. */
+    public static TextColor marker(int frame, boolean loop, int delay) {
         if (frame < 0 || frame > 15) throw new IllegalArgumentException("frame " + frame);
-        return TextColor.color(surge ? SURGE_RED : MARK_RED, 252 + (frame & 3), 252 + (frame >> 2));
+        if (loop) return TextColor.color(MARK_RED, 252 + (frame & 3), 252 + (frame >> 2));
+        return TextColor.color(GUST_RED, 255 - frame, 255 - Math.clamp(delay, 0, MAX_DELAY));
     }
 
     /** The frame a marker colour stands for, -1 when it is no marker (what text.vsh does). */
     public static int frameOf(TextColor c) {
-        if (c == null || (c.red() != MARK_RED && c.red() != SURGE_RED) || c.green() < 252 || c.blue() < 252) return -1;
-        return (c.green() - 252) + 4 * (c.blue() - 252);
+        if (c == null) return -1;
+        if (c.red() == MARK_RED && c.green() >= 252 && c.blue() >= 252) return (c.green() - 252) + 4 * (c.blue() - 252);
+        if (c.red() == GUST_RED && c.green() >= 240 && c.blue() >= 224) return 255 - c.green();
+        return -1;
+    }
+
+    /** The delay (steps) a gust marker stands for, -1 for any other colour. */
+    public static int delayOf(TextColor c) {
+        return c != null && c.red() == GUST_RED && c.green() >= 240 && c.blue() >= 224 ? 255 - c.blue() : -1;
+    }
+
+    /**
+     * How many steps after the banner's left end a gust reaches a part (0 for a theme without one): by where the
+     * part's picture starts (a slice: its tile), in the theme's flow columns a step.
+     */
+    static int delay(BannerCatalog.Theme t, BannerLayout.Piece p) {
+        if (t.flow() <= 0 || p.glyph().equals("L")) return 0;
+        String[] slice = p.glyph().split(":");
+        int origin = slice.length == 3 ? p.x() - Integer.parseInt(slice[1]) : p.x();
+        return Math.clamp(Math.floorDiv(origin - t.flowOrigin(), t.flow()), 0, MAX_DELAY);
     }
 
     /** How far the game moves the pen after a bitmap glyph whose rightmost visible column + 1 is {@code width}. */
@@ -129,7 +151,7 @@ public final class BannerText {
             double x = (p.x() - lead) * s;
             if (frame == ALL_FRAMES) {
                 for (int f = 0; f < g.chars().length; f++) {
-                    out.add(new Placed(plate, g.chars()[f], marker(f, t.surge()), false, x, advance(widths[f], s)));
+                    out.add(new Placed(plate, g.chars()[f], marker(f, t.flow() <= 0, delay(t, p)), false, x, advance(widths[f], s)));
                 }
             } else {
                 int f = Math.floorMod(frame, g.chars().length);

@@ -196,7 +196,11 @@ class Canvas:
 
 def marker_frame(colour):
     r, g, b = (colour >> 16) & 255, (colour >> 8) & 255, colour & 255
-    if r in (MARK_RED, MARK_RED - 1) and g >= 252 and b >= 252:     # a looping banner's, a surging banner's
+    if r == MARK_RED - 1 and g >= 240 and b >= 224:
+        # a part of a banner a gust runs along: frame 255 - g, played 255 - b steps late. Here a "frame" under 4 is
+        # the idle frame, and 4 + n the banner n steps into a gust (each part at its own step of it)
+        return ("gust", 255 - g, 255 - b)
+    if r == MARK_RED and g >= 252 and b >= 252:
         return (g - 252) + 4 * (b - 252)
     return -1
 
@@ -209,11 +213,18 @@ def draw_text(pack, canvas, runs, x, y, frame=0):
     for run in runs:
         colour = run["color"]
         f = marker_frame(colour)
+        if isinstance(f, tuple):                             # a gust's part: is this its frame at this step?
+            _, own, delay = f
+            into = frame - 4 - delay                         # steps into the gust, for this part
+            now = frame if frame < 4 else 4 + into if 0 <= into < 12 else 0
+            show, ghost, f = own == now, own > 0, 0
+        else:
+            show, ghost = f < 0 or f == frame, f > 0
         rgb = (255, 255, 255) if f >= 0 else ((colour >> 16) & 255, (colour >> 8) & 255, colour & 255)
         for ch in run["text"]:
             g = pack.glyph(run["font"], ord(ch))
-            if g.image is not None and (f < 0 or f == frame):
-                fa = 255 / GHOST_LEVELS if f > 0 else 1.0
+            if g.image is not None and show:
+                fa = 255 / GHOST_LEVELS if ghost else 1.0
                 item = (pen + g.left, y + g.top, g.texel, g.image, rgb, g.gray, fa)
                 if run.get("shadow"):
                     shadows.append((g.gray, (pen + g.left + 1, y + g.top + 1, g.texel, g.image,
@@ -384,7 +395,8 @@ def main():
         line = has(comps, t, "line")
         c = find(comps, t, "거상", "상원", "line" if line else "chat")
         cells = []
-        for f in ((0, 2, 5, 7, 10, 14) if line else (0, 4, 8, 12)):
+        # a chat banner: idle, then steps of a gust running along it (frame 4 + n: n steps into it)
+        for f in ((0, 6, 9, 12, 15, 19) if line else (0, 4, 8, 12)):
             cv = Canvas(c["width"] + 4, 11 if line else 10, 2, (24, 26, 32, 255), ox=2, oy=2 if line else 1)
             draw_text(fonts, cv, c["runs"], 0, 0, f)
             cells.append(up(cv.im, 3))

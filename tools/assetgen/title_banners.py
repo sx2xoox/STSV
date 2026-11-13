@@ -157,7 +157,7 @@ def render(theme, chat=False):
     banner (every row of the picture is kept: they are the chat line's)"""
     import importlib
     m = importlib.import_module("banner_themes." + theme["module"])
-    G = chatlib.ChatGeo(m.TITLE, end=getattr(m, "CHAT_END", 0)) if chat else m.Geo(m.TITLE, **m.GEO)
+    G = (m.chat_geo(chatlib.ChatGeo) if hasattr(m, "chat_geo") else chatlib.ChatGeo(m.TITLE)) if chat else m.Geo(m.TITLE, **m.GEO)
     draw = m.chat_frame if chat else m.frame
     bg, gems = [], []
     for i in range(N):
@@ -188,7 +188,9 @@ def render(theme, chat=False):
     ox, oy = box[0], box[1]
     div = getattr(G, "DIV")
     geo = dict(px0=G.PX0 - ox, px1=G.PX1 - ox, mid=G.MID - oy, cx=int(round(G.CX)) - ox, div=div - ox, title=m.TITLE,
-               end=getattr(G, "END", 0), tile=getattr(m, "CHAT_TILE", theme["tile"]) if chat else theme["tile"])
+               end=getattr(G, "END", 0), tile=G.TILE if chat else theme["tile"])
+    if chat:                                                 # the parts are the geometry's (its gust is drawn by part)
+        geo.update(tile0=G.TILE0 - ox, r0=G.R0 - ox, flow=G.FLOW, flow0=G.FLOW0 - ox)
     return bg, gems, geo
 
 
@@ -213,6 +215,8 @@ def cut(theme, bg, gems, geo):
     W = bg[0].width
     px0, px1, cx = geo["px0"], geo["px1"], geo["cx"]
     c0, c1 = (cx - hc, cx + hc) if hc else (cx, cx)
+    if "tile0" in geo:                                       # a chat banner: its geometry says where the parts are
+        return dict(P=P, left=geo["tile0"], right=geo["r0"] - P, c0=c0, c1=c1, W=W, gem_box=gem_union(gems), fills=1)
     # left tile: somewhere between the left end (its slope, rivets) and the centre slice
     lo, hi = px0 + 10, c0 - P
     left = min(range(lo, max(lo, hi) + 1), key=lambda t: (seam_cost(bg, t, t + P), abs(t - lo)))
@@ -223,12 +227,16 @@ def cut(theme, bg, gems, geo):
         # no centre ornament: one fill (the left tile) up to the right end, which keeps 10 plate columns (and a
         # chat banner's columns after the text, geo end)
         right = px1 + 1 - 10 - geo["end"] - P
+    return dict(P=P, left=left, right=right, c0=c0, c1=c1, W=W, gem_box=gem_union(gems), fills=2 if hc else 1)
+
+
+def gem_union(gems):
     gem_box = None
     for g in gems:
         b = g.getbbox()
         if b:
             gem_box = b if gem_box is None else (min(gem_box[0], b[0]), min(gem_box[1], b[1]), max(gem_box[2], b[2]), max(gem_box[3], b[3]))
-    return dict(P=P, left=left, right=right, c0=c0, c1=c1, W=W, gem_box=gem_box, fills=2 if hc else 1)
+    return gem_box
 
 
 def slices(P):
@@ -407,6 +415,9 @@ def theme_sheets(theme, fonts, chat=False):
         fonts.provider(theme["id"] + "_mini", f"font/title_banner/{theme['id']}/mini_{group.lower()}", mini_rows,
                        height=len(CHAT_ROWS) // 2, ascent=CHAT_ASCENT)
     meta["min_plate"] = (c["left"] - geo["px0"]) + (c["c1"] - c["c0"]) + (geo["px1"] + 1 - c["right"] - P)
+    if geo.get("flow"):                                      # a gust runs along the banner (banner_themes/chat.py flow_at)
+        assert (c["left"] - geo["flow0"]) % geo["flow"] == 0 and P % geo["flow"] == 0
+        meta["flow"] = dict(step=geo["flow"], origin=geo["flow0"])
     # the empty columns before the left end (cut off the banner: it starts where its picture starts)
     left_end = [f.crop((0, 0, c["left"], H)) for f in bg]
     meta["lead"] = dict(big=min(lead(f) for f in left_end), mini=min(lead(band(f, mid)) for f in left_end))
@@ -582,8 +593,6 @@ def write(out_dir: Path = OUT):
             meta["chat"] = theme_sheets(t, fonts, chat=True)[0]
             import importlib
             module = importlib.import_module("banner_themes." + t["module"])
-            if getattr(module, "CHAT_SURGE", False):         # the shader idles on its first frames, then plays the rest once
-                meta["chat"]["surge"] = True
             tint = getattr(module, "CHAT_TINT", None)
             if tint:                                         # the chat banner's own text colours and outline
                 meta["chat"]["tint"] = dict(title=[list(c) for c in tint["title"]], nick=[list(c) for c in tint["nick"]])

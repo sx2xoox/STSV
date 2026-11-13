@@ -78,9 +78,12 @@ class ChatGeo:
     end: columns of plate after the text's right padding that stay free of text (a theme's effect burns there);
     they belong to the right end, which is never tiled, so what is drawn there need not repeat."""
 
-    def __init__(self, title, side=22, end=0):
+    def __init__(self, title, side=22, end=0, tile=16, flow=0):
+        """tile: the plate's tile (title_banners.py cuts it at TILE0). flow: columns a step of a gust that runs
+        along the banner from left to right (0: none), see flow_at."""
         self.title = title
         self.END = end
+        self.TILE, self.FLOW = tile, flow
         self.TT, self.TW = width(title), width(NAME, nick=True)
         self.PW = PAD + self.TT + GAP + self.TW + PAD + end
         self.W, self.H = self.PW + 2 * side, ROWS
@@ -97,6 +100,27 @@ class ChatGeo:
         self.edge = {p for p in self.inside if any((p[0] + a, p[1] + b) not in self.inside for a, b in near)}
         self.bevel = {p for p in self.inside - self.edge if any((p[0] + a, p[1] + b) in self.edge for a, b in near)}
         self.core = self.inside - self.edge - self.bevel
+
+        # the banner's parts as the plugin lays them out (title_banners.py cut): the left end up to TILE0, the tile
+        # (repeated and sliced for the plate's length), and the right end from R0 (it keeps 10 plate columns and END)
+        self.TILE0 = self.PX0 + 16
+        self.R0 = self.PX1 + 1 - 10 - end
+        self.FLOW0 = self.PX0 - 16                               # where a gust starts: the left end's step 0
+
+    def part(self, x):
+        """the column a part starts at, for the part column x is in (the tile: the copy of it x is in)"""
+        if x < self.TILE0:
+            return self.FLOW0
+        if x >= self.R0:
+            return self.R0
+        return self.TILE0 + (x - self.TILE0) // self.TILE * self.TILE
+
+    def flow_at(self, x, step):
+        """How far behind a gust's front column x is at a step of its part (negative: the front has not come). The
+        front starts at its part's first column at step 0 and moves FLOW columns a step. The plugin plays every part
+        as many steps late as it starts after the banner's left end (BannerText.delay), so put together the front
+        runs along the whole banner, whatever its length: draw a gust as a function of this number only."""
+        return self.FLOW * step - (x - self.part(x))
 
     def canvas(self):
         im = Image.new("RGBA", (self.W, self.H), (0, 0, 0, 0))
