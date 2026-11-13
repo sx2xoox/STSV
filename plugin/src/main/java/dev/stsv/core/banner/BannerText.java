@@ -27,7 +27,8 @@ import java.util.Objects;
  *       the pen; the empty columns before the left end are left out, and the pen ends where the right end's picture
  *       ends, so whatever follows starts right after the banner.</li>
  *   <li>{@link #ALL_FRAMES}: the 16 frames of every plate part on the same spot, each in its marker colour
- *       ({@link #marker}); the pack's text shader shows one at a time, a client without it frame 0 only.
+ *       ({@link #marker}); the pack's text shader shows one at a time (in a loop, or for a theme that surges:
+ *       idling on its first frames, then the rest once), a client without it frame 0 only.
  *       A single frame: that frame's glyphs, plain white (the server-side fallback, or a static banner).</li>
  * </ul>
  */
@@ -37,6 +38,8 @@ public final class BannerText {
     public static final int ALL_FRAMES = -1;
     /** Red of a marker colour (text.vsh). */
     public static final int MARK_RED = 253;
+    /** Red of a surging banner's marker colour ({@link BannerCatalog.Theme#surge}; text.vsh, text.fsh). */
+    public static final int SURGE_RED = 252;
 
     /**
      * Full size (1 texel = 1 GUI pixel, the name tag), the small size (the plate's 16-row band at half size: 8 GUI
@@ -68,13 +71,18 @@ public final class BannerText {
 
     /** The colour that marks a banner glyph as frame {@code frame} (0..15) for the shader; all but white. */
     public static TextColor marker(int frame) {
+        return marker(frame, false);
+    }
+
+    /** As {@link #marker(int)}; surge: of a banner whose frames the shader plays as idling and then one surge. */
+    public static TextColor marker(int frame, boolean surge) {
         if (frame < 0 || frame > 15) throw new IllegalArgumentException("frame " + frame);
-        return TextColor.color(MARK_RED, 252 + (frame & 3), 252 + (frame >> 2));
+        return TextColor.color(surge ? SURGE_RED : MARK_RED, 252 + (frame & 3), 252 + (frame >> 2));
     }
 
     /** The frame a marker colour stands for, -1 when it is no marker (what text.vsh does). */
     public static int frameOf(TextColor c) {
-        if (c == null || c.red() != MARK_RED || c.green() < 252 || c.blue() < 252) return -1;
+        if (c == null || (c.red() != MARK_RED && c.red() != SURGE_RED) || c.green() < 252 || c.blue() < 252) return -1;
         return (c.green() - 252) + 4 * (c.blue() - 252);
     }
 
@@ -121,7 +129,7 @@ public final class BannerText {
             double x = (p.x() - lead) * s;
             if (frame == ALL_FRAMES) {
                 for (int f = 0; f < g.chars().length; f++) {
-                    out.add(new Placed(plate, g.chars()[f], marker(f), false, x, advance(widths[f], s)));
+                    out.add(new Placed(plate, g.chars()[f], marker(f, t.surge()), false, x, advance(widths[f], s)));
                 }
             } else {
                 int f = Math.floorMod(frame, g.chars().length);

@@ -22,6 +22,8 @@ class BannerTextTest {
         for (int f = 0; f < 16; f++) {
             TextColor m = BannerText.marker(f);
             assertEquals(f, BannerText.frameOf(m));
+            assertEquals(f, BannerText.frameOf(BannerText.marker(f, true)));
+            assertTrue(!BannerText.marker(f, true).equals(m));
             assertNotEquals(0xFFFFFF, m.value());
             assertTrue(m.red() >= 250 && m.green() >= 250 && m.blue() >= 250, "almost white without the shader");
         }

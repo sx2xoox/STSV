@@ -32,12 +32,12 @@ public final class PuppetText {
     /**
      * The colour a skin pixel is sent in: shaded for its face (text displays get no directional light), and never a
      * title banner's marker colour. The pack's text shader (pack/title_banners/shader) takes a glyph whose text
-     * colour has red 253 and green and blue of 252 or more for a banner frame and hides most of them: such a pixel
-     * goes out one step redder.
+     * colour has red 252 or 253 and green and blue of 252 or more for a banner frame and hides most of them: such
+     * a pixel goes out with red 254.
      */
     public static int colour(int rgb, double shade) {
         int r = shaded(rgb >> 16 & 0xFF, shade), g = shaded(rgb >> 8 & 0xFF, shade), b = shaded(rgb & 0xFF, shade);
-        if (BannerText.frameOf(TextColor.color(r, g, b)) >= 0) r++;
+        while (BannerText.frameOf(TextColor.color(r, g, b)) >= 0) r++;
         return r << 16 | g << 8 | b;
     }
 

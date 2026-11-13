@@ -46,8 +46,11 @@ class PuppetTextTest {
     @Test
     void noPixelIsABannerMarker() {
         String vsh = new String(BannerCatalog.resource("shader/text.vsh"), StandardCharsets.UTF_8);
-        assertTrue(vsh.contains("c.r == 253 && c.g >= 252 && c.b >= 252"), "the shader's test for a banner glyph changed: look at PuppetText.colour again");
+        assertTrue(vsh.contains("(c.r == 253 || c.r == 252) && c.g >= 252 && c.b >= 252"), "the shader's test for a banner glyph changed: look at PuppetText.colour again");
         for (int frame = 0; frame < 16; frame++) {
+            int surge = PuppetText.colour(BannerText.marker(frame, true).value(), 1.0);
+            assertEquals(-1, BannerText.frameOf(TextColor.color(surge)), "frame " + frame + "'s surge marker as a skin colour");
+            assertEquals(254, surge >> 16);
             int marker = BannerText.marker(frame).value();
             int sent = PuppetText.colour(marker, 1.0);
             assertEquals(-1, BannerText.frameOf(TextColor.color(sent)), "frame " + frame + "'s marker as a skin colour");
@@ -68,7 +71,7 @@ class PuppetTextTest {
         // everything else is sent as it is
         assertEquals(0xFFFFFF, PuppetText.colour(0xFFFFFF, 1.0));
         assertEquals(0xFDFBFF, PuppetText.colour(0xFDFBFF, 1.0), "green under 252: no marker");
-        assertEquals(0xFCFFFF, PuppetText.colour(0xFCFFFF, 1.0));
+        assertEquals(0xFBFFFF, PuppetText.colour(0xFBFFFF, 1.0));
         assertEquals(0x123456, PuppetText.colour(0x123456, 1.0));
         assertEquals(0, PuppetText.colour(0, 0.55));
     }

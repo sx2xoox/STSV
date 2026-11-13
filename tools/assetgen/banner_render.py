@@ -196,7 +196,7 @@ class Canvas:
 
 def marker_frame(colour):
     r, g, b = (colour >> 16) & 255, (colour >> 8) & 255, colour & 255
-    if r == MARK_RED and g >= 252 and b >= 252:
+    if r in (MARK_RED, MARK_RED - 1) and g >= 252 and b >= 252:     # a looping banner's, a surging banner's
         return (g - 252) + 4 * (b - 252)
     return -1
 
@@ -384,7 +384,7 @@ def main():
         line = has(comps, t, "line")
         c = find(comps, t, "거상", "상원", "line" if line else "chat")
         cells = []
-        for f in (0, 4, 8, 12):
+        for f in ((0, 2, 5, 7, 10, 14) if line else (0, 4, 8, 12)):
             cv = Canvas(c["width"] + 4, 11 if line else 10, 2, (24, 26, 32, 255), ox=2, oy=2 if line else 1)
             draw_text(fonts, cv, c["runs"], 0, 0, f)
             cells.append(up(cv.im, 3))

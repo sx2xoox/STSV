@@ -52,7 +52,9 @@ class BannerPackTest {
             assertEquals(open, close, "braces balance");
             assertEquals(count(s, "#if"), count(s, "#endif"), "every #if ends");
         }
-        assertTrue(vsh.contains("c.r == " + BannerText.MARK_RED), "the marker red of BannerText");
+        assertTrue(vsh.contains("c.r == " + BannerText.MARK_RED) && vsh.contains("c.r == " + BannerText.SURGE_RED), "the marker reds of BannerText");
+        assertTrue(vsh.contains("16 * (" + BannerText.MARK_RED + " - c.r)"), "a surging banner's frames are 16..31 for the fragment shader");
+        assertTrue(fsh.contains("#define STSV_BANNER_CALM_FRAMES 4.0") && fsh.contains("frame -= 16;"));
         assertTrue(vsh.contains("252"));
         assertTrue(fsh.contains("#include <minecraft:globals.glsl>") && fsh.contains("GameTime"));
         assertTrue(fsh.contains("#include <minecraft:oit.glsl>") && fsh.contains("OIT_ALPHA_ONLY"), "the game's OIT paths kept");
@@ -111,9 +113,10 @@ class BannerPackTest {
             }
         }
         // per theme: its plate at both sizes, and its chat banner's when it has one; the letters: title and nick,
-        // three sizes, and the chat size's outlines
+        // three sizes, and the chat size's outlines when a chat banner has them
         long chats = C.themes().values().stream().filter(t -> t.chat() != null).count();
-        assertEquals(C.themes().size() * 2 + chats + 8, fonts);
+        boolean outlines = C.themes().values().stream().anyMatch(t -> t.chat() != null && t.chat().outline() != null);
+        assertEquals(C.themes().size() * 2 + chats + 6 + (outlines ? 2 : 0), fonts);
     }
 
     @Test

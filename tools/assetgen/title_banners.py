@@ -157,7 +157,7 @@ def render(theme, chat=False):
     banner (every row of the picture is kept: they are the chat line's)"""
     import importlib
     m = importlib.import_module("banner_themes." + theme["module"])
-    G = (m.chat_geo(chatlib.ChatGeo) if hasattr(m, "chat_geo") else chatlib.ChatGeo(m.TITLE)) if chat else m.Geo(m.TITLE, **m.GEO)
+    G = chatlib.ChatGeo(m.TITLE, end=getattr(m, "CHAT_END", 0)) if chat else m.Geo(m.TITLE, **m.GEO)
     draw = m.chat_frame if chat else m.frame
     bg, gems = [], []
     for i in range(N):
@@ -519,7 +519,7 @@ def galmuri_ink(font, ch):
     return [(xo + x, top + y) for y, r in enumerate(bits) for x, b in enumerate(r) if b]
 
 
-def text_fonts(fonts):
+def text_fonts(fonts, outlines=False):
     """The title (Galmuri9 Latin and signs, and the gems), nickname (the tall face) and Hangul (Galmuri9) TrueType
     fonts, and the title / nick fonts at both sizes that use them. Advance = ink width + 1 pixel (full size)."""
     import hud
@@ -544,10 +544,11 @@ def text_fonts(fonts):
     title14 = table14(title_latin, chatlib.bold14)
     nick14 = table14(CHARSET, chatlib.tall2)
     hg14 = table14(hangul, chatlib.bold14)
-    ring = lambda table: {ch: (chatlib.outline(pix), adv) for ch, (pix, adv) in table.items()}
     files = {"title": {**title, **GEM_GLYPHS}, "nick": nick, "hangul": hg,
-             "title14": {**title14, **GEM_GLYPHS_CHAT}, "nick14": nick14, "hangul14": hg14,
-             "title14o": ring(title14), "nick14o": ring(nick14), "hangul14o": ring(hg14)}
+             "title14": {**title14, **GEM_GLYPHS_CHAT}, "nick14": nick14, "hangul14": hg14}
+    if outlines:                                             # only when a chat banner outlines its letters
+        ring = lambda table: {ch: (chatlib.outline(pix), adv) for ch, (pix, adv) in table.items()}
+        files.update({"title14o": ring(title14), "nick14o": ring(nick14), "hangul14o": ring(hg14)})
     for name, glyphs in files.items():
         fonts.files[f"assets/{NS}/font/title_banner/ttf/{name}.ttf"] = pixel_ttf(glyphs, f"STSV banner {name}")
     # the letters are Galmuri's (SIL Open Font License): its notice goes with the fonts made from it
@@ -557,7 +558,7 @@ def text_fonts(fonts):
             for part in parts:
                 fonts.fonts.setdefault(font + suffix, []).append(
                     {"type": "ttf", "file": f"{NS}:title_banner/ttf/{part}.ttf", **params, "skip": ""})
-        for suffix, kind in (("_chat", "14"), ("_chat_o", "14o")):
+        for suffix, kind in (("_chat", "14"), ("_chat_o", "14o"))[:2 if outlines else 1]:
             for part in parts:
                 fonts.fonts.setdefault(font + suffix, []).append(
                     {"type": "ttf", "file": f"{NS}:title_banner/ttf/{part}{kind}.ttf", **TTF_HI, "skip": ""})
@@ -580,13 +581,16 @@ def write(out_dir: Path = OUT):
         if t.get("chat"):
             meta["chat"] = theme_sheets(t, fonts, chat=True)[0]
             import importlib
-            tint = getattr(importlib.import_module("banner_themes." + t["module"]), "CHAT_TINT", None)
+            module = importlib.import_module("banner_themes." + t["module"])
+            if getattr(module, "CHAT_SURGE", False):         # the shader idles on its first frames, then plays the rest once
+                meta["chat"]["surge"] = True
+            tint = getattr(module, "CHAT_TINT", None)
             if tint:                                         # the chat banner's own text colours and outline
                 meta["chat"]["tint"] = dict(title=[list(c) for c in tint["title"]], nick=[list(c) for c in tint["nick"]])
                 meta["chat"]["outline"] = list(tint["outline"])
         themes.append(meta)
         renders[t["id"]] = (bg, gems)
-    text = text_fonts(fonts)
+    text = text_fonts(fonts, outlines=any("outline" in t.get("chat", {}) for t in themes))
     fonts.finish()
     if out_dir.exists():
         shutil.rmtree(out_dir / "assets", ignore_errors=True)
