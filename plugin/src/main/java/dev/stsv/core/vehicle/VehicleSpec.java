@@ -80,14 +80,27 @@ public record VehicleSpec(
      * @param spinners   parts that turn with the wheels (a bicycle's pedal crank)
      * @param allTerrain not slowed on rough ground (sand, gravel, snow, mud) or soul sand ({@link VehiclePhysics#slowdown})
      * @param overCap    its own top speed holds even over the server's (vehicles.max-speed): the sports car
+     * @param drift      it drifts ({@link Drift}), or null
      */
-    public record Extras(double lean, List<Spinner> spinners, boolean allTerrain, boolean overCap) {
-        public static final Extras NONE = new Extras(0, List.of(), false, false);
+    public record Extras(double lean, List<Spinner> spinners, boolean allTerrain, boolean overCap, Drift drift) {
+        public static final Extras NONE = new Extras(0, List.of(), false, false, null);
 
         public Extras(double lean, List<Spinner> spinners, boolean allTerrain) {
-            this(lean, spinners, allTerrain, false);
+            this(lean, spinners, allTerrain, false, null);
+        }
+
+        public Extras(double lean, List<Spinner> spinners, boolean allTerrain, boolean overCap) {
+            this(lean, spinners, allTerrain, overCap, null);
         }
     }
+
+    /**
+     * Drifting ({@code drift:} in the item file; {@link VehiclePhysics#step}): with Ctrl (the sprint key) held while
+     * steering at minSpeed or faster, the nose turns {@code turn} times as fast and swings up to {@code angle} degrees
+     * off the way the car goes, {@code build} degrees a second; let go it comes back {@code recover} degrees a second.
+     * Sliding at the full angle costs {@code drag} blocks/s of speed every second.
+     */
+    public record Drift(double angle, double minSpeed, double build, double recover, double turn, double drag) {}
 
     /** The fastest a vehicle that goes over the server's top speed may be set (blocks/s). */
     public static final double OVER_CAP_MAX = 20;
@@ -300,8 +313,19 @@ public record VehicleSpec(
         }
         boolean overCap = v.getBoolean("over-cap");
         if (overCap && speed > OVER_CAP_MAX) throw new IllegalArgumentException("vehicle.over-cap 인 탈것의 speed 는 " + OVER_CAP_MAX + " 이하");
-        Extras extras = lean == 0 && spinners.isEmpty() && !v.getBoolean("all-terrain") && !overCap
-                ? Extras.NONE : new Extras(lean, List.copyOf(spinners), v.getBoolean("all-terrain"), overCap);
+        Drift drift = null;
+        if (v.isConfigurationSection("drift")) {
+            ConfigurationSection d = v.getConfigurationSection("drift");
+            drift = new Drift(d.getDouble("angle", 30), d.getDouble("min-speed", 5), d.getDouble("build", 90), d.getDouble("recover", 140),
+                    d.getDouble("turn", 1.4), d.getDouble("drag", 1.5));
+            if (drift.angle() <= 0 || drift.angle() > 60) throw new IllegalArgumentException("vehicle.drift.angle 은 0 초과 60 이하 (도)");
+            if (drift.minSpeed() < 1) throw new IllegalArgumentException("vehicle.drift.min-speed 는 1 이상 (블록/초)");
+            if (drift.build() <= 0 || drift.recover() <= 0) throw new IllegalArgumentException("vehicle.drift.build · recover 는 0보다 커야 함 (도/초)");
+            if (drift.turn() < 1 || drift.turn() > 3) throw new IllegalArgumentException("vehicle.drift.turn 은 1 ~ 3 (방향 트는 빠르기의 배수)");
+            if (drift.drag() < 0 || drift.drag() > 10) throw new IllegalArgumentException("vehicle.drift.drag 는 0 ~ 10 (블록/초²)");
+        }
+        Extras extras = lean == 0 && spinners.isEmpty() && !v.getBoolean("all-terrain") && !overCap && drift == null
+                ? Extras.NONE : new Extras(lean, List.copyOf(spinners), v.getBoolean("all-terrain"), overCap, drift);
         return new VehicleSpec((float) bodyScale, speed, reverse,
                 driven ? positive(v, "acceleration") : v.getDouble("acceleration", 3), driven ? positive(v, "brake") : v.getDouble("brake", 8),
                 v.getDouble("coast", driven ? 2.0 : 8.0), driven ? positive(v, "turn-rate") : v.getDouble("turn-rate", 90),

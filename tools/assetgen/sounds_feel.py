@@ -41,7 +41,7 @@ CART = dict(start=0.4 + FADE, stop=0.45, seed=69)
 
 VEHICLES = tuple(ENGINES) + ("power_tiller", "golf_cart")
 NAMES = ([(v, k) for v in VEHICLES for k in ("engine_start", "engine_stop")] + [("common", "reverse_beep")]
-         + [("sports_car", "backfire")])
+         + [("sports_car", "backfire"), ("sports_car", "skid")])
 
 
 # ----------------------------------------------------------------------------------------------
@@ -238,6 +238,22 @@ def backfire():
     return _finish(out * envelope(t, 0.0, 0.5, 0.06), 0.85)
 
 
+def skid():
+    """The sports car drifting: tyres squealing on the road. Noise through two narrow resonances that waver (a pair of
+    tyres a little apart in pitch), a rough scrub under them. One piece of 0.5 s between its fades (the server plays it
+    again every half second: each fades in while the last fades out)."""
+    rng = np.random.default_rng(72)
+    length = 0.5 + FADE
+    n = int(SR * length)
+    t = np.arange(n) / SR
+    squeal = S.resonant_noise(rng, n, [(1380.0, 45.0, 1.0), (1560.0, 55.0, 0.8), (2850.0, 120.0, 0.35)])
+    scrub = S.eq(rng.standard_normal(n), lambda f: S.highpass(f, 600, 2) * S.lowpass(f, 3800, 2))
+    x = squeal / _rms(squeal) + 0.3 * scrub / _rms(scrub)
+    x *= 1 + 0.12 * S.smooth_noise(rng, n, 18.0)
+    fade = np.sin(0.5 * np.pi * np.clip(t / FADE, 0, 1)) * np.cos(0.5 * np.pi * np.clip((t - (length - FADE)) / FADE, 0, 1))
+    return _finish(x * fade, 0.7)
+
+
 def clips():
     out = {}
     for v in ENGINES:
@@ -249,4 +265,5 @@ def clips():
     out[("golf_cart", "engine_stop")] = (cart_stop(), 0)
     out[("common", "reverse_beep")] = (reverse_beep(), 0)
     out[("sports_car", "backfire")] = (backfire(), 0)
+    out[("sports_car", "skid")] = (skid(), 0)
     return out

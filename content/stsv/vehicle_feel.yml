@@ -96,7 +96,8 @@ suspension:
 #   sport         스포츠카의 속도감: fov 최고 속도에서 운전자 시야가 넓어지는 비율 (0.3 = 30%, 0 ~ 0.5. 게임 설정 '시야 효과'를
 #                 낮춘 사람은 그만큼 덜 보임), exhaust 배기구 위치 [[오른쪽, 위, 앞], ...],
 #                 backfire 달리다(min-speed 블록/초 이상) 가속을 떼면 배기구에서 불꽃이 튀며 "팡팡": sound, volume,
-#                 launch-smoke true = 서 있다가 가속을 밟으면 뒷바퀴에서 연기
+#                 launch-smoke true = 서 있다가 가속을 밟으면 뒷바퀴에서 연기,
+#                 skid 드리프트하는 동안(탈것의 drift: 설정) 타이어가 미끄러지는 "끼이익": sound, volume (뒷바퀴 연기도 함께)
 # ------------------------------------------------------------------------------------------------
 vehicles:
   police_car:
@@ -117,6 +118,7 @@ vehicles:
       exhaust: [[-0.69, 0.28, -2.3], [-0.5, 0.28, -2.3], [0.5, 0.28, -2.3], [0.69, 0.28, -2.3]]
       backfire: { sound: stsv:vehicle.sports_car.backfire, volume: 0.9, min-speed: 7 }
       launch-smoke: true
+      skid: { sound: stsv:vehicle.sports_car.skid, volume: 0.7 }
   light_truck:
     power: engine
     lights: { head: light_truck_lamp_head, tail: light_truck_lamp_tail, brake: light_truck_lamp_brake, reverse: light_truck_lamp_reverse }

@@ -143,6 +143,90 @@ class SportFeelTest {
         assertEquals(0, plain.smoke);
     }
 
+    static DriveInput keys(boolean w, int steer, boolean ctrl) {
+        return new DriveInput(w, false, steer > 0, steer < 0, false, false, ctrl);
+    }
+
+    @Test
+    void ctrlAndSteeringAtSpeedDrifts() {
+        VehicleSpec car = car();
+        VehicleSpec.Drift d = car.extras().drift();
+        assertTrue(d != null && d.angle() > 20 && d.minSpeed() >= 5, "vehicles.yml sports_car.vehicle.drift");
+        var t = VehiclePhysicsTest.flat();
+        double cap = car.cap(10);
+        VehiclePhysics.State st = VehiclePhysicsTest.onGround(0.5, 0.5, 0);
+        for (int i = 0; i < 80; i++) VehiclePhysics.step(st, keys(true, 0, false), car, t, cap, 1f, 1, cap);
+        assertEquals(0, st.slip, 1e-9, "driving straight: it goes where it points");
+        // steering without Ctrl: an ordinary turn, no slide
+        VehiclePhysics.State plain = TrainPhysics.copy(st);
+        for (int i = 0; i < 20; i++) VehiclePhysics.step(plain, keys(true, 1, false), car, t, cap, 1f, 1, cap);
+        assertEquals(0, plain.slip, 1e-9);
+        // Ctrl + A: the nose swings left (the yaw falls) faster than in the plain turn, and the car slides: it moves
+        // to the right of where its nose points
+        VehiclePhysics.State drift = TrainPhysics.copy(st);
+        double fast = st.speed;
+        for (int i = 0; i < 20; i++) {
+            double x = drift.x, z = drift.z;
+            VehiclePhysics.step(drift, keys(true, 1, true), car, t, cap, 1f, 1, cap);
+            assertTrue(Math.abs(drift.slip) <= d.angle() + 1e-9, "never past its angle");
+            if (i > 3) {
+                float went = CartPull.yawOf(drift.x - x, drift.z - z);
+                assertEquals(drift.slip, VehicleSeats.signed(drift.yaw - went), 0.5, "the nose is off its way by the slip");
+            }
+        }
+        assertEquals(-d.angle(), drift.slip, 1e-6, "full slide after a second, the nose turned in (left: below 0)");
+        assertTrue(VehicleSeats.signed(drift.yaw - st.yaw) < VehicleSeats.signed(plain.yaw - st.yaw) - 5, "it turns in harder than a plain turn");
+        assertTrue(drift.speed < fast && drift.speed > fast - 3, "sliding costs a little speed: " + drift.speed + " from " + fast);
+        // the other way
+        VehiclePhysics.State right = TrainPhysics.copy(st);
+        for (int i = 0; i < 20; i++) VehiclePhysics.step(right, keys(true, -1, true), car, t, cap, 1f, 1, cap);
+        assertEquals(d.angle(), right.slip, 1e-6);
+        // let go: it grips again within half a second and goes where it points
+        for (int i = 0; i < 10; i++) VehiclePhysics.step(drift, keys(true, 0, false), car, t, cap, 1f, 1, cap);
+        assertEquals(0, drift.slip, 1e-9);
+        double x = drift.x, z = drift.z;
+        VehiclePhysics.step(drift, keys(true, 0, false), car, t, cap, 1f, 1, cap);
+        assertEquals(0, VehicleSeats.signed(drift.yaw - CartPull.yawOf(drift.x - x, drift.z - z)), 0.01);
+        // too slow: no drift; Ctrl alone (no steering): none
+        VehiclePhysics.State slow = VehiclePhysicsTest.onGround(0.5, 0.5, 0);
+        for (int i = 0; i < 8; i++) VehiclePhysics.step(slow, keys(true, 1, true), car, t, cap, 1f, 1, cap);
+        assertTrue(slow.speed < d.minSpeed());
+        assertEquals(0, slow.slip, 1e-9, "under its drift speed");
+        VehiclePhysics.State straight = TrainPhysics.copy(st);
+        for (int i = 0; i < 10; i++) VehiclePhysics.step(straight, keys(true, 0, true), car, t, cap, 1f, 1, cap);
+        assertEquals(0, straight.slip, 1e-9);
+        // a car that does not drift (the patrol car): Ctrl changes nothing
+        ConfigurationSection ps = YamlConfiguration.loadConfiguration(PACK.resolve("items/vehicles.yml").toFile()).getConfigurationSection("police_car.vehicle");
+        VehicleSpec police = VehicleSpec.parse(ps, "stsv", m -> true);
+        assertNull(police.extras().drift());
+        VehiclePhysics.State a = VehiclePhysicsTest.onGround(0.5, 0.5, 0), b = VehiclePhysicsTest.onGround(0.5, 0.5, 0);
+        for (int i = 0; i < 100; i++) {
+            VehiclePhysics.step(a, keys(true, i > 60 ? 1 : 0, true), police, t, 10);
+            VehiclePhysics.step(b, keys(true, i > 60 ? 1 : 0, false), police, t, 10);
+        }
+        assertEquals(b.x, a.x, 1e-9);
+        assertEquals(b.yaw, a.yaw, 1e-6);
+        assertEquals(0, a.slip, 1e-9);
+    }
+
+    @Test
+    void aDriftNeverPutsTheCarInABlock() {
+        // sliding sideways into a wall: it stops against it like any move
+        VehicleSpec car = car();
+        var t = VehiclePhysicsTest.flat();
+        for (int z = -5; z <= 60; z++) for (int y = 64; y <= 66; y++) {
+            t.block(6, y, z);
+            t.block(-6, y, z);
+        }
+        double cap = car.cap(10);
+        VehiclePhysics.State st = VehiclePhysicsTest.onGround(0.5, 0.5, 0);
+        for (int i = 0; i < 300; i++) {
+            int steer = (i / 25) % 2 == 0 ? 1 : -1;
+            VehiclePhysics.step(st, keys(true, i < 50 ? 0 : steer, i >= 50), car, t, cap, 1f, 1, cap);
+            assertFalse(VehiclePhysics.collides(st.x, st.y, st.z, st.yaw, car, t), "tick " + i);
+        }
+    }
+
     @Test
     void theShippedFeelHasIt() {
         List<String> problems = new ArrayList<>();
@@ -155,13 +239,14 @@ class SportFeelTest {
         assertTrue(sp.exhaust().getFirst().forward() < -2, "at the tail");
         assertNotNull(sp.backfire());
         assertTrue(sp.launchSmoke());
+        assertNotNull(sp.skid(), "the tyres squeal in a drift");
         assertTrue(s.lamps().front() && s.lamps().rear(), "head and tail lamps");
         assertTrue(s.ignition());
         // no other vehicle has it
         for (String id : List.of("police_car", "light_truck", "golf_cart", "cargo_van"))
             assertNull(VehicleFeelTest.shipped(problems).spec("stsv:" + id, VehicleFeel.Power.ENGINE).sport(), id);
         // its sounds are in the pack
-        for (String kind : List.of("horn", "horn_end", "engine", "engine_start", "engine_stop", "backfire"))
+        for (String kind : List.of("horn", "horn_end", "engine", "engine_start", "engine_stop", "backfire", "skid"))
             assertTrue(Files.exists(PACK.resolve("assets/stsv/sounds/vehicle/sports_car_" + kind + ".ogg")), kind);
     }
 

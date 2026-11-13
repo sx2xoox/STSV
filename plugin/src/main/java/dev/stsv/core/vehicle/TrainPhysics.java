@@ -379,6 +379,7 @@ public final class TrainPhysics {
         to.onGround = from.onGround;
         to.steer = from.steer;
         to.roll = from.roll;
+        to.slip = from.slip;
         to.bumped = from.bumped;
         to.air = from.air;
     }

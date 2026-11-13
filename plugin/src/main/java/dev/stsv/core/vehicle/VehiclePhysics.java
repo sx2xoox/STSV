@@ -22,6 +22,9 @@ import java.util.List;
  *       height and set down again (a block, a slab, stairs). Going down, it follows the ground instead of falling: half a
  *       block at once (stairs and slabs stay smooth), up to a block {@link #DESCENT} a tick ({@link #land}); further
  *       down it falls with gravity (vanilla's 0.08 a tick, 2 % drag). Landing never costs it speed.</li>
+ *   <li><b>Drift</b> (a vehicle with {@link VehicleSpec.Drift}: the sports car): Ctrl held while steering at speed swings
+ *       the nose in faster than the car changes its way ({@link State#slip}), so it slides sideways with its nose
+ *       turned in, losing a little speed; let go, it grips again within a moment.</li>
  *   <li><b>Hazards</b>: it does not drive onto or into lava, into water deeper than a block, or into unloaded
  *       chunks (the terrain says unloaded blocks are solid): it stops there.</li>
  * </ul>
@@ -72,6 +75,8 @@ public final class VehiclePhysics {
         public boolean onGround;
         /** front wheels' angle, degrees (+ = left) and the wheels' roll, radians */
         public double steer, roll;
+        /** a drifting car: how far its nose points off the way it goes, degrees (0 = it goes where it points) */
+        public double slip;
         /** hit something hard this tick (speed lost) */
         public boolean bumped;
         /** ticks since it was last on the ground (0 = on it) */
@@ -370,16 +375,25 @@ public final class VehiclePhysics {
         }
         st.speed = nextSpeed(st.speed, in.forward(), in.backward(), s, slow, cap, accelScale);
 
-        float turn = yawRate(st.speed, in.steer(), s) * turnScale;
+        // a drift (VehicleSpec.Drift: the sports car, Ctrl held while steering at speed): the nose swings in faster
+        // than the car changes its way, so it slides with its nose turned in; let go, it grips again
+        VehicleSpec.Drift drift = s.extras().drift();
+        boolean drifting = drift != null && in.sprint() && in.steer() != 0 && st.onGround && st.speed >= drift.minSpeed();
+        float turn = yawRate(st.speed, in.steer(), s) * turnScale * (drifting ? (float) drift.turn() : 1f);
         if (turn != 0) {
             float yaw = wrap(st.yaw + turn);
             if (!collides(st.x, st.y, st.z, yaw, s, t)) st.yaw = yaw;
         }
         st.steer = nextSteer(st.steer, in.steer());
+        if (drift != null) {
+            // steering left makes the yaw smaller: the nose is then left of the way it goes (slip below 0)
+            st.slip = drifting ? toward(st.slip, -in.steer() * drift.angle(), drift.build() * DT) : toward(st.slip, 0, drift.recover() * DT);
+            if (st.slip != 0 && st.speed > 0) st.speed = Math.max(0, st.speed - drift.drag() * Math.abs(st.slip) / drift.angle() * DT);
+        }
 
         // gravity: on the ground a small push down keeps it there (and finds out when the ground is gone)
         st.vy = st.onGround ? -GRAVITY : Math.max(-MAX_FALL, (st.vy - GRAVITY) * DRAG);
-        double[] f = forward(st.yaw);
+        double[] f = forward(st.slip == 0 ? st.yaw : wrap((float) (st.yaw - st.slip)));
         double dist = st.speed * DT;
         double dx = f[0] * dist, dz = f[1] * dist;
 

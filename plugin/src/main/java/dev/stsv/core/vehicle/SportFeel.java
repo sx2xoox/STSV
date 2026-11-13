@@ -38,8 +38,14 @@ public final class SportFeel {
      * @param backfire      the pop when the driver lifts off at speed, or null
      * @param backfireSpeed only above this speed (blocks/s)
      * @param launchSmoke   smoke from the driven wheels when floored from a stop
+     * @param skid          the tyres' squeal while it drifts (played again every {@link #SKID_TICKS}), or null
      */
-    public record Spec(double fov, List<VehicleSpec.Vec> exhaust, VehicleFeel.Sound backfire, double backfireSpeed, boolean launchSmoke) {}
+    public record Spec(double fov, List<VehicleSpec.Vec> exhaust, VehicleFeel.Sound backfire, double backfireSpeed, boolean launchSmoke,
+                       VehicleFeel.Sound skid) {}
+
+    /** Ticks from one squeal to the next (the clip is a little longer: they fade into each other), and the slip (degrees) it starts at. */
+    public static final int SKID_TICKS = 10;
+    public static final double SKID_SLIP = 6;
 
     static Spec parse(ConfigurationSection s) {
         double fov = s.getDouble("fov", 0);
@@ -59,7 +65,8 @@ public final class SportFeel {
             if (popSpeed < 0) throw new IllegalArgumentException("sport.backfire.min-speed 는 0 이상 (블록/초)");
             if (exhaust.isEmpty()) throw new IllegalArgumentException("sport.backfire 에는 sport.exhaust (배기구 위치) 가 있어야 함");
         }
-        return new Spec(fov, List.copyOf(exhaust), pop, popSpeed, s.getBoolean("launch-smoke"));
+        VehicleFeel.Sound skid = s.isConfigurationSection("skid") ? VehicleFeel.sound(s.getConfigurationSection("skid"), "sport.skid") : null;
+        return new Spec(fov, List.copyOf(exhaust), pop, popSpeed, s.getBoolean("launch-smoke"), skid);
     }
 
     // ------------------------------------------------------------------------------------------

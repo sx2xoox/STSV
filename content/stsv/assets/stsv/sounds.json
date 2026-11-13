@@ -418,5 +418,12 @@
         "name": "stsv:vehicle/sports_car_backfire"
       }
     ]
+  },
+  "vehicle.sports_car.skid": {
+    "sounds": [
+      {
+        "name": "stsv:vehicle/sports_car_skid"
+      }
+    ]
   }
 }
