@@ -180,6 +180,47 @@ def bed_heat(x, y, rows):
     return 0.44 + 0.50 * (1 - up / bed) + 0.16 * grain
 
 
+CAP = 10                      # each end of the plate is a cap of solid gold, this many columns from the tip
+GOLD = ((255, 232, 150), (240, 184, 74), (206, 138, 40), (140, 80, 22))     # a cap from its top row to its bottom row
+STUD = ("..oo..", ".ohho.", "ohrrdo", "orrddo", ".oddo.", "..oo..")           # the ember set in a cap
+
+
+def frame_colour(G, x, y, e):
+    """The plate's frame at a pixel, None inside it. e: how strong the gust burns here (0: the idle plate).
+    Top: a gold rail with a sheen that comes and goes along it, a bronze lip under it. Bottom: a lip that glows
+    with the embers, a dark gold rail. Each end: a cap of solid gold (lit from above, a groove where it meets the
+    plate) with an ember set in it. All of it repeats every 64 columns where the plate is tiled."""
+    d = min(x - G.PX0, G.PX1 - x)                            # columns from the nearer tip
+    edge = (x, y) in G.edge
+    if d < CAP:
+        if d == CAP - 1 and not edge:
+            return (64, 26, 8)                               # the groove
+        r, c = y - (G.MID - 2), d - 2                        # the ember: 6 x 6, a little off the tip
+        if 0 <= r < 6 and 0 <= c < 6 and STUD[r][c] != ".":
+            k = STUD[r][c]
+            if k == "o": return (86, 34, 10)
+            hot = lerp((255, 214, 130), (255, 250, 220), e)
+            return hot if k == "h" else lerp((240, 84, 24), (255, 170, 60), e) if k == "r" else lerp((176, 30, 12), (240, 96, 24), e)
+        if edge:
+            tip = d == 0
+            return (255, 250, 214) if tip else (255, 240, 176) if y <= G.MID else (120, 68, 18)
+        v = (y - 1) / 15
+        c = lerp(GOLD[0], GOLD[1], v / 0.35) if v < 0.35 else lerp(GOLD[1], GOLD[2], (v - 0.35) / 0.3) if v < 0.65 else lerp(GOLD[2], GOLD[3], (v - 0.65) / 0.35)
+        if (d + y) % 9 == 4 and y < G.MID: c = lerp(c, (255, 248, 214), 0.7)      # a glint across the cap
+        return c
+    wave = 0.5 + 0.5 * math.cos(2 * math.pi * (x - G.TILE0) / 64)
+    if y == G.PY0:
+        return lerp((232, 170, 64), (255, 244, 190), wave ** 2)
+    if y == G.PY0 + 1:
+        return lerp(lerp((112, 58, 16), (150, 84, 24), wave), (255, 160, 56), 0.8 * e)
+    if y == G.PY1 - 1:
+        glow = 0.5 + 0.5 * math.sin(x * math.pi / 8)
+        return lerp(lerp((132, 30, 10), (196, 62, 16), glow), (255, 150, 48), 0.25 + 0.75 * e if e > 0 else 0.0)
+    if y == G.PY1:
+        return lerp((128, 72, 20), (184, 110, 30), wave)
+    return None
+
+
 def chat_geo(Geo):
     return Geo(TITLE, tile=CHAT_TILE, flow=CHAT_FLOW)
 
@@ -205,18 +246,13 @@ def chat_frame(G, i):
         tongue(back, G, ex + side * 7, G.PY1, 6 * grow, 2.6, 1.0, side * 1.3, t * 3)
     for q in [q for q in back if q[1] < G.PY0 or q[1] > G.PY1]: del back[q]
     flush(px, G, back)
-    # the plate: gold edge (light over the middle, dark under it), a bevel that glows as the gust passes, the embers
-    # and the gust
+    # the plate: its frame (frame_colour), and inside it the embers and the gust
     hot = {}
     for (x, y) in G.inside:
         u = behind(x)
-        if (x, y) in G.edge:
-            tip = y in (G.MID, G.MID + 1) and x in (G.PX0, G.PX1)
-            c = (255, 240, 180) if tip else (255, 222, 130) if y <= G.MID else (176, 104, 28)
-        elif (x, y) in G.bevel:
-            e = gust_strength(u)
-            c = lerp(lerp((104, 24, 10), (150, 34, 10), e), lerp((176, 60, 16), (255, 130, 40), e),
-                     0.5 + 0.5 * math.sin(x * math.pi / 8 + y * 0.3))
+        c = frame_colour(G, x, y, gust_strength(u))
+        if c is not None:
+            pass
         else:
             h = gust_heat(u, y - top, rows) if u >= 0 else None
             if h is None:
@@ -232,11 +268,14 @@ def chat_frame(G, i):
                 q = (x0 + col, base - r)
                 if q in G.core and i != dark and hot.get(q, 9) <= 0.42:
                     px[q] = ((226, 108, 30) if (i + col) % 2 else (170, 56, 16)) + (255,)
-    # a spike off each tip
+    # a finial off each tip: a small diamond on a pin
+    FINIAL = ((1, 2, (255, 244, 190)), (2, 4, (255, 226, 138)), (3, 4, (232, 170, 64)), (4, 2, (190, 116, 32)),
+              (5, 2, (255, 226, 138)), (6, 2, (255, 244, 190)))
     for side, x0 in ((-1, G.PX0), (1, G.PX1)):
-        for k in range(6):
-            for y in (G.MID, G.MID + 1):
-                put(px, G, x0 + side * (k + 1), y, (255, 200, 90) if k < 4 else (255, 240, 180))
+        for k, rows_k, col in FINIAL:
+            for j in range(rows_k):
+                y = G.MID + 1 - rows_k // 2 + j
+                put(px, G, x0 + side * k, y, lerp(col, (120, 68, 18), 0.55) if rows_k == 4 and j == rows_k - 1 else col)
     for r, row in enumerate(GEM7):
         for c, v in enumerate(row):
             if v != ".": gem_put(px, G, G.DIV - 3 + c, G.MID - 3 + r, GEM7_COLOURS[v])
