@@ -93,6 +93,8 @@ public final class PackModule implements StsvModule, Listener {
         if (cfg.getBoolean("default-font")) extra.putAll(DefaultFont.files());
         // title banners (admin test feature): fonts, glyph sheets, the text shader that animates them
         if (plugin.banners() != null) extra.putAll(plugin.banners().packFiles());
+        // emotes (admin test feature): the pixel font the puppets are drawn with
+        if (plugin.emotes() != null) extra.putAll(plugin.emotes().packFiles());
         PackBuilder.Built built = new PackBuilder()
                 .extra(extra)
                 // custom crops as tripwire blocks (crops.render: blocks), or vanilla string (entities)
