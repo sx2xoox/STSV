@@ -234,9 +234,16 @@ public final class BannerText {
         }
     }
 
+    /**
+     * A letter's colour between two tints. Never one of the shader's markers: a tint that fades from white passes
+     * through red 253 .. 250 with green and blue near 255, and a letter of that colour would be taken for a frame of a
+     * plate and dropped (it vanished from the banner). Such a colour gets a little more red: one shade, nothing the eye sees.
+     */
     static TextColor lerp(int[] a, int[] b, double t) {
-        return TextColor.color((int) Math.round(a[0] + (b[0] - a[0]) * t), (int) Math.round(a[1] + (b[1] - a[1]) * t),
-                (int) Math.round(a[2] + (b[2] - a[2]) * t));
+        int r = (int) Math.round(a[0] + (b[0] - a[0]) * t), g = (int) Math.round(a[1] + (b[1] - a[1]) * t),
+                bl = (int) Math.round(a[2] + (b[2] - a[2]) * t);
+        while (r < 255 && reserved(TextColor.color(r, g, bl))) r++;
+        return TextColor.color(r, g, bl);
     }
 
     /**

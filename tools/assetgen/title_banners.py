@@ -66,6 +66,7 @@ sys.path.insert(0, str(HERE))
 
 import galmuri  # noqa: E402
 import neodgm  # noqa: E402
+import terminus  # noqa: E402
 from banner_themes import chat as chatlib, state  # noqa: E402
 from banner_themes.letters import TALL, CHARSET  # noqa: E402
 
@@ -559,7 +560,7 @@ def text_fonts(fonts, outlines=False):
     title = table(title_latin, lambda ch: galmuri_ink(F9, ch))
     nick = table(CHARSET, lambda ch: [(x, y + 1) for y, r in enumerate(TALL[ch]) for x, v in enumerate(r) if v == "#"])
     hg = table(hangul, lambda ch: galmuri_ink(F9, ch))
-    # the chat banners' text (banner_themes/chat.py): Hangul in Neo둥근모, the rest in Galmuri14 made bold
+    # the chat banners' text (banner_themes/chat.py): Hangul in Neo둥근모, Latin, digits and signs in Terminus Bold
     table14 = lambda chars: {ch: (pix, chatlib.advance(pix)) for ch in chars for pix in [chatlib.glyph(ch)] if pix}
     title14, nick14, hg14 = table14(title_latin), table14(CHARSET), table14(hangul)
     files = {"title": {**title, **GEM_GLYPHS}, "nick": nick, "hangul": hg,
@@ -571,6 +572,12 @@ def text_fonts(fonts, outlines=False):
         fonts.files[f"assets/{NS}/font/title_banner/ttf/{name}.ttf"] = pixel_ttf(glyphs, f"STSV banner {name}")
     # the letters are Galmuri's (SIL Open Font License): its notice goes with the fonts made from it
     fonts.files[f"assets/{NS}/font/title_banner/ttf/LICENSE-galmuri.txt"] = galmuri.LICENSE.read_bytes()
+    # title14.ttf and nick14.ttf are made from Terminus Bold (SIL Open Font License, a reserved font name): Modified Versions
+    fonts.files[f"assets/{NS}/font/title_banner/ttf/LICENSE-terminus.txt"] = (
+        "title14.ttf and nick14.ttf hold glyphs converted from Terminus Font, bold 22 px (its printable ASCII, the\n"
+        "letters that hang under the baseline pressed to the banner's rows), as TrueType fonts for the STSV title\n"
+        "banners. They are Modified Versions under the license below and do not use the Reserved Font Name.\n\n"
+        + terminus.LICENSE.read_text(encoding="utf-8")).encode("utf-8")
     # hangul14.ttf is made from Neo둥근모 (SIL Open Font License, reserved font names): a Modified Version
     fonts.files[f"assets/{NS}/font/title_banner/ttf/LICENSE-neodgm.txt"] = (
         "hangul14.ttf holds glyphs converted from Neo둥근모 1.600 (https://neodgm.dalgona.dev): its Hangul\n"

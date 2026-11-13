@@ -103,114 +103,105 @@ from . import chat as C
 
 
 def chat_geo(Geo):
-    return C.framed(Geo, TITLE)
+    # a plain bar (the box cuts its own corners), a loop; it grows by whole cells of the screen's grid
+    return Geo(TITLE, tile=C.TILE, pointed=False, grow=16)
 
 
 # the letters jump with the glitch: the pack's text shader moves them in frames 6 and 13 (and shows a cyan or magenta
 # ghost beside them); it has their colours, THEMES' neon tints (text.vsh STSV_GLITCH_FROM / _TO)
 CHAT_GLITCH = True
 
+# The chat banner: a neon sign box. A black box with cut corners, a magenta tube round its outside and a cyan one
+# inside it (a lit tube has a pale hot core; a clip holds them every 32 columns; their light spills on to the
+# first rows of the box). The current runs round the cyan tube as a bright spot (to the right along the top, back
+# along the bottom); the magenta tube breathes and stutters now and then. Inside, a dark screen: scan lines, a faint
+# grid, and a soft bar of light that sweeps across it. Twice a loop the picture tears (frames 6 and 13, when the
+# shader makes the letters jump): the tubes dip, a band of the screen slips sideways and a few short dashes of
+# static cross it. A marquee of two brackets blinks off each end. Behind the words the screen stays dark (C.hush).
+CHAT_CUT = 3                          # the corners are cut off this deep
 
-# the traces inside the plate, the same every 64 columns: each in its own cell of 16 columns (a slice of the tile
-# never cuts one): where it starts in the cell, from the top (1) or the bottom (-1), straight / slanted / straight
-CHAT_TRACES = ((0, 3, 1, 2, 4, 2), (1, 12, -1, 2, 4, 1), (2, 4, 1, 3, 3, 2), (3, 11, -1, 3, 2, 2))
 
-
-def chat_traces(G):
-    out = []
-    for x0 in range(G.TILE0, G.R0 - 15, 64):
-        for cell, start, way, a, b, c in CHAT_TRACES:
-            x, y = x0 + cell * 16 + start, (G.PY0 + 2 if way > 0 else G.PY1 - 2)
-            if x + 6 >= G.R0: continue
-            pts = [(x, y)]
-            for _ in range(a): y += way; pts.append((x, y))
-            for _ in range(b): x += way; y += way; pts.append((x, y))
-            for _ in range(c): y += way; pts.append((x, y))
-            out.append((cell, way, pts))
-    return out
+def chat_ring(G, x, y):
+    """which ring of the box a pixel is in: 0 the outer tube, 1 the inner tube, 2 and more the screen; -1 outside
+    (the cut corners)"""
+    dx, dy = min(x - G.PX0, G.PX1 - x), min(y - G.PY0, G.PY1 - y)
+    dc = dx + dy - CHAT_CUT
+    if dc < 0: return -1
+    return min(dx, dy, (dc + 1) // 2)
 
 
 def chat_frame(G, i):
     im, px = G.canvas()
-    flick_m = i in (5, 12)            # the magenta tube stutters
-    flick_c = i == 13
-    top, base = G.PY0 + 2, G.PY1 - 2
-    # the magenta glow round the pointed ends (over and under the plate there is no room for one)
-    for ring, layer in ((1, G.edge),):
-        for (x, y) in layer:
-            for a, b in DIRS4:
-                q = (x + a, y + b)
-                if q not in G.inside and G.PY0 <= q[1] <= G.PY1: C.blend(px, G, q[0], q[1], MAG_G, 50 if flick_m else 150)
+    t = 2 * math.pi * i / N
+    glitch = 1 if i == 6 else 2 if i == 13 else 0
+    dim_m = i in (5, 12) or glitch == 2      # the magenta tube stutters
+    dim_c = glitch == 1
+    breath = 0.5 + 0.5 * math.sin(t)
 
-    def fill(x, y, g):
-        c = lerp((16, 10, 34), (4, 2, 10), g)
-        if y % 2 == 0: c = lerp(c, (0, 0, 0), 0.35)                 # scanlines
-        if y == top + (i * 15 // N) % 14: c = lerp(c, (60, 40, 110), 0.6)   # the rolling bright line
-        return c
-    # the frame: two tubes of neon, magenta round the outside and cyan inside it. A lit tube has a pale hot core;
-    # a mounting clip holds them every 32 columns; their light spills on to the plate (the fill's first rows)
-    def tube(colour, dark, off):
-        def f(x, y):
-            if (x - G.TILE0) % 32 == 16 and G.TILE0 <= x < G.R0: return (38, 30, 58)
-            if off: return dark
-            return lerp(colour, (255, 255, 255), 0.42 if y <= G.MID else 0.18)
-        return f
+    def spot(x, y):
+        """the current in the cyan tube: a bright spot every 64 columns, 4 columns a frame"""
+        xt = x - G.TILE0
+        along = xt - 4 * i if y < G.MID else -xt - 4 * i
+        return 0.0 if x >= G.R0 else max(0.0, math.cos(2 * math.pi * along / 64)) ** 14
 
-    def lit_fill(x, y, g):
-        c = fill(x, y, g)
-        depth = min(y - G.PY0, G.PY1 - y) - 2                   # 0 on the row next to the cyan tube
-        if depth < 2 and not flick_c: c = lerp(c, CYA, (0.34, 0.14)[depth])
-        return c
-    C.plate(px, G, lit_fill, tube(MAG, MAG_D, flick_m), tube(CYA, CYA_D, flick_c))
-    # circuit traces with travelling pulses; a node lights up when the pulse gets there
-    for cell, way, pts in chat_traces(G):
-        n = len(pts)
-        # dimmer than on the full banner: here they lie behind the words
-        for x, y in pts: C.put(px, G, x, y, (24, 62, 88))
-        head_ = (i * 2 + cell * 5) % 24
-        for d in range(3):
-            h = head_ - d
-            if 0 <= h < n: C.put(px, G, pts[h][0], pts[h][1], ((120, 226, 244), (44, 170, 204), (30, 110, 146))[d])
-        ex, ey = pts[-1]
-        lit = n - 1 <= head_ < n + 6
-        col = CYA if lit else (30, 104, 132) if cell % 2 else (128, 34, 106)
-        for a, b in ((-1, 1), (1, 1), (0, 2)):
-            C.put(px, G, ex + a, ey + way * b, col)
-        C.put(px, G, ex, ey + way, CYA_L if lit else (10, 20, 30))
+    def screen(x, y):
+        xt = x - G.TILE0
+        g = (y - G.PY0 - 2) / 13
+        c = lerp((17, 10, 36), (6, 3, 14), g)
+        if y % 2 == 0: c = lerp(c, (0, 0, 0), 0.38)                        # scan lines
+        if xt % 16 == 0: c = lerp(c, (44, 26, 86), 0.22)                   # the grid
+        sweep = max(0.0, math.cos(2 * math.pi * (xt - 4 * i - 2 * (y - G.MID)) / 64)) ** 10
+        if x < G.R0: c = lerp(c, (74, 46, 150), 0.55 * sweep)              # the bar of light, leaning (not in the right end:
+        #                                                                    it follows a different stretch of the tile in every banner)
+        depth = min(y - G.PY0, G.PY1 - y) - 2                              # 0 on the row next to the cyan tube
+        if depth < 2 and not dim_c: c = lerp(c, CYA, (0.30, 0.12)[depth])
+        return C.hush(c, 0.05)
+
+    for (x, y) in G.inside:
+        ring = chat_ring(G, x, y)
+        if ring < 0: continue
+        xt = x - G.TILE0
+        clip = xt % 32 == 16 and G.TILE0 <= x < G.R0 and y in (G.PY0, G.PY0 + 1, G.PY1 - 1, G.PY1)
+        if clip:
+            c = (40, 32, 62)
+        elif ring == 0:
+            c = MAG_D if dim_m else lerp(lerp(MAG, (255, 255, 255), 0.30 + 0.16 * breath), MAG, 0.0 if y <= G.MID else 0.5)
+        elif ring == 1:
+            c = CYA_D if dim_c else lerp(lerp(CYA, (255, 255, 255), 0.22 if y <= G.MID else 0.06), (255, 255, 255), 0.75 * spot(x, y))
+        else:
+            c = screen(x, y)
+        px[x, y] = tuple(c) + (255,)
+    # the magenta glow outside the cut corners
+    for (x, y) in G.inside:
+        if chat_ring(G, x, y) == -1 and any(chat_ring(G, x + a, y + b) == 0 for a, b in DIRS4 if (x + a, y + b) in G.inside):
+            C.blend(px, G, x, y, MAG_G, 50 if dim_m else 140)
+
+    # the picture tears: a band of the screen slips sideways and static crosses it in short dashes (the same every
+    # 64 columns); frame 6 a little, frame 13 more. The words are the game's text and jump by the shader.
+    if glitch:
+        y0, y1, d = (G.MID - 5, G.MID - 3, 3) if glitch == 1 else (G.MID + 1, G.MID + 5, -4)
+        rows = {y: {x: px[x, y] for x in range(G.W)} for y in range(y0, y1 + 1)}
+        for y, row in rows.items():
+            for x in range(G.PX0 + 8, G.PX1 - 7):
+                if chat_ring(G, x, y) >= 2 and chat_ring(G, x - d, y) >= 2: px[x, y] = row[x - d]
+        for y in ((y0 - 1, y1 + 1) if glitch == 1 else (y0 - 1, y0 + 2, y1 + 1)):
+            for x in range(G.PX0 + 8, G.PX1 - 7):
+                xt = (x - G.TILE0) % 64
+                if C.lattice(xt // 6, y * 3 + i, 301) > 0.72 and xt % 6 < 4 and chat_ring(G, x, y) >= 2:
+                    px[x, y] = (lerp(CYA, (0, 0, 0), 0.25) if xt % 6 < 2 else lerp(MAG, (0, 0, 0), 0.25)) + (255,)
+
     # the end chevrons: a marquee of two neon brackets
     for side in (-1, 1):
         x0 = G.PX0 if side < 0 else G.PX1
         for n_, off in enumerate((4, 9)):
-            on = (i // 2 + n_) % 3 != 0
+            on = (i // 2 + n_) % 3 != 0 and not (glitch and n_ == 1)
             col = (CYA if n_ == 0 else MAG) if on else ((20, 70, 90) if n_ == 0 else (90, 20, 70))
             for r in range(-5, 7):
                 rr = r if r <= 0 else r - 1                      # two middle rows: the plate has an even height
                 C.put(px, G, x0 + side * (off + 5 - abs(rr)), G.MID + r, col)
-    # the glitch (frames 6 and 13, as on the full banner): a band of the plate jumps sideways, and static tears
-    # across it: short dashes of cyan and magenta side by side (the same every 64 columns). The words are the
-    # game's own text over the plate, so they stay where they are: the picture behind them breaks up.
-    if i in (6, 13):
-        y0, y1, d = (G.MID - 4, G.MID - 1, 4) if i == 6 else (G.MID + 2, G.MID + 5, -4)
-        rows = {y: {x: px[x, y] for x in range(G.W)} for y in range(y0, y1 + 1)}
-        for y, row in rows.items():
-            for x in range(G.PX0 + 10, G.PX1 - 9):
-                if (x, y) in G.core and (x - d, y) in G.core: px[x, y] = row[x - d]
-        for y in range(y0 - 1, y1 + 2):
-            for x in range(G.PX0 + 10, G.PX1 - 9):
-                xt = (x - G.TILE0) % 64
-                seed = C.lattice(xt // 5, y * 3 + i, 301)
-                if seed > 0.80 and (x, y) in G.core:
-                    px[x, y] = ((CYA if xt % 5 < 2 else MAG) if seed > 0.9 else (CYA_L if xt % 5 < 3 else (255, 150, 230))) + (255,)
-    elif i in (7, 14):
-        # the frame after: a few dashes of static are still there
-        for y in range(G.PY0 + 2, G.PY1 - 1):
-            for x in range(G.PX0 + 10, G.PX1 - 9):
-                xt = (x - G.TILE0) % 64
-                if C.lattice(xt // 4, y * 5 + i, 303) > 0.94 and (x, y) in G.core:
-                    px[x, y] = ((40, 170, 210) if xt % 4 < 2 else (190, 50, 160)) + (255,)
     # the gem: a hollow neon diamond
     cx, cy = G.DIV, G.MID
-    gem = {(cx + a, cy + b): (MAG if not flick_m else MAG_D) for a in range(-3, 4) for b in range(-3, 4) if abs(a) + abs(b) == 3}
+    gem = {(cx + a, cy + b): (MAG if not dim_m else MAG_D) for a in range(-3, 4) for b in range(-3, 4) if abs(a) + abs(b) == 3}
     gem.update({(cx + a, cy + b): (255, 190, 240) for a in range(-1, 2) for b in range(-1, 2) if abs(a) + abs(b) == 1})
     gem[(cx, cy)] = (255, 255, 255)
     C.gem_pixels(px, gem)

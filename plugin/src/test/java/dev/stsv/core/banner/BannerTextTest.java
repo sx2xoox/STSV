@@ -11,6 +11,7 @@ import java.util.List;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertNotEquals;
+import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
 class BannerTextTest {
@@ -36,6 +37,23 @@ class BannerTextTest {
         }
         assertEquals(-1, BannerText.frameOf(TextColor.color(0xFFFFFF)));
         assertEquals(-1, BannerText.frameOf(TextColor.color(0xFF9A3C)));
+    }
+
+    /** A tint that fades from white passes through the markers' colours: no letter may get one (it would vanish). */
+    @Test
+    void noLetterIsColouredLikeAMarker() {
+        int[] white = {255, 255, 255}, pale = {224, 228, 248};
+        boolean crossed = false;
+        for (int k = 0; k <= 1000; k++) {
+            double t = k / 1000.0;
+            int r = (int) Math.round(white[0] + (pale[0] - white[0]) * t), g = (int) Math.round(white[1] + (pale[1] - white[1]) * t),
+                    b = (int) Math.round(white[2] + (pale[2] - white[2]) * t);
+            crossed |= BannerText.reserved(TextColor.color(r, g, b));
+            TextColor c = BannerText.lerp(white, pale, t);
+            assertFalse(BannerText.reserved(c), "at " + t + ": " + c);
+            assertTrue(Math.abs(c.red() - r) <= 3 && c.green() == g && c.blue() == b, "and it stays the same colour to the eye");
+        }
+        assertTrue(crossed, "the plain fade does cross a marker (the prism's title did)");
     }
 
     @Test

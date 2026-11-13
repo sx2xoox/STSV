@@ -339,9 +339,10 @@ def chat_panel(fonts, comps, theme, frame=0, k=2):
 
 def tab_panel(fonts, comps, theme, frame=0, k=2):
     """tab list rows: 9 GUI px apart, background [0, 8) of each row, the name drawn at the row's top"""
-    rows = [find(comps, theme, "거상", "상원", "chat")["runs"], plain_runs("Steve"),
-            find(comps, theme, "최고 부자", "xozne", "chat")["runs"]]
-    W, H = 100, 9 * len(rows) + 2
+    # the tab list shows the chat banner (BannerModule.tabName), as the chat does
+    rows = [find(comps, theme, "거상", "상원", "line")["runs"], plain_runs("Steve"),
+            find(comps, theme, "명장 대장장이", "Steve_2024", "line")["runs"]]
+    W, H = 150, 9 * len(rows) + 2
     cv = Canvas(W, H, k, (36, 40, 34, 255), ox=2, oy=1)
     for i, runs in enumerate(rows):
         y = 9 * i

@@ -4,7 +4,7 @@ A chat line is 9 GUI px high and a Galmuri9 letter alone is 9 rows, so the full 
 with a plate, and the full banner at half size has letters of 4.5 px. The chat banner is drawn like the game draws
 its own Hangul: 1 texel = half a GUI pixel. A line is 18 rows of texels: a plate of exactly these 18 rows (an edge,
 a bevel, 14 rows for the text, a bevel, an edge), nothing over or under it. The text is drawn at this resolution
-(glyph): Hangul in Neo둥근모 (13 rows, 6.5 px), Latin, digits and signs in Galmuri14 made bold (capitals 14 rows,
+(glyph): Hangul in Neo둥근모 (13 rows, 6.5 px), Latin, digits and signs in Terminus Bold (capitals 14 rows,
 7 px: the chat's own height), title and nickname alike.
 
 A theme module gives chat_frame(G, i) (the 16 frames, G a ChatGeo) next to its frame(G, i).
@@ -29,6 +29,7 @@ from PIL import Image
 
 import galmuri
 import neodgm
+import terminus
 from . import state
 
 ROWS = 18                     # the plate: rows 0 .. 17 of the picture, the chat line's 9 px
@@ -45,7 +46,21 @@ TEXT_BASE = 14                # the cell row under the letters' baseline: capita
 # the frame's bevel, and the edge stays whole.
 SQUEEZE = {"g": (9, 7), "j": (10, 8), "p": (16, 15), "q": (16, 15), "y": (11, 8), "Q": (6,), ",": (14,)}
 
-_F14 = _NEO = None
+_F14 = _NEO = _TER = None
+
+
+def fit(pix):
+    """A letter that hangs more than one row under the baseline, pressed until it hangs one (on the frame's bevel:
+    the plate's bottom edge stays whole). Rows are taken out where a row repeats the one over it (a stretch of
+    upright strokes, so the letter keeps its shape), from the lowest up, and what is under them moves up."""
+    pix = set(pix)
+    while max(y for _, y in pix) > TEXT_BASE:
+        rows = {}
+        for x, y in pix:
+            rows.setdefault(y, set()).add(x)
+        out = next((y for y in sorted(rows, reverse=True) if rows.get(y - 1) == rows[y]), TEXT_BASE)
+        pix = {(x, y - (y > out)) for x, y in pix if y != out}
+    return pix
 
 
 def glyph(ch, nick=False):
@@ -56,15 +71,25 @@ def glyph(ch, nick=False):
     Hangul is the chat's own: 13 rows (6.5 px) on the baseline, a little lower than a capital, as Hangul fills its
     whole square. Upright strokes two texels, level ones one. The top row of its em square is cell row 0.
 
-    Latin, digits and signs in Galmuri14 made bold (every pixel doubled to its right): capitals and digits 14 rows
-    (7 px, the chat's own height), small letters 10, drawn at the plate's resolution, so their curves are twice
-    as fine as a doubled 5 x 7 letter's."""
-    global _F14, _NEO
+    Latin letters, digits and signs in Terminus Bold (terminus.py): capitals and digits 14 rows (7 px, the chat's
+    own height), small letters 10, upright strokes two texels and level ones one like the Hangul's, every letter
+    drawn for this size (so no stroke is thicker than its neighbour, as happens when a thin font is made bold by
+    rule). What hangs under the baseline hangs a single row (fit).
+
+    Anything else (other signs, Latin with accents) in Galmuri14 made bold: every pixel doubled to its right."""
+    global _F14, _NEO, _TER
     if 0xAC00 <= ord(ch) <= 0xD7A3:
         if _NEO is None:
             _NEO = neodgm.load()
         g = _NEO.get(ord(ch))
         return sorted((x, y) for y, row in enumerate(g[1]) for x, b in enumerate(row) if b) or None if g else None
+    if _TER is None:
+        _TER = terminus.load()
+    g = _TER.get(ord(ch))
+    if g and g[3]:
+        adv, xo, yo, bits = g
+        top = TEXT_BASE - (yo + len(bits))
+        return sorted(fit({(x, top + y) for y, r in enumerate(bits) for x, b in enumerate(r) if b}))
     if _F14 is None:
         _F14 = galmuri.load(14)
     g = _F14.get(ord(ch))
@@ -265,6 +290,34 @@ def gem7(px, G, colours):
                 q = (G.DIV - 3 + c, G.MID - 3 + r)
                 state.GEM["pix"].add(q)
                 px[q] = tuple(colours[v]) + (255,)
+
+
+def lum(c):
+    """relative luminance of a colour, 0 .. 1 (what contrast is measured in)"""
+    def f(v):
+        v /= 255
+        return v / 12.92 if v <= 0.03928 else ((v + 0.055) / 1.055) ** 2.4
+    return 0.2126 * f(c[0]) + 0.7152 * f(c[1]) + 0.0722 * f(c[2])
+
+
+def hush(c, cap):
+    """the colour, darkened (its hue kept) until it is no brighter than cap: what lies behind the words stays dark
+    enough for them, whatever a theme paints there. A plate under bright letters wants cap 0.05 at rest (the letters
+    stand 7 : 1 or more over it) and may go to 0.12 for the moment an effect passes."""
+    l = lum(c)
+    if l <= cap:
+        return tuple(c[:3])
+    lo, hi = 0.0, 1.0
+    for _ in range(12):
+        m = (lo + hi) / 2
+        if lum(tuple(v * m for v in c[:3])) > cap: hi = m
+        else: lo = m
+    return tuple(int(round(v * lo)) for v in c[:3])
+
+
+def words_row(G, y):
+    """is this row one the words are written on (the 14 rows of the letters)?"""
+    return G.PY0 + TEXT_ROW <= y < G.PY0 + TEXT_ROW + 14
 
 
 def framed(Geo, title, grow=16, centre=0):

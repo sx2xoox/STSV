@@ -94,28 +94,32 @@ class BannerLayoutTest {
         assertTrue(fire.chat().metrics() != fire.metrics());
         assertTrue(fire.chat().metrics().titleWidths().get((int) '가') > fire.metrics().titleWidths().get((int) '가'));
         assertEquals(fire.metrics().nickWidths().keySet(), fire.chat().metrics().nickWidths().keySet(), "every name can be written");
-        // a gust of fire runs along it (the shader plays its frames that way); the full banner loops
-        assertTrue(fire.chat().flow() > 0 && fire.flow() == 0);
-        // every part starts on a step of the gust: the left end at 0, the tile and the right end whole steps later
-        BannerLayout l = BannerLayout.of(C, fire.chat(), "명장 대장장이", "Steve_2024");
-        int last = -1;
-        for (BannerLayout.Piece p : l.pieces()) {
-            if (p.glyph().equals("G")) continue;
-            String[] slice = p.glyph().split(":");
-            int origin = p.glyph().equals("L") ? fire.chat().flowOrigin() : slice.length == 3 ? p.x() - Integer.parseInt(slice[1]) : p.x();
-            assertEquals(0, Math.floorMod(origin - fire.chat().flowOrigin(), fire.chat().flow()), p.glyph() + " at " + p.x());
-            int d = BannerText.delay(fire.chat(), p);
-            assertTrue(d >= last, "later parts are not earlier");
-            last = d;
+        // something runs along three of them (the shader plays their frames that way): fire a gust of flame,
+        // lightning a discharge, the blood moon a flight of bats; their full banners loop
+        for (String id : new String[]{"fire", "lightning", "bloodmoon"}) {
+            BannerCatalog.Theme t = C.theme(id);
+            assertTrue(t.chat() != null && t.chat().flow() > 0 && t.flow() == 0, id);
+            // every part starts on a step of the run: the left end at 0, the tile and the right end whole steps later
+            BannerLayout l = BannerLayout.of(C, t.chat(), "명장 대장장이", "Steve_2024");
+            int last = -1;
+            for (BannerLayout.Piece p : l.pieces()) {
+                if (p.glyph().equals("G")) continue;
+                String[] slice = p.glyph().split(":");
+                int origin = p.glyph().equals("L") ? t.chat().flowOrigin() : slice.length == 3 ? p.x() - Integer.parseInt(slice[1]) : p.x();
+                assertEquals(0, Math.floorMod(origin - t.chat().flowOrigin(), t.chat().flow()), id + " " + p.glyph() + " at " + p.x());
+                int d = BannerText.delay(t.chat(), p);
+                assertTrue(d >= last, id + ": later parts are not earlier");
+                last = d;
+            }
+            assertTrue(last > 0, id);
+            assertEquals(0, t.chat().centreWidth(), id + ": no centre part (the blood moon stands in its left end)");
         }
-        assertTrue(last > 0);
-        // the other themes' chat banners are their full banners' plates in small: a loop, growing in whole cells
-        for (String id : new String[]{"lightning", "neon", "bloodmoon", "prism"}) {
+        // the neon sign and the crystal loop, and grow in whole cells of 16 columns
+        for (String id : new String[]{"neon", "prism"}) {
             BannerCatalog.Theme t = C.theme(id).chat();
             assertTrue(t != null && t.flow() == 0 && t.grow() > 0, id);
             assertEquals(0, (BannerLayout.of(C, t, "명장 대장장이", "Steve_2024").plateWidth() - t.minPlate()) % t.grow(), id);
         }
-        assertTrue(C.theme("bloodmoon").chat().centreWidth() > 0 && C.theme("bloodmoon").chat().fills() == 2, "the moon: a centre part");
         assertTrue(fire.chat().outline() == null, "its letters are the full banner's: no outline");
     }
 
