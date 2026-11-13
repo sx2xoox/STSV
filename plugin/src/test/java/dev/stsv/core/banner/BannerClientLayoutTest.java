@@ -205,8 +205,8 @@ class BannerClientLayoutTest {
                                         // a chat line is [-1, 8) around its text's top: the plate is exactly that
                                         if (!g.gray()) assertTrue(g.inkTop() >= -1 && g.inkBottom() <= 8, what + ": rows " + g.inkTop() + ".." + g.inkBottom());
                                         // letters and gem: 14 half rows from the text's top; what hangs under a
-                                        // letter (g, y, a comma) may reach 1.5 px further
-                                        if (g.gray()) assertTrue(g.inkTop() >= 0 && g.inkBottom() <= 8.5, what + ": letter rows " + g.inkTop() + ".." + g.inkBottom());
+                                        // letter (g, y, a comma) may reach 1.5 px further; outlines half a pixel more
+                                        if (g.gray()) assertTrue(g.inkTop() >= -0.5 && g.inkBottom() <= 9, what + ": letter rows " + g.inkTop() + ".." + g.inkBottom());
                                     }
                                     left = Math.min(left, pen + g.left());
                                     pen += g.advance();

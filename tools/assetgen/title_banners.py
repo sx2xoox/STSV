@@ -25,7 +25,8 @@ plate, CHAT_ROWS, drawn at half size: 8 GUI px, the top 8 rows of a 9 px chat li
 banners keep a pixel apart): the tab list, and chat for themes without a chat banner. Its letters are 4.5 px.
 
 The chat banner (a theme with chat=True in THEMES; banner_themes/chat.py; fonts <theme>_chat, title_chat,
-nick_chat): the theme drawn again for one chat line at twice the resolution (1 texel = half a GUI pixel, as the
+nick_chat, and title_chat_o, nick_chat_o: every letter's outline, drawn dark so the text reads over any effect):
+the theme drawn again for one chat line at twice the resolution (1 texel = half a GUI pixel, as the
 game draws its own Hangul): a plate of exactly the line's 18 rows of texels, 14 of them text, so the letters are as
 high as the chat's own (7 px) and nothing is over or under the line. Its text has its own fonts (Galmuri14 made
 bold, the nickname face doubled) and its own measures (banners.json text.chat).
@@ -187,7 +188,7 @@ def render(theme, chat=False):
     ox, oy = box[0], box[1]
     div = getattr(G, "DIV")
     geo = dict(px0=G.PX0 - ox, px1=G.PX1 - ox, mid=G.MID - oy, cx=int(round(G.CX)) - ox, div=div - ox, title=m.TITLE,
-               end=getattr(G, "END", 0))
+               end=getattr(G, "END", 0), tile=getattr(m, "CHAT_TILE", theme["tile"]) if chat else theme["tile"])
     return bg, gems, geo
 
 
@@ -207,7 +208,7 @@ def seam_cost(frames, a, b):
 
 
 def cut(theme, bg, gems, geo):
-    P = theme["tile"]
+    P = geo["tile"]
     hc = theme["centre"]
     W = bg[0].width
     px0, px1, cx = geo["px0"], geo["px1"], geo["cx"]
@@ -540,8 +541,10 @@ def text_fonts(fonts):
     title14 = table14(title_latin, chatlib.bold14)
     nick14 = table14(CHARSET, chatlib.tall2)
     hg14 = table14(hangul, chatlib.bold14)
+    ring = lambda table: {ch: (chatlib.outline(pix), adv) for ch, (pix, adv) in table.items()}
     files = {"title": {**title, **GEM_GLYPHS}, "nick": nick, "hangul": hg,
-             "title14": {**title14, **GEM_GLYPHS_CHAT}, "nick14": nick14, "hangul14": hg14}
+             "title14": {**title14, **GEM_GLYPHS_CHAT}, "nick14": nick14, "hangul14": hg14,
+             "title14o": ring(title14), "nick14o": ring(nick14), "hangul14o": ring(hg14)}
     for name, glyphs in files.items():
         fonts.files[f"assets/{NS}/font/title_banner/ttf/{name}.ttf"] = pixel_ttf(glyphs, f"STSV banner {name}")
     # the letters are Galmuri's (SIL Open Font License): its notice goes with the fonts made from it
@@ -551,9 +554,10 @@ def text_fonts(fonts):
             for part in parts:
                 fonts.fonts.setdefault(font + suffix, []).append(
                     {"type": "ttf", "file": f"{NS}:title_banner/ttf/{part}.ttf", **params, "skip": ""})
-        for part in parts:
-            fonts.fonts.setdefault(font + "_chat", []).append(
-                {"type": "ttf", "file": f"{NS}:title_banner/ttf/{part}14.ttf", **TTF_HI, "skip": ""})
+        for suffix, kind in (("_chat", "14"), ("_chat_o", "14o")):
+            for part in parts:
+                fonts.fonts.setdefault(font + suffix, []).append(
+                    {"type": "ttf", "file": f"{NS}:title_banner/ttf/{part}{kind}.ttf", **TTF_HI, "skip": ""})
     widths = lambda t: {ch: [adv, adv - 1] for ch, (_, adv) in t.items()}
     return dict(title={**widths(title), **widths(hg)}, nick={**widths(nick), **widths(hg)}, space=SPACE,
                 chat=dict(title={**widths(title14), **widths(hg14)}, nick={**widths(nick14), **widths(hg14)},
@@ -572,6 +576,11 @@ def write(out_dir: Path = OUT):
         meta, bg, gems = theme_sheets(t, fonts)
         if t.get("chat"):
             meta["chat"] = theme_sheets(t, fonts, chat=True)[0]
+            import importlib
+            tint = getattr(importlib.import_module("banner_themes." + t["module"]), "CHAT_TINT", None)
+            if tint:                                         # the chat banner's own text colours and outline
+                meta["chat"]["tint"] = dict(title=[list(c) for c in tint["title"]], nick=[list(c) for c in tint["nick"]])
+                meta["chat"]["outline"] = list(tint["outline"])
         themes.append(meta)
         renders[t["id"]] = (bg, gems)
     text = text_fonts(fonts)

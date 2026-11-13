@@ -111,14 +111,49 @@ def frame(G, i):
 # ------------------------------------------------------------------------------------------------
 
 CHAT_END = 40                 # columns of plate after the text where the fire blazes (banner_themes/chat.py ChatGeo)
-# the fire under the letters: a row of low tongues, the same every 16 columns (the plate is tiled 16 columns wide)
-INNER_H, INNER_PH, INNER_SPEED = (7.5, 4.5, 6.2, 3.6), (0.0, 2.1, 4.0, 5.6), (1, 2, 1, 3)
-INNER = ((66, 12, 8), (92, 16, 8), (120, 22, 8))
-# sparks rising through the whole plate, the same every 16 columns: column, speed (rows a frame), first frame
-SPARKS = ((2, 1, 0), (7, 2, 5), (12, 1, 9))
+CHAT_TILE = 64                # the plate's tile: everything drawn where the text is repeats every 64 columns
+# the chat banner's text: lighter than the full banner's (it stands in the fire), with a dark outline
+CHAT_TINT = dict(title=((255, 250, 226), (255, 224, 140)), nick=((255, 255, 240), (255, 208, 110)), outline=(34, 6, 4))
+# sparks rising over the fire, the same every 64 columns: column, speed (rows a frame), first frame
+SPARKS = ((3, 1, 0), (11, 2, 5), (20, 1, 9), (29, 2, 13), (37, 1, 3), (46, 2, 10), (53, 1, 6), (60, 2, 1))
 BLAZE_SPARKS = ((5, 2, 3), (13, 1, 12), (20, 2, 8), (27, 1, 1), (33, 2, 14))
 GEM7 = ("...#...", "..#a#..", ".#aaab.", "#aawabc", ".bbabc.", "..bcc..", "...c...")
 GEM7_COLOURS = {"#": (255, 120, 100), "a": (255, 70, 76), "w": (255, 220, 220), "b": (200, 20, 34), "c": (118, 5, 18)}
+EMBER = ((40, 8, 6), (84, 12, 8), (140, 20, 8), (204, 44, 12), (246, 100, 20), (255, 178, 52), (255, 236, 150))
+
+
+def _lattice(ix, iy, seed):
+    """a fixed pseudo-random number in [0, 1) for a lattice point"""
+    h = (ix * 374761393 + iy * 668265263 + seed * 2246822519) & 0xFFFFFFFF
+    h = ((h ^ (h >> 13)) * 1274126177) & 0xFFFFFFFF
+    return ((h ^ (h >> 16)) & 0xFFFF) / 65536.0
+
+
+def _noise(x, y, cell_x, cell_y, wrap_x, wrap_y, seed):
+    """smooth value noise that repeats every wrap_x columns and wrap_y rows"""
+    fx, fy = x / cell_x, y / cell_y
+    ix, iy = math.floor(fx), math.floor(fy)
+    tx, ty = fx - ix, fy - iy
+    tx, ty = tx * tx * (3 - 2 * tx), ty * ty * (3 - 2 * ty)
+    nx, ny = wrap_x // cell_x, wrap_y // cell_y
+    v = lambda a, b: _lattice(a % nx, b % ny, seed)
+    top = v(ix, iy) + (v(ix + 1, iy) - v(ix, iy)) * tx
+    bot = v(ix, iy + 1) + (v(ix + 1, iy + 1) - v(ix, iy + 1)) * tx
+    return top + (bot - top) * ty
+
+
+def fire_heat(x, y, i, rows):
+    """The fire that fills the plate: 0 (none) .. about 1.6 (white hot) at a column and inner row (0 = top) of frame
+    i. Tongues of flame: every column has a flame height that changes over the loop (noise over column and frame),
+    the tongues sway as they rise, and a finer noise climbing 2 rows a frame breaks up their bodies; over the
+    tongues only a faint glow. The same every CHAT_TILE columns, and frame 16 is frame 0."""
+    up = 1 - y / (rows - 1)                                  # 0 at the bottom .. 1 at the top
+    xs = x + 1.7 * math.sin(y * 0.8 - 2 * math.pi * i / 8) * up
+    height = 0.30 + 0.62 * (0.6 * _noise(xs, i, 4, 4, CHAT_TILE, 16, 1) + 0.4 * _noise(xs + 2, i + 2, 8, 8, CHAT_TILE, 16, 3))
+    grain = _noise(x, y + 2 * i, 4, 4, CHAT_TILE, 32, 2) - 0.5
+    if up >= height:
+        return 0.10 * (1 - up) + 0.10 * (height - up + 0.3) + 0.08 * grain
+    return 0.30 + 1.15 * ((height - up) / height) ** 0.9 + 0.30 * grain
 
 
 def chat_geo(Geo):
@@ -126,11 +161,15 @@ def chat_geo(Geo):
 
 
 def chat_frame(G, i):
-    """The plate burns inside: where the text is, a dark fire along the bottom and sparks rising behind the letters;
-    after the text the glow rises into a blaze that fills the plate's right end."""
+    """The whole plate burns inside: a fire climbing from its bottom over its full width (dark at the top, glowing
+    at the bottom, the same every CHAT_TILE columns so the tiled plate is seamless), sparks rising over it, and
+    after the text the heat rises into a white-hot blaze at the plate's right end. The letters keep clear of it by
+    their dark outline (title_banners.py)."""
     t = 2 * math.pi * i / N
     im, px = G.canvas()
     base = G.PY1 - 2                                         # the plate's lowest inner row
+    top = G.PY0 + 2
+    rows = base - top + 1
     blaze0 = G.PX1 - G.END - 9                               # the right end's first column (it keeps 10 more columns)
     glow = lambda x: max(0.0, min(1.0, (x - blaze0) / 30))   # 0 where the plate is tiled, 1 in the blaze
     # the end flames: four tongues an end, licking outwards, as high as the plate
@@ -143,8 +182,8 @@ def chat_frame(G, i):
         tongue(back, G, ex + side * 7, G.PY1, 6, 2.6, 1.0, side * 1.3, t * 3)
     for q in [q for q in back if q[1] < G.PY0 or q[1] > G.PY1]: del back[q]
     flush(px, G, back)
-    # the plate: gold edge (light over the middle, dark under it), a glowing bevel, a dark fill that heats up
-    # towards the blaze (hotter at the bottom)
+    # the plate: gold edge (light over the middle, dark under it), a glowing bevel, and the fire
+    hot = {}
     for (x, y) in G.inside:
         if (x, y) in G.edge:
             tip = y in (G.MID, G.MID + 1) and x in (G.PX0, G.PX1)
@@ -152,40 +191,21 @@ def chat_frame(G, i):
         elif (x, y) in G.bevel:
             c = lerp((150, 34, 10), (255, 110, 30), 0.5 + 0.5 * math.sin(x * math.pi / 8 + y * 0.3 - t * 2))
         else:
-            v = (y - 2) / 13
-            c = lerp(lerp((62, 15, 10), (12, 4, 6), v), lerp((96, 16, 8), (176, 40, 10), v), 0.9 * glow(x))
+            g = glow(x)
+            h = fire_heat(x, y - top, i, rows) + g * (0.5 + 0.35 * (y - top) / (rows - 1))
+            hot[(x, y)] = h
+            c = EMBER[6] if h > 1.42 else EMBER[5] if h > 1.12 else EMBER[4] if h > 0.86 else EMBER[3] if h > 0.62 \
+                else EMBER[2] if h > 0.42 else EMBER[1] if h > 0.24 else EMBER[0]
         px[x, y] = c + (255,)
-    # the fire under the letters: dark reds only
-    inner = {}
-    for cx in range(G.PX0 - G.PX0 % 16 + 2, blaze0 + 4, 4):
-        k = (cx // 4) % 4
-        near = max(0.0, min(1.0, (cx - G.PX0 - 9) / 6))      # none in the pointed end
-        if near > 0:
-            tongue(inner, G, cx, base, INNER_H[k] * near, 3.0, INNER_PH[k], 0, t * INNER_SPEED[k])
-    for (x, y), heat in inner.items():
-        if (x, y) in G.core:
-            px[x, y] = (INNER[2] if heat > 0.75 else INNER[1] if heat > 0.4 else INNER[0]) + (255,)
-    # the blaze: tongues growing to the plate's full height, leaning back towards the text
-    blaze = {}
-    for k, cx in enumerate(range(blaze0 + 2, G.PX1 - 3, 3)):
-        g = glow(cx)
-        tongue(blaze, G, cx, base, 5 + 12.5 * g ** 0.8, 3.0 + g, k * 1.9, -0.012 * (4 + 10 * g), t * (1 + k % 3))
-    S = set(blaze)
-    for (x, y), heat in blaze.items():
-        if (x, y) not in G.core: continue
-        g = glow(x)
-        c = WHI if heat > 1.2 and g > 0.8 else YEL if heat > 0.9 and g > 0.45 else ORA if heat > 0.55 and g > 0.2 else RED if heat > 0.28 else DEEP
-        if any((x + a, y + b) not in S for a, b in DIRS4): c = RED if heat < 0.9 or g < 0.45 else ORA
-        px[x, y] = c + (255,)
-    # sparks: the same every 16 columns where the plate is tiled (dim, behind the letters), more and brighter in the blaze
+    # sparks over the fire: the same every CHAT_TILE columns where the plate is tiled, more in the blaze
     def spark(x, p, bright):
-        y = base - 1 - p
+        y = base - 3 - p
         x += p // 5
-        if (x, y) not in G.core or y < G.PY0 + 2 or (x, y) in inner or (x, y) in S: return
-        if bright: c = (255, 236, 150) if p < 5 else (255, 170, 60) if p < 10 else (220, 80, 24)
-        else: c = (226, 108, 30) if p < 5 else (170, 56, 16) if p < 10 else (110, 26, 10)
-        px[x, y] = c + (255,)
-    for x0 in range(G.PX0 - G.PX0 % 16, blaze0, 16):
+        if (x, y) not in G.core or y < top or hot.get((x, y), 9) > 0.62: return
+        px[x, y] = ((255, 236, 150) if p < 6 else (255, 170, 60) if p < 11 else (214, 78, 22)) + (255,)
+        if bright and (x, y + 1) in G.core and hot.get((x, y + 1), 9) <= 0.62:
+            px[x, y + 1] = (255, 150, 44, 255)
+    for x0 in range(G.PX0 - G.PX0 % CHAT_TILE, blaze0, CHAT_TILE):
         for col, speed, start in SPARKS:
             if x0 + col < blaze0: spark(x0 + col, (i * speed + start) % 16, False)
     for col, speed, start in BLAZE_SPARKS:

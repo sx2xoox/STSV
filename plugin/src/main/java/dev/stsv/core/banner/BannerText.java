@@ -21,6 +21,8 @@ import java.util.Objects;
  *   <li>Letters and the gem are TrueType glyphs (pixel squares). The game draws those with its grayscale text pipeline,
  *       which sorts after the coloured one in a GUI layer, so they are always over the plate (bitmap glyphs of
  *       different atlas pages are drawn in no fixed order). Their advance is exact: ink + 1 px, half at chat size.</li>
+ *   <li>A chat banner's letters may have an outline ({@link BannerCatalog.Theme#outline}): the ring of half pixels
+ *       around each letter as a glyph of its own, in a dark colour, so the words read over any effect.</li>
  *   <li>Every glyph is put where the layout wants it by space glyphs (±0.5 · 2^k px) from where the last one left
  *       the pen; the empty columns before the left end are left out, and the pen ends where the right end's picture
  *       ends, so whatever follows starts right after the banner.</li>
@@ -134,6 +136,12 @@ public final class BannerText {
             }
         }
         boolean shadow = size == Size.BIG;
+        if (size == Size.CHAT && t.outline() != null) {
+            // every letter's outline first (a glyph of its own that never covers a letter: the ring around it)
+            int[][] dark = {t.outline(), t.outline()};
+            letters(out, t.metrics().titleWidths(), l.title(), dark, font("title_chat_o"), s, lead, false);
+            letters(out, t.metrics().nickWidths(), l.nick(), dark, font("nick_chat_o"), s, lead, false);
+        }
         letters(out, t.metrics().titleWidths(), l.title(), t.titleTint(), title, s, lead, shadow);
         letters(out, t.metrics().nickWidths(), l.nick(), t.nickTint(), nick, s, lead, shadow);
         return out;

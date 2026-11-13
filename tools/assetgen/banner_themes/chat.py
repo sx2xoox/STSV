@@ -49,6 +49,13 @@ def tall2(ch):
                   for dx in (0, 1) for dy in (0, 1))
 
 
+def outline(pix):
+    """the ring of pixels around a letter (its 8 neighbours, less the letter): drawn dark under any theme, it keeps
+    the letter readable over whatever the plate shows; a glyph of its own, so it never covers its letter"""
+    ink = set(pix)
+    return sorted({(x + a, y + b) for x, y in ink for a in (-1, 0, 1) for b in (-1, 0, 1)} - ink)
+
+
 def advance(pix):
     """ink and two texels (1 GUI px) of air"""
     return max(x for x, _ in pix) + 3
