@@ -78,9 +78,10 @@ class ChatGeo:
     end: columns of plate after the text's right padding that stay free of text (a theme's effect burns there);
     they belong to the right end, which is never tiled, so what is drawn there need not repeat."""
 
-    def __init__(self, title, side=22, end=0, tile=16, flow=0):
+    def __init__(self, title, side=22, end=0, tile=16, flow=0, pointed=True):
         """tile: the plate's tile (title_banners.py cuts it at TILE0). flow: columns a step of a gust that runs
-        along the banner from left to right (0: none), see flow_at."""
+        along the banner from left to right (0: none), see flow_at. pointed: the plate's ends come to a point
+        (else it is a plain bar: the theme shapes its ends itself, within the 16 columns of each end part)."""
         self.title = title
         self.END = end
         self.TILE, self.FLOW = tile, flow
@@ -94,7 +95,7 @@ class ChatGeo:
         self.DIV = self.TX0 + self.TT + GAP // 2
         self.CX = (self.PX0 + self.PX1) // 2
         # the plate: both ends come to a point over SLOPE columns (rows 8 and 9 are the longest)
-        self.inset = {r: int(abs(r - (ROWS - 1) / 2)) for r in range(ROWS)}
+        self.inset = {r: int(abs(r - (ROWS - 1) / 2)) if pointed else 0 for r in range(ROWS)}
         self.inside = {(x, r) for r in range(ROWS) for x in range(self.PX0 + self.inset[r], self.PX1 - self.inset[r] + 1)}
         near = ((1, 0), (-1, 0), (0, 1), (0, -1))
         self.edge = {p for p in self.inside if any((p[0] + a, p[1] + b) not in self.inside for a, b in near)}
@@ -102,9 +103,9 @@ class ChatGeo:
         self.core = self.inside - self.edge - self.bevel
 
         # the banner's parts as the plugin lays them out (title_banners.py cut): the left end up to TILE0, the tile
-        # (repeated and sliced for the plate's length), and the right end from R0 (it keeps 10 plate columns and END)
+        # (repeated and sliced for the plate's length), and the right end from R0 (it keeps 16 plate columns and END)
         self.TILE0 = self.PX0 + 16
-        self.R0 = self.PX1 + 1 - 10 - end
+        self.R0 = self.PX1 + 1 - 16 - end
         self.FLOW0 = self.PX0 - 16                               # where a gust starts: the left end's step 0
 
     def part(self, x):

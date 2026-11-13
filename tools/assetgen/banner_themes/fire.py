@@ -202,28 +202,11 @@ def bed_heat(x, y, rows):
     return 0.34 + 0.62 * (1 - up / bed) + 0.12 * grain
 
 
-CAP = 10                      # each end of the plate is a cap of solid gold, this many columns from the tip
-GOLD = ((255, 236, 160), (244, 192, 84), (210, 142, 44), (138, 78, 22))     # a cap from its top row to its bottom row
-
-
 def frame_colour(G, x, y, e):
     """The plate's frame at a pixel, None inside it. e: how strong the gust burns here (0: the idle plate).
     Top: a gold rail with a sheen that comes and goes along it, a bronze lip under it. Bottom: a lip that glows
-    with the embers, a dark gold rail. Each end: a cap of gold, shaded smoothly (lit from above and from its tip,
-    a soft highlight under its upper edge, a shallow groove where it meets the plate) and warmed by the gust.
-    All of it repeats every 64 columns where the plate is tiled."""
-    d = min(x - G.PX0, G.PX1 - x)                            # columns from the nearer tip
-    edge = (x, y) in G.edge
-    if d < CAP:
-        v = y / (G.PY1 - G.PY0)
-        c = lerp(GOLD[0], GOLD[1], v / 0.35) if v < 0.35 else lerp(GOLD[1], GOLD[2], (v - 0.35) / 0.3) if v < 0.65 else lerp(GOLD[2], GOLD[3], (v - 0.65) / 0.35)
-        c = lerp(c, (255, 250, 220), 0.30 * (1 - d / CAP) * (1 - v))        # brighter towards the tip, at the top
-        inset = d - G.inset[y]                               # columns from the cap's slanted edge
-        if y < G.MID and inset == 1: c = lerp(c, (255, 252, 230), 0.55)     # the highlight under the upper edge
-        if y > G.MID + 1 and inset <= 1: c = lerp(c, (96, 52, 14), 0.45)    # the lower edge in shade
-        if d == CAP - 1: c = lerp(c, (70, 30, 10), 0.75)                    # the groove
-        elif d == CAP - 2: c = lerp(c, (70, 30, 10), 0.25)
-        return lerp(c, (255, 170, 70), 0.35 * e)
+    with the embers, a dark gold rail. It repeats every 64 columns where the plate is tiled. (The plate has no end
+    pieces: its ends are burnt away, see burnt.)"""
     wave = 0.5 + 0.5 * math.cos(2 * math.pi * (x - G.TILE0) / 64)
     if y == G.PY0:
         return lerp((230, 168, 62), (255, 244, 190), wave ** 2)
@@ -237,8 +220,29 @@ def frame_colour(G, x, y, e):
     return None
 
 
+def burnt(G, x, y, c, e, flicker):
+    """The plate's ends are burnt away like the edge of burning paper, no end pieces: an uneven edge (a different
+    depth in every row), a thin glowing rim along it that fades out into the air, charred plate behind the rim.
+    Returns the pixel's colour and alpha, or None where the plate is gone. c: the plate's colour there, e: how
+    strong the gust burns there (the rim flares), flicker: -1 .. 1, the rim's own slow glow."""
+    left = x - G.PX0 < G.PX1 - x
+    d = x - G.PX0 if left else G.PX1 - x                     # columns from the plate's end
+    edge = 3.5 + 7.5 * _noise(y, 0, 3, 4, 1 << 10, 16, 21 if left else 29)
+    if d >= edge + 3.5:
+        return c, 255
+    if d < edge - 2.4:
+        return None
+    hot = max(0.0, min(1.0, 0.28 + 0.18 * flicker + 0.75 * e))
+    if d < edge - 1.3:
+        return lerp((226, 84, 20), (255, 196, 96), hot), int(70 + 90 * hot)
+    if d < edge:
+        return lerp((255, 150, 44), (255, 244, 200), hot), 255
+    t = (d - edge) / 3.5
+    return lerp(lerp((96, 22, 8), (20, 6, 5), min(1.0, t * 2.2)), c, t * t), 255
+
+
 def chat_geo(Geo):
-    return Geo(TITLE, tile=CHAT_TILE, flow=CHAT_FLOW)
+    return Geo(TITLE, tile=CHAT_TILE, flow=CHAT_FLOW, pointed=False)
 
 
 def chat_frame(G, i):
@@ -254,7 +258,7 @@ def chat_frame(G, i):
     t = 2 * math.pi * (i % CALM) / CALM if step < 0 else 2 * math.pi * i / N
     back = {}
     for side in (-1, 1):
-        ex = G.PX0 + 5 if side < 0 else G.PX1 - 5
+        ex = G.PX0 + 7 if side < 0 else G.PX1 - 7
         grow = 0.42 + 0.58 * gust_strength(behind(G.PX0 if side < 0 else G.PX1))
         tongue(back, G, ex, G.PY1, 19 * grow, 5.5 * (0.6 + 0.4 * grow), 2.2, side * 0.55, t * 2)
         tongue(back, G, ex - side * 5, G.PY1 - 1, 13 * grow, 4.0, 3.0, side * 0.35, t * 3)
@@ -262,25 +266,22 @@ def chat_frame(G, i):
         tongue(back, G, ex + side * 7, G.PY1, 6 * grow, 2.6, 1.0, side * 1.3, t * 3)
     # shaded smoothly like the fire inside, fading out at their edges instead of an outline
     for (x, y), heat in back.items():
-        if G.PY0 <= y <= G.PY1 and (x, y) not in G.inside and 0 <= x < G.W:
+        if G.PY0 <= y <= G.PY1 and 0 <= x < G.W:
             px[x, y] = fire_colour(0.34 + 0.8 * heat, (150, 24, 8)) + (255 if heat > 0.45 else max(70, int(255 * heat / 0.45)),)
     # the plate: its frame (frame_colour), and inside it the embers and the gust
+    flicker = math.sin(t * 2)
     for (x, y) in G.inside:
         u = behind(x)
-        c = frame_colour(G, x, y, gust_strength(u))
-        if c is not None:
-            pass
-        else:
+        e = gust_strength(u)
+        c = frame_colour(G, x, y, e)
+        if c is None:
             h = bed_heat(x - G.TILE0, y - top, rows)
             if u > 0:
                 h = max(h, gust_heat(u, y - top, rows))
             c = fire_colour(h, lerp((62, 15, 10), (26, 6, 6), (y - top) / (rows - 1)))
-        px[x, y] = c + (255,)
-    # a spike off each tip, fading out
-    for side, x0 in ((-1, G.PX0), (1, G.PX1)):
-        for k in range(7):
-            for y in (G.MID, G.MID + 1):
-                put(px, G, x0 + side * (k + 1), y, lerp((255, 246, 200), (150, 84, 22), k / 6) if y == G.MID else lerp((236, 176, 70), (112, 60, 16), k / 6))
+        left = burnt(G, x, y, c, e, flicker)                 # the ends: burnt away
+        if left is not None:                                 # where the plate is gone the end flames show
+            px[x, y] = tuple(left[0]) + (left[1],)
     for r, row in enumerate(GEM7):
         for c, v in enumerate(row):
             if v != ".": gem_put(px, G, G.DIV - 3 + c, G.MID - 3 + r, GEM7_COLOURS[v])
