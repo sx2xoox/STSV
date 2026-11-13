@@ -66,7 +66,7 @@ class BannerTextTest {
                             }
                         }
                         assertEquals(placed.size(), k);
-                        assertEquals(l.width() * size.scale(), pen, 1e-9, "the pen ends after the banner");
+                        assertEquals(BannerText.end(l, size), pen, 1e-9, "the pen ends after the banner");
                     }
                 }
             }
@@ -83,7 +83,7 @@ class BannerTextTest {
         assertEquals(plates * 16, all.stream().filter(p -> BannerText.frameOf(p.color()) >= 0).count());
         assertEquals(0, one.stream().filter(p -> BannerText.frameOf(p.color()) >= 0).count(), "no markers without the shader");
         assertEquals(all.size() - plates * 15, one.size());
-        // plate first, then gem and letters (grayscale glyphs, drawn on top by the game)
+        // plate first, then gem and letters (TrueType: grayscale glyphs, drawn on top by the game)
         int lastPlate = -1, firstText = Integer.MAX_VALUE;
         for (int i = 0; i < all.size(); i++) {
             if (all.get(i).font().value().endsWith("neon_mini")) lastPlate = i;
@@ -99,7 +99,7 @@ class BannerTextTest {
         Component mini = BannerText.component(C, l, BannerText.Size.MINI, BannerText.ALL_FRAMES);
         for (TextComponent p : parts(big)) {
             boolean plate = p.font().value().equals("title_banner/fire") || p.font().value().equals("title_banner/title")
-                    && p.content().codePoints().anyMatch(cp -> cp == C.theme("fire").gemChar());
+                    && p.content().codePoints().anyMatch(cp -> java.util.Arrays.stream(C.theme("fire").gemChars()).anyMatch(g -> g == cp));
             if (plate) assertEquals(ShadowColor.none(), p.shadowColor());
             if (p.font().value().equals("title_banner/nick")) assertEquals(null, p.shadowColor(), "the game's drop shadow");
         }

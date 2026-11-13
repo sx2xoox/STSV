@@ -76,12 +76,22 @@ class BannerPackTest {
         Map<String, byte[]> files = BannerPack.files(C, BannerPack.Animation.SHADER);
         int fonts = 0;
         for (Map.Entry<String, byte[]> f : files.entrySet()) {
-            if (!f.getKey().startsWith("assets/stsv/font/")) continue;
+            if (!f.getKey().startsWith("assets/stsv/font/") || !f.getKey().endsWith(".json")) continue;
             fonts++;
             Set<Integer> seen = new HashSet<>();
             JsonObject font = JsonParser.parseString(text(f.getValue())).getAsJsonObject();
             for (JsonElement e : font.getAsJsonArray("providers")) {
                 JsonObject p = e.getAsJsonObject();
+                if (p.get("type").getAsString().equals("ttf")) {
+                    // letters and gem: TrueType (the game's grayscale text pipeline draws them over the plate)
+                    String ttf = "assets/stsv/font/" + p.get("file").getAsString().split(":", 2)[1];
+                    assertTrue(files.containsKey(ttf), ttf);
+                    java.awt.Font tf = java.awt.Font.createFont(java.awt.Font.TRUETYPE_FONT, new ByteArrayInputStream(files.get(ttf)));
+                    assertTrue(tf.canDisplay('A') || tf.canDisplay('가') || tf.canDisplay('a'), ttf);
+                    float over = p.get("oversample").getAsFloat(), size = p.get("size").getAsFloat();
+                    assertEquals(16, Math.round(size * over), "one font pixel a texel: 16 px a em");
+                    continue;
+                }
                 if (!p.get("type").getAsString().equals("bitmap")) continue;
                 int h = p.get("height").getAsInt(), asc = p.get("ascent").getAsInt();
                 assertTrue(asc <= h, f.getKey() + ": ascent " + asc + " > height " + h);
@@ -96,9 +106,8 @@ class BannerPackTest {
                     assertEquals(cols, r.getAsString().codePointCount(0, r.getAsString().length()), "equal rows");
                     r.getAsString().codePoints().filter(cp -> cp != 0).forEach(cp -> assertTrue(seen.add(cp), f.getKey() + " U+" + Integer.toHexString(cp)));
                 }
-                // text and gem are one-channel (drawn after the coloured plate by the game), plate parts in colour
-                boolean gray = png.contains("/text/") || png.contains("/gem/");
-                assertEquals(gray ? 1 : 4, im.getColorModel().getNumComponents(), png);
+                // RGBA: the game reads every PNG as RGBA and measures a glyph by its alpha
+                assertEquals(4, im.getColorModel().getNumComponents(), png);
             }
         }
         assertEquals(C.themes().size() * 2 + 4, fonts);
