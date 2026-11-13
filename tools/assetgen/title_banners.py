@@ -542,6 +542,8 @@ def text_fonts(fonts):
              "title14": {**title14, **GEM_GLYPHS_CHAT}, "nick14": nick14, "hangul14": hg14}
     for name, glyphs in files.items():
         fonts.files[f"assets/{NS}/font/title_banner/ttf/{name}.ttf"] = pixel_ttf(glyphs, f"STSV banner {name}")
+    # the letters are Galmuri's (SIL Open Font License): its notice goes with the fonts made from it
+    fonts.files[f"assets/{NS}/font/title_banner/ttf/LICENSE-galmuri.txt"] = galmuri.LICENSE.read_bytes()
     for font, parts in (("title", ("title", "hangul")), ("nick", ("nick", "hangul"))):
         for suffix, params in (("", TTF_BIG), ("_mini", TTF_CHAT)):
             for part in parts:
