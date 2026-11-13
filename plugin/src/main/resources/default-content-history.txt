@@ -115,6 +115,7 @@ b848bcee1c6fc1e4965b8fdd04ce48a102af68e5 stsv/assets/stsv/models/item/test_cross
 387a6d8995fbd9495a9ecb48f831206eba407253 stsv/assets/stsv/sounds.json
 4a2703c0b069f53e1bf0edb318836824dc239291 stsv/assets/stsv/sounds.json
 4c37c85d540e4ecd1f55cd77518999f6c9914a75 stsv/assets/stsv/sounds.json
+9bdd532e7777a41e22ea5f10246720f2c15b0fdb stsv/assets/stsv/sounds.json
 b32972af723cbb95a44757a83682e77cac11f809 stsv/assets/stsv/sounds.json
 c827e6b6181a41cfcb4bb2170739179b22713089 stsv/assets/stsv/sounds.json
 d7323516195840ce60f7a162d61494f651408c13 stsv/assets/stsv/sounds.json
@@ -181,6 +182,12 @@ c96956d682afb2f7aee2ff36be9d6e4319209bc7 stsv/assets/stsv/sounds/vehicle/sports_
 cf7f45d696ee1eef24ec59ff1007c511191da030 stsv/assets/stsv/sounds/vehicle/tractor_trailer_engine_stop.ogg
 7ace50c65d411f46e424fb9424a01789ec5ca6ff stsv/assets/stsv/sounds/vehicle/tractor_trailer_horn.ogg
 b8bb360ce81b56b6142d0ac9bd64bb2d9f27157d stsv/assets/stsv/sounds/vehicle/tractor_trailer_horn_end.ogg
+5e325d6b52b82ab53c1075bbe8dbff30bade3c01 stsv/assets/stsv/sounds/vehicle/tuner_car_engine.ogg
+f1dd4b2288768354f4abbafa13bd0de395b1d4e3 stsv/assets/stsv/sounds/vehicle/tuner_car_engine_start.ogg
+ab1f6e9fbef69b7914b509fdcb5126111242b819 stsv/assets/stsv/sounds/vehicle/tuner_car_engine_stop.ogg
+259c77564c06dc302e1a19293b4a42bc44af58c2 stsv/assets/stsv/sounds/vehicle/tuner_car_horn.ogg
+0e9ceb6c920ae0e44294e95ffeab594a67a17db1 stsv/assets/stsv/sounds/vehicle/tuner_car_horn_end.ogg
+13dc4780aec743d373e290fa6fca83726d51a797 stsv/assets/stsv/sounds/vehicle/tuner_car_popcorn.ogg
 908eb6dfc993ece2b24b89257d12fec6783afc0a stsv/assets/stsv/textures/entity/equipment/humanoid/steel.png
 d628bc241d6647011838a5803129750f01ae187e stsv/assets/stsv/textures/entity/equipment/humanoid/test.png
 d557c6800377372604649e6e952cb6b4f6780746 stsv/assets/stsv/textures/entity/equipment/humanoid_leggings/steel.png
@@ -336,6 +343,7 @@ b679f6d24bfea7f852d9161450de2ab3e4b08bfa stsv/items/vehicles.yml
 c21568fde324bce21872d9cc6708ca84f3d2161a stsv/items/vehicles.yml
 cceb05413a7e89b7496bdcd45c920af489410c5a stsv/items/vehicles.yml
 d2d33ff5e7c8e51f9331652d4dae122e7cb8fdf1 stsv/items/vehicles.yml
+db24840e87aa50f0ca07c846b02b75d0e5001b86 stsv/items/vehicles.yml
 f3ea0325242e88dbac93e562e7c4b55f84d23025 stsv/items/vehicles.yml
 fa538eef23b9996dfebebe3190633bc0e3bf780c stsv/items/vehicles.yml
 180a047622ee19c1ca239dc0f22954ea805984e9 stsv/items/vehicles_farm.yml
@@ -759,6 +767,10 @@ efc0c56818337f845078ef8cba645cedafba25cc stsv/models/truck_cargo_3.bbmodel
 78555e2215714adda6bb16d26ce96e9230845de0 stsv/models/truck_cargo_4.bbmodel
 7c7a813afed116957fb995f87085dff3d3b94b4d stsv/models/truck_cargo_4.bbmodel
 362ec8729c94a994474b64d72fb032a36abc9f01 stsv/models/truck_tarp.bbmodel
+6e49911ed002076776374a431d7ffc621ec0299d stsv/models/tuner_car.bbmodel
+218f4737304e281fb620f07628483c362dcf1bc5 stsv/models/tuner_car_lamp_brake.bbmodel
+54a02796feae75e0d1705f57402ebe84e000881f stsv/models/tuner_car_lamp_head.bbmodel
+b1da8ca1a2606642cadf02be62e95b0cb961f6e5 stsv/models/tuner_car_lamp_tail.bbmodel
 58eaebc4b9067a9eb34dc2646cdce8008a468b64 stsv/models/turtle.bbmodel
 36d9e50c8f6a1143056bfb860e1e198050268154 stsv/models/wagasa.bbmodel
 750f84620f5a64aec1f334fcee2402d4ac72c88e stsv/models/wagasa.bbmodel
@@ -786,6 +798,7 @@ aa83b7600d3cf5680e19e341d35855e2d9f59138 stsv/models/wheel_tractor_front.bbmodel
 58bd92aabb6206391315d02f73582efe06d2cf4f stsv/models/wheel_tractor_rear.bbmodel
 9c7dae547f54c3bb7cd93bb401ca076ffee0dbbc stsv/models/wheel_tractor_rear.bbmodel
 513141de384170b33d90000033ad114822a773f6 stsv/models/wheel_truck.bbmodel
+15114441d6338065d5c5fce719083ef449cfdd09 stsv/models/wheel_tuner.bbmodel
 5218a0daedfa408a9a71434fde1e43a0d753375f stsv/models/wheel_van.bbmodel
 d4eb41200c7b88cc403118365567cda6a4b113d1 stsv/models/wheel_van.bbmodel
 9b788b95e2124d4c573b8f339b50ca2bc2178fe3 stsv/models/wind_chime.bbmodel
@@ -945,6 +958,7 @@ d1eea0757918a33a57fa1499f07517812423c228 stsv/textures/test_material.png
 bed4d78c21f0cb4a6ca3c6a3712943acff34b360 stsv/textures/tomato_voucher.png
 70a3801ce364638b561317916adbc84bd2322982 stsv/textures/torii_icon.png
 8b0677ab134e7c8261d959fe17657b7169e54ce5 stsv/textures/tractor_trailer_icon.png
+9a6af065a6c843d9ec97a34b618a2a0fc72ae8e7 stsv/textures/tuner_car_icon.png
 23e6328118e531ae225cc729f1ebd2d9c5d6b66b stsv/textures/turtle_voucher.png
 f44800b95f7e98fcc53fec4825170c59034109c5 stsv/textures/wagasa_icon.png
 fd8fcad605f919461b93299acf962206d83a9ec9 stsv/textures/wagasa_icon.png
@@ -956,6 +970,7 @@ d40bcc50adb9b23653b440fff3bcccae76130e9a stsv/titles/achievements.yml
 057eb05581e3748fcd28a0cdf13a0e2a7322f32a stsv/titles/titles.yml
 fbd51d2ed003db486c357f6655c06a3666b78632 stsv/titles/titles.yml
 ff41499c606083f73e1d60bbfeb04013dd14bb72 stsv/titles/titles.yml
+0a2613f6be8af617b2e01698d89c064894b29dc3 stsv/vehicle_feel.yml
 46d38fb2097ebbeaaaa413738401f782d4f19167 stsv/vehicle_feel.yml
 9aebed0024b7550011cca3aa43e71b37ccc6c909 stsv/vehicle_feel.yml
 f67aacf4521710c17846ff322f2cd18589667a83 stsv/vehicle_feel.yml

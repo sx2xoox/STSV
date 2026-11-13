@@ -486,6 +486,7 @@ ecc2163f4e4fe293972072dc3480313c9aca2049 economy/items/crops.yml
 40576d08539a05dad2644eda8457b1784d9c5305 economy/items/fish.yml
 ebab05590b97010c6c68269cd99d669155026338 economy/items/fish.yml
 0ee8c71871be701bf0059aaa5437d7cb2f0520c1 economy/items/jobs.yml
+114cde52a58f38b76163bac08f66c5b2d6da6036 economy/items/jobs.yml
 1d57ec588a4b18e0f529c930ecb98562ac0d7533 economy/items/jobs.yml
 24aa4512da2581cd451b3a2bde0b6e5405f03b77 economy/items/jobs.yml
 250992f9bb71ff70bb0271cebc60ba14660399a1 economy/items/jobs.yml
@@ -1036,6 +1037,7 @@ cd6908f81215e45c3c1830499947b5cc18320379 economy/models/zucchini_4.bbmodel
 96b49d5084204b40bc2a1de9e651046e787b206c economy/recipes/jobs.yml
 9addb3b3274019a9f28e0bee7e32a92f68dcab20 economy/recipes/jobs.yml
 9ffa3ea84c45ed092cc60394ef895f7e81937a90 economy/recipes/jobs.yml
+db1dac3b14071758e05e52789f8f5cd299715dc4 economy/recipes/jobs.yml
 f982c960e90aef00fd0093dc5c5ad08870a7f9d8 economy/recipes/jobs.yml
 17ff117660da5a029b0ca9fe73d4aaeac39207a9 economy/requests.yml
 4c11f2ff6ecb3326e5689b568c99caa46133a604 economy/requests.yml
@@ -1065,6 +1067,7 @@ f3c85fd1b590e11695e565a57503fb208ab98154 economy/requests.yml
 588235b4e1745d74b7f738d204babb38f77fc608 economy/shop.yml
 5bbea2ec9023651c9d59ba45ee307ba4000b59d7 economy/shop.yml
 667a869159752de48de02c4b362d5b9996a04155 economy/shop.yml
+6f93d626ea8b837dd2180289e4d70d2c24d17f07 economy/shop.yml
 7697fdc399921ffcea5b2be43f6ef6a8caee2cac economy/shop.yml
 83ea0e0a9a4e74d71dbf74fc9b4a7aaada752c24 economy/shop.yml
 8f130d0693ee5dafedc2209626f6af1fd083f43d economy/shop.yml
