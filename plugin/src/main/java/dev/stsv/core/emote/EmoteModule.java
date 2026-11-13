@@ -218,7 +218,7 @@ public final class EmoteModule implements StsvModule, Listener, TabExecutor {
         org.bukkit.Input in = e.getInput();
         if (!EmoteMenu.quickKey(in.isSneak(), in.isSprint(), in.isForward() || in.isBackward() || in.isLeft() || in.isRight() || in.isJump())) return;
         Player p = e.getPlayer();
-        if (!enabled() || emotes.isEmpty() || !plugin.getConfig().getBoolean("emotes.quick-key", true)) return;
+        if (!enabled() || emotes.isEmpty() || !plugin.getConfig().getBoolean("emotes.quick-key")) return;
         if (!p.hasPermission(PERMISSION) || emoting(p) || p.isInsideVehicle() || p.getGameMode() == GameMode.SPECTATOR) return;
         long now = System.currentTimeMillis();
         Long last = lastQuick.put(p.getUniqueId(), now);
