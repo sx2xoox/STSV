@@ -321,7 +321,7 @@ def theme_sheets(theme, fonts):
                 big = ims[f] if f == 0 else ghost(ims[f])
                 rows[f].append((ch, big))
                 wb.append(measured(ims[f]))
-                wm.append(measured(band(ims[f], mid if name != "G" else mid - gy0)))
+                wm.append(measured(band(ims[f], mid)))
             meta["glyphs"][name] = dict(chars=chars, big=wb, mini=wm)
         return rows
 
@@ -333,25 +333,20 @@ def theme_sheets(theme, fonts):
     for side, x0 in (("TL", c["left"]), ("TR", c["right"]))[:c["fills"]]:
         for (o, w) in sl:
             groups.setdefault(f"S{w}", []).append((f"{side}:{o}:{w}", [f.crop((x0 + o, 0, x0 + o + w, H)) for f in bg]))
-    groups["G"] = [("G", [g.crop((gx0, gy0, gx1, gy1)) for g in gems])]
+    # the gem: its columns at the plate's full height, so it shares the plate's ascent (a bitmap's ascent may not
+    # exceed its height)
+    groups["G"] = [("G", [g.crop((gx0, 0, gx1, H)) for g in gems])]
 
     for group, entries in groups.items():
         rows = cells_for(entries)
-        is_gem = group == "G"
-        top = gy0 if is_gem else 0
-        big_rows = rows
-        fonts.provider(theme["id"], f"font/title_banner/{theme['id']}/{group.lower()}", big_rows,
-                       height=big_rows[0][0][1].height, ascent=mid - top + 4)
+        fonts.provider(theme["id"], f"font/title_banner/{theme['id']}/{group.lower()}", rows,
+                       height=H, ascent=mid + 4)
         # mini: the plate band, drawn at half size
         mini_rows = []
         for f, row in enumerate(rows):
             mini_rows.append([])
             for (ch, im), (name, ims) in zip(row, entries):
                 src = ims[f] if f == 0 else ghost(ims[f])
-                if is_gem:
-                    full = Image.new("RGBA", (src.width, H), (0, 0, 0, 0))
-                    full.alpha_composite(src, (0, gy0))
-                    src = full
                 mini_rows[-1].append((ch, band(src, mid)))
         fonts.provider(theme["id"] + "_mini", f"font/title_banner/{theme['id']}/mini_{group.lower()}", mini_rows,
                        height=(MINI_ROWS[1] - MINI_ROWS[0]) // 2, ascent=-MINI_ROWS[0] // 2 + 4)
@@ -462,7 +457,8 @@ def write(out_dir: Path = OUT):
         total += f.stat().st_size
     banners = dict(frames=N, ghost_levels=GHOST_LEVELS, pad=PAD, gap=GAP, mini_rows=list(MINI_ROWS),
                    space=dict(base=SPACE_BASE, steps=SPACE_STEPS), text=text, themes=themes,
-                   ghosts=sorted(p for p in fonts.files if p.endswith(".png") and "/text/" not in p))
+                   ghosts=sorted(p for p in fonts.files if p.endswith(".png") and "/text/" not in p),
+                   files=sorted(fonts.files))
     (out_dir / "banners.json").write_text(json.dumps(banners, ensure_ascii=False, separators=(",", ":")), encoding="utf-8")
     total += (out_dir / "banners.json").stat().st_size
     return f"{len(themes)} themes, {len(fonts.files)} files, {total / 1024:.0f} KB", renders
