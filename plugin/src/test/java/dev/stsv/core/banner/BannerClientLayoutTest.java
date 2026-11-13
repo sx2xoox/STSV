@@ -45,7 +45,8 @@ class BannerClientLayoutTest {
     static final BannerCatalog C = BannerCatalog.get();
     static final List<String[]> WORDS = List.of(new String[]{"거상", "예주니0"}, new String[]{"거상", "상원"}, new String[]{"", "xozne"},
             new String[]{"최고 부자", "xozne"}, new String[]{"명장 대장장이", "Steve_2024"}, new String[]{"단골", "홍길동"},
-            new String[]{"아주 아주 긴 칭호 이름", "Long_Name_12345"}, new String[]{"", "a"});
+            new String[]{"아주 아주 긴 칭호 이름", "Long_Name_12345"}, new String[]{"", "a"},
+            new String[]{"거상", "JumpyFrog_q"}, new String[]{"거상", "happy_kitty"});
 
     /** One glyph as the client sees it: advance, the box it draws (GUI px, y from the text's top), its drawn rows. */
     record ClientGlyph(double advance, double left, double top, double bottom, boolean gray, double inkTop, double inkBottom) {

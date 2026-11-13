@@ -76,6 +76,54 @@ TALL = {
 CHARSET = "abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789_"
 assert set(CHARSET) == set(TALL) and all(len(g) == 7 and all(len(r) == 5 for r in g) for g in TALL.values())
 
+# The lowercase of the chat banner (which the tab list and the name tag show too): real lowercase, so a name of
+# both cases reads as one. (first row, rows): a small letter is five rows high and stands on the baseline (rows
+# 2 .. 6 of the capitals' seven), b d f h i j k l t reach the capitals' top, g j p q y hang one row under the
+# baseline (row 7). Narrow letters are as wide as their ink (they start in column 0).
+SMALL = {
+    "a": (2, [".###.", "....#", ".####", "#...#", ".####"]),
+    "b": (0, ["#....", "#....", "#.##.", "##..#", "#...#", "#...#", "####."]),
+    "c": (2, [".###.", "#...#", "#....", "#...#", ".###."]),
+    "d": (0, ["....#", "....#", ".##.#", "#..##", "#...#", "#...#", ".####"]),
+    "e": (2, [".###.", "#...#", "#####", "#....", ".####"]),
+    "f": (0, ["..##", ".#..", "####", ".#..", ".#..", ".#..", ".#.."]),
+    "g": (2, [".####", "#...#", "#...#", ".####", "....#", ".###."]),
+    "h": (0, ["#....", "#....", "#.##.", "##..#", "#...#", "#...#", "#...#"]),
+    "i": (0, [".#.", "...", "##.", ".#.", ".#.", ".#.", "###"]),
+    "j": (0, ["..#", "...", ".##", "..#", "..#", "..#", "..#", "##."]),
+    "k": (0, ["#...", "#...", "#..#", "#.#.", "##..", "#.#.", "#..#"]),
+    "l": (0, ["##.", ".#.", ".#.", ".#.", ".#.", ".#.", "###"]),
+    "m": (2, ["##.#.", "#.#.#", "#.#.#", "#.#.#", "#.#.#"]),
+    "n": (2, ["#.##.", "##..#", "#...#", "#...#", "#...#"]),
+    "o": (2, [".###.", "#...#", "#...#", "#...#", ".###."]),
+    "p": (2, ["#.##.", "##..#", "#...#", "#...#", "####.", "#...."]),
+    "q": (2, [".##.#", "#..##", "#...#", "#...#", ".####", "....#"]),
+    "r": (2, ["#.##", "##..", "#...", "#...", "#..."]),
+    "s": (2, [".####", "#....", ".###.", "....#", "####."]),
+    "t": (0, [".#..", ".#..", "####", ".#..", ".#..", ".#..", "..##"]),
+    "u": (2, ["#...#", "#...#", "#...#", "#..##", ".##.#"]),
+    "v": (2, ["#...#", "#...#", "#...#", ".#.#.", "..#.."]),
+    "w": (2, ["#...#", "#...#", "#.#.#", "#.#.#", ".#.#."]),
+    "x": (2, ["#...#", ".#.#.", "..#..", ".#.#.", "#...#"]),
+    "y": (2, ["#...#", "#...#", "#...#", ".####", "....#", ".###."]),
+    "z": (2, ["#####", "...#.", "..#..", ".#...", "#####"]),
+}
+assert set(SMALL) == set("abcdefghijklmnopqrstuvwxyz")
+assert all(top + len(rows) <= 8 and len({len(r) for r in rows}) == 1 for top, rows in SMALL.values())
+
+# Doubled, a letter that hangs would cross the plate's whole bottom frame (two texels). One texel row is taken out
+# of each (out of a stretch of upright strokes, so every stroke stays two texels thick; of p and q the stem's last
+# row), and what is under it moves up: they hang a single texel, on the frame's inner row, and the edge stays whole.
+SMALL_SQUEEZE = {"g": 7, "y": 7, "j": 9, "p": 15, "q": 15}
+assert all(SMALL[ch][0] + len(SMALL[ch][1]) == 8 for ch in SMALL_SQUEEZE)
+assert all(top + len(rows) <= 7 for ch, (top, rows) in SMALL.items() if ch not in SMALL_SQUEEZE)
+
+
+def chat_cells(ch):
+    """the (column, row) cells of a nickname character on the chat banner: SMALL's lowercase, TALL's other signs"""
+    top, rows = SMALL[ch] if ch in SMALL else (0, TALL[ch])
+    return [(c, top + r) for r, row in enumerate(rows) for c, v in enumerate(row) if v == "#"]
+
 
 def tall_pts(s):
     """(width, points) of a word in the tall face, rows 1..7 (as the approved mock-ups placed it)."""

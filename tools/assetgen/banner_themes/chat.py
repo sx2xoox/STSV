@@ -5,7 +5,8 @@ with a plate, and the full banner at half size has letters of 4.5 px. The chat b
 its own Hangul: 1 texel = half a GUI pixel. A line is 18 rows of texels: a plate of exactly these 18 rows (an edge,
 a bevel, 14 rows of text, a bevel, an edge), nothing over or under it, the text as high as the chat's own (7 px):
 the title in Galmuri14, made bold (every pixel doubled to its right: one more column), the nickname in the tall
-5 x 7 face with every pixel doubled both ways (the same letters as on the full banner, the same 7 px).
+5 x 7 face with every pixel doubled both ways (the full banner's capitals and digits, the same 7 px; its small
+letters are real lowercase, five cells high: letters.SMALL).
 
 A theme module gives chat_frame(G, i) (the 16 frames, G a ChatGeo) next to its frame(G, i).
 
@@ -29,7 +30,7 @@ from PIL import Image
 
 import galmuri
 from . import state
-from .letters import TALL
+from .letters import TALL, SMALL_SQUEEZE, chat_cells
 
 ROWS = 18                     # the plate: rows 0 .. 17 of the picture, the chat line's 9 px
 TEXT_ROW = 2                  # the text's first row (a capital's top); 14 rows
@@ -61,9 +62,14 @@ def bold14(ch):
 
 
 def tall2(ch):
-    """the nickname face of a character with every pixel doubled both ways, in cell rows 0 .. 13"""
-    return sorted((2 * c + dx, 2 * r + dy) for r, row in enumerate(TALL[ch]) for c, v in enumerate(row) if v == "#"
-                  for dx in (0, 1) for dy in (0, 1))
+    """the nickname face of a character (capitals seven cells high, real lowercase: letters.SMALL) with every
+    pixel doubled both ways, in cell rows 0 .. 13; what hangs under the baseline (g j p q y) in row 14 only
+    (letters.SMALL_SQUEEZE)"""
+    pix = {(2 * c + dx, 2 * r + dy) for c, r in chat_cells(ch) for dx in (0, 1) for dy in (0, 1)}
+    out = SMALL_SQUEEZE.get(ch)
+    if out is not None:
+        pix = {(x, y - (y > out)) for x, y in pix if y != out}
+    return sorted(pix)
 
 
 def outline(pix):
