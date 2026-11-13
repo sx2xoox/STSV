@@ -180,6 +180,17 @@ class WardrobeGuiTest {
         return argb;
     }
 
+    private static String secretButtons(String menuId) throws java.io.IOException {
+        String key = menuId.substring(menuId.indexOf(':') + 1);
+        try (var files = java.nio.file.Files.list(PACK.resolve("menus"))) {
+            for (Path f : files.filter(x -> x.toString().endsWith(".yml")).toList()) {
+                var y = org.bukkit.configuration.file.YamlConfiguration.loadConfiguration(f.toFile());
+                if (y.contains(key)) return y.getString(key + ".secret", "");
+            }
+        }
+        return "";
+    }
+
     @Test
     void everyCoreMenuHasTheSharedLookAndTheInventoryLabelIsBlank() throws Exception {
         List<String> problems = new ArrayList<>();
@@ -190,8 +201,10 @@ class WardrobeGuiTest {
         Integer panel = null;
         for (MenuSpec m : menus) {
             assertNotNull(m.background(), m.id() + " has a background");
+            // a "secret" button (only some players get it) has no cell on the background: it counts as empty
+            String secret = secretButtons(m.id());
             for (String row : m.layout()) {
-                String used = row.replaceAll("[^.]", "#");
+                String used = row.replaceAll(secret.isEmpty() ? "[^.]" : "[" + java.util.regex.Pattern.quote(secret) + "]", ".").replaceAll("[^.]", "#");
                 assertEquals(new StringBuilder(used).reverse().toString(), used, m.id() + " row " + row + " is symmetric");
             }
             BufferedImage im = ImageIO.read(ASSETS.resolve("textures/" + m.background().getKey() + ".png").toFile());

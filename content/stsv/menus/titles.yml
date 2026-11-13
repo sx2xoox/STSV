@@ -10,7 +10,7 @@ titles:
   tabs: "ABCDEFG"
   secret: "Z"
   layout:
-    - "ABCDEFG.Z"
+    - ".ABCDEFGZ"
     - "TTTTTTTTT"
     - "TTTTTTTTT"
     - "TTTTTTTTT"
