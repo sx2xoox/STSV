@@ -58,9 +58,9 @@ class BannerLayoutTest {
                 int tw = BannerLayout.width(m.titleWidths(), m.space(), w[0]);
                 int nw = BannerLayout.width(m.nickWidths(), m.space(), w[1]);
                 int content = tw > 0 ? tw + m.gap() + nw : nw;
-                assertEquals(Math.max(t.minPlate(), content + 2 * m.pad()), l.plateWidth());
+                assertEquals(Math.max(t.minPlate(), content + 2 * m.pad() + t.textRight()), l.plateWidth());
                 assertTrue(l.textStart() >= t.plateLeft() + m.pad() || l.plateWidth() == t.minPlate(), "padding");
-                assertTrue(l.textStart() + content <= t.plateLeft() + l.plateWidth(), t.id() + ": text ends on the plate");
+                assertTrue(l.textStart() + content <= t.plateLeft() + l.plateWidth() - t.textRight(), t.id() + ": text ends before the theme's own columns");
                 assertEquals(w[0].isEmpty(), l.pieces().stream().noneMatch(p -> p.glyph().equals("G")), "a gem only between title and name");
                 assertEquals(w[1].replace(" ", "").length(), l.nick().size(), "every letter of the name has a glyph");
             }
@@ -91,6 +91,8 @@ class BannerLayoutTest {
         assertTrue(fire.chat().metrics() != fire.metrics());
         assertTrue(fire.chat().metrics().titleWidths().get((int) '가') > fire.metrics().titleWidths().get((int) '가'));
         assertEquals(fire.metrics().nickWidths().keySet(), fire.chat().metrics().nickWidths().keySet(), "every name can be written");
+        // the plate's right end is the fire's: no text there
+        assertTrue(fire.chat().textRight() > 0 && fire.textRight() == 0);
     }
 
     @Test

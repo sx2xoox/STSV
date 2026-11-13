@@ -67,12 +67,15 @@ def width(s, nick=False):
 
 
 class ChatGeo:
-    """The plate for the canonical words (as the full banner's Geo: what a theme's frame needs to draw it)."""
+    """The plate for the canonical words (as the full banner's Geo: what a theme's frame needs to draw it).
+    end: columns of plate after the text's right padding that stay free of text (a theme's effect burns there);
+    they belong to the right end, which is never tiled, so what is drawn there need not repeat."""
 
-    def __init__(self, title, side=22):
+    def __init__(self, title, side=22, end=0):
         self.title = title
+        self.END = end
         self.TT, self.TW = width(title), width(NAME, nick=True)
-        self.PW = PAD + self.TT + GAP + self.TW + PAD
+        self.PW = PAD + self.TT + GAP + self.TW + PAD + end
         self.W, self.H = self.PW + 2 * side, ROWS
         self.PY0, self.PY1, self.MID = 0, ROWS - 1, ROWS // 2 - 1
         self.PX0 = side

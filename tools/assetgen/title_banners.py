@@ -156,7 +156,7 @@ def render(theme, chat=False):
     banner (every row of the picture is kept: they are the chat line's)"""
     import importlib
     m = importlib.import_module("banner_themes." + theme["module"])
-    G = chatlib.ChatGeo(m.TITLE) if chat else m.Geo(m.TITLE, **m.GEO)
+    G = (m.chat_geo(chatlib.ChatGeo) if hasattr(m, "chat_geo") else chatlib.ChatGeo(m.TITLE)) if chat else m.Geo(m.TITLE, **m.GEO)
     draw = m.chat_frame if chat else m.frame
     bg, gems = [], []
     for i in range(N):
@@ -186,7 +186,8 @@ def render(theme, chat=False):
     gems = [f.crop(box) for f in gems]
     ox, oy = box[0], box[1]
     div = getattr(G, "DIV")
-    geo = dict(px0=G.PX0 - ox, px1=G.PX1 - ox, mid=G.MID - oy, cx=int(round(G.CX)) - ox, div=div - ox, title=m.TITLE)
+    geo = dict(px0=G.PX0 - ox, px1=G.PX1 - ox, mid=G.MID - oy, cx=int(round(G.CX)) - ox, div=div - ox, title=m.TITLE,
+               end=getattr(G, "END", 0))
     return bg, gems, geo
 
 
@@ -218,8 +219,9 @@ def cut(theme, bg, gems, geo):
         lo, hi = c1, px1 - 9 - P
         right = min(range(lo, max(lo, hi) + 1), key=lambda t: (seam_cost(bg, t, t + P), abs(t - hi)))
     else:
-        # no centre ornament: one fill (the left tile) up to the right end, which keeps 10 plate columns
-        right = px1 + 1 - 10 - P
+        # no centre ornament: one fill (the left tile) up to the right end, which keeps 10 plate columns (and a
+        # chat banner's columns after the text, geo end)
+        right = px1 + 1 - 10 - geo["end"] - P
     gem_box = None
     for g in gems:
         b = g.getbbox()
@@ -353,7 +355,7 @@ def theme_sheets(theme, fonts, chat=False):
     }
     sl = slices(P)
     meta = dict(id=theme["id"], name=theme["name"], icon=theme["icon"], height=H, mid=mid, frames=N,
-                plate=dict(left=geo["px0"], right=geo["px1"]), tile=P,
+                plate=dict(left=geo["px0"], right=geo["px1"]), tile=P, text_right=geo["end"],
                 left=c["left"], right=c["right"], c0=c["c0"], c1=c["c1"], width=W, fills=c["fills"],
                 tint=dict(title=[list(theme["title"][0]), list(theme["title"][1])],
                           nick=[list(theme["nick"][0]), list(theme["nick"][1])]),

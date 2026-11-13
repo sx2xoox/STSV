@@ -10,7 +10,8 @@ import java.util.List;
  *
  * <pre>
  *   L | left fill | C | right fill | R          (the plate: L's plate part .. R's plate part)
- *        [title] ◆ [nickname]                   (centred on the plate, PAD from its ends at least)
+ *        [title] ◆ [nickname]                   (centred on the plate, PAD from its ends at least; a theme may
+ *                                                 keep columns after the text for itself: textRight)
  * </pre>
  * A fill is whole tiles plus aligned slices of the same tile for the rest: the left fill's rest comes after its tiles
  * (slices from the tile's start, largest first: the tile goes on seamlessly), the right fill's rest before its tiles
@@ -32,7 +33,7 @@ public record BannerLayout(BannerCatalog.Theme theme, List<Piece> pieces, List<L
         int nw = width(m.nickWidths(), m.space(), nick);
         boolean titled = tw > 0;
         int content = titled ? tw + m.gap() + nw : nw;
-        int pw = Math.max(t.minPlate(), content + 2 * m.pad());
+        int pw = Math.max(t.minPlate(), content + 2 * m.pad() + t.textRight());
         int extra = pw - t.minPlate();
         int cw = t.centreWidth();
         int fl = t.fills() == 2 ? Math.clamp(t.plateLeft() + Math.floorDiv(pw - cw, 2) - t.left(), 0, extra) : extra;
@@ -59,7 +60,7 @@ public record BannerLayout(BannerCatalog.Theme theme, List<Piece> pieces, List<L
         pieces.add(new Piece("R", x));
         int width = x + (t.width() - t.right() - P);
 
-        int start = t.plateLeft() + Math.floorDiv(pw - content, 2);
+        int start = t.plateLeft() + Math.floorDiv(pw - t.textRight() - content, 2);
         List<Letter> titleLetters = titled ? letters(m.titleWidths(), m.space(), title, start) : List.of();
         if (titled) pieces.add(new Piece("G", start + tw + m.gap() / 2 + t.gemX()));
         List<Letter> nickLetters = letters(m.nickWidths(), m.space(), nick, titled ? start + tw + m.gap() : start);

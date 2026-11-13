@@ -51,13 +51,14 @@ public record BannerCatalog(int frames, int ghostLevels, int pad, int gap, int s
      * the gem (where it sits against the gap's centre; its layers: code points in the title fonts, colours and
      * advances in full-size pixels), the text tints (start and end colour, title and nickname), and the empty columns
      * before the left end's picture at both sizes (left out: a banner starts where it is drawn).
-     * {@code metrics}: its text's measures. {@code chat}: its chat banner (the same id, its own parts and measures,
+     * {@code textRight}: columns of plate after the text's right padding that stay free of text (an effect has
+     * them; they are part of the right end). {@code metrics}: its text's measures. {@code chat}: its chat banner (the same id, its own parts and measures,
      * in its own pixels: half GUI pixels), null when it has none.
      */
     public record Theme(String id, String name, String icon, int height, int mid, int plateLeft, int plateRight, int tile, int left,
                         int right, int c0, int c1, int width, int fills, int minPlate, int gemX, int[] gemChars, int[][] gemTints,
                         int[] gemAdvances, Map<String, Glyph> glyphs, int[][] titleTint, int[][] nickTint, int leadBig, int leadMini,
-                        Metrics metrics, Theme chat) {
+                        int textRight, Metrics metrics, Theme chat) {
 
         public Glyph glyph(String name) {
             Glyph g = glyphs.get(name);
@@ -113,6 +114,7 @@ public record BannerCatalog(int frames, int ghostLevels, int pad, int gap, int s
                 ints(gem.getAsJsonArray("advances")), Collections.unmodifiableMap(glyphs),
                 colours(tint.getAsJsonArray("title")), colours(tint.getAsJsonArray("nick")),
                 t.getAsJsonObject("lead").get("big").getAsInt(), t.getAsJsonObject("lead").get("mini").getAsInt(),
+                t.has("text_right") ? t.get("text_right").getAsInt() : 0,
                 own, t.has("chat") ? theme(t.getAsJsonObject("chat"), chat, chat) : null);
     }
 
