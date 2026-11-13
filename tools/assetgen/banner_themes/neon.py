@@ -96,7 +96,7 @@ def frame(G, i):
 
 # ------------------------------------------------------------------------------------------------
 # The chat banner (banner_themes/chat.py: one chat line, 18 rows of half pixels): this banner's plate in small, and
-# what the full banner shows over its plate (cut off by a chat line) inside it. Circuit traces with travelling pulses run inside the plate, the tubes stutter, chevrons at the ends.
+# what the full banner shows over its plate (cut off by a chat line) inside it. Circuit traces with travelling pulses run inside the plate, the tubes stutter, the picture glitches, chevrons at the ends.
 # ------------------------------------------------------------------------------------------------
 
 from . import chat as C
@@ -169,6 +169,28 @@ def chat_frame(G, i):
             for r in range(-5, 7):
                 rr = r if r <= 0 else r - 1                      # two middle rows: the plate has an even height
                 C.put(px, G, x0 + side * (off + 5 - abs(rr)), G.MID + r, col)
+    # the glitch (frames 6 and 13, as on the full banner): a band of the plate jumps sideways, and static tears
+    # across it: short dashes of cyan and magenta side by side (the same every 64 columns). The words are the
+    # game's own text over the plate, so they stay where they are: the picture behind them breaks up.
+    if i in (6, 13):
+        y0, y1, d = (G.MID - 4, G.MID - 1, 4) if i == 6 else (G.MID + 2, G.MID + 5, -4)
+        rows = {y: {x: px[x, y] for x in range(G.W)} for y in range(y0, y1 + 1)}
+        for y, row in rows.items():
+            for x in range(G.PX0 + 10, G.PX1 - 9):
+                if (x, y) in G.core and (x - d, y) in G.core: px[x, y] = row[x - d]
+        for y in range(y0 - 1, y1 + 2):
+            for x in range(G.PX0 + 10, G.PX1 - 9):
+                xt = (x - G.TILE0) % 64
+                seed = C.lattice(xt // 5, y * 3 + i, 301)
+                if seed > 0.80 and (x, y) in G.core:
+                    px[x, y] = ((CYA if xt % 5 < 2 else MAG) if seed > 0.9 else (CYA_L if xt % 5 < 3 else (255, 150, 230))) + (255,)
+    elif i in (7, 14):
+        # the frame after: a few dashes of static are still there
+        for y in range(G.PY0 + 2, G.PY1 - 1):
+            for x in range(G.PX0 + 10, G.PX1 - 9):
+                xt = (x - G.TILE0) % 64
+                if C.lattice(xt // 4, y * 5 + i, 303) > 0.94 and (x, y) in G.core:
+                    px[x, y] = ((40, 170, 210) if xt % 4 < 2 else (190, 50, 160)) + (255,)
     # the gem: a hollow neon diamond
     cx, cy = G.DIV, G.MID
     gem = {(cx + a, cy + b): (MAG if not flick_m else MAG_D) for a in range(-3, 4) for b in range(-3, 4) if abs(a) + abs(b) == 3}
