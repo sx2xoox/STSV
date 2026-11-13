@@ -59,7 +59,8 @@ class BannerLayoutTest {
                 int nw = BannerLayout.width(m.nickWidths(), m.space(), w[1]);
                 int content = tw > 0 ? tw + m.gap() + nw : nw;
                 int want = Math.max(t.minPlate(), content + 2 * m.pad() + t.textRight());
-                if (t.flow() > 0) want = t.minPlate() + Math.ceilDiv(want - t.minPlate(), t.flow()) * t.flow();
+                int step = Math.max(t.flow(), t.grow());
+                if (step > 0) want = t.minPlate() + Math.ceilDiv(want - t.minPlate(), step) * step;
                 assertEquals(want, l.plateWidth());
                 assertTrue(l.textStart() >= t.plateLeft() + m.pad() || l.plateWidth() == t.minPlate(), "padding");
                 assertTrue(l.textStart() + content <= t.plateLeft() + l.plateWidth() - t.textRight(), t.id() + ": text ends before the theme's own columns");
@@ -108,17 +109,13 @@ class BannerLayoutTest {
             last = d;
         }
         assertTrue(last > 0);
-        // a scattered theme: the parts have times of their own (a tile and its slices the same), within the wait
-        BannerCatalog.Theme storm = C.theme("lightning").chat();
-        assertTrue(storm.scatter() && storm.flow() > 0 && !fire.chat().scatter());
-        java.util.Set<Integer> times = new java.util.HashSet<>();
-        for (BannerLayout.Piece p : BannerLayout.of(C, storm, "아주 아주 긴 칭호 이름", "Long_Name_12345").pieces()) {
-            if (p.glyph().equals("G")) continue;
-            int d = BannerText.delay(storm, p);
-            assertTrue(d >= 0 && d < 28, p.glyph() + ": " + d);
-            times.add(d);
+        // the other themes' chat banners are their full banners' plates in small: a loop, growing in whole cells
+        for (String id : new String[]{"lightning", "neon", "bloodmoon", "prism"}) {
+            BannerCatalog.Theme t = C.theme(id).chat();
+            assertTrue(t != null && t.flow() == 0 && t.grow() > 0, id);
+            assertEquals(0, (BannerLayout.of(C, t, "명장 대장장이", "Steve_2024").plateWidth() - t.minPlate()) % t.grow(), id);
         }
-        assertTrue(times.size() >= 3, "not all at once: " + times);
+        assertTrue(C.theme("bloodmoon").chat().centreWidth() > 0 && C.theme("bloodmoon").chat().fills() == 2, "the moon: a centre part");
         assertTrue(fire.chat().outline() == null, "its letters are the full banner's: no outline");
     }
 

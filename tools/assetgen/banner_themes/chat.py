@@ -95,13 +95,17 @@ class ChatGeo:
     end: columns of plate after the text's right padding that stay free of text (a theme's effect burns there);
     they belong to the right end, which is never tiled, so what is drawn there need not repeat."""
 
-    def __init__(self, title, side=22, end=0, tile=16, flow=0, pointed=True, scatter=False):
+    def __init__(self, title, side=22, end=0, tile=16, flow=0, pointed=True, scatter=False, grow=0, centre=0):
         """tile: the plate's tile (title_banners.py cuts it at TILE0). flow: columns a step of a gust that runs
         along the banner from left to right (0: none), see flow_at. pointed: the plate's ends come to a point
         (else it is a plain bar: the theme shapes its ends itself, within the 16 columns of each end part)."""
         self.title = title
         self.END = end
         self.TILE, self.FLOW, self.SCATTER = tile, flow, scatter
+        # grow: the plate only grows by whole steps of this many columns (so a slice of the tile never cuts what
+        # is drawn in cells of that width). centre: half the width of a centre ornament (its own part, at CX,
+        # between a left and a right fill; 0: none)
+        self.GROW, self.CENTRE = grow, centre
         self.TT, self.TW = width(title), width(NAME, nick=True)
         self.PW = PAD + self.TT + GAP + self.TW + PAD + end
         self.W, self.H = self.PW + 2 * side, ROWS
@@ -247,3 +251,62 @@ def gem7(px, G, colours):
                 q = (G.DIV - 3 + c, G.MID - 3 + r)
                 state.GEM["pix"].add(q)
                 px[q] = tuple(colours[v]) + (255,)
+
+
+def framed(Geo, title, grow=16, centre=0):
+    """the geometry of a chat banner drawn like the full banner's plate: pointed ends, edge and bevel, a loop of 16
+    frames; the plate grows in steps of grow columns"""
+    return Geo(title, tile=TILE, grow=grow, centre=centre)
+
+
+def put(px, G, x, y, c, a=255):
+    x, y = int(x), int(y)
+    if 0 <= x < G.W and 0 <= y < G.H:
+        px[x, y] = tuple(c[:3]) + (a,)
+
+
+def blend(px, G, x, y, c, a):
+    """colour c with alpha a (0 .. 255) over the pixel"""
+    x, y = int(x), int(y)
+    if not (0 <= x < G.W and 0 <= y < G.H) or a <= 0:
+        return
+    o = px[x, y]
+    oa, na = o[3] / 255, a / 255
+    ra = na + oa * (1 - na)
+    px[x, y] = tuple(int(round((c[k] * na + o[k] * oa * (1 - na)) / ra)) for k in range(3)) + (int(round(ra * 255)),)
+
+
+def line(x0, y0, x1, y1):
+    """the pixels of a line (Bresenham)"""
+    x0, y0, x1, y1 = int(round(x0)), int(round(y0)), int(round(x1)), int(round(y1))
+    dx, dy = abs(x1 - x0), -abs(y1 - y0)
+    sx, sy = (1 if x0 < x1 else -1), (1 if y0 < y1 else -1)
+    err, out = dx + dy, []
+    while True:
+        out.append((x0, y0))
+        if x0 == x1 and y0 == y1:
+            return out
+        e2 = 2 * err
+        if e2 >= dy:
+            err += dy; x0 += sx
+        if e2 <= dx:
+            err += dx; y0 += sy
+
+
+def plate(px, G, fill, trim, bevel):
+    """the plate as the full banners draw it: trim(x, y) on its edge, bevel(x, y) on the ring inside it,
+    fill(x, y, g) inside (g: 0 at its top row .. 1 at its bottom row); a function may give (colour, alpha)"""
+    for (x, y) in G.inside:
+        c = trim(x, y) if (x, y) in G.edge else bevel(x, y) if (x, y) in G.bevel else fill(x, y, (y - G.PY0) / (G.PY1 - G.PY0))
+        if c is None:
+            continue
+        px[x, y] = (tuple(c[0]) + (int(c[1]),)) if isinstance(c[0], (tuple, list)) else tuple(c[:3]) + (255,)
+
+
+def gem_pixels(px, pixels):
+    """a gem of the theme's own shape: {(x, y): colour}; only in the gem pass, where it is recorded"""
+    if state.GEM["mode"] != "gem":
+        return
+    for q, c in pixels.items():
+        state.GEM["pix"].add(q)
+        px[q] = tuple(c) + (255,)

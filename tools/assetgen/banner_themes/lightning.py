@@ -131,58 +131,125 @@ def frame(G, i):
 
 
 # ------------------------------------------------------------------------------------------------
-# The chat banner (banner_themes/chat.py: one chat line). A band of storm cloud; lightning strikes down through it here and there.
+# The chat banner (banner_themes/chat.py: one chat line, 18 rows of half pixels): this banner's plate in small, and
+# what the full banner shows over its plate (cut off by a chat line) inside it. The live arc runs through the plate from orb to orb, forks reach its edges, a strike crosses it.
 # ------------------------------------------------------------------------------------------------
 
 from . import chat as C
 
 
 def chat_geo(Geo):
-    return C.bar(Geo, TITLE, "scatter")
+    return C.framed(Geo, TITLE)
 
 
-CHAT_VOLT = C.ramp(((0.08, (30, 44, 104)), (0.30, (50, 90, 210)), (0.60, (84, 156, 255)), (0.90, (180, 230, 255)),
-                    (1.20, (250, 252, 255))))
-CHAT_GEM = {"#": (200, 240, 255), "a": (110, 200, 255), "w": (240, 252, 255), "b": (40, 120, 245), "c": (14, 32, 110)}
-# a strike, frame by frame: the flash, a flicker, the second flash, the afterglow dying
-CHAT_STRIKE = (1.0, 0.85, 0.12, 0.95, 0.62, 0.44, 0.31, 0.21, 0.14, 0.09, 0.05, 0.02)
+def chat_arc(G, x, seed):
+    """The row of the arc at column x in the frame of this seed. It crawls along the plate's upper inner edge, over
+    the heads of the letters (through the middle it would hide the words): a zigzag that comes back to its line
+    every 16 columns (so it goes on unbroken through tiles, slices and both ends) with a different swing in every
+    cell (the same every 64 columns) and a jitter on top; in the pointed ends it runs down to the tips."""
+    mid, line_ = (G.PY0 + G.PY1) / 2, G.PY0 + 3.6
+    if x <= G.PX0 or x >= G.PX1:
+        return mid
+    xt = x - (G.R0 if x >= G.R0 else G.TILE0)
+    cell, f = (xt // 16) % 4 if x < G.R0 else 5, (xt % 16) / 16
+    swing = 1.7 * (2 * C.lattice(cell, seed, 201) - 1)
+    y = line_ + (swing + 0.9 * (2 * C.lattice(xt % 64, seed, 203) - 1)) * math.sin(math.pi * f)
+    tip = min(x - G.PX0, G.PX1 - x) / 14                     # 0 at a tip .. 1 where the plate is at its full height
+    return mid + (y - mid) * C.smooth(tip)
 
 
-def chat_strike(xl, y, rows, s):
-    """The light of a tile's lightning at tile column xl (0 .. 63), inner row y, s frames into its strike: a bolt
-    from the top of the plate to its bottom, a thinner second one five frames later, the cloud lit around them.
-    None of it reaches the tile's sides, so the tiles (each struck at its own time) show no seams."""
-    light = 0.0
-    side = C.smooth(xl / 12) * C.smooth((63 - xl) / 12)
-    for centre, lean, seed, late, power in ((21, 0.45, 91, 0, 1.0), (45, -0.35, 95, 5, 0.7)):
-        if s < late:
-            continue
-        b = CHAT_STRIKE[s - late] * power
-        path = centre + lean * (y - rows / 2) + 3.2 * (2 * C.noise(y, 0, 3, 4, 1 << 10, 16, seed) - 1) \
-            + 1.2 * (2 * C.noise(y, 0, 1, 4, 1 << 10, 16, seed + 1) - 1)
-        d = abs(xl - path)
-        light = max(light, (1.5 * b if d < 0.8 and s - late < 6 else 0.0) + b * 1.0 * math.exp(-d / 2.0) + b * 0.42 * math.exp(-d / 13))
-    return light * side
+def chat_bolt(px, G, cells, core, glow_c, ga, outer=None):
+    """a bolt as the full banner draws it (draw_bolt), kept to the inside of the plate"""
+    S = set(cells)
+    if outer:
+        for x, y in S:
+            for a, b in ((2, 0), (-2, 0), (0, 2), (0, -2), (1, 1), (-1, 1), (1, -1), (-1, -1)):
+                q = (x + a, y + b)
+                if q in G.core and q not in S: C.blend(px, G, q[0], q[1], outer, 90)
+    for x, y in S:
+        for a, b in DIRS4:
+            q = (x + a, y + b)
+            if q in G.core and q not in S: C.blend(px, G, q[0], q[1], glow_c, ga)
+    for x, y in S:
+        if (x, y) in G.core: px[x, y] = tuple(core) + (255,)
 
 
 def chat_frame(G, i):
+    t = 2 * math.pi * i / N
     im, px = G.canvas()
+    oxL, oxR = G.PX0 - 8, G.PX1 + 8                          # the orbs
+    flash = 2 if i % 8 == 0 else 1 if i % 8 == 1 else 0
     top, base = G.PY0 + 2, G.PY1 - 2
-    rows = base - top + 1
-    s = i - C.CALM                                           # frames 0-3: only the cloud
-    for (x, y) in G.inside:
-        v = (y - G.PY0) / (G.PY1 - G.PY0)
-        xt = x - G.TILE0
-        cloud = 0.6 * C.noise(xt, y, 16, 6, 64, 24, 35) + 0.4 * C.noise(xt, y, 8, 3, 64, 24, 37)
-        c = C.lerp(C.lerp((30, 38, 76), (12, 15, 38), v), (70, 84, 136), 0.55 * cloud * cloud)
-        if s >= 0 and G.TILE0 <= x < G.R0:
-            c = CHAT_VOLT(chat_strike(xt % 64, y - top, rows, s), c)
-        # no frame: the cloud's upper and lower edge are soft, its ends drift apart
-        a = 255
-        if y in (G.PY0, G.PY1): a = int(120 + 120 * C.noise(xt, y, 6, 4, 64, 24, 39))
-        d, edge = C.end_depth(G, x, y, 51, shallow=1.0, deep=9.0)
-        a = int(a * C.smooth((d - edge + 5.5) / 7))
-        if a <= 0: continue
-        px[x, y] = tuple(c) + (a,)
-    C.gem7(px, G, CHAT_GEM)
+    # the strike that crosses the plate every half loop, in one cell of every tile; where it meets the edges
+    cell = int(C.lattice(i // 8, 0, 207) * 4)
+    strike_x = lambda x0: x0 + cell * 16 + 8
+    hits = set()
+    if flash == 2:
+        for x0 in range(G.TILE0, G.R0 - 15, 64):
+            if strike_x(x0) < G.R0 - 4: hits.add(strike_x(x0))
+
+    def bev(x, y):
+        p = 0.5 + 0.5 * math.sin(x * math.pi / 8 - t * 3) * math.sin(x * math.pi / 32 + t)
+        c = lerp((24, 50, 140), (110, 190, 255), p)
+        if any(abs(x - hx) < 5 for hx in hits): c = lerp(c, (235, 248, 255), 1 - min(abs(x - hx) for hx in hits) / 5)
+        return lerp(c, (220, 240, 255), 0.45) if flash == 2 else c
+
+    def trim(x, y):
+        if any(abs(x - hx) < 4 for hx in hits): return CORE
+        if flash == 2: return (235, 245, 255) if y <= G.MID else (120, 150, 220)
+        return (196, 222, 255) if y <= G.MID else (76, 104, 184)
+
+    # a glow round the pointed ends (over and under the plate there is no room for one)
+    for (x, y) in G.edge:
+        for a, b in DIRS4:
+            q = (x + a, y + b)
+            if q not in G.inside and G.PY0 <= q[1] <= G.PY1: C.blend(px, G, q[0], q[1], (60, 120, 255), 110 + 70 * (flash == 2))
+    C.plate(px, G, lambda x, y, g: lerp((30, 34, 64), (6, 7, 16), g), trim, bev)
+    rivets(px, G, (210, 235, 255), (80, 110, 180))
+    # the afterimage of the last frame's arc, then the live arc with its forks
+    for age, seed in ((1, (i - 1) % N), (0, i)):
+        cells = []
+        prev = None
+        for x in range(G.PX0 + 1, G.PX1):
+            y = int(round(chat_arc(G, x, seed)))
+            cells += C.line(x - 1, prev, x, y) if prev is not None else [(x, y)]
+            prev = y
+        forks = []
+        for x0 in range(G.TILE0, G.R0 - 15, 16):
+            k = ((x0 - G.TILE0) // 16) % 4
+            if C.lattice(k, seed, 209) < 0.45: continue
+            xa = x0 + 8
+            ya = int(round(chat_arc(G, xa, seed)))
+            ye = ya + 3 + int(4 * C.lattice(k, seed, 213))       # a short fork down between the letters
+            xe = xa + int(round(6 * (C.lattice(k, seed, 211) - 0.5)))
+            ym = (ya + ye) // 2
+            forks.append(C.line(xa, ya, xe + 2, ym) + C.line(xe + 2, ym, xe, ye))
+        if age == 1:
+            for c in [cells] + forks: chat_bolt(px, G, c, DIM, DEEPB, 120)
+        else:
+            chat_bolt(px, G, cells, CORE, GLOW, 200, outer=DEEPB)
+            for c in forks: chat_bolt(px, G, c, GLOW, DIM, 150)
+    if flash:
+        for x0 in range(G.TILE0, G.R0 - 15, 64):
+            xs = strike_x(x0)
+            if xs >= G.R0 - 4: continue
+            r2 = random.Random(i // 8 * 5 + 3)
+            pts, y, x = [], top, xs + r2.randint(-3, 3)
+            while y < base:
+                ny = min(base, y + r2.randint(2, 4)); nx = xs + r2.randint(-3, 3)
+                pts += C.line(x, y, nx, ny); x, y = nx, ny
+            if flash == 2: chat_bolt(px, G, pts, CORE, GLOW, 235, outer=DEEPB)
+            else: chat_bolt(px, G, pts, HOT, DIM, 150)
+    # the ends: a rod off each tip with a tesla orb, the arc's anchors
+    for side, ox in ((-1, oxL), (1, oxR)):
+        x0 = G.PX0 if side < 0 else G.PX1
+        for k in range(1, 6):
+            for y in (G.MID, G.MID + 1): C.put(px, G, x0 + side * k, y, (150, 180, 230) if k < 5 else (110, 140, 200))
+        for a in range(-2, 3):
+            for b in range(-2, 3):
+                d = abs(a) + abs(b)
+                if d <= 3: C.put(px, G, ox + a, G.MID + b, CORE if d <= 1 else HOT if d == 2 else GLOW)
+        for a, b in ((0, -4), (-4, 0), (4, 0), (0, 4), (-3, -3), (3, -3), (-3, 3), (3, 3)):
+            C.blend(px, G, ox + a, G.MID + b, GLOW, 150 if flash != 2 else 230)
+    C.gem7(px, G, {"#": (200, 240, 255), "a": (110, 200, 255), "w": (240, 252, 255), "b": (40, 120, 245), "c": (14, 32, 110)})
     return im

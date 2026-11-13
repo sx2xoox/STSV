@@ -75,59 +75,71 @@ frame = draw
 
 
 # ------------------------------------------------------------------------------------------------
-# The chat banner (banner_themes/chat.py: one chat line). A bar of cut glass you can see through; colours wander through it, its upper edge glints, it sparkles.
+# The chat banner (banner_themes/chat.py: one chat line, 18 rows of half pixels): this banner's plate in small, and
+# what the full banner shows over its plate (cut off by a chat line) inside it. The spectral bands slide through the glass, the glint runs along its bevel, rays fan out of both points, sparkles.
 # ------------------------------------------------------------------------------------------------
 
 from . import chat as C
 
 
 def chat_geo(Geo):
-    return C.bar(Geo, TITLE, "loop")
+    return C.framed(Geo, TITLE)
 
 
-CHAT_GEM = {"#": (255, 255, 255), "a": (230, 236, 255), "w": (255, 255, 255), "b": (170, 180, 250), "c": (110, 110, 190)}
-# sparkles, the same every 64 columns: column, row, the frame it starts in
-CHAT_SPARKLES = ((12, 5, 1), (39, 11, 7), (55, 7, 12))
-CHAT_STAR = ((0,), (0, 1), (0, 1, 2), (0, 1), (0,))          # a sparkle's reach (pixels from its centre) frame by frame
+# sparkles inside the glass, the same every 64 columns: its cell of 16 columns, column in the cell, row, frame offset
+CHAT_SPARKS = ((0, 9, 4, 0), (2, 6, 12, 8), (3, 10, 6, 4))
 
 
-def chat_hue(s):
-    """a colour of the spectrum, s around the circle (any number: it repeats every 1)"""
-    k = (s % 1.0) * len(SPECTRUM)
-    return C.lerp(SPECTRUM[int(k) % len(SPECTRUM)], SPECTRUM[(int(k) + 1) % len(SPECTRUM)], k - int(k))
+def chat_sparkle(px, G, x, y, size, col):
+    for d in range(-size, size + 1):
+        for q in ((x + d, y), (x, y + d)):
+            if G.PY0 <= q[1] <= G.PY1: C.put(px, G, q[0], q[1], (255, 255, 255) if d == 0 else col)
 
 
 def chat_frame(G, i):
+    t = TAU * (i % N) / N
+    ph = i % N
     im, px = G.canvas()
-    top, base = G.PY0 + 2, G.PY1 - 2
-    rows = base - top + 1
-    for (x, y) in G.inside:
-        xt = x - G.TILE0
-        v = (y - G.PY0) / (G.PY1 - G.PY0)
-        # the glass, and the colours wandering through it on a slant (4 columns a frame, the same every 64)
-        band = (xt + 1.3 * y - 4 * i) / 64
-        soft = 0.5 + 0.5 * math.cos(2 * math.pi * 2 * band)
-        c = C.lerp(C.lerp((156, 166, 216), (112, 120, 182), v), chat_hue(band), 0.22 + 0.30 * soft)
-        a = int(96 + 44 * soft)
-        # its edges: a bright cut along the top with a glint running along it, a shaded one along the bottom
-        if y == G.PY0:
-            glint = max(0.0, math.cos(2 * math.pi * (xt - 4 * i) / 64)) ** 6
-            c, a = C.lerp((214, 222, 250), (255, 255, 255), 0.35 + 0.65 * glint), int(200 + 55 * glint)
-        elif y == G.PY0 + 1: c, a = C.lerp(c, (236, 240, 255), 0.55), 150
-        elif y == G.PY1 - 1: c, a = C.lerp(c, (120, 128, 200), 0.45), 150
-        elif y == G.PY1: c, a = (128, 136, 206), 214
-        for col, row, start in CHAT_SPARKLES:
-            f = (i - start) % 16
-            if f < len(CHAT_STAR):
-                dx, dy = abs(xt % 64 - col), abs((y - top) - row)
-                if (dx == 0 and dy in CHAT_STAR[f]) or (dy == 0 and dx in CHAT_STAR[f]):
-                    c, a = (255, 255, 255), 255 if dx + dy < 2 else 190
-        # its ends: cut on a slant, the cut edge catching the light
-        d = min(x - G.PX0, G.PX1 - x)
-        cut = d - 0.45 * ((G.PY1 - y) if x - G.PX0 < G.PX1 - x else (y - G.PY0))
-        a = int(a * C.smooth((cut - 0.5) / 5))
-        if a <= 0: continue
-        if cut < 2.5: c = C.lerp(c, (255, 255, 255), 0.6 * (1 - cut / 2.5))
-        px[x, y] = tuple(c) + (a,)
-    C.gem7(px, G, CHAT_GEM)
+    # rainbow rays fanning out of both points (they stay inside the chat line's height)
+    for side in (-1, 1):
+        x0 = G.PX0 if side < 0 else G.PX1
+        for k, col in enumerate(SPECTRUM):
+            ang = (k - 2.5) * 0.22
+            L = 13 + 1.8 * math.sin(t + k * 0.7) - abs(k - 2.5) * 0.8
+            dy = math.sin(ang)
+            pts = C.line(x0 + side * 2, G.MID + 0.5 + dy, x0 + side * (2 + L * math.cos(ang)), G.MID + 0.5 + L * dy)
+            n = len(pts)
+            for j, (x, y) in enumerate(pts):
+                if not G.PY0 <= y <= G.PY1: continue
+                f = j / max(1, n - 1)
+                pulse = math.exp(-((f - (ph / N)) * 6) ** 2) + math.exp(-((f - (ph / N) + 1) * 6) ** 2)
+                C.blend(px, G, x, y, lerp(col, (255, 255, 255), 0.35 * pulse), int(255 * min(1.0, (1 - f) / 0.35) * (0.7 + 0.3 * pulse)))
+        for y in (G.MID, G.MID + 1): C.put(px, G, x0 + side, y, (255, 255, 255))
+
+    # the glass plate: partial alpha, narrow spectra drifting through clear glass (the same every 32 columns)
+    def glass(x, y):
+        sx = (x - G.TILE0) + (y - G.PY0) * 0.8 - 2 * ph
+        q = sx % 32
+        return (hsv(0.95 - q / 11 * 0.82, 0.5, 1.0), math.sin(math.pi * (q + 0.5) / 12)) if q < 11 else (None, 0.0)
+
+    def fill(x, y, g):
+        band, a = glass(x, y)
+        if y == G.PY0 + 2 and band is None: return (255, 255, 255), 120          # the caustic under the top bevel
+        if band: return lerp((196, 212, 255), band, min(1, a * 1.4)), int(60 + 100 * a - 20 * g)
+        return (196, 212, 255), 52 - int(14 * g)
+
+    def bev(x, y):
+        if y <= G.MID:
+            near = (x - G.TILE0 - 4 * ph) % 64 < 8                               # the glint running along the bevel
+            return ((255, 255, 255), 255) if near else (SIL_L, 210)
+        return (glass(x, y)[0] or (220, 230, 255)), 170
+    C.plate(px, G, fill, lambda x, y: SIL_L if y < G.MID - 3 else SIL if y <= G.MID + 4 else SIL_D, bev)
+    # sparkles: at the glass's corners and inside it
+    spots = [(G.PX0 + 9, G.PY0 + 1, 0), (G.PX1 - 9, G.PY1 - 1, 8), (G.PX1 - 9, G.PY0 + 1, 6), (G.PX0 + 9, G.PY1 - 1, 14)]
+    for x0 in range(G.TILE0, G.R0 - 15, 64):
+        spots += [(x0 + cell * 16 + col, G.PY0 + row, off) for cell, col, row, off in CHAT_SPARKS if x0 + cell * 16 + 15 < G.R0]
+    for x, y, off in spots:
+        p = (ph + off) % N
+        if p < 4: chat_sparkle(px, G, x, y, (1, 2, 2, 1)[p], (220, 230, 255))
+    C.gem7(px, G, {"#": (255, 255, 255), "a": (230, 236, 255), "w": (255, 255, 255), "b": (170, 180, 250), "c": (110, 110, 190)})
     return im

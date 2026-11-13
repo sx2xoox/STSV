@@ -190,7 +190,8 @@ def render(theme, chat=False):
     geo = dict(px0=G.PX0 - ox, px1=G.PX1 - ox, mid=G.MID - oy, cx=int(round(G.CX)) - ox, div=div - ox, title=m.TITLE,
                end=getattr(G, "END", 0), tile=G.TILE if chat else theme["tile"])
     if chat:                                                 # the parts are the geometry's (its gust is drawn by part)
-        geo.update(tile0=G.TILE0 - ox, r0=G.R0 - ox, flow=G.FLOW, flow0=G.FLOW0 - ox, scatter=G.SCATTER)
+        geo.update(tile0=G.TILE0 - ox, r0=G.R0 - ox, flow=G.FLOW, flow0=G.FLOW0 - ox, scatter=G.SCATTER, grow=G.GROW,
+                   centre=G.CENTRE)
     return bg, gems, geo
 
 
@@ -216,7 +217,12 @@ def cut(theme, bg, gems, geo):
     px0, px1, cx = geo["px0"], geo["px1"], geo["cx"]
     c0, c1 = (cx - hc, cx + hc) if hc else (cx, cx)
     if "tile0" in geo:                                       # a chat banner: its geometry says where the parts are
-        return dict(P=P, left=geo["tile0"], right=geo["r0"] - P, c0=c0, c1=c1, W=W, gem_box=gem_union(gems), fills=1)
+        hc = geo["centre"]
+        c0, c1 = (cx - hc, cx + hc) if hc else (cx, cx)
+        if hc and not (geo["tile0"] + P <= c0 and c1 <= geo["r0"] - P):
+            raise RuntimeError(f"{theme['id']}: no room for a tile on both sides of the chat banner's centre")
+        return dict(P=P, left=geo["tile0"], right=geo["r0"] - P, c0=c0, c1=c1, W=W, gem_box=gem_union(gems),
+                    fills=2 if hc else 1)
     # left tile: somewhere between the left end (its slope, rivets) and the centre slice
     lo, hi = px0 + 10, c0 - P
     left = min(range(lo, max(lo, hi) + 1), key=lambda t: (seam_cost(bg, t, t + P), abs(t - lo)))
@@ -415,6 +421,8 @@ def theme_sheets(theme, fonts, chat=False):
         fonts.provider(theme["id"] + "_mini", f"font/title_banner/{theme['id']}/mini_{group.lower()}", mini_rows,
                        height=len(CHAT_ROWS) // 2, ascent=CHAT_ASCENT)
     meta["min_plate"] = (c["left"] - geo["px0"]) + (c["c1"] - c["c0"]) + (geo["px1"] + 1 - c["right"] - P)
+    if geo.get("grow"):                                      # the plate grows in whole steps (banner_themes/chat.py)
+        meta["grow"] = geo["grow"]
     if geo.get("flow"):                                      # a gust runs along the banner (banner_themes/chat.py flow_at)
         assert (c["left"] - geo["flow0"]) % geo["flow"] == 0 and P % geo["flow"] == 0
         meta["flow"] = dict(step=geo["flow"], origin=geo["flow0"], scatter=bool(geo.get("scatter")))

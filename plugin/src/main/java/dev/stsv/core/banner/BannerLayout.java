@@ -34,8 +34,10 @@ public record BannerLayout(BannerCatalog.Theme theme, List<Piece> pieces, List<L
         boolean titled = tw > 0;
         int content = titled ? tw + m.gap() + nw : nw;
         int pw = Math.max(t.minPlate(), content + 2 * m.pad() + t.textRight());
-        // a gust runs along the plate in steps of flow columns: its right end has to start on a step
-        if (t.flow() > 0) pw = t.minPlate() + Math.ceilDiv(pw - t.minPlate(), t.flow()) * t.flow();
+        // a gust runs along the plate in steps of flow columns (its right end has to start on a step), or the theme
+        // draws in cells and wants whole ones
+        int step = Math.max(t.flow(), t.grow());
+        if (step > 0) pw = t.minPlate() + Math.ceilDiv(pw - t.minPlate(), step) * step;
         int extra = pw - t.minPlate();
         int cw = t.centreWidth();
         int fl = t.fills() == 2 ? Math.clamp(t.plateLeft() + Math.floorDiv(pw - cw, 2) - t.left(), 0, extra) : extra;

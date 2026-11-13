@@ -95,46 +95,84 @@ def frame(G, i):
 
 
 # ------------------------------------------------------------------------------------------------
-# The chat banner (banner_themes/chat.py: one chat line). A dark sign in a tube of neon: light chases round the tube, the magenta side stutters.
+# The chat banner (banner_themes/chat.py: one chat line, 18 rows of half pixels): this banner's plate in small, and
+# what the full banner shows over its plate (cut off by a chat line) inside it. Circuit traces with travelling pulses run inside the plate, the tubes stutter, chevrons at the ends.
 # ------------------------------------------------------------------------------------------------
 
 from . import chat as C
 
 
 def chat_geo(Geo):
-    return C.bar(Geo, TITLE, "loop")
+    return C.framed(Geo, TITLE)
 
 
-CHAT_GEM = {"#": (255, 200, 244), "a": (255, 110, 220), "w": (255, 240, 252), "b": (200, 40, 170), "c": (90, 16, 90)}
-CHAT_STUTTER = {9: 0.35, 11: 0.5}                            # the frames the magenta half of the tube dims in
+# the traces inside the plate, the same every 64 columns: each in its own cell of 16 columns (a slice of the tile
+# never cuts one): where it starts in the cell, from the top (1) or the bottom (-1), straight / slanted / straight
+CHAT_TRACES = ((0, 3, 1, 2, 4, 2), (1, 12, -1, 2, 4, 1), (2, 4, 1, 3, 3, 2), (3, 11, -1, 3, 2, 2))
+
+
+def chat_traces(G):
+    out = []
+    for x0 in range(G.TILE0, G.R0 - 15, 64):
+        for cell, start, way, a, b, c in CHAT_TRACES:
+            x, y = x0 + cell * 16 + start, (G.PY0 + 2 if way > 0 else G.PY1 - 2)
+            if x + 6 >= G.R0: continue
+            pts = [(x, y)]
+            for _ in range(a): y += way; pts.append((x, y))
+            for _ in range(b): x += way; y += way; pts.append((x, y))
+            for _ in range(c): y += way; pts.append((x, y))
+            out.append((cell, way, pts))
+    return out
 
 
 def chat_frame(G, i):
     im, px = G.canvas()
+    flick_m = i in (5, 12)            # the magenta tube stutters
+    flick_c = i == 13
     top, base = G.PY0 + 2, G.PY1 - 2
-    rows = base - top + 1
-    R = 4.0                                                  # the tube goes round the plate: its corners' radius
-    for (x, y) in G.inside:
-        cx, cy = min(x - G.PX0, G.PX1 - x), min(y - G.PY0, G.PY1 - y)
-        rim = R - math.hypot(R - cx - 0.5, R - cy - 0.5) if cx < R and cy < R else min(cx, cy) + 0.5   # into the plate
-        if rim <= 0: continue
-        v = (y - G.PY0) / (G.PY1 - G.PY0)                    # 0: the cyan half .. 1: the magenta half
-        tube = C.lerp(CYA, MAG, C.smooth((v - 0.3) / 0.4))
-        # the chase: a brighter stretch moving right along the top and left along the bottom, 4 columns a frame
-        along = (x - G.TILE0 - 4 * i) if v < 0.5 else (-(x - G.TILE0) - 4 * i)
-        chase = max(0.0, math.cos(2 * math.pi * along / 64)) ** 3
-        lit = (0.55 + 0.45 * chase) * (CHAT_STUTTER.get(i, 1.0) if v > 0.5 else 1.0)
-        dark = C.lerp((16, 8, 30), (8, 5, 18), v)
-        if rim < 1.0:
-            c = C.lerp(C.lerp(dark, tube, 0.55), C.lerp(tube, (255, 255, 255), 0.62), lit)
-            a = int(255 * min(1.0, rim + 0.35))
-        else:
-            # inside: the tube's glow falling off, faint bars sliding by behind the words
-            c = C.lerp(dark, tube, 0.62 * lit * math.exp(-(rim - 1.0) / 1.5))
-            if (x - G.TILE0 + i) % 16 == 0: c = C.lerp(c, (70, 36, 128), 0.30)
-            glow = math.exp(-(G.PY1 - 1 - y) / 3.2)
-            c = C.lerp(c, MAG, 0.20 * glow * CHAT_STUTTER.get(i, 1.0))
-            a = 255
-        px[x, y] = tuple(c) + (a,)
-    C.gem7(px, G, CHAT_GEM)
+    # the magenta glow round the pointed ends (over and under the plate there is no room for one)
+    for ring, layer in ((1, G.edge),):
+        for (x, y) in layer:
+            for a, b in DIRS4:
+                q = (x + a, y + b)
+                if q not in G.inside and G.PY0 <= q[1] <= G.PY1: C.blend(px, G, q[0], q[1], MAG_G, 50 if flick_m else 150)
+
+    def fill(x, y, g):
+        c = lerp((16, 10, 34), (4, 2, 10), g)
+        if y % 2 == 0: c = lerp(c, (0, 0, 0), 0.35)                 # scanlines
+        if y == top + (i * 15 // N) % 14: c = lerp(c, (60, 40, 110), 0.6)   # the rolling bright line
+        return c
+    C.plate(px, G, fill,
+            lambda x, y: MAG_D if flick_m else (MAG if y <= G.MID else (220, 40, 170)),
+            lambda x, y: CYA_D if flick_c else (CYA if y <= G.MID else (40, 190, 230)))
+    # circuit traces with travelling pulses; a node lights up when the pulse gets there
+    for cell, way, pts in chat_traces(G):
+        n = len(pts)
+        # dimmer than on the full banner: here they lie behind the words
+        for x, y in pts: C.put(px, G, x, y, (24, 62, 88))
+        head_ = (i * 2 + cell * 5) % 24
+        for d in range(3):
+            h = head_ - d
+            if 0 <= h < n: C.put(px, G, pts[h][0], pts[h][1], ((120, 226, 244), (44, 170, 204), (30, 110, 146))[d])
+        ex, ey = pts[-1]
+        lit = n - 1 <= head_ < n + 6
+        col = CYA if lit else (30, 104, 132) if cell % 2 else (128, 34, 106)
+        for a, b in ((-1, 1), (1, 1), (0, 2)):
+            C.put(px, G, ex + a, ey + way * b, col)
+        C.put(px, G, ex, ey + way, CYA_L if lit else (10, 20, 30))
+    # the end chevrons: a marquee of two neon brackets
+    for side in (-1, 1):
+        x0 = G.PX0 if side < 0 else G.PX1
+        for n_, off in enumerate((4, 9)):
+            on = (i // 2 + n_) % 3 != 0
+            col = (CYA if n_ == 0 else MAG) if on else ((20, 70, 90) if n_ == 0 else (90, 20, 70))
+            for r in range(-5, 7):
+                rr = r if r <= 0 else r - 1                      # two middle rows: the plate has an even height
+                C.put(px, G, x0 + side * (off + 5 - abs(rr)), G.MID + r, col)
+    # the gem: a hollow neon diamond
+    cx, cy = G.DIV, G.MID
+    gem = {(cx + a, cy + b): (MAG if not flick_m else MAG_D) for a in range(-3, 4) for b in range(-3, 4) if abs(a) + abs(b) == 3}
+    gem.update({(cx + a, cy + b): (255, 190, 240) for a in range(-1, 2) for b in range(-1, 2) if abs(a) + abs(b) == 1})
+    gem[(cx, cy)] = (255, 255, 255)
+    C.gem_pixels(px, gem)
     return im
