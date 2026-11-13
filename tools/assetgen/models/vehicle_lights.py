@@ -53,6 +53,15 @@ LAMPS = {
     # tuner_car: two round projectors a side, twin round tail lamps a side
     "tuner_car": dict(scale=2.0, head=lens(8, 15, 8.5, 11.5, -36.25), tail=lens(7.5, 14.5, 8.5, 11.5, 36.25),
                       body=("vehicles", "tuner_car")),
+    # vehicles_premium.py hyper_car: a thin running light low on each corner of the nose, one lamp the width of the tail
+    "hyper_car": dict(scale=2.0, head=lens(10, 15.5, 4.5, 5.5, -37.25), tail=lens(-15, 15, 10, 11, 37.25, False, False),
+                      body=("vehicles", "hyper_car")),
+    # grand_sedan: a square lamp each side of the radiator, tall narrow tail lamps
+    "grand_sedan": dict(scale=2.0, head=lens(8, 14, 9, 14, -42.5), tail=lens(11, 14.5, 7.5, 13.5, 42.5),
+                        body=("vehicles", "grand_sedan")),
+    # luxury_suv: round lamps beside the grille, tall narrow tail lamps low on the back's corners
+    "luxury_suv": dict(scale=2.0, head=lens(9, 14, 11.5, 16.5, -36.5, True), tail=lens(12, 14.5, 12, 18, 36.5),
+                       body=("vehicles", "luxury_suv")),
     # light_truck: headlight boxes (amber strip on top), taillights on the bed's back (amber inside: the reverse lamp)
     "light_truck": dict(scale=2.0, head=lens(8.5, 12.5, 9, 12, -39.5), tail=lens(11, 13.5, 7, 9.5, 38.5),
                         reverse=lens(10, 11, 7, 9.5, 38.5), body=("vehicles", "light_truck")),

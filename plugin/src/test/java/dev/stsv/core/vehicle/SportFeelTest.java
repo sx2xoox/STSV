@@ -46,7 +46,7 @@ class SportFeelTest {
             YamlConfiguration y = YamlConfiguration.loadConfiguration(PACK.resolve("items/" + file).toFile());
             for (String id : y.getKeys(false)) {
                 ConfigurationSection s = y.getConfigurationSection(id + ".vehicle");
-                if (s == null || id.equals("sports_car") || id.equals("tuner_car")) continue;
+                if (s == null || id.equals("sports_car") || id.equals("tuner_car") || id.equals("hyper_car")) continue;
                 VehicleSpec v = VehicleSpec.parse(s, "stsv", m -> true);
                 assertFalse(v.extras().overCap(), id);
                 assertTrue(v.acceleration() < car.acceleration(), id + " gets going slower than the sports car");
@@ -280,6 +280,49 @@ class SportFeelTest {
         assertNotNull(sp.mark());
         for (String kind : List.of("horn", "horn_end", "engine", "engine_start", "engine_stop", "popcorn"))
             assertTrue(Files.exists(PACK.resolve("assets/stsv/sounds/vehicle/tuner_car_" + kind + ".ogg")), kind);
+    }
+
+    /**
+     * The premium cars (후원 차량): what is sold is the look. The hyper car goes exactly as the event roadster does (no
+     * faster), the grand sedan keeps to the server's limit, the SUV is slower than the fastest vehicle the game gives
+     * and shares the ATV's ground.
+     */
+    @Test
+    void thePremiumCarsSellTheLookNotTheSpeed() {
+        YamlConfiguration y = YamlConfiguration.loadConfiguration(PACK.resolve("items/vehicles.yml").toFile());
+        java.util.function.Function<String, VehicleSpec> spec = id -> VehicleSpec.parse(y.getConfigurationSection(id + ".vehicle"), "stsv",
+                m -> Files.exists(PACK.resolve("models/" + m + ".bbmodel")));
+        VehicleSpec hyper = spec.apply("hyper_car"), sedan = spec.apply("grand_sedan"), suv = spec.apply("luxury_suv"), car = car();
+        assertEquals(car.speed(), hyper.speed(), 1e-9, "the hyper car is as fast as the roadster, not faster");
+        assertEquals(car.acceleration(), hyper.acceleration(), 1e-9);
+        assertTrue(hyper.extras().overCap() && hyper.extras().drift() != null);
+        assertEquals(2, hyper.seats().size());
+        assertTrue(hyper.height() >= 0.05 + 1.275, "a roof over its riders");
+
+        assertFalse(sedan.extras().overCap(), "the sedan keeps to the server's limit");
+        assertTrue(sedan.speed() <= 10 && sedan.extras().drift() == null);
+        assertEquals(4, sedan.seats().size());
+        assertTrue(sedan.length() > 5, "the longest car");
+
+        assertFalse(suv.extras().overCap());
+        assertTrue(suv.speed() < 9.5, "slower than the delivery scooter, the fastest vehicle earned in the game");
+        assertTrue(suv.extras().allTerrain(), "the ATV's ground");
+        assertEquals(4, suv.seats().size());
+        assertTrue(suv.height() >= 0.62 + 1.275);
+        for (VehicleSpec v : List.of(hyper, sedan, suv)) assertNull(v.cargo(), "none carries goods");
+
+        List<String> problems = new ArrayList<>();
+        VehicleFeel.File feel = VehicleFeelTest.shipped(problems);
+        assertTrue(problems.isEmpty(), problems.toString());
+        assertNotNull(feel.spec("stsv:hyper_car", VehicleFeel.Power.ENGINE).sport(), "the hyper car has the feel of speed");
+        assertEquals(3, feel.spec("stsv:hyper_car", VehicleFeel.Power.ENGINE).sport().exhaust().size(), "three tips in the middle of its tail");
+        assertNull(feel.spec("stsv:grand_sedan", VehicleFeel.Power.ENGINE).sport());
+        assertNull(feel.spec("stsv:luxury_suv", VehicleFeel.Power.ENGINE).sport());
+        for (String id : List.of("hyper_car", "grand_sedan", "luxury_suv")) {
+            assertTrue(feel.spec("stsv:" + id, VehicleFeel.Power.ENGINE).lamps().front(), id + ": head lamps");
+            for (String kind : List.of("horn", "horn_end", "engine", "engine_start", "engine_stop"))
+                assertTrue(Files.exists(PACK.resolve("assets/stsv/sounds/vehicle/" + id + "_" + kind + ".ogg")), id + " " + kind);
+        }
     }
 
     @Test

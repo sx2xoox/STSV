@@ -484,6 +484,39 @@ ENGINES["tuner_car"] = tuner_engine
 ENGINE_LEVEL["tuner_car"] = 0.9
 
 
+# ----------------------------------------------------------------------------------------------
+# 후원 차량 (vehicles.yml hyper_car, grand_sedan, luxury_suv)
+# ----------------------------------------------------------------------------------------------
+
+def hyper_engine(n, t):
+    """Twelve small cylinders: the highest firing note of all (96 Hz at pitch 1, played from 0.5 to 2.0), a long row
+    of harmonics that fall away slowly (a clean, hard wail), almost no roughness."""
+    rng = np.random.default_rng(45)
+    return combustion(n, t, rng, f0=96.0, count=18, rolloff=0.8, bandwidth=5.0, floor=0.14, warmth=3000, clatter=0.1)
+
+
+def grand_engine(n, t):
+    """A big engine doing very little: a deep, even hum (40 Hz), its harmonics gone almost at once, a soft rumble
+    under it. The quietest engine of all (the item file plays it low as well)."""
+    rng = np.random.default_rng(46)
+    return combustion(n, t, rng, f0=40.0, count=6, rolloff=1.5, bandwidth=8.0, floor=0.3, warmth=520)
+
+
+def suv_engine(n, t):
+    """Eight big cylinders: a low, lumpy burble (34 Hz), wide resonances and plenty of rumble."""
+    rng = np.random.default_rng(47)
+    return combustion(n, t, rng, f0=34.0, count=10, rolloff=1.0, bandwidth=10.0, floor=0.34, warmth=1000, clatter=0.12)
+
+
+VEHICLES = VEHICLES + ("hyper_car", "grand_sedan", "luxury_suv")
+# the hyper car a thin, very bright two-tone; the sedan a broad, mellow chord (a coach horn); the SUV a low blare
+HORNS["hyper_car"] = dict(tones=(554.0, 698.0), rolloff=1.0, drive=2.4, formant=(2900.0, 900.0, 1.5), top=7200, seed=45)
+HORNS["grand_sedan"] = dict(tones=(311.0, 392.0), rolloff=1.3, drive=1.6, formant=(1500.0, 700.0, 1.3), top=5200, seed=46)
+HORNS["luxury_suv"] = dict(tones=(294.0, 370.0), rolloff=1.0, drive=2.6, formant=(1800.0, 800.0, 1.6), top=6000, seed=47)
+ENGINES.update({"hyper_car": hyper_engine, "grand_sedan": grand_engine, "luxury_suv": suv_engine})
+ENGINE_LEVEL.update({"hyper_car": 0.85, "grand_sedan": 0.7, "luxury_suv": 0.85})
+
+
 def sounds_json():
     """Every vehicle sound event: stsv:vehicle.<v>.horn / horn_end / engine -> stsv:vehicle/<v>_<kind>."""
     out = {}

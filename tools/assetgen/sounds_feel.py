@@ -37,6 +37,10 @@ ENGINES = {
     "sports_car": dict(idle=80 * 0.55, crank=(13.0, 0.3), rev=3.2, clatter=0.15, warmth=2400, start=1.1 + FADE, stop=0.6, seed=70),
     # the tuner car: a rough catch and two blips of the throttle
     "tuner_car": dict(idle=64 * 0.6, crank=(11.0, 0.4), rev=3.4, clatter=0.4, warmth=3000, start=1.2 + FADE, stop=0.6, seed=73),
+    # the premium cars: the hyper car a quick starter and a scream of revs, the sedan barely heard, the SUV a slow heavy catch
+    "hyper_car": dict(idle=96 * 0.5, crank=(14.0, 0.28), rev=3.6, clatter=0.08, warmth=2800, start=1.1 + FADE, stop=0.6, seed=75),
+    "grand_sedan": dict(idle=40 * 0.6, crank=(9.0, 0.4), rev=1.5, clatter=0.0, warmth=600, start=0.9 + FADE, stop=0.7, seed=76),
+    "luxury_suv": dict(idle=34 * 0.6, crank=(7.5, 0.6), rev=2.3, clatter=0.12, warmth=1000, start=1.2 + FADE, stop=0.8, seed=77),
 }
 TILLER = dict(idle=8 * 0.75, start=1.5 + FADE, stop=0.8, seed=68)
 CART = dict(start=0.4 + FADE, stop=0.45, seed=69)

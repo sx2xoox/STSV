@@ -41,8 +41,10 @@ ITEMS = REPO / "content" / "stsv" / "items"
 
 GROUPS = [("1세대", ["hand_cart", "jige"]), ("2세대", ["cargo_bicycle", "ox_cart"]), ("3세대", ["delivery_scooter", "power_tiller"]),
           ("4세대", ["light_truck", "cargo_van"]), ("5세대", ["box_truck", "tractor_trailer"]), ("특수", ["atv", "fishing_boat"]),
-          ("이벤트 (세대 없음)", ["police_car", "golf_cart", "sports_car", "tuner_car"])]
-ROAD = {"police_car", "light_truck", "golf_cart", "hand_cart", "cargo_bicycle", "delivery_scooter", "atv", "cargo_van", "box_truck", "sports_car", "tuner_car"}
+          ("이벤트 (세대 없음)", ["police_car", "golf_cart", "sports_car", "tuner_car"]),
+          ("후원", ["hyper_car", "grand_sedan", "luxury_suv"])]
+ROAD = {"police_car", "light_truck", "golf_cart", "hand_cart", "cargo_bicycle", "delivery_scooter", "atv", "cargo_van", "box_truck", "sports_car", "tuner_car",
+        "hyper_car", "grand_sedan", "luxury_suv"}
 FARM = {"ox_cart", "power_tiller", "tractor_trailer"}
 ICONS = {**I0.ICONS, **IR.ICONS, **IF.ICONS, **IM.ICONS}
 

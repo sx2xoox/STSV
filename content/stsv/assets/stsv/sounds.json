@@ -230,6 +230,69 @@
       }
     ]
   },
+  "vehicle.hyper_car.horn": {
+    "sounds": [
+      {
+        "name": "stsv:vehicle/hyper_car_horn"
+      }
+    ]
+  },
+  "vehicle.hyper_car.horn_end": {
+    "sounds": [
+      {
+        "name": "stsv:vehicle/hyper_car_horn_end"
+      }
+    ]
+  },
+  "vehicle.hyper_car.engine": {
+    "sounds": [
+      {
+        "name": "stsv:vehicle/hyper_car_engine"
+      }
+    ]
+  },
+  "vehicle.grand_sedan.horn": {
+    "sounds": [
+      {
+        "name": "stsv:vehicle/grand_sedan_horn"
+      }
+    ]
+  },
+  "vehicle.grand_sedan.horn_end": {
+    "sounds": [
+      {
+        "name": "stsv:vehicle/grand_sedan_horn_end"
+      }
+    ]
+  },
+  "vehicle.grand_sedan.engine": {
+    "sounds": [
+      {
+        "name": "stsv:vehicle/grand_sedan_engine"
+      }
+    ]
+  },
+  "vehicle.luxury_suv.horn": {
+    "sounds": [
+      {
+        "name": "stsv:vehicle/luxury_suv_horn"
+      }
+    ]
+  },
+  "vehicle.luxury_suv.horn_end": {
+    "sounds": [
+      {
+        "name": "stsv:vehicle/luxury_suv_horn_end"
+      }
+    ]
+  },
+  "vehicle.luxury_suv.engine": {
+    "sounds": [
+      {
+        "name": "stsv:vehicle/luxury_suv_engine"
+      }
+    ]
+  },
   "vehicle.ox_cart.horn": {
     "sounds": [
       {
@@ -409,6 +472,48 @@
     "sounds": [
       {
         "name": "stsv:vehicle/tuner_car_engine_stop"
+      }
+    ]
+  },
+  "vehicle.hyper_car.engine_start": {
+    "sounds": [
+      {
+        "name": "stsv:vehicle/hyper_car_engine_start"
+      }
+    ]
+  },
+  "vehicle.hyper_car.engine_stop": {
+    "sounds": [
+      {
+        "name": "stsv:vehicle/hyper_car_engine_stop"
+      }
+    ]
+  },
+  "vehicle.grand_sedan.engine_start": {
+    "sounds": [
+      {
+        "name": "stsv:vehicle/grand_sedan_engine_start"
+      }
+    ]
+  },
+  "vehicle.grand_sedan.engine_stop": {
+    "sounds": [
+      {
+        "name": "stsv:vehicle/grand_sedan_engine_stop"
+      }
+    ]
+  },
+  "vehicle.luxury_suv.engine_start": {
+    "sounds": [
+      {
+        "name": "stsv:vehicle/luxury_suv_engine_start"
+      }
+    ]
+  },
+  "vehicle.luxury_suv.engine_stop": {
+    "sounds": [
+      {
+        "name": "stsv:vehicle/luxury_suv_engine_stop"
       }
     ]
   },

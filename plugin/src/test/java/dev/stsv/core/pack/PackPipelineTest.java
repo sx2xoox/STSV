@@ -41,6 +41,7 @@ class PackPipelineTest {
             "mole", "gumiho", "phoenix",                        // pets: the helmet lamp, fox-fire tails, flame tips
             "andon", "stone_lantern", "tea_kettle",             // furniture: lamp paper, the lantern's fire, embers
             "police_car", "light_truck", "golf_cart", "sports_car", "tuner_car",   // vehicles: head and tail lights, the tuner car neon
+            "hyper_car", "grand_sedan", "luxury_suv",           // the premium cars: lamps, the SUV roof lamps
             "police_lightbar_a", "police_lightbar_b",           // the light bar's lit halves
             "cargo_bicycle", "cargo_van",                       // road vehicles: the bicycle's lamps, the van's head and tail lights
             "boat_trawl");                                      // 작업기: the work lamp on the trawl gallows
@@ -49,6 +50,7 @@ class PackPipelineTest {
             "gumiho",                                           // nine tails fanned out
             "wagasa",                                           // the parasol's struts, tilted up to its canopy
             "police_car", "light_truck", "sports_car", "tuner_car",   // raked windscreens (45 / 22.5 degrees)
+            "hyper_car", "grand_sedan", "luxury_suv",           // the premium cars: screens, the hyper car hood and back
             "cargo_bicycle", "delivery_scooter", "atv",         // road vehicles: frame tubes, forks, stays, steering posts
             "cargo_van", "box_truck",                          // a raked windscreen, a roof deflector and a tilted steering wheel
             "ox_cart", "power_tiller", "tractor",              // the ox's traces, the tiller's handlebars, the tractor's steering wheel

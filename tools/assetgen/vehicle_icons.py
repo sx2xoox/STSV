@@ -113,6 +113,86 @@ def tuner_car():
     return _draw(rows, colours).render()
 
 
+@icon("hyper_car")
+def hyper_car():
+    # a wedge with its cabin far forward: the hood falling to a thin nose, the canopy, the long back falling to the
+    # tail with its low wing, black intakes, big dark wheels
+    rows = ["................",
+            "................",
+            "................",
+            "................",
+            "......wwww......",
+            ".....gGggqww....",
+            "....gGgggqWww.cc",
+            "...wwWWWWWaWWWwa",
+            ".wwWWWWWWWaaWWWW",
+            "yVVVVVVVVVbbVVVt",
+            "sVVkkVVVVVbVkkVV",
+            ".NkhHkNNNNNkhHkN",
+            "..khhk.....khhk.",
+            "...kk.......kk..",
+            "................",
+            "................"]
+    colours = {"w": ("sapphire", 3), "W": ("sapphire", 2), "V": ("sapphire", 1), "N": ("sapphire", 0), "g": ("tint", 2),
+               "G": ("glass", 4), "q": ("tint", 1), "a": ("rubber", 1), "b": ("rubber", 0), "c": ("rubber", 2),
+               "s": ("rubber", 1), "y": ("lamp", 5), "t": ("signal_red", 4), "k": ("rubber", 1), "h": ("blacksteel", 2),
+               "H": ("blade", 3)}
+    return _draw(rows, colours).render()
+
+
+@icon("grand_sedan")
+def grand_sedan():
+    # long and square: the tall radiator at the nose, a long pale hood, the upright cabin with its thick rear
+    # pillar, the square boot, the coach line, bright wheels
+    rows = ["................",
+            "................",
+            "................",
+            "....uuuuuuuu....",
+            "....gGguggGuU...",
+            "...ggGguggUuU...",
+            "muuuuuuuuuuuuuuU",
+            "rwwwwwwwwwwwwwwW",
+            "rcccccccccccccct",
+            "sVVVVVVVVVVVVVVs",
+            ".NkkNNNNNNNNkkN.",
+            ".khHk......khHk.",
+            ".khhk......khhk.",
+            "..kk........kk..",
+            "................",
+            "................"]
+    colours = {"u": ("blade", 1), "U": ("blade", 0), "g": ("tint", 2), "G": ("glass", 4), "m": ("blade", 5),
+               "r": ("blade", 4), "w": ("indigo", 3), "W": ("indigo", 2), "c": ("gold", 2), "V": ("indigo", 2),
+               "N": ("indigo", 0), "s": ("blade", 4), "t": ("signal_red", 3), "k": ("rubber", 1), "h": ("blade", 3),
+               "H": ("blade", 5)}
+    return _draw(rows, colours).render()
+
+
+@icon("luxury_suv")
+def luxury_suv():
+    # a tall box on big wheels: the lamp rack over the screen, square windows, the spare on its back, black flares
+    rows = ["................",
+            "...yy...........",
+            "..rwwwwwwwwwww..",
+            "..gGggwgGgwgGw..",
+            "..ggGgwggGwggwkk",
+            "..gggGwgggwgGwkh",
+            ".wwwwwwwwwwwwwkh",
+            "oWWWWWWWWWWWWWkk",
+            "yVVbbbVVVVbbbVVt",
+            "sVbkkkbffbkkkbV.",
+            "..khHhk..khHhk..",
+            "..khhhk..khhhk..",
+            "...kkk....kkk...",
+            "................",
+            "................",
+            "................"]
+    colours = {"w": ("leaf_dark", 3), "W": ("leaf_dark", 2), "V": ("leaf_dark", 1), "g": ("tint", 2),
+               "G": ("glass", 4), "r": ("rubber", 2), "y": ("lamp", 5), "o": ("fox", 3), "b": ("rubber", 1),
+               "f": ("blade", 3), "s": ("steel", 4), "t": ("signal_red", 3), "k": ("rubber", 1), "h": ("blacksteel", 3),
+               "H": ("blade", 4)}
+    return _draw(rows, colours).render()
+
+
 @icon("light_truck")
 def light_truck():
     rows = ["................",

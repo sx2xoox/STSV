@@ -2656,3 +2656,9 @@ ALL = {
     **{f"truck_cargo_{k}": (lambda k=k: truck_cargo(k)) for k in range(1, 5)},
     **{f"hand_cart_cargo_{k}": (lambda k=k: hand_cart_cargo(k)) for k in range(1, 5)},
 }
+
+
+# the premium cars (models/vehicles_premium.py: it takes its helpers from this module, so it is imported last)
+from models import vehicles_premium as _premium     # noqa: E402
+
+ALL.update(_premium.ALL)

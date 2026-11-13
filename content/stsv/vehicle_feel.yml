@@ -155,6 +155,34 @@ vehicles:
       launch-smoke: true
       skid: { sound: stsv:vehicle.sports_car.skid, volume: 0.75 }
       mark: rubber
+  hyper_car:
+    power: engine
+    lights: { head: hyper_car_lamp_head, tail: hyper_car_lamp_tail, brake: hyper_car_lamp_brake }
+    engine-start: { sound: stsv:vehicle.hyper_car.engine_start, volume: 0.75, ticks: 22 }
+    engine-stop: { sound: stsv:vehicle.hyper_car.engine_stop, volume: 0.55 }
+    idle-shake: 0.006
+    bounce: 0.5
+    sport:
+      fov: 0.3
+      exhaust: [[-0.19, 0.44, -2.35], [0, 0.44, -2.35], [0.19, 0.44, -2.35]]
+      backfire: { sound: stsv:vehicle.sports_car.backfire, volume: 0.9, min-speed: 7 }
+      launch-smoke: true
+      skid: { sound: stsv:vehicle.sports_car.skid, volume: 0.7 }
+      mark: rubber
+  grand_sedan:
+    power: engine
+    lights: { head: grand_sedan_lamp_head, tail: grand_sedan_lamp_tail, brake: grand_sedan_lamp_brake }
+    engine-start: { sound: stsv:vehicle.grand_sedan.engine_start, volume: 0.4, ticks: 18 }
+    engine-stop: { sound: stsv:vehicle.grand_sedan.engine_stop, volume: 0.3 }
+    idle-shake: 0
+    bounce: 1.3
+  luxury_suv:
+    power: engine
+    lights: { head: luxury_suv_lamp_head, tail: luxury_suv_lamp_tail, brake: luxury_suv_lamp_brake }
+    engine-start: { sound: stsv:vehicle.luxury_suv.engine_start, volume: 0.7, ticks: 24 }
+    engine-stop: { sound: stsv:vehicle.luxury_suv.engine_stop, volume: 0.55 }
+    idle-shake: 0.01
+    bounce: 1.1
   light_truck:
     power: engine
     lights: { head: light_truck_lamp_head, tail: light_truck_lamp_tail, brake: light_truck_lamp_brake, reverse: light_truck_lamp_reverse }
