@@ -53,8 +53,12 @@ final class VehicleFeelView {
     private VehicleFeel.File file = VehicleFeel.File.EMPTY;
     private final Map<Material, BlockData> blockData = new HashMap<>();
 
+    /** The skid marks lying in the world now (every vehicle's). */
+    final SkidMarks marks;
+
     VehicleFeelView(VehicleModule m) {
         this.m = m;
+        this.marks = new SkidMarks(org.bukkit.NamespacedKey.fromString("stsv:skid_mark"));
     }
 
     /** What the feel of one vehicle is now. */
@@ -84,6 +88,8 @@ final class VehicleFeelView {
         final SportFeel.Throttle throttle = new SportFeel.Throttle();
         /** the tick the tyres squeal again (a drift) */
         long skidAt;
+        /** where each rear wheel's skid mark has got to (x, z), null while it grips */
+        double[][] markFrom;
     }
 
     // ------------------------------------------------------------------------------------------
@@ -94,6 +100,7 @@ final class VehicleFeelView {
     void load(STSVPlugin plugin) {
         VehicleFeel.File merged = null;
         Map<String, VehicleFeel.Spec> vehicles = new HashMap<>();
+        Map<String, SkidMarks.Style> skids = new HashMap<>();
         for (ContentPack pack : plugin.content().packs()) {
             Path f = pack.dir().resolve("vehicle_feel.yml");
             if (!Files.isRegularFile(f)) continue;
@@ -102,8 +109,10 @@ final class VehicleFeelView {
                     problem -> plugin.getLogger().warning("[탈것 느낌] " + problem));
             if (merged == null) merged = one;
             vehicles.putAll(one.vehicles());
+            skids.putAll(one.marks());
         }
-        file = merged == null ? VehicleFeel.File.EMPTY : new VehicleFeel.File(merged.settings(), Map.copyOf(vehicles), merged.profiles());
+        file = merged == null ? VehicleFeel.File.EMPTY
+                : new VehicleFeel.File(merged.settings(), Map.copyOf(vehicles), merged.profiles(), Map.copyOf(skids));
     }
 
     VehicleFeel.Settings settings() {
@@ -196,13 +205,31 @@ final class VehicleFeelView {
             f.viewOf = driver.getUniqueId();
         }
         boolean throttle = in.forward() && !in.backward();
-        if (f.throttle.step(throttle, v.st.speed, sp.backfireSpeed(), sp.backfire() != null, sp.launchSmoke()))
-            m.play(v, sp.backfire().key(), sp.backfire().volume(), (float) (0.94 + 0.12 * Math.abs(Math.sin(v.st.x * 12.9898 + v.st.z * 78.233))));
+        if (f.throttle.step(throttle, v.st.speed, sp.backfireSpeed(), sp.backfire() != null, sp.launchSmoke(), sp.pops()))
+            m.play(v, sp.backfire().key(), sp.backfire().volume(), (float) (0.9 + 0.3 * Math.abs(Math.sin(ticks * 12.9898 + v.st.x * 78.233))));
         // a drift: the tyres squeal, and smoke comes off the rear ones
         boolean sliding = Math.abs(v.st.slip) >= SportFeel.SKID_SLIP && v.st.onGround;
         if (sliding && sp.skid() != null && ticks >= f.skidAt) {
             f.skidAt = ticks + SportFeel.SKID_TICKS;
             m.play(v, sp.skid().key(), sp.skid().volume(), (float) (0.9 + 0.2 * Math.min(1, Math.abs(v.st.speed) / Math.max(1, top))));
+        }
+        // the marks its rear tyres leave: a piece from where each was to where it is, every STEP blocks; the rest when the slide ends
+        if (sp.mark() == null || !f.watched || (!sliding && f.markFrom == null)) {
+            f.markFrom = null;
+        } else {
+            List<VehicleSpec.Wheel> wheels = v.spec.wheels();
+            if (f.markFrom == null) f.markFrom = new double[wheels.size()][];
+            for (int i = 0; i < wheels.size(); i++) {
+                VehicleSpec.Wheel w = wheels.get(i);
+                if (w.steer()) continue;
+                double[] c = VehiclePhysics.world(v.st.x, v.st.y, v.st.z, v.st.yaw, new VehicleSpec.Vec(w.at().right(), 0, w.at().forward()));
+                double[] from = f.markFrom[i];
+                double moved = from == null ? 0 : Math.hypot(c[0] - from[0], c[2] - from[1]);
+                if (from != null && moved >= (sliding ? SkidMarks.STEP : SkidMarks.LEAST) && moved <= SkidMarks.MOST)
+                    marks.lay(v.world, from[0], v.st.y, from[1], c[0], c[2], sp.mark(), ticks);
+                if (from == null || moved >= SkidMarks.STEP) f.markFrom[i] = new double[]{c[0], c[2]};
+            }
+            if (!sliding) f.markFrom = null;
         }
         if (!f.watched) return;
         if (sliding && Math.floorMod(ticks, 2) == 0) {

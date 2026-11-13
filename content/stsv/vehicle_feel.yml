@@ -83,6 +83,24 @@ suspension:
 # ------------------------------------------------------------------------------------------------
 
 # ------------------------------------------------------------------------------------------------
+# 스키드 마크의 모양 (이름: 설정). 드리프트하는 차의 뒷바퀴가 바닥에 잠깐 남기는 자국. 탈것은 sport.mark 로 이름을 고름.
+# 새 모양은 여기에 한 줄 더하면 됨 (리소스팩 작업 없음).
+#   color    색 (#rrggbb)
+#   opacity  진하기 (0.1 초과 ~ 1)
+#   width    폭 (블록, 0.05 ~ 1)
+#   seconds  남아 있는 시간 (0.5 ~ 30초. 60% 가 지나면 절반으로 흐려졌다가 사라짐)
+#   glow     true = 어두운 곳에서도 밝게 (네온)
+# 서버 전체에 동시에 480조각까지 (넘으면 오래된 것부터 지움). 서버를 껐다 켜면 남지 않음.
+# ------------------------------------------------------------------------------------------------
+skid-marks:
+  rubber: { color: "#17181c", opacity: 0.72, width: 0.3, seconds: 6 }
+  ash: { color: "#d8d8d8", opacity: 0.5, width: 0.3, seconds: 5 }
+  ember: { color: "#ff5a1e", opacity: 0.85, width: 0.26, seconds: 4, glow: true }
+  neon_pink: { color: "#ff3fb4", opacity: 0.85, width: 0.24, seconds: 4, glow: true }
+  neon_cyan: { color: "#35e6ff", opacity: 0.85, width: 0.24, seconds: 4, glow: true }
+  gold: { color: "#f2c230", opacity: 0.8, width: 0.28, seconds: 5, glow: true }
+
+# ------------------------------------------------------------------------------------------------
 # 탈것마다 (아이템 id)
 #   power         engine / muscle / animal (위)
 #   lights        불빛 모델: head 전조등, tail 미등, brake 브레이크등, reverse 후진등 (빼면 그 불빛 없음)
@@ -97,7 +115,10 @@ suspension:
 #                 낮춘 사람은 그만큼 덜 보임), exhaust 배기구 위치 [[오른쪽, 위, 앞], ...],
 #                 backfire 달리다(min-speed 블록/초 이상) 가속을 떼면 배기구에서 불꽃이 튀며 "팡팡": sound, volume,
 #                 launch-smoke true = 서 있다가 가속을 밟으면 뒷바퀴에서 연기,
+#                          pops 한 번 뗄 때 터지는 횟수 (1 ~ 12, 기본 1. 여러 번 = "팝콘"), gap [최소, 최대] 틱 간격 (기본 [2, 5]).
+#                          터지는 도중 다시 가속을 밟으면 멈춤
 #                 skid 드리프트하는 동안(탈것의 drift: 설정) 타이어가 미끄러지는 "끼이익": sound, volume (뒷바퀴 연기도 함께)
+#                 mark 드리프트하는 동안 뒷바퀴가 바닥에 남기는 스키드 마크의 모양 (위 skid-marks 의 이름. 빼면 남기지 않음)
 # ------------------------------------------------------------------------------------------------
 vehicles:
   police_car:
@@ -119,6 +140,21 @@ vehicles:
       backfire: { sound: stsv:vehicle.sports_car.backfire, volume: 0.9, min-speed: 7 }
       launch-smoke: true
       skid: { sound: stsv:vehicle.sports_car.skid, volume: 0.7 }
+      mark: rubber
+  tuner_car:
+    power: engine
+    lights: { head: tuner_car_lamp_head, tail: tuner_car_lamp_tail, brake: tuner_car_lamp_brake }
+    engine-start: { sound: stsv:vehicle.tuner_car.engine_start, volume: 0.8, ticks: 24 }
+    engine-stop: { sound: stsv:vehicle.tuner_car.engine_stop, volume: 0.6 }
+    idle-shake: 0.014
+    bounce: 0.45
+    sport:
+      fov: 0.28
+      exhaust: [[0.5625, 0.375, -2.6]]
+      backfire: { sound: stsv:vehicle.tuner_car.popcorn, volume: 1.0, min-speed: 5, pops: 7, gap: [2, 5] }
+      launch-smoke: true
+      skid: { sound: stsv:vehicle.sports_car.skid, volume: 0.75 }
+      mark: rubber
   light_truck:
     power: engine
     lights: { head: light_truck_lamp_head, tail: light_truck_lamp_tail, brake: light_truck_lamp_brake, reverse: light_truck_lamp_reverse }

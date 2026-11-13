@@ -466,6 +466,24 @@ ENGINES["sports_car"] = sports_engine
 ENGINE_LEVEL["sports_car"] = 0.85
 
 
+# ----------------------------------------------------------------------------------------------
+# 튜닝카 (event vehicle, vehicles.yml tuner_car)
+# ----------------------------------------------------------------------------------------------
+
+def tuner_engine(n, t):
+    """A small engine through a straight pipe: a lower, coarser note than the roadster's (64 Hz at pitch 1), the
+    harmonics barely rolled off and a lot of rasp (the buzz of a big empty muffler), rougher from one firing to the next."""
+    rng = np.random.default_rng(43)
+    return combustion(n, t, rng, f0=64.0, count=14, rolloff=0.9, bandwidth=7.0, floor=0.22, warmth=3200, clatter=0.45)
+
+
+VEHICLES = VEHICLES + ("tuner_car",)
+# a loud, low two-tone air horn
+HORNS["tuner_car"] = dict(tones=(349.0, 440.0), rolloff=0.9, drive=3.0, formant=(1900.0, 800.0, 1.6), top=6500, seed=43)
+ENGINES["tuner_car"] = tuner_engine
+ENGINE_LEVEL["tuner_car"] = 0.9
+
+
 def sounds_json():
     """Every vehicle sound event: stsv:vehicle.<v>.horn / horn_end / engine -> stsv:vehicle/<v>_<kind>."""
     out = {}

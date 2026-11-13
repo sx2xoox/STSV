@@ -35,13 +35,15 @@ ENGINES = {
     "atv": dict(idle=28 * 0.6 * 2, crank=(9.0, 0.35), rev=2.3, clatter=0.2, warmth=1200, start=0.9 + FADE, stop=0.6, seed=67),
     # the sports car: a quick starter, a big bark of revs as it catches
     "sports_car": dict(idle=80 * 0.55, crank=(13.0, 0.3), rev=3.2, clatter=0.15, warmth=2400, start=1.1 + FADE, stop=0.6, seed=70),
+    # the tuner car: a rough catch and two blips of the throttle
+    "tuner_car": dict(idle=64 * 0.6, crank=(11.0, 0.4), rev=3.4, clatter=0.4, warmth=3000, start=1.2 + FADE, stop=0.6, seed=73),
 }
 TILLER = dict(idle=8 * 0.75, start=1.5 + FADE, stop=0.8, seed=68)
 CART = dict(start=0.4 + FADE, stop=0.45, seed=69)
 
 VEHICLES = tuple(ENGINES) + ("power_tiller", "golf_cart")
 NAMES = ([(v, k) for v in VEHICLES for k in ("engine_start", "engine_stop")] + [("common", "reverse_beep")]
-         + [("sports_car", "backfire"), ("sports_car", "skid")])
+         + [("sports_car", "backfire"), ("sports_car", "skid"), ("tuner_car", "popcorn")])
 
 
 # ----------------------------------------------------------------------------------------------
@@ -238,6 +240,21 @@ def backfire():
     return _finish(out * envelope(t, 0.0, 0.5, 0.06), 0.85)
 
 
+def popcorn():
+    """One pop of the tuner car's crackle (the server plays several in a row, each at its own pitch): a dry, hard
+    crack out of a big empty pipe, a ring from the pipe after it, almost no thump; ~0.16 s."""
+    rng = np.random.default_rng(74)
+    n = int(SR * 0.18)
+    t = np.arange(n) / SR
+    d = np.where(t >= 0.004, t - 0.004, 0.0)
+    crack = S.eq(rng.standard_normal(n), lambda f: S.peak(f, 2300, 1200, 1.4) * S.highpass(f, 700, 2) * S.lowpass(f, 7000, 2))
+    crack /= _rms(crack)
+    ring = np.sin(2 * np.pi * 410.0 * d) * np.exp(-d / 0.022)
+    thump = np.sin(2 * np.pi * 130.0 * d) * np.exp(-d / 0.015)
+    out = np.where(t >= 0.004, (0.8 * crack * np.exp(-d / 0.011) + 0.45 * ring + 0.4 * thump) * np.clip(d / 0.001, 0, 1), 0.0)
+    return _finish(out * envelope(t, 0.0, 0.18, 0.04), 0.85)
+
+
 def skid():
     """The sports car drifting: tyres squealing on the road. Noise through two narrow resonances that waver (a pair of
     tyres a little apart in pitch), a rough scrub under them. One piece of 0.5 s between its fades (the server plays it
@@ -266,4 +283,5 @@ def clips():
     out[("common", "reverse_beep")] = (reverse_beep(), 0)
     out[("sports_car", "backfire")] = (backfire(), 0)
     out[("sports_car", "skid")] = (skid(), 0)
+    out[("tuner_car", "popcorn")] = (popcorn(), 0)
     return out

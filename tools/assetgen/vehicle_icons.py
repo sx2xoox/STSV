@@ -87,6 +87,32 @@ def sports_car():
     return _draw(rows, colours).render()
 
 
+@icon("tuner_car")
+def tuner_car():
+    # a low three-box coupe: the carbon hood, the banner on the screen, the slash of vinyl, gold wheels, the tall wing
+    rows = ["................",
+            "................",
+            "................",
+            "............cccc",
+            "......wwwww..aA.",
+            ".....gbGggqw.a..",
+            "....gGggggqqwa..",
+            ".nnnWWWWWWWWWWWW",
+            ".yVVVVVVllVVVVVt",
+            "sVVkkVVllVVVkkVV",
+            ".NkhHkpppppkhHkp",
+            "..khhk.....khhk.",
+            "...kk.......kk..",
+            "................",
+            "................",
+            "................"]
+    colours = {"w": ("grape", 4), "W": ("grape", 3), "V": ("grape", 2), "N": ("grape", 0), "n": ("rubber", 2),
+               "g": ("tint", 2), "G": ("glass", 4), "b": ("slime", 4), "q": ("tint", 1), "l": ("slime", 4),
+               "a": ("steel", 3), "A": ("slime", 3), "c": ("rubber", 2), "s": ("rubber", 1), "y": ("lamp", 5),
+               "t": ("signal_red", 4), "p": ("magic", 4), "k": ("rubber", 1), "h": ("gold", 3), "H": ("gold", 5)}
+    return _draw(rows, colours).render()
+
+
 @icon("light_truck")
 def light_truck():
     rows = ["................",

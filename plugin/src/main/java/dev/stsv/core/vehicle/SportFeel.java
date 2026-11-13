@@ -39,15 +39,30 @@ public final class SportFeel {
      * @param backfireSpeed only above this speed (blocks/s)
      * @param launchSmoke   smoke from the driven wheels when floored from a stop
      * @param skid          the tyres' squeal while it drifts (played again every {@link #SKID_TICKS}), or null
+     * @param mark          the skid marks its rear tyres leave while it drifts ({@link SkidMarks}), or null
+     * @param pops          how the exhaust pops when the throttle is let go: once, or a crackle of several
      */
     public record Spec(double fov, List<VehicleSpec.Vec> exhaust, VehicleFeel.Sound backfire, double backfireSpeed, boolean launchSmoke,
-                       VehicleFeel.Sound skid) {}
+                       VehicleFeel.Sound skid, SkidMarks.Style mark, Pops pops) {}
+
+    /**
+     * The exhaust's pops on one lift of the throttle: count of them, each gapMin..gapMax ticks after the one before
+     * (count 1: a single backfire; more: the "popcorn" crackle of a tuned car). Pressing the throttle again ends it.
+     */
+    public record Pops(int count, int gapMin, int gapMax) {
+        public static final Pops ONE = new Pops(1, 1, 1);
+    }
 
     /** Ticks from one squeal to the next (the clip is a little longer: they fade into each other), and the slip (degrees) it starts at. */
     public static final int SKID_TICKS = 10;
     public static final double SKID_SLIP = 6;
 
     static Spec parse(ConfigurationSection s) {
+        return parse(s, java.util.Map.of());
+    }
+
+    /** marks: the looks of skid marks the file knows, by name (sport.mark names one). */
+    static Spec parse(ConfigurationSection s, java.util.Map<String, SkidMarks.Style> marks) {
         double fov = s.getDouble("fov", 0);
         if (fov < 0 || fov > 0.5) throw new IllegalArgumentException("sport.fov 는 0 ~ 0.5 (최고 속도에서 시야가 넓어지는 비율)");
         List<VehicleSpec.Vec> exhaust = new ArrayList<>();
@@ -66,7 +81,24 @@ public final class SportFeel {
             if (exhaust.isEmpty()) throw new IllegalArgumentException("sport.backfire 에는 sport.exhaust (배기구 위치) 가 있어야 함");
         }
         VehicleFeel.Sound skid = s.isConfigurationSection("skid") ? VehicleFeel.sound(s.getConfigurationSection("skid"), "sport.skid") : null;
-        return new Spec(fov, List.copyOf(exhaust), pop, popSpeed, s.getBoolean("launch-smoke"), skid);
+        SkidMarks.Style mark = null;
+        String markName = s.getString("mark");
+        if (markName != null && !markName.isBlank()) {
+            mark = marks.get(markName.trim());
+            if (mark == null) throw new IllegalArgumentException("sport.mark: skid-marks 에 '" + markName + "' 이(가) 없음");
+        }
+        Pops pops = Pops.ONE;
+        ConfigurationSection b = s.getConfigurationSection("backfire");
+        if (b != null && (b.contains("pops") || b.contains("gap"))) {
+            int count = b.getInt("pops", 1);
+            List<Integer> gap = b.getIntegerList("gap");
+            if (gap.isEmpty()) gap = List.of(2, 5);
+            if (count < 1 || count > 12) throw new IllegalArgumentException("sport.backfire.pops 는 1 ~ 12");
+            if (gap.size() != 2 || gap.get(0) < 1 || gap.get(1) < gap.get(0) || gap.get(1) > 20)
+                throw new IllegalArgumentException("sport.backfire.gap 은 [최소, 최대] 틱 (1 ~ 20)");
+            pops = new Pops(count, gap.get(0), gap.get(1));
+        }
+        return new Spec(fov, List.copyOf(exhaust), pop, popSpeed, s.getBoolean("launch-smoke"), skid, mark, pops);
     }
 
     // ------------------------------------------------------------------------------------------
@@ -114,6 +146,9 @@ public final class SportFeel {
     /** What the exhaust and the tyres do, from the driver's throttle tick by tick. */
     public static final class Throttle {
         int held, cooldown;
+        /** a crackle: pops still to come, ticks to the next one; the dice for the gaps */
+        int popsLeft, popIn;
+        private int dice = 12345;
         /** ticks of flames left, ticks of launch smoke left */
         public int flames, smoke;
 
@@ -123,6 +158,11 @@ public final class SportFeel {
          * A launch (floored below 1.5 blocks/s after standing) starts {@link #LAUNCH_TICKS} of smoke.
          */
         public boolean step(boolean forward, double speed, double minSpeed, boolean pops, boolean launches) {
+            return step(forward, speed, minSpeed, pops, launches, Pops.ONE);
+        }
+
+        /** As above; with more than one pop in "how", the first is followed by the rest of the crackle, each true in its tick. */
+        public boolean step(boolean forward, double speed, double minSpeed, boolean pops, boolean launches, Pops how) {
             if (cooldown > 0) cooldown--;
             if (flames > 0) flames--;
             if (smoke > 0) smoke--;
@@ -130,19 +170,33 @@ public final class SportFeel {
             if (forward && speed >= 0) {
                 if (held == 0 && launches && speed < 1.5) smoke = LAUNCH_TICKS;
                 held++;
+                popsLeft = 0;
             } else {
+                if (popsLeft > 0 && --popIn <= 0) {
+                    pop = true;
+                    flames = FLAME_TICKS;
+                    popsLeft--;
+                    popIn = gap(how);
+                }
                 if (pops && held >= HELD && speed >= minSpeed && cooldown == 0) {
                     pop = true;
                     flames = FLAME_TICKS;
                     cooldown = COOLDOWN;
+                    popsLeft = how.count() - 1;
+                    popIn = gap(how);
                 }
                 held = 0;
             }
             return pop;
         }
 
+        private int gap(Pops how) {
+            dice = dice * 1103515245 + 12345;
+            return how.gapMin() + Math.floorMod(dice >>> 16, how.gapMax() - how.gapMin() + 1);
+        }
+
         public void reset() {
-            held = cooldown = flames = smoke = 0;
+            held = cooldown = flames = smoke = popsLeft = popIn = 0;
         }
     }
 }

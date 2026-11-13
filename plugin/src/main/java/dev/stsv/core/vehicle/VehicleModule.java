@@ -235,7 +235,7 @@ public final class VehicleModule implements StsvModule, Listener {
         for (Player p : Bukkit.getOnlinePlayers()) PullSpeed.remove(p.getAttribute(Attribute.MOVEMENT_SPEED));
         VehicleFeelView.viewOffAll();
         // a plugin reload: the last run's entities (never saved, so only ever after a reload in the same run)
-        for (World w : Bukkit.getWorlds()) for (Entity e : w.getEntities()) if (isVehiclePart(e)) e.remove();
+        for (World w : Bukkit.getWorlds()) for (Entity e : w.getEntities()) if (isVehiclePart(e) || feel.marks.isMark(e)) e.remove();
         Bukkit.getPluginManager().registerEvents(this, plugin);
         ledger.start();
         task = Bukkit.getScheduler().runTaskTimer(plugin, () -> tick(), 1L, 1L);
@@ -293,6 +293,7 @@ public final class VehicleModule implements StsvModule, Listener {
             despawn(v, true);
         }
         if (task != null) task.cancel();
+        feel.marks.clear();
         if (ledger != null) ledger.stop();
         plugin.admin().removeAll("STSV 탈것");
         HandlerList.unregisterAll(this);
@@ -1411,6 +1412,7 @@ public final class VehicleModule implements StsvModule, Listener {
 
     private void tick() {
         ticks++;
+        feel.marks.tick(ticks);
         if (spawnSoon || ticks % 40 == 0) {
             spawnSoon = false;
             spawnLoaded();

@@ -50,6 +50,9 @@ LAMPS = {
     # sports_car: a thin running light low on each corner of the nose, a thin lamp each side in the tail's mesh
     "sports_car": dict(scale=2.0, head=lens(10, 15.5, 4.5, 5.5, -36.25), tail=lens(7, 15, 9.5, 10.5, 36.25),
                        body=("vehicles", "sports_car")),
+    # tuner_car: two round projectors a side, twin round tail lamps a side
+    "tuner_car": dict(scale=2.0, head=lens(8, 15, 8.5, 11.5, -36.25), tail=lens(7.5, 14.5, 8.5, 11.5, 36.25),
+                      body=("vehicles", "tuner_car")),
     # light_truck: headlight boxes (amber strip on top), taillights on the bed's back (amber inside: the reverse lamp)
     "light_truck": dict(scale=2.0, head=lens(8.5, 12.5, 9, 12, -39.5), tail=lens(11, 13.5, 7, 9.5, 38.5),
                         reverse=lens(10, 11, 7, 9.5, 38.5), body=("vehicles", "light_truck")),

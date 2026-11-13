@@ -209,6 +209,27 @@
       }
     ]
   },
+  "vehicle.tuner_car.horn": {
+    "sounds": [
+      {
+        "name": "stsv:vehicle/tuner_car_horn"
+      }
+    ]
+  },
+  "vehicle.tuner_car.horn_end": {
+    "sounds": [
+      {
+        "name": "stsv:vehicle/tuner_car_horn_end"
+      }
+    ]
+  },
+  "vehicle.tuner_car.engine": {
+    "sounds": [
+      {
+        "name": "stsv:vehicle/tuner_car_engine"
+      }
+    ]
+  },
   "vehicle.ox_cart.horn": {
     "sounds": [
       {
@@ -377,6 +398,20 @@
       }
     ]
   },
+  "vehicle.tuner_car.engine_start": {
+    "sounds": [
+      {
+        "name": "stsv:vehicle/tuner_car_engine_start"
+      }
+    ]
+  },
+  "vehicle.tuner_car.engine_stop": {
+    "sounds": [
+      {
+        "name": "stsv:vehicle/tuner_car_engine_stop"
+      }
+    ]
+  },
   "vehicle.power_tiller.engine_start": {
     "sounds": [
       {
@@ -423,6 +458,13 @@
     "sounds": [
       {
         "name": "stsv:vehicle/sports_car_skid"
+      }
+    ]
+  },
+  "vehicle.tuner_car.popcorn": {
+    "sounds": [
+      {
+        "name": "stsv:vehicle/tuner_car_popcorn"
       }
     ]
   }

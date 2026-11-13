@@ -125,6 +125,49 @@ sports_car:
             vanilla: block.note_block.didgeridoo, pitch: 1.6, times: 1 }
     engine: { sound: stsv:vehicle.sports_car.engine, volume: 0.55, idle-volume: 0.22, idle-pitch: 0.55, top-pitch: 1.9, segment-ticks: 10 }
 
+# 이벤트 한정 · 튜닝카: 지붕 있는 2인승 쿠페. 로드스터보다 조금 느리지만 더 크게, 더 쉽게 미끄러짐 (드리프트용)
+tuner_car:
+  material: paper
+  name: "<#9a5fd0>튜닝카"
+  lore:
+    - "<gold>이벤트 한정</gold> <gray>· 대형 윙과 대포 머플러를 단 2인승 튜닝 쿠페"
+    - "<gray>짐칸 없음 · 최고 속도 13블록/초 · 가속을 떼면 배기구에서 팝콘"
+    - "<dark_gray>땅에 우클릭: 세우기 · 우클릭: 타기 · 스페이스: 경적"
+    - "<dark_gray>W·S 앞뒤, A·D 방향, 웅크리기: 내리기"
+    - "<dark_gray>Ctrl 을 누른 채 A·D: 드리프트"
+    - "<dark_gray>웅크리고 우클릭: 아이템으로 회수 (주인)"
+  model: tuner_car
+  icon: tuner_car_icon
+  max-stack: 1
+  vehicle:
+    body-scale: 2
+    speed: 13
+    over-cap: true
+    # 로드스터보다 낮은 속도에서, 더 큰 각도로, 더 빨리 미끄러지기 시작하고 속도는 덜 잃음
+    drift: { angle: 40, min-speed: 5, build: 130, recover: 130, turn: 1.6, drag: 1.2 }
+    reverse-speed: 4
+    acceleration: 6.0
+    brake: 13
+    coast: 2.5
+    turn-rate: 85
+    turn-speed: 4
+    step-height: 1.0
+    size: [4.7, 2.1, 1.75]
+    click-height: 1.1
+    wheel: wheel_tuner
+    wheel-radius: 0.375
+    wheels:
+      - { at: [-0.84375, 0.375, 1.375], steer: true }
+      - { at: [0.84375, 0.375, 1.375], steer: true }
+      - { at: [-0.84375, 0.375, -1.375] }
+      - { at: [0.84375, 0.375, -1.375] }
+    seats:
+      - { at: [-0.4, 0.14, 0.1] }
+      - { at: [0.4, 0.14, 0.1] }
+    horn: { sound: stsv:vehicle.tuner_car.horn, release: stsv:vehicle.tuner_car.horn_end, volume: 1.6,
+            vanilla: block.note_block.didgeridoo, pitch: 1.2, times: 1 }
+    engine: { sound: stsv:vehicle.tuner_car.engine, volume: 0.6, idle-volume: 0.28, idle-pitch: 0.6, top-pitch: 1.9, segment-ticks: 10 }
+
 light_truck:
   material: paper
   name: "<#8fb4e0>1톤 트럭"

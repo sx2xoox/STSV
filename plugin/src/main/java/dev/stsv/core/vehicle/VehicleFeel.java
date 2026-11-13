@@ -141,8 +141,12 @@ public final class VehicleFeel {
     }
 
     /** Everything in a vehicle_feel.yml: the shared settings and each vehicle's feel by item id ("ns:id"). */
-    public record File(Settings settings, Map<String, Spec> vehicles, Map<Power, Profile> profiles) {
-        public static final File EMPTY = new File(Settings.DEFAULT, Map.of(), Map.of());
+    public record File(Settings settings, Map<String, Spec> vehicles, Map<Power, Profile> profiles, Map<String, SkidMarks.Style> marks) {
+        public static final File EMPTY = new File(Settings.DEFAULT, Map.of(), Map.of(), Map.of());
+
+        public File(Settings settings, Map<String, Spec> vehicles, Map<Power, Profile> profiles) {
+            this(settings, vehicles, profiles, Map.of());
+        }
 
         /** A vehicle's feel: its own, else a plain one for its power (an engine). */
         public Spec spec(String itemKey, Power fallback) {
@@ -188,6 +192,20 @@ public final class VehicleFeel {
                 Math.clamp(y.getDouble("suspension.sway", d.sway()), 0, 15),
                 Math.clamp(y.getDouble("suspension.range", d.showRange()), 8, 128));
 
+        // the looks of skid marks, by name (a vehicle names its own: sport.mark)
+        Map<String, SkidMarks.Style> marks = new HashMap<>();
+        ConfigurationSection ms = y.getConfigurationSection("skid-marks");
+        if (ms != null) {
+            for (String name : ms.getKeys(false)) {
+                if (!ms.isConfigurationSection(name)) continue;
+                try {
+                    marks.put(name, SkidMarks.style(name, ms.getConfigurationSection(name)));
+                } catch (IllegalArgumentException ex) {
+                    problems.accept(ex.getMessage());
+                }
+            }
+        }
+
         Map<String, Spec> vehicles = new HashMap<>();
         ConfigurationSection vs = y.getConfigurationSection("vehicles");
         if (vs != null) {
@@ -196,16 +214,21 @@ public final class VehicleFeel {
                 if (v == null) continue;
                 String key = id.contains(":") ? id : namespace + ":" + id;
                 try {
-                    vehicles.put(key, spec(v, namespace, modelExists, profiles));
+                    vehicles.put(key, spec(v, namespace, modelExists, profiles, marks));
                 } catch (IllegalArgumentException ex) {
                     problems.accept(key + ": " + ex.getMessage());
                 }
             }
         }
-        return new File(settings, Map.copyOf(vehicles), Map.copyOf(profiles));
+        return new File(settings, Map.copyOf(vehicles), Map.copyOf(profiles), Map.copyOf(marks));
     }
 
     static Spec spec(ConfigurationSection v, String namespace, Predicate<String> modelExists, Map<Power, Profile> profiles) {
+        return spec(v, namespace, modelExists, profiles, Map.of());
+    }
+
+    static Spec spec(ConfigurationSection v, String namespace, Predicate<String> modelExists, Map<Power, Profile> profiles,
+                     Map<String, SkidMarks.Style> marks) {
         String powerName = v.getString("power", "engine").trim().toUpperCase(java.util.Locale.ROOT);
         Power power;
         try {
@@ -235,7 +258,7 @@ public final class VehicleFeel {
         if (shake < 0 || shake > 0.1) throw new IllegalArgumentException("idle-shake 는 0 ~ 0.1 (블록)");
         if (bounce < 0 || bounce > 3) throw new IllegalArgumentException("bounce 는 0 ~ 3");
         if (bob < 0 || bob > 0.2) throw new IllegalArgumentException("pedal-bob 은 0 ~ 0.2 (블록)");
-        SportFeel.Spec sport = v.isConfigurationSection("sport") ? SportFeel.parse(v.getConfigurationSection("sport")) : null;
+        SportFeel.Spec sport = v.isConfigurationSection("sport") ? SportFeel.parse(v.getConfigurationSection("sport"), marks) : null;
         return new Spec(power, profiles.getOrDefault(power, defaultProfile(power)), effort, lamps, v.getBoolean("reverse-beep"),
                 start, stop, shake, bounce, bob, sport);
     }
