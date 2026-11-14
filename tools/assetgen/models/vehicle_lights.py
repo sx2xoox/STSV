@@ -196,14 +196,16 @@ def _beam(m, l, length, spread, peak):
           faces={"north": None, "south": None, "up": None, "down": None})
 
 
-def _model(v, kind):
+def _model(v, kind, name=None, hot=None, warm=None):
+    """name, hot, warm: the headlamps in another colour (the tuning shop: models/vehicle_paints.py)."""
     spec = LAMPS[v]
+    hot, warm = hot or HOT, warm or WARM
     # lift: a body that stands higher than it is drawn (vehicles_premium.Kit) takes its lamps up with it
-    m = BModel(f"{v}_lamp_{kind}", shift=(8, 8 + spec.get("lift", 0), 8), scale=spec["scale"] * LAMP_SCALE, floor=None)
+    m = BModel(name or f"{v}_lamp_{kind}", shift=(8, 8 + spec.get("lift", 0), 8), scale=spec["scale"] * LAMP_SCALE, floor=None)
     if kind == "head":
         for l in spec["head"]:
-            _lens(m, "lens", l, True, HOT, WARM)
-            _halo(m, "glow", l, True, WARM, 2.5, 0.55)
+            _lens(m, "lens", l, True, hot, warm)
+            _halo(m, "glow", l, True, warm, 2.5, 0.55)
             # the beam reaches 3 blocks, or as far as the model may (its bounds: model z -16 = drawn z -24 x shrink)
             room = 24 * spec["scale"] * LAMP_SCALE + l[4] - HALO_OUT - 1
             _beam(m, l, min(48.0, room), 7, 0.22)

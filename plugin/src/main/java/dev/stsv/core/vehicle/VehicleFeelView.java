@@ -119,6 +119,11 @@ final class VehicleFeelView {
         return file.settings();
     }
 
+    /** A skid mark style by its name (vehicle_feel.yml skid-marks), null if there is none. */
+    SkidMarks.Style skidStyle(String name) {
+        return name == null ? null : file.marks().get(name);
+    }
+
     /** A vehicle's feel by its item ("ns:id"); without its own: a plain one of this power. */
     VehicleFeel.Spec spec(String itemKey, VehicleFeel.Power fallback) {
         return file.spec(itemKey, fallback);
@@ -205,7 +210,7 @@ final class VehicleFeelView {
             f.viewOf = driver.getUniqueId();
         }
         boolean throttle = in.forward() && !in.backward();
-        if (f.throttle.step(throttle, v.st.speed, sp.backfireSpeed(), sp.backfire() != null, sp.launchSmoke(), sp.pops()))
+        if (f.throttle.step(throttle, v.st.speed, sp.backfireSpeed(), sp.backfire() != null, sp.launchSmoke(), m.tuner.pops(v, sp.pops())))
             m.play(v, sp.backfire().key(), sp.backfire().volume(), (float) (0.9 + 0.3 * Math.abs(Math.sin(ticks * 12.9898 + v.st.x * 78.233))));
         // a drift: the tyres squeal, and smoke comes off the rear ones
         boolean sliding = Math.abs(v.st.slip) >= SportFeel.SKID_SLIP && v.st.onGround;
@@ -214,7 +219,8 @@ final class VehicleFeelView {
             m.play(v, sp.skid().key(), sp.skid().volume(), (float) (0.9 + 0.2 * Math.min(1, Math.abs(v.st.speed) / Math.max(1, top))));
         }
         // the marks its rear tyres leave: a piece from where each was to where it is, every STEP blocks; the rest when the slide ends
-        if (sp.mark() == null || !f.watched || (!sliding && f.markFrom == null)) {
+        SkidMarks.Style mark = m.tuner.skid(v, sp.mark());
+        if (mark == null || !f.watched || (!sliding && f.markFrom == null)) {
             f.markFrom = null;
         } else {
             List<VehicleSpec.Wheel> wheels = v.spec.wheels();
@@ -226,7 +232,7 @@ final class VehicleFeelView {
                 double[] from = f.markFrom[i];
                 double moved = from == null ? 0 : Math.hypot(c[0] - from[0], c[2] - from[1]);
                 if (from != null && moved >= (sliding ? SkidMarks.STEP : SkidMarks.LEAST) && moved <= SkidMarks.MOST)
-                    marks.lay(v.world, from[0], v.st.y, from[1], c[0], c[2], sp.mark(), ticks);
+                    marks.lay(v.world, from[0], v.st.y, from[1], c[0], c[2], mark, ticks);
                 if (from == null || moved >= SkidMarks.STEP) f.markFrom[i] = new double[]{c[0], c[2]};
             }
             if (!sliding) f.markFrom = null;
@@ -236,7 +242,7 @@ final class VehicleFeelView {
             for (VehicleSpec.Wheel w : v.spec.wheels()) {
                 if (w.steer()) continue;
                 double[] c = VehiclePhysics.world(v.st.x, v.st.y, v.st.z, v.st.yaw, new VehicleSpec.Vec(w.at().right(), 0.1, w.at().forward()));
-                v.world.spawnParticle(Particle.CLOUD, c[0], c[1], c[2], 2, 0.15, 0.05, 0.15, 0.015);
+                m.tuner.smoke(v, c[0], c[1], c[2], 0.15, 0.015);
             }
         }
         double[] back = VehiclePhysics.forward(v.st.yaw);
@@ -245,7 +251,7 @@ final class VehicleFeelView {
                 double[] c = VehiclePhysics.world(v.st.x, v.st.y, v.st.z, v.st.yaw, e);
                 // flames shot backwards out of the tip (count 0: one particle with this velocity), then smoke
                 if (f.throttle.flames > SportFeel.FLAME_TICKS - 4)
-                    v.world.spawnParticle(Particle.FLAME, c[0], c[1], c[2], 0, -back[0], 0.05, -back[1], 0.12);
+                    m.tuner.flame(v, c[0], c[1], c[2], -back[0], 0.05, -back[1]);
                 else
                     v.world.spawnParticle(Particle.SMOKE, c[0], c[1], c[2], 1, 0.03, 0.03, 0.03, 0.01);
             }
@@ -254,7 +260,7 @@ final class VehicleFeelView {
             for (VehicleSpec.Wheel w : v.spec.wheels()) {
                 if (w.steer()) continue;
                 double[] c = VehiclePhysics.world(v.st.x, v.st.y, v.st.z, v.st.yaw, new VehicleSpec.Vec(w.at().right(), 0.1, w.at().forward() - 0.3));
-                v.world.spawnParticle(Particle.CLOUD, c[0], c[1], c[2], 2, 0.12, 0.05, 0.12, 0.01);
+                m.tuner.smoke(v, c[0], c[1], c[2], 0.12, 0.01);
             }
         }
     }
@@ -483,7 +489,7 @@ final class VehicleFeelView {
         boolean head = f.lamps.head();
         if (f.head != null && head != f.headShown) {
             f.headShown = head;
-            f.head.setItemStack(VehicleModule.model(head ? l.head() : null));
+            f.head.setItemStack(VehicleModule.model(head ? m.tuner.headlamp(v, l.head()) : null));
         }
         if (f.rear != null) {
             org.bukkit.NamespacedKey want = rearModel(l, rear);

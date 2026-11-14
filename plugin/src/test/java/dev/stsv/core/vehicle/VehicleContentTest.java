@@ -239,7 +239,8 @@ class VehicleContentTest {
             try (Stream<Path> files = Files.walk(root)) {
                 for (Path f : files.filter(p -> p.toString().endsWith(".yml")).toList()) {
                     if (f.getFileName().toString().equals("vehicles.yml") || f.getFileName().toString().equals("vehicle_feel.yml")
-                            || f.getFileName().toString().equals("vehicle_tools.yml")) continue;   // the feel, the tools: no shop
+                            || f.getFileName().toString().equals("vehicle_tools.yml")
+                            || f.getFileName().toString().equals("vehicle_tuning.yml")) continue;   // the feel, the tools, the tuning shop: they sell no vehicle
                     String text0 = Files.readString(f);
                     if (f.getFileName().toString().equals("shop.yml")) {
                         for (String id : ALL) if (!id.equals("hand_cart")) assertFalse(text0.contains(id), "only generations 1-3 are sold: " + id);

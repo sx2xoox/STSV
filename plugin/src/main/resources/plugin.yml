@@ -81,6 +81,11 @@ commands:
     aliases: [wild, 야생]
     usage: /야생월드
     permission: stsv.travel
+  튜닝:
+    description: 튜닝샵 (튜닝샵 안에서 내 탈것의 도색·휠·네온 등을 바꿈)
+    aliases: [tuning, 튜닝샵]
+    usage: /튜닝
+    permission: stsv.vehicle
   rtp:
     description: 야생월드 안에서 다른 무작위 위치로 이동 (/야생월드 와 같은 대기 시간)
     aliases: [랜덤이동, 랜덤]

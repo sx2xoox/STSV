@@ -99,8 +99,11 @@ class PackPipelineTest {
                 assertTrue(textures.has(face.get("texture").getAsString().substring(1)), "unknown texture ref");
             }
         }
-        assertEquals(GLOWING.contains(name) || name.matches(".+_lamp_(head|tail|brake|reverse)"), glows, "only light sources glow");   // + the vehicles' lamp parts (vehicle_lights.py)
-        assertEquals(ROTATED.contains(name), rotated, "rotated parts");
+        // a tuning shop variant (vehicle_paints.py: another paint, wheel design, lamp colour) is judged as its stock model
+        String stock = dev.stsv.core.vehicle.VehicleTuning.stock(name);
+        assertEquals(GLOWING.contains(stock) || stock.matches(".+_lamp_(head|tail|brake|reverse)") || stock.startsWith("underglow_"), glows,
+                "only light sources glow");   // + the vehicles' lamp parts (vehicle_lights.py) and the glow under a tuned car
+        assertEquals(ROTATED.contains(stock), rotated, "rotated parts");
         assertTrue(model.has("display"));
     }
 

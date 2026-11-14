@@ -199,6 +199,7 @@ public final class VehicleModule implements StsvModule, Listener {
     /** 탈것의 느낌: load and slope, dust, lamps, engine start / stop, springs, effort (vehicle_feel.yml) */
     final VehicleFeelView feel = new VehicleFeelView(this);
     final VehicleDress dress = new VehicleDress(this);
+    final VehicleTuner tuner = new VehicleTuner(this);
 
     /** config.yml vehicles.* */
     record Settings(double maxSpeed, int smoothing, float viewRange, boolean culling, int saveTicks, boolean sirenSound, String sirenKey,
@@ -232,6 +233,8 @@ public final class VehicleModule implements StsvModule, Listener {
         trips.putAll(tripStore.all());
         for (VehicleStore.Grant g : store.grants()) grants.computeIfAbsent(g.owner(), k -> new LinkedHashMap<>()).put(g.player(), g.playerName());
         tools = new VehicleTools(this, plugin);
+        tuner.enable(plugin);
+        tuner.load();
         // a plugin reload while someone pulled: nobody pulls now
         for (Player p : Bukkit.getOnlinePlayers()) PullSpeed.remove(p.getAttribute(Attribute.MOVEMENT_SPEED));
         VehicleFeelView.viewOffAll();
@@ -262,6 +265,7 @@ public final class VehicleModule implements StsvModule, Listener {
     public void reload() {
         settings = settings();
         feel.load(plugin);
+        tuner.load();
         weightEpoch++;
         tools.load();
         // the item files may have changed: the shown vehicles take their new settings (parts again, riders stay)
@@ -296,6 +300,7 @@ public final class VehicleModule implements StsvModule, Listener {
         if (task != null) task.cancel();
         feel.marks.clear();
         if (ledger != null) ledger.stop();
+        tuner.disable();
         plugin.admin().removeAll("STSV 탈것");
         HandlerList.unregisterAll(this);
     }
@@ -1210,8 +1215,9 @@ public final class VehicleModule implements StsvModule, Listener {
         v.tiltShown = tilt(v);
         // lit as the world around it at once (no fade from dark when it appears)
         v.light.jump(VehicleLight.sample(v.st.x, v.st.y, v.st.z, v.st.yaw, VehicleLight.probes(s), new WorldLight(v.world)));
-        v.body = display(v, v.item.create(1), body(v, v.tiltShown));
-        for (int i = 0; i < s.wheels().size(); i++) v.wheels.add(display(v, model(s.wheelModel()), wheel(v, i)));
+        tuner.adopt(v);   // the look it was given in the tuning shop: its paint, its wheels, ...
+        v.body = display(v, tuner.body(v), body(v, v.tiltShown));
+        for (int i = 0; i < s.wheels().size(); i++) v.wheels.add(display(v, model(tuner.wheel(v)), wheel(v, i)));
         for (int i = 0; i < s.extras().spinners().size(); i++) v.spinners.add(display(v, model(s.extras().spinners().get(i).model()), spinner(v, i)));
         if (s.lights() != null) {
             v.lightsShown = v.siren ? 0 : -1;
@@ -1244,6 +1250,26 @@ public final class VehicleModule implements StsvModule, Listener {
         tools.spawned(v);
         feel.spawn(v);
         dress.spawn(v);
+        tuner.spawn(v);
+    }
+
+    /** Draws a vehicle's parts again (its look changed: the tuning shop). Riders stay. */
+    void redraw(LiveVehicle v) {
+        removeParts(v, false);
+        spawnParts(v);
+    }
+
+    java.util.Collection<LiveVehicle> shown() {
+        return live.values();
+    }
+
+    LiveVehicle shownById(long id) {
+        return live.get(id);
+    }
+
+    /** The tuning shop (/튜닝). */
+    public void tune(Player p, String[] args) {
+        tuner.command(p, args);
     }
 
     /** A cart's handle click box (it stands where the puller stands). */
@@ -1346,6 +1372,7 @@ public final class VehicleModule implements StsvModule, Listener {
         tools.removed(v);
         feel.remove(v);
         dress.remove(v);
+        tuner.remove(v);
         v.wheels.forEach(Entity::remove);
         v.spinners.forEach(Entity::remove);
         v.hits.forEach(Entity::remove);
@@ -1361,6 +1388,7 @@ public final class VehicleModule implements StsvModule, Listener {
      * where it is, shown again when its chunk loads); false: the caller takes it out of the world.
      */
     private void despawn(LiveVehicle v, boolean save) {
+        tuner.gone(v);
         release(v, "vehicle.pull-lost");
         closeCargo(v);
         removeParts(v, true);
@@ -1422,6 +1450,7 @@ public final class VehicleModule implements StsvModule, Listener {
     private void tick() {
         ticks++;
         feel.marks.tick(ticks);
+        tuner.tick(ticks);
         if (spawnSoon || ticks % 40 == 0) {
             spawnSoon = false;
             spawnLoaded();
@@ -1578,6 +1607,7 @@ public final class VehicleModule implements StsvModule, Listener {
         if (v.load != null) v.load.teleport(at);
         feel.teleport(v, at);
         dress.teleport(v, at);
+        tuner.teleport(v, at);
         if (v.handle != null) {
             double[] h = CartPull.hitch(v.st, v.spec);
             v.handle.teleport(new Location(v.world, h[0], h[1], h[2]));
@@ -2310,6 +2340,7 @@ public final class VehicleModule implements StsvModule, Listener {
     public void onQuit(PlayerQuitEvent e) {
         Player p = e.getPlayer();
         releasePlayer(p, null);
+        tuner.quit(p);
         lastClick.remove(p.getUniqueId());
         inputs.remove(p.getUniqueId());
         Long id = partOf(p.getVehicle());

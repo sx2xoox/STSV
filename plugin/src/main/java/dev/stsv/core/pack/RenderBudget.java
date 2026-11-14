@@ -160,7 +160,13 @@ public final class RenderBudget {
 
     /** A model's kind, or OTHER for a model no item shows as furniture, machine or cosmetic. */
     public static Category of(String model, Map<String, Category> categories) {
-        return categories.getOrDefault(model, Category.OTHER);
+        Category known = categories.get(model);
+        if (known != null) return known;
+        // a tuning shop variant (a body in another paint, a wheel in another design) is of its stock model's kind
+        int colon = model.indexOf(':');
+        String stock = model.substring(0, colon + 1) + dev.stsv.core.vehicle.VehicleTuning.stock(model.substring(colon + 1));
+        if (model.substring(colon + 1).startsWith("underglow_")) return Category.VEHICLE_PART;
+        return categories.getOrDefault(stock, Category.OTHER);
     }
 
     /** One line per model over budget (empty when all fit). */

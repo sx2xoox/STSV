@@ -166,7 +166,7 @@ final class VehicleDress {
         for (int i = 0; i < n; i++) {
             VehicleSpec.Mover mv = dress.movers().get(i);
             s.shown[i] = mover(body, mv, shape(s.turn[i]), shape(s.slide[i]));
-            s.movers.add(m.display(v, VehicleModule.model(mv.model()), s.shown[i]));
+            s.movers.add(m.display(v, VehicleModule.model(m.tuner.part(v, mv.model())), s.shown[i]));
         }
         s.plateShown = new Transformation[dress.plates().size()];
         s.plateName = v.ownerName == null ? "" : v.ownerName;
@@ -176,7 +176,7 @@ final class VehicleDress {
             Transformation t = s.plateShown[i] = plate(body, p, s.plateName);
             s.plates.add(v.world.spawn(m.at(v), TextDisplay.class, d -> {
                 d.setPersistent(false);
-                d.text(Component.text(s.plateName, PLATE_INK));
+                d.text(Component.text(s.plateName, m.tuner.plateInk(v)));
                 d.setBackgroundColor(Color.fromARGB(PLATE_ARGB));
                 d.setShadowed(false);
                 d.setSeeThrough(false);
@@ -250,7 +250,7 @@ final class VehicleDress {
         s.plateName = name;
         for (int i = 0; i < s.plates.size(); i++) {
             TextDisplay d = s.plates.get(i);
-            if (renamed) d.text(Component.text(name, PLATE_INK));
+            if (renamed) d.text(Component.text(name, m.tuner.plateInk(v)));
             Transformation t = plate(body, dress.plates().get(i), name);
             if (!t.equals(s.plateShown[i])) {
                 s.plateShown[i] = t;

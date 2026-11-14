@@ -161,6 +161,12 @@ public final class STSVPlugin extends JavaPlugin {
             nick.setExecutor(nicknames);
             nick.setTabCompleter(nicknames);
         }
+        PluginCommand tuning = getCommand("튜닝");
+        if (tuning != null) tuning.setExecutor((sender, cmdObj, label, args) -> {
+            if (!(sender instanceof org.bukkit.entity.Player p)) sender.sendMessage(dev.stsv.core.util.Lang.msg("common.players-only"));
+            else if (vehicles != null) vehicles.tune(p, args);
+            return true;
+        });
         PluginCommand rtp = getCommand("rtp");
         if (rtp != null) rtp.setExecutor((sender, cmdObj, label, args) -> {
             if (sender instanceof org.bukkit.entity.Player p) worlds.rtp(p);

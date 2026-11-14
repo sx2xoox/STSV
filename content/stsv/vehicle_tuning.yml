@@ -1,0 +1,120 @@
+# 튜닝샵 (/튜닝): 탈것의 겉모습을 바꾸는 곳. 성능은 하나도 바뀌지 않음 (보이는 것만).
+#
+# 구조: 종류마다 고를 것들(옵션)을 적고, 맨 아래 vehicles 에 탈것마다 어떤 종류의 어떤 옵션을 받을 수 있는지 적음.
+#   옵션 = id: { name: 화면에 보이는 이름, price: 게임 돈, color: "#rrggbb" (견본 색, 종류에 따라 실제 색) }
+#   탈것 = 아이템 id: { 종류: all 또는 [옵션 id, ...] }   (all = 그 탈것이 보여 줄 수 있는 것 전부)
+# 한 탈것은 종류마다 하나만 가짐. 고르지 않은 종류는 순정. 순정으로 되돌리기는 무료, 새로 고른 것만 값을 치름.
+# 값·이름을 바꾸거나 옵션을 빼고 /관리자 리로드 하면 바로 반영. 빠진 옵션을 달고 있던 탈것은 그 종류만 순정으로 돌아감.
+#
+# 모델이 필요한 종류 (paints, wheels, headlamps, underglows) 는 그 모델이 리소스팩에 있어야 함:
+#   tools/assetgen/models/vehicle_paints.py 가 그려 둔 것만 고를 수 있고, 없는 것은 서버 로그에 한 줄 남기고 빠짐.
+#   새 색을 넣으려면 그 파일의 PAINTS / WHEELS / LAMP_COLOURS / GLOWS 에 더하고 python3 tools/assetgen/build.py.
+# 모델이 필요 없는 종류 (skids 는 vehicle_feel.yml 의 skid-marks, smokes · flames · crackles · plates) 는 이 파일만 고치면 됨.
+
+# 도색: 몸체 (와 문·윙 같은 움직이는 부품) 를 다른 색으로. 탈것의 원래 색과 같은 것은 그 탈것에서 빠짐
+paints:
+  white:  { name: "화이트",      color: "#f1f3f6", price: 50000 }
+  pearl:  { name: "진주",        color: "#f3e9d6", price: 60000 }
+  silver: { name: "실버",        color: "#7e8890", price: 50000 }
+  black:  { name: "블랙",        color: "#2d333b", price: 60000 }
+  red:    { name: "레드",        color: "#e21806", price: 50000 }
+  wine:   { name: "와인",        color: "#8a1423", price: 60000 }
+  orange: { name: "오렌지",      color: "#f08020", price: 50000 }
+  yellow: { name: "옐로",        color: "#f9c228", price: 50000 }
+  green:  { name: "그린",        color: "#0f784c", price: 50000 }
+  blue:   { name: "블루",        color: "#3b82e0", price: 50000 }
+  navy:   { name: "네이비",      color: "#24468c", price: 60000 }
+  purple: { name: "퍼플",        color: "#7a3fc8", price: 60000 }
+  pink:   { name: "핑크",        color: "#ec869f", price: 60000 }
+
+# 휠: 같은 크기의 다른 디자인
+wheels:
+  five:    { name: "실버 5스포크",     color: "#bbd1e0", price: 80000 }
+  split:   { name: "스플릿 스포크",    color: "#ddf3fe", price: 100000 }
+  turbine: { name: "터빈",            color: "#677079", price: 100000 }
+  black:   { name: "블랙 6스포크",     color: "#384352", price: 90000 }
+  gold:    { name: "골드 6스포크",     color: "#f0c32e", price: 120000 }
+  white:   { name: "랠리 화이트",      color: "#f1f3f6", price: 90000 }
+  disc:    { name: "폴리시 디스크",    color: "#9db1c1", price: 80000 }
+
+# 언더글로우 네온: 차 밑 바닥에 깔리는 빛 (밤낮 없이 밝음)
+underglows:
+  cyan:   { name: "시안",   color: "#46e6ff", price: 150000 }
+  blue:   { name: "블루",   color: "#4678ff", price: 150000 }
+  purple: { name: "퍼플",   color: "#aa5aff", price: 150000 }
+  pink:   { name: "핑크",   color: "#ff50c8", price: 150000 }
+  red:    { name: "레드",   color: "#ff3c3c", price: 150000 }
+  orange: { name: "오렌지", color: "#ff9628", price: 150000 }
+  green:  { name: "그린",   color: "#50ff6e", price: 150000 }
+  white:  { name: "화이트", color: "#f0f5ff", price: 150000 }
+
+# 전조등 색: 렌즈, 둘레 빛, 앞으로 뻗는 빛줄기
+headlamps:
+  ice:    { name: "아이스 블루", color: "#96d7ff", price: 70000 }
+  gold:   { name: "옐로",        color: "#ffc446", price: 70000 }
+  violet: { name: "바이올렛",    color: "#ba78ff", price: 80000 }
+  green:  { name: "그린",        color: "#6ef082", price: 80000 }
+  red:    { name: "레드",        color: "#ff5a50", price: 80000 }
+
+# 스키드 마크: 드리프트할 때 뒷바퀴가 남기는 자국 (id 는 vehicle_feel.yml 의 skid-marks)
+skids:
+  rubber:    { name: "고무 자국",   color: "#17181c", price: 30000 }
+  ash:       { name: "화이트",      color: "#d8d8d8", price: 40000 }
+  ember:     { name: "불꽃",        color: "#ff5a1e", price: 60000 }
+  neon_pink: { name: "네온 핑크",   color: "#ff3fb4", price: 60000 }
+  neon_cyan: { name: "네온 시안",   color: "#35e6ff", price: 60000 }
+  gold:      { name: "골드",        color: "#f2c230", price: 60000 }
+
+# 타이어 연기: 급출발 · 드리프트 때 뒷바퀴에서 나는 연기의 색
+smokes:
+  red:    { name: "레드",   color: "#e83232", price: 70000 }
+  blue:   { name: "블루",   color: "#3c78ff", price: 70000 }
+  pink:   { name: "핑크",   color: "#ff6ec8", price: 70000 }
+  purple: { name: "퍼플",   color: "#a050ff", price: 70000 }
+  green:  { name: "그린",   color: "#46dc5a", price: 70000 }
+  yellow: { name: "옐로",   color: "#ffd732", price: 70000 }
+  black:  { name: "블랙",   color: "#26282e", price: 70000 }
+
+# 배기 불꽃: particle = flame (주황, 순정과 같음) | soul (파랑) | copper (초록) | dust (color 의 색 연기)
+flames:
+  blue:   { name: "블루 플레임",   color: "#50c8ff", particle: soul,   price: 100000 }
+  green:  { name: "그린 플레임",   color: "#5ae678", particle: copper, price: 100000 }
+  purple: { name: "퍼플 플레임",   color: "#b060ff", particle: dust,   price: 100000 }
+  pink:   { name: "핑크 플레임",   color: "#ff64c8", particle: dust,   price: 100000 }
+
+# 배기 팝콘: 액셀에서 발을 뗄 때 터지는 소리와 불꽃. pops = 한 번에 몇 발, gap = 한 발과 다음 발 사이 틱 [최소, 최대]
+crackles:
+  single:  { name: "단발",           pops: 1, gap: [1, 1], price: 50000 }
+  popcorn: { name: "팝콘 3연발",     pops: 3, gap: [2, 5], price: 120000 }
+  machine: { name: "머신건 6연발",   pops: 6, gap: [1, 3], price: 180000 }
+
+# 번호판 글씨: 주인 이름이 적힌 번호판의 글씨 색 (판은 흰색)
+plates:
+  red:    { name: "레드",   color: "#c81e1e", price: 30000 }
+  blue:   { name: "블루",   color: "#1e50c8", price: 30000 }
+  green:  { name: "그린",   color: "#1e8c3c", price: 30000 }
+  purple: { name: "퍼플",   color: "#7a2fd0", price: 30000 }
+  gold:   { name: "골드",   color: "#b08a10", price: 40000 }
+
+# ------------------------------------------------------------------------------------------------
+# 탈것마다 (아이템 id): 받을 수 있는 종류. 적지 않은 종류는 그 탈것에서 고를 수 없음
+# ------------------------------------------------------------------------------------------------
+vehicles:
+  # 일반 탈것: 도색 (엔진 달린 것은 언더글로우도)
+  cargo_bicycle:    { paints: all }
+  power_tiller:     { paints: all }
+  tractor_trailer:  { paints: all }
+  golf_cart:        { paints: all, underglows: all }
+  delivery_scooter: { paints: all, underglows: all }
+  atv:              { paints: all, underglows: all }
+  police_car:       { paints: all, underglows: all }
+  light_truck:      { paints: all, underglows: all }
+  cargo_van:        { paints: all, underglows: all }
+  box_truck:        { paints: all, underglows: all }
+  # 이벤트 차량: 전부
+  sports_car: { paints: all, wheels: all, underglows: all, headlamps: all, skids: all, smokes: all, flames: all, crackles: all }
+  tuner_car:  { paints: all, wheels: all, underglows: all, headlamps: all, skids: all, smokes: all, flames: all, crackles: all }
+  # 후원 차량
+  hyper_car:   { paints: all, wheels: all, underglows: all, headlamps: all, skids: all, smokes: all, flames: all, crackles: all, plates: all }
+  grand_sedan: { paints: all, wheels: all, underglows: all, headlamps: all, plates: all }
+  luxury_suv:  { paints: all, wheels: all, underglows: all, headlamps: all, plates: all }

@@ -33,6 +33,9 @@ final class LiveVehicle {
     final VehiclePhysics.State st;
 
     ItemDisplay body, lights, load;
+    /** the tuning shop: what it looks like now (paid for, or being tried on), and the glow under it (VehicleTuner) */
+    VehicleTuning.Custom custom = VehicleTuning.Custom.NONE;
+    ItemDisplay underglow;
     final List<ItemDisplay> wheels = new ArrayList<>();
     /** parts turned with the wheels (VehicleSpec.Extras#spinners: a pedal crank), in the spec's order */
     final List<ItemDisplay> spinners = new ArrayList<>();

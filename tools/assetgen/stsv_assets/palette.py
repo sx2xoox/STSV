@@ -15,6 +15,8 @@ Targets were measured from vanilla 26.3 block textures (see docs/ART_STYLE.md):
   gems / light       chroma 0.16-0.21                 -> reserved for ACCENT materials (fire, lamp, magic, gold)
 """
 
+import contextlib
+
 from .color import oklch_to_rgb
 
 SHADOW_HUE = 285.0   # blue-violet
@@ -187,13 +189,30 @@ PALETTE = {name: build_ramp(*spec) for name, spec in MATERIALS.items()}
 PALETTE["signal"] = PALETTE["signal_red"] + PALETTE["signal_green"][1:]  # [dark red, red, green]
 
 
+# Ramps drawn as another ramp for now (remapped): how a model generator that names its body colour itself is made to
+# draw the same model in another paint (models/vehicle_paints.py). Empty outside such a block.
+REMAP = {}
+
+
+@contextlib.contextmanager
+def remapped(mapping):
+    """Inside the block every lookup of a ramp named in mapping gives the ramp it is mapped to instead."""
+    before = dict(REMAP)
+    REMAP.update(mapping)
+    try:
+        yield
+    finally:
+        REMAP.clear()
+        REMAP.update(before)
+
+
 def ramp(name: str, i: int):
-    r = PALETTE[name]
+    r = PALETTE[REMAP.get(name, name)]
     return (*r[max(0, min(len(r) - 1, i))], 255)
 
 
 def size(name: str) -> int:
-    return len(PALETTE[name])
+    return len(PALETTE[REMAP.get(name, name)])
 
 
 _LADDER = {}
@@ -203,6 +222,7 @@ def ladder(name: str, i: int):
     """Step i of a material's ramp, continued past both ends with the same lightness step (baked furniture
     shading: ambient occlusion one or two steps below the darkest colour, rims above the lightest). Inside the
     ramp it is exactly ramp(name, i)."""
+    name = REMAP.get(name, name)
     key = (name, i)
     if key not in _LADDER:
         spec = MATERIALS.get(name)
