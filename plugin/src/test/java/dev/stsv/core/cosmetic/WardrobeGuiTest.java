@@ -196,7 +196,7 @@ class WardrobeGuiTest {
         List<String> problems = new ArrayList<>();
         List<MenuSpec> menus = MenuSpec.loadAll(List.of(new ContentPack("stsv", "stsv", PACK)), problems);
         assertTrue(problems.isEmpty(), problems.toString());
-        assertEquals(java.util.Set.of("stsv:wardrobe", "stsv:profile", "stsv:titles", "stsv:achievements", "stsv:achievement_list", "stsv:hub", "stsv:gacha", "stsv:nick_colors"),
+        assertEquals(java.util.Set.of("stsv:wardrobe", "stsv:profile", "stsv:titles", "stsv:achievements", "stsv:achievement_list", "stsv:hub", "stsv:gacha", "stsv:nick_colors", "stsv:tuning"),
                 menus.stream().map(MenuSpec::id).collect(java.util.stream.Collectors.toSet()));
         Integer panel = null;
         for (MenuSpec m : menus) {

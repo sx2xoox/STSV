@@ -299,7 +299,7 @@ luxury_suv:
     turn-rate: 66
     turn-speed: 3
     step-height: 1.0
-    size: [4.6, 2.7, 3.25]
+    size: [4.6, 2.7, 3.0]       # 높이 3.0: 국도 굴 · 가로등의 높이 여유(가장 높은 탈것 3.0 + 턱 1.0)에 맞춤. 지붕은 모델에서 0.25 더 올라옴
     click-height: 2.4
     wheel: wheel_suv
     wheel-radius: 0.8125
