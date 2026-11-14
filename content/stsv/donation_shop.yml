@@ -23,7 +23,7 @@
 # 환불 (/관리자 후원 환불 <내역 번호>) 은 값을 돌려주고 unlocks 로 준 것을 도로 가져감 (아이템 · commands 로 준 것은 관리자가 따로).
 #
 # 별 1개 = 100원 (입금 1,000원마다 별 10개를 지급). 아래 값은 이 기준: 300★ = 30,000원, 250★ = 25,000원, 50★ = 5,000원, 30★ = 3,000원.
-# 칭호 배너 · 감정표현의 값은 임시로 넣은 것: 서버 주인이 정하면 됨. 안내문의 입금 방법 · 문의처도 서버 주인이 채워야 함.
+# 칭호 배너 · 감정표현 · 도구 스킨 · 무한 폭죽의 값은 임시로 넣은 것: 서버 주인이 정하면 됨. 안내문의 입금 방법 · 문의처도 서버 주인이 채워야 함.
 
 currency:
   name: "별"
@@ -49,6 +49,14 @@ categories:
     name: "감정표현"
     icon: "stsv:gui/emote_any"
     products: [emote_twerk, emote_take_l, emote_disco, emote_cheer]
+  tool_skins:
+    name: "도구 스킨"
+    icon: "stsv:toy_pickaxe"
+    products: [toy_set, toy_sword, toy_pickaxe, toy_shovel, toy_axe, toy_hoe, toy_fishing_rod]
+  fun:
+    name: "놀잇감"
+    icon: "stsv:party_firework"
+    products: [infinite_firework]
 
 products:
   hyper_car:
@@ -149,3 +157,54 @@ products:
     price: 30           # 3,000원
     description: ["<gray>두 팔을 번쩍 들고 뛰는 만세 (되풀이)."]
     unlocks: ["emote:cheer"]
+
+  # 도구 스킨 · 장난감 시리즈: 도구의 겉모습만 바꿈. /스킨 에서 켜 두면 그 종류의 도구를 손에 들 때마다 입혀짐 (도구가 부서져도 스킨은 남음)
+  toy_set:
+    name: "장난감 시리즈 전부"
+    price: 200          # 20,000원 (따로 사면 240★)
+    description:
+      - "<gray>검 · 곡괭이 · 삽 · 도끼 · 괭이 · 낚싯대"
+      - "<gray>장난감 시리즈 여섯 개를 한 번에."
+      - "<dark_gray>겉모습만 바뀝니다. 성능은 그대로."
+    unlocks: ["tool_skin:toy_sword", "tool_skin:toy_pickaxe", "tool_skin:toy_shovel", "tool_skin:toy_axe", "tool_skin:toy_hoe", "tool_skin:toy_fishing_rod"]
+    icon: "stsv:toy_sword"
+  toy_sword:
+    name: "장난감 검"
+    price: 40           # 4,000원
+    description: ["<gray>말랑한 스펀지 칼날의 큼직한 검.", "<dark_gray>겉모습만 바뀝니다. 성능은 그대로."]
+    unlocks: ["tool_skin:toy_sword"]
+  toy_pickaxe:
+    name: "장난감 곡괭이"
+    price: 40           # 4,000원
+    description: ["<gray>빨간 플라스틱 머리의 곡괭이.", "<dark_gray>겉모습만 바뀝니다. 성능은 그대로."]
+    unlocks: ["tool_skin:toy_pickaxe"]
+  toy_shovel:
+    name: "장난감 삽"
+    price: 40           # 4,000원
+    description: ["<gray>모래놀이 삽.", "<dark_gray>겉모습만 바뀝니다. 성능은 그대로."]
+    unlocks: ["tool_skin:toy_shovel"]
+  toy_axe:
+    name: "장난감 도끼"
+    price: 40           # 4,000원
+    description: ["<gray>주황 머리에 스펀지 날을 댄 도끼.", "<dark_gray>겉모습만 바뀝니다. 성능은 그대로."]
+    unlocks: ["tool_skin:toy_axe"]
+  toy_hoe:
+    name: "장난감 괭이"
+    price: 40           # 4,000원
+    description: ["<gray>파란 날의 괭이.", "<dark_gray>겉모습만 바뀝니다. 성능은 그대로."]
+    unlocks: ["tool_skin:toy_hoe"]
+  toy_fishing_rod:
+    name: "장난감 낚싯대"
+    price: 40           # 4,000원
+    description: ["<gray>큼직한 릴과 찌가 달린 낚시 놀이 낚싯대.", "<dark_gray>겉모습만 바뀝니다. 성능은 그대로."]
+    unlocks: ["tool_skin:toy_fishing_rod"]
+
+  # 놀잇감
+  infinite_firework:
+    name: "무한 폭죽"
+    price: 100          # 10,000원
+    description:
+      - "<gray>쏴도 줄지 않는 장난감 폭죽 발사기."
+      - "<gray>쏠 때마다 색과 모양이 달라집니다."
+      - "<dark_gray>보여 주기만 합니다: 피해 없음, 겉날개 가속 없음."
+    item: stsv:infinite_firework

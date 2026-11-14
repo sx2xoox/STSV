@@ -264,7 +264,7 @@ public final class ToolSkinModule implements StsvModule, Listener, TabExecutor {
         else mine.put(skin.tool(), skin.id());
         store.wear(p.getUniqueId(), skin.tool().name(), on ? null : skin.id());
         sync(p);
-        dev.stsv.core.hud.HudModule.flash(p, Lang.mm(on ? "toolskin.off" : "toolskin.on", "name", skin.name(), "tool", skin.tool().word));
+        dev.stsv.core.hud.HudModule.flash(p, Lang.mm(on ? "toolskin.turned-off" : "toolskin.turned-on", "name", skin.name(), "tool", skin.tool().word));
         p.playSound(p.getLocation(), Sound.UI_BUTTON_CLICK, 0.6f, on ? 1.0f : 1.5f);
     }
 

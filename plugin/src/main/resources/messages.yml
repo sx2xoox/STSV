@@ -439,8 +439,9 @@ unlock:
 # 도구 스킨 (/스킨): 가진 스킨을 켜 두면 그 종류의 도구를 손에 들 때 저절로 입혀짐
 toolskin:
   disabled: "<red>지금은 도구 스킨을 쓸 수 없습니다."
-  on: "<green>{name} 켬 <gray>({tool}을(를) 손에 들면 입혀집니다)"
-  off: "<gray>{name} 끔"
+  # (키 이름을 on · off 로 지으면 YAML 이 참 · 거짓으로 읽음)
+  turned-on: "<green>{name} 켬 <gray>({tool}을(를) 손에 들면 입혀집니다)"
+  turned-off: "<gray>{name} 끔"
   all-off: "<gray>도구 스킨을 모두 껐습니다."
   tile-name: "<white>{name}"
   tile-name-locked: "<dark_gray>{name}"

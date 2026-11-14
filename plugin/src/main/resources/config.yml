@@ -319,7 +319,7 @@ tool-skins:
 party-firework:
   enabled: true
   # 이 커스텀 아이템이 무한 폭죽 (contents/stsv/items/toys.yml)
-  item: "stsv:party_firework"
+  item: "stsv:infinite_firework"
   # 한 번 쏜 뒤 다시 쏘기까지 (초)
   cooldown-seconds: 2.0
 

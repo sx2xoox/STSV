@@ -155,9 +155,12 @@ class DonationTest {
     @Test
     void theShippedShop() {
         List<String> problems = new ArrayList<>();
-        YamlConfiguration items = YamlConfiguration.loadConfiguration(PACK.resolve("items/vehicles.yml").toFile());
+        Set<String> items = new java.util.HashSet<>();
+        for (java.io.File f : PACK.resolve("items").toFile().listFiles((d, n) -> n.endsWith(".yml"))) {
+            items.addAll(YamlConfiguration.loadConfiguration(f).getKeys(false));
+        }
         DonationShop shop = DonationShop.parse(YamlConfiguration.loadConfiguration(PACK.resolve("donation_shop.yml").toFile()),
-                id -> id.startsWith("stsv:") && items.isConfigurationSection(id.substring(5)), problems::add);
+                id -> id.startsWith("stsv:") && items.contains(id.substring(5)), problems::add);
         assertTrue(problems.isEmpty(), String.join("\n", problems));
         assertFalse(shop.categories().isEmpty());
         assertFalse(shop.notice().isEmpty(), "how to donate, and that this is no official product, is said in the shop");
@@ -221,7 +224,8 @@ class DonationTest {
         for (DonationShop.Product p : shop.products().values()) {
             for (String u : p.unlocks()) {
                 String[] thing = dev.stsv.core.unlock.UnlockModule.split(u);
-                assertTrue(sold.add(u), u + " is sold twice");
+                // a thing is sold once on its own (and may be in a set as well)
+                if (p.unlocks().size() == 1) assertTrue(sold.add(u), u + " is sold twice");
                 switch (thing[0]) {
                     case "banner" -> assertTrue(banners.contains(thing[1]), p.id() + ": no banner theme " + thing[1]);
                     case "emote" -> {
