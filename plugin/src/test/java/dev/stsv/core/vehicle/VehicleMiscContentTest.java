@@ -95,7 +95,9 @@ class VehicleMiscContentTest {
             assertEquals(engine, s.engine() != null, id + ": engine");
             assertEquals(engine, s.horn() != null, id + ": horn");
             assertEquals(engine, s.water().exhaust() != null, id + ": a stack that smokes");
-            assertEquals(engine, tools.isConfigurationSection(id), id + ": a net from the 통통배 on");
+            assertTrue(tools.isConfigurationSection(id), id + ": every fishing boat has a net");
+            assertEquals(engine, tools.contains(id + ".tools") && tools.getMapList(id + ".tools").getFirst().containsKey("model"),
+                    id + ": a net that shows (a winch and a drum) from the 통통배 on; a hand net and pots show nothing");
             if (engine) {
                 assertEquals("stsv:vehicle." + id + ".horn", s.horn().sound());
                 assertEquals("stsv:vehicle." + id + ".engine", s.engine().sound());

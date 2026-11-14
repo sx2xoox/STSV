@@ -175,6 +175,8 @@ final class VehicleTools {
         /** seeds the land or a job refused lately (by kind): the next kind in the bed is sown instead */
         final Set<Object> refused = new HashSet<>();
         long refusedAt;
+        /** a boat's net: how long the boat has been slow enough for it (ticks) */
+        int slowTicks;
         /** the last notice and its key (a notice is not repeated for a while) */
         String said;
         long saidAt = -1000;
@@ -245,7 +247,8 @@ final class VehicleTools {
     /** The top speed while the tool is on (MAX_VALUE: no limit of its own). */
     static double speedCap(LiveVehicle v) {
         VehicleToolSpec.Tool t = tool(v);
-        return t == null || t.speed() <= 0 ? Double.MAX_VALUE : t.speed();
+        // (a net does not hold the boat back: it comes up by itself when the boat speeds off)
+        return t == null || t.speed() <= 0 || t.kind() == VehicleToolSpec.Kind.NET ? Double.MAX_VALUE : t.speed();
     }
 
     /** May the bed of this unit (1.. = a trailer, 0 = the vehicle's own) be opened with the tool on? */
@@ -255,12 +258,14 @@ final class VehicleTools {
 
     /** Taken into an item (or gone for good): it comes back as it was made. */
     void forget(long id) {
+        fished.remove(id);
         if (saved.remove(id) != null) store.delete(id);
     }
 
     /** " · Ctrl: 작업기 (쟁기)" for the driver's key hint, or "" for a vehicle without tools. */
     String keysHint(LiveVehicle v) {
         if (v.tool == null || v.tool.spec.tools().isEmpty()) return "";
+        if (v.tool.spec.auto()) return Lang.raw("vehicle-tool.net-keys");
         return Lang.raw("vehicle-tool.keys", "tool", name(v.tool, v.tool.mode));
     }
 
@@ -277,6 +282,10 @@ final class VehicleTools {
     void ctrl(LiveVehicle v, Player p) {
         State s = v.tool;
         if (s == null || s.spec.tools().isEmpty()) return;
+        if (s.spec.auto()) {   // a net goes down and comes up by itself
+            HudModule.flash(p, Lang.mm("vehicle-tool.net-auto"));
+            return;
+        }
         switch (ToolRules.maySwitch(v.st.speed, v.cargoViewer != null)) {
             case MOVING -> {
                 refuse(p, Lang.mm("vehicle-tool.switch-moving"));
@@ -323,6 +332,25 @@ final class VehicleTools {
             v.world.playSound(at, Sound.BLOCK_CHAIN_PLACE, SoundCategory.NEUTRAL, 0.9f, 0.7f);
             v.world.playSound(at, Sound.BLOCK_IRON_TRAPDOOR_CLOSE, SoundCategory.NEUTRAL, 0.6f, 0.8f);
         }
+    }
+
+    /** A boat's net goes down or comes up by itself (nothing is remembered: it follows the boat). */
+    private void net(LiveVehicle v, State s, boolean down) {
+        removeTool(s);
+        s.mode = down ? 1 : 0;
+        spawnTool(v);
+        Location at = new Location(v.world, v.st.x, v.st.y + 0.5, v.st.z);
+        v.world.playSound(at, down ? Sound.ENTITY_FISHING_BOBBER_SPLASH : Sound.ENTITY_FISHING_BOBBER_RETRIEVE, SoundCategory.NEUTRAL, 0.7f, down ? 0.7f : 0.8f);
+        if (down) for (Player p : aboard(v)) HudModule.flash(p, Lang.mm("vehicle-tool.net-down", "tool", s.tool().name()));
+    }
+
+    private static List<Player> aboard(LiveVehicle v) {
+        List<Player> out = new ArrayList<>();
+        for (int i = 0; i < v.seats.length; i++) {
+            Player p = v.rider(i);
+            if (p != null) out.add(p);
+        }
+        return out;
     }
 
     // ------------------------------------------------------------------------------------------
@@ -477,6 +505,13 @@ final class VehicleTools {
         if (s.broken()) {
             removed(v);
             spawned(v);
+        }
+        if (s.spec.auto()) {   // a boat's net: down while it stands or goes slowly with someone at the helm, up when it speeds off
+            VehicleToolSpec.Tool net = s.spec.tools().getFirst();
+            boolean afloat = v.boatMode == BoatPhysics.Mode.FLOAT;
+            s.slowTicks = driver != null && afloat && Math.abs(v.st.speed) <= ToolRules.netSpeed(net) ? Math.min(s.slowTicks + 1, 1_000_000) : 0;
+            boolean down = ToolRules.netDown(s.mode != 0, driver != null, afloat, v.st.speed, ToolRules.netSpeed(net), s.slowTicks);
+            if (down != (s.mode != 0)) net(v, s, down);
         }
         VehicleToolSpec.Tool t = s.tool();
         Display.Brightness b = VehicleModule.brightness(v.light);
@@ -724,8 +759,11 @@ final class VehicleTools {
     }
 
     // ------------------------------------------------------------------------------------------
-    // The net (통통배)
+    // The net (every fishing boat)
     // ------------------------------------------------------------------------------------------
+
+    /** boat -> the places its net fished lately (kept while the server runs) */
+    private final Map<Long, ToolRules.Spots> fished = new java.util.HashMap<>();
 
     /** How often a trawling net is looked into (ticks). */
     static final int NET_EVERY = 20;
@@ -742,6 +780,18 @@ final class VehicleTools {
         Block water = v.world.getBlockAt((int) Math.floor(stern[0]), wy, (int) Math.floor(stern[2]));
         if (water.getType() != Material.WATER) water = v.world.getBlockAt((int) Math.floor(v.st.x), wy, (int) Math.floor(v.st.z));
         if (water.getType() != Material.WATER) return;
+        ToolRules.Spots spots = fished.computeIfAbsent(v.id, k -> new ToolRules.Spots());
+        if (spots.spent(v.st.x, v.st.z, t.spot(), module.ticks())) {   // this place gave all it had: sail on
+            if (!"vehicle-tool.net-spent".equals(s.said) || module.ticks() - s.saidAt >= 20 * 20) {
+                s.said = "vehicle-tool.net-spent";
+                s.saidAt = module.ticks();
+                for (Player p : aboard(v)) {
+                    HudModule.flash(p, Lang.mm("vehicle-tool.net-spent", "blocks", String.valueOf((int) ToolRules.Spots.RADIUS)));
+                    p.playSound(p.getLocation(), Sound.BLOCK_NOTE_BLOCK_BASS, 0.5f, 0.7f);
+                }
+            }
+            return;
+        }
         ItemStack fish;
         try {
             int aboard = 0;
@@ -761,9 +811,15 @@ final class VehicleTools {
             return;
         }
         module.toolCargo(v);
-        v.world.spawnParticle(Particle.SPLASH, at, 12, 0.4, 0.1, 0.4, 0.1);
-        v.world.playSound(at, Sound.ENTITY_FISH_SWIM, SoundCategory.NEUTRAL, 0.8f, 1.1f);
-        HudModule.flash(driver, Lang.mm("vehicle-tool.net-catch", "fish", name, "count", in > 1 ? " ×" + in : ""));
+        int here = spots.caught(v.st.x, v.st.z, module.ticks());
+        v.world.spawnParticle(Particle.SPLASH, at, 24, 0.5, 0.15, 0.5, 0.1);
+        v.world.spawnParticle(Particle.FISHING, at, 8, 0.4, 0.05, 0.4, 0.02);
+        v.world.playSound(at, Sound.ENTITY_FISH_SWIM, SoundCategory.NEUTRAL, 0.9f, 1.1f);
+        v.world.playSound(at, Sound.ENTITY_ITEM_PICKUP, SoundCategory.NEUTRAL, 0.5f, 0.9f);
+        for (Player p : aboard(v)) {   // everyone aboard sees it come up, and how much this place has left
+            HudModule.flash(p, Lang.mm("vehicle-tool.net-catch", "fish", name, "count", in > 1 ? " ×" + in : "",
+                    "here", String.valueOf(Math.min(here, t.spot())), "cap", String.valueOf(t.spot())));
+        }
     }
 
     /** ItemStacks for {@link ToolRules#insert}. */

@@ -101,6 +101,12 @@ final class FishAuction implements Listener {
         return new Lot(slots, crates, foreign);
     }
 
+    /** Has this hold crates of catch (hauled before nets brought up fish again)? Only then is the auction a boat's menu. */
+    boolean has(Hauled h) {
+        Lot l = lot(h);
+        return !l.empty() || l.foreign() > 0;
+    }
+
     private Lot lot(Hauled h) {
         List<Object[]> hold = new ArrayList<>();
         ItemStack[] c = h.contents();

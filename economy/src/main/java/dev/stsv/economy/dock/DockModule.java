@@ -314,8 +314,8 @@ public final class DockModule extends EcoModule {
     /** A sneak + right-click on a bed (or a 지게 opened) inside a dock's zone: the sale menu instead. */
     private boolean bedClicked(Player p, Hauled h) {
         Dock d = dockOf(h);
-        if (d != null && d.kind() == DockLayout.Kind.PORT && FishAuction.boat(h)) {
-            auction.open(p, d, h);   // a boat moored in a harbour: the fish auction (위판)
+        if (d != null && d.kind() == DockLayout.Kind.PORT && FishAuction.boat(h) && auction.has(h)) {
+            auction.open(p, d, h);   // a boat with crates of catch left in its hold, moored in a harbour: the fish auction (위판)
             return true;
         }
         if (d != null) {

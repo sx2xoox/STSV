@@ -123,23 +123,12 @@ public final class FishingModule extends EcoModule implements WeeklyListener {
     }
 
     /**
-     * What a boat's net brings up (the core asks every net.seconds on average while it trawls): crates of catch of the sea
-     * it is in ({@link NetSpec}: by how far the nearest harbour is, never beyond the sea that boat's net is made for), more
-     * of them with more people aboard, each marked with the boat that hauled it ({@link #VESSEL}: only that boat's hold sells
-     * it, at a harbour). A boat whose net hauls no crates, or a world without a harbour: one fish as before
-     * ({@link #netCatch}). null = not the sea.
+     * What a boat's net brings up (the core asks, every net.seconds on average, while the net is down): one fish of that
+     * water ({@link #netCatch}). Nothing else: the crates of catch a net hauled in 3.66.0 (원양 조업, sold at a harbour's
+     * fish auction) were more than a fishing boat needs, and are no longer hauled; the ones still in a hold sell as before.
      */
     private ItemStack netHaul(Player p, Block water, dev.stsv.core.vehicle.NetHaul.Boat boat) {
-        double far = net.enabled() && eco.docks() != null ? harbourDistance(water) : -1;
-        NetSpec.Zone zone = far < 0 ? null : net.zoneFor(boat.item(), far);
-        if (zone == null) return netCatch(p, water);
-        boolean underground = water.getLightFromSky() == 0 && water.getY() < water.getWorld().getSeaLevel() - 8;
-        if (!FishSpec.SALT.contains(FishSpec.habitat(water.getBiome().getKey().asString(), underground))) return null;
-        int count = net.crates(boat.aboard(), rnd.nextDouble());
-        ItemStack it = Items.create(zone.item(), count).orElse(null);
-        if (it == null) return null;
-        it.editMeta(m -> m.getPersistentDataContainer().set(VESSEL, PersistentDataType.LONG, boat.id()));
-        return it;
+        return netCatch(p, water);
     }
 
     /** The boat a crate of catch was hauled by, or 0 (not a crate, or one that was handed out). */
@@ -150,15 +139,15 @@ public final class FishingModule extends EcoModule implements WeeklyListener {
     }
 
     /**
-     * One fish of the sea at this block for a driver trawling there (the core asks now and then, far less often than a rod
-     * bites): a common or uncommon fish of that water at any time, as a 통발 catches them (never rare, legend, a pearl or a
-     * special). A fisher gets their usual touch: more uncommons (jobs.yml trap-uncommon), two of the fish the job doubles at
-     * its level, and the job's trap experience. null = not the sea (rivers, lakes, swamps, caves catch nothing).
+     * One fish of the water at this block for the one at the helm of a boat whose net is down: a common or uncommon fish
+     * of that water at any time, as a 통발 catches them (never rare, legend, a pearl or a special). The sea, a river, a lake
+     * or a swamp alike (a raft fishes a river). A fisher gets their usual touch: more uncommons (jobs.yml trap-uncommon),
+     * two of the fish the job doubles at its level, and the job's trap experience. null = a cave's water (no boat's place).
      */
     private ItemStack netCatch(Player p, Block water) {
         boolean underground = water.getLightFromSky() == 0 && water.getY() < water.getWorld().getSeaLevel() - 8;
         String habitat = FishSpec.habitat(water.getBiome().getKey().asString(), underground);
-        if (!FishSpec.SALT.contains(habitat)) return null;
+        if (habitat.equals("cave")) return null;
         UUID u = p.getUniqueId();
         List<FishSpec.Rarity> rarities = new ArrayList<>(spec.rarities().values());
         if (rarities.size() < 2) return null;

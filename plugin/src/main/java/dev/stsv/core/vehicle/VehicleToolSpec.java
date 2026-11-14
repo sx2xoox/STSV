@@ -35,7 +35,8 @@ import java.util.function.Predicate;
  * shutter: { model: ..., inside: ..., at: [...], scale: 2.5, rolled: 0.08, ticks: 14 }   # a rear roller door (the 탑차)
  * </pre>
  *
- * net:   { seconds: 40 }   how long on average between catches while trawling (kind net)
+ * net:   { seconds: 40, spot: 8 }   how long on average between catches, and how many at one place (kind net: it goes down
+ *                           and comes up by itself, no Ctrl; its model may be left out: a hand net that shows nothing)
  * cover: { fold: 0.12, ticks: 12 }   how far the cover folds up when taken off (its length's share), how long it takes
  *
  * @param base    the name of the vehicle without a tool
@@ -52,7 +53,7 @@ public record VehicleToolSpec(String base, List<Tool> tools, Shutter shutter) {
         SOW,
         /** the ripe crops it passes are harvested into the bed (and planted again) */
         HARVEST,
-        /** trawling slowly on the sea, a common or uncommon fish now and then goes into the hold */
+        /** a boat's net: standing or going slowly on the water, a fish now and then goes into the hold (so many at one place) */
         NET,
         /** a cover over the bed (looks only: the load is hidden under it) */
         COVER;
@@ -78,12 +79,14 @@ public record VehicleToolSpec(String base, List<Tool> tools, Shutter shutter) {
      * @param replaces it takes that trailer's place: the trailer's body and load are hidden and its bed cannot be opened
      *                 (what it holds stays), its wheels too unless keepWheels
      * @param speed    top speed while it is attached (0 = the vehicle's own)
+     * @param model    what it looks like on (null: a NET that shows nothing, a hand net)
      * @param seconds  NET: the average seconds between catches
+     * @param spot     NET: how many fish one place gives (ToolRules.Spots)
      * @param fold     COVER: its length's share when taken off (folded at the front)
      * @param ticks    COVER: how long it takes to unfold or fold
      */
     public record Tool(String id, String name, Kind kind, int unit, boolean replaces, boolean keepWheels, NamespacedKey model,
-                       VehicleSpec.Vec at, float scale, List<Part> parts, Work work, double speed, double seconds, double fold, int ticks) {}
+                       VehicleSpec.Vec at, float scale, List<Part> parts, Work work, double speed, double seconds, int spot, double fold, int ticks) {}
 
     /** The 탑차's rear roller door: the slats (rolled up about their top), the open doorway behind them, how long it takes. */
     public record Shutter(NamespacedKey model, NamespacedKey inside, VehicleSpec.Vec at, float scale, double rolled, int ticks) {}
@@ -98,6 +101,14 @@ public record VehicleToolSpec(String base, List<Tool> tools, Shutter shutter) {
         if (id == null) return 0;
         for (int i = 0; i < tools.size(); i++) if (tools.get(i).id().equals(id)) return i + 1;
         return 0;
+    }
+
+    /**
+     * A boat's net and nothing else: it is not switched with Ctrl but goes down by itself while the boat stands or goes
+     * slowly with someone at the helm, and comes up when it speeds off ({@link ToolRules#netDown}).
+     */
+    public boolean auto() {
+        return tools.size() == 1 && tools.getFirst().kind() == Kind.NET;
     }
 
     /** How many modes there are (the vehicle as it comes and each tool). */
@@ -115,7 +126,7 @@ public record VehicleToolSpec(String base, List<Tool> tools, Shutter shutter) {
     public List<NamespacedKey> models() {
         List<NamespacedKey> out = new ArrayList<>();
         for (Tool t : tools) {
-            out.add(t.model());
+            if (t.model() != null) out.add(t.model());
             for (Part p : t.parts()) out.add(p.model());
         }
         if (shutter != null) {
@@ -156,6 +167,7 @@ public record VehicleToolSpec(String base, List<Tool> tools, Shutter shutter) {
         }
         if (tools.isEmpty() && shutter == null) throw new IllegalArgumentException("tools 도 shutter 도 없음");
         if (tools.stream().filter(t -> t.kind() == Kind.COVER).count() > 1) throw new IllegalArgumentException("tools: cover 는 하나만");
+        if (tools.size() > 1 && tools.stream().anyMatch(t -> t.kind() == Kind.NET)) throw new IllegalArgumentException("tools: 그물(net)은 혼자만 (저절로 오르내림)");
         return new VehicleToolSpec(base, List.copyOf(tools), shutter);
     }
 
@@ -201,9 +213,12 @@ public record VehicleToolSpec(String base, List<Tool> tools, Shutter shutter) {
         double speed = t.getDouble("speed", 0);
         if (speed < 0 || speed > 20) throw new IllegalArgumentException(what + ".speed 는 0 ~ 20 (블록/초, 0 = 탈것 그대로)");
         double seconds = 0;
+        int spot = 0;
         if (kind == Kind.NET) {
             seconds = t.getDouble("net.seconds", 40);
             if (seconds < 5 || seconds > 3600) throw new IllegalArgumentException(what + ".net.seconds 는 5 ~ 3600");
+            spot = t.getInt("net.spot", 8);
+            if (spot < 1 || spot > 1000) throw new IllegalArgumentException(what + ".net.spot 은 1 ~ 1000 (한 자리에서 잡히는 마릿수)");
         }
         double fold = 1;
         int ticks = 0;
@@ -214,8 +229,9 @@ public record VehicleToolSpec(String base, List<Tool> tools, Shutter shutter) {
             if (ticks < 1 || ticks > 60) throw new IllegalArgumentException(what + ".cover.ticks 는 1 ~ 60");
         }
         return new Tool(id, t.getString("name", id), kind, unit, replaces, t.getBoolean("wheels", false),
-                model(t.getString("model"), what + ".model", namespace, modelExists), t.contains("at") ? vec(t, "at", what + ".at")
-                : new VehicleSpec.Vec(0, 0, 0), scale(t, what + ".scale"), List.copyOf(parts), work, speed, seconds, fold, ticks);
+                kind == Kind.NET && !t.contains("model") ? null : model(t.getString("model"), what + ".model", namespace, modelExists),
+                t.contains("at") ? vec(t, "at", what + ".at") : new VehicleSpec.Vec(0, 0, 0), scale(t, what + ".scale"), List.copyOf(parts), work,
+                speed, seconds, spot, fold, ticks);
     }
 
     /**

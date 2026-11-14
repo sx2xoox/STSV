@@ -46,10 +46,101 @@ public final class ToolRules {
         return tool != null && tool.kind().works() && driven && speed > 0.2;
     }
 
-    /** Does a net catch while it goes this fast on open water (not standing, not faster than trawling)? */
+    /** The speed up to which a net fishes (its speed, 3 blocks a second if it names none). */
+    public static double netSpeed(VehicleToolSpec.Tool tool) {
+        return tool.speed() > 0 ? tool.speed() : 3;
+    }
+
+    /**
+     * Does a net catch now: someone at the helm, afloat, standing or going no faster than the net fishes? (Standing counts:
+     * the people aboard fish with rods meanwhile, and a rod's line breaks 32 blocks from its float. What keeps a boat
+     * left alone from fishing all day is {@link Spots}.)
+     */
     public static boolean trawling(VehicleToolSpec.Tool tool, boolean driven, boolean afloat, double speed) {
-        double top = tool.speed() > 0 ? tool.speed() : 3;
-        return tool.kind() == VehicleToolSpec.Kind.NET && driven && afloat && Math.abs(speed) > 0.3 && Math.abs(speed) <= top + 0.05;
+        return tool.kind() == VehicleToolSpec.Kind.NET && driven && afloat && Math.abs(speed) <= netSpeed(tool) + 0.05;
+    }
+
+    /**
+     * Is a boat's net down? It is not switched by hand: it goes down once the boat has stood or gone slowly for a moment
+     * with someone at the helm, and comes up when the boat speeds off, runs aground or the helm is left.
+     *
+     * @param down      is it down now
+     * @param slowTicks how long the boat has been slow enough (ticks)
+     */
+    public static boolean netDown(boolean down, boolean driven, boolean afloat, double speed, double top, int slowTicks) {
+        if (!driven || !afloat) return false;
+        double v = Math.abs(speed);
+        return down ? v <= top + 0.5 : v <= top && slowTicks >= NET_SETTLE;
+    }
+
+    /** How long a boat goes slowly before its net goes down (ticks): not at every touch of the brake. */
+    public static final int NET_SETTLE = 40;
+
+    /**
+     * The places a boat's net fished lately. One place (everything within {@link #RADIUS} blocks of where its first fish
+     * came up) gives so many fish and then no more, for as long as the boat stays or keeps coming back: it fills again
+     * only after the boat has let it be for {@link #REST} ticks. So a boat fishes a place for a few minutes, with or
+     * without moving, and then has to sail on; one left standing with someone asleep at the helm catches a handful.
+     */
+    public static final class Spots {
+        public static final double RADIUS = 48;
+        public static final long REST = 20L * 60 * 10;
+        static final int KEEP = 16;
+
+        private static final class Spot {
+            final double x, z;
+            int count;
+            long last;
+
+            Spot(double x, double z, long now) {
+                this.x = x;
+                this.z = z;
+                this.last = now;
+            }
+        }
+
+        private final ArrayList<Spot> spots = new ArrayList<>();
+
+        private Spot at(double x, double z) {
+            Spot best = null;
+            double d = RADIUS * RADIUS;
+            for (Spot s : spots) {
+                double q = (s.x - x) * (s.x - x) + (s.z - z) * (s.z - z);
+                if (q <= d) {
+                    d = q;
+                    best = s;
+                }
+            }
+            return best;
+        }
+
+        /**
+         * Is this place fished out for a net that takes `cap` fish from one place? Asking is fishing: a boat that keeps
+         * its net in a place that gave all it had keeps it empty.
+         */
+        public boolean spent(double x, double z, int cap, long now) {
+            Spot s = at(x, z);
+            if (s == null || s.count < cap) return false;
+            if (now - s.last >= REST) {
+                s.count = 0;
+                return false;
+            }
+            s.last = now;
+            return true;
+        }
+
+        /** One fish came up here: how many this place has given now (1 = its first). */
+        public int caught(double x, double z, long now) {
+            Spot s = at(x, z);
+            if (s == null) {
+                s = new Spot(x, z, now);
+                spots.add(s);
+                if (spots.size() > KEEP) spots.removeFirst();
+            }
+            s.count++;
+            s.last = now;
+            return s.count;
+        }
     }
 
     /** The chance of a catch on one check, checks `every` ticks apart, a catch every `seconds` on average. */

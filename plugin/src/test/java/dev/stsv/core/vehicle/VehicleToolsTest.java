@@ -57,9 +57,10 @@ class VehicleToolsTest {
     @Test
     void theShippedToolsReadAndFitTheirVehicles() {
         Map<String, VehicleToolSpec> t = shipped();
-        assertEquals(List.of("ox_cart", "power_tiller", "tractor_trailer", "fishing_boat", "coastal_boat", "trawler", "light_truck", "box_truck"),
+        assertEquals(List.of("ox_cart", "power_tiller", "tractor_trailer", "raft", "rowboat", "fishing_boat", "coastal_boat", "trawler", "light_truck", "box_truck"),
                 List.copyOf(t.keySet()));
         Map<String, String> files = Map.of("ox_cart", "vehicles_farm.yml", "power_tiller", "vehicles_farm.yml", "tractor_trailer", "vehicles_farm.yml",
+                "raft", "vehicles_misc.yml", "rowboat", "vehicles_misc.yml",
                 "fishing_boat", "vehicles_misc.yml", "coastal_boat", "vehicles_misc.yml", "trawler", "vehicles_misc.yml",
                 "light_truck", "vehicles.yml", "box_truck", "vehicles_road.yml");
         for (var e : t.entrySet()) {
@@ -91,19 +92,27 @@ class VehicleToolsTest {
         }
         assertTrue(tr.tool(3).work().at().forward() > 1.5, "the harvester's header is in front");
         assertTrue(tr.tool(1).work().at().forward() < -1.5, "the rotary behind");
-        // 통통배: the net, much slower than a rod (a rod bites every ~12 s)
-        VehicleToolSpec.Tool net = t.get("fishing_boat").tool(1);
-        assertEquals(VehicleToolSpec.Kind.NET, net.kind());
-        assertTrue(net.seconds() >= 30);
-        // the ladder: the 연안 어선 and the 트롤 어선 haul more often, still slower than a rod
-        double before = net.seconds();
-        for (String boat : List.of("coastal_boat", "trawler")) {
+        // the five fishing boats: each a net that goes down by itself (nothing to switch), slower than a rod (a rod bites
+        // every ~12 s); up the ladder it catches more often and a place gives more, and a place lasts about four minutes
+        double before = Double.MAX_VALUE;
+        int spot = 0;
+        for (String boat : List.of("raft", "rowboat", "fishing_boat", "coastal_boat", "trawler")) {
+            assertTrue(t.get(boat).auto(), boat);
             VehicleToolSpec.Tool n = t.get(boat).tool(1);
             assertEquals(VehicleToolSpec.Kind.NET, n.kind(), boat);
             assertTrue(n.seconds() < before && n.seconds() >= 15, boat + ": " + n.seconds());
-            assertTrue(n.speed() <= 3, boat + " trawls slowly");
+            assertTrue(n.spot() > spot, boat + ": " + n.spot());
+            assertTrue(n.speed() <= 3, boat + " fishes slowly");
+            double minutes = n.seconds() * n.spot() / 60;
+            assertTrue(minutes >= 3 && minutes <= 5, boat + ": a place lasts " + minutes + " minutes");
             before = n.seconds();
+            spot = n.spot();
         }
+        // the raft's hand net and the rowboat's pots show nothing; the bigger boats' nets are models
+        assertNull(t.get("raft").tool(1).model());
+        assertNull(t.get("rowboat").tool(1).model());
+        assertNotNull(t.get("trawler").tool(1).model());
+        assertFalse(t.get("tractor_trailer").auto());
         // 1톤 트럭: the tarp; 탑차: only the roller door (nothing to switch)
         assertNotNull(t.get("light_truck").cover());
         assertTrue(t.get("box_truck").tools().isEmpty());
@@ -179,17 +188,66 @@ class VehicleToolsTest {
     }
 
     @Test
-    void theNetCatchesOnlyTrawlingSlowlyAfloat() {
+    void theNetCatchesStandingOrSlowAfloat() {
         VehicleToolSpec.Tool net = shipped().get("fishing_boat").tool(1);
         assertTrue(ToolRules.trawling(net, true, true, 2.5));
-        assertFalse(ToolRules.trawling(net, true, true, 0), "standing still");
+        assertTrue(ToolRules.trawling(net, true, true, 0), "standing still: the crew fishes with rods meanwhile");
         assertFalse(ToolRules.trawling(net, true, true, 6), "too fast");
-        assertFalse(ToolRules.trawling(net, true, false, 2), "aground or on ice");
-        assertFalse(ToolRules.trawling(net, false, true, 2), "nobody driving");
+        assertFalse(ToolRules.trawling(net, true, false, 0), "aground or on ice");
+        assertFalse(ToolRules.trawling(net, false, true, 0), "nobody at the helm");
         // a catch every net.seconds on average: one check a second
         double p = ToolRules.catchChance(net.seconds(), 20);
         assertEquals(1.0 / net.seconds(), p, 1e-9);
-        assertTrue(3600 * p < 120, "fewer than 120 fish an hour (a rod: about 300)");
+        for (String boat : List.of("raft", "rowboat", "fishing_boat", "coastal_boat", "trawler")) {
+            double hour = 3600 / shipped().get(boat).tool(1).seconds();
+            assertTrue(hour <= 240, boat + ": at most 240 fish an hour without a pause (a rod: about 300)");
+        }
+    }
+
+    @Test
+    void theNetGoesDownAndComesUpByItself() {
+        double top = 3;
+        int settled = ToolRules.NET_SETTLE;
+        assertFalse(ToolRules.netDown(false, true, true, 0, top, settled - 1), "not at every touch of the brake");
+        assertTrue(ToolRules.netDown(false, true, true, 0, top, settled), "standing a moment: down");
+        assertTrue(ToolRules.netDown(false, true, true, 2.9, top, settled), "going slowly: down");
+        assertFalse(ToolRules.netDown(false, true, true, 3.2, top, settled));
+        assertTrue(ToolRules.netDown(true, true, true, 3.3, top, 0), "down: it stays down a little above its speed");
+        assertFalse(ToolRules.netDown(true, true, true, 4, top, 0), "speeding off: up");
+        assertTrue(ToolRules.netDown(true, true, true, -2, top, 0), "backing up slowly");
+        assertFalse(ToolRules.netDown(true, false, true, 0, top, 999), "nobody at the helm: up");
+        assertFalse(ToolRules.netDown(true, true, false, 0, top, 999), "aground: up");
+    }
+
+    @Test
+    void aPlaceGivesSoManyFishAndThenTheBoatSailsOn() {
+        ToolRules.Spots s = new ToolRules.Spots();
+        int cap = 3;
+        long t = 0;
+        // three fish at one place (drifting about inside it counts as the same place)
+        assertFalse(s.spent(0, 0, cap, t));
+        assertEquals(1, s.caught(0, 0, t));
+        assertEquals(2, s.caught(20, -10, t += 200));
+        assertFalse(s.spent(30, 0, cap, t));
+        assertEquals(3, s.caught(30, 0, t += 200));
+        // fished out, and it stays so while the boat stays: a boat left there for a day gets nothing more
+        for (int i = 0; i < 24 * 60; i++) assertTrue(s.spent(5, 5, cap, t += 1200), "minute " + i);
+        // sailing on: a new place more than the radius away
+        double far = ToolRules.Spots.RADIUS + 1;
+        assertFalse(s.spent(far, 0, cap, t));
+        assertEquals(1, s.caught(far, 0, t));
+        // coming straight back: still empty
+        assertTrue(s.spent(0, 0, cap, t += 100));
+        // left alone long enough, it fills again
+        assertFalse(s.spent(0, 0, cap, t + ToolRules.Spots.REST));
+        assertEquals(1, s.caught(0, 0, t + ToolRules.Spots.REST));
+        // a bigger net takes more from the same place
+        ToolRules.Spots big = new ToolRules.Spots();
+        for (int i = 1; i <= 14; i++) {
+            assertFalse(big.spent(0, 0, 14, i));
+            assertEquals(i, big.caught(0, 0, i));
+        }
+        assertTrue(big.spent(0, 0, 14, 20));
     }
 
     @Test
