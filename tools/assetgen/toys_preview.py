@@ -16,12 +16,19 @@ way, to compare sizes with. Columns:
                 player's field of view), 16 : 9. No arm: the game draws none while an item is held.
 
 A display transform puts a model point p at  translation + R * scale * (p - (8, 8, 8)),  R = Rx * Ry * Rz.
+The fishing rod's rows also show where the client starts the fishing line (a pink dot, a dark line going out from it):
+third person at (0.35 to the hand's side, 0.8 forward, 0.45 under the eyes) blocks, first person through the screen
+point 52.5 % right of the middle and 10 % under it, whatever the field of view. A vanilla rod's tip is there (the left
+player holds the plain sprite as a rod); the toy rod is fitted to the same tip (models/toys.py ROD_TIP).
+The float's row shows it on the water as an item display would hold it (scale 0.9, its blue band on the surface),
+beside the half-block square the game draws its own bobber in.
 These pictures are computed from the transforms, not taken in the game.
 """
 
 import base64
 import io
 import json
+import math
 import subprocess
 import sys
 from pathlib import Path
@@ -43,7 +50,7 @@ FACES = ("north", "east", "south", "west", "up", "down")
 ROWS = [
     ("toy_sword", "장난감 검"), ("toy_pickaxe", "장난감 곡괭이"), ("toy_shovel", "장난감 삽"), ("toy_axe", "장난감 도끼"),
     ("toy_hoe", "장난감 괭이"), ("toy_fishing_rod", "장난감 낚싯대"), ("toy_fishing_rod_cast", "낚싯대 (던진 뒤)"),
-    ("party_firework", "파티 폭죽 발사기"),
+    ("toy_bobber", "장난감 찌 (찌에 태우는 모델)"), ("party_firework", "파티 폭죽 발사기"),
 ]
 GAP = 3000.0     # between the pieces of the one scene the renderer draws (each view looks at its own)
 
@@ -56,7 +63,9 @@ def _flat(rgb):
 
 
 EXTRA = {"pv_skin": _flat((198, 152, 120)), "pv_shirt": _flat((60, 150, 160)), "pv_legs": _flat((62, 66, 140)), "pv_hair": _flat((70, 46, 30)),
-         "pv_slot": _flat((55, 58, 68)), "pv_slot_rim": _flat((32, 34, 40)), "pv_grey": _flat((150, 156, 165)), "pv_wood": _flat((112, 78, 44))}
+         "pv_slot": _flat((55, 58, 68)), "pv_slot_rim": _flat((32, 34, 40)), "pv_grey": _flat((150, 156, 165)), "pv_wood": _flat((112, 78, 44)),
+         "pv_mark": _flat((255, 70, 200)), "pv_line": _flat((16, 16, 20)), "pv_water": _flat((52, 110, 200)), "pv_quad": _flat((200, 204, 212)),
+         "pv_red": _flat((200, 40, 36)), "pv_white": _flat((236, 236, 236))}
 
 
 def _box(frm, to, tex):
@@ -64,8 +73,9 @@ def _box(frm, to, tex):
             "faces": {f: {"uv": [0, 0, 16, 16], "texture": tex} for f in FACES}}
 
 
-def sprite():
-    """A 16 x 16 sprite's worth of sword, one unit thick, on the diagonal a vanilla tool is drawn on: the size to compare with."""
+def sprite(rod=False):
+    """A 16 x 16 sprite's worth of sword, one unit thick, on the diagonal a vanilla tool is drawn on: the size to compare with.
+    rod: held the way a fishing rod is (its tip, the sprite's (14.5, 14.5), is where the fishing line starts)."""
     m = Model("pv_sprite")
     cells = {(2, 2): "w", (3, 3): "w", (4, 4): "w", (3, 6): "w", (4, 5): "w", (5, 5): "w", (6, 4): "w", (6, 3): "w", (5, 6): "w"}
     for i in range(6, 14):
@@ -76,8 +86,57 @@ def sprite():
     for (x, y), c in cells.items():
         m.box("px", (x, y, 7.5), (x + 1, y + 1, 8.5), "dev_grey")
         m.elements[-1]["pv"] = "pv_grey" if c == "g" else "pv_wood"
-    m.display = {**presets.HANDHELD, "gui": {"rotation": [0, 0, 0], "translation": [0, 0, 0], "scale": [1, 1, 1]}}
+    m.display = {**(presets.HANDHELD_ROD if rod else presets.HANDHELD), "gui": {"rotation": [0, 0, 0], "translation": [0, 0, 0], "scale": [1, 1, 1]}}
     return m
+
+
+def line_third(o):
+    """Where the fishing line starts on a standing player at o (FishingHookRenderer: 0.35 to the side, 0.8 forward, 0.45
+    under the eyes at 1.62; a block is 16 / 0.9375 of the player model's units), and a piece of line going out and down."""
+    k = 16 / 0.9375
+    at = [o[0] + 0.35 * k, o[1] + (1.62 - 0.45) * k, o[2] - 0.8 * k]
+    dot = _box([v - 0.45 for v in at], [v + 0.45 for v in at], "pv_mark")
+    dot["glow"] = True
+    line = _box((at[0] - 0.12, at[1] - 0.12, at[2] - 40), (at[0] + 0.12, at[1] + 0.12, at[2]), "pv_line")
+    line["post"] = [["x", -22, at]]
+    return [dot, line]
+
+
+def line_first(o, aspect):
+    """The same for the player's own eyes: the point of the near plane 52.5 % right of the middle and 10 % under it, 960 / fov
+    times as far (so the same place on the screen at any field of view; drawn here at the hand's 70)."""
+    t, d = math.tan(math.radians(35)), 960 / 70
+    at = [o[0] + 0.525 * 0.05 * t * aspect * d * 16, o[1] - 0.1 * 0.05 * t * d * 16, o[2] - 0.05 * d * 16]
+    dot = _box([v - 0.11 for v in at], [v + 0.11 for v in at], "pv_mark")
+    dot["glow"] = True
+    line = _box((at[0] - 0.03, at[1] - 0.03, at[2] - 300), (at[0] + 0.03, at[1] + 0.03, at[2]), "pv_line")
+    line["post"] = [["x", -5, at], ["y", 9, at]]
+    return [dot, line]
+
+
+BOBBER_SCALE = 0.9     # the item display's scale the float is meant for: 0.34 blocks across, 0.62 high
+
+
+def on_water(m, o):
+    """The float as an item display holds it on the hook: its waterline on the surface (y = 0), the half-block square the
+    game draws its own bobber in round it and, beside it, that square with a bobber the size of the game's."""
+    s, az = BOBBER_SCALE, 200
+    els = placed(elements(m), {"rotation": [0, 0, 0], "translation": [0, 0, 0], "scale": [s, s, s]},
+                 (o[0], o[1] + s * (8 - toys.BOBBER_WATERLINE), o[2]))
+    water = _box((o[0] - 20, o[1] - 7, o[2] - 12), (o[0] + 30, o[1], o[2] + 12), "pv_water")
+    water["opacity"] = 0.5
+    els.append(water)
+    for cx, alpha in ((o[0], 0.22), (o[0] + 15, 0.4)):
+        quad = _box((cx - 4, o[1] - 4, o[2] - 0.05), (cx + 4, o[1] + 4, o[2] + 0.05), "pv_quad")
+        quad["opacity"] = alpha
+        quad["post"] = [["y", 180 - az, [cx, o[1], o[2]]]]
+        els.append(quad)
+    cx = o[0] + 15
+    for y0, y1, hw, tex in ((0.25, 2.25, 1.0, "pv_red"), (-1.75, 0.25, 1.0, "pv_white"), (2.25, 3.0, 0.5, "pv_red"), (-2.5, -1.75, 0.5, "pv_white")):
+        e = _box((cx - hw, o[1] + y0, o[2] + 0.06), (cx + hw, o[1] + y1, o[2] + 0.2), tex)
+        e["post"] = [["y", 180 - az, [cx, o[1], o[2]]]]
+        els.append(e)
+    return els, {"az": az, "el": 12, "center": [o[0] + 7.5, o[1] + 1.5, o[2]], "radius": 11, "k": 5.9, "fov": 20, "far": 2000}
 
 
 def elements(m):
@@ -147,6 +206,7 @@ def in_slot(m, o):
 
 def main(out):
     models = [sprite()] + [toys.ALL[n]() for n, _ in ROWS]
+    rod_sprite = sprite(rod=True)
     labels = ["바닐라 크기 (16 x 16 스프라이트, 비교용)"] + [f"{t}  ·  stsv:{n}" for n, t in ROWS]
     textures = dict(EXTRA)
     for m in models[1:]:
@@ -168,18 +228,25 @@ def main(out):
         ys = [p[1] for p in toys.corners(m)] if m.name != "pv_sprite" else [2, 15]
         views.append({"x": W_SLOT, "y": y0 + 30, "w": W_Q, "h": H - 30, "az": 212, "el": 16,
                       "center": [o2[0], o2[1] + (min(ys) + max(ys)) / 2 - 8, o2[2]], "radius": (max(ys) - min(ys)) / 2 + 2.5, "k": 5.7, "fov": 20, "far": 2000})
-        # in the hand
         o3 = (r * GAP, 0.0, 2 * GAP)
-        els += player(o3) + in_hand(m, o3)
+        o4 = (r * GAP, 0.0, 3 * GAP)
+        if m.name == "toy_bobber":
+            # on the water, as the item display on the hook shows it
+            scene, view = on_water(m, o3)
+            els += scene
+            views.append({"x": W_SLOT + W_Q, "y": y0, "w": W_HAND, "h": H, **view})
+            continue
+        # in the hand
+        rod = m.name.startswith("toy_fishing_rod")
+        els += player(o3) + in_hand(m, o3) + (line_third(o3) if rod else [])
         if r:
             # the same player with the plain sprite, to the left of this one in the picture (the camera looks from az 58)
             o3b = (o3[0] + 17.0, 0.0, o3[2] + 27.2)
-            els += player(o3b) + in_hand(models[0], o3b)
+            els += player(o3b) + in_hand(rod_sprite if rod else models[0], o3b) + (line_third(o3b) if rod else [])
         views.append({"x": W_SLOT + W_Q, "y": y0, "w": W_HAND, "h": H, "az": 58, "el": 10,
                       "center": [o3[0] + (11.5 if r else 3), 17, o3[2] + (5.6 if r else -8)], "radius": 25, "k": 5.9, "fov": 20, "far": 2000})
         # own eyes
-        o4 = (r * GAP, 0.0, 3 * GAP)
-        els += first_person(m, o4)
+        els += first_person(m, o4) + (line_first(o4, 430 / 242) if rod else [])
         views.append({"x": W_SLOT + W_Q + W_HAND + 10, "y": y0 + 4, "w": 430, "h": 242, "az": 180, "el": 0, "center": [o4[0], 0, o4[2] - 16],
                       "radius": 16, "k": 1, "fov": 70, "near": 0.8, "far": 600})
     BUILD.mkdir(exist_ok=True)
@@ -199,6 +266,14 @@ def main(out):
         y0 = TOP + r * H
         d.line((0, y0, width, y0), fill=(52, 56, 66))
         d.text((W_SLOT + 12, y0 + 8), label, fill=(225, 228, 235), font=small)
+        if models[r].name == "toy_bobber":
+            x = W_SLOT + W_Q + W_HAND + 20
+            for k, text in enumerate(("물 위: 파란 띠가 수면 (scale 0.9)", "옅은 네모 = 원래 찌가 그려지는 0.5블록 칸",
+                                      "오른쪽 = 원래 찌 크기 (어림)")):
+                d.text((x, y0 + 70 + k * 30), text, fill=(185, 190, 200), font=small)
+            continue
+        if models[r].name.startswith("toy_fishing_rod"):
+            d.text((W_SLOT + W_Q + W_HAND + 20, y0 + 10), "분홍 점 = 낚싯줄이 시작되는 자리", fill=(255, 130, 215), font=small)
         d.rectangle((W_SLOT + W_Q + W_HAND + 9, y0 + 3, W_SLOT + W_Q + W_HAND + 440, y0 + 246), outline=(70, 74, 86))
     sheet.save(out, optimize=True)
     print("toy tools", out)
