@@ -56,8 +56,8 @@ LAMPS = {
     # vehicles_premium.py hyper_car: a thin running light low on each corner of the nose, one lamp the width of the tail
     "hyper_car": dict(scale=2.0, head=lens(10, 15.5, 4.5, 5.5, -37.25), tail=lens(-15, 15, 10, 11, 37.25, False, False),
                       body=("vehicles", "hyper_car")),
-    # grand_sedan: a slim lamp each side of the radiator, slim tail lamps
-    "grand_sedan": dict(scale=2.0, head=lens(6.5, 14, 13, 16.5, -42.5), tail=lens(7, 14, 12.5, 16.5, 42.5),
+    # grand_sedan: a slim smoked lamp each side of the radiator (a bar of light along its top), slim tail lamps
+    "grand_sedan": dict(scale=2.0, head=lens(8, 14.5, 14, 17, -42.5), tail=lens(7, 14, 12.5, 16.5, 42.5),
                         body=("vehicles", "grand_sedan")),
     # luxury_suv (the monster off-roader: its body stands 16 px higher than it is drawn, lift): round lamps beside
     # the grille, tall narrow tail lamps low on the back's corners

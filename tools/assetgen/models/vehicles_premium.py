@@ -399,11 +399,11 @@ def wheel_grand():
     return _wheel("wheel_grand", 16, 5, cap="blade", cap_d=13, spokes=12, lip="blade")
 
 
-def grand_sedan(colour="pearl", upper=None, leather="cream", name="grand_sedan"):
-    return grand_kit(colour, upper, leather, name).body
+def grand_sedan(colour="pearl", upper=None, leather="cream", name="grand_sedan", front="slim"):
+    return grand_kit(colour, upper, leather, name, front).body
 
 
-def grand_kit(colour="pearl", upper=None, leather="cream", name="grand_sedan"):
+def grand_kit(colour="pearl", upper=None, leather="cream", name="grand_sedan", front="slim"):
     """A grand saloon, long and low on wheels a block tall. A long hood with a raised middle runs to a nose that
     drops a little and is cut in at its corners; a tall chrome radiator shell of fine slats stands proud of the nose
     and above the hood, slim bright lamps each side of it, a dark intake under each with a chrome blade. The sides
@@ -415,11 +415,18 @@ def grand_kit(colour="pearl", upper=None, leather="cream", name="grand_sedan"):
 
     Its parts: four doors (door_fl, door_fr, door_rl, door_rr: the front ones hinged at their front edge, the rear
     ones at their rear edge, so a pair opens from the middle like a cabinet) and mascot (down in the radiator shell
-    until the engine runs)."""
+    until the engine runs).
+
+    front: the face. "slim": a tall shell of bright vanes on black with a double vane down its middle, set off from
+    the paint by a black surround, and beside it a slim smoked lamp, a bar of light along its top that turns the
+    corner. "round": a wider, lower shell of fine mesh with a bright bar down its middle, a large round lamp in a
+    chrome ring each side and a small round one under it."""
     kit = Kit(name, ("door_fl", "door_fr", "door_rl", "door_rr", "mascot"))
     m = kit.body
     DOORS = {(-1, 0): kit["door_fl"], (1, 0): kit["door_fr"], (-1, 1): kit["door_rl"], (1, 1): kit["door_rr"]}
     DZ = ((-16, 2), (2, 17))           # the front and the rear door: between their seams
+    slim = front != "round"
+    GW = 7                             # the radiator shell's half width
     C, U = colour, upper or colour
     two = U != C
     PAINT = Paint(C, 2, noise=0, grad=0)
@@ -491,11 +498,11 @@ def grand_kit(colour="pearl", upper=None, leather="cream", name="grand_sedan"):
         if c.face == "north":
             if well(p):
                 return ("rubber", 0)
-            if z < -L + TIP + 0.1 and 4 <= fy <= 8 and 6.5 <= ax < 13.5:
-                # an intake each side under the lamps: dark mesh, a chrome blade across it
-                if fy == 6:
-                    return ("blade", 3.8)
-                return ("rubber", 0 if (fx + fy) % 2 else 1)
+            if z < -L + TIP + 0.1 and 5 <= fy <= 7 and GW + 1 <= ax < 13.5:
+                # an intake each side under the lamps: a dark slot under a bright lip
+                if not slim and math.hypot(ax - 11, y - 7) < 2.4:
+                    return (C, 0.9)                             # round: the small lamp's own recess
+                return ("blade", 4.2) if fy == 7 else ("rubber", 0 if fy < 6 else 1)
             if fy == SILL:
                 return ("blade", 3.0)
             return col(y) if y < BELT - 1 else top(2.8)
@@ -550,19 +557,29 @@ def grand_kit(colour="pearl", upper=None, leather="cream", name="grand_sedan"):
         return top(2.0)
     m.box("hood_dome", (-6.5, BELT, -L + TIP + 1), (6.5, BELT + 0.6, ZS - 2), Paint(U, 2, noise=0, grad=0, decal=dome))
 
-    # the radiator shell: tall, standing proud of the nose and above the hood; fine chrome slats in a bright frame
-    GT = BELT + 0.75
+    # the radiator shell, standing proud of the nose, in a black surround that sets it off from the paint
+    G0, GT = (5, BELT) if slim else (6, BELT - 1)
     def shell(c):
         x, y, z = c.p
-        fy = math.floor(y)
         if c.face == "north":
-            if c.u in (0, c.nu - 1) or y >= GT - 1.2 or fy <= 5:
-                return ("blade", 4.5)
-            return ("blade", 3.7) if c.u % 2 == 0 else ("tint", 0.6)
+            if c.u in (0, c.nu - 1) or y < G0 + 1:
+                return ("blade", 4.7)                           # the frame, its header the thickest
+            if slim:
+                # broad polished vanes with thin dark slits between them: each vane lit on one side, like a flute
+                if c.u in (2, 5, 8, 11):
+                    return ("rubber", 0)
+                return ("blade", (4.4 if c.u in (0, 3, 6, 9, 12) else 3.0) - lerp(y, G0, GT, 0.7, 0))
+            if c.u in (6, 7):
+                return ("blade", 4.4)                           # the bar down the middle
+            return ("steel", 2.4) if (c.u + math.floor(y)) % 2 == 0 else ("rubber", 1)      # fine mesh
         if c.face == "up":
-            return ("blade", 4.7)
+            return ("blade", 4.8)
         return ("blade", 3.0)
-    m.box("radiator", (-5.5, 5, -L - 1.5), (5.5, GT, -L), Paint("blade", 3, noise=0, decal=shell))
+    m.box("radiator_surround", (-GW - 0.75, G0 - 0.75, -L - 0.4), (GW + 0.75, min(GT - 0.5, NOSE), -L), Paint("rubber", 0, noise=0))
+    m.box("radiator", (-GW, G0, -L - 1.5), (GW, GT - 1, -L - 0.4), Paint("blade", 3, noise=0, decal=shell))
+    # its header: a bright cap a little wider and deeper than the shell
+    m.box("radiator_cap", (-GW - 0.5, GT - 1, -L - 1.75), (GW + 0.5, GT, -L - 0.4), Paint("blade", 4, noise=0, rim=0.2,
+          decal=lambda c: ("blade", 4.8 if c.face in ("up", "north") else 3.4)))
     # the mascot (a part): a small winged figure, drawn down inside the shell; it comes up 2.5 px when the engine runs
     kit["mascot"].box("mascot", (-0.5, GT - 2.5, -L - 1.1), (0.5, GT - 0.4, -L - 0.4), Paint("blade", 4, noise=0, rim=0.3))
     kit["mascot"].box("mascot_wing", (-1.5, GT - 1.4, -L - 1.3), (1.5, GT - 0.9, -L - 0.6), Paint("blade", 4, noise=0, rim=0.3))
@@ -583,14 +600,26 @@ def grand_kit(colour="pearl", upper=None, leather="cream", name="grand_sedan"):
     m.group("lights")
 
     def headlight(c):
-        # a slim lamp in a bright frame: a running light along its top, two bright squares under it
-        if c.face != "north":
-            return ("blade", 3)
-        if c.u in (0, c.nu - 1) or c.v in (0, c.nv - 1):
-            return ("blade", 4.3)
-        if c.v == c.nv - 2:
+        # a slim smoked lamp: a bar of light along its top, a bright projector at its inner end, dark glass beside it
+        x, y, z = c.p
+        ax = abs(x)
+        if c.face in ("up", "down"):
+            return ("rubber", 1)
+        if y >= 16:
             return ("lamp", 4.8)
-        return ("lamp", 4.2) if c.u in (2, 3, 6, 7) else ("tint", 1.2)
+        if c.face != "north":
+            return ("fox", 3.4)                                 # round the corner: the turn lamp
+        if ax < GW + 3:
+            return ("lamp", 4.4 if y >= 15 else 3.6)
+        return ("glass", 1.6) if GW + 4 <= ax < GW + 5 and y >= 15 else ("tint", 0.5)
+
+    def round_lamp(cx, cy, core):
+        def decal(c):
+            if c.face != "north":
+                return ("blade", 3)
+            r = math.hypot(abs(c.p[0]) - cx, c.p[1] - cy)
+            return ("lamp", 4.8) if r < core else ("lamp", 3.4) if r < core + 1 else ("blade", 4.4)
+        return decal
 
     def tail_lamp(c):
         # a slim lamp: red, a bright line through it, a bright frame
@@ -600,8 +629,15 @@ def grand_kit(colour="pearl", upper=None, leather="cream", name="grand_sedan"):
             return ("blade", 3.6)
         return ("signal_red", 2.2 if c.v in (1, 2) else 0.9)
     for s in (1, -1):
-        xa, xb = sorted((6.5 * s, 14 * s))
-        m.box("headlight", (xa, 13, -L - 0.5), (xb, 16.5, -L), Paint("lamp", 3, decal=headlight, **lamp()))
+        if slim:
+            xa, xb = sorted(((GW + 1) * s, (W - TIP) * s))
+            m.box("headlight", (xa, 14, -L - 0.5), (xb, 17, -L), Paint("lamp", 3, decal=headlight, **lamp()))
+            # it turns the corner: the cut-in corner is filled at the lamp's height
+            xa, xb = sorted(((W - TIP) * s, (W - 0.25) * s))
+            m.box("corner_lamp", (xa, 14, -L + 0.25), (xb, 17, -L + TIP), Paint("lamp", 3, decal=headlight, **lamp()))
+        else:
+            cyl(m, "headlight", (11 * s, 13.5), 6, -L - 0.5, -L, Paint("lamp", 3, decal=round_lamp(11, 13.5, 1.2), **lamp()), axis="z")
+            cyl(m, "fog_lamp", (11 * s, 7), 3, -L - 0.4, -L, Paint("lamp", 3, decal=round_lamp(11, 7, 0.6), **lamp()), axis="z")
         xa, xb = sorted((7 * s, 14 * s))
         m.box("tail_lamp", (xa, 12.5, L), (xb, 16.5, L + 0.5), Paint("signal_red", 1, decal=tail_lamp, **lamp()))
     m.box("tail_bar", (-7, 14, L), (7, 15, L + 0.3), CHROME)
