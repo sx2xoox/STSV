@@ -369,6 +369,11 @@ menu:
   prompt-timeout: "<gray>입력 시간이 지나 그만두었습니다."
 
 # 야간 투시 (/야간투시)
+trash:
+  title: "<dark_gray>쓰레기통 <gray>· 닫으면 사라집니다"
+  thrown: "<gray>아이템 <white>{count}개</white>를 버렸습니다."
+  kept: "<yellow>탈것·지게는 버릴 수 없어 돌려 드렸습니다."
+
 night-vision:
   enabled: "<green>야간 투시를 켰습니다.</green> <gray>(끄려면 다시 /야간투시)"
   disabled: "<gray>야간 투시를 껐습니다."
@@ -396,6 +401,8 @@ worlds:
   searching: "<gray>안전한 자리를 찾는 중..."
   no-spot: "<red>안전한 자리를 찾지 못했습니다. 잠시 뒤 다시 해 보세요."
   cooldown: "<red>야생월드로는 {seconds}초 뒤에 다시 갈 수 있습니다."
+  rtp-elsewhere: "<red>/rtp 는 야생월드 안에서만 쓸 수 있습니다. <gray>→ 먼저 <white>/야생월드</white>"
+  rtp-cooldown: "<red>무작위 이동은 {seconds}초 뒤에 다시 할 수 있습니다."
   countdown: "<gray>{world}(으)로 이동까지 <white>{seconds}초"
   moved: "<red>움직여서 이동이 취소되었습니다."
   hurt: "<red>피해를 입어 이동이 취소되었습니다."

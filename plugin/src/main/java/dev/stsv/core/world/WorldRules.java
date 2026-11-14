@@ -56,6 +56,21 @@ public record WorldRules(String build, String wild, int warmup, int radius, int 
     }
 
     /** A role in worlds.keep-inventory ("nether", "지옥", ...); null = not a role. */
+    /**
+     * Why /rtp (another random spot of the wild world, from inside it) does not go now: a message key, or null.
+     * It is the trip /야생월드 makes, so it waits out the same cooldown.
+     *
+     * @param hasWild        there is a wild world now (set, not being regenerated)
+     * @param inWild         the player stands in it (its nether and end do not count)
+     * @param cooldownLeftMs milliseconds until they may make a wild trip again (0 or less: now)
+     */
+    public static String rtpRefusal(boolean hasWild, boolean inWild, boolean inWardrobe, long cooldownLeftMs) {
+        if (!hasWild) return "worlds.no-wild";
+        if (!inWild) return "worlds.rtp-elsewhere";
+        if (inWardrobe) return "worlds.in-wardrobe";
+        return cooldownLeftMs > 0 ? "worlds.rtp-cooldown" : null;
+    }
+
     public static Kind role(String word) {
         if (word == null) return null;
         return switch (word.trim().toLowerCase(Locale.ROOT)) {

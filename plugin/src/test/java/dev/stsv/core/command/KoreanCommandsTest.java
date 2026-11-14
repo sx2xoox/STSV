@@ -50,13 +50,37 @@ class KoreanCommandsTest {
         var yaml = org.bukkit.configuration.file.YamlConfiguration.loadConfiguration(
                 new InputStreamReader(getClass().getResourceAsStream("/plugin.yml"), StandardCharsets.UTF_8));
         var names = yaml.getConfigurationSection("commands").getKeys(false);
-        assertEquals(java.util.Set.of("관리자", "치장", "뽑기", "칭호", "업적", "프로필", "명예의전당", "닉네임", "돈", "송금", "수표", "메뉴", "건축월드", "야생월드", "야간투시", "사이드바", "탈것", "지게", "감정표현",
+        assertEquals(java.util.Set.of("관리자", "치장", "뽑기", "칭호", "업적", "프로필", "명예의전당", "닉네임", "돈", "송금", "수표", "메뉴", "건축월드", "야생월드", "야간투시", "사이드바", "탈것", "지게", "감정표현", "rtp", "ㅆ",
                 "tpa", "tpahere", "tpaccept", "tpdeny", "tpacancel", "tpatoggle"), names);
-        // Korean names, except the teleport requests: the owner wants the familiar tpa names as the main ones (Korean aliases)
+        // Korean names, except the teleport requests: the owner wants the familiar tpa names as the main ones (Korean aliases);
+        // and the two the owner asked for by these very names: /rtp, and /ㅆ (one key for the bin)
         for (String n : names) {
-            if (dev.stsv.core.tpa.TpaModule.COMMANDS.contains(n)) continue;
+            if (dev.stsv.core.tpa.TpaModule.COMMANDS.contains(n) || n.equals("rtp") || n.equals("ㅆ")) continue;
             assertTrue(n.codePoints().allMatch(c -> c >= 0xAC00 && c <= 0xD7A3), n);
         }
         assertTrue(names.containsAll(dev.stsv.core.tpa.TpaModule.COMMANDS), "every tpa command is in plugin.yml");
+        assertEquals("stsv.travel", yaml.getString("commands.rtp.permission"), "whoever may travel may /rtp");
+        assertTrue(yaml.getStringList("commands.rtp.aliases").contains("랜덤이동"));
+        assertEquals("stsv.trash", yaml.getString("commands.ㅆ.permission"));
+        assertTrue(yaml.getStringList("commands.ㅆ.aliases").containsAll(java.util.List.of("쓰레기통", "trash")));
+        assertEquals("true", yaml.getString("permissions.stsv.trash.default"), "everyone has a bin");
+    }
+
+    /** /rtp: only from inside the wild world, and no sooner than another /야생월드 trip. */
+    @Test
+    void rtpGoesFromInsideTheWildWorldOnly() {
+        assertEquals(null, dev.stsv.core.world.WorldRules.rtpRefusal(true, true, false, 0));
+        assertEquals(null, dev.stsv.core.world.WorldRules.rtpRefusal(true, true, false, -5));
+        assertEquals("worlds.no-wild", dev.stsv.core.world.WorldRules.rtpRefusal(false, false, false, 0));
+        assertEquals("worlds.rtp-elsewhere", dev.stsv.core.world.WorldRules.rtpRefusal(true, false, false, 0), "the build world, the wild nether and end");
+        assertEquals("worlds.in-wardrobe", dev.stsv.core.world.WorldRules.rtpRefusal(true, true, true, 0));
+        assertEquals("worlds.rtp-cooldown", dev.stsv.core.world.WorldRules.rtpRefusal(true, true, false, 1), "it is the wild trip: the same wait");
+        var messages = org.bukkit.configuration.file.YamlConfiguration.loadConfiguration(
+                new InputStreamReader(getClass().getResourceAsStream("/messages.yml"), StandardCharsets.UTF_8));
+        for (String key : java.util.List.of("worlds.rtp-elsewhere", "worlds.rtp-cooldown", "worlds.no-wild", "worlds.in-wardrobe",
+                "trash.title", "trash.thrown", "trash.kept")) {
+            assertTrue(messages.isString(key), key);
+        }
+        assertTrue(messages.getString("worlds.rtp-cooldown").contains("{seconds}") && messages.getString("trash.thrown").contains("{count}"));
     }
 }

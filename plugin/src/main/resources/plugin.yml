@@ -81,6 +81,16 @@ commands:
     aliases: [wild, 야생]
     usage: /야생월드
     permission: stsv.travel
+  rtp:
+    description: 야생월드 안에서 다른 무작위 위치로 이동 (/야생월드 와 같은 대기 시간)
+    aliases: [랜덤이동, 랜덤]
+    usage: /rtp
+    permission: stsv.travel
+  ㅆ:
+    description: 쓰레기통 열기 (넣고 닫으면 사라짐. 탈것·지게는 돌려줌)
+    aliases: [쓰레기통, trash]
+    usage: /ㅆ
+    permission: stsv.trash
   야간투시:
     description: 야간 투시 켜기·끄기 (켜 두면 접속을 끊거나 죽어도 유지)
     aliases: [nightvision, nv]
@@ -160,6 +170,9 @@ permissions:
     default: true
   stsv.nightvision:
     description: /야간투시
+    default: true
+  stsv.trash:
+    description: /ㅆ (쓰레기통)
     default: true
   stsv.menu:
     description: 통합 메뉴 (/메뉴, Shift+F)

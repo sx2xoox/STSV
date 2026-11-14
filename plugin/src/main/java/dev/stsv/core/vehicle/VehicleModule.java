@@ -1472,7 +1472,7 @@ public final class VehicleModule implements StsvModule, Listener {
             double[] trainWas = v.train == null ? null : trainPlace(v);
             if (puller != null) {
                 Location at = puller.getLocation();
-                CartPull.step(v.st, at.getX(), at.getZ(), v.spec, terrain);
+                CartPull.step(v.st, at.getX(), at.getZ(), v.spec, terrain, cartPace(puller));
             } else if (v.spec.floats()) {
                 v.boatMode = BoatPhysics.step(v.st, in, v.spec, new WorldWater(v.world), Math.min(settings.maxSpeed(), VehicleTools.speedCap(v)));
                 v.boatTurn = VehicleSeats.signed(v.st.yaw - yaw);
@@ -2054,12 +2054,24 @@ public final class VehicleModule implements StsvModule, Listener {
         HudModule.flash(p, Lang.mm("vehicle.pulling", "percent", Math.round(v.spec.pull().slowdown() * 100)));
     }
 
-    /** The cart's puller, or null; someone who can no longer pull it (gone, dead, elsewhere, riding) lets go. */
+    /**
+     * Blocks a tick a cart moves at most behind this puller: their own walk as it is now, slowed by the cart
+     * ({@link CartPull#maxMove}). Flying (creative) is not walking: the cart keeps up as it can.
+     */
+    private static double cartPace(Player p) {
+        AttributeInstance speed = p.getAttribute(Attribute.MOVEMENT_SPEED);
+        return p.isFlying() || speed == null ? CartPull.MAX_MOVE : CartPull.maxMove(speed.getValue());
+    }
+
+    /**
+     * The cart's puller, or null; someone who can no longer pull it (gone, dead, elsewhere, riding) lets go, and so
+     * does whoever takes to the air (an elytra, a riptide: the slowed walk does not hold them back there).
+     */
     private Player puller(LiveVehicle v) {
         if (v.puller == null) return null;
         Player p = Bukkit.getPlayer(v.puller);
         if (p == null || !p.isValid() || p.isDead() || !p.getWorld().equals(v.world) || p.isInsideVehicle()
-                || p.getGameMode() == GameMode.SPECTATOR) {
+                || p.getGameMode() == GameMode.SPECTATOR || p.isGliding() || p.isRiptiding()) {
             release(v, p == null ? null : "vehicle.pull-lost");
             return null;
         }

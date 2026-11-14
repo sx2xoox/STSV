@@ -458,6 +458,26 @@ public final class WorldsModule implements StsvModule, Listener {
         warmup(p, seconds, left -> Lang.mm("worlds.countdown", "world", name, "seconds", left), () -> go(p, to), null);
     }
 
+    /**
+     * /rtp: from inside the wild world to another random safe spot of it. The same trip as /야생월드 (the stand-still
+     * warm-up, the cooldown between trips), which only refuses to start from the wild world itself.
+     */
+    public void rtp(Player p) {
+        World wild = wildWorld();
+        boolean admin = p.hasPermission("stsv.admin");
+        long wait = admin ? 0 : cooldownLeft(p);
+        String refusal = WorldRules.rtpRefusal(wild != null, wild != null && p.getWorld().equals(wild),
+                plugin.cosmetics() != null && plugin.cosmetics().inWardrobe(p), wait);
+        if (refusal != null) {
+            p.sendMessage(refusal.equals("worlds.no-wild") && resetting ? Lang.msg("worlds.resetting") : Lang.msg(refusal, "seconds", (wait + 999) / 1000));
+            return;
+        }
+        String name = Lang.raw("worlds.wild");
+        int seconds = admin ? 0 : rules.warmup();
+        if (seconds > 0) p.sendMessage(Lang.msg("worlds.warmup-wild", "world", name, "seconds", seconds));
+        warmup(p, seconds, left -> Lang.mm("worlds.countdown", "world", name, "seconds", left), () -> go(p, WorldRules.Kind.WILD), null);
+    }
+
     /** Seconds a player stands still before a trip (/건축월드, /야생월드, /텔포): worlds.travel-warmup-seconds, 0 for admins. */
     public int travelWarmup(Player p) {
         return p.hasPermission("stsv.admin") ? 0 : rules.warmup();

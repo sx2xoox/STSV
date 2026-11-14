@@ -161,6 +161,18 @@ public final class STSVPlugin extends JavaPlugin {
             nick.setExecutor(nicknames);
             nick.setTabCompleter(nicknames);
         }
+        PluginCommand rtp = getCommand("rtp");
+        if (rtp != null) rtp.setExecutor((sender, cmdObj, label, args) -> {
+            if (sender instanceof org.bukkit.entity.Player p) worlds.rtp(p);
+            else sender.sendMessage(dev.stsv.core.util.Lang.msg("common.players-only"));
+            return true;
+        });
+        PluginCommand trash = getCommand("ㅆ");
+        if (trash != null) {
+            dev.stsv.core.command.TrashCan can = new dev.stsv.core.command.TrashCan(this);
+            trash.setExecutor(can);
+            getServer().getPluginManager().registerEvents(can, this);
+        }
         PluginCommand nightVision = getCommand("야간투시");
         if (nightVision != null) {
             dev.stsv.core.command.NightVision nv = new dev.stsv.core.command.NightVision(this);

@@ -106,6 +106,61 @@ class CartPullTest {
         assertTrue(st.z < pz + 0.05 && st.z > pz - 0.6, "it cut the corner a little, as a trailer does");
     }
 
+    /** The cart goes no faster than its puller's own slowed walk (plus a little slack), however far ahead they are. */
+    @Test
+    void itNeverOutrunsItsPullersWalk() {
+        // a player's movement speed is 0.1 (4.317 blocks a second); pulling 30 % slower: 0.07
+        assertEquals(4.317 / 20 * CartPull.SLACK, CartPull.maxMove(0.1), 1e-9);
+        double pace = CartPull.maxMove(0.07);
+        assertEquals(0.07 * CartPull.WALK / 20 * CartPull.SLACK, pace, 1e-9);
+        assertTrue(pace < CartPull.MAX_MOVE / 3, "a third of what it used to catch up at");
+        assertEquals(CartPull.MIN_MOVE, CartPull.maxMove(0), 1e-9, "a puller who cannot move: it still comes to their hands");
+        assertEquals(CartPull.MIN_MOVE, CartPull.maxMove(-1), 1e-9);
+        assertEquals(CartPull.MAX_MOVE, CartPull.maxMove(5), 1e-9, "never more than it ever moved");
+        assertTrue(CartPull.maxMove(0.07 * 1.4) > pace, "a speed potion on the puller: the cart keeps up with that too");
+
+        VehicleSpec s = cart();
+        var t = flat();
+        // walking at that slowed pace, straight and round a corner: it keeps up, its handles at the puller
+        VehiclePhysics.State st = at(0.5, 0.5, 0);
+        double walk = 0.07 * CartPull.WALK / 20, px = 0.5, pz = 0.5 + HITCH;
+        for (int i = 0; i < 60; i++) {
+            pz += walk;
+            CartPull.step(st, px, pz, s, t, pace);
+            assertEquals(HITCH, reach(st, px, pz), 1e-6, "straight: the handles stay where the puller is");
+        }
+        for (int i = 0; i < 120; i++) {
+            px -= walk;
+            double x = st.x, z = st.z;
+            CartPull.step(st, px, pz, s, t, pace);
+            assertTrue(Math.hypot(st.x - x, st.z - z) <= pace + 1e-9);
+            assertEquals(HITCH, reach(st, px, pz), 0.05, "round the corner: still at the puller");
+        }
+
+        // the trick: let go, run 3.9 blocks on at a sprint, take the handles again. The cart comes after at the
+        // slowed walk and no faster, so what was run ahead is waited for: nothing is gained
+        st = at(0.5, 0.5, 0);
+        px = 0.5;
+        pz = 0.5 + HITCH + 3.9;
+        assertFalse(CartPull.tooFar(st, s, px, 64, pz), "within reach of the handles");
+        double startZ = st.z;
+        int ticks = 0;
+        while (reach(st, px, pz) > HITCH + 1e-3 && ticks < 1000) {
+            double z = st.z;
+            CartPull.step(st, px, pz, s, t, pace);
+            assertTrue(st.z - z <= pace + 1e-9, "tick " + ticks + ": no faster than the walk");
+            ticks++;
+        }
+        assertTrue(ticks >= Math.floor(3.9 / pace), ticks + " ticks for 3.9 blocks");
+        assertEquals(3.9, st.z - startZ, 0.01);
+        // at the old pace it was there in 7 ticks, the puller having sprinted there
+        assertTrue(ticks >= 3 * Math.floor(3.9 / CartPull.MAX_MOVE), ticks + " ticks");
+        // and a cap above the old one changes nothing
+        st = at(0.5, 0.5, 0);
+        CartPull.step(st, px, pz, s, t, 99);
+        assertEquals(CartPull.MAX_MOVE, st.z - 0.5, 1e-9);
+    }
+
     @Test
     void takingTheHandlesFromTheSideSwingsItRoundSmoothly() {
         VehicleSpec s = cart();
