@@ -7,6 +7,9 @@
 #   skin.model            입혀질 모습: 리소스팩 아이템 모델 (assets/<ns>/items/<이름>.json. 장난감 시리즈: tools/assetgen/models/toys.py)
 #   skin.applies-to       입힐 수 있는 것: #태그 (바닐라 도구 전부: 나무~네더라이트) 또는 아이템 id. 커스텀 아이템(직업 도구 등)에는 적지 않으면 안 입혀짐
 #   skin.return-on-remove 스킨을 뗄 때 책을 돌려줌
+#   skin.bobber           (낚싯대 스킨만) 던졌을 때 물 위의 찌에 붙는 모델: { model: 아이템 모델, scale: 크기, lift: 높이 }
+#                         원래 찌는 숨길 수 없어 그 위에 덮어 보임. 떠 보이면 lift 를 더 작게(더 음수로), 잠겨 보이면 더 크게.
+#                         lift 는 찌 꼭대기(찌 기준점 + 0.25블록)에서 위로 몇 블록인지: -0.081 = 모델의 파란 띠(흘수선)가 찌 기준점에 옴
 # 새 시리즈: 모델을 만들고 여기에 책을 더한 뒤 donation_shop.yml 에 상품 (item: stsv:<책 id>).
 #
 # ---- 장난감 시리즈 ----
@@ -76,9 +79,13 @@ toy_fishing_rod_skin:
   name: "<#c58cff>스킨북: 장난감 낚싯대"
   lore:
     - "<gold>장난감 시리즈</gold> <dark_gray>· <gray>낚싯대에 입히는 스킨"
-    - "<gray>큼직한 릴과 찌가 달린 낚시 놀이 낚싯대."
+    - "<gray>큼직한 릴이 달린 낚시 놀이 낚싯대. 던지면 장난감 찌가 뜹니다."
     - "<dark_gray>우클릭: 가운데 칸에 낚싯대를 넣으면 입혀짐 · 떼기: /스킨 해제"
     - "<dark_gray>겉모습만 바뀝니다 (인챈트 · 내구도 그대로)"
   texture: skin_book
   max-stack: 16
-  skin: { model: "stsv:toy_fishing_rod", applies-to: ["minecraft:fishing_rod"], return-on-remove: true }
+  skin:
+    model: "stsv:toy_fishing_rod"
+    applies-to: ["minecraft:fishing_rod"]
+    return-on-remove: true
+    bobber: { model: "stsv:toy_bobber", scale: 0.9, lift: -0.081 }

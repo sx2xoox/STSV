@@ -274,6 +274,14 @@ class DonationTest {
             assertFalse(books.getStringList(id + ".skin.applies-to").isEmpty());
         }
         assertEquals(6, books.getKeys(false).size(), "the toy series: sword, pickaxe, shovel, axe, hoe, fishing rod");
+        // the rod's skin brings a float of its own: a model the pack has, no larger than a block, standing over the game's float
+        String floatModel = books.getString("toy_fishing_rod_skin.skin.bobber.model");
+        assertEquals("stsv:toy_bobber", floatModel);
+        assertTrue(java.nio.file.Files.isRegularFile(PACK.resolve("assets/stsv/items/" + floatModel.substring(5) + ".json")));
+        double floatScale = books.getDouble("toy_fishing_rod_skin.skin.bobber.scale"), floatLift = books.getDouble("toy_fishing_rod_skin.skin.bobber.lift");
+        assertTrue(floatScale >= 0.6 && floatScale <= 1.5, "as large as the game's float or larger, to cover it: " + floatScale);
+        assertTrue(floatLift < 0 && floatLift > -0.5, "let down from the hook's top to the water: " + floatLift);
+        for (String id : books.getKeys(false)) if (!id.equals("toy_fishing_rod_skin")) assertFalse(books.contains(id + ".skin.bobber"), id + ": only a rod has a float");
         assertEquals("donation:confirm", menu.getString("donation_buy.buttons.Y.action"));
     }
 
