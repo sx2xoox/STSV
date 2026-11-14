@@ -903,6 +903,12 @@ road:
   batch-tunnels: "국도 굴 보수"
   batch-tunnel-scan: "국도 굴 찾기"
   batch-snow: "국도 눈 치우기"
+  # /관리자 국도 눈치우기 전체: 저장된 모든 길을 따라가며 치움
+  snow-all-start: "<gray>[{world}] 국도 {roads}개(칸 {columns}개)와 하역장·터미널의 눈을 치워요: 청크 {chunks}개를 차례로 불러오며 진행 <dark_gray>(길이에 따라 몇 분)"
+  snow-all-done: "<green>[{world}] 눈 {blocks}칸을 치웠어요 <gray>(저장된 국도 위 {saved} · 블록으로 찾은 길 위 {found} · 하역장·출발 터미널 {docks}. 청크 {chunks}/{of}개, 국도 {roads}개)"
+  snow-all-none: "<red>치울 길이 없어요: 저장된 길 파일이 {files}개예요. <gray>서버를 옮겼다면 <white>{folder}</white> 폴더(roads)를 함께 옮겼는지 확인하세요. 길 파일이 없으면 눈 막기는 길 블록 바로 위에만 걸려요."
+  snow-all-no-world: "<red>길 파일의 월드 <white>{world}</white> (국도 {roads}개)가 서버에 없어요. <gray>월드 이름이 바뀌었다면 그 길에는 눈이 쌓이고 치울 수도 없어요: 월드 이름을 예전대로 두거나 알려 주세요."
+  snow-all-unreadable: "<yellow>읽지 못한 길 파일: {file}"
   bar-batch: "<gold>{what} <white>{done}</white> <gray>/ {total}"
   bar-survey: "<gold>{dock} 국도 · 살피기 <white>청크 {done}</white> <gray>/ 남은 {left}"
   bar-prepare: "<gold>{dock} 국도 · 청크 만들기 <white>{done}</white> <gray>/ 남은 {left}"

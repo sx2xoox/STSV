@@ -154,14 +154,15 @@ public final class RoadModule extends EcoModule {
         STSVPlugin.get().admin().add(EcoPlugin.ADMIN_OWNER, "국도",
                 "<하역장> [기준점|여기서|새로|이어짓기] | <하역장> 미리보기 [기준점|여기서] | <하역장> 되돌리기 | 되돌리기 중지 | "
                         + "기준점 [설정|보기|초기화] | 중지 | 상태 | 표지판 정리 <하역장> | "
-                        + "표지판 다시세우기 [하역장|전체] | 난간고치기 [하역장|전체] | 터널보수 [하역장|전체|여기 [반경]] | 눈치우기 [반경]",
+                        + "표지판 다시세우기 [하역장|전체] | 난간고치기 [하역장|전체] | 터널보수 [하역장|전체|여기 [반경]] | 눈치우기 [반경|전체]",
                 "국도: 기준점(없으면 건축월드 스폰, 여기서 = 지금 자리)에서 하역장 입구까지 길 놓기 (멈췄던 것은 이어서, 새로 = 처음부터, "
                         + "이어짓기 = 다 지은 길의 끝에서 입구까지 모자란 곳만, 개인·서버 땅과 roads.avoid 는 피함) / 미리보기 = 살피고 길만 찾아 "
                         + "입자·요약·땅 밖 건물 경고 (짓지 않음, 60분 안에 같은 출발이면 그 길로 지음) / 되돌리기 = 그 길이 바꾼 블록을 원래대로 "
                         + "(그사이 바뀐 블록은 그대로) / 기준점 정하기 / 멈추기 / 진행 상황 / 그 길의 표지판 모두 치우기 / "
                         + "다 지은 길의 표지판(갈림길 안내·돌아가는 길·km)을 저장된 길에서 다시 계산해 바꿔 세우기 / 반 칸 위에 떠 있던 난간·기둥 밑에 받침 넣기 / "
                         + "이미 지은 굴을 오르내리는 곳에서 높여 모든 탈것(탑차)이 지나가게 (여기 = 둘레(기본 48)의 굴, 저장된 길이 없어도 블록을 보고) / "
-                        + "둘레(기본 64, 최대 " + SNOW_MAX + "블록) 도로·하역장·터미널의 눈 치우기 (저장된 길이 없어도 길 블록 위의 눈)",
+                        + "둘레(기본 64, 최대 " + SNOW_MAX + "블록) 도로·하역장·터미널의 눈 치우기 (저장된 길이 없어도 길 블록 위의 눈), "
+                        + "눈치우기 전체 = 저장된 모든 길을 처음부터 끝까지 따라가며 (청크를 불러오면서) 치우기",
                 this::command, (s, a) -> {
                     if (a.length == 1) {
                         List<String> out = new ArrayList<>(eco.docks().names());
@@ -179,7 +180,7 @@ public final class RoadModule extends EcoModule {
                         }
                         return a.length == 3 && a[1].equals(HERE) ? List.of("32", "48", "64", "128") : List.of();
                     }
-                    if (a[0].equals("눈치우기")) return a.length == 2 ? List.of("32", "64", "128") : List.of();
+                    if (a[0].equals("눈치우기")) return a.length == 2 ? List.of("전체", "32", "64", "128") : List.of();
                     if (a[0].equals("난간고치기")) return a.length == 2 ? withAll() : List.of();
                     if (a[0].equals("표지판")) return a.length == 2 ? List.of("정리", "다시세우기")
                             : a.length == 3 ? (a[1].equals("다시세우기") ? withAll() : new ArrayList<>(eco.docks().names())) : List.of();
@@ -209,6 +210,27 @@ public final class RoadModule extends EcoModule {
         }
         every(1L, this::tick);
         snowNets.refresh();
+        logSnowGuard();
+    }
+
+    /**
+     * Says at start what snow is kept off: the saved roads of each world. A world the road files name that the server
+     * does not have (the server was moved, the world renamed) is the usual reason for snow on every road: warned of.
+     */
+    private void logSnowGuard() {
+        SavedRoads sr = saved();
+        Map<String, List<RoadNetwork.Road>> built = sr.built(null);
+        if (built.isEmpty()) {
+            eco.getLogger().info("[국도] 눈 막기: 저장된 길이 없어요 (" + folder() + ", 길 파일 " + sr.files + "개). 길 블록 바로 위의 눈만 막아요.");
+            return;
+        }
+        built.forEach((w, rs) -> {
+            if (Bukkit.getWorld(w) == null) {
+                eco.getLogger().warning("[국도] 눈 막기: 길 파일의 월드 '" + w + "' (길 " + rs.size() + "개)가 서버에 없어요. 월드 이름이 바뀌었다면 그 길에는 눈이 쌓여요.");
+            } else {
+                eco.getLogger().info("[국도] 눈 막기: " + w + " 의 길 " + rs.size() + "개");
+            }
+        });
     }
 
     @Override
@@ -297,6 +319,83 @@ public final class RoadModule extends EcoModule {
     static final int SNOW_MAX = 128;
 
     /**
+     * Clears the snow of the columns x0 .. x1, z0 .. z1 of one loaded chunk: on a saved road, in a dock's chunk, on a
+     * road's own block outside anyone's land. n: cleared by why (RoadFinder.Snow); seen: chunks, saved road columns;
+     * near: the roads met. Returns the layers cleared.
+     */
+    private int sweepSnow(World w, RoadNetwork net, Set<Material> road, int cx, int cz, int x0, int x1, int z0, int z1, int[] n, int[] seen, Set<String> near) {
+        String wn = w.getName();
+        seen[0]++;
+        boolean dock = eco.docks() != null && eco.docks().covers(wn, cx, cz);
+        int cleared = 0;
+        for (int x = x0; x <= x1; x++) {
+            for (int z = z0; z <= z1; z++) {
+                RoadNetwork.Spot spot = net.at(x, z);
+                if (spot != null) {
+                    seen[1]++;
+                    near.add(spot.dock());
+                }
+                int top = w.getHighestBlockYAt(x, z, org.bukkit.HeightMap.MOTION_BLOCKING);
+                for (RoadFinder.Snow sn : RoadFinder.snow((xx, yy, zz) -> w.getBlockAt(xx, yy, zz).getType(), x, z, top, spot, dock, road)) {
+                    if (sn.why() == 2 && guardBase.column(wn, x, z) != null) continue;   // someone's land: theirs
+                    w.getBlockAt(x, sn.y(), z).setType(Material.AIR, false);
+                    n[sn.why()]++;
+                    cleared++;
+                }
+            }
+        }
+        return cleared;
+    }
+
+    /**
+     * /관리자 국도 눈치우기 전체: the snow goes from every saved road, end to end, and from every dock, terminal and
+     * tuning shop, in every world: the chunks are loaded a few at a time as the sweep comes to them (the roads' own
+     * throttle), so nobody has to walk the roads. Says first what it found to sweep (a world of the road files that the
+     * server does not have, no saved roads at all: then the files or the world's name are what is wrong, not the snow),
+     * and for each world what it cleared.
+     */
+    private void clearSnowEverywhere(java.util.function.Consumer<Component> to, java.util.function.Consumer<Component> bar) {
+        SavedRoads saved = saved();
+        Map<String, RoadNetwork> nets = new HashMap<>();
+        saved.built(null).forEach((wn, rs) -> nets.put(wn, RoadNetwork.of(rs)));
+        List<Component> first = new ArrayList<>();
+        if (JobFiles.encodingProblem() != null) first.add(Lang.mm("road.files-encoding", "encoding", JobFiles.encodingProblem()));
+        for (String file : saved.unreadable) first.add(Lang.mm("road.snow-all-unreadable", "file", file));
+        Set<String> worlds = new java.util.TreeSet<>(nets.keySet());
+        for (World w : Bukkit.getWorlds()) if (eco.docks() != null && !eco.docks().coveredChunks(w.getName()).isEmpty()) worlds.add(w.getName());
+        int started = 0;
+        for (String wn : worlds) {
+            World w = Bukkit.getWorld(wn);
+            RoadNetwork net = nets.getOrDefault(wn, RoadNetwork.NONE);
+            if (w == null) {
+                first.add(Lang.mm("road.snow-all-no-world", "world", wn, "roads", net.roads().size()));
+                continue;
+            }
+            Set<Long> chunks = new java.util.LinkedHashSet<>(net.chunkKeys());
+            if (eco.docks() != null) for (int[] c : eco.docks().coveredChunks(wn)) chunks.add(RoadJob.key(c[0], c[1]));
+            if (chunks.isEmpty()) continue;
+            Set<Material> road = roadBlocks;
+            Batch b = new Batch(w, Lang.raw("road.batch-snow"));
+            b.blocks = new BlockBudget(settings.blocksPerTick());
+            int[] n = new int[3];
+            int[] seen = {0, 0};
+            Set<String> near = new HashSet<>();
+            for (long k : chunks) {
+                int cx = RoadJob.cx(k), cz = RoadJob.cz(k);
+                b.add((cx << 4) + 8, (cz << 4) + 8, 7, () -> b.cost = 48 + sweepSnow(w, net, road, cx, cz, cx << 4, (cx << 4) + 15, cz << 4, (cz << 4) + 15, n, seen, near));
+            }
+            b.bar = bar;
+            b.done = () -> to.accept(Lang.msg("road.snow-all-done", "world", wn, "blocks", n[0] + n[1] + n[2], "saved", n[0], "docks", n[1], "found", n[2],
+                    "chunks", seen[0], "of", chunks.size(), "roads", net.roads().size()));
+            batches.add(b);
+            started++;
+            first.add(Lang.mm("road.snow-all-start", "world", wn, "roads", net.roads().size(), "columns", net.columnCount(), "chunks", chunks.size()));
+        }
+        if (started == 0) first.add(Lang.mm("road.snow-all-none", "files", saved.files, "folder", String.valueOf(folder())));
+        to.accept(lines(first));
+    }
+
+    /**
      * /관리자 국도 눈치우기 [반경]: the snow round the player (the chunks loaded now) on roads, in docks and terminals goes,
      * a chunk at a time (roads.blocks-per-tick, paused while the server is busy: roads.max-mspt). A road is found by its
      * saved file (from its surface to 3 over it) or, where no saved road is, by its blocks (a snow layer right on a road's
@@ -321,28 +420,7 @@ public final class RoadModule extends EcoModule {
                 int x0 = Math.max(cx << 4, px - radius), x1 = Math.min((cx << 4) + 15, px + radius);
                 int z0 = Math.max(cz << 4, pz - radius), z1 = Math.min((cz << 4) + 15, pz + radius);
                 int ccx = cx, ccz = cz;
-                b.add((cx << 4) + 8, (cz << 4) + 8, 7, () -> {
-                    seen[0]++;
-                    boolean dock = eco.docks() != null && eco.docks().covers(wn, ccx, ccz);
-                    int cleared = 0;
-                    for (int x = x0; x <= x1; x++) {
-                        for (int z = z0; z <= z1; z++) {
-                            RoadNetwork.Spot spot = net.at(x, z);
-                            if (spot != null) {
-                                seen[1]++;
-                                near.add(spot.dock());
-                            }
-                            int top = w.getHighestBlockYAt(x, z, org.bukkit.HeightMap.MOTION_BLOCKING);
-                            for (RoadFinder.Snow sn : RoadFinder.snow((xx, yy, zz) -> w.getBlockAt(xx, yy, zz).getType(), x, z, top, spot, dock, road)) {
-                                if (sn.why() == 2 && guardBase.column(wn, x, z) != null) continue;   // someone's land: theirs
-                                w.getBlockAt(x, sn.y(), z).setType(Material.AIR, false);
-                                n[sn.why()]++;
-                                cleared++;
-                            }
-                        }
-                    }
-                    b.cost = 48 + cleared;
-                });
+                b.add((cx << 4) + 8, (cz << 4) + 8, 7, () -> b.cost = 48 + sweepSnow(w, net, road, ccx, ccz, x0, x1, z0, z1, n, seen, near));
             }
         }
         b.bar = bar;
@@ -664,6 +742,10 @@ public final class RoadModule extends EcoModule {
     private void command(CommandSender s, String[] a) {
         if (a.length == 0 || a[0].equals("상태")) {
             status(s);
+            return;
+        }
+        if (a[0].equals("눈치우기") && a.length > 1 && (a[1].equals("전체") || a[1].equalsIgnoreCase("all"))) {
+            clearSnowEverywhere(answer(s), bar(s));
             return;
         }
         if (a[0].equals("눈치우기")) {

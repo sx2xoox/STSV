@@ -216,6 +216,16 @@ public final class DockModule extends EcoModule {
      * Whether a dock or a departure terminal stands in this chunk (no snow settles there: RoadModule, on every snow event:
      * a lookup, the chunks worked out only after a dock or terminal comes or goes).
      */
+    /** The chunks of a world that docks, terminals and tuning shops stand in ({chunk x, chunk z} each). */
+    public List<int[]> coveredChunks(String world) {
+        covers(world, 0, 0);          // the cover is laid out
+        Map<String, java.util.Set<Long>> c = cover;
+        java.util.Set<Long> in = c == null ? null : c.get(world);
+        List<int[]> out = new ArrayList<>();
+        if (in != null) for (long k : in) out.add(new int[]{(int) (k >> 32), (int) k});
+        return out;
+    }
+
     public boolean covers(String world, int cx, int cz) {
         Map<String, java.util.Set<Long>> c = cover;
         if (c == null) {

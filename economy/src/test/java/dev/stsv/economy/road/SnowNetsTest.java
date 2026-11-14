@@ -11,6 +11,7 @@ import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertNotNull;
 import static org.junit.jupiter.api.Assertions.assertNull;
 import static org.junit.jupiter.api.Assertions.assertSame;
+import static org.junit.jupiter.api.Assertions.assertTrue;
 
 /** The roads snow keeps off ({@link SnowNets}): looked up without ever being built on a lookup, swapped in whole. */
 class SnowNetsTest {
@@ -46,5 +47,23 @@ class SnowNetsTest {
         assertSame(second, nets.get("world"));
         assertNull(nets.get("world").at(50, 0));
         assertEquals(2, builds.get());
+    }
+
+    /** /관리자 국도 눈치우기 전체: every chunk a road's columns are in is visited, each once. */
+    @Test
+    void aSweepVisitsEveryChunkOfARoadOnce() {
+        RoadNetwork net = road(0);          // 100 blocks along +x from (0, 0.5)
+        assertTrue(net.columnCount() > 100 * 5, net.columnCount() + " columns: its lanes, kerbs and shoulders");
+        java.util.Set<Long> chunks = net.chunkKeys();
+        // every column's chunk is among them, and nothing else
+        java.util.Set<Long> want = new java.util.HashSet<>();
+        for (int x = -40; x <= 140; x++) {
+            for (int z = -40; z <= 40; z++) if (net.at(x, z) != null) want.add(RoadJob.key(x >> 4, z >> 4));
+        }
+        assertEquals(want, chunks);
+        assertTrue(chunks.size() >= 7 && chunks.size() <= 24, chunks.size() + " chunks for 100 blocks of road");
+        assertTrue(chunks.contains(RoadJob.key(0, 0)) && chunks.contains(RoadJob.key(6, 0)));
+        assertTrue(RoadNetwork.NONE.chunkKeys().isEmpty());
+        assertEquals(0, RoadNetwork.NONE.columnCount());
     }
 }

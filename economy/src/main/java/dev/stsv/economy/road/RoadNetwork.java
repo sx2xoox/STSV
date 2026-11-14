@@ -204,6 +204,18 @@ public final class RoadNetwork {
         return roads;
     }
 
+    /** How many block columns the roads cover (their lanes, kerbs and shoulders). */
+    public int columnCount() {
+        return columns.size();
+    }
+
+    /** The chunks the roads' columns are in, each once, as {@link RoadJob#key} keys: what a sweep along every road visits. */
+    public Set<Long> chunkKeys() {
+        Set<Long> out = new java.util.LinkedHashSet<>();
+        for (long k : columns.keySet()) out.add(RoadJob.key((int) (k >> 32) >> 4, (int) k >> 4));
+        return out;
+    }
+
     /** All the cells, for tests. */
     List<Long> cellKeys() {
         return new ArrayList<>(cells);
