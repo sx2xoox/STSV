@@ -15,7 +15,8 @@
 #     칭호      commands: ["관리자 칭호 지급 {player} <칭호 id>"]
 # 값을 고치거나 상품을 더하고 /관리자 리로드. 이미 산 사람의 내역에는 영향 없음.
 #
-# 아래 가격과 안내문은 자리만 잡아 둔 것: 재화 1개가 얼마인지와 입금 안내는 서버 주인이 정해서 고쳐야 함.
+# 별 1개 = 100원 (입금 1,000원마다 별 10개를 지급). 아래 값은 이 기준: 300★ = 30,000원, 250★ = 25,000원.
+# 안내문의 입금 방법 · 문의처는 서버 주인이 채워야 함.
 
 currency:
   name: "별"
@@ -24,7 +25,8 @@ currency:
 # 상점 맨 위에 보이는 안내 (한 줄씩). 입금 방법 · 문의처를 여기에 적음
 notice:
   - "<gray>후원은 서버 운영비에 쓰입니다. 후원 방법과 문의는 서버 공지를 확인해 주세요."
-  - "<gray>입금이 확인되면 관리자가 별을 지급합니다. 상품은 모두 <white>꾸미기</white>이며 게임에서 유리해지는 것은 없습니다."
+  - "<gray>별 1개 = <white>100원</white>. 입금이 확인되면 관리자가 별을 지급합니다."
+  - "<gray>상품은 모두 <white>꾸미기</white>이며 게임에서 유리해지는 것은 없습니다."
   - "<dark_gray>이 서버는 공식 Minecraft 제품이 아니며, Mojang 또는 Microsoft 의 승인을 받거나 관련되어 있지 않습니다."
 
 categories:
@@ -35,16 +37,16 @@ categories:
 products:
   hyper_car:
     name: "하이퍼카"
-    price: 300
+    price: 300          # 30,000원
     description: "<gray>낮고 넓은 2인승 쿠페. 위로 열리는 문, 속도가 붙으면 올라오는 윙, 드리프트. <dark_gray>성능은 이벤트 로드스터와 같습니다."
     item: stsv:hyper_car
   grand_sedan:
     name: "그랜드 세단"
-    price: 250
+    price: 250          # 25,000원
     description: "<gray>길고 낮은 4인승 대형 세단. 가운데에서 열리는 문 4짝, 시동을 걸면 올라오는 마스코트. <dark_gray>최고 속도는 서버 상한 그대로입니다."
     item: stsv:grand_sedan
   luxury_suv:
     name: "몬스터 오프로더"
-    price: 250
+    price: 250          # 25,000원
     description: "<gray>문짝만 한 바퀴로 한 블록 떠 있는 4인승. 험한 땅에서도 느려지지 않습니다. <dark_gray>최고 속도는 배달 오토바이보다 느립니다."
     item: stsv:luxury_suv

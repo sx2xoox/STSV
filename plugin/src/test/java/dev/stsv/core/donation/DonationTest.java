@@ -162,6 +162,11 @@ class DonationTest {
         assertFalse(shop.categories().isEmpty());
         assertFalse(shop.notice().isEmpty(), "how to donate, and that this is no official product, is said in the shop");
         assertTrue(String.join(" ", shop.notice()).contains("Minecraft"), "the notice the game's guidelines ask for");
+        assertTrue(String.join(" ", shop.notice()).contains("100원"), "what a star costs is said in the shop: 1 star = 100 won");
+        // the owner's prices at that rate: 30,000 won, 25,000 won, 25,000 won
+        assertEquals(300, shop.products().get("hyper_car").price());
+        assertEquals(250, shop.products().get("grand_sedan").price());
+        assertEquals(250, shop.products().get("luxury_suv").price());
         for (String car : List.of("hyper_car", "grand_sedan", "luxury_suv")) {
             DonationShop.Product p = shop.products().get(car);
             assertEquals("stsv:" + car, p.item(), "the premium cars are what the shop is for");
