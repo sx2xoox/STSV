@@ -425,6 +425,47 @@ def skin_book():
     return ic.outline().image()
 
 
+def skin_book_item():
+    """The skin book players hold (items/skin_books.yml): a purple hardcover with gold corners, the pages' edge showing on
+    the right and underneath, a ribbon marker, and a four-pointed sparkle on the cover (it changes how a tool looks)."""
+    ic = Icon()
+    # the pages under and beside the cover: the book has a thickness
+    for x in range(4, 14):
+        ic.put(x, 14, "paper", 2 if x % 2 else 1)
+    for y in range(3, 15):
+        ic.put(13, y, "paper", 3 if y % 2 else 2)
+    # the cover: lit from the upper left, darker to the lower right
+    for y in range(2, 14):
+        for x in range(3, 13):
+            light = 4 if (x <= 5 and y <= 3) else 3 if (x + y) <= 14 else 2
+            ic.put(x, y, "grape", light)
+    for y in range(2, 14):
+        ic.put(3, y, "grape", 1)                 # the spine
+        ic.put(4, y, "grape", 2 if y % 3 else 3)  # its groove
+    # gold corners and a line along the fore edge
+    for (x, y) in ((11, 2), (12, 2), (12, 3), (12, 12), (12, 13), (11, 13), (5, 2), (5, 13)):
+        ic.put(x, y, "gold", 2)
+    for (x, y) in ((12, 2), (12, 13)):
+        ic.put(x, y, "gold", 3)
+    # the sparkle: long arms up and down, short ones sideways, a bright heart
+    for y in range(4, 12):
+        ic.put(8, y, "gold", 4 if 6 <= y <= 9 else 3)
+    for x in range(6, 11):
+        ic.put(x, 7, "gold", 4 if 7 <= x <= 9 else 3)
+    ic.put(8, 7, "pearl", 4)
+    ic.put(9, 8, "gold", 2)
+    ic.put(7, 8, "gold", 2)
+    # a small second sparkle
+    for (x, y) in ((11, 4), (10, 5), (11, 5), (12, 5), (11, 6)):
+        ic.put(x, y, "pearl" if (x, y) == (11, 5) else "gold", 4 if (x, y) == (11, 5) else 3)
+    out = ic.outline()
+    # the ribbon marker hangs out under the pages
+    out.put(6, 14, "crimson", 3)
+    out.put(6, 15, "crimson", 2)
+    out.put(7, 15, "crimson", 1)
+    return out.image()
+
+
 def voucher(accent, gem=None):
     """Cosmetic voucher: a paper ticket with a coloured band and a gem in the cosmetic's colour."""
     ic = Icon()

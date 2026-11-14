@@ -133,7 +133,7 @@ import voucher_art as _VA   # noqa: E402
 
 ICONS = dict(_VA.ICONS)
 # the skin book: one look for every skin book of the shipped content (items/skin_books.yml: texture: skin_book)
-ICONS["skin_book"] = _themed(I.skin_book)
+ICONS["skin_book"] = _themed(I.skin_book_item)
 
 
 def equipment():
