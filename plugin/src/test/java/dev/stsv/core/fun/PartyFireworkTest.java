@@ -57,6 +57,14 @@ class PartyFireworkTest {
         var config = YamlConfiguration.loadConfiguration(new InputStreamReader(getClass().getResourceAsStream("/config.yml"), StandardCharsets.UTF_8));
         assertTrue(config.getBoolean("party-firework.enabled"));
         assertTrue(config.getDouble("party-firework.cooldown-seconds") >= 1.0, "no machine gun of fireworks (lag, noise)");
+        // what it is for: pushing a glider, as a rocket of one gunpowder, again before the push runs out (a rocket of one burns 1.0 to 1.6 s)
+        assertTrue(config.getBoolean("party-firework.boost"), "it pushes a glider: the owner's wish");
+        assertEquals(1, config.getInt("party-firework.boost-power"));
+        double again = config.getDouble("party-firework.flight-cooldown-seconds");
+        assertTrue(again >= 0.5 && again <= 1.5, "flight can be kept up, but not by holding the button down every tick: " + again);
+        assertEquals(1, PartyFireworkModule.power(0));
+        assertEquals(2, PartyFireworkModule.power(2));
+        assertEquals(3, PartyFireworkModule.power(9));
         String item = config.getString("party-firework.item");
         assertNotNull(item);
         assertTrue(item.startsWith("stsv:"));
@@ -68,7 +76,7 @@ class PartyFireworkTest {
             if (y.isConfigurationSection(id)) found = y;
         }
         assertNotNull(found, "no custom item " + item);
-        assertFalse(found.getString(id + ".material", "").toLowerCase().contains("firework"), "not a rocket in the hand");
+        assertFalse(found.getString(id + ".material", "").toLowerCase().contains("firework"), "not a rocket in the hand (it would be placed and used up)");
         assertEquals(1, found.getInt(id + ".max-stack"));
         var messages = YamlConfiguration.loadConfiguration(new InputStreamReader(getClass().getResourceAsStream("/messages.yml"), StandardCharsets.UTF_8));
         for (String key : List.of("wait", "not-now")) assertTrue(messages.isString("party-firework." + key), key);

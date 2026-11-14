@@ -127,10 +127,10 @@ commands:
     usage: /감정표현 [이름|그만]
     permission: stsv.emote
   스킨:
-    description: 도구 스킨 (가진 스킨을 켜 두면 그 종류의 도구를 손에 들 때 입혀짐. 겉모습만)
-    aliases: [toolskin, 도구스킨]
-    usage: /스킨
-    permission: stsv.toolskin
+    description: 손에 든 도구의 스킨을 떼고 스킨북을 돌려받음 (스킨은 스킨북을 우클릭해 도구에 입힘)
+    aliases: [skin, 도구스킨]
+    usage: /스킨 해제
+    permission: stsv.skin
   tpa:
     description: 다른 플레이어에게 가겠다고 요청 (상대가 수락하면 잠깐 가만히 있은 뒤 이동)
     aliases: [텔포, 텔포요청]
@@ -171,12 +171,9 @@ permissions:
   stsv.emote.all:
     description: 감정표현을 가지지 않고도 전부 함 (관리자)
     default: op
-  stsv.toolskin:
-    description: /스킨 (도구 스킨을 켜고 끔. 쓸 수 있는 것은 가진 스킨만)
+  stsv.skin:
+    description: /스킨 해제 (손에 든 도구의 스킨을 떼고 스킨북을 돌려받음)
     default: true
-  stsv.toolskin.all:
-    description: 도구 스킨을 가지지 않고도 전부 씀 (관리자)
-    default: op
   stsv.vehicle:
     description: /탈것 (내 탈것 목록, 양도, 내 탈것을 쓸 수 있는 플레이어 정하기)
     default: true

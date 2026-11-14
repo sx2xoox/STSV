@@ -1,0 +1,84 @@
+# 스킨북: 도구의 겉모습만 바꾸는 책. 손에 들고 우클릭 → 가운데 칸에 도구를 넣으면 그 도구에 스킨이 입혀지고 책은 사라짐
+# (플러그인 SkinModule). 재질 · 내구도 · 인챈트 · 이름 · 성능은 그대로. 스킨은 그 도구에 남음 (도구를 건네면 스킨도 같이 감).
+# 떼기: 그 도구를 들고 /스킨 해제 → 원래 모습으로 돌아가고 스킨북을 돌려받음. 다른 스킨북을 입히면 먼저 있던 스킨북을 돌려받음.
+# 스킨북은 보통 아이템이라 플레이어끼리 주고받거나 거래할 수 있음. 파는 곳: 후원 상점 (donation_shop.yml), 관리자 지급.
+#
+# 스킨북은 모두 같은 모양 (texture: skin_book), 이름은 "스킨북: <스킨 이름>", 설명 첫 줄에 시리즈.
+#   skin.model            입혀질 모습: 리소스팩 아이템 모델 (assets/<ns>/items/<이름>.json. 장난감 시리즈: tools/assetgen/models/toys.py)
+#   skin.applies-to       입힐 수 있는 것: #태그 (바닐라 도구 전부: 나무~네더라이트) 또는 아이템 id. 커스텀 아이템(직업 도구 등)에는 적지 않으면 안 입혀짐
+#   skin.return-on-remove 스킨을 뗄 때 책을 돌려줌
+# 새 시리즈: 모델을 만들고 여기에 책을 더한 뒤 donation_shop.yml 에 상품 (item: stsv:<책 id>).
+#
+# ---- 장난감 시리즈 ----
+
+toy_sword_skin:
+  material: paper
+  name: "<#c58cff>스킨북: 장난감 검"
+  lore:
+    - "<gold>장난감 시리즈</gold> <dark_gray>· <gray>검에 입히는 스킨"
+    - "<gray>말랑한 스펀지 칼날의 큼직한 검."
+    - "<dark_gray>우클릭: 가운데 칸에 검을 넣으면 입혀짐 · 떼기: /스킨 해제"
+    - "<dark_gray>겉모습만 바뀝니다 (재질 · 인챈트 · 내구도 그대로)"
+  texture: skin_book
+  max-stack: 16
+  skin: { model: "stsv:toy_sword", applies-to: ["#minecraft:swords"], return-on-remove: true }
+
+toy_pickaxe_skin:
+  material: paper
+  name: "<#c58cff>스킨북: 장난감 곡괭이"
+  lore:
+    - "<gold>장난감 시리즈</gold> <dark_gray>· <gray>곡괭이에 입히는 스킨"
+    - "<gray>빨간 플라스틱 머리의 곡괭이."
+    - "<dark_gray>우클릭: 가운데 칸에 곡괭이를 넣으면 입혀짐 · 떼기: /스킨 해제"
+    - "<dark_gray>겉모습만 바뀝니다 (재질 · 인챈트 · 내구도 그대로)"
+  texture: skin_book
+  max-stack: 16
+  skin: { model: "stsv:toy_pickaxe", applies-to: ["#minecraft:pickaxes"], return-on-remove: true }
+
+toy_shovel_skin:
+  material: paper
+  name: "<#c58cff>스킨북: 장난감 삽"
+  lore:
+    - "<gold>장난감 시리즈</gold> <dark_gray>· <gray>삽에 입히는 스킨"
+    - "<gray>초록 삽날에 D자 손잡이가 달린 모래놀이 삽."
+    - "<dark_gray>우클릭: 가운데 칸에 삽을 넣으면 입혀짐 · 떼기: /스킨 해제"
+    - "<dark_gray>겉모습만 바뀝니다 (재질 · 인챈트 · 내구도 그대로)"
+  texture: skin_book
+  max-stack: 16
+  skin: { model: "stsv:toy_shovel", applies-to: ["#minecraft:shovels"], return-on-remove: true }
+
+toy_axe_skin:
+  material: paper
+  name: "<#c58cff>스킨북: 장난감 도끼"
+  lore:
+    - "<gold>장난감 시리즈</gold> <dark_gray>· <gray>도끼에 입히는 스킨"
+    - "<gray>주황 머리에 스펀지 날을 댄 도끼."
+    - "<dark_gray>우클릭: 가운데 칸에 도끼를 넣으면 입혀짐 · 떼기: /스킨 해제"
+    - "<dark_gray>겉모습만 바뀝니다 (재질 · 인챈트 · 내구도 그대로)"
+  texture: skin_book
+  max-stack: 16
+  skin: { model: "stsv:toy_axe", applies-to: ["#minecraft:axes"], return-on-remove: true }
+
+toy_hoe_skin:
+  material: paper
+  name: "<#c58cff>스킨북: 장난감 괭이"
+  lore:
+    - "<gold>장난감 시리즈</gold> <dark_gray>· <gray>괭이에 입히는 스킨"
+    - "<gray>파란 날의 괭이."
+    - "<dark_gray>우클릭: 가운데 칸에 괭이를 넣으면 입혀짐 · 떼기: /스킨 해제"
+    - "<dark_gray>겉모습만 바뀝니다 (재질 · 인챈트 · 내구도 그대로)"
+  texture: skin_book
+  max-stack: 16
+  skin: { model: "stsv:toy_hoe", applies-to: ["#minecraft:hoes"], return-on-remove: true }
+
+toy_fishing_rod_skin:
+  material: paper
+  name: "<#c58cff>스킨북: 장난감 낚싯대"
+  lore:
+    - "<gold>장난감 시리즈</gold> <dark_gray>· <gray>낚싯대에 입히는 스킨"
+    - "<gray>큼직한 릴과 찌가 달린 낚시 놀이 낚싯대."
+    - "<dark_gray>우클릭: 가운데 칸에 낚싯대를 넣으면 입혀짐 · 떼기: /스킨 해제"
+    - "<dark_gray>겉모습만 바뀝니다 (인챈트 · 내구도 그대로)"
+  texture: skin_book
+  max-stack: 16
+  skin: { model: "stsv:toy_fishing_rod", applies-to: ["minecraft:fishing_rod"], return-on-remove: true }

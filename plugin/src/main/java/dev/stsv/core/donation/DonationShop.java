@@ -28,16 +28,17 @@ public record DonationShop(String currency, String symbol, List<String> notice, 
 
     /**
      * @param once     can be bought once only (something a player has or has not: a vehicle can be bought again)
-     * @param item     a custom item's id ("stsv:hyper_car") given into the buyer's inventory, or null
+     * @param item     a custom item's id ("stsv:hyper_car") given into the buyer's inventory, or null (the first of items)
+     * @param items    every custom item it gives (a set: several skin books in one product); item and the file's items list together
      * @param commands console commands, {player} their name; may be empty when there is an item
-     * @param unlocks  things the buyer owns for good from then on, "kind:id" ("banner:fire", "emote:twerk",
-     *                 "tool_skin:toy_sword": UnlockModule); a product that only unlocks can be bought once
+     * @param unlocks  things the buyer owns for good from then on, "kind:id" ("banner:fire", "emote:twerk":
+     *                 UnlockModule); a product that only unlocks can be bought once
      * @param icon     what its tile shows instead of the item or the unlocked thing: a custom item's id, an item model
      *                 of the pack ("stsv:gui/star") or a material; may be null
      * @param description lines ("\n" between them) under the name
      */
-    public record Product(String id, String name, String description, long price, boolean once, String item, List<String> commands,
-                          List<String> unlocks, String icon) {}
+    public record Product(String id, String name, String description, long price, boolean once, String item, List<String> items,
+                          List<String> commands, List<String> unlocks, String icon) {}
 
     /** @param icon the tab's icon: an item model of the pack or a material; may be null */
     public record Category(String id, String name, List<String> products, String icon) {}
@@ -74,7 +75,10 @@ public record DonationShop(String currency, String symbol, List<String> notice, 
                 continue;
             }
             long price = p.getLong("price", -1);
-            String item = p.getString("item");
+            List<String> items = new ArrayList<>();
+            if (p.isString("item")) items.add(p.getString("item"));
+            items.addAll(p.getStringList("items"));
+            String item = items.isEmpty() ? null : items.getFirst();
             List<String> commands = p.getStringList("commands").stream().map(String::trim).filter(s -> !s.isEmpty())
                     .map(s -> s.startsWith("/") ? s.substring(1) : s).toList();
             if (price < 1) {
@@ -93,17 +97,23 @@ public record DonationShop(String currency, String symbol, List<String> notice, 
             }
             if (bad) continue;
             if (item == null && commands.isEmpty() && unlocks.isEmpty()) {
-                problems.accept("products." + id + ": item, commands, unlocks 중 하나는 있어야 함 (사도 받는 것이 없음)");
+                problems.accept("products." + id + ": item(s), commands, unlocks 중 하나는 있어야 함 (사도 받는 것이 없음)");
                 continue;
             }
-            if (item != null && !itemExists.test(item)) {
-                problems.accept("products." + id + ": 아이템 " + item + " 이 없음");
+            String missing = items.stream().filter(i -> !itemExists.test(i)).findFirst().orElse(null);
+            if (missing != null) {
+                problems.accept("products." + id + ": 아이템 " + missing + " 이 없음");
+                continue;
+            }
+            if (items.size() > 27) {
+                problems.accept("products." + id + ": 아이템은 한 상품에 27개까지");
                 continue;
             }
             String description = p.isList("description") ? String.join("\n", p.getStringList("description")) : p.getString("description", "");
             // what is owned for good is bought once (nothing else comes with it that could be wanted twice)
             boolean once = p.getBoolean("once") || (!unlocks.isEmpty() && item == null && commands.isEmpty());
-            products.put(id, new Product(id, p.getString("name", id), description, price, once, item, commands, List.copyOf(unlocks), p.getString("icon")));
+            products.put(id, new Product(id, p.getString("name", id), description, price, once, item, List.copyOf(items), commands, List.copyOf(unlocks),
+                    p.getString("icon")));
         }
         Map<String, Category> categories = new LinkedHashMap<>();
         java.util.Set<String> placed = new java.util.HashSet<>();

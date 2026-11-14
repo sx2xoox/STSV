@@ -130,7 +130,7 @@ public final class UnlockModule implements StsvModule, Listener {
         return k != null && k.ids().get().contains(u[1]);
     }
 
-    /** A thing as an item to look at ("tool_skin:toy_sword": the tool in that look), or null when its kind has none. */
+    /** A thing as an item to look at ("banner:fire": the theme's icon), or null when its kind has none. */
     public org.bukkit.inventory.ItemStack icon(String unlock) {
         String[] u = split(unlock);
         Kind k = u == null ? null : kinds.get(u[0]);

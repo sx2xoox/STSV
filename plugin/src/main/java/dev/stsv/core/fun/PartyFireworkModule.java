@@ -32,9 +32,10 @@ import java.util.Random;
 import java.util.UUID;
 
 /**
- * The party firework (무한 폭죽): an item that sends up a firework each time it is used and is never used up. For
- * show only: its fireworks hurt nobody, it does not push a glider (it is not a rocket in the hand, and it refuses
- * while gliding), and it waits a moment between shots ({@code party-firework.cooldown-seconds}).
+ * The party firework (무한 폭죽): an item that sends up a firework each time it is used and is never used up.
+ * Used while gliding it pushes the glider as a rocket does ({@code party-firework.boost}: that is what it is for), as
+ * strong as a rocket of {@code boost-power} gunpowder. Its fireworks hurt nobody (not the flier it bursts on either),
+ * and it waits a moment between shots ({@code cooldown-seconds} on the ground, {@code flight-cooldown-seconds} in the air).
  */
 public final class PartyFireworkModule implements StsvModule, Listener {
 
@@ -77,6 +78,11 @@ public final class PartyFireworkModule implements StsvModule, Listener {
         return Math.max(0, lastShot + Math.round(cooldownSeconds * 1000) - now);
     }
 
+    /** A push's strength: the gunpowder of the rocket it stands for, 1 to 3 as the game's rockets. */
+    static int power(int configured) {
+        return Math.clamp(configured, 1, 3);
+    }
+
     /** One shot's look: a shape, one or two colours and a fade, sometimes a trail or a twinkle. */
     static FireworkEffect effect(Random r) {
         int a = COLOURS[r.nextInt(COLOURS.length)], b = COLOURS[r.nextInt(COLOURS.length)], fade = COLOURS[r.nextInt(COLOURS.length)];
@@ -96,17 +102,30 @@ public final class PartyFireworkModule implements StsvModule, Listener {
         if (e.getHand() != EquipmentSlot.HAND && is(e.getPlayer().getInventory().getItemInMainHand())) return;   // one shot a click
         Player p = e.getPlayer();
         if (!plugin.getConfig().getBoolean("party-firework.enabled")) return;
-        if (p.isGliding() || p.isInsideVehicle() || p.isSwimming()) {
+        boolean flying = p.isGliding() && plugin.getConfig().getBoolean("party-firework.boost");
+        if (p.isInsideVehicle() || (p.isGliding() && !flying)) {
             p.sendActionBar(Lang.mm("party-firework.not-now"));
             return;
         }
         long now = System.currentTimeMillis();
-        long wait = wait(last.getOrDefault(p.getUniqueId(), 0L), now, plugin.getConfig().getDouble("party-firework.cooldown-seconds"));
+        long wait = wait(last.getOrDefault(p.getUniqueId(), 0L), now,
+                plugin.getConfig().getDouble(flying ? "party-firework.flight-cooldown-seconds" : "party-firework.cooldown-seconds"));
         if (wait > 0) {
             p.sendActionBar(Lang.mm("party-firework.wait", "seconds", String.format("%.1f", wait / 1000.0)));
             return;
         }
         last.put(p.getUniqueId(), now);
+        if (flying) {
+            // the glider's push: a rocket of our own (never the item in the hand), with the show's colours; it bursts on the flier and hurts nobody
+            ItemStack rocket = new ItemStack(org.bukkit.Material.FIREWORK_ROCKET);
+            rocket.editMeta(FireworkMeta.class, meta -> {
+                meta.addEffect(effect(random));
+                meta.setPower(power(plugin.getConfig().getInt("party-firework.boost-power")));
+            });
+            Firework fw = p.fireworkBoost(rocket);
+            if (fw != null) fw.getPersistentDataContainer().set(keyShot, PersistentDataType.BYTE, (byte) 1);
+            return;
+        }
         Location from = p.getEyeLocation().add(p.getLocation().getDirection().setY(0).multiply(0.6));
         p.getWorld().spawn(from, Firework.class, fw -> {
             FireworkMeta meta = fw.getFireworkMeta();

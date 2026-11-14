@@ -191,18 +191,25 @@ class DonationTest {
         YamlConfiguration y = new YamlConfiguration();
         y.loadFromString("""
                 categories:
-                  a: { name: "배너", icon: "stsv:gui/flag", products: [fire, set, both, bad, none] }
+                  a: { name: "배너", icon: "stsv:gui/flag", products: [fire, set, both, bad, none, books, gone] }
                 products:
                   fire: { name: "화염 배너", price: 50, description: ["한 줄", "두 줄"], unlocks: ["banner:fire"] }
-                  set:  { name: "세트", price: 90, unlocks: ["tool_skin:toy_sword", "tool_skin:toy_axe"], icon: "stsv:toy_sword" }
+                  set:  { name: "세트", price: 90, unlocks: ["emote:twerk", "emote:disco"], icon: "stsv:toy_sword" }
+                  books: { name: "책 두 권", price: 70, item: "stsv:car", items: ["stsv:book", "stsv:book"] }
+                  gone:  { name: "없는 책", price: 70, items: ["stsv:book", "stsv:nope"] }
                   both: { name: "차와 배너", price: 300, item: "stsv:car", unlocks: ["banner:frost"] }
                   bad:  { name: "틀린 것", price: 10, unlocks: ["fire"] }
                   none: { name: "빈 것", price: 10 }
                 """);
         List<String> problems = new ArrayList<>();
-        DonationShop shop = DonationShop.parse(y, id -> id.equals("stsv:car"), problems::add);
-        assertEquals(Set.of("fire", "set", "both"), shop.products().keySet());
-        assertEquals(4, problems.size(), String.join("\n", problems));      // bad, none, and both left out of the category
+        DonationShop shop = DonationShop.parse(y, id -> id.equals("stsv:car") || id.equals("stsv:book"), problems::add);
+        assertEquals(Set.of("fire", "set", "both", "books"), shop.products().keySet());
+        assertEquals(6, problems.size(), String.join("\n", problems));      // bad, none, gone, and each left out of the category
+        // a set of items: item and items together, in order; it can be bought again
+        assertEquals(List.of("stsv:car", "stsv:book", "stsv:book"), shop.products().get("books").items());
+        assertEquals("stsv:car", shop.products().get("books").item());
+        assertFalse(shop.products().get("books").once());
+        assertEquals(List.of(), shop.products().get("fire").items());
         DonationShop.Product fire = shop.products().get("fire");
         assertEquals(List.of("banner:fire"), fire.unlocks());
         assertTrue(fire.once(), "what is owned for good is bought once");
@@ -232,7 +239,6 @@ class DonationTest {
                         assertTrue(emotes.contains("emotes." + thing[1]), p.id() + ": no emote " + thing[1]);
                         assertFalse(config.getStringList("emotes.free").contains(thing[1]), p.id() + ": a free emote is not sold");
                     }
-                    case "tool_skin" -> { }      // ToolSkinsTest: every skin sold is a skin there is
                     default -> throw new AssertionError(p.id() + ": unknown kind " + thing[0]);
                 }
             }
@@ -252,6 +258,22 @@ class DonationTest {
             }
         }
         assertTrue(menu.contains("donation_buy.buttons.Y"), "a purchase is confirmed on a screen of its own");
+        // the skin books: every one of the pack is for sale alone, and the set gives one of each
+        YamlConfiguration books = YamlConfiguration.loadConfiguration(PACK.resolve("items/skin_books.yml").toFile());
+        Set<String> alone = new java.util.HashSet<>();
+        for (DonationShop.Product p : shop.products().values()) if (p.items().size() == 1 && books.contains(p.item().substring(5))) alone.add(p.item().substring(5));
+        assertEquals(books.getKeys(false), alone);
+        assertEquals(books.getKeys(false), Set.copyOf(shop.products().get("toy_set").items().stream().map(i -> i.substring(5)).toList()));
+        assertTrue(shop.products().get("toy_set").price() < 6 * shop.products().get("toy_sword").price(), "the set is cheaper than its books");
+        for (String id : books.getKeys(false)) {
+            assertEquals("skin_book", books.getString(id + ".texture"), id + ": every skin book has the one look");
+            assertTrue(books.getString(id + ".name").contains("스킨북: "), id);
+            String model = books.getString(id + ".skin.model");
+            assertTrue(java.nio.file.Files.isRegularFile(PACK.resolve("assets/stsv/items/" + model.substring(5) + ".json")), id + ": no item model " + model);
+            assertTrue(books.getBoolean(id + ".skin.return-on-remove"), id + ": the book comes back when the skin is taken off");
+            assertFalse(books.getStringList(id + ".skin.applies-to").isEmpty());
+        }
+        assertEquals(6, books.getKeys(false).size(), "the toy series: sword, pickaxe, shovel, axe, hoe, fishing rod");
         assertEquals("donation:confirm", menu.getString("donation_buy.buttons.Y.action"));
     }
 

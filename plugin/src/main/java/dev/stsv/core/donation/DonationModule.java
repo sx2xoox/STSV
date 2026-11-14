@@ -417,9 +417,12 @@ public final class DonationModule implements StsvModule, Listener, TabExecutor {
     // Buying and handing over
     // ------------------------------------------------------------------------------------------
 
-    /** Whether what a product gives can be put into the player's hands now (an item needs an empty slot). */
+    /** Whether what a product gives can be put into the player's hands now (an empty slot for each of its items). */
     private boolean room(Player p, Product product) {
-        return product.item() == null || p.getInventory().firstEmpty() >= 0;
+        if (product.items().isEmpty()) return true;
+        int free = 0;
+        for (ItemStack slot : p.getInventory().getStorageContents()) if (slot == null || slot.isEmpty()) free++;
+        return free >= product.items().size();
     }
 
     /** Whether everything a product unlocks still exists (a theme that was taken out of the pack cannot be sold). */
@@ -486,7 +489,7 @@ public final class DonationModule implements StsvModule, Listener, TabExecutor {
             if (!p.isOnline()) {
                 // marked, and they left before the next tick: unmarking is not safe (it might be handed over twice), so say so loudly
                 plugin.getLogger().warning("[후원] 구매 #" + entry + " (" + product.id() + "): 지급 표시 뒤 " + p.getName()
-                        + " 이(가) 나갔습니다. 직접 지급해 주세요: " + (product.item() != null ? "/관리자 지급 " + p.getName() + " " + product.item() : product.commands()));
+                        + " 이(가) 나갔습니다. 직접 지급해 주세요: " + (product.items().isEmpty() ? product.commands() : "/관리자 지급 " + p.getName() + " " + String.join(", ", product.items())));
                 return;
             }
             give(p, product);
@@ -495,15 +498,15 @@ public final class DonationModule implements StsvModule, Listener, TabExecutor {
     }
 
     private void give(Player p, Product product) {
-        if (product.item() != null) {
-            Optional<CustomItem> item = plugin.content().item(product.item());
+        for (String id : product.items()) {
+            Optional<CustomItem> item = plugin.content().item(id);
             if (item.isPresent()) {
                 ItemStack stack = item.get().create(1);
                 // a vehicle is its buyer's from the start (bound: only they place it)
                 if (plugin.vehicles() != null) plugin.vehicles().bind(stack, p.getUniqueId(), p.getName());
                 p.getInventory().addItem(stack).values().forEach(rest -> p.getWorld().dropItem(p.getLocation(), rest));
             } else {
-                plugin.getLogger().warning("[후원] 상품 " + product.id() + " 의 아이템 " + product.item() + " 이 없어 " + p.getName() + " 에게 주지 못했습니다.");
+                plugin.getLogger().warning("[후원] 상품 " + product.id() + " 의 아이템 " + id + " 이 없어 " + p.getName() + " 에게 주지 못했습니다.");
             }
         }
         if (plugin.unlocks() != null) {

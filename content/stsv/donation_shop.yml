@@ -1,21 +1,21 @@
 # 후원 상점 (/후원): 후원 재화로 사는 상품. 재화는 관리자가 입금을 확인하고 /관리자 후원 지급 <플레이어> <수량> 으로 줌.
 #
 # 지킬 것 (마인크래프트 서버 운영 규정):
-#   - 꾸미기만 팖. 게임에서 유리해지는 것 (돈, 장비, 경험치, 땅, 더 빠른 탈것) 은 넣지 않음.
+#   - 꾸미기 위주로 팖. 게임에서 유리해지는 것 (돈, 장비, 경험치, 땅, 더 빠른 탈것) 은 넣지 않음.
+#     예외: 무한 폭죽 (겉날개로 나는 중에 쏘면 로켓처럼 밀어 줌) 은 서버 주인이 정해서 넣은 것 (지인 서버).
 #   - 망토나 망토처럼 보이는 것은 팔지 않음.
 #   - 재화는 현금으로 되돌리거나 다른 서버로 옮길 수 없음. 이름을 마인코인과 헷갈리게 짓지 않음.
 #   - 값은 사기 전에 보여 주고 (이 상점 화면), 구매 내역을 볼 수 있게 함 (/후원 내역).
 #   - 공식 Minecraft 제품이 아니라는 안내를 둠 (아래 notice).
 #
 # 상품 = id: { name, price (재화), description (상점 칸의 설명: 한 줄 또는 여러 줄 목록), once: true 면 한 번만 살 수 있음,
-#              item: 커스텀 아이템 id (인벤토리로 지급. 탈것은 산 사람에게 귀속됨),
+#              item: 커스텀 아이템 id (인벤토리로 지급. 탈것은 산 사람에게 귀속됨), items: [id, ...] 여러 개를 한 번에 (묶음 상품),
 #              unlocks: [종류:id, ...] 산 사람이 영구히 가지는 것 (아이템이 아니라 계정에 남음. 이것만 있는 상품은 한 번만 살 수 있음)
 #                  banner:<테마>        칭호 배너 (/칭호 의 칭호 배너 화면에서 장착)   테마 id: /관리자 해금 종류
 #                  emote:<감정표현>     감정표현 (/감정표현 휠에 놓고 씀)
-#                  tool_skin:<스킨>     도구 스킨 (/스킨 에서 켬)
 #              commands: [콘솔이 실행할 명령어, ...] ({player} = 산 사람의 이름),
 #              icon: 상점 칸의 그림을 따로 정할 때 (커스텀 아이템 id, 리소스팩 아이템 모델 "stsv:gui/star", 또는 바닐라 아이템 이름) }
-#   item · unlocks · commands 중 하나는 있어야 하고 여럿이어도 됨. 관리자 명령어로 줄 수 있는 것은 commands 로 무엇이든 팔 수 있음:
+#   item(s) · unlocks · commands 중 하나는 있어야 하고 여럿이어도 됨. 관리자 명령어로 줄 수 있는 것은 commands 로 무엇이든 팔 수 있음:
 #     치장      commands: ["관리자 치장 지급 {player} stsv:butterfly_wings"]
 #     칭호      commands: ["관리자 칭호 지급 {player} <칭호 id>"]
 # 분류 = id: { name, icon (탭 그림: 리소스팩 아이템 모델 또는 바닐라 아이템 이름), products: [상품 id, ...] }. 화면의 탭은 일곱 개까지.
@@ -23,7 +23,7 @@
 # 환불 (/관리자 후원 환불 <내역 번호>) 은 값을 돌려주고 unlocks 로 준 것을 도로 가져감 (아이템 · commands 로 준 것은 관리자가 따로).
 #
 # 별 1개 = 100원 (입금 1,000원마다 별 10개를 지급). 아래 값은 이 기준: 300★ = 30,000원, 250★ = 25,000원, 50★ = 5,000원, 30★ = 3,000원.
-# 칭호 배너 · 감정표현 · 도구 스킨 · 무한 폭죽의 값은 임시로 넣은 것: 서버 주인이 정하면 됨. 안내문의 입금 방법 · 문의처도 서버 주인이 채워야 함.
+# 칭호 배너 · 감정표현 · 스킨북 · 무한 폭죽의 값은 임시로 넣은 것: 서버 주인이 정하면 됨. 안내문의 입금 방법 · 문의처도 서버 주인이 채워야 함.
 
 currency:
   name: "별"
@@ -33,7 +33,7 @@ currency:
 notice:
   - "<gray>후원은 서버 운영비에 쓰입니다. 후원 방법과 문의는 서버 공지를 확인해 주세요."
   - "<gray>별 1개 = <white>100원</white>. 입금이 확인되면 관리자가 별을 지급합니다."
-  - "<gray>상품은 모두 <white>꾸미기</white>이며 게임에서 유리해지는 것은 없습니다."
+  - "<gray>상품은 <white>꾸미기</white>가 중심입니다. 무한 폭죽은 겉날개 비행을 밀어 줍니다."
   - "<dark_gray>이 서버는 공식 Minecraft 제품이 아니며, Mojang 또는 Microsoft 의 승인을 받거나 관련되어 있지 않습니다."
 
 categories:
@@ -50,7 +50,7 @@ categories:
     icon: "stsv:gui/emote_any"
     products: [emote_twerk, emote_take_l, emote_disco, emote_cheer]
   tool_skins:
-    name: "도구 스킨"
+    name: "스킨북"
     icon: "stsv:toy_pickaxe"
     products: [toy_set, toy_sword, toy_pickaxe, toy_shovel, toy_axe, toy_hoe, toy_fishing_rod]
   fun:
@@ -158,46 +158,53 @@ products:
     description: ["<gray>두 팔을 번쩍 들고 뛰는 만세 (되풀이)."]
     unlocks: ["emote:cheer"]
 
-  # 도구 스킨 · 장난감 시리즈: 도구의 겉모습만 바꿈. /스킨 에서 켜 두면 그 종류의 도구를 손에 들 때마다 입혀짐 (도구가 부서져도 스킨은 남음)
+  # 스킨북 · 장난감 시리즈: 도구의 겉모습만 바꾸는 책 (items/skin_books.yml). 우클릭해 도구에 입히고, /스킨 해제 로 떼면 책을 돌려받음.
+  # 책은 보통 아이템이라 여러 권 살 수 있고 플레이어끼리 주고받을 수 있음
   toy_set:
-    name: "장난감 시리즈 전부"
+    name: "장난감 시리즈 스킨북 6권"
     price: 200          # 20,000원 (따로 사면 240★)
     description:
       - "<gray>검 · 곡괭이 · 삽 · 도끼 · 괭이 · 낚싯대"
-      - "<gray>장난감 시리즈 여섯 개를 한 번에."
-      - "<dark_gray>겉모습만 바뀝니다. 성능은 그대로."
-    unlocks: ["tool_skin:toy_sword", "tool_skin:toy_pickaxe", "tool_skin:toy_shovel", "tool_skin:toy_axe", "tool_skin:toy_hoe", "tool_skin:toy_fishing_rod"]
+      - "<gray>장난감 시리즈 스킨북 여섯 권을 한 번에."
+      - "<dark_gray>인벤토리 빈칸 6개가 필요합니다."
+    items: ["stsv:toy_sword_skin", "stsv:toy_pickaxe_skin", "stsv:toy_shovel_skin", "stsv:toy_axe_skin", "stsv:toy_hoe_skin", "stsv:toy_fishing_rod_skin"]
     icon: "stsv:toy_sword"
   toy_sword:
-    name: "장난감 검"
+    name: "스킨북: 장난감 검"
     price: 40           # 4,000원
-    description: ["<gray>말랑한 스펀지 칼날의 큼직한 검.", "<dark_gray>겉모습만 바뀝니다. 성능은 그대로."]
-    unlocks: ["tool_skin:toy_sword"]
+    description: ["<gray>말랑한 스펀지 칼날의 큼직한 검.", "<dark_gray>스킨북 한 권: 도구 하나에 입힙니다 (겉모습만)."]
+    item: stsv:toy_sword_skin
+    icon: "stsv:toy_sword"
   toy_pickaxe:
-    name: "장난감 곡괭이"
+    name: "스킨북: 장난감 곡괭이"
     price: 40           # 4,000원
-    description: ["<gray>빨간 플라스틱 머리의 곡괭이.", "<dark_gray>겉모습만 바뀝니다. 성능은 그대로."]
-    unlocks: ["tool_skin:toy_pickaxe"]
+    description: ["<gray>빨간 플라스틱 머리의 곡괭이.", "<dark_gray>스킨북 한 권: 도구 하나에 입힙니다 (겉모습만)."]
+    item: stsv:toy_pickaxe_skin
+    icon: "stsv:toy_pickaxe"
   toy_shovel:
-    name: "장난감 삽"
+    name: "스킨북: 장난감 삽"
     price: 40           # 4,000원
-    description: ["<gray>모래놀이 삽.", "<dark_gray>겉모습만 바뀝니다. 성능은 그대로."]
-    unlocks: ["tool_skin:toy_shovel"]
+    description: ["<gray>D자 손잡이가 달린 모래놀이 삽.", "<dark_gray>스킨북 한 권: 도구 하나에 입힙니다 (겉모습만)."]
+    item: stsv:toy_shovel_skin
+    icon: "stsv:toy_shovel"
   toy_axe:
-    name: "장난감 도끼"
+    name: "스킨북: 장난감 도끼"
     price: 40           # 4,000원
-    description: ["<gray>주황 머리에 스펀지 날을 댄 도끼.", "<dark_gray>겉모습만 바뀝니다. 성능은 그대로."]
-    unlocks: ["tool_skin:toy_axe"]
+    description: ["<gray>주황 머리에 스펀지 날을 댄 도끼.", "<dark_gray>스킨북 한 권: 도구 하나에 입힙니다 (겉모습만)."]
+    item: stsv:toy_axe_skin
+    icon: "stsv:toy_axe"
   toy_hoe:
-    name: "장난감 괭이"
+    name: "스킨북: 장난감 괭이"
     price: 40           # 4,000원
-    description: ["<gray>파란 날의 괭이.", "<dark_gray>겉모습만 바뀝니다. 성능은 그대로."]
-    unlocks: ["tool_skin:toy_hoe"]
+    description: ["<gray>파란 날의 괭이.", "<dark_gray>스킨북 한 권: 도구 하나에 입힙니다 (겉모습만)."]
+    item: stsv:toy_hoe_skin
+    icon: "stsv:toy_hoe"
   toy_fishing_rod:
-    name: "장난감 낚싯대"
+    name: "스킨북: 장난감 낚싯대"
     price: 40           # 4,000원
-    description: ["<gray>큼직한 릴과 찌가 달린 낚시 놀이 낚싯대.", "<dark_gray>겉모습만 바뀝니다. 성능은 그대로."]
-    unlocks: ["tool_skin:toy_fishing_rod"]
+    description: ["<gray>큼직한 릴과 찌가 달린 낚싯대.", "<dark_gray>스킨북 한 권: 도구 하나에 입힙니다 (겉모습만)."]
+    item: stsv:toy_fishing_rod_skin
+    icon: "stsv:toy_fishing_rod"
 
   # 놀잇감
   infinite_firework:
@@ -205,6 +212,6 @@ products:
     price: 100          # 10,000원
     description:
       - "<gray>쏴도 줄지 않는 장난감 폭죽 발사기."
-      - "<gray>쏠 때마다 색과 모양이 달라집니다."
-      - "<dark_gray>보여 주기만 합니다: 피해 없음, 겉날개 가속 없음."
+      - "<gray>겉날개로 나는 중에 쏘면 로켓처럼 밀어 줍니다."
+      - "<dark_gray>쏠 때마다 색과 모양이 다릅니다. 피해는 없습니다."
     item: stsv:infinite_firework
