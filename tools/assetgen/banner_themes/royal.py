@@ -128,20 +128,91 @@ def frame(G, i):
 
 
 # ------------------------------------------------------------------------------------------------
-# The chat banner: a royal seal. A bar of deep crimson velvet (a faint diamond pattern woven in it) between two
-# heavy rails of gold: a bright upper edge, an engraved channel, and a jewel set in the upper rail every 32 columns
-# (ruby, sapphire, emerald in turn). The left end carries a small crown, both ends are gold caps with a finial.
+# The chat banner: a royal standard. A bar of deep crimson velvet (a faint diamond pattern woven in it) hung between
+# two mouldings of worked gold, and nothing about its outline is a straight line: along the top runs a cresting of
+# gold points (one every 8 columns, as on a crown's rim) with a jewel in a claw setting every 32 (ruby, sapphire),
+# under it a beaded band; along the bottom a band and a bullion fringe. A line of gold stitching holds the velvet to
+# each band (dark gold: it lies on the words' rows). Each end is a fluted gold cap; before the left one a jewelled
+# crown rests on its cushion, as large as the line is high, the right one carries a fleur-de-lis finial on its side.
 # While it idles the jewels glint in turn. Every two seconds a bar of light sweeps along the gold from left to
-# right: the rails flash white where it is, every jewel sparkles as it passes, and the velvet under it warms a
-# little. Behind the words the velvet stays dark (C.hush).
+# right: the mouldings flash white where it is, every jewel sparkles as it passes, the crown and the finial catch
+# it, and the velvet under it warms a little. Behind the words the velvet stays dark (C.hush).
 # ------------------------------------------------------------------------------------------------
 CHAT_GEM = {"#": (255, 255, 255), "a": (220, 240, 255), "w": (255, 255, 255), "b": (160, 200, 240), "c": (70, 90, 150)}
-CHAT_JEWELS = (RUBY, SAPH, EMER)
-CHAT_CROWN = ("#...#...#", "#...#...#", "##.###.##", "#########", "#########", "oooooooo.")    # 9 x 6, o: its band
+CHAT_JEWELS = (RUBY, SAPH)
+CHAT_PAL = {"W": G_W, "L": G_L, "M": G_M, "D": G_D, "d": G_DD, "o": OUT, "p": (255, 255, 255),
+            "r": RUBY[0], "R": RUBY[1], "q": RUBY[2], "s": SAPH[0], "S": SAPH[1], "z": SAPH[2],
+            "e": EMER[0], "E": EMER[1], "g": EMER[2], "v": (150, 26, 44), "V": (92, 12, 26)}
+# the left end, 18 rows; its column 22 is the plate's first column. A crown (five points with pearls, a jewelled band,
+# its velvet cap showing between the arches) on a tasselled cushion, before a fluted cap.
+CHAT_LEFT = (
+    "..........p.............oMo",
+    ".........pWp...........oWLDo",
+    "....p....LWL....p.....oLLMDdo",
+    "...pWp...LML...pWp....oWLMDdo",
+    "p..LWL..oLMLo..LWL..p.oWLMDdo",
+    "Wo.LMLo.LLMLL.oLML.oWooLLMDdo",
+    "LLoLMLLoLvMvLoLLMLoLLooWLMDdo",
+    "LMLLMLvLLVMVLLvLMLLMLooWLMDdo",
+    "LMMLMLVVLLMLLVVLMLMMLooLLMDdo",
+    "WWLLLLLLLrRLLLLLLLWWWooWLMDdo",
+    "LsSLMeELrRRqLMsSLMeEDooWLMDdo",
+    "MzSMMgEMRRqqMMzSMMgEDooLLMDdo",
+    "dDDDDDDDDDDDDDDDDDDDdooWLMDdo",
+    "ovvvvvvvvvvvvvvvvvvvvooWLMDdo",
+    "LvVVVVVVVVVVVVVVVVVvLooLLMDdo",
+    "DoVVVVVVVVVVVVVVVVVoD.oLLMDdo",
+    "d.ooooooooooooooooo.d..oMDdo",
+    "........................odo",
+)
+# the right end, 18 rows; its column 4 is the plate's last column. The cap again, then a fleur-de-lis lying on its
+# side (its middle petal the spear point, the side petals curling back) on a collar.
+CHAT_RIGHT = (
+    "oMo........................",
+    "oDMWo.........LL...........",
+    "odDMLLo......LWMD..........",
+    "odDMLWo.....LWMD...........",
+    "odDMLWo....oLMD............",
+    "odDMLLooo..LMDo...LWo......",
+    "odDMLWoLLo.LMD..oLWMLo.....",
+    "odDMLWoLMLoLMDooLWMMMLLo...",
+    "odDMLLoWMMLLMLLLWMMMMMMLLp.",
+    "odDMLWoLMMDDMDDDMMMMMDDDDo.",
+    "odDMLWoDDDoDMDooDMMDDDo....",
+    "odDMLLoDDo.DMD..oDMDo......",
+    "odDMLWooo..DMDo...Do.......",
+    "odDMLWo....oDMD............",
+    "odDMLLo.....DMMD...........",
+    "odDMLLo......DMMD..........",
+    "oDMDo.........DD...........",
+    "odo........................",
+)
+CHAT_GOLD = "WLMDd"
 
 
 def chat_geo(Geo):
     return C.bar(Geo, TITLE, "gust")
+
+
+def _phase(G, x):
+    """the column of the 16-column rhythm a plate column is on: the tile's own up to the right end, which starts a
+    cell of its own (the plate grows by whole cells, so the rhythm runs on into it)"""
+    return x - G.TILE0 if x < G.R0 else x - G.R0
+
+
+def _stamp(px, G, x0, rows, pal, tint=None):
+    """a sprite of 18 rows with its first column at x0; '.' leaves what is there, '_' clears it"""
+    for r, row in enumerate(rows):
+        for k, v in enumerate(row):
+            if v == ".": continue
+            x, y = x0 + k, G.PY0 + r
+            if not (0 <= x < G.W and 0 <= y < G.H): continue
+            if v == "_":
+                px[x, y] = (0, 0, 0, 0)
+                continue
+            c = pal[v]
+            if tint: c = tint(v, c, x, y)
+            px[x, y] = tuple(c[:3]) + (255,)
 
 
 def chat_frame(G, i):
@@ -158,54 +229,57 @@ def chat_frame(G, i):
         return c
 
     for (x, y) in G.inside:
-        xt = x - G.TILE0
-        cell = xt % 32
+        xt = _phase(G, x)
+        c8, c32 = xt % 8, xt % 32
         u = behind(x)
         e = C.strength(u, rise=6, body=14, total=40)         # the bar of light on the gold
         warm = C.strength(u, rise=10, body=24, total=70)
-        d = min(x - G.PX0, G.PX1 - x)
-        jewel = y in (G.PY0, G.PY0 + 1) and cell in (15, 16) and G.TILE0 <= x < G.R0
+        ry = y - G.PY0
+        # a jewel: a lozenge four columns wide whose lower point hangs into the velvet (dark there)
+        setting = 10 <= c32 <= 13 and x < G.R0
+        jewel = setting and (ry == 1 or (ry in (0, 2) and c32 in (11, 12)))
+        claw = setting and ry == 0 and c32 in (10, 13)
         if jewel:
-            J = CHAT_JEWELS[(xt // 32) % 3]
+            J = CHAT_JEWELS[(xt // 32) % 2]
             lit = (idle == (xt // 32) % 4) if step < 0 else 0 < u < 26
-            c = J[0] if (lit and cell == 15 and y == G.PY0) else J[1] if y == G.PY0 else J[2]
-            if lit and y == G.PY0: c = C.lerp(c, (255, 255, 255), 0.45)
-        elif y == G.PY0:
-            c = C.lerp(G_L if cell % 8 else G_M, (255, 255, 255), 0.85 * e)
-        elif y == G.PY0 + 1:
-            c = C.lerp(G_D if cell % 4 else G_DD, G_W, 0.8 * e)                           # the engraved channel
-        elif y == G.PY1 - 1:
-            c = C.lerp(G_M if cell % 4 else G_D, G_W, 0.7 * e)
-        elif y == G.PY1:
-            c = C.lerp(G_DD if cell % 8 else OUT, G_L, 0.6 * e)
+            c = J[0] if (c32 == 11 and ry < 2) else J[1] if (c32 < 12 or ry == 0) else J[2]
+            if lit: c = C.lerp(c, (255, 255, 255), 0.6 if (c32 == 11 and ry == 0) else 0.25)
+            if ry == 2: c = C.lerp(J[2], (0, 0, 0), 0.45)
+        elif claw:
+            c = C.lerp(G_L, (255, 255, 255), 0.8 * e)
+        elif ry == 0:                                        # the cresting: a point every 8 columns
+            if c8 in (3, 4): c = C.lerp(G_W if c8 == 3 else G_L, (255, 255, 255), 0.85 * e)
+            elif c8 in (2, 5): c = C.lerp(G_D, G_W, 0.7 * e)
+            else: continue                                   # air between the points
+        elif ry == 1:                                        # the beaded band
+            c = C.lerp(G_L if c8 % 4 else G_D, (255, 255, 255), 0.85 * e)
+            if c8 in (3, 4): c = C.lerp(G_M, (255, 255, 255), 0.85 * e)
+        elif ry == 16:
+            c = C.lerp(G_M if c8 % 4 != 1 else G_DD, G_W, 0.75 * e)
+        elif ry == 17:                                       # the fringe: a thread every other column
+            if xt % 2: continue
+            c = C.lerp(G_D if c8 else G_L, G_W, 0.6 * e)
         else:
             c = C.lerp(velvet(x, y), (150, 40, 44), 0.35 * warm)
             c = C.hush(c, 0.045 + 0.03 * warm)
-        if d < 3:                                            # the gold caps
-            c = C.lerp((G_L, G_M, G_D)[d], (255, 255, 255), 0.7 * e)
-            if y in (G.PY0, G.PY1): c = G_DD if d else OUT
-        k = C.corner(G, x, y, 2.0)
-        if k > 0: px[x, y] = tuple(c) + (int(255 * k),)
+            if ry in (2, 15):                                # the band's shadow on the velvet, and the stitching
+                c = C.lerp(c, (10, 0, 2), 0.55)
+                if xt % 4 == 1: c = C.lerp(G_DD, (150, 96, 30), 0.5 * e)
+        px[x, y] = tuple(c) + (255,)
 
-    # the crown in the left end: gold, a jewel on each point; it catches the light as the sweep starts
-    flash = C.strength(behind(G.PX0) + 14, rise=6, body=16, total=44) if step >= 0 else 0.0
-    cx0, cy0 = G.PX0 + 4, G.MID - 2
-    for r, row in enumerate(CHAT_CROWN):
-        for k, v in enumerate(row):
-            if v == ".": continue
-            c = G_D if v == "o" else (G_L if k < 4 else G_M if k < 7 else G_D)
-            if r == 0 and v == "#": c = (RUBY[1], SAPH[1], EMER[1])[k // 4]
-            C.put(px, G, cx0 + k, cy0 + r, C.lerp(c, (255, 255, 255), 0.6 * flash))
-    # a finial off each cap: a gold bead on a short stem
-    for side in (-1, 1):
-        x0 = G.PX0 if side < 0 else G.PX1
-        e = C.strength(behind(x0) + (6 if side < 0 else 0), rise=6, body=14, total=40) if step >= 0 else 0.0
-        for k in (1, 2): 
-            for y in (G.MID, G.MID + 1): C.put(px, G, x0 + side * k, y, C.lerp(G_M, G_W, e))
-        for a in range(-1, 3):
-            for b in range(-1, 3):
-                if (a in (-1, 2)) and (b in (-1, 2)): continue
-                C.put(px, G, x0 + side * 4 + (a if side > 0 else -a + 1) - (1 if side < 0 else 0), G.MID + b,
-                      C.lerp(G_L if b <= 0 else G_D, (255, 255, 255), 0.8 * e))
+    # the ends: gold catches the sweep as it starts (left) and as it arrives (right)
+    def flash(x0, lead):
+        return C.strength(behind(x0) + lead, rise=6, body=16, total=44) if step >= 0 else 0.0
+    fl, fr = flash(G.PX0, 14), flash(G.PX1, 0)
+
+    def gilt(f):
+        return lambda v, c, x, y: C.lerp(c, (255, 255, 255), (0.6 if v in CHAT_GOLD else 0.3 if v != "o" else 0.0) * f)
+    _stamp(px, G, G.PX0 - 22, CHAT_LEFT, CHAT_PAL, gilt(fl))
+    _stamp(px, G, G.PX1 - 4, CHAT_RIGHT, CHAT_PAL, gilt(fr))
+    # the crown's jewels and the finial's point glint in turn while it idles
+    if step < 0:
+        spots = ((G.PX0 - 22 + 10, G.PY0 + 9), (G.PX0 - 22 + 2, G.PY0 + 10), (G.PX0 - 22 + 15, G.PY0 + 10), (G.PX1 - 4 + 25, G.PY0 + 8))
+        x, y = spots[idle]
+        C.put(px, G, x, y, (255, 255, 255))
     C.gem7(px, G, CHAT_GEM)
     return im

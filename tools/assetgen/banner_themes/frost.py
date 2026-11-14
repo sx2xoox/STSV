@@ -132,19 +132,61 @@ def frame(G, i):
 
 
 # ------------------------------------------------------------------------------------------------
-# The chat banner: a pane of black ice. A bar of deep blue ice, darker towards the bottom, with pale frost creeping
-# in from both rails (a different reach in every column, the same every 64) and a few fine cracks. The upper rail
-# is clear ice with a bright edge and short icicles under it, the lower one frosted. Off each end stands a cluster
-# of crystal shards. The scene loops: snow drifts down across the bar (small, pale, never bright), a glint runs
-# along the upper rail, and stars of light flare on the rails and the shards. Behind the words the ice stays dark.
+# The chat banner: a bar cut from black ice. Deep blue ice, darker towards the bottom, with pale frost creeping in
+# from both rails (a different reach in every column, the same every 64) and a few fine cracks, held in a frame of
+# cut ice whose outline is never straight: a crust of frost crystals stands up along the top (gaps between them),
+# under it a band of clear ice cut in facets, and from that band icicles of four lengths hang down over the dark
+# ice (dim: they lie on the words' rows); along the bottom a frosted band drips in short teeth. Each end of the bar
+# is a block of cut ice with its corners taken off. Off the left end stands a six-armed snow crystal as high as the
+# line, off the right end a cluster of crystal prisms.
+# The scene loops: snow drifts down across the bar (small, pale, never bright), a glint runs along the clear band,
+# and stars of light flare on the rails, in the crystal's heart and on the longest prism's tip. Behind the words the
+# ice stays dark.
 # ------------------------------------------------------------------------------------------------
 CHAT_GEM = {"#": (255, 255, 255), "a": (190, 240, 255), "w": (255, 255, 255), "b": (100, 200, 245), "c": (34, 80, 160)}
 CHAT_FLAKES = ((3, 0, 0), (11, 5, 1), (20, 11, 0), (27, 2, 1), (36, 8, 0), (44, 13, 1), (52, 4, 0), (59, 10, 1))   # column in the tile, phase, sway
 CHAT_STARS = ((0, 6, 1, 0), (1, 12, -1, 7), (2, 4, 1, 11), (3, 10, -1, 3))
+# the rails' outline, a cell of 16 columns at a time (four cells to the tile; each is whole in itself, so the bar may
+# be cut after any of them): the crust on the top row, the drips on the bottom row, and the icicles (column, length)
+CHAT_CRUST = (".##.#..###.#.##.", "#.###.#..##..#.#", ".#.##..#.###.##.", "##..#.###..#.#.#")
+CHAT_DRIPS = ("#..##.#...#.##..", ".#.#..##.#...#.#", "##...#.#..##.#..", ".#.##...#.#..##.")
+CHAT_ICICLES = (((3, 4), (10, 2), (13, 3)), ((2, 2), (7, 4), (12, 1)), ((4, 3), (9, 1), (13, 4)), ((1, 1), (6, 3), (11, 2), (14, 3)))
+CHAT_BLOCK = 5                                                          # the cut block at each end, in columns
 
 
 def chat_geo(Geo):
     return Geo(TITLE, tile=C.TILE, pointed=False, grow=16)
+
+
+def _phase(G, x):
+    """the column of the 16-column rhythm a plate column is on: the tile's own up to the right end, which starts a
+    cell of its own (the plate grows by whole cells, so the rhythm runs on into it)"""
+    return x - G.TILE0 if x < G.R0 else x - G.R0
+
+
+def _crystal(px, G, cx, cy):
+    """a snow crystal of six arms around (cx, cy), eight pixels long: a hexagon about its heart, a fork near each tip"""
+    arms = [(0.0, -1.0), (0.875, -0.5), (0.875, 0.5), (0.0, 1.0), (-0.875, 0.5), (-0.875, -0.5)]
+    near = lambda v: int(math.floor(abs(v) + 0.5)) * (1 if v >= 0 else -1)
+    cells = {}
+
+    def dot(x, y, rank):
+        q = (cx + near(x), cy + near(y))
+        if rank < cells.get(q, 9): cells[q] = rank
+    for a, (dx, dy) in enumerate(arms):
+        for k in range(9):
+            dot(dx * k, dy * k, 0 if k >= 7 or k == 0 else 1)
+        for n in (arms[(a + 1) % 6], arms[(a - 1) % 6]):
+            for j in range(1, 4): dot(dx * 3 + n[0] * j * 0.5, dy * 3 + n[1] * j * 0.5, 2)     # the hexagon
+            for j in range(1, 3): dot(dx * 6 + n[0] * j, dy * 6 + n[1] * j, 1 if j == 1 else 2)   # the fork
+    for (x, y) in cells:                                                  # a dark rim, so it reads on any backdrop
+        for ddx in (-1, 0, 1):
+            for ddy in (-1, 0, 1):
+                q = (x + ddx, y + ddy)
+                if q not in cells and (ddx == 0 or ddy == 0) and 0 <= q[0] < G.W and 0 <= q[1] < G.H and q not in G.inside:
+                    px[q] = (22, 56, 112, 255)
+    for (x, y), rank in cells.items():
+        if 0 <= x < G.W and 0 <= y < G.H: px[x, y] = (WHITE, LIGHT, MIDC)[rank] + (255,)
 
 
 def chat_frame(G, i):
@@ -165,25 +207,44 @@ def chat_frame(G, i):
 
     for (x, y) in G.inside:
         xt = x - G.TILE0
-        d = min(x - G.PX0, G.PX1 - x)
+        p = _phase(G, x)
+        cell, col = (p // 16) % 4, p % 16
+        ry = y - G.PY0
+        out = min(x - G.PX0, G.PX1 - x)
         glint = 0.0 if x >= G.R0 else max(0.0, math.cos(2 * math.pi * (xt - 4 * ph) / 64)) ** 18
-        if y == G.PY0:
-            c = C.lerp(LIGHT, (255, 255, 255), 0.4 + 0.6 * glint)
-        elif y == G.PY0 + 1:
-            c = C.lerp(MIDC, WHITE, 0.8 * glint)
-        elif y == G.PY0 + 2 and xt % 8 in (2, 5) and C.lattice(xt // 8, 0, 505) > 0.35:
-            c = LIGHT                                                    # an icicle
-        elif y == G.PY0 + 3 and xt % 8 == 2 and C.lattice(xt // 8, 0, 505) > 0.7:
-            c = MIDC
-        elif y == G.PY1 - 1:
+        if out < CHAT_BLOCK:                                             # the cut block: lit from the left, corners off
+            if out + min(ry, 17 - ry) < 2: continue
+            s = out if x - G.PX0 < CHAT_BLOCK else CHAT_BLOCK - 1 - out
+            if out in (0, CHAT_BLOCK - 1): c = EDGE
+            elif ry in (0, 17) or out + min(ry, 17 - ry) == 2: c = LIGHT if ry < 9 else DARK
+            else:
+                tones = (WHITE, LIGHT, MIDC, DARK, EDGE)
+                c = tones[min(4, s - 1 + (0 if ry < 6 else 1 if ry < 14 else 2))]
+            px[x, y] = tuple(c) + (255,)
+            continue
+        if ry == 0:                                                      # the crust: crystals standing up, gaps between
+            if CHAT_CRUST[cell][col] != "#": continue
+            c = C.lerp(LIGHT, (255, 255, 255), 0.5 + 0.5 * glint)
+        elif ry == 1:                                                    # clear ice, a facet every 8 columns
+            c8 = col % 8
+            c = DARK if c8 == 7 else LIGHT if c8 in (0, 1) else MIDC
+            c = C.lerp(c, WHITE, 0.85 * glint)
+        elif ry == 16:                                                   # the frosted band
             c = C.lerp(DARK, MIDC, C.noise(xt, 0, 4, 4, 64, 16, 507))
-        elif y == G.PY1:
-            c = C.lerp(EDGE, DARK, C.noise(xt, 3, 4, 4, 64, 16, 509))
+            if col % 8 == 3: c = LIGHT
+        elif ry == 17:                                                   # its drips
+            if CHAT_DRIPS[cell][col] != "#": continue
+            c = C.lerp(MIDC, LIGHT, C.noise(xt, 3, 4, 4, 64, 16, 509))
         else:
             c = C.hush(ice(x, y), 0.05)
-        if d < 2 and G.PY0 < y < G.PY1: c = LIGHT if d == 0 else MIDC
-        k = C.corner(G, x, y, 2.0)
-        if k > 0: px[x, y] = tuple(c) + (int(255 * k),)
+            if ry == 2: c = C.lerp(c, (30, 66, 116), 0.6)                # the band's lip
+            if ry == 15: c = C.lerp(c, (4, 12, 30), 0.5)
+            for at, long in CHAT_ICICLES[cell]:                          # icicles: dim, lit from the left, a wide root
+                deep = ry - 2
+                if col == at and deep < long: c = (78, 126, 170) if deep < long - 1 else (58, 104, 152)
+                elif col == at + 1 and deep < max(1, long - 2): c = (48, 90, 138)
+                elif col == at - 1 and deep < (1 if long >= 3 else 0): c = (58, 104, 152)
+        px[x, y] = tuple(c) + (255,)
 
     # snow drifting down: a flake to every eight columns, each on its own time (the same every 64 columns); small and
     # pale, and paler still on the words' rows
@@ -195,18 +256,13 @@ def chat_frame(G, i):
             if x >= G.R0 - 1 or not G.PY0 + 2 <= y <= G.PY1 - 2: continue
             C.blend(px, G, x, y, (214, 240, 255), 150 if fall < 13 else 80)
 
-    # shards off both ends, and stars of light on the rails and on the shards' tips
-    for side in (-1, 1):
-        x0 = G.PX0 if side < 0 else G.PX1
-        for dy, reach, w in ((-6, 7, 2), (-2, 11, 3), (3, 12, 3), (7, 6, 2)):
-            for k in range(reach):
-                half = max(0, round(w * (1 - k / reach)))
-                for b in range(-half, half + 1):
-                    y = G.MID + dy + b + round(k * dy / 14)
-                    if not G.PY0 <= y <= G.PY1: continue
-                    c = WHITE if b == -half and k > 1 else LIGHT if b < 0 else MIDC if b == 0 else DARK
-                    C.put(px, G, x0 + side * (1 + k), y, c)
-    spots = [(G.PX0 - 11, G.MID - 1, 2), (G.PX1 + 12, G.MID + 4, 10)]
+    # the ends: the snow crystal on the left, a cluster of prisms on the right (the short ones first)
+    heart = (G.PX0 - 10, G.PY0 + 8)
+    _crystal(px, G, *heart)
+    bx, by = G.PX1 - 1, G.PY0 + 8.5
+    for deg, long, half in ((28, 9, 1.4), (152, 9, 1.4), (122, 14, 1.9), (58, 15, 1.9), (90, 21, 2.6)):
+        shard(px, G, bx, by, math.radians(deg), long, half)
+    spots = [(heart[0], heart[1], 2), (G.PX1 + 19, G.PY0 + 8, 10)]
     for x0 in range(G.TILE0, G.R0 - 15, 64):
         spots += [(x0 + cell * 16 + col, G.PY0 if way > 0 else G.PY1, off) for cell, col, way, off in CHAT_STARS if x0 + cell * 16 + 15 < G.R0]
     for x, y, off in spots:

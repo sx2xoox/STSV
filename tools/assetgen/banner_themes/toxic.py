@@ -136,18 +136,74 @@ def frame(G, i):
 # ------------------------------------------------------------------------------------------------
 # The chat banner: a vat of something that should not be touched. A bar of very dark green glass; along its bottom
 # lies a bright pool that heaves (its surface a row or two higher here and there, moving), bubbles rise out of it
-# and burst before they reach the words' middle, and from the upper rail, which is coated in slime (an uneven lip
-# hanging over the bar), a drop swells and falls now and then. The rails are corroded brass. Off the left end
-# stands a small flask that bubbles; off the right end the slime drips. Behind the words the glass stays dark.
+# and burst before they reach the words' middle. The vat is plumbed in corroded brass: a pipe runs along the top
+# (lit above, dark below, verdigris on it), bolted together by a flange every 32 columns, and things stand up from
+# it so that its outline is never straight: the flanges, rivets, the handle of a stop valve, and a blob of slime
+# that has forced its way out of the pipe, runs down it and hangs over the bar as an uneven lip, from which a drop
+# swells and falls now and then. A second pipe lies along the bottom. Each end is a bolted brass plate. Off the
+# left end stands a round flask as high as the line, corked, the poison heaving and bubbling in it, a glass tube
+# feeding it into the vat; off the right end a red hand wheel on its stem, slime gathering under it.
+# Behind the words the glass stays dark.
 # ------------------------------------------------------------------------------------------------
 CHAT_GEM = {"#": (236, 255, 196), "a": (184, 255, 84), "w": (255, 255, 240), "b": (58, 150, 26), "c": (30, 86, 16)}
 CHAT_BUBBLES = ((4, 0), (13, 9), (21, 4), (29, 13), (38, 2), (46, 11), (54, 6), (61, 15))      # column in the tile, frame offset
-CHAT_DROPS = ((9, 0), (41, 8))                                                             # column in the tile, frame offset
+CHAT_DROPS = ((10, 0), (42, 8))                                                            # column in the tile, frame offset
 BRASS, BRASS_D = (150, 126, 60), (84, 68, 34)
+BRASS_L, BRASS_W, BRASS_S, BRASS_P = (204, 176, 92), (240, 220, 150), (104, 86, 42), (46, 36, 18)   # lit, glint, shade, pit
+VERD, VERD_D = (86, 158, 126), (50, 102, 82)
+RED_L, RED, RED_D = (238, 112, 82), (198, 62, 46), (118, 30, 28)
 
 
 def chat_geo(Geo):
     return Geo(TITLE, tile=C.TILE, pointed=False, grow=16)
+
+
+def _phase(G, x):
+    """the column of the 16-column rhythm a plate column is on: the tile's own up to the right end, which starts a
+    cell of its own (the plate grows by whole cells, so the rhythm runs on into it)"""
+    return x - G.TILE0 if x < G.R0 else x - G.R0
+
+
+def _flask(px, G, cx, cy, t, ph):
+    """a round-bottomed flask about (cx, cy), seven pixels in radius, its neck and cork above: glass lit from the
+    left, the liquid heaving, bubbles rising in it"""
+    level = cy - 2 + round(0.8 * math.sin(t))                            # the liquid's top row
+    for y in range(G.PY0, G.PY1 + 1):
+        for x in range(cx - 8, cx + 9):
+            if not 0 <= x < G.W or (x, y) in G.inside: continue
+            dx, dy = x - cx, y - cy
+            r = math.hypot(dx, dy)
+            c = None
+            if dy < -7:                                                  # the cork, the neck's rim under it
+                if abs(dx) <= 2 and dy < -8: c = CORK if dx < 2 else (100, 64, 36)
+                elif abs(dx) <= 3 and dy == -8: c = GLASS if dx < 2 else GLASS_D
+            elif abs(dx) <= 1 and dy <= -6: c = (22, 46, 32)             # the neck's bore
+            elif abs(dx) == 2 and dy <= -6: c = GLASS if dx < 0 else GLASS_D
+            elif r <= 7.3:
+                if r > 6.2: c = GLASS if (dx < 0 and dy < 4) or dy < -4 else GLASS_D
+                elif y < level: c = (22, 46, 32)
+                elif y == level: c = S_HI if dx < 0 else S_LT
+                else: c = S_LT if dx <= -3 and dy < 4 else S_DK if dx + dy > 5 else S_MD
+            if c: px[x, y] = tuple(c) + (255,)
+    for a, b in ((-4, -4), (-5, -3), (-5, -2)): C.put(px, G, cx + a, cy + b, (250, 255, 250))   # the gloss
+    for k, a in enumerate((-2, 2, 0)):
+        q = (ph + k * 5) % N
+        if q < 6 and cy + 5 - q > level: C.put(px, G, cx + a, cy + 5 - q, S_HI)
+
+
+def _wheel(px, G, cx, cy):
+    """a hand wheel seen from the front about (cx, cy), both between two pixels: a red rim, four spokes, a brass hub"""
+    for y in range(G.PY0, G.PY1 + 1):
+        for x in range(int(cx) - 8, int(cx) + 9):
+            if not 0 <= x < G.W or (x, y) in G.inside: continue
+            dx, dy = x + 0.5 - cx, y + 0.5 - cy
+            r = math.hypot(dx, dy)
+            if r > 7.6: continue
+            if r <= 2.2: c = BRASS_W if dx < 0 and dy < 0 else BRASS_L if dx + dy < 1 else BRASS
+            elif r > 5.2: c = RED_L if dx + dy < -4 else RED_D if dx + dy > 4 or r > 7.0 else RED
+            elif abs(dx) < 1 or abs(dy) < 1: c = RED if dx + dy < 0 else RED_D
+            else: continue
+            px[x, y] = tuple(c) + (255,)
 
 
 def chat_frame(G, i):
@@ -161,21 +217,45 @@ def chat_frame(G, i):
         return 0.9 + 0.6 * math.sin(2 * math.pi * xt / 32 + t) + 0.35 * math.sin(2 * math.pi * xt / 16 - 2 * t)
 
     def lip(xt):
-        """rows of slime hanging under the upper rail"""
+        """rows of slime hanging under the upper pipe"""
         return 0.6 + 2.0 * C.noise(xt, 0, 4, 4, 64, 16, 701) ** 2
 
     for (x, y) in G.inside:
         xt = x - G.TILE0
+        c32 = _phase(G, x) % 32
         d = min(x - G.PX0, G.PX1 - x)
+        ry = y - G.PY0
         g = (y - G.PY0 - 2) / 13
-        if y == G.PY0:
-            c = C.lerp(BRASS, S_MD, 0.5 * C.noise(xt, 0, 4, 4, 64, 16, 703))
-        elif y == G.PY0 + 1:
-            c = C.lerp(S_MD, S_DK, C.noise(xt, 3, 4, 4, 64, 16, 705))
-        elif y == G.PY1 - 1:
-            c = S_MD
-        elif y == G.PY1:
-            c = C.lerp(BRASS_D, S_DD, 0.4)
+        live = G.TILE0 <= x < G.R0                                       # what stands on the pipe stands in the tile only
+        rust = C.noise(xt, 0, 4, 2, 64, 16, 703) > 0.6                   # verdigris
+        if d < 3:                                                        # the end plate: bolted brass, lit from the left
+            if d == 0 and ry in (0, 17): continue
+            c = (BRASS_L, BRASS, BRASS_D)[x - G.PX0 if x - G.PX0 < 3 else 2 - (G.PX1 - x)]
+            if ry == 0: c = BRASS_L
+            if ry == 17: c = BRASS_D
+            if d == 1 and ry in (3, 9, 14): c = BRASS_P
+            if d == 1 and ry in (2, 8, 13): c = BRASS_W
+        elif c32 < 4 and (ry < 4 or ry > 13):                            # a flange: four columns, four rows deep
+            side = c32 in (0, 3)
+            k = ry if ry < 4 else ry - 14
+            if ry < 4: c = ((BRASS, BRASS_L), (BRASS, BRASS_W if c32 == 1 else BRASS_L), (BRASS_D, BRASS_S), (BRASS_P, BRASS_D))[k][0 if side else 1]
+            else: c = ((BRASS_P, BRASS_D), (BRASS_D, BRASS_S), (BRASS, BRASS_L), (BRASS_D, BRASS))[k][0 if side else 1]
+        elif ry == 0:                                                    # what stands up from the pipe; air between
+            if live and 8 <= c32 <= 12: c = S_HI if c32 == 9 else S_LT if c32 == 10 else S_MD       # the slime's blob
+            elif live and 22 <= c32 <= 26: c = RED_L if c32 == 22 else RED_D if c32 == 26 else RED    # the valve's handle
+            elif c32 in (6, 18): c = BRASS                               # a rivet
+            else: continue
+        elif ry == 1:                                                    # the pipe, lit
+            c = VERD if rust else BRASS if c32 % 8 == 7 else BRASS_L
+            if live and 9 <= c32 <= 11: c = S_LT if c32 == 10 else S_MD
+            elif live and c32 == 24: c = BRASS_P
+        elif ry == 2:                                                    # its underside (the words' first row: dark)
+            c = VERD_D if rust else BRASS_S
+            if live and c32 in (10, 11): c = C.hush(S_MD, 0.16) if c32 == 10 else S_DK
+        elif ry == 16:
+            c = VERD if C.noise(xt, 5, 4, 2, 64, 16, 707) > 0.66 else BRASS_L if c32 % 8 == 2 else BRASS
+        elif ry == 17:
+            c = BRASS_D
         else:
             c = C.lerp((12, 30, 10), (5, 14, 5), g)
             depth = base - y                                       # 0 on the bar's lowest row
@@ -183,14 +263,12 @@ def chat_frame(G, i):
             if depth < h:
                 # the pool: a lit surface over a dark body (the letters' feet stand in it: it may not be bright)
                 c = C.hush(S_MD, 0.16) if depth > h - 1 else C.hush(S_DK, 0.08)
-            elif y - (G.PY0 + 2) < lip(xt):
-                c = C.hush(C.lerp(S_DK, S_MD, 0.5 if y == G.PY0 + 2 else 0.0), 0.12)      # the slime's lip
+            elif y - (G.PY0 + 3) < lip(xt):
+                c = C.hush(C.lerp(S_DK, S_MD, 0.5 if y == G.PY0 + 3 else 0.0), 0.12)      # the slime's lip
             else:
                 glow = max(0.0, 1 - (depth - h) / 5)               # the pool's light on the glass over it
                 c = C.hush(C.lerp(c, (60, 150, 30), 0.35 * glow), 0.05)
-        if d < 2 and G.PY0 < y < G.PY1: c = BRASS if d == 0 else BRASS_D
-        k = C.corner(G, x, y, 2.0)
-        if k > 0: px[x, y] = tuple(c) + (int(255 * k),)
+        px[x, y] = tuple(c) + (255,)
 
     for x0 in range(G.TILE0, G.R0 - 7, 64):
         # bubbles: each rises five rows out of the pool and bursts (a ring, then four specks)
@@ -205,7 +283,7 @@ def chat_frame(G, i):
             else:
                 y, r = base - 8, k - 5
                 for a, b in ((-r, 0), (r, 0), (0, -r), (0, r)): C.blend(px, G, x + a, y + b, S_MD, 150 - 40 * (r - 1))
-        # drops off the slime: one swells for half the loop, then falls and is gone before the pool
+        # drops off the slime under each blob: one swells for half the loop, then falls and is gone before the pool
         for col, off in CHAT_DROPS:
             x, k = x0 + col, (ph + off) % N
             if x >= G.R0 - 2: continue
@@ -217,27 +295,17 @@ def chat_frame(G, i):
                     C.blend(px, G, x, y, S_LT, 200)
                     C.blend(px, G, x, y - 1, S_MD, 140)
 
-    # the flask off the left end: glass, a cork, the liquid in it heaving, a bubble over its mouth
-    fx, fy = G.PX0 - 8, G.PY1 - 1
-    for a in range(-3, 4):
-        for b in range(0, 7):
-            r = math.hypot(a, b - 3)
-            if r <= 3.3:
-                inside = r <= 2.4
-                level = 2.0 + 0.6 * math.sin(t + a)
-                c = (S_LT if b - 0 >= 5 - level else None) if inside else GLASS_D
-                if inside and c is None: c = (30, 60, 40)
-                C.put(px, G, fx + a, fy - 6 + b, c if c != S_LT or True else c)
-    for b in range(3): C.put(px, G, fx, fy - 9 + b, GLASS if b else CORK)
-    C.put(px, G, fx - 1, fy - 7, GLASS_D); C.put(px, G, fx + 1, fy - 7, GLASS_D)
-    C.blend(px, G, fx + (ph // 4) % 2, fy - 11 - (ph % 4), S_LT, 200 - 40 * (ph % 4))
-    # the slime dripping off the right end
-    for k, (h, off) in enumerate(((5, 0), (9, 5), (4, 10))):
-        x = G.PX1 + 2 + k * 3
-        n = h + ((ph + off) % N) // 5
-        for b in range(n):
-            y = G.PY0 + b
-            if y <= G.PY1: C.put(px, G, x, y, S_HI if b == n - 1 else S_MD if b else S_DK)
-        C.put(px, G, x - 1, G.PY0, S_DK); C.put(px, G, x + 1, G.PY0, S_DK)
+    # the left end: the flask, and the glass tube that feeds it into the vat
+    fx, fy = G.PX0 - 13, G.PY0 + 10
+    for x in range(fx + 7, G.PX0):
+        for b, c in ((-1, GLASS), (0, S_LT if (x + ph // 2) % 3 else S_HI), (1, GLASS_D)): C.put(px, G, x, fy + b, c)
+    _flask(px, G, fx, fy, t, ph)
+    # the right end: a hand wheel on its stem, slime gathering under it and falling
+    for x in range(G.PX1 + 1, G.PX1 + 7):
+        for b, c in ((0, BRASS_L), (1, BRASS_D)): C.put(px, G, x, G.PY0 + 8 + b, c)
+    _wheel(px, G, G.PX1 + 14.0, G.PY0 + 9.0)
+    wx = G.PX1 + 13
+    for a, b, c in ((0, 15, S_MD), (1, 15, S_DK), (-1, 15, S_MD), (0, 16, S_MD)): C.put(px, G, wx + a, G.PY0 + b, c)
+    if 4 <= ph < 12: C.put(px, G, wx, G.PY0 + 17, S_LT if ph >= 8 else S_MD)
     C.gem7(px, G, CHAT_GEM)
     return im
