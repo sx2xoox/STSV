@@ -181,8 +181,8 @@ vehicles:
     lights: { head: luxury_suv_lamp_head, tail: luxury_suv_lamp_tail, brake: luxury_suv_lamp_brake }
     engine-start: { sound: stsv:vehicle.luxury_suv.engine_start, volume: 0.7, ticks: 24 }
     engine-stop: { sound: stsv:vehicle.luxury_suv.engine_stop, volume: 0.55 }
-    idle-shake: 0.01
-    bounce: 1.1
+    idle-shake: 0.02
+    bounce: 1.6
   light_truck:
     power: engine
     lights: { head: light_truck_lamp_head, tail: light_truck_lamp_tail, brake: light_truck_lamp_brake, reverse: light_truck_lamp_reverse }

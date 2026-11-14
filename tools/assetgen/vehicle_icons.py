@@ -142,54 +142,54 @@ def hyper_car():
 
 @icon("grand_sedan")
 def grand_sedan():
-    # long and square: the tall radiator at the nose, a long pale hood, the upright cabin with its thick rear
-    # pillar, the square boot, the coach line, bright wheels
+    # long and low: the tall radiator at the nose, a long hood, a laid-back screen and a fastback, a chrome line
+    # from end to end, wheels as tall as the doors with bright rims
     rows = ["................",
             "................",
             "................",
-            "....uuuuuuuu....",
-            "....gGguggGuU...",
-            "...ggGguggUuU...",
-            "muuuuuuuuuuuuuuU",
-            "rwwwwwwwwwwwwwwW",
+            "................",
+            "......wwwwww....",
+            ".....gGgqgGgw...",
+            "....gGggqggGgw..",
+            "mwwwwwwwwwwwwwww",
             "rcccccccccccccct",
-            "sVVVVVVVVVVVVVVs",
-            ".NkkNNNNNNNNkkN.",
-            ".khHk......khHk.",
-            ".khhk......khhk.",
-            "..kk........kk..",
+            "rVVkkkVVVVVkkkVV",
+            "sNkhHhkNNNkhHhkN",
+            "..khhhk...khhhk.",
+            "...kkk.....kkk..",
+            "................",
             "................",
             "................"]
-    colours = {"u": ("blade", 1), "U": ("blade", 0), "g": ("tint", 2), "G": ("glass", 4), "m": ("blade", 5),
-               "r": ("blade", 4), "w": ("indigo", 3), "W": ("indigo", 2), "c": ("gold", 2), "V": ("indigo", 2),
-               "N": ("indigo", 0), "s": ("blade", 4), "t": ("signal_red", 3), "k": ("rubber", 1), "h": ("blade", 3),
-               "H": ("blade", 5)}
+    colours = {"w": ("pearl", 4), "V": ("pearl", 3), "N": ("pearl", 1), "g": ("tint", 2), "G": ("glass", 4),
+               "q": ("tint", 0), "m": ("blade", 5), "r": ("blade", 4), "c": ("blade", 5), "s": ("blade", 3),
+               "t": ("signal_red", 3), "k": ("rubber", 1), "h": ("blade", 3), "H": ("blade", 5)}
     return _draw(rows, colours).render()
 
 
 @icon("luxury_suv")
 def luxury_suv():
-    # a tall box on big wheels: the lamp rack over the screen, square windows, the spare on its back, black flares
-    rows = ["................",
-            "...yy...........",
-            "..rwwwwwwwwwww..",
-            "..gGggwgGgwgGw..",
-            "..ggGgwggGwggwkk",
-            "..gggGwgggwgGwkh",
-            ".wwwwwwwwwwwwwkh",
-            "oWWWWWWWWWWWWWkk",
-            "yVVbbbVVVVbbbVVt",
-            "sVbkkkbffbkkkbV.",
-            "..khHhk..khHhk..",
-            "..khhhk..khhhk..",
-            "...kkk....kkk...",
+    # the monster off-roader: a square body with its lamp rack and spare wheel, far up on wheels as tall as itself,
+    # yellow shocks and an axle under it
+    rows = ["..yy............",
+            ".rwwwwwwwwwww...",
+            ".gGgwgGgwgGgw.kk",
+            ".ggGwggGwggGw.kh",
+            "wwwwwwwwwwwwwwkk",
+            "oWWWWWWWWWWWWWt.",
+            "sVbbbbbVVbbbbbV.",
+            "..kkkk.ee.kkkk..",
+            ".kkhhkk..kkhhkk.",
+            ".khHhhkaakhHhhk.",
+            ".khhhhkaakhhhhk.",
+            ".kkhhkk..kkhhkk.",
+            "..kkkk....kkkk..",
             "................",
             "................",
             "................"]
     colours = {"w": ("leaf_dark", 3), "W": ("leaf_dark", 2), "V": ("leaf_dark", 1), "g": ("tint", 2),
-               "G": ("glass", 4), "r": ("rubber", 2), "y": ("lamp", 5), "o": ("fox", 3), "b": ("rubber", 1),
-               "f": ("blade", 3), "s": ("steel", 4), "t": ("signal_red", 3), "k": ("rubber", 1), "h": ("blacksteel", 3),
-               "H": ("blade", 4)}
+               "G": ("glass", 4), "r": ("rubber", 2), "y": ("lamp", 5), "o": ("fox", 3), "b": ("rubber", 2),
+               "e": ("hazard", 3), "a": ("steel", 2), "s": ("steel", 4), "t": ("signal_red", 3), "k": ("rubber", 1),
+               "h": ("blacksteel", 3), "H": ("blade", 4)}
     return _draw(rows, colours).render()
 
 

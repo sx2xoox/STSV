@@ -226,9 +226,9 @@ hyper_car:
 # 후원 · 그랜드 세단: 길고 반듯한 4인승 대형 세단. 빠르지 않고(서버 상한 그대로) 조용하고 부드러움
 grand_sedan:
   material: paper
-  name: "<#c8d4e6>그랜드 세단"
+  name: "<#f0e6d2>그랜드 세단"
   lore:
-    - "<gold>후원 한정</gold> <gray>· 길고 반듯한 4인승 대형 세단"
+    - "<gold>후원 한정</gold> <gray>· 길고 낮은 4인승 대형 세단"
     - "<gray>짐칸 없음 · 최고 속도 10블록/초 · 조용하고 부드러운 승차감"
     - "<dark_gray>땅에 우클릭: 세우기 · 우클릭: 타기 · 스페이스: 경적"
     - "<dark_gray>W·S 앞뒤, A·D 방향, 웅크리기: 내리기"
@@ -246,41 +246,41 @@ grand_sedan:
     turn-rate: 60
     turn-speed: 3
     step-height: 1.0
-    size: [5.3, 2.0, 1.8]
+    size: [5.3, 2.0, 1.85]
     click-height: 1.1
     wheel: wheel_grand
-    wheel-radius: 0.375
+    wheel-radius: 0.5
     wheels:
-      - { at: [-0.8125, 0.375, 1.6875], steer: true }
-      - { at: [0.8125, 0.375, 1.6875], steer: true }
-      - { at: [-0.8125, 0.375, -1.6875] }
-      - { at: [0.8125, 0.375, -1.6875] }
+      - { at: [-0.8125, 0.5, 1.6875], steer: true }
+      - { at: [0.8125, 0.5, 1.6875], steer: true }
+      - { at: [-0.8125, 0.5, -1.6875] }
+      - { at: [0.8125, 0.5, -1.6875] }
     seats:
-      - { at: [-0.45, 0.3, 0.25] }
-      - { at: [0.45, 0.3, 0.25] }
-      - { at: [-0.45, 0.3, -0.75] }
-      - { at: [0.45, 0.3, -0.75] }
+      - { at: [-0.45, 0.45, 0.25] }
+      - { at: [0.45, 0.45, 0.25] }
+      - { at: [-0.45, 0.45, -0.6875] }
+      - { at: [0.45, 0.45, -0.6875] }
     movers:
       # 문 넷: 앞문은 앞 모서리, 뒷문은 뒤 모서리가 경첩이라 가운데에서 양쪽으로 열림 (코치 도어)
       - { model: grand_sedan_door_fl, hinge: [-1.0, 0.6, 1.0], axis: [0, 1, 0], turn: -65, when: door, seats: [0], ticks: 10 }
       - { model: grand_sedan_door_fr, hinge: [1.0, 0.6, 1.0], axis: [0, 1, 0], turn: 65, when: door, seats: [1], ticks: 10 }
-      - { model: grand_sedan_door_rl, hinge: [-1.0, 0.6, -0.9375], axis: [0, 1, 0], turn: 65, when: door, seats: [2], ticks: 10 }
-      - { model: grand_sedan_door_rr, hinge: [1.0, 0.6, -0.9375], axis: [0, 1, 0], turn: -65, when: door, seats: [3], ticks: 10 }
+      - { model: grand_sedan_door_rl, hinge: [-1.0, 0.6, -1.0625], axis: [0, 1, 0], turn: 65, when: door, seats: [2], ticks: 10 }
+      - { model: grand_sedan_door_rr, hinge: [1.0, 0.6, -1.0625], axis: [0, 1, 0], turn: -65, when: door, seats: [3], ticks: 10 }
       # 마스코트: 시동이 걸리면 라디에이터 위로 올라옴
       - { model: grand_sedan_mascot, slide: [0, 0.156, 0], slide-when: engine, ticks: 14 }
     plates:
-      - { at: [0, 0.30, 2.6875], width: 0.7, height: 0.12 }
-      - { at: [0, 0.66, -2.625], back: true, width: 0.56, height: 0.15 }
+      - { at: [0, 0.42, 2.72], width: 0.6, height: 0.12 }
+      - { at: [0, 0.5625, -2.625], back: true, width: 0.56, height: 0.15 }
     horn: { sound: stsv:vehicle.grand_sedan.horn, release: stsv:vehicle.grand_sedan.horn_end, volume: 1.4,
             vanilla: block.note_block.didgeridoo, pitch: 1.0, times: 1 }
     engine: { sound: stsv:vehicle.grand_sedan.engine, volume: 0.32, idle-volume: 0.12, idle-pitch: 0.6, top-pitch: 1.4, segment-ticks: 10 }
 
-# 후원 · 럭셔리 SUV: 키 큰 각진 4인승 오프로더. 모래·자갈·눈·진흙에서 느려지지 않음 (사륜 오토바이와 같은 성질)
+# 후원 · 몬스터 오프로더 (id 는 luxury_suv 그대로): 한 블록 띄운 각진 4인승 차체에 문짝만 한 바퀴. 모래·자갈·눈·진흙에서 느려지지 않음 (사륜 오토바이와 같은 성질)
 luxury_suv:
   material: paper
-  name: "<#4e8049>럭셔리 SUV"
+  name: "<#4e8049>몬스터 오프로더"
   lore:
-    - "<gold>후원 한정</gold> <gray>· 키 크고 각진 4인승 오프로더"
+    - "<gold>후원 한정</gold> <gray>· 문짝만 한 바퀴로 한 블록 떠 있는 4인승 오프로더"
     - "<gray>짐칸 없음 · 최고 속도 9블록/초 · 험한 땅에서도 느려지지 않음"
     - "<dark_gray>땅에 우클릭: 세우기 · 우클릭: 타기 · 스페이스: 경적"
     - "<dark_gray>W·S 앞뒤, A·D 방향, 웅크리기: 내리기"
@@ -289,7 +289,7 @@ luxury_suv:
   icon: luxury_suv_icon
   max-stack: 1
   vehicle:
-    body-scale: 2
+    body-scale: 2.5
     speed: 9
     all-terrain: true
     reverse-speed: 3.5
@@ -299,28 +299,28 @@ luxury_suv:
     turn-rate: 66
     turn-speed: 3
     step-height: 1.0
-    size: [4.6, 2.1, 2.25]
-    click-height: 1.4
+    size: [4.6, 2.7, 3.25]
+    click-height: 2.4
     wheel: wheel_suv
-    wheel-radius: 0.4375
+    wheel-radius: 0.8125
     wheels:
-      - { at: [-0.8125, 0.4375, 1.375], steer: true }
-      - { at: [0.8125, 0.4375, 1.375], steer: true }
-      - { at: [-0.8125, 0.4375, -1.375] }
-      - { at: [0.8125, 0.4375, -1.375] }
+      - { at: [-1.0, 0.8125, 1.375], steer: true }
+      - { at: [1.0, 0.8125, 1.375], steer: true }
+      - { at: [-1.0, 0.8125, -1.375] }
+      - { at: [1.0, 0.8125, -1.375] }
     seats:
-      - { at: [-0.45, 0.62, 0.375] }
-      - { at: [0.45, 0.62, 0.375] }
-      - { at: [-0.45, 0.62, -0.625] }
-      - { at: [0.45, 0.62, -0.625] }
+      - { at: [-0.45, 1.62, 0.375] }
+      - { at: [0.45, 1.62, 0.375] }
+      - { at: [-0.45, 1.62, -1.625] }
+      - { at: [0.45, 1.62, -1.625] }
     movers:
-      - { model: luxury_suv_door_fl, hinge: [-0.9375, 0.9, 1.0625], axis: [0, 1, 0], turn: -62, when: door, seats: [0], ticks: 10 }
-      - { model: luxury_suv_door_fr, hinge: [0.9375, 0.9, 1.0625], axis: [0, 1, 0], turn: 62, when: door, seats: [1], ticks: 10 }
-      - { model: luxury_suv_door_rl, hinge: [-0.9375, 0.9, 0], axis: [0, 1, 0], turn: -62, when: door, seats: [2], ticks: 10 }
-      - { model: luxury_suv_door_rr, hinge: [0.9375, 0.9, 0], axis: [0, 1, 0], turn: 62, when: door, seats: [3], ticks: 10 }
+      - { model: luxury_suv_door_fl, hinge: [-0.9375, 1.9, 1.0625], axis: [0, 1, 0], turn: -62, when: door, seats: [0], ticks: 10 }
+      - { model: luxury_suv_door_fr, hinge: [0.9375, 1.9, 1.0625], axis: [0, 1, 0], turn: 62, when: door, seats: [1], ticks: 10 }
+      - { model: luxury_suv_door_rl, hinge: [-0.9375, 1.9, 0], axis: [0, 1, 0], turn: -62, when: door, seats: [2], ticks: 10 }
+      - { model: luxury_suv_door_rr, hinge: [0.9375, 1.9, 0], axis: [0, 1, 0], turn: 62, when: door, seats: [3], ticks: 10 }
     plates:
-      - { at: [0, 0.59, 2.375], width: 0.6, height: 0.13 }
-      - { at: [0, 0.59, -2.344], back: true, width: 0.6, height: 0.13 }
+      - { at: [0, 1.59, 2.375], width: 0.6, height: 0.13 }
+      - { at: [0, 1.59, -2.344], back: true, width: 0.6, height: 0.13 }
     horn: { sound: stsv:vehicle.luxury_suv.horn, release: stsv:vehicle.luxury_suv.horn_end, volume: 1.5,
             vanilla: block.note_block.didgeridoo, pitch: 0.9, times: 1 }
     engine: { sound: stsv:vehicle.luxury_suv.engine, volume: 0.5, idle-volume: 0.22, idle-pitch: 0.6, top-pitch: 1.5, segment-ticks: 10 }
