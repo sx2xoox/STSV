@@ -58,7 +58,8 @@ class PackPipelineTest {
             "wheel_atv",                                       // the ATV tyre's knobs, every 45 degrees round it
             // 작업기: the plough's beam and handle, hood plates and shields, tines on the slant, links and arms, the tarp's shoulders
             "ox_plough", "tiller_rotary", "tiller_rotary_tines", "tractor_rotary", "tractor_rotary_tines", "tractor_seeder",
-            "tractor_header", "tractor_header_reel", "boat_trawl", "truck_tarp");
+            "tractor_header", "tractor_header_reel", "boat_trawl", "truck_tarp",
+            "toy_pickaxe", "toy_fishing_rod");                 // 장난감 시리즈: the pickaxe's drooping arms, the rod's hanging line and float
 
     @org.junit.jupiter.params.ParameterizedTest
     @org.junit.jupiter.params.provider.MethodSource("models")

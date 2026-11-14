@@ -44,19 +44,20 @@ def main():
     from models import vehicle_paints
     from models import vehicle_lights
     from models import vehicle_tools          # 작업기 (vehicle_tools.yml); preview sheet: vehicle_tools_preview.py
+    from models import toys                   # 장난감 시리즈 (held tools' looks, the party firework); preview sheet: toys_preview.py
     import furniture_icons
     import vehicle_icons
     import vehicle_icons_road
     import vehicle_icons_farm
     import vehicle_icons_misc
     ALL = {**ITEMS, **cosmetics.ALL, **furniture.ALL, **vehicles.ALL, **vehicles_road.ALL, **vehicles_farm.ALL, **vehicles_misc.ALL,
-           **vehicle_lights.ALL, **vehicle_tools.ALL, **vehicle_paints.ALL}
+           **vehicle_lights.ALL, **vehicle_tools.ALL, **vehicle_paints.ALL, **toys.ALL}
     import special
 
     def home(name):
         return CONTENT if name in SHIPPED_MODELS or name in cosmetics.ALL or name in furniture.ALL or name in vehicles.ALL \
             or name in vehicles_road.ALL or name in vehicles_farm.ALL or name in vehicles_misc.ALL \
-            or name in vehicle_lights.ALL or name in vehicle_tools.ALL or name in vehicle_paints.ALL else FIXTURE
+            or name in vehicle_lights.ALL or name in vehicle_tools.ALL or name in vehicle_paints.ALL or name in toys.ALL else FIXTURE
 
     for d in (CONTENT / "models", CONTENT / "textures", FIXTURE / "models", FIXTURE / "textures", BUILD, PREVIEWS):
         d.mkdir(parents=True, exist_ok=True)
@@ -79,6 +80,8 @@ def main():
     # the lamp parts follow their bodies' lamps (models/vehicle_lights.py LAMPS): say so when a body moved them
     for warning in vehicle_lights.check():
         print(f"WARNING {warning}")
+    # the toy series' item definitions (an item_model of stsv:toy_sword ...; the rod's picks its cast look)
+    print(f"items   {', '.join(toys.write_item_definitions(CONTENT))} (assets/stsv/items)")
 
     for name, fn in T.ICONS.items():
         fn().save(CONTENT / "textures" / f"{name}.png")
