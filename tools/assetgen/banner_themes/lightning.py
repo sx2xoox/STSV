@@ -174,11 +174,31 @@ def chat_arc_at(at, y, seed):
     return at + int(round(kink(k) + (kink(k + 1) - kink(k)) * f / 2))
 
 
+# The frame: two rails of riveted steel. Each is two rows, an outer row of bright steel with a bolt head every 16
+# columns (a notch on either side of it: the rail's silhouette) and under it the channel the charges run in. A
+# steel cap closes the plate at either end: the left one carries the banner's emblem, a bolt of lightning on a dark
+# field; off each cap a stack of ribbed insulators carries a tesla ball.
+CHAT_FIELD = (8, 13, 38)
+CHAT_PORC_L, CHAT_PORC, CHAT_PORC_D = (232, 240, 255), (142, 164, 214), (58, 76, 138)
+CHAT_BOLT = ("....www", "...www.", "..www..", ".wwwwww", "...www.", "..www..", ".www...", ".ww....", "ww.....", "w......")
+CHAT_CAP_L, CHAT_CAP_R = 12, 5        # the caps: columns of the plate (the words begin 13 columns in)
+CHAT_STACK, CHAT_BALL = 11, 16        # off a cap: the insulators' columns, and where the ball's middle is
+
+
+def chat_cell(G, x):
+    """A column's place in the rails' repeat of 16 columns, and which repeat it is: counted from the tile's start
+    and, in the right end, from that part's own start (the plate grows by 16 columns a step, so the repeat is whole
+    where the parts meet)."""
+    n, k = divmod(x - (G.R0 if x >= G.R0 else G.TILE0), 16)
+    return k, n
+
+
 def chat_frame(G, i):
     im, px = G.canvas()
     step = i - C.CALM
     idle = i % C.CALM
     behind = (lambda x: G.flow_at(x, step)) if step >= 0 else (lambda x: -1)
+    pulse = 0.5 + 0.5 * math.sin(math.pi * idle / 2)
 
     def charge(x, y):
         """the small charges crawling in the channels while it idles (a loop of the four idle frames)"""
@@ -188,7 +208,7 @@ def chat_frame(G, i):
 
     cells = {}                                               # the arcs: pixel -> heat (1 the core .. 0)
     if step >= 0:
-        for x in range(G.PX0 + 3, G.PX1 - 2):
+        for x in range(G.PX0 + CHAT_CAP_L, G.PX1 - CHAT_CAP_R + 1):
             u = behind(x)
             if not 0 <= u < 70: continue
             for at, y0, y1, heat, seed in CHAT_ARCS:
@@ -200,15 +220,22 @@ def chat_frame(G, i):
         u = behind(x)
         e = C.strength(u, rise=5, body=18, total=64)        # the rails' white heat behind the front
         glow = C.strength(u, rise=10, body=20, total=96)    # the cloud lit up, dying away
-        seam = xt % 16 == 0
+        k, n = chat_cell(G, x)
+        upper = y < G.MID
+        dl, dr = x - G.PX0, G.PX1 - x
         if y in (G.PY0, G.PY1):
-            if (x in (G.PX0, G.PX1)): continue               # the corners, rounded off
-            c = CHAT_RAIL_T if y == G.PY0 else CHAT_RAIL_B
-            if seam: c = lerp(c, (16, 24, 60), 0.65)
-            elif xt % 16 == 1: c = lerp(c, (255, 255, 255), 0.45)
+            if dl == 0 or dr == 0: continue                  # the corners, rounded off
+            if k in (6, 10):                                 # the notches beside a bolt head; a spark jumps in one now and then
+                if step < 0 and (n + idle) % 4 == 0 and (k == 10) == upper:
+                    px[x, y] = HOT + (255,)
+                continue
+            c = CHAT_RAIL_T if upper else CHAT_RAIL_B
+            if 7 <= k <= 9: c = lerp(c, (255, 255, 255), (0.75 if k == 8 else 0.3) if upper else (0.4 if k == 8 else 0.1))
+            elif k in (5, 11): c = lerp(c, (16, 24, 60), 0.25)
             c = lerp(c, (240, 248, 255), 0.9 * e)
         elif y in (G.PY0 + 1, G.PY1 - 1):
-            c = lerp((14, 26, 78), (96, 176, 255), charge(x, y))
+            c = lerp((22, 36, 96) if upper else (14, 26, 78), (96, 176, 255), charge(x, y))
+            if 7 <= k <= 9: c = lerp(c, CHAT_RAIL_B, 0.55)   # the bolt's shank
             c = lerp(c, (252, 254, 255), e)
         else:
             c = chat_cloud(xt, y)
@@ -220,38 +247,68 @@ def chat_frame(G, i):
             else:
                 if near <= 2: c = lerp(c, GLOW, 0.5 if near == 1 else 0.22)
                 c = C.hush(c, 0.05 + 0.06 * glow)
-        # the ends: a steel cap three columns deep
-        d = min(x - G.PX0, G.PX1 - x)
-        if d < 3 and G.PY0 < y < G.PY1:
-            cap = lerp(CHAT_RAIL_T, CHAT_RAIL_B, (y - G.PY0) / (G.PY1 - G.PY0))
-            c = lerp(lerp(cap, (20, 28, 70), 0.55 if d == 2 else 0.0), (240, 248, 255), 0.8 * e)
+        # the caps
+        inner = G.PY0 + 1 < y < G.PY1 - 1
+        cap = lerp(CHAT_RAIL_T, CHAT_RAIL_B, (y - G.PY0) / (G.PY1 - G.PY0))
+        for d, deep in ((dl, CHAT_CAP_L), (dr, CHAT_CAP_R)):
+            if d >= deep or y in (G.PY0, G.PY1): continue
+            if d == 0: c = lerp(cap, (255, 255, 255), 0.25)
+            elif d == 1: c = lerp(cap, (20, 28, 70), 0.45)
+            elif not inner: continue
+            elif d == deep - 1: c = lerp(CHAT_RAIL_B, (20, 28, 70), 0.35)
+            else:
+                c = lerp(CHAT_FIELD, (40, 66, 150), 0.6 * glow)
+                if deep == CHAT_CAP_R and d == 3 and y in (G.PY0 + 4, G.PY1 - 4): c = CHAT_RAIL_T    # its rivets
+                if deep == CHAT_CAP_R and d == 2 and y in (G.PY0 + 4, G.PY1 - 4): c = CHAT_RAIL_B
+            if d < 2: c = lerp(c, (240, 248, 255), 0.8 * e)
         px[x, y] = tuple(c) + (255,)
 
-    # the tesla balls: a rod off each cap and a ball on it; they crackle at rest and flash when the discharge leaves
-    # (the left one) and arrives (the right one)
+    # the emblem on the left cap: a bolt of lightning, glowing, white hot when the discharge leaves
+    fl = C.strength(behind(G.PX0) + 10, rise=4, body=22, total=60) if step >= 0 else 0.0
+    bolt = {(G.PX0 + 3 + c, G.PY0 + 4 + r) for r, row in enumerate(CHAT_BOLT) for c, v in enumerate(row) if v != "."}
+    for (x, y) in sorted(bolt):
+        for a, b in DIRS4:
+            if (x + a, y + b) not in bolt and G.PX0 + 2 <= x + a < G.PX0 + CHAT_CAP_L - 1:
+                C.put(px, G, x + a, y + b, lerp(CHAT_FIELD, GLOW, 0.3 + 0.2 * pulse + 0.5 * fl))
+    for (x, y) in bolt:
+        C.put(px, G, x, y, lerp(lerp(CORE, HOT, (y - G.PY0 - 4) / 9), CORE, max(fl, 0.3 * pulse)))
+
+    # the insulators and the tesla balls: a rod through three ribs of porcelain off each cap and a ball on it; the
+    # balls crackle at rest (an arc creeps over the ribs to the cap) and flash when the discharge leaves (the left
+    # one) and arrives (the right one)
     for side in (-1, 1):
         x0 = G.PX0 if side < 0 else G.PX1
-        ox = x0 + side * 8
+        ox = x0 + side * CHAT_BALL
         flash = C.strength(behind(x0) + (10 if side < 0 else 0), rise=4, body=22, total=60) if step >= 0 else 0.0
-        for k in range(1, 6):
-            for y in (G.MID, G.MID + 1): C.put(px, G, x0 + side * k, y, lerp((120, 146, 200), (240, 248, 255), flash))
-        pulse = 0.5 + 0.5 * math.sin(math.pi * idle / 2)
-        for a in range(-5, 6):
-            for b in range(-5, 6):
+        for k in range(1, CHAT_STACK + 1):
+            rib = k % 4 in (1, 2)
+            half = 6 if rib else 2
+            for y in range(G.MID + 1 - half, G.MID + 1 + half):
+                t = (y - (G.MID + 1 - half)) / (2 * half - 1)
+                if rib:
+                    c = lerp(CHAT_PORC_L, CHAT_PORC, t / 0.35) if t < 0.35 else lerp(CHAT_PORC, CHAT_PORC_D, (t - 0.35) / 0.65)
+                    if (k % 4 == 2) == (side < 0): c = lerp(c, (20, 28, 70), 0.30)     # its far side, in shade
+                    if y in (G.MID + 1 - half, G.MID + half): c = lerp(c, (20, 28, 70), 0.35)
+                else:
+                    c = lerp((120, 146, 200), (44, 60, 120), t)
+                C.put(px, G, x0 + side * k, y, lerp(c, (240, 248, 255), 0.5 * flash))
+        for a in range(-7, 8):
+            for b in range(-7, 8):
                 r = math.hypot(a, b - 0.5)
-                if r <= 1.2: C.put(px, G, ox + a, G.MID + b, CORE)
-                elif r <= 2.3: C.put(px, G, ox + a, G.MID + b, lerp(HOT, CORE, flash))
-                elif r <= 3.2: C.put(px, G, ox + a, G.MID + b, lerp(GLOW, HOT, flash))
-                elif r <= 5.2: C.blend(px, G, ox + a, G.MID + b, GLOW, int((60 + 50 * pulse + 130 * flash) * (5.2 - r) / 2))
-        # a crackle from the ball to the cap's corners
+                if r <= 1.6: C.put(px, G, ox + a, G.MID + b, CORE)
+                elif r <= 2.9: C.put(px, G, ox + a, G.MID + b, lerp(HOT, CORE, flash))
+                elif r <= 4.0: C.put(px, G, ox + a, G.MID + b, lerp(GLOW, HOT, flash))
+                elif r <= 6.4 and (ox + a - x0) * side > CHAT_STACK and G.PY0 <= G.MID + b <= G.PY1:
+                    C.blend(px, G, ox + a, G.MID + b, GLOW, int((60 + 50 * pulse + 130 * flash) * (6.4 - r) / 2.4))
         rnd = random.Random(900 + idle * 7 + (side > 0) + (50 + step if flash > 0.3 else 0))
         for _ in range(1 + (flash > 0.3)):
-            ty = rnd.choice((G.PY0 + 1, G.PY1 - 1, G.PY0 + 3, G.PY1 - 3))
-            pts, x, y = [], ox - side * 3, G.MID + rnd.randint(-1, 1)
+            ty = rnd.choice((G.PY0 + 1, G.PY1 - 1))
+            pts, x, y = [], ox - side * 4, G.MID + rnd.randint(-1, 2)
             while (x - x0) * side > 1:
-                nx, ny = x - side * rnd.randint(1, 2), y + (1 if ty > y else -1) * rnd.randint(0, 2)
+                nx, ny = x - side * rnd.randint(1, 2), y + (1 if ty > y else -1) * rnd.randint(1, 3)
+                ny = max(G.PY0, min(G.PY1, ny))
                 pts += C.line(x, y, nx, ny); x, y = nx, ny
             for q in pts:
-                if G.PY0 <= q[1] <= G.PY1 and (q[0] - x0) * side > 0: C.put(px, G, q[0], q[1], HOT if flash > 0.3 else GLOW)
+                if G.PY0 <= q[1] <= G.PY1 and (q[0] - x0) * side > 0: C.put(px, G, q[0], q[1], CORE if flash > 0.3 else HOT)
     C.gem7(px, G, CHAT_GEM)
     return im

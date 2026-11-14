@@ -203,33 +203,56 @@ def bed_heat(x, y, rows):
     return 0.34 + 0.62 * (1 - up / bed) + 0.12 * grain
 
 
+# the frame: forged black iron, hot where the fire is near
+IRON_K, IRON_D, IRON, IRON_H, IRON_L = (14, 9, 10), (38, 29, 32), (70, 58, 60), (116, 100, 98), (188, 166, 150)
+EMBLEM = (("...r...", "..rr...", "..ror..", ".rroor.", ".royor.", "rroyyor", "royywor", "rooyyor", ".rroor."),
+          ("....r..", "...rr..", "..rorr.", ".rroor.", ".royyor", "rroywor", "royywor", "rooyyor", ".rrorr."))
+EMBLEM_COLOURS = {"r": (226, 62, 14), "o": (255, 150, 36), "y": (255, 222, 110), "w": (255, 250, 222)}
+EMBER = ("..o..", ".oyr.", "oywor", ".oor.", "..r..")
+BOSS = 9.0                    # the left end's iron boss: its radius (it fills the chat line's 18 rows)
+SPIKE = 12                    # the right end's iron spearhead: columns
+
+
+def cell(G, x):
+    """A column's place in the frame's repeat of 16 columns: counted from the tile's start and, in the right end,
+    from that part's own start (the plate grows by 16 columns a step, so the repeat is whole where the parts meet)."""
+    return (x - (G.R0 if x >= G.R0 else G.TILE0)) % 16
+
+
 def frame_colour(G, x, y, e):
-    """The strip's upper and lower edge at a pixel, None inside it. e: how strong the gust burns here (0: idle).
-    No frame: the top is charred, with an ember smouldering here and there (the same every 64 columns); the bottom
-    is the edge of the ember bed, glowing. Both heat up as the gust passes."""
-    xt = x - G.TILE0
-    if y == G.PY0:
-        ember = C.smooth((C.noise(xt, 0, 4, 4, 64, 16, 61) - 0.62) / 0.2)
-        return C.lerp(C.lerp((30, 9, 7), (150, 44, 12), 0.8 * ember), (255, 160, 56), 0.55 * e)
-    if y == G.PY0 + 1:
-        return C.lerp((44, 12, 9), (214, 80, 22), 0.5 * e)
-    if y == G.PY1 - 1:
-        glow = C.noise(xt, 0, 4, 4, 64, 16, 63)
-        return C.lerp(C.lerp((170, 44, 12), (246, 110, 28), glow), (255, 196, 96), 0.7 * e)
-    if y == G.PY1:
-        glow = C.noise(xt, 0, 4, 4, 64, 16, 65)
-        return C.lerp(C.lerp((96, 20, 8), (176, 50, 14), glow), (255, 150, 48), 0.6 * e)
-    return None
+    """The iron frame at a pixel: a colour, None inside the frame (the plate), False where the rail is notched (its
+    silhouette: nothing is drawn). e: how strong the gust burns here (0: idle). Two rails of forged black iron, an
+    upper and a lower one, each two rows: an outer row of hammered iron and an inner lip that the fire inside keeps
+    red hot (a dark red: letters touch it). Every 16 columns a strap is forged round the rail: a lug with a rivet,
+    with a notch on either side of it."""
+    if G.PY0 + 1 < y < G.PY1 - 1:
+        return None
+    k = cell(G, x)
+    upper = y <= G.PY0 + 1
+    hammer = C.noise(k, 0, 4, 4, 16, 16, 61 if upper else 65)
+    if y in (G.PY0, G.PY1):
+        if k in (5, 10):
+            return False
+        if 6 <= k <= 9:                                       # the strap's lug and its rivet
+            c = (IRON_L if k in (7, 8) else IRON_H) if upper else (IRON_H if k in (7, 8) else IRON)
+            return C.lerp(c, (255, 170, 70), 0.25 * e)
+        c = C.lerp(IRON, IRON_H, hammer) if upper else C.lerp(C.lerp(IRON_D, IRON, hammer), (170, 52, 16), 0.30)
+        return C.lerp(c, (255, 150, 50), 0.35 * e)
+    if 6 <= k <= 9:
+        return C.lerp(IRON if k in (7, 8) else IRON_D, (150, 50, 16), 0.3 * e)
+    glow = C.noise(k, 0, 4, 4, 16, 16, 63 if upper else 67)
+    c = C.lerp((62, 16, 12), (120, 32, 12), glow) if upper else C.lerp((96, 24, 10), (156, 46, 12), glow)
+    return C.lerp(c, (226, 96, 26), 0.5 * e)
 
 
 def burnt(G, x, y, c, e, flicker):
-    """The plate's ends are burnt away like the edge of burning paper, no end pieces: an uneven edge (a different
+    """Inside the frame the plate's ends are burnt away like the edge of burning paper: an uneven edge (a different
     depth in every row), a thin glowing rim along it that fades out into the air, charred plate behind the rim.
     Returns the pixel's colour and alpha, or None where the plate is gone. c: the plate's colour there, e: how
     strong the gust burns there (the rim flares), flicker: -1 .. 1, the rim's own slow glow."""
     left = x - G.PX0 < G.PX1 - x
     d = x - G.PX0 if left else G.PX1 - x                     # columns from the plate's end
-    edge = 3.5 + 7.5 * _noise(y, 0, 3, 4, 1 << 10, 16, 21 if left else 29)
+    edge = 3.5 + 6.5 * _noise(y, 0, 3, 4, 1 << 10, 16, 21 if left else 29)
     if d >= edge + 3.5:
         return c, 255
     if d < edge - 2.4:
@@ -243,29 +266,89 @@ def burnt(G, x, y, c, e, flicker):
     return lerp(lerp((96, 22, 8), (20, 6, 5), min(1.0, t * 2.2)), c, t * t), 255
 
 
+def boss(px, G, cx, cy, pose, hot):
+    """The left end: a boss of forged iron, a ring with four rivets round a bed of coals, and in it the banner's
+    emblem, a flame (two poses, so it flickers). hot: 0 .. 1, how hot the ring's inner lip glows."""
+    for y in range(G.PY0, G.PY1 + 1):
+        for x in range(int(cx - BOSS - 1), int(cx + BOSS + 2)):
+            dx, dy = x + 0.5 - cx, y + 0.5 - cy
+            d = math.hypot(dx, dy)
+            if d > BOSS:
+                continue
+            if d > BOSS - 0.9:
+                c = IRON_K
+            elif d > BOSS - 3.0:                              # the ring, lit from the upper left
+                lit = 0.5 - 0.5 * (0.55 * dx + 0.83 * dy) / d
+                c = C.lerp(IRON_D, IRON_L, lit ** 1.4) if d > BOSS - 2.0 else C.lerp(IRON_D, IRON_H, lit)
+            elif d > BOSS - 3.9:                              # its lip, red hot
+                c = C.lerp((150, 40, 12), (255, 170, 60), hot * (0.55 + 0.45 * (dy / d)))
+            else:                                            # the coals, glowing from below
+                c = C.lerp((30, 8, 8), (132, 28, 10), C.smooth(0.5 + dy / 8) * (0.6 + 0.4 * hot))
+            C.put(px, G, x, y, c)
+    for a in (45, 135, 225, 315):                            # the rivets
+        rx = int(math.floor(cx + (BOSS - 2.0) * math.cos(math.radians(a))))
+        ry = int(math.floor(cy + (BOSS - 2.0) * math.sin(math.radians(a))))
+        C.put(px, G, rx, ry, IRON_L if a > 180 else IRON_H)
+    for r, row in enumerate(EMBLEM[pose]):
+        for c, v in enumerate(row):
+            if v != ".":
+                C.put(px, G, int(cx) - 4 + c, int(cy) - 5 + r, EMBLEM_COLOURS[v])
+
+
+def spike(px, G, hot):
+    """The right end: the rails meet in a spearhead of forged iron, a chevron with an ember set in it."""
+    for k in range(1, SPIKE + 1):
+        half = 9.0 - (k - 1) * 0.78
+        for y in range(G.PY0, G.PY1 + 1):
+            dy = abs(y + 0.5 - 9.0)
+            if dy > half:
+                continue
+            upper = y < 9
+            if dy > half - 0.95:
+                c = IRON_K
+            elif dy > half - 3.2 or k > SPIKE - 4:
+                c = (IRON_L if dy > half - 2.0 else IRON_H) if upper else (IRON if dy > half - 2.0 else IRON_D)
+            elif dy > half - 4.1:
+                c = C.lerp((150, 40, 12), (255, 170, 60), hot)
+            else:
+                c = C.lerp((36, 9, 8), (150, 34, 10), 0.35 + 0.5 * hot)
+            C.put(px, G, G.PX1 + k, y, c)
+    for r, row in enumerate(EMBER):
+        for c, v in enumerate(row):
+            if v != ".":
+                C.put(px, G, G.PX1 + 1 + c, 7 + r, EMBLEM_COLOURS[v])
+
+
 def chat_geo(Geo):
     return C.bar(Geo, TITLE, "gust")
 
 
 def chat_frame(G, i):
-    """The plate as a bed of embers (frames 0 .. CALM - 1); in the other frames a gust of fire on its way along it."""
+    """The plate as a bed of embers in a frame of forged iron (frames 0 .. CALM - 1); in the other frames a gust of
+    fire on its way along it. Left the iron boss with the flame, right the spearhead, fire licking round both."""
     im, px = G.canvas()
     base = G.PY1 - 2                                         # the plate's lowest inner row
     top = G.PY0 + 2
     rows = base - top + 1
     step = i - CALM
     behind = (lambda x: G.flow_at(x, step)) if step >= 0 else (lambda x: -1)
-    # the end flames, licking outwards: low while the plate idles (flickering in the idle frames' own loop), high
-    # while the gust is at their end of the plate
+    # the end flames, licking round the boss and the spearhead: low while the plate idles (flickering in the idle
+    # frames' own loop), high while the gust is at their end of the plate
     t = 2 * math.pi * (i % CALM) / CALM if step < 0 else 2 * math.pi * i / N
+    bx = G.PX0 - BOSS - 1.0                                  # the boss's middle
+    gl = gust_strength(behind(G.PX0))
+    gr = gust_strength(behind(G.PX1))
     back = {}
-    for side in (-1, 1):
-        ex = G.PX0 + 7 if side < 0 else G.PX1 - 7
-        grow = 0.42 + 0.58 * gust_strength(behind(G.PX0 if side < 0 else G.PX1))
-        tongue(back, G, ex, G.PY1, 19 * grow, 5.5 * (0.6 + 0.4 * grow), 2.2, side * 0.55, t * 2)
-        tongue(back, G, ex - side * 5, G.PY1 - 1, 13 * grow, 4.0, 3.0, side * 0.35, t * 3)
-        tongue(back, G, ex + side * 3, G.PY1, 11 * grow, 3.6, 4.4, side * 1.0, t * 2)
-        tongue(back, G, ex + side * 7, G.PY1, 6 * grow, 2.6, 1.0, side * 1.3, t * 3)
+    grow = 0.55 + 0.45 * gl
+    tongue(back, G, bx - 7, G.PY1, 20 * grow, 4.6, 2.2, -0.10, t * 2)
+    tongue(back, G, bx - 10, G.PY1, 12 * grow, 3.4, 3.0, -0.30, t * 3)
+    tongue(back, G, bx - 3, G.PY1, 24 * grow, 4.0, 4.4, -0.22, t * 2)
+    tongue(back, G, G.PX0 + 3, G.PY1 - 2, 14 * grow, 4.0, 1.0, -0.10, t * 3)
+    grow = 0.55 + 0.45 * gr
+    tongue(back, G, G.PX1 - 3, G.PY1 - 2, 14 * grow, 4.0, 2.2, 0.10, t * 3)
+    tongue(back, G, G.PX1 + 6, G.PY1, 24 * grow, 4.4, 3.0, 0.14, t * 2)
+    tongue(back, G, G.PX1 + 10, G.PY1, 16 * grow, 3.6, 4.4, 0.24, t * 3)
+    tongue(back, G, G.PX1 + 13, G.PY1, 9 * grow, 2.6, 1.0, 0.40, t * 2)
     # shaded smoothly like the fire inside, fading out at their edges instead of an outline
     for (x, y), heat in back.items():
         if G.PY0 <= y <= G.PY1 and 0 <= x < G.W:
@@ -276,15 +359,39 @@ def chat_frame(G, i):
         u = behind(x)
         e = gust_strength(u)
         c = frame_colour(G, x, y, e)
-        if c is None:
-            h = bed_heat(x - G.TILE0, y - top, rows)
-            if u > 0:
-                h = max(h, gust_heat(u, y - top, rows))
-            c = fire_colour(h, lerp((62, 15, 10), (26, 6, 6), (y - top) / (rows - 1)))
+        if c is False:
+            continue
+        if c is not None:
+            px[x, y] = tuple(c) + (255,)
+            continue
+        h = bed_heat(x - G.TILE0, y - top, rows)
+        if u > 0:
+            h = max(h, gust_heat(u, y - top, rows))
+        c = fire_colour(h, lerp((62, 15, 10), (26, 6, 6), (y - top) / (rows - 1)))
         left = burnt(G, x, y, c, e, flicker)                 # the ends: burnt away
         if left is not None:                                 # where the plate is gone the end flames show
             px[x, y] = tuple(left[0]) + (left[1],)
+    # the frame's ends: an upright bar closes it at either end, with a gusset in each corner; the rails run on
+    # behind the boss
+    for side, g in ((-1, gl), (1, gr)):
+        x0 = G.PX0 if side < 0 else G.PX1
+        for y in range(G.PY0 + 2, G.PY1 - 1):
+            C.put(px, G, x0, y, IRON_H if side < 0 else IRON)
+            C.put(px, G, x0 - side, y, C.lerp((84, 22, 10), (190, 64, 18), 0.4 + 0.2 * flicker + 0.4 * g))
+        for a in range(3):
+            for b in range(3 - a):
+                C.put(px, G, x0 - side * (1 + a), G.PY0 + 2 + b, IRON_H if a + b == 0 else IRON if a + b == 1 else IRON_D)
+                C.put(px, G, x0 - side * (1 + a), G.PY1 - 2 - b, IRON if a + b == 0 else IRON_D)
+    for x in range(int(bx), G.PX0):
+        C.put(px, G, x, G.PY0, IRON_H)
+        C.put(px, G, x, G.PY0 + 1, IRON_D)
+        C.put(px, G, x, G.PY1 - 1, IRON_D)
+        C.put(px, G, x, G.PY1, IRON)
+    boss(px, G, bx, 9.0, (i // 2) % 2, 0.55 + 0.2 * flicker + 0.45 * gl)
+    spike(px, G, 0.45 + 0.2 * flicker + 0.55 * gr)
     for r, row in enumerate(GEM7):
         for c, v in enumerate(row):
             if v != ".": gem_put(px, G, G.DIV - 3 + c, G.MID - 3 + r, GEM7_COLOURS[v])
     return im
+
+
