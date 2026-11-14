@@ -50,7 +50,7 @@ class KoreanCommandsTest {
         var yaml = org.bukkit.configuration.file.YamlConfiguration.loadConfiguration(
                 new InputStreamReader(getClass().getResourceAsStream("/plugin.yml"), StandardCharsets.UTF_8));
         var names = yaml.getConfigurationSection("commands").getKeys(false);
-        assertEquals(java.util.Set.of("관리자", "치장", "뽑기", "칭호", "업적", "프로필", "명예의전당", "닉네임", "돈", "송금", "수표", "메뉴", "건축월드", "야생월드", "야간투시", "사이드바", "탈것", "지게", "감정표현", "튜닝", "rtp", "ㅆ",
+        assertEquals(java.util.Set.of("관리자", "치장", "뽑기", "칭호", "업적", "프로필", "명예의전당", "닉네임", "돈", "송금", "수표", "메뉴", "건축월드", "야생월드", "야간투시", "사이드바", "탈것", "지게", "감정표현", "튜닝", "후원", "rtp", "ㅆ",
                 "tpa", "tpahere", "tpaccept", "tpdeny", "tpacancel", "tpatoggle"), names);
         // Korean names, except the teleport requests: the owner wants the familiar tpa names as the main ones (Korean aliases);
         // and the two the owner asked for by these very names: /rtp, and /ㅆ (one key for the bin)

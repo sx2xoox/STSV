@@ -51,6 +51,7 @@ public final class STSVPlugin extends JavaPlugin {
     private dev.stsv.core.banner.BannerModule banners;
     private dev.stsv.core.emote.EmoteModule emotes;
     private dev.stsv.core.vehicle.VehicleModule vehicles;
+    private dev.stsv.core.donation.DonationModule donation;
     private ItemBrowser itemBrowser;
     private final dev.stsv.core.command.AdminRegistry admin = new dev.stsv.core.command.AdminRegistry();
     private RecipeEditor recipeEditor;
@@ -80,6 +81,7 @@ public final class STSVPlugin extends JavaPlugin {
         modules.register(skins = new SkinModule());
         modules.register(crops = new dev.stsv.core.crop.CropModule());
         modules.register(vehicles = new dev.stsv.core.vehicle.VehicleModule());
+        modules.register(donation = new dev.stsv.core.donation.DonationModule());
         modules.register(cosmetics = new CosmeticModule());
         modules.register(new dev.stsv.core.vehicle.JigeModule());   // after the cosmetics: it draws in their back slot
         modules.register(profiles = new dev.stsv.core.profile.ProfileModule());
@@ -189,6 +191,11 @@ public final class STSVPlugin extends JavaPlugin {
         if (sidebar != null) {
             sidebar.setExecutor(hud);
             sidebar.setTabCompleter(hud);
+        }
+        PluginCommand donate = getCommand("후원");
+        if (donate != null && donation != null) {
+            donate.setExecutor(donation);
+            donate.setTabCompleter(donation);
         }
         PluginCommand emote = getCommand("감정표현");
         if (emote != null) {

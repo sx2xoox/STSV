@@ -81,6 +81,11 @@ commands:
     aliases: [wild, 야생]
     usage: /야생월드
     permission: stsv.travel
+  후원:
+    description: 후원 상점 (후원 재화로 사는 꾸미기 상품, 구매 내역)
+    aliases: [donate, 후원상점]
+    usage: /후원 [내역|받기]
+    permission: stsv.donation
   튜닝:
     description: 튜닝샵 (튜닝샵 안에서 내 탈것의 도색·휠·네온 등을 바꿈)
     aliases: [tuning, 튜닝샵]
@@ -178,6 +183,9 @@ permissions:
     default: true
   stsv.trash:
     description: /ㅆ (쓰레기통)
+    default: true
+  stsv.donation:
+    description: /후원 (후원 상점)
     default: true
   stsv.menu:
     description: 통합 메뉴 (/메뉴, Shift+F)
