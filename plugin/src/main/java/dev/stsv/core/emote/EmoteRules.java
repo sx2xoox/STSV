@@ -24,6 +24,44 @@ public final class EmoteRules {
     static final double[][] TRIES = {{0, 0}, {30, 0}, {-30, 0}, {0, 20}, {60, 0}, {-60, 0}, {60, 20}, {-60, 20},
             {105, 0}, {-105, 0}, {150, 0}, {-150, 0}, {180, 0}, {0, 45}, {180, 45}, {0, 75}};
 
+    /** How an emote is watched (config emotes.view). */
+    public enum View {
+        /** The puppet rides the player, who is hidden: they walk and look around as they like. */
+        BODY,
+        /** The puppet stands where the player stood; the player watches it from a camera and cannot move. */
+        CAMERA;
+
+        /** Anything but "camera" is the body. */
+        public static View of(String setting) {
+            return setting != null && setting.trim().equalsIgnoreCase("camera") ? CAMERA : BODY;
+        }
+    }
+
+    /** What a player who emotes in their own body is doing in a tick. */
+    public record Body(boolean dead, boolean spectator, boolean inVehicle, boolean sneaking, boolean lying, boolean hidden) {}
+
+    /**
+     * Why an emote in the player's own body ends this tick, or null. The puppet stands upright on its player's
+     * feet, so it fits nothing but a standing player; and it is only there while the player's own body is hidden.
+     *
+     * @param b {@code lying}: swimming, crawling, gliding, sleeping, a riptide; {@code hidden}: the invisibility
+     *          the emote gave is still on
+     */
+    public static EmoteReturn.End bodyEnd(Body b) {
+        if (b.dead()) return EmoteReturn.End.DEATH;
+        if (b.sneaking()) return EmoteReturn.End.SNEAK;
+        if (b.spectator() || b.inVehicle() || b.lying() || !b.hidden()) return EmoteReturn.End.LOST;
+        return null;
+    }
+
+    /** Whether a riding puppet is turned again: its player looks {@code step} degrees or more away from where it does. */
+    public static boolean turned(float sent, float yaw, float step) {
+        float d = (yaw - sent) % 360f;
+        if (d >= 180f) d -= 360f;
+        if (d < -180f) d += 360f;
+        return Math.abs(d) >= step;
+    }
+
     /** What the player is doing when they ask for an emote. */
     public record Situation(boolean dead, boolean inVehicle, boolean spectator, boolean inWardrobe, boolean moving, boolean inLiquid,
                             boolean burning, boolean onGround, float fallDistance, boolean invisible, long sinceHurtMillis) {}

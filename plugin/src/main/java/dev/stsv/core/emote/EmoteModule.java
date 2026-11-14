@@ -22,6 +22,7 @@ import org.bukkit.event.EventHandler;
 import org.bukkit.event.EventPriority;
 import org.bukkit.event.HandlerList;
 import org.bukkit.event.Listener;
+import org.bukkit.event.entity.EntityDamageByEntityEvent;
 import org.bukkit.event.entity.EntityDamageEvent;
 import org.bukkit.event.entity.PlayerDeathEvent;
 import org.bukkit.event.player.PlayerGameModeChangeEvent;
@@ -32,7 +33,10 @@ import org.bukkit.event.player.PlayerMoveEvent;
 import org.bukkit.event.player.PlayerQuitEvent;
 import org.bukkit.event.player.PlayerTeleportEvent;
 import org.bukkit.event.player.PlayerToggleSneakEvent;
+import org.bukkit.inventory.EquipmentSlot;
+import org.bukkit.inventory.ItemStack;
 import org.bukkit.persistence.PersistentDataType;
+import org.bukkit.potion.PotionEffect;
 import org.bukkit.potion.PotionEffectType;
 import org.bukkit.profile.PlayerTextures;
 import org.bukkit.scheduler.BukkitTask;
@@ -42,6 +46,7 @@ import org.bukkit.util.Vector;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.util.ArrayList;
+import java.util.EnumMap;
 import java.util.HashMap;
 import java.util.HashSet;
 import java.util.LinkedHashMap;
@@ -98,7 +103,21 @@ public final class EmoteModule implements StsvModule, Listener, TabExecutor {
         boolean attached;
         /** above 0 while this module itself moves the player or changes their game mode */
         int ours;
+        /**
+         * The emote is in the player's own body: the puppet rides them and they are hidden (an invisibility effect
+         * that runs out by itself, so nothing has to be given back after a crash); no camera, no spectator mode,
+         * nothing saved.
+         */
+        boolean body;
+        /** body: the clients carry the puppet on the player (else it is moved to them every tick) */
+        boolean carried;
     }
+
+    /** What others must not see on a player whose puppet stands in for them, and what they must not see themselves. */
+    private static final EquipmentSlot[] GEAR = {EquipmentSlot.HAND, EquipmentSlot.OFF_HAND, EquipmentSlot.HEAD, EquipmentSlot.CHEST,
+            EquipmentSlot.LEGS, EquipmentSlot.FEET}, ARMOUR = {EquipmentSlot.HEAD, EquipmentSlot.CHEST, EquipmentSlot.LEGS, EquipmentSlot.FEET};
+    /** The hidden gear is sent again this often (ticks): the game sends the real one whenever it changes. */
+    private static final int GEAR_TICKS = 5;
 
     @Override
     public String id() {
@@ -301,6 +320,10 @@ public final class EmoteModule implements StsvModule, Listener, TabExecutor {
     }
 
     private void begin(Player p, EmoteSpec spec, PuppetSkin skin) {
+        if (EmoteRules.View.of(plugin.getConfig().getString("emotes.view")) == EmoteRules.View.BODY) {
+            beginBody(p, spec, skin);
+            return;
+        }
         Location feet = p.getLocation().clone();
         float bodyYaw = p.getBodyYaw();
         Location aim = feet.clone().add(0, EmoteRules.AIM_HEIGHT, 0);
@@ -365,6 +388,111 @@ public final class EmoteModule implements StsvModule, Listener, TabExecutor {
     }
 
     // ------------------------------------------------------------------------------------------
+    // In the player's own body
+    // ------------------------------------------------------------------------------------------
+
+    /**
+     * The emote in the player's own body: nothing about the player changes but that they are hidden (an
+     * invisibility effect without particles or icon, and their gear sent as nothing) while a puppet rides them. They
+     * walk, jump and look around as they like; in their own third-person view they see the puppet where they are.
+     */
+    private void beginBody(Player p, EmoteSpec spec, PuppetSkin skin) {
+        Session s = new Session();
+        s.body = true;
+        s.spec = spec;
+        s.origin = p.getLocation().clone();
+        Set<UUID> never = new HashSet<>();
+        for (Player v : Bukkit.getOnlinePlayers()) if (v != p && !v.canSee(p)) never.add(v.getUniqueId());
+        s.puppet = Puppet.riding(plugin, keyEntity, s.origin, p.getHeight(), skin, spec.poseAt(0), spec.planted(), spec.props(), never);
+        sessions.put(p.getUniqueId(), s);
+        long limit = EmoteRules.maxTicks(plugin.getConfig().getInt("emotes.max-seconds"));
+        // ambient, no particles, no icon: that is how the end knows the effect as its own
+        p.addPotionEffect(new PotionEffect(PotionEffectType.INVISIBILITY, (int) Math.min(limit + 100, Integer.MAX_VALUE), 0, true, false, false));
+        if (!p.hasPotionEffect(PotionEffectType.INVISIBILITY)) {
+            finish(p, End.FAILED, null);   // another plugin refused the effect
+            return;
+        }
+        // the worn models go now (no cosmetics on an invisible player), then the puppet is linked, then shown:
+        // the spawn packets carry the link
+        if (plugin.cosmetics() != null) {
+            plugin.cosmetics().refresh(p);
+            s.carried = plugin.cosmetics().carry(p, s.puppet.carrier());
+        }
+        s.puppet.showTo(Bukkit.getOnlinePlayers(), plugin.getConfig().getInt("emotes.view-distance"));
+        hideGear(p);
+        s.attached = true;
+        dev.stsv.core.hud.HudModule.flash(p, Lang.mm("emote.hint-body", "emote", spec.name()));
+    }
+
+    /** The emote's own invisibility (not a potion the player drank meanwhile, which has particles and an icon). */
+    private static boolean ownEffect(Player p) {
+        PotionEffect e = p.getPotionEffect(PotionEffectType.INVISIBILITY);
+        return e != null && e.isAmbient() && !e.hasParticles() && !e.hasIcon();
+    }
+
+    /** Others see no armour and nothing in the hands of the hidden player; the player sees no armour on themselves. */
+    private void hideGear(Player p) {
+        Map<EquipmentSlot, ItemStack> none = new EnumMap<>(EquipmentSlot.class);
+        for (EquipmentSlot slot : GEAR) none.put(slot, ItemStack.empty());
+        for (Player v : p.getTrackedBy()) if (v != p) v.sendEquipmentChange(p, none);
+        Map<EquipmentSlot, ItemStack> armour = new EnumMap<>(EquipmentSlot.class);
+        for (EquipmentSlot slot : ARMOUR) armour.put(slot, ItemStack.empty());
+        p.sendEquipmentChange(p, armour);
+    }
+
+    /** The real gear again, for everyone. */
+    private void showGear(Player p) {
+        Map<EquipmentSlot, ItemStack> real = new EnumMap<>(EquipmentSlot.class);
+        for (EquipmentSlot slot : GEAR) {
+            ItemStack item = p.getInventory().getItem(slot);
+            real.put(slot, item == null ? ItemStack.empty() : item);
+        }
+        for (Player v : p.getTrackedBy()) if (v != p) v.sendEquipmentChange(p, real);
+        p.updateInventory();
+    }
+
+    /** One tick of an emote in the player's own body: false when it ended. */
+    private boolean tickBody(Player p, Session s) {
+        End end = EmoteRules.bodyEnd(new EmoteRules.Body(p.isDead(), p.getGameMode() == GameMode.SPECTATOR, p.isInsideVehicle(), p.isSneaking(),
+                dev.stsv.core.cosmetic.CosmeticModule.lying(p), ownEffect(p)));
+        if (end == null && !s.puppet.valid()) end = End.LOST;
+        if (end != null) {
+            finish(p, end, null);
+            return false;
+        }
+        Location top = p.getLocation();
+        s.puppet.turn(top.getYaw());
+        s.puppet.follow(top.add(0, p.getHeight(), 0), s.carried);
+        // every tick at first: the worn models' own tick sends the real helmet once more when it sees the player hidden
+        if (s.age <= 2 * GEAR_TICKS || s.age % GEAR_TICKS == 0) hideGear(p);
+        return true;
+    }
+
+    /** The end of an emote in the player's own body: the puppet goes, the player shows again as they are. */
+    private void finishBody(Player p, Session s, End end) {
+        step(p, "인형 치우기", () -> {
+            if (plugin.cosmetics() != null) plugin.cosmetics().carry(p, null);
+            discard(s);
+        });
+        step(p, "모습 되돌리기", () -> {
+            if (ownEffect(p)) p.removePotionEffect(PotionEffectType.INVISIBILITY);
+        });
+        lastEnd.put(p.getUniqueId(), System.currentTimeMillis());
+        if (end == End.QUIT || end == End.DISABLE && !p.isOnline()) return;
+        step(p, "장비 다시 보이기", () -> showGear(p));
+        if (end == End.DISABLE) return;
+        if (end.message != null && p.isOnline()) p.sendMessage(Lang.msg(end.message));
+        // the worn models come back when the game has made the player visible again
+        for (long delay : new long[]{1, 10}) {
+            Bukkit.getScheduler().runTaskLater(plugin, () -> {
+                if (!p.isOnline() || emoting(p)) return;
+                if (plugin.cosmetics() != null && !plugin.cosmetics().inWardrobe(p)) plugin.cosmetics().refresh(p);
+                showGear(p);
+            }, delay);
+        }
+    }
+
+    // ------------------------------------------------------------------------------------------
     // Playing
     // ------------------------------------------------------------------------------------------
 
@@ -383,7 +511,9 @@ public final class EmoteModule implements StsvModule, Listener, TabExecutor {
                 continue;
             }
             s.age++;
-            if (!s.puppet.valid() || (s.attached && (!s.camera.isValid() || p.getGameMode() != GameMode.SPECTATOR || p.getSpectatorTarget() != s.camera))) {
+            if (s.body) {
+                if (!tickBody(p, s)) continue;
+            } else if (!s.puppet.valid() || (s.attached && (!s.camera.isValid() || p.getGameMode() != GameMode.SPECTATOR || p.getSpectatorTarget() != s.camera))) {
                 finish(p, End.LOST, null);
                 continue;
             }
@@ -423,6 +553,10 @@ public final class EmoteModule implements StsvModule, Listener, TabExecutor {
     private void finish(Player p, End end, GameMode other) {
         Session s = sessions.remove(p.getUniqueId());
         if (s == null) return;
+        if (s.body) {
+            finishBody(p, s, end);
+            return;
+        }
         EmoteReturn.Plan plan = s.saved.plan(end, other);
         // every step on its own: whatever goes wrong in one, the others still happen
         step(p, "카메라에서 내리기", () -> {
@@ -540,7 +674,8 @@ public final class EmoteModule implements StsvModule, Listener, TabExecutor {
      */
     @EventHandler
     public void onStopSpectating(com.destroystokyo.paper.event.player.PlayerStopSpectatingEntityEvent e) {
-        if (foreign(e.getPlayer()) == null) return;
+        Session s = foreign(e.getPlayer());
+        if (s == null || s.body) return;
         e.setCancelled(true);
         finishLater(e.getPlayer(), End.SNEAK);
     }
@@ -549,20 +684,21 @@ public final class EmoteModule implements StsvModule, Listener, TabExecutor {
     @EventHandler
     public void onStartSpectating(com.destroystokyo.paper.event.player.PlayerStartSpectatingEntityEvent e) {
         Session s = sessions.get(e.getPlayer().getUniqueId());
-        if (s != null && e.getNewSpectatorTarget() != s.camera) e.setCancelled(true);
+        if (s != null && !s.body && e.getNewSpectatorTarget() != s.camera) e.setCancelled(true);
     }
 
     /** Sneaking before the camera is taken (the first two ticks). */
     @EventHandler
     public void onSneak(PlayerToggleSneakEvent e) {
         Session s = foreign(e.getPlayer());
-        if (s != null && e.isSneaking() && !s.attached) finishLater(e.getPlayer(), End.SNEAK);
+        if (s != null && e.isSneaking() && (s.body || !s.attached)) finishLater(e.getPlayer(), End.SNEAK);
     }
 
     /** The spectator menu's "teleport to player" is no way to travel. */
     @EventHandler(priority = EventPriority.LOWEST)
     public void onSpectatorTeleport(PlayerTeleportEvent e) {
-        if (foreign(e.getPlayer()) != null && e.getCause() == PlayerTeleportEvent.TeleportCause.SPECTATE) e.setCancelled(true);
+        Session s = foreign(e.getPlayer());
+        if (s != null && !s.body && e.getCause() == PlayerTeleportEvent.TeleportCause.SPECTATE) e.setCancelled(true);
     }
 
     /**
@@ -587,21 +723,27 @@ public final class EmoteModule implements StsvModule, Listener, TabExecutor {
     @EventHandler(ignoreCancelled = true)
     public void onMove(PlayerMoveEvent e) {
         Session s = foreign(e.getPlayer());
-        if (s == null || s.attached || !e.hasChangedPosition()) return;
+        if (s == null || s.body || s.attached || !e.hasChangedPosition()) return;
         Location to = s.camera.getLocation();
         to.setYaw(e.getTo().getYaw());
         to.setPitch(e.getTo().getPitch());
         e.setTo(to);
     }
 
+    /** From the camera nothing is touched; in their own body the player does what they like. */
+    private boolean watching(Player p) {
+        Session s = sessions.get(p.getUniqueId());
+        return s != null && !s.body;
+    }
+
     @EventHandler
     public void onInteract(PlayerInteractEvent e) {
-        if (emoting(e.getPlayer())) e.setCancelled(true);
+        if (watching(e.getPlayer())) e.setCancelled(true);
     }
 
     @EventHandler
     public void onInteractEntity(PlayerInteractEntityEvent e) {
-        if (emoting(e.getPlayer())) e.setCancelled(true);
+        if (watching(e.getPlayer())) e.setCancelled(true);
     }
 
     @EventHandler(priority = EventPriority.LOWEST)
@@ -625,6 +767,16 @@ public final class EmoteModule implements StsvModule, Listener, TabExecutor {
 
     @EventHandler(priority = EventPriority.MONITOR, ignoreCancelled = true)
     public void onHurt(EntityDamageEvent e) {
-        if (e.getEntity() instanceof Player p) lastHurt.put(p.getUniqueId(), System.currentTimeMillis());
+        if (e.getEntity() instanceof Player p) {
+            lastHurt.put(p.getUniqueId(), System.currentTimeMillis());
+            endBody(p);
+        }
+        // a hidden player does not fight: whoever is hurt or hits shows again
+        if (e instanceof EntityDamageByEntityEvent by && by.getDamager() instanceof Player attacker) endBody(attacker);
+    }
+
+    private void endBody(Player p) {
+        Session s = sessions.get(p.getUniqueId());
+        if (s != null && s.body) finishLater(p, End.LOST);
     }
 }

@@ -228,6 +228,7 @@ emote:
   no-room: "<red>주변이 너무 좁아 카메라를 둘 곳이 없습니다. 조금 트인 곳에서 사용하세요."
   no-skin: "<yellow>스킨을 불러오지 못해 기본 모습의 인형으로 보여 드립니다."
   hint: "<white>{emote}</white> <gray>· 웅크리면 끝납니다"
+  hint-body: "<white>{emote}</white> <gray>· 웅크리면 끝 · <white>F5</white> 로 내 모습 보기"
   stopped: "<gray>감정표현을 끝냈습니다."
   time-up: "<gray>감정표현 시간이 다 되어 끝났습니다."
   interrupted: "<gray>감정표현이 중단되었습니다."

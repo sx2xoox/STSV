@@ -191,6 +191,22 @@ public final class CosmeticModule implements StsvModule, Listener {
                 || p.hasPotionEffect(org.bukkit.potion.PotionEffectType.INVISIBILITY);
     }
 
+    /** Lying, swimming, crawling, gliding, spinning, sleeping: nothing made for a standing body fits. */
+    public static boolean lying(Player p) {
+        return CosmeticAttachments.badPose(p);
+    }
+
+    /**
+     * A display of another module that rides the player on the clients, as the worn models do: carried along with
+     * the player every frame, no packets and no lag (the emote puppet's carrier). null: no more. Show it to its
+     * viewers, the player among them, after this call.
+     *
+     * @return whether the clients carry it (false: the caller has to move it itself)
+     */
+    public boolean carry(Player p, org.bukkit.entity.Entity display) {
+        return attachments != null && attachments.carry(p, display == null ? null : new int[]{display.getEntityId()});
+    }
+
     /**
      * The name tag drawn above a player instead of the game's own (nicknames): a text display that follows them
      * like the worn models. null removes it. The game's tag must be hidden by the caller (scoreboard team).

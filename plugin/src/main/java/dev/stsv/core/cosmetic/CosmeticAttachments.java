@@ -162,6 +162,10 @@ final class CosmeticAttachments {
     private final Map<UUID, Body> bodies = new HashMap<>();
     /** wearer -> ticks at which the link is sent again (right after their displays changed) */
     private final Map<UUID, List<Long>> relinkAt = new HashMap<>();
+    /** wearer -> displays of another module that ride them on the clients (the emote puppet's carrier) */
+    private final Map<UUID, int[]> carried = new HashMap<>();
+    /** wearer -> the ticks at which a carried display's link is sent once more */
+    private final Map<UUID, List<Long>> carriedRelinkAt = new HashMap<>();
     private Map<CosmeticSlot, Vector3f> anchors = DEFAULT_ANCHORS;
     private long ticks;
 
@@ -277,7 +281,51 @@ final class CosmeticAttachments {
         if (have != null) have.values().forEach(w -> w.display.remove());
         Tag t = tags.remove(p.getUniqueId());
         if (t != null) t.display.remove();
-        if (packets != null) packets.link(p.getEntityId(), new int[0], new int[0]);
+        link(p);   // what another module has riding them stays
+    }
+
+    /**
+     * Displays of another module that ride the player on the clients like the worn models (null or empty: no more).
+     * They must be shown to their viewers after this call: the spawn packets then carry the link. The player's own
+     * client is told too (the caller shows them to the player).
+     *
+     * @return whether the clients carry them (false: no packet layer, the caller has to move them itself)
+     */
+    boolean carry(Player p, int[] ids) {
+        UUID id = p.getUniqueId();
+        if (ids == null || ids.length == 0) {
+            carried.remove(id);
+            carriedRelinkAt.remove(id);
+        } else {
+            carried.put(id, ids.clone());
+            carriedRelinkAt.put(id, new ArrayList<>(List.of(ticks + 2, ticks + 10)));
+        }
+        link(p);
+        return packets != null;
+    }
+
+    boolean carrying(Player p) {
+        return carried.containsKey(p.getUniqueId());
+    }
+
+    /** Every tick: the link of what is carried, once more shortly after it began and every {@link #RELINK_TICKS}. */
+    private void tickCarried(boolean resend) {
+        if (packets == null || carried.isEmpty()) return;
+        for (UUID id : new ArrayList<>(carried.keySet())) {
+            Player p = Bukkit.getPlayer(id);
+            if (p == null) {
+                carried.remove(id);
+                carriedRelinkAt.remove(id);
+                continue;
+            }
+            List<Long> due = carriedRelinkAt.get(id);
+            boolean now = due != null && due.remove(ticks);
+            if (due != null && due.isEmpty()) carriedRelinkAt.remove(id);
+            if (!resend && !now) continue;
+            List<Player> viewers = new ArrayList<>(p.getTrackedBy());
+            viewers.add(p);
+            packets.resendLink(p, viewers);
+        }
     }
 
     void removeAll() {
@@ -288,6 +336,8 @@ final class CosmeticAttachments {
         tagText.clear();
         bodies.clear();
         relinkAt.clear();
+        carried.clear();
+        carriedRelinkAt.clear();
     }
 
     /** Debug: slot -> display entity id. */
@@ -301,7 +351,8 @@ final class CosmeticAttachments {
         if (packets == null) return;
         java.util.stream.IntStream models = worn.getOrDefault(p.getUniqueId(), Map.of()).values().stream().mapToInt(w -> w.display.getEntityId());
         Tag t = tags.get(p.getUniqueId());
-        int[] ids = (t == null ? models : java.util.stream.IntStream.concat(models, java.util.stream.IntStream.of(t.display.getEntityId()))).toArray();
+        java.util.stream.IntStream own = t == null ? models : java.util.stream.IntStream.concat(models, java.util.stream.IntStream.of(t.display.getEntityId()));
+        int[] ids = java.util.stream.IntStream.concat(own, java.util.Arrays.stream(carried.getOrDefault(p.getUniqueId(), new int[0]))).toArray();
         int[] real = p.getPassengers().stream().mapToInt(Entity::getEntityId).toArray();
         packets.link(p.getEntityId(), ids, real);
     }
@@ -393,6 +444,7 @@ final class CosmeticAttachments {
             }
         }
         tickTags(sweep, resend);
+        tickCarried(resend);
     }
 
     /** The wearer's own view was switched: show or hide their displays to them now. */
@@ -531,7 +583,8 @@ final class CosmeticAttachments {
     }
 
     private boolean shouldSeeTag(Player viewer, Player owner) {
-        return viewer != owner && viewer.canSee(owner) && !tagHidden(owner);
+        // a player whose puppet stands in for them (an emote in their own body) is invisible, but there to be seen
+        return viewer != owner && viewer.canSee(owner) && (!tagHidden(owner) || (carrying(owner) && !owner.isDead()));
     }
 
     private Transformation tagTransformation(float playerScale, TagStyle style) {

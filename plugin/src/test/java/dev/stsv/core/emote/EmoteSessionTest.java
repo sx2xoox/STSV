@@ -244,6 +244,36 @@ class EmoteSessionTest {
         for (String k : messages.getConfigurationSection("emote").getKeys(false)) assertTrue(sources.contains("\"emote." + k + "\""), "emote." + k + " is not used");
     }
 
+    /** The emote in the player's own body: what it is, what ends it, when the puppet turns with its player. */
+    @Test
+    void inTheirOwnBody() {
+        assertEquals(EmoteRules.View.BODY, EmoteRules.View.of("body"));
+        assertEquals(EmoteRules.View.CAMERA, EmoteRules.View.of(" Camera "));
+        assertEquals(EmoteRules.View.BODY, EmoteRules.View.of(null), "the body unless the camera is asked for");
+        assertEquals(EmoteRules.View.BODY, EmoteRules.View.of("something"));
+
+        // dead, spectator, vehicle, sneaking, lying, hidden
+        assertEquals(null, EmoteRules.bodyEnd(new EmoteRules.Body(false, false, false, false, false, true)), "walking about hidden: it goes on");
+        assertEquals(End.SNEAK, EmoteRules.bodyEnd(new EmoteRules.Body(false, false, false, true, false, true)), "sneaking ends it, as from the camera");
+        assertEquals(End.DEATH, EmoteRules.bodyEnd(new EmoteRules.Body(true, false, false, true, false, true)));
+        assertEquals(End.LOST, EmoteRules.bodyEnd(new EmoteRules.Body(false, true, false, false, false, true)));
+        assertEquals(End.LOST, EmoteRules.bodyEnd(new EmoteRules.Body(false, false, true, false, false, true)), "a seat: the puppet stands");
+        assertEquals(End.LOST, EmoteRules.bodyEnd(new EmoteRules.Body(false, false, false, false, true, true)), "swimming, gliding, crawling");
+        assertEquals(End.LOST, EmoteRules.bodyEnd(new EmoteRules.Body(false, false, false, false, false, false)),
+                "the invisibility went (milk, another plugin): the player's own body would show inside the puppet");
+        // every one of these endings leaves the player where they are and says something (but death)
+        assertFalse(End.DEATH.back);
+        assertTrue(End.SNEAK.message != null && End.LOST.message != null);
+
+        // the puppet turns when its player has looked 2 degrees away, also across the seam at +-180
+        assertFalse(EmoteRules.turned(10f, 11.5f, Puppet.TURN_STEP));
+        assertTrue(EmoteRules.turned(10f, 12f, Puppet.TURN_STEP));
+        assertTrue(EmoteRules.turned(10f, 7f, Puppet.TURN_STEP));
+        assertFalse(EmoteRules.turned(179.5f, -179.5f, Puppet.TURN_STEP), "one degree across the seam");
+        assertTrue(EmoteRules.turned(179f, -178f, Puppet.TURN_STEP));
+        assertFalse(EmoteRules.turned(10f, 370.5f, Puppet.TURN_STEP), "a full turn more is the same way");
+    }
+
     /** The quick key (Ctrl + Shift while standing still) and what the buttons run. */
     @Test
     void theQuickKeyAndTheButtons() {
@@ -271,6 +301,8 @@ class EmoteSessionTest {
         YamlConfiguration config = resource("config.yml");
         assertTrue(config.getBoolean("emotes.enabled"));
         assertTrue(config.getBoolean("emotes.quick-key"), "the quick key is on unless it is turned off");
+        assertEquals(EmoteRules.View.BODY, EmoteRules.View.of(config.getString("emotes.view")), "in the player's own body unless set otherwise");
+        assertEquals("body", config.getString("emotes.view"));
         assertTrue(config.getInt("emotes.max-seconds") >= 5);
         assertTrue(config.getInt("emotes.cooldown-seconds") >= 0);
         assertTrue(config.getInt("emotes.view-distance") >= 16);
