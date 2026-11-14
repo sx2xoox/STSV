@@ -44,7 +44,8 @@ class PackPipelineTest {
             "hyper_car", "grand_sedan", "luxury_suv",           // the premium cars: lamps, the SUV roof lamps
             "police_lightbar_a", "police_lightbar_b",           // the light bar's lit halves
             "cargo_bicycle", "cargo_van",                       // road vehicles: the bicycle's lamps, the van's head and tail lights
-            "boat_trawl");                                      // 작업기: the work lamp on the trawl gallows
+            "boat_trawl", "coastal_trawl",                      // 작업기: the work lamp on the trawl gallows
+            "raft", "rowboat", "coastal_boat", "trawler");      // 고깃배: paper lanterns, squid lamps, running and mast lights, floodlights
     private static final Set<String> ROTATED = Set.of("test_sword", "test_sword_skin", "test_greatsword", "test_slash", "test_rod", "test_rod_cast",
             "angel_wings", "demon_wings", "butterfly_wings",   // wings swept back 22.5 degrees
             "gumiho",                                           // nine tails fanned out
@@ -58,7 +59,9 @@ class PackPipelineTest {
             "wheel_atv",                                       // the ATV tyre's knobs, every 45 degrees round it
             // 작업기: the plough's beam and handle, hood plates and shields, tines on the slant, links and arms, the tarp's shoulders
             "ox_plough", "tiller_rotary", "tiller_rotary_tines", "tractor_rotary", "tractor_rotary_tines", "tractor_seeder",
-            "tractor_header", "tractor_header_reel", "boat_trawl", "truck_tarp",
+            "tractor_header", "tractor_header_reel", "boat_trawl", "truck_tarp", "coastal_trawl", "trawler_trawl",
+            // 고깃배: fishing rods leaning out of their holders, the raft's sweep and the skiff's oars (down into the water)
+            "fishing_boat", "raft", "raft_scull", "rowboat", "rowboat_oar_l", "rowboat_oar_r", "coastal_boat", "trawler",
             "toy_pickaxe", "toy_fishing_rod");                 // 장난감 시리즈: the pickaxe's drooping arms, the rod's hanging line and float
 
     @org.junit.jupiter.params.ParameterizedTest

@@ -423,6 +423,27 @@ TRAP_LINES = [
     "  per-chunk: 2         # 한 청크에 놓을 수 있는 가두리 수 (통발과 합쳐서도 trap.per-chunk 까지)",
 ]
 
+# fish.yml net (원양 조업: NetSpec in the plugin): written as they are
+NET_LINES = [
+    "# 원양 조업 (README \"원양 조업\"): 배의 그물(코어 작업기 kind net)은 물고기 낱마리가 아니라 \"어획 상자\"를 어창에 올림.",
+    "# 어획 상자는 항구 하역장의 위판에서만 팔림 (그 배가 잡은 상자만, 그 배의 어창에서: 손으로 들고 가거나 다른 배에 실으면 안 삼).",
+    "# 바다는 가장 가까운 항구 하역장에서의 거리로 나뉨: 멀수록 상자가 비쌈. 배마다 그물이 제 성능을 내는 바다가 있어서",
+    "# (통통배 = 연안, 연안 어선 = 근해, 트롤 어선 = 원양) 그보다 멀리 나가도 제 바다의 상자가 올라옴.",
+    "# 그물을 얼마나 자주 걷는지는 코어 content/stsv/vehicle_tools.yml 의 net.seconds (통통배 45 · 연안 어선 30 · 트롤 어선 18초).",
+    "# 그 월드에 항구 하역장이 없거나 boats 에 없는 배의 그물은 예전처럼 흔함·보통 물고기를 한 마리씩 올림.",
+    "net:",
+    "  zones:               # from: 가장 가까운 항구에서 이만큼(블록) 떨어진 곳부터 · value: 위판 값 (G, 상자 하나) · weight: 어창에서의 무게",
+    "    coast: { name: \"연안\", from: 0, item: economy:catch_coast, value: 50, weight: 10 }",
+    "    near: { name: \"근해\", from: 600, item: economy:catch_near, value: 80, weight: 10 }",
+    "    far: { name: \"원양\", from: 2000, item: economy:catch_far, value: 110, weight: 10 }",
+    "  boats:               # 그 배의 그물이 닿는 가장 먼 바다 (코어 탈것 아이템 id)",
+    "    stsv:fishing_boat: coast",
+    "    stsv:coastal_boat: near",
+    "    stsv:trawler: far",
+    "  crew-bonus: 0.08     # 같이 탄 사람 한 명마다 상자가 이만큼 더 올라옴 (그물을 같이 걷음: 5명이면 +40%)",
+    "  crew-max: 5          # 여기까지만 셈",
+]
+
 
 def write_content(pack: Path, icons):
     rar_ids = [r[0] for r in RARITY]
@@ -436,7 +457,7 @@ def write_content(pack: Path, icons):
            "pearl: 0.15            # 바다에서 희귀가 걸렸을 때 진주가 나올 확률",
            "# 입질까지 기다리는 시간은 바닐라 그대로 (5~30초, 미끼(Lure) 한 단계마다 5초 덜, 그다음 물고기가 찌까지 1~4초).",
            "# 어부는 jobs.yml 어부 bite 만큼 기다리는 시간이 줄어듦.",
-           ""] + TRAP_LINES + [
+           ""] + TRAP_LINES + [""] + NET_LINES + [
            "",
            "rarities:"]
     for (rid, name, colour) in RARITY:

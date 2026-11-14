@@ -51,7 +51,11 @@ public final class FishingModule extends EcoModule implements WeeklyListener {
     public static final NamespacedKey FACTOR = new NamespacedKey("economy", "fish_factor");
     private static final Set<Material> FISH = Set.of(Material.COD, Material.SALMON, Material.PUFFERFISH, Material.TROPICAL_FISH);
 
+    /** the boat (its vehicle number) a crate of catch was hauled by: only that boat's hold sells it at a harbour */
+    public static final NamespacedKey VESSEL = new NamespacedKey("economy", "vessel");
+
     private FishSpec spec;
+    private NetSpec net = NetSpec.NONE;
     private FishStore store;
     private List<String> order = List.of();
     /** testing (/관리자 낚시): the next bites of a player, by rarity id ("pearl" too) or by fish */
@@ -80,7 +84,7 @@ public final class FishingModule extends EcoModule implements WeeklyListener {
             store.reset();
             eco.kv().remove("fish.week");
         });
-        if (core.vehicles() != null) core.vehicles().netCatch(this::netCatch);   // 통통배의 그물 (코어 작업기)
+        if (core.vehicles() != null) core.vehicles().netHaul(this::netHaul);   // 배의 그물 (코어 작업기): 어획 상자, 없으면 낱마리
     }
 
     @Override
@@ -91,12 +95,59 @@ public final class FishingModule extends EcoModule implements WeeklyListener {
     @Override
     protected void stop() {
         forced.clear();
-        if (core.vehicles() != null) core.vehicles().netCatch(null);
+        if (core.vehicles() != null) core.vehicles().netHaul(null);
     }
 
     // ------------------------------------------------------------------------------------------
-    // The 통통배's net (the core's 작업기: trawling slowly on the sea)
+    // The boats' nets (the core's 작업기: trawling slowly on the sea)
     // ------------------------------------------------------------------------------------------
+
+    /** 원양 조업 (fish.yml net:): the seas, the crates, what each boat's net is made for. */
+    public NetSpec net() {
+        return net;
+    }
+
+    /**
+     * How far this water is from the nearest harbour (a 항구 하역장 in the same world), in blocks across the map; -1 = the
+     * world has no harbour (nowhere to sell a crate: the net brings up single fish as before).
+     */
+    double harbourDistance(Block water) {
+        double best = -1;
+        String world = water.getWorld().getName();
+        for (dev.stsv.economy.dock.Dock d : eco.docks().docks()) {
+            if (d.kind() != dev.stsv.economy.dock.DockLayout.Kind.PORT || !d.world().equals(world)) continue;
+            double dist = Math.hypot(d.x() - water.getX(), d.z() - water.getZ());
+            if (best < 0 || dist < best) best = dist;
+        }
+        return best;
+    }
+
+    /**
+     * What a boat's net brings up (the core asks every net.seconds on average while it trawls): crates of catch of the sea
+     * it is in ({@link NetSpec}: by how far the nearest harbour is, never beyond the sea that boat's net is made for), more
+     * of them with more people aboard, each marked with the boat that hauled it ({@link #VESSEL}: only that boat's hold sells
+     * it, at a harbour). A boat whose net hauls no crates, or a world without a harbour: one fish as before
+     * ({@link #netCatch}). null = not the sea.
+     */
+    private ItemStack netHaul(Player p, Block water, dev.stsv.core.vehicle.NetHaul.Boat boat) {
+        double far = net.enabled() && eco.docks() != null ? harbourDistance(water) : -1;
+        NetSpec.Zone zone = far < 0 ? null : net.zoneFor(boat.item(), far);
+        if (zone == null) return netCatch(p, water);
+        boolean underground = water.getLightFromSky() == 0 && water.getY() < water.getWorld().getSeaLevel() - 8;
+        if (!FishSpec.SALT.contains(FishSpec.habitat(water.getBiome().getKey().asString(), underground))) return null;
+        int count = net.crates(boat.aboard(), rnd.nextDouble());
+        ItemStack it = Items.create(zone.item(), count).orElse(null);
+        if (it == null) return null;
+        it.editMeta(m -> m.getPersistentDataContainer().set(VESSEL, PersistentDataType.LONG, boat.id()));
+        return it;
+    }
+
+    /** The boat a crate of catch was hauled by, or 0 (not a crate, or one that was handed out). */
+    public static long vessel(ItemStack crate) {
+        if (crate == null || crate.isEmpty() || !crate.hasItemMeta()) return 0;
+        Long id = crate.getPersistentDataContainer().get(VESSEL, PersistentDataType.LONG);
+        return id == null ? 0 : id;
+    }
 
     /**
      * One fish of the sea at this block for a driver trawling there (the core asks now and then, far less often than a rod
@@ -132,6 +183,8 @@ public final class FishingModule extends EcoModule implements WeeklyListener {
     private void load() {
         List<String> problems = new ArrayList<>();
         spec = FishSpec.parse(eco.data("fish.yml"), problems);
+        net = NetSpec.parse(eco.data("fish.yml").getConfigurationSection("net"), problems);
+        for (NetSpec.Zone z : net.zones()) if (Items.create(z.item(), 1).isEmpty()) problems.add("net.zones." + z.id() + ": 없는 아이템 " + z.item());
         for (FishSpec.Species s : spec.species().values()) if (Items.create(s.item(), 1).isEmpty()) problems.add(s.id() + ": 없는 아이템 " + s.item());
         problems.forEach(p -> eco.getLogger().warning("[fish.yml] " + p));
         order = new ArrayList<>(spec.species().keySet());

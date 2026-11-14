@@ -79,6 +79,8 @@ final class VehicleTools {
     private final Map<NamespacedKey, VehicleToolSpec> specs = new HashMap<>();
     private BiPredicate<Player, Block> guard;
     private BiFunction<Player, Block, ItemStack> netHook;
+    /** asked instead of {@link #netHook} when set: it is told which boat hauls and how many are aboard */
+    private NetHaul haulHook;
     private int perTick;
     private double maxMspt;
     /** blocks the tools may still change this tick (all vehicles), and the tick it is for */
@@ -135,6 +137,11 @@ final class VehicleTools {
     /** Places the tools never change (roads, docks, terminals): (driver, block) -> true = keep off. null = none. */
     void guard(BiPredicate<Player, Block> guard) {
         this.guard = guard;
+    }
+
+    /** One fish of the water at this block for the trawling driver (null = nothing this time). null = no fish at all. */
+    void haul(NetHaul haul) {
+        this.haulHook = haul;
     }
 
     /** One fish of the water at this block for the trawling driver (null = nothing this time). null = no fish at all. */
@@ -726,7 +733,8 @@ final class VehicleTools {
     private void trawl(LiveVehicle v, State s, VehicleToolSpec.Tool t, Player driver) {
         if ((module.ticks() + v.id) % NET_EVERY != 0) return;
         BiFunction<Player, Block, ItemStack> n = netHook;
-        if (n == null || v.cargoViewer != null) return;
+        NetHaul hauling = haulHook;
+        if ((n == null && hauling == null) || v.cargoViewer != null) return;
         if (!ToolRules.trawling(t, true, v.boatMode == BoatPhysics.Mode.FLOAT, v.st.speed)) return;
         if (ThreadLocalRandom.current().nextDouble() >= ToolRules.catchChance(t.seconds(), NET_EVERY)) return;
         int wy = (int) Math.floor(v.st.y + v.spec.water().draft() - 0.2);
@@ -736,7 +744,9 @@ final class VehicleTools {
         if (water.getType() != Material.WATER) return;
         ItemStack fish;
         try {
-            fish = n.apply(driver, water);
+            int aboard = 0;
+            for (boolean taken : v.taken()) if (taken) aboard++;
+            fish = hauling != null ? hauling.haul(driver, water, new NetHaul.Boat(v.id, v.item.key().asString(), aboard)) : n.apply(driver, water);
         } catch (RuntimeException ex) {
             plugin.getLogger().log(java.util.logging.Level.WARNING, "[작업기] 그물", ex);
             return;

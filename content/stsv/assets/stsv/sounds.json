@@ -293,6 +293,48 @@
       }
     ]
   },
+  "vehicle.coastal_boat.horn": {
+    "sounds": [
+      {
+        "name": "stsv:vehicle/coastal_boat_horn"
+      }
+    ]
+  },
+  "vehicle.coastal_boat.horn_end": {
+    "sounds": [
+      {
+        "name": "stsv:vehicle/coastal_boat_horn_end"
+      }
+    ]
+  },
+  "vehicle.coastal_boat.engine": {
+    "sounds": [
+      {
+        "name": "stsv:vehicle/coastal_boat_engine"
+      }
+    ]
+  },
+  "vehicle.trawler.horn": {
+    "sounds": [
+      {
+        "name": "stsv:vehicle/trawler_horn"
+      }
+    ]
+  },
+  "vehicle.trawler.horn_end": {
+    "sounds": [
+      {
+        "name": "stsv:vehicle/trawler_horn_end"
+      }
+    ]
+  },
+  "vehicle.trawler.engine": {
+    "sounds": [
+      {
+        "name": "stsv:vehicle/trawler_engine"
+      }
+    ]
+  },
   "vehicle.ox_cart.horn": {
     "sounds": [
       {

@@ -57,9 +57,11 @@ class VehicleToolsTest {
     @Test
     void theShippedToolsReadAndFitTheirVehicles() {
         Map<String, VehicleToolSpec> t = shipped();
-        assertEquals(List.of("ox_cart", "power_tiller", "tractor_trailer", "fishing_boat", "light_truck", "box_truck"), List.copyOf(t.keySet()));
+        assertEquals(List.of("ox_cart", "power_tiller", "tractor_trailer", "fishing_boat", "coastal_boat", "trawler", "light_truck", "box_truck"),
+                List.copyOf(t.keySet()));
         Map<String, String> files = Map.of("ox_cart", "vehicles_farm.yml", "power_tiller", "vehicles_farm.yml", "tractor_trailer", "vehicles_farm.yml",
-                "fishing_boat", "vehicles_misc.yml", "light_truck", "vehicles.yml", "box_truck", "vehicles_road.yml");
+                "fishing_boat", "vehicles_misc.yml", "coastal_boat", "vehicles_misc.yml", "trawler", "vehicles_misc.yml",
+                "light_truck", "vehicles.yml", "box_truck", "vehicles_road.yml");
         for (var e : t.entrySet()) {
             VehicleSpec v = vehicle(files.get(e.getKey()), e.getKey());
             assertEquals(List.of(), e.getValue().problems(v), e.getKey());
@@ -93,6 +95,15 @@ class VehicleToolsTest {
         VehicleToolSpec.Tool net = t.get("fishing_boat").tool(1);
         assertEquals(VehicleToolSpec.Kind.NET, net.kind());
         assertTrue(net.seconds() >= 30);
+        // the ladder: the 연안 어선 and the 트롤 어선 haul more often, still slower than a rod
+        double before = net.seconds();
+        for (String boat : List.of("coastal_boat", "trawler")) {
+            VehicleToolSpec.Tool n = t.get(boat).tool(1);
+            assertEquals(VehicleToolSpec.Kind.NET, n.kind(), boat);
+            assertTrue(n.seconds() < before && n.seconds() >= 15, boat + ": " + n.seconds());
+            assertTrue(n.speed() <= 3, boat + " trawls slowly");
+            before = n.seconds();
+        }
         // 1톤 트럭: the tarp; 탑차: only the roller door (nothing to switch)
         assertNotNull(t.get("light_truck").cover());
         assertTrue(t.get("box_truck").tools().isEmpty());

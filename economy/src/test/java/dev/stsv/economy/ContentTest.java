@@ -221,10 +221,10 @@ class ContentTest {
 
         // the shape: 6 jobs, 6 finds, 8 special materials, 139 job machine goods + 9 press goods (the 손질대's 4 tier items and its
         // 연마 진주 among them), 22 old 손질대 goods (예전 물건: the shop buys them, nothing makes them), 6 job machines + the press, the
-        // 통발 and the 가두리, 32 crop items (15 seeds, 17 harvests), 92 fish
+        // 통발 and the 가두리, 3 crates of catch (원양 조업: fish.yml net), 32 crop items (15 seeds, 17 harvests), 92 fish
         assertEquals(6, jobs.jobs().size());
-        assertEquals(6 + 8 + 148 + 22 + 7 + 2 + 32 + 92, ours.size(),
-                "6 finds + 8 specials + 148 goods + 22 old goods + 7 machines + 2 fishing gear + 32 crop items + 92 fish");
+        assertEquals(6 + 8 + 148 + 22 + 7 + 2 + 3 + 32 + 92, ours.size(),
+                "6 finds + 8 specials + 148 goods + 22 old goods + 7 machines + 2 fishing gear + 3 crates of catch + 32 crop items + 92 fish");
         assertEquals(7, machines.size());
         assertEquals(148, machines.values().stream().flatMap(x -> x.recipes().stream()).map(MachineSpec.Recipe::output).distinct().count());
         YamlConfiguration legacy = yaml("shop.yml");
@@ -280,6 +280,14 @@ class ContentTest {
         }
         for (var g : shop.goods()) if (g.kind().equals("item")) makeable.add(g.id());
         makeable.addAll(jobs.specials().keySet());   // special materials: found by harvesting, fishing or mining (jobs.yml specials)
+        // crates of catch: what a boat's net brings up (fish.yml net: the seas), each an item of ours; sold only at a harbour
+        var net = dev.stsv.economy.fishing.NetSpec.parse(yaml("fish.yml").getConfigurationSection("net"), problems);
+        assertEquals(3, net.zones().size(), "연안 · 근해 · 원양");
+        for (var z : net.zones()) {
+            if (!exists(z.item(), ours)) problems.add("net zone " + z.id() + ": " + z.item());
+            makeable.add(z.item());
+        }
+        for (var g : shop.goods()) for (var z : net.zones()) if (g.id().equals(z.item())) problems.add("the shop must not trade a crate of catch: " + g.id());
         for (String id : ours) if (!makeable.contains(id) && !oldGoods.contains(id)) problems.add("nobody can make " + id);
         for (String id : oldGoods) if (makeable.contains(id)) problems.add("an old good is made again: " + id + " (move it out of sell.legacy)");
         assertTrue(problems.isEmpty(), String.join("\n", problems));

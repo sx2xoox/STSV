@@ -486,7 +486,10 @@ class BModel(Model):
         area = sum(w * h for w, h in sizes)
         widest = max(w for w, _ in sizes)
         best = None
-        for W in range(16, 257, 16):
+        # up to 256 px a side; only a model too big for that (a boat seven blocks long) gets a larger sheet
+        for W in list(range(16, 257, 16)) + list(range(272, 1025, 16)):
+            if W > 256 and best:
+                break
             if W < widest:
                 continue
             pos = _shelf(sizes, W)

@@ -557,6 +557,84 @@ def boat_trawl():
     return m
 
 
+def stern_trawl(name, half, deck, wl, block, net_half, gallows=None, scale=2.0):
+    """The net of a bigger boat (연안 어선, 트롤 어선), drawn from its transom: z 0 = the transom, y as on the boat
+    (vehicle_tools.yml puts it at the stern with `at`). The warps run from the blocks (x = +-block[0], at height block[1],
+    block[2] px forward of the transom) down to two otter boards in the water, the float line and the green net behind
+    them narrowing to the cod end. gallows: the height of an A-frame standing on the deck inside the transom (the
+    연안 어선's; the trawler hangs its warps from the gantry it already has)."""
+    m = BModel(name, shift=(8, 8, 8), scale=scale)
+    bx, by, bz = block
+    if gallows:
+        m.group("gallows")
+        frame = Paint("signal_red", 2, noise=0, rim=0.6, decal=_paint_metal("signal_red", 1.6, 0.9))
+        for s in (1, -1):
+            xa, xb = sorted(((half - 3) * s, (half - 1.5) * s))
+            m.box("post", (xa, deck + 0.5, -bz - 1), (xb, gallows, -bz + 0.5), frame)
+            m.box("foot", (min(xa, xb) - 0.5, deck, -bz - 2), (max(xa, xb) + 0.5, deck + 1, -bz + 1), IRON)
+            xa2, xb2 = sorted((9.5 * s, (half - 3) * s))
+            m.box("bearing", (xa2, gallows - 9, -bz - 0.75), (xb2, gallows - 7.5, -bz + 0.25), IRON)
+            xa3, xb3 = sorted(((bx - 1) * s, (bx + 1) * s))
+            m.box("block", (xa3, by - 1, -bz + 0.5), (xb3, by + 1, -bz + 2), STEEL_BRIGHT)
+        m.box("crossbar", (-(half - 1.5), gallows, -bz - 1), (half - 1.5, gallows + 1.5, -bz + 0.5), frame)
+        m.box("light", (-1, gallows + 1.5, -bz - 1), (1, gallows + 3, -bz + 0.5), Paint("lamp", 3, noise=0, light=False, glow=True))
+    m.group("warps")
+    warp = Paint("iron", 2, noise=0, decal=lambda c: ("iron", 2.6 if math.floor(c.p[2] + c.p[1]) % 2 else 1.6))
+    reach = by - wl                      # the warps run down at 45 degrees
+    for s in (1, -1):
+        x = bx * s
+        rod(m, "warp", (by, -bz + 1), (wl, -bz + 1 + reach), 0.5, warp, x=sorted((x - 0.25 * s, x + 0.25 * s)))
+    z0 = -bz + 1 + reach                 # where the warps reach the water
+    m.group("doors")
+
+    def door(c):
+        y, z = c.p[1], c.p[2]
+        if c.face in ("east", "west"):
+            if abs(y - (wl - 2.5)) < 0.5 or c.nu <= 1:
+                return ("iron", 2.8)
+            return ("hazard", 2.4) if (math.floor(z) // 2) % 2 else ("rubber", 1.0)
+        return ("iron", 1.6)
+    for s in (1, -1):
+        xa, xb = sorted(((bx + 0.5) * s, (bx + 1.5) * s))
+        m.box("otter_board", (xa, wl - 5, z0 - 2), (xb, wl + 0.5, z0 + 4), Paint("iron", 2, noise=0, rim=0.5, decal=door),
+              rotation=("y", 22.5 * s, ((bx + 0.5) * s, wl - 5, z0 - 2)))
+    m.group("net")
+    float_p = Paint("fox", 3, noise=0, rim=0.6, decal=lambda c: ("fox", 3.4 if c.face in ("up", "north") else 2.4))
+    n = net_half
+    m.box("headrope", (-n, wl - 0.25, z0 + 2), (n, wl + 0.25, z0 + 2.5), Paint("burlap", 2, noise=0))
+    k = int(n // 2)
+    for i in range(-k + 1, k, 2):
+        m.box("float", (i * 2 - 1, wl - 1, z0 + 1.25), (i * 2 + 1, wl + 1.5, z0 + 3.25), float_p)
+    net = mesh(2, ramp="leaf_dark", lit=2.4, edge=("leaf_dark", 1.4), frame=True)
+    m.box("net", (-n, wl - 6, z0 + 2.5), (n, wl - 5.6, z0 + 9), net)
+    m.box("net", (-n, wl - 5.6, z0 + 2.5), (-n + 0.4, wl - 0.5, z0 + 9), net)
+    m.box("net", (n - 0.4, wl - 5.6, z0 + 2.5), (n, wl - 0.5, z0 + 9), net)
+    w = n * 0.65
+    m.box("net", (-w, wl - 5, z0 + 9), (w, wl - 4.6, z0 + 14), net)
+    m.box("net", (-w, wl - 4.6, z0 + 9), (-w + 0.4, wl - 1.5, z0 + 14), net)
+    m.box("net", (w - 0.4, wl - 4.6, z0 + 9), (w, wl - 1.5, z0 + 14), net)
+    m.box("net", (-w + 0.4, wl - 1.5, z0 + 9), (w - 0.4, wl - 1.1, z0 + 14), net)
+
+    def cod(c):
+        kk = h3(*c.i, 97)
+        return ("leaf_dark", 1.2 + (0.8 if kk > 0.6 else 0) + (0.5 if c.face == "up" else 0))
+    c2 = n * 0.35
+    m.box("cod_end", (-c2, wl - 4.5, z0 + 13.5), (c2, wl - 1.5, z0 + 16.5), Paint("leaf_dark", 1, noise=0, rim=0.3, decal=cod))
+    m.box("cod_rope", (-c2 - 0.25, wl - 3.5, z0 + 15.75), (c2 + 0.25, wl - 2.5, z0 + 16.75), Paint("fox", 2, noise=0))
+    m.display = _held_display(m)
+    return m
+
+
+def coastal_trawl():
+    """연안 어선: a red A-frame on the aft deck (models/vehicles_boats.py: deck 15, the water at 7, the stern 21 wide)."""
+    return stern_trawl("coastal_trawl", half=21, deck=15, wl=7, block=(17, 35, 4), net_half=14, gallows=38, scale=2.0)
+
+
+def trawler_trawl():
+    """트롤 어선: the warps from the blocks of its own gantry (x +-15.25, y 54, 7 px forward of the transom)."""
+    return stern_trawl("trawler_trawl", half=27, deck=20, wl=10, block=(15.25, 53.5, 7.25), net_half=20, gallows=None, scale=2.5)
+
+
 def boat_net_drum():
     """The net drum on the gallows: flanged ends, the green net wound on it with a few orange floats in its turns
     (axle along x at (0, 0, 0))."""
@@ -733,6 +811,8 @@ ALL = {
     "tractor_header_reel": tractor_header_reel,
     "boat_trawl": boat_trawl,
     "boat_net_drum": boat_net_drum,
+    "coastal_trawl": coastal_trawl,
+    "trawler_trawl": trawler_trawl,
     "truck_tarp": truck_tarp,
     "box_truck_shutter": box_truck_shutter,
     "box_truck_doorway": box_truck_doorway,

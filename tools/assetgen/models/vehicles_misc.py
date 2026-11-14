@@ -178,6 +178,11 @@ def fishing_boat():
     _bow_gear(m)
     _fenders(m)
     _stern(m)
+    # a fishing boat: a rod in a holder on each quarter leaning out over the water, a bait bucket by the thwart
+    from models import vehicles_boats as VB      # (imports this module: only when the model is built)
+    for s in (1, -1):
+        VB._rod(m, s * 14.25, 16.5, 31, length=18, out=s, back=False, reel=False, holder=False)
+    VB._bucket(m, 9.5, -10, DECK)
     m.display = _held_display(m)
     return m
 
@@ -350,16 +355,18 @@ def _bow_gear(m):
         if c.face == "up" and math.floor(x + 7) % 5 == 0 and math.floor(z) % 2 == 0:
             return ("fox", 3)                                     # the floats along the float line
         return ("leaf_dark", 1.4 if u else 2.6)
+    # the net heaped to port and the anchor lashed to starboard: the middle of the fore peak is left free, the angler's
+    # seat at the bow (vehicles_misc.yml seats: the fourth)
     np = Paint("leaf_dark", 2, noise=0, rim=0.4, decal=net)
-    m.box("net", (-7.5, FOC, -32), (2.5, FOC + 2.5, -27.5), np)
-    m.box("net", (-6, FOC + 2.5, -31), (1, FOC + 4, -28.5), np)
+    m.box("net", (-8.5, FOC, -32), (-4.5, FOC + 2.5, -27.5), np)
+    m.box("net", (-8, FOC + 2.5, -31), (-5, FOC + 4, -28.5), np)
 
     def anchor(c):
         return ("iron", 2.4 if c.face == "up" else 1.6) if h3(*map(math.floor, c.p), 52) > 0.15 else ("terracotta", 1.6)
     ap = Paint("iron", 2, noise=0, rim=0.6, decal=anchor)
-    m.box("anchor", (3, FOC, -34), (4, FOC + 1, -28.5), ap)
-    m.box("anchor", (1.5, FOC, -34.5), (5, FOC + 0.75, -33.5), ap)
-    m.box("anchor_ring", (3, FOC, -28.5), (4, FOC + 1.5, -28), ap)
+    m.box("anchor", (6, FOC, -31), (7, FOC + 1, -28), ap)
+    m.box("anchor", (4.75, FOC, -32), (8.25, FOC + 0.75, -31), ap)
+    m.box("anchor_ring", (6, FOC, -28), (7, FOC + 1.5, -27.5), ap)
     m.box("bitt", (-1, FOC, -37.5), (1, FOC + 2.5, -36), Paint(TRIM, 2, noise=0, rim=0.6))
     m.box("bow_lamp", (-1.5, 23, -40), (1.5, 25, -38.5), Paint("blade", 2, noise=0, rim=0.6,
                                                                        decal=lambda c: ("glow_amber", 4) if c.face == "north" else None))

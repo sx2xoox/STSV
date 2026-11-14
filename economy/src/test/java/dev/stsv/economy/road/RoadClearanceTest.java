@@ -89,6 +89,11 @@ class RoadClearanceTest {
         double tallest = 0, longest = 0, step = 0;
         String who = "";
         for (Map.Entry<String, ConfigurationSection> e : sections().entrySet()) {
+            // boats (vehicle.water) never drive on a road: the trawler is longer and taller than any road is cut for
+            if (e.getValue().isConfigurationSection("water")) {
+                assertEquals(3, e.getValue().getDoubleList("size").size(), e.getKey() + ": size");
+                continue;
+            }
             for (List<Double> s : sizes(e.getValue())) {
                 assertEquals(3, s.size(), e.getKey() + ": size");
                 if (s.get(2) > tallest) who = e.getKey();

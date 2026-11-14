@@ -94,6 +94,7 @@ public final class DockModule extends EcoModule {
     /** 튜닝샵 건물 (by name, lower case): the core's tuning shop works inside them (dev.stsv.core.vehicle.TuningShops) */
     private final Map<String, Dock> tuningShops = new LinkedHashMap<>();
     private TripStore trips;
+    private FishAuction auction;
     private final Map<Long, CargoTrip> sealed = new HashMap<>();
     /**
      * Loads being sealed now (their trip on its way into the database): locked as if sealed already (their bed does not
@@ -132,6 +133,8 @@ public final class DockModule extends EcoModule {
         for (CargoTrip t : trips.sealed()) sealed.put(t.vehicle(), t);
         load();
         counters = counterTypes();
+        auction = new FishAuction(eco, this);   // 위판: a boat's crates of catch, at a harbour
+        Bukkit.getPluginManager().registerEvents(auction, eco);
         if (core.vehicles() != null) {
             core.vehicles().cargoWeight(this::weigh);
             core.vehicles().cargoClick(this::bedClicked);
@@ -174,6 +177,7 @@ public final class DockModule extends EcoModule {
             core.vehicles().tripBroken(null);
             core.vehicles().tuningShops(null);
         }
+        if (auction != null) org.bukkit.event.HandlerList.unregisterAll(auction);
         if (building != null) building.cancel();
         if (scout != null) scout.queue.stop();
     }
@@ -250,7 +254,9 @@ public final class DockModule extends EcoModule {
     double weigh(ItemStack it) {
         if (it == null || it.isEmpty()) return 0;
         String id = idOf(it);
-        double unit = unitWeight.computeIfAbsent(id, weights::weight);
+        // a crate of catch (fish.yml net: the boats' nets) weighs what its sea says: a hold fills in about a trip
+        dev.stsv.economy.fishing.NetSpec.Zone crate = eco.fishing() == null ? null : eco.fishing().net().ofItem(id);
+        double unit = crate != null ? crate.weight() : unitWeight.computeIfAbsent(id, weights::weight);
         double inner = 0;
         Material type = it.getType();
         if ((Tag.SHULKER_BOXES.isTagged(type) || Tag.ITEMS_BUNDLES.isTagged(type)) && it.hasItemMeta()) {
@@ -279,6 +285,16 @@ public final class DockModule extends EcoModule {
     // Where a load is: in a dock's zone?
     // ------------------------------------------------------------------------------------------
 
+    /** May this player sell this load ({@link FishAuction})? */
+    boolean mayUseLoad(Player p, Hauled h) {
+        return mayUse(p, h);
+    }
+
+    /** One more line in the dock's sales ({@link FishAuction}). */
+    void logSale(DockStore.Sale sale) {
+        store.log(sale);
+    }
+
     /** The dock whose zone holds any unit of this load, or null. */
     Dock dockOf(Hauled h) {
         for (Dock d : docks.values()) if (d.anyInZone(h.world().getName(), h.points())) return d;
@@ -288,6 +304,10 @@ public final class DockModule extends EcoModule {
     /** A sneak + right-click on a bed (or a 지게 opened) inside a dock's zone: the sale menu instead. */
     private boolean bedClicked(Player p, Hauled h) {
         Dock d = dockOf(h);
+        if (d != null && d.kind() == DockLayout.Kind.PORT && FishAuction.boat(h)) {
+            auction.open(p, d, h);   // a boat moored in a harbour: the fish auction (위판)
+            return true;
+        }
         if (d != null) {
             open(p, d, h);
             return true;

@@ -248,7 +248,22 @@ vehicles:
     engine-start: { sound: stsv:vehicle.tractor_trailer.engine_start, volume: 0.75, ticks: 28 }
     engine-stop: { sound: stsv:vehicle.tractor_trailer.engine_stop, volume: 0.65 }
     idle-shake: 0.015
+  # 고깃배 (vehicles_misc.yml): 뗏목·나룻배는 사람 힘 (노 젓는 만큼 배고픔), 통통배부터 엔진. 배는 출렁임(서스펜션) 없음
+  raft:
+    power: muscle
+    bounce: 0
+    effort: { per-block: 0.008, per-block-loaded: 0.02, uphill: 0 }
+  rowboat:
+    power: muscle
+    bounce: 0
+    effort: { per-block: 0.006, per-block-loaded: 0.02, uphill: 0 }
   fishing_boat:
+    power: engine
+    bounce: 0
+  coastal_boat:
+    power: engine
+    bounce: 0
+  trawler:
     power: engine
     bounce: 0
   jige:

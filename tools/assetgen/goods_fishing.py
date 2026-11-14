@@ -36,6 +36,44 @@ def fish_feed():
 
 
 # ================================================================================================
+# 원양 조업: 어획 상자 (fish.yml net: what a boat's net brings up, sold at a harbour's auction)
+# ================================================================================================
+
+def _catch(band):
+    """A white styrofoam fish box full of fish on ice, the band printed round it saying which sea it came from."""
+    c = Canvas()
+    c.poly([(1.5, 6.0), (14.5, 6.0), (13.5, 14.6), (2.5, 14.6)], "feather", 1, normal=(0, 0.25, 1), lo=2, hi=4)
+    c.poly([(2.6, 2.8), (13.4, 2.8), (14.5, 6.0), (1.5, 6.0)], "ice", 1.2, normal=(0, -0.6, 1), lo=2, hi=4)
+    c.tube([(3.6, 4.6), (9.4, 3.8)], [1.0, 0.5], "fish_blue", 1.5, lo=2, hi=4)
+    c.tube([(6.4, 5.4), (12.4, 4.6)], [1.0, 0.5], "fish_silver", 1.6, lo=2, hi=4)
+    c.put(4, 4, "soot", 1, z=4)
+    c.put(7, 5, "soot", 1, z=4)
+    for x in range(2, 14):
+        c.put(x, 9, band, 3, z=3)
+        c.put(x, 10, band, 2, z=3)
+    c.line(6, 12, 9, 12, "stone", 1, z=3)
+    return c
+
+
+@icon
+def catch_coast():
+    """연안 어획 상자: a green band."""
+    return _catch("leaf")
+
+
+@icon
+def catch_near():
+    """근해 어획 상자: a blue band."""
+    return _catch("denim")
+
+
+@icon
+def catch_far():
+    """원양 어획 상자: a gold band."""
+    return _catch("gold")
+
+
+# ================================================================================================
 # 손질대: 어부의 손질감
 # ================================================================================================
 
@@ -248,4 +286,5 @@ NAMES = {
     "fish_feed": "생선 사료", "flatfish_hoe": "광어회", "dried_fish": "건어물", "saeujeot": "새우젓", "fish_paste": "어묵 반죽",
     "mulhoe": "물회", "eomuktang": "어묵탕", "bossam": "보쌈", "dried_fish_stirfry": "건어물 볶음",
     "fish_trap_icon": "통발", "fish_pen_icon": "가두리",
+    "catch_coast": "연안 어획 상자", "catch_near": "근해 어획 상자", "catch_far": "원양 어획 상자",
 }

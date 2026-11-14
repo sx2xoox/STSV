@@ -9,16 +9,107 @@
 #   wheels             배는 바퀴 대신 프로펠러 (길이 방향으로 돎). wheel-radius 가 클수록 천천히 돎
 #   cargo              뒤 갑판의 어창 (behind 보다 뒤를 웅크리고 우클릭하면 열림). 짐: 생선 상자·그물·부표 → 가득 차면 방수포
 
+raft:
+  material: paper
+  name: "<#c9a36a>뗏목"
+  lore:
+    - "<gray>1세대 · 통나무를 엮은 뗏목. 뒤의 노를 저어 감. 멍석 자리, 생선 말리는 덕장, 등불."
+    - "<gray>2인승 · 물 위 최고 속도 3.5블록/초 · 어롱(고기 바구니) 27칸 · 엔진 없이 조용함"
+    - "<gray>물 위에서만: 물가(땅)에서 멈추고 올라가지 않음, 용암·폭포·거품 기둥 앞에서 멈춤"
+    - "<dark_gray>물을 보고 우클릭: 띄우기 · 우클릭: 타기"
+    - "<dark_gray>W·S 앞뒤, A·D 방향, 웅크리기: 내리기 · 탄 채로 낚시 가능 (둘이 같이)"
+    - "<dark_gray>웅크리고 뒤쪽 바구니 우클릭: 어롱 열기"
+    - "<dark_gray>웅크리고 앞쪽 우클릭: 아이템으로 회수 (주인, 어롱이 비어 있어야 함)"
+  model: raft
+  icon: raft_icon
+  max-stack: 1
+  vehicle:
+    body-scale: 2
+    speed: 3.5
+    reverse-speed: 1.5
+    acceleration: 1.2
+    brake: 3
+    coast: 1.0
+    turn-rate: 55
+    turn-speed: 1.5
+    step-height: 0
+    size: [3.4, 1.9, 0.9]
+    click-height: 0.8
+    wheel: raft_scull
+    wheel-radius: 0.5
+    wheels:
+      - { at: [0, 0.65625, -1.4375] }
+    seats:
+      - { at: [0, 0.75, -0.46875] }
+      - { at: [0, 0.5, 0.65625] }
+    water:
+      draft: 0.1875
+      nudge-speed: 1.5
+      rock: 1.2
+    cargo:
+      slots: 27
+      payload: 40           # 적재 무게 (economy weights.yml 의 무게로, README "적재 무게")
+      behind: -0.75
+      at: [0, 0.46875, -0.96875]
+      stages: [raft_catch_1, raft_catch_2, raft_catch_3, raft_catch_4]
+
+rowboat:
+  material: paper
+  name: "<#b98a5a>나룻배"
+  lore:
+    - "<gray>2세대 · 널빤지로 짠 작은 목선. 노 두 자루, 가로장 셋, 뱃머리 등불과 통발."
+    - "<gray>3인승 · 물 위 최고 속도 5블록/초 · 고물 짐칸 54칸 · 엔진 없이 조용함"
+    - "<gray>물 위에서만: 물가(땅)에서 멈추고 올라가지 않음, 용암·폭포·거품 기둥 앞에서 멈춤"
+    - "<dark_gray>물을 보고 우클릭: 띄우기 · 우클릭: 타기"
+    - "<dark_gray>W·S 앞뒤, A·D 방향, 웅크리기: 내리기 · 탄 채로 낚시 가능 (셋이 같이)"
+    - "<dark_gray>웅크리고 뒤쪽(고물) 우클릭: 짐칸 열기"
+    - "<dark_gray>웅크리고 앞쪽 우클릭: 아이템으로 회수 (주인, 짐칸이 비어 있어야 함)"
+  model: rowboat
+  icon: rowboat_icon
+  max-stack: 1
+  vehicle:
+    body-scale: 2
+    speed: 5
+    reverse-speed: 2
+    acceleration: 1.4
+    brake: 3.5
+    coast: 1.2
+    turn-rate: 55
+    turn-speed: 2
+    step-height: 0
+    size: [4.6, 1.5, 0.9]
+    click-height: 0.8
+    wheel: rowboat_oar_r        # 바퀴는 없음 (wheels 가 비어 있음): 노는 아래 spinners 로 가로축을 돎
+    wheel-radius: 1.0
+    wheels: []
+    spinners:
+      - { model: rowboat_oar_r, at: [0.703125, 0.78125, -0.0625], ratio: 0.8 }
+      - { model: rowboat_oar_l, at: [-0.703125, 0.78125, -0.0625], ratio: 0.8 }
+    seats:
+      - { at: [0, 0.59375, 0.3125] }
+      - { at: [0, 0.59375, 1.0625] }
+      - { at: [0, 0.59375, -0.6875] }
+    water:
+      draft: 0.1875
+      nudge-speed: 1.2
+      rock: 1.1
+    cargo:
+      slots: 54
+      payload: 120          # 적재 무게
+      behind: -0.95
+      at: [0, 0.28125, -1.5]
+      stages: [rowboat_catch_1, rowboat_catch_2, rowboat_catch_3, rowboat_catch_4]
+
 fishing_boat:
   material: paper
   name: "<#7fc3e6>통통배"
   lore:
-    - "<gold>특수</gold> <dark_gray>· <gray>나무로 짠 작은 고깃배. 조타실, 통통통 굴뚝, 그물 더미."
-    - "<gray>3인승 · 물 위 최고 속도 7블록/초 · 어창 270칸 (6쪽)"
+    - "<gray>3세대 · 나무로 짠 작은 고깃배. 조타실, 통통통 굴뚝, 그물 더미, 낚싯대 거치대."
+    - "<gray>4인승 · 물 위 최고 속도 7블록/초 · 어창 270칸 (6쪽)"
     - "<gray>물 위에서만: 물가(땅)에서 멈추고 올라가지 않음, 용암·폭포·거품 기둥 앞에서 멈춤"
     - "<gray>얼음 위에서는 미끄러지고, 물이 빠지면 물 쪽으로만 천천히 밀 수 있음"
     - "<dark_gray>물을 보고 우클릭: 띄우기 · 우클릭: 타기 · 스페이스: 뱃고동"
-    - "<dark_gray>W·S 앞뒤, A·D 방향, 웅크리기: 내리기 · 탄 채로 낚시 가능"
+    - "<dark_gray>W·S 앞뒤, A·D 방향, 웅크리기: 내리기 · 탄 채로 낚시 가능 (뱃머리 자리 · 가로장 둘)"
     - "<dark_gray>웅크리고 뒤 갑판 우클릭: 어창 열기"
     - "<dark_gray>웅크리고 앞쪽 우클릭: 아이템으로 회수 (주인, 어창이 비어 있어야 함)"
     - "<gold>작업기</gold> <gray>운전석에서 Ctrl (멈춰서): 그물 끌기 (바다를 천천히 가면 가끔 물고기가 어창으로)"
@@ -45,6 +136,7 @@ fishing_boat:
       - { at: [0, 1.0, -0.28] }
       - { at: [-0.42, 1.03, 1.06] }
       - { at: [0.42, 1.03, 1.06] }
+      - { at: [0, 1.1875, 1.84375] }
     horn: { sound: stsv:vehicle.fishing_boat.horn, release: stsv:vehicle.fishing_boat.horn_end, volume: 1.6,
             vanilla: block.note_block.didgeridoo, pitch: 0.6, times: 1 }
     engine: { sound: stsv:vehicle.fishing_boat.engine, volume: 0.45, idle-volume: 0.3, idle-pitch: 0.6, top-pitch: 1.35, segment-ticks: 10 }
@@ -59,6 +151,114 @@ fishing_boat:
       behind: -0.6
       at: [0, 0.8125, -1.640625]
       stages: [boat_catch_1, boat_catch_2, boat_catch_3, boat_catch_4]
+
+coastal_boat:
+  material: paper
+  name: "<#8fd0c0>연안 어선"
+  lore:
+    - "<gray>4세대 · 흰 FRP 선체의 연안 어선. 유리 조타실, 양옆 집어등, 레이더, 뱃머리 난간."
+    - "<gray>6인승 · 물 위 최고 속도 9블록/초 · 어창 405칸 (9쪽)"
+    - "<gray>물 위에서만: 물가(땅)에서 멈추고 올라가지 않음, 용암·폭포·거품 기둥 앞에서 멈춤"
+    - "<dark_gray>물을 보고 우클릭: 띄우기 · 우클릭: 타기 · 스페이스: 뱃고동"
+    - "<dark_gray>W·S 앞뒤, A·D 방향, 웅크리기: 내리기 · 탄 채로 낚시 가능 (뱃머리·뱃전 자리 넷)"
+    - "<dark_gray>웅크리고 뒤 갑판 우클릭: 어창 열기"
+    - "<dark_gray>웅크리고 앞쪽 우클릭: 아이템으로 회수 (주인, 어창이 비어 있어야 함)"
+    - "<gold>작업기</gold> <gray>운전석에서 Ctrl (멈춰서): 그물 끌기 (통통배보다 자주, 먼바다에서 더 잘 잡힘)"
+  model: coastal_boat
+  icon: coastal_boat_icon
+  max-stack: 1
+  vehicle:
+    body-scale: 2.5
+    speed: 9
+    reverse-speed: 3
+    acceleration: 1.8
+    brake: 4.5
+    coast: 1.2
+    turn-rate: 42
+    turn-speed: 3
+    step-height: 0
+    size: [7.2, 2.9, 2.75]
+    click-height: 1.4
+    wheel: boat_propeller
+    wheel-radius: 1.2
+    wheels:
+      - { at: [0, 0.21875, -3.21875] }
+    seats:
+      - { at: [0.34375, 1.21875, 0.0625] }
+      - { at: [-0.34375, 1.21875, 0.0625] }
+      - { at: [0.34375, 1.59375, 1.71875] }
+      - { at: [-0.34375, 1.59375, 1.71875] }
+      - { at: [1.0625, 1.28125, -1.125] }
+      - { at: [-1.0625, 1.28125, -1.125] }
+    horn: { sound: stsv:vehicle.coastal_boat.horn, release: stsv:vehicle.coastal_boat.horn_end, volume: 1.7,
+            vanilla: block.note_block.didgeridoo, pitch: 0.8, times: 1 }
+    engine: { sound: stsv:vehicle.coastal_boat.engine, volume: 0.5, idle-volume: 0.25, idle-pitch: 0.6, top-pitch: 1.45, segment-ticks: 10 }
+    water:
+      draft: 0.4375
+      nudge-speed: 0.6
+      rock: 0.8
+      exhaust: [0.625, 3.1, -0.47]
+    cargo:
+      slots: 405
+      payload: 1400         # 적재 무게
+      behind: -1.75
+      at: [0, 0.9375, -2.5625]
+      stages: [coastal_catch_1, coastal_catch_2, coastal_catch_3, coastal_catch_4]
+
+trawler:
+  material: paper
+  name: "<#5f86c8>트롤 어선"
+  lore:
+    - "<gray>5세대 · 강철 선체의 트롤 어선. 흰 선교와 굴뚝, 레이더 마스트, 고물의 주황 갠트리와 윈치."
+    - "<gray>8인승 · 물 위 최고 속도 10.5블록/초 · 어창 720칸 (16쪽)"
+    - "<gray>물 위에서만: 물가(땅)에서 멈추고 올라가지 않음, 용암·폭포·거품 기둥 앞에서 멈춤"
+    - "<dark_gray>물을 보고 우클릭: 띄우기 · 우클릭: 타기 · 스페이스: 뱃고동"
+    - "<dark_gray>W·S 앞뒤, A·D 방향, 웅크리기: 내리기 · 탄 채로 낚시 가능 (뱃머리·뱃전 자리 여섯)"
+    - "<dark_gray>웅크리고 뒤 갑판 우클릭: 어창 열기"
+    - "<dark_gray>웅크리고 앞쪽 우클릭: 아이템으로 회수 (주인, 어창이 비어 있어야 함)"
+    - "<gold>작업기</gold> <gray>운전석에서 Ctrl (멈춰서): 트롤 그물 (가장 자주, 먼바다에서 제 성능)"
+  model: trawler
+  icon: trawler_icon
+  max-stack: 1
+  vehicle:
+    body-scale: 3.5
+    speed: 10.5
+    reverse-speed: 3
+    acceleration: 1.6
+    brake: 4
+    coast: 1.0
+    turn-rate: 34
+    turn-speed: 3.5
+    step-height: 0
+    size: [9.6, 3.75, 4.0]
+    click-height: 1.6
+    wheel: trawler_propeller
+    wheel-radius: 1.6
+    wheels:
+      - { at: [0, 0.28125, -4.375] }
+    seats:
+      - { at: [0.34375, 2.46875, 1.03125] }
+      - { at: [-0.34375, 2.46875, 1.03125] }
+      - { at: [0.34375, 2.3125, 3.46875] }
+      - { at: [-0.34375, 2.3125, 3.46875] }
+      - { at: [1.53125, 1.59375, -1.5] }
+      - { at: [-1.53125, 1.59375, -1.5] }
+      - { at: [1.53125, 1.59375, -2.375] }
+      - { at: [-1.53125, 1.59375, -2.375] }
+    horn: { sound: stsv:vehicle.trawler.horn, release: stsv:vehicle.trawler.horn_end, volume: 2.0,
+            vanilla: block.note_block.didgeridoo, pitch: 0.5, times: 1 }
+    engine: { sound: stsv:vehicle.trawler.engine, volume: 0.6, idle-volume: 0.35, idle-pitch: 0.6, top-pitch: 1.3, segment-ticks: 10 }
+    water:
+      draft: 0.625
+      nudge-speed: 0.4
+      rock: 0.6
+      exhaust: [0, 4.1, 0.0625]
+    cargo:
+      slots: 720
+      payload: 3000         # 적재 무게
+      behind: -2.6
+      at: [0, 1.25, -3.5]
+      stages: [trawler_catch_1, trawler_catch_2, trawler_catch_3, trawler_catch_4]
 
 # 지게 (jige): 놓는 탈것이 아니라 입는 것. 가슴 칸(갑옷 자리)에 입으면 등에 지게가 보이고 짐을 넣을 수 있음 (플러그인 JigeModule).
 #   jige.slots     짐 칸 수 (9 의 배수, 최대 54 = 큰 상자 한 개 화면)

@@ -200,7 +200,7 @@ def sheet(out):
     top, icon_h = 50, 150
     out_im = Image.new("RGB", (W1600, top + rows * (ch + head) + icon_h), (27, 29, 34))
     d = ImageDraw.Draw(out_im)
-    d.text((14, 12), "통통배 (특수) · 지게 (1세대) · 관리자 아이템 · 주황 = 운전자, 초록 = 동승자 · 블록 1칸과 사람(1.8칸) · "
+    d.text((14, 12), "통통배 (3세대) · 지게 (1세대) · 관리자 아이템 · 주황 = 운전자, 초록 = 동승자 · 블록 1칸과 사람(1.8칸) · "
            "배는 흘수 6px 로 물에 떠 있음 · 지게는 가슴 칸에 입고 등에 보임", font=small, fill=(235, 232, 222))
     for r in range(rows):
         w = cw5 if r == 1 else cw

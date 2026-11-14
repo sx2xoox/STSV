@@ -917,6 +917,21 @@ road:
     done: "완성"
     peek: "미리보기 살피기"
 
+# 위판 (README "원양 조업"): 항구 하역장에 댄 배의 어창을 웅크리고 우클릭하면 열리는 화면. 닫기 · 짐칸 열기 · 팔 수 없음 · 돈 받는 사람 문구는 dock.* 을 같이 씀
+fishauction:
+  title: "<dark_gray>위판 (어획 상자 판매)"
+  line: "<gray>{zone} · {count}상자 × <white>{unit}</white> = <gold>{total}"
+  info-title: "<gold>{vehicle} <gray>(주인 {owner})"
+  info-harbour: "<gray><white>{dock}</white> 항구 위판장"
+  info-weight: "<gray>어창 무게 <white>{weight}</white> / {payload}"
+  info-how: "<dark_gray>이 배의 그물로 잡은 어획 상자만 삼 (값은 fish.yml 의 바다마다 고정, 상점 시세와 무관)"
+  info-foreign: "<red>다른 배가 잡았거나 손으로 옮긴 상자 {count}개는 사지 않아요."
+  confirm: "<green>위판 확정 <gray>· <gold>{total}"
+  why-nothing: "<red>어창에 이 배가 잡은 어획 상자가 없어요. <gray>(운전석에서 Ctrl 로 그물을 내리고 바다를 천천히)"
+  why-foreign: "<red>이 배가 잡은 어획 상자가 없어요. <gray>(다른 배의 상자는 그 배의 어창에서만 팔림)"
+  sold: "<green>위판장에 어획 상자 {count}개를 팔았어요: <gold>{amount}</gold> <gray>(주인 {owner}에게)"
+  sold-owner: "<green>{player}님이 {dock} 항구에서 내 배의 어획 상자를 팔았어요: <gold>{amount}"
+
 # 출발 터미널 (README "출발 터미널")
 tuningshop:
   usage: "<red>/관리자 튜닝샵 설치 <이름> <gray>(문 앞에 서서 안쪽을 보고. 앞마당 포함 가로 25 · 세로 25칸)"

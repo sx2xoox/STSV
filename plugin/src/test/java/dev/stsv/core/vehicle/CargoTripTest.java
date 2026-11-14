@@ -255,7 +255,11 @@ class CargoTripTest {
         want.put("ox_cart", 400.0);
         want.put("power_tiller", 500.0);
         want.put("tractor_trailer", 2000.0);
+        want.put("raft", 40.0);
+        want.put("rowboat", 120.0);
         want.put("fishing_boat", 800.0);
+        want.put("coastal_boat", 1400.0);
+        want.put("trawler", 3000.0);
         Map<String, VehicleSpec> all = all();
         for (Map.Entry<String, Double> e : want.entrySet()) {
             VehicleSpec s = all.get(e.getKey());
@@ -272,6 +276,7 @@ class CargoTripTest {
                 m -> Files.exists(PACK.resolve("models/" + m + ".bbmodel"))).payload(), 1e-9);
         // the ladder: each generation carries more than the one before
         assertTrue(150 > 20 && 60 > 20 && 600 > 120 && 1000 > 600 && 2500 > 1000);
+        assertTrue(120 > 40 && 800 > 120 && 1400 > 800 && 3000 > 1400, "the boats too");
     }
 
     @Test

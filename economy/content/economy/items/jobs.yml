@@ -1017,6 +1017,25 @@ fish_feed:
   lore: ["<gray>가두리에 넣으면 물고기가 불어남"]
   texture: fish_feed
 
+# ── 어획 상자 (원양 조업: fish.yml net). 배의 그물이 어창에 올리는 것. 항구 하역장의 위판에서만, 잡은 배의 어창에서만 팔림 ──
+catch_coast:
+  material: paper
+  name: "<#8fd0a0>연안 어획 상자"
+  lore: ["<gray>연안에서 그물로 잡은 고기 한 상자", "<gray>항구 하역장에 배를 대고 어창을 열면 <white>위판</white>에서 팔림", "<dark_gray>잡은 배의 어창에 실려 있어야 함 · 상점에서는 안 삼"]
+  texture: catch_coast
+
+catch_near:
+  material: paper
+  name: "<#6fb7e8>근해 어획 상자"
+  lore: ["<gray>근해에서 그물로 잡은 고기 한 상자", "<gray>항구 하역장에 배를 대고 어창을 열면 <white>위판</white>에서 팔림", "<dark_gray>잡은 배의 어창에 실려 있어야 함 · 상점에서는 안 삼"]
+  texture: catch_near
+
+catch_far:
+  material: paper
+  name: "<#f0b860>원양 어획 상자"
+  lore: ["<gray>먼바다에서 그물로 잡은 고기 한 상자", "<gray>항구 하역장에 배를 대고 어창을 열면 <white>위판</white>에서 팔림", "<dark_gray>잡은 배의 어창에 실려 있어야 함 · 상점에서는 안 삼"]
+  texture: catch_far
+
 flatfish_hoe:
   material: paper
   name: "<#4fc3f7>광어회"

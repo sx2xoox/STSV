@@ -2859,6 +2859,11 @@ public final class VehicleModule implements StsvModule, Listener {
      * 작업기 (the 통통배's net): one fish of the water at this block for the driver trawling there, or null (nothing this
      * time, not the sea). The economy server: a common or uncommon fish of that water. null = the net catches nothing.
      */
+    public void netHaul(NetHaul haul) {
+        tools.haul(haul);
+    }
+
+    /** The simple form of {@link #netHaul}: one fish of the water at this block for the driver (not told which boat). */
     public void netCatch(java.util.function.BiFunction<Player, Block, ItemStack> net) {
         tools.net(net);
     }

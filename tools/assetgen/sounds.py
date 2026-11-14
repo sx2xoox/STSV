@@ -517,6 +517,30 @@ ENGINES.update({"hyper_car": hyper_engine, "grand_sedan": grand_engine, "luxury_
 ENGINE_LEVEL.update({"hyper_car": 0.85, "grand_sedan": 0.7, "luxury_suv": 0.85})
 
 
+# ----------------------------------------------------------------------------------------------
+# 고깃배 사다리 (vehicles_misc.yml coastal_boat, trawler; the raft and the rowboat have no engine and no horn)
+# ----------------------------------------------------------------------------------------------
+
+def coastal_engine(n, t):
+    """A marine diesel behind a cabin wall: an even mid hum (44 Hz), the rumble of the hull under it, a light clatter."""
+    rng = np.random.default_rng(51)
+    return combustion(n, t, rng, f0=44.0, count=12, rolloff=1.0, bandwidth=8.0, floor=0.4, warmth=1100, clatter=0.22)
+
+
+def trawler_engine(n, t):
+    """A big slow diesel deep in a steel hull: the lowest note of all (28 Hz), wide resonances, a lot of rumble."""
+    rng = np.random.default_rng(52)
+    return combustion(n, t, rng, f0=28.0, count=14, rolloff=0.9, bandwidth=12.0, floor=0.55, warmth=700, clatter=0.2)
+
+
+VEHICLES = VEHICLES + ("coastal_boat", "trawler")
+# the coastal boat's horn a bright two-tone air horn; the trawler's a ship's whistle, lower and wider than the 통통배's
+HORNS["coastal_boat"] = dict(tones=(185.0, 277.2), rolloff=1.1, drive=1.8, formant=(900.0, 450.0, 2.0), top=3400, seed=51)
+HORNS["trawler"] = dict(tones=(98.0, 146.8), rolloff=1.3, drive=1.6, formant=(480.0, 300.0, 2.4), top=2000, seed=52)
+ENGINES.update({"coastal_boat": coastal_engine, "trawler": trawler_engine})
+ENGINE_LEVEL.update({"coastal_boat": 0.8, "trawler": 0.9})
+
+
 def sounds_json():
     """Every vehicle sound event: stsv:vehicle.<v>.horn / horn_end / engine -> stsv:vehicle/<v>_<kind>."""
     out = {}

@@ -201,7 +201,7 @@ class VehicleTuningTest {
                 "light_truck", "golf_cart", "sports_car", "tuner_car", "hyper_car", "grand_sedan", "luxury_suv")) {
             assertTrue(c.offered(id, Kind.PAINT).size() >= 10, id + ": " + c.offered(id, Kind.PAINT).size() + " paints");
         }
-        for (String id : List.of("hand_cart", "ox_cart", "fishing_boat")) assertTrue(c.kinds(id).isEmpty(), id);
+        for (String id : List.of("hand_cart", "ox_cart", "raft", "rowboat", "fishing_boat", "coastal_boat", "trawler")) assertTrue(c.kinds(id).isEmpty(), id);
         // a body is not offered in the colour it has already (that model is not drawn)
         assertFalse(c.offers("grand_sedan", Kind.PAINT, "pearl"));
         assertFalse(c.offers("sports_car", Kind.PAINT, "red"));
