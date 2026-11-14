@@ -35,7 +35,7 @@ from . import state
 ROWS = 18                     # the plate: rows 0 .. 17 of the picture, the chat line's 9 px
 TEXT_ROW = 2                  # the text's first row; 14 rows (the letters: glyph)
 SLOPE = 8                     # the plate's pointed ends: columns from its tip to its full height
-PAD, GAP, SPACE = 17, 15, 7   # tip to text (the slope and 9 more), title - gem - name, a space in the title
+PAD, GAP, SPACE = 13, 15, 7   # tip to text (the slope and 5 more: 6.5 px of a chat line), title - gem - name, a space in the title
 NAME = "xozne"
 
 TEXT_BASE = 14                # the cell row under the letters' baseline: capitals are rows 0 .. 13
