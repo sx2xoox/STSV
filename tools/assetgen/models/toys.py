@@ -151,11 +151,13 @@ def sticker(m, x0, y0, z0, z1):
           uv={"north": STICKER_UV, "south": STICKER_UV})
 
 
-def handle(m):
-    """What every piece of the series shares: a red pommel, a blue grip with three ribs, a yellow collar (y -4 .. 6.5)."""
+def handle(m, pommel=True):
+    """What every piece of the series shares: a red pommel, a blue grip with three ribs, a yellow collar (y -4 .. 6.5).
+    pommel=False: the piece ends its handle its own way (the shovel's D)."""
     m.group("handle")
-    m.box("pommel_nub", (7, -4, 7), (9, -3.25, 9), GRIP_RED_DARK)
-    round_y(m, "pommel", 6.25, 9.75, 6.25, 9.75, -3.25, -1.25, GRIP_RED, 0.75)
+    if pommel:
+        m.box("pommel_nub", (7, -4, 7), (9, -3.25, 9), GRIP_RED_DARK)
+        round_y(m, "pommel", 6.25, 9.75, 6.25, 9.75, -3.25, -1.25, GRIP_RED, 0.75)
     round_y(m, "grip", 6.75, 9.25, 6.75, 9.25, -1.25, 5.25, GRIP_BLUE, 0.5)
     for y in (-0.25, 1.75, 3.75):
         m.box("grip_rib", (6.5, y, 6.5), (9.5, y + 0.5, 9.5), BLUE_LIGHT)
@@ -230,19 +232,32 @@ def toy_pickaxe():
 
 
 def toy_shovel():
-    """장난감 삽: a green beach spade: a flat blade with a lip down each side of its face, a round tip, the sticker on it."""
+    """장난감 삽: a green spade: wide shoulders above a neck, narrowing to a round point; thin, its face dished (a light rim
+    stands proud of it all round, a spine runs down its back); and a red D at the handle's end instead of the pommel."""
     m = MModel("toy_shovel")
-    handle(m)
+    handle(m, pommel=False)
+    # the D: the grip stands on its top bar, the hand stays on the grip
+    m.box("d_top", (4.75, -2.5, 7), (11.25, -1.25, 9), GRIP_RED)
+    m.box("d_side", (4.75, -6.25, 7), (6, -2.5, 9), GRIP_RED)
+    m.box("d_side", (10, -6.25, 7), (11.25, -2.5, 9), GRIP_RED)
+    m.box("d_bar", (4.75, -7.5, 6.75), (11.25, -6.25, 9.25), GRIP_RED_DARK)
     shaft(m, 15.5)
     m.group("blade")
-    round_y(m, "socket", 6.25, 9.75, 6.25, 9.75, 15.5, 16.5, GREEN_LIGHT, 0.75)
-    m.box("blade", (4, 16.5, 7), (12, 25.5, 9), GREEN)
-    m.box("lip", (4, 17, 6.5), (5, 25, 7), GREEN_LIGHT)
-    m.box("lip", (11, 17, 6.5), (12, 25, 7), GREEN_LIGHT)
-    m.box("blade_tip", (4.75, 25.5, 7), (11.25, 27, 9), GREEN)
-    m.box("blade_tip", (5.75, 27, 7.25), (10.25, 28.25, 8.75), GREEN)
-    m.box("blade_tip", (7, 28.25, 7.5), (9, 29, 8.5), GREEN)
-    sticker(m, 5.75, 19, 6.75, 9.25)
+    round_y(m, "socket", 6.25, 9.75, 6.25, 9.75, 15.5, 17, GREEN_LIGHT, 0.75)
+    # rows from the shoulders to the point: (y0, y1, half width, z0, z1)
+    rows = ((17, 18, 3.75, 7, 9), (18, 23.5, 4.5, 7, 9), (23.5, 25.5, 3.75, 7, 9), (25.5, 27, 2.75, 7.2, 8.8))
+    # the face is one flat green (no line a row: the rows are one sheet), the big row keeps the plastic's glint
+    flat = Mat("slime", "plain", 1, bevel=None, noise=0)
+    light = Mat("slime", "plain", 2, bevel=None, noise=0)      # the rim, the point, the spine: one even light green
+    for y0, y1, hw, z0, z1 in rows:
+        m.box("blade", (C - hw, y0, z0), (C + hw, y1, z1), Mat("slime", "metal", 1, bevel=None, noise=0) if hw == 4.5 else flat)
+        # the rim: a light edge a little proud of the dished face (+z: the side the inventory and the player's own eyes
+        # see), down both sides
+        m.box("rim", (C - hw, y0, z1), (C - hw + 1, y1, z1 + 0.4), light)
+        m.box("rim", (C + hw - 1, y0, z1), (C + hw, y1, z1 + 0.4), light)
+    m.box("point", (6.5, 27, 7.2), (9.5, 28.25, 8.8), light)
+    m.box("point", (7.25, 28.25, 7.4), (8.75, 29, 8.6), light)
+    m.box("spine", (7.25, 17, 6.6), (8.75, 25, 7), light)
     return _held(m, "shovel")
 
 
