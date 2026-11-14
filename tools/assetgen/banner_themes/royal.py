@@ -131,11 +131,11 @@ def frame(G, i):
 # The chat banner: a royal standard. A bar of deep crimson velvet (a faint diamond pattern woven in it) hung between
 # two mouldings of worked gold, and nothing about its outline is a straight line: along the top runs a cresting of
 # gold points (one every 8 columns, as on a crown's rim) with a jewel in a claw setting every 32 (ruby, sapphire),
-# under it a beaded band; along the bottom a band and a bullion fringe. A line of gold stitching holds the velvet to
+# under it a beaded band; along the bottom a band with a gold pendant under every point. A line of gold stitching holds the velvet to
 # each band (dark gold: it lies on the words' rows). Each end is a fluted gold cap; before the left one a jewelled
-# crown rests on its cushion, as large as the line is high, the right one carries a fleur-de-lis finial on its side.
+# crown rests on its cushion, as large as the line is high, the right one carries the orb: a ball of gold with a ruby in it.
 # While it idles the jewels glint in turn. Every two seconds a bar of light sweeps along the gold from left to
-# right: the mouldings flash white where it is, every jewel sparkles as it passes, the crown and the finial catch
+# right: the mouldings flash white where it is, every jewel sparkles as it passes, the crown and the orb catch
 # it, and the velvet under it warms a little. Behind the words the velvet stays dark (C.hush).
 # ------------------------------------------------------------------------------------------------
 CHAT_GEM = {"#": (255, 255, 255), "a": (220, 240, 255), "w": (255, 255, 255), "b": (160, 200, 240), "c": (70, 90, 150)}
@@ -165,27 +165,27 @@ CHAT_LEFT = (
     "d.ooooooooooooooooo.d..oMDdo",
     "........................odo",
 )
-# the right end, 18 rows; its column 4 is the plate's last column. The cap again, then a fleur-de-lis lying on its
-# side (its middle petal the spear point, the side petals curling back) on a collar.
+# the right end, 18 rows; its column 4 is the plate's last column. The cap again, then on a collar the orb: a ball
+# of gold ten pixels across with a ruby set in it and a small cross on top.
 CHAT_RIGHT = (
-    "oMo........................",
-    "oDMWo.........LL...........",
-    "odDMLLo......LWMD..........",
-    "odDMLWo.....LWMD...........",
-    "odDMLWo....oLMD............",
-    "odDMLLooo..LMDo...LWo......",
-    "odDMLWoLLo.LMD..oLWMLo.....",
-    "odDMLWoLMLoLMDooLWMMMLLo...",
-    "odDMLLoWMMLLMLLLWMMMMMMLLp.",
-    "odDMLWoLMMDDMDDDMMMMMDDDDo.",
-    "odDMLWoDDDoDMDooDMMDDDo....",
-    "odDMLLoDDo.DMD..oDMDo......",
-    "odDMLWooo..DMDo...Do.......",
-    "odDMLWo....oDMD............",
-    "odDMLLo.....DMMD...........",
-    "odDMLLo......DMMD..........",
-    "oDMDo.........DD...........",
-    "odo........................",
+    "oMo",
+    "oDMWo........LL",
+    "odDMLLo.....WLLD",
+    "odDMLWo......LD",
+    "odDMLWo....oooooo",
+    "odDMLLo...oWWLLLMo",
+    "odDMLWoooWWLLLLMDo",
+    "odDMLWoLDoWLLrRLMDo",
+    "odDMLLoLDoLLrpRqMDoLo",
+    "odDMLWoLDoLLRRqqMDoDo",
+    "odDMLWoLDoLMMqqMDDo",
+    "odDMLLoooMMMMMDDdo",
+    "odDMLWo...oDDDDDdo",
+    "odDMLWo....oooooo",
+    "odDMLLo",
+    "odDMLLo",
+    "oDMDo",
+    "odo",
 )
 CHAT_GOLD = "WLMDd"
 
@@ -256,9 +256,9 @@ def chat_frame(G, i):
             if c8 in (3, 4): c = C.lerp(G_M, (255, 255, 255), 0.85 * e)
         elif ry == 16:
             c = C.lerp(G_M if c8 % 4 != 1 else G_DD, G_W, 0.75 * e)
-        elif ry == 17:                                       # the fringe: a thread every other column
-            if xt % 2: continue
-            c = C.lerp(G_D if c8 else G_L, G_W, 0.6 * e)
+        elif ry == 17:                                       # the pendants: one under every point, air between
+            if c8 not in (3, 4): continue
+            c = C.lerp(G_L if c8 == 3 else G_D, G_W, 0.6 * e)
         else:
             c = C.lerp(velvet(x, y), (150, 40, 44), 0.35 * warm)
             c = C.hush(c, 0.045 + 0.03 * warm)
@@ -276,9 +276,9 @@ def chat_frame(G, i):
         return lambda v, c, x, y: C.lerp(c, (255, 255, 255), (0.6 if v in CHAT_GOLD else 0.3 if v != "o" else 0.0) * f)
     _stamp(px, G, G.PX0 - 22, CHAT_LEFT, CHAT_PAL, gilt(fl))
     _stamp(px, G, G.PX1 - 4, CHAT_RIGHT, CHAT_PAL, gilt(fr))
-    # the crown's jewels and the finial's point glint in turn while it idles
+    # the crown's jewels and the orb glint in turn while it idles
     if step < 0:
-        spots = ((G.PX0 - 22 + 10, G.PY0 + 9), (G.PX0 - 22 + 2, G.PY0 + 10), (G.PX0 - 22 + 15, G.PY0 + 10), (G.PX1 - 4 + 25, G.PY0 + 8))
+        spots = ((G.PX0 - 22 + 10, G.PY0 + 9), (G.PX0 - 22 + 2, G.PY0 + 10), (G.PX0 - 22 + 15, G.PY0 + 10), (G.PX1 - 4 + 11, G.PY0 + 6))
         x, y = spots[idle]
         C.put(px, G, x, y, (255, 255, 255))
     C.gem7(px, G, CHAT_GEM)

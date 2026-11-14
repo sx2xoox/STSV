@@ -142,7 +142,7 @@ def frame(G, i):
 # that has forced its way out of the pipe, runs down it and hangs over the bar as an uneven lip, from which a drop
 # swells and falls now and then. A second pipe lies along the bottom. Each end is a bolted brass plate. Off the
 # left end stands a round flask as high as the line, corked, the poison heaving and bubbling in it, a glass tube
-# feeding it into the vat; off the right end a red hand wheel on its stem, slime gathering under it.
+# feeding it into the vat; off the right end a pressure gauge on a stub of pipe, its needle trembling in the red.
 # Behind the words the glass stays dark.
 # ------------------------------------------------------------------------------------------------
 CHAT_GEM = {"#": (236, 255, 196), "a": (184, 255, 84), "w": (255, 255, 240), "b": (58, 150, 26), "c": (30, 86, 16)}
@@ -191,19 +191,25 @@ def _flask(px, G, cx, cy, t, ph):
         if q < 6 and cy + 5 - q > level: C.put(px, G, cx + a, cy + 5 - q, S_HI)
 
 
-def _wheel(px, G, cx, cy):
-    """a hand wheel seen from the front about (cx, cy), both between two pixels: a red rim, four spokes, a brass hub"""
+def _gauge(px, G, cx, cy, turn):
+    """a pressure gauge seen from the front about (cx, cy), both between two pixels: a brass rim, a pale dial with
+    two ticks and a red zone, a needle `turn` degrees round from pointing right (it stands in the red)"""
     for y in range(G.PY0, G.PY1 + 1):
         for x in range(int(cx) - 8, int(cx) + 9):
             if not 0 <= x < G.W or (x, y) in G.inside: continue
             dx, dy = x + 0.5 - cx, y + 0.5 - cy
             r = math.hypot(dx, dy)
             if r > 7.6: continue
-            if r <= 2.2: c = BRASS_W if dx < 0 and dy < 0 else BRASS_L if dx + dy < 1 else BRASS
-            elif r > 5.2: c = RED_L if dx + dy < -4 else RED_D if dx + dy > 4 or r > 7.0 else RED
-            elif abs(dx) < 1 or abs(dy) < 1: c = RED if dx + dy < 0 else RED_D
-            else: continue
+            if r > 5.4: c = BRASS_W if dx + dy < -7 else BRASS_L if dx + dy < -1 else BRASS if dx + dy < 5 else BRASS_D
+            elif r > 3.6 and dx > 0.9 and dy < 0: c = RED if dx + dy < 3 else RED_D                 # the red zone
+            elif r > 3.9 and (abs(dx) < 1 and dy < 0 or abs(dy) < 1 and dx < 0): c = (70, 76, 60)  # ticks
+            else: c = (238, 240, 218) if dx + dy < 2 else (204, 210, 184)
             px[x, y] = tuple(c) + (255,)
+    a = math.radians(turn)
+    for k in range(11):
+        C.put(px, G, int(math.floor(cx + 0.45 * k * math.cos(a))), int(math.floor(cy + 0.45 * k * math.sin(a))), (40, 30, 26))
+    for a_, b_ in ((-1, -1), (0, -1), (-1, 0), (0, 0)):
+        C.put(px, G, int(cx) + a_, int(cy) + b_, BRASS_P if a_ + b_ else BRASS_S)
 
 
 def chat_frame(G, i):
@@ -300,12 +306,14 @@ def chat_frame(G, i):
     for x in range(fx + 7, G.PX0):
         for b, c in ((-1, GLASS), (0, S_LT if (x + ph // 2) % 3 else S_HI), (1, GLASS_D)): C.put(px, G, x, fy + b, c)
     _flask(px, G, fx, fy, t, ph)
-    # the right end: a hand wheel on its stem, slime gathering under it and falling
-    for x in range(G.PX1 + 1, G.PX1 + 7):
-        for b, c in ((0, BRASS_L), (1, BRASS_D)): C.put(px, G, x, G.PY0 + 8 + b, c)
-    _wheel(px, G, G.PX1 + 14.0, G.PY0 + 9.0)
+    # the right end: a pressure gauge on a stub of pipe (its needle trembles in the red), slime gathering under it
+    for x in range(G.PX1 + 1, G.PX1 + 8):
+        for b, c in ((-1, BRASS_L), (0, BRASS), (1, BRASS_D)): C.put(px, G, x, G.PY0 + 9 + b, c)
+    for b in range(-2, 3): C.put(px, G, G.PX1 + 3, G.PY0 + 9 + b, BRASS_W if b < 0 else BRASS if b == 0 else BRASS_D)
+    for b in range(-2, 3): C.put(px, G, G.PX1 + 4, G.PY0 + 9 + b, BRASS_D if b else BRASS_P)
+    _gauge(px, G, G.PX1 + 14.0, G.PY0 + 9.0, -52 + (6, 0, -8, -2, 8, 2, -6, 0)[ph % 8])
     wx = G.PX1 + 13
-    for a, b, c in ((0, 15, S_MD), (1, 15, S_DK), (-1, 15, S_MD), (0, 16, S_MD)): C.put(px, G, wx + a, G.PY0 + b, c)
+    for a, b, c in ((0, 16, S_MD), (1, 16, S_DK), (-1, 16, S_MD)): C.put(px, G, wx + a, G.PY0 + b, c)
     if 4 <= ph < 12: C.put(px, G, wx, G.PY0 + 17, S_LT if ph >= 8 else S_MD)
     C.gem7(px, G, CHAT_GEM)
     return im

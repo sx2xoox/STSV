@@ -118,13 +118,13 @@ def frame(G, i):
 
 # ------------------------------------------------------------------------------------------------
 # The chat banner: a spring evening. A bar of dusk (a deep plum sky, lighter low down) hung in a frame that is
-# nothing but the season. Along its top lies a cherry bough, two rows thick (lit bark above, dark below), its back
-# rising and falling, a knot or a stub of twig standing up from it here and there; where it buds, blossom sits on
+# nothing but the season. Along its top lies a cherry bough, two rows thick and three at its knots and where its
+# back rises (lit bark above, dark below); where it buds, blossom sits on
 # it and hangs a row or two over the bar (a full cluster every 32 columns, a smaller one between). Along its bottom
 # runs a red silk cord, tied in a gold knot every 16 columns and sagging between the knots, so that the bar's lower
 # edge is a row of swags. A post of bark closes each end. Off the left end opens one great cherry flower, as high
-# as the line, with a bud beside it; off the right end the bough runs out into a budding twig, and a tassel hangs
-# from it.
+# as the line, with a bud beside it; off the right end the bough runs out into a twig with three open flowers, and a tassel
+# hangs from it.
 # While it idles a petal or two turns in the air. Every two seconds a breath of wind runs along the banner: the
 # clusters shake, petals come off them and drift right and down across the bar (pale and small) until they are
 # gone, and when the wind reaches the end the tassel swings.
@@ -135,7 +135,9 @@ CHAT_GEM = {"#": (255, 242, 248), "a": (255, 204, 224), "w": (255, 255, 255), "b
 CHAT_CLUSTERS = (((3, 1), (7, 0), (11, 1), (5, 3), (9, 2)), ((4, 1), (9, 0), (12, 2)))
 CHAT_BUDS = (((13, 0),), ((1, 0), (7, 2)))                              # buds beside them: column, row
 CHAT_RISE = ((6, 11), (3, 8))                                           # where the bough's back is a row higher, per cell
+CHAT_KNOT = ((0, 3), (11, 14))                                          # where a knot thickens it to three rows, per cell
 CHAT_PETALS = ((8, 3, 0.9), (20, 6, 0.55), (31, 2, 0.8), (44, 8, 0.6), (56, 4, 0.75), (70, 7, 0.5), (84, 3, 0.7))   # columns behind the front, row it starts on, how fast it sinks
+CHAT_FLOWER = (".WWL.", "WWLLM", "WLSLM", "LLLMD", ".MMD.")                    # an open flower on the twig
 CORD_L, CORD, CORD_D = (244, 112, 120), (206, 52, 60), (146, 30, 46)
 GILT_L, GILT, GILT_D = (255, 244, 190), (255, 228, 140), (206, 150, 64)
 
@@ -193,11 +195,13 @@ def chat_frame(G, i):
         if ry in (top, top + 1):                                         # the bough: lit bark over dark
             n = C.noise(xt, ry, 4, 4, 64, 16, 801)
             c = C.lerp(BARK_HI, BARK, 0.7 * n) if ry == top else C.lerp(BARK, BARK_LO, 0.7 * n)
+            if ry == 1 and top == 1 and CHAT_KNOT[kind][0] <= col <= CHAT_KNOT[kind][1]: c = BARK        # under a knot's lit top
             if col in (lo - 1, hi + 1) and ry == 1: c = BARK_LO          # the shadow where its back steps
-        elif ry == 0:                                                    # a knot or a stub of twig on its back; else air
-            if col == (14 if kind else 1): c = BARK
-            elif col == (2 if kind == 0 else 13): c = BARK_HI
-            else: continue
+        elif ry == 0:                                                    # a knot on its back, three rows thick there; else air
+            if not CHAT_KNOT[kind][0] <= col <= CHAT_KNOT[kind][1]: continue
+            c = BARK if col in CHAT_KNOT[kind] else BARK_HI
+        elif ry == 2 and lo < col < hi:                                  # and under its raised back it is three rows too
+            c = BARK_LO
         elif knot and ry >= 16:
             k = col if col < 3 else 2 - (G.PX1 - x)
             c = ((GILT, GILT_L, GILT_D), (GILT_D, GILT, (150, 100, 40)))[ry - 16][k]
@@ -255,17 +259,18 @@ def chat_frame(G, i):
                     (-2, 14, P_MID), (-1, 14, P_LIGHT), (-2, 15, P_DARK), (-1, 15, P_MID)):
         C.put(px, G, G.PX0 + a, G.PY0 + b, c)
     _bloom(px, G, G.PX0 - 10.0, G.PY0 + 9.0, 8.1)
-    # the right end: the bough runs out into a twig (two buds, a flower at its tip), and a tassel hangs from it
-    for k in range(1, 16):
-        y = G.PY0 + (1 if k < 11 else 0)
-        C.put(px, G, G.PX1 + k, y, BARK_HI if k % 4 else BARK)
-        if k < 11: C.put(px, G, G.PX1 + k, y + 1, BARK if k < 6 else BARK_LO)
-    for a, b, c in ((3, 0, P_DARK), (4, 0, P_MID), (10, 0, P_DARK), (15, 2, BARK), (15, 3, BARK_LO)):
+    # the right end: the bough runs out into a twig with three open flowers on it (five pixels across, no dots),
+    # and a tassel hangs from it
+    for k in range(1, 12):
+        C.put(px, G, G.PX1 + k, G.PY0 + 1, BARK_HI if k % 4 else BARK)
+        C.put(px, G, G.PX1 + k, G.PY0 + 2, BARK if k < 7 else BARK_LO)
+        if k < 4: C.put(px, G, G.PX1 + k, G.PY0, BARK_HI if k == 2 else BARK)
+    for a, b, c in ((12, 3, BARK), (13, 4, BARK), (13, 5, BARK_LO), (16, 3, BARK), (17, 4, BARK_LO), (5, 0, P_DARK), (6, 0, P_MID)):
         C.put(px, G, G.PX1 + a, G.PY0 + b, c)
-    flower(G.PX1 + 13, G.PY0 + 1, 1)
-    flower(G.PX1 + 18, G.PY0 + 1, 0)
-    flower(G.PX1 + 16, G.PY0 + 4, 2)
-    flower(G.PX1 + 20, G.PY0 + 5, 1)
+    for fx, fy in ((13, 2), (19, 6), (13, 8)):
+        for r, line in enumerate(CHAT_FLOWER):
+            for k, v in enumerate(line):
+                if v != ".": C.put(px, G, G.PX1 + fx - 2 + k, G.PY0 + fy - 2 + r, {"W": P_WHITE, "L": P_LIGHT, "M": P_MID, "D": P_DARK, "S": STAMEN}[v])
     u = behind(G.PX1) if step >= 0 else -1
     swing = 2 if 0 < u < 14 else 1 if 14 <= u < 28 else 0                # the wind has just come by
     hx = G.PX1 + 7

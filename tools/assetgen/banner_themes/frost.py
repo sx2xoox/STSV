@@ -134,7 +134,8 @@ def frame(G, i):
 # ------------------------------------------------------------------------------------------------
 # The chat banner: a bar cut from black ice. Deep blue ice, darker towards the bottom, with pale frost creeping in
 # from both rails (a different reach in every column, the same every 64) and a few fine cracks, held in a frame of
-# cut ice whose outline is never straight: a crust of frost crystals stands up along the top (gaps between them),
+# cut ice whose outline is never straight: blocks of ice four to six columns wide stand up along the top (gaps
+# between them, each block lit at one end and shaded at the other),
 # under it a band of clear ice cut in facets, and from that band icicles of four lengths hang down over the dark
 # ice (dim: they lie on the words' rows); along the bottom a frosted band drips in short teeth. Each end of the bar
 # is a block of cut ice with its corners taken off. Off the left end stands a six-armed snow crystal as high as the
@@ -147,9 +148,10 @@ CHAT_GEM = {"#": (255, 255, 255), "a": (190, 240, 255), "w": (255, 255, 255), "b
 CHAT_FLAKES = ((3, 0, 0), (11, 5, 1), (20, 11, 0), (27, 2, 1), (36, 8, 0), (44, 13, 1), (52, 4, 0), (59, 10, 1))   # column in the tile, phase, sway
 CHAT_STARS = ((0, 6, 1, 0), (1, 12, -1, 7), (2, 4, 1, 11), (3, 10, -1, 3))
 # the rails' outline, a cell of 16 columns at a time (four cells to the tile; each is whole in itself, so the bar may
-# be cut after any of them): the crust on the top row, the drips on the bottom row, and the icicles (column, length)
-CHAT_CRUST = (".##.#..###.#.##.", "#.###.#..##..#.#", ".#.##..#.###.##.", "##..#.###..#.#.#")
-CHAT_DRIPS = ("#..##.#...#.##..", ".#.#..##.#...#.#", "##...#.#..##.#..", ".#.##...#.#..##.")
+# be cut after any of them; none begins or ends on a cell's edge): the blocks on the top row, the drips on the
+# bottom row, and the icicles (column, length)
+CHAT_CRUST = (".#####...####...", "..####..######..", ".######...####..", "...####..#####..")
+CHAT_DRIPS = ("..##....###.....", ".###.....##.....", "....##....###...", "..###...##......")
 CHAT_ICICLES = (((3, 4), (10, 2), (13, 3)), ((2, 2), (7, 4), (12, 1)), ((4, 3), (9, 1), (13, 4)), ((1, 1), (6, 3), (11, 2), (14, 3)))
 CHAT_BLOCK = 5                                                          # the cut block at each end, in columns
 
@@ -223,8 +225,10 @@ def chat_frame(G, i):
             px[x, y] = tuple(c) + (255,)
             continue
         if ry == 0:                                                      # the crust: crystals standing up, gaps between
-            if CHAT_CRUST[cell][col] != "#": continue
-            c = C.lerp(LIGHT, (255, 255, 255), 0.5 + 0.5 * glint)
+            crust = CHAT_CRUST[cell]
+            if crust[col] != "#": continue
+            c = WHITE if crust[col - 1] != "#" else MIDC if crust[col + 1] != "#" else LIGHT      # a block's lit and shaded ends
+            c = C.lerp(c, (255, 255, 255), glint)
         elif ry == 1:                                                    # clear ice, a facet every 8 columns
             c8 = col % 8
             c = DARK if c8 == 7 else LIGHT if c8 in (0, 1) else MIDC
@@ -234,7 +238,7 @@ def chat_frame(G, i):
             if col % 8 == 3: c = LIGHT
         elif ry == 17:                                                   # its drips
             if CHAT_DRIPS[cell][col] != "#": continue
-            c = C.lerp(MIDC, LIGHT, C.noise(xt, 3, 4, 4, 64, 16, 509))
+            c = LIGHT if CHAT_DRIPS[cell][col - 1] != "#" else MIDC
         else:
             c = C.hush(ice(x, y), 0.05)
             if ry == 2: c = C.lerp(c, (30, 66, 116), 0.6)                # the band's lip

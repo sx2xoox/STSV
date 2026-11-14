@@ -112,11 +112,12 @@ def frame(G, i):
 # ------------------------------------------------------------------------------------------------
 # The chat banner: a rift into the void. A bar of near-black violet in which a dim nebula turns slowly (two layers of
 # cloud sliding against each other, once round in a loop), held in a frame of obsidian whose outline is toothed:
-# along each rail a rune stands in a dark cartouche every 16 columns, a fang rises between two cartouches (a notch
-# either side of it), and violet studs glow between them; a light passes from rune to rune along the upper rail and back
-# along the lower. A tendril is wound once round each end of the bar; a thorn stands out from every corner. Off the
-# left end the abyss looks out: an eye in a thorned socket, as high as the line, its slit pupil wandering, and now
-# and then it blinks. Off the right end two tendrils curl and uncurl.
+# the outer edge of each rail is a bright violet line (the row that does not touch the words), broken by a dark
+# cartouche with a rune in it every 16 columns and by a fang between two cartouches (a notch either side of it); a
+# light passes from rune to rune along the upper rail and back along the lower. Each end of the bar is closed by a
+# thick obsidian cap with a violet stone set in it, and a thorn stands out from every corner. The abyss looks out
+# at both ends: off the left end an eye in a thorned socket, as high as the line, its slit pupil wandering; off the
+# right end a smaller one that sleeps, a glowing slit, and opens for the moment in which the great eye blinks.
 # A few faint stars wink. The gem between the words is the black hole itself: a dark disc in a bright ring. Behind
 # the words the void stays dark (it is the darkest of all the banners).
 # ------------------------------------------------------------------------------------------------
@@ -124,6 +125,9 @@ CHAT_RUNES = ("#.#", ".#.", "#.#"), (".#.", "###", ".#."), ("##.", ".#.", ".##")
 CHAT_STARS = ((5, 4, 1), (13, 11, 6), (22, 6, 11), (30, 13, 3), (39, 5, 14), (47, 10, 8), (55, 7, 0), (61, 12, 5))
 CHAT_LOOK = (0, 1, 2, 2, 2, 1, 0, 0, 0, -1, -2, -2, -2, -1, 0, 0)       # where the pupil is, frame by frame
 CHAT_BLINK = {13: 0.55, 14: 1.0, 15: 0.55}                              # how far the lids are shut
+CHAT_PEEK = {12: 0.5, 13: 0.2, 14: 0.15, 15: 0.45}                      # the sleeping eye's lids, while the other blinks
+CHAT_EDGE = (150, 92, 232)                                              # the rails' outer line
+CHAT_CAP = 5                                                            # the cap at each end, in columns
 CHAT_METAL = ((96, 52, 164), (56, 26, 104), (36, 14, 68), (14, 3, 26))  # obsidian: edge light, face, shade, pit
 
 
@@ -137,50 +141,32 @@ def _phase(G, x):
     return x - G.TILE0 if x < G.R0 else x - G.R0
 
 
-def _eye(px, G, cx, cy, look, shut):
-    """the eye in its socket around (cx, cy), cy between two rows: lids of obsidian, thorns above and below, a
-    violet iris, a slit pupil at `look` columns from the middle"""
+def _eye(px, G, cx, cy, look, shut, wide=10.4, tall=5.6, thorns=(0, 4, 7)):
+    """an eye in its socket around (cx, cy), cy between two rows, `wide` to each side and `tall` up and down: lids
+    of obsidian, thorns above and below, a violet iris, a slit pupil at `look` columns from the middle"""
     edge, face, shade, pit = CHAT_METAL
+    k, reach = tall / 5.6, int(wide)
     for y in range(G.PY0, G.PY1 + 1):
-        for x in range(cx - 10, cx + 11):
+        for x in range(cx - reach, cx + reach + 1):
             if not 0 <= x < G.W or (x, y) in G.inside: continue
             dx, dy = x - cx, y + 0.5 - cy
-            wide = max(0.0, 1 - (abs(dx) / 10.4) ** 2) ** 0.75
-            open_, a = 5.6 * wide * (1 - shut), abs(dy)
-            full = 5.6 * wide                                            # the socket keeps its shape while the lids shut
+            span = max(0.0, 1 - (abs(dx) / wide) ** 2) ** 0.75
+            open_, a = tall * span * (1 - shut), abs(dy)
+            full = tall * span                                           # the socket keeps its shape while the lids shut
             c = None
-            if a <= open_ and wide > 0:
+            if a <= open_ and span > 0:
                 r = math.hypot(dx - look, dy)
-                if abs(dx - look) < 0.9 and a < 3.7: c = (6, 0, 12)                       # the slit
-                elif r < 3.3: c = C.lerp(PALE, HOT, r / 3.3) if dy < 0 else C.lerp(HOT, RIM, r / 3.3)
-                elif r < 4.5: c = RIM2
+                if abs(dx - look) < 0.9 and a < 3.7 * k: c = (6, 0, 12)                   # the slit
+                elif r < 3.3 * k: c = C.lerp(PALE, HOT, r / (3.3 * k)) if dy < 0 else C.lerp(HOT, RIM, r / (3.3 * k))
+                elif r < 4.5 * k: c = RIM2
                 else: c = (24, 7, 46)
-            elif a <= full + 0.2 and wide > 0: c = shade if dy < 0 else pit              # the shut lid
-            elif a <= full + 1.3 and abs(dx) <= 10: c = edge if dy < 0 else face         # the socket's rim
-            elif a <= full + 2.3 and abs(dx) <= 10: c = pit
-            if abs(dx) in (0, 4, 7) and full + 1.3 < a <= min(8.0, full + 3.4 + (1 if dx == 0 else 0)):   # thorns
+            elif a <= full + 0.2 and span > 0: c = shade if dy < 0 else pit              # the shut lid
+            elif a <= full + 1.3 and abs(dx) <= reach: c = CHAT_EDGE if dy < 0 else face   # the socket's rim
+            elif a <= full + 2.3 and abs(dx) <= reach: c = pit
+            if abs(dx) in thorns and full + 1.3 < a <= min(8.0, full + 3.4 + (1 if dx == 0 else 0)):   # thorns
                 c = HOT if a > full + 2.4 + (1 if dx == 0 else 0) else RIM2
             if c: px[x, y] = tuple(c) + (255,)
-    if shut < 0.5: C.put(px, G, cx + look - 2, int(cy) - 2, PALE)
-
-
-def _tendril(px, G, x0, y0, way, long, thick, t, ph):
-    """a tendril from (x0, y0) reaching `way` (1 right, -1 left): it sways up and down, more towards its tip; lit
-    from above, dark underneath"""
-    body = set()
-    for k in range(long * 4 + 1):
-        f = k / (long * 4)
-        x, y = x0 + way * long * f, y0 + 3.6 * math.sin(t + ph + f * 3.2) * f ** 1.2
-        w = thick * (1 - f) ** 0.8 + 0.5
-        for a in range(int(x - w - 1), int(x + w + 2)):
-            for b in range(int(y - w - 1), int(y + w + 2)):
-                if math.hypot(a + 0.5 - x - 0.5, b + 0.5 - y) <= w: body.add((a, b))
-    for (x, y) in body:
-        if not G.PY0 <= y <= G.PY1 or (x, y) in G.inside: continue
-        up, down = (x, y - 1) in body, (x, y + 1) in body
-        c = RIM if up and down else HOT if down else (72, 24, 128) if up else RIM
-        if up and down and (x - x0) % 4 == 0: c = RIM2                    # its rings
-        C.put(px, G, x, y, c)
+    if shut < 0.5: C.put(px, G, cx + look - round(2 * k), int(cy) - round(2 * k), PALE)
 
 
 def chat_frame(G, i):
@@ -208,13 +194,13 @@ def chat_frame(G, i):
         # the light that passes along the runes: over rune k in frames 4 k .. 4 k + 3 (the lower rail the other way)
         lit = 0.0 if x >= G.R0 else max(0.0, math.cos(2 * math.pi * ((xt - 4 * ph) if top else (-xt - 4 * ph)) / 64)) ** 6
         plate = 5 <= cell <= 9                                           # the cartouche a rune stands in
-        dim = 0.0 if top else 0.25
+        dim = 0.0 if top else 0.15
+        row = y - G.PY0
         if ry == 0:                                                      # the outline: cartouches, studs and fangs
             if plate: c = edge if cell in (5, 9) else pit
-            elif cell in (15, 0): c = C.lerp(HOT if cell == 15 else RIM, PALE, 0.7 * lit)
-            elif cell in (2, 3, 12, 13): c = C.lerp(RIM2 if cell in (3, 13) else RIM, PALE, lit)   # violet studs
-            elif cell in (1, 14) and d >= 2: continue                    # a notch either side of a fang
-            else: c = edge
+            elif cell in (15, 0): c = C.lerp(PALE if cell == 15 else HOT, (255, 255, 255), 0.6 * lit)
+            elif cell in (1, 14) and d >= CHAT_CAP: continue             # a notch either side of a fang
+            else: c = C.lerp(CHAT_EDGE, PALE, 0.8 * lit)                 # the bright outer line
             c = C.lerp(c, (0, 0, 0), dim)
         elif ry == 1:                                                    # the band: dark, it lies against the words
             c = pit if 5 < cell < 9 else shade if plate or cell in (15, 0) else (78, 38, 138)
@@ -225,7 +211,12 @@ def chat_frame(G, i):
         # the runes: three rows high, in the cartouche and on the row inside the rail; lit as the light passes
         if ry < 3 and 6 <= cell < 9 and G.TILE0 <= x < G.R0:
             if CHAT_RUNES[kth][ry][cell - 6] == "#": c = C.lerp(RIM2 if ry == 2 else RIM, PALE, lit)
-        if d < 2 and ry > 0: c = face if d == 0 else pit
+        if d < CHAT_CAP:                                                 # the cap: obsidian lit from the left, a stone in it
+            k = x - G.PX0 if x - G.PX0 < CHAT_CAP else CHAT_CAP - 1 - (G.PX1 - x)
+            c = CHAT_EDGE if row == 0 else shade if row == 17 else (edge, face, face, shade, pit)[k]
+            if row in (4, 13) and 0 < k < 4: c = pit                     # its grooves
+            stone = {(2, 7): HOT, (1, 8): PALE, (2, 8): HOT, (3, 8): RIM, (1, 9): HOT, (2, 9): RIM, (3, 9): RIM2, (2, 10): RIM2}.get((k, row))
+            if stone: c = C.lerp(stone, PALE, 0.35 * (0.5 + 0.5 * math.sin(t)))
         px[x, y] = tuple(c) + (255,)
 
     # faint stars: each winks for a few frames of the loop (the same every 64 columns)
@@ -235,26 +226,18 @@ def chat_frame(G, i):
             if k >= 5 or x0 + col >= G.R0 - 1: continue
             C.blend(px, G, x0 + col, G.PY0 + 2 + row, (200, 160, 255), (70, 130, 170, 130, 70)[k])
 
-    # a thorn out of every corner, and a tendril wound once round each end of the bar (in the margins, clear of words)
+    # a thorn out of every corner: a wedge four rows deep, its point outwards
     for side in (-1, 1):
         x0 = G.PX0 if side < 0 else G.PX1
-        for ry in range(4):                                              # a wedge four rows deep, its point outwards
+        for ry in range(4):
             for k in range(1, 7 - 2 * ry + (1 if ry == 0 else 0)):
-                c = (HOT if k >= 6 else edge) if ry == 0 else face if ry == 1 else shade
+                c = (HOT if k >= 6 else CHAT_EDGE) if ry == 0 else face if ry == 1 else shade
                 C.put(px, G, x0 + side * k, G.PY0 + ry, c)
-                C.put(px, G, x0 + side * k, G.PY1 - ry, C.lerp(c, (0, 0, 0), 0.25))
-        for ry in range(18):
-            mid = x0 - side * (4 + ry // 4)                              # it slants as it goes round
-            for j in range(-2, 3):
-                c = (10, 2, 20) if abs(j) == 2 else (PALE if ry in (1, 2) else HOT if ry < 9 else RIM) if j == -1 else (RIM if ry < 13 else RIM2) if j == 0 else (72, 24, 128)
-                if abs(j) < 2 and ry % 4 == 3: c = C.lerp(c, BODY, 0.45)                 # its rings
-                if ry in (0, 17) and abs(j) == 2: continue
-                C.put(px, G, mid + j, G.PY0 + ry, c)
+                C.put(px, G, x0 + side * k, G.PY1 - ry, C.lerp(c, (0, 0, 0), 0.15))
 
-    # the ends: the eye on the left, two tendrils on the right
+    # the ends: the great eye on the left, the sleeping one on the right
     _eye(px, G, G.PX0 - 11, G.PY0 + 9.0, CHAT_LOOK[ph], CHAT_BLINK.get(ph, 0.0))
-    _tendril(px, G, G.PX1 + 1, G.PY0 + 5.5, 1, 20, 2.3, t, 1.3)
-    _tendril(px, G, G.PX1 + 1, G.PY0 + 12.5, 1, 14, 1.9, t, 3.9)
+    _eye(px, G, G.PX1 + 10, G.PY0 + 9.0, 0, CHAT_PEEK.get(ph, 0.72), wide=7.8, tall=4.4, thorns=(0, 3, 5))
     # the gem: a black hole, a dark disc in a bright ring
     cx, cy = G.DIV, G.MID
     gem = {}
