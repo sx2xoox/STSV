@@ -1,0 +1,112 @@
+# /튜닝 (튜닝샵): 위 = 튜닝 종류 탭 (이 탈것이 받을 수 없는 종류는 흐리게), 가운데 = 그 종류의 옵션 (맨 앞은 순정),
+# 아래 = 지금 입혀 본 것의 값 · 결제 · 되돌리기. 옵션을 누르면 실제 차에 바로 입혀 보여 줌 (임시: 결제해야 남음).
+# 옵션 · 값 · 탈것별 목록은 contents/stsv/vehicle_tuning.yml. 종류 이름은 messages.yml 의 tuning.kind.*
+# 자리표시자: {vehicle} 탈것 이름 · {kind} 지금 탭 · {due} 결제할 값 · {tried} 입혀 본 것 수 · {balance} 내 돈
+#            {on_<종류>} 그 종류에 지금 입혀져 있는 것 (paint, wheel, underglow, headlamp, skid, smoke, flame, crackle, plate)
+tuning:
+  title: "<#f0e2b0>{vehicle} <#8f86a6>· {kind}"
+  rows: 6
+  background: stsv:gui/tuning
+  tabs: "ABCDEFGHJ"
+  layout:
+    - "ABCDEFGHJ"
+    - "TTTTTTTTT"
+    - "TTTTTTTTT"
+    - "TTTTTTTTT"
+    - "TTTTTTTTT"
+    - "P.UYI..XN"
+  list: T
+  buttons:
+    A:
+      action: "tuning:kind:paint"
+      icon: stsv:gui/tune_paint
+      material: RED_DYE
+      name: "<white>도색 <gray>· {on_paint}"
+      lore: ["<gray>몸체와 문 · 윙을 다른 색으로"]
+    B:
+      action: "tuning:kind:wheel"
+      icon: stsv:gui/tune_wheel
+      material: MUSIC_DISC_STAL
+      name: "<white>휠 <gray>· {on_wheel}"
+      lore: ["<gray>같은 크기의 다른 디자인"]
+    C:
+      action: "tuning:kind:underglow"
+      icon: stsv:gui/tune_underglow
+      material: SEA_LANTERN
+      name: "<white>언더글로우 네온 <gray>· {on_underglow}"
+      lore: ["<gray>차 밑 바닥에 깔리는 빛"]
+    D:
+      action: "tuning:kind:headlamp"
+      icon: stsv:gui/tune_headlamp
+      material: LANTERN
+      name: "<white>전조등 색 <gray>· {on_headlamp}"
+      lore: ["<gray>렌즈 · 둘레 빛 · 빛줄기"]
+    E:
+      action: "tuning:kind:skid"
+      icon: stsv:gui/tune_skid
+      material: BLACK_DYE
+      name: "<white>스키드 마크 <gray>· {on_skid}"
+      lore: ["<gray>드리프트할 때 남는 자국"]
+    F:
+      action: "tuning:kind:smoke"
+      icon: stsv:gui/tune_smoke
+      material: WHITE_DYE
+      name: "<white>타이어 연기 <gray>· {on_smoke}"
+      lore: ["<gray>급출발 · 드리프트 연기의 색"]
+    G:
+      action: "tuning:kind:flame"
+      icon: stsv:gui/tune_flame
+      material: BLAZE_POWDER
+      name: "<white>배기 불꽃 <gray>· {on_flame}"
+      lore: ["<gray>배기구에서 나오는 불꽃"]
+    H:
+      action: "tuning:kind:crackle"
+      icon: stsv:gui/tune_crackle
+      material: FIREWORK_STAR
+      name: "<white>배기 팝콘 <gray>· {on_crackle}"
+      lore: ["<gray>액셀에서 발을 뗄 때 터지는 소리"]
+    J:
+      action: "tuning:kind:plate"
+      icon: stsv:gui/tune_plate
+      material: NAME_TAG
+      name: "<white>번호판 글씨 <gray>· {on_plate}"
+      lore: ["<gray>이름 번호판의 글씨 색"]
+    I:
+      action: ""
+      icon: stsv:gui/info
+      material: BOOK
+      name: "<white>{vehicle}"
+      lore: ["<gray>옵션을 누르면 차에 바로 입혀 보여 줍니다 (임시).", "<gray>마음에 들면 <green>결제</green><gray>, 아니면 <red>되돌리기</red><gray>.",
+             "", "<gray>입혀 본 것 <white>{tried}개</white> <dark_gray>· <gray>결제할 값 <gold>{due}", "<gray>내 돈 <white>{balance}",
+             "", "<dark_gray>순정으로 되돌리기는 무료. 성능은 바뀌지 않습니다."]
+    Y:
+      action: "tuning:pay"
+      icon: stsv:gui/coins
+      material: EMERALD
+      name: "<green>결제하기 <dark_gray>· <gold>{due}"
+      lore: ["<gray>지금 차에 입혀 본 모습으로 남깁니다."]
+    U:
+      action: "tuning:undo"
+      icon: stsv:gui/clear
+      material: BARRIER
+      name: "<red>입혀 본 것 되돌리기"
+      lore: ["<gray>결제해 둔 모습으로 돌아갑니다."]
+    P:
+      action: page:prev
+      icon: stsv:gui/prev
+      material: ARROW
+      name: "<yellow>◀ 이전 페이지"
+      lore: ["<gray>{page} / {pages}"]
+      off: { icon: stsv:gui/prev_off, material: GRAY_DYE, name: "<dark_gray>◀ 첫 페이지" }
+    N:
+      action: page:next
+      icon: stsv:gui/next
+      material: ARROW
+      name: "<yellow>다음 페이지 ▶"
+      lore: ["<gray>{page} / {pages}"]
+      off: { icon: stsv:gui/next_off, material: GRAY_DYE, name: "<dark_gray>마지막 페이지 ▶" }
+    X:
+      action: close
+      icon: stsv:gui/exit
+      material: OAK_DOOR
+      name: "<red>닫기"

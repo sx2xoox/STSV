@@ -23,7 +23,10 @@ CORE_ICONS = ("prev", "next", "prev_off", "next_off", "exit", "info", "take_off"
               "dress_up", "night_vision", "gacha",
               # the cosmetics' category tabs (옷장, 치장 뽑기) and the 옷장's 보기 filter
               "tab_all", "tab_head", "tab_above", "tab_shoulder", "tab_back", "tab_tail", "tab_pet", "tab_trail",
-              "tab_kill", "filter", "self_view")
+              "tab_kill", "filter", "self_view",
+              # the tuning shop (/튜닝): a tab a kind of tuning (and its dimmed twin), pay and undo switched off
+              *(f"tune_{k}{off}" for k in ("paint", "wheel", "underglow", "headlamp", "skid", "smoke", "flame", "crackle", "plate") for off in ("", "_off")),
+              "coins_off", "clear_off")
 # a cosmetic the player does not have: a dark card whose rim and question mark the item tints with its
 # rarity's colour (custom_model_data colors[0], CosmeticBrowser.locked); one model for every cosmetic
 LOCKED = "locked"

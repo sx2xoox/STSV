@@ -10,14 +10,12 @@ import dev.stsv.core.util.Lang;
 import dev.stsv.core.vehicle.VehicleTuning.Custom;
 import dev.stsv.core.vehicle.VehicleTuning.Kind;
 import dev.stsv.core.vehicle.VehicleTuning.Option;
-import io.papermc.paper.dialog.Dialog;
-import io.papermc.paper.registry.data.dialog.ActionButton;
-import io.papermc.paper.registry.data.dialog.DialogBase;
-import io.papermc.paper.registry.data.dialog.action.DialogAction;
-import io.papermc.paper.registry.data.dialog.body.DialogBody;
-import io.papermc.paper.registry.data.dialog.type.DialogType;
-import net.kyori.adventure.text.Component;
-import net.kyori.adventure.text.event.ClickEvent;
+import dev.stsv.core.gui.menu.MenuHandler;
+import dev.stsv.core.gui.menu.MenuSpec;
+import dev.stsv.core.gui.menu.MenuView;
+import io.papermc.paper.datacomponent.DataComponentTypes;
+import io.papermc.paper.datacomponent.item.CustomModelData;
+import net.kyori.adventure.key.Key;
 import net.kyori.adventure.text.format.TextColor;
 import org.bukkit.Bukkit;
 import org.bukkit.Color;
@@ -29,6 +27,7 @@ import org.bukkit.command.CommandSender;
 import org.bukkit.configuration.file.YamlConfiguration;
 import org.bukkit.entity.Display;
 import org.bukkit.entity.Player;
+import org.bukkit.event.inventory.ClickType;
 import org.bukkit.inventory.ItemStack;
 import org.bukkit.util.Transformation;
 import org.joml.Quaternionf;
@@ -59,8 +58,9 @@ import java.util.stream.Stream;
  *
  * <p><b>The shop.</b> Places an administrator marks (/관리자 튜닝샵: a spot and a radius, kept in
  * data/tuning-shops.yml). Inside one, /튜닝 opens the shop for the vehicle the player drives, or their own nearest
- * one: a screen of the kinds this vehicle can be tuned in, a screen of each kind's options. Choosing one puts it
- * on the real car at once, as a try-on: the screens close so it can be looked at, and a line in the chat goes on
+ * one: the pack's own menu (contents/stsv/menus/tuning.yml), a tab for every kind of tuning (dimmed where this
+ * vehicle cannot take it) over that kind's options as colour tiles. Clicking a tile puts it on the real car at
+ * once, as a try-on; the screen stays, and when it is closed to look at the car a line in the chat says how to go on
  * (more, pay, undo). Paying takes the price of what is new ({@link VehicleTuning.Catalogue#price}) from the
  * player's money and writes the look down; anything else (undo, leaving the shop, the time running out, the
  * vehicle going away) puts the paid look back.
@@ -104,6 +104,8 @@ final class VehicleTuner {
     private final Map<Long, Custom> saved = new HashMap<>();
     private final Map<UUID, Trying> trying = new HashMap<>();
     private final List<Shop> shops = new ArrayList<>();
+    /** shops that are buildings: a content plugin's (the economy server's), null without one */
+    private TuningShops built;
 
     VehicleTuner(VehicleModule m) {
         this.m = m;
@@ -119,9 +121,11 @@ final class VehicleTuner {
         store.init();
         saved.putAll(store.load());
         loadShops();
-        plugin.admin().add(ADMIN_OWNER, "튜닝샵", "추가 [반경] | 목록 | 제거 <번호>",
-                "지금 선 자리를 튜닝샵으로 (그 반경 안에서 /튜닝) / 튜닝샵 목록 / 튜닝샵 없애기", this::admin,
-                (s, a) -> a.length == 1 ? List.of("추가", "목록", "제거") : a.length == 2 && a[0].equals("추가") ? List.of("8", "12", "20") : List.of());
+        plugin.admin().add(ADMIN_OWNER, "튜닝샵", "설치 <이름> | 목록 | 제거 <이름|번호> | 다시꾸미기 <이름> | 추가 [반경]",
+                "튜닝샵 건물을 지금 자리에 짓기 (보는 쪽이 안쪽, 경제 플러그인이 지음) / 목록 / 없애기 / 건물만 다시 놓기 / 건물 없이 지금 자리 둘레를 튜닝샵으로", this::admin,
+                (s, a) -> a.length == 1 ? List.of("설치", "목록", "제거", "다시꾸미기", "추가")
+                        : a.length == 2 && a[0].equals("추가") ? List.of("8", "12", "20")
+                        : a.length == 2 && (a[0].equals("제거") || a[0].equals("다시꾸미기")) && built != null ? built.names() : List.of());
     }
 
     void disable() {
@@ -345,12 +349,32 @@ final class VehicleTuner {
 
     boolean inShop(Location l) {
         for (Shop s : shops) if (s.holds(l)) return true;
-        return false;
+        return built != null && built.inside(l);
+    }
+
+    /** A content plugin that builds tuning shops (null: none any more). */
+    void built(TuningShops shops) {
+        this.built = shops;
+    }
+
+    private boolean anyShop() {
+        return !shops.isEmpty() || (built != null && !built.names().isEmpty());
     }
 
     private void admin(CommandSender s, String[] a) {
         String sub = a.length == 0 ? "목록" : a[0];
         switch (sub) {
+            case "설치", "install", "다시꾸미기" -> {
+                if (built == null) {
+                    s.sendMessage(Lang.msg("tuning.shop-no-builder"));
+                } else if (a.length < 2) {
+                    s.sendMessage(Lang.msg("tuning.shop-usage"));
+                } else if (sub.equals("다시꾸미기")) {
+                    if (!built.redecorate(s, a[1])) s.sendMessage(Lang.msg("tuning.shop-unknown", "name", a[1]));
+                } else {
+                    built.install(s, a[1]);
+                }
+            }
             case "추가", "add" -> {
                 if (!(s instanceof Player p)) {
                     s.sendMessage(Lang.msg("common.players-only"));
@@ -371,6 +395,8 @@ final class VehicleTuner {
                 s.sendMessage(Lang.msg("tuning.shop-added", "number", shops.size(), "radius", (int) radius));
             }
             case "제거", "remove" -> {
+                // a building by its name, a plain place by its number
+                if (a.length > 1 && built != null && built.remove(s, a[1])) return;
                 int n;
                 try {
                     n = a.length > 1 ? Integer.parseInt(a[1]) : 0;
@@ -378,7 +404,7 @@ final class VehicleTuner {
                     n = 0;
                 }
                 if (n < 1 || n > shops.size()) {
-                    s.sendMessage(Lang.msg("tuning.shop-usage"));
+                    s.sendMessage(Lang.msg(a.length > 1 && n == 0 ? "tuning.shop-unknown" : "tuning.shop-usage", "name", a.length > 1 ? a[1] : ""));
                     return;
                 }
                 shops.remove(n - 1);
@@ -386,7 +412,8 @@ final class VehicleTuner {
                 s.sendMessage(Lang.msg("tuning.shop-removed", "number", n));
             }
             default -> {
-                if (shops.isEmpty()) s.sendMessage(Lang.msg("tuning.shop-none"));
+                if (built != null) built.list(s);
+                if (!anyShop()) s.sendMessage(Lang.msg("tuning.shop-none"));
                 for (int i = 0; i < shops.size(); i++) {
                     Shop shop = shops.get(i);
                     s.sendMessage(Lang.msg("tuning.shop-entry", "number", i + 1, "world", shop.world(), "x", (int) Math.floor(shop.x()),
@@ -442,7 +469,7 @@ final class VehicleTuner {
             return null;
         }
         if (!p.hasPermission("stsv.admin") && !inShop(new Location(v.world, v.st.x, v.st.y, v.st.z))) {
-            p.sendMessage(Lang.msg(shops.isEmpty() ? "tuning.no-shops" : "tuning.no-shop"));
+            p.sendMessage(Lang.msg(anyShop() ? "tuning.no-shop" : "tuning.no-shops"));
             return null;
         }
         for (Map.Entry<UUID, Trying> e : trying.entrySet()) {
@@ -465,9 +492,7 @@ final class VehicleTuner {
             case "종류", "kind" -> {
                 LiveVehicle v = ready(p);
                 Kind kind = a.length > 1 ? Kind.of(a[1]) : null;
-                if (v == null) return;
-                if (kind == null || !catalogue.kinds(id(v)).contains(kind)) openMain(p, v);
-                else openKind(p, v, kind);
+                if (v != null) openMenu(p, v, kind);
             }
             case "고르기", "pick" -> {
                 LiveVehicle v = ready(p);
@@ -478,11 +503,11 @@ final class VehicleTuner {
                     p.sendMessage(Lang.msg("tuning.unknown"));
                     return;
                 }
-                tryOn(p, v, kind, id);
+                tryOn(p, v, kind, id, true);
             }
             default -> {
                 LiveVehicle v = ready(p);
-                if (v != null) openMain(p, v);
+                if (v != null) openMenu(p, v, null);
             }
         }
     }
@@ -491,7 +516,8 @@ final class VehicleTuner {
         return catalogue.valid(id(v), saved.getOrDefault(v.id, Custom.NONE));
     }
 
-    private void tryOn(Player p, LiveVehicle v, Kind kind, String id) {
+    /** chat: say in the chat how to go on (typed commands; the screen shows it itself and says it when it closes) */
+    private void tryOn(Player p, LiveVehicle v, Kind kind, String id, boolean chat) {
         Trying t = trying.get(p.getUniqueId());
         if (t != null && t.vehicle != v.id) end(p.getUniqueId(), null);     // another car of theirs: the first one's try-on is over
         trying.put(p.getUniqueId(), new Trying(v.id, m.ticks() + TRY_TICKS));
@@ -500,7 +526,7 @@ final class VehicleTuner {
         p.playSound(p.getLocation(), Sound.BLOCK_ANVIL_USE, 0.25f, 1.6f);
         long due = catalogue.price(paid(v), v.custom);
         HudModule.flash(p, Lang.mm("tuning.tried", "kind", kindName(kind), "option", optionName(kind, id)));
-        p.sendMessage(Lang.msg("tuning.actions", "price", price(due)));
+        if (chat) p.sendMessage(Lang.msg("tuning.actions", "price", price(due)));
     }
 
     private void pay(Player p) {
@@ -575,58 +601,182 @@ final class VehicleTuner {
     }
 
     // ------------------------------------------------------------------------------------------
-    // The screens
+    // The screen (contents/stsv/menus/tuning.yml: the pack's own menu)
     // ------------------------------------------------------------------------------------------
 
-    private static final int WIDTH = 190, COLUMNS = 2;
+    private static final String MENU = "stsv:tuning";
+    private static final Key SWATCH = Key.key("stsv", "gui/swatch");
 
-    private static ActionButton button(Component label, String command) {
-        return ActionButton.builder(label).width(WIDTH).action(DialogAction.staticAction(ClickEvent.runCommand(command))).build();
+    /** The shop's screen for a vehicle, on a kind's tab (null: the first kind the vehicle takes). */
+    private void openMenu(Player p, LiveVehicle v, Kind kind) {
+        List<Kind> kinds = catalogue.kinds(id(v));
+        Kind tab = kind != null && kinds.contains(kind) ? kind : kinds.getFirst();
+        plugin.menus().open(p, MENU, new Screen(v.id, tab));
     }
 
-    private static void show(Player p, Component title, Component hint, List<ActionButton> buttons) {
-        Dialog dialog = Dialog.create(factory -> factory.empty()
-                .base(DialogBase.builder(title)
-                        .canCloseWithEscape(true)
-                        .afterAction(DialogBase.DialogAfterAction.CLOSE)
-                        .body(List.of(DialogBody.plainMessage(hint)))
-                        .build())
-                .type(DialogType.multiAction(buttons).columns(COLUMNS)
-                        .exitAction(ActionButton.builder(Lang.mm("tuning.close")).width(WIDTH).build())
-                        .build()));
-        p.showDialog(dialog);
+    /** An option's tile: a swatch of its colour (grey where it has none), its name, its price, and where it stands. */
+    @SuppressWarnings("UnstableApiUsage")
+    private static ItemStack tile(int color, net.kyori.adventure.text.Component name, List<net.kyori.adventure.text.Component> lore, boolean on) {
+        ItemStack it = ItemStack.of(org.bukkit.Material.PAPER);
+        Color c = Color.fromRGB(color < 0 ? 0x8a8f98 : color);
+        it.setData(DataComponentTypes.ITEM_MODEL, SWATCH);
+        it.setData(DataComponentTypes.CUSTOM_MODEL_DATA, CustomModelData.customModelData().addColor(c).addColor(c).build());
+        it.setData(DataComponentTypes.MAX_STACK_SIZE, 1);
+        it.editMeta(m -> {
+            m.itemName(name);
+            m.lore(lore);
+            if (on) m.setEnchantmentGlintOverride(true);
+        });
+        return it;
     }
 
-    /** The kinds this vehicle can be tuned in, each with what it shows now; and, while trying, pay and undo. */
-    private void openMain(Player p, LiveVehicle v) {
-        List<ActionButton> buttons = new ArrayList<>();
-        for (Kind kind : catalogue.kinds(id(v))) {
-            buttons.add(button(Lang.mm("tuning.button-kind", "kind", kindName(kind), "option", optionName(kind, v.custom.get(kind))),
-                    "/튜닝 종류 " + kind.word()));
+    /** One player's open screen: which vehicle, which kind's tab. */
+    private final class Screen implements MenuHandler {
+        private final long vehicle;
+        private final Kind tab;
+        /** the option ids of the list, in order (null: the stock look) */
+        private List<String> shown = List.of();
+
+        Screen(long vehicle, Kind tab) {
+            this.vehicle = vehicle;
+            this.tab = tab;
         }
-        long due = catalogue.price(paid(v), v.custom);
-        if (!paid(v).equals(v.custom)) {
-            buttons.add(button(Lang.mm("tuning.button-pay", "price", price(due)), "/튜닝 결제"));
-            buttons.add(button(Lang.mm("tuning.button-undo"), "/튜닝 되돌리기"));
-        }
-        show(p, Lang.mm("tuning.title", "vehicle", VehicleModule.label(v.item)), Lang.mm("tuning.hint"), buttons);
-    }
 
-    private static String swatch(Option o) {
-        return o.color() < 0 ? "" : String.format("<#%06x>■</#%06x> ", o.color(), o.color());
-    }
-
-    /** The options of a kind: the stock look first, the one on the car marked. */
-    private void openKind(Player p, LiveVehicle v, Kind kind) {
-        List<ActionButton> buttons = new ArrayList<>();
-        String on = v.custom.get(kind), owned = paid(v).get(kind);
-        buttons.add(button(Lang.mm(on == null ? "tuning.button-stock-on" : "tuning.button-stock"), "/튜닝 고르기 " + kind.word() + " 순정"));
-        for (Option o : catalogue.offered(id(v), kind)) {
-            String key = o.id().equals(on) ? "tuning.button-option-on" : o.id().equals(owned) ? "tuning.button-option-owned" : "tuning.button-option";
-            buttons.add(button(Lang.mm(key, "swatch", swatch(o), "name", o.name(), "price", price(o.price())), "/튜닝 고르기 " + kind.word() + " " + o.id()));
+        private LiveVehicle car() {
+            return m.shownById(vehicle);
         }
-        buttons.add(button(Lang.mm("tuning.button-back"), "/튜닝"));
-        show(p, Lang.mm("tuning.kind-title", "kind", kindName(kind), "vehicle", VehicleModule.label(v.item)), Lang.mm("tuning.hint"), buttons);
+
+        @Override
+        public Map<String, String> placeholders(MenuView view) {
+            Map<String, String> out = new HashMap<>();
+            LiveVehicle v = car();
+            Custom look = v == null ? Custom.NONE : v.custom, paid = v == null ? Custom.NONE : paid(v);
+            out.put("vehicle", v == null ? "" : VehicleModule.label(v.item));
+            out.put("kind", kindName(tab));
+            out.put("due", price(catalogue.price(paid, look)));
+            int tried = 0;
+            for (Kind k : Kind.values()) {
+                out.put("on_" + k.word(), optionName(k, look.get(k)));
+                if (!java.util.Objects.equals(look.get(k), paid.get(k))) tried++;
+            }
+            out.put("tried", String.valueOf(tried));
+            EconomyModule economy = plugin.economy();
+            out.put("balance", economy == null ? "-" : EconomyModule.format(economy.balance(view.player().getUniqueId())));
+            return out;
+        }
+
+        @Override
+        public List<ItemStack> list(MenuView view) {
+            LiveVehicle v = car();
+            if (v == null) return List.of();
+            String on = v.custom.get(tab), owned = paid(v).get(tab);
+            List<ItemStack> items = new ArrayList<>();
+            List<String> ids = new ArrayList<>();
+            ids.add(null);
+            items.add(tile(0xe8e4da, Lang.item("tuning.tile-stock"), Lang.items(on == null ? "tuning.tile-lore-on" : "tuning.tile-lore-stock"), on == null));
+            for (Option o : catalogue.offered(id(v), tab)) {
+                String key = o.id().equals(on) ? "tuning.tile-lore-on" : o.id().equals(owned) ? "tuning.tile-lore-owned" : "tuning.tile-lore";
+                ids.add(o.id());
+                items.add(tile(o.color(), Lang.item("tuning.tile-name", "name", o.name()), Lang.items(key, "price", price(o.price())), o.id().equals(on)));
+            }
+            shown = ids;
+            return items;
+        }
+
+        @Override
+        public void onListClick(MenuView view, int index, ClickType click) {
+            Player p = view.player();
+            LiveVehicle v = stillThere(view);
+            if (v == null || index < 0 || index >= shown.size()) return;
+            String id = shown.get(index);
+            if (java.util.Objects.equals(id, v.custom.get(tab))) return;
+            tryOn(p, v, tab, id, false);
+            view.refresh();
+        }
+
+        /** The vehicle, if this screen may still act on it; else the screen closes (the player was told why). */
+        private LiveVehicle stillThere(MenuView view) {
+            LiveVehicle v = ready(view.player());
+            if (v == null || v.id != vehicle) {
+                view.close();
+                return null;
+            }
+            return v;
+        }
+
+        @Override
+        public void onAction(MenuView view, String action, ClickType click) {
+            Player p = view.player();
+            if (action.startsWith("tuning:kind:")) {
+                Kind kind = Kind.of(action.substring("tuning:kind:".length()));
+                LiveVehicle v = stillThere(view);
+                if (v == null || kind == null || kind == tab) return;
+                if (!catalogue.kinds(id(v)).contains(kind)) {
+                    p.playSound(p.getLocation(), Sound.BLOCK_NOTE_BLOCK_BASS, 0.5f, 0.7f);
+                    return;
+                }
+                p.playSound(p.getLocation(), Sound.UI_BUTTON_CLICK, 0.4f, 1.2f);
+                openMenu(p, v, kind);      // a new screen: its title names the tab
+            } else if (action.equals("tuning:pay")) {
+                if (stillThere(view) == null) return;
+                if (!trying.containsKey(p.getUniqueId())) return;
+                pay(p);
+                if (p.getOpenInventory().getTopInventory().getHolder() == view) view.refresh();
+            } else if (action.equals("tuning:undo")) {
+                if (!trying.containsKey(p.getUniqueId())) return;
+                end(p.getUniqueId(), "tuning.reverted");
+                view.refresh();
+            }
+        }
+
+        @Override
+        public ItemStack button(MenuView view, MenuSpec.Button button, ItemStack base) {
+            if (base == null) return null;
+            String action = button.action();
+            LiveVehicle v = car();
+            if (action.startsWith("tuning:kind:")) {
+                Kind kind = Kind.of(action.substring("tuning:kind:".length()));
+                if (kind == null) return base;
+                if (v == null || !catalogue.kinds(id(v)).contains(kind)) {
+                    // a kind this vehicle cannot take: its icon dimmed, and why
+                    base.editMeta(meta -> {
+                        meta.setItemModel(new NamespacedKey("stsv", "gui/tune_" + kind.word() + "_off"));
+                        meta.itemName(Lang.item("tuning.tab-off", "kind", kindName(kind)));
+                        meta.lore(Lang.items("tuning.tab-off-lore"));
+                    });
+                } else if (kind == tab) {
+                    base.editMeta(meta -> meta.setEnchantmentGlintOverride(true));
+                }
+                return base;
+            }
+            boolean tried = v != null && !paid(v).equals(v.custom);
+            if (action.equals("tuning:pay") && !tried) {
+                base.editMeta(meta -> {
+                    meta.setItemModel(new NamespacedKey("stsv", "gui/coins_off"));
+                    meta.itemName(Lang.item("tuning.pay-off"));
+                    meta.lore(Lang.items("tuning.pay-off-lore"));
+                });
+            } else if (action.equals("tuning:undo") && !tried) {
+                base.editMeta(meta -> {
+                    meta.setItemModel(new NamespacedKey("stsv", "gui/clear_off"));
+                    meta.itemName(Lang.item("tuning.undo-off"));
+                    meta.lore(List.of());
+                });
+            }
+            return base;
+        }
+
+        @Override
+        public void onClose(MenuView view) {
+            // closed to look at the car with something tried on: how to go on, once, a tick later (not when only the tab changed)
+            Player p = view.player();
+            Bukkit.getScheduler().runTask(plugin, () -> {
+                if (!p.isOnline() || !trying.containsKey(p.getUniqueId())) return;
+                if (p.getOpenInventory().getTopInventory().getHolder() instanceof MenuView) return;
+                LiveVehicle v = car();
+                if (v != null) p.sendMessage(Lang.msg("tuning.actions", "price", price(catalogue.price(paid(v), v.custom))));
+            });
+        }
     }
 
     /** For a report: how many vehicles are tuned, how many shops there are. */

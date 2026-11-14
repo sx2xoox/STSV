@@ -223,4 +223,43 @@ class VehicleTuningTest {
         assertEquals(List.of(Kind.PAINT), c.kinds("cargo_bicycle"));
         assertEquals(List.of(Kind.PAINT, Kind.UNDERGLOW), c.kinds("light_truck"));
     }
+
+    /** The shop's screen is the pack's own menu: a tab a kind (with its dimmed twin), a list, pay and undo. */
+    @Test
+    void theMenu() throws Exception {
+        YamlConfiguration menu = YamlConfiguration.loadConfiguration(PACK.resolve("menus/tuning.yml").toFile());
+        assertEquals("stsv:gui/tuning", menu.getString("tuning.background"), "drawn by the pack, not a plain chest");
+        assertEquals(6, menu.getInt("tuning.rows"));
+        String layout = String.join("", menu.getStringList("tuning.layout"));
+        String tabs = menu.getString("tuning.tabs");
+        assertEquals(Kind.values().length, tabs.length(), "a tab a kind");
+        java.util.Set<String> actions = new java.util.HashSet<>();
+        for (String key : menu.getConfigurationSection("tuning.buttons").getKeys(false)) {
+            assertTrue(layout.contains(key), key + " is in the layout");
+            actions.add(menu.getString("tuning.buttons." + key + ".action"));
+            String icon = menu.getString("tuning.buttons." + key + ".icon");
+            assertTrue(icon != null && Files.exists(PACK.resolve("assets/stsv/textures/item/" + icon.substring(5) + ".png")), key + ": " + icon);
+        }
+        for (Kind kind : Kind.values()) {
+            assertTrue(actions.contains("tuning:kind:" + kind.word()), kind + " has its tab");
+            for (String twin : List.of("", "_off")) {
+                assertTrue(Files.exists(PACK.resolve("assets/stsv/textures/item/gui/tune_" + kind.word() + twin + ".png")), kind + twin + " icon");
+                assertTrue(Files.exists(PACK.resolve("assets/stsv/items/gui/tune_" + kind.word() + twin + ".json")), kind + twin + " item definition");
+            }
+        }
+        assertTrue(actions.containsAll(List.of("tuning:pay", "tuning:undo", "close", "page:prev", "page:next")));
+        for (String off : List.of("coins_off", "clear_off")) assertTrue(Files.exists(PACK.resolve("assets/stsv/textures/item/gui/" + off + ".png")), off);
+        assertEquals(36, layout.chars().filter(c -> c == menu.getString("tuning.list").charAt(0)).count(), "four rows of options");
+        // the words the screen and the chat use
+        YamlConfiguration messages = YamlConfiguration.loadConfiguration(
+                new java.io.InputStreamReader(getClass().getResourceAsStream("/messages.yml"), java.nio.charset.StandardCharsets.UTF_8));
+        for (Kind kind : Kind.values()) assertTrue(messages.isString("tuning.kind." + kind.word()), kind.word());
+        for (String key : List.of("tile-stock", "tile-name", "tab-off", "pay-off", "undo-off", "tried", "actions", "paid", "poor", "reverted", "left", "expired",
+                "no-vehicle", "nothing", "no-shop", "no-shops", "busy", "stock", "free")) {
+            assertTrue(messages.isString("tuning." + key), key);
+        }
+        for (String key : List.of("tile-lore", "tile-lore-stock", "tile-lore-on", "tile-lore-owned", "tab-off-lore", "pay-off-lore")) {
+            assertTrue(messages.isList("tuning." + key), key);
+        }
+    }
 }

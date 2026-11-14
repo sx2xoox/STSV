@@ -256,6 +256,7 @@ def icons():
     out.update(hub_icons())
     out.update(price_icons())
     out.update(wardrobe_icons())
+    out.update(tuning_icons())
     return out
 
 
@@ -1077,3 +1078,169 @@ def wardrobe_icons():
             "tab_shoulder": draw(TAB_SHOULDER), "tab_back": draw(TAB_BACK), "tab_tail": draw(_tail()),
             "tab_pet": draw(TAB_PET), "tab_trail": draw(TAB_TRAIL), "tab_kill": draw(TAB_KILL), "filter": draw(FILTER),
             "self_view": draw(SELF_VIEW)}
+
+
+# ------------------------------------------------------------------------------------------------
+# The tuning shop (/튜닝): one tab a kind of tuning, each with a dimmed twin for a vehicle that cannot take it
+# ------------------------------------------------------------------------------------------------
+
+# (letters no other icon uses: the palette is one table)
+COLOURS.update({
+    "n": (86, 232, 255), "N": (40, 150, 196),              # neon cyan (the glow under a car)
+    "t": (70, 75, 88), "T": (40, 44, 54),                  # tyre rubber, its shade
+    "a": (250, 150, 50), "A": (214, 84, 30),               # flame orange
+    "l": (255, 226, 110),                                  # flame yellow, a lamp's light
+})
+
+TUNE_PAINT = [   # 도색: a paint roller, wet with red, on a wooden handle
+    "",
+    "..rrrrrrrrrr",
+    "..rrrrrrrrrrs",
+    "..RRRRRRRRRRs",
+    "..RRRRRRRRRR.s",
+    ".............s",
+    "......ssssssss",
+    "......s",
+    "......s",
+    ".....oo",
+    ".....oo",
+    ".....oO",
+    ".....oO",
+    ".....OO",
+]
+
+TUNE_WHEEL = [   # 휠: a tyre round a bright five-spoke rim
+    "",
+    ".....tttttt",
+    "...tttTTTTttt",
+    "..ttT##s#s#Ttt",
+    "..tT#s####s#Tt",
+    ".tT###skks###Tt",
+    ".tTs##k##k##sTt",
+    ".tT###k##k###Tt",
+    ".tTs##skks##sTt",
+    "..tT#s####s#Tt",
+    "..ttT##s#s#Ttt",
+    "...tttTTTTttt",
+    ".....tttttt",
+]
+
+TUNE_GLOW = [   # 언더글로우: a car from the side, light spilling out from under it
+    "",
+    "",
+    "",
+    ".....######",
+    "....#wwsww#s",
+    "..############",
+    ".#############s",
+    ".##tt#####tt##s",
+    "..tTTt...tTTt",
+    "...tt.....tt",
+    ".nnnnnnnnnnnnnn",
+    "nnNNNNNNNNNNNNnn",
+    ".nnnnnnnnnnnnnn",
+]
+
+TUNE_LAMP = [   # 전조등 색: a lamp and its beam
+    "",
+    "",
+    "..ss",
+    ".s##s....ll",
+    ".#ll#s.lll",
+    "s#lll#ll",
+    "s#lll#llllllll",
+    "s#lll#ll",
+    ".#ll#s.lll",
+    ".s##s....ll",
+    "..ss",
+]
+
+TUNE_SKID = [   # 스키드 마크: two tracks curving across the ground (grey: black would not show on the menu)
+    "",
+    "...........ss",
+    ".........sss.ss",
+    ".......sss.sss",
+    "......ss..ss",
+    ".....ss..ss",
+    "....ss..ss",
+    "...ss..ss",
+    "...ss.ss",
+    "..ss..ss",
+    "..ss.ss",
+    ".ss..ss",
+    ".ss.ss",
+]
+
+TUNE_SMOKE = [   # 타이어 연기: a tyre and the cloud it throws up
+    "",
+    "........###",
+    "......#######",
+    ".....###ss###s",
+    "....####s#####s",
+    "...#####sssss#s",
+    "...#########sss",
+    "....sssssssss",
+    ".tttt",
+    "tTkkTt.ss",
+    "tk##kt..sss",
+    "tk##kt",
+    "tTkkTt",
+    ".tttt",
+]
+
+TUNE_FLAME = [   # 배기 불꽃: a tail pipe and the flame out of it
+    "",
+    "",
+    "",
+    "..........aa",
+    ".......aaaaaA",
+    "sssss.aalllaaA",
+    "#####sallllllaA",
+    "#kkk#sallllllaA",
+    "#####salllllaA",
+    "sssss.aallaaA",
+    ".......aaaaA",
+    "..........AA",
+]
+
+TUNE_CRACKLE = [   # 배기 팝콘: a tail pipe and three pops
+    "",
+    ".........l...l",
+    "..........lll",
+    ".......l.llall",
+    "........lllll.l",
+    "sssss..llal.l",
+    "#####s..lll",
+    "#kkk#s.l...ll",
+    "#####s....llal",
+    "sssss......lll",
+    "..........l..l",
+]
+
+TUNE_PLATE = [   # 번호판 글씨: a plate with letters on it
+    "",
+    "",
+    "",
+    ".ssssssssssssss",
+    "s##############s",
+    "s#k#k#kk#k#kk##s",
+    "s#k#k#k##k#k#k#s",
+    "s#kkk#kk#k#k#k#s",
+    "s#k#k#k##k#k#k#s",
+    "s#k#k#kk#k#kk##s",
+    "s##############s",
+    ".ssssssssssssss",
+]
+
+
+def tuning_icons():
+    """One icon a kind of tuning (VehicleTuning.Kind: tune_<word>) and its dimmed twin (tune_<word>_off), and the
+    dimmed twins of the two buttons under them (pay: coins, undo: clear)."""
+    out = {"tune_paint": draw(TUNE_PAINT), "tune_wheel": draw(TUNE_WHEEL), "tune_underglow": draw(TUNE_GLOW), "tune_headlamp": draw(TUNE_LAMP),
+           "tune_skid": draw(TUNE_SKID), "tune_smoke": draw(TUNE_SMOKE), "tune_flame": draw(TUNE_FLAME), "tune_crackle": draw(TUNE_CRACKLE),
+           "tune_plate": draw(TUNE_PLATE)}
+    for name in list(out):
+        out[name + "_off"] = _dimmed(out[name])
+    out["coins_off"] = _dimmed(_art("coins"))
+    out["clear_off"] = _dimmed(_art("clear"))
+    return out

@@ -422,9 +422,6 @@ donation:
   admin-refunded-before: "<red>구매 #{number} 은(는) 이미 환불했습니다."
 
 tuning:
-  title: "<#f0e2b0>튜닝샵 <gray>· <white>{vehicle}"
-  kind-title: "<#f0e2b0>{kind} <gray>· <white>{vehicle}"
-  hint: "<gray>고르면 차에 바로 입혀 보여 줍니다(임시). 마음에 들면 결제하세요."
   kind:
     paint: "도색"
     wheel: "휠"
@@ -437,16 +434,17 @@ tuning:
     plate: "번호판 글씨"
   stock: "순정"
   free: "무료"
-  close: "<gray>닫기"
-  button-kind: "<white>{kind} <dark_gray>· <gray>{option}"
-  button-stock: "<white>순정 <dark_gray>· <gray>무료"
-  button-stock-on: "<green>순정 <dark_gray>· <gray>지금 모습"
-  button-option: "{swatch}<white>{name} <dark_gray>· <gold>{price}"
-  button-option-on: "{swatch}<green>{name} <dark_gray>· <gray>입혀 보는 중"
-  button-option-owned: "{swatch}<aqua>{name} <dark_gray>· <gray>결제한 것"
-  button-pay: "<green>결제하기 <dark_gray>· <gold>{price}"
-  button-undo: "<red>입혀 본 것 되돌리기"
-  button-back: "<gray>← 종류 고르기"
+  tile-stock: "<white>순정"
+  tile-name: "<white>{name}"
+  tile-lore: ["<gray>값 <gold>{price}", "", "<yellow>클릭: 입혀 보기"]
+  tile-lore-stock: ["<gray>원래 모습으로 <dark_gray>(무료)", "", "<yellow>클릭: 입혀 보기"]
+  tile-lore-on: ["<green>지금 차에 입혀져 있음"]
+  tile-lore-owned: ["<aqua>결제해 둔 것 <dark_gray>(다시 고르면 무료)", "", "<yellow>클릭: 입혀 보기"]
+  tab-off: "<dark_gray>{kind}"
+  tab-off-lore: ["<dark_gray>이 탈것은 받을 수 없는 튜닝입니다."]
+  pay-off: "<dark_gray>결제할 것이 없습니다"
+  pay-off-lore: ["<dark_gray>옵션을 눌러 먼저 입혀 보세요."]
+  undo-off: "<dark_gray>되돌릴 것이 없습니다"
   tried: "<white>{kind}</white> <gray>→ <white>{option}</white> <gray>(임시)"
   actions: "<gray>입혀 보는 중 <dark_gray>· <click:run_command:'/튜닝'><hover:show_text:'<gray>튜닝샵 화면 열기'><white><u>더 고르기</u></white></hover></click> <dark_gray>· <click:run_command:'/튜닝 결제'><hover:show_text:'<gray>지금 모습으로 결제'><green><u>결제 {price}</u></green></hover></click> <dark_gray>· <click:run_command:'/튜닝 되돌리기'><hover:show_text:'<gray>결제한 모습으로 되돌리기'><red><u>되돌리기</u></red></hover></click>"
   paid: "<green>튜닝을 마쳤습니다.</green> <gray>{vehicle} · {price}"
@@ -459,12 +457,14 @@ tuning:
   no-vehicle: "<red>튜닝할 내 탈것이 가까이에 없습니다. <gray>(운전석에 앉거나 {reach}칸 안에 세워 두세요)"
   nothing: "<red>{vehicle} 은(는) 튜닝할 수 있는 것이 없습니다."
   no-shop: "<red>튜닝샵 안에서만 할 수 있습니다. <gray>탈것을 튜닝샵으로 가져오세요."
-  no-shops: "<red>아직 튜닝샵이 없습니다. <gray>(관리자: /관리자 튜닝샵 추가)"
+  no-shops: "<red>아직 튜닝샵이 없습니다. <gray>(관리자: /관리자 튜닝샵 설치 <이름>)"
   busy: "<red>다른 사람이 이 탈것에 튜닝을 입혀 보고 있습니다."
-  shop-usage: "<gray>/관리자 튜닝샵 추가 [반경 2~64] <dark_gray>· <gray>목록 <dark_gray>· <gray>제거 <번호>"
+  shop-usage: "<gray>/관리자 튜닝샵 설치 <이름> <dark_gray>(건물, 보는 쪽이 안쪽) · <gray>목록 <dark_gray>· <gray>제거 <이름|번호> <dark_gray>· <gray>다시꾸미기 <이름> <dark_gray>· <gray>추가 [반경 2~64] <dark_gray>(건물 없이 자리만)"
+  shop-no-builder: "<red>튜닝샵 건물은 경제 플러그인이 짓습니다. <gray>(없으면 /관리자 튜닝샵 추가 [반경] 으로 자리만 정할 수 있음)"
+  shop-unknown: "<red>그런 튜닝샵이 없습니다: {name}"
   shop-added: "<green>튜닝샵 {number}번을 만들었습니다. <gray>(지금 선 자리, 반경 {radius}칸)"
   shop-removed: "<gray>튜닝샵 {number}번을 없앴습니다."
-  shop-none: "<gray>튜닝샵이 없습니다. <dark_gray>(/관리자 튜닝샵 추가 [반경])"
+  shop-none: "<gray>튜닝샵이 없습니다. <dark_gray>(/관리자 튜닝샵 설치 <이름>)"
   shop-entry: "<gray>{number}. <white>{world}</white> {x}, {y}, {z} <dark_gray>· <gray>반경 {radius}칸"
 
 trash:

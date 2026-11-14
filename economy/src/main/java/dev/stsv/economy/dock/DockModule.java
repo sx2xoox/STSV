@@ -91,6 +91,8 @@ public final class DockModule extends EcoModule {
     private Scout scout;
     /** 출발 터미널 (by name, lower case) and the sealed trips (by load id) */
     private final Map<String, Dock> terminals = new LinkedHashMap<>();
+    /** 튜닝샵 건물 (by name, lower case): the core's tuning shop works inside them (dev.stsv.core.vehicle.TuningShops) */
+    private final Map<String, Dock> tuningShops = new LinkedHashMap<>();
     private TripStore trips;
     private final Map<Long, CargoTrip> sealed = new HashMap<>();
     /**
@@ -124,6 +126,7 @@ public final class DockModule extends EcoModule {
         store.init();
         for (Dock d : store.all()) docks.put(key(d.name()), d);
         for (Dock t : store.terminals()) terminals.put(key(t.name()), t);
+        for (Dock t : store.tuningShops()) tuningShops.put(key(t.name()), t);
         trips = new TripStore(core.db());
         trips.init();
         for (CargoTrip t : trips.sealed()) sealed.put(t.vehicle(), t);
@@ -134,6 +137,7 @@ public final class DockModule extends EcoModule {
             core.vehicles().cargoClick(this::bedClicked);
             core.vehicles().cargoSeal(this::seal);
             core.vehicles().tripBroken(this::broken);
+            core.vehicles().tuningShops(new TuningShopBuilder());
         }
         STSVPlugin.get().admin().add(EcoPlugin.ADMIN_OWNER, "출발지", "설치 <이름> | 목록 | 제거 <이름> | 다시꾸미기 <이름>",
                 "출발 터미널: 지금 자리에 짓기(보는 방향, 앞이 출구) — 화물 검사소·검사대·주차장, 국도 기준점이 그 출구로 / 목록 / 기록 지우기 / 장식만 다시",
@@ -168,6 +172,7 @@ public final class DockModule extends EcoModule {
             core.vehicles().cargoClick(null);
             core.vehicles().cargoSeal(null);
             core.vehicles().tripBroken(null);
+            core.vehicles().tuningShops(null);
         }
         if (building != null) building.cancel();
         if (scout != null) scout.queue.stop();
@@ -213,6 +218,7 @@ public final class DockModule extends EcoModule {
             c = new java.util.HashMap<>();
             for (Dock d : docks.values()) for (long[] ch : d.chunksTouched()) c.computeIfAbsent(d.world(), w -> new java.util.HashSet<>()).add(ch[0] << 32 ^ (ch[1] & 0xffffffffL));
             for (Dock d : terminals.values()) for (long[] ch : d.chunksTouched()) c.computeIfAbsent(d.world(), w -> new java.util.HashSet<>()).add(ch[0] << 32 ^ (ch[1] & 0xffffffffL));
+            for (Dock d : tuningShops.values()) for (long[] ch : d.chunksTouched()) c.computeIfAbsent(d.world(), w -> new java.util.HashSet<>()).add(ch[0] << 32 ^ (ch[1] & 0xffffffffL));
             cover = c;
         }
         java.util.Set<Long> in = c.get(world);
@@ -321,6 +327,12 @@ public final class DockModule extends EcoModule {
         if (!counters.contains(b.getType())) return;
         String w = b.getWorld().getName();
         if (!covers(w, b.getX() >> 4, b.getZ() >> 4)) return;
+        for (Dock t : tuningShops.values()) {
+            if (!t.isCounter(w, b.getX(), b.getY(), b.getZ())) continue;
+            e.setCancelled(true);       // the smith's table does not open: it is the shop's counter
+            if (core.vehicles() != null) core.vehicles().tune(e.getPlayer(), new String[0]);
+            return;
+        }
         for (Dock t : terminals.values()) {
             if (!t.isCounter(w, b.getX(), b.getY(), b.getZ())) continue;
             e.setCancelled(true);
@@ -816,7 +828,7 @@ public final class DockModule extends EcoModule {
         for (Entity en : e.getEntities()) {
             String name = en.getPersistentDataContainer().get(DockBuilder.TAG, PersistentDataType.STRING);
             if (name == null) continue;
-            if (!docks.containsKey(key(name)) && !terminals.containsKey(key(name))) en.remove();
+            if (!docks.containsKey(key(name)) && !terminals.containsKey(key(name)) && !tuningShops.containsKey(key(name))) en.remove();
             else if (en instanceof org.bukkit.entity.Display d) {   // built before: drawn as far as new ones (DockBuilder)
                 float v = d instanceof org.bukkit.entity.TextDisplay ? DockBuilder.LABEL_VIEW : DockBuilder.PROP_VIEW;
                 if (d.getViewRange() > v) d.setViewRange(v);
@@ -1221,7 +1233,7 @@ public final class DockModule extends EcoModule {
             s.sendMessage(Lang.msg("terminal.usage"));
             return;
         }
-        if (terminals.containsKey(key(name)) || docks.containsKey(key(name))) {   // one name, one place (their displays carry it)
+        if (terminals.containsKey(key(name)) || docks.containsKey(key(name)) || tuningShops.containsKey(key(name))) {   // one name, one place (their displays carry it)
             s.sendMessage(Lang.msg("terminal.exists", "name", name));
             return;
         }
@@ -1255,7 +1267,87 @@ public final class DockModule extends EcoModule {
         rebuild(s, t, false);
     }
 
-    /** Builds a terminal (all of it, or only its decorations again). */
+    // ------------------------------------------------------------------------------------------
+    // /관리자 튜닝샵 설치: a tuning shop as a building (the core's command hands it on: TuningShops)
+    // ------------------------------------------------------------------------------------------
+
+    /** What the core's tuning shop asks of whoever builds the shops. */
+    private final class TuningShopBuilder implements dev.stsv.core.vehicle.TuningShops {
+        @Override
+        public boolean inside(Location at) {
+            if (tuningShops.isEmpty() || !covers(at.getWorld().getName(), at.getBlockX() >> 4, at.getBlockZ() >> 4)) return false;
+            for (Dock t : tuningShops.values()) if (t.inZone(at.getWorld().getName(), at.getX(), at.getY(), at.getZ())) return true;
+            return false;
+        }
+
+        @Override
+        public void install(CommandSender s, String name) {
+            if (!(s instanceof Player p)) {
+                s.sendMessage(Lang.msg("common.players-only"));
+                return;
+            }
+            if (name == null || !Dock.validName(name)) {
+                s.sendMessage(Lang.msg("tuningshop.usage"));
+                return;
+            }
+            if (terminals.containsKey(key(name)) || docks.containsKey(key(name)) || tuningShops.containsKey(key(name))) {
+                s.sendMessage(Lang.msg("tuningshop.exists", "name", name));
+                return;
+            }
+            if (building != null) {
+                s.sendMessage(Lang.msg("dock.busy"));
+                return;
+            }
+            Location at = p.getLocation();
+            Dock draft = new Dock(name, DockLayout.Kind.TUNING, at.getWorld().getName(), at.getBlockX(), at.getBlockY(), at.getBlockZ(),
+                    Dock.facing(at.getYaw()), "", now());
+            List<long[]> claimed = eco.land().claimServerChunks(draft.world(), draft.chunksTouched());
+            if (claimed == null) {
+                s.sendMessage(Lang.msg("dock.player-land"));
+                return;
+            }
+            Dock t = new Dock(draft.name(), draft.kind(), draft.world(), draft.x(), draft.y(), draft.z(), draft.facing(), Dock.chunkText(claimed), draft.created());
+            tuningShops.put(key(t.name()), t);
+            cover = null;
+            store.saveTuningShop(t);
+            s.sendMessage(Lang.msg("tuningshop.building", "name", t.name(), "chunks", t.chunksTouched().size(), "claimed", claimed.size()));
+            rebuild(s, t, false);
+        }
+
+        @Override
+        public boolean remove(CommandSender s, String name) {
+            Dock t = name == null ? null : tuningShops.get(key(name));
+            if (t == null) return false;
+            tuningShops.remove(key(t.name()));
+            cover = null;
+            store.deleteTuningShop(t.name());
+            int land = eco.land().releaseServerChunks(t.world(), t.claimed());
+            World w = Bukkit.getWorld(t.world());
+            int gone = w == null ? 0 : DockBuilder.removeEntities(w, t.name(), t);
+            s.sendMessage(Lang.msg("tuningshop.removed", "name", t.name(), "land", land, "entities", gone));
+            return true;
+        }
+
+        @Override
+        public boolean redecorate(CommandSender s, String name) {
+            Dock t = name == null ? null : tuningShops.get(key(name));
+            if (t == null) return false;
+            rebuild(s, t, true);
+            return true;
+        }
+
+        @Override
+        public List<String> names() {
+            return tuningShops.values().stream().map(Dock::name).toList();
+        }
+
+        @Override
+        public void list(CommandSender s) {
+            for (Dock t : tuningShops.values()) s.sendMessage(Lang.mm("tuningshop.list-line", "name", t.name(), "world", t.world(), "x", t.x(), "y", t.y(), "z", t.z()));
+        }
+    }
+
+    /** Builds a terminal or a tuning shop (all of it, or only its decorations again). */
     private void rebuild(CommandSender s, Dock t, boolean decorOnly) {
         if (building != null) {
             s.sendMessage(Lang.msg("dock.busy"));
@@ -1270,8 +1362,9 @@ public final class DockModule extends EcoModule {
         }, () -> {
             building = null;
             Player q = who == null ? null : Bukkit.getPlayer(who);
-            (q != null ? q : Bukkit.getConsoleSender()).sendMessage(Lang.msg("terminal.built", "name", t.name()));
-            eco.getLogger().info("[출발 터미널] " + t.name() + " 지음: " + t.world() + " " + t.x() + ", " + t.y() + ", " + t.z());
+            boolean shop = t.kind() == DockLayout.Kind.TUNING;
+            (q != null ? q : Bukkit.getConsoleSender()).sendMessage(Lang.msg(shop ? "tuningshop.built" : "terminal.built", "name", t.name()));
+            eco.getLogger().info((shop ? "[튜닝샵] " : "[출발 터미널] ") + t.name() + " 지음: " + t.world() + " " + t.x() + ", " + t.y() + ", " + t.z());
         });
         if (decorOnly) building.decorOnly();
         building.start();

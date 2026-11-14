@@ -36,6 +36,25 @@ public final class DockStore {
         db.migrate("eco-terminals", List.of(List.of(
                 "CREATE TABLE IF NOT EXISTS stsv_eco_terminal (name VARCHAR(32) PRIMARY KEY, kind VARCHAR(8) NOT NULL, world VARCHAR(64) NOT NULL, "
                         + "x INT NOT NULL, y INT NOT NULL, z INT NOT NULL, facing INT NOT NULL, chunks " + text + ", created BIGINT NOT NULL)")));
+        db.migrate("eco-tuning-shops", List.of(List.of(
+                "CREATE TABLE IF NOT EXISTS stsv_eco_tuning_shop (name VARCHAR(32) PRIMARY KEY, kind VARCHAR(8) NOT NULL, world VARCHAR(64) NOT NULL, "
+                        + "x INT NOT NULL, y INT NOT NULL, z INT NOT NULL, facing INT NOT NULL, chunks " + text + ", created BIGINT NOT NULL)")));
+    }
+
+    /** The tuning shops (튜닝샵: a {@link Dock} of kind TUNING each, in a table of their own). */
+    public List<Dock> tuningShops() {
+        return db.sync(c -> Db.query(c, "SELECT name, world, x, y, z, facing, chunks, created FROM stsv_eco_tuning_shop ORDER BY created, name",
+                rs -> new Dock(rs.getString(1), DockLayout.Kind.TUNING, rs.getString(2), rs.getInt(3), rs.getInt(4), rs.getInt(5),
+                        rs.getInt(6), rs.getString(7), rs.getLong(8))));
+    }
+
+    public CompletableFuture<Void> saveTuningShop(Dock d) {
+        return db.execute(db.upsert("stsv_eco_tuning_shop", List.of("name"), List.of("kind", "world", "x", "y", "z", "facing", "chunks", "created")),
+                d.name(), d.kind().name(), d.world(), d.x(), d.y(), d.z(), d.facing(), d.chunks(), d.created());
+    }
+
+    public CompletableFuture<Boolean> deleteTuningShop(String name) {
+        return db.async(c -> Db.update(c, "DELETE FROM stsv_eco_tuning_shop WHERE name = ?", name) == 1);
     }
 
     /** The departure terminals (출발 터미널: a {@link Dock} of kind TERMINAL each, in a table of their own). */

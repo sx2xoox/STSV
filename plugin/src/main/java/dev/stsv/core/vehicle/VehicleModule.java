@@ -1272,6 +1272,11 @@ public final class VehicleModule implements StsvModule, Listener {
         tuner.command(p, args);
     }
 
+    /** A content plugin that builds tuning shops as buildings (the economy server); null takes it away again. */
+    public void tuningShops(TuningShops shops) {
+        tuner.built(shops);
+    }
+
     /** A cart's handle click box (it stands where the puller stands). */
     private static final float HANDLE_WIDTH = 0.7f, HANDLE_HEIGHT = 0.9f;
 
