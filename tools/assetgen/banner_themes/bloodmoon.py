@@ -107,9 +107,9 @@ def chat_geo(Geo):
 # at the bottom where mist lies, between two silver rails: the upper one is battlemented (merlons six columns wide,
 # a gap of two: the banner's silhouette), a fang hangs from it every 16 columns (from two of them in every tile a
 # drop of blood swells) and a ruby is set in every other merlon; the lower one ends in teeth the same way and is
-# stained with blood. The left end is the banner's crest: a crescent blood moon held between two bat's wings cast
-# in silver, its red light fading out before the words begin. The right end answers it: the rails close in a silver
-# cap, and a chain off it carries a spearhead with blood on its point. While it idles the moon's halo breathes and
+# stained with blood. The left end is the banner's crest: a crescent blood moon held between two bat's wings (silver
+# finger bones, a dark red membrane), its red light fading out before the words begin. The right end answers it:
+# the rails close in a solid silver cap with a ruby, and a chain off it carries a spearhead with blood on its point. While it idles the moon's halo breathes and
 # the drops swell. Every two seconds the moon flares and a flight of bats leaves it and crosses the whole banner:
 # black shapes with red eyes, beating their wings, and a wash of red light running with them. Bats are dark on a
 # dark sky, so the words stay plain to read even as they pass behind them (and the sky is kept dark there: C.hush).
@@ -120,9 +120,11 @@ CHAT_SILVER, CHAT_SILVER_D = (198, 192, 204), (92, 80, 94)
 CHAT_SILVER_L, CHAT_SILVER_K = (240, 238, 246), (34, 24, 38)
 # a wing's fingers, spread from its wrist: (degrees under the horizontal, length); the membrane between two
 # fingers is scalloped
-CHAT_WING = ((-8, 10.5), (24, 12.0), (56, 12.6), (88, 11.6))
-CHAT_LINK = (".SS.", "S..s", "S..s", "S..s", "S..s", ".ss.")
-CHAT_BLADE = (1.5, 3, 4.5, 5.5, 5, 4.5, 4, 3.5, 3, 2.5, 2, 1.5, 1, 0.5)   # the spearhead: half its height, column by column
+CHAT_WING = ((-6, 11.0), (41, 12.8), (88, 11.8))
+CHAT_MEMBRANE, CHAT_MEMBRANE_D, CHAT_MEMBRANE_K = (168, 26, 40), (92, 10, 24), (40, 4, 12)
+CHAT_CAP = 5                          # the right end's cap: columns of the plate
+CHAT_LINK = (".SSS.", "SSSSS", "SS.ss", "SS.ss", "SS.ss", "SS.ss", "SSsss", ".sss.")
+CHAT_BLADE = (1.5, 3, 4, 4.5, 4.5, 4, 3.5, 3, 2.5, 2, 1.5, 0.5)   # the spearhead, a leaf: half its height, column by column
 
 
 def chat_cell(G, x):
@@ -134,8 +136,8 @@ def chat_cell(G, x):
 
 
 def chat_wing(px, G, sx, sy, side):
-    """a bat's wing cast in silver, hanging from its wrist (sx, sy) to one side: bright finger bones, a darker
-    membrane between them with a scalloped edge, a dark outline"""
+    """a bat's wing, hanging from its wrist (sx, sy) to one side: three finger bones of silver, two texels thick,
+    and between them a membrane of dark red with a scalloped edge and a dark outline, so the wing is a shape"""
     for y in range(G.PY0, G.PY1 + 1):
         for x in range(int(sx) - 13, int(sx) + 14):
             dx, dy = (x + 0.5 - sx) * side, y + 0.5 - sy
@@ -145,12 +147,12 @@ def chat_wing(px, G, sx, sy, side):
             for (a0, r0), (a1, r1) in zip(CHAT_WING, CHAT_WING[1:]):
                 if a0 <= a <= a1: break
             f = (a - a0) / (a1 - a0)
-            edge = r0 + (r1 - r0) * f - 2.2 * math.sin(math.pi * f)
+            edge = r0 + (r1 - r0) * f - 2.8 * math.sin(math.pi * f)
             if r > edge + 0.2: continue
             bone = min(f, 1 - f) * math.radians(a1 - a0) * r          # texels from the nearer finger
-            if bone < 0.62: c = lerp(CHAT_SILVER_L, CHAT_SILVER, r / 11)
-            elif r > edge - 0.9: c = CHAT_SILVER_K
-            else: c = lerp(lerp((128, 116, 134), (66, 52, 70), r / 10), (120, 20, 34), 0.0)
+            if bone < 1.0: c = lerp(CHAT_SILVER_L, CHAT_SILVER, r / 12) if bone < 0.5 or f < 0.5 else lerp(CHAT_SILVER, CHAT_SILVER_D, r / 12)
+            elif r > edge - 0.9: c = CHAT_MEMBRANE_K
+            else: c = lerp(CHAT_MEMBRANE, CHAT_MEMBRANE_D, (r / 11) ** 1.3)
             C.put(px, G, x, y, c)
 
 
@@ -178,7 +180,7 @@ def chat_frame(G, i):
         wash = C.strength(u, rise=12, body=40, total=108)
         d = math.hypot(x + 0.5 - mx, y + 0.5 - my)
         dl, dr = x - G.PX0, G.PX1 - x
-        if y in (G.PY0, G.PY1) and (k % 8 >= 6 or dr == 0): continue                # the gaps between the merlons
+        if y in (G.PY0, G.PY1) and (dr == 0 or (k % 8 >= 6 and dr >= CHAT_CAP)): continue   # the gaps between the merlons
         if y == G.PY0:
             c = lerp(CHAT_SILVER, (120, 108, 124), C.noise(k, 0, 4, 4, 16, 16, 421))
             if k % 8 == 0: c = lerp(c, CHAT_SILVER_L, 0.6)
@@ -201,8 +203,10 @@ def chat_frame(G, i):
                 c = lerp(c, (196, 24, 34), 0.66 * (1 - (d - CHAT_MOON) / 26) ** 2 * (0.6 + 0.25 * halo + 0.5 * flare))
             c = lerp(c, (120, 14, 26), 0.40 * wash)
             if x >= G.PX0 + C.PAD - 3: c = C.hush(c, 0.045 + 0.035 * wash)
-        if dr < 3 and G.PY0 < y < G.PY1:                                             # the right end's cap
-            c = lerp(CHAT_SILVER, CHAT_SILVER_D, (y - G.PY0) / 16) if dr == 0 else lerp(CHAT_SILVER_L, CHAT_SILVER, (y - G.PY0) / 16) if dr == 1 else CHAT_SILVER_K
+        if dr < CHAT_CAP:                                                            # the right end's cap: a solid bar of silver
+            g = (y - G.PY0) / 17
+            c = (lerp((150, 142, 158), CHAT_SILVER_D, g), lerp(CHAT_SILVER, (150, 142, 158), g), lerp(CHAT_SILVER_L, CHAT_SILVER, g), lerp(CHAT_SILVER_L, CHAT_SILVER, 0.6 * g), CHAT_SILVER_K)[dr]
+            if dr in (1, 2) and y in (G.MID, G.MID + 1): c = ((214, 26, 44), (255, 110, 110), (96, 6, 18), (160, 12, 30))[(dr - 1) + 2 * (y - G.MID)]   # its ruby
         px[x, y] = tuple(c) + (255,)
 
     # the crest: two wings of silver, and between them the moon, a crescent lit from the upper left, the rest of
@@ -231,7 +235,7 @@ def chat_frame(G, i):
 
     # the bats
     if step >= 0:
-        for x in range(G.PX0 + 12, G.PX1 - 2):
+        for x in range(G.PX0 + 12, G.PX1 - CHAT_CAP + 1):
             u = behind(x)
             delay = (G.part(x) - G.FLOW0) // 16
             for at, row, beat in CHAT_BATS:
@@ -245,25 +249,29 @@ def chat_frame(G, i):
                     C.put(px, G, x, y, (3, 0, 2))
                 if int(col) in (4, 6): C.put(px, G, x, row - 1 + (0 if pose is BAT[0] else -1) + 1, (255, 64, 56))     # its eyes
 
-    # the right end: a chain of three links off the cap (two seen flat, one on edge between them) and on it a
-    # silver spearhead, lit above its ridge and in shade under it, blood on its point; a drop falls from it
+    # the right end: a chain off the cap, two links seen flat (their iron two texels thick) and one on edge
+    # through both, and on it a silver spearhead: a leaf with a bright edge, lit above its ridge and in shade under
+    # it, blood on its point; one drop of blood falls from it
+    for x in range(G.PX1 + 3, G.PX1 + 9):                                            # the link on edge, behind the two
+        C.put(px, G, x, G.MID, CHAT_SILVER); C.put(px, G, x, G.MID + 1, (112, 100, 116))
     for x0 in (G.PX1 + 1, G.PX1 + 6):
         for r, line in enumerate(CHAT_LINK):
             for c, v in enumerate(line):
-                if v != ".": C.put(px, G, x0 + c, G.MID - 2 + r, CHAT_SILVER if v == "S" else CHAT_SILVER_D)
-    for x in range(G.PX1 + 4, G.PX1 + 7):
-        C.put(px, G, x, G.MID, CHAT_SILVER_L); C.put(px, G, x, G.MID + 1, CHAT_SILVER_D)
-    bx = G.PX1 + 9
+                if v != ".": C.put(px, G, x0 + c, G.MID - 3 + r, lerp(CHAT_SILVER_L, CHAT_SILVER, r / 7) if v == "S" else lerp((150, 142, 158), CHAT_SILVER_D, r / 7))
+    bx = G.PX1 + 11
     for k, h in enumerate(CHAT_BLADE):
         for y in range(G.PY0, G.PY1 + 1):
             dy = y + 0.5 - 9.0
             if abs(dy) > h: continue
-            c = (CHAT_SILVER_L if dy > -1 else (214, 210, 222)) if dy < 0 else (CHAT_SILVER_D if dy < 1 else (128, 118, 134))
-            if abs(dy) > h - 1 and k < 4: c = lerp(c, CHAT_SILVER_K, 0.55)           # the blade's shoulders
-            if k >= 10: c = lerp(c, BLOOD if dy < 0 else BLOOD_D, 0.85 if k >= 11 else 0.5)
+            rim = abs(dy) > h - 1 or abs(dy) > CHAT_BLADE[min(k + 1, len(CHAT_BLADE) - 1)] or (k and abs(dy) > CHAT_BLADE[k - 1])
+            if rim: c = (255, 255, 255) if dy < 0 else (176, 170, 186)                # its edge, ground bright
+            elif abs(dy) < 1: c = CHAT_SILVER_L if dy < 0 else (84, 72, 88)           # the ridge
+            else: c = (150, 144, 162) if dy < 0 else (96, 86, 102)
+            if k >= 10: c = lerp(c, BLOOD_L if dy < 0 else BLOOD, 0.9)
+            elif k == 9 and not rim: c = lerp(c, BLOOD, 0.6)
             C.put(px, G, bx + k, y, c)
     fall = (idle if step < 0 else step % 4)
-    C.put(px, G, bx + 12, G.MID + 3 + fall, BLOOD)
-    C.put(px, G, bx + 12, G.MID + 4 + fall, BLOOD_L if fall < 3 else BLOOD_D)
+    C.put(px, G, bx + 10, G.MID + 3 + fall, BLOOD)
+    C.put(px, G, bx + 10, G.MID + 4 + fall, BLOOD_L if fall < 3 else BLOOD_D)
     C.gem7(px, G, CHAT_GEM)
     return im

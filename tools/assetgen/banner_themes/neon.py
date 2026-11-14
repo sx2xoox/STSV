@@ -113,8 +113,8 @@ CHAT_GLITCH = True
 
 # The chat banner: a neon sign box. A black box in a housing of dark metal: a cap with two screws closes it at
 # either end, and inside the caps two tubes run round it, a magenta one outside and a cyan one inside it, bending
-# round the cut corners. Every 16 columns a metal bracket with a screw holds the tubes, and the magenta tube ends on
-# either side of it (a notch in the top and bottom rows: the tube is made of lengths, like a real sign's). A lit tube
+# round the cut corners. Every 16 columns a metal clip with a screw sits on the tubes and holds them: the tubes
+# run on unbroken, only the clip (three columns) covers them. A lit tube
 # has a pale hot core; the tubes' light spills on to the first rows of the box. The current runs round the cyan
 # tube as a bright spot (to the right along the top, back along the bottom); the magenta tube breathes and stutters
 # now and then. Inside, a dark screen: scan lines, a faint grid, and a soft bar of light that sweeps across it; in
@@ -190,7 +190,6 @@ def chat_frame(G, i):
             lit = (outer and upper) or (not outer and not upper)
             c = (CHAT_SCREW if lit and upper else CHAT_METAL_L if lit or outer else CHAT_METAL) if k == 1 else (CHAT_METAL if lit else CHAT_METAL_D)
         elif ring == 0:
-            if outer and k in (3, 15) and d >= CHAT_CAP + CHAT_CUT + 2: continue     # a length of tube ends
             c = MAG_D if dim_m else lerp(lerp(MAG, (255, 255, 255), 0.30 + 0.16 * breath), MAG, 0.0 if upper else 0.5)
         elif ring == 1:
             c = CYA_D if dim_c else lerp(lerp(CYA, (255, 255, 255), 0.22 if upper else 0.06), (255, 255, 255), 0.75 * spot(x, y))

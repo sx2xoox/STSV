@@ -209,6 +209,7 @@ EMBLEM = (("...r...", "..rr...", "..ror..", ".rroor.", ".royor.", "rroyyor", "ro
           ("....r..", "...rr..", "..rorr.", ".rroor.", ".royyor", "rroywor", "royywor", "rooyyor", ".rrorr."))
 EMBLEM_COLOURS = {"r": (226, 62, 14), "o": (255, 150, 36), "y": (255, 222, 110), "w": (255, 250, 222)}
 EMBER = ("..o..", ".oyr.", "oywor", ".oor.", "..r..")
+STRAP_RIM, STRAP_RIM_L, STRAP_RIVET = (255, 140, 40), (255, 190, 100), (255, 242, 214)
 BOSS = 9.0                    # the left end's iron boss: its radius (it fills the chat line's 18 rows)
 SPIKE = 12                    # the right end's iron spearhead: columns
 
@@ -224,7 +225,8 @@ def frame_colour(G, x, y, e):
     silhouette: nothing is drawn). e: how strong the gust burns here (0: idle). Two rails of forged black iron, an
     upper and a lower one, each two rows: an outer row of hammered iron and an inner lip that the fire inside keeps
     red hot (a dark red: letters touch it). Every 16 columns a strap is forged round the rail: a lug with a rivet,
-    with a notch on either side of it."""
+    with a notch on either side of it; the lug's outer edge is lit hot orange by the fire (a rim light, so the
+    straps show before a dark background) and its rivet shines."""
     if G.PY0 + 1 < y < G.PY1 - 1:
         return None
     k = cell(G, x)
@@ -233,9 +235,9 @@ def frame_colour(G, x, y, e):
     if y in (G.PY0, G.PY1):
         if k in (5, 10):
             return False
-        if 6 <= k <= 9:                                       # the strap's lug and its rivet
-            c = (IRON_L if k in (7, 8) else IRON_H) if upper else (IRON_H if k in (7, 8) else IRON)
-            return C.lerp(c, (255, 170, 70), 0.25 * e)
+        if 6 <= k <= 9:                                       # the strap's lug: its outer edge catches the fire's light, a bright rivet on it
+            c = (STRAP_RIVET if k == 7 else STRAP_RIM_L if k == 8 else STRAP_RIM) if upper else ((255, 214, 150) if k == 7 else (232, 130, 50) if k == 8 else (200, 84, 24))
+            return C.lerp(c, (255, 226, 150), 0.35 * e)
         c = C.lerp(IRON, IRON_H, hammer) if upper else C.lerp(C.lerp(IRON_D, IRON, hammer), (170, 52, 16), 0.30)
         return C.lerp(c, (255, 150, 50), 0.35 * e)
     if 6 <= k <= 9:
