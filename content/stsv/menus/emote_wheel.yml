@@ -1,0 +1,94 @@
+# 감정표현 휠 (/감정표현, 제자리에서 Ctrl + Shift): 가운데 원판의 일곱 칸(둘레 여섯 + 가운데)에 내가 놓아 둔 감정표현.
+# 칸 좌클릭 = 바로 하기 · 우클릭 = 그 칸에 놓을 감정표현 고르기 (가진 것 중에서). 감정표현은 후원 상점(/후원)에서 삽니다.
+# wheel: 원판 위에 놓이는 칸 글자 (배경에 원판 · 칸막이 · 둥근 자리가 그려짐, tools/assetgen/stsv_assets/menu_theme.py).
+#        글자 순서 = 칸 번호 (a = 1번 … g = 7번), 마지막 글자가 가운데.
+# 자리표시자: {owned} 가진 감정표현 수 · {total} 전체 수 · {playing} 지금 하는 감정표현
+emote_wheel:
+  title: "<#f0e2b0>감정표현 <#8f86a6>· {owned}/{total}"
+  rows: 6
+  background: stsv:gui/emote_wheel
+  wheel: "abcdefg"
+  layout:
+    - "I.......X"
+    - "....a...."
+    - "..f...b.."
+    - "....g...."
+    - "..e...c.."
+    - "Z...d...H"
+  buttons:
+    a: { action: "emote:slot:0", material: PAPER, name: "<gray>빈 칸" }
+    b: { action: "emote:slot:1", material: PAPER, name: "<gray>빈 칸" }
+    c: { action: "emote:slot:2", material: PAPER, name: "<gray>빈 칸" }
+    d: { action: "emote:slot:3", material: PAPER, name: "<gray>빈 칸" }
+    e: { action: "emote:slot:4", material: PAPER, name: "<gray>빈 칸" }
+    f: { action: "emote:slot:5", material: PAPER, name: "<gray>빈 칸" }
+    g: { action: "emote:slot:6", material: PAPER, name: "<gray>빈 칸" }
+    I:
+      action: ""
+      icon: stsv:gui/info
+      material: BOOK
+      name: "<white>감정표현 휠"
+      lore: ["<gray>칸 <white>좌클릭</white>: 그 감정표현 하기", "<gray>칸 <white>우클릭</white>: 그 칸에 놓을 것 고르기",
+             "", "<gray>여는 법: <white>/감정표현</white> 또는 제자리에서 <white>Ctrl + Shift",
+             "<gray>하는 중에는 <white>웅크리면</white> 끝납니다.", "", "<dark_gray>감정표현은 후원 상점(/후원)에서 삽니다."]
+    Z:
+      action: "emote:stop"
+      icon: stsv:gui/cancel
+      material: BARRIER
+      name: "<red>그만하기"
+      lore: ["<gray>지금 하는 감정표현: <white>{playing}"]
+    H:
+      action: "command:후원"
+      icon: stsv:gui/star
+      material: NETHER_STAR
+      name: "<gold>후원 상점"
+      lore: ["<gray>새 감정표현 구하기"]
+    X:
+      action: close
+      icon: stsv:gui/exit
+      material: OAK_DOOR
+      name: "<red>닫기"
+
+# 휠의 한 칸에 놓을 감정표현 고르기: 전체 감정표현 (가진 것 먼저). 가진 것 클릭 = 그 칸에 놓기.
+# 자리표시자: {slot} 고르는 칸 번호
+emote_pick:
+  title: "<#f0e2b0>감정표현 고르기 <#8f86a6>· {slot}번 칸"
+  rows: 4
+  background: stsv:gui/emote_pick
+  layout:
+    - "TTTTTTTTT"
+    - "TTTTTTTTT"
+    - "TTTTTTTTT"
+    - "P.E.B.H.N"
+  list: T
+  buttons:
+    E:
+      action: "emote:empty"
+      icon: stsv:gui/clear
+      material: BARRIER
+      name: "<red>이 칸 비우기"
+    B:
+      action: "emote:wheel"
+      icon: stsv:gui/back
+      material: ARROW
+      name: "<yellow>휠로 돌아가기"
+    H:
+      action: "command:후원"
+      icon: stsv:gui/star
+      material: NETHER_STAR
+      name: "<gold>후원 상점"
+      lore: ["<gray>새 감정표현 구하기"]
+    P:
+      action: page:prev
+      icon: stsv:gui/prev
+      material: ARROW
+      name: "<yellow>◀ 이전 페이지"
+      lore: ["<gray>{page} / {pages}"]
+      off: { icon: stsv:gui/prev_off, material: GRAY_DYE, name: "<dark_gray>◀ 첫 페이지" }
+    N:
+      action: page:next
+      icon: stsv:gui/next
+      material: ARROW
+      name: "<yellow>다음 페이지 ▶"
+      lore: ["<gray>{page} / {pages}"]
+      off: { icon: stsv:gui/next_off, material: GRAY_DYE, name: "<dark_gray>마지막 페이지 ▶" }

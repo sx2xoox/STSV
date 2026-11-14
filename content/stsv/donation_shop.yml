@@ -7,16 +7,23 @@
 #   - 값은 사기 전에 보여 주고 (이 상점 화면), 구매 내역을 볼 수 있게 함 (/후원 내역).
 #   - 공식 Minecraft 제품이 아니라는 안내를 둠 (아래 notice).
 #
-# 상품 = id: { name, price (재화), description (상점에 보이는 설명), once: true 면 한 번만 살 수 있음,
+# 상품 = id: { name, price (재화), description (상점 칸의 설명: 한 줄 또는 여러 줄 목록), once: true 면 한 번만 살 수 있음,
 #              item: 커스텀 아이템 id (인벤토리로 지급. 탈것은 산 사람에게 귀속됨),
-#              commands: [콘솔이 실행할 명령어, ...] ({player} = 산 사람의 이름) }
-#   item 과 commands 는 둘 중 하나만 있어도 되고 둘 다 있어도 됨. 관리자 명령어로 줄 수 있는 것은 commands 로 무엇이든 팔 수 있음:
+#              unlocks: [종류:id, ...] 산 사람이 영구히 가지는 것 (아이템이 아니라 계정에 남음. 이것만 있는 상품은 한 번만 살 수 있음)
+#                  banner:<테마>        칭호 배너 (/칭호 의 칭호 배너 화면에서 장착)   테마 id: /관리자 해금 종류
+#                  emote:<감정표현>     감정표현 (/감정표현 휠에 놓고 씀)
+#                  tool_skin:<스킨>     도구 스킨 (/스킨 에서 켬)
+#              commands: [콘솔이 실행할 명령어, ...] ({player} = 산 사람의 이름),
+#              icon: 상점 칸의 그림을 따로 정할 때 (커스텀 아이템 id, 리소스팩 아이템 모델 "stsv:gui/star", 또는 바닐라 아이템 이름) }
+#   item · unlocks · commands 중 하나는 있어야 하고 여럿이어도 됨. 관리자 명령어로 줄 수 있는 것은 commands 로 무엇이든 팔 수 있음:
 #     치장      commands: ["관리자 치장 지급 {player} stsv:butterfly_wings"]
 #     칭호      commands: ["관리자 칭호 지급 {player} <칭호 id>"]
+# 분류 = id: { name, icon (탭 그림: 리소스팩 아이템 모델 또는 바닐라 아이템 이름), products: [상품 id, ...] }. 화면의 탭은 일곱 개까지.
 # 값을 고치거나 상품을 더하고 /관리자 리로드. 이미 산 사람의 내역에는 영향 없음.
+# 환불 (/관리자 후원 환불 <내역 번호>) 은 값을 돌려주고 unlocks 로 준 것을 도로 가져감 (아이템 · commands 로 준 것은 관리자가 따로).
 #
-# 별 1개 = 100원 (입금 1,000원마다 별 10개를 지급). 아래 값은 이 기준: 300★ = 30,000원, 250★ = 25,000원.
-# 안내문의 입금 방법 · 문의처는 서버 주인이 채워야 함.
+# 별 1개 = 100원 (입금 1,000원마다 별 10개를 지급). 아래 값은 이 기준: 300★ = 30,000원, 250★ = 25,000원, 50★ = 5,000원, 30★ = 3,000원.
+# 칭호 배너 · 감정표현의 값은 임시로 넣은 것: 서버 주인이 정하면 됨. 안내문의 입금 방법 · 문의처도 서버 주인이 채워야 함.
 
 currency:
   name: "별"
@@ -32,21 +39,113 @@ notice:
 categories:
   cars:
     name: "후원 차량"
+    icon: "stsv:gui/don_car"
     products: [hyper_car, grand_sedan, luxury_suv]
+  banners:
+    name: "칭호 배너"
+    icon: "stsv:gui/flag"
+    products: [banner_fire, banner_lightning, banner_neon, banner_bloodmoon, banner_prism, banner_royal, banner_frost, banner_void, banner_toxic, banner_blossom]
+  emotes:
+    name: "감정표현"
+    icon: "stsv:gui/emote_any"
+    products: [emote_twerk, emote_take_l, emote_disco, emote_cheer]
 
 products:
   hyper_car:
     name: "하이퍼카"
     price: 300          # 30,000원
-    description: "<gray>낮고 넓은 2인승 쿠페. 위로 열리는 문, 속도가 붙으면 올라오는 윙, 드리프트. <dark_gray>성능은 이벤트 로드스터와 같습니다."
+    description:
+      - "<gray>낮고 넓은 2인승 쿠페."
+      - "<gray>위로 열리는 문, 속도가 붙으면 올라오는 윙, 드리프트."
+      - "<dark_gray>성능은 이벤트 로드스터와 같습니다."
     item: stsv:hyper_car
   grand_sedan:
     name: "그랜드 세단"
     price: 250          # 25,000원
-    description: "<gray>길고 낮은 4인승 대형 세단. 가운데에서 열리는 문 4짝, 시동을 걸면 올라오는 마스코트. <dark_gray>최고 속도는 서버 상한 그대로입니다."
+    description:
+      - "<gray>길고 낮은 4인승 대형 세단."
+      - "<gray>가운데에서 열리는 문 4짝, 시동을 걸면 올라오는 마스코트."
+      - "<dark_gray>최고 속도는 서버 상한 그대로입니다."
     item: stsv:grand_sedan
   luxury_suv:
     name: "몬스터 오프로더"
     price: 250          # 25,000원
-    description: "<gray>문짝만 한 바퀴로 한 블록 떠 있는 4인승. 험한 땅에서도 느려지지 않습니다. <dark_gray>최고 속도는 배달 오토바이보다 느립니다."
+    description:
+      - "<gray>문짝만 한 바퀴로 한 블록 떠 있는 4인승."
+      - "<gray>험한 땅에서도 느려지지 않습니다."
+      - "<dark_gray>최고 속도는 배달 오토바이보다 느립니다."
     item: stsv:luxury_suv
+
+  # 칭호 배너: 칭호와 닉네임을 움직이는 판에 담아 채팅 · 탭 목록 · 머리 위에 보여 줌. 상점 칸에 내 이름으로 미리보기가 나옴
+  banner_fire:
+    name: "화염 배너"
+    price: 50           # 5,000원
+    description: ["<gray>판 안쪽을 훑고 지나가는 불길."]
+    unlocks: ["banner:fire"]
+  banner_lightning:
+    name: "번개 배너"
+    price: 50           # 5,000원
+    description: ["<gray>레일을 타고 달리는 방전."]
+    unlocks: ["banner:lightning"]
+  banner_neon:
+    name: "네온 배너"
+    price: 50           # 5,000원
+    description: ["<gray>깜빡이는 네온 간판과 화면 찢김."]
+    unlocks: ["banner:neon"]
+  banner_bloodmoon:
+    name: "혈월 배너"
+    price: 50           # 5,000원
+    description: ["<gray>붉은 달에서 날아오르는 박쥐 떼."]
+    unlocks: ["banner:bloodmoon"]
+  banner_prism:
+    name: "프리즘 배너"
+    price: 50           # 5,000원
+    description: ["<gray>모서리를 따라 흐르는 무지개빛 수정."]
+    unlocks: ["banner:prism"]
+  banner_royal:
+    name: "황금 배너"
+    price: 50           # 5,000원
+    description: ["<gray>진홍 벨벳과 보석 박힌 금 레일."]
+    unlocks: ["banner:royal"]
+  banner_frost:
+    name: "서리 배너"
+    price: 50           # 5,000원
+    description: ["<gray>서리가 번지는 얼음판과 눈송이."]
+    unlocks: ["banner:frost"]
+  banner_void:
+    name: "심연 배너"
+    price: 50           # 5,000원
+    description: ["<gray>룬에서 룬으로 건너가는 보랏빛과 성운."]
+    unlocks: ["banner:void"]
+  banner_toxic:
+    name: "맹독 배너"
+    price: 50           # 5,000원
+    description: ["<gray>끓어오르는 독 웅덩이와 점액."]
+    unlocks: ["banner:toxic"]
+  banner_blossom:
+    name: "벚꽃 배너"
+    price: 50           # 5,000원
+    description: ["<gray>바람에 흩날리는 꽃잎."]
+    unlocks: ["banner:blossom"]
+
+  # 감정표현: 내 스킨을 입은 인형이 내 몸 대신 하는 동작. /감정표현 휠에 놓고 씀 (인사는 누구나 할 수 있음: config.yml emotes.free)
+  emote_twerk:
+    name: "트월킹"
+    price: 30           # 3,000원
+    description: ["<gray>허리를 숙이고 골반을 튕기는 춤 (되풀이)."]
+    unlocks: ["emote:twerk"]
+  emote_take_l:
+    name: "L을 가져가"
+    price: 30           # 3,000원
+    description: ["<gray>이마에 L 을 대고 약 올리는 춤 (되풀이)."]
+    unlocks: ["emote:take_l"]
+  emote_disco:
+    name: "디스코"
+    price: 30           # 3,000원
+    description: ["<gray>한 팔을 하늘로 찌르는 디스코 (되풀이)."]
+    unlocks: ["emote:disco"]
+  emote_cheer:
+    name: "만세"
+    price: 30           # 3,000원
+    description: ["<gray>두 팔을 번쩍 들고 뛰는 만세 (되풀이)."]
+    unlocks: ["emote:cheer"]

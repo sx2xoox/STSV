@@ -182,6 +182,75 @@ class DonationTest {
         }
     }
 
+    /** Products that give what is owned for good: banners, emotes, tool skins. */
+    @Test
+    void thingsOwnedForGood() throws Exception {
+        YamlConfiguration y = new YamlConfiguration();
+        y.loadFromString("""
+                categories:
+                  a: { name: "배너", icon: "stsv:gui/flag", products: [fire, set, both, bad, none] }
+                products:
+                  fire: { name: "화염 배너", price: 50, description: ["한 줄", "두 줄"], unlocks: ["banner:fire"] }
+                  set:  { name: "세트", price: 90, unlocks: ["tool_skin:toy_sword", "tool_skin:toy_axe"], icon: "stsv:toy_sword" }
+                  both: { name: "차와 배너", price: 300, item: "stsv:car", unlocks: ["banner:frost"] }
+                  bad:  { name: "틀린 것", price: 10, unlocks: ["fire"] }
+                  none: { name: "빈 것", price: 10 }
+                """);
+        List<String> problems = new ArrayList<>();
+        DonationShop shop = DonationShop.parse(y, id -> id.equals("stsv:car"), problems::add);
+        assertEquals(Set.of("fire", "set", "both"), shop.products().keySet());
+        assertEquals(4, problems.size(), String.join("\n", problems));      // bad, none, and both left out of the category
+        DonationShop.Product fire = shop.products().get("fire");
+        assertEquals(List.of("banner:fire"), fire.unlocks());
+        assertTrue(fire.once(), "what is owned for good is bought once");
+        assertEquals("한 줄\n두 줄", fire.description(), "a list of lines is the tile's lines");
+        assertEquals(2, shop.products().get("set").unlocks().size(), "a set: several things in one product");
+        assertEquals("stsv:toy_sword", shop.products().get("set").icon());
+        assertFalse(shop.products().get("both").once(), "with an item it can be bought again (the item is wanted twice)");
+        assertEquals("stsv:gui/flag", shop.categories().get("a").icon());
+    }
+
+    /** The shipped shop's banners and emotes are ones there are, and the menu has a tab for every category. */
+    @Test
+    void theShippedShopsUnlocks() throws Exception {
+        DonationShop shop = DonationShop.parse(YamlConfiguration.loadConfiguration(PACK.resolve("donation_shop.yml").toFile()), id -> true, p -> { });
+        Set<String> banners = dev.stsv.core.banner.BannerCatalog.get().themes().keySet();
+        YamlConfiguration emotes = YamlConfiguration.loadConfiguration(PACK.resolve("emotes.yml").toFile());
+        var config = YamlConfiguration.loadConfiguration(new InputStreamReader(getClass().getResourceAsStream("/config.yml"), StandardCharsets.UTF_8));
+        Set<String> sold = new java.util.HashSet<>();
+        for (DonationShop.Product p : shop.products().values()) {
+            for (String u : p.unlocks()) {
+                String[] thing = dev.stsv.core.unlock.UnlockModule.split(u);
+                assertTrue(sold.add(u), u + " is sold twice");
+                switch (thing[0]) {
+                    case "banner" -> assertTrue(banners.contains(thing[1]), p.id() + ": no banner theme " + thing[1]);
+                    case "emote" -> {
+                        assertTrue(emotes.contains("emotes." + thing[1]), p.id() + ": no emote " + thing[1]);
+                        assertFalse(config.getStringList("emotes.free").contains(thing[1]), p.id() + ": a free emote is not sold");
+                    }
+                    case "tool_skin" -> { }      // ToolSkinsTest: every skin sold is a skin there is
+                    default -> throw new AssertionError(p.id() + ": unknown kind " + thing[0]);
+                }
+            }
+            // a tile's lines fit beside the menu: short lines, a few of them
+            for (String line : p.description().split("\n")) assertTrue(dev.stsv.core.util.Text.plain(line).length() <= 40, p.id() + ": " + line);
+        }
+        for (String theme : banners) assertTrue(sold.contains("banner:" + theme), "the " + theme + " banner is not for sale");
+        // the menu: a tab a category
+        YamlConfiguration menu = YamlConfiguration.loadConfiguration(PACK.resolve("menus/donation.yml").toFile());
+        long tabs = menu.getConfigurationSection("donation.buttons").getKeys(false).stream()
+                .filter(k -> menu.getString("donation.buttons." + k + ".action", "").matches("donation:tab:\\d+")).count();
+        assertEquals(7, tabs);
+        assertTrue(shop.categories().size() <= tabs, "more categories than the menu has tabs");
+        for (DonationShop.Category c : shop.categories().values()) {
+            if (c.icon() != null && c.icon().startsWith("stsv:")) {
+                assertTrue(java.nio.file.Files.isRegularFile(PACK.resolve("assets/stsv/items/" + c.icon().substring(5) + ".json")), c.id() + ": " + c.icon());
+            }
+        }
+        assertTrue(menu.contains("donation_buy.buttons.Y"), "a purchase is confirmed on a screen of its own");
+        assertEquals("donation:confirm", menu.getString("donation_buy.buttons.Y.action"));
+    }
+
     @Test
     void theCommandAndItsWords() {
         var plugin = YamlConfiguration.loadConfiguration(new InputStreamReader(getClass().getResourceAsStream("/plugin.yml"), StandardCharsets.UTF_8));
@@ -191,8 +260,8 @@ class DonationTest {
         assertTrue(config.getBoolean("donation.enabled"));
         var messages = YamlConfiguration.loadConfiguration(new InputStreamReader(getClass().getResourceAsStream("/messages.yml"), StandardCharsets.UTF_8));
         for (Kind k : Kind.values()) assertTrue(messages.isString("donation.kind." + k.name().toLowerCase()), k.name());
-        for (String key : List.of("title", "balance", "bought", "short", "already", "delivered", "pending-room", "no-room", "received", "admin-given",
-                "admin-taken", "admin-refunded", "admin-refunded-pending", "admin-refunded-before", "history-entry", "history-pending", "product-final")) {
+        for (String key : List.of("tab-history", "tile-name", "history-tile-name", "not-sellable", "balance", "bought", "short", "already", "delivered", "pending-room", "no-room", "received", "admin-given",
+                "admin-taken", "admin-refunded", "admin-refunded-pending", "admin-refunded-before", "history-entry", "history-pending")) {
             assertTrue(messages.isString("donation." + key), key);
         }
     }

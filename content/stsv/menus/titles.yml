@@ -1,21 +1,20 @@
-# /칭호: 위 = 분류 탭 (전체 + 칭호 분류 6개, 이름 옆 = 가진 수/전체 수; 오른쪽 끝 = 칭호 배너, 관리자에게만 보임),
+# /칭호: 위 = 분류 탭 (전체 + 칭호 분류 6개, 이름 옆 = 가진 수/전체 수),
 # 가운데 = 그 분류의 칭호 (장착 중 → 보유 → 아직 없는 것과 얻는 법). 클릭 = 장착 / 해제
+# 아래 왼쪽 깃발 = 칭호 배너 (가진 배너 먼저, 없는 배너는 잠긴 채 내 이름으로 미리보기. 배너는 후원 상점 /후원 에서)
 # 칭호의 분류는 contents/<팩>/titles/*.yml 의 category (achievement, job, codex, ranking, shop, event)
-# secret = 배경에 칸을 그리지 않는 버튼 (볼 수 있는 사람에게만 아이템이 놓임)
 # 자리표시자: {tab} 지금 탭 · {n_<탭>} 가진 수/전체 수 · {owned} {total} {worn} · {banner} 장착한 배너
 titles:
   title: "<#f0e2b0>칭호 <#b9a6d6>· {tab} <#8f86a6>· {owned} / {total}"
   rows: 6
   background: stsv:gui/titles
   tabs: "ABCDEFG"
-  secret: "Z"
   layout:
-    - ".ABCDEFGZ"
+    - ".ABCDEFG."
     - "TTTTTTTTT"
     - "TTTTTTTTT"
     - "TTTTTTTTT"
     - "TTTTTTTTT"
-    - "P..OXI..N"
+    - "P.ZO.XI.N"
   list: T
   buttons:
     # 분류 탭: 지금 탭은 반짝임
@@ -62,7 +61,7 @@ titles:
       action: "titles:tab:banner"
       material: RED_BANNER
       name: "<gold>칭호 배너 <gray>{n_banner}"
-      lore: ["<gray>칭호 · 닉네임을 움직이는 판에 담기", "<gray>장착: <white>{banner}", "", "<dark_gray>관리자 테스트 기능"]
+      lore: ["<gray>칭호 · 닉네임을 움직이는 판에 담아", "<gray>채팅 · 탭 목록 · 머리 위에 보여 줍니다.", "<gray>장착: <white>{banner}", "", "<dark_gray>배너는 후원 상점(/후원)에서 구합니다."]
     I:
       action: ""
       icon: stsv:gui/info

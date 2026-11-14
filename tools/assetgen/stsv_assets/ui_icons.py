@@ -257,6 +257,7 @@ def icons():
     out.update(price_icons())
     out.update(wardrobe_icons())
     out.update(tuning_icons())
+    out.update(donation_icons())
     return out
 
 
@@ -1244,3 +1245,200 @@ def tuning_icons():
     out["coins_off"] = _dimmed(_art("coins"))
     out["clear_off"] = _dimmed(_art("clear"))
     return out
+
+
+# ------------------------------------------------------------------------------------------------
+# The donation shop (/후원), the emote wheel (/감정표현)
+# ------------------------------------------------------------------------------------------------
+
+STAR = [   # 별 (the donation currency): a fat five-pointed star
+    "",
+    ".......ll",
+    ".......ll",
+    "......llll",
+    "......lggl",
+    ".llllllggllllll",
+    "..lgggggggggYl",
+    "...lggggggggY",
+    "....lggggggY",
+    "....lggggggY",
+    "...lgggYYgggY",
+    "...lggY..YggY",
+    "..lgY......YgY",
+    "..YY........YY",
+]
+
+GIFT = [   # 받기: a wrapped box with a ribbon
+    "",
+    "....rr..rr",
+    "...r..rr..r",
+    "....rrrrrr",
+    "..eeeerreeee",
+    "..eeeerreeeeE",
+    "..EEEErrEEEEE",
+    "...eeerreee",
+    "...eeerreeeE",
+    "...eeerreeeE",
+    "...eeerreeeE",
+    "...eeerreeeE",
+    "...EEERREEEE",
+]
+
+DON_CAR = [   # 후원 차량: a low coupe from the side
+    "",
+    "",
+    "",
+    "",
+    ".....rrrrrr",
+    "....rnnrnnnr",
+    "...rrnnrnnnrr",
+    ".rrrrrrrrrrrrrr",
+    "rrrrrrrrrrrrryR",
+    "RRtttRRRRRtttRR",
+    "..tTTt...tTTt",
+    "..tsst...tsst",
+    "...tt.....tt",
+]
+
+DON_TOY = [   # 장난감: a party rocket with a striped body and sparks
+    "",
+    ".......l...l",
+    "..l......c",
+    ".....rr....l",
+    "....rrrr",
+    "...rrrrrr.c",
+    "...######",
+    "...bbbbbb",
+    "...######",
+    "...bbbbbb",
+    "...######",
+    "...GGGGGG",
+    ".....oo",
+    ".....oo",
+    ".....oO",
+]
+
+EMOTE_ANY = [   # an emote nobody drew an icon for: a smiling face
+    "",
+    "....yyyyyy",
+    "...yyyyyyyy",
+    "..yyyyyyyyyy",
+    "..yykyyyykyy",
+    "..yykyyyykyy",
+    "..yyyyyyyyyy",
+    "..yyyyyyyyyy",
+    "..ykyyyyyykY",
+    "..yykkkkkkyY",
+    "...yyyyyyyY",
+    "....YYYYYY",
+]
+
+EMOTE_EMPTY = [   # an empty place of the wheel: a dim plus
+    "",
+    "",
+    "",
+    "",
+    ".......tt",
+    ".......tt",
+    ".......tt",
+    "....tttttttt",
+    "....tttttttt",
+    ".......tt",
+    ".......tt",
+    ".......tt",
+]
+
+EMOTE_CHEER = [   # 만세: both arms straight up
+    "",
+    "..#....yy....#",
+    "..#...yyyy...#",
+    "..bb..yyyy..bb",
+    "...bb..yy..bb",
+    "....bbbbbbbb",
+    ".....bbbbbb",
+    "......bbbb",
+    "......bbbb",
+    "......BBBB",
+    ".....tttttt",
+    ".....tt..tt",
+    ".....tt..tt",
+    ".....tt..tt",
+    "....kkk..kkk",
+]
+
+EMOTE_BOW = [   # 인사: bent at the waist, head down in front
+    "",
+    "",
+    "",
+    "",
+    "..........bbbb",
+    "...yy..bbbbbbb",
+    "..yyyybbbbbbbb",
+    "..yyyybbb.bBBB",
+    "...yy.....tttt",
+    "..........tttt",
+    "..........tt.tt",
+    "..........tt.tt",
+    "..........tt.tt",
+    ".........kkk.kkk",
+]
+
+EMOTE_DISCO = [   # 디스코: one arm pointing up and out, the other down across
+    "",
+    "............#",
+    "...........bb",
+    ".....yy...bb",
+    "....yyyy.bb",
+    "....yyyybb",
+    ".....yybb",
+    "....bbbbb",
+    "...bbbbbb",
+    "..bb.bbbb",
+    ".#b..BBBB",
+    ".....tttt",
+    "....tt..tt",
+    "...tt....tt",
+    "..kkk....kkk",
+]
+
+EMOTE_TAKE_L = [   # L을 가져가: a big L held to the forehead
+    "",
+    "..ll",
+    "..ll",
+    "..ll....yyyy",
+    "..ll...yyyyyy",
+    "..ll...ykyyky",
+    "..llllGyyyyyy",
+    "..llllG.ykky",
+    "..GGGGG..yy",
+    ".....bbbbbbbb",
+    "....bb.bbbb.bb",
+    "....#..bbbb..#",
+    ".......BBBB",
+    ".......tttt",
+    ".......t..t",
+]
+
+EMOTE_TWERK = [   # 트월킹: bent low, hips back and bouncing (motion lines behind)
+    "",
+    "",
+    "",
+    ".............c",
+    "........bbb...c",
+    "..yy..bbbbbb.c",
+    ".yyyybbbbbbBB",
+    ".yyyybbb.ttttt",
+    "..yy.b...ttttt.c",
+    ".....b....tt.tt",
+    ".....#....tt..tt",
+    "..........tt..tt",
+    ".........kkk.kkk",
+]
+
+
+def donation_icons():
+    """The donation shop's own buttons (the currency, the claim box, two category tabs) and the emote wheel's (an icon
+    an emote: emote_<id>, the plain one for an emote nobody drew, an empty place)."""
+    return {"star": draw(STAR), "gift": draw(GIFT), "don_car": draw(DON_CAR), "don_toy": draw(DON_TOY),
+            "emote_any": draw(EMOTE_ANY), "emote_empty": draw(EMOTE_EMPTY), "emote_cheer": draw(EMOTE_CHEER), "emote_bow": draw(EMOTE_BOW),
+            "emote_disco": draw(EMOTE_DISCO), "emote_take_l": draw(EMOTE_TAKE_L), "emote_twerk": draw(EMOTE_TWERK)}

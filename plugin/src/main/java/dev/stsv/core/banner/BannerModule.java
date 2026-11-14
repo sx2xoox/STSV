@@ -21,9 +21,11 @@ import java.util.UUID;
 import java.util.concurrent.ConcurrentHashMap;
 
 /**
- * Title banners (칭호 배너), an admin-only test feature: an animated plate "칭호 ◆ 닉네임" in place of the title and
- * name in chat, the tab list and the name tag. Admins (op or {@link #PERMISSION}) pick one in /칭호's banner tab;
- * nobody else sees the tab, and a banner of someone who lost the permission is not shown.
+ * Title banners (칭호 배너): an animated plate "칭호 ◆ 닉네임" in place of the title and name in chat, the tab list and
+ * the name tag. A player wears the banners they own (bought in the donation shop or given by an admin:
+ * {@link dev.stsv.core.unlock.UnlockModule}, kind {@link #KIND}); admins (op or {@link #PERMISSION}) wear any. They are
+ * picked in /칭호's banner tab, where the ones a player does not own are shown locked with a preview in their own name.
+ * A banner of someone who no longer has it is not shown.
  *
  * <p>The themes, their glyphs and the shader come from the plugin resources pack/title_banners (made by
  * tools/assetgen/title_banners.py: a new theme is a module there and a line in its THEMES). How they move:
@@ -31,7 +33,10 @@ import java.util.concurrent.ConcurrentHashMap;
  */
 public final class BannerModule implements StsvModule, Listener {
 
+    /** Wears every banner without owning it (admins). */
     public static final String PERMISSION = "stsv.title.banner";
+    /** The kind of thing a banner is in the book of what players own. */
+    public static final String KIND = "banner";
 
     private STSVPlugin plugin;
     private BannerStore store;
@@ -52,6 +57,15 @@ public final class BannerModule implements StsvModule, Listener {
         store = new BannerStore(plugin.db());
         store.init();
         Bukkit.getPluginManager().registerEvents(this, plugin);
+        if (plugin.unlocks() != null) {
+            plugin.unlocks().register(new dev.stsv.core.unlock.UnlockModule.Kind(KIND, "배너",
+                    id -> catalog.theme(id) == null ? id : catalog.theme(id).name() + " 배너", () -> catalog.themes().keySet(), this::icon,
+                    (p, id) -> catalog.theme(id) == null || !enabled() ? List.of() : List.of(inChat(p, catalog.theme(id))),
+                    (player, id) -> {
+                        Player p = Bukkit.getPlayer(player);
+                        if (p != null && worn.containsKey(player)) refresh(p);
+                    }));
+        }
         for (Player p : Bukkit.getOnlinePlayers()) load(p);
         startTicker();
     }
@@ -81,14 +95,34 @@ public final class BannerModule implements StsvModule, Listener {
         return BannerPack.Animation.parse(plugin.getConfig().getString("title-banners.animation"));
     }
 
-    /** Admins: op, or the permission. */
+    /** Admins: op, or the permission. They wear every banner. */
     public static boolean allowed(Player p) {
         return p.isOp() || p.hasPermission(PERMISSION);
     }
 
-    /** May open the banner tab (the feature is on and the player is an admin). */
+    /** Whether a player may wear a banner: it is theirs, or they are an admin. */
+    public boolean may(Player p, String themeId) {
+        return allowed(p) || (plugin.unlocks() != null && plugin.unlocks().has(p.getUniqueId(), KIND, themeId));
+    }
+
+    /** How many banners a player may wear. */
+    public int owned(Player p) {
+        return (int) catalog.themes().keySet().stream().filter(id -> may(p, id)).count();
+    }
+
+    /**
+     * Gets the banner tab in /칭호: the feature is on, and the player has a banner, is an admin, or the tab is shown to
+     * everybody with the banners locked ({@code title-banners.show-locked}).
+     */
     public boolean usable(Player p) {
-        return enabled() && allowed(p);
+        return enabled() && (allowed(p) || plugin.getConfig().getBoolean("title-banners.show-locked") || owned(p) > 0);
+    }
+
+    /** A banner as an item to look at (its theme's icon). */
+    public org.bukkit.inventory.ItemStack icon(String themeId) {
+        BannerCatalog.Theme t = catalog.theme(themeId);
+        org.bukkit.Material icon = t == null ? null : org.bukkit.Material.matchMaterial(t.icon());
+        return new org.bukkit.inventory.ItemStack(icon == null || !icon.isItem() ? org.bukkit.Material.PAPER : icon);
     }
 
     /** The pack files (none when the feature is off). */
@@ -113,16 +147,16 @@ public final class BannerModule implements StsvModule, Listener {
         return Optional.ofNullable(worn.get(player));
     }
 
-    /** The banner shown for a player: worn, a known theme, the feature on, and the player still an admin. */
+    /** The banner shown for a player: worn, a known theme, the feature on, and still theirs to wear. */
     public Optional<BannerCatalog.Theme> shown(Player p) {
         String id = worn.get(p.getUniqueId());
-        if (id == null || !usable(p)) return Optional.empty();
+        if (id == null || !enabled() || !may(p, id)) return Optional.empty();
         return Optional.ofNullable(catalog.theme(id));
     }
 
-    /** Puts a banner on (null: off), keeps it, and shows it at once. Unknown themes are refused. */
+    /** Puts a banner on (null: off), keeps it, and shows it at once. Unknown themes and ones the player may not wear are refused. */
     public boolean wear(Player p, String themeId) {
-        if (themeId != null && catalog.theme(themeId) == null) return false;
+        if (themeId != null && (catalog.theme(themeId) == null || !may(p, themeId))) return false;
         if (themeId == null) worn.remove(p.getUniqueId());
         else worn.put(p.getUniqueId(), themeId);
         store.wear(p.getUniqueId(), themeId, System.currentTimeMillis());

@@ -74,7 +74,12 @@ import java.util.UUID;
  */
 public final class EmoteModule implements StsvModule, Listener, TabExecutor {
 
+    /** Uses /감정표현 and the wheel (everybody by default: what they may play is what they own). */
     public static final String PERMISSION = "stsv.emote";
+    /** Plays every emote without owning it (admins). */
+    public static final String PERMISSION_ALL = "stsv.emote.all";
+    /** The kind of thing an emote is in the book of what players own. */
+    public static final String KIND = "emote";
     /** Words that stop an emote (/감정표현 그만) and that list them. */
     private static final Set<String> STOP = Set.of("그만", "중지", "stop", "off"), LIST = Set.of("목록", "list");
 
@@ -88,6 +93,10 @@ public final class EmoteModule implements StsvModule, Listener, TabExecutor {
     private final Map<UUID, Long> lastQuick = new HashMap<>();
     /** by id, in the order of the files */
     private Map<String, EmoteSpec> emotes = Map.of();
+    private EmoteStore store;
+    private EmoteScreens screens;
+    /** the wheels of the online players who arranged theirs (the others' are filled with what they own) */
+    private final Map<UUID, String[]> wheels = new HashMap<>();
     private SkinCache skins;
     private BukkitTask ticker;
 
@@ -135,8 +144,18 @@ public final class EmoteModule implements StsvModule, Listener, TabExecutor {
             for (Entity e : w.getEntities()) if (e.getPersistentDataContainer().has(keyEntity)) e.remove();
         }
         load();
+        store = new EmoteStore(plugin.db());
+        store.init();
+        screens = new EmoteScreens(plugin, this);
+        if (plugin.unlocks() != null) {
+            plugin.unlocks().register(new dev.stsv.core.unlock.UnlockModule.Kind(KIND, "감정표현",
+                    id -> emotes.containsKey(id) ? emotes.get(id).name() : id, () -> emotes.keySet(), EmoteScreens::icon, null, null));
+        }
         Bukkit.getPluginManager().registerEvents(this, plugin);
-        for (Player p : Bukkit.getOnlinePlayers()) restoreIfStuck(p);
+        for (Player p : Bukkit.getOnlinePlayers()) {
+            restoreIfStuck(p);
+            readWheel(p);
+        }
         ticker = Bukkit.getScheduler().runTaskTimer(plugin, this::tick, 1L, 1L);
     }
 
@@ -187,6 +206,56 @@ public final class EmoteModule implements StsvModule, Listener, TabExecutor {
         return sessions.containsKey(p.getUniqueId());
     }
 
+    /** The emote a player is playing now. */
+    public Optional<EmoteSpec> playing(Player p) {
+        Session s = sessions.get(p.getUniqueId());
+        return s == null ? Optional.empty() : Optional.of(s.spec);
+    }
+
+    /** Every emote there is, by its id, in the file's order. */
+    public Map<String, EmoteSpec> all() {
+        return emotes;
+    }
+
+    // ------------------------------------------------------------------------------------------
+    // Whose emotes, and the wheel
+    // ------------------------------------------------------------------------------------------
+
+    /** Whether a player may play an emote: it is free ({@code emotes.free}), it is theirs, or they are an admin. */
+    public boolean may(Player p, EmoteSpec e) {
+        return p.hasPermission(PERMISSION_ALL) || plugin.getConfig().getStringList("emotes.free").contains(e.id())
+                || (plugin.unlocks() != null && plugin.unlocks().has(p.getUniqueId(), KIND, e.id()));
+    }
+
+    /** The emotes a player may play, in the file's order. */
+    public List<EmoteSpec> owned(Player p) {
+        return emotes.values().stream().filter(e -> may(p, e)).toList();
+    }
+
+    /** A player's wheel as it is shown: an emote's id a place, null for an empty one. */
+    public String[] wheel(Player p) {
+        return EmoteWheel.shown(wheels.get(p.getUniqueId()), owned(p).stream().map(EmoteSpec::id).toList());
+    }
+
+    /** Puts an emote into a place of a player's wheel (null: empties it) and keeps the wheel. */
+    void place(Player p, int slot, String emote) {
+        String[] next = EmoteWheel.placed(wheel(p), slot, emote);
+        wheels.put(p.getUniqueId(), next);
+        store.save(p.getUniqueId(), next);
+    }
+
+    private void readWheel(Player p) {
+        UUID u = p.getUniqueId();
+        store.wheel(u).thenAccept(wheel -> Bukkit.getScheduler().runTask(plugin, () -> {
+            if (p.isOnline() && wheel.isPresent()) wheels.put(u, wheel.get());
+        }));
+    }
+
+    /** Ends a player's emote as the command does. */
+    void stop(Player p) {
+        if (emoting(p)) finish(p, End.COMMAND, null);
+    }
+
     /** An emote by the name players type or its id. */
     Optional<EmoteSpec> find(String word) {
         String w = word.trim().toLowerCase(Locale.ROOT);
@@ -212,9 +281,9 @@ public final class EmoteModule implements StsvModule, Listener, TabExecutor {
         }
         String word = String.join(" ", args).trim();
         if (word.isEmpty() && !emotes.isEmpty()) {
-            EmoteMenu.open(p, emotes.values(), emoting(p));          // the buttons: one click an emote
+            screens.openWheel(p);                                    // the wheel: one click an emote
         } else if (word.isEmpty() || LIST.contains(word.toLowerCase(Locale.ROOT))) {
-            List<String> names = emotes.values().stream().map(e -> Lang.raw("emote.list-entry", "name", e.name())).toList();
+            List<String> names = owned(p).stream().map(e -> Lang.raw("emote.list-entry", "name", e.name())).toList();
             p.sendMessage(Lang.msg("emote.list", "emotes", names.isEmpty() ? Lang.raw("common.none") : String.join(Lang.raw("emote.list-separator"), names)));
             p.sendMessage(Lang.msg("emote.usage"));
         } else if (STOP.contains(word.toLowerCase(Locale.ROOT))) {
@@ -223,6 +292,7 @@ public final class EmoteModule implements StsvModule, Listener, TabExecutor {
         } else {
             Optional<EmoteSpec> emote = find(word);
             if (emote.isEmpty()) p.sendMessage(Lang.msg("emote.unknown", "name", word));
+            else if (!may(p, emote.get())) p.sendMessage(Lang.msg("emote.locked", "name", emote.get().name()));
             else play(p, emote.get());
         }
         return true;
@@ -242,7 +312,7 @@ public final class EmoteModule implements StsvModule, Listener, TabExecutor {
         long now = System.currentTimeMillis();
         Long last = lastQuick.put(p.getUniqueId(), now);
         if (last != null && now - last < EmoteMenu.QUICK_KEY_GAP_MS) return;
-        EmoteMenu.open(p, emotes.values(), false);
+        screens.openWheel(p);
     }
 
     @Override
@@ -250,7 +320,7 @@ public final class EmoteModule implements StsvModule, Listener, TabExecutor {
         if (args.length != 1 || !enabled()) return List.of();
         String typed = args[0].toLowerCase(Locale.ROOT);
         List<String> out = new ArrayList<>();
-        for (EmoteSpec e : emotes.values()) out.add(e.name());
+        for (EmoteSpec e : emotes.values()) if (!(sender instanceof Player p) || may(p, e)) out.add(e.name());
         out.add("그만");
         return out.stream().filter(s -> s.toLowerCase(Locale.ROOT).startsWith(typed)).toList();
     }
@@ -261,6 +331,10 @@ public final class EmoteModule implements StsvModule, Listener, TabExecutor {
 
     /** Plays an emote for a player if they may now (says why not otherwise); changes it if one is playing. */
     public void play(Player p, EmoteSpec spec) {
+        if (!may(p, spec)) {
+            p.sendMessage(Lang.msg("emote.locked", "name", spec.name()));
+            return;
+        }
         Session playing = sessions.get(p.getUniqueId());
         if (playing != null) {
             playing.spec = spec;
@@ -758,11 +832,13 @@ public final class EmoteModule implements StsvModule, Listener, TabExecutor {
         finish(e.getPlayer(), End.QUIT, null);
         loading.remove(id);
         lastHurt.remove(id);
+        wheels.remove(id);
     }
 
     @EventHandler
     public void onJoin(PlayerJoinEvent e) {
         restoreIfStuck(e.getPlayer());
+        readWheel(e.getPlayer());
     }
 
     @EventHandler(priority = EventPriority.MONITOR, ignoreCancelled = true)

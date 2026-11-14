@@ -11,6 +11,7 @@ import java.io.InputStreamReader;
 import java.nio.charset.StandardCharsets;
 import java.nio.file.Files;
 import java.nio.file.Path;
+import java.util.List;
 import java.util.Optional;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
@@ -231,7 +232,7 @@ class EmoteSessionTest {
                 Matcher m = key.matcher(Files.readString(f));
                 while (m.find()) {
                     found++;
-                    assertTrue(messages.isString(m.group(1)), f.getFileName() + ": " + m.group(1));
+                    assertTrue(messages.isString(m.group(1)) || messages.isList(m.group(1)), f.getFileName() + ": " + m.group(1));
                 }
             }
         }
@@ -297,7 +298,8 @@ class EmoteSessionTest {
         y.loadFromString(plugin.replace("${version}", "0"));
         assertEquals(EmoteModule.PERMISSION, y.getString("commands.감정표현.permission"));
         assertTrue(y.getStringList("commands.감정표현.aliases").contains("emote"));
-        assertEquals("op", y.getString("permissions." + EmoteModule.PERMISSION + ".default"), "an admin test feature for now");
+        assertEquals("true", y.getString("permissions." + EmoteModule.PERMISSION + ".default"), "the wheel is everybody's: what they play is what they own");
+        assertEquals("op", y.getString("permissions." + EmoteModule.PERMISSION_ALL + ".default"), "only admins play what they do not own");
         YamlConfiguration config = resource("config.yml");
         assertTrue(config.getBoolean("emotes.enabled"));
         assertTrue(config.getBoolean("emotes.quick-key"), "the quick key is on unless it is turned off");
@@ -306,5 +308,45 @@ class EmoteSessionTest {
         assertTrue(config.getInt("emotes.max-seconds") >= 5);
         assertTrue(config.getInt("emotes.cooldown-seconds") >= 0);
         assertTrue(config.getInt("emotes.view-distance") >= 16);
+        // one emote is everybody's, so the wheel is never empty; it is one of the emotes there are
+        YamlConfiguration emotes = YamlConfiguration.loadConfiguration(Path.of("../content/stsv/emotes.yml").toFile());
+        assertFalse(config.getStringList("emotes.free").isEmpty());
+        for (String free : config.getStringList("emotes.free")) assertTrue(emotes.contains("emotes." + free), free);
+        // every emote of the pack has an icon of its own for the wheel
+        for (String id : emotes.getConfigurationSection("emotes").getKeys(false)) {
+            assertTrue(EmoteWheel.DRAWN.contains(id), id + " has no wheel icon (tools/assetgen/stsv_assets/ui_icons.py donation_icons, EmoteWheel.DRAWN)");
+            assertTrue(Files.isRegularFile(Path.of("../content/stsv/assets/stsv/items/gui/" + EmoteWheel.icon(id) + ".json")), id);
+        }
+        for (String icon : List.of(EmoteWheel.ICON_ANY, EmoteWheel.ICON_EMPTY)) {
+            assertTrue(Files.isRegularFile(Path.of("../content/stsv/assets/stsv/items/gui/" + icon + ".json")), icon);
+        }
+    }
+
+    /** The wheel: what it shows for what a player arranged and owns. */
+    @Test
+    void theWheel() {
+        List<String> owned = List.of("bow", "twerk", "disco");
+        // never arranged: what the player owns, from the top
+        String[] fresh = EmoteWheel.shown(null, owned);
+        assertEquals(EmoteWheel.SLOTS, fresh.length);
+        assertEquals(List.of("bow", "twerk", "disco"), java.util.Arrays.asList(fresh).subList(0, 3));
+        for (int k = 3; k < fresh.length; k++) assertNull(fresh[k]);
+        // more owned than places: the first seven
+        assertEquals("g", EmoteWheel.shown(null, List.of("a", "b", "c", "d", "e", "f", "g", "h"))[6]);
+        // arranged: as arranged; what is no longer owned leaves its place empty
+        String[] put = EmoteWheel.placed(fresh, 6, "twerk");
+        assertEquals("twerk", put[6]);
+        assertNull(put[1], "an emote sits in one place only");
+        assertEquals("bow", put[0]);
+        String[] shown = EmoteWheel.shown(put, List.of("bow", "disco"));
+        assertNull(shown[6], "twerk was taken back");
+        assertEquals("disco", shown[2]);
+        // emptied: stays empty (an arranged wheel is not filled again)
+        String[] none = EmoteWheel.placed(EmoteWheel.placed(EmoteWheel.placed(put, 0, null), 2, null), 6, null);
+        for (String s : EmoteWheel.shown(none, owned)) assertNull(s);
+        // a place that does not exist changes nothing
+        assertEquals(java.util.Arrays.asList(put), java.util.Arrays.asList(EmoteWheel.placed(put, 9, "bow")));
+        assertEquals("emote_twerk", EmoteWheel.icon("twerk"));
+        assertEquals(EmoteWheel.ICON_ANY, EmoteWheel.icon("moonwalk"));
     }
 }

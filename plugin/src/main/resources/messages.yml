@@ -197,22 +197,28 @@ banner:
   item-name: "<white>{name} 배너"
   item-lore: ["", "<gray>칭호와 닉네임을 움직이는 판에 담아", "<gray>채팅 · 탭 목록 · 머리 위에 보여 줍니다.", "", "<yellow>클릭: 장착"]
   item-worn-lore: ["", "<green>✔ 장착 중", "<yellow>클릭: 해제"]
+  item-locked-lore: ["", "<gray>칭호와 닉네임을 움직이는 판에 담아", "<gray>채팅 · 탭 목록 · 머리 위에 보여 줍니다.", "", "<red>✖ 아직 없는 배너", "<gray>후원 상점 <white>/후원</white> 에서 구할 수 있습니다."]
+  locked: "<red>{name} 배너가 없습니다. <gray>후원 상점(/후원)에서 구할 수 있습니다."
   off-name: "<red>배너 해제"
   off-lore: ["<gray>지금 단 칭호 배너 떼기"]
   equipped: "<green>칭호 배너 장착: <white>{name}"
   removed: "<gray>칭호 배너를 해제했습니다."
-# 감정표현 (/감정표현, 관리자 테스트 기능: README "감정표현"). {emote} · {name} = 감정표현 이름
+# 감정표현 (/감정표현: README "감정표현"). 가진 감정표현만 할 수 있음 (후원 상점, /관리자 해금). {emote} · {name} = 감정표현 이름
 emote:
   disabled: "<red>이 서버에서는 감정표현을 쓸 수 없습니다."
-  usage: "<gray>/감정표현 <dark_gray>- 버튼 화면 (제자리에서 Ctrl + Shift 로도 열림) · <gray>/감정표현 <이름> <dark_gray>- 하기 · <gray>/감정표현 그만 <dark_gray>- 끝내기 (웅크려도 끝납니다)"
-  menu-title: "<#f0e2b0>감정표현"
-  menu-hint: "<gray>버튼을 누르면 바로 합니다. 하는 중에는 <white>웅크리면</white> 끝납니다."
-  menu-button: "<white>{name}"
-  menu-tooltip: "<white>{name}</white> <gray>· {kind} · 한 바퀴 {seconds}초"
+  usage: "<gray>/감정표현 <dark_gray>- 감정표현 휠 (제자리에서 Ctrl + Shift 로도 열림) · <gray>/감정표현 <이름> <dark_gray>- 하기 · <gray>/감정표현 그만 <dark_gray>- 끝내기 (웅크려도 끝납니다)"
   menu-loop: "멈출 때까지 되풀이"
   menu-once: "한 번 하고 끝"
-  menu-stop: "<red>그만하기"
-  menu-close: "<gray>닫기"
+  # 감정표현 휠 (menus/emote_wheel.yml): 칸, 칸에 놓을 것 고르기
+  wheel-name: "<white>{name}"
+  wheel-lore: ["<gray>{kind} <dark_gray>· <gray>한 바퀴 {seconds}초", "", "<yellow>좌클릭: 하기", "<gray>우클릭: 이 칸 바꾸기"]
+  wheel-empty: "<gray>빈 칸"
+  wheel-empty-lore: ["<yellow>클릭: 이 칸에 놓을 감정표현 고르기"]
+  pick-name-locked: "<dark_gray>{name}"
+  pick-lore: ["<gray>{kind} <dark_gray>· <gray>한 바퀴 {seconds}초", "", "<yellow>클릭: 이 칸에 놓기"]
+  pick-lore-here: ["<gray>{kind} <dark_gray>· <gray>한 바퀴 {seconds}초", "", "<green>✔ 지금 이 칸에 있음"]
+  pick-lore-locked: ["<gray>{kind} <dark_gray>· <gray>한 바퀴 {seconds}초", "", "<red>✖ 아직 없는 감정표현", "<gray>후원 상점 <white>/후원</white> 에서 구할 수 있습니다."]
+  locked: "<red><white>{name}</white> 감정표현이 없습니다. <gray>후원 상점(/후원)에서 구할 수 있습니다."
   list: "<gray>감정표현: {emotes}"
   list-entry: "<click:run_command:'/감정표현 {name}'><hover:show_text:'<gray>클릭하면 <white>{name}</white> 감정표현을 합니다'><white><u>{name}</u></white></hover></click>"
   list-separator: "<dark_gray>, </dark_gray>"
@@ -371,24 +377,18 @@ menu:
 # 야간 투시 (/야간투시)
 donation:
   disabled: "<red>지금은 후원 상점을 쓸 수 없습니다."
-  title: "<#f0e2b0>후원 상점"
-  category-title: "<#f0e2b0>후원 상점 <gray>· <white>{name}"
-  product-title: "<#f0e2b0>{name}"
-  close: "<gray>닫기"
   balance: "<gray>보유 {currency}: <gold>{amount}"
-  empty: "<gray>아직 상품이 없습니다."
-  button-category: "<white>{name} <dark_gray>· <gray>{count}종"
-  button-history: "<gray>내 구매 내역"
-  button-back: "<gray>← 상점 처음으로"
-  button-product: "<white>{name} <dark_gray>· <gold>{price}"
-  button-product-short: "<gray>{name} <dark_gray>· <red>{price}"
-  button-product-owned: "<aqua>{name} <dark_gray>· <gray>보유 중"
-  button-buy: "<green>구매하기 <dark_gray>· <gold>{price}"
-  product-price: "<gray>가격 <gold>{price}</gold> <dark_gray>· <gray>보유 <gold>{balance}"
-  product-after: "<gray>구매 후 남는 양: <white>{after}"
-  product-short: "<red>{short} 이(가) 모자랍니다."
-  product-owned: "<aqua>이미 가지고 있는 상품입니다."
-  product-final: "<dark_gray>구매하기를 누르면 바로 결제되고 지급됩니다."
+  # 후원 상점 화면 (menus/donation.yml): 내역 탭의 이름, 상품 칸
+  tab-history: "내역"
+  tile-name: "<white>{name}"
+  tile-lore: ["", "<gray>값 <gold>{price}", "<yellow>클릭: 구매 확인"]
+  tile-lore-short: ["", "<gray>값 <red>{price}", "<red>{short} 이(가) 모자랍니다."]
+  tile-lore-owned: ["", "<aqua>✔ 이미 가지고 있습니다."]
+  tile-lore-confirm: ["", "<gray>값 <gold>{price}"]
+  history-tile-name: "<dark_gray>#{number}</dark_gray> <white>{what}"
+  history-tile-lore: ["<gray>{when}", "<gold>{amount}</gold> <dark_gray>(남은 {balance})"]
+  history-tile-lore-pending: ["<gray>{when}", "<gold>{amount}</gold> <dark_gray>(남은 {balance})", "<yellow>아직 받지 않음: 위의 받기 버튼 또는 /후원 받기"]
+  not-sellable: "<red>{name} 은(는) 지금 살 수 없습니다. <gray>(관리자에게 알려 주세요)"
   unknown: "<red>그런 상품이 없습니다."
   error: "<red>후원 장부를 처리하지 못했습니다. 잠시 뒤 다시 해 보세요. <gray>(계속되면 관리자에게 알려 주세요)"
   busy: "<yellow>앞의 구매를 처리하는 중입니다."
@@ -420,6 +420,38 @@ donation:
   admin-refunded: "<green>구매 #{number} 환불: {player} 에게 {amount} 돌려줌.</green> <gray>(보유 {balance}) <yellow>이미 지급된 것은 따로 회수해야 합니다."
   admin-refunded-pending: "<green>구매 #{number} 환불: {player} 에게 {amount} 돌려줌.</green> <gray>(보유 {balance}, 아직 지급 전이라 지급하지 않음)"
   admin-refunded-before: "<red>구매 #{number} 은(는) 이미 환불했습니다."
+
+# 영구히 가지는 것 (칭호 배너 · 감정표현 · 도구 스킨): /관리자 해금. {word} = 종류 (배너 · 감정표현 · 도구스킨)
+unlock:
+  usage: "<gray>/관리자 해금 지급|회수 <플레이어> <종류> <id|전체> <dark_gray>· <gray>목록 <플레이어> <dark_gray>· <gray>종류 <dark_gray>(종류: 배너 · 감정표현 · 도구스킨)"
+  no-player: "<red>플레이어를 찾을 수 없습니다: {name}"
+  unknown: "<red>{word}에 {id} 은(는) 없습니다. <gray>({ids})"
+  given: "<green>{player} 에게 {word} <white>{name}</white> 지급."
+  had: "<gray>{player} 은(는) {word} {name} 을(를) 이미 가지고 있습니다."
+  taken: "<gray>{player} 에게서 {word} {name} 회수."
+  had-not: "<gray>{player} 은(는) {word} {name} 이(가) 없습니다."
+  received: "<green>새로 얻었습니다:</green> <white>{name}</white> <dark_gray>({word})"
+  kind-line: "<white>{word}</white> <dark_gray>({kind})</dark_gray><gray>: {ids}"
+  list-head: "<gray>{player} 이(가) 가진 것"
+  list-none: "<dark_gray>  없음"
+  list-line: "<white>{word}</white><gray>: {things}"
+
+# 도구 스킨 (/스킨): 가진 스킨을 켜 두면 그 종류의 도구를 손에 들 때 저절로 입혀짐
+toolskin:
+  disabled: "<red>지금은 도구 스킨을 쓸 수 없습니다."
+  on: "<green>{name} 켬 <gray>({tool}을(를) 손에 들면 입혀집니다)"
+  off: "<gray>{name} 끔"
+  all-off: "<gray>도구 스킨을 모두 껐습니다."
+  tile-name: "<white>{name}"
+  tile-name-locked: "<dark_gray>{name}"
+  tile-lore: ["<gray>{series} <dark_gray>· <gray>{tool}", "", "<yellow>클릭: 켜기"]
+  tile-lore-on: ["<gray>{series} <dark_gray>· <gray>{tool}", "", "<green>✔ 켜 둠 <dark_gray>({tool}을(를) 들면 이 모습)", "<yellow>클릭: 끄기"]
+  tile-lore-locked: ["<gray>{series} <dark_gray>· <gray>{tool}", "", "<red>✖ 아직 없는 스킨", "<gray>후원 상점 <white>/후원</white> 에서 구할 수 있습니다."]
+
+# 무한 폭죽 (쏴도 줄지 않는 폭죽 아이템)
+party-firework:
+  wait: "<gray>폭죽 준비 중 <white>{seconds}초"
+  not-now: "<red>지금은 폭죽을 쏠 수 없습니다. <gray>(겉날개 · 탈것 · 헤엄치는 중)"
 
 tuning:
   kind:

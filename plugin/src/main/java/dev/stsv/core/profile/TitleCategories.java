@@ -5,7 +5,7 @@ import java.util.List;
 import java.util.Locale;
 
 /**
- * The tabs of /칭호: every title, the title categories in order, and the title banners (admins only). A title's
+ * The tabs of /칭호: every title, the title categories in order, and the title banners (for those who get that screen: BannerModule.usable). A title's
  * category is its "category" key in contents/&lt;pack&gt;/titles/*.yml, or else follows its file (achievements.yml:
  * achievements, codex.yml: codex, anything else: events and the rest). No Bukkit types (unit-tested).
  */
@@ -45,7 +45,7 @@ public final class TitleCategories {
         return explicit != null && !ORDER.contains(explicit.trim().toLowerCase(Locale.ROOT));
     }
 
-    /** The tabs a viewer gets: all, every category, and the banner tab only for admins. */
+    /** The tabs a viewer gets: all, every category, and the banner screen only for those who get it. */
     public static List<String> tabs(boolean admin) {
         List<String> out = new ArrayList<>();
         out.add(ALL);

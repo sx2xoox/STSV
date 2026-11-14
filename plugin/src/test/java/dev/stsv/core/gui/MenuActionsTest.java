@@ -93,7 +93,9 @@ class MenuActionsTest {
             Map.entry("category", "거래·투자"), Map.entry("category_done", "99"), Map.entry("category_total", "99"),
             Map.entry("owned", "999"), Map.entry("tab", "처치 효과"), Map.entry("current", "#ffb347 → #ff5e8a"), Map.entry("title", "<gold>[전설의 강태공]</gold> Abcdefghijklmnop"),
             // the tuning shop: the longest vehicle name and the longest kind of tuning
-            Map.entry("vehicle", "몬스터 오프로더"), Map.entry("kind", "언더글로우 네온"));
+            Map.entry("vehicle", "몬스터 오프로더"), Map.entry("kind", "언더글로우 네온"),
+            // the donation shop: the longest product; the emote wheel: a place's number
+            Map.entry("name", "몬스터 오프로더"), Map.entry("slot", "7"));
 
     @Test
     void everyTitleFitsThePanel() throws Exception {

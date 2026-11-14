@@ -8,6 +8,8 @@ menu always agree:
     title font)
   - `flow: true`: a small arrow in an empty cell between two used cells of a row, one of them a slot
     (machine lanes: inputs -> state -> result)
+  - `wheel: "abcdefg"`: those buttons sit on a round dial (the emote wheel): a dark disc with a gold rim, a spoke
+    between two neighbours, a round socket under each button and a hub round the last letter (the middle one)
   - empty cells: plain panel, nothing drawn
 No light strip for the client's "Inventory" label: the core resource pack blanks container.inventory
 (content/stsv/assets/minecraft/lang), and a divider marks where the player's inventory starts.
@@ -85,6 +87,51 @@ def _arrow(im, x, y):
             im.putpixel((cx + 2 - k + 1, t), ARROW + (255,))
 
 
+def _disc(im, cx, cy, r, colour):
+    """A filled circle of radius r round the pixel centre (cx, cy) (half pixels allowed)."""
+    px = im.load()
+    for y in range(int(cy - r) - 1, int(cy + r) + 2):
+        for x in range(int(cx - r) - 1, int(cx + r) + 2):
+            if 0 <= x < im.width and 0 <= y < im.height and (x + 0.5 - cx) ** 2 + (y + 0.5 - cy) ** 2 <= r * r:
+                px[x, y] = colour + (255,)
+
+
+def wheel(im, cells):
+    """The dial under the wheel buttons. cells: the (row, column) of each, the last one the middle."""
+    import math
+    centres = [(7 + 18 * c + 9, 17 + 18 * r + 9) for r, c in cells]
+    cx, cy = centres[-1]
+    rim = centres[:-1]
+    reach = max(math.hypot(x - cx, y - cy) for x, y in rim)
+    R = reach + 11.5
+    # the dial: a dark rim line, a gold ring, the dark face
+    _disc(im, cx, cy, R + 1, EDGE_OUT)
+    _disc(im, cx, cy, R, GOLD_DIM)
+    _disc(im, cx, cy, R - 1, EDGE_DARK)
+    _disc(im, cx, cy, R - 2, SCREEN)
+    # a spoke between two neighbours, from the hub to the rim
+    angles = sorted(math.atan2(y - cy, x - cx) for x, y in rim)
+    px = im.load()
+    for k, a in enumerate(angles):
+        b = angles[(k + 1) % len(angles)] + (2 * math.pi if k == len(angles) - 1 else 0)
+        mid = (a + b) / 2
+        t = 14.0
+        while t < R - 3:
+            x, y = int(cx + math.cos(mid) * t), int(cy + math.sin(mid) * t)
+            px[x, y] = GRID + (255,)
+            t += 0.5
+    # the sockets: a lit lower edge, a shadowed upper edge, the recessed face
+    for x, y in rim:
+        _disc(im, x, y + 0.5, 10.5, SLOT_BOTTOM)
+        _disc(im, x, y - 0.5, 10.5, SLOT_TOP)
+        _disc(im, x, y, 9.5, SLOT)
+    # the hub: a gold ring round the middle place
+    _disc(im, cx, cy, 12.5, EDGE_OUT)
+    _disc(im, cx, cy, 11.5, GOLD)
+    _disc(im, cx, cy, 10.5, EDGE_DARK)
+    _disc(im, cx, cy, 9.5, SLOT)
+
+
 def background(menu):
     """menu: rows, layout, list, buttons (keys), inset (chars), graph, flow."""
     rows = menu["rows"]
@@ -114,10 +161,14 @@ def background(menu):
     tabs = set(menu.get("tabs", "") or "")
     secret = set(menu.get("secret", "") or "")   # buttons only some players get: no cell drawn
     layout = menu["layout"]
+    dial = menu.get("wheel") or ""
+    if dial:
+        where = {ch: (r, c) for r, row in enumerate(layout) for c, ch in enumerate(row)}
+        wheel(im, [where[ch] for ch in dial if ch in where])
     for r, row in enumerate(layout):
         for c, ch in enumerate(row):
             x, y = 7 + 18 * c, 17 + 18 * r
-            if ch in secret:
+            if ch in secret or ch in dial:
                 continue
             if (lst and ch == lst) or ch in inset:
                 slot(im, x, y)

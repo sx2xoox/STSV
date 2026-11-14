@@ -79,7 +79,9 @@ class TitleCategoriesTest {
             if (a.startsWith("titles:tab:")) tabKey.put(a.substring("titles:tab:".length()), k);
         }
         assertEquals(Set.copyOf(TitleCategories.tabs(true)), tabKey.keySet());
-        assertEquals(tabKey.get(TitleCategories.BANNER), y.getString("titles.secret"));
+        // the banners are no category of titles: their button is a tile in the bottom row, drawn for everybody
         assertFalse(y.getString("titles.tabs").contains(tabKey.get(TitleCategories.BANNER)));
+        assertFalse(y.contains("titles.secret"));
+        assertTrue(y.getStringList("titles.layout").getLast().contains(tabKey.get(TitleCategories.BANNER)));
     }
 }

@@ -26,7 +26,11 @@ CORE_ICONS = ("prev", "next", "prev_off", "next_off", "exit", "info", "take_off"
               "tab_kill", "filter", "self_view",
               # the tuning shop (/튜닝): a tab a kind of tuning (and its dimmed twin), pay and undo switched off
               *(f"tune_{k}{off}" for k in ("paint", "wheel", "underglow", "headlamp", "skid", "smoke", "flame", "crackle", "plate") for off in ("", "_off")),
-              "coins_off", "clear_off")
+              "coins_off", "clear_off",
+              # the donation shop (/후원): the currency, history, claim, confirm, category tabs
+              "star", "ledger", "gift", "confirm", "don_car", "don_toy", "flag", "pickaxe",
+              # the emote wheel (/감정표현): an icon an emote, the plain one, an empty place, stop
+              "emote_any", "emote_empty", "emote_cheer", "emote_bow", "emote_disco", "emote_take_l", "emote_twerk", "cancel")
 # a cosmetic the player does not have: a dark card whose rim and question mark the item tints with its
 # rarity's colour (custom_model_data colors[0], CosmeticBrowser.locked); one model for every cosmetic
 LOCKED = "locked"

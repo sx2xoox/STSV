@@ -52,6 +52,8 @@ public final class STSVPlugin extends JavaPlugin {
     private dev.stsv.core.emote.EmoteModule emotes;
     private dev.stsv.core.vehicle.VehicleModule vehicles;
     private dev.stsv.core.donation.DonationModule donation;
+    private dev.stsv.core.unlock.UnlockModule unlocks;
+    private dev.stsv.core.toolskin.ToolSkinModule toolSkins;
     private ItemBrowser itemBrowser;
     private final dev.stsv.core.command.AdminRegistry admin = new dev.stsv.core.command.AdminRegistry();
     private RecipeEditor recipeEditor;
@@ -72,6 +74,7 @@ public final class STSVPlugin extends JavaPlugin {
         modules.register(new dev.stsv.core.account.AltModule());
         modules.register(content = new ContentModule());
         modules.register(menus = new dev.stsv.core.gui.menu.MenuModule());
+        modules.register(unlocks = new dev.stsv.core.unlock.UnlockModule());   // before whatever is owned for good (banners, emotes, tool skins)
         modules.register(worlds = new dev.stsv.core.world.WorldsModule());
         modules.register(new dev.stsv.core.world.ElevatorModule());
         modules.register(tpa = new dev.stsv.core.tpa.TpaModule());
@@ -89,6 +92,8 @@ public final class STSVPlugin extends JavaPlugin {
         modules.register(nicknames = new dev.stsv.core.nickname.NicknameModule());
         modules.register(banners = new dev.stsv.core.banner.BannerModule());
         modules.register(emotes = new dev.stsv.core.emote.EmoteModule());
+        modules.register(toolSkins = new dev.stsv.core.toolskin.ToolSkinModule());
+        modules.register(new dev.stsv.core.fun.PartyFireworkModule());
         modules.register(achievements = new dev.stsv.core.achievement.AchievementModule());
         modules.register(gacha = new dev.stsv.core.cosmetic.GachaModule());
         modules.register(hub = new dev.stsv.core.gui.HubModule());
@@ -202,6 +207,11 @@ public final class STSVPlugin extends JavaPlugin {
             emote.setExecutor(emotes);
             emote.setTabCompleter(emotes);
         }
+        PluginCommand toolSkin = getCommand("스킨");
+        if (toolSkin != null && toolSkins != null) {
+            toolSkin.setExecutor(toolSkins);
+            toolSkin.setTabCompleter(toolSkins);
+        }
         PluginCommand titles = getCommand("칭호");
         if (titles != null) {
             dev.stsv.core.command.TitleCommand titleCommand = new dev.stsv.core.command.TitleCommand(this);
@@ -244,7 +254,11 @@ public final class STSVPlugin extends JavaPlugin {
     public dev.stsv.core.tpa.TpaModule tpa() { return tpa; }
     /** 닉네임 (/닉네임, /닉네임 색). Names of players for messages: {@link dev.stsv.core.nickname.Names}. */
     public dev.stsv.core.nickname.NicknameModule nicknames() { return nicknames; }
-    /** Title banners (admin test feature); null if it failed to start. */
+    /** What players own for good (title banners, emotes, tool skins): the donation shop and /관리자 해금 give them. */
+    public dev.stsv.core.unlock.UnlockModule unlocks() { return unlocks; }
+    /** 도구 스킨 (/스킨): a look a tool takes in its owner's hands. */
+    public dev.stsv.core.toolskin.ToolSkinModule toolSkins() { return toolSkins; }
+    /** Title banners (/칭호's banner tab): owned for good, or all of them for admins; null if it failed to start. */
     public dev.stsv.core.banner.BannerModule banners() { return banners; }
     /** 감정표현 (/감정표현, admin test feature): a puppet in the player's skin plays what the game has no animation for. */
     public dev.stsv.core.emote.EmoteModule emotes() { return emotes; }

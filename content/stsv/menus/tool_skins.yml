@@ -1,0 +1,54 @@
+# /스킨 (도구 스킨): 내가 가진 도구 스킨을 켜고 끔. 켜 둔 스킨은 그 종류의 도구(검 · 곡괭이 …)를 손에 들 때마다 저절로 입혀짐.
+# 겉모습만 바뀌고 성능은 그대로. 스킨은 시리즈로 나오며 후원 상점(/후원)에서 삽니다. 목록: contents/stsv/tool_skins.yml
+# 자리표시자: {owned} 가진 스킨 수 · {total} 전체 수 · {on} 켜 둔 스킨 수
+tool_skins:
+  title: "<#f0e2b0>도구 스킨 <#8f86a6>· {owned}/{total}"
+  rows: 5
+  background: stsv:gui/tool_skins
+  layout:
+    - "TTTTTTTTT"
+    - "TTTTTTTTT"
+    - "TTTTTTTTT"
+    - "TTTTTTTTT"
+    - "P.IH.OX.N"
+  list: T
+  buttons:
+    I:
+      action: ""
+      icon: stsv:gui/info
+      material: BOOK
+      name: "<white>도구 스킨"
+      lore: ["<gray>스킨을 누르면 켜지고, 다시 누르면 꺼집니다.", "<gray>켜 둔 스킨은 그 종류의 도구를 <white>손에 들면</white> 저절로 입혀집니다.",
+             "<gray>도구가 부서져도 스킨은 남습니다 (스킨은 내 것).", "", "<gray>켜 둔 스킨 <white>{on}개</white> <dark_gray>· <gray>가진 스킨 <white>{owned}/{total}",
+             "", "<dark_gray>겉모습만 바뀝니다. 성능은 그대로. 다른 사람이 들면 원래 모습."]
+    H:
+      action: "command:후원"
+      icon: stsv:gui/star
+      material: NETHER_STAR
+      name: "<gold>후원 상점"
+      lore: ["<gray>새 스킨 구하기"]
+    O:
+      action: "toolskin:off"
+      icon: stsv:gui/clear
+      material: BARRIER
+      name: "<red>모두 끄기"
+      lore: ["<gray>켜 둔 스킨을 전부 끕니다."]
+    P:
+      action: page:prev
+      icon: stsv:gui/prev
+      material: ARROW
+      name: "<yellow>◀ 이전 페이지"
+      lore: ["<gray>{page} / {pages}"]
+      off: { icon: stsv:gui/prev_off, material: GRAY_DYE, name: "<dark_gray>◀ 첫 페이지" }
+    N:
+      action: page:next
+      icon: stsv:gui/next
+      material: ARROW
+      name: "<yellow>다음 페이지 ▶"
+      lore: ["<gray>{page} / {pages}"]
+      off: { icon: stsv:gui/next_off, material: GRAY_DYE, name: "<dark_gray>마지막 페이지 ▶" }
+    X:
+      action: close
+      icon: stsv:gui/exit
+      material: OAK_DOOR
+      name: "<red>닫기"

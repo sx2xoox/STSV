@@ -8,18 +8,16 @@ import dev.stsv.core.donation.DonationShop.Product;
 import dev.stsv.core.donation.DonationStore.Entry;
 import dev.stsv.core.donation.DonationStore.Kind;
 import dev.stsv.core.donation.DonationStore.Outcome;
+import dev.stsv.core.gui.menu.MenuHandler;
+import dev.stsv.core.gui.menu.MenuSpec;
+import dev.stsv.core.gui.menu.MenuView;
 import dev.stsv.core.module.StsvModule;
 import dev.stsv.core.nickname.Names;
 import dev.stsv.core.util.Lang;
-import io.papermc.paper.dialog.Dialog;
-import io.papermc.paper.registry.data.dialog.ActionButton;
-import io.papermc.paper.registry.data.dialog.DialogBase;
-import io.papermc.paper.registry.data.dialog.action.DialogAction;
-import io.papermc.paper.registry.data.dialog.body.DialogBody;
-import io.papermc.paper.registry.data.dialog.type.DialogType;
 import net.kyori.adventure.text.Component;
-import net.kyori.adventure.text.event.ClickEvent;
 import org.bukkit.Bukkit;
+import org.bukkit.Material;
+import org.bukkit.NamespacedKey;
 import org.bukkit.Sound;
 import org.bukkit.command.Command;
 import org.bukkit.command.CommandSender;
@@ -29,6 +27,7 @@ import org.bukkit.entity.Player;
 import org.bukkit.event.EventHandler;
 import org.bukkit.event.HandlerList;
 import org.bukkit.event.Listener;
+import org.bukkit.event.inventory.ClickType;
 import org.bukkit.event.player.PlayerJoinEvent;
 import org.bukkit.event.player.PlayerQuitEvent;
 import org.bukkit.inventory.ItemStack;
@@ -38,8 +37,10 @@ import java.nio.file.Path;
 import java.text.SimpleDateFormat;
 import java.util.ArrayList;
 import java.util.Date;
+import java.util.HashMap;
 import java.util.HashSet;
 import java.util.List;
+import java.util.Map;
 import java.util.Optional;
 import java.util.Set;
 import java.util.UUID;
@@ -65,7 +66,10 @@ public final class DonationModule implements StsvModule, Listener, TabExecutor {
 
     public static final String PERMISSION = "stsv.donation";
     private static final String ADMIN_OWNER = "STSV 후원";
-    private static final int WIDTH = 200, HISTORY = 10;
+    /** Lines of history in chat (admins), in the menu's history tab, and the category tabs the menu has. */
+    private static final int HISTORY = 10, MENU_HISTORY = 72, TABS = 7;
+    /** The history's tab (no category may be called this: ids have no '#'). */
+    private static final String HISTORY_TAB = "#history";
 
     private STSVPlugin plugin;
     private DonationStore store;
@@ -139,25 +143,9 @@ public final class DonationModule implements StsvModule, Listener, TabExecutor {
         }
         String sub = a.length == 0 ? "" : a[0];
         switch (sub) {
-            case "내역", "history" -> history(p, p.getUniqueId(), Names.plain(p));
+            case "내역", "history" -> openShop(p, HISTORY_TAB);
             case "받기", "claim" -> deliverPending(p, true);
-            case "분류", "category" -> {
-                Category c = a.length > 1 ? shop.categories().get(a[1]) : null;
-                if (c == null) openMain(p);
-                else openCategory(p, c);
-            }
-            case "상품", "product" -> {
-                Product product = a.length > 1 ? shop.products().get(a[1]) : null;
-                if (product == null) openMain(p);
-                else openProduct(p, product);
-            }
-            case "구매", "buy" -> {
-                Product product = a.length > 1 ? shop.products().get(a[1]) : null;
-                if (product == null) p.sendMessage(Lang.msg("donation.unknown"));
-                else if (a.length < 3 || !a[2].equals("확인")) openProduct(p, product);
-                else buy(p, product);
-            }
-            default -> openMain(p);
+            default -> openShop(p, null);
         }
         return true;
     }
@@ -167,86 +155,253 @@ public final class DonationModule implements StsvModule, Listener, TabExecutor {
         return a.length == 1 ? List.of("내역", "받기").stream().filter(s -> s.startsWith(a[0])).toList() : List.of();
     }
 
-    private static ActionButton button(Component label, Component tooltip, String command) {
-        ActionButton.Builder b = ActionButton.builder(label).width(WIDTH).action(DialogAction.staticAction(ClickEvent.runCommand(command)));
-        if (tooltip != null) b.tooltip(tooltip);
-        return b.build();
+    /** What a shop screen shows of a player's books (read once when it opens). */
+    private record Books(DonationStore.Account account, Set<String> owned, int pending, List<Entry> history) {}
+
+    /** Opens the shop (the pack's own menu, menus/donation.yml) on a tab: a category's id, {@link #HISTORY_TAB}, or null for the first category. */
+    private void openShop(Player p, String tab) {
+        UUID id = p.getUniqueId();
+        store.account(id).thenCompose(account -> store.owned(id).thenCompose(owned -> store.undelivered(id).thenCompose(pending ->
+                store.history(id, MENU_HISTORY).thenApply(history -> new Books(account, owned, pending.size(), history)))))
+                .thenAccept(books -> Bukkit.getScheduler().runTask(plugin, () -> {
+                    if (!p.isOnline()) return;
+                    String open = HISTORY_TAB.equals(tab) || shop.categories().containsKey(tab) ? tab
+                            : shop.categories().isEmpty() ? HISTORY_TAB : shop.categories().keySet().iterator().next();
+                    plugin.menus().open(p, "stsv:donation", new ShopScreen(open, books));
+                })).exceptionally(err -> failed(p, err));
     }
 
-    private static void show(Player p, Component title, List<Component> lines, List<ActionButton> buttons, int columns) {
-        List<DialogBody> body = new ArrayList<>();
-        for (Component line : lines) body.add(DialogBody.plainMessage(line));
-        Dialog dialog = Dialog.create(factory -> factory.empty()
-                .base(DialogBase.builder(title).canCloseWithEscape(true).afterAction(DialogBase.DialogAfterAction.CLOSE).body(body).build())
-                .type(DialogType.multiAction(buttons).columns(columns)
-                        .exitAction(ActionButton.builder(Lang.mm("donation.close")).width(WIDTH).build())
-                        .build()));
-        p.showDialog(dialog);
+    /** Whether a player has what a product gives for good (bought once, or every thing it unlocks is theirs already). */
+    private boolean has(Player p, Product product, Set<String> owned) {
+        if (product.once() && owned.contains(product.id())) return true;
+        if (product.unlocks().isEmpty() || plugin.unlocks() == null) return false;
+        for (String u : product.unlocks()) if (!plugin.unlocks().has(p.getUniqueId(), u)) return false;
+        return true;
     }
 
-    /** The balance, the shop's notice, the categories, the history. */
-    private void openMain(Player p) {
-        store.account(p.getUniqueId()).thenAccept(account -> Bukkit.getScheduler().runTask(plugin, () -> {
-            if (!p.isOnline()) return;
-            List<Component> lines = new ArrayList<>();
-            lines.add(Lang.mm("donation.balance", "amount", shop.amount(account.balance()), "currency", shop.currency()));
-            for (String line : shop.notice()) lines.add(dev.stsv.core.util.Text.mm(line));
-            List<ActionButton> buttons = new ArrayList<>();
-            for (Category c : shop.categories().values()) {
-                buttons.add(button(Lang.mm("donation.button-category", "name", c.name(), "count", c.products().size()), null, "/후원 분류 " + c.id()));
+    /** A product as an item to look at: its own icon, the item it gives, or the thing it unlocks. */
+    private ItemStack look(Product product) {
+        ItemStack it = null;
+        String icon = product.icon() != null ? product.icon() : product.item();
+        if (icon != null) {
+            Optional<CustomItem> custom = plugin.content().item(icon);
+            if (custom.isPresent()) {
+                it = custom.get().create(1);
+            } else if (icon.contains(":")) {
+                NamespacedKey model = NamespacedKey.fromString(icon);
+                it = new ItemStack(Material.PAPER);
+                if (model != null) it.editMeta(m -> m.setItemModel(model));
+            } else {
+                Material material = Material.matchMaterial(icon);
+                if (material != null && material.isItem()) it = new ItemStack(material);
             }
-            if (shop.categories().isEmpty()) lines.add(Lang.mm("donation.empty"));
-            buttons.add(button(Lang.mm("donation.button-history"), null, "/후원 내역"));
-            show(p, Lang.mm("donation.title"), lines, buttons, 2);
-        })).exceptionally(err -> failed(p, err));
+        }
+        if (it == null && !product.unlocks().isEmpty() && plugin.unlocks() != null) it = plugin.unlocks().icon(product.unlocks().getFirst());
+        return it == null ? new ItemStack(Material.PAPER) : it;
     }
 
-    private void openCategory(Player p, Category c) {
-        UUID id = p.getUniqueId();
-        store.account(id).thenCombine(store.owned(id), (account, owned) -> {
-            Bukkit.getScheduler().runTask(plugin, () -> {
-                if (!p.isOnline()) return;
-                List<ActionButton> buttons = new ArrayList<>();
-                for (String pid : c.products()) {
-                    Product product = shop.products().get(pid);
-                    boolean has = product.once() && owned.contains(pid);
-                    String key = has ? "donation.button-product-owned" : DonationShop.affords(account.balance(), product) ? "donation.button-product"
-                            : "donation.button-product-short";
-                    buttons.add(button(Lang.mm(key, "name", product.name(), "price", shop.amount(product.price())),
-                            product.description().isBlank() ? null : dev.stsv.core.util.Text.mm(product.description()), "/후원 상품 " + pid));
+    /** A product's tile: its look, its name, what it is (with the player's own preview where there is one), and the lines under it. */
+    private ItemStack tile(Player p, Product product, List<Component> under) {
+        ItemStack it = look(product);
+        it.editMeta(m -> {
+            m.itemName(Lang.item("donation.tile-name", "name", product.name()));
+            List<Component> lore = new ArrayList<>();
+            if (plugin.unlocks() != null) {
+                for (String u : product.unlocks()) {
+                    for (Component line : plugin.unlocks().preview(p, u)) lore.add(line.decoration(net.kyori.adventure.text.format.TextDecoration.ITALIC, false));
                 }
-                buttons.add(button(Lang.mm("donation.button-back"), null, "/후원"));
-                show(p, Lang.mm("donation.category-title", "name", c.name()),
-                        List.of(Lang.mm("donation.balance", "amount", shop.amount(account.balance()), "currency", shop.currency())), buttons, 2);
-            });
-            return null;
-        }).exceptionally(err -> failed(p, err));
+            }
+            for (String line : product.description().split("\n")) if (!line.isBlank()) lore.add(dev.stsv.core.util.Text.item(line));
+            lore.addAll(under);
+            m.lore(lore);
+            m.addItemFlags(org.bukkit.inventory.ItemFlag.HIDE_ATTRIBUTES);
+        });
+        return it;
     }
 
-    /** One product: what it is, what it costs, what is left after, and the one button that buys it. */
-    private void openProduct(Player p, Product product) {
-        UUID id = p.getUniqueId();
-        store.account(id).thenCombine(store.owned(id), (account, owned) -> {
-            Bukkit.getScheduler().runTask(plugin, () -> {
-                if (!p.isOnline()) return;
+    /** The shop: a tab a category (and the history), the products of the open one. */
+    private final class ShopScreen implements MenuHandler {
+        private final String tab;
+        private final Books books;
+        private List<Product> shown = List.of();
+
+        ShopScreen(String tab, Books books) {
+            this.tab = tab;
+            this.books = books;
+        }
+
+        private List<Category> categories() {
+            return List.copyOf(shop.categories().values());
+        }
+
+        @Override
+        public Map<String, String> placeholders(MenuView view) {
+            Map<String, String> out = new HashMap<>();
+            Category open = shop.categories().get(tab);
+            out.put("tab", open == null ? Lang.raw("donation.tab-history") : open.name());
+            out.put("balance", shop.amount(books.account().balance()));
+            out.put("currency", shop.currency());
+            out.put("pending", String.valueOf(books.pending()));
+            List<Category> cs = categories();
+            for (int k = 1; k <= TABS; k++) {
+                out.put("cat_" + k, k <= cs.size() ? cs.get(k - 1).name() : "");
+                out.put("count_" + k, k <= cs.size() ? String.valueOf(cs.get(k - 1).products().size()) : "0");
+            }
+            return out;
+        }
+
+        @Override
+        public ItemStack button(MenuView view, MenuSpec.Button button, ItemStack base) {
+            String action = button.action();
+            if (base == null) return null;
+            if (action.equals("donation:tab:history")) {
+                if (HISTORY_TAB.equals(tab)) base.editMeta(m -> m.setEnchantmentGlintOverride(true));
+                return base;
+            }
+            if (action.startsWith("donation:tab:")) {
+                int k = Integer.parseInt(action.substring("donation:tab:".length()));
+                List<Category> cs = categories();
+                if (k > cs.size()) return null;                 // no such category: an empty tab
+                Category c = cs.get(k - 1);
+                ItemStack it = c.icon() == null ? base : icon(c.icon(), base);
+                it.editMeta(m -> {
+                    m.itemName(base.getItemMeta().itemName());
+                    m.lore(base.getItemMeta().lore());
+                    if (c.id().equals(tab)) m.setEnchantmentGlintOverride(true);
+                });
+                return it;
+            }
+            if (button.key() == 'I') {
                 List<Component> lines = new ArrayList<>();
-                if (!product.description().isBlank()) lines.add(dev.stsv.core.util.Text.mm(product.description()));
-                lines.add(Lang.mm("donation.product-price", "price", shop.amount(product.price()), "balance", shop.amount(account.balance())));
-                List<ActionButton> buttons = new ArrayList<>();
-                if (product.once() && owned.contains(product.id())) {
-                    lines.add(Lang.mm("donation.product-owned"));
-                } else if (!DonationShop.affords(account.balance(), product)) {
-                    lines.add(Lang.mm("donation.product-short", "short", shop.amount(product.price() - account.balance())));
-                } else {
-                    lines.add(Lang.mm("donation.product-after", "after", shop.amount(account.balance() - product.price())));
-                    lines.add(Lang.mm("donation.product-final"));
-                    buttons.add(button(Lang.mm("donation.button-buy", "price", shop.amount(product.price())), null, "/후원 구매 " + product.id() + " 확인"));
+                for (String line : shop.notice()) lines.add(dev.stsv.core.util.Text.item(line));
+                base.editMeta(m -> m.lore(lines));
+            }
+            return base;
+        }
+
+        /** A category's icon: an item model of the pack ("stsv:gui/don_car") or a material ("NAME_TAG"). */
+        private ItemStack icon(String icon, ItemStack base) {
+            if (icon.contains(":")) {
+                NamespacedKey model = NamespacedKey.fromString(icon);
+                ItemStack it = new ItemStack(Material.PAPER);
+                if (model != null) it.editMeta(m -> m.setItemModel(model));
+                return it;
+            }
+            Material material = Material.matchMaterial(icon);
+            return material != null && material.isItem() ? new ItemStack(material) : base;
+        }
+
+        @Override
+        public List<ItemStack> list(MenuView view) {
+            Player p = view.player();
+            List<ItemStack> out = new ArrayList<>();
+            if (HISTORY_TAB.equals(tab)) {
+                shown = List.of();
+                for (Entry e : books.history()) {
+                    boolean waiting = e.kind() == Kind.BUY && !e.delivered();
+                    ItemStack it = new ItemStack(e.kind() == Kind.BUY ? Material.PAPER : e.kind() == Kind.GRANT ? Material.NETHER_STAR : Material.MAP);
+                    it.editMeta(m -> {
+                        m.itemName(Lang.item("donation.history-tile-name", "number", e.id(), "what", what(e)));
+                        m.lore(Lang.items(waiting ? "donation.history-tile-lore-pending" : "donation.history-tile-lore", "when", when(e.created()),
+                                "amount", (e.amount() > 0 ? "+" : "") + shop.amount(e.amount()), "balance", shop.amount(e.balance())));
+                    });
+                    out.add(it);
                 }
-                buttons.add(button(Lang.mm("donation.button-back"), null, "/후원"));
-                show(p, Lang.mm("donation.product-title", "name", product.name()), lines, buttons, 1);
+                return out;
+            }
+            Category c = shop.categories().get(tab);
+            List<Product> products = new ArrayList<>();
+            for (String pid : c == null ? List.<String>of() : c.products()) products.add(shop.products().get(pid));
+            shown = products;
+            for (Product product : products) {
+                boolean owned = has(p, product, books.owned()), affords = DonationShop.affords(books.account().balance(), product);
+                out.add(tile(p, product, Lang.items(owned ? "donation.tile-lore-owned" : affords ? "donation.tile-lore" : "donation.tile-lore-short",
+                        "price", shop.amount(product.price()), "short", shop.amount(Math.max(0, product.price() - books.account().balance())))));
+            }
+            return out;
+        }
+
+        @Override
+        public void onListClick(MenuView view, int index, ClickType click) {
+            Player p = view.player();
+            if (index < 0 || index >= shown.size()) return;
+            Product product = shown.get(index);
+            if (has(p, product, books.owned()) || !DonationShop.affords(books.account().balance(), product)) {
+                p.playSound(p.getLocation(), Sound.BLOCK_NOTE_BLOCK_BASS, 0.5f, 0.8f);
+                return;
+            }
+            p.playSound(p.getLocation(), Sound.UI_BUTTON_CLICK, 0.5f, 1.2f);
+            Bukkit.getScheduler().runTask(plugin, () -> {
+                if (p.isOnline()) plugin.menus().open(p, "stsv:donation_buy", new BuyScreen(product, tab, books));
             });
-            return null;
-        }).exceptionally(err -> failed(p, err));
+        }
+
+        @Override
+        public void onAction(MenuView view, String action, ClickType click) {
+            Player p = view.player();
+            if (action.equals("donation:claim")) {
+                view.close();
+                deliverPending(p, true);
+                return;
+            }
+            if (!action.startsWith("donation:tab:")) return;
+            String word = action.substring("donation:tab:".length());
+            String next;
+            if (word.equals("history")) {
+                next = HISTORY_TAB;
+            } else {
+                int k = Integer.parseInt(word);
+                List<Category> cs = categories();
+                if (k > cs.size()) return;
+                next = cs.get(k - 1).id();
+            }
+            if (next.equals(tab)) return;
+            p.playSound(p.getLocation(), Sound.UI_BUTTON_CLICK, 0.5f, 1.6f);
+            // the title names the tab: the menu is opened again (next tick, never inside its own click)
+            Bukkit.getScheduler().runTask(plugin, () -> {
+                if (p.isOnline()) plugin.menus().open(p, "stsv:donation", new ShopScreen(next, books));
+            });
+        }
+    }
+
+    /** One product, once more, with the one button that buys it: nothing is bought by a single click in the shop. */
+    private final class BuyScreen implements MenuHandler {
+        private final Product product;
+        private final String tab;
+        private final Books books;
+        private boolean done;
+
+        BuyScreen(Product product, String tab, Books books) {
+            this.product = product;
+            this.tab = tab;
+            this.books = books;
+        }
+
+        @Override
+        public Map<String, String> placeholders(MenuView view) {
+            return Map.of("name", product.name(), "price", shop.amount(product.price()), "balance", shop.amount(books.account().balance()),
+                    "after", shop.amount(books.account().balance() - product.price()));
+        }
+
+        @Override
+        public ItemStack button(MenuView view, MenuSpec.Button button, ItemStack base) {
+            if (button.key() != 'O') return base;
+            return tile(view.player(), product, Lang.items("donation.tile-lore-confirm", "price", shop.amount(product.price())));
+        }
+
+        @Override
+        public void onAction(MenuView view, String action, ClickType click) {
+            Player p = view.player();
+            if (action.equals("donation:back")) {
+                Bukkit.getScheduler().runTask(plugin, () -> {
+                    if (p.isOnline()) openShop(p, tab);
+                });
+            } else if (action.equals("donation:confirm") && !done) {
+                done = true;                    // one purchase a screen, however fast the clicks come
+                view.close();
+                buy(p, product, tab);
+            }
+        }
     }
 
     private Void failed(Player p, Throwable err) {
@@ -267,8 +422,25 @@ public final class DonationModule implements StsvModule, Listener, TabExecutor {
         return product.item() == null || p.getInventory().firstEmpty() >= 0;
     }
 
-    private void buy(Player p, Product product) {
+    /** Whether everything a product unlocks still exists (a theme that was taken out of the pack cannot be sold). */
+    private boolean sellable(Product product) {
+        if (product.unlocks().isEmpty()) return true;
+        if (plugin.unlocks() == null) return false;
+        for (String u : product.unlocks()) if (!plugin.unlocks().exists(u)) return false;
+        return true;
+    }
+
+    /** tab: the shop's tab to come back to when it is done (null: stay out of the shop). */
+    private void buy(Player p, Product product, String tab) {
         UUID id = p.getUniqueId();
+        if (!sellable(product)) {
+            p.sendMessage(Lang.msg("donation.not-sellable", "name", product.name()));
+            return;
+        }
+        if (has(p, product, Set.of())) {
+            p.sendMessage(Lang.msg("donation.already", "name", product.name()));
+            return;
+        }
         if (!room(p, product)) {
             p.sendMessage(Lang.msg("donation.no-room"));
             return;
@@ -294,6 +466,9 @@ public final class DonationModule implements StsvModule, Listener, TabExecutor {
                     p.sendMessage(Lang.msg("donation.bought", "name", product.name(), "price", shop.amount(product.price()), "balance", shop.amount(r.balance())));
                     p.playSound(p.getLocation(), Sound.ENTITY_PLAYER_LEVELUP, 0.7f, 1.2f);
                     handOver(p, r.entry(), product);
+                    if (tab != null) Bukkit.getScheduler().runTaskLater(plugin, () -> {
+                        if (p.isOnline()) openShop(p, tab);
+                    }, 30L);
                 })).exceptionally(err -> failed(p, err));
     }
 
@@ -329,6 +504,12 @@ public final class DonationModule implements StsvModule, Listener, TabExecutor {
                 p.getInventory().addItem(stack).values().forEach(rest -> p.getWorld().dropItem(p.getLocation(), rest));
             } else {
                 plugin.getLogger().warning("[후원] 상품 " + product.id() + " 의 아이템 " + product.item() + " 이 없어 " + p.getName() + " 에게 주지 못했습니다.");
+            }
+        }
+        if (plugin.unlocks() != null) {
+            for (String u : product.unlocks()) {
+                String[] thing = dev.stsv.core.unlock.UnlockModule.split(u);
+                if (thing != null) plugin.unlocks().grant(p.getUniqueId(), thing[0], thing[1], "donation:" + product.id());
             }
         }
         for (String command : product.commands()) {
@@ -496,6 +677,14 @@ public final class DonationModule implements StsvModule, Listener, TabExecutor {
                 return;
             }
             plugin.getLogger().info("[후원] " + actor + " 환불 #" + e.id() + " (" + name + ", " + e.product() + ", " + shop.amount(-e.amount()) + ")");
+            Product product = e.product() == null ? null : shop.products().get(e.product());
+            if (product != null && !done.wasPending() && plugin.unlocks() != null) {
+                // what was unlocked goes back with the price (an item or a command's doing stays: the admin sees to that)
+                for (String u : product.unlocks()) {
+                    String[] thing = dev.stsv.core.unlock.UnlockModule.split(u);
+                    if (thing != null) plugin.unlocks().revoke(e.player(), thing[0], thing[1]);
+                }
+            }
             s.sendMessage(Lang.msg(done.wasPending() ? "donation.admin-refunded-pending" : "donation.admin-refunded", "number", e.id(), "player", name,
                     "amount", shop.amount(-e.amount()), "balance", shop.amount(done.result().balance())));
         })).exceptionally(err -> {

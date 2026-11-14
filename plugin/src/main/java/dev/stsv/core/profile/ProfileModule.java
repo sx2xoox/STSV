@@ -449,7 +449,7 @@ public final class ProfileModule implements StsvModule, Listener {
             }
             out.put("n_all", have + "/" + titles.size());
             var b = plugin.banners();
-            out.put("n_banner", b == null || b.catalog() == null ? "0" : String.valueOf(b.catalog().themes().size()));
+            out.put("n_banner", b == null || b.catalog() == null ? "0" : b.owned(v.player()) + "/" + b.catalog().themes().size());
             out.put("banner", b == null ? Lang.raw("common.none")
                     : b.wornId(v.player().getUniqueId()).map(id -> b.catalog().theme(id)).map(dev.stsv.core.banner.BannerCatalog.Theme::name)
                     .orElse(Lang.raw("common.none")));
@@ -461,7 +461,7 @@ public final class ProfileModule implements StsvModule, Listener {
             String a = b.action();
             if (a.startsWith("titles:tab:")) {
                 String id = a.substring("titles:tab:".length());
-                // the banner tab: admins only, nobody else sees it at all
+                // the banner tab: only for those who get it (BannerModule.usable)
                 if (id.equals(TitleCategories.BANNER) && !bannerAdmin(v.player())) return null;
                 if (base != null && id.equals(tab)) base.editMeta(m -> m.setEnchantmentGlintOverride(true));
                 return base;
@@ -499,18 +499,22 @@ public final class ProfileModule implements StsvModule, Listener {
         private List<ItemStack> bannerItems(Player p) {
             var b = plugin.banners();
             if (b == null || !b.usable(p)) return List.of();
-            banners = b.themes();
+            // the player's own first, then the locked ones (each with a preview in their own name)
+            List<dev.stsv.core.banner.BannerCatalog.Theme> order = new ArrayList<>(b.themes());
+            order.sort(java.util.Comparator.comparingInt(t -> b.may(p, t.id()) ? 0 : 1));
+            banners = order;
             String worn = b.wornId(p.getUniqueId()).orElse(null);
             List<ItemStack> out = new ArrayList<>();
             for (var t : banners) {
-                boolean on = t.id().equals(worn);
+                boolean mine = b.may(p, t.id());
+                boolean on = mine && t.id().equals(worn);
                 Material icon = Material.matchMaterial(t.icon());
                 ItemStack it = new ItemStack(icon == null || !icon.isItem() ? Material.PAPER : icon);
                 it.editMeta(m -> {
                     m.itemName(Lang.item("banner.item-name", "name", t.name()));
                     List<Component> lore = new ArrayList<>();
                     lore.add(b.preview(p, t).decoration(net.kyori.adventure.text.format.TextDecoration.ITALIC, false));
-                    lore.addAll(Lang.items(on ? "banner.item-worn-lore" : "banner.item-lore"));
+                    lore.addAll(Lang.items(on ? "banner.item-worn-lore" : mine ? "banner.item-lore" : "banner.item-locked-lore"));
                     m.lore(lore);
                     m.setEnchantmentGlintOverride(on);
                 });
@@ -549,6 +553,11 @@ public final class ProfileModule implements StsvModule, Listener {
             var b = plugin.banners();
             if (b == null || !b.usable(p) || index >= banners.size()) return;
             var t = banners.get(index);
+            if (!b.may(p, t.id())) {
+                p.playSound(p.getLocation(), Sound.BLOCK_NOTE_BLOCK_BASS, 0.5f, 0.8f);
+                dev.stsv.core.hud.HudModule.flash(p, Lang.mm("banner.locked", "name", t.name()));
+                return;
+            }
             boolean on = t.id().equals(b.wornId(p.getUniqueId()).orElse(null));
             b.wear(p, on ? null : t.id());
             dev.stsv.core.hud.HudModule.flash(p, on ? Lang.mm("banner.removed") : Lang.mm("banner.equipped", "name", t.name()));

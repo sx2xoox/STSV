@@ -122,10 +122,15 @@ commands:
     usage: /지게
     permission: stsv.jige
   감정표현:
-    description: 감정표현 목록·하기·그만하기 (내 스킨을 입은 인형이 춤, 관리자 테스트 기능)
+    description: 감정표현 휠·하기·그만하기 (내 스킨을 입은 인형이 내 몸 대신 동작함. 가진 감정표현만)
     aliases: [emote, 이모트]
     usage: /감정표현 [이름|그만]
     permission: stsv.emote
+  스킨:
+    description: 도구 스킨 (가진 스킨을 켜 두면 그 종류의 도구를 손에 들 때 입혀짐. 겉모습만)
+    aliases: [toolskin, 도구스킨]
+    usage: /스킨
+    permission: stsv.toolskin
   tpa:
     description: 다른 플레이어에게 가겠다고 요청 (상대가 수락하면 잠깐 가만히 있은 뒤 이동)
     aliases: [텔포, 텔포요청]
@@ -158,10 +163,19 @@ commands:
     permission: stsv.tpa
 permissions:
   stsv.title.banner:
-    description: 칭호 배너 (/칭호 의 '칭호 배너' 탭, 관리자 테스트 기능)
+    description: 칭호 배너를 가지지 않고도 전부 씀 (관리자. 다른 사람은 후원 상점에서 산 배너만)
     default: op
   stsv.emote:
-    description: /감정표현 (내 스킨을 입은 인형이 추는 감정표현, 관리자 테스트 기능)
+    description: /감정표현 과 감정표현 휠 (할 수 있는 것은 가진 감정표현만)
+    default: true
+  stsv.emote.all:
+    description: 감정표현을 가지지 않고도 전부 함 (관리자)
+    default: op
+  stsv.toolskin:
+    description: /스킨 (도구 스킨을 켜고 끔. 쓸 수 있는 것은 가진 스킨만)
+    default: true
+  stsv.toolskin.all:
+    description: 도구 스킨을 가지지 않고도 전부 씀 (관리자)
     default: op
   stsv.vehicle:
     description: /탈것 (내 탈것 목록, 양도, 내 탈것을 쓸 수 있는 플레이어 정하기)

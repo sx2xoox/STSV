@@ -1,0 +1,95 @@
+# /후원 (후원 상점): 위 = 분류 탭 7칸 (donation_shop.yml 의 categories 순서대로, 남는 칸은 비어 있음) · 내역 · 받기,
+# 가운데 = 그 분류의 상품 (클릭 = 구매 확인 화면), 아래 = 내 별 · 안내 · 닫기.
+# 상품 · 값 · 분류 · 안내문은 contents/stsv/donation_shop.yml. 문구는 messages.yml 의 donation.*
+# 자리표시자: {tab} 지금 탭 · {balance} 내 별 · {currency} 재화 이름 · {pending} 아직 받지 않은 구매 수
+#            {cat_1} ~ {cat_7} 분류 이름 · {count_1} ~ {count_7} 그 분류의 상품 수
+donation:
+  title: "<#f0e2b0>후원 상점 <#8f86a6>· {tab}"
+  rows: 6
+  background: stsv:gui/donation
+  tabs: "ABCDEFGHJ"
+  layout:
+    - "ABCDEFGHJ"
+    - "TTTTTTTTT"
+    - "TTTTTTTTT"
+    - "TTTTTTTTT"
+    - "TTTTTTTTT"
+    - "P.S.I.X.N"
+  list: T
+  buttons:
+    A: { action: "donation:tab:1", material: PAPER, name: "<white>{cat_1}", lore: ["<gray>상품 {count_1}개"] }
+    B: { action: "donation:tab:2", material: PAPER, name: "<white>{cat_2}", lore: ["<gray>상품 {count_2}개"] }
+    C: { action: "donation:tab:3", material: PAPER, name: "<white>{cat_3}", lore: ["<gray>상품 {count_3}개"] }
+    D: { action: "donation:tab:4", material: PAPER, name: "<white>{cat_4}", lore: ["<gray>상품 {count_4}개"] }
+    E: { action: "donation:tab:5", material: PAPER, name: "<white>{cat_5}", lore: ["<gray>상품 {count_5}개"] }
+    F: { action: "donation:tab:6", material: PAPER, name: "<white>{cat_6}", lore: ["<gray>상품 {count_6}개"] }
+    G: { action: "donation:tab:7", material: PAPER, name: "<white>{cat_7}", lore: ["<gray>상품 {count_7}개"] }
+    H:
+      action: "donation:tab:history"
+      icon: stsv:gui/ledger
+      material: WRITABLE_BOOK
+      name: "<white>내역"
+      lore: ["<gray>별을 받은 것 · 산 것 · 환불 (최근 것부터)"]
+    J:
+      action: "donation:claim"
+      icon: stsv:gui/gift
+      material: CHEST_MINECART
+      name: "<white>받기 <gray>· {pending}건"
+      lore: ["<gray>값을 치렀는데 아직 받지 못한 것을 받습니다.", "<dark_gray>(인벤토리가 가득 찼을 때 등)"]
+    S:
+      action: ""
+      icon: stsv:gui/star
+      material: NETHER_STAR
+      name: "<gold>내 {currency} <white>{balance}"
+      lore: ["<gray>별 1개 = 100원. 입금이 확인되면", "<gray>관리자가 별을 지급합니다."]
+    I:
+      action: ""
+      icon: stsv:gui/info
+      material: BOOK
+      name: "<white>안내"
+      lore: ["{notice}"]
+    P:
+      action: page:prev
+      icon: stsv:gui/prev
+      material: ARROW
+      name: "<yellow>◀ 이전 페이지"
+      lore: ["<gray>{page} / {pages}"]
+      off: { icon: stsv:gui/prev_off, material: GRAY_DYE, name: "<dark_gray>◀ 첫 페이지" }
+    N:
+      action: page:next
+      icon: stsv:gui/next
+      material: ARROW
+      name: "<yellow>다음 페이지 ▶"
+      lore: ["<gray>{page} / {pages}"]
+      off: { icon: stsv:gui/next_off, material: GRAY_DYE, name: "<dark_gray>마지막 페이지 ▶" }
+    X:
+      action: close
+      icon: stsv:gui/exit
+      material: OAK_DOOR
+      name: "<red>닫기"
+
+# 구매 확인: 가운데 = 살 상품, 아래 = 구매 확정 · 돌아가기. 확정은 이 화면에서 한 번 더 눌러야만 됨.
+# 자리표시자: {name} 상품 이름 · {price} 값 · {balance} 내 별 · {after} 사고 남는 별
+donation_buy:
+  title: "<#f0e2b0>구매 확인 <#8f86a6>· {name}"
+  rows: 3
+  background: stsv:gui/donation_buy
+  inset: "O"
+  layout:
+    - "....O...."
+    - "........."
+    - "..Y...C.."
+  buttons:
+    O: { action: "", material: PAPER, name: "<white>{name}" }
+    Y:
+      action: "donation:confirm"
+      icon: stsv:gui/confirm
+      material: EMERALD
+      name: "<green>구매 확정 <dark_gray>· <gold>{price}"
+      lore: ["<gray>내 별 <white>{balance}</white> → <white>{after}", "", "<dark_gray>구매한 뒤에는 되돌릴 수 없습니다."]
+    C:
+      action: "donation:back"
+      icon: stsv:gui/back
+      material: ARROW
+      name: "<yellow>돌아가기"
+      lore: ["<gray>사지 않고 상점으로"]
