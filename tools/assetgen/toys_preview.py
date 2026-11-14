@@ -19,7 +19,9 @@ A display transform puts a model point p at  translation + R * scale * (p - (8, 
 The fishing rod's rows also show where the client starts the fishing line (a pink dot, a dark line going out from it):
 third person at (0.35 to the hand's side, 0.8 forward, 0.45 under the eyes) blocks, first person through the screen
 point 52.5 % right of the middle and 10 % under it, whatever the field of view. A vanilla rod's tip is there (the left
-player holds the plain sprite as a rod); the toy rod is fitted to the same tip (models/toys.py ROD_TIP).
+player holds the plain sprite as a rod). The toy rod is longer than a sprite from the hand up, so its tip is past that
+point and the line leaves it from its middle: kept that way on purpose (a rod fitted to the tip has to be as short as the
+sprite; it was tried and the long rod preferred).
 The float's row shows it on the water as an item display would hold it (scale 0.9, its blue band on the surface),
 beside the half-block square the game draws its own bobber in.
 These pictures are computed from the transforms, not taken in the game.

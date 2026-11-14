@@ -299,58 +299,43 @@ def toy_hoe():
     return _held(m, "hoe")
 
 
-# The fishing line is not part of any model: the client draws it from a fixed point beside the player, which is where a
-# vanilla rod's tip is (its sprite's (14.5, 14.5): tools/assetgen/toys_preview.py draws both). A rod that is longer than the
-# sprite from the hand up has its tip past that point, and the line leaves it from its middle. So this rod is fitted to
-# the tip, not to the grip: its tip is put where the sprite's is, its axis on the sprite's diagonal, at the sprite's own
-# scale. The hand then closes as far below the tip as on a vanilla rod (14.95 units), and the grip is built there; what
-# makes the rod a toy is its girth, its reel and the butt that goes on behind the hand.
-ROD_TIP_SPRITE = (14.5, 14.5)                    # a vanilla rod's tip on its sprite
-ROD_TIP = 31.0                                   # the same point on this model's axis: the middle of its red cap
-ROD_GRIP = ROD_TIP - (ROD_TIP_SPRITE[0] - 3.93) * math.sqrt(2)     # 16.05: where the hand closes (a sprite's (3.93, 3.93))
-
-
 def _rod(name, cast):
     m = MModel(name)
-    # the series' grip, lifted to where the hand is (12.75 .. 19.25, its collar to 20.5); the pommel ends a butt below it
-    m.dy = 14
-    handle(m, pommel=False)
-    m.dy = 10.5
-    _pommel(m)
-    m.dy = 0
-    round_y(m, "butt", 6.75, 9.25, 6.75, 9.25, 9.25, 12.75, GRIP_YELLOW, 0.5)
+    handle(m)
     m.group("reel")
-    # a big round toy reel under the rod just above the hand (towards +x, where the line hangs): a red drum, a yellow hub
-    # through it, a white crank with a blue knob on the side that shows (+z: the inventory's side, and away from the body)
-    m.box("reel_foot", (9, 20.75, 7.25), (10, 22.5, 8.75), YELLOW_DARK)
-    cyl(m, "reel", "z", (12.25, 21.5), 5, 6.5, 9.5, RED, cap=RED)
-    m.box("reel_hub", (11.25, 20.5, 6.25), (13.25, 22.5, 9.75), YELLOW)
-    m.box("crank", (11.75, 21, 9.75), (12.75, 23.75, 10.5), WHITE)
-    m.box("crank_knob", (11.5, 23, 10.5), (13, 24.5, 11.5), BLUE)
+    # a big round toy reel beside the rod's foot (towards +x, where the line hangs): a red drum, a yellow hub through it,
+    # a white crank with a blue knob on the side that shows (+z: the inventory's side, and away from the body in the hand)
+    m.box("reel_foot", (9, 7.5, 7.25), (10, 9.5, 8.75), YELLOW_DARK)
+    cyl(m, "reel", "z", (12.75, 8.5), 6, 6.25, 9.75, RED, cap=RED)
+    m.box("reel_hub", (11.5, 7.25, 6), (14, 9.75, 10), YELLOW)
+    m.box("crank", (12.25, 8, 10), (13.25, 11.25, 10.75), WHITE)
+    m.box("crank_knob", (12, 10.5, 10.75), (13.5, 12, 12), BLUE)
     m.group("rod")
-    round_y(m, "rod", 6.625, 9.375, 6.625, 9.375, 20.5, 25.5, YELLOW, 0.75)
-    m.box("rod", (6.875, 25.5, 6.875), (9.125, 30.25, 9.125), YELLOW)
+    round_y(m, "rod", 6.625, 9.375, 6.625, 9.375, 6.5, 14, YELLOW, 0.75)
+    m.box("rod", (6.875, 14, 6.875), (9.125, 23, 9.125), YELLOW)
+    m.box("rod", (7.125, 23, 7.125), (8.875, 30.25, 8.875), YELLOW)
     m.box("rod_tip", (6.75, 30.25, 6.75), (9.25, 31.75, 9.25), RED)
-    m.box("rod_ring", (6.375, 25, 6.375), (9.625, 26, 9.625), BLUE)
+    m.box("rod_ring", (6.375, 13.5, 6.375), (9.625, 14.5, 9.625), BLUE)
+    m.box("rod_ring", (6.625, 22.5, 6.625), (9.375, 23.5, 9.375), BLUE)
+    m.box("guide", (9.125, 17.75, 7.25), (10.5, 19, 8.75), BLUE_LIGHT)
+    m.box("guide", (8.875, 26.25, 7.25), (10.25, 27.5, 8.75), BLUE_LIGHT)
     if not cast:
-        # the line hangs from the tip: straight down on the sprite's diagonal = 45 degrees in this frame. Short: the
-        # float dangles just under the tip, clear of the reel
+        # the line hangs from the tip: straight down on the sprite's diagonal = 45 degrees in this frame
         m.group("line")
-        top = (8.5, ROD_TIP, C)
+        top = (8.5, 31, C)
         rot = ("z", 45, top)
-        m.box("line", (8.125, 28, 7.625), (8.875, 31, 8.375), LINE, rotation=rot)
+        m.box("line", (8.125, 19.5, 7.625), (8.875, 31, 8.375), LINE, rotation=rot)
         # a magnet-fishing float: a red and white ball, a yellow ring, a horseshoe magnet's two feet
-        m.box("float_ring", (7.5, 27.4, 7), (9.5, 28, 9), GRIP_YELLOW, rotation=rot)
-        m.box("float_top", (7, 25.9, 6.5), (10, 27.4, 9.5), GRIP_RED, rotation=rot)
-        m.box("float_bottom", (7, 24.4, 6.5), (10, 25.9, 9.5), WHITE, rotation=rot)
-        m.box("magnet", (7.25, 23.6, 7.25), (8.25, 24.4, 8.75), GRIP_BLUE, rotation=rot)
-        m.box("magnet", (8.75, 23.6, 7.25), (9.75, 24.4, 8.75), GRIP_RED_DARK, rotation=rot)
+        m.box("float_ring", (7.5, 18.75, 7), (9.5, 19.5, 9), YELLOW, rotation=rot)
+        m.box("float_top", (6.5, 16.75, 6), (10.5, 18.75, 10), RED, rotation=rot)
+        m.box("float_bottom", (6.5, 14.75, 6), (10.5, 16.75, 10), WHITE, rotation=rot)
+        m.box("magnet", (6.75, 13.5, 7), (8.125, 14.75, 9), BLUE, rotation=rot)
+        m.box("magnet", (8.875, 13.5, 7), (10.25, 14.75, 9), RED_DARK, rotation=rot)
     return _held(m, "rod")
 
 
 def toy_fishing_rod():
-    """장난감 낚싯대: a short fat yellow rod with a long butt, a big red reel with a crank, a thick line and a magnet-fishing
-    float. Fitted to its tip (ROD_TIP above), so the fishing line leaves the rod's end."""
+    """장난감 낚싯대: a short fat yellow rod, a big red reel with a crank, a thick line and a magnet-fishing float."""
     return _rod("toy_fishing_rod", False)
 
 
@@ -421,7 +406,7 @@ SIZES = {
     "shovel":   dict(third=0.85, first=0.5, gui_turn=0, gui_fit=15.5, frame=15, ground=11),
     "axe":      dict(third=0.85, first=0.5, gui_turn=0, gui_fit=15.5, frame=15, ground=11),
     "hoe":      dict(third=0.85, first=0.5, gui_turn=0, gui_fit=15.5, frame=15, ground=11),
-    "rod":      dict(third=0.85, first=0.68, gui_turn=0, gui_fit=15.5, frame=15, ground=11),    # a vanilla rod's own: _rod_held
+    "rod":      dict(third=0.8, first=0.46, gui_turn=0, gui_fit=15.5, frame=15, ground=11),
     "firework": dict(third=0.85, first=0.5, gui_turn=0, gui_fit=15.5, frame=15, ground=10),
 }
 
@@ -466,33 +451,11 @@ def _framed(m, rotation, fit, lift=0.0):
     return {"rotation": list(rotation), "translation": [round(-mid[0], 2), round(-mid[1] + lift, 2), 0], "scale": [s, s, s]}
 
 
-def _rod_held():
-    """A vanilla rod's held poses for this file's rod: the same turn and scale, moved along the rod so that the model's tip
-    (8, ROD_TIP, 8) is where the sprite's tip ROD_TIP_SPRITE is. The fishing line starts there (see ROD_TIP)."""
-    out = _upright(presets.HANDHELD_ROD)
-    for ctx in ("thirdperson_righthand", "thirdperson_lefthand", "firstperson_righthand", "firstperson_lefthand"):
-        v = presets.HANDHELD_ROD[ctx]
-        r, t, sc = v["rotation"], v["translation"], v["scale"][0]
-        left = "lefthand" in ctx
-        # the game mirrors a left hand's values when it applies them: rotation y and z, translation x
-        rot = presets._rot_xyz([r[0], -r[1], -r[2]] if left else r)
-        along = (ROD_TIP - 8) * sc * math.sqrt(0.5)       # the model's tip, laid on the sprite's diagonal
-        d = [sc * (ROD_TIP_SPRITE[0] - 8) - along, sc * (ROD_TIP_SPRITE[1] - 8) - along, 0.0]
-        shift = _mul(rot, d)
-        if left:
-            shift[0] = -shift[0]
-        out[ctx]["translation"] = [round(t[i] + shift[i], 3) for i in range(3)]
-    return out
-
-
 def _held(m, kind):
     size = SIZES[kind]
-    if kind == "rod":
-        held = _rod_held()
-    else:
-        held = presets.enlarged(_upright(presets.HANDHELD), {
-            "thirdperson_righthand": size["third"] / 0.85, "thirdperson_lefthand": size["third"] / 0.85,
-            "firstperson_righthand": size["first"] / 0.68, "firstperson_lefthand": size["first"] / 0.68}, GRIP)
+    base = _upright(presets.HANDHELD_ROD if kind == "rod" else presets.HANDHELD)
+    held = presets.enlarged(base, {"thirdperson_righthand": size["third"] / 0.85, "thirdperson_lefthand": size["third"] / 0.85,
+                                   "firstperson_righthand": size["first"] / 0.68, "firstperson_lefthand": size["first"] / 0.68}, GRIP)
     for t in held.values():
         t["translation"] = [v + 0.0 for v in t["translation"]]     # no "-0.0" in the files
     m.display = {
