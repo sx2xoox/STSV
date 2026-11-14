@@ -108,8 +108,44 @@ def write(content_pack: Path):
         {"type": "minecraft:custom_model_data", "index": 1, "default": 0xFFFFFF},
         {"type": "minecraft:constant", "value": -1}]}}
     (folders["def"] / f"{SWATCH}.json").write_text(json.dumps(definition, indent=2))
+    emote_hud(assets)
     T.lang_files(content_pack / "assets")
     return backgrounds, ics
+
+
+def emote_hud(assets: Path):
+    """The pictures of the emote wheel on the screen (the quick key; the plugin's EmoteHud and its font stsv:emote_wheel):
+    the dial as the emote menu draws it (the same places), the ring round the picked place, the pointer."""
+    folder = assets / "textures" / "font" / "emote_wheel"
+    folder.mkdir(parents=True, exist_ok=True)
+    size = 112
+    # the menu's wheel: six places round the hub, on a canvas of its own (the hub at the picture's middle)
+    canvas = Image.new("RGBA", (176, 222), (0, 0, 0, 0))
+    cells = [(1, 4), (2, 6), (4, 6), (5, 4), (4, 2), (2, 2), (3, 4)]
+    T.wheel(canvas, cells)
+    cx, cy = 7 + 18 * 4 + 9, 17 + 18 * 3 + 9
+    dial = canvas.crop((cx - size // 2, cy - size // 2, cx + size // 2, cy + size // 2))
+    dial.save(folder / "dial.png")
+    # the ring round the picked place: gold, a soft edge outside it
+    ring = Image.new("RGBA", (26, 26), (0, 0, 0, 0))
+    for y in range(26):
+        for x in range(26):
+            d = ((x + 0.5 - 13) ** 2 + (y + 0.5 - 13) ** 2) ** 0.5
+            if 10.2 <= d <= 12.2:
+                ring.putpixel((x, y), T.GOLD + (255,))
+            elif 12.2 < d <= 13:
+                ring.putpixel((x, y), T.GOLD_DIM + (150,))
+    ring.save(folder / "ring.png")
+    # the pointer: a small bright dot with a dark rim
+    dot = Image.new("RGBA", (8, 8), (0, 0, 0, 0))
+    for y in range(8):
+        for x in range(8):
+            d = ((x + 0.5 - 4) ** 2 + (y + 0.5 - 4) ** 2) ** 0.5
+            if d <= 2.4:
+                dot.putpixel((x, y), (255, 253, 246, 255))
+            elif d <= 3.6:
+                dot.putpixel((x, y), T.EDGE_OUT + (255,))
+    dot.save(folder / "pointer.png")
 
 
 def preview(path: Path, scale=3):

@@ -4,13 +4,13 @@ import java.util.List;
 import java.util.Set;
 
 /**
- * The emote wheel (감정표현 휠): seven places, six round the rim and one in the middle, each holding one of the
- * player's emotes. Pure (unit-tested): what a wheel shows for what a player arranged and what they own.
+ * The emote wheel (감정표현 휠): six places round a dial, each holding one of the player's emotes. Pure
+ * (unit-tested): what a wheel shows for what a player arranged and what they own.
  */
 public final class EmoteWheel {
 
-    /** Places of the wheel: 0 at the top, on clockwise, the last in the middle (menus/emote_wheel.yml's wheel letters). */
-    public static final int SLOTS = 7;
+    /** Places of the wheel: 0 at the top, on clockwise (menus/emote_wheel.yml's wheel letters; its last letter is the hub). */
+    public static final int SLOTS = 6;
     /** The emotes the pack has an icon of its own for (stsv:gui/emote_&lt;id&gt;); any other shows {@link #ICON_ANY}. */
     public static final Set<String> DRAWN = Set.of("twerk", "take_l", "bow", "disco", "cheer");
     public static final String ICON_ANY = "emote_any", ICON_EMPTY = "emote_empty";

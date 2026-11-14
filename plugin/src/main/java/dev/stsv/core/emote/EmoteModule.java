@@ -95,6 +95,8 @@ public final class EmoteModule implements StsvModule, Listener, TabExecutor {
     private Map<String, EmoteSpec> emotes = Map.of();
     private EmoteStore store;
     private EmoteScreens screens;
+    /** the wheel on the player's own screen (the quick key) */
+    private EmoteHud hud;
     /** the wheels of the online players who arranged theirs (the others' are filled with what they own) */
     private final Map<UUID, String[]> wheels = new HashMap<>();
     private SkinCache skins;
@@ -147,6 +149,7 @@ public final class EmoteModule implements StsvModule, Listener, TabExecutor {
         store = new EmoteStore(plugin.db());
         store.init();
         screens = new EmoteScreens(plugin, this);
+        hud = new EmoteHud(plugin, this, keyEntity);
         if (plugin.unlocks() != null) {
             plugin.unlocks().register(new dev.stsv.core.unlock.UnlockModule.Kind(KIND, "감정표현",
                     id -> emotes.containsKey(id) ? emotes.get(id).name() : id, () -> emotes.keySet(), EmoteScreens::icon, null, null));
@@ -171,6 +174,7 @@ public final class EmoteModule implements StsvModule, Listener, TabExecutor {
             if (p != null) finish(p, End.DISABLE, null);
         }
         sessions.clear();
+        if (hud != null) hud.closeAll();
         if (ticker != null) ticker.cancel();
         ticker = null;
         if (skins != null) skins.close();
@@ -299,20 +303,37 @@ public final class EmoteModule implements StsvModule, Listener, TabExecutor {
     }
 
     /**
-     * The quick key: Ctrl + Shift (sprint and sneak together) while standing still opens the emote buttons, for those
-     * who may use emotes ({@code emotes.quick-key}). Not while riding, not while an emote plays (sneaking ends that).
+     * The quick key: Ctrl + Shift (sprint and sneak together) while standing still puts the emote wheel on the
+     * player's screen ({@link EmoteHud}; {@code emotes.quick-key}, {@code emotes.quick-wheel}). While the sneak is held
+     * the look picks a place; letting the sneak go plays it. Walking off closes the wheel. Not while riding, not while
+     * an emote plays (sneaking ends that).
      */
     @EventHandler
     public void onQuickKey(org.bukkit.event.player.PlayerInputEvent e) {
         org.bukkit.Input in = e.getInput();
-        if (!EmoteMenu.quickKey(in.isSneak(), in.isSprint(), in.isForward() || in.isBackward() || in.isLeft() || in.isRight() || in.isJump())) return;
         Player p = e.getPlayer();
+        boolean moving = in.isForward() || in.isBackward() || in.isLeft() || in.isRight() || in.isJump();
+        if (hud != null && hud.showing(p)) {
+            if (moving) {
+                hud.close(p);
+            } else if (!in.isSneak()) {
+                EmoteSpec picked = hud.release(p);
+                // next tick: the sneak that was let go must not end the emote it starts
+                if (picked != null) Bukkit.getScheduler().runTask(plugin, () -> {
+                    if (p.isOnline()) play(p, picked);
+                });
+            }
+            return;
+        }
+        if (!EmoteMenu.quickKey(in.isSneak(), in.isSprint(), moving)) return;
         if (!enabled() || emotes.isEmpty() || !plugin.getConfig().getBoolean("emotes.quick-key")) return;
         if (!p.hasPermission(PERMISSION) || emoting(p) || p.isInsideVehicle() || p.getGameMode() == GameMode.SPECTATOR) return;
         long now = System.currentTimeMillis();
         Long last = lastQuick.put(p.getUniqueId(), now);
         if (last != null && now - last < EmoteMenu.QUICK_KEY_GAP_MS) return;
-        screens.openWheel(p);
+        // the wheel on the screen; the menu where that is switched off or the clients cannot carry it
+        boolean onScreen = "hud".equalsIgnoreCase(plugin.getConfig().getString("emotes.quick-wheel"));
+        if (!onScreen || !hud.open(p)) screens.openWheel(p);
     }
 
     @Override
@@ -571,6 +592,7 @@ public final class EmoteModule implements StsvModule, Listener, TabExecutor {
     // ------------------------------------------------------------------------------------------
 
     private void tick() {
+        if (hud != null) hud.tick();
         if (sessions.isEmpty()) return;
         long limit = EmoteRules.maxTicks(plugin.getConfig().getInt("emotes.max-seconds"));
         int view = plugin.getConfig().getInt("emotes.view-distance");
@@ -833,6 +855,7 @@ public final class EmoteModule implements StsvModule, Listener, TabExecutor {
         loading.remove(id);
         lastHurt.remove(id);
         wheels.remove(id);
+        if (hud != null) hud.close(e.getPlayer());
     }
 
     @EventHandler

@@ -66,8 +66,18 @@ final class EmoteScreens {
         @Override
         public ItemStack button(MenuView view, MenuSpec.Button button, ItemStack base) {
             String action = button.action();
-            if (!action.startsWith("emote:slot:")) return base;
             Player p = view.player();
+            if (action.equals("emote:hub")) {
+                // the dial's hub: what is playing now (nothing: the hint how the wheel is used)
+                EmoteSpec now = emotes.playing(p).orElse(null);
+                ItemStack hub = icon(now == null ? null : now.id());
+                hub.editMeta(m -> {
+                    m.itemName(now == null ? Lang.item("emote.wheel-hub") : Lang.item("emote.wheel-name", facts(now)));
+                    m.lore(Lang.items(now == null ? "emote.wheel-hub-lore" : "emote.wheel-hub-playing"));
+                });
+                return hub;
+            }
+            if (!action.startsWith("emote:slot:")) return base;
             int slot = Integer.parseInt(action.substring("emote:slot:".length()));
             String id = emotes.wheel(p)[slot];
             EmoteSpec e = id == null ? null : emotes.all().get(id);

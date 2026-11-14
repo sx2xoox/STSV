@@ -331,22 +331,109 @@ class EmoteSessionTest {
         assertEquals(EmoteWheel.SLOTS, fresh.length);
         assertEquals(List.of("bow", "twerk", "disco"), java.util.Arrays.asList(fresh).subList(0, 3));
         for (int k = 3; k < fresh.length; k++) assertNull(fresh[k]);
-        // more owned than places: the first seven
-        assertEquals("g", EmoteWheel.shown(null, List.of("a", "b", "c", "d", "e", "f", "g", "h"))[6]);
+        // more owned than places: the first six
+        assertEquals(6, EmoteWheel.SLOTS);
+        assertEquals("f", EmoteWheel.shown(null, List.of("a", "b", "c", "d", "e", "f", "g", "h"))[5]);
         // arranged: as arranged; what is no longer owned leaves its place empty
-        String[] put = EmoteWheel.placed(fresh, 6, "twerk");
-        assertEquals("twerk", put[6]);
+        String[] put = EmoteWheel.placed(fresh, 5, "twerk");
+        assertEquals("twerk", put[5]);
         assertNull(put[1], "an emote sits in one place only");
         assertEquals("bow", put[0]);
         String[] shown = EmoteWheel.shown(put, List.of("bow", "disco"));
-        assertNull(shown[6], "twerk was taken back");
+        assertNull(shown[5], "twerk was taken back");
         assertEquals("disco", shown[2]);
         // emptied: stays empty (an arranged wheel is not filled again)
-        String[] none = EmoteWheel.placed(EmoteWheel.placed(EmoteWheel.placed(put, 0, null), 2, null), 6, null);
+        String[] none = EmoteWheel.placed(EmoteWheel.placed(EmoteWheel.placed(put, 0, null), 2, null), 5, null);
         for (String s : EmoteWheel.shown(none, owned)) assertNull(s);
         // a place that does not exist changes nothing
         assertEquals(java.util.Arrays.asList(put), java.util.Arrays.asList(EmoteWheel.placed(put, 9, "bow")));
         assertEquals("emote_twerk", EmoteWheel.icon("twerk"));
         assertEquals(EmoteWheel.ICON_ANY, EmoteWheel.icon("moonwalk"));
+    }
+
+    /** The wheel on the player's own screen: where its displays go, what a look picks, the font its pictures are in. */
+    @Test
+    void theWheelOnTheScreen() throws Exception {
+        // a display sits at the passenger point, above the eyes: looking level, a point straight ahead is that much lower
+        double above = 1.8 - 1.62;
+        double[] level = EmoteHud.onScreen(0, 0, 0.25, above, 0);
+        assertEquals(0, level[0], 1e-9);
+        assertEquals(-above, level[1], 1e-9);
+        assertEquals(-0.25, level[2], 1e-9);
+        // looking straight down, ahead is down: the point is that much further ahead, not lower on the screen
+        double[] down = EmoteHud.onScreen(0, 0, 0.25, above, 90);
+        assertEquals(0, down[1], 1e-9);
+        assertEquals(-(0.25 + above), down[2], 1e-9);
+        // looking straight up, the passenger point is ahead of the eyes
+        assertEquals(-(0.25 - above), EmoteHud.onScreen(0, 0, 0.25, above, -90)[2], 1e-9);
+        // in every case the point is where it should be: back in the world, eye + ahead along the look + the screen's offset
+        for (double pitch : new double[]{-80, -30, 0, 25, 60, 89}) {
+            double t = Math.toRadians(pitch);
+            double[] at = EmoteHud.onScreen(0.03, -0.02, 0.25, above, pitch);
+            // the camera's axes in a vertical plane (yaw 0): forward (cos t, -sin t), up (sin t, cos t); the display's -z is forward
+            double forward = -at[2], up = at[1];
+            double worldAhead = forward * Math.cos(t) + up * Math.sin(t), worldUp = -forward * Math.sin(t) + up * Math.cos(t);
+            double wantAhead = 0.25 * Math.cos(t) + -0.02 * Math.sin(t), wantUp = -0.25 * Math.sin(t) + -0.02 * Math.cos(t) - above;
+            assertEquals(wantAhead, worldAhead, 1e-9, "pitch " + pitch);
+            assertEquals(wantUp, worldUp, 1e-9, "pitch " + pitch);
+            assertEquals(0.03, at[0], 1e-9);
+        }
+        // sneaking (the key is held): the hitbox and the eyes are lower, the difference a little larger
+        assertTrue(1.5 - 1.27 > above);
+
+        // the look picks a place: nothing in the middle, then the nearest place's direction
+        assertEquals(-1, EmoteHud.pick(0, 0));
+        assertEquals(-1, EmoteHud.pick(2, -2));
+        assertEquals(0, EmoteHud.pick(0, 10), "up");
+        assertEquals(3, EmoteHud.pick(0, -10), "down");
+        assertEquals(1, EmoteHud.pick(10, 5), "right and up");
+        assertEquals(2, EmoteHud.pick(10, -5), "right and down");
+        assertEquals(4, EmoteHud.pick(-10, -5));
+        assertEquals(5, EmoteHud.pick(-10, 5));
+        assertEquals(1, EmoteHud.pick(40, 20), "however far");
+        assertEquals(EmoteWheel.SLOTS, EmoteHud.PLACES.length);
+        // the pointer follows the look and stops at the places
+        assertEquals(0, EmoteHud.pointer(0, 0)[0], 1e-9);
+        double[] far = EmoteHud.pointer(90, 0);
+        assertEquals(40, far[0], 1e-9);
+        assertEquals(0, far[1], 1e-9);
+        assertTrue(EmoteHud.pointer(0, 7)[1] < 0, "looking up moves it up the picture");
+        // turning: the short way round
+        assertEquals(20, EmoteHud.turned(170, -170), 1e-9);
+        assertEquals(-20, EmoteHud.turned(-170, 170), 1e-9);
+        assertEquals(5, EmoteHud.turned(10, 15), 1e-9);
+        // nearer than a wall a player can stand against (half a hitbox: 0.3), further than the near plane
+        assertTrue(EmoteHud.AHEAD < 0.3 && EmoteHud.AHEAD > 0.06);
+        // the dial fills less than half the screen's height at a field of view of 70 degrees
+        double screen = 2 * EmoteHud.AHEAD * Math.tan(Math.toRadians(35));
+        double dial = EmoteHud.DIAL_PX * EmoteHud.PIXEL;
+        assertTrue(dial / screen > 0.3 && dial / screen < 0.5, "the dial is " + dial / screen + " of the screen's height");
+
+        // the font: a glyph a picture, every picture a file of the pack, every icon of the wheel among them
+        String json = EmotePack.wheelFont();
+        var font = com.google.gson.JsonParser.parseString(json).getAsJsonObject().getAsJsonArray("providers");
+        java.util.Set<String> glyphs = new java.util.HashSet<>();
+        for (var e : font) {
+            var o = e.getAsJsonObject();
+            assertEquals("bitmap", o.get("type").getAsString());
+            String file = o.get("file").getAsString();
+            assertTrue(file.startsWith("stsv:"));
+            Path png = Path.of("../content/stsv/assets/stsv/textures/" + file.substring(5));
+            assertTrue(Files.isRegularFile(png), "no picture " + png);
+            var im = javax.imageio.ImageIO.read(png.toFile());
+            int height = o.get("height").getAsInt();
+            assertEquals(im.getHeight(), height, file + ": drawn pixel for pixel");
+            assertEquals(im.getWidth(), im.getHeight(), file + ": square, so its middle is the glyph's");
+            assertEquals(height / 2 - 3, o.get("ascent").getAsInt(), file + ": its middle on the display's origin");
+            assertTrue(glyphs.add(o.getAsJsonArray("chars").get(0).getAsString()), "a glyph twice");
+        }
+        assertEquals(3 + EmoteHud.ICONS.size(), glyphs.size());
+        assertTrue(glyphs.contains(String.valueOf(EmoteHud.DIAL)) && glyphs.contains(String.valueOf(EmoteHud.RING)) && glyphs.contains(String.valueOf(EmoteHud.POINTER)));
+        for (String id : EmoteWheel.DRAWN) assertTrue(glyphs.contains(String.valueOf(EmoteHud.glyph(EmoteWheel.icon(id)))), id);
+        assertEquals(EmoteHud.glyph(EmoteWheel.ICON_ANY), EmoteHud.glyph("emote_nobody_drew"), "an icon the font lacks shows the plain one");
+        assertEquals(EmoteHud.DIAL_PX, javax.imageio.ImageIO.read(Path.of("../content/stsv/assets/stsv/textures/font/emote_wheel/dial.png").toFile()).getWidth());
+        assertTrue(EmotePack.files().containsKey(EmotePack.WHEEL_FONT_JSON));
+        // the setting: the wheel on the screen unless it is switched to the menu
+        assertEquals("hud", resource("config.yml").getString("emotes.quick-wheel"));
     }
 }

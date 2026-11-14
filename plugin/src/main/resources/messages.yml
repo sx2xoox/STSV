@@ -214,6 +214,13 @@ emote:
   wheel-name: "<white>{name}"
   wheel-lore: ["<gray>{kind} <dark_gray>· <gray>한 바퀴 {seconds}초", "", "<yellow>좌클릭: 하기", "<gray>우클릭: 이 칸 바꾸기"]
   wheel-empty: "<gray>빈 칸"
+  wheel-hub: "<gray>감정표현 휠"
+  wheel-hub-lore: ["<gray>둘레 여섯 칸에 감정표현을 놓아 두면", "<gray>퀵 키(Ctrl + Shift)의 화면 휠에 그대로 뜹니다."]
+  wheel-hub-playing: ["<green>지금 하는 중", "<gray>웅크리거나 아래 그만하기로 끝냅니다."]
+  # 퀵 키의 화면 휠 (화면에 뜨는 휠 아래의 한 줄): 안내, 고른 감정표현, 빈 칸
+  hud-hint: "<gray>마우스로 고르고 <white>웅크리기를 떼면</white> 실행"
+  hud-pick: "<white>{name}"
+  hud-empty: "<dark_gray>빈 칸 <gray>(/감정표현 에서 놓기)"
   wheel-empty-lore: ["<yellow>클릭: 이 칸에 놓을 감정표현 고르기"]
   pick-name-locked: "<dark_gray>{name}"
   pick-lore: ["<gray>{kind} <dark_gray>· <gray>한 바퀴 {seconds}초", "", "<yellow>클릭: 이 칸에 놓기"]

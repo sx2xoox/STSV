@@ -207,6 +207,11 @@ public final class CosmeticModule implements StsvModule, Listener {
         return attachments != null && attachments.carry(p, display == null ? null : new int[]{display.getEntityId()});
     }
 
+    /** Several displays at once (their entity ids; null: no more): the emote wheel on the player's own screen. One set a player. */
+    public boolean carryAll(Player p, int[] ids) {
+        return attachments != null && attachments.carry(p, ids);
+    }
+
     /**
      * The name tag drawn above a player instead of the game's own (nicknames): a text display that follows them
      * like the worn models. null removes it. The game's tag must be hidden by the caller (scoreboard team).

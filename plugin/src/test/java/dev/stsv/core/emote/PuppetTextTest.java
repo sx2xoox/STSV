@@ -183,7 +183,7 @@ class PuppetTextTest {
     @Test
     void thePackFiles() {
         Map<String, byte[]> files = EmotePack.files();
-        assertEquals(java.util.Set.of(EmotePack.FONT_JSON, EmotePack.FONT_TTF), files.keySet());
+        assertEquals(java.util.Set.of(EmotePack.FONT_JSON, EmotePack.FONT_TTF, EmotePack.WHEEL_FONT_JSON), files.keySet());
         JsonObject font = JsonParser.parseString(new String(files.get(EmotePack.FONT_JSON), StandardCharsets.UTF_8)).getAsJsonObject();
         JsonArray providers = font.getAsJsonArray("providers");
         assertEquals(2, providers.size());

@@ -1,7 +1,8 @@
-# 감정표현 휠 (/감정표현, 제자리에서 Ctrl + Shift): 가운데 원판의 일곱 칸(둘레 여섯 + 가운데)에 내가 놓아 둔 감정표현.
+# 감정표현 휠 꾸미기 (/감정표현): 원판 둘레의 여섯 칸에 내 감정표현을 놓는 화면.
 # 칸 좌클릭 = 바로 하기 · 우클릭 = 그 칸에 놓을 감정표현 고르기 (가진 것 중에서). 감정표현은 후원 상점(/후원)에서 삽니다.
+# 여기서 놓은 대로 퀵 키(제자리에서 Ctrl + Shift)의 화면 휠에 뜸: 그 휠은 이 창이 아니라 화면에 떠서, 누른 채 마우스로 고르고 떼면 실행.
 # wheel: 원판 위에 놓이는 칸 글자 (배경에 원판 · 칸막이 · 둥근 자리가 그려짐, tools/assetgen/stsv_assets/menu_theme.py).
-#        글자 순서 = 칸 번호 (a = 1번 … g = 7번), 마지막 글자가 가운데.
+#        글자 순서 = 칸 번호 (a = 1번 … f = 6번, 맨 위부터 시계 방향), 마지막 글자 g 는 가운데 (지금 하는 감정표현을 보여 줌).
 # 자리표시자: {owned} 가진 감정표현 수 · {total} 전체 수 · {playing} 지금 하는 감정표현
 emote_wheel:
   title: "<#f0e2b0>감정표현 <#8f86a6>· {owned}/{total}"
@@ -22,14 +23,15 @@ emote_wheel:
     d: { action: "emote:slot:3", material: PAPER, name: "<gray>빈 칸" }
     e: { action: "emote:slot:4", material: PAPER, name: "<gray>빈 칸" }
     f: { action: "emote:slot:5", material: PAPER, name: "<gray>빈 칸" }
-    g: { action: "emote:slot:6", material: PAPER, name: "<gray>빈 칸" }
+    g: { action: "emote:hub", material: PAPER, name: "<gray>감정표현 휠" }
     I:
       action: ""
       icon: stsv:gui/info
       material: BOOK
       name: "<white>감정표현 휠"
       lore: ["<gray>칸 <white>좌클릭</white>: 그 감정표현 하기", "<gray>칸 <white>우클릭</white>: 그 칸에 놓을 것 고르기",
-             "", "<gray>여는 법: <white>/감정표현</white> 또는 제자리에서 <white>Ctrl + Shift",
+             "", "<gray>퀵 키: 제자리에서 <white>Ctrl + Shift</white> 를 누른 채",
+             "<gray>마우스로 칸을 고르고 <white>웅크리기를 떼면</white> 실행.",
              "<gray>하는 중에는 <white>웅크리면</white> 끝납니다.", "", "<dark_gray>감정표현은 후원 상점(/후원)에서 삽니다."]
     Z:
       action: "emote:stop"
