@@ -39,13 +39,21 @@ import java.util.Optional;
  * and its look changes. Only the item model (and for armor the worn look) changes: enchantments,
  * durability, name and stats stay exactly as they were. The original look is remembered so the
  * skin can be removed again (/stsv skin remove).
+ *
+ * <p>A fishing rod's skin may bring a float of its own ({@link CustomItem.Bobber}): while such a rod is cast, a display
+ * of that model rides the fishing hook (the clients carry it along: it bobs with the hook) and goes when the hook goes.
  */
 public final class SkinModule implements StsvModule, Listener {
 
     private static final int TOOL_SLOT = 13, INFO_SLOT = 4;
 
     private STSVPlugin plugin;
-    private NamespacedKey keySkin, keyPrevModel, keyPrevAsset, keyLore;
+    private NamespacedKey keySkin, keyPrevModel, keyPrevAsset, keyLore, keyFloat;
+    /** the floats on the hooks that are out now, by the hook's id */
+    private final java.util.Map<java.util.UUID, org.bukkit.entity.ItemDisplay> floats = new java.util.HashMap<>();
+    /** floats a hook would not take as a rider: moved to it every tick instead */
+    private final java.util.Map<java.util.UUID, org.bukkit.entity.FishHook> followed = new java.util.HashMap<>();
+    private org.bukkit.scheduler.BukkitTask floatTicker;
 
     @Override
     public String id() {
@@ -59,12 +67,83 @@ public final class SkinModule implements StsvModule, Listener {
         keyPrevModel = new NamespacedKey(plugin, "skin_prev_model");
         keyPrevAsset = new NamespacedKey(plugin, "skin_prev_asset");
         keyLore = new NamespacedKey(plugin, "skin_lore");
+        keyFloat = new NamespacedKey(plugin, "skin_float");
+        // floats left by a crash or a reload (they are not saved, but be safe)
+        for (org.bukkit.World w : Bukkit.getWorlds()) {
+            for (org.bukkit.entity.Entity e : w.getEntitiesByClass(org.bukkit.entity.ItemDisplay.class)) if (e.getPersistentDataContainer().has(keyFloat)) e.remove();
+        }
         Bukkit.getPluginManager().registerEvents(this, plugin);
+        floatTicker = Bukkit.getScheduler().runTaskTimer(plugin, this::tickFloats, 1L, 1L);
     }
 
     @Override
     public void disable() {
+        if (floatTicker != null) floatTicker.cancel();
+        floatTicker = null;
+        floats.values().forEach(org.bukkit.entity.Entity::remove);
+        floats.clear();
+        followed.clear();
         HandlerList.unregisterAll(this);
+    }
+
+    // ------------------------------------------------------------------------------------------
+    // A skinned rod's float
+    // ------------------------------------------------------------------------------------------
+
+    /** The float a rod's skin brings, if the stack carries a skin that has one. */
+    public Optional<CustomItem.Bobber> bobberOf(ItemStack rod) {
+        return skinOf(rod).flatMap(id -> plugin.content().item(id)).map(CustomItem::skin).map(CustomItem.Skin::bobber);
+    }
+
+    /** A rod was cast: its skin's float goes onto the hook. */
+    @EventHandler(priority = org.bukkit.event.EventPriority.MONITOR, ignoreCancelled = true)
+    public void onCast(org.bukkit.event.player.PlayerFishEvent e) {
+        if (e.getState() != org.bukkit.event.player.PlayerFishEvent.State.FISHING) return;
+        Player p = e.getPlayer();
+        ItemStack rod = p.getInventory().getItem(e.getHand() == null ? EquipmentSlot.HAND : e.getHand());
+        Optional<CustomItem.Bobber> bobber = bobberOf(rod);
+        if (bobber.isEmpty()) return;
+        org.bukkit.entity.FishHook hook = e.getHook();
+        CustomItem.Bobber b = bobber.get();
+        ItemStack shown = new ItemStack(Material.PAPER);
+        shown.editMeta(m -> m.setItemModel(b.model()));
+        org.bukkit.entity.ItemDisplay d = hook.getWorld().spawn(hook.getLocation(), org.bukkit.entity.ItemDisplay.class, it -> {
+            it.setPersistent(false);
+            it.getPersistentDataContainer().set(keyFloat, PersistentDataType.BYTE, (byte) 1);
+            it.setItemStack(shown);
+            it.setItemDisplayTransform(org.bukkit.entity.ItemDisplay.ItemDisplayTransform.FIXED);
+            it.setTransformation(new org.bukkit.util.Transformation(new org.joml.Vector3f(0, b.lift(), 0), new org.joml.Quaternionf(),
+                    new org.joml.Vector3f(b.scale(), b.scale(), b.scale()), new org.joml.Quaternionf()));
+            it.setTeleportDuration(1);
+            it.setViewRange(1.5f);
+        });
+        floats.put(hook.getUniqueId(), d);
+        // riding the hook, the clients carry it along; a hook that takes no rider is followed tick by tick instead
+        if (!hook.addPassenger(d)) followed.put(hook.getUniqueId(), hook);
+    }
+
+    /** The hook went (reeled in, lost, its fisher left): its float goes with it. */
+    @EventHandler
+    public void onHookGone(com.destroystokyo.paper.event.entity.EntityRemoveFromWorldEvent e) {
+        org.bukkit.entity.ItemDisplay d = floats.remove(e.getEntity().getUniqueId());
+        followed.remove(e.getEntity().getUniqueId());
+        if (d != null) d.remove();
+    }
+
+    /** Every tick: floats that do not ride are moved to their hooks; floats whose hook is gone go (should the event have been missed). */
+    private void tickFloats() {
+        if (floats.isEmpty()) return;
+        followed.forEach((id, hook) -> {
+            org.bukkit.entity.ItemDisplay d = floats.get(id);
+            if (d != null && hook.isValid()) d.teleport(hook.getLocation().add(0, 0.25, 0));
+        });
+        floats.entrySet().removeIf(en -> {
+            org.bukkit.entity.Entity hook = Bukkit.getEntity(en.getKey());
+            if (hook != null && hook.isValid() && en.getValue().isValid()) return false;
+            en.getValue().remove();
+            followed.remove(en.getKey());
+            return true;
+        });
     }
 
     // ------------------------------------------------------------------------------------------

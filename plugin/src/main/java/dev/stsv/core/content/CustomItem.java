@@ -93,8 +93,23 @@ public record CustomItem(
      * @param model     item model to show (e.g. stsv:model/test_sword_skin)
      * @param appliesTo "#minecraft:swords", "minecraft:bow", "stsv:test_sword"
      * @param asset     optional equipment asset for armor skins
+     * @param bobber    a fishing rod's skin: the float shown on its hook while it is cast, or null
      */
-    public record Skin(NamespacedKey model, List<String> appliesTo, NamespacedKey asset, boolean returnOnRemove) {}
+    public record Skin(NamespacedKey model, List<String> appliesTo, NamespacedKey asset, boolean returnOnRemove, Bobber bobber) {
+        public Skin(NamespacedKey model, List<String> appliesTo, NamespacedKey asset, boolean returnOnRemove) {
+            this(model, appliesTo, asset, returnOnRemove, null);
+        }
+    }
+
+    /**
+     * A skinned rod's float: an item model shown on the fishing hook (a display riding it: the game's own float cannot
+     * be hidden or changed for one rod, so this one stands over it and is drawn larger).
+     *
+     * @param model the item model (stsv:toy_bobber)
+     * @param scale its size (1 = the model's own: 16 units a block)
+     * @param lift  blocks up from where a rider of the hook sits (the hook's top, 0.25 over its own point): negative lowers it into the water
+     */
+    public record Bobber(NamespacedKey model, float scale, float lift) {}
 
     /**
      * A cosmetic shown on the player in one of the cosmetic slots. One cosmetic per slot is worn at a time.

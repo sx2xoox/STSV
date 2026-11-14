@@ -430,7 +430,17 @@ public final class ContentModule implements StsvModule, org.bukkit.event.Listene
         List<String> applies = s.getStringList("applies-to");
         if (applies.isEmpty()) throw new IllegalArgumentException("skin.applies-to 가 비어 있음");
         NamespacedKey asset = s.isString("equipment") ? NamespacedKey.fromString(s.getString("equipment")) : null;
-        return new CustomItem.Skin(model, List.copyOf(applies), asset, s.getBoolean("return-on-remove", true));
+        CustomItem.Bobber bobber = null;
+        if (s.isConfigurationSection("bobber") || s.isString("bobber")) {
+            String bm = s.isString("bobber") ? s.getString("bobber") : s.getString("bobber.model");
+            NamespacedKey key = bm == null ? null : NamespacedKey.fromString(bm.contains(":") ? bm : pack.namespace() + ":" + bm);
+            if (key == null) throw new IllegalArgumentException("skin.bobber.model 이 없거나 잘못됨 (예: stsv:toy_bobber)");
+            double scale = s.getDouble("bobber.scale", 1.0), lift = s.getDouble("bobber.lift", -0.25);
+            if (scale <= 0 || scale > 4) throw new IllegalArgumentException("skin.bobber.scale 은 0 초과 4 이하");
+            if (Math.abs(lift) > 2) throw new IllegalArgumentException("skin.bobber.lift 는 -2 ~ 2 (블록)");
+            bobber = new CustomItem.Bobber(key, (float) scale, (float) lift);
+        }
+        return new CustomItem.Skin(model, List.copyOf(applies), asset, s.getBoolean("return-on-remove", true), bobber);
     }
 
     private FurnitureSpec parseFurniture(ConfigurationSection f) {
