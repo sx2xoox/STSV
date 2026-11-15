@@ -55,8 +55,9 @@ class PackPipelineTest {
             "gumiho",                                           // nine tails fanned out
             "wagasa",                                           // the parasol's struts, tilted up to its canopy
             // retro furniture: the kettle's spout, the radio's aerial, the clothes prop, the phone's dial face, the dresser's wing
-            // mirrors, the fan's tilted head, the lid leant on the small jar, the washboard in the tub
+            // mirrors, the fan's tilted head, the lid leant on the small jar, the washboard in the tub, the TV's rabbit ears, the lamp's arm
             "brass_kettle", "cassette_radio", "clothesline", "dial_phone", "dresser", "electric_fan", "jangdokdae", "washtub",
+            "crt_tv", "street_lamp",
             "police_car", "light_truck", "sports_car", "tuner_car",   // raked windscreens (45 / 22.5 degrees)
             "hyper_car", "grand_sedan", "luxury_suv",           // the premium cars: screens, the hyper car hood and back
             "cargo_bicycle", "delivery_scooter", "atv",         // road vehicles: frame tubes, forks, stays, steering posts
