@@ -20,21 +20,20 @@ def icon(pid):
 @icon("yeontan_stove")
 def yeontan_stove():
     c = Canvas()
-    c.rect(7, 0, 9.5, 7, "steel", 1, normal=FRONT, lo=2, hi=4)        # the flue pipe going up
-    c.rect(6.5, 0, 10, 1, "steel", 2, normal=UP)
-    c.cyl(2, 8, 14, 15, "iron", 2, gloss=0.6)
-    c.rect(2, 11, 14, 12, "blade", 3, step=3)                             # the bright band
-    c.rect(6, 12.5, 10, 15, "iron", 4, step=1)                     # the ash door
+    c.rect(11, 0, 13, 5, "steel", 1, normal=FRONT, lo=2, hi=4)         # the slim flue at the back
+    c.rect(10.5, 0, 13.5, 1, "steel", 2, step=2)
+    c.cyl(2.5, 6, 13.5, 15, "steel", 2, gloss=0.2)                      # the tall round body
+    c.rect(2.5, 8, 13.5, 8.7, "blade", 3, step=3)                       # the bright bands
+    c.rect(2.5, 11.3, 13.5, 12, "blade", 3, step=3)
+    c.rect(6, 12, 10, 15, "iron", 4, step=0)                            # the ash door
     c.dots([(7, 13), (9, 13)], "fire", 4, z=5)
-    c.ellipse(8, 8, 7, 2, "iron", 5, dome=0.3, gloss=0)
-    c.ellipse(10.5, 8.2, 2.3, 1.1, "fire", 6, lo=3, hi=5, gloss=0.4)    # the glowing briquette
-    c.put(10, 8, "fire", 5, z=8)
-    c.put(11, 8, "fire", 5, z=8)
-    c.cyl(2.5, 4.5, 6.5, 8.2, "brass", 7, gloss=0.8)                   # the yellow kettle
-    c.ellipse(4.5, 4.4, 1.8, 0.8, "brass", 8, dome=0.3)
-    c.put(4, 3, "rubber", 1, z=9)
-    c.line(6.5, 6, 7.5, 5, "brass", 2, z=9)
-    for (x, y) in ((3, 15), (13, 15)):
+    c.ellipse(8, 6, 6.5, 1.8, "iron", 5, dome=0.3, gloss=0)             # the iron top plate
+    c.ellipse(9.5, 6.2, 2.2, 1.0, "fire", 6, lo=3, hi=5, gloss=0.4)     # the glowing briquette
+    c.cyl(2.5, 2.8, 6.5, 5.8, "brass", 7, gloss=0.6)                    # the yellow kettle
+    c.ellipse(4.5, 2.8, 1.5, 0.7, "brass", 8, dome=0.3)
+    c.put(4, 2, "rubber", 1, z=9)
+    c.line(1, 3, 2, 4, "brass", 2, z=9)                                 # its spout
+    for (x, y) in ((3, 15), (12, 15)):
         c.put(x, y, "iron", 1, z=1)
     return c.render()
 
@@ -150,36 +149,43 @@ def briquette_pile():
 @icon("brass_kettle")
 def brass_kettle():
     c = Canvas()
-    c.ellipse(8, 13.5, 7.5, 2.4, "brass", 0, dome=0.3, gloss=0.2)        # tray
-    c.cyl(6, 5, 13, 13, "brass", 2, gloss=0.85)
-    c.ellipse(9.5, 5, 3.2, 1.1, "brass", 3, dome=0.3)
-    c.put(9, 4, "brass", 1, z=4)
-    c.line(6, 9, 3, 6, "brass", 2, z=3)                                  # the spout
-    c.line(6, 4, 7, 1, "brass", 1, z=4)                                  # wire handle
-    c.line(7, 1, 12, 1, "brass", 1, z=4)
-    c.line(12, 1, 13, 4, "brass", 1, z=4)
-    for x in (1.5, 3.5):
-        c.cyl(x, 10.5, x + 3, 14, "brass", 5, gloss=0.8)
-        c.put(round(x) + 1, 10, "cream", 3, z=6)
+    c.ellipse(8, 14, 7.5, 1.8, "brass", 0, dome=0.3, gloss=0.2)          # the tray
+    c.line(6, 1, 11, 1, "brass", 1, z=1)                                 # the bail handle standing up
+    c.line(5, 2, 5, 7, "brass", 1, z=1)
+    c.line(12, 2, 12, 7, "brass", 1, z=1)
+    c.dots([(5, 2), (12, 2)], "brass", 1, z=1)
+    c.ellipse(8.5, 11.5, 5, 3, "brass", 3, gloss=0.9)                    # the squat body, widest low
+    c.ellipse(8.5, 8.6, 3.6, 1.6, "brass", 4, gloss=0.8)                 # the shoulder
+    c.ellipse(8.5, 7.2, 2.2, 1.0, "brass", 5, dome=0.4)                  # the domed lid
+    c.put(8, 6, "rubber", 1, z=6)                                        # its knob
+    c.line(4, 11, 1, 6, "brass", 2, z=7)                                 # the long spout rising
+    c.line(4, 12, 2, 7, "brass", 1, z=6)
+    c.cyl(11.5, 12, 14.5, 14.5, "brass", 8, gloss=0.8)                   # a cup in front
+    c.put(12, 12, "cream", 3, z=9)
+    c.put(13, 12, "cream", 3, z=9)
     return c.render()
 
 
 @icon("cassette_radio")
 def cassette_radio():
     c = Canvas()
-    c.line(3, 7, 7, 0, "blade", 3, z=0)                                  # the antenna
-    c.rect(4, 4, 12, 5, "rubber", 1, step=1)                             # handle
-    c.rect(4, 5, 5, 7, "blade", 1, step=2)
-    c.rect(11, 5, 12, 7, "blade", 1, step=2)
-    c.rect(0.5, 6.5, 15.5, 14.5, "blade", 2, normal=FRONT)
-    c.rect(0.5, 6.5, 15.5, 7.2, "rubber", 3, step=1)
+    c.line(2, 5, 5, 1, "blade", 3, z=0)                                  # the antenna
+    c.rect(4, 3, 12, 4, "rubber", 1, step=1)                             # handle
+    c.rect(4, 4, 5, 6, "blade", 1, step=2)
+    c.rect(11, 4, 12, 6, "blade", 1, step=2)
+    c.rect(0.5, 5.5, 15.5, 14.5, "steel", 2, step=1)
+    c.rect(0.5, 5.5, 15.5, 6.3, "rubber", 3, step=1)
     for cx in (3.5, 12.5):
-        c.ellipse(cx, 10.5, 2.8, 2.8, "rubber", 4, gloss=0.3)
-        c.put(round(cx), 10, "blade", 3, z=5)
-    c.rect(6.5, 9, 9.5, 12, "tint", 5, step=2)                           # cassette window
-    c.dots([(7, 10), (9, 10)], "paper", 2, z=6)
-    c.rect(6.5, 7.5, 9.5, 8.5, "dial", 5, step=1)
-    c.put(8, 8, "signal_red", 1, z=6)
+        c.ellipse(cx, 10.5, 3, 3, "blade", 4, lo=2, hi=3, gloss=0.6)      # the bright silver rims
+        c.ellipse(cx, 10.5, 1.9, 1.9, "rubber", 5, lo=0, hi=0, gloss=0)   # the dark grilles
+        c.dots([(round(cx) - 1, 10), (round(cx) + 1, 10), (round(cx), 9), (round(cx), 11)], "rubber", 2, z=6)
+        c.put(round(cx), 10, "blade", 3, z=7)                            # dust cap
+    c.rect(6.5, 9, 9.5, 13, "steel", 5, step=3)                          # the cassette window's frame
+    c.rect(7, 10, 9, 12, "tint", 6, step=1)
+    c.dots([(7, 11), (8, 11)], "porcelain", 2, z=7)                      # two reels
+    c.rect(7, 10, 9, 10.5, "paper", 7, step=2)                           # label
+    c.rect(6.5, 7, 9.5, 8, "dial", 6, step=1)                            # the dial strip
+    c.put(8, 7, "signal_red", 1, z=8)
     return c.render()
 
 

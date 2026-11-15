@@ -93,11 +93,14 @@ def _briquette_top(cx, cz, r_out, hole_r=0.42):
 
 
 def yeontan_stove():
-    """연탄난로 1x2: a round cast-iron briquette stove on three stubby legs, a silver body band and an ash door with
-    vents glowing at the bottom; on its top plate a briquette burns in the open fire hole (its 19 holes glow and
-    breathe), a yellow aluminium kettle warms beside it, and a galvanized flue pipe rises from the back, its
-    joints banded, then bends back to the wall. The stove is kept low (the kettle's lid under a block up) so the
-    pipe's cell stays free of a barrier: the light is there."""
+    """연탄난로 1x2: a round briquette stove nearly a block tall on three stubby legs: a silver-grey body with two
+    chrome bands and an ash door whose vents glow, a cast-iron top plate where a briquette burns in the open fire
+    hole (its holes glow and breathe), a yellow aluminium kettle warming beside it, and a slim galvanized flue
+    rising from the back, its joints banded, bending back to the wall at the top.
+
+    The light is in the flue's cell above (furniture.light), which must stay free of a barrier (under 30% of its
+    16 px voxels touched): the stove's top plate ends at the cell's floor, only the kettle and the fire collar reach
+    a little into it, and the flue is 3 px, inside one voxel column."""
     m = BModel("yeontan_stove")
     m.group("body")
     for (x, z) in ((3.5, 4), (12.5, 4), (8, 13)):
@@ -108,24 +111,24 @@ def yeontan_stove():
         if c.face in ("up", "down"):
             return None
         y = c.p[1]
-        if 7.6 < y < 8.4 or 5.1 < y < 5.9:
+        if 11.6 < y < 12.4 or 6.6 < y < 7.4:
             return ("blade", 3)                     # the bright bands round its shoulder and waist
-        if 2.5 < y < 5.1 and c.face in ("north",) and abs(c.p[0] - 8) < 2.5:
+        if 2.5 < y < 6.6 and c.face in ("north",) and abs(c.p[0] - 8) < 2.5:
             return ("iron", 0)                      # the ash door: a darker plate
         return None
-    cyl(m, "body", (8, 8.5), 11, 2.5, 9.5, Paint("steel", 2, noise=0.02, decal=body_band))
+    cyl(m, "body", (8, 8.5), 11, 2.5, 14.5, Paint("steel", 2, noise=0.02, decal=body_band))
 
     def vents(c):
         return ("fire", 2 + (1 if (c.frame + int(c.p[0])) % 12 < 5 else 0))
     for x in (6.5, 8.5):
-        m.box("vent", (x - 0.5, 3.0, 2.95), (x + 0.5, 4.5, 3.0),
+        m.box("vent", (x - 0.5, 3.5, 2.95), (x + 0.5, 5.5, 3.0),
               Paint("fire", 2, glow=True, light=False, noise=0, decal=vents, frames=12, frametime=3))
-    m.box("door_knob", (9.5, 3.5, 2.4), (10.5, 4.5, 3), CHROME)
-    cyl(m, "top", (8, 8.5), 13, 9.5, 10.5, flat("iron", 1, rim=0.9))
+    m.box("door_knob", (9.5, 4, 2.4), (10.5, 5, 3), CHROME)
+    cyl(m, "top", (8, 8.5), 13, 14.5, 16, flat("iron", 1, rim=0.9))
     m.group("fire")
     # the open fire hole at the front left of the plate: a raised iron collar round a glowing briquette top
     hx, hz = 10.5, 5.5
-    ring(m, "collar", (hx, hz), 6, 4, 10.5, 11.25, IRON_DARK)
+    ring(m, "collar", (hx, hz), 6, 4, 16, 16.75, IRON_DARK)
     holes = _briquette_top(hx, hz, 1.6)
 
     def burning(c):
@@ -138,37 +141,36 @@ def yeontan_stove():
                 return ("fire", 3 + (1 if k < 4 else 0))
         r = math.hypot(u, v)
         return ("fire", 2 + (1 if (c.frame // 3) % 2 == 0 and r < 1.2 else 0)) if r < 2 else ("fire", 1)
-    cyl(m, "briquette", (hx, hz), 4, 10, 11, Paint("fire", 2, glow=True, light=False, noise=0, decal=burning,
-                                                   frames=12, frametime=3))
+    cyl(m, "briquette", (hx, hz), 4, 15.5, 16.5, Paint("fire", 2, glow=True, light=False, noise=0, decal=burning,
+                                                       frames=12, frametime=3))
     m.group("kettle")
-    # (kept under the pipe's block, so the light above has a cell without a barrier)
     kx, kz = 4.5, 7.5
-    cyl(m, "kettle", (kx, kz), 5, 10.5, 11, YANGEUN_DARK)
-    cyl(m, "kettle", (kx, kz), 6, 11, 14, YANGEUN)
-    cyl(m, "kettle", (kx, kz), 4, 14, 14.5, YANGEUN)
-    cyl(m, "lid", (kx, kz), 3, 14.5, 15, flat("brass", 3))
-    m.box("knob", (kx - 0.5, 15, kz - 0.5), (kx + 0.5, 15.5, kz + 0.5), BLACK)
-    # the spout to the front, the wire handle across from side to side
-    m.box("spout", (kx - 0.5, 11.5, kz - 3.75), (kx + 0.5, 12.75, kz - 2.75), YANGEUN)
-    m.box("spout_tip", (kx - 0.5, 12.5, kz - 4.5), (kx + 0.5, 13.75, kz - 3.75), YANGEUN)
+    cyl(m, "kettle", (kx, kz), 5, 16, 16.5, YANGEUN_DARK)
+    cyl(m, "kettle", (kx, kz), 6, 16.5, 18.25, YANGEUN)
+    cyl(m, "kettle", (kx, kz), 4, 18.25, 18.75, YANGEUN)
+    cyl(m, "lid", (kx, kz), 3, 18.75, 19.25, flat("brass", 3))
+    m.box("knob", (kx - 0.5, 19.25, kz - 0.5), (kx + 0.5, 19.6, kz + 0.5), BLACK)
+    m.box("spout", (kx - 0.5, 16.75, kz - 3.75), (kx + 0.5, 17.75, kz - 2.75), YANGEUN)
+    m.box("spout_tip", (kx - 0.5, 17.5, kz - 4.5), (kx + 0.5, 18.75, kz - 3.75), YANGEUN)
     wire = flat("iron", 2, rim=0.4)
     for x in (kx - 3.25, kx + 2.75):
-        m.box("handle", (x, 13.5, kz - 0.25), (x + 0.5, 15.25, kz + 0.25), wire)
-    m.box("handle", (kx - 3.25, 15.25, kz - 0.25), (kx + 3.25, 15.75, kz + 0.25), wire)
+        m.box("handle", (x, 18, kz - 0.25), (x + 0.5, 19.25, kz + 0.25), wire)
+    m.box("handle", (kx - 3.25, 19.25, kz - 0.25), (kx + 3.25, 19.75, kz + 0.25), wire)
     m.group("flue")
 
     def joints(c):
         if c.face in ("up", "down"):
             return None
-        if c.i[1] % 8 == 0:
+        if c.i[1] % 6 == 0:
             return ("steel", 1)                     # the crimped joint between two pipe lengths
         return None
-    pipe = Paint("steel", 3, "metal", decal=joints)
-    cyl(m, "collar_flue", (8, 12), 5, 10.5, 12, IRON_DARK)
-    cyl(m, "pipe", (8, 12), 4, 12, 25, pipe)
+    pipe = Paint("steel", 3, noise=0.02, decal=joints)
+    fx, fz = 6, 14
+    cyl(m, "collar_flue", (fx, fz), 3, 16, 17, flat("iron", 1))
+    cyl(m, "pipe", (fx, fz), 3, 17, 27, pipe)
     # the elbow, and the pipe going back into the wall behind (z 16)
-    cyl(m, "elbow", (8, 12), 5, 25, 29, flat("steel", 2))
-    cyl(m, "pipe_back", (8, 27), 4, 14.5, 16, pipe(decal=None), axis="z")
+    cyl(m, "elbow", (fx, fz), 3, 27, 30, flat("steel", 2))
+    cyl(m, "pipe_back", (fx, 28.5), 3, 15.5, 16, flat("steel", 2), axis="z")
     return finish(m, (1, 2, 1))
 
 
@@ -545,37 +547,44 @@ def briquette_pile():
 # ================================================================================================
 
 def brass_kettle():
-    """양은 주전자 1x1: the yellow aluminium kettle every makgeolli table had, with its hammered cups: a round tray,
-    the kettle with a long spout, a domed lid and a wire handle, and two dimpled cups."""
+    """양은 주전자 1x1: the yellow aluminium kettle every makgeolli table had: a squat round body widest at the
+    bottom, a clear shoulder, a domed lid with a small knob, a long thin spout rising at an angle from the lower
+    body, the wire bail handle standing up; on a round tray with two small cups of makgeolli."""
     m = BModel("brass_kettle")
     m.group("tray")
-    cyl(m, "tray", (8, 8), 15, 0, 0.5, YANGEUN)
-    ring(m, "tray_rim", (8, 8), 15, 13, 0.5, 1.25, flat("brass", 3))
+    cyl(m, "tray", (8, 8), 14, 0, 0.5, YANGEUN)
+    ring(m, "tray_rim", (8, 8), 14, 12, 0.5, 1.25, flat("brass", 3))
     m.group("kettle")
-
-    def dimples(c):
-        if c.face in SIDE_FACES and (c.i[0] + c.i[2] + 2 * c.i[1]) % 3 == 0:
-            return ("brass", 1)
-        return None
-    kx, kz = 10, 8.5
-    cyl(m, "kettle", (kx, kz), 6, 0.5, 1, YANGEUN_DARK)
-    cyl(m, "kettle", (kx, kz), 7, 1, 6, YANGEUN)
-    cyl(m, "kettle", (kx, kz), 6, 6, 7, YANGEUN)
-    cyl(m, "lid", (kx, kz), 5, 7, 7.75, flat("brass", 3))
-    m.box("lid_knob", (kx - 0.5, 7.75, kz - 0.5), (kx + 0.5, 8.5, kz + 0.5), YANGEUN_DARK)
-    # the long spout reaching out to the front left
-    m.box("spout", (kx - 0.5, 2, kz - 4.5), (kx + 0.5, 3.5, kz - 3.5), YANGEUN)
-    m.box("spout", (kx - 0.5, 3, kz - 5.5), (kx + 0.5, 4.5, kz - 4.5), YANGEUN)
-    m.box("spout", (kx - 0.5, 4, kz - 6.5), (kx + 0.5, 5.75, kz - 5.5), YANGEUN)
+    kx, kz = 8, 6.25
+    # the body in thin rings: a foot, the wide bottom drum, then the shoulder sloping in to the neck
+    for (lo, hi, d) in ((0.5, 1.0, 7), (1.0, 3.5, 8), (3.5, 4.0, 7), (4.0, 4.5, 6), (4.5, 5.0, 5)):
+        cyl(m, "kettle", (kx, kz), d, lo, hi, YANGEUN_DARK if lo == 0.5 else YANGEUN)
+    cyl(m, "lid_rim", (kx, kz), 5, 5.0, 5.5, flat("brass", 3, rim=0.8))
+    cyl(m, "lid", (kx, kz), 4, 5.5, 6.0, flat("brass", 3))
+    cyl(m, "lid", (kx, kz), 2, 6.0, 6.5, flat("brass", 3))
+    m.box("lid_knob", (kx - 0.5, 6.5, kz - 0.5), (kx + 0.5, 7.25, kz + 0.5), BLACK)
+    # the long spout rising from the lower body, out to the side (seen in profile from the front 3/4)
+    sp = Paint("brass", 2, noise=0, rim=0.6)
+    ox, oy = kx + 3.5, 2.0
+    m.box("spout", (ox - 0.5, oy - 0.5, kz - 0.5), (ox + 5.0, oy + 0.5, kz + 0.5), sp, rotation=("z", 45, (ox, oy, kz)))
+    m.box("spout_tip", (ox + 4.0, oy + 0.5, kz - 0.5), (ox + 5.0, oy + 1.0, kz + 0.5), sp, rotation=("z", 45, (ox, oy, kz)))
+    # the bail handle standing up on two lugs at the shoulder
     wire = flat("brass", 1, rim=0.4)
-    for x in (kx - 3.25, kx + 2.75):
-        m.box("handle", (x, 6.5, kz - 0.25), (x + 0.5, 9.5, kz + 0.25), wire)
-    m.box("handle", (kx - 3.25, 9.5, kz - 0.25), (kx + 3.25, 10, kz + 0.25), wire)
+    for x in (kx - 4.0, kx + 3.5):
+        m.box("lug", (x, 3.75, kz - 0.5), (x + 0.5, 4.75, kz + 0.5), YANGEUN_DARK)
+        m.box("bail", (x, 4.75, kz - 0.25), (x + 0.5, 8.25, kz + 0.25), wire)
+    # rounded shoulders and the top bar
+    m.box("bail", (kx - 3.5, 8.25, kz - 0.25), (kx - 2.5, 8.75, kz + 0.25), wire)
+    m.box("bail", (kx + 2.5, 8.25, kz - 0.25), (kx + 3.5, 8.75, kz + 0.25), wire)
+    m.box("bail", (kx - 3.0, 8.75, kz - 0.25), (kx + 3.0, 9.25, kz + 0.25), wire)
     m.group("cups")
-    for (x, z) in ((4.5, 6), (4.5, 10.5)):
-        cyl(m, "cup", (x, z), 4, 0.5, 3.0, YANGEUN(decal=dimples))
-        ring(m, "cup_wall", (x, z), 4, 3, 3.0, 3.5, YANGEUN)
-        cyl(m, "makgeolli", (x, z), 3, 3.0, 3.25, flat("cream", 2))
+
+    def makgeolli(c):
+        if c.face == "up":
+            return ("cream", 2)
+        return ("brass", 1) if (c.i[0] + c.i[2] + 2 * c.i[1]) % 3 == 0 else None    # hammered dimples
+    for (x, z) in ((5, 11), (11, 11)):
+        cyl(m, "cup", (x, z), 3, 0.5, 2.75, YANGEUN(decal=makgeolli))
     return finish(m, (1, 1, 1))
 
 
@@ -600,25 +609,37 @@ def cassette_radio():
         if c.face != "north":
             return None
         x, y = c.p[0], c.p[1]
-        for sx in (3.5, 12.5):
-            r = math.hypot(x - sx, y - 4.5)
-            if r < 2.3:
-                if r < 0.8:
-                    return ("steel", 4)                     # the dust cap
-                return ("rubber", 1)                        # the grille
-            if r < 3.1:
-                return ("steel", 4)                         # the chrome ring
-        if 6.25 < x < 9.75:
-            if 1.0 < y < 5.0:
-                if 2.0 < y < 4.0 and 7 < x < 9:
-                    return ("rubber", 0) if c.i[1] == 3 else ("paper", 2)   # the tape behind the window, its label
-                return ("steel", 1)                         # the cassette door
-            if 5.5 < y < 7.5:
-                if c.i[0] == 8:
+        i, j = c.i[0], c.i[1]
+        if 6 <= i <= 9:
+            if j in (2, 3, 4):
+                if j == 3:
+                    if i in (6, 9):
+                        return ("porcelain", 2)             # the two reels
+                    return ("leather", 0)                   # the tape between them
+                if j == 4:
+                    return ("paper", 2)                     # the label above the window
+                return ("tint", 1)                          # the window's lower edge
+            if j in (6, 7):
+                if i == 8 and j == 6:
                     return ("signal_red", 1)                # the tuning needle
-                return ("dial", 1) if c.i[1] == 6 else ("dial", 0)
+                return ("dial", 1) if j == 6 else ("dial", 0)
         return None
-    m.box("face", (X0, 0.5, Z0 - 0.25), (X1, 8.5, Z0), Paint("steel", 2, noise=0, decal=front))
+    m.box("face", (X0, 0.5, Z0 - 0.25), (X1, 8.5, Z0), Paint("steel", 1, noise=0, decal=front))
+    # the two speakers, built round: a bright silver rim standing out of the front, the dark dotted cone in it
+    # and a silver dust cap in the middle
+    def grille(c):
+        if c.face == "north" and c.i[0] % 2 == 0 and c.i[1] % 2 == 1:
+            return ("rubber", 2)
+        return None
+    for sx in (3.25, 12.75):
+        cyl(m, "speaker_rim", (sx, 4.5), 5, Z0 - 0.5, Z0, flat("blade", 3, rim=0.6), axis="z")
+        cyl(m, "speaker_cone", (sx, 4.5), 3, Z0 - 0.75, Z0 - 0.5, flat("rubber", 0, decal=grille), axis="z")
+        m.box("dust_cap", (sx - 0.5, 4.0, Z0 - 1.0), (sx + 0.5, 5.0, Z0 - 0.75), flat("blade", 2))
+    bezel = flat("steel", 3, rim=0.5)                     # a raised frame round the cassette window
+    m.box("bezel", (5.75, 1.5, Z0 - 0.5), (10.25, 1.75, Z0 - 0.25), bezel)
+    m.box("bezel", (5.75, 5.25, Z0 - 0.5), (10.25, 5.5, Z0 - 0.25), bezel)
+    m.box("bezel", (5.75, 1.75, Z0 - 0.5), (6.0, 5.25, Z0 - 0.25), bezel)
+    m.box("bezel", (10.0, 1.75, Z0 - 0.5), (10.25, 5.25, Z0 - 0.25), bezel)
     # piano-key buttons on top, the handle, the antenna
     for k, ramp in enumerate(("rubber", "rubber", "pepper", "rubber", "rubber", "rubber")):
         m.box("key", (5.5 + k, 9.25, Z0 + 0.5), (6.25 + k, 9.75, Z0 + 1.75), flat(ramp, 1 if ramp == "rubber" else 2))
