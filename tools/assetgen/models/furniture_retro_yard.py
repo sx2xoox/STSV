@@ -19,7 +19,7 @@ import math
 
 from economy_machines import display
 from models.furniture_japanese import STONE, STONE_DARK, STONE_LIGHT, flat, flicker, moss_on, puff
-from stsv_assets.bake import BModel, Paint, cyl, h3, ring
+from stsv_assets.bake import BModel, Paint, bands, cyl, h3, ring
 
 # ================================================================================================
 # Paints
@@ -166,6 +166,12 @@ def pyeongsang():
     def ember(c):
         return ("fire", 3 + flicker(c.frame, 1) * 2)
     m.box("ember", (27.5, 7.75, 24.75), (28, 8.1, 25.25), glow("fire", 3, decal=ember, frames=12))
+    m.group("shoes")
+    # a pair of white rubber shoes (고무신) left at the platform's edge, toes out, one a little askew
+    shoe = Paint("porcelain", 3, noise=0, rim=1.2, decal=lambda c: ("porcelain", 1) if c.face == "up" else None)
+    for (x, z) in ((6.5, 0.75), (8.75, 1.25)):
+        m.box("shoe", (x, 0, z), (x + 1.75, 0.5, z + 3.5), Paint("porcelain", 2, noise=0, rim=1.0))
+        m.box("shoe", (x + 0.25, 0.5, z + 0.25), (x + 1.5, 1.25, z + 2.5), shoe)
     return display(m, (2, 1, 2), 0)
 
 
@@ -174,43 +180,37 @@ def pyeongsang():
 # ================================================================================================
 
 def red_postbox():
-    """빨간 우체통 (1.4 blocks): a red tin box with a rounded top on a dark iron plinth, the letter slot under a
-    little visor, a cream plate with a white envelope on a red ground (a pictogram, no postal emblem) and the
-    collection-time card; a hinged door with a brass lock on the back, the paint worn at the edges."""
+    """빨간 우체통 (1.4 blocks): a red tin box with a rounded roof (its rolled rim front and back) on a dark iron
+    plinth, the letter slot under a little visor, a raised cream plate with a plain white envelope pictogram (no
+    postal emblem) and below it the collection-times plate; a hinged door with a brass lock on the back; the paint
+    grimy and chipped at the foot, a few rust spots on the plinth, an old postcode sticker on one side."""
     m = BModel("red_postbox")
     m.group("plinth")
-    m.box("plinth", (3, 0, 3), (13, 1.5, 13), IRON)
+
+    def plinth_wear(c):
+        if c.face in SIDE_FACES and c.p[1] < 0.6:
+            return ("wood_dark", 1)                        # mud splashed on the foot
+        if h3(c.i[0], c.i[1], c.i[2], 23) < 0.12:
+            return ("fox", 1)                              # rust spots
+        return None
+    m.box("plinth", (3, 0, 3), (13, 1.5, 13), Paint("iron", 2, "metal", decal=plinth_wear))
     m.box("plinth_top", (3.5, 1.5, 3.5), (12.5, 2, 12.5), flat("iron", 3))
     for (x, z) in ((3.75, 3.75), (11.75, 3.75), (3.75, 11.75), (11.75, 11.75)):
         m.box("bolt", (x, 1.5, z), (x + 0.5, 1.75, z + 0.5), flat("steel", 4))
 
-    def front(c):
-        if c.face != "north":
-            return None
-        ix, iy = c.i[0], c.i[1]
-        # one clean cream plate (x 4..11, rows 9..13) with a plain white envelope on it (x 5..10, rows 10..12),
-        # its flap a thin grey V from the top corners to the middle; a pictogram, no postal emblem
-        if 4 <= ix <= 11 and 9 <= iy <= 13:
-            if 5 <= ix <= 10 and 10 <= iy <= 12:
-                col, row = ix - 5, 12 - iy                 # col 0..5 from the left edge, row 0 at the top
-                if row < 2 and col in (row + 1, 4 - row):
-                    return ("steel", 4)
-                return ("porcelain", 3)
-            return ("cream", 3)
-        # below it: a plain plate for the collection times, two thin dark lines of writing on it
-        if 5 <= ix <= 10 and 3 <= iy <= 7:
-            if (iy == 6 and 6 <= ix <= 9) or (iy == 4 and 6 <= ix <= 8):
-                return ("steel", 2)
-            return ("cream", 4)
-        return None
-
     def wear(c):
-        got = front(c)
-        if got:
-            return got
-        # a few chips worn to the dark undercoat low down, where kicks and bicycles hit it
-        if c.face in SIDE_FACES and c.p[1] < 5 and h3(c.i[0], c.i[1], c.i[2], 21) < 0.06:
-            return ("pepper", 1)
+        x, y, z = c.p
+        # an old postcode sticker on the left side: white, a blue band and a grey line of print
+        if c.face == "east" and 9 <= c.i[1] <= 11 and 6 <= c.i[2] <= 9:
+            if c.i[1] == 11:
+                return ("denim", 3)
+            return ("steel", 4) if c.i[1] == 10 else ("porcelain", 3)
+        if c.face in SIDE_FACES and y < 5:
+            r = h3(c.i[0], c.i[1], c.i[2], 21)
+            if r < 0.05 + (5 - y) * 0.04:
+                return ("pepper", 0)                       # chips and grime at the foot, thicker lower down
+            if y < 3.5 and r > 0.94:
+                return ("fox", 1)                          # a bloom of rust
         return None
     body = Paint("pepper", 2, noise=0.0, decal=wear)
     m.group("box")
@@ -218,6 +218,34 @@ def red_postbox():
     m.box("seam", (2.75, 2, 2.75), (13.25, 2.75, 13.25), flat("pepper", 1))
     m.box("roof_rim", (2.5, 16, 2.5), (13.5, 16.75, 13.5), Paint("pepper", 3, noise=0, rim=1.4))
     arch_z(m, "roof", 2.75, 13.25, 8, 16.75, 5.25, Paint("pepper", 2, noise=0, rim=0.8), flat_top=0.3)
+    # the roof's rolled rim, a lip standing proud round the arch at the front and the back
+    lip = Paint("pepper", 3, noise=0, rim=1.3)
+    arch_z(m, "roof_lip", 2.25, 2.75, 8, 16.75, 5.5, lip, flat_top=0.3)
+    arch_z(m, "roof_lip", 13.25, 13.75, 8, 16.75, 5.5, lip, flat_top=0.3)
+    m.group("plates")
+
+    def envelope(c):
+        if c.face != "north":
+            return ("cream", 2)
+        ix, iy = c.i[0], c.i[1]
+        # a wide white envelope (8 x 5 px) in a cream frame, its flap two thin grey lines running down from the
+        # top corners and meeting below the middle
+        if 4 <= ix <= 11 and 8 <= iy <= 12:
+            col, row = ix - 4, 12 - iy
+            if row < 4 and col in (row, 7 - row):
+                return ("steel", 4)
+            return ("porcelain", 4)
+        return ("cream", 2)
+    m.box("plate", (3.75, 7.25, 2.75), (12.25, 13.75, 3), Paint("cream", 2, noise=0, rim=1.0, decal=envelope))
+
+    def times(c):
+        if c.face != "north":
+            return ("cream", 3)
+        ix, iy = c.i[0], c.i[1]
+        if (iy == 5 and 6 <= ix <= 9) or (iy == 3 and 6 <= ix <= 8):
+            return ("steel", 4)                            # two thin lines of writing
+        return ("cream", 4)
+    m.box("times_plate", (5, 2.75, 2.75), (11, 6.75, 3), Paint("cream", 4, noise=0, rim=1.0, decal=times))
     m.group("slot")
     m.box("visor", (4.5, 15, 1.75), (11.5, 15.75, 3), Paint("pepper", 3, noise=0, rim=1.5))
     m.box("visor_side", (4.5, 14, 2), (5, 15, 3), flat("pepper", 2))
@@ -243,7 +271,16 @@ def public_phone():
     m = BModel("public_phone", shift=(0, 0, -0.75))     # centred front to back (the hood reaches forward)
     m.group("post")
     m.box("foot", (5, 0, 7.5), (11, 1.5, 13.5), STONE)
-    m.box("post", (7, 1.5, 10), (9, 16, 12), Paint("steel", 3, "metal"))
+    def post_bills(c):
+        y = c.p[1]
+        if c.face == "north" and 8 <= c.i[1] <= 11:
+            return ("steel", 3) if c.i[1] == 10 and c.i[0] == 7 else ("cream", 3)   # a small bill pasted on
+        if c.face == "north" and c.i[1] == 5:
+            return ("hazard", 2)                           # a yellow sticker
+        if c.face in SIDE_FACES and y < 3 and h3(c.i[0], c.i[1], c.i[2], 27) < 0.3:
+            return ("fox", 1)                              # rust at the foot
+        return None
+    m.box("post", (7, 1.5, 10), (9, 16, 12), Paint("steel", 3, "metal", decal=post_bills))
     m.box("post_cap", (6.5, 15.5, 9.5), (9.5, 16.5, 12.5), STEEL_DARK)
     m.group("hood")
     shell = Paint("cream", 2, noise=0.02, rim=1.2)
@@ -300,6 +337,12 @@ def public_phone():
         y = 19.5 - k * 0.6
         m.box("cord", (10.75 + (k % 2) * 0.25, y - 0.5, 9.25), (11.25 + (k % 2) * 0.25, y, 9.75), flat("rubber", 1))
     m.box("cord", (10.25, 16, 9.5), (10.75, 16.5, 10), flat("rubber", 1))
+    # a little steel shelf under the phone for your coins, two of them left on it
+    m.box("shelf", (4.5, 17.75, 8), (10, 18.25, 11), Paint("steel", 2, "metal", rim=1.2))
+    m.box("shelf_lip", (4.5, 18.25, 8), (10, 18.5, 8.25), flat("steel", 3))
+    cyl(m, "coin", (6, 9.5), 1, 18.25, 18.5, Paint("brass", 3, "metal"))
+    m.group("hood")
+    m.box("hood_scuff", (2.25, 22, 8), (2.5, 23, 9), flat("cream", 0))
     return display(m, (1, 2, 1), 0)
 
 
@@ -321,54 +364,64 @@ def dalgona_stand():
         m.box("crate_slat", (13.5, y0, 3), (14, y0 + 1.5, 13), crate)
     for (x, z) in ((2.5, 3), (12.5, 3), (2.5, 12), (12.5, 12)):
         m.box("crate_post", (x, 0, z), (x + 1, 5, z + 1), WOOD_DARK)
-    m.box("plank", (1, 5, 2), (15, 6, 14), Paint("wood", 3, "planks", axis="x", width=4, joint=0, rim=1.2))
+    m.box("plank", (1, 5, 1), (15, 6, 15), Paint("wood", 3, "planks", axis="x", width=4, joint=0, rim=1.2))
     m.group("brazier")
-    # a round tin brazier holding one briquette: its holes glow and the fire breathes (animated)
-    cyl(m, "brazier", (11.5, 6.5), 6, 6, 8, Paint("iron", 2, "metal"))
-    ring(m, "brazier_rim", (11.5, 6.5), 6, 4.5, 8, 8.5, Paint("steel", 2, "metal", rim=1.3))
-    m.box("air_hole", (10.75, 6.5, 3.45), (12.25, 7.5, 3.55), glow("fire", 3))
+    # a round tin brazier at the back holding one briquette: its holes glow and the fire breathes (animated)
+    bx, bz = 11.5, 10.5
+    cyl(m, "brazier", (bx, bz), 6, 6, 8, Paint("iron", 2, "metal", decal=lambda c: ("fox", 1) if h3(*c.i, 17) < 0.1 else None))
+    ring(m, "brazier_rim", (bx, bz), 6, 4.5, 8, 8.5, Paint("steel", 2, "metal", rim=1.3))
+    m.box("air_hole", (10.75, 6.5, 7.45), (12.25, 7.5, 7.55), glow("fire", 3))
 
     def embers(c):
         r = h3(c.i[0], c.i[1], c.i[2], 13)
-        dx, dz = c.p[0] - 11.5, c.p[2] - 6.5
+        dx, dz = c.p[0] - bx, c.p[2] - bz
         hole = any(math.hypot(dx - hx, dz - hz) < 0.45 for hx in (-1, 0, 1) for hz in (-1, 0, 1))
         breath = (1 if (c.frame + int(r * 12)) % 12 < 5 else 0)
         if hole:
             return ("fire", 4 + breath)                    # the briquette's holes, the hottest
         return ("fire", 2 + breath - (1 if r < 0.3 else 0))
-    cyl(m, "briquette", (11.5, 6.5), 4.5, 7.75, 8.25, glow("fire", 3, decal=embers, frames=12, frametime=4))
-    # the ladle (국자): a dented tin bowl of melting sugar, set on the brazier's rim, its long handle back over the plank
-    cyl(m, "ladle", (12.5, 7.5), 2.5, 8.5, 9.5, ALU)
-    cyl(m, "sugar", (12.5, 7.5), 1.5, 9.5, 9.6, flat("onion", 2, light=False))
-    m.box("ladle_handle", (12.25, 9.25, 8.75), (12.75, 9.5, 13.5), flat("wood_dark", 2))
+    cyl(m, "briquette", (bx, bz), 4.5, 7.75, 8.25, glow("fire", 3, decal=embers, frames=12, frametime=4))
+    # the ladle (국자): a dented tin bowl on the brazier, the sugar in it melted to a bubbling caramel, a wooden
+    # chopstick standing in it, its long handle reaching forward
+    cyl(m, "ladle", (bx, bz), 3.5, 8.5, 9.5, ALU)
+
+    def molten(c):
+        return ("fox", 3) if h3(c.i[0], 0, c.i[2], 19) < 0.3 else ("onion", 2)
+    cyl(m, "sugar", (bx, bz), 2.5, 9.5, 9.6, Paint("onion", 2, noise=0, decal=molten))
+    m.box("ladle_handle", (11.25, 9.25, 4), (11.75, 9.5, 8.75), flat("wood_dark", 2))
+    m.box("chopstick", (12, 9.6, 10.25), (12.4, 12.5, 10.65), flat("wood", 3))
     m.group("tray")
     tray = Paint("steel", 4, "metal", noise=0.03, rim=1.2)
-    m.box("tray", (1.25, 6, 2.5), (8, 6.5, 13.5), tray)
-    for (x0, z0, x1, z1) in ((1.25, 2.5, 8, 3), (1.25, 13, 8, 13.5), (1.25, 3, 1.75, 13), (7.5, 3, 8, 13)):
+    m.box("tray", (1, 6, 1.25), (8.25, 6.5, 14.75), tray)
+    for (x0, z0, x1, z1) in ((1, 1.25, 8.25, 1.75), (1, 14.25, 8.25, 14.75), (1, 1.75, 1.5, 14.25), (7.75, 1.75, 8.25, 14.25)):
         m.box("tray_lip", (x0, 6.5, z0), (x1, 7, z1), tray)
     star = ("..#..", ".###.", "#####", ".###.", ".#.#.")
     heart = (".#.#.", "#####", "#####", ".###.", "..#..")
 
     def candy(shape, cx, cz):
+        def inside(col, row):
+            return 0 <= col < 5 and 0 <= row < 5 and shape[row][4 - col] == "#"
+
         def decal(c):
             if c.face != "up":
-                return ("onion", 2)
-            if math.hypot(c.p[0] - cx, c.p[2] - cz) > 2.0:
-                return ("onion", 2)                        # the edge, a little more caramelised
+                return ("onion", 1)                        # the thin caramel edge
             col, row = int(math.floor(c.p[0] - cx + 2.5)), int(math.floor(c.p[2] - cz + 2.5))
-            if 0 <= col < 5 and 0 <= row < 5 and shape[row][4 - col] == "#":
-                return ("onion", 4)                        # the shape pressed in: pale where the press thinned it
-            return ("onion", 3)
+            if inside(col, row):
+                return ("onion", 4)                        # the shape pressed in, thin and pale
+            if math.hypot(c.p[0] - cx, c.p[2] - cz) > 2.6:
+                return ("onion", 0)                        # the rim, cooked darker
+            return ("onion", 1)
         return decal
-    for (cx, cz, shape) in ((4.5, 5.25, star), (4.5, 10.75, heart)):
-        cyl(m, "dalgona", (cx, cz), 5, 6.5, 6.75, Paint("onion", 3, decal=candy(shape, cx, cz), rim=0.6))
+    for (cx, cz, shape) in ((4.5, 4.75, star), (4.5, 11.25, heart)):
+        cyl(m, "dalgona", (cx, cz), 6, 6.5, 6.75, Paint("onion", 2, decal=candy(shape, cx, cz), rim=0.6))
     m.group("tools")
-    cyl(m, "press", (11, 11.75), 3, 6, 6.25, flat("steel", 3))
-    m.box("press_knob", (10.5, 6.25, 11.25), (11.5, 7.25, 12.25), flat("wood_dark", 2))
-    m.box("cutter", (13.25, 6, 9.75), (14.25, 6.75, 10.75), flat("steel", 4))
-    # the soda tin
-    cyl(m, "soda", (14, 12.5), 2, 6, 8, Paint("porcelain", 2, decal=lambda c: ("denim", 2) if 6.6 < c.p[1] < 7.2 else None))
-    cyl(m, "soda_lid", (14, 12.5), 2, 8, 8.25, flat("steel", 3))
+    # the pressing plate at the front: a fresh round of caramel just flattened, the round press beside it, and the
+    # little star mould
+    m.box("plate", (8.75, 6, 2.25), (14.75, 6.25, 6.75), Paint("steel", 2, "metal", rim=1.0))
+    cyl(m, "fresh", (10.75, 4.5), 3.5, 6.25, 6.5, Paint("onion", 3, noise=0, rim=0.8, decal=lambda c: ("topaz", 3) if c.face == "up" and h3(*c.i, 21) < 0.2 else None))
+    cyl(m, "press", (13.25, 4.5), 2.5, 6.25, 6.75, flat("steel", 4, rim=1.2))
+    m.box("press_knob", (12.75, 6.75, 4), (13.75, 7.75, 5), flat("wood_dark", 2))
+    m.box("mould", (14, 6.25, 6), (14.6, 6.75, 6.6), flat("steel", 4))
     return display(m, (1, 1, 1), 0)
 
 
@@ -384,27 +437,39 @@ def capsule_machine():
     m.group("body")
 
     def front(c):
+        x, y = c.p[0], c.p[1]
+        if c.face in SIDE_FACES and y < 2.5 and h3(c.i[0], c.i[1], c.i[2], 47) < 0.25:
+            return ("pepper", 0)                           # scuffed by shoes at the foot
         if c.face != "north":
             return None
-        x, y = c.p[0], c.p[1]
         if 4.5 < x < 11.5 and 9 < y < 10.5:
             # the price card: cream with a row of dots (coins)
             return ("pepper", 2) if c.i[0] % 2 == 0 and 9.4 < y < 10.1 and 5 < x < 11 else ("cream", 3)
         return None
-    m.box("base", (3, 0, 3.5), (13, 1, 12.5), Paint("pepper", 1, noise=0))
-    m.box("body", (3.5, 1, 4), (12.5, 11, 12), Paint("pepper", 2, noise=0, decal=front))
+    m.box("base", (3, 0, 3.5), (13, 1, 12.5), Paint("iron", 2, "metal", noise=0.02))
+    m.box("body", (3.5, 1, 4), (12.5, 11, 12), Paint("pepper", 2, noise=0, decal=front, rim=0.8))
     m.box("body_top", (3, 11, 3.5), (13, 11.75, 12.5), Paint("pepper", 3, noise=0, rim=1.3))
+    # chrome corner strips and the bolts holding the front panel
+    for x in (3.25, 12.25):
+        m.box("corner", (x, 1, 3.75), (x + 0.5, 11, 4.25), flat("steel", 4, rim=1.2))
+    for (x, y) in ((4.25, 1.75), (11.25, 1.75), (4.25, 10), (11.25, 10)):
+        m.box("bolt", (x, y, 3.75), (x + 0.5, y + 0.5, 4), flat("steel", 4))
     # the turning knob: a chrome disc with a bar across
     cyl(m, "knob", (8, 6.5), 4, 2.5, 4, Paint("steel", 4, "metal", rim=1.4), axis="z")
     m.box("knob_bar", (6, 6, 2), (10, 7, 2.5), flat("steel", 5, rim=1.4))
-    m.box("coin_slot", (9.75, 6, 3.75), (10.75, 7.75, 4), flat("rubber", 1, light=False))
-    # the exit flap
+    m.box("coin_plate", (10.5, 5.5, 3.75), (12, 8.25, 4), flat("steel", 3, rim=1.2))
+    m.box("coin_slot", (11, 6, 3.6), (11.5, 7.75, 3.75), flat("rubber", 1, light=False))
+    # the exit flap, a capsule waiting behind it
     m.box("exit", (5.5, 1.5, 3.75), (10.5, 4, 4), flat("steel", 2))
     m.box("flap", (6, 2, 3.5), (10, 3.75, 3.75), Paint("rubber", 2, noise=0, rim=1.3))
+    # the lock on its side, and a dropped capsule on the ground by the flap
+    m.box("lock", (12.5, 7, 7.25), (12.75, 8.5, 8.75), Paint("brass", 2, "metal"))
+    m.box("capsule", (11, 0, 1.5), (12.25, 0.75, 2.75), flat("slime", 3, rim=1.0))
+    m.box("capsule", (11, 0.75, 1.5), (12.25, 1.25, 2.75), flat("porcelain", 3, rim=1.0))
     m.group("dome")
     colours = (("pepper", 3), ("hazard", 2), ("slime", 2), ("pink", 2), ("magic", 3), ("fox", 3))
     GAP = ("water", 3)
-    # a round capsule, 4 x 4 px with its corners cut: the top half coloured, the bottom half white
+    # a round capsule, 4 x 4 px with its corners cut
     ball = (".##.", "####", "####", ".##.")
 
     def capsules(c):
@@ -424,11 +489,14 @@ def capsule_machine():
         if i > 3 or j > 3 or ball[3 - j][i] != "#":
             return GAP                                     # the glass between the capsules
         ramp, step = colours[int(h3(gu, row, w, 41) * len(colours))]
-        if j < 2:
-            return ("porcelain", 3 if j == 1 else 2)       # the white lower half
-        if j == 3 and i == 1:
-            return (ramp, step + 1)                        # a glint on the coloured top
-        return (ramp, step)
+        # split down the middle: one side coloured, the other white (which side varies), so each reads as a round
+        # two-tone ball, not a cap on a stem
+        left = h3(gu, row, w, 46) < 0.5
+        if (i < 2) == left:
+            return ("porcelain", 3 if j >= 2 else 2)       # the white half, a little shaded below
+        if j == 3 or (j == 2 and i in (0, 3)):
+            return (ramp, step + 1)                        # the light catching its upper curve
+        return (ramp, step if j >= 1 else step - 1)
 
     def glass_of(c):
         x, y, z = c.p
@@ -588,6 +656,11 @@ def arcade_machine():
     m.box("marquee_top", (2, 23.5, 15.5), (14, 24, 16), black)
     m.group("back")
     m.box("vents", (4, 3, 16), (12, 10, 16.25), Paint("rubber", 1, decal=lambda c: ("rubber", 0) if c.i[1] % 2 == 0 else None))
+    # the red T-moulding down the front edges of the cabinet, a stack of coins and a tin ashtray left on the panel
+    for x in (1.75, 13.75):
+        m.box("t_moulding", (x, 1.25, 2.25), (x + 0.5, 11.75, 2.75), Paint("pepper", 3, noise=0, rim=1.2))
+    cyl(m, "coins", (4.5, 2.5), 1, 13.75, 14.5, Paint("brass", 3, "metal", decal=lambda c: ("brass", 1) if c.face in SIDE_FACES and c.i[1] % 1 == 0 and c.p[1] % 0.5 < 0.15 else None))
+    cyl(m, "ashtray", (3.75, 5), 1.5, 13.75, 14.25, Paint("steel", 3, "metal", rim=1.2, decal=lambda c: ("rubber", 1) if c.face == "up" else None))
     return display(m, (1, 1.5, 1), 0)
 
 
@@ -604,11 +677,15 @@ def tub_garden():
     def tub_side(c):
         if c.face in SIDE_FACES and abs(c.p[1] - 4) < 0.4:
             return ("rubber", 1)                           # the moulded ridge round the tub
+        if c.face in SIDE_FACES and c.p[1] < 1.5 and h3(c.i[0], c.i[1], c.i[2], 29) < 0.35:
+            return ("soil", 3)                             # dried mud splashed on its foot
         return None
     tub = Paint("rubber", 2, decal=tub_side, rim=0.8)
     cyl(m, "tub", (8, 8), 13, 0, 5.5, tub)
     cyl(m, "tub_rim", (8, 8), 14, 5.5, 6.5, Paint("rubber", 3, rim=1.2))     # the rolled rim round the soil
-    cyl(m, "soil", (8, 8), 12, 6.5, 6.75, Paint("soil", 2, "speckle"))
+    cyl(m, "soil", (8, 8), 12, 6.5, 6.75, Paint("soil", 2, "speckle", decal=lambda c: ("soil", 1) if h3(c.i[0] // 2, 0, c.i[2] // 2, 37) < 0.35 else None))
+    # an ice-cream stick for a plant label, a name scrawled on it
+    m.box("label", (2.5, 6.75, 6.75), (3.25, 9.25, 7), Paint("wood", 4, noise=0, decal=lambda c: ("wood_dark", 1) if c.face == "north" and c.i[1] == 8 else None))
     m.group("peppers")
     stake = Paint("bamboo", 3, "bamboo", axis="y", node=5)
 
@@ -670,7 +747,7 @@ def street_lamp():
             return None
         x, y = c.p[0], c.p[1]
         if 6.5 < x < 9.5 and 17 < y < 19:
-            return ("porcelain", 2) if c.i[1] == 17 or c.i[0] % 2 else ("rubber", 2)   # the number tag
+            return ("steel", 2) if c.i[1] == 18 and 7 <= c.i[0] <= 8 else ("porcelain", 3)   # the number tag
         if 6.25 < x < 9.75 and 9 < y < 14 and h3(c.i[0], c.i[1], 0, 61) > 0.18:
             # a flyer pasted on and half torn off: a cream sheet with dark lines and a red title bar
             if c.i[1] == 13:
@@ -707,29 +784,32 @@ def street_lamp():
     m.box("guy_guard", (7.625, 0.75, 14.625), (8.375, 6.25, 15.125), Paint("hazard", 3, noise=0, decal=stripes),
           rotation=lean)
     m.group("crossarm")
-    m.box("crossarm", (0.5, 27, 7.25), (15.5, 28.25, 8.75), Paint("steel", 2, "metal"))
-    m.box("brace", (4.5, 25.25, 7.5), (6.5, 25.75, 8.5), flat("steel", 1), rotation=("z", -45, (6.5, 25.5, 8)))
-    m.box("brace", (9.5, 25.25, 7.5), (11.5, 25.75, 8.5), flat("steel", 1), rotation=("z", 45, (9.5, 25.5, 8)))
-    for x in (1.5, 4.25, 11.75, 14.5):
+    # the crossarm: a clean steel channel held by a clamp band round the pole, four white insulators on short pins
+    m.box("crossarm", (0.5, 27, 7.25), (15.5, 28.25, 8.75), Paint("steel", 2, "metal", rim=1.2))
+    m.box("clamp", (6.25, 26.25, 6.25), (9.75, 29, 9.75), Paint("steel", 1, "metal", rim=1.0))
+    for x in (1.5, 4.5, 11.5, 14.5):
         m.box("pin", (x - 0.25, 28.25, 7.75), (x + 0.25, 28.75, 8.25), flat("steel", 2))
         m.box("insulator", (x - 0.5, 28.75, 7.5), (x + 0.5, 29.5, 8.5), Paint("porcelain", 2, rim=1.2))
         m.box("insulator_top", (x - 0.375, 29.5, 7.625), (x + 0.375, 29.875, 8.375), Paint("porcelain", 3))
     m.group("lamp")
-    # the arm: a steel pipe rising out of the pole's top and curving forward over the street
+    # the arm: a steel pipe rising from the back of the pole's top and reaching forward over the street
     arm = flat("steel", 3, rim=1.2)
-    m.box("arm_riser", (7.5, 40.25, 8), (8.5, 42.5, 9), arm)
-    m.box("arm_elbow", (7.5, 42.5, 6.75), (8.5, 43.5, 9), arm)
-    m.box("arm", (7.5, 43.25, 3.25), (8.5, 44, 6.75), arm)
+    m.box("arm_riser", (7.5, 40.25, 9.25), (8.5, 43.25, 10.25), arm)
+    m.box("arm", (7.5, 43.25, 3), (8.5, 44, 10.25), arm)
 
     def enamel(c):
-        return ("porcelain", 3) if c.face == "down" else None
-    shade = Paint("sign_green", 2, noise=0.02, rim=1.3, decal=enamel)
-    # the enamel shade: a wide shallow cone, green outside and white inside, the bulb hanging under it
-    cyl(m, "shade_hub", (8, 3.75), 2.5, 42.5, 43.25, shade)
-    cyl(m, "shade", (8, 3.75), 4.5, 41.75, 42.5, shade)
-    cyl(m, "shade", (8, 3.75), 6, 41.25, 41.75, shade)
-    cyl(m, "shade", (8, 3.75), 7.5, 40.75, 41.25, shade)
-    cyl(m, "bulb", (8, 3.75), 2.5, 39.5, 40.75, glow("lamp", 3))
+        if c.face == "down":
+            return ("porcelain", 4)                        # the white enamel inside, lit by the bulb
+        if c.face in SIDE_FACES and c.p[1] < 40.75:
+            return ("sign_green", 1)                       # the rolled rim, a shade darker
+        return None
+    shade = Paint("sign_green", 3, noise=0.02, rim=1.3, decal=enamel)
+    # the enamel shade: a wide, deep cone 8 px across (green outside, white inside), the bulb hanging under it
+    cyl(m, "shade", (8, 4), 8, 40.25, 40.75, shade)
+    cyl(m, "shade", (8, 4), 7, 40.75, 41.5, shade)
+    cyl(m, "shade", (8, 4), 5, 41.5, 42.25, shade)
+    cyl(m, "shade_hub", (8, 4), 2.5, 42.25, 43.25, shade)
+    cyl(m, "bulb", (8, 4), 3, 39, 40.25, glow("lamp", 4))
     return display(m, (1, 2.75, 1), -16)
 
 
@@ -798,6 +878,17 @@ def clothesline():
         m.box("sock_foot", (x - 1, 22, 7.8), (x, 23.5, 8.2), sock)
         m.box("sock_band", (x - 0.1, 25, 7.7), (x + 1.35, 26.25, 8.3), flat("porcelain", 1))
         m.box("peg", (x + 0.25, 25.75, 7.4), (x + 1, 27.5, 8.6), peg)
+    m.group("basket")
+    # a red plastic laundry basket (빨래 바구니) under the line, its sides a grid of holes, the next load heaped in it
+    def holes(c):
+        if c.face in SIDE_FACES and 1 <= c.i[1] <= 2:
+            u = c.i[0] if c.face in ("north", "south") else c.i[2]
+            return ("pepper", 0) if u % 2 == 0 else None
+        return None
+    m.box("basket", (5.5, 0, 5.5), (12.5, 3.5, 10.5), Paint("pepper", 3, noise=0, rim=0.8, decal=holes))
+    m.box("basket_rim", (5.25, 3.5, 5.25), (12.75, 4, 10.75), Paint("pepper", 4, noise=0, rim=1.2))
+    m.box("wash", (6, 4, 6), (12, 4.75, 10), Paint("rice", 2, "weave", decal=lambda c: ("denim", 2) if h3(c.i[0] // 2, 0, c.i[2] // 2, 39) < 0.3 else None))
+    m.box("wash", (7, 4.75, 6.75), (10.5, 5.5, 9.25), Paint("pink", 2, "weave"))
     return display(m, (3, 2, 1), 0)
 
 
@@ -806,27 +897,32 @@ def clothesline():
 # ================================================================================================
 
 def onggi_jar(m, name, cx, cz, y0, profile, seed):
-    """An onggi crock round (cx, cz) from y0, profile = [(diameter, height)] from the foot up (the belly widest a
-    little above the middle, the shoulder drawing in to the mouth); the dark brown glaze lit by a soft highlight on
-    the side towards the light, darker at the foot, one run of glaze down from the shoulder. Returns its top."""
+    """An onggi crock round (cx, cz) from y0, profile = [(diameter, height)] from the foot up: a narrow foot, the
+    belly swelling out in thin rings to its widest a little above the middle, a clear shoulder drawing in, a short
+    neck and a rolled rim. The dark brown glaze: unglazed and darker at the foot, a lighter sheen on the belly towards
+    the light, the potter's finger-wave band round the shoulder, one run of glaze down from it. Returns its top."""
     height = sum(h for (_, h) in profile)
+    widest = max(d for (d, _) in profile)
+
     def glaze(c):
         if c.face == "down":
             return None
         a = math.atan2(c.p[2] - cz, c.p[0] - cx)
         light = math.cos(a - math.atan2(-0.8, 0.6))       # 1 facing the light (front-left), -1 away
         t = (c.p[1] - y0) / height
-        if t < 0.12:
-            return ("onggi", 0)                            # the dark unglazed foot
+        if t < 0.1:
+            return ("onggi", 0)                            # the unglazed foot
         run = (a * 9 + seed) % (2 * math.pi)
-        if run < 0.35 and t > 0.55 - 0.3 * h3(seed, 0, 0, 7):
-            return ("onggi", 0)                            # one run of glaze down from the shoulder
-        if c.face != "up" and 0.62 < t < 0.7 and int(math.floor(a * 6 + c.p[1] * 2)) % 3 == 0:
-            return ("onggi", 1)                            # the potter's finger-wave band round the shoulder
-        if light > 0.85 and 0.35 < t < 0.6 and c.face != "up":
-            return ("onggi", 3)                            # the glaze's sheen
+        if run < 0.3 and 0.35 < t < 0.75:
+            return ("onggi", 1)                            # one run of glaze down from the shoulder
+        if c.face != "up" and 0.68 < t < 0.8 and int(math.floor(a * 8 + c.p[1] * 3)) % 3 == 0:
+            return ("onggi", 3)                            # the finger-wave band round the shoulder
+        if c.face == "up":
+            return ("onggi", 2)
+        if light > 0.8 and 0.3 < t < 0.65 and c.face in ("north", "east"):
+            return ("onggi", 3)                            # the sheen on the belly, towards the light
         return ("onggi", 2)
-    jar = Paint("onggi", 1, noise=0.0, rim=0, ao=0.15, decal=glaze, grad=0)
+    jar = Paint("onggi", 1, noise=0.0, rim=0.5, ao=0.0, decal=glaze, grad=0, vrim=0)
     y = y0
     for (d, h) in profile:
         cyl(m, name, (cx, cz), d, y, y + h, jar)
@@ -834,38 +930,61 @@ def onggi_jar(m, name, cx, cz, y0, profile, seed):
     return y
 
 
+def onggi_lid(m, name, cx, cz, y, d, paint):
+    """A crock lid as an inverted dish: a wide flat rim overhanging the mouth, a low dome and a little knob."""
+    cyl(m, name, (cx, cz), d, y, y + 0.5, paint)
+    cyl(m, name, (cx, cz), d - 3, y + 0.5, y + 1.5, paint)
+    cyl(m, name + "_knob", (cx, cz), 2, y + 1.5, y + 2.25, paint)
+
+
 def jangdokdae():
-    """장독대 2x1: a low platform of fieldstones, three onggi crocks of soy sauce and pastes (a big one, a middle one
-    and a little one) with their glazed lids, the little one's lid off and leaning against it, a gourd ladle."""
+    """장독대 2x1: a low platform of flat fieldstones set in earth, mossy in the joints; three onggi crocks of soy
+    sauce and pastes (a big one, a middle one, a little one), round-bellied with a clear shoulder and rolled rim,
+    each with its lid like an upturned dish, the little one's lid off and leaning against it, its mouth showing the
+    dark soy; a gourd dipper (바가지), half a dried gourd with its rim, lying in front."""
     m = BModel("jangdokdae")
     m.group("platform")
-    st = moss_on(STONE, amount=0.7)
-    m.box("platform", (1, 0.25, 1.5), (31, 2, 15), st)
-    # the fieldstones along its front edge (the back is the platform's own edge, mostly behind the jars)
-    stones = [(0.5, 1, 7, 4, 2.75, STONE_LIGHT), (7, 1, 14, 3.5, 2.5, STONE), (14, 1, 21, 4, 2.75, STONE_DARK),
-              (21, 1, 31.5, 3.75, 2.5, STONE_LIGHT)]
-    for (x0, z0, x1, z1, h, p) in stones:
-        m.box("stone", (x0, 0, z0), (x1, h, z1), p)
+    joints_x = {0: (7, 14, 20, 26), 1: (4, 11, 17, 24, 29)}
+
+    def flagstones(c):
+        x, y, z = c.p
+        if c.face == "up":
+            row = 0 if z < 8 else 1
+            if c.i[2] == 8 or c.i[0] in joints_x[row]:
+                v = h3(c.i[0], 0, c.i[2], 31)
+                return ("leaf", 1) if v < 0.35 else ("wood_dark", 1)   # moss and earth in the joints
+            k = sum(1 for j in joints_x[row] if c.i[0] > j)
+            return ("millstone", (2, 3, 4)[int(h3(k, row, 0, 33) * 3)])   # each stone its own grey
+        if c.face in SIDE_FACES:
+            u = x if c.face in ("north", "south") else z
+            if c.face in ("north", "south") and c.i[0] in joints_x[0 if c.face == "north" else 1]:
+                return ("millstone", 1)
+            if y < 0.6:
+                return ("wood_dark", 1)                    # the earth it is set in
+        return None
+    m.box("platform", (0.5, 0, 1), (31.5, 2, 15), Paint("millstone", 3, noise=0.06, decal=flagstones, rim=1.0))
     m.group("jars")
-    lid = Paint("onggi", 1, noise=0, rim=0.8, decal=lambda c: ("onggi", 2) if c.face == "up" else None)
-    top = onggi_jar(m, "big", 9, 8.5, 2, [(8, 1), (11, 1.5), (12.5, 1.5), (13, 2.5), (12, 1.5), (9.5, 1.5)], 81)
-    cyl(m, "big_lid", (9, 8.5), 10.5, top, top + 0.75, lid)            # the lid, a shallow dome over the mouth
-    cyl(m, "big_lid", (9, 8.5), 7, top + 0.75, top + 1.5, lid)
-    cyl(m, "big_knob", (9, 8.5), 2, top + 1.5, top + 2.25, lid)
-    top = onggi_jar(m, "mid", 20.5, 8, 2, [(6, 1), (8.5, 1.5), (9, 2), (7, 1.5)], 82)
-    cyl(m, "mid_lid", (20.5, 8), 7.5, top, top + 0.75, lid)
-    cyl(m, "mid_lid", (20.5, 8), 5, top + 0.75, top + 1.25, lid)
-    cyl(m, "mid_knob", (20.5, 8), 2, top + 1.25, top + 2, lid)
-    top = onggi_jar(m, "small", 28, 9.5, 2, [(4, 1), (5.5, 1), (6, 1.5), (5, 1)], 83)
-    # its mouth open: dark soy sauce inside the rim
-    ring(m, "small_mouth", (28, 9.5), 5, 3, top, top + 0.75, Paint("onggi", 3, noise=0, rim=1.2))
-    cyl(m, "soy", (28, 9.5), 3, top + 0.25, top + 0.5, flat("roe", 1))
+    lid = Paint("onggi", 2, noise=0, rim=0.9, decal=lambda c: ("onggi", 3) if c.face == "up" else None)
+    top = onggi_jar(m, "big", 9.5, 8, 2, [(8, 1), (11, 0.75), (12, 0.75), (13, 2.75), (12, 0.75), (11, 0.75),
+                                         (8, 0.5), (9, 0.75)], 81)
+    onggi_lid(m, "big_lid", 9.5, 8, top, 11, lid)
+    top = onggi_jar(m, "mid", 21, 8.5, 2, [(6, 0.75), (8, 1), (9, 1.75), (8, 0.75), (6, 0.5), (7, 0.5)], 82)
+    onggi_lid(m, "mid_lid", 21, 8.5, top, 8, lid)
+    top = onggi_jar(m, "small", 28, 10, 2, [(4, 0.5), (5.5, 0.75), (6, 1.25), (5, 0.75), (4, 0.5)], 83)
+    # its mouth open: a rolled rim with the dark soy sauce inside
+    ring(m, "small_mouth", (28, 10), 5, 3, top, top + 0.5, Paint("onggi", 2, noise=0, rim=1.2))
+    cyl(m, "soy", (28, 10), 3, top, top + 0.25, flat("roe", 1, light=False))
     # the lid off, leaning back against its jar at the front
-    m.box("small_lid", (26, 2.5, 4.75), (30, 6.5, 5.25), lid, rotation=("x", 22.5, (28, 2.5, 5)))
+    for (a, b, hw) in bands(4.5):
+        m.box("small_lid", (28 - hw, 4.5 + a, 6), (28 + hw, 4.5 + b, 6.5), lid, rotation=("x", 22.5, (28, 2.25, 6.25)))
     m.group("ladle")
-    # a gourd dipper (바가지): half a dried gourd, its pale inside up
-    cyl(m, "bagaji", (16, 3), 4, 2.75, 3.75, Paint("straw", 2, rim=1.0))
-    cyl(m, "bagaji_inside", (16, 3), 2.5, 3.75, 3.85, flat("cream", 2))
+
+    def gourd(c):
+        return ("straw", 4) if c.face == "up" else None
+    # a gourd dipper (바가지): half a dried gourd, round underneath, its rim a darker ring, the pale inside showing
+    cyl(m, "bagaji", (16, 3.5), 3, 2, 2.5, Paint("straw", 1, rim=0.6))
+    cyl(m, "bagaji", (16, 3.5), 5, 2.5, 3.25, Paint("straw", 1, rim=1.2, decal=lambda c: ("wood", 2) if c.face == "up" else None))
+    cyl(m, "bagaji_inside", (16, 3.5), 3, 3.25, 3.35, Paint("straw", 4, noise=0, decal=gourd))
     return display(m, (2, 1, 1), 0)
 
 

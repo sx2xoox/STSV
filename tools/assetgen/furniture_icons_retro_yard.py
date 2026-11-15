@@ -47,12 +47,13 @@ def red_postbox():
     c.ellipse(8, 5.5, 4, 3.5, "pepper", 1, dome=0.6, gloss=0.9)
     c.erase([p for p in c.where("pepper") if p[1] > 13])
     c.rect(5, 4.5, 11, 5.5, "rubber", 2, step=1)            # the slot
-    c.rect(5, 6.5, 11, 10, "cream", 3, step=4)              # the plate
-    c.rect(6, 7, 10, 9.5, "porcelain", 4, step=4)           # the envelope
-    c.line(6, 7, 8, 8, "steel", 2, z=6)
-    c.line(9, 8, 10, 7, "steel", 2, z=6)
+    c.rect(4.5, 6, 11.5, 10.5, "cream", 3, step=4)          # the plate
+    c.rect(5, 6.5, 11, 10, "porcelain", 4, step=4)          # a wide white envelope, its flap two thin lines
+    c.line(5, 6.5, 8, 9, "steel", 4, z=6)
+    c.line(8, 9, 11, 6.5, "steel", 4, z=6)
     c.rect(6, 11, 10, 13, "cream", 4, step=3)              # the collection-times plate
-    c.line(7, 12, 9, 12, "rubber", 2, z=6)
+    c.line(7, 12, 9, 12, "steel", 3, z=6)
+    c.put(4, 12, "fox", 2, z=5)                             # rust at the foot
     return c.render()
 
 
@@ -90,12 +91,16 @@ def dalgona_stand():
     c.put(12, 5, "fire", 4, z=5)
     c.ellipse(11.75, 4, 1.4, 0.8, "steel", 6, dome=0.4)
     c.line(9.5, 3, 6.5, 1.5, "wood_dark", 2, z=7)
-    # the tray of dalgona: two golden discs, a star pressed in one
+    # the tray of dalgona: two caramel discs, a star and a heart pressed in pale
     _diamond(c, 5, 9, 3.6, 1.8, "steel", 3)
-    c.ellipse(4, 8.6, 1.5, 0.8, "topaz", 4, dome=0.2, gloss=0)
-    c.ellipse(6.4, 9.6, 1.5, 0.8, "topaz", 4, dome=0.2, gloss=0)
-    c.put(4, 8, "topaz", 1, z=6)
-    c.put(6, 9, "topaz", 1, z=6)
+    c.ellipse(3.8, 8.5, 1.7, 0.9, "onion", 1, dome=0.2, gloss=0)
+    c.ellipse(6.4, 9.7, 1.7, 0.9, "onion", 1, dome=0.2, gloss=0)
+    c.put(3, 8, "onion", 5, z=6)
+    c.put(4, 8, "onion", 5, z=6)
+    c.put(4, 9, "onion", 5, z=6)
+    c.put(6, 9, "onion", 5, z=6)
+    c.put(7, 9, "onion", 5, z=6)
+    c.put(6, 10, "onion", 5, z=6)
     return c.render()
 
 
@@ -110,11 +115,11 @@ def capsule_machine():
     # the clear dome: a pale blue-white rim round it, round two-tone capsules packed in its lower part
     c.ellipse(8, 5, 5.4, 4.4, "ice", 4, dome=0.3, gloss=0.6)
     c.ellipse(8, 5.2, 4.5, 3.6, "ice", 1, dome=0.5, gloss=0.3)
-    for (x, y, mat) in ((5, 5, "pepper"), (7, 6, "denim"), (9, 5, "hazard"), (11, 6, "slime"), (4, 7, "pink"),
-                        (6, 7, "crystal"), (8, 7, "fox"), (10, 7, "pepper"), (12, 7, "denim"), (7, 4, "slime"),
-                        (10, 4, "pink")):
+    for (x, y, mat) in ((4, 7, "pepper"), (7, 7, "slime"), (10, 7, "fox"), (5, 4, "magic"), (9, 4, "hazard")):
         c.put(x, y, mat, 4, z=3)
-        c.put(x, y + 1, "porcelain", 4, z=3)
+        c.put(x, y + 1, mat, 3, z=3)
+        c.put(x + 1, y, "porcelain", 4, z=3)
+        c.put(x + 1, y + 1, "porcelain", 3, z=3)
     c.put(5, 2, "porcelain", 5, z=5)                       # the highlight streak on the glass
     c.put(4, 3, "porcelain", 5, z=5)
     c.put(4, 4, "porcelain", 4, z=5)
@@ -173,6 +178,7 @@ def street_lamp():
     c.rect(7, 3, 9, 15.5, "millstone", 3, normal=FRONT, lo=2, hi=4)   # the concrete pole
     c.rect(5.5, 14, 10.5, 16, "stone", 0, normal=FRONT)
     c.rect(1, 8, 15, 9, "steel", 2, normal=FRONT)                    # the crossarm and its insulators
+    c.rect(6.5, 7.5, 9.5, 9.5, "steel", 1, normal=FRONT)             # the clamp band
     for x in (1, 4, 12, 14):
         c.put(x, 7, "porcelain", 4, z=4)
     c.rect(7.5, 11, 8.5, 13.5, "cream", 4, step=4)                   # the flyer
@@ -200,6 +206,9 @@ def clothesline():
     c.rect(6.5, 12, 11.5, 13, "fabric_red", 2, step=2)
     c.rect(12, 3.5, 13, 7, "steel", 4, step=2)
     c.put(11, 7, "steel", 2, z=4)
+    c.rect(2.5, 13, 6.5, 15.5, "pepper", 3, normal=FRONT)    # the red laundry basket under the line
+    c.put(3, 14, "pepper", 1, z=5)
+    c.put(5, 14, "pepper", 1, z=5)
     return c.render()
 
 
@@ -208,11 +217,16 @@ def jangdokdae():
     c = Canvas()
     c.rect(0.5, 13, 15.5, 15.5, "millstone", 0, normal=FRONT)
     c.ellipse(8, 13, 7.5, 1.4, "millstone", 1, dome=0.3, gloss=0)
-    # the big crock, the middle one, the little one
-    c.ellipse(5, 9, 4.3, 4.3, "onggi", 2, gloss=0.75, dome=0.9)
-    c.ellipse(5, 4.6, 3.2, 1.0, "onggi", 3, dome=0.3, gloss=0)
+    # the big crock, the middle one, the little one: round bellies, a lid like an upturned dish
+    c.ellipse(5, 9.2, 4.3, 3.8, "onggi", 2, gloss=0.75, dome=0.9)
+    c.rect(3, 5, 7, 5.6, "onggi", 2, step=2)                 # the neck
+    c.ellipse(5, 4.6, 3.6, 0.9, "onggi", 3, dome=0.3, gloss=0)    # the lid's wide rim
+    c.ellipse(5, 3.8, 2.2, 0.8, "onggi", 4, dome=0.5, gloss=0.3)
     c.put(5, 3, "onggi", 4, z=4)
-    c.ellipse(11, 10, 3.3, 3.3, "onggi", 3, gloss=0.75, dome=0.9)
-    c.ellipse(11, 6.8, 2.4, 0.8, "onggi", 4, dome=0.3, gloss=0)
+    c.ellipse(11, 10.2, 3.1, 2.9, "onggi", 3, gloss=0.75, dome=0.9)
+    c.ellipse(11, 7.2, 2.6, 0.7, "onggi", 4, dome=0.3, gloss=0)
+    c.ellipse(11, 6.6, 1.5, 0.6, "onggi", 4, dome=0.5, gloss=0.3)
     c.ellipse(14, 12, 1.6, 1.8, "onggi", 5, gloss=0.75, dome=0.9)
+    c.ellipse(8.5, 13.6, 1.4, 0.7, "straw", 3, dome=0.2, gloss=0)  # the gourd dipper
+    c.put(8, 13, "straw", 1, z=5)
     return c.render()
