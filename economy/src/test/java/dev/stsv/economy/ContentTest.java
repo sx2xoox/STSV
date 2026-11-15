@@ -134,7 +134,7 @@ class ContentTest {
         // each set on a page of its own (36 list cells a page): the retro set starts the second page
         assertEquals(List.of(30), furniture.pages());
         List<Integer> cells = furniture.cells(36);
-        assertEquals(72, cells.size(), "two full pages: 30 + 6 empty, then 30 (+6 nothing)");
+        assertEquals(66, cells.size(), "30 + 6 empty cells on the first page, then 30");
         assertEquals(0, (int) cells.get(0));
         for (int i = 30; i < 36; i++) assertEquals(-1, (int) cells.get(i), "the rest of the first page is empty");
         assertEquals(30, (int) cells.get(36), "the retro set from the second page's first cell");

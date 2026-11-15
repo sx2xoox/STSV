@@ -518,8 +518,8 @@ def _briquette(m, name, x, y, z, burnt=False, seed=0):
 
 
 def briquette_pile():
-    """연탄 더미 1x1: coal briquettes stacked two by two, four high, against the wall, their 19 holes on top; two
-    burnt-out pale ones and a cracked one by the stack, and the long iron briquette tongs leaning on it."""
+    """연탄 더미 1x1: coal briquettes stacked two by two, three high at the back and two at the front, their holes on
+    top; a burnt-out pale one set on the stack, and the iron briquette tongs laid across it (within the 1-cell budget)."""
     m = BModel("briquette_pile")
     m.group("stack")
     k = 0
@@ -528,7 +528,6 @@ def briquette_pile():
         for j in range(layers):
             k += 1
             _briquette(m, "briquette", x, j * 4, z, seed=k)
-    _briquette(m, "briquette", 7.5, 12, 11, seed=40)        # one more on top, between the back columns
     m.group("ash")
     _briquette(m, "burnt", 11, 8, 4, burnt=True, seed=50)          # a burnt-out one set back on the stack
     m.group("tongs")

@@ -45,11 +45,18 @@ class PackPipelineTest {
             "police_lightbar_a", "police_lightbar_b",           // the light bar's lit halves
             "cargo_bicycle", "cargo_van",                       // road vehicles: the bicycle's lamps, the van's head and tail lights
             "boat_trawl", "coastal_trawl",                      // 작업기: the work lamp on the trawl gallows
-            "raft", "rowboat", "coastal_boat", "trawler");      // 고깃배: paper lanterns, squid lamps, running and mast lights, floodlights
+            "raft", "rowboat", "coastal_boat", "trawler",       // 고깃배: paper lanterns, squid lamps, running and mast lights, floodlights
+            // retro furniture: the TV and arcade screens, the arcade marquee, the briquette and kerosene fires, the dalgona brazier,
+            // the rice cooker's warm lamp, the mosquito coil on the 평상, the phone's amber window, the street lamp's bulb
+            "crt_tv", "arcade_machine", "yeontan_stove", "kerosene_stove", "dalgona_stand", "rice_cooker", "pyeongsang", "public_phone",
+            "street_lamp");
     private static final Set<String> ROTATED = Set.of("test_sword", "test_sword_skin", "test_greatsword", "test_slash", "test_rod", "test_rod_cast",
             "angel_wings", "demon_wings", "butterfly_wings",   // wings swept back 22.5 degrees
             "gumiho",                                           // nine tails fanned out
             "wagasa",                                           // the parasol's struts, tilted up to its canopy
+            // retro furniture: the kettle's spout, the radio's aerial, the clothes prop, the phone's dial face, the dresser's wing
+            // mirrors, the fan's tilted head, the lid leant on the small jar, the washboard in the tub
+            "brass_kettle", "cassette_radio", "clothesline", "dial_phone", "dresser", "electric_fan", "jangdokdae", "washtub",
             "police_car", "light_truck", "sports_car", "tuner_car",   // raked windscreens (45 / 22.5 degrees)
             "hyper_car", "grand_sedan", "luxury_suv",           // the premium cars: screens, the hyper car hood and back
             "cargo_bicycle", "delivery_scooter", "atv",         // road vehicles: frame tubes, forks, stays, steering posts

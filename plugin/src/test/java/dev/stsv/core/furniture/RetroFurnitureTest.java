@@ -39,7 +39,7 @@ import static org.junit.jupiter.api.Assertions.assertTrue;
  * real parser, every piece has its model and a 16 px icon, and its shape worked out from the shipped model makes
  * sense: the fitted boxes cover the model, nobody sits inside a barrier, a lamp's light is in a cell without a
  * barrier, and every piece sits in the middle of its cells facing any of the four ways (the wall clock hangs flat
- * against the wall behind its cell). Each group is ten pieces; ids are not used by any other item.
+ * against the wall behind its cell). Thirty pieces, ten a group; ids are not used by any other item.
  */
 @TestInstance(TestInstance.Lifecycle.PER_CLASS)
 class RetroFurnitureTest {
@@ -85,9 +85,8 @@ class RetroFurnitureTest {
 
     @Test
     void eachGroupIsTenPiecesWithIdsOfTheirOwn() throws Exception {
-        for (Map.Entry<String, Integer> g : perGroup.entrySet()) {
-            assertTrue(g.getValue() == 0 || g.getValue() == 10, g.getKey() + ": " + g.getValue() + " pieces");
-        }
+        for (Map.Entry<String, Integer> g : perGroup.entrySet()) assertEquals(10, g.getValue(), g.getKey() + ": pieces");
+        assertEquals(30, specs.size());
         // no other items file of the pack defines one of these ids
         try (var files = Files.list(PACK.resolve("items"))) {
             for (Path f : files.filter(p -> p.toString().endsWith(".yml") && !p.getFileName().toString().startsWith("furniture_retro_")).toList()) {
