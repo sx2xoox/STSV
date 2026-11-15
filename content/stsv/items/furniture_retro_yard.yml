@@ -1,3 +1,117 @@
 # 꾸미기 가구 · 레트로 한국 (마당·골목, 10종). 모델: tools/assetgen/models/furniture_retro_yard.py,
 # 아이콘: tools/assetgen/furniture_icons_retro_yard.py, 미리보기: python3 furniture_preview.py --set retro
 # 쓰는 법은 furniture_japanese.yml 맨 위 설명과 같습니다 (model, icon, cells, solid, light, seats, translation, scale).
+# 빛이 있는 칸에는 방벽이 들어가지 않습니다: 오락기는 위 칸(1.5칸 높이의 뒤쪽 절반), 가로등은 맨 위 칸에 빛.
+
+pyeongsang:
+  material: paper
+  name: "<#c4a265>평상"
+  lore: ["<gray>레트로 가구 · 2×2칸", "<gray>여름 마당의 나무 평상. 돗자리 위에 수박 한 쟁반,", "<gray>부채와 모락모락 피어오르는 모기향.", "<dark_gray>우클릭: 앉기 (넷이 둘러앉음)"]
+  model: pyeongsang
+  icon: pyeongsang_icon
+  max-stack: 16
+  furniture:
+    cells: [[0, 0, 0], [1, 0, 0], [0, 0, 1], [1, 0, 1]]
+    solid: false
+    seats:
+      - { cell: [0, 0, 0], height: 0.47, facing: 135 }
+      - { cell: [1, 0, 0], height: 0.47, facing: -135 }
+      - { cell: [0, 0, 1], height: 0.47, facing: 45 }
+      - { cell: [1, 0, 1], height: 0.47, facing: -45 }
+
+red_postbox:
+  material: paper
+  name: "<#c2181d>빨간 우체통"
+  lore: ["<gray>레트로 가구 · 1×1칸, 높이 2", "<gray>둥근 지붕의 빨간 우체통. 편지 넣는 구멍과", "<gray>수거 시간표가 붙어 있습니다."]
+  model: red_postbox
+  icon: red_postbox_icon
+  max-stack: 16
+  furniture:
+    cells: [[0, 0, 0], [0, 1, 0]]
+
+public_phone:
+  material: paper
+  name: "<#0f784c>공중전화"
+  lore: ["<gray>레트로 가구 · 1×1칸, 높이 2", "<gray>기둥 위 둥근 덮개 아래의 동전 공중전화.", "<gray>꼬불꼬불한 수화기 줄이 달려 있습니다."]
+  model: public_phone
+  icon: public_phone_icon
+  max-stack: 16
+  furniture:
+    cells: [[0, 0, 0], [0, 1, 0]]
+
+dalgona_stand:
+  material: paper
+  name: "<#f9a728>달고나 좌판"
+  lore: ["<gray>레트로 가구 · 1×1칸", "<gray>연탄 화로 위 국자에 설탕이 녹고, 쟁반에는", "<gray>별과 하트를 찍은 달고나. 화롯불이 일렁입니다.", "<dark_gray>지나갈 수 있음", "<yellow>빛 5"]
+  model: dalgona_stand
+  icon: dalgona_stand_icon
+  max-stack: 16
+  furniture:
+    cells: [[0, 0, 0]]
+    solid: false
+    light: 5
+
+capsule_machine:
+  material: paper
+  name: "<#f45e30>뽑기 기계"
+  lore: ["<gray>레트로 가구 · 1×1칸, 높이 2", "<gray>문방구 앞의 빨간 캡슐 뽑기 기계.", "<gray>투명한 돔 안에 캡슐이 가득합니다."]
+  model: capsule_machine
+  icon: capsule_machine_icon
+  max-stack: 16
+  furniture:
+    cells: [[0, 0, 0], [0, 1, 0]]
+
+arcade_machine:
+  material: paper
+  name: "<#f9c228>오락기"
+  lore: ["<gray>레트로 가구 · 1×1칸, 높이 2", "<gray>오락실의 오락기. 화면에서는 작은 비행기가", "<gray>쉬지 않고 싸우고, 위 간판에 불이 돕니다.", "<yellow>빛 7"]
+  model: arcade_machine
+  icon: arcade_machine_icon
+  max-stack: 16
+  furniture:
+    cells: [[0, 0, 0], [0, 1, 0]]
+    light: { level: 7, cell: [0, 1, 0] }
+
+tub_garden:
+  material: paper
+  name: "<#c2181d>고무대야 텃밭"
+  lore: ["<gray>레트로 가구 · 1×1칸", "<gray>검은 고무대야에 흙을 담아 기른", "<gray>고추 두 포기와 상추."]
+  model: tub_garden
+  icon: tub_garden_icon
+  max-stack: 16
+  furniture:
+    cells: [[0, 0, 0]]
+
+street_lamp:
+  material: paper
+  name: "<#fbca49>전봇대 가로등"
+  lore: ["<gray>레트로 가구 · 1×1칸, 높이 3", "<gray>콘크리트 전봇대에 애자 달린 가로대, 초록 갓을 쓴", "<gray>백열 가로등. 전단지가 반쯤 찢겨 붙어 있습니다.", "<yellow>빛 15"]
+  model: street_lamp
+  icon: street_lamp_icon
+  max-stack: 16
+  furniture:
+    cells: [[0, 0, 0], [0, 1, 0], [0, 2, 0]]
+    translation: [0, 1, 0]
+    light: { level: 15, cell: [0, 2, 0] }
+
+clothesline:
+  material: paper
+  name: "<#feabb5>빨랫줄"
+  lore: ["<gray>레트로 가구 · 3×1칸, 높이 2", "<gray>바지랑대로 받친 빨랫줄에 러닝셔츠, 꽃무늬 이불,", "<gray>수건과 양말이 널려 있습니다.", "<dark_gray>지나갈 수 있음"]
+  model: clothesline
+  icon: clothesline_icon
+  max-stack: 16
+  furniture:
+    # 놓은 칸이 가운데 (양옆으로 한 칸씩)
+    cells: [[-1, 0, 0], [0, 0, 0], [1, 0, 0], [-1, 1, 0], [0, 1, 0], [1, 1, 0]]
+    solid: false
+
+jangdokdae:
+  material: paper
+  name: "<#6e513d>장독대"
+  lore: ["<gray>레트로 가구 · 2×1칸", "<gray>돌 단 위의 크고 작은 장독 세 개.", "<gray>작은 독은 뚜껑을 열어 기대 놓았습니다."]
+  model: jangdokdae
+  icon: jangdokdae_icon
+  max-stack: 16
+  furniture:
+    cells: [[0, 0, 0], [1, 0, 0]]
