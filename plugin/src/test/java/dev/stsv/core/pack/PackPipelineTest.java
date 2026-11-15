@@ -58,6 +58,7 @@ class PackPipelineTest {
             // mirrors, the fan's tilted head, the lid leant on the small jar, the washboard in the tub, the TV's rabbit ears, the lamp's arm
             "brass_kettle", "cassette_radio", "clothesline", "dial_phone", "dresser", "electric_fan", "jangdokdae", "washtub",
             "crt_tv", "street_lamp",
+            "meal_table",                                      // the round 양은 table top: slabs turned in steps of 22.5 degrees
             "police_car", "light_truck", "sports_car", "tuner_car",   // raked windscreens (45 / 22.5 degrees)
             "hyper_car", "grand_sedan", "luxury_suv",           // the premium cars: screens, the hyper car hood and back
             "cargo_bicycle", "delivery_scooter", "atv",         // road vehicles: frame tubes, forks, stays, steering posts
