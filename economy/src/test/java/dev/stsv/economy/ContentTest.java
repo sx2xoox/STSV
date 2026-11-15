@@ -145,7 +145,8 @@ class ContentTest {
                 vehicles.goods().stream().map(ShopCatalog.Good::id).toList());
         assertTrue(pieces.contains(furniture.icon()), "a piece is the icon");
         for (String id : pieces) if (shop.sell().containsKey(id)) problems.add("furniture is not sold to the shop: " + id);
-        assertEquals(Map.of("stsv:torii", 20000L, "stsv:maneki_neko", 7777L, "stsv:stepping_stones", 500L, "stsv:kotatsu", 15000L),
+        assertTrue(furniture.goods().stream().allMatch(g -> g.price() <= 10000), "every piece 10,000 G at most");
+        assertEquals(Map.of("stsv:torii", 10000L, "stsv:maneki_neko", 7777L, "stsv:stepping_stones", 500L, "stsv:kotatsu", 10000L),
                 furniture.goods().stream().filter(g -> List.of("stsv:torii", "stsv:maneki_neko", "stsv:stepping_stones", "stsv:kotatsu").contains(g.id()))
                         .collect(java.util.stream.Collectors.toMap(ShopCatalog.Good::id, ShopCatalog.Good::price)));
         List<String> inCategories = new ArrayList<>();
