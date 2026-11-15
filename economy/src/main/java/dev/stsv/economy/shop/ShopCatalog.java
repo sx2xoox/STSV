@@ -101,10 +101,29 @@ public record ShopCatalog(
      * A 구매 category. gacha = the core's 치장 뽑기 instead of goods (shop.yml {@code gacha: true}): the tile opens
      * the gacha menu, which has its own prices (contents/stsv/gacha.yml). single = one purchase per click, shift does
      * not buy 8 (shop.yml {@code single: true}; the furniture, where 8 of a 20,000 G piece by mistake would hurt).
+     * pages = the goods (indices) that start a new page of the item menu (shop.yml {@code - { page: true }} between
+     * items: the furniture's Japanese set on one page, the retro set on the next).
      */
-    public record BuyCategory(String id, String name, String icon, List<Good> goods, boolean gacha, boolean single) {
+    public record BuyCategory(String id, String name, String icon, List<Good> goods, boolean gacha, boolean single, List<Integer> pages) {
+        public BuyCategory(String id, String name, String icon, List<Good> goods, boolean gacha, boolean single) {
+            this(id, name, icon, goods, gacha, single, List.of());
+        }
+
         public BuyCategory(String id, String name, String icon, List<Good> goods) {
             this(id, name, icon, goods, false, false);
+        }
+
+        /**
+         * The list cells of the item menu, `per` cells a page: the index of the good in each cell, -1 for an empty cell
+         * (the rest of a page before a good that starts a new one).
+         */
+        public List<Integer> cells(int per) {
+            List<Integer> out = new ArrayList<>();
+            for (int i = 0; i < goods.size(); i++) {
+                if (pages.contains(i) && per > 0) while (out.size() % per != 0) out.add(-1);
+                out.add(i);
+            }
+            return out;
         }
     }
 
@@ -205,12 +224,18 @@ public record ShopCatalog(
                 }
                 boolean gacha = e.getBoolean("gacha");
                 List<Good> goods = new ArrayList<>();
+                List<Integer> pages = new ArrayList<>();
                 for (Map<?, ?> m : e.getMapList("items")) {
+                    if (Boolean.TRUE.equals(m.get("page"))) {   // - { page: true }: the next item starts a new page
+                        if (!goods.isEmpty()) pages.add(goods.size());
+                        continue;
+                    }
                     Good g = good(m, "buy." + key, problems);
                     if (g != null) goods.add(g);
                 }
                 if (gacha && !goods.isEmpty()) problems.add("buy." + key + ": gacha 카테고리에는 items 를 두지 않음 (무시)");
-                buyCats.add(new BuyCategory(key, e.getString("name", key), norm(e.getString("icon", "chest")), gacha ? List.of() : goods, gacha, e.getBoolean("single")));
+                buyCats.add(new BuyCategory(key, e.getString("name", key), norm(e.getString("icon", "chest")), gacha ? List.of() : goods, gacha,
+                        e.getBoolean("single"), List.copyOf(pages)));
             }
         } else {
             // an older file: one list of items, and the vanity list beside it

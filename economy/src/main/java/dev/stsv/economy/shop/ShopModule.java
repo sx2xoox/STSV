@@ -806,10 +806,20 @@ public final class ShopModule extends EcoModule implements DailyListener {
                     "hint", Lang.raw(vanity() ? "shop.hint-vanity" : category.single() ? "shop.hint-buy-single" : "shop.hint-buy"));
         }
 
+        /** the list cells: the good in each (-1 = an empty cell before a new page) */
+        private List<Integer> cells(MenuView v) {
+            return category.cells(v.spec().list() == '\0' ? 0 : v.spec().slots(v.spec().list()).size());
+        }
+
         @Override
         public List<ItemStack> list(MenuView v) {
             List<ItemStack> out = new ArrayList<>();
-            for (ShopCatalog.Good g : category.goods()) {
+            for (int cell : cells(v)) {
+                if (cell < 0) {
+                    out.add(null);
+                    continue;
+                }
+                ShopCatalog.Good g = category.goods().get(cell);
                 if (g.vanity()) {
                     out.add(eco.vanity().display(v.player(), g, (g.kind() + g.id()).equals(armed) && now() - armedAt < 5000));
                 } else {
@@ -822,8 +832,9 @@ public final class ShopModule extends EcoModule implements DailyListener {
 
         @Override
         public void onListClick(MenuView v, int index, ClickType click) {
-            if (index >= category.goods().size()) return;
-            ShopCatalog.Good g = category.goods().get(index);
+            List<Integer> cells = cells(v);
+            if (index < 0 || index >= cells.size() || cells.get(index) < 0) return;
+            ShopCatalog.Good g = category.goods().get(cells.get(index));
             Player p = v.player();
             if (g.vanity()) {
                 String key = g.kind() + g.id();

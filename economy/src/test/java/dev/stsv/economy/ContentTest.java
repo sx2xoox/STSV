@@ -112,23 +112,37 @@ class ContentTest {
                 shop.sellCategories().stream().map(ShopCatalog.Category::id).toList());
         assertEquals(List.of("tools", "machines", "seeds", "supplies", "furniture", "vehicles", "cosmetics", "titles"),
                 shop.buyCategories().stream().map(ShopCatalog.BuyCategory::id).toList());
-        // 가구: every Japanese-style piece of the core (content/stsv/items/furniture_japanese.yml), in the file's order (room, light,
-        // plants, props, garden), one at a time, on one page of the item menu (36 cells); the shop does not buy furniture back
+        // 가구: every Japanese-style piece of the core (content/stsv/items/furniture_japanese.yml) on the first page, then every
+        // retro Korean piece (furniture_retro_room, _kitchen, _yard) on the next, in the files' order, one at a time; the shop
+        // does not buy furniture back
         ShopCatalog.BuyCategory furniture = shop.buyCategories().stream().filter(c -> c.id().equals("furniture")).findFirst().orElseThrow();
-        List<String> pieces = YamlConfiguration.loadConfiguration(Path.of(System.getProperty("stsv.content"))
-                .resolve("../../content/stsv/items/furniture_japanese.yml").normalize().toFile()).getKeys(false).stream().map(k -> "stsv:" + k).toList();
-        assertEquals(30, pieces.size());
+        Path items = Path.of(System.getProperty("stsv.content")).resolve("../../content/stsv/items").normalize();
+        java.util.function.Function<String, List<String>> ids = f -> YamlConfiguration.loadConfiguration(items.resolve(f).toFile())
+                .getKeys(false).stream().map(k -> "stsv:" + k).toList();
+        List<String> japanese = ids.apply("furniture_japanese.yml");
+        List<String> retro = new ArrayList<>();
+        for (String g : List.of("room", "kitchen", "yard")) retro.addAll(ids.apply("furniture_retro_" + g + ".yml"));
+        assertEquals(30, japanese.size());
+        assertEquals(30, retro.size());
+        List<String> pieces = new ArrayList<>(japanese);
+        pieces.addAll(retro);
         assertEquals(pieces, furniture.goods().stream().map(ShopCatalog.Good::id).toList());
         assertTrue(furniture.goods().stream().allMatch(g -> g.kind().equals("item") && g.amount() == 1), "one piece a purchase");
         assertTrue(furniture.single(), "no shift-click 8 at once: a 20,000 G piece by mistake");
         assertTrue(shop.buyCategories().stream().filter(c -> !c.id().equals("furniture") && !c.id().equals("vehicles"))
                 .noneMatch(ShopCatalog.BuyCategory::single), "only the furniture and the vehicles");
+        // each set on a page of its own (36 list cells a page): the retro set starts the second page
+        assertEquals(List.of(30), furniture.pages());
+        List<Integer> cells = furniture.cells(36);
+        assertEquals(72, cells.size(), "two full pages: 30 + 6 empty, then 30 (+6 nothing)");
+        assertEquals(0, (int) cells.get(0));
+        for (int i = 30; i < 36; i++) assertEquals(-1, (int) cells.get(i), "the rest of the first page is empty");
+        assertEquals(30, (int) cells.get(36), "the retro set from the second page's first cell");
         // vehicles: generations 1-3 are sold (the rest are admin-only), one at a time
         ShopCatalog.BuyCategory vehicles = shop.buyCategories().stream().filter(c -> c.id().equals("vehicles")).findFirst().orElseThrow();
         assertTrue(vehicles.single(), "one vehicle a purchase");
         assertEquals(List.of("stsv:jige", "stsv:hand_cart", "stsv:cargo_bicycle", "stsv:ox_cart", "stsv:delivery_scooter", "stsv:power_tiller"),
                 vehicles.goods().stream().map(ShopCatalog.Good::id).toList());
-        assertTrue(furniture.goods().size() <= 36, "one page");
         assertTrue(pieces.contains(furniture.icon()), "a piece is the icon");
         for (String id : pieces) if (shop.sell().containsKey(id)) problems.add("furniture is not sold to the shop: " + id);
         assertEquals(Map.of("stsv:torii", 20000L, "stsv:maneki_neko", 7777L, "stsv:stepping_stones", 500L, "stsv:kotatsu", 15000L),

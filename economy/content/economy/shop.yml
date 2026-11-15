@@ -479,6 +479,7 @@ buy:
   furniture:
     name: "가구"
     icon: stsv:chabudai
+    # 첫 쪽 일본풍 30종, 다음 쪽 레트로 한국 30종 ({ page: true } = 다음 품목부터 새 쪽)
     single: true          # 한 번에 1개씩 (쉬프트 클릭도 1개: 비싼 가구를 실수로 8개 사지 않게)
     items:
       # 바닥 · 앉는 것 · 칸막이 · 벽
@@ -516,6 +517,41 @@ buy:
       - { item: stsv:torii, price: 20000 }           # 도리이
       - { item: stsv:stepping_stones, price: 500 }   # 징검돌
       - { item: stsv:koi_pond, price: 10000 }        # 잉어 연못
+      # ── 다음 쪽: 레트로 한국 (content/stsv/items/furniture_retro_*.yml, 방·거실 → 부엌·살림 → 마당·골목) ──
+      - { page: true }
+      # 방·거실
+      - { item: stsv:jagae_wardrobe, price: 15000 }   # 자개장
+      - { item: stsv:crt_tv, price: 8000 }            # 브라운관 TV
+      - { item: stsv:dial_phone, price: 3000 }        # 다이얼 전화기
+      - { item: stsv:wall_clock, price: 6000 }        # 괘종시계
+      - { item: stsv:blanket_chest, price: 7000 }     # 이불장
+      - { item: stsv:meal_table, price: 2500 }        # 밥상
+      - { item: stsv:retro_sofa, price: 9000 }        # 꽃무늬 소파
+      - { item: stsv:electric_fan, price: 3500 }      # 선풍기
+      - { item: stsv:dresser, price: 8000 }           # 삼면경 화장대
+      - { item: stsv:sewing_machine, price: 6000 }    # 발틀 재봉틀
+      # 부엌·살림
+      - { item: stsv:yeontan_stove, price: 6000 }     # 연탄난로
+      - { item: stsv:kerosene_stove, price: 3000 }    # 석유곤로
+      - { item: stsv:rice_cooker, price: 2500 }       # 보온밥솥
+      - { item: stsv:glass_cupboard, price: 7000 }    # 찬장
+      - { item: stsv:ramen_pot, price: 1500 }         # 양은 냄비 라면
+      - { item: stsv:fridge, price: 10000 }           # 2도어 냉장고
+      - { item: stsv:briquette_pile, price: 1000 }    # 연탄 더미
+      - { item: stsv:brass_kettle, price: 1500 }      # 양은 주전자
+      - { item: stsv:cassette_radio, price: 4000 }    # 카세트 라디오
+      - { item: stsv:washtub, price: 1500 }           # 고무대야 빨래
+      # 마당·골목
+      - { item: stsv:pyeongsang, price: 8000 }        # 평상
+      - { item: stsv:red_postbox, price: 5000 }       # 빨간 우체통
+      - { item: stsv:public_phone, price: 7000 }      # 공중전화
+      - { item: stsv:dalgona_stand, price: 3000 }     # 달고나 좌판
+      - { item: stsv:capsule_machine, price: 5000 }   # 뽑기 기계
+      - { item: stsv:arcade_machine, price: 12000 }   # 오락기
+      - { item: stsv:tub_garden, price: 2000 }        # 고무대야 텃밭
+      - { item: stsv:street_lamp, price: 9000 }       # 전봇대 가로등
+      - { item: stsv:clothesline, price: 3000 }       # 빨랫줄
+      - { item: stsv:jangdokdae, price: 6000 }        # 장독대
   # 탈것: 리어카만 팖 (1세대, 끌고 다니는 짐칸 135칸). 다른 탈것(골프 카트·1톤 트럭·경찰차, 짐자전거·배달 오토바이·사륜 오토바이·소형 화물 밴·탑차)은 관리자만 지급
   vehicles:
     name: "탈것"
