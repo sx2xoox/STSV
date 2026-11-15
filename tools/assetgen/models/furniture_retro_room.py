@@ -211,6 +211,106 @@ def shell(ch, col, row, frame):
     return None
 
 
+# The wardrobe's doors, 6 x 16 each, drawn in fine lines of nacre: p bright pearl (petals, the crane's body),
+# s a 1 px line (stems, branches, the moon, the crane's neck and legs), k a pale pink petal, l a pale green leaf
+NACRE_ART = [
+    [   # a crane under a crescent moon, reeds at its feet
+        "...ss.",
+        "..s...",
+        "..s...",
+        "...ss.",
+        "......",
+        ".k....",
+        ".p....",
+        ".s....",
+        ".s....",
+        ".pp...",
+        "ppps..",
+        ".pp.s.",
+        "..s...",
+        "..s...",
+        "s.ss.s",
+        "ls..sl",
+    ],
+    [   # a pine: three tiers of needles on a crooked trunk
+        "......",
+        ".lppl.",
+        "l.pp.l",
+        "...s..",
+        "..s...",
+        "lppl..",
+        ".pp.l.",
+        "..s...",
+        "...s..",
+        ".lppl.",
+        "l.pp.l",
+        "...s..",
+        "...s..",
+        "..ss..",
+        ".s..s.",
+        "......",
+    ],
+    [   # two peonies on one stem
+        "......",
+        "..pp..",
+        ".pkkp.",
+        ".pkkp.",
+        "..pp..",
+        "...s..",
+        "..ss..",
+        ".l.s..",
+        "ll.s.l",
+        "...sll",
+        "..pp..",
+        ".pkkp.",
+        "..pp..",
+        "..s...",
+        ".ls...",
+        "..s...",
+    ],
+    [   # a butterfly over bamboo
+        "p.p...",
+        ".s....",
+        "k.k...",
+        "....s.",
+        "...ls.",
+        "....s.",
+        "....p.",
+        "..l.s.",
+        ".ll.s.",
+        "....s.",
+        "....p.",
+        "....sl",
+        "....sl",
+        "....s.",
+        "....p.",
+        "....s.",
+    ],
+]
+NACRE_FLOWER = [".k.", "kpk", ".s."]
+NACRE_TINTS = [("pearl", 2), ("sakura", 3), ("porcelain", 2), ("crystal", 4), ("musk", 4), ("ice", 3)]
+
+
+def nacre(ch, col, row, frame):
+    """(ramp, step) of one texel of mother-of-pearl: milky white to pale silver, soft pastel tints (pink, green,
+    violet, ice) sliding across it as the light moves, and a white glint in the passing sweep."""
+    s = (col + row * 0.7) - (frame / SHELL_FRAMES) * 70 + 18
+    if abs(s) < 1.2:
+        return ("feather", 3)                                  # the glint of the sweep
+    band = (col * 0.5 + row * 0.35 - frame * 0.75) % 6
+    tint = NACRE_TINTS[int(band)]
+    soft = h3(col, row, 3, 11) < 0.7                           # most texels keep their own pearl colour
+    if ch == "p":
+        return ("pearl", 2) if soft else tint
+    if ch == "s":
+        return ("porcelain", 1) if soft else ("pearl", 1) if tint[0] == "pearl" else (tint[0], tint[1] - 1)
+    if ch == "k":
+        return ("sakura", 3) if soft else ("pink", 3)
+    if ch == "l":
+        return ("musk", 4) if soft else ("musk", 3)
+    return None
+
+
 def picture(rows, col, row, c0, r0):
     """The character of a bitmap at (col, row) placed with its top-left at (c0, r0), or None."""
     j, i = row - r0, col - c0
@@ -252,67 +352,64 @@ def jagae_wardrobe():
         k = c.frame
         if row == 20 or col in (6, 13, 14, 21):
             return ("rubber", 0)                                   # the gaps round the doors and drawers
-        b = border(col, row, 0, 0, 27, 26, k)
-        if b:
-            return b                                               # a dotted shell border round it all
+        on = row in (0, 26) or col in (0, 27)
+        if on:
+            return nacre("s", col, row, k) if (col + row) % 2 == 0 else ("rubber", 1)   # a dotted nacre border
         if row < 20:
             for d, c0 in enumerate((0, 7, 15, 22)):
                 if c0 <= col < c0 + 6:
                     if row in (1, 18) or col in (c0, c0 + 5) and 1 <= row <= 18:
                         return ("rubber", 2)                       # each door's raised edge
-                    ch = picture(DOOR_ART[d], col, row, c0, 2)
+                    ch = picture(NACRE_ART[d], col, row, c0, 2)
                     if ch:
-                        return shell(ch, col, row, k)
+                        return nacre(ch, col, row, k)
             return ("rubber", 1)
-        # the drawers (rows 21..26): a flower either side of each pull
-        for c0 in (2, 10, 16, 23):
-            ch = picture(FLOWER, col, row, c0, 22)
+        for c0 in (2, 10, 16, 23):                                 # a flower either side of each pull
+            ch = picture(NACRE_FLOWER, col, row, c0, 22)
             if ch:
-                return shell(ch, col, row, k)
+                return nacre(ch, col, row, k)
         return ("rubber", 1)
-    m.box("carcass", (2, 3, 3.25), (30, 29.5, 13), LACQ)
-    m.box("front", (2, 3, 3), (30, 29.5, 3.25), Paint("rubber", 1, noise=0, rim=0.5, decal=front,
+    # 0.66 block deep (z 2.75..13.25), the cornice overhanging front and back
+    m.box("carcass", (2, 3, 2.75), (30, 29.5, 13.25), LACQ)
+    m.box("front", (2, 3, 2.5), (30, 29.5, 2.75), Paint("rubber", 1, noise=0, rim=0.5, decal=front,
                                                         frames=SHELL_FRAMES, frametime=SHELL_TIME),
           faces={f: LACQ for f in ("south", "east", "west", "up", "down")})
 
-    def gold_line(c):
-        if c.face in ("north", "east", "west") and abs(c.p[1] - 30.5) < 0.5:
-            return ("gold", 1)                                     # a gilt line round the cornice
-        return None
-    m.box("cornice", (1, 29.5, 2.5), (31, 31.5, 13.5), LACQ(decal=gold_line))
-    m.box("plinth", (1.5, 2, 2.75), (30.5, 3, 13.25), LACQ)
+    m.box("cornice", (1, 29.75, 2), (31, 31.5, 14), LACQ)
+    m.box("gilt_rim", (0.75, 29.5, 1.75), (31.25, 29.75, 14.25), Paint("gold", 1, "metal", rim=0.4))   # a thin gilt rim
+    m.box("plinth", (1.5, 2, 2.5), (30.5, 3, 13.5), LACQ)
 
     def side(c):
         if c.face in ("east", "west"):
             z, y = c.p[2], c.p[1]
             if min(z - 4, 12 - z) < 0.5 and 5 < y < 28 or min(y - 5, 28 - y) < 0.5 and 4 < z < 12:
-                return ("pearl", 1)                         # a shell line framing the sides
+                return nacre("s", c.i[2], c.i[1], 0)            # a nacre line framing the sides
         return None
-    m.box("carcass_side", (1.75, 3, 3.5), (2, 29.5, 12.75), LACQ(decal=side))
-    m.box("carcass_side", (30, 3, 3.5), (30.25, 29.5, 12.75), LACQ(decal=side))
+    m.box("carcass_side", (1.75, 3, 3.25), (2, 29.5, 12.75), LACQ(decal=side))
+    m.box("carcass_side", (30, 3, 3.25), (30.25, 29.5, 12.75), LACQ(decal=side))
     m.group("feet")
     foot = LACQ(rim=1.2)
     for (x0, x1) in ((1.5, 4.5), (27.5, 30.5)):
-        for (z0, z1) in ((2.75, 5.25), (10.75, 13.25)):
+        for (z0, z1) in ((2.5, 5), (11, 13.5)):
             m.box("foot", (x0, 0.75, z0), (x1, 2, z1), foot)
             m.box("foot_toe", (x0 + 0.5, 0, z0 + 0.5), (x1 - 0.5, 0.75, z1 - 0.5), foot)
     m.group("brass")
     bright = Paint("brass", 3, "metal", rim=0.6)
     for (x0, x1) in ((28.5, 29.5), (2.5, 3.5)):                     # hinges on the outer doors
         for y in (11.5, 25.5):
-            m.box("hinge", (x0, y, 2.75), (x1, y + 1.5, 3), BRASS)
+            m.box("hinge", (x0, y, 2.25), (x1, y + 1.5, 2.5), BRASS)
     for x in (18.25, 13.75):                                        # round handle plates by the middle seam
-        m.box("plate", (x - 1.25, 16.5, 2.75), (x + 1.25, 19, 3), BRASS)
-        m.box("plate_rim", (x - 0.75, 19, 2.75), (x + 0.75, 19.25, 3), BRASS)
-        m.box("plate_rim", (x - 0.75, 16.25, 2.75), (x + 0.75, 16.5, 3), BRASS)
-        m.box("ring", (x - 0.75, 15, 2.5), (x + 0.75, 15.25, 2.75), bright)
-        m.box("ring", (x - 0.75, 15.25, 2.5), (x - 0.5, 16.75, 2.75), bright)
-        m.box("ring", (x + 0.5, 15.25, 2.5), (x + 0.75, 16.75, 2.75), bright)
-    m.box("lock", (15, 21.5, 2.75), (17, 24.5, 3), BRASS(decal=lambda c: ("rubber", 0) if c.face == "north" and 15.75 < c.p[0] < 16.25
+        m.box("plate", (x - 1.25, 16.5, 2.25), (x + 1.25, 19, 2.5), BRASS)
+        m.box("plate_rim", (x - 0.75, 19, 2.25), (x + 0.75, 19.25, 2.5), BRASS)
+        m.box("plate_rim", (x - 0.75, 16.25, 2.25), (x + 0.75, 16.5, 2.5), BRASS)
+        m.box("ring", (x - 0.75, 15, 2), (x + 0.75, 15.25, 2.25), bright)
+        m.box("ring", (x - 0.75, 15.25, 2), (x - 0.5, 16.75, 2.25), bright)
+        m.box("ring", (x + 0.5, 15.25, 2), (x + 0.75, 16.75, 2.25), bright)
+    m.box("lock", (15, 21.5, 2.25), (17, 24.5, 2.5), BRASS(decal=lambda c: ("rubber", 0) if c.face == "north" and 15.75 < c.p[0] < 16.25
                                                                    and 22.25 < c.p[1] < 23.5 else None))
     for x in (22.5, 9.5):                                           # drawer pulls
-        m.box("pull_plate", (x - 1.5, 5.5, 2.75), (x + 1.5, 6.75, 3), BRASS)
-        m.box("pull", (x - 1.25, 4.75, 2.5), (x + 1.25, 5.25, 2.75), bright)
+        m.box("pull_plate", (x - 1.5, 5.5, 2.25), (x + 1.5, 6.75, 2.5), BRASS)
+        m.box("pull", (x - 1.25, 4.75, 2), (x + 1.25, 5.25, 2.25), bright)
     return display(m, (2, 2, 1), 0)
 
 
@@ -435,33 +532,39 @@ def dial_phone():
     m.box("doily_flap", (4, 8.5, 13.5), (12, 10.5, 13.75), flap)
     m.group("phone")
     red = Paint("fabric_red", 2, "lacquer", noise=0.02)
-    m.box("base", (5.25, 10.5, 5), (10.75, 11.25, 11), red)
-    m.box("body", (5.75, 11.25, 5.5), (10.25, 12.5, 10.75), red)
+    m.box("base", (3.75, 10.5, 4.25), (11.25, 11, 12), red)
+    m.box("housing", (4, 11, 10), (11, 16, 12), red)
+    m.box("housing_top", (4.5, 16, 10.25), (10.5, 16.5, 11.75), red)
+    for k in range(4):                                    # the sloping front under the dial, stepped behind it
+        m.box("slope", (4, 11 + k, 6 + k), (11, 12 + k, 10), red)
+    # the dial, 7 x 7: a pale disc, a ring of finger holes, the red label in the middle, the silver finger stop
+    DIAL = ["RRpppRR",
+            "RphphpR",
+            "ppppppp",
+            "phpcphp",
+            "ppppppp",
+            "RphpSpR",
+            "RRpppRR"]
 
-    def holes(c):
-        if c.face != "up":
-            return ("cream", 2)
-        dx, dz = c.p[0] - 8, c.p[2] - 7.5
-        r = math.hypot(dx, dz)
-        if r < 0.8:
-            return ("fabric_red", 1)                       # the label in the middle
-        a = math.atan2(dz, dx)
-        if r > 1.1 and int((a + math.pi) / (2 * math.pi) * 8) % 2 == 0:
-            return ("rubber", 1)                           # the finger holes
-        return ("cream", 3)
-    cyl(m, "dial", (8, 7.5), 4, 12.5, 12.75, flat("cream", 3, decal=holes))
-    m.box("finger_stop", (5.75, 12.75, 8.75), (6.25, 13, 9.25), Paint("blade", 3, "metal"))
-    m.box("cradle", (6, 12.5, 9.5), (6.75, 13.25, 10.5), red)
-    m.box("cradle", (9.25, 12.5, 9.5), (10, 13.25, 10.5), red)
-    m.box("handset", (5.25, 13.25, 9.5), (10.75, 14, 10.5), red)
-    for x0 in (4.5, 10):
-        m.box("handset_cup", (x0, 12.75, 9.25), (x0 + 1.5, 14.25, 10.75), red)
+    def dial(c):
+        if c.face != "north":
+            return ("fabric_red", 2)
+        ch = picture(DIAL, math.floor(11 - c.p[0]), math.floor(18 - c.p[1]), 0, 0)
+        return {"R": ("fabric_red", 2), "h": ("rubber", 1), "p": ("porcelain", 2), "c": ("fabric_red", 1),
+                "S": ("blade", 1)}.get(ch, ("fabric_red", 2))
+    # the dial plate tipped back 45 degrees on the front slope
+    m.box("dial", (4, 11, 4.75), (11, 18, 5.25), flat("fabric_red", 2, decal=dial), rotation=("x", 45, (7.5, 11, 5)))
+    # the handset across the cradle on top, its two ends out past the sides
+    m.box("cradle", (5, 16.5, 10.5), (5.75, 17, 11.5), red)
+    m.box("cradle", (9.25, 16.5, 10.5), (10, 17, 11.5), red)
+    m.box("handset", (4.25, 17, 10.625), (10.75, 17.75, 11.375), red)
+    for x0 in (2.75, 10.75):
+        m.box("handset_end", (x0, 16.5, 10.25), (x0 + 1.5, 18, 11.75), red)
     coil = Paint("fabric_red", 1, noise=0)
-    for k in range(4):                                    # the coiled cord down the side to the table
-        y = 12.75 - k * 0.5
+    for k in range(12):                                   # the coiled cord from the handset down to the table
+        y = 16.5 - k * 0.5
         dz = 0.25 if k % 2 else 0
-        m.box("cord", (4, y - 0.5, 9.5 + dz), (4.5, y, 10.25 + dz), coil)
-    m.box("cord", (4.5, 10.5, 9.75), (5.25, 10.75, 10.25), coil)
+        m.box("cord", (3, y - 0.5, 11 + dz), (3.75, y, 11.5 + dz), coil)
     m.group("memo")
 
     def lines(c):
@@ -469,7 +572,7 @@ def dial_phone():
             return ("denim", 3)                            # ruled lines
         return None
     m.box("memo", (11.25, 10.5, 3.75), (13, 10.75, 6.25), flat("paper", 2, decal=lines))
-    m.box("pen", (10.5, 10.75, 6.75), (13.25, 11, 7.25), flat("sapphire", 1),
+    m.box("pen", (11.25, 10.5, 6.75), (13.5, 10.75, 7.25), flat("sapphire", 1),
           faces={"east": flat("rubber", 2)})
     return display(m, (1, 1, 1), 0)
 
@@ -742,72 +845,101 @@ def retro_sofa():
 
 def electric_fan():
     """선풍기 1x1: a standing electric fan in ivory: a round base with a row of piano-key switches (one pressed),
-    a pole with a chrome collar, the motor with its oscillation knob behind, and a chrome wire cage (a front grille
-    of rings and spokes with a blue badge, the rim, the back grille) round blue blades turning (a spin blur)."""
-    m = BModel("electric_fan")
+    a pole with a chrome collar, and the head tipped a little up on its neck: a round chrome wire cage (the rim, a
+    domed front grille of a ring and eight spokes round a blue badge, the back grille) round three blue blades
+    turning (a spin blur), the rounded motor behind with its oscillation knob on top."""
+    # drawn round x 8.5 (so the cage's spokes fall on one pixel column), then moved back half a pixel
+    m = BModel("electric_fan", shift=(-0.5, 0, 0))
+    CX, CY = 8.5, 12.5                                     # the head's centre
     m.group("base")
-    cyl(m, "base", (8, 8), 9, 0, 1.25, CREAM)
-    cyl(m, "base", (8, 8), 7, 1.25, 1.75, CREAM)
-    m.box("keys_bank", (5, 0.5, 4.25), (11, 2, 6.5), CREAM)
+    cyl(m, "base", (CX, 8), 9, 0, 1.25, CREAM)
+    cyl(m, "base", (CX, 8), 7, 1.25, 1.75, CREAM)
+    m.box("keys_bank", (5.5, 0.5, 4.25), (11.5, 2, 6.5), CREAM)
     for k, (tip, down) in enumerate((("sapphire", False), ("leaf", True), ("pepper", False), ("rubber", False))):
-        x = 9.75 - k * 1.5
+        x = 10.25 - k * 1.5
         y1 = 2.25 if down else 2.75
         m.box("key", (x, 2, 4.5), (x + 1.25, y1, 6.25), flat("cream", 3, rim=0.6),
               faces={"north": flat(tip, 2)})
     m.group("pole")
-    m.box("pole", (7.25, 1.75, 7.25), (8.75, 6, 8.75), CREAM)
-    m.box("collar", (7, 4.5, 7), (9, 5.25, 9), CHROME)
-    m.box("neck", (7, 6, 7.25), (9, 8.5, 9.25), CREAM)
+    m.box("pole", (7.75, 1.75, 7.5), (9.25, 7.5, 9), CREAM)
+    m.box("collar", (7.5, 5, 7.25), (9.5, 5.75, 9.25), CHROME)
+    m.box("neck", (7.5, 7.5, 7.25), (9.5, 9, 9.25), CREAM)
+
+    # everything above the neck tips up together round the top of the neck
+    plain_box = m.box
+    tilt = ("x", 22.5, (CX, 9, 8.25))
+
+    def head_box(name, frm, to, paint, faces=None, rotation=None, **kw):
+        return plain_box(name, frm, to, paint, faces=faces, rotation=tilt, **kw)
+    m.box = head_box
     m.group("motor")
-    cyl(m, "motor", (8, 11), 5, 6.5, 10.5, CREAM, axis="z")
-    cyl(m, "motor_cap", (8, 11), 3, 10.5, 11.5, Paint("cream", 1), axis="z")
-    m.box("knob", (7.5, 14, 9), (8.5, 15, 10), flat("cream", 3))
-    m.box("knob_stem", (7.75, 13.5, 9.25), (8.25, 14, 9.75), flat("cream", 1))
-    m.box("tail", (7.5, 10.5, 11.5), (8.5, 11.5, 12), Paint("cream", 1))
+    m.box("yoke", (7.75, 9, 7.75), (9.25, 10, 9.75), CREAM)
+    cyl(m, "motor", (CX, CY), 6, 7.5, 10, CREAM, axis="z")                   # the rounded motor housing
+    cyl(m, "motor_back", (CX, CY), 4, 10, 11, CREAM, axis="z")
+    cyl(m, "motor_cap", (CX, CY), 2, 11, 11.5, Paint("cream", 1), axis="z")
+    m.box("knob_stem", (8.25, 15.5, 8.75), (8.75, 16, 9.25), flat("cream", 1))
+    m.box("knob", (8, 16, 8.5), (9, 16.75, 9.5), flat("cream", 3))
+    m.box("hub", (8, 12, 6), (9, 13, 7.75), Paint("blade", 2, "metal"))
     m.group("blades")
     N = 12
 
     def blades(c):
-        if c.face not in ("north", "south"):
-            return ("water", 2)
-        dx, dy = c.p[0] - 8, c.p[1] - 11
+        dx, dy = c.p[0] - CX, c.p[1] - CY
         r = math.hypot(dx, dy)
-        if r < 0.9:
+        if c.face not in ("north", "south") or r > 5.3:
+            return CLEAR
+        if r < 0.8:
             return ("sapphire", 1)
         a = math.atan2(dy, dx) + (2 * math.pi / 3) * c.frame / N
         s = (a % (2 * math.pi / 3)) / (2 * math.pi / 3)    # 0..1 round each blade's sector
         if s < 0.42:
-            return ("water", 3 if s < 0.25 else 2)         # the blade
-        if s < 0.6:
+            return ("water", 3 if s < 0.22 else 2)         # the blade
+        if s < 0.58:
             return ("water", 1)                            # its blur
-        return ("tint", 1)
-    cyl(m, "blades", (8, 11), 9, 5.25, 5.75, Paint("water", 2, noise=0, light=False, decal=blades, frames=N, frametime=1), axis="z")
+        return CLEAR
+    m.box("blades", (CX - 5.25, CY - 5.25, 5.5), (CX + 5.25, CY + 5.25, 6),
+          Paint("water", 2, noise=0, light=False, decal=blades, frames=N, frametime=1))
     m.group("cage")
-    wire = ("blade", 3)
+    wire = ("blade", 2)
 
-    def grille(front):
+    def spoke(dx, dy):
+        return abs(dx) < 0.1 or abs(dy) < 0.1 or abs(abs(dx) - abs(dy)) < 0.1
+
+    def grille(part):
         def decal(c):
             if c.face not in ("north", "south"):
-                return wire
-            dx, dy = c.p[0] - 8, c.p[1] - 11
+                return CLEAR
+            dx, dy = c.p[0] - CX, c.p[1] - CY
             r = math.hypot(dx, dy)
-            if front and r < 1.1:
-                return ("sapphire", 2) if r < 0.7 else ("feather", 3)      # the badge
-            if r > 4.4:
-                return wire                                # the rim
-            if abs(abs(dx) - abs(dy)) < 0.3 and r > 1.1:
-                return wire                                # four spokes
+            if part == "dome":                             # the front of the dome: the badge, a ring, the inner spokes
+                if r < 1.2:
+                    return ("sapphire", 2) if r < 0.5 else ("blade", 3)
+                if 2.5 <= r < 3.5:
+                    return wire
+                return CLEAR
+            if part == "front":                            # the outer spokes out to the rim
+                if 3.5 <= r < 5.5 and spoke(dx, dy):
+                    return wire
+                return CLEAR
+            if 3 <= r < 5.5 and (abs(dx) < 0.1 or abs(dy) < 0.1):  # the back grille: four spokes
+                return wire
             return CLEAR
         return decal
-    cyl(m, "grille_front", (8, 11), 10, 4.5, 5, Paint("blade", 3, noise=0, light=False, decal=grille(True)), axis="z")
-    cyl(m, "grille_back", (8, 11), 10, 6, 6.5, Paint("blade", 3, noise=0, light=False, decal=grille(False)), axis="z")
+    m.box("grille_dome", (CX - 3.5, CY - 3.5, 3.75), (CX + 3.5, CY + 3.5, 4.25),
+          Paint("blade", 3, noise=0, light=False, decal=grille("dome")))
+    m.box("grille_front", (CX - 5.4, CY - 5.4, 4.5), (CX + 5.4, CY + 5.4, 5),
+          Paint("blade", 3, noise=0, light=False, decal=grille("front")))
+    m.box("grille_back", (CX - 5.4, CY - 5.4, 7), (CX + 5.4, CY + 5.4, 7.5),
+          Paint("blade", 3, noise=0, light=False, decal=grille("back")))
     rim = {}
-    for i in range(3, 13):
-        for j in range(6, 16):
-            if 4.5 <= math.hypot(i + 0.5 - 8, j + 0.5 - 11) < 5.0:
-                rim[(i, j, 5)] = "rim"
+    for i in range(1, 16):
+        for j in range(5, 20):
+            if 5.5 <= math.hypot(i + 0.5 - CX, j + 0.5 - CY) < 6.5:
+                for k in (5, 6):
+                    rim[(i, j, k)] = "rim"
     voxels(m, "rim", rim, lambda _l: CHROME)
-    m.box("badge", (7.5, 10.5, 4), (8.5, 11.5, 4.5), flat("sapphire", 2))
+    m.box("badge", (8, 12, 3.25), (9, 13, 3.75), flat("sapphire", 2))
+    m.box = plain_box
     return display(m, (1, 1, 1), 0)
 
 

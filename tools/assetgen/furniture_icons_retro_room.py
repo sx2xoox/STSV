@@ -32,24 +32,34 @@ def _box(c, x0, y0, x1, y1, d, mat, z=0, front=None, top=None, side=None):
 def jagae_wardrobe():
     c = Canvas()
     _box(c, 0.5, 2.5, 14, 14, 1.5, "rubber", 0)
-    c.rect(0, 1.5, 15.5, 2.5, "gold", 3, normal=FRONT)               # the gilt cornice
+    c.rect(0, 1.5, 15.5, 2.5, "rubber", 1, normal=FRONT)             # the cornice
+    c.line(0, 2, 15, 2, "gold", 4, z=5)                              # its thin gilt rim
     for x in (3.5, 7, 10.5):
         c.line(x, 3, x, 11, "rubber", 0, z=5)                        # the door seams
     c.line(1, 11.5, 13.5, 11.5, "rubber", 0, z=5)                     # over the drawers
-    shell = [  # a crane, a pine, a peony and a bamboo spray in mother-of-pearl
-        (2, 4, "pearl", 5), (2, 5, "pearl", 4), (1, 6, "pearl", 4), (2, 6, "pearl", 5), (3, 6, "pearl", 4), (2, 7, "pearl", 3),
-        (2, 8, "pearl", 3), (2, 3, "sakura", 3),
-        (5, 4, "spectral", 3), (4, 5, "spectral", 3), (5, 5, "spectral", 4), (6, 5, "spectral", 3), (5, 7, "spectral", 3),
-        (4, 8, "spectral", 3), (6, 8, "spectral", 3), (5, 9, "whetstone", 3), (5, 10, "whetstone", 3),
-        (9, 4, "sakura", 3), (8, 5, "sakura", 4), (9, 5, "pearl", 5), (10, 5, "sakura", 4), (9, 6, "sakura", 3),
-        (9, 7, "spectral", 3), (8, 8, "spectral", 3), (9, 9, "sakura", 3),
-        (12, 4, "gold", 4), (12, 6, "spectral", 3), (12, 7, "spectral", 3), (13, 8, "spectral", 3), (12, 9, "spectral", 3),
-        (12, 10, "spectral", 3),
-        (3, 13, "sakura", 3), (6, 13, "sakura", 3), (9, 13, "sakura", 3), (12, 13, "sakura", 3),
+    # mother-of-pearl in fine lines: milky white, pale silver, soft pink, green and violet
+    nacre = [
+        # a crane under a crescent moon, a reed
+        (1, 3, "ice", 4), (3, 4, "pearl", 5), (2, 5, "porcelain", 3), (1, 6, "pearl", 4), (2, 6, "pearl", 5),
+        (3, 6, "crystal", 4), (2, 7, "porcelain", 2), (2, 8, "porcelain", 2), (1, 9, "musk", 4), (3, 10, "musk", 4),
+        # a pine
+        (5, 3, "musk", 4), (4, 4, "musk", 4), (5, 4, "pearl", 4), (6, 4, "musk", 4), (5, 5, "porcelain", 2),
+        (4, 6, "musk", 4), (5, 6, "pearl", 4), (6, 6, "musk", 4), (5, 7, "porcelain", 2), (5, 8, "porcelain", 2),
+        (4, 9, "porcelain", 2), (6, 9, "porcelain", 2),
+        # a peony on its stem
+        (9, 3, "pearl", 5), (8, 4, "sakura", 4), (9, 4, "pearl", 4), (10, 4, "sakura", 4), (9, 5, "sakura", 3),
+        (9, 6, "porcelain", 2), (8, 7, "musk", 4), (9, 7, "porcelain", 2), (9, 8, "porcelain", 2), (10, 8, "musk", 4),
+        (9, 9, "sakura", 4),
+        # a butterfly over bamboo
+        (11, 3, "crystal", 4), (12, 4, "pearl", 5), (13, 3, "crystal", 4), (13, 5, "porcelain", 3),
+        (13, 6, "porcelain", 3), (12, 7, "musk", 4), (13, 7, "ice", 4), (13, 8, "porcelain", 3), (13, 9, "porcelain", 3),
+        (12, 10, "musk", 4),
+        # a flower on each drawer
+        (2, 13, "sakura", 4), (5, 13, "pearl", 5), (9, 13, "ice", 4), (12, 13, "crystal", 4),
     ]
-    for (x, y, m, s) in shell:
-        c.put(x, y, m, s, z=6)
-    for (x, y) in ((7, 8), (8, 8), (4, 12), (10, 12)):
+    for (x, y, m, st) in nacre:
+        c.put(x, y, m, st, z=6)
+    for (x, y) in ((6, 8), (8, 8), (4, 12), (10, 12)):
         c.put(x, y, "brass", 4, z=7)                                 # handle plates and drawer pulls
     c.rect(1, 14, 3, 15, "rubber", 1, normal=FRONT)
     c.rect(11.5, 14, 13.5, 15, "rubber", 1, normal=FRONT)
@@ -80,17 +90,30 @@ def crt_tv():
 @icon("dial_phone")
 def dial_phone():
     c = Canvas()
-    for (x, y0, y1) in ((2, 8, 15), (12.5, 8, 15), (6, 9, 15.5)):
-        c.rect(x, y0, x + 1.5, y1, "wood_dark", 0, normal=FRONT)
-    _box(c, 1, 7.5, 13, 9, 2, "feather", 1)                          # table under its lace
-    c.rect(3.5, 12, 11, 13, "petal_yellow", 1, normal=FRONT)         # the phone book below
-    c.ellipse(8, 5.5, 5, 2.6, "fabric_red", 3, dome=0.5)             # the phone
-    c.ellipse(7.5, 5.5, 2.3, 1.4, "cream", 4, dome=0.3, gloss=0)    # its dial
-    for (x, y) in ((6, 5), (7, 4), (9, 5), (8, 6)):
-        c.put(x, y, "rubber", 1, z=6)
-    c.tube([(3.5, 2.5), (12.5, 2.5)], [1.1, 1.1], "fabric_red", 7)   # the handset
-    c.ellipse(3.5, 3, 1.4, 1.2, "fabric_red", 8)
-    c.ellipse(12.5, 3, 1.4, 1.2, "fabric_red", 8)
+    for (x, y0, y1) in ((2, 11, 16), (12.5, 11, 16)):
+        c.rect(x, y0, x + 1.5, y1, "wood_dark", 0, normal=FRONT)       # the table's legs
+    c.rect(3.5, 13, 12.5, 14.5, "petal_yellow", 1, normal=FRONT)     # the phone book on its shelf
+    _box(c, 0.5, 10.5, 14.5, 11.5, 1, "feather", 1)                  # the top under its lace
+    # the red phone, its front sloping up to the cradle
+    c.poly([(4.5, 5), (11.5, 5), (13.5, 10.5), (2.5, 10.5)], "fabric_red", 2, normal=(0, -0.45, 1))
+    c.rect(2.5, 9.5, 13.5, 10.5, "fabric_red", 3, normal=FRONT)
+    # the dial: a pale disc, a ring of finger holes, the red label in the middle, the silver finger stop
+    for dx in range(-2, 3):
+        for dy in range(-2, 3):
+            if dx * dx + dy * dy <= 5:
+                c.put(8 + dx, 7 + dy, "porcelain", 4 if dx + dy < 0 else 3, z=6)
+    for (dx, dy) in ((-1, -2), (1, -2), (2, 0), (1, 2), (-1, 2), (-2, 0)):
+        c.put(8 + dx, 7 + dy, "rubber", 1, z=7)
+    c.put(8, 7, "fabric_red", 2, z=7)
+    c.put(10, 8, "blade", 2, z=7)
+    # the handset lying across the cradle on top, its two ends standing out, the coiled cord down the left
+    for x in (5, 10):
+        c.put(x, 4, "fabric_red", 1, z=7)                          # the cradle's prongs
+    c.tube([(4, 2.5), (12, 2.5)], [0.7, 0.7], "fabric_red", 8)
+    c.ellipse(2.8, 3, 1.5, 1.8, "fabric_red", 9, dome=0.6)
+    c.ellipse(13.2, 3, 1.5, 1.8, "fabric_red", 9, dome=0.6)
+    for (x, y) in ((1, 5), (2, 6), (1, 7), (2, 8), (1, 9)):
+        c.put(x, y, "fabric_red", 1, z=9)
     return c.render()
 
 
@@ -170,19 +193,31 @@ def retro_sofa():
 
 @icon("electric_fan")
 def electric_fan():
+    import math
     c = Canvas()
     c.ellipse(8, 14, 5, 1.6, "cream", 1, dome=0.4)                   # the base
     c.rect(5.5, 13, 10.5, 14.5, "cream", 2, normal=FRONT)
-    for (x, m) in ((6, "sapphire"), (7.5, "leaf"), (9, "pepper")):
-        c.put(int(x), 13, m, 3, z=3)
-    c.rect(7.5, 9, 8.5, 13, "cream", 2, normal=FRONT)                # the pole
-    c.ellipse(8, 5.5, 5.6, 5.6, "blade", 3, dome=0.1, gloss=0)      # the wire cage
-    c.ellipse(8, 5.5, 4.6, 4.6, "water", 2, dome=0.1, gloss=0)      # the blades turning
-    for (x, y) in ((6, 3), (10, 4), (7, 8), (9, 7), (5, 6), (11, 6)):
-        c.put(x, y, "water", 4, z=6)
-    c.line(4, 2, 12, 9, "blade", 4, z=7)                             # the grille's spokes
-    c.line(12, 2, 4, 9, "blade", 4, z=7)
-    c.ellipse(8, 5.5, 1.2, 1.2, "sapphire", 8)                       # the badge
+    for (x, m) in ((6, "sapphire"), (7, "leaf"), (9, "pepper")):
+        c.put(x, 13, m, 3, z=3)
+    c.rect(7.5, 10.5, 8.5, 13, "cream", 2, normal=FRONT)             # the pole
+    c.rect(7, 9.5, 9, 11, "cream", 3, normal=FRONT)                  # the neck
+    # the round cage (centre pixel 8, 5): a chrome rim, three blue blades inside, a ring and eight spokes, the badge
+    for y in range(0, 12):
+        for x in range(1, 16):
+            dx, dy = x - 8, y - 5
+            r = math.hypot(dx, dy)
+            if 4.6 <= r < 5.6:
+                c.put(x, y, "blade", 4 if dx + dy < -1 else 3 if dx + dy < 2 else 2, z=6)
+            elif r < 4.6:
+                a = (math.atan2(dy, dx) + 0.3) % (2 * math.pi / 3) / (2 * math.pi / 3)
+                c.put(x, y, "water", (4 if a < 0.2 else 3) if a < 0.45 else 2 if a < 0.6 else 1, z=5)
+                if r >= 1.5 and (dx == 0 or dy == 0 or abs(dx) == abs(dy)) and r >= 2.8:
+                    c.put(x, y, "blade", 3, z=7)                     # the spokes
+                elif 2 <= r < 2.9 and (dx + dy) % 2 == 0:
+                    c.put(x, y, "blade", 3, z=7)                     # the inner ring
+    c.put(8, 5, "sapphire", 4, z=8)                                  # the badge
+    for (x, y) in ((7, 5), (9, 5), (8, 4), (8, 6)):
+        c.put(x, y, "blade", 4, z=8)
     return c.render()
 
 
