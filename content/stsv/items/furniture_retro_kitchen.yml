@@ -1,3 +1,108 @@
 # 꾸미기 가구 · 레트로 한국 (부엌·살림, 10종). 모델: tools/assetgen/models/furniture_retro_kitchen.py,
 # 아이콘: tools/assetgen/furniture_icons_retro_kitchen.py, 미리보기: python3 furniture_preview.py --set retro
 # 쓰는 법은 furniture_japanese.yml 맨 위 설명과 같습니다 (model, icon, cells, solid, light, seats, translation, scale).
+
+yeontan_stove:
+  material: paper
+  name: "<#9aa0a6>연탄난로"
+  lore: ["<gray>레트로 가구 · 1×1칸, 높이 2", "<gray>연탄이 빨갛게 타는 무쇠 난로. 위에는 양은 주전자,", "<gray>뒤로는 연통이 올라가 벽으로 꺾입니다.", "<yellow>빛 12"]
+  model: yeontan_stove
+  icon: yeontan_stove_icon
+  max-stack: 16
+  furniture:
+    cells: [[0, 0, 0], [0, 1, 0]]
+    light: { level: 12, cell: [0, 1, 0] }
+
+kerosene_stove:
+  material: paper
+  name: "<#5f9c6c>석유곤로"
+  lore: ["<gray>레트로 가구 · 1×1칸", "<gray>파란 불꽃이 둥글게 피어오르는 석유곤로.", "<gray>위에 양은 냄비가 올라가 있습니다.", "<yellow>빛 7", "<dark_gray>지나갈 수 있음"]
+  model: kerosene_stove
+  icon: kerosene_stove_icon
+  max-stack: 16
+  furniture:
+    cells: [[0, 0, 0]]
+    solid: false
+    light: 7
+
+rice_cooker:
+  material: paper
+  name: "<#f0a3b8>꽃무늬 보온밥솥"
+  lore: ["<gray>레트로 가구 · 1×1칸", "<gray>꽃무늬 띠를 두른 보온밥솥과 옆에 꽂은 주걱.", "<gray>빨간 보온 불이 들어와 있습니다."]
+  model: rice_cooker
+  icon: rice_cooker_icon
+  max-stack: 16
+  furniture:
+    cells: [[0, 0, 0]]
+
+glass_cupboard:
+  material: paper
+  name: "<#b07a45>찬장"
+  lore: ["<gray>레트로 가구 · 1×1칸, 높이 2", "<gray>유리 미닫이 너머로 꽃무늬 밥그릇과 접시가 보이는", "<gray>나무 찬장."]
+  model: glass_cupboard
+  icon: glass_cupboard_icon
+  max-stack: 16
+  furniture:
+    cells: [[0, 0, 0], [0, 1, 0]]
+
+ramen_pot:
+  material: paper
+  name: "<#e0b24a>양은 냄비 라면"
+  lore: ["<gray>레트로 가구 · 1×1칸", "<gray>신문지 위에 올린 양은 냄비 라면. 계란 하나, 파 송송,", "<gray>뚜껑은 앞접시 대신, 옆에는 김치 한 접시.", "<dark_gray>지나갈 수 있음"]
+  model: ramen_pot
+  icon: ramen_pot_icon
+  max-stack: 16
+  furniture:
+    cells: [[0, 0, 0]]
+    solid: false
+
+fridge:
+  material: paper
+  name: "<#9fd6c2>2도어 냉장고"
+  lore: ["<gray>레트로 가구 · 1×1칸, 높이 2", "<gray>민트색 2도어 냉장고. 크롬 손잡이에", "<gray>과일 자석과 메모 한 장."]
+  model: fridge
+  icon: fridge_icon
+  max-stack: 16
+  furniture:
+    cells: [[0, 0, 0], [0, 1, 0]]
+
+briquette_pile:
+  material: paper
+  name: "<#6b6f78>연탄 더미"
+  lore: ["<gray>레트로 가구 · 1×1칸", "<gray>구멍 뚫린 연탄을 쌓아 둔 더미.", "<gray>다 탄 연탄 두 장과 연탄집게도 있습니다."]
+  model: briquette_pile
+  icon: briquette_pile_icon
+  max-stack: 16
+  furniture:
+    cells: [[0, 0, 0]]
+
+brass_kettle:
+  material: paper
+  name: "<#e7c24f>양은 주전자"
+  lore: ["<gray>레트로 가구 · 1×1칸", "<gray>둥근 쟁반 위의 노란 양은 주전자와", "<gray>막걸리를 따른 양은 잔 두 개."]
+  model: brass_kettle
+  icon: brass_kettle_icon
+  max-stack: 16
+  furniture:
+    cells: [[0, 0, 0]]
+
+cassette_radio:
+  material: paper
+  name: "<#c3c7cc>카세트 라디오"
+  lore: ["<gray>레트로 가구 · 1×1칸", "<gray>양쪽에 둥근 스피커가 달린 은색 카세트 라디오.", "<gray>안테나를 뽑아 올려 두었습니다."]
+  model: cassette_radio
+  icon: cassette_radio_icon
+  max-stack: 16
+  furniture:
+    cells: [[0, 0, 0]]
+
+washtub:
+  material: paper
+  name: "<#d8433c>고무대야 빨래"
+  lore: ["<gray>레트로 가구 · 1×1칸", "<gray>비눗물에 빨랫감을 담가 둔 빨간 고무대야.", "<gray>빨래판과 빨랫방망이를 걸쳐 두었습니다.", "<dark_gray>지나갈 수 있음"]
+  model: washtub
+  icon: washtub_icon
+  max-stack: 16
+  furniture:
+    cells: [[0, 0, 0]]
+    solid: false
