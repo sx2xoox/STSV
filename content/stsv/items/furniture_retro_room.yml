@@ -1,0 +1,3 @@
+# 꾸미기 가구 · 레트로 한국 (방·거실, 10종). 모델: tools/assetgen/models/furniture_retro_room.py,
+# 아이콘: tools/assetgen/furniture_icons_retro_room.py, 미리보기: python3 furniture_preview.py --set retro
+# 쓰는 법은 furniture_japanese.yml 맨 위 설명과 같습니다 (model, icon, cells, solid, light, seats, translation, scale).

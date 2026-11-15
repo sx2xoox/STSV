@@ -1,7 +1,9 @@
 """
-Preview sheets of the Japanese-style furniture (needs: cd render && npm install):
+Preview sheets of a furniture set (needs: cd render && npm install). The Japanese-style set by default, the
+retro Korean set with --set retro (docs/previews/furniture_retro*.png, the same sheets):
 
     python3 furniture_preview.py            # every sheet
+    python3 furniture_preview.py --set retro            # every sheet of the retro set
     python3 furniture_preview.py tatami     # only the given pieces (into build/, for quick looks)
 
 docs/previews/furniture_japanese.png        every piece from three angles (front 3/4, back 3/4, above), its
@@ -30,22 +32,41 @@ from PIL import Image, ImageDraw, ImageFont
 
 HERE = Path(__file__).parent
 sys.path.insert(0, str(HERE))
-from models import furniture_japanese as F     # noqa: E402
-import furniture_icons as FI                   # noqa: E402
 import yaml                                    # noqa: E402
+
+# which set: --set japanese (default) | retro
+SET = "japanese"
+if "--set" in sys.argv:
+    _i = sys.argv.index("--set")
+    SET = sys.argv[_i + 1]
+    del sys.argv[_i:_i + 2]
+if SET == "retro":
+    from models import furniture_retro as F    # noqa: E402
+    import furniture_icons_retro as FI         # noqa: E402
+    _ITEM_FILES = ["furniture_retro_room.yml", "furniture_retro_kitchen.yml", "furniture_retro_yard.yml"]
+else:
+    from models import furniture_japanese as F     # noqa: E402
+    import furniture_icons as FI                   # noqa: E402
+    _ITEM_FILES = ["furniture_japanese.yml"]
 
 REPO = HERE.parent.parent
 PREVIEWS = REPO / "docs" / "previews"
 BUILD = HERE / "build"
 RENDER = HERE / "render" / "render.mjs"
 FONT = "/usr/share/fonts/truetype/wqy/wqy-zenhei.ttc"
-ITEMS = REPO / "content/stsv/items/furniture_japanese.yml"
+ITEMS = [REPO / "content/stsv/items" / f for f in _ITEM_FILES]
+
+
+def _items():
+    out = {}
+    for f in ITEMS:
+        if f.exists():
+            out.update(yaml.safe_load(f.read_text()) or {})
+    return out
 
 
 def names_ko():
-    if not ITEMS.exists():
-        return {}
-    items = yaml.safe_load(ITEMS.read_text())
+    items = _items()
     return {k: re.sub(r"<[^>]+>", "", v["name"]) for k, v in items.items() if isinstance(v, dict) and "name" in v}
 
 
@@ -55,7 +76,7 @@ _FURNITURE = {}
 def furniture(pid):
     """The piece's furniture settings from the item file (cells, translation, scale)."""
     if not _FURNITURE:
-        _FURNITURE.update({k: v["furniture"] for k, v in yaml.safe_load(ITEMS.read_text()).items()
+        _FURNITURE.update({k: v["furniture"] for k, v in _items().items()
                            if isinstance(v, dict) and "furniture" in v})
     return _FURNITURE[pid]
 
@@ -202,8 +223,12 @@ ROOM = [
 
 
 def room(out):
+    layout = getattr(F, "ROOM", None) if SET != "japanese" else ROOM
+    if not layout:
+        print("scene   (no ROOM layout in this set yet)")
+        return
     textures, elements = {}, []
-    for (pid, ox, oz) in ROOM:
+    for (pid, ox, oz) in layout:
         tex, els = piece(pid, ox, oz)
         textures.update(tex)
         elements += els
@@ -301,7 +326,7 @@ def scale_sheet(pids, out, ko):
         sheet.paste(im.crop((x, y, x + cw, y + vh)), (x, oy))
         d.rectangle((x, oy + vh, x + cw - 2, oy + vh + label - 2), fill=(40, 43, 52))
         d.text((x + 8, oy + vh + 4), ko.get(pid, pid), font=font, fill=(245, 242, 232))
-        d.text((x + 8, oy + vh + 32), f"실제 {REAL.get(pid, '?')}", font=small, fill=(170, 170, 178))
+        d.text((x + 8, oy + vh + 32), f"실제 {getattr(F, 'REAL', REAL).get(pid, '?')}", font=small, fill=(170, 170, 178))
         d.text((x + cw - 8, oy + vh + 8), f"{w / 16:.2f}×{dd / 16:.2f}×{h / 16:.2f}칸", font=small, fill=(200, 196, 160),
                anchor="ra")
     sheet.save(out, optimize=True)
@@ -430,10 +455,10 @@ def main():
     ko = names_ko()
     args = sys.argv[1:]
     if args[:1] == ["--scale"]:
-        scale_sheet(list(F.PIECES), Path(args[1]) if len(args) > 1 else PREVIEWS / "furniture_scale.png", ko)
+        scale_sheet(list(F.PIECES), Path(args[1]) if len(args) > 1 else PREVIEWS / ("furniture_scale.png" if SET == "japanese" else f"furniture_{SET}_scale.png"), ko)
         return
     if args[:1] == ["--footprints"]:
-        footprint_sheet(list(F.PIECES), Path(args[1]) if len(args) > 1 else PREVIEWS / "furniture_footprints.png", ko)
+        footprint_sheet(list(F.PIECES), Path(args[1]) if len(args) > 1 else PREVIEWS / ("furniture_footprints.png" if SET == "japanese" else f"furniture_{SET}_footprints.png"), ko)
         return
     if args[:1] == ["--pieces"]:
         piece_images(args[2:] or list(F.PIECES), args[1], ko)
@@ -444,11 +469,12 @@ def main():
             print(BUILD / f"fur_{pid}_views.png")
         return
     pids = list(F.PIECES)
-    contact_sheet(pids, PREVIEWS / "furniture_japanese.png", ko)
-    icon_sheet(pids, PREVIEWS / "furniture_japanese_icons.png", ko)
-    room(PREVIEWS / "furniture_japanese_room.png")
-    scale_sheet(pids, PREVIEWS / "furniture_scale.png", ko)
-    footprint_sheet(pids, PREVIEWS / "furniture_footprints.png", ko)
+    tag = "" if SET == "japanese" else SET + "_"
+    contact_sheet(pids, PREVIEWS / f"furniture_{SET}.png", ko)
+    icon_sheet(pids, PREVIEWS / f"furniture_{SET}_icons.png", ko)
+    room(PREVIEWS / f"furniture_{SET}_room.png")
+    scale_sheet(pids, PREVIEWS / f"furniture_{tag}scale.png", ko)
+    footprint_sheet(pids, PREVIEWS / f"furniture_{tag}footprints.png", ko)
 
 
 if __name__ == "__main__":

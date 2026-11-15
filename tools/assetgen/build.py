@@ -37,6 +37,7 @@ def main():
     from models.test_items import ALL as ITEMS
     from models import cosmetics
     from models import furniture_japanese as furniture
+    from models import furniture_retro           # 레트로 한국 가구 (three groups); preview: furniture_preview.py --set retro
     from models import vehicles
     from models import vehicles_road
     from models import vehicles_farm
@@ -47,17 +48,18 @@ def main():
     from models import vehicle_tools          # 작업기 (vehicle_tools.yml); preview sheet: vehicle_tools_preview.py
     from models import toys                   # 장난감 시리즈 (held tools' looks, the party firework); preview sheet: toys_preview.py
     import furniture_icons
+    import furniture_icons_retro
     import vehicle_icons
     import vehicle_icons_road
     import vehicle_icons_farm
     import vehicle_icons_misc
-    ALL = {**ITEMS, **cosmetics.ALL, **furniture.ALL, **vehicles.ALL, **vehicles_road.ALL, **vehicles_farm.ALL, **vehicles_misc.ALL,
+    ALL = {**ITEMS, **cosmetics.ALL, **furniture.ALL, **furniture_retro.ALL, **vehicles.ALL, **vehicles_road.ALL, **vehicles_farm.ALL, **vehicles_misc.ALL,
            **vehicles_boats.ALL,
            **vehicle_lights.ALL, **vehicle_tools.ALL, **vehicle_paints.ALL, **toys.ALL}
     import special
 
     def home(name):
-        return CONTENT if name in SHIPPED_MODELS or name in cosmetics.ALL or name in furniture.ALL or name in vehicles.ALL \
+        return CONTENT if name in SHIPPED_MODELS or name in cosmetics.ALL or name in furniture.ALL or name in furniture_retro.ALL or name in vehicles.ALL \
             or name in vehicles_road.ALL or name in vehicles_farm.ALL or name in vehicles_misc.ALL or name in vehicles_boats.ALL \
             or name in vehicle_lights.ALL or name in vehicle_tools.ALL or name in vehicle_paints.ALL or name in toys.ALL else FIXTURE
 
@@ -92,6 +94,9 @@ def main():
     for name, fn in furniture_icons.ICONS.items():
         fn().save(CONTENT / "textures" / f"{name}_icon.png")
     print(f"icons   {len(furniture_icons.ICONS)} furniture")
+    for name, fn in furniture_icons_retro.ICONS.items():
+        fn().save(CONTENT / "textures" / f"{name}_icon.png")
+    print(f"icons   {len(furniture_icons_retro.ICONS)} retro furniture")
     # vehicles: 2D inventory icons (placed: body, wheels and parts as 3D models); preview sheet: vehicle_preview.py
     for name, fn in vehicle_icons.ICONS.items():
         fn().save(CONTENT / "textures" / f"{name}_icon.png")
