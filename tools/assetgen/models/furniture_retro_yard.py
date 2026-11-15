@@ -187,21 +187,21 @@ def red_postbox():
     def front(c):
         if c.face != "north":
             return None
-        x, y = c.p[0], c.p[1]
-        # the cream plate with a white envelope on it (a pictogram, its flap a red V)
-        if 4.5 < x < 11.5 and 8.5 < y < 13.5:
-            if 5.5 < x < 10.5 and 9.5 < y < 12.5:
-                # the flap: a V from the top corners down to the middle, one pixel a row
-                col, row = int(math.floor(x - 5.5)) - 2, int(math.floor(12.5 - y))
-                if abs(col) == 2 - row:
-                    return ("pepper", 2)
-                return ("porcelain", 2)
+        ix, iy = c.i[0], c.i[1]
+        # one clean cream plate (x 4..11, rows 9..13) with a plain white envelope on it (x 5..10, rows 10..12),
+        # its flap a thin grey V from the top corners to the middle; a pictogram, no postal emblem
+        if 4 <= ix <= 11 and 9 <= iy <= 13:
+            if 5 <= ix <= 10 and 10 <= iy <= 12:
+                col, row = ix - 5, 12 - iy                 # col 0..5 from the left edge, row 0 at the top
+                if row < 2 and col in (row + 1, 4 - row):
+                    return ("steel", 4)
+                return ("porcelain", 3)
             return ("cream", 3)
-        # the collection-time card: cream, two rows of grey "writing"
-        if 5.5 < x < 10.5 and 4 < y < 7.5:
-            if 6 < x < 10 and ((c.i[1] == 6 and c.i[0] % 2 == 0) or (c.i[1] == 5 and c.i[0] % 3 != 2)):
+        # below it: a plain plate for the collection times, two thin dark lines of writing on it
+        if 5 <= ix <= 10 and 3 <= iy <= 7:
+            if (iy == 6 and 6 <= ix <= 9) or (iy == 4 and 6 <= ix <= 8):
                 return ("steel", 2)
-            return ("cream", 3)
+            return ("cream", 4)
         return None
 
     def wear(c):
@@ -402,45 +402,74 @@ def capsule_machine():
     m.box("exit", (5.5, 1.5, 3.75), (10.5, 4, 4), flat("steel", 2))
     m.box("flap", (6, 2, 3.5), (10, 3.75, 3.75), Paint("rubber", 2, noise=0, rim=1.3))
     m.group("dome")
-    colours = (("pepper", 3), ("denim", 3), ("hazard", 1), ("slime", 2), ("pink", 2), ("crystal", 3), ("fox", 3))
+    colours = (("pepper", 3), ("hazard", 2), ("slime", 2), ("pink", 2), ("magic", 3), ("fox", 3))
+    GAP = ("water", 3)
+    # a round capsule, 4 x 4 px with its corners cut: the top half coloured, the bottom half white
+    ball = (".##.", "####", "####", ".##.")
 
     def capsules(c):
-        # capsules seen through the glass: 2 x 2 px balls on a 3 px grid, the top half coloured, the bottom white,
-        # the pile filling the dome to about three quarters; dark glass between them
-        x, y, z = c.p
-        if c.face in ("north", "south"):
-            u, v, w = x, y, z
-        elif c.face in ("east", "west"):
-            u, v, w = z, y, x
-        else:
-            u, v, w = x, z, y
-        gu, gv = math.floor((u + 0.5) / 3), math.floor((v + (1.5 if c.face == "up" else 0.5)) / 3)
-        lu, lv = (u + 0.5) % 3, (v + (1.5 if c.face == "up" else 0.5)) % 3
-        top = 17.75 - h3(gu, 0, math.floor(w), 42) * 1.5
-        if c.face != "up" and y > top:
-            return ("glass", 0)                            # the empty top of the dome: clear glass
-        if c.face == "up" and y > 18.5:
-            return ("glass", 0)
-        if lu >= 2 or lv >= 2 or h3(gu, gv, math.floor(w), 44) < 0.12:
-            return ("tint", 2)                             # the dark gaps between the capsules
-        ramp, step = colours[int(h3(gu, gv, math.floor(w), 41) * len(colours))]
-        if c.face != "up" and lv < 1:
-            return ("porcelain", 2)                        # the white lower half
+        # round capsules seen through the glass on a 5 px grid in world space (1 px of glass between them), the
+        # rows staggered; two rows fill the belly and the shoulder above them is clear glass
+        ix, iy, iz = c.i
+        if c.face == "up":
+            return None
+        U, w = (ix, iz) if c.face in ("north", "south") else (iz, ix)
+        V = iy - 12
+        row = V // 5
+        shift = 2 if row % 2 else 0
+        gu = (U + shift) // 5
+        i, j = (U + shift) % 5, V % 5
+        if row > 1:
+            return None
+        if i > 3 or j > 3 or ball[3 - j][i] != "#":
+            return GAP                                     # the glass between the capsules
+        ramp, step = colours[int(h3(gu, row, w, 41) * len(colours))]
+        if j < 2:
+            return ("porcelain", 3 if j == 1 else 2)       # the white lower half
+        if j == 3 and i == 1:
+            return (ramp, step + 1)                        # a glint on the coloured top
         return (ramp, step)
 
-    def shine(c):
+    def glass_of(c):
+        x, y, z = c.p
+        if c.face == "down":
+            return ("water", 4)
+        # the glass outline: the narrow corner bevels and the top edges pale blue-white, so the shape reads first
+        if c.face in ("north", "south"):
+            u, lo_u, hi_u = x, c.lo[0], c.hi[0]
+        elif c.face in ("east", "west"):
+            u, lo_u, hi_u = z, c.lo[2], c.hi[2]
+        else:
+            u, lo_u, hi_u = None, None, None
+        if c.face == "up":
+            if min(x - c.lo[0], c.hi[0] - x, z - c.lo[2], c.hi[2] - z) < 0.6:
+                return ("ice", 5)
+        elif hi_u - lo_u <= 1.5 or c.hi[1] - y < 0.6:      # the narrow bevels and the top edge
+            return ("ice", 4)
         got = capsules(c)
-        if c.face in ("north", "west") and abs((c.p[0] + c.p[1] + c.p[2]) % 11 - 5) < 0.5 and c.p[1] > 13.5:
-            return ("glass", 3)                            # a highlight across the glass
-        return got
-    glass = Paint("tint", 2, decal=shine, rim=0.3, ao=0.3, noise=0, light=True)
-    for (d, lo, hi) in ((9, 12.25, 13), (11, 13, 14), (12, 14, 16.5), (11, 16.5, 17.5), (10, 17.5, 18.25), (8, 18.25, 19),
-                        (5, 19, 19.5)):
-        cyl(m, "dome", (8, 8), d, lo, hi, glass)
-    m.box("dome_ring", (3, 11.75, 3.5), (13, 12.25, 12.5), Paint("steel", 3, "metal"))
-    cyl(m, "cap", (8, 8), 4, 19.5, 20.25, Paint("pepper", 2, noise=0, rim=1.3))
-    cyl(m, "cap_knob", (8, 8), 2, 20.25, 21, Paint("pepper", 3, noise=0))
-    return display(m, (1, 1.3, 1), 0)
+        # a highlight streak down the front left of the glass, over the glass only (not across the capsules)
+        if got in (None, GAP) and 13 < y < 23.5 and (
+                (c.face == "north" and abs(x - 10 - (y - 13) * 0.1) < 0.55) or
+                (c.face == "west" and abs(z - 5 - (y - 13) * 0.1) < 0.55)):
+            return ("porcelain", 5)
+        if got:
+            return got
+        return ("water", 4)                                # the clear glass, a light blue
+    glass = Paint("ice", 2, decal=glass_of, rim=0, ao=0.1, noise=0, light=True)
+    # a round-cornered globe from few, large faces: an octagon of boxes for the belly, two tiers for the shoulder
+    m.box("dome_ring", (3, 11.75, 3.5), (13, 12, 12.5), Paint("steel", 3, "metal"))
+    m.box("dome", (3.5, 12, 2), (12.5, 22, 14), glass)
+    for (x0, x1) in ((2.5, 3.5), (12.5, 13.5)):
+        m.box("dome", (x0, 12, 3), (x1, 22, 13), glass)
+    for (x0, x1) in ((2, 2.5), (13.5, 14)):
+        m.box("dome", (x0, 12, 4), (x1, 22, 12), glass)
+    m.box("dome", (4.5, 22, 3.5), (11.5, 23.25, 12.5), glass)
+    for (x0, x1) in ((3.5, 4.5), (11.5, 12.5)):
+        m.box("dome", (x0, 22, 4.5), (x1, 23.25, 11.5), glass)
+    m.box("dome", (5.5, 23.25, 5.5), (10.5, 24, 10.5), glass)
+    cyl(m, "cap", (8, 8), 4, 24, 24.75, Paint("pepper", 2, noise=0, rim=1.3))
+    cyl(m, "cap_knob", (8, 8), 2, 24.75, 25.5, Paint("pepper", 3, noise=0))
+    return display(m, (1, 1.6, 1), 0)
 
 
 # ================================================================================================
@@ -661,8 +690,8 @@ def street_lamp():
         return None
     pole = Paint("millstone", 3, noise=0.03, decal=concrete)
     m.box("pole", (6.25, 4.75, 6.25), (9.75, 16, 9.75), pole)
-    m.box("pole", (6.5, 16, 6.5), (9.5, 43.25, 9.5), pole)
-    m.box("pole_cap", (6.75, 43.25, 6.75), (9.25, 44, 9.25), flat("millstone", 2))
+    m.box("pole", (6.5, 16, 6.5), (9.5, 39.5, 9.5), pole)
+    m.box("pole_cap", (6.75, 39.5, 6.75), (9.25, 40.25, 9.25), flat("millstone", 2))
     # the climbing steps: iron rungs in pairs up the side, out of reach from the ground
     for y in range(17, 34, 3):
         x0 = 9.5 if (y // 3) % 2 else 5.75
@@ -686,21 +715,21 @@ def street_lamp():
         m.box("insulator", (x - 0.5, 28.75, 7.5), (x + 0.5, 29.5, 8.5), Paint("porcelain", 2, rim=1.2))
         m.box("insulator_top", (x - 0.375, 29.5, 7.625), (x + 0.375, 29.875, 8.375), Paint("porcelain", 3))
     m.group("lamp")
-    # the arm: out of the pole's front near its top, bending down over the street
+    # the arm: a steel pipe rising out of the pole's top and curving forward over the street
     arm = flat("steel", 3, rim=1.2)
-    m.box("arm", (7.5, 41.5, 4), (8.5, 42.5, 6), arm)
-    m.box("arm_bend", (7.5, 40.5, 3), (8.5, 42, 4), arm)
-    m.box("arm_bracket", (7.25, 40, 6), (8.75, 43, 6.5), flat("steel", 2))
+    m.box("arm_riser", (7.5, 40.25, 8), (8.5, 42.5, 9), arm)
+    m.box("arm_elbow", (7.5, 42.5, 6.75), (8.5, 43.5, 9), arm)
+    m.box("arm", (7.5, 43.25, 3.25), (8.5, 44, 6.75), arm)
 
     def enamel(c):
-        return ("porcelain", 2) if c.face == "down" else None
+        return ("porcelain", 3) if c.face == "down" else None
     shade = Paint("sign_green", 2, noise=0.02, rim=1.3, decal=enamel)
-    # a shallow cone of green enamel, white inside, its edge rolled
-    cyl(m, "shade", (8, 3.25), 2, 40.25, 41, shade)
-    cyl(m, "shade", (8, 3.25), 3.5, 39.75, 40.25, shade)
-    cyl(m, "shade", (8, 3.25), 5, 39.25, 39.75, shade)
-    cyl(m, "shade", (8, 3.25), 6.5, 38.5, 39.25, shade)
-    cyl(m, "bulb", (8, 3.25), 2, 37.25, 38.5, glow("lamp", 3))
+    # the enamel shade: a wide shallow cone, green outside and white inside, the bulb hanging under it
+    cyl(m, "shade_hub", (8, 3.75), 2.5, 42.5, 43.25, shade)
+    cyl(m, "shade", (8, 3.75), 4.5, 41.75, 42.5, shade)
+    cyl(m, "shade", (8, 3.75), 6, 41.25, 41.75, shade)
+    cyl(m, "shade", (8, 3.75), 7.5, 40.75, 41.25, shade)
+    cyl(m, "bulb", (8, 3.75), 2.5, 39.5, 40.75, glow("lamp", 3))
     return display(m, (1, 2.75, 1), -16)
 
 

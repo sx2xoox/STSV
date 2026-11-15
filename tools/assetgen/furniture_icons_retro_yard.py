@@ -49,9 +49,10 @@ def red_postbox():
     c.rect(5, 4.5, 11, 5.5, "rubber", 2, step=1)            # the slot
     c.rect(5, 6.5, 11, 10, "cream", 3, step=4)              # the plate
     c.rect(6, 7, 10, 9.5, "porcelain", 4, step=4)           # the envelope
-    c.line(6, 7, 8, 8, "pepper", 2, z=6)
-    c.line(9, 8, 10, 7, "pepper", 2, z=6)
-    c.rect(6.5, 11, 9.5, 12, "cream", 4, step=3)            # the collection card
+    c.line(6, 7, 8, 8, "steel", 2, z=6)
+    c.line(9, 8, 10, 7, "steel", 2, z=6)
+    c.rect(6, 11, 10, 13, "cream", 4, step=3)              # the collection-times plate
+    c.line(7, 12, 9, 12, "rubber", 2, z=6)
     return c.render()
 
 
@@ -106,13 +107,17 @@ def capsule_machine():
     c.ellipse(8, 12, 1.8, 1.8, "steel", 3, gloss=0.8)      # the turning knob
     c.line(6.5, 12, 9.5, 12, "steel", 5, z=4)
     c.rect(10.5, 13.5, 12, 14.5, "rubber", 4, step=1)       # the exit
-    # the glass dome full of two-coloured capsules
-    c.ellipse(8, 5, 5.2, 4.2, "glass", 1, dome=0.6, gloss=0.9)
-    for (x, y, mat) in ((5, 6, "pepper"), (7, 7, "denim"), (9, 6, "hazard"), (11, 7, "slime"), (6, 4, "pink"),
-                        (8, 4, "crystal"), (10, 4, "fox"), (8, 8, "pepper")):
+    # the clear dome: a pale blue-white rim round it, round two-tone capsules packed in its lower part
+    c.ellipse(8, 5, 5.4, 4.4, "ice", 4, dome=0.3, gloss=0.6)
+    c.ellipse(8, 5.2, 4.5, 3.6, "ice", 1, dome=0.5, gloss=0.3)
+    for (x, y, mat) in ((5, 5, "pepper"), (7, 6, "denim"), (9, 5, "hazard"), (11, 6, "slime"), (4, 7, "pink"),
+                        (6, 7, "crystal"), (8, 7, "fox"), (10, 7, "pepper"), (12, 7, "denim"), (7, 4, "slime"),
+                        (10, 4, "pink")):
         c.put(x, y, mat, 4, z=3)
-        c.put(x, y + 1, "porcelain", 3, z=3)
-    c.put(5, 2, "glass", 5, z=4)
+        c.put(x, y + 1, "porcelain", 4, z=3)
+    c.put(5, 2, "porcelain", 5, z=5)                       # the highlight streak on the glass
+    c.put(4, 3, "porcelain", 5, z=5)
+    c.put(4, 4, "porcelain", 4, z=5)
     c.rect(6.5, 0.5, 9.5, 1.5, "pepper", 3, normal=FRONT)
     return c.render()
 
@@ -167,14 +172,16 @@ def street_lamp():
     c = Canvas()
     c.rect(7, 3, 9, 15.5, "millstone", 3, normal=FRONT, lo=2, hi=4)   # the concrete pole
     c.rect(5.5, 14, 10.5, 16, "stone", 0, normal=FRONT)
-    c.rect(1, 5, 15, 6, "steel", 2, normal=FRONT)                    # the crossarm and its insulators
+    c.rect(1, 8, 15, 9, "steel", 2, normal=FRONT)                    # the crossarm and its insulators
     for x in (1, 4, 12, 14):
-        c.put(x, 4, "porcelain", 4, z=4)
-    c.rect(7.5, 10, 8.5, 12.5, "cream", 4, step=4)                   # the flyer
-    # the arm and the green shade with its bulb, out to the left
-    c.line(7, 1.5, 4, 1.5, "steel", 3, z=4)
-    c.poly([(1, 4.5), (3, 2), (6, 2), (8, 4.5)], "sign_green", 5, normal=(0, -0.6, 0.8))
-    c.ellipse(4.5, 5, 1.3, 1.0, "lamp", 6, dome=0.3, gloss=0.5)
+        c.put(x, 7, "porcelain", 4, z=4)
+    c.rect(7.5, 11, 8.5, 13.5, "cream", 4, step=4)                   # the flyer
+    # the arm curving out of the pole's top, the wide green shade (white inside) and its bulb under it
+    c.line(8, 3, 8, 1, "steel", 3, z=4)
+    c.line(7, 0.5, 5, 0.5, "steel", 3, z=4)
+    c.poly([(0, 4.5), (2.5, 1.5), (6.5, 1.5), (9, 4.5)], "sign_green", 5, normal=(0, -0.6, 0.8))
+    c.line(1, 4, 7, 4, "porcelain", 4, z=5)
+    c.ellipse(4, 5.2, 1.2, 1.0, "lamp", 6, dome=0.3, gloss=0.5)
     return c.render()
 
 
