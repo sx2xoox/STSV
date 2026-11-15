@@ -13,7 +13,14 @@ import java.util.Random;
  * how much); the fisher's shorter wait for a bite. Pure data and the catch maths (unit-tested).
  */
 public record FishSpec(Map<String, Rarity> rarities, Map<String, Group> groups, Map<String, Species> species,
-                       double legendShare, double pearl) {
+                       double legendShare, double pearl, double pearlRiver) {
+
+    /** The waters a pearl comes up from on a rare bite: the sea's ({@link #pearl}) and the rivers' ({@link #pearlRiver}). */
+    public double pearlChance(String habitat) {
+        if (SALT.contains(habitat)) return pearl;
+        if (habitat.equals("river") || habitat.equals("coldriver")) return pearlRiver;
+        return 0;
+    }
 
     /** Vanilla's wait for a fish (FishingHook: 100 - 600 ticks), what Lure takes off a level (5 s), at most 80% off for the fisher. */
     public static final int VANILLA_WAIT_MIN = 100, VANILLA_WAIT_MAX = 600, LURE_TICKS = 100;
@@ -90,7 +97,8 @@ public record FishSpec(Map<String, Rarity> rarities, Map<String, Group> groups, 
         }
         if (species.isEmpty()) problems.add("fish.species: 물고기가 없음");
         // an older fish.yml also has bite: { min, max, lure-per-level }: the wait is vanilla's now, no longer read
-        return new FishSpec(rarities, groups, species, c.getDouble("legend-share", 0.2), c.getDouble("pearl", 0.15));
+        return new FishSpec(rarities, groups, species, c.getDouble("legend-share", 0.2), c.getDouble("pearl", 0.15),
+                c.getDouble("pearl-river", 0.15));
     }
 
     // ------------------------------------------------------------------------------------------

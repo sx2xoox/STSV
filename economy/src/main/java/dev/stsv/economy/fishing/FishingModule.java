@@ -228,7 +228,7 @@ public final class FishingModule extends EcoModule implements WeeklyListener {
             if (force.species() != null) s = spec.species().get(force.species());
             else if (force.rarity().equals("pearl")) s = pearl();
             else s = spec.pick(habitat, m, spec.rarities().get(force.rarity()), rnd);
-        } else if (tier.index() == 2 && FishSpec.SALT.contains(habitat) && rnd.nextDouble() < spec.pearl()) {
+        } else if (tier.index() == 2 && rnd.nextDouble() < spec.pearlChance(habitat)) {   // the sea's and the rivers' rare bites
             s = pearl();
         } else {
             s = spec.pick(habitat, m, tier, rnd);
@@ -241,7 +241,7 @@ public final class FishingModule extends EcoModule implements WeeklyListener {
         land(p, s, hand);
     }
 
-    /** A pearl comes up as a rare bite of the sea. */
+    /** A pearl comes up as a rare bite of the sea or of a river. */
     private FishSpec.Species pearl() {
         String rare = new ArrayList<>(spec.rarities().keySet()).get(2);
         return new FishSpec.Species("pearl", Lang.raw("fishing.pearl"), "salt", rare, 0, 0, 80, "f", "economy:pearl", null);

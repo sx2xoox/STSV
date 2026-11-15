@@ -185,4 +185,19 @@ class FishingGearContentTest {
         assertTrue(f.xp("trap", "economy:mackerel") > 0 && f.xp("trap", "economy:mackerel") < f.xp("catch", "economy:mackerel"),
                 "a trap's fish is worth less XP than one on the rod");
     }
+
+    @Test
+    void aPearlComesUpFromTheSeaAndFromRivers() {
+        FishSpec f = FishSpec.parse(TrapSpecTest.yaml("fish.yml"), new ArrayList<>());
+        String river = FishSpec.habitat("minecraft:river", false), frozen = FishSpec.habitat("minecraft:frozen_river", false);
+        assertEquals("river", river);
+        assertEquals("coldriver", frozen);
+        assertTrue(f.pearlChance(river) > 0, "a river's rare bite can be a pearl");
+        assertTrue(f.pearlChance(frozen) > 0, "a frozen river's too");
+        assertEquals(f.pearl(), f.pearlChance(FishSpec.habitat("minecraft:ocean", false)), 1e-12);
+        assertEquals(f.pearl(), f.pearlChance(FishSpec.habitat("minecraft:beach", false)), 1e-12);
+        for (String none : List.of("minecraft:swamp", "minecraft:jungle", "minecraft:lush_caves"))
+            assertEquals(0, f.pearlChance(FishSpec.habitat(none, false)), none);
+        assertEquals(0, f.pearlChance(FishSpec.habitat("minecraft:river", true)), "underground water: a cave");
+    }
 }
