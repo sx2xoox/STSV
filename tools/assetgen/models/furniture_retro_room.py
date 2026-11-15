@@ -531,40 +531,46 @@ def dial_phone():
     m.box("doily_flap", (4, 8.5, 2.25), (12, 10.5, 2.5), flap)
     m.box("doily_flap", (4, 8.5, 13.5), (12, 10.5, 13.75), flap)
     m.group("phone")
+    # about 22 cm wide on a 50 cm table: the body 6 px wide, its front sloping up 45 degrees under the dial
     red = Paint("fabric_red", 2, "lacquer", noise=0.02)
-    m.box("base", (3.75, 10.5, 4.25), (11.25, 11, 12), red)
-    m.box("housing", (4, 11, 10), (11, 16, 12), red)
-    m.box("housing_top", (4.5, 16, 10.25), (10.5, 16.5, 11.75), red)
-    for k in range(4):                                    # the sloping front under the dial, stepped behind it
-        m.box("slope", (4, 11 + k, 6 + k), (11, 12 + k, 10), red)
-    # the dial, 7 x 7: a pale disc, a ring of finger holes, the red label in the middle, the silver finger stop
-    DIAL = ["RRpppRR",
-            "RphphpR",
-            "ppppppp",
-            "phpcphp",
-            "ppppppp",
-            "RphpSpR",
-            "RRpppRR"]
-
-    def dial(c):
-        if c.face != "north":
-            return ("fabric_red", 2)
-        ch = picture(DIAL, math.floor(11 - c.p[0]), math.floor(18 - c.p[1]), 0, 0)
-        return {"R": ("fabric_red", 2), "h": ("rubber", 1), "p": ("porcelain", 2), "c": ("fabric_red", 1),
-                "S": ("blade", 1)}.get(ch, ("fabric_red", 2))
-    # the dial plate tipped back 45 degrees on the front slope
-    m.box("dial", (4, 11, 4.75), (11, 18, 5.25), flat("fabric_red", 2, decal=dial), rotation=("x", 45, (7.5, 11, 5)))
-    # the handset across the cradle on top, its two ends out past the sides
-    m.box("cradle", (5, 16.5, 10.5), (5.75, 17, 11.5), red)
-    m.box("cradle", (9.25, 16.5, 10.5), (10, 17, 11.5), red)
-    m.box("handset", (4.25, 17, 10.625), (10.75, 17.75, 11.375), red)
-    for x0 in (2.75, 10.75):
-        m.box("handset_end", (x0, 16.5, 10.25), (x0 + 1.5, 18, 11.75), red)
+    m.box("base", (4.75, 10.5, 5.75), (11.25, 11, 11.75), Paint("fabric_red", 1, "lacquer", noise=0.02))
+    for k in range(3):                                    # the body under the slope, stepped behind it
+        m.box("slope", (5, 11 + k, 7 + k), (11, 12 + k, 9.75), red)
+    m.box("housing", (5, 11, 9.75), (11, 14.75, 11.5), red)
+    m.box("housing_top", (5.5, 14.75, 10), (10.5, 15.25, 11.25), red)
+    tip = ("x", 45, (8, 11, 6.5))                         # the slope's plate and everything on it
+    m.box("slope_plate", (5, 11, 6), (11, 16.5, 6.5), red, rotation=tip)
+    # the dial: a round pale disc (built from half-pixel rows), ten finger holes in a ring round its edge with the
+    # gap at four o'clock where the silver finger stop is, the red label in the middle
+    cy = 13.75
+    pale = flat("porcelain", 2)
+    for (y0, y1, hw) in ((-2.5, -2, 1), (-2, -1.5, 1.75), (-1.5, -1, 2.25), (-1, 1, 2.5),
+                         (1, 1.5, 2.25), (1.5, 2, 1.75), (2, 2.5, 1)):
+        m.box("dial", (8 - hw, cy + y0, 5.75), (8 + hw, cy + y1, 6), pale, rotation=tip)
+    hole = flat("rubber", 1)
+    for n in range(10):                                   # viewer's angle, counter-clockwise from 1 o'clock
+        ang = math.radians(30 + 30 * n)
+        hx, hy = 8 - 1.75 * math.cos(ang), cy + 1.75 * math.sin(ang)
+        m.box("finger_hole", (round(hx - 0.25, 3), round(hy - 0.25, 3), 5.625),
+              (round(hx + 0.25, 3), round(hy + 0.25, 3), 5.75), hole, rotation=tip)
+    m.box("label", (7.625, cy - 0.375, 5.625), (8.375, cy + 0.375, 5.75), flat("fabric_red", 1), rotation=tip)
+    sa = math.radians(-25)
+    sx, sy = 8 - 2.25 * math.cos(sa), cy + 2.25 * math.sin(sa)
+    m.box("finger_stop", (round(sx - 0.375, 3), round(sy - 0.25, 3), 5.5), (round(sx + 0.375, 3), round(sy + 0.25, 3), 5.75),
+          Paint("blade", 2, "metal"), rotation=tip)
+    # the handset lying across the cradle on top, its two ends out past the sides
+    for x0 in (5.25, 10):
+        m.box("cradle", (x0, 15.25, 10.25), (x0 + 0.75, 15.75, 11), red)
+    m.box("handset", (4.75, 15.75, 10.25), (11.25, 16.25, 11), red)
+    for x0 in (3.75, 11):
+        m.box("handset_end", (x0, 15.25, 10), (x0 + 1.25, 16.5, 11.25), red)
     coil = Paint("fabric_red", 1, noise=0)
-    for k in range(12):                                   # the coiled cord from the handset down to the table
-        y = 16.5 - k * 0.5
+    n = 9
+    for k in range(n):                                    # the coiled cord from the handset down to the table
+        y1 = 15.25 - k * (4.75 / n)
+        y0 = 15.25 - (k + 1) * (4.75 / n)
         dz = 0.25 if k % 2 else 0
-        m.box("cord", (3, y - 0.5, 11 + dz), (3.75, y, 11.5 + dz), coil)
+        m.box("cord", (4, round(y0, 3), 10.5 + dz), (4.75, round(y1, 3), 11 + dz), coil)
     m.group("memo")
 
     def lines(c):

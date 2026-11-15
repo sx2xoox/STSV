@@ -95,24 +95,25 @@ def dial_phone():
     c.rect(3.5, 13, 12.5, 14.5, "petal_yellow", 1, normal=FRONT)     # the phone book on its shelf
     _box(c, 0.5, 10.5, 14.5, 11.5, 1, "feather", 1)                  # the top under its lace
     # the red phone, its front sloping up to the cradle
-    c.poly([(4.5, 5), (11.5, 5), (13.5, 10.5), (2.5, 10.5)], "fabric_red", 2, normal=(0, -0.45, 1))
-    c.rect(2.5, 9.5, 13.5, 10.5, "fabric_red", 3, normal=FRONT)
-    # the dial: a pale disc, a ring of finger holes, the red label in the middle, the silver finger stop
-    for dx in range(-2, 3):
-        for dy in range(-2, 3):
-            if dx * dx + dy * dy <= 5:
-                c.put(8 + dx, 7 + dy, "porcelain", 4 if dx + dy < 0 else 3, z=6)
-    for (dx, dy) in ((-1, -2), (1, -2), (2, 0), (1, 2), (-1, 2), (-2, 0)):
-        c.put(8 + dx, 7 + dy, "rubber", 1, z=7)
-    c.put(8, 7, "fabric_red", 2, z=7)
-    c.put(10, 8, "blade", 2, z=7)
+    c.poly([(4, 2.5), (12, 2.5), (13.5, 10.5), (2.5, 10.5)], "fabric_red", 2, normal=(0, -0.45, 1))
+    c.rect(2.5, 9.5, 13.5, 10.5, "fabric_red", 1, normal=FRONT)
+    # the dial: a round pale disc, the finger holes in a ring round its edge, the red label in the middle and the
+    # silver finger stop in the gap at four o'clock
+    for dx in range(-3, 4):
+        for dy in range(-3, 4):
+            if dx * dx + dy * dy <= 10:
+                c.put(8 + dx, 6 + dy, "porcelain", 4 if dx + dy < -1 else 3 if dx + dy < 2 else 2, z=6)
+    for (dx, dy) in ((2, -1), (1, -2), (-1, -2), (-2, -1), (-2, 1), (-1, 2), (1, 2)):
+        c.put(8 + dx, 6 + dy, "rubber", 1, z=7)
+    c.put(8, 6, "fabric_red", 2, z=7)
+    c.put(10, 7, "blade", 1, z=7)
     # the handset lying across the cradle on top, its two ends standing out, the coiled cord down the left
-    for x in (5, 10):
-        c.put(x, 4, "fabric_red", 1, z=7)                          # the cradle's prongs
-    c.tube([(4, 2.5), (12, 2.5)], [0.7, 0.7], "fabric_red", 8)
-    c.ellipse(2.8, 3, 1.5, 1.8, "fabric_red", 9, dome=0.6)
-    c.ellipse(13.2, 3, 1.5, 1.8, "fabric_red", 9, dome=0.6)
-    for (x, y) in ((1, 5), (2, 6), (1, 7), (2, 8), (1, 9)):
+    for x in (5, 11):
+        c.put(x, 2, "fabric_red", 1, z=7)                          # the cradle's prongs
+    c.tube([(4, 1.2), (12, 1.2)], [0.7, 0.7], "fabric_red", 8)
+    c.ellipse(2.8, 1.8, 1.5, 1.6, "fabric_red", 9, dome=0.6)
+    c.ellipse(13.2, 1.8, 1.5, 1.6, "fabric_red", 9, dome=0.6)
+    for (x, y) in ((1, 4), (2, 5), (1, 6), (2, 7), (1, 8), (2, 9), (1, 10)):
         c.put(x, y, "fabric_red", 1, z=9)
     return c.render()
 
