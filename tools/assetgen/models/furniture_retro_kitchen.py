@@ -113,17 +113,26 @@ def yeontan_stove():
         y = c.p[1]
         if 11.6 < y < 12.4 or 6.6 < y < 7.4:
             return ("blade", 3)                     # the bright bands round its shoulder and waist
-        if 2.5 < y < 6.6 and c.face in ("north",) and abs(c.p[0] - 8) < 2.5:
-            return ("iron", 0)                      # the ash door: a darker plate
+        if 13.6 < y or y < 3.4:
+            return ("iron", 1)                      # the cast-iron rings at its top and foot
+        u = c.i[0] if c.face in ("north", "south") else c.i[2]
+        if u % 3 == 0:
+            return ("steel", 1)                     # the cast ribs running up the body
+        if u % 3 == 1:
+            return ("steel", 3)                     # each rib's lit edge
         return None
     cyl(m, "body", (8, 8.5), 11, 2.5, 14.5, Paint("steel", 2, noise=0.02, decal=body_band))
+    # the ash door: an iron plate with two glowing vents, its hinge pins and a chrome latch
+    m.box("ash_door", (5.75, 3.0, 2.75), (10.25, 6.25, 3.0), flat("iron", 1, rim=0.8))
 
     def vents(c):
         return ("fire", 2 + (1 if (c.frame + int(c.p[0])) % 12 < 5 else 0))
-    for x in (6.5, 8.5):
-        m.box("vent", (x - 0.5, 3.5, 2.95), (x + 0.5, 5.5, 3.0),
+    for x in (7, 9):
+        m.box("vent", (x - 0.5, 3.75, 2.7), (x + 0.5, 5.5, 2.75),
               Paint("fire", 2, glow=True, light=False, noise=0, decal=vents, frames=12, frametime=3))
-    m.box("door_knob", (9.5, 4, 2.4), (10.5, 5, 3), CHROME)
+    for y in (3.5, 5.25):
+        m.box("door_hinge", (5.5, y, 2.6), (6.0, y + 0.5, 2.9), flat("iron", 2))
+    m.box("door_latch", (9.25, 4.5, 2.45), (10.75, 5.0, 2.75), CHROME)
     cyl(m, "top", (8, 8.5), 13, 14.5, 16, flat("iron", 1, rim=0.9))
     m.group("fire")
     # the open fire hole at the front left of the plate: a raised iron collar round a glowing briquette top
@@ -145,8 +154,16 @@ def yeontan_stove():
                                                        frames=12, frametime=3))
     m.group("kettle")
     kx, kz = 4.5, 7.5
+
+    def shine(c):
+        # a polished kettle: a bright streak where it faces the light (front-left), a soft one above it
+        if c.face == "north" and kx + 0.5 < c.p[0] < kx + 2 or c.face == "east" and kz - 2 < c.p[2] < kz - 0.5:
+            return ("brass", 3)
+        if c.face in SIDE_FACES and 17.9 < c.p[1]:
+            return ("brass", 3)
+        return None
     cyl(m, "kettle", (kx, kz), 5, 16, 16.5, YANGEUN_DARK)
-    cyl(m, "kettle", (kx, kz), 6, 16.5, 18.25, YANGEUN)
+    cyl(m, "kettle", (kx, kz), 6, 16.5, 18.25, Paint("brass", 2, noise=0, rim=1.0, decal=shine))
     cyl(m, "kettle", (kx, kz), 4, 18.25, 18.75, YANGEUN)
     cyl(m, "lid", (kx, kz), 3, 18.75, 19.25, flat("brass", 3))
     m.box("knob", (kx - 0.5, 19.25, kz - 0.5), (kx + 0.5, 19.6, kz + 0.5), BLACK)
@@ -163,11 +180,16 @@ def yeontan_stove():
             return None
         if c.i[1] % 6 == 0:
             return ("steel", 1)                     # the crimped joint between two pipe lengths
+        if c.i[1] == 22:
+            return ("iron", 1)                      # the damper's band
         return None
     pipe = Paint("steel", 3, noise=0.02, decal=joints)
     fx, fz = 6, 14
     cyl(m, "collar_flue", (fx, fz), 3, 16, 17, flat("iron", 1))
     cyl(m, "pipe", (fx, fz), 3, 17, 27, pipe)
+    # the damper: a dark band round the pipe and its little lever (inside the light cell's budget)
+    m.box("damper_lever", (fx + 1.5, 21.75, fz - 0.25), (fx + 3.0, 22.25, fz + 0.25), flat("iron", 1))
+    m.box("damper_knob", (fx + 3.0, 21.5, fz - 0.5), (fx + 3.5, 22.5, fz + 0.5), BLACK)
     # the elbow, and the pipe going back into the wall behind (z 16)
     cyl(m, "elbow", (fx, fz), 3, 27, 30, flat("steel", 2))
     cyl(m, "pipe_back", (fx, 28.5), 3, 15.5, 16, flat("steel", 2), axis="z")
@@ -187,14 +209,22 @@ def kerosene_stove():
 
     def tank_band(c):
         if c.face in SIDE_FACES and 2.0 < c.p[1] < 2.8:
-            return ("porcelain", 2)
+            return ("porcelain", 2)                     # the white band
+        if c.face in SIDE_FACES and (1.5 < c.p[1] < 1.8 or 3.0 < c.p[1] < 3.3):
+            return ("corn", 3)                          # thin gold pinstripes either side of it
         return None
     m.group("tank")
     cyl(m, "foot", (8, 8), 11, 0, 0.75, flat("rubber", 1))
     cyl(m, "tank", (8, 8), 12, 0.75, 4, green(decal=tank_band))
     cyl(m, "tank_top", (8, 8), 11, 4, 4.5, flat("bottle_green", 3))
     # fuel gauge (a small dial) and the wick knob
-    m.box("gauge", (6.75, 1.5, 1.75), (9.25, 3.5, 2.25), flat("porcelain", 2))
+    def gauge(c):
+        if c.face != "north":
+            return None
+        if c.p[0] < 7.25 or c.p[0] > 8.75 or c.p[1] < 1.75 or c.p[1] > 3.25:
+            return ("blade", 2)                         # the chrome bezel
+        return ("rubber", 1) if c.i[1] == 3 and c.i[0] % 2 == 0 else None    # its scale
+    m.box("gauge", (6.75, 1.25, 1.75), (9.25, 3.75, 2.25), Paint("porcelain", 2, noise=0, decal=gauge))
     m.box("needle", (7.75, 2.25, 1.6), (8.75, 2.75, 1.75), flat("pepper", 2))
     m.box("knob_stem", (13.5, 2.5, 7.5), (14.5, 3.5, 8.5), CHROME)
     m.box("knob", (14.5, 2, 7), (15.5, 4, 9), BLACK)
@@ -205,6 +235,8 @@ def kerosene_stove():
             return None
         if c.face == "north" and abs(c.p[0] - 8) < 1.6 and 5.5 < c.p[1] < 8:
             return None
+        if c.face == "north" and abs(c.p[0] - 8) < 2.2 and 5.0 < c.p[1] < 8.5:
+            return ("blade", 3)                         # the chrome frame round the mica window
         if c.i[1] % 2 == 0 and (c.i[0] + c.i[2]) % 3 == 0 and 6 < c.p[1] < 9:
             return ("rubber", 1)
         return None
@@ -237,7 +269,13 @@ def kerosene_stove():
         m.box("grate", (x - 0.5, 9.5, z - 0.5), (x + 0.5, 11, z + 0.5), grate)
     m.group("pot")
     cyl(m, "pot_bottom", (8, 8), 9, 11, 11.5, YANGEUN_DARK)
-    cyl(m, "pot", (8, 8), 10, 11.5, 14.5, YANGEUN)
+    def pot_shine(c):
+        if c.face in SIDE_FACES and 13.0 < c.p[1] < 13.5:
+            return ("brass", 3)                         # a line of shine round the pot
+        if c.face == "north" and 9.5 < c.p[0] < 10.5:
+            return ("brass", 3)
+        return None
+    cyl(m, "pot", (8, 8), 10, 11.5, 14.5, YANGEUN(decal=pot_shine))
     cyl(m, "pot_rim", (8, 8), 11, 14.5, 15, flat("brass", 3))
     cyl(m, "lid", (8, 8), 9, 15, 15.75, YANGEUN)
     m.box("lid_knob", (7.25, 15.75, 7.25), (8.75, 16.5, 8.75), BLACK)
@@ -296,6 +334,10 @@ def rice_cooker():
     m.box("panel", (7, 1.5, 2.35), (9, 2.75, 2.55), flat("tint", 1))
     m.box("lamp", (7.25, 1.75, 2.25), (8.0, 2.5, 2.35), Paint("signal_red", 1, glow=True, light=False, noise=0))
     m.box("button", (8.25, 1.75, 2.25), (8.75, 2.5, 2.35), flat("porcelain", 2))
+    m.box("latch", (7.25, 8.75, 1.75), (8.75, 10.75, 2.75), CHROME)             # the lid's latch at the front
+    m.box("cord", (7.5, 0.125, 13.25), (8.5, 3.5, 13.75), BLACK)                 # the cord out of its back
+    m.box("cord", (7.75, 0.125, 13.5), (8.25, 0.5, 15.5), BLACK)
+    m.box("plug", (7.25, 0, 15.25), (8.75, 1, 16), flat("porcelain", 2))
     m.group("paddle")
     m.box("holder", (13.25, 4, 6.75), (14.75, 8.5, 9.25), flat("cream", 2))
     m.box("paddle", (13.6, 6, 7.5), (14.4, 11.5, 8.5), flat("porcelain", 2))
@@ -324,17 +366,35 @@ def glass_cupboard():
         if c.face != "north":
             return None
         x, y = c.p[0], c.p[1]
+        if 9.5 < y < 10.0:
+            return ("wood_dark", 1)                 # the line between the drawers and the doors
+        if y > 10.0:
+            if abs(x - 8) < 0.25:
+                return ("wood_dark", 1)             # two drawers
+            return ("wood", 3) if y > 12.0 else None
         inner = abs(x - 4.75) < 2.25 or abs(x - 11.25) < 2.25
         if abs(x - 8) < 0.5:
             return ("wood_dark", 1)                 # the gap between the two doors
-        if inner and 3.5 < y < 11:
-            edge = abs(abs(x - 8) - 3.25) > 1.75 or y < 4.0 or y > 10.5
+        if inner and 3.5 < y < 9:
+            edge = abs(abs(x - 8) - 3.25) > 1.75 or y < 4.0 or y > 8.5
             return ("wood", 1) if edge else None
         return None
     m.box("doors", (W0 + 0.5, 2, Z0 - 0.5), (W1 - 0.5, 12.5, Z0), Paint("wood", 2, "grain", axis="y", decal=door_panel))
     for x in (7, 9):
-        m.box("knob", (x - 0.5, 7, Z0 - 1.25), (x + 0.5, 8, Z0 - 0.5), flat("brass", 2))
+        m.box("knob", (x - 0.5, 6, Z0 - 1.25), (x + 0.5, 7, Z0 - 0.5), flat("brass", 2))
+    for x in (4.75, 11.25):
+        m.box("drawer_pull", (x - 1, 10.75, Z0 - 1.0), (x + 1, 11.25, Z0 - 0.5), flat("brass", 3))
     m.box("counter", (W0 - 0.5, 13, Z0 - 1), (W1 + 0.5, 14, Z1), WOOD_DARK)
+
+    # a crocheted lace runner on the counter, its scalloped edge hanging over the front
+    def lace(c):
+        if c.face == "north" and c.p[1] < 14:
+            return ("raw", (0, 0, 0, 0)) if c.p[1] < 13.5 and c.i[0] % 2 else None
+        return ("cream", 1) if (c.i[0] + c.i[2]) % 2 == 0 else None
+    m.box("lace", (W0 + 1, 14, Z0 - 1.1), (W1 - 1, 14.25, Z0 + 0.75), Paint("cream", 3, noise=0, decal=lace),
+          faces={"down": None})
+    m.box("lace_edge", (W0 + 1, 13, Z0 - 1.1), (W1 - 1, 14, Z0 - 1.1), Paint("cream", 3, noise=0, light=False, decal=lace),
+          faces={f: None for f in ("up", "down", "east", "west")})
     m.group("upper")
     m.box("back", (W0, 14, Z1 - 1), (W1, 29.5, Z1), WOOD)
     for x in (W0, W1 - 1):
@@ -377,6 +437,10 @@ def glass_cupboard():
     # upper shelf: cups and a glass jar of barley tea
     for x in (4, 6.5):
         cyl(m, "cup", (x, 9.5), 2, 22.25, 24.5, PORCELAIN(decal=flower_band("pepper")))
+    for (x, z) in ((4.0, Z1 - 1.75), (6.5, Z1 - 2.25)):     # two plates stood up against the back
+        cyl(m, "plate_up", (x, 24), 4, z, z + 0.25, PORCELAIN(decal=lambda c, x=x: ("sakura", 2)
+                                                             if abs(math.hypot(c.p[0] - x, c.p[1] - 24) - 1.25) < 0.4
+                                                             else None), axis="z")
     cyl(m, "jar", (10.5, 9.5), 3, 22.25, 26.5, flat("glass", 2, decal=lambda c: ("bean", 1)
                                                         if c.face in SIDE_FACES and c.p[1] < 25 else None))
     cyl(m, "jar_lid", (10.5, 9.5), 3, 26.5, 27.25, flat("pepper", 1))
@@ -439,6 +503,11 @@ def ramen_pot():
     def kimchi(c):
         return ("pepper", 2 if h3(c.i[0], c.i[1], c.i[2], 7) < 0.6 else 3)
     cyl(m, "kimchi", (12.75, 12.5), 3, 1, 1.75, Paint("pepper", 2, decal=kimchi))
+    m.box("egg_white", (7.25, 3.75, 7.5), (9.25, 4.0, 9.75), flat("rice", 2), faces={"down": None})
+    m.box("egg_yolk", (7.75, 4.0, 8.0), (8.75, 4.25, 9.0), flat("corn", 3), faces={"down": None})
+    spoon = flat("blade", 2, rim=0.6)
+    m.box("spoon", (1.75, 0.25, 2.0), (7.5, 0.5, 2.5), spoon, faces={"down": None})
+    m.box("spoon_bowl", (7.5, 0.25, 1.5), (9.25, 0.75, 3.0), spoon, faces={"down": None})
     sticks = flat("blade", 2, rim=0.5)
     m.box("chopstick", (2, 4.75, 9.75), (12.5, 5.0, 10.0), sticks)
     m.box("chopstick", (2, 4.75, 10.5), (12.5, 5.0, 10.75), sticks)
@@ -451,28 +520,47 @@ def ramen_pot():
 
 def fridge():
     """2도어 냉장고 1x2: a mint-green two-door refrigerator with rounded top corners: the freezer above and the
-    fridge below, long chrome handles on the left, a chrome trim line, a dark kick grille, a few fruit magnets and
-    a memo pinned on the freezer door. No maker's name."""
+    fridge below, each door framed in a thin chrome trim with a chrome line between them, chrome hinge covers on the
+    hinge side, long chrome handles on the other, a chrome vent grille at its foot; a nameplate without a name, a
+    memo and fruit magnets, a calendar hung on its side and a crocheted doily with a jar of barley tea on top."""
     m = BModel("fridge")
-    body = Paint("celadon", 3, noise=0)
+
+    def side_seam(c):
+        if c.face in ("east", "west") and (abs(c.p[1] - 18.9) < 0.3 or abs(c.p[2] - (Z0 + 1.3)) < 0.3):
+            return ("celadon", 2)                   # the seams of the cabinet's pressed side panel
+        return None
     X0, X1, Z0, Z1 = 1.5, 14.5, 3, 14
+    body = Paint("celadon", 3, noise=0, decal=side_seam)
     m.group("cabinet")
     m.box("foot", (X0 + 0.5, 0, Z0 + 1), (X1 - 0.5, 1.5, Z1 - 0.5), flat("rubber", 1))
 
     def grille(c):
-        if c.face == "north" and math.floor(c.p[0]) % 2 == 0:
-            return ("rubber", 0)
+        if c.face == "north" and c.i[0] % 2 == 0:
+            return ("rubber", 0)                    # the slots between the grille's chrome bars
         return None
-    m.box("grille", (X0 + 0.5, 0.25, Z0 + 0.75), (X1 - 0.5, 1.25, Z0 + 1), flat("rubber", 1, decal=grille))
+    m.box("grille", (X0 + 0.5, 0.25, Z0 + 0.75), (X1 - 0.5, 1.5, Z0 + 1), flat("blade", 2, decal=grille))
     m.box("body", (X0, 1.5, Z0 + 1), (X1, 29, Z1), body)
     m.box("top", (X0 + 0.5, 29, Z0 + 1.5), (X1 - 0.5, 29.75, Z1 - 0.5), body)
     m.group("doors")
-    door = Paint("celadon", 3, noise=0, rim=1.2)
-    m.box("badge", (3, 27, Z0 - 0.25), (6, 27.5, Z0), CHROME)
+
+    def door_trim(c):
+        # a thin chrome line round each door, just inside its edge
+        if c.face != "north":
+            return None
+        x, y = c.p[0], c.p[1]
+        lo, hi = (1.75, 18.5) if y < 18.75 else (19.25, 28.75)
+        if abs(x - (X0 + 0.5)) < 0.3 or abs(x - (X1 - 0.5)) < 0.3 or abs(y - (lo + 0.5)) < 0.3 or abs(y - (hi - 0.5)) < 0.3:
+            return ("blade", 2)
+        return None
+    door = Paint("celadon", 3, noise=0, rim=1.2, decal=door_trim)
     m.box("door_low", (X0, 1.75, Z0), (X1, 18.5, Z0 + 1), door)
     m.box("trim", (X0, 18.5, Z0 - 0.25), (X1, 19.25, Z0 + 1), CHROME)
     m.box("door_top", (X0, 19.25, Z0), (X1, 28.75, Z0 + 1), door)
-    # long chrome handles on the hinge-free side (the viewer's left, +x)
+    m.box("badge", (3, 27, Z0 - 0.25), (6, 27.5, Z0), CHROME)                 # a nameplate without a name
+    # chrome hinge covers on the hinge side (the viewer's right, low x): top, middle, bottom
+    for (y0, y1) in ((28.25, 29.25), (18.25, 19.5), (2.0, 3.0)):
+        m.box("hinge", (X0 - 0.25, y0, Z0 - 0.4), (X0 + 1.25, y1, Z0 + 1.25), CHROME)
+    # long chrome handles on the other side (the viewer's left, +x)
     for (y0, y1) in ((10, 17), (20.5, 25)):
         m.box("handle", (X1 - 2.25, y0, Z0 - 1), (X1 - 1.25, y1, Z0 - 0.5), CHROME)
         for y in (y0, y1 - 1):
@@ -488,6 +576,32 @@ def fridge():
     m.box("magnet", (9.5, 23.5, Z0 - 0.5), (11, 25, Z0), flat("corn", 3))
     m.box("magnet_leaf", (10, 25, Z0 - 0.5), (10.5, 25.5, Z0), flat("leaf", 2))
     m.box("magnet", (4.5, 14, Z0 - 0.5), (6, 15.5, Z0), flat("tomato", 2))
+    m.box("magnet", (8, 7, Z0 - 0.5), (9.5, 8.5, Z0), flat("sapphire", 2))
+    # a wall calendar hung on its side (the viewer's left): a red header, a grid of days, the hanging string
+    def calendar(c):
+        if c.face != "east":
+            return None
+        y, z = c.p[1], c.p[2]
+        if y > 24.5:
+            return ("pepper", 2)                    # the month's red header
+        if c.i[1] % 2 == 0 and c.i[2] % 2 == 0:
+            return ("rubber", 2)                    # the days
+        if y < 19.5 and c.i[2] % 2 == 0 and c.i[1] % 2 == 1 and c.i[2] == 8:
+            return ("pepper", 2)                    # a day ringed in red
+        return None
+    m.box("calendar", (X1, 17.5, 6), (X1 + 0.25, 25.5, 11), Paint("paper", 2, noise=0, decal=calendar))
+    m.box("calendar_nail", (X1, 26.25, 8.25), (X1 + 0.5, 26.75, 8.75), flat("iron", 1))
+    m.group("top")
+
+    def doily(c):
+        r = math.hypot(c.p[0] - 8, c.p[2] - 8.5)
+        if c.face == "up" and math.floor(r * 1.4) % 2 == 0:
+            return ("cream", 1)
+        return None
+    m.box("doily", (3.5, 29.75, 5), (12.5, 30, 12), Paint("cream", 2, noise=0, decal=doily))
+    cyl(m, "jar", (9.5, 8.5), 3, 30, 31.5, flat("glass", 2, decal=lambda c: ("bean", 1)
+                                                if c.face in SIDE_FACES and c.p[1] < 31 else None))
+    cyl(m, "jar_lid", (9.5, 8.5), 3, 31.5, 32, flat("pepper", 1))
     return finish(m, (1, 2, 1))
 
 
@@ -503,9 +617,14 @@ def _briquette(m, name, x, y, z, burnt=False, seed=0):
     def look(c):
         if c.face in ("up", "down"):
             u, v = math.floor(c.p[0] - x), math.floor(c.p[2] - z)
-            if (u + 0, v + 0) in holes or (u + 1, v + 1) in holes and False:
+            if (u, v) in holes:
                 return ("millstone", 1) if burnt else ("rubber", 0)
-            return ("millstone", 4) if burnt else ("iron", 3)
+            dust = h3(u + 3, v + 3, 0, 90)                  # the same speckle on every face (one atlas tile)
+            if burnt:
+                return ("millstone", 4 if dust < 0.5 else 3)
+            if dust < 0.10:
+                return ("millstone", 3)                 # a little ash dust
+            return ("iron", 3) if max(abs(u), abs(v)) >= 3 else ("iron", 2)   # the pressed rim round the face
         r = h3(c.i[0], c.i[1], c.i[2], seed)
         if burnt:
             return ("clay", 1) if r < 0.15 else ("millstone", 3 if r < 0.7 else 4)
@@ -531,7 +650,7 @@ def briquette_pile():
     m.group("ash")
     _briquette(m, "burnt", 11, 8, 4, burnt=True, seed=50)          # a burnt-out one set back on the stack
     m.group("tongs")
-    tong = flat("iron", 2, rim=0.5)
+    tong = Paint("iron", 1, noise=0, rim=0.9, decal=lambda c: ("steel", 3) if c.face == "up" else None)
     # the briquette tongs laid across the top of the front left column, their hooked ends over the edge
     for z in (3.25, 4.75):
         m.box("tongs", (0.5, 8, z), (8.25, 8.5, z + 0.5), tong)
@@ -546,33 +665,53 @@ def briquette_pile():
 # ================================================================================================
 
 def brass_kettle():
-    """양은 주전자 1x1: the yellow aluminium kettle every makgeolli table had: a squat round body widest at the
-    bottom, a clear shoulder, a domed lid with a small knob, a long thin spout rising at an angle from the lower
-    body, the wire bail handle standing up; on a round tray with two small cups of makgeolli."""
+    """양은 주전자 1x1: the yellow aluminium kettle every makgeolli table had: a squat round body widest low, built in
+    half-pixel rings so its sides curve, with a dent or two; a clear shoulder, a hinged domed lid with a black knob,
+    a long thin spout rising at an angle from the lower body, the wire bail standing up on two lugs; on a round
+    tray (its raised rim painted, not built: the 1-cell face budget) with two small dimpled cups of makgeolli."""
     m = BModel("brass_kettle")
     m.group("tray")
-    cyl(m, "tray", (8, 8), 14, 0, 0.5, YANGEUN)
-    ring(m, "tray_rim", (8, 8), 14, 12, 0.5, 1.25, flat("brass", 3))
+
+    def tray(c):
+        r = math.hypot(c.p[0] - 8, c.p[2] - 8)
+        if c.face == "up":
+            if r > 6.2:
+                return ("brass", 3)                     # the raised rim catching the light
+            if r > 5.6:
+                return ("brass", 1)                     # the groove inside it
+        return None
+    cyl(m, "tray", (8, 8), 14, 0, 0.75, Paint("brass", 2, noise=0, rim=0.8, decal=tray))
     m.group("kettle")
-    kx, kz = 8, 6.25
-    # the body in thin rings: a foot, the wide bottom drum, then the shoulder sloping in to the neck
-    for (lo, hi, d) in ((0.5, 1.0, 7), (1.0, 3.5, 8), (3.5, 4.0, 7), (4.0, 4.5, 6), (4.5, 5.0, 5)):
-        cyl(m, "kettle", (kx, kz), d, lo, hi, YANGEUN_DARK if lo == 0.5 else YANGEUN)
+    kx, kz = 8, 5.75
+
+    def dents(c):
+        if c.face in SIDE_FACES:
+            for (dx, dy, dz) in ((2.5, 2.0, -3.5), (-3.5, 2.5, 2.0)):
+                if (c.p[0] - kx - dx) ** 2 + (c.p[1] - dy) ** 2 * 2 + (c.p[2] - kz - dz) ** 2 < 1.6:
+                    return ("brass", 1)                 # a dent from years of use
+            if 2.0 < c.p[1] < 2.6:
+                return ("brass", 3)                     # the shine along its widest line
+        return None
+    body = Paint("brass", 2, noise=0, rim=0.5, ao=0.7, grad=0.5, decal=dents)
+    # the body in half-pixel rings: a foot, the wide low belly, then the shoulder curving in to the neck
+    for (lo, hi, d) in ((0.75, 1.0, 7), (1.0, 1.5, 8), (1.5, 3.0, 9), (3.0, 3.5, 8), (3.5, 4.0, 7), (4.0, 4.5, 6),
+                        (4.5, 5.0, 5)):
+        cyl(m, "kettle", (kx, kz), d, lo, hi, YANGEUN_DARK if lo == 0.75 else body)
     cyl(m, "lid_rim", (kx, kz), 5, 5.0, 5.5, flat("brass", 3, rim=0.8))
     cyl(m, "lid", (kx, kz), 4, 5.5, 6.0, flat("brass", 3))
     cyl(m, "lid", (kx, kz), 2, 6.0, 6.5, flat("brass", 3))
     m.box("lid_knob", (kx - 0.5, 6.5, kz - 0.5), (kx + 0.5, 7.25, kz + 0.5), BLACK)
+    m.box("lid_hinge", (kx - 1.0, 5.0, kz + 2.25), (kx + 1.0, 5.75, kz + 2.75), YANGEUN_DARK)   # the lid's hinge at the back
     # the long spout rising from the lower body, out to the side (seen in profile from the front 3/4)
     sp = Paint("brass", 2, noise=0, rim=0.6)
-    ox, oy = kx + 3.5, 2.0
+    ox, oy = kx + 4.0, 1.75
     m.box("spout", (ox - 0.5, oy - 0.5, kz - 0.5), (ox + 5.0, oy + 0.5, kz + 0.5), sp, rotation=("z", 45, (ox, oy, kz)))
     m.box("spout_tip", (ox + 4.0, oy + 0.5, kz - 0.5), (ox + 5.0, oy + 1.0, kz + 0.5), sp, rotation=("z", 45, (ox, oy, kz)))
-    # the bail handle standing up on two lugs at the shoulder
+    # the bail: two lugs on the shoulder, thin wire posts, rounded corners and the top bar
     wire = flat("brass", 1, rim=0.4)
     for x in (kx - 4.0, kx + 3.5):
-        m.box("lug", (x, 3.75, kz - 0.5), (x + 0.5, 4.75, kz + 0.5), YANGEUN_DARK)
-        m.box("bail", (x, 4.75, kz - 0.25), (x + 0.5, 8.25, kz + 0.25), wire)
-    # rounded shoulders and the top bar
+        m.box("lug", (x if x < kx else x - 0.5, 3.5, kz - 0.5), (x + 1.0 if x < kx else x + 0.5, 4.25, kz + 0.5), YANGEUN_DARK)
+        m.box("bail", (x, 4.25, kz - 0.25), (x + 0.5, 8.25, kz + 0.25), wire)
     m.box("bail", (kx - 3.5, 8.25, kz - 0.25), (kx - 2.5, 8.75, kz + 0.25), wire)
     m.box("bail", (kx + 2.5, 8.25, kz - 0.25), (kx + 3.5, 8.75, kz + 0.25), wire)
     m.box("bail", (kx - 3.0, 8.75, kz - 0.25), (kx + 3.0, 9.25, kz + 0.25), wire)
@@ -583,7 +722,7 @@ def brass_kettle():
             return ("cream", 2)
         return ("brass", 1) if (c.i[0] + c.i[2] + 2 * c.i[1]) % 3 == 0 else None    # hammered dimples
     for (x, z) in ((5, 11), (11, 11)):
-        cyl(m, "cup", (x, z), 3, 0.5, 2.75, YANGEUN(decal=makgeolli))
+        cyl(m, "cup", (x, z), 3, 0.75, 2.75, YANGEUN(decal=makgeolli))
     return finish(m, (1, 1, 1))
 
 
@@ -592,59 +731,74 @@ def brass_kettle():
 # ================================================================================================
 
 def cassette_radio():
-    """카세트 라디오 1x1: a silver-and-black boom box on a little crocheted mat: round speakers with chrome rings on
-    both sides, a cassette deck in the middle (its two reels behind the window), piano-key buttons on top, the
-    tuning band with a red needle, a carrying handle and a telescopic antenna raised at an angle."""
+    """카세트 라디오 1x1: a silver boom box with a black front on a little crocheted mat: two round speakers whose
+    bright chrome rims stand out of the black, their cones dotted with the grille's holes and a chrome dust cap in
+    the middle; between them a tape in the cassette door (its white label with a red stripe and handwriting, the two
+    reels under the window), the tuning band with a red needle and a red power light above; piano-key buttons and
+    two knobs on top, a chrome carrying handle with a black grip and a telescopic antenna raised at an angle."""
     m = BModel("cassette_radio")
     m.group("mat")
     m.box("mat", (1, 0, 4.5), (15, 0.25, 11.5), Paint("cream", 2, noise=0.0, decal=lambda c: ("cream", 1)
                                                          if c.face == "up" and (c.i[0] + c.i[2]) % 3 == 0 else None))
     m.group("body")
     X0, X1, Z0, Z1 = 0.5, 15.5, 6, 10
-    m.box("body", (X0, 0.25, Z0), (X1, 8.75, Z1), Paint("steel", 3, noise=0))
-    m.box("top_band", (X0, 8.75, Z0 + 0.25), (X1, 9.25, Z1 - 0.25), flat("rubber", 1))
+
+    def sides(c):
+        if c.face in ("east", "west") and abs(c.p[1] - 4.5) < 0.3:
+            return ("steel", 2)                         # the seam between the two halves of the case
+        return None
+    m.box("body", (X0, 0.25, Z0), (X1, 8.75, Z1), Paint("steel", 3, noise=0, decal=sides))
+    m.box("top_band", (X0, 8.75, Z0 + 0.25), (X1, 9.25, Z1 - 0.25), flat("steel", 4))
 
     def front(c):
         if c.face != "north":
             return None
-        x, y = c.p[0], c.p[1]
         i, j = c.i[0], c.i[1]
-        if 6 <= i <= 9:
-            if j in (2, 3, 4):
-                if j == 3:
-                    if i in (6, 9):
-                        return ("porcelain", 2)             # the two reels
-                    return ("leather", 0)                   # the tape between them
-                if j == 4:
-                    return ("paper", 2)                     # the label above the window
-                return ("tint", 1)                          # the window's lower edge
-            if j in (6, 7):
-                if i == 8 and j == 6:
-                    return ("signal_red", 1)                # the tuning needle
-                return ("dial", 1) if j == 6 else ("dial", 0)
+        if 6 <= i <= 9 and j in (6, 7):
+            if i == 8 and j == 6:
+                return ("signal_red", 1)                # the tuning needle
+            return ("dial", 1) if j == 6 else ("dial", 0)
         return None
-    m.box("face", (X0, 0.5, Z0 - 0.25), (X1, 8.5, Z0), Paint("steel", 1, noise=0, decal=front))
-    # the two speakers, built round: a bright silver rim standing out of the front, the dark dotted cone in it
-    # and a silver dust cap in the middle
+    m.box("face", (X0, 0.5, Z0 - 0.25), (X1, 8.5, Z0), Paint("rubber", 1, noise=0, decal=front))
+    m.box("power_light", (X1 - 2.0, 7.25, Z0 - 0.4), (X1 - 1.25, 7.75, Z0 - 0.25),
+          flat("pepper", 3, rim=0))         # a red lamp, painted (not glowing: signal ramps glow)
+    # the two speakers: a bright chrome rim, the dotted cone in it and a chrome dust cap in the middle
     def grille(c):
-        if c.face == "north" and c.i[0] % 2 == 0 and c.i[1] % 2 == 1:
-            return ("rubber", 2)
+        if c.face == "north" and (c.i[0] + c.i[1]) % 2 == 0:
+            return ("rubber", 3)
         return None
     for sx in (3.25, 12.75):
-        cyl(m, "speaker_rim", (sx, 4.5), 5, Z0 - 0.5, Z0, flat("blade", 3, rim=0.6), axis="z")
+        cyl(m, "speaker_rim", (sx, 4.5), 5, Z0 - 0.5, Z0, flat("blade", 3, rim=0.9), axis="z")
         cyl(m, "speaker_cone", (sx, 4.5), 3, Z0 - 0.75, Z0 - 0.5, flat("rubber", 0, decal=grille), axis="z")
-        m.box("dust_cap", (sx - 0.5, 4.0, Z0 - 1.0), (sx + 0.5, 5.0, Z0 - 0.75), flat("blade", 2))
-    bezel = flat("steel", 3, rim=0.5)                     # a raised frame round the cassette window
-    m.box("bezel", (5.75, 1.5, Z0 - 0.5), (10.25, 1.75, Z0 - 0.25), bezel)
-    m.box("bezel", (5.75, 5.25, Z0 - 0.5), (10.25, 5.5, Z0 - 0.25), bezel)
-    m.box("bezel", (5.75, 1.75, Z0 - 0.5), (6.0, 5.25, Z0 - 0.25), bezel)
-    m.box("bezel", (10.0, 1.75, Z0 - 0.5), (10.25, 5.25, Z0 - 0.25), bezel)
-    # piano-key buttons on top, the handle, the antenna
+        m.box("dust_cap", (sx - 0.5, 4.0, Z0 - 1.0), (sx + 0.5, 5.0, Z0 - 0.75), flat("blade", 3))
+    # the cassette door: a chrome bezel round the tape, the label above its window
+    bezel = flat("blade", 2, rim=0.5)
+    m.box("bezel", (5.75, 1.25, Z0 - 0.5), (10.25, 1.5, Z0 - 0.25), bezel)
+    m.box("bezel", (5.75, 5.5, Z0 - 0.5), (10.25, 5.75, Z0 - 0.25), bezel)
+    m.box("bezel", (5.75, 1.5, Z0 - 0.5), (6.0, 5.5, Z0 - 0.25), bezel)
+    m.box("bezel", (10.0, 1.5, Z0 - 0.5), (10.25, 5.5, Z0 - 0.25), bezel)
+
+    def tape(c):
+        if c.face != "north":
+            return None
+        i, j = c.i[0], c.i[1]
+        if j == 4:
+            return ("pepper", 2) if i in (6, 9) else ("paper", 2)        # the label, its red stripe at both ends
+        if j == 3:
+            return ("bean", 0) if i in (7, 8) else ("paper", 2)          # handwriting on it
+        if j == 2:
+            return ("porcelain", 2) if i in (6, 9) else ("leather", 0)   # the two reels and the brown tape between
+        return ("tint", 1)
+    m.box("cassette", (6.0, 1.5, Z0 - 0.4), (10.0, 5.5, Z0 - 0.25), Paint("paper", 2, noise=0, decal=tape))
+    # piano-key buttons and two knobs on top, the handle, the antenna
     for k, ramp in enumerate(("rubber", "rubber", "pepper", "rubber", "rubber", "rubber")):
         m.box("key", (5.5 + k, 9.25, Z0 + 0.5), (6.25 + k, 9.75, Z0 + 1.75), flat(ramp, 1 if ramp == "rubber" else 2))
-    for x in (3, 12.5):
+    for x in (2.25, 13.75):
+        cyl(m, "knob", (x, 8), 2, 9.25, 10.0, flat("blade", 2, rim=0.6))
+    for x in (3.5, 12):
         m.box("handle_post", (x, 9.25, 7.5), (x + 0.5, 11.5, 8.5), CHROME)
-    m.box("handle", (3, 11.5, 7.5), (13, 12.25, 8.5), BLACK)
+    m.box("handle", (3.5, 11.5, 7.5), (12.5, 12.0, 8.5), CHROME)
+    m.box("grip", (5.5, 11.25, 7.25), (10.5, 12.25, 8.75), BLACK)
     m.box("antenna", (1.5, 9.25, 9.25), (2, 21, 9.75), CHROME, rotation=("z", 22.5, (1.75, 9.25, 9.5)))
     m.box("antenna_tip", (1.25, 21, 9.0), (2.25, 21.75, 10.0), CHROME, rotation=("z", 22.5, (1.75, 9.25, 9.5)))
     return finish(m, (1, 1, 1))
@@ -658,7 +812,14 @@ def washtub():
     """고무대야 빨래 1x1: the big red rubber basin of every yard: soapy water with a white undershirt and a blue cloth
     soaking in it, a ribbed wooden washboard leaning in it and a wooden laundry bat laid across the rim."""
     m = BModel("washtub")
-    red = Paint("fabric_red", 2, noise=0.02)
+    def rubber(c):
+        if c.face in SIDE_FACES:
+            if 1.5 < c.p[1] < 2.0:
+                return ("fabric_red", 3)                # the moulded ridge round the basin
+            if h3(c.i[0], c.i[1], c.i[2], 23) < 0.06:
+                return ("fabric_red", 1)                # scuffs from years of use
+        return None
+    red = Paint("fabric_red", 2, noise=0.02, decal=rubber)
     m.group("tub")
     cyl(m, "tub", (8, 8), 13, 0, 1, red)
     cyl(m, "tub", (8, 8), 14, 1, 3, red)
@@ -668,8 +829,11 @@ def washtub():
 
     def soapy(c):
         x, z = c.p[0], c.p[2]
-        if h3(c.i[0], 0, c.i[2], 17) < 0.10:
-            return ("porcelain", 3)                     # suds
+        near = (3 < x < 8 and 5.5 < z < 10.5) or (8 < x < 11.5 and 8 < z < 11.5)
+        if h3(c.i[0], 0, c.i[2], 17) < (0.45 if near else 0.08):
+            return ("porcelain", 3)                     # suds, thickest round the clothes
+        if h3(c.i[0], 1, c.i[2], 18) < 0.08:
+            return ("water", 3)                         # a glint on the water
         return ("water", 2)
     cyl(m, "water", (8, 8), 12, 3, 4.25, Paint("water", 2, noise=0, decal=soapy))
     # the laundry soaking: a white undershirt and a blue cloth, humped above the water

@@ -22,10 +22,15 @@ def yeontan_stove():
     c = Canvas()
     c.rect(11, 0, 13, 5, "steel", 1, normal=FRONT, lo=2, hi=4)         # the slim flue at the back
     c.rect(10.5, 0, 13.5, 1, "steel", 2, step=2)
+    c.rect(10.5, 2.5, 13.5, 3.2, "steel", 2, step=1)                   # the damper band and its lever
+    c.put(14, 2, "rubber", 1, z=3)
     c.cyl(2.5, 6, 13.5, 15, "steel", 2, gloss=0.2)                      # the tall round body
     c.rect(2.5, 8, 13.5, 8.7, "blade", 3, step=3)                       # the bright bands
     c.rect(2.5, 11.3, 13.5, 12, "blade", 3, step=3)
+    for x in (4, 6, 10, 12):
+        c.line(x, 9, x, 11, "steel", 3, z=3)                            # the cast ribs
     c.rect(6, 12, 10, 15, "iron", 4, step=0)                            # the ash door
+    c.put(10, 13, "blade", 3, z=5)                                      # its chrome latch
     c.dots([(7, 13), (9, 13)], "fire", 4, z=5)
     c.ellipse(8, 6, 6.5, 1.8, "iron", 5, dome=0.3, gloss=0)             # the iron top plate
     c.ellipse(9.5, 6.2, 2.2, 1.0, "fire", 6, lo=3, hi=5, gloss=0.4)     # the glowing briquette
@@ -43,8 +48,13 @@ def kerosene_stove():
     c = Canvas()
     c.cyl(2, 11, 14, 15.5, "bottle_green", 0, gloss=0.6)
     c.rect(2, 12.5, 14, 13.2, "porcelain", 1, step=2)
+    c.line(2, 12, 13, 12, "corn", 3, z=1)                               # gold pinstripes
+    c.line(2, 14, 13, 14, "corn", 2, z=1)
+    c.rect(7, 13.5, 9, 15, "blade", 2, step=3)                          # the fuel gauge's bezel
+    c.put(8, 14, "porcelain", 2, z=3)
     c.cyl(4.5, 7, 11.5, 11, "steel", 2)
-    c.rect(6.5, 8, 9.5, 10, "fire", 3, step=4)                          # the mica window
+    c.rect(6, 7.5, 10, 10.5, "blade", 3, step=3)                        # the chrome frame
+    c.rect(6.5, 8, 9.5, 10, "fire", 3.5, step=4)                        # the mica window
     c.ellipse(8, 6.6, 3.8, 1, "sapphire", 4, lo=2, hi=4, gloss=0.2)     # blue flame ring
     c.cyl(2.5, 1.5, 13.5, 6, "brass", 5, gloss=0.8)                     # the pot
     c.ellipse(8, 1.6, 5.5, 1.2, "brass", 6, dome=0.3)
@@ -69,6 +79,7 @@ def rice_cooker():
     c.line(3, 3, 13, 3, "cream", 1, z=3)                                # the folded handle
     c.put(8, 2, "blade", 3, z=4)
     c.put(7, 7, "signal_red", 1, z=5)
+    c.rect(7.2, 4.6, 8.8, 6.6, "blade", 6, step=3)                      # the lid latch
     c.rect(13.5, 2, 15, 9, "porcelain", 6, step=2)                      # the rice paddle
     return c.render()
 
@@ -88,9 +99,14 @@ def glass_cupboard():
     c.line(10, 7, 12, 4, "glass", 3, z=5)
     c.line(8, 1.5, 8, 7.5, "wood_dark", 1, z=5)
     c.rect(1.5, 8, 14.5, 9, "wood_dark", 6, step=1)                      # the counter ledge
-    c.rect(3, 9.5, 7.5, 15, "wood", 6, step=2)
-    c.rect(8.5, 9.5, 13, 15, "wood", 6, step=2)
-    c.dots([(7, 12), (9, 12)], "brass", 3, z=7)
+    c.rect(2.5, 8, 13.5, 8.6, "cream", 7, step=3)                        # the lace runner, scalloped
+    c.dots([(x, 9) for x in range(3, 14, 2)], "cream", 3, z=8)
+    c.rect(3, 9.8, 7.5, 11.3, "wood", 6, step=3)                         # two drawers
+    c.rect(8.5, 9.8, 13, 11.3, "wood", 6, step=3)
+    c.dots([(5, 10), (10, 10)], "brass", 3, z=7)
+    c.rect(3, 11.8, 7.5, 15, "wood", 6, step=2)
+    c.rect(8.5, 11.8, 13, 15, "wood", 6, step=2)
+    c.dots([(7, 13), (9, 13)], "brass", 3, z=7)
     return c.render()
 
 
@@ -111,6 +127,8 @@ def ramen_pot():
     c.put(4, 8, "sprout", 3, z=7)
     c.line(10, 6, 15, 1, "blade", 3, z=8)                                # chopsticks resting in the pot
     c.line(11, 7, 15, 3, "blade", 2, z=8)
+    c.line(1, 14, 4, 13, "blade", 3, z=9)                                # a steel spoon on the paper
+    c.dots([(5, 13), (6, 13), (5, 12)], "blade", 2, z=9)
     c.ellipse(13.5, 13.5, 2.2, 1.1, "porcelain", 9, dome=0.3)            # the kimchi dish
     c.dots([(13, 13), (14, 13)], "pepper", 2, z=10)
     return c.render()
@@ -128,7 +146,11 @@ def fridge():
     c.put(5, 1, "pepper", 2, z=3)
     c.put(8, 2, "corn", 3, z=3)
     c.put(4, 9, "tomato", 2, z=3)
-    c.rect(3, 15, 13, 16, "rubber", 3, step=1)
+    c.rect(3, 14, 13, 15.5, "blade", 3, step=2)                         # the vent grille
+    c.dots([(x, 14) for x in range(4, 13, 2)], "rubber", 1, z=4)
+    for y in (0.5, 5, 13):
+        c.rect(2.5, y, 3.5, y + 1, "blade", 4, step=3)                  # chrome hinge covers
+    c.put(6, 11, "sapphire", 2, z=4)
     return c.render()
 
 
@@ -143,6 +165,7 @@ def briquette_pile():
     c.ellipse(13.25, 11, 2.25, 0.8, "millstone", 5, dome=0.2, gloss=0)
     c.line(14, 1, 12, 10, "iron", 2, z=6)                                # the tongs
     c.line(15, 1, 13, 10, "iron", 2, z=6)
+    c.dots([(14, 1), (15, 1)], "steel", 4, z=7)                          # the tongs' lit ends
     return c.render()
 
 
@@ -158,6 +181,7 @@ def brass_kettle():
     c.ellipse(8.5, 8.6, 3.6, 1.6, "brass", 4, gloss=0.8)                 # the shoulder
     c.ellipse(8.5, 7.2, 2.2, 1.0, "brass", 5, dome=0.4)                  # the domed lid
     c.put(8, 6, "rubber", 1, z=6)                                        # its knob
+    c.put(10, 7, "brass", 2, z=6)                                        # the lid's hinge
     c.line(4, 11, 1, 6, "brass", 2, z=7)                                 # the long spout rising
     c.line(4, 12, 2, 7, "brass", 1, z=6)
     c.cyl(11.5, 12, 14.5, 14.5, "brass", 8, gloss=0.8)                   # a cup in front
@@ -186,6 +210,7 @@ def cassette_radio():
     c.rect(7, 10, 9, 10.5, "paper", 7, step=2)                           # label
     c.rect(6.5, 7, 9.5, 8, "dial", 6, step=1)                            # the dial strip
     c.put(8, 7, "signal_red", 1, z=8)
+    c.put(14, 7, "pepper", 3, z=8)                                       # the power lamp
     return c.render()
 
 
@@ -196,6 +221,7 @@ def washtub():
     for y in range(2, 9, 2):
         c.line(10, y, 13, y, "wood", 1, z=1)
     c.cyl(1, 8, 15, 15.5, "fabric_red", 2, gloss=0.7)
+    c.line(1, 12, 14, 12, "fabric_red", 3, z=3)                          # the moulded ridge
     c.ellipse(8, 8, 7, 2.6, "fabric_red", 3, dome=0.3)
     c.ellipse(8, 8.2, 5.8, 1.9, "water", 4, dome=0.1, gloss=0)
     c.ellipse(6, 8, 2.2, 1, "porcelain", 5, dome=0.2)                    # undershirt
