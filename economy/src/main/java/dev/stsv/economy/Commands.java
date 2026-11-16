@@ -244,11 +244,13 @@ final class Commands {
                     else eco.land().vaultInfo(p);
                 }
                 case "해체" -> eco.land().disband(p, confirm);
+                case "타임머신" -> eco.landTime().command(p, a);
                 case "도움말" -> p.sendMessage(Lang.msg("land.usage"));
                 default -> eco.land().info(p);
             }
         }), (s, a) -> {
-            if (a.length == 1) return List.of("정보", "구매", "포기", "보기", "초대", "수락", "거절", "추방", "나가기", "양도", "금고", "해체", "도움말");
+            if (a.length == 1) return List.of("정보", "구매", "포기", "보기", "초대", "수락", "거절", "추방", "나가기", "양도", "금고", "해체", "타임머신", "도움말");
+            if (a.length == 2 && a[0].equals("타임머신")) return List.of("보기", "확인", "취소", "원래대로");
             if (a.length == 2 && (a[0].equals("초대") || a[0].equals("추방") || a[0].equals("양도"))) {
                 return dev.stsv.core.nickname.Names.complete(s, a[1]);
             }

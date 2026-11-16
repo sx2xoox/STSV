@@ -244,6 +244,17 @@ backup:
   min-free-gb: 5
   # 함께 백업할 다른 것 (서버 폴더 기준 경로). 예: plugins/LuckPerms, plugins/CoreProtect
   extra: []
+  # 타임머신 (/땅 타임머신, /관리자 타임머신): 땅의 청크만 백업 시각으로 되돌림. README "땅 타임머신"
+  time-machine:
+    # 백업을 잠시 불러오는 임시 월드 폴더 이름 (쓰고 나면 지움)
+    world: stsv_timemachine
+    # 미리보기(나에게만 보이는 그때 모습)를 보여 주는 시간(초)과 보여 줄 블록 수 한도
+    preview-seconds: 60
+    preview-max-blocks: 20000
+    # 미리보기를 연 뒤 이 시간(초) 안에 되돌리지 않으면 닫음
+    session-seconds: 120
+    # 한 틱에 되돌리는 블록 수 (렉 방지)
+    blocks-per-tick: 3000
 
 database:
   # sqlite = 플러그인 폴더의 파일 하나 (설정 불필요) / mysql = 여러 서버가 같은 데이터를 공유 (MariaDB 도 가능)

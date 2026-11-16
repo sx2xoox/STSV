@@ -31,6 +31,7 @@ public final class STSVPlugin extends JavaPlugin {
 
     private ModuleManager modules;
     private DatabaseModule database;
+    private dev.stsv.core.backup.BackupModule backups;
     private dev.stsv.core.gui.menu.MenuModule menus;
     private ContentModule content;
     private RecipeModule recipes;
@@ -71,7 +72,7 @@ public final class STSVPlugin extends JavaPlugin {
         // Order matters: content first (others read it), resource pack last (it needs every item).
         modules.register(database = new DatabaseModule());
         modules.register(new dev.stsv.core.account.AltModule());
-        modules.register(new dev.stsv.core.backup.BackupModule());
+        modules.register(backups = new dev.stsv.core.backup.BackupModule());
         modules.register(content = new ContentModule());
         modules.register(menus = new dev.stsv.core.gui.menu.MenuModule());
         modules.register(unlocks = new dev.stsv.core.unlock.UnlockModule());   // before whatever is owned for good (banners, emotes)
@@ -237,6 +238,7 @@ public final class STSVPlugin extends JavaPlugin {
 
     public ModuleManager modules() { return modules; }
     public Db db() { return database.db(); }
+    public dev.stsv.core.backup.BackupModule backups() { return backups; }
     public ContentModule content() { return content; }
     public dev.stsv.core.gui.menu.MenuModule menus() { return menus; }
     public RecipeModule recipes() { return recipes; }

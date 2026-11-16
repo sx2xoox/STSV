@@ -50,6 +50,9 @@ public final class BackupModule implements StsvModule {
 
     private STSVPlugin plugin;
     private BukkitTask timer;
+    private TimeMachine timeMachine;
+    /** told the name of the next backup when it is done (or why it failed): /땅 타임머신 takes one before it puts anything back */
+    private final List<java.util.function.BiConsumer<String, String>> waiting = new ArrayList<>();
     private volatile boolean running;
     private volatile String lastName, lastError;
     /** what the last backup's check found (empty: it opened and looked whole) */
@@ -67,8 +70,38 @@ public final class BackupModule implements StsvModule {
         plugin.admin().add(OWNER, "백업", "[지금|목록]", "자동 백업 상태 / 바로 백업 / 남아 있는 백업 (README \"백업과 복구\")", this::admin,
                 (s, a) -> a.length == 1 ? List.of("지금", "목록") : List.of());
         plugin.admin().report(OWNER, (s, a) -> s.sendMessage(Lang.mm("backup.report", "state", state())));
+        timeMachine = new TimeMachine(plugin, this);
         schedule();
-        Bukkit.getScheduler().runTaskAsynchronously(plugin, this::clearPartials);
+        Bukkit.getScheduler().runTaskAsynchronously(plugin, () -> {
+            clearPartials();
+            timeMachine.clean();
+        });
+    }
+
+    /** The time machine: chunks as they were in a backup (/땅 타임머신, /관리자 타임머신). */
+    public TimeMachine timeMachine() {
+        return timeMachine;
+    }
+
+    /**
+     * Takes a backup now and tells {@code then} its name when it is done, or (null, why) when it is not. A backup
+     * already under way: told when that one is done (it holds the world as it is now just as well).
+     */
+    public void backupNow(java.util.function.BiConsumer<String, String> then) {
+        waiting.add(then);
+        if (!running) start(null);
+    }
+
+    private void tellWaiting(String name, String error) {
+        List<java.util.function.BiConsumer<String, String>> told = new ArrayList<>(waiting);
+        waiting.clear();
+        for (var w : told) {
+            try {
+                w.accept(name, error);
+            } catch (RuntimeException e) {
+                plugin.getLogger().log(Level.WARNING, "[백업] 알림 처리 실패", e);
+            }
+        }
     }
 
     @Override
@@ -79,6 +112,7 @@ public final class BackupModule implements StsvModule {
     @Override
     public void disable() {
         if (timer != null) timer.cancel();
+        if (timeMachine != null) timeMachine.shutdown();
         if (plugin != null) plugin.admin().removeAll(OWNER);
     }
 
@@ -100,7 +134,7 @@ public final class BackupModule implements StsvModule {
         return Bukkit.getWorldContainer().toPath().toAbsolutePath().normalize();
     }
 
-    private Path folder() {
+    Path folder() {
         Path p = Path.of(config().getString("folder"));
         return (p.isAbsolute() ? p : root().resolve(p)).normalize();
     }
@@ -143,6 +177,7 @@ public final class BackupModule implements StsvModule {
         List<World> paused = new ArrayList<>();
         for (World w : Bukkit.getWorlds()) {
             if (!wild && plugin.worlds() != null && WorldRules.wildSet(plugin.worlds().kind(w))) continue;
+            if (timeMachine != null && timeMachine.isTemp(w)) continue;     // the time machine's borrowed copy of a backup
             worlds.add(w);
             w.save();
             if (w.isAutoSave()) {
@@ -233,6 +268,7 @@ public final class BackupModule implements StsvModule {
             plugin.getLogger().info("[백업] " + name + ": 파일 " + total.files + "개 (새로 복사 " + total.copied + ", 이전 백업과 공유 " + total.linked + "), "
                     + mb(total.bytes) + " 복사, " + (lastMillis / 1000) + "초");
             if (by != null) by.sendMessage(Lang.msg("backup.done", "name", name, "files", total.files, "copied", mb(total.bytes), "seconds", lastMillis / 1000));
+            tellWaiting(name, null);
         }));
     }
 
@@ -255,7 +291,7 @@ public final class BackupModule implements StsvModule {
     // ------------------------------------------------------------------------------------------
 
     /** Complete backups, newest first. */
-    private static List<Path> backups(Path folder) {
+    static List<Path> backups(Path folder) {
         if (!Files.isDirectory(folder)) return List.of();
         try (Stream<Path> s = Files.list(folder)) {
             return s.filter(Files::isDirectory).filter(p -> time(p) != null).sorted(Comparator.comparing(BackupModule::time).reversed()).toList();
@@ -264,7 +300,7 @@ public final class BackupModule implements StsvModule {
         }
     }
 
-    private static LocalDateTime time(Path p) {
+    static LocalDateTime time(Path p) {
         try {
             return LocalDateTime.parse(p.getFileName().toString(), NAME);
         } catch (RuntimeException e) {
@@ -312,6 +348,7 @@ public final class BackupModule implements StsvModule {
 
     private void fail(CommandSender by, String why) {
         lastError = why;
+        tellWaiting(null, why);
         plugin.getLogger().warning("[백업] 실패: " + why);
         for (Player p : Bukkit.getOnlinePlayers()) if (p.isOp()) p.sendMessage(Lang.msg("backup.failed", "reason", why));
         if (by != null && !(by instanceof Player p && p.isOp())) by.sendMessage(Lang.msg("backup.failed", "reason", why));

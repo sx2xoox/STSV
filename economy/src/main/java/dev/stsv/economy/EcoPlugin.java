@@ -65,6 +65,7 @@ public final class EcoPlugin extends JavaPlugin {
     private JobModule jobs;
     private MachineModule machines;
     private LandModule land;
+    private dev.stsv.economy.land.LandTimeMachine landTime;
     private RequestModule requests;
     private dev.stsv.economy.mission.MissionModule missions;
     private RankModule rank;
@@ -111,6 +112,7 @@ public final class EcoPlugin extends JavaPlugin {
         add(auction = new AuctionModule(this));
         add(trade = new TradeModule(this));
         add(land = new LandModule(this));
+        add(landTime = new dev.stsv.economy.land.LandTimeMachine(this));   // after the land: /땅 타임머신
         add(requests = new RequestModule(this));
         add(missions = new dev.stsv.economy.mission.MissionModule(this));
         add(vanity = new VanityModule(this));
@@ -242,6 +244,7 @@ public final class EcoPlugin extends JavaPlugin {
     }
     public MachineModule machines() { return machines; }
     public LandModule land() { return land; }
+    public dev.stsv.economy.land.LandTimeMachine landTime() { return landTime; }
     /** 하역장 · 적재 무게 */
     public dev.stsv.economy.dock.DockModule docks() { return docks; }
     /** 국도 */
