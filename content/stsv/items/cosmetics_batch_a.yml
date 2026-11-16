@@ -1,0 +1,174 @@
+# ──────────────────────────────────────────────────────────────────
+#  [치장 · 추가분 A] 머리 위 4 · 어깨 5 · 등 2 (치장 뽑기에서 나옴). 쓰는 법은 cosmetics.yml 맨 위 설명과 같음.
+#  모델: tools/assetgen/models/cosmetics_batch_a.py · 교환권 그림: voucher_art.py 가 모델에서 자동으로 만듦
+#  교환권(..._voucher)도 이 파일에 함께 있음 (뽑기에서 이미 가진 치장이 나오면 이 교환권을 줌)
+# ──────────────────────────────────────────────────────────────────
+
+# ── 머리 위 ─────────────────────────────────────────────────────────
+little_sun:
+  material: paper
+  name: "<#ffd23f>꼬마 해님"
+  lore: ["<gray>머리 위에서 방긋 웃는 해님"]
+  model: little_sun
+  max-stack: 1
+  cosmetic: { slot: above, rarity: common, obtain: "치장 뽑기 (/뽑기)", bob: true }
+
+exclaim_bubble:
+  material: paper
+  name: "<#ffffff>느낌표 말풍선"
+  lore: ["<gray>앗! 뭔가 떠올랐다"]
+  model: exclaim_bubble
+  max-stack: 1
+  cosmetic: { slot: above, rarity: common, obtain: "치장 뽑기 (/뽑기)", bob: true }
+
+rainbow_arc:
+  material: paper
+  name: "<#ff9ad5>무지개"
+  lore: ["<gray>구름 사이로 걸린 일곱 빛깔 무지개"]
+  model: rainbow_arc
+  max-stack: 1
+  cosmetic: { slot: above, rarity: rare, obtain: "치장 뽑기 (/뽑기)", bob: true }
+
+star_ring:
+  material: paper
+  name: "<#c39bff>별 고리"
+  lore: ["<gray>반짝이는 별 셋이 도는 보랏빛 고리"]
+  model: star_ring
+  max-stack: 1
+  cosmetic: { slot: above, rarity: epic, obtain: "치장 뽑기 (/뽑기)", bob: true }
+
+# ── 어깨 ──────────────────────────────────────────────────────────
+hamster:
+  material: paper
+  name: "<#f2b45a>햄스터"
+  lore: ["<gray>볼이 빵빵한 해바라기씨 먹보"]
+  model: hamster
+  max-stack: 1
+  cosmetic: { slot: shoulder, rarity: common, obtain: "치장 뽑기 (/뽑기)" }
+
+squirrel:
+  material: paper
+  name: "<#d9883a>다람쥐"
+  lore: ["<gray>도토리를 꼭 쥔 줄무늬 다람쥐"]
+  model: squirrel
+  max-stack: 1
+  cosmetic: { slot: shoulder, rarity: common, obtain: "치장 뽑기 (/뽑기)" }
+
+parrot:
+  material: paper
+  name: "<#ff5a3c>앵무새"
+  lore: ["<gray>알록달록 수다쟁이 앵무새"]
+  model: parrot
+  max-stack: 1
+  cosmetic: { slot: shoulder, rarity: rare, obtain: "치장 뽑기 (/뽑기)" }
+
+hedgehog:
+  material: paper
+  name: "<#b0835a>고슴도치"
+  lore: ["<gray>가시에 사과를 꽂고 다니는 고슴도치"]
+  model: hedgehog
+  max-stack: 1
+  cosmetic: { slot: shoulder, rarity: rare, obtain: "치장 뽑기 (/뽑기)" }
+
+shoulder_dragon:
+  material: paper
+  name: "<#ff6a3a>꼬마 붉은 용"
+  lore: ["<gray>입가에 불씨가 반짝이는 아기 용"]
+  model: shoulder_dragon
+  max-stack: 1
+  cosmetic: { slot: shoulder, rarity: epic, obtain: "치장 뽑기 (/뽑기)" }
+
+# ── 등 ───────────────────────────────────────────────────────────
+turtle_shell:
+  material: paper
+  name: "<#6fb84a>거북 등껍질 가방"
+  lore: ["<gray>느긋하게 메고 다니는 등껍질"]
+  model: turtle_shell
+  max-stack: 1
+  cosmetic: { slot: back, rarity: common, obtain: "치장 뽑기 (/뽑기)" }
+
+jetpack:
+  material: paper
+  name: "<#8fd3ff>로켓 배낭"
+  lore: ["<gray>푸른 불꽃을 뿜는 쌍발 로켓 배낭"]
+  model: jetpack
+  max-stack: 1
+  cosmetic: { slot: back, rarity: epic, obtain: "치장 뽑기 (/뽑기)" }
+
+# ── 교환권 ────────────────────────────────────────────────────────
+little_sun_voucher:
+  material: paper
+  name: "<#ffd23f>꼬마 해님 교환권"
+  lore: ["<gray>◆ 일반 <dark_gray>· <gray>머리 위 치장", "<gray>우클릭: 꼬마 해님을 계정에 등록합니다.", "<dark_gray>등록 후 /치장 에서 착용 · 거래소에서 사고팔 수 있음"]
+  texture: little_sun_voucher
+  voucher: { cosmetic: little_sun }
+
+exclaim_bubble_voucher:
+  material: paper
+  name: "<#ffffff>느낌표 말풍선 교환권"
+  lore: ["<gray>◆ 일반 <dark_gray>· <gray>머리 위 치장", "<gray>우클릭: 느낌표 말풍선을 계정에 등록합니다.", "<dark_gray>등록 후 /치장 에서 착용 · 거래소에서 사고팔 수 있음"]
+  texture: exclaim_bubble_voucher
+  voucher: { cosmetic: exclaim_bubble }
+
+rainbow_arc_voucher:
+  material: paper
+  name: "<#ff9ad5>무지개 교환권"
+  lore: ["<#5ab0ff>◆ 희귀 <dark_gray>· <gray>머리 위 치장", "<gray>우클릭: 무지개를 계정에 등록합니다.", "<dark_gray>등록 후 /치장 에서 착용 · 거래소에서 사고팔 수 있음"]
+  texture: rainbow_arc_voucher
+  voucher: { cosmetic: rainbow_arc }
+
+star_ring_voucher:
+  material: paper
+  name: "<#c39bff>별 고리 교환권"
+  lore: ["<#c58cff>◆ 영웅 <dark_gray>· <gray>머리 위 치장", "<gray>우클릭: 별 고리를 계정에 등록합니다.", "<dark_gray>등록 후 /치장 에서 착용 · 거래소에서 사고팔 수 있음"]
+  texture: star_ring_voucher
+  voucher: { cosmetic: star_ring }
+
+hamster_voucher:
+  material: paper
+  name: "<#f2b45a>햄스터 교환권"
+  lore: ["<gray>◆ 일반 <dark_gray>· <gray>어깨 치장", "<gray>우클릭: 햄스터를 계정에 등록합니다.", "<dark_gray>등록 후 /치장 에서 착용 · 거래소에서 사고팔 수 있음"]
+  texture: hamster_voucher
+  voucher: { cosmetic: hamster }
+
+squirrel_voucher:
+  material: paper
+  name: "<#d9883a>다람쥐 교환권"
+  lore: ["<gray>◆ 일반 <dark_gray>· <gray>어깨 치장", "<gray>우클릭: 다람쥐를 계정에 등록합니다.", "<dark_gray>등록 후 /치장 에서 착용 · 거래소에서 사고팔 수 있음"]
+  texture: squirrel_voucher
+  voucher: { cosmetic: squirrel }
+
+parrot_voucher:
+  material: paper
+  name: "<#ff5a3c>앵무새 교환권"
+  lore: ["<#5ab0ff>◆ 희귀 <dark_gray>· <gray>어깨 치장", "<gray>우클릭: 앵무새를 계정에 등록합니다.", "<dark_gray>등록 후 /치장 에서 착용 · 거래소에서 사고팔 수 있음"]
+  texture: parrot_voucher
+  voucher: { cosmetic: parrot }
+
+hedgehog_voucher:
+  material: paper
+  name: "<#b0835a>고슴도치 교환권"
+  lore: ["<#5ab0ff>◆ 희귀 <dark_gray>· <gray>어깨 치장", "<gray>우클릭: 고슴도치를 계정에 등록합니다.", "<dark_gray>등록 후 /치장 에서 착용 · 거래소에서 사고팔 수 있음"]
+  texture: hedgehog_voucher
+  voucher: { cosmetic: hedgehog }
+
+shoulder_dragon_voucher:
+  material: paper
+  name: "<#ff6a3a>꼬마 붉은 용 교환권"
+  lore: ["<#c58cff>◆ 영웅 <dark_gray>· <gray>어깨 치장", "<gray>우클릭: 꼬마 붉은 용을 계정에 등록합니다.", "<dark_gray>등록 후 /치장 에서 착용 · 거래소에서 사고팔 수 있음"]
+  texture: shoulder_dragon_voucher
+  voucher: { cosmetic: shoulder_dragon }
+
+turtle_shell_voucher:
+  material: paper
+  name: "<#6fb84a>거북 등껍질 가방 교환권"
+  lore: ["<gray>◆ 일반 <dark_gray>· <gray>등 치장", "<gray>우클릭: 거북 등껍질 가방을 계정에 등록합니다.", "<dark_gray>등록 후 /치장 에서 착용 · 거래소에서 사고팔 수 있음"]
+  texture: turtle_shell_voucher
+  voucher: { cosmetic: turtle_shell }
+
+jetpack_voucher:
+  material: paper
+  name: "<#8fd3ff>로켓 배낭 교환권"
+  lore: ["<#c58cff>◆ 영웅 <dark_gray>· <gray>등 치장", "<gray>우클릭: 로켓 배낭을 계정에 등록합니다.", "<dark_gray>등록 후 /치장 에서 착용 · 거래소에서 사고팔 수 있음"]
+  texture: jetpack_voucher
+  voucher: { cosmetic: jetpack }
