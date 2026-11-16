@@ -101,6 +101,11 @@ class CosmeticViewsTest {
             Set<String> seen = new HashSet<>();
             for (JsonElement c : byCosmetic.getAsJsonArray("cases")) {
                 String when = c.getAsJsonObject().get("when").getAsString();
+                if (when.equals(CosmeticViews.HIDDEN)) {
+                    // /투명갑옷: the own helmet is drawn as nothing on the head
+                    assertEquals("minecraft:empty", c.getAsJsonObject().getAsJsonObject("model").get("type").getAsString());
+                    continue;
+                }
                 seen.add(when);
                 JsonObject cosmeticDef = json(CosmeticViews.definitionPath(when));
                 assertEquals(cosmeticDef.get("model"), c.getAsJsonObject().get("model"), "head look = the cosmetic itself");

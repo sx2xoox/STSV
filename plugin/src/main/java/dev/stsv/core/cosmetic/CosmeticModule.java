@@ -826,6 +826,14 @@ public final class CosmeticModule implements StsvModule, Listener {
             }
         }
         if (shownHead(p).isPresent() || selfShown.contains(p.getUniqueId())) refreshLater(p);
+        else if (armorHidden(p) && packets != null) {
+            // /투명갑옷: the hidden helmet needs the pack's head wrapper; now that it is there, show it again
+            Bukkit.getScheduler().runTask(plugin, () -> {
+                if (!p.isOnline()) return;
+                syncSelf(p);
+                p.updateInventory();
+            });
+        }
     }
 
     @EventHandler

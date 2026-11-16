@@ -50,6 +50,8 @@ public final class CosmeticViews {
     /** Wrapper definitions live under assets/stsv/items/cosmetic_view/. */
     static final String PREFIX = "cosmetic_view/";
     static final Key EMPTY = Key.key("stsv", PREFIX + "empty");
+    /** custom_model_data string for "draw nothing on the head" (/투명갑옷 on the wearer's own screen) */
+    static final String HIDDEN = "stsv:hidden";
     static final String EMPTY_SLOT_SPRITE = "stsv:item/cosmetic_view/empty_helmet_slot";
     /** Marks a self-view item; holds the real item (bytes, empty = the slot was empty). */
     static final NamespacedKey MARKER = new NamespacedKey("stsv", "cosmetic_view");
@@ -130,6 +132,14 @@ public final class CosmeticViews {
             cases.add(when);
         }
         if (cases.isEmpty()) return Set.of();
+        // /투명갑옷: the own helmet drawn as nothing on the head (an armor piece without its equipment model would
+        // otherwise be drawn on the head as a floating item)
+        JsonObject hidden = new JsonObject();
+        hidden.addProperty("when", HIDDEN);
+        JsonObject none = new JsonObject();
+        none.addProperty("type", "minecraft:empty");
+        hidden.add("model", none);
+        cases.add(hidden);
 
         Set<String> written = new TreeSet<>();
         for (String target : targets(items)) {
@@ -257,6 +267,15 @@ public final class CosmeticViews {
      * Null when there is nothing to hide (empty, an elytra, no model). Marked like a self view, so a creative
      * client sending it back gets the real piece ({@link #restore}).
      */
+    /**
+     * /투명갑옷, the wearer's own helmet slot: the same piece, drawn as nothing on the head through the head wrapper
+     * (inventory unchanged). Null when it cannot be wrapped (then the real helmet stays: better seen than floating).
+     */
+    static ItemStack hiddenHelmet(ItemStack real, Set<String> targets) {
+        if (real == null || real.isEmpty()) return null;
+        return selfView(real, HIDDEN, targets);
+    }
+
     static ItemStack hiddenArmor(ItemStack real) {
         if (real == null || real.isEmpty() || real.getType() == Material.ELYTRA) return null;
         Equippable eq = real.getData(DataComponentTypes.EQUIPPABLE);

@@ -484,7 +484,10 @@ final class CosmeticPackets {
             if (view != null) return view;
         }
         if (!h.hideSelf) return null;
-        ItemStack hidden = CosmeticViews.hiddenArmor((ItemStack) asBukkit.invoke(null, nmsReal));
+        ItemStack real = (ItemStack) asBukkit.invoke(null, nmsReal);
+        // the head: without its equipment model a helmet would float on the head as an item, so it goes through
+        // the head wrapper and is drawn as nothing there
+        ItemStack hidden = head ? CosmeticViews.hiddenHelmet(real, h.views) : CosmeticViews.hiddenArmor(real);
         return hidden == null ? null : asNms.invoke(null, hidden);
     }
 
