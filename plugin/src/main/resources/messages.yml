@@ -13,19 +13,19 @@ wardrobe:
   not-ground: "<red>땅에 서 있을 때 사용하세요."
   in-water: "<red>물이나 용암 밖에서 사용하세요."
   burning: "<red>불이 꺼진 뒤 사용하세요."
-  in-combat: "<red>전투 중에는 쓸 수 없습니다. <gray>(피해를 입고 10초 뒤부터)"
+  in-combat: "<red>전투 중에는 쓸 수 없습니다. <dark_gray>(피해 뒤 10초)"
   not-now: "<red>지금은 쓸 수 없습니다."
-  no-room: "<red>앞쪽 공간이 부족합니다. 앞쪽 {blocks}칸이 트인 곳에서 사용하세요."
+  no-room: "<red>앞쪽 {blocks}칸이 트인 곳에서 사용하세요."
   took-off: "<gray>벗었습니다: </gray>{cosmetic}"
   wearing: "<green>착용: </green>{cosmetic}"
   wearing-replace: "<green>착용: </green>{cosmetic} <gray>({old} 대신)"
   # 없는 치장을 눌렀을 때 (마네킹에 입혀 보기만 하고 얻는 곳 안내): 얻는 곳마다
   locked-hint:
-    gacha: "<gray>🔒 아직 없는 치장 · <white>치장 뽑기</white>에서 얻을 수 있어요 <dark_gray>(Shift+클릭: 뽑기 열기)"
-    achievement: "<gray>🔒 아직 없는 치장 · <white>업적 보상</white>으로 얻을 수 있어요 <dark_gray>(/업적)"
-    limited: "<gray>🔒 아직 없는 치장 · <gold>한정</gold> <white>주간 순위 1위 · 상인 행렬</white>에서만 얻어요"
-    donation: "<gray>🔒 아직 없는 치장 · <gradient:#ffd36b:#ff7ac6>후원 한정</gradient> <white>/후원</white> 에서만 얻어요"
-    other: "<gray>🔒 아직 없는 치장 · 입혀 보기만 할 수 있어요"
+    gacha: "<gray>🔒 미보유 · <white>치장 뽑기</white>에서 <dark_gray>(쉬프트 클릭: 뽑기)"
+    achievement: "<gray>🔒 미보유 · <white>업적 보상</white> <dark_gray>(/업적)"
+    limited: "<gray>🔒 미보유 · <gold>한정</gold> <white>주간 1위 · 상인 행렬"
+    donation: "<gray>🔒 미보유 · <gradient:#ffd36b:#ff7ac6>후원 한정</gradient> <dark_gray>(/후원)"
+    other: "<gray>🔒 미보유 · 입혀 보기만 가능"
   # 미리보기 화면 제목: 위 = 치장 이름, 아래 = 상태 + 안내
   title: "<gold>치장"
   hint: "<gray>웅크리기: 메뉴"
@@ -34,8 +34,8 @@ wardrobe:
   state-removed: "<gray>벗음"
   state-locked: "<red>🔒 미보유 · 미리보기"
   subtitle: "{state} <dark_gray>|</dark_gray> {hint}"
-  left: "<green>착용 중인 치장: </green>{cosmetic} <gray>(F5로 확인. 투구 칸과는 별개)"
-  left-self-hint: "<gray>머리 위·어깨·등·꼬리 치장은 다른 사람에게 보입니다. 내 화면에도 보려면 /치장 → <white>내 화면에 표시"
+  left: "<green>착용 중: </green>{cosmetic} <dark_gray>(F5로 확인)"
+  left-self-hint: "<gray>내 화면에도 보려면 /치장 → <white>내 화면에 표시"
   # 탭 (부위 이름은 cosmetic.slot)
   tab-all: "전체"
   tab-worn: "착용 중"
@@ -50,21 +50,21 @@ wardrobe:
   take-off-slot: "{slot} 치장 벗기"
   self-on: "<green>켜짐"
   self-off: "<gray>꺼짐"
-  self-turned-on: "<green>내 화면에 표시: 켜짐 <gray>(1인칭에서도 보일 수 있어요)"
-  self-turned-off: "<gray>내 화면에 표시: 꺼짐 <dark_gray>(다른 사람에게는 그대로 보임)"
+  self-turned-on: "<green>내 화면에 표시: 켜짐"
+  self-turned-off: "<gray>내 화면에 표시: 꺼짐 <dark_gray>(남에게는 보임)"
   # 메뉴의 치장 설명
   lore-rarity: "{color}◆ {rarity} <dark_gray>· <gray>{slot}"
-  lore-worn: ["<green>✔ 착용 중", "<gray>클릭: <white>벗기"]
-  lore-owned: ["<green>보유 중", "<gray>클릭: <white>착용"]
-  lore-replaces: "<dark_gray>(지금 착용 중인 {cosmetic} 대신)"
+  lore-worn: ["<green>✔ 착용 중", "<yellow>클릭: 벗기"]
+  lore-owned: ["<green>보유 중", "<yellow>클릭: 착용"]
+  lore-replaces: "<dark_gray>({cosmetic} 대신)"
   # 없는 치장: 어두운 '?' 카드 (테두리·물음표 = 등급 색), 이름은 회색
   locked-name: "<dark_gray>{cosmetic}"
-  lore-locked: ["<red>🔒 아직 없음"]
+  lore-locked: ["<red>🔒 미보유"]
   lore-source: "<gray>얻는 곳: {source}"
   lore-donation: "<gradient:#ffd36b:#ff7ac6>✦ 후원 한정</gradient> <dark_gray>· 뽑기·교환 불가"
-  lore-set: "<#ffd36b>세트: {set} <gray>({worn}/{total} 착용, 다 입으면 세트 효과)"
-  lore-set-awake: "<#7fd8ff>✦ 세트 각성 중</#7fd8ff> <gray>(모든 조각이 각성한 모습)"
-  lore-set-asleep: "<dark_gray>✦ 세트를 모두 걸치면 각성"
+  lore-set: "<#ffd36b>세트: {set} <gray>{worn}/{total}"
+  lore-set-awake: "<#7fd8ff>✦ 세트 각성 중"
+  lore-set-asleep: "<dark_gray>✦ 모두 입으면 각성"
   source:
     gacha: "<white>치장 뽑기 <gray>(/뽑기)"
     achievement: "<white>업적 보상 <gray>(/업적)"
@@ -72,23 +72,23 @@ wardrobe:
     donation: "<gradient:#ffd36b:#ff7ac6>후원 한정</gradient> <gray>(/후원)"
     other: "<white>특별 보상"
   lore-obtain: "<dark_gray>{obtain}"
-  lore-locked-click: "<gray>클릭: <white>마네킹에 입혀 보기"
-  lore-locked-gacha: "<gray>Shift+클릭: <white>치장 뽑기 열기"
+  lore-locked-click: "<yellow>클릭: 입혀 보기"
+  lore-locked-gacha: "<yellow>쉬프트 클릭: 치장 뽑기"
 
 cosmetic:
   # /투명갑옷: 내 갑옷을 다른 사람에게 숨김 (방어력 그대로, 겉날개는 보임)
-  hide-armor-on: "<green>투명갑옷 켜짐:</green> <gray>내 갑옷이 나와 다른 사람 모두에게 보이지 않습니다 (방어력은 그대로, 인벤토리에는 보임, 겉날개는 보임). 끄기: <white>/투명갑옷"
+  hide-armor-on: "<green>투명갑옷 켜짐</green> <gray>· 방어력 그대로, 겉날개는 보임 <dark_gray>(끄기: /투명갑옷)"
   hide-armor-off: "<gray>투명갑옷 꺼짐: 내 갑옷이 다시 보입니다."
   # 세트 각성: 세트를 모두 걸치면 (cosmetic_sets.yml awaken) · 세트가 커져서 새 조각을 받았을 때 (upgrade)
   awakened-title: "{set}<white> 세트 각성"
   awakened-subtitle: "<gray>모든 조각이 깨어납니다"
-  set-upgraded: "{set}<gray> 세트가 커졌습니다: 새 조각 <white>{count}개</white>를 받았습니다. <dark_gray>(/치장)"
-  hide-armor-unavailable: "<red>이 서버에서는 투명갑옷을 쓸 수 없습니다. <gray>(관리자에게 알려 주세요)"
+  set-upgraded: "{set}<gray> 세트 새 조각 <white>{count}개</white> 받음 <dark_gray>(/치장)"
+  hide-armor-unavailable: "<red>이 서버에서는 투명갑옷을 쓸 수 없습니다."
   voucher-unknown: "<red>이 교환권의 치장을 찾을 수 없습니다. 관리자에게 알려주세요."
   already-owned: "<yellow>이미 가지고 있는 치장입니다."
   got-title: "{color}<b>새 치장 획득!</b>"
   got-subtitle: "{cosmetic} <dark_gray>·</dark_gray> {color}{rarity}"
-  got: "<green>치장 </green>{cosmetic}<green> 을(를) 얻었습니다. /치장 에서 입어보세요."
+  got: "<green>새 치장: </green>{cosmetic} <dark_gray>(/치장)"
   slot:
     head: "머리"
     above: "머리 위"
@@ -108,11 +108,11 @@ gacha:
   busy: "<yellow>뽑기 결과를 보여 주는 중입니다."
   not-enough: "<red>돈이 부족합니다 <gray>({price} 필요)"
   daily-limit: "<red>오늘은 더 뽑을 수 없습니다 <gray>(하루 {limit}회, 남은 횟수 {left})"
-  dropped: "<yellow>인벤토리가 가득 차서 교환권 {count}장을 발밑에 떨어뜨렸습니다. <gray>(나만 주울 수 있음)"
+  dropped: "<yellow>인벤토리가 가득 차 교환권 {count}장을 발밑에 떨어뜨렸습니다. <dark_gray>(나만 주움)"
   confirm-click: "<yellow>클릭: 뽑기"
   confirm-again: "<gold><b>한 번 더 클릭하면 뽑습니다</b>"
-  lore-new: ["<red>🔒 아직 없음 <dark_gray>· <white>나오면 바로 내 치장"]
-  lore-owned: ["<green>보유 중 <dark_gray>· <gray>또 나오면 <white>교환권", "<dark_gray>교환권은 거래소에서 사고팔 수 있음"]
+  lore-new: ["<red>🔒 미보유 <dark_gray>· 나오면 바로 내 것"]
+  lore-owned: ["<green>보유 중 <dark_gray>· 또 나오면 교환권"]
   # 뽑는 장면 (제목 / 부제목)
   roll-title: "<#f0e2b0>치장 뽑기{dots}"
   roll-hint: "{color}✦ ✦ ✦"
@@ -125,7 +125,7 @@ gacha:
   result: "<gold>치장 뽑기 {count}회: </gold><green>새 치장 {new}개</green><gray>, </gray><yellow>교환권 {vouchers}장"
   result-new: " <dark_gray>-</dark_gray> {color}[{rarity}] {cosmetic} <green>새 치장"
   result-duplicate: " <dark_gray>-</dark_gray> {color}[{rarity}] {cosmetic} <yellow>교환권 <gray>(인벤토리)"
-  wear-hint: "<gray>새 치장은 <white>/치장</white> 에서 입어 보세요."
+  wear-hint: "<gray>입어 보기: <white>/치장"
   broadcast: "<white>{player}</white><gray> 님이 치장 뽑기에서 </gray>{color}[{rarity}] {cosmetic}<gray> 을(를) 뽑았습니다!"
 
 achievement:
@@ -134,7 +134,7 @@ achievement:
   claim-hint: "<yellow><u>[/업적 에서 보상 받기]</u>"
   broadcast: "<white>{player}</white><gray> 님이 </gray>{color}[{tier}]<gray> 업적 </gray>{color}{name}<gray> 을(를) 달성했습니다!"
   waiting: "<yellow>받지 않은 업적 보상이 {count}개 있습니다. <u>[/업적]</u>"
-  loading: "<gray>업적 기록을 불러오는 중입니다. 잠시 뒤 다시 입력하세요."
+  loading: "<gray>업적을 불러오는 중입니다. 잠시 뒤 다시 해 보세요."
   not-done: "<red>아직 달성하지 않은 업적입니다."
   already-claimed: "<gray>이미 받은 보상입니다."
   no-room: "<red>인벤토리에 빈칸이 {count}칸 필요합니다."
@@ -147,7 +147,7 @@ achievement:
   category-progress: "<gray>달성 <white>{done}/{total} <dark_gray>{bar}"
   category-tier: "<dark_gray> · </dark_gray>{color}{tier} <gray>{done}/{total}"
   category-waiting: "<yellow>받을 보상 {count}개"
-  category-click: "<dark_gray>클릭: 업적 보기"
+  category-click: "<yellow>클릭: 업적 보기"
   # 업적 설명
   secret-name: "<dark_gray>???"
   secret-description: "숨겨진 업적. 달성하면 보입니다."
@@ -159,7 +159,7 @@ achievement:
   lore-claim: "<yellow>클릭: 보상 받기"
   lore-claimed: "<dark_gray>보상 받음"
   # 업적 순위 (/업적 순위)
-  rank-header: "<gold><b>업적 순위</b> <gray>(점수: 쉬움 10 · 보통 25 · 어려움 50 · 매우 어려움 100)"
+  rank-header: "<gold><b>업적 순위</b>"
   rank-line: " <gray>{rank}.</gray> <white>{player}</white> <dark_gray>-</dark_gray> <gold>{points}점</gold> <dark_gray>({done}개)"
   rank-mine: " <dark_gray>…</dark_gray> <gray>내 순위 {rank}위 · {points}점"
   rank-empty: "<gray>아직 업적을 달성한 사람이 없습니다."
@@ -170,7 +170,7 @@ skin:
   applied: "<light_purple>스킨이 적용되었습니다!"
   none-held: "<red>손에 든 아이템에 스킨이 없습니다."
   removed: "<green>스킨을 해제했습니다."
-  usage: "<gray>스킨북을 들고 <white>우클릭</white> → 가운데 칸에 도구를 넣으면 스킨이 입혀집니다. <dark_gray>· <gray>/스킨 해제 <dark_gray>- 손에 든 도구의 스킨을 떼고 스킨북을 돌려받음"
+  usage: "<gray>스킨북 우클릭 → 도구를 넣으면 스킨 적용 <dark_gray>· /스킨 해제: 떼고 책 돌려받기"
 
 profile:
   not-found: "<red>그런 플레이어의 기록이 없습니다."
@@ -183,10 +183,10 @@ profile:
   title-current: "<gray>칭호: {title}"
   title-none: "<dark_gray>칭호 없음"
   title-owned-lore: ["<gray>{description}", "", "<yellow>클릭: 장착"]
-  title-worn-lore: ["<gray>{description}", "", "<green>✔ 장착 중 <gray>(클릭: 해제)"]
+  title-worn-lore: ["<gray>{description}", "", "<green>✔ 장착 중", "<yellow>클릭: 해제"]
   title-locked-lore: ["<gray>{description}", "", "<red>🔒 미획득"]
   title-equipped: "<green>칭호 장착: </green>{title}"
-  title-not-owned: "<red>가진 칭호 중에 '{name}' 이(가) 없습니다. <gray>/칭호 로 목록 보기"
+  title-not-owned: "<red>'{name}' 칭호가 없습니다. <dark_gray>(/칭호)"
   title-removed: "<gray>칭호를 해제했습니다."
   title-got: "<gold>새 칭호 획득! </gold>{title}"
   other-titles: "<gray>다른 플레이어의 칭호는 볼 수만 있습니다."
@@ -205,7 +205,7 @@ profile:
   achievements-done: "<gray>달성 <white>{done}/{total}"
   achievements-tier: "<dark_gray> · </dark_gray>{color}{tier} <gray>{done}/{total}"
   achievements-recent: "<gray>최근 달성:"
-  achievements-click: "<yellow>클릭: /업적 <dark_gray>(내 업적)"
+  achievements-click: "<yellow>클릭: 내 업적"
   # 닉네임이 있는 플레이어의 프로필: 실제 계정 이름
   real-name: "<gray>계정 이름: <white>{name}"
 
@@ -213,10 +213,10 @@ profile:
 # 칭호 배너 (관리자 테스트 기능): /칭호 → '칭호 배너' 탭
 banner:
   item-name: "<white>{name} 배너"
-  item-lore: ["", "<gray>칭호와 닉네임을 움직이는 판에 담아", "<gray>채팅 · 탭 목록 · 머리 위에 보여 줍니다.", "", "<yellow>클릭: 장착"]
-  item-worn-lore: ["", "<green>✔ 장착 중", "<yellow>클릭: 해제"]
-  item-locked-lore: ["", "<gray>칭호와 닉네임을 움직이는 판에 담아", "<gray>채팅 · 탭 목록 · 머리 위에 보여 줍니다.", "", "<red>✖ 아직 없는 배너", "<gray>후원 상점 <white>/후원</white> 에서 구할 수 있습니다."]
-  locked: "<red>{name} 배너가 없습니다. <gray>후원 상점(/후원)에서 구할 수 있습니다."
+  item-lore: ["<gray>채팅 · 탭 · 머리 위에 보임", "", "<yellow>클릭: 장착"]
+  item-worn-lore: ["<green>✔ 장착 중", "", "<yellow>클릭: 해제"]
+  item-locked-lore: ["<gray>채팅 · 탭 · 머리 위에 보임", "", "<red>🔒 미보유 <dark_gray>(/후원)"]
+  locked: "<red>{name} 배너가 없습니다. <dark_gray>(/후원)"
   off-name: "<red>배너 해제"
   off-lore: ["<gray>지금 단 칭호 배너 떼기"]
   equipped: "<green>칭호 배너 장착: <white>{name}"
@@ -224,40 +224,40 @@ banner:
 # 감정표현 (/감정표현: README "감정표현"). 가진 감정표현만 할 수 있음 (후원 상점, /관리자 해금). {emote} · {name} = 감정표현 이름
 emote:
   disabled: "<red>이 서버에서는 감정표현을 쓸 수 없습니다."
-  usage: "<gray>/감정표현 <dark_gray>- 감정표현 휠 (제자리에서 Ctrl + Shift 로도 열림) · <gray>/감정표현 <이름> <dark_gray>- 하기 · <gray>/감정표현 그만 <dark_gray>- 끝내기 (웅크려도 끝납니다)"
+  usage: "<gray>/감정표현 <dark_gray>(휠 · Ctrl+Shift) <gray>· /감정표현 <이름> · /감정표현 그만"
   menu-loop: "멈출 때까지 되풀이"
   menu-once: "한 번 하고 끝"
   # 감정표현 휠 (menus/emote_wheel.yml): 칸, 칸에 놓을 것 고르기
   wheel-name: "<white>{name}"
-  wheel-lore: ["<gray>{kind} <dark_gray>· <gray>한 바퀴 {seconds}초", "", "<yellow>좌클릭: 하기", "<gray>우클릭: 이 칸 바꾸기"]
+  wheel-lore: ["<gray>{kind} <dark_gray>· {seconds}초", "", "<yellow>클릭: 하기", "<yellow>우클릭: 칸 바꾸기"]
   wheel-empty: "<gray>빈 칸"
   wheel-hub: "<gray>감정표현 휠"
-  wheel-hub-lore: ["<gray>둘레 여섯 칸에 감정표현을 놓아 두면", "<gray>퀵 키(Ctrl + Shift)의 화면 휠에 그대로 뜹니다."]
-  wheel-hub-playing: ["<green>지금 하는 중", "<gray>웅크리거나 아래 그만하기로 끝냅니다."]
+  wheel-hub-lore: ["<gray>둘레 6칸이 그대로", "<gray>Ctrl + Shift 휠에 떠요"]
+  wheel-hub-playing: ["<green>하는 중", "<gray>웅크리면 끝"]
   # 퀵 키의 화면 휠 (화면에 뜨는 휠 아래의 한 줄): 안내, 고른 감정표현, 빈 칸
   hud-hint: "<gray>마우스로 고르고 <white>웅크리기를 떼면</white> 실행"
   hud-pick: "<white>{name}"
   hud-empty: "<dark_gray>빈 칸 <gray>(/감정표현 에서 놓기)"
   wheel-empty-lore: ["<yellow>클릭: 이 칸에 놓을 감정표현 고르기"]
   pick-name-locked: "<dark_gray>{name}"
-  pick-lore: ["<gray>{kind} <dark_gray>· <gray>한 바퀴 {seconds}초", "", "<yellow>클릭: 이 칸에 놓기"]
-  pick-lore-here: ["<gray>{kind} <dark_gray>· <gray>한 바퀴 {seconds}초", "", "<green>✔ 지금 이 칸에 있음"]
-  pick-lore-locked: ["<gray>{kind} <dark_gray>· <gray>한 바퀴 {seconds}초", "", "<red>✖ 아직 없는 감정표현", "<gray>후원 상점 <white>/후원</white> 에서 구할 수 있습니다."]
-  locked: "<red><white>{name}</white> 감정표현이 없습니다. <gray>후원 상점(/후원)에서 구할 수 있습니다."
+  pick-lore: ["<gray>{kind} <dark_gray>· {seconds}초", "", "<yellow>클릭: 이 칸에 놓기"]
+  pick-lore-here: ["<gray>{kind} <dark_gray>· {seconds}초", "", "<green>✔ 이 칸에 있음"]
+  pick-lore-locked: ["<gray>{kind} <dark_gray>· {seconds}초", "", "<red>🔒 미보유 <dark_gray>(/후원)"]
+  locked: "<red><white>{name}</white> 감정표현이 없습니다. <dark_gray>(/후원)"
   list: "<gray>감정표현: {emotes}"
   list-entry: "<click:run_command:'/감정표현 {name}'><hover:show_text:'<gray>클릭하면 <white>{name}</white> 감정표현을 합니다'><white><u>{name}</u></white></hover></click>"
   list-separator: "<dark_gray>, </dark_gray>"
-  unknown: "<red><white>{name}</white> 감정표현은 없습니다. <gray>/감정표현 으로 목록을 볼 수 있습니다."
+  unknown: "<red>없는 감정표현: <white>{name} <dark_gray>(목록: /감정표현)"
   not-playing: "<gray>지금 하고 있는 감정표현이 없습니다."
   cooldown: "<red>감정표현은 <white>{seconds}초</white> 뒤에 다시 할 수 있습니다."
   dismount: "<red>탈것에서 내린 뒤 사용하세요."
   not-ground: "<red>땅에 서 있을 때 사용하세요."
   in-water: "<red>물이나 용암 밖에서 사용하세요."
   burning: "<red>불이 꺼진 뒤 사용하세요."
-  in-combat: "<red>전투 중에는 쓸 수 없습니다. <gray>(피해를 입고 10초 뒤부터)"
+  in-combat: "<red>전투 중에는 쓸 수 없습니다. <dark_gray>(피해 뒤 10초)"
   not-now: "<red>지금은 쓸 수 없습니다."
-  no-room: "<red>주변이 너무 좁아 카메라를 둘 곳이 없습니다. 조금 트인 곳에서 사용하세요."
-  no-skin: "<yellow>스킨을 불러오지 못해 기본 모습의 인형으로 보여 드립니다."
+  no-room: "<red>너무 좁습니다. 트인 곳에서 해 주세요."
+  no-skin: "<yellow>스킨을 못 불러와 기본 모습으로 합니다."
   hint: "<white>{emote}</white> <gray>· 웅크리면 끝납니다"
   hint-body: "<white>{emote}</white> <gray>· 웅크리면 끝 · <white>F5</white> 로 내 모습 보기"
   stopped: "<gray>감정표현을 끝냈습니다."
@@ -267,23 +267,23 @@ nickname:
   disabled: "<red>이 서버에서는 닉네임을 쓸 수 없습니다."
   none: "<gray>아직 닉네임이 없습니다."
   current: "<gray>지금 닉네임: <white>{name}"
-  usage: "<gray>/닉네임 <이름> <dark_gray>- 한글·영문·숫자 {min}~{max}자 (다음 변경: {cost}) <dark_gray>· /닉네임 해제 <dark_gray>(무료)"
-  usage-color: "<gray>/닉네임 색 <dark_gray>- 색 고르기 메뉴 · /닉네임 색 #RRGGBB <dark_gray>({cost}) · <gray>/닉네임 색 #RRGGBB #RRGGBB <dark_gray>(그라데이션, {gradient}) · <gray>/닉네임 색 기본"
+  usage: "<gray>/닉네임 <이름> <dark_gray>({min}~{max}자 · {cost}) <gray>· /닉네임 해제"
+  usage-color: "<gray>/닉네임 색 <dark_gray>(메뉴) <gray>· /닉네임 색 #RRGGBB [#RRGGBB] <dark_gray>({cost} · 그라데이션 {gradient}) <gray>· /닉네임 색 기본"
   free: "<green>무료</green>"
   set: "<green>닉네임을 </green>{name}<green>(으)로 정했습니다!"
   set-paid: "<green>닉네임을 </green>{name}<green>(으)로 바꿨습니다. <gray>(</gray>{cost}<gray>)"
-  removed: "<gray>닉네임을 해제했습니다. 이제 <white>{name}</white>(으)로 보입니다."
+  removed: "<gray>닉네임 해제: 이제 <white>{name}</white>"
   same: "<yellow>지금 쓰는 닉네임과 같습니다."
-  length: "<red>닉네임은 {min}~{max}자로 정해 주세요. <gray>(한글 한 글자 = 1자)"
-  characters: "<red>닉네임에는 한글, 영문, 숫자만 쓸 수 있습니다. <gray>(띄어쓰기·기호·색 코드는 안 됨, 색은 /닉네임 색)"
+  length: "<red>닉네임은 {min}~{max}자로 정해 주세요."
+  characters: "<red>한글 · 영문 · 숫자만 쓸 수 있습니다. <dark_gray>(색은 /닉네임 색)"
   banned: "<red>쓸 수 없는 말이 들어 있습니다."
   reserved: "<red>명령어 단어는 닉네임으로 쓸 수 없습니다."
   taken: "<red>다른 플레이어가 쓰는 닉네임입니다: <white>{name}"
   taken-real: "<red>다른 플레이어의 계정 이름과 같은 닉네임은 쓸 수 없습니다: <white>{name}"
   cooldown: "<red>닉네임은 {time} 뒤에 다시 바꿀 수 있습니다."
   not-enough: "<red>돈이 부족합니다. <gray>(필요 </gray>{cost}<gray>, 잔액 </gray>{balance}<gray>)"
-  confirm: "<yellow>닉네임을 <white>{name}</white>(으)로 바꾸는 데 </yellow>{cost}<yellow> 듭니다. 15초 안에 같은 명령을 한 번 더 입력하면 바뀝니다."
-  failed: "<red>저장하지 못해 되돌렸습니다. <gray>(돈은 돌려드렸습니다. 잠시 뒤 다시 해 보세요)"
+  confirm: "<yellow>닉네임 → <white>{name}</white> · </yellow>{cost}<yellow> · 15초 안에 한 번 더 입력하면 바뀝니다."
+  failed: "<red>저장하지 못해 되돌렸습니다. <dark_gray>(돈은 돌려드림)"
   admin-changed: "<gray>관리자가 닉네임을 바꿨습니다: </gray>{name}"
   admin-taken: "<yellow>관리자가 내 닉네임을 다른 플레이어에게 주어 닉네임이 해제되었습니다."
   # 채팅에서 닉네임에 마우스를 올리면
@@ -291,11 +291,11 @@ nickname:
   # 탭 목록 (config nicknames.tab-real-name)
   tab-real: " <dark_gray>({name})"
   color-disabled: "<red>이 서버에서는 닉네임 색을 쓸 수 없습니다."
-  color-bad: "<red>색은 #RRGGBB 형식으로 적어 주세요. <gray>(예: /닉네임 색 #ffb7c5, 그라데이션: /닉네임 색 #ffb347 #ff5e8a, 없애기: /닉네임 색 기본)"
-  color-dark: "<red>너무 어두워서 채팅과 탭 목록에서 읽기 어려운 색입니다: {hex} <gray>(더 밝은 색을 골라 주세요)"
+  color-bad: "<red>색은 #RRGGBB 로 적어 주세요. <dark_gray>(예: #ffb7c5)"
+  color-dark: "<red>너무 어두운 색입니다: {hex} <dark_gray>(더 밝게)"
   color-same: "<yellow>지금 쓰는 색과 같습니다."
-  color-confirm: "<yellow>닉네임 색을 </yellow>{name}<yellow>(으)로 바꾸는 데 </yellow>{cost}<yellow> 듭니다. 15초 안에 같은 명령을 한 번 더 입력하면 바뀝니다."
-  color-confirm-click: "<yellow>닉네임 색을 </yellow>{name}<yellow>(으)로 바꾸는 데 </yellow>{cost}<yellow> 듭니다. 15초 안에 한 번 더 클릭하면 바뀝니다."
+  color-confirm: "<yellow>닉네임 색 → </yellow>{name}<yellow> · </yellow>{cost}<yellow> · 15초 안에 한 번 더 입력하면 바뀝니다."
+  color-confirm-click: "<yellow>닉네임 색 → </yellow>{name}<yellow> · </yellow>{cost}<yellow> · 15초 안에 한 번 더 클릭"
   color-set: "<green>닉네임 색을 바꿨습니다: </green>{name}"
   color-set-paid: "<green>닉네임 색을 바꿨습니다: </green>{name} <gray>(</gray>{cost}<gray>)"
   color-removed: "<gray>닉네임 색을 없앴습니다."
@@ -303,7 +303,7 @@ nickname:
   # 색 고르기 메뉴의 칸: {label} = 색 이름, {hex} = 색 값
   tile-color: ["<gray>{label} <dark_gray>{hex}"]
   tile-gradient: ["<gray>{label} <dark_gray>(그라데이션) {hex}"]
-  tile-click: "<yellow>클릭: 이 색으로 <gray>({cost})"
+  tile-click: "<yellow>클릭: 이 색으로 <dark_gray>({cost})"
   tile-worn: "<green>✔ 지금 쓰는 색"
 
 hall:
@@ -333,25 +333,25 @@ hud:
   # 오른쪽 사이드바 제목 (스코어보드 사이드바용. 리소스팩 패널은 제목 자리에 서버 마크 그림을 그림)
   sidebar-title: "<gradient:#ffb35c:#ff6a3d><b>STSV</b></gradient>"
   # /사이드바
-  sidebar-on: "<green>사이드바를 켰습니다. <gray>(/사이드바 로 끄기)"
-  sidebar-off: "<gray>사이드바를 껐습니다. <dark_gray>(/사이드바 로 다시 켜기)"
-  sidebar-usage: "<gray>사용법: <white>/사이드바 <gray>[켜기|끄기] <dark_gray>(그냥 /사이드바 = 켜기·끄기 전환) <gray>· <white>/사이드바 위치 <gray>= 마우스로 옮기고 크기 바꾸기"
+  sidebar-on: "<green>사이드바를 켰습니다."
+  sidebar-off: "<gray>사이드바를 껐습니다. <dark_gray>(/사이드바)"
+  sidebar-usage: "<gray>/사이드바 [켜기|끄기] <dark_gray>· <gray>/사이드바 위치 <dark_gray>(옮기기 · 크기)"
   # /사이드바 위치: 마우스로 패널 옮기기 (사이드바 줄의 탭 문자 앞은 이름, 뒤는 값: 리소스팩 패널에서 값이 오른쪽 끝에 붙음)
-  position-usage: "<gray>사용법: <white>/사이드바 위치 <dark_gray>(마우스로 옮기기) <gray>· <white>/사이드바 위치 기본 <dark_gray>(처음 자리로) <gray>· <white>/사이드바 위치 취소"
+  position-usage: "<gray>/사이드바 위치 <dark_gray>(옮기기) <gray>· 기본 · 취소"
   position-reset: "<gray>사이드바를 기본 위치·크기로 되돌렸습니다."
-  position-scoreboard: "<gray>스코어보드 사이드바는 위치를 바꿀 수 없습니다. <dark_gray>(리소스팩 HUD 에서만)"
-  edit-start: "<yellow>사이드바 위치 편집<gray>: 마우스를 움직이면 패널이 따라 움직입니다. <white>휠<gray>로 크기, <white>왼쪽 클릭<gray>이나 <white>F<gray>로 저장, <white>웅크리기<gray>로 취소 <dark_gray>(1분 동안, 그동안 걸을 수 없음)"
+  position-scoreboard: "<gray>이 사이드바는 위치를 바꿀 수 없습니다. <dark_gray>(리소스팩 사이드바만)"
+  edit-start: "<yellow>사이드바 위치 편집 <gray>· 마우스: 옮기기 · 휠: 크기 · 클릭/F: 저장 · 웅크리기: 취소 <dark_gray>(1분)"
   # 편집하는 동안 액션바에 계속 보이는 안내 ({size} = 작게·보통·크게, {left} = 남은 초)
   edit-guide: "<yellow>마우스로 이동 <dark_gray>· <yellow>휠로 크기 <white>{size} <dark_gray>· <green>클릭으로 저장 <dark_gray>· <gray>웅크리면 취소 <dark_gray>{left}초"
   # 편집하는 동안 사이드바 줄이 하나도 없을 때 보이는 견본 줄
   edit-sample: "<gray>사이드바\t<white>미리보기"
-  edit-saved: "<green>사이드바 위치를 저장했습니다. <gray>(크기: {size}) <dark_gray>· 처음 자리로: /사이드바 위치 기본"
-  edit-cancelled: "<gray>사이드바 위치 편집을 취소했습니다. <dark_gray>(그대로 둠)"
-  edit-timeout: "<gray>1분이 지나 사이드바 위치 편집을 취소했습니다. <dark_gray>(그대로 둠)"
+  edit-saved: "<green>사이드바 위치 저장 <gray>(크기 {size}) <dark_gray>· 되돌리기: /사이드바 위치 기본"
+  edit-cancelled: "<gray>사이드바 위치 편집 취소 <dark_gray>(그대로 둠)"
+  edit-timeout: "<gray>1분이 지나 편집을 취소했습니다. <dark_gray>(그대로 둠)"
   edit-hurt: "<gray>피해를 입어 사이드바 위치 편집을 취소했습니다."
   edit-moved: "<gray>자리를 벗어나 사이드바 위치 편집을 취소했습니다."
-  edit-not-editing: "<gray>지금 사이드바 위치를 편집하고 있지 않습니다. <dark_gray>(/사이드바 위치 로 시작)"
-  edit-unavailable: "<gray>리소스팩 HUD 가 켜진 뒤에 쓸 수 있습니다. <dark_gray>(리소스팩을 받는 중이거나 받지 않음)"
+  edit-not-editing: "<gray>편집 중이 아닙니다. <dark_gray>(/사이드바 위치)"
+  edit-unavailable: "<gray>리소스팩을 받은 뒤에 쓸 수 있습니다."
   edit-off: "<gray>이 서버는 사이드바를 쓰지 않습니다."
   edit-busy: "<gray>지금은 편집할 수 없습니다. <dark_gray>(탈것을 타거나 겉날개로 날거나 자는 중)"
 
@@ -370,12 +370,12 @@ economy:
   self: "<red>자기 자신에게는 보낼 수 없습니다."
   usage-pay: "<red>/송금 <플레이어> <금액> <gray>(수수료 {fee}%)"
   usage-cheque: "<red>/수표 <금액> <gray>(최소 {min})"
-  confirm: "<yellow>큰 금액입니다. 같은 명령을 15초 안에 한 번 더 입력하면 실행됩니다. <gray>({what})"
+  confirm: "<yellow>큰 금액: 15초 안에 한 번 더 입력하면 실행 <dark_gray>({what})"
   paid: "<green>{player}</green><gray>에게 </gray>{amount}<gray> 송금 (수수료 </gray>{fee}<gray>)"
   received: "<green>{player}</green><gray>에게서 </gray>{amount}<gray>을(를) 받았습니다."
   cheque-min: "<red>수표는 {min} 이상부터 발행할 수 있습니다."
   inventory-full: "<red>인벤토리에 빈 칸이 없습니다."
-  cheque-issued: "{amount}<gray> 수표를 발행했습니다. 우클릭하면 현금으로 바뀝니다."
+  cheque-issued: "{amount}<gray> 수표 발행 <dark_gray>(우클릭: 입금)"
   cheque-cashed: "<green>수표 입금: </green>{amount}"
   cheque-used: "<red>이미 사용되었거나 가짜인 수표입니다."
   cheque-error: "<red>수표 처리 중 오류가 났습니다. 수표를 돌려드렸습니다."
@@ -386,17 +386,17 @@ economy:
 
 # 통합 메뉴 (/메뉴, Shift+F)
 hub:
-  join-tip: "<gray>팁: <white>웅크린 채 F</white> <dark_gray>(Shift+F)</dark_gray> 를 누르면 <gold>통합 메뉴</gold>가 열립니다. 상점, 직업, 치장, 업적... 모든 기능이 한곳에! <dark_gray>(/메뉴)"
+  join-tip: "<gray>팁: <white>Shift+F</white> 로 <gold>통합 메뉴</gold> <dark_gray>(/메뉴)"
   hotkey-on: "Shift+F 또는 /메뉴"
   hotkey-off: "/메뉴"
   # hub:suggest: 이름이나 금액을 이어서 써야 하는 명령어
-  suggest: "<click:suggest_command:'/{command} '><hover:show_text:'<gray>클릭하면 채팅창에 /{command} 가 입력됩니다'><yellow><u>[/{command} 입력하기]</u></yellow></hover></click> <gray>← 클릭한 뒤 이어서 쓰세요."
+  suggest: "<click:suggest_command:'/{command} '><hover:show_text:'<gray>클릭하면 채팅창에 /{command} 가 입력됩니다'><yellow><u>[/{command} 입력하기]</u></yellow></hover></click> <gray>← 클릭 후 이어서 입력"
   on: "<green>켜짐"
   off: "<gray>꺼짐"
 
 # 메뉴에서 값을 채팅으로 입력받을 때 (금액 직접 입력, 검색어)
 menu:
-  prompt: "<gray>채팅창에 입력하세요. <dark_gray>(다른 사람에게는 보이지 않음 · 그만두려면 <white>취소</white> · {seconds}초)"
+  prompt: "<gray>채팅창에 입력하세요 <dark_gray>(나만 보임 · 그만두기: <white>취소</white><dark_gray> · {seconds}초)"
   prompt-timeout: "<gray>입력 시간이 지나 그만두었습니다."
 
 # 야간 투시 (/야간투시)
@@ -412,18 +412,18 @@ donation:
   tile-lore-confirm: ["", "<gray>값 <gold>{price}"]
   history-tile-name: "<dark_gray>#{number}</dark_gray> <white>{what}"
   history-tile-lore: ["<gray>{when}", "<gold>{amount}</gold> <dark_gray>(남은 {balance})"]
-  history-tile-lore-pending: ["<gray>{when}", "<gold>{amount}</gold> <dark_gray>(남은 {balance})", "<yellow>아직 받지 않음: 위의 받기 버튼 또는 /후원 받기"]
-  not-sellable: "<red>{name} 은(는) 지금 살 수 없습니다. <gray>(관리자에게 알려 주세요)"
+  history-tile-lore-pending: ["<gray>{when}", "<gold>{amount}</gold> <dark_gray>(남은 {balance})", "<yellow>아직 안 받음 <dark_gray>(/후원 받기)"]
+  not-sellable: "<red>{name} 은(는) 지금 살 수 없습니다."
   unknown: "<red>그런 상품이 없습니다."
-  error: "<red>후원 장부를 처리하지 못했습니다. 잠시 뒤 다시 해 보세요. <gray>(계속되면 관리자에게 알려 주세요)"
+  error: "<red>처리하지 못했습니다. 잠시 뒤 다시 해 보세요."
   busy: "<yellow>앞의 구매를 처리하는 중입니다."
-  no-room: "<red>인벤토리에 빈칸이 모자랍니다. <gray>(받는 아이템 수만큼 비워 주세요)"
+  no-room: "<red>인벤토리 빈칸이 모자랍니다."
   short: "<red>{price} 이(가) 필요합니다. <gray>(보유 {balance})"
   already: "<aqua>{name}</aqua><gray> 은(는) 이미 가지고 있습니다."
   bought: "<green>구매했습니다:</green> <white>{name}</white> <gray>({price}, 남은 {balance})"
   delivered: "<gray>지급 완료: <white>{name}"
-  pending-room: "<yellow>인벤토리가 가득 차 <white>{name}</white> 을(를) 아직 드리지 못했습니다. <gray>빈칸을 만든 뒤 <white>/후원 받기"
-  pending-gone: "<yellow>구매 #{number} 의 상품이 상점에서 사라져 지급하지 못했습니다. 관리자에게 알려 주세요."
+  pending-room: "<yellow>인벤토리가 가득 차 <white>{name}</white> 지급 대기 <dark_gray>(빈칸 만든 뒤 /후원 받기)"
+  pending-gone: "<yellow>구매 #{number} 상품이 없어져 지급하지 못했습니다. 관리자에게 알려 주세요."
   nothing-pending: "<gray>받을 것이 없습니다."
   received: "<green>후원 감사합니다!</green> <gold>{amount}</gold><gray> 을(를) 받았습니다. <dark_gray>(보유 {balance}, /후원)"
   kind:
@@ -434,16 +434,16 @@ donation:
     withdraw: "출금"
     deposit: "입금"
   # 별 증서 (/후원 출금 <수량>): 별을 아이템으로 꺼내 거래소 · 직거래 · 경매로 주고받고, 우클릭으로 내 별로 입금
-  withdraw-usage: "<gray>/후원 출금 <수량> <dark_gray>(최소 {min}) <gray>· 보유 별을 증서로 꺼냅니다. 증서는 다른 사람에게 팔거나 줄 수 있고, 우클릭하면 쓴 사람의 별로 들어갑니다."
+  withdraw-usage: "<gray>/후원 출금 <수량> <dark_gray>(최소 {min}) <gray>· 별을 증서로 꺼내 거래"
   withdraw-off: "<red>지금은 별 출금을 쓸 수 없습니다."
   withdraw-min: "<red>{min} 이상부터 출금할 수 있습니다."
   withdraw-no-room: "<red>인벤토리에 빈칸이 하나 필요합니다."
-  withdrawn: "<green>출금:</green> <gold>{amount}</gold><gray> 증서 <white>{note}</white> 을(를) 받았습니다. <dark_gray>(남은 {balance}, 내역 #{number})"
-  deposited: "<green>입금:</green> <gold>{amount}</gold><gray> 증서 <white>{note}</white> <dark_gray>(발행 {issuer} · 보유 {balance}, 내역 #{number})"
+  withdrawn: "<green>출금:</green> <gold>{amount}</gold> <gray>증서 <white>{note}</white> <dark_gray>(남은 {balance} · #{number})"
+  deposited: "<green>입금:</green> <gold>{amount}</gold> <gray>증서 <white>{note}</white> <dark_gray>({issuer} · 보유 {balance} · #{number})"
   note-used: "<red>이미 입금되었거나 가짜인 증서입니다."
   note-error: "<red>증서를 처리하지 못했습니다. 증서를 돌려드렸습니다."
   note-name: "<gold>★ 별 증서</gold> <white>{amount}</white>"
-  note-lore: ["<gray>번호 <white>{note}", "<gray>발행: <white>{issuer}", "<gray>발행일: <white>{date}", "", "<gray>거래소 · 직거래 · 경매로 주고받을 수 있음", "<yellow>우클릭: 내 별로 입금 <dark_gray>(한 번만)"]
+  note-lore: ["<gray>발행 <white>{issuer} <dark_gray>· {date}", "<dark_gray>번호 {note}", "", "<yellow>우클릭: 내 별로 입금"]
   history-head: "<gray>{player} 의 후원 내역 <dark_gray>· <gray>보유 <gold>{balance}</gold> <dark_gray>· <gray>받은 합계 {granted} <dark_gray>· <gray>쓴 합계 {spent}"
   history-none: "<gray>내역이 없습니다."
   history-entry: "<dark_gray>#{number}</dark_gray> <gray>{when}</gray> <white>{what}</white> <gold>{amount}</gold> <dark_gray>(남은 {balance})"
@@ -535,11 +535,11 @@ trash:
   kept: "<yellow>탈것·지게는 버릴 수 없어 돌려 드렸습니다."
 
 night-vision:
-  enabled: "<green>야간 투시를 켰습니다.</green> <gray>(끄려면 다시 /야간투시)"
+  enabled: "<green>야간 투시를 켰습니다."
   disabled: "<gray>야간 투시를 껐습니다."
 
 alts:
-  refused: "<red><b>접속할 수 없습니다</b></red>\n\n<gray>이 IP에서는 이미 다른 계정이 이 서버에 접속하고 있습니다.\n<white>부계정은 허용되지 않습니다</white> (한 IP에 한 계정).\n\n<dark_gray>같은 집·같은 인터넷을 쓰는 가족이나 친구라면 관리자에게 이 계정 이름을 알려 주세요."
+  refused: "<red><b>접속할 수 없습니다</b></red>\n\n<gray>이 IP에는 이미 다른 계정이 있습니다.\n<white>부계정은 허용되지 않습니다</white> (한 IP에 한 계정).\n\n<dark_gray>가족 · 친구라면 관리자에게 이 계정 이름을 알려 주세요."
 
 worlds:
   build: "건축월드"
@@ -548,13 +548,13 @@ worlds:
   end: "엔드"
   wild-nether: "지옥"
   wild-end: "엔드"
-  keep-inventory: "<gold>{world}</gold><gray>에서는 죽어도 <white>아이템과 경험치</white>가 그대로 남습니다."
+  keep-inventory: "<gold>{world}</gold><gray>: 죽어도 <white>아이템 · 경험치</white> 유지"
   portal-build: "<red>건축월드에서는 지옥·엔드로 갈 수 없습니다 <gray>→ <white>/야생월드</white>의 포털로"
-  portal-unavailable: "<red>지금은 포털 너머의 월드로 갈 수 없습니다. 잠시 뒤 다시 해 보세요."
-  reset-moved-offline: "<yellow>접속하지 않은 사이 {world}이(가) 새로 만들어졌습니다. 안전하게 <white>건축월드</white> 스폰으로 옮겨 드렸습니다."
+  portal-unavailable: "<red>지금은 포털을 쓸 수 없습니다. 잠시 뒤 다시 해 보세요."
+  reset-moved-offline: "<yellow>{world}이(가) 새로 만들어져 <white>건축월드</white> 스폰으로 옮겨 드렸습니다."
   retired-moved: "<yellow>이 월드는 더 이상 쓰지 않습니다. <white>{world}</white> 스폰으로 옮겨 드렸습니다."
   already: "<yellow>이미 {world}에 있습니다."
-  no-wild: "<red>야생월드가 없습니다. <gray>(config.yml worlds.wild-world)"
+  no-wild: "<red>야생월드가 없습니다."
   in-wardrobe: "<red>치장 화면에서 나간 뒤 사용하세요."
   warmup: "<gray>{seconds}초 뒤 <white>{world}</white>(으)로 이동합니다. 움직이지 마세요."
   warmup-wild: "<gray>{seconds}초 뒤 <white>{world}</white>의 무작위 위치로 이동합니다. 움직이지 마세요."
@@ -591,20 +591,20 @@ worlds:
 
 # 텔레포트 요청 (/tpa, /tpahere, /tpaccept, /tpdeny, /tpacancel, /tpatoggle). {player} = 상대 이름
 tpa:
-  usage: "<gray>사용법: <white>/tpa <플레이어></white> (그 사람에게 가기) · <white>/tpahere <플레이어></white> (내 쪽으로 부르기)"
+  usage: "<gray>/tpa <플레이어> <dark_gray>(가기) <gray>· /tpahere <플레이어> <dark_gray>(부르기)"
   self: "<red>자기 자신에게는 요청할 수 없습니다."
   offline: "<red><white>{player}</white>님은 지금 접속해 있지 않습니다."
   blocked: "<red><white>{player}</white>님은 텔레포트 요청을 받지 않고 있습니다."
   cooldown: "<red>텔레포트 요청은 <white>{seconds}초</white> 뒤에 다시 보낼 수 있습니다."
   too-soon: "<red>텔레포트 요청은 <white>{seconds}초</white>에 한 번만 보낼 수 있습니다."
-  unsafe: "<red><white>{player}</white>님이 지금 안전한 곳에 서 있지 않아(공중, 용암·불 속 등) 이동을 취소했습니다. <gray>다시 요청해 주세요."
-  unsafe-other: "<red><white>{player}</white>님이 오려 했지만 지금 서 있는 곳이 안전하지 않아(공중, 용암·불 속 등) 취소되었습니다."
+  unsafe: "<red><white>{player}</white>님 자리가 안전하지 않아 이동을 취소했습니다."
+  unsafe-other: "<red>내 자리가 안전하지 않아 <white>{player}</white>님의 이동이 취소되었습니다."
   already: "<yellow><white>{player}</white>님에게 이미 요청을 보냈습니다. <gray>({seconds}초 뒤 만료 · 취소: /tpacancel)"
   replaced: "<gray><white>{player}</white>님에게 보낸 이전 요청은 취소했습니다."
-  sent: "<green><white>{player}</white>님에게 <white>가겠다는</white> 요청을 보냈습니다. <gray>({seconds}초 안에 수락하면 이동 · <click:run_command:'/tpacancel'><hover:show_text:'<gray>클릭하면 요청을 취소합니다'><u>취소</u></hover></click>)"
-  sent-here: "<green><white>{player}</white>님에게 <white>내 쪽으로 오라는</white> 요청을 보냈습니다. <gray>({seconds}초 안에 수락하면 이동 · <click:run_command:'/tpacancel'><hover:show_text:'<gray>클릭하면 요청을 취소합니다'><u>취소</u></hover></click>)"
-  request: "<gold>{player}</gold><gray>님이 <white>나에게 오고 싶어 합니다.</white> {buttons} <dark_gray>({seconds}초 안에 · /tpaccept /tpdeny)"
-  request-here: "<gold>{player}</gold><gray>님이 <white>나를 자기 쪽으로 부릅니다.</white> {buttons} <dark_gray>({seconds}초 안에 · /tpaccept /tpdeny)"
+  sent: "<green><white>{player}</white>님에게 가기 요청 <gray>({seconds}초 · <click:run_command:'/tpacancel'><hover:show_text:'<gray>클릭하면 요청을 취소합니다'><u>취소</u></hover></click>)"
+  sent-here: "<green><white>{player}</white>님에게 부르기 요청 <gray>({seconds}초 · <click:run_command:'/tpacancel'><hover:show_text:'<gray>클릭하면 요청을 취소합니다'><u>취소</u></hover></click>)"
+  request: "<gold>{player}</gold><gray>님이 <white>오고 싶어 합니다</white> {buttons} <dark_gray>({seconds}초)"
+  request-here: "<gold>{player}</gold><gray>님이 <white>나를 부릅니다</white> {buttons} <dark_gray>({seconds}초)"
   buttons: "<click:run_command:'/tpaccept {name}'><hover:show_text:'<green>{player}님의 요청 수락'><green><b>[수락]</b></green></hover></click> <click:run_command:'/tpdeny {name}'><hover:show_text:'<red>{player}님의 요청 거절'><red><b>[거절]</b></red></hover></click>"
   none: "<red>받은 텔레포트 요청이 없습니다."
   none-from: "<red><white>{player}</white>님에게서 받은 텔레포트 요청이 없습니다."
@@ -619,7 +619,7 @@ tpa:
   expired: "<gray><white>{player}</white>님에게 보낸 텔레포트 요청이 만료되었습니다."
   expired-target: "<dark_gray>{player}님의 텔레포트 요청이 만료되었습니다."
   left: "<gray><white>{player}</white>님이 나가서 텔레포트 요청이 취소되었습니다."
-  busy: "<red><white>{player}</white>님이 치장 화면에 있어 지금은 이동할 수 없습니다. 치장 화면에서 나간 뒤 다시 요청하세요."
+  busy: "<red><white>{player}</white>님이 치장 화면에 있어 이동할 수 없습니다."
   warmup: "<gray>{seconds}초 뒤 <white>{player}</white>님에게 이동합니다. 움직이지 마세요."
   warmup-other: "<gray><white>{player}</white>님이 {seconds}초 뒤 도착합니다."
   countdown: "<gray>{player}님에게 이동까지 <white>{seconds}초"
@@ -628,7 +628,7 @@ tpa:
   failed: "<red>이동하지 못했습니다. 잠시 뒤 다시 해 보세요."
   arrived: "<green>{player}님에게 도착"
   arrived-other: "<green>{player}님이 도착했습니다"
-  block-on: "<yellow>이제 텔레포트 요청을 받지 않습니다. <gray>(다시 받으려면 /tpatoggle)"
+  block-on: "<yellow>이제 텔레포트 요청을 받지 않습니다. <dark_gray>(/tpatoggle)"
   block-off: "<green>이제 텔레포트 요청을 받습니다."
 
 crop:
@@ -638,10 +638,10 @@ crop:
   note-dry: " · <yellow>흙이 말라 천천히 자람</yellow> <dark_gray>(4칸 안에 물)"
   note-wet: " · <aqua>젖은 흙</aqua>"
   no-seed: "<yellow>씨앗이 없어 다시 심지 못했습니다."
-  meal-wait: "<yellow>아직 뼛가루가 듣지 않습니다 <gray>(저절로 {ages}단계 더 자라야 함 · 7단계마다 한 번)"
-  unknown: "<red>작물 정의를 찾을 수 없습니다 ({crop}). 관리자에게 알려주세요. <gray>(작물은 그대로 둡니다)"
-  string-blocked: "<yellow>실은 설치할 수 없어요 <gray>(작물 표시에 쓰임)"
-  hook-blocked: "<yellow>작물 쪽을 향해 트립와이어 고리를 놓을 수 없어요 <gray>(작물 표시에 쓰임)"
+  meal-wait: "<yellow>아직 뼛가루가 듣지 않습니다 <dark_gray>({ages}단계 더 자라야 함)"
+  unknown: "<red>알 수 없는 작물({crop})입니다. 관리자에게 알려 주세요."
+  string-blocked: "<yellow>실은 설치할 수 없어요."
+  hook-blocked: "<yellow>작물 쪽으로는 트립와이어 고리를 놓을 수 없어요."
 
 # /관리자 보고서 주변 [반경]: 관리자 주변의 3D 모델(디스플레이 엔티티)과 클릭 상자(상호작용 엔티티)를 종류별로 셈.
 # "보이는 거리 안" = 그 자리에 선 플레이어(엔티티 거리 100%)가 그리는 수 (화면 밖은 클라이언트가 건너뜀), 면 = 그 모델들의 면 수 합
@@ -677,14 +677,14 @@ models:
 
 # 탈것 (경찰차, 1톤 트럭, 골프 카트)
 vehicle:
-  placed: "<green>{vehicle}</green><green>을(를) 세웠어요. <gray>우클릭: 타기 · 웅크리고 우클릭: 아이템으로 회수 <dark_gray>(#{id})"
+  placed: "<green>{vehicle}</green><green>을(를) 세웠어요 <gray>· 우클릭: 타기 · 쉬프트 우클릭: 회수 <dark_gray>#{id}"
   no-room: "<red>여기에는 세울 자리가 없어요. <gray>(트인 평지, {length}×{width}칸)"
   # 통통배 (물 위에서만)
   boat-on-water: "<red>배는 물 위에만 띄울 수 있어요. <gray>(물을 바라보고 우클릭)"
   boat-no-room: "<red>여기에는 배를 띄울 자리가 없어요. <gray>(땅·얼음·장애물 없는 물 위 {length}×{width}칸)"
-  stale: "<red>이 탈것 아이템은 더 이상 쓸 수 없어요. <gray>(이미 세워져 있거나 복사된 아이템)"
+  stale: "<red>쓸 수 없는 탈것 아이템이에요. <dark_gray>(이미 세웠거나 복사됨)"
   # 귀속: 탈것(세운 것·아이템)과 지게는 주인 것. 아이템을 누가 들고 있든 주인(과 관리자)만 세울 수 있음
-  not-yours: "<red>{owner}님의 탈것이에요. 주인만 세우거나 넘겨줄 수 있어요. <gray>(받으려면 주인에게 /탈것 양도 를 부탁하세요)"
+  not-yours: "<red>{owner}님의 탈것이에요. 주인만 세울 수 있어요."
   placed-for: "<gray>주인 <white>{owner}</white>님의 탈것으로 세웠어요. <dark_gray>(관리자)"
   item-owner: "<gray>주인 <white>{owner}</white> <dark_gray>(주인만 세움 · /탈것 양도 로 넘기기)"
   owed-delivered: "<green>받을 탈것 #{id}을(를) 받았어요."
@@ -695,7 +695,7 @@ vehicle:
   keys-horn: "스페이스: 경적"
   keys-moo: "스페이스: 음메 (소 울음)"
   train-trailer: "트레일러 {n}"
-  passenger: "<gray>{owner}님의 탈것에 탔어요 <dark_gray>(운전은 주인, 주인이 허락한 사람, 그 땅 구성원만)"
+  passenger: "<gray>{owner}님의 탈것에 탔어요."
   siren-on: "<red>●</red><blue>●</blue> <white>사이렌 켬"
   siren-off: "<gray>사이렌 끔"
   not-owner: "<red>{owner}님의 탈것이에요. 주인만 회수할 수 있어요."
@@ -703,7 +703,7 @@ vehicle:
   passenger-out: "<yellow>{owner}님의 탈것을 아이템으로 회수해서 옆에 내렸어요."
   cargo-not-empty: "<red>짐칸을 비워야 회수할 수 있어요."
   cargo-busy: "<red>누군가 짐칸을 보고 있어요."
-  cargo-denied: "<red>짐칸은 주인({owner}), 주인이 허락한 사람, 그 땅 구성원만 열 수 있어요."
+  cargo-denied: "<red>{owner}님의 짐칸이에요. <dark_gray>(주인 · 허락받은 사람만)"
   cargo-moving: "<red>멈춘 뒤 짐칸을 열 수 있어요."
   cargo-pulled: "<red>누가 끌고 있는 동안에는 짐칸을 열 수 없어요. <gray>(손을 놓은 뒤)"
   cargo-title: "<dark_gray>{vehicle} 짐칸 ({page}/{pages})"
@@ -711,13 +711,13 @@ vehicle:
   cargo-next: "<yellow>다음 쪽"
   cargo-info: "<gold>짐칸 {used}/{slots}칸"
   cargo-weight: "<gray>무게 <white>{weight}</white> / {payload}"
-  cargo-too-heavy: "<red>너무 무거워요: 지금 {weight} / 최대 {payload} <gray>(넣으려는 무게 {adding}, 더 실을 수 있는 무게 {left})"
+  cargo-too-heavy: "<red>너무 무거워요 <gray>{weight}/{payload} <dark_gray>(+{adding} · 남은 {left})"
   no-room-inventory: "<red>인벤토리에 빈칸이 있어야 회수할 수 있어요."
   picked-up: "<green>{vehicle}</green><green>을(를) 아이템으로 회수했어요."
-  picked-up-later: "<yellow>회수한 탈것 #{id}을(를) 인벤토리에 넣지 못해 우편함으로 보냈어요. <gray>(우편함이 없으면 빈칸이 있을 때 다시 접속하면 받아요)"
+  picked-up-later: "<yellow>인벤토리가 가득 차 탈것 #{id}을(를) 우편함으로 보냈어요."
   returned: "<green>관리자가 탈것 #{id}을(를) 아이템으로 돌려보냈어요."
-  returned-world: "<yellow>탈것 #{id}이(가) 있던 월드가 초기화되거나 없어져서 아이템으로 돌아왔어요. <gray>(짐칸의 짐은 그대로: 다시 세우면 나와요)"
-  owed-waiting: "<yellow>돌려받을 탈것이 있어요. 인벤토리에 빈칸을 만든 뒤 다시 접속하면 받아요."
+  returned-world: "<yellow>월드가 초기화되어 탈것 #{id}이(가) 아이템으로 돌아왔어요. <dark_gray>(짐은 그대로)"
+  owed-waiting: "<yellow>돌려받을 탈것이 있어요. <dark_gray>(빈칸 만든 뒤 다시 접속)"
   item-number: "<dark_gray>탈것 번호 #{id}"
   report: "<gray>탈것 <white>{live}</white>대 보이는 중 · 청크가 안 불러와진 곳에 <white>{parked}</white>대"
   admin-usage: "<red>/관리자 탈것 목록 [플레이어] <gray>| <red>숨김 [플레이어] <gray>(사라진 것으로 보이는 탈것) | <red>회수 <번호> <gray>(주인에게 아이템으로, 숨긴 것도) | <red>삭제 <번호> <gray>(한 대를 아예 지우기) | <red>제거 [반경 1~64] <gray>(주변 탈것 지우기, 짐칸의 물건은 바닥에) | <red>정리 <gray>(어디에도 없는 탈것·지게 아이템을 목록에서 숨기기)"
@@ -741,44 +741,44 @@ vehicle:
   where-held: "<yellow>아이템 <gray>({player}님이 가지고 있음)"
   # /탈것 목록 (내 탈것: 지금 있는 것만. 버리거나 없앤 아이템은 빠짐)
   mine-none: "<gray>내 탈것이 없어요."
-  mine-list: "<gray>내 탈것 {count}대 <dark_gray>(넘겨주기: 아이템을 들거나 탄 채로 /탈것 양도 <플레이어>)"
+  mine-list: "<gray>내 탈것 {count}대 <dark_gray>(넘기기: /탈것 양도)"
   mine-line: " <dark_gray>#{id}</dark_gray> {name} <gray>· {where}"
   mine-jige: " <dark_gray>지게 #{id}</dark_gray> <gray>· {where}"
   # /탈것 양도 <플레이어> (손에 든 탈것·지게 아이템, 아니면 타고 있거나 끌고 있는 탈것, 아니면 바라보는 탈것)
-  give-usage: "<gray>/탈것 양도 <white><플레이어></white> <dark_gray>(손에 든 탈것·지게 아이템, 아니면 타고 있거나 끌거나 바라보는 탈것을 넘겨줘요)"
-  give-nothing: "<red>넘겨줄 탈것이 없어요. <gray>(탈것·지게 아이템을 손에 들거나, 탈것에 타거나, 탈것을 바라보고)"
+  give-usage: "<gray>/탈것 양도 <white><플레이어></white> <dark_gray>(든 아이템 · 탄 탈것 · 바라보는 탈것)"
+  give-nothing: "<red>넘겨줄 탈것이 없어요. <dark_gray>(들거나 · 타거나 · 바라보고)"
   give-self: "<red>이미 그 사람의 탈것이에요."
   give-offline: "<red>지게는 받는 사람이 접속해 있고 인벤토리에 빈칸이 있어야 넘겨줄 수 있어요."
-  give-confirm-placed: "<yellow>{vehicle}{id}을(를) <white>{player}</white>님에게 넘겨줄까요? <gray>{seconds}초 안에 <white>/탈것 양도 {name}</white> 을(를) 한 번 더 입력하면 넘어가요. <dark_gray>(그 자리에 그대로, 짐칸의 짐도 함께, 되돌릴 수 없음)"
-  give-confirm-item: "<yellow>손에 든 {vehicle}{id}을(를) <white>{player}</white>님에게 넘겨줄까요? <gray>{seconds}초 안에 <white>/탈것 양도 {name}</white> 을(를) 한 번 더 입력하면 넘어가요. <dark_gray>(새 아이템이 그 사람의 인벤토리나 우편함으로, 되돌릴 수 없음)"
+  give-confirm-placed: "<yellow>{vehicle}{id}을(를) <white>{player}</white>님에게 넘길까요? <gray>{seconds}초 안에 <white>/탈것 양도 {name}</white> 한 번 더 <dark_gray>(짐 포함, 되돌릴 수 없음)"
+  give-confirm-item: "<yellow>손에 든 {vehicle}{id}을(를) <white>{player}</white>님에게 넘길까요? <gray>{seconds}초 안에 <white>/탈것 양도 {name}</white> 한 번 더 <dark_gray>(되돌릴 수 없음)"
   given: "<green>{vehicle} #{id}을(를) <white>{player}</white>님에게 넘겨줬어요."
-  given-you-placed: "<green><white>{from}</white>님이 {vehicle} #{id}을(를) 넘겨줬어요. <gray>(있던 자리 그대로: /탈것 목록)"
-  given-you-item: "<green><white>{from}</white>님이 {vehicle} #{id}을(를) 넘겨줬어요. <gray>(아이템: 인벤토리나 우편함, 없으면 다음 접속 때)"
+  given-you-placed: "<green><white>{from}</white>님이 {vehicle} #{id}을(를) 넘겨줬어요. <dark_gray>(/탈것 목록)"
+  given-you-item: "<green><white>{from}</white>님이 {vehicle} #{id}을(를) 넘겨줬어요. <dark_gray>(인벤토리나 우편함)"
   given-away: "<yellow>관리자가 내 {vehicle} #{id}을(를) <white>{player}</white>님에게 넘겼어요."
   give-lost: "<yellow>탈것 주인이 바뀌어서 그 탈것에서 손을 뗐어요."
-  give-kept: "<yellow><white>{player}</white>님에게 바로 줄 수 없어 새 아이템을 내가 받았어요. 직접 건네주세요. <gray>(이미 그 사람 것: 나는 쓸 수 없어요)"
+  give-kept: "<yellow><white>{player}</white>님에게 바로 줄 수 없어 내가 받았어요. 직접 건네주세요."
   returned-owner: "<green>탈것 #{id}을(를) {owner}님에게 아이템으로 돌려보냈어요. <gray>(짐칸의 짐은 그대로)"
   admin-removed: "<green>반경 {radius}칸의 탈것 {count}대를 지웠어요. <gray>(주인 없는 탈것 조각 {strays}개 정리)"
   # 리어카 (끄는 탈것)
-  pulling: "<gray>리어카를 끄는 중 <dark_gray>(걸음 {percent}% 느리게, 달리기 안 됨) <gray>· 웅크리기 또는 우클릭: 놓기"
+  pulling: "<gray>리어카 끄는 중 <dark_gray>(-{percent}%) <gray>· 웅크리기/우클릭: 놓기"
   pull-let-go: "<gray>리어카 손잡이를 놓았어요."
   pull-taken: "<red>누군가 이 리어카를 끌고 있어요."
-  pull-already: "<red>이미 다른 리어카를 끌고 있어요. 먼저 놓아 주세요. <gray>(웅크리기)"
-  pull-denied: "<red>{owner}님의 리어카예요. 주인, 주인이 허락한 사람, 그 땅 구성원만 끌 수 있어요."
+  pull-already: "<red>이미 다른 리어카를 끌고 있어요. <dark_gray>(웅크리기: 놓기)"
+  pull-denied: "<red>{owner}님의 리어카예요. <dark_gray>(주인 · 허락받은 사람만)"
   pull-stuck: "<yellow>리어카가 걸려서 손잡이를 놓쳤어요. <gray>(뒤에 남아 있어요)"
   pull-lost: "<yellow>리어카 손잡이를 놓았어요."
   # /탈것 권한 (내 탈것 모두: 운전, 리어카 끌기, 짐칸 열기. 회수는 주인만)
-  grant-usage: "<gray>/탈것 목록 · /탈것 양도 <white><플레이어></white> · /탈것 권한 <white>[플레이어]</white> · /탈것 권한취소 <white><플레이어></white> <dark_gray>(허락한 사람은 내 탈것을 모두 운전하고, 리어카를 끌고, 짐칸을 열고, 지게를 질 수 있어요. 세우기·회수·양도는 주인만)"
-  grant-none: "<gray>내 탈것을 쓸 수 있게 허락한 사람이 없어요. <dark_gray>(/탈것 권한 <플레이어>)"
-  grant-list: "<gray>내 탈것을 쓸 수 있는 사람 {count}명 <dark_gray>(운전·리어카·짐칸, /탈것 권한취소 <플레이어>)"
+  grant-usage: "<gray>/탈것 목록 · 양도 <플레이어> · 권한 [플레이어] · 권한취소 <플레이어>"
+  grant-none: "<gray>허락한 사람이 없어요. <dark_gray>(/탈것 권한 <플레이어>)"
+  grant-list: "<gray>내 탈것 권한 {count}명 <dark_gray>(빼기: /탈것 권한취소)"
   grant-line: " <dark_gray>·</dark_gray> {player}"
   grant-no-player: "<red>그런 플레이어를 찾을 수 없어요: <white>{player}"
   grant-self: "<red>내 탈것은 원래 내가 쓸 수 있어요."
   grant-already: "<yellow><white>{player}</white>님은 이미 허락했어요."
-  grant-full: "<red>더 허락할 수 없어요. <gray>(최대 {max}명, /탈것 권한취소 로 정리)"
+  grant-full: "<red>더 허락할 수 없어요. <dark_gray>(최대 {max}명)"
   grant-not-listed: "<red>허락한 사람 중에 없어요: <white>{player}"
-  granted: "<green><white>{player}</white>님이 내 탈것을 모두 쓸 수 있어요. <gray>(운전·리어카 끌기·짐칸, 회수는 안 됨)"
-  granted-you: "<green><white>{owner}</white>님이 탈것을 쓰게 해 줬어요. <gray>(그 사람의 탈것 운전·리어카 끌기·짐칸)"
+  granted: "<green><white>{player}</white>님에게 탈것 권한을 줬어요 <dark_gray>(운전 · 끌기 · 짐칸)"
+  granted-you: "<green><white>{owner}</white>님이 탈것 권한을 줬어요 <dark_gray>(운전 · 끌기 · 짐칸)"
   revoked: "<gray><white>{player}</white>님의 탈것 권한을 거뒀어요."
   revoked-you: "<gray><white>{owner}</white>님이 탈것 권한을 거뒀어요."
   grant-lost: "<yellow>주인이 탈것 권한을 거둬서 그 탈것에서 손을 뗐어요."
@@ -790,14 +790,14 @@ vehicle-tool:
   switched: "<gold>작업기: <white>{tool}</white> <dark_gray>· Ctrl: 다음 ({list}<dark_gray>)"
   switch-moving: "<red>멈춘 뒤 작업기를 바꿀 수 있어요."
   switch-bed: "<red>누가 짐칸을 보고 있어서 작업기를 바꿀 수 없어요."
-  bed-shut: "<red>{tool}을(를) 단 동안은 이 짐칸을 열 수 없어요. <gray>(짐은 그대로: 운전석에서 Ctrl 로 다시 짐칸으로)"
-  no-seed: "<yellow>짐칸에 심을 씨앗이 없어요. <gray>(맨 앞 칸의 씨앗부터 심음)"
+  bed-shut: "<red>{tool}을(를) 단 동안은 짐칸을 열 수 없어요. <dark_gray>(Ctrl: 짐칸으로)"
+  no-seed: "<yellow>짐칸에 심을 씨앗이 없어요."
   full: "<yellow>짐칸이 가득 차서 {tool}이(가) 쉬어요. <gray>(칸이나 적재 무게)"
   net-full: "<yellow>어창이 가득 차서 그물에 든 고기를 놓아줬어요."
   net-catch: "<aqua>그물에 <white>{fish}</white>{count} <gray>(어창으로 · 이 자리 {here}/{cap})"
   net-spent: "<yellow>이 자리의 물고기는 다 잡았어요. <gray>{blocks}블록 넘게 옮기면 다시 잡혀요."
-  net-down: "<aqua>{tool}<gray>을(를) 내렸어요 · 배를 세우거나 천천히 가는 동안 물고기가 어창으로 들어와요."
-  net-auto: "<gray>그물은 배를 세우거나 천천히 가면 저절로 내려가고, 빨리 달리면 올라와요."
+  net-down: "<aqua>{tool}<gray> 내림 <dark_gray>· 서거나 천천히 가면 물고기가 들어와요"
+  net-auto: "<gray>그물: 서거나 천천히 가면 내려가고, 빨리 달리면 올라와요."
   net-keys: " · 서거나 천천히: 그물"
   denied-land: "<red>내가 지을 수 없는 땅이라 {tool} 작업을 하지 않아요. <gray>(남의 땅·서버 땅·건축월드)"
   denied-guarded: "<red>도로·하역장·터미널에서는 {tool} 작업을 하지 않아요."
@@ -805,18 +805,18 @@ vehicle-tool:
 
 # 지게 (가슴 칸에 입는 짐 지게: content/stsv/items/vehicles_misc.yml)
 jige:
-  worn: "<#d9b07a>지게</#d9b07a><gray>를 짊어졌어요 · 웅크리고 빈손 우클릭 또는 /지게: 짐 열기 <dark_gray>(걸음 {percent}% 느리게)"
+  worn: "<#d9b07a>지게</#d9b07a><gray>를 짊어졌어요 <dark_gray>(짐: 쉬프트 빈손 우클릭 · /지게 · -{percent}%)"
   title: "<dark_gray>지게 ({used}/{slots}칸)"
   title-weight: "<dark_gray>지게 ({used}/{slots}칸 · 무게 {weight}/{payload})"
   not-worn: "<red>지게를 가슴 칸에 입어야 짐을 열 수 있어요."
   loading: "<gray>지게를 짊어지는 중이에요. 잠시 뒤 다시 열어 주세요."
-  stale: "<red>이 지게는 쓸 수 없어요. <gray>(복사된 아이템이거나, 같은 지게를 먼저 다른 곳에서 짊어짐)"
-  held: "<red>같은 지게를 다른 사람이 지고 있어요. <gray>(그 사람이 벗은 뒤에 쓸 수 있어요)"
-  not-yours: "<red>{owner}님의 지게예요. 주인과 주인이 허락한 사람(/탈것 권한)만 질 수 있어요. <gray>(받으려면 주인에게 /탈것 양도 를 부탁하세요)"
+  stale: "<red>이 지게는 쓸 수 없어요. <dark_gray>(복사됐거나 이미 짊어짐)"
+  held: "<red>같은 지게를 다른 사람이 지고 있어요."
+  not-yours: "<red>{owner}님의 지게예요. <dark_gray>(주인 · 허락받은 사람만)"
   error: "<red>지게를 불러오지 못했어요. 벗었다가 다시 입어 보세요."
   kept: "<gray>지게는 죽어도 떨어뜨리지 않아요. <dark_gray>(짐도 그대로)"
   item-number: "<dark_gray>지게 #{id}"
-  returned: "<green>관리자가 지게 #{id}을(를) 새 아이템으로 돌려보냈어요. <gray>(짐은 그대로, 예전 지게 아이템은 이제 못 써요)"
+  returned: "<green>관리자가 지게 #{id}을(를) 새 아이템으로 돌려보냈어요. <dark_gray>(짐은 그대로)"
   admin-usage: "<red>/관리자 지게 목록 [플레이어] <gray>| <red>회수 <번호> <gray>(주인에게 새 아이템으로, 예전 아이템은 못 쓰게 됨, 짐은 그대로)"
   admin-list: "<gray>지게 {count}개"
   admin-hidden: "<dark_gray>아이템이 사라진 것으로 보이는 지게 {count}개는 숨김 <gray>(다시 나타나면 저절로 목록에 나옴, /관리자 지게 회수 <번호> 로 새 아이템)"
@@ -834,14 +834,14 @@ backup:
   started: "<gray>백업 시작: <white>{name}</white> (월드 저장은 복사하는 동안 잠시 멈춤)"
   done: "<green>백업 완료: <white>{name}</white></green> <gray>(파일 {files}개, 새로 복사 {copied}, {seconds}초)"
   failed: "<red>[백업 실패] {reason}"
-  no-space: "백업할 디스크 공간이 모자랍니다 (남은 공간 {free}, config backup.min-free-gb)"
+  no-space: "백업할 디스크 공간이 모자랍니다 (남은 공간 {free})"
   status: "<gray>자동 백업: {state} <dark_gray>· <gray>폴더 <white>{folder}"
   report: "<gray>백업: {state}"
   state-off: "<red>꺼짐</red>"
   state-running: "<yellow>지금 백업하는 중</yellow>"
   state-failed: "<red>마지막 백업 실패 ({reason})</red>"
   state-none: "<gray>아직 없음 ({every}분마다)</gray>"
-  state-last: "<green>{name} ✔ 검사 통과</green> <gray>(파일 {files}개 중 {shared}개는 이전 백업과 공유, 새로 복사 {copied}, {seconds}초 · {every}분마다)</gray>"
+  state-last: "<green>{name} ✔ 검사 통과</green> <gray>(파일 {files} · 공유 {shared} · 새로 {copied} · {seconds}초 · {every}분마다)</gray>"
   state-last-bad: "<yellow>{name} (검사에서 문제가 나옴: 백업 폴더의 검사-문제.txt)</yellow> <gray>({every}분마다)</gray>"
   check-failed: "<red>[백업 검사] {name}: {problem}</red> <gray>(백업 폴더의 검사-문제.txt)"
   list-head: "<gray>백업 {count}개 <dark_gray>· <gray>{folder} <dark_gray>· <gray>남은 공간 {free}"

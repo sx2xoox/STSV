@@ -76,21 +76,20 @@ tuning:
       icon: stsv:gui/info
       material: BOOK
       name: "<white>{vehicle}"
-      lore: ["<gray>옵션을 누르면 차에 바로 입혀 보여 줍니다 (임시).", "<gray>마음에 들면 <green>결제</green><gray>, 아니면 <red>되돌리기</red><gray>.",
-             "", "<gray>입혀 본 것 <white>{tried}개</white> <dark_gray>· <gray>결제할 값 <gold>{due}", "<gray>내 돈 <white>{balance}",
-             "", "<dark_gray>순정으로 되돌리기는 무료. 성능은 바뀌지 않습니다."]
+      lore: ["<gray>입혀 본 것 <white>{tried}개</white> <dark_gray>· <gray>결제할 값 <gold>{due}", "<gray>내 돈 <white>{balance}",
+             "", "<dark_gray>클릭하면 바로 입혀 봄 · 성능은 그대로"]
     Y:
       action: "tuning:pay"
       icon: stsv:gui/coins
       material: EMERALD
       name: "<green>결제하기 <dark_gray>· <gold>{due}"
-      lore: ["<gray>지금 차에 입혀 본 모습으로 남깁니다."]
+      lore: ["<gray>입혀 본 모습으로 남기기"]
     U:
       action: "tuning:undo"
       icon: stsv:gui/clear
       material: BARRIER
       name: "<red>입혀 본 것 되돌리기"
-      lore: ["<gray>결제해 둔 모습으로 돌아갑니다."]
+      lore: ["<gray>결제해 둔 모습으로"]
     P:
       action: page:prev
       icon: stsv:gui/prev

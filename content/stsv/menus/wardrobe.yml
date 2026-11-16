@@ -97,13 +97,13 @@ wardrobe:
       icon: stsv:gui/tab_aura
       material: AMETHYST_SHARD
       name: "<white>오라 <gray>{n_aura}"
-      lore: ["<gray>가만히 서 있으면 몸 주위에 도는 효과", "<gray>착용: <white>{worn_aura}"]
+      lore: ["<gray>가만히 서면 몸 주위에 도는 효과", "<gray>착용: <white>{worn_aura}"]
     V:
       action: wardrobe:view
       icon: stsv:gui/filter
       material: HOPPER
       name: "<white>보기: {view}"
-      lore: ["{view_all}", "{view_owned}", "{view_missing}", "", "<gray>클릭: <white>바꾸기"]
+      lore: ["{view_all}", "{view_owned}", "{view_missing}", "", "<yellow>클릭: 바꾸기"]
     J:
       action: "wardrobe:tab:worn"
       material: PLAYER_HEAD
@@ -138,32 +138,23 @@ wardrobe:
         - "<gray>모은 치장: <white>{owned_all}/{total_all}"
         - "<gray>착용 중: <white>{worn}"
         - "<gray>미리보기: <white>{previewing}"
-        - ""
-        - "<gray>위 탭: 부위별 분류 (이름 옆 = 가진 수/전체)"
-        - "<gray>밝은 치장 = 가진 것, <dark_gray>어두운 '?' 카드<gray> = 아직 없는 것"
-        - "<gray>  (카드 색 = 등급: 회색 일반 · 파랑 희귀 · 보라 영웅 · 금색 전설)"
-        - "<gray>치장 클릭: 착용 / 착용 중이면 벗기 (창이 닫히고 미리보기)"
-        - "<gray>없는 치장 클릭: 마네킹에 입혀 보기만 + 얻는 곳 안내"
-        - "<gray>미리보기 화면에서 웅크리기: 이 메뉴 다시 열기"
-        - "<gray>나가기 버튼: 원래 자리로"
+        - "<dark_gray>'?' 카드 = 미보유 · 웅크리기: 다시 열기"
     S:
       action: wardrobe:self
       icon: stsv:gui/self_view
       material: SPYGLASS
       name: "<white>내 화면에 표시: {self}"
       lore:
-        - "<gray>머리 위·어깨·등·꼬리 치장을"
-        - "<gray>내 화면(F5)에서도 볼지 정합니다."
-        - "<gray>다른 사람에게는 늘 보입니다."
-        - "<dark_gray>켜면 1인칭에서도 어깨 친구 등이 보일 수 있어요."
+        - "<gray>내 화면(F5)에도 치장 보기"
+        - "<dark_gray>남에게는 늘 보임"
         - ""
-        - "<gray>클릭: <white>켜기 / 끄기"
+        - "<yellow>클릭: 켜기 · 끄기"
     g:
       action: wardrobe:gacha
       icon: stsv:gui/gacha
       material: SNOWBALL
       name: "<white>치장 뽑기"
-      lore: ["<gray>새 치장 얻기 (/뽑기)", "<gray>이미 가진 치장은 교환권으로", "<dark_gray>클릭: 옷장을 나가서 뽑기 화면으로"]
+      lore: ["<gray>새 치장 얻기 · 중복은 교환권", "", "<yellow>클릭: 뽑기 화면으로"]
     X:
       action: wardrobe:exit
       icon: stsv:gui/exit

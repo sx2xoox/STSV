@@ -19,10 +19,7 @@ achievements:
         - "<gray>달성 <white>{done}/{total} <dark_gray>· <gray>점수 <white>{points}"
         - "<gray>받을 보상 <white>{unclaimed}개"
         - ""
-        - "<#8fd16a>쉬움 10점 <dark_gray>· <#5ab0ff>보통 25점"
-        - "<#c58cff>어려움 50점 <dark_gray>· <gold>매우 어려움 100점"
-        - "<gray>어려움 이상은 달성하면 서버 전체에 알려집니다."
-        - "<gray>보상은 여기서 직접 받습니다 (인벤토리가 차 있어도 안전)."
+        - "<#8fd16a>쉬움 10 <dark_gray>· <#5ab0ff>보통 25 <dark_gray>· <#c58cff>어려움 50 <dark_gray>· <gold>매우 100"
     R:
       action: "achievements:ranking"
       material: GOLDEN_HELMET
@@ -62,8 +59,7 @@ achievement_list:
         - "<gray>이 분류 <white>{category_done}/{category_total}"
         - "<gray>전체 <white>{done}/{total} <dark_gray>· <gray>점수 <white>{points}"
         - ""
-        - "<gray>쉬운 것부터 매우 어려운 것 순서"
-        - "<gray>반짝이는 업적: 클릭해서 보상 받기"
+        - "<yellow>반짝이는 업적 클릭: 보상 받기"
     B:
       action: "command:업적"
       icon: stsv:gui/back
@@ -75,7 +71,7 @@ achievement_list:
       icon: stsv:gui/chest
       material: CHEST
       name: "<yellow>이 분류 보상 모두 받기"
-      lore: ["<gray>이 분류에서 받을 수 있는 보상을 한 번에", "<dark_gray>빈칸이 모자라면 남은 보상은 그대로"]
+      lore: ["<gray>이 분류 보상 한 번에 받기", "<dark_gray>빈칸이 모자라면 남은 건 그대로"]
     P:
       action: page:prev
       icon: stsv:gui/prev

@@ -92,8 +92,7 @@ gacha:
       material: SNOWBALL
       name: "<white>1회 뽑기 <dark_gray>· <gold>{single}"
       lore:
-        - "<gray>나오는 치장 중 하나가 나옵니다."
-        - "<gray>이미 가진 치장이면 <white>교환권</white>으로 (팔 수 있음)"
+        - "<gray>중복은 <white>교환권</white>으로"
         - ""
         - "<gray>잔액: {balance}"
         - "{confirm_single}"
@@ -103,9 +102,7 @@ gacha:
       material: SNOWBALL
       name: "<white>{count}회 뽑기 <dark_gray>· <gold>{multi}"
       lore:
-        - "<gray>{count}번 한꺼번에 ({discount}% 할인)"
-        - "<gray>{floor}<gray> 이상 하나는 반드시 나옵니다."
-        - "<gray>이미 가진 치장이면 <white>교환권</white>으로 (팔 수 있음)"
+        - "<gray>{discount}% 할인 · {floor}<gray> 이상 1개 확정"
         - ""
         - "<gray>잔액: {balance}"
         - "{confirm_multi}"
@@ -116,14 +113,9 @@ gacha:
       name: "<gold>치장 뽑기"
       lore:
         - "<gray>모은 치장: <white>{owned_all}/{total_all}"
-        - ""
-        - "<gray>위 두 줄 탭: 부위별로 나오는 치장 (일반 · 희귀 · 영웅)."
-        - "<gray>밝은 치장 = 가진 것, <dark_gray>어두운 '?' 카드<gray> = 아직 없는 것"
-        - "<gray>새 치장은 바로 내 것이 되고, /치장 에서 입습니다."
-        - "<gray>이미 가진 치장은 <white>교환권</white>으로 나옵니다:"
-        - "<gray>  거래소에서 팔거나, 친구에게 주거나, 우클릭해 등록."
-        - "<gray>영웅 치장이 나오면 서버 전체에 알립니다."
-        - "<gold>전설 치장</gold><gray>은 뽑기에 없습니다 (주간 순위 1위 · 상인 행렬)."
+        - "<gray>중복은 <white>교환권</white><gray> · 거래소에서 거래"
+        - "<dark_gray>'?' 카드 = 미보유"
+        - "<dark_gray><gold>전설</gold><dark_gray>은 뽑기에 없음 (주간 1위 · 상인 행렬)"
     W:
       action: "command:치장"
       icon: stsv:gui/dress_up

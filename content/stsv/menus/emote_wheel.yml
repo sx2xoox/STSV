@@ -29,10 +29,8 @@ emote_wheel:
       icon: stsv:gui/info
       material: BOOK
       name: "<white>감정표현 휠"
-      lore: ["<gray>칸 <white>좌클릭</white>: 그 감정표현 하기", "<gray>칸 <white>우클릭</white>: 그 칸에 놓을 것 고르기",
-             "", "<gray>퀵 키: 제자리에서 <white>Ctrl + Shift</white> 를 누른 채",
-             "<gray>마우스로 칸을 고르고 <white>웅크리기를 떼면</white> 실행.",
-             "<gray>하는 중에는 <white>웅크리면</white> 끝납니다.", "", "<dark_gray>감정표현은 후원 상점(/후원)에서 삽니다."]
+      lore: ["<gray>퀵 키: <white>Ctrl + Shift</white><gray> 누른 채 고르고 떼기", "<gray>하는 중 웅크리면 끝", "",
+             "<yellow>칸 클릭: 하기", "<yellow>칸 우클릭: 바꾸기"]
     Z:
       action: "emote:stop"
       icon: stsv:gui/cancel

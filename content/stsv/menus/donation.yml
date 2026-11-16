@@ -35,13 +35,13 @@ donation:
       icon: stsv:gui/gift
       material: CHEST_MINECART
       name: "<white>받기 <gray>· {pending}건"
-      lore: ["<gray>값을 치렀는데 아직 받지 못한 것을 받습니다.", "<dark_gray>(인벤토리가 가득 찼을 때 등)"]
+      lore: ["<gray>아직 못 받은 상품 받기"]
     S:
       action: ""
       icon: stsv:gui/star
       material: NETHER_STAR
       name: "<gold>내 {currency} <white>{balance}"
-      lore: ["<gray>별 1개 = 100원. 입금이 확인되면", "<gray>관리자가 별을 지급합니다."]
+      lore: ["<gray>별 1개 = 100원", "<dark_gray>입금 확인 뒤 관리자가 지급"]
     I:
       action: ""
       icon: stsv:gui/info
@@ -86,7 +86,7 @@ donation_buy:
       icon: stsv:gui/confirm
       material: EMERALD
       name: "<green>구매 확정 <dark_gray>· <gold>{price}"
-      lore: ["<gray>내 별 <white>{balance}</white> → <white>{after}", "", "<dark_gray>구매한 뒤에는 되돌릴 수 없습니다."]
+      lore: ["<gray>내 별 <white>{balance}</white> → <white>{after}", "", "<dark_gray>되돌릴 수 없음"]
     C:
       action: "donation:back"
       icon: stsv:gui/back

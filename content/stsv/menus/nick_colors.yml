@@ -19,9 +19,8 @@ nick_colors:
       icon: stsv:gui/info
       material: BOOK
       name: "<white>지금: {name}"
-      lore: ["<gray>채팅, 탭 목록, 머리 위 이름, 순위·거래소 등", "<gray>내 이름이 나오는 모든 곳에 이 색으로 보입니다.", "",
-             "<gray>한 가지 색 </gray>{cost}<gray> · 그라데이션 </gray>{gradient-cost}", "",
-             "<dark_gray>/닉네임 색 #RRGGBB [#RRGGBB] 로 원하는 색 직접 입력"]
+      lore: ["<gray>내 이름이 나오는 모든 곳에 이 색", "<gray>한 색 </gray>{cost}<gray> · 그라데이션 </gray>{gradient-cost}",
+             "<dark_gray>직접 입력: /닉네임 색 #RRGGBB"]
     O:
       action: "nickcolor:clear"
       icon: stsv:gui/clear

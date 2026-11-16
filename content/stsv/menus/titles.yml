@@ -61,13 +61,13 @@ titles:
       action: "titles:tab:banner"
       material: RED_BANNER
       name: "<gold>칭호 배너 <gray>{n_banner}"
-      lore: ["<gray>칭호 · 닉네임을 움직이는 판에 담아", "<gray>채팅 · 탭 목록 · 머리 위에 보여 줍니다.", "<gray>장착: <white>{banner}", "", "<dark_gray>배너는 후원 상점(/후원)에서 구합니다."]
+      lore: ["<gray>칭호 · 닉네임을 꾸미는 판", "<gray>장착: <white>{banner}", "<dark_gray>구하기: /후원"]
     I:
       action: ""
       icon: stsv:gui/info
       material: BOOK
       name: "<white>장착 중: {worn}"
-      lore: ["<gray>채팅과 탭 목록에서 이름 앞에 붙습니다.", "<gray>가진 칭호 <white>{owned}<gray> / {total}", "", "<dark_gray>/칭호 <이름> 으로 바로 장착, /칭호 해제"]
+      lore: ["<gray>이름 앞에 붙는 말", "<gray>가진 칭호 <white>{owned}<gray> / {total}", "<dark_gray>/칭호 <이름> · /칭호 해제"]
     O:
       action: "titles:off"
       icon: stsv:gui/clear
