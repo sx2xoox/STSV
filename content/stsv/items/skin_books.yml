@@ -18,10 +18,10 @@ toy_sword_skin:
   material: paper
   name: "<#c58cff>스킨북: 장난감 검"
   lore:
-    - "<gold>장난감 시리즈</gold> <dark_gray>· <gray>검에 입히는 스킨"
-    - "<gray>말랑한 스펀지 칼날의 큼직한 검."
-    - "<dark_gray>우클릭: 가운데 칸에 검을 넣으면 입혀짐 · 떼기: /스킨 해제"
-    - "<dark_gray>겉모습만 바뀝니다 (재질 · 인챈트 · 내구도 그대로)"
+    - "<gold>장난감 시리즈</gold> <dark_gray>· <gray>검 스킨"
+    - "<gray>스펀지 칼날의 큼직한 검"
+    - "<gray>겉모습만 바뀜 · 떼기: /스킨 해제"
+    - "<yellow>우클릭: 검에 입히기"
   texture: skin_book
   max-stack: 16
   skin: { model: "stsv:toy_sword", applies-to: ["#minecraft:swords"], return-on-remove: true }
@@ -30,10 +30,10 @@ toy_pickaxe_skin:
   material: paper
   name: "<#c58cff>스킨북: 장난감 곡괭이"
   lore:
-    - "<gold>장난감 시리즈</gold> <dark_gray>· <gray>곡괭이에 입히는 스킨"
-    - "<gray>빨간 플라스틱 머리의 곡괭이."
-    - "<dark_gray>우클릭: 가운데 칸에 곡괭이를 넣으면 입혀짐 · 떼기: /스킨 해제"
-    - "<dark_gray>겉모습만 바뀝니다 (재질 · 인챈트 · 내구도 그대로)"
+    - "<gold>장난감 시리즈</gold> <dark_gray>· <gray>곡괭이 스킨"
+    - "<gray>빨간 플라스틱 곡괭이"
+    - "<gray>겉모습만 바뀜 · 떼기: /스킨 해제"
+    - "<yellow>우클릭: 곡괭이에 입히기"
   texture: skin_book
   max-stack: 16
   skin: { model: "stsv:toy_pickaxe", applies-to: ["#minecraft:pickaxes"], return-on-remove: true }
@@ -42,10 +42,10 @@ toy_shovel_skin:
   material: paper
   name: "<#c58cff>스킨북: 장난감 삽"
   lore:
-    - "<gold>장난감 시리즈</gold> <dark_gray>· <gray>삽에 입히는 스킨"
-    - "<gray>초록 삽날에 D자 손잡이가 달린 모래놀이 삽."
-    - "<dark_gray>우클릭: 가운데 칸에 삽을 넣으면 입혀짐 · 떼기: /스킨 해제"
-    - "<dark_gray>겉모습만 바뀝니다 (재질 · 인챈트 · 내구도 그대로)"
+    - "<gold>장난감 시리즈</gold> <dark_gray>· <gray>삽 스킨"
+    - "<gray>D자 손잡이 모래놀이 삽"
+    - "<gray>겉모습만 바뀜 · 떼기: /스킨 해제"
+    - "<yellow>우클릭: 삽에 입히기"
   texture: skin_book
   max-stack: 16
   skin: { model: "stsv:toy_shovel", applies-to: ["#minecraft:shovels"], return-on-remove: true }
@@ -54,10 +54,10 @@ toy_axe_skin:
   material: paper
   name: "<#c58cff>스킨북: 장난감 도끼"
   lore:
-    - "<gold>장난감 시리즈</gold> <dark_gray>· <gray>도끼에 입히는 스킨"
-    - "<gray>주황 머리에 스펀지 날을 댄 도끼."
-    - "<dark_gray>우클릭: 가운데 칸에 도끼를 넣으면 입혀짐 · 떼기: /스킨 해제"
-    - "<dark_gray>겉모습만 바뀝니다 (재질 · 인챈트 · 내구도 그대로)"
+    - "<gold>장난감 시리즈</gold> <dark_gray>· <gray>도끼 스킨"
+    - "<gray>스펀지 날을 댄 주황 도끼"
+    - "<gray>겉모습만 바뀜 · 떼기: /스킨 해제"
+    - "<yellow>우클릭: 도끼에 입히기"
   texture: skin_book
   max-stack: 16
   skin: { model: "stsv:toy_axe", applies-to: ["#minecraft:axes"], return-on-remove: true }
@@ -66,10 +66,10 @@ toy_hoe_skin:
   material: paper
   name: "<#c58cff>스킨북: 장난감 괭이"
   lore:
-    - "<gold>장난감 시리즈</gold> <dark_gray>· <gray>괭이에 입히는 스킨"
-    - "<gray>파란 날의 괭이."
-    - "<dark_gray>우클릭: 가운데 칸에 괭이를 넣으면 입혀짐 · 떼기: /스킨 해제"
-    - "<dark_gray>겉모습만 바뀝니다 (재질 · 인챈트 · 내구도 그대로)"
+    - "<gold>장난감 시리즈</gold> <dark_gray>· <gray>괭이 스킨"
+    - "<gray>파란 날의 장난감 괭이"
+    - "<gray>겉모습만 바뀜 · 떼기: /스킨 해제"
+    - "<yellow>우클릭: 괭이에 입히기"
   texture: skin_book
   max-stack: 16
   skin: { model: "stsv:toy_hoe", applies-to: ["#minecraft:hoes"], return-on-remove: true }
@@ -78,10 +78,10 @@ toy_fishing_rod_skin:
   material: paper
   name: "<#c58cff>스킨북: 장난감 낚싯대"
   lore:
-    - "<gold>장난감 시리즈</gold> <dark_gray>· <gray>낚싯대에 입히는 스킨"
-    - "<gray>큼직한 릴이 달린 낚시 놀이 낚싯대. 던지면 장난감 찌가 뜹니다."
-    - "<dark_gray>우클릭: 가운데 칸에 낚싯대를 넣으면 입혀짐 · 떼기: /스킨 해제"
-    - "<dark_gray>겉모습만 바뀝니다 (인챈트 · 내구도 그대로)"
+    - "<gold>장난감 시리즈</gold> <dark_gray>· <gray>낚싯대 스킨"
+    - "<gray>장난감 찌가 뜨는 낚싯대"
+    - "<gray>겉모습만 바뀜 · 떼기: /스킨 해제"
+    - "<yellow>우클릭: 낚싯대에 입히기"
   texture: skin_book
   max-stack: 16
   skin:

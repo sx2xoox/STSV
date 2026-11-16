@@ -36,11 +36,12 @@ police_car:
   material: paper
   name: "<#6f93e8>경찰차"
   lore:
-    - "<gray>흰 바탕에 파란 띠를 두른 순찰차. 4인승."
-    - "<gray>최고 속도 9블록/초 · 스페이스: 경적 · Ctrl: 사이렌"
-    - "<dark_gray>땅에 우클릭: 세우기 · 우클릭: 타기"
-    - "<dark_gray>W·S 앞뒤, A·D 방향, 웅크리기: 내리기"
-    - "<dark_gray>웅크리고 우클릭: 아이템으로 회수 (주인)"
+    - "<gray>4인승 순찰차"
+    - "<white>9블록/초"
+    - "<dark_gray>W·S·A·D 운전 · 웅크리기: 내리기"
+    - "<dark_gray>스페이스: 경적 · Ctrl: 사이렌"
+    - "<yellow>우클릭: 세우기 · 타기"
+    - "<yellow>웅크리고 우클릭: 회수"
   model: police_car
   icon: police_car_icon
   max-stack: 1
@@ -87,12 +88,12 @@ sports_car:
   material: paper
   name: "<#e23a2e>컨버터블 스포츠카"
   lore:
-    - "<gold>이벤트 한정</gold> <gray>· 지붕을 연 2인승 스포츠카"
-    - "<gray>짐칸 없음 · 최고 속도 14블록/초 · 가장 빠른 가속"
-    - "<dark_gray>땅에 우클릭: 세우기 · 우클릭: 타기 · 스페이스: 경적"
-    - "<dark_gray>W·S 앞뒤, A·D 방향, 웅크리기: 내리기"
-    - "<dark_gray>Ctrl 을 누른 채 A·D: 드리프트"
-    - "<dark_gray>웅크리고 우클릭: 아이템으로 회수 (주인)"
+    - "<gold>이벤트 한정</gold> <gray>· 2인승 오픈카"
+    - "<white>14블록/초 <gray>· 가속 최고 · 짐칸 없음"
+    - "<dark_gray>W·S·A·D 운전 · 웅크리기: 내리기"
+    - "<dark_gray>스페이스: 경적 · Ctrl+A·D: 드리프트"
+    - "<yellow>우클릭: 세우기 · 타기"
+    - "<yellow>웅크리고 우클릭: 회수"
   model: sports_car
   icon: sports_car_icon
   max-stack: 1
@@ -130,12 +131,12 @@ tuner_car:
   material: paper
   name: "<#9a5fd0>튜닝카"
   lore:
-    - "<gold>이벤트 한정</gold> <gray>· 대형 윙과 대포 머플러를 단 2인승 튜닝 쿠페"
-    - "<gray>짐칸 없음 · 최고 속도 13블록/초 · 가속을 떼면 배기구에서 팝콘"
-    - "<dark_gray>땅에 우클릭: 세우기 · 우클릭: 타기 · 스페이스: 경적"
-    - "<dark_gray>W·S 앞뒤, A·D 방향, 웅크리기: 내리기"
-    - "<dark_gray>Ctrl 을 누른 채 A·D: 드리프트"
-    - "<dark_gray>웅크리고 우클릭: 아이템으로 회수 (주인)"
+    - "<gold>이벤트 한정</gold> <gray>· 2인승 튜닝 쿠페"
+    - "<white>13블록/초 <gray>· 머플러 팝콘 · 짐칸 없음"
+    - "<dark_gray>W·S·A·D 운전 · 웅크리기: 내리기"
+    - "<dark_gray>스페이스: 경적 · Ctrl+A·D: 드리프트"
+    - "<yellow>우클릭: 세우기 · 타기"
+    - "<yellow>웅크리고 우클릭: 회수"
   model: tuner_car
   icon: tuner_car_icon
   max-stack: 1
@@ -173,12 +174,12 @@ hyper_car:
   material: paper
   name: "<#5ca5f7>하이퍼카"
   lore:
-    - "<gold>후원 한정</gold> <gray>· 낮고 넓은 2인승 미드십 쿠페"
-    - "<gray>짐칸 없음 · 최고 속도 14블록/초"
-    - "<dark_gray>땅에 우클릭: 세우기 · 우클릭: 타기 · 스페이스: 경적"
-    - "<dark_gray>W·S 앞뒤, A·D 방향, 웅크리기: 내리기"
-    - "<dark_gray>Ctrl 을 누른 채 A·D: 드리프트"
-    - "<dark_gray>웅크리고 우클릭: 아이템으로 회수 (주인)"
+    - "<gold>후원 한정</gold> <gray>· 2인승 미드십 쿠페"
+    - "<white>14블록/초 <gray>· 짐칸 없음"
+    - "<dark_gray>W·S·A·D 운전 · 웅크리기: 내리기"
+    - "<dark_gray>스페이스: 경적 · Ctrl+A·D: 드리프트"
+    - "<yellow>우클릭: 세우기 · 타기"
+    - "<yellow>웅크리고 우클릭: 회수"
   model: hyper_car
   icon: hyper_car_icon
   max-stack: 1
@@ -228,11 +229,12 @@ grand_sedan:
   material: paper
   name: "<#f0e6d2>그랜드 세단"
   lore:
-    - "<gold>후원 한정</gold> <gray>· 길고 낮은 4인승 대형 세단"
-    - "<gray>짐칸 없음 · 최고 속도 10블록/초 · 조용하고 부드러운 승차감"
-    - "<dark_gray>땅에 우클릭: 세우기 · 우클릭: 타기 · 스페이스: 경적"
-    - "<dark_gray>W·S 앞뒤, A·D 방향, 웅크리기: 내리기"
-    - "<dark_gray>웅크리고 우클릭: 아이템으로 회수 (주인)"
+    - "<gold>후원 한정</gold> <gray>· 4인승 대형 세단"
+    - "<white>10블록/초 <gray>· 조용함 · 짐칸 없음"
+    - "<dark_gray>W·S·A·D 운전 · 웅크리기: 내리기"
+    - "<dark_gray>스페이스: 경적"
+    - "<yellow>우클릭: 세우기 · 타기"
+    - "<yellow>웅크리고 우클릭: 회수"
   model: grand_sedan
   icon: grand_sedan_icon
   max-stack: 1
@@ -280,11 +282,12 @@ luxury_suv:
   material: paper
   name: "<#4e8049>몬스터 오프로더"
   lore:
-    - "<gold>후원 한정</gold> <gray>· 문짝만 한 바퀴로 한 블록 떠 있는 4인승 오프로더"
-    - "<gray>짐칸 없음 · 최고 속도 9블록/초 · 험한 땅에서도 느려지지 않음"
-    - "<dark_gray>땅에 우클릭: 세우기 · 우클릭: 타기 · 스페이스: 경적"
-    - "<dark_gray>W·S 앞뒤, A·D 방향, 웅크리기: 내리기"
-    - "<dark_gray>웅크리고 우클릭: 아이템으로 회수 (주인)"
+    - "<gold>후원 한정</gold> <gray>· 4인승 몬스터 오프로더"
+    - "<white>9블록/초 <gray>· 험한 땅도 그대로 · 짐칸 없음"
+    - "<dark_gray>W·S·A·D 운전 · 웅크리기: 내리기"
+    - "<dark_gray>스페이스: 경적"
+    - "<yellow>우클릭: 세우기 · 타기"
+    - "<yellow>웅크리고 우클릭: 회수"
   model: luxury_suv
   icon: luxury_suv_icon
   max-stack: 1
@@ -329,12 +332,12 @@ light_truck:
   material: paper
   name: "<#8fb4e0>1톤 트럭"
   lore:
-    - "<gray>4세대 · 앞이 납작한 소형 화물차. 운전석 2인 + 짐칸 2인."
-    - "<gray>짐칸 보관함 450칸 (10쪽) · 최고 속도 8블록/초"
-    - "<dark_gray>땅에 우클릭: 세우기 · 우클릭: 타기 · 스페이스: 경적"
-    - "<dark_gray>웅크리고 짐칸 우클릭: 짐칸 열기"
-    - "<dark_gray>웅크리고 운전석 쪽 우클릭: 아이템으로 회수 (짐칸이 비어 있어야 함)"
-    - "<gold>방수포</gold> <gray>운전석에서 Ctrl (멈춰서): 짐칸 덮개 덮기·걷기"
+    - "<gray>4세대 · 소형 화물차 (앞 2 · 짐칸 2)"
+    - "<white>8블록/초 · 짐칸 450칸"
+    - "<gold>방수포</gold> <gray>멈춰서 Ctrl: 덮기·걷기"
+    - "<dark_gray>스페이스: 경적"
+    - "<yellow>우클릭: 세우기 · 타기"
+    - "<yellow>웅크리고 우클릭: 짐칸 · 운전석 쪽: 회수"
   model: light_truck
   icon: light_truck_icon
   max-stack: 1
@@ -376,10 +379,11 @@ golf_cart:
   material: paper
   name: "<#e9dfb8>골프 카트"
   lore:
-    - "<gray>지붕 달린 2인승 카트. 뒤에 골프백 거치대."
-    - "<gray>최고 속도 5블록/초 · 스페이스: 경적"
-    - "<dark_gray>땅에 우클릭: 세우기 · 우클릭: 타기"
-    - "<dark_gray>웅크리고 우클릭: 아이템으로 회수 (주인)"
+    - "<gray>2인승 골프 카트"
+    - "<white>5블록/초"
+    - "<dark_gray>스페이스: 경적"
+    - "<yellow>우클릭: 세우기 · 타기"
+    - "<yellow>웅크리고 우클릭: 회수"
   model: golf_cart
   icon: golf_cart_icon
   max-stack: 1
@@ -427,12 +431,11 @@ hand_cart:
   material: paper
   name: "<#d3a86a>리어카"
   lore:
-    - "<gray>1세대 · 짐을 나르는 나무 손수레. 바퀴 둘, 긴 손잡이."
-    - "<gray>짐칸 보관함 135칸 (3쪽) · 타지 않고 끌고 다님"
-    - "<dark_gray>땅에 우클릭: 세우기 · 우클릭: 손잡이 잡기 / 놓기"
-    - "<dark_gray>끄는 동안 걸음이 느려지고 달릴 수 없음 · 웅크리기: 놓기"
-    - "<dark_gray>웅크리고 짐칸 우클릭: 짐칸 열기 (놓은 뒤)"
-    - "<dark_gray>웅크리고 손잡이 우클릭: 아이템으로 회수 (주인, 짐칸이 비어 있어야 함)"
+    - "<gray>1세대 · 끌고 다니는 손수레"
+    - "<white>짐칸 135칸 <gray>· 끄는 동안 느림"
+    - "<dark_gray>웅크리기: 손잡이 놓기"
+    - "<yellow>우클릭: 세우기 · 손잡이 잡기"
+    - "<yellow>웅크리고 우클릭: 짐칸(놓은 뒤) · 손잡이 쪽: 회수"
   model: hand_cart
   icon: hand_cart_icon
   max-stack: 1

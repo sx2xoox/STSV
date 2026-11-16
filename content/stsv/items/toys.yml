@@ -11,9 +11,8 @@ infinite_firework:
   material: paper
   name: "<#ffd257>무한 폭죽"
   lore:
-    - "<gray>줄무늬 로켓 세 발이 꽂힌 장난감 발사기."
-    - "<gray>쏴도 줄지 않습니다. 쏠 때마다 색과 모양이 달라집니다."
-    - "<gray>겉날개로 나는 중에 쏘면 <white>로켓처럼 밀어 줍니다</white>."
-    - "<dark_gray>우클릭: 폭죽 쏘기 (잠깐 기다렸다 다시) · 피해 없음"
+    - "<gray>쏴도 줄지 않는 폭죽 · 피해 없음"
+    - "<gray>겉날개 비행 중: <white>로켓처럼 가속"
+    - "<yellow>우클릭: 쏘기"
   item-model: stsv:party_firework
   max-stack: 1

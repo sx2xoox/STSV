@@ -11,12 +11,11 @@ cargo_bicycle:
   material: paper
   name: "<#6fae7e>짐자전거"
   lore:
-    - "<gray>2세대 · 앞 바구니와 뒤 짐받이가 달린 튼튼한 자전거. 1인승."
-    - "<gray>짐칸 27칸 · 최고 속도 6.5블록/초 · 엔진 없이 조용함"
-    - "<dark_gray>땅에 우클릭: 세우기 · 우클릭: 타기"
-    - "<dark_gray>W·S 앞뒤, A·D 방향, 스페이스: 벨, 웅크리기: 내리기"
-    - "<dark_gray>웅크리고 뒤 짐받이 우클릭: 짐칸 열기"
-    - "<dark_gray>웅크리고 앞쪽 우클릭: 아이템으로 회수 (주인, 짐칸이 비어 있어야 함)"
+    - "<gray>2세대 · 1인승 짐자전거"
+    - "<white>6.5블록/초 · 짐칸 27칸"
+    - "<dark_gray>W·S·A·D 운전 · 스페이스: 벨 · 웅크리기: 내리기"
+    - "<yellow>우클릭: 세우기 · 타기"
+    - "<yellow>웅크리고 우클릭: 짐칸(뒤) · 회수(앞)"
   model: cargo_bicycle
   icon: cargo_bicycle_icon
   max-stack: 1
@@ -56,12 +55,11 @@ delivery_scooter:
   material: paper
   name: "<#e0644a>배달 오토바이"
   lore:
-    - "<gray>3세대 · 뒤에 큰 배달통을 단 작은 오토바이. 2인승 (운전자 + 뒷자리)."
-    - "<gray>배달통 54칸 · 최고 속도 9.5블록/초"
-    - "<dark_gray>땅에 우클릭: 세우기 · 우클릭: 타기"
-    - "<dark_gray>W·S 앞뒤, A·D 방향, 스페이스: 경적, 웅크리기: 내리기"
-    - "<dark_gray>웅크리고 배달통 우클릭: 짐칸 열기"
-    - "<dark_gray>웅크리고 앞쪽 우클릭: 아이템으로 회수 (주인, 짐칸이 비어 있어야 함)"
+    - "<gray>3세대 · 2인승 배달 오토바이"
+    - "<white>9.5블록/초 · 배달통 54칸"
+    - "<dark_gray>W·S·A·D 운전 · 스페이스: 경적 · 웅크리기: 내리기"
+    - "<yellow>우클릭: 세우기 · 타기"
+    - "<yellow>웅크리고 우클릭: 짐칸(뒤) · 회수(앞)"
   model: delivery_scooter
   icon: delivery_scooter_icon
   max-stack: 1
@@ -99,13 +97,12 @@ atv:
   material: paper
   name: "<#f0a050>사륜 오토바이"
   lore:
-    - "<gray>특수 · 울퉁불퉁한 굵은 바퀴의 사륜 오토바이. 1인승."
-    - "<gray>앞뒤 짐받이 54칸 · 최고 속도 8블록/초"
-    - "<gray>모래·자갈·눈·진흙·영혼 모래에서도 느려지지 않음"
-    - "<dark_gray>땅에 우클릭: 세우기 · 우클릭: 타기"
-    - "<dark_gray>W·S 앞뒤, A·D 방향, 스페이스: 경적, 웅크리기: 내리기"
-    - "<dark_gray>웅크리고 뒤 짐받이 우클릭: 짐칸 열기"
-    - "<dark_gray>웅크리고 앞쪽 우클릭: 아이템으로 회수 (주인, 짐칸이 비어 있어야 함)"
+    - "<gray>특수 · 1인승 사륜 오토바이"
+    - "<white>8블록/초 · 짐칸 54칸"
+    - "<gray>모래·눈·진흙에서도 그대로"
+    - "<dark_gray>W·S·A·D 운전 · 스페이스: 경적 · 웅크리기: 내리기"
+    - "<yellow>우클릭: 세우기 · 타기"
+    - "<yellow>웅크리고 우클릭: 짐칸(뒤) · 회수(앞)"
   model: atv
   icon: atv_icon
   max-stack: 1
@@ -145,12 +142,11 @@ cargo_van:
   material: paper
   name: "<#8fc9b5>소형 화물 밴"
   lore:
-    - "<gray>4세대 · 앞이 납작한 상자 모양의 작은 화물 밴. 2인승, 오른쪽 미닫이문."
-    - "<gray>닫힌 짐칸 360칸 (8쪽) · 최고 속도 8.5블록/초"
-    - "<dark_gray>땅에 우클릭: 세우기 · 우클릭: 타기"
-    - "<dark_gray>W·S 앞뒤, A·D 방향, 스페이스: 경적, 웅크리기: 내리기"
-    - "<dark_gray>웅크리고 짐칸 우클릭: 짐칸 열기"
-    - "<dark_gray>웅크리고 운전석 쪽 우클릭: 아이템으로 회수 (짐칸이 비어 있어야 함)"
+    - "<gray>4세대 · 2인승 화물 밴"
+    - "<white>8.5블록/초 · 짐칸 360칸"
+    - "<dark_gray>W·S·A·D 운전 · 스페이스: 경적 · 웅크리기: 내리기"
+    - "<yellow>우클릭: 세우기 · 타기"
+    - "<yellow>웅크리고 우클릭: 짐칸 · 운전석 쪽: 회수"
   model: cargo_van
   icon: cargo_van_icon
   max-stack: 1
@@ -189,13 +185,12 @@ box_truck:
   material: paper
   name: "<#7fa6dd>탑차"
   lore:
-    - "<gray>5세대 · 높은 알루미늄 짐칸과 뒤 셔터문이 달린 큰 화물차. 2인승."
-    - "<gray>닫힌 짐칸 720칸 (16쪽) · 최고 속도 7.5블록/초"
-    - "<gray>크고 느리게 돎: 좁은 길·골목은 지나기 어려움 (6.5 × 2.2 × 3칸)"
-    - "<dark_gray>땅에 우클릭: 세우기 · 우클릭: 타기"
-    - "<dark_gray>W·S 앞뒤, A·D 방향, 스페이스: 경적, 웅크리기: 내리기"
-    - "<dark_gray>웅크리고 짐칸 우클릭: 짐칸 열기 (뒤 셔터가 올라가고, 달리면 내려옴)"
-    - "<dark_gray>웅크리고 운전석 쪽 우클릭: 아이템으로 회수 (짐칸이 비어 있어야 함)"
+    - "<gray>5세대 · 2인승 탑차 (6.5×2.2×3칸)"
+    - "<white>7.5블록/초 · 짐칸 720칸"
+    - "<gray>크고 느리게 돎"
+    - "<dark_gray>W·S·A·D 운전 · 스페이스: 경적 · 웅크리기: 내리기"
+    - "<yellow>우클릭: 세우기 · 타기"
+    - "<yellow>웅크리고 우클릭: 짐칸 · 운전석 쪽: 회수"
   model: box_truck
   icon: box_truck_icon
   max-stack: 1

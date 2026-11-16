@@ -242,43 +242,43 @@ treasure_fish_meat:
 cod_fillet:
   material: paper
   name: "<#4fc3f7>생선 필렛"
-  lore: ["<dark_gray>예전 물건: 이제 만들 수 없음", "<gray>상점에서 그대로 팔 수 있음 (판매 화면에서 이 물건을 누르거나 전부 팔기)"]
+  lore: ["<dark_gray>예전 물건 · 더 만들 수 없음", "<gray>상점에 팔 수 있음"]
   texture: cod_fillet
 
 salmon_fillet:
   material: paper
   name: "<#4fc3f7>연어 필렛"
-  lore: ["<dark_gray>예전 물건: 이제 만들 수 없음", "<gray>상점에서 그대로 팔 수 있음 (판매 화면에서 이 물건을 누르거나 전부 팔기)"]
+  lore: ["<dark_gray>예전 물건 · 더 만들 수 없음", "<gray>상점에 팔 수 있음"]
   texture: salmon_fillet
 
 dried_pollack:
   material: paper
   name: "<#4fc3f7>북어"
-  lore: ["<dark_gray>예전 물건: 이제 만들 수 없음", "<gray>상점에서 그대로 팔 수 있음 (판매 화면에서 이 물건을 누르거나 전부 팔기)"]
+  lore: ["<dark_gray>예전 물건 · 더 만들 수 없음", "<gray>상점에 팔 수 있음"]
   texture: dried_pollack
 
 prepared_puffer:
   material: paper
   name: "<#4fc3f7>손질한 복어"
-  lore: ["<dark_gray>예전 물건: 이제 만들 수 없음", "<gray>상점에서 그대로 팔 수 있음 (판매 화면에서 이 물건을 누르거나 전부 팔기)"]
+  lore: ["<dark_gray>예전 물건 · 더 만들 수 없음", "<gray>상점에 팔 수 있음"]
   texture: prepared_puffer
 
 smoked_salmon:
   material: paper
   name: "<#4fc3f7>훈제 연어"
-  lore: ["<dark_gray>예전 물건: 이제 만들 수 없음", "<gray>상점에서 그대로 팔 수 있음 (판매 화면에서 이 물건을 누르거나 전부 팔기)"]
+  lore: ["<dark_gray>예전 물건 · 더 만들 수 없음", "<gray>상점에 팔 수 있음"]
   texture: smoked_salmon
 
 seabream_sashimi:
   material: paper
   name: "<#4fc3f7>모둠회"
-  lore: ["<dark_gray>예전 물건: 이제 만들 수 없음", "<gray>상점에서 그대로 팔 수 있음 (판매 화면에서 이 물건을 누르거나 전부 팔기)"]
+  lore: ["<dark_gray>예전 물건 · 더 만들 수 없음", "<gray>상점에 팔 수 있음"]
   texture: seabream_sashimi
 
 tuna_sashimi:
   material: paper
   name: "<#4fc3f7>참치 회"
-  lore: ["<dark_gray>예전 물건: 이제 만들 수 없음", "<gray>상점에서 그대로 팔 수 있음 (판매 화면에서 이 물건을 누르거나 전부 팔기)"]
+  lore: ["<dark_gray>예전 물건 · 더 만들 수 없음", "<gray>상점에 팔 수 있음"]
   texture: tuna_sashimi
 
 polished_pearl:
@@ -289,67 +289,67 @@ polished_pearl:
 sukhoe:
   material: paper
   name: "<#4fc3f7>숙회"
-  lore: ["<dark_gray>예전 물건: 이제 만들 수 없음", "<gray>상점에서 그대로 팔 수 있음 (판매 화면에서 이 물건을 누르거나 전부 팔기)"]
+  lore: ["<dark_gray>예전 물건 · 더 만들 수 없음", "<gray>상점에 팔 수 있음"]
   texture: sukhoe
 
 fishcake:
   material: paper
   name: "<#4fc3f7>어묵"
-  lore: ["<dark_gray>예전 물건: 이제 만들 수 없음", "<gray>상점에서 그대로 팔 수 있음 (판매 화면에서 이 물건을 누르거나 전부 팔기)"]
+  lore: ["<dark_gray>예전 물건 · 더 만들 수 없음", "<gray>상점에 팔 수 있음"]
   texture: fishcake
 
 caviar:
   material: paper
   name: "<#4fc3f7>캐비아"
-  lore: ["<dark_gray>예전 물건: 이제 만들 수 없음", "<gray>상점에서 그대로 팔 수 있음 (판매 화면에서 이 물건을 누르거나 전부 팔기)"]
+  lore: ["<dark_gray>예전 물건 · 더 만들 수 없음", "<gray>상점에 팔 수 있음"]
   texture: caviar
 
 seafood_feast:
   material: paper
   name: "<#4fc3f7>해물 한상"
-  lore: ["<dark_gray>예전 물건: 이제 만들 수 없음", "<gray>상점에서 그대로 팔 수 있음 (판매 화면에서 이 물건을 누르거나 전부 팔기)"]
+  lore: ["<dark_gray>예전 물건 · 더 만들 수 없음", "<gray>상점에 팔 수 있음"]
   texture: seafood_feast
 
 shrimp_meat:
   material: paper
   name: "<#4fc3f7>새우살"
-  lore: ["<dark_gray>예전 물건: 이제 만들 수 없음", "<gray>상점에서 그대로 팔 수 있음 (판매 화면에서 이 물건을 누르거나 전부 팔기)"]
+  lore: ["<dark_gray>예전 물건 · 더 만들 수 없음", "<gray>상점에 팔 수 있음"]
   texture: shrimp_meat
 
 gwamegi:
   material: paper
   name: "<#4fc3f7>과메기"
-  lore: ["<dark_gray>예전 물건: 이제 만들 수 없음", "<gray>상점에서 그대로 팔 수 있음 (판매 화면에서 이 물건을 누르거나 전부 팔기)"]
+  lore: ["<dark_gray>예전 물건 · 더 만들 수 없음", "<gray>상점에 팔 수 있음"]
   texture: gwamegi
 
 gulbi:
   material: paper
   name: "<#4fc3f7>굴비"
-  lore: ["<dark_gray>예전 물건: 이제 만들 수 없음", "<gray>상점에서 그대로 팔 수 있음 (판매 화면에서 이 물건을 누르거나 전부 팔기)"]
+  lore: ["<dark_gray>예전 물건 · 더 만들 수 없음", "<gray>상점에 팔 수 있음"]
   texture: gulbi
 
 hongeo:
   material: paper
   name: "<#4fc3f7>삭힌 홍어"
-  lore: ["<dark_gray>예전 물건: 이제 만들 수 없음", "<gray>상점에서 그대로 팔 수 있음 (판매 화면에서 이 물건을 누르거나 전부 팔기)"]
+  lore: ["<dark_gray>예전 물건 · 더 만들 수 없음", "<gray>상점에 팔 수 있음"]
   texture: hongeo
 
 jeotgal:
   material: paper
   name: "<#4fc3f7>젓갈"
-  lore: ["<dark_gray>예전 물건: 이제 만들 수 없음", "<gray>상점에서 그대로 팔 수 있음 (판매 화면에서 이 물건을 누르거나 전부 팔기)"]
+  lore: ["<dark_gray>예전 물건 · 더 만들 수 없음", "<gray>상점에 팔 수 있음"]
   texture: jeotgal
 
 salted_mackerel:
   material: paper
   name: "<#4fc3f7>간고등어"
-  lore: ["<dark_gray>예전 물건: 이제 만들 수 없음", "<gray>상점에서 그대로 팔 수 있음 (판매 화면에서 이 물건을 누르거나 전부 팔기)"]
+  lore: ["<dark_gray>예전 물건 · 더 만들 수 없음", "<gray>상점에 팔 수 있음"]
   texture: salted_mackerel
 
 fish_sauce:
   material: paper
   name: "<#4fc3f7>까나리 액젓"
-  lore: ["<dark_gray>예전 물건: 이제 만들 수 없음", "<gray>상점에서 그대로 팔 수 있음 (판매 화면에서 이 물건을 누르거나 전부 팔기)"]
+  lore: ["<dark_gray>예전 물건 · 더 만들 수 없음", "<gray>상점에 팔 수 있음"]
   texture: fish_sauce
 
 # ── 대장간 · 대장장이 ─────────────────────────────────────────
@@ -815,49 +815,49 @@ potato_vodka:
 wild_ginseng:
   material: paper
   name: "<#8bc34a>산삼"
-  lore: ["<light_purple>특별 재료</light_purple> <gray>· 작물 수확 (농부가 자주)", "<gray>거래 참고가 <white>160G</white> <dark_gray>(상점은 안 삼)", "<gray>쓰는 곳: 연금술사 인삼주 · 요리사 산삼 삼계탕"]
+  lore: ["<light_purple>특별 재료</light_purple> <gray>· 작물 수확 (농부가 자주)", "<gray>거래 참고가 <white>160G</white> <dark_gray>· 상점 안 삼", "<gray>쓰임: 연금술사 인삼주 · 요리사 산삼 삼계탕"]
   texture: wild_ginseng
 
 golden_ear:
   material: paper
   name: "<#8bc34a>황금 이삭"
-  lore: ["<light_purple>특별 재료</light_purple> <gray>· 작물 수확 (농부가 자주)", "<gray>거래 참고가 <white>70G</white> <dark_gray>(상점은 안 삼)", "<gray>쓰는 곳: 요리사 황금 인절미 · 연금술사 황금 청주"]
+  lore: ["<light_purple>특별 재료</light_purple> <gray>· 작물 수확 (농부가 자주)", "<gray>거래 참고가 <white>70G</white> <dark_gray>· 상점 안 삼", "<gray>쓰임: 요리사 황금 인절미 · 연금술사 황금 청주"]
   texture: golden_ear
 
 silk_cocoon:
   material: paper
   name: "<#8bc34a>누에고치"
-  lore: ["<light_purple>특별 재료</light_purple> <gray>· 작물 수확 (농부가 자주)", "<gray>거래 참고가 <white>60G</white> <dark_gray>(상점은 안 삼)", "<gray>쓰는 곳: 광부 명주 진주 목걸이·용연향 노리개 · 대장장이 운철검"]
+  lore: ["<light_purple>특별 재료</light_purple> <gray>· 작물 수확 (농부가 자주)", "<gray>거래 참고가 <white>60G</white> <dark_gray>· 상점 안 삼", "<gray>쓰임: 광부 명주 진주 목걸이·용연향 노리개 · 대장장이 운철검"]
   texture: silk_cocoon
 
 red_coral:
   material: paper
   name: "<#4fc3f7>붉은 산호"
-  lore: ["<light_purple>특별 재료</light_purple> <gray>· 낚시 (어부가 자주)", "<gray>거래 참고가 <white>90G</white> <dark_gray>(상점은 안 삼)", "<gray>쓰는 곳: 광부 산호 브로치 · 대장장이 산호 자개함"]
+  lore: ["<light_purple>특별 재료</light_purple> <gray>· 낚시 (어부가 자주)", "<gray>거래 참고가 <white>90G</white> <dark_gray>· 상점 안 삼", "<gray>쓰임: 광부 산호 브로치 · 대장장이 산호 자개함"]
   texture: red_coral
 
 ambergris:
   material: paper
   name: "<#4fc3f7>용연향"
-  lore: ["<light_purple>특별 재료</light_purple> <gray>· 낚시 (어부가 자주)", "<gray>거래 참고가 <white>260G</white> <dark_gray>(상점은 안 삼)", "<gray>쓰는 곳: 연금술사 용연향 향수 · 광부 용연향 노리개"]
+  lore: ["<light_purple>특별 재료</light_purple> <gray>· 낚시 (어부가 자주)", "<gray>거래 참고가 <white>260G</white> <dark_gray>· 상점 안 삼", "<gray>쓰임: 연금술사 용연향 향수 · 광부 용연향 노리개"]
   texture: ambergris
 
 abalone:
   material: paper
   name: "<#4fc3f7>전복"
-  lore: ["<light_purple>특별 재료</light_purple> <gray>· 낚시 (어부가 자주)", "<gray>거래 참고가 <white>40G</white> <dark_gray>(상점은 안 삼)", "<gray>쓰는 곳: 요리사 전복죽 · 대장장이 산호 자개함"]
+  lore: ["<light_purple>특별 재료</light_purple> <gray>· 낚시 (어부가 자주)", "<gray>거래 참고가 <white>40G</white> <dark_gray>· 상점 안 삼", "<gray>쓰임: 요리사 전복죽 · 대장장이 산호 자개함"]
   texture: abalone
 
 meteoric_iron:
   material: paper
   name: "<#9fb4c8>운철"
-  lore: ["<light_purple>특별 재료</light_purple> <gray>· 광석 캐기 (광부가 자주)", "<gray>거래 참고가 <white>180G</white> <dark_gray>(상점은 안 삼)", "<gray>쓰는 곳: 대장장이 운철검 · 연금술사 운철 단약"]
+  lore: ["<light_purple>특별 재료</light_purple> <gray>· 광석 캐기 (광부가 자주)", "<gray>거래 참고가 <white>180G</white> <dark_gray>· 상점 안 삼", "<gray>쓰임: 대장장이 운철검 · 연금술사 운철 단약"]
   texture: meteoric_iron
 
 rough_crystal:
   material: paper
   name: "<#9fb4c8>수정 원석"
-  lore: ["<light_purple>특별 재료</light_purple> <gray>· 광석 캐기 (광부가 자주)", "<gray>거래 참고가 <white>45G</white> <dark_gray>(상점은 안 삼)", "<gray>쓰는 곳: 광부가 세공 수정으로 → 대장장이 수정 랜턴 · 연금술사 수정병 빈티지"]
+  lore: ["<light_purple>특별 재료</light_purple> <gray>· 광석 캐기 (광부가 자주)", "<gray>거래 참고가 <white>45G</white> <dark_gray>· 상점 안 삼", "<gray>쓰임: 광부가 세공 수정으로 → 대장장이 수정 랜턴 · 연금술사 수정병 빈티지"]
   texture: rough_crystal
 
 # ── 특별 재료·도매 생선으로 만드는 것 ─────────────────────────
@@ -1021,43 +1021,43 @@ fish_feed:
 catch_coast:
   material: paper
   name: "<#8fd0a0>연안 어획 상자"
-  lore: ["<gray>연안에서 그물로 잡은 고기 한 상자", "<gray>항구 하역장에 배를 대고 어창을 열면 <white>위판</white>에서 팔림", "<dark_gray>잡은 배의 어창에 실려 있어야 함 · 상점에서는 안 삼"]
+  lore: ["<gray>연안에서 그물로 잡은 고기", "<gray>잡은 배의 어창에서 <white>위판</white>에만 팔림"]
   texture: catch_coast
 
 catch_near:
   material: paper
   name: "<#6fb7e8>근해 어획 상자"
-  lore: ["<gray>근해에서 그물로 잡은 고기 한 상자", "<gray>항구 하역장에 배를 대고 어창을 열면 <white>위판</white>에서 팔림", "<dark_gray>잡은 배의 어창에 실려 있어야 함 · 상점에서는 안 삼"]
+  lore: ["<gray>근해에서 그물로 잡은 고기", "<gray>잡은 배의 어창에서 <white>위판</white>에만 팔림"]
   texture: catch_near
 
 catch_far:
   material: paper
   name: "<#f0b860>원양 어획 상자"
-  lore: ["<gray>먼바다에서 그물로 잡은 고기 한 상자", "<gray>항구 하역장에 배를 대고 어창을 열면 <white>위판</white>에서 팔림", "<dark_gray>잡은 배의 어창에 실려 있어야 함 · 상점에서는 안 삼"]
+  lore: ["<gray>먼바다에서 그물로 잡은 고기", "<gray>잡은 배의 어창에서 <white>위판</white>에만 팔림"]
   texture: catch_far
 
 flatfish_hoe:
   material: paper
   name: "<#4fc3f7>광어회"
-  lore: ["<dark_gray>예전 물건: 이제 만들 수 없음", "<gray>상점에서 그대로 팔 수 있음 (판매 화면에서 이 물건을 누르거나 전부 팔기)"]
+  lore: ["<dark_gray>예전 물건 · 더 만들 수 없음", "<gray>상점에 팔 수 있음"]
   texture: flatfish_hoe
 
 dried_fish:
   material: paper
   name: "<#4fc3f7>건어물"
-  lore: ["<dark_gray>예전 물건: 이제 만들 수 없음", "<gray>상점에서 그대로 팔 수 있음 (판매 화면에서 이 물건을 누르거나 전부 팔기)"]
+  lore: ["<dark_gray>예전 물건 · 더 만들 수 없음", "<gray>상점에 팔 수 있음"]
   texture: dried_fish
 
 saeujeot:
   material: paper
   name: "<#4fc3f7>새우젓"
-  lore: ["<dark_gray>예전 물건: 이제 만들 수 없음", "<gray>상점에서 그대로 팔 수 있음 (판매 화면에서 이 물건을 누르거나 전부 팔기)"]
+  lore: ["<dark_gray>예전 물건 · 더 만들 수 없음", "<gray>상점에 팔 수 있음"]
   texture: saeujeot
 
 fish_paste:
   material: paper
   name: "<#4fc3f7>어묵 반죽"
-  lore: ["<dark_gray>예전 물건: 이제 만들 수 없음", "<gray>상점에서 그대로 팔 수 있음 (판매 화면에서 이 물건을 누르거나 전부 팔기)"]
+  lore: ["<dark_gray>예전 물건 · 더 만들 수 없음", "<gray>상점에 팔 수 있음"]
   texture: fish_paste
 
 mulhoe:
@@ -1143,7 +1143,7 @@ stone_lantern:
 gem_bench:
   material: paper
   name: "<#9fb4c8>세공대"
-  lore: ["<gray>광부 기계 · 2×1×2", "<dark_gray>설치하고 우클릭"]
+  lore: ["<gray>광부 기계 · 2×1×2", "<yellow>설치 후 우클릭: 열기"]
   model: gem_bench_0
   max-stack: 1
   furniture:
@@ -1155,7 +1155,7 @@ gem_bench:
 mill:
   material: paper
   name: "<#8bc34a>가공대"
-  lore: ["<gray>농부 기계 · 2×2×2", "<dark_gray>설치하고 우클릭"]
+  lore: ["<gray>농부 기계 · 2×2×2", "<yellow>설치 후 우클릭: 열기"]
   model: mill_0
   max-stack: 1
   furniture:
@@ -1167,7 +1167,7 @@ mill:
 fish_bench:
   material: paper
   name: "<#4fc3f7>손질대"
-  lore: ["<gray>어부 기계 · 2×1×2", "<dark_gray>설치하고 우클릭"]
+  lore: ["<gray>어부 기계 · 2×1×2", "<yellow>설치 후 우클릭: 열기"]
   model: fish_bench_0
   max-stack: 1
   furniture:
@@ -1177,7 +1177,7 @@ fish_bench:
 forge:
   material: paper
   name: "<#ff8a65>대장간"
-  lore: ["<gray>대장장이 기계 · 2×2×3", "<dark_gray>설치하고 우클릭"]
+  lore: ["<gray>대장장이 기계 · 2×2×3", "<yellow>설치 후 우클릭: 열기"]
   model: forge_0
   max-stack: 1
   furniture:
@@ -1188,7 +1188,7 @@ forge:
 kitchen:
   material: paper
   name: "<#ffb74d>조리대"
-  lore: ["<gray>요리사 기계 · 3×1×2", "<dark_gray>설치하고 우클릭"]
+  lore: ["<gray>요리사 기계 · 3×1×2", "<yellow>설치 후 우클릭: 열기"]
   model: kitchen_0
   max-stack: 1
   furniture:
@@ -1198,7 +1198,7 @@ kitchen:
 still:
   material: paper
   name: "<#ba68c8>증류기"
-  lore: ["<gray>연금술사 기계 · 2×2×3", "<dark_gray>설치하고 우클릭"]
+  lore: ["<gray>연금술사 기계 · 2×2×3", "<yellow>설치 후 우클릭: 열기"]
   model: still_0
   max-stack: 1
   furniture:
@@ -1209,7 +1209,7 @@ still:
 press:
   material: paper
   name: "<#c8b98a>압착기"
-  lore: ["<gray>공용 기계 · 2×1×2", "<gray>남는 씨앗·묘목·잎·돌·흙을 눌러서 팔 것으로", "<dark_gray>설치하고 우클릭"]
+  lore: ["<gray>공용 기계 · 2×1×2", "<gray>남는 씨앗·잎·돌·흙을 팔 것으로", "<yellow>설치 후 우클릭: 열기"]
   model: press_0
   max-stack: 1
   furniture:
@@ -1222,7 +1222,7 @@ press:
 fish_trap:
   material: paper
   name: "<#4fc3f7>통발"
-  lore: ["<gray>물속(물 한 칸)에 놓으면 그 물의 흔함·보통 물고기가", "<gray>저절로 모임 · 가득 차면 멈춤", "<gray>우클릭: 꺼내기 · 내 땅이나 야생에만", "<dark_gray>어부는 더 빨리, 더 좋은 것을 낚음"]
+  lore: ["<gray>물 한 칸에 두면 흔함·보통 물고기가 모임", "<gray>가득 차면 멈춤 · 내 땅·야생에만", "<dark_gray>어부는 더 빨리 · 더 좋게", "<yellow>우클릭: 꺼내기"]
   model: fish_trap
   icon: fish_trap_icon
   max-stack: 16
@@ -1234,7 +1234,7 @@ fish_trap:
 fish_pen:
   material: paper
   name: "<#4fc3f7>가두리"
-  lore: ["<gray>물속 2×2 칸에 놓는 어장. 잡은 물고기(흔함·보통)를", "<gray>두 마리 넣고 생선 사료를 주면 불어남", "<gray>물고기·사료를 들고 우클릭: 넣기 · 빈손 우클릭: 꺼내기", "<gray>(절반은 번식용으로 남김, 웅크리면 전부) · 내 땅이나 야생에만"]
+  lore: ["<gray>물속 2×2 어장 · 내 땅·야생에만", "<gray>물고기 둘 + 생선 사료 = 불어남", "<yellow>물고기·사료 들고 우클릭: 넣기", "<yellow>빈손 우클릭: 꺼내기 <dark_gray>(웅크리면 전부)"]
   model: fish_pen
   icon: fish_pen_icon
   max-stack: 1

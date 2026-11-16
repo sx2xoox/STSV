@@ -5,7 +5,7 @@
 jagae_wardrobe:
   material: paper
   name: "<#e9e4d9>자개장"
-  lore: ["<gray>레트로 가구 · 2×1칸, 높이 2", "<gray>검은 옻칠에 자개로 학과 소나무, 모란을 박은 장롱.", "<gray>빛이 지나가면 자개가 무지갯빛으로 반짝입니다."]
+  lore: ["<gray>레트로 가구 · 2×1칸, 높이 2", "<gray>학과 모란을 박은 자개장, 빛에 반짝"]
   model: jagae_wardrobe
   icon: jagae_wardrobe_icon
   max-stack: 16
@@ -15,7 +15,7 @@ jagae_wardrobe:
 crt_tv:
   material: paper
   name: "<#9ab4c8>브라운관 TV"
-  lore: ["<gray>레트로 가구 · 1×1칸, 높이 2", "<gray>미닫이 TV장 위의 볼록한 브라운관 TV.", "<gray>레이스 덮개와 토끼 귀 안테나, 화면이 은은히 깜빡입니다."]
+  lore: ["<gray>레트로 가구 · 1×1칸, 높이 2", "<gray>토끼 귀 안테나의 브라운관 TV"]
   model: crt_tv
   icon: crt_tv_icon
   max-stack: 16
@@ -25,7 +25,7 @@ crt_tv:
 dial_phone:
   material: paper
   name: "<#c85437>다이얼 전화기"
-  lore: ["<gray>레트로 가구 · 1×1칸", "<gray>레이스 덮개를 깐 전화대 위의 빨간 다이얼 전화기.", "<gray>아래 칸에는 두꺼운 전화번호부."]
+  lore: ["<gray>레트로 가구 · 1×1칸", "<gray>전화번호부 깔린 빨간 다이얼 전화기"]
   model: dial_phone
   icon: dial_phone_icon
   max-stack: 16
@@ -35,7 +35,7 @@ dial_phone:
 wall_clock:
   material: paper
   name: "<#bf925d>괘종시계"
-  lore: ["<gray>레트로 가구 · 1×1칸, 높이 2", "<gray>벽 높이 거는 나무 괘종시계. 유리문 안에서 추가 흔들립니다.", "<dark_gray>벽을 우클릭해 겁니다 · 아래로 지나갈 수 있음"]
+  lore: ["<gray>레트로 가구 · 1×1칸, 높이 2 · 지나갈 수 있음", "<gray>추가 흔들리는 나무 괘종시계", "<yellow>벽에 우클릭: 걸기"]
   model: wall_clock
   icon: wall_clock_icon
   max-stack: 16
@@ -46,7 +46,7 @@ wall_clock:
 blanket_chest:
   material: paper
   name: "<#feabb5>이불장"
-  lore: ["<gray>레트로 가구 · 1×1칸, 높이 2", "<gray>자개 문 위 칸에 꽃무늬 이불과 베개를 개어 쌓은 장."]
+  lore: ["<gray>레트로 가구 · 1×1칸, 높이 2", "<gray>꽃무늬 이불을 개어 쌓은 장"]
   model: blanket_chest
   icon: blanket_chest_icon
   max-stack: 16
@@ -56,7 +56,7 @@ blanket_chest:
 meal_table:
   material: paper
   name: "<#acc1cf>밥상"
-  lore: ["<gray>레트로 가구 · 1×1칸", "<gray>둥근 양은 밥상에 차린 밥 한 상.", "<gray>밥, 된장국, 김치, 계란후라이, 김."]
+  lore: ["<gray>레트로 가구 · 1×1칸", "<gray>밥·된장국·김치를 차린 양은 밥상"]
   model: meal_table
   icon: meal_table_icon
   max-stack: 16
@@ -66,7 +66,7 @@ meal_table:
 retro_sofa:
   material: paper
   name: "<#b62a22>꽃무늬 소파"
-  lore: ["<gray>레트로 가구 · 2×1칸", "<gray>꽃무늬 벨벳 2인 소파. 등받이에 레이스 덮개.", "<dark_gray>우클릭: 앉기 (둘)"]
+  lore: ["<gray>레트로 가구 · 2×1칸", "<gray>레이스 덮개 얹은 꽃무늬 소파", "<yellow>우클릭: 앉기 (둘)"]
   model: retro_sofa
   icon: retro_sofa_icon
   max-stack: 16
@@ -80,7 +80,7 @@ retro_sofa:
 electric_fan:
   material: paper
   name: "<#5fa2c8>선풍기"
-  lore: ["<gray>레트로 가구 · 1×1칸", "<gray>상아색 받침에 건반식 버튼, 파란 날개가 돌아가는 선풍기."]
+  lore: ["<gray>레트로 가구 · 1×1칸", "<gray>파란 날개가 도는 선풍기"]
   model: electric_fan
   icon: electric_fan_icon
   max-stack: 16
@@ -90,7 +90,7 @@ electric_fan:
 dresser:
   material: paper
   name: "<#c6e4e4>삼면경 화장대"
-  lore: ["<gray>레트로 가구 · 1×1칸, 높이 2", "<gray>세 쪽 거울이 달린 화장대. 레이스 깔개 위에", "<gray>향수병과 분첩, 빗."]
+  lore: ["<gray>레트로 가구 · 1×1칸, 높이 2", "<gray>향수병과 분첩을 올린 삼면경"]
   model: dresser
   icon: dresser_icon
   max-stack: 16
@@ -100,7 +100,7 @@ dresser:
 sewing_machine:
   material: paper
   name: "<#c4a265>발틀 재봉틀"
-  lore: ["<gray>레트로 가구 · 1×1칸", "<gray>무쇠 발판 다리에 나무 상판, 금색 덩굴무늬 재봉틀.", "<gray>빨간 실이 감긴 실패."]
+  lore: ["<gray>레트로 가구 · 1×1칸", "<gray>금색 덩굴무늬 발틀 재봉틀"]
   model: sewing_machine
   icon: sewing_machine_icon
   max-stack: 16

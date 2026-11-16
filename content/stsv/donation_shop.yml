@@ -31,10 +31,9 @@ currency:
 
 # 상점 맨 위에 보이는 안내 (한 줄씩). 입금 방법 · 문의처를 여기에 적음
 notice:
-  - "<gray>후원은 서버 운영비에 쓰입니다. 후원 방법과 문의는 서버 공지를 확인해 주세요."
-  - "<gray>별 1개 = <white>100원</white>. 입금이 확인되면 관리자가 별을 지급합니다."
-  - "<gray>상품은 <white>꾸미기</white>가 중심입니다. 무한 폭죽은 겉날개 비행을 밀어 줍니다."
-  - "<dark_gray>이 서버는 공식 Minecraft 제품이 아니며, Mojang 또는 Microsoft 의 승인을 받거나 관련되어 있지 않습니다."
+  - "<gray>후원금은 서버 운영비에 씁니다 · 방법은 공지 참고"
+  - "<gray>별 1개 = <white>100원</white> · 입금 확인 후 지급"
+  - "<dark_gray>공식 Minecraft 제품 아님 · Mojang·Microsoft와 무관"
 
 categories:
   cars:
@@ -72,25 +71,22 @@ products:
     name: "하이퍼카"
     price: 120          # 12,000원
     description:
-      - "<gray>낮고 넓은 2인승 쿠페."
-      - "<gray>위로 열리는 문, 속도가 붙으면 올라오는 윙, 드리프트."
-      - "<dark_gray>성능은 이벤트 로드스터와 같습니다."
+      - "<gray>2인승 쿠페 · 위로 열리는 문"
+      - "<white>14블록/초 <gray>· 드리프트 · 짐칸 없음"
     item: stsv:hyper_car
   grand_sedan:
     name: "그랜드 세단"
     price: 120          # 12,000원
     description:
-      - "<gray>길고 낮은 4인승 대형 세단."
-      - "<gray>가운데에서 열리는 문 4짝, 시동을 걸면 올라오는 마스코트."
-      - "<dark_gray>최고 속도는 서버 상한 그대로입니다."
+      - "<gray>4인승 대형 세단 · 문 4짝"
+      - "<white>10블록/초 <gray>· 조용함 · 짐칸 없음"
     item: stsv:grand_sedan
   luxury_suv:
     name: "몬스터 오프로더"
     price: 100          # 10,000원
     description:
-      - "<gray>문짝만 한 바퀴로 한 블록 떠 있는 4인승."
-      - "<gray>험한 땅에서도 느려지지 않습니다."
-      - "<dark_gray>최고 속도는 배달 오토바이보다 느립니다."
+      - "<gray>4인승 몬스터 오프로더"
+      - "<white>9블록/초 <gray>· 험한 땅도 그대로"
     item: stsv:luxury_suv
 
   # 칭호 배너: 칭호와 닉네임을 움직이는 판에 담아 채팅 · 탭 목록 · 머리 위에 보여 줌. 상점 칸에 내 이름으로 미리보기가 나옴
@@ -173,45 +169,44 @@ products:
     name: "장난감 시리즈 스킨북 6권"
     price: 200          # 20,000원 (따로 사면 240★)
     description:
-      - "<gray>검 · 곡괭이 · 삽 · 도끼 · 괭이 · 낚싯대"
-      - "<gray>장난감 시리즈 스킨북 여섯 권을 한 번에."
-      - "<dark_gray>인벤토리 빈칸 6개가 필요합니다."
+      - "<gray>검·곡괭이·삽·도끼·괭이·낚싯대"
+      - "<dark_gray>빈칸 6개 필요"
     items: ["stsv:toy_sword_skin", "stsv:toy_pickaxe_skin", "stsv:toy_shovel_skin", "stsv:toy_axe_skin", "stsv:toy_hoe_skin", "stsv:toy_fishing_rod_skin"]
     icon: "stsv:toy_sword"
   toy_sword:
     name: "스킨북: 장난감 검"
     price: 40           # 4,000원
-    description: ["<gray>말랑한 스펀지 칼날의 큼직한 검.", "<dark_gray>스킨북 한 권: 도구 하나에 입힙니다 (겉모습만)."]
+    description: ["<gray>말랑한 스펀지 칼날의 큼직한 검", "<dark_gray>도구 하나에 입힘 · 겉모습만"]
     item: stsv:toy_sword_skin
     icon: "stsv:toy_sword"
   toy_pickaxe:
     name: "스킨북: 장난감 곡괭이"
     price: 40           # 4,000원
-    description: ["<gray>빨간 플라스틱 머리의 곡괭이.", "<dark_gray>스킨북 한 권: 도구 하나에 입힙니다 (겉모습만)."]
+    description: ["<gray>빨간 플라스틱 머리의 곡괭이", "<dark_gray>도구 하나에 입힘 · 겉모습만"]
     item: stsv:toy_pickaxe_skin
     icon: "stsv:toy_pickaxe"
   toy_shovel:
     name: "스킨북: 장난감 삽"
     price: 40           # 4,000원
-    description: ["<gray>D자 손잡이가 달린 모래놀이 삽.", "<dark_gray>스킨북 한 권: 도구 하나에 입힙니다 (겉모습만)."]
+    description: ["<gray>D자 손잡이가 달린 모래놀이 삽", "<dark_gray>도구 하나에 입힘 · 겉모습만"]
     item: stsv:toy_shovel_skin
     icon: "stsv:toy_shovel"
   toy_axe:
     name: "스킨북: 장난감 도끼"
     price: 40           # 4,000원
-    description: ["<gray>주황 머리에 스펀지 날을 댄 도끼.", "<dark_gray>스킨북 한 권: 도구 하나에 입힙니다 (겉모습만)."]
+    description: ["<gray>주황 머리에 스펀지 날을 댄 도끼", "<dark_gray>도구 하나에 입힘 · 겉모습만"]
     item: stsv:toy_axe_skin
     icon: "stsv:toy_axe"
   toy_hoe:
     name: "스킨북: 장난감 괭이"
     price: 40           # 4,000원
-    description: ["<gray>파란 날의 괭이.", "<dark_gray>스킨북 한 권: 도구 하나에 입힙니다 (겉모습만)."]
+    description: ["<gray>파란 날의 괭이", "<dark_gray>도구 하나에 입힘 · 겉모습만"]
     item: stsv:toy_hoe_skin
     icon: "stsv:toy_hoe"
   toy_fishing_rod:
     name: "스킨북: 장난감 낚싯대"
     price: 40           # 4,000원
-    description: ["<gray>큼직한 릴과 찌가 달린 낚싯대.", "<dark_gray>스킨북 한 권: 도구 하나에 입힙니다 (겉모습만)."]
+    description: ["<gray>큼직한 릴과 찌가 달린 낚싯대", "<dark_gray>도구 하나에 입힘 · 겉모습만"]
     item: stsv:toy_fishing_rod_skin
     icon: "stsv:toy_fishing_rod"
 
@@ -220,9 +215,8 @@ products:
     name: "무한 폭죽"
     price: 60           # 6,000원
     description:
-      - "<gray>쏴도 줄지 않는 장난감 폭죽 발사기."
-      - "<gray>겉날개로 나는 중에 쏘면 로켓처럼 밀어 줍니다."
-      - "<dark_gray>쏠 때마다 색과 모양이 다릅니다. 피해는 없습니다."
+      - "<gray>쏴도 줄지 않는 폭죽 · 피해 없음"
+      - "<gray>겉날개 비행 중: 로켓처럼 가속"
     item: stsv:infinite_firework
 
   # 후원 치장 세트 3종 (items/cosmetics_donation.yml, 세트 cosmetic_sets.yml): 후원 상점에서만, 뽑기 · 교환권 없음. 모두 전설.
@@ -235,11 +229,9 @@ products:
     price: 200          # 20,000원 (낱개 780★)
     once: true
     description:
-      - "<gray>여의주 · 날개 · 꼬리 · 어깨 용 · 구름 띠"
-      - "<gray>아기 청룡 · 구름 발자국 · 뇌룡 · 포효"
-      - "<aqua>다 입으면 세트 각성: 모습이 바뀌고"
-      - "<aqua>발밑에 구름 번개 고리가 돕니다."
-      - "<dark_gray>후원 전용 · 뽑기에 나오지 않음."
+      - "<gray>9조각 한 번에"
+      - "<aqua>다 입으면 각성 · 발밑에 구름 번개 고리"
+      - "<dark_gray>후원 전용"
     commands:
       - "관리자 치장 지급 {player} stsv:azure_pearl_cloud"
       - "관리자 치장 지급 {player} stsv:azure_dragon_wings"
@@ -255,63 +247,63 @@ products:
     name: "청룡의 여의주"
     price: 80          # 8,000원
     once: true
-    description: ["<gray>머리 위 · 구름 위 여의주, 각성하면 빛무리", "<dark_gray>후원 전용 · 청룡 세트 조각 (9)"]
+    description: ["<gray>머리 위 · 구름 위 여의주, 각성하면 빛무리", "<dark_gray>청룡 세트"]
     commands: ["관리자 치장 지급 {player} stsv:azure_pearl_cloud"]
     icon: "stsv:azure_pearl_cloud"
   azure_dragon_wings:
     name: "청룡의 날개"
     price: 100          # 10,000원
     once: true
-    description: ["<gray>등 · 손가락뼈 날개, 각성하면 불꽃 가장자리", "<dark_gray>후원 전용 · 청룡 세트 조각 (9)"]
+    description: ["<gray>등 · 손가락뼈 날개, 각성하면 불꽃 가장자리", "<dark_gray>청룡 세트"]
     commands: ["관리자 치장 지급 {player} stsv:azure_dragon_wings"]
     icon: "stsv:azure_dragon_wings"
   azure_dragon_tail:
     name: "청룡의 꼬리"
     price: 80          # 8,000원
     once: true
-    description: ["<gray>꼬리 · 말려 오르는 비늘 꼬리와 푸른 불꽃", "<dark_gray>후원 전용 · 청룡 세트 조각 (9)"]
+    description: ["<gray>꼬리 · 말려 오르는 비늘 꼬리와 푸른 불꽃", "<dark_gray>청룡 세트"]
     commands: ["관리자 치장 지급 {player} stsv:azure_dragon_tail"]
     icon: "stsv:azure_dragon_tail"
   azure_shoulder_dragon:
     name: "청룡의 어깨 용"
     price: 80          # 8,000원
     once: true
-    description: ["<gray>어깨 · 똬리 튼 작은 청룡", "<dark_gray>후원 전용 · 청룡 세트 조각 (9)"]
+    description: ["<gray>어깨 · 똬리 튼 작은 청룡", "<dark_gray>청룡 세트"]
     commands: ["관리자 치장 지급 {player} stsv:azure_shoulder_dragon"]
     icon: "stsv:azure_shoulder_dragon"
   azure_cloud_sash:
     name: "청룡의 구름 띠"
     price: 80          # 8,000원
     once: true
-    description: ["<gray>허리 · 용머리 고리의 구름 띠", "<dark_gray>후원 전용 · 청룡 세트 조각 (9)"]
+    description: ["<gray>허리 · 용머리 고리의 구름 띠", "<dark_gray>청룡 세트"]
     commands: ["관리자 치장 지급 {player} stsv:azure_cloud_sash"]
     icon: "stsv:azure_cloud_sash"
   azure_baby_dragon:
     name: "아기 청룡"
     price: 100          # 10,000원
     once: true
-    description: ["<gray>펫 · 공중을 헤엄치는 아기 청룡", "<dark_gray>후원 전용 · 청룡 세트 조각 (9)"]
+    description: ["<gray>펫 · 공중을 헤엄치는 아기 청룡", "<dark_gray>청룡 세트"]
     commands: ["관리자 치장 지급 {player} stsv:azure_baby_dragon"]
     icon: "stsv:azure_baby_dragon"
   azure_cloud_trail:
     name: "청룡의 구름 발자국"
     price: 80          # 8,000원
     once: true
-    description: ["<gray>발자취 · 빛나는 구름 발자국 (모델)", "<dark_gray>후원 전용 · 청룡 세트 조각 (9)"]
+    description: ["<gray>발자취 · 빛나는 구름 발자국 (모델)", "<dark_gray>청룡 세트"]
     commands: ["관리자 치장 지급 {player} stsv:azure_cloud_trail"]
     icon: "stsv:azure_cloud_trail"
   azure_spark_aura:
     name: "청룡의 뇌룡"
     price: 100          # 10,000원
     once: true
-    description: ["<gray>오라 · 몸을 휘감아 도는 작은 청룡", "<dark_gray>후원 전용 · 청룡 세트 조각 (9)"]
+    description: ["<gray>오라 · 몸을 휘감아 도는 작은 청룡", "<dark_gray>청룡 세트"]
     commands: ["관리자 치장 지급 {player} stsv:azure_spark_aura"]
     icon: "stsv:azure_spark_aura"
   azure_dragon_roar:
     name: "청룡의 포효"
     price: 80          # 8,000원
     once: true
-    description: ["<gray>처치 · 솟아오르는 청룡 머리 (모델)", "<dark_gray>후원 전용 · 청룡 세트 조각 (9)"]
+    description: ["<gray>처치 · 솟아오르는 청룡 머리 (모델)", "<dark_gray>청룡 세트"]
     commands: ["관리자 치장 지급 {player} stsv:azure_dragon_roar"]
     icon: "stsv:azure_dragon_roar"
   set_galaxy:
@@ -319,12 +311,9 @@ products:
     price: 200          # 20,000원 (낱개 780★)
     once: true
     description:
-      - "<gray>별관 · 망토 · 초승달 목걸이 · 별 부엉이"
-      - "<gray>별자리 허리띠 · 아기 별고래 · 별빛 발자국"
-      - "<gray>행성 고리 · 초신성"
-      - "<light_purple>다 입으면 세트 각성: 모습이 바뀌고"
-      - "<light_purple>발밑에 나선 은하가 돕니다."
-      - "<dark_gray>후원 전용 · 뽑기에 나오지 않음."
+      - "<gray>9조각 한 번에"
+      - "<light_purple>다 입으면 각성 · 발밑에 나선 은하"
+      - "<dark_gray>후원 전용"
     commands:
       - "관리자 치장 지급 {player} stsv:galaxy_star_crown"
       - "관리자 치장 지급 {player} stsv:galaxy_cape"
@@ -340,63 +329,63 @@ products:
     name: "은하수 별관"
     price: 80          # 8,000원
     once: true
-    description: ["<gray>머리 위 · 금빛 별 넷, 각성하면 초승달", "<dark_gray>후원 전용 · 은하수 세트 조각 (9)"]
+    description: ["<gray>머리 위 · 금빛 별 넷, 각성하면 초승달", "<dark_gray>은하수 세트"]
     commands: ["관리자 치장 지급 {player} stsv:galaxy_star_crown"]
     icon: "stsv:galaxy_star_crown"
   galaxy_cape:
     name: "은하수 망토"
     price: 100          # 10,000원
     once: true
-    description: ["<gray>등 · 북두칠성과 북극성, 별 달린 밑단", "<dark_gray>후원 전용 · 은하수 세트 조각 (9)"]
+    description: ["<gray>등 · 북두칠성과 북극성, 별 달린 밑단", "<dark_gray>은하수 세트"]
     commands: ["관리자 치장 지급 {player} stsv:galaxy_cape"]
     icon: "stsv:galaxy_cape"
   galaxy_moon_necklace:
     name: "초승달 목걸이"
     price: 80          # 8,000원
     once: true
-    description: ["<gray>목 · 보석 박힌 금사슬과 초승달", "<dark_gray>후원 전용 · 은하수 세트 조각 (9)"]
+    description: ["<gray>목 · 보석 박힌 금사슬과 초승달", "<dark_gray>은하수 세트"]
     commands: ["관리자 치장 지급 {player} stsv:galaxy_moon_necklace"]
     icon: "stsv:galaxy_moon_necklace"
   galaxy_star_owl:
     name: "별 부엉이"
     price: 80          # 8,000원
     once: true
-    description: ["<gray>어깨 · 금빛 눈의 밤하늘 부엉이", "<dark_gray>후원 전용 · 은하수 세트 조각 (9)"]
+    description: ["<gray>어깨 · 금빛 눈의 밤하늘 부엉이", "<dark_gray>은하수 세트"]
     commands: ["관리자 치장 지급 {player} stsv:galaxy_star_owl"]
     icon: "stsv:galaxy_star_owl"
   galaxy_star_belt:
     name: "별자리 허리띠"
     price: 80          # 8,000원
     once: true
-    description: ["<gray>허리 · 별 버클과 초승달 장식", "<dark_gray>후원 전용 · 은하수 세트 조각 (9)"]
+    description: ["<gray>허리 · 별 버클과 초승달 장식", "<dark_gray>은하수 세트"]
     commands: ["관리자 치장 지급 {player} stsv:galaxy_star_belt"]
     icon: "stsv:galaxy_star_belt"
   galaxy_star_whale:
     name: "아기 별고래"
     price: 100          # 10,000원
     once: true
-    description: ["<gray>펫 · 별가루를 뿜으며 헤엄침", "<dark_gray>후원 전용 · 은하수 세트 조각 (9)"]
+    description: ["<gray>펫 · 별가루를 뿜으며 헤엄침", "<dark_gray>은하수 세트"]
     commands: ["관리자 치장 지급 {player} stsv:galaxy_star_whale"]
     icon: "stsv:galaxy_star_whale"
   galaxy_stardust_trail:
     name: "은하수 별빛 발자국"
     price: 80          # 8,000원
     once: true
-    description: ["<gray>발자취 · 금테 두른 별빛 발자국 (모델)", "<dark_gray>후원 전용 · 은하수 세트 조각 (9)"]
+    description: ["<gray>발자취 · 금테 두른 별빛 발자국 (모델)", "<dark_gray>은하수 세트"]
     commands: ["관리자 치장 지급 {player} stsv:galaxy_stardust_trail"]
     icon: "stsv:galaxy_stardust_trail"
   galaxy_constellation_aura:
     name: "은하수 행성 고리"
     price: 100          # 10,000원
     once: true
-    description: ["<gray>오라 · 태양계 여덟 행성이 몸 둘레를 돎", "<dark_gray>후원 전용 · 은하수 세트 조각 (9)"]
+    description: ["<gray>오라 · 태양계 여덟 행성이 몸 둘레를 돎", "<dark_gray>은하수 세트"]
     commands: ["관리자 치장 지급 {player} stsv:galaxy_constellation_aura"]
     icon: "stsv:galaxy_constellation_aura"
   galaxy_supernova:
     name: "은하수 초신성"
     price: 80          # 8,000원
     once: true
-    description: ["<gray>처치 · 터지며 솟는 별 (모델)", "<dark_gray>후원 전용 · 은하수 세트 조각 (9)"]
+    description: ["<gray>처치 · 터지며 솟는 별 (모델)", "<dark_gray>은하수 세트"]
     commands: ["관리자 치장 지급 {player} stsv:galaxy_supernova"]
     icon: "stsv:galaxy_supernova"
   # 아기 오리 가족: 빛나지 않는 낮의 세트. 낱개 합 400★, 세트는 20% 할인
@@ -405,11 +394,9 @@ products:
     price: 200          # 20,000원 (낱개 780★)
     once: true
     description:
-      - "<gray>꾸벅 오리 · 날개 · 빼꼼 오리 · 턱받이"
-      - "<gray>튜브 · 졸졸 오리들 · 발자국 · 고무오리 · 꽥!"
-      - "<yellow>다 입으면 세트 각성: 모습이 바뀌고"
-      - "<yellow>발밑에 연잎 고리가 돕니다."
-      - "<dark_gray>후원 전용 · 뽑기에 나오지 않음."
+      - "<gray>9조각 한 번에"
+      - "<yellow>다 입으면 각성 · 발밑에 연잎 고리"
+      - "<dark_gray>후원 전용"
     commands:
       - "관리자 치장 지급 {player} stsv:sleepy_duckling"
       - "관리자 치장 지급 {player} stsv:duckling_wings"
@@ -425,62 +412,62 @@ products:
     name: "꾸벅 아기 오리"
     price: 80          # 8,000원
     once: true
-    description: ["<gray>머리 위 · 베개에서 쿨쿨, 각성하면 달 모빌", "<dark_gray>후원 전용 · 아기 오리 세트 조각 (9)"]
+    description: ["<gray>머리 위 · 베개에서 쿨쿨, 각성하면 달 모빌", "<dark_gray>아기 오리 세트"]
     commands: ["관리자 치장 지급 {player} stsv:sleepy_duckling"]
     icon: "stsv:sleepy_duckling"
   duckling_wings:
     name: "파닥 아기 날개"
     price: 100          # 10,000원
     once: true
-    description: ["<gray>등 · 보송한 아기 날개, 각성하면 솜털", "<dark_gray>후원 전용 · 아기 오리 세트 조각 (9)"]
+    description: ["<gray>등 · 보송한 아기 날개, 각성하면 솜털", "<dark_gray>아기 오리 세트"]
     commands: ["관리자 치장 지급 {player} stsv:duckling_wings"]
     icon: "stsv:duckling_wings"
   peeking_duckling:
     name: "빼꼼 아기 오리"
     price: 80          # 8,000원
     once: true
-    description: ["<gray>어깨 · 세일러 모자, 날개로 인사", "<dark_gray>후원 전용 · 아기 오리 세트 조각 (9)"]
+    description: ["<gray>어깨 · 세일러 모자, 날개로 인사", "<dark_gray>아기 오리 세트"]
     commands: ["관리자 치장 지급 {player} stsv:peeking_duckling"]
     icon: "stsv:peeking_duckling"
   duck_bib:
     name: "오리 턱받이"
     price: 80          # 8,000원
     once: true
-    description: ["<gray>목 · 오리 얼굴을 수놓은 턱받이", "<dark_gray>후원 전용 · 아기 오리 세트 조각 (9)"]
+    description: ["<gray>목 · 오리 얼굴을 수놓은 턱받이", "<dark_gray>아기 오리 세트"]
     commands: ["관리자 치장 지급 {player} stsv:duck_bib"]
     icon: "stsv:duck_bib"
   duck_float_ring:
     name: "오리 튜브"
     price: 80          # 8,000원
     once: true
-    description: ["<gray>허리 · 고무오리 튜브, 각성하면 분수", "<dark_gray>후원 전용 · 아기 오리 세트 조각 (9)"]
+    description: ["<gray>허리 · 고무오리 튜브, 각성하면 분수", "<dark_gray>아기 오리 세트"]
     commands: ["관리자 치장 지급 {player} stsv:duck_float_ring"]
     icon: "stsv:duck_float_ring"
   duckling_parade:
     name: "졸졸 아기 오리들"
     price: 100          # 10,000원
     once: true
-    description: ["<gray>펫 · 셋이 졸졸, 각성하면 넷과 선장", "<dark_gray>후원 전용 · 아기 오리 세트 조각 (9)"]
+    description: ["<gray>펫 · 셋이 졸졸, 각성하면 넷과 선장", "<dark_gray>아기 오리 세트"]
     commands: ["관리자 치장 지급 {player} stsv:duckling_parade"]
     icon: "stsv:duckling_parade"
   puddle_trail:
     name: "첨벙 발자국"
     price: 80          # 8,000원
     once: true
-    description: ["<gray>발자취 · 물갈퀴 발자국과 물결", "<dark_gray>후원 전용 · 아기 오리 세트 조각 (9)"]
+    description: ["<gray>발자취 · 물갈퀴 발자국과 물결", "<dark_gray>아기 오리 세트"]
     commands: ["관리자 치장 지급 {player} stsv:puddle_trail"]
     icon: "stsv:puddle_trail"
   rubber_duck_aura:
     name: "둥둥 고무오리"
     price: 100          # 10,000원
     once: true
-    description: ["<gray>오라 · 발밑 물웅덩이의 고무오리들", "<dark_gray>후원 전용 · 아기 오리 세트 조각 (9)"]
+    description: ["<gray>오라 · 발밑 물웅덩이의 고무오리들", "<dark_gray>아기 오리 세트"]
     commands: ["관리자 치장 지급 {player} stsv:rubber_duck_aura"]
     icon: "stsv:rubber_duck_aura"
   duck_squeak:
     name: "꽥! 고무오리"
     price: 80          # 8,000원
     once: true
-    description: ["<gray>처치 · 고무오리가 물보라 속에 퐁", "<dark_gray>후원 전용 · 아기 오리 세트 조각 (9)"]
+    description: ["<gray>처치 · 고무오리가 물보라 속에 퐁", "<dark_gray>아기 오리 세트"]
     commands: ["관리자 치장 지급 {player} stsv:duck_squeak"]
     icon: "stsv:duck_squeak"

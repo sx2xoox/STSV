@@ -99,76 +99,76 @@ jetpack:
 little_sun_voucher:
   material: paper
   name: "<#ffd23f>꼬마 해님 교환권"
-  lore: ["<gray>◆ 일반 <dark_gray>· <gray>머리 위 치장", "<gray>우클릭: 꼬마 해님을 계정에 등록합니다.", "<dark_gray>등록 후 /치장 에서 착용 · 거래소에서 사고팔 수 있음"]
+  lore: ["<gray>◆ 일반 <dark_gray>· <gray>머리 위 치장", "<gray>거래소에서 사고팔 수 있음", "<yellow>우클릭: 내 치장으로 등록 <dark_gray>(/치장)"]
   texture: little_sun_voucher
   voucher: { cosmetic: little_sun }
 
 exclaim_bubble_voucher:
   material: paper
   name: "<#ffffff>느낌표 말풍선 교환권"
-  lore: ["<gray>◆ 일반 <dark_gray>· <gray>머리 위 치장", "<gray>우클릭: 느낌표 말풍선을 계정에 등록합니다.", "<dark_gray>등록 후 /치장 에서 착용 · 거래소에서 사고팔 수 있음"]
+  lore: ["<gray>◆ 일반 <dark_gray>· <gray>머리 위 치장", "<gray>거래소에서 사고팔 수 있음", "<yellow>우클릭: 내 치장으로 등록 <dark_gray>(/치장)"]
   texture: exclaim_bubble_voucher
   voucher: { cosmetic: exclaim_bubble }
 
 rainbow_arc_voucher:
   material: paper
   name: "<#ff9ad5>무지개 교환권"
-  lore: ["<#5ab0ff>◆ 희귀 <dark_gray>· <gray>머리 위 치장", "<gray>우클릭: 무지개를 계정에 등록합니다.", "<dark_gray>등록 후 /치장 에서 착용 · 거래소에서 사고팔 수 있음"]
+  lore: ["<#5ab0ff>◆ 희귀 <dark_gray>· <gray>머리 위 치장", "<gray>거래소에서 사고팔 수 있음", "<yellow>우클릭: 내 치장으로 등록 <dark_gray>(/치장)"]
   texture: rainbow_arc_voucher
   voucher: { cosmetic: rainbow_arc }
 
 star_ring_voucher:
   material: paper
   name: "<#c39bff>별 고리 교환권"
-  lore: ["<#c58cff>◆ 영웅 <dark_gray>· <gray>머리 위 치장", "<gray>우클릭: 별 고리를 계정에 등록합니다.", "<dark_gray>등록 후 /치장 에서 착용 · 거래소에서 사고팔 수 있음"]
+  lore: ["<#c58cff>◆ 영웅 <dark_gray>· <gray>머리 위 치장", "<gray>거래소에서 사고팔 수 있음", "<yellow>우클릭: 내 치장으로 등록 <dark_gray>(/치장)"]
   texture: star_ring_voucher
   voucher: { cosmetic: star_ring }
 
 hamster_voucher:
   material: paper
   name: "<#f2b45a>햄스터 교환권"
-  lore: ["<gray>◆ 일반 <dark_gray>· <gray>어깨 치장", "<gray>우클릭: 햄스터를 계정에 등록합니다.", "<dark_gray>등록 후 /치장 에서 착용 · 거래소에서 사고팔 수 있음"]
+  lore: ["<gray>◆ 일반 <dark_gray>· <gray>어깨 치장", "<gray>거래소에서 사고팔 수 있음", "<yellow>우클릭: 내 치장으로 등록 <dark_gray>(/치장)"]
   texture: hamster_voucher
   voucher: { cosmetic: hamster }
 
 squirrel_voucher:
   material: paper
   name: "<#d9883a>다람쥐 교환권"
-  lore: ["<gray>◆ 일반 <dark_gray>· <gray>어깨 치장", "<gray>우클릭: 다람쥐를 계정에 등록합니다.", "<dark_gray>등록 후 /치장 에서 착용 · 거래소에서 사고팔 수 있음"]
+  lore: ["<gray>◆ 일반 <dark_gray>· <gray>어깨 치장", "<gray>거래소에서 사고팔 수 있음", "<yellow>우클릭: 내 치장으로 등록 <dark_gray>(/치장)"]
   texture: squirrel_voucher
   voucher: { cosmetic: squirrel }
 
 parrot_voucher:
   material: paper
   name: "<#ff5a3c>앵무새 교환권"
-  lore: ["<#5ab0ff>◆ 희귀 <dark_gray>· <gray>어깨 치장", "<gray>우클릭: 앵무새를 계정에 등록합니다.", "<dark_gray>등록 후 /치장 에서 착용 · 거래소에서 사고팔 수 있음"]
+  lore: ["<#5ab0ff>◆ 희귀 <dark_gray>· <gray>어깨 치장", "<gray>거래소에서 사고팔 수 있음", "<yellow>우클릭: 내 치장으로 등록 <dark_gray>(/치장)"]
   texture: parrot_voucher
   voucher: { cosmetic: parrot }
 
 hedgehog_voucher:
   material: paper
   name: "<#b0835a>고슴도치 교환권"
-  lore: ["<#5ab0ff>◆ 희귀 <dark_gray>· <gray>어깨 치장", "<gray>우클릭: 고슴도치를 계정에 등록합니다.", "<dark_gray>등록 후 /치장 에서 착용 · 거래소에서 사고팔 수 있음"]
+  lore: ["<#5ab0ff>◆ 희귀 <dark_gray>· <gray>어깨 치장", "<gray>거래소에서 사고팔 수 있음", "<yellow>우클릭: 내 치장으로 등록 <dark_gray>(/치장)"]
   texture: hedgehog_voucher
   voucher: { cosmetic: hedgehog }
 
 shoulder_dragon_voucher:
   material: paper
   name: "<#ff6a3a>꼬마 붉은 용 교환권"
-  lore: ["<#c58cff>◆ 영웅 <dark_gray>· <gray>어깨 치장", "<gray>우클릭: 꼬마 붉은 용을 계정에 등록합니다.", "<dark_gray>등록 후 /치장 에서 착용 · 거래소에서 사고팔 수 있음"]
+  lore: ["<#c58cff>◆ 영웅 <dark_gray>· <gray>어깨 치장", "<gray>거래소에서 사고팔 수 있음", "<yellow>우클릭: 내 치장으로 등록 <dark_gray>(/치장)"]
   texture: shoulder_dragon_voucher
   voucher: { cosmetic: shoulder_dragon }
 
 turtle_shell_voucher:
   material: paper
   name: "<#6fb84a>거북 등껍질 가방 교환권"
-  lore: ["<gray>◆ 일반 <dark_gray>· <gray>등 치장", "<gray>우클릭: 거북 등껍질 가방을 계정에 등록합니다.", "<dark_gray>등록 후 /치장 에서 착용 · 거래소에서 사고팔 수 있음"]
+  lore: ["<gray>◆ 일반 <dark_gray>· <gray>등 치장", "<gray>거래소에서 사고팔 수 있음", "<yellow>우클릭: 내 치장으로 등록 <dark_gray>(/치장)"]
   texture: turtle_shell_voucher
   voucher: { cosmetic: turtle_shell }
 
 jetpack_voucher:
   material: paper
   name: "<#8fd3ff>로켓 배낭 교환권"
-  lore: ["<#c58cff>◆ 영웅 <dark_gray>· <gray>등 치장", "<gray>우클릭: 로켓 배낭을 계정에 등록합니다.", "<dark_gray>등록 후 /치장 에서 착용 · 거래소에서 사고팔 수 있음"]
+  lore: ["<#c58cff>◆ 영웅 <dark_gray>· <gray>등 치장", "<gray>거래소에서 사고팔 수 있음", "<yellow>우클릭: 내 치장으로 등록 <dark_gray>(/치장)"]
   texture: jetpack_voucher
   voucher: { cosmetic: jetpack }

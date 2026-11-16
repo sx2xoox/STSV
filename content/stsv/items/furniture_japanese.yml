@@ -14,7 +14,7 @@
 tatami:
   material: paper
   name: "<#d9c68d>다다미"
-  lore: ["<gray>일본풍 가구 · 2×1칸", "<gray>골풀로 짠 바닥 돗자리. 여러 장 이어 깔면", "<gray>다다미방이 됩니다.", "<dark_gray>밟고 지나갈 수 있음"]
+  lore: ["<gray>일본풍 가구 · 2×1칸 · 지나갈 수 있음", "<gray>골풀 바닥 돗자리 · 이어 깔기"]
   model: tatami
   icon: tatami_icon
   max-stack: 16
@@ -25,7 +25,7 @@ tatami:
 zabuton:
   material: paper
   name: "<#e06439>방석"
-  lore: ["<gray>일본풍 가구 · 1×1칸", "<gray>네 귀에 술이 달린 푹신한 방석.", "<dark_gray>우클릭: 앉기"]
+  lore: ["<gray>일본풍 가구 · 1×1칸", "<gray>술 달린 푹신한 방석", "<yellow>우클릭: 앉기"]
   model: zabuton
   icon: zabuton_icon
   max-stack: 16
@@ -38,7 +38,7 @@ zabuton:
 chabudai:
   material: paper
   name: "<#b18440>좌식 탁자"
-  lore: ["<gray>일본풍 가구 · 1×1칸", "<gray>둥근 상판의 낮은 밥상. 녹차 두 잔과 꽃경단 한 꼬치.", "<dark_gray>방석과 함께 놓아 보세요"]
+  lore: ["<gray>일본풍 가구 · 1×1칸", "<gray>녹차와 꽃경단을 올린 낮은 밥상"]
   model: chabudai
   icon: chabudai_icon
   max-stack: 16
@@ -48,7 +48,7 @@ chabudai:
 kotatsu:
   material: paper
   name: "<#f28023>고타츠"
-  lore: ["<gray>일본풍 가구 · 3×3칸 (십자 모양)", "<gray>이불 덮은 난방 탁자와 귤 바구니,", "<gray>사방에 방석 네 개.", "<dark_gray>우클릭: 방석에 앉기 (탁자를 바라봄)"]
+  lore: ["<gray>일본풍 가구 · 3×3칸 (십자 모양)", "<gray>귤 바구니 놓인 이불 난방 탁자", "<yellow>우클릭: 방석에 앉기"]
   model: kotatsu
   icon: kotatsu_icon
   max-stack: 16
@@ -63,7 +63,7 @@ kotatsu:
 futon:
   material: paper
   name: "<#38699d>이불 세트"
-  lore: ["<gray>일본풍 가구 · 2×3칸 (이불 1.5×2.5)", "<gray>요, 쪽빛 이불, 메밀 베개 두 개.", "<dark_gray>우클릭: 앉기"]
+  lore: ["<gray>일본풍 가구 · 2×3칸 (이불 1.5×2.5)", "<gray>요와 쪽빛 이불, 메밀 베개 둘", "<yellow>우클릭: 앉기"]
   model: futon
   icon: futon_icon
   max-stack: 16
@@ -79,7 +79,7 @@ futon:
 shoji_screen:
   material: paper
   name: "<#e2cb9c>쇼지 칸막이"
-  lore: ["<gray>일본풍 가구 · 2×1칸, 높이 2", "<gray>편백 살대에 창호지를 바른 두 폭 칸막이."]
+  lore: ["<gray>일본풍 가구 · 2×1칸, 높이 2", "<gray>창호지 바른 두 폭 칸막이"]
   model: shoji_screen
   icon: shoji_screen_icon
   max-stack: 16
@@ -89,7 +89,7 @@ shoji_screen:
 fusuma_panel:
   material: paper
   name: "<#f0c32e>후스마 장식"
-  lore: ["<gray>일본풍 가구 · 2×1칸, 높이 3", "<gray>금박 위에 후지산과 붉은 해를 그린", "<gray>미닫이 문 두 짝."]
+  lore: ["<gray>일본풍 가구 · 2×1칸, 높이 3", "<gray>후지산과 붉은 해를 그린 금박 문"]
   model: fusuma_panel
   icon: fusuma_panel_icon
   max-stack: 16
@@ -100,7 +100,7 @@ fusuma_panel:
 hanging_scroll:
   material: paper
   name: "<#a5ccb2>도코노마 족자"
-  lore: ["<gray>일본풍 가구 · 1×1칸, 높이 2", "<gray>달과 산을 그린 수묵화 족자.", "<dark_gray>벽을 우클릭해 겁니다"]
+  lore: ["<gray>일본풍 가구 · 1×1칸, 높이 2", "<gray>달과 산을 그린 수묵화", "<yellow>벽에 우클릭: 걸기"]
   model: hanging_scroll
   icon: hanging_scroll_icon
   max-stack: 16
@@ -111,7 +111,7 @@ hanging_scroll:
 noren:
   material: paper
   name: "<#38699d>노렌"
-  lore: ["<gray>일본풍 가구 · 1×1칸", "<gray>문간에 거는 쪽빛 가림막. 흰 세 비늘 문장이 있습니다.", "<dark_gray>천장 아래를 우클릭하면 매달립니다", "<dark_gray>지나갈 수 있음"]
+  lore: ["<gray>일본풍 가구 · 1×1칸 · 지나갈 수 있음", "<gray>흰 문장의 쪽빛 문간 가림막", "<yellow>천장 아래 우클릭: 매달기"]
   model: noren
   icon: noren_icon
   max-stack: 16
@@ -122,7 +122,7 @@ noren:
 bamboo_fence:
   material: paper
   name: "<#9da448>대나무 울타리"
-  lore: ["<gray>일본풍 가구 · 1×1칸, 높이 2", "<gray>볕에 바랜 쪼갠 대나무를 푸른 대 띠에 검은 끈으로 묶은 가림 울타리.", "<gray>나란히 놓으면 이어집니다."]
+  lore: ["<gray>일본풍 가구 · 1×1칸, 높이 2", "<gray>쪼갠 대나무 울타리 · 이어짐"]
   model: bamboo_fence
   icon: bamboo_fence_icon
   max-stack: 16
@@ -133,7 +133,7 @@ bamboo_fence:
 andon:
   material: paper
   name: "<#fcd89c>등롱"
-  lore: ["<gray>일본풍 가구 · 1×1칸", "<gray>나무 틀에 한지를 바른 바닥 등. 불빛이 이따금 일렁입니다.", "<yellow>빛 14"]
+  lore: ["<gray>일본풍 가구 · 1×1칸", "<gray>한지 바른 바닥 등, 불빛이 일렁임", "<white>빛 14"]
   model: andon
   icon: andon_icon
   max-stack: 16
@@ -144,7 +144,7 @@ andon:
 stone_lantern:
   material: paper
   name: "<#a8a49b>석등"
-  lore: ["<gray>일본풍 가구 · 1×1칸, 높이 2", "<gray>정원에 세우는 돌 등롱. 화창에 불이 일렁이고", "<gray>옆면에는 해와 달이 뚫려 있습니다.", "<yellow>빛 15"]
+  lore: ["<gray>일본풍 가구 · 1×1칸, 높이 2", "<gray>해와 달을 뚫은 정원 석등", "<white>빛 15"]
   model: stone_lantern
   icon: stone_lantern_icon
   max-stack: 16
@@ -155,7 +155,7 @@ stone_lantern:
 chochin:
   material: paper
   name: "<#e06439>제등"
-  lore: ["<gray>일본풍 가구 · 1×1칸", "<gray>붉은 종이 초롱.", "<dark_gray>천장 아래를 우클릭하면 매달립니다", "<yellow>빛 13"]
+  lore: ["<gray>일본풍 가구 · 1×1칸", "<gray>붉은 종이 초롱", "<white>빛 13", "<yellow>천장 아래 우클릭: 매달기"]
   model: chochin
   icon: chochin_icon
   max-stack: 16
@@ -168,7 +168,7 @@ chochin:
 bonsai:
   material: paper
   name: "<#6a9628>분재"
-  lore: ["<gray>일본풍 가구 · 1×1칸", "<gray>낮은 화분에 가꾼 구불구불한 소나무."]
+  lore: ["<gray>일본풍 가구 · 1×1칸", "<gray>구불구불한 소나무 분재"]
   model: bonsai
   icon: bonsai_icon
   max-stack: 16
@@ -178,7 +178,7 @@ bonsai:
 ikebana:
   material: paper
   name: "<#fdc4d6>이케바나 꽃꽂이"
-  lore: ["<gray>일본풍 가구 · 1×1칸", "<gray>청자 수반에 동백과 가지를 꽂은 꽃꽂이."]
+  lore: ["<gray>일본풍 가구 · 1×1칸", "<gray>청자 수반의 동백 꽃꽂이"]
   model: ikebana
   icon: ikebana_icon
   max-stack: 16
@@ -188,7 +188,7 @@ ikebana:
 bamboo_pot:
   material: paper
   name: "<#9da448>대나무 화분"
-  lore: ["<gray>일본풍 가구 · 1×1칸, 높이 2", "<gray>편백 화분에 심은 대나무 세 그루."]
+  lore: ["<gray>일본풍 가구 · 1×1칸, 높이 2", "<gray>편백 화분의 대나무 세 그루"]
   model: bamboo_pot
   icon: bamboo_pot_icon
   max-stack: 16
@@ -198,7 +198,7 @@ bamboo_pot:
 sakura_pot:
   material: paper
   name: "<#fdc4d6>벚꽃 화분"
-  lore: ["<gray>일본풍 가구 · 1×1칸, 높이 2", "<gray>꽃이 활짝 핀 작은 벚나무."]
+  lore: ["<gray>일본풍 가구 · 1×1칸, 높이 2", "<gray>꽃이 활짝 핀 작은 벚나무"]
   model: sakura_pot
   icon: sakura_pot_icon
   max-stack: 16
@@ -209,7 +209,7 @@ sakura_pot:
 tea_set:
   material: paper
   name: "<#a5ccb2>다기 세트"
-  lore: ["<gray>일본풍 가구 · 1×1칸", "<gray>쟁반에 옆손잡이 찻주전자와 녹차 세 잔."]
+  lore: ["<gray>일본풍 가구 · 1×1칸", "<gray>찻주전자와 녹차 세 잔"]
   model: tea_set
   icon: tea_set_icon
   max-stack: 16
@@ -219,7 +219,7 @@ tea_set:
 tea_kettle:
   material: paper
   name: "<#a8a49b>화로와 찻주전자"
-  lore: ["<gray>일본풍 가구 · 1×1칸", "<gray>숯불 피운 청화 화로 위의 무쇠 주전자.", "<yellow>빛 7"]
+  lore: ["<gray>일본풍 가구 · 1×1칸", "<gray>숯불 화로 위의 무쇠 주전자", "<white>빛 7"]
   model: tea_kettle
   icon: tea_kettle_icon
   max-stack: 16
@@ -230,7 +230,7 @@ tea_kettle:
 sake_set:
   material: paper
   name: "<#effbff>사케 병과 잔"
-  lore: ["<gray>일본풍 가구 · 1×1칸", "<gray>붉은 칠 쟁반에 술병 둘과 잔 둘."]
+  lore: ["<gray>일본풍 가구 · 1×1칸", "<gray>붉은 칠 쟁반의 술병과 잔"]
   model: sake_set
   icon: sake_set_icon
   max-stack: 16
@@ -240,7 +240,7 @@ sake_set:
 taiko_drum:
   material: paper
   name: "<#e06439>다이코 북"
-  lore: ["<gray>일본풍 가구 · 1×1칸, 높이 2", "<gray>받침대에 누운 큰 북과 북채 한 쌍."]
+  lore: ["<gray>일본풍 가구 · 1×1칸, 높이 2", "<gray>받침대에 누운 큰 북과 북채"]
   model: taiko_drum
   icon: taiko_drum_icon
   max-stack: 16
@@ -250,7 +250,7 @@ taiko_drum:
 maneki_neko:
   material: paper
   name: "<#ffffff>마네키네코"
-  lore: ["<gray>일본풍 가구 · 1×1칸", "<gray>빨간 방석에 앉아 앞발을 들어 손님과 복을 부르는 고양이.", "<gold>금화를 안고 있습니다."]
+  lore: ["<gray>일본풍 가구 · 1×1칸", "<gray>금화를 안고 복을 부르는 고양이"]
   model: maneki_neko
   icon: maneki_neko_icon
   max-stack: 16
@@ -260,7 +260,7 @@ maneki_neko:
 daruma:
   material: paper
   name: "<#e06439>다루마"
-  lore: ["<gray>일본풍 가구 · 1×1칸", "<gray>소원을 빌며 한쪽 눈만 그려 넣은 오뚝이."]
+  lore: ["<gray>일본풍 가구 · 1×1칸", "<gray>한쪽 눈만 그린 소원 오뚝이"]
   model: daruma
   icon: daruma_icon
   max-stack: 16
@@ -270,7 +270,7 @@ daruma:
 omamori_rack:
   material: paper
   name: "<#b18440>오마모리 걸이"
-  lore: ["<gray>일본풍 가구 · 1×1칸", "<gray>푸른 구리 지붕을 얹은 붉은 걸이에 부적 주머니 넷과 에마 둘."]
+  lore: ["<gray>일본풍 가구 · 1×1칸", "<gray>부적 주머니와 에마를 건 걸이"]
   model: omamori_rack
   icon: omamori_rack_icon
   max-stack: 16
@@ -280,7 +280,7 @@ omamori_rack:
 wind_chime:
   material: paper
   name: "<#4ca8ca>풍경"
-  lore: ["<gray>일본풍 가구 · 1×1칸", "<gray>금붕어를 그린 유리 풍경과 소원 쪽지.", "<dark_gray>천장 아래를 우클릭하면 매달립니다"]
+  lore: ["<gray>일본풍 가구 · 1×1칸", "<gray>금붕어 그린 유리 풍경", "<yellow>천장 아래 우클릭: 매달기"]
   model: wind_chime
   icon: wind_chime_icon
   max-stack: 16
@@ -292,7 +292,7 @@ wind_chime:
 wagasa:
   material: paper
   name: "<#e06439>노다테 우산"
-  lore: ["<gray>일본풍 가구 · 1×1칸, 높이 3", "<gray>흰 뱀눈 테를 두른 커다란 붉은 정원 우산.", "<gray>우산 그늘 아래에 설 수 있습니다."]
+  lore: ["<gray>일본풍 가구 · 1×1칸, 높이 3", "<gray>그늘을 드리우는 붉은 정원 우산"]
   model: wagasa
   icon: wagasa_icon
   max-stack: 16
@@ -303,7 +303,7 @@ wagasa:
 kimono_rack:
   material: paper
   name: "<#38699d>기모노 걸이"
-  lore: ["<gray>일본풍 가구 · 2×1칸, 높이 2", "<gray>검은 옻칠 횃대에 벚꽃 무늬 기모노."]
+  lore: ["<gray>일본풍 가구 · 2×1칸, 높이 2", "<gray>벚꽃 무늬 기모노를 건 횃대"]
   model: kimono_rack
   icon: kimono_rack_icon
   max-stack: 16
@@ -313,7 +313,7 @@ kimono_rack:
 torii:
   material: paper
   name: "<#e06439>도리이"
-  lore: ["<gray>일본풍 가구 · 4×1칸, 높이 4", "<gray>신사 입구의 붉은 문. 가운데 두 칸으로 지나갈 수 있습니다."]
+  lore: ["<gray>일본풍 가구 · 4×1칸, 높이 4", "<gray>신사 입구의 붉은 문 · 가운데로 통과"]
   model: torii
   icon: torii_icon
   max-stack: 16
@@ -327,7 +327,7 @@ torii:
 stepping_stones:
   material: paper
   name: "<#a8a49b>징검돌"
-  lore: ["<gray>일본풍 가구 · 1×1칸", "<gray>정원 길에 놓는 납작한 돌.", "<dark_gray>밟고 지나갈 수 있음"]
+  lore: ["<gray>일본풍 가구 · 1×1칸 · 지나갈 수 있음", "<gray>정원 길의 납작한 징검돌"]
   model: stepping_stones
   icon: stepping_stones_icon
   max-stack: 16
@@ -338,7 +338,7 @@ stepping_stones:
 koi_pond:
   material: paper
   name: "<#4ca8ca>잉어 연못"
-  lore: ["<gray>일본풍 가구 · 2×2칸", "<gray>자연석을 두른 작은 연못. 잉어 두 마리가", "<gray>연잎 사이를 빙글빙글 헤엄칩니다.", "<dark_gray>밟고 지나갈 수 있음"]
+  lore: ["<gray>일본풍 가구 · 2×2칸 · 지나갈 수 있음", "<gray>잉어 두 마리가 헤엄치는 연못"]
   model: koi_pond
   icon: koi_pond_icon
   max-stack: 16

@@ -12,7 +12,7 @@
 azure_pearl_cloud:
   material: paper
   name: "<gradient:#c8f6ff:#3d8bff>청룡의 여의주</gradient>"
-  lore: ["<gray>구름 위에 뜬 여의주가 푸른 불꽃 속에서 돈다", "<#7fd8ff>청룡 세트 (1/9)"]
+  lore: ["<gray>푸른 불꽃 속에서 도는 여의주", "<#7fd8ff>청룡 세트 (1/9)"]
   model: azure_pearl_cloud
   max-stack: 1
   cosmetic: { slot: above, rarity: legendary, obtain: "후원 상점 (/후원)", exclusive: donation, set: azure_dragon, glow: true, bob: true,
@@ -22,7 +22,7 @@ azure_pearl_cloud:
 azure_dragon_wings:
   material: paper
   name: "<gradient:#c8f6ff:#3d8bff>청룡의 날개</gradient>"
-  lore: ["<gray>손가락뼈 사이 비늘 막, 가장자리가 빛나며 날갯짓한다", "<#7fd8ff>청룡 세트 (2/9)"]
+  lore: ["<gray>가장자리가 빛나는 비늘 날개", "<#7fd8ff>청룡 세트 (2/9)"]
   model: azure_dragon_wings
   max-stack: 1
   cosmetic: { slot: back, rarity: legendary, obtain: "후원 상점 (/후원)", exclusive: donation, set: azure_dragon, glow: true,
@@ -30,7 +30,7 @@ azure_dragon_wings:
 azure_dragon_tail:
   material: paper
   name: "<gradient:#c8f6ff:#3d8bff>청룡의 꼬리</gradient>"
-  lore: ["<gray>발목까지 휘어 내려 말려 오르는 비늘 꼬리, 끝에 푸른 불꽃", "<#7fd8ff>청룡 세트 (3/9)"]
+  lore: ["<gray>끝에 푸른 불꽃이 이는 비늘 꼬리", "<#7fd8ff>청룡 세트 (3/9)"]
   model: azure_dragon_tail
   max-stack: 1
   cosmetic:
@@ -58,28 +58,28 @@ azure_dragon_tail:
 azure_shoulder_dragon:
   material: paper
   name: "<gradient:#c8f6ff:#3d8bff>청룡의 어깨 용</gradient>"
-  lore: ["<gray>어깨에 똬리를 튼 작은 청룡이 고개를 든다", "<#7fd8ff>청룡 세트 (4/9)"]
+  lore: ["<gray>어깨에 똬리를 튼 작은 청룡", "<#7fd8ff>청룡 세트 (4/9)"]
   model: azure_shoulder_dragon
   max-stack: 1
   cosmetic: { slot: shoulder, rarity: legendary, obtain: "후원 상점 (/후원)", exclusive: donation, set: azure_dragon, glow: true }
 azure_cloud_sash:
   material: paper
   name: "<gradient:#c8f6ff:#3d8bff>청룡의 구름 띠</gradient>"
-  lore: ["<gray>구름을 감은 띠, 여의주를 문 금빛 용머리 고리", "<#7fd8ff>청룡 세트 (5/9)"]
+  lore: ["<gray>용머리 고리가 달린 구름 띠", "<#7fd8ff>청룡 세트 (5/9)"]
   model: azure_cloud_sash
   max-stack: 1
   cosmetic: { slot: waist, rarity: legendary, obtain: "후원 상점 (/후원)", exclusive: donation, set: azure_dragon, glow: true }
 azure_baby_dragon:
   material: paper
   name: "<gradient:#c8f6ff:#3d8bff>아기 청룡</gradient>"
-  lore: ["<gray>여의주를 품고 공중을 헤엄치며 따라오는 아기 청룡", "<#7fd8ff>청룡 세트 (6/9)"]
+  lore: ["<gray>여의주를 품고 따라오는 아기 청룡", "<#7fd8ff>청룡 세트 (6/9)"]
   model: azure_baby_dragon
   max-stack: 1
   cosmetic: { slot: pet, rarity: legendary, obtain: "후원 상점 (/후원)", exclusive: donation, set: azure_dragon, glow: true, float: true }
 azure_cloud_trail:
   material: paper
   name: "<gradient:#c8f6ff:#3d8bff>청룡의 구름 발자국</gradient>"
-  lore: ["<gray>걸음마다 빛나는 구름 발자국이 툭 솟았다 가라앉는다", "<#7fd8ff>청룡 세트 (7/9)"]
+  lore: ["<gray>걸음마다 빛나는 구름 발자국", "<#7fd8ff>청룡 세트 (7/9)"]
   model: azure_cloud_trail
   max-stack: 1
   cosmetic: { slot: trail, rarity: legendary, obtain: "후원 상점 (/후원)", exclusive: donation, set: azure_dragon, glow: true,
@@ -88,7 +88,7 @@ azure_cloud_trail:
 azure_spark_aura:
   material: paper
   name: "<gradient:#c8f6ff:#3d8bff>청룡의 뇌룡</gradient>"
-  lore: ["<gray>작은 청룡이 몸 둘레를 쉬지 않고 휘감아 돈다", "<#7fd8ff>청룡 세트 (8/9)"]
+  lore: ["<gray>몸 둘레를 감아 도는 작은 청룡", "<#7fd8ff>청룡 세트 (8/9)"]
   model: azure_spark_aura
   max-stack: 1
   cosmetic: { slot: aura, rarity: legendary, obtain: "후원 상점 (/후원)", exclusive: donation, set: azure_dragon, glow: true,
@@ -96,7 +96,7 @@ azure_spark_aura:
 azure_dragon_roar:
   material: paper
   name: "<gradient:#c8f6ff:#3d8bff>청룡의 포효</gradient>"
-  lore: ["<gray>쓰러뜨린 자리에서 청룡의 머리가 솟아 포효한다", "<#7fd8ff>청룡 세트 (9/9)"]
+  lore: ["<gray>쓰러진 자리에서 청룡이 포효", "<#7fd8ff>청룡 세트 (9/9)"]
   model: azure_dragon_roar
   max-stack: 1
   cosmetic: { slot: kill, rarity: legendary, obtain: "후원 상점 (/후원)", exclusive: donation, set: azure_dragon, glow: true,
@@ -112,7 +112,7 @@ azure_dragon_roar:
 galaxy_star_crown:
   material: paper
   name: "<gradient:#ffe9a8:#a98bff>은하수 별관</gradient>"
-  lore: ["<gray>밤하늘 띠 위에 금빛 별 넷과 보랏빛 보석, 머리 위에서 돈다", "<#c3a8ff>은하수 세트 (1/9)"]
+  lore: ["<gray>금빛 별 넷이 도는 밤하늘 관", "<#c3a8ff>은하수 세트 (1/9)"]
   model: galaxy_star_crown
   max-stack: 1
   cosmetic: { slot: above, rarity: legendary, obtain: "후원 상점 (/후원)", exclusive: donation, set: galaxy, glow: true, bob: true,
@@ -120,7 +120,7 @@ galaxy_star_crown:
 galaxy_cape:
   material: paper
   name: "<gradient:#ffe9a8:#a98bff>은하수 망토</gradient>"
-  lore: ["<gray>북두칠성이 북극성을 가리키는 밤하늘 망토, 별 달린 금빛 밑단", "<#c3a8ff>은하수 세트 (2/9)"]
+  lore: ["<gray>북두칠성을 수놓은 밤하늘 망토", "<#c3a8ff>은하수 세트 (2/9)"]
   model: galaxy_cape
   max-stack: 1
   cosmetic: { slot: back, rarity: legendary, obtain: "후원 상점 (/후원)", exclusive: donation, set: galaxy, glow: true,
@@ -128,35 +128,35 @@ galaxy_cape:
 galaxy_moon_necklace:
   material: paper
   name: "<gradient:#ffe9a8:#a98bff>초승달 목걸이</gradient>"
-  lore: ["<gray>보석 박힌 금사슬 끝에 빛나는 초승달과 작은 별", "<#c3a8ff>은하수 세트 (3/9)"]
+  lore: ["<gray>금사슬 끝의 빛나는 초승달", "<#c3a8ff>은하수 세트 (3/9)"]
   model: galaxy_moon_necklace
   max-stack: 1
   cosmetic: { slot: neck, rarity: legendary, obtain: "후원 상점 (/후원)", exclusive: donation, set: galaxy, glow: true }
 galaxy_star_owl:
   material: paper
   name: "<gradient:#ffe9a8:#a98bff>별 부엉이</gradient>"
-  lore: ["<gray>밤하늘로 지은 작은 부엉이가 금빛 눈을 반짝이며 어깨에 앉는다", "<#c3a8ff>은하수 세트 (4/9)"]
+  lore: ["<gray>금빛 눈을 반짝이는 별 부엉이", "<#c3a8ff>은하수 세트 (4/9)"]
   model: galaxy_star_owl
   max-stack: 1
   cosmetic: { slot: shoulder, rarity: legendary, obtain: "후원 상점 (/후원)", exclusive: donation, set: galaxy, glow: true }
 galaxy_star_belt:
   material: paper
   name: "<gradient:#ffe9a8:#a98bff>별자리 허리띠</gradient>"
-  lore: ["<gray>밤하늘 띠에 별 버클, 허리에 초승달과 별 장식이 달랑인다", "<#c3a8ff>은하수 세트 (5/9)"]
+  lore: ["<gray>초승달이 달랑이는 별 버클 띠", "<#c3a8ff>은하수 세트 (5/9)"]
   model: galaxy_star_belt
   max-stack: 1
   cosmetic: { slot: waist, rarity: legendary, obtain: "후원 상점 (/후원)", exclusive: donation, set: galaxy, glow: true }
 galaxy_star_whale:
   material: paper
   name: "<gradient:#ffe9a8:#a98bff>아기 별고래</gradient>"
-  lore: ["<gray>별가루를 뿜으며 공중을 헤엄쳐 따라오는 아기 고래", "<#c3a8ff>은하수 세트 (6/9)"]
+  lore: ["<gray>별가루를 뿜으며 따라오는 아기 고래", "<#c3a8ff>은하수 세트 (6/9)"]
   model: galaxy_star_whale
   max-stack: 1
   cosmetic: { slot: pet, rarity: legendary, obtain: "후원 상점 (/후원)", exclusive: donation, set: galaxy, glow: true, float: true }
 galaxy_stardust_trail:
   material: paper
   name: "<gradient:#ffe9a8:#a98bff>은하수 별빛 발자국</gradient>"
-  lore: ["<gray>걸음마다 금테 두른 별빛 발자국이 톡 솟았다 가라앉는다", "<#c3a8ff>은하수 세트 (7/9)"]
+  lore: ["<gray>걸음마다 솟는 별빛 발자국", "<#c3a8ff>은하수 세트 (7/9)"]
   model: galaxy_stardust_trail
   max-stack: 1
   cosmetic: { slot: trail, rarity: legendary, obtain: "후원 상점 (/후원)", exclusive: donation, set: galaxy, glow: true,
@@ -165,7 +165,7 @@ galaxy_stardust_trail:
 galaxy_constellation_aura:
   material: paper
   name: "<gradient:#ffe9a8:#a98bff>은하수 행성 고리</gradient>"
-  lore: ["<gray>수성부터 해왕성까지, 태양계 여덟 행성이 별가루 궤도를 따라 몸 둘레를 돈다", "<#c3a8ff>은하수 세트 (8/9)"]
+  lore: ["<gray>태양계 여덟 행성이 몸 둘레를 돎", "<#c3a8ff>은하수 세트 (8/9)"]
   model: galaxy_constellation_aura
   max-stack: 1
   cosmetic: { slot: aura, rarity: legendary, obtain: "후원 상점 (/후원)", exclusive: donation, set: galaxy, glow: true,
@@ -173,7 +173,7 @@ galaxy_constellation_aura:
 galaxy_supernova:
   material: paper
   name: "<gradient:#ffe9a8:#a98bff>은하수 초신성</gradient>"
-  lore: ["<gray>쓰러뜨린 자리에서 별이 터지며 금빛 조각과 은하가 솟는다", "<#c3a8ff>은하수 세트 (9/9)"]
+  lore: ["<gray>쓰러진 자리에서 별이 터짐", "<#c3a8ff>은하수 세트 (9/9)"]
   model: galaxy_supernova
   max-stack: 1
   cosmetic: { slot: kill, rarity: legendary, obtain: "후원 상점 (/후원)", exclusive: donation, set: galaxy, glow: true,
@@ -190,14 +190,14 @@ galaxy_supernova:
 sleepy_duckling:
   material: paper
   name: "<gradient:#fff3a8:#ffb347>꾸벅 아기 오리</gradient>"
-  lore: ["<gray>머리 위 베개에서 수면모자를 쓰고 쿨쿨,", "<gray>콧방울이 부풀고 z 가 날아오른다", "<#ffc861>아기 오리 가족 세트 (1/9)"]
+  lore: ["<gray>베개 위에서 쿨쿨 자는 아기 오리", "<#ffc861>아기 오리 가족 세트 (1/9)"]
   model: sleepy_duckling
   max-stack: 1
   cosmetic: { slot: above, rarity: legendary, obtain: "후원 상점 (/후원)", exclusive: donation, set: duck_family, bob: true, awakened: sleepy_duckling_awakened }
 duckling_wings:
   material: paper
   name: "<gradient:#fff3a8:#ffb347>파닥 아기 날개</gradient>"
-  lore: ["<gray>보송보송한 아기 날개, 깃털 끝이 겹겹이", "<gray>쉴 새 없이 파닥인다", "<#ffc861>아기 오리 가족 세트 (2/9)"]
+  lore: ["<gray>쉴 새 없이 파닥이는 아기 날개", "<#ffc861>아기 오리 가족 세트 (2/9)"]
   model: duckling_wings
   max-stack: 1
   cosmetic: { slot: back, rarity: legendary, obtain: "후원 상점 (/후원)", exclusive: donation, set: duck_family,
@@ -205,35 +205,35 @@ duckling_wings:
 peeking_duckling:
   material: paper
   name: "<gradient:#fff3a8:#ffb347>빼꼼 아기 오리</gradient>"
-  lore: ["<gray>어깨에 앉아 빼꼼, 세일러 모자를 쓰고", "<gray>날개 하나를 흔들어 인사한다", "<#ffc861>아기 오리 가족 세트 (3/9)"]
+  lore: ["<gray>날개를 흔드는 세일러 아기 오리", "<#ffc861>아기 오리 가족 세트 (3/9)"]
   model: peeking_duckling
   max-stack: 1
   cosmetic: { slot: shoulder, rarity: legendary, obtain: "후원 상점 (/후원)", exclusive: donation, set: duck_family }
 duck_bib:
   material: paper
   name: "<gradient:#fff3a8:#ffb347>오리 턱받이</gradient>"
-  lore: ["<gray>노란 물결 가장자리의 동그란 턱받이,", "<gray>아기 오리 얼굴과 닻이 수놓여 있다", "<#ffc861>아기 오리 가족 세트 (4/9)"]
+  lore: ["<gray>아기 오리 얼굴을 수놓은 턱받이", "<#ffc861>아기 오리 가족 세트 (4/9)"]
   model: duck_bib
   max-stack: 1
   cosmetic: { slot: neck, rarity: legendary, obtain: "후원 상점 (/후원)", exclusive: donation, set: duck_family }
 duck_float_ring:
   material: paper
   name: "<gradient:#fff3a8:#ffb347>오리 튜브</gradient>"
-  lore: ["<gray>허리에 낀 반짝이는 노란 튜브,", "<gray>앞에서 고무오리가 빼꼼", "<#ffc861>아기 오리 가족 세트 (5/9)"]
+  lore: ["<gray>고무오리가 빼꼼 보이는 튜브", "<#ffc861>아기 오리 가족 세트 (5/9)"]
   model: duck_float_ring
   max-stack: 1
   cosmetic: { slot: waist, rarity: legendary, obtain: "후원 상점 (/후원)", exclusive: donation, set: duck_family, awakened: duck_float_ring_awakened }
 duckling_parade:
   material: paper
   name: "<gradient:#fff3a8:#ffb347>졸졸 아기 오리들</gradient>"
-  lore: ["<gray>세일러 모자를 쓴 대장 오리를 따라", "<gray>아기 오리들이 줄지어 졸졸 따라온다", "<#ffc861>아기 오리 가족 세트 (6/9)"]
+  lore: ["<gray>대장을 따라 줄지어 오는 오리들", "<#ffc861>아기 오리 가족 세트 (6/9)"]
   model: duckling_parade
   max-stack: 1
   cosmetic: { slot: pet, rarity: legendary, obtain: "후원 상점 (/후원)", exclusive: donation, set: duck_family, awakened: duckling_parade_awakened }
 puddle_trail:
   material: paper
   name: "<gradient:#fff3a8:#ffb347>첨벙 발자국</gradient>"
-  lore: ["<gray>걸음마다 물갈퀴 발자국이 찍히고", "<gray>물결이 동그랗게 퍼진다", "<#ffc861>아기 오리 가족 세트 (7/9)"]
+  lore: ["<gray>걸음마다 물갈퀴 발자국과 물결", "<#ffc861>아기 오리 가족 세트 (7/9)"]
   model: puddle_trail
   max-stack: 1
   cosmetic: { slot: trail, rarity: legendary, obtain: "후원 상점 (/후원)", exclusive: donation, set: duck_family,
@@ -242,7 +242,7 @@ puddle_trail:
 rubber_duck_aura:
   material: paper
   name: "<gradient:#fff3a8:#ffb347>둥둥 고무오리</gradient>"
-  lore: ["<gray>발밑의 동그란 물웅덩이에서", "<gray>고무오리들이 둥둥 떠서 빙빙 돈다", "<#ffc861>아기 오리 가족 세트 (8/9)"]
+  lore: ["<gray>발밑 물웅덩이를 도는 고무오리", "<#ffc861>아기 오리 가족 세트 (8/9)"]
   model: duck_aura_card
   max-stack: 1
   cosmetic: { slot: aura, rarity: legendary, obtain: "후원 상점 (/후원)", exclusive: donation, set: duck_family,
@@ -250,7 +250,7 @@ rubber_duck_aura:
 duck_squeak:
   material: paper
   name: "<gradient:#fff3a8:#ffb347>꽥! 고무오리</gradient>"
-  lore: ["<gray>쓰러뜨린 자리에서 커다란 고무오리가", "<gray>물보라와 비눗방울 속에 퐁 솟아오른다", "<#ffc861>아기 오리 가족 세트 (9/9)"]
+  lore: ["<gray>쓰러진 자리에 커다란 고무오리", "<#ffc861>아기 오리 가족 세트 (9/9)"]
   model: duck_squeak
   max-stack: 1
   cosmetic: { slot: kill, rarity: legendary, obtain: "후원 상점 (/후원)", exclusive: donation, set: duck_family,
