@@ -17,6 +17,8 @@ import org.bukkit.plugin.Plugin;
 import org.bukkit.util.Transformation;
 import org.bukkit.util.Vector;
 import org.joml.AxisAngle4f;
+import org.joml.Matrix4f;
+import org.joml.Quaternionf;
 import org.joml.Vector3f;
 
 import java.util.ArrayList;
@@ -197,6 +199,8 @@ final class CosmeticAttachments {
     private static final class Worn {
         final ItemDisplay display;
         final CustomItem cosmetic;
+        /** the displays of its cosmetic.parts, in order (they ride and move with the main one) */
+        final List<ItemDisplay> parts = new ArrayList<>();
         boolean sneaking, hidden, bobUp;
         /** its whole set is worn: the awakened model shows (cosmetic.awakened) */
         boolean awake;
@@ -207,6 +211,25 @@ final class CosmeticAttachments {
         Worn(ItemDisplay display, CustomItem cosmetic) {
             this.display = display;
             this.cosmetic = cosmetic;
+        }
+
+        /** The main display and its parts. */
+        List<ItemDisplay> all() {
+            if (parts.isEmpty()) return List.of(display);
+            List<ItemDisplay> out = new ArrayList<>(parts.size() + 1);
+            out.add(display);
+            out.addAll(parts);
+            return out;
+        }
+
+        void removeAll() {
+            display.remove();
+            parts.forEach(Entity::remove);
+        }
+
+        boolean valid(org.bukkit.World world) {
+            for (ItemDisplay d : all()) if (!d.isValid() || d.getWorld() != world) return false;
+            return true;
         }
     }
 
@@ -279,7 +302,7 @@ final class CosmeticAttachments {
         this.anchors = Map.copyOf(anchors);
         for (Map.Entry<UUID, Map<CosmeticSlot, Worn>> e : worn.entrySet()) {
             Player p = Bukkit.getPlayer(e.getKey());
-            if (p != null) e.getValue().forEach((slot, w) -> w.display.setTransformation(transformation(slot, w, p)));
+            if (p != null) e.getValue().forEach((slot, w) -> pose(w, transformation(slot, w, p)));
         }
     }
 
@@ -311,8 +334,8 @@ final class CosmeticAttachments {
         for (CosmeticSlot slot : new ArrayList<>(have.keySet())) {
             Worn w = have.get(slot);
             CustomItem want = wanted.get(slot);
-            if (want == null || !carried(want) || !want.key().equals(w.cosmetic.key()) || !w.display.isValid() || w.display.getWorld() != p.getWorld()) {
-                w.display.remove();
+            if (want == null || !carried(want) || !want.key().equals(w.cosmetic.key()) || !w.valid(p.getWorld())) {
+                w.removeAll();
                 have.remove(slot);
                 changed = true;
                 continue;
@@ -320,7 +343,7 @@ final class CosmeticAttachments {
             boolean a = awake.contains(want.key().asString());
             if (a != w.awake) {
                 w.awake = a;
-                if (!w.hidden) w.display.setItemStack(look(want, a));
+                if (!w.hidden) dress(w, false);
             }
         }
         List<Worn> fresh = new ArrayList<>();
@@ -332,8 +355,8 @@ final class CosmeticAttachments {
             changed = true;
         }
         Worn b = bonus.get(id);
-        if (b != null && (bonusModel == null || !bonusModel.key().equals(b.cosmetic.key()) || !b.display.isValid() || b.display.getWorld() != p.getWorld())) {
-            b.display.remove();
+        if (b != null && (bonusModel == null || !bonusModel.key().equals(b.cosmetic.key()) || !b.valid(p.getWorld()))) {
+            b.removeAll();
             bonus.remove(id);
             b = null;
             changed = true;
@@ -349,7 +372,7 @@ final class CosmeticAttachments {
         // linked first, shown after: the spawn packets then carry the link
         link(p);
         for (Worn w : fresh) {
-            for (Player v : p.getWorld().getPlayers()) if (shouldSee(v, p)) v.showEntity(plugin, w.display);
+            for (Player v : p.getWorld().getPlayers()) if (shouldSee(v, p)) for (ItemDisplay d : w.all()) v.showEntity(plugin, d);
         }
         // and once more shortly after, in case a client got a display before the link
         if (!fresh.isEmpty()) relinkAt.put(p.getUniqueId(), new ArrayList<>(List.of(ticks + 2, ticks + 10)));
@@ -371,9 +394,9 @@ final class CosmeticAttachments {
         bodies.remove(p.getUniqueId());
         relinkAt.remove(p.getUniqueId());
         Map<CosmeticSlot, Worn> have = worn.remove(p.getUniqueId());
-        if (have != null) have.values().forEach(w -> w.display.remove());
+        if (have != null) have.values().forEach(Worn::removeAll);
         Worn b = bonus.remove(p.getUniqueId());
-        if (b != null) b.display.remove();
+        if (b != null) b.removeAll();
         awakeOf.remove(p.getUniqueId());
         bonusOf.remove(p.getUniqueId());
         Tag t = tags.remove(p.getUniqueId());
@@ -426,9 +449,9 @@ final class CosmeticAttachments {
     }
 
     void removeAll() {
-        for (Map<CosmeticSlot, Worn> have : worn.values()) have.values().forEach(w -> w.display.remove());
+        for (Map<CosmeticSlot, Worn> have : worn.values()) have.values().forEach(Worn::removeAll);
         worn.clear();
-        bonus.values().forEach(w -> w.display.remove());
+        bonus.values().forEach(Worn::removeAll);
         bonus.clear();
         awakeOf.clear();
         bonusOf.clear();
@@ -450,9 +473,10 @@ final class CosmeticAttachments {
 
     private void link(Player p) {
         if (packets == null) return;
-        java.util.stream.IntStream models = worn.getOrDefault(p.getUniqueId(), Map.of()).values().stream().mapToInt(w -> w.display.getEntityId());
+        java.util.stream.IntStream models = worn.getOrDefault(p.getUniqueId(), Map.of()).values().stream()
+                .flatMap(w -> w.all().stream()).mapToInt(Entity::getEntityId);
         Worn b = bonus.get(p.getUniqueId());
-        if (b != null) models = java.util.stream.IntStream.concat(models, java.util.stream.IntStream.of(b.display.getEntityId()));
+        if (b != null) models = java.util.stream.IntStream.concat(models, b.all().stream().mapToInt(Entity::getEntityId));
         Tag t = tags.get(p.getUniqueId());
         java.util.stream.IntStream own = t == null ? models : java.util.stream.IntStream.concat(models, java.util.stream.IntStream.of(t.display.getEntityId()));
         int[] ids = java.util.stream.IntStream.concat(own, java.util.Arrays.stream(carried.getOrDefault(p.getUniqueId(), new int[0]))).toArray();
@@ -480,7 +504,77 @@ final class CosmeticAttachments {
         w.sneaking = sneak;
         w.scale = scale;
         w.awake = awake;
+        CustomItem.Premium pr = c.cosmetic().premium();
+        if (pr != null && !pr.parts().isEmpty()) {
+            Transformation main = d.getTransformation();
+            Location at = d.getLocation();
+            for (CustomItem.Part part : pr.parts()) {
+                ItemDisplay pd = p.getWorld().spawn(at, ItemDisplay.class, e -> {
+                    e.setVisibleByDefault(false);
+                    e.setPersistent(false);
+                    e.getPersistentDataContainer().set(tag, PersistentDataType.BYTE, (byte) 1);
+                    e.setItemStack(partLook(c, part, awake));
+                    e.setItemDisplayTransform(ItemDisplay.ItemDisplayTransform.NONE);
+                    e.setTeleportDuration(packets == null ? 3 : 1);
+                    e.setInterpolationDuration(3);
+                    e.setShadowRadius(0);
+                    if (part.billboard()) e.setBillboard(org.bukkit.entity.Display.Billboard.CENTER);
+                    if (part.glow() || c.cosmetic().glow()) e.setBrightness(new org.bukkit.entity.Display.Brightness(15, 15));
+                    e.setTransformationMatrix(partMatrix(main, part));
+                });
+                w.parts.add(pd);
+            }
+        }
         return w;
+    }
+
+    /** The item a part's display shows: the cosmetic's item drawn as the part's model (awakened when the set is whole). */
+    static ItemStack partLook(CustomItem c, CustomItem.Part part, boolean awake) {
+        ItemStack it = c.create(1);
+        NamespacedKey model = awake && part.awakened() != null ? part.awakened() : part.model();
+        it.editMeta(m -> m.setItemModel(model));
+        return it;
+    }
+
+    /** Sets the main display's transformation and moves its parts with it. */
+    private static void pose(Worn w, Transformation main) {
+        w.display.setTransformation(main);
+        CustomItem.Premium pr = w.cosmetic.cosmetic().premium();
+        if (pr == null) return;
+        for (int i = 0; i < w.parts.size() && i < pr.parts().size(); i++) w.parts.get(i).setTransformationMatrix(partMatrix(main, pr.parts().get(i)));
+    }
+
+    /** Shows (or, hide: empties) the main display and its parts, in their awakened looks while the set is whole. */
+    private static void dress(Worn w, boolean hide) {
+        w.display.setItemStack(hide ? null : look(w.cosmetic, w.awake));
+        CustomItem.Premium pr = w.cosmetic.cosmetic().premium();
+        if (pr == null) return;
+        for (int i = 0; i < w.parts.size() && i < pr.parts().size(); i++) {
+            w.parts.get(i).setItemStack(hide ? null : partLook(w.cosmetic, pr.parts().get(i), w.awake));
+        }
+    }
+
+    /** An item display draws a model turned half round about the vertical (model north = the display's front). */
+    private static final Quaternionf HALF_TURN = new Quaternionf().rotationY((float) Math.PI);
+
+    /**
+     * Where a part's display draws its model: the main display's transformation, then (in the main model's own frame:
+     * units of 16 per block, (8, 8, 8) its centre) the part moved to its place, turned and sized round its own centre.
+     * A billboard part keeps only where its centre lands and its size (the client turns it to the camera).
+     */
+    static Matrix4f partMatrix(Transformation main, CustomItem.Part part) {
+        Matrix4f m = new Matrix4f().translate(main.getTranslation()).rotate(main.getLeftRotation()).scale(main.getScale())
+                .rotate(main.getRightRotation()).rotate(HALF_TURN);
+        Vector3f at = new Vector3f(part.at()).sub(8, 8, 8).div(16f);
+        if (part.billboard()) {
+            Vector3f centre = m.transformPosition(new Vector3f(at));
+            float s = main.getScale().x() * part.scale();
+            return new Matrix4f().translate(centre).scale(s);
+        }
+        Vector3f r = part.rotation();
+        Quaternionf turn = new Quaternionf().rotateY((float) Math.toRadians(r.y())).rotateX((float) Math.toRadians(r.x()))
+                .rotateZ((float) Math.toRadians(r.z()));
+        return m.translate(at).rotate(turn).scale(part.scale()).rotate(new Quaternionf(HALF_TURN).conjugate());
     }
 
     /** Every tick: turn with the wearer, lean when sneaking, hide in poses the models do not fit. */
@@ -495,10 +589,10 @@ final class CosmeticAttachments {
             Player p = Bukkit.getPlayer(id);
             Map<CosmeticSlot, Worn> mine = worn.getOrDefault(id, Map.of());
             if (p == null) {
-                mine.values().forEach(w -> w.display.remove());
+                mine.values().forEach(Worn::removeAll);
                 worn.remove(id);
                 Worn b = bonus.remove(id);
-                if (b != null) b.display.remove();
+                if (b != null) b.removeAll();
                 awakeOf.remove(id);
                 bonusOf.remove(id);
                 continue;
@@ -513,13 +607,13 @@ final class CosmeticAttachments {
             for (Map.Entry<CosmeticSlot, Worn> we : all) {
                 CosmeticSlot slot = we.getKey();
                 Worn w = we.getValue();
-                if (!w.display.isValid() || w.display.getWorld() != p.getWorld()) {
+                if (!w.valid(p.getWorld())) {
                     relink = true;   // set() recreates it
                     continue;
                 }
                 if (hide != w.hidden) {
                     w.hidden = hide;
-                    w.display.setItemStack(hide ? null : look(w.cosmetic, w.awake));
+                    dress(w, hide);
                 }
                 boolean sneak = sneaking(p, slot);
                 boolean bob = w.cosmetic.cosmetic().bob() && bobFlip;
@@ -531,23 +625,29 @@ final class CosmeticAttachments {
                 if (sneak != w.sneaking || scale != w.scale || bob || moved) {
                     w.sneaking = sneak;
                     w.scale = scale;
-                    w.display.setInterpolationDelay(0);
-                    w.display.setInterpolationDuration(moved ? stepTicks : bob ? BOB_TICKS : 3);
-                    w.display.setTransformation(transformation(slot, w, p));
+                    for (ItemDisplay d : w.all()) {
+                        d.setInterpolationDelay(0);
+                        d.setInterpolationDuration(moved ? stepTicks : bob ? BOB_TICKS : 3);
+                    }
+                    pose(w, transformation(slot, w, p));
                 }
                 Location target = place(p, slot, sneak, body);
-                Location now = w.display.getLocation();
-                if (packets == null || now.distanceSquared(target) > 1.0) {
-                    if (now.distanceSquared(target) > 1e-4 || turned(now, target)) w.display.teleport(target);
-                } else if (turned(now, target)) {
-                    w.display.setRotation(target.getYaw(), target.getPitch());
+                for (ItemDisplay d : w.all()) {
+                    Location now = d.getLocation();
+                    if (packets == null || now.distanceSquared(target) > 1.0) {
+                        if (now.distanceSquared(target) > 1e-4 || turned(now, target)) d.teleport(target);
+                    } else if (turned(now, target)) {
+                        d.setRotation(target.getYaw(), target.getPitch());
+                    }
                 }
                 if (sweep) {
                     for (Player v : p.getWorld().getPlayers()) {
                         boolean want = shouldSee(v, p);
-                        if (want != v.canSee(w.display)) {
-                            if (want) v.showEntity(plugin, w.display);
-                            else v.hideEntity(plugin, w.display);
+                        for (ItemDisplay d : w.all()) {
+                            if (want != v.canSee(d)) {
+                                if (want) v.showEntity(plugin, d);
+                                else v.hideEntity(plugin, d);
+                            }
                         }
                     }
                 }
@@ -573,8 +673,10 @@ final class CosmeticAttachments {
         Worn b = bonus.get(p.getUniqueId());
         if (b != null) all.add(b);
         for (Worn w : all) {
-            if (want) p.showEntity(plugin, w.display);
-            else p.hideEntity(plugin, w.display);
+            for (ItemDisplay d : w.all()) {
+                if (want) p.showEntity(plugin, d);
+                else p.hideEntity(plugin, d);
+            }
         }
     }
 
@@ -818,6 +920,28 @@ final class CosmeticAttachments {
             e.setShadowRadius(0);
             e.setTransformation(transformation(anchor(slot), c.cosmetic(), false, 1f, 0));
         });
+    }
+
+    /** The displays of a cosmetic's parts for the wardrobe mannequin (empty: none), visible to nobody until shown. */
+    List<ItemDisplay> spawnPreviewParts(ItemDisplay main, CustomItem c) {
+        CustomItem.Premium pr = c.cosmetic().premium();
+        if (pr == null || pr.parts().isEmpty()) return List.of();
+        List<ItemDisplay> out = new ArrayList<>();
+        for (CustomItem.Part part : pr.parts()) {
+            out.add(main.getWorld().spawn(main.getLocation(), ItemDisplay.class, e -> {
+                e.setVisibleByDefault(false);
+                e.setPersistent(false);
+                e.getPersistentDataContainer().set(tag, PersistentDataType.BYTE, (byte) 1);
+                e.setItemStack(partLook(c, part, false));
+                e.setItemDisplayTransform(ItemDisplay.ItemDisplayTransform.NONE);
+                e.setTeleportDuration(2);
+                e.setShadowRadius(0);
+                if (part.billboard()) e.setBillboard(org.bukkit.entity.Display.Billboard.CENTER);
+                if (part.glow() || c.cosmetic().glow()) e.setBrightness(new org.bukkit.entity.Display.Brightness(15, 15));
+                e.setTransformationMatrix(partMatrix(main.getTransformation(), part));
+            }));
+        }
+        return out;
     }
 
     /** Parses cosmetics.anchors (a missing or broken entry keeps the default, reported in problems). */

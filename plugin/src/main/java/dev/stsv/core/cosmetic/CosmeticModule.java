@@ -909,6 +909,8 @@ public final class CosmeticModule implements StsvModule, Listener {
         final Map<CosmeticSlot, String> look = new EnumMap<>(CosmeticSlot.class);
         /** the mannequin's models outside the head slot */
         final Map<CosmeticSlot, ItemDisplay> models = new EnumMap<>(CosmeticSlot.class);
+        /** the mannequin's cosmetics' extra parts (cosmetic.parts), turned with their main model */
+        final Map<CosmeticSlot, List<ItemDisplay>> parts = new EnumMap<>(CosmeticSlot.class);
         /** ticks since the wardrobe opened (effect previews) */
         long previewTicks;
         /** tab: "all", "worn" or a slot id */
@@ -1021,6 +1023,9 @@ public final class CosmeticModule implements StsvModule, Listener {
             s.models.forEach((slot, d) -> {
                 if (slot != CosmeticSlot.PET && d.isValid()) d.setRotation(CosmeticAttachments.onBody(slot) ? body : s.mannequin.getYaw(), 0);
             });
+            s.parts.forEach((slot, list) -> list.forEach(d -> {
+                if (d.isValid()) d.setRotation(CosmeticAttachments.onBody(slot) ? body : s.mannequin.getYaw(), 0);
+            }));
             // trail and kill effect on the mannequin, for this player only
             s.previewTicks++;
             previewEffect(p, s, CosmeticSlot.TRAIL, 6, s.mannequin.getLocation());
@@ -1125,6 +1130,8 @@ public final class CosmeticModule implements StsvModule, Listener {
         s.mannequin.getEquipment().setHelmet(head);
         s.models.values().forEach(Entity::remove);
         s.models.clear();
+        s.parts.values().forEach(l -> l.forEach(Entity::remove));
+        s.parts.clear();
         Location top = s.mannequin.getLocation().add(0, s.mannequin.getHeight(), 0);
         s.look.forEach((slot, id) -> {
             if (slot == CosmeticSlot.HEAD || slot == CosmeticSlot.TRAIL || slot == CosmeticSlot.KILL) return;   // effects: previewEffect
@@ -1133,6 +1140,11 @@ public final class CosmeticModule implements StsvModule, Listener {
                         : attachments.spawnPreview(top, s.mannequin.getBodyYaw(), slot, c);
                 p.showEntity(plugin, d);
                 s.models.put(slot, d);
+                if (slot != CosmeticSlot.PET) {
+                    List<ItemDisplay> extra = attachments.spawnPreviewParts(d, c);
+                    extra.forEach(x -> p.showEntity(plugin, x));
+                    if (!extra.isEmpty()) s.parts.put(slot, extra);
+                }
             });
         });
     }
@@ -1518,6 +1530,7 @@ public final class CosmeticModule implements StsvModule, Listener {
         p.setSpectatorTarget(null);
         p.setGameMode(s.gameMode);
         if (s.mannequin != null) s.mannequin.remove();
+        s.parts.values().forEach(l -> l.forEach(Entity::remove));
         s.models.values().forEach(Entity::remove);
         if (s.camera != null) s.camera.remove();
         p.teleport(s.origin);

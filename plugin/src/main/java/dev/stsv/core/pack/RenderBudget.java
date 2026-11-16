@@ -28,6 +28,10 @@ public final class RenderBudget {
         MACHINE_PART("기계 회전 부품", 160),
         COSMETIC("치장 (머리·등·꼬리…)", 300),
         PET("펫", 200),
+        // 후원 치장 (cosmetic.exclusive: donation): a few players wear a whole set at once, and the set is what they paid
+        // for, so a looser budget than the gacha's (rounder balls, smooth tails, painted planets). docs/ART_STYLE.md
+        DONATION("후원 치장 (모델 · 부품 · 각성 · 발자국 · 처치)", 1200),
+        DONATION_PET("후원 펫", 500),
         VEHICLE("탈것 몸체", 600),
         VEHICLE_WHEEL("탈것 바퀴", 80),
         VEHICLE_PART("탈것 부품 (경광등·짐·페달)", 240),
@@ -101,6 +105,17 @@ public final class RenderBudget {
             } else if (f != null) {
                 List<?> cells = f.getList("cells", List.of());
                 out.putIfAbsent(namespace + ":" + model, cells.size() <= 1 ? Category.FURNITURE_SMALL : Category.FURNITURE_LARGE);
+            } else if (c != null && "donation".equals(c.getString("exclusive"))) {
+                // a donation piece: its model, the looks the engine shows (worn, awakened, prints, burst) and its parts
+                boolean pet = "pet".equals(c.getString("slot"));
+                out.put(namespace + ":" + model, pet ? Category.DONATION_PET : Category.DONATION);
+                for (String key : List.of("worn", "awakened", "burst.model", "print.model")) {
+                    if (c.getString(key) != null) out.put(local(namespace, c.getString(key)), pet && key.equals("awakened") ? Category.DONATION_PET : Category.DONATION);
+                }
+                for (String m : c.getStringList("print.models")) out.put(local(namespace, m), Category.DONATION);
+                for (Map<?, ?> part : c.getMapList("parts")) {
+                    for (String key : List.of("model", "awakened")) if (part.get(key) != null) out.put(local(namespace, part.get(key).toString()), Category.DONATION);
+                }
             } else if (c != null) {
                 boolean pet = "pet".equals(c.getString("slot"));
                 out.putIfAbsent(namespace + ":" + model, pet ? Category.PET : Category.COSMETIC);
@@ -160,14 +175,14 @@ public final class RenderBudget {
     }
 
     /** "name" or "ns:name" or "ns:model/name" -> "ns:name". */
-    /** A pack's cosmetic_sets.yml: each set's awakening model and flourish (worn cosmetics' budget). */
+    /** A pack's cosmetic_sets.yml: each set's awakening model and flourish (the sets are the donation sets: their budget). */
     public static void setCategories(String namespace, ConfigurationSection file, Map<String, Category> out) {
         ConfigurationSection sets = file == null ? null : file.getConfigurationSection("sets");
         if (sets == null) return;
         for (String id : sets.getKeys(false)) {
             for (String key : List.of("awaken.model", "awaken.flourish")) {
                 String m = sets.getString(id + "." + key);
-                if (m != null) out.putIfAbsent(local(namespace, m), Category.COSMETIC);
+                if (m != null) out.put(local(namespace, m), Category.DONATION);
             }
         }
     }

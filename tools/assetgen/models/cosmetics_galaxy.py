@@ -709,6 +709,156 @@ hd_surface("gx_print_b", lambda k: _print_tex(1))
 hd_surface("gx_ring", _ring_tex, 8, 2)
 
 
+def _strip_tex(k, kind):
+    """A planet's whole surface unrolled, 32 x 32 (u: round the planet, v: from the north pole down), for the layered
+    spheres (sphere()): each layer shows its band of rows, each of its eight sides a quarter-eighth of the way round, so
+    the surface wraps once round the ball. No painted limb (the ball is round itself); a soft light from above."""
+    im = hd_canvas()
+    px = im.load()
+    for y in range(HS):
+        for x in range(HS):
+            u, v = (x + 0.5) / HS, (y + 0.5) / HS
+            L = 0.35 * (0.5 - v)
+            if kind in ("mercury", "moon"):
+                base = 1.7 if kind == "mercury" else 2.3
+                c = shade("stone", base + L)
+                for (cx, cy, r) in ((0.12, 0.35, 0.07), (0.4, 0.6, 0.09), (0.63, 0.3, 0.06), (0.86, 0.68, 0.08), (0.28, 0.82, 0.05)):
+                    d = math.hypot(min(abs(u - cx), 1 - abs(u - cx)), (v - cy) * 0.8)
+                    if d < r:
+                        c = shade("stone", base - 0.9 + L) if d > r * 0.55 else shade("stone", base - 0.35 + L)
+            elif kind == "venus":
+                swirl = math.sin(u * math.tau * 2 + math.sin(v * 6) * 1.6 + k * 0.3) * 0.5 + 0.5
+                c = shade("cream", 1.5 + swirl * 1.1 + L) if swirl > 0.35 else shade("straw", 2.3 + L)
+            elif kind == "earth":
+                uu = u % 1.0
+                land = max(_blob(uu, v, 11, 6, 0.17), _blob((uu + 0.5) % 1.0, v, 31, 4, 0.16))
+                c = shade("water", 1.5 + L * 1.4 + 0.25 * math.sin(v * 9))
+                if land > 0.12:
+                    c = shade("leaf", 1.9 + L) if _blob(uu, v, 13, 5, 0.1) < 0.3 else shade("soil", 2.3 + L)
+                cu = (u + k / 8) % 1.0
+                if _blob(cu, v, 17, 7, 0.09) > 0.35 or _blob((cu + 0.37) % 1.0, v, 19, 5, 0.08) > 0.4:
+                    c = shade("snow", 2.0 + L)
+                if v < 0.1 or v > 0.91:
+                    c = shade("snow", 2.4 + L)
+            elif kind == "mars":
+                c = shade("terracotta", 2.0 + L)
+                if _blob(u, v, 21, 6, 0.11) > 0.2:
+                    c = shade("brick", 1.3 + L)
+                if v < 0.14:
+                    c = shade("snow", 2.2 + L)
+            elif kind == "jupiter":
+                vv = v + 0.03 * math.sin(u * math.tau * 2 + k * 0.7)
+                band = int(vv * 13) % 4
+                c = (shade("cream", 2.0 + L), shade("straw", 2.3 + L), shade("fox", 2.1 + L), shade("straw", 1.7 + L))[band]
+                sx = (0.55 + k * 0.025) % 1.0
+                du = min(abs(u - sx), 1 - abs(u - sx))
+                if du * du / 0.012 + (v - 0.66) ** 2 / 0.004 < 1:
+                    c = shade("brick", 2.3 + L)
+            elif kind == "saturn":
+                band = int((v + 0.02 * math.sin(u * math.tau * 3)) * 10) % 3
+                c = (shade("straw", 2.7 + L), shade("lamp", 2.1 + L), shade("cream", 2.0 + L))[band]
+            elif kind == "uranus":
+                c = shade("spectral", 2.7 + L * 0.8 + 0.12 * math.sin(v * 9))
+            else:  # neptune
+                c = shade("sapphire", 1.8 + L + 0.15 * math.sin(v * 10))
+                du = min(abs(u - 0.35), 1 - abs(u - 0.35))
+                if du * du / 0.008 + (v - 0.6) ** 2 / 0.004 < 1:
+                    c = shade("sapphire", 0.5 + L)
+                if abs(v - 0.42) < 0.03 and 0.5 < u < 0.75:
+                    c = shade("snow", 2.1)
+            px[x, y] = c
+    return im
+
+
+for _kind in ("mercury", "venus", "mars", "saturn", "uranus", "neptune"):
+    hd_surface(f"gx_s_{_kind}", (lambda k, kd=_kind: _strip_tex(k, kd)))
+hd_surface("gx_s_moon", lambda k: _strip_tex(k, "moon"))
+hd_surface("gx_s_earth", lambda k: _strip_tex(k, "earth"), 8, 4)
+hd_surface("gx_s_jupiter", lambda k: _strip_tex(k, "jupiter"), 8, 6)
+
+TAN = math.tan(math.radians(22.5))
+
+
+def disc(m, name, c, y0, y1, r, mat, uvs=None, up=True, down=True, axis="y", glow=False):
+    """A round disc of radius r between y0 and y1 (axis y; axis z: between z0 = y0 and z1 = y1, round in x and y): two
+    crossed bars (a plus) and the same plus turned 45 degrees. The outline stays within 8 % of a circle from every
+    side (two crossed squares would show eight corners like a gear). uvs(face, angle): the uv of a side face looking
+    towards angle (degrees round the axis), or None for the material's own; up / down: keep the end faces."""
+    x, yy, z = c
+    s_ = r * TAN
+    k = 0
+    for turn in (0, 45):
+        for (hx, hz) in ((r, s_), (s_, r)):
+            # each bar's ends a hair apart from the others' (no two end faces in one plane: no flicker)
+            j = 0.012 * k
+            k += 1
+            if axis == "y":
+                frm, to = (x - hx, y0 + j, z - hz), (x + hx, y1 - j, z + hz)
+                rot = ("y", turn, (x, (y0 + y1) / 2, z)) if turn else None
+                ends = ("up", "down")
+                sides = (("north", 0), ("east", 90), ("south", 180), ("west", 270))
+            else:
+                frm, to = (x - hx, yy - hz, y0 + j), (x + hx, yy + hz, y1 - j)
+                rot = ("z", turn, (x, yy, (y0 + y1) / 2)) if turn else None
+                ends = ("north", "south")
+                sides = (("up", 0), ("east", 90), ("down", 180), ("west", 270))
+            faces = {}
+            if not up:
+                faces[ends[0]] = None
+            if not down:
+                faces[ends[1]] = None
+            uv = None
+            if uvs:
+                uv = {f: uvs(f, (ang + turn) % 360) for f, ang in sides}
+                uv[ends[0]] = uvs(ends[0], None)
+                uv[ends[1]] = uvs(ends[1], None)
+            m.box(name, frm, to, mat, faces=faces or None, uv=uv, glow=glow, shade=not glow, rotation=rot)
+
+
+def sphere(m, name, c, d, tex, glow=False, layers=None):
+    """A round ball of diameter d (the donation budget allows it): stacked round discs (disc()) whose radii follow the
+    sphere, so it looks round from every side and from above. tex: a planet strip (_strip_tex): every disc shows its
+    band of latitude, and each side the part of the band that faces its way, so the surface wraps once round. The
+    faces a neighbouring bigger disc hides (the undersides above the equator, the tops below it) are left out."""
+    x, y, z = c
+    R = d / 2
+    n = layers or max(3, min(7, round(d / 0.5)))
+    # the layers split by latitude, not by height: thin near the poles, so the ends round off instead of ending flat
+    lat = [-90 + 180 * i / n for i in range(n + 1)]
+    for i in range(n):
+        y0, y1 = y + R * math.sin(math.radians(lat[i])), y + R * math.sin(math.radians(lat[i + 1]))
+        ym = (y0 + y1) / 2
+        r = R * math.cos(math.radians((lat[i] + lat[i + 1]) / 2)) * 1.02
+        row0, row1 = HS * (n - 1 - i) / n, HS * (n - i) / n
+
+        def uvs(face, ang, row0=row0, row1=row1):
+            if ang is None:
+                return [0, row0, HS, row0 + max(1, (row1 - row0) / 2)] if face == "up" else [0, row1 - max(1, (row1 - row0) / 2), HS, row1]
+            u0 = HS * ang / 360
+            return [u0, row0, min(HS, u0 + HS / 8), row1]
+        # an end face stays where the neighbour on that side is smaller (else it is inside the neighbour); each layer
+        # reaches a little into its neighbours so a left-out face lies inside the bigger one
+        mid = lambda j: R * math.cos(math.radians((lat[j] + lat[j + 1]) / 2))
+        up = i == n - 1 or mid(i + 1) < mid(i) - 1e-6
+        down = i == 0 or mid(i - 1) < mid(i) - 1e-6
+        disc(m, name, c, y0 - 0.05, y1 + 0.05, r, tex, uvs=uvs, up=up, down=down, glow=glow)
+
+
+def round_body(m, name, slices, mat, belly=None):
+    """A smooth round body along z (a whale): slices = [(z0, z1, r, yc)], each a round disc about z (disc(), axis z), the
+    radius r and the centre height yc following the body's profile; belly: the material of the faces looking down. The
+    ends a neighbouring bigger slice hides are left out."""
+    for i, (z0, z1, r, yc) in enumerate(slices):
+        front = i == 0 or slices[i - 1][2] < r
+        back = i == len(slices) - 1 or slices[i + 1][2] < r
+        disc(m, name, (8, yc, 0), z0 - 0.05, z1 + 0.05, r, mat, up=front, down=back, axis="z")
+    if belly:
+        last = None
+        for (z0, z1, r, yc) in slices:
+            if r > 2.0:
+                m.box(name + "_belly", (8 - r * 0.6, yc - r - 0.06, z0 + 0.02), (8 + r * 0.6, yc - r * 0.8, z1 - 0.02), belly)
+
+
 def cut(m, name, frm, to, tex, plane, glow=True, rotation=None, rect=(0, 0, HS, HS)):
     """A thin cut-out plate showing rect of a 32 px texture on its two big faces (plane 'x': faces north/south, 'z':
     east/west, 'y': up/down), its edges a clear texel; rotation: the box's (one-axis) turn."""
@@ -1064,47 +1214,34 @@ def galaxy_star_belt():
 # ================================================================================================
 
 def galaxy_star_whale():
-    """아기 별고래 (a pet that floats): a round baby whale of starry sky swimming through the air. A big bulbous head
-    (four crossing boxes and a domed forehead) over a clearly smaller body that tapers into a tail lifting to tilted,
-    gold-rimmed cut-out flukes; a lavender belly with groove lines under the chin and the body; big glossy eyes with
-    highlights and a pink blush on each side; gold-rimmed paddle fins; stars along its back and a sparkling spout."""
+    """아기 별고래 (a pet that floats): a round baby whale of starry sky swimming through the air. Its body is lathed round
+    (eight-sided rings of two boxes, one turned 45 degrees, their radius following a whale's profile): a big round head
+    that narrows smoothly to a slim tail stock rising to tilted, gold-rimmed cut-out flukes; a lavender belly underneath;
+    big glossy eyes with highlights and a pink blush; gold-rimmed paddle fins; stars along its back and a sparkling
+    spout. Round from the front as well as from the side."""
     m = MModel("galaxy_star_whale")
-    y = 7.0
     sky = SKY_BRIGHT
-    # the head: tall, core and wide boxes crossing (an eight-sided section) behind a lower front, the corner between
-    # them rounded off by a brow turned 45 degrees, a domed forehead and a small round snout: a curved profile
-    m.box("head_tall", (6.0, y - 3.2, 3.8), (10.0, y + 3.4, 8.2), sky, faces={"down": BELLY_LIGHT})
-    m.box("head", (4.9, y - 2.6, 3.6), (11.1, y + 2.7, 8.6), sky, faces={"down": BELLY_LIGHT})
-    m.box("head_front", (5.25, y - 2.3, 2.2), (10.75, y + 1.6, 3.8), sky, faces={"down": BELLY_LIGHT})
-    m.box("brow", (5.0, y + 1.05, 2.05), (11.0, y + 2.95, 3.95), sky, rotation=("x", 45, (8.0, y + 2.0, 3.0)))
-    m.box("head_wide", (4.2, y - 1.6, 3.0), (11.8, y + 1.8, 8.0), sky, faces={"down": BELLY_LIGHT})
-    m.box("forehead", (5.8, y + 2.6, 4.2), (10.2, y + 3.8, 7.6), sky)
-    m.box("snout", (5.6, y - 1.9, 1.5), (10.4, y + 1.0, 2.4), sky, faces={"down": BELLY_LIGHT})
-    # the lavender belly under the chin and under the body, its grooves painted across it
-    m.box("belly", (5.1, y - 3.1, 2.6), (10.9, y - 1.4, 8.7), BELLY_LIGHT)
-    m.box("belly_body", (6.1, y - 2.05, 8.4), (9.9, y - 1.0, 11.9), BELLY_LIGHT)
-    # the body, clearly smaller than the head, tapering into the tail stock
-    m.box("body", (5.9, y - 1.7, 8.4), (10.1, y + 1.7, 11.8), sky, faces={"down": BELLY_LIGHT})
-    m.box("body_wide", (5.3, y - 1.0, 8.8), (10.7, y + 1.1, 11.4), sky, faces={"down": BELLY_LIGHT})
-    m.box("taper", (6.6, y - 1.0, 11.6), (9.4, y + 1.3, 14.0), sky, faces={"down": BELLY_LIGHT})
-    seg_yz(m, "tail", (y + 0.2, 13.6), (y + 1.3, 16.4), 2.0, 1.6, 8.0, sky, ext=0.25)
-    seg_yz(m, "tail_end", (y + 1.3, 16.4), (y + 2.3, 18.2), 1.3, 1.0, 8.0, sky, ext=0.15)
-    # the flukes: a wide cut-out, tilted up a little so it shows from the side too
-    cut(m, "flukes", (3.0, y + 2.25, 17.0), (13.0, y + 2.35, 22.2), "gx_fluke", "y", rotation=("x", -22.5, (8.0, y + 2.3, 17.8)))
+    # the profile from the snout back: (z0, z1, radius, centre height)
+    prof = [(1.3, 2.1, 2.3), (2.1, 3.0, 3.1), (3.0, 4.0, 3.7), (4.0, 5.2, 4.0), (5.2, 6.4, 4.05), (6.4, 7.6, 3.85),
+            (7.6, 8.8, 3.45), (8.8, 10.0, 2.95), (10.0, 11.2, 2.45), (11.2, 12.4, 1.95), (12.4, 13.6, 1.5), (13.6, 14.8, 1.15)]
+    slices = [(z0, z1, r, 7.0 + max(0.0, (z0 + z1) / 2 - 8.0) * 0.16) for (z0, z1, r) in prof]
+    round_body(m, "body", slices, sky, belly=BELLY_LIGHT)
+    # the tail stock rising to the flukes
+    seg_yz(m, "tail", (9.2, 14.6), (9.9, 16.6), 1.6, 1.4, 8.0, sky, ext=0.2)
+    cut(m, "flukes", (3.0, 9.95, 15.9), (13.0, 10.05, 21.1), "gx_fluke", "y", rotation=("x", -22.5, (8.0, 10.0, 16.6)))
     for side in (-1, 1):
-        # the eye and blush: a painted plate just outside the head's widest side
-        ex = 8 + side * 3.86
-        cut(m, "eye", (ex - 0.05, y - 2.3, 2.9), (ex + 0.05, y + 1.9, 7.1), "gx_whale_eye", "z")
+        # the eye and blush: a painted plate on the side of the head (its widest ring is 4.05 * 0.79 * 1.41 out)
+        ex = 8 + side * 4.25
+        cut(m, "eye", (ex - 0.05, 4.9, 3.3), (ex + 0.05, 8.9, 7.3), "gx_whale_eye", "z")
         # paddle fins: gold-rimmed cut-outs swept down and out
-        fx = 8 + side * 5.1
-        cut(m, "fin", (fx - 0.05, y - 4.4, 6.6), (fx + 0.05, y - 1.0, 10.0), "gx_fin", "z",
-            rotation=("z", -side * 45, (fx, y - 1.4, 8.3)))
+        fx = 8 + side * 4.6
+        cut(m, "fin", (fx - 0.05, 2.6, 6.4), (fx + 0.05, 6.0, 9.8), "gx_fin", "z", rotation=("z", -side * 45, (fx, 5.6, 8.1)))
     # stars along the back and the sparkling spout
-    for (x, z, d) in ((7.0, 5.0, 1.0), (9.2, 7.0, 0.9), (7.9, 9.8, 0.9)):
-        twinkle(m, "back_star", (x, y + 4.25 if z < 8 else y + 2.25, z), d, cross=False)
-    twinkle(m, "spout", (8.0, y + 5.5, 4.8), 2.0)
-    twinkle(m, "spout", (6.8, y + 6.9, 4.2), 1.1, cross=False)
-    twinkle(m, "spout", (9.2, y + 7.3, 5.0), 0.9, cross=False)
+    for (x, yy, z, d) in ((7.2, 11.1, 4.8, 1.0), (9.0, 10.9, 7.0, 0.9), (7.8, 10.2, 9.8, 0.9)):
+        twinkle(m, "back_star", (x, yy, z), d, cross=False)
+    twinkle(m, "spout", (8.0, 12.6, 4.4), 2.0)
+    twinkle(m, "spout", (6.8, 14.0, 3.8), 1.1, cross=False)
+    twinkle(m, "spout", (9.2, 14.4, 4.6), 0.9, cross=False)
     _display(m, (30, 225, 0), 0.75, 0)
     return m
 
@@ -1160,8 +1297,8 @@ def galaxy_stardust_trail():
 
 # the planets round the orbit (degrees from the front, diameter in units, boxes, texture), in their real order going
 # round; earth at the front (the star of the set), its moon beside it
-PLANETS = [("earth", 0, 2.7, 3), ("mars", 45, 1.9, 3), ("jupiter", 90, 3.7, 3), ("saturn", 135, 3.0, 3),
-           ("uranus", 180, 2.3, 3), ("neptune", 225, 2.2, 3), ("mercury", 270, 1.3, 1), ("venus", 315, 2.1, 3)]
+PLANETS = [("earth", 0, 3.0, 3), ("mars", 45, 2.0, 3), ("jupiter", 90, 4.1, 3), ("saturn", 135, 3.2, 3),
+           ("uranus", 180, 2.5, 3), ("neptune", 225, 2.4, 3), ("mercury", 270, 1.5, 1), ("venus", 315, 2.3, 3)]
 
 
 def _planet_ring(m, radius, awake, card=False):
@@ -1184,11 +1321,11 @@ def _planet_ring(m, radius, awake, card=False):
         ribbon(m, "orbit", on_ring(th), th, 2 * math.pi * radius / n + 0.35, 1.2 if not card else 1.0, "gx_dust_band", band)
     for i, (kind, th, d, parts) in enumerate(PLANETS):
         c = on_ring(th, 0.25 * math.sin(i * 2.1))
-        ball(m, kind, c, d * k, f"gx_{kind}", parts, glow=awake)
+        sphere(m, kind, c, d * k, f"gx_s_{kind}", glow=awake, layers=None if not card else 4)
         if kind == "earth":
-            ball(m, "moon", on_ring(th + 14, 1.5), 0.9 * k, "gx_luna", 1, glow=awake)
+            sphere(m, "moon", on_ring(th + 14, 1.6), 1.0 * k, "gx_s_moon", glow=awake, layers=3)
         elif kind == "saturn":
-            rr = d * k * 1.05
+            rr = d * k * 1.15
             cut(m, "saturn_ring", (c[0] - rr, c[1] - 0.05, c[2] - rr), (c[0] + rr, c[1] + 0.05, c[2] + rr), "gx_saturn_band", "y",
                 rotation=("x", -22.5, c))
         elif kind == "uranus":

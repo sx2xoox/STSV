@@ -64,6 +64,17 @@ class CosmeticContentTest {
             if (!effect && (model == null || !Files.exists(PACK.resolve("models/" + model + ".bbmodel")))) {
                 problems.add(key + ": model " + model);
             }
+            // parts (donation pieces only): their models exist and a billboard sits straight above or below the centre
+            for (Map<?, ?> p : c.getMapList("parts")) {
+                if (!"donation".equals(c.getString("exclusive"))) problems.add(key + ": parts on a non-donation piece");
+                for (Object m : new Object[] {p.get("model"), p.get("awakened")}) {
+                    if (m != null && !Files.exists(PACK.resolve("models/" + m + ".bbmodel"))) problems.add(key + ": part model " + m);
+                }
+                if (Boolean.TRUE.equals(p.get("billboard")) && p.get("at") instanceof List<?> at
+                        && (Math.abs(((Number) at.get(0)).doubleValue() - 8) > 0.01 || Math.abs(((Number) at.get(2)).doubleValue() - 8) > 0.01)) {
+                    problems.add(key + ": billboard part off the vertical axis " + at);
+                }
+            }
         }
         assertTrue(problems.isEmpty(), String.join("\n", problems));
         for (CosmeticSlot s : CosmeticSlot.values()) assertTrue(perSlot.getOrDefault(s, 0) >= 2, s + ": " + perSlot);

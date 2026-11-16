@@ -164,7 +164,28 @@ public record CustomItem(
      * @param print    TRAIL: model footprints left on the ground
      * @param burst    KILL: a short model animation where the victim fell
      */
-    public record Premium(NamespacedKey worn, NamespacedKey awakened, Print print, Burst burst) {}
+    public record Premium(NamespacedKey worn, NamespacedKey awakened, Print print, Burst burst, java.util.List<Part> parts) {
+        public Premium(NamespacedKey worn, NamespacedKey awakened, Print print, Burst burst) {
+            this(worn, awakened, print, burst, java.util.List.of());
+        }
+    }
+
+    /**
+     * An extra piece of a worn donation cosmetic (cosmetic.parts), drawn by a display of its own that rides with the main
+     * one and moves with it (its motion included). It frees a piece from the one-model rules: any rotation (a model's own
+     * boxes turn only in 22.5 degree steps about one axis), any size, and a billboard (a painted round sprite that always
+     * faces the camera: a ball that looks round from every side).
+     *
+     * @param at        where the part's centre sits, in the main model's units (16 = a block, 8 = its centre; x, y, z as
+     *                  in the model)
+     * @param rotation  degrees about x, y, z (applied z, then x, then y), round the part's centre; ignored for a billboard
+     * @param billboard the part always faces the camera (a billboard turns everything it carries, so a billboard should
+     *                  sit straight above or below the main model's centre: offsets sideways would swing round with the
+     *                  camera)
+     * @param awakened  the part's model while the whole set is worn (null: the same)
+     */
+    public record Part(NamespacedKey model, NamespacedKey awakened, org.joml.Vector3f at, org.joml.Vector3f rotation, float scale,
+                       boolean billboard, boolean glow) {}
 
     /**
      * Model footprints (cosmetic.print): at every {@code step} blocks walked, a print of {@code frames} (more than one:

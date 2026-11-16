@@ -256,6 +256,44 @@ def _membrane(plate, k, awake=False):
 
 
 hd_surface("az_pearl", _pearl, 8, 3)
+
+
+def _pearl_sprite(k, awake=False):
+    """여의주 as a round sprite (a billboard part: it always faces the camera, so it is a perfect circle from every side),
+    32 px, cut out: a milky sphere lit from the top-left with a soft terminator, light running round it in a spiral
+    (animated), a hot glint and a thin glowing rim. Awakened: a smaller ball inside a halo of light with four rays."""
+    im = hd_canvas()
+    px = im.load()
+    R = 0.62 if awake else 0.92
+    for y in range(HS):
+        for x in range(HS):
+            dx, dy = (x + 0.5 - 16) / 16, (y + 0.5 - 16) / 16
+            r = math.hypot(dx, dy)
+            if r < R:
+                nx, ny = dx / R, dy / R
+                nz = math.sqrt(max(0.0, 1 - nx * nx - ny * ny))
+                lit = max(0.0, -0.5 * nx - 0.55 * ny + 0.67 * nz)
+                a = math.atan2(ny, nx)
+                band = math.sin(a * 2 + (r / R) * 6 - k * math.tau / 8)
+                v = 1.2 + 1.7 * lit + (0.55 if band > 0.55 else 0.25 if band > 0.1 else 0.0)
+                c = shade("glow_cyan", v + 0.2) if band > 0.1 else shade("ice", v + 0.4)
+                if r > R * 0.88:
+                    c = shade("glow_cyan", 2.8)
+                if math.hypot(nx + 0.38, ny + 0.42) < 0.17:
+                    c = shade("ice", 3.0)
+                px[x, y] = c
+            elif awake:
+                ang = math.atan2(dy, dx)
+                ray = abs(math.cos(2 * ang + k * math.tau / 16)) ** 24
+                if 0.74 < r < 0.86 and (int((ang + math.pi) / math.tau * 24) + k) % 6 != 0:
+                    px[x, y] = shade("glow_cyan", 2.7 if r < 0.8 else 2.2)
+                elif r < 0.99 and ray > 0.55 and r > 0.66:
+                    px[x, y] = shade("ice", 3.0 if r < 0.85 else 2.4)
+    return im
+
+
+hd_surface("az_pearl_sprite", _pearl_sprite, 8, 3)
+hd_surface("az_pearl_sprite_awake", lambda k: _pearl_sprite(k, True), 8, 2)
 hd_surface("az_flame", _flame, 8, 2)
 hd_surface("az_fin", lambda k: _fin())
 hd_surface("az_spark", lambda k: _spark())
@@ -454,11 +492,9 @@ def _pearl_cloud(m, awake):
     for th in (0, 90, 180, 270):
         ybox(m, "claw", at((8, 13.0, 8), th, 1.6), 0.6, 1.8, 0.8, th, GOLD_LIGHT)
         ybox(m, "claw_tip", at((8, 14.2, 8), th, 1.9), 0.5, 0.8, 0.6, th, GOLD_LIGHT)
-    d = 5.5 if awake else 4.8      # awakened: the pearl a little bigger (+15%), the halo carries the rest
-    x, y, z = 8, 12.4 + d / 2 + 0.2, 8
-    m.box("pearl", (x - d * 0.4, y - d * 0.4, z - d * 0.4), (x + d * 0.4, y + d * 0.4, z + d * 0.4), "az_pearl", glow=True, full_uv=ALL_FACES)
-    for (ax, ay, az) in ((0.5, 0.25, 0.25), (0.25, 0.5, 0.25), (0.25, 0.25, 0.5)):
-        m.box("pearl", (x - d * ax, y - d * ay, z - d * az), (x + d * ax, y + d * ay, z + d * az), "az_pearl", glow=True, full_uv=ALL_FACES)
+    # the pearl itself is a part (cosmetic.parts: azure_pearl_orb, a billboard): round from every side
+    d = 5.5 if awake else 4.8
+    y = 12.4 + d / 2 + 0.2
     m.group("flames")
     pos = ((8, 4.4), (8, 11.6), (4.4, 8), (11.6, 8)) if not awake else \
         ((8, 4.1), (8, 11.9), (4.1, 8), (11.9, 8), (5.2, 5.2), (10.8, 10.8))
@@ -485,6 +521,26 @@ def shrink(m, k, pivot):
         if e.get("rotation"):
             axis, angle, o = e["rotation"]
             e["rotation"] = (axis, angle, f(o))
+
+
+PEARL_AT = (8.0, 12.96, 8.0)        # where the pearl part sits in azure_pearl_cloud (its centre, model units)
+
+
+def _pearl_orb(name, tex, d):
+    m = MModel(name)
+    cutout(m, "orb", (8 - d / 2, 8 - d / 2, 7.97), (8 + d / 2, 8 + d / 2, 8.03), tex, "x", glow=True)
+    m.display = {"head": {"rotation": [0, 0, 0], "translation": [0, 0, 0], "scale": [1, 1, 1]}}
+    return m
+
+
+def azure_pearl_orb():
+    """The 여의주 as a round sprite (a billboard part of azure_pearl_cloud): always facing the camera."""
+    return _pearl_orb("azure_pearl_orb", "az_pearl_sprite", 3.5)
+
+
+def azure_pearl_orb_awakened():
+    """각성 여의주 sprite: the ball 15 % bigger inside a halo of light with rays."""
+    return _pearl_orb("azure_pearl_orb_awakened", "az_pearl_sprite_awake", 6.0)
 
 
 def azure_pearl_cloud():
@@ -616,34 +672,96 @@ class BodyMat(HMat):
         return b + (rnd.random() - 0.5) * 0.14
 
 
-def azure_dragon_tail():
-    """청룡의 꼬리: one smooth tapering body that droops from the back to the ankles and curls up: many short turned
-    segments along a curve (the width shrinking a little at each), all of the same painted scales so the shading runs on,
-    a pale belly, a row of overlapping back plates (each lying over the next) with a glowing spine on every third, a
-    cut-out fin and a blue flame at the tip. Swings (sway)."""
-    m = MModel("azure_dragon_tail")
-    pts = _spline(TAIL_PATH, 15)
+TAIL_SEGMENTS = 12                       # cosmetic.parts of azure_dragon_tail (the engine allows up to 12)
+
+
+def _tail_chain():
+    """The tail's segments: [(name, centre (x, y, z), x rotation in degrees, length, radius at the start, at the end, t)]
+    along the curve through TAIL_PATH (the y-z plane at x = 8). Each is turned by any angle (a part's own rotation), so
+    the chain follows the curve exactly, with no 22.5 degree steps."""
+    pts = _spline(TAIL_PATH, TAIL_SEGMENTS)
+    out = []
     n = len(pts) - 1
     for i, (p0, p1) in enumerate(zip(pts, pts[1:])):
-        t = i / (n - 1)
-        w = 4.0 - 2.75 * t
-        body = BodyMat("sapphire", "scales", 2.25 - 0.45 * t)
-        seg_yz(m, "tail", p0, p1, w, w * 0.86, 8.0, body, ext=0.55)
-        # the back plate: on the outer side, a little longer than the segment so each overlaps the next
         dy, dz = p1[0] - p0[0], p1[1] - p0[1]
-        ln = math.hypot(dy, dz)
-        ny, nz = dz / ln, -dy / ln
-        if ny < 0:
-            ny, nz = -ny, -nz
-        off = w * 0.43 + 0.12
-        q0 = (p0[0] + ny * off, p0[1] + nz * off)
-        q1 = (p1[0] + ny * off, p1[1] + nz * off)
-        seg_yz(m, "plate", q0, q1, w * 0.62, 0.45, 8.0, BodyMat("sapphire", "scales", 1.75 - 0.4 * t), ext=0.35)
-        if i % 3 == 1 and i < n - 1:
-            mid = ((q0[0] + q1[0]) / 2 + ny * 0.25, (q0[1] + q1[1]) / 2 + nz * 0.25)
-            seg_yz(m, "spine", mid, (mid[0] + ny * 1.1, mid[1] + nz * 1.1), 0.45, 0.6, 8.0, SCALE_GLINT, ext=0.0)
+        t0, t1 = i / n, (i + 1) / n
+        out.append((f"azure_tail_seg_{i + 1}", (8.0, (p0[0] + p1[0]) / 2, (p0[1] + p1[1]) / 2),
+                    math.degrees(math.atan2(-dy, dz)), math.hypot(dy, dz), (4.1 - 2.9 * t0) / 2, (4.1 - 2.9 * t1) / 2, t0))
+    return out
+
+
+def _zdisc(m, name, z0, z1, r, mat, front=True, back=True, faces_down=None):
+    """A round section of radius r from z0 to z1 round (8, 8): a plus of two bars and the same plus turned 45 degrees."""
+    s_ = r * math.tan(math.radians(22.5))
+    k = 0
+    for turn in (0, 45):
+        for (hx, hy) in ((r, s_), (s_, r)):
+            j = 0.012 * k         # each bar's ends a hair apart (no two end faces in one plane: no flicker)
+            k += 1
+            faces = {}
+            if not front:
+                faces["north"] = None
+            if not back:
+                faces["south"] = None
+            if faces_down is not None:
+                faces["down"] = faces_down
+            m.box(name, (8 - hx, 8 - hy, z0 + j), (8 + hx, 8 + hy, z1 - j), mat, faces=faces or None,
+                  rotation=("z", turn, (8, 8, (z0 + z1) / 2)) if turn else None)
+
+
+def _tail_segment(name, length, r0, r1, t, glint):
+    """One segment of the tail, along z through its centre (8, 8, 8): round, tapering from r0 to r1 in two steps,
+    painted scales shading darker towards the tip, a pale belly, an overlapping back plate and, every third, a glowing
+    spine; a little longer than its share of the curve so the joints overlap."""
+    m = MModel(name)
+    ln = length + 0.9
+    body = BodyMat("sapphire", "scales", 2.25 - 0.5 * t)
+    belly = HMat("ice", "horn", 2.3 - 0.3 * t)
+    _zdisc(m, "body", 8 - ln / 2, 8, r0, body, faces_down=belly)
+    _zdisc(m, "body", 8 - 0.06, 8 + ln / 2, (r0 + r1) / 2, body, front=False, faces_down=belly)
+    m.box("plate", (8 - r0 * 0.55, 8 + r0 * 0.92, 8 - ln / 2 + 0.2), (8 + r0 * 0.55, 8 + r0 * 0.92 + 0.45, 8 + ln / 2 + 0.4),
+          BodyMat("sapphire", "scales", 1.7 - 0.4 * t))
+    if glint:
+        m.box("spine", (8 - 0.25, 8 + r0 * 0.92 + 0.4, 8 - 0.4), (8 + 0.25, 8 + r0 * 0.92 + 1.4, 8 + 0.4), SCALE_GLINT)
+    m.display = {"head": {"rotation": [0, 0, 0], "translation": [0, 0, 0], "scale": [1, 1, 1]}}
+    return m
+
+
+def _segment_fn(i, seg):
+    name, c, rx, length, r0, r1, t = seg
+
+    def fn():
+        return _tail_segment(name, length, r0, r1, t, i % 3 == 1 and i < TAIL_SEGMENTS - 1)
+    fn.__name__ = name
+    return fn
+
+
+TAIL_PART_FNS = [_segment_fn(i, seg) for i, seg in enumerate(_tail_chain())]
+
+
+def tail_parts_yaml():
+    """The cosmetic.parts lines of azure_dragon_tail (content/stsv/items/cosmetics_donation.yml)."""
+    lines = []
+    for (name, c, rx, length, r0, r1, t) in _tail_chain():
+        lines.append(f"      - {{ model: {name}, at: [{c[0]:.2f}, {c[1]:.2f}, {c[2]:.2f}], rotation: [{rx:.1f}, 0, 0] }}")
+    return "\n".join(lines)
+
+
+def azure_dragon_tail():
+    """청룡의 꼬리: one smooth tapering body that droops from the back to the ankles and curls up. The body is twelve
+    round segments, each a part of its own (cosmetic.parts) turned by exactly the curve's angle, so there are no 22.5
+    degree steps; this model keeps the root at the back and the tip: a cut-out fin and a blue flame. Swings (sway)."""
+    m = MModel("azure_dragon_tail")
+    p0 = TAIL_PATH[0]
+    _zdisc(m, "root", 8.6, 10.6, 2.05, BodyMat("sapphire", "scales", 2.25))
+    for e in m.elements:
+        e["from"][1] += p0[0] - 8
+        e["to"][1] += p0[0] - 8
+        if e.get("rotation"):
+            ax, ang, o = e["rotation"]
+            e["rotation"] = (ax, ang, (o[0], o[1] + p0[0] - 8, o[2]))
     m.group("tip")
-    end = pts[-1]
+    end = _spline(TAIL_PATH, TAIL_SEGMENTS)[-1]
     cutout(m, "fin", (7.95, end[0] - 1.0, end[1] - 3.6), (8.05, end[0] + 3.4, end[1] + 0.6), "az_fin", "z")
     flames(m, "tip_flame", 8, end[0] + 0.4, end[1] + 0.4, 3.4, 6.0)
     _display(m, (30, 135, 0), 0.5, 1)
@@ -897,10 +1015,14 @@ SLOTS = {"azure_pearl_cloud": "above", "azure_dragon_wings": "back", "azure_drag
          "azure_pearl_cloud_awakened": "above", "azure_dragon_wings_awakened": "back",
          "azure_aura_dragon": "aura", "azure_aura_dragon_awakened": "aura",
          "azure_cloud_print_a": "print", "azure_cloud_print_b": "print", "azure_cloud_print_awakened": "print",
-         "azure_roar_burst": "burst", "azure_set_ring": "aura"}
+         "azure_roar_burst": "burst", "azure_set_ring": "aura",
+         # parts (cosmetic.parts): the pearl's round sprite and the tail's segments
+         "azure_pearl_orb": "above", "azure_pearl_orb_awakened": "above",
+         **{f.__name__: "tail" for f in TAIL_PART_FNS}}
 
 ALL = {f.__name__: f for f in (azure_pearl_cloud, azure_pearl_cloud_awakened, azure_dragon_wings, azure_dragon_wings_awakened,
                                azure_dragon_tail, azure_shoulder_dragon, azure_cloud_sash, azure_baby_dragon,
                                azure_cloud_print_a, azure_cloud_print_b, azure_cloud_print_awakened, azure_cloud_trail,
                                azure_aura_dragon, azure_aura_dragon_awakened, azure_spark_aura,
-                               azure_roar_burst, azure_dragon_roar, azure_set_ring)}
+                               azure_roar_burst, azure_dragon_roar, azure_set_ring,
+                               azure_pearl_orb, azure_pearl_orb_awakened, *TAIL_PART_FNS)}

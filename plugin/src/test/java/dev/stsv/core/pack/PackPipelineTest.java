@@ -48,6 +48,8 @@ class PackPipelineTest {
             "azure_cloud_sash", "azure_baby_dragon", "azure_cloud_trail", "azure_cloud_print_a", "azure_cloud_print_b",
             "azure_cloud_print_awakened", "azure_spark_aura", "azure_aura_dragon", "azure_aura_dragon_awakened", "azure_dragon_roar",
             "azure_roar_burst", "azure_set_ring",
+            // parts: the pearl sprite (a billboard), the tail segments that carry a glowing spine (every third)
+            "azure_pearl_orb", "azure_pearl_orb_awakened", "azure_tail_seg_2", "azure_tail_seg_5", "azure_tail_seg_8", "azure_tail_seg_11",
             // 은하수 v2: stars, gems, the moon, eyes, dust, the galaxy and the prints' rims
             "galaxy_star_crown", "galaxy_star_crown_awakened", "galaxy_cape", "galaxy_cape_awakened", "galaxy_moon_necklace",
             "galaxy_star_owl", "galaxy_star_belt", "galaxy_star_whale", "galaxy_stardust_trail", "galaxy_star_print_a",
@@ -76,6 +78,9 @@ class PackPipelineTest {
             "azure_pearl_cloud", "azure_pearl_cloud_awakened", "azure_dragon_wings", "azure_dragon_wings_awakened", "azure_dragon_tail",
             "azure_shoulder_dragon", "azure_cloud_sash", "azure_baby_dragon", "azure_spark_aura", "azure_aura_dragon",
             "azure_aura_dragon_awakened", "azure_dragon_roar", "azure_roar_burst", "azure_set_ring",
+            // the tail's round segments: each a double cross (a plus and a plus turned 45 degrees); the part turns them to the curve
+            "azure_tail_seg_1", "azure_tail_seg_2", "azure_tail_seg_3", "azure_tail_seg_4", "azure_tail_seg_5", "azure_tail_seg_6",
+            "azure_tail_seg_7", "azure_tail_seg_8", "azure_tail_seg_9", "azure_tail_seg_10", "azure_tail_seg_11", "azure_tail_seg_12",
             // 아기 오리 v2: the ring's corners, the wings turned out, the ducklings' tails and raised wings, the nightcap's tip,
             // the bib's bow, the burst's puddle
             "duck_float_ring", "duck_float_ring_awakened", "duckling_wings", "duckling_wings_awakened", "sleepy_duckling",

@@ -236,7 +236,51 @@ public final class ContentModule implements StsvModule, org.bukkit.event.Listene
             boolean effect = slot == CustomItem.CosmeticSlot.TRAIL || slot == CustomItem.CosmeticSlot.KILL || slot == CustomItem.CosmeticSlot.AURA;
             if (effect && worn == null && print == null && burst == null) throw new IllegalArgumentException("cosmetic.awakened: 이 부위는 모델(worn / print / burst)이 있어야 바꿀 수 있음");
         }
-        return worn == null && awakened == null && print == null && burst == null ? null : new CustomItem.Premium(worn, awakened, print, burst);
+        List<CustomItem.Part> parts = parseParts(pack, sec, slot);
+        return worn == null && awakened == null && print == null && burst == null && parts.isEmpty() ? null
+                : new CustomItem.Premium(worn, awakened, print, burst, parts);
+    }
+
+    /** At most this many parts a cosmetic (each one a display riding the wearer). */
+    static final int MAX_PARTS = 12;
+
+    /**
+     * cosmetic.parts (donation cosmetics only): extra displays riding with the piece (CustomItem.Part):
+     * <pre>
+     *   parts:
+     *     - { model: pearl_orb, at: [8, 14, 8], scale: 1.0, billboard: true, glow: true, awakened: pearl_orb_awakened }
+     *     - { model: tail_seg_1, at: [8, 6, 12], rotation: [-31, 0, 4], scale: 0.9 }
+     * </pre>
+     */
+    private static List<CustomItem.Part> parseParts(ContentPack pack, ConfigurationSection sec, CustomItem.CosmeticSlot slot) {
+        List<Map<?, ?>> raw = sec.getMapList("cosmetic.parts");
+        if (raw.isEmpty()) return List.of();
+        if (!"donation".equals(sec.getString("cosmetic.exclusive"))) throw new IllegalArgumentException("cosmetic.parts 는 후원 치장(exclusive: donation)에만");
+        boolean worn = slot != CustomItem.CosmeticSlot.HEAD && slot != CustomItem.CosmeticSlot.PET && slot != CustomItem.CosmeticSlot.TRAIL
+                && slot != CustomItem.CosmeticSlot.KILL;
+        if (!worn) throw new IllegalArgumentException("cosmetic.parts 는 몸에 붙는 모델(머리 위 · 어깨 · 등 · 꼬리 · 목 · 허리 · 모델 오라)에만");
+        if (raw.size() > MAX_PARTS) throw new IllegalArgumentException("cosmetic.parts 는 " + MAX_PARTS + "개까지");
+        List<CustomItem.Part> out = new ArrayList<>();
+        for (Map<?, ?> m : raw) {
+            Object model = m.get("model");
+            if (model == null) throw new IllegalArgumentException("cosmetic.parts: model 필요");
+            org.joml.Vector3f at = vec(m.get("at"), new org.joml.Vector3f(8, 8, 8), "at");
+            org.joml.Vector3f rot = vec(m.get("rotation"), new org.joml.Vector3f(), "rotation");
+            double scale = m.get("scale") instanceof Number n ? n.doubleValue() : 1.0;
+            if (scale <= 0 || scale > 4) throw new IllegalArgumentException("cosmetic.parts.scale 은 0 초과 4 이하");
+            Object awake = m.get("awakened");
+            out.add(new CustomItem.Part(cosmeticModel(pack, model.toString(), "cosmetic.parts"),
+                    awake == null ? null : cosmeticModel(pack, awake.toString(), "cosmetic.parts.awakened"),
+                    at, rot, (float) scale, Boolean.TRUE.equals(m.get("billboard")), Boolean.TRUE.equals(m.get("glow"))));
+        }
+        return List.copyOf(out);
+    }
+
+    private static org.joml.Vector3f vec(Object o, org.joml.Vector3f fallback, String key) {
+        if (o == null) return fallback;
+        if (!(o instanceof List<?> l) || l.size() != 3 || !l.stream().allMatch(v -> v instanceof Number))
+            throw new IllegalArgumentException("cosmetic.parts." + key + " 는 숫자 세 개 [x, y, z]");
+        return new org.joml.Vector3f(((Number) l.get(0)).floatValue(), ((Number) l.get(1)).floatValue(), ((Number) l.get(2)).floatValue());
     }
 
     private CustomItem parseItem(ContentPack pack, String id, ConfigurationSection sec) {

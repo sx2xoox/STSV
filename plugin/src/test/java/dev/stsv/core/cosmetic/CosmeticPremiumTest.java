@@ -77,6 +77,58 @@ class CosmeticPremiumTest {
         assertTrue(CosmeticAttachments.onBody(CosmeticSlot.AURA), "it turns with the body");
     }
 
+    private static CustomItem.Part part(float x, float y, float z, float rx, float ry, float rz, float scale, boolean billboard) {
+        return new CustomItem.Part(new NamespacedKey("stsv", "model/p"), null, new Vector3f(x, y, z), new Vector3f(rx, ry, rz), scale, billboard, false);
+    }
+
+    private static Transformation still() {
+        return new Transformation(new Vector3f(0, 1.5f, 0), new org.joml.Quaternionf(), new Vector3f(1, 1, 1), new org.joml.Quaternionf());
+    }
+
+    @Test
+    void aPartSitsWhereTheMainModelHasThatPoint() {
+        // a part at the main model's centre, unturned, is drawn exactly like the main model
+        org.joml.Matrix4f m = CosmeticAttachments.partMatrix(still(), part(8, 8, 8, 0, 0, 0, 1, false));
+        Vector3f o = m.transformPosition(new Vector3f());
+        assertEquals(0f, o.distance(0, 1.5f, 0), 1e-5f);
+        Vector3f up = m.transformDirection(new Vector3f(0, 1, 0));
+        assertEquals(0f, up.distance(0, 1, 0), 1e-5f);
+        // the display draws its model half turned: model +x (16 units = a block) lands at display -x
+        Vector3f side = CosmeticAttachments.partMatrix(still(), part(24, 8, 8, 0, 0, 0, 1, false)).transformPosition(new Vector3f());
+        assertEquals(0f, side.distance(-1, 1.5f, 0), 1e-5f);
+        // and model south (+z, the player's back) at display -z
+        Vector3f back = CosmeticAttachments.partMatrix(still(), part(8, 8, 24, 0, 0, 0, 1, false)).transformPosition(new Vector3f());
+        assertEquals(0f, back.distance(0, 1.5f, -1), 1e-5f);
+    }
+
+    @Test
+    void aPartTurnsByAnyAngleAboutItsCentre() {
+        // 37 degrees about the model's x axis (not a 22.5 degree step): the part's up leans to the model's south
+        org.joml.Matrix4f m = CosmeticAttachments.partMatrix(still(), part(8, 8, 8, 37, 0, 0, 1, false));
+        Vector3f up = m.transformDirection(new Vector3f(0, 1, 0));
+        double a = Math.toRadians(37);
+        // model south is display -z (the half turn)
+        assertEquals(0f, up.distance(0, (float) Math.cos(a), (float) -Math.sin(a)), 1e-5f);
+        assertEquals(0f, m.transformPosition(new Vector3f()).distance(0, 1.5f, 0), 1e-5f, "turns about its own centre");
+        // its own size on top of the main model's
+        Transformation big = new Transformation(new Vector3f(), new org.joml.Quaternionf(), new Vector3f(2, 2, 2), new org.joml.Quaternionf());
+        org.joml.Matrix4f s = CosmeticAttachments.partMatrix(big, part(8, 24, 8, 0, 0, 0, 0.5f, false));
+        assertEquals(0f, s.transformPosition(new Vector3f()).distance(0, 2, 0), 1e-5f, "a block up, doubled");
+        assertEquals(1f, s.transformDirection(new Vector3f(1, 0, 0)).length(), 1e-5f, "2 x 0.5");
+    }
+
+    @Test
+    void aBillboardPartOnlyCarriesItsCentreAndSize() {
+        Transformation turned = new Transformation(new Vector3f(0, 1, 0), new org.joml.Quaternionf().rotationY(1.1f), new Vector3f(1.5f, 1.5f, 1.5f),
+                new org.joml.Quaternionf());
+        org.joml.Matrix4f m = CosmeticAttachments.partMatrix(turned, part(8, 24, 8, 45, 30, 0, 2, true));
+        // straight above the centre: the body's turn does not move it
+        assertEquals(0f, m.transformPosition(new Vector3f()).distance(0, 2.5f, 0), 1e-5f);
+        // no turn of its own (the client faces it to each camera), only its size
+        Vector3f x = m.transformDirection(new Vector3f(1, 0, 0));
+        assertEquals(0f, x.distance(3, 0, 0), 1e-5f);
+    }
+
     private static CustomItem piece(String id, CosmeticSlot slot, String set) {
         CustomItem.Cosmetic c = new CustomItem.Cosmetic(slot, CustomItem.Rarity.LEGENDARY, null, new Vector(), 1f, false, null, true, set, true, null);
         return new CustomItem(new NamespacedKey("stsv", id), null, org.bukkit.Material.PAPER, id, List.of(), null, null, null, false,
