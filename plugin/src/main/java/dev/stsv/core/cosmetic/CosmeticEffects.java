@@ -94,6 +94,24 @@ final class CosmeticEffects {
         }
     }
 
+    /**
+     * An aura: fx.count particles spaced round a ring of radius fx.spread (blocks) about the wearer, turning a
+     * little every time (one turn about every 4 seconds), so it reads as a ring on the ground (height 0.1) or
+     * round the chest (height ~1), not as a cloud.
+     */
+    static void ring(List<Player> viewers, Location centre, CustomItem.Fx fx, long t) {
+        if (viewers.isEmpty() || fx.particle() == null) return;
+        Particle pt = Particle.valueOf(fx.particle());
+        Object data = pt.getDataType() == Particle.DustOptions.class ? new Particle.DustOptions(color(fx.color(), t), 1.0f) : null;
+        double turn = (t % 80) / 80.0 * Math.PI * 2;
+        for (int i = 0; i < fx.count(); i++) {
+            double a = turn + i * Math.PI * 2 / fx.count();
+            Location at = centre.clone().add(Math.cos(a) * fx.spread(), 0, Math.sin(a) * fx.spread());
+            for (Player v : viewers) v.spawnParticle(pt, at, 1, 0, 0, 0, fx.speed(), data, FORCE);
+        }
+        if (fx.sound() != null && t % 80 == 0) for (Player v : viewers) v.playSound(centre, fx.sound(), 0.2f, 1f);
+    }
+
     /** Ticks for "rainbow" to go once round the colours: short enough that one trail shows several. */
     static final int RAINBOW_TICKS = 30;
 

@@ -141,12 +141,13 @@ public record CustomItem(
 
     /**
      * Where a cosmetic is worn. HEAD replaces what others see on the head (the real helmet stays);
-     * ABOVE..TAIL are models carried along with the player; PET walks beside them; TRAIL leaves particles
-     * where they walk; KILL plays where they kill something.
+     * ABOVE..WAIST are models carried along with the player; PET walks beside them; TRAIL leaves particles
+     * where they walk; KILL plays where they kill something; AURA plays round them while they stand still.
      */
     public enum CosmeticSlot {
         HEAD("head", "머리"), ABOVE("above", "머리 위"), SHOULDER("shoulder", "어깨"), BACK("back", "등"), TAIL("tail", "꼬리"),
-        PET("pet", "펫"), TRAIL("trail", "발자취"), KILL("kill", "처치 효과");
+        NECK("neck", "목"), WAIST("waist", "허리"),
+        PET("pet", "펫"), TRAIL("trail", "발자취"), KILL("kill", "처치 효과"), AURA("aura", "오라");
 
         public final String id, label;
 

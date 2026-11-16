@@ -93,6 +93,9 @@ public final class CosmeticModule implements StsvModule, Listener {
     private CosmeticPets pets;
     /** where each player last left a trail mark */
     private final Map<UUID, Location> trailAt = new HashMap<>();
+    /** aura wearers: where they stand and since when (ticks): an aura plays once they have stood a moment */
+    private final Map<UUID, Location> auraAt = new HashMap<>();
+    private final Map<UUID, Long> auraSince = new HashMap<>();
     /** per player: whether their cosmetics were hidden (invisible, dead, spectator) at the last check */
     private final Map<UUID, Boolean> concealed = new HashMap<>();
     private long ticks;
@@ -177,6 +180,7 @@ public final class CosmeticModule implements StsvModule, Listener {
         attachments.tick();
         pets.tick();
         if (++ticks % 3 == 0) trails();
+        if (ticks % AURA_EVERY == 0) auras();
         if (ticks % 5 != 0) return;
         for (Player p : Bukkit.getOnlinePlayers()) {
             boolean now = concealed(p);
@@ -551,6 +555,36 @@ public final class CosmeticModule implements StsvModule, Listener {
         }
     }
 
+    /** How often an aura plays (ticks), and how long a wearer stands still before it does. */
+    static final int AURA_EVERY = 10, AURA_SETTLE = 20;
+
+    /**
+     * Every {@link #AURA_EVERY} ticks: each aura wearer who has stood still a moment (not walking: an aura is
+     * what shows round someone at rest, a trail what shows where they walked) gets their aura round them, at
+     * the height its fx gives (0 = the feet: a ring on the ground; 1 = the chest).
+     */
+    private void auras() {
+        for (Player p : Bukkit.getOnlinePlayers()) {
+            UUID u = p.getUniqueId();
+            CustomItem c = inWardrobe(p) || concealed(p) ? null : worn(p).get(CosmeticSlot.AURA);
+            if (c == null || c.cosmetic().fx() == null) {
+                auraAt.remove(u);
+                auraSince.remove(u);
+                continue;
+            }
+            Location here = p.getLocation();
+            Location last = auraAt.get(u);
+            if (last == null || last.getWorld() != here.getWorld() || last.distanceSquared(here) > 0.05 * 0.05) {
+                auraAt.put(u, here);
+                auraSince.put(u, ticks);
+                continue;
+            }
+            if (ticks - auraSince.getOrDefault(u, ticks) < AURA_SETTLE) continue;
+            Location at = here.clone().add(0, c.cosmetic().fx().height(), 0);
+            CosmeticEffects.ring(viewersOf(p, at, 48), at, c.cosmetic().fx(), ticks);
+        }
+    }
+
     /** A wearer killed something: their effect where it died. */
     @EventHandler(priority = org.bukkit.event.EventPriority.MONITOR)
     public void onKill(org.bukkit.event.entity.EntityDeathEvent e) {
@@ -787,6 +821,7 @@ public final class CosmeticModule implements StsvModule, Listener {
             s.previewTicks++;
             previewEffect(p, s, CosmeticSlot.TRAIL, 6, s.mannequin.getLocation());
             previewEffect(p, s, CosmeticSlot.KILL, 50, s.mannequin.getLocation().add(0, 1.0, 0));
+            previewEffect(p, s, CosmeticSlot.AURA, AURA_EVERY, s.mannequin.getLocation());
         }, 20L, 1L);
         p.playSound(spot, Sound.BLOCK_WOODEN_DOOR_OPEN, 0.8f, 1.2f);
         // attach the camera first, then open the menu: while the client's camera is another entity it
@@ -888,7 +923,7 @@ public final class CosmeticModule implements StsvModule, Listener {
         s.models.clear();
         Location top = s.mannequin.getLocation().add(0, s.mannequin.getHeight(), 0);
         s.look.forEach((slot, id) -> {
-            if (slot == CosmeticSlot.HEAD || slot == CosmeticSlot.TRAIL || slot == CosmeticSlot.KILL) return;   // effects: previewEffect
+            if (slot == CosmeticSlot.HEAD || slot == CosmeticSlot.TRAIL || slot == CosmeticSlot.KILL || slot == CosmeticSlot.AURA) return;   // effects: previewEffect
             plugin.content().item(id).filter(c -> c.cosmetic() != null).ifPresent(c -> {
                 ItemDisplay d = slot == CosmeticSlot.PET ? pets.spawnPreview(s.mannequin.getLocation(), c)
                         : attachments.spawnPreview(top, s.mannequin.getBodyYaw(), slot, c);
@@ -903,9 +938,14 @@ public final class CosmeticModule implements StsvModule, Listener {
         if (s.previewTicks % every != 0) return;
         String id = s.look.get(slot);
         if (id == null) return;
-        plugin.content().item(id).filter(c -> c.cosmetic() != null && c.cosmetic().fx() != null)
-                .ifPresent(c -> CosmeticEffects.play(List.of(p), slot == CosmeticSlot.TRAIL ? at.clone().add(0, c.cosmetic().fx().height(), 0) : at,
-                        c.cosmetic().fx(), s.previewTicks, slot == CosmeticSlot.KILL, true));
+        plugin.content().item(id).filter(c -> c.cosmetic() != null && c.cosmetic().fx() != null).ifPresent(c -> {
+            if (slot == CosmeticSlot.AURA) {
+                CosmeticEffects.ring(List.of(p), at.clone().add(0, c.cosmetic().fx().height(), 0), c.cosmetic().fx(), s.previewTicks);
+                return;
+            }
+            CosmeticEffects.play(List.of(p), slot == CosmeticSlot.TRAIL ? at.clone().add(0, c.cosmetic().fx().height(), 0) : at,
+                    c.cosmetic().fx(), s.previewTicks, slot == CosmeticSlot.KILL, true);
+        });
     }
 
     /** Slots a tab shows: one slot, or null (all, worn). */
@@ -1337,6 +1377,8 @@ public final class CosmeticModule implements StsvModule, Listener {
         lastHurt.remove(e.getPlayer().getUniqueId());
         concealed.remove(e.getPlayer().getUniqueId());
         trailAt.remove(e.getPlayer().getUniqueId());
+        auraAt.remove(e.getPlayer().getUniqueId());
+        auraSince.remove(e.getPlayer().getUniqueId());
         attachments.remove(e.getPlayer());
         pets.remove(e.getPlayer());
         if (packets != null) packets.forget(e.getPlayer(), e.getPlayer().getEntityId());

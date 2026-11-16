@@ -70,7 +70,9 @@ final class CosmeticAttachments {
             CosmeticSlot.ABOVE, new Vector3f(0, 0.10f, 0),
             CosmeticSlot.SHOULDER, new Vector3f(0.38f, -0.39f, 0),
             CosmeticSlot.BACK, new Vector3f(0, -0.62f, -0.12f),
-            CosmeticSlot.TAIL, new Vector3f(0, -1.02f, -0.12f));
+            CosmeticSlot.TAIL, new Vector3f(0, -1.02f, -0.12f),
+            CosmeticSlot.NECK, new Vector3f(0, -0.47f, 0),
+            CosmeticSlot.WAIST, new Vector3f(0, -1.00f, 0));
 
     /**
      * The way the clients turn a player's body (LivingEntity.tick, then tickHeadTurn): towards the walking
@@ -105,7 +107,8 @@ final class CosmeticAttachments {
 
     /** Slots that move with the upper body (body yaw, sneak tilt); the rest follow the head. */
     static boolean onBody(CosmeticSlot slot) {
-        return slot == CosmeticSlot.SHOULDER || slot == CosmeticSlot.BACK || slot == CosmeticSlot.TAIL;
+        return slot == CosmeticSlot.SHOULDER || slot == CosmeticSlot.BACK || slot == CosmeticSlot.TAIL
+                || slot == CosmeticSlot.NECK || slot == CosmeticSlot.WAIST;
     }
 
     // ------------------------------------------------------------------------------------------

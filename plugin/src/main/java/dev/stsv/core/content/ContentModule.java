@@ -257,7 +257,8 @@ public final class ContentModule implements StsvModule, org.bukkit.event.Listene
                 throw new IllegalArgumentException("머리 치장은 투구처럼 씌워져서 offset / scale / bob 을 쓸 수 없음 (모델에서 조정)");
             }
             CustomItem.Fx fx = null;
-            if (slot == CustomItem.CosmeticSlot.TRAIL || slot == CustomItem.CosmeticSlot.KILL || slot == CustomItem.CosmeticSlot.PET) {
+            boolean aura = slot == CustomItem.CosmeticSlot.AURA;
+            if (slot == CustomItem.CosmeticSlot.TRAIL || slot == CustomItem.CosmeticSlot.KILL || slot == CustomItem.CosmeticSlot.PET || aura) {
                 String particle = sec.getString("cosmetic.particle");
                 boolean lightning = sec.getBoolean("cosmetic.lightning");
                 if (particle != null) {
@@ -278,8 +279,8 @@ public final class ContentModule implements StsvModule, org.bukkit.event.Listene
                     throw new IllegalArgumentException("cosmetic.particle (또는 처치 효과는 lightning: true) 필요");
                 }
                 fx = new CustomItem.Fx(particle == null ? null : particle.trim().toUpperCase(Locale.ROOT),
-                        Math.max(1, sec.getInt("cosmetic.count", slot == CustomItem.CosmeticSlot.KILL ? 20 : 2)),
-                        sec.getDouble("cosmetic.spread", slot == CustomItem.CosmeticSlot.KILL ? 0.5 : 0.15),
+                        Math.max(1, sec.getInt("cosmetic.count", slot == CustomItem.CosmeticSlot.KILL ? 20 : aura ? 8 : 2)),
+                        sec.getDouble("cosmetic.spread", slot == CustomItem.CosmeticSlot.KILL ? 0.5 : aura ? 0.7 : 0.15),
                         sec.getDouble("cosmetic.speed", 0.02), sec.getString("cosmetic.color"), sec.getString("cosmetic.sound"),
                         lightning, sec.getBoolean("cosmetic.float"), sec.getDouble("cosmetic.height", 0.1));
             }
