@@ -264,39 +264,31 @@ def _print_tex(frame, awake=False):
     round heel, three toes fanning out from it with dark claw tips, the web filling the fan between them and curving
     back in a scallop between each two toes (the duck foot everyone knows), wet orange with a darker rim and a glossy
     sheen; round it a thin, dotted ripple ring, tight (a) or spreading wider (b), and a few droplets."""
-    hx, hy = 16.0, 23.0                         # the heel pad's centre
-    toes = [(-0.64, 13.8), (0.0, 14.8), (0.64, 13.8)]    # (angle from north, length from the heel) of the three toes
+    hx, hy = 16.0, 26.0                         # the heel's centre (the fan's apex)
+    span, length = 0.80, 17.0                   # half the fan's angle (radians) and the toes' length from the heel
+    toe_angles = (-span, 0.0, span)
 
     def inside(px_, py_):
-        """0: outside, 1: web, 2: toe ridge, 3: heel, 4: claw"""
+        """0: outside, 1: web, 2: toe ridge, 3: heel"""
         dx, dy = px_ - hx, hy - py_
-        if math.hypot(dx / 2.8, (dy + 1.0) / 2.3) < 1.0:
+        if math.hypot(dx / 2.6, (dy - 0.6) / 2.2) < 1.0:
             return 3
         r = math.hypot(dx, dy)
         a = math.atan2(dx, dy)
-        lo, hi = toes[0][0] - 0.10, toes[2][0] + 0.10
-        if not (lo <= a <= hi) or r < 1.5:
-            # the ankle joining the heel to the fan
-            if abs(dx) < 2.4 - 0.2 * max(0.0, dy) and 0 <= dy < 4.5:
-                return 1
+        if abs(a) > span + 0.06 or dy <= 0:
             return 0
-        # the fan's edge: a rounded bump at each toe tip, a shallow scallop between two toes
-        best = 0.0
-        for (ta, tl) in toes:
-            best = max(best, tl * math.exp(-((a - ta) / 0.30) ** 4))
-        edge = max(best, 0.66 * toes[1][1]) if toes[0][0] <= a <= toes[2][0] else best
+        # the front edge: a rounded tip at each toe, a shallow scallop between two toes
+        f = min(abs(a - t) for t in toe_angles) / span          # 0 at a toe, 1 halfway between two
+        edge = length + 0.6 - 4.0 * math.sin(math.pi * min(1.0, f) / 2) ** 1.5
+        if abs(a) > span:                                      # round off the outer toe tips
+            edge -= (abs(a) - span) * 40
         if r >= edge:
-            # a tiny dark claw just past each toe tip
-            for (ta, tl) in toes:
-                cx, cy = hx + math.sin(ta) * (tl + 0.9), hy - math.cos(ta) * (tl + 0.9)
-                if math.hypot(px_ - cx, py_ - cy) < 0.0:
-                    return 4
             return 0
-        # the toes: darker ridges inside the web, from the ankle out to each tip
-        for (ta, tl) in toes:
-            sx, sy = hx + math.sin(ta) * tl * 0.45, hy - math.cos(ta) * tl * 0.45
-            tx, ty = hx + math.sin(ta) * (tl - 1.6), hy - math.cos(ta) * (tl - 1.6)
-            if _seg((px_, py_), (sx, sy), (tx, ty)) < 0.7:
+        # the toes: short darker ridges in the web, only in its front half, close to the edge
+        for t in (-span * 0.86, 0.0, span * 0.86):
+            sx, sy = hx + math.sin(t) * length * 0.52, hy - math.cos(t) * length * 0.52
+            tx, ty = hx + math.sin(t) * (length - 1.6), hy - math.cos(t) * (length - 1.6)
+            if _seg((px_, py_), (sx, sy), (tx, ty)) < 0.65:
                 return 2
         return 1
 
@@ -335,7 +327,7 @@ def _print_tex(frame, awake=False):
                 c = shade("fox", 2.9 - 0.6 * v)               # the web, lighter
             px[x, y] = c
         # the glossy sheen of standing water on the web and the heel
-        for (gx, gy, gr) in ((12.6, 13.0, 1.3), (19.6, 14.2, 0.9), (15.2, 23.6, 0.9)):
+        for (gx, gy, gr) in ((12.0, 15.0, 0.9), (20.6, 15.6, 0.6), (15.0, 25.0, 0.7)):
             for y in range(HS):
                 for x in range(HS):
                     if kind.get((x, y), 0) in (1, 3) and math.hypot(x + 0.5 - gx, y + 0.5 - gy) < gr:
