@@ -216,15 +216,18 @@ public final class VanityModule extends EcoModule {
         String tag = "stsv-monument-" + m.slot();
         ItemStack head = new ItemStack(Material.PLAYER_HEAD);
         head.editMeta(SkullMeta.class, sm -> sm.setOwningPlayer(Bukkit.getOfflinePlayer(m.player())));
-        ItemDisplay statue = at.getWorld().spawn(at.clone().add(0, 2.2, 0), ItemDisplay.class, d -> {
+        // the head (2.5 blocks) high enough that the plate under it is never covered, and turned to whoever looks
+        // at it (vertical billboard, like the plate): its face is seen from every side
+        ItemDisplay statue = at.getWorld().spawn(at.clone().add(0, 2.8, 0), ItemDisplay.class, d -> {
             d.addScoreboardTag(tag);
             d.setPersistent(false);
             d.setItemStack(head);
             d.setTransformation(new Transformation(new Vector3f(), new AxisAngle4f(), new Vector3f(2.5f, 2.5f, 2.5f), new AxisAngle4f()));
-            d.setRotation(at.getYaw(), 0);
+            d.setBillboard(Display.Billboard.VERTICAL);
         });
         String date = DateTimeFormatter.ofPattern("yyyy.MM.dd").withZone(ZoneId.systemDefault()).format(Instant.ofEpochMilli(m.at()));
-        TextDisplay plate = at.getWorld().spawn(at.clone().add(0, 0.9, 0), TextDisplay.class, d -> {
+        // the plate grows upwards from its spot: it starts low so its lines stay under the head's chin
+        TextDisplay plate = at.getWorld().spawn(at.clone().add(0, 0.25, 0), TextDisplay.class, d -> {
             d.addScoreboardTag(tag);
             d.setPersistent(false);
             d.setBillboard(Display.Billboard.VERTICAL);
