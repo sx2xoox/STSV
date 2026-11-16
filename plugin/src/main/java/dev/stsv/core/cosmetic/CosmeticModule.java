@@ -148,7 +148,10 @@ public final class CosmeticModule implements StsvModule, Listener {
         for (Player p : Bukkit.getOnlinePlayers()) {
             if (packets != null) {
                 packets.inject(p);
-                if (armorHidden(p)) packets.hideArmor(p.getEntityId(), true);
+                if (armorHidden(p)) {
+                    packets.hideArmor(p.getEntityId(), true);
+                    packets.hideSelf(p, true);
+                }
             }
             migrate(p);
             restoreIfStuck(p);
@@ -552,7 +555,15 @@ public final class CosmeticModule implements StsvModule, Listener {
     public void onJoinInject(PlayerJoinEvent e) {
         if (packets != null) {
             packets.inject(e.getPlayer());
-            if (armorHidden(e.getPlayer())) packets.hideArmor(e.getPlayer().getEntityId(), true);
+            if (armorHidden(e.getPlayer())) {
+                packets.hideArmor(e.getPlayer().getEntityId(), true);
+                packets.hideSelf(e.getPlayer(), true);
+                Player p = e.getPlayer();
+                // the inventory may have gone out before the handler was in place: send it again
+                Bukkit.getScheduler().runTaskLater(plugin, () -> {
+                    if (p.isOnline()) p.updateInventory();
+                }, 5L);
+            }
         }
     }
 
@@ -576,6 +587,8 @@ public final class CosmeticModule implements StsvModule, Listener {
         if (hide) p.getPersistentDataContainer().set(KEY_HIDE_ARMOR, org.bukkit.persistence.PersistentDataType.BYTE, (byte) 1);
         else p.getPersistentDataContainer().remove(KEY_HIDE_ARMOR);
         packets.hideArmor(p.getEntityId(), hide);
+        packets.hideSelf(p, hide);
+        p.updateInventory();   // the own armor slots again, rewritten on the way out
         // the real armor goes out again: the packets are rewritten on the way out
         var inv = p.getInventory();
         java.util.Map<EquipmentSlot, ItemStack> armor = new java.util.EnumMap<>(EquipmentSlot.class);

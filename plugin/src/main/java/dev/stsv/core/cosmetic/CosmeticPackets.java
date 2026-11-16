@@ -348,6 +348,8 @@ final class CosmeticPackets {
 
     private final class Handler extends ChannelOutboundHandlerAdapter {
         volatile String cosmetic;
+        /** /투명갑옷: the player's own armor drawn without its model (on their own screen) */
+        volatile boolean hideSelf;
         volatile Set<String> views = Set.of();
         volatile int entityId;
 
@@ -413,27 +415,32 @@ final class CosmeticPackets {
             }
             return changed ? bundleNew.newInstance(sub) : packet;
         }
-        String cosmetic = h.cosmetic;
-        if (cosmetic == null) return packet;
+        if (h.cosmetic == null && !h.hideSelf) return packet;
+        // the player's own armor slots: the head may show the cosmetic; any piece may be drawn without its model
         if (c == setSlotCls) {
-            if ((int) setSlotContainer.invoke(packet) != 0 || (int) setSlotSlot.invoke(packet) != MENU_HEAD_SLOT) return packet;
-            Object view = self(setSlotItem.invoke(packet), cosmetic, h);
-            return view == null ? packet : setSlotNew.newInstance(0, setSlotState.invoke(packet), MENU_HEAD_SLOT, view);
+            int slot = (int) setSlotSlot.invoke(packet);
+            if ((int) setSlotContainer.invoke(packet) != 0 || slot < MENU_HEAD_SLOT || slot > MENU_HEAD_SLOT + 3) return packet;
+            Object view = ownArmor(setSlotItem.invoke(packet), slot == MENU_HEAD_SLOT, h);
+            return view == null ? packet : setSlotNew.newInstance(0, setSlotState.invoke(packet), slot, view);
         }
         if (c == contentCls) {
             if ((int) contentContainer.invoke(packet) != 0) return packet;
             List<?> items = (List<?>) contentItems.invoke(packet);
-            if (items.size() <= MENU_HEAD_SLOT) return packet;
-            Object view = self(items.get(MENU_HEAD_SLOT), cosmetic, h);
-            if (view == null) return packet;
-            List<Object> copy = new ArrayList<>(items);
-            copy.set(MENU_HEAD_SLOT, view);
-            return contentNew.newInstance(0, contentState.invoke(packet), copy, contentCarried.invoke(packet));
+            if (items.size() <= MENU_HEAD_SLOT + 3) return packet;
+            List<Object> copy = null;
+            for (int slot = MENU_HEAD_SLOT; slot <= MENU_HEAD_SLOT + 3; slot++) {
+                Object view = ownArmor(items.get(slot), slot == MENU_HEAD_SLOT, h);
+                if (view == null) continue;
+                if (copy == null) copy = new ArrayList<>(items);
+                copy.set(slot, view);
+            }
+            return copy == null ? packet : contentNew.newInstance(0, contentState.invoke(packet), copy, contentCarried.invoke(packet));
         }
         if (c == invSlotCls) {
-            if ((int) invSlotSlot.invoke(packet) != INVENTORY_HEAD_SLOT) return packet;
-            Object view = self(invSlotContents.invoke(packet), cosmetic, h);
-            return view == null ? packet : invSlotNew.newInstance(INVENTORY_HEAD_SLOT, view);
+            int slot = (int) invSlotSlot.invoke(packet);
+            if (slot < INVENTORY_HEAD_SLOT - 3 || slot > INVENTORY_HEAD_SLOT) return packet;   // 36 feet .. 39 head
+            Object view = ownArmor(invSlotContents.invoke(packet), slot == INVENTORY_HEAD_SLOT, h);
+            return view == null ? packet : invSlotNew.newInstance(slot, view);
         }
         return packet;
     }
@@ -468,6 +475,23 @@ final class CosmeticPackets {
     private boolean elytra(Object nms) throws ReflectiveOperationException {
         ItemStack it = (ItemStack) asBukkit.invoke(null, nms);
         return it != null && it.getType() == org.bukkit.Material.ELYTRA;
+    }
+
+    /** One of the player's own armor stacks (NMS) -> what their client is shown instead, or null to leave it. */
+    private Object ownArmor(Object nmsReal, boolean head, Handler h) throws ReflectiveOperationException {
+        if (head && h.cosmetic != null) {
+            Object view = self(nmsReal, h.cosmetic, h);
+            if (view != null) return view;
+        }
+        if (!h.hideSelf) return null;
+        ItemStack hidden = CosmeticViews.hiddenArmor((ItemStack) asBukkit.invoke(null, nmsReal));
+        return hidden == null ? null : asNms.invoke(null, hidden);
+    }
+
+    /** /투명갑옷 on this player's own screen too. */
+    void hideSelf(Player p, boolean hide) {
+        Handler h = handlers.get(p.getUniqueId());
+        if (h != null) h.hideSelf = hide;
     }
 
     /** NMS helmet stack -> NMS self-view stack, or null to leave it. */

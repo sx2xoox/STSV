@@ -251,6 +251,34 @@ public final class CosmeticViews {
         return f;
     }
 
+    /**
+     * /투명갑옷, the player's own view: the same armor piece (icon, name, durability, enchantments) without its
+     * equipment model, so the client draws nothing on the body (F5) while the inventory still shows the piece.
+     * Null when there is nothing to hide (empty, an elytra, no model). Marked like a self view, so a creative
+     * client sending it back gets the real piece ({@link #restore}).
+     */
+    static ItemStack hiddenArmor(ItemStack real) {
+        if (real == null || real.isEmpty() || real.getType() == Material.ELYTRA) return null;
+        Equippable eq = real.getData(DataComponentTypes.EQUIPPABLE);
+        if (eq == null || eq.assetId() == null) return null;
+        ItemStack f = real.clone();
+        f.setData(DataComponentTypes.EQUIPPABLE, Equippable.equippable(eq.slot())
+                .equipSound(eq.equipSound())
+                .assetId(null)
+                .cameraOverlay(eq.cameraOverlay())
+                .allowedEntities(eq.allowedEntities())
+                .dispensable(eq.dispensable())
+                .swappable(eq.swappable())
+                .damageOnHurt(eq.damageOnHurt())
+                .equipOnInteract(eq.equipOnInteract())
+                .canBeSheared(eq.canBeSheared())
+                .shearSound(eq.shearSound())
+                .build());
+        byte[] original = real.serializeAsBytes();
+        f.editPersistentDataContainer(pdc -> pdc.set(MARKER, PersistentDataType.BYTE_ARRAY, original));
+        return f;
+    }
+
     /** A paper item carrying exactly the data of {@code real} (all components, defaults included). */
     @SuppressWarnings("UnstableApiUsage")
     private static ItemStack sameDataAs(ItemStack real) {
