@@ -245,12 +245,20 @@ final class Commands {
                 }
                 case "해체" -> eco.land().disband(p, confirm);
                 case "타임머신" -> eco.landTime().command(p, a);
+                case "기록" -> eco.landLog().command(p, java.util.Arrays.copyOfRange(a, 1, a.length));
                 case "도움말" -> p.sendMessage(Lang.msg("land.usage"));
                 default -> eco.land().info(p);
             }
         }), (s, a) -> {
-            if (a.length == 1) return List.of("정보", "구매", "포기", "보기", "초대", "수락", "거절", "추방", "나가기", "양도", "금고", "해체", "타임머신", "도움말");
+            if (a.length == 1) return List.of("정보", "구매", "포기", "보기", "초대", "수락", "거절", "추방", "나가기", "양도", "금고", "해체", "기록", "타임머신", "도움말");
             if (a.length == 2 && a[0].equals("타임머신")) return List.of("보기", "확인", "취소", "원래대로");
+            if (a.length == 2 && a[0].equals("기록")) {
+                List<String> out = new java.util.ArrayList<>(List.of("확정", "취소"));
+                out.addAll(dev.stsv.core.nickname.Names.complete(s, a[1]));
+                return out;
+            }
+            if (a.length == 3 && a[0].equals("기록") && !a[1].equals("확정") && !a[1].equals("취소")) return List.of("되돌리기", "2");
+            if (a.length == 4 && a[0].equals("기록") && a[2].equals("되돌리기")) return List.of("1h", "6h", "1d", "7d");
             if (a.length == 2 && (a[0].equals("초대") || a[0].equals("추방") || a[0].equals("양도"))) {
                 return dev.stsv.core.nickname.Names.complete(s, a[1]);
             }
