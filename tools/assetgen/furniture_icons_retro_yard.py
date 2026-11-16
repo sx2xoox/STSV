@@ -48,9 +48,9 @@ def red_postbox():
     c.erase([p for p in c.where("pepper") if p[1] > 13])
     c.rect(5, 4.5, 11, 5.5, "rubber", 2, step=1)            # the slot
     c.rect(4.5, 6, 11.5, 10.5, "cream", 3, step=4)          # the plate
-    c.rect(5, 6.5, 11, 10, "porcelain", 4, step=4)          # a wide white envelope, its flap two thin lines
-    c.line(5, 6.5, 8, 9, "steel", 4, z=6)
-    c.line(8, 9, 11, 6.5, "steel", 4, z=6)
+    c.rect(5, 7, 11, 10, "porcelain", 4, step=4)            # a short, wide white envelope, a shallow flap at its top
+    c.line(5, 7, 7, 8, "porcelain", 1, z=6)
+    c.line(8, 8, 10, 7, "porcelain", 1, z=6)
     c.rect(6, 11, 10, 13, "cream", 4, step=3)              # the collection-times plate
     c.line(7, 12, 9, 12, "steel", 3, z=6)
     c.put(4, 12, "fox", 2, z=5)                             # rust at the foot
@@ -175,19 +175,19 @@ def tub_garden():
 @icon("street_lamp")
 def street_lamp():
     c = Canvas()
-    c.rect(7, 3, 9, 15.5, "millstone", 3, normal=FRONT, lo=2, hi=4)   # the concrete pole
-    c.rect(5.5, 14, 10.5, 16, "stone", 0, normal=FRONT)
-    c.rect(1, 8, 15, 9, "steel", 2, normal=FRONT)                    # the crossarm and its insulators
-    c.rect(6.5, 7.5, 9.5, 9.5, "steel", 1, normal=FRONT)             # the clamp band
-    for x in (1, 4, 12, 14):
-        c.put(x, 7, "porcelain", 4, z=4)
-    c.rect(7.5, 11, 8.5, 13.5, "cream", 4, step=4)                   # the flyer
-    # the arm curving out of the pole's top, the wide green shade (white inside) and its bulb under it
-    c.line(8, 3, 8, 1, "steel", 3, z=4)
-    c.line(7, 0.5, 5, 0.5, "steel", 3, z=4)
-    c.poly([(0, 4.5), (2.5, 1.5), (6.5, 1.5), (9, 4.5)], "sign_green", 5, normal=(0, -0.6, 0.8))
-    c.line(1, 4, 7, 4, "porcelain", 4, z=5)
-    c.ellipse(4, 5.2, 1.2, 1.0, "lamp", 6, dome=0.3, gloss=0.5)
+    c.rect(9, 1, 11, 15.5, "millstone", 3, normal=FRONT, lo=2, hi=4)  # the concrete pole
+    c.rect(7.5, 14, 12.5, 16, "stone", 0, normal=FRONT)
+    c.rect(4, 2, 16, 3, "steel", 2, normal=FRONT)                    # the crossarm near the top, its insulators
+    c.rect(8.5, 1.5, 11.5, 3.5, "steel", 1, normal=FRONT)
+    for x in (4, 6, 14, 15):
+        c.put(x, 1, "porcelain", 4, z=4)
+    c.rect(9.5, 11, 10.5, 13, "cream", 4, step=4)                    # the flyer
+    # the arm curving out of the pole and the big, wide, shallow green shade, white inside, its bulb below
+    c.line(9, 5, 6, 5, "steel", 3, z=4)
+    c.put(5, 6, "steel", 3, z=4)
+    c.poly([(0, 9), (3, 6.5), (7, 6.5), (10, 9)], "sign_green", 5, normal=(0, -0.6, 0.8))
+    c.line(1, 9, 9, 9, "porcelain", 4, z=5)
+    c.ellipse(5, 10.2, 1.3, 1.0, "lamp", 6, dome=0.3, gloss=0.5)
     return c.render()
 
 

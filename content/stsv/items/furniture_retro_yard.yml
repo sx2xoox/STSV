@@ -1,7 +1,7 @@
 # 꾸미기 가구 · 레트로 한국 (마당·골목, 10종). 모델: tools/assetgen/models/furniture_retro_yard.py,
 # 아이콘: tools/assetgen/furniture_icons_retro_yard.py, 미리보기: python3 furniture_preview.py --set retro
 # 쓰는 법은 furniture_japanese.yml 맨 위 설명과 같습니다 (model, icon, cells, solid, light, seats, translation, scale).
-# 빛이 있는 칸에는 방벽이 들어가지 않습니다: 오락기는 위 칸(1.5칸 높이의 뒤쪽 절반), 가로등은 맨 위 칸에 빛.
+# 빛이 있는 칸에는 방벽이 들어가지 않습니다: 오락기는 위 칸(1.5칸 높이의 뒤쪽 절반), 가로등은 가운데 칸(가는 기둥만 지나감, 등은 그 바로 위).
 
 pyeongsang:
   material: paper
@@ -92,7 +92,7 @@ street_lamp:
   furniture:
     cells: [[0, 0, 0], [0, 1, 0], [0, 2, 0]]
     translation: [0, 1, 0]
-    light: { level: 15, cell: [0, 2, 0] }
+    light: { level: 15, cell: [0, 1, 0] }
 
 clothesline:
   material: paper

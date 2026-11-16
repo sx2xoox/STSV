@@ -9,7 +9,8 @@ public phone no company mark, the arcade screen a made-up little shooter, the ca
 
 Lights and barriers: a lamp's light is in a cell that never gets a barrier (RetroFurnitureTest). The arcade machine
 is 1.5 blocks tall with everything above the first block in its back half, so the upper cell (its light) stays
-under 30%; the street lamp's top cell holds only the pole's top, the arm and the shade; the dalgona stand is low
+under 30%; the street lamp's light is in its middle cell, which holds only the thin pole (the lamp hangs just
+above it and the top cell may be solid); the dalgona stand is low
 and not solid (walk past it like a mat).
 
 PIECES: id -> (builder, cells as (w, h, d) for the previews, floor offset)
@@ -228,12 +229,12 @@ def red_postbox():
         if c.face != "north":
             return ("cream", 2)
         ix, iy = c.i[0], c.i[1]
-        # a wide white envelope (8 x 5 px) in a cream frame, its flap two thin grey lines running down from the
-        # top corners and meeting below the middle
+        # a short, wide white envelope (8 x 5 px) in a cream frame; its flap a shallow V in the top third, 1 px of
+        # light grey barely darker than the paper, nothing else inside (nothing that could read as a face)
         if 4 <= ix <= 11 and 8 <= iy <= 12:
             col, row = ix - 4, 12 - iy
-            if row < 4 and col in (row, 7 - row):
-                return ("steel", 4)
+            if (row == 0 and col in (0, 1, 2, 5, 6, 7)) or (row == 1 and col in (3, 4)):
+                return ("porcelain", 1)
             return ("porcelain", 4)
         return ("cream", 2)
     m.box("plate", (3.75, 7.25, 2.75), (12.25, 13.75, 3), Paint("cream", 2, noise=0, rim=1.0, decal=envelope))
@@ -467,36 +468,35 @@ def capsule_machine():
     m.box("capsule", (11, 0, 1.5), (12.25, 0.75, 2.75), flat("slime", 3, rim=1.0))
     m.box("capsule", (11, 0.75, 1.5), (12.25, 1.25, 2.75), flat("porcelain", 3, rim=1.0))
     m.group("dome")
-    colours = (("pepper", 3), ("hazard", 2), ("slime", 2), ("pink", 2), ("magic", 3), ("fox", 3))
-    GAP = ("water", 3)
-    # a round capsule, 4 x 4 px with its corners cut
+    colours = (("pepper", 2), ("topaz", 3), ("slime", 2), ("magic", 2), ("fox", 2), ("toadstool", 2))
+    GAP = ("water", 2)
+    # a capsule seen through the glass: a little sphere in cross-section (a 4 x 2 px middle, a 2 px cap inset top
+    # and bottom), split cleanly down the middle into one colour and white, one bright pixel of highlight
     ball = (".##.", "####", "####", ".##.")
+    # where they sit on each 10 px face of the globe (u, v of their bottom-left pixel): two in the bottom row, two
+    # staggered above them, the second cut by the corner as if it went on round it; the shoulder above is clear
+    SLOTS = ((0, 0), (5, 0), (2, 5), (7, 5))
 
     def capsules(c):
-        # round capsules seen through the glass on a 5 px grid in world space (1 px of glass between them), the
-        # rows staggered; two rows fill the belly and the shoulder above them is clear glass
         ix, iy, iz = c.i
-        if c.face == "up":
+        if c.face in ("up", "down"):
             return None
-        U, w = (ix, iz) if c.face in ("north", "south") else (iz, ix)
-        V = iy - 12
-        row = V // 5
-        shift = 2 if row % 2 else 0
-        gu = (U + shift) // 5
-        i, j = (U + shift) % 5, V % 5
-        if row > 1:
-            return None
-        if i > 3 or j > 3 or ball[3 - j][i] != "#":
-            return GAP                                     # the glass between the capsules
-        ramp, step = colours[int(h3(gu, row, w, 41) * len(colours))]
-        # split down the middle: one side coloured, the other white (which side varies), so each reads as a round
-        # two-tone ball, not a cap on a stem
-        left = h3(gu, row, w, 46) < 0.5
-        if (i < 2) == left:
-            return ("porcelain", 3 if j >= 2 else 2)       # the white half, a little shaded below
-        if j == 3 or (j == 2 and i in (0, 3)):
-            return (ramp, step + 1)                        # the light catching its upper curve
-        return (ramp, step if j >= 1 else step - 1)
+        u, w = (ix - 3, iz) if c.face in ("north", "south") else (iz - 3, ix)
+        v = iy - 12
+        for k, (u0, v0) in enumerate(SLOTS):
+            i, j = u - u0, v - v0
+            if 0 <= i < 4 and 0 <= j < 4:
+                if ball[3 - j][i] != "#":
+                    return GAP
+                face_no = ("north", "east", "south", "west").index(c.face)
+                ramp, step = colours[(k + face_no * 3) % len(colours)]   # each neighbour a different colour
+                left = (k + face_no) % 2 == 0          # and turned the other way
+                if (i < 2) != left:
+                    return ("porcelain", 3)            # the white half
+                if j == 2 and i == (0 if left else 3):
+                    return (ramp, step + 2)            # the highlight
+                return (ramp, step)
+        return None
 
     def glass_of(c):
         x, y, z = c.p
@@ -514,30 +514,30 @@ def capsule_machine():
                 return ("ice", 5)
         elif hi_u - lo_u <= 1.5 or c.hi[1] - y < 0.6:      # the narrow bevels and the top edge
             return ("ice", 4)
+        if c.face in ("east", "west") and c.p[1] < 23 and (z < 3 or z > 13):
+            return ("ice", 4)                              # the corner bevels of the front and back slab
         got = capsules(c)
         # a highlight streak down the front left of the glass, over the glass only (not across the capsules)
-        if got in (None, GAP) and 13 < y < 23.5 and (
+        if got in (None, GAP) and 13 < y < 24.5 and (
                 (c.face == "north" and abs(x - 10 - (y - 13) * 0.1) < 0.55) or
                 (c.face == "west" and abs(z - 5 - (y - 13) * 0.1) < 0.55)):
             return ("porcelain", 5)
         if got:
             return got
-        return ("water", 4)                                # the clear glass, a light blue
+        return ("water", 3)                                # the clear glass, a light blue
     glass = Paint("ice", 2, decal=glass_of, rim=0, ao=0.1, noise=0, light=True)
     # a round-cornered globe from few, large faces: an octagon of boxes for the belly, two tiers for the shoulder
     m.box("dome_ring", (3, 11.75, 3.5), (13, 12, 12.5), Paint("steel", 3, "metal"))
-    m.box("dome", (3.5, 12, 2), (12.5, 22, 14), glass)
-    for (x0, x1) in ((2.5, 3.5), (12.5, 13.5)):
-        m.box("dome", (x0, 12, 3), (x1, 22, 13), glass)
-    for (x0, x1) in ((2, 2.5), (13.5, 14)):
-        m.box("dome", (x0, 12, 4), (x1, 22, 12), glass)
-    m.box("dome", (4.5, 22, 3.5), (11.5, 23.25, 12.5), glass)
+    m.box("dome", (3, 12, 2), (13, 23, 14), glass)
+    for (x0, x1) in ((2, 3), (13, 14)):
+        m.box("dome", (x0, 12, 3), (x1, 23, 13), glass)
+    m.box("dome", (4.5, 23, 3.5), (11.5, 24.25, 12.5), glass)
     for (x0, x1) in ((3.5, 4.5), (11.5, 12.5)):
-        m.box("dome", (x0, 22, 4.5), (x1, 23.25, 11.5), glass)
-    m.box("dome", (5.5, 23.25, 5.5), (10.5, 24, 10.5), glass)
-    cyl(m, "cap", (8, 8), 4, 24, 24.75, Paint("pepper", 2, noise=0, rim=1.3))
-    cyl(m, "cap_knob", (8, 8), 2, 24.75, 25.5, Paint("pepper", 3, noise=0))
-    return display(m, (1, 1.6, 1), 0)
+        m.box("dome", (x0, 23, 4.5), (x1, 24.25, 11.5), glass)
+    m.box("dome", (5.5, 24.25, 5.5), (10.5, 25, 10.5), glass)
+    cyl(m, "cap", (8, 8), 4, 25, 25.75, Paint("pepper", 2, noise=0, rim=1.3))
+    cyl(m, "cap_knob", (8, 8), 2, 25.75, 26.5, Paint("pepper", 3, noise=0))
+    return display(m, (1, 1.66, 1), 0)
 
 
 # ================================================================================================
@@ -732,10 +732,13 @@ def tub_garden():
 # ================================================================================================
 
 def street_lamp():
-    """전봇대 가로등 (2.75 blocks): a grey concrete utility pole in a concrete collar, its number tag and a torn
-    flyer pasted on it, a crossarm with small white insulators, the curved tin arm of a street lamp with its green
-    enamel shade (white inside) over a warm bulb. Drawn from y 0 and moved down a block (dy -16). The top block
-    holds only the pole's top, the arm and the shade (16 of its 64 voxels: its light cell gets no barrier)."""
+    """전봇대 가로등 (3 blocks): a grey concrete utility pole in a concrete collar, its number tag and a torn flyer
+    pasted on it, iron climbing rungs, a guy wire to the ground behind; at the top a clean crossarm with white
+    insulators on a clamp band, and below it the curved steel arm of a street lamp holding a big, wide, shallow
+    enamel shade (green outside, white inside) over a warm bulb, reaching out over the street in front.
+    Drawn from y 0 and moved down a block (dy -16). The lamp hangs at the bottom of the top block and its light is
+    in the middle cell, which holds only the thin pole and its rungs (16 of 64 voxels: no barrier). The shade
+    reaches 7 px out in front of the cell, so the guy wire's anchor reaches as far out behind it: still centred."""
     m = BModel("street_lamp", dy=-16)
     m.group("foot")
     m.box("collar", (3, 0, 3), (13, 4, 13), STONE)
@@ -767,50 +770,54 @@ def street_lamp():
         return None
     pole = Paint("millstone", 3, noise=0.03, decal=concrete)
     m.box("pole", (6.25, 4.75, 6.25), (9.75, 16, 9.75), pole)
-    m.box("pole", (6.5, 16, 6.5), (9.5, 39.5, 9.5), pole)
-    m.box("pole_cap", (6.75, 39.5, 6.75), (9.25, 40.25, 9.25), flat("millstone", 2))
+    m.box("pole", (6.5, 16, 6.5), (9.5, 46, 9.5), pole)
+    m.box("pole_cap", (6.75, 46, 6.75), (9.25, 46.75, 9.25), flat("millstone", 2))
     # the climbing steps: iron rungs in pairs up the side, out of reach from the ground
     for y in range(17, 34, 3):
         x0 = 9.5 if (y // 3) % 2 else 5.75
         m.box("step", (x0, y, 7.5), (x0 + 0.75, y + 0.5, 8.5), flat("iron", 2))
-    # the guy wire behind: from a little concrete anchor up to the pole, a yellow and black guard round its foot
+    # the guy wire behind: from a little concrete anchor in the ground up to the pole at 45 degrees, a yellow and
+    # black guard round its foot
     m.group("guy")
-    m.box("anchor", (6.75, 0, 13.75), (9.25, 0.75, 16), STONE_DARK)
-    lean = ("x", -22.5, (8, 0.5, 14.875))
-    m.box("guy_wire", (7.875, 0.5, 14.75), (8.125, 14.5, 15), flat("iron", 1), rotation=lean)
+    m.box("anchor", (6.75, 0, 21), (9.25, 0.75, 23), STONE_DARK)
+    lean = ("x", -45, (8, 0.5, 22))
+    m.box("guy_wire", (7.75, 0.5, 21.75), (8.25, 18.2, 22.25), flat("iron", 1), rotation=lean)
 
     def stripes(c):
         return ("rubber", 1) if c.face in SIDE_FACES and int(math.floor(c.p[1] * 1.5)) % 2 else None
-    m.box("guy_guard", (7.625, 0.75, 14.625), (8.375, 6.25, 15.125), Paint("hazard", 3, noise=0, decal=stripes),
+    m.box("guy_guard", (7.625, 0.75, 21.625), (8.375, 6.25, 22.375), Paint("hazard", 3, noise=0, decal=stripes),
           rotation=lean)
     m.group("crossarm")
-    # the crossarm: a clean steel channel held by a clamp band round the pole, four white insulators on short pins
-    m.box("crossarm", (0.5, 27, 7.25), (15.5, 28.25, 8.75), Paint("steel", 2, "metal", rim=1.2))
-    m.box("clamp", (6.25, 26.25, 6.25), (9.75, 29, 9.75), Paint("steel", 1, "metal", rim=1.0))
+    # the crossarm near the top: a clean steel channel held by a clamp band round the pole, four white insulators
+    m.box("crossarm", (0.5, 42, 7.25), (15.5, 43.25, 8.75), Paint("steel", 2, "metal", rim=1.2))
+    m.box("clamp", (6.25, 41.25, 6.25), (9.75, 44, 9.75), Paint("steel", 1, "metal", rim=1.0))
     for x in (1.5, 4.5, 11.5, 14.5):
-        m.box("pin", (x - 0.25, 28.25, 7.75), (x + 0.25, 28.75, 8.25), flat("steel", 2))
-        m.box("insulator", (x - 0.5, 28.75, 7.5), (x + 0.5, 29.5, 8.5), Paint("porcelain", 2, rim=1.2))
-        m.box("insulator_top", (x - 0.375, 29.5, 7.625), (x + 0.375, 29.875, 8.375), Paint("porcelain", 3))
+        m.box("pin", (x - 0.25, 43.25, 7.75), (x + 0.25, 43.75, 8.25), flat("steel", 2))
+        m.box("insulator", (x - 0.5, 43.75, 7.5), (x + 0.5, 44.5, 8.5), Paint("porcelain", 2, rim=1.2))
+        m.box("insulator_top", (x - 0.375, 44.5, 7.625), (x + 0.375, 44.875, 8.375), Paint("porcelain", 3))
     m.group("lamp")
-    # the arm: a steel pipe rising from the back of the pole's top and reaching forward over the street
+    # the arm: a steel pipe out of the pole's front under the crossarm, curving forward and down to the shade
     arm = flat("steel", 3, rim=1.2)
-    m.box("arm_riser", (7.5, 40.25, 9.25), (8.5, 43.25, 10.25), arm)
-    m.box("arm", (7.5, 43.25, 3), (8.5, 44, 10.25), arm)
+    m.box("arm_bracket", (7.25, 37.5, 6), (8.75, 40.5, 6.5), flat("steel", 2))
+    m.box("arm", (7.5, 39, 3.5), (8.5, 40, 6), arm)
+    m.box("arm", (7.5, 38.5, 0.5), (8.5, 39.5, 3.5), arm)
+    m.box("arm", (7.5, 38, -1.5), (8.5, 39, 0.5), arm)
 
     def enamel(c):
         if c.face == "down":
             return ("porcelain", 4)                        # the white enamel inside, lit by the bulb
-        if c.face in SIDE_FACES and c.p[1] < 40.75:
+        if c.face in SIDE_FACES and c.p[1] < 34.5:
             return ("sign_green", 1)                       # the rolled rim, a shade darker
         return None
     shade = Paint("sign_green", 3, noise=0.02, rim=1.3, decal=enamel)
-    # the enamel shade: a wide, deep cone 8 px across (green outside, white inside), the bulb hanging under it
-    cyl(m, "shade", (8, 4), 8, 40.25, 40.75, shade)
-    cyl(m, "shade", (8, 4), 7, 40.75, 41.5, shade)
-    cyl(m, "shade", (8, 4), 5, 41.5, 42.25, shade)
-    cyl(m, "shade_hub", (8, 4), 2.5, 42.25, 43.25, shade)
-    cyl(m, "bulb", (8, 4), 3, 39, 40.25, glow("lamp", 4))
-    return display(m, (1, 2.75, 1), -16)
+    # the enamel shade: a wide, shallow cone 12 px across (green outside, white inside), the bulb under it
+    cz = -1
+    cyl(m, "shade", (8, cz), 12, 34, 34.5, shade)
+    cyl(m, "shade", (8, cz), 10, 34.5, 35.25, shade)
+    cyl(m, "shade", (8, cz), 7, 35.25, 36, shade)
+    cyl(m, "shade_hub", (8, cz), 3, 36, 38, shade)
+    cyl(m, "bulb", (8, cz), 3, 32.5, 34, glow("lamp", 4))
+    return display(m, (1, 2.95, 1), -16)
 
 
 # ================================================================================================
