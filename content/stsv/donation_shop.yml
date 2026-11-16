@@ -55,7 +55,7 @@ categories:
     products: [toy_set, toy_sword, toy_pickaxe, toy_shovel, toy_axe, toy_hoe, toy_fishing_rod]
   sets:
     name: "후원 치장 세트"
-    icon: "stsv:azure_pearl_cloud"
+    icon: "stsv:gui/tab_back"
     products: [set_azure_dragon, azure_pearl_cloud, azure_dragon_wings, azure_dragon_tail, azure_cloud_trail, azure_spark_aura,
                set_galaxy, galaxy_star_crown, galaxy_cape, galaxy_moon_necklace, galaxy_stardust_trail, galaxy_constellation_aura]
   fun:
