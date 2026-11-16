@@ -18,7 +18,7 @@ import math
 import economy_models  # noqa: F401
 from economy_machines import MModel
 from models.cosmetics import _display, BACK_GUI, HEAD_GUI
-from premium_art import HMat, hd_canvas, hd_surface, shade, HS
+from premium_art import FACE_LIGHT, HMat, hd_canvas, hd_surface, shade, HS
 from stsv_assets.palette import ramp
 
 # ================================================================================================
@@ -454,23 +454,37 @@ def _pearl_cloud(m, awake):
     for th in (0, 90, 180, 270):
         ybox(m, "claw", at((8, 13.0, 8), th, 1.6), 0.6, 1.8, 0.8, th, GOLD_LIGHT)
         ybox(m, "claw_tip", at((8, 14.2, 8), th, 1.9), 0.5, 0.8, 0.6, th, GOLD_LIGHT)
-    d = 6.0 if awake else 4.8
+    d = 5.5 if awake else 4.8      # awakened: the pearl a little bigger (+15%), the halo carries the rest
     x, y, z = 8, 12.4 + d / 2 + 0.2, 8
     m.box("pearl", (x - d * 0.4, y - d * 0.4, z - d * 0.4), (x + d * 0.4, y + d * 0.4, z + d * 0.4), "az_pearl", glow=True, full_uv=ALL_FACES)
     for (ax, ay, az) in ((0.5, 0.25, 0.25), (0.25, 0.5, 0.25), (0.25, 0.25, 0.5)):
         m.box("pearl", (x - d * ax, y - d * ay, z - d * az), (x + d * ax, y + d * ay, z + d * az), "az_pearl", glow=True, full_uv=ALL_FACES)
     m.group("flames")
     pos = ((8, 4.4), (8, 11.6), (4.4, 8), (11.6, 8)) if not awake else \
-        ((8, 3.6), (8, 12.4), (3.6, 8), (12.4, 8), (4.9, 4.9), (11.1, 11.1))
+        ((8, 4.1), (8, 11.9), (4.1, 8), (11.9, 8), (5.2, 5.2), (10.8, 10.8))
     for (fx, fz) in pos:
-        flames(m, "flame", fx, 11.2, fz, 3.0, 7.0 if not awake else 8.5)
+        flames(m, "flame", fx, 11.2, fz, 3.0, 7.0 if not awake else 7.8)
     for (sx, sy, sz) in ((3.5, 16.0, 4.0), (12.2, 17.2, 11.6), (4.2, 18.0, 11.8), (11.8, 14.8, 3.6))[:2 if awake else 4]:
         spark(m, "spark", (sx, sy, sz), 1.6)
     if awake:
         # a halo of light round the pearl: an octagonal ring of eight turned bars
         for i in range(8):
             th = i * 45
-            ybox(m, "halo", at((8, y + 0.2, 8), th, 5.4), 0.6, 0.6, 4.6, th, CYAN)
+            ybox(m, "halo", at((8, y + 0.2, 8), th, 4.7), 0.55, 0.55, 4.0, th, CYAN)
+    # the whole piece about as wide as the head (the cloud a little wider), sitting on it
+    shrink(m, 0.7, (8.0, 8.2, 8.0))
+
+
+def shrink(m, k, pivot):
+    """Scales every element of the model by k about pivot (the angles stay: a uniform scale), for a piece built at one
+    size and worn smaller. The painted textures keep their texels, so they only get finer."""
+    def f(q):
+        return tuple(pivot[i] + (q[i] - pivot[i]) * k for i in range(3))
+    for e in m.elements:
+        e["from"], e["to"] = list(f(e["from"])), list(f(e["to"]))
+        if e.get("rotation"):
+            axis, angle, o = e["rotation"]
+            e["rotation"] = (axis, angle, f(o))
 
 
 def azure_pearl_cloud():
@@ -478,15 +492,15 @@ def azure_pearl_cloud():
     it, four blue flames and sparks. Turns (spin)."""
     m = MModel("azure_pearl_cloud")
     _pearl_cloud(m, False)
-    _display(m, HEAD_GUI, 0.8, -7)
+    _display(m, HEAD_GUI, 1.05, -5)
     return m
 
 
 def azure_pearl_cloud_awakened():
-    """각성 여의주: a bigger pearl inside a halo of light, six taller flames, glowing wisps."""
+    """각성 여의주: the same cloud, a pearl 15% bigger inside a halo of light, six flames, glowing wisps."""
     m = MModel("azure_pearl_cloud_awakened")
     _pearl_cloud(m, True)
-    _display(m, HEAD_GUI, 0.7, -8)
+    _display(m, HEAD_GUI, 0.95, -5)
     return m
 
 
@@ -555,29 +569,81 @@ def azure_dragon_wings_awakened():
 # ================================================================================================
 
 TAIL_PATH = [(8.0, 10.2), (6.1, 11.7), (4.0, 13.5), (2.0, 15.6), (0.5, 18.0), (-0.3, 20.6), (0.0, 23.0), (1.3, 25.0),
-             (3.3, 26.2), (5.6, 26.3)]     # (y, z): down from the back, along the ground, curling up at the end
+             (3.3, 26.2), (5.6, 26.3)]     # (y, z) control points: down from the back, along the ground, curling up
+
+
+def _spline(pts, n):
+    """n + 1 points along a Catmull-Rom curve through pts, spaced evenly by length."""
+    dense = []
+    ext = [pts[0]] + list(pts) + [pts[-1]]
+    for i in range(1, len(ext) - 2):
+        p0, p1, p2, p3 = ext[i - 1], ext[i], ext[i + 1], ext[i + 2]
+        for k in range(20):
+            t = k / 20
+            dense.append(tuple(0.5 * (2 * p1[j] + (-p0[j] + p2[j]) * t + (2 * p0[j] - 5 * p1[j] + 4 * p2[j] - p3[j]) * t * t
+                                      + (-p0[j] + 3 * p1[j] - 3 * p2[j] + p3[j]) * t ** 3) for j in range(2)))
+    dense.append(pts[-1])
+    acc = [0.0]
+    for a_, b_ in zip(dense, dense[1:]):
+        acc.append(acc[-1] + math.dist(a_, b_))
+    out, j = [], 0
+    for i in range(n + 1):
+        want = acc[-1] * i / n
+        while j < len(acc) - 2 and acc[j + 1] < want:
+            j += 1
+        f = 0 if acc[j + 1] == acc[j] else (want - acc[j]) / (acc[j + 1] - acc[j])
+        out.append(tuple(dense[j][k] + (dense[j + 1][k] - dense[j][k]) * f for k in range(2)))
+    return out
+
+
+class BodyMat(HMat):
+    """Painted scales with no rims, edge shadows or per-face gradients: the light depends only on which way a face
+    looks, so a chain of short turned pieces shades as one body (the base steps a little from piece to piece for a
+    gradient running down its length)."""
+
+    def _value(self, x, y, pw, ph, face, rnd):
+        b = self.base + FACE_LIGHT.get(face, 0) * self.contrast
+        sw, sh = 6, 5
+        row = y // sh
+        cx = (x + (sw // 2 if row % 2 else 0)) % sw
+        cy = y % sh
+        dx, dy = (cx - sw / 2 + 0.5) / (sw / 2), (cy - 0.5) / sh
+        b += 0.45 - 0.9 * min(1.0, dx * dx + dy * dy * 1.6)
+        if cy == sh - 1:
+            b -= 0.55
+        if cx in (1, 2) and cy == 1:
+            b += 1.0
+        return b + (rnd.random() - 0.5) * 0.14
 
 
 def azure_dragon_tail():
-    """청룡의 꼬리: a long tail of painted scales, one smooth tapering curve of turned segments that droops from the back to
-    the ankles and curls up, pale belly plates, glowing spines along the top, a cut-out fin and a blue flame at the tip.
-    Swings (sway)."""
+    """청룡의 꼬리: one smooth tapering body that droops from the back to the ankles and curls up: many short turned
+    segments along a curve (the width shrinking a little at each), all of the same painted scales so the shading runs on,
+    a pale belly, a row of overlapping back plates (each lying over the next) with a glowing spine on every third, a
+    cut-out fin and a blue flame at the tip. Swings (sway)."""
     m = MModel("azure_dragon_tail")
-    n = len(TAIL_PATH) - 1
-    for i, (p0, p1) in enumerate(zip(TAIL_PATH, TAIL_PATH[1:])):
-        w = 3.9 - 2.4 * i / (n - 1)
-        seg_yz(m, "tail", p0, p1, w, w * 0.85, 8.0, SCALE if i % 2 == 0 else SCALE_DARK, ext=0.45, faces={"down": BELLY})
-        if i % 2 == 1 and i < n - 1:
-            # a spine standing out of the top of the curve
-            dy, dz = p1[0] - p0[0], p1[1] - p0[1]
-            ln = math.hypot(dy, dz)
-            ny, nz = dz / ln, -dy / ln          # the normal on the outer (upper) side
-            if ny < 0:
-                ny, nz = -ny, -nz
-            mid = ((p0[0] + p1[0]) / 2 + ny * w * 0.42, (p0[1] + p1[1]) / 2 + nz * w * 0.42)
-            seg_yz(m, "spine", mid, (mid[0] + ny * 1.3, mid[1] + nz * 1.3), 0.5, 0.7, 8.0, SCALE_GLINT, ext=0.0)
+    pts = _spline(TAIL_PATH, 15)
+    n = len(pts) - 1
+    for i, (p0, p1) in enumerate(zip(pts, pts[1:])):
+        t = i / (n - 1)
+        w = 4.0 - 2.75 * t
+        body = BodyMat("sapphire", "scales", 2.25 - 0.45 * t)
+        seg_yz(m, "tail", p0, p1, w, w * 0.86, 8.0, body, ext=0.55)
+        # the back plate: on the outer side, a little longer than the segment so each overlaps the next
+        dy, dz = p1[0] - p0[0], p1[1] - p0[1]
+        ln = math.hypot(dy, dz)
+        ny, nz = dz / ln, -dy / ln
+        if ny < 0:
+            ny, nz = -ny, -nz
+        off = w * 0.43 + 0.12
+        q0 = (p0[0] + ny * off, p0[1] + nz * off)
+        q1 = (p1[0] + ny * off, p1[1] + nz * off)
+        seg_yz(m, "plate", q0, q1, w * 0.62, 0.45, 8.0, BodyMat("sapphire", "scales", 1.75 - 0.4 * t), ext=0.35)
+        if i % 3 == 1 and i < n - 1:
+            mid = ((q0[0] + q1[0]) / 2 + ny * 0.25, (q0[1] + q1[1]) / 2 + nz * 0.25)
+            seg_yz(m, "spine", mid, (mid[0] + ny * 1.1, mid[1] + nz * 1.1), 0.45, 0.6, 8.0, SCALE_GLINT, ext=0.0)
     m.group("tip")
-    end = TAIL_PATH[-1]
+    end = pts[-1]
     cutout(m, "fin", (7.95, end[0] - 1.0, end[1] - 3.6), (8.05, end[0] + 3.4, end[1] + 0.6), "az_fin", "z")
     flames(m, "tip_flame", 8, end[0] + 0.4, end[1] + 0.4, 3.4, 6.0)
     _display(m, (30, 135, 0), 0.5, 1)
@@ -609,14 +675,15 @@ def azure_shoulder_dragon():
 # ================================================================================================
 
 def azure_cloud_sash():
-    """청룡의 구름 띠: a sash of cloud wrapped round the waist (puffs of painted cloud on a sapphire band), a gold dragon
-    head buckle at the front with a glowing pearl in its jaws, two cloud ribbons trailing behind."""
+    """청룡의 구름 띠: a sapphire sash round the waist with gold trims and cloud puffs on the hips, a gold dragon head
+    buckle at the front with a glowing pearl in its jaws, and behind a bow of cloud: two puffed loops and two short
+    wide tails flaring out and curling up."""
     m = MModel("azure_cloud_sash")
     # the band: a sapphire sash just round the torso (x 4..12, z 6..10), gold trims above and below
     m.box("band", (3.55, 5.5, 5.55), (12.45, 7.4, 10.45), SCALE_DARK)
     m.box("trim_low", (3.45, 5.25, 5.45), (12.55, 5.55, 10.55), GOLD)
     # cloud clusters on the hips and the back: a big puff, a smaller one riding on it, a wisp trailing out
-    for (cx, cz, s_) in ((3.6, 8.0, 1.0), (12.4, 8.0, 1.0), (8.0, 10.6, 0.9)):
+    for (cx, cz, s_) in ((3.6, 8.0, 1.0), (12.4, 8.0, 1.0)):
         m.box("puff", (cx - 1.5 * s_, 5.6, cz - 1.7 * s_), (cx + 1.5 * s_, 7.6, cz + 1.7 * s_), CLOUD, faces={"down": CLOUD_SHADE})
         m.box("puff_top", (cx - 0.9 * s_, 7.55, cz - 1.1 * s_), (cx + 0.9 * s_, 8.6, cz + 0.6 * s_), CLOUD)
         m.box("puff_low", (cx - 1.0 * s_, 4.7, cz - 0.4 * s_), (cx + 1.0 * s_, 5.65, cz + 1.3 * s_), CLOUD_SHADE)
@@ -629,13 +696,21 @@ def azure_cloud_sash():
     m.box("buckle_pearl", (7.2, 5.3, 3.9), (8.8, 6.9, 4.6), "az_pearl", glow=True, full_uv=ALL_FACES)
     # a gold trim along the band's top
     m.box("trim", (3.45, 7.35, 5.45), (12.55, 7.65, 10.55), GOLD_LIGHT)
-    # two cloud ribbons flowing down behind in a smooth curve (turned segments), fading to glowing tips
+    # behind: a cloud bow. The knot, two puffed loops tilted up and out (a shadowed hollow in each), and two short wide
+    # tails that flare outward and down in turned pieces, waving front and back, ending in a curl that turns up
+    m.box("knot", (6.9, 5.4, 10.35), (9.1, 7.7, 11.9), CLOUD, faces={"down": CLOUD_SHADE})
     for side in (-1, 1):
-        x = 8 + side * 1.6
-        path = [(6.4, 10.6), (4.6, 12.0), (2.6, 13.2), (0.4, 13.8), (-1.6, 14.6)]
-        for i, (p0, p1) in enumerate(zip(path, path[1:])):
-            seg_yz(m, "ribbon", p0, p1, 1.6 - 0.15 * i, 0.7, x + side * 0.4 * i, CLOUD if i % 2 == 0 else CLOUD_SHADE, ext=0.3)
-        m.box("ribbon_tip", (x + side * 1.6 - 0.7, -2.6, 14.0), (x + side * 1.6 + 0.7, -1.2, 15.4), CLOUD_GLOW)
+        cx = 8 + side * 2.5
+        m.box("loop", (cx - 1.7, 6.0, 10.5), (cx + 1.7, 8.3, 11.75), CLOUD, rotation=("z", side * 22.5, (cx, 7.15, 11.1)),
+              faces={"down": CLOUD_SHADE})
+        m.box("loop_hollow", (cx - 0.7, 6.75, 11.75), (cx + 0.7, 7.55, 11.85), CLOUD_SHADE, rotation=("z", side * 22.5, (cx, 7.15, 11.8)))
+        for i in range(3):
+            tx, ty, tz = 8 + side * (1.3 + 1.15 * i), 4.9 - 1.25 * i, 11.15 + (0.35 if i % 2 else 0.0)
+            w = 2.0 + 0.35 * i
+            m.box("tail", (tx - w / 2, ty - 0.95, tz - 0.35), (tx + w / 2, ty + 0.95, tz + 0.35), CLOUD if i % 2 == 0 else CLOUD_SHADE,
+                  rotation=("z", side * (22.5 if i < 2 else 45.0), (tx, ty, tz)))
+        m.box("tail_curl", (8 + side * 4.6 - 0.8, 0.9, 11.0), (8 + side * 4.6 + 0.8, 2.3, 12.4), CLOUD_GLOW,
+              rotation=("z", side * -22.5, (8 + side * 4.6, 1.6, 11.7)))
     _display(m, HEAD_GUI, 0.9, 0)
     return m
 
