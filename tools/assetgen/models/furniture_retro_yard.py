@@ -21,6 +21,7 @@ import math
 from economy_machines import display
 from models.furniture_japanese import STONE, STONE_DARK, STONE_LIGHT, flat, flicker, moss_on, puff
 from stsv_assets.bake import BModel, Paint, bands, cyl, h3, ring
+from stsv_assets.palette import ladder
 
 # ================================================================================================
 # Paints
@@ -468,76 +469,81 @@ def capsule_machine():
     m.box("capsule", (11, 0, 1.5), (12.25, 0.75, 2.75), flat("slime", 3, rim=1.0))
     m.box("capsule", (11, 0.75, 1.5), (12.25, 1.25, 2.75), flat("porcelain", 3, rim=1.0))
     m.group("dome")
-    colours = (("pepper", 2), ("topaz", 3), ("slime", 2), ("magic", 2), ("fox", 2), ("toadstool", 2))
-    GAP = ("water", 2)
-    # a capsule seen through the glass: a little sphere in cross-section (a 4 x 2 px middle, a 2 px cap inset top
-    # and bottom), split cleanly down the middle into one colour and white, one bright pixel of highlight
-    ball = (".##.", "####", "####", ".##.")
-    # where they sit on each 10 px face of the globe (u, v of their bottom-left pixel): two in the bottom row, two
-    # staggered above them, the second cut by the corner as if it went on round it; the shoulder above is clear
-    SLOTS = ((0, 0), (5, 0), (2, 5), (7, 5))
-
-    def capsules(c):
-        ix, iy, iz = c.i
-        if c.face in ("up", "down"):
-            return None
-        u, w = (ix - 3, iz) if c.face in ("north", "south") else (iz - 3, ix)
-        v = iy - 12
-        for k, (u0, v0) in enumerate(SLOTS):
-            i, j = u - u0, v - v0
-            if 0 <= i < 4 and 0 <= j < 4:
-                if ball[3 - j][i] != "#":
-                    return GAP
-                face_no = ("north", "east", "south", "west").index(c.face)
-                ramp, step = colours[(k + face_no * 3) % len(colours)]   # each neighbour a different colour
-                left = (k + face_no) % 2 == 0          # and turned the other way
-                if (i < 2) != left:
-                    return ("porcelain", 3)            # the white half
-                if j == 2 and i == (0 if left else 3):
-                    return (ramp, step + 2)            # the highlight
-                return (ramp, step)
-        return None
-
-    def glass_of(c):
-        x, y, z = c.p
-        if c.face == "down":
-            return ("water", 4)
-        # the glass outline: the narrow corner bevels and the top edges pale blue-white, so the shape reads first
-        if c.face in ("north", "south"):
-            u, lo_u, hi_u = x, c.lo[0], c.hi[0]
-        elif c.face in ("east", "west"):
-            u, lo_u, hi_u = z, c.lo[2], c.hi[2]
-        else:
-            u, lo_u, hi_u = None, None, None
-        if c.face == "up":
-            if min(x - c.lo[0], c.hi[0] - x, z - c.lo[2], c.hi[2] - z) < 0.6:
-                return ("ice", 5)
-        elif hi_u - lo_u <= 1.5 or c.hi[1] - y < 0.6:      # the narrow bevels and the top edge
-            return ("ice", 4)
-        if c.face in ("east", "west") and c.p[1] < 23 and (z < 3 or z > 13):
-            return ("ice", 4)                              # the corner bevels of the front and back slab
-        got = capsules(c)
-        # a highlight streak down the front left of the glass, over the glass only (not across the capsules)
-        if got in (None, GAP) and 13 < y < 24.5 and (
-                (c.face == "north" and abs(x - 10 - (y - 13) * 0.1) < 0.55) or
-                (c.face == "west" and abs(z - 5 - (y - 13) * 0.1) < 0.55)):
-            return ("porcelain", 5)
-        if got:
-            return got
-        return ("water", 3)                                # the clear glass, a light blue
-    glass = Paint("ice", 2, decal=glass_of, rim=0, ao=0.1, noise=0, light=True)
-    # a round-cornered globe from few, large faces: an octagon of boxes for the belly, two tiers for the shoulder
+    # the globe as an open glass box: a chrome tray, four pale corner posts and a top rim, the glass panes thin
+    # see-through planes (only a reflection streak and a faint line at the foot painted, the rest cut out), so the
+    # capsules inside show from every side
+    chrome = Paint("steel", 4, "metal", rim=1.2)
+    post = Paint("ice", 4, noise=0, rim=1.0)
     m.box("dome_ring", (3, 11.75, 3.5), (13, 12, 12.5), Paint("steel", 3, "metal"))
-    m.box("dome", (3, 12, 2), (13, 23, 14), glass)
-    for (x0, x1) in ((2, 3), (13, 14)):
-        m.box("dome", (x0, 12, 3), (x1, 23, 13), glass)
-    m.box("dome", (4.5, 23, 3.5), (11.5, 24.25, 12.5), glass)
-    for (x0, x1) in ((3.5, 4.5), (11.5, 12.5)):
-        m.box("dome", (x0, 23, 4.5), (x1, 24.25, 11.5), glass)
-    m.box("dome", (5.5, 24.25, 5.5), (10.5, 25, 10.5), glass)
-    cyl(m, "cap", (8, 8), 4, 25, 25.75, Paint("pepper", 2, noise=0, rim=1.3))
-    cyl(m, "cap_knob", (8, 8), 2, 25.75, 26.5, Paint("pepper", 3, noise=0))
-    return display(m, (1, 1.66, 1), 0)
+    m.box("tray", (2, 12, 2), (14, 12.75, 14), chrome)
+    for x in (2, 13):
+        for z in (2, 13):
+            m.box("post", (x, 12.75, z), (x + 1, 22.25, z + 1), post)
+    m.box("rim", (2, 22.25, 2), (14, 23, 3), chrome)
+    m.box("rim", (2, 22.25, 13), (14, 23, 14), chrome)
+    m.box("rim", (2, 22.25, 3), (3, 23, 13), chrome)
+    m.box("rim", (13, 22.25, 3), (14, 23, 13), chrome)
+    clear = ("raw", (0, 0, 0, 0))
+
+    def pane(c):
+        u, v, nu, nv = c.u, c.v, c.nu, c.nv
+        if nu <= 1 or nv <= 1:
+            return clear                                   # the pane's thin edges
+        if u + v == 3 and 1 <= v <= 3 and c.face != "up":
+            return ("raw", ladder("ice", 5))               # a short glint in the glass's upper corner
+        if v == nv - 1 and c.face != "up":
+            return ("raw", ladder("ice", 3))               # a faint line where it sits in the tray
+        return clear
+    glass = Paint("glass", 2, noise=0, light=False, decal=pane)
+    m.box("pane", (3, 12.75, 2.25), (13, 22.25, 2.75), glass)
+    m.box("pane", (3, 12.75, 13.25), (13, 22.25, 13.75), glass)
+    m.box("pane", (2.25, 12.75, 3), (2.75, 22.25, 13), glass)
+    m.box("pane", (13.25, 12.75, 3), (13.75, 22.25, 13), glass)
+    m.box("pane", (3, 22.5, 3), (13, 23, 13), glass)
+    m.group("capsules")
+    # the capsules: little two-tone balls (3 px), one half coloured and one white, split on a different axis
+    # from their neighbours, their corners shaded round, one bright highlight; nine on the tray, four on them, one
+    # on top, air above
+    colours = (("pepper", 2), ("topaz", 3), ("slime", 2), ("magic", 2), ("fox", 2), ("denim", 3), ("toadstool", 2))
+    S = 3.0
+    spots = [(x, 12.75, z) for z in (3.25, 6.5, 9.75) for x in (3.25, 6.5, 9.75)]
+    spots += [(4.75, 12.75 + S, 4.75), (8.25, 12.75 + S, 4.75), (4.75, 12.75 + S, 8.25), (8.25, 12.75 + S, 8.25)]
+    spots += [(6.5, 12.75 + 2 * S, 6.5)]
+    plane = {"north": (0, 1), "south": (0, 1), "east": (2, 1), "west": (2, 1), "up": (0, 2), "down": (0, 2)}
+
+    def capsule_paint(ramp, step, centre, white):
+        def decal(c):
+            a, b = plane[c.face]
+            du, dv = c.p[a] - centre[a], c.p[b] - centre[b]
+            if abs(du) > 0.85 and abs(dv) > 0.85:
+                return ("porcelain", 1) if white else (ramp, step - 1)    # the corners shaded: round
+            if not white and c.face in ("north", "up") and -1 < du < 0 and 0 < dv < 1:
+                return (ramp, step + 2)                    # the highlight
+            return None
+        if white:
+            return Paint("porcelain", 3, noise=0, rim=0.6, decal=decal)
+        return Paint(ramp, step, noise=0, rim=0.6, decal=decal)
+
+    for k, (x0, y0, z0) in enumerate(spots):
+        ramp, step = colours[k % len(colours)]
+        lo, hi = [x0, y0, z0], [x0 + S, y0 + S, z0 + S]
+        centre = [(lo[i] + hi[i]) / 2 for i in range(3)]
+        axis = (0, 2, 1)[k % 3]                            # neighbours split on different axes
+        a_hi, b_lo = list(hi), list(lo)
+        a_hi[axis], b_lo[axis] = centre[axis], centre[axis]
+        first_white = k % 2 == 1
+        # each half from two boxes: a tall core and a wide slab, so the top and bottom edges are cut round
+        for (h_lo, h_hi, white) in ((lo, a_hi, first_white), (b_lo, hi, not first_white)):
+            paint = capsule_paint(ramp, step, centre, white)
+            core_lo = [max(h_lo[i], lo[i] + 0.5) if i != 1 else h_lo[i] for i in range(3)]
+            core_hi = [min(h_hi[i], hi[i] - 0.5) if i != 1 else h_hi[i] for i in range(3)]
+            slab_lo = [max(h_lo[1], lo[1] + 0.5) if i == 1 else h_lo[i] for i in range(3)]
+            slab_hi = [min(h_hi[1], hi[1] - 0.5) if i == 1 else h_hi[i] for i in range(3)]
+            m.box("capsule", tuple(core_lo), tuple(core_hi), paint)
+            m.box("capsule", tuple(slab_lo), tuple(slab_hi), paint)
+    cyl(m, "cap", (8, 8), 4, 23, 23.75, Paint("pepper", 2, noise=0, rim=1.3))
+    cyl(m, "cap_knob", (8, 8), 2, 23.75, 24.5, Paint("pepper", 3, noise=0))
+    return display(m, (1, 1.55, 1), 0)
 
 
 # ================================================================================================

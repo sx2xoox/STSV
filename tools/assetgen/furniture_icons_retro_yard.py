@@ -112,18 +112,22 @@ def capsule_machine():
     c.ellipse(8, 12, 1.8, 1.8, "steel", 3, gloss=0.8)      # the turning knob
     c.line(6.5, 12, 9.5, 12, "steel", 5, z=4)
     c.rect(10.5, 13.5, 12, 14.5, "rubber", 4, step=1)       # the exit
-    # the clear dome: a pale blue-white rim round it, round two-tone capsules packed in its lower part
-    c.ellipse(8, 5, 5.4, 4.4, "ice", 4, dome=0.3, gloss=0.6)
-    c.ellipse(8, 5.2, 4.5, 3.6, "ice", 1, dome=0.5, gloss=0.3)
-    for (x, y, mat) in ((4, 7, "pepper"), (7, 7, "slime"), (10, 7, "fox"), (5, 4, "magic"), (9, 4, "hazard")):
-        c.put(x, y, mat, 4, z=3)
-        c.put(x, y + 1, mat, 3, z=3)
-        c.put(x + 1, y, "porcelain", 4, z=3)
-        c.put(x + 1, y + 1, "porcelain", 3, z=3)
-    c.put(5, 2, "porcelain", 5, z=5)                       # the highlight streak on the glass
-    c.put(4, 3, "porcelain", 5, z=5)
-    c.put(4, 4, "porcelain", 4, z=5)
-    c.rect(6.5, 0.5, 9.5, 1.5, "pepper", 3, normal=FRONT)
+    # the open glass box: pale corner posts, a chrome top rim, the capsules heaped inside (two-tone little balls)
+    c.rect(3, 1.5, 13, 8.5, "tint", 2, normal=FRONT)         # the glass, seen through to the dark back
+    for (x, y, mat, white_right) in ((3, 6, "pepper", True), (6, 6, "slime", False), (9, 6, "magic", True),
+                                     (11, 6, "fox", False), (4, 4, "topaz", False), (7, 4, "denim", True),
+                                     (10, 4, "pepper", False), (6, 2, "fox", True)):
+        cx, wx = (x, x + 1) if white_right else (x + 1, x)
+        c.put(cx, y, mat, 4, z=3)
+        c.put(cx, y + 1, mat, 2, z=3)
+        c.put(wx, y, "porcelain", 4, z=3)
+        c.put(wx, y + 1, "porcelain", 3, z=3)
+    c.rect(2, 1, 3, 8.5, "ice", 4, normal=FRONT)            # the corner posts
+    c.rect(13, 1, 14, 8.5, "ice", 4, normal=FRONT)
+    c.rect(2, 0.5, 14, 1.5, "steel", 3, normal=FRONT)        # the top rim
+    c.put(4, 2, "ice", 5, z=5)                               # a glint in the glass
+    c.put(5, 1, "ice", 5, z=5)
+    c.rect(6.5, -0.5, 9.5, 0.5, "pepper", 3, normal=FRONT)
     return c.render()
 
 
