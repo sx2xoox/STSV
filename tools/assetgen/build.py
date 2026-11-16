@@ -36,6 +36,10 @@ def main():
     sys.path.insert(0, str(HERE))
     from models.test_items import ALL as ITEMS
     from models import cosmetics
+    from models import cosmetics_batch_a      # 머리 위 · 어깨 · 등 추가분
+    from models import cosmetics_batch_b      # 꼬리 · 목
+    # every cosmetic model, whichever file draws it (their vouchers' icons come from voucher_art: items/*.yml)
+    cosmetic_models = {**cosmetics.ALL, **cosmetics_batch_a.ALL, **cosmetics_batch_b.ALL}
     from models import furniture_japanese as furniture
     from models import furniture_retro           # 레트로 한국 가구 (three groups); preview: furniture_preview.py --set retro
     from models import vehicles
@@ -53,13 +57,13 @@ def main():
     import vehicle_icons_road
     import vehicle_icons_farm
     import vehicle_icons_misc
-    ALL = {**ITEMS, **cosmetics.ALL, **furniture.ALL, **furniture_retro.ALL, **vehicles.ALL, **vehicles_road.ALL, **vehicles_farm.ALL, **vehicles_misc.ALL,
+    ALL = {**ITEMS, **cosmetic_models, **furniture.ALL, **furniture_retro.ALL, **vehicles.ALL, **vehicles_road.ALL, **vehicles_farm.ALL, **vehicles_misc.ALL,
            **vehicles_boats.ALL,
            **vehicle_lights.ALL, **vehicle_tools.ALL, **vehicle_paints.ALL, **toys.ALL}
     import special
 
     def home(name):
-        return CONTENT if name in SHIPPED_MODELS or name in cosmetics.ALL or name in furniture.ALL or name in furniture_retro.ALL or name in vehicles.ALL \
+        return CONTENT if name in SHIPPED_MODELS or name in cosmetic_models or name in furniture.ALL or name in furniture_retro.ALL or name in vehicles.ALL \
             or name in vehicles_road.ALL or name in vehicles_farm.ALL or name in vehicles_misc.ALL or name in vehicles_boats.ALL \
             or name in vehicle_lights.ALL or name in vehicle_tools.ALL or name in vehicle_paints.ALL or name in toys.ALL else FIXTURE
 

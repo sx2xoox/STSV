@@ -24,7 +24,16 @@ class CosmeticContentTest {
 
     @Test
     void shippedCosmeticsAreUsable() {
-        YamlConfiguration y = YamlConfiguration.loadConfiguration(PACK.resolve("items/cosmetics.yml").toFile());
+        // every items file that holds cosmetics (cosmetics.yml and the later batches)
+        YamlConfiguration y = new YamlConfiguration();
+        try (var files = Files.list(PACK.resolve("items"))) {
+            for (Path f : files.filter(f -> f.getFileName().toString().startsWith("cosmetics")).sorted().toList()) {
+                YamlConfiguration one = YamlConfiguration.loadConfiguration(f.toFile());
+                for (String key : one.getKeys(false)) y.set(key, one.get(key));
+            }
+        } catch (java.io.IOException e) {
+            throw new java.io.UncheckedIOException(e);
+        }
         Map<CosmeticSlot, Integer> perSlot = new EnumMap<>(CosmeticSlot.class);
         List<String> problems = new ArrayList<>();
         for (String key : y.getKeys(false)) {

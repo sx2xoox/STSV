@@ -39,6 +39,8 @@ class PackPipelineTest {
     private static final Set<String> GLOWING = Set.of("test_machine", "test_greatsword", "test_slash",
             "halo", "crown", "wizard_hat", "butterfly_wings",   // cosmetics: the halo, gems, stars, wing spots
             "mole", "gumiho", "phoenix",                        // pets: the helmet lamp, fox-fire tails, flame tips
+            "star_ring", "shoulder_dragon", "jetpack",          // cosmetics A: the stars, the dragon's ember, the rocket flames
+            "devil_tail", "gold_medal", "crystal_pendant",      // cosmetics B: the heart tip, the medal's star, the crystal
             "andon", "stone_lantern", "tea_kettle",             // furniture: lamp paper, the lantern's fire, embers
             "police_car", "light_truck", "golf_cart", "sports_car", "tuner_car",   // vehicles: head and tail lights, the tuner car neon
             "hyper_car", "grand_sedan", "luxury_suv",           // the premium cars: lamps, the SUV roof lamps

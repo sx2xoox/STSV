@@ -53,18 +53,44 @@ pool:
   - stsv:sprout
   - stsv:heart
   - stsv:rain_cloud
+  - stsv:little_sun
+  - stsv:exclaim_bubble
+  - stsv:rainbow_arc
+  - stsv:star_ring
   # 어깨
   - stsv:chick
   - stsv:slime
   - stsv:shoulder_cat
+  - stsv:hamster
+  - stsv:squirrel
+  - stsv:parrot
+  - stsv:hedgehog
+  - stsv:shoulder_dragon
   # 등
   - stsv:school_bag
   - stsv:bear_backpack
   - stsv:bunny_backpack
   - stsv:butterfly_wings
+  - stsv:turtle_shell
+  - stsv:jetpack
   # 꼬리
   - stsv:cat_tail
   - stsv:fox_tail
+  - stsv:puppy_tail
+  - stsv:bunny_tail
+  - stsv:dino_tail
+  - stsv:raccoon_tail
+  - stsv:devil_tail
+  - stsv:mermaid_tail
+  # 목
+  - stsv:red_scarf
+  - stsv:bow_tie
+  - stsv:bell_collar
+  - stsv:pearl_necklace
+  - stsv:flower_lei
+  - stsv:silk_scarf
+  - stsv:gold_medal
+  - stsv:crystal_pendant
   # 펫
   - stsv:puppy
   - stsv:penguin
