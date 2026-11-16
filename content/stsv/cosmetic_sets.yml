@@ -9,3 +9,6 @@ sets:
   galaxy:
     name: "<gradient:#ffe9a8:#a98bff>은하수</gradient>"
     bonus: { particle: end_rod, count: 10, spread: 0.8, height: 0.1, speed: 0 }
+  duck_family:
+    name: "<gradient:#fff3a8:#ffb347>아기 오리 가족</gradient>"
+    bonus: { particle: bubble_pop, count: 10, spread: 0.85, height: 0.75, speed: 0 }

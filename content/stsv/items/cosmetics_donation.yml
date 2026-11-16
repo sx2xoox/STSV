@@ -1,6 +1,7 @@
-# 후원 상점 전용 치장: 두 세트, 다섯 가지씩 (모델: tools/assetgen/models/cosmetics_donation.py).
+# 후원 상점 전용 치장: 세 세트, 다섯 가지씩 (모델: tools/assetgen/models/cosmetics_donation.py).
 # 뽑기에 나오지 않고 교환권도 없음 (cosmetic.exclusive: donation). 세트를 모두 걸치면 cosmetic_sets.yml 의 보너스 고리가 돈다.
-# 모델이 있는 조각은 어두운 데서도 밝게 보이고 (glow), 대부분 움직인다 (motion). 발자취 · 오라의 모델은 메뉴 카드 그림.
+# 청룡 · 은하수의 모델 조각은 어두운 데서도 밝게 보이고 (glow), 대부분 움직인다 (motion). 아기 오리 가족은 빛나지 않는 낮의 세트.
+# 발자취 · 오라의 모델은 메뉴 카드 그림.
 
 # ---------------------------------------------------------------------------------------------
 # 청룡 세트 (azure_dragon): 여의주 · 날개 · 꼬리 · 구름길 · 뇌광 — 세트 보너스: 가슴 높이의 번개 고리
@@ -88,3 +89,45 @@ galaxy_constellation_aura:
   max-stack: 1
   cosmetic: { slot: aura, rarity: legendary, obtain: "후원 상점 (/후원)", exclusive: donation, set: galaxy,
               particle: dust, color: "#b48cff", count: 10, spread: 0.9, speed: 0, height: 1.2 }
+
+# ---------------------------------------------------------------------------------------------
+# 아기 오리 가족 세트 (duck_family): 졸졸 오리들 · 꾸벅 오리 · 오리 튜브 · 파닥 날개 · 첨벙 발자국
+#   — 세트 보너스: 튜브 높이에 비눗방울 고리. 빛나지 않는 낮의 세트
+# ---------------------------------------------------------------------------------------------
+duckling_parade:
+  material: paper
+  name: "<gradient:#fff3a8:#ffb347>졸졸 아기 오리들</gradient>"
+  lore: ["<gray>세일러 모자를 쓴 대장 오리를 따라", "<gray>아기 오리들이 줄지어 졸졸 따라온다", "<#ffc861>아기 오리 가족 세트 (1/5)"]
+  model: duckling_parade
+  max-stack: 1
+  cosmetic: { slot: pet, rarity: legendary, obtain: "후원 상점 (/후원)", exclusive: donation, set: duck_family }
+sleepy_duckling:
+  material: paper
+  name: "<gradient:#fff3a8:#ffb347>꾸벅 아기 오리</gradient>"
+  lore: ["<gray>머리 위에서 콧방울을 부풀리며 쿨쿨 잔다", "<#ffc861>아기 오리 가족 세트 (2/5)"]
+  model: sleepy_duckling
+  max-stack: 1
+  cosmetic: { slot: above, rarity: legendary, obtain: "후원 상점 (/후원)", exclusive: donation, set: duck_family, bob: true }
+duck_float_ring:
+  material: paper
+  name: "<gradient:#fff3a8:#ffb347>오리 튜브</gradient>"
+  lore: ["<gray>허리에 낀 노란 튜브, 앞에서 오리가 빼꼼", "<#ffc861>아기 오리 가족 세트 (3/5)"]
+  model: duck_float_ring
+  max-stack: 1
+  cosmetic: { slot: waist, rarity: legendary, obtain: "후원 상점 (/후원)", exclusive: donation, set: duck_family }
+duckling_wings:
+  material: paper
+  name: "<gradient:#fff3a8:#ffb347>파닥 아기 날개</gradient>"
+  lore: ["<gray>보송보송한 작은 날개가 쉴 새 없이 파닥인다", "<#ffc861>아기 오리 가족 세트 (4/5)"]
+  model: duckling_wings
+  max-stack: 1
+  cosmetic: { slot: back, rarity: legendary, obtain: "후원 상점 (/후원)", exclusive: donation, set: duck_family,
+              motion: { kind: flap, amount: 0.35, period: 14 } }
+puddle_trail:
+  material: paper
+  name: "<gradient:#fff3a8:#ffb347>첨벙 발자국</gradient>"
+  lore: ["<gray>걸음마다 물이 첨벙 튄다", "<#ffc861>아기 오리 가족 세트 (5/5)"]
+  model: puddle_trail
+  max-stack: 1
+  cosmetic: { slot: trail, rarity: legendary, obtain: "후원 상점 (/후원)", exclusive: donation, set: duck_family,
+              particle: splash, count: 4, spread: 0.2, speed: 0.05, height: 0.1 }

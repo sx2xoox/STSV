@@ -113,7 +113,7 @@ class CosmeticContentTest {
                 }
             }
         }
-        assertEquals(10, exclusive.size(), exclusive.toString());
+        assertEquals(15, exclusive.size(), exclusive.toString());
         List<String> pool = YamlConfiguration.loadConfiguration(PACK.resolve("gacha.yml").toFile()).getStringList("pool");
         YamlConfiguration shop = YamlConfiguration.loadConfiguration(PACK.resolve("donation_shop.yml").toFile());
         java.util.Set<String> sold = new java.util.HashSet<>();

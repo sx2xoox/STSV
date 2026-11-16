@@ -61,6 +61,7 @@ class PackPipelineTest {
             "toy_sword_belt", "lucky_pouch", "champion_belt",   // waist: the sword hangs slanted, the pouch's knot, the belt's plate
             "azure_dragon_wings", "galaxy_cape",                // donation sets: wings and cape swept back
             "azure_spark_aura", "galaxy_star_crown", "galaxy_constellation_aura",   // rings and stars set on a slant
+            "duck_float_ring", "puddle_trail", "duckling_wings",  // the duck set: octagonal ring and puddle, wings swept back
             "wagasa",                                           // the parasol's struts, tilted up to its canopy
             // retro furniture: the kettle's spout, the radio's aerial, the clothes prop, the phone's dial face, the dresser's wing
             // mirrors, the fan's tilted head, the lid leant on the small jar, the washboard in the tub, the TV's rabbit ears, the lamp's arm
