@@ -28,9 +28,14 @@ import org.bukkit.event.EventHandler;
 import org.bukkit.event.HandlerList;
 import org.bukkit.event.Listener;
 import org.bukkit.event.inventory.ClickType;
+import org.bukkit.event.EventPriority;
+import org.bukkit.event.block.Action;
+import org.bukkit.event.player.PlayerInteractEvent;
 import org.bukkit.event.player.PlayerJoinEvent;
 import org.bukkit.event.player.PlayerQuitEvent;
+import org.bukkit.inventory.EquipmentSlot;
 import org.bukkit.inventory.ItemStack;
+import org.bukkit.persistence.PersistentDataType;
 
 import java.nio.file.Files;
 import java.nio.file.Path;
@@ -70,6 +75,8 @@ public final class DonationModule implements StsvModule, Listener, TabExecutor {
     private static final int HISTORY = 10, MENU_HISTORY = 72, TABS = 7;
     /** The history's tab (no category may be called this: ids have no '#'). */
     private static final String HISTORY_TAB = "#history";
+    /** A star note's id on its item (the note itself is in the books: the item only names it). */
+    private static final NamespacedKey NOTE = new NamespacedKey("stsv", "star_note");
 
     private STSVPlugin plugin;
     private DonationStore store;
@@ -89,12 +96,15 @@ public final class DonationModule implements StsvModule, Listener, TabExecutor {
         store.init();
         load();
         Bukkit.getPluginManager().registerEvents(this, plugin);
-        plugin.admin().add(ADMIN_OWNER, "후원", "지급|회수 <플레이어> <수량> [메모] | 조회 <플레이어> | 내역 <플레이어> | 환불 <내역 번호> [메모]",
-                "후원 재화를 주기 (입금 확인 뒤) / 도로 가져가기 / 보유량 보기 / 그 사람의 내역 / 구매 한 건을 물러 값을 돌려주기", this::admin,
-                (s, a) -> a.length == 1 ? List.of("지급", "회수", "조회", "내역", "환불")
-                        : a.length == 2 && !a[0].equals("환불") ? Names.complete(s, a[1]) : a.length == 3 && a[0].equals("지급") ? List.of("100", "300", "500") : List.of());
-        plugin.admin().report(ADMIN_OWNER, (s, a) -> store.totals().thenAccept(t -> Bukkit.getScheduler().runTask(plugin, () ->
-                s.sendMessage(Lang.mm("donation.report", "granted", shop.amount(t[0]), "spent", shop.amount(t[1]), "held", shop.amount(t[2]), "players", t[3])))));
+        plugin.admin().add(ADMIN_OWNER, "후원", "지급|회수 <플레이어> <수량> [메모] | 조회 <플레이어> | 내역 <플레이어> | 환불 <내역 번호> [메모] | 증서 <증서 번호>",
+                "후원 재화를 주기 (입금 확인 뒤) / 도로 가져가기 / 보유량 보기 / 그 사람의 내역 (출금 · 입금 포함) / 구매 한 건을 물러 값을 돌려주기 / 별 증서 한 장의 발행자 · 입금자", this::admin,
+                (s, a) -> a.length == 1 ? List.of("지급", "회수", "조회", "내역", "환불", "증서")
+                        : a.length == 2 && !a[0].equals("환불") && !a[0].equals("증서") ? Names.complete(s, a[1]) : a.length == 3 && a[0].equals("지급") ? List.of("100", "300", "500") : List.of());
+        plugin.admin().report(ADMIN_OWNER, (s, a) -> store.totals().thenCombine(store.outstanding(), (t, n) -> {
+            Bukkit.getScheduler().runTask(plugin, () -> s.sendMessage(Lang.mm("donation.report", "granted", shop.amount(t[0]), "spent", shop.amount(t[1]),
+                    "held", shop.amount(t[2]), "players", t[3], "notes", n[0], "noted", shop.amount(n[1]))));
+            return null;
+        }));
     }
 
     @Override
@@ -145,6 +155,7 @@ public final class DonationModule implements StsvModule, Listener, TabExecutor {
         switch (sub) {
             case "내역", "history" -> openShop(p, HISTORY_TAB);
             case "받기", "claim" -> deliverPending(p, true);
+            case "출금", "withdraw" -> withdraw(p, a);
             default -> openShop(p, null);
         }
         return true;
@@ -152,7 +163,8 @@ public final class DonationModule implements StsvModule, Listener, TabExecutor {
 
     @Override
     public List<String> onTabComplete(CommandSender sender, Command command, String label, String[] a) {
-        return a.length == 1 ? List.of("내역", "받기").stream().filter(s -> s.startsWith(a[0])).toList() : List.of();
+        if (a.length == 2 && a[0].equals("출금")) return List.of(String.valueOf(withdrawMin()), "50", "100");
+        return a.length == 1 ? List.of("내역", "받기", "출금").stream().filter(s -> s.startsWith(a[0])).toList() : List.of();
     }
 
     /** What a shop screen shows of a player's books (read once when it opens). */
@@ -299,7 +311,13 @@ public final class DonationModule implements StsvModule, Listener, TabExecutor {
                 shown = List.of();
                 for (Entry e : books.history()) {
                     boolean waiting = e.kind() == Kind.BUY && !e.delivered();
-                    ItemStack it = new ItemStack(e.kind() == Kind.BUY ? Material.PAPER : e.kind() == Kind.GRANT ? Material.NETHER_STAR : Material.MAP);
+                    ItemStack it = new ItemStack(switch (e.kind()) {
+                        case BUY -> Material.PAPER;
+                        case GRANT -> Material.NETHER_STAR;
+                        case WITHDRAW -> Material.GOLD_NUGGET;
+                        case DEPOSIT -> Material.GOLD_INGOT;
+                        default -> Material.MAP;
+                    });
                     it.editMeta(m -> {
                         m.itemName(Lang.item("donation.history-tile-name", "number", e.id(), "what", what(e)));
                         m.lore(Lang.items(waiting ? "donation.history-tile-lore-pending" : "donation.history-tile-lore", "when", when(e.created()),
@@ -560,6 +578,162 @@ public final class DonationModule implements StsvModule, Listener, TabExecutor {
     }
 
     // ------------------------------------------------------------------------------------------
+    // Star notes: currency out as an item (traded between players), paid in by whoever uses it
+    // ------------------------------------------------------------------------------------------
+
+    private boolean withdrawOn() {
+        return plugin.getConfig().getBoolean("donation.withdraw.enabled", true);
+    }
+
+    private long withdrawMin() {
+        return Math.max(1, plugin.getConfig().getLong("donation.withdraw.min", 10));
+    }
+
+    /** /후원 출금 <수량>: the stars off the books first, then the note into the inventory. */
+    private void withdraw(Player p, String[] a) {
+        if (!withdrawOn()) {
+            p.sendMessage(Lang.msg("donation.withdraw-off"));
+            return;
+        }
+        long amount;
+        try {
+            amount = a.length > 1 ? Long.parseLong(a[1].replace(",", "")) : 0;
+        } catch (NumberFormatException e) {
+            amount = 0;
+        }
+        long min = withdrawMin();
+        if (amount < 1 || amount > 10_000_000) {
+            p.sendMessage(Lang.msg("donation.withdraw-usage", "min", shop.amount(min)));
+            return;
+        }
+        if (amount < min) {
+            p.sendMessage(Lang.msg("donation.withdraw-min", "min", shop.amount(min)));
+            return;
+        }
+        if (p.getInventory().firstEmpty() < 0) {
+            p.sendMessage(Lang.msg("donation.withdraw-no-room"));
+            return;
+        }
+        UUID id = p.getUniqueId();
+        if (!busy.add(id)) {
+            p.sendMessage(Lang.msg("donation.busy"));
+            return;
+        }
+        final long n = amount;
+        long now = System.currentTimeMillis();
+        store.withdraw(id, p.getName(), n, now).thenAccept(w -> Bukkit.getScheduler().runTask(plugin, () -> {
+            busy.remove(id);
+            if (w.result().outcome() != Outcome.DONE) {
+                if (p.isOnline()) p.sendMessage(Lang.msg("donation.short", "price", shop.amount(n), "balance", shop.amount(w.result().balance())));
+                return;
+            }
+            ItemStack note = noteItem(w.note(), n, p.getName(), now);
+            plugin.getLogger().info("[후원] " + p.getName() + " 출금 #" + w.result().entry() + ": 증서 " + w.note() + " " + shop.amount(n)
+                    + " (남은 " + shop.amount(w.result().balance()) + ")");
+            if (!p.isOnline()) {
+                // off the books and the player gone before the next tick: the note is in the books, an admin can hand it over
+                plugin.getLogger().warning("[후원] 증서 " + w.note() + " 를 " + p.getName() + " 에게 주지 못함 (접속 종료). /관리자 후원 증서 "
+                        + DonationStore.shortId(w.note()) + " 로 확인 뒤 같은 양을 지급해 주세요 (증서는 입금되지 않은 채로 남음).");
+                return;
+            }
+            p.getInventory().addItem(note).values().forEach(rest -> p.getWorld().dropItem(p.getLocation(), rest));
+            p.sendMessage(Lang.msg("donation.withdrawn", "amount", shop.amount(n), "note", DonationStore.shortId(w.note()),
+                    "balance", shop.amount(w.result().balance()), "number", w.result().entry()));
+            p.playSound(p.getLocation(), Sound.ITEM_BOOK_PAGE_TURN, 0.8f, 1.1f);
+        })).exceptionally(err -> {
+            Bukkit.getScheduler().runTask(plugin, () -> busy.remove(id));
+            return failed(p, err);
+        });
+    }
+
+    private ItemStack noteItem(String note, long amount, String issuer, long created) {
+        ItemStack item = plugin.content().item("stsv:star_note").map(i -> i.create(1)).orElseGet(() -> new ItemStack(Material.PAPER));
+        Object[] args = {"amount", shop.amount(amount), "note", DonationStore.shortId(note), "issuer", issuer,
+                "date", new SimpleDateFormat("yyyy-MM-dd").format(new Date(created))};
+        item.editMeta(m -> {
+            m.itemName(Lang.item("donation.note-name", args));
+            m.lore(Lang.items("donation.note-lore", args));
+            m.setMaxStackSize(1);
+            m.getPersistentDataContainer().set(NOTE, PersistentDataType.STRING, note);
+        });
+        return item;
+    }
+
+    private static String noteId(ItemStack item) {
+        if (item == null || item.isEmpty() || !item.hasItemMeta()) return null;
+        return item.getItemMeta().getPersistentDataContainer().get(NOTE, PersistentDataType.STRING);
+    }
+
+    /** Is this a star note (for menus that must treat it apart)? */
+    public static boolean isNote(ItemStack item) {
+        return noteId(item) != null;
+    }
+
+    /** Right-click with a note: the item leaves the hand first, then the books pay it in once. */
+    @EventHandler(priority = EventPriority.HIGH)
+    public void onUse(PlayerInteractEvent e) {
+        if (e.getHand() != EquipmentSlot.HAND || (e.getAction() != Action.RIGHT_CLICK_AIR && e.getAction() != Action.RIGHT_CLICK_BLOCK)) return;
+        Player p = e.getPlayer();
+        ItemStack hand = p.getInventory().getItemInMainHand();
+        String note = noteId(hand);
+        if (note == null) return;
+        e.setCancelled(true);
+        UUID id = p.getUniqueId();
+        if (!busy.add(id)) {
+            p.sendMessage(Lang.msg("donation.busy"));
+            return;
+        }
+        ItemStack taken = hand.asOne();
+        hand.subtract(1);
+        store.deposit(note, id, p.getName(), System.currentTimeMillis()).whenComplete((d, err) -> Bukkit.getScheduler().runTask(plugin, () -> {
+            busy.remove(id);
+            if (err != null) {
+                plugin.getLogger().log(Level.WARNING, "[후원] 증서 입금 실패 (" + note + ")", err);
+                giveBack(p, taken, note);
+                if (p.isOnline()) p.sendMessage(Lang.msg("donation.note-error"));
+                return;
+            }
+            if (d.note() == null || !d.fresh()) {
+                plugin.getLogger().warning("[후원] " + p.getName() + " 이(가) " + (d.note() == null ? "없는" : "이미 입금된") + " 증서를 쓰려 함: " + note);
+                if (p.isOnline()) p.sendMessage(Lang.msg("donation.note-used"));
+                return;
+            }
+            plugin.getLogger().info("[후원] " + p.getName() + " 입금 #" + d.result().entry() + ": 증서 " + note + " " + shop.amount(d.note().amount())
+                    + " (발행 " + d.note().issuerName() + ", 보유 " + shop.amount(d.result().balance()) + ")");
+            if (!p.isOnline()) return;
+            p.sendMessage(Lang.msg("donation.deposited", "amount", shop.amount(d.note().amount()), "note", DonationStore.shortId(note),
+                    "issuer", d.note().issuerName(), "balance", shop.amount(d.result().balance()), "number", d.result().entry()));
+            p.playSound(p.getLocation(), Sound.ENTITY_EXPERIENCE_ORB_PICKUP, 0.8f, 1.2f);
+        }));
+    }
+
+    private void giveBack(Player p, ItemStack item, String note) {
+        if (!p.isOnline()) {
+            plugin.getLogger().warning("[후원] 증서를 돌려주지 못함 (접속 종료): " + p.getName() + " " + note + " (입금되지 않은 채로 남음)");
+            return;
+        }
+        p.getInventory().addItem(item).values().forEach(rest -> p.getWorld().dropItem(p.getLocation(), rest));
+    }
+
+    private void noteInfo(CommandSender s, String prefix) {
+        store.notes(prefix).thenAccept(list -> Bukkit.getScheduler().runTask(plugin, () -> {
+            if (list.isEmpty()) {
+                s.sendMessage(Lang.msg("donation.admin-note-none", "note", prefix));
+                return;
+            }
+            for (DonationStore.Note n : list) {
+                String state = n.cashedBy() == null ? Lang.raw("donation.admin-note-out")
+                        : Lang.raw("donation.admin-note-cashed", "player", n.cashedName(), "when", when(n.cashedAt()));
+                s.sendMessage(Lang.mm("donation.admin-note", "note", n.id(), "amount", shop.amount(n.amount()), "issuer", n.issuerName(),
+                        "created", when(n.created()), "state", state));
+            }
+        })).exceptionally(err -> {
+            plugin.getLogger().log(Level.WARNING, "[후원] 증서 조회 실패", err);
+            return null;
+        });
+    }
+
+    // ------------------------------------------------------------------------------------------
     // History, administrators
     // ------------------------------------------------------------------------------------------
 
@@ -648,6 +822,10 @@ public final class DonationModule implements StsvModule, Listener, TabExecutor {
                     if (found.isEmpty()) s.sendMessage(Lang.msg("donation.admin-no-player", "name", a[1]));
                     else history(s, found.get(), Names.real(found.get()));
                 });
+            }
+            case "증서", "note" -> {
+                if (a.length < 2) s.sendMessage(Lang.msg("donation.admin-usage"));
+                else noteInfo(s, a[1]);
             }
             case "환불", "refund" -> {
                 long number;

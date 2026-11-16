@@ -253,6 +253,33 @@ def icon_cheque():
     return _core_finish(ic)
 
 
+def icon_star_note():
+    """Donation star note (/후원 출금): a deep-blue banknote with a gold frame and a big gold star, so it never
+    reads as the paper gold cheque."""
+    ic = icons.Icon()
+    for y in range(4, 13):
+        for x in range(1, 15):
+            edge = y in (4, 12) or x in (1, 14)
+            ic.put(x, y, "sapphire", 0 if edge else 1)
+    # thin gold frame inside the edge
+    for x in range(2, 14):
+        ic.put(x, 5, "gold", 2)
+        ic.put(x, 11, "gold", 1)
+    for y in range(5, 12):
+        ic.put(2, y, "gold", 2)
+        ic.put(13, y, "gold", 1)
+    _core_paint(ic, [
+        "..g..",
+        ".gGg.",
+        "ggGgg",
+        ".ggg.",
+        ".g.g.",
+    ], {"g": ("gold", 2), "G": ("gold", 3)}, 4, 6)
+    # the amount line and a small seal on the right
+    _core_paint(ic, ["pp", "..", "pp"], {"p": ("pearl", 2)}, 10, 7)
+    return _core_finish(ic)
+
+
 # ------------------------------------------------------------------------------------------------
 # core (round 2)
 # ------------------------------------------------------------------------------------------------
@@ -559,7 +586,7 @@ def voucher_icons():
     return {key: HAND_DRAWN.get(key, lambda sec=sec: voucher(sec)) for key, (_, sec) in vouchers().items()}
 
 
-ICONS = {"cheque": icon_cheque}
+ICONS = {"cheque": icon_cheque, "star_note": icon_star_note}
 ICONS.update(voucher_icons())
 
 SLOT_KO = {"head": "머리", "above": "머리 위", "shoulder": "어깨", "back": "등", "tail": "꼬리", "pet": "펫",

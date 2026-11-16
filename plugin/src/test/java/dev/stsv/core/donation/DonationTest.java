@@ -110,6 +110,53 @@ class DonationTest {
     }
 
     @Test
+    void starNotes(@TempDir Path dir) throws Exception {
+        Db db = DatabaseModule.sqlite(dir.resolve("stsv.db"), LOG);
+        DonationStore s = open(db);
+        UUID a = UUID.randomUUID(), b = UUID.randomUUID();
+        s.change(a, "Steve", 100, Kind.GRANT, null, null, "admin", false, 1000).get();
+
+        // out: the balance down, a WITHDRAW line naming the note; credited and spent as they were
+        var out = s.withdraw(a, "Steve", 30, 2000).get();
+        assertEquals(Outcome.DONE, out.result().outcome());
+        assertEquals(70, out.result().balance());
+        assertEquals(new DonationStore.Account(70, 100, 0), s.account(a).get());
+        var line = s.history(a, 10).get().getFirst();
+        assertEquals(Kind.WITHDRAW, line.kind());
+        assertEquals(-30, line.amount());
+        assertTrue(line.note().contains(DonationStore.shortId(out.note())), "the line names the note");
+        // more than is held: refused, no note
+        var tooMuch = s.withdraw(a, "Steve", 71, 2100).get();
+        assertEquals(Outcome.SHORT, tooMuch.result().outcome());
+        assertNull(tooMuch.note());
+        assertEquals(1, s.outstanding().get()[0], "one note out there");
+        assertEquals(30, s.outstanding().get()[1]);
+
+        // in, by someone else (it was traded): their balance up with a DEPOSIT line naming the issuer; once only
+        var in = s.deposit(out.note(), b, "Alex", 3000).get();
+        assertTrue(in.fresh());
+        assertEquals(30, in.result().balance());
+        assertEquals(new DonationStore.Account(30, 0, 0), s.account(b).get(), "paid in, not credited by an admin");
+        var dep = s.history(b, 10).get().getFirst();
+        assertEquals(Kind.DEPOSIT, dep.kind());
+        assertTrue(dep.note().contains("Steve"), "the line says whose note it was");
+        assertFalse(s.deposit(out.note(), b, "Alex", 3100).get().fresh(), "never paid in twice");
+        assertFalse(s.deposit(out.note(), a, "Steve", 3200).get().fresh(), "not by the issuer either");
+        assertNull(s.deposit(UUID.randomUUID().toString(), a, "Steve", 3300).get().note(), "a made-up note");
+        assertEquals(30, s.account(b).get().balance());
+        assertEquals(70, s.account(a).get().balance());
+        assertEquals(0, s.outstanding().get()[0]);
+
+        // an administrator looks a note up by its short id
+        var found = s.notes(DonationStore.shortId(out.note())).get();
+        assertEquals(1, found.size());
+        assertEquals("Steve", found.getFirst().issuerName());
+        assertEquals("Alex", found.getFirst().cashedName());
+        assertEquals(b, found.getFirst().cashedBy());
+        db.close();
+    }
+
+    @Test
     void theCatalogue() throws Exception {
         YamlConfiguration y = new YamlConfiguration();
         y.loadFromString("""
@@ -285,6 +332,10 @@ class DonationTest {
         assertEquals("donation:confirm", menu.getString("donation_buy.buttons.Y.action"));
     }
 
+    private YamlConfiguration messages0() {
+        return YamlConfiguration.loadConfiguration(new InputStreamReader(getClass().getResourceAsStream("/messages.yml"), StandardCharsets.UTF_8));
+    }
+
     @Test
     void theCommandAndItsWords() {
         var plugin = YamlConfiguration.loadConfiguration(new InputStreamReader(getClass().getResourceAsStream("/plugin.yml"), StandardCharsets.UTF_8));
@@ -292,10 +343,15 @@ class DonationTest {
         assertEquals("true", plugin.getString("permissions." + DonationModule.PERMISSION + ".default"));
         var config = YamlConfiguration.loadConfiguration(new InputStreamReader(getClass().getResourceAsStream("/config.yml"), StandardCharsets.UTF_8));
         assertTrue(config.getBoolean("donation.enabled"));
+        assertTrue(config.getBoolean("donation.withdraw.enabled"));
+        assertTrue(config.getLong("donation.withdraw.min") >= 1);
+        assertTrue(messages0().isList("donation.note-lore"));
         var messages = YamlConfiguration.loadConfiguration(new InputStreamReader(getClass().getResourceAsStream("/messages.yml"), StandardCharsets.UTF_8));
         for (Kind k : Kind.values()) assertTrue(messages.isString("donation.kind." + k.name().toLowerCase()), k.name());
         for (String key : List.of("tab-history", "tile-name", "history-tile-name", "not-sellable", "balance", "bought", "short", "already", "delivered", "pending-room", "no-room", "received", "admin-given",
-                "admin-taken", "admin-refunded", "admin-refunded-pending", "admin-refunded-before", "history-entry", "history-pending")) {
+                "admin-taken", "admin-refunded", "admin-refunded-pending", "admin-refunded-before", "history-entry", "history-pending",
+                "withdraw-usage", "withdraw-off", "withdraw-min", "withdraw-no-room", "withdrawn", "deposited", "note-used", "note-error", "note-name",
+                "admin-note-none", "admin-note", "admin-note-out", "admin-note-cashed")) {
             assertTrue(messages.isString("donation." + key), key);
         }
     }

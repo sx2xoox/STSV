@@ -28,8 +28,25 @@ public final class DonationStore {
         /** The player bought a product. */
         BUY,
         /** A purchase undone by an administrator: the price back. */
-        REFUND
+        REFUND,
+        /** The player took currency out as a star note (an item others can trade and pay in). */
+        WITHDRAW,
+        /** A star note paid in: its currency onto the account of whoever used it. */
+        DEPOSIT
     }
+
+    /**
+     * A star note: currency taken out of the books into an item, paid in once.
+     *
+     * @param cashedBy who paid it in (null: still out there)
+     */
+    public record Note(String id, long amount, UUID issuer, String issuerName, long created, UUID cashedBy, String cashedName, long cashedAt) {}
+
+    /** How taking a note out went: the line written ({@link Outcome#DONE}) and the note's id, or the balance as it is. */
+    public record Withdrawn(Result result, String note) {}
+
+    /** How paying a note in went: null note: no such note; {@code fresh} false: it was paid in before. */
+    public record Deposited(Note note, boolean fresh, Result result) {}
 
     /**
      * One line of the books.
@@ -68,7 +85,9 @@ public final class DonationStore {
                 "CREATE TABLE IF NOT EXISTS stsv_donation_log (" + id + ", player CHAR(36) NOT NULL, kind VARCHAR(8) NOT NULL, "
                         + "amount BIGINT NOT NULL, balance BIGINT NOT NULL, product VARCHAR(64), note VARCHAR(200), actor VARCHAR(32), "
                         + "delivered INT NOT NULL, created BIGINT NOT NULL)",
-                "CREATE INDEX stsv_donation_log_player ON stsv_donation_log (player, id)")));
+                "CREATE INDEX stsv_donation_log_player ON stsv_donation_log (player, id)"),
+                List.of("CREATE TABLE IF NOT EXISTS stsv_donation_note (id CHAR(36) PRIMARY KEY, amount BIGINT NOT NULL, issuer CHAR(36) NOT NULL, "
+                        + "issuer_name VARCHAR(16) NOT NULL, created BIGINT NOT NULL, cashed_by CHAR(36), cashed_name VARCHAR(16), cashed_at BIGINT)")));
     }
 
     private static Account account(Connection c, UUID player) throws SQLException {
@@ -229,6 +248,93 @@ public final class DonationStore {
             List<Entry> e = Db.query(c, "SELECT " + COLS + " FROM stsv_donation_log WHERE id = ?", DonationStore::entry, id);
             return e.isEmpty() ? null : e.getFirst();
         });
+    }
+
+    /** The short form of a note's id shown to players and in the books (its first eight characters). */
+    public static String shortId(String note) {
+        return note == null ? "" : note.substring(0, Math.min(8, note.length()));
+    }
+
+    /**
+     * Takes currency out as a star note, all or nothing: the balance goes down (never below nothing), a WITHDRAW line
+     * is written naming the note, and the note is stored as not paid in. Withdrawing is not spending: what the player
+     * was credited and spent stays as it was.
+     */
+    public CompletableFuture<Withdrawn> withdraw(UUID player, String name, long amount, long now) {
+        return db.async(c -> {
+            boolean auto = c.getAutoCommit();
+            c.setAutoCommit(false);
+            try {
+                String note = UUID.randomUUID().toString();
+                Result r = change(c, player, name, -amount, Kind.WITHDRAW, null, "증서 " + shortId(note), name, false, now);
+                if (r.outcome() != Outcome.DONE) {
+                    c.rollback();
+                    return new Withdrawn(r, null);
+                }
+                Db.update(c, "INSERT INTO stsv_donation_note (id, amount, issuer, issuer_name, created) VALUES (?, ?, ?, ?, ?)",
+                        note, amount, player.toString(), cut(name, 16), now);
+                c.commit();
+                return new Withdrawn(r, note);
+            } catch (SQLException | RuntimeException e) {
+                c.rollback();
+                throw e;
+            } finally {
+                c.setAutoCommit(auto);
+            }
+        });
+    }
+
+    /**
+     * Pays a star note in, once: the note is marked first (one statement, so only one caller ever gets it), then a
+     * DEPOSIT line credits its amount to whoever used it, in the same transaction.
+     */
+    public CompletableFuture<Deposited> deposit(String id, UUID player, String name, long now) {
+        return db.async(c -> {
+            boolean auto = c.getAutoCommit();
+            c.setAutoCommit(false);
+            try {
+                List<Note> found = Db.query(c, "SELECT " + NOTE_COLS + " FROM stsv_donation_note WHERE id = ?", DonationStore::note, id);
+                if (found.isEmpty()) {
+                    c.rollback();
+                    return new Deposited(null, false, null);
+                }
+                Note n = found.getFirst();
+                if (Db.update(c, "UPDATE stsv_donation_note SET cashed_by = ?, cashed_name = ?, cashed_at = ? WHERE id = ? AND cashed_by IS NULL",
+                        player.toString(), cut(name, 16), now, id) != 1) {
+                    c.rollback();
+                    return new Deposited(n, false, null);
+                }
+                Result r = change(c, player, name, n.amount(), Kind.DEPOSIT, null, "증서 " + shortId(id) + " · 발행 " + n.issuerName(), name, false, now);
+                c.commit();
+                return new Deposited(new Note(n.id(), n.amount(), n.issuer(), n.issuerName(), n.created(), player, name, now), true, r);
+            } catch (SQLException | RuntimeException e) {
+                c.rollback();
+                throw e;
+            } finally {
+                c.setAutoCommit(auto);
+            }
+        });
+    }
+
+    private static final String NOTE_COLS = "id, amount, issuer, issuer_name, created, cashed_by, cashed_name, cashed_at";
+
+    private static Note note(java.sql.ResultSet rs) throws SQLException {
+        String cashed = rs.getString(6);
+        return new Note(rs.getString(1), rs.getLong(2), UUID.fromString(rs.getString(3)), rs.getString(4), rs.getLong(5),
+                cashed == null ? null : UUID.fromString(cashed), rs.getString(7), rs.getLong(8));
+    }
+
+    /** Notes whose id starts with this (an administrator types the short id), newest first. */
+    public CompletableFuture<List<Note>> notes(String prefix) {
+        String p = prefix.toLowerCase(java.util.Locale.ROOT).replaceAll("[^0-9a-f-]", "");
+        return db.async(c -> p.isEmpty() ? List.<Note>of()
+                : Db.query(c, "SELECT " + NOTE_COLS + " FROM stsv_donation_note WHERE id LIKE ? ORDER BY created DESC LIMIT 5", DonationStore::note, p + "%"));
+    }
+
+    /** Notes out there not yet paid in: how many and their currency (a report). */
+    public CompletableFuture<long[]> outstanding() {
+        return db.async(c -> Db.query(c, "SELECT COUNT(*), COALESCE(SUM(amount), 0) FROM stsv_donation_note WHERE cashed_by IS NULL",
+                rs -> new long[]{rs.getLong(1), rs.getLong(2)}).getFirst());
     }
 
     /** All the currency ever credited and ever spent, and how many players hold any (a report). */

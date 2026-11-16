@@ -6,3 +6,11 @@ cheque:
   name: "<gold>수표"
   texture: cheque
   max-stack: 1
+
+# 별 증서: /후원 출금 <수량> 으로 후원 별을 꺼낸 것. 거래소 · 직거래 · 경매로 주고받고, 우클릭하면 쓴 사람의 별로 입금됨.
+# 한 장은 딱 한 번만 입금됨 (번호가 장부에 있어 복사해도 소용없음). 이름/설명은 플러그인이 채움 (messages.yml donation.note-*)
+star_note:
+  material: paper
+  name: "<gold>★ 별 증서"
+  texture: star_note
+  max-stack: 1
