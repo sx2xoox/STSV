@@ -1,0 +1,329 @@
+# ──────────────────────────────────────────────────────────────────
+#  치장 C 묶음: 허리 8종, 발자취 3종, 처치 효과 3종, 오라 8종 (모두 치장 뽑기) + 각각의 교환권
+#  형식은 cosmetics.yml / cosmetic_vouchers.yml 과 같음.
+#    허리(waist): 허리띠 높이에 붙는 모델 (config.yml cosmetics.anchors.waist), 몸을 따라 돎
+#    오라(aura): 가만히 서 있으면 몸 주위를 도는 파티클 고리. count = 고리의 점 수, spread = 반지름(칸),
+#                height = 발에서의 높이 (0.1 = 바닥 고리, 1 = 가슴 높이)
+#  모델: tools/assetgen/models/cosmetics_batch_c.py · 교환권 그림: tools/assetgen/voucher_art_batch_c.py
+# ──────────────────────────────────────────────────────────────────
+
+# ── 허리 ─────────────────────────────────────────────────────────────
+hip_pouch:
+  material: paper
+  name: "<#ffd84a>허리 가방"
+  lore: ["<gray>노란 나일론 힙색. 지퍼 앞주머니까지"]
+  model: hip_pouch
+  max-stack: 1
+  cosmetic: { slot: waist, rarity: common, obtain: "치장 뽑기 (/뽑기)" }
+
+lucky_pouch:
+  material: paper
+  name: "<#e0303f>복주머니"
+  lore: ["<gray>금실 매듭을 지은 붉은 비단 주머니"]
+  model: lucky_pouch
+  max-stack: 1
+  cosmetic: { slot: waist, rarity: common, obtain: "치장 뽑기 (/뽑기)" }
+
+canteen:
+  material: paper
+  name: "<#7a9a5a>물통"
+  lore: ["<gray>허리에 찬 국방색 수통"]
+  model: canteen
+  max-stack: 1
+  cosmetic: { slot: waist, rarity: common, obtain: "치장 뽑기 (/뽑기)" }
+
+toy_sword_belt:
+  material: paper
+  name: "<#5ab0ff>장난감 칼과 칼집"
+  lore: ["<gray>왼쪽 허리에 비스듬히 찬 장난감 칼"]
+  model: toy_sword_belt
+  max-stack: 1
+  cosmetic: { slot: waist, rarity: rare, obtain: "치장 뽑기 (/뽑기)" }
+
+key_ring:
+  material: paper
+  name: "<#e8c66a>열쇠 꾸러미"
+  lore: ["<gray>짤랑짤랑 열쇠 네 개와 웃는 고리"]
+  model: key_ring
+  max-stack: 1
+  cosmetic: { slot: waist, rarity: rare, obtain: "치장 뽑기 (/뽑기)" }
+
+tool_belt:
+  material: paper
+  name: "<#c8a46e>공구 벨트"
+  lore: ["<gray>망치, 드라이버, 연필, 줄자"]
+  model: tool_belt
+  max-stack: 1
+  cosmetic: { slot: waist, rarity: rare, obtain: "치장 뽑기 (/뽑기)" }
+
+hula_skirt:
+  material: paper
+  name: "<#7fd65a>훌라 치마"
+  lore: ["<gray>풀잎 치마에 분홍 히비스커스 한 송이"]
+  model: hula_skirt
+  max-stack: 1
+  cosmetic: { slot: waist, rarity: epic, obtain: "치장 뽑기 (/뽑기)" }
+
+champion_belt:
+  material: paper
+  name: "<#ffcf3f>챔피언 벨트"
+  lore: ["<gray>루비 박힌 금 버클의 우승 벨트"]
+  model: champion_belt
+  max-stack: 1
+  cosmetic: { slot: waist, rarity: epic, obtain: "치장 뽑기 (/뽑기)" }
+
+# ── 발자취 ───────────────────────────────────────────────────────────
+bubble_trail:
+  material: glass_bottle
+  name: "<#9fe2ff>비눗방울 발자취"
+  lore: ["<gray>걸음마다 작은 비눗방울이 톡톡"]
+  max-stack: 1
+  cosmetic: { slot: trail, rarity: common, obtain: "치장 뽑기 (/뽑기)", particle: bubble_pop, count: 3, spread: 0.2, speed: 0.02, height: 0.3 }
+
+glitter_trail:
+  material: sugar
+  name: "<#f4f4ff>반짝이 발자취"
+  lore: ["<gray>지나간 자리에 하얀 반짝이"]
+  max-stack: 1
+  cosmetic: { slot: trail, rarity: common, obtain: "치장 뽑기 (/뽑기)", particle: wax_off, count: 3, spread: 0.25, speed: 0.5, height: 0.2 }
+
+magic_trail:
+  material: lapis_lazuli
+  name: "<#8f7cff>마법 글자 발자취"
+  lore: ["<gray>발밑에서 마법 글자가 피어오름"]
+  max-stack: 1
+  cosmetic: { slot: trail, rarity: rare, obtain: "치장 뽑기 (/뽑기)", particle: enchant, count: 6, spread: 0.3, speed: 0.6, height: 0.6 }
+
+# ── 처치 효과 ─────────────────────────────────────────────────────────
+kill_bubbles:
+  material: prismarine_crystals
+  name: "<#7fd8ff>비눗방울 펑"
+  lore: ["<gray>잡으면 비눗방울이 퐁퐁"]
+  max-stack: 1
+  cosmetic: { slot: kill, rarity: common, obtain: "치장 뽑기 (/뽑기)", particle: bubble_pop, count: 30, spread: 0.5, speed: 0.08, sound: block.bubble_column.bubble_pop }
+
+kill_leaves:
+  material: oak_leaves
+  name: "<#cfd9c0>낙엽 우수수"
+  lore: ["<gray>잡으면 잎사귀가 우수수"]
+  max-stack: 1
+  cosmetic: { slot: kill, rarity: common, obtain: "치장 뽑기 (/뽑기)", particle: pale_oak_leaves, count: 25, spread: 0.6, speed: 0.05, sound: block.azalea_leaves.break }
+
+kill_totem:
+  material: totem_of_undying
+  name: "<#ffd65a>불사의 빛"
+  lore: ["<gray>잡으면 금빛 초록빛 불꽃이 솟구침"]
+  max-stack: 1
+  cosmetic: { slot: kill, rarity: rare, obtain: "치장 뽑기 (/뽑기)", particle: totem_of_undying, count: 40, spread: 0.3, speed: 0.4, sound: entity.player.levelup }
+
+# ── 오라 (가만히 서 있으면 몸 주위를 도는 고리) ───────────────────────
+firefly_aura:
+  material: glow_berries
+  name: "<#d8ff7a>반딧불 오라"
+  lore: ["<gray>가만히 있으면 반딧불이 몸 주위를 맴돎"]
+  max-stack: 1
+  cosmetic: { slot: aura, rarity: common, obtain: "치장 뽑기 (/뽑기)", particle: firefly, count: 6, spread: 0.7, speed: 0, height: 1.0 }
+
+petal_aura:
+  material: pink_tulip
+  name: "<#ffb7d5>꽃잎 고리"
+  lore: ["<gray>허리 높이로 벚꽃잎이 빙글빙글"]
+  max-stack: 1
+  cosmetic: { slot: aura, rarity: common, obtain: "치장 뽑기 (/뽑기)", particle: cherry_leaves, count: 8, spread: 0.6, speed: 0, height: 1.0 }
+
+rain_aura:
+  material: light_blue_dye
+  name: "<#8fc8ff>빗방울 고리"
+  lore: ["<gray>머리 위 둘레에서 빗방울이 똑똑"]
+  max-stack: 1
+  cosmetic: { slot: aura, rarity: common, obtain: "치장 뽑기 (/뽑기)", particle: falling_water, count: 8, spread: 0.55, speed: 0, height: 2.1 }
+
+heart_aura:
+  material: poppy
+  name: "<#ff7aa2>하트 고리"
+  lore: ["<gray>가슴 높이로 하트가 둥글게"]
+  max-stack: 1
+  cosmetic: { slot: aura, rarity: rare, obtain: "치장 뽑기 (/뽑기)", particle: heart, count: 6, spread: 0.75, speed: 0, height: 1.1 }
+
+note_aura:
+  material: jukebox
+  name: "<#7fe07a>음표 고리"
+  lore: ["<gray>머리 둘레를 도는 알록달록 음표"]
+  max-stack: 1
+  cosmetic: { slot: aura, rarity: rare, obtain: "치장 뽑기 (/뽑기)", particle: note, count: 6, spread: 0.6, speed: 1, height: 2.0 }
+
+snow_aura:
+  material: powder_snow_bucket
+  name: "<#e4f4ff>눈송이 고리"
+  lore: ["<gray>발밑에 눈송이가 원을 그림"]
+  max-stack: 1
+  cosmetic: { slot: aura, rarity: rare, obtain: "치장 뽑기 (/뽑기)", particle: snowflake, count: 10, spread: 0.8, speed: 0, height: 0.1 }
+
+ember_aura:
+  material: campfire
+  name: "<#ff9a3d>불씨 고리"
+  lore: ["<gray>발밑에 불꽃이 원을 그리며 타오름"]
+  max-stack: 1
+  cosmetic: { slot: aura, rarity: epic, obtain: "치장 뽑기 (/뽑기)", particle: flame, count: 12, spread: 0.85, speed: 0, height: 0.1, sound: block.fire.ambient }
+
+star_aura:
+  material: nether_star
+  name: "<#c58cff>별가루 오라"
+  lore: ["<gray>무지갯빛 별가루가 온몸을 감쌈"]
+  max-stack: 1
+  cosmetic: { slot: aura, rarity: epic, obtain: "치장 뽑기 (/뽑기)", particle: dust, color: rainbow, count: 12, spread: 0.8, height: 1.0 }
+
+# ══ 교환권 ═══════════════════════════════════════════════════════════
+hip_pouch_voucher:
+  material: paper
+  name: "<#ffd84a>허리 가방 교환권"
+  lore: ["<gray>◆ 일반 <dark_gray>· <gray>허리 치장", "<gray>우클릭: 허리 가방을 계정에 등록합니다.", "<dark_gray>등록 후 /치장 에서 착용 · 거래소에서 사고팔 수 있음"]
+  texture: hip_pouch_voucher
+  voucher: { cosmetic: hip_pouch }
+
+lucky_pouch_voucher:
+  material: paper
+  name: "<#e0303f>복주머니 교환권"
+  lore: ["<gray>◆ 일반 <dark_gray>· <gray>허리 치장", "<gray>우클릭: 복주머니를 계정에 등록합니다.", "<dark_gray>등록 후 /치장 에서 착용 · 거래소에서 사고팔 수 있음"]
+  texture: lucky_pouch_voucher
+  voucher: { cosmetic: lucky_pouch }
+
+canteen_voucher:
+  material: paper
+  name: "<#7a9a5a>물통 교환권"
+  lore: ["<gray>◆ 일반 <dark_gray>· <gray>허리 치장", "<gray>우클릭: 물통을 계정에 등록합니다.", "<dark_gray>등록 후 /치장 에서 착용 · 거래소에서 사고팔 수 있음"]
+  texture: canteen_voucher
+  voucher: { cosmetic: canteen }
+
+toy_sword_belt_voucher:
+  material: paper
+  name: "<#5ab0ff>장난감 칼과 칼집 교환권"
+  lore: ["<#5ab0ff>◆ 희귀 <dark_gray>· <gray>허리 치장", "<gray>우클릭: 장난감 칼과 칼집을 계정에 등록합니다.", "<dark_gray>등록 후 /치장 에서 착용 · 거래소에서 사고팔 수 있음"]
+  texture: toy_sword_belt_voucher
+  voucher: { cosmetic: toy_sword_belt }
+
+key_ring_voucher:
+  material: paper
+  name: "<#e8c66a>열쇠 꾸러미 교환권"
+  lore: ["<#5ab0ff>◆ 희귀 <dark_gray>· <gray>허리 치장", "<gray>우클릭: 열쇠 꾸러미를 계정에 등록합니다.", "<dark_gray>등록 후 /치장 에서 착용 · 거래소에서 사고팔 수 있음"]
+  texture: key_ring_voucher
+  voucher: { cosmetic: key_ring }
+
+tool_belt_voucher:
+  material: paper
+  name: "<#c8a46e>공구 벨트 교환권"
+  lore: ["<#5ab0ff>◆ 희귀 <dark_gray>· <gray>허리 치장", "<gray>우클릭: 공구 벨트를 계정에 등록합니다.", "<dark_gray>등록 후 /치장 에서 착용 · 거래소에서 사고팔 수 있음"]
+  texture: tool_belt_voucher
+  voucher: { cosmetic: tool_belt }
+
+hula_skirt_voucher:
+  material: paper
+  name: "<#7fd65a>훌라 치마 교환권"
+  lore: ["<#c58cff>◆ 영웅 <dark_gray>· <gray>허리 치장", "<gray>우클릭: 훌라 치마를 계정에 등록합니다.", "<dark_gray>등록 후 /치장 에서 착용 · 거래소에서 사고팔 수 있음"]
+  texture: hula_skirt_voucher
+  voucher: { cosmetic: hula_skirt }
+
+champion_belt_voucher:
+  material: paper
+  name: "<#ffcf3f>챔피언 벨트 교환권"
+  lore: ["<#c58cff>◆ 영웅 <dark_gray>· <gray>허리 치장", "<gray>우클릭: 챔피언 벨트를 계정에 등록합니다.", "<dark_gray>등록 후 /치장 에서 착용 · 거래소에서 사고팔 수 있음"]
+  texture: champion_belt_voucher
+  voucher: { cosmetic: champion_belt }
+
+bubble_trail_voucher:
+  material: paper
+  name: "<#9fe2ff>비눗방울 발자취 교환권"
+  lore: ["<gray>◆ 일반 <dark_gray>· <gray>발자취", "<gray>우클릭: 비눗방울 발자취를 계정에 등록합니다.", "<dark_gray>등록 후 /치장 에서 착용 · 거래소에서 사고팔 수 있음"]
+  texture: bubble_trail_voucher
+  voucher: { cosmetic: bubble_trail }
+
+glitter_trail_voucher:
+  material: paper
+  name: "<#f4f4ff>반짝이 발자취 교환권"
+  lore: ["<gray>◆ 일반 <dark_gray>· <gray>발자취", "<gray>우클릭: 반짝이 발자취를 계정에 등록합니다.", "<dark_gray>등록 후 /치장 에서 착용 · 거래소에서 사고팔 수 있음"]
+  texture: glitter_trail_voucher
+  voucher: { cosmetic: glitter_trail }
+
+magic_trail_voucher:
+  material: paper
+  name: "<#8f7cff>마법 글자 발자취 교환권"
+  lore: ["<#5ab0ff>◆ 희귀 <dark_gray>· <gray>발자취", "<gray>우클릭: 마법 글자 발자취를 계정에 등록합니다.", "<dark_gray>등록 후 /치장 에서 착용 · 거래소에서 사고팔 수 있음"]
+  texture: magic_trail_voucher
+  voucher: { cosmetic: magic_trail }
+
+kill_bubbles_voucher:
+  material: paper
+  name: "<#7fd8ff>비눗방울 펑 교환권"
+  lore: ["<gray>◆ 일반 <dark_gray>· <gray>처치 효과", "<gray>우클릭: 비눗방울 펑을 계정에 등록합니다.", "<dark_gray>등록 후 /치장 에서 착용 · 거래소에서 사고팔 수 있음"]
+  texture: kill_bubbles_voucher
+  voucher: { cosmetic: kill_bubbles }
+
+kill_leaves_voucher:
+  material: paper
+  name: "<#cfd9c0>낙엽 우수수 교환권"
+  lore: ["<gray>◆ 일반 <dark_gray>· <gray>처치 효과", "<gray>우클릭: 낙엽 우수수를 계정에 등록합니다.", "<dark_gray>등록 후 /치장 에서 착용 · 거래소에서 사고팔 수 있음"]
+  texture: kill_leaves_voucher
+  voucher: { cosmetic: kill_leaves }
+
+kill_totem_voucher:
+  material: paper
+  name: "<#ffd65a>불사의 빛 교환권"
+  lore: ["<#5ab0ff>◆ 희귀 <dark_gray>· <gray>처치 효과", "<gray>우클릭: 불사의 빛을 계정에 등록합니다.", "<dark_gray>등록 후 /치장 에서 착용 · 거래소에서 사고팔 수 있음"]
+  texture: kill_totem_voucher
+  voucher: { cosmetic: kill_totem }
+
+firefly_aura_voucher:
+  material: paper
+  name: "<#d8ff7a>반딧불 오라 교환권"
+  lore: ["<gray>◆ 일반 <dark_gray>· <gray>오라", "<gray>우클릭: 반딧불 오라를 계정에 등록합니다.", "<dark_gray>등록 후 /치장 에서 착용 · 거래소에서 사고팔 수 있음"]
+  texture: firefly_aura_voucher
+  voucher: { cosmetic: firefly_aura }
+
+petal_aura_voucher:
+  material: paper
+  name: "<#ffb7d5>꽃잎 고리 교환권"
+  lore: ["<gray>◆ 일반 <dark_gray>· <gray>오라", "<gray>우클릭: 꽃잎 고리를 계정에 등록합니다.", "<dark_gray>등록 후 /치장 에서 착용 · 거래소에서 사고팔 수 있음"]
+  texture: petal_aura_voucher
+  voucher: { cosmetic: petal_aura }
+
+rain_aura_voucher:
+  material: paper
+  name: "<#8fc8ff>빗방울 고리 교환권"
+  lore: ["<gray>◆ 일반 <dark_gray>· <gray>오라", "<gray>우클릭: 빗방울 고리를 계정에 등록합니다.", "<dark_gray>등록 후 /치장 에서 착용 · 거래소에서 사고팔 수 있음"]
+  texture: rain_aura_voucher
+  voucher: { cosmetic: rain_aura }
+
+heart_aura_voucher:
+  material: paper
+  name: "<#ff7aa2>하트 고리 교환권"
+  lore: ["<#5ab0ff>◆ 희귀 <dark_gray>· <gray>오라", "<gray>우클릭: 하트 고리를 계정에 등록합니다.", "<dark_gray>등록 후 /치장 에서 착용 · 거래소에서 사고팔 수 있음"]
+  texture: heart_aura_voucher
+  voucher: { cosmetic: heart_aura }
+
+note_aura_voucher:
+  material: paper
+  name: "<#7fe07a>음표 고리 교환권"
+  lore: ["<#5ab0ff>◆ 희귀 <dark_gray>· <gray>오라", "<gray>우클릭: 음표 고리를 계정에 등록합니다.", "<dark_gray>등록 후 /치장 에서 착용 · 거래소에서 사고팔 수 있음"]
+  texture: note_aura_voucher
+  voucher: { cosmetic: note_aura }
+
+snow_aura_voucher:
+  material: paper
+  name: "<#e4f4ff>눈송이 고리 교환권"
+  lore: ["<#5ab0ff>◆ 희귀 <dark_gray>· <gray>오라", "<gray>우클릭: 눈송이 고리를 계정에 등록합니다.", "<dark_gray>등록 후 /치장 에서 착용 · 거래소에서 사고팔 수 있음"]
+  texture: snow_aura_voucher
+  voucher: { cosmetic: snow_aura }
+
+ember_aura_voucher:
+  material: paper
+  name: "<#ff9a3d>불씨 고리 교환권"
+  lore: ["<#c58cff>◆ 영웅 <dark_gray>· <gray>오라", "<gray>우클릭: 불씨 고리를 계정에 등록합니다.", "<dark_gray>등록 후 /치장 에서 착용 · 거래소에서 사고팔 수 있음"]
+  texture: ember_aura_voucher
+  voucher: { cosmetic: ember_aura }
+
+star_aura_voucher:
+  material: paper
+  name: "<#c58cff>별가루 오라 교환권"
+  lore: ["<#c58cff>◆ 영웅 <dark_gray>· <gray>오라", "<gray>우클릭: 별가루 오라를 계정에 등록합니다.", "<dark_gray>등록 후 /치장 에서 착용 · 거래소에서 사고팔 수 있음"]
+  texture: star_aura_voucher
+  voucher: { cosmetic: star_aura }
