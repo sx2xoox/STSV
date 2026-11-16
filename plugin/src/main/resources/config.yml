@@ -225,6 +225,26 @@ cosmetics:
     waist: [0, -1.00, 0]      # 허리 (허리 가방 · 칼집 · 복주머니): 허리띠 높이
 
 # 저장소: 치장 보유, 플레이어 기록 등 월드와 별개로 남는 데이터
+# 자동 백업 (/관리자 백업): 월드 · 플러그인 데이터(DB 는 깨끗한 복사본) · 서버 설정을 시간 이름의 폴더에 통째로.
+# 바뀌지 않은 파일은 이전 백업과 공유해서(하드 링크) 자주 백업해도 공간을 적게 씀. 되돌리는 법은 백업 폴더 안 복원방법.txt, README "백업과 복구"
+backup:
+  enabled: true
+  # 몇 분마다
+  interval-minutes: 60
+  # 백업 폴더 (서버 폴더 기준, 또는 /mnt/backup/stsv 같은 절대 경로). 디스크 고장에 대비하려면 다른 디스크로
+  folder: backups
+  # 남길 백업: 최근 N개 + 최근 며칠은 하루에 하나 + 최근 몇 주는 한 주에 하나
+  keep:
+    recent: 24
+    days: 7
+    weeks: 4
+  # 야생월드(지옥 · 엔드 포함)도 백업할지. 자원 월드라 기본은 빼서 공간을 아낌 (플레이어 인벤토리는 건축월드 쪽에 있어 백업됨)
+  wild-worlds: false
+  # 디스크 남은 공간이 이보다 적으면 백업하지 않고 관리자에게 알림
+  min-free-gb: 5
+  # 함께 백업할 다른 것 (서버 폴더 기준 경로). 예: plugins/LuckPerms, plugins/CoreProtect
+  extra: []
+
 database:
   # sqlite = 플러그인 폴더의 파일 하나 (설정 불필요) / mysql = 여러 서버가 같은 데이터를 공유 (MariaDB 도 가능)
   type: sqlite

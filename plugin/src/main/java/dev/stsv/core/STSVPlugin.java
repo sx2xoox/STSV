@@ -71,6 +71,7 @@ public final class STSVPlugin extends JavaPlugin {
         // Order matters: content first (others read it), resource pack last (it needs every item).
         modules.register(database = new DatabaseModule());
         modules.register(new dev.stsv.core.account.AltModule());
+        modules.register(new dev.stsv.core.backup.BackupModule());
         modules.register(content = new ContentModule());
         modules.register(menus = new dev.stsv.core.gui.menu.MenuModule());
         modules.register(unlocks = new dev.stsv.core.unlock.UnlockModule());   // before whatever is owned for good (banners, emotes)

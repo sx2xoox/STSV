@@ -582,11 +582,11 @@ public final class DonationModule implements StsvModule, Listener, TabExecutor {
     // ------------------------------------------------------------------------------------------
 
     private boolean withdrawOn() {
-        return plugin.getConfig().getBoolean("donation.withdraw.enabled", true);
+        return plugin.getConfig().getBoolean("donation.withdraw.enabled");
     }
 
     private long withdrawMin() {
-        return Math.max(1, plugin.getConfig().getLong("donation.withdraw.min", 10));
+        return Math.max(1, plugin.getConfig().getLong("donation.withdraw.min"));
     }
 
     /** /후원 출금 <수량>: the stars off the books first, then the note into the inventory. */

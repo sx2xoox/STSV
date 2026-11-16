@@ -817,3 +817,38 @@ jige:
   admin-owner-away: "<red>{owner}님이 접속해 있지 않거나 인벤토리에 빈칸이 없어요. <gray>(우편함이 없는 서버: 접속해 빈칸이 있을 때 다시 하세요)"
   admin-returned: "<green>지게 #{id}을(를) {owner}님에게 새 아이템으로 보냈어요. <gray>(예전 아이템은 못 씀, 짐은 그대로)"
   admin-kept: "<yellow>{owner}님에게 바로 줄 수 없어 지게 #{id} 새 아이템을 내가 받았어요. 직접 건네주세요. <gray>(예전 아이템은 이미 못 씀)"
+
+# 자동 백업 (/관리자 백업, config.yml backup). README "백업과 복구"
+backup:
+  busy: "<yellow>지금 백업하는 중입니다."
+  started: "<gray>백업 시작: <white>{name}</white> (월드 저장은 복사하는 동안 잠시 멈춤)"
+  done: "<green>백업 완료: <white>{name}</white></green> <gray>(파일 {files}개, 새로 복사 {copied}, {seconds}초)"
+  failed: "<red>[백업 실패] {reason}"
+  no-space: "백업할 디스크 공간이 모자랍니다 (남은 공간 {free}, config backup.min-free-gb)"
+  status: "<gray>자동 백업: {state} <dark_gray>· <gray>폴더 <white>{folder}"
+  report: "<gray>백업: {state}"
+  state-off: "<red>꺼짐</red>"
+  state-running: "<yellow>지금 백업하는 중</yellow>"
+  state-failed: "<red>마지막 백업 실패 ({reason})</red>"
+  state-none: "<gray>아직 없음 ({every}분마다)</gray>"
+  state-last: "<green>{name} ✔ 검사 통과</green> <gray>(파일 {files}개 중 {shared}개는 이전 백업과 공유, 새로 복사 {copied}, {seconds}초 · {every}분마다)</gray>"
+  state-last-bad: "<yellow>{name} (검사에서 문제가 나옴: 백업 폴더의 검사-문제.txt)</yellow> <gray>({every}분마다)</gray>"
+  check-failed: "<red>[백업 검사] {name}: {problem}</red> <gray>(백업 폴더의 검사-문제.txt)"
+  list-head: "<gray>백업 {count}개 <dark_gray>· <gray>{folder} <dark_gray>· <gray>남은 공간 {free}"
+  list-entry: "<dark_gray>- <white>{name}"
+  restore-note: |
+    STSV 백업 {name}
+
+    이 폴더는 서버 폴더와 똑같은 모양입니다 (월드 폴더, plugins/STSV, plugins/STSV-Economy, server.properties ...).
+
+    되돌리는 법
+    1. 서버를 끕니다 (stop).
+    2. 지금 서버 폴더를 통째로 다른 곳에 복사해 둡니다 (되돌린 게 마음에 안 들 때를 위해).
+    3. 이 폴더 안의 것을 모두 서버 폴더에 덮어씁니다. 월드 하나만 되돌리려면 그 월드 폴더만 지우고 이 백업의 것을 넣습니다.
+       DB(plugins/STSV/data/stsv.db)를 덮어쓸 때는 옆의 stsv.db-wal, stsv.db-shm 파일을 지웁니다.
+    4. 서버를 켭니다.
+
+    월드와 DB 는 같은 순간의 것이라 같이 되돌리는 것이 안전합니다 (월드만 되돌리면 땅 · 돈 · 가구 기록은 지금 것).
+    {db}
+  restore-note-mysql: "이 서버는 MySQL 을 써서 DB 는 이 백업에 없습니다. MySQL 쪽 백업(mysqldump)으로 같은 시각의 것을 되돌리세요."
+
