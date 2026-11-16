@@ -1,0 +1,214 @@
+# 치장 묶음 B: 꼬리 6종 · 목 8종 (치장 뽑기). 모델: tools/assetgen/models/cosmetics_batch_b.py
+# 형식은 cosmetics.yml · cosmetic_vouchers.yml 과 같음 (치장과 그 교환권). 교환권 그림: voucher_art_batch_b.py
+
+puppy_tail:
+  material: paper
+  name: "<#f0a050>강아지 꼬리"
+  lore: ["<gray>등 위로 동그랗게 말린 시바견 꼬리"]
+  model: puppy_tail
+  max-stack: 1
+  cosmetic: { slot: tail, rarity: common, obtain: "치장 뽑기 (/뽑기)" }
+
+bunny_tail:
+  material: paper
+  name: "<#f4f1ea>토끼 솜꼬리"
+  lore: ["<gray>엉덩이에 붙은 몽실몽실 솜뭉치"]
+  model: bunny_tail
+  max-stack: 1
+  cosmetic: { slot: tail, rarity: common, obtain: "치장 뽑기 (/뽑기)" }
+
+dino_tail:
+  material: paper
+  name: "<#6fbf4a>공룡 꼬리"
+  lore: ["<gray>바닥까지 끌리는 두툼한 꼬리와 주황 가시"]
+  model: dino_tail
+  max-stack: 1
+  cosmetic: { slot: tail, rarity: rare, obtain: "치장 뽑기 (/뽑기)" }
+
+raccoon_tail:
+  material: paper
+  name: "<#9a8f84>너구리 꼬리"
+  lore: ["<gray>갈색 줄무늬가 둘린 복슬 꼬리"]
+  model: raccoon_tail
+  max-stack: 1
+  cosmetic: { slot: tail, rarity: rare, obtain: "치장 뽑기 (/뽑기)" }
+
+devil_tail:
+  material: paper
+  name: "<#e0303a>악마 꼬리"
+  lore: ["<gray>S자로 휘어 하트 끝이 빛나는 꼬리"]
+  model: devil_tail
+  max-stack: 1
+  cosmetic: { slot: tail, rarity: epic, obtain: "치장 뽑기 (/뽑기)" }
+
+mermaid_tail:
+  material: paper
+  name: "<#4fd0c8>인어 꼬리"
+  lore: ["<gray>비늘 꼬리 끝에 펼쳐진 하얀 지느러미"]
+  model: mermaid_tail
+  max-stack: 1
+  cosmetic: { slot: tail, rarity: epic, obtain: "치장 뽑기 (/뽑기)" }
+
+red_scarf:
+  material: paper
+  name: "<#d83a3a>빨간 목도리"
+  lore: ["<gray>두 번 감은 털실 목도리, 한쪽 끝은 술 장식"]
+  model: red_scarf
+  max-stack: 1
+  cosmetic: { slot: neck, rarity: common, obtain: "치장 뽑기 (/뽑기)" }
+
+bow_tie:
+  material: paper
+  name: "<#e04848>나비넥타이"
+  lore: ["<gray>흰 깃 위의 빨간 나비넥타이"]
+  model: bow_tie
+  max-stack: 1
+  cosmetic: { slot: neck, rarity: common, obtain: "치장 뽑기 (/뽑기)" }
+
+bell_collar:
+  material: paper
+  name: "<#e8b33a>방울 목걸이"
+  lore: ["<gray>딸랑, 앞에 금방울이 달린 빨간 목줄"]
+  model: bell_collar
+  max-stack: 1
+  cosmetic: { slot: neck, rarity: common, obtain: "치장 뽑기 (/뽑기)" }
+
+pearl_necklace:
+  material: paper
+  name: "<#f2ece0>진주 목걸이"
+  lore: ["<gray>가슴 위로 늘어진 진주 한 줄"]
+  model: pearl_necklace
+  max-stack: 1
+  cosmetic: { slot: neck, rarity: rare, obtain: "치장 뽑기 (/뽑기)" }
+
+flower_lei:
+  material: paper
+  name: "<#f29ac0>꽃목걸이"
+  lore: ["<gray>분홍·노랑·하양 꽃을 엮은 목걸이"]
+  model: flower_lei
+  max-stack: 1
+  cosmetic: { slot: neck, rarity: rare, obtain: "치장 뽑기 (/뽑기)" }
+
+silk_scarf:
+  material: paper
+  name: "<#4a7fe0>스카프"
+  lore: ["<gray>옆으로 묶은 물방울무늬 비단 스카프"]
+  model: silk_scarf
+  max-stack: 1
+  cosmetic: { slot: neck, rarity: rare, obtain: "치장 뽑기 (/뽑기)" }
+
+gold_medal:
+  material: paper
+  name: "<#ffcf3f>금메달"
+  lore: ["<gray>빨강·하양 리본에 빛나는 별 금메달"]
+  model: gold_medal
+  max-stack: 1
+  cosmetic: { slot: neck, rarity: epic, obtain: "치장 뽑기 (/뽑기)" }
+
+crystal_pendant:
+  material: paper
+  name: "<#c08cff>마법 수정 목걸이"
+  lore: ["<gray>은사슬 끝에서 은은히 빛나는 보랏빛 수정"]
+  model: crystal_pendant
+  max-stack: 1
+  cosmetic: { slot: neck, rarity: epic, obtain: "치장 뽑기 (/뽑기)" }
+
+# ── 교환권 ─────────────────────────────────────────────────────────
+
+puppy_tail_voucher:
+  material: paper
+  name: "<#f0a050>강아지 꼬리 교환권"
+  lore: ["<gray>◆ 일반 <dark_gray>· <gray>꼬리 치장", "<gray>우클릭: 강아지 꼬리를 계정에 등록합니다.", "<dark_gray>등록 후 /치장 에서 착용 · 거래소에서 사고팔 수 있음"]
+  texture: puppy_tail_voucher
+  voucher: { cosmetic: puppy_tail }
+
+bunny_tail_voucher:
+  material: paper
+  name: "<#f4f1ea>토끼 솜꼬리 교환권"
+  lore: ["<gray>◆ 일반 <dark_gray>· <gray>꼬리 치장", "<gray>우클릭: 토끼 솜꼬리를 계정에 등록합니다.", "<dark_gray>등록 후 /치장 에서 착용 · 거래소에서 사고팔 수 있음"]
+  texture: bunny_tail_voucher
+  voucher: { cosmetic: bunny_tail }
+
+dino_tail_voucher:
+  material: paper
+  name: "<#6fbf4a>공룡 꼬리 교환권"
+  lore: ["<#5ab0ff>◆ 희귀 <dark_gray>· <gray>꼬리 치장", "<gray>우클릭: 공룡 꼬리를 계정에 등록합니다.", "<dark_gray>등록 후 /치장 에서 착용 · 거래소에서 사고팔 수 있음"]
+  texture: dino_tail_voucher
+  voucher: { cosmetic: dino_tail }
+
+raccoon_tail_voucher:
+  material: paper
+  name: "<#9a8f84>너구리 꼬리 교환권"
+  lore: ["<#5ab0ff>◆ 희귀 <dark_gray>· <gray>꼬리 치장", "<gray>우클릭: 너구리 꼬리를 계정에 등록합니다.", "<dark_gray>등록 후 /치장 에서 착용 · 거래소에서 사고팔 수 있음"]
+  texture: raccoon_tail_voucher
+  voucher: { cosmetic: raccoon_tail }
+
+devil_tail_voucher:
+  material: paper
+  name: "<#e0303a>악마 꼬리 교환권"
+  lore: ["<#c58cff>◆ 영웅 <dark_gray>· <gray>꼬리 치장", "<gray>우클릭: 악마 꼬리를 계정에 등록합니다.", "<dark_gray>등록 후 /치장 에서 착용 · 거래소에서 사고팔 수 있음"]
+  texture: devil_tail_voucher
+  voucher: { cosmetic: devil_tail }
+
+mermaid_tail_voucher:
+  material: paper
+  name: "<#4fd0c8>인어 꼬리 교환권"
+  lore: ["<#c58cff>◆ 영웅 <dark_gray>· <gray>꼬리 치장", "<gray>우클릭: 인어 꼬리를 계정에 등록합니다.", "<dark_gray>등록 후 /치장 에서 착용 · 거래소에서 사고팔 수 있음"]
+  texture: mermaid_tail_voucher
+  voucher: { cosmetic: mermaid_tail }
+
+red_scarf_voucher:
+  material: paper
+  name: "<#d83a3a>빨간 목도리 교환권"
+  lore: ["<gray>◆ 일반 <dark_gray>· <gray>목 치장", "<gray>우클릭: 빨간 목도리를 계정에 등록합니다.", "<dark_gray>등록 후 /치장 에서 착용 · 거래소에서 사고팔 수 있음"]
+  texture: red_scarf_voucher
+  voucher: { cosmetic: red_scarf }
+
+bow_tie_voucher:
+  material: paper
+  name: "<#e04848>나비넥타이 교환권"
+  lore: ["<gray>◆ 일반 <dark_gray>· <gray>목 치장", "<gray>우클릭: 나비넥타이를 계정에 등록합니다.", "<dark_gray>등록 후 /치장 에서 착용 · 거래소에서 사고팔 수 있음"]
+  texture: bow_tie_voucher
+  voucher: { cosmetic: bow_tie }
+
+bell_collar_voucher:
+  material: paper
+  name: "<#e8b33a>방울 목걸이 교환권"
+  lore: ["<gray>◆ 일반 <dark_gray>· <gray>목 치장", "<gray>우클릭: 방울 목걸이를 계정에 등록합니다.", "<dark_gray>등록 후 /치장 에서 착용 · 거래소에서 사고팔 수 있음"]
+  texture: bell_collar_voucher
+  voucher: { cosmetic: bell_collar }
+
+pearl_necklace_voucher:
+  material: paper
+  name: "<#f2ece0>진주 목걸이 교환권"
+  lore: ["<#5ab0ff>◆ 희귀 <dark_gray>· <gray>목 치장", "<gray>우클릭: 진주 목걸이를 계정에 등록합니다.", "<dark_gray>등록 후 /치장 에서 착용 · 거래소에서 사고팔 수 있음"]
+  texture: pearl_necklace_voucher
+  voucher: { cosmetic: pearl_necklace }
+
+flower_lei_voucher:
+  material: paper
+  name: "<#f29ac0>꽃목걸이 교환권"
+  lore: ["<#5ab0ff>◆ 희귀 <dark_gray>· <gray>목 치장", "<gray>우클릭: 꽃목걸이를 계정에 등록합니다.", "<dark_gray>등록 후 /치장 에서 착용 · 거래소에서 사고팔 수 있음"]
+  texture: flower_lei_voucher
+  voucher: { cosmetic: flower_lei }
+
+silk_scarf_voucher:
+  material: paper
+  name: "<#4a7fe0>스카프 교환권"
+  lore: ["<#5ab0ff>◆ 희귀 <dark_gray>· <gray>목 치장", "<gray>우클릭: 스카프를 계정에 등록합니다.", "<dark_gray>등록 후 /치장 에서 착용 · 거래소에서 사고팔 수 있음"]
+  texture: silk_scarf_voucher
+  voucher: { cosmetic: silk_scarf }
+
+gold_medal_voucher:
+  material: paper
+  name: "<#ffcf3f>금메달 교환권"
+  lore: ["<#c58cff>◆ 영웅 <dark_gray>· <gray>목 치장", "<gray>우클릭: 금메달을 계정에 등록합니다.", "<dark_gray>등록 후 /치장 에서 착용 · 거래소에서 사고팔 수 있음"]
+  texture: gold_medal_voucher
+  voucher: { cosmetic: gold_medal }
+
+crystal_pendant_voucher:
+  material: paper
+  name: "<#c08cff>마법 수정 목걸이 교환권"
+  lore: ["<#c58cff>◆ 영웅 <dark_gray>· <gray>목 치장", "<gray>우클릭: 마법 수정 목걸이를 계정에 등록합니다.", "<dark_gray>등록 후 /치장 에서 착용 · 거래소에서 사고팔 수 있음"]
+  texture: crystal_pendant_voucher
+  voucher: { cosmetic: crystal_pendant }
