@@ -58,7 +58,8 @@ categories:
     icon: "stsv:gui/tab_back"
     products: [set_azure_dragon, azure_pearl_cloud, azure_dragon_wings, azure_dragon_tail, azure_shoulder_dragon, azure_cloud_sash,
                azure_baby_dragon, azure_cloud_trail, azure_spark_aura, azure_dragon_roar,
-               set_galaxy, galaxy_star_crown, galaxy_cape, galaxy_moon_necklace, galaxy_stardust_trail, galaxy_constellation_aura,
+               set_galaxy, galaxy_star_crown, galaxy_cape, galaxy_moon_necklace, galaxy_star_owl, galaxy_star_belt, galaxy_star_whale,
+               galaxy_stardust_trail, galaxy_constellation_aura, galaxy_supernova,
                set_duck_family, duckling_parade, sleepy_duckling, duck_float_ring, duckling_wings, puddle_trail]
   fun:
     name: "놀잇감"
@@ -226,7 +227,7 @@ products:
   # 후원 치장 세트 3종 (items/cosmetics_donation.yml, 세트 cosmetic_sets.yml): 후원 상점에서만, 뽑기 · 교환권 없음. 모두 전설.
   # 청룡 · 은하수는 밤에도 빛남, 아기 오리 가족은 귀여운 낮의 세트.
   # 한 세트를 다 입으면 몸 둘레에 세트 고리가 더 돎 (청룡: 번개, 은하수: 별빛, 오리: 비눗방울).
-  # 낱개 합 청룡 780★ (9조각, 세트 520★ 약 33% 할인) · 은하수 360★ · 오리 400★ (세트 약 20% 할인).
+  # 낱개 합 청룡 · 은하수 780★씩 (9조각, 세트 520★ 약 33% 할인) · 오리 400★ (세트 약 20% 할인).
   # 이미 가진 조각이 있으면 세트 대신 남은 조각을 낱개로 사는 게 쌈 (세트는 한 번만 살 수 있음)
   set_azure_dragon:
     name: "청룡 세트 (9종)"
@@ -313,56 +314,90 @@ products:
     commands: ["관리자 치장 지급 {player} stsv:azure_dragon_roar"]
     icon: "stsv:azure_dragon_roar"
   set_galaxy:
-    name: "은하수 세트 (5종)"
-    price: 290          # 29,000원 (낱개 360★)
+    name: "은하수 세트 (9종)"
+    price: 520          # 52,000원 (낱개 780★, 약 33% 할인)
     once: true
     description:
-      - "<gray>별관 · 망토 · 초승달 목걸이"
-      - "<gray>별가루 발자취 · 별자리 오라, 다섯 조각을 한 번에."
-      - "<light_purple>다 입으면 발밑에 별빛 고리가 돕니다."
+      - "<gray>별관 · 망토 · 초승달 목걸이 · 별 부엉이"
+      - "<gray>별자리 허리띠 · 아기 별고래 · 별빛 발자국"
+      - "<gray>행성 고리 · 초신성"
+      - "<light_purple>다 입으면 세트 각성: 모습이 바뀌고"
+      - "<light_purple>발밑에 나선 은하가 돕니다."
       - "<dark_gray>후원 전용 · 뽑기에 나오지 않음."
     commands:
       - "관리자 치장 지급 {player} stsv:galaxy_star_crown"
       - "관리자 치장 지급 {player} stsv:galaxy_cape"
       - "관리자 치장 지급 {player} stsv:galaxy_moon_necklace"
+      - "관리자 치장 지급 {player} stsv:galaxy_star_owl"
+      - "관리자 치장 지급 {player} stsv:galaxy_star_belt"
+      - "관리자 치장 지급 {player} stsv:galaxy_star_whale"
       - "관리자 치장 지급 {player} stsv:galaxy_stardust_trail"
       - "관리자 치장 지급 {player} stsv:galaxy_constellation_aura"
+      - "관리자 치장 지급 {player} stsv:galaxy_supernova"
     icon: "stsv:galaxy_cape"
   galaxy_star_crown:
     name: "은하수 별관"
     price: 80          # 8,000원
     once: true
-    description: ["<gray>머리 위 · 밤하늘 띠에 금별 넷. 천천히 돌며 떠다님.", "<dark_gray>후원 전용 · 세트 조각"]
+    description: ["<gray>머리 위 · 금빛 별 넷, 각성하면 초승달", "<dark_gray>후원 전용 · 은하수 세트 조각 (9)"]
     commands: ["관리자 치장 지급 {player} stsv:galaxy_star_crown"]
     icon: "stsv:galaxy_star_crown"
   galaxy_cape:
     name: "은하수 망토"
     price: 100          # 10,000원
     once: true
-    description: ["<gray>등 · 별이 반짝이는 밤하늘 망토, 금 테두리. 걸으면 흔들림.", "<dark_gray>후원 전용 · 세트 조각"]
+    description: ["<gray>등 · 북두칠성과 북극성, 별 달린 밑단", "<dark_gray>후원 전용 · 은하수 세트 조각 (9)"]
     commands: ["관리자 치장 지급 {player} stsv:galaxy_cape"]
     icon: "stsv:galaxy_cape"
   galaxy_moon_necklace:
     name: "초승달 목걸이"
-    price: 60          # 6,000원
+    price: 80          # 8,000원
     once: true
-    description: ["<gray>목 · 금사슬에 걸린 초승달과 작은 별.", "<dark_gray>후원 전용 · 세트 조각"]
+    description: ["<gray>목 · 보석 박힌 금사슬과 초승달", "<dark_gray>후원 전용 · 은하수 세트 조각 (9)"]
     commands: ["관리자 치장 지급 {player} stsv:galaxy_moon_necklace"]
     icon: "stsv:galaxy_moon_necklace"
-  galaxy_stardust_trail:
-    name: "별가루 발자취"
-    price: 60          # 6,000원
+  galaxy_star_owl:
+    name: "별 부엉이"
+    price: 80          # 8,000원
     once: true
-    description: ["<gray>발자취 · 걸음마다 별빛 가루.", "<dark_gray>후원 전용 · 세트 조각"]
+    description: ["<gray>어깨 · 금빛 눈의 밤하늘 부엉이", "<dark_gray>후원 전용 · 은하수 세트 조각 (9)"]
+    commands: ["관리자 치장 지급 {player} stsv:galaxy_star_owl"]
+    icon: "stsv:galaxy_star_owl"
+  galaxy_star_belt:
+    name: "별자리 허리띠"
+    price: 80          # 8,000원
+    once: true
+    description: ["<gray>허리 · 별 버클과 초승달 장식", "<dark_gray>후원 전용 · 은하수 세트 조각 (9)"]
+    commands: ["관리자 치장 지급 {player} stsv:galaxy_star_belt"]
+    icon: "stsv:galaxy_star_belt"
+  galaxy_star_whale:
+    name: "아기 별고래"
+    price: 100          # 10,000원
+    once: true
+    description: ["<gray>펫 · 별가루를 뿜으며 헤엄침", "<dark_gray>후원 전용 · 은하수 세트 조각 (9)"]
+    commands: ["관리자 치장 지급 {player} stsv:galaxy_star_whale"]
+    icon: "stsv:galaxy_star_whale"
+  galaxy_stardust_trail:
+    name: "은하수 별빛 발자국"
+    price: 80          # 8,000원
+    once: true
+    description: ["<gray>발자취 · 금테 두른 별빛 발자국 (모델)", "<dark_gray>후원 전용 · 은하수 세트 조각 (9)"]
     commands: ["관리자 치장 지급 {player} stsv:galaxy_stardust_trail"]
     icon: "stsv:galaxy_stardust_trail"
   galaxy_constellation_aura:
-    name: "별자리 오라"
-    price: 60          # 6,000원
+    name: "은하수 행성 고리"
+    price: 100          # 10,000원
     once: true
-    description: ["<gray>오라 · 가만히 서 있으면 가슴 높이에 보랏빛 별자리 고리.", "<dark_gray>후원 전용 · 세트 조각"]
+    description: ["<gray>오라 · 행성을 실은 고리가 몸을 돎", "<dark_gray>후원 전용 · 은하수 세트 조각 (9)"]
     commands: ["관리자 치장 지급 {player} stsv:galaxy_constellation_aura"]
     icon: "stsv:galaxy_constellation_aura"
+  galaxy_supernova:
+    name: "은하수 초신성"
+    price: 80          # 8,000원
+    once: true
+    description: ["<gray>처치 · 터지며 솟는 별 (모델)", "<dark_gray>후원 전용 · 은하수 세트 조각 (9)"]
+    commands: ["관리자 치장 지급 {player} stsv:galaxy_supernova"]
+    icon: "stsv:galaxy_supernova"
   # 아기 오리 가족: 빛나지 않는 낮의 세트. 낱개 합 400★, 세트는 20% 할인
   set_duck_family:
     name: "아기 오리 가족 세트 (5종)"

@@ -47,7 +47,11 @@ class PackPipelineTest {
             "azure_cloud_sash", "azure_baby_dragon", "azure_cloud_trail", "azure_cloud_print_a", "azure_cloud_print_b",
             "azure_cloud_print_awakened", "azure_spark_aura", "azure_aura_dragon", "azure_aura_dragon_awakened", "azure_dragon_roar",
             "azure_roar_burst", "azure_set_ring",
-            "galaxy_star_crown", "galaxy_cape", "galaxy_moon_necklace", "galaxy_stardust_trail", "galaxy_constellation_aura",
+            // 은하수 v2: stars, gems, the moon, eyes, dust, the galaxy and the prints' rims
+            "galaxy_star_crown", "galaxy_star_crown_awakened", "galaxy_cape", "galaxy_cape_awakened", "galaxy_moon_necklace",
+            "galaxy_star_owl", "galaxy_star_belt", "galaxy_star_whale", "galaxy_stardust_trail", "galaxy_star_print_a",
+            "galaxy_star_print_b", "galaxy_star_print_awakened", "galaxy_constellation_aura", "galaxy_planet_ring",
+            "galaxy_planet_ring_awakened", "galaxy_supernova", "galaxy_supernova_burst", "galaxy_set_ring",
             "andon", "stone_lantern", "tea_kettle",             // furniture: lamp paper, the lantern's fire, embers
             "police_car", "light_truck", "golf_cart", "sports_car", "tuner_car",   // vehicles: head and tail lights, the tuner car neon
             "hyper_car", "grand_sedan", "luxury_suv",           // the premium cars: lamps, the SUV roof lamps
@@ -63,8 +67,10 @@ class PackPipelineTest {
             "angel_wings", "demon_wings", "butterfly_wings",   // wings swept back 22.5 degrees
             "gumiho",                                           // nine tails fanned out
             "toy_sword_belt", "lucky_pouch", "champion_belt",   // waist: the sword hangs slanted, the pouch's knot, the belt's plate
-            "galaxy_cape",                                      // donation sets: the cape swept back
-            "galaxy_star_crown", "galaxy_constellation_aura",   // rings and stars set on a slant
+            // 은하수 v2: the octagonal crown and rings, the swept-back cape, gems turned 45 degrees, the owl's wings
+            "galaxy_star_crown", "galaxy_star_crown_awakened", "galaxy_cape", "galaxy_cape_awakened", "galaxy_moon_necklace",
+            "galaxy_star_owl", "galaxy_star_belt", "galaxy_star_whale", "galaxy_constellation_aura", "galaxy_planet_ring",
+            "galaxy_planet_ring_awakened", "galaxy_supernova", "galaxy_supernova_burst", "galaxy_set_ring",
             // 청룡 v2 (silhouette first): bodies, horns, fingers and curves of turned segments
             "azure_pearl_cloud", "azure_pearl_cloud_awakened", "azure_dragon_wings", "azure_dragon_wings_awakened", "azure_dragon_tail",
             "azure_shoulder_dragon", "azure_cloud_sash", "azure_baby_dragon", "azure_spark_aura", "azure_aura_dragon",

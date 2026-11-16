@@ -115,7 +115,7 @@ class CosmeticContentTest {
                 }
             }
         }
-        assertEquals(19, exclusive.size(), exclusive.toString());   // 청룡 9 · 은하수 5 · 아기 오리 5
+        assertEquals(23, exclusive.size(), exclusive.toString());   // 청룡 9 · 은하수 9 · 아기 오리 5
         List<String> pool = YamlConfiguration.loadConfiguration(PACK.resolve("gacha.yml").toFile()).getStringList("pool");
         YamlConfiguration shop = YamlConfiguration.loadConfiguration(PACK.resolve("donation_shop.yml").toFile());
         java.util.Set<String> sold = new java.util.HashSet<>();

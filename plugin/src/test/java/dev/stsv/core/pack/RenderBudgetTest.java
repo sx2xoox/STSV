@@ -56,7 +56,8 @@ class RenderBudgetTest {
         assertEquals(RenderBudget.Category.COSMETIC, kinds.get("stsv:gat"));
         // donation-grade looks shown by the engine are held to a worn cosmetic's budget too
         for (String m : List.of("stsv:azure_aura_dragon", "stsv:azure_aura_dragon_awakened", "stsv:azure_cloud_print_a", "stsv:azure_roar_burst",
-                "stsv:azure_dragon_wings_awakened", "stsv:azure_set_ring")) assertEquals(RenderBudget.Category.COSMETIC, kinds.get(m), m);
+                "stsv:azure_dragon_wings_awakened", "stsv:azure_set_ring", "stsv:galaxy_planet_ring_awakened", "stsv:galaxy_star_print_a",
+                "stsv:galaxy_supernova_burst", "stsv:galaxy_cape_awakened", "stsv:galaxy_set_ring")) assertEquals(RenderBudget.Category.COSMETIC, kinds.get(m), m);
         // vehicles: bodies, the wheels they turn, the light bar's looks and the truck's load stages
         for (String body : List.of("stsv:police_car", "stsv:light_truck", "stsv:golf_cart", "stsv:hand_cart")) {
             assertEquals(RenderBudget.Category.VEHICLE, kinds.get(body));

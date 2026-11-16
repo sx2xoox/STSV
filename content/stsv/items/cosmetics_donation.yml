@@ -1,4 +1,4 @@
-# 후원 상점 전용 치장: 세 세트 (청룡 아홉 조각, 은하수 · 아기 오리 다섯 조각씩) (모델: tools/assetgen/models/cosmetics_donation.py).
+# 후원 상점 전용 치장: 세 세트 (청룡 · 은하수 아홉 조각씩, 아기 오리 다섯 조각) (모델: tools/assetgen/models/cosmetics_donation.py).
 # 뽑기에 나오지 않고 교환권도 없음 (cosmetic.exclusive: donation). 세트를 모두 걸치면 cosmetic_sets.yml 의 보너스 고리가 돈다.
 # 청룡 · 은하수의 모델 조각은 어두운 데서도 밝게 보이고 (glow), 대부분 움직인다 (motion). 아기 오리 가족은 빛나지 않는 낮의 세트.
 # 발자취 · 오라의 모델은 메뉴 카드 그림.
@@ -82,47 +82,81 @@ azure_dragon_roar:
               particle: electric_spark, count: 24, spread: 0.6, speed: 0.1 }
 
 # ---------------------------------------------------------------------------------------------
-# 은하수 세트 (galaxy): 별관 · 망토 · 초승달 목걸이 · 별가루 · 별자리 — 세트 보너스: 발밑의 별빛 고리
+# 은하수 세트 (galaxy) v2, 아홉 조각 (모델: tools/assetgen/models/cosmetics_galaxy.py, 후원 전용 고급 규칙):
+# 별관 · 망토 · 초승달 목걸이 · 별 부엉이 · 별자리 허리띠 · 아기 별고래 · 별빛 발자국 · 행성 고리 · 초신성.
+# 세트를 모두 걸치면 각성 (cosmetic.awakened): 별관 · 망토 · 행성 고리 · 발자국이 각성한 모습으로 바뀌고,
+# 발밑에 나선 은하가 돈다 (cosmetic_sets.yml awaken). 발자국 · 행성 고리 · 초신성은 파티클이 아니라 모델.
 # ---------------------------------------------------------------------------------------------
 galaxy_star_crown:
   material: paper
   name: "<gradient:#ffe9a8:#a98bff>은하수 별관</gradient>"
-  lore: ["<gray>밤하늘 띠에 금빛 별이 박힌 관이 머리 위에서 돈다", "<#c3a8ff>은하수 세트 (1/5)"]
+  lore: ["<gray>밤하늘 띠 위에 금빛 별 넷과 보랏빛 보석, 머리 위에서 돈다", "<#c3a8ff>은하수 세트 (1/9)"]
   model: galaxy_star_crown
   max-stack: 1
   cosmetic: { slot: above, rarity: legendary, obtain: "후원 상점 (/후원)", exclusive: donation, set: galaxy, glow: true, bob: true,
-              motion: { kind: spin, period: 160 } }
+              motion: { kind: spin, period: 160 }, awakened: galaxy_star_crown_awakened }
 galaxy_cape:
   material: paper
   name: "<gradient:#ffe9a8:#a98bff>은하수 망토</gradient>"
-  lore: ["<gray>별이 반짝이는 밤하늘 망토가 바람에 흔들린다", "<#c3a8ff>은하수 세트 (2/5)"]
+  lore: ["<gray>북두칠성이 북극성을 가리키는 밤하늘 망토, 별 달린 금빛 밑단", "<#c3a8ff>은하수 세트 (2/9)"]
   model: galaxy_cape
   max-stack: 1
   cosmetic: { slot: back, rarity: legendary, obtain: "후원 상점 (/후원)", exclusive: donation, set: galaxy, glow: true,
-              motion: { kind: sway, amount: 6, period: 70 } }
+              motion: { kind: sway, amount: 6, period: 70 }, awakened: galaxy_cape_awakened }
 galaxy_moon_necklace:
   material: paper
   name: "<gradient:#ffe9a8:#a98bff>초승달 목걸이</gradient>"
-  lore: ["<gray>금사슬 끝에 빛나는 초승달과 작은 별", "<#c3a8ff>은하수 세트 (3/5)"]
+  lore: ["<gray>보석 박힌 금사슬 끝에 빛나는 초승달과 작은 별", "<#c3a8ff>은하수 세트 (3/9)"]
   model: galaxy_moon_necklace
   max-stack: 1
   cosmetic: { slot: neck, rarity: legendary, obtain: "후원 상점 (/후원)", exclusive: donation, set: galaxy, glow: true }
+galaxy_star_owl:
+  material: paper
+  name: "<gradient:#ffe9a8:#a98bff>별 부엉이</gradient>"
+  lore: ["<gray>밤하늘로 지은 작은 부엉이가 금빛 눈을 반짝이며 어깨에 앉는다", "<#c3a8ff>은하수 세트 (4/9)"]
+  model: galaxy_star_owl
+  max-stack: 1
+  cosmetic: { slot: shoulder, rarity: legendary, obtain: "후원 상점 (/후원)", exclusive: donation, set: galaxy, glow: true }
+galaxy_star_belt:
+  material: paper
+  name: "<gradient:#ffe9a8:#a98bff>별자리 허리띠</gradient>"
+  lore: ["<gray>밤하늘 띠에 별 버클, 허리에 초승달과 별 장식이 달랑인다", "<#c3a8ff>은하수 세트 (5/9)"]
+  model: galaxy_star_belt
+  max-stack: 1
+  cosmetic: { slot: waist, rarity: legendary, obtain: "후원 상점 (/후원)", exclusive: donation, set: galaxy, glow: true }
+galaxy_star_whale:
+  material: paper
+  name: "<gradient:#ffe9a8:#a98bff>아기 별고래</gradient>"
+  lore: ["<gray>별가루를 뿜으며 공중을 헤엄쳐 따라오는 아기 고래", "<#c3a8ff>은하수 세트 (6/9)"]
+  model: galaxy_star_whale
+  max-stack: 1
+  cosmetic: { slot: pet, rarity: legendary, obtain: "후원 상점 (/후원)", exclusive: donation, set: galaxy, glow: true, float: true }
 galaxy_stardust_trail:
   material: paper
-  name: "<gradient:#ffe9a8:#a98bff>별가루 발자취</gradient>"
-  lore: ["<gray>지나간 자리에 별가루가 반짝이며 떠오른다", "<#c3a8ff>은하수 세트 (4/5)"]
+  name: "<gradient:#ffe9a8:#a98bff>은하수 별빛 발자국</gradient>"
+  lore: ["<gray>걸음마다 금테 두른 별빛 발자국이 톡 솟았다 가라앉는다", "<#c3a8ff>은하수 세트 (7/9)"]
   model: galaxy_stardust_trail
   max-stack: 1
-  cosmetic: { slot: trail, rarity: legendary, obtain: "후원 상점 (/후원)", exclusive: donation, set: galaxy,
-              particle: end_rod, count: 2, spread: 0.15, speed: 0.01, height: 0.3 }
+  cosmetic: { slot: trail, rarity: legendary, obtain: "후원 상점 (/후원)", exclusive: donation, set: galaxy, glow: true,
+              print: { models: [galaxy_star_print_a, galaxy_star_print_b], life: 36, scale: 0.55, step: 0.75, alternate: true },
+              awakened: galaxy_star_print_awakened }
 galaxy_constellation_aura:
   material: paper
-  name: "<gradient:#ffe9a8:#a98bff>별자리 오라</gradient>"
-  lore: ["<gray>멈춰 서면 가슴 높이에 보랏빛 별자리가 돈다", "<#c3a8ff>은하수 세트 (5/5)"]
+  name: "<gradient:#ffe9a8:#a98bff>은하수 행성 고리</gradient>"
+  lore: ["<gray>행성과 초승달을 실은 별가루 고리가 몸 둘레를 쉬지 않고 돈다", "<#c3a8ff>은하수 세트 (8/9)"]
   model: galaxy_constellation_aura
   max-stack: 1
-  cosmetic: { slot: aura, rarity: legendary, obtain: "후원 상점 (/후원)", exclusive: donation, set: galaxy,
-              particle: dust, color: "#b48cff", count: 10, spread: 0.9, speed: 0, height: 1.2 }
+  cosmetic: { slot: aura, rarity: legendary, obtain: "후원 상점 (/후원)", exclusive: donation, set: galaxy, glow: true,
+              worn: galaxy_planet_ring, awakened: galaxy_planet_ring_awakened, motion: { kind: orbit, amount: 0.05, period: 100 } }
+galaxy_supernova:
+  material: paper
+  name: "<gradient:#ffe9a8:#a98bff>은하수 초신성</gradient>"
+  lore: ["<gray>쓰러뜨린 자리에서 별이 터지며 금빛 조각과 은하가 솟는다", "<#c3a8ff>은하수 세트 (9/9)"]
+  model: galaxy_supernova
+  max-stack: 1
+  cosmetic: { slot: kill, rarity: legendary, obtain: "후원 상점 (/후원)", exclusive: donation, set: galaxy, glow: true,
+              burst: { model: galaxy_supernova_burst, life: 36, scale: 0.9, rise: 0.3, sound: entity.firework_rocket.twinkle },
+              particle: end_rod, count: 24, spread: 0.6, speed: 0.1 }
 
 # ---------------------------------------------------------------------------------------------
 # 아기 오리 가족 세트 (duck_family): 졸졸 오리들 · 꾸벅 오리 · 오리 튜브 · 파닥 날개 · 첨벙 발자국

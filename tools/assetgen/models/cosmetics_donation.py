@@ -263,119 +263,7 @@ for _n in range(len(WING_PANELS)):
 # 은하수 (galaxy)
 # ================================================================================================
 
-def galaxy_star_crown():
-    """은하수 별관: an octagonal band of night sky (twinkling) between gold rims, four gold stars standing on it
-    and four small white twinkles between them, floating over the head. Turns (spin)."""
-    m = MModel("galaxy_star_crown")
-    octagon(m, "rim", 5.35, 0.9, 10.0, 10.4, GOLD_GLOW)
-    octagon(m, "band", 5.2, 0.6, 10.4, 11.8, "don_starfield")
-    octagon(m, "rim", 5.35, 0.9, 11.8, 12.2, GOLD_GLOW)
-    _star(m, "star", 8, 12.1, 2.85, 3.35, 0.55)                 # front (north)
-    _star(m, "star", 8, 12.1, 12.65, 13.15, 0.55)               # back
-    _star(m, "star", 8, 12.1, 2.85, 3.35, 0.55, plane="z")      # the player's left and right
-    _star(m, "star", 8, 12.1, 12.65, 13.15, 0.55, plane="z")
-    for (x, z) in ((4.7, 4.7), (11.3, 4.7), (4.7, 11.3), (11.3, 11.3)):   # small twinkles on the corners, facing out
-        rot = ("y", 45 if (x - 8) * (z - 8) > 0 else -45, (x, 13, z))
-        m.box("twinkle", (x - 0.2, 12.1, z - 0.15), (x + 0.2, 14.1, z + 0.15), CYAN_WHITE, rotation=rot)
-        m.box("twinkle", (x - 0.8, 12.9, z - 0.15), (x + 0.8, 13.3, z + 0.15), CYAN_WHITE, rotation=rot)
-    _display(m, (45, 0, 0), 1.1, -6)
-    return m
-
-
-def galaxy_cape():
-    """은하수 망토: a long cape of twinkling night sky, its lower half flaring back, a violet lining, gold edges
-    and hem, a navy and gold mantle over the shoulders with glowing star clasps on the chest, a four-point star on
-    the back. Swings (sway)."""
-    m = MModel("galaxy_cape")
-    sky = "don_starfield"
-    lower = ("x", -22.5, (8, 2.0, 8.3))          # the lower half turned back about the hips
-    for (x0, x1, y0, y1, rot) in ((3.6, 12.4, 2.0, 11.6, None), (3.2, 12.8, -7.4, 2.25, lower)):
-        m.box("cape", (x0, y0, 8.05), (x1, y1, 8.55), sky, rotation=rot,
-              faces={"north": LINING, "east": GOLD, "west": GOLD, "up": GOLD, "down": GOLD})
-        m.box("edge", (x0 - 0.05, y0, 8.5), (x0 + 0.5, y1, 8.65), GOLD_LIGHT, faces={"north": None}, rotation=rot)
-        m.box("edge", (x1 - 0.5, y0, 8.5), (x1 + 0.05, y1, 8.65), GOLD_LIGHT, faces={"north": None}, rotation=rot)
-    # hem: a gold band with glowing dots, on the turned half
-    m.box("hem", (3.15, -7.6, 8.0), (12.85, -6.9, 8.7), GOLD, rotation=lower)
-    for x in (4.6, 6.9, 9.2, 11.5):
-        m.box("hem_star", (x - 0.3, -7.45, 8.65), (x + 0.3, -7.05, 8.8), STAR_GLOW, faces={"north": None}, rotation=lower)
-    # a four-point star in the middle of the back and a few bright points round it
-    m.box("big_star", (7.7, 4.0, 8.5), (8.3, 8.0, 8.7), CYAN_WHITE, faces={"north": None})
-    m.box("big_star", (6.0, 5.7, 8.5), (10.0, 6.3, 8.7), CYAN_WHITE, faces={"north": None})
-    m.box("big_star", (7.4, 5.4, 8.55), (8.6, 6.6, 8.75), STAR_GLOW, faces={"north": None})
-    for (x, y, s) in ((5.0, 9.6, 0.6), (10.6, 9.9, 0.5), (5.6, 3.0, 0.5), (10.3, 2.6, 0.6)):
-        m.box("sewn_star", (x, y, 8.5), (x + s, y + s, 8.65), STAR_GLOW, faces={"north": None})
-    for (x, y, s) in ((5.0, -2.0, 0.6), (10.4, -3.5, 0.5), (7.6, -5.4, 0.6)):
-        m.box("sewn_star", (x, y, 8.5), (x + s, y + s, 8.65), STAR_GLOW, faces={"north": None}, rotation=lower)
-    # the mantle over the shoulders and the clasps on the chest
-    m.box("mantle", (3.6, 11.6, 4.0), (12.4, 12.2, 8.6), NAVY, faces={"up": sky})
-    m.box("mantle", (3.5, 10.6, 8.0), (12.5, 12.25, 8.7), GOLD)
-    mirror(m, "mantle_side", (3.45, 9.8, 4.1), (4.05, 12.15, 8.55), NAVY, faces={"west": sky})
-    m.box("chain", (4.6, 10.2, 3.75), (11.4, 10.5, 3.95), GOLD_LIGHT)
-    for x in (4.0, 12.0):
-        m.box("clasp", (x - 0.9, 9.5, 3.55), (x + 0.9, 11.3, 4.0), GOLD)
-        m.box("clasp_gem", (x - 0.5, 9.9, 3.4), (x + 0.5, 10.9, 3.6), STAR_GLOW)
-    _display(m, BACK_GUI, 0.45, 2)
-    return m
-
-
-MOON_ROWS = ["..ggg..",
-             ".gmm...",
-             "gmm....",
-             "gmM....",
-             "gmM....",
-             "gmm....",
-             ".gmm...",
-             "..ggg.."]
-
-
-def galaxy_moon_necklace():
-    """초승달 목걸이: a fine gold chain hanging in a V on the chest with violet beads, and a glowing crescent
-    moon rimmed in gold with a little star in its curve. On the neck anchor."""
-    m = MModel("galaxy_moon_necklace")
-    zf = 6.125                       # the front of the chest (model z); the body is x 4.25..11.75
-    for side in (1, -1):             # links stepping down from the top corners of the chest to the pendant
-        for i in range(6):
-            x = 8 + side * (3.4 - i * 0.55)
-            y = 9.1 - i * 0.7
-            m.box("link", (x - 0.3, y - 0.35, zf - 0.3), (x + 0.3, y + 0.35, zf), GOLD_LIGHT if i % 2 == 0 else GOLD)
-        bx = 8 + side * 2.0
-        m.box("bead", (bx - 0.35, 6.75, zf - 0.45), (bx + 0.35, 7.45, zf - 0.05), VIOLET_GLOW)
-    for x0 in (3.95, 11.75):         # round the sides and across the upper back
-        m.box("chain_side", (x0, 8.8, 6.0), (x0 + 0.3, 9.25, 10.0), GOLD)
-    m.box("chain_back", (4.0, 8.8, 9.875), (12.0, 9.25, 10.15), GOLD)
-    m.box("bail", (7.6, 5.0, zf - 0.55), (8.4, 5.9, zf - 0.05), GOLD_LIGHT)
-    pix(m, "moon", MOON_ROWS, 6.2, 5.0, zf - 0.75, zf - 0.15, {"m": MOON, "M": MOON_SHADE, "g": GOLD_GLOW}, unit=0.55)
-    m.box("moon_star", (8.2, 2.25, zf - 0.7), (8.6, 3.35, zf - 0.3), CYAN_WHITE)
-    m.box("moon_star", (7.85, 2.6, zf - 0.65), (8.95, 3.0, zf - 0.35), CYAN_WHITE)
-    _display(m, HEAD_GUI, 1.4, 4)
-    return m
-
-
-def galaxy_stardust_trail():
-    """Card for 별가루 발자취 (a trail): a shooting star with a tail of glittering dust."""
-    m = MModel("galaxy_stardust_trail")
-    _star(m, "star", 11, 8, 7.75, 8.25, 0.75)
-    for k, (x, y, s) in enumerate(((8.6, 9.6, 1.0), (7.0, 8.6, 0.9), (5.4, 7.6, 0.8), (4.0, 6.5, 0.7), (2.8, 5.4, 0.55),
-                                   (6.2, 10.4, 0.5), (3.6, 8.8, 0.45), (8.0, 6.8, 0.5), (1.8, 7.2, 0.4))):
-        mat = (CYAN_WHITE, VIOLET_GLOW, STAR_GLOW)[k % 3]
-        m.box("dust", (x - s / 2, y - s / 2, 8 - s / 2), (x + s / 2, y + s / 2, 8 + s / 2), mat)
-    _display(m, (20, 200, 0), 1.2, 0)
-    return m
-
-
-def galaxy_constellation_aura():
-    """Card for 별자리 오라 (an aura): an octagonal ring of night sky on a gold rim, gold stars set round it."""
-    m = MModel("galaxy_constellation_aura")
-    octagon(m, "ring", 6.4, 1.0, 4.0, 5.0, "don_starfield")
-    octagon(m, "rim", 6.7, 1.4, 3.4, 4.0, GOLD_GLOW)
-    _star(m, "star", 8, 5, 1.4, 1.8, 0.5)
-    _star(m, "star", 8, 5, 14.2, 14.6, 0.5)
-    _star(m, "star", 8, 5, 1.4, 1.8, 0.5, plane="z")
-    _star(m, "star", 8, 5, 14.2, 14.6, 0.5, plane="z")
-    for (x, z) in ((3.6, 3.6), (12.4, 3.6), (3.6, 12.4), (12.4, 12.4)):
-        m.box("twinkle", (x - 0.35, 5, z - 0.35), (x + 0.35, 5.7, z + 0.35), CYAN_WHITE)
-    _display(m, (35, 225, 0), 0.85, -1)
-    return m
+# 은하수 (galaxy) v2 lives in models/cosmetics_galaxy.py (the donation art rules, nine pieces, awakened looks).
 
 
 # ================================================================================================
@@ -581,18 +469,20 @@ def puddle_trail():
 
 # slot of every model (the item yml says the same); the trail and aura models are only their cards
 SLOTS = {
-    "galaxy_star_crown": "above", "galaxy_cape": "back", "galaxy_moon_necklace": "neck",
-    "galaxy_stardust_trail": "trail", "galaxy_constellation_aura": "aura",
     "duckling_parade": "pet", "sleepy_duckling": "above", "duck_float_ring": "waist", "duckling_wings": "back",
     "puddle_trail": "trail",
 }
 
-ALL = {f.__name__: f for f in (galaxy_star_crown, galaxy_cape, galaxy_moon_necklace, galaxy_stardust_trail,
-                               galaxy_constellation_aura,
-                               duckling_parade, sleepy_duckling, duck_float_ring, duckling_wings, puddle_trail)}
+ALL = {f.__name__: f for f in (duckling_parade, sleepy_duckling, duck_float_ring, duckling_wings, puddle_trail)}
 
 # 청룡 v2 (models/cosmetics_azure.py): its pieces and the engine's models (awakened looks, prints, the burst, the ring)
 from models import cosmetics_azure as _azure   # noqa: E402
 
 SLOTS.update(_azure.SLOTS)
 ALL.update(_azure.ALL)
+
+# 은하수 v2 (models/cosmetics_galaxy.py): its pieces and the engine's models
+from models import cosmetics_galaxy as _galaxy   # noqa: E402
+
+SLOTS.update(_galaxy.SLOTS)
+ALL.update(_galaxy.ALL)

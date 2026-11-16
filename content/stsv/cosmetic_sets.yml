@@ -18,6 +18,12 @@ sets:
   galaxy:
     name: "<gradient:#ffe9a8:#a98bff>은하수</gradient>"
     bonus: { particle: end_rod, count: 10, spread: 0.8, height: 0.1, speed: 0 }
+    # 세트 각성: 발밑에 나선 은하가 천천히 돌고, 세트를 다 맞춘 순간 초신성이 몸 둘레로 터져 오름
+    awaken: { model: galaxy_set_ring, motion: { kind: orbit, amount: 0.0, period: 160 }, flourish: galaxy_supernova_burst,
+              sound: block.beacon.activate }
+    # 다섯 조각이던 은하수 세트를 이미 다 가진 사람은 새 네 조각을 받음 (다음 접속 때 한 번, 그 뒤에는 다시 없음)
+    upgrade: { id: galaxy_v2, from: [galaxy_star_crown, galaxy_cape, galaxy_moon_necklace, galaxy_stardust_trail, galaxy_constellation_aura],
+               give: [galaxy_star_owl, galaxy_star_belt, galaxy_star_whale, galaxy_supernova] }
   duck_family:
     name: "<gradient:#fff3a8:#ffb347>아기 오리 가족</gradient>"
     bonus: { particle: bubble_pop, count: 10, spread: 0.85, height: 0.75, speed: 0 }
