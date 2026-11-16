@@ -235,6 +235,37 @@ class NearFadeTest {
         }
     }
 
+    /** Distance LOD (CosmeticLod) composes with the fade: a far viewer gets the light model, still marked, others' band. */
+    @Test
+    void lightModelsAreMarkedToo() throws Exception {
+        ContentPack pack = new ContentPack("stsv", "stsv", CONTENT.resolve("stsv"));
+        Map<String, String> table = CosmeticLod.table(List.of(pack), items);
+        Set<String> withLight = NearFade.withLight(NearFade.models(items, List.of()), table);
+        for (String m : List.of("stsv:model/duck_aura_ring", "stsv:model/duck_aura_ring_awakened", "stsv:model/azure_pearl_orb")) {
+            assertTrue(withLight.contains(m + "_lod"), m);
+            for (NearFade.Band b : NearFade.Band.values()) {
+                JsonObject def = json(NearFade.definitionPath(NearFade.key(b, m + "_lod")));
+                assertNotNull(def, m + "_lod " + b);
+                for (JsonObject n : modelNodes(def.get("model"))) {
+                    assertEquals(NearFade.tint(b), n.getAsJsonArray("tints").get(0).getAsJsonObject().get("value").getAsInt());
+                    assertNotNull(json("assets/stsv/models/" + n.get("model").getAsString().substring("stsv:".length()) + ".json"));
+                }
+            }
+        }
+        // what the packet rewrite sends: everyone the marked full model, the wearer their band, a far viewer the light one
+        String sent = NearFade.key(NearFade.Band.OTHERS, "stsv:model/duck_aura_ring");
+        String far = CosmeticLod.forViewer(sent, 9, 7, null, Set.of(7), table);
+        assertEquals("stsv:near_fade/near/stsv/model/duck_aura_ring_lod", far);
+        assertNotNull(json(NearFade.definitionPath(far)), "the far viewer's model is in the pack");
+        assertEquals("stsv:near_fade/self/stsv/model/duck_aura_ring", CosmeticLod.forViewer(sent, 7, 7, null, Set.of(7), table));
+        assertEquals(sent, CosmeticLod.forViewer(sent, 8, 7, null, Set.of(), table));
+        // a model without a light one stays as it is far away
+        String halo = NearFade.key(NearFade.Band.OTHERS, "stsv:t_halo");
+        assertEquals(halo, CosmeticLod.forViewer(halo, 9, 7, null, Set.of(7), table));
+        // off (no near-fade pack): no marked light models either
+        assertTrue(plain.keySet().stream().noneMatch(f -> f.contains("near_fade")));
+    }
+
     @Test
     void nothingButTheCosmeticDisplaysCarriesTheMarker() {
         Pattern marker = Pattern.compile("\"value\":(" + NearFade.tint(NearFade.Band.OTHERS) + "|" + NearFade.tint(NearFade.Band.SELF) + "|"
@@ -246,8 +277,10 @@ class NearFadeTest {
             if (has) marked++;
             assertEquals(f.getKey().startsWith("assets/stsv/items/near_fade/"), has, f.getKey());
         }
-        // the five models of the items above and the three sets' awakening models (content cosmetic_sets.yml), three bands each
-        assertEquals((5 + 3) * 3, marked);
+        // the five models of the items above and the three sets' awakening models (content cosmetic_sets.yml), plus the light
+        // far-away models of six of them (CosmeticLod: the aura ring and its awakened look, the pearl, the three rings),
+        // three bands each
+        assertEquals((5 + 3 + 6) * 3, marked);
         for (String ring : List.of("azure_set_ring", "galaxy_set_ring", "duck_set_pond")) {
             assertNotNull(files.get("assets/stsv/items/near_fade/self/stsv/model/" + ring + ".json"), ring);
         }

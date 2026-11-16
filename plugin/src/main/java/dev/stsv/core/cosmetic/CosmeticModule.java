@@ -42,6 +42,7 @@ import org.bukkit.util.Vector;
 import java.util.ArrayList;
 import java.util.EnumMap;
 import java.util.HashMap;
+import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
 import java.util.Optional;
@@ -109,6 +110,8 @@ public final class CosmeticModule implements StsvModule, Listener {
     /** per player: whether their cosmetics were hidden (invisible, dead, spectator) at the last check */
     private final Map<UUID, Boolean> concealed = new HashMap<>();
     private long ticks;
+    /** cosmetics.lod (CosmeticLod) */
+    private CosmeticLod.Settings lod;
 
     @Override
     public String id() {
@@ -148,6 +151,7 @@ public final class CosmeticModule implements StsvModule, Listener {
         pets = new CosmeticPets(plugin, keyAttachment, packets);
         loadSets();
         loadAnchors();
+        loadLod();
         Bukkit.getScheduler().runTaskTimer(plugin, this::tick, 1L, 1L);
         Bukkit.getPluginManager().registerEvents(this, plugin);
         if (packets == null) {
@@ -205,6 +209,7 @@ public final class CosmeticModule implements StsvModule, Listener {
     public void reload() {
         loadSets();
         loadAnchors();
+        loadLod();
         Bukkit.getOnlinePlayers().forEach(this::refresh);
     }
 
@@ -214,12 +219,65 @@ public final class CosmeticModule implements StsvModule, Listener {
         problems.forEach(m -> plugin.getLogger().warning("config.yml " + m));
     }
 
+    /** cosmetics.lod: the distances, the view range of the displays and the light models of the pack. */
+    private void loadLod() {
+        try {
+            lod = CosmeticLod.Settings.of(plugin.getConfig().getConfigurationSection("cosmetics.lod"));
+        } catch (IllegalArgumentException | NullPointerException e) {
+            plugin.getLogger().warning("config.yml " + e.getMessage() + " - 거리별 단순화를 끕니다");
+            lod = null;
+        }
+        float range = lod == null ? 1f : lod.viewRange();
+        attachments.viewRange(range);
+        fx.viewRange(range);
+        pets.viewRange(range);
+        if (packets == null) return;
+        try {
+            packets.lodTable(lod == null ? Map.of() : CosmeticLod.table(plugin.content().packs(), plugin.content().items()));
+        } catch (java.io.IOException e) {
+            plugin.getLogger().warning("치장 단순화 모델 목록을 읽지 못했습니다: " + e);
+            packets.lodTable(Map.of());
+        }
+        // a reload may turn it off: everyone back to the full models
+        if (lod == null) for (Player v : Bukkit.getOnlinePlayers()) packets.retainLight(v, Set.of());
+    }
+
+    /**
+     * Every cosmetics.lod.every ticks: for each wearer and each player who sees them, the full or the light model
+     * (CosmeticLod). Only a pair whose band changed is sent anything: the items of that wearer's displays, once.
+     */
+    private void lodBands() {
+        if (packets == null || lod == null) return;
+        Map<UUID, Set<Integer>> seen = new HashMap<>();
+        for (Player owner : Bukkit.getOnlinePlayers()) {
+            List<org.bukkit.entity.ItemDisplay> ds = new ArrayList<>(attachments.models(owner));
+            org.bukkit.entity.ItemDisplay pet = pets.display(owner);
+            if (pet != null) ds.add(pet);
+            int id = owner.getEntityId();
+            boolean head = packets.hasHead(id);
+            if (ds.isEmpty() && !head) continue;
+            Location at = owner.getLocation();
+            for (Player v : owner.getTrackedBy()) {
+                if (v == owner || v.getWorld() != at.getWorld()) continue;
+                seen.computeIfAbsent(v.getUniqueId(), k -> new HashSet<>()).add(id);
+                boolean was = packets.light(v, id);
+                boolean now = CosmeticLod.lightSquared(was, v.getLocation().distanceSquared(at), lod);
+                if (now == was) continue;
+                packets.light(v, id, now);
+                for (org.bukkit.entity.ItemDisplay d : ds) if (d.isValid()) packets.resendItem(v, d.getEntityId(), d.getItemStack());
+                if (head) packets.resendHead(v, id);
+            }
+        }
+        for (Player v : Bukkit.getOnlinePlayers()) packets.retainLight(v, seen.getOrDefault(v.getUniqueId(), Set.of()));
+    }
+
     /** Every tick: the worn models follow their wearers; every 5 ticks: hide or show with invisibility etc. */
     private void tick() {
         attachments.tick();
         fx.tick();
         pets.tick();
         if (++ticks % 3 == 0) trails();
+        if (lod != null && ticks % lod.every() == 0) lodBands();
         if (ticks % AURA_EVERY == 0) {
             auras();
             setBonuses();
@@ -1674,6 +1732,8 @@ public final class CosmeticModule implements StsvModule, Listener {
         out.add("붙은 모델(디스플레이 id): " + attachments.displays(p) + " / 내 화면 표시: " + selfView(p) + " / 숨김(투명·사망·관전): " + concealed(p));
         if (packets != null) out.add("몸에 붙이기 패킷(서버 전체): 스폰 때 " + packets.linkedSpawns.get() + " / 탑승 패킷 보강 "
                 + packets.extendedPassengers.get() + " / 재전송 " + packets.resent.get());
+        if (packets != null) out.add("거리별 단순화: " + (lod == null ? "꺼짐" : lod.near() + "칸 밖 단순 모델, " + lod.far() + "칸 밖 안 그림")
+                + " / 단순 모델로 보낸 횟수 " + packets.lodSwapped.get());
         out.add("보유(직접 지급): " + (owned(p).isEmpty() ? "없음" : String.join(", ", owned(p))));
         out.add("OP 전체 보유 설정(cosmetics.op-owns-all): " + plugin.getConfig().getBoolean("cosmetics.op-owns-all")
                 + " / 권한: " + p.hasPermission("stsv.cosmetic.*"));

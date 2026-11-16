@@ -140,6 +140,23 @@ public final class NearFade {
         return "stsv:" + PREFIX + b.id + "/" + ns + "/" + path;
     }
 
+    /** A near-fade item model key taken apart: its band and the model it marks ("ns:path"). */
+    record Marked(Band band, String model) {}
+
+    /** "stsv:near_fade/&lt;band&gt;/ns/path" -> (band, "ns:path"); null if it is no such key. */
+    static Marked unwrap(String key) {
+        String start = "stsv:" + PREFIX;
+        if (key == null || !key.startsWith(start)) return null;
+        String rest = key.substring(start.length());
+        int a = rest.indexOf('/'), b = a < 0 ? -1 : rest.indexOf('/', a + 1);
+        if (b < 0) return null;
+        String id = rest.substring(0, a);
+        for (Band band : Band.values()) {
+            if (band.id.equals(id)) return new Marked(band, rest.substring(a + 1, b) + ":" + rest.substring(b + 1));
+        }
+        return null;
+    }
+
     /** A display's item model as sent to everyone ("stsv:near_fade/near/...") -> the band's one; null if it is no such key. */
     static String swap(String key, Band to) {
         String from = "stsv:" + PREFIX + Band.OTHERS.id + "/";
@@ -202,6 +219,19 @@ public final class NearFade {
             }
         }
         for (String m : setModels) out.add(m.contains(":") ? m : "stsv:model/" + m);
+        return out;
+    }
+
+    /**
+     * The models plus their light far-away models (CosmeticLod#table: "ns:model/x" or a cosmetic's own item id ->
+     * "ns:model/x_lod"): a far viewer is sent the light model in the others' band, so it needs definitions too.
+     */
+    public static Set<String> withLight(Collection<String> models, Map<String, String> lodTable) {
+        Set<String> out = new TreeSet<>(models);
+        for (String m : models) {
+            String light = lodTable.get(m);
+            if (light != null) out.add(light);
+        }
         return out;
     }
 

@@ -255,6 +255,26 @@ final class CosmeticAttachments {
     private final Map<UUID, List<Long>> carriedRelinkAt = new HashMap<>();
     private Map<CosmeticSlot, Vector3f> anchors = DEFAULT_ANCHORS;
     private long ticks;
+    /** Display#setViewRange of the worn displays: not drawn beyond cosmetics.lod.far (CosmeticLod) */
+    private float viewRange = 1f;
+
+    /** The view range of worn displays from now on, and of those worn now. */
+    void viewRange(float range) {
+        viewRange = range;
+        for (Map<CosmeticSlot, Worn> have : worn.values()) for (Worn w : have.values()) w.all().forEach(d -> d.setViewRange(range));
+        for (Worn w : bonus.values()) w.all().forEach(d -> d.setViewRange(range));
+    }
+
+    /** The worn model displays of this player (pieces, their parts, the set's bonus model), for CosmeticLod. */
+    List<ItemDisplay> models(Player p) {
+        Map<CosmeticSlot, Worn> have = worn.get(p.getUniqueId());
+        Worn b = bonus.get(p.getUniqueId());
+        if ((have == null || have.isEmpty()) && b == null) return List.of();
+        List<ItemDisplay> out = new ArrayList<>();
+        if (have != null) for (Worn w : have.values()) out.addAll(w.all());
+        if (b != null) out.addAll(b.all());
+        return out;
+    }
 
     /**
      * Name tags (nicknames): a text display riding the player on the clients like the models, drawn where the
@@ -500,6 +520,7 @@ final class CosmeticAttachments {
             e.setTeleportDuration(packets == null ? 3 : 1);   // turning (and, without riding, moving) is smoothed
             e.setInterpolationDuration(3);
             e.setShadowRadius(0);
+            e.setViewRange(viewRange);
             if (c.cosmetic().glow()) e.setBrightness(new org.bukkit.entity.Display.Brightness(15, 15));
             e.setTransformation(transformation(anchor(slot), c.cosmetic(), sneak, scale, 0));
         });
@@ -521,6 +542,7 @@ final class CosmeticAttachments {
                     e.setTeleportDuration(packets == null ? 3 : 1);
                     e.setInterpolationDuration(3);
                     e.setShadowRadius(0);
+                    e.setViewRange(viewRange);
                     if (part.billboard()) e.setBillboard(org.bukkit.entity.Display.Billboard.CENTER);
                     if (part.glow() || c.cosmetic().glow()) e.setBrightness(new org.bukkit.entity.Display.Brightness(15, 15));
                     e.setTransformationMatrix(partMatrix(main, part));

@@ -218,7 +218,16 @@ public final class PackBuilder {
                 if (m != null) setModels.add(m);
             }
         }
-        dev.stsv.core.cosmetic.NearFade.write(dev.stsv.core.cosmetic.NearFade.models(items, setModels), this::readJson, this::json, warnings);
+        // and the light far-away models of those (CosmeticLod): far viewers are sent them in the others' band
+        Map<String, String> lod;
+        try {
+            lod = dev.stsv.core.cosmetic.CosmeticLod.table(packs, items);
+        } catch (IOException e) {
+            warnings.add("치장 단순화 모델 목록을 읽지 못함: " + e.getMessage());
+            lod = Map.of();
+        }
+        java.util.Set<String> models = dev.stsv.core.cosmetic.NearFade.withLight(dev.stsv.core.cosmetic.NearFade.models(items, setModels), lod);
+        dev.stsv.core.cosmetic.NearFade.write(models, this::readJson, this::json, warnings);
         for (Map.Entry<String, byte[]> f : dev.stsv.core.cosmetic.NearFade.shaders(nearFade).entrySet()) {
             if (files.containsKey(f.getKey())) warnings.add("파일 충돌, 치장 근접 페이드 셰이더로 덮어씀: " + f.getKey());
             files.put(f.getKey(), f.getValue());

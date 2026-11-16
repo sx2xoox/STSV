@@ -54,6 +54,20 @@ final class CosmeticPets {
     private final NamespacedKey tag;
     private final Map<UUID, Pet> pets = new HashMap<>();
     private long ticks;
+    /** Display#setViewRange of pets: not drawn beyond cosmetics.lod.far (CosmeticLod) */
+    private float viewRange = 1f;
+
+    /** The view range of pets from now on, and of those out now. */
+    void viewRange(float range) {
+        viewRange = range;
+        pets.values().forEach(x -> x.display.setViewRange(range));
+    }
+
+    /** The display of the player's pet, or null. */
+    ItemDisplay display(Player p) {
+        Pet cur = pets.get(p.getUniqueId());
+        return cur == null || !cur.display.isValid() ? null : cur.display;
+    }
 
     /** null: no packet rewriting (the owner sees their pet with the others' near-fade band) */
     private final CosmeticPackets packets;
@@ -115,6 +129,7 @@ final class CosmeticPets {
             e.setTeleportDuration(2);
             e.setShadowRadius(0.25f);
             e.setShadowStrength(0.6f);
+            e.setViewRange(viewRange);
         });
         // the owner's client gets the pet's own near-fade band (CosmeticPackets), so it is known before it is shown
         if (packets != null) packets.pet(d.getEntityId(), p.getEntityId());

@@ -27,6 +27,8 @@ import java.util.logging.Logger;
  *   <li>equipment of a wearer, sent to anyone else: the head item becomes the cosmetic;</li>
  *   <li>the wearer's own helmet slot (inventory menu slot 5, player inventory slot 39): the self-view
  *       item from {@link CosmeticViews#selfView};</li>
+ *   <li>distance LOD (CosmeticLod): the item of a worn display or pet goes out as its light model to a viewer
+ *       who is far from the wearer;</li>
  *   <li>the models worn above the head, on the shoulder, back and tail (item displays, see
  *       CosmeticAttachments) ride the wearer on the clients only: whenever a client is shown the wearer
  *       or one of the displays, and whenever the server tells it who rides the wearer, the displays are
@@ -65,10 +67,15 @@ final class CosmeticPackets {
     private final Method invSlotSlot, invSlotContents, bundleSub;
     private final Method pairOf, pairFirst, pairSecond;
     private final Method asNms, asBukkit, nmsCopy;
-    /** entity data (near-fade: the wearer's own displays get their own band); null when the server's classes differ */
+    /**
+     * entity data: near-fade (the wearer's own displays get their own band) and distance LOD (far viewers get the light
+     * model); null when the server's classes differ
+     */
     private final Class<?> dataCls, nmsItemCls;
     private final Constructor<?> dataNew, valueNew;
-    private final Method dataId, dataItems, valueId, valueSerializer, valueValue;
+    private final Method dataId, dataItems, valueId, valueSerializer, valueValue, valueCreate;
+    /** Display.ItemDisplay.DATA_ITEM_STACK_ID (re-sending a display's item to one viewer); null when unknown */
+    private final Object itemAccessor;
 
     /** entity id of a wearer -> the cosmetic (NMS stack) other players see on their head. */
     private final Map<Integer, Object> othersView = new ConcurrentHashMap<>();
@@ -82,6 +89,10 @@ final class CosmeticPackets {
     private final Map<Integer, Integer> wearerOf = new ConcurrentHashMap<>();
     /** wearer -> their real passengers (as last seen on the main thread) */
     private final Map<Integer, int[]> riders = new ConcurrentHashMap<>();
+    /** "ns:model/x" (or a cosmetic's own item id) -> its light model, see CosmeticLod#table */
+    private volatile Map<String, String> lodTable = Map.of();
+    /** debug counters: items sent as their light model */
+    final java.util.concurrent.atomic.AtomicLong lodSwapped = new java.util.concurrent.atomic.AtomicLong();
     /** debug counters: links put into spawn bundles, passenger packets extended, links re-sent */
     final java.util.concurrent.atomic.AtomicLong linkedSpawns = new java.util.concurrent.atomic.AtomicLong(),
             extendedPassengers = new java.util.concurrent.atomic.AtomicLong(), resent = new java.util.concurrent.atomic.AtomicLong();
@@ -159,10 +170,11 @@ final class CosmeticPackets {
         nmsCopy = nmsItem.getMethod("copy");
         nmsItemCls = nmsItem;
 
-        // optional: without it everyone (the wearer too) sees the displays with the others' near-fade band
+        // optional: without it everyone (the wearer too) sees the displays with the others' near-fade band and full detail
         Class<?> dc = null, vc;
         Constructor<?> dn = null, vn = null;
-        Method di = null, ds = null, vi = null, vs = null, vv = null;
+        Method di = null, ds = null, vi = null, vs = null, vv = null, vcr = null;
+        Object acc = null;
         try {
             dc = Class.forName(game + "ClientboundSetEntityDataPacket", false, cl);
             vc = Class.forName("net.minecraft.network.syncher.SynchedEntityData$DataValue", false, cl);
@@ -173,9 +185,16 @@ final class CosmeticPackets {
             vs = vc.getMethod("serializer");
             vv = vc.getMethod("value");
             vn = vc.getConstructor(int.class, Class.forName("net.minecraft.network.syncher.EntityDataSerializer", false, cl), Object.class);
+            Class<?> accessor = Class.forName("net.minecraft.network.syncher.EntityDataAccessor", false, cl);
+            vcr = vc.getMethod("create", accessor, Object.class);
+            Field f = Class.forName("net.minecraft.world.entity.Display$ItemDisplay", false, cl).getDeclaredField("DATA_ITEM_STACK_ID");
+            f.setAccessible(true);
+            acc = f.get(null);
         } catch (ReflectiveOperationException e) {
             dc = null;
-            log.warning("치장 근접 페이드: 엔티티 데이터 패킷을 쓸 수 없어 내 치장도 남의 것과 같은 거리에서 사라집니다: " + e);
+            acc = null;
+            log.warning("치장 근접 페이드 · 거리별 단순화: 엔티티 데이터 패킷을 쓸 수 없어 내 치장도 남의 것과 같은 거리에서 사라지고, "
+                    + "먼 치장도 원래 모델로 보입니다: " + e);
         }
         dataCls = dc;
         dataNew = dn;
@@ -185,6 +204,8 @@ final class CosmeticPackets {
         valueId = vi;
         valueSerializer = vs;
         valueValue = vv;
+        valueCreate = vcr;
+        itemAccessor = acc;
     }
 
     // ------------------------------------------------------------------------------------------
@@ -233,6 +254,76 @@ final class CosmeticPackets {
         links.clear();
         wearerOf.clear();
         riders.clear();
+    }
+
+    // ------------------------------------------------------------------------------------------
+    // Distance LOD (CosmeticLod): main thread decides, network threads swap
+    // ------------------------------------------------------------------------------------------
+
+    void lodTable(Map<String, String> table) {
+        lodTable = Map.copyOf(table);
+    }
+
+    /** Whether this viewer is in the light band of this wearer. */
+    boolean light(Player viewer, int wearer) {
+        Handler h = handlers.get(viewer.getUniqueId());
+        return h != null && h.lightOwners.contains(wearer);
+    }
+
+    /** Sets the viewer's band for this wearer (true: light); the caller re-sends the items. */
+    void light(Player viewer, int wearer, boolean light) {
+        Handler h = handlers.get(viewer.getUniqueId());
+        if (h == null || wearer == h.entityId) return;
+        if (light) h.lightOwners.add(wearer);
+        else h.lightOwners.remove(wearer);
+    }
+
+    /** Forgets the bands of wearers this viewer was not evaluated against (no longer tracked, gone). */
+    void retainLight(Player viewer, Set<Integer> wearers) {
+        Handler h = handlers.get(viewer.getUniqueId());
+        if (h != null && !h.lightOwners.isEmpty()) h.lightOwners.retainAll(wearers);
+    }
+
+    /** Sends one display's item again to one viewer (the rewrite below picks the full or light model). */
+    void resendItem(Player viewer, int display, ItemStack item) {
+        if (dataCls == null) return;
+        try {
+            Object value = valueCreate.invoke(null, itemAccessor, asNms.invoke(null, item == null ? ItemStack.empty() : item));
+            send(viewer, dataNew.newInstance(display, List.of(value)));
+        } catch (Throwable t) {
+            warn(t);
+        }
+    }
+
+    /** Whether others see a cosmetic on this player's head (its look follows the band too). */
+    boolean hasHead(int wearer) {
+        return othersView.containsKey(wearer);
+    }
+
+    /** Sends the wearer's head cosmetic again to one viewer (the rewrite picks the full or light model). */
+    void resendHead(Player viewer, int wearer) {
+        Object look = othersView.get(wearer);
+        if (look == null) return;
+        try {
+            send(viewer, equipNew.newInstance(wearer, List.of(pairOf.invoke(null, headSlot, nmsCopy.invoke(look)))));
+        } catch (Throwable t) {
+            warn(t);
+        }
+    }
+
+    /** NMS stack -> the same stack drawn as its light model (a copy), or null when it has none. */
+    private Object lightLook(Object nms) throws ReflectiveOperationException {
+        ItemStack it = (ItemStack) asBukkit.invoke(null, nms);
+        if (it == null || !it.hasItemMeta()) return null;
+        org.bukkit.inventory.meta.ItemMeta meta = it.getItemMeta();
+        if (!meta.hasItemModel()) return null;
+        String model = meta.getItemModel().asString();
+        String light = CosmeticLod.view(model, null, true, lodTable);
+        if (light.equals(model)) return null;
+        meta.setItemModel(org.bukkit.NamespacedKey.fromString(light));
+        it.setItemMeta(meta);
+        lodSwapped.incrementAndGet();
+        return asNms.invoke(null, it);
     }
 
     /**
@@ -351,6 +442,7 @@ final class CosmeticPackets {
 
     void forget(Player p, int entityId) {
         handlers.remove(p.getUniqueId());
+        for (Handler h : handlers.values()) h.lightOwners.remove(entityId);
         othersView.remove(entityId);
         armorHidden.remove(entityId);
         link(entityId, new int[0], new int[0]);
@@ -394,6 +486,8 @@ final class CosmeticPackets {
         volatile boolean hideSelf;
         volatile Set<String> views = Set.of();
         volatile int entityId;
+        /** wearers this viewer sees in the light band (CosmeticLod; main thread writes, this channel reads) */
+        final Set<Integer> lightOwners = ConcurrentHashMap.newKeySet();
 
         Handler(int entityId) {
             this.entityId = entityId;
@@ -415,7 +509,7 @@ final class CosmeticPackets {
     private Object rewrite(Object packet, Handler h) throws ReflectiveOperationException {
         Class<?> c = packet.getClass();
         if (c == equipCls) return equipment(packet, h);
-        if (c == dataCls) return ownFade(packet, h);
+        if (c == dataCls) return displayData(packet, h);
         if (c == passengersCls) {
             int vehicle = (int) passengersVehicle.invoke(packet);
             int[] ids = linked(vehicle, (int[]) passengersIds.invoke(packet));
@@ -504,20 +598,28 @@ final class CosmeticPackets {
             else copy.add(pair);
         }
         // always carry the head: packets that leave out an empty helmet slot still need the cosmetic
-        if (look != null) copy.add(pairOf.invoke(null, headSlot, nmsCopy.invoke(look)));
+        if (look != null) {
+            Object light = CosmeticLod.lightFor(h.entityId, entity, h.lightOwners) ? lightLook(look) : null;
+            copy.add(pairOf.invoke(null, headSlot, light != null ? light : nmsCopy.invoke(look)));
+        }
         return equipNew.newInstance(entity, copy);
     }
 
     /**
-     * Entity data of one of this player's own cosmetic displays: its item's near-fade definition (band OTHERS, what
-     * everyone is sent) becomes the SELF one (worn) or PET one, which fade further from the camera (NearFade).
+     * Entity data of a cosmetic display (worn piece, part, aura, set ring, pet) going to one viewer: its item model as
+     * that viewer is to see it, near-fade band and detail picked together ({@link CosmeticLod#view}). Everyone is sent
+     * the others' band at full detail; the owner gets their own band (SELF worn, PET for the pet: they fade further from
+     * the camera, NearFade) and always the full model; a viewer in the owner's light band gets the light model
+     * ("&lt;model&gt;_lod", CosmeticLod) in the others' band.
      */
-    private Object ownFade(Object packet, Handler h) throws ReflectiveOperationException {
+    private Object displayData(Object packet, Handler h) throws ReflectiveOperationException {
         int id = (int) dataId.invoke(packet);
-        Integer wearer = wearerOf.get(id), owner = petOf.get(id);
-        NearFade.Band band = owner != null && owner == h.entityId ? NearFade.Band.PET
-                : wearer != null && wearer == h.entityId ? NearFade.Band.SELF : null;
-        if (band == null) return packet;
+        Integer wearer = wearerOf.get(id), petOwner = petOf.get(id);
+        Integer owner = wearer != null ? wearer : petOwner;
+        if (owner == null) return packet;
+        boolean light = CosmeticLod.lightFor(h.entityId, owner, h.lightOwners);
+        if (owner != h.entityId && !light) return packet;   // as sent to everyone: others' band, full detail
+        Map<String, String> table = lodTable;
         List<?> values = (List<?>) dataItems.invoke(packet);
         List<Object> copy = null;
         for (int i = 0; i < values.size(); i++) {
@@ -527,10 +629,12 @@ final class CosmeticPackets {
             ItemStack it = (ItemStack) asBukkit.invoke(null, item);
             if (it == null || it.isEmpty()) continue;
             org.bukkit.NamespacedKey model = it.getItemMeta() == null ? null : it.getItemMeta().getItemModel();
-            String own = NearFade.swap(model == null ? null : model.asString(), band);
-            if (own == null) continue;
-            org.bukkit.NamespacedKey key = org.bukkit.NamespacedKey.fromString(own);
+            if (model == null) continue;
+            String to = CosmeticLod.forViewer(model.asString(), h.entityId, wearer, petOwner, h.lightOwners, table);
+            if (to.equals(model.asString())) continue;
+            org.bukkit.NamespacedKey key = org.bukkit.NamespacedKey.fromString(to);
             it.editMeta(m -> m.setItemModel(key));
+            if (light) lodSwapped.incrementAndGet();
             if (copy == null) copy = new ArrayList<>(values);
             copy.set(i, valueNew.newInstance(valueId.invoke(v), valueSerializer.invoke(v), asNms.invoke(null, it)));
         }

@@ -76,6 +76,8 @@ def main():
     # remove generated files of models that no longer exist or moved (otherwise they would still ship)
     for pack in (CONTENT, FIXTURE):
         for stale in (pack / "models").glob("*.bbmodel"):
+            if pack == CONTENT and stale.stem.endswith("_lod") and stale.stem[:-4] in cosmetic_models:
+                continue      # a light far-away model (cosmetics_lod.py below keeps them in step)
             if stale.stem not in ALL or home(stale.stem) != pack:
                 stale.unlink()
                 print(f"removed {stale.relative_to(REPO)} (not defined for this pack)")
@@ -88,6 +90,9 @@ def main():
         print(f"model   {name}: {len(model.elements)} elements")
         if render:
             render_preview(BUILD / f"{name}.preview.json", PREVIEWS / f"{name}.png")
+    # light far-away models of the heavy worn cosmetics (models/<name>_lod.bbmodel; README "치장 거리별 단순화")
+    import cosmetics_lod
+    cosmetics_lod.write(CONTENT)
     # the lamp parts follow their bodies' lamps (models/vehicle_lights.py LAMPS): say so when a body moved them
     for warning in vehicle_lights.check():
         print(f"WARNING {warning}")

@@ -124,6 +124,13 @@ final class CosmeticFx {
         return new Transformation(new Vector3f(), new AxisAngle4f(), new Vector3f(0.02f, 0.02f, 0.02f), new AxisAngle4f());
     }
 
+    /** Display#setViewRange of footprints and bursts: not drawn beyond cosmetics.lod.far (they live too short to swap) */
+    private float viewRange = 1f;
+
+    void viewRange(float range) {
+        viewRange = range;
+    }
+
     private ItemDisplay spawn(Location at, ItemStack item, boolean glow, List<Player> viewers) {
         ItemDisplay d = at.getWorld().spawn(at, ItemDisplay.class, e -> {
             e.setVisibleByDefault(false);
@@ -132,6 +139,7 @@ final class CosmeticFx {
             e.setItemStack(item);
             e.setItemDisplayTransform(ItemDisplay.ItemDisplayTransform.NONE);
             e.setShadowRadius(0);
+            e.setViewRange(viewRange);
             if (glow) e.setBrightness(new Display.Brightness(15, 15));
             e.setTransformation(tiny());
         });

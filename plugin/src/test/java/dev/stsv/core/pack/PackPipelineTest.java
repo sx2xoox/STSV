@@ -17,6 +17,7 @@ import java.util.zip.ZipEntry;
 import java.util.zip.ZipInputStream;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
 /**
@@ -144,6 +145,14 @@ class PackPipelineTest {
                 }
                 assertTrue(textures.has(face.get("texture").getAsString().substring(1)), "unknown texture ref");
             }
+        }
+        // a cosmetic's light far-away model (cosmetics_lod.py): glows only where its full model does, never turned
+        if (name.endsWith("_lod")) {
+            String full = name.substring(0, name.length() - 4);
+            assertTrue(!glows || GLOWING.contains(full), "only light sources glow (" + full + " does not)");
+            assertFalse(rotated, "a light model is made of unturned boxes");
+            assertTrue(model.has("display"));
+            return;
         }
         // a tuning shop variant (vehicle_paints.py: another paint, wheel design, lamp colour) is judged as its stock model
         String stock = dev.stsv.core.vehicle.VehicleTuning.stock(name);
