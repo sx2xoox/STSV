@@ -2,9 +2,7 @@ package dev.stsv.economy.land.log;
 
 import dev.stsv.core.data.Db;
 
-import java.sql.Connection;
 import java.sql.SQLException;
-import java.util.ArrayList;
 import java.util.List;
 import java.util.UUID;
 import java.util.concurrent.CompletableFuture;
@@ -18,15 +16,17 @@ public final class LandLogStore {
 
     /** What a line is. */
     public enum Action {
-        /** a block broken (before = the block, item = a container's contents) */
+        /** a block broken (before = the block, item = a container's contents, gain = its real drops) */
         BREAK,
         /** a block placed (also a bucket poured, fire lit: before = what was there) */
         PLACE,
+        /** a liquid scooped with a bucket (before = the liquid, gain = the filled bucket, unless water) */
+        BUCKET,
         /** items taken out of a container (item = one of them, amount) */
         TAKE,
         /** items put into a container */
         PUT,
-        /** a frame, painting, armor stand or animal destroyed (item = the entity, serialized; before = its type) */
+        /** a frame, painting, armor stand or animal destroyed (item = the entity, serialized; before = its type; gain = its drops) */
         ENTITY_BREAK,
         /** a frame, painting or armor stand put up (after = its uuid) */
         ENTITY_PLACE,
@@ -38,9 +38,27 @@ public final class LandLogStore {
         FURNITURE_PLACE
     }
 
-    /** One line. owner: the land's owner then (null: the server's land). */
+    /**
+     * One line. owner: the land's owner then (null: the server's land). gain: what the person got by it (serialized
+     * items: a broken block's real drops, an animal's drops, a destroyed frame...; null = nothing). waiting: an undo of
+     * it was asked for and waits until what they got is taken back from them.
+     */
     public record Row(long id, long at, long land, UUID owner, String world, int x, int y, int z, UUID actor, String actorName, Action action,
-                      String before, String after, byte[] item, int amount) {}
+                      String before, String after, byte[] item, int amount, byte[] gain, boolean waiting) {
+
+        public Row(long id, long at, long land, UUID owner, String world, int x, int y, int z, UUID actor, String actorName, Action action,
+                   String before, String after, byte[] item, int amount) {
+            this(id, at, land, owner, world, x, y, z, actor, actorName, action, before, after, item, amount, null, false);
+        }
+
+        public Row withGain(byte[] g) {
+            return new Row(id, at, land, owner, world, x, y, z, actor, actorName, action, before, after, item, amount, g, waiting);
+        }
+
+        public Row withAfter(String a) {
+            return new Row(id, at, land, owner, world, x, y, z, actor, actorName, action, before, a, item, amount, gain, waiting);
+        }
+    }
 
     /** Per person (and action) in a land: how many, first and last time. */
     public record Tally(UUID actor, String name, Action action, long count, long first, long last) {}
@@ -58,7 +76,8 @@ public final class LandLogStore {
         db.migrate("land_log", List.of(List.of(
                 "CREATE TABLE IF NOT EXISTS stsv_land_log (" + id + ", at BIGINT NOT NULL, land BIGINT NOT NULL, owner CHAR(36), world VARCHAR(64) NOT NULL, "
                         + "x INT NOT NULL, y INT NOT NULL, z INT NOT NULL, actor CHAR(36) NOT NULL, actor_name VARCHAR(16) NOT NULL, action VARCHAR(16) NOT NULL, "
-                        + "before_data TEXT, after_data TEXT, item " + blob + ", amount INT NOT NULL, undone INT NOT NULL DEFAULT 0)",
+                        + "before_data TEXT, after_data TEXT, item " + blob + ", amount INT NOT NULL, gain " + blob + ", "
+                        + "undone INT NOT NULL DEFAULT 0, waiting INT NOT NULL DEFAULT 0)",
                 "CREATE INDEX stsv_land_log_land ON stsv_land_log (land, at)",
                 "CREATE INDEX stsv_land_log_actor ON stsv_land_log (actor, at)",
                 "CREATE INDEX stsv_land_log_at ON stsv_land_log (at)",
@@ -68,13 +87,13 @@ public final class LandLogStore {
                         + "target_name VARCHAR(16) NOT NULL, since BIGINT NOT NULL, summary TEXT NOT NULL)")));
     }
 
-    private static final String COLS = "id, at, land, owner, world, x, y, z, actor, actor_name, action, before_data, after_data, item, amount";
+    private static final String COLS = "id, at, land, owner, world, x, y, z, actor, actor_name, action, before_data, after_data, item, amount, gain, waiting";
 
     private static Row row(java.sql.ResultSet rs) throws SQLException {
         String owner = rs.getString(4);
         return new Row(rs.getLong(1), rs.getLong(2), rs.getLong(3), owner == null ? null : UUID.fromString(owner), rs.getString(5), rs.getInt(6), rs.getInt(7),
                 rs.getInt(8), UUID.fromString(rs.getString(9)), rs.getString(10), Action.valueOf(rs.getString(11)), rs.getString(12), rs.getString(13),
-                rs.getBytes(14), rs.getInt(15));
+                rs.getBytes(14), rs.getInt(15), rs.getBytes(16), rs.getInt(17) != 0);
     }
 
     /** Writes a batch of lines in one transaction (the log's flush, off the main thread). */
@@ -83,8 +102,8 @@ public final class LandLogStore {
         return db.async(c -> {
             boolean auto = c.getAutoCommit();
             c.setAutoCommit(false);
-            try (var ps = c.prepareStatement("INSERT INTO stsv_land_log (at, land, owner, world, x, y, z, actor, actor_name, action, before_data, after_data, item, amount) "
-                    + "VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)")) {
+            try (var ps = c.prepareStatement("INSERT INTO stsv_land_log (at, land, owner, world, x, y, z, actor, actor_name, action, before_data, after_data, "
+                    + "item, amount, gain) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)")) {
                 for (Row r : rows) {
                     ps.setLong(1, r.at());
                     ps.setLong(2, r.land());
@@ -100,6 +119,7 @@ public final class LandLogStore {
                     ps.setString(12, r.after());
                     ps.setBytes(13, r.item());
                     ps.setInt(14, r.amount());
+                    ps.setBytes(15, r.gain());
                     ps.addBatch();
                 }
                 ps.executeBatch();
@@ -141,26 +161,55 @@ public final class LandLogStore {
 
     /** Marks lines handled by an undo (so a second undo does not do them again). */
     public CompletableFuture<Void> undone(List<Long> ids) {
+        return mark(ids, "undone = 1, waiting = 0");
+    }
+
+    /** Marks lines whose undo waits until what the person got is taken back from them (their next join). */
+    public CompletableFuture<Void> waiting(List<Long> ids) {
+        return mark(ids, "waiting = 1");
+    }
+
+    private CompletableFuture<Void> mark(List<Long> ids, String set) {
         if (ids.isEmpty()) return CompletableFuture.completedFuture(null);
         return db.async(c -> {
             for (int i = 0; i < ids.size(); i += 500) {
                 List<Long> part = ids.subList(i, Math.min(ids.size(), i + 500));
-                Db.update(c, "UPDATE stsv_land_log SET undone = 1 WHERE id IN (" + "?,".repeat(part.size() - 1) + "?)", part.toArray());
+                Db.update(c, "UPDATE stsv_land_log SET " + set + " WHERE id IN (" + "?,".repeat(part.size() - 1) + "?)", part.toArray());
             }
             return null;
         });
     }
 
-    /** Per land: one person's line counts since a time (everywhere): land id, owner, count. */
+    /** A container take partly undone: what is still owed becomes its amount, and it waits. */
+    public CompletableFuture<Void> owe(long id, int amount) {
+        return db.async(c -> {
+            Db.update(c, "UPDATE stsv_land_log SET amount = ?, waiting = 1 WHERE id = ?", amount, id);
+            return null;
+        });
+    }
+
+    /** A person's lines whose undo waits for things to be taken back from them (land < 0: everywhere), oldest first. */
+    public CompletableFuture<List<Row>> waitingOf(UUID actor, long land) {
+        return db.async(c -> Db.query(c, "SELECT " + COLS + " FROM stsv_land_log WHERE actor = ? AND waiting = 1 AND undone = 0" + (land >= 0 ? " AND land = ?" : "")
+                + " ORDER BY id", LandLogStore::row, land >= 0 ? new Object[]{actor.toString(), land} : new Object[]{actor.toString()}));
+    }
+
+    /** Every waiting line in a land (what the owner still waits for, per person). */
+    public CompletableFuture<List<Row>> waitingIn(long land) {
+        return db.async(c -> Db.query(c, "SELECT " + COLS + " FROM stsv_land_log WHERE land = ? AND waiting = 1 AND undone = 0 ORDER BY id",
+                LandLogStore::row, land));
+    }
+
+    /** Per land: one person's line counts since a time (everywhere): land id, owner, action, count. */
     public CompletableFuture<List<Object[]>> byLand(UUID actor, long since) {
         return db.async(c -> Db.query(c, "SELECT land, MAX(owner), action, SUM(CASE WHEN amount > 0 THEN amount ELSE 1 END) FROM stsv_land_log "
                         + "WHERE actor = ? AND at >= ? AND undone = 0 GROUP BY land, action",
                 rs -> new Object[]{rs.getLong(1), rs.getString(2), Action.valueOf(rs.getString(3)), rs.getLong(4)}, actor.toString(), since));
     }
 
-    /** Lines older than this go (the retention). */
+    /** Lines older than this go (the retention); lines still waiting for things to be taken back stay. */
     public CompletableFuture<Integer> prune(long before) {
-        return db.async(c -> Db.update(c, "DELETE FROM stsv_land_log WHERE at < ?", before));
+        return db.async(c -> Db.update(c, "DELETE FROM stsv_land_log WHERE at < ? AND NOT (waiting = 1 AND undone = 0)", before));
     }
 
     // ------------------------------------------------------------------------------------------
@@ -188,20 +237,16 @@ public final class LandLogStore {
         });
     }
 
+    /** Has this person lines waiting for things to be taken back (checked when they join)? */
+    public CompletableFuture<Boolean> hasWaiting(UUID actor) {
+        return db.async(c -> !Db.query(c, "SELECT 1 FROM stsv_land_log WHERE actor = ? AND waiting = 1 AND undone = 0 LIMIT 1", rs -> 1, actor.toString()).isEmpty());
+    }
+
     public CompletableFuture<Void> audit(String admin, UUID target, String name, long since, String summary, long now) {
         return db.async(c -> {
             Db.update(c, "INSERT INTO stsv_grief_audit (at, admin, target, target_name, since, summary) VALUES (?, ?, ?, ?, ?, ?)",
                     now, cut(admin, 32), target.toString(), cut(name, 16), since, summary);
             return null;
         });
-    }
-
-    /** For tests: everything, oldest first. */
-    List<Row> all(Connection c) throws SQLException {
-        return new ArrayList<>(Db.query(c, "SELECT " + COLS + " FROM stsv_land_log ORDER BY id", LandLogStore::row));
-    }
-
-    public Db db() {
-        return db;
     }
 }

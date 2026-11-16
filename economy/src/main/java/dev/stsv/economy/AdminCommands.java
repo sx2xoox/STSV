@@ -36,9 +36,9 @@ final class AdminCommands {
         add("땅기록", "<플레이어> [시간: 30m·6h·2d] ", "그 사람이 땅들에서 한 것 (땅마다 무엇을 얼마나, 최근 10줄). 기본: 기록을 남기는 기간 전체",
                 (s, args) -> eco.landLog().adminLog(s, args), (s, args) -> args.length == 1 ? dev.stsv.core.nickname.Names.complete(s, args[0])
                         : args.length == 2 ? List.of("1h", "6h", "1d", "7d") : List.of());
-        add("테러", "<플레이어> <시간: 6h·2d> [확정]", "테러범 한 번에 처리: 요약을 보고, 확정하면 영구 밴 + 접속 끊기 + 모든 땅에서 한 것 되돌리기 + 그동안 다른 사람에게 받은 돈 돌려주기 (README \"테러 되돌리기\")",
+        add("테러", "<플레이어> <시간: 6h·2d> [확정] [강제]", "테러범 한 번에 처리: 요약을 보고, 확정하면 가져간 것 회수 + 회수한 만큼 모든 땅에서 되돌리기 + 영구 밴 + 접속 끊기 + 받은 돈 돌려주기. 강제 = 회수 못 한 부분까지 되돌림 (README \"테러 되돌리기\")",
                 (s, args) -> eco.landLog().grief(s, args), (s, args) -> args.length == 1 ? dev.stsv.core.nickname.Names.complete(s, args[0])
-                        : args.length == 2 ? List.of("1h", "6h", "1d", "3d") : args.length == 3 ? List.of("확정") : List.of());
+                        : args.length == 2 ? List.of("1h", "6h", "1d", "3d") : args.length == 3 ? List.of("확정") : args.length == 4 ? List.of("강제") : List.of());
 
         add("날짜", "[다음날]", "오늘이 며칠째·몇 주째인지 / 테스트용으로 하루 넘기기 (05시 처리를 지금 실행)", (s, args) -> {
             if (args.length > 0 && args[0].equals("다음날")) eco.calendar().skipDay();

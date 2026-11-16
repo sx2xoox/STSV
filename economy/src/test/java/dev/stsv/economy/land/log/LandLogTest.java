@@ -49,6 +49,67 @@ class LandLogTest {
         assertTrue(UndoPlan.applies(door, "minecraft:cave_air"), "air is air");
     }
 
+    private static Confiscation.Unit whole(long id, Map<String, Integer> gain) {
+        return new Confiscation.Unit(id, Confiscation.Kind.WHOLE, gain);
+    }
+
+    private static Confiscation.Unit count(long id, String key, int n) {
+        return new Confiscation.Unit(id, Confiscation.Kind.COUNT, Map.of(key, n));
+    }
+
+    @Test
+    void nothingGainedGoesBackFreely() {
+        // a block broken in creative / with no drops, a block placed, items put in: no gain, nothing to take back
+        var r = Confiscation.plan(List.of(whole(1, Map.of()), count(2, "dirt", 0)), Map.of(), false);
+        assertTrue(r.stream().allMatch(Confiscation.Result::restore), r.toString());
+        assertTrue(r.stream().allMatch(x -> x.take().isEmpty() && x.owed().isEmpty()));
+    }
+
+    @Test
+    void onlyWhatIsTakenBackGoesBack() {
+        // the colluding member broke two diamond blocks (one drop each) and took 10 diamonds from the chest
+        List<Confiscation.Unit> units = List.of(
+                whole(1, Map.of("diamond_block", 1)),
+                whole(2, Map.of("diamond_block", 1)),
+                count(3, "diamond", 10));
+        // they still hold one diamond block and 4 diamonds (the rest went to the owner, or elsewhere)
+        var r = Confiscation.plan(units, Map.of("diamond_block", 1, "diamond", 4), false);
+        assertTrue(r.get(0).restore(), "the first block: its drop is taken back, so it goes back");
+        assertEquals(Map.of("diamond_block", 1), r.get(0).take());
+        assertFalse(r.get(1).restore(), "the second block: nothing left to take back, so it does not come back");
+        assertTrue(r.get(1).take().isEmpty());
+        assertEquals(Map.of("diamond_block", 1), r.get(1).owed(), "it stays owed (아직 회수 못 함)");
+        assertTrue(r.get(2).restore());
+        assertEquals(4, r.get(2).restoreCount(), "4 diamonds taken back, 4 go back into the chest");
+        assertEquals(Map.of("diamond", 4), r.get(2).take());
+        assertEquals(Map.of("diamond", 6), r.get(2).owed());
+        // with nothing held (offline, or gave it all away) nothing that gained something goes back
+        var none = Confiscation.plan(units, Map.of(), false);
+        assertTrue(none.stream().noneMatch(Confiscation.Result::restore));
+        assertEquals(12, none.stream().mapToInt(x -> x.owed().values().stream().mapToInt(Integer::intValue).sum()).sum());
+    }
+
+    @Test
+    void aWholeUnitIsNeverTakenInPart() {
+        // an animal's drops: 2 beef and 1 leather; they ate one beef
+        var r = Confiscation.plan(List.of(whole(1, Map.of("beef", 2, "leather", 1))), Map.of("beef", 1, "leather", 1), false);
+        assertFalse(r.getFirst().restore());
+        assertTrue(r.getFirst().take().isEmpty(), "taking part of it would only punish: nothing is taken");
+        // units draw from one pool, oldest first: the second cannot use what the first took
+        var two = Confiscation.plan(List.of(whole(1, Map.of("gold", 2)), whole(2, Map.of("gold", 2))), Map.of("gold", 3), false);
+        assertTrue(two.get(0).restore());
+        assertFalse(two.get(1).restore());
+    }
+
+    @Test
+    void forcedPutsEverythingBackButStillTakesWhatItCan() {
+        var r = Confiscation.plan(List.of(whole(1, Map.of("diamond_block", 2)), count(2, "diamond", 10)), Map.of("diamond", 3), true);
+        assertTrue(r.get(0).restore(), "강제: the administrator's call");
+        assertTrue(r.get(0).owed().isEmpty());
+        assertEquals(10, r.get(1).restoreCount());
+        assertEquals(Map.of("diamond", 3), r.get(1).take(), "what they hold is still taken");
+    }
+
     @Test
     void whatWasTakenAndWhatWasPut() {
         Map<String, Integer> d = ContainerDiff.diff(Map.of("diamond", 10, "dirt", 64, "bread", 3), Map.of("diamond", 2, "dirt", 64, "cobble", 30));
@@ -133,12 +194,40 @@ class LandLogTest {
     }
 
     @Test
+    void owedLinesWaitAndSurviveTheRetention(@TempDir Path dir) throws Exception {
+        Db db = DatabaseModule.sqlite(dir.resolve("stsv.db"), LOG);
+        LandLogStore s = new LandLogStore(db);
+        s.init();
+        UUID owner = UUID.randomUUID(), member = UUID.randomUUID();
+        byte[] drops = {9, 9, 9};
+        s.write(List.of(
+                new Row(0, 100, 7, owner, "world", 1, 64, 1, member, "M", Action.BREAK, "minecraft:diamond_block", "minecraft:air", null, 1, drops, false),
+                new Row(0, 110, 7, owner, "world", 2, 64, 2, member, "M", Action.TAKE, null, null, new byte[]{3}, 10))).get();
+        List<Row> rows = s.toUndo(member, 7, 0).get();
+        assertEquals(3, rows.getFirst().gain().length, "the real drops are kept with the line");
+        assertFalse(s.hasWaiting(member).get());
+        s.waiting(List.of(rows.getFirst().id())).get();
+        s.owe(rows.get(1).id(), 6).get();
+        assertTrue(s.hasWaiting(member).get());
+        List<Row> waiting = s.waitingOf(member, -1).get();
+        assertEquals(2, waiting.size());
+        assertTrue(waiting.stream().allMatch(Row::waiting));
+        assertEquals(6, waiting.get(1).amount(), "a container take partly undone: what is still owed");
+        assertEquals(2, s.waitingIn(7).get().size());
+        assertEquals(0, s.prune(1_000).get(), "what is still owed is not forgotten by the retention");
+        s.undone(List.of(rows.getFirst().id(), rows.get(1).id())).get();
+        assertFalse(s.hasWaiting(member).get(), "done: no longer waiting");
+        db.close();
+    }
+
+    @Test
     void everyWordIsThere() {
         var msgs = YamlConfiguration.loadConfiguration(new InputStreamReader(getClass().getResourceAsStream("/messages.yml"), StandardCharsets.UTF_8));
         for (Action a : Action.values()) assertTrue(msgs.isString("land-log.action." + a.name().toLowerCase()), a.name());
         for (String k : List.of("not-owner", "empty", "head", "person", "detail-head", "line", "more", "bad-time", "not-self", "nothing", "since-all", "preview",
                 "preview-buttons", "expired", "cancelled", "no-preview", "undoing", "undone", "result", "admin-usage", "admin-head", "admin-land", "grief-usage",
-                "grief-summary", "grief-confirm", "ban-reason", "kick", "money-back", "grief-done", "owner-told", "error")) {
+                "grief-summary", "grief-confirm", "ban-reason", "kick", "money-back", "grief-done", "owner-told", "error", "person-owed", "line-owed",
+                "preview-owed", "preview-offline", "still-owed", "confiscated-you", "retried", "admin-owed", "grief-online", "grief-offline", "grief-owed")) {
             assertTrue(msgs.isString("land-log." + k), k);
         }
         var config = YamlConfiguration.loadConfiguration(new InputStreamReader(getClass().getResourceAsStream("/config.yml"), StandardCharsets.UTF_8));
