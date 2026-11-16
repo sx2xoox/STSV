@@ -41,6 +41,9 @@ class PackPipelineTest {
             "mole", "gumiho", "phoenix",                        // pets: the helmet lamp, fox-fire tails, flame tips
             "star_ring", "shoulder_dragon", "jetpack",          // cosmetics A: the stars, the dragon's ember, the rocket flames
             "devil_tail", "gold_medal", "crystal_pendant",      // cosmetics B: the heart tip, the medal's star, the crystal
+            // donation sets: every piece glows at night (the dragon wings' membrane only at its tips: not listed)
+            "azure_pearl_cloud", "azure_dragon_tail", "azure_cloud_trail", "azure_spark_aura",
+            "galaxy_star_crown", "galaxy_cape", "galaxy_moon_necklace", "galaxy_stardust_trail", "galaxy_constellation_aura",
             "andon", "stone_lantern", "tea_kettle",             // furniture: lamp paper, the lantern's fire, embers
             "police_car", "light_truck", "golf_cart", "sports_car", "tuner_car",   // vehicles: head and tail lights, the tuner car neon
             "hyper_car", "grand_sedan", "luxury_suv",           // the premium cars: lamps, the SUV roof lamps
@@ -56,6 +59,8 @@ class PackPipelineTest {
             "angel_wings", "demon_wings", "butterfly_wings",   // wings swept back 22.5 degrees
             "gumiho",                                           // nine tails fanned out
             "toy_sword_belt", "lucky_pouch", "champion_belt",   // waist: the sword hangs slanted, the pouch's knot, the belt's plate
+            "azure_dragon_wings", "galaxy_cape",                // donation sets: wings and cape swept back
+            "azure_spark_aura", "galaxy_star_crown", "galaxy_constellation_aura",   // rings and stars set on a slant
             "wagasa",                                           // the parasol's struts, tilted up to its canopy
             // retro furniture: the kettle's spout, the radio's aerial, the clothes prop, the phone's dial face, the dresser's wing
             // mirrors, the fan's tilted head, the lid leant on the small jar, the washboard in the tub, the TV's rabbit ears, the lamp's arm

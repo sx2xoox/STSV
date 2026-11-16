@@ -186,6 +186,11 @@ public final class DonationModule implements StsvModule, Listener, TabExecutor {
     /** Whether a player has what a product gives for good (bought once, or every thing it unlocks is theirs already). */
     private boolean has(Player p, Product product, Set<String> owned) {
         if (product.once() && owned.contains(product.id())) return true;
+        // a product that only gives cosmetics (관리자 치장 지급 {player} <id>) is had once every one of them is
+        // (a set's piece bought with the set, or the other way round, is not sold again)
+        List<String> cosmetics = DonationShop.cosmeticsGiven(product);
+        if (!cosmetics.isEmpty() && cosmetics.size() == product.commands().size() && product.items().isEmpty() && product.unlocks().isEmpty()
+                && plugin.cosmetics() != null && plugin.cosmetics().owned(p).containsAll(cosmetics)) return true;
         if (product.unlocks().isEmpty() || plugin.unlocks() == null) return false;
         for (String u : product.unlocks()) if (!plugin.unlocks().has(p.getUniqueId(), u)) return false;
         return true;

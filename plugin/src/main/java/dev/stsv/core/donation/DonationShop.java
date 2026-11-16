@@ -44,6 +44,18 @@ public record DonationShop(String currency, String symbol, List<String> notice, 
     public record Category(String id, String name, List<String> products, String icon) {}
 
     /** "300★" */
+    /** The cosmetics a product's commands give (관리자 치장 지급 {player} <id>), as namespaced ids. */
+    public static List<String> cosmeticsGiven(Product product) {
+        List<String> out = new java.util.ArrayList<>();
+        for (String c : product.commands()) {
+            String[] w = c.trim().split("\\s+");
+            if (w.length == 5 && w[0].equals("관리자") && w[1].equals("치장") && w[2].equals("지급") && w[3].equals("{player}")) {
+                out.add(w[4].contains(":") ? w[4] : "stsv:" + w[4]);
+            }
+        }
+        return out;
+    }
+
     public String amount(long n) {
         return String.format("%,d", n) + symbol;
     }

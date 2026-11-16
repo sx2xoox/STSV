@@ -15,6 +15,7 @@ import java.util.Locale;
 import java.util.Map;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
 /** The shipped cosmetics: every slot has some, effects use particles that need no extra data, pets have models. */
@@ -88,5 +89,49 @@ class CosmeticContentTest {
         assertTrue(!CosmeticEffects.color("rainbow", 0).equals(CosmeticEffects.color("rainbow", n / 2)));
         assertEquals(CosmeticEffects.color("rainbow", 3), CosmeticEffects.color("rainbow", 3 + n));
         assertEquals(0xff8800, CosmeticEffects.color("#ff8800", 0).asRGB());
+    }
+
+    /**
+     * Donation-only cosmetics: sold in the donation shop and nowhere else (no voucher to trade, not in the gacha), and
+     * their sets are whole (each set named in cosmetic_sets.yml has at least two pieces, each piece's set exists).
+     */
+    @Test
+    void donationCosmeticsAreOnlyInTheDonationShop() throws Exception {
+        Map<String, String> setOf = new java.util.HashMap<>();
+        List<String> exclusive = new ArrayList<>();
+        java.util.Set<String> vouchered = new java.util.HashSet<>();
+        try (var files = Files.list(PACK.resolve("items"))) {
+            for (Path f : files.filter(f -> f.toString().endsWith(".yml")).toList()) {
+                YamlConfiguration y = YamlConfiguration.loadConfiguration(f.toFile());
+                for (String key : y.getKeys(false)) {
+                    String v = y.getString(key + ".voucher.cosmetic");
+                    if (v != null) vouchered.add(v.contains(":") ? v.substring(v.indexOf(':') + 1) : v);
+                    ConfigurationSection c = y.getConfigurationSection(key + ".cosmetic");
+                    if (c == null) continue;
+                    if ("donation".equals(c.getString("exclusive"))) exclusive.add(key);
+                    if (c.getString("set") != null) setOf.put(key, c.getString("set"));
+                }
+            }
+        }
+        assertEquals(10, exclusive.size(), exclusive.toString());
+        List<String> pool = YamlConfiguration.loadConfiguration(PACK.resolve("gacha.yml").toFile()).getStringList("pool");
+        YamlConfiguration shop = YamlConfiguration.loadConfiguration(PACK.resolve("donation_shop.yml").toFile());
+        java.util.Set<String> sold = new java.util.HashSet<>();
+        for (String product : shop.getConfigurationSection("products").getKeys(false)) {
+            for (String cmd : shop.getStringList("products." + product + ".commands")) {
+                String[] w = cmd.trim().split("\\s+");
+                if (w.length == 5 && w[1].equals("치장") && w[2].equals("지급")) sold.add(w[4].substring(w[4].indexOf(':') + 1));
+            }
+        }
+        for (String id : exclusive) {
+            assertFalse(vouchered.contains(id), id + ": a donation cosmetic has no voucher");
+            assertFalse(pool.contains("stsv:" + id), id + ": not in the gacha");
+            assertTrue(sold.contains(id), id + ": sold in the donation shop");
+        }
+        YamlConfiguration sets = YamlConfiguration.loadConfiguration(PACK.resolve("cosmetic_sets.yml").toFile());
+        for (String set : sets.getConfigurationSection("sets").getKeys(false)) {
+            assertTrue(setOf.values().stream().filter(set::equals).count() >= 2, set + ": at least two pieces");
+        }
+        for (var e : setOf.entrySet()) assertTrue(sets.isConfigurationSection("sets." + e.getValue()), e.getKey() + ": set " + e.getValue());
     }
 }

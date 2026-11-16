@@ -32,7 +32,8 @@ RENDER = HERE / "render" / "render.mjs"
 FONT = "/usr/share/fonts/opentype/unifont/unifont.otf"
 
 U = 0.9375                     # the player model is drawn at 15/16
-ANCHORS = {"above": (0, 0.10, 0), "shoulder": (0.38, -0.39, 0), "back": (0, -0.62, -0.12), "tail": (0, -1.02, -0.12)}
+ANCHORS = {"above": (0, 0.10, 0), "shoulder": (0.38, -0.39, 0), "back": (0, -0.62, -0.12), "tail": (0, -1.02, -0.12),
+           "neck": (0, -0.47, 0), "waist": (0, -1.00, 0)}
 TOP = (8, 1.8 * 16, 8)         # top of the hitbox, in model units around the mannequin
 SLOT_KO = {"head": "머리", "above": "머리 위", "shoulder": "어깨", "back": "등", "tail": "꼬리", "pet": "펫"}
 PET_AT = (-14, 0, 6)           # beside the mannequin (its right, a little behind), on the ground
