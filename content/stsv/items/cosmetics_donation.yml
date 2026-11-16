@@ -1,4 +1,4 @@
-# 후원 상점 전용 치장: 세 세트 (청룡 · 은하수 아홉 조각씩, 아기 오리 다섯 조각) (모델: tools/assetgen/models/cosmetics_donation.py).
+# 후원 상점 전용 치장: 세 세트 (청룡 · 은하수 · 아기 오리, 아홉 조각씩) (모델: tools/assetgen/models/cosmetics_azure.py · cosmetics_galaxy.py · cosmetics_duck.py).
 # 뽑기에 나오지 않고 교환권도 없음 (cosmetic.exclusive: donation). 세트를 모두 걸치면 cosmetic_sets.yml 의 보너스 고리가 돈다.
 # 청룡 · 은하수의 모델 조각은 어두운 데서도 밝게 보이고 (glow), 대부분 움직인다 (motion). 아기 오리 가족은 빛나지 않는 낮의 세트.
 # 발자취 · 오라의 모델은 메뉴 카드 그림.
@@ -159,43 +159,78 @@ galaxy_supernova:
               particle: end_rod, count: 24, spread: 0.6, speed: 0.1 }
 
 # ---------------------------------------------------------------------------------------------
-# 아기 오리 가족 세트 (duck_family): 졸졸 오리들 · 꾸벅 오리 · 오리 튜브 · 파닥 날개 · 첨벙 발자국
-#   — 세트 보너스: 튜브 높이에 비눗방울 고리. 빛나지 않는 낮의 세트
+# 아기 오리 가족 세트 (duck_family) v2, 아홉 조각 (모델: tools/assetgen/models/cosmetics_duck.py, 후원 전용 고급 규칙):
+# 꾸벅 오리 · 파닥 날개 · 빼꼼 오리 · 턱받이 · 오리 튜브 · 졸졸 오리들 · 첨벙 발자국 · 둥둥 고무오리 · 꽥! 고무오리.
+# 빛나지 않는 낮의 세트 (각성한 꾸벅 오리의 달 모빌만 은은히 빛남). 세트를 모두 걸치면 각성 (cosmetic.awakened):
+# 달 모빌 · 부푼 날개와 떠다니는 솜털 · 분수와 무지개 · 네 마리 행렬과 선장 모자 · 고무오리 다섯 · 물보라 발자국,
+# 발밑에 연잎 고리 (cosmetic_sets.yml awaken). 발자국 · 고무오리 · 꽥! 은 파티클이 아니라 모델.
 # ---------------------------------------------------------------------------------------------
-duckling_parade:
-  material: paper
-  name: "<gradient:#fff3a8:#ffb347>졸졸 아기 오리들</gradient>"
-  lore: ["<gray>세일러 모자를 쓴 대장 오리를 따라", "<gray>아기 오리들이 줄지어 졸졸 따라온다", "<#ffc861>아기 오리 가족 세트 (1/5)"]
-  model: duckling_parade
-  max-stack: 1
-  cosmetic: { slot: pet, rarity: legendary, obtain: "후원 상점 (/후원)", exclusive: donation, set: duck_family }
 sleepy_duckling:
   material: paper
   name: "<gradient:#fff3a8:#ffb347>꾸벅 아기 오리</gradient>"
-  lore: ["<gray>머리 위에서 콧방울을 부풀리며 쿨쿨 잔다", "<#ffc861>아기 오리 가족 세트 (2/5)"]
+  lore: ["<gray>머리 위 베개에서 수면모자를 쓰고 쿨쿨,", "<gray>콧방울이 부풀고 z 가 날아오른다", "<#ffc861>아기 오리 가족 세트 (1/9)"]
   model: sleepy_duckling
   max-stack: 1
-  cosmetic: { slot: above, rarity: legendary, obtain: "후원 상점 (/후원)", exclusive: donation, set: duck_family, bob: true }
-duck_float_ring:
-  material: paper
-  name: "<gradient:#fff3a8:#ffb347>오리 튜브</gradient>"
-  lore: ["<gray>허리에 낀 노란 튜브, 앞에서 오리가 빼꼼", "<#ffc861>아기 오리 가족 세트 (3/5)"]
-  model: duck_float_ring
-  max-stack: 1
-  cosmetic: { slot: waist, rarity: legendary, obtain: "후원 상점 (/후원)", exclusive: donation, set: duck_family }
+  cosmetic: { slot: above, rarity: legendary, obtain: "후원 상점 (/후원)", exclusive: donation, set: duck_family, bob: true, awakened: sleepy_duckling_awakened }
 duckling_wings:
   material: paper
   name: "<gradient:#fff3a8:#ffb347>파닥 아기 날개</gradient>"
-  lore: ["<gray>보송보송한 작은 날개가 쉴 새 없이 파닥인다", "<#ffc861>아기 오리 가족 세트 (4/5)"]
+  lore: ["<gray>보송보송한 아기 날개, 깃털 끝이 겹겹이", "<gray>쉴 새 없이 파닥인다", "<#ffc861>아기 오리 가족 세트 (2/9)"]
   model: duckling_wings
   max-stack: 1
   cosmetic: { slot: back, rarity: legendary, obtain: "후원 상점 (/후원)", exclusive: donation, set: duck_family,
-              motion: { kind: flap, amount: 0.35, period: 14 } }
+              motion: { kind: flap, amount: 0.3, period: 14 }, awakened: duckling_wings_awakened }
+peeking_duckling:
+  material: paper
+  name: "<gradient:#fff3a8:#ffb347>빼꼼 아기 오리</gradient>"
+  lore: ["<gray>어깨에 앉아 빼꼼, 세일러 모자를 쓰고", "<gray>날개 하나를 흔들어 인사한다", "<#ffc861>아기 오리 가족 세트 (3/9)"]
+  model: peeking_duckling
+  max-stack: 1
+  cosmetic: { slot: shoulder, rarity: legendary, obtain: "후원 상점 (/후원)", exclusive: donation, set: duck_family }
+duck_bib:
+  material: paper
+  name: "<gradient:#fff3a8:#ffb347>오리 턱받이</gradient>"
+  lore: ["<gray>노란 물결 가장자리의 동그란 턱받이,", "<gray>아기 오리 얼굴과 닻이 수놓여 있다", "<#ffc861>아기 오리 가족 세트 (4/9)"]
+  model: duck_bib
+  max-stack: 1
+  cosmetic: { slot: neck, rarity: legendary, obtain: "후원 상점 (/후원)", exclusive: donation, set: duck_family }
+duck_float_ring:
+  material: paper
+  name: "<gradient:#fff3a8:#ffb347>오리 튜브</gradient>"
+  lore: ["<gray>허리에 낀 반짝이는 노란 튜브,", "<gray>앞에서 고무오리가 빼꼼", "<#ffc861>아기 오리 가족 세트 (5/9)"]
+  model: duck_float_ring
+  max-stack: 1
+  cosmetic: { slot: waist, rarity: legendary, obtain: "후원 상점 (/후원)", exclusive: donation, set: duck_family, awakened: duck_float_ring_awakened }
+duckling_parade:
+  material: paper
+  name: "<gradient:#fff3a8:#ffb347>졸졸 아기 오리들</gradient>"
+  lore: ["<gray>세일러 모자를 쓴 대장 오리를 따라", "<gray>아기 오리들이 줄지어 졸졸 따라온다", "<#ffc861>아기 오리 가족 세트 (6/9)"]
+  model: duckling_parade
+  max-stack: 1
+  cosmetic: { slot: pet, rarity: legendary, obtain: "후원 상점 (/후원)", exclusive: donation, set: duck_family, awakened: duckling_parade_awakened }
 puddle_trail:
   material: paper
   name: "<gradient:#fff3a8:#ffb347>첨벙 발자국</gradient>"
-  lore: ["<gray>걸음마다 물이 첨벙 튄다", "<#ffc861>아기 오리 가족 세트 (5/5)"]
+  lore: ["<gray>걸음마다 물갈퀴 발자국이 찍히고", "<gray>물결이 동그랗게 퍼진다", "<#ffc861>아기 오리 가족 세트 (7/9)"]
   model: puddle_trail
   max-stack: 1
   cosmetic: { slot: trail, rarity: legendary, obtain: "후원 상점 (/후원)", exclusive: donation, set: duck_family,
-              particle: splash, count: 4, spread: 0.2, speed: 0.05, height: 0.1 }
+              print: { models: [duck_print_a, duck_print_b], life: 36, scale: 0.5, step: 0.75, alternate: true },
+              awakened: duck_print_awakened, particle: splash, count: 2, spread: 0.15, speed: 0.05, height: 0.05 }
+rubber_duck_aura:
+  material: paper
+  name: "<gradient:#fff3a8:#ffb347>둥둥 고무오리</gradient>"
+  lore: ["<gray>발밑의 동그란 물웅덩이에서", "<gray>고무오리들이 둥둥 떠서 빙빙 돈다", "<#ffc861>아기 오리 가족 세트 (8/9)"]
+  model: duck_aura_card
+  max-stack: 1
+  cosmetic: { slot: aura, rarity: legendary, obtain: "후원 상점 (/후원)", exclusive: donation, set: duck_family,
+              worn: duck_aura_ring, awakened: duck_aura_ring_awakened, motion: { kind: orbit, amount: 0.04, period: 100 } }
+duck_squeak:
+  material: paper
+  name: "<gradient:#fff3a8:#ffb347>꽥! 고무오리</gradient>"
+  lore: ["<gray>쓰러뜨린 자리에서 커다란 고무오리가", "<gray>물보라와 비눗방울 속에 퐁 솟아오른다", "<#ffc861>아기 오리 가족 세트 (9/9)"]
+  model: duck_squeak
+  max-stack: 1
+  cosmetic: { slot: kill, rarity: legendary, obtain: "후원 상점 (/후원)", exclusive: donation, set: duck_family,
+              burst: { model: duck_squeak_burst, life: 36, scale: 0.85, rise: 0.25, sound: entity.chicken.egg },
+              particle: bubble_pop, count: 18, spread: 0.6, speed: 0.05 }

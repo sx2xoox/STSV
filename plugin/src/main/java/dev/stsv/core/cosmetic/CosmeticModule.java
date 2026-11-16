@@ -558,7 +558,8 @@ public final class CosmeticModule implements StsvModule, Listener {
         if (before != null) {
             for (CosmeticSets.Set set : whole) if (!before.contains(set.id())) awakened(p, set);
         }
-        pets.set(p, all.get(CosmeticSlot.PET));
+        CustomItem pet = all.get(CosmeticSlot.PET);
+        pets.set(p, pet, pet != null && awake.contains(pet.key().asString()));
         Optional<CustomItem> worn = Optional.ofNullable(all.get(CosmeticSlot.HEAD));
         if (packets != null) {
             packets.othersView(p.getEntityId(), worn.map(c -> c.create(1)).orElse(null));

@@ -27,3 +27,9 @@ sets:
   duck_family:
     name: "<gradient:#fff3a8:#ffb347>아기 오리 가족</gradient>"
     bonus: { particle: bubble_pop, count: 10, spread: 0.85, height: 0.75, speed: 0 }
+    # 세트 각성: 발밑 바깥에 연잎 (분홍 수련) 고리가 천천히 돌고, 세트를 다 맞춘 순간 커다란 고무오리가 첨벙 솟아오름
+    awaken: { model: duck_set_pond, motion: { kind: orbit, amount: 0.0, period: 160 }, flourish: duck_squeak_burst,
+              sound: entity.player.splash }
+    # 다섯 조각이던 아기 오리 세트를 이미 다 가진 사람은 새 네 조각을 받음 (다음 접속 때 한 번, 그 뒤에는 다시 없음)
+    upgrade: { id: duck_v2, from: [duckling_parade, sleepy_duckling, duck_float_ring, duckling_wings, puddle_trail],
+               give: [peeking_duckling, duck_bib, rubber_duck_aura, duck_squeak] }

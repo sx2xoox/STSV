@@ -36,6 +36,8 @@ final class CosmeticPets {
     private static final class Pet {
         final ItemDisplay display;
         final CustomItem item;
+        /** its whole set is worn: the pet shows its awakened model (cosmetic.awakened) */
+        boolean awake;
         Vector pos;
         float yaw;
         long t;
@@ -69,8 +71,22 @@ final class CosmeticPets {
 
     /** The pet the player has out now (null: none). Spawns, swaps or removes. */
     void set(Player p, CustomItem pet) {
+        set(p, pet, false);
+    }
+
+    /**
+     * The pet the player has out now (null: none); awake: its whole set is worn, so it shows its awakened model if it
+     * has one. Spawns, swaps or removes; the same pet waking up or settling down only changes its look.
+     */
+    void set(Player p, CustomItem pet, boolean awake) {
         Pet cur = pets.get(p.getUniqueId());
-        if (cur != null && pet != null && cur.item.key().equals(pet.key()) && cur.display.isValid() && cur.display.getWorld() == p.getWorld()) return;
+        if (cur != null && pet != null && cur.item.key().equals(pet.key()) && cur.display.isValid() && cur.display.getWorld() == p.getWorld()) {
+            if (cur.awake != awake) {
+                cur.awake = awake;
+                cur.display.setItemStack(CosmeticAttachments.look(pet, awake));
+            }
+            return;
+        }
         remove(p);
         if (pet == null) return;
         Vector at = spot(p.getLocation());
@@ -79,14 +95,16 @@ final class CosmeticPets {
             e.setVisibleByDefault(false);
             e.setPersistent(false);
             e.getPersistentDataContainer().set(tag, PersistentDataType.BYTE, (byte) 1);
-            e.setItemStack(pet.create(1));
+            e.setItemStack(CosmeticAttachments.look(pet, awake));
             e.setItemDisplayTransform(ItemDisplay.ItemDisplayTransform.NONE);
             e.setTeleportDuration(2);
             e.setShadowRadius(0.25f);
             e.setShadowStrength(0.6f);
         });
         for (Player v : p.getWorld().getPlayers()) if (v == p || v.canSee(p)) v.showEntity(plugin, d);
-        pets.put(p.getUniqueId(), new Pet(d, pet, at, yaw));
+        Pet made = new Pet(d, pet, at, yaw);
+        made.awake = awake;
+        pets.put(p.getUniqueId(), made);
     }
 
     void remove(Player p) {

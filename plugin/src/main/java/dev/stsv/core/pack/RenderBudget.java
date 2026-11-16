@@ -102,11 +102,12 @@ public final class RenderBudget {
                 List<?> cells = f.getList("cells", List.of());
                 out.putIfAbsent(namespace + ":" + model, cells.size() <= 1 ? Category.FURNITURE_SMALL : Category.FURNITURE_LARGE);
             } else if (c != null) {
-                out.putIfAbsent(namespace + ":" + model, "pet".equals(c.getString("slot")) ? Category.PET : Category.COSMETIC);
+                boolean pet = "pet".equals(c.getString("slot"));
+                out.putIfAbsent(namespace + ":" + model, pet ? Category.PET : Category.COSMETIC);
                 // donation-grade looks the engine shows (a worn aura, the awakened model, footprints, a kill burst): worn
-                // cosmetics' budget each (one display at a time, like any worn piece)
+                // cosmetics' budget each (one display at a time, like any worn piece); a pet's awakened look a pet's
                 for (String key : List.of("worn", "awakened", "burst.model", "print.model")) {
-                    if (c.getString(key) != null) out.putIfAbsent(local(namespace, c.getString(key)), Category.COSMETIC);
+                    if (c.getString(key) != null) out.putIfAbsent(local(namespace, c.getString(key)), pet && key.equals("awakened") ? Category.PET : Category.COSMETIC);
                 }
                 for (String m : c.getStringList("print.models")) out.putIfAbsent(local(namespace, m), Category.COSMETIC);
             }

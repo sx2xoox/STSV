@@ -40,6 +40,7 @@ class PackPipelineTest {
             "halo", "crown", "wizard_hat", "butterfly_wings",   // cosmetics: the halo, gems, stars, wing spots
             "mole", "gumiho", "phoenix",                        // pets: the helmet lamp, fox-fire tails, flame tips
             "star_ring", "shoulder_dragon", "jetpack",          // cosmetics A: the stars, the dragon's ember, the rocket flames
+            "sleepy_duckling_awakened",                         // 아기 오리: the moon and stars of the mobile
             "devil_tail", "gold_medal", "crystal_pendant",      // cosmetics B: the heart tip, the medal's star, the crystal
             // donation sets: every piece glows at night (the dragon wings' membrane only at its tips: not listed)
             // 청룡 v2: pearls, flames, eyes, spines, whiskers, glowing cloud, lightning and the footprints' rims
@@ -75,7 +76,11 @@ class PackPipelineTest {
             "azure_pearl_cloud", "azure_pearl_cloud_awakened", "azure_dragon_wings", "azure_dragon_wings_awakened", "azure_dragon_tail",
             "azure_shoulder_dragon", "azure_cloud_sash", "azure_baby_dragon", "azure_spark_aura", "azure_aura_dragon",
             "azure_aura_dragon_awakened", "azure_dragon_roar", "azure_roar_burst", "azure_set_ring",
-            "duck_float_ring", "puddle_trail", "duckling_wings",  // the duck set: octagonal ring and puddle, wings swept back
+            // 아기 오리 v2: the ring's corners, the wings turned out, the ducklings' tails and raised wings, the nightcap's tip,
+            // the bib's bow, the burst's puddle
+            "duck_float_ring", "duck_float_ring_awakened", "duckling_wings", "duckling_wings_awakened", "sleepy_duckling",
+            "sleepy_duckling_awakened", "peeking_duckling", "duck_bib", "duckling_parade", "duckling_parade_awakened",
+            "duck_squeak", "duck_squeak_burst",
             "wagasa",                                           // the parasol's struts, tilted up to its canopy
             // retro furniture: the kettle's spout, the radio's aerial, the clothes prop, the phone's dial face, the dresser's wing
             // mirrors, the fan's tilted head, the lid leant on the small jar, the washboard in the tub, the TV's rabbit ears, the lamp's arm

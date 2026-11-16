@@ -230,7 +230,7 @@ public final class ContentModule implements StsvModule, org.bukkit.event.Listene
                     b.getBoolean("spin"), b.getString("sound"));
         }
         if (sec.contains("cosmetic.awakened")) {
-            if (slot == CustomItem.CosmeticSlot.HEAD || slot == CustomItem.CosmeticSlot.PET) throw new IllegalArgumentException("cosmetic.awakened 는 머리 · 펫 말고 모델이 있는 부위에만");
+            if (slot == CustomItem.CosmeticSlot.HEAD) throw new IllegalArgumentException("cosmetic.awakened 는 머리 말고 모델이 있는 부위에만");
             if (sec.getString("cosmetic.set") == null) throw new IllegalArgumentException("cosmetic.awakened 는 세트(cosmetic.set) 조각에만 (세트를 다 입었을 때 바뀜)");
             awakened = cosmeticModel(pack, sec.getString("cosmetic.awakened"), "cosmetic.awakened");
             boolean effect = slot == CustomItem.CosmeticSlot.TRAIL || slot == CustomItem.CosmeticSlot.KILL || slot == CustomItem.CosmeticSlot.AURA;
