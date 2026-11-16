@@ -14,13 +14,13 @@ missions:
       action: ""
       material: CLOCK
       name: "<gold>오늘의 미션"
-      lore: ["<gray>매일 05시에 새로 뽑힙니다.", "<gray>새 미션까지 <white>{daily_left}", "<gray>다시 뽑기 <white>{daily_rerolls}번</white> 남음"]
+      lore: ["<gray>새 미션까지 <white>{daily_left} <dark_gray>(매일 05시)", "<gray>다시 뽑기 <white>{daily_rerolls}번</white> 남음"]
     W:
       action: ""
       icon: economy:gui/ledger
       material: WRITABLE_BOOK
       name: "<gold>이번 주 미션"
-      lore: ["<gray>월요일 05시에 새로 뽑힙니다.", "<gray>새 미션까지 <white>{weekly_left}", "<gray>다시 뽑기 <white>{weekly_rerolls}번</white> 남음"]
+      lore: ["<gray>새 미션까지 <white>{weekly_left} <dark_gray>(월 05시)", "<gray>다시 뽑기 <white>{weekly_rerolls}번</white> 남음"]
     B:
       action: "mission:daily-bonus"
       icon: economy:gui/trophy

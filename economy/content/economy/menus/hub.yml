@@ -21,39 +21,34 @@ hub:
       icon: stsv:gui/house
       material: BRICKS
       name: "<white>건축월드로"
-      lore: ["<gray>땅을 사서 집을 짓는 곳 (내 땅에서만 블록 변경)", "<dark_gray>마지막 위치나 스폰으로 · {warmup}초 가만히"]
+      lore: ["<gray>땅을 사서 집 짓는 곳", "<dark_gray>{warmup}초 가만히"]
     P:
       action: "command:프로필"
       material: PLAYER_HEAD
       name: "<white>{player}"
       lore:
-        - "<gray>지금 있는 곳: <white>{world}"
-        - "<gray>잔액: {balance}"
-        - "<gray>직업: <white>{job} <gray>Lv{level}"
-        - "<gray>내 땅: <white>{land}"
-        - "<gray>칭호: <white>{title}"
-        - "<gray>업적 점수: <gold>{points}점"
-        - ""
-        - "<yellow>클릭: 내 프로필"
-        - "<dark_gray>이 메뉴: {hotkey}"
+        - "<gray>잔액 {balance}"
+        - "<gray>직업 <white>{job} <gray>Lv{level} · 땅 <white>{land}"
+        - "<gray>칭호 <white>{title} <dark_gray>· <gold>{points}점"
+        - "<yellow>클릭: 내 프로필 <dark_gray>· 단축키 {hotkey}"
     Y:
       action: "command:야생월드"
       icon: stsv:gui/pine
       material: OAK_SAPLING
       name: "<white>야생월드로"
-      lore: ["<gray>자원을 캐는 곳 (보호 없음, 가끔 초기화)", "<gray>매번 무작위 위치로 (흩어져서 시작)", "<gray>지옥·엔드는 야생월드의 포털로 (죽어도 아이템 유지)", "<dark_gray>{warmup}초 가만히 · 다시 가려면 {cooldown}초"]
+      lore: ["<gray>자원 채집 · 보호 없음 · 가끔 초기화", "<gray>무작위 위치로", "<gold>지옥·엔드: 죽어도 아이템 유지", "<dark_gray>{warmup}초 가만히 · 재사용 {cooldown}초"]
     t:
       action: "hub:suggest:tpa|suggest:tpahere"
       icon: stsv:gui/pearl
       material: ENDER_PEARL
       name: "<white>텔레포트 요청"
-      lore: ["<gray>다른 플레이어에게 가기 (상대가 수락하면)", "<gray>우클릭: 내 쪽으로 부르기", "<dark_gray>/tpa <플레이어> · /tpahere <플레이어>", "<dark_gray>받은 요청: /tpaccept · /tpdeny · 안 받기: /tpatoggle"]
+      lore: ["<gray>상대가 수락하면 이동", "<yellow>우클릭: 내 쪽으로 부르기", "<dark_gray>/tpaccept · /tpdeny · /tpatoggle"]
     n:
       action: "command:야간투시"
       icon: stsv:gui/night_vision
       material: ENDER_EYE
       name: "<white>야간 투시 <gray>· {night_vision}"
-      lore: ["<gray>어두운 곳도 밝게 보기 (켜기·끄기)", "<gray>켜 두면 접속을 끊거나 죽어도 유지", "<dark_gray>/야간투시"]
+      lore: ["<gray>죽거나 나가도 유지", "<yellow>클릭: 켜기·끄기"]
 
     # 사고팔기
     A:
@@ -67,37 +62,37 @@ hub:
       icon: economy:gui/chart
       material: PAPER
       name: "<white>시세"
-      lore: ["<gray>오늘 상점이 사 주는 값과 24시간 변화"]
+      lore: ["<gray>오늘 매입가 · 24시간 변화"]
     D:
       action: "hub:run:거래소|run:거래소 등록"
       icon: economy:gui/bag
       material: WRITABLE_BOOK
       name: "<white>거래소"
-      lore: ["<gray>값을 정해 올리고, 누구나 바로 사는 장터", "<gray>구매 주문: 살 값을 먼저 걸어 두기 (아래 탭)", "<dark_gray>우클릭: 판매 등록 (물건 고르고 가격 정하기)"]
+      lore: ["<gray>값을 정해 사고파는 장터", "<yellow>우클릭: 판매 등록"]
     E:
       action: "hub:run:경매|run:경매 등록"
       icon: economy:gui/hammer
       material: ANVIL
       name: "<white>경매"
-      lore: ["<gray>공개 입찰 (마지막 순간 입찰은 시간 연장)", "<dark_gray>우클릭: 경매 등록 (물건 고르고 시작가 정하기)"]
+      lore: ["<gray>공개 입찰", "<yellow>우클릭: 경매 등록"]
     F:
       action: "hub:suggest:거래"
       icon: economy:gui/trade
       material: EMERALD
       name: "<white>직거래"
-      lore: ["<gray>다른 플레이어와 물건·돈 맞바꾸기", "<dark_gray>/거래 <플레이어>"]
+      lore: ["<gray>물건·돈 맞바꾸기", "<dark_gray>/거래 <플레이어>"]
     G:
       action: "command:우편함"
       icon: economy:gui/mail
       material: PAPER
       name: "<white>우편함"
-      lore: ["<gray>못 받은 물건 (낙찰품, 만료된 등록품, 가득 찬 인벤토리)"]
+      lore: ["<gray>낙찰품 · 만료품 · 넘친 물건"]
     H:
       action: "hub:run:주식|run:주식 뉴스"
       icon: economy:gui/candles
       material: MAP
       name: "<white>주식"
-      lore: ["<gray>가상 회사 주식 사고팔기, 그래프", "<dark_gray>우클릭: 뉴스"]
+      lore: ["<gray>회사 주식 사고팔기", "<yellow>우클릭: 뉴스"]
 
     # 일하고 키우기
     I:
@@ -105,43 +100,43 @@ hub:
       icon: economy:gui/pickaxe
       material: IRON_PICKAXE
       name: "<white>직업"
-      lore: ["<gray>직업 고르기, 레벨과 효과", "<gray>지금: <white>{job} <gray>Lv{level}", "<dark_gray>우클릭: 직업 순위"]
+      lore: ["<gray>지금 <white>{job} <gray>Lv{level}", "<yellow>우클릭: 직업 순위"]
     J:
       action: "command:미션"
       icon: economy:gui/checklist
       material: WRITABLE_BOOK
       name: "<white>미션"
-      lore: ["<gray>일일 · 주간 미션 (다 깨면 보너스)"]
+      lore: ["<gray>일일 · 주간 미션"]
     K:
       action: "command:의뢰"
       icon: economy:gui/scroll
       material: PAPER
       name: "<white>의뢰"
-      lore: ["<gray>의뢰 게시판: 물건을 모아 납품하고 보상 받기"]
+      lore: ["<gray>모아서 납품하고 보상"]
     L:
       action: "command:도감"
       icon: economy:gui/book
       material: BOOK
       name: "<white>도감"
-      lore: ["<gray>상점에 파는 물건을 1개씩 바쳐 등록"]
+      lore: ["<gray>물건을 1개씩 내고 등록"]
     M:
       action: "hub:run:땅|run:땅 보기"
       icon: economy:gui/flag
       material: GRASS_BLOCK
       name: "<white>땅"
-      lore: ["<gray>건축월드의 청크를 사서 내 땅으로 (처음 {free}칸 무료)", "<gray>내 땅: <white>{land}", "<dark_gray>우클릭: 경계 보기 · /땅 구매 · /땅 도움말"]
+      lore: ["<gray>내 땅 <white>{land}", "<gray>처음 {free}청크 무료", "<yellow>우클릭: 경계 보기"]
     N:
       action: "hub:run:납품|suggest:기부"
       icon: economy:gui/alert
       material: BELL
       name: "<white>사건"
-      lore: ["<gray>진행 중: <white>{events}", "<gray>클릭: 긴급 납품 사건에 물건 내기", "<dark_gray>우클릭: 세무 조사 기부 (/기부 <금액>)"]
+      lore: ["<gray>진행 중 <white>{events}", "<yellow>클릭: 긴급 납품", "<yellow>우클릭: 세무 조사 기부"]
     O:
       action: "command:기념비"
       icon: economy:gui/monument
       material: LODESTONE
       name: "<white>기념비"
-      lore: ["<gray>주간 순위 1위의 기념비 건립권"]
+      lore: ["<gray>주간 1위 건립권"]
 
     # 나, 기록
     Q:
@@ -149,37 +144,37 @@ hub:
       icon: stsv:gui/dress_up
       material: LEATHER_CHESTPLATE
       name: "<white>치장"
-      lore: ["<gray>모자, 날개, 펫... 입어 보고 꾸미기", "<gray>보유: <white>{cosmetics}"]
+      lore: ["<gray>모자·날개·펫 꾸미기", "<gray>보유 <white>{cosmetics}"]
     g:
       action: "command:뽑기"
       icon: stsv:gui/gacha
       material: SNOWBALL
       name: "<white>치장 뽑기"
-      lore: ["<gray>모자, 날개, 펫... 무작위로 하나", "<gray>이미 가진 치장은 교환권으로 (거래소에서 팔 수 있음)"]
+      lore: ["<gray>무작위 치장 1개", "<dark_gray>가진 치장은 교환권으로"]
     R:
       action: "command:칭호"
       icon: stsv:gui/tag
       material: NAME_TAG
       name: "<white>칭호"
-      lore: ["<gray>이름 앞에 붙는 칭호 장착", "<gray>지금: <white>{title}"]
+      lore: ["<gray>지금 <white>{title}"]
     S:
       action: "hub:run:업적|run:업적 순위"
       icon: stsv:gui/trophy
       material: GOLDEN_HELMET
       name: "<white>업적"
-      lore: ["<gray>도전 과제를 깨고 보상 받기", "<gray>점수: <gold>{points}점", "<dark_gray>우클릭: 업적 순위"]
+      lore: ["<gray>점수 <gold>{points}점", "<yellow>우클릭: 업적 순위"]
     T:
       action: "command:명예의전당"
       icon: stsv:gui/crown
       material: GOLDEN_HELMET
       name: "<white>명예의 전당"
-      lore: ["<gray>지난 콘텐츠 기간의 상위 기록"]
+      lore: ["<gray>지난 기간 상위 기록"]
     Z:
       action: "hub:run:순위|run:순위 자산"
       icon: stsv:gui/podium
       material: GOLD_BLOCK
       name: "<white>순위"
-      lore: ["<gray>이번 주에 번 돈 순위", "<dark_gray>우클릭: 순자산 순위 · 잔액 순위는 /돈 순위"]
+      lore: ["<gray>이번 주 번 돈", "<yellow>우클릭: 순자산 순위"]
 
     # 돈
     U:
@@ -187,19 +182,19 @@ hub:
       icon: stsv:gui/coins
       material: GOLD_INGOT
       name: "<white>잔액: {balance}"
-      lore: ["<gray>내 돈 (상태 줄과 사이드바에도 보임)", "<dark_gray>우클릭: 부자 순위"]
+      lore: ["<yellow>우클릭: 부자 순위"]
     V:
       action: "hub:suggest:송금"
       icon: stsv:gui/send
       material: GOLD_NUGGET
       name: "<white>송금"
-      lore: ["<gray>다른 플레이어에게 돈 보내기 (수수료 {fee}%)", "<dark_gray>/송금 <플레이어> <금액>"]
+      lore: ["<gray>수수료 {fee}%", "<dark_gray>/송금 <플레이어> <금액>"]
     W:
       action: "hub:suggest:수표"
       icon: stsv:cheque
       material: PAPER
       name: "<white>수표"
-      lore: ["<gray>돈을 수표 아이템으로 꺼내기 (우클릭하면 입금)", "<dark_gray>/수표 <금액>"]
+      lore: ["<gray>돈을 수표로 꺼내기", "<dark_gray>/수표 <금액>"]
     X:
       action: close
       icon: stsv:gui/exit

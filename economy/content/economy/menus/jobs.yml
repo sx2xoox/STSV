@@ -15,13 +15,13 @@ jobs:
       icon: stsv:gui/info
       material: BOOK
       name: "<white>내 직업: {job} <gray>Lv{level}"
-      lore: ["<gray>경험치: <white>{xp} <gray>/ {next}", "<gray>레벨은 직업마다 따로 남습니다 (최고 Lv{cap}).", "<gray>직업 변경: 언제든 {cost}", "<dark_gray>(바꿀 직업의 내 레벨이 높을수록 비쌈, 처음 고르기는 무료)"]
+      lore: ["<gray>경험치 <white>{xp} <gray>/ {next}", "<gray>직업마다 레벨 따로 · 최고 Lv{cap}", "<gray>변경 비용 {cost} <dark_gray>(첫 선택 무료)"]
     R:
       action: "command:직업 순위"
       icon: economy:gui/trophy
       material: GOLDEN_HELMET
       name: "<yellow>직업 순위"
-      lore: ["<gray>직업별 레벨 순위 (채팅으로)"]
+      lore: ["<gray>직업별 레벨 순위 <dark_gray>(채팅)"]
     X:
       action: close
       icon: stsv:gui/exit

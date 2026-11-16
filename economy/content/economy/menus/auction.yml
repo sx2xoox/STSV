@@ -15,19 +15,19 @@ auction:
       icon: economy:gui/hammer
       material: ANVIL
       name: "<green>경매 등록"
-      lore: ["<gray>내 물건을 골라 시작가를 정하고 올리기", "<gray>{minutes}분 공개 입찰 · 보증금 {deposit}", "<gray>서버 전체 동시 {max}건, 한 사람 1건", "<yellow>클릭: 등록 화면"]
+      lore: ["<gray>{minutes}분 · 보증금 {deposit}", "<gray>동시 {max}건 · 1인 1건", "<yellow>클릭: 등록 화면"]
     I:
       action: ""
       icon: stsv:gui/info
       material: BOOK
       name: "<white>진행 중 {count} / {max}건"
-      lore: ["<gray>물건 클릭: 입찰 화면 (금액 고르기)", "<gray>막판 입찰은 마감이 {extend}초 늘어남", "<gray>낙찰품은 우편함으로", "<gray>잔액: {balance}"]
+      lore: ["<gray>잔액 {balance}", "<gray>막판 입찰 시 {extend}초 연장", "<gray>낙찰품은 우편함", "<yellow>물건 클릭: 입찰"]
     G:
       action: "command:우편함"
       icon: economy:gui/mail
       material: PAPER
       name: "<white>우편함"
-      lore: ["<gray>낙찰품, 유찰·취소된 물건을 받는 곳"]
+      lore: ["<gray>낙찰품 · 돌려받은 물건"]
     P:
       action: page:prev
       icon: stsv:gui/prev
@@ -65,37 +65,37 @@ auction_sell:
       icon: economy:gui/pick
       material: PAPER
       name: "<white>경매에 올릴 물건 고르기"
-      lore: ["<gray>아래 내 인벤토리에서 물건을 클릭하세요", "<dark_gray>묶음 전체가 올라감"]
+      lore: ["<yellow>인벤토리 클릭: 고르기", "<dark_gray>묶음 전체가 올라감"]
     a:
       action: "price:step:1"
       icon: economy:gui/step_1
       material: GOLD_NUGGET
       name: "<white>±1 G"
-      lore: ["<gray>좌클릭: <green>+1 G <gray>· 우클릭: <red>-1 G", "<dark_gray>Shift: 10배"]
+      lore: ["<yellow>클릭: <green>올리기 <dark_gray>· <yellow>우클릭: <red>내리기", "<dark_gray>쉬프트: 10배"]
     b:
       action: "price:step:10"
       icon: economy:gui/step_10
       material: GOLD_NUGGET
       name: "<white>±10 G"
-      lore: ["<gray>좌클릭: <green>+10 G <gray>· 우클릭: <red>-10 G", "<dark_gray>Shift: 10배"]
+      lore: ["<yellow>클릭: <green>올리기 <dark_gray>· <yellow>우클릭: <red>내리기", "<dark_gray>쉬프트: 10배"]
     c:
       action: "price:step:100"
       icon: economy:gui/step_100
       material: GOLD_INGOT
       name: "<white>±100 G"
-      lore: ["<gray>좌클릭: <green>+100 G <gray>· 우클릭: <red>-100 G", "<dark_gray>Shift: 10배"]
+      lore: ["<yellow>클릭: <green>올리기 <dark_gray>· <yellow>우클릭: <red>내리기", "<dark_gray>쉬프트: 10배"]
     d:
       action: "price:step:1000"
       icon: economy:gui/step_1k
       material: GOLD_INGOT
       name: "<white>±1,000 G"
-      lore: ["<gray>좌클릭: <green>+1,000 G <gray>· 우클릭: <red>-1,000 G", "<dark_gray>Shift: 10배"]
+      lore: ["<yellow>클릭: <green>올리기 <dark_gray>· <yellow>우클릭: <red>내리기", "<dark_gray>쉬프트: 10배"]
     e:
       action: "price:step:10000"
       icon: economy:gui/step_10k
       material: GOLD_BLOCK
       name: "<white>±10,000 G"
-      lore: ["<gray>좌클릭: <green>+10,000 G <gray>· 우클릭: <red>-10,000 G", "<dark_gray>Shift: 10배"]
+      lore: ["<yellow>클릭: <green>올리기 <dark_gray>· <yellow>우클릭: <red>내리기", "<dark_gray>쉬프트: 10배"]
     T:
       action: "price:type"
       icon: economy:gui/type
@@ -108,21 +108,17 @@ auction_sell:
       material: GOLD_INGOT
       name: "<gold>시작가: {price}"
       lore:
-        - "<gray>{item}"
-        - "<gray>최소 시작가: <white>{min}"
-        - ""
-        - "<gray>보증금: <white>{deposit} <dark_gray>(지금 냄 · 팔리면 돌려받고, 유찰되면 잃음)"
-        - "<gray>시간: <white>{minutes}분 <dark_gray>(막판 입찰은 {extend}초 연장)"
-        - "<gray>낙찰되면 수수료 {fee_rate}%: 시작가 그대로 팔리면 <green>{receive}</green> 받음"
-        - "<gray>진행 중: <white>{running} / {max}건 <dark_gray>(한 사람 1건)"
-        - ""
-        - "<dark_gray>업적·미션: {credit} 이상 낙찰만 · 같은 판매자는 하루 1번"
+        - "<gray>{item} <dark_gray>· 최소 {min}"
+        - "<gray>보증금 <white>{deposit}</white> <dark_gray>(유찰되면 잃음)"
+        - "<gray>이 값에 낙찰 시 <green>{receive}</green> <dark_gray>(수수료 {fee_rate}%)"
+        - "<gray>{minutes}분 <dark_gray>(막판 +{extend}초)</dark_gray> · {running}/{max}건"
+        - "<dark_gray>업적·미션은 {credit} 이상 낙찰만 셈"
     R:
       action: "price:shop"
       icon: economy:gui/chart
       material: PAPER
       name: "<white>시세로 맞추기"
-      lore: ["<gray>상점이 사 주는 값 × 개수", "<gray>지금: <white>{shop}"]
+      lore: ["<gray>상점 매입가 × 개수 = <white>{shop}", "<yellow>클릭: 이 값으로"]
     B:
       action: "price:back"
       icon: economy:gui/back
@@ -134,7 +130,7 @@ auction_sell:
       icon: economy:gui/confirm
       material: LIME_DYE
       name: "<green>경매 시작 · {price}"
-      lore: ["<gray>{item}", "<gray>보증금 <white>{deposit}</white> 를 내고 {minutes}분 경매 시작", "<yellow>클릭: 경매 시작 (서버 전체에 알림)"]
+      lore: ["<gray>{item}", "<gray>보증금 <white>{deposit}</white> · {minutes}분", "<yellow>클릭: 경매 시작"]
     X:
       action: close
       icon: stsv:gui/exit
@@ -165,49 +161,49 @@ auction_bid:
       icon: economy:gui/step_1
       material: GOLD_NUGGET
       name: "<white>±1 G"
-      lore: ["<gray>좌클릭: <green>+1 G <gray>· 우클릭: <red>-1 G", "<dark_gray>Shift: 10배"]
+      lore: ["<yellow>클릭: <green>올리기 <dark_gray>· <yellow>우클릭: <red>내리기", "<dark_gray>쉬프트: 10배"]
     b:
       action: "price:step:10"
       icon: economy:gui/step_10
       material: GOLD_NUGGET
       name: "<white>±10 G"
-      lore: ["<gray>좌클릭: <green>+10 G <gray>· 우클릭: <red>-10 G", "<dark_gray>Shift: 10배"]
+      lore: ["<yellow>클릭: <green>올리기 <dark_gray>· <yellow>우클릭: <red>내리기", "<dark_gray>쉬프트: 10배"]
     c:
       action: "price:step:100"
       icon: economy:gui/step_100
       material: GOLD_INGOT
       name: "<white>±100 G"
-      lore: ["<gray>좌클릭: <green>+100 G <gray>· 우클릭: <red>-100 G", "<dark_gray>Shift: 10배"]
+      lore: ["<yellow>클릭: <green>올리기 <dark_gray>· <yellow>우클릭: <red>내리기", "<dark_gray>쉬프트: 10배"]
     d:
       action: "price:step:1000"
       icon: economy:gui/step_1k
       material: GOLD_INGOT
       name: "<white>±1,000 G"
-      lore: ["<gray>좌클릭: <green>+1,000 G <gray>· 우클릭: <red>-1,000 G", "<dark_gray>Shift: 10배"]
+      lore: ["<yellow>클릭: <green>올리기 <dark_gray>· <yellow>우클릭: <red>내리기", "<dark_gray>쉬프트: 10배"]
     e:
       action: "price:step:10000"
       icon: economy:gui/step_10k
       material: GOLD_BLOCK
       name: "<white>±10,000 G"
-      lore: ["<gray>좌클릭: <green>+10,000 G <gray>· 우클릭: <red>-10,000 G", "<dark_gray>Shift: 10배"]
+      lore: ["<yellow>클릭: <green>올리기 <dark_gray>· <yellow>우클릭: <red>내리기", "<dark_gray>쉬프트: 10배"]
     m:
       action: "price:min"
       icon: economy:gui/bid_min
       material: IRON_NUGGET
       name: "<white>최소 입찰가"
-      lore: ["<gray>{min}", "<dark_gray>지금가 + {raise}% (첫 입찰은 시작가)"]
+      lore: ["<gray>{min}", "<dark_gray>지금가 +{raise}% (첫 입찰은 시작가)"]
     p:
       action: "price:raise:5"
       icon: economy:gui/bid_5
       material: GOLD_NUGGET
       name: "<white>최소 +5%"
-      lore: ["<gray>{bid5}", "<dark_gray>한 번에 앞서 나가기"]
+      lore: ["<gray>{bid5}"]
     q:
       action: "price:raise:10"
       icon: economy:gui/bid_10
       material: GOLD_INGOT
       name: "<white>최소 +10%"
-      lore: ["<gray>{bid10}", "<dark_gray>한 번에 크게 앞서 나가기"]
+      lore: ["<gray>{bid10}"]
     T:
       action: "price:type"
       icon: economy:gui/type
@@ -220,12 +216,10 @@ auction_bid:
       material: GOLD_INGOT
       name: "<gold>입찰가: {price}"
       lore:
-        - "<gray>지금가: <white>{current} <dark_gray>({bidder})"
-        - "<gray>최소 입찰가: <white>{min}"
-        - "<gray>남은 시간: <white>{left}"
-        - ""
-        - "<gray>입찰하면 <white>{price}</white> 를 맡김 <dark_gray>(밀리면 바로 돌려받음)"
-        - "<gray>잔액: {balance} <dark_gray>→ {after}"
+        - "<gray>지금가 <white>{current} <dark_gray>({bidder})"
+        - "<gray>최소 <white>{min}</white> · 남은 <white>{left}"
+        - "<gray>잔액 {balance} <dark_gray>→ {after}"
+        - "<dark_gray>밀리면 바로 돌려받음"
     B:
       action: "price:back"
       icon: economy:gui/back
@@ -237,7 +231,7 @@ auction_bid:
       icon: economy:gui/confirm
       material: LIME_DYE
       name: "<green>입찰하기 · {price}"
-      lore: ["<gray>경매 #{id}", "<yellow>클릭: 입찰 (서버 전체에 알림)"]
+      lore: ["<gray>경매 #{id}", "<yellow>클릭: 입찰"]
     X:
       action: close
       icon: stsv:gui/exit

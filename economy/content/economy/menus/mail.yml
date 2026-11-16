@@ -17,13 +17,13 @@ mail:
       icon: stsv:gui/info
       material: BOOK
       name: "<white>우편함"
-      lore: ["<gray>받지 못한 물건이 여기 모입니다.", "<gray>클릭해서 꺼내기"]
+      lore: ["<gray>받지 못한 물건", "<yellow>물건 클릭: 꺼내기"]
     A:
       action: "mail:all"
       icon: economy:gui/chest
       material: CHEST
       name: "<green>전부 꺼내기"
-      lore: ["<gray>우편함의 물건을 인벤토리로 모두 옮기기", "<dark_gray>자리가 모자라면 남은 것은 그대로"]
+      lore: ["<dark_gray>자리가 모자라면 남은 건 그대로"]
     P:
       action: page:prev
       icon: stsv:gui/prev

@@ -30,7 +30,7 @@ codex:
       icon: economy:gui/chest
       material: CHEST
       name: "<yellow>이 분류 모두 등록"
-      lore: ["<gray>인벤토리에 있는 미등록 물건을", "<gray>하나씩 내고 등록합니다. <white>({ready}개)"]
+      lore: ["<gray>인벤토리의 미등록 물건 <white>{ready}개", "<yellow>클릭: 1개씩 내고 등록"]
     P:
       action: page:prev
       icon: stsv:gui/prev

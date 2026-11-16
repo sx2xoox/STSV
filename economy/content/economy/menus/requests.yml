@@ -14,7 +14,7 @@ requests:
       icon: stsv:gui/info
       material: BOOK
       name: "<white>오늘 완료 {done} / {max}"
-      lore: ["<gray>매일 05시에 새 의뢰 8건.", "<gray>클릭하면 인벤토리에서 납품합니다."]
+      lore: ["<gray>매일 05시 새 의뢰 8건", "<yellow>의뢰 클릭: 인벤토리에서 납품"]
     C:
       action: "request:community"
       icon: economy:gui/trophy

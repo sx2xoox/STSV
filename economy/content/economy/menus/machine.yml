@@ -44,13 +44,12 @@ machine_recipes:
       icon: stsv:gui/info
       material: BOOK
       name: "<white>{machine} · {tier}"
-      lore: ["{pick_hint}", "<gray>잠긴 레시피는 강화하면 열립니다.", "<dark_gray>시간은 이 기계·내 직업 기준"]
+      lore: ["{pick_hint}", "<gray>잠긴 레시피는 강화로 열림", "<dark_gray>시간: 이 기계·내 직업 기준"]
     B:
       action: "machine:back"
       icon: economy:gui/back
       material: ARROW
       name: "<white>기계로 돌아가기"
-      lore: ["<gray>기계 창으로"]
     P:
       action: page:prev
       icon: stsv:gui/prev

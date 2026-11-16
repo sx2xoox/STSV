@@ -15,19 +15,18 @@ shop:
       icon: stsv:gui/info
       material: BOOK
       name: "<white>잔액: {balance}"
-      lore: ["<gray>구매: 도구, 기계, 씨앗, 생활 용품, 가구, 탈것, 치장, 칭호", "<gray>판매: 내가 모은 것, 만든 것"]
     B:
       action: "shop:buy"
       icon: economy:gui/cart
       material: CHEST
       name: "<#ff5f57>구매"
-      lore: ["<gray>상점에서 물건 사기"]
+      lore: ["<gray>도구 · 기계 · 씨앗 · 가구 · 탈것 · 치장"]
     S:
       action: "shop:sell"
       icon: economy:gui/coins
       material: GOLD_NUGGET
       name: "<#4d9bff>판매"
-      lore: ["<gray>상점에 물건 팔기 · 오늘의 시세"]
+      lore: ["<gray>모은 것 · 만든 것 팔기"]
     X:
       action: close
       icon: stsv:gui/exit
@@ -50,13 +49,11 @@ shop_buy:
       icon: stsv:gui/info
       material: BOOK
       name: "<white>잔액: {balance}"
-      lore: ["<gray>카테고리를 고르세요."]
     B:
       action: "command:상점"
       icon: economy:gui/back
       material: ARROW
       name: "<yellow>처음으로"
-      lore: ["<gray>상점 첫 화면으로"]
     X:
       action: close
       icon: stsv:gui/exit
@@ -79,25 +76,24 @@ shop_sell:
       icon: economy:gui/sell_all
       material: GOLD_NUGGET
       name: "<#4d9bff>가진 것 전부 팔기"
-      lore: ["<gray>상점이 사는 물건을 인벤토리에서 모두 팝니다."]
+      lore: ["<gray>상점이 사는 것 전부"]
     I:
       action: ""
       icon: stsv:gui/info
       material: BOOK
       name: "<white>잔액: {balance}"
-      lore: ["<gray>카테고리: 품목별 시세 보기", "<gray>내 인벤토리 물건 클릭: <white>팔기", "<dark_gray> 좌클릭 묶음 · 우클릭 1개 · 쉬프트 전부"]
+      lore: ["<yellow>인벤토리 클릭: 팔기", "<dark_gray>클릭 묶음 · 우클릭 1개 · 쉬프트 전부"]
     T:
       action: ""
       icon: economy:gui/chart
       material: PAPER
       name: "<white>시세 보는 법"
-      lore: ["<gray>내가 많이 판 품목일수록 나에게만 싸게 삽니다.", "<gray>다른 사람이 판 것은 내 값과 상관없음.", "<gray>시간이 지나면 회복합니다 (매시간 조금, 매일 05시에 크게).", "<gold>★</gold> <gray>수요 고시  <color:#ff5f57>품귀</color> <gray>비싸게 삼", "<color:#4d9bff>폭락</color> <gray>싸게 삼  <dark_gray>(바닥)</dark_gray> <gray>내 값이 최저가"]
+      lore: ["<gray>많이 판 품목은 나에게만 싸짐", "<gray>매시간 회복 · 05시 크게 회복", "<gold>★</gold> <gray>수요 고시 · <color:#ff5f57>품귀</color> <gray>비쌈", "<color:#4d9bff>폭락</color> <gray>쌈 · <dark_gray>(바닥)</dark_gray> <gray>최저가"]
     B:
       action: "command:상점"
       icon: economy:gui/back
       material: ARROW
       name: "<yellow>처음으로"
-      lore: ["<gray>상점 첫 화면으로"]
     X:
       action: close
       icon: stsv:gui/exit
@@ -129,7 +125,6 @@ shop_buy_items:
       icon: economy:gui/back
       material: ARROW
       name: "<yellow>구매 카테고리로"
-      lore: ["<gray>다른 구매 카테고리 고르기"]
     P:
       action: page:prev
       icon: stsv:gui/prev
@@ -169,25 +164,24 @@ shop_sell_items:
       icon: economy:gui/sell_all
       material: GOLD_NUGGET
       name: "<#4d9bff>이 카테고리 전부 팔기"
-      lore: ["<gray>{category} 중 가진 것을 모두 팝니다."]
+      lore: ["<gray>가진 {category} 전부"]
     I:
       action: ""
       icon: stsv:gui/info
       material: BOOK
       name: "<white>잔액: {balance}"
-      lore: ["<gray>품목 클릭: <white>인벤토리의 그 물건 팔기", "<gray>내 인벤토리 물건 클릭: <white>팔기", "<dark_gray> 좌클릭 묶음 · 우클릭 1개 · 쉬프트 전부"]
+      lore: ["<yellow>품목·인벤토리 클릭: 팔기", "<dark_gray>클릭 묶음 · 우클릭 1개 · 쉬프트 전부"]
     T:
       action: ""
       icon: economy:gui/chart
       material: PAPER
       name: "<white>시세 보는 법"
-      lore: ["<gray>내가 많이 판 품목일수록 나에게만 싸게 삽니다.", "<gray>다른 사람이 판 것은 내 값과 상관없음.", "<gray>시간이 지나면 회복합니다 (매시간 조금, 매일 05시에 크게).", "<gold>★</gold> <gray>수요 고시  <color:#ff5f57>품귀</color> <gray>비싸게 삼", "<color:#4d9bff>폭락</color> <gray>싸게 삼  <dark_gray>(바닥)</dark_gray> <gray>내 값이 최저가"]
+      lore: ["<gray>많이 판 품목은 나에게만 싸짐", "<gray>매시간 회복 · 05시 크게 회복", "<gold>★</gold> <gray>수요 고시 · <color:#ff5f57>품귀</color> <gray>비쌈", "<color:#4d9bff>폭락</color> <gray>쌈 · <dark_gray>(바닥)</dark_gray> <gray>최저가"]
     B:
       action: "command:상점 판매"
       icon: economy:gui/back
       material: ARROW
       name: "<yellow>판매 카테고리로"
-      lore: ["<gray>다른 판매 카테고리 고르기"]
     P:
       action: page:prev
       icon: stsv:gui/prev
