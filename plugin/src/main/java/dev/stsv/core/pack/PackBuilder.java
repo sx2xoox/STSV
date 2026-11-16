@@ -111,6 +111,7 @@ public final class PackBuilder {
     private Map<String, byte[]> extra = Map.of();
     private boolean cropBlocks = true;
     private boolean reduceFaces = true;
+    private dev.stsv.core.cosmetic.NearFade.Settings nearFade;
     /** item model ids ("ns:model/name") of crop stages: their models are left as converted (see {@link #convertModels}) */
     private final java.util.Set<String> cropModels = new java.util.HashSet<>();
     /** model name ("ns:name") -> {faces as converted, faces shipped} */
@@ -122,6 +123,15 @@ public final class PackBuilder {
      */
     public PackBuilder reduceFaces(boolean on) {
         this.reduceFaces = on;
+        return this;
+    }
+
+    /**
+     * Cosmetics fade near the camera (cosmetics.near-fade, see NearFade): the item shader and, for every model a cosmetic
+     * display shows, its marked item definitions. Null or not enabled (the default): neither.
+     */
+    public PackBuilder nearFade(dev.stsv.core.cosmetic.NearFade.Settings settings) {
+        this.nearFade = settings;
         return this;
     }
 
@@ -180,6 +190,8 @@ public final class PackBuilder {
         if (cropBlocks) writeCropBlocks(packs);
         // cosmetics seen by their wearer: head items that look like themselves in the inventory
         java.util.Set<String> cosmeticViews = dev.stsv.core.cosmetic.CosmeticViews.write(items, this::readJson, this::json, warnings);
+        // cosmetics fading near the camera: the item shader and the cosmetic displays' marked definitions
+        if (nearFade != null && nearFade.enabled()) writeNearFade(packs, items);
         // menu backgrounds: one generated font with a glyph per background (see MenuSpec)
         List<dev.stsv.core.gui.menu.MenuSpec> menus = dev.stsv.core.gui.menu.MenuSpec.loadAll(List.copyOf(packs), warnings);
         if (menus.stream().anyMatch(m -> m.background() != null)) {
@@ -191,6 +203,26 @@ public final class PackBuilder {
             if (k.endsWith(".json") && (k.contains("/items/") || k.contains("/models/"))) json.put(k, f.getValue());
         }
         return new Built(zip(), sha1(zip()), files.size(), List.copyOf(warnings), cosmeticViews, Map.copyOf(json));
+    }
+
+    private void writeNearFade(Collection<ContentPack> packs, Collection<CustomItem> items) {
+        List<String> setModels = new ArrayList<>();
+        for (ContentPack cp : packs) {
+            Path f = cp.dir().resolve("cosmetic_sets.yml");
+            if (!Files.isRegularFile(f)) continue;
+            org.bukkit.configuration.ConfigurationSection sets =
+                    org.bukkit.configuration.file.YamlConfiguration.loadConfiguration(f.toFile()).getConfigurationSection("sets");
+            if (sets == null) continue;
+            for (String id : sets.getKeys(false)) {
+                String m = sets.getString(id + ".awaken.model");
+                if (m != null) setModels.add(m);
+            }
+        }
+        dev.stsv.core.cosmetic.NearFade.write(dev.stsv.core.cosmetic.NearFade.models(items, setModels), this::readJson, this::json, warnings);
+        for (Map.Entry<String, byte[]> f : dev.stsv.core.cosmetic.NearFade.shaders(nearFade).entrySet()) {
+            if (files.containsKey(f.getKey())) warnings.add("파일 충돌, 치장 근접 페이드 셰이더로 덮어씀: " + f.getKey());
+            files.put(f.getKey(), f.getValue());
+        }
     }
 
     private void copyRawAssets(ContentPack cp) throws IOException {

@@ -145,7 +145,7 @@ public final class CosmeticModule implements StsvModule, Listener {
         }
         attachments = new CosmeticAttachments(plugin, keyAttachment, packets, this::selfView);
         fx = new CosmeticFx(plugin, keyAttachment);
-        pets = new CosmeticPets(plugin, keyAttachment);
+        pets = new CosmeticPets(plugin, keyAttachment, packets);
         loadSets();
         loadAnchors();
         Bukkit.getScheduler().runTaskTimer(plugin, this::tick, 1L, 1L);
@@ -576,6 +576,12 @@ public final class CosmeticModule implements StsvModule, Listener {
     private static ItemStack helmet(Player p) {
         ItemStack h = p.getInventory().getHelmet();
         return h == null ? ItemStack.empty() : h;
+    }
+
+    /** The resource pack was built again: displays already out show the near-fade definitions it has (or no longer has). */
+    public void packRebuilt() {
+        if (attachments != null) attachments.restyle();
+        if (pets != null) pets.restyle();
     }
 
     private Set<String> currentViews() {

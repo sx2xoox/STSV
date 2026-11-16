@@ -65,6 +65,10 @@ final class CosmeticPackets {
     private final Method invSlotSlot, invSlotContents, bundleSub;
     private final Method pairOf, pairFirst, pairSecond;
     private final Method asNms, asBukkit, nmsCopy;
+    /** entity data (near-fade: the wearer's own displays get their own band); null when the server's classes differ */
+    private final Class<?> dataCls, nmsItemCls;
+    private final Constructor<?> dataNew, valueNew;
+    private final Method dataId, dataItems, valueId, valueSerializer, valueValue;
 
     /** entity id of a wearer -> the cosmetic (NMS stack) other players see on their head. */
     private final Map<Integer, Object> othersView = new ConcurrentHashMap<>();
@@ -153,6 +157,34 @@ final class CosmeticPackets {
         if (bukkit == null) throw new NoSuchMethodException("CraftItemStack.asBukkitCopy");
         asBukkit = bukkit;
         nmsCopy = nmsItem.getMethod("copy");
+        nmsItemCls = nmsItem;
+
+        // optional: without it everyone (the wearer too) sees the displays with the others' near-fade band
+        Class<?> dc = null, vc;
+        Constructor<?> dn = null, vn = null;
+        Method di = null, ds = null, vi = null, vs = null, vv = null;
+        try {
+            dc = Class.forName(game + "ClientboundSetEntityDataPacket", false, cl);
+            vc = Class.forName("net.minecraft.network.syncher.SynchedEntityData$DataValue", false, cl);
+            di = dc.getMethod("id");
+            ds = dc.getMethod("packedItems");
+            dn = dc.getConstructor(int.class, List.class);
+            vi = vc.getMethod("id");
+            vs = vc.getMethod("serializer");
+            vv = vc.getMethod("value");
+            vn = vc.getConstructor(int.class, Class.forName("net.minecraft.network.syncher.EntityDataSerializer", false, cl), Object.class);
+        } catch (ReflectiveOperationException e) {
+            dc = null;
+            log.warning("치장 근접 페이드: 엔티티 데이터 패킷을 쓸 수 없어 내 치장도 남의 것과 같은 거리에서 사라집니다: " + e);
+        }
+        dataCls = dc;
+        dataNew = dn;
+        dataId = di;
+        dataItems = ds;
+        valueNew = vn;
+        valueId = vi;
+        valueSerializer = vs;
+        valueValue = vv;
     }
 
     // ------------------------------------------------------------------------------------------
@@ -185,7 +217,17 @@ final class CosmeticPackets {
         }
     }
 
+    /** pet display id -> its owner's entity id (the owner sees it with the near-fade PET band) */
+    private final Map<Integer, Integer> petOf = new ConcurrentHashMap<>();
+
+    /** A pet display and its owner (owner -1: forget the display). Before the display is shown. */
+    void pet(int display, int owner) {
+        if (owner < 0) petOf.remove(display);
+        else petOf.put(display, owner);
+    }
+
     void clear() {
+        petOf.clear();
         othersView.clear();
         armorHidden.clear();
         links.clear();
@@ -373,6 +415,7 @@ final class CosmeticPackets {
     private Object rewrite(Object packet, Handler h) throws ReflectiveOperationException {
         Class<?> c = packet.getClass();
         if (c == equipCls) return equipment(packet, h);
+        if (c == dataCls) return ownFade(packet, h);
         if (c == passengersCls) {
             int vehicle = (int) passengersVehicle.invoke(packet);
             int[] ids = linked(vehicle, (int[]) passengersIds.invoke(packet));
@@ -463,6 +506,35 @@ final class CosmeticPackets {
         // always carry the head: packets that leave out an empty helmet slot still need the cosmetic
         if (look != null) copy.add(pairOf.invoke(null, headSlot, nmsCopy.invoke(look)));
         return equipNew.newInstance(entity, copy);
+    }
+
+    /**
+     * Entity data of one of this player's own cosmetic displays: its item's near-fade definition (band OTHERS, what
+     * everyone is sent) becomes the SELF one (worn) or PET one, which fade further from the camera (NearFade).
+     */
+    private Object ownFade(Object packet, Handler h) throws ReflectiveOperationException {
+        int id = (int) dataId.invoke(packet);
+        Integer wearer = wearerOf.get(id), owner = petOf.get(id);
+        NearFade.Band band = owner != null && owner == h.entityId ? NearFade.Band.PET
+                : wearer != null && wearer == h.entityId ? NearFade.Band.SELF : null;
+        if (band == null) return packet;
+        List<?> values = (List<?>) dataItems.invoke(packet);
+        List<Object> copy = null;
+        for (int i = 0; i < values.size(); i++) {
+            Object v = values.get(i);
+            Object item = valueValue.invoke(v);
+            if (!nmsItemCls.isInstance(item)) continue;
+            ItemStack it = (ItemStack) asBukkit.invoke(null, item);
+            if (it == null || it.isEmpty()) continue;
+            org.bukkit.NamespacedKey model = it.getItemMeta() == null ? null : it.getItemMeta().getItemModel();
+            String own = NearFade.swap(model == null ? null : model.asString(), band);
+            if (own == null) continue;
+            org.bukkit.NamespacedKey key = org.bukkit.NamespacedKey.fromString(own);
+            it.editMeta(m -> m.setItemModel(key));
+            if (copy == null) copy = new ArrayList<>(values);
+            copy.set(i, valueNew.newInstance(valueId.invoke(v), valueSerializer.invoke(v), asNms.invoke(null, it)));
+        }
+        return copy == null ? packet : dataNew.newInstance(id, copy);
     }
 
     private Object empty;

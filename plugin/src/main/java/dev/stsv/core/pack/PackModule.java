@@ -95,8 +95,13 @@ public final class PackModule implements StsvModule, Listener {
         if (plugin.banners() != null) extra.putAll(plugin.banners().packFiles());
         // emotes (admin test feature): the pixel font the puppets are drawn with
         if (plugin.emotes() != null) extra.putAll(plugin.emotes().packFiles());
+        // cosmetics fading near the camera (cosmetics.near-fade): the item shader and the displays' marked definitions
+        java.util.List<String> fadeProblems = new java.util.ArrayList<>();
+        dev.stsv.core.cosmetic.NearFade.Settings fade = dev.stsv.core.cosmetic.NearFade.Settings.read(plugin.getConfig(), fadeProblems);
+        fadeProblems.forEach(w -> plugin.getLogger().warning("[리소스팩] " + w));
         PackBuilder.Built built = new PackBuilder()
                 .extra(extra)
+                .nearFade(fade)
                 // custom crops as tripwire blocks (crops.render: blocks), or vanilla string (entities)
                 .cropBlocks(plugin.crops() == null || plugin.crops().blocks())
                 .build(
@@ -108,6 +113,8 @@ public final class PackModule implements StsvModule, Listener {
         Files.createDirectories(out.getParent());
         Files.write(out, built.zip());
         current = built;
+        // cosmetic displays shown from now on use the marked definitions this pack has (none when near-fade is off)
+        if (dev.stsv.core.cosmetic.NearFade.packBuilt(built.json()) && plugin.cosmetics() != null) plugin.cosmetics().packRebuilt();
         // furniture click boxes and barriers are fitted to these models (computed again, per model, from now on)
         if (plugin.furniture() != null) plugin.furniture().modelsChanged();
         plugin.getLogger().info("리소스팩 빌드 완료: 파일 " + built.files() + "개, "

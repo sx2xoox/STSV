@@ -130,7 +130,10 @@ final class CosmeticAttachments {
         ItemStack it = c.create(1);
         CustomItem.Premium pr = c.cosmetic().premium();
         NamespacedKey model = pr == null ? null : awake && pr.awakened() != null ? pr.awakened() : pr.worn();
-        if (model != null) it.editMeta(m -> m.setItemModel(model));
+        if (model == null) model = c.itemModelKey();
+        // the model's near-fade definition when the pack has one (dissolves near the camera, NearFade)
+        NamespacedKey shown = NearFade.shown(model);
+        if (shown != null) it.editMeta(m -> m.setItemModel(shown));
         return it;
     }
 
@@ -531,7 +534,7 @@ final class CosmeticAttachments {
     /** The item a part's display shows: the cosmetic's item drawn as the part's model (awakened when the set is whole). */
     static ItemStack partLook(CustomItem c, CustomItem.Part part, boolean awake) {
         ItemStack it = c.create(1);
-        NamespacedKey model = awake && part.awakened() != null ? part.awakened() : part.model();
+        NamespacedKey model = NearFade.shown(awake && part.awakened() != null ? part.awakened() : part.model());
         it.editMeta(m -> m.setItemModel(model));
         return it;
     }
@@ -542,6 +545,12 @@ final class CosmeticAttachments {
         CustomItem.Premium pr = w.cosmetic.cosmetic().premium();
         if (pr == null) return;
         for (int i = 0; i < w.parts.size() && i < pr.parts().size(); i++) w.parts.get(i).setTransformationMatrix(partMatrix(main, pr.parts().get(i)));
+    }
+
+    /** The pack now has other near-fade definitions (NearFade): every shown display takes its item again. */
+    void restyle() {
+        for (Map<CosmeticSlot, Worn> mine : worn.values()) for (Worn w : mine.values()) if (!w.hidden) dress(w, false);
+        for (Worn b : bonus.values()) if (!b.hidden) dress(b, false);
     }
 
     /** Shows (or, hide: empties) the main display and its parts, in their awakened looks while the set is whole. */

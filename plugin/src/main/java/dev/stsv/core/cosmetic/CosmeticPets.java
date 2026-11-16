@@ -55,9 +55,24 @@ final class CosmeticPets {
     private final Map<UUID, Pet> pets = new HashMap<>();
     private long ticks;
 
-    CosmeticPets(Plugin plugin, NamespacedKey tag) {
+    /** null: no packet rewriting (the owner sees their pet with the others' near-fade band) */
+    private final CosmeticPackets packets;
+
+    CosmeticPets(Plugin plugin, NamespacedKey tag, CosmeticPackets packets) {
         this.plugin = plugin;
         this.tag = tag;
+        this.packets = packets;
+    }
+
+    /** The pack now has other near-fade definitions (NearFade): every pet takes its item again. */
+    void restyle() {
+        for (Pet pet : pets.values()) if (pet.display.isValid()) pet.display.setItemStack(CosmeticAttachments.look(pet.item, pet.awake));
+    }
+
+    /** Removes a pet's display (and forgets it in the packet layer). */
+    private void drop(Pet pet) {
+        if (packets != null) packets.pet(pet.display.getEntityId(), -1);
+        pet.display.remove();
     }
 
     /** The spot a pet heads for: behind the owner's right, at their feet. */
@@ -101,6 +116,8 @@ final class CosmeticPets {
             e.setShadowRadius(0.25f);
             e.setShadowStrength(0.6f);
         });
+        // the owner's client gets the pet's own near-fade band (CosmeticPackets), so it is known before it is shown
+        if (packets != null) packets.pet(d.getEntityId(), p.getEntityId());
         for (Player v : p.getWorld().getPlayers()) if (v == p || v.canSee(p)) v.showEntity(plugin, d);
         Pet made = new Pet(d, pet, at, yaw);
         made.awake = awake;
@@ -109,11 +126,11 @@ final class CosmeticPets {
 
     void remove(Player p) {
         Pet cur = pets.remove(p.getUniqueId());
-        if (cur != null) cur.display.remove();
+        if (cur != null) drop(cur);
     }
 
     void removeAll() {
-        pets.values().forEach(x -> x.display.remove());
+        pets.values().forEach(this::drop);
         pets.clear();
     }
 
@@ -135,7 +152,7 @@ final class CosmeticPets {
             Player p = Bukkit.getPlayer(e.getKey());
             Pet pet = e.getValue();
             if (p == null || !pet.display.isValid()) {
-                pet.display.remove();
+                drop(pet);
                 pets.remove(e.getKey());
                 continue;
             }
