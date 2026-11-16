@@ -56,7 +56,8 @@ categories:
   sets:
     name: "후원 치장 세트"
     icon: "stsv:gui/tab_back"
-    products: [set_azure_dragon, azure_pearl_cloud, azure_dragon_wings, azure_dragon_tail, azure_cloud_trail, azure_spark_aura,
+    products: [set_azure_dragon, azure_pearl_cloud, azure_dragon_wings, azure_dragon_tail, azure_shoulder_dragon, azure_cloud_sash,
+               azure_baby_dragon, azure_cloud_trail, azure_spark_aura, azure_dragon_roar,
                set_galaxy, galaxy_star_crown, galaxy_cape, galaxy_moon_necklace, galaxy_stardust_trail, galaxy_constellation_aura,
                set_duck_family, duckling_parade, sleepy_duckling, duck_float_ring, duckling_wings, puddle_trail]
   fun:
@@ -225,59 +226,92 @@ products:
   # 후원 치장 세트 3종 (items/cosmetics_donation.yml, 세트 cosmetic_sets.yml): 후원 상점에서만, 뽑기 · 교환권 없음. 모두 전설.
   # 청룡 · 은하수는 밤에도 빛남, 아기 오리 가족은 귀여운 낮의 세트.
   # 한 세트를 다 입으면 몸 둘레에 세트 고리가 더 돎 (청룡: 번개, 은하수: 별빛, 오리: 비눗방울).
-  # 낱개 합 청룡 380★ · 은하수 360★ · 오리 400★, 세트는 약 20% 할인.
+  # 낱개 합 청룡 780★ (9조각, 세트 520★ 약 33% 할인) · 은하수 360★ · 오리 400★ (세트 약 20% 할인).
   # 이미 가진 조각이 있으면 세트 대신 남은 조각을 낱개로 사는 게 쌈 (세트는 한 번만 살 수 있음)
   set_azure_dragon:
-    name: "청룡 세트 (5종)"
-    price: 300          # 30,000원 (낱개 380★)
+    name: "청룡 세트 (9종)"
+    price: 520          # 52,000원 (낱개 780★, 약 33% 할인)
     once: true
     description:
-      - "<gray>여의주 · 날개 · 꼬리 · 구름길 · 뇌광"
-      - "<gray>다섯 조각을 한 번에."
-      - "<aqua>다 입으면 가슴 높이에 번개 고리가 돕니다."
+      - "<gray>여의주 · 날개 · 꼬리 · 어깨 용 · 구름 띠"
+      - "<gray>아기 청룡 · 구름 발자국 · 뇌룡 · 포효"
+      - "<aqua>다 입으면 세트 각성: 모습이 바뀌고"
+      - "<aqua>발밑에 구름 번개 고리가 돕니다."
       - "<dark_gray>후원 전용 · 뽑기에 나오지 않음."
     commands:
       - "관리자 치장 지급 {player} stsv:azure_pearl_cloud"
       - "관리자 치장 지급 {player} stsv:azure_dragon_wings"
       - "관리자 치장 지급 {player} stsv:azure_dragon_tail"
+      - "관리자 치장 지급 {player} stsv:azure_shoulder_dragon"
+      - "관리자 치장 지급 {player} stsv:azure_cloud_sash"
+      - "관리자 치장 지급 {player} stsv:azure_baby_dragon"
       - "관리자 치장 지급 {player} stsv:azure_cloud_trail"
       - "관리자 치장 지급 {player} stsv:azure_spark_aura"
+      - "관리자 치장 지급 {player} stsv:azure_dragon_roar"
     icon: "stsv:azure_dragon_wings"
   azure_pearl_cloud:
     name: "청룡의 여의주"
     price: 80          # 8,000원
     once: true
-    description: ["<gray>머리 위 · 구름 받침 위에서 빛이 도는 여의주. 천천히 돌며 떠다님.", "<dark_gray>후원 전용 · 세트 조각"]
+    description: ["<gray>머리 위 · 구름 위 여의주, 각성하면 빛무리", "<dark_gray>후원 전용 · 청룡 세트 조각 (9)"]
     commands: ["관리자 치장 지급 {player} stsv:azure_pearl_cloud"]
     icon: "stsv:azure_pearl_cloud"
   azure_dragon_wings:
     name: "청룡의 날개"
     price: 100          # 10,000원
     once: true
-    description: ["<gray>등 · 푸른 비늘 날개. 끝이 하늘색으로 빛나며 날갯짓.", "<dark_gray>후원 전용 · 세트 조각"]
+    description: ["<gray>등 · 손가락뼈 날개, 각성하면 불꽃 가장자리", "<dark_gray>후원 전용 · 청룡 세트 조각 (9)"]
     commands: ["관리자 치장 지급 {player} stsv:azure_dragon_wings"]
     icon: "stsv:azure_dragon_wings"
   azure_dragon_tail:
     name: "청룡의 꼬리"
     price: 80          # 8,000원
     once: true
-    description: ["<gray>꼬리 · 발목까지 늘어진 비늘 꼬리, 끝에 푸른 불꽃. 좌우로 흔들림.", "<dark_gray>후원 전용 · 세트 조각"]
+    description: ["<gray>꼬리 · 말려 오르는 비늘 꼬리와 푸른 불꽃", "<dark_gray>후원 전용 · 청룡 세트 조각 (9)"]
     commands: ["관리자 치장 지급 {player} stsv:azure_dragon_tail"]
     icon: "stsv:azure_dragon_tail"
-  azure_cloud_trail:
-    name: "청룡의 구름길"
-    price: 60          # 6,000원
+  azure_shoulder_dragon:
+    name: "청룡의 어깨 용"
+    price: 80          # 8,000원
     once: true
-    description: ["<gray>발자취 · 걸음마다 구름이 피어오름.", "<dark_gray>후원 전용 · 세트 조각"]
+    description: ["<gray>어깨 · 똬리 튼 작은 청룡", "<dark_gray>후원 전용 · 청룡 세트 조각 (9)"]
+    commands: ["관리자 치장 지급 {player} stsv:azure_shoulder_dragon"]
+    icon: "stsv:azure_shoulder_dragon"
+  azure_cloud_sash:
+    name: "청룡의 구름 띠"
+    price: 80          # 8,000원
+    once: true
+    description: ["<gray>허리 · 용머리 고리의 구름 띠", "<dark_gray>후원 전용 · 청룡 세트 조각 (9)"]
+    commands: ["관리자 치장 지급 {player} stsv:azure_cloud_sash"]
+    icon: "stsv:azure_cloud_sash"
+  azure_baby_dragon:
+    name: "아기 청룡"
+    price: 100          # 10,000원
+    once: true
+    description: ["<gray>펫 · 공중을 헤엄치는 아기 청룡", "<dark_gray>후원 전용 · 청룡 세트 조각 (9)"]
+    commands: ["관리자 치장 지급 {player} stsv:azure_baby_dragon"]
+    icon: "stsv:azure_baby_dragon"
+  azure_cloud_trail:
+    name: "청룡의 구름 발자국"
+    price: 80          # 8,000원
+    once: true
+    description: ["<gray>발자취 · 빛나는 구름 발자국 (모델)", "<dark_gray>후원 전용 · 청룡 세트 조각 (9)"]
     commands: ["관리자 치장 지급 {player} stsv:azure_cloud_trail"]
     icon: "stsv:azure_cloud_trail"
   azure_spark_aura:
-    name: "청룡의 뇌광"
-    price: 60          # 6,000원
+    name: "청룡의 뇌룡"
+    price: 100          # 10,000원
     once: true
-    description: ["<gray>오라 · 가만히 서 있으면 발밑에 하늘빛 고리.", "<dark_gray>후원 전용 · 세트 조각"]
+    description: ["<gray>오라 · 몸을 휘감아 도는 작은 청룡", "<dark_gray>후원 전용 · 청룡 세트 조각 (9)"]
     commands: ["관리자 치장 지급 {player} stsv:azure_spark_aura"]
     icon: "stsv:azure_spark_aura"
+  azure_dragon_roar:
+    name: "청룡의 포효"
+    price: 80          # 8,000원
+    once: true
+    description: ["<gray>처치 · 솟아오르는 청룡 머리 (모델)", "<dark_gray>후원 전용 · 청룡 세트 조각 (9)"]
+    commands: ["관리자 치장 지급 {player} stsv:azure_dragon_roar"]
+    icon: "stsv:azure_dragon_roar"
   set_galaxy:
     name: "은하수 세트 (5종)"
     price: 290          # 29,000원 (낱개 360★)

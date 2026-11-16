@@ -11,6 +11,7 @@ import org.bukkit.entity.Entity;
 import org.bukkit.entity.ItemDisplay;
 import org.bukkit.entity.Player;
 import org.bukkit.entity.TextDisplay;
+import org.bukkit.inventory.ItemStack;
 import org.bukkit.persistence.PersistentDataType;
 import org.bukkit.plugin.Plugin;
 import org.bukkit.util.Transformation;
@@ -72,7 +73,8 @@ final class CosmeticAttachments {
             CosmeticSlot.BACK, new Vector3f(0, -0.62f, -0.12f),
             CosmeticSlot.TAIL, new Vector3f(0, -1.02f, -0.12f),
             CosmeticSlot.NECK, new Vector3f(0, -0.47f, 0),
-            CosmeticSlot.WAIST, new Vector3f(0, -1.00f, 0));
+            CosmeticSlot.WAIST, new Vector3f(0, -1.00f, 0),
+            CosmeticSlot.AURA, new Vector3f(0, -0.90f, 0));   // a model aura (cosmetic.worn) circles the body here
 
     /**
      * The way the clients turn a player's body (LivingEntity.tick, then tickHeadTurn): towards the walking
@@ -108,7 +110,26 @@ final class CosmeticAttachments {
     /** Slots that move with the upper body (body yaw, sneak tilt); the rest follow the head. */
     static boolean onBody(CosmeticSlot slot) {
         return slot == CosmeticSlot.SHOULDER || slot == CosmeticSlot.BACK || slot == CosmeticSlot.TAIL
-                || slot == CosmeticSlot.NECK || slot == CosmeticSlot.WAIST;
+                || slot == CosmeticSlot.NECK || slot == CosmeticSlot.WAIST || slot == CosmeticSlot.AURA;
+    }
+
+    /** Whether this cosmetic is a model carried on the body (an aura only when it has a worn model). */
+    static boolean carried(CustomItem c) {
+        CosmeticSlot slot = c.cosmetic().slot();
+        if (!DEFAULT_ANCHORS.containsKey(slot)) return false;
+        return slot != CosmeticSlot.AURA || (c.cosmetic().premium() != null && c.cosmetic().premium().worn() != null);
+    }
+
+    /**
+     * The item a worn display shows: the cosmetic's own item, its worn model (a model aura), or its awakened model
+     * while its whole set is worn.
+     */
+    static ItemStack look(CustomItem c, boolean awake) {
+        ItemStack it = c.create(1);
+        CustomItem.Premium pr = c.cosmetic().premium();
+        NamespacedKey model = pr == null ? null : awake && pr.awakened() != null ? pr.awakened() : pr.worn();
+        if (model != null) it.editMeta(m -> m.setItemModel(model));
+        return it;
     }
 
     // ------------------------------------------------------------------------------------------
@@ -154,14 +175,19 @@ final class CosmeticAttachments {
                 case SWAY -> turn = new AxisAngle4f((float) Math.toRadians(phase % 2 == 1 ? m.amount() : -m.amount()), 0, 0, 1);
                 case FLAP -> scale.x *= phase % 2 == 1 ? 1 - m.amount() : 1;
                 case PULSE -> scale.mul(phase % 2 == 1 ? 1 + m.amount() : 1 - m.amount() / 2);
+                case ORBIT -> turn = new AxisAngle4f((float) (phase % 4 * Math.PI / 2), 0, 1, 0);
             }
         }
-        return new Transformation(translation(anchor, c.offset(), sneaking, playerScale, bob), turn, scale, new AxisAngle4f());
+        Vector3f t = translation(anchor, c.offset(), sneaking, playerScale, bob);
+        // an orbit: the model is built round the body's axis and turned a quarter a step (the clients slerp the
+        // turn, so it glides round on a circle), rising and sinking a little as it goes
+        if (m != null && m.kind() == CustomItem.MotionKind.ORBIT && phase != 0) t.add(0, (phase % 2 == 1 ? m.amount() : -m.amount()) * playerScale, 0);
+        return new Transformation(t, turn, scale, new AxisAngle4f());
     }
 
-    /** Steps in one motion cycle: a spin goes round in three, the others swing there and back in two. */
+    /** Steps in one motion cycle: a spin goes round in three, an orbit in four, the others swing there and back in two. */
     static int motionSteps(CustomItem.Motion m) {
-        return m.kind() == CustomItem.MotionKind.SPIN ? 3 : 2;
+        return m.kind() == CustomItem.MotionKind.SPIN ? 3 : m.kind() == CustomItem.MotionKind.ORBIT ? 4 : 2;
     }
 
     // ------------------------------------------------------------------------------------------
@@ -172,6 +198,8 @@ final class CosmeticAttachments {
         final ItemDisplay display;
         final CustomItem cosmetic;
         boolean sneaking, hidden, bobUp;
+        /** its whole set is worn: the awakened model shows (cosmetic.awakened) */
+        boolean awake;
         /** where its motion is (CosmeticAttachments#transformation phase; 0 = at rest) */
         int phase;
         float scale;
@@ -187,6 +215,11 @@ final class CosmeticAttachments {
     private final CosmeticPackets packets;
     private final Predicate<Player> selfView;
     private final Map<UUID, Map<CosmeticSlot, Worn>> worn = new HashMap<>();
+    /** wearer -> the display of their full set's bonus model (cosmetic_sets.yml bonus.model), worn at the aura anchor */
+    private final Map<UUID, Worn> bonus = new HashMap<>();
+    /** wearer -> what was last asked for (set): awakened pieces and the bonus model, to make lost displays again */
+    private final Map<UUID, java.util.Set<String>> awakeOf = new HashMap<>();
+    private final Map<UUID, CustomItem> bonusOf = new HashMap<>();
     private final Map<UUID, Body> bodies = new HashMap<>();
     /** wearer -> ticks at which the link is sent again (right after their displays changed) */
     private final Map<UUID, List<Long>> relinkAt = new HashMap<>();
@@ -260,26 +293,58 @@ final class CosmeticAttachments {
 
     /** What the player wears now outside the head slot (empty: nothing shown). Spawns and removes displays. */
     void set(Player p, Map<CosmeticSlot, CustomItem> wanted) {
-        Map<CosmeticSlot, Worn> have = worn.computeIfAbsent(p.getUniqueId(), k -> new EnumMap<>(CosmeticSlot.class));
+        set(p, wanted, java.util.Set.of(), null);
+    }
+
+    /**
+     * @param awake      ids of the worn pieces whose whole set is worn (they show their awakened model)
+     * @param bonusModel the full set's bonus model to wear at the aura anchor (null: none), as a cosmetic item
+     */
+    void set(Player p, Map<CosmeticSlot, CustomItem> wanted, java.util.Set<String> awake, CustomItem bonusModel) {
+        UUID id = p.getUniqueId();
+        if (awake.isEmpty()) awakeOf.remove(id);
+        else awakeOf.put(id, java.util.Set.copyOf(awake));
+        if (bonusModel == null) bonusOf.remove(id);
+        else bonusOf.put(id, bonusModel);
+        Map<CosmeticSlot, Worn> have = worn.computeIfAbsent(id, k -> new EnumMap<>(CosmeticSlot.class));
         boolean changed = false;
         for (CosmeticSlot slot : new ArrayList<>(have.keySet())) {
             Worn w = have.get(slot);
             CustomItem want = wanted.get(slot);
-            if (want == null || !want.key().equals(w.cosmetic.key()) || !w.display.isValid() || w.display.getWorld() != p.getWorld()) {
+            if (want == null || !carried(want) || !want.key().equals(w.cosmetic.key()) || !w.display.isValid() || w.display.getWorld() != p.getWorld()) {
                 w.display.remove();
                 have.remove(slot);
                 changed = true;
+                continue;
+            }
+            boolean a = awake.contains(want.key().asString());
+            if (a != w.awake) {
+                w.awake = a;
+                if (!w.hidden) w.display.setItemStack(look(want, a));
             }
         }
         List<Worn> fresh = new ArrayList<>();
         for (Map.Entry<CosmeticSlot, CustomItem> e : wanted.entrySet()) {
-            if (!DEFAULT_ANCHORS.containsKey(e.getKey()) || have.containsKey(e.getKey())) continue;   // head, pet, effects: not here
-            Worn w = spawn(p, e.getKey(), e.getValue());
+            if (!carried(e.getValue()) || have.containsKey(e.getKey())) continue;   // head, pet, effects (and particle auras): not here
+            Worn w = spawn(p, e.getKey(), e.getValue(), awake.contains(e.getValue().key().asString()));
             have.put(e.getKey(), w);
             fresh.add(w);
             changed = true;
         }
-        if (have.isEmpty()) worn.remove(p.getUniqueId());
+        Worn b = bonus.get(id);
+        if (b != null && (bonusModel == null || !bonusModel.key().equals(b.cosmetic.key()) || !b.display.isValid() || b.display.getWorld() != p.getWorld())) {
+            b.display.remove();
+            bonus.remove(id);
+            b = null;
+            changed = true;
+        }
+        if (b == null && bonusModel != null) {
+            b = spawn(p, CosmeticSlot.AURA, bonusModel, false);
+            bonus.put(id, b);
+            fresh.add(b);
+            changed = true;
+        }
+        if (have.isEmpty()) worn.remove(id);
         if (!changed) return;
         // linked first, shown after: the spawn packets then carry the link
         link(p);
@@ -307,6 +372,10 @@ final class CosmeticAttachments {
         relinkAt.remove(p.getUniqueId());
         Map<CosmeticSlot, Worn> have = worn.remove(p.getUniqueId());
         if (have != null) have.values().forEach(w -> w.display.remove());
+        Worn b = bonus.remove(p.getUniqueId());
+        if (b != null) b.display.remove();
+        awakeOf.remove(p.getUniqueId());
+        bonusOf.remove(p.getUniqueId());
         Tag t = tags.remove(p.getUniqueId());
         if (t != null) t.display.remove();
         link(p);   // what another module has riding them stays
@@ -359,6 +428,10 @@ final class CosmeticAttachments {
     void removeAll() {
         for (Map<CosmeticSlot, Worn> have : worn.values()) have.values().forEach(w -> w.display.remove());
         worn.clear();
+        bonus.values().forEach(w -> w.display.remove());
+        bonus.clear();
+        awakeOf.clear();
+        bonusOf.clear();
         tags.values().forEach(t -> t.display.remove());
         tags.clear();
         tagText.clear();
@@ -378,6 +451,8 @@ final class CosmeticAttachments {
     private void link(Player p) {
         if (packets == null) return;
         java.util.stream.IntStream models = worn.getOrDefault(p.getUniqueId(), Map.of()).values().stream().mapToInt(w -> w.display.getEntityId());
+        Worn b = bonus.get(p.getUniqueId());
+        if (b != null) models = java.util.stream.IntStream.concat(models, java.util.stream.IntStream.of(b.display.getEntityId()));
         Tag t = tags.get(p.getUniqueId());
         java.util.stream.IntStream own = t == null ? models : java.util.stream.IntStream.concat(models, java.util.stream.IntStream.of(t.display.getEntityId()));
         int[] ids = java.util.stream.IntStream.concat(own, java.util.Arrays.stream(carried.getOrDefault(p.getUniqueId(), new int[0]))).toArray();
@@ -385,7 +460,7 @@ final class CosmeticAttachments {
         packets.link(p.getEntityId(), ids, real);
     }
 
-    private Worn spawn(Player p, CosmeticSlot slot, CustomItem c) {
+    private Worn spawn(Player p, CosmeticSlot slot, CustomItem c, boolean awake) {
         boolean sneak = sneaking(p, slot);
         float scale = scale(p);
         Body b = bodies.get(p.getUniqueId());
@@ -393,7 +468,7 @@ final class CosmeticAttachments {
             e.setVisibleByDefault(false);   // shown once linked (set)
             e.setPersistent(false);
             e.getPersistentDataContainer().set(tag, PersistentDataType.BYTE, (byte) 1);
-            e.setItemStack(c.create(1));
+            e.setItemStack(look(c, awake));
             e.setItemDisplayTransform(ItemDisplay.ItemDisplayTransform.NONE);
             e.setTeleportDuration(packets == null ? 3 : 1);   // turning (and, without riding, moving) is smoothed
             e.setInterpolationDuration(3);
@@ -404,6 +479,7 @@ final class CosmeticAttachments {
         Worn w = new Worn(d, c);
         w.sneaking = sneak;
         w.scale = scale;
+        w.awake = awake;
         return w;
     }
 
@@ -413,18 +489,28 @@ final class CosmeticAttachments {
         boolean sweep = ticks % 5 == 0;
         boolean resend = ticks % RELINK_TICKS == 0;
         boolean bobFlip = ticks % BOB_TICKS == 0;
-        for (Map.Entry<UUID, Map<CosmeticSlot, Worn>> e : new ArrayList<>(worn.entrySet())) {
-            Player p = Bukkit.getPlayer(e.getKey());
+        java.util.Set<UUID> wearers = new java.util.LinkedHashSet<>(worn.keySet());
+        wearers.addAll(bonus.keySet());
+        for (UUID id : wearers) {
+            Player p = Bukkit.getPlayer(id);
+            Map<CosmeticSlot, Worn> mine = worn.getOrDefault(id, Map.of());
             if (p == null) {
-                e.getValue().values().forEach(w -> w.display.remove());
-                worn.remove(e.getKey());
+                mine.values().forEach(w -> w.display.remove());
+                worn.remove(id);
+                Worn b = bonus.remove(id);
+                if (b != null) b.display.remove();
+                awakeOf.remove(id);
+                bonusOf.remove(id);
                 continue;
             }
             boolean hide = badPose(p);
             float scale = scale(p);
             float body = turnBody(p);
             boolean relink = false;
-            for (Map.Entry<CosmeticSlot, Worn> we : e.getValue().entrySet()) {
+            List<Map.Entry<CosmeticSlot, Worn>> all = new ArrayList<>(mine.entrySet());
+            Worn bw = bonus.get(id);
+            if (bw != null) all.add(Map.entry(CosmeticSlot.AURA, bw));
+            for (Map.Entry<CosmeticSlot, Worn> we : all) {
                 CosmeticSlot slot = we.getKey();
                 Worn w = we.getValue();
                 if (!w.display.isValid() || w.display.getWorld() != p.getWorld()) {
@@ -433,7 +519,7 @@ final class CosmeticAttachments {
                 }
                 if (hide != w.hidden) {
                     w.hidden = hide;
-                    w.display.setItemStack(hide ? null : w.cosmetic.create(1));
+                    w.display.setItemStack(hide ? null : look(w.cosmetic, w.awake));
                 }
                 boolean sneak = sneaking(p, slot);
                 boolean bob = w.cosmetic.cosmetic().bob() && bobFlip;
@@ -468,8 +554,8 @@ final class CosmeticAttachments {
             }
             if (relink) {
                 Map<CosmeticSlot, CustomItem> wanted = new EnumMap<>(CosmeticSlot.class);
-                e.getValue().forEach((slot, w) -> wanted.put(slot, w.cosmetic));
-                set(p, wanted);
+                mine.forEach((slot, w) -> wanted.put(slot, w.cosmetic));
+                set(p, wanted, awakeOf.getOrDefault(id, java.util.Set.of()), bonusOf.get(id));
             } else if (packets != null && (resend || dueRelink(p))) {
                 List<Player> viewers = new ArrayList<>(p.getTrackedBy());
                 if (selfView.test(p)) viewers.add(p);
@@ -483,7 +569,10 @@ final class CosmeticAttachments {
     /** The wearer's own view was switched: show or hide their displays to them now. */
     void selfViewChanged(Player p) {
         boolean want = selfView.test(p);
-        for (Worn w : worn.getOrDefault(p.getUniqueId(), Map.of()).values()) {
+        List<Worn> all = new ArrayList<>(worn.getOrDefault(p.getUniqueId(), Map.of()).values());
+        Worn b = bonus.get(p.getUniqueId());
+        if (b != null) all.add(b);
+        for (Worn w : all) {
             if (want) p.showEntity(plugin, w.display);
             else p.hideEntity(plugin, w.display);
         }
@@ -722,9 +811,10 @@ final class CosmeticAttachments {
             e.setVisibleByDefault(false);
             e.setPersistent(false);
             e.getPersistentDataContainer().set(tag, PersistentDataType.BYTE, (byte) 1);
-            e.setItemStack(c.create(1));
+            e.setItemStack(look(c, false));
             e.setItemDisplayTransform(ItemDisplay.ItemDisplayTransform.NONE);
             e.setTeleportDuration(2);
+            if (c.cosmetic().glow()) e.setBrightness(new org.bukkit.entity.Display.Brightness(15, 15));
             e.setShadowRadius(0);
             e.setTransformation(transformation(anchor(slot), c.cosmetic(), false, 1f, 0));
         });

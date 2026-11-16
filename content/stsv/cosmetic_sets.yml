@@ -2,10 +2,19 @@
 # (조각 각자의 모습 · 움직임 · 빛에 더해서). 조각은 items/*.yml 의 cosmetic.set 으로 모인다 (2개 이상).
 #   bonus: particle (추가 데이터가 없는 파티클, 또는 dust + color), count (고리의 점 수), spread (고리 반지름, 블록),
 #          height (발에서의 높이, 블록), speed, sound (고리가 한 바퀴 돌 때마다, 선택)
+#   awaken (세트 각성, 선택): model (세트를 다 입은 동안 오라 자리에 붙는 모델), motion (orbit / spin ...), scale,
+#          flourish (세트를 다 맞춘 순간 몸 둘레로 솟아오르는 모델), sound (그 순간의 소리). 조각의 cosmetic.awakened 도 이때 바뀜
+#   upgrade (세트가 커졌을 때, 선택): id, from (예전 세트의 조각), give (새 조각): from 을 모두 가진 사람에게 give 를 한 번 줌
 sets:
   azure_dragon:
     name: "<gradient:#c8f6ff:#3d8bff>청룡</gradient>"
     bonus: { particle: electric_spark, count: 8, spread: 0.75, height: 1.0, speed: 0 }
+    # 세트 각성: 발밑에 구름 · 번개 고리가 천천히 돌고, 세트를 다 맞춘 순간 각성 뇌룡이 몸을 감으며 솟아오름 (포효 소리)
+    awaken: { model: azure_set_ring, motion: { kind: orbit, amount: 0.0, period: 120 }, flourish: azure_aura_dragon_awakened,
+              sound: entity.ender_dragon.growl }
+    # 다섯 조각이던 청룡 세트를 이미 다 가진 사람은 새 네 조각을 받음 (다음 접속 때 한 번, 그 뒤에는 다시 없음)
+    upgrade: { id: azure_v2, from: [azure_pearl_cloud, azure_dragon_wings, azure_dragon_tail, azure_cloud_trail, azure_spark_aura],
+               give: [azure_shoulder_dragon, azure_cloud_sash, azure_baby_dragon, azure_dragon_roar] }
   galaxy:
     name: "<gradient:#ffe9a8:#a98bff>은하수</gradient>"
     bonus: { particle: end_rod, count: 10, spread: 0.8, height: 0.1, speed: 0 }

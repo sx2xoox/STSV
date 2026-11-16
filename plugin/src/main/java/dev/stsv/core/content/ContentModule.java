@@ -175,6 +175,70 @@ public final class ContentModule implements StsvModule, org.bukkit.event.Listene
 
     private ContentPack currentPack; // pack whose item is being parsed (for relative model names)
 
+    /** A model named in a cosmetic: "name" (this pack's models/name.bbmodel) or "ns:model/name"; it must exist. */
+    private static NamespacedKey cosmeticModel(ContentPack pack, String m, String where) {
+        if (m == null || m.isBlank()) throw new IllegalArgumentException(where + " 에 모델 이름이 없음");
+        if (m.contains(":")) {
+            NamespacedKey k = NamespacedKey.fromString(m);
+            if (k == null) throw new IllegalArgumentException(where + ": 잘못된 모델 " + m);
+            return k;
+        }
+        if (!Files.exists(pack.models().resolve(m + ".bbmodel"))) throw new IllegalArgumentException(where + ": models/" + m + ".bbmodel 이 없음");
+        return new NamespacedKey(pack.namespace(), "model/" + m);
+    }
+
+    /**
+     * The model looks of a donation-grade cosmetic (README "후원 치장 세트"), or null when it has none:
+     * <pre>
+     *   worn: aura_dragon                  # AURA: a model worn round the body all the time (motion: orbit/spin)
+     *   awakened: aura_dragon_awakened     # what is shown instead while the whole set is worn (세트 각성)
+     *   print: { models: [cloud_print_a, cloud_print_b], life: 36, scale: 1.0, step: 0.7, alternate: true }   # TRAIL
+     *   burst: { model: dragon_roar, life: 36, scale: 1.0, rise: 1.0, spin: false, sound: entity.ender_dragon.growl }  # KILL
+     * </pre>
+     */
+    private static CustomItem.Premium parsePremium(ContentPack pack, ConfigurationSection sec, CustomItem.CosmeticSlot slot) {
+        NamespacedKey worn = null, awakened = null;
+        CustomItem.Print print = null;
+        CustomItem.Burst burst = null;
+        if (sec.contains("cosmetic.worn")) {
+            if (slot != CustomItem.CosmeticSlot.AURA) throw new IllegalArgumentException("cosmetic.worn 은 오라(aura)에만 (다른 부위는 아이템의 model 이 몸에 붙음)");
+            worn = cosmeticModel(pack, sec.getString("cosmetic.worn"), "cosmetic.worn");
+        }
+        if (sec.isConfigurationSection("cosmetic.print")) {
+            if (slot != CustomItem.CosmeticSlot.TRAIL) throw new IllegalArgumentException("cosmetic.print 는 발자취(trail)에만");
+            ConfigurationSection p = sec.getConfigurationSection("cosmetic.print");
+            List<String> names = p.isList("models") ? p.getStringList("models") : p.getString("model") == null ? List.of() : List.of(p.getString("model"));
+            if (names.isEmpty() || names.size() > 4) throw new IllegalArgumentException("cosmetic.print.model (또는 models: 1 ~ 4개) 필요");
+            List<NamespacedKey> frames = new ArrayList<>();
+            for (String n : names) frames.add(cosmeticModel(pack, n, "cosmetic.print"));
+            int life = p.getInt("life", 36);
+            double scale = p.getDouble("scale", 1.0), step = p.getDouble("step", 0.7);
+            if (life < 10 || life > 100) throw new IllegalArgumentException("cosmetic.print.life 는 10 ~ 100 틱");
+            if (scale <= 0 || scale > 3) throw new IllegalArgumentException("cosmetic.print.scale 은 0 초과 3 이하");
+            if (step < 0.3 || step > 3) throw new IllegalArgumentException("cosmetic.print.step 은 0.3 ~ 3 블록");
+            print = new CustomItem.Print(List.copyOf(frames), life, (float) scale, step, p.getBoolean("alternate", true));
+        }
+        if (sec.isConfigurationSection("cosmetic.burst")) {
+            if (slot != CustomItem.CosmeticSlot.KILL) throw new IllegalArgumentException("cosmetic.burst 는 처치 효과(kill)에만");
+            ConfigurationSection b = sec.getConfigurationSection("cosmetic.burst");
+            int life = b.getInt("life", 36);
+            double scale = b.getDouble("scale", 1.0), rise = b.getDouble("rise", 1.0);
+            if (life < 10 || life > 100) throw new IllegalArgumentException("cosmetic.burst.life 는 10 ~ 100 틱");
+            if (scale <= 0 || scale > 4) throw new IllegalArgumentException("cosmetic.burst.scale 은 0 초과 4 이하");
+            if (rise < 0 || rise > 4) throw new IllegalArgumentException("cosmetic.burst.rise 는 0 ~ 4 블록");
+            burst = new CustomItem.Burst(cosmeticModel(pack, b.getString("model"), "cosmetic.burst"), life, (float) scale, (float) rise,
+                    b.getBoolean("spin"), b.getString("sound"));
+        }
+        if (sec.contains("cosmetic.awakened")) {
+            if (slot == CustomItem.CosmeticSlot.HEAD || slot == CustomItem.CosmeticSlot.PET) throw new IllegalArgumentException("cosmetic.awakened 는 머리 · 펫 말고 모델이 있는 부위에만");
+            if (sec.getString("cosmetic.set") == null) throw new IllegalArgumentException("cosmetic.awakened 는 세트(cosmetic.set) 조각에만 (세트를 다 입었을 때 바뀜)");
+            awakened = cosmeticModel(pack, sec.getString("cosmetic.awakened"), "cosmetic.awakened");
+            boolean effect = slot == CustomItem.CosmeticSlot.TRAIL || slot == CustomItem.CosmeticSlot.KILL || slot == CustomItem.CosmeticSlot.AURA;
+            if (effect && worn == null && print == null && burst == null) throw new IllegalArgumentException("cosmetic.awakened: 이 부위는 모델(worn / print / burst)이 있어야 바꿀 수 있음");
+        }
+        return worn == null && awakened == null && print == null && burst == null ? null : new CustomItem.Premium(worn, awakened, print, burst);
+    }
+
     private CustomItem parseItem(ContentPack pack, String id, ConfigurationSection sec) {
         currentPack = pack;
         if (!id.matches("[a-z0-9_./-]+")) throw new IllegalArgumentException("id는 영문 소문자/숫자/_만 가능");
@@ -256,6 +320,7 @@ public final class ContentModule implements StsvModule, org.bukkit.event.Listene
             if (slot == CustomItem.CosmeticSlot.HEAD && (sec.contains("cosmetic.offset") || sec.contains("cosmetic.scale") || sec.contains("cosmetic.bob"))) {
                 throw new IllegalArgumentException("머리 치장은 투구처럼 씌워져서 offset / scale / bob 을 쓸 수 없음 (모델에서 조정)");
             }
+            CustomItem.Premium premium = parsePremium(pack, sec, slot);
             CustomItem.Fx fx = null;
             boolean aura = slot == CustomItem.CosmeticSlot.AURA;
             if (slot == CustomItem.CosmeticSlot.TRAIL || slot == CustomItem.CosmeticSlot.KILL || slot == CustomItem.CosmeticSlot.PET || aura) {
@@ -275,8 +340,8 @@ public final class ContentModule implements StsvModule, org.bukkit.event.Listene
                     if (data == org.bukkit.Particle.DustOptions.class && sec.getString("cosmetic.color") == null) {
                         throw new IllegalArgumentException("cosmetic.color 필요 (DUST: \"#ff8800\" 또는 rainbow)");
                     }
-                } else if (slot != CustomItem.CosmeticSlot.PET && !lightning) {
-                    throw new IllegalArgumentException("cosmetic.particle (또는 처치 효과는 lightning: true) 필요");
+                } else if (slot != CustomItem.CosmeticSlot.PET && !lightning && premium == null) {
+                    throw new IllegalArgumentException("cosmetic.particle (또는 처치 효과는 lightning: true, 모델 발자취 print, 모델 처치 효과 burst, 모델 오라 worn) 필요");
                 }
                 fx = new CustomItem.Fx(particle == null ? null : particle.trim().toUpperCase(Locale.ROOT),
                         Math.max(1, sec.getInt("cosmetic.count", slot == CustomItem.CosmeticSlot.KILL ? 20 : aura ? 8 : 2)),
@@ -292,22 +357,27 @@ public final class ContentModule implements StsvModule, org.bukkit.event.Listene
                 try {
                     kind = CustomItem.MotionKind.valueOf(sec.getString("cosmetic.motion.kind", "").trim().toUpperCase(Locale.ROOT));
                 } catch (IllegalArgumentException e) {
-                    throw new IllegalArgumentException("cosmetic.motion.kind 는 spin / sway / flap / pulse");
+                    throw new IllegalArgumentException("cosmetic.motion.kind 는 spin / sway / flap / pulse / orbit");
                 }
-                if (slot == CustomItem.CosmeticSlot.HEAD || fx != null) throw new IllegalArgumentException("cosmetic.motion 은 몸에 붙는 모델(머리 위 · 어깨 · 등 · 꼬리 · 목 · 허리)에만");
-                double amount = sec.getDouble("cosmetic.motion.amount", kind == CustomItem.MotionKind.SWAY ? 12 : 0.12);
+                boolean wornAura = aura && premium != null && premium.worn() != null;
+                if (slot == CustomItem.CosmeticSlot.HEAD || (fx != null && !wornAura)) {
+                    throw new IllegalArgumentException("cosmetic.motion 은 몸에 붙는 모델(머리 위 · 어깨 · 등 · 꼬리 · 목 · 허리, 모델 오라)에만");
+                }
+                double amount = sec.getDouble("cosmetic.motion.amount", kind == CustomItem.MotionKind.SWAY ? 12 : kind == CustomItem.MotionKind.ORBIT ? 0.06 : 0.12);
                 int period = sec.getInt("cosmetic.motion.period", 40);
                 if (period < 8 || period > 400) throw new IllegalArgumentException("cosmetic.motion.period 는 8 ~ 400 틱");
                 if (kind == CustomItem.MotionKind.SWAY && (amount <= 0 || amount > 45)) throw new IllegalArgumentException("cosmetic.motion.amount (sway) 는 0 초과 45 이하 (도)");
                 if ((kind == CustomItem.MotionKind.FLAP || kind == CustomItem.MotionKind.PULSE) && (amount <= 0 || amount > 0.5))
                     throw new IllegalArgumentException("cosmetic.motion.amount (flap · pulse) 는 0 초과 0.5 이하");
+                if (kind == CustomItem.MotionKind.ORBIT && (amount < 0 || amount > 0.5))
+                    throw new IllegalArgumentException("cosmetic.motion.amount (orbit: 위아래로 출렁이는 높이, 블록) 는 0 이상 0.5 이하");
                 motion = new CustomItem.Motion(kind, (float) amount, period);
             }
             String set = sec.getString("cosmetic.set");
             if (set != null && !set.matches("[a-z0-9_]{1,32}")) throw new IllegalArgumentException("cosmetic.set 은 a-z 0-9 _ (1 ~ 32자)");
             cosmetic = new CustomItem.Cosmetic(slot, rarity, sec.getString("cosmetic.obtain"),
                     off.size() == 3 ? new org.bukkit.util.Vector(off.get(0), off.get(1), off.get(2)) : new org.bukkit.util.Vector(),
-                    (float) scale, sec.getBoolean("cosmetic.bob"), fx, exclusive != null, set, sec.getBoolean("cosmetic.glow"), motion);
+                    (float) scale, sec.getBoolean("cosmetic.bob"), fx, exclusive != null, set, sec.getBoolean("cosmetic.glow"), motion, premium);
         }
 
         CustomItem.Effects effects = sec.isConfigurationSection("effects")

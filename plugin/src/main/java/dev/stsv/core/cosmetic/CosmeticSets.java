@@ -29,7 +29,38 @@ public record CosmeticSets(Map<String, Set> sets) {
      * @param pieces the cosmetics (ids "stsv:...") that name it, in the order the content lists them
      * @param bonus  the ring a full set gets (CustomItem.Fx: particle, colour, count, radius = spread, height)
      */
-    public record Set(String id, String name, List<String> pieces, CustomItem.Fx bonus) {}
+    public record Set(String id, String name, List<String> pieces, CustomItem.Fx bonus, Awaken awaken, Upgrade upgrade) {
+        public Set(String id, String name, List<String> pieces, CustomItem.Fx bonus) {
+            this(id, name, pieces, bonus, null, null);
+        }
+    }
+
+    /**
+     * 세트 각성: what a full set adds besides its ring (cosmetic_sets.yml {@code awaken:}).
+     *
+     * @param model    a model worn round the body while the whole set is worn (a pack model name), or null
+     * @param motion   how it moves (orbit / spin ...), or null
+     * @param scale    its size
+     * @param flourish a model that rises once round the wearer when the set is completed, or null
+     * @param sound    the sound of that moment (a sound key), or null for the default
+     */
+    public record Awaken(String model, CustomItem.Motion motion, float scale, String flourish, String sound) {}
+
+    /**
+     * A set grown after people bought it: whoever owns every piece of {@code from} (the set as it was sold) is given the
+     * pieces of {@code give} once, on their first join after the change (marked by {@code id}, so it never repeats and
+     * buying the old pieces later gives nothing).
+     */
+    public record Upgrade(String id, List<String> from, List<String> give) {
+
+        /** What this player is given now (empty: nothing), from what they own and the upgrades already done. */
+        public List<String> grants(java.util.Set<String> owned, java.util.Set<String> done) {
+            if (done.contains(id) || !owned.containsAll(from)) return List.of();
+            List<String> out = new ArrayList<>();
+            for (String g : give) if (!owned.contains(g)) out.add(g);
+            return out;
+        }
+    }
 
     /**
      * Reads the file's {@code sets:} and gathers each set's pieces from the cosmetics; a set no cosmetic names, or a
@@ -68,11 +99,50 @@ public record CosmeticSets(Map<String, Set> sets) {
                         problems.add("sets." + id + ".bonus.particle: 없는 파티클 " + particle);
                     }
                 }
-                out.put(id, new Set(id, e.getString("name", id), List.copyOf(p), bonus));
+                Awaken awaken = null;
+                if (e.isConfigurationSection("awaken")) {
+                    ConfigurationSection a = e.getConfigurationSection("awaken");
+                    CustomItem.Motion motion = null;
+                    if (a.isConfigurationSection("motion")) {
+                        try {
+                            CustomItem.MotionKind kind = CustomItem.MotionKind.valueOf(a.getString("motion.kind", "").trim().toUpperCase(Locale.ROOT));
+                            motion = new CustomItem.Motion(kind, (float) a.getDouble("motion.amount", kind == CustomItem.MotionKind.ORBIT ? 0.06 : 0.12),
+                                    Math.max(8, Math.min(400, a.getInt("motion.period", 80))));
+                        } catch (IllegalArgumentException ex) {
+                            problems.add("sets." + id + ".awaken.motion.kind: spin / sway / flap / pulse / orbit");
+                        }
+                    }
+                    awaken = new Awaken(a.getString("model"), motion, (float) a.getDouble("scale", 1.0), a.getString("flourish"), a.getString("sound"));
+                }
+                Upgrade upgrade = null;
+                if (e.isConfigurationSection("upgrade")) {
+                    ConfigurationSection u = e.getConfigurationSection("upgrade");
+                    List<String> from = qualified(u.getStringList("from")), give = qualified(u.getStringList("give"));
+                    String uid = u.getString("id");
+                    if (uid == null || from.isEmpty() || give.isEmpty()) problems.add("sets." + id + ".upgrade: id, from, give 필요");
+                    else {
+                        for (String g : give) if (!p.contains(g)) problems.add("sets." + id + ".upgrade.give: " + g + " 은(는) 이 세트의 조각이 아님");
+                        upgrade = new Upgrade(uid, from, give);
+                    }
+                }
+                out.put(id, new Set(id, e.getString("name", id), List.copyOf(p), bonus, awaken, upgrade));
             }
         }
         for (String id : pieces.keySet()) if (!out.containsKey(id)) problems.add("cosmetic.set: " + id + " 세트가 cosmetic_sets.yml 에 없음 (" + pieces.get(id) + ")");
         return new CosmeticSets(Map.copyOf(out));
+    }
+
+    private static List<String> qualified(List<String> ids) {
+        List<String> out = new ArrayList<>();
+        for (String i : ids) out.add(i.contains(":") ? i : "stsv:" + i);
+        return List.copyOf(out);
+    }
+
+    /** Ids of the worn pieces whose whole set is worn (세트 각성: they show their awakened look). */
+    public java.util.Set<String> awake(Collection<CustomItem> worn) {
+        java.util.Set<String> out = new java.util.HashSet<>();
+        for (Set s : complete(worn)) out.addAll(s.pieces());
+        return out;
     }
 
     /** The sets this player wears whole (every piece worn). */

@@ -256,139 +256,7 @@ for _n in range(len(WING_PANELS)):
 # 청룡 (azure_dragon)
 # ================================================================================================
 
-def azure_pearl_cloud():
-    """청룡의 여의주: a cloud cushion above the head with curling wisps, the dragon's pearl floating over it on a
-    gold seat with light running round it, ringed by four blue flames and a few sparks. Turns (spin)."""
-    m = MModel("azure_pearl_cloud")
-    m.group("cloud")
-    m.box("belly", (3.5, 8.75, 4.75), (12.5, 9.25, 11.25), CLOUD_BLUE)
-    cloud_puffs(m, [(3, 9, 4.5, 13, 10.5, 11.5), (4.5, 9.2, 3, 11.5, 10.7, 13),
-                    (2.5, 10, 6, 5.5, 12.0, 10.5), (10.5, 10.1, 5.5, 13.5, 11.75, 10),
-                    (5.5, 10.2, 10.5, 10, 11.9, 13.5), (6, 10.15, 2.5, 10.5, 11.6, 5.5),
-                    (3.5, 11.5, 7, 5, 12.75, 9.5), (11, 11.4, 6.5, 12.75, 12.5, 8.75)])
-    # two scroll-shaped wisps on opposite corners (they look the same as it turns)
-    for s in (1, -1):
-        def B(x0, y0, z0, x1, y1, z1):
-            return ((x0, y0, z0), (x1, y1, z1)) if s == 1 else ((16 - x1, y0, 16 - z1), (16 - x0, y1, 16 - z0))
-        m.box("wisp", *B(12.75, 9.4, 6.75, 14.75, 10.4, 8.75), CLOUD, faces={"down": CLOUD_SHADE})
-        m.box("wisp", *B(14.5, 9.5, 7.25, 15.75, 10.5, 10.75), CLOUD_LIGHT, faces={"down": CLOUD_SHADE})
-        m.box("wisp", *B(12.75, 9.6, 10.5, 14.75, 10.6, 11.75), CLOUD_LIGHT, faces={"down": CLOUD_SHADE})
-        m.box("wisp", *B(12.5, 9.45, 9.25, 13.4, 10.45, 10.5), CLOUD_LIGHT, faces={"down": CLOUD_SHADE})
-        m.box("curl", *B(13.5, 10.0, 8.75, 14.5, 10.3, 10.5), Mat("ice", "plain", 2))
-    m.group("pearl")
-    m.box("seat", (6.6, 11.8, 6.6), (9.4, 12.5, 9.4), GOLD)
-    mirror(m, "seat_claw", (6.1, 12.0, 7.6), (6.6, 13.4, 8.4), GOLD_LIGHT)
-    m.box("seat_claw", (7.6, 12.0, 6.1), (8.4, 13.4, 6.6), GOLD_LIGHT)
-    m.box("seat_claw", (7.6, 12.0, 9.4), (8.4, 13.4, 9.9), GOLD_LIGHT)
-    orb(m, "pearl", (8, 14.6, 8), 4.6, "don_pearl")
-    m.group("flames")
-    for (x, z) in ((8, 4.6), (8, 11.4), (4.6, 8), (11.4, 8)):
-        flames(m, "flame", x, 11.3, z, 3.0, 6.5)
-    m.group("sparks")
-    for (x, y, z) in ((3.6, 15.4, 4.2), (12.0, 16.8, 11.4), (4.4, 17.6, 11.6), (11.6, 14.2, 3.8), (8.2, 19.0, 6.0)):
-        m.box("spark", (x - 0.3, y - 0.3, z - 0.3), (x + 0.3, y + 0.3, z + 0.3), CYAN_WHITE)
-    _display(m, HEAD_GUI, 0.85, -7)
-    return m
-
-
-def azure_dragon_wings():
-    """청룡의 날개: arms of dark azure scales rising to a gold claw, white horn spikes along them, four long
-    fingers and between them a sapphire membrane, lighter near the arm, its scalloped edge glowing cyan. Beats
-    (flap)."""
-    m = MModel("azure_dragon_wings")
-    bone, bone_b, claw = Mat("indigo", "weave", 2), Mat("indigo", "weave", 3), HORN
-    arm, parts, spikes = [], [], []
-    x, k = 9.5, 0
-    while x < 22.5 - 1e-6:                              # the arm, in 2.6 long scaled pieces up to the wrist
-        x1 = min(22.5, x + 2.6)
-        yc = _wing_arm_y((x + x1) / 2)
-        arm.append((x, x1 + 0.05, yc - 1.2, yc + 1.2, 9.0 + 0.05 * (k % 2), 10.75 - 0.05 * (k % 2), bone if k % 2 == 0 else bone_b))
-        x, k = x1, k + 1
-    arm += [(22.0, 24.25, 14.0, 16.75, 9.05, 10.7, GOLD), (23.25, 24.25, 16.75, 18.0, 9.35, 10.4, GOLD_LIGHT),
-            (9.0, 10.25, 7.25, 10.5, 9.1, 10.65, bone_b)]   # the root where the wing leaves the back
-    for xs in (12.0, 17.5):
-        spikes.append((xs, xs + 0.9, _wing_arm_y(xs) + 1.1, _wing_arm_y(xs) + 2.5, 9.5, 10.25, HORN))
-    for (fx, ty) in WING_FINGERS:
-        parts.append((fx - 0.45, fx + 0.45, ty, _wing_arm_y(fx) - 1.0, 9.15, 10.6, bone_b))
-        parts.append((fx - 0.3, fx + 0.3, ty - 0.75, ty, 9.4, 10.35, claw))
-    for side in (1, -1):
-        def X(x0, x1):
-            return (x0, x1) if side == 1 else (16 - x1, 16 - x0)
-        rot = ("y", -22.5 * side, (8 + side * 1.5, 8, 9))       # swept back, as the other wings (cosmetics._wing)
-        for (x0, x1, y0, y1, z0, z1, mat) in arm + parts + spikes:
-            a, b = X(x0, x1)
-            m.box("wing", (a, y0, z0), (b, y1, z1), mat, rotation=rot)
-        # the membrane: one cut-out plate per panel between the fingers (don_wing_web_<n>, one texel a unit)
-        for n, (xa, xb, ybot, ytop) in enumerate(WING_PANELS):
-            a, b = X(xa, xb)
-            front, back = [0, 0, xb - xa, ytop - ybot], [xb - xa, 0, 0, ytop - ybot]
-            south, north = (front, back) if side == 1 else (back, front)
-            m.box("web", (a, ybot, 9.6), (b, ytop, 10.1), f"don_wing_web_{n}", rotation=rot,
-                  uv={"south": south, "north": north, "east": CLEAR, "west": CLEAR, "up": CLEAR, "down": CLEAR})
-    _display(m, BACK_GUI, 0.38, -1)
-    return m
-
-
-def azure_dragon_tail():
-    """청룡의 꼬리: a long scaled tail that droops to the ankles and curls up, pale belly plates, light scale
-    ridges on its sides, a row of glowing cyan spines, a white fin and a blue flame at the tip. Swings side to side
-    (sway)."""
-    m = MModel("azure_dragon_tail")
-    # (x half width, y0, y1, z0, z1): from the back, down and back, then curling up
-    segs = [(1.9, 4.25, 8.0, 8.0, 11.0), (1.75, 2.0, 5.75, 10.5, 13.5), (1.6, -0.25, 3.25, 13.0, 16.0),
-            (1.45, -1.75, 1.0, 15.5, 18.5), (1.3, -2.25, 0.25, 18.0, 20.75), (1.15, -1.5, 1.25, 20.25, 22.5),
-            (1.0, 0.75, 3.75, 21.25, 23.25), (0.9, 3.25, 6.25, 21.0, 22.75)]
-    for k, (w, y0, y1, z0, z1) in enumerate(segs):
-        m.box("tail", (8 - w, y0, z0), (8 + w, y1, z1), SCALE if k % 2 == 0 else SCALE_DARK, faces={"down": BELLY})
-        zc = (z0 + z1) / 2
-        mirror(m, "ridge", (8 + w - 0.05, y0 + 0.7, zc - 0.6), (8 + w + 0.3, y1 - 0.7, zc + 0.6), Mat("sapphire", "plain", 3))
-        m.box("spine", (8 - 0.35, y1, zc - 0.45), (8 + 0.35, y1 + 1.0, zc + 0.45), CYAN)
-    mirror(m, "mane", (5.6, 6.0, 8.2), (6.2, 7.5, 10.2), HORN)
-    m.group("tip")
-    fin = {"w": Mat("snow", "plain", 2), "i": Mat("ice", "plain", 2), "c": CYAN}
-    rows = ["..c..",
-            ".cic.",
-            ".iwi.",
-            "iwwwi",
-            "iwwwi",
-            ".www.",
-            "..w.."]
-    for r, row in enumerate(rows):                    # a fin standing in the y-z plane on the tip
-        for j, ch in enumerate(row):
-            if ch != ".":
-                m.box("fin", (7.7, 11.5 - (r + 1) * 0.8, 20.0 + j * 0.75), (8.3, 11.5 - r * 0.8, 20.0 + (j + 1) * 0.75), fin[ch])
-    flames(m, "tip_flame", 8, 9.0, 21.9, 3.2, 6)
-    _display(m, (30, 135, 0), 0.6, 1)
-    return m
-
-
-def azure_cloud_trail():
-    """Card for 청룡의 구름길 (a trail): a curling cloud with blue wisps and sparks."""
-    m = MModel("azure_cloud_trail")
-    m.box("belly", (3, 4.75, 5.25), (12.5, 5.25, 10.75), CLOUD_BLUE)
-    cloud_puffs(m, [(2.5, 5, 5, 13, 8, 11), (4.5, 7.5, 5.5, 9.5, 11, 10.5), (8.5, 7.5, 6, 12, 9.75, 10),
-                    (1.5, 5.25, 6, 3.5, 7, 10), (6, 10.5, 6.5, 8.5, 12, 9.5)])
-    m.box("wisp", (12.5, 5.5, 7), (15, 6.5, 9), CLOUD_LIGHT, faces={"down": CLOUD_SHADE})
-    m.box("wisp", (14, 6.5, 7), (15, 8.5, 9), CLOUD_LIGHT)
-    m.box("wisp", (12.75, 8, 7.1), (14.75, 9, 8.9), Mat("ice", "plain", 2))
-    m.box("wisp", (12.75, 7.25, 7.25), (13.5, 8, 8.75), Mat("ice", "plain", 1))
-    for (x, y, z) in ((3, 11, 6), (13, 11.5, 7), (10.5, 13, 8)):
-        m.box("spark", (x - 0.4, y - 0.4, z - 0.4), (x + 0.4, y + 0.4, z + 0.4), CYAN_WHITE)
-    _display(m, HEAD_GUI, 0.9, 0)
-    return m
-
-
-def azure_spark_aura():
-    """Card for 청룡의 뇌광 (an aura): an octagonal ring of azure light on a dark rim, little bolts rising from it."""
-    m = MModel("azure_spark_aura")
-    octagon(m, "ring", 6.5, 1.0, 4.0, 5.0, CYAN)
-    octagon(m, "rim", 6.7, 1.4, 3.4, 4.0, Mat("indigo", "plain", 2))
-    for (x, z) in ((8, 1.9), (8, 14.1), (1.9, 8), (14.1, 8)):
-        m.box("bolt", (x - 0.35, 5.0, z - 0.35), (x + 0.35, 6.75, z + 0.35), CYAN_WHITE)
-        m.box("bolt", (x + 0.15, 6.5, z - 0.3), (x + 0.85, 8.5, z + 0.3), CYAN_WHITE)
-        m.box("bolt", (x - 0.35, 8.25, z - 0.35), (x + 0.35, 10.0, z + 0.35), CYAN_WHITE)
-    _display(m, (35, 225, 0), 0.85, -1)
-    return m
+# 청룡 (azure_dragon) v2 lives in models/cosmetics_azure.py (the donation art rules, nine pieces, awakened looks).
 
 
 # ================================================================================================
@@ -713,15 +581,18 @@ def puddle_trail():
 
 # slot of every model (the item yml says the same); the trail and aura models are only their cards
 SLOTS = {
-    "azure_pearl_cloud": "above", "azure_dragon_wings": "back", "azure_dragon_tail": "tail",
-    "azure_cloud_trail": "trail", "azure_spark_aura": "aura",
     "galaxy_star_crown": "above", "galaxy_cape": "back", "galaxy_moon_necklace": "neck",
     "galaxy_stardust_trail": "trail", "galaxy_constellation_aura": "aura",
     "duckling_parade": "pet", "sleepy_duckling": "above", "duck_float_ring": "waist", "duckling_wings": "back",
     "puddle_trail": "trail",
 }
 
-ALL = {f.__name__: f for f in (azure_pearl_cloud, azure_dragon_wings, azure_dragon_tail, azure_cloud_trail, azure_spark_aura,
-                               galaxy_star_crown, galaxy_cape, galaxy_moon_necklace, galaxy_stardust_trail,
+ALL = {f.__name__: f for f in (galaxy_star_crown, galaxy_cape, galaxy_moon_necklace, galaxy_stardust_trail,
                                galaxy_constellation_aura,
                                duckling_parade, sleepy_duckling, duck_float_ring, duckling_wings, puddle_trail)}
+
+# 청룡 v2 (models/cosmetics_azure.py): its pieces and the engine's models (awakened looks, prints, the burst, the ring)
+from models import cosmetics_azure as _azure   # noqa: E402
+
+SLOTS.update(_azure.SLOTS)
+ALL.update(_azure.ALL)

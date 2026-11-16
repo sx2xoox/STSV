@@ -63,6 +63,8 @@ wardrobe:
   lore-source: "<gray>얻는 곳: {source}"
   lore-donation: "<gradient:#ffd36b:#ff7ac6>✦ 후원 한정</gradient> <dark_gray>· 뽑기·교환 불가"
   lore-set: "<#ffd36b>세트: {set} <gray>({worn}/{total} 착용, 다 입으면 세트 효과)"
+  lore-set-awake: "<#7fd8ff>✦ 세트 각성 중</#7fd8ff> <gray>(모든 조각이 각성한 모습)"
+  lore-set-asleep: "<dark_gray>✦ 세트를 모두 걸치면 각성"
   source:
     gacha: "<white>치장 뽑기 <gray>(/뽑기)"
     achievement: "<white>업적 보상 <gray>(/업적)"
@@ -77,6 +79,10 @@ cosmetic:
   # /투명갑옷: 내 갑옷을 다른 사람에게 숨김 (방어력 그대로, 겉날개는 보임)
   hide-armor-on: "<green>투명갑옷 켜짐:</green> <gray>내 갑옷이 나와 다른 사람 모두에게 보이지 않습니다 (방어력은 그대로, 인벤토리에는 보임, 겉날개는 보임). 끄기: <white>/투명갑옷"
   hide-armor-off: "<gray>투명갑옷 꺼짐: 내 갑옷이 다시 보입니다."
+  # 세트 각성: 세트를 모두 걸치면 (cosmetic_sets.yml awaken) · 세트가 커져서 새 조각을 받았을 때 (upgrade)
+  awakened-title: "{set}<white> 세트 각성"
+  awakened-subtitle: "<gray>모든 조각이 깨어납니다"
+  set-upgraded: "{set}<gray> 세트가 커졌습니다: 새 조각 <white>{count}개</white>를 받았습니다. <dark_gray>(/치장)"
   hide-armor-unavailable: "<red>이 서버에서는 투명갑옷을 쓸 수 없습니다. <gray>(관리자에게 알려 주세요)"
   voucher-unknown: "<red>이 교환권의 치장을 찾을 수 없습니다. 관리자에게 알려주세요."
   already-owned: "<yellow>이미 가지고 있는 치장입니다."

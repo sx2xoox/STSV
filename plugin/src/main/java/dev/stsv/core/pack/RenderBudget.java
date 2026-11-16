@@ -103,6 +103,12 @@ public final class RenderBudget {
                 out.putIfAbsent(namespace + ":" + model, cells.size() <= 1 ? Category.FURNITURE_SMALL : Category.FURNITURE_LARGE);
             } else if (c != null) {
                 out.putIfAbsent(namespace + ":" + model, "pet".equals(c.getString("slot")) ? Category.PET : Category.COSMETIC);
+                // donation-grade looks the engine shows (a worn aura, the awakened model, footprints, a kill burst): worn
+                // cosmetics' budget each (one display at a time, like any worn piece)
+                for (String key : List.of("worn", "awakened", "burst.model", "print.model")) {
+                    if (c.getString(key) != null) out.putIfAbsent(local(namespace, c.getString(key)), Category.COSMETIC);
+                }
+                for (String m : c.getStringList("print.models")) out.putIfAbsent(local(namespace, m), Category.COSMETIC);
             }
         }
         return out;
@@ -153,6 +159,18 @@ public final class RenderBudget {
     }
 
     /** "name" or "ns:name" or "ns:model/name" -> "ns:name". */
+    /** A pack's cosmetic_sets.yml: each set's awakening model and flourish (worn cosmetics' budget). */
+    public static void setCategories(String namespace, ConfigurationSection file, Map<String, Category> out) {
+        ConfigurationSection sets = file == null ? null : file.getConfigurationSection("sets");
+        if (sets == null) return;
+        for (String id : sets.getKeys(false)) {
+            for (String key : List.of("awaken.model", "awaken.flourish")) {
+                String m = sets.getString(id + "." + key);
+                if (m != null) out.putIfAbsent(local(namespace, m), Category.COSMETIC);
+            }
+        }
+    }
+
     private static String local(String namespace, String model) {
         String m = model.contains(":") ? model : namespace + ":" + model;
         return m.replaceFirst(":model/", ":");

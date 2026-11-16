@@ -43,6 +43,8 @@ class RenderBudgetTest {
             kinds.putAll(RenderBudget.categories(ns, items(p.getValue())));
             Path tools = p.getValue().resolve("vehicle_tools.yml");   // 작업기
             if (Files.isRegularFile(tools)) RenderBudget.toolCategories(ns, YamlConfiguration.loadConfiguration(tools.toFile()), kinds);
+            Path sets = p.getValue().resolve("cosmetic_sets.yml");    // 세트 각성 models
+            if (Files.isRegularFile(sets)) RenderBudget.setCategories(ns, YamlConfiguration.loadConfiguration(sets.toFile()), kinds);
             for (var spec : dev.stsv.core.crop.CropSpec.loadAll(List.of(cp), w -> {})) {
                 for (String id : spec.models()) crops.add(id.replace(":model/", ":"));
             }
@@ -52,6 +54,9 @@ class RenderBudgetTest {
         assertEquals(RenderBudget.Category.FURNITURE_LARGE, kinds.get("stsv:wagasa"));
         assertEquals(RenderBudget.Category.PET, kinds.get("stsv:cat"));
         assertEquals(RenderBudget.Category.COSMETIC, kinds.get("stsv:gat"));
+        // donation-grade looks shown by the engine are held to a worn cosmetic's budget too
+        for (String m : List.of("stsv:azure_aura_dragon", "stsv:azure_aura_dragon_awakened", "stsv:azure_cloud_print_a", "stsv:azure_roar_burst",
+                "stsv:azure_dragon_wings_awakened", "stsv:azure_set_ring")) assertEquals(RenderBudget.Category.COSMETIC, kinds.get(m), m);
         // vehicles: bodies, the wheels they turn, the light bar's looks and the truck's load stages
         for (String body : List.of("stsv:police_car", "stsv:light_truck", "stsv:golf_cart", "stsv:hand_cart")) {
             assertEquals(RenderBudget.Category.VEHICLE, kinds.get(body));

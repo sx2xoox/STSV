@@ -126,7 +126,12 @@ public record CustomItem(
      * @param motion how its model moves while worn (cosmetic.motion), or null
      */
     public record Cosmetic(CosmeticSlot slot, Rarity rarity, String obtain, org.bukkit.util.Vector offset, float scale, boolean bob, Fx fx,
-                           boolean donation, String set, boolean glow, Motion motion) {
+                           boolean donation, String set, boolean glow, Motion motion, Premium premium) {
+        public Cosmetic(CosmeticSlot slot, Rarity rarity, String obtain, org.bukkit.util.Vector offset, float scale, boolean bob, Fx fx,
+                        boolean donation, String set, boolean glow, Motion motion) {
+            this(slot, rarity, obtain, offset, scale, bob, fx, donation, set, glow, motion, null);
+        }
+
         public Cosmetic(CosmeticSlot slot, Rarity rarity, String obtain) {
             this(slot, rarity, obtain, new org.bukkit.util.Vector(), 1f, false, null);
         }
@@ -148,7 +153,31 @@ public record CustomItem(
      */
     public record Motion(MotionKind kind, float amount, int period) {}
 
-    public enum MotionKind { SPIN, SWAY, FLAP, PULSE }
+    public enum MotionKind { SPIN, SWAY, FLAP, PULSE, ORBIT }
+
+    /**
+     * What a donation-grade cosmetic shows besides (or instead of) particles, every model a pack model name
+     * ("&lt;ns&gt;:model/&lt;name&gt;", the item definition every 3D model gets):
+     *
+     * @param worn     AURA: a model worn round the body all the time (at the aura anchor; its card keeps the item's own look)
+     * @param awakened the model shown instead (worn, print or burst) while the whole set is worn (세트 각성)
+     * @param print    TRAIL: model footprints left on the ground
+     * @param burst    KILL: a short model animation where the victim fell
+     */
+    public record Premium(NamespacedKey worn, NamespacedKey awakened, Print print, Burst burst) {}
+
+    /**
+     * Model footprints (cosmetic.print): at every {@code step} blocks walked, a print of {@code frames} (more than one:
+     * it flickers between them) lies on the ground turned to the walking direction, left and right foot by turns
+     * when {@code alternate}; it pops up, stays, then sinks away after {@code life} ticks.
+     */
+    public record Print(java.util.List<NamespacedKey> frames, int life, float scale, double step, boolean alternate) {}
+
+    /**
+     * A kill burst (cosmetic.burst): {@code model} appears where the victim fell, grows, rises {@code rise} blocks
+     * (turning when {@code spin}) and is gone after {@code life} ticks; {@code sound} plays at the start.
+     */
+    public record Burst(NamespacedKey model, int life, float scale, float rise, boolean spin, String sound) {}
 
     /**
      * What a trail, kill effect or pet does: particle (a Bukkit particle name) with count, spread (blocks)

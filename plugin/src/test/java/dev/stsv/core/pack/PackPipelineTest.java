@@ -42,7 +42,11 @@ class PackPipelineTest {
             "star_ring", "shoulder_dragon", "jetpack",          // cosmetics A: the stars, the dragon's ember, the rocket flames
             "devil_tail", "gold_medal", "crystal_pendant",      // cosmetics B: the heart tip, the medal's star, the crystal
             // donation sets: every piece glows at night (the dragon wings' membrane only at its tips: not listed)
-            "azure_pearl_cloud", "azure_dragon_tail", "azure_cloud_trail", "azure_spark_aura",
+            // 청룡 v2: pearls, flames, eyes, spines, whiskers, glowing cloud, lightning and the footprints' rims
+            "azure_pearl_cloud", "azure_pearl_cloud_awakened", "azure_dragon_wings_awakened", "azure_dragon_tail", "azure_shoulder_dragon",
+            "azure_cloud_sash", "azure_baby_dragon", "azure_cloud_trail", "azure_cloud_print_a", "azure_cloud_print_b",
+            "azure_cloud_print_awakened", "azure_spark_aura", "azure_aura_dragon", "azure_aura_dragon_awakened", "azure_dragon_roar",
+            "azure_roar_burst", "azure_set_ring",
             "galaxy_star_crown", "galaxy_cape", "galaxy_moon_necklace", "galaxy_stardust_trail", "galaxy_constellation_aura",
             "andon", "stone_lantern", "tea_kettle",             // furniture: lamp paper, the lantern's fire, embers
             "police_car", "light_truck", "golf_cart", "sports_car", "tuner_car",   // vehicles: head and tail lights, the tuner car neon
@@ -59,8 +63,12 @@ class PackPipelineTest {
             "angel_wings", "demon_wings", "butterfly_wings",   // wings swept back 22.5 degrees
             "gumiho",                                           // nine tails fanned out
             "toy_sword_belt", "lucky_pouch", "champion_belt",   // waist: the sword hangs slanted, the pouch's knot, the belt's plate
-            "azure_dragon_wings", "galaxy_cape",                // donation sets: wings and cape swept back
-            "azure_spark_aura", "galaxy_star_crown", "galaxy_constellation_aura",   // rings and stars set on a slant
+            "galaxy_cape",                                      // donation sets: the cape swept back
+            "galaxy_star_crown", "galaxy_constellation_aura",   // rings and stars set on a slant
+            // 청룡 v2 (silhouette first): bodies, horns, fingers and curves of turned segments
+            "azure_pearl_cloud", "azure_pearl_cloud_awakened", "azure_dragon_wings", "azure_dragon_wings_awakened", "azure_dragon_tail",
+            "azure_shoulder_dragon", "azure_cloud_sash", "azure_baby_dragon", "azure_spark_aura", "azure_aura_dragon",
+            "azure_aura_dragon_awakened", "azure_dragon_roar", "azure_roar_burst", "azure_set_ring",
             "duck_float_ring", "puddle_trail", "duckling_wings",  // the duck set: octagonal ring and puddle, wings swept back
             "wagasa",                                           // the parasol's struts, tilted up to its canopy
             // retro furniture: the kettle's spout, the radio's aerial, the clothes prop, the phone's dial face, the dresser's wing

@@ -93,6 +93,16 @@ public final class CosmeticModule implements StsvModule, Listener {
     private CosmeticPets pets;
     /** where each player last left a trail mark */
     private final Map<UUID, Location> trailAt = new HashMap<>();
+    /** model footprints (cosmetic.print), kill bursts (cosmetic.burst), the set awakening flourish */
+    private CosmeticFx fx;
+    /** where each model-trail wearer left their last footprint, and with which foot */
+    private final Map<UUID, Location> printAt = new HashMap<>();
+    private final Set<UUID> printLeft = new java.util.HashSet<>();
+    /** per player: the sets they wore whole at the last refresh (a new one: the awakening flourish) */
+    private final Map<UUID, Set<String>> wholeSets = new HashMap<>();
+    /** per set: its awakening model as a worn cosmetic (cosmetic_sets.yml awaken.model), built when the sets load */
+    private final Map<String, CustomItem> setModels = new HashMap<>();
+    private static final NamespacedKey KEY_UPGRADES = new NamespacedKey("stsv", "cosmetic_upgrades");
     /** aura wearers: where they stand and since when (ticks): an aura plays once they have stood a moment */
     private final Map<UUID, Location> auraAt = new HashMap<>();
     private final Map<UUID, Long> auraSince = new HashMap<>();
@@ -134,6 +144,7 @@ public final class CosmeticModule implements StsvModule, Listener {
             }
         }
         attachments = new CosmeticAttachments(plugin, keyAttachment, packets, this::selfView);
+        fx = new CosmeticFx(plugin, keyAttachment);
         pets = new CosmeticPets(plugin, keyAttachment);
         loadSets();
         loadAnchors();
@@ -187,6 +198,7 @@ public final class CosmeticModule implements StsvModule, Listener {
             break;
         }
         problems.forEach(m -> plugin.getLogger().warning("[치장] cosmetic_sets.yml " + m));
+        buildSetModels();
     }
 
     @Override
@@ -205,6 +217,7 @@ public final class CosmeticModule implements StsvModule, Listener {
     /** Every tick: the worn models follow their wearers; every 5 ticks: hide or show with invisibility etc. */
     private void tick() {
         attachments.tick();
+        fx.tick();
         pets.tick();
         if (++ticks % 3 == 0) trails();
         if (ticks % AURA_EVERY == 0) {
@@ -290,6 +303,7 @@ public final class CosmeticModule implements StsvModule, Listener {
             if (p != null) exitWardrobe(p, false);
         });
         if (attachments != null) attachments.removeAll();
+        if (fx != null) fx.removeAll();
         if (pets != null) pets.removeAll();
         if (packets != null) {
             packets.clear();
@@ -405,6 +419,59 @@ public final class CosmeticModule implements StsvModule, Listener {
     private void save() {
     }
 
+    /** A set was just put together: the flourish everyone near sees, and a title for the wearer. */
+    private void awakened(Player p, CosmeticSets.Set set) {
+        CosmeticSets.Awaken a = set.awaken();
+        NamespacedKey model = a == null || a.flourish() == null ? null : modelKey(a.flourish());
+        fx.awaken(p, model, a == null ? null : a.sound(), viewersOf(p, p.getLocation(), 48));
+        p.showTitle(net.kyori.adventure.title.Title.title(Lang.mm("cosmetic.awakened-title", "set", set.name()), Lang.mm("cosmetic.awakened-subtitle"),
+                net.kyori.adventure.title.Title.Times.times(java.time.Duration.ofMillis(150), java.time.Duration.ofMillis(1800), java.time.Duration.ofMillis(500))));
+    }
+
+    /** "name" (the stsv pack's models/name) or "ns:model/name" -> the item model key every 3D model gets. */
+    private static NamespacedKey modelKey(String m) {
+        return m.contains(":") ? NamespacedKey.fromString(m) : new NamespacedKey("stsv", "model/" + m);
+    }
+
+    /** Each set's awakening model as a cosmetic worn at the aura anchor (glowing, moving as the file says). */
+    private void buildSetModels() {
+        setModels.clear();
+        for (CosmeticSets.Set set : sets.sets().values()) {
+            CosmeticSets.Awaken a = set.awaken();
+            if (a == null || a.model() == null) continue;
+            NamespacedKey model = modelKey(a.model());
+            CustomItem.Cosmetic c = new CustomItem.Cosmetic(CosmeticSlot.AURA, CustomItem.Rarity.LEGENDARY, null, new org.bukkit.util.Vector(), a.scale(), false,
+                    null, true, set.id(), true, a.motion(), new CustomItem.Premium(model, null, null, null));
+            setModels.put(set.id(), new CustomItem(new NamespacedKey("stsv", "set_awakening/" + set.id()), null, org.bukkit.Material.PAPER, null, List.of(),
+                    null, null, null, false, null, null, null, null, null, c, null, null));
+        }
+    }
+
+    /**
+     * Sets that grew after they were sold (cosmetic_sets.yml upgrade): whoever owns the set as it was sold gets the new
+     * pieces, once (the done upgrades are kept on the player), on their first join after the change.
+     */
+    private void upgrade(Player p) {
+        PersistentDataContainer pdc = p.getPersistentDataContainer();
+        Set<String> done = new java.util.HashSet<>(List.of(pdc.getOrDefault(KEY_UPGRADES, PersistentDataType.STRING, "").split(",")));
+        boolean changed = false;
+        for (CosmeticSets.Set set : sets.sets().values()) {
+            CosmeticSets.Upgrade u = set.upgrade();
+            if (u == null || done.contains(u.id())) continue;
+            List<String> give = u.grants(store.owned(p.getUniqueId()), done);
+            for (String id : give) {
+                if (store.grant(p.getUniqueId(), id)) plugin.getLogger().info("[치장] " + p.getName() + " 에게 " + set.id() + " 세트 확장 조각 " + id + " 지급 (" + u.id() + ")");
+            }
+            if (!give.isEmpty()) {
+                p.sendMessage(Lang.msg("cosmetic.set-upgraded", "set", set.name(), "count", give.size()));
+                changed = true;
+            }
+            done.add(u.id());
+            pdc.set(KEY_UPGRADES, PersistentDataType.STRING, String.join(",", done.stream().filter(x -> !x.isBlank()).sorted().toList()));
+        }
+        if (changed) save();
+    }
+
     /** Older versions kept ownership in the player's data file; move it into the store once. */
     private void migrate(Player p) {
         PersistentDataContainer pdc = p.getPersistentDataContainer();
@@ -476,7 +543,21 @@ public final class CosmeticModule implements StsvModule, Listener {
             with.put(CosmeticSlot.BACK, back);   // something carried on the back for real (the 지게) goes over the back cosmetic
             all = with;
         }
-        attachments.set(p, all);
+        // 세트 각성: a whole set's pieces show their awakened look, its bonus model is worn, and a set just completed
+        // gets its flourish (not on joining: only when it is put together)
+        List<CosmeticSets.Set> whole = sets.complete(all.values());
+        Set<String> awake = sets.awake(all.values());
+        CustomItem bonusModel = null;
+        Set<String> wholeIds = new java.util.HashSet<>();
+        for (CosmeticSets.Set set : whole) {
+            wholeIds.add(set.id());
+            if (bonusModel == null) bonusModel = setModels.get(set.id());
+        }
+        Set<String> before = wholeSets.put(p.getUniqueId(), wholeIds);
+        attachments.set(p, all, awake, bonusModel);
+        if (before != null) {
+            for (CosmeticSets.Set set : whole) if (!before.contains(set.id())) awakened(p, set);
+        }
         pets.set(p, all.get(CosmeticSlot.PET));
         Optional<CustomItem> worn = Optional.ofNullable(all.get(CosmeticSlot.HEAD));
         if (packets != null) {
@@ -600,7 +681,7 @@ public final class CosmeticModule implements StsvModule, Listener {
         p.sendMessage(Lang.msg(hide ? "cosmetic.hide-armor-on" : "cosmetic.hide-armor-off"));
     }
 
-    @EventHandler public void onJoin(PlayerJoinEvent e) { migrate(e.getPlayer()); restoreIfStuck(e.getPlayer()); makeVisible(e.getPlayer()); refreshLater(e.getPlayer()); }
+    @EventHandler public void onJoin(PlayerJoinEvent e) { migrate(e.getPlayer()); upgrade(e.getPlayer()); restoreIfStuck(e.getPlayer()); makeVisible(e.getPlayer()); refreshLater(e.getPlayer()); }
     /** A respawned player is a new entity on their own client: the models riding the old one are made anew. */
     @EventHandler public void onRespawn(PlayerRespawnEvent e) { attachments.remove(e.getPlayer()); pets.remove(e.getPlayer()); refreshLater(e.getPlayer()); }
     @EventHandler public void onWorld(PlayerChangedWorldEvent e) { attachments.remove(e.getPlayer()); pets.remove(e.getPlayer()); refreshLater(e.getPlayer()); }
@@ -615,7 +696,8 @@ public final class CosmeticModule implements StsvModule, Listener {
         for (Player p : Bukkit.getOnlinePlayers()) {
             if (inWardrobe(p) || concealed(p)) continue;
             CustomItem c = worn(p).get(CosmeticSlot.TRAIL);
-            if (c == null || c.cosmetic().fx() == null) {
+            if (c != null) prints(p, c);
+            if (c == null || c.cosmetic().fx() == null || c.cosmetic().fx().particle() == null) {
                 trailAt.remove(p.getUniqueId());
                 continue;
             }
@@ -627,6 +709,31 @@ public final class CosmeticModule implements StsvModule, Listener {
             Location mark = CosmeticEffects.trailMark(last, here).add(0, c.cosmetic().fx().height(), 0);
             CosmeticEffects.play(viewersOf(p, mark, 48), mark, c.cosmetic().fx(), ticks, false);
         }
+    }
+
+    /** A model trail (cosmetic.print): a footprint every few steps on the ground, left and right foot by turns. */
+    private void prints(Player p, CustomItem c) {
+        CustomItem.Premium pr = c.cosmetic().premium();
+        UUID u = p.getUniqueId();
+        if (pr == null || pr.print() == null || !p.getLocation().subtract(0, 0.05, 0).getBlock().isSolid() || p.isInsideVehicle() || p.isGliding() || p.isSwimming() || lying(p)) {
+            if (pr == null || pr.print() == null) printAt.remove(u);
+            return;
+        }
+        Location here = p.getLocation();
+        Location last = printAt.get(u);
+        if (last == null || last.getWorld() != here.getWorld() || last.distanceSquared(here) > 16) {
+            printAt.put(u, here);
+            return;
+        }
+        CosmeticFx.Print next = CosmeticFx.nextPrint(last.getX(), last.getZ(), here.getX(), here.getZ(), pr.print().step(), printLeft.contains(u), pr.print().alternate());
+        if (next == null) return;
+        printAt.put(u, here);
+        if (next.left()) printLeft.add(u);
+        else printLeft.remove(u);
+        Location at = new Location(here.getWorld(), next.x(), here.getY() + 0.02, next.z());
+        List<NamespacedKey> frames = new ArrayList<>(pr.print().frames());
+        if (pr.awakened() != null && sets.awake(worn(p).values()).contains(c.key().asString())) frames.set(0, pr.awakened());
+        fx.print(p, at, next.yaw(), pr.print(), frames, c.cosmetic().glow(), viewersOf(p, at, 48));
     }
 
     /** Every {@link #AURA_EVERY} ticks: a full set's bonus ring round its wearer, walking or standing. */
@@ -654,7 +761,7 @@ public final class CosmeticModule implements StsvModule, Listener {
         for (Player p : Bukkit.getOnlinePlayers()) {
             UUID u = p.getUniqueId();
             CustomItem c = inWardrobe(p) || concealed(p) ? null : worn(p).get(CosmeticSlot.AURA);
-            if (c == null || c.cosmetic().fx() == null) {
+            if (c == null || c.cosmetic().fx() == null || c.cosmetic().fx().particle() == null) {
                 auraAt.remove(u);
                 auraSince.remove(u);
                 continue;
@@ -678,7 +785,16 @@ public final class CosmeticModule implements StsvModule, Listener {
         Player killer = e.getEntity().getKiller();
         if (killer == null || killer == e.getEntity() || inWardrobe(killer) || concealed(killer)) return;
         CustomItem c = worn(killer).get(CosmeticSlot.KILL);
-        if (c == null || c.cosmetic().fx() == null) return;
+        if (c == null) return;
+        CustomItem.Premium pr = c.cosmetic().premium();
+        if (pr != null && pr.burst() != null) {
+            Location feet = e.getEntity().getLocation();
+            org.bukkit.util.Vector to = killer.getLocation().toVector().subtract(feet.toVector());
+            float yaw = (float) Math.toDegrees(Math.atan2(-to.getX(), to.getZ()));
+            NamespacedKey model = pr.awakened() != null && sets.awake(worn(killer).values()).contains(c.key().asString()) ? pr.awakened() : pr.burst().model();
+            fx.burst(killer, feet, yaw, pr.burst(), model, c.cosmetic().glow(), viewersOf(killer, feet, 64));
+        }
+        if (c.cosmetic().fx() == null || c.cosmetic().fx().particle() == null && !c.cosmetic().fx().lightning()) return;
         Location at = e.getEntity().getLocation().add(0, e.getEntity().getHeight() / 2, 0);
         CosmeticEffects.play(viewersOf(killer, at, 64), at, c.cosmetic().fx(), ticks, true);
     }
@@ -1010,8 +1126,8 @@ public final class CosmeticModule implements StsvModule, Listener {
         s.models.clear();
         Location top = s.mannequin.getLocation().add(0, s.mannequin.getHeight(), 0);
         s.look.forEach((slot, id) -> {
-            if (slot == CosmeticSlot.HEAD || slot == CosmeticSlot.TRAIL || slot == CosmeticSlot.KILL || slot == CosmeticSlot.AURA) return;   // effects: previewEffect
-            plugin.content().item(id).filter(c -> c.cosmetic() != null).ifPresent(c -> {
+            if (slot == CosmeticSlot.HEAD || slot == CosmeticSlot.TRAIL || slot == CosmeticSlot.KILL) return;   // effects: previewEffect
+            plugin.content().item(id).filter(c -> c.cosmetic() != null && (slot != CosmeticSlot.AURA || CosmeticAttachments.carried(c))).ifPresent(c -> {
                 ItemDisplay d = slot == CosmeticSlot.PET ? pets.spawnPreview(s.mannequin.getLocation(), c)
                         : attachments.spawnPreview(top, s.mannequin.getBodyYaw(), slot, c);
                 p.showEntity(plugin, d);
@@ -1026,6 +1142,28 @@ public final class CosmeticModule implements StsvModule, Listener {
         String id = s.look.get(slot);
         if (id == null) return;
         plugin.content().item(id).filter(c -> c.cosmetic() != null && c.cosmetic().fx() != null).ifPresent(c -> {
+            CustomItem.Premium pr = c.cosmetic().premium();
+            if (slot == CosmeticSlot.TRAIL && pr != null && pr.print() != null) {
+                if (s.previewTicks % 30 != 0) return;
+                // two prints in front of the mannequin, as if it had just walked there
+                Location base = at.clone().add(0, 0.02, 0);
+                float yaw = s.mannequin.getYaw();
+                for (int k = 0; k < 2; k++) {
+                    double side = k == 0 ? CosmeticFx.FOOT : -CosmeticFx.FOOT, ahead = 0.4 + 0.35 * k;
+                    double r = Math.toRadians(yaw);
+                    Location l = base.clone().add(-Math.sin(r) * ahead + Math.cos(r) * side, 0, Math.cos(r) * ahead + Math.sin(r) * side);
+                    fx.print(p, l, yaw, pr.print(), pr.print().frames(), c.cosmetic().glow(), List.of(p));
+                }
+                return;
+            }
+            if (slot == CosmeticSlot.KILL && pr != null && pr.burst() != null) {
+                Location feet = at.clone().add(0, -1.0, 0);
+                double r = Math.toRadians(s.mannequin.getYaw());
+                feet.add(-Math.sin(r) * 1.2, 0, Math.cos(r) * 1.2);
+                fx.burst(p, feet, s.mannequin.getYaw() + 180, pr.burst(), pr.burst().model(), c.cosmetic().glow(), List.of(p));
+                return;
+            }
+            if (c.cosmetic().fx().particle() == null && !c.cosmetic().fx().lightning()) return;
             if (slot == CosmeticSlot.AURA) {
                 CosmeticEffects.ring(List.of(p), at.clone().add(0, c.cosmetic().fx().height(), 0), c.cosmetic().fx(), s.previewTicks);
                 return;
@@ -1159,8 +1297,13 @@ public final class CosmeticModule implements StsvModule, Listener {
                 if (c.cosmetic().donation()) lore.add(Lang.item("wardrobe.lore-donation"));
                 if (c.cosmetic().set() != null) {
                     CosmeticSets.Set set = sets.sets().get(c.cosmetic().set());
-                    if (set != null) lore.add(Lang.item("wardrobe.lore-set", "set", set.name(),
-                            "worn", String.valueOf(sets.worn(set, worn.values())), "total", String.valueOf(set.pieces().size())));
+                    if (set != null) {
+                        int on = sets.worn(set, worn.values());
+                        lore.add(Lang.item("wardrobe.lore-set", "set", set.name(), "worn", String.valueOf(on), "total", String.valueOf(set.pieces().size())));
+                        if (set.awaken() != null || c.cosmetic().premium() != null && c.cosmetic().premium().awakened() != null) {
+                            lore.add(Lang.item(on == set.pieces().size() ? "wardrobe.lore-set-awake" : "wardrobe.lore-set-asleep", "set", set.name()));
+                        }
+                    }
                 }
                 lore.add(Text.item(""));
                 if (!owns(p, c)) {
@@ -1471,6 +1614,10 @@ public final class CosmeticModule implements StsvModule, Listener {
         lastHurt.remove(e.getPlayer().getUniqueId());
         concealed.remove(e.getPlayer().getUniqueId());
         trailAt.remove(e.getPlayer().getUniqueId());
+        printAt.remove(e.getPlayer().getUniqueId());
+        printLeft.remove(e.getPlayer().getUniqueId());
+        wholeSets.remove(e.getPlayer().getUniqueId());
+        fx.remove(e.getPlayer().getUniqueId());
         auraAt.remove(e.getPlayer().getUniqueId());
         auraSince.remove(e.getPlayer().getUniqueId());
         attachments.remove(e.getPlayer());

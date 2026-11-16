@@ -1,51 +1,85 @@
-# 후원 상점 전용 치장: 세 세트, 다섯 가지씩 (모델: tools/assetgen/models/cosmetics_donation.py).
+# 후원 상점 전용 치장: 세 세트 (청룡 아홉 조각, 은하수 · 아기 오리 다섯 조각씩) (모델: tools/assetgen/models/cosmetics_donation.py).
 # 뽑기에 나오지 않고 교환권도 없음 (cosmetic.exclusive: donation). 세트를 모두 걸치면 cosmetic_sets.yml 의 보너스 고리가 돈다.
 # 청룡 · 은하수의 모델 조각은 어두운 데서도 밝게 보이고 (glow), 대부분 움직인다 (motion). 아기 오리 가족은 빛나지 않는 낮의 세트.
 # 발자취 · 오라의 모델은 메뉴 카드 그림.
 
 # ---------------------------------------------------------------------------------------------
-# 청룡 세트 (azure_dragon): 여의주 · 날개 · 꼬리 · 구름길 · 뇌광 — 세트 보너스: 가슴 높이의 번개 고리
+# 청룡 세트 (azure_dragon) v2, 아홉 조각 (모델: tools/assetgen/models/cosmetics_azure.py, 후원 전용 고급 규칙):
+# 여의주 · 날개 · 꼬리 · 어깨 용 · 구름 띠 · 아기 청룡 · 구름 발자국 · 뇌룡 · 포효.
+# 세트를 모두 걸치면 각성 (cosmetic.awakened): 여의주 · 날개 · 뇌룡 · 발자국이 각성한 모습으로 바뀌고,
+# 발밑에 각성 고리가 돈다 (cosmetic_sets.yml awaken). 발자국 · 뇌룡 · 포효는 파티클이 아니라 모델.
 # ---------------------------------------------------------------------------------------------
 azure_pearl_cloud:
   material: paper
   name: "<gradient:#c8f6ff:#3d8bff>청룡의 여의주</gradient>"
-  lore: ["<gray>구름 위에 뜬 여의주가 푸른 불꽃 속에서 돈다", "<#7fd8ff>청룡 세트 (1/5)"]
+  lore: ["<gray>구름 위에 뜬 여의주가 푸른 불꽃 속에서 돈다", "<#7fd8ff>청룡 세트 (1/9)"]
   model: azure_pearl_cloud
   max-stack: 1
   cosmetic: { slot: above, rarity: legendary, obtain: "후원 상점 (/후원)", exclusive: donation, set: azure_dragon, glow: true, bob: true,
-              motion: { kind: spin, period: 120 } }
+              motion: { kind: spin, period: 120 }, awakened: azure_pearl_cloud_awakened }
 azure_dragon_wings:
   material: paper
   name: "<gradient:#c8f6ff:#3d8bff>청룡의 날개</gradient>"
-  lore: ["<gray>푸른 비늘 날개가 천천히 날갯짓한다", "<#7fd8ff>청룡 세트 (2/5)"]
+  lore: ["<gray>손가락뼈 사이 비늘 막, 가장자리가 빛나며 날갯짓한다", "<#7fd8ff>청룡 세트 (2/9)"]
   model: azure_dragon_wings
   max-stack: 1
   cosmetic: { slot: back, rarity: legendary, obtain: "후원 상점 (/후원)", exclusive: donation, set: azure_dragon, glow: true,
-              motion: { kind: flap, amount: 0.25, period: 36 } }
+              motion: { kind: flap, amount: 0.22, period: 36 }, awakened: azure_dragon_wings_awakened }
 azure_dragon_tail:
   material: paper
   name: "<gradient:#c8f6ff:#3d8bff>청룡의 꼬리</gradient>"
-  lore: ["<gray>끝에 푸른 불꽃이 타는 긴 비늘 꼬리", "<#7fd8ff>청룡 세트 (3/5)"]
+  lore: ["<gray>발목까지 휘어 내려 말려 오르는 비늘 꼬리, 끝에 푸른 불꽃", "<#7fd8ff>청룡 세트 (3/9)"]
   model: azure_dragon_tail
   max-stack: 1
   cosmetic: { slot: tail, rarity: legendary, obtain: "후원 상점 (/후원)", exclusive: donation, set: azure_dragon, glow: true,
-              motion: { kind: sway, amount: 16, period: 50 } }
+              motion: { kind: sway, amount: 14, period: 50 } }
+azure_shoulder_dragon:
+  material: paper
+  name: "<gradient:#c8f6ff:#3d8bff>청룡의 어깨 용</gradient>"
+  lore: ["<gray>어깨에 똬리를 튼 작은 청룡이 고개를 든다", "<#7fd8ff>청룡 세트 (4/9)"]
+  model: azure_shoulder_dragon
+  max-stack: 1
+  cosmetic: { slot: shoulder, rarity: legendary, obtain: "후원 상점 (/후원)", exclusive: donation, set: azure_dragon, glow: true }
+azure_cloud_sash:
+  material: paper
+  name: "<gradient:#c8f6ff:#3d8bff>청룡의 구름 띠</gradient>"
+  lore: ["<gray>구름을 감은 띠, 여의주를 문 금빛 용머리 고리", "<#7fd8ff>청룡 세트 (5/9)"]
+  model: azure_cloud_sash
+  max-stack: 1
+  cosmetic: { slot: waist, rarity: legendary, obtain: "후원 상점 (/후원)", exclusive: donation, set: azure_dragon, glow: true }
+azure_baby_dragon:
+  material: paper
+  name: "<gradient:#c8f6ff:#3d8bff>아기 청룡</gradient>"
+  lore: ["<gray>여의주를 품고 공중을 헤엄치며 따라오는 아기 청룡", "<#7fd8ff>청룡 세트 (6/9)"]
+  model: azure_baby_dragon
+  max-stack: 1
+  cosmetic: { slot: pet, rarity: legendary, obtain: "후원 상점 (/후원)", exclusive: donation, set: azure_dragon, glow: true, float: true }
 azure_cloud_trail:
   material: paper
-  name: "<gradient:#c8f6ff:#3d8bff>청룡의 구름길</gradient>"
-  lore: ["<gray>걸음마다 흰 구름이 피어오른다", "<#7fd8ff>청룡 세트 (4/5)"]
+  name: "<gradient:#c8f6ff:#3d8bff>청룡의 구름 발자국</gradient>"
+  lore: ["<gray>걸음마다 빛나는 구름 발자국이 툭 솟았다 가라앉는다", "<#7fd8ff>청룡 세트 (7/9)"]
   model: azure_cloud_trail
   max-stack: 1
-  cosmetic: { slot: trail, rarity: legendary, obtain: "후원 상점 (/후원)", exclusive: donation, set: azure_dragon,
-              particle: cloud, count: 2, spread: 0.12, speed: 0.01, height: 0.15 }
+  cosmetic: { slot: trail, rarity: legendary, obtain: "후원 상점 (/후원)", exclusive: donation, set: azure_dragon, glow: true,
+              print: { models: [azure_cloud_print_a, azure_cloud_print_b], life: 36, scale: 0.55, step: 0.75, alternate: true },
+              awakened: azure_cloud_print_awakened }
 azure_spark_aura:
   material: paper
-  name: "<gradient:#c8f6ff:#3d8bff>청룡의 뇌광</gradient>"
-  lore: ["<gray>멈춰 서면 발밑에 푸른 빛 고리가 돈다", "<#7fd8ff>청룡 세트 (5/5)"]
+  name: "<gradient:#c8f6ff:#3d8bff>청룡의 뇌룡</gradient>"
+  lore: ["<gray>작은 청룡이 몸 둘레를 쉬지 않고 휘감아 돈다", "<#7fd8ff>청룡 세트 (8/9)"]
   model: azure_spark_aura
   max-stack: 1
-  cosmetic: { slot: aura, rarity: legendary, obtain: "후원 상점 (/후원)", exclusive: donation, set: azure_dragon,
-              particle: dust, color: "#4fc3ff", count: 12, spread: 0.85, speed: 0, height: 0.15 }
+  cosmetic: { slot: aura, rarity: legendary, obtain: "후원 상점 (/후원)", exclusive: donation, set: azure_dragon, glow: true,
+              worn: azure_aura_dragon, awakened: azure_aura_dragon_awakened, motion: { kind: orbit, amount: 0.06, period: 80 } }
+azure_dragon_roar:
+  material: paper
+  name: "<gradient:#c8f6ff:#3d8bff>청룡의 포효</gradient>"
+  lore: ["<gray>쓰러뜨린 자리에서 청룡의 머리가 솟아 포효한다", "<#7fd8ff>청룡 세트 (9/9)"]
+  model: azure_dragon_roar
+  max-stack: 1
+  cosmetic: { slot: kill, rarity: legendary, obtain: "후원 상점 (/후원)", exclusive: donation, set: azure_dragon, glow: true,
+              burst: { model: azure_roar_burst, life: 36, scale: 0.9, rise: 0.3, sound: entity.ender_dragon.growl },
+              particle: electric_spark, count: 24, spread: 0.6, speed: 0.1 }
 
 # ---------------------------------------------------------------------------------------------
 # 은하수 세트 (galaxy): 별관 · 망토 · 초승달 목걸이 · 별가루 · 별자리 — 세트 보너스: 발밑의 별빛 고리

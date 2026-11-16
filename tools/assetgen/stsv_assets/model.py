@@ -211,7 +211,8 @@ class Model:
         if f in e["uv"]:
             return e["uv"][f]
         if f in e["full_uv"]:
-            return [0, 0, 16, 16]
+            fw, fh = T.size_of(e["faces"][f])      # the whole texture, at its own density (16, or 32 for donation art)
+            return [0, 0, fw, fh]
         uv = auto_uv(f, e["from"], e["to"])
         if e.get("side_v") and f in ("north", "south", "east", "west"):
             uv[1], uv[3] = e["side_v"]

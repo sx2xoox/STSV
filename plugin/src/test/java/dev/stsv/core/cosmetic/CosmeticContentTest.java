@@ -57,7 +57,9 @@ class CosmeticContentTest {
                 }
             }
             boolean effect = slot == CosmeticSlot.TRAIL || slot == CosmeticSlot.KILL || slot == CosmeticSlot.AURA;
-            if (effect && particle == null && !c.getBoolean("lightning")) problems.add(key + ": no effect");
+            // a donation-grade effect may be a model instead of particles (footprints, a worn aura, a kill burst)
+            boolean drawn = c.contains("print") || c.contains("worn") || c.contains("burst");
+            if (effect && particle == null && !c.getBoolean("lightning") && !drawn) problems.add(key + ": no effect");
             String model = y.getString(key + ".model");
             if (!effect && (model == null || !Files.exists(PACK.resolve("models/" + model + ".bbmodel")))) {
                 problems.add(key + ": model " + model);
@@ -113,7 +115,7 @@ class CosmeticContentTest {
                 }
             }
         }
-        assertEquals(15, exclusive.size(), exclusive.toString());
+        assertEquals(19, exclusive.size(), exclusive.toString());   // 청룡 9 · 은하수 5 · 아기 오리 5
         List<String> pool = YamlConfiguration.loadConfiguration(PACK.resolve("gacha.yml").toFile()).getStringList("pool");
         YamlConfiguration shop = YamlConfiguration.loadConfiguration(PACK.resolve("donation_shop.yml").toFile());
         java.util.Set<String> sold = new java.util.HashSet<>();
