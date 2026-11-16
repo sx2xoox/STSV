@@ -1,0 +1,90 @@
+# 후원 상점 전용 치장: 두 세트, 다섯 가지씩 (모델: tools/assetgen/models/cosmetics_donation.py).
+# 뽑기에 나오지 않고 교환권도 없음 (cosmetic.exclusive: donation). 세트를 모두 걸치면 cosmetic_sets.yml 의 보너스 고리가 돈다.
+# 모델이 있는 조각은 어두운 데서도 밝게 보이고 (glow), 대부분 움직인다 (motion). 발자취 · 오라의 모델은 메뉴 카드 그림.
+
+# ---------------------------------------------------------------------------------------------
+# 청룡 세트 (azure_dragon): 여의주 · 날개 · 꼬리 · 구름길 · 뇌광 — 세트 보너스: 가슴 높이의 번개 고리
+# ---------------------------------------------------------------------------------------------
+azure_pearl_cloud:
+  material: paper
+  name: "<gradient:#c8f6ff:#3d8bff>청룡의 여의주</gradient>"
+  lore: ["<gray>구름 위에 뜬 여의주가 푸른 불꽃 속에서 돈다", "<#7fd8ff>청룡 세트 (1/5)"]
+  model: azure_pearl_cloud
+  max-stack: 1
+  cosmetic: { slot: above, rarity: legendary, obtain: "후원 상점 (/후원)", exclusive: donation, set: azure_dragon, glow: true, bob: true,
+              motion: { kind: spin, period: 120 } }
+azure_dragon_wings:
+  material: paper
+  name: "<gradient:#c8f6ff:#3d8bff>청룡의 날개</gradient>"
+  lore: ["<gray>푸른 비늘 날개가 천천히 날갯짓한다", "<#7fd8ff>청룡 세트 (2/5)"]
+  model: azure_dragon_wings
+  max-stack: 1
+  cosmetic: { slot: back, rarity: legendary, obtain: "후원 상점 (/후원)", exclusive: donation, set: azure_dragon, glow: true,
+              motion: { kind: flap, amount: 0.25, period: 36 } }
+azure_dragon_tail:
+  material: paper
+  name: "<gradient:#c8f6ff:#3d8bff>청룡의 꼬리</gradient>"
+  lore: ["<gray>끝에 푸른 불꽃이 타는 긴 비늘 꼬리", "<#7fd8ff>청룡 세트 (3/5)"]
+  model: azure_dragon_tail
+  max-stack: 1
+  cosmetic: { slot: tail, rarity: legendary, obtain: "후원 상점 (/후원)", exclusive: donation, set: azure_dragon, glow: true,
+              motion: { kind: sway, amount: 16, period: 50 } }
+azure_cloud_trail:
+  material: paper
+  name: "<gradient:#c8f6ff:#3d8bff>청룡의 구름길</gradient>"
+  lore: ["<gray>걸음마다 흰 구름이 피어오른다", "<#7fd8ff>청룡 세트 (4/5)"]
+  model: azure_cloud_trail
+  max-stack: 1
+  cosmetic: { slot: trail, rarity: legendary, obtain: "후원 상점 (/후원)", exclusive: donation, set: azure_dragon,
+              particle: cloud, count: 2, spread: 0.12, speed: 0.01, height: 0.15 }
+azure_spark_aura:
+  material: paper
+  name: "<gradient:#c8f6ff:#3d8bff>청룡의 뇌광</gradient>"
+  lore: ["<gray>멈춰 서면 발밑에 푸른 빛 고리가 돈다", "<#7fd8ff>청룡 세트 (5/5)"]
+  model: azure_spark_aura
+  max-stack: 1
+  cosmetic: { slot: aura, rarity: legendary, obtain: "후원 상점 (/후원)", exclusive: donation, set: azure_dragon,
+              particle: dust, color: "#4fc3ff", count: 12, spread: 0.85, speed: 0, height: 0.15 }
+
+# ---------------------------------------------------------------------------------------------
+# 은하수 세트 (galaxy): 별관 · 망토 · 초승달 목걸이 · 별가루 · 별자리 — 세트 보너스: 발밑의 별빛 고리
+# ---------------------------------------------------------------------------------------------
+galaxy_star_crown:
+  material: paper
+  name: "<gradient:#ffe9a8:#a98bff>은하수 별관</gradient>"
+  lore: ["<gray>밤하늘 띠에 금빛 별이 박힌 관이 머리 위에서 돈다", "<#c3a8ff>은하수 세트 (1/5)"]
+  model: galaxy_star_crown
+  max-stack: 1
+  cosmetic: { slot: above, rarity: legendary, obtain: "후원 상점 (/후원)", exclusive: donation, set: galaxy, glow: true, bob: true,
+              motion: { kind: spin, period: 160 } }
+galaxy_cape:
+  material: paper
+  name: "<gradient:#ffe9a8:#a98bff>은하수 망토</gradient>"
+  lore: ["<gray>별이 반짝이는 밤하늘 망토가 바람에 흔들린다", "<#c3a8ff>은하수 세트 (2/5)"]
+  model: galaxy_cape
+  max-stack: 1
+  cosmetic: { slot: back, rarity: legendary, obtain: "후원 상점 (/후원)", exclusive: donation, set: galaxy, glow: true,
+              motion: { kind: sway, amount: 6, period: 70 } }
+galaxy_moon_necklace:
+  material: paper
+  name: "<gradient:#ffe9a8:#a98bff>초승달 목걸이</gradient>"
+  lore: ["<gray>금사슬 끝에 빛나는 초승달과 작은 별", "<#c3a8ff>은하수 세트 (3/5)"]
+  model: galaxy_moon_necklace
+  max-stack: 1
+  cosmetic: { slot: neck, rarity: legendary, obtain: "후원 상점 (/후원)", exclusive: donation, set: galaxy, glow: true }
+galaxy_stardust_trail:
+  material: paper
+  name: "<gradient:#ffe9a8:#a98bff>별가루 발자취</gradient>"
+  lore: ["<gray>지나간 자리에 별가루가 반짝이며 떠오른다", "<#c3a8ff>은하수 세트 (4/5)"]
+  model: galaxy_stardust_trail
+  max-stack: 1
+  cosmetic: { slot: trail, rarity: legendary, obtain: "후원 상점 (/후원)", exclusive: donation, set: galaxy,
+              particle: end_rod, count: 2, spread: 0.15, speed: 0.01, height: 0.3 }
+galaxy_constellation_aura:
+  material: paper
+  name: "<gradient:#ffe9a8:#a98bff>별자리 오라</gradient>"
+  lore: ["<gray>멈춰 서면 가슴 높이에 보랏빛 별자리가 돈다", "<#c3a8ff>은하수 세트 (5/5)"]
+  model: galaxy_constellation_aura
+  max-stack: 1
+  cosmetic: { slot: aura, rarity: legendary, obtain: "후원 상점 (/후원)", exclusive: donation, set: galaxy,
+              particle: dust, color: "#b48cff", count: 10, spread: 0.9, speed: 0, height: 1.2 }

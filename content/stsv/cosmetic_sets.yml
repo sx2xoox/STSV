@@ -1,0 +1,11 @@
+# 치장 세트: 같은 세트(cosmetic.set)의 조각을 모두 걸치면 bonus 고리가 걸을 때도 멈춰 있을 때도 몸 둘레를 돈다
+# (조각 각자의 모습 · 움직임 · 빛에 더해서). 조각은 items/*.yml 의 cosmetic.set 으로 모인다 (2개 이상).
+#   bonus: particle (추가 데이터가 없는 파티클, 또는 dust + color), count (고리의 점 수), spread (고리 반지름, 블록),
+#          height (발에서의 높이, 블록), speed, sound (고리가 한 바퀴 돌 때마다, 선택)
+sets:
+  azure_dragon:
+    name: "<gradient:#c8f6ff:#3d8bff>청룡</gradient>"
+    bonus: { particle: electric_spark, count: 8, spread: 0.75, height: 1.0, speed: 0 }
+  galaxy:
+    name: "<gradient:#ffe9a8:#a98bff>은하수</gradient>"
+    bonus: { particle: end_rod, count: 10, spread: 0.8, height: 0.1, speed: 0 }
