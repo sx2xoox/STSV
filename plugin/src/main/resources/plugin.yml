@@ -21,6 +21,11 @@ commands:
     aliases: [옷장, wardrobe, cosmetic]
     usage: /치장
     permission: stsv.wardrobe
+  투명갑옷:
+    description: 내 갑옷을 다른 사람에게 안 보이게 (방어력은 그대로, 치장과 스킨이 보임)
+    aliases: [갑옷숨기기, hidearmor]
+    usage: /투명갑옷 [켜기|끄기]
+    permission: stsv.wardrobe
   뽑기:
     description: 치장 뽑기 (일반·희귀·영웅 치장, 이미 가진 것은 교환권으로)
     aliases: [치장뽑기, gacha]

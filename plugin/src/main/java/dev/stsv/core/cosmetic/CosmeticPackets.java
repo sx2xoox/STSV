@@ -55,6 +55,8 @@ final class CosmeticPackets {
     private final Constructor<?> passengersNew, bufNew;
     private final Method passengersVehicle, passengersIds, bufVarInt, bufVarIntArray;
     private final Object headSlot;
+    /** head, chest, legs, feet (NMS enum values) */
+    private final Set<Object> armorSlots;
     private final Method addEntityId;
     private final Constructor<?> equipNew, setSlotNew, contentNew, invSlotNew, bundleNew;
     private final Method equipEntity, equipSlots;
@@ -66,6 +68,8 @@ final class CosmeticPackets {
 
     /** entity id of a wearer -> the cosmetic (NMS stack) other players see on their head. */
     private final Map<Integer, Object> othersView = new ConcurrentHashMap<>();
+    /** players whose armor others do not see (/투명갑옷) */
+    private final Set<Integer> armorHidden = ConcurrentHashMap.newKeySet();
     /** per online player: their handler. */
     private final Map<UUID, Handler> handlers = new ConcurrentHashMap<>();
     /** entity id of a wearer -> the ids of the displays riding them on the clients. */
@@ -114,6 +118,9 @@ final class CosmeticPackets {
         @SuppressWarnings({"unchecked", "rawtypes"})
         Object head = Enum.valueOf((Class) Class.forName("net.minecraft.world.entity.EquipmentSlot", false, cl), "HEAD");
         headSlot = head;
+        @SuppressWarnings({"unchecked", "rawtypes"})
+        Class<Enum> slotEnum = (Class) Class.forName("net.minecraft.world.entity.EquipmentSlot", false, cl);
+        armorSlots = Set.of(head, Enum.valueOf(slotEnum, "CHEST"), Enum.valueOf(slotEnum, "LEGS"), Enum.valueOf(slotEnum, "FEET"));
 
         passengersCls = Class.forName(game + "ClientboundSetPassengersPacket", false, cl);
         passengersVehicle = passengersCls.getMethod("getVehicle");
@@ -180,6 +187,7 @@ final class CosmeticPackets {
 
     void clear() {
         othersView.clear();
+        armorHidden.clear();
         links.clear();
         wearerOf.clear();
         riders.clear();
@@ -293,9 +301,16 @@ final class CosmeticPackets {
         }
     }
 
+    /** Hides (or shows again) this player's armor from everyone else. */
+    void hideArmor(int entityId, boolean hide) {
+        if (hide) armorHidden.add(entityId);
+        else armorHidden.remove(entityId);
+    }
+
     void forget(Player p, int entityId) {
         handlers.remove(p.getUniqueId());
         othersView.remove(entityId);
+        armorHidden.remove(entityId);
         link(entityId, new int[0], new int[0]);
     }
 
@@ -427,15 +442,32 @@ final class CosmeticPackets {
         int entity = (int) equipEntity.invoke(packet);
         if (entity == h.entityId) return packet; // a player's own equipment is the inventory, handled above
         Object look = othersView.get(entity);
-        if (look == null) return packet;
+        boolean hide = armorHidden.contains(entity);
+        if (look == null && !hide) return packet;
         List<?> slots = (List<?>) equipSlots.invoke(packet);
         List<Object> copy = new ArrayList<>(slots.size() + 1);
         for (Object pair : slots) {
-            if (pairFirst.invoke(pair) != headSlot) copy.add(pair);
+            Object slot = pairFirst.invoke(pair);
+            if (look != null && slot == headSlot) continue;
+            // hidden armor goes out as nothing (an elytra stays: it is how the player flies, not armor)
+            if (hide && armorSlots.contains(slot) && !elytra(pairSecond.invoke(pair))) copy.add(pairOf.invoke(null, slot, empty()));
+            else copy.add(pair);
         }
         // always carry the head: packets that leave out an empty helmet slot still need the cosmetic
-        copy.add(pairOf.invoke(null, headSlot, nmsCopy.invoke(look)));
+        if (look != null) copy.add(pairOf.invoke(null, headSlot, nmsCopy.invoke(look)));
         return equipNew.newInstance(entity, copy);
+    }
+
+    private Object empty;
+
+    private Object empty() throws ReflectiveOperationException {
+        if (empty == null) empty = asNms.invoke(null, ItemStack.empty());
+        return empty;
+    }
+
+    private boolean elytra(Object nms) throws ReflectiveOperationException {
+        ItemStack it = (ItemStack) asBukkit.invoke(null, nms);
+        return it != null && it.getType() == org.bukkit.Material.ELYTRA;
     }
 
     /** NMS helmet stack -> NMS self-view stack, or null to leave it. */

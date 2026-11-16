@@ -146,7 +146,10 @@ public final class CosmeticModule implements StsvModule, Listener {
             }, 100L, 100L);
         }
         for (Player p : Bukkit.getOnlinePlayers()) {
-            if (packets != null) packets.inject(p);
+            if (packets != null) {
+                packets.inject(p);
+                if (armorHidden(p)) packets.hideArmor(p.getEntityId(), true);
+            }
             migrate(p);
             restoreIfStuck(p);
             makeVisible(p);
@@ -547,7 +550,41 @@ public final class CosmeticModule implements StsvModule, Listener {
 
     @EventHandler(priority = org.bukkit.event.EventPriority.LOWEST)
     public void onJoinInject(PlayerJoinEvent e) {
-        if (packets != null) packets.inject(e.getPlayer());
+        if (packets != null) {
+            packets.inject(e.getPlayer());
+            if (armorHidden(e.getPlayer())) packets.hideArmor(e.getPlayer().getEntityId(), true);
+        }
+    }
+
+    // ------------------------------------------------------------------------------------------
+    // /투명갑옷: others do not see this player's armor (it still protects; the player sees it themself)
+    // ------------------------------------------------------------------------------------------
+
+    private static final NamespacedKey KEY_HIDE_ARMOR = new NamespacedKey("stsv", "hide_armor");
+
+    public boolean armorHidden(Player p) {
+        return p.getPersistentDataContainer().has(KEY_HIDE_ARMOR);
+    }
+
+    /** /투명갑옷 [켜기|끄기]: null toggles. Remembered on the player (kept across restarts). */
+    public void hideArmor(Player p, Boolean on) {
+        if (packets == null) {
+            p.sendMessage(Lang.msg("cosmetic.hide-armor-unavailable"));
+            return;
+        }
+        boolean hide = on != null ? on : !armorHidden(p);
+        if (hide) p.getPersistentDataContainer().set(KEY_HIDE_ARMOR, org.bukkit.persistence.PersistentDataType.BYTE, (byte) 1);
+        else p.getPersistentDataContainer().remove(KEY_HIDE_ARMOR);
+        packets.hideArmor(p.getEntityId(), hide);
+        // the real armor goes out again: the packets are rewritten on the way out
+        var inv = p.getInventory();
+        java.util.Map<EquipmentSlot, ItemStack> armor = new java.util.EnumMap<>(EquipmentSlot.class);
+        armor.put(EquipmentSlot.HEAD, helmet(p));
+        armor.put(EquipmentSlot.CHEST, inv.getChestplate() == null ? ItemStack.empty() : inv.getChestplate());
+        armor.put(EquipmentSlot.LEGS, inv.getLeggings() == null ? ItemStack.empty() : inv.getLeggings());
+        armor.put(EquipmentSlot.FEET, inv.getBoots() == null ? ItemStack.empty() : inv.getBoots());
+        for (Player v : p.getTrackedBy()) if (v != p) v.sendEquipmentChange(p, armor);
+        p.sendMessage(Lang.msg(hide ? "cosmetic.hide-armor-on" : "cosmetic.hide-armor-off"));
     }
 
     @EventHandler public void onJoin(PlayerJoinEvent e) { migrate(e.getPlayer()); restoreIfStuck(e.getPlayer()); makeVisible(e.getPlayer()); refreshLater(e.getPlayer()); }

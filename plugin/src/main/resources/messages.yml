@@ -74,6 +74,10 @@ wardrobe:
   lore-locked-gacha: "<gray>Shift+클릭: <white>치장 뽑기 열기"
 
 cosmetic:
+  # /투명갑옷: 내 갑옷을 다른 사람에게 숨김 (방어력 그대로, 겉날개는 보임)
+  hide-armor-on: "<green>투명갑옷 켜짐:</green> <gray>다른 사람에게 내 갑옷이 보이지 않습니다 (방어력은 그대로, 겉날개는 보임). 끄기: <white>/투명갑옷"
+  hide-armor-off: "<gray>투명갑옷 꺼짐: 내 갑옷이 다시 보입니다."
+  hide-armor-unavailable: "<red>이 서버에서는 투명갑옷을 쓸 수 없습니다. <gray>(관리자에게 알려 주세요)"
   voucher-unknown: "<red>이 교환권의 치장을 찾을 수 없습니다. 관리자에게 알려주세요."
   already-owned: "<yellow>이미 가지고 있는 치장입니다."
   got-title: "{color}<b>새 치장 획득!</b>"

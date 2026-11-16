@@ -132,6 +132,16 @@ public final class STSVPlugin extends JavaPlugin {
         if (wardrobe != null) wardrobe.setExecutor(new WardrobeCommand(this));
         PluginCommand gachaCommand = getCommand("뽑기");
         if (gachaCommand != null) gachaCommand.setExecutor(gacha);
+        PluginCommand hideArmor = getCommand("투명갑옷");
+        if (hideArmor != null) {
+            hideArmor.setExecutor((sender, cmdObj, label, args) -> {
+                if (!(sender instanceof org.bukkit.entity.Player p)) sender.sendMessage(dev.stsv.core.util.Lang.msg("common.players-only"));
+                else cosmetics.hideArmor(p, args.length == 0 ? null : args[0].equals("켜기") || args[0].equalsIgnoreCase("on") ? Boolean.TRUE
+                        : args[0].equals("끄기") || args[0].equalsIgnoreCase("off") ? Boolean.FALSE : null);
+                return true;
+            });
+            hideArmor.setTabCompleter((sender, cmdObj, label, args) -> args.length == 1 ? java.util.List.of("켜기", "끄기") : java.util.List.<String>of());
+        }
         PluginCommand ach = getCommand("업적");
         if (ach != null) ach.setExecutor((sender, cmdObj, label, args) -> {
             if (sender instanceof org.bukkit.entity.Player p) {
