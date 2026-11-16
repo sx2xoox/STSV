@@ -143,7 +143,7 @@ galaxy_stardust_trail:
 galaxy_constellation_aura:
   material: paper
   name: "<gradient:#ffe9a8:#a98bff>은하수 행성 고리</gradient>"
-  lore: ["<gray>행성과 초승달을 실은 별가루 고리가 몸 둘레를 쉬지 않고 돈다", "<#c3a8ff>은하수 세트 (8/9)"]
+  lore: ["<gray>수성부터 해왕성까지, 태양계 여덟 행성이 별가루 궤도를 따라 몸 둘레를 돈다", "<#c3a8ff>은하수 세트 (8/9)"]
   model: galaxy_constellation_aura
   max-stack: 1
   cosmetic: { slot: aura, rarity: legendary, obtain: "후원 상점 (/후원)", exclusive: donation, set: galaxy, glow: true,

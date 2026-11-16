@@ -123,6 +123,8 @@ class SkyMat(HMat):
 SKY = SkyMat(1.0)
 SKY_DEEP = SkyMat(0.55, nebula=1.1)
 SKY_GLOW = SkyMat(1.2, glow=True, density=1.4)
+SKY_BRIGHT = SkyMat(2.1, density=2.8, nebula=1.2)          # the whale: a lighter, starrier sky
+BELLY_LIGHT = HMat("crystal", "horn", 3.7)                    # its lavender belly, groove lines across it
 
 
 # ================================================================================================
@@ -417,6 +419,281 @@ def _polestar_tex(k):
 
 
 hd_surface("gx_polestar", _polestar_tex, 8, 2)
+
+BAND_ROWS = 10        # the dust ribbon uses the top 32 x 10 texels (a segment is about 4 x 1.25 units)
+
+
+def _hash(x, y, salt=0):
+    return ((x * 73856093) ^ (y * 19349663) ^ (salt * 83492791)) % 1000 / 1000
+
+
+def _dust_band_tex(k, gold=False):
+    """The ring's ribbon of stardust, 32 x 10 px, cut out and see-through in places: a bright thread through the
+    middle, violet dust above shading to gold below (all gold for the awakened outer ring), thinning to scattered
+    grains at both edges, glints drifting along it and grains twinkling in turn (8 frames)."""
+    im = hd_canvas()
+    px = im.load()
+    for y in range(BAND_ROWS):
+        t = (y + 0.5) / BAND_ROWS                       # 0 top .. 1 bottom
+        dens = 1 - abs(t - 0.5) * 2                      # thickest in the middle
+        for x in range(HS):
+            glint = math.exp(-((((x - k * 4) % 32) - 16) / 2.2) ** 2) * (1 if abs(t - 0.5) < 0.2 else 0.4)
+            keep = dens * 1.5 + 0.05 + glint
+            if _hash(x, y, 7) > keep:
+                continue
+            tw = (int(_hash(x, y, 3) * 8) + k) % 8 == 0
+            if tw or glint > 0.7:
+                px[x, y] = shade("glow_cyan", 3.0)
+            elif abs(t - 0.5) < 0.12:
+                px[x, y] = shade("glow_amber", 2.7 + 0.3 * glint)
+            elif gold or t > 0.5:
+                px[x, y] = shade("lamp", 2.0 + dens + glint)
+            else:
+                px[x, y] = shade("magic", 1.6 + dens * 1.4 + glint)
+    return im
+
+
+def _planet_tex(k, kind):
+    """A planet's face, 32 px (a ball's six faces each show it): violet with wavy bands and a pale polar cap, gold with
+    bands and a turning storm spot (animated), or an icy moon with craters; lit from the top-left, a soft dark limb."""
+    im = hd_canvas()
+    px = im.load()
+    for y in range(HS):
+        for x in range(HS):
+            u, v = (x + 0.5) / HS, (y + 0.5) / HS
+            lit = 0.7 - 0.9 * (u + v) / 2
+            limb = -0.6 * max(0.0, max(abs(u - 0.5), abs(v - 0.5)) * 2 - 0.75) * 4
+            wave = 0.06 * math.sin(u * 9 + k * 0.4)
+            if kind == "violet":
+                band = int((v + wave) * 7) % 3
+                c = shade("magic", 1.5 + band * 0.6 + lit + limb) if band != 1 else shade("crystal", 2.2 + lit + limb)
+                if v < 0.13:
+                    c = shade("crystal", 3.6 + lit)
+            elif kind == "gold":
+                band = int((v + wave) * 8) % 4
+                c = shade("lamp", 1.4 + band * 0.45 + lit + limb)
+                sx, sy = 0.62 + 0.08 * math.cos(k * math.tau / 8), 0.6
+                if (u - sx) ** 2 / 0.012 + (v - sy) ** 2 / 0.004 < 1:
+                    c = shade("fire", 2.0 + lit)
+            else:
+                c = shade("ice", 2.4 + lit + limb)
+                for (cx, cy, r) in ((0.3, 0.35, 0.09), (0.7, 0.6, 0.12), (0.45, 0.78, 0.07)):
+                    d = math.hypot(u - cx, v - cy)
+                    if d < r:
+                        c = shade("ice", 1.2 + lit) if d > r * 0.6 else shade("ice", 1.8 + lit)
+            px[x, y] = c
+    return im
+
+
+def _saturn_ring_tex():
+    """The ringed planet's ring seen from above, 32 px, cut out: an annulus of gold and cream bands with a dark gap."""
+    im = hd_canvas()
+    px = im.load()
+    for y in range(HS):
+        for x in range(HS):
+            r = math.hypot(x + 0.5 - 16, y + 0.5 - 16) / 16
+            if r < 0.56 or r > 0.98:
+                continue
+            if 0.74 < r < 0.79:
+                continue
+            band = int(r * 22) % 3
+            px[x, y] = shade("lamp", 2.0 + band * 0.4) if band != 2 else shade("glow_amber", 2.4)
+    return im
+
+
+def _comet_tex(k):
+    """A little comet, 32 x 10 px, cut out: a white-hot head on the left, a tail of ice and violet dust fanning out
+    and fading to the right, grains drifting along it (8 frames)."""
+    im = hd_canvas()
+    px = im.load()
+    for y in range(BAND_ROWS):
+        for x in range(HS):
+            d = x / HS
+            half = 0.8 + d * 4.2
+            off = abs(y + 0.5 - 5.0)
+            head = math.hypot(x - 3.5, y + 0.5 - 5.0) < 2.6
+            if head:
+                px[x, y] = shade("glow_cyan", 3.0)
+                continue
+            if off > half or x < 3:
+                continue
+            fade = 1 - d
+            if _hash(x - k * 2, y, 11) > fade * 1.2 - off / half * 0.4:
+                continue
+            px[x, y] = shade("ice", 2.0 + fade) if off < half * 0.45 else shade("magic", 1.6 + fade * 1.4)
+    return im
+
+
+def _whale_eye_tex():
+    """The whale's eye and cheek, 32 px, cut out: a big glossy dark eye (navy to violet at the bottom) in a pale rim,
+    a large white highlight top-left and a small one bottom-right, and a soft pink blush below it."""
+    im = hd_canvas()
+    px = im.load()
+    for y in range(HS):
+        for x in range(HS):
+            ex, ey = x + 0.5 - 15, y + 0.5 - 12
+            r = math.hypot(ex, ey)
+            if r < 8.2:
+                px[x, y] = shade("obsidian", 0.2 + max(0.0, ey / 8.2) * 1.6)
+                if math.hypot(ex + 3.2, ey + 3.2) < 2.7:
+                    px[x, y] = shade("glow_cyan", 3.0)
+                elif math.hypot(ex - 3.0, ey - 2.8) < 1.3:
+                    px[x, y] = shade("ice", 3.0)
+            elif r < 9.6:
+                px[x, y] = shade("crystal", 3.8)
+            bx, by = (x + 0.5 - 16) / 7.5, (y + 0.5 - 26.5) / 3.2
+            if bx * bx + by * by < 1 and _hash(x, y, 5) < 0.8:
+                px[x, y] = shade("pink", 2.2)
+    return im
+
+
+def _sphere_light(u, v):
+    """Light on a ball's face texture: brighter towards the top-left, a soft dark limb at the edges."""
+    lit = 0.6 - 0.9 * (u + v) / 2
+    edge = max(abs(u - 0.5), abs(v - 0.5)) * 2
+    return lit - (0.9 * (edge - 0.72) / 0.28 if edge > 0.72 else 0.0)
+
+
+def _blob(u, v, seed, n=6, size=0.16):
+    """Soft random blobs (continents, patches, clouds): how much (u, v) is inside them (0..)."""
+    rnd = random.Random(seed)
+    best = 0.0
+    for _ in range(n):
+        cx, cy, r = rnd.random(), rnd.random(), size * (0.6 + rnd.random())
+        d = math.hypot((u - cx) * 1.0, (v - cy) * 1.25) / r
+        best = max(best, 1 - d)
+    return best
+
+
+def _solar_tex(k, kind):
+    """A planet of our solar system, 32 px (each of a ball's faces shows it), cute and instantly recognisable:
+    mercury grey and cratered, venus pale cream veiled in soft clouds, earth blue oceans, green and brown continents and
+    white clouds drifting over them (animated), the moon pale grey with craters, mars rusty red with dark patches and a
+    white polar cap, jupiter cream, orange and brown bands slowly shifting (animated) with the Great Red Spot, saturn
+    soft gold bands, uranus pale cyan, neptune deep blue with a dark spot and a white streak."""
+    im = hd_canvas()
+    px = im.load()
+    for y in range(HS):
+        for x in range(HS):
+            u, v = (x + 0.5) / HS, (y + 0.5) / HS
+            L = _sphere_light(u, v)
+            if kind in ("mercury", "moon"):
+                base = 1.6 if kind == "mercury" else 2.3
+                c = shade("stone", base + L)
+                for (cx, cy, r) in ((0.3, 0.3, 0.11), (0.68, 0.55, 0.14), (0.42, 0.78, 0.08), (0.8, 0.2, 0.07)):
+                    d = math.hypot(u - cx, v - cy)
+                    if d < r:
+                        c = shade("stone", base - 0.9 + L) if d > r * 0.55 else shade("stone", base - 0.4 + L)
+            elif kind == "venus":
+                swirl = math.sin(u * 7 + math.sin(v * 5) * 1.5 + k * 0.3) * 0.5 + 0.5
+                c = shade("cream", 1.4 + swirl * 1.2 + L) if swirl > 0.35 else shade("straw", 2.2 + L)
+            elif kind == "earth":
+                land = _blob(u, v, 11, 5, 0.2)
+                c = shade("water", 1.4 + L * 1.2)
+                if land > 0.15:
+                    c = shade("leaf", 1.8 + L) if _blob(u, v, 13, 4, 0.12) < 0.3 else shade("soil", 2.2 + L)
+                cu = (u + k / 8) % 1.0
+                cloud = _blob(cu, v, 17, 6, 0.11)
+                if cloud > 0.35:
+                    c = shade("snow", 1.6 + L)
+                if v < 0.08 or v > 0.93:
+                    c = shade("snow", 2.0 + L)
+            elif kind == "mars":
+                c = shade("terracotta", 1.9 + L)
+                if _blob(u, v, 21, 5, 0.13) > 0.2:
+                    c = shade("brick", 1.2 + L)
+                if v < 0.16:
+                    c = shade("snow", 1.8 + L)
+            elif kind == "jupiter":
+                vv = v + 0.025 * math.sin(u * 8 + k * 0.6)
+                band = int(vv * 11) % 4
+                c = (shade("cream", 1.8 + L), shade("straw", 2.2 + L), shade("fox", 2.0 + L * 0.8), shade("straw", 1.6 + L))[band]
+                sx = (0.62 + k * 0.03) % 1.0
+                if (u - sx) ** 2 / 0.018 + (v - 0.64) ** 2 / 0.006 < 1:
+                    c = shade("brick", 2.2 + L)
+            elif kind == "saturn":
+                band = int((v + 0.02 * math.sin(u * 6)) * 8) % 3
+                c = (shade("straw", 2.6 + L), shade("lamp", 2.0 + L), shade("cream", 1.9 + L))[band]
+            elif kind == "uranus":
+                c = shade("spectral", 2.6 + L * 0.8 + 0.15 * math.sin(v * 9))
+            else:  # neptune
+                c = shade("sapphire", 1.7 + L + 0.15 * math.sin(v * 10))
+                if (u - 0.4) ** 2 / 0.012 + (v - 0.58) ** 2 / 0.005 < 1:
+                    c = shade("sapphire", 0.3 + L)
+                if abs(v - 0.42) < 0.03 and 0.5 < u < 0.8:
+                    c = shade("snow", 2.0)
+            px[x, y] = c
+    return im
+
+
+def _saturn_ring_band_tex(k):
+    """Saturn's ring seen from above, 32 px, cut out: bands of gold, cream and tan with the dark Cassini gap, a glint
+    shimmering round it (8 frames)."""
+    im = hd_canvas()
+    px = im.load()
+    for y in range(HS):
+        for x in range(HS):
+            dx, dy = x + 0.5 - 16, y + 0.5 - 16
+            r = math.hypot(dx, dy) / 16
+            if r < 0.52 or r > 0.99 or 0.76 < r < 0.8:
+                continue
+            a = math.atan2(dy, dx)
+            glint = 0.8 * math.exp(-((((a - k * math.tau / 8) + math.pi) % math.tau - math.pi) / 0.35) ** 2)
+            band = int(r * 24) % 3
+            px[x, y] = (shade("straw", 2.6 + glint), shade("lamp", 2.1 + glint), shade("doenjang", 2.6 + glint))[band]
+    return im
+
+
+def _uranus_ring_tex():
+    """Uranus' faint ring, 32 px, cut out: a thin pale cyan circle."""
+    im = hd_canvas()
+    px = im.load()
+    for y in range(HS):
+        for x in range(HS):
+            r = math.hypot(x + 0.5 - 16, y + 0.5 - 16) / 16
+            if 0.86 < r < 0.97:
+                px[x, y] = shade("spectral", 3.0 if (x + y) % 3 else 2.2)
+    return im
+
+
+def _asteroids_tex(k):
+    """The asteroid belt, 32 x 10 px, cut out: tiny grey-brown rocks of a few texels scattered along a band, sparkles
+    twinkling between them (8 frames)."""
+    im = hd_canvas()
+    px = im.load()
+    rnd = random.Random(41)
+    for i in range(16):
+        cx, cy = rnd.randrange(1, 31), rnd.randrange(2, BAND_ROWS - 2)
+        size = rnd.choice((1, 1, 2))
+        for dx in range(-size, size + 1):
+            for dy in range(-size, size + 1):
+                if abs(dx) + abs(dy) <= size and 0 <= cx + dx < HS and 0 <= cy + dy < BAND_ROWS:
+                    px[cx + dx, cy + dy] = shade("stone" if i % 3 else "doenjang", 1.6 + 0.4 * (dx + dy < 0))
+    for i in range(10):
+        sx, sy = rnd.randrange(HS), rnd.randrange(BAND_ROWS)
+        if (i + k) % 4 == 0:
+            px[sx, sy] = shade("glow_cyan", 3.0)
+        elif (i + k) % 4 == 1:
+            px[sx, sy] = shade("magic", 3.0)
+    return im
+
+
+for _kind in ("mercury", "venus", "mars", "saturn", "uranus", "neptune"):
+    hd_surface(f"gx_{_kind}", (lambda k, kd=_kind: _solar_tex(k, kd)))
+hd_surface("gx_luna", lambda k: _solar_tex(k, "moon"))     # (gx_moon is the crescent)
+hd_surface("gx_earth", lambda k: _solar_tex(k, "earth"), 8, 4)
+hd_surface("gx_jupiter", lambda k: _solar_tex(k, "jupiter"), 8, 6)
+hd_surface("gx_saturn_band", _saturn_ring_band_tex, 8, 3)
+hd_surface("gx_uranus_ring", lambda k: _uranus_ring_tex())
+hd_surface("gx_asteroids", _asteroids_tex, 8, 3)
+hd_surface("gx_dust_band", _dust_band_tex, 8, 2)
+hd_surface("gx_dust_band_gold", lambda k: _dust_band_tex(k, gold=True), 8, 2)
+hd_surface("gx_planet_violet", lambda k: _planet_tex(k, "violet"), 8, 4)
+hd_surface("gx_planet_gold", lambda k: _planet_tex(k, "gold"), 8, 4)
+hd_surface("gx_planet_ice", lambda k: _planet_tex(0, "ice"))
+hd_surface("gx_saturn_ring", lambda k: _saturn_ring_tex())
+hd_surface("gx_comet", _comet_tex, 8, 2)
+hd_surface("gx_whale_eye", lambda k: _whale_eye_tex())
 hd_surface("gx_owl_face", lambda k: _owl_face_tex())
 hd_surface("gx_owl_eyes", lambda k: _owl_face_tex(True))
 hd_surface("gx_fluke", lambda k: _fluke_tex())
@@ -476,6 +753,40 @@ def orb(m, name, c, d, mat, glow=False):
     m.box(name, (x - r, y - r, z - r), (x + r, y + r, z + r), mat, glow=glow)
     for (ax, ay, az) in ((s, t, t), (t, s, t), (t, t, s)):
         m.box(name, (x - ax, y - ay, z - az), (x + ax, y + ay, z + az), mat, glow=glow)
+
+
+def orb_tex(m, name, c, d, tex, glow=True):
+    """A round-looking ball of diameter d (a cube and three crossing slabs) showing a whole 32 px texture on every face."""
+    x, y, z = c
+    r, s_, t = d * 0.4, d * 0.5, d * 0.25
+    m.box(name, (x - r, y - r, z - r), (x + r, y + r, z + r), tex, glow=glow, full_uv=ALL_FACES)
+    for (ax, ay, az) in ((s_, t, t), (t, s_, t), (t, t, s_)):
+        m.box(name, (x - ax, y - ay, z - az), (x + ax, y + ay, z + az), tex, glow=glow, full_uv=ALL_FACES)
+
+
+def ball(m, name, c, d, tex, parts=3, glow=False):
+    """A planet of diameter d showing a whole 32 px texture on each face, in 1 to 3 boxes: a cube (1), with an
+    equator slab round it (2), and a slab through the poles (3): rounder the more parts."""
+    x, y, z = c
+    r, s_, t = (d * 0.37, d * 0.5, d * 0.31) if parts >= 3 else (d * 0.42, d * 0.5, d * 0.27)
+    m.box(name, (x - r, y - r, z - r), (x + r, y + r, z + r), tex, glow=glow, full_uv=ALL_FACES)
+    if parts >= 2:
+        m.box(name, (x - s_, y - t, z - s_), (x + s_, y + t, z + s_), tex, glow=glow, full_uv=ALL_FACES)
+    if parts >= 3:
+        m.box(name, (x - t, y - s_, z - t), (x + t, y + s_, z + t), tex, glow=glow, full_uv=ALL_FACES)
+
+
+def ribbon(m, name, p, th, length, height, tex, rect):
+    """A standing cut-out plate centred on p, length along the circle and height tall, facing out from the centre at th
+    degrees (a ring's segment seen from the side as a ribbon)."""
+    k = round(th / 90)
+    rem = th - 90 * k
+    x, y, z = p
+    if k % 2 == 0:
+        frm, to, plane = (x - length / 2, y - height / 2, z - 0.05), (x + length / 2, y + height / 2, z + 0.05), "x"
+    else:
+        frm, to, plane = (x - 0.05, y - height / 2, z - length / 2), (x + 0.05, y + height / 2, z + length / 2), "z"
+    return cut(m, name, frm, to, tex, plane, rotation=("y", rem, p) if abs(rem) > 1e-6 else None, rect=rect)
 
 
 def gem(m, name, c, d, mat):
@@ -753,42 +1064,47 @@ def galaxy_star_belt():
 # ================================================================================================
 
 def galaxy_star_whale():
-    """아기 별고래 (a pet that floats): a round little whale of night sky swimming through the air: a big rounded head
-    (four crossing boxes: an eight-sided section, no hard corners) tapering to a tail that lifts to cut-out flukes rimmed
-    in gold, a pale violet belly that shows from the side, glowing eyes with a glint and rosy cheeks, gold-rimmed paddle
-    fins, a constellation along its back and a fountain of sparkles out of its blowhole."""
+    """아기 별고래 (a pet that floats): a round baby whale of starry sky swimming through the air. A big bulbous head
+    (four crossing boxes and a domed forehead) over a clearly smaller body that tapers into a tail lifting to tilted,
+    gold-rimmed cut-out flukes; a lavender belly with groove lines under the chin and the body; big glossy eyes with
+    highlights and a pink blush on each side; gold-rimmed paddle fins; stars along its back and a sparkling spout."""
     m = MModel("galaxy_star_whale")
     y = 7.0
-    # the head: four crossing boxes (wide, tall, long and the core) round (8, y, 5.6)
-    m.box("head", (5.2, y - 2.6, 3.0), (10.8, y + 2.6, 8.4), SKY, faces={"down": BELLY})
-    m.box("head_wide", (4.3, y - 1.5, 3.6), (11.7, y + 1.6, 7.8), SKY, faces={"down": BELLY})
-    m.box("head_tall", (6.1, y - 3.3, 3.6), (9.9, y + 3.3, 7.8), SKY, faces={"down": BELLY})
-    m.box("head_long", (6.1, y - 1.5, 1.9), (9.9, y + 1.8, 9.0), SKY, faces={"down": BELLY})
-    # the pale belly: a band along the underside that shows from the side, ridged under the chin
-    m.box("belly", (5.0, y - 2.9, 3.3), (11.0, y - 1.3, 11.4), BELLY)
-    for x0 in (6.4, 7.7, 9.0):
-        m.box("groove", (x0, y - 3.45, 3.6), (x0 + 0.6, y - 3.2, 7.4), FEATHER)
-    # the body narrowing behind, then the tail lifting
-    m.box("body", (5.6, y - 2.2, 8.2), (10.4, y + 2.2, 12.2), SKY, faces={"down": BELLY})
-    m.box("body_wide", (5.0, y - 1.3, 8.6), (11.0, y + 1.4, 11.8), SKY, faces={"down": BELLY})
-    seg_yz(m, "tail", (y + 0.1, 12.0), (y + 1.1, 15.2), 3.2, 2.5, 8.0, SKY, ext=0.3)
-    seg_yz(m, "tail_end", (y + 1.1, 15.2), (y + 2.2, 17.4), 1.9, 1.5, 8.0, SKY, ext=0.2)
-    cut(m, "flukes", (3.4, y + 2.2, 16.4), (12.6, y + 2.3, 21.6), "gx_fluke", "y")
+    sky = SKY_BRIGHT
+    # the head: tall, core and wide boxes crossing (an eight-sided section) behind a lower front, the corner between
+    # them rounded off by a brow turned 45 degrees, a domed forehead and a small round snout: a curved profile
+    m.box("head_tall", (6.0, y - 3.2, 3.8), (10.0, y + 3.4, 8.2), sky, faces={"down": BELLY_LIGHT})
+    m.box("head", (4.9, y - 2.6, 3.6), (11.1, y + 2.7, 8.6), sky, faces={"down": BELLY_LIGHT})
+    m.box("head_front", (5.25, y - 2.3, 2.2), (10.75, y + 1.6, 3.8), sky, faces={"down": BELLY_LIGHT})
+    m.box("brow", (5.0, y + 1.05, 2.05), (11.0, y + 2.95, 3.95), sky, rotation=("x", 45, (8.0, y + 2.0, 3.0)))
+    m.box("head_wide", (4.2, y - 1.6, 3.0), (11.8, y + 1.8, 8.0), sky, faces={"down": BELLY_LIGHT})
+    m.box("forehead", (5.8, y + 2.6, 4.2), (10.2, y + 3.8, 7.6), sky)
+    m.box("snout", (5.6, y - 1.9, 1.5), (10.4, y + 1.0, 2.4), sky, faces={"down": BELLY_LIGHT})
+    # the lavender belly under the chin and under the body, its grooves painted across it
+    m.box("belly", (5.1, y - 3.1, 2.6), (10.9, y - 1.4, 8.7), BELLY_LIGHT)
+    m.box("belly_body", (6.1, y - 2.05, 8.4), (9.9, y - 1.0, 11.9), BELLY_LIGHT)
+    # the body, clearly smaller than the head, tapering into the tail stock
+    m.box("body", (5.9, y - 1.7, 8.4), (10.1, y + 1.7, 11.8), sky, faces={"down": BELLY_LIGHT})
+    m.box("body_wide", (5.3, y - 1.0, 8.8), (10.7, y + 1.1, 11.4), sky, faces={"down": BELLY_LIGHT})
+    m.box("taper", (6.6, y - 1.0, 11.6), (9.4, y + 1.3, 14.0), sky, faces={"down": BELLY_LIGHT})
+    seg_yz(m, "tail", (y + 0.2, 13.6), (y + 1.3, 16.4), 2.0, 1.6, 8.0, sky, ext=0.25)
+    seg_yz(m, "tail_end", (y + 1.3, 16.4), (y + 2.3, 18.2), 1.3, 1.0, 8.0, sky, ext=0.15)
+    # the flukes: a wide cut-out, tilted up a little so it shows from the side too
+    cut(m, "flukes", (3.0, y + 2.25, 17.0), (13.0, y + 2.35, 22.2), "gx_fluke", "y", rotation=("x", -22.5, (8.0, y + 2.3, 17.8)))
     for side in (-1, 1):
-        # the eye: a glowing gold disc with a white glint; a rosy cheek under it; a little smile line
-        x = 8 + side * 3.72
-        m.box("eye", (x - 0.2, y - 0.3, 3.7), (x + 0.2, y + 1.1, 4.9), EYE, glow=True)
-        m.box("glint", (x - 0.25 + side * 0.05, y + 0.5, 3.9), (x + 0.25 + side * 0.05, y + 0.9, 4.3), ICE_GEM, glow=True)
-        m.box("cheek", (8 + side * 3.75 - 0.2, y - 1.3, 5.0), (8 + side * 3.75 + 0.2, y - 0.8, 6.0), CHEEK)
-        # paddle fins: cut-out plates hanging down and out from the sides
-        fx = 8 + side * 4.4
-        cut(m, "fin", (fx - 0.05, y - 4.0, 6.0), (fx + 0.05, y - 1.0, 9.0), "gx_fin", "z", glow=False,
-            rotation=("z", -side * 22.5, (fx, y - 1.2, 7.5)))
-    # the constellation along the back and the stardust fountain
-    for (x, z, d) in ((7.0, 4.8, 1.1), (9.0, 6.6, 0.9), (7.8, 9.0, 1.0), (8.6, 11.2, 0.8)):
-        twinkle(m, "back_star", (x, y + 3.6, z), d, cross=False)
-    for (dx, dy, dz, d) in ((0, 4.8, 4.6, 1.5), (-1.3, 6.2, 4.2, 1.0), (1.2, 6.6, 5.0, 0.9)):
-        twinkle(m, "spout", (8 + dx, y + dy, dz), d, cross=False)
+        # the eye and blush: a painted plate just outside the head's widest side
+        ex = 8 + side * 3.86
+        cut(m, "eye", (ex - 0.05, y - 2.3, 2.9), (ex + 0.05, y + 1.9, 7.1), "gx_whale_eye", "z")
+        # paddle fins: gold-rimmed cut-outs swept down and out
+        fx = 8 + side * 5.1
+        cut(m, "fin", (fx - 0.05, y - 4.4, 6.6), (fx + 0.05, y - 1.0, 10.0), "gx_fin", "z",
+            rotation=("z", -side * 45, (fx, y - 1.4, 8.3)))
+    # stars along the back and the sparkling spout
+    for (x, z, d) in ((7.0, 5.0, 1.0), (9.2, 7.0, 0.9), (7.9, 9.8, 0.9)):
+        twinkle(m, "back_star", (x, y + 4.25 if z < 8 else y + 2.25, z), d, cross=False)
+    twinkle(m, "spout", (8.0, y + 5.5, 4.8), 2.0)
+    twinkle(m, "spout", (6.8, y + 6.9, 4.2), 1.1, cross=False)
+    twinkle(m, "spout", (9.2, y + 7.3, 5.0), 0.9, cross=False)
     _display(m, (30, 225, 0), 0.75, 0)
     return m
 
@@ -842,48 +1158,50 @@ def galaxy_stardust_trail():
 # 행성 고리 (aura: worn, orbit) and the aura's card
 # ================================================================================================
 
+# the planets round the orbit (degrees from the front, diameter in units, boxes, texture), in their real order going
+# round; earth at the front (the star of the set), its moon beside it
+PLANETS = [("earth", 0, 2.7, 3), ("mars", 45, 1.9, 3), ("jupiter", 90, 3.7, 3), ("saturn", 135, 3.0, 3),
+           ("uranus", 180, 2.3, 3), ("neptune", 225, 2.2, 3), ("mercury", 270, 1.3, 1), ("venus", 315, 2.1, 3)]
+
+
 def _planet_ring(m, radius, awake, card=False):
-    c = (8, 8, 8)
-    # the ring: a band of glittering dust, tilted (rising on one side, falling on the other), drawn as thin turned
-    # plates painted with the ring texture
+    """41 parts (awakened 50): our solar system round the chest. A thin, see-through ribbon of twinkling stardust
+    (violet over gold) marks a gently tilted orbit, and on it the eight planets, each its real look in miniature:
+    earth with its moon, mars, jupiter (the biggest, its bands shifting, the Great Red Spot), saturn with its tilted
+    ring, uranus with a thin upright ring, neptune, mercury, venus. Awakened: the planets glow, the asteroid belt
+    circles outside (rocks and sparkles) and a comet flies along it with a glowing tail."""
     n = 16
     tilt = 1.1
+    band = (0, 0, HS, BAND_ROWS)
+    k = 0.72 if card else 1.0          # the card's smaller planets
+
+    def on_ring(th, lift=0.0, r=radius, t=tilt, y0=10.0):
+        a = math.radians(th)
+        return at((8, y0 + t * math.cos(a) + lift, 8), th, r)
+
     for i in range(n):
         th = i * 22.5
-        r = math.radians(th)
-        p = at((8, 10 + tilt * math.cos(r), 8), th, radius)
-        ybox(m, "dust", p, 1.4 if not card else 1.0, 0.5, 2 * math.pi * radius / n + 1.1, th, DUST)
-    # planets on the ring: a violet one with its own little ring, a gold one, an icy moon; a crescent and a few stars
-    def on_ring(th, lift=0.0):
-        r = math.radians(th)
-        return at((8, 10 + tilt * math.cos(r) + lift, 8), th, radius)
-    pv = on_ring(0, 0.53)
-    orb(m, "planet_violet", pv, 2.6 if not card else 3.0, VIOLET)
-    ybox(m, "planet_violet_ring", pv, 0.25, 0.25, 4.6, 45, GOLD_LIGHT)
-    ybox(m, "planet_violet_ring", pv, 0.25, 0.25, 4.6, -45, GOLD_LIGHT)
-    orb(m, "planet_gold", on_ring(135, 0.3), 1.8, GOLD_GLOW, glow=True)
-    gem(m, "moon_ice", on_ring(240, 0.2), 1.3, ICE_GEM)
-    pm = on_ring(300, 1.2)
-    cutout(m, "crescent", (pm[0] - 1.1, pm[1] - 1.1, pm[2] - 0.05), (pm[0] + 1.1, pm[1] + 1.1, pm[2] + 0.05), "gx_moon", "x", glow=True)
-    for th in (60, 190):
-        p = on_ring(th, 1.4)
-        twinkle(m, "ring_star", p, 1.4, cross=False)
+        ribbon(m, "orbit", on_ring(th), th, 2 * math.pi * radius / n + 0.35, 1.2 if not card else 1.0, "gx_dust_band", band)
+    for i, (kind, th, d, parts) in enumerate(PLANETS):
+        c = on_ring(th, 0.25 * math.sin(i * 2.1))
+        ball(m, kind, c, d * k, f"gx_{kind}", parts, glow=awake)
+        if kind == "earth":
+            ball(m, "moon", on_ring(th + 14, 1.5), 0.9 * k, "gx_luna", 1, glow=awake)
+        elif kind == "saturn":
+            rr = d * k * 1.05
+            cut(m, "saturn_ring", (c[0] - rr, c[1] - 0.05, c[2] - rr), (c[0] + rr, c[1] + 0.05, c[2] + rr), "gx_saturn_band", "y",
+                rotation=("x", -22.5, c))
+        elif kind == "uranus":
+            rr = d * k * 0.95
+            # a thin ring standing nearly upright round it, turned to face along the orbit
+            ribbon(m, "uranus_ring", c, th + 90, 2 * rr, 2 * rr, "gx_uranus_ring", (0, 0, HS, HS))
     if awake:
-        # a second ring crossing the first (highest where the first is lowest), more worlds on it, a comet
-        tilt2 = -1.5
-        for i in range(n):
-            th = i * 22.5
-            r = math.radians(th + 90)
-            p = at((8, 9 + tilt2 * math.cos(r), 8), th, radius + 1.8)
-            ybox(m, "dust2", p, 1.0, 0.45, 2 * math.pi * (radius + 1.8) / n + 1.1, th, DUST_GOLD)
-        def on2(th, lift=0.0):
-            r = math.radians(th + 90)
-            return at((8, 9 + tilt2 * math.cos(r) + lift, 8), th, radius + 1.8)
-        gem(m, "planet_blue", on2(90, 0.3), 2.0, ICE_GEM)
-        gem(m, "planet_rose", on2(210, 0.3), 1.6, VIOLET_GEM)
-        p = on2(330, 0.6)
-        star(m, "comet", p, 2.2)
-        cutout(m, "comet_tail", (p[0] - 0.05, p[1] - 0.8, p[2] - 0.2), (p[0] + 0.05, p[1] + 0.8, p[2] + 3.4), "gx_burst", "z", glow=True)
+        # the asteroid belt outside the orbit (eight long bands of rocks and sparkles) and a comet flying along it
+        for i in range(8):
+            th = i * 45 + 22.5
+            ribbon(m, "asteroids", on_ring(th, -0.4, r=radius + 2.6), th, 2 * math.pi * (radius + 2.6) / 8 + 0.6, 1.4,
+                   "gx_asteroids", band)
+        ribbon(m, "comet", on_ring(315, 1.3, r=radius + 2.6), 315, 5.0, 1.5, "gx_comet", band)
 
 
 def galaxy_planet_ring():

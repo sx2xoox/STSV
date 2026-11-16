@@ -389,7 +389,7 @@ products:
     name: "은하수 행성 고리"
     price: 100          # 10,000원
     once: true
-    description: ["<gray>오라 · 행성을 실은 고리가 몸을 돎", "<dark_gray>후원 전용 · 은하수 세트 조각 (9)"]
+    description: ["<gray>오라 · 태양계 여덟 행성이 몸 둘레를 돎", "<dark_gray>후원 전용 · 은하수 세트 조각 (9)"]
     commands: ["관리자 치장 지급 {player} stsv:galaxy_constellation_aura"]
     icon: "stsv:galaxy_constellation_aura"
   galaxy_supernova:
