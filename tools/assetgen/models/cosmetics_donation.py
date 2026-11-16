@@ -645,27 +645,54 @@ def duck_float_ring():
     return m
 
 
-WING_ROWS = ["..ll..",
-             ".lwwl.",
-             "lwwwwl",
-             "wwwwww",
-             ".wwwwf",
-             "..wwf.",
-             "...f.."]
+# one baby wing seen from the side: the root (column 0) against the upper back, the wing running back from it.
+# A teardrop: tall at the root, a soft point at the tip a little lower; the yellow coverts over two stepped rows of
+# feather tips (pale, then cream) along the lower edge. l light edge, w yellow, p pale tips, c cream tips.
+WING_ROWS = ["lll......",
+             "wwwwl....",
+             "wwwwwwl..",
+             "wwwwwwwwl",
+             "pwwwwwwpp",
+             ".ppwwpp..",
+             "..cc.cc.."]
+WING_PALE = Mat("petal_yellow", "plain", 2, noise=0.02)
+WING_CREAM = Mat("cream", "plain", 3, noise=0.02)
+
+
+def pix_zy(m, name, rows, x0, x1, ytop, z0, mats, unit=1.0, rotation=None):
+    """Pixel art drawn in the z-y plane (a plate x0..x1 thick, seen from the side): rows top to bottom, the
+    columns running towards +z (behind the player). Runs of one character in a row become one box; '.' empty."""
+    for r, row in enumerate(rows):
+        c = 0
+        while c < len(row):
+            ch = row[c]
+            if ch == ".":
+                c += 1
+                continue
+            e = c
+            while e < len(row) and row[e] == ch:
+                e += 1
+            m.box(name, (x0, ytop - (r + 1) * unit, z0 + c * unit), (x1, ytop - r * unit, z0 + e * unit), mats[ch],
+                  rotation=rotation)
+            c = e
 
 
 def duckling_wings():
-    """파닥 아기 날개 (the back): two little fluffy duckling wings, round on top, soft feather tips below.
-    Flutter fast (flap)."""
+    """파닥 아기 날개 (the back): two short stubby duckling wings on the upper back, below the shoulders, each a
+    flat feathered teardrop running back from the shoulder blade and turned out a little (the tips show past the
+    arms from the front, nothing rises above the shoulders); a soft lump at each root. Mirrored. Flutter fast
+    (flap: the engine squeezes the model in x, so the outturned tips beat in and out)."""
     m = MModel("duckling_wings")
-    mats = {"l": FLUFF_LIGHT, "w": FLUFF, "f": FLUFF_SHADE}
-    u = 0.95
+    mats = {"l": FLUFF_LIGHT, "w": FLUFF, "p": WING_PALE, "c": WING_CREAM}
+    u, back, top = 0.8, 8.3, 9.6
     for side in (1, -1):
-        rot = ("y", -22.5 * side, (8 + side * 1.5, 8, 9))
-        rows = WING_ROWS if side == 1 else [r[::-1] for r in WING_ROWS]
-        x0 = 9.4 if side == 1 else 16 - 9.4 - 6 * u
-        pix(m, "wing", rows, x0, 13.6, 9.6, 10.7, mats, unit=u, rotation=rot)
-    m.box("root", (7.0, 9.8, 9.4), (9.0, 11.6, 10.4), FLUFF)
+        xr = 8 + side * 2.4                          # the root: on the shoulder blade
+        x0, x1 = (xr, xr + 0.7) if side == 1 else (xr - 0.7, xr)
+        rot = ("y", 45 * side, (xr, top - 2, back))
+        pix_zy(m, "wing", WING_ROWS, x0, x1, top, back, mats, unit=u, rotation=rot)
+        # the root's soft lump (wider at the root): a short thicker pad over the first columns
+        a, b = (xr - 0.35, xr + 1.05) if side == 1 else (xr - 1.05, xr + 0.35)
+        m.box("root", (a, top - 3.2 * u, back - 0.2), (b, top - 0.6 * u, back + 2.2 * u), FLUFF, rotation=rot)
     _display(m, BACK_GUI, 0.6, 1)
     return m
 
