@@ -260,49 +260,90 @@ def _seg(p, a, b):
 
 
 def _print_tex(frame, awake=False):
-    """첨벙 발자국 (32 px, from above, cut-out): a wet webbed duck print, toes north: a round heel pad, three toes
-    spreading from it with the webbing between them curving in between the toe tips (the duck foot everyone knows),
-    darker where the water stands with a glossy sheen; round it a soft ripple ring, small (a) or spreading wider and
-    fainter (b), and a few droplets."""
+    """첨벙 발자국 (32 px, from above, cut-out): a wet webbed duck foot, toes north (= the walking direction): a small
+    round heel, three toes fanning out from it with dark claw tips, the web filling the fan between them and curving
+    back in a scallop between each two toes (the duck foot everyone knows), wet orange with a darker rim and a glossy
+    sheen; round it a thin, dotted ripple ring, tight (a) or spreading wider (b), and a few droplets."""
+    hx, hy = 16.0, 23.0                         # the heel pad's centre
+    toes = [(-0.64, 13.8), (0.0, 14.8), (0.64, 13.8)]    # (angle from north, length from the heel) of the three toes
+
+    def inside(px_, py_):
+        """0: outside, 1: web, 2: toe ridge, 3: heel, 4: claw"""
+        dx, dy = px_ - hx, hy - py_
+        if math.hypot(dx / 2.8, (dy + 1.0) / 2.3) < 1.0:
+            return 3
+        r = math.hypot(dx, dy)
+        a = math.atan2(dx, dy)
+        lo, hi = toes[0][0] - 0.10, toes[2][0] + 0.10
+        if not (lo <= a <= hi) or r < 1.5:
+            # the ankle joining the heel to the fan
+            if abs(dx) < 2.4 - 0.2 * max(0.0, dy) and 0 <= dy < 4.5:
+                return 1
+            return 0
+        # the fan's edge: a rounded bump at each toe tip, a shallow scallop between two toes
+        best = 0.0
+        for (ta, tl) in toes:
+            best = max(best, tl * math.exp(-((a - ta) / 0.30) ** 4))
+        edge = max(best, 0.66 * toes[1][1]) if toes[0][0] <= a <= toes[2][0] else best
+        if r >= edge:
+            # a tiny dark claw just past each toe tip
+            for (ta, tl) in toes:
+                cx, cy = hx + math.sin(ta) * (tl + 0.9), hy - math.cos(ta) * (tl + 0.9)
+                if math.hypot(px_ - cx, py_ - cy) < 0.0:
+                    return 4
+            return 0
+        # the toes: darker ridges inside the web, from the ankle out to each tip
+        for (ta, tl) in toes:
+            sx, sy = hx + math.sin(ta) * tl * 0.45, hy - math.cos(ta) * tl * 0.45
+            tx, ty = hx + math.sin(ta) * (tl - 1.6), hy - math.cos(ta) * (tl - 1.6)
+            if _seg((px_, py_), (sx, sy), (tx, ty)) < 0.7:
+                return 2
+        return 1
+
     def paint(k):
         im = hd_canvas()
         px = im.load()
-        cx, cy = 16, 17
-        ring_r = 12.0 if frame == 0 else 14.2
+        cx, cy = 16, 16
+        ring_r = 13.2 if frame == 0 else 14.8
         for y in range(HS):
             for x in range(HS):
                 if x >= 29 and y >= 29:
                     continue
                 r = math.hypot(x + 0.5 - cx, y + 0.5 - cy)
-                if abs(r - ring_r) <= (1.0 if frame == 0 else 0.7):
-                    px[x, y] = shade("ice", 2.9 if frame == 0 else 2.4)
-        heel = (16.0, 23.0)
-        tips = [(9.0, 9.5), (16.0, 7.0), (23.0, 9.5)]
+                ang = math.atan2(y + 0.5 - cy, x + 0.5 - cx)
+                # a thin, broken ripple: dashes, softer (lighter) on the wider frame
+                if abs(r - ring_r) <= 0.55 and math.cos(ang * (9 if frame == 0 else 11)) > -0.35:
+                    px[x, y] = shade("ice", 2.6 if frame == 0 else 2.2)
+        kind = {}
         for y in range(HS):
             for x in range(HS):
                 if x >= 29 and y >= 29:
                     continue
-                p = (x + 0.5, y + 0.5)
-                toe = min(_seg(p, heel, t) for t in tips)
-                # the web: inside the fan of the outer toes, its front edge long at each toe and curving back
-                # in a scallop between two toes
-                ang = math.atan2(p[0] - heel[0], heel[1] - p[1])
-                r = math.hypot(p[0] - heel[0], p[1] - heel[1])
-                front = 12.2 + 3.0 * (0.5 + 0.5 * math.cos(ang * math.tau / 0.48))
-                web = abs(ang) < 0.5 and r < front
-                pad = math.hypot((p[0] - heel[0]) / 2.8, (p[1] - heel[1]) / 2.4) < 1.0
-                if toe < 1.1 or pad:
-                    px[x, y] = shade("water", 0.9 + 0.4 * toe)
-                elif web:
-                    px[x, y] = shade("ice", 0.6 - 0.5 * (r / 14))
-                else:
-                    continue
-                if math.hypot(p[0] - 13.5, p[1] - 15.0) < 1.7 or math.hypot(p[0] - 14.5, p[1] - 21.5) < 1.0:
-                    px[x, y] = shade("ice", 3.0)                   # the glossy sheen of standing water
-        drops = [(5, 10), (26, 12), (7, 26), (24, 27)] if frame == 0 else [(3, 7), (28, 10), (4, 27), (27, 24)]
+                kind[(x, y)] = inside(x + 0.5, y + 0.5)
+        for (x, y), kd in kind.items():
+            if kd == 0:
+                continue
+            edge = any(kind.get((x + ox, y + oy), 0) == 0 for ox, oy in ((1, 0), (-1, 0), (0, 1), (0, -1)))
+            v = (y + 0.5) / HS
+            if kd == 4:
+                c = shade("fox", 0.6)
+            elif edge:
+                c = shade("fox", 1.1)                         # the darker rim of the wet print
+            elif kd == 2 or kd == 3:
+                c = shade("fox", 1.5 - 0.2 * v)               # toes and heel pressed deeper
+            else:
+                c = shade("fox", 2.9 - 0.6 * v)               # the web, lighter
+            px[x, y] = c
+        # the glossy sheen of standing water on the web and the heel
+        for (gx, gy, gr) in ((12.6, 13.0, 1.3), (19.6, 14.2, 0.9), (15.2, 23.6, 0.9)):
+            for y in range(HS):
+                for x in range(HS):
+                    if kind.get((x, y), 0) in (1, 3) and math.hypot(x + 0.5 - gx, y + 0.5 - gy) < gr:
+                        px[x, y] = shade("ice", 3.0)
+        drops = [(4, 9), (27, 11), (6, 27), (25, 26)] if frame == 0 else [(2, 6), (29, 9), (3, 27), (27, 23)]
         for (dx, dy) in drops:
             for (ox, oy) in ((0, 0), (1, 0), (0, 1), (1, 1)):
-                if not (dx + ox >= 29 and dy + oy >= 29):
+                if 0 <= dx + ox < HS and 0 <= dy + oy < HS and not (dx + ox >= 29 and dy + oy >= 29):
                     px[dx + ox, dy + oy] = shade("ice", 3.0 if (ox, oy) == (0, 0) else 2.4)
         return im
     return paint
@@ -546,8 +587,10 @@ def _feather():
 
 
 def _bib():
-    """오리 턱받이 (cut-out, the bib's front): a rounded cotton bib with a scalloped yellow edge, a soft duckling face
-    embroidered in the middle and a little blue anchor stitch under it."""
+    """오리 턱받이 (cut-out, the bib's front): a rounded cotton bib with a scalloped yellow edge and, embroidered in the
+    middle, a duckling face drawn perfectly symmetric (painted on the left half and mirrored): a round yellow head with
+    a darker rim, a little three-curl tuft on top, two big shiny eyes, an orange bill, pink cheeks; a small blue anchor
+    stitched under it."""
     im = hd_canvas()
     px = im.load()
     for y in range(HS):
@@ -571,19 +614,39 @@ def _bib():
                     continue
             b = 2.5 - 0.5 * v + (0.06 if (x + y) % 2 else -0.04)
             px[x, y] = shade("snow", b)
-    # the embroidered duckling face: a yellow round head, an orange bill, two dot eyes
+    # the face, left half only (x < 16); mirrored below so both sides match pixel for pixel
+    hcx, hcy, hr = 16.0, 15.0, 7.6
     for y in range(HS):
-        for x in range(HS):
-            d = math.hypot(x + 0.5 - 16, y + 0.5 - 15)
-            if d < 6.2:
-                px[x, y] = shade("corn", 2.8 - 0.1 * d)
-            if abs(x + 0.5 - 16) < 3.2 and 16.5 < y + 0.5 < 19:
-                px[x, y] = shade("fox", 2.9)
-            for ex in (13.3, 18.7):
-                if math.hypot(x + 0.5 - ex, y + 0.5 - 13.5) < 1.1:
-                    px[x, y] = shade("rubber", 1)
-    # the anchor stitch under it
-    for (x, y) in ((16, 23), (16, 24), (16, 25), (15, 23), (17, 23), (14, 25), (18, 25), (15, 26), (17, 26), (16, 26)):
+        for x in range(16):
+            p = (x + 0.5, y + 0.5)
+            d = math.hypot(p[0] - hcx, (p[1] - hcy) * 1.05)
+            if d < hr:
+                c = shade("corn", 1.6) if d > hr - 1.0 else shade("corn", 2.9 - 0.12 * (p[1] - hcy + 6) / 2)
+                px[x, y] = c
+            # the tuft: three little curls on top of the head
+            for (tx, ty, tr) in ((16.0, 6.6, 1.5), (14.1, 7.3, 1.1)):
+                if math.hypot(p[0] - tx, p[1] - ty) < tr:
+                    px[x, y] = shade("corn", 2.4)
+            # the eye: a dark oval with a white glint at its upper outer side
+            ex, ey = 12.9, 13.9
+            de = ((p[0] - ex) / 1.45) ** 2 + ((p[1] - ey) / 1.6) ** 2
+            if de <= 1.0:
+                px[x, y] = shade("rubber", 1.2)
+            if math.hypot(p[0] - (ex - 0.45), p[1] - (ey - 0.55)) < 0.7:
+                px[x, y] = shade("feather", 3)
+            # the cheek
+            if ((p[0] - 10.9) / 1.4) ** 2 + ((p[1] - 16.9) / 0.85) ** 2 <= 1.0:
+                px[x, y] = shade("pink", 2.3)
+            # the bill: a wide rounded orange shape, a darker line where it opens
+            db = ((p[0] - 16.0) / 2.8) ** 2 + ((p[1] - 17.6) / 1.5) ** 2
+            if db <= 1.0:
+                px[x, y] = shade("fox", 2.0) if db > 0.7 and p[1] > 17.6 else shade("fox", 3.0 - 0.4 * (p[1] - 16.1) / 3)
+    for y in range(HS):
+        for x in range(16):
+            px[31 - x, y] = px[x, y] if not (31 - x >= 29 and y >= 29) else px[31 - x, y]
+    # the anchor stitch under it (symmetric)
+    for (x, y) in ((15, 24), (16, 24), (15, 25), (16, 25), (15, 26), (16, 26), (14, 24), (17, 24),
+                   (13, 26), (18, 26), (14, 27), (17, 27), (15, 27), (16, 27)):
         px[x, y] = shade("sapphire", 2.6)
     return im
 
