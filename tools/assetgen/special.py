@@ -132,6 +132,9 @@ TEST_ICONS = {
 import voucher_art as _VA   # noqa: E402
 
 ICONS = dict(_VA.ICONS)
+# batch C's particle cosmetics have their own glyphs (the generated ticket would draw them all as end_rod)
+import voucher_art_batch_c as _VAC   # noqa: E402
+ICONS.update(_VAC.ICONS)
 # the skin book: one look for every skin book of the shipped content (items/skin_books.yml: texture: skin_book)
 ICONS["skin_book"] = _themed(I.skin_book_item)
 

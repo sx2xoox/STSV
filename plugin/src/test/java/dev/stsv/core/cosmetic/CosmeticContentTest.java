@@ -55,9 +55,10 @@ class CosmeticContentTest {
                     problems.add(key + ": no particle " + particle);
                 }
             }
-            if ((slot == CosmeticSlot.TRAIL || slot == CosmeticSlot.KILL) && particle == null && !c.getBoolean("lightning")) problems.add(key + ": no effect");
+            boolean effect = slot == CosmeticSlot.TRAIL || slot == CosmeticSlot.KILL || slot == CosmeticSlot.AURA;
+            if (effect && particle == null && !c.getBoolean("lightning")) problems.add(key + ": no effect");
             String model = y.getString(key + ".model");
-            if (slot != CosmeticSlot.TRAIL && slot != CosmeticSlot.KILL && (model == null || !Files.exists(PACK.resolve("models/" + model + ".bbmodel")))) {
+            if (!effect && (model == null || !Files.exists(PACK.resolve("models/" + model + ".bbmodel")))) {
                 problems.add(key + ": model " + model);
             }
         }

@@ -149,7 +149,7 @@ class GachaRulesTest {
     }
 
     /**
-     * The shipped gacha.yml: the 38 cosmetics the shop used to sell, none legendary, none an achievement
+     * The shipped gacha.yml: 85 cosmetics (about eight a slot), none legendary, none an achievement
      * pet, each with a voucher item; the shop no longer sells them directly.
      */
     @Test
@@ -160,8 +160,12 @@ class GachaRulesTest {
         Map<String, Rarity> rarity = new HashMap<>();
         Map<String, String> obtain = new HashMap<>();
         Set<String> withVoucher = new HashSet<>();
-        for (String file : List.of("items/cosmetics.yml", "items/cosmetic_vouchers.yml")) {
-            YamlConfiguration items = YamlConfiguration.loadConfiguration(PACK.resolve(file).toFile());
+        List<java.nio.file.Path> files;
+        try (var list = java.nio.file.Files.list(PACK.resolve("items"))) {
+            files = list.filter(f -> f.getFileName().toString().startsWith("cosmetic")).sorted().toList();
+        }
+        for (java.nio.file.Path file : files) {
+            YamlConfiguration items = YamlConfiguration.loadConfiguration(file.toFile());
             for (String key : items.getKeys(false)) {
                 ConfigurationSection c = items.getConfigurationSection(key + ".cosmetic");
                 if (c != null) {
@@ -178,7 +182,7 @@ class GachaRulesTest {
         }
         List<GachaRules.Entry> pool = r.entries(rarity::get, withVoucher::contains, problems);
         assertTrue(problems.isEmpty(), String.join("\n", problems));
-        assertEquals(38, pool.size());
+        assertEquals(85, pool.size());
         assertTrue(pool.stream().noneMatch(e -> e.rarity() == Rarity.LEGENDARY));
         for (String pet : List.of("stsv:mole", "stsv:lamb", "stsv:otter", "stsv:owl")) {
             assertFalse(pool.stream().anyMatch(e -> e.id().equals(pet)), pet + " stays an achievement reward");

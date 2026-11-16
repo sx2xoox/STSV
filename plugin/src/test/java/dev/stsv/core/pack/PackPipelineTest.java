@@ -55,6 +55,7 @@ class PackPipelineTest {
     private static final Set<String> ROTATED = Set.of("test_sword", "test_sword_skin", "test_greatsword", "test_slash", "test_rod", "test_rod_cast",
             "angel_wings", "demon_wings", "butterfly_wings",   // wings swept back 22.5 degrees
             "gumiho",                                           // nine tails fanned out
+            "toy_sword_belt", "lucky_pouch", "champion_belt",   // waist: the sword hangs slanted, the pouch's knot, the belt's plate
             "wagasa",                                           // the parasol's struts, tilted up to its canopy
             // retro furniture: the kettle's spout, the radio's aerial, the clothes prop, the phone's dial face, the dresser's wing
             // mirrors, the fan's tilted head, the lid leant on the small jar, the washboard in the tub, the TV's rabbit ears, the lamp's arm

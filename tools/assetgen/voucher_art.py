@@ -589,8 +589,8 @@ def voucher_icons():
 ICONS = {"cheque": icon_cheque, "star_note": icon_star_note}
 ICONS.update(voucher_icons())
 
-SLOT_KO = {"head": "머리", "above": "머리 위", "shoulder": "어깨", "back": "등", "tail": "꼬리", "pet": "펫",
-           "trail": "발자취", "kill": "처치 효과"}
+SLOT_KO = {"head": "머리", "above": "머리 위", "shoulder": "어깨", "back": "등", "tail": "꼬리", "neck": "목", "waist": "허리",
+           "pet": "펫", "trail": "발자취", "kill": "처치 효과", "aura": "오라"}
 _SLOTS = list(SLOT_KO)
 _RARITIES = list(STUB)
 

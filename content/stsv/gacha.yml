@@ -5,13 +5,13 @@
 #  확률은 플레이어에게 보여 주지 않음 (이 파일은 관리자만 봄). 고친 뒤 /관리자 리로드.
 #
 #  한 번 뽑을 때: 먼저 등급을 weights 비율로 고르고(풀에 없는 등급은 빠짐), 그 등급 안에서 치장을 똑같은 확률로.
-#    지금 풀: 일반 12 · 희귀 14 · 영웅 12종 → 치장 하나의 확률 = 일반 56%/12 = 4.67%, 희귀 32%/14 = 2.29%, 영웅 12%/12 = 1.00%
+#    지금 풀: 일반 32 · 희귀 30 · 영웅 23종 → 치장 하나의 확률 = 일반 56%/32 = 1.75%, 희귀 32%/30 = 1.07%, 영웅 12%/23 = 0.52%
 #  천장(pity): 영웅 없이 (pulls - 1)번 연속이면 다음 한 번은 영웅. 사람마다 DB(cosmetic_gacha)에 저장, 뽑기를 넘어 이어짐.
 #  10회 뽑기: 앞 9번에 희귀 이상이 없으면 10번째는 희귀 이상(희귀:영웅 = 32:12)에서.
 #  전설은 절대 나오지 않음 (주간 순위 1위 · 상인 행렬 전용). pool 에 넣어도 빠지고 경고가 뜸.
 #
 #  가격: 1회 10,000 · 10회 90,000. 특정 치장 하나를 얻을 때까지 드는 돈의 기댓값 (천장 포함, 10회 = 한 번에 9,000)
-#    = 한 번 값 ÷ 그 치장의 확률:  일반 약 194,000 · 희귀 약 395,000 · 영웅 약 880,000
+#    = 한 번 값 ÷ 그 치장의 확률:  일반 약 514,000 · 희귀 약 844,000 · 영웅 약 1,725,000 (치장이 많아져 "아무거나 새 것" 은 쉬워지고 "딱 그것" 은 어려워짐)
 #  그 사이에 나온 다른 치장·교환권은 덤 (교환권은 팔 수 있음). 돈은 사라짐(돈 회수처).
 # ─────────────────────────────────────────────────────────────────────────────────────────────
 
@@ -37,8 +37,8 @@ daily-limit: 0
 
 broadcast-from: epic  # 이 등급 이상이 나오면 서버 전체에 알림
 
-# 나오는 치장 (전에 상점에서 팔던 38종 그대로). 교환권(voucher: { cosmetic: ... })이 있는 치장만 들어감.
-# 업적 보상 펫(두더지·아기 양·수달·부엉이)과 전설 7종은 넣지 않음
+# 나오는 치장 85종 (부위마다 8종쯤: 머리 위 · 어깨 · 등 · 꼬리 · 목 · 허리 · 발자취 · 처치 효과 · 오라). 교환권(voucher: { cosmetic: ... })이 있는 치장만 들어감.
+# 업적 보상 펫(두더지·아기 양·수달·부엉이), 전설, 후원 전용 치장은 넣지 않음
 pool:
   # 머리
   - stsv:tomato_mask
@@ -91,6 +91,15 @@ pool:
   - stsv:silk_scarf
   - stsv:gold_medal
   - stsv:crystal_pendant
+  # 허리
+  - stsv:hip_pouch
+  - stsv:lucky_pouch
+  - stsv:canteen
+  - stsv:toy_sword_belt
+  - stsv:key_ring
+  - stsv:tool_belt
+  - stsv:hula_skirt
+  - stsv:champion_belt
   # 펫
   - stsv:puppy
   - stsv:penguin
@@ -106,9 +115,24 @@ pool:
   - stsv:heart_trail
   - stsv:flame_trail
   - stsv:rainbow_trail
+  - stsv:bubble_trail
+  - stsv:glitter_trail
+  - stsv:magic_trail
   # 처치 효과
   - stsv:kill_hearts
   - stsv:kill_snow
   - stsv:kill_firework
   - stsv:kill_soul
   - stsv:kill_thunder
+  - stsv:kill_bubbles
+  - stsv:kill_leaves
+  - stsv:kill_totem
+  # 오라
+  - stsv:firefly_aura
+  - stsv:petal_aura
+  - stsv:rain_aura
+  - stsv:heart_aura
+  - stsv:note_aura
+  - stsv:snow_aura
+  - stsv:ember_aura
+  - stsv:star_aura
