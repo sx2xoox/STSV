@@ -1074,10 +1074,63 @@ def swatch_layers():
     return fill, half, rim
 
 
+TAB_NECK = [    # 목: a red scarf wrapped round, its two ends hanging down
+    "",
+    "",
+    "",
+    "...rrrrrrrrr",
+    "..rrrrrrrrrrR",
+    "..RrrrrrrrrRR",
+    "...RRRRRRRRR",
+    "......rrr",
+    "......rrrR",
+    "......rrRR",
+    "......rRrr",
+    ".....rrR.rR",
+    ".....rR..rR",
+    ".....r.r.r.r",
+]
+
+TAB_WAIST = [   # 허리: a belt with a gold buckle and a little pouch
+    "",
+    "",
+    "",
+    "",
+    "",
+    ".##############",
+    ".#sssss.ggg.sss",
+    ".#####.g...g###",
+    ".sssss.g...gsss",
+    "........ggg",
+    "..........##s",
+    "..........##s",
+    "...........ss",
+]
+
+TAB_AURA = [    # 오라: a ring of sparkles round a little figure
+    "",
+    "......g...g",
+    "...g.........g",
+    "",
+    ".g.....##.....g",
+    "......####",
+    "......####",
+    ".g.....##.....g",
+    "......####",
+    ".....######",
+    ".g...######...g",
+    "......#..#",
+    "...g.........g",
+    "......g...g",
+]
+
+
+
 def wardrobe_icons():
     return {"tab_all": draw(TAB_ALL), "tab_head": draw(TAB_HEAD), "tab_above": draw(TAB_ABOVE),
             "tab_shoulder": draw(TAB_SHOULDER), "tab_back": draw(TAB_BACK), "tab_tail": draw(_tail()),
             "tab_pet": draw(TAB_PET), "tab_trail": draw(TAB_TRAIL), "tab_kill": draw(TAB_KILL), "filter": draw(FILTER),
+            "tab_neck": draw(TAB_NECK), "tab_waist": draw(TAB_WAIST), "tab_aura": draw(TAB_AURA),
             "self_view": draw(SELF_VIEW)}
 
 

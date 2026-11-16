@@ -136,9 +136,32 @@ final class CosmeticAttachments {
     }
 
     static Transformation transformation(Vector3f anchor, CustomItem.Cosmetic c, boolean sneaking, float playerScale, float bob) {
+        return transformation(anchor, c, sneaking, playerScale, bob, 0);
+    }
+
+    /**
+     * @param phase where the cosmetic's motion is (0, 1, 2 ... a step of {@link #motionSteps} each; 0 = at rest):
+     *              SPIN turns by a third of a turn a step, SWAY and FLAP and PULSE swing between their two ends
+     */
+    static Transformation transformation(Vector3f anchor, CustomItem.Cosmetic c, boolean sneaking, float playerScale, float bob, int phase) {
         float s = c.scale() * playerScale;
-        return new Transformation(translation(anchor, c.offset(), sneaking, playerScale, bob),
-                new AxisAngle4f(), new Vector3f(s, s, s), new AxisAngle4f());
+        AxisAngle4f turn = new AxisAngle4f();
+        Vector3f scale = new Vector3f(s, s, s);
+        CustomItem.Motion m = c.motion();
+        if (m != null && phase != 0) {
+            switch (m.kind()) {
+                case SPIN -> turn = new AxisAngle4f((float) (phase % 3 * Math.PI * 2 / 3), 0, 1, 0);
+                case SWAY -> turn = new AxisAngle4f((float) Math.toRadians(phase % 2 == 1 ? m.amount() : -m.amount()), 0, 0, 1);
+                case FLAP -> scale.x *= phase % 2 == 1 ? 1 - m.amount() : 1;
+                case PULSE -> scale.mul(phase % 2 == 1 ? 1 + m.amount() : 1 - m.amount() / 2);
+            }
+        }
+        return new Transformation(translation(anchor, c.offset(), sneaking, playerScale, bob), turn, scale, new AxisAngle4f());
+    }
+
+    /** Steps in one motion cycle: a spin goes round in three, the others swing there and back in two. */
+    static int motionSteps(CustomItem.Motion m) {
+        return m.kind() == CustomItem.MotionKind.SPIN ? 3 : 2;
     }
 
     // ------------------------------------------------------------------------------------------
@@ -149,6 +172,8 @@ final class CosmeticAttachments {
         final ItemDisplay display;
         final CustomItem cosmetic;
         boolean sneaking, hidden, bobUp;
+        /** where its motion is (CosmeticAttachments#transformation phase; 0 = at rest) */
+        int phase;
         float scale;
 
         Worn(ItemDisplay display, CustomItem cosmetic) {
@@ -373,6 +398,7 @@ final class CosmeticAttachments {
             e.setTeleportDuration(packets == null ? 3 : 1);   // turning (and, without riding, moving) is smoothed
             e.setInterpolationDuration(3);
             e.setShadowRadius(0);
+            if (c.cosmetic().glow()) e.setBrightness(new org.bukkit.entity.Display.Brightness(15, 15));
             e.setTransformation(transformation(anchor(slot), c.cosmetic(), sneak, scale, 0));
         });
         Worn w = new Worn(d, c);
@@ -412,11 +438,15 @@ final class CosmeticAttachments {
                 boolean sneak = sneaking(p, slot);
                 boolean bob = w.cosmetic.cosmetic().bob() && bobFlip;
                 if (bob) w.bobUp = !w.bobUp;
-                if (sneak != w.sneaking || scale != w.scale || bob) {
+                CustomItem.Motion motion = w.cosmetic.cosmetic().motion();
+                int stepTicks = motion == null ? 0 : Math.max(2, motion.period() / motionSteps(motion));
+                boolean moved = motion != null && !hide && ticks % stepTicks == 0;
+                if (moved) w.phase = w.phase % motionSteps(motion) + 1;
+                if (sneak != w.sneaking || scale != w.scale || bob || moved) {
                     w.sneaking = sneak;
                     w.scale = scale;
                     w.display.setInterpolationDelay(0);
-                    w.display.setInterpolationDuration(bob ? BOB_TICKS : 3);
+                    w.display.setInterpolationDuration(moved ? stepTicks : bob ? BOB_TICKS : 3);
                     w.display.setTransformation(transformation(slot, w, p));
                 }
                 Location target = place(p, slot, sneak, body);
@@ -461,7 +491,7 @@ final class CosmeticAttachments {
 
     private Transformation transformation(CosmeticSlot slot, Worn w, Player p) {
         float bob = w.cosmetic.cosmetic().bob() ? (w.bobUp ? BOB : -BOB) : 0;
-        return transformation(anchor(slot), w.cosmetic.cosmetic(), w.sneaking && onBody(slot), scale(p), bob);
+        return transformation(anchor(slot), w.cosmetic.cosmetic(), w.sneaking && onBody(slot), scale(p), bob, w.phase);
     }
 
     private static boolean turned(Location a, Location b) {

@@ -8,17 +8,17 @@
 #   {이름}       자리표시자. {page} {pages} 는 공통, 나머지는 메뉴를 여는 모듈이 채움
 #   filler      none / glass (배경 그림이 없을 때 빈칸을 유리판으로)
 #
-# 옷장 (/치장): 위 = 분류 탭 (전체 + 부위 8개, 이름 옆 = 가진 수/전체 수), 가운데 = 그 분류의 치장 전부
+# 옷장 (/치장): 위 두 줄 = 분류 탭 (전체 + 부위 11개, 이름 옆 = 가진 수/전체 수), 가운데 = 그 분류의 치장 전부
 # (등급순 → 이름순, 가진 것은 그대로, 없는 것은 등급 색 '?' 카드), 아래 = 보기 · 착용 중 · 벗기 · 안내 · 뽑기 · 내 화면 · 나가기.
 # 자리표시자: {tab} {owned} {total} (지금 탭) · {n_<탭>} = "가진 수/전체 수" · {worn_<부위>} · {view} {view_all} {view_owned} {view_missing}
 wardrobe:
   title: "<#f0e2b0>치장 <#b9a6d6>· {tab} <#8f86a6>· {owned}/{total}"
   rows: 6
   background: stsv:gui/wardrobe
-  tabs: "ABCDEFGHK"
+  tabs: "ABCDEFQRGHKU"
   layout:
-    - "ABCDEFGHK"
-    - ".LLLLLLL."
+    - ".ABC.DEF."
+    - ".QRG.HKU."
     - ".LLLLLLL."
     - ".LLLLLLL."
     - ".LLLLLLL."
@@ -80,6 +80,24 @@ wardrobe:
       material: IRON_SWORD
       name: "<white>처치 효과 <gray>{n_kill}"
       lore: ["<gray>내가 잡은 자리에서 터지는 효과", "<gray>착용: <white>{worn_kill}"]
+    Q:
+      action: "wardrobe:tab:neck"
+      icon: stsv:gui/tab_neck
+      material: STRING
+      name: "<white>목 <gray>{n_neck}"
+      lore: ["<gray>목도리, 목걸이, 나비넥타이", "<gray>착용: <white>{worn_neck}"]
+    R:
+      action: "wardrobe:tab:waist"
+      icon: stsv:gui/tab_waist
+      material: LEATHER
+      name: "<white>허리 <gray>{n_waist}"
+      lore: ["<gray>허리 가방, 복주머니, 칼집", "<gray>착용: <white>{worn_waist}"]
+    U:
+      action: "wardrobe:tab:aura"
+      icon: stsv:gui/tab_aura
+      material: AMETHYST_SHARD
+      name: "<white>오라 <gray>{n_aura}"
+      lore: ["<gray>가만히 서 있으면 몸 주위에 도는 효과", "<gray>착용: <white>{worn_aura}"]
     V:
       action: wardrobe:view
       icon: stsv:gui/filter

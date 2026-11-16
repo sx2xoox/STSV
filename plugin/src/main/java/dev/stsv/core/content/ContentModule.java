@@ -284,9 +284,30 @@ public final class ContentModule implements StsvModule, org.bukkit.event.Listene
                         sec.getDouble("cosmetic.speed", 0.02), sec.getString("cosmetic.color"), sec.getString("cosmetic.sound"),
                         lightning, sec.getBoolean("cosmetic.float"), sec.getDouble("cosmetic.height", 0.1));
             }
+            String exclusive = sec.getString("cosmetic.exclusive");
+            if (exclusive != null && !exclusive.equalsIgnoreCase("donation")) throw new IllegalArgumentException("cosmetic.exclusive 는 donation 만");
+            CustomItem.Motion motion = null;
+            if (sec.isConfigurationSection("cosmetic.motion")) {
+                CustomItem.MotionKind kind;
+                try {
+                    kind = CustomItem.MotionKind.valueOf(sec.getString("cosmetic.motion.kind", "").trim().toUpperCase(Locale.ROOT));
+                } catch (IllegalArgumentException e) {
+                    throw new IllegalArgumentException("cosmetic.motion.kind 는 spin / sway / flap / pulse");
+                }
+                if (slot == CustomItem.CosmeticSlot.HEAD || fx != null) throw new IllegalArgumentException("cosmetic.motion 은 몸에 붙는 모델(머리 위 · 어깨 · 등 · 꼬리 · 목 · 허리)에만");
+                double amount = sec.getDouble("cosmetic.motion.amount", kind == CustomItem.MotionKind.SWAY ? 12 : 0.12);
+                int period = sec.getInt("cosmetic.motion.period", 40);
+                if (period < 8 || period > 400) throw new IllegalArgumentException("cosmetic.motion.period 는 8 ~ 400 틱");
+                if (kind == CustomItem.MotionKind.SWAY && (amount <= 0 || amount > 45)) throw new IllegalArgumentException("cosmetic.motion.amount (sway) 는 0 초과 45 이하 (도)");
+                if ((kind == CustomItem.MotionKind.FLAP || kind == CustomItem.MotionKind.PULSE) && (amount <= 0 || amount > 0.5))
+                    throw new IllegalArgumentException("cosmetic.motion.amount (flap · pulse) 는 0 초과 0.5 이하");
+                motion = new CustomItem.Motion(kind, (float) amount, period);
+            }
+            String set = sec.getString("cosmetic.set");
+            if (set != null && !set.matches("[a-z0-9_]{1,32}")) throw new IllegalArgumentException("cosmetic.set 은 a-z 0-9 _ (1 ~ 32자)");
             cosmetic = new CustomItem.Cosmetic(slot, rarity, sec.getString("cosmetic.obtain"),
                     off.size() == 3 ? new org.bukkit.util.Vector(off.get(0), off.get(1), off.get(2)) : new org.bukkit.util.Vector(),
-                    (float) scale, sec.getBoolean("cosmetic.bob"), fx);
+                    (float) scale, sec.getBoolean("cosmetic.bob"), fx, exclusive != null, set, sec.getBoolean("cosmetic.glow"), motion);
         }
 
         CustomItem.Effects effects = sec.isConfigurationSection("effects")

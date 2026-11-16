@@ -88,6 +88,8 @@ public final class CosmeticBrowser {
         ACHIEVEMENT,
         /** legendary: weekly ranking, 상인 행렬, events */
         LIMITED,
+        /** only from the 후원 상점 (cosmetic.exclusive: donation) */
+        DONATION,
         OTHER;
 
         public String key() {

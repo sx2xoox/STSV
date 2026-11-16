@@ -43,7 +43,7 @@ class WardrobeGuiTest {
         MenuSpec m = wardrobe(problems);
         assertTrue(problems.isEmpty(), problems.toString());
         assertNotNull(m.background(), "background kept (size checked)");
-        assertEquals(28, m.slots(m.list()).size(), "7 x 4 cosmetics per page");
+        assertEquals(21, m.slots(m.list()).size(), "7 x 3 cosmetics per page (two rows of tabs above)");
         for (MenuSpec.Button b : m.buttons().values()) {
             if (b.on().icon() != null) {
                 assertTrue(iconExists(b.on().icon()), b.on().icon().toString());
@@ -91,9 +91,11 @@ class WardrobeGuiTest {
     void bothCosmeticScreensHaveTheCategoryTabs() throws Exception {
         for (String[] menu : List.of(new String[]{"stsv:wardrobe", "wardrobe"}, new String[]{"stsv:gacha", "gacha"})) {
             MenuSpec m = menu(menu[0]);
-            assertEquals(28, m.slots(m.list()).size(), menu[0] + ": 7 x 4 per page");
-            String top = m.layout().getFirst();
-            assertEquals(CosmeticBrowser.TABS.size(), top.length(), menu[0] + ": 전체 + one tab per slot fill the top row");
+            assertEquals(21, m.slots(m.list()).size(), menu[0] + ": 7 x 3 per page");
+            // 전체 + one tab per slot, in two rows of six (three and three about the middle), in the slots' order
+            String top = (m.layout().get(0) + m.layout().get(1)).replace(".", "");
+            assertEquals(CosmeticBrowser.TABS.size(), top.length(), menu[0] + ": 전체 + one tab per slot in the top two rows");
+            assertEquals(12, top.length());
             for (int c = 0; c < top.length(); c++) {
                 MenuSpec.Button b = m.buttons().get(top.charAt(c));
                 String tab = CosmeticBrowser.TABS.get(c);

@@ -119,8 +119,14 @@ public record CustomItem(
      * @param offset extra offset from the slot's anchor, in pixels (1/16 block): x right, y up, z back
      * @param scale  size on the player (1 = as modelled)
      * @param bob    floats gently up and down (above the head)
+     * @param donation only from the 후원 상점 (cosmetic.exclusive: donation): never in the 치장 뽑기, no voucher
+     *               (cannot be traded), a "후원 한정" mark in the wardrobe
+     * @param set    the cosmetic set it belongs to (cosmetic.set, contents/stsv/cosmetic_sets.yml), or null
+     * @param glow   its model is drawn at full light, also in the dark (cosmetic.glow)
+     * @param motion how its model moves while worn (cosmetic.motion), or null
      */
-    public record Cosmetic(CosmeticSlot slot, Rarity rarity, String obtain, org.bukkit.util.Vector offset, float scale, boolean bob, Fx fx) {
+    public record Cosmetic(CosmeticSlot slot, Rarity rarity, String obtain, org.bukkit.util.Vector offset, float scale, boolean bob, Fx fx,
+                           boolean donation, String set, boolean glow, Motion motion) {
         public Cosmetic(CosmeticSlot slot, Rarity rarity, String obtain) {
             this(slot, rarity, obtain, new org.bukkit.util.Vector(), 1f, false, null);
         }
@@ -128,7 +134,21 @@ public record CustomItem(
         public Cosmetic(CosmeticSlot slot, Rarity rarity, String obtain, org.bukkit.util.Vector offset, float scale, boolean bob) {
             this(slot, rarity, obtain, offset, scale, bob, null);
         }
+
+        public Cosmetic(CosmeticSlot slot, Rarity rarity, String obtain, org.bukkit.util.Vector offset, float scale, boolean bob, Fx fx) {
+            this(slot, rarity, obtain, offset, scale, bob, fx, false, null, false, null);
+        }
     }
+
+    /**
+     * How a worn model moves (cosmetic.motion: { kind, amount, period }): SPIN turns round the vertical axis
+     * (a halo, a ring of stars; amount unused), SWAY tilts side to side by amount degrees (a tail, a ribbon),
+     * FLAP narrows sideways by amount (0.15 = to 85 %) and back (wings beating), PULSE grows and shrinks by
+     * amount (a glowing orb). period = ticks for one full cycle.
+     */
+    public record Motion(MotionKind kind, float amount, int period) {}
+
+    public enum MotionKind { SPIN, SWAY, FLAP, PULSE }
 
     /**
      * What a trail, kill effect or pet does: particle (a Bukkit particle name) with count, spread (blocks)

@@ -135,6 +135,7 @@ public final class CosmeticModule implements StsvModule, Listener {
         }
         attachments = new CosmeticAttachments(plugin, keyAttachment, packets, this::selfView);
         pets = new CosmeticPets(plugin, keyAttachment);
+        loadSets();
         loadAnchors();
         Bukkit.getScheduler().runTaskTimer(plugin, this::tick, 1L, 1L);
         Bukkit.getPluginManager().registerEvents(this, plugin);
@@ -163,8 +164,28 @@ public final class CosmeticModule implements StsvModule, Listener {
         });
     }
 
+    /** The cosmetic sets (cosmetic_sets.yml of the first pack that has one). */
+    private CosmeticSets sets = CosmeticSets.NONE;
+
+    public CosmeticSets sets() {
+        return sets;
+    }
+
+    private void loadSets() {
+        List<String> problems = new ArrayList<>();
+        sets = CosmeticSets.NONE;
+        for (dev.stsv.core.content.ContentPack pack : plugin.content().packs()) {
+            java.nio.file.Path f = pack.dir().resolve("cosmetic_sets.yml");
+            if (!java.nio.file.Files.isRegularFile(f)) continue;
+            sets = CosmeticSets.parse(org.bukkit.configuration.file.YamlConfiguration.loadConfiguration(f.toFile()), plugin.content().items(), problems);
+            break;
+        }
+        problems.forEach(m -> plugin.getLogger().warning("[치장] cosmetic_sets.yml " + m));
+    }
+
     @Override
     public void reload() {
+        loadSets();
         loadAnchors();
         Bukkit.getOnlinePlayers().forEach(this::refresh);
     }
@@ -180,7 +201,10 @@ public final class CosmeticModule implements StsvModule, Listener {
         attachments.tick();
         pets.tick();
         if (++ticks % 3 == 0) trails();
-        if (ticks % AURA_EVERY == 0) auras();
+        if (ticks % AURA_EVERY == 0) {
+            auras();
+            setBonuses();
+        }
         if (ticks % 5 != 0) return;
         for (Player p : Bukkit.getOnlinePlayers()) {
             boolean now = concealed(p);
@@ -552,6 +576,19 @@ public final class CosmeticModule implements StsvModule, Listener {
             // behind the wearer: others see them a few ticks late, a mark at their feet would be under the legs
             Location mark = CosmeticEffects.trailMark(last, here).add(0, c.cosmetic().fx().height(), 0);
             CosmeticEffects.play(viewersOf(p, mark, 48), mark, c.cosmetic().fx(), ticks, false);
+        }
+    }
+
+    /** Every {@link #AURA_EVERY} ticks: a full set's bonus ring round its wearer, walking or standing. */
+    private void setBonuses() {
+        if (sets.sets().isEmpty()) return;
+        for (Player p : Bukkit.getOnlinePlayers()) {
+            if (inWardrobe(p) || concealed(p)) continue;
+            for (CosmeticSets.Set s : sets.complete(worn(p).values())) {
+                if (s.bonus() == null) continue;
+                Location at = p.getLocation().add(0, s.bonus().height(), 0);
+                CosmeticEffects.ring(viewersOf(p, at, 48), at, s.bonus(), ticks);
+            }
         }
     }
 
@@ -982,6 +1019,7 @@ public final class CosmeticModule implements StsvModule, Listener {
 
     /** Where a cosmetic comes from (the 치장 뽑기 pool, an achievement, a limited reward). */
     private CosmeticBrowser.Source source(CustomItem c) {
+        if (c.cosmetic().donation()) return CosmeticBrowser.Source.DONATION;
         boolean pool = plugin.gacha() != null && plugin.gacha().inPool(c.key().asString());
         return CosmeticBrowser.source(c.cosmetic().rarity(), c.cosmetic().obtain(), pool);
     }
@@ -1068,6 +1106,12 @@ public final class CosmeticModule implements StsvModule, Listener {
                 boolean isWorn = isWorn(worn, c);
                 List<Component> lore = new ArrayList<>();
                 lore.add(CosmeticBrowser.rarityLine(c));
+                if (c.cosmetic().donation()) lore.add(Lang.item("wardrobe.lore-donation"));
+                if (c.cosmetic().set() != null) {
+                    CosmeticSets.Set set = sets.sets().get(c.cosmetic().set());
+                    if (set != null) lore.add(Lang.item("wardrobe.lore-set", "set", set.name(),
+                            "worn", String.valueOf(sets.worn(set, worn.values())), "total", String.valueOf(set.pieces().size())));
+                }
                 lore.add(Text.item(""));
                 if (!owns(p, c)) {
                     // not owned: the dark '?' card of its rarity, where it comes from, and what a click does

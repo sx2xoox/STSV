@@ -9,10 +9,10 @@ gacha:
   title: "<#f0e2b0>치장 뽑기 <#b9a6d6>· {tab} <#8f86a6>· {owned}/{total}"
   rows: 6
   background: stsv:gui/gacha
-  tabs: "ACDEFGHKM"
+  tabs: "ACDEFGQRHKMU"
   layout:
-    - "ACDEFGHKM"
-    - ".LLLLLLL."
+    - ".ACD.EFG."
+    - ".QRH.KMU."
     - ".LLLLLLL."
     - ".LLLLLLL."
     - ".LLLLLLL."
@@ -71,6 +71,21 @@ gacha:
       icon: stsv:gui/tab_kill
       material: IRON_SWORD
       name: "<white>처치 효과 <gray>{n_kill}"
+    Q:
+      action: "gacha:tab:neck"
+      icon: stsv:gui/tab_neck
+      material: STRING
+      name: "<white>목 <gray>{n_neck}"
+    R:
+      action: "gacha:tab:waist"
+      icon: stsv:gui/tab_waist
+      material: LEATHER
+      name: "<white>허리 <gray>{n_waist}"
+    U:
+      action: "gacha:tab:aura"
+      icon: stsv:gui/tab_aura
+      material: AMETHYST_SHARD
+      name: "<white>오라 <gray>{n_aura}"
     O:
       action: "gacha:pull:1"
       icon: stsv:gui/gacha
@@ -102,7 +117,7 @@ gacha:
       lore:
         - "<gray>모은 치장: <white>{owned_all}/{total_all}"
         - ""
-        - "<gray>위 탭: 부위별로 나오는 치장 (일반 · 희귀 · 영웅)."
+        - "<gray>위 두 줄 탭: 부위별로 나오는 치장 (일반 · 희귀 · 영웅)."
         - "<gray>밝은 치장 = 가진 것, <dark_gray>어두운 '?' 카드<gray> = 아직 없는 것"
         - "<gray>새 치장은 바로 내 것이 되고, /치장 에서 입습니다."
         - "<gray>이미 가진 치장은 <white>교환권</white>으로 나옵니다:"

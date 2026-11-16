@@ -110,7 +110,11 @@ public final class GachaModule implements StsvModule, Listener, CommandExecutor 
         }
         vouchers = Map.copyOf(v);
         pool = rules == null ? List.of() : rules.entries(
-                id -> plugin.content().item(id).map(CustomItem::cosmetic).map(CustomItem.Cosmetic::rarity).orElse(null),
+                id -> plugin.content().item(id).map(CustomItem::cosmetic).filter(c -> {
+                    if (!c.donation()) return true;
+                    problems.add("pool: " + id + " 은(는) 후원 한정 치장이라 뽑기에 넣지 않음 (무시)");
+                    return false;
+                }).map(CustomItem.Cosmetic::rarity).orElse(null),
                 id -> plugin.content().item(id).map(i -> vouchers.containsKey(i.key().asString())).orElse(false), problems)
                 .stream().map(e -> new GachaRules.Entry(plugin.content().item(e.id()).orElseThrow().key().asString(), e.rarity())).toList();
         problems.forEach(p -> plugin.getLogger().warning("[치장 뽑기] gacha.yml " + p));

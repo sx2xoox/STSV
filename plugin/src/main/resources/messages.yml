@@ -24,6 +24,7 @@ wardrobe:
     gacha: "<gray>🔒 아직 없는 치장 · <white>치장 뽑기</white>에서 얻을 수 있어요 <dark_gray>(Shift+클릭: 뽑기 열기)"
     achievement: "<gray>🔒 아직 없는 치장 · <white>업적 보상</white>으로 얻을 수 있어요 <dark_gray>(/업적)"
     limited: "<gray>🔒 아직 없는 치장 · <gold>한정</gold> <white>주간 순위 1위 · 상인 행렬</white>에서만 얻어요"
+    donation: "<gray>🔒 아직 없는 치장 · <gradient:#ffd36b:#ff7ac6>후원 한정</gradient> <white>/후원</white> 에서만 얻어요"
     other: "<gray>🔒 아직 없는 치장 · 입혀 보기만 할 수 있어요"
   # 미리보기 화면 제목: 위 = 치장 이름, 아래 = 상태 + 안내
   title: "<gold>치장"
@@ -60,10 +61,13 @@ wardrobe:
   locked-name: "<dark_gray>{cosmetic}"
   lore-locked: ["<red>🔒 아직 없음"]
   lore-source: "<gray>얻는 곳: {source}"
+  lore-donation: "<gradient:#ffd36b:#ff7ac6>✦ 후원 한정</gradient> <dark_gray>· 뽑기·교환 불가"
+  lore-set: "<#ffd36b>세트: {set} <gray>({worn}/{total} 착용, 다 입으면 세트 효과)"
   source:
     gacha: "<white>치장 뽑기 <gray>(/뽑기)"
     achievement: "<white>업적 보상 <gray>(/업적)"
     limited: "<gold>한정 <gray>(주간 순위 1위 · 상인 행렬)"
+    donation: "<gradient:#ffd36b:#ff7ac6>후원 한정</gradient> <gray>(/후원)"
     other: "<white>특별 보상"
   lore-obtain: "<dark_gray>{obtain}"
   lore-locked-click: "<gray>클릭: <white>마네킹에 입혀 보기"
@@ -84,6 +88,9 @@ cosmetic:
     pet: "펫"
     trail: "발자취"
     kill: "처치 효과"
+    neck: "목"
+    waist: "허리"
+    aura: "오라"
 
 # 치장 뽑기 (/뽑기). 확률은 플레이어에게 보이지 않음 (contents/stsv/gacha.yml)
 gacha:
