@@ -938,12 +938,21 @@ public final class CosmeticModule implements StsvModule, Listener {
         if (eq != null && eq.slot() == EquipmentSlot.HEAD) syncSelfLater(e.getPlayer(), true);
     }
 
-    /** Creative clients send whole items back: never let a self-view item become a real one. */
+    /**
+     * Creative clients send whole items back: never let a self-view item become a real one. The creative client
+     * goes by what it sent, and the server does not correct it: the view it took out of the helmet slot stays on
+     * its screen wherever it put it (an item that is not there), and the helmet slot stays empty (no cosmetic on
+     * its own head). So after such a click the client gets its inventory again, and the view back in the helmet slot.
+     */
     @EventHandler(priority = org.bukkit.event.EventPriority.LOWEST)
     public void onCreativeView(org.bukkit.event.inventory.InventoryCreativeEvent e) {
         ItemStack item = e.getCursor();
         ItemStack real = CosmeticViews.restore(item);
-        if (real != item) e.setCursor(real);
+        boolean view = real != item;
+        if (view) e.setCursor(real);
+        if ((view || e.getSlotType() == org.bukkit.event.inventory.InventoryType.SlotType.ARMOR) && e.getWhoClicked() instanceof Player p) {
+            syncSelfLater(p, true);
+        }
     }
 
     /** A player starts seeing someone: give them the cosmetic look right after the vanilla packets. */
