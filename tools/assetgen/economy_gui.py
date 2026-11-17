@@ -16,7 +16,7 @@ def art(icon_id):
     """A big button's picture: stsv:gui/<icon> or stsv:<item> (core), economy:gui/<icon> or economy:<item> (economy)."""
     import gui
     ns, path = icon_id.split(":", 1)
-    if ns == "stsv":
+    if ns in ("stsv", "hub"):
         return gui.art(icon_id)
     if path.startswith("gui/"):
         import economy_icons as E

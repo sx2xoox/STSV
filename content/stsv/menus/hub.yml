@@ -63,56 +63,56 @@ hub:
       action: "command:건축월드"
       icon: stsv:gui/blank
       material: BRICKS
-      art: stsv:gui/house
+      art: hub:build
       name: "<white>건축월드로"
       lore: ["<gray>땅을 사서 집 짓는 곳", "<dark_gray>{warmup}초 가만히"]
     Y:
       action: "hub:run:야생월드|run:rtp"
       icon: stsv:gui/blank
       material: OAK_SAPLING
-      art: stsv:gui/pine
+      art: hub:wild
       name: "<white>야생월드로"
       lore: ["<gray>자원 캐는 곳 · 보호 없음", "<gray>지옥 · 엔드는 포털로", "<yellow>우클릭: 다른 무작위 위치 <dark_gray>(야생월드에서)", "<dark_gray>{warmup}초 가만히 · 재사용 {cooldown}초"]
     t:
       action: "hub:suggest:tpa|suggest:tpahere"
       icon: stsv:gui/blank
       material: ENDER_PEARL
-      art: stsv:gui/pearl
+      art: hub:tp
       name: "<white>텔레포트 요청"
       lore: ["<gray>상대가 수락하면 이동", "<yellow>클릭: 가기 <dark_gray>· /tpa", "<yellow>우클릭: 내 쪽으로 부르기"]
     n:
       action: "command:야간투시"
       icon: stsv:gui/blank
       material: ENDER_EYE
-      art: stsv:gui/night_vision
+      art: hub:night
       name: "<white>야간 투시 <gray>· {night_vision}"
       lore: ["<gray>죽거나 나가도 유지", "<yellow>클릭: 켜기·끄기"]
     v:
       action: "command:탈것"
       icon: stsv:gui/blank
       material: MINECART
-      art: stsv:gui/don_car
+      art: hub:vehicle
       name: "<white>내 탈것"
       lore: ["<gray>내 탈것 목록", "<dark_gray>양도 · 함께 쓸 사람: /탈것"]
     w:
       action: "command:ㅆ"
       icon: stsv:gui/blank
       material: CAULDRON
-      art: stsv:gui/trash
+      art: hub:trash
       name: "<white>쓰레기통"
       lore: ["<gray>넣고 닫으면 사라짐", "<dark_gray>탈것·지게는 돌려받음 · /ㅆ"]
     h:
       action: "command:사이드바"
       icon: stsv:gui/blank
       material: PAPER
-      art: stsv:gui/ledger
+      art: hub:sidebar
       name: "<white>사이드바 켜기·끄기"
       lore: ["<gray>오른쪽 정보 패널", "<dark_gray>위치·크기: /사이드바"]
     s:
       action: "command:후원"
       icon: stsv:gui/blank
       material: NETHER_STAR
-      art: stsv:gui/star
+      art: hub:star
       name: "<white>후원 상점"
       lore: ["<gray>후원 재화(별)로 사는 꾸미기"]
 
@@ -166,63 +166,63 @@ hub_money:
       action: "command:건축월드"
       icon: stsv:gui/blank
       material: BRICKS
-      art: stsv:gui/house
+      art: hub:build
       name: "<white>건축월드로"
       lore: ["<gray>땅을 사서 집 짓는 곳", "<dark_gray>{warmup}초 가만히"]
     Y:
       action: "hub:run:야생월드|run:rtp"
       icon: stsv:gui/blank
       material: OAK_SAPLING
-      art: stsv:gui/pine
+      art: hub:wild
       name: "<white>야생월드로"
       lore: ["<gray>자원 캐는 곳 · 보호 없음", "<gray>지옥 · 엔드는 포털로", "<yellow>우클릭: 다른 무작위 위치 <dark_gray>(야생월드에서)", "<dark_gray>{warmup}초 가만히 · 재사용 {cooldown}초"]
     t:
       action: "hub:suggest:tpa|suggest:tpahere"
       icon: stsv:gui/blank
       material: ENDER_PEARL
-      art: stsv:gui/pearl
+      art: hub:tp
       name: "<white>텔레포트 요청"
       lore: ["<gray>상대가 수락하면 이동", "<yellow>클릭: 가기 <dark_gray>· /tpa", "<yellow>우클릭: 내 쪽으로 부르기"]
     n:
       action: "command:야간투시"
       icon: stsv:gui/blank
       material: ENDER_EYE
-      art: stsv:gui/night_vision
+      art: hub:night
       name: "<white>야간 투시 <gray>· {night_vision}"
       lore: ["<gray>죽거나 나가도 유지", "<yellow>클릭: 켜기·끄기"]
     v:
       action: "command:탈것"
       icon: stsv:gui/blank
       material: MINECART
-      art: stsv:gui/don_car
+      art: hub:vehicle
       name: "<white>내 탈것"
       lore: ["<gray>내 탈것 목록", "<dark_gray>양도 · 함께 쓸 사람: /탈것"]
     w:
       action: "command:ㅆ"
       icon: stsv:gui/blank
       material: CAULDRON
-      art: stsv:gui/trash
+      art: hub:trash
       name: "<white>쓰레기통"
       lore: ["<gray>넣고 닫으면 사라짐", "<dark_gray>탈것·지게는 돌려받음 · /ㅆ"]
     h:
       action: "command:사이드바"
       icon: stsv:gui/blank
       material: PAPER
-      art: stsv:gui/ledger
+      art: hub:sidebar
       name: "<white>사이드바 켜기·끄기"
       lore: ["<gray>오른쪽 정보 패널", "<dark_gray>위치·크기: /사이드바"]
     s:
       action: "command:후원"
       icon: stsv:gui/blank
       material: NETHER_STAR
-      art: stsv:gui/star
+      art: hub:star
       name: "<white>후원 상점"
       lore: ["<gray>후원 재화(별)로 사는 꾸미기"]
     X:
       action: "hub:go:stsv:hub"
       icon: stsv:gui/blank
       material: ARROW
-      art: stsv:gui/back
+      art: hub:back
       name: "<white>뒤로"
       lore: ["<gray>통합 메뉴 첫 화면"]
 
@@ -246,7 +246,7 @@ hub_style:
       action: "command:치장"
       icon: stsv:gui/blank
       material: LEATHER_CHESTPLATE
-      art: stsv:gui/dress_up
+      art: hub:wardrobe
       label: "치장"
       accent: "#ba84f0"
       name: "<white>치장"
@@ -255,7 +255,7 @@ hub_style:
       action: "command:뽑기"
       icon: stsv:gui/blank
       material: SNOWBALL
-      art: stsv:gui/gacha
+      art: hub:gacha
       label: "치장뽑기"
       accent: "#ba84f0"
       name: "<white>치장 뽑기"
@@ -264,7 +264,7 @@ hub_style:
       action: "command:칭호"
       icon: stsv:gui/blank
       material: NAME_TAG
-      art: stsv:gui/tag
+      art: hub:title
       label: "칭호"
       accent: "#ba84f0"
       name: "<white>칭호"
@@ -273,7 +273,7 @@ hub_style:
       action: "hub:suggest:닉네임"
       icon: stsv:gui/blank
       material: WRITABLE_BOOK
-      art: stsv:gui/type
+      art: hub:nick
       label: "닉네임"
       accent: "#ba84f0"
       name: "<white>닉네임"
@@ -282,7 +282,7 @@ hub_style:
       action: "command:닉네임 색"
       icon: stsv:gui/blank
       material: RED_DYE
-      art: stsv:gui/tune_paint
+      art: hub:nickcolor
       label: "닉네임색"
       accent: "#ba84f0"
       name: "<white>닉네임 색"
@@ -291,7 +291,7 @@ hub_style:
       action: "command:감정표현"
       icon: stsv:gui/blank
       material: TOTEM_OF_UNDYING
-      art: stsv:gui/emote_cheer
+      art: hub:emote
       label: "감정표현"
       accent: "#ba84f0"
       name: "<white>감정표현"
@@ -300,7 +300,7 @@ hub_style:
       action: "command:투명갑옷"
       icon: stsv:gui/blank
       material: GLASS
-      art: stsv:gui/self_view
+      art: hub:hidearmor
       label: "투명갑옷"
       accent: "#ba84f0"
       name: "<white>투명갑옷"
@@ -309,7 +309,7 @@ hub_style:
       action: "command:후원"
       icon: stsv:gui/blank
       material: NETHER_STAR
-      art: stsv:gui/star
+      art: hub:donate
       label: "후원상점"
       accent: "#fad65c"
       name: "<white>후원 상점"
@@ -318,63 +318,63 @@ hub_style:
       action: "command:건축월드"
       icon: stsv:gui/blank
       material: BRICKS
-      art: stsv:gui/house
+      art: hub:build
       name: "<white>건축월드로"
       lore: ["<gray>땅을 사서 집 짓는 곳", "<dark_gray>{warmup}초 가만히"]
     Y:
       action: "hub:run:야생월드|run:rtp"
       icon: stsv:gui/blank
       material: OAK_SAPLING
-      art: stsv:gui/pine
+      art: hub:wild
       name: "<white>야생월드로"
       lore: ["<gray>자원 캐는 곳 · 보호 없음", "<gray>지옥 · 엔드는 포털로", "<yellow>우클릭: 다른 무작위 위치 <dark_gray>(야생월드에서)", "<dark_gray>{warmup}초 가만히 · 재사용 {cooldown}초"]
     t:
       action: "hub:suggest:tpa|suggest:tpahere"
       icon: stsv:gui/blank
       material: ENDER_PEARL
-      art: stsv:gui/pearl
+      art: hub:tp
       name: "<white>텔레포트 요청"
       lore: ["<gray>상대가 수락하면 이동", "<yellow>클릭: 가기 <dark_gray>· /tpa", "<yellow>우클릭: 내 쪽으로 부르기"]
     n:
       action: "command:야간투시"
       icon: stsv:gui/blank
       material: ENDER_EYE
-      art: stsv:gui/night_vision
+      art: hub:night
       name: "<white>야간 투시 <gray>· {night_vision}"
       lore: ["<gray>죽거나 나가도 유지", "<yellow>클릭: 켜기·끄기"]
     v:
       action: "command:탈것"
       icon: stsv:gui/blank
       material: MINECART
-      art: stsv:gui/don_car
+      art: hub:vehicle
       name: "<white>내 탈것"
       lore: ["<gray>내 탈것 목록", "<dark_gray>양도 · 함께 쓸 사람: /탈것"]
     w:
       action: "command:ㅆ"
       icon: stsv:gui/blank
       material: CAULDRON
-      art: stsv:gui/trash
+      art: hub:trash
       name: "<white>쓰레기통"
       lore: ["<gray>넣고 닫으면 사라짐", "<dark_gray>탈것·지게는 돌려받음 · /ㅆ"]
     h:
       action: "command:사이드바"
       icon: stsv:gui/blank
       material: PAPER
-      art: stsv:gui/ledger
+      art: hub:sidebar
       name: "<white>사이드바 켜기·끄기"
       lore: ["<gray>오른쪽 정보 패널", "<dark_gray>위치·크기: /사이드바"]
     s:
       action: "command:후원"
       icon: stsv:gui/blank
       material: NETHER_STAR
-      art: stsv:gui/star
+      art: hub:star
       name: "<white>후원 상점"
       lore: ["<gray>후원 재화(별)로 사는 꾸미기"]
     X:
       action: "hub:go:stsv:hub"
       icon: stsv:gui/blank
       material: ARROW
-      art: stsv:gui/back
+      art: hub:back
       name: "<white>뒤로"
       lore: ["<gray>통합 메뉴 첫 화면"]
 
@@ -428,62 +428,62 @@ hub_rank:
       action: "command:건축월드"
       icon: stsv:gui/blank
       material: BRICKS
-      art: stsv:gui/house
+      art: hub:build
       name: "<white>건축월드로"
       lore: ["<gray>땅을 사서 집 짓는 곳", "<dark_gray>{warmup}초 가만히"]
     Y:
       action: "hub:run:야생월드|run:rtp"
       icon: stsv:gui/blank
       material: OAK_SAPLING
-      art: stsv:gui/pine
+      art: hub:wild
       name: "<white>야생월드로"
       lore: ["<gray>자원 캐는 곳 · 보호 없음", "<gray>지옥 · 엔드는 포털로", "<yellow>우클릭: 다른 무작위 위치 <dark_gray>(야생월드에서)", "<dark_gray>{warmup}초 가만히 · 재사용 {cooldown}초"]
     t:
       action: "hub:suggest:tpa|suggest:tpahere"
       icon: stsv:gui/blank
       material: ENDER_PEARL
-      art: stsv:gui/pearl
+      art: hub:tp
       name: "<white>텔레포트 요청"
       lore: ["<gray>상대가 수락하면 이동", "<yellow>클릭: 가기 <dark_gray>· /tpa", "<yellow>우클릭: 내 쪽으로 부르기"]
     n:
       action: "command:야간투시"
       icon: stsv:gui/blank
       material: ENDER_EYE
-      art: stsv:gui/night_vision
+      art: hub:night
       name: "<white>야간 투시 <gray>· {night_vision}"
       lore: ["<gray>죽거나 나가도 유지", "<yellow>클릭: 켜기·끄기"]
     v:
       action: "command:탈것"
       icon: stsv:gui/blank
       material: MINECART
-      art: stsv:gui/don_car
+      art: hub:vehicle
       name: "<white>내 탈것"
       lore: ["<gray>내 탈것 목록", "<dark_gray>양도 · 함께 쓸 사람: /탈것"]
     w:
       action: "command:ㅆ"
       icon: stsv:gui/blank
       material: CAULDRON
-      art: stsv:gui/trash
+      art: hub:trash
       name: "<white>쓰레기통"
       lore: ["<gray>넣고 닫으면 사라짐", "<dark_gray>탈것·지게는 돌려받음 · /ㅆ"]
     h:
       action: "command:사이드바"
       icon: stsv:gui/blank
       material: PAPER
-      art: stsv:gui/ledger
+      art: hub:sidebar
       name: "<white>사이드바 켜기·끄기"
       lore: ["<gray>오른쪽 정보 패널", "<dark_gray>위치·크기: /사이드바"]
     s:
       action: "command:후원"
       icon: stsv:gui/blank
       material: NETHER_STAR
-      art: stsv:gui/star
+      art: hub:star
       name: "<white>후원 상점"
       lore: ["<gray>후원 재화(별)로 사는 꾸미기"]
     X:
       action: "hub:go:stsv:hub"
       icon: stsv:gui/blank
       material: ARROW
-      art: stsv:gui/back
+      art: hub:back
       name: "<white>뒤로"
       lore: ["<gray>통합 메뉴 첫 화면"]

@@ -62,6 +62,9 @@ def art(icon_id):
     """A big button's picture for the background: stsv:gui/<icon> from the icon set, or stsv:<item> from the core
     content's item textures (contents/stsv/textures/<item>.png)."""
     ns, path = icon_id.split(":", 1)
+    if ns == "hub":
+        # the 통합 메뉴's own icons, drawn by PixelLab and picked by eye (hub_art/icons: 24 px cards, 16 px bar)
+        return Image.open(Path(__file__).resolve().parent / "hub_art" / "icons" / f"{path}.png").convert("RGBA")
     if ns != "stsv":
         raise ValueError(f"core menus draw only stsv icons: {icon_id}")
     if path.startswith("gui/"):

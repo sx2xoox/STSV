@@ -172,14 +172,15 @@ def background(menu, art):
             _board(im, x + 3, by0, x + w - 4, y + h - 4, accent)
             words.append((x + w / 2, (by0 + y + h - 4) / 2 + 0.5, b.get("label", ""), 22, TEXT, TEXT_EDGE))
         else:
-            # a small card: the icon in a dark window, the name on a board
+            # a small card: the icon (24 px PixelLab art, or a 16 px one) in a dark window, the name on a board
             _frame_box(im, x, y, w, h)
-            _rect(im, x + 3, y + 3, x + w - 4, y + 20, BOARD)
-            _gold_corners(im, x + 2, y + 2, x + w - 3, y + 21)
+            _rect(im, x + 3, y + 2, x + w - 4, y + 25, BOARD)
+            _gold_corners(im, x + 2, y + 2, x + w - 3, y + 25)
             if art:
-                im.alpha_composite(art(b["art"]), (x + (w - 16) // 2, y + 4))
-            _board(im, x + 3, y + 22, x + w - 4, y + h - 3, accent)
-            words.append((x + w / 2, y + (22 + h - 3) / 2 + 0.5, b.get("label", ""), 15, TEXT, TEXT_EDGE))
+                pic = art(b["art"])
+                im.alpha_composite(pic, (x + (w - pic.width) // 2, y + 2 + (24 - pic.height) // 2))
+            _board(im, x + 3, y + 26, x + w - 4, y + h - 2, accent)
+            words.append((x + w / 2, y + (26 + h - 2) / 2 + 0.5, b.get("label", ""), 13, TEXT, TEXT_EDGE))
 
     if dock is not None:
         y = oy + 17 + 18 * dock
@@ -188,10 +189,13 @@ def background(menu, art):
         x0 = ox + 7 + 18 * min(used)
         _rect(im, x0, y, ox + 7 + 18 * (max(used) + 1) - 1, y + 17, INK)
         for c in used:
+            # each socket a pale 한지 panel in a wooden lattice, so the dark-outlined icons stand out
             cx = ox + 7 + 18 * c
-            _rect(im, cx + 1, y + 1, cx + 16, y + 16, (112, 74, 46) if c % 2 == 0 else (104, 68, 42))
-            _rect(im, cx + 1, y + 1, cx + 16, y + 1, (150, 104, 64))
-            _rect(im, cx + 1, y + 16, cx + 16, y + 16, (66, 42, 26))
+            _rect(im, cx + 1, y + 1, cx + 16, y + 16, WOOD)
+            _rect(im, cx + 2, y + 2, cx + 15, y + 15, (226, 210, 176))
+            _rect(im, cx + 2, y + 2, cx + 15, y + 2, (196, 176, 138))
+            _rect(im, cx + 2, y + 2, cx + 2, y + 15, (196, 176, 138))
+            _rect(im, cx + 3, y + 15, cx + 15, y + 15, (240, 228, 200))
             if c != max(used):
                 _rect(im, cx + 17, y + 1, cx + 17, y + 16, (54, 34, 22))
             b = buttons.get(row[c]) or {}
@@ -201,7 +205,7 @@ def background(menu, art):
             else:
                 _rect(im, cx, y, cx + 17, y + 17, GOLD)
                 _rect(im, cx, y, cx + 17, y, GOLD_L)
-                _rect(im, cx + 1, y + 1, cx + 16, y + 16, (60, 40, 26))
+                _rect(im, cx + 1, y + 1, cx + 16, y + 16, (226, 210, 176))
 
     # under the dock: a beam, then the player's inventory slots where the game puts them
     _dancheong(im, ox + 4, ox + T.W - 5, oy + 18 * rows + 21, 4)
