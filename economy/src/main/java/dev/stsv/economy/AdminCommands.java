@@ -33,6 +33,31 @@ final class AdminCommands {
         AdminRegistry admin = STSVPlugin.get().admin();
         EventModule events = eco.events();
 
+        add("기본템", "<제외|해제|확인> <플레이어>", "/기본템 을 이미 받은 것으로 치기 (손으로 먼저 준 사람) / 다시 받을 수 있게 / 받았는지 보기",
+                (s, args) -> {
+                    if (args.length < 2 || !List.of("제외", "해제", "확인").contains(args[0])) {
+                        s.sendMessage(Text.msg("<red>/관리자 기본템 <제외|해제|확인> <플레이어>"));
+                        return;
+                    }
+                    Players.find(args[1], found -> {
+                        if (found.isEmpty()) {
+                            s.sendMessage(Text.msg("<red>없는 플레이어"));
+                            return;
+                        }
+                        String key = "starter." + found.get();
+                        switch (args[0]) {
+                            case "제외" -> {
+                                eco.kv().set(key, System.currentTimeMillis());
+                                s.sendMessage(Text.msg("<green>" + args[1] + ": 기본템을 받은 것으로 처리했습니다 (/기본템 을 써도 받지 못함)"));
+                            }
+                            case "해제" -> {
+                                eco.kv().remove(key);
+                                s.sendMessage(Text.msg("<green>" + args[1] + ": /기본템 을 다시 받을 수 있습니다"));
+                            }
+                            default -> s.sendMessage(Text.msg(eco.kv().has(key) ? "<yellow>" + args[1] + ": 이미 받음 (또는 제외됨)" : "<gray>" + args[1] + ": 아직 안 받음"));
+                        }
+                    });
+                }, (s, args) -> args.length == 1 ? List.of("제외", "해제", "확인") : args.length == 2 ? Players.complete(s, args[1]) : List.of());
         add("땅기록", "<플레이어> [시간: 30m·6h·2d] ", "그 사람이 땅들에서 한 것 (땅마다 무엇을 얼마나, 최근 10줄). 기본: 기록을 남기는 기간 전체",
                 (s, args) -> eco.landLog().adminLog(s, args), (s, args) -> args.length == 1 ? dev.stsv.core.nickname.Names.complete(s, args[0])
                         : args.length == 2 ? List.of("1h", "6h", "1d", "7d") : List.of());
