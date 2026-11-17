@@ -222,7 +222,13 @@ public final class VanityModule extends EcoModule {
             d.addScoreboardTag(tag);
             d.setPersistent(false);
             d.setItemStack(head);
-            d.setTransformation(new Transformation(new Vector3f(), new AxisAngle4f(), new Vector3f(2.5f, 2.5f, 2.5f), new AxisAngle4f()));
+            // the player head's item definition turns its model half round the x axis (its transformation), which the
+            // contexts that show a head on a slot or in a frame make up for and an item display's own context does not:
+            // it hung upside down under its spot. Half a turn about the line of sight sets it upright again (face to
+            // the viewer as before). Upright the head (half a block, x 2.5) is drawn 0.5 .. 1 block over its spot: it is
+            // moved down 2.65 so it stands 1.4 .. 2.65 over the ground, over the plate
+            d.setTransformation(new Transformation(new Vector3f(0, -2.65f, 0), new AxisAngle4f((float) Math.PI, 0, 0, 1),
+                    new Vector3f(2.5f, 2.5f, 2.5f), new AxisAngle4f()));
             d.setBillboard(Display.Billboard.VERTICAL);
         });
         String date = DateTimeFormatter.ofPattern("yyyy.MM.dd").withZone(ZoneId.systemDefault()).format(Instant.ofEpochMilli(m.at()));
