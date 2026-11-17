@@ -33,7 +33,7 @@ public final class RiderPuppet {
     public static RiderPuppet mount(Plugin plugin, EmoteModule emotes, Entity mount, double lift, float yaw, PuppetSkin skin,
                                     EmoteRig.Pose pose, Set<UUID> never) {
         Puppet p = Puppet.mounted(plugin, emotes.puppetTag(), mount, lift, yaw, skin, pose, true, never);
-        return new RiderPuppet(p, mount, plugin.getConfig().getInt("emotes.view-distance", 48));
+        return new RiderPuppet(p, mount, plugin.getConfig().getInt("emotes.view-distance"));
     }
 
     /** Glides to a pose over ticks (only the faces that move are sent). */
