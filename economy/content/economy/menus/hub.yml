@@ -1,277 +1,476 @@
 # /메뉴, 웅크린 채 F (Shift+F): 통합 메뉴 (경제 서버판). 경제 플러그인이 켜져 있는 동안 코어의 stsv:hub 대신 열림.
-# 코어 판(contents/stsv/menus/hub.yml)의 버튼을 모두 담고 경제 기능을 더함 (같은 글자 = 같은 버튼).
-# 첫 화면은 카테고리 4개만 두고, 누르면 그 카테고리 화면(hub_*)으로 들어감. 각 화면의 뒤로 버튼은 첫 화면으로
-# (hub:go:stsv:hub, 경제가 켜져 있으면 이 메뉴가 열림).
-# 버튼 동작: command:<명령어>, close, hub:go:<메뉴>, hub:<왼쪽>|<오른쪽> (각각 run:<명령어> 또는 suggest:<명령어>)
-# 자리표시자: 코어 {player} {world} {balance} {title} {points} {cosmetics} {fee} {hotkey} {warmup} {cooldown} {night_vision}
+# 코어 판(contents/stsv/menus/hub.yml)의 버튼을 모두 담고 경제 기능을 더함.
+# 모든 화면이 6줄. 큰 버튼: art(배경에 그릴 아이콘) + label(배경에 쓸 이름)이 있는 버튼은 글자를 직사각형으로 반복해
+#   여러 칸을 덮고, 배경에 큰 타일로 그려짐(3줄 높이면 아이콘 2배). 칸에는 보이지 않는 아이템(stsv:gui/blank)이
+#   들어가 마우스를 올리면 이름·설명만 뜸. with: "P" = 타일 안에 다른 버튼(내 머리)이 함께 들어감.
+# 첫 화면은 카테고리, 누르면 그 카테고리 화면(hub_*). 각 화면의 뒤로(아래 가운데)는 첫 화면으로.
+# 버튼 동작: command:<명령어> (플레이어로 실행), close, hub:go:<메뉴> (통합 메뉴의 다른 화면),
+#            hub:<왼쪽>|<오른쪽>  각각 run:<명령어> 또는 suggest:<명령어> (닫고 채팅창에 "/명령어 " 넣기 안내)
+# 자리표시자: {player} {world} {balance} {title} {points} {cosmetics} {fee} {hotkey} {warmup} {cooldown} {night_vision}
 #             경제 {job} {level} {events} {land} {free}
 hub:
   title: "<#f0e2b0>통합 메뉴 <#8f86a6>· {world}"
-  rows: 3
+  rows: 6
   background: economy:gui/hub
   layout:
-    - "....P...."
-    - ".a.b.c.d."
-    - "....X...."
+    - "aaapppbbb"
+    - "aaapPpbbb"
+    - "aaapppbbb"
+    - "cccdddeee"
+    - "cccdddeee"
+    - "cccdddeee"
   buttons:
+    a:
+      action: "hub:go:economy:hub_travel"
+      icon: stsv:gui/blank
+      material: COMPASS
+      art: stsv:gui/compass
+      label: "이동·편의"
+      name: "<white>이동 · 편의"
+      lore: ["<gray>건축월드 · 야생월드 · 텔레포트", "<gray>야간 투시 · 탈것 · 쓰레기통", "", "<yellow>클릭: 열기"]
+    p:
+      action: "command:프로필"
+      icon: stsv:gui/blank
+      material: PAPER
+      label: "내 정보"
+      with: "P"
+      name: "<white>{player}"
+      lore: ["<gray>잔액 {balance}", "<gray>직업 <white>{job} <gray>Lv{level} · 땅 <white>{land}", "<gray>칭호 <white>{title} <dark_gray>· <gold>{points}점", "<yellow>클릭: 내 프로필 <dark_gray>· 단축키 {hotkey}"]
     P:
       action: "command:프로필"
       material: PLAYER_HEAD
       name: "<white>{player}"
-      lore:
-        - "<gray>잔액 {balance}"
-        - "<gray>직업 <white>{job} <gray>Lv{level} · 땅 <white>{land}"
-        - "<gray>칭호 <white>{title} <dark_gray>· <gold>{points}점"
-        - "<yellow>클릭: 내 프로필 <dark_gray>· 단축키 {hotkey}"
-    a:
-      action: "hub:go:economy:hub_travel"
-      icon: stsv:gui/compass
-      material: COMPASS
-      name: "<white>이동"
-      lore: ["<gray>건축월드 · 야생월드", "<gray>텔레포트 · 야간 투시", "", "<yellow>클릭: 열기"]
+      lore: ["<gray>잔액 {balance}", "<gray>직업 <white>{job} <gray>Lv{level} · 땅 <white>{land}", "<gray>칭호 <white>{title} <dark_gray>· <gold>{points}점", "<yellow>클릭: 내 프로필 <dark_gray>· 단축키 {hotkey}"]
     b:
-      action: "hub:go:economy:hub_market"
-      icon: economy:gui/cart
+      action: "hub:go:economy:hub_trade"
+      icon: stsv:gui/blank
       material: CHEST
-      name: "<white>돈 · 장터"
-      lore: ["<gray>잔액 {balance}", "<gray>상점 · 시세 · 거래소 · 경매", "<gray>직거래 · 우편함 · 주식 · 송금", "", "<yellow>클릭: 열기"]
+      art: economy:gui/cart
+      label: "거래"
+      name: "<white>거래"
+      lore: ["<gray>잔액 {balance}", "<gray>상점 · 시세 · 거래소 · 경매", "<gray>직거래 · 우편함 · 송금 · 수표", "", "<yellow>클릭: 열기"]
     c:
       action: "hub:go:economy:hub_work"
-      icon: economy:gui/pickaxe
+      icon: stsv:gui/blank
       material: IRON_PICKAXE
+      art: economy:gui/pickaxe
+      label: "일·땅"
       name: "<white>일 · 땅"
-      lore: ["<gray>직업 <white>{job} <gray>Lv{level}", "<gray>미션 · 의뢰 · 도감 · 땅", "<gray>사건 <white>{events}", "", "<yellow>클릭: 열기"]
+      lore: ["<gray>직업 <white>{job} <gray>Lv{level} · 땅 <white>{land}", "<gray>미션 · 의뢰 · 도감 · 주식", "<gray>사건 <white>{events}", "", "<yellow>클릭: 열기"]
     d:
-      action: "hub:go:economy:hub_me"
-      icon: stsv:gui/dress_up
+      action: "hub:go:economy:hub_style"
+      icon: stsv:gui/blank
       material: LEATHER_CHESTPLATE
-      name: "<white>꾸미기 · 기록"
-      lore: ["<gray>치장 · 뽑기 · 칭호", "<gray>업적 · 명예의 전당 · 순위", "", "<yellow>클릭: 열기"]
-    X:
-      action: close
-      icon: stsv:gui/exit
-      material: OAK_DOOR
-      name: "<red>닫기"
+      art: stsv:gui/dress_up
+      label: "꾸미기"
+      name: "<white>꾸미기"
+      lore: ["<gray>치장 <white>{cosmetics} <gray>· 칭호 <white>{title}", "<gray>뽑기 · 닉네임 · 감정표현", "<gray>투명갑옷 · 후원 상점", "", "<yellow>클릭: 열기"]
+    e:
+      action: "hub:go:economy:hub_rank"
+      icon: stsv:gui/blank
+      material: GOLDEN_HELMET
+      art: stsv:gui/trophy
+      label: "순위·기록"
+      name: "<white>순위 · 기록"
+      lore: ["<gray>업적 <gold>{points}점", "<gray>명예의 전당 · 주간 순위", "<gray>내 돈 · 부자 순위", "", "<yellow>클릭: 열기"]
 
 hub_travel:
-  title: "<#f0e2b0>통합 메뉴 <#8f86a6>· 이동"
-  rows: 2
+  title: "<#f0e2b0>통합 메뉴 <#8f86a6>· 이동 · 편의"
+  rows: 6
   background: economy:gui/hub_travel
   layout:
-    - ".B.Y.t.n."
-    - "....X...."
+    - "BBBYYYrrr"
+    - "BBBYYYrrr"
+    - "tttnnnvvv"
+    - "tttnnnvvv"
+    - "wwwXXXhhh"
+    - "wwwXXXhhh"
   buttons:
     B:
       action: "command:건축월드"
-      icon: stsv:gui/house
+      icon: stsv:gui/blank
       material: BRICKS
+      art: stsv:gui/house
+      label: "건축월드"
       name: "<white>건축월드로"
       lore: ["<gray>땅을 사서 집 짓는 곳", "<dark_gray>{warmup}초 가만히"]
     Y:
       action: "command:야생월드"
-      icon: stsv:gui/pine
+      icon: stsv:gui/blank
       material: OAK_SAPLING
+      art: stsv:gui/pine
+      label: "야생월드"
       name: "<white>야생월드로"
       lore: ["<gray>자원 채집 · 보호 없음 · 가끔 초기화", "<gray>무작위 위치로", "<gold>지옥·엔드: 죽어도 아이템 유지", "<dark_gray>{warmup}초 가만히 · 재사용 {cooldown}초"]
+    r:
+      action: "command:rtp"
+      icon: stsv:gui/blank
+      material: COMPASS
+      art: stsv:gui/refresh
+      label: "랜덤 이동"
+      name: "<white>야생월드 다른 곳으로"
+      lore: ["<gray>야생월드 안에서 무작위 위치로", "<dark_gray>야생월드에서만 · /rtp"]
     t:
       action: "hub:suggest:tpa|suggest:tpahere"
-      icon: stsv:gui/pearl
+      icon: stsv:gui/blank
       material: ENDER_PEARL
+      art: stsv:gui/pearl
+      label: "텔레포트"
       name: "<white>텔레포트 요청"
-      lore: ["<gray>상대가 수락하면 이동", "<yellow>우클릭: 내 쪽으로 부르기", "<dark_gray>/tpaccept · /tpdeny · /tpatoggle"]
+      lore: ["<gray>상대가 수락하면 이동", "<yellow>클릭: 가기 <dark_gray>· /tpa", "<yellow>우클릭: 내 쪽으로 부르기"]
     n:
       action: "command:야간투시"
-      icon: stsv:gui/night_vision
+      icon: stsv:gui/blank
       material: ENDER_EYE
+      art: stsv:gui/night_vision
+      label: "야간 투시"
       name: "<white>야간 투시 <gray>· {night_vision}"
       lore: ["<gray>죽거나 나가도 유지", "<yellow>클릭: 켜기·끄기"]
+    v:
+      action: "command:탈것"
+      icon: stsv:gui/blank
+      material: MINECART
+      art: stsv:gui/don_car
+      label: "탈것"
+      name: "<white>내 탈것"
+      lore: ["<gray>내 탈것 목록", "<dark_gray>양도 · 함께 쓸 사람: /탈것"]
+    w:
+      action: "command:ㅆ"
+      icon: stsv:gui/blank
+      material: CAULDRON
+      art: stsv:gui/trash
+      label: "쓰레기통"
+      name: "<white>쓰레기통"
+      lore: ["<gray>넣고 닫으면 사라짐", "<dark_gray>탈것·지게는 돌려받음 · /ㅆ"]
+    h:
+      action: "command:사이드바"
+      icon: stsv:gui/blank
+      material: PAPER
+      art: stsv:gui/ledger
+      label: "사이드바"
+      name: "<white>사이드바 켜기·끄기"
+      lore: ["<gray>오른쪽 정보 패널", "<dark_gray>위치·크기: /사이드바"]
     X:
       action: "hub:go:stsv:hub"
-      icon: stsv:gui/back
+      icon: stsv:gui/blank
       material: ARROW
+      art: stsv:gui/back
+      label: "뒤로"
       name: "<white>뒤로"
       lore: ["<gray>통합 메뉴 첫 화면"]
 
-hub_market:
-  title: "<#f0e2b0>통합 메뉴 <#8f86a6>· 돈 · 장터"
-  rows: 3
-  background: economy:gui/hub_market
+hub_trade:
+  title: "<#f0e2b0>통합 메뉴 <#8f86a6>· 거래"
+  rows: 6
+  background: economy:gui/hub_trade
   layout:
-    - ".ACDEFGH."
-    - "...UVW..."
-    - "....X...."
+    - "AAACCCDDD"
+    - "AAACCCDDD"
+    - "EEEFFFGGG"
+    - "EEEFFFGGG"
+    - "VVVXXXWWW"
+    - "VVVXXXWWW"
   buttons:
     A:
       action: "command:상점"
-      icon: economy:gui/cart
+      icon: stsv:gui/blank
       material: CHEST
+      art: economy:gui/cart
+      label: "상점"
       name: "<#ff5f57>상점"
       lore: ["<gray>물건 사기 · 팔기"]
     C:
       action: "command:시세"
-      icon: economy:gui/chart
+      icon: stsv:gui/blank
       material: PAPER
+      art: economy:gui/chart
+      label: "시세"
       name: "<white>시세"
       lore: ["<gray>오늘 매입가 · 24시간 변화"]
     D:
       action: "hub:run:거래소|run:거래소 등록"
-      icon: economy:gui/bag
+      icon: stsv:gui/blank
       material: WRITABLE_BOOK
+      art: economy:gui/bag
+      label: "거래소"
       name: "<white>거래소"
       lore: ["<gray>값을 정해 사고파는 장터", "<yellow>우클릭: 판매 등록"]
     E:
       action: "hub:run:경매|run:경매 등록"
-      icon: economy:gui/hammer
+      icon: stsv:gui/blank
       material: ANVIL
+      art: economy:gui/hammer
+      label: "경매"
       name: "<white>경매"
       lore: ["<gray>공개 입찰", "<yellow>우클릭: 경매 등록"]
     F:
       action: "hub:suggest:거래"
-      icon: economy:gui/trade
+      icon: stsv:gui/blank
       material: EMERALD
+      art: economy:gui/trade
+      label: "직거래"
       name: "<white>직거래"
       lore: ["<gray>물건·돈 맞바꾸기", "<dark_gray>/거래 <플레이어>"]
     G:
       action: "command:우편함"
-      icon: economy:gui/mail
+      icon: stsv:gui/blank
       material: PAPER
+      art: economy:gui/mail
+      label: "우편함"
       name: "<white>우편함"
       lore: ["<gray>낙찰품 · 만료품 · 넘친 물건"]
-    H:
-      action: "hub:run:주식|run:주식 뉴스"
-      icon: economy:gui/candles
-      material: MAP
-      name: "<white>주식"
-      lore: ["<gray>회사 주식 사고팔기", "<yellow>우클릭: 뉴스"]
-    U:
-      action: "hub:run:돈|run:돈 순위"
-      icon: stsv:gui/coins
-      material: GOLD_INGOT
-      name: "<white>잔액: {balance}"
-      lore: ["<yellow>우클릭: 부자 순위"]
     V:
       action: "hub:suggest:송금"
-      icon: stsv:gui/send
+      icon: stsv:gui/blank
       material: GOLD_NUGGET
+      art: stsv:gui/send
+      label: "송금"
       name: "<white>송금"
-      lore: ["<gray>수수료 {fee}%", "<dark_gray>/송금 <플레이어> <금액>"]
+      lore: ["<gray>잔액 {balance}", "<gray>수수료 {fee}%", "<dark_gray>/송금 <플레이어> <금액>"]
     W:
       action: "hub:suggest:수표"
-      icon: stsv:cheque
+      icon: stsv:gui/blank
       material: PAPER
+      art: stsv:cheque
+      label: "수표"
       name: "<white>수표"
       lore: ["<gray>돈을 수표로 꺼내기", "<dark_gray>/수표 <금액>"]
     X:
       action: "hub:go:stsv:hub"
-      icon: stsv:gui/back
+      icon: stsv:gui/blank
       material: ARROW
+      art: stsv:gui/back
+      label: "뒤로"
       name: "<white>뒤로"
       lore: ["<gray>통합 메뉴 첫 화면"]
 
 hub_work:
   title: "<#f0e2b0>통합 메뉴 <#8f86a6>· 일 · 땅"
-  rows: 2
+  rows: 6
   background: economy:gui/hub_work
   layout:
-    - ".IJKLMNO."
-    - "....X...."
+    - "IIIJJJKKK"
+    - "IIIJJJKKK"
+    - "LLLMMMNNN"
+    - "LLLMMMNNN"
+    - "HHHXXXOOO"
+    - "HHHXXXOOO"
   buttons:
     I:
       action: "hub:run:직업|run:직업 순위"
-      icon: economy:gui/pickaxe
+      icon: stsv:gui/blank
       material: IRON_PICKAXE
+      art: economy:gui/pickaxe
+      label: "직업"
       name: "<white>직업"
       lore: ["<gray>지금 <white>{job} <gray>Lv{level}", "<yellow>우클릭: 직업 순위"]
     J:
       action: "command:미션"
-      icon: economy:gui/checklist
+      icon: stsv:gui/blank
       material: WRITABLE_BOOK
+      art: economy:gui/checklist
+      label: "미션"
       name: "<white>미션"
       lore: ["<gray>일일 · 주간 미션"]
     K:
       action: "command:의뢰"
-      icon: economy:gui/scroll
+      icon: stsv:gui/blank
       material: PAPER
+      art: economy:gui/scroll
+      label: "의뢰"
       name: "<white>의뢰"
       lore: ["<gray>모아서 납품하고 보상"]
     L:
       action: "command:도감"
-      icon: economy:gui/book
+      icon: stsv:gui/blank
       material: BOOK
+      art: economy:gui/book
+      label: "도감"
       name: "<white>도감"
       lore: ["<gray>물건을 1개씩 내고 등록"]
     M:
       action: "hub:run:땅|run:땅 보기"
-      icon: economy:gui/flag
+      icon: stsv:gui/blank
       material: GRASS_BLOCK
+      art: economy:gui/flag
+      label: "땅"
       name: "<white>땅"
       lore: ["<gray>내 땅 <white>{land}", "<gray>처음 {free}청크 무료", "<yellow>우클릭: 경계 보기"]
     N:
       action: "hub:run:납품|suggest:기부"
-      icon: economy:gui/alert
+      icon: stsv:gui/blank
       material: BELL
+      art: economy:gui/alert
+      label: "사건"
       name: "<white>사건"
       lore: ["<gray>진행 중 <white>{events}", "<yellow>클릭: 긴급 납품", "<yellow>우클릭: 세무 조사 기부"]
+    H:
+      action: "hub:run:주식|run:주식 뉴스"
+      icon: stsv:gui/blank
+      material: MAP
+      art: economy:gui/candles
+      label: "주식"
+      name: "<white>주식"
+      lore: ["<gray>회사 주식 사고팔기", "<yellow>우클릭: 뉴스"]
     O:
       action: "command:기념비"
-      icon: economy:gui/monument
+      icon: stsv:gui/blank
       material: LODESTONE
+      art: economy:gui/monument
+      label: "기념비"
       name: "<white>기념비"
       lore: ["<gray>주간 1위 건립권"]
     X:
       action: "hub:go:stsv:hub"
-      icon: stsv:gui/back
+      icon: stsv:gui/blank
       material: ARROW
+      art: stsv:gui/back
+      label: "뒤로"
       name: "<white>뒤로"
       lore: ["<gray>통합 메뉴 첫 화면"]
 
-hub_me:
-  title: "<#f0e2b0>통합 메뉴 <#8f86a6>· 꾸미기 · 기록"
-  rows: 2
-  background: economy:gui/hub_me
+hub_style:
+  title: "<#f0e2b0>통합 메뉴 <#8f86a6>· 꾸미기"
+  rows: 6
+  background: economy:gui/hub_style
   layout:
-    - ".QgR.STZ."
-    - "....X...."
+    - "QQQgggRRR"
+    - "QQQgggRRR"
+    - "kkkcccmmm"
+    - "kkkcccmmm"
+    - "iiiXXXsss"
+    - "iiiXXXsss"
   buttons:
     Q:
       action: "command:치장"
-      icon: stsv:gui/dress_up
+      icon: stsv:gui/blank
       material: LEATHER_CHESTPLATE
+      art: stsv:gui/dress_up
+      label: "치장"
       name: "<white>치장"
       lore: ["<gray>모자·날개·펫 꾸미기", "<gray>보유 <white>{cosmetics}"]
     g:
       action: "command:뽑기"
-      icon: stsv:gui/gacha
+      icon: stsv:gui/blank
       material: SNOWBALL
+      art: stsv:gui/gacha
+      label: "치장 뽑기"
       name: "<white>치장 뽑기"
       lore: ["<gray>무작위 치장 1개", "<dark_gray>가진 치장은 교환권으로"]
     R:
       action: "command:칭호"
-      icon: stsv:gui/tag
+      icon: stsv:gui/blank
       material: NAME_TAG
+      art: stsv:gui/tag
+      label: "칭호"
       name: "<white>칭호"
       lore: ["<gray>지금 <white>{title}"]
+    k:
+      action: "hub:suggest:닉네임"
+      icon: stsv:gui/blank
+      material: WRITABLE_BOOK
+      art: stsv:gui/type
+      label: "닉네임"
+      name: "<white>닉네임"
+      lore: ["<gray>한글 닉네임 정하기·바꾸기", "<dark_gray>/닉네임 <이름>"]
+    c:
+      action: "command:닉네임 색"
+      icon: stsv:gui/blank
+      material: RED_DYE
+      art: stsv:gui/tune_paint
+      label: "닉네임 색"
+      name: "<white>닉네임 색"
+      lore: ["<gray>채팅·머리 위 이름 색"]
+    m:
+      action: "command:감정표현"
+      icon: stsv:gui/blank
+      material: TOTEM_OF_UNDYING
+      art: stsv:gui/emote_cheer
+      label: "감정표현"
+      name: "<white>감정표현"
+      lore: ["<gray>가진 감정표현 휠"]
+    i:
+      action: "command:투명갑옷"
+      icon: stsv:gui/blank
+      material: GLASS
+      art: stsv:gui/self_view
+      label: "투명갑옷"
+      name: "<white>투명갑옷"
+      lore: ["<gray>내 갑옷 숨기기 · 방어력 그대로", "<yellow>클릭: 켜기·끄기"]
+    s:
+      action: "command:후원"
+      icon: stsv:gui/blank
+      material: NETHER_STAR
+      art: stsv:gui/star
+      label: "후원 상점"
+      name: "<white>후원 상점"
+      lore: ["<gray>후원 재화(별)로 사는 꾸미기"]
+    X:
+      action: "hub:go:stsv:hub"
+      icon: stsv:gui/blank
+      material: ARROW
+      art: stsv:gui/back
+      label: "뒤로"
+      name: "<white>뒤로"
+      lore: ["<gray>통합 메뉴 첫 화면"]
+
+hub_rank:
+  title: "<#f0e2b0>통합 메뉴 <#8f86a6>· 순위 · 기록"
+  rows: 6
+  background: economy:gui/hub_rank
+  layout:
+    - "SSSTTTZZZ"
+    - "SSSTTTZZZ"
+    - "SSSTTTZZZ"
+    - "........."
+    - "UUUXXXuuu"
+    - "UUUXXXuuu"
+  buttons:
     S:
       action: "hub:run:업적|run:업적 순위"
-      icon: stsv:gui/trophy
+      icon: stsv:gui/blank
       material: GOLDEN_HELMET
+      art: stsv:gui/trophy
+      label: "업적"
       name: "<white>업적"
       lore: ["<gray>점수 <gold>{points}점", "<yellow>우클릭: 업적 순위"]
     T:
       action: "command:명예의전당"
-      icon: stsv:gui/crown
+      icon: stsv:gui/blank
       material: GOLDEN_HELMET
+      art: stsv:gui/crown
+      label: "명예의전당"
       name: "<white>명예의 전당"
       lore: ["<gray>지난 기간 상위 기록"]
     Z:
       action: "hub:run:순위|run:순위 자산"
-      icon: stsv:gui/podium
+      icon: stsv:gui/blank
       material: GOLD_BLOCK
-      name: "<white>순위"
+      art: stsv:gui/podium
+      label: "주간 순위"
+      name: "<white>주간 순위"
       lore: ["<gray>이번 주 번 돈", "<yellow>우클릭: 순자산 순위"]
+    U:
+      action: "command:돈"
+      icon: stsv:gui/blank
+      material: GOLD_INGOT
+      art: stsv:gui/coins
+      label: "내 돈"
+      name: "<white>잔액: {balance}"
+      lore: ["<gray>내 돈 (채팅에 표시)"]
+    u:
+      action: "command:돈 순위"
+      icon: stsv:gui/blank
+      material: GOLD_BLOCK
+      art: stsv:gui/podium
+      label: "부자 순위"
+      name: "<white>부자 순위"
+      lore: ["<gray>잔액이 많은 플레이어"]
     X:
       action: "hub:go:stsv:hub"
-      icon: stsv:gui/back
+      icon: stsv:gui/blank
       material: ARROW
+      art: stsv:gui/back
+      label: "뒤로"
       name: "<white>뒤로"
       lore: ["<gray>통합 메뉴 첫 화면"]

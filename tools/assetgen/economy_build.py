@@ -201,7 +201,7 @@ def gui_sheet(G, menus, path, scale=2, only=None, cols=4):
     gui = {"stsv": U.icons(), NS: {name: fn() for name, fn in E.GUI.items()}}
     find = P.lookup(gui, {NS: textures, "stsv": REPO / "content" / "stsv" / "textures"})
     keys = [k for k in (only or menus) if menus[k].get("background")]
-    ims = [P.render(menus[k], find, samples) for k in keys]
+    ims = [P.render(menus[k], find, samples, G.art) for k in keys]
     P.sheet(ims, path, cols=cols, scale=scale)
 
 

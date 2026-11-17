@@ -67,8 +67,9 @@ def lookup(gui_icons, textures):
     return find
 
 
-def render(spec, find, samples=()):
-    im = T.background(spec)
+def render(spec, find, samples=(), art=None):
+    """art: icon id -> image, for big buttons (stsv_assets/menu_theme.py)."""
+    im = T.background(spec, art)
     lst = spec.get("list")
     inset = set(spec.get("inset", "") or "")
     buttons = spec.get("buttons") or {}

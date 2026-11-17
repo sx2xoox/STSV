@@ -626,8 +626,26 @@ def _compass():
     return draw(rows)
 
 
+TRASH = [
+    "",
+    "......SSSS......",
+    "......S..S......",
+    "..############..",
+    "..ssssssssssss..",
+    "...##########...",
+    "...#s##s##s#s...",
+    "...#s##s##s#s...",
+    "...#s##s##s#s...",
+    "...#s##s##s#s...",
+    "...#s##s##s#s...",
+    "...#s##s##s#s...",
+    "...#s##s##s#s...",
+    "...ssssssssss...",
+]
+
+
 def hub_icons():
-    return {"gacha": _gacha(), "pearl": _pearl(), "compass": _compass(), "house": draw(HOUSE), "pine": draw(PINE), "tag": draw(TAG), "podium": draw(PODIUM), "send": draw(SEND),
+    return {"gacha": _gacha(), "pearl": _pearl(), "compass": _compass(), "trash": draw(TRASH), "house": draw(HOUSE), "pine": draw(PINE), "tag": draw(TAG), "podium": draw(PODIUM), "send": draw(SEND),
             "trade": draw(TRADE), "mail": draw(MAIL), "pickaxe": draw(PICKAXE), "checklist": draw(CHECKLIST),
             "scroll": draw(SCROLL), "book": draw(BOOK), "flag": draw(FLAG), "alert": draw(ALERT), "monument": draw(MONUMENT),
             "candles": _candles()}

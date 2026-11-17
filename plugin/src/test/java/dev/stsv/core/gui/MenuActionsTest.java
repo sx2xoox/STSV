@@ -77,8 +77,8 @@ class MenuActionsTest {
     @Test
     void theHubHasMyInfoInTheMiddleOfASymmetricTopRow() throws Exception {
         MenuSpec hub = menus().stream().filter(m -> m.id().equals(HubModule.MENU)).findFirst().orElseThrow();
-        String top = hub.layout().getFirst();
-        assertEquals("PLAYER_HEAD", hub.buttons().get(top.charAt(4)).on().material(), "my info in the middle");
+        // my info: the player's head in the middle of the top-centre tile (row 2, column 5)
+        assertEquals("PLAYER_HEAD", hub.buttons().get(hub.layout().get(1).charAt(4)).on().material(), "my info in the middle");
         for (String row : hub.layout()) {
             String used = row.replaceAll("[^.]", "#");
             assertEquals(new StringBuilder(used).reverse().toString(), used, row + " is symmetric");

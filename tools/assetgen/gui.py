@@ -54,6 +54,21 @@ def icons():
     return {n: every[n] for n in CORE_ICONS}
 
 
+# a button item nothing is drawn for (the big hub buttons: the background shows the button, the item only the tooltip)
+BLANK = "blank"
+
+
+def art(icon_id):
+    """A big button's picture for the background: stsv:gui/<icon> from the icon set, or stsv:<item> from the core
+    content's item textures (contents/stsv/textures/<item>.png)."""
+    ns, path = icon_id.split(":", 1)
+    if ns != "stsv":
+        raise ValueError(f"core menus draw only stsv icons: {icon_id}")
+    if path.startswith("gui/"):
+        return U.icons()[path[4:]]
+    return Image.open(MENUS_DIR.parent / "textures" / f"{path}.png").convert("RGBA")
+
+
 def write(content_pack: Path):
     """Backgrounds of the menus that name one, button items (texture + model + definition) and the
     language files that blank the inventory label. Item textures must live under textures/item/."""
@@ -67,7 +82,7 @@ def write(content_pack: Path):
         bg = spec.get("background")
         if bg and bg.startswith("stsv:gui/"):
             name = bg.split("/", 1)[1]
-            backgrounds[name] = T.background(spec)
+            backgrounds[name] = T.background(spec, art)
     for f in folders["bg"].iterdir():
         if f.is_file() and f.stem not in backgrounds:
             f.unlink()
@@ -77,7 +92,7 @@ def write(content_pack: Path):
     ics = icons()
     keep = {"tex": {f"{n}.png" for n in ics} | {f"{LOCKED}.png", f"{LOCKED}_mark.png"} | set(SWATCH_FILES),
             "model": {f"{n}.json" for n in ics} | {f"{LOCKED}.json", f"{SWATCH}.json"},
-            "def": {f"{n}.json" for n in ics} | {f"{LOCKED}.json", f"{SWATCH}.json"}}
+            "def": {f"{n}.json" for n in ics} | {f"{LOCKED}.json", f"{SWATCH}.json", f"{BLANK}.json"}}
     for k, names in keep.items():
         for f in folders[k].iterdir():
             if f.is_file() and f.name not in names:
@@ -108,6 +123,7 @@ def write(content_pack: Path):
         {"type": "minecraft:custom_model_data", "index": 1, "default": 0xFFFFFF},
         {"type": "minecraft:constant", "value": -1}]}}
     (folders["def"] / f"{SWATCH}.json").write_text(json.dumps(definition, indent=2))
+    (folders["def"] / f"{BLANK}.json").write_text(json.dumps({"model": {"type": "minecraft:empty"}}, indent=2))
     emote_hud(assets)
     T.lang_files(content_pack / "assets")
     return backgrounds, ics
@@ -156,7 +172,7 @@ def preview(path: Path, scale=3):
     textures = MENUS_DIR.parent / "textures"
     samples = [Image.open(p).convert("RGBA").resize((16, 16), Image.NEAREST) for p in sorted(textures.glob("*.png"))]
     find = P.lookup({"stsv": U.icons()}, {"stsv": textures})
-    ims = [P.render(spec, find, samples) for spec in specs.values()]
+    ims = [P.render(spec, find, samples, art) for spec in specs.values()]
     canvas = Image.new("RGBA", (len(ims) * (T.W + 8) + 8, max(i.height for i in ims) + 16), (32, 34, 40, 255))
     for k, im in enumerate(ims):
         canvas.alpha_composite(im, (8 + k * (T.W + 8), 8))

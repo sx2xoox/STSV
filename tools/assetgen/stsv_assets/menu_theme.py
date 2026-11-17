@@ -10,6 +10,9 @@ menu always agree:
     (machine lanes: inputs -> state -> result)
   - `wheel: "abcdefg"`: those buttons sit on a round dial (the emote wheel): a dark disc with a gold rim, a spoke
     between two neighbours, a round socket under each button and a hub round the last letter (the middle one)
+  - big buttons: a button with `art` (an icon id) and `label` covers a rectangle of cells (its letter repeated) and is
+    drawn as one big raised tile with that icon (twice its size when the tile is 3 rows high or more) and the label
+    under it in Galmuri9; the slots themselves hold an invisible item (stsv:gui/blank) that only gives the tooltip
   - empty cells: plain panel, nothing drawn
 No light strip for the client's "Inventory" label: the core resource pack blanks container.inventory
 (content/stsv/assets/minecraft/lang), and a divider marks where the player's inventory starts.
@@ -132,8 +135,88 @@ def wheel(im, cells):
     _disc(im, cx, cy, 9.5, SLOT)
 
 
-def background(menu):
-    """menu: rows, layout, list, buttons (keys), inset (chars), graph, flow."""
+LABEL = (240, 232, 206)
+LABEL_SHADOW = (22, 24, 28)
+_FONT = None
+
+
+def _font():
+    global _FONT
+    if _FONT is None:
+        import galmuri
+        _FONT = galmuri.load(9)
+    return _FONT
+
+
+def text_width(s):
+    f = _font()
+    return sum(f[ord(ch)][0] for ch in s) - 1 if s else 0
+
+
+def text(im, x, y, s, colour, shadow=None):
+    """Galmuri9 text, its cap line at y (Hangul fills about y .. y + 9)."""
+    f = _font()
+    base = y + 9
+    px = im.load()
+    for ox, oy, c in (((1, 1, shadow),) if shadow else ()) + ((0, 0, colour),):
+        cx = x
+        for ch in s:
+            advance, xo, yo, bits = f[ord(ch)]
+            top = base - (yo + len(bits))
+            for r, row in enumerate(bits):
+                for k, on in enumerate(row):
+                    if on:
+                        X, Y = cx + xo + k + ox, top + r + oy
+                        if 0 <= X < im.width and 0 <= Y < im.height:
+                            px[X, Y] = c + (255,)
+            cx += advance
+
+
+def big_tile(im, x, y, w, h, art, label):
+    """A big button over w x h px of cells: a raised tile with a gold cap line, the icon centred (2x when the tile
+    is 54 px high or more) and the label under it."""
+    _rect(im, x, y, x + w, y + h, TILE_RIM)
+    _bevel(im, x + 1, y + 1, w - 2, h - 2, TILE_LIGHT, TILE_DARK, fill=TILE)
+    _rect(im, x + 3, y + 2, x + w - 3, y + 3, GOLD_DIM)
+    scale = 2 if h >= 54 else 1
+    icon = art.resize((art.width * scale, art.height * scale), Image.NEAREST) if art is not None else None
+    ih = icon.height if icon else 0
+    gap = 3 if scale == 2 else 2
+    th = 10 if label else 0
+    top = y + (h - ih - (gap + th if label else 0)) // 2 + 1
+    if icon is None:
+        # no drawn icon: an item sits in the middle cell of the tile, the label goes under that cell
+        top, ih, gap = y + 18 * ((h // 18) // 2 + 1) + 3, 0, 0
+    if icon:
+        # a soft dark plate behind the icon so it reads on the tile
+        im.alpha_composite(icon, (x + (w - icon.width) // 2, top))
+    if label:
+        tw = text_width(label)
+        text(im, x + (w - tw) // 2, top + ih + gap, label, LABEL, LABEL_SHADOW)
+
+
+def _big_cells(menu):
+    """letter -> (column, row, columns, rows) of every big button (one with `art`), checked to be a full rectangle."""
+    out = {}
+    buttons = menu.get("buttons", {}) or {}
+    for ch, b in buttons.items():
+        if not isinstance(b, dict) or not (b.get("art") or b.get("label")):
+            continue
+        # `with: "P"`: other letters inside the tile (a real item shown in it, e.g. the player's head)
+        cells = [(r, c) for r, row in enumerate(menu["layout"]) for c, x in enumerate(row) if x == ch or x in b.get("with", "")]
+        if not cells:
+            continue
+        r0, r1 = min(r for r, _ in cells), max(r for r, _ in cells)
+        c0, c1 = min(c for _, c in cells), max(c for _, c in cells)
+        if len(cells) != (r1 - r0 + 1) * (c1 - c0 + 1):
+            raise ValueError(f"big button {ch} is not a rectangle of cells")
+        out[ch] = (c0, r0, c1 - c0 + 1, r1 - r0 + 1)
+    return out
+
+
+def background(menu, art=None):
+    """menu: rows, layout, list, buttons (keys), inset (chars), graph, flow. art: icon id -> 16 x 16 image, for
+    big buttons."""
     rows = menu["rows"]
     H = height(rows)
     im = Image.new("RGBA", (W, H), (0, 0, 0, 0))
@@ -165,10 +248,16 @@ def background(menu):
     if dial:
         where = {ch: (r, c) for r, row in enumerate(layout) for c, ch in enumerate(row)}
         wheel(im, [where[ch] for ch in dial if ch in where])
+    big = _big_cells(menu)
+    for ch, (c0, r0, cw, rh) in big.items():
+        b = menu["buttons"][ch]
+        icon = art(b["art"]) if art and b.get("art") else None
+        big_tile(im, 7 + 18 * c0, 17 + 18 * r0, 18 * cw, 18 * rh, icon, b.get("label", ""))
+    covered = set(big) | {x for ch in big for x in (menu["buttons"][ch].get("with", "") or "")}
     for r, row in enumerate(layout):
         for c, ch in enumerate(row):
             x, y = 7 + 18 * c, 17 + 18 * r
-            if ch in secret or ch in dial:
+            if ch in secret or ch in dial or ch in covered:
                 continue
             if (lst and ch == lst) or ch in inset:
                 slot(im, x, y)

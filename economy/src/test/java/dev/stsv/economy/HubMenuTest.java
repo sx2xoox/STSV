@@ -105,6 +105,8 @@ class HubMenuTest {
         }
         // the first screen stays short: the categories, the rest one step in
         if (eco.getFirst().buttons().size() > 7) problems.add("economy:hub: too many buttons on the first screen");
+        // every page keeps the full six rows (bigger buttons, not a smaller screen)
+        for (MenuSpec page : eco) if (page.rows() != 6) problems.add(page.id() + ": not six rows");
         assertTrue(problems.isEmpty(), String.join("\n", problems));
     }
 }

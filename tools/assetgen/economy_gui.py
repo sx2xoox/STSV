@@ -12,8 +12,21 @@ import yaml
 from stsv_assets import menu_theme
 
 
+def art(icon_id):
+    """A big button's picture: stsv:gui/<icon> or stsv:<item> (core), economy:gui/<icon> or economy:<item> (economy)."""
+    import gui
+    ns, path = icon_id.split(":", 1)
+    if ns == "stsv":
+        return gui.art(icon_id)
+    if path.startswith("gui/"):
+        import economy_icons as E
+        return E.GUI[path[4:]]()
+    from PIL import Image
+    return Image.open(Path(__file__).resolve().parents[2] / "economy/content/economy/textures" / f"{path}.png").convert("RGBA")
+
+
 def background(menu):
-    return menu_theme.background(menu)
+    return menu_theme.background(menu, art)
 
 
 def menus(pack: Path):
