@@ -39,7 +39,9 @@ public final class FunPhysics {
     /** Ticks a popped balloon chair stands on the ground before its balloons are blown up again. */
     public static final int REFILL_TICKS = 100;
     /** How far the bucking rider leans per tick holding A or D (balance units: 1 = thrown). */
-    public static final double CORRECT = 0.035;
+    public static final double CORRECT = 0.04;
+    /** How fast an off-centre rider slides further over by their own weight (a share of their balance a tick). */
+    public static final double TIP_OVER = 0.025;
     /** No toss in the first ticks after a rider got on. */
     public static final int TOSS_GRACE = 60;
 
@@ -77,6 +79,167 @@ public final class FunPhysics {
         public boolean landed, launched, thrown;
         public double fell;
         public double topY;
+        /** buck: the bull's move now, ticks of it left, ticks to the next, its way (+1 / -1) */
+        public Move move = Move.CALM;
+        public int moveLeft, gap, way;
+        /** tip: ticks steered fully at speed; a tumble's ticks left and how far it rolls over (degrees: 90 its side, 180 upside down) */
+        public int hardTurn, tumble;
+        public double tumbleRoll;
+        /** the segway: ticks spun on the spot (it speeds up), how dizzy the rider is (0..1) */
+        public int spinRun;
+        public double dizzy;
+        /** the banana boat's heel (degrees, + = to the left) and how fast it swings */
+        public double roll, rollVel;
+        /** the duck: quick squeaks in a row, when the last one was (ticks), ticks of its squash left */
+        public int tootCombo, squash;
+        public long lastToot = Long.MIN_VALUE / 2;
+        /** free flight: its climb now (blocks/s) */
+        public double freeVy;
+        /** the skateboard: windmilling (0..1), clean landings in a row */
+        public double wobble;
+        public int tricks;
+        /** keys asked of a free flyer this tick (space, Ctrl / looking down) */
+        public boolean up, down;
+        /** the kick scooter's kick (its phase 0..1, 0 = none), ticks of a squat left (landing), of the bull's victory */
+        public double kick;
+        public int crouchLeft, victory;
+        /** events: tipped over, overloaded, bailed, crashed (this tick) */
+        public boolean tipped, overload;
+    }
+
+    // ------------------------------------------------------------------------------------------
+    // Tumbles: tipping over, crashing, the spring flopping
+    // ------------------------------------------------------------------------------------------
+
+    /** A tumble lasts this long: it falls over, lies there, rights itself. */
+    public static final int TUMBLE_TICKS = 50;
+    /** Ticks it takes to fall over, and to right itself at the end. */
+    static final int FALL_TICKS = 6, RIGHT_TICKS = 10;
+
+    /**
+     * The kick scooter's tip: steered fully ({@code steer} +-1) at the tip speed or faster for the tip's ticks in a row.
+     * Counts the ticks in the state; true when it goes over now.
+     */
+    public static boolean tipping(State fs, FunSpec.Tip t, int steer, double speed) {
+        fs.hardTurn = steer != 0 && Math.abs(speed) >= t.speed() ? fs.hardTurn + 1 : 0;
+        return fs.hardTurn >= t.ticks();
+    }
+
+    /** Starts a tumble rolling over by roll degrees (+ = onto its left side). */
+    public static void tumble(State fs, double roll) {
+        fs.tumble = TUMBLE_TICKS;
+        fs.tumbleRoll = roll;
+        fs.hardTurn = 0;
+    }
+
+    /** How far over it is now (degrees): falling with a bounce, lying, getting up again. */
+    public static double tumbleAngle(State fs) {
+        if (fs.tumble <= 0) return 0;
+        int done = TUMBLE_TICKS - fs.tumble;
+        double r = fs.tumbleRoll;
+        if (done < FALL_TICKS) {
+            double k = (done + 1.0) / FALL_TICKS;
+            return r * k * k;
+        }
+        if (fs.tumble <= RIGHT_TICKS) return r * (fs.tumble - 1.0) / RIGHT_TICKS;
+        // a little bounce as it lands, settling
+        int since = done - FALL_TICKS;
+        return r * (1 - 0.12 * Math.exp(-since / 3.0) * Math.cos(since * 1.4));
+    }
+
+    /** How far a tumbled vehicle is lifted so it lies on the ground (blocks): half its width on its side, its height upside down. */
+    public static double tumbleLift(double angle, double width, double height) {
+        // turned about the middle of its bottom: the lowest corner of its cross-section must come back up to the ground
+        double a = Math.toRadians(angle);
+        return width / 2 * Math.abs(Math.sin(a)) - Math.min(0, height * Math.cos(a));
+    }
+
+    // ------------------------------------------------------------------------------------------
+    // The skateboard's bail
+    // ------------------------------------------------------------------------------------------
+
+    /** An ollie landed now bails: carving (steer +-1) at the bail speed or faster, and the roll r (0..1) under its chance. */
+    public static boolean bails(FunSpec.Bail b, int steer, double speed, double r) {
+        return steer != 0 && Math.abs(speed) >= b.speed() && r < b.chance();
+    }
+
+    /** How hard the rider windmills: in the air carving at the bail speed or faster (they might not make it). */
+    public static double wobble(FunSpec.Bail b, boolean air, int steer, double speed, double was) {
+        double target = air && steer != 0 && Math.abs(speed) >= b.speed() ? 1 : 0;
+        return was + Math.clamp(target - was, -0.25, 0.25);
+    }
+
+    // ------------------------------------------------------------------------------------------
+    // The segway's spin
+    // ------------------------------------------------------------------------------------------
+
+    /** Slower than this (blocks/s) a turn is a spin on the spot. */
+    public static final double SPIN_SPEED = 0.8;
+    /** Ticks of spinning to reach the full spin-up. */
+    public static final int SPIN_UP_TICKS = 40;
+
+    /**
+     * The segway's turn this tick (degrees): on the spot it spins up, faster the longer it spins (up to spinUp times),
+     * and the rider gets dizzier (1 after the dizzy ticks; it wears off at half that pace).
+     */
+    public static float spin(State fs, FunSpec.Dizzy d, int steer, double speed, VehicleSpec s) {
+        boolean spinning = steer != 0 && Math.abs(speed) < SPIN_SPEED;
+        fs.spinRun = spinning ? fs.spinRun + 1 : Math.max(0, fs.spinRun - 4);
+        fs.dizzy = Math.clamp(fs.dizzy + (spinning ? 1.0 : -0.5) / d.ticks(), 0, 1);
+        double up = 1 + (d.spinUp() - 1) * Math.min(1, (double) fs.spinRun / SPIN_UP_TICKS);
+        return (float) (pivotTurn(steer, s) * (spinning ? up : 1));
+    }
+
+    // ------------------------------------------------------------------------------------------
+    // The banana boat's heel
+    // ------------------------------------------------------------------------------------------
+
+    /**
+     * The heel this tick (degrees, + = to the left): outwards in a turn (a right turn heels it left), more the harder and
+     * faster, on a spring that overshoots and wobbles back; choppy at speed.
+     *
+     * @param turn the turn this tick (degrees, + = right)
+     * @param chop a random number in -0.5 .. 0.5 (the waves)
+     */
+    public static double heel(State fs, FunSpec.Heel h, float turn, double speed, double top, double chop) {
+        double share = Math.min(1, Math.abs(speed) / Math.max(1, top));
+        double target = Math.signum(turn) * h.roll() * Math.min(1, Math.abs(turn) / (60 * VehiclePhysics.DT)) * share;
+        fs.rollVel += (target - fs.roll) * 0.16 + chop * 0.9 * share;
+        fs.rollVel *= 0.84;
+        fs.roll = Math.clamp(fs.roll + fs.rollVel, -h.roll() * 1.4, h.roll() * 1.4);
+        return fs.roll;
+    }
+
+    /** How much the heel adds to the chance of a toss: none upright, twice the chance heeled right over. */
+    public static double heelToss(FunSpec.Heel h, double roll) {
+        double k = Math.abs(roll) / h.roll();
+        return Math.min(2, 2 * k * k);
+    }
+
+    /** Where a rider this high over the waterline (blocks) sways to with the heel: {right, up} offsets (blocks). */
+    public static double[] sway(double roll, double height) {
+        double a = Math.toRadians(roll);
+        return new double[]{-Math.sin(a) * height, (Math.cos(a) - 1) * height};
+    }
+
+    // ------------------------------------------------------------------------------------------
+    // The duck's squeaks
+    // ------------------------------------------------------------------------------------------
+
+    /** Squeaks this close together (ticks) are a combo; the sixth makes the duck jump. */
+    public static final int COMBO_TICKS = 20, COMBO_JUMP = 6;
+
+    /** A squeak now: how many in a row it is (1 = a first one). */
+    public static int squeak(State fs, long now) {
+        fs.tootCombo = now - fs.lastToot <= COMBO_TICKS ? fs.tootCombo + 1 : 1;
+        fs.lastToot = now;
+        fs.squash = 4;
+        return fs.tootCombo;
+    }
+
+    /** The pitch of a squeak in a combo: two semitones up with each, at most 2. */
+    public static float squeakPitch(float base, int combo) {
+        return (float) Math.min(2.0, base * Math.pow(2, (combo - 1) * 2 / 12.0));
     }
 
     // ------------------------------------------------------------------------------------------
@@ -323,7 +486,68 @@ public final class FunPhysics {
 
     /** Settled: nobody on it, resting on the ground, not moving (it need not be ticked). */
     public static boolean hoverSettled(State fs, VehiclePhysics.State st) {
-        return fs.aim == 0 && fs.height == 0 && st.onGround && st.speed == 0;
+        return fs.aim == 0 && fs.height == 0 && st.onGround && st.speed == 0 && Math.abs(fs.freeVy) < 1e-3;
+    }
+
+    /** Free flight stays this far under the world's build limit. */
+    public static final double CEILING = 4;
+
+    /**
+     * One tick of free flight (a hover that is {@code free}: the balloon chair): speed and turning as hovering; up and
+     * down only by the rider (space up at the climb rate, sink down at the sink rate, nothing: it hangs where it is),
+     * eased; just got on, it rises to its start height over the ground first. Nobody on it, or popped, it sinks. Never
+     * over ceiling (the world's top less {@link #CEILING}).
+     */
+    public static void freeFly(VehiclePhysics.State st, State fs, FunSpec.Hover h, DriveInput in, boolean ridden, boolean up, boolean down,
+                               VehicleSpec s, VehiclePhysics.Terrain t, double cap, double ceiling) {
+        st.bumped = false;
+        st.speed = VehiclePhysics.nextSpeed(st.speed, in.forward(), in.backward(), s, 1, cap);
+        float turn = VehiclePhysics.yawRate(st.speed, in.steer(), s);
+        if (turn != 0) {
+            float yaw = VehiclePhysics.wrap(st.yaw + turn);
+            if (!VehiclePhysics.collides(st.x, st.y, st.z, yaw, s, t)) st.yaw = yaw;
+        }
+        if (ridden && !fs.wasRidden && !fs.popped) fs.aim = h.start();   // the lift-off
+        fs.wasRidden = ridden;
+        double ground = groundBelow(st.x, st.y + 0.01, st.z, st.yaw, s, t, h.start() + 0.5);
+        boolean lifting = ridden && !fs.popped && fs.aim > 0 && (Double.isNaN(ground) ? false : st.y - ground < fs.aim - 0.05);
+        if (!lifting) fs.aim = 0;
+        double target;
+        if (!ridden || fs.popped) target = -(fs.popped ? POP_SINK : h.sink());
+        else if (up && !down) target = h.climb();
+        else if (down && !up) target = -h.sink();
+        else target = lifting ? h.climb() : 0;
+        fs.freeVy += (target - fs.freeVy) * 0.15;
+        if (Math.abs(fs.freeVy) < 1e-3) fs.freeVy = 0;
+        double dy = fs.freeVy * VehiclePhysics.DT;
+        if (st.y + dy > ceiling) {
+            dy = Math.max(0, ceiling - st.y);
+            fs.freeVy = 0;
+        }
+        double[] f = VehiclePhysics.forward(st.yaw);
+        double dist = st.speed * VehiclePhysics.DT;
+        double dx = f[0] * dist, dz = f[1] * dist;
+        List<double[]> sq = VehiclePhysics.footprint(st.x, st.y, st.z, st.yaw, s);
+        double[] m = VehiclePhysics.move(sq, dx, dy, dz, true, s.stepHeight(), t);
+        if ((m[0] != 0 || m[2] != 0) && VehiclePhysics.hazard(st.x + m[0], st.y + m[1], st.z + m[2], st.yaw, s, t)
+                && !VehiclePhysics.hazard(st.x, st.y, st.z, st.yaw, s, t)) {
+            m = VehiclePhysics.collide(sq, 0, dy, 0, t);
+            st.speed = 0;
+        }
+        double want = Math.hypot(dx, dz), got = Math.hypot(m[0], m[2]);
+        if (want > 1e-4 && got < want * 0.5) {
+            st.speed = st.speed * got / want;
+            if (Math.abs(st.speed) < 0.05) st.speed = 0;
+        }
+        if (dy < 0 && m[1] > dy + 1e-7) fs.freeVy = 0;   // landed (or a roof above)
+        st.x += m[0];
+        st.y += m[1];
+        st.z += m[2];
+        double under = groundBelow(st.x, st.y + 0.01, st.z, st.yaw, s, t, 0.06);
+        st.onGround = !Double.isNaN(under) && st.y - under < 0.03;
+        st.vy = 0;
+        st.air = st.onGround ? 0 : st.air + 1;
+        fs.height = st.onGround ? 0 : 1;   // only "up or not" matters for a free flyer (settled: see hoverSettled)
     }
 
     // ------------------------------------------------------------------------------------------
@@ -396,45 +620,77 @@ public final class FunPhysics {
     // Buck (the rodeo bull)
     // ------------------------------------------------------------------------------------------
 
-    /** How hard it bucks after this many ticks ridden. */
+    /** How hard it bucks after this many ticks ridden (no top: it gets brutal). */
     public static double power(FunSpec.Buck b, int ticks) {
         return b.start() + b.growth() * ticks * VehiclePhysics.DT;
     }
 
+    /** The bull's moves: a rest, a fast spin one way, a buck (front and back up in turn), rearing up, a back kick. */
+    public enum Move { CALM, SPIN, BUCK, REAR, KICK }
+
     /**
-     * One tick of bucking with a rider on: now and then it lurches into a spin one way (stronger, longer and with
-     * shorter rests the longer it has been ridden), throwing the rider's weight outwards; A / D (steer: +1 = A) leans
-     * them back. Sets the pose (pitch, roll, the rider's lift) and whether they were thrown (|balance| reached 1);
-     * returns the turn it makes this tick (degrees, + = right: Minecraft's yaw grows turning right).
+     * One tick of bucking with a rider on. The bull goes from move to move with short rests (shorter, its moves longer
+     * and wilder, the longer it is ridden); a spin may reverse halfway (a feint). Every move throws the rider's weight:
+     * a spin outwards, steadily; a buck, a rear and a kick in sudden jolts to a random side. A / D (steer: +1 = A) lean
+     * back, {@link #CORRECT} a tick; the wrong key makes it worse. Thrown at a balance of 1. Sets the pose (pitch: + nose
+     * down, roll, the rider's lift) and returns the turn this tick (degrees, + = right).
      */
     public static float buck(State fs, FunSpec.Buck b, int steer, RandomGenerator rnd) {
         fs.ridden++;
-        double p = power(b, fs.ridden);
-        if (fs.lurchLeft > 0) {
-            fs.lurchLeft--;
-            if (fs.lurchLeft == 0) {
-                fs.lurch = 0;
-                fs.calmLeft = Math.max(2, (int) Math.round(16 - 9 * Math.min(1.2, p))) + rnd.nextInt(6);
+        double p = power(b, fs.ridden), wild = Math.min(2.2, p);
+        if (fs.moveLeft > 0) {
+            fs.moveLeft--;
+            // a feint: a spin turning round halfway
+            if (fs.move == Move.SPIN && fs.moveLeft == 4 && rnd.nextDouble() < 0.18 * wild) fs.way = -fs.way;
+            if (fs.moveLeft == 0) {
+                fs.move = Move.CALM;
+                fs.gap = Math.max(1, (int) Math.round(12 - 6 * wild)) + rnd.nextInt(Math.max(1, (int) Math.round(6 - 2 * wild)));
             }
-        } else if (fs.calmLeft > 0) {
-            fs.calmLeft--;
+        } else if (fs.gap > 0) {
+            fs.gap--;
         } else {
-            fs.lurch = rnd.nextBoolean() ? 1 : -1;
-            fs.lurchLeft = 8 + rnd.nextInt(10) + (int) Math.round(4 * Math.min(1.5, p));
+            Move[] moves = {Move.SPIN, Move.BUCK, Move.REAR, Move.KICK, Move.SPIN};
+            fs.move = moves[rnd.nextInt(moves.length)];
+            fs.way = rnd.nextBoolean() ? 1 : -1;
+            fs.moveLeft = 8 + rnd.nextInt(6) + (int) Math.round(5 * wild);
         }
-        // turning right flings the rider out to the left (balance down); leaning the other way (D) brings them back
-        fs.balance -= fs.lurch * 0.02 * p;
-        fs.balance += (rnd.nextDouble() - 0.5) * 0.012 * p;
+        double push = 0, turn = 0, pitch = 0, roll = 0;
+        int age = fs.moveLeft;
+        switch (fs.move) {
+            case SPIN -> {
+                turn = fs.way * (200 + 240 * wild) * VehiclePhysics.DT;
+                push = -fs.way * 0.07 * wild;   // a right spin flings them out to the left
+                roll = fs.way * 10 * wild;
+                pitch = 6 * Math.sin(fs.ridden * 0.9);
+            }
+            case BUCK -> {
+                pitch = Math.sin(age * 0.85) * (22 + 14 * wild);
+                if (age % 4 == 0) push = (rnd.nextBoolean() ? 1 : -1) * 0.11 * wild;
+            }
+            case REAR -> {
+                pitch = -(30 + 12 * wild) * Math.min(1, (fs.moveLeft + 1) / 4.0);
+                if (age % 5 == 2) push = fs.way * 0.12 * wild;
+                roll = fs.way * 6;
+            }
+            case KICK -> {
+                pitch = (26 + 14 * wild) * Math.abs(Math.sin(age * 0.6));
+                if (age % 3 == 0) push = (rnd.nextBoolean() ? 1 : -1) * 0.1 * wild;
+                turn = fs.way * 40 * VehiclePhysics.DT;
+            }
+            case CALM -> pitch = Math.sin(fs.ridden * 0.3) * 4 * wild;
+        }
+        fs.lurch = fs.move == Move.SPIN ? fs.way : 0;
+        fs.balance += push;
+        fs.balance += (rnd.nextDouble() - 0.5) * 0.05 * wild;
         fs.balance -= steer * CORRECT;
-        fs.balance *= 0.985;
+        // off centre, the weight pulls further over (a rider does not sit still on a bucking bull: they fall or fight it)
+        fs.balance *= 1 + TIP_OVER;
         fs.thrown = Math.abs(fs.balance) >= 1;
-        // the pose: a rocking horse's nod, faster and deeper with the power, and a lean as it spins
-        fs.phase += 0.32 + 0.22 * Math.min(2, p);
-        double depth = 5 + 13 * Math.min(1.5, p);
-        fs.buckPitch = Math.sin(fs.phase) * depth;
-        fs.buckRoll = fs.lurch * 6 * Math.min(1.5, p) + Math.sin(fs.phase * 0.5) * 3;
-        fs.buckLift = Math.max(0, Math.sin(fs.phase)) * 0.1 * Math.min(1.5, p);
-        return (float) (fs.lurch * (90 + 120 * Math.min(1.5, p)) * VehiclePhysics.DT);
+        // the pose eases a little towards the move's (the client glides between)
+        fs.buckPitch += (pitch - fs.buckPitch) * 0.6;
+        fs.buckRoll += (roll + fs.balance * 14 - fs.buckRoll) * 0.5;
+        fs.buckLift = Math.max(0, -fs.buckPitch) / 40 * 0.25 + Math.max(0, Math.sin(fs.ridden * 0.85)) * 0.06 * wild;
+        return (float) turn;
     }
 
     /** The bull at rest: its pose eases back to level. */
@@ -442,8 +698,9 @@ public final class FunPhysics {
         fs.ridden = 0;
         fs.balance = 0;
         fs.lurch = 0;
-        fs.lurchLeft = 0;
-        fs.calmLeft = 0;
+        fs.move = Move.CALM;
+        fs.moveLeft = 0;
+        fs.gap = 0;
         fs.buckPitch *= 0.7;
         fs.buckRoll *= 0.7;
         fs.buckLift *= 0.7;
@@ -503,6 +760,14 @@ public final class FunPhysics {
             }
         }
         if (f.hop() != null && st.onGround && fs.grounded > 0) squash = 0.86;
+        // the duck squeezed by its squeak: squashed, then springing back a little tall
+        if (fs.squash > 0) squash = fs.squash > 2 ? 0.82 : 1.08;
+        if (f.heel() != null) roll += Math.round(fs.roll * 2) / 2.0;
+        if (fs.tumble > 0) {
+            double a = tumbleAngle(fs);
+            roll += a;
+            lift += tumbleLift(a, s.width(), s.height() * 0.6);
+        }
         return new Pose(spin, pitch, roll, lift, squash);
     }
 }

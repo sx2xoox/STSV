@@ -104,6 +104,8 @@ final class LiveVehicle {
     long[] seatSince;
     double funRolled;
     long tootAt;
+    /** the standing rider's puppet (StandingRiders), or null */
+    StandingRiders.Standing standing;
 
     /** the storage bed (null without one), the page open and who has it open */
     ItemStack[] cargo;

@@ -26,16 +26,24 @@ import java.util.function.Predicate;
  * @param lookSteer  it turns towards where the rider looks instead of with A / D (the pogo stick, the balloon chair)
  * @param trail      particles it leaves while it moves
  * @param part       a separate model moved by the behaviour (the bull on its stand, the balloons over the chair), or null
+ * @param stand      the rider stands on it (a puppet in their skin, {@link StandingRiders}), or null: they sit as usual
+ * @param tip        steered hard at speed it tips over, throwing its rider (the kick scooter), or null
+ * @param bail       an ollie landed while carving hard at speed may bail (the skateboard), or null
+ * @param dizzy      spinning on the spot it spins up faster and faster until the rider staggers off dizzy (the segway), or null
+ * @param crash      into a wall at speed it flips and throws its riders out (the sled), or null
+ * @param heel       it heels hard in turns, wobbling back, its riders swaying (the banana boat), or null
  */
 public record FunSpec(Hop hop, Ollie ollie, Hover hover, Toss toss, Surface surface, Buck buck, Amphibious amphibious,
-                      boolean pivot, double tilt, double waddle, Toot toot, VehicleSpec.Roll roll, boolean lookSteer, Trail trail, Part part) {
+                      boolean pivot, double tilt, double waddle, Toot toot, VehicleSpec.Roll roll, boolean lookSteer, Trail trail, Part part,
+                      Stand stand, Tip tip, Bail bail, Dizzy dizzy, Crash crash, Heel heel) {
 
     /**
      * The pogo stick's bounce: it springs back to {@code base} blocks high every landing; space pressed in the last
      * {@code window} ticks of the fall (or as it touches down) adds {@code gain} to the next bounce, up to {@code max};
-     * a landing without it loses {@code decay} again. {@code sound} plays at every landing.
+     * a landing without it loses {@code decay} again. {@code sound} plays at every landing. {@code overload}: space
+     * mashed on the way up near the top height overloads the spring, which flings the rider sky-high.
      */
-    public record Hop(double base, double max, double gain, double decay, int window, String sound) {}
+    public record Hop(double base, double max, double gain, double decay, int window, String sound, boolean overload) {}
 
     /** The skateboard's ollie: space on the ground hops it {@code height} blocks while it spins {@code spin} degrees round. */
     public record Ollie(double height, double spin, String sound) {}
@@ -44,9 +52,11 @@ public record FunSpec(Hop hop, Ollie ollie, Hover hover, Toss toss, Surface surf
      * Floating over the ground under it (water counts as ground): {@code start} blocks up once someone sits on it, space
      * raises that by {@code climb} blocks/s up to {@code max}, Ctrl or looking down lowers it by {@code sink} blocks/s to
      * {@code min}. Nobody on it, it settles onto the ground. {@code pop}: a projectile hitting it pops it (the balloon chair):
-     * it floats down slowly and cannot rise until it has stood on the ground a while.
+     * it floats down slowly and cannot rise until it has stood on the ground a while. {@code free}: no height over the
+     * ground holds it (min and max do not count): space goes up, Ctrl or looking down down, as far as the world's
+     * ceiling ({@link FunPhysics#CEILING} under the build limit).
      */
-    public record Hover(double start, double min, double max, double climb, double sink, boolean pop) {}
+    public record Hover(double start, double min, double max, double climb, double sink, boolean pop, boolean free) {}
 
     /**
      * Turning hard at speed throws the riders behind the driver off: each tick the driver turns at least {@code minTurn}
@@ -67,8 +77,29 @@ public record FunSpec(Hop hop, Ollie ollie, Hover hover, Toss toss, Surface surf
     /** Floats with its bottom {@code draft} blocks under the water and paddles at its speed; on land it waddles at {@code landSpeed}. */
     public record Amphibious(double draft, double landSpeed) {}
 
-    /** A sound played once per press of space (rate-limited). */
-    public record Toot(String sound, float volume, float pitch) {}
+    /**
+     * A sound played once per press of space (rate-limited). {@code combo}: quick presses one after another go up a
+     * step each, and the sixth makes it jump.
+     */
+    public record Toot(String sound, float volume, float pitch, boolean combo) {}
+
+    /** The rider stands on the deck ({@code deck} blocks over the vehicle's ground), posed as {@code kind}. */
+    public record Stand(RiderPose.Kind kind, double deck) {}
+
+    /** Steered fully for {@code ticks} ticks at {@code speed} blocks/s or faster, it tips over. */
+    public record Tip(double speed, int ticks) {}
+
+    /** An ollie landed while steering at {@code speed} blocks/s or faster bails with this {@code chance}. */
+    public record Bail(double speed, double chance) {}
+
+    /** Spinning on the spot speeds up to {@code spinUp} times the turn rate; after {@code ticks} ticks of it the rider is dizzy. */
+    public record Dizzy(double spinUp, int ticks) {}
+
+    /** Into a wall at {@code speed} blocks/s or faster: a crash. */
+    public record Crash(double speed) {}
+
+    /** Heels up to {@code roll} degrees in a full turn at speed. */
+    public record Heel(double roll) {}
 
     /**
      * A separate model at a vehicle point ({@link VehicleSpec.Vec}), turned about that point by the behaviour; shown
@@ -85,7 +116,7 @@ public record FunSpec(Hop hop, Ollie ollie, Hover hover, Toss toss, Surface surf
         if (f.isConfigurationSection("hop")) {
             ConfigurationSection h = f.getConfigurationSection("hop");
             hop = new Hop(h.getDouble("base", 0.8), h.getDouble("max", 5), h.getDouble("gain", 1), h.getDouble("decay", 0.6),
-                    h.getInt("window", 6), sound(h.getString("sound", "entity.slime.jump"), "vehicle.fun.hop.sound"));
+                    h.getInt("window", 6), sound(h.getString("sound", "entity.slime.jump"), "vehicle.fun.hop.sound"), h.getBoolean("overload"));
             if (hop.base() < 0.3 || hop.base() > 2) throw new IllegalArgumentException("vehicle.fun.hop.base 는 0.3 ~ 2 (블록)");
             if (hop.max() < hop.base() || hop.max() > FunPhysics.HOP_MAX) throw new IllegalArgumentException("vehicle.fun.hop.max 는 base ~ " + FunPhysics.HOP_MAX + " (블록)");
             if (hop.gain() <= 0 || hop.gain() > 3 || hop.decay() < 0 || hop.decay() > 3)
@@ -103,7 +134,7 @@ public record FunSpec(Hop hop, Ollie ollie, Hover hover, Toss toss, Surface surf
         if (f.isConfigurationSection("hover")) {
             ConfigurationSection h = f.getConfigurationSection("hover");
             hover = new Hover(h.getDouble("start", 1.5), h.getDouble("min", 0.5), h.getDouble("max", 3), h.getDouble("climb", 1.5),
-                    h.getDouble("sink", 2), h.getBoolean("pop"));
+                    h.getDouble("sink", 2), h.getBoolean("pop"), h.getBoolean("free"));
             if (hover.min() < 0.3 || hover.max() < hover.min() || hover.max() > FunPhysics.HOVER_MAX)
                 throw new IllegalArgumentException("vehicle.fun.hover: 0.3 <= min <= max <= " + FunPhysics.HOVER_MAX + " (블록, 땅 위 높이)");
             if (hover.start() < hover.min() || hover.start() > hover.max()) throw new IllegalArgumentException("vehicle.fun.hover.start 는 min ~ max");
@@ -145,7 +176,8 @@ public record FunSpec(Hop hop, Ollie ollie, Hover hover, Toss toss, Surface surf
         Toot toot = null;
         if (f.isConfigurationSection("toot")) {
             ConfigurationSection t = f.getConfigurationSection("toot");
-            toot = new Toot(sound(t.getString("sound"), "vehicle.fun.toot.sound"), (float) t.getDouble("volume", 1), (float) t.getDouble("pitch", 1));
+            toot = new Toot(sound(t.getString("sound"), "vehicle.fun.toot.sound"), (float) t.getDouble("volume", 1), (float) t.getDouble("pitch", 1),
+                    t.getBoolean("combo"));
             if (toot.volume() <= 0 || toot.volume() > 2) throw new IllegalArgumentException("vehicle.fun.toot.volume 은 0 초과 2 이하");
             if (toot.pitch() < VehicleSounds.MIN_PITCH || toot.pitch() > VehicleSounds.MAX_PITCH) throw new IllegalArgumentException("vehicle.fun.toot.pitch 는 0.5 ~ 2");
         }
@@ -183,13 +215,52 @@ public record FunSpec(Hop hop, Ollie ollie, Hover hover, Toss toss, Surface surf
             if (scale <= 0 || scale > 4) throw new IllegalArgumentException("vehicle.fun.part.scale 은 0 초과 4 이하");
             part = new Part(key, new VehicleSpec.Vec(at.get(0), at.get(1), at.get(2)), scale);
         }
+        Stand stand = null;
+        if (f.isConfigurationSection("stand")) {
+            ConfigurationSection st = f.getConfigurationSection("stand");
+            RiderPose.Kind kind;
+            try {
+                kind = RiderPose.Kind.valueOf(st.getString("kind", "").trim().toUpperCase(Locale.ROOT));
+            } catch (IllegalArgumentException e) {
+                throw new IllegalArgumentException("vehicle.fun.stand.kind 는 kick · segway · pogo · skate 중 하나");
+            }
+            stand = new Stand(kind, st.getDouble("deck", 0.25));
+            if (stand.deck() < 0 || stand.deck() > 1.5) throw new IllegalArgumentException("vehicle.fun.stand.deck 은 0 ~ 1.5 (블록)");
+        }
+        Tip tip = null;
+        if (f.isConfigurationSection("tip")) {
+            tip = new Tip(f.getDouble("tip.speed", 6), f.getInt("tip.ticks", 10));
+            if (tip.speed() < 1 || tip.ticks() < 2 || tip.ticks() > 100) throw new IllegalArgumentException("vehicle.fun.tip: speed 1 이상, ticks 2 ~ 100");
+        }
+        Bail bail = null;
+        if (f.isConfigurationSection("bail")) {
+            bail = new Bail(f.getDouble("bail.speed", 6), f.getDouble("bail.chance", 0.5));
+            if (bail.speed() < 1 || bail.chance() <= 0 || bail.chance() > 1) throw new IllegalArgumentException("vehicle.fun.bail: speed 1 이상, chance 0 초과 1 이하");
+        }
+        Dizzy dizzy = null;
+        if (f.isConfigurationSection("dizzy")) {
+            dizzy = new Dizzy(f.getDouble("dizzy.spin-up", 3), f.getInt("dizzy.ticks", 80));
+            if (dizzy.spinUp() < 1 || dizzy.spinUp() > 6 || dizzy.ticks() < 20 || dizzy.ticks() > 600)
+                throw new IllegalArgumentException("vehicle.fun.dizzy: spin-up 1 ~ 6, ticks 20 ~ 600");
+        }
+        Crash crash = null;
+        if (f.isConfigurationSection("crash")) {
+            crash = new Crash(f.getDouble("crash.speed", 6));
+            if (crash.speed() < 2) throw new IllegalArgumentException("vehicle.fun.crash.speed 는 2 이상 (블록/초)");
+        }
+        Heel heel = null;
+        if (f.isConfigurationSection("heel")) {
+            heel = new Heel(f.getDouble("heel.roll", 25));
+            if (heel.roll() <= 0 || heel.roll() > 45) throw new IllegalArgumentException("vehicle.fun.heel.roll 은 0 초과 45 이하 (도)");
+        }
         // what cannot go together: one way of moving up and down at a time, a boat's own ways on water
         int vertical = (hop != null ? 1 : 0) + (ollie != null ? 1 : 0) + (hover != null ? 1 : 0) + (amphibious != null ? 1 : 0) + (buck != null ? 1 : 0);
         if (vertical > 1) throw new IllegalArgumentException("vehicle.fun: hop · ollie · hover · amphibious · buck 은 하나만");
         if (hover != null && hover.pop() && part == null) throw new IllegalArgumentException("vehicle.fun.hover.pop: 터지는 풍선(part)이 있어야 함");
         if (buck != null && part == null) throw new IllegalArgumentException("vehicle.fun.buck: 날뛰는 몸(part)이 있어야 함");
+        if (dizzy != null && !f.getBoolean("pivot")) throw new IllegalArgumentException("vehicle.fun.dizzy: 제자리에서 도는 탈것(pivot)만");
         return new FunSpec(hop, ollie, hover, toss, surface, buck, amphibious, f.getBoolean("pivot"), tilt, waddle, toot, roll,
-                f.getBoolean("look-steer"), trail, part);
+                f.getBoolean("look-steer"), trail, part, stand, tip, bail, dizzy, crash, heel);
     }
 
     private static String sound(String key, String what) {

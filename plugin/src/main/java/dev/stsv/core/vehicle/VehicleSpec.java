@@ -378,8 +378,10 @@ public record VehicleSpec(
         if (fun != null) {
             if (!driven || train != null) throw new IllegalArgumentException("vehicle.fun: 끄는 탈것 · 트레일러 탈것에는 없음");
             if (fun.usesSpace() && horn != null) throw new IllegalArgumentException("vehicle.fun: 스페이스를 쓰는 탈것(hop · ollie · hover · toot)에는 경적(horn)이 없음");
-            if (water != null && (fun.amphibious() != null || fun.airborne() || fun.buck() != null || fun.ollie() != null))
-                throw new IllegalArgumentException("vehicle.fun: 배(water)는 toss · toot · roll · trail 만");
+            if (water != null && (fun.amphibious() != null || fun.airborne() || fun.buck() != null || fun.ollie() != null || fun.stand() != null
+                    || fun.tip() != null || fun.crash() != null))
+                throw new IllegalArgumentException("vehicle.fun: 배(water)는 toss · heel · toot · roll · trail 만");
+            if (fun.stand() != null && seats.size() != 1) throw new IllegalArgumentException("vehicle.fun.stand: 서서 타는 탈것은 1인승");
             if (fun.amphibious() != null && fun.amphibious().landSpeed() > positive(v, "speed"))
                 throw new IllegalArgumentException("vehicle.fun.amphibious.land-speed 는 speed (물 위 속도) 이하");
         }

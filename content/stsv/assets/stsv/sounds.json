@@ -614,5 +614,40 @@
         "name": "stsv:vehicle/tuner_car_popcorn"
       }
     ]
+  },
+  "vehicle.toy_duck.squeak": {
+    "sounds": [
+      {
+        "name": "stsv:vehicle/toy_duck_squeak"
+      }
+    ]
+  },
+  "vehicle.pogo_stick.boing": {
+    "sounds": [
+      {
+        "name": "stsv:vehicle/pogo_stick_boing"
+      }
+    ]
+  },
+  "vehicle.pogo_stick.sproing": {
+    "sounds": [
+      {
+        "name": "stsv:vehicle/pogo_stick_sproing"
+      }
+    ]
+  },
+  "vehicle.balloon_chair.trombone": {
+    "sounds": [
+      {
+        "name": "stsv:vehicle/balloon_chair_trombone"
+      }
+    ]
+  },
+  "vehicle.common.slide_whistle": {
+    "sounds": [
+      {
+        "name": "stsv:vehicle/common_slide_whistle"
+      }
+    ]
   }
 }

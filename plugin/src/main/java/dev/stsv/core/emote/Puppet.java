@@ -98,6 +98,29 @@ final class Puppet {
         return new Puppet(plugin, tag, feet, height, feet.getYaw(), true, skin, pose, planted, props, never);
     }
 
+    /**
+     * A puppet that rides something else (a vehicle's seat, {@link RiderPuppet}): its carrier rides the mount, so the
+     * clients carry it with the mount's own glide, frame by frame; its feet {@code lift} blocks under the mount's point.
+     */
+    static Puppet mounted(Plugin plugin, NamespacedKey tag, org.bukkit.entity.Entity mount, double lift, float yaw, PuppetSkin skin, Pose pose,
+                          boolean planted, Set<UUID> never) {
+        Location at = mount.getLocation();
+        Location feet = new Location(at.getWorld(), at.getX(), at.getY() - lift, at.getZ(), yaw, 0);
+        Puppet puppet = new Puppet(plugin, tag, feet, lift, yaw, true, skin, pose, planted, List.of(), never);
+        if (puppet.carrier != null) mount.addPassenger(puppet.carrier);
+        return puppet;
+    }
+
+    /** Mounted: whether its carrier still rides this mount. */
+    boolean rides(org.bukkit.entity.Entity mount) {
+        return carrier != null && carrier.isValid() && mount.equals(carrier.getVehicle());
+    }
+
+    /** Mounted: keeps who sees it measured from the mount (it is not moved by the server: the mount carries it). */
+    void near(Location at) {
+        near = at.clone();
+    }
+
     private Puppet(Plugin plugin, NamespacedKey tag, Location feet, double lift, float bodyYaw, boolean riding, PuppetSkin skin, Pose pose,
                    boolean planted, List<EmoteSpec.Prop> props, Set<UUID> never) {
         this.plugin = plugin;

@@ -80,7 +80,7 @@ class FunPhysicsTest {
 
     @Test
     void aPumpedBounceGoesHigherUpToItsTop() {
-        FunSpec.Hop h = new FunSpec.Hop(0.8, 5, 1, 0.6, 6, "entity.slime.jump");
+        FunSpec.Hop h = new FunSpec.Hop(0.8, 5, 1, 0.6, 6, "entity.slime.jump", true);
         assertEquals(1.8, FunPhysics.bounce(h, 0.8, 3), 1e-9, "pressed late in the fall");
         assertEquals(0.8, FunPhysics.bounce(h, 0.8, 50), 1e-9, "not pressed: never under base");
         assertEquals(1.2, FunPhysics.bounce(h, 1.8, 50), 1e-9, "not pressed: it dies down");
@@ -314,41 +314,67 @@ class FunPhysicsTest {
         assertEquals(0f, FunPhysics.lookTurn(10, 10.2f, s), 1e-6);
     }
 
-    /** Ticks a rider lasts on the bull: idle, or leaning back against every lurch (seeded). */
-    static int lasts(FunSpec.Buck b, boolean leans, long seed) {
+    /**
+     * Ticks a rider lasts on the bull: idle, or leaning back against what they felt reactionDelay ticks ago (they see
+     * the balance meter and the bull, with a human's lag), seeded.
+     */
+    static int lasts(FunSpec.Buck b, boolean leans, int reactionDelay, long seed) {
         FunPhysics.State fs = new FunPhysics.State();
         SplittableRandom rnd = new SplittableRandom(seed);
+        double[] seen = new double[reactionDelay + 1];
         for (int t = 1; t <= 20 * 600; t++) {
-            // spinning right throws them left: D (steer -1) leans them back; nothing to do in a calm
-            int steer = !leans ? 0 : fs.balance < -0.05 ? -1 : fs.balance > 0.05 ? 1 : 0;
+            double felt = seen[t % seen.length];
+            // slid left (balance below 0): lean right (D, steer -1), and the other way
+            int steer = !leans ? 0 : felt < -0.08 ? -1 : felt > 0.08 ? 1 : 0;
             FunPhysics.buck(fs, b, steer, rnd);
+            seen[t % seen.length] = fs.balance;
             if (fs.thrown) return t;
         }
         return Integer.MAX_VALUE;
     }
 
+    static final FunSpec.Buck BULL = new FunSpec.Buck(0.45, 0.09, 1.0);
+
+    /** Genuinely hard: idle riders are off in seconds, a quick one lasts longer but nobody for long, and it gets brutal. */
     @Test
-    void theBullThrowsEveryoneSoonerOrLaterAndSkillHelps() {
-        FunSpec.Buck b = new FunSpec.Buck(0.35, 0.06, 0.7);
-        long idle = 0, skilled = 0;
-        for (long seed = 1; seed <= 40; seed++) {
-            int i = lasts(b, false, seed), k = lasts(b, true, seed);
-            assertTrue(i < 20 * 60, "an idle rider is off within a minute: " + i);
-            assertTrue(k < 20 * 180, "everyone is thrown in the end: " + k);
+    void theBullIsHardAndGetsBrutal() {
+        long idle = 0, quick = 0, slow = 0;
+        int n = 60, worstIdle = 0, worstQuick = 0;
+        for (long seed = 1; seed <= n; seed++) {
+            int i = lasts(BULL, false, 0, seed), q = lasts(BULL, true, 3, seed), w = lasts(BULL, true, 10, seed);
+            worstIdle = Math.max(worstIdle, i);
+            worstQuick = Math.max(worstQuick, q);
             idle += i;
-            skilled += k;
+            quick += q;
+            slow += w;
         }
-        assertTrue(skilled > idle * 1.5, "keeping one's balance lasts longer: " + skilled / 40 / 20.0 + " s vs " + idle / 40 / 20.0 + " s");
-        assertTrue(idle / 40 > 20 * 3, "not thrown at once: " + idle / 40 / 20.0 + " s");
-        assertTrue(FunPhysics.power(b, 400) > FunPhysics.power(b, 100), "stronger the longer");
+        double mi = idle / (double) n / 20, mq = quick / (double) n / 20, ms = slow / (double) n / 20;
+        System.out.println("rodeo: idle " + mi + " s, quick " + mq + " s, slow " + ms + " s, longest idle " + worstIdle / 20.0 + " s, quick " + worstQuick / 20.0 + " s");
+        assertTrue(worstIdle < 20 * 15, "an idle rider is off within 15 s: " + worstIdle / 20.0);
+        assertTrue(worstQuick < 20 * 60, "even a quick rider is thrown within a minute: " + worstQuick / 20.0);
+        assertTrue(mi > 1.5 && mi < 8, "idle: a few seconds (" + mi + " s)");
+        assertTrue(mq > mi * 1.5, "quick reactions pay (" + mq + " s vs " + mi + " s idle)");
+        assertTrue(mq < 25, "but it stays hard (" + mq + " s)");
+        assertTrue(ms < mq, "slow reactions do worse (" + ms + " s vs " + mq + " s)");
+        assertTrue(FunPhysics.power(BULL, 400) > 2 * FunPhysics.power(BULL, 0), "brutal over time");
     }
 
     @Test
-    void theBullCalmsWhenNobodyRides() {
+    void theBullDoesAllItsMovesAndCalmsWhenNobodyRides() {
         FunPhysics.State fs = new FunPhysics.State();
-        FunSpec.Buck b = new FunSpec.Buck(0.35, 0.06, 0.7);
         SplittableRandom rnd = new SplittableRandom(3);
-        for (int t = 0; t < 40; t++) FunPhysics.buck(fs, b, 0, rnd);
+        java.util.Set<FunPhysics.Move> seen = java.util.EnumSet.noneOf(FunPhysics.Move.class);
+        double most = 0, least = 0, spin = 0;
+        for (int t = 0; t < 400; t++) {
+            spin = Math.max(spin, Math.abs(FunPhysics.buck(fs, BULL, 0, rnd)));
+            seen.add(fs.move);
+            most = Math.max(most, fs.buckPitch);
+            least = Math.min(least, fs.buckPitch);
+            fs.balance = 0;   // keep the rider on to see it all
+        }
+        assertEquals(java.util.EnumSet.allOf(FunPhysics.Move.class), seen, "spins, bucks, rears and kicks");
+        assertTrue(most > 30 && least < -30, "big kicks and rears: " + most + " / " + least);
+        assertTrue(spin * 20 > 300, "fast spins: " + spin * 20 + " deg/s");
         for (int t = 0; t < 60; t++) FunPhysics.calm(fs);
         assertEquals(0, fs.buckPitch);
         assertEquals(0, fs.buckLift);
@@ -386,5 +412,131 @@ class FunPhysicsTest {
         assertEquals(VehiclePhysics.Medium.LAVA, wf.medium(1, 64, 0), "lava stays lava");
         assertEquals(FunPhysics.Ground.OTHER, new VehiclePhysicsTest.Grid().ground(0, 0, 0), "only the real world knows snow and ice");
         assertNotNull(NamespacedKey.fromString("stsv:rodeo_best"));
+    }
+
+    // ------------------------------------------------------------------------------------------
+    // The gags: tumbles, bails, the spin, the heel, squeaks, free flight
+    // ------------------------------------------------------------------------------------------
+
+    @Test
+    void steeredHardAtSpeedTheScooterTipsOverAndGetsUp() {
+        FunSpec.Tip tip = new FunSpec.Tip(6, 10);
+        FunPhysics.State fs = new FunPhysics.State();
+        for (int t = 0; t < 30; t++) assertFalse(FunPhysics.tipping(fs, tip, 1, 5), "too slow");
+        for (int t = 0; t < 9; t++) assertFalse(FunPhysics.tipping(fs, tip, -1, 7));
+        assertTrue(FunPhysics.tipping(fs, tip, -1, 7), "ten ticks of it");
+        FunPhysics.State g = new FunPhysics.State();
+        for (int t = 0; t < 30; t++) assertFalse(FunPhysics.tipping(g, tip, t % 8 == 0 ? 0 : 1, 7), "a pause resets it");
+        FunPhysics.tumble(fs, 88);
+        double most = 0;
+        int frames = 0;
+        while (fs.tumble > 0) {
+            most = Math.max(most, FunPhysics.tumbleAngle(fs));
+            fs.tumble--;
+            frames++;
+        }
+        assertEquals(FunPhysics.TUMBLE_TICKS, frames);
+        assertTrue(most >= 88, "right over onto its side: " + most);
+        assertEquals(0, FunPhysics.tumbleAngle(fs), "and up again");
+        assertEquals(0.25, FunPhysics.tumbleLift(90, 0.5, 1.2), 1e-9, "lying on its side: half its width up");
+        assertEquals(0.6, FunPhysics.tumbleLift(180, 0.9, 0.6), 1e-9, "upside down: its height up");
+    }
+
+    @Test
+    void carvingIntoAnOllieLandingMayBail() {
+        FunSpec.Bail b = new FunSpec.Bail(6.5, 0.55);
+        assertTrue(FunPhysics.bails(b, 1, 8, 0.2));
+        assertFalse(FunPhysics.bails(b, 0, 8, 0.2), "straight: clean");
+        assertFalse(FunPhysics.bails(b, 1, 5, 0.2), "slow: clean");
+        assertFalse(FunPhysics.bails(b, -1, 8, 0.9), "lucky");
+        double w = 0;
+        for (int t = 0; t < 6; t++) w = FunPhysics.wobble(b, true, 1, 8, w);
+        assertEquals(1, w, 1e-9, "windmilling in the air");
+        for (int t = 0; t < 6; t++) w = FunPhysics.wobble(b, false, 1, 8, w);
+        assertEquals(0, w, 1e-9, "calm on the ground");
+    }
+
+    @Test
+    void theSegwaySpinsUpAndMakesItsRiderDizzy() {
+        VehicleSpec s = spec(Map.of("pivot", true, "dizzy", Map.of("spin-up", 3.5, "ticks", 70)));
+        FunSpec.Dizzy d = s.fun().dizzy();
+        FunPhysics.State fs = new FunPhysics.State();
+        float first = FunPhysics.spin(fs, d, 1, 0, s);
+        float last = first;
+        int ticks = 1;
+        while (fs.dizzy < 1) {
+            last = FunPhysics.spin(fs, d, 1, 0, s);
+            ticks++;
+        }
+        assertEquals(70, ticks, 1, "dizzy after its ticks");
+        assertEquals(3.5, last / FunPhysics.pivotTurn(1, s), 1e-3, "spun up to 3.5 times as fast");
+        assertTrue(Math.abs(first) < Math.abs(last));
+        assertTrue(Math.abs(FunPhysics.spin(fs, d, 1, 5, s)) < Math.abs(last), "driving along: no spin-up");
+        for (int t = 0; t < 200; t++) FunPhysics.spin(fs, d, 0, 0, s);
+        assertEquals(0, fs.dizzy, 1e-9, "it wears off");
+        assertThrows(IllegalArgumentException.class, () -> spec(Map.of("dizzy", Map.of())), "only what turns on the spot");
+    }
+
+    @Test
+    void theBananaBoatHeelsOutwardsAndWobblesBack() {
+        FunSpec.Heel h = new FunSpec.Heel(32);
+        FunPhysics.State fs = new FunPhysics.State();
+        double most = 0;
+        for (int t = 0; t < 40; t++) most = Math.max(most, FunPhysics.heel(fs, h, 3f, 6, 6, 0));
+        assertTrue(fs.roll > 25, "a hard right turn heels it left (outwards): " + fs.roll);
+        assertTrue(most > fs.roll + 1, "overshooting first");
+        boolean crossed = false;
+        for (int t = 0; t < 60; t++) {
+            FunPhysics.heel(fs, h, 0f, 6, 6, 0);
+            crossed |= fs.roll < -1;
+        }
+        assertTrue(crossed, "and swings back past upright when the turn ends");
+        for (int t = 0; t < 200; t++) FunPhysics.heel(fs, h, 0f, 0, 6, 0);
+        assertEquals(0, fs.roll, 0.05, "settles");
+        assertEquals(0, FunPhysics.heelToss(h, 0), 1e-9);
+        assertEquals(2, FunPhysics.heelToss(h, 32), 1e-9, "heeled right over: twice the chance");
+        double[] sway = FunPhysics.sway(30, 1);
+        assertEquals(-0.5, sway[0], 1e-9, "a rider leans out to the left with it");
+        assertTrue(sway[1] < 0);
+    }
+
+    @Test
+    void quickSqueaksClimbAndTheSixthJumps() {
+        FunPhysics.State fs = new FunPhysics.State();
+        assertEquals(1, FunPhysics.squeak(fs, 100));
+        assertEquals(2, FunPhysics.squeak(fs, 110));
+        assertEquals(3, FunPhysics.squeak(fs, 125));
+        assertEquals(1, FunPhysics.squeak(fs, 200), "a pause starts again");
+        assertTrue(FunPhysics.squeakPitch(1f, 3) > FunPhysics.squeakPitch(1f, 2));
+        assertEquals(2.0f, FunPhysics.squeakPitch(1f, 20), 1e-6, "never past the game's top pitch");
+        assertEquals(6, FunPhysics.COMBO_JUMP);
+    }
+
+    /** The balloon chair flies freely: up as long as space is held (past any height over the ground), but never over the ceiling. */
+    @Test
+    void freeFlightHasNoHeightLimitButTheCeiling() {
+        VehicleSpec s = spec(Map.of("hover", Map.of("start", 3, "min", 1, "max", 8, "climb", 1, "sink", 1.2, "pop", true, "free", true),
+                "part", Map.of("model", "b", "at", List.of(0, 2, 0))));
+        FunSpec.Hover h = s.fun().hover();
+        assertTrue(h.free());
+        VehiclePhysics.Terrain g = FunPhysics.waterFloor(VehiclePhysicsTest.flat(), 0);
+        VehiclePhysics.State st = new VehiclePhysics.State(0.5, 64, 0.5, 0);
+        st.onGround = true;
+        FunPhysics.State fs = new FunPhysics.State();
+        for (int t = 0; t < 120; t++) FunPhysics.freeFly(st, fs, h, NONE, true, false, false, s, g, 10, 300);
+        assertEquals(67, st.y, 0.3, "lifts off to its start height and hangs there");
+        double y = st.y;
+        for (int t = 0; t < 40; t++) FunPhysics.freeFly(st, fs, h, NONE, true, false, false, s, g, 10, 300);
+        assertEquals(y, st.y, 0.05, "hangs where it is");
+        for (int t = 0; t < 20 * 60; t++) FunPhysics.freeFly(st, fs, h, NONE, true, true, false, s, g, 10, 100);
+        assertEquals(100, st.y, 1e-6, "up as far as the ceiling, no further");
+        assertTrue(st.y - 64 > 8, "far past the old 8 blocks");
+        double before = st.y;
+        for (int t = 0; t < 20; t++) FunPhysics.freeFly(st, fs, h, NONE, true, false, true, s, g, 10, 100);
+        assertTrue(before - st.y < 1.2 * 1.0 + 0.1, "down slowly");
+        fs.popped = true;
+        for (int t = 0; t < 20 * 60; t++) FunPhysics.freeFly(st, fs, h, NONE, true, true, false, s, g, 10, 100);
+        assertEquals(64, st.y, 1e-6, "popped: floats all the way down whatever the keys");
+        assertTrue(st.onGround);
     }
 }

@@ -206,6 +206,30 @@ public final class EmoteModule implements StsvModule, Listener, TabExecutor {
         return enabled() ? EmotePack.files() : Map.of();
     }
 
+    /**
+     * Whether puppets can be shown at all (the feature is on, so the pack carries the puppet font): a vehicle's
+     * standing rider ({@link RiderPuppet}) is drawn only then.
+     */
+    public boolean puppets() {
+        return plugin != null && enabled() && skins != null;
+    }
+
+    /** What marks the module's displays (leftovers of a reload are removed by it). */
+    NamespacedKey puppetTag() {
+        return keyEntity;
+    }
+
+    /**
+     * A player's skin for a puppet: from memory, else fetched from the game's texture host off the server thread;
+     * the placeholder when it cannot be had. Completes on any thread.
+     */
+    public java.util.concurrent.CompletableFuture<PuppetSkin> skinOf(Player p) {
+        PlayerTextures textures = p.getPlayerProfile().getTextures();
+        String url = textures.getSkin() == null ? null : textures.getSkin().toString();
+        boolean slim = textures.getSkinModel() == PlayerTextures.SkinModel.SLIM;
+        return skins.skin(url, slim).thenApply(s -> s.orElseGet(PuppetSkin::placeholder));
+    }
+
     public boolean emoting(Player p) {
         return sessions.containsKey(p.getUniqueId());
     }

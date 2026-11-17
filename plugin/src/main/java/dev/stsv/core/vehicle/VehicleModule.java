@@ -1720,7 +1720,7 @@ public final class VehicleModule implements StsvModule, Listener {
 
     private Location seatLocation(LiveVehicle v, int i) {
         if (v.train != null) return v.train.seat(v, i);   // a seat may be on a towed unit
-        double[] c = VehiclePhysics.world(v.st.x, v.st.y, v.st.z, v.st.yaw, v.spec.seats().get(i));
+        double[] c = VehiclePhysics.world(v.st.x, v.st.y, v.st.z, v.st.yaw, FunView.swayed(v, i, v.spec.seats().get(i)));
         // a pedalling rider rises and sinks; so does one on a bucking bull or a waddling duck
         return new Location(v.world, c[0], c[1] + VehicleFeelView.seatLift(v, i) + FunView.seatLift(v, i), c[2], v.st.yaw, 0);
     }
@@ -1893,6 +1893,7 @@ public final class VehicleModule implements StsvModule, Listener {
     }
 
     private void board(LiveVehicle v, Player p) {
+        if (v.fun.tumble > 0) return;   // a 특별 탈것 lying tumbled over gets up first
         boolean mayDrive = mayDrive(v, p);
         boolean[] taken = v.taken();
         int seat = VehicleSeats.pick(taken, mayDrive);
@@ -1933,6 +1934,7 @@ public final class VehicleModule implements StsvModule, Listener {
         }
         v.seats[seat] = new LiveVehicle.Seat(carrier, chair);
         v.seatSince[seat] = ticks;
+        funView.boarded(v, seat, p);
         dress.door(v, seat, ticks);
         hideBoxes(v, p, true);
         if (seat == 0) {
@@ -2103,7 +2105,8 @@ public final class VehicleModule implements StsvModule, Listener {
     @EventHandler(ignoreCancelled = true)
     public void onMount(EntityMountEvent e) {
         // only players get in (a vehicle's own chair sits on its carrier)
-        if (isVehiclePart(e.getMount()) && !(e.getEntity() instanceof Player) && !isVehiclePart(e.getEntity())) e.setCancelled(true);
+        if (isVehiclePart(e.getMount()) && !(e.getEntity() instanceof Player) && !isVehiclePart(e.getEntity())
+                && !dev.stsv.core.emote.RiderPuppet.isPuppet(e.getEntity())) e.setCancelled(true);   // (a standing rider's puppet may)
     }
 
     /** Ctrl = siren (patrol car), once per press (DriveInput.presses). Space (the horn) is read every tick: see horn. */
@@ -2956,6 +2959,10 @@ public final class VehicleModule implements StsvModule, Listener {
 
     long ticks() {
         return ticks;
+    }
+
+    STSVPlugin plugin() {
+        return plugin;
     }
 
     Settings shownSettings() {
