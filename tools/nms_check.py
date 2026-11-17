@@ -16,7 +16,6 @@ ITEM = "net.minecraft.world.item.ItemStack"
 
 # class -> text each of which must appear in "javap -p" of the class
 WANTED = {
-    "net.minecraft.world.entity.EntityTypes": [" INTERACTION;"],
     "net.minecraft.world.phys.Vec3": ["public static final net.minecraft.world.phys.Vec3 ZERO;"],
     "net.minecraft.world.entity.EquipmentSlot": [" HEAD;", " CHEST;", " LEGS;", " FEET;"],
     "net.minecraft.world.entity.Display": [
@@ -54,6 +53,14 @@ WANTED = {
         " carriedItem();"],
     GAME + "ClientboundSetPlayerInventoryPacket": ["ClientboundSetPlayerInventoryPacket(int, " + ITEM + ");", " slot();", " contents();"],
     GAME + "ClientboundRespawnPacket": [],
+    GAME + "ClientboundRemoveEntitiesPacket": ["ClientboundRemoveEntitiesPacket(int...);", " entityIds();"],
+    GAME + "ClientboundMoveEntityPacket": [" entityId;", " delta;", " yRot;", " xRot;", " onGround;"],
+    GAME + "ClientboundMoveEntityPacket$Rot": ["$Rot(int, byte, byte, boolean);"],
+    GAME + "ClientboundMoveEntityPacket$PosRot": ["$PosRot(int, net.minecraft.network.protocol.game.VecDelta, byte, byte, boolean);"],
+    GAME + "ClientboundMoveEntityPacket$Pos": ["$Pos(int, net.minecraft.network.protocol.game.VecDelta, boolean);"],
+    GAME + "ClientboundEntityPositionSyncPacket": [" id();", " position();", " yRot();", " xRot();", " onGround();"],
+    GAME + "ClientboundTeleportEntityPacket": [" id();", " change();", " relatives();", " onGround();"],
+    "net.minecraft.world.entity.EntityTypes": [" INTERACTION;", " ITEM_DISPLAY;"],
     GAME + "ClientboundLoginPacket": [],
 }
 

@@ -95,6 +95,8 @@ final class CosmeticPackets {
     private final Class<?> removeCls;
     private final Method removeIds;
     private final Constructor<?> removeNew;
+    /** own view: packets that turn or move an entity, and how to make the same packet for another entity id */
+    private final Map<Class<?>, java.util.function.BiFunction<Object, Integer, Object>> movers = new java.util.HashMap<>();
     private final Class<?> respawnCls, loginCls;
     private volatile float ownLift;
     /** wearer -> the linked displays that are worn cosmetics (the ones lifted on the wearer's own client) */
@@ -266,6 +268,7 @@ final class CosmeticPackets {
                 rmc = Class.forName(game + "ClientboundRemoveEntitiesPacket", false, cl);
                 rmi = rmc.getMethod("entityIds");
                 rmn = rmc.getConstructor(int[].class);
+                movers(cl, game);
                 Object[] all = {aT, aW, aH, aB, aBr, aSt, aDu, aVr};
                 for (int i = 0; i < all.length; i++) ids[i] = (int) accId.invoke(all[i]);
                 rc = Class.forName(game + "ClientboundRespawnPacket", false, cl);
@@ -329,6 +332,86 @@ final class CosmeticPackets {
             }
         }
         throw first != null ? first : new NoSuchFieldException(name);
+    }
+
+    /**
+     * The packets that turn a display (its yaw follows the wearer's body) or move it, each with a way to send the same
+     * to another entity id: the copies of a body display (own view) turn with it. Any that this server lacks is left
+     * out (the copies would keep the turn they appeared with).
+     */
+    private void movers(ClassLoader cl, String game) {
+        try {
+            Class<?> base = Class.forName(game + "ClientboundMoveEntityPacket", false, cl);
+            Field fid = field(base, "entityId"), fd = field(base, "delta"), fy = field(base, "yRot"), fx = field(base, "xRot"), fg = field(base, "onGround");
+            Class<?> delta = fd.getType();
+            Class<?> rot = Class.forName(game + "ClientboundMoveEntityPacket$Rot", false, cl);
+            Class<?> posRot = Class.forName(game + "ClientboundMoveEntityPacket$PosRot", false, cl);
+            Class<?> pos = Class.forName(game + "ClientboundMoveEntityPacket$Pos", false, cl);
+            Constructor<?> nr = rot.getConstructor(int.class, byte.class, byte.class, boolean.class);
+            Constructor<?> npr = posRot.getConstructor(int.class, delta, byte.class, byte.class, boolean.class);
+            Constructor<?> np = pos.getConstructor(int.class, delta, boolean.class);
+            movers.put(rot, (pk, id) -> make(() -> nr.newInstance(id, fy.get(pk), fx.get(pk), fg.get(pk))));
+            movers.put(posRot, (pk, id) -> make(() -> npr.newInstance(id, fd.get(pk), fy.get(pk), fx.get(pk), fg.get(pk))));
+            movers.put(pos, (pk, id) -> make(() -> np.newInstance(id, fd.get(pk), fg.get(pk))));
+            moverId.put(rot, fid);
+            moverId.put(posRot, fid);
+            moverId.put(pos, fid);
+        } catch (ReflectiveOperationException | RuntimeException e) {
+            log.warning("치장 내 화면 보기: 엔티티 회전 패킷을 쓸 수 없어 몸 치장 사본이 몸을 따라 돌지 않을 수 있습니다: " + e);
+        }
+        for (String[] r : new String[][]{{"ClientboundEntityPositionSyncPacket", "position", "yRot", "xRot", "onGround"},
+                                         {"ClientboundTeleportEntityPacket", "change", "relatives", "onGround"}}) {
+            try {
+                Class<?> c = Class.forName(game + r[0], false, cl);
+                Method id = c.getMethod("id");
+                Method[] parts = new Method[r.length - 1];
+                Class<?>[] types = new Class<?>[r.length];
+                types[0] = int.class;
+                for (int i = 1; i < r.length; i++) {
+                    parts[i - 1] = c.getMethod(r[i]);
+                    types[i] = parts[i - 1].getReturnType();
+                }
+                Constructor<?> n = c.getConstructor(types);
+                movers.put(c, (pk, nid) -> make(() -> {
+                    Object[] args = new Object[r.length];
+                    args[0] = nid;
+                    for (int i = 1; i < r.length; i++) args[i] = parts[i - 1].invoke(pk);
+                    return n.newInstance(args);
+                }));
+                moverIdMethod.put(c, id);
+            } catch (ReflectiveOperationException | RuntimeException e) {
+                log.warning("치장 내 화면 보기: " + r[0] + " 을 쓸 수 없습니다: " + e);
+            }
+        }
+    }
+
+    private final Map<Class<?>, Field> moverId = new java.util.HashMap<>();
+    private final Map<Class<?>, Method> moverIdMethod = new java.util.HashMap<>();
+
+    private interface Maker {
+        Object make() throws ReflectiveOperationException;
+    }
+
+    private static Object make(Maker m) {
+        try {
+            return m.make();
+        } catch (ReflectiveOperationException e) {
+            throw new IllegalStateException(e);
+        }
+    }
+
+    private static Field field(Class<?> owner, String name) throws NoSuchFieldException {
+        Field f = owner.getDeclaredField(name);
+        f.setAccessible(true);
+        return f;
+    }
+
+    /** The entity a mover packet is about, or -1. */
+    private int moverEntity(Object packet) throws ReflectiveOperationException {
+        Field f = moverId.get(packet.getClass());
+        if (f != null) return f.getInt(packet);
+        Method m = moverIdMethod.get(packet.getClass());
+        return m == null ? -1 : (int) m.invoke(packet);
     }
 
     private static Object staticField(Class<?> owner, String name) throws ReflectiveOperationException {
@@ -960,6 +1043,13 @@ final class CosmeticPackets {
             h.copies.remove(id);
             if (displayType != null && lifted(h, h.entityId) && body(h, id)) return bundleNew.newInstance(ownSpawn(packet, h));
             return packet;
+        }
+        if (!h.copies.isEmpty() && movers.containsKey(c)) {
+            int id = moverEntity(packet);
+            if (!h.copies.contains(id)) return packet;
+            var make = movers.get(c);
+            return bundleNew.newInstance(List.of(packet, make.apply(packet, copyId(id, SelfLift.Band.LOW)),
+                    make.apply(packet, copyId(id, SelfLift.Band.MID))));
         }
         if (c == removeCls && !h.copies.isEmpty()) {
             it.unimi.dsi.fastutil.ints.IntList gone = (it.unimi.dsi.fastutil.ints.IntList) removeIds.invoke(packet);
