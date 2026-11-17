@@ -1,0 +1,51 @@
+# 서킷 트랙: 숲속 언덕. 설정 설명은 village.yml 맨 위.
+name: "숲속 언덕"
+subtitle: "노을 진 숲, 오르막 내리막이 이어지는 기술 코스"
+theme: forest
+slot: 3
+laps: 3
+width: 11
+difficulty: 4
+accent: "#ffb35c"
+points:
+  - [-18, 108]
+  - [-72, 108]
+  - [-112, 86]
+  - [-122, 45, 1]
+  - [-94, 18, 3]
+  - [-112, -14, 5]
+  - [-122, -54, 6]
+  - [-99, -94, 6]
+  - [-58, -104, 4]
+  - [-36, -72, 2]
+  - [-54, -40, 1]
+  - [-27, -14]
+  - [9, -36]
+  - [14, -81, 2]
+  - [45, -112, 4]
+  - [90, -108, 5]
+  - [117, -76, 4]
+  - [104, -40, 2]
+  - [68, -22]
+  - [63, 14]
+  - [99, 32]
+  - [122, 68]
+  - [104, 104]
+  - [63, 112]
+  - [32, 94]
+features:
+  - {type: jump, at: 0.47, power: 0.5, gap: 5}
+  - {type: boost, at: 0.04, power: 1.3}
+  - {type: boost, at: 0.72, power: 1.35}
+  - {type: tunnel, at: 0.53, to: 0.58}
+decor:
+  - {kind: bigtree, at: [-90, 60], size: 3}
+  - {kind: bigtree, at: [-60, 75], size: 2}
+  - {kind: mushroom, at: [-85, -10], size: 3}
+  - {kind: mushroom, at: [-15, 50], size: 2}
+  - {kind: bigtree, at: [20, 60], size: 3}
+  - {kind: bigtree, at: [-10, -110], size: 2}
+  - {kind: mushroom, at: [90, -70], size: 2}
+  - {kind: bigtree, at: [55, -75], size: 3}
+  - {kind: house, at: [30, 10], yaw: 0, size: 1}
+scatter: 320

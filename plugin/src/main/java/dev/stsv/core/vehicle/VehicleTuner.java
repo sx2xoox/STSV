@@ -204,6 +204,10 @@ final class VehicleTuner {
 
     /** A vehicle that appears (or whose item file was read again) takes the look it was given. */
     void adopt(LiveVehicle v) {
+        if (v.temporary) {   // a race's kart: the paint it was given when it was made (VehicleModule#spawnTemporary)
+            v.custom = catalogue.valid(id(v), v.custom);
+            return;
+        }
         boolean tried = false;
         for (Trying t : trying.values()) tried |= t.vehicle == v.id;
         if (!tried) v.custom = catalogue.valid(id(v), saved.getOrDefault(v.id, Custom.NONE));

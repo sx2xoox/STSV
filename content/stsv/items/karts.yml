@@ -1,0 +1,179 @@
+# 서킷 레이스 카트 (미니게임 · 서킷, README "미니게임 · 서킷"). 레이스 동안만 있는 탈것: 아이템으로 나오지 않음
+# (/관리자 지급 으로 줄 수는 있지만 서킷 밖에서 쓸 일 없음). 레이스용 수치 (무게 · 부스터 · 고를 수 있는 색) 는
+# circuit/karts.yml. 설정 설명은 vehicles.yml 맨 위. 모델: tools/assetgen/models/karts.py
+# 다섯 카트 모두 몸집은 같고 (길이 2.2 · 폭 1.5블록) 성격만 다름: 속도 / 가속 / 드리프트 / 무게 / 장난감(욕조)
+
+kart_storm:
+  material: paper
+  name: "<#e23a2e>스톰"
+  lore:
+    - "<gray>서킷 카트 · 최고 속도형"
+    - "<dark_gray>레이스 동안만 탐"
+  model: kart_storm
+  icon: kart_storm_icon
+  max-stack: 1
+  vehicle:
+    body-scale: 2
+    speed: 18.5
+    over-cap: true
+    drift: { angle: 30, min-speed: 6, build: 105, recover: 150, turn: 1.5, drag: 1.4 }
+    reverse-speed: 4
+    acceleration: 5.5
+    brake: 15
+    coast: 2.2
+    turn-rate: 84
+    turn-speed: 4
+    step-height: 1.0
+    size: [2.2, 1.5, 1.0]
+    click-height: 0.6
+    wheel: kart_wheel
+    wheel-radius: 0.28
+    wheels:
+      - { at: [-0.625, 0.28, 0.69], steer: true }
+      - { at: [0.625, 0.28, 0.69], steer: true }
+      - { at: [-0.625, 0.28, -0.69] }
+      - { at: [0.625, 0.28, -0.69] }
+    seats:
+      - { at: [0, 0.28, -0.31] }
+    engine: { sound: stsv:vehicle.sports_car.engine, volume: 0.45, idle-volume: 0.18, idle-pitch: 0.7, top-pitch: 2.0, segment-ticks: 10 }
+
+kart_bubble:
+  material: paper
+  name: "<#5ca5f7>버블"
+  lore:
+    - "<gray>서킷 카트 · 가속형"
+    - "<dark_gray>레이스 동안만 탐"
+  model: kart_bubble
+  icon: kart_bubble_icon
+  max-stack: 1
+  vehicle:
+    body-scale: 2
+    speed: 16.5
+    over-cap: true
+    drift: { angle: 32, min-speed: 5, build: 110, recover: 160, turn: 1.5, drag: 1.3 }
+    reverse-speed: 4.5
+    acceleration: 10
+    brake: 16
+    coast: 2.0
+    turn-rate: 96
+    turn-speed: 3.5
+    step-height: 1.0
+    size: [2.2, 1.5, 1.0]
+    click-height: 0.6
+    wheel: kart_wheel
+    wheel-radius: 0.28
+    wheels:
+      - { at: [-0.625, 0.28, 0.69], steer: true }
+      - { at: [0.625, 0.28, 0.69], steer: true }
+      - { at: [-0.625, 0.28, -0.69] }
+      - { at: [0.625, 0.28, -0.69] }
+    seats:
+      - { at: [0, 0.28, -0.31] }
+    engine: { sound: stsv:vehicle.atv.engine, volume: 0.4, idle-volume: 0.16, idle-pitch: 0.8, top-pitch: 1.9, segment-ticks: 10 }
+
+kart_drifter:
+  material: paper
+  name: "<#9a5fd0>섀도"
+  lore:
+    - "<gray>서킷 카트 · 드리프트형"
+    - "<dark_gray>레이스 동안만 탐"
+  model: kart_drifter
+  icon: kart_drifter_icon
+  max-stack: 1
+  vehicle:
+    body-scale: 2
+    speed: 17.2
+    over-cap: true
+    # 낮은 속도부터, 크게, 오래 미끄러지고 속도는 덜 잃음: 드리프트로 부스터를 빨리 모음
+    drift: { angle: 42, min-speed: 4.5, build: 135, recover: 120, turn: 1.8, drag: 0.7 }
+    reverse-speed: 4
+    acceleration: 7
+    brake: 15
+    coast: 2.2
+    turn-rate: 88
+    turn-speed: 4
+    step-height: 1.0
+    size: [2.2, 1.5, 1.0]
+    click-height: 0.6
+    wheel: kart_wheel
+    wheel-radius: 0.28
+    wheels:
+      - { at: [-0.625, 0.28, 0.69], steer: true }
+      - { at: [0.625, 0.28, 0.69], steer: true }
+      - { at: [-0.625, 0.28, -0.69] }
+      - { at: [0.625, 0.28, -0.69] }
+    seats:
+      - { at: [0, 0.28, -0.31] }
+    engine: { sound: stsv:vehicle.tuner_car.engine, volume: 0.45, idle-volume: 0.2, idle-pitch: 0.7, top-pitch: 1.9, segment-ticks: 10 }
+
+kart_buffalo:
+  material: paper
+  name: "<#f0c32e>버팔로"
+  lore:
+    - "<gray>서킷 카트 · 무게형"
+    - "<dark_gray>레이스 동안만 탐"
+  model: kart_buffalo
+  icon: kart_buffalo_icon
+  max-stack: 1
+  vehicle:
+    body-scale: 2
+    speed: 17.8
+    over-cap: true
+    # 무겁고 묵직함: 잘 안 미끄러지고 덜 돎, 대신 부딪히면 상대를 밀어냄 (circuit/karts.yml weight)
+    drift: { angle: 24, min-speed: 7, build: 85, recover: 170, turn: 1.3, drag: 1.8 }
+    reverse-speed: 4
+    acceleration: 6
+    brake: 13
+    coast: 2.4
+    turn-rate: 72
+    turn-speed: 4.5
+    step-height: 1.0
+    all-terrain: true
+    size: [2.2, 1.5, 1.2]
+    click-height: 0.7
+    wheel: kart_wheel_big
+    wheel-radius: 0.344
+    wheels:
+      - { at: [-0.625, 0.344, 0.69], steer: true }
+      - { at: [0.625, 0.344, 0.69], steer: true }
+      - { at: [-0.625, 0.344, -0.69] }
+      - { at: [0.625, 0.344, -0.69] }
+    seats:
+      - { at: [0, 0.28, -0.31] }
+    engine: { sound: stsv:vehicle.atv.engine, volume: 0.5, idle-volume: 0.22, idle-pitch: 0.55, top-pitch: 1.5, segment-ticks: 10 }
+
+# 웃긴 카트: 바퀴 달린 욕조. 핸들이 아주 예민하고 한 번 미끄러지면 오래 미끄러짐 (다루기 어려움).
+# 대신 드리프트로 부스터가 가장 빨리 차고 부스터가 가장 셈: 드리프트를 이어 가면 가장 빠를 수 있음
+kart_tub:
+  material: paper
+  name: "<#f1f3f6>꽥꽥 욕조"
+  lore:
+    - "<gray>서킷 카트 · 장난감형"
+    - "<dark_gray>레이스 동안만 탐"
+  model: kart_tub
+  icon: kart_tub_icon
+  max-stack: 1
+  vehicle:
+    body-scale: 2
+    speed: 16
+    over-cap: true
+    drift: { angle: 55, min-speed: 3, build: 170, recover: 65, turn: 2.2, drag: 0.5 }
+    reverse-speed: 5
+    acceleration: 8
+    brake: 12
+    coast: 1.6
+    turn-rate: 130
+    turn-speed: 3
+    step-height: 1.0
+    size: [2.2, 1.5, 1.0]
+    click-height: 0.7
+    wheel: kart_wheel_tub
+    wheel-radius: 0.25
+    wheels:
+      - { at: [-0.625, 0.25, 0.69], steer: true }
+      - { at: [0.625, 0.25, 0.69], steer: true }
+      - { at: [-0.625, 0.25, -0.69] }
+      - { at: [0.625, 0.25, -0.69] }
+    seats:
+      - { at: [0, 0.69, -0.31] }
+    engine: { sound: stsv:vehicle.delivery_scooter.engine, volume: 0.45, idle-volume: 0.2, idle-pitch: 0.9, top-pitch: 2.0, segment-ticks: 10 }

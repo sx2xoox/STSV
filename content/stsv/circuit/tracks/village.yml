@@ -1,0 +1,65 @@
+# 서킷 트랙 (미니게임 · 서킷, README "미니게임 · 서킷"). 파일 하나 = 트랙 하나, 파일 이름 = 트랙 id.
+# 미니게임 월드(minigames.world)에 코드가 지어 둠: 처음 켤 때 한 번 (기억함), /관리자 서킷 재건설 로 다시.
+#
+#   name / subtitle   보이는 이름 · 한 줄 소개          theme   village · canyon · glacier · forest · city (블록 · 소품 · 시간)
+#   slot              월드 안의 자리 (트랙마다 다르게: x = slot × 1024 가 트랙의 가운데)
+#   laps              바퀴 수                           width   도로 폭 (블록, 기본)
+#   checkpoints       순서대로 지나야 하는 관문 수 (같은 간격, 첫째가 결승선. 하나라도 건너뛰면 바퀴가 인정되지 않음)
+#   difficulty        1 ~ 5 (메뉴에 ★)                  accent  메뉴 · 화면의 색
+#   points            도로 가운데 선의 점들, 달리는 순서대로 (닫힌 곡선, 첫 점이 출발 · 결승선):
+#                       [x, z]  [x, z, 높이]  [x, z, 높이, 폭]  또는 {at: [x, z], y: 높이, width: 폭, bridge: true (기둥 위 다리)}
+#                     x = 동쪽, z = 남쪽 (가운데에서 180블록 안쪽). 높이는 0 ~ 24, 3블록에 1블록보다 가파르면 안 됨.
+#                     떨어진 두 도로는 서로 (폭/2 + 폭/2 + 6.4)블록보다 가까우면 안 됨 (다리처럼 5블록 넘게 위아래면 됨).
+#   features          jump  {at: 바퀴의 몫(0 ~ 1), power: 뜨는 힘 0.3 ~ 0.9, gap: 건너는 틈 블록}  (발판 앞 9블록이 오르막)
+#                     boost {at, power: 최고 속도 배수 1.1 ~ 1.6}  (분홍 화살표 발판)
+#                     tunnel {at, to}  (벽과 지붕, 조명)
+#   decor             손으로 놓는 소품 {kind, at: [x, z], yaw: 0/90/180/270, size: 1 ~ 3}
+#   scatter           테마 소품을 들판에 몇 개 흩뿌릴지 (같은 트랙은 언제나 같은 자리)
+#   blocks            테마 블록 바꾸기 (road, road-slab, line, line-slab, edge, shoulder, fill, pillar, tunnel, pit, under)
+
+name: "햇살 마을"
+subtitle: "꽃길 따라 달리는 첫 서킷"
+theme: village
+slot: 0
+laps: 3
+width: 13
+difficulty: 1
+accent: "#8fdc6a"
+points:
+  - [-34, -94]
+  - [34, -94]
+  - [85, -85]
+  - [115, -51, 1.5]
+  - [119, 0, 4]
+  - [100, 41, 2]
+  - [112, 83]
+  - [85, 109]
+  - [53, 95]
+  - [47, 60]
+  - [17, 32]
+  - [-17, 53]
+  - [-44, 87]
+  - [-85, 95]
+  - [-119, 68]
+  - [-123, 17]
+  - [-100, -26]
+  - [-112, -68]
+  - [-85, -92]
+features:
+  - {type: boost, at: 0.06, power: 1.35}
+  - {type: jump, at: 0.635, power: 0.5, gap: 5}
+  - {type: boost, at: 0.86, power: 1.3}
+decor:
+  # 안쪽 마을: 집 여러 채, 우물, 풍차, 열기구
+  - {kind: house, at: [-40, -50], yaw: 180, size: 2}
+  - {kind: house, at: [-10, -55], yaw: 180, size: 1}
+  - {kind: house, at: [22, -52], yaw: 180, size: 2}
+  - {kind: house, at: [52, -45], yaw: 270, size: 1}
+  - {kind: house, at: [-55, -18], yaw: 90, size: 1}
+  - {kind: house, at: [55, -10], yaw: 270, size: 2}
+  - {kind: well, at: [5, -25], size: 1}
+  - {kind: windmill, at: [-62, 25], yaw: 90, size: 2}
+  - {kind: balloon, at: [70, 30], size: 2}
+  - {kind: balloon, at: [-150, -120], size: 1}
+  - {kind: windmill, at: [160, -110], yaw: 270, size: 1}
+scatter: 150

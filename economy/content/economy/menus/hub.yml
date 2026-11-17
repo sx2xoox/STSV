@@ -23,7 +23,7 @@ hub:
     - "aaabbbccc"
     - "aaabbbccc"
     - "aaabbbccc"
-    - "BYtnPvwhR"
+    - "BYtnPvwmR"
   buttons:
     a:
       action: "hub:go:economy:hub_trade"
@@ -102,13 +102,13 @@ hub:
       art: hub:trash
       name: "<white>쓰레기통"
       lore: ["<gray>넣고 닫으면 사라짐", "<dark_gray>탈것·지게는 돌려받음 · /ㅆ"]
-    h:
-      action: "command:사이드바"
+    m:
+      action: "hub:go:economy:hub_minigame"
       icon: stsv:gui/blank
-      material: PAPER
-      art: hub:sidebar
-      name: "<white>사이드바 켜기·끄기"
-      lore: ["<gray>오른쪽 정보 패널", "<dark_gray>위치·크기: /사이드바"]
+      material: GOLDEN_HORSE_ARMOR
+      art: hub:minigame
+      name: "<white>미니게임"
+      lore: ["<gray>심심할 때 한 판 · 서킷 카트 레이스", "<gray>{circuit_status}", "", "<yellow>클릭: 고르기"]
     R:
       action: "hub:go:economy:hub_rank"
       icon: stsv:gui/blank

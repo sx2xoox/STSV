@@ -1,0 +1,69 @@
+# 서킷 대기실 (/서킷 참가, 통합 메뉴 → 미니게임 → 서킷). README "미니게임 · 서킷"
+# 위 = 카트 다섯 (circuit/karts.yml 순서), 가운데 = 고른 카트의 색 (그 카트의 colours), 아래 = 참가자 (출발선 순서), 맨 아래 = 버튼.
+# 모양 (theme: circuit, tools/assetgen/circuit_art.py lobby_background): 아스팔트 판 · 연석 · 체커 깃발 줄 · 카트 정비칸 ·
+#   출발선 칸. labels = 빈 줄에 쓰는 이름 (줄 번호: 이름), side-labels = 그 줄 버튼 양옆의 빈칸에 쓰는 이름.
+# 카트 · 색 칸의 아이템과 설명은 코드가 그림 (미니게임 모듈). 메뉴를 닫아도 대기실에 남음: /서킷 으로 다시 열기.
+# 자리표시자: {track} {subtitle} {laps} {seconds} {count} {max} {stars} {record_lap} {record_race} {my_lap} {my_race}
+#             {kart} {colour} {ready} {host}
+circuit_lobby:
+  title: "<#ffd36b>{track} <#c8c2d8>· {laps}바퀴"
+  rows: 6
+  theme: circuit
+  frame: {left: 0, right: 0, top: 0, scale: 2}
+  background: stsv:gui/circuit_lobby
+  labels: {1: "색깔", 3: "출발선"}
+  side-labels: {0: ["카트", ""]}
+  list: P
+  layout:
+    - "..ABCDE.."
+    - "........."
+    - "abcdefghi"
+    - "........."
+    - "PPPPPPPPP"
+    - "L.R.I.S.X"
+  buttons:
+    A: {action: "circuit:kart:0", material: MINECART, name: "<white>카트", lore: ["<gray>카트"]}
+    B: {action: "circuit:kart:1", material: MINECART, name: "<white>카트", lore: ["<gray>카트"]}
+    C: {action: "circuit:kart:2", material: MINECART, name: "<white>카트", lore: ["<gray>카트"]}
+    D: {action: "circuit:kart:3", material: MINECART, name: "<white>카트", lore: ["<gray>카트"]}
+    E: {action: "circuit:kart:4", material: MINECART, name: "<white>카트", lore: ["<gray>카트"]}
+    a: {action: "circuit:colour:0", material: PAPER, name: "<white>색", lore: ["<gray>색"]}
+    b: {action: "circuit:colour:1", material: PAPER, name: "<white>색", lore: ["<gray>색"]}
+    c: {action: "circuit:colour:2", material: PAPER, name: "<white>색", lore: ["<gray>색"]}
+    d: {action: "circuit:colour:3", material: PAPER, name: "<white>색", lore: ["<gray>색"]}
+    e: {action: "circuit:colour:4", material: PAPER, name: "<white>색", lore: ["<gray>색"]}
+    f: {action: "circuit:colour:5", material: PAPER, name: "<white>색", lore: ["<gray>색"]}
+    g: {action: "circuit:colour:6", material: PAPER, name: "<white>색", lore: ["<gray>색"]}
+    h: {action: "circuit:colour:7", material: PAPER, name: "<white>색", lore: ["<gray>색"]}
+    i: {action: "circuit:colour:8", material: PAPER, name: "<white>색", lore: ["<gray>색"]}
+    L:
+      action: "circuit:leave"
+      icon: stsv:gui/exit
+      material: BARRIER
+      name: "<white>대기실 나가기"
+      lore: ["<gray>레이스에 참가하지 않음", "", "<yellow>클릭: 나가기"]
+    R:
+      action: "circuit:ready"
+      icon: stsv:gui/confirm
+      material: LIME_DYE
+      name: "<white>준비 <gray>· {ready}"
+      lore: ["<gray>모두 준비하면 3초 뒤 출발", "", "<yellow>클릭: 준비 · 취소"]
+    I:
+      action: ""
+      icon: stsv:gui/info
+      material: MAP
+      name: "<#ffd36b>{track} <gold>{stars}"
+      lore: ["<gray>{subtitle}", "<gray>{laps}바퀴 · 출발까지 <white>{seconds}초</white> · {count}/{max}명", "<gray>트랙 기록 <white>{record_race}</white> · 랩 <white>{record_lap}",
+             "<gray>내 기록 <white>{my_race}</white> · 랩 <white>{my_lap}"]
+    S:
+      action: "circuit:start"
+      icon: stsv:gui/flag
+      material: GREEN_BANNER
+      name: "<white>바로 출발"
+      lore: ["<gray>방장(★) · 혼자일 때", "", "<yellow>클릭: 1초 뒤 출발"]
+    X:
+      action: "close"
+      icon: stsv:gui/cancel
+      material: OAK_DOOR
+      name: "<white>메뉴 닫기"
+      lore: ["<gray>대기실에는 남음 · /서킷 으로 다시"]

@@ -1,0 +1,184 @@
+{
+ "providers": [
+  {
+   "type": "bitmap",
+   "file": "stsv:font/circuit/title_three.png",
+   "ascent": 12,
+   "height": 16,
+   "chars": [
+    "\ue001"
+   ]
+  },
+  {
+   "type": "bitmap",
+   "file": "stsv:font/circuit/title_two.png",
+   "ascent": 12,
+   "height": 16,
+   "chars": [
+    "\ue002"
+   ]
+  },
+  {
+   "type": "bitmap",
+   "file": "stsv:font/circuit/title_one.png",
+   "ascent": 12,
+   "height": 16,
+   "chars": [
+    "\ue003"
+   ]
+  },
+  {
+   "type": "bitmap",
+   "file": "stsv:font/circuit/title_go.png",
+   "ascent": 12,
+   "height": 16,
+   "chars": [
+    "\ue004"
+   ]
+  },
+  {
+   "type": "bitmap",
+   "file": "stsv:font/circuit/title_finish.png",
+   "ascent": 12,
+   "height": 14,
+   "chars": [
+    "\ue005"
+   ]
+  },
+  {
+   "type": "bitmap",
+   "file": "stsv:font/circuit/title_lap.png",
+   "ascent": 12,
+   "height": 16,
+   "chars": [
+    "\ue008"
+   ]
+  },
+  {
+   "type": "bitmap",
+   "file": "stsv:font/circuit/title_wrong.png",
+   "ascent": 12,
+   "height": 14,
+   "chars": [
+    "\ue006"
+   ]
+  },
+  {
+   "type": "bitmap",
+   "file": "stsv:font/circuit/title_record.png",
+   "ascent": 12,
+   "height": 14,
+   "chars": [
+    "\ue007"
+   ]
+  },
+  {
+   "type": "bitmap",
+   "file": "stsv:font/circuit/title_place1.png",
+   "ascent": 12,
+   "height": 14,
+   "chars": [
+    "\ue010"
+   ]
+  },
+  {
+   "type": "bitmap",
+   "file": "stsv:font/circuit/title_place2.png",
+   "ascent": 12,
+   "height": 14,
+   "chars": [
+    "\ue011"
+   ]
+  },
+  {
+   "type": "bitmap",
+   "file": "stsv:font/circuit/title_place3.png",
+   "ascent": 12,
+   "height": 14,
+   "chars": [
+    "\ue012"
+   ]
+  },
+  {
+   "type": "bitmap",
+   "file": "stsv:font/circuit/title_place4.png",
+   "ascent": 12,
+   "height": 14,
+   "chars": [
+    "\ue013"
+   ]
+  },
+  {
+   "type": "bitmap",
+   "file": "stsv:font/circuit/title_place5.png",
+   "ascent": 12,
+   "height": 14,
+   "chars": [
+    "\ue014"
+   ]
+  },
+  {
+   "type": "bitmap",
+   "file": "stsv:font/circuit/title_place6.png",
+   "ascent": 12,
+   "height": 14,
+   "chars": [
+    "\ue015"
+   ]
+  },
+  {
+   "type": "bitmap",
+   "file": "stsv:font/circuit/title_place7.png",
+   "ascent": 12,
+   "height": 14,
+   "chars": [
+    "\ue016"
+   ]
+  },
+  {
+   "type": "bitmap",
+   "file": "stsv:font/circuit/title_place8.png",
+   "ascent": 12,
+   "height": 14,
+   "chars": [
+    "\ue017"
+   ]
+  },
+  {
+   "type": "bitmap",
+   "file": "stsv:font/circuit/title_place9.png",
+   "ascent": 12,
+   "height": 14,
+   "chars": [
+    "\ue018"
+   ]
+  },
+  {
+   "type": "bitmap",
+   "file": "stsv:font/circuit/title_place10.png",
+   "ascent": 12,
+   "height": 14,
+   "chars": [
+    "\ue019"
+   ]
+  },
+  {
+   "type": "bitmap",
+   "file": "stsv:font/circuit/title_place11.png",
+   "ascent": 12,
+   "height": 14,
+   "chars": [
+    "\ue01a"
+   ]
+  },
+  {
+   "type": "bitmap",
+   "file": "stsv:font/circuit/title_place12.png",
+   "ascent": 12,
+   "height": 14,
+   "chars": [
+    "\ue01b"
+   ]
+  }
+ ]
+}

@@ -106,6 +106,16 @@ commands:
     aliases: [쓰레기통, trash]
     usage: /ㅆ
     permission: stsv.trash
+  미니게임:
+    description: 미니게임 고르기 (서킷 ...)
+    aliases: [minigame, 미겜]
+    usage: /미니게임
+    permission: stsv.minigame
+  서킷:
+    description: "서킷 (카트 레이스): 참가 · 나가기 · 기록 · 트랙"
+    aliases: [circuit, 카트, 레이스]
+    usage: /서킷 [참가 [트랙]|나가기|기록 [트랙]|트랙]
+    permission: stsv.minigame
   야간투시:
     description: 야간 투시 켜기·끄기 (켜 두면 접속을 끊거나 죽어도 유지)
     aliases: [nightvision, nv]
@@ -199,6 +209,9 @@ permissions:
     default: true
   stsv.trash:
     description: /ㅆ (쓰레기통)
+    default: true
+  stsv.minigame:
+    description: 미니게임 (/미니게임, /서킷)
     default: true
   stsv.donation:
     description: /후원 (후원 상점)

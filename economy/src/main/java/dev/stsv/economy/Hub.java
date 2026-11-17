@@ -26,13 +26,20 @@ final class Hub {
     static void register(EcoPlugin eco) {
         STSVPlugin core = STSVPlugin.get();
         core.menus().override(dev.stsv.core.gui.HubModule.MENU, MENU);
+        // the minigame pages (/미니게임) with the economy's dock
+        core.menus().override("stsv:hub_minigame", "economy:hub_minigame");
+        core.menus().override("stsv:hub_circuit", "economy:hub_circuit");
         core.hub().provide(EcoPlugin.ADMIN_OWNER, p -> values(eco, p));
     }
 
     static void unregister() {
         STSVPlugin core = STSVPlugin.get();
         if (core == null) return;
-        if (core.menus() != null) core.menus().override(dev.stsv.core.gui.HubModule.MENU, null);
+        if (core.menus() != null) {
+            core.menus().override(dev.stsv.core.gui.HubModule.MENU, null);
+            core.menus().override("stsv:hub_minigame", null);
+            core.menus().override("stsv:hub_circuit", null);
+        }
         if (core.hub() != null) core.hub().unprovide(EcoPlugin.ADMIN_OWNER);
     }
 

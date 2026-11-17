@@ -156,7 +156,7 @@ class VehicleTuningTest {
         Map<String, VehicleTuning.Facts> facts = new java.util.HashMap<>();
         VehicleFeel.File feel = VehicleFeel.parse(YamlConfiguration.loadConfiguration(PACK.resolve("vehicle_feel.yml").toFile()), "stsv",
                 m -> Files.exists(PACK.resolve("models/" + m + ".bbmodel")), p -> { });
-        for (String file : List.of("vehicles.yml", "vehicles_road.yml", "vehicles_farm.yml", "vehicles_misc.yml")) {
+        for (String file : List.of("vehicles.yml", "vehicles_road.yml", "vehicles_farm.yml", "vehicles_misc.yml", "karts.yml")) {
             YamlConfiguration y = YamlConfiguration.loadConfiguration(PACK.resolve("items/" + file).toFile());
             for (String id : y.getKeys(false)) {
                 ConfigurationSection s = y.getConfigurationSection(id + ".vehicle");

@@ -67,7 +67,8 @@ class PackPipelineTest {
             // retro furniture: the TV and arcade screens, the arcade marquee, the briquette and kerosene fires, the dalgona brazier,
             // the rice cooker's warm lamp, the mosquito coil on the 평상, the phone's amber window, the street lamp's bulb
             "crt_tv", "arcade_machine", "yeontan_stove", "kerosene_stove", "dalgona_stand", "rice_cooker", "pyeongsang", "public_phone",
-            "street_lamp");
+            "street_lamp",
+            "kart_storm", "kart_bubble", "kart_drifter", "kart_buffalo");   // 서킷 karts: head and tail lamps, the antenna ball, neon
     private static final Set<String> ROTATED = Set.of("test_sword", "test_sword_skin", "test_greatsword", "test_slash", "test_rod", "test_rod_cast",
             "angel_wings", "demon_wings", "butterfly_wings",   // wings swept back 22.5 degrees
             "gumiho",                                           // nine tails fanned out
@@ -95,6 +96,7 @@ class PackPipelineTest {
             "crt_tv", "street_lamp",
             "meal_table",                                      // the round 양은 table top: slabs turned in steps of 22.5 degrees
             "police_car", "light_truck", "sports_car", "tuner_car",   // raked windscreens (45 / 22.5 degrees)
+            "kart_storm", "kart_bubble", "kart_drifter", "kart_buffalo", "kart_tub",   // 서킷 karts: the steering column, raked 45 degrees
             "hyper_car", "grand_sedan", "luxury_suv",           // the premium cars: screens, the hyper car hood and back
             "cargo_bicycle", "delivery_scooter", "atv",         // road vehicles: frame tubes, forks, stays, steering posts
             "cargo_van", "box_truck",                          // a raked windscreen, a roof deflector and a tilted steering wheel

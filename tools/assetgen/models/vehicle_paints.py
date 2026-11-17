@@ -24,6 +24,7 @@ from models import vehicles as V
 from models import vehicles_road as R
 from models import vehicles_farm as F
 from models import vehicles_premium as P
+from models import karts as KARTS
 
 # paint id -> the ramp it is drawn in (ids, names and prices: content/stsv/vehicle_tuning.yml)
 PAINTS = {"white": "car_white", "pearl": "pearl", "silver": "steel", "black": "iron", "red": "tomato", "wine": "wine",
@@ -67,13 +68,22 @@ BODIES = {
     "box_truck": ("denim", _remap(R.ALL["box_truck"], "denim")),
     "power_tiller": ("vermilion", _remap(F.ALL["power_tiller"], "vermilion")),
     "tractor": ("fox", _remap(F.ALL["tractor"], "fox")),
+    # 서킷 karts (models/karts.py): only the race's colours (content/stsv/circuit/karts.yml colours)
+    "kart_storm": ("tomato", _args(KARTS.storm)),
+    "kart_bubble": ("sapphire", _args(KARTS.bubble)),
+    "kart_drifter": ("grape", _args(KARTS.drifter)),
+    "kart_buffalo": ("corn", _args(KARTS.buffalo)),
+    "kart_tub": ("car_white", _args(KARTS.tub)),
 }
+# bodies offered in a few paints only (the race's colour pick), not in all of PAINTS
+KART_PAINTS = ("red", "orange", "yellow", "green", "blue", "purple", "pink", "white", "black")
+ONLY = {k: KART_PAINTS for k in BODIES if k.startswith("kart_")}
 
 
 def paints_of(body):
     """The paints a body is offered in: every paint but its own colour."""
     own = BODIES[body][0]
-    return [p for p, ramp in PAINTS.items() if ramp != own]
+    return [p for p, ramp in PAINTS.items() if ramp != own and p in ONLY.get(body, PAINTS)]
 
 
 @functools.lru_cache(maxsize=2)
