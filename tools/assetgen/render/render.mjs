@@ -57,6 +57,8 @@ for (const el of M.elements) {
       const v = new THREE.Vector3(...p);
       if (rot) v.sub(rot.o).applyMatrix4(rot.m).add(rot.o);
       for (const r of post) v.sub(r.o).applyMatrix4(r.m).add(r.o);
+      // optional "matrix": a whole 4 x 4 (row-major) after all that (a posed puppet's limb)
+      if (el.matrix) v.applyMatrix4(new THREE.Matrix4().set(...el.matrix));
       box.expandByPoint(v);
       return [v.x, v.y, v.z];
     });

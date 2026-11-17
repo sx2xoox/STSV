@@ -88,8 +88,8 @@ public final class RiderPose {
         Pose p = Pose.REST
                 .with(Channel.ROOT_ROT, tilt * 1.1, 0, 0)
                 .with(Channel.ROOT, 0, -0.3, tilt * 0.06)
-                .with(Channel.ARM_R, -48 - tilt, 0, -6)
-                .with(Channel.ARM_L, -48 - tilt, 0, 6)
+                .with(Channel.ARM_R, -55 - tilt, 0, -6)
+                .with(Channel.ARM_L, -55 - tilt, 0, 6)
                 .with(Channel.FOOT_L, 0.5, 0, 0.5)
                 .with(Channel.FOOT_R, -0.5, 0, 0.5)
                 .with(Channel.HEAD, -tilt * 0.6, 0, 0);
@@ -108,15 +108,15 @@ public final class RiderPose {
     private static Pose pogo(Motion m) {
         double c = clamp(m.crouch(), 0, 1);
         Pose p = Pose.REST
-                .with(Channel.FOOT_L, 2.6, 0, 0)
-                .with(Channel.FOOT_R, -2.6, 0, 0)
+                .with(Channel.FOOT_L, 2.6, 0, 3)
+                .with(Channel.FOOT_R, -2.6, 0, 3)
                 .with(Channel.KNEE_L, 0.4, 0, 1)
                 .with(Channel.KNEE_R, -0.4, 0, 1)
                 .with(Channel.ROOT, 0, -0.4 - 3.6 * c, 0.2)
                 .with(Channel.ROOT_ROT, 6 + 14 * c, 0, 0)
                 .with(Channel.CHEST, 6 * c, 0, 0)
-                .with(Channel.ARM_R, -40 + 25 * c, 0, 16)
-                .with(Channel.ARM_L, -40 + 25 * c, 0, -16)
+                .with(Channel.ARM_R, -25 + 15 * c, 0, 16)
+                .with(Channel.ARM_L, -25 + 15 * c, 0, -16)
                 .with(Channel.HEAD, -8 * c, 0, 0);
         if (m.air() && c == 0) {
             // up high: whee, head back, a little kick of the heels
@@ -133,8 +133,9 @@ public final class RiderPose {
         Pose p = Pose.REST
                 .with(Channel.ROOT_ROT, 0, 80, -lean * 0.4)
                 .with(Channel.HIPS, 0, 0, 0)
-                .with(Channel.FOOT_L, -2, 0, 4.5)
-                .with(Channel.FOOT_R, 2, 0, -4.5)
+                // turned to face its left, the left hip is at the back: the left foot over the tail, the right over the nose
+                .with(Channel.FOOT_L, -2, 0, -4.5)
+                .with(Channel.FOOT_R, 2, 0, 4.5)
                 .with(Channel.KNEE_L, 1, 0, 0.6)
                 .with(Channel.KNEE_R, 1, 0, 0.6)
                 .with(Channel.ROOT, 0, -1.2 - 3.4 * c, 0)

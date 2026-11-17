@@ -2,8 +2,8 @@
 특별 탈것 (content/stsv/items/vehicles_fun.yml): ten fun vehicles, all original designs (no brand). Each is its own body
 model (and wheel / part), so any of them can be deleted on its own:
 
-  kickboard         킥보드: an aluminium kick scooter with a folding stem, a small saddle on a post (riders can only sit),
-                    a rear brake fender and a bell; wheel_kickboard (polyurethane wheels)
+  kickboard         킥보드: an aluminium kick scooter with a folding stem, a lightning bolt in the grip tape, a rear brake
+                    fender, a bell and a lamp; the rider stands on it (a puppet); wheel_kickboard (polyurethane wheels)
   pogo_stick        스카이콩콩: an orange pogo stick, its spring showing between the tube and the foot bracket, rubber pegs
                     and foam grips, a fat rubber tip
   skateboard        보드: a popsicle deck with kicktail and nose, black grip tape, wood-ply edges, a flame graphic under it,
@@ -13,7 +13,7 @@ model (and wheel / part), so any of them can be deleted on its own:
   banana_boat       바나나보트: a big inflatable banana tube (curved up at both ends, its stem at the bow, brown speckles),
                     two blue side tubes, black grab handles for each of three riders, a tow ring
   segway            세그웨이: a two-wheel self-balancing scooter: the platform with its rubber mat, white fenders, the stem
-                    with its steering bar and a little LED dash, a seat-kit saddle; wheel_segway
+                    leaning up to its steering bar, an LED dash with a smiling face; the rider stands on it; wheel_segway
   toy_duck          장난감 오리: a huge yellow rubber duck: round body, raised tail, wing bumps, a round head with shiny eyes,
                     pink cheeks and an orange beak
   sled              썰매: a wooden sled for two: steel-shod runners curled up at the front, red side rails with gold
@@ -221,7 +221,7 @@ def _held(m, gui=0.4):
 
 
 # ================================================================================================
-# 킥보드 (kick scooter with a saddle) 1.25 x 0.5 x 1.2 blocks
+# 킥보드 (kick scooter, ridden standing) 1.25 x 0.5 x 1.2 blocks
 # ================================================================================================
 
 KICK = "spectral"          # the accent colour (stem collar, deck stripe, the fold joint)
@@ -256,7 +256,11 @@ def kickboard():
         if c.face == "up":
             if abs(x) > 2.0:
                 return (KICK, 2.8)
-            if abs(z + 4.5) < 0.6 or abs(z - 4.5) < 0.6:
+            # a teal lightning bolt cut out of the grip tape
+            zz = z + 0.5
+            if abs(zz) < 4.5 and abs(x - (0.5 * zz if zz < 0 else 0.5 * zz - 1.5)) < 0.6 - 0.0 * abs(zz):
+                return (KICK, 3.2)
+            if abs(z + 5.5) < 0.6 or abs(z - 5.5) < 0.6:
                 return ("rubber", 2.6)                  # grip tape seams
             return ("rubber", 1.6 + (0.6 if h3(math.floor(x * 2), 0, math.floor(z * 2), 3) < 0.2 else 0))
         if c.face == "down":
@@ -313,22 +317,7 @@ def kickboard():
           Paint("brass", 2, noise=0, rim=0.6, decal=lambda c: ("brass", 3.6) if c.face == "up" else ("brass", 2.4 if c.face in ("north", "west") else 1.6)))
     rod(m, "brake_lever", (21.0, -7.75), (20.0, -5.5), 0.5, tube("rubber", 2.4, 1), x=(-6.5, -4.5))
 
-    # --- the saddle on its post (riders can only sit: a seat kit), the rear brake fender over the back wheel
-    m.box("seat_post", (-0.6, 4.0, 4.1), (0.6, 8.75, 5.3), tube("blade", 3.4, 2))
-    m.box("seat_clamp", (-0.9, 4.0, 3.8), (0.9, 5.25, 5.6), Paint(KICK, 2, noise=0, rim=0.4))
-
-    def saddle(c):
-        x, y, z = c.p
-        if c.face == "up":
-            if abs(x) > 1.6 or z < 2.1 or z > 7.4:
-                return ("rubber", 2.6)                  # the piping
-            return ("rubber", 1.8 if math.floor(z) % 2 else 1.5)
-        if c.face in ("east", "west") and y < 9.4:
-            return (KICK, 2)                            # a teal band round the base
-        return ("rubber", 1.2)
-    m.box("saddle", (-2.25, 8.75, 1.75), (2.25, 10.25, 7.75), Paint("rubber", 1, noise=0, rim=0.6, decal=saddle))
-    m.box("saddle_nose", (-1.25, 9.0, 0.5), (1.25, 10.0, 1.75), Paint("rubber", 1, noise=0, rim=0.5))
-
+    # --- the rear brake fender over the back wheel (a stamp on it brakes)
     def fender(c):
         if c.face == "south" and abs(c.p[0]) < 1:
             return ("raw", (220, 40, 46, 255))          # the rear reflector
@@ -388,9 +377,15 @@ def pogo_stick():
     # --- the orange tube: glossy, a white stripe and stars, a black cap where the spring goes in
     def body(c):
         x, y, z = c.p
-        if 18.5 < y < 19.5:
+        if 18.5 < y < 19.25:
             return ("car_white", 3.4)                   # the white stripe
-        if 16 < y < 18 and c.face in ("north", "south", "east", "west"):
+        if c.face == "north" and 15.5 < y < 18.4:
+            # a cheeky face sticker on the front: round eyes, a big grin with a tongue
+            if abs(abs(x) - 0.75) < 0.4 and 17.2 < y < 18.2:
+                return ("raw", (255, 255, 255, 255)) if y > 17.7 else ("raw", (20, 20, 26, 255))
+            if 15.75 < y < 16.6 and abs(x) < 1.3:
+                return ("raw", (230, 70, 90, 255)) if (y < 16.1 and abs(x) < 0.5) else ("raw", (40, 14, 18, 255))
+        if c.face in ("south", "east", "west") and 16 < y < 18:
             a = math.atan2(x, z)
             if math.floor(a * 3 + y) % 4 == 0:
                 return ("petal_yellow", 3)               # little stars round it
@@ -399,21 +394,22 @@ def pogo_stick():
         if c.face in ("south", "east"):
             return (POGO, lerp(y, 14, 26, 1.6, 2.4))
         return (POGO, 3)
-    cyl(m, "tube", (0, 0), 4, 15, 25, Paint(POGO, 2, noise=0, rim=0.3, decal=body))
+    cyl(m, "tube", (0, 0), 4, 15, 21, Paint(POGO, 2, noise=0, rim=0.3, decal=body))
     cyl(m, "tube_cap", (0, 0), 5, 14, 15.5, Paint("rubber", 1, noise=0, rim=0.4))
-    cyl(m, "top_cap", (0, 0), 3, 25, 27, Paint("rubber", 1, noise=0, rim=0.4))
+    cyl(m, "top_cap", (0, 0), 3, 21, 23, Paint("rubber", 1, noise=0, rim=0.4))
+    m.box("top_bob", (-0.75, 23.0, -0.75), (0.75, 24.25, 0.75), Paint(POGO, 3, noise=0, rim=0.5))
 
-    # --- the T handlebar with foam grips and end caps
-    m.box("bar", (-7, 24.75, -0.6), (7, 25.85, 0.6), tube("blade", 3.6, 2))
+    # --- the T handlebar (at the standing rider's hands) with foam grips and end caps
+    m.box("bar", (-7, 19.75, -0.6), (7, 20.85, 0.6), tube("blade", 3.6, 2))
 
     def foam(c):
         x = c.p[0]
         return ("rubber", 2.4 if math.floor(x * 1.5) % 2 else 1.6)
     for s in (1, -1):
         xa, xb = sorted((s * 3.0, s * 7.0))
-        m.box("grip", (xa, 24.25, -1.1), (xb, 26.35, 1.1), Paint("rubber", 1, noise=0, rim=0.5, decal=foam))
+        m.box("grip", (xa, 19.25, -1.1), (xb, 21.35, 1.1), Paint("rubber", 1, noise=0, rim=0.5, decal=foam))
         xc, xd = sorted((s * 7.0, s * 7.75))
-        m.box("bar_end", (xc, 24.25, -1.1), (xd, 26.35, 1.1), Paint(POGO, 2, noise=0, rim=0.4))
+        m.box("bar_end", (xc, 19.25, -1.1), (xd, 21.35, 1.1), Paint(POGO, 2, noise=0, rim=0.4))
     return _held(m, 0.5)
 
 
@@ -448,6 +444,11 @@ def skateboard():
             # black grip tape (fine grit), two thin cut lines across near the trucks
             if abs(abs(z) - WZ) < 0.3:
                 return ("rubber", 2.4)
+            # cut-outs in the grip showing the deck's flames under it: two slashes by the nose, a star by the tail
+            if -6.5 < z < -2.0 and (abs(x - (z + 4.5) * 0.8) < 0.45 or abs(x - (z + 2.5) * 0.8) < 0.45):
+                return ("fire", 4)
+            if math.hypot(x, z - 3.5) < 1.4 and math.cos(5 * math.atan2(z - 3.5, x)) > -0.2:
+                return ("petal_yellow", 2)
             return ("rubber", 1.4 + (0.7 if h3(math.floor(x * 2), 1, math.floor(z * 2), 7) < 0.18 else 0))
         if c.face == "down":
             # the graphic: flames up a red deck, a yellow star in the middle
@@ -578,6 +579,9 @@ def banana_boat():
         # the banana's ridges: a slightly darker line where its faces meet (along the tube, either side of the top)
         if c.face == "up" and abs(abs(x) - r * 0.42) < 0.4:
             return ("petal_yellow", 0.6)
+        # a goofy grin across the bow
+        if z < -27.5 and c.face in ("north", "up", "east", "west") and abs(x) < 4.0 and abs(y - (cy + 1.2 + 0.12 * x * x)) < 0.45:
+            return ("raw", (110, 50, 20, 255))
         n = lit(c, (0, cy, z), (r, r, 40))
         return ("petal_yellow", 0.1 + 1.45 * n)
     bp = Paint("petal_yellow", 2, noise=0, rim=0.15, ao=0.4, grad=0, decal=banana)
@@ -595,6 +599,16 @@ def banana_boat():
     sy = centre_y(-HALF)
     m.box("stem", (-1.25, sy - 1.25, -HALF - 5.0), (1.25, sy + 1.25, -HALF), Paint("leaf", 2, noise=0, rim=0.4, decal=stem),
           rotation=("x", -22.5, (0, sy, -HALF)))
+    # big googly eyes up on the bow, looking ahead
+    for s_ in (1, -1):
+        ez = -27.0
+        ey = centre_y(ez) + girth(ez) / 2 - 0.5
+        xa, xb = sorted((s_ * 0.6, s_ * 3.6))
+        m.box("eye", (xa, ey, ez - 1.5), (xb, ey + 3.25, ez + 0.75), Paint("car_white", 3, noise=0, light=False,
+                                                                       decal=lambda c: ("raw", (250, 250, 250, 255))))
+        xc, xd = sorted((s_ * 1.4, s_ * 2.9))
+        m.box("pupil", (xc, ey + 0.4, ez - 1.75), (xd, ey + 1.9, ez - 1.5), Paint("rubber", 0, noise=0, light=False,
+                                                                           decal=lambda c: ("raw", (16, 16, 22, 255))))
     ty = centre_y(HALF)
     m.box("tip", (-1.5, ty - 1.5, HALF), (1.5, ty + 1.5, HALF + 2.0), Paint("doenjang", 1, noise=0, rim=0.4))
 
@@ -688,38 +702,29 @@ def segway():
         if c.face in ("south", "east"):
             return ("car_white", 2.2)
         return ("car_white", 3)
-    m.box("stem", (-1.0, 5.0, -4.0), (1.0, 22.5, -2.0), Paint("car_white", 2, noise=0, rim=0.4, decal=stem))
+    # the stem leans forward from the platform's front up to the bar, where the standing rider's hands are
+    rod(m, "stem", (5.0, -3.0), (19.0, -8.75), 2.0, Paint("car_white", 2, noise=0, rim=0.4, decal=stem))
     m.box("stem_foot", (-1.75, 4.5, -4.75), (1.75, 6.5, -1.25), Paint("steel", 2, noise=0, rim=0.4))
 
     def dash(c):
         x, y, z = c.p
         if c.face == "up":
-            if abs(x) < 1.6 and -4.6 < z < -1.6:
-                k = math.floor(x * 2 + 4)
-                return ("raw", (80, 230, 140, 255)) if k in (2, 3, 4) and z < -3 else ("raw", (30, 60, 80, 255))   # the LED gauge
+            if abs(x) < 1.9 and -10.6 < z < -7.4:
+                # the LED face: two eyes and a smile (it is happy to see you)
+                u, w = x, z + 9.0
+                if (abs(abs(u) - 0.9) < 0.35 and -1.2 < w < -0.4) or (abs(w - (0.9 - 0.25 * u * u)) < 0.3 and abs(u) < 1.5):
+                    return ("raw", (90, 235, 160, 255))
+                return ("raw", (24, 40, 52, 255))
             return ("rubber", 2)
         return ("rubber", 1.4)
-    m.box("dash", (-2.25, 22.5, -5.0), (2.25, 24.0, -1.25), Paint("rubber", 1, noise=0, rim=0.5, decal=dash))
-    m.box("bar", (-7.0, 22.75, -3.75), (7.0, 23.75, -2.75), tube("steel", 3.6, 2))
+    m.box("dash", (-2.25, 18.75, -11.0), (2.25, 20.25, -7.0), Paint("rubber", 1, noise=0, rim=0.5, glow=True, decal=dash))
+    m.box("bar", (-7.0, 19.0, -9.5), (7.0, 20.0, -8.5), tube("steel", 3.6, 2))
 
     def grip(c):
         return ("rubber", 2.4 if math.floor(c.p[0] * 2) % 3 == 0 else 1.4)
-    for s in (1, -1):
-        xa, xb = sorted((s * 4.0, s * 7.25))
-        m.box("grip", (xa, 22.5, -4.0), (xb, 24.0, -2.5), Paint("rubber", 1, noise=0, rim=0.4, decal=grip))
-
-    # --- the seat kit: a post from the back of the platform, a padded saddle
-    m.box("seat_post", (-0.75, 5.0, 3.0), (0.75, 10.25, 4.5), tube("steel", 3.6, 2))
-    m.box("seat_brace", (-0.5, 5.0, 0.5), (0.5, 5.75, 3.25), tube("steel", 3.6, 2))
-
-    def saddle(c):
-        x, y, z = c.p
-        if c.face == "up":
-            if abs(x) > 2.1 or z < 0.6 or z > 6.9:
-                return (SEG, 2.6)                        # blue piping
-            return ("rubber", 2.0 if math.floor(x * 1.5) % 2 else 1.6)
-        return ("rubber", 1.2)
-    m.box("saddle", (-2.75, 10.25, 0.0), (2.75, 11.75, 7.5), Paint("rubber", 1, noise=0, rim=0.6, decal=saddle))
+    for s_ in (1, -1):
+        xa, xb = sorted((s_ * 4.0, s_ * 7.25))
+        m.box("grip", (xa, 18.75, -9.75), (xb, 20.25, -8.25), Paint("rubber", 1, noise=0, rim=0.4, decal=grip))
     return _held(m, 0.4)
 
 

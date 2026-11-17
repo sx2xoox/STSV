@@ -40,9 +40,55 @@ VP.items = items
 VP.V = types.SimpleNamespace(ALL={**V.ALL, **F.ALL})
 
 
+# the standing riders' poses as the plugin makes them at a steady roll (RiderPose: channels in puppet pixels / degrees)
+STAND_POSES = {
+    "kick": {"root_rot": (12, 0, 0), "root": (0, -1.6, 0), "chest": (8, 0, 0), "head": (-10, 0, 0), "arm_r": (-62, 0, -4),
+             "arm_l": (-62, 0, 4), "foot_l": (-1.5, 0, 2), "foot_r": (2.2, -2.0, -7.5), "knee_l": (0, 0, 1), "knee_r": (0, 0, 1)},
+    "segway": {"root_rot": (6, 0, 0), "root": (0, -0.3, 0.3), "arm_r": (-55, 0, -6), "arm_l": (-55, 0, 6),
+               "foot_l": (0.5, 0, 0.5), "foot_r": (-0.5, 0, 0.5), "head": (-4, 0, 0)},
+    "pogo": {"foot_l": (2.6, 0, 3), "foot_r": (-2.6, 0, 3), "knee_l": (0.4, 0, 1), "knee_r": (-0.4, 0, 1),
+             "root": (0, -1.5, 0.2), "root_rot": (10, 0, 0), "chest": (2, 0, 0), "arm_r": (-25, 0, 16), "arm_l": (-25, 0, -16)},
+    "skate": {"root_rot": (0, 80, 0), "foot_l": (-2, 0, -4.5), "foot_r": (2, 0, 4.5), "knee_l": (1, 0, 0.6), "knee_r": (1, 0, 0.6),
+              "root": (0, -1.6, 0), "chest": (14, -55, 0), "head": (-6, -20, 0), "arm_r": (-10, 0, -45), "arm_l": (-10, 0, 45)},
+}
+PUPPET_COLOURS = {"head": (222, 182, 140), "chest": (64, 170, 200), "hips": (64, 170, 200), "arm_r": (222, 182, 140),
+                  "arm_l": (222, 182, 140), "thigh_r": (52, 72, 140), "shin_r": (52, 72, 140), "thigh_l": (52, 72, 140),
+                  "shin_l": (52, 72, 140)}
+
+
+def standing(spec, ox):
+    """The standing rider (the puppet the plugin draws: emotes.py's rig, posed as RiderPose poses it) on the deck."""
+    import numpy as np
+    import emotes as E
+    st = spec["fun"]["stand"]
+    pose = E.default_pose()
+    for k, v in STAND_POSES[st["kind"]].items():
+        pose[k] = np.array(v, float)
+    joints = E.matrices(pose, True)
+    names = E.JOINT_NAMES
+    seat = spec["seats"][0]["at"]
+    k = 0.9375
+    world = np.array([[-k, 0, 0, -seat[0] * 16 + ox[0]], [0, k, 0, st["deck"] * 16], [0, 0, -k, -seat[2] * 16 + ox[2]], [0, 0, 0, 1]])
+    els, tex = [], {}
+    for joint, part, r0, r1, x0, top, z0 in E.BOXES:
+        w, h, d = E.SKIN_PARTS[part][2], E.SKIN_PARTS[part][3], E.SKIN_PARTS[part][4]
+        frm, to = [x0, top - r1, z0], [x0 + w, top - r0, z0 + d]
+        mat = world @ joints[names.index(joint)]
+        name = "puppet_" + joint
+        tex[name] = VP._solid(PUPPET_COLOURS[joint])
+        els.append({"from": frm, "to": to, "glow": False, "shade": True, "rotation": None, "matrix": [float(x) for x in mat.flatten()],
+                    "faces": {f: {"uv": [0, 0, 16, 16], "texture": name} for f in ("north", "south", "east", "west", "up", "down")}})
+    return tex, els
+
+
 def vehicle(vid, ox, riders=True):
     """The whole vehicle (body, wheels, part, riders) at offset ox, lifted as it floats."""
-    t, e, spec = VP.vehicle(vid, ox, riders=riders, steer=0)
+    stands = "stand" in items()[vid]["vehicle"].get("fun", {})
+    t, e, spec = VP.vehicle(vid, ox, riders=riders and not stands, steer=0)
+    if riders and stands:
+        pt, pe = standing(spec, ox)
+        t = {**t, **pt}
+        e = e + pe
     t = dict(t)
     part = spec.get("fun", {}).get("part")
     if part:
@@ -63,7 +109,7 @@ def close_up(vid, out):
     t = {**t, "ref_rider": VP._solid((222, 152, 60)), "ref_passenger": VP._solid((120, 160, 120))}
     L, W, H = spec["size"]
     part = spec.get("fun", {}).get("part")
-    H = max(H, 4.5 if part and "balloon" in part["model"] else H) + LIFT.get(vid, 0)
+    H = max(H, 4.5 if part and "balloon" in part["model"] else H, 2.2 if "stand" in spec.get("fun", {}) else 0) + LIFT.get(vid, 0)
     r = max(L, 1.4 * H, 2.0) * 8
     c = [0, H * 7, 0]
     views = [{"x": 0, "y": 0, "w": 800, "h": 500, "az": -35, "el": 18, "k": 5.2, "radius": r, "fov": 26, "center": c},
@@ -79,7 +125,7 @@ def bare(vid, out):
     t, e, spec = vehicle(vid, (0, 0, 0), riders=False)
     L, W, H = spec["size"]
     part = spec.get("fun", {}).get("part")
-    H = max(H, 4.5 if part and "balloon" in part["model"] else H) + LIFT.get(vid, 0)
+    H = max(H, 4.5 if part and "balloon" in part["model"] else H, 2.2 if "stand" in spec.get("fun", {}) else 0) + LIFT.get(vid, 0)
     r = max(L, 1.4 * H, 2.0) * 8
     c = [0, H * 7, 0]
     views = [{"x": 0, "y": 0, "w": 800, "h": 500, "az": -35, "el": 18, "k": 5.2, "radius": r, "fov": 26, "center": c},
@@ -108,7 +154,7 @@ def main(out):
         elements += e
         L, W, H = spec["size"]
         part = spec.get("fun", {}).get("part")
-        Hs = max(H, 4.6 if part and "balloon" in part["model"] else H) + LIFT.get(vid, 0)
+        Hs = max(H, 4.6 if part and "balloon" in part["model"] else H, 2.2 if "stand" in spec.get("fun", {}) else 0) + LIFT.get(vid, 0)
         elements += VP._xf(player["elements"], lambda p: [p[0] + ox[0] - W * 8 - 10, p[1], p[2] + ox[2] + L * 8 + 10])
         elements += VP._xf(block["elements"], lambda p: [p[0] + ox[0] + W * 8 + 4, p[1], p[2] - L * 8 - 22])
         radius = max(L, 1.3 * Hs, 2.6) * 8
