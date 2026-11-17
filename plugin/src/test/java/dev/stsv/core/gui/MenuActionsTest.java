@@ -63,7 +63,8 @@ class MenuActionsTest {
                     if (!ids.contains(a.substring(5).contains(":") ? a.substring(5) : "stsv:" + a.substring(5))) problems.add(where + ": no such menu");
                 } else if (a.startsWith("command:") || a.startsWith("hub:")) {
                     List<String> cmds = HubModule.commands(a);
-                    if (cmds == null || (a.startsWith("hub:") && !m.id().equals(HubModule.MENU))) problems.add(where + ": hub actions only work in the hub");
+                    if (cmds == null || (a.startsWith("hub:") && !m.id().matches("(stsv|economy):hub(_.*)?"))) problems.add(where + ": hub actions only work in the hub");
+                    else if (a.startsWith(HubModule.GO) && !ids.contains(a.substring(HubModule.GO.length())) && !a.equals(HubModule.GO + HubModule.MENU)) problems.add(where + ": no such hub page");
                     else for (String c : cmds) if (!commands.contains(c.split(" ")[0])) problems.add(where + ": no command /" + c);
                 } else if (!literals.contains(a) && literals.stream().noneMatch(l -> l.endsWith(":") && a.startsWith(l))) {
                     problems.add(where + ": nothing in the code handles it");

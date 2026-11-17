@@ -599,8 +599,35 @@ def _gacha():
     return draw(rows)
 
 
+def _compass():
+    """통합 메뉴의 이동: a compass, a gold rim with a dark edge, a light face, the needle red to the north and
+    dark to the south, a gold pin in the middle and a tick at each of the four points."""
+    rows = []
+    for y in range(16):
+        row = ""
+        for x in range(16):
+            dx, dy = x - 7.5, y - 7.5
+            d2 = dx * dx + dy * dy
+            if d2 > 56:
+                row += "."
+            elif d2 > 40:
+                row += "G" if dx + dy > 0 else "g"
+            elif (x in (7, 8) and y in (7, 8)):
+                row += "g"
+            elif abs(dx) / 2.6 + abs(dy) / 5.6 <= 1 and y < 7:
+                row += "r" if dx < 0 else "R"
+            elif abs(dx) / 2.6 + abs(dy) / 5.6 <= 1 and y > 8:
+                row += "k" if dx < 0 else "S"
+            elif (x in (7, 8) and y in (2, 13)) or (y in (7, 8) and x in (2, 13)):
+                row += "s"
+            else:
+                row += "s" if dx + dy > 6 else "#"
+        rows.append(row)
+    return draw(rows)
+
+
 def hub_icons():
-    return {"gacha": _gacha(), "pearl": _pearl(), "house": draw(HOUSE), "pine": draw(PINE), "tag": draw(TAG), "podium": draw(PODIUM), "send": draw(SEND),
+    return {"gacha": _gacha(), "pearl": _pearl(), "compass": _compass(), "house": draw(HOUSE), "pine": draw(PINE), "tag": draw(TAG), "podium": draw(PODIUM), "send": draw(SEND),
             "trade": draw(TRADE), "mail": draw(MAIL), "pickaxe": draw(PICKAXE), "checklist": draw(CHECKLIST),
             "scroll": draw(SCROLL), "book": draw(BOOK), "flag": draw(FLAG), "alert": draw(ALERT), "monument": draw(MONUMENT),
             "candles": _candles()}

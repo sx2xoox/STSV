@@ -42,17 +42,34 @@ class HubMenuTest {
         return out;
     }
 
-    private static MenuSpec hub(ContentPack pack, String id) throws Exception {
+    /** The hub's pages, the first screen first (every menu its "hub:go:" buttons reach; stsv:hub = the first screen). */
+    private static List<MenuSpec> pages(ContentPack pack, String start) throws Exception {
         List<String> problems = new ArrayList<>();
-        MenuSpec m = MenuSpec.loadAll(List.of(pack), problems).stream().filter(x -> x.id().equals(id)).findFirst().orElseThrow();
+        java.util.Map<String, MenuSpec> byId = new java.util.HashMap<>();
+        for (MenuSpec m : MenuSpec.loadAll(List.of(pack), problems)) byId.put(m.id(), m);
         assertTrue(problems.isEmpty(), problems.toString());
-        return m;
+        List<MenuSpec> out = new ArrayList<>();
+        java.util.Deque<String> todo = new java.util.ArrayDeque<>(List.of(start));
+        Set<String> seen = new HashSet<>();
+        while (!todo.isEmpty()) {
+            String id = todo.poll();
+            if (!seen.add(id)) continue;
+            MenuSpec m = byId.get(id);
+            assertTrue(m != null, "no hub page " + id);
+            out.add(m);
+            for (MenuSpec.Button b : m.buttons().values()) {
+                if (!b.action().startsWith(HubModule.GO)) continue;
+                String to = b.action().substring(HubModule.GO.length());
+                todo.add(to.equals(HubModule.MENU) ? start : to);
+            }
+        }
+        return out;
     }
 
     /** The first word of every command a menu's buttons run or suggest. */
-    private static Set<String> used(MenuSpec m, List<String> problems) {
+    private static Set<String> used(List<MenuSpec> pages, List<String> problems) {
         Set<String> out = new HashSet<>();
-        for (MenuSpec.Button b : m.buttons().values()) {
+        for (MenuSpec m : pages) for (MenuSpec.Button b : m.buttons().values()) {
             List<String> cmds = HubModule.commands(b.action());
             if (cmds == null) problems.add(m.id() + " " + b.key() + ": unknown action " + b.action());
             else for (String c : cmds) out.add(c);
@@ -62,8 +79,8 @@ class HubMenuTest {
 
     @Test
     void everyButtonLeadsSomewhereAndNothingIsMissing() throws Exception {
-        MenuSpec eco = hub(new ContentPack("economy", "economy", ContentTest.PACK), "economy:hub");
-        MenuSpec core = hub(new ContentPack("stsv", "stsv", CORE_PACK), HubModule.MENU);
+        List<MenuSpec> eco = pages(new ContentPack("economy", "economy", ContentTest.PACK), "economy:hub");
+        List<MenuSpec> core = pages(new ContentPack("stsv", "stsv", CORE_PACK), HubModule.MENU);
         YamlConfiguration ecoYml = yml(getClass(), "/plugin.yml");
         // the core's plugin.yml from its sources (on this classpath "/plugin.yml" is the economy's)
         YamlConfiguration coreYml = YamlConfiguration.loadConfiguration(Path.of("../plugin/src/main/resources/plugin.yml").toFile());
@@ -78,9 +95,16 @@ class HubMenuTest {
         Set<String> firstWords = new HashSet<>();
         for (String c : ecoUsed) firstWords.add(c.split(" ")[0]);
         for (String c : commands(ecoYml, false)) if (!firstWords.contains(c)) problems.add("economy:hub has no button for /" + c);
-        for (MenuSpec.Button b : eco.buttons().values()) {
-            if (!b.action().equals("close") && b.on().lore().isEmpty()) problems.add("economy:hub " + b.key() + " has no lore");
+        for (MenuSpec page : eco) {
+            boolean back = false;
+            for (MenuSpec.Button b : page.buttons().values()) {
+                if (!b.action().equals("close") && b.on().lore().isEmpty()) problems.add(page.id() + " " + b.key() + " has no lore");
+                back |= b.action().equals(HubModule.GO + HubModule.MENU);
+            }
+            if (!page.id().equals("economy:hub") && !back) problems.add(page.id() + ": no way back to the first screen");
         }
+        // the first screen stays short: the categories, the rest one step in
+        if (eco.getFirst().buttons().size() > 7) problems.add("economy:hub: too many buttons on the first screen");
         assertTrue(problems.isEmpty(), String.join("\n", problems));
     }
 }

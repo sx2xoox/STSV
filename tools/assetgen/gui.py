@@ -18,7 +18,7 @@ MENUS_DIR = Path(__file__).resolve().parents[2] / "content/stsv/menus"
 # the core's own buttons (stsv:gui/<name>); contents use them too (pages, close, info)
 CORE_ICONS = ("prev", "next", "prev_off", "next_off", "exit", "info", "take_off", "clear", "back", "chest",
               # the hub (/메뉴): worlds, teleport requests, titles, rankings, money
-              "house", "pine", "tag", "podium", "send", "coins", "crown", "trophy", "pearl",
+              "house", "pine", "tag", "podium", "send", "coins", "crown", "trophy", "pearl", "compass",
               # the hub's 치장 (a mannequin: the hanger is the wardrobe's "take off"), 야간 투시, 치장 뽑기
               "dress_up", "night_vision", "gacha",
               # the cosmetics' category tabs (옷장, 치장 뽑기) and the 옷장's 보기 filter

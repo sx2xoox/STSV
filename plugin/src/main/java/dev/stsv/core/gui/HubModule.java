@@ -39,10 +39,16 @@ import java.util.function.Function;
  * "run:&lt;command&gt;" (run as the player) or "suggest:&lt;command&gt;" (close, and a chat line that types
  * "/&lt;command&gt; " for the player: commands that need a name or an amount). Without a right side the left
  * one is used for every click.
+ *
+ * The hub is entered by steps: the first screen holds a few categories, each "hub:go:&lt;menu&gt;" opens that
+ * category's page (another menu drawn by this same handler, so its buttons keep the hub's placeholders and
+ * actions), and the page's back button is "hub:go:stsv:hub" (the override still applies).
  */
 public final class HubModule implements StsvModule, Listener {
 
     public static final String MENU = "stsv:hub";
+    /** A hub button that opens another page of the hub: "hub:go:&lt;menu&gt;". */
+    public static final String GO = "hub:go:";
     private static final NamespacedKey TIP = new NamespacedKey("stsv", "hub_tip");
 
     private STSVPlugin plugin;
@@ -100,6 +106,7 @@ public final class HubModule implements StsvModule, Listener {
      */
     public static java.util.List<String> commands(String action) {
         if (action.isEmpty() || action.equals("close") || action.startsWith("menu:")) return java.util.List.of();
+        if (action.startsWith(GO)) return action.length() > GO.length() ? java.util.List.of() : null;
         if (action.startsWith("command:")) return java.util.List.of(action.substring(8));
         if (!action.startsWith("hub:")) return null;
         java.util.List<String> out = new java.util.ArrayList<>();
@@ -177,6 +184,16 @@ public final class HubModule implements StsvModule, Listener {
         @Override
         public void onAction(MenuView v, String action, ClickType click) {
             if (!action.startsWith("hub:")) return;
+            if (action.startsWith(GO)) {
+                Player p = v.player();
+                String page = action.substring(GO.length());
+                Bukkit.getScheduler().runTask(plugin, () -> {
+                    if (!p.isOnline()) return;
+                    plugin.menus().open(p, page, new Hub());
+                    p.playSound(p.getLocation(), org.bukkit.Sound.UI_BUTTON_CLICK, 0.4f, 1.3f);
+                });
+                return;
+            }
             String[] sides = action.substring(4).split("\\|", 2);
             String pick = sides.length > 1 && click.isRightClick() ? sides[1] : sides[0];
             Player p = v.player();

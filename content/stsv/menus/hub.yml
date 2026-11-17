@@ -1,25 +1,20 @@
 # /메뉴, 웅크린 채 F (Shift+F): 통합 메뉴. 코어 기능만 있는 판.
 # 경제 서버가 있으면 contents/economy/menus/hub.yml (이 메뉴의 모든 버튼 + 경제 기능)이 대신 열림.
+# 첫 화면은 카테고리만 두고, 누르면 그 카테고리 화면(hub_*)으로 들어감. 각 화면의 뒤로 버튼은 첫 화면으로.
 # 버튼 동작: command:<명령어> (플레이어로 실행), menu:<메뉴>, close,
+#            hub:go:<메뉴>  통합 메뉴의 다른 화면 열기 (자리표시자·hub: 동작 그대로),
 #            hub:<왼쪽>|<오른쪽>  각각 run:<명령어> (실행) 또는 suggest:<명령어> (닫고 채팅창에 "/명령어 " 넣기 안내).
 #            오른쪽을 빼면 모든 클릭이 왼쪽
 # 자리표시자: {player} {world} {balance} {title} {points} {cosmetics} {fee} {hotkey} {warmup} {cooldown} {night_vision}
 hub:
   title: "<#f0e2b0>통합 메뉴 <#8f86a6>· {world}"
-  rows: 4
+  rows: 3
   background: stsv:gui/hub
   layout:
-    - ".BY.P.tn."
-    - ".QgR.STZ."
-    - "...UVW..."
+    - "....P...."
+    - "..a.b.c.."
     - "....X...."
   buttons:
-    B:
-      action: "command:건축월드"
-      icon: stsv:gui/house
-      material: BRICKS
-      name: "<white>건축월드로"
-      lore: ["<gray>땅을 사서 집을 짓는 곳", "<dark_gray>마지막 위치나 스폰으로 · {warmup}초 가만히"]
     P:
       action: "command:프로필"
       material: PLAYER_HEAD
@@ -32,6 +27,44 @@ hub:
         - ""
         - "<yellow>클릭: 내 프로필"
         - "<dark_gray>이 메뉴: {hotkey}"
+    a:
+      action: "hub:go:stsv:hub_travel"
+      icon: stsv:gui/compass
+      material: COMPASS
+      name: "<white>이동"
+      lore: ["<gray>건축월드 · 야생월드", "<gray>텔레포트 · 야간 투시", "", "<yellow>클릭: 열기"]
+    b:
+      action: "hub:go:stsv:hub_money"
+      icon: stsv:gui/coins
+      material: GOLD_INGOT
+      name: "<white>돈 <gray>· {balance}"
+      lore: ["<gray>잔액 · 송금 · 수표", "", "<yellow>클릭: 열기"]
+    c:
+      action: "hub:go:stsv:hub_me"
+      icon: stsv:gui/dress_up
+      material: LEATHER_CHESTPLATE
+      name: "<white>꾸미기 · 기록"
+      lore: ["<gray>치장 · 뽑기 · 칭호", "<gray>업적 · 명예의 전당 · 순위", "", "<yellow>클릭: 열기"]
+    X:
+      action: close
+      icon: stsv:gui/exit
+      material: OAK_DOOR
+      name: "<red>닫기"
+
+hub_travel:
+  title: "<#f0e2b0>통합 메뉴 <#8f86a6>· 이동"
+  rows: 2
+  background: stsv:gui/hub_travel
+  layout:
+    - ".B.Y.t.n."
+    - "....X...."
+  buttons:
+    B:
+      action: "command:건축월드"
+      icon: stsv:gui/house
+      material: BRICKS
+      name: "<white>건축월드로"
+      lore: ["<gray>땅을 사서 집을 짓는 곳", "<dark_gray>마지막 위치나 스폰으로 · {warmup}초 가만히"]
     Y:
       action: "command:야생월드"
       icon: stsv:gui/pine
@@ -50,6 +83,54 @@ hub:
       material: ENDER_EYE
       name: "<white>야간 투시 <gray>· {night_vision}"
       lore: ["<gray>어두운 곳도 밝게", "<dark_gray>죽거나 나가도 유지 · /야간투시"]
+    X:
+      action: "hub:go:stsv:hub"
+      icon: stsv:gui/back
+      material: ARROW
+      name: "<white>뒤로"
+      lore: ["<gray>통합 메뉴 첫 화면"]
+
+hub_money:
+  title: "<#f0e2b0>통합 메뉴 <#8f86a6>· 돈"
+  rows: 2
+  background: stsv:gui/hub_money
+  layout:
+    - "..U.V.W.."
+    - "....X...."
+  buttons:
+    U:
+      action: "command:돈"
+      icon: stsv:gui/coins
+      material: GOLD_INGOT
+      name: "<white>잔액: {balance}"
+      lore: ["<gray>내 돈"]
+    V:
+      action: "hub:suggest:송금"
+      icon: stsv:gui/send
+      material: GOLD_NUGGET
+      name: "<white>송금"
+      lore: ["<gray>수수료 {fee}%", "<dark_gray>/송금 <플레이어> <금액>"]
+    W:
+      action: "hub:suggest:수표"
+      icon: stsv:cheque
+      material: PAPER
+      name: "<white>수표"
+      lore: ["<gray>돈을 수표로 꺼내기", "<dark_gray>/수표 <금액>"]
+    X:
+      action: "hub:go:stsv:hub"
+      icon: stsv:gui/back
+      material: ARROW
+      name: "<white>뒤로"
+      lore: ["<gray>통합 메뉴 첫 화면"]
+
+hub_me:
+  title: "<#f0e2b0>통합 메뉴 <#8f86a6>· 꾸미기 · 기록"
+  rows: 2
+  background: stsv:gui/hub_me
+  layout:
+    - ".QgR.STZ."
+    - "....X...."
+  buttons:
     Q:
       action: "command:치장"
       icon: stsv:gui/dress_up
@@ -86,26 +167,9 @@ hub:
       material: GOLD_BLOCK
       name: "<white>부자 순위"
       lore: ["<gray>잔액이 많은 플레이어 순위"]
-    U:
-      action: "command:돈"
-      icon: stsv:gui/coins
-      material: GOLD_INGOT
-      name: "<white>잔액: {balance}"
-      lore: ["<gray>내 돈"]
-    V:
-      action: "hub:suggest:송금"
-      icon: stsv:gui/send
-      material: GOLD_NUGGET
-      name: "<white>송금"
-      lore: ["<gray>수수료 {fee}%", "<dark_gray>/송금 <플레이어> <금액>"]
-    W:
-      action: "hub:suggest:수표"
-      icon: stsv:cheque
-      material: PAPER
-      name: "<white>수표"
-      lore: ["<gray>돈을 수표로 꺼내기", "<dark_gray>/수표 <금액>"]
     X:
-      action: close
-      icon: stsv:gui/exit
-      material: OAK_DOOR
-      name: "<red>닫기"
+      action: "hub:go:stsv:hub"
+      icon: stsv:gui/back
+      material: ARROW
+      name: "<white>뒤로"
+      lore: ["<gray>통합 메뉴 첫 화면"]
