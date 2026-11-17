@@ -105,7 +105,10 @@ class PackPipelineTest {
             "tractor_header", "tractor_header_reel", "boat_trawl", "truck_tarp", "coastal_trawl", "trawler_trawl",
             // 고깃배: fishing rods leaning out of their holders, the raft's sweep and the skiff's oars (down into the water)
             "fishing_boat", "raft", "raft_scull", "rowboat", "rowboat_oar_l", "rowboat_oar_r", "coastal_boat", "trawler",
-            "toy_pickaxe", "toy_fishing_rod");                 // 장난감 시리즈: the pickaxe's drooping arms, the rod's hanging line and float
+            "toy_pickaxe", "toy_fishing_rod",                  // 장난감 시리즈: the pickaxe's drooping arms, the rod's hanging line and float
+            // 특별 탈것: the kick scooter's brake lever and fender, the board's kicktail and nose, the banana's stem, the segway's
+            // fenders, the sled's curled runners, bow and rope, the balloons' strings, the bull's tail
+            "kickboard", "skateboard", "banana_boat", "segway", "sled", "balloon_chair_balloons", "rodeo_bull_bull");
 
     @org.junit.jupiter.params.ParameterizedTest
     @org.junit.jupiter.params.provider.MethodSource("models")

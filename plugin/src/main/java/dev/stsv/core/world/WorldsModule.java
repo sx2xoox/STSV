@@ -144,7 +144,7 @@ public final class WorldsModule implements StsvModule, Listener {
         var section = plugin.getConfig().getConfigurationSection("worlds");
         rules = WorldRules.parse(section);
         peaceful = plugin.getConfig().getBoolean("worlds.build-peaceful");
-        snowLayers = plugin.getConfig().getBoolean("worlds.snow-layers", false);
+        snowLayers = plugin.getConfig().getBoolean("worlds.snow-layers");
         spots.settings(WildSpotRules.parse(section));
         if (section != null) for (String word : section.getStringList("keep-inventory")) {
             if (WorldRules.role(word) == null) plugin.getLogger().warning("[월드] worlds.keep-inventory 의 '" + word + "' 는 알 수 없는 월드입니다 (build, wild, nether, end)");
