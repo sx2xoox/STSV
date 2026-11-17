@@ -326,6 +326,7 @@ d3f4e5966aa94f8f761a2100e1bddfcf12ab6008 stsv/assets/stsv/textures/gui/gacha.png
 a3040a0fa820ec7fd49af38c87d3ad0f9d93e8d7 stsv/assets/stsv/textures/gui/hub.png
 b5368ea8e9baf777c6bf001e63dab0eb11f855a1 stsv/assets/stsv/textures/gui/hub.png
 be9b900080a19af521d34304329ceefb294a7529 stsv/assets/stsv/textures/gui/hub.png
+c6dd1ef970b725b4d2e63971bb121316062ce62d stsv/assets/stsv/textures/gui/hub.png
 cbcf32013aaa71962431c9d252368581021e79f8 stsv/assets/stsv/textures/gui/hub.png
 d318cb6f77792b920351746d8daab7f591026e2d stsv/assets/stsv/textures/gui/hub.png
 f143ea43013e5e181444c336949ec2c691a830a2 stsv/assets/stsv/textures/gui/hub.png
@@ -334,14 +335,17 @@ b79e68a1390e91d4c1c4b0809d93e0c23ad86adc stsv/assets/stsv/textures/gui/hub_me.pn
 0fc2a8c5a65c786dd7042e9f21d817adeadce338 stsv/assets/stsv/textures/gui/hub_money.png
 3b625207465a228f2e5627e2c0e06de5aac5e042 stsv/assets/stsv/textures/gui/hub_money.png
 743e4ca35ed03dcdadab60f43a0579b6739abd54 stsv/assets/stsv/textures/gui/hub_money.png
+8cfd1596eba352b6dc8c809b9a90b672df4e6e2a stsv/assets/stsv/textures/gui/hub_money.png
 b0e007166f7c0fe237b65b644ca21bd97c40c347 stsv/assets/stsv/textures/gui/hub_money.png
 ddd0d0f7bcc0e5509baab444282bd277cdcdb2ac stsv/assets/stsv/textures/gui/hub_money.png
 fb5b811406ddd2079a54d3574c9a5da9bfd05e8d stsv/assets/stsv/textures/gui/hub_money.png
+7bf6f5b07482e46e796f1502596abe9f3be7efa4 stsv/assets/stsv/textures/gui/hub_rank.png
 d9fe2936292be2d56dfe14e0d1f0a6bb23bc0f83 stsv/assets/stsv/textures/gui/hub_rank.png
 f94660aacc2f5b6fc38674771cac4298959afdf6 stsv/assets/stsv/textures/gui/hub_rank.png
 faaa4ec16d6db147ede7ed1bf5300abb125feafa stsv/assets/stsv/textures/gui/hub_rank.png
 fbec068e78987174aaa285fa165a65950ece097f stsv/assets/stsv/textures/gui/hub_rank.png
 fe48621269eb18f0013ac546e6bc627059c9de4b stsv/assets/stsv/textures/gui/hub_rank.png
+58bd766993b57ed1f3038c79ece74bb2537a2a60 stsv/assets/stsv/textures/gui/hub_style.png
 a0b422a37d0d3388b489116ad231529e5e4a1031 stsv/assets/stsv/textures/gui/hub_style.png
 bbd30e5f6853e7447f4d65e35be59102e9182e9f stsv/assets/stsv/textures/gui/hub_style.png
 bdfcb97cee752f7460ee42a876bde546257b058c stsv/assets/stsv/textures/gui/hub_style.png
