@@ -125,11 +125,14 @@ class MenuActionsTest {
             if (m.background() == null) continue;
             BufferedImage im = ImageIO.read(PACK.resolve("assets/stsv/textures/" + m.background().getKey() + ".png").toFile());
             int frame = 30 + 18 * m.rows();
+            // panel px -> picture texels (a framed menu's picture reaches beyond the panel and may be finer)
+            MenuSpec.Frame f = m.frame();
+            java.util.function.IntBinaryOperator at = (x, y) -> im.getRGB((x + f.left()) * f.scale(), (y + f.top()) * f.scale());
             // the frame's shadowed top row at x 8..23, the slot's inside just below
-            int top = im.getRGB(12, frame), above = im.getRGB(12, frame - 1), inside = im.getRGB(12, frame + 4);
+            int top = at.applyAsInt(12, frame), above = at.applyAsInt(12, frame - 1), inside = at.applyAsInt(12, frame + 4);
             assertTrue(top != above && top != inside, m.id() + ": a slot frame starts at y " + frame);
             int hotbar = frame + 58;
-            assertTrue(im.getRGB(12, hotbar) != im.getRGB(12, hotbar - 1), m.id() + ": the hotbar frame starts at y " + hotbar);
+            assertTrue(at.applyAsInt(12, hotbar) != at.applyAsInt(12, hotbar - 1), m.id() + ": the hotbar frame starts at y " + hotbar);
         }
     }
 }

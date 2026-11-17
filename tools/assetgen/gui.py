@@ -173,9 +173,11 @@ def preview(path: Path, scale=3):
     samples = [Image.open(p).convert("RGBA").resize((16, 16), Image.NEAREST) for p in sorted(textures.glob("*.png"))]
     find = P.lookup({"stsv": U.icons()}, {"stsv": textures})
     ims = [P.render(spec, find, samples, art) for spec in specs.values()]
-    canvas = Image.new("RGBA", (len(ims) * (T.W + 8) + 8, max(i.height for i in ims) + 16), (32, 34, 40, 255))
-    for k, im in enumerate(ims):
-        canvas.alpha_composite(im, (8 + k * (T.W + 8), 8))
+    canvas = Image.new("RGBA", (sum(i.width + 8 for i in ims) + 8, max(i.height for i in ims) + 16), (32, 34, 40, 255))
+    x = 8
+    for im in ims:
+        canvas.alpha_composite(im, (x, 8))
+        x += im.width + 8
     canvas.resize((canvas.width * scale, canvas.height * scale), Image.NEAREST).save(path)
 
 

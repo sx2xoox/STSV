@@ -1,16 +1,19 @@
 # /메뉴, 웅크린 채 F (Shift+F): 통합 메뉴. 코어 기능만 있는 판.
 # 경제 서버가 있으면 contents/economy/menus/hub.yml (이 메뉴의 모든 버튼 + 경제 기능)이 대신 열림.
-# 모양 (theme: hub, stsv_assets/menu_theme.py hub_background): 모든 화면 6줄. 위 5줄은 카드, 맨 아래 줄(dock: 5)은
-#   자주 쓰는 버튼 9칸 바(가운데: 첫 화면은 내 머리, 다른 화면은 뒤로). art(배경에 그릴 아이콘)가 있는 버튼은
-#   글자를 직사각형으로 반복해 여러 칸을 덮는 카드: 4줄 이상이면 큰 카드(맨 윗줄에 label, 아이콘 2배, accent 색,
-#   아래에 sub), 작으면 작은 카드(아이콘 + label). 칸에는 보이지 않는 아이템(stsv:gui/blank)이 들어가 설명만 뜸.
+# 모양 (theme: hanok, tools/assetgen/hub_hanok.py): 기와 지붕 · 현판(plaque) · 붉은 기둥 · 청사초롱. 배경은 패널 밖까지
+#   2배 해상도로 그려짐(frame). 제목 줄은 비우고 이름은 현판에. 모든 화면 6줄, 맨 아래 줄(dock: 5)은 자주 쓰는 버튼
+#   9칸 마루(가운데: 첫 화면은 내 머리, 다른 화면은 뒤로). 글자를 직사각형으로 반복한 버튼은 여러 칸을 덮는 카드:
+#   scene = 큰 그림 카드(hub_art/scenes, 이름판에 label), art = 작은 카드(아이콘 + label). 칸에는 보이지 않는
+#   아이템(stsv:gui/blank)이 들어가 설명만 뜸.
 # 버튼 동작: command:<명령어> (플레이어로 실행), hub:go:<메뉴> (통합 메뉴의 다른 화면),
 #            hub:<왼쪽>|<오른쪽>  각각 run:<명령어> 또는 suggest:<명령어> (닫고 채팅창에 "/명령어 " 넣기 안내)
 # 자리표시자: {player} {world} {balance} {title} {points} {cosmetics} {fee} {hotkey} {warmup} {cooldown} {night_vision}
 hub:
-  title: "<#f0e2b0>통합 메뉴 <#8f86a6>· {world}"
+  title: ""
+  plaque: "통합 메뉴"
   rows: 6
-  theme: hub
+  theme: hanok
+  frame: {left: 30, right: 30, top: 20, scale: 2}
   dock: 5
   background: stsv:gui/hub
   layout:
@@ -25,7 +28,7 @@ hub:
       action: "hub:go:stsv:hub_money"
       icon: stsv:gui/blank
       material: GOLD_INGOT
-      art: stsv:gui/coins
+      scene: money
       label: "돈"
       sub: "잔액·송금"
       accent: "#f2c24c"
@@ -35,7 +38,7 @@ hub:
       action: "hub:go:stsv:hub_style"
       icon: stsv:gui/blank
       material: LEATHER_CHESTPLATE
-      art: stsv:gui/dress_up
+      scene: boutique
       label: "꾸미기"
       sub: "치장·칭호"
       accent: "#ba84f0"
@@ -45,7 +48,7 @@ hub:
       action: "hub:go:stsv:hub_rank"
       icon: stsv:gui/blank
       material: GOLDEN_HELMET
-      art: stsv:gui/trophy
+      scene: rank
       label: "순위·기록"
       sub: "업적·명예"
       accent: "#e0b04a"
@@ -114,9 +117,11 @@ hub:
       lore: ["<gray>후원 재화(별)로 사는 꾸미기"]
 
 hub_money:
-  title: "<#f0e2b0>통합 메뉴 <#8f86a6>· 돈"
+  title: ""
+  plaque: "돈"
   rows: 6
-  theme: hub
+  theme: hanok
+  frame: {left: 30, right: 30, top: 20, scale: 2}
   dock: 5
   background: stsv:gui/hub_money
   layout:
@@ -131,7 +136,7 @@ hub_money:
       action: "command:돈"
       icon: stsv:gui/blank
       material: GOLD_INGOT
-      art: stsv:gui/coins
+      scene: money
       label: "내 돈"
       sub: "잔액 보기"
       accent: "#f2c24c"
@@ -141,7 +146,7 @@ hub_money:
       action: "hub:suggest:송금"
       icon: stsv:gui/blank
       material: GOLD_NUGGET
-      art: stsv:gui/send
+      scene: send
       label: "송금"
       sub: "보내기"
       accent: "#f2c24c"
@@ -151,7 +156,7 @@ hub_money:
       action: "hub:suggest:수표"
       icon: stsv:gui/blank
       material: PAPER
-      art: stsv:cheque
+      scene: cheque
       label: "수표"
       sub: "꺼내기"
       accent: "#f2c24c"
@@ -222,9 +227,11 @@ hub_money:
       lore: ["<gray>통합 메뉴 첫 화면"]
 
 hub_style:
-  title: "<#f0e2b0>통합 메뉴 <#8f86a6>· 꾸미기"
+  title: ""
+  plaque: "꾸미기"
   rows: 6
-  theme: hub
+  theme: hanok
+  frame: {left: 30, right: 30, top: 20, scale: 2}
   dock: 5
   background: stsv:gui/hub_style
   layout:
@@ -372,9 +379,11 @@ hub_style:
       lore: ["<gray>통합 메뉴 첫 화면"]
 
 hub_rank:
-  title: "<#f0e2b0>통합 메뉴 <#8f86a6>· 순위 · 기록"
+  title: ""
+  plaque: "순위·기록"
   rows: 6
-  theme: hub
+  theme: hanok
+  frame: {left: 30, right: 30, top: 20, scale: 2}
   dock: 5
   background: stsv:gui/hub_rank
   layout:
@@ -389,7 +398,7 @@ hub_rank:
       action: "hub:run:업적|run:업적 순위"
       icon: stsv:gui/blank
       material: GOLDEN_HELMET
-      art: stsv:gui/trophy
+      scene: achieve
       label: "업적"
       sub: "업적 점수"
       accent: "#e0b04a"
@@ -399,7 +408,7 @@ hub_rank:
       action: "command:명예의전당"
       icon: stsv:gui/blank
       material: GOLDEN_HELMET
-      art: stsv:gui/crown
+      scene: hall
       label: "명예의 전당"
       sub: "지난 기록"
       accent: "#e0b04a"
@@ -409,7 +418,7 @@ hub_rank:
       action: "command:돈 순위"
       icon: stsv:gui/blank
       material: GOLD_BLOCK
-      art: stsv:gui/podium
+      scene: rank
       label: "부자 순위"
       sub: "잔액 순위"
       accent: "#e0b04a"

@@ -69,6 +69,12 @@ def lookup(gui_icons, textures):
 
 def render(spec, find, samples=(), art=None):
     """art: icon id -> image, for big buttons (stsv_assets/menu_theme.py)."""
+    if spec.get("frame"):
+        # a framed menu (the hub) is its own finished picture, larger and finer than the panel: shown as drawn,
+        # brought back to one texel per pixel so it sits beside the others
+        im = T.background(spec, art)
+        sc = int((spec.get("frame") or {}).get("scale", 1))
+        return im.resize((im.width // sc, im.height // sc), Image.NEAREST) if sc > 1 else im
     im = T.background(spec, art)
     lst = spec.get("list")
     inset = set(spec.get("inset", "") or "")

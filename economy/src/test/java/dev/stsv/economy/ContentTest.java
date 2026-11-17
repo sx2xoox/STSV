@@ -354,14 +354,18 @@ class ContentTest {
             if (m.id().equals("economy:shop_sell")) assertEquals(ShopCatalog.MAX_SELL_CATEGORIES, m.slots(m.list()).size());
             assertTrue(m.background() != null, m.id() + " has a background");
             BufferedImage im = ImageIO.read(PACK.resolve("assets/economy/textures/" + m.background().getKey() + ".png").toFile());
-            // every slot used by the layout is drawn as a cell (its centre differs from the felt around it)
-            int felt = im.getRGB(4 + 1, 17 + 9 + 18 * (m.rows() - 1) - 9 + 3);
+            // every slot used by the layout is drawn as a cell (its centre differs from the felt around it);
+            // panel px -> picture texels for a framed menu (its picture reaches beyond the panel and may be finer)
+            MenuSpec.Frame f = m.frame();
+            java.util.function.IntBinaryOperator at = (px, py) -> im.getRGB((px + f.left()) * f.scale(), (py + f.top()) * f.scale());
+            assertEquals(m.pictureSize()[0], im.getWidth(), m.id() + " picture width");
+            int felt = at.applyAsInt(4 + 1, 17 + 9 + 18 * (m.rows() - 1) - 9 + 3);
             for (int slot = 0; slot < m.rows() * 9; slot++) {
                 char ch = m.layout().get(slot / 9).charAt(slot % 9);
                 int x = 7 + 18 * (slot % 9), y = 17 + 18 * (slot / 9);
-                int edge = im.getRGB(x, y + 9);
+                int edge = at.applyAsInt(x, y + 9);
                 if (ch == '.') continue;
-                assertTrue(edge != im.getRGB(x + 9, y + 9) || edge != felt, m.id() + " slot " + slot + " is drawn");
+                assertTrue(edge != at.applyAsInt(x + 9, y + 9) || edge != felt, m.id() + " slot " + slot + " is drawn");
             }
             for (MenuSpec.Button b : m.buttons().values()) {
                 if (b.on().icon() == null) continue;

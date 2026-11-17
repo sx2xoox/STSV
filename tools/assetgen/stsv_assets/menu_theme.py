@@ -219,6 +219,9 @@ def background(menu, art=None):
     big buttons."""
     if menu.get("theme") == "hub":
         return hub_background(menu, art)
+    if menu.get("theme") == "hanok":
+        import hub_hanok
+        return hub_hanok.background(menu, art)
     rows = menu["rows"]
     H = height(rows)
     im = Image.new("RGBA", (W, H), (0, 0, 0, 0))

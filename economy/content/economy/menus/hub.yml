@@ -1,17 +1,20 @@
 # /메뉴, 웅크린 채 F (Shift+F): 통합 메뉴 (경제 서버판). 경제 플러그인이 켜져 있는 동안 코어의 stsv:hub 대신 열림.
 # 코어 판(contents/stsv/menus/hub.yml)의 버튼을 모두 담고 경제 기능을 더함.
-# 모양 (theme: hub, stsv_assets/menu_theme.py hub_background): 모든 화면 6줄. 위 5줄은 카드, 맨 아래 줄(dock: 5)은
-#   자주 쓰는 버튼 9칸 바(가운데: 첫 화면은 내 머리, 다른 화면은 뒤로). art(배경에 그릴 아이콘)가 있는 버튼은
-#   글자를 직사각형으로 반복해 여러 칸을 덮는 카드: 4줄 이상이면 큰 카드(맨 윗줄에 label, 아이콘 2배, accent 색,
-#   아래에 sub), 작으면 작은 카드(아이콘 + label). 칸에는 보이지 않는 아이템(stsv:gui/blank)이 들어가 설명만 뜸.
+# 모양 (theme: hanok, tools/assetgen/hub_hanok.py): 기와 지붕 · 현판(plaque) · 붉은 기둥 · 청사초롱. 배경은 패널 밖까지
+#   2배 해상도로 그려짐(frame). 제목 줄은 비우고 이름은 현판에. 모든 화면 6줄, 맨 아래 줄(dock: 5)은 자주 쓰는 버튼
+#   9칸 마루(가운데: 첫 화면은 내 머리, 다른 화면은 뒤로). 글자를 직사각형으로 반복한 버튼은 여러 칸을 덮는 카드:
+#   scene = 큰 그림 카드(hub_art/scenes, 이름판에 label), art = 작은 카드(아이콘 + label). 칸에는 보이지 않는
+#   아이템(stsv:gui/blank)이 들어가 설명만 뜸.
 # 버튼 동작: command:<명령어> (플레이어로 실행), hub:go:<메뉴> (통합 메뉴의 다른 화면),
 #            hub:<왼쪽>|<오른쪽>  각각 run:<명령어> 또는 suggest:<명령어> (닫고 채팅창에 "/명령어 " 넣기 안내)
 # 자리표시자: {player} {world} {balance} {title} {points} {cosmetics} {fee} {hotkey} {warmup} {cooldown} {night_vision}
 #             경제 {job} {level} {events} {land} {free}
 hub:
-  title: "<#f0e2b0>통합 메뉴 <#8f86a6>· {world}"
+  title: ""
+  plaque: "통합 메뉴"
   rows: 6
-  theme: hub
+  theme: hanok
+  frame: {left: 30, right: 30, top: 20, scale: 2}
   dock: 5
   background: economy:gui/hub
   layout:
@@ -26,7 +29,7 @@ hub:
       action: "hub:go:economy:hub_trade"
       icon: stsv:gui/blank
       material: CHEST
-      art: economy:gui/cart
+      scene: market
       label: "거래"
       sub: "상점·거래소"
       accent: "#ec6a60"
@@ -36,7 +39,7 @@ hub:
       action: "hub:go:economy:hub_work"
       icon: stsv:gui/blank
       material: IRON_PICKAXE
-      art: economy:gui/pickaxe
+      scene: mine
       label: "일·땅"
       sub: "직업·미션"
       accent: "#7ec85c"
@@ -46,7 +49,7 @@ hub:
       action: "hub:go:economy:hub_style"
       icon: stsv:gui/blank
       material: LEATHER_CHESTPLATE
-      art: stsv:gui/dress_up
+      scene: boutique
       label: "꾸미기"
       sub: "치장·칭호"
       accent: "#ba84f0"
@@ -56,7 +59,7 @@ hub:
       action: "hub:run:프로필|run:돈"
       material: PLAYER_HEAD
       name: "<white>{player}"
-      lore: ["<gray>잔액 {balance}", "<gray>직업 <white>{job} <gray>Lv{level} · 땅 <white>{land}", "<gray>칭호 <white>{title} <dark_gray>· <gold>{points}점", "<yellow>클릭: 내 프로필", "<yellow>우클릭: 잔액 <dark_gray>· 단축키 {hotkey}"]
+      lore: ["<gray>위치 <white>{world}", "<gray>잔액 {balance}", "<gray>직업 <white>{job} <gray>Lv{level} · 땅 <white>{land}", "<gray>칭호 <white>{title} <dark_gray>· <gold>{points}점", "<yellow>클릭: 내 프로필", "<yellow>우클릭: 잔액 <dark_gray>· 단축키 {hotkey}"]
     B:
       action: "command:건축월드"
       icon: stsv:gui/blank
@@ -115,9 +118,11 @@ hub:
       lore: ["<gray>업적 <gold>{points}점", "<gray>명예의 전당 · 주간 순위 · 부자 순위", "", "<yellow>클릭: 열기"]
 
 hub_trade:
-  title: "<#f0e2b0>통합 메뉴 <#8f86a6>· 거래"
+  title: ""
+  plaque: "거래"
   rows: 6
-  theme: hub
+  theme: hanok
+  frame: {left: 30, right: 30, top: 20, scale: 2}
   dock: 5
   background: economy:gui/hub_trade
   layout:
@@ -265,9 +270,11 @@ hub_trade:
       lore: ["<gray>통합 메뉴 첫 화면"]
 
 hub_work:
-  title: "<#f0e2b0>통합 메뉴 <#8f86a6>· 일 · 땅"
+  title: ""
+  plaque: "일·땅"
   rows: 6
-  theme: hub
+  theme: hanok
+  frame: {left: 30, right: 30, top: 20, scale: 2}
   dock: 5
   background: economy:gui/hub_work
   layout:
@@ -415,9 +422,11 @@ hub_work:
       lore: ["<gray>통합 메뉴 첫 화면"]
 
 hub_style:
-  title: "<#f0e2b0>통합 메뉴 <#8f86a6>· 꾸미기"
+  title: ""
+  plaque: "꾸미기"
   rows: 6
-  theme: hub
+  theme: hanok
+  frame: {left: 30, right: 30, top: 20, scale: 2}
   dock: 5
   background: economy:gui/hub_style
   layout:
@@ -565,9 +574,11 @@ hub_style:
       lore: ["<gray>통합 메뉴 첫 화면"]
 
 hub_rank:
-  title: "<#f0e2b0>통합 메뉴 <#8f86a6>· 순위 · 기록"
+  title: ""
+  plaque: "순위·기록"
   rows: 6
-  theme: hub
+  theme: hanok
+  frame: {left: 30, right: 30, top: 20, scale: 2}
   dock: 5
   background: economy:gui/hub_rank
   layout:
@@ -582,7 +593,7 @@ hub_rank:
       action: "hub:run:업적|run:업적 순위"
       icon: stsv:gui/blank
       material: GOLDEN_HELMET
-      art: stsv:gui/trophy
+      scene: achieve
       label: "업적"
       sub: "업적 점수"
       accent: "#e0b04a"
@@ -592,7 +603,7 @@ hub_rank:
       action: "command:명예의전당"
       icon: stsv:gui/blank
       material: GOLDEN_HELMET
-      art: stsv:gui/crown
+      scene: hall
       label: "명예의 전당"
       sub: "지난 기록"
       accent: "#e0b04a"
@@ -602,7 +613,7 @@ hub_rank:
       action: "hub:run:순위|run:돈 순위"
       icon: stsv:gui/blank
       material: GOLD_BLOCK
-      art: stsv:gui/podium
+      scene: rank
       label: "순위"
       sub: "주간·부자"
       accent: "#e0b04a"

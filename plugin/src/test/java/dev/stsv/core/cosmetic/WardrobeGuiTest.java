@@ -78,6 +78,41 @@ class WardrobeGuiTest {
         assertTrue(m.backgroundPrefix().startsWith("<white>"), "glyph must not be tinted by the dark default title colour");
     }
 
+    /** A framed background (the hub's roof and pillars) starts frame.left px left of the panel and frame.top px above
+     *  it, is drawn at frame.scale texels per pixel, and the title still comes back to x 8 after it. */
+    @Test
+    void aFramedBackgroundReachesBeyondThePanelAndReturnsToTheTitle() throws Exception {
+        List<String> problems = new ArrayList<>();
+        MenuSpec hub = MenuSpec.loadAll(List.of(new ContentPack("stsv", "stsv", PACK)), problems).stream()
+                .filter(x -> x.id().equals("stsv:hub")).findFirst().orElseThrow();
+        assertTrue(problems.isEmpty(), problems.toString());
+        MenuSpec.Frame f = hub.frame();
+        assertTrue(!f.none(), "the hub is framed");
+        JsonObject font = MenuSpec.font(List.of(hub));
+        String prefix = hub.backgroundPrefix();
+        char left = prefix.charAt(prefix.indexOf('>', prefix.indexOf("<font:")) + 1), back = prefix.charAt(prefix.indexOf(hub.glyph()) + 1);
+        int shiftLeft = 0, shiftBack = 0;
+        for (JsonElement e : font.getAsJsonArray("providers")) {
+            JsonObject p = e.getAsJsonObject();
+            if (p.get("type").getAsString().equals("space")) {
+                shiftLeft = p.getAsJsonObject("advances").get(String.valueOf(left)).getAsInt();
+                shiftBack = p.getAsJsonObject("advances").get(String.valueOf(back)).getAsInt();
+            } else {
+                assertEquals(13 + f.top(), p.get("ascent").getAsInt(), "the picture's top row is frame.top px above the screen's");
+                assertEquals(hub.height() + f.top(), p.get("height").getAsInt(), "1 px = frame.scale texels");
+            }
+        }
+        assertEquals(-(8 + f.left()), shiftLeft, "title x 8 -> the picture's left edge");
+        int width = MenuSpec.WIDTH + f.left() + f.right();
+        assertEquals(8, 8 + shiftLeft + width + 1 + shiftBack, "title text starts back at x 8");
+        // the client measures a glyph to its last non-empty column: the picture's last column is not empty
+        BufferedImage im = ImageIO.read(ASSETS.resolve("textures/" + hub.background().getKey() + ".png").toFile());
+        assertEquals(width * f.scale(), im.getWidth());
+        boolean last = false;
+        for (int y = 0; y < im.getHeight() && !last; y++) last = (im.getRGB(im.getWidth() - 1, y) >>> 24) != 0;
+        assertTrue(last, "the picture's last column has a pixel");
+    }
+
     private static MenuSpec menu(String id) throws Exception {
         List<MenuSpec> menus = MenuSpec.loadAll(List.of(new ContentPack("stsv", "stsv", PACK)), new ArrayList<>());
         return menus.stream().filter(m -> m.id().equals(id)).findFirst().orElseThrow();

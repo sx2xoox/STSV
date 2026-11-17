@@ -24,12 +24,38 @@ import java.util.stream.Stream;
  * layout:            9 characters per row: '.' = nothing, a letter = that button, the "list" letter = paged area
  * buttons:           letter -> action, look (material, icon = item model, name, lore), "off" look when unavailable
  * background:        &lt;ns&gt;:&lt;path&gt; = assets/&lt;ns&gt;/textures/&lt;path&gt;.png, exactly 176 x (114 + 18 x rows) px
+ * frame:             optional {left, right, top, scale}: the picture also covers left / right / top px round the
+ *                    panel (props, a roof over the title) and has scale texels per screen pixel (2 = sharper text at
+ *                    GUI scale 2+), so it is (176 + left + right) * scale x (114 + 18 x rows + top) * scale
  * </pre>
  * The background is shown through the title: every menu with a background gets one character of the
  * generated font "stsv:menus" (U+E000 + n, in id order), so authors only draw a PNG.
  */
 public record MenuSpec(String id, String title, int rows, NamespacedKey background, List<String> layout, char list,
-                       Map<Character, Button> buttons, String filler, char glyph) {
+                       Map<Character, Button> buttons, String filler, char glyph, Frame frame) {
+
+    /** How far a background reaches beyond the 176 px panel, and its texels per screen pixel. */
+    public record Frame(int left, int right, int top, int scale) {
+        public static final Frame NONE = new Frame(0, 0, 0, 1);
+
+        public boolean none() {
+            return equals(NONE);
+        }
+    }
+
+    /** The background picture's size in texels. */
+    public int[] pictureSize() {
+        return new int[]{(WIDTH + frame.left() + frame.right()) * frame.scale(), (height() + frame.top()) * frame.scale()};
+    }
+
+    /** A framed menu's own shift spaces (to its picture's left edge, and back to the title's x 8 after it). */
+    private char shiftLeft() {
+        return (char) (0xF100 + 2 * (glyph - 0xE000));
+    }
+
+    private char shiftBack() {
+        return (char) (0xF101 + 2 * (glyph - 0xE000));
+    }
 
     public static final String FONT = "stsv:menus";
     public static final char SHIFT_LEFT = '';   // -8: from the title position (x 8) to the screen edge
@@ -83,6 +109,7 @@ public record MenuSpec(String id, String title, int rows, NamespacedKey backgrou
     /** Text placed before the title so the background image covers the whole screen. */
     public String backgroundPrefix() {
         if (background == null) return "";
+        if (!frame.none()) return "<white><font:" + FONT + ">" + shiftLeft() + glyph + shiftBack() + "</font></white>";
         return "<white><font:" + FONT + ">" + SHIFT_LEFT + glyph + SHIFT_BACK + "</font></white>";
     }
 
@@ -108,8 +135,9 @@ public record MenuSpec(String id, String title, int rows, NamespacedKey backgrou
                                     m = m.withoutBackground();
                                 } else {
                                     int[] size = pngSize(png);
-                                    if (size[0] != WIDTH || size[1] != m.height()) {
-                                        problems.add(id + ": 배경 크기는 " + WIDTH + "x" + m.height() + " 이어야 함 (지금 " + size[0] + "x" + size[1] + ")");
+                                    int[] want = m.pictureSize();
+                                    if (size[0] != want[0] || size[1] != want[1]) {
+                                        problems.add(id + ": 배경 크기는 " + want[0] + "x" + want[1] + " 이어야 함 (지금 " + size[0] + "x" + size[1] + ")");
                                         m = m.withoutBackground();
                                     }
                                 }
@@ -151,6 +179,12 @@ public record MenuSpec(String id, String title, int rows, NamespacedKey backgrou
         JsonObject adv = new JsonObject();
         adv.addProperty(String.valueOf(SHIFT_LEFT), -8);
         adv.addProperty(String.valueOf(SHIFT_BACK), -(WIDTH + 1 - 8));
+        for (MenuSpec m : menus) {
+            if (m.background() == null || m.frame().none()) continue;
+            // the picture's left edge is frame.left px left of the panel; after it (its width + 1) back to x 8
+            adv.addProperty(String.valueOf(m.shiftLeft()), -(8 + m.frame().left()));
+            adv.addProperty(String.valueOf(m.shiftBack()), -(WIDTH + m.frame().right() + 1 - 8));
+        }
         space.add("advances", adv);
         providers.add(space);
         for (MenuSpec m : menus) {
@@ -158,8 +192,8 @@ public record MenuSpec(String id, String title, int rows, NamespacedKey backgrou
             JsonObject bmp = new JsonObject();
             bmp.addProperty("type", "bitmap");
             bmp.addProperty("file", m.background().getNamespace() + ":" + m.background().getKey() + ".png");
-            bmp.addProperty("ascent", 13);          // title is drawn at y 6 with a 7 px ascent: 6 + 7 - 13 = top of the screen
-            bmp.addProperty("height", m.height());
+            bmp.addProperty("ascent", 13 + m.frame().top());   // title is drawn at y 6 with a 7 px ascent: 6 + 7 - 13 = top of the screen
+            bmp.addProperty("height", m.height() + m.frame().top());
             JsonArray chars = new JsonArray();
             chars.add(String.valueOf(m.glyph()));
             bmp.add("chars", chars);
@@ -197,8 +231,16 @@ public record MenuSpec(String id, String title, int rows, NamespacedKey backgrou
         }
         String bg = c.getString("background");
         NamespacedKey background = bg == null || bg.isBlank() ? null : NamespacedKey.fromString(bg);
+        Frame frame = Frame.NONE;
+        ConfigurationSection f = c.getConfigurationSection("frame");
+        if (f != null) {
+            frame = new Frame(f.getInt("left"), f.getInt("right"), f.getInt("top"), f.getInt("scale", 1));
+            if (frame.left() < 0 || frame.right() < 0 || frame.top() < 0 || frame.scale() < 1 || frame.scale() > 4) {
+                throw new IllegalArgumentException("frame: left/right/top 는 0 이상, scale 은 1~4");
+            }
+        }
         return new MenuSpec(id, c.getString("title", ""), rows, background, List.copyOf(layout),
-                list.isEmpty() ? '\0' : list.charAt(0), buttons, c.getString("filler", "none"), glyph);
+                list.isEmpty() ? '\0' : list.charAt(0), buttons, c.getString("filler", "none"), glyph, frame);
     }
 
     private static Look look(ConfigurationSection b, Look base) {
@@ -210,10 +252,10 @@ public record MenuSpec(String id, String title, int rows, NamespacedKey backgrou
     }
 
     private MenuSpec withGlyph(char g) {
-        return new MenuSpec(id, title, rows, background, layout, list, buttons, filler, g);
+        return new MenuSpec(id, title, rows, background, layout, list, buttons, filler, g, frame);
     }
 
     private MenuSpec withoutBackground() {
-        return new MenuSpec(id, title, rows, null, layout, list, buttons, filler, '\0');
+        return new MenuSpec(id, title, rows, null, layout, list, buttons, filler, '\0', Frame.NONE);
     }
 }
