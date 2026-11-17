@@ -69,18 +69,13 @@ final class CosmeticPets {
         return cur == null || !cur.display.isValid() ? null : cur.display;
     }
 
-    /** null: no packet rewriting (the owner sees their pet with the others' near-fade band) */
+    /** null: no packet rewriting (no light models for far viewers) */
     private final CosmeticPackets packets;
 
     CosmeticPets(Plugin plugin, NamespacedKey tag, CosmeticPackets packets) {
         this.plugin = plugin;
         this.tag = tag;
         this.packets = packets;
-    }
-
-    /** The pack now has other near-fade definitions (NearFade): every pet takes its item again. */
-    void restyle() {
-        for (Pet pet : pets.values()) if (pet.display.isValid()) pet.display.setItemStack(CosmeticAttachments.look(pet.item, pet.awake));
     }
 
     /** Removes a pet's display (and forgets it in the packet layer). */
@@ -131,7 +126,7 @@ final class CosmeticPets {
             e.setShadowStrength(0.6f);
             e.setViewRange(viewRange);
         });
-        // the owner's client gets the pet's own near-fade band (CosmeticPackets), so it is known before it is shown
+        // the packet layer knows whose pet this is (the owner always sees the full model) before it is shown
         if (packets != null) packets.pet(d.getEntityId(), p.getEntityId());
         for (Player v : p.getWorld().getPlayers()) if (v == p || v.canSee(p)) v.showEntity(plugin, d);
         Pet made = new Pet(d, pet, at, yaw);

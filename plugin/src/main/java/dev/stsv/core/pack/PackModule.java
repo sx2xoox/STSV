@@ -160,7 +160,7 @@ public final class PackModule implements StsvModule, Listener {
     }
 
     /** What a build is made from, read on the server thread. */
-    private record Inputs(Map<String, byte[]> extra, dev.stsv.core.cosmetic.NearFade.Settings fade, boolean cropBlocks,
+    private record Inputs(Map<String, byte[]> extra, boolean cropBlocks,
                           java.util.List<dev.stsv.core.content.ContentPack> packs,
                           java.util.List<dev.stsv.core.content.CustomItem> items, int packFormat, Path out) {}
 
@@ -173,11 +173,7 @@ public final class PackModule implements StsvModule, Listener {
         if (plugin.banners() != null) extra.putAll(plugin.banners().packFiles());
         // emotes (admin test feature): the pixel font the puppets are drawn with
         if (plugin.emotes() != null) extra.putAll(plugin.emotes().packFiles());
-        // cosmetics fading near the camera (cosmetics.near-fade): the item shader and the displays' marked definitions
-        java.util.List<String> fadeProblems = new java.util.ArrayList<>();
-        dev.stsv.core.cosmetic.NearFade.Settings fade = dev.stsv.core.cosmetic.NearFade.Settings.read(plugin.getConfig(), fadeProblems);
-        fadeProblems.forEach(w -> plugin.getLogger().warning("[리소스팩] " + w));
-        return new Inputs(extra, fade,
+        return new Inputs(extra,
                 // custom crops as tripwire blocks (crops.render: blocks), or vanilla string (entities)
                 plugin.crops() == null || plugin.crops().blocks(),
                 java.util.List.copyOf(plugin.content().packs()), java.util.List.copyOf(plugin.content().items()),
@@ -192,7 +188,6 @@ public final class PackModule implements StsvModule, Listener {
         PngCache.load(cache);
         PackBuilder.Built built = new PackBuilder()
                 .extra(in.extra())
-                .nearFade(in.fade())
                 .cropBlocks(in.cropBlocks())
                 .build(in.packs(), in.items(), in.packFormat(), "STSV server resources");
         Files.createDirectories(in.out().getParent());
@@ -210,8 +205,6 @@ public final class PackModule implements StsvModule, Listener {
         ConfigurationSection cfg = cfg();
         built.warnings().forEach(w -> plugin.getLogger().warning("[리소스팩] " + w));
         current = built;
-        // cosmetic displays shown from now on use the marked definitions this pack has (none when near-fade is off)
-        if (dev.stsv.core.cosmetic.NearFade.packBuilt(built.json()) && plugin.cosmetics() != null) plugin.cosmetics().packRebuilt();
         // furniture click boxes and barriers are fitted to these models (computed again, per model, from now on)
         if (plugin.furniture() != null) plugin.furniture().modelsChanged();
         plugin.getLogger().info("리소스팩 빌드 완료: 파일 " + built.files() + "개, "

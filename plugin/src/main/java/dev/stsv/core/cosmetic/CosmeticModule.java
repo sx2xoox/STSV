@@ -346,14 +346,16 @@ public final class CosmeticModule implements StsvModule, Listener {
         return attachments == null ? -1 : attachments.tagDisplay(p);
     }
 
-    /** Whether the player sees their own models above the head, on the shoulder, back and tail. */
+    /**
+     * Whether the player sees their own models above the head, on the shoulder, back and tail (in F5: in first person
+     * their own client does not draw them, SelfLift). On unless they turned it off.
+     */
     public boolean selfView(Player p) {
-        return p.getPersistentDataContainer().getOrDefault(keySelfView, PersistentDataType.BYTE, (byte) 0) == 1;
+        return p.getPersistentDataContainer().getOrDefault(keySelfView, PersistentDataType.BYTE, (byte) 1) == 1;
     }
 
     public void selfView(Player p, boolean on) {
-        if (on) p.getPersistentDataContainer().set(keySelfView, PersistentDataType.BYTE, (byte) 1);
-        else p.getPersistentDataContainer().remove(keySelfView);
+        p.getPersistentDataContainer().set(keySelfView, PersistentDataType.BYTE, (byte) (on ? 1 : 0));
         if (packets != null) packets.ownView(p, on);   // before the displays are shown: their packets are rewritten
         attachments.selfViewChanged(p);
     }
@@ -638,12 +640,6 @@ public final class CosmeticModule implements StsvModule, Listener {
     private static ItemStack helmet(Player p) {
         ItemStack h = p.getInventory().getHelmet();
         return h == null ? ItemStack.empty() : h;
-    }
-
-    /** The resource pack was built again: displays already out show the near-fade definitions it has (or no longer has). */
-    public void packRebuilt() {
-        if (attachments != null) attachments.restyle();
-        if (pets != null) pets.restyle();
     }
 
     private Set<String> currentViews() {

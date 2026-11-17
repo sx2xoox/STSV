@@ -145,8 +145,8 @@ wardrobe:
       material: SPYGLASS
       name: "<white>내 화면에 표시: {self}"
       lore:
-        - "<gray>내 화면(F5)에도 치장 보기"
-        - "<dark_gray>남에게는 늘 보임"
+        - "<gray>F5 에서 내 치장 보기"
+        - "<dark_gray>1인칭에서는 가려짐 · 남에게는 늘 보임"
         - ""
         - "<yellow>클릭: 켜기 · 끄기"
     g:

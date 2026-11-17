@@ -69,7 +69,7 @@ final class CosmeticPackets {
     private final Method pairOf, pairFirst, pairSecond;
     private final Method asNms, asBukkit, nmsCopy;
     /**
-     * entity data: near-fade (the wearer's own displays get their own band) and distance LOD (far viewers get the light
+     * entity data: the wearer's own view (SelfLift) and distance LOD (far viewers get the light
      * model); null when the server's classes differ
      */
     private final Class<?> dataCls, nmsItemCls;
@@ -189,7 +189,7 @@ final class CosmeticPackets {
         nmsCopy = nmsItem.getMethod("copy");
         nmsItemCls = nmsItem;
 
-        // optional: without it everyone (the wearer too) sees the displays with the others' near-fade band and full detail
+        // optional: without it everyone sees the displays at full detail, and the wearer's own view (SelfLift) is off
         Class<?> dc = null, vc;
         Constructor<?> dn = null, vn = null;
         Method di = null, ds = null, vi = null, vs = null, vv = null, vcr = null;
@@ -212,8 +212,8 @@ final class CosmeticPackets {
         } catch (ReflectiveOperationException e) {
             dc = null;
             acc = null;
-            log.warning("치장 근접 페이드 · 거리별 단순화: 엔티티 데이터 패킷을 쓸 수 없어 내 치장도 남의 것과 같은 거리에서 사라지고, "
-                    + "먼 치장도 원래 모델로 보입니다: " + e);
+            log.warning("치장 거리별 단순화 · 내 화면 보기: 엔티티 데이터 패킷을 쓸 수 없어 먼 치장도 원래 모델로 보이고, "
+                    + "내 치장은 1인칭에서도 보입니다: " + e);
         }
         // optional: the wearer's own view (SelfLift)
         Object lt = null, vz = null, aT = null, aW = null, aH = null, aB = null, aBr = null, aLw = null, aLh = null;
@@ -462,7 +462,7 @@ final class CosmeticPackets {
         }
     }
 
-    /** pet display id -> its owner's entity id (the owner sees it with the near-fade PET band) */
+    /** pet display id -> its owner's entity id (the owner always sees the full model) */
     private final Map<Integer, Integer> petOf = new ConcurrentHashMap<>();
 
     /** A pet display and its owner (owner -1: forget the display). Before the display is shown. */
@@ -543,7 +543,7 @@ final class CosmeticPackets {
         org.bukkit.inventory.meta.ItemMeta meta = it.getItemMeta();
         if (!meta.hasItemModel()) return null;
         String model = meta.getItemModel().asString();
-        String light = CosmeticLod.view(model, null, true, lodTable);
+        String light = lodTable.getOrDefault(model, model);
         if (light.equals(model)) return null;
         meta.setItemModel(org.bukkit.NamespacedKey.fromString(light));
         it.setItemMeta(meta);
@@ -875,11 +875,9 @@ final class CosmeticPackets {
     }
 
     /**
-     * Entity data of a cosmetic display (worn piece, part, aura, set ring, pet) going to one viewer: its item model as
-     * that viewer is to see it, near-fade band and detail picked together ({@link CosmeticLod#view}). Everyone is sent
-     * the others' band at full detail; the owner gets their own band (SELF worn, PET for the pet: they fade further from
-     * the camera, NearFade) and always the full model; a viewer in the owner's light band gets the light model
-     * ("&lt;model&gt;_lod", CosmeticLod) in the others' band.
+     * Entity data of a cosmetic display (worn piece, part, aura, set ring, pet) going to one viewer. Everyone is sent
+     * the full model; a viewer in the owner's light band gets the light model ("&lt;model&gt;_lod", CosmeticLod), and
+     * the wearer their own view of what they wear (SelfLift, {@link #ownData}).
      */
     private Object displayData(Object packet, Handler h) throws ReflectiveOperationException {
         int id = (int) dataId.invoke(packet);
@@ -887,12 +885,12 @@ final class CosmeticPackets {
         Integer owner = wearer != null ? wearer : petOwner;
         if (owner == null) return packet;
         boolean light = CosmeticLod.lightFor(h.entityId, owner, h.lightOwners);
-        if (owner != h.entityId && !light) return packet;   // as sent to everyone: others' band, full detail
+        boolean own = wearer != null && lifted(h, wearer) && wornOf.getOrDefault(wearer, Set.of()).contains(id);
+        if (!light && !own) return packet;   // as sent to everyone
         Map<String, String> table = lodTable;
         List<?> values = (List<?>) dataItems.invoke(packet);
         List<Object> copy = null;
-        boolean own = wearer != null && lifted(h, wearer) && wornOf.getOrDefault(wearer, Set.of()).contains(id);
-        for (int i = 0; i < values.size(); i++) {
+        for (int i = 0; light && i < values.size(); i++) {
             Object v = values.get(i);
             Object item = valueValue.invoke(v);
             if (!nmsItemCls.isInstance(item)) continue;
@@ -904,7 +902,7 @@ final class CosmeticPackets {
             if (to.equals(model.asString())) continue;
             org.bukkit.NamespacedKey key = org.bukkit.NamespacedKey.fromString(to);
             it.editMeta(m -> m.setItemModel(key));
-            if (light) lodSwapped.incrementAndGet();
+            lodSwapped.incrementAndGet();
             if (copy == null) copy = new ArrayList<>(values);
             copy.set(i, valueNew.newInstance(valueId.invoke(v), valueSerializer.invoke(v), asNms.invoke(null, it)));
         }

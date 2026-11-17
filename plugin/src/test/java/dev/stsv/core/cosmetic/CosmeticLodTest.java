@@ -114,31 +114,22 @@ class CosmeticLodTest {
 
     /** The display as sent to everyone, worn by 7 (or pet of 7), seen by 7, by someone near and by someone far. */
     @Test
-    void bandAndDetailArePickedTogether() {
+    void onlyFarViewersGetTheLightModel() {
         Map<String, String> table = Map.of("stsv:model/wings", "stsv:model/wings_lod", "stsv:cape", "stsv:model/cape_lod");
-        String wings = NearFade.key(NearFade.Band.OTHERS, "stsv:model/wings");
-        assertEquals("stsv:near_fade/near/stsv/model/wings", wings);
+        String wings = "stsv:model/wings";
         Set<Integer> far = Set.of(7), near = Set.of();
-        // worn: the wearer gets their own band and the full model (never light for themselves)
-        assertEquals("stsv:near_fade/self/stsv/model/wings", CosmeticLod.forViewer(wings, 7, 7, null, Set.of(7), table));
-        // a pet: the owner's pet band
-        assertEquals("stsv:near_fade/pet/stsv/model/wings", CosmeticLod.forViewer(wings, 7, null, 7, Set.of(), table));
+        // the wearer, and a pet's owner: the full model (never light for themselves)
+        assertSame(wings, CosmeticLod.forViewer(wings, 7, 7, null, Set.of(7), table));
+        assertSame(wings, CosmeticLod.forViewer(wings, 7, null, 7, Set.of(7), table));
         // someone near: exactly as sent
         assertSame(wings, CosmeticLod.forViewer(wings, 8, 7, null, near, table));
-        // someone far: the light model, still marked, in the others' band
-        assertEquals("stsv:near_fade/near/stsv/model/wings_lod", CosmeticLod.forViewer(wings, 9, 7, null, far, table));
-        assertEquals("stsv:near_fade/near/stsv/model/wings_lod", CosmeticLod.forViewer(wings, 9, null, 7, far, table));
-        // a gacha cosmetic's own item id, marked
-        assertEquals("stsv:near_fade/near/stsv/model/cape_lod",
-                CosmeticLod.forViewer(NearFade.key(NearFade.Band.OTHERS, "stsv:cape"), 9, 7, null, far, table));
-        // a pack without near-fade: plain models both ways
-        assertEquals("stsv:model/wings_lod", CosmeticLod.forViewer("stsv:model/wings", 9, 7, null, far, table));
-        assertEquals("stsv:model/wings", CosmeticLod.forViewer("stsv:model/wings", 7, 7, null, far, table));
+        // someone far: the light model (worn, or a pet)
+        assertEquals("stsv:model/wings_lod", CosmeticLod.forViewer(wings, 9, 7, null, far, table));
+        assertEquals("stsv:model/wings_lod", CosmeticLod.forViewer(wings, 9, null, 7, far, table));
+        // a gacha cosmetic's own item id
+        assertEquals("stsv:model/cape_lod", CosmeticLod.forViewer("stsv:cape", 9, 7, null, far, table));
         // not a cosmetic display: untouched
         assertSame(wings, CosmeticLod.forViewer(wings, 9, null, null, far, table));
-        // a marked model takes apart again
-        assertEquals(new NearFade.Marked(NearFade.Band.PET, "stsv:model/a/b"), NearFade.unwrap("stsv:near_fade/pet/stsv/model/a/b"));
-        assertNull(NearFade.unwrap("stsv:model/wings"));
     }
 
     @Test

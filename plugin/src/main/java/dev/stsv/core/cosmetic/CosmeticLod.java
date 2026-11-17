@@ -113,39 +113,19 @@ public final class CosmeticLod {
     }
 
     /**
-     * The item model one viewer is sent for a cosmetic display: its near-fade band and its detail, picked together.
-     *
-     * @param sent  the model as the server sends it to everyone: a near-fade key of band OTHERS
-     *              ("stsv:near_fade/near/ns/path", NearFade) or a plain model when the pack has no near-fade definitions
-     * @param band  the viewer's near-fade band (SELF / PET for the owner, OTHERS for anyone else); null: keep the sent one
-     * @param light whether the viewer is in the owner's light band (never the owner)
-     * @param table the light models (see {@link #table})
-     * @return the model to send (the same string when nothing changes); a marked model stays marked, in the given band:
-     * a far viewer gets "stsv:near_fade/near/ns/path_lod"
-     */
-    /**
      * What one viewer is sent for a cosmetic display (CosmeticPackets asks this for every entity data packet of one):
-     * the owner gets their own near-fade band (PET for their pet, SELF for what they wear) and always the full model;
-     * anyone else the others' band, as the light model while they are in the owner's light band.
+     * the owner always the full model; anyone else the light model while they are in the owner's light band.
      *
+     * @param sent     the model as the server sends it to everyone (the full one)
      * @param wearer   who wears the display (null: not a worn display)
      * @param petOwner whose pet it is (null: not a pet)
+     * @param table    the light models (see {@link #table})
      * @return the model to send, or the same string
      */
     static String forViewer(String sent, int viewer, Integer wearer, Integer petOwner, java.util.Set<Integer> lightOwners,
                             Map<String, String> table) {
         Integer owner = wearer != null ? wearer : petOwner;
         if (owner == null || sent == null) return sent;
-        if (owner == viewer) return view(sent, petOwner != null ? NearFade.Band.PET : NearFade.Band.SELF, false, table);
-        return view(sent, NearFade.Band.OTHERS, lightFor(viewer, owner, lightOwners), table);
-    }
-
-    static String view(String sent, NearFade.Band band, boolean light, Map<String, String> table) {
-        NearFade.Marked marked = NearFade.unwrap(sent);
-        String model = marked == null ? sent : marked.model();
-        String detail = light ? table.getOrDefault(model, model) : model;
-        if (marked == null) return detail;
-        String out = NearFade.key(band == null ? marked.band() : band, detail);
-        return out.equals(sent) ? sent : out;
+        return lightFor(viewer, owner, lightOwners) ? table.getOrDefault(sent, sent) : sent;
     }
 }
