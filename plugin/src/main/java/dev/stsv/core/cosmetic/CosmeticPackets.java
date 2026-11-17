@@ -88,7 +88,7 @@ final class CosmeticPackets {
     private final Object liftType, vecZero;
     private final Constructor<?> addEntityNew;
     private final Object accTranslation, accWidth, accHeight, accBillboard, accBrightness, accLiftWidth, accLiftHeight;
-    private final Object accStart, accDuration;
+    private final Object accStart, accDuration, accViewRange;
     private final int idTranslation, idWidth, idHeight, idBillboard, idBrightness, idStart, idDuration;
     private final Class<?> respawnCls, loginCls;
     private volatile float ownLift;
@@ -225,7 +225,7 @@ final class CosmeticPackets {
         Object lt = null, vz = null, aT = null, aW = null, aH = null, aB = null, aBr = null, aLw = null, aLh = null;
         Constructor<?> an = null;
         Class<?> rc = null, lc = null;
-        Object aSt = null, aDu = null;
+        Object aSt = null, aDu = null, aVr = null;
         int[] ids = new int[7];
         if (dc != null) {
             try {
@@ -248,6 +248,7 @@ final class CosmeticPackets {
                 aLh = staticField(interaction, "DATA_HEIGHT_ID");
                 aSt = staticField(display, "DATA_TRANSFORMATION_INTERPOLATION_START_DELTA_TICKS_ID");
                 aDu = staticField(display, "DATA_TRANSFORMATION_INTERPOLATION_DURATION_ID");
+                aVr = staticField(display, "DATA_VIEW_RANGE_ID");
                 Object[] all = {aT, aW, aH, aB, aBr, aSt, aDu};
                 for (int i = 0; i < all.length; i++) ids[i] = (int) accId.invoke(all[i]);
                 rc = Class.forName(game + "ClientboundRespawnPacket", false, cl);
@@ -273,6 +274,7 @@ final class CosmeticPackets {
         idBillboard = ids[3];
         idBrightness = ids[4];
         accStart = aSt;
+        accViewRange = aVr;
         accDuration = aDu;
         idStart = ids[5];
         idDuration = ids[6];
@@ -431,20 +433,22 @@ final class CosmeticPackets {
      * client takes it in between two ticks): the lifting entity's new height, and every body display drawn from its
      * new place, the change run in one tick. The client moves a passenger at its next tick and draws the way there
      * over that tick, and it runs a display's change the same way over the ticks it is given: one. So the model
-     * stays where it is while its display goes to the other place.
+     * stays where it is while its display goes to the other place. On its way the display's culling box crosses the
+     * view (from over the head to under the feet), so it is not drawn at all meanwhile: its view range is 0 (the
+     * client draws a display only within view range x 64 blocks) until {@link #ownShow} gives it back.
      *
      * @param displays     the wearer's worn displays that are not above the head
      * @param translations what each of them is drawn at (the server's values, not lowered)
      */
-    void ownBand(Player p, SelfLift.Band band, int[] displays, org.joml.Vector3fc[] translations) {
+    boolean ownBand(Player p, SelfLift.Band band, int[] displays, org.joml.Vector3fc[] translations) {
         Handler h = handlers.get(p.getUniqueId());
-        if (h == null || h.band == band || accStart == null) return;
+        if (h == null || h.band == band || accStart == null || accViewRange == null) return false;
         if (!h.liftSpawned) {
             h.band = band;   // the lifting entity is made at this height
-            return;
+            return false;
         }
         // (no own view just now: the band stays as their client has it, and moves when the displays are back)
-        if (!lifted(h, h.entityId)) return;
+        if (!lifted(h, h.entityId)) return false;
         h.band = band;
         float height = bodyHeight(h);
         long now = System.nanoTime();
@@ -456,13 +460,35 @@ final class CosmeticPackets {
                 org.joml.Vector3fc t = translations[i];
                 out.add(dataNew.newInstance(displays[i], List.of(
                         valueCreate.invoke(null, accTranslation, new org.joml.Vector3f(t.x(), t.y() - height, t.z())),
-                        valueCreate.invoke(null, accStart, 0), valueCreate.invoke(null, accDuration, 1))));
+                        valueCreate.invoke(null, accStart, 0), valueCreate.invoke(null, accDuration, 1),
+                        valueCreate.invoke(null, accViewRange, 0f))));
                 h.moved.put(displays[i], now);
             }
             Object bundle = bundleNew.newInstance(out);
             h.asIs.add(bundle);
             send(p, bundle);
             ownMoves.incrementAndGet();
+            return true;
+        } catch (Throwable t) {
+            warn(t);
+            return false;
+        }
+    }
+
+    /** After a move (ownBand) has arrived: the displays are drawn again, within their own view ranges. */
+    void ownShow(Player p, int[] displays, float[] ranges) {
+        Handler h = handlers.get(p.getUniqueId());
+        if (h == null || accViewRange == null) return;
+        try {
+            List<Object> out = new ArrayList<>(displays.length);
+            for (int i = 0; i < displays.length; i++) {
+                if (!h.lowered.contains(displays[i])) continue;
+                out.add(dataNew.newInstance(displays[i], List.of(valueCreate.invoke(null, accViewRange, ranges[i]))));
+            }
+            if (out.isEmpty()) return;
+            Object bundle = bundleNew.newInstance(out);
+            h.asIs.add(bundle);
+            send(p, bundle);
         } catch (Throwable t) {
             warn(t);
         }

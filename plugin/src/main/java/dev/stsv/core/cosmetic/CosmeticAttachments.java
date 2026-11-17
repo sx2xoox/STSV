@@ -253,6 +253,8 @@ final class CosmeticAttachments {
     private final Map<UUID, Body> bodies = new HashMap<>();
     /** how far up each player with the own view looked a tick ago (degrees; SelfLift.Band) */
     private final Map<UUID, Float> looks = new HashMap<>();
+    /** own view: the tick at which the wearer's body displays are drawn again after a move (ownBand) */
+    private final Map<UUID, Long> hiddenUntil = new HashMap<>();
     /** wearer -> ticks at which the link is sent again (right after their displays changed) */
     private final Map<UUID, List<Long>> relinkAt = new HashMap<>();
     /** wearer -> displays of another module that ride them on the clients (the emote puppet's carrier) */
@@ -422,6 +424,7 @@ final class CosmeticAttachments {
     void remove(Player p) {
         bodies.remove(p.getUniqueId());
         looks.remove(p.getUniqueId());
+        hiddenUntil.remove(p.getUniqueId());
         relinkAt.remove(p.getUniqueId());
         Map<CosmeticSlot, Worn> have = worn.remove(p.getUniqueId());
         if (have != null) have.values().forEach(Worn::removeAll);
@@ -528,20 +531,44 @@ final class CosmeticAttachments {
         double ahead = Math.clamp(up + (last == null ? 0 : (up - last) * 1.5), -90, 90);
         boolean upright = p.getPose() == org.bukkit.entity.Pose.STANDING || p.getPose() == org.bukkit.entity.Pose.SNEAKING;
         SelfLift.Band was = packets.ownBand(p), now = SelfLift.band(was, ahead, upright);
-        if (now == was) return;
-        List<ItemDisplay> body = new ArrayList<>();
-        for (Map.Entry<CosmeticSlot, Worn> e : worn.getOrDefault(p.getUniqueId(), Map.of()).entrySet()) {
-            if (e.getKey() != CosmeticSlot.ABOVE) body.addAll(e.getValue().all());
+        Long show = hiddenUntil.get(p.getUniqueId());
+        if (now == was) {
+            if (show != null && ticks >= show) {               // the move has arrived: draw them again
+                hiddenUntil.remove(p.getUniqueId());
+                List<ItemDisplay> body = bodyDisplays(p);
+                int[] ids = new int[body.size()];
+                float[] ranges = new float[body.size()];
+                for (int i = 0; i < ids.length; i++) {
+                    ids[i] = body.get(i).getEntityId();
+                    ranges[i] = body.get(i).getViewRange();
+                }
+                packets.ownShow(p, ids, ranges);
+            }
+            return;
         }
-        Worn b = bonus.get(p.getUniqueId());
-        if (b != null) body.addAll(b.all());
+        List<ItemDisplay> body = bodyDisplays(p);
         int[] ids = new int[body.size()];
         org.joml.Vector3fc[] at = new org.joml.Vector3fc[body.size()];
         for (int i = 0; i < ids.length; i++) {
             ids[i] = body.get(i).getEntityId();
             at[i] = body.get(i).getTransformation().getTranslation();
         }
-        packets.ownBand(p, now, ids, at);
+        // hidden while they move (the client draws the way over a tick, the packets may take a tick or two more)
+        if (packets.ownBand(p, now, ids, at)) hiddenUntil.put(p.getUniqueId(), ticks + MOVE_HIDDEN);
+    }
+
+    /** Ticks the body displays stay hidden on the wearer's client after a move to another place (SelfLift.Band). */
+    static final int MOVE_HIDDEN = 3;
+
+    /** The wearer's worn displays that are not above the head (they follow the look on the wearer's client). */
+    private List<ItemDisplay> bodyDisplays(Player p) {
+        List<ItemDisplay> body = new ArrayList<>();
+        for (Map.Entry<CosmeticSlot, Worn> e : worn.getOrDefault(p.getUniqueId(), Map.of()).entrySet()) {
+            if (e.getKey() != CosmeticSlot.ABOVE) body.addAll(e.getValue().all());
+        }
+        Worn b = bonus.get(p.getUniqueId());
+        if (b != null) body.addAll(b.all());
+        return body;
     }
 
     /** The ids of the player's worn displays (models and parts, the set bonus too); unlit: only those without a brightness of their own. */
