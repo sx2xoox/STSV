@@ -143,11 +143,16 @@ public final class PngOptimizer {
                 (byte) (h >>> 24), (byte) (h >>> 16), (byte) (h >>> 8), (byte) h, 8, (byte) type, 0, 0, 0};
     }
 
-    /** Smallest zlib stream over the five fixed filters and the per-row "minimum sum" heuristic. */
+    /**
+     * Smallest zlib stream over the five fixed filters and the per-row "minimum sum" heuristic. The six are tried at
+     * the same time on the machine's cores (this is where a pack build spends its time); the first of the smallest
+     * in the fixed order wins, so the result does not depend on which finished first.
+     */
     private static byte[] bestIdat(byte[] raw, int w, int h, int bpp) {
         int stride = w * bpp;
-        byte[] best = null;
-        for (int mode = 0; mode <= 5; mode++) {
+        int[] strategies = {Deflater.DEFAULT_STRATEGY, Deflater.FILTERED};
+        byte[][] tried = new byte[6 * strategies.length][];
+        java.util.stream.IntStream.rangeClosed(0, 5).parallel().forEach(mode -> {
             byte[] filtered = new byte[(stride + 1) * h];
             for (int y = 0; y < h; y++) {
                 int f = mode;
@@ -162,17 +167,21 @@ public final class PngOptimizer {
                 filtered[y * (stride + 1)] = (byte) f;
                 for (int x = 0; x < stride; x++) filtered[y * (stride + 1) + 1 + x] = (byte) filter(f, raw, y, x, stride, bpp);
             }
-            for (int strategy : new int[]{Deflater.DEFAULT_STRATEGY, Deflater.FILTERED}) {
+            for (int s = 0; s < strategies.length; s++) {
                 Deflater d = new Deflater(Deflater.BEST_COMPRESSION);
-                d.setStrategy(strategy);
+                d.setStrategy(strategies[s]);
                 d.setInput(filtered);
                 d.finish();
                 ByteArrayOutputStream z = new ByteArrayOutputStream();
                 byte[] buf = new byte[8192];
                 while (!d.finished()) z.write(buf, 0, d.deflate(buf));
                 d.end();
-                if (best == null || z.size() < best.length) best = z.toByteArray();
+                tried[mode * strategies.length + s] = z.toByteArray();
             }
+        });
+        byte[] best = null;
+        for (byte[] z : tried) {
+            if (best == null || z.length < best.length) best = z;
         }
         return best;
     }

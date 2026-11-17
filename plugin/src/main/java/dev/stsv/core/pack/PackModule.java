@@ -49,6 +49,11 @@ public final class PackModule implements StsvModule, Listener {
     private int hostedPort = -1;
     private SamePortHost samePort;
     private volatile boolean samePortActive;
+    /** The server ticks: builds run off its thread from now on. */
+    private volatile boolean started;
+    /** A build runs on another thread; another one is wanted after it (server thread only). */
+    private volatile boolean building;
+    private boolean again;
 
     @Override
     public String id() {
@@ -60,22 +65,83 @@ public final class PackModule implements StsvModule, Listener {
         this.plugin = plugin;
         Bukkit.getPluginManager().registerEvents(this, plugin);
         rebuild();
+        // the first tick: the server is up, so a build from now on must not hold the server thread (see reload)
+        Bukkit.getScheduler().runTask(plugin, () -> started = true);
     }
 
+    /**
+     * Builds the pack again. While the server starts this happens at once (nobody is online, nothing ticks yet). On a
+     * running server the build goes to another thread: it can take a minute, and a server thread held that long is
+     * stopped by the watchdog. The new pack takes over, and goes to the players, when it is ready.
+     */
     @Override
     public void reload() throws IOException {
-        String before = current == null ? null : current.sha1();
-        rebuild();
-        // the same pack again: nobody's screen goes through a resource reload for nothing
-        if (current != null && current.sha1().equals(before)) return;
-        Bukkit.getOnlinePlayers().forEach(this::send);
+        if (!started) {
+            rebuild();
+            return;
+        }
+        if (building) {
+            again = true;   // settings changed while a build runs: one more build after it
+            return;
+        }
+        building = true;
+        Inputs in = inputs();
+        plugin.getLogger().info("리소스팩을 다시 만드는 중입니다 (서버는 멈추지 않습니다)");
+        Bukkit.getScheduler().runTaskAsynchronously(plugin, () -> {
+            PackBuilder.Built built = null;
+            Exception failure = null;
+            try {
+                built = build(in);
+            } catch (Exception | LinkageError e) {
+                failure = e instanceof Exception x ? x : new IllegalStateException(e);
+            }
+            PackBuilder.Built done = built;
+            Exception failed = failure;
+            try {
+                Bukkit.getScheduler().runTask(plugin, () -> finish(done, failed));
+            } catch (RuntimeException e) {
+                building = false;   // the plugin was disabled meanwhile
+            }
+        });
+    }
+
+    private void finish(PackBuilder.Built built, Exception failure) {
+        building = false;
+        if (failure != null) {
+            plugin.getLogger().log(java.util.logging.Level.SEVERE, "리소스팩 빌드 실패 (이전 팩을 그대로 씁니다)", failure);
+        } else {
+            String before = current == null ? null : current.sha1();
+            try {
+                apply(built);
+                // the same pack again: nobody's screen goes through a resource reload for nothing
+                if (!built.sha1().equals(before)) Bukkit.getOnlinePlayers().forEach(this::send);
+            } catch (IOException | RuntimeException e) {
+                plugin.getLogger().log(java.util.logging.Level.SEVERE, "리소스팩 적용 실패", e);
+            }
+        }
+        if (again) {
+            again = false;
+            try {
+                reload();
+            } catch (IOException e) {
+                plugin.getLogger().log(java.util.logging.Level.SEVERE, "리소스팩 빌드 실패", e);
+            }
+        }
     }
 
     @Override
     public void disable() {
         HandlerList.unregisterAll(this);
+        started = false;
+        building = false;
+        again = false;
         stopHttp();
         stopSamePort();
+    }
+
+    /** A build started by a reload is still running (the pack in use is the one before it). */
+    public boolean building() {
+        return building;
     }
 
     public PackBuilder.Built current() {
@@ -86,7 +152,19 @@ public final class PackModule implements StsvModule, Listener {
         return plugin.getConfig().getConfigurationSection("resource-pack");
     }
 
+    /** Builds and applies the pack on the calling (server) thread; players online get it if it changed. */
     public void rebuild() throws IOException {
+        String before = current == null ? null : current.sha1();
+        apply(build(inputs()));
+        if (before != null && !current.sha1().equals(before)) Bukkit.getOnlinePlayers().forEach(this::send);
+    }
+
+    /** What a build is made from, read on the server thread. */
+    private record Inputs(Map<String, byte[]> extra, dev.stsv.core.cosmetic.NearFade.Settings fade, boolean cropBlocks,
+                          java.util.List<dev.stsv.core.content.ContentPack> packs,
+                          java.util.List<dev.stsv.core.content.CustomItem> items, int packFormat, Path out) {}
+
+    private Inputs inputs() {
         ConfigurationSection cfg = cfg();
         Map<String, byte[]> extra = new java.util.TreeMap<>(plugin.hud() == null ? Map.of() : plugin.hud().packFiles());
         // the game's own text font with its Korean from Neo둥근모 (DefaultFont)
@@ -99,19 +177,38 @@ public final class PackModule implements StsvModule, Listener {
         java.util.List<String> fadeProblems = new java.util.ArrayList<>();
         dev.stsv.core.cosmetic.NearFade.Settings fade = dev.stsv.core.cosmetic.NearFade.Settings.read(plugin.getConfig(), fadeProblems);
         fadeProblems.forEach(w -> plugin.getLogger().warning("[리소스팩] " + w));
-        PackBuilder.Built built = new PackBuilder()
-                .extra(extra)
-                .nearFade(fade)
+        return new Inputs(extra, fade,
                 // custom crops as tripwire blocks (crops.render: blocks), or vanilla string (entities)
-                .cropBlocks(plugin.crops() == null || plugin.crops().blocks())
-                .build(
-                plugin.content().packs(), plugin.content().items(),
-                cfg.getInt("pack-format", 97), "STSV server resources");
-        built.warnings().forEach(w -> plugin.getLogger().warning("[리소스팩] " + w));
+                plugin.crops() == null || plugin.crops().blocks(),
+                java.util.List.copyOf(plugin.content().packs()), java.util.List.copyOf(plugin.content().items()),
+                cfg.getInt("pack-format", 97),
+                plugin.getDataFolder().toPath().resolve("generated").resolve("stsv-pack.zip"));
+    }
 
-        Path out = plugin.getDataFolder().toPath().resolve("generated").resolve("stsv-pack.zip");
-        Files.createDirectories(out.getParent());
-        Files.write(out, built.zip());
+    /** The build itself: no server state is touched, so it may run on any thread (one build at a time). */
+    private static PackBuilder.Built build(Inputs in) throws IOException {
+        // pictures optimised by an earlier build (this server run, or one before it) are not optimised again
+        Path cache = in.out().resolveSibling("png-cache.bin");
+        PngCache.load(cache);
+        PackBuilder.Built built = new PackBuilder()
+                .extra(in.extra())
+                .nearFade(in.fade())
+                .cropBlocks(in.cropBlocks())
+                .build(in.packs(), in.items(), in.packFormat(), "STSV server resources");
+        Files.createDirectories(in.out().getParent());
+        Files.write(in.out(), built.zip());
+        try {
+            PngCache.save(cache);
+        } catch (IOException e) {
+            // the pack is built all the same; the next build optimises the pictures again
+        }
+        return built;
+    }
+
+    /** The built pack takes over: hosting, the modules fitted to its models. Server thread. */
+    private void apply(PackBuilder.Built built) throws IOException {
+        ConfigurationSection cfg = cfg();
+        built.warnings().forEach(w -> plugin.getLogger().warning("[리소스팩] " + w));
         current = built;
         // cosmetic displays shown from now on use the marked definitions this pack has (none when near-fade is off)
         if (dev.stsv.core.cosmetic.NearFade.packBuilt(built.json()) && plugin.cosmetics() != null) plugin.cosmetics().packRebuilt();

@@ -163,7 +163,6 @@ public final class PackBuilder {
         files.clear();
         warnings.clear();
         sharedTextures.clear();
-        optimizedPngs.clear();
         faceCounts.clear();
         cropModels.clear();
         zipCache = null;
@@ -302,7 +301,7 @@ public final class PackBuilder {
                         byte[] png = pngOf.get(k);
                         if (png == null) continue;
                         byte[] meta = metaOf.get(k);
-                        byte[] small = optimizedPngs.computeIfAbsent(hash(png, null), h -> PngOptimizer.optimize(png));
+                        byte[] small = PngCache.optimized(png);
                         String shared = "shared/" + hash(small, meta);
                         if (sharedTextures.add(ns + ":" + shared)) {
                             put("assets/" + ns + "/textures/item/" + shared + ".png", small, cp);
@@ -363,9 +362,6 @@ public final class PackBuilder {
         REDUCED.put(key, out);
         return out;
     }
-
-    /** original PNG (by content hash) -> its losslessly re-encoded form, so each picture is optimised once per build */
-    private final Map<String, byte[]> optimizedPngs = new java.util.HashMap<>();
 
     private final java.util.Set<String> sharedTextures = new java.util.HashSet<>();
 
@@ -505,7 +501,7 @@ public final class PackBuilder {
             out.setRGB(0, 0, w, h, argb, 0, w);
             ByteArrayOutputStream bytes = new ByteArrayOutputStream();
             javax.imageio.ImageIO.write(out, "png", bytes);
-            return PngOptimizer.optimize(bytes.toByteArray());
+            return PngCache.optimized(bytes.toByteArray());
         } catch (IOException e) {
             return png;
         }

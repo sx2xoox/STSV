@@ -117,6 +117,9 @@ public final class StsvCommand implements TabExecutor {
                 List<String> failed = plugin.modules().reloadAll();
                 if (failed.isEmpty()) {
                     sender.sendMessage(Text.msg("<green>리로드 완료 <gray>(" + (System.currentTimeMillis() - t) + "ms)"));
+                    if (plugin.pack() != null && plugin.pack().building()) {
+                        sender.sendMessage(Text.msg("<gray>리소스팩은 뒤에서 다시 만드는 중입니다. 바뀐 게 있으면 끝나는 대로 접속자에게 갑니다"));
+                    }
                 } else {
                     sender.sendMessage(Text.msg("<red>일부 모듈 리로드 실패: " + String.join(", ", failed) + " <gray>(콘솔 확인)"));
                 }

@@ -224,7 +224,7 @@ final class CosmeticPackets {
             try {
                 Class<?> type = Class.forName("net.minecraft.world.entity.EntityType", false, cl);
                 Class<?> vec = Class.forName("net.minecraft.world.phys.Vec3", false, cl);
-                lt = type.getField("INTERACTION").get(null);
+                lt = entityType(cl, type, "INTERACTION");
                 vz = vec.getField("ZERO").get(null);
                 an = addEntityCls.getConstructor(int.class, UUID.class, double.class, double.class, double.class, float.class, float.class,
                         type, int.class, vec, double.class);
@@ -275,6 +275,23 @@ final class CosmeticPackets {
         valueValue = vv;
         valueCreate = vcr;
         itemAccessor = acc;
+    }
+
+    /**
+     * An entity type constant. 26.x keeps them in EntityTypes (EntityType itself has none any more); older servers in
+     * EntityType.
+     */
+    static Object entityType(ClassLoader cl, Class<?> type, String name) throws ReflectiveOperationException {
+        ReflectiveOperationException first = null;
+        for (String holder : new String[]{"net.minecraft.world.entity.EntityTypes", "net.minecraft.world.entity.EntityType"}) {
+            try {
+                Object v = Class.forName(holder, false, cl).getField(name).get(null);
+                if (type.isInstance(v)) return v;
+            } catch (ReflectiveOperationException e) {
+                if (first == null) first = e;
+            }
+        }
+        throw first != null ? first : new NoSuchFieldException(name);
     }
 
     private static Object staticField(Class<?> owner, String name) throws ReflectiveOperationException {
