@@ -133,7 +133,7 @@ skateboard:
     coast: 0.7
     turn-rate: 60
     turn-speed: 3
-    step-height: 0.5
+    step-height: 1        # 길의 한 칸 턱(옛 국도 절개지 등)에 걸리지 않게 (경제 RoadClearanceTest)
     size: [1.0, 0.45, 0.3]
     click-height: 0.3
     lean: 12

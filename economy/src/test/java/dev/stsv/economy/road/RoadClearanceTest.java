@@ -79,7 +79,8 @@ class RoadClearanceTest {
         Map<String, VehicleSpec> out = new LinkedHashMap<>();
         for (Map.Entry<String, ConfigurationSection> e : sections().entrySet()) {
             VehicleSpec s = VehicleSpec.parse(e.getValue(), "stsv", m -> true);
-            if (s.water() == null) out.put(e.getKey(), s);
+            // (a ride that stays where it is, the mechanical rodeo bull at 0.4 b/s, is not driven along roads)
+            if (s.water() == null && s.speed() >= 1) out.put(e.getKey(), s);
         }
         return out;
     }
