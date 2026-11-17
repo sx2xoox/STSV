@@ -259,17 +259,21 @@ e0cee6437ace6302afef58148af51b355e631362 economy/assets/economy/textures/gui/cod
 7cad78cde38855181cd37f4b1b7615f1d88d909b economy/assets/economy/textures/gui/hub.png
 8d9ffcd49ccae0bf29bf85effc5fa59e5ae2db6e economy/assets/economy/textures/gui/hub.png
 a47143a82ed046afa96b3e79eb6ade9d28abd24f economy/assets/economy/textures/gui/hub.png
+be0b973924a3ffdad9b4ab5d193df0fff469aa35 economy/assets/economy/textures/gui/hub.png
 f0b59799447e39bf6c768c657b4529d47054021b economy/assets/economy/textures/gui/hub.png
 f92d727deccc54f29a139dba0f3684da504141a6 economy/assets/economy/textures/gui/hub.png
 9935bdd9c324f838b14943abf84df6b824378a5f economy/assets/economy/textures/gui/hub_market.png
 b79e68a1390e91d4c1c4b0809d93e0c23ad86adc economy/assets/economy/textures/gui/hub_me.png
 3911bc9e6747473ef24b87425c56c4dc453896e5 economy/assets/economy/textures/gui/hub_rank.png
+b91cac59da939b8eec9da3d03f9934e1253c4310 economy/assets/economy/textures/gui/hub_rank.png
 e98d7dc539774c56b096e036b5515d0d5138a289 economy/assets/economy/textures/gui/hub_rank.png
 eafecb1a2edf751eebb4388dc3533207828f5db0 economy/assets/economy/textures/gui/hub_rank.png
 07c31729f874900b3045bbd8edad06a5f90e9b3e economy/assets/economy/textures/gui/hub_style.png
+3f635fee92c6d7e401e7bb46683848737141f6f3 economy/assets/economy/textures/gui/hub_style.png
 5b23d402ae4cb442467ffa5d7b31b268c3f852fc economy/assets/economy/textures/gui/hub_style.png
 bbd30e5f6853e7447f4d65e35be59102e9182e9f economy/assets/economy/textures/gui/hub_style.png
 a79ba96115a13ebaf828553122efe1c50c134df8 economy/assets/economy/textures/gui/hub_trade.png
+d117d75b3026577f1ec2859684ec415e47ee629b economy/assets/economy/textures/gui/hub_trade.png
 e3081be6e16f0b89514c7b1291d762dede7b2ebd economy/assets/economy/textures/gui/hub_trade.png
 fca8d79fb38a966717c3f73efb2604c96918ee77 economy/assets/economy/textures/gui/hub_trade.png
 09d3a0bd3e7bf00549fa8a51269b8a7ebd8329ed economy/assets/economy/textures/gui/hub_travel.png
@@ -278,6 +282,7 @@ fca8d79fb38a966717c3f73efb2604c96918ee77 economy/assets/economy/textures/gui/hub
 97719755371fda0a7f84d7ca7c4ff0fe0c4c413d economy/assets/economy/textures/gui/hub_work.png
 dca57dfb1dda2ee90d5345e53d5bcca354c0a7ff economy/assets/economy/textures/gui/hub_work.png
 fe1231958a68c91beda6683acc76b92c475c78b9 economy/assets/economy/textures/gui/hub_work.png
+ffa39a882e2c2ba4020110a5947d6a7a2718e8a3 economy/assets/economy/textures/gui/hub_work.png
 17e3f362a19a5eb354b3775fa94ec64ccf91072c economy/assets/economy/textures/gui/jobs.png
 74a55de7d2c3cf93b66bf77230ddfdedd52acf8b economy/assets/economy/textures/gui/jobs.png
 9299162d3ab62dbbc4074e0d36cd8b7d56234394 economy/assets/economy/textures/gui/jobs.png
@@ -590,6 +595,7 @@ da418967e755d492b6e55d5dcdec38fbb2d81fa6 economy/menus/auction.yml
 889f5b79b16416f95b0c8fb1bff8d49b95c7812a economy/menus/hub.yml
 99b5087147bfb759ccdd8e88a1567eeca9a19a40 economy/menus/hub.yml
 99cc519ee1c27ef09c7453f83aeea97576123919 economy/menus/hub.yml
+a03d2be5ed02e489f63eb101f4a50498fb9caa2b economy/menus/hub.yml
 bd746e0aa28d9eda330df753ba268835abbb9ed8 economy/menus/hub.yml
 c582e702ff790f37acd231f4521665c8d32b9185 economy/menus/hub.yml
 c69b63a7dfa86cda6d18cf9e01c68b4f71c4da7e economy/menus/hub.yml
