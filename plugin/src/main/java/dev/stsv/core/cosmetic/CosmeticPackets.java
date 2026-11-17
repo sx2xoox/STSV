@@ -60,7 +60,7 @@ final class CosmeticPackets {
     private final Object headSlot;
     /** head, chest, legs, feet (NMS enum values) */
     private final Set<Object> armorSlots;
-    private final Method addEntityId;
+    private final Method addEntityId, addEntityX, addEntityY, addEntityZ, addEntityXRot, addEntityYRot, addEntityHeadRot;
     private final Constructor<?> equipNew, setSlotNew, contentNew, invSlotNew, bundleNew;
     private final Method equipEntity, equipSlots;
     private final Method setSlotContainer, setSlotState, setSlotSlot, setSlotItem;
@@ -89,15 +89,18 @@ final class CosmeticPackets {
     private final Constructor<?> addEntityNew;
     private final Object accTranslation, accWidth, accHeight, accBillboard, accBrightness, accLiftWidth, accLiftHeight;
     private final Object accStart, accDuration, accViewRange;
-    private final int idTranslation, idWidth, idHeight, idBillboard, idBrightness, idStart, idDuration;
+    private final int idTranslation, idWidth, idHeight, idBillboard, idBrightness, idStart, idDuration, idViewRange;
+    /** own view: the item display type (copies of the body displays), the remove packet (their copies go too) */
+    private final Object displayType;
+    private final Class<?> removeCls;
+    private final Method removeIds;
+    private final Constructor<?> removeNew;
     private final Class<?> respawnCls, loginCls;
     private volatile float ownLift;
     /** wearer -> the linked displays that are worn cosmetics (the ones lifted on the wearer's own client) */
     private final Map<Integer, Set<Integer>> wornOf = new ConcurrentHashMap<>();
     /** wearer -> those of their worn displays that are above the head (own view: they stay there at every look) */
     private final Map<Integer, Set<Integer>> headOf = new ConcurrentHashMap<>();
-    /** How long after a move to another band a display's changes still run in one tick on the wearer's client. */
-    private static final long MOVE_NANOS = 150_000_000L;
     final java.util.concurrent.atomic.AtomicLong ownMoves = new java.util.concurrent.atomic.AtomicLong();
     /** debug counter: own-view links sent */
     final java.util.concurrent.atomic.AtomicLong ownLinks = new java.util.concurrent.atomic.AtomicLong();
@@ -155,6 +158,12 @@ final class CosmeticPackets {
 
         addEntityCls = Class.forName(game + "ClientboundAddEntityPacket", false, cl);
         addEntityId = addEntityCls.getMethod("getId");
+        addEntityX = addEntityCls.getMethod("getX");
+        addEntityY = addEntityCls.getMethod("getY");
+        addEntityZ = addEntityCls.getMethod("getZ");
+        addEntityXRot = addEntityCls.getMethod("getXRot");
+        addEntityYRot = addEntityCls.getMethod("getYRot");
+        addEntityHeadRot = addEntityCls.getMethod("getYHeadRot");
         @SuppressWarnings({"unchecked", "rawtypes"})
         Object head = Enum.valueOf((Class) Class.forName("net.minecraft.world.entity.EquipmentSlot", false, cl), "HEAD");
         headSlot = head;
@@ -226,7 +235,11 @@ final class CosmeticPackets {
         Constructor<?> an = null;
         Class<?> rc = null, lc = null;
         Object aSt = null, aDu = null, aVr = null;
-        int[] ids = new int[7];
+        int[] ids = new int[8];
+        Object dt = null;
+        Class<?> rmc = null;
+        Method rmi = null;
+        Constructor<?> rmn = null;
         if (dc != null) {
             try {
                 Class<?> type = Class.forName("net.minecraft.world.entity.EntityType", false, cl);
@@ -249,7 +262,11 @@ final class CosmeticPackets {
                 aSt = staticField(display, "DATA_TRANSFORMATION_INTERPOLATION_START_DELTA_TICKS_ID");
                 aDu = staticField(display, "DATA_TRANSFORMATION_INTERPOLATION_DURATION_ID");
                 aVr = staticField(display, "DATA_VIEW_RANGE_ID");
-                Object[] all = {aT, aW, aH, aB, aBr, aSt, aDu};
+                dt = entityType(cl, type, "ITEM_DISPLAY");
+                rmc = Class.forName(game + "ClientboundRemoveEntitiesPacket", false, cl);
+                rmi = rmc.getMethod("entityIds");
+                rmn = rmc.getConstructor(int[].class);
+                Object[] all = {aT, aW, aH, aB, aBr, aSt, aDu, aVr};
                 for (int i = 0; i < all.length; i++) ids[i] = (int) accId.invoke(all[i]);
                 rc = Class.forName(game + "ClientboundRespawnPacket", false, cl);
                 lc = Class.forName(game + "ClientboundLoginPacket", false, cl);
@@ -278,6 +295,11 @@ final class CosmeticPackets {
         accDuration = aDu;
         idStart = ids[5];
         idDuration = ids[6];
+        idViewRange = ids[7];
+        displayType = dt;
+        removeCls = rmc;
+        removeIds = rmi;
+        removeNew = rmn;
         respawnCls = rc;
         loginCls = lc;
         dataCls = dc;
@@ -360,30 +382,55 @@ final class CosmeticPackets {
         h.light = packed;
         if (!h.ownView || ownLift <= 0) return;
         try {
-            for (int d : displays) send(p, dataNew.newInstance(d, List.of(valueCreate.invoke(null, accBrightness, packed))));
+            for (int d : displays) {
+                for (int c : clientIds(h, d)) send(p, dataNew.newInstance(c, List.of(valueCreate.invoke(null, accBrightness, packed))));
+            }
         } catch (Throwable t) {
             warn(t);
         }
     }
 
-    /** The id of the lifting entity on this wearer's client for what is worn above the head (no entity of the server has it). */
+    /*
+     * On the wearer's own client every display worn on the body is there three times, one copy for each place it can
+     * be in (SelfLift.Band): the real one rides the entity over the head (HIGH, with what is worn above the head), a
+     * copy rides an entity under the feet (LOW) and one at the ankles (MID). The three draw the same model at the same
+     * spot (each lowered by its own height); only the copy of the place the look calls for is drawn, the others have a
+     * view range of 0 (the client draws a display only within view range x 64 blocks). So a change of place is a swap
+     * of view ranges in one bundle: nothing moves, nothing crosses the view on the way, and in F5 the model never
+     * leaves the screen.
+     */
+
+    /** The ids of the lifting entities on this wearer's client (no entity of the server has them). */
     private static int liftId(Handler h) {
         return 0x7F000000 | (h.entityId & 0x00FFFFFF);
     }
 
-    /** The second lifting entity: what is worn on the body rides it, and it changes its height with the look (SelfLift.Band). */
-    private static int bodyLiftId(Handler h) {
+    private static int lowLiftId(Handler h) {
         return 0x7E000000 | (h.entityId & 0x00FFFFFF);
     }
 
-    /** How far over the top of the wearer's hitbox their body displays sit on their client right now (negative: under). */
-    private float bodyHeight(Handler h) {
-        return (float) SelfLift.height(h.band, ownLift);
+    private static int midLiftId(Handler h) {
+        return 0x7D000000 | (h.entityId & 0x00FFFFFF);
     }
 
-    /** How far this display of the wearer's sits over the top of their hitbox on their client. */
-    private float heightOf(Handler h, int display) {
-        return headOf.getOrDefault(h.entityId, Set.of()).contains(display) ? ownLift : bodyHeight(h);
+    /** The id of a body display's copy for a place (HIGH: the display itself). */
+    static int copyId(int display, SelfLift.Band band) {
+        return switch (band) {
+            case HIGH -> display;
+            case LOW -> 0x60000000 | (display & 0x07FFFFFF);
+            case MID -> 0x68000000 | (display & 0x07FFFFFF);
+        };
+    }
+
+    /** The display and, if it is a body display with copies on this client, its copies. */
+    private static int[] clientIds(Handler h, int display) {
+        if (!h.copies.contains(display)) return new int[]{display};
+        return new int[]{display, copyId(display, SelfLift.Band.LOW), copyId(display, SelfLift.Band.MID)};
+    }
+
+    /** Whether a display is one of this wearer's own worn displays that follow the look (all but above the head). */
+    private boolean body(Handler h, int display) {
+        return wornOf.getOrDefault(h.entityId, Set.of()).contains(display) && !headOf.getOrDefault(h.entityId, Set.of()).contains(display);
     }
 
     /** Whether this wearer's own displays are lifted on their client right now. */
@@ -391,11 +438,15 @@ final class CosmeticPackets {
         return ownLift > 0 && h.ownView && wearer == h.entityId && !wornOf.getOrDefault(wearer, Set.of()).isEmpty();
     }
 
+    private Object liftData(int id, float height) throws ReflectiveOperationException {
+        return dataNew.newInstance(id, List.of(valueCreate.invoke(null, accLiftWidth, 0f), valueCreate.invoke(null, accLiftHeight, height)));
+    }
+
     /**
      * The packets that tell one client who rides the wearer. Everyone: the real passengers and the displays. The
-     * wearer themselves (own view on): the real passengers, the displays that are not worn cosmetics and the two
-     * lifting entities (made first if their client does not have them), then what is worn above the head riding the
-     * one and the rest of the worn displays riding the other.
+     * wearer themselves (own view on): the real passengers, the displays that are not worn cosmetics and the three
+     * lifting entities (made first if their client does not have them), then on the one over the head what is worn
+     * above it and the body displays, on the others the body displays' copies.
      *
      * @return null when the wearer has no displays (the packet stays as it is)
      */
@@ -404,21 +455,40 @@ final class CosmeticPackets {
         if (ids == null) return null;
         if (!lifted(h, wearer)) return List.of(passengers(wearer, ids));
         Set<Integer> worn = wornOf.getOrDefault(wearer, Set.of());
-        Set<Integer> head = headOf.getOrDefault(wearer, Set.of());
-        int lift = liftId(h), body = bodyLiftId(h);
-        List<Object> out = new ArrayList<>(8);
+        int lift = liftId(h), low = lowLiftId(h), mid = midLiftId(h);
+        List<Object> out = new ArrayList<>(10);
         if (!h.liftSpawned) {
-            out.add(addEntityNew.newInstance(lift, UUID.randomUUID(), h.x, h.y, h.z, 0f, 0f, liftType, 0, vecZero, 0d));
-            out.add(dataNew.newInstance(lift, List.of(valueCreate.invoke(null, accLiftWidth, 0f), valueCreate.invoke(null, accLiftHeight, ownLift))));
-            out.add(addEntityNew.newInstance(body, UUID.randomUUID(), h.x, h.y, h.z, 0f, 0f, liftType, 0, vecZero, 0d));
-            out.add(dataNew.newInstance(body, List.of(valueCreate.invoke(null, accLiftWidth, 0f), valueCreate.invoke(null, accLiftHeight, bodyHeight(h)))));
+            for (int[] l : new int[][]{{lift}, {low}, {mid}}) {
+                out.add(addEntityNew.newInstance(l[0], UUID.randomUUID(), h.x, h.y, h.z, 0f, 0f, liftType, 0, vecZero, 0d));
+            }
+            out.add(liftData(lift, ownLift));
+            out.add(liftData(low, (float) SelfLift.height(SelfLift.Band.LOW, ownLift)));
+            out.add(liftData(mid, (float) SelfLift.height(SelfLift.Band.MID, ownLift)));
             h.liftSpawned = true;
         }
         java.util.stream.IntStream direct = java.util.Arrays.stream(ids).filter(i -> !worn.contains(i));
-        out.add(passengers(wearer, java.util.stream.IntStream.concat(direct, java.util.stream.IntStream.of(lift, body)).toArray()));
-        out.add(passengers(lift, java.util.Arrays.stream(ids).filter(i -> worn.contains(i) && head.contains(i)).toArray()));
-        out.add(passengers(body, java.util.Arrays.stream(ids).filter(i -> worn.contains(i) && !head.contains(i)).toArray()));
+        out.add(passengers(wearer, java.util.stream.IntStream.concat(direct, java.util.stream.IntStream.of(lift, low, mid)).toArray()));
+        out.add(passengers(lift, java.util.Arrays.stream(ids).filter(worn::contains).toArray()));
+        int[] copied = java.util.Arrays.stream(ids).filter(i -> worn.contains(i) && h.copies.contains(i)).toArray();
+        out.add(passengers(low, java.util.Arrays.stream(copied).map(i -> copyId(i, SelfLift.Band.LOW)).toArray()));
+        out.add(passengers(mid, java.util.Arrays.stream(copied).map(i -> copyId(i, SelfLift.Band.MID)).toArray()));
         ownLinks.incrementAndGet();
+        return out;
+    }
+
+    /** A body display appears on its wearer's client: its two copies appear with it, at the same spot. */
+    private List<Object> ownSpawn(Object packet, Handler h) throws ReflectiveOperationException {
+        int id = (int) addEntityId.invoke(packet);
+        List<Object> out = new ArrayList<>(3);
+        out.add(packet);
+        for (SelfLift.Band b : new SelfLift.Band[]{SelfLift.Band.LOW, SelfLift.Band.MID}) {
+            int c = copyId(id, b);
+            h.lowered.remove(c);
+            out.add(addEntityNew.newInstance(c, UUID.randomUUID(), addEntityX.invoke(packet), addEntityY.invoke(packet),
+                    addEntityZ.invoke(packet), addEntityXRot.invoke(packet), addEntityYRot.invoke(packet), displayType, 0, vecZero,
+                    (double) (float) addEntityHeadRot.invoke(packet)));
+        }
+        h.copies.add(id);
         return out;
     }
 
@@ -428,67 +498,27 @@ final class CosmeticPackets {
         return h == null ? SelfLift.Band.HIGH : h.band;
     }
 
-    /**
-     * The wearer looks another way: their body displays move to the band's place on their client. One bundle (the
-     * client takes it in between two ticks): the lifting entity's new height, and every body display drawn from its
-     * new place, the change run in one tick. The client moves a passenger at its next tick and draws the way there
-     * over that tick, and it runs a display's change the same way over the ticks it is given: one. So the model
-     * stays where it is while its display goes to the other place. On its way the display's culling box crosses the
-     * view (from over the head to under the feet), so it is not drawn at all meanwhile: its view range is 0 (the
-     * client draws a display only within view range x 64 blocks) until {@link #ownShow} gives it back.
-     *
-     * @param displays     the wearer's worn displays that are not above the head
-     * @param translations what each of them is drawn at (the server's values, not lowered)
-     */
-    boolean ownBand(Player p, SelfLift.Band band, int[] displays, org.joml.Vector3fc[] translations) {
+    /** The wearer looks another way: the copies of their body displays for that place are drawn, the others not. */
+    void ownBand(Player p, SelfLift.Band band) {
         Handler h = handlers.get(p.getUniqueId());
-        if (h == null || h.band == band || accStart == null || accViewRange == null) return false;
-        if (!h.liftSpawned) {
-            h.band = band;   // the lifting entity is made at this height
-            return false;
-        }
-        // (no own view just now: the band stays as their client has it, and moves when the displays are back)
-        if (!lifted(h, h.entityId)) return false;
+        if (h == null || h.band == band) return;
         h.band = band;
-        float height = bodyHeight(h);
-        long now = System.nanoTime();
+        if (!lifted(h, h.entityId) || !h.liftSpawned || accViewRange == null) return;
         try {
-            List<Object> out = new ArrayList<>(displays.length + 1);
-            out.add(dataNew.newInstance(bodyLiftId(h), List.of(valueCreate.invoke(null, accLiftHeight, height))));
-            for (int i = 0; i < displays.length; i++) {
-                if (!h.lowered.contains(displays[i])) continue;   // not on their client yet: its first data takes the new place
-                org.joml.Vector3fc t = translations[i];
-                out.add(dataNew.newInstance(displays[i], List.of(
-                        valueCreate.invoke(null, accTranslation, new org.joml.Vector3f(t.x(), t.y() - height, t.z())),
-                        valueCreate.invoke(null, accStart, 0), valueCreate.invoke(null, accDuration, 1),
-                        valueCreate.invoke(null, accViewRange, 0f))));
-                h.moved.put(displays[i], now);
-            }
-            Object bundle = bundleNew.newInstance(out);
-            h.asIs.add(bundle);
-            send(p, bundle);
-            ownMoves.incrementAndGet();
-            return true;
-        } catch (Throwable t) {
-            warn(t);
-            return false;
-        }
-    }
-
-    /** After a move (ownBand) has arrived: the displays are drawn again, within their own view ranges. */
-    void ownShow(Player p, int[] displays, float[] ranges) {
-        Handler h = handlers.get(p.getUniqueId());
-        if (h == null || accViewRange == null) return;
-        try {
-            List<Object> out = new ArrayList<>(displays.length);
-            for (int i = 0; i < displays.length; i++) {
-                if (!h.lowered.contains(displays[i])) continue;
-                out.add(dataNew.newInstance(displays[i], List.of(valueCreate.invoke(null, accViewRange, ranges[i]))));
+            List<Object> out = new ArrayList<>();
+            for (int d : h.copies) {
+                float range = h.ranges.getOrDefault(d, 1f);
+                for (SelfLift.Band b : SelfLift.Band.values()) {
+                    int c = copyId(d, b);
+                    if (!h.lowered.contains(c)) continue;
+                    out.add(dataNew.newInstance(c, List.of(valueCreate.invoke(null, accViewRange, b == band ? range : 0f))));
+                }
             }
             if (out.isEmpty()) return;
             Object bundle = bundleNew.newInstance(out);
             h.asIs.add(bundle);
             send(p, bundle);
+            ownMoves.incrementAndGet();
         } catch (Throwable t) {
             warn(t);
         }
@@ -499,10 +529,8 @@ final class CosmeticPackets {
      * a small box at the display itself (above the head), turned to the camera about the vertical axis only (a full
      * billboard would swing the lowered model round the display), lit as the wearer is.
      */
-    private List<Object> ownData(int id, List<?> values, List<Object> copy, Handler h) throws ReflectiveOperationException {
-        float lift = heightOf(h, id);
-        boolean translation = false, width = false, height = false, brightness = false, start = false;
-        int duration = -1;
+    private List<Object> ownData(int id, List<?> values, List<Object> copy, Handler h, float lift, Float range) throws ReflectiveOperationException {
+        boolean translation = false, width = false, height = false, brightness = false, viewRange = false;
         for (int i = 0; i < values.size(); i++) {
             Object v = (copy != null ? copy : values).get(i);
             int key = (int) valueId.invoke(v);
@@ -522,11 +550,9 @@ final class CosmeticPackets {
             } else if (key == idBrightness) {
                 brightness = true;
                 if ((int) valueValue.invoke(v) == -1 && h.light >= 0) to = h.light;
-            } else if (key == idStart) {
-                start = true;
-            } else if (key == idDuration) {
-                duration = i;
-                h.durations.put(id, (Integer) valueValue.invoke(v));
+            } else if (key == idViewRange && range != null) {
+                viewRange = true;
+                to = range;
             }
             if (to == null) continue;
             if (copy == null) copy = new ArrayList<>(values);
@@ -540,28 +566,27 @@ final class CosmeticPackets {
             if (!width) copy.add(valueCreate.invoke(null, accWidth, SelfLift.CULL_BOX));
             if (!height) copy.add(valueCreate.invoke(null, accHeight, SelfLift.CULL_BOX));
             if (!brightness && h.light >= 0) copy.add(valueCreate.invoke(null, accBrightness, h.light));
-        }
-        // after a move to another band (ownBand) the client runs this display's changes in one tick. While the move is
-        // on its way that must stay so; the first change begun after it gets the server's own number of ticks back
-        Long moved = h.moved.get(id);
-        if (moved != null && accDuration != null) {
-            if (System.nanoTime() - moved < MOVE_NANOS) {
-                if (duration >= 0) {
-                    if (copy == null) copy = new ArrayList<>(values);
-                    copy.set(duration, valueCreate.invoke(null, accDuration, 1));
-                }
-            } else if (duration >= 0) {
-                h.moved.remove(id);
-            } else if (start) {
-                Integer ticks = h.durations.get(id);
-                if (ticks != null) {
-                    if (copy == null) copy = new ArrayList<>(values);
-                    copy.add(valueCreate.invoke(null, accDuration, ticks));
-                }
-                h.moved.remove(id);
-            }
+            if (!viewRange && range != null) copy.add(valueCreate.invoke(null, accViewRange, range));
         }
         return copy;
+    }
+
+    /**
+     * Entity data of one of the wearer's own body displays that has copies: the same data for the display and its
+     * two copies, each lowered by its own place's height, each drawn only while the look calls for its place.
+     */
+    private List<Object> ownBodyData(int id, List<?> values, Handler h) throws ReflectiveOperationException {
+        for (Object v : values) {
+            if ((int) valueId.invoke(v) == idViewRange) h.ranges.put(id, (Float) valueValue.invoke(v));
+        }
+        float range = h.ranges.getOrDefault(id, 1f);
+        List<Object> out = new ArrayList<>(3);
+        for (SelfLift.Band b : SelfLift.Band.values()) {
+            int c = copyId(id, b);
+            List<Object> data = ownData(c, values, null, h, (float) SelfLift.height(b, ownLift), b == h.band ? range : 0f);
+            out.add(dataNew.newInstance(c, data != null ? data : values));
+        }
+        return out;
     }
 
     // ------------------------------------------------------------------------------------------
@@ -886,10 +911,10 @@ final class CosmeticPackets {
         final Set<Integer> lowered = ConcurrentHashMap.newKeySet();
         /** own view: where their body displays are on their client (SelfLift.Band) */
         volatile SelfLift.Band band = SelfLift.Band.HIGH;
-        /** own view: body displays moved to another band (when, System.nanoTime) whose changes still run in one tick */
-        final Map<Integer, Long> moved = new ConcurrentHashMap<>();
-        /** own view: the ticks the server runs each display's changes in (as last sent) */
-        final Map<Integer, Integer> durations = new ConcurrentHashMap<>();
+        /** own view: body displays whose two copies (LOW, MID) are on this client */
+        final Set<Integer> copies = ConcurrentHashMap.newKeySet();
+        /** own view: each body display's own view range (as the server sent it) */
+        final Map<Integer, Float> ranges = new ConcurrentHashMap<>();
         /** packets made for this client as they must arrive: not rewritten (by identity) */
         final Set<Object> asIs = java.util.Collections.synchronizedSet(java.util.Collections.newSetFromMap(new java.util.IdentityHashMap<>()));
 
@@ -925,16 +950,33 @@ final class CosmeticPackets {
             // the client's world is replaced: it has none of its entities any more
             h.liftSpawned = false;
             h.lowered.clear();
-            h.moved.clear();
-            h.durations.clear();
+            h.copies.clear();
+            h.ranges.clear();
             return packet;
         }
         if (c == addEntityCls) {
             int id = (int) addEntityId.invoke(packet);
             h.lowered.remove(id);
-            h.moved.remove(id);
-            h.durations.remove(id);
+            h.copies.remove(id);
+            if (displayType != null && lifted(h, h.entityId) && body(h, id)) return bundleNew.newInstance(ownSpawn(packet, h));
             return packet;
+        }
+        if (c == removeCls && !h.copies.isEmpty()) {
+            it.unimi.dsi.fastutil.ints.IntList gone = (it.unimi.dsi.fastutil.ints.IntList) removeIds.invoke(packet);
+            List<Integer> more = new ArrayList<>();
+            for (int i = 0; i < gone.size(); i++) {
+                int id = gone.getInt(i);
+                if (h.copies.remove(id)) {
+                    more.add(copyId(id, SelfLift.Band.LOW));
+                    more.add(copyId(id, SelfLift.Band.MID));
+                    h.ranges.remove(id);
+                }
+            }
+            if (more.isEmpty()) return packet;
+            int[] all = new int[gone.size() + more.size()];
+            for (int i = 0; i < gone.size(); i++) all[i] = gone.getInt(i);
+            for (int i = 0; i < more.size(); i++) all[gone.size() + i] = more.get(i);
+            return removeNew.newInstance((Object) all);
         }
         if (c == bundleCls) {
             List<Object> sub = new ArrayList<>();
@@ -954,7 +996,11 @@ final class CosmeticPackets {
                 }
                 Object r = rewrite(p, h);
                 changed |= r != p;
-                sub.add(r);
+                if (r != p && r.getClass() == bundleCls) {
+                    for (Object q : (Iterable<?>) bundleSub.invoke(r)) sub.add(q);   // (a bundle cannot hold a bundle)
+                } else {
+                    sub.add(r);
+                }
                 if (p.getClass() == addEntityCls) spawned.add((int) addEntityId.invoke(p));
                 else if (p.getClass() == equipCls) equipped.add((int) equipEntity.invoke(p));
             }
@@ -1066,7 +1112,8 @@ final class CosmeticPackets {
             if (copy == null) copy = new ArrayList<>(values);
             copy.set(i, valueNew.newInstance(valueId.invoke(v), valueSerializer.invoke(v), asNms.invoke(null, it)));
         }
-        if (own) copy = ownData(id, values, copy, h);
+        if (own && h.copies.contains(id)) return bundleNew.newInstance(ownBodyData(id, copy != null ? copy : values, h));
+        if (own) copy = ownData(id, values, copy, h, ownLift, null);
         return copy == null ? packet : dataNew.newInstance(id, copy);
     }
 
