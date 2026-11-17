@@ -263,9 +263,12 @@ e0cee6437ace6302afef58148af51b355e631362 economy/assets/economy/textures/gui/cod
 a47143a82ed046afa96b3e79eb6ade9d28abd24f economy/assets/economy/textures/gui/hub.png
 be0b973924a3ffdad9b4ab5d193df0fff469aa35 economy/assets/economy/textures/gui/hub.png
 f0b59799447e39bf6c768c657b4529d47054021b economy/assets/economy/textures/gui/hub.png
+f5cc22be7bc7ec2810c2075c3cb6c05eb288df65 economy/assets/economy/textures/gui/hub.png
 f92d727deccc54f29a139dba0f3684da504141a6 economy/assets/economy/textures/gui/hub.png
+626158e4c433f0d044c82cfb54ee7b9d1c8e620b economy/assets/economy/textures/gui/hub_circuit.png
 9935bdd9c324f838b14943abf84df6b824378a5f economy/assets/economy/textures/gui/hub_market.png
 b79e68a1390e91d4c1c4b0809d93e0c23ad86adc economy/assets/economy/textures/gui/hub_me.png
+4cce61d4e591d723997869addb06bf6024025bd3 economy/assets/economy/textures/gui/hub_minigame.png
 3911bc9e6747473ef24b87425c56c4dc453896e5 economy/assets/economy/textures/gui/hub_rank.png
 50a12edc1a2ff220bcdb3ea6aa0dbbae74278eda economy/assets/economy/textures/gui/hub_rank.png
 b91cac59da939b8eec9da3d03f9934e1253c4310 economy/assets/economy/textures/gui/hub_rank.png
@@ -600,6 +603,7 @@ da418967e755d492b6e55d5dcdec38fbb2d81fa6 economy/menus/auction.yml
 047f4b387dbfa41d15112c4116149ca42d3e8c60 economy/menus/hub.yml
 0d095d7dd105e9d7eed4e6473a968a74c3a6afda economy/menus/hub.yml
 19afcc63cda04b9bf10861fbc361bf8b824a545d economy/menus/hub.yml
+36adc19db601b2f74667b20dffe8c407668de586 economy/menus/hub.yml
 3bbfbd655804cf41ee6c7263ef134ef144c8da98 economy/menus/hub.yml
 447480a4ed605d30d9f70b3b4b4ad80c5286af6b economy/menus/hub.yml
 889f5b79b16416f95b0c8fb1bff8d49b95c7812a economy/menus/hub.yml
@@ -614,6 +618,7 @@ da84b6a7fc90adab9f932457a7f8803f9086f025 economy/menus/hub.yml
 dc7e382d51152ab33d26259f7410f06d89731060 economy/menus/hub.yml
 e4574aa6af6ac86a647ac630a84c859102aff4b6 economy/menus/hub.yml
 f6363cdf5ef1d819aed5c0532b88104865ebeef6 economy/menus/hub.yml
+264af958d1c1f8a82abadbc2e0dfd359115d27ec economy/menus/hub_minigame.yml
 15e908dc63ccc9a0bc5bcb6ff3d532801a613161 economy/menus/jobs.yml
 2497ddc50627760b27272a944284cffaadf03ee5 economy/menus/jobs.yml
 43dce353353a8c871f6c71cd8067b42a76169b82 economy/menus/jobs.yml
