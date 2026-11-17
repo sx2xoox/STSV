@@ -51,7 +51,10 @@ public final class RenderBudget {
     }
 
     /** Models allowed more than their kind's budget: model ("ns:name") -> {faces, why}. Empty is the goal. */
-    public static final Map<String, Object[]> EXCEPTIONS = Map.of();
+    public static final Map<String, Object[]> EXCEPTIONS = Map.of(
+            // 특별 탈것 로데오 황소: the bull is the vehicle's real body (shown as its moving part; the stand under it, the
+            // "body", is a plain mat): a vehicle body's budget, not a part's
+            "stsv:rodeo_bull_bull", new Object[]{Category.VEHICLE.faces, "로데오 황소의 황소 (움직이는 부품이지만 실제 몸체: 탈것 몸체 예산)"});
 
     private RenderBudget() {}
 

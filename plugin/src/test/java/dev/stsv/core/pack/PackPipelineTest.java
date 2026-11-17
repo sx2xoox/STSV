@@ -42,6 +42,7 @@ class PackPipelineTest {
             "mole", "gumiho", "phoenix",                        // pets: the helmet lamp, fox-fire tails, flame tips
             "star_ring", "shoulder_dragon", "jetpack",          // cosmetics A: the stars, the dragon's ember, the rocket flames
             "sleepy_duckling_awakened",                         // 아기 오리: the moon and stars of the mobile
+            "segway", "rodeo_bull", "rodeo_bull_bull",          // 특별 탈것: the segway's LED face, the big red button, the bull's red eyes
             "devil_tail", "gold_medal", "crystal_pendant",      // cosmetics B: the heart tip, the medal's star, the crystal
             // donation sets: every piece glows at night (the dragon wings' membrane only at its tips: not listed)
             // 청룡 v2: pearls, flames, eyes, spines, whiskers, glowing cloud, lightning and the footprints' rims
@@ -108,7 +109,9 @@ class PackPipelineTest {
             "toy_pickaxe", "toy_fishing_rod",                  // 장난감 시리즈: the pickaxe's drooping arms, the rod's hanging line and float
             // 특별 탈것: the kick scooter's brake lever and fender, the board's kicktail and nose, the banana's stem, the segway's
             // fenders, the sled's curled runners, bow and rope, the balloons' strings, the bull's tail
-            "kickboard", "skateboard", "banana_boat", "segway", "sled", "balloon_chair_balloons", "rodeo_bull_bull");
+            // the duck and the bull: octagonal sections whose corners are boxes turned 45 degrees (smooth round forms), the
+            // stand's lever
+            "kickboard", "skateboard", "banana_boat", "segway", "sled", "balloon_chair_balloons", "rodeo_bull_bull", "toy_duck", "rodeo_bull");
 
     @org.junit.jupiter.params.ParameterizedTest
     @org.junit.jupiter.params.provider.MethodSource("models")

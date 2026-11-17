@@ -76,8 +76,9 @@ public final class RiderPose {
             double down = m.deck() * PX_PER_BLOCK;
             double fz = 2.5 * Math.cos(a) - 2.5;                      // forward at the start, far back mid-push
             double fy = -down * Math.max(0, Math.sin(a)) * 1.05 + 1.5 * Math.max(0, -Math.sin(a));
-            p = p.with(Channel.FOOT_R, 2.2, fy, -3 + fz * 1.8)
-                    .with(Channel.ROOT, 0, -1.4 - 0.8 * Math.max(0, Math.sin(a)), 0)   // the standing knee bends as the other foot reaches down
+            p = p.with(Channel.FOOT_R, 2.2, fy, -2 + fz * 1.2)
+                    // the standing knee bends deep as the other foot reaches down to the road
+                    .with(Channel.ROOT, 0, -1.4 - (down + 1.0) * Math.max(0, Math.sin(a)), 0)
                     .with(Channel.ROOT_ROT, 12, 0, -lean * 0.8);
         }
         return p;

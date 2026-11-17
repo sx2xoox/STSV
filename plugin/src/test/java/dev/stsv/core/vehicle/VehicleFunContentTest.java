@@ -106,15 +106,63 @@ class VehicleFunContentTest {
         assertTrue(sled.extras().allTerrain(), "snow is its road, not rough ground");
 
         VehicleSpec chair = v.get("balloon_chair");
-        assertEquals(8, chair.fun().hover().max(), 1e-9, "at most eight blocks over the ground");
+        assertTrue(chair.fun().hover().free(), "free flight: no height over the ground holds it");
         assertTrue(chair.fun().hover().pop() && chair.fun().lookSteer());
         assertTrue(chair.fun().hover().climb() < broom.climb(), "rises slowly");
         assertNotNull(chair.fun().part(), "its balloons");
 
         VehicleSpec bull = v.get("rodeo_bull");
         assertNotNull(bull.fun().buck());
+        assertTrue(bull.length() >= 2.2, "a big bull");
         assertTrue(bull.speed() < 1, "it barely moves");
         assertNotNull(bull.fun().part(), "the bull on its stand");
+    }
+
+    /** The riders of the kick scooter, the segway, the pogo stick and the board stand; the gags are all there. */
+    @Test
+    void theyStandAndEachHasItsGag() {
+        Map<String, VehicleSpec> v = fun();
+        Map<String, RiderPose.Kind> stand = Map.of("kickboard", RiderPose.Kind.KICK, "segway", RiderPose.Kind.SEGWAY,
+                "pogo_stick", RiderPose.Kind.POGO, "skateboard", RiderPose.Kind.SKATE);
+        for (Map.Entry<String, VehicleSpec> e : v.entrySet()) {
+            FunSpec.Stand st = e.getValue().fun().stand();
+            assertEquals(stand.get(e.getKey()), st == null ? null : st.kind(), e.getKey() + " stands");
+            if (st == null) continue;
+            VehicleSpec.Vec seat = e.getValue().seats().getFirst();
+            // the seat 0.6 over the deck: a rider sits 0.6 under their seat, so their eyes are a standing player's over it
+            assertEquals(st.deck() + 0.6, seat.up(), 0.02, e.getKey() + ": eyes at standing height");
+            assertEquals(1, e.getValue().seats().size());
+        }
+        assertNotNull(v.get("kickboard").fun().tip(), "the kick scooter tips over");
+        assertNotNull(v.get("skateboard").fun().bail(), "the board bails");
+        assertNotNull(v.get("segway").fun().dizzy(), "the segway spins up and makes you dizzy");
+        assertTrue(v.get("pogo_stick").fun().hop().overload(), "the pogo stick's spring overloads");
+        assertNotNull(v.get("sled").fun().crash(), "the sled crashes and flips");
+        assertNotNull(v.get("banana_boat").fun().heel(), "the banana boat heels hard");
+        assertTrue(v.get("toy_duck").fun().toot().combo(), "the duck's squeaks climb");
+        assertTrue(v.get("toy_duck").fun().toot().sound().startsWith("stsv:vehicle.toy_duck."), "its own rubber squeak");
+        assertTrue(v.get("pogo_stick").fun().hop().sound().startsWith("stsv:vehicle.pogo_stick."), "its own boing");
+    }
+
+    /** The cartoon sounds (tools/assetgen/sounds_fun.py) are in the pack, short and mono. */
+    @Test
+    void theirCartoonSoundsAreInThePack() throws Exception {
+        Path assets = PACK.resolve("assets/stsv");
+        com.google.gson.JsonObject sounds = com.google.gson.JsonParser.parseString(Files.readString(assets.resolve("sounds.json"))).getAsJsonObject();
+        for (String event : List.of("vehicle.toy_duck.squeak", "vehicle.pogo_stick.boing", "vehicle.pogo_stick.sproing",
+                "vehicle.balloon_chair.trombone", "vehicle.common.slide_whistle")) {
+            assertTrue(sounds.has(event), event);
+            String name = sounds.getAsJsonObject(event).getAsJsonArray("sounds").get(0).getAsJsonObject().get("name").getAsString();
+            Path ogg = assets.resolve("sounds/" + name.substring("stsv:".length()) + ".ogg");
+            assertTrue(Files.isRegularFile(ogg), ogg.toString());
+            assertTrue(Files.size(ogg) < 32 * 1024, ogg + " small");
+            double seconds = OggLength.seconds(ogg);
+            assertTrue(seconds > 0.2 && seconds < 3, ogg + ": " + seconds);
+            assertEquals(1, OggLength.channels(ogg), ogg + ": mono");
+        }
+        String java = Files.readString(Path.of("src/main/java/dev/stsv/core/vehicle/FunView.java"));
+        for (String key : List.of("stsv:vehicle.common.slide_whistle", "stsv:vehicle.balloon_chair.trombone", "stsv:vehicle.pogo_stick.sproing"))
+            assertTrue(java.contains(key), key + " is played");
     }
 
     /** Every model each shows, its icon, and the generator that draws them. */
@@ -160,7 +208,8 @@ class VehicleFunContentTest {
             if (key != null) assertTrue(messages.isString(key), key);
         }
         assertNull(FunView.keys(VehiclePhysicsTest.car()), "every other vehicle: the usual hint");
-        for (String k : List.of("tossed", "popped", "refilled", "rodeo-meter", "rodeo-time", "rodeo-thrown", "rodeo-off", "rodeo-record", "banana-seat"))
+        for (String k : List.of("tossed", "popped", "refilled", "rodeo-meter", "rodeo-time", "rodeo-thrown", "rodeo-off", "rodeo-record", "banana-seat",
+                "squeak-jump", "trick", "combo", "bail", "tipped", "overload", "crashed", "dizzy"))
             assertTrue(messages.isString("vehicle.fun." + k), k);
         assertTrue(FunView.meter(0).contains("◆") && FunView.meter(-1).startsWith("<white>◆") && FunView.meter(1).endsWith("◆"));
     }
