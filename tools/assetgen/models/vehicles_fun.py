@@ -99,6 +99,105 @@ def blob(m, name, centre, radii, paint, layer=2.0, row=2.0, min_w=0.5):
         y = y1
 
 
+# ------------------------------------------------------------------------------------------------
+# Smooth round forms (the duck, the bull): lathes of three-box rings, shaded by a dithered gradient
+# ------------------------------------------------------------------------------------------------
+
+BAYER = ((0.0, 0.5), (0.75, 0.25))
+
+
+def _mix(a, b, k):
+    return tuple(int(round(a[i] + (b[i] - a[i]) * k)) for i in range(3))
+
+
+def smooth_colour(stops, k, c, levels=16, gloss=None):
+    """An exact colour for k (0 dark .. 1 lit) along the colour stops [(at, rgb), ...]: a few levels, ordered-dithered
+    on the pixel grid between them (no hard bands), and a glossy highlight over gloss (rubber shines)."""
+    x, y, z = c.p
+    b = BAYER[math.floor(y * 1.0001) % 2][math.floor(x + z) % 2]
+    q = min(1.0, math.floor(k * levels + b) / levels)
+    if gloss is not None and k > gloss and c.face == "up":
+        return ("raw", (255, 252, 236, 255))
+    for (a0, c0), (a1, c1) in zip(stops, stops[1:]):
+        if q <= a1:
+            t = 0 if a1 == a0 else (q - a0) / (a1 - a0)
+            return ("raw", (*_mix(c0, c1, t), 255))
+    return ("raw", (*stops[-1][1], 255))
+
+
+def ramp_stops(ramp, lo, hi):
+    """Colour stops along a palette ramp from step lo to step hi (whole steps, its own colours)."""
+    from stsv_assets.palette import ladder
+    steps = list(range(lo, hi + 1))
+    return [((s - lo) / max(1, hi - lo), ladder(ramp, s)[:3]) for s in steps]
+
+
+def lathe(m, name, z0, z1, step, shape, paint, axis="z"):
+    """A round form turned along z (or y) from three overlapping components (a wide, a tall and a middle box: an
+    octagon across) whose centre and half sizes come from shape(t) -> (cx, cy, rx, ry). Each component is sampled every
+    half pixel, its sizes rounded to half pixels, and merged along the axis on its own: its steps fall where its own
+    size changes, not where the others' do, so the form shows no ribs. (step: the sampling, kept for the callers.)
+    axis "y": stacked upwards, shape(t) -> (cx, cz, rx, rz)."""
+    fine = 0.5
+    n = max(1, int(round((z1 - z0) / fine)))
+    for k, (fw, fh) in enumerate(((1.0, 0.58), (0.58, 1.0), (0.86, 0.86))):
+        runs = []
+        for i in range(n):
+            t0, t1 = z0 + i * fine, z0 + (i + 1) * fine
+            a, b, rx, ry = shape((t0 + t1) / 2)
+            w, h = round(rx * fw * 2) / 2, round(ry * fh * 2) / 2
+            key = (round(a * 4) / 4, round(b * 4) / 4, w, h)
+            if w < 0.5 or h < 0.5:
+                runs.append(None)
+                continue
+            if runs and runs[-1] is not None and runs[-1][2] == key:
+                runs[-1] = (runs[-1][0], t1, key)
+            else:
+                runs.append((t0, t1, key))
+        ins = 0.03 * k   # the components' ends a hair apart: no two faces in one plane
+        for r in runs:
+            if r is None:
+                continue
+            t0, t1, (a, b, w, h) = r
+            if axis == "z":
+                m.box(name, (a - w, b - h, t0 + ins), (a + w, b + h, t1 - ins), paint)
+            else:
+                m.box(name, (a - w, t0 + ins, b - h), (a + w, t1 - ins, b + h), paint)
+
+
+def octa(m, name, t0, t1, a, b, hw, hh, bevel, paint, axis="z"):
+    """An octagonal section with true 45 degree bevels, from t0 to t1 along z (or y): a wide box, a tall box and four
+    boxes turned 45 degrees filling the corners between them. Across: centred at (a, b), hw / hh half wide / high (x and
+    y; along y: x and z), the corners cut back by bevel. Few, large faces: shaded by a smooth paint they read round."""
+    bevel = min(bevel, hw - 0.25, hh - 0.25)
+    d = bevel / math.sqrt(2)
+    parts = [(hw, hh - bevel, None), (hw - bevel, hh, None)]
+    for sx in (1, -1):
+        for sy in (1, -1):
+            parts.append(((sx, sy), d, "diamond"))
+    for k, part in enumerate(parts):
+        i = 0.02 * k
+        if part[2] is None:
+            w, h = part[0], part[1]
+            if axis == "z":
+                m.box(name, (a - w, b - h, t0 + i), (a + w, b + h, t1 - i), paint)
+            else:
+                m.box(name, (a - w, t0 + i, b - h), (a + w, t1 - i, b + h), paint)
+        else:
+            (sx, sy), dd, _ = part
+            ca, cb = a + sx * (hw - bevel), b + sy * (hh - bevel)
+            if axis == "z":
+                m.box(name, (ca - dd, cb - dd, t0 + i), (ca + dd, cb + dd, t1 - i), paint, rotation=("z", 45, (ca, cb, (t0 + t1) / 2)))
+            else:
+                m.box(name, (ca - dd, t0 + i, cb - dd), (ca + dd, t1 - i, cb + dd), paint, rotation=("y", 45, (ca, (t0 + t1) / 2, cb)))
+
+
+def lit_at(c, centre, radii):
+    """lit(), for a point and a centre / radii given directly."""
+    n = _norm(tuple((c.p[i] - centre[i]) / radii[i] for i in range(3)))
+    return max(0.0, min(1.0, (n[0] * L[0] + n[1] * L[1] + n[2] * L[2] + 0.35) / 1.35))
+
+
 def octo(m, name, c, w, h, z0, z1, paint, axis="z"):
     """A rounded bar of three boxes (an octagon across): w wide, h high, along z (or x) from z0 to z1, centred at c = (x, y)."""
     x, y = c
@@ -629,67 +728,87 @@ def segway():
 # ================================================================================================
 
 DUCK = "corn"
+# the duck's yellow: deep amber in the shade, warm yolk, a bright lemon where the light falls, a gloss on top
+DUCK_STOPS = [(0.0, (196, 120, 22)), (0.35, (236, 168, 28)), (0.7, (252, 206, 52)), (1.0, (255, 236, 120))]
 
 
 def toy_duck():
+    """A big rubber duck, faceted like a moulded toy: octagonal sections with 45 degree bevels (few large faces) along a
+    round body that sweeps up into a perky tail, a round head on a short neck, all glossy yellow shaded by one smooth
+    gradient over the whole form (no bands); shiny black eyes with a glint, pink cheeks, a wide orange bill with a smile
+    line, wing bumps on the sides."""
     m = _body("toy_duck")
-    BC, BR = (0.0, 9.5, 3.0), (11.5, 9.5, 15.0)      # the body: centre and radii (px)
-    HC, HR = (0.0, 20.5, -9.5), (6.75, 6.75, 6.75)    # the head
+    BC, BR = (0.0, 9.0, 2.5), (12.0, 9.5, 17.0)   # the body as one round form, for its shading
 
-    def body_decal(c):
-        x, y, z = c.p
-        # the wings: a slightly paler oval bump on each side, a curved feather line on it
-        if abs(x) > 9 and -2 < z < 12 and 7 < y < 13:
-            if abs((z - 5) ** 2 / 50 + (y - 10) ** 2 / 9 - 1) < 0.25:
-                return (DUCK, 1.2)
-        if c.face == "down":
-            return (DUCK, 0.8)
-        return None
-    bp = round_paint(DUCK, BC, BR, lo=0.6, hi=2.6, decal=body_decal)
-    blob(m, "body", BC, BR, bp, layer=2.0, row=3.0)
-    # the raised tail: a tapering stack up the back
-    tp = round_paint(DUCK, (0, 14, 17), (6, 5, 4), lo=0.8, hi=2.6)
-    m.box("tail", (-4.75, 10.25, 14.25), (4.75, 15.0, 18.25), tp)
-    m.box("tail", (-3.25, 15.0, 15.75), (3.25, 18.5, 19.75), tp)
-    m.box("tail", (-1.75, 18.5, 17.25), (1.75, 20.0, 20.25), tp)
-    # the wing bumps
-    for s in (1, -1):
-        xa, xb = sorted((s * 10.5, s * 12.25))
-        wp = round_paint(DUCK, (s * 10, 10, 5), (3, 3, 7), lo=1.0, hi=2.8)
-        m.box("wing", (xa, 7.5, -1.0), (xb, 12.5, 10.5), wp)
-        m.box("wing", (min(s * 11.5, s * 12.0), 8.5, 10.5), (max(s * 11.5, s * 12.0), 12.0, 13.0), wp)
+    def yellow(centre, radii, gloss=0.975, dim=1.0):
+        def d(c):
+            k = lit_at(c, centre, radii) * dim
+            if c.face == "down":
+                k *= 0.35
+            return smooth_colour(DUCK_STOPS, k, c, gloss=gloss)
+        return Paint(DUCK, 2, noise=0, light=False, decal=d)
+    bp = yellow(BC, BR)
+    # body: chest, belly, hips, rump (front to back), each a bevelled octagon
+    for (t0, t1, cy, hw, hh, bev) in ((-15.0, -13.25, 8.75, 6.25, 5.0, 2.5), (-13.25, -11.0, 8.75, 8.75, 6.75, 3.5),
+                                      (-11.0, -8.0, 9.0, 10.75, 8.0, 4.0), (-8.0, 8.0, 9.0, 12.0, 8.75, 4.5),
+                                      (8.0, 11.5, 9.25, 11.0, 8.25, 4.25), (11.5, 14.5, 9.75, 9.5, 7.5, 3.75),
+                                      (14.5, 17.0, 10.5, 7.25, 6.25, 3.0)):
+        octa(m, "body", t0, t1, 0.0, cy, hw, hh, bev, bp)
+    # the tail sweeping up
+    tp = yellow((0, 13, 17), (6, 6, 5), gloss=0.985)
+    octa(m, "tail", 16.5, 19.0, 0.0, 13.5, 5.5, 4.5, 2.0, tp)
+    octa(m, "tail", 18.6, 20.5, 0.0, 17.0, 3.6, 3.25, 1.5, tp)
+    octa(m, "tail", 19.75, 21.25, 0.0, 19.75, 2.25, 2.0, 1.0, tp)
 
-    # the neck and head
-    np_ = round_paint(DUCK, (0, 15, -7), (6, 4, 6), lo=0.8, hi=2.4)
-    m.box("neck", (-4.75, 14.25, -12.25), (4.75, 16.75, -3.75), np_)
+    # the wing bumps on the sides, a shade deeper, their feather edge
+    for s_ in (1, -1):
+        def wing(c, s_=s_):
+            x, y, z = c.p
+            k = 0.8 * lit_at(c, (s_ * 10, 10, 6), (3, 3, 7))
+            if c.face in ("east", "west") and (abs(z - 11.5) < 0.5 or abs(y - 8.0) < 0.4):
+                return ("raw", (200, 126, 22, 255))
+            return smooth_colour(DUCK_STOPS, k, c)
+        xa, xb = sorted((s_ * 11.5, s_ * 12.75))
+        m.box("wing", (xa, 7.75, 0.0), (xb, 12.5, 12.0), Paint(DUCK, 2, noise=0, light=False, decal=wing))
 
-    hp = round_paint(DUCK, HC, HR, lo=0.7, hi=2.7)
-    blob(m, "head", HC, HR, hp, layer=1.5, row=2.0)
-    # the eyes: glossy black buttons with a white glint, set into the head's sides; pink cheeks under them
+    # the neck and the head: sections stacked up into a ball
+    HC = (0.0, 21.5, -8.5)
+    hp = yellow(HC, (7.5, 7.5, 7.5), gloss=0.965)
+    for (y0, y1, hw, hd, bev) in ((15.5, 17.0, 5.5, 5.5, 2.0), (17.0, 18.5, 6.75, 6.5, 2.75), (18.5, 25.0, 7.5, 7.25, 3.0),
+                                  (25.0, 27.0, 6.25, 6.0, 2.5), (27.0, 28.25, 4.25, 4.0, 1.5)):
+        octa(m, "head", y0, y1, HC[0], HC[2], hw, hd, bev, hp, axis="y")
+    m.box("tuft", (-0.75, 28.25, -9.5), (0.75, 29.75, -7.5), Paint(DUCK, 2, noise=0, light=False,
+                                                                 decal=lambda c: ("raw", (255, 222, 90, 255))))
+
+    # the eyes: glossy black buttons with a big glint, high on the head's sides; round pink cheeks under them
     def eye(c):
         x, y, z = c.p
-        if c.face in ("east", "west") and y > 23.0 and z < -14.6:
+        if c.face in ("east", "west") and y > 23.6 and z < -13.2:
             return ("raw", (255, 255, 255, 255))
-        return ("raw", (26, 24, 34, 255))
-    for s in (1, -1):
-        xa, xb = sorted((s * 4.25, s * 5.6))
-        m.box("eye", (xa, 21.25, -15.75), (xb, 24.0, -13.25), Paint("rubber", 1, noise=0, light=False, decal=eye))
-        xc, xd = sorted((s * 4.5, s * 5.4))
-        m.box("cheek", (xc, 18.5, -14.25), (xd, 20.0, -12.0), Paint("pink", 2, noise=0, rim=0.2))
-    # a little tuft on top
-    m.box("tuft", (-0.75, 27.0, -10.5), (0.75, 28.5, -8.5), round_paint(DUCK, (0, 27, -9.5), (1, 1, 1), lo=1.6, hi=2.8))
+        if c.face in ("east", "west") and y < 21.9 and z > -12.4:
+            return ("raw", (62, 54, 74, 255))
+        return ("raw", (22, 20, 30, 255))
+    for s_ in (1, -1):
+        xa, xb = sorted((s_ * 5.5, s_ * 6.75))
+        m.box("eye", (xa, 21.25, -14.5), (xb, 24.5, -11.75), Paint("rubber", 1, noise=0, light=False, decal=eye))
+        xc, xd = sorted((s_ * 5.75, s_ * 6.6))
+        m.box("cheek", (xc, 18.75, -13.5), (xd, 20.0, -10.75), Paint("pink", 2, noise=0, light=False,
+                                                                      decal=lambda c: ("raw", (250, 150, 160, 255))))
 
-    # the beak: a flat orange bill, the upper half lit, the mouth line between
+    # the bill: wide and flat, the top lit orange, a smile line, a little upturn at the tip
     def beak(c):
         x, y, z = c.p
-        if c.face in ("east", "west", "north") and abs(y - 18.75) < 0.35:
-            return ("fox", 1.2)
+        if c.face in ("east", "west", "north") and abs(y - 18.9) < 0.3:
+            return ("raw", (150, 52, 10, 255))   # the smile
         if c.face == "up":
-            return ("fox", 3.6)
-        return ("fox", 3.0 if y > 18.75 else 2.0)
-    bk = Paint("fox", 3, noise=0, rim=0.5, decal=beak)
-    m.box("beak", (-3.25, 17.25, -19.5), (3.25, 20.0, -15.0), bk)
-    m.box("beak_tip", (-2.25, 17.5, -21.0), (2.25, 19.75, -19.5), bk)
+            return ("raw", (255, 160, 60, 255))
+        if c.face == "down":
+            return ("raw", (190, 80, 18, 255))
+        return ("raw", (240, 128, 34, 255)) if y > 18.9 else ("raw", (214, 100, 24, 255))
+    bk = Paint("fox", 3, noise=0, light=False, decal=beak)
+    m.box("beak", (-3.75, 17.75, -18.75), (3.75, 20.25, -15.5), bk)
+    m.box("beak_tip", (-3.0, 18.0, -20.75), (3.0, 20.75, -18.75), bk)
+    m.box("beak_lip", (-2.25, 20.25, -20.5), (2.25, 21.25, -19.5), bk)
     return _held(m, 0.35)
 
 
@@ -883,7 +1002,8 @@ def balloon_chair_balloons():
 # ================================================================================================
 
 def rodeo_bull():
-    """The stand: a round padded mat (vinyl in red and white panels, a gold star), a steel pedestal."""
+    """The stand: a big round padded mat (vinyl in red and white panels, buttoned, a gold star), a steel pedestal with
+    a hazard collar, and at the mat's edge the operator's box with its big red button and a lever."""
     m = _body("rodeo_bull")
 
     def mat(c):
@@ -891,105 +1011,143 @@ def rodeo_bull():
         r = math.hypot(x, z)
         a = math.atan2(z, x)
         if c.face == "up":
-            if r < 5.5:
-                # a gold star in the middle
-                k = math.cos(5 * a) * 1.6 + 3.2
-                return ("gold", 3.2) if r < k else ("vermilion", 2.4)
-            if r > 12.5:
-                return ("car_white", 3.4)               # the white trim round the edge
-            return ("vermilion", 2.8 if math.floor((a + math.pi) / (2 * math.pi) * 8) % 2 else 2.2)   # panels
+            if r < 6.0:
+                k = math.cos(5 * a) * 1.8 + 3.6
+                return ("gold", 3.2) if r < k else ("vermilion", 2.4)          # the star
+            if r > 15.0:
+                return ("car_white", 3.4)                                       # the white trim
+            seg = math.floor((a + math.pi) / (2 * math.pi) * 10)
+            if abs(r - 10.5) < 0.5 and math.floor(a * 8) % 2 == 0:
+                return ("vermilion", 1.4)                                       # the buttons
+            return ("vermilion", 2.8 if seg % 2 else 2.2)                       # panels
         if c.face == "down":
             return ("rubber", 1)
         return ("car_white", 2.6) if y > 3.0 else ("vermilion", 1.8)
-    mp = Paint("vermilion", 2, noise=0, rim=0.3, decal=mat)
-    cyl(m, "mat", (0, 0), 28, 0.0, 4.0, mp)
-    # the pedestal: a steel column with a collar and the swivel at the top
+    cyl(m, "mat", (0, 0), 34, 0.0, 4.0, Paint("vermilion", 2, noise=0, rim=0.3, decal=mat))
     col = Paint("steel", 2, noise=0, rim=0.3, decal=lambda c: ("steel", 3.4 if c.face in ("north", "west", "up") else 1.8))
-    cyl(m, "column_foot", (0, 0), 8, 4.0, 5.5, col)
-    cyl(m, "column", (0, 0), 4, 5.5, 11.0, col)
-    cyl(m, "collar", (0, 0), 6, 7.0, 8.0, Paint("hazard", 1, noise=0, rim=0.4,
-                                                 decal=lambda c: ("rubber", 1) if math.floor(c.p[0] + c.p[2]) % 2 else ("hazard", 1.6)))
-    return _held(m, 0.4)
+    cyl(m, "column_foot", (0, 0), 10, 4.0, 5.5, col)
+    cyl(m, "column", (0, 0), 5, 5.5, 12.5, col)
+    cyl(m, "collar", (0, 0), 7, 7.0, 8.5, Paint("hazard", 1, noise=0, rim=0.4,
+                                                 decal=lambda c: ("rubber", 1) if math.floor(c.p[0] + c.p[2] + c.p[1]) % 2 else ("hazard", 1.6)))
+
+    # the operator's box at the edge: hazard stripes, a big red mushroom button, a lever
+    def panel(c):
+        x, y, z = c.p
+        if c.face in ("north", "south", "east", "west") and y < 5.0:
+            return ("hazard", 1.6) if math.floor(x + y + z) % 2 == 0 else ("rubber", 1)
+        if c.face == "up":
+            return ("steel", 3.2)
+        return ("steel", 2.4)
+    m.box("control_box", (11.0, 4.0, 11.0), (16.0, 10.0, 15.0), Paint("steel", 2, noise=0, rim=0.5, decal=panel))
+    m.box("button_stem", (12.75, 10.0, 12.25), (14.25, 10.75, 13.75), Paint("steel", 3, noise=0))
+    m.box("button", (12.0, 10.75, 11.5), (15.0, 12.0, 14.5), Paint("fabric_red", 2, noise=0, rim=0.6, glow=True,
+                                                                  decal=lambda c: ("raw", (255, 70, 60, 255)) if c.face == "up" else ("raw", (190, 30, 30, 255))))
+    rod(m, "lever", (10.0, 14.0), (15.0, 12.5), 0.75, tube("steel", 3.6, 2), x=(14.5, 15.25))
+    m.box("lever_knob", (14.25, 14.5, 11.75), (15.5, 15.75, 13.0), Paint("rubber", 1, noise=0, rim=0.5))
+    return _held(m, 0.35)
 
 
 BULL = "leather"
+# the hide: dark brown in the shade, chestnut, a warm sheen where the light falls
+BULL_STOPS = [(0.0, (40, 20, 10)), (0.4, (86, 44, 20)), (0.75, (134, 72, 34)), (1.0, (178, 112, 60))]
+BELLY_STOPS = [(0.0, (110, 70, 40)), (1.0, (196, 150, 104))]
 
 
 def rodeo_bull_bull():
-    """The mechanical bull: a dark brown hide body (lighter belly), a big shoulder hump, the head with ivory horns and
-    a pale muzzle, short leg stubs, a saddle pad with a rope grip. Its swivel (where the plugin turns it) at the model's
-    middle, on the pedestal's top."""
+    """The mechanical bull, big and mean: a deep chest and a high shoulder hump, faceted like moulded fibreglass and
+    shaded by one smooth gradient (no bands); a heavy head held low with a pale muzzle, flared nostrils and a brass ring,
+    angry brows over glowing red eyes, long ivory horns sweeping out and up; a bull rope round its chest with a grip, a
+    saddle pad, stubby legs with black hooves, a rope tail. Its swivel (where the plugin bucks and turns it) at the
+    model's middle, on the pedestal's top."""
     m = BModel("rodeo_bull_bull", shift=(8, 8, 8), scale=2.0, floor=None)
-    BC, BR = (0.0, 6.0, 1.0), (6.5, 5.5, 12.0)
+    BC, BR = (0.0, 7.5, 0.0), (8.5, 7.5, 14.0)
 
-    def hide(c):
+    def hide(centre=BC, radii=BR):
+        def d(c):
+            x, y, z = c.p
+            k = lit_at(c, centre, radii)
+            if y < centre[1] - radii[1] * 0.55 or c.face == "down":
+                return smooth_colour(BELLY_STOPS, 0.35 + 0.5 * k, c)        # the paler belly
+            return smooth_colour(BULL_STOPS, k, c)
+        return Paint(BULL, 2, noise=0, light=False, decal=d)
+    hp = hide()
+    for (t0, t1, cy, hw, hh, bev) in ((-12.5, -10.0, 8.25, 7.0, 6.75, 3.0), (-10.0, -6.0, 8.0, 8.5, 7.25, 3.25),
+                                      (-6.0, 5.0, 7.5, 8.75, 7.0, 3.25), (5.0, 9.0, 7.5, 8.0, 6.75, 3.0),
+                                      (9.0, 12.0, 7.75, 6.75, 5.75, 2.5), (12.0, 13.75, 8.0, 4.75, 4.25, 1.75)):
+        octa(m, "body", t0, t1, 0.0, cy, hw, hh, bev, hp)
+    # the shoulder hump
+    octa(m, "hump", -10.5, -2.5, 0.0, 14.75, 5.6, 2.5, 1.75, hide((0, 15, -6), (6, 3, 5)))
+
+    cyl(m, "swivel", (0, 0), 5, -1.5, 1.0, tube("steel", 3.4, 2))
+
+    # neck and head: held low and forward
+    hd = hide((0, 6, -18), (6, 6, 6))
+    octa(m, "neck", -16.0, -12.0, 0.0, 8.0, 6.0, 6.25, 2.5, hd)
+    octa(m, "head", -21.5, -16.0, 0.0, 6.25, 5.25, 5.5, 2.0, hd)
+
+    def muzzle(c):
         x, y, z = c.p
-        if y < BC[1] - 3.0:
-            return ("plush", 2.6)                       # the paler belly
-        if c.face == "up" and abs(x) < 3.5 and -3.0 < z < 5.5:
-            return None
-        return None
-    bp = round_paint(BULL, BC, BR, lo=0.9, hi=3.4, decal=hide)
-    blob(m, "body", BC, BR, bp, layer=2.0, row=4.0)
-    hp = round_paint(BULL, (0, 10, -6), (6, 4, 5), lo=1.2, hi=3.6)
-    m.box("hump", (-5.0, 9.5, -10.0), (5.0, 13.0, -2.0), hp)
-    m.box("hump", (-3.5, 13.0, -8.5), (3.5, 14.0, -3.5), hp)
+        if c.face == "north" and 3.5 < y < 5.5 and 0.8 < abs(x) < 2.6:
+            return ("raw", (24, 12, 10, 255))                               # flared nostrils
+        return smooth_colour([(0.0, (150, 104, 72)), (1.0, (226, 186, 140))], lit_at(c, (0, 4.5, -23), (4, 4, 3)), c)
+    octa(m, "muzzle", -25.0, -21.5, 0.0, 4.25, 4.25, 3.5, 1.5, Paint("bean", 2, noise=0, light=False, decal=muzzle))
+    m.box("nose_ring", (-1.25, 0.25, -25.5), (1.25, 2.25, -25.0), tube("brass", 3.6, 2))
 
-    # the swivel under it
-    cyl(m, "swivel", (0, 0), 4, -1.0, 1.5, tube("steel", 3.4, 2))
+    # glowing red eyes under heavy angry brows
+    for s_ in (1, -1):
+        xa, xb = sorted((s_ * 4.85, s_ * 5.6))
+        m.box("eye", (xa, 7.0, -20.0), (xb, 8.75, -18.25), Paint("fabric_red", 2, noise=0, glow=True, light=False,
+                                                                  decal=lambda c: ("raw", (255, 236, 120, 255)) if c.p[1] > 8.1 else ("raw", (255, 48, 36, 255))))
+        xc, xd = sorted((s_ * 1.5, s_ * 5.9))
+        m.box("brow", (xc, 9.0, -20.75), (xd, 10.25, -18.0), Paint("rubber", 1, noise=0, light=False,
+                                                                   decal=lambda c: ("raw", (30, 14, 8, 255))),
+              rotation=("z", -22.5 * s_, (s_ * 3.5, 9.6, -19.4)))
+        xe, xf = sorted((s_ * 5.25, s_ * 7.25))
+        m.box("ear", (xe, 9.5, -16.5), (xf, 11.0, -15.0), hd)
 
-    # the head: a block with a pale muzzle, nostrils, black eyes, ivory horns
-    def head(c):
-        x, y, z = c.p
-        if z < -20.0:
-            if c.face == "north" and 2.5 < y < 4.0 and 0.8 < abs(x) < 2.0:
-                return ("rubber", 0)                    # the nostrils
-            return ("bean", 3.2 if c.face in ("north", "up", "west") else 2.2)    # the muzzle
-        if c.face in ("east", "west") and abs(y - 7.5) < 0.9 and abs(z + 17.0) < 0.9:
-            return ("raw", (20, 18, 22, 255)) if y < 7.8 else ("raw", (250, 250, 250, 255))   # the eyes
-        n = lit(c, (0, 6, -16), (4, 4, 4))
-        return (BULL, 1.2 + 2.2 * n)
-    hdp = Paint(BULL, 2, noise=0, rim=0.3, grad=0, decal=head)
-    m.box("neck", (-4.0, 4.0, -14.0), (4.0, 11.0, -10.0), hdp)
-    m.box("head", (-3.5, 2.0, -20.0), (3.5, 9.5, -14.0), hdp)
-    m.box("muzzle", (-3.0, 1.5, -22.5), (3.0, 6.5, -20.0), hdp)
-    m.box("nose_ring", (-1.0, 0.5, -22.75), (1.0, 2.0, -22.25), tube("brass", 3.6, 2))
-    for s in (1, -1):
-        xa, xb = sorted((s * 3.5, s * 5.0))
-        m.box("ear", (xa, 7.5, -15.5), (xb, 9.0, -14.5), hdp)
-        horn = Paint("cream", 2, noise=0, rim=0.5, decal=lambda c: ("cream", 3.6 if c.face in ("up", "north", "west") else 2.2)
-                     if abs(c.p[0]) < 7.5 else ("bark", 2))
-        xc, xd = sorted((s * 3.0, s * 7.0))
-        m.box("horn", (xc, 9.0, -17.0), (xd, 10.5, -15.5), horn)
-        xe, xf = sorted((s * 6.0, s * 7.5))
-        m.box("horn_tip", (xe, 10.5, -17.0), (xf, 13.0, -15.5), horn)
+        # the horns: from the poll out, then up and in, ivory to a dark tip
+        def horn(c):
+            x = abs(c.p[0])
+            if x > 11.0 or c.p[1] > 16.0:
+                return ("raw", (70, 52, 36, 255))
+            return smooth_colour([(0.0, (190, 172, 140)), (1.0, (252, 244, 222))], lit_at(c, (s_ * 8, 12, -17), (4, 3, 2)), c)
+        hpaint = Paint("cream", 2, noise=0, light=False, decal=horn)
+        xg, xh = sorted((s_ * 4.0, s_ * 9.0))
+        m.box("horn", (xg, 10.25, -18.5), (xh, 12.25, -16.5), hpaint)
+        xi, xj = sorted((s_ * 8.25, s_ * 10.25))
+        m.box("horn_up", (xi, 11.0, -18.25), (xj, 15.0, -16.75), hpaint)
+        xk, xl = sorted((s_ * 7.75, s_ * 9.25))
+        m.box("horn_tip", (xk, 15.0, -18.0), (xl, 17.5, -17.0), hpaint)
 
-    # short leg stubs, dark hooves
+    # stubby legs with black hooves
     def leg(c):
-        return ("rubber", 1.4) if c.p[1] < 0.0 else (BULL, 2.4 if c.face in ("north", "west") else 1.4)
-    lp = Paint(BULL, 2, noise=0, rim=0.3, decal=leg)
-    for s in (1, -1):
-        for z in (-6.5, 8.5):
-            xa, xb = sorted((s * 2.0, s * 5.0))
-            m.box("leg", (xa, -1.5, z - 1.5), (xb, 2.0, z + 1.5), lp)
+        if c.p[1] < 0.5:
+            return ("raw", (24, 22, 26, 255))
+        return smooth_colour(BULL_STOPS, 0.6 * lit_at(c, (0, 3, 0), (8, 4, 12)), c)
+    lp = Paint(BULL, 2, noise=0, light=False, decal=leg)
+    for s_ in (1, -1):
+        for z in (-7.5, 8.0):
+            xa, xb = sorted((s_ * 2.5, s_ * 6.5))
+            m.box("leg", (xa, -2.5, z - 2.0), (xb, 2.5, z + 2.0), lp)
 
-    # the saddle pad on the back with its rope grip in front, a swishing tail
-    def saddle(c):
+    # the bull rope round the chest (its grip on top), the saddle pad behind it
+    rope = Paint("burlap", 2, noise=0, rim=0.3, decal=lambda c: ("burlap", 3.2 if math.floor(c.p[0] + c.p[1] + c.p[2]) % 2 else 2.0))
+    octa(m, "bull_rope", -5.25, -4.25, 0.0, 7.5, 9.1, 7.6, 3.3, rope)
+    m.box("grip", (-1.75, 15.0, -5.5), (1.75, 16.5, -4.0), rope)
+    m.box("grip_loop", (-0.75, 16.5, -5.25), (0.75, 17.5, -4.25), rope)
+
+    def pad(c):
         x, y, z = c.p
-        if c.face == "up" and (abs(abs(x) - 3.0) < 0.35 or abs(z - 0.0) < 0.3):
-            return ("gold", 3)                          # stitching
-        if c.face == "up":
-            return ("wood_dark", 2.6)
-        return ("wood_dark", 1.6)
-    m.box("saddle", (-4.0, 10.75, -3.0), (4.0, 12.0, 5.75), Paint("wood_dark", 2, noise=0, rim=0.6, decal=saddle))
-    for s in (1, -1):
-        xa, xb = sorted((s * 4.0, s * 5.5))
-        m.box("saddle_flap", (xa, 6.5, -1.75), (xb, 11.5, 5.0), Paint("wood_dark", 2, noise=0, rim=0.5))
-    rope = Paint("burlap", 2, noise=0, rim=0.3, decal=lambda c: ("burlap", 3.2 if math.floor(c.p[0] + c.p[1]) % 2 else 2.0))
-    m.box("grip_rope", (-3.0, 11.25, -5.0), (3.0, 12.75, -3.5), rope)
-    m.box("grip_loop", (-1.0, 12.75, -4.75), (1.0, 13.75, -3.75), rope)
-    rod(m, "tail", (7.0, 12.5), (2.0, 15.0), 1.0, Paint(BULL, 1, noise=0))
-    m.box("tail_tuft", (-1.0, 0.0, 14.0), (1.0, 2.5, 16.0), Paint("bark", 1, noise=0, rim=0.3))
+        if c.face == "up" and (abs(abs(x) - 3.5) < 0.35 or abs(z - 2.5) < 0.3):
+            return ("gold", 3)                                              # stitching
+        return ("raw", (52, 30, 18, 255)) if c.face == "up" else ("raw", (40, 22, 12, 255))
+    m.box("saddle", (-4.75, 14.25, -3.75), (4.75, 15.25, 8.5), Paint("wood_dark", 2, noise=0, light=False, decal=pad))
+    for s_ in (1, -1):
+        xa, xb = sorted((s_ * 8.6, s_ * 9.4))
+        m.box("saddle_flap", (xa, 7.0, -3.0), (xb, 13.0, 7.5), Paint("wood_dark", 2, noise=0, light=False,
+                                                                   decal=lambda c: ("raw", (46, 26, 14, 255))))
+    rod(m, "tail", (10.0, 13.5), (3.0, 17.5), 1.0, Paint(BULL, 1, noise=0))
+    m.box("tail_tuft", (-1.25, 0.75, 16.5), (1.25, 3.5, 19.0), Paint("bark", 1, noise=0, rim=0.3))
     m.display = presets.furniture(gui_scale=0.4)
     return m
 
