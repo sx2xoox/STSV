@@ -664,6 +664,7 @@ d87965f2ecec1ebcbd752e8e0b1826f32f61b1e2 stsv/menus/titles.yml
 ad510c48f9d6abc37a81aa45f0e90505d2a7ff4d stsv/menus/tuning.yml
 f353ec6e49dd4e22f3b5d9bfbe0fb2f1ee68d7ce stsv/menus/tuning.yml
 3fa768466d385bb4e9b1a704ad17635be183931d stsv/menus/wardrobe.yml
+4c502c9997a0806c1589956f7dc37b84f96b93cc stsv/menus/wardrobe.yml
 4ea65b211d8b0fe2a4af05fea4a502a6d60ce3fe stsv/menus/wardrobe.yml
 50642839ba9057ac23bcb589290102793624873b stsv/menus/wardrobe.yml
 7aeb65a6917d5b4ded7fd70593446ce3a555d519 stsv/menus/wardrobe.yml
