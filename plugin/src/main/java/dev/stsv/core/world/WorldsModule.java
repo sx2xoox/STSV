@@ -115,6 +115,20 @@ public final class WorldsModule implements StsvModule, Listener {
         load();
     }
 
+    /** worlds.snow-layers: whether falling snow piles up (a snow layer forms on the ground, and grows). */
+    private volatile boolean snowLayers;
+
+    /**
+     * Falling snow leaves no layer on the ground (worlds.snow-layers: false), in every world: the game forms a snow
+     * layer where it snows (BlockFormEvent; a snow golem's trail is an EntityBlockFormEvent and stays). Ice on water
+     * still forms.
+     */
+    @org.bukkit.event.EventHandler(ignoreCancelled = true)
+    public void onSnowForm(org.bukkit.event.block.BlockFormEvent e) {
+        if (snowLayers || e instanceof org.bukkit.event.block.EntityBlockFormEvent) return;
+        if (e.getNewState().getType() == org.bukkit.Material.SNOW) e.setCancelled(true);
+    }
+
     @Override
     public void disable() {
         pending.values().forEach(w -> w.task().cancel());
@@ -130,6 +144,7 @@ public final class WorldsModule implements StsvModule, Listener {
         var section = plugin.getConfig().getConfigurationSection("worlds");
         rules = WorldRules.parse(section);
         peaceful = plugin.getConfig().getBoolean("worlds.build-peaceful");
+        snowLayers = plugin.getConfig().getBoolean("worlds.snow-layers", false);
         spots.settings(WildSpotRules.parse(section));
         if (section != null) for (String word : section.getStringList("keep-inventory")) {
             if (WorldRules.role(word) == null) plugin.getLogger().warning("[월드] worlds.keep-inventory 의 '" + word + "' 는 알 수 없는 월드입니다 (build, wild, nether, end)");

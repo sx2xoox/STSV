@@ -77,6 +77,9 @@ final class CosmeticPackets {
     private final Method dataId, dataItems, valueId, valueSerializer, valueValue, valueCreate;
     /** Display.ItemDisplay.DATA_ITEM_STACK_ID (re-sending a display's item to one viewer); null when unknown */
     private final Object itemAccessor;
+    /** own view: the item data id, and the empty item a body display's copies show while their place is not used */
+    private final int idItem;
+    private final Object emptyItem;
 
     /**
      * The wearer's own view (see {@link SelfLift}): on their own client their worn displays ride an invisible
@@ -315,6 +318,18 @@ final class CosmeticPackets {
         valueValue = vv;
         valueCreate = vcr;
         itemAccessor = acc;
+        int ii = -1;
+        Object ei = null;
+        try {
+            if (acc != null) {
+                ii = (int) acc.getClass().getMethod("id").invoke(acc);
+                ei = nmsItem.getField("EMPTY").get(null);
+            }
+        } catch (ReflectiveOperationException e) {
+            log.warning("치장 내 화면 보기: 빈 아이템을 찾지 못했습니다: " + e);
+        }
+        idItem = ii;
+        emptyItem = ei;
     }
 
     /**
@@ -477,10 +492,11 @@ final class CosmeticPackets {
      * On the wearer's own client every display worn on the body is there three times, one copy for each place it can
      * be in (SelfLift.Band): the real one rides the entity over the head (HIGH, with what is worn above the head), a
      * copy rides an entity under the feet (LOW) and one at the ankles (MID). The three draw the same model at the same
-     * spot (each lowered by its own height); only the copy of the place the look calls for is drawn, the others have a
-     * view range of 0 (the client draws a display only within view range x 64 blocks). So a change of place is a swap
-     * of view ranges in one bundle: nothing moves, nothing crosses the view on the way, and in F5 the model never
-     * leaves the screen.
+     * spot (each lowered by its own height); only the copy of the place the look calls for shows the item, the others
+     * show an empty item. So a change of place is a swap of items in one bundle: nothing moves, nothing crosses the
+     * view on the way, and in F5 the model never leaves the screen. (Not a view range of 0: a display the client does
+     * not draw does not keep its transformation's interpolation going, and would start from where it stopped when
+     * its place is used again: the model jumped a little at every change.)
      */
 
     /** The ids of the lifting entities on this wearer's client (no entity of the server has them). */
@@ -586,15 +602,16 @@ final class CosmeticPackets {
         Handler h = handlers.get(p.getUniqueId());
         if (h == null || h.band == band) return;
         h.band = band;
-        if (!lifted(h, h.entityId) || !h.liftSpawned || accViewRange == null) return;
+        if (!lifted(h, h.entityId) || !h.liftSpawned || emptyItem == null) return;
         try {
             List<Object> out = new ArrayList<>();
             for (int d : h.copies) {
-                float range = h.ranges.getOrDefault(d, 1f);
+                Object item = h.items.get(d);
+                if (item == null) continue;
                 for (SelfLift.Band b : SelfLift.Band.values()) {
                     int c = copyId(d, b);
                     if (!h.lowered.contains(c)) continue;
-                    out.add(dataNew.newInstance(c, List.of(valueCreate.invoke(null, accViewRange, b == band ? range : 0f))));
+                    out.add(dataNew.newInstance(c, List.of(valueCreate.invoke(null, itemAccessor, b == band ? item : emptyItem))));
                 }
             }
             if (out.isEmpty()) return;
@@ -659,15 +676,27 @@ final class CosmeticPackets {
      * two copies, each lowered by its own place's height, each drawn only while the look calls for its place.
      */
     private List<Object> ownBodyData(int id, List<?> values, Handler h) throws ReflectiveOperationException {
-        for (Object v : values) {
-            if ((int) valueId.invoke(v) == idViewRange) h.ranges.put(id, (Float) valueValue.invoke(v));
+        int at = -1;
+        for (int i = 0; i < values.size(); i++) {
+            if ((int) valueId.invoke(values.get(i)) == idItem) {
+                at = i;
+                h.items.put(id, valueValue.invoke(values.get(i)));
+            }
         }
-        float range = h.ranges.getOrDefault(id, 1f);
+        Object item = h.items.get(id);
         List<Object> out = new ArrayList<>(3);
         for (SelfLift.Band b : SelfLift.Band.values()) {
             int c = copyId(id, b);
-            List<Object> data = ownData(c, values, null, h, (float) SelfLift.height(b, ownLift), b == h.band ? range : 0f);
-            out.add(dataNew.newInstance(c, data != null ? data : values));
+            boolean first = !h.lowered.contains(c);
+            List<Object> data = ownData(c, values, null, h, (float) SelfLift.height(b, ownLift), null);
+            if (data == null) data = new ArrayList<>(values);
+            Object shown = b == h.band ? item : emptyItem;
+            if (shown != null && emptyItem != null) {
+                Object v = valueCreate.invoke(null, itemAccessor, shown);
+                if (at >= 0) data.set(at, v);
+                else if (b != h.band || first) data.add(v);
+            }
+            out.add(dataNew.newInstance(c, data));
         }
         return out;
     }
@@ -998,6 +1027,8 @@ final class CosmeticPackets {
         final Set<Integer> copies = ConcurrentHashMap.newKeySet();
         /** own view: each body display's own view range (as the server sent it) */
         final Map<Integer, Float> ranges = new ConcurrentHashMap<>();
+        /** own view: the item each body display shows (as the server sent it) */
+        final Map<Integer, Object> items = new ConcurrentHashMap<>();
         /** packets made for this client as they must arrive: not rewritten (by identity) */
         final Set<Object> asIs = java.util.Collections.synchronizedSet(java.util.Collections.newSetFromMap(new java.util.IdentityHashMap<>()));
 
@@ -1035,6 +1066,7 @@ final class CosmeticPackets {
             h.lowered.clear();
             h.copies.clear();
             h.ranges.clear();
+            h.items.clear();
             return packet;
         }
         if (c == addEntityCls) {
@@ -1060,6 +1092,7 @@ final class CosmeticPackets {
                     more.add(copyId(id, SelfLift.Band.LOW));
                     more.add(copyId(id, SelfLift.Band.MID));
                     h.ranges.remove(id);
+                    h.items.remove(id);
                 }
             }
             if (more.isEmpty()) return packet;
