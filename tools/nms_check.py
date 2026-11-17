@@ -21,7 +21,8 @@ WANTED = {
     "net.minecraft.world.entity.EquipmentSlot": [" HEAD;", " CHEST;", " LEGS;", " FEET;"],
     "net.minecraft.world.entity.Display": [
         " DATA_TRANSLATION_ID;", " DATA_WIDTH_ID;", " DATA_HEIGHT_ID;", " DATA_BILLBOARD_RENDER_CONSTRAINTS_ID;",
-        " DATA_BRIGHTNESS_OVERRIDE_ID;"],
+        " DATA_BRIGHTNESS_OVERRIDE_ID;", " DATA_TRANSFORMATION_INTERPOLATION_START_DELTA_TICKS_ID;",
+        " DATA_TRANSFORMATION_INTERPOLATION_DURATION_ID;"],
     "net.minecraft.world.entity.Display$ItemDisplay": [" DATA_ITEM_STACK_ID;"],
     "net.minecraft.world.entity.Interaction": [" DATA_WIDTH_ID;", " DATA_HEIGHT_ID;"],
     "net.minecraft.network.syncher.EntityDataAccessor": ["public int id();"],

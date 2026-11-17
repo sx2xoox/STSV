@@ -251,6 +251,8 @@ final class CosmeticAttachments {
     private final Map<UUID, java.util.Set<String>> awakeOf = new HashMap<>();
     private final Map<UUID, CustomItem> bonusOf = new HashMap<>();
     private final Map<UUID, Body> bodies = new HashMap<>();
+    /** how far up each player with the own view looked a tick ago (degrees; SelfLift.Band) */
+    private final Map<UUID, Float> looks = new HashMap<>();
     /** wearer -> ticks at which the link is sent again (right after their displays changed) */
     private final Map<UUID, List<Long>> relinkAt = new HashMap<>();
     /** wearer -> displays of another module that ride them on the clients (the emote puppet's carrier) */
@@ -419,6 +421,7 @@ final class CosmeticAttachments {
     /** Removes the player's displays (they come back with the next {@link #set}). */
     void remove(Player p) {
         bodies.remove(p.getUniqueId());
+        looks.remove(p.getUniqueId());
         relinkAt.remove(p.getUniqueId());
         Map<CosmeticSlot, Worn> have = worn.remove(p.getUniqueId());
         if (have != null) have.values().forEach(Worn::removeAll);
@@ -508,7 +511,37 @@ final class CosmeticAttachments {
         java.util.stream.IntStream own = t == null ? models : java.util.stream.IntStream.concat(models, java.util.stream.IntStream.of(t.display.getEntityId()));
         int[] ids = java.util.stream.IntStream.concat(own, java.util.Arrays.stream(carried.getOrDefault(p.getUniqueId(), new int[0]))).toArray();
         int[] real = p.getPassengers().stream().mapToInt(Entity::getEntityId).toArray();
-        packets.link(p.getEntityId(), ids, real, wornIds(p, false));
+        Worn above = worn.getOrDefault(p.getUniqueId(), Map.of()).get(CosmeticSlot.ABOVE);
+        int[] head = above == null ? new int[0] : above.all().stream().mapToInt(Entity::getEntityId).toArray();
+        packets.link(p.getEntityId(), ids, real, wornIds(p, false), head);
+    }
+
+    /**
+     * Own view (SelfLift): what the wearer wears on the body sits above their head on their client while they look
+     * level or down, at their feet while they look up and at their body while they look up steeply, so that no look
+     * in first person brings it into view. The look is taken a tick and a half ahead: the server hears of a turn a
+     * moment late, and its answer takes as long again.
+     */
+    private void ownBand(Player p) {
+        float up = -p.getLocation().getPitch();
+        Float last = looks.put(p.getUniqueId(), up);
+        double ahead = Math.clamp(up + (last == null ? 0 : (up - last) * 1.5), -90, 90);
+        boolean upright = p.getPose() == org.bukkit.entity.Pose.STANDING || p.getPose() == org.bukkit.entity.Pose.SNEAKING;
+        SelfLift.Band was = packets.ownBand(p), now = SelfLift.band(was, ahead, upright);
+        if (now == was) return;
+        List<ItemDisplay> body = new ArrayList<>();
+        for (Map.Entry<CosmeticSlot, Worn> e : worn.getOrDefault(p.getUniqueId(), Map.of()).entrySet()) {
+            if (e.getKey() != CosmeticSlot.ABOVE) body.addAll(e.getValue().all());
+        }
+        Worn b = bonus.get(p.getUniqueId());
+        if (b != null) body.addAll(b.all());
+        int[] ids = new int[body.size()];
+        org.joml.Vector3fc[] at = new org.joml.Vector3fc[body.size()];
+        for (int i = 0; i < ids.length; i++) {
+            ids[i] = body.get(i).getEntityId();
+            at[i] = body.get(i).getTransformation().getTranslation();
+        }
+        packets.ownBand(p, now, ids, at);
     }
 
     /** The ids of the player's worn displays (models and parts, the set bonus too); unlit: only those without a brightness of their own. */
@@ -643,6 +676,7 @@ final class CosmeticAttachments {
             if (packets != null && packets.ownLiftOn() && selfView.test(p)) {
                 org.bukkit.block.Block at = p.getEyeLocation().getBlock();
                 packets.ownLight(p, wornIds(p, true), at.getLightFromBlocks(), at.getLightFromSky());
+                ownBand(p);
             }
             List<Map.Entry<CosmeticSlot, Worn>> all = new ArrayList<>(mine.entrySet());
             Worn bw = bonus.get(id);
