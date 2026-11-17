@@ -128,9 +128,9 @@ hub_trade:
   layout:
     - "AACC.DDEE"
     - "AACC.DDEE"
-    - "FFGG.VVWW"
-    - "FFGG.VVWW"
     - "........."
+    - "FFGG.VVWW"
+    - "FFGG.VVWW"
     - "BYtnXvwhR"
   buttons:
     A:
@@ -280,9 +280,9 @@ hub_work:
   layout:
     - "IIJJ.KKLL"
     - "IIJJ.KKLL"
-    - "MMNN.HHOO"
-    - "MMNN.HHOO"
     - "........."
+    - "MMNN.HHOO"
+    - "MMNN.HHOO"
     - "BYtnXvwhR"
   buttons:
     I:
@@ -432,9 +432,9 @@ hub_style:
   layout:
     - "QQgg.TTkk"
     - "QQgg.TTkk"
-    - "ccmm.iiSS"
-    - "ccmm.iiSS"
     - "........."
+    - "ccmm.iiSS"
+    - "ccmm.iiSS"
     - "BYtnXvwhR"
   buttons:
     Q:

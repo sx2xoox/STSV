@@ -134,6 +134,8 @@ def background(menu, art):
 
     # the roof (with the beam and the board) over the title strip; its last row sits on the panel's row 16
     roof = _png("roof")
+    half = roof.crop((0, 0, roof.width // 2, roof.height))
+    roof.paste(half.transpose(Image.FLIP_LEFT_RIGHT), (roof.width - half.width, 0))
     im.alpha_composite(roof, (0, oy + 16 - (roof.height - 1)))
     # lanterns hanging from the eaves
     lantern = _png("lantern").crop((0, 12, 10, 51))
@@ -145,9 +147,9 @@ def background(menu, art):
         im.alpha_composite(ln, (lx, oy + 21))
     # the board's words
     roof_y = oy + 16 - (roof.height - 1)
-    _rect(im, 90, roof_y + 4, 146, roof_y + 15, (52, 28, 20))
+    _rect(im, 90, roof_y + 4, W - 1 - 90, roof_y + 15, (52, 28, 20))
     if menu.get("plaque"):
-        words.append((118, roof_y + 9.5, menu["plaque"], 20, TITLE, TITLE_EDGE))
+        words.append(((90, roof_y + 4, W - 1 - 90, roof_y + 15), menu["plaque"], 20, TITLE, TITLE_EDGE))
 
     buttons = menu.get("buttons", {}) or {}
     dock = menu.get("dock")
@@ -159,28 +161,36 @@ def background(menu, art):
             continue
         x, y, w, h = ox + 7 + 18 * c0, oy + 17 + 18 * r0, 18 * cw, 18 * rh
         accent = _hex(b.get("accent"))
+        # every card: the same 2 px margin on all four sides between its rim and what is inside, a 1 px gap
+        # between the picture window and the name board
+        _frame_box(im, x, y, w, h)
+        ix0, iy0, ix1, iy1 = x + 2, y + 2, x + w - 3, y + h - 3
         if b.get("scene"):
-            # a tall picture card: the scene in a gold-cornered window, the name on a board under it
-            _frame_box(im, x, y, w, h)
+            # a tall picture card: the scene (1 px clear of its window all round), the name board under it
+            board_h = 19
+            wy1 = iy1 - board_h - 1
             pic = _png(f"scenes/{b['scene']}")
-            win_h = h - 26
-            pic = pic.crop((0, (pic.height - win_h) // 2, pic.width, (pic.height - win_h) // 2 + win_h))
-            _rect(im, x + 2, y + 2, x + w - 3, y + 3 + win_h, INK)
-            im.alpha_composite(pic, (x + (w - pic.width) // 2, y + 3))
-            _gold_corners(im, x + 1, y + 1, x + w - 2, y + 3 + win_h)
-            by0 = y + 5 + win_h
-            _board(im, x + 3, by0, x + w - 4, y + h - 4, accent)
-            words.append((x + w / 2, (by0 + y + h - 4) / 2 + 0.5, b.get("label", ""), 22, TEXT, TEXT_EDGE))
+            win_w, win_h = ix1 - ix0 + 1, wy1 - iy0 + 1
+            pw, ph = min(pic.width, win_w - 2), min(pic.height, win_h - 2)
+            pic = pic.crop(((pic.width - pw) // 2, (pic.height - ph) // 2, (pic.width - pw) // 2 + pw, (pic.height - ph) // 2 + ph))
+            _rect(im, ix0, iy0, ix1, wy1, INK)
+            im.alpha_composite(pic, (ix0 + (win_w - pw) // 2, iy0 + (win_h - ph) // 2))
+            _gold_corners(im, ix0, iy0, ix1, wy1)
+            _board(im, ix0, wy1 + 2, ix1, iy1, accent)
+            words.append(((ix0 + 4, wy1 + 3, ix1 - 4, iy1 - 1), b.get("label", ""), 22, TEXT, TEXT_EDGE))
         else:
-            # a small card: the icon (24 px PixelLab art, or a 16 px one) in a dark window, the name on a board
-            _frame_box(im, x, y, w, h)
-            _rect(im, x + 3, y + 2, x + w - 4, y + 25, BOARD)
-            _gold_corners(im, x + 2, y + 2, x + w - 3, y + 25)
-            if art:
-                pic = art(b["art"])
-                im.alpha_composite(pic, (x + (w - pic.width) // 2, y + 2 + (24 - pic.height) // 2))
-            _board(im, x + 3, y + 26, x + w - 4, y + h - 2, accent)
-            words.append((x + w / 2, y + (26 + h - 2) / 2 + 0.5, b.get("label", ""), 13, TEXT, TEXT_EDGE))
+            # a small card: the icon (24 px PixelLab art) centred in its window, the name board under it
+            pic = art(b["art"]) if art else None
+            wy1 = iy0 + 23
+            _rect(im, ix0, iy0, ix1, wy1, BOARD)
+            _gold_corners(im, ix0, iy0, ix1, wy1)
+            if pic is not None:
+                im.alpha_composite(pic, (ix0 + (ix1 - ix0 + 1 - pic.width) // 2, iy0 + (wy1 - iy0 + 1 - pic.height) // 2))
+            # the name on a plain dark strip (no rim: the whole 8 px height is for the words), a thin accent line on top
+            _rect(im, ix0, wy1 + 2, ix1, iy1, BOARD)
+            if accent:
+                _rect(im, ix0 + 3, wy1 + 2, ix1 - 3, wy1 + 2, tuple(int(v * 0.7) for v in accent))
+            words.append(((ix0 + 1, wy1 + 3, ix1 - 1, iy1), b.get("label", ""), 15, TEXT, TEXT_EDGE))
 
     if dock is not None:
         y = oy + 17 + 18 * dock
@@ -218,8 +228,9 @@ def background(menu, art):
 
     # the 2x picture: pixel art doubled, then the words at the finer grid
     out = im.resize((W * SCALE, H * SCALE), Image.NEAREST)
-    for (cx, cy, text, px, fill, edge) in words:
-        _write(out, cx * SCALE, cy * SCALE, text, px, fill, edge)
+    for (box, text, px, fill, edge) in words:
+        x0, y0, x1, y1 = box
+        _write(out, (x0 * SCALE, y0 * SCALE, (x1 + 1) * SCALE - 1, (y1 + 1) * SCALE - 1), text, px, fill, edge)
     # the client measures a glyph to its last non-empty column: keep the far right column non-empty
     out.putpixel((out.width - 1, 0), (0, 0, 0, 1))
     return out
@@ -228,36 +239,49 @@ def background(menu, art):
 _FONTS = {}
 
 
-def _write(im, cx, cy, text, px, fill, edge):
-    """Words in Sunflower with a 1 texel dark edge, centred on (cx, cy). Sunflower has no middle dot: a '·' is
-    drawn as a small round dot between the words."""
-    if not text:
-        return
+def _layer(text, px, fill, edge):
+    """The words drawn on their own layer, cropped to the ink (edge included). Sunflower has no middle dot: a '·'
+    is drawn as a small round dot between the words."""
     f = _FONTS.get(px) or _FONTS.setdefault(px, ImageFont.truetype(str(FONT), px))
     parts = text.split("·")
-    gap = max(6, px // 3)
+    gap = max(5, px // 3)
     boxes = [f.getbbox(p) if p else (0, 0, 0, 0) for p in parts]
     asc = min(b[1] for b in boxes if b[3])
     desc = max(b[3] for b in boxes if b[3])
     widths = [b[2] - b[0] for b in boxes]
-    w = sum(widths) + gap * (len(parts) - 1) + 6
-    h = desc - asc + 6
+    w = sum(widths) + gap * (len(parts) - 1) + 8
+    h = desc - asc + 8
     layer = Image.new("RGBA", (w, h), (0, 0, 0, 0))
     d = ImageDraw.Draw(layer)
-    x = 3
+    x = 4
     dots = []
     for k, (p, b) in enumerate(zip(parts, boxes)):
         if p:
             for dx, dy in ((-1, 0), (1, 0), (0, -1), (0, 1), (1, 1), (-1, 1), (1, -1), (-1, -1)):
-                d.text((x - b[0] + dx, 3 - asc + dy), p, font=f, fill=edge)
-            d.text((x - b[0], 3 - asc), p, font=f, fill=fill)
+                d.text((x - b[0] + dx, 4 - asc + dy), p, font=f, fill=edge)
+            d.text((x - b[0], 4 - asc), p, font=f, fill=fill)
         x += widths[k]
         if k < len(parts) - 1:
             dots.append(x + gap / 2)
             x += gap
     r = max(1.5, px / 11)
-    cyd = 3 + (desc - asc) / 2
+    cyd = 4 + (desc - asc) / 2
     for dx in dots:
         d.ellipse([dx - r - 1, cyd - r - 1, dx + r + 1, cyd + r + 1], fill=edge)
         d.ellipse([dx - r, cyd - r, dx + r, cyd + r], fill=fill)
-    im.alpha_composite(layer, (int(round(cx - w / 2)), int(round(cy - h / 2))))
+    return layer.crop(layer.getbbox())
+
+
+def _write(im, box, text, px, fill, edge):
+    """Words in Sunflower with a 1 texel dark edge, as large as px but never larger than the box (texels,
+    inclusive), their ink centred in it."""
+    if not text:
+        return
+    x0, y0, x1, y1 = box
+    bw, bh = x1 - x0 + 1, y1 - y0 + 1
+    size = px
+    layer = _layer(text, size, fill, edge)
+    while (layer.width > bw or layer.height > bh) and size > 8:
+        size -= 1
+        layer = _layer(text, size, fill, edge)
+    im.alpha_composite(layer, (x0 + (bw - layer.width) // 2, y0 + (bh - layer.height) // 2))
