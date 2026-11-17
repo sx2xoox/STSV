@@ -319,6 +319,7 @@ cad25866892be3c908e03fa22851f6bbbeff0428 stsv/assets/stsv/textures/gui/donation.
 30748d4bcb061430daf627306e5b4a18d1616027 stsv/assets/stsv/textures/gui/gacha.png
 b232d00246debaf5287f1141e9eb41c49866d4b1 stsv/assets/stsv/textures/gui/gacha.png
 d3f4e5966aa94f8f761a2100e1bddfcf12ab6008 stsv/assets/stsv/textures/gui/gacha.png
+13c57b7029a604189064b59b8a73aec5453bacb9 stsv/assets/stsv/textures/gui/hub.png
 1541d50c510bbbd4394e40a35c4bac9e1f6b0d9e stsv/assets/stsv/textures/gui/hub.png
 87e21af7788839e69e4e70f2668c564eb98d19c1 stsv/assets/stsv/textures/gui/hub.png
 9cc9eb552d840dc9c05185274f2d52885478a397 stsv/assets/stsv/textures/gui/hub.png
@@ -327,9 +328,12 @@ d318cb6f77792b920351746d8daab7f591026e2d stsv/assets/stsv/textures/gui/hub.png
 f143ea43013e5e181444c336949ec2c691a830a2 stsv/assets/stsv/textures/gui/hub.png
 ff512210be7f2ac3b22290c9e9806d16b125b6fd stsv/assets/stsv/textures/gui/hub.png
 b79e68a1390e91d4c1c4b0809d93e0c23ad86adc stsv/assets/stsv/textures/gui/hub_me.png
+0fc2a8c5a65c786dd7042e9f21d817adeadce338 stsv/assets/stsv/textures/gui/hub_money.png
 3b625207465a228f2e5627e2c0e06de5aac5e042 stsv/assets/stsv/textures/gui/hub_money.png
 743e4ca35ed03dcdadab60f43a0579b6739abd54 stsv/assets/stsv/textures/gui/hub_money.png
+d9fe2936292be2d56dfe14e0d1f0a6bb23bc0f83 stsv/assets/stsv/textures/gui/hub_rank.png
 f94660aacc2f5b6fc38674771cac4298959afdf6 stsv/assets/stsv/textures/gui/hub_rank.png
+a0b422a37d0d3388b489116ad231529e5e4a1031 stsv/assets/stsv/textures/gui/hub_style.png
 bbd30e5f6853e7447f4d65e35be59102e9182e9f stsv/assets/stsv/textures/gui/hub_style.png
 09d3a0bd3e7bf00549fa8a51269b8a7ebd8329ed stsv/assets/stsv/textures/gui/hub_travel.png
 6c45dc95ee103b94394ea9d881106133f147be2e stsv/assets/stsv/textures/gui/hub_travel.png
@@ -618,6 +622,7 @@ d36a2ba7c55817dad0b0b3e1d3ff3eb2001575b8 stsv/menus/gacha.yml
 745229c4eaaac0df02da27a7d203d0c3d2c7bf2c stsv/menus/hub.yml
 7a5e35f78423fc543f703b7740a9981ebe78f3c1 stsv/menus/hub.yml
 83eed9a674a34d9816c6a19a87a1cdca7a748875 stsv/menus/hub.yml
+87d00a25b68b4351f977f7429c12319c13ea4229 stsv/menus/hub.yml
 8e8df5e09afb5edd5d3125d213040a5f798b1297 stsv/menus/hub.yml
 c8b5b539453a14c50d5265346c75004568041fca stsv/menus/hub.yml
 d48723035ec973e823e53aea43938afe20c35b8f stsv/menus/hub.yml
