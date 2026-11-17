@@ -96,7 +96,9 @@ class MenuActionsTest {
             // the tuning shop: the longest vehicle name and the longest kind of tuning
             Map.entry("vehicle", "몬스터 오프로더"), Map.entry("kind", "언더글로우 네온"),
             // the donation shop: the longest product; the emote wheel: a place's number
-            Map.entry("name", "몬스터 오프로더"), Map.entry("slot", "7"));
+            Map.entry("name", "몬스터 오프로더"), Map.entry("slot", "7"),
+            // the 서킷 waiting room: the longest track name, the most laps
+            Map.entry("track", "숲속 언덕 서킷"), Map.entry("laps", "9"));
 
     @Test
     void everyTitleFitsThePanel() throws Exception {

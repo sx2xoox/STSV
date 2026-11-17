@@ -121,6 +121,15 @@ final class LiveVehicle {
 
     /** moved since its position was last saved; when that was (plugin ticks) */
     boolean dirty;
+
+    /**
+     * A vehicle that exists only for a while (a race's kart, VehicleModule#spawnTemporary): never in the database, never
+     * saved, picked up or boarded by a click; its rider cannot step out by themselves. frozen: the driver's keys do
+     * nothing (a race's countdown); boost: its top speed this many times as high (a race's boost, 1 = none).
+     */
+    boolean temporary;
+    boolean frozen;
+    double boost = 1;
     long savedAt;
 
     LiveVehicle(long id, CustomItem item, UUID owner, String ownerName, World world, VehiclePhysics.State st) {

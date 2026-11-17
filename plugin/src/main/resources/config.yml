@@ -36,6 +36,27 @@ hub:
   # 처음 접속했을 때 한 번만 Shift+F 안내
   join-tip: true
 
+# 미니게임 (/미니게임, README "미니게임 · 서킷"): 따로 만든 빈 월드에서 함. 트랙은 처음 켤 때 한 번 지어 둠
+minigames:
+  enabled: true
+  # 미니게임 월드 이름 (없으면 빈 월드로 새로 만듦. 블록은 전부 미니게임이 지음)
+  world: stsv_minigame
+  # 트랙을 지을 때 한 틱에 놓는 블록 수 (렉이 걱정되면 줄이기)
+  build-blocks-per-tick: 6000
+  circuit:
+    # 대기실 시간 (초). 모두 '준비' 를 누르면 3초로 줄어듦
+    lobby-seconds: 20
+    # 한 레이스 최대 인원 (출발선 자리: 12까지)
+    max-racers: 8
+    # 1등이 들어온 뒤 나머지를 기다리는 시간 (초)
+    finish-grace-seconds: 30
+    # 레이스가 이보다 길어지면 끝냄 (분)
+    max-race-minutes: 10
+    # 카트끼리 부딪히면 밀어냄 (무거운 카트가 덜 밀림)
+    kart-bump: true
+    # 레이스가 열리면 서버 전체에 [참가] 안내
+    announce: true
+
 # 건축월드 / 야생월드. 인벤토리는 두 월드가 함께 씀
 worlds:
   # 건축월드: 땅을 사서 짓는 곳 (경제 서버: 내 땅에서만 블록을 부수고 놓을 수 있음). 비우면 서버 기본 월드(level-name)

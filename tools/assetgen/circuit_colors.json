@@ -1,0 +1,757 @@
+{
+"acacia_fence": [
+168,
+90,
+50
+],
+"allium": [
+159,
+137,
+184
+],
+"andesite": [
+136,
+136,
+137
+],
+"andesite_wall": [
+136,
+136,
+137
+],
+"azalea_leaves": [
+95,
+140,
+50
+],
+"azure_bluet": [
+169,
+205,
+127
+],
+"barrel": [
+135,
+101,
+58
+],
+"birch_leaves": [
+128,
+167,
+85
+],
+"birch_log": [
+217,
+215,
+210
+],
+"birch_planks": [
+192,
+175,
+121
+],
+"black_concrete": [
+8,
+10,
+15
+],
+"black_stained_glass": [
+25,
+25,
+25
+],
+"black_terracotta": [
+37,
+23,
+16
+],
+"blue_concrete": [
+45,
+47,
+143
+],
+"blue_ice": [
+116,
+168,
+253
+],
+"blue_stained_glass": [
+51,
+76,
+178
+],
+"blue_terracotta": [
+74,
+60,
+91
+],
+"blue_wool": [
+53,
+57,
+157
+],
+"bone_block": [
+229,
+226,
+208
+],
+"brick_stairs": [
+151,
+98,
+83
+],
+"bricks": [
+151,
+98,
+83
+],
+"brown_mushroom": [
+154,
+117,
+92
+],
+"brown_mushroom_block": [
+149,
+112,
+81
+],
+"brown_terracotta": [
+77,
+51,
+36
+],
+"cactus": [
+86,
+127,
+43
+],
+"cactus_flower": [
+210,
+121,
+135
+],
+"campfire": [
+79,
+75,
+68
+],
+"carved_pumpkin": [
+198,
+119,
+24
+],
+"cherry_leaves": [
+229,
+173,
+194
+],
+"cherry_log": [
+55,
+33,
+44
+],
+"chiseled_polished_blackstone": [
+54,
+49,
+57
+],
+"coarse_dirt": [
+119,
+86,
+59
+],
+"cobblestone": [
+128,
+127,
+128
+],
+"cornflower": [
+80,
+121,
+147
+],
+"cut_red_sandstone": [
+189,
+102,
+32
+],
+"cyan_concrete": [
+21,
+119,
+136
+],
+"cyan_stained_glass": [
+76,
+127,
+153
+],
+"cyan_terracotta": [
+87,
+91,
+91
+],
+"cyan_wool": [
+21,
+138,
+145
+],
+"dandelion": [
+148,
+172,
+43
+],
+"dark_oak_fence": [
+67,
+43,
+20
+],
+"dark_oak_leaves": [
+75,
+125,
+40
+],
+"dark_oak_log": [
+60,
+47,
+26
+],
+"dark_oak_planks": [
+67,
+43,
+20
+],
+"dark_oak_stairs": [
+67,
+43,
+20
+],
+"dead_bush": [
+107,
+79,
+41
+],
+"deepslate_tile_stairs": [
+55,
+55,
+55
+],
+"deepslate_tiles": [
+55,
+55,
+55
+],
+"diorite_wall": [
+189,
+188,
+189
+],
+"dirt_path": [
+148,
+122,
+65
+],
+"end_rod": [
+208,
+198,
+187
+],
+"flower_pot": [
+124,
+69,
+53
+],
+"flowering_azalea_leaves": [
+110,
+140,
+80
+],
+"glass_pane": [
+170,
+210,
+217
+],
+"glowstone": [
+172,
+131,
+84
+],
+"grass_block": [
+124,
+189,
+107
+],
+"gray_concrete": [
+55,
+58,
+62
+],
+"hay_block": [
+166,
+139,
+12
+],
+"iron_bars": [
+137,
+139,
+136
+],
+"iron_chain": [
+51,
+58,
+74
+],
+"lantern": [
+107,
+92,
+85
+],
+"lava": [
+217,
+105,
+26
+],
+"light_blue_concrete": [
+36,
+137,
+199
+],
+"light_blue_stained_glass": [
+102,
+153,
+216
+],
+"light_blue_wool": [
+58,
+175,
+217
+],
+"light_gray_concrete": [
+125,
+125,
+115
+],
+"light_gray_terracotta": [
+135,
+107,
+98
+],
+"lily_of_the_valley": [
+123,
+175,
+95
+],
+"lime_concrete": [
+94,
+169,
+24
+],
+"lime_wool": [
+112,
+185,
+26
+],
+"magenta_concrete": [
+169,
+48,
+159
+],
+"magenta_glazed_terracotta": [
+208,
+100,
+192
+],
+"moss_block": [
+89,
+110,
+45
+],
+"moss_carpet": [
+90,
+120,
+40
+],
+"mossy_cobblestone": [
+110,
+118,
+95
+],
+"mossy_cobblestone_wall": [
+110,
+118,
+95
+],
+"mossy_stone_bricks": [
+115,
+121,
+105
+],
+"mud_brick_slab": [
+137,
+104,
+79
+],
+"mud_bricks": [
+137,
+104,
+79
+],
+"mushroom_stem": [
+203,
+197,
+186
+],
+"oak_fence": [
+162,
+131,
+79
+],
+"oak_leaves": [
+89,
+156,
+52
+],
+"oak_log": [
+109,
+85,
+51
+],
+"oak_stairs": [
+162,
+131,
+79
+],
+"orange_stained_glass": [
+216,
+127,
+51
+],
+"orange_terracotta": [
+162,
+84,
+38
+],
+"orange_tulip": [
+93,
+142,
+31
+],
+"orange_wool": [
+241,
+118,
+20
+],
+"oxeye_daisy": [
+179,
+202,
+143
+],
+"packed_ice": [
+142,
+180,
+250
+],
+"pink_concrete": [
+214,
+101,
+143
+],
+"pink_tulip": [
+99,
+157,
+78
+],
+"pink_wool": [
+238,
+141,
+172
+],
+"podzol": [
+92,
+63,
+24
+],
+"polished_andesite": [
+132,
+135,
+134
+],
+"polished_andesite_slab": [
+132,
+135,
+134
+],
+"polished_blackstone": [
+53,
+49,
+57
+],
+"polished_blackstone_bricks": [
+48,
+43,
+50
+],
+"polished_blackstone_slab": [
+53,
+49,
+57
+],
+"polished_blackstone_wall": [
+53,
+49,
+57
+],
+"polished_deepslate": [
+72,
+73,
+73
+],
+"polished_diorite_slab": [
+193,
+193,
+195
+],
+"poppy": [
+129,
+65,
+38
+],
+"prismarine_wall": [
+98,
+162,
+146
+],
+"purple_wool": [
+122,
+42,
+173
+],
+"red_concrete": [
+142,
+33,
+33
+],
+"red_mushroom_block": [
+200,
+47,
+45
+],
+"red_nether_brick_stairs": [
+70,
+7,
+9
+],
+"red_nether_bricks": [
+70,
+7,
+9
+],
+"red_sand": [
+191,
+103,
+33
+],
+"red_sandstone": [
+187,
+99,
+29
+],
+"red_sandstone_wall": [
+187,
+99,
+29
+],
+"red_terracotta": [
+143,
+61,
+47
+],
+"red_wool": [
+161,
+39,
+35
+],
+"redstone_lamp": [
+143,
+102,
+61
+],
+"sand": [
+219,
+207,
+163
+],
+"sandstone_wall": [
+216,
+203,
+156
+],
+"sea_lantern": [
+172,
+200,
+191
+],
+"short_dry_grass": [
+187,
+159,
+108
+],
+"shroomlight": [
+241,
+147,
+71
+],
+"smooth_quartz": [
+237,
+230,
+224
+],
+"smooth_quartz_slab": [
+237,
+230,
+224
+],
+"smooth_red_sandstone": [
+181,
+98,
+31
+],
+"smooth_red_sandstone_slab": [
+181,
+98,
+31
+],
+"smooth_sandstone": [
+224,
+214,
+170
+],
+"smooth_sandstone_slab": [
+224,
+214,
+170
+],
+"smooth_stone": [
+159,
+159,
+159
+],
+"snow": [
+249,
+254,
+254
+],
+"snow_block": [
+249,
+254,
+254
+],
+"spruce_door": [
+106,
+80,
+49
+],
+"spruce_fence": [
+115,
+85,
+49
+],
+"spruce_leaves": [
+97,
+128,
+97
+],
+"spruce_log": [
+59,
+38,
+17
+],
+"spruce_planks": [
+115,
+85,
+49
+],
+"spruce_slab": [
+115,
+85,
+49
+],
+"spruce_stairs": [
+115,
+85,
+49
+],
+"stone": [
+126,
+126,
+126
+],
+"stone_bricks": [
+122,
+122,
+122
+],
+"stripped_spruce_log": [
+116,
+90,
+52
+],
+"tall_dry_grass": [
+197,
+172,
+123
+],
+"terracotta": [
+152,
+94,
+68
+],
+"water": [
+60,
+90,
+220
+],
+"white_concrete": [
+207,
+213,
+214
+],
+"white_concrete_powder": [
+226,
+227,
+228
+],
+"white_stained_glass": [
+255,
+255,
+255
+],
+"white_terracotta": [
+210,
+178,
+161
+],
+"white_wool": [
+234,
+236,
+237
+],
+"yellow_concrete": [
+241,
+175,
+21
+],
+"yellow_stained_glass": [
+229,
+229,
+51
+],
+"yellow_terracotta": [
+186,
+133,
+35
+],
+"yellow_wool": [
+249,
+198,
+40
+]
+}

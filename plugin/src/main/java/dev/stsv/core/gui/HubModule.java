@@ -100,6 +100,11 @@ public final class HubModule implements StsvModule, Listener {
         plugin.menus().open(p, MENU, new Hub());
     }
 
+    /** Opens one page of the hub (its buttons work as on any hub page; a content plugin's override of it applies). */
+    public void openPage(Player p, String page) {
+        plugin.menus().open(p, page, new Hub());
+    }
+
     /**
      * The commands a hub button runs or suggests (for checks): "command:돈" -> [돈], "hub:run:직업|run:직업 순위"
      * -> [직업, 직업 순위]; close, menu:... and an empty action -> []; an unknown form -> null.

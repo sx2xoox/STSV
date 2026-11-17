@@ -1,0 +1,51 @@
+# 서킷 트랙: 네온 시티. 설정 설명은 village.yml 맨 위.
+# 8자 코스: 가운데에서 고가도로가 아래 도로를 넘어감 (bridge: true 인 점들은 기둥 위 다리).
+name: "네온 시티"
+subtitle: "한밤의 고가도로를 넘는 8자 도심 코스"
+theme: city
+slot: 4
+laps: 3
+width: 12
+difficulty: 5
+accent: "#d36bff"
+points:
+  - [150, -20]
+  - [150, 40]
+  - [140, 85]
+  - [105, 105]
+  - [72, 92, 2]
+  - [52, 62, 5]
+  - {at: [28, 28], y: 7, bridge: true}
+  - {at: [-28, -28], y: 7, bridge: true}
+  - [-52, -62, 5]
+  - [-72, -92, 2]
+  - [-105, -108]
+  - [-140, -90]
+  - [-152, -45]
+  - [-125, -15]
+  - [-150, 25]
+  - [-140, 80]
+  - [-105, 105]
+  - [-70, 90]
+  - [-45, 55]
+  - [-22, 22]
+  - [22, -22]
+  - [45, -55]
+  - [70, -92]
+  - [105, -108]
+  - [140, -85]
+features:
+  - {type: boost, at: 0.05, power: 1.35}
+  - {type: tunnel, at: 0.58, to: 0.63}
+  - {type: boost, at: 0.66, power: 1.3}
+  - {type: jump, at: 0.83, power: 0.5, gap: 5}
+decor:
+  - {kind: tower, at: [95, 0], size: 3}
+  - {kind: tower, at: [-95, 0], size: 3}
+  - {kind: tower, at: [190, -150], size: 3}
+  - {kind: tower, at: [-190, 150], size: 3}
+  - {kind: neon, at: [100, 40], yaw: 270, size: 2}
+  - {kind: neon, at: [-100, -40], yaw: 90, size: 2}
+  - {kind: tower, at: [0, 120], size: 2}
+  - {kind: tower, at: [0, -120], size: 2}
+scatter: 120

@@ -118,3 +118,9 @@ vehicles:
   hyper_car:   { paints: all, wheels: all, underglows: all, headlamps: all, skids: all, smokes: all, flames: all, crackles: all, plates: all }
   grand_sedan: { paints: all, wheels: all, underglows: all, headlamps: all, plates: all }
   luxury_suv:  { paints: all, wheels: all, underglows: all, headlamps: all, plates: all }
+  # 서킷 카트 (레이스 동안만 있는 탈것: 튜닝샵에는 오지 않음). 대기실에서 고르는 색 = 이 도색 (circuit/karts.yml colours)
+  kart_storm:   { paints: [orange, yellow, green, blue, purple, pink, white, black] }
+  kart_bubble:  { paints: [red, orange, yellow, green, purple, pink, white, black] }
+  kart_drifter: { paints: [red, orange, yellow, green, blue, pink, white, black] }
+  kart_buffalo: { paints: [red, orange, green, blue, purple, pink, white, black] }
+  kart_tub:     { paints: [red, orange, yellow, green, blue, purple, pink, black] }

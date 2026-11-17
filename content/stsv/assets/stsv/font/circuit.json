@@ -1,0 +1,85 @@
+{
+ "providers": [
+  {
+   "type": "bitmap",
+   "file": "stsv:font/circuit/icon_flag.png",
+   "ascent": 7,
+   "height": 8,
+   "chars": [
+    "\ue100"
+   ]
+  },
+  {
+   "type": "bitmap",
+   "file": "stsv:font/circuit/icon_cup.png",
+   "ascent": 7,
+   "height": 8,
+   "chars": [
+    "\ue101"
+   ]
+  },
+  {
+   "type": "bitmap",
+   "file": "stsv:font/circuit/icon_clock.png",
+   "ascent": 7,
+   "height": 8,
+   "chars": [
+    "\ue102"
+   ]
+  },
+  {
+   "type": "bitmap",
+   "file": "stsv:font/circuit/icon_cell.png",
+   "ascent": 7,
+   "height": 8,
+   "chars": [
+    "\ue103"
+   ]
+  },
+  {
+   "type": "bitmap",
+   "file": "stsv:font/circuit/icon_cell_empty.png",
+   "ascent": 7,
+   "height": 8,
+   "chars": [
+    "\ue104"
+   ]
+  },
+  {
+   "type": "bitmap",
+   "file": "stsv:font/circuit/icon_seg.png",
+   "ascent": 7,
+   "height": 8,
+   "chars": [
+    "\ue105"
+   ]
+  },
+  {
+   "type": "bitmap",
+   "file": "stsv:font/circuit/icon_seg_empty.png",
+   "ascent": 7,
+   "height": 8,
+   "chars": [
+    "\ue106"
+   ]
+  },
+  {
+   "type": "bitmap",
+   "file": "stsv:font/circuit/icon_kart.png",
+   "ascent": 7,
+   "height": 8,
+   "chars": [
+    "\ue107"
+   ]
+  },
+  {
+   "type": "bitmap",
+   "file": "stsv:font/circuit/icon_bolt.png",
+   "ascent": 7,
+   "height": 8,
+   "chars": [
+    "\ue108"
+   ]
+  }
+ ]
+}

@@ -97,6 +97,7 @@ public final class STSVPlugin extends JavaPlugin {
         modules.register(achievements = new dev.stsv.core.achievement.AchievementModule());
         modules.register(gacha = new dev.stsv.core.cosmetic.GachaModule());
         modules.register(hub = new dev.stsv.core.gui.HubModule());
+        modules.register(new dev.stsv.core.minigame.MinigameModule());   // after the hub (its pages) and the vehicles (the karts)
         modules.register(new ItemEffectsModule());
         modules.register(pack = new PackModule());
         modules.enableAll();

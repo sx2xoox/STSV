@@ -1,0 +1,73 @@
+# 서킷 카트: 레이스에서만 쓰는 수치 (README "미니게임 · 서킷"). 달리는 성능 (속도 · 가속 · 핸들 · 드리프트) 은 탈것 아이템
+# (items/karts.yml 의 vehicle:), 여기는 레이스만의 것.
+#
+#   item          탈것 아이템
+#   name / role   보이는 이름 · 한 줄 성격           blurb  대기실 메뉴의 설명 한 줄
+#   weight        무게 0.5 ~ 2 (부딪히면 가벼운 쪽이 더 밀리고 속도를 더 잃음)
+#   charge        드리프트로 부스터 게이지가 차는 빠르기 (1 = 보통: 크게 2.5초 미끄러지면 한 칸)
+#   boost         부스터를 쓰면 최고 속도가 몇 배 (1.1 ~ 1.6)       boost-ticks  부스터가 가는 틱 (20 = 1초)
+#   own           모델 원래 색 (도색 없음)           colours  고를 수 있는 색 (튜닝샵 도색 id, 9개까지, own 포함:
+#                 tools/assetgen/models/vehicle_paints.py 의 KART_PAINTS 로 그려 둔 것만)
+#   bars          메뉴에 보이는 비교 막대 1 ~ 5: speed, accel, handling, drift, weight, boost
+
+karts:
+  storm:
+    item: stsv:kart_storm
+    name: "스톰"
+    role: "최고 속도"
+    blurb: "직선에서 가장 빠름 · 출발은 느림"
+    weight: 1.0
+    charge: 0.9
+    boost: 1.3
+    boost-ticks: 30
+    own: red
+    colours: [red, orange, yellow, green, blue, purple, pink, white, black]
+    bars: {speed: 5, accel: 2, handling: 3, drift: 3, weight: 3, boost: 3}
+  bubble:
+    item: stsv:kart_bubble
+    name: "버블"
+    role: "가속"
+    blurb: "순식간에 최고 속도 · 가벼워서 잘 밀림"
+    weight: 0.75
+    charge: 1.0
+    boost: 1.28
+    boost-ticks: 28
+    own: blue
+    colours: [blue, red, orange, yellow, green, purple, pink, white, black]
+    bars: {speed: 3, accel: 5, handling: 4, drift: 3, weight: 1, boost: 3}
+  drifter:
+    item: stsv:kart_drifter
+    name: "섀도"
+    role: "드리프트"
+    blurb: "크고 길게 미끄러짐 · 부스터가 빨리 참"
+    weight: 0.95
+    charge: 1.4
+    boost: 1.3
+    boost-ticks: 32
+    own: purple
+    colours: [purple, red, orange, yellow, green, blue, pink, white, black]
+    bars: {speed: 3, accel: 3, handling: 4, drift: 5, weight: 2, boost: 4}
+  buffalo:
+    item: stsv:kart_buffalo
+    name: "버팔로"
+    role: "무게"
+    blurb: "부딪히면 상대를 밀어냄 · 거친 길도 그대로"
+    weight: 1.7
+    charge: 0.85
+    boost: 1.36
+    boost-ticks: 34
+    own: yellow
+    colours: [yellow, red, orange, green, blue, purple, pink, white, black]
+    bars: {speed: 4, accel: 2, handling: 2, drift: 2, weight: 5, boost: 4}
+  tub:
+    item: stsv:kart_tub
+    name: "꽥꽥 욕조"
+    role: "장난감"
+    blurb: "핸들이 예민하고 잘 미끄러짐 · 고수가 타면 가장 빠름"
+    weight: 0.8
+    charge: 1.9
+    boost: 1.42
+    boost-ticks: 30
+    own: white
+    colours: [white, red, orange, yellow, green, blue, purple, pink, black]
+    bars: {speed: 2, accel: 4, handling: 1, drift: 5, weight: 1, boost: 5}

@@ -113,7 +113,7 @@ class HubTest {
         }
         // the hub gathers every player command of the core
         for (String c : List.of("치장", "칭호", "업적", "프로필", "명예의전당", "돈", "송금", "수표", "건축월드", "야생월드", "야간투시", "tpa", "tpahere",
-                "뽑기", "닉네임", "감정표현", "투명갑옷", "후원", "탈것", "ㅆ", "사이드바", "rtp")) {
+                "뽑기", "닉네임", "감정표현", "투명갑옷", "후원", "탈것", "ㅆ", "사이드바", "rtp", "서킷")) {
             if (!used.contains(c)) problems.add("no button for /" + c);
         }
         // the first screen stays short: a handful of buttons, the rest one step in

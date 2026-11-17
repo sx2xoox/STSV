@@ -1,0 +1,265 @@
+# 통합 메뉴 · 미니게임 (/미니게임): 게임 고르기, 서킷 (카트 레이스). README "미니게임 · 서킷"
+# 모양은 hub.yml 과 같음 (theme: hanok). 아래 줄(dock)은 hub.yml 의 다른 화면과 같음.
+# 자리표시자 (코어 미니게임 모듈): {circuit_status} 지금 대기 · 레이스 인원, {track_<id>_state} 그 트랙 상태,
+#   {track_<id>_best} 트랙 최고 기록, {track_<id>_mine} 내 최고 기록 (id: village, canyon, glacier, forest, city)
+hub_minigame:
+  title: ""
+  plaque: "미니게임"
+  rows: 6
+  theme: hanok
+  frame: {left: 30, right: 30, top: 20, scale: 2}
+  dock: 5
+  background: economy:gui/hub_minigame
+  layout:
+    - "aaabbbccc"
+    - "aaabbbccc"
+    - "aaabbbccc"
+    - "aaabbbccc"
+    - "aaabbbccc"
+    - "BYtnXvwhR"
+  buttons:
+    a:
+      action: "hub:go:economy:hub_circuit"
+      icon: stsv:gui/blank
+      material: GOLDEN_HORSE_ARMOR
+      scene: circuit
+      label: "서킷"
+      sub: "카트 레이스"
+      accent: "#ffd36b"
+      name: "<white>서킷 <gray>· 카트 레이스"
+      lore: ["<gray>트랙 5개 · 카트 5종", "<gray>{circuit_status}", "", "<yellow>클릭: 열기"]
+    b:
+      action: "hub:go:economy:hub_minigame"
+      icon: stsv:gui/blank
+      material: GRAY_DYE
+      scene: soon
+      label: "준비 중"
+      sub: "다음 게임"
+      accent: "#8f86a6"
+      name: "<gray>준비 중"
+      lore: ["<dark_gray>다음 미니게임이 들어올 자리"]
+    c:
+      action: "hub:go:economy:hub_minigame"
+      icon: stsv:gui/blank
+      material: GRAY_DYE
+      scene: soon
+      label: "준비 중"
+      sub: "다음 게임"
+      accent: "#8f86a6"
+      name: "<gray>준비 중"
+      lore: ["<dark_gray>다음 미니게임이 들어올 자리"]
+    B:
+      action: "command:건축월드"
+      icon: stsv:gui/blank
+      material: BRICKS
+      art: hub:build
+      name: "<white>건축월드로"
+      lore: ["<gray>땅을 사서 집 짓는 곳", "<dark_gray>{warmup}초 가만히"]
+    Y:
+      action: "hub:run:야생월드|run:rtp"
+      icon: stsv:gui/blank
+      material: OAK_SAPLING
+      art: hub:wild
+      name: "<white>야생월드로"
+      lore: ["<gray>자원 채집 · 보호 없음 · 가끔 초기화", "<gold>지옥·엔드: 죽어도 아이템 유지", "<yellow>우클릭: 다른 무작위 위치 <dark_gray>(야생월드에서)", "<dark_gray>{warmup}초 가만히 · 재사용 {cooldown}초"]
+    t:
+      action: "hub:suggest:tpa|suggest:tpahere"
+      icon: stsv:gui/blank
+      material: ENDER_PEARL
+      art: hub:tp
+      name: "<white>텔레포트 요청"
+      lore: ["<gray>상대가 수락하면 이동", "<yellow>클릭: 가기 <dark_gray>· /tpa", "<yellow>우클릭: 내 쪽으로 부르기"]
+    n:
+      action: "command:야간투시"
+      icon: stsv:gui/blank
+      material: ENDER_EYE
+      art: hub:night
+      name: "<white>야간 투시 <gray>· {night_vision}"
+      lore: ["<gray>죽거나 나가도 유지", "<yellow>클릭: 켜기·끄기"]
+    v:
+      action: "command:탈것"
+      icon: stsv:gui/blank
+      material: MINECART
+      art: hub:vehicle
+      name: "<white>내 탈것"
+      lore: ["<gray>내 탈것 목록", "<dark_gray>양도 · 함께 쓸 사람: /탈것"]
+    w:
+      action: "command:ㅆ"
+      icon: stsv:gui/blank
+      material: CAULDRON
+      art: hub:trash
+      name: "<white>쓰레기통"
+      lore: ["<gray>넣고 닫으면 사라짐", "<dark_gray>탈것·지게는 돌려받음 · /ㅆ"]
+    h:
+      action: "command:사이드바"
+      icon: stsv:gui/blank
+      material: PAPER
+      art: hub:sidebar
+      name: "<white>사이드바 켜기·끄기"
+      lore: ["<gray>오른쪽 정보 패널", "<dark_gray>위치·크기: /사이드바"]
+    R:
+      action: "hub:go:economy:hub_rank"
+      icon: stsv:gui/blank
+      material: GOLDEN_HELMET
+      art: hub:rank
+      name: "<white>순위 · 기록"
+      lore: ["<gray>업적 <gold>{points}점", "<gray>명예의 전당 · 주간 순위 · 부자 순위", "", "<yellow>클릭: 열기"]
+    X:
+      action: "hub:go:stsv:hub"
+      icon: stsv:gui/blank
+      material: ARROW
+      art: hub:back
+      name: "<white>뒤로"
+      lore: ["<gray>통합 메뉴 첫 화면"]
+
+hub_circuit:
+  title: ""
+  plaque: "서킷"
+  rows: 6
+  theme: hanok
+  frame: {left: 30, right: 30, top: 20, scale: 2}
+  dock: 5
+  background: economy:gui/hub_circuit
+  layout:
+    - "AACC.DDEE"
+    - "AACC.DDEE"
+    - "........."
+    - "FFGG.VVWW"
+    - "FFGG.VVWW"
+    - "BYtnXvwhR"
+  buttons:
+    A:
+      action: "hub:run:서킷 참가"
+      icon: stsv:gui/blank
+      material: MINECART
+      art: hub:circuit_join
+      label: "빠른 참가"
+      accent: "#ffd36b"
+      name: "<white>빠른 참가"
+      lore: ["<gray>열린 대기실, 없으면 빈 트랙", "<gray>{circuit_status}", "", "<yellow>클릭: 참가"]
+    C:
+      action: "hub:run:서킷 참가 village|run:서킷 기록 village"
+      icon: stsv:gui/blank
+      material: MAP
+      art: hub:track_village
+      label: "햇살 마을"
+      accent: "#8fdc6a"
+      name: "<white>햇살 마을 <gold>★"
+      lore: ["<gray>{track_village_state}", "<gray>트랙 기록 <white>{track_village_best}", "<gray>내 기록 <white>{track_village_mine}", "", "<yellow>클릭: 이 트랙으로", "<yellow>우클릭: 순위"]
+    D:
+      action: "hub:run:서킷 참가 canyon|run:서킷 기록 canyon"
+      icon: stsv:gui/blank
+      material: MAP
+      art: hub:track_canyon
+      label: "붉은 협곡"
+      accent: "#ff8a4c"
+      name: "<white>붉은 협곡 <gold>★★★"
+      lore: ["<gray>{track_canyon_state}", "<gray>트랙 기록 <white>{track_canyon_best}", "<gray>내 기록 <white>{track_canyon_mine}", "", "<yellow>클릭: 이 트랙으로", "<yellow>우클릭: 순위"]
+    E:
+      action: "hub:run:서킷 참가 glacier|run:서킷 기록 glacier"
+      icon: stsv:gui/blank
+      material: MAP
+      art: hub:track_glacier
+      label: "얼음 빙하"
+      accent: "#7fd4ff"
+      name: "<white>얼음 빙하 <gold>★★"
+      lore: ["<gray>{track_glacier_state}", "<gray>트랙 기록 <white>{track_glacier_best}", "<gray>내 기록 <white>{track_glacier_mine}", "", "<yellow>클릭: 이 트랙으로", "<yellow>우클릭: 순위"]
+    F:
+      action: "hub:run:서킷 참가 forest|run:서킷 기록 forest"
+      icon: stsv:gui/blank
+      material: MAP
+      art: hub:track_forest
+      label: "숲속 언덕"
+      accent: "#ffb35c"
+      name: "<white>숲속 언덕 <gold>★★★★"
+      lore: ["<gray>{track_forest_state}", "<gray>트랙 기록 <white>{track_forest_best}", "<gray>내 기록 <white>{track_forest_mine}", "", "<yellow>클릭: 이 트랙으로", "<yellow>우클릭: 순위"]
+    G:
+      action: "hub:run:서킷 참가 city|run:서킷 기록 city"
+      icon: stsv:gui/blank
+      material: MAP
+      art: hub:track_city
+      label: "네온 시티"
+      accent: "#d36bff"
+      name: "<white>네온 시티 <gold>★★★★★"
+      lore: ["<gray>{track_city_state}", "<gray>트랙 기록 <white>{track_city_best}", "<gray>내 기록 <white>{track_city_mine}", "", "<yellow>클릭: 이 트랙으로", "<yellow>우클릭: 순위"]
+    V:
+      action: "hub:run:서킷 기록|run:서킷 트랙"
+      icon: stsv:gui/blank
+      material: GOLDEN_HELMET
+      art: hub:circuit_rank
+      label: "기록·순위"
+      accent: "#e0b04a"
+      name: "<white>기록 · 순위"
+      lore: ["<gray>트랙마다 상위 기록 · 내 기록", "", "<yellow>클릭: 기록", "<yellow>우클릭: 트랙 목록"]
+    W:
+      action: "hub:run:서킷 나가기"
+      icon: stsv:gui/blank
+      material: BARRIER
+      art: hub:circuit_leave
+      label: "나가기"
+      accent: "#ec6a60"
+      name: "<white>대기실 · 레이스 나가기"
+      lore: ["<gray>들어가기 전 자리로 돌아감", "", "<yellow>클릭: 나가기"]
+    B:
+      action: "command:건축월드"
+      icon: stsv:gui/blank
+      material: BRICKS
+      art: hub:build
+      name: "<white>건축월드로"
+      lore: ["<gray>땅을 사서 집 짓는 곳", "<dark_gray>{warmup}초 가만히"]
+    Y:
+      action: "hub:run:야생월드|run:rtp"
+      icon: stsv:gui/blank
+      material: OAK_SAPLING
+      art: hub:wild
+      name: "<white>야생월드로"
+      lore: ["<gray>자원 채집 · 보호 없음 · 가끔 초기화", "<gold>지옥·엔드: 죽어도 아이템 유지", "<yellow>우클릭: 다른 무작위 위치 <dark_gray>(야생월드에서)", "<dark_gray>{warmup}초 가만히 · 재사용 {cooldown}초"]
+    t:
+      action: "hub:suggest:tpa|suggest:tpahere"
+      icon: stsv:gui/blank
+      material: ENDER_PEARL
+      art: hub:tp
+      name: "<white>텔레포트 요청"
+      lore: ["<gray>상대가 수락하면 이동", "<yellow>클릭: 가기 <dark_gray>· /tpa", "<yellow>우클릭: 내 쪽으로 부르기"]
+    n:
+      action: "command:야간투시"
+      icon: stsv:gui/blank
+      material: ENDER_EYE
+      art: hub:night
+      name: "<white>야간 투시 <gray>· {night_vision}"
+      lore: ["<gray>죽거나 나가도 유지", "<yellow>클릭: 켜기·끄기"]
+    v:
+      action: "command:탈것"
+      icon: stsv:gui/blank
+      material: MINECART
+      art: hub:vehicle
+      name: "<white>내 탈것"
+      lore: ["<gray>내 탈것 목록", "<dark_gray>양도 · 함께 쓸 사람: /탈것"]
+    w:
+      action: "command:ㅆ"
+      icon: stsv:gui/blank
+      material: CAULDRON
+      art: hub:trash
+      name: "<white>쓰레기통"
+      lore: ["<gray>넣고 닫으면 사라짐", "<dark_gray>탈것·지게는 돌려받음 · /ㅆ"]
+    h:
+      action: "command:사이드바"
+      icon: stsv:gui/blank
+      material: PAPER
+      art: hub:sidebar
+      name: "<white>사이드바 켜기·끄기"
+      lore: ["<gray>오른쪽 정보 패널", "<dark_gray>위치·크기: /사이드바"]
+    R:
+      action: "hub:go:economy:hub_rank"
+      icon: stsv:gui/blank
+      material: GOLDEN_HELMET
+      art: hub:rank
+      name: "<white>순위 · 기록"
+      lore: ["<gray>업적 <gold>{points}점", "<gray>명예의 전당 · 주간 순위 · 부자 순위", "", "<yellow>클릭: 열기"]
+    X:
+      action: "hub:go:stsv:hub"
+      icon: stsv:gui/blank
+      material: ARROW
+      art: hub:back
+      name: "<white>뒤로"
+      lore: ["<gray>통합 메뉴 첫 화면"]

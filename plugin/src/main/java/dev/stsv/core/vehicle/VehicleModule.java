@@ -566,6 +566,7 @@ public final class VehicleModule implements StsvModule, Listener {
     }
 
     private void saveTrip(long id) {
+        if (id < 0) return;   // a temporary vehicle (spawnTemporary): nothing of it is kept
         VehicleTrip t = trips.get(id);
         if (t == null || !t.dirty) return;
         t.dirty = false;
@@ -593,7 +594,7 @@ public final class VehicleModule implements StsvModule, Listener {
 
     /** The bed into the database now if it changed since last saved (encoded once; never when it did not change). */
     private void flushCargo(LiveVehicle v) {
-        if (!v.cargoSave.dirty(v.cargoVersion)) return;
+        if (v.temporary || !v.cargoSave.dirty(v.cargoVersion)) return;
         byte[] bytes = encode(v.cargo);
         v.cargoBytes = bytes;
         v.cargoSave.saved(v.cargoVersion);
@@ -1429,6 +1430,10 @@ public final class VehicleModule implements StsvModule, Listener {
      * where it is, shown again when its chunk loads); false: the caller takes it out of the world.
      */
     private void despawn(LiveVehicle v, boolean save) {
+        if (v.temporary) {
+            save = false;   // a temporary vehicle is gone for good (its owner, a race, notices: temporaryAlive)
+            trips.remove(v.id);
+        }
         tuner.gone(v);
         release(v, "vehicle.pull-lost");
         closeCargo(v);
@@ -1455,6 +1460,10 @@ public final class VehicleModule implements StsvModule, Listener {
     }
 
     private void save(LiveVehicle v) {
+        if (v.temporary) {
+            v.dirty = false;
+            return;
+        }
         saveTrip(v.id);
         v.dirty = false;
         v.savedAt = ticks;
@@ -1521,7 +1530,7 @@ public final class VehicleModule implements StsvModule, Listener {
         }
         Player driver = v.spec.pulled() ? null : v.rider(0);
         Player puller = puller(v);
-        DriveInput in = driver != null ? DriveInput.of(driver.getCurrentInput()) : DriveInput.NONE;
+        DriveInput in = driver != null && !v.frozen ? DriveInput.of(driver.getCurrentInput()) : DriveInput.NONE;
         WorldTerrain terrain = new WorldTerrain(v.world);
         // 특별 탈것: turning their own way, bouncing, an ollie, the hover height (the physics gets the keys left over)
         boolean wasOnGround = v.st.onGround;
@@ -1561,9 +1570,11 @@ public final class VehicleModule implements StsvModule, Listener {
                 // (the sports car goes over the server's top speed: VehicleSpec#cap)
                 double cap = v.spec.cap(settings.maxSpeed());
                 // (특별 탈것 that hover, float or slide go their own way: FunView#step)
-                if (!funView.step(v, in, terrain, Math.min(cap, VehicleTools.speedCap(v)), roadBonus(v), feltLoad[0], feltLoad[1]))
-                    VehiclePhysics.step(v.st, in, v.spec, terrain, Math.min(cap, VehicleTools.speedCap(v)), 1f, roadBonus(v),
-                            cap, feltLoad[0], feltLoad[1]);
+                // (a temporary vehicle: a race's boost instead of the road's bonus, see spawnTemporary)
+                double bonus = v.temporary ? v.boost : roadBonus(v), bonusCap = v.temporary ? cap * Math.max(1, v.boost) : cap;
+                if (!funView.step(v, in, terrain, Math.min(cap, VehicleTools.speedCap(v)), bonus, feltLoad[0], feltLoad[1]))
+                    VehiclePhysics.step(v.st, in, v.spec, terrain, Math.min(cap, VehicleTools.speedCap(v)), 1f, bonus,
+                            bonusCap, feltLoad[0], feltLoad[1]);
             }
             if (v.st.bumped) {
                 if (v.spec.floats()) v.world.playSound(at(v), Sound.BLOCK_WOOD_HIT, SoundCategory.NEUTRAL, 0.8f, 0.6f);
@@ -1608,6 +1619,10 @@ public final class VehicleModule implements StsvModule, Listener {
                 for (int i = 0; i < v.spinners.size(); i++) glide(v.spinners.get(i), spinner(v, i));
             }
             if (v.st.y < v.world.getMinHeight() - 32) {
+                if (v.temporary) {
+                    despawn(v, false);
+                    return;
+                }
                 plugin.getLogger().warning("[탈것] #" + v.id + " 이(가) 월드 밖으로 떨어짐: 주인에게 돌려보냄");
                 recall(v.id, null);
                 return;
@@ -1852,7 +1867,7 @@ public final class VehicleModule implements StsvModule, Listener {
         if (e.getHand() != EquipmentSlot.HAND) return;
         LiveVehicle v = live.get(id);
         Player p = e.getPlayer();
-        if (v == null || busy.contains(id) || p.isInsideVehicle() || !click(p)) return;
+        if (v == null || v.temporary || busy.contains(id) || p.isInsideVehicle() || !click(p)) return;
         if (v.spec.pulled()) {
             cartClick(v, p, e.getRightClicked());
             return;
@@ -1999,6 +2014,10 @@ public final class VehicleModule implements StsvModule, Listener {
         Integer index = chair.getPersistentDataContainer().get(SEAT, PersistentDataType.INTEGER);
         if (id == null || index == null || ejecting.contains(chair.getUniqueId())) return;
         LiveVehicle v = live.get(id);
+        if (v != null && v.temporary && !e.getEntity().isDead() && e.isCancellable()) {
+            e.setCancelled(true);   // a race's kart: its driver stays in (they leave by the race's own way out)
+            return;
+        }
         Entity rider = e.getEntity();
         Entity carrier = chair.getVehicle();
         if (v != null && rider instanceof Player rp) hideBoxes(v, rp, false);
@@ -3428,5 +3447,122 @@ public final class VehicleModule implements StsvModule, Listener {
                 p.sendMessage(Text.mm(Lang.raw("vehicle.mine-jige", "id", row.id(), "where", heldWhere(row.holder(), u))));
             }
         }));
+    }
+
+    // ------------------------------------------------------------------------------------------
+    // Temporary vehicles: a minigame's karts (dev.stsv.core.minigame). Never in the database, never an item, never saved;
+    // gone when the plugin stops. Ids are negative. Main thread only.
+    // ------------------------------------------------------------------------------------------
+
+    private long nextTemporary = -1;
+
+    /**
+     * A vehicle of this item standing at (x, y, z) facing yaw, in a paint of the tuning shop (null: its own colour), with
+     * driver seated at the wheel. Its chunk must be loaded. Returns its id (below 0), or 0 when it could not be made.
+     */
+    public long spawnTemporary(CustomItem item, World w, double x, double y, double z, float yaw, String paint, Player driver) {
+        if (item == null || !item.isVehicle() || w == null || !w.isChunkLoaded((int) Math.floor(x) >> 4, (int) Math.floor(z) >> 4)) return 0;
+        VehiclePhysics.State st = new VehiclePhysics.State(x, y, z, VehiclePhysics.wrap(yaw));
+        st.onGround = true;
+        long id = nextTemporary--;
+        LiveVehicle v = new LiveVehicle(id, item, driver == null ? new UUID(0, 0) : driver.getUniqueId(),
+                driver == null ? "" : driver.getName(), w, st);
+        v.temporary = true;
+        if (paint != null) v.custom = VehicleTuning.Custom.NONE.with(VehicleTuning.Kind.PAINT, paint);
+        live.put(id, v);
+        spawnParts(v);
+        if (driver != null && !seatTemporary(id, driver)) {
+            removeTemporary(id);
+            return 0;
+        }
+        return id;
+    }
+
+    /** Puts this player (back) in the driver's seat of a temporary vehicle; false when it is gone or they could not sit. */
+    public boolean seatTemporary(long id, Player driver) {
+        LiveVehicle v = live.get(id);
+        if (v == null || !v.temporary || driver == null || !driver.isOnline() || driver.isDead()) return false;
+        if (driver.equals(v.rider(0))) return true;
+        if (driver.isInsideVehicle()) driver.leaveVehicle();
+        if (v.seats.length > 0 && v.seats[0] != null) leave(v, 0);
+        v.owner = driver.getUniqueId();
+        v.ownerName = driver.getName();
+        board(v, driver);
+        return driver.equals(v.rider(0));
+    }
+
+    /** Takes a temporary vehicle away (its riders step out beside it first). */
+    public void removeTemporary(long id) {
+        LiveVehicle v = live.get(id);
+        if (v != null && v.temporary) despawn(v, false);
+    }
+
+    /** Is this temporary vehicle still in the world (its chunk may have unloaded, it may have fallen out of the world)? */
+    public boolean temporaryAlive(long id) {
+        LiveVehicle v = live.get(id);
+        return v != null && v.temporary && v.body != null && v.body.isValid();
+    }
+
+    /** Its motion (live: read and changed on the main thread only), or null. */
+    public VehiclePhysics.State temporaryState(long id) {
+        LiveVehicle v = live.get(id);
+        return v == null || !v.temporary ? null : v.st;
+    }
+
+    /** Its kind (the item's vehicle section), or null. */
+    public VehicleSpec temporarySpec(long id) {
+        LiveVehicle v = live.get(id);
+        return v == null || !v.temporary ? null : v.spec;
+    }
+
+    /** The player at its wheel, or null. */
+    public Player temporaryDriver(long id) {
+        LiveVehicle v = live.get(id);
+        return v == null || !v.temporary ? null : v.rider(0);
+    }
+
+    /** frozen: the driver's keys do nothing (it stands still). */
+    public void freezeTemporary(long id, boolean frozen) {
+        LiveVehicle v = live.get(id);
+        if (v == null || !v.temporary) return;
+        v.frozen = frozen;
+        if (frozen) {
+            v.st.speed = 0;
+            v.st.slip = 0;
+        }
+    }
+
+    /** Its top speed factor from now on (1 = its own; a boost 1.3 ...), 1 .. 2. */
+    public void boostTemporary(long id, double factor) {
+        LiveVehicle v = live.get(id);
+        if (v != null && v.temporary) v.boost = Math.clamp(factor, 1, 2);
+    }
+
+    /** Moves it to (x, y, z) facing yaw at once, standing still (a respawn at a checkpoint); the riders go with it. */
+    public void placeTemporary(long id, double x, double y, double z, float yaw) {
+        LiveVehicle v = live.get(id);
+        if (v == null || !v.temporary) return;
+        v.st.x = x;
+        v.st.y = y;
+        v.st.z = z;
+        v.st.yaw = VehiclePhysics.wrap(yaw);
+        v.st.speed = 0;
+        v.st.vy = 0;
+        v.st.slip = 0;
+        v.st.steer = 0;
+        v.st.onGround = false;   // it settles onto the ground under it
+        move(v);
+    }
+
+    /** Shoves it sideways by (dx, dz) if that does not put it into a block (karts bumping); true when it moved. */
+    public boolean nudgeTemporary(long id, double dx, double dz) {
+        LiveVehicle v = live.get(id);
+        if (v == null || !v.temporary) return false;
+        WorldTerrain t = new WorldTerrain(v.world);
+        if (VehiclePhysics.collides(v.st.x + dx, v.st.y, v.st.z + dz, v.st.yaw, v.spec, t)) return false;
+        v.st.x += dx;
+        v.st.z += dz;
+        move(v);
+        return true;
     }
 }
