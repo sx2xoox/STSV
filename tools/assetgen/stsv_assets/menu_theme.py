@@ -217,6 +217,8 @@ def _big_cells(menu):
 def background(menu, art=None):
     """menu: rows, layout, list, buttons (keys), inset (chars), graph, flow. art: icon id -> 16 x 16 image, for
     big buttons."""
+    if menu.get("theme") == "hub":
+        return hub_background(menu, art)
     rows = menu["rows"]
     H = height(rows)
     im = Image.new("RGBA", (W, H), (0, 0, 0, 0))
@@ -289,3 +291,202 @@ def lang_files(assets_root):
     folder.mkdir(parents=True, exist_ok=True)
     for lang in ("ko_kr", "en_us", "en_gb"):
         (folder / f"{lang}.json").write_text(json.dumps({"container.inventory": ""}, ensure_ascii=False) + "\n")
+
+
+# ------------------------------------------------------------------------------------------------
+# The hub's own look (`theme: hub`): a deep gradient panel, cards instead of tiles, and a dock.
+#   - a button with `art` covering 4+ rows is a tall card: its top row holds the name (Galmuri9) above the card,
+#     the card has the button's `accent` colour (#rrggbb) washed over it, a glow behind the icon (twice its size)
+#     and `sub` (Galmuri7) at the bottom
+#   - a smaller button with `art` is a small card: the icon and the name (Galmuri7) under it
+#   - `dock: <row>`: that row is one long bar of sockets; each button there has its `art` drawn in its socket,
+#     a button without `art` (the player's head) sits in a gold-ringed socket
+# ------------------------------------------------------------------------------------------------
+
+HUB_TOP = (36, 40, 54)
+HUB_BOTTOM = (22, 24, 32)
+HUB_EDGE = (10, 11, 15)
+HUB_RIM = (64, 70, 88)
+HUB_TEXT = (240, 236, 226)
+HUB_SUB = (176, 180, 192)
+DOCK = (16, 18, 24)
+DOCK_RIM = (58, 64, 80)
+DOCK_LINE = (36, 40, 50)
+
+
+def _mix(a, b, t):
+    return tuple(int(round(a[i] + (b[i] - a[i]) * t)) for i in range(3))
+
+
+def _hex(s, default=(200, 200, 210)):
+    s = str(s or "").lstrip("#")
+    return tuple(int(s[i:i + 2], 16) for i in (0, 2, 4)) if len(s) == 6 else default
+
+
+def _font_of(size):
+    import galmuri
+    key = f"_F{size}"
+    if key not in globals():
+        globals()[key] = galmuri.load(size)
+    return globals()[key]
+
+
+def hub_text_width(s, size=9):
+    f = _font_of(size)
+    return sum(f[ord(ch)][0] for ch in s) - 1 if s else 0
+
+
+def hub_text(im, x, y, s, colour, size=9, shadow=(10, 11, 15)):
+    f = _font_of(size)
+    base = y + size
+    px = im.load()
+    for ox, oy, c in (((1, 1, shadow),) if shadow else ()) + ((0, 0, colour),):
+        cx = x
+        for ch in s:
+            advance, xo, yo, bits = f[ord(ch)]
+            top = base - (yo + len(bits))
+            for r, row in enumerate(bits):
+                for k, on in enumerate(row):
+                    if on:
+                        X, Y = cx + xo + k + ox, top + r + oy
+                        if 0 <= X < im.width and 0 <= Y < im.height:
+                            px[X, Y] = c + (255,)
+            cx += advance
+
+
+def _round_box(im, x0, y0, x1, y1, fill_top, fill_bottom, rim, highlight=None):
+    """A box with 2 px rounded corners: a rim, a vertical gradient inside, a highlight line under the top rim."""
+    px = im.load()
+    h = y1 - y0
+    for y in range(y0, y1):
+        for x in range(x0, x1):
+            dx = min(x - x0, x1 - 1 - x)
+            dy = min(y - y0, y1 - 1 - y)
+            if dx + dy < 2 and dx < 2 and dy < 2:
+                continue                                   # the cut corner
+            edge = dx == 0 or dy == 0 or (dx + dy == 2 and dx < 2 and dy < 2)
+            if edge:
+                px[x, y] = rim + (255,)
+            elif highlight and y == y0 + 1:
+                px[x, y] = highlight + (255,)
+            else:
+                px[x, y] = _mix(fill_top, fill_bottom, (y - y0) / max(1, h - 1)) + (255,)
+
+
+def _glow(im, cx, cy, r, colour, strength):
+    px = im.load()
+    for y in range(int(cy - r), int(cy + r) + 1):
+        for x in range(int(cx - r), int(cx + r) + 1):
+            if not (0 <= x < im.width and 0 <= y < im.height):
+                continue
+            d = ((x + 0.5 - cx) ** 2 + (y + 0.5 - cy) ** 2) ** 0.5
+            if d < r:
+                t = strength * (1 - d / r) ** 2
+                p = px[x, y]
+                px[x, y] = _mix(p[:3], colour, t) + (255,)
+
+
+def _cells_of(menu, ch):
+    cells = [(r, c) for r, row in enumerate(menu["layout"]) for c, x in enumerate(row) if x == ch]
+    r0, r1 = min(r for r, _ in cells), max(r for r, _ in cells)
+    c0, c1 = min(c for _, c in cells), max(c for _, c in cells)
+    if len(cells) != (r1 - r0 + 1) * (c1 - c0 + 1):
+        raise ValueError(f"card {ch} is not a rectangle of cells")
+    return c0, r0, c1 - c0 + 1, r1 - r0 + 1
+
+
+def hub_card(im, x, y, w, h, art, label, sub, accent, tall):
+    base = (30, 33, 44)
+    top, bottom = _mix(base, accent, 0.30), _mix(base, accent, 0.07)
+    rim, light = _mix(base, accent, 0.62), _mix(accent, (255, 255, 255), 0.25)
+    if tall:
+        # the name above the card, a short accent line under it
+        tw = hub_text_width(label)
+        hub_text(im, x + (w - tw) // 2, y + 3, label, HUB_TEXT)
+        _rect(im, x + w // 2 - 6, y + 15, x + w // 2 + 6, y + 16, accent)
+        bx0, by0, bx1, by1 = x + 2, y + 19, x + w - 2, y + h - 3
+        _round_box(im, bx0, by0, bx1, by1, top, bottom, rim, light)
+        icon = art.resize((32, 32), Image.NEAREST) if art is not None else None
+        cx, cy = (bx0 + bx1) / 2, by0 + 26
+        _glow(im, cx, cy, 22, accent, 0.55)
+        if icon:
+            im.alpha_composite(icon, (int(cx) - 16, int(cy) - 16))
+        if sub:
+            sw = hub_text_width(sub, 7)
+            hub_text(im, int(cx) - sw // 2, by1 - 15, sub, _mix(HUB_SUB, accent, 0.25), 7)
+    else:
+        bx0, by0, bx1, by1 = x + 1, y + 1, x + w - 1, y + h - 1
+        _round_box(im, bx0, by0, bx1, by1, top, bottom, rim, light)
+        cx = (bx0 + bx1) // 2
+        _glow(im, cx, by0 + 12, 12, accent, 0.40)
+        if art is not None:
+            im.alpha_composite(art, (cx - 8, by0 + 4))
+        if label:
+            tw = hub_text_width(label, 7)
+            hub_text(im, cx - tw // 2, by1 - 11, label, HUB_TEXT, 7)
+
+
+def hub_background(menu, art=None):
+    rows = menu["rows"]
+    H = height(rows)
+    im = Image.new("RGBA", (W, H), (0, 0, 0, 0))
+    # the panel: a dark rim, a vertical gradient, a faint dot grid
+    _rect(im, 0, 0, W, H, HUB_EDGE)
+    px = im.load()
+    for y in range(1, H - 1):
+        c = _mix(HUB_TOP, HUB_BOTTOM, min(1, y / (17 + 18 * rows)))
+        for x in range(1, W - 1):
+            px[x, y] = c + (255,)
+    for y in range(20, 17 + 18 * rows, 6):
+        for x in range(10, W - 10, 6):
+            px[x, y] = _mix(px[x, y][:3], (255, 255, 255), 0.04) + (255,)
+    _rect(im, 1, 1, W - 1, 2, HUB_RIM)
+    for (x, y) in ((0, 0), (1, 0), (0, 1)):
+        for (fx, fy) in ((x, y), (W - 1 - x, y), (x, H - 1 - y), (W - 1 - x, H - 1 - y)):
+            im.putpixel((fx, fy), (0, 0, 0, 0))
+    # the title line: gold fading out to the right
+    for x in range(7, W - 7):
+        t = (x - 7) / (W - 14)
+        px[x, 15] = _mix(GOLD, HUB_TOP, min(1, t * 1.6)) + (255,)
+    buttons = menu.get("buttons", {}) or {}
+    dock = menu.get("dock")
+    done = set()
+    for ch, b in buttons.items():
+        if not isinstance(b, dict) or not b.get("art") or ch in done:
+            continue
+        c0, r0, cw, rh = _cells_of(menu, ch)
+        if dock is not None and r0 == dock:
+            continue
+        done.add(ch)
+        icon = art(b["art"]) if art else None
+        hub_card(im, 7 + 18 * c0, 17 + 18 * r0, 18 * cw, 18 * rh, icon, b.get("label", ""), b.get("sub", ""),
+                 _hex(b.get("accent")), rh >= 4)
+    if dock is not None:
+        y = 17 + 18 * dock
+        row = menu["layout"][dock]
+        used = [c for c, ch in enumerate(row) if ch != "."]
+        x0, x1 = 7 + 18 * min(used), 7 + 18 * (max(used) + 1)
+        _round_box(im, x0, y, x1, y + 18, DOCK, DOCK, DOCK_RIM)
+        for c in used[1:]:
+            if row[c - 1] != ".":
+                _rect(im, 7 + 18 * c, y + 3, 7 + 18 * c + 1, y + 15, DOCK_LINE)
+        for c in used:
+            b = buttons.get(row[c]) or {}
+            cx = 7 + 18 * c
+            if b.get("art"):
+                if art:
+                    im.alpha_composite(art(b["art"]), (cx + 1, y + 1))
+            else:
+                # the player's head: a gold ring round its socket
+                _round_box(im, cx - 1, y - 1, cx + 19, y + 19, DOCK, DOCK, GOLD)
+    # where the player's inventory starts, then its slots (as every menu)
+    g = 18 * rows + 23
+    _rect(im, 7, g, W - 7, g + 1, EDGE_DARK)
+    _rect(im, 7, g + 1, W - 7, g + 2, SLOT_BOTTOM)
+    inv = 30 + 18 * rows
+    for r in range(3):
+        for c in range(9):
+            slot(im, 7 + 18 * c, inv + 18 * r)
+    for c in range(9):
+        slot(im, 7 + 18 * c, inv + 58)
+    return im

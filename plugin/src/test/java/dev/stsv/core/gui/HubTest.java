@@ -118,7 +118,8 @@ class HubTest {
         }
         // the first screen stays short: a handful of buttons, the rest one step in
         MenuSpec first = pages.getFirst();
-        assertTrue(first.buttons().size() <= 7, "the first screen has few buttons: " + first.buttons().keySet());
+        // a few big cards and the dock: nothing more on the first screen
+        assertTrue(first.buttons().size() <= 12, "the first screen has few buttons: " + first.buttons().keySet());
         // every page keeps the full six rows (bigger buttons, not a smaller screen)
         for (MenuSpec page : pages) assertEquals(6, page.rows(), page.id() + " has six rows");
         assertTrue(problems.isEmpty(), String.join("\n", problems));

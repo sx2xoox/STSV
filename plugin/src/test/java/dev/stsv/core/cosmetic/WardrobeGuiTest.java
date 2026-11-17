@@ -198,7 +198,7 @@ class WardrobeGuiTest {
         List<String> problems = new ArrayList<>();
         List<MenuSpec> menus = MenuSpec.loadAll(List.of(new ContentPack("stsv", "stsv", PACK)), problems);
         assertTrue(problems.isEmpty(), problems.toString());
-        assertEquals(java.util.Set.of("stsv:wardrobe", "stsv:profile", "stsv:titles", "stsv:achievements", "stsv:achievement_list", "stsv:hub", "stsv:hub_travel", "stsv:hub_money", "stsv:hub_style", "stsv:hub_rank", "stsv:gacha", "stsv:nick_colors", "stsv:tuning",
+        assertEquals(java.util.Set.of("stsv:wardrobe", "stsv:profile", "stsv:titles", "stsv:achievements", "stsv:achievement_list", "stsv:hub", "stsv:hub_money", "stsv:hub_style", "stsv:hub_rank", "stsv:gacha", "stsv:nick_colors", "stsv:tuning",
                         "stsv:donation", "stsv:donation_buy", "stsv:emote_wheel", "stsv:emote_pick"),
                 menus.stream().map(MenuSpec::id).collect(java.util.stream.Collectors.toSet()));
         Integer panel = null;
@@ -211,10 +211,12 @@ class WardrobeGuiTest {
                 assertEquals(new StringBuilder(used).reverse().toString(), used, m.id() + " row " + row + " is symmetric");
             }
             BufferedImage im = ImageIO.read(ASSETS.resolve("textures/" + m.background().getKey() + ".png").toFile());
-            // one look: the same panel colour beside the title on every menu
+            // one look: the same panel colour beside the title on every menu (the hub has its own: theme: hub)
             int here = im.getRGB(100, 8);
-            if (panel == null) panel = here;
-            assertEquals(panel.intValue(), here, m.id() + " panel colour");
+            if (!m.id().matches("stsv:hub(_.*)?")) {
+                if (panel == null) panel = here;
+                assertEquals(panel.intValue(), here, m.id() + " panel colour");
+            }
             for (MenuSpec.Button b : m.buttons().values()) {
                 if (b.on().icon() != null && b.on().icon().getNamespace().equals("stsv")) {
                     assertTrue(iconExists(b.on().icon()), m.id() + " " + b.on().icon());
