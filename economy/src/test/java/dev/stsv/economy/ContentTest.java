@@ -339,7 +339,7 @@ class ContentTest {
         List<String> problems = new ArrayList<>();
         List<MenuSpec> menus = MenuSpec.loadAll(List.of(new ContentPack("economy", "economy", PACK)), problems);
         assertTrue(problems.isEmpty(), String.join("\n", problems));
-        assertEquals(28, menus.size());   // the hub is 5 menus: the first screen and 4 category pages
+        assertEquals(30, menus.size());   // the hub is 7 menus: the first screen, 4 category pages and the 2 minigame pages
         for (MenuSpec m : menus) {
             // the button grid is mirror-symmetric, row by row (the machine's lanes are fixed by its code; their
             // empty cells hold arrows, so they read as full rows)

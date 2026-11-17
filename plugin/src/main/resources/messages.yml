@@ -884,7 +884,7 @@ backup:
 
 # 미니게임 (/미니게임) · 서킷 (/서킷: 카트 레이스). README "미니게임 · 서킷"
 minigame:
-  off: "<red>미니게임이 꺼져 있어요."
+  disabled: "<red>미니게임이 꺼져 있어요."
   returned: "<green>미니게임에 들어가기 전으로 돌아왔어요. <dark_gray>(인벤토리 · 위치)"
   no-entry: "<red>미니게임 월드에는 미니게임으로만 갈 수 있어요. <dark_gray>/미니게임"
 

@@ -240,9 +240,10 @@ final class Race {
             int at = path.locate(s.x(), s.y(), s.z(), -1, 0).index();
             r.progress = new RaceProgress(path.size(), layout.gates(), track.laps(), at);
             // written onto them first, then their things put away
-            ReturnPoint.save(p);
+            // whatever is on the cursor or in the crafting grid goes back into the inventory first (closing does it)
             p.closeInventory();
             if (p.isInsideVehicle()) p.leaveVehicle();
+            ReturnPoint.save(p);
             p.getInventory().clear();
             p.setGameMode(GameMode.ADVENTURE);
             for (var e : new ArrayList<>(p.getActivePotionEffects())) p.removePotionEffect(e.getType());
@@ -394,7 +395,8 @@ final class Race {
             // off the track: fallen (not over a jump's gap, where flying is the point) or out past the barrier
             boolean gap = layout.gap(spot.index()) || layout.gap(spot.index() + 12) || layout.gap(spot.index() - 12);
             double road = layout.height(spot.index());
-            boolean fell = ly < road - (gap ? 4.5 : 2.6) || ly < -6;
+            // (over a jump's gap the kart flies above the road; in the canal under it, it is well below)
+            boolean fell = ly < road - (gap ? 1.4 : 2.6) || ly < -6;
             boolean outside = Math.abs(spot.lateral()) > path.width(spot.index()) / 2 + 6.5;
             r.offTicks = fell || outside ? r.offTicks + 1 : 0;
             if (r.offTicks > 10) {

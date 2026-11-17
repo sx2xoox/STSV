@@ -509,6 +509,16 @@
 193,
 195
 ],
+"polished_tuff": [
+98,
+104,
+100
+],
+"polished_tuff_slab": [
+98,
+104,
+100
+],
 "poppy": [
 129,
 65,
@@ -610,11 +620,6 @@
 224
 ],
 "smooth_red_sandstone": [
-181,
-98,
-31
-],
-"smooth_red_sandstone_slab": [
 181,
 98,
 31

@@ -103,7 +103,7 @@ public final class MinigameModule implements StsvModule, Listener, TabExecutor {
     public void enable(STSVPlugin plugin) {
         this.plugin = plugin;
         enabled = plugin.getConfig().getBoolean("minigames.enabled");
-        worldName = plugin.getConfig().getString("minigames.world", "stsv_minigame");
+        worldName = plugin.getConfig().getString("minigames.world");
         for (String name : new String[]{"미니게임", "서킷"}) {
             PluginCommand c = plugin.getCommand(name);
             if (c != null) {
@@ -214,7 +214,7 @@ public final class MinigameModule implements StsvModule, Listener, TabExecutor {
             return true;
         }
         if (circuit == null) {
-            p.sendMessage(Lang.msg("minigame.off"));
+            p.sendMessage(Lang.msg("minigame.disabled"));
             return true;
         }
         if (command.getName().equals("미니게임")) {

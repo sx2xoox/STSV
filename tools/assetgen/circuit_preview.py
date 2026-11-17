@@ -223,9 +223,19 @@ def main():
         build_colors(sys.argv[sys.argv.index("--colors") + 1])
         return
     tracks = [a for a in sys.argv[1:] if not a.startswith("-")] or sorted(p.stem for p in DATA.glob("*.json"))
+    import yaml
     for t in tracks:
         overhead(t)
         view3d(t)
+        # a second view where the track does its trick: the jump (the city: the overpass over the crossing)
+        spec = yaml.safe_load((REPO / "content/stsv/circuit/tracks" / f"{t}.yml").read_text())
+        path = json.loads((DATA / f"{t}.json").read_text())["path"]
+        jump = next((f for f in spec.get("features", []) if f["type"] == "jump"), None)
+        if t == "city":
+            view3d(t, centre=(0, 0), radius=40, az=20, el=32, name="overpass")
+        if jump:
+            p = path[int(jump["at"] * len(path))]
+            view3d(t, centre=(p[0], p[1]), radius=30, az=60, el=30, name="jump")
 
 
 if __name__ == "__main__":

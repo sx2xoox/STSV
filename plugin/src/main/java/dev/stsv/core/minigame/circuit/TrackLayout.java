@@ -178,11 +178,18 @@ public final class TrackLayout {
                 reserve(cx, cz, half + 6 - c.d);
                 if (gap[c.i]) {
                     // a jump's canal: no road, no ground, a liquid two blocks down
-                    if (c.d <= half + 4) {
-                        put(cx, -1, cz, "minecraft:air");
-                        put(cx, -2, cz, th.pit());
-                        put(cx, -3, cz, th.fill());
+                    if (c.d > half + 2) {
+                        // its sides: a wall up out of the canal to the barrier's height (nobody leaves the track by the gap)
+                        double hw = c.h;
+                        for (int k = -14; k <= 14; k++) hw = Math.max(hw, heights[path.wrap(c.i + k)]);
+                        int base = (int) Math.ceil(hw);
+                        for (int y = -3; y < base; y++) put(cx, y, cz, th.fill());
+                        put(cx, base, cz, th.walls().get(0));
+                        continue;
                     }
+                    put(cx, -1, cz, "minecraft:air");
+                    put(cx, -2, cz, th.pit());
+                    put(cx, -3, cz, th.fill());
                     continue;
                 }
                 String surface, surfaceSlab;
@@ -956,6 +963,11 @@ public final class TrackLayout {
 
     /** The field's top block at (x, z): the theme's ground blocks in soft patches. */
     public String ground(int x, int z) {
+        if (th.id().equals("city")) {
+            // paving slabs: seams every 6 blocks, a few darker slabs among them
+            if (Math.floorMod(x, 6) == 0 || Math.floorMod(z, 6) == 0) return "minecraft:light_gray_concrete";
+            return hash(Math.floorDiv(x, 6), Math.floorDiv(z, 6)) < 0.18 ? "minecraft:polished_andesite" : "minecraft:gray_concrete";
+        }
         double n = noise(x / 11.0, z / 11.0) * 0.8 + noise(x / 4.0 + 50, z / 4.0) * 0.2;
         List<String> g = th.ground();
         int k = n < 0.6 ? 0 : Math.min(g.size() - 1, 1 + (int) ((n - 0.6) / 0.4 * (g.size() - 1)));

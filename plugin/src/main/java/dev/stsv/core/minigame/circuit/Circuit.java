@@ -220,6 +220,7 @@ public final class Circuit {
             b.set(id + ".bounds.max-y", layout.maxY());
             b.set(id + ".built", System.currentTimeMillis());
             saveBuilt(b);
+            builtNow.add(id);
             spawnLabels(world, id);
             plugin.getLogger().info("[서킷] '" + layout.spec().name() + "' 완성 (" + (System.currentTimeMillis() - started) / 1000 + "초)");
             for (Player p : Bukkit.getOnlinePlayers()) if (p.hasPermission("stsv.admin")) p.sendMessage(Lang.msg("circuit.built", "track", layout.spec().name()));
@@ -229,12 +230,17 @@ public final class Circuit {
         builder.start();
     }
 
+    /** the tracks standing in the world now (built at least once: data/circuit_built.yml), kept in memory */
+    private final Set<String> builtNow = new HashSet<>();
+
     private File builtPath() {
         return new File(plugin.getDataFolder(), "data/circuit_built.yml");
     }
 
     private YamlConfiguration builtFile() {
-        return YamlConfiguration.loadConfiguration(builtPath());
+        YamlConfiguration y = YamlConfiguration.loadConfiguration(builtPath());
+        for (String id : y.getKeys(false)) if (y.contains(id + ".hash")) builtNow.add(id);
+        return y;
     }
 
     private void saveBuilt(YamlConfiguration y) {
@@ -262,7 +268,7 @@ public final class Circuit {
     }
 
     public boolean ready(String id) {
-        return tracks.containsKey(id) && !building.containsKey(id) && builtFile().contains(id + ".hash");
+        return tracks.containsKey(id) && !building.containsKey(id) && builtNow.contains(id);
     }
 
     public void disable() {
