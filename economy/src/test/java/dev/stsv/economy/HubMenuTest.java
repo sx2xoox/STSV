@@ -32,6 +32,9 @@ class HubMenuTest {
         }
     }
 
+    /** Player commands used once per account: no hub button. */
+    private static final Set<String> ONCE = Set.of("기본템");
+
     private static Set<String> commands(YamlConfiguration pluginYml, boolean aliases) {
         Set<String> out = new HashSet<>();
         ConfigurationSection cs = pluginYml.getConfigurationSection("commands");
@@ -94,7 +97,8 @@ class HubMenuTest {
         // every player command of the economy (admin tools live under the core's /관리자)
         Set<String> firstWords = new HashSet<>();
         for (String c : ecoUsed) firstWords.add(c.split(" ")[0]);
-        for (String c : commands(ecoYml, false)) if (!firstWords.contains(c)) problems.add("economy:hub has no button for /" + c);
+        // (a command used once per account, the starter kit, is told about, not kept on a button)
+        for (String c : commands(ecoYml, false)) if (!firstWords.contains(c) && !ONCE.contains(c)) problems.add("economy:hub has no button for /" + c);
         for (MenuSpec page : eco) {
             boolean back = false;
             for (MenuSpec.Button b : page.buttons().values()) {

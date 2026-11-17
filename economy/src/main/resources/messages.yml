@@ -61,6 +61,7 @@ mail:
     mission_bonus: "미션 완료 보너스"
     vehicle_return: "관리자가 돌려보낸 탈것"
     fish_trap_reset: "야생월드 초기화로 돌려받은 통발·가두리"
+    starter: "기본템"
 
 shop:
   not-buying: "<red>상점이 사지 않는 물건입니다. <gray>(이름 바꾼·인챈트·닳은 것 포함)"
@@ -1081,3 +1082,6 @@ land-log:
   owner-told: "<green>운영자가 {player}이(가) 내 땅에서 한 것을 되돌렸습니다.</green> <dark_gray>(/땅 기록)"
   error: "<red>땅 기록을 처리하지 못했습니다. <gray>(서버 로그)"
 
+starter:
+  given: "<green>기본템을 받았습니다! <gray>기계 {machines}종 · 책장 64 · 마법부여대 · 청금석 64 · 스테이크 64 · 경험치 10,000 <dark_gray>(자리가 모자라면 /우편함)"
+  already: "<red>기본템은 계정마다 한 번만 받을 수 있습니다."

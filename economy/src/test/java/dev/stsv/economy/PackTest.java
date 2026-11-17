@@ -107,9 +107,11 @@ class PackTest {
         assertTrue(files.containsKey("assets/economy/items/gui/coins.json"), "button icons");
         assertTrue(files.containsKey("assets/stsv/textures/gui/wardrobe.png"), "the core pack is still there");
         JsonObject font = com.google.gson.JsonParser.parseString(new String(files.get("assets/stsv/font/menus.json"))).getAsJsonObject();
+        // one picture per background (a framed one is cut into tiles: a provider per row of tiles, the same file)
         long economyBackgrounds = font.getAsJsonArray("providers").asList().stream()
-                .filter(p -> p.getAsJsonObject().has("file") && p.getAsJsonObject().get("file").getAsString().startsWith("economy:gui/")).count();
-        assertEquals(24, economyBackgrounds, "every economy menu background is in the menu font");
+                .filter(p -> p.getAsJsonObject().has("file") && p.getAsJsonObject().get("file").getAsString().startsWith("economy:gui/"))
+                .map(p -> p.getAsJsonObject().get("file").getAsString()).distinct().count();
+        assertEquals(28, economyBackgrounds, "every economy menu background is in the menu font");
         assertTrue(files.containsKey("assets/economy/font/stockgraph.json"), "stock chart font");
         assertFalse(files.containsKey("assets/economy/font/fishring.json"), "the fishing ring is gone");
         assertTrue(files.containsKey("assets/economy/font/fishicon.json"), "fish picture font");

@@ -6,6 +6,10 @@ description: STSV 경제 서버 (계속 운영. 상점, 시세, 거래소, 경�
 authors: [STSV]
 depend: [STSV]
 commands:
+  기본템:
+    description: 새로 온 사람의 기본 아이템 (계정마다 한 번)
+    aliases: [starter, kit]
+    permission: stsv.economy.play
   상점:
     description: 관리자 상점 (판매, 구매)
     aliases: [shop]

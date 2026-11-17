@@ -64,7 +64,31 @@ final class Commands {
         return null;
     }
 
+    /**
+     * /기본템: the starter kit, once per account (kv starter.<uuid>; a full economy reset gives it again): one of every
+     * machine, 64 bookshelves, an enchanting table, 64 lapis, 64 steak and 10,000 experience points. What does not
+     * fit goes to the mailbox.
+     */
+    static void starter(EcoPlugin eco, org.bukkit.entity.Player p) {
+        String key = "starter." + p.getUniqueId();
+        if (eco.kv().has(key)) {
+            p.sendMessage(Lang.msg("starter.already"));
+            return;
+        }
+        eco.kv().set(key, System.currentTimeMillis());
+        List<org.bukkit.inventory.ItemStack> kit = new java.util.ArrayList<>();
+        for (var m : eco.machines().specs().values()) dev.stsv.economy.util.Items.create(m.item(), 1).ifPresent(kit::add);
+        kit.add(new org.bukkit.inventory.ItemStack(org.bukkit.Material.BOOKSHELF, 64));
+        kit.add(new org.bukkit.inventory.ItemStack(org.bukkit.Material.ENCHANTING_TABLE, 1));
+        kit.add(new org.bukkit.inventory.ItemStack(org.bukkit.Material.LAPIS_LAZULI, 64));
+        kit.add(new org.bukkit.inventory.ItemStack(org.bukkit.Material.COOKED_BEEF, 64));
+        for (var it : kit) eco.mail().deliver(p.getUniqueId(), it, "starter");
+        p.giveExp(10_000);
+        p.sendMessage(Lang.msg("starter.given", "machines", eco.machines().specs().size()));
+    }
+
     static void register(EcoPlugin eco) {
+        eco.command("기본템", new Simple(player((p, a) -> starter(eco, p)), null));
         eco.command("상점", new Simple(player((p, a) -> {
             String sub = a.length > 0 ? a[0] : "";
             switch (sub) {
