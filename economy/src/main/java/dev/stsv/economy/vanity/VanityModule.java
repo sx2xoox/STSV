@@ -234,10 +234,11 @@ public final class VanityModule extends EcoModule {
         });
         String date = DateTimeFormatter.ofPattern("yyyy.MM.dd").withZone(ZoneId.systemDefault()).format(Instant.ofEpochMilli(m.at()));
         // the plate grows upwards from its spot: it starts low so its lines stay under the head's chin
+        // turned to the viewer about both axes (CENTER): seen from below or above it does not lean back like a sign
         TextDisplay plate = at.getWorld().spawn(at.clone().add(0, 0.25, 0), TextDisplay.class, d -> {
             d.addScoreboardTag(tag);
             d.setPersistent(false);
-            d.setBillboard(Display.Billboard.VERTICAL);
+            d.setBillboard(Display.Billboard.CENTER);
             d.setBackgroundColor(org.bukkit.Color.fromARGB(170, 20, 16, 8));
             d.text(Text.mm(Lang.raw("vanity.monument-plate", "player", Players.name(m.player()), "text", m.text(), "date", date)));
         });
