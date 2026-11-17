@@ -252,6 +252,7 @@ b2d529ed3f7284a5797c57db7f6dbefd7de7334b economy/assets/economy/textures/gui/auc
 5919ff1479fa4a6abe2449c9d93f6e2874584eb7 economy/assets/economy/textures/gui/codex.png
 5b00d06e3a9d564f70b4400d1d32844440861273 economy/assets/economy/textures/gui/codex.png
 e0cee6437ace6302afef58148af51b355e631362 economy/assets/economy/textures/gui/codex.png
+0c0cd3064270ccd440ad060bb0140de9117a6b60 economy/assets/economy/textures/gui/hub.png
 57c2456f1faf6fdf171719b00fdf66bdf96d0b37 economy/assets/economy/textures/gui/hub.png
 5a393460dbf17b1b8c1a7d32e1284fbc78c1dab2 economy/assets/economy/textures/gui/hub.png
 6152a80a6d02324c2b3460fdd7e280ffb34e96ee economy/assets/economy/textures/gui/hub.png
@@ -260,8 +261,13 @@ f0b59799447e39bf6c768c657b4529d47054021b economy/assets/economy/textures/gui/hub
 f92d727deccc54f29a139dba0f3684da504141a6 economy/assets/economy/textures/gui/hub.png
 9935bdd9c324f838b14943abf84df6b824378a5f economy/assets/economy/textures/gui/hub_market.png
 b79e68a1390e91d4c1c4b0809d93e0c23ad86adc economy/assets/economy/textures/gui/hub_me.png
+eafecb1a2edf751eebb4388dc3533207828f5db0 economy/assets/economy/textures/gui/hub_rank.png
+bbd30e5f6853e7447f4d65e35be59102e9182e9f economy/assets/economy/textures/gui/hub_style.png
+fca8d79fb38a966717c3f73efb2604c96918ee77 economy/assets/economy/textures/gui/hub_trade.png
 09d3a0bd3e7bf00549fa8a51269b8a7ebd8329ed economy/assets/economy/textures/gui/hub_travel.png
+6c45dc95ee103b94394ea9d881106133f147be2e economy/assets/economy/textures/gui/hub_travel.png
 97719755371fda0a7f84d7ca7c4ff0fe0c4c413d economy/assets/economy/textures/gui/hub_work.png
+fe1231958a68c91beda6683acc76b92c475c78b9 economy/assets/economy/textures/gui/hub_work.png
 17e3f362a19a5eb354b3775fa94ec64ccf91072c economy/assets/economy/textures/gui/jobs.png
 74a55de7d2c3cf93b66bf77230ddfdedd52acf8b economy/assets/economy/textures/gui/jobs.png
 9299162d3ab62dbbc4074e0d36cd8b7d56234394 economy/assets/economy/textures/gui/jobs.png
@@ -577,6 +583,7 @@ bd746e0aa28d9eda330df753ba268835abbb9ed8 economy/menus/hub.yml
 c69b63a7dfa86cda6d18cf9e01c68b4f71c4da7e economy/menus/hub.yml
 da84b6a7fc90adab9f932457a7f8803f9086f025 economy/menus/hub.yml
 dc7e382d51152ab33d26259f7410f06d89731060 economy/menus/hub.yml
+e4574aa6af6ac86a647ac630a84c859102aff4b6 economy/menus/hub.yml
 f6363cdf5ef1d819aed5c0532b88104865ebeef6 economy/menus/hub.yml
 15e908dc63ccc9a0bc5bcb6ff3d532801a613161 economy/menus/jobs.yml
 2497ddc50627760b27272a944284cffaadf03ee5 economy/menus/jobs.yml
