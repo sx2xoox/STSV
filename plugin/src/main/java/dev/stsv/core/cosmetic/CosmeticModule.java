@@ -163,6 +163,7 @@ public final class CosmeticModule implements StsvModule, Listener {
         for (Player p : Bukkit.getOnlinePlayers()) {
             if (packets != null) {
                 packets.inject(p);
+                packets.ownView(p, selfView(p));
                 if (armorHidden(p)) {
                     packets.hideArmor(p.getEntityId(), true);
                     packets.hideSelf(p, true);
@@ -227,6 +228,8 @@ public final class CosmeticModule implements StsvModule, Listener {
             plugin.getLogger().warning("config.yml " + e.getMessage() + " - 거리별 단순화를 끕니다");
             lod = null;
         }
+        // the wearer's own view (SelfLift): how far above the head their own displays sit on their own client
+        if (packets != null) packets.ownLift(plugin.getConfig().getDouble("cosmetics.own-view-lift"));
         float range = lod == null ? 1f : lod.viewRange();
         attachments.viewRange(range);
         fx.viewRange(range);
@@ -351,6 +354,7 @@ public final class CosmeticModule implements StsvModule, Listener {
     public void selfView(Player p, boolean on) {
         if (on) p.getPersistentDataContainer().set(keySelfView, PersistentDataType.BYTE, (byte) 1);
         else p.getPersistentDataContainer().remove(keySelfView);
+        if (packets != null) packets.ownView(p, on);   // before the displays are shown: their packets are rewritten
         attachments.selfViewChanged(p);
     }
 
@@ -701,6 +705,7 @@ public final class CosmeticModule implements StsvModule, Listener {
     public void onJoinInject(PlayerJoinEvent e) {
         if (packets != null) {
             packets.inject(e.getPlayer());
+            packets.ownView(e.getPlayer(), selfView(e.getPlayer()));
             if (armorHidden(e.getPlayer())) {
                 packets.hideArmor(e.getPlayer().getEntityId(), true);
                 packets.hideSelf(e.getPlayer(), true);

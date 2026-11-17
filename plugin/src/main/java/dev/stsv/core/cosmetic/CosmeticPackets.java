@@ -5,6 +5,7 @@ import io.netty.channel.ChannelHandlerContext;
 import io.netty.channel.ChannelOutboundHandlerAdapter;
 import io.netty.channel.ChannelPromise;
 import org.bukkit.Bukkit;
+import org.bukkit.Location;
 import org.bukkit.entity.Player;
 import org.bukkit.inventory.ItemStack;
 
@@ -76,6 +77,24 @@ final class CosmeticPackets {
     private final Method dataId, dataItems, valueId, valueSerializer, valueValue, valueCreate;
     /** Display.ItemDisplay.DATA_ITEM_STACK_ID (re-sending a display's item to one viewer); null when unknown */
     private final Object itemAccessor;
+
+    /**
+     * The wearer's own view (see {@link SelfLift}): on their own client their worn displays ride an invisible
+     * entity (an interaction entity of height {@link #ownLift}, known only to that client) on top of them
+     * instead of riding them directly, and are drawn lowered by the same height. The picture is the same, but
+     * the displays themselves now sit above the head, outside the first-person view, so the game does not draw
+     * them there, and does in third person (F5). No shader: works with shader packs. Null / 0: off.
+     */
+    private final Object liftType, vecZero;
+    private final Constructor<?> addEntityNew;
+    private final Object accTranslation, accWidth, accHeight, accBillboard, accBrightness, accLiftWidth, accLiftHeight;
+    private final int idTranslation, idWidth, idHeight, idBillboard, idBrightness;
+    private final Class<?> respawnCls, loginCls;
+    private volatile float ownLift;
+    /** wearer -> the linked displays that are worn cosmetics (the ones lifted on the wearer's own client) */
+    private final Map<Integer, Set<Integer>> wornOf = new ConcurrentHashMap<>();
+    /** debug counter: own-view links sent */
+    final java.util.concurrent.atomic.AtomicLong ownLinks = new java.util.concurrent.atomic.AtomicLong();
 
     /** entity id of a wearer -> the cosmetic (NMS stack) other players see on their head. */
     private final Map<Integer, Object> othersView = new ConcurrentHashMap<>();
@@ -196,6 +215,56 @@ final class CosmeticPackets {
             log.warning("치장 근접 페이드 · 거리별 단순화: 엔티티 데이터 패킷을 쓸 수 없어 내 치장도 남의 것과 같은 거리에서 사라지고, "
                     + "먼 치장도 원래 모델로 보입니다: " + e);
         }
+        // optional: the wearer's own view (SelfLift)
+        Object lt = null, vz = null, aT = null, aW = null, aH = null, aB = null, aBr = null, aLw = null, aLh = null;
+        Constructor<?> an = null;
+        Class<?> rc = null, lc = null;
+        int[] ids = new int[5];
+        if (dc != null) {
+            try {
+                Class<?> type = Class.forName("net.minecraft.world.entity.EntityType", false, cl);
+                Class<?> vec = Class.forName("net.minecraft.world.phys.Vec3", false, cl);
+                lt = type.getField("INTERACTION").get(null);
+                vz = vec.getField("ZERO").get(null);
+                an = addEntityCls.getConstructor(int.class, UUID.class, double.class, double.class, double.class, float.class, float.class,
+                        type, int.class, vec, double.class);
+                Class<?> display = Class.forName("net.minecraft.world.entity.Display", false, cl);
+                Class<?> interaction = Class.forName("net.minecraft.world.entity.Interaction", false, cl);
+                Class<?> accessor = Class.forName("net.minecraft.network.syncher.EntityDataAccessor", false, cl);
+                Method accId = accessor.getMethod("id");
+                aT = staticField(display, "DATA_TRANSLATION_ID");
+                aW = staticField(display, "DATA_WIDTH_ID");
+                aH = staticField(display, "DATA_HEIGHT_ID");
+                aB = staticField(display, "DATA_BILLBOARD_RENDER_CONSTRAINTS_ID");
+                aBr = staticField(display, "DATA_BRIGHTNESS_OVERRIDE_ID");
+                aLw = staticField(interaction, "DATA_WIDTH_ID");
+                aLh = staticField(interaction, "DATA_HEIGHT_ID");
+                Object[] all = {aT, aW, aH, aB, aBr};
+                for (int i = 0; i < all.length; i++) ids[i] = (int) accId.invoke(all[i]);
+                rc = Class.forName(game + "ClientboundRespawnPacket", false, cl);
+                lc = Class.forName(game + "ClientboundLoginPacket", false, cl);
+            } catch (ReflectiveOperationException e) {
+                lt = null;
+                log.warning("치장 내 화면 보기(1인칭에서 숨기기): 서버 클래스가 달라 쓸 수 없습니다. 내 치장은 예전처럼 보입니다: " + e);
+            }
+        }
+        liftType = lt;
+        vecZero = vz;
+        addEntityNew = an;
+        accTranslation = aT;
+        accWidth = aW;
+        accHeight = aH;
+        accBillboard = aB;
+        accBrightness = aBr;
+        accLiftWidth = aLw;
+        accLiftHeight = aLh;
+        idTranslation = ids[0];
+        idWidth = ids[1];
+        idHeight = ids[2];
+        idBillboard = ids[3];
+        idBrightness = ids[4];
+        respawnCls = rc;
+        loginCls = lc;
         dataCls = dc;
         dataNew = dn;
         dataId = di;
@@ -206,6 +275,144 @@ final class CosmeticPackets {
         valueValue = vv;
         valueCreate = vcr;
         itemAccessor = acc;
+    }
+
+    private static Object staticField(Class<?> owner, String name) throws ReflectiveOperationException {
+        Field f = owner.getDeclaredField(name);
+        f.setAccessible(true);
+        return f.get(null);
+    }
+
+    // ------------------------------------------------------------------------------------------
+    // The wearer's own view (SelfLift)
+    // ------------------------------------------------------------------------------------------
+
+    /** Blocks the wearer's own displays sit above their riding point on the wearer's client; 0 = off. */
+    void ownLift(double blocks) {
+        ownLift = liftType == null ? 0f : (float) Math.max(0, blocks);
+    }
+
+    boolean ownLiftOn() {
+        return ownLift > 0;
+    }
+
+    /**
+     * The wearer sees their own displays (or no longer does). Before the displays are shown to them: the spawn
+     * packets are rewritten for a wearer who has this on.
+     */
+    void ownView(Player p, boolean on) {
+        Handler h = handlers.get(p.getUniqueId());
+        if (h == null) return;
+        Location l = p.getLocation();
+        h.x = l.getX();
+        h.y = l.getY();
+        h.z = l.getZ();
+        h.ownView = on;
+    }
+
+    /**
+     * The light at the wearer (block and sky, 0-15): their own lifted displays are lit as the wearer is (a display is
+     * lit where it sits, and lifted it may sit inside the ceiling).
+     *
+     * @param displays their worn displays without a brightness of their own
+     */
+    void ownLight(Player p, int[] displays, int block, int sky) {
+        Handler h = handlers.get(p.getUniqueId());
+        if (h == null || dataCls == null || accBrightness == null) return;
+        Location l = p.getLocation();
+        h.x = l.getX();
+        h.y = l.getY();
+        h.z = l.getZ();
+        int packed = block << 4 | sky << 20;
+        if (packed == h.light) return;
+        h.light = packed;
+        if (!h.ownView || ownLift <= 0) return;
+        try {
+            for (int d : displays) send(p, dataNew.newInstance(d, List.of(valueCreate.invoke(null, accBrightness, packed))));
+        } catch (Throwable t) {
+            warn(t);
+        }
+    }
+
+    /** The id of the lifting entity on this wearer's client (no entity of the server has it). */
+    private static int liftId(Handler h) {
+        return 0x7F000000 | (h.entityId & 0x00FFFFFF);
+    }
+
+    /** Whether this wearer's own displays are lifted on their client right now. */
+    private boolean lifted(Handler h, int wearer) {
+        return ownLift > 0 && h.ownView && wearer == h.entityId && !wornOf.getOrDefault(wearer, Set.of()).isEmpty();
+    }
+
+    /**
+     * The packets that tell one client who rides the wearer. Everyone: the real passengers and the displays. The
+     * wearer themselves (own view on): the real passengers, the displays that are not worn cosmetics and the lifting
+     * entity (made first if their client does not have it), then the worn displays riding that.
+     *
+     * @return null when the wearer has no displays (the packet stays as it is)
+     */
+    private List<Object> linkPackets(int wearer, int[] real, Handler h) throws ReflectiveOperationException {
+        int[] ids = linked(wearer, real);
+        if (ids == null) return null;
+        if (!lifted(h, wearer)) return List.of(passengers(wearer, ids));
+        Set<Integer> worn = wornOf.getOrDefault(wearer, Set.of());
+        int lift = liftId(h);
+        List<Object> out = new ArrayList<>(4);
+        if (!h.liftSpawned) {
+            float height = ownLift;
+            out.add(addEntityNew.newInstance(lift, UUID.randomUUID(), h.x, h.y, h.z, 0f, 0f, liftType, 0, vecZero, 0d));
+            out.add(dataNew.newInstance(lift, List.of(valueCreate.invoke(null, accLiftWidth, 0f), valueCreate.invoke(null, accLiftHeight, height))));
+            h.liftSpawned = true;
+        }
+        java.util.stream.IntStream direct = java.util.Arrays.stream(ids).filter(i -> !worn.contains(i));
+        out.add(passengers(wearer, java.util.stream.IntStream.concat(direct, java.util.stream.IntStream.of(lift)).toArray()));
+        out.add(passengers(lift, java.util.Arrays.stream(ids).filter(worn::contains).toArray()));
+        ownLinks.incrementAndGet();
+        return out;
+    }
+
+    /**
+     * Entity data of one of the wearer's own worn displays, going to the wearer: drawn lowered by the lift, culled by
+     * a small box at the display itself (above the head), turned to the camera about the vertical axis only (a full
+     * billboard would swing the lowered model round the display), lit as the wearer is.
+     */
+    private List<Object> ownData(int id, List<?> values, List<Object> copy, Handler h) throws ReflectiveOperationException {
+        float lift = ownLift;
+        boolean translation = false, width = false, height = false, brightness = false;
+        for (int i = 0; i < values.size(); i++) {
+            Object v = (copy != null ? copy : values).get(i);
+            int key = (int) valueId.invoke(v);
+            Object to = null;
+            if (key == idTranslation) {
+                org.joml.Vector3fc t = (org.joml.Vector3fc) valueValue.invoke(v);
+                to = new org.joml.Vector3f(t.x(), t.y() - lift, t.z());
+                translation = true;
+            } else if (key == idWidth) {
+                to = SelfLift.CULL_BOX;
+                width = true;
+            } else if (key == idHeight) {
+                to = SelfLift.CULL_BOX;
+                height = true;
+            } else if (key == idBillboard) {
+                if ((byte) valueValue.invoke(v) == 3) to = (byte) 1;   // CENTER -> VERTICAL
+            } else if (key == idBrightness) {
+                brightness = true;
+                if ((int) valueValue.invoke(v) == -1 && h.light >= 0) to = h.light;
+            }
+            if (to == null) continue;
+            if (copy == null) copy = new ArrayList<>(values);
+            copy.set(i, valueNew.newInstance(key, valueSerializer.invoke(v), to));
+        }
+        // the first data after the display appeared on this client carries everything that is not the default: what
+        // is missing there is at its default, and gets the own-view value now
+        if (h.lowered.add(id)) {
+            if (copy == null) copy = new ArrayList<>(values);
+            if (!translation) copy.add(valueCreate.invoke(null, accTranslation, new org.joml.Vector3f(0, -lift, 0)));
+            if (!width) copy.add(valueCreate.invoke(null, accWidth, SelfLift.CULL_BOX));
+            if (!height) copy.add(valueCreate.invoke(null, accHeight, SelfLift.CULL_BOX));
+            if (!brightness && h.light >= 0) copy.add(valueCreate.invoke(null, accBrightness, h.light));
+        }
+        return copy;
     }
 
     // ------------------------------------------------------------------------------------------
@@ -253,6 +460,7 @@ final class CosmeticPackets {
         armorHidden.clear();
         links.clear();
         wearerOf.clear();
+        wornOf.clear();
         riders.clear();
     }
 
@@ -333,8 +541,19 @@ final class CosmeticPackets {
      * @param realPassengers what really rides the wearer on the server (kept in the list)
      */
     void link(int wearer, int[] displays, int[] realPassengers) {
+        link(wearer, displays, realPassengers, new int[0]);
+    }
+
+    /** @param worn the displays among them that are worn cosmetics (lifted on the wearer's own client, own view) */
+    void link(int wearer, int[] displays, int[] realPassengers, int[] worn) {
         int[] old = links.remove(wearer);
         if (old != null) for (int d : old) wearerOf.remove(d, wearer);
+        if (worn.length == 0) wornOf.remove(wearer);
+        else {
+            Set<Integer> set = new java.util.HashSet<>();
+            for (int w : worn) set.add(w);
+            wornOf.put(wearer, Set.copyOf(set));
+        }
         if (displays.length == 0) {
             riders.remove(wearer);
             return;
@@ -411,6 +630,10 @@ final class CosmeticPackets {
         try {
             Channel ch = channel(p);
             Handler h = new Handler(p.getEntityId());
+            Location at = p.getLocation();
+            h.x = at.getX();
+            h.y = at.getY();
+            h.z = at.getZ();
             ch.eventLoop().execute(() -> {
                 if (ch.pipeline().get(HANDLER) != null) ch.pipeline().remove(HANDLER);
                 if (ch.pipeline().get("packet_handler") != null) ch.pipeline().addBefore("packet_handler", HANDLER, h);
@@ -488,6 +711,16 @@ final class CosmeticPackets {
         volatile int entityId;
         /** wearers this viewer sees in the light band (CosmeticLod; main thread writes, this channel reads) */
         final Set<Integer> lightOwners = ConcurrentHashMap.newKeySet();
+        /** own view: this player sees their own displays (and, with the lift on, gets them lifted) */
+        volatile boolean ownView;
+        /** own view: the lifting entity exists on this client (until the client's world is replaced) */
+        volatile boolean liftSpawned;
+        /** own view: the light their own displays are drawn with (packed block << 4 | sky << 20), -1 unknown */
+        volatile int light = -1;
+        /** where the player was last seen by the main thread (the lifting entity appears there) */
+        volatile double x, y, z;
+        /** own view: their own displays that already got their lowered translation since they appeared */
+        final Set<Integer> lowered = ConcurrentHashMap.newKeySet();
 
         Handler(int entityId) {
             this.entityId = entityId;
@@ -511,11 +744,20 @@ final class CosmeticPackets {
         if (c == equipCls) return equipment(packet, h);
         if (c == dataCls) return displayData(packet, h);
         if (c == passengersCls) {
-            int vehicle = (int) passengersVehicle.invoke(packet);
-            int[] ids = linked(vehicle, (int[]) passengersIds.invoke(packet));
-            if (ids == null) return packet;
+            List<Object> link = linkPackets((int) passengersVehicle.invoke(packet), (int[]) passengersIds.invoke(packet), h);
+            if (link == null) return packet;
             extendedPassengers.incrementAndGet();
-            return passengers(vehicle, ids);
+            return link.size() == 1 ? link.get(0) : bundleNew.newInstance(link);
+        }
+        if (c == respawnCls || c == loginCls) {
+            // the client's world is replaced: it has none of its entities any more
+            h.liftSpawned = false;
+            h.lowered.clear();
+            return packet;
+        }
+        if (c == addEntityCls) {
+            h.lowered.remove((int) addEntityId.invoke(packet));
+            return packet;
         }
         if (c == bundleCls) {
             List<Object> sub = new ArrayList<>();
@@ -523,6 +765,16 @@ final class CosmeticPackets {
             List<Integer> spawned = new ArrayList<>();
             Set<Integer> equipped = new java.util.HashSet<>();
             for (Object p : (Iterable<?>) bundleSub.invoke(packet)) {
+                if (p.getClass() == passengersCls) {
+                    // (a bundle cannot hold a bundle: the link's packets go in one by one)
+                    List<Object> link = linkPackets((int) passengersVehicle.invoke(p), (int[]) passengersIds.invoke(p), h);
+                    if (link != null) {
+                        sub.addAll(link);
+                        extendedPassengers.incrementAndGet();
+                        changed = true;
+                        continue;
+                    }
+                }
                 Object r = rewrite(p, h);
                 changed |= r != p;
                 sub.add(r);
@@ -543,9 +795,9 @@ final class CosmeticPackets {
             for (int id : spawned) {
                 Integer wearer = links.containsKey(id) ? Integer.valueOf(id) : wearerOf.get(id);
                 if (wearer == null || !relinked.add(wearer)) continue;
-                int[] ids = linked(wearer, riders.getOrDefault(wearer, new int[0]));
-                if (ids != null) {
-                    sub.add(passengers(wearer, ids));
+                List<Object> link = linkPackets(wearer, riders.getOrDefault(wearer, new int[0]), h);
+                if (link != null) {
+                    sub.addAll(link);
                     linkedSpawns.incrementAndGet();
                     changed = true;
                 }
@@ -622,6 +874,7 @@ final class CosmeticPackets {
         Map<String, String> table = lodTable;
         List<?> values = (List<?>) dataItems.invoke(packet);
         List<Object> copy = null;
+        boolean own = wearer != null && lifted(h, wearer) && wornOf.getOrDefault(wearer, Set.of()).contains(id);
         for (int i = 0; i < values.size(); i++) {
             Object v = values.get(i);
             Object item = valueValue.invoke(v);
@@ -638,6 +891,7 @@ final class CosmeticPackets {
             if (copy == null) copy = new ArrayList<>(values);
             copy.set(i, valueNew.newInstance(valueId.invoke(v), valueSerializer.invoke(v), asNms.invoke(null, it)));
         }
+        if (own) copy = ownData(id, values, copy, h);
         return copy == null ? packet : dataNew.newInstance(id, copy);
     }
 

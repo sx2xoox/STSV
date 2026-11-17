@@ -146,7 +146,8 @@ final class CosmeticAttachments {
      *
      * @param offsetPx    the cosmetic's own offset, pixels: x right, y up, z back
      * @param sneaking    a body slot while sneaking: the frame is tilted by {@link #SNEAK_TILT} about the
-     *                    hitbox top, and this moves the model so it turns about the neck instead
+     *                    hitbox top (in {@link #transformation}, which turns this translation and the model by
+     *                    the lean), and this moves the model so it turns about the neck instead
      * @param playerScale the wearer's scale attribute
      */
     static Vector3f translation(Vector3f anchor, Vector offsetPx, boolean sneaking, float playerScale, float bob) {
@@ -187,7 +188,12 @@ final class CosmeticAttachments {
         // an orbit: the model is built round the body's axis and turned a quarter a step (the clients slerp the
         // turn, so it glides round on a circle), rising and sinking a little as it goes
         if (m != null && m.kind() == CustomItem.MotionKind.ORBIT && phase != 0) t.add(0, (phase % 2 == 1 ? m.amount() : -m.amount()) * playerScale, 0);
-        return new Transformation(t, turn, scale, new AxisAngle4f());
+        if (!sneaking) return new Transformation(t, turn, scale, new AxisAngle4f());
+        // the sneaking lean is part of the transformation (the display itself only ever turns about the vertical axis):
+        // the same picture as pitching the display by the lean, R(lean) T(t) = T(R(lean) t) R(lean), and a wearer's
+        // own copy can then be drawn from a display that sits higher up (CosmeticPackets, own view)
+        Quaternionf lean = new Quaternionf().rotationX((float) Math.toRadians(SNEAK_TILT));
+        return new Transformation(lean.transform(t), new Quaternionf(lean).mul(new Quaternionf(turn)), scale, new Quaternionf());
     }
 
     /** Steps in one motion cycle: a spin goes round in three, an orbit in four, the others swing there and back in two. */
@@ -504,7 +510,15 @@ final class CosmeticAttachments {
         java.util.stream.IntStream own = t == null ? models : java.util.stream.IntStream.concat(models, java.util.stream.IntStream.of(t.display.getEntityId()));
         int[] ids = java.util.stream.IntStream.concat(own, java.util.Arrays.stream(carried.getOrDefault(p.getUniqueId(), new int[0]))).toArray();
         int[] real = p.getPassengers().stream().mapToInt(Entity::getEntityId).toArray();
-        packets.link(p.getEntityId(), ids, real);
+        packets.link(p.getEntityId(), ids, real, wornIds(p, false));
+    }
+
+    /** The ids of the player's worn displays (models and parts, the set bonus too); unlit: only those without a brightness of their own. */
+    private int[] wornIds(Player p, boolean unlit) {
+        java.util.stream.Stream<ItemDisplay> all = worn.getOrDefault(p.getUniqueId(), Map.of()).values().stream().flatMap(w -> w.all().stream());
+        Worn b = bonus.get(p.getUniqueId());
+        if (b != null) all = java.util.stream.Stream.concat(all, b.all().stream());
+        return all.filter(d -> !unlit || d.getBrightness() == null).mapToInt(Entity::getEntityId).toArray();
     }
 
     private Worn spawn(Player p, CosmeticSlot slot, CustomItem c, boolean awake) {
@@ -632,6 +646,12 @@ final class CosmeticAttachments {
             float scale = scale(p);
             float body = turnBody(p);
             boolean relink = false;
+            // own view (SelfLift): the wearer's own displays sit above their head on their client, maybe inside the
+            // ceiling, so they are lit as the wearer is
+            if (packets != null && packets.ownLiftOn() && selfView.test(p)) {
+                org.bukkit.block.Block at = p.getEyeLocation().getBlock();
+                packets.ownLight(p, wornIds(p, true), at.getLightFromBlocks(), at.getLightFromSky());
+            }
             List<Map.Entry<CosmeticSlot, Worn>> all = new ArrayList<>(mine.entrySet());
             Worn bw = bonus.get(id);
             if (bw != null) all.add(Map.entry(CosmeticSlot.AURA, bw));
@@ -765,7 +785,7 @@ final class CosmeticAttachments {
         Location l = p.getLocation();
         l.add(0, p.getHeight(), 0);
         l.setYaw(onBody(slot) ? body : l.getYaw());
-        l.setPitch(sneaking && onBody(slot) ? SNEAK_TILT : 0);
+        l.setPitch(0);   // the sneaking lean is in the transformation (see transformation)
         return l;
     }
 

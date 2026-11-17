@@ -231,8 +231,15 @@ def background(menu, art):
     for (box, text, px, fill, edge) in words:
         x0, y0, x1, y1 = box
         _write(out, (x0 * SCALE, y0 * SCALE, (x1 + 1) * SCALE - 1, (y1 + 1) * SCALE - 1), text, px, fill, edge)
-    # the client measures a glyph to its last non-empty column: keep the far right column non-empty
-    out.putpixel((out.width - 1, 0), (0, 0, 0, 1))
+    # the plugin shows the picture as tiles of at most 256 x 256 texels (the client's glyph limit, MenuSpec.tiles), and
+    # the client measures a glyph to its last non-empty column: every tile keeps its last column non-empty
+    cols, rows_ = -(-out.width // 256), -(-out.height // 256)
+    tw, th = out.width // cols, out.height // rows_
+    for r in range(rows_):
+        for c in range(cols):
+            x, y = (c + 1) * tw - 1, r * th
+            if out.getpixel((x, y))[3] == 0:
+                out.putpixel((x, y), (0, 0, 0, 1))
     return out
 
 

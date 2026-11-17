@@ -78,39 +78,65 @@ class WardrobeGuiTest {
         assertTrue(m.backgroundPrefix().startsWith("<white>"), "glyph must not be tinted by the dark default title colour");
     }
 
-    /** A framed background (the hub's roof and pillars) starts frame.left px left of the panel and frame.top px above
-     *  it, is drawn at frame.scale texels per pixel, and the title still comes back to x 8 after it. */
+    /**
+     * A framed background (the hub's roof and pillars) starts frame.left px left of the panel and frame.top px above
+     * it and is drawn at frame.scale texels per pixel. The client cannot draw a glyph over 256 x 256 texels (it shows
+     * the missing-glyph box and nothing of the picture), so the picture goes out as tiles: followed glyph by glyph the
+     * way the client lays text out, every tile lands on its part of the picture and the title comes back to x 8.
+     */
     @Test
-    void aFramedBackgroundReachesBeyondThePanelAndReturnsToTheTitle() throws Exception {
+    void aFramedBackgroundIsTiledWithinTheGlyphLimitAndReturnsToTheTitle() throws Exception {
         List<String> problems = new ArrayList<>();
         MenuSpec hub = MenuSpec.loadAll(List.of(new ContentPack("stsv", "stsv", PACK)), problems).stream()
                 .filter(x -> x.id().equals("stsv:hub")).findFirst().orElseThrow();
         assertTrue(problems.isEmpty(), problems.toString());
         MenuSpec.Frame f = hub.frame();
         assertTrue(!f.none(), "the hub is framed");
-        JsonObject font = MenuSpec.font(List.of(hub));
-        String prefix = hub.backgroundPrefix();
-        char left = prefix.charAt(prefix.indexOf('>', prefix.indexOf("<font:")) + 1), back = prefix.charAt(prefix.indexOf(hub.glyph()) + 1);
-        int shiftLeft = 0, shiftBack = 0;
-        for (JsonElement e : font.getAsJsonArray("providers")) {
+        BufferedImage im = ImageIO.read(ASSETS.resolve("textures/" + hub.background().getKey() + ".png").toFile());
+        int[] t = hub.tiles();
+        int wide = MenuSpec.WIDTH + f.left() + f.right(), high = hub.height() + f.top();
+        assertEquals(wide * f.scale(), im.getWidth());
+        assertEquals(high * f.scale(), im.getHeight());
+        int tileW = im.getWidth() / t[0], tileH = im.getHeight() / t[1];
+        assertTrue(tileW <= MenuSpec.GLYPH_MAX && tileH <= MenuSpec.GLYPH_MAX, "a tile fits a glyph texture: " + tileW + "x" + tileH);
+        // the font: advances of the spaces, and for every tile glyph its provider's ascent and height
+        java.util.Map<Character, Integer> advance = new java.util.HashMap<>(), ascent = new java.util.HashMap<>();
+        for (JsonElement e : MenuSpec.font(List.of(hub)).getAsJsonArray("providers")) {
             JsonObject p = e.getAsJsonObject();
             if (p.get("type").getAsString().equals("space")) {
-                shiftLeft = p.getAsJsonObject("advances").get(String.valueOf(left)).getAsInt();
-                shiftBack = p.getAsJsonObject("advances").get(String.valueOf(back)).getAsInt();
-            } else {
-                assertEquals(13 + f.top(), p.get("ascent").getAsInt(), "the picture's top row is frame.top px above the screen's");
-                assertEquals(hub.height() + f.top(), p.get("height").getAsInt(), "1 px = frame.scale texels");
+                p.getAsJsonObject("advances").entrySet().forEach(a -> advance.put(a.getKey().charAt(0), a.getValue().getAsInt()));
+                continue;
+            }
+            assertEquals(high / t[1], p.get("height").getAsInt(), "a tile's height in pixels (texels / scale)");
+            assertEquals(t[1], p.getAsJsonArray("chars").size(), "the provider's grid has the picture's rows");
+            for (JsonElement row : p.getAsJsonArray("chars")) {
+                assertEquals(t[0], row.getAsString().length(), "and its columns");
+                for (char ch : row.getAsString().toCharArray()) if (ch != 0) ascent.put(ch, p.get("ascent").getAsInt());
             }
         }
-        assertEquals(-(8 + f.left()), shiftLeft, "title x 8 -> the picture's left edge");
-        int width = MenuSpec.WIDTH + f.left() + f.right();
-        assertEquals(8, 8 + shiftLeft + width + 1 + shiftBack, "title text starts back at x 8");
-        // the client measures a glyph to its last non-empty column: the picture's last column is not empty
-        BufferedImage im = ImageIO.read(ASSETS.resolve("textures/" + hub.background().getKey() + ".png").toFile());
-        assertEquals(width * f.scale(), im.getWidth());
-        boolean last = false;
-        for (int y = 0; y < im.getHeight() && !last; y++) last = (im.getRGB(im.getWidth() - 1, y) >>> 24) != 0;
-        assertTrue(last, "the picture's last column has a pixel");
+        // lay the prefix out as the client does: a glyph advances by its width (to its last non-empty column) + 1
+        String prefix = hub.backgroundPrefix().replaceAll("<[^<>]*>", "");
+        int x = 8;   // the title starts at x 8 of the panel
+        java.util.Set<String> placed = new java.util.HashSet<>();
+        for (char ch : prefix.toCharArray()) {
+            if (advance.containsKey(ch)) {
+                x += advance.get(ch);
+                continue;
+            }
+            int index = ch - hub.tile(0, 0), r = index / t[0], c = index % t[0];
+            assertTrue(index >= 0 && r < t[1], "a tile glyph: U+" + Integer.toHexString(ch));
+            assertEquals(-f.left() + c * (wide / t[0]), x, "tile " + r + "," + c + " starts at its column");
+            // the top of a glyph is at (title baseline 6 + 7) - ascent
+            assertEquals(-f.top() + r * (high / t[1]), 13 - ascent.get(ch), "tile " + r + "," + c + " starts at its row");
+            // its last column is not empty, so it advances by its whole width + 1
+            boolean last = false;
+            for (int y = r * tileH; y < (r + 1) * tileH && !last; y++) last = (im.getRGB((c + 1) * tileW - 1, y) >>> 24) != 0;
+            assertTrue(last, "tile " + r + "," + c + " has a pixel in its last column");
+            x += wide / t[0] + 1;
+            placed.add(r + "," + c);
+        }
+        assertEquals(t[0] * t[1], placed.size(), "every tile is drawn");
+        assertEquals(8, x, "the title text starts back at x 8");
     }
 
     private static MenuSpec menu(String id) throws Exception {

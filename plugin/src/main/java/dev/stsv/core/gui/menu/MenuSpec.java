@@ -26,7 +26,8 @@ import java.util.stream.Stream;
  * background:        &lt;ns&gt;:&lt;path&gt; = assets/&lt;ns&gt;/textures/&lt;path&gt;.png, exactly 176 x (114 + 18 x rows) px
  * frame:             optional {left, right, top, scale}: the picture also covers left / right / top px round the
  *                    panel (props, a roof over the title) and has scale texels per screen pixel (2 = sharper text at
- *                    GUI scale 2+), so it is (176 + left + right) * scale x (114 + 18 x rows + top) * scale
+ *                    GUI scale 2+), so it is (176 + left + right) * scale x (114 + 18 x rows + top) * scale. The client
+ *                    cannot draw a glyph over 256 x 256 texels, so such a picture is shown as tiles (see tiles())
  * </pre>
  * The background is shown through the title: every menu with a background gets one character of the
  * generated font "stsv:menus" (U+E000 + n, in id order), so authors only draw a PNG.
@@ -48,14 +49,38 @@ public record MenuSpec(String id, String title, int rows, NamespacedKey backgrou
         return new int[]{(WIDTH + frame.left() + frame.right()) * frame.scale(), (height() + frame.top()) * frame.scale()};
     }
 
-    /** A framed menu's own shift spaces (to its picture's left edge, and back to the title's x 8 after it). */
+    /**
+     * The client keeps glyphs on 256 x 256 textures: a larger picture is not drawn at all (the missing-glyph box
+     * instead). A framed picture is therefore shown as a grid of tiles, each a glyph of at most 256 x 256 texels,
+     * put side by side and row under row. {columns, rows}.
+     */
+    public static final int GLYPH_MAX = 256;
+
+    public int[] tiles() {
+        int[] size = pictureSize();
+        return new int[]{(size[0] + GLYPH_MAX - 1) / GLYPH_MAX, (size[1] + GLYPH_MAX - 1) / GLYPH_MAX};
+    }
+
+    /** The glyph of one tile of a framed picture (16 a menu, from U+E800). */
+    public char tile(int row, int column) {
+        return (char) (0xE800 + 16 * (glyph - 0xE000) + row * tiles()[0] + column);
+    }
+
+    /** A framed menu's own shift spaces: to its picture's left edge, back to the title's x 8 after it, back to the row's start. */
     private char shiftLeft() {
-        return (char) (0xF100 + 2 * (glyph - 0xE000));
+        return (char) (0xF100 + 4 * (glyph - 0xE000));
     }
 
     private char shiftBack() {
-        return (char) (0xF101 + 2 * (glyph - 0xE000));
+        return (char) (0xF101 + 4 * (glyph - 0xE000));
     }
+
+    private char shiftRow() {
+        return (char) (0xF102 + 4 * (glyph - 0xE000));
+    }
+
+    /** -1: takes back the pixel the client adds after every glyph (between two tiles of a row). */
+    public static final char SHIFT_ONE = '\uF803';
 
     public static final String FONT = "stsv:menus";
     public static final char SHIFT_LEFT = '';   // -8: from the title position (x 8) to the screen edge
@@ -109,7 +134,15 @@ public record MenuSpec(String id, String title, int rows, NamespacedKey backgrou
     /** Text placed before the title so the background image covers the whole screen. */
     public String backgroundPrefix() {
         if (background == null) return "";
-        if (!frame.none()) return "<white><font:" + FONT + ">" + shiftLeft() + glyph + shiftBack() + "</font></white>";
+        if (!frame.none()) {
+            int[] t = tiles();
+            StringBuilder b = new StringBuilder("<white><font:" + FONT + ">").append(shiftLeft());
+            for (int r = 0; r < t[1]; r++) {
+                for (int c = 0; c < t[0]; c++) b.append(tile(r, c)).append(SHIFT_ONE);
+                b.append(r < t[1] - 1 ? shiftRow() : shiftBack());
+            }
+            return b.append("</font></white>").toString();
+        }
         return "<white><font:" + FONT + ">" + SHIFT_LEFT + glyph + SHIFT_BACK + "</font></white>";
     }
 
@@ -136,8 +169,15 @@ public record MenuSpec(String id, String title, int rows, NamespacedKey backgrou
                                 } else {
                                     int[] size = pngSize(png);
                                     int[] want = m.pictureSize();
+                                    int[] t = m.tiles();
+                                    int wide = WIDTH + m.frame().left() + m.frame().right(), high = m.height() + m.frame().top();
                                     if (size[0] != want[0] || size[1] != want[1]) {
                                         problems.add(id + ": 배경 크기는 " + want[0] + "x" + want[1] + " 이어야 함 (지금 " + size[0] + "x" + size[1] + ")");
+                                        m = m.withoutBackground();
+                                    } else if (!m.frame().none() && (wide % t[0] != 0 || high % t[1] != 0 || t[0] * t[1] > 16)) {
+                                        // tiles of whole pixels: (176 + left + right) by the columns, (height + top) by the rows
+                                        problems.add(id + ": frame 의 배경은 가로 " + t[0] + "조각 · 세로 " + t[1] + "조각으로 나뉘어야 함 (화면 "
+                                                + wide + "x" + high + " 픽셀이 조각 수로 나누어떨어지지 않거나 조각이 16개를 넘음)");
                                         m = m.withoutBackground();
                                     }
                                 }
@@ -183,17 +223,40 @@ public record MenuSpec(String id, String title, int rows, NamespacedKey backgrou
             if (m.background() == null || m.frame().none()) continue;
             // the picture's left edge is frame.left px left of the panel; after it (its width + 1) back to x 8
             adv.addProperty(String.valueOf(m.shiftLeft()), -(8 + m.frame().left()));
-            adv.addProperty(String.valueOf(m.shiftBack()), -(WIDTH + m.frame().right() + 1 - 8));
+            adv.addProperty(String.valueOf(m.shiftBack()), -(WIDTH + m.frame().right() - 8));
+            adv.addProperty(String.valueOf(m.shiftRow()), -(WIDTH + m.frame().left() + m.frame().right()));
+            adv.addProperty(String.valueOf(SHIFT_ONE), -1);
         }
         space.add("advances", adv);
         providers.add(space);
         for (MenuSpec m : menus) {
-            if (m.background() == null) continue;
+            if (m.background() == null || m.frame().none()) continue;
+            // a framed picture: one provider a row of tiles (a provider has one ascent), the other rows' cells skipped
+            int[] t = m.tiles();
+            int tileHeight = (m.height() + m.frame().top()) / t[1];
+            for (int r = 0; r < t[1]; r++) {
+                JsonObject bmp = new JsonObject();
+                bmp.addProperty("type", "bitmap");
+                bmp.addProperty("file", m.background().getNamespace() + ":" + m.background().getKey() + ".png");
+                bmp.addProperty("ascent", 13 + m.frame().top() - r * tileHeight);
+                bmp.addProperty("height", tileHeight);
+                JsonArray chars = new JsonArray();
+                for (int row = 0; row < t[1]; row++) {
+                    StringBuilder line = new StringBuilder();
+                    for (int c = 0; c < t[0]; c++) line.append(row == r ? m.tile(r, c) : '\u0000');
+                    chars.add(line.toString());
+                }
+                bmp.add("chars", chars);
+                providers.add(bmp);
+            }
+        }
+        for (MenuSpec m : menus) {
+            if (m.background() == null || !m.frame().none()) continue;
             JsonObject bmp = new JsonObject();
             bmp.addProperty("type", "bitmap");
             bmp.addProperty("file", m.background().getNamespace() + ":" + m.background().getKey() + ".png");
-            bmp.addProperty("ascent", 13 + m.frame().top());   // title is drawn at y 6 with a 7 px ascent: 6 + 7 - 13 = top of the screen
-            bmp.addProperty("height", m.height() + m.frame().top());
+            bmp.addProperty("ascent", 13);          // title is drawn at y 6 with a 7 px ascent: 6 + 7 - 13 = top of the screen
+            bmp.addProperty("height", m.height());
             JsonArray chars = new JsonArray();
             chars.add(String.valueOf(m.glyph()));
             bmp.add("chars", chars);
