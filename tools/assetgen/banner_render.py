@@ -398,7 +398,7 @@ def up(im, n):
 def nametag(fonts, comps, theme, title, nick, frame=0, k=2):
     c = find(comps, theme, title, nick, "big")
     W = c["width"] + 4
-    cv = Canvas(W, 48, k, (0, 0, 0, 0), ox=2, oy=34)
+    cv = Canvas(W, 64, k, (0, 0, 0, 0), ox=2, oy=34)
     draw_text(fonts, cv, c["runs"], 0, 0, frame)
     box = cv.im.getbbox()
     return cv.im.crop(box) if box else cv.im

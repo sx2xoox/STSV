@@ -66,64 +66,70 @@ def star(px, G, x, y, r):
         for a, b in DIRS4:
             if empty(px, G, x + a * k, y + b * k): put(px, G, x + a * k, y + b * k, G_L if k < r else G_D, 255 if k < r else 200)
 
+# ------------------------------------------------------------------------------------------------
+# The full banner (name tag): a picture made with PixelLab (banner_art/royal_big.png): a jewelled crown on its
+# cushion at the left end whose gold runs on into the frame, worked gold filigree round a crimson velvet plate, a
+# crest over its middle and an orb at the right end, all in one gold and crimson palette. The geometry is the
+# picture's (ArtGeo): its plate's inner rows are the text's, its crest is the centre part. The velvet is drawn again
+# here as a plain vertical shading (so the tile repeats without a seam and the words have a calm ground). It moves
+# as the drawn royal banner did: a bar of light sweeps along the gold once a loop and the jewels twinkle.
+# ------------------------------------------------------------------------------------------------
+ART = __import__("pathlib").Path(__file__).resolve().parent.parent / "banner_art" / "royal_big.png"
+ART_PLATE = dict(x0=46, x1=176, y0=24, y1=38, inner0=51, inner1=173)   # the velvet: rows y0..y1, columns inner0..inner1
+ART_CREST = (114, 31)                                                   # centre column and half width of the crest
+
+
+class ArtGeo:
+    """the geometry of the picture (as lib_a.Geo for the parts title_banners.py reads)"""
+
+    def __init__(self, title, **_):
+        from PIL import Image as _I
+        self.art = _I.open(ART).convert("RGBA")
+        self.title = title
+        self.W, self.H = self.art.size
+        P = ART_PLATE
+        self.PX0, self.PX1, self.PY0, self.PY1 = P["x0"], P["x1"], P["y0"], P["y1"]
+        self.MID = (P["y0"] + P["y1"]) // 2
+        self.CX = ART_CREST[0]
+        self.DIV = self.CX
+        self.END = 0
+        self.inside = {(x, y) for y in range(P["y0"], P["y1"] + 1) for x in range(P["inner0"], P["inner1"] + 1)}
+
+    def canvas(self):
+        im = self.art.copy()
+        return im, im.load()
+
+
+Geo = ArtGeo
+GEO = {}
+
+
+def _gold(c):
+    return c[3] == 255 and c[0] > 150 and c[0] > c[2] + 60
+
+
 def frame(G, i):
     t = 2 * math.pi * i / N
     im, px = G.canvas()
-    cx, by = G.CX, G.PY0
-    glow(px, G, (255, 196, 60), 120)
-    # plate: crimson velvet, quilted, with a polished gold band and inset jewels
-    def fill(x, y, g):
-        c = lerp((156, 22, 46), (58, 6, 20), g)
-        if (x, y) not in G.text_near and ((x + y) % 8 == 0 or (x - y) % 8 == 0): c = lerp(c, (40, 2, 12), 0.35)
-        return c
-    def bev(x, y):
-        return G_L if y < G.MID - 3 else G_D if y > G.MID + 3 else G_M
-    plate(px, G, fill, (255, 240, 170), (170, 108, 24), bevel=bev)
-    js = [RUBY, SAPH, EMER]
-    for k, x in enumerate(range(G.PX0 + 12, G.PX1 - 10, 12)):
-        J = js[k % 3]
-        for y in (G.PY0 + 1, G.PY1 - 1):
-            if (x, y) in G.bevel:
-                put(px, G, x, y, J[1]); put(px, G, x + 1, y, J[2])
-    for sx, J in ((G.PX0 + 4, SAPH), (G.PX1 - 4, SAPH)):
-        put(px, G, sx - 1, G.MID - 1, J[0]); put(px, G, sx, G.MID - 1, J[1]); put(px, G, sx - 1, G.MID, J[1]); put(px, G, sx, G.MID, J[2])
-    # sceptre tips at both ends
-    for side in (-1, 1):
-        x0 = G.PX0 if side < 0 else G.PX1
-        for k in range(1, 4): put(px, G, x0 + side * k, G.MID, G_M)
-        put(px, G, x0 + side * 4, G.MID - 1, G_L); put(px, G, x0 + side * 4, G.MID + 1, G_D)
-        for k, c in ((4, RUBY[1]), (5, G_L), (6, G_M), (7, G_W)): put(px, G, x0 + side * k, G.MID, c)
-        put(px, G, x0 + side * 5, G.MID - 1, G_M); put(px, G, x0 + side * 5, G.MID + 1, G_D)
-        put(px, G, x0 + side * 4, G.MID - 2, G_D); put(px, G, x0 + side * 4, G.MID + 2, G_DD)
-    for side in (-1, 1):
-        for k, d in enumerate(range(21, (G.PW // 2) - 6, 7)):
-            h = max(4, 8 - k)
-            spiky(px, G, cx + side * d, by - 1, [(-2, 1), (0, h), (2, 1)], 1, 1, [], False)
-            put(px, G, cx + side * d, by - 1 - h - 1, (255, 255, 255))
-    crown(px, G, cx, by, t)
+    P = ART_PLATE
+    for (x, y) in G.inside:                              # a calm velvet for the words, the same in every column
+        g = (y - P["y0"]) / (P["y1"] - P["y0"])
+        c = lerp((96, 14, 34), (46, 6, 16), g)
+        if y == P["y0"]: c = (26, 6, 8)                  # the frame's shadow on the velvet
+        px[x, y] = c + (255,)
     gem(px, G, G.DIV, G.MID, (255, 255, 255), (220, 240, 255), (160, 200, 240), (110, 140, 200), (70, 90, 150), top=(255, 255, 255))
-    texts(px, G, i,
-          ramp((0, (255, 255, 236)), (0.2, (255, 232, 140)), (0.65, (240, 178, 56)), (1, (176, 104, 22))),
-          ramp((0, (255, 255, 255)), (0.4, (255, 240, 180)), (1, (255, 200, 80))),
-          (44, 4, 12), shine_col=(255, 255, 255))
     # light sweep over all the gold once per loop
     sw = -20 + (G.W + 40) * i / N
     for y in range(G.H):
         for x in range(G.W):
             c = px[x, y]
-            if c[3] == 255 and c[0] > 150 and c[0] > c[2] + 60 and abs(x - sw + y * 0.6) < 2.5:
+            if _gold(c) and abs(x - sw + y * 0.6) < 2.5:
                 px[x, y] = lerp(c, (255, 255, 240), 0.75) + (255,)
-    # twinkles
-    for k, (x, y) in enumerate(((cx - 13, by - 9), (cx + 14, by - 12), (G.PX0 + 6, G.PY0 - 4), (G.PX1 - 7, G.PY0 - 6), (cx - 26, by - 13), (cx + 28, by - 8), (cx + 3, by - 17))):
+    # twinkles on the crown, the crest and the orb
+    for k, (x, y) in enumerate(((12, 10), (32, 12), (22, 6), (ART_CREST[0], 7), (ART_CREST[0] - 22, 12), (ART_CREST[0] + 24, 13),
+                                (P["x1"] + 10, 26), (60, 19), (160, 18))):
         ph = (i + k * 5) % 12
         if ph < 5: star(px, G, x, y, (1, 2, 3, 2, 1)[ph])
-    dr = random.Random(2)
-    for k in range(10):
-        x = dr.randint(G.PX0, G.PX1); y0 = dr.randint(0, 15)
-        y = G.PY0 - 2 - (y0 + i) % 16
-        x += round(math.sin(t + k))
-        if empty(px, G, x, y) and empty(px, G, x, y + 1) and (y0 + i) % 16 < 13:
-            put(px, G, x, y, (255, 246, 200) if (y0 + i) % 16 < 8 else (255, 220, 120)); put(px, G, x, y + 1, (200, 140, 40))
     return im
 
 
@@ -188,6 +194,9 @@ CHAT_RIGHT = (
     "odo",
 )
 CHAT_GOLD = "WLMDd"
+
+
+_CHAT_ART = {k: __import__("PIL.Image", fromlist=["Image"]).open(ART.parent / f"royal_chat_{k}.png").convert("RGBA") for k in ("crown", "orb")}
 
 
 def chat_geo(Geo):
@@ -274,11 +283,20 @@ def chat_frame(G, i):
 
     def gilt(f):
         return lambda v, c, x, y: C.lerp(c, (255, 255, 255), (0.6 if v in CHAT_GOLD else 0.3 if v != "o" else 0.0) * f)
-    _stamp(px, G, G.PX0 - 22, CHAT_LEFT, CHAT_PAL, gilt(fl))
-    _stamp(px, G, G.PX1 - 4, CHAT_RIGHT, CHAT_PAL, gilt(fr))
+    # the fluted caps (the hand-drawn ends without their crown and orb), then the crown and the orb of the name tag's
+    # picture, drawn again for one chat line with PixelLab (banner_art/royal_chat_*.png, on the picture's palette)
+    _stamp(px, G, G.PX0 - 22 + 21, [r[21:] for r in CHAT_LEFT], CHAT_PAL, gilt(fl))
+    _stamp(px, G, G.PX1 - 4, [r[:7] for r in CHAT_RIGHT], CHAT_PAL, gilt(fr))
+    for img, x0, f in ((_CHAT_ART["crown"], G.PX0 - 21, fl), (_CHAT_ART["orb"], G.PX1, fr)):
+        sp = img.load()
+        for y in range(img.height):
+            for x in range(img.width):
+                c = sp[x, y]
+                if c[3] and 0 <= x0 + x < G.W:
+                    px[x0 + x, G.PY0 + y] = C.lerp(c, (255, 255, 255), 0.55 * f if c[0] > 150 else 0) + (255,)
     # the crown's jewels and the orb glint in turn while it idles
     if step < 0:
-        spots = ((G.PX0 - 22 + 10, G.PY0 + 9), (G.PX0 - 22 + 2, G.PY0 + 10), (G.PX0 - 22 + 15, G.PY0 + 10), (G.PX1 - 4 + 11, G.PY0 + 6))
+        spots = ((G.PX0 - 22 + 13, G.PY0 + 7), (G.PX0 - 22 + 7, G.PY0 + 9), (G.PX0 - 22 + 19, G.PY0 + 9), (G.PX1 + 8, G.PY0 + 7))
         x, y = spots[idle]
         C.put(px, G, x, y, (255, 255, 255))
     C.gem7(px, G, CHAT_GEM)

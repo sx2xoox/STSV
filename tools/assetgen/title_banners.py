@@ -111,7 +111,7 @@ THEMES = [
          title=((244, 234, 238), (204, 184, 194)), nick=((255, 150, 150), (226, 36, 48))),
     dict(id="prism", module="prism", icon="AMETHYST_SHARD", name="프리즘", tile=16, centre=0, chat=True,
          title=((255, 255, 255), (224, 228, 248)), nick=((246, 242, 255), (204, 190, 252))),
-    dict(id="royal", module="royal", icon="GOLD_INGOT", name="황금", tile=16, centre=18, chat=True,
+    dict(id="royal", module="royal", icon="GOLD_INGOT", name="황금", tile=16, centre=31, chat=True,
          title=((255, 244, 190), (246, 190, 70)), nick=((255, 250, 226), (255, 206, 96))),
     dict(id="frost", module="frost", icon="PACKED_ICE", name="서리", tile=16, centre=0, chat=True,
          title=((248, 252, 255), (150, 208, 246)), nick=((236, 250, 255), (104, 204, 255))),    dict(id="void", module="void", icon="ENDER_EYE", name="심연", tile=16, centre=18, chat=True,
