@@ -51,10 +51,13 @@ public final class MenuView implements InventoryHolder {
         return inventory;
     }
 
+    /** The handler's {placeholders} while the menu is being drawn: asked once per drawing, not once per line of text. */
+    private Map<String, String> drawing;
+
     String fill(String s) {
-        Map<String, String> ph = new HashMap<>(handler.placeholders(this));
-        ph.put("page", String.valueOf(page + 1));
-        ph.put("pages", String.valueOf(pages));
+        if (s.indexOf('{') < 0) return s;
+        s = s.replace("{page}", String.valueOf(page + 1)).replace("{pages}", String.valueOf(pages));
+        Map<String, String> ph = drawing != null ? drawing : handler.placeholders(this);
         for (Map.Entry<String, String> e : ph.entrySet()) s = s.replace("{" + e.getKey() + "}", e.getValue());
         return s;
     }
@@ -69,6 +72,15 @@ public final class MenuView implements InventoryHolder {
         pages = Math.max(1, (items.size() + per - 1) / per);
         page = Math.clamp(page, 0, pages - 1);
 
+        drawing = handler.placeholders(this);
+        try {
+            draw(area, items, per);
+        } finally {
+            drawing = null;
+        }
+    }
+
+    private void draw(List<Integer> area, List<ItemStack> items, int per) {
         ItemStack filler = spec.filler().equals("glass") ? look(new MenuSpec.Look("GRAY_STAINED_GLASS_PANE", null, " ", List.of())) : null;
         for (int i = 0; i < inventory.getSize(); i++) inventory.setItem(i, filler);
         for (int k = 0; k < area.size(); k++) {
@@ -80,10 +92,12 @@ public final class MenuView implements InventoryHolder {
         for (MenuSpec.Button b : spec.buttons().values()) {
             boolean off = (b.action().equals("page:prev") && page == 0) || (b.action().equals("page:next") && page >= pages - 1);
             MenuSpec.Look l = off ? b.off() : b.on();
+            // made once: a button spread over many slots (a card) is the same item in each (the inventory keeps a copy)
+            ItemStack item = l == null ? null : handler.button(this, b, look(l));
             for (int slot : spec.slots(b.key())) {
                 buttonAt.put(slot, b);
                 buttonOff.put(slot, off);
-                inventory.setItem(slot, l == null ? null : handler.button(this, b, look(l)));
+                inventory.setItem(slot, item);
             }
         }
     }
