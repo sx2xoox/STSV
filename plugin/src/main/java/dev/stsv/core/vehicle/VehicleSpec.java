@@ -82,9 +82,14 @@ public record VehicleSpec(
      * @param overCap    its own top speed holds even over the server's (vehicles.max-speed): the sports car
      * @param drift      it drifts ({@link Drift}), or null
      * @param dress      its moving parts and name plates ({@link Dress})
+     * @param fun        what a 특별 탈것 does besides driving ({@link FunSpec}: bouncing, hovering, bucking ...), or null
      */
-    public record Extras(double lean, List<Spinner> spinners, boolean allTerrain, boolean overCap, Drift drift, Dress dress) {
-        public static final Extras NONE = new Extras(0, List.of(), false, false, null, Dress.NONE);
+    public record Extras(double lean, List<Spinner> spinners, boolean allTerrain, boolean overCap, Drift drift, Dress dress, FunSpec fun) {
+        public static final Extras NONE = new Extras(0, List.of(), false, false, null, Dress.NONE, null);
+
+        public Extras(double lean, List<Spinner> spinners, boolean allTerrain, boolean overCap, Drift drift, Dress dress) {
+            this(lean, spinners, allTerrain, overCap, drift, dress, null);
+        }
 
         public Extras(double lean, List<Spinner> spinners, boolean allTerrain, boolean overCap, Drift drift) {
             this(lean, spinners, allTerrain, overCap, drift, Dress.NONE);
@@ -265,12 +270,13 @@ public record VehicleSpec(
         List<Double> size = v.getDoubleList("size");
         if (size.size() != 3 || size.stream().anyMatch(d -> d <= 0)) throw new IllegalArgumentException("vehicle.size 는 [길이, 너비, 높이] (블록)");
         double wheelRadius = positive(v, "wheel-radius");
-        NamespacedKey wheel = model(v.getString("wheel"), "vehicle.wheel", namespace, modelExists);
         List<Wheel> wheels = new ArrayList<>();
         for (Map<?, ?> m : v.getMapList("wheels")) {
             ConfigurationSection w = section(m);
             wheels.add(new Wheel(vec(w, "at", "vehicle.wheels.at"), w.getBoolean("steer")));
         }
+        // a vehicle without wheels (a pogo stick, a broom) needs no wheel model
+        NamespacedKey wheel = wheels.isEmpty() && v.getString("wheel") == null ? null : model(v.getString("wheel"), "vehicle.wheel", namespace, modelExists);
         List<Vec> seats = new ArrayList<>();
         for (Map<?, ?> m : v.getMapList("seats")) seats.add(vec(section(m), "at", "vehicle.seats.at"));
         if (seats.isEmpty() && driven) throw new IllegalArgumentException("vehicle.seats 가 비어 있음 (첫 자리가 운전석)");
@@ -367,8 +373,18 @@ public record VehicleSpec(
             if (drift.drag() < 0 || drift.drag() > 10) throw new IllegalArgumentException("vehicle.drift.drag 는 0 ~ 10 (블록/초²)");
         }
         Dress dress = dress(v, namespace, modelExists);
-        Extras extras = lean == 0 && spinners.isEmpty() && !v.getBoolean("all-terrain") && !overCap && drift == null && dress == Dress.NONE
-                ? Extras.NONE : new Extras(lean, List.copyOf(spinners), v.getBoolean("all-terrain"), overCap, drift, dress);
+        // 특별 탈것 (vehicles_fun.yml): absent for every other vehicle
+        FunSpec fun = v.isConfigurationSection("fun") ? FunSpec.parse(v.getConfigurationSection("fun"), namespace, modelExists) : null;
+        if (fun != null) {
+            if (!driven || train != null) throw new IllegalArgumentException("vehicle.fun: 끄는 탈것 · 트레일러 탈것에는 없음");
+            if (fun.usesSpace() && horn != null) throw new IllegalArgumentException("vehicle.fun: 스페이스를 쓰는 탈것(hop · ollie · hover · toot)에는 경적(horn)이 없음");
+            if (water != null && (fun.amphibious() != null || fun.airborne() || fun.buck() != null || fun.ollie() != null))
+                throw new IllegalArgumentException("vehicle.fun: 배(water)는 toss · toot · roll · trail 만");
+            if (fun.amphibious() != null && fun.amphibious().landSpeed() > positive(v, "speed"))
+                throw new IllegalArgumentException("vehicle.fun.amphibious.land-speed 는 speed (물 위 속도) 이하");
+        }
+        Extras extras = lean == 0 && spinners.isEmpty() && !v.getBoolean("all-terrain") && !overCap && drift == null && dress == Dress.NONE && fun == null
+                ? Extras.NONE : new Extras(lean, List.copyOf(spinners), v.getBoolean("all-terrain"), overCap, drift, dress, fun);
         return new VehicleSpec((float) bodyScale, speed, reverse,
                 driven ? positive(v, "acceleration") : v.getDouble("acceleration", 3), driven ? positive(v, "brake") : v.getDouble("brake", 8),
                 v.getDouble("coast", driven ? 2.0 : 8.0), driven ? positive(v, "turn-rate") : v.getDouble("turn-rate", 90),
@@ -386,6 +402,11 @@ public record VehicleSpec(
         if (rock < 0 || rock > 3) throw new IllegalArgumentException("vehicle.water.rock 은 0 ~ 3 (0 = 흔들리지 않음)");
         Vec exhaust = w.contains("exhaust") ? vec(w, "exhaust", "vehicle.water.exhaust") : null;
         return new Water(draft, nudge, rock, exhaust);
+    }
+
+    /** What it does as a 특별 탈것 ({@link FunSpec}), or null for every other vehicle. */
+    public FunSpec fun() {
+        return extras.fun();
     }
 
     /** Floats on water (a boat). */
@@ -525,6 +546,7 @@ public record VehicleSpec(
             out.add(lights.dark());
             out.addAll(lights.flash());
         }
+        if (fun() != null && fun().part() != null) out.add(fun().part().model());
         if (cargo != null) out.addAll(cargo.stages());
         if (train != null) out.addAll(train.models());
         return out;

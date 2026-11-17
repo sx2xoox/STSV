@@ -96,6 +96,15 @@ final class LiveVehicle {
     /** a boat: ticks its hull physics left it where it was, nobody driving (settled: felt only now and then, BoatMotion#steps) */
     int boatStill;
 
+    /** 특별 탈것 (FunSpec): what its behaviour is doing, its separate part (the bull, the balloons; null = none), the pose
+     * drawn now, when each seat's rider got on (plugin ticks), the sound rolled towards and when space last sounded */
+    final FunPhysics.State fun = new FunPhysics.State();
+    ItemDisplay funPart;
+    FunPhysics.Pose funPose = FunPhysics.Pose.REST;
+    long[] seatSince;
+    double funRolled;
+    long tootAt;
+
     /** the storage bed (null without one), the page open and who has it open */
     ItemStack[] cargo;
     int stage;
@@ -123,6 +132,7 @@ final class LiveVehicle {
         this.world = world;
         this.st = st;
         this.seats = new Seat[spec.seats().size()];
+        this.seatSince = new long[seats.length];
     }
 
     /** The player in a seat, or null. */
@@ -169,6 +179,7 @@ final class LiveVehicle {
         if (lights != null) out.add(lights);
         if (load != null) out.add(load);
         if (handle != null) out.add(handle);
+        if (funPart != null) out.add(funPart);
         out.addAll(wheels);
         out.addAll(spinners);
         out.addAll(hits);

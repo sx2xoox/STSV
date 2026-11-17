@@ -88,6 +88,7 @@ public final class RenderBudget {
                 if (v.getString("lights.dark") != null) shown.add(v.getString("lights.dark"));
                 shown.addAll(v.getStringList("cargo.stages"));
                 for (Map<?, ?> sp : v.getMapList("spinners")) if (sp.get("model") != null) shown.add(sp.get("model").toString());
+                if (v.getString("fun.part.model") != null) shown.add(v.getString("fun.part.model"));   // 특별 탈것: the bull, the balloons
                 for (String p : shown) out.put(local(namespace, p), Category.VEHICLE_PART);
                 trainCategories(namespace, v.getConfigurationSection("train"), out);
             } else if (f != null && (f.contains("behavior") || f.contains("parts")) && model.matches(".*_\\d+")) {

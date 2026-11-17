@@ -89,6 +89,11 @@ class RenderBudgetTest {
         for (String m : List.of("stsv:jige", "stsv:jige_load_1", "stsv:jige_load_2", "stsv:jige_load_3")) {
             assertEquals(RenderBudget.Category.CARRIER, kinds.get(m));
         }
+        // 특별 탈것 (vehicles_fun.yml): bodies, small wheels, the parts the behaviour moves (the bull, the balloons)
+        for (String body : List.of("stsv:kickboard", "stsv:pogo_stick", "stsv:skateboard", "stsv:broom", "stsv:banana_boat", "stsv:segway",
+                "stsv:toy_duck", "stsv:sled", "stsv:balloon_chair", "stsv:rodeo_bull")) assertEquals(RenderBudget.Category.VEHICLE, kinds.get(body), body);
+        for (String w : List.of("stsv:wheel_kickboard", "stsv:wheel_skate", "stsv:wheel_segway")) assertEquals(RenderBudget.Category.VEHICLE_WHEEL, kinds.get(w), w);
+        for (String m : List.of("stsv:rodeo_bull_bull", "stsv:balloon_chair_balloons")) assertEquals(RenderBudget.Category.VEHICLE_PART, kinds.get(m), m);
         // articulated vehicles (vehicles_farm.yml): the pulling units' bodies, the trailers, the ox's legs and head, the
         // spinning parts (a flywheel, the tractor's big rear wheels) counted as wheels, the trailers' load stages
         for (String body : List.of("stsv:ox_cart", "stsv:power_tiller", "stsv:tractor")) assertEquals(RenderBudget.Category.VEHICLE, kinds.get(body));

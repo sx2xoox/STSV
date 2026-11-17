@@ -200,6 +200,8 @@ public final class VehicleModule implements StsvModule, Listener {
     final VehicleFeelView feel = new VehicleFeelView(this);
     final VehicleDress dress = new VehicleDress(this);
     final VehicleTuner tuner = new VehicleTuner(this);
+    /** 특별 탈것: bouncing, hovering, bucking, ... (vehicles_fun.yml fun:) */
+    final FunView funView = new FunView(this);
 
     /** config.yml vehicles.* */
     record Settings(double maxSpeed, int smoothing, float viewRange, boolean culling, int saveTicks, boolean sirenSound, String sirenKey,
@@ -279,6 +281,7 @@ public final class VehicleModule implements StsvModule, Listener {
             if (v.seats.length != v.item.vehicle().seats().size()) {
                 for (int i = 0; i < v.seats.length; i++) leave(v, i);
                 v.seats = new LiveVehicle.Seat[v.item.vehicle().seats().size()];
+                v.seatSince = new long[v.seats.length];
             }
             if (v.puller != null && !v.item.vehicle().pulled()) release(v, null);
             v.spec = v.item.vehicle();
@@ -880,6 +883,17 @@ public final class VehicleModule implements StsvModule, Listener {
             // a boat is put on the water, which the client clicks through (in the air, or at the bottom under it)
             Player p = e.getPlayer();
             ItemStack hand = p.getInventory().getItem(e.getHand());
+            Optional<CustomItem> duck = plugin.content().itemOf(hand)
+                    .filter(i -> i.isVehicle() && i.vehicle().fun() != null && i.vehicle().fun().amphibious() != null);
+            if (duck.isPresent()) {
+                // 장난감 오리: put on the water looked at (the client clicks through it), like a boat
+                e.setCancelled(true);
+                org.bukkit.util.RayTraceResult hit = p.rayTraceBlocks(6, org.bukkit.FluidCollisionMode.ALWAYS);
+                if (hit != null && hit.getHitBlock() != null && hit.getHitBlock().getType() == Material.WATER
+                        && (e.getHand() == EquipmentSlot.HAND || e.getHand() == EquipmentSlot.OFF_HAND) && !p.isInsideVehicle() && click(p)
+                        && mayPlaceItem(p, hand)) place(p, duck.get(), hand, e.getHand(), hit.getHitBlock(), BlockFace.UP);
+                return;
+            }
             Optional<CustomItem> boat = plugin.content().itemOf(hand).filter(i -> i.isVehicle() && i.vehicle().floats());
             if (boat.isEmpty()) return;
             e.setCancelled(true);
@@ -925,11 +939,13 @@ public final class VehicleModule implements StsvModule, Listener {
         VehicleSpec s = item.vehicle();
         World w = clicked.getWorld();
         Block base = clicked.isReplaceable() ? clicked : clicked.getRelative(face);
-        WorldTerrain terrain = new WorldTerrain(w);
+        // (a 특별 탈것 that floats over water or on it stands on the water's surface: FunView#terrain)
+        VehiclePhysics.Terrain terrain = FunView.terrain(s, new WorldTerrain(w));
         // a car faces where the player looks; a cart turns its handles towards them (ready to take)
         float yaw = VehiclePhysics.wrap(p.getYaw() + (s.pulled() ? 180 : 0));
         VehiclePhysics.State st = new VehiclePhysics.State(base.getX() + 0.5, base.getY(), base.getZ() + 0.5, yaw);
-        // on the ground under the spot (a slab, a carpet, a step down)
+        // on the ground under the spot (a slab, a carpet, a step down); on the water for the duck
+        if (s.fun() != null && s.fun().amphibious() != null && base.getType() == Material.WATER) st.y = base.getY() + 1;
         st.y += VehiclePhysics.collide(VehiclePhysics.footprint(st.x, st.y, st.z, st.yaw, s), 0, -1.5, 0, terrain)[1];
         if (VehiclePhysics.collides(st.x, st.y, st.z, st.yaw, s, terrain) || VehiclePhysics.hazard(st.x, st.y, st.z, st.yaw, s, terrain)
                 || st.y < w.getMinHeight()) {
@@ -1195,6 +1211,7 @@ public final class VehicleModule implements StsvModule, Listener {
         if (v.body != null) out.add(v.body);
         if (v.lights != null) out.add(v.lights);
         if (v.load != null) out.add(v.load);
+        if (v.funPart != null) out.add(v.funPart);
         return out;
     }
 
@@ -1248,6 +1265,7 @@ public final class VehicleModule implements StsvModule, Listener {
         }
         if (v.train != null) v.train.spawn(v, settings, v.cargo);
         tools.spawned(v);
+        funView.spawn(v, ticks);
         feel.spawn(v);
         dress.spawn(v);
         tuner.spawn(v);
@@ -1286,12 +1304,12 @@ public final class VehicleModule implements StsvModule, Listener {
     }
 
     static Transformation body(LiveVehicle v, float tilt) {
-        return VehicleFeelView.posed(v, tilted(v.spec, new VehicleSpec.Vec(0, 0, 0), v.spec.bodyScale(), tilt, v.lean), null);
+        return FunView.posed(v, VehicleFeelView.posed(v, tilted(v.spec, new VehicleSpec.Vec(0, 0, 0), v.spec.bodyScale(), tilt, v.lean), null), false);
     }
 
     /** The load's transformation: tipped and leaned with the body, on its springs and swaying (VehicleFeelView#posed). */
     static Transformation load(LiveVehicle v, float tilt) {
-        return VehicleFeelView.posed(v, tilted(v.spec, v.spec.cargo().at(), 1, tilt, v.lean), v.spec.cargo().at());
+        return FunView.posed(v, VehicleFeelView.posed(v, tilted(v.spec, v.spec.cargo().at(), 1, tilt, v.lean), v.spec.cargo().at()), false);
     }
 
     /**
@@ -1338,7 +1356,7 @@ public final class VehicleModule implements StsvModule, Listener {
         }
         // a boat's propeller spins about the boat's length, a wheel about its axle
         Quaternionf spin = v.spec.floats() ? new Quaternionf().rotateZ((float) v.st.roll) : new Quaternionf().rotateX((float) v.st.roll);
-        return new Transformation(t, steer, new Vector3f(1, 1, 1), spin);
+        return FunView.posed(v, new Transformation(t, steer, new Vector3f(1, 1, 1), spin), true);
     }
 
     /** A spinning part (a pedal crank): turned by its ratio of the wheels' roll, leaning with the body. */
@@ -1352,7 +1370,24 @@ public final class VehicleModule implements StsvModule, Listener {
         }
         // kept within two turns (as the wheels' roll): a quaternion repeats every 4 pi, so the client's glide never jumps
         double angle = (v.spin * sp.ratio()) % (Math.PI * 4);
-        return new Transformation(t, left, new Vector3f(1, 1, 1), new Quaternionf().rotateX((float) angle));
+        return FunView.posed(v, new Transformation(t, left, new Vector3f(1, 1, 1), new Quaternionf().rotateX((float) angle)), false);
+    }
+
+    /** Glides every drawn part to the vehicle's pose now (a 특별 탈것's pose changed: FunView), over this many ticks. */
+    void reglide(LiveVehicle v, int over) {
+        Transformation b = body(v, v.tiltShown);
+        glideOver(v.body, b, over);
+        feel.glideLamps(v, b, over);
+        if (v.load != null && v.spec.cargo() != null) glideOver(v.load, load(v, v.tiltShown), over);
+        for (int i = 0; i < v.wheels.size(); i++) glideOver(v.wheels.get(i), wheel(v, i), over);
+        for (int i = 0; i < v.spinners.size(); i++) glideOver(v.spinners.get(i), spinner(v, i), over);
+    }
+
+    private static void glideOver(ItemDisplay d, Transformation t, int over) {
+        if (d == null || !d.isValid()) return;
+        d.setInterpolationDelay(0);
+        d.setInterpolationDuration(over);
+        d.setTransformation(t);
     }
 
     /** Degrees a vehicle with a lean should lean now: into the turn, by how far its front wheel is turned and how fast it goes. */
@@ -1375,6 +1410,7 @@ public final class VehicleModule implements StsvModule, Listener {
         if (v.handle != null) v.handle.remove();
         if (v.train != null) v.train.remove();
         tools.removed(v);
+        funView.remove(v);
         feel.remove(v);
         dress.remove(v);
         tuner.remove(v);
@@ -1456,6 +1492,7 @@ public final class VehicleModule implements StsvModule, Listener {
         ticks++;
         feel.marks.tick(ticks);
         tuner.tick(ticks);
+        funView.sweep(ticks);
         if (spawnSoon || ticks % 40 == 0) {
             spawnSoon = false;
             spawnLoaded();
@@ -1478,7 +1515,7 @@ public final class VehicleModule implements StsvModule, Listener {
         if (v.body == null || !v.body.isValid() || v.hits.stream().anyMatch(h -> !h.isValid()) || v.wheels.stream().anyMatch(w -> !w.isValid())
                 || v.spinners.stream().anyMatch(w -> !w.isValid())
                 || (v.spec.pulled() && (v.handle == null || !v.handle.isValid())) || (v.train != null && v.train.broken())
-                || VehicleFeelView.broken(v) || VehicleDress.broken(v)) {
+                || VehicleFeelView.broken(v) || VehicleDress.broken(v) || FunView.broken(v)) {
             removeParts(v, false);
             spawnParts(v);
         }
@@ -1486,10 +1523,14 @@ public final class VehicleModule implements StsvModule, Listener {
         Player puller = puller(v);
         DriveInput in = driver != null ? DriveInput.of(driver.getCurrentInput()) : DriveInput.NONE;
         WorldTerrain terrain = new WorldTerrain(v.world);
+        // 특별 탈것: turning their own way, bouncing, an ollie, the hover height (the physics gets the keys left over)
+        boolean wasOnGround = v.st.onGround;
+        in = funView.before(v, driver, in, terrain, ticks);
         // a boat follows the water under it (it rises and falls with it, settles aground when it goes): every tick until it
         // has settled (left alone, not moving), then now and then (BoatMotion#steps)
         boolean active = driver != null || puller != null || v.st.speed != 0 || !v.st.onGround || v.st.steer != 0 || v.lean != 0
-                || (v.spec.floats() && BoatMotion.steps(driver != null, v.st.speed, v.st.steer, v.boatStill, ticks, v.id));
+                || (v.spec.floats() && BoatMotion.steps(driver != null, v.st.speed, v.st.steer, v.boatStill, ticks, v.id))
+                || funView.active(v);
         if (!active && !v.spec.floats() && (ticks + v.id) % 10 == 0 && !VehiclePhysics.supported(v.st, v.spec, terrain)) {
             v.st.onGround = false;   // the ground under it went: it falls
             active = true;
@@ -1499,6 +1540,8 @@ public final class VehicleModule implements StsvModule, Listener {
             active = true;
         }
         double along = 0;
+        float turned = 0;
+        double went = 0;
         if (active) {
             double x = v.st.x, y = v.st.y, z = v.st.z, steer = v.st.steer, roll = v.st.roll;
             double[] feltLoad = feel.factors(v, ticks, weightEpoch);   // the load and the slope: {top, accel}
@@ -1517,8 +1560,10 @@ public final class VehicleModule implements StsvModule, Listener {
             } else {
                 // (the sports car goes over the server's top speed: VehicleSpec#cap)
                 double cap = v.spec.cap(settings.maxSpeed());
-                VehiclePhysics.step(v.st, in, v.spec, terrain, Math.min(cap, VehicleTools.speedCap(v)), 1f, roadBonus(v),
-                        cap, feltLoad[0], feltLoad[1]);
+                // (특별 탈것 that hover, float or slide go their own way: FunView#step)
+                if (!funView.step(v, in, terrain, Math.min(cap, VehicleTools.speedCap(v)), roadBonus(v), feltLoad[0], feltLoad[1]))
+                    VehiclePhysics.step(v.st, in, v.spec, terrain, Math.min(cap, VehicleTools.speedCap(v)), 1f, roadBonus(v),
+                            cap, feltLoad[0], feltLoad[1]);
             }
             if (v.st.bumped) {
                 if (v.spec.floats()) v.world.playSound(at(v), Sound.BLOCK_WOOD_HIT, SoundCategory.NEUTRAL, 0.8f, 0.6f);
@@ -1532,6 +1577,8 @@ public final class VehicleModule implements StsvModule, Listener {
             }
             double[] fw = VehiclePhysics.forward(v.st.yaw);
             along = (v.st.x - x) * fw[0] + (v.st.z - z) * fw[1];
+            turned = VehicleSeats.signed(v.st.yaw - yaw);
+            went = Math.hypot(v.st.x - x, v.st.z - z);
             if (moved) {
                 trip(v).moved(Math.hypot(v.st.x - x, v.st.z - z));   // the odometer (a train: its towing unit)
                 move(v);
@@ -1566,6 +1613,7 @@ public final class VehicleModule implements StsvModule, Listener {
                 return;
             }
         }
+        funView.after(v, driver, wasOnGround, turned, went, ticks);
         if (puller != null) pulled(v, puller);
         if (v.train != null) v.train.animate(v, settings, along, driver != null, Math.min(v.spec.speed(), settings.maxSpeed()));
         if (v.tool != null) tools.tick(v, driver);
@@ -1610,6 +1658,7 @@ public final class VehicleModule implements StsvModule, Listener {
         for (ItemDisplay w : v.spinners) w.teleport(at);
         if (v.lights != null) v.lights.teleport(at);
         if (v.load != null) v.load.teleport(at);
+        if (v.funPart != null) v.funPart.teleport(at);
         feel.teleport(v, at);
         dress.teleport(v, at);
         tuner.teleport(v, at);
@@ -1633,6 +1682,15 @@ public final class VehicleModule implements StsvModule, Listener {
             face(seat.chair(), to.getYaw());
         }
         if (v.train != null) v.train.move(v, settings);
+    }
+
+    /** Carries the seats to where they are now (a bucking bull lifts its rider without moving: FunView). */
+    void reseat(LiveVehicle v) {
+        for (int i = 0; i < v.seats.length; i++) {
+            LiveVehicle.Seat seat = v.seats[i];
+            if (seat == null || !seat.valid()) continue;
+            carry(seat.carrier(), seatLocation(v, i));
+        }
     }
 
     /** A tiny head pose the chair switches to and back (it is invisible): see {@link #face}. */
@@ -1663,7 +1721,8 @@ public final class VehicleModule implements StsvModule, Listener {
     private Location seatLocation(LiveVehicle v, int i) {
         if (v.train != null) return v.train.seat(v, i);   // a seat may be on a towed unit
         double[] c = VehiclePhysics.world(v.st.x, v.st.y, v.st.z, v.st.yaw, v.spec.seats().get(i));
-        return new Location(v.world, c[0], c[1] + VehicleFeelView.seatLift(v, i), c[2], v.st.yaw, 0);   // a pedalling rider rises and sinks
+        // a pedalling rider rises and sinks; so does one on a bucking bull or a waddling duck
+        return new Location(v.world, c[0], c[1] + VehicleFeelView.seatLift(v, i) + FunView.seatLift(v, i), c[2], v.st.yaw, 0);
     }
 
     /** The light bar flashes while the siren is on (and the siren sounds, two tones in turn). */
@@ -1750,7 +1809,23 @@ public final class VehicleModule implements StsvModule, Listener {
     /** A fishing hook passes through vehicles (a boat's riders fish over its side). */
     @EventHandler(ignoreCancelled = true)
     public void onHookHit(org.bukkit.event.entity.ProjectileHitEvent e) {
-        if (e.getEntity() instanceof org.bukkit.entity.FishHook && isVehiclePart(e.getHitEntity())) e.setCancelled(true);
+        if (e.getEntity() instanceof org.bukkit.entity.FishHook && isVehiclePart(e.getHitEntity())) {
+            e.setCancelled(true);
+            return;
+        }
+        // 풍선 의자: an arrow, a snowball ... hitting it or its rider pops its balloons
+        Entity hit = e.getHitEntity();
+        if (hit == null || e.getEntity() instanceof org.bukkit.entity.FishHook) return;
+        Long id = partOf(hit);
+        if (id == null && hit instanceof Player p) id = partOf(p.getVehicle());
+        LiveVehicle v = id == null ? null : live.get(id);
+        if (v != null && v.spec.fun() != null) funView.hit(v, e.getEntity().getShooter() instanceof Entity s ? s : null);
+    }
+
+    /** Getting off something that floats or bounces: no fall damage down to the ground that was under it (FunView). */
+    @EventHandler(ignoreCancelled = true)
+    public void onFall(EntityDamageEvent e) {
+        funView.onFall(e, ticks);
     }
 
     /** Where a boat's rider steps out when there is no shore beside it: into the water beside their seat. */
@@ -1857,6 +1932,7 @@ public final class VehicleModule implements StsvModule, Listener {
             return;
         }
         v.seats[seat] = new LiveVehicle.Seat(carrier, chair);
+        v.seatSince[seat] = ticks;
         dress.door(v, seat, ticks);
         hideBoxes(v, p, true);
         if (seat == 0) {
@@ -1866,18 +1942,22 @@ public final class VehicleModule implements StsvModule, Listener {
                 v.engineOn = true;
                 v.engineAt = ticks + wait;
             }
-            HudModule.flash(p, Lang.mm("vehicle.driving", "keys", Lang.raw(v.spec.lights() != null ? "vehicle.keys-siren"
+            String fun = FunView.keys(v.spec);
+            HudModule.flash(p, Lang.mm("vehicle.driving", "keys", Lang.raw(fun != null ? fun : v.spec.lights() != null ? "vehicle.keys-siren"
                     : v.spec.train() != null && v.spec.train().animal() != null ? "vehicle.keys-moo" : "vehicle.keys-horn") + tools.keysHint(v)));
         } else if (!mayDrive && !taken[0]) {
             HudModule.flash(p, Lang.mm("vehicle.passenger", "owner", v.ownerName));
+        } else if (v.spec.fun() != null && v.spec.fun().toss() != null) {
+            HudModule.flash(p, Lang.mm("vehicle.fun.banana-seat"));
         }
     }
 
     /** A rider leaves a seat (it goes; they step out beside the vehicle, see onDismount). */
-    private void leave(LiveVehicle v, int seat) {
+    void leave(LiveVehicle v, int seat) {
         LiveVehicle.Seat s = seat < v.seats.length ? v.seats[seat] : null;
         if (s == null) return;
         Player p = v.rider(seat);
+        funView.riderLeft(v, seat, p, ticks);
         v.seats[seat] = null;
         dress.door(v, seat, ticks);
         Location exit = exit(v, seat);
@@ -1923,6 +2003,7 @@ public final class VehicleModule implements StsvModule, Listener {
         Entity carrier = chair.getVehicle();
         if (v != null && rider instanceof Player rp) hideBoxes(v, rp, false);
         if (v != null && index < v.seats.length && v.seats[index] != null && v.seats[index].chair().equals(chair)) {
+            if (rider instanceof Player rp) funView.riderLeft(v, index, rp, ticks);
             carrier = v.seats[index].carrier();
             v.seats[index] = null;
             if (index == 0) driverLeft(v);
@@ -1944,6 +2025,11 @@ public final class VehicleModule implements StsvModule, Listener {
 
     /** A safe spot beside the vehicle for a rider of this seat (VehicleSeats.exits, in order); on top of it if none. */
     private Location exit(LiveVehicle v, int seat) {
+        // off something up in the air (a broom, a balloon chair, a pogo stick mid-bounce): beside the seat, at its height
+        if (v.spec.fun() != null && v.spec.fun().airborne() && !v.st.onGround) {
+            Location air = FunView.airExit(v, exitTries(v, seat).subList(0, Math.min(4, exitTries(v, seat).size())));
+            if (air != null) return air;
+        }
         Location safe = safeExit(v, seat);
         if (safe != null) return safe;
         double[] top = exitTries(v, seat).getLast();

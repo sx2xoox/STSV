@@ -269,3 +269,39 @@ vehicles:
   jige:
     power: muscle
     effort: { per-block: 0.008, per-block-loaded: 0.025, uphill: 1.0 }
+  # 특별 탈것 (vehicles_fun.yml): 킥보드·보드·썰매·스카이콩콩은 사람 힘 (조금 배고픔, 내리막 빠르고 오르막 느림).
+  # 떠 다니거나 뛰는 것 (스카이콩콩·빗자루·풍선 의자)과 로데오 황소·오리·바나나보트는 출렁임(서스펜션) 없음
+  kickboard:
+    power: muscle
+    bounce: 0.5
+    effort: { per-block: 0.004, per-block-loaded: 0, uphill: 1.0 }
+  skateboard:
+    power: muscle
+    bounce: 0.4
+    effort: { per-block: 0.004, per-block-loaded: 0, uphill: 1.0 }
+  sled:
+    power: muscle
+    bounce: 0.3
+    effort: { per-block: 0.003, per-block-loaded: 0, uphill: 1.5 }
+  pogo_stick:
+    power: muscle
+    bounce: 0
+    effort: { per-block: 0.006, per-block-loaded: 0, uphill: 0 }
+  broom:
+    power: engine
+    bounce: 0
+  balloon_chair:
+    power: engine
+    bounce: 0
+  banana_boat:
+    power: engine
+    bounce: 0
+  segway:
+    power: engine
+    bounce: 0.5
+  toy_duck:
+    power: engine
+    bounce: 0
+  rodeo_bull:
+    power: engine
+    bounce: 0

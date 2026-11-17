@@ -64,6 +64,11 @@ public final class VehiclePhysics {
         void boxes(double minX, double minY, double minZ, double maxX, double maxY, double maxZ, List<double[]> out);
 
         Medium medium(int x, int y, int z);
+
+        /** What a block is to a sled ({@link FunPhysics#surfaceFactor}: snow, ice or anything else); only the sled asks. */
+        default FunPhysics.Ground ground(int x, int y, int z) {
+            return FunPhysics.Ground.OTHER;
+        }
     }
 
     /** A vehicle's motion. speed in blocks per second (negative = reversing), yaw in degrees (Minecraft: 0 = +z). */

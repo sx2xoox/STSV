@@ -62,4 +62,14 @@ final class WorldTerrain implements VehiclePhysics.Terrain {
             return VehiclePhysics.Medium.ROUGH;   // sand, gravel, snow (layers too), mud: slower unless all-terrain
         return VehiclePhysics.Medium.AIR;
     }
+
+    @Override
+    public FunPhysics.Ground ground(int x, int y, int z) {
+        if (y < world.getMinHeight() || y >= world.getMaxHeight() || !world.isChunkLoaded(x >> 4, z >> 4)) return FunPhysics.Ground.OTHER;
+        return switch (world.getBlockAt(x, y, z).getType()) {
+            case ICE, PACKED_ICE, BLUE_ICE, FROSTED_ICE -> FunPhysics.Ground.ICE;
+            case SNOW, SNOW_BLOCK, POWDER_SNOW -> FunPhysics.Ground.SNOW;
+            default -> FunPhysics.Ground.OTHER;
+        };
+    }
 }

@@ -50,6 +50,7 @@ def main():
     from models import vehicles_farm
     from models import vehicles_misc
     from models import vehicles_boats         # 고깃배 1·2·4·5세대 (the 통통배 is in vehicles_misc); preview sheet: boat_preview.py
+    from models import vehicles_fun           # 특별 탈것 (vehicles_fun.yml); preview sheet: vehicle_preview_fun.py
     from models import vehicle_paints
     from models import vehicle_lights
     from models import vehicle_tools          # 작업기 (vehicle_tools.yml); preview sheet: vehicle_tools_preview.py
@@ -60,14 +61,16 @@ def main():
     import vehicle_icons_road
     import vehicle_icons_farm
     import vehicle_icons_misc
+    import vehicle_icons_fun
     ALL = {**ITEMS, **cosmetic_models, **furniture.ALL, **furniture_retro.ALL, **vehicles.ALL, **vehicles_road.ALL, **vehicles_farm.ALL, **vehicles_misc.ALL,
-           **vehicles_boats.ALL,
+           **vehicles_boats.ALL, **vehicles_fun.ALL,
            **vehicle_lights.ALL, **vehicle_tools.ALL, **vehicle_paints.ALL, **toys.ALL}
     import special
 
     def home(name):
         return CONTENT if name in SHIPPED_MODELS or name in cosmetic_models or name in furniture.ALL or name in furniture_retro.ALL or name in vehicles.ALL \
             or name in vehicles_road.ALL or name in vehicles_farm.ALL or name in vehicles_misc.ALL or name in vehicles_boats.ALL \
+            or name in vehicles_fun.ALL \
             or name in vehicle_lights.ALL or name in vehicle_tools.ALL or name in vehicle_paints.ALL or name in toys.ALL else FIXTURE
 
     for d in (CONTENT / "models", CONTENT / "textures", FIXTURE / "models", FIXTURE / "textures", BUILD, PREVIEWS):
@@ -123,6 +126,9 @@ def main():
     print(f"icons   {len(vehicle_icons_farm.ICONS)} farm vehicles")
     # 통통배, 지게: icons (vehicle_icons_misc.py), preview sheet: vehicle_misc_preview.py
     for name, fn in vehicle_icons_misc.ICONS.items():
+        fn().save(CONTENT / "textures" / f"{name}_icon.png")
+    # 특별 탈것: icons (vehicle_icons_fun.py), preview sheet: vehicle_preview_fun.py
+    for name, fn in vehicle_icons_fun.ICONS.items():
         fn().save(CONTENT / "textures" / f"{name}_icon.png")
     # vehicles: horn and engine sounds (synthesized, Ogg Vorbis) + assets/stsv/sounds.json
     import sounds
