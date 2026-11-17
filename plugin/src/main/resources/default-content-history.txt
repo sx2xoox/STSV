@@ -17,6 +17,7 @@ cccba2eed1fdb74356a5cc7d63e66fbd1544e061 stsv/assets/stsv/items/angler_rod.json
 f0e7c4ceef68e0ed199763ff649b26a346bb60fc stsv/assets/stsv/items/gui/clear_off.json
 e82ea25a14f98c850da05e93798a8569d17f016f stsv/assets/stsv/items/gui/coins.json
 438d6e7ebfc32590f267bc35b57b6e46dc5500d9 stsv/assets/stsv/items/gui/coins_off.json
+3c550c798158e0b1932c3694e8177c8846e69547 stsv/assets/stsv/items/gui/compass.json
 176637d26f4939783202191d6ac0ce554436df90 stsv/assets/stsv/items/gui/confirm.json
 161e65f90c1aad1f0408abf01c602ae3476ac55f stsv/assets/stsv/items/gui/crown.json
 d67a5c5b03e013c6f41655b1148ecff31105863f stsv/assets/stsv/items/gui/don_car.json
@@ -109,6 +110,7 @@ b39232bdfcdeef02a918b6d790ac7572c89e4f63 stsv/assets/stsv/models/item/gui/back.j
 c5cbe937c8a3d5971223d459b77603d80b6c0cd4 stsv/assets/stsv/models/item/gui/clear_off.json
 d6193ab6b46376f534473ae0a1a68aeaa8a715cc stsv/assets/stsv/models/item/gui/coins.json
 6c10c38f8683ee301aa00b283da9feeca67113c9 stsv/assets/stsv/models/item/gui/coins_off.json
+9dd093e13ea14433f5cc0bc88be877cbfb9828a5 stsv/assets/stsv/models/item/gui/compass.json
 2ccb1c97cec1c6b65f5b6d7ac8fa0676ad7f4c7e stsv/assets/stsv/models/item/gui/confirm.json
 c24312005c3d1d3dc749d0fe27dd7e5be15c6ab6 stsv/assets/stsv/models/item/gui/crown.json
 58b5e4b69de5e8adbd886da88614a8b100023b4e stsv/assets/stsv/models/item/gui/don_car.json
@@ -318,9 +320,13 @@ b232d00246debaf5287f1141e9eb41c49866d4b1 stsv/assets/stsv/textures/gui/gacha.png
 d3f4e5966aa94f8f761a2100e1bddfcf12ab6008 stsv/assets/stsv/textures/gui/gacha.png
 87e21af7788839e69e4e70f2668c564eb98d19c1 stsv/assets/stsv/textures/gui/hub.png
 9cc9eb552d840dc9c05185274f2d52885478a397 stsv/assets/stsv/textures/gui/hub.png
+cbcf32013aaa71962431c9d252368581021e79f8 stsv/assets/stsv/textures/gui/hub.png
 d318cb6f77792b920351746d8daab7f591026e2d stsv/assets/stsv/textures/gui/hub.png
 f143ea43013e5e181444c336949ec2c691a830a2 stsv/assets/stsv/textures/gui/hub.png
 ff512210be7f2ac3b22290c9e9806d16b125b6fd stsv/assets/stsv/textures/gui/hub.png
+b79e68a1390e91d4c1c4b0809d93e0c23ad86adc stsv/assets/stsv/textures/gui/hub_me.png
+3b625207465a228f2e5627e2c0e06de5aac5e042 stsv/assets/stsv/textures/gui/hub_money.png
+09d3a0bd3e7bf00549fa8a51269b8a7ebd8329ed stsv/assets/stsv/textures/gui/hub_travel.png
 45cf194d1a1da00467fac587a4cc6ae243dca6ac stsv/assets/stsv/textures/gui/nick_colors.png
 4dc094b3513fa372bcf9bbe1572e30732a0ebaaa stsv/assets/stsv/textures/gui/profile.png
 54f6c1fc3a50548fe6e717e2c099166bc6b964db stsv/assets/stsv/textures/gui/profile.png
@@ -353,6 +359,7 @@ e3973e25639fbc0cb6f738db3706cdcc6ecd9d66 stsv/assets/stsv/textures/item/gui/clea
 f6ca9562b0ceab3e633e8108c2dbd209d18c7ed6 stsv/assets/stsv/textures/item/gui/clear_off.png
 b4e0d1ed7ba6f6e817177ec96beb3c7815342ea2 stsv/assets/stsv/textures/item/gui/coins.png
 f42b2b8daa9a99b87d007ed626ed0d3592333615 stsv/assets/stsv/textures/item/gui/coins_off.png
+7c0be0d718b7da5ca105bc244db1ded256051e19 stsv/assets/stsv/textures/item/gui/compass.png
 b050d4d1b481e4a0d725e2c9018bf62e66257e24 stsv/assets/stsv/textures/item/gui/confirm.png
 4066fe6828b94fc1945026c45b9c7706d59c0d20 stsv/assets/stsv/textures/item/gui/crown.png
 410fc8663cdc70eb24e7939e2af5aa8cf38c9424 stsv/assets/stsv/textures/item/gui/don_car.png
@@ -602,6 +609,7 @@ d36a2ba7c55817dad0b0b3e1d3ff3eb2001575b8 stsv/menus/gacha.yml
 274759f02745ab2d1d8e7ba5d6d07d3a782b29b1 stsv/menus/hub.yml
 321d954be459e630498d4443ce3b4f7d49379f9b stsv/menus/hub.yml
 436d76ef0dbc05b540fc7d1aa9775f5e9a9cb2c1 stsv/menus/hub.yml
+745229c4eaaac0df02da27a7d203d0c3d2c7bf2c stsv/menus/hub.yml
 7a5e35f78423fc543f703b7740a9981ebe78f3c1 stsv/menus/hub.yml
 83eed9a674a34d9816c6a19a87a1cdca7a748875 stsv/menus/hub.yml
 8e8df5e09afb5edd5d3125d213040a5f798b1297 stsv/menus/hub.yml
