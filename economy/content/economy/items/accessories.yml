@@ -13,7 +13,7 @@ accessory:
 acc_box:
   material: paper
   name: "<#ffd36b>장신구 상자"
-  lore: ["<gray>우클릭: 열기 (효과는 고르게, 등급은 보통 78% · 진품 18% · 명품 3.6% · 국보 0.4%)"]
+  lore: ["<gray>우클릭: 열기 (효과는 고르게, 등급은 C 78% · B 18% · A 3.6% · S 0.4%)"]
   texture: acc_box
 
 acc_fragment:

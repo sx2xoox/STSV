@@ -1,19 +1,19 @@
 # 장신구 (/장신구): 칸 6개 (반지 2 · 목걸이 · 귀걸이 · 허리띠 · 팔찌). docs/plans/장신구_시스템_기획안.md
 # 얻을 때 등급 범위 안에서 수치가 무작위로 정해짐 (굴림 0~1). 실제 효과 = 범위 안의 값 × 강화 누적 배수.
-# 효과의 max = "국보 최상위 +10" 목표치: 국보 최대값 = max ÷ 강화 끝 배수(1.6), 등급 범위는 그 비율(grades.range).
+# 효과의 max = "S 최상위 +10" 목표치: S 최대값 = max ÷ 강화 끝 배수(1.6), 등급 범위는 그 비율(grades.range).
 # ranges 가 있는 효과는 등급마다 범위를 직접 적음(가방 줄 수, 자석 반경 등).
 
 grades:
-  common:     { name: "보통", color: "#e8e8e8", range: [0.10, 0.22], subs: [20], refine: 15000, refine-items: { economy:gem_dust: 2 }, reroll: 40000, enhance: 0.2, box: 0.78, drop: 0.85 }
-  fine:       { name: "진품", color: "#5ab0ff", range: [0.20, 0.40], subs: [10, 30], refine: 60000, refine-items: { economy:gem_dust: 4, economy:tempering_stone: 2 }, reroll: 100000, enhance: 0.4, box: 0.18, drop: 0.13 }
-  masterwork: { name: "명품", color: "#c58cff", range: [0.38, 0.65], subs: [10, 20, 30], refine: 250000, refine-items: { economy:gem_dust: 6, economy:tempering_stone: 6 }, reroll: 250000, enhance: 1.0, box: 0.036, drop: 0.018, announce-perfect: true }
-  treasure:   { name: "국보", color: "#ffd36b", range: [0.62, 1.00], subs: [10, 20, 30], sub-floor: 0.5, refine: 800000, refine-items: { economy:gem_dust: 10, economy:tempering_stone: 15 }, reroll: 600000, enhance: 3.0, box: 0.004, drop: 0.002, announce: true, announce-perfect: true }
+  common:     { name: "C", color: "#e8e8e8", range: [0.10, 0.22], subs: [20], refine: 15000, refine-items: { economy:gem_dust: 2 }, reroll: 40000, enhance: 0.2, box: 0.78, drop: 0.85 }
+  fine:       { name: "B", color: "#5ab0ff", range: [0.20, 0.40], subs: [10, 30], refine: 60000, refine-items: { economy:gem_dust: 4, economy:tempering_stone: 2 }, reroll: 100000, enhance: 0.4, box: 0.18, drop: 0.13 }
+  masterwork: { name: "A", color: "#c58cff", range: [0.38, 0.65], subs: [10, 20, 30], refine: 250000, refine-items: { economy:gem_dust: 6, economy:tempering_stone: 6 }, reroll: 250000, enhance: 1.0, box: 0.036, drop: 0.018, announce-perfect: true }
+  treasure:   { name: "S", color: "#ffd36b", range: [0.62, 1.00], subs: [10, 20, 30], sub-floor: 0.5, refine: 800000, refine-items: { economy:gem_dust: 10, economy:tempering_stone: 15 }, reroll: 600000, enhance: 3.0, box: 0.004, drop: 0.002, announce: true, announce-perfect: true }
 
 refines: 3                 # 장신구마다 제련 횟수
 reroll-step: 0.20          # 옵션 변경: 같은 장신구에서 할 때마다 값 +20% (누적)
-sub-size: 0.2              # 부가 옵션 크기: 그 효과 국보 범위 × 0.2
+sub-size: 0.2              # 부가 옵션 크기: 그 효과 S 범위 × 0.2
 
-# 강화 (값·단련석은 명품 기준, 등급의 enhance 배수를 곱함). add = 그 단계가 더하는 효과(강화 전 값 기준, 더하기)
+# 강화 (값·단련석은 A 기준, 등급의 enhance 배수를 곱함). add = 그 단계가 더하는 효과(강화 전 값 기준, 더하기)
 enhance:
   item: economy:tempering_stone
   charm: economy:guard_charm      # 보호 부적: 하락을 한 번 막음
@@ -76,7 +76,7 @@ dragon-chest:
     - { weight: 4.5, fish: rare }
     - { weight: 0.5, accessory: true }
 
-# 효과. slot: ring · necklace · earring · belt · bracelet. max = 국보 최상위 +10 목표치 (분수: 3.0 = +300%, 1.0 = 100%, 곱하기 효과는 더하는 몫: ×2 = 1.0)
+# 효과. slot: ring · necklace · earring · belt · bracelet. max = S 최상위 +10 목표치 (분수: 3.0 = +300%, 1.0 = 100%, 곱하기 효과는 더하는 몫: ×2 = 1.0)
 # format: {v} 자리에 값 (pct = ×100 %, factor = ×(1+v), flat = 숫자). cap: 이 값을 넘지 않음. activity: 레벨 경험치. sub: false = 부가 옵션으로 안 나옴
 effects:
   mining_speed:    { name: "채굴 속도", slot: ring, max: 3.0, format: pct, sign: "+", activity: mine }

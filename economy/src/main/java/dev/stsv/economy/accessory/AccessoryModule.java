@@ -235,7 +235,7 @@ public final class AccessoryModule extends EcoModule {
             double v = spec.amount(e, g, a.roll, a.enhance);
             double[] range = e.range(g);
             lore.add(Text.item("<white>" + e.name() + " <yellow>" + AccessorySpec.text(e, v)
-                    + " <dark_gray>(범위 " + AccessorySpec.text(e, range[0]) + " ~ " + AccessorySpec.text(e, range[1]) + ")"
+                    + " <dark_gray>(" + AccessorySpec.text(e, range[0]) + " ~ " + AccessorySpec.text(e, range[1]) + ")"
                     + (a.perfect() ? " <gold><b>완벽</b>" : "")));
             if (a.enhance > 0) lore.add(Text.item("<gray>  └ 강화 +" + a.enhance + " <dark_gray>×" + AccessorySpec.num(spec.multiplier(a.enhance), 3)));
             int open = spec.subsOpen(g, lv);
@@ -245,7 +245,7 @@ public final class AccessoryModule extends EcoModule {
                     AccessorySpec.Effect se = spec.effects().get(s.effect());
                     if (se != null) lore.add(Text.item("<gray>부가: <white>" + se.name() + " " + AccessorySpec.text(se, spec.subAmount(se, s.roll()))));
                 } else {
-                    lore.add(Text.item("<dark_gray>부가: Lv" + g.subs().get(i) + " 에 열림"));
+                    lore.add(Text.item("<dark_gray>부가: Lv" + g.subs().get(i)));
                 }
             }
             double lo = spec.xpFor(lv), hi = spec.xpFor(lv + 1);

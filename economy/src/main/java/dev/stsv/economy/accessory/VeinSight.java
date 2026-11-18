@@ -18,8 +18,8 @@ import java.util.UUID;
 
 /**
  * 광맥 투시: while a player sneaks, the ores within the accessory's radius glow through the walls for them alone (block displays
- * only they see, coloured by the ore), refreshed every 1.5 s. The scan reads chunk snapshots off the main thread. From 명품 the
- * action bar points at the nearest diamond and emerald, from 국보 the nearest ancient debris too.
+ * only they see, coloured by the ore), refreshed every 1.5 s. The scan reads chunk snapshots off the main thread. From grade A the
+ * action bar points at the nearest diamond and emerald, from S the nearest ancient debris too.
  */
 final class VeinSight {
 
