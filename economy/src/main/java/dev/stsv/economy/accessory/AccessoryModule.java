@@ -93,7 +93,12 @@ public final class AccessoryModule extends EcoModule {
     @Override
     public void reload() {
         load();
-        for (Player p : Bukkit.getOnlinePlayers()) refresh(p);
+        // the numbers come from accessories.yml (an item keeps only its roll, grade, effect and enhance level): the
+        // descriptions are drawn again with the new ranges, the effects recomputed
+        for (Player p : Bukkit.getOnlinePlayers()) {
+            redraw(p);
+            refresh(p);
+        }
     }
 
     @Override
@@ -287,36 +292,40 @@ public final class AccessoryModule extends EcoModule {
 
     @EventHandler
     public void onJoin(PlayerJoinEvent e) {
+        redraw(e.getPlayer());
         refresh(e.getPlayer());
-        // accessories made before the per-effect looks get theirs, and those on the old per-slot items move to
-        // economy:accessory (their data stays as it is)
-        var inv = e.getPlayer().getInventory();
-        for (int i = 0; i < inv.getSize(); i++) {
-            Accessory a = read(inv.getItem(i));
-            if (a != null) inv.setItem(i, write(migrate(inv.getItem(i)), a));
-        }
-        migrateAll(e.getPlayer().getEnderChest());
-        ItemStack[] worn = store.worn(e.getPlayer().getUniqueId());
+    }
+
+    /**
+     * Draws again the name and description of every accessory a player has (inventory, ender chest, worn): an item
+     * keeps only its data, so changed ranges, grade names or looks in accessories.yml show at once. Those on the old
+     * per-slot items move to economy:accessory.
+     */
+    private void redraw(Player p) {
+        redrawAll(p.getInventory());
+        redrawAll(p.getEnderChest());
+        ItemStack[] worn = store.worn(p.getUniqueId());
         for (int i = 0; i < worn.length; i++) {
             Accessory a = read(worn[i]);
             if (a != null) {
                 worn[i] = write(migrate(worn[i]), a);
-                store.touched(e.getPlayer().getUniqueId());
+                store.touched(p.getUniqueId());
             }
         }
     }
 
-    /** A chest (or any block's inventory) opened: its accessories on the old per-slot items move to economy:accessory. */
+    /** A chest (or any block's inventory) opened: its accessories are drawn again (and moved off the old items). */
     @EventHandler(ignoreCancelled = true)
     public void onOpen(org.bukkit.event.inventory.InventoryOpenEvent e) {
         if (e.getInventory().getHolder() instanceof org.bukkit.block.Container
-                || e.getInventory().getHolder() instanceof org.bukkit.block.DoubleChest) migrateAll(e.getInventory());
+                || e.getInventory().getHolder() instanceof org.bukkit.block.DoubleChest) redrawAll(e.getInventory());
     }
 
-    private void migrateAll(org.bukkit.inventory.Inventory inv) {
+    private void redrawAll(org.bukkit.inventory.Inventory inv) {
         for (int i = 0; i < inv.getSize(); i++) {
             ItemStack it = inv.getItem(i);
-            if (it != null && read(it) != null && !Accessory.ITEM.equals(Items.key(it))) inv.setItem(i, migrate(it));
+            Accessory a = read(it);
+            if (a != null) inv.setItem(i, write(migrate(it), a));
         }
     }
 

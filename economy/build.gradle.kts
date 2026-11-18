@@ -3,7 +3,7 @@ plugins {
 }
 
 group = "dev.stsv"
-version = "3.83.1"
+version = "3.83.2"
 
 repositories {
     mavenCentral()
