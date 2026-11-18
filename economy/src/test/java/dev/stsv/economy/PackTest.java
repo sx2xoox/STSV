@@ -111,7 +111,7 @@ class PackTest {
         long economyBackgrounds = font.getAsJsonArray("providers").asList().stream()
                 .filter(p -> p.getAsJsonObject().has("file") && p.getAsJsonObject().get("file").getAsString().startsWith("economy:gui/"))
                 .map(p -> p.getAsJsonObject().get("file").getAsString()).distinct().count();
-        assertEquals(32, economyBackgrounds, "every economy menu background is in the menu font");
+        assertEquals(33, economyBackgrounds, "every economy menu background is in the menu font");
         assertTrue(files.containsKey("assets/economy/font/stockgraph.json"), "stock chart font");
         assertFalse(files.containsKey("assets/economy/font/fishring.json"), "the fishing ring is gone");
         assertTrue(files.containsKey("assets/economy/font/fishicon.json"), "fish picture font");

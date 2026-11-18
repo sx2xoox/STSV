@@ -77,37 +77,37 @@ dragon-chest:
     - { weight: 0.5, accessory: true }
 
 # 효과. slot: ring · necklace · earring · belt · bracelet. max = S 최상위 +10 목표치 (분수: 3.0 = +300%, 1.0 = 100%, 곱하기 효과는 더하는 몫: ×2 = 1.0)
-# format: {v} 자리에 값 (pct = ×100 %, factor = ×(1+v), flat = 숫자). cap: 이 값을 넘지 않음. activity: 레벨 경험치. sub: false = 부가 옵션으로 안 나옴
+# desc: 장신구 효과 화면(/장신구 효과)에 보이는 한 줄 설명. format: {v} 자리에 값 (pct = ×100 %, factor = ×(1+v), flat = 숫자). cap: 이 값을 넘지 않음. activity: 레벨 경험치. sub: false = 부가 옵션으로 안 나옴
 effects:
-  mining_speed:    { name: "채굴 속도", slot: ring, max: 3.0, format: pct, sign: "+", activity: mine }
-  vein_burst:      { name: "광맥 폭발", slot: ring, max: 1.0, format: pct, cap: 1.0, activity: mine }
-  harvest_wind:    { name: "풍년 바람", slot: ring, max: 1.0, format: pct, cap: 1.0, activity: harvest }
-  master_hand:     { name: "장인의 손", slot: ring, max: 0.5, format: pct, activity: machine }
-  rich_vein:       { name: "풍부한 광맥", slot: ring, max: 0.7, format: pct, cap: 1.0, activity: mine }
-  magnet:          { name: "자석", slot: ring, format: flat, unit: "칸", ranges: { common: [2, 3], fine: [3, 4], masterwork: [4, 6.5], treasure: [6.2, 10] }, activity: pickup, sub: false }
-  blessing:        { name: "대장장이의 축복", slot: ring, max: 0.5, format: pct, cap: 1.0, activity: refine }
-  bite:            { name: "손맛", slot: necklace, max: 0.6, format: pct, sign: "−", cap: 0.9, activity: fish }
-  dragon_treasure: { name: "용궁 보물", slot: necklace, max: 0.25, format: pct, cap: 1.0, activity: fish }
-  full_net:        { name: "만선", slot: necklace, max: 1.0, format: pct, cap: 1.0, activity: fish }
-  rare_find:       { name: "귀한 발견", slot: necklace, max: 2.0, format: factor, activity: jobxp }
-  appraiser:       { name: "감정사의 눈", slot: necklace, max: 1.0, format: factor, activity: box }
-  remote_machine:  { name: "원격 기계", slot: necklace, format: flat, unit: "칸", ranges: { common: [50, 50], fine: [100, 100], masterwork: [250, 250], treasure: [-1, -1] }, activity: machine, sub: false, enhance: false }
-  focus:           { name: "장인의 집중", slot: earring, max: 0.8, format: pct, cap: 1.0, activity: machine }
-  machine_haste:   { name: "기계 가속", slot: earring, max: 0.4, format: pct, sign: "−", cap: 0.8, activity: machine }
-  timber:          { name: "벌목 회오리", slot: earring, max: 1.0, format: pct, cap: 1.0, activity: wood }
-  quake:           { name: "땅울림", slot: earring, max: 1.0, format: pct, cap: 1.0, activity: dig }
-  vein_sight:      { name: "광맥 투시", slot: earring, format: flat, unit: "칸", ranges: { common: [6, 8], fine: [8, 12], masterwork: [12, 19], treasure: [19, 30] }, activity: mine, sub: false }
-  refine_hand:     { name: "제련의 손", slot: earring, max: 1.0, format: pct, cap: 1.0, activity: refine }
-  move_speed:      { name: "이동 속도", slot: belt, max: 0.7, format: pct, sign: "+", activity: walk }
-  vehicle_speed:   { name: "탈것 가속", slot: belt, max: 0.6, format: pct, sign: "+", activity: drive }
-  cargo:           { name: "짐 더 싣기", slot: belt, max: 0.25, format: pct, sign: "+", activity: drive }
-  bag:             { name: "가방", slot: belt, format: flat, unit: "줄", ranges: { common: [6, 8], fine: [7, 14], masterwork: [13, 22], treasure: [21, 34] }, cap: 54, activity: pickup, sub: false }
-  fortune_find:    { name: "행운의 발견", slot: belt, max: 2.0, format: factor, activity: jobxp }
-  dock_bonus:      { name: "하역 웃돈", slot: bracelet, max: 0.2, format: pct, sign: "+", activity: dock }
-  abundance:       { name: "풍작", slot: bracelet, max: 0.7, format: pct, cap: 1.0, activity: harvest }
-  thrift:          { name: "알뜰한 손", slot: bracelet, max: 0.7, format: pct, cap: 1.0, activity: machine }
-  request_bonus:   { name: "의뢰 웃돈", slot: bracelet, max: 1.0, format: pct, sign: "+", activity: request }
-  craft_learning:  { name: "장인의 배움", slot: bracelet, format: pct, sign: "+", ranges: { common: [0.05, 0.15], fine: [0.13, 0.32], masterwork: [0.30, 0.70], treasure: [0.65, 1.25] }, activity: jobxp }
+  mining_speed:    { name: "채굴 속도", desc: "블록을 캐는 속도가 빨라짐", slot: ring, max: 3.0, format: pct, sign: "+", activity: mine }
+  vein_burst:      { name: "광맥 폭발", desc: "광석을 캘 때 이 확률로 이어진 같은 광석을 한꺼번에 캠 (최대 32개)", slot: ring, max: 1.0, format: pct, cap: 1.0, activity: mine }
+  harvest_wind:    { name: "풍년 바람", desc: "다 익은 작물을 수확할 때 이 확률로 둘레 작물도 같이 수확", slot: ring, max: 1.0, format: pct, cap: 1.0, activity: harvest }
+  master_hand:     { name: "장인의 손", desc: "기계 결과물 하나마다 이 확률로 +1 (직업 보너스와 따로 굴림)", slot: ring, max: 0.5, format: pct, activity: machine }
+  rich_vein:       { name: "풍부한 광맥", desc: "광석 +1 (광부 보너스)이 나올 때 이 확률로 하나 더", slot: ring, max: 0.7, format: pct, cap: 1.0, activity: mine }
+  magnet:          { name: "자석", desc: "이 거리 안에 떨어진 아이템이 나에게 끌려옴", slot: ring, format: flat, unit: "칸", ranges: { common: [2, 3], fine: [3, 4], masterwork: [4, 6.5], treasure: [6.2, 10] }, activity: pickup, sub: false }
+  blessing:        { name: "대장장이의 축복", desc: "장신구 강화 실패로 단계가 떨어질 때 이 확률로 막음", slot: ring, max: 0.5, format: pct, cap: 1.0, activity: refine }
+  bite:            { name: "손맛", desc: "낚시 입질까지 기다리는 시간이 줄어듦", slot: necklace, max: 0.6, format: pct, sign: "−", cap: 0.9, activity: fish }
+  dragon_treasure: { name: "용궁 보물", desc: "물고기를 낚을 때 이 확률로 용궁 상자를 함께 낚음", slot: necklace, max: 0.25, format: pct, cap: 1.0, activity: fish }
+  full_net:        { name: "만선", desc: "흔함 · 보통 물고기를 낚을 때 이 확률로 한 마리 더", slot: necklace, max: 1.0, format: pct, cap: 1.0, activity: fish }
+  rare_find:       { name: "귀한 발견", desc: "특별 재료(산삼 · 운철 · 붉은 산호 등)가 나올 확률이 이만큼 커짐", slot: necklace, max: 2.0, format: factor, activity: jobxp }
+  appraiser:       { name: "감정사의 눈", desc: "장신구 상자 · 드롭에서 A · S 등급이 나올 확률이 이만큼 커짐", slot: necklace, max: 1.0, format: factor, activity: box }
+  remote_machine:  { name: "원격 기계", desc: "/원격기계: 이 거리 안의 내 기계 결과물을 멀리서 받음", slot: necklace, format: flat, unit: "칸", ranges: { common: [50, 50], fine: [100, 100], masterwork: [250, 250], treasure: [-1, -1] }, activity: machine, sub: false, enhance: false }
+  focus:           { name: "장인의 집중", desc: "기계 작업이 끝날 때 이 확률로 그 줄의 다음 작업이 절반 시간", slot: earring, max: 0.8, format: pct, cap: 1.0, activity: machine }
+  machine_haste:   { name: "기계 가속", desc: "내 기계의 작업 시간이 줄어듦", slot: earring, max: 0.4, format: pct, sign: "−", cap: 0.8, activity: machine }
+  timber:          { name: "벌목 회오리", desc: "통나무를 벨 때 이 확률로 나무 한 그루가 한꺼번에 베어짐", slot: earring, max: 1.0, format: pct, cap: 1.0, activity: wood }
+  quake:           { name: "땅울림", desc: "흙 · 돌 등을 팔 때 이 확률로 둘레 3×3 을 같이 팜", slot: earring, max: 1.0, format: pct, cap: 1.0, activity: dig }
+  vein_sight:      { name: "광맥 투시", desc: "웅크리면 이 거리 안의 광석이 벽 너머로 빛나 보임 (나에게만)", slot: earring, format: flat, unit: "칸", ranges: { common: [6, 8], fine: [8, 12], masterwork: [12, 19], treasure: [19, 30] }, activity: mine, sub: false }
+  refine_hand:     { name: "제련의 손", desc: "제련할 때 이 확률로 두 번 굴려 높은 쪽을 가짐", slot: earring, max: 1.0, format: pct, cap: 1.0, activity: refine }
+  move_speed:      { name: "이동 속도", desc: "걷는 속도가 빨라짐", slot: belt, max: 0.7, format: pct, sign: "+", activity: walk }
+  vehicle_speed:   { name: "탈것 가속", desc: "내가 운전하는 탈것이 빨라짐 (서킷 카트 · 빌린 탈것 제외)", slot: belt, max: 0.6, format: pct, sign: "+", activity: drive }
+  cargo:           { name: "짐 더 싣기", desc: "내 탈것에 더 많이 실음", slot: belt, max: 0.25, format: pct, sign: "+", activity: drive }
+  bag:             { name: "가방", desc: "/가방 이 생김. 이 줄 수만큼 칸 (한 줄 9칸)", slot: belt, format: flat, unit: "줄", ranges: { common: [6, 8], fine: [7, 14], masterwork: [13, 22], treasure: [21, 34] }, cap: 54, activity: pickup, sub: false }
+  fortune_find:    { name: "행운의 발견", desc: "채굴 · 수확 · 낚시 등을 하다 장신구가 떨어질 확률이 이만큼 커짐", slot: belt, max: 2.0, format: factor, activity: jobxp }
+  dock_bonus:      { name: "하역 웃돈", desc: "하역장에서 받는 돈이 늘어남", slot: bracelet, max: 0.2, format: pct, sign: "+", activity: dock }
+  abundance:       { name: "풍작", desc: "수확 보너스(+)가 나올 때 그 하나마다 이 확률로 하나 더", slot: bracelet, max: 0.7, format: pct, cap: 1.0, activity: harvest }
+  thrift:          { name: "알뜰한 손", desc: "기계가 재료를 쓸 때 아끼지 못한 재료를 이 확률로 한 번 더 아낌 (같은 줄 연속은 안 됨)", slot: bracelet, max: 0.7, format: pct, cap: 1.0, activity: machine }
+  request_bonus:   { name: "의뢰 웃돈", desc: "의뢰 보상 돈이 늘어남", slot: bracelet, max: 1.0, format: pct, sign: "+", activity: request }
+  craft_learning:  { name: "장인의 배움", desc: "직업 경험치를 더 받음", slot: bracelet, format: pct, sign: "+", ranges: { common: [0.05, 0.15], fine: [0.13, 0.32], masterwork: [0.30, 0.70], treasure: [0.65, 1.25] }, activity: jobxp }
 
 # 칸 (장신구 창에 놓이는 순서)
 slots: [ring, ring, necklace, earring, belt, bracelet]

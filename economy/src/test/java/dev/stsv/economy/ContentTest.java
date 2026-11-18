@@ -79,6 +79,22 @@ class ContentTest {
         return m != null && !m.isLegacy() && m != Material.AIR;   // isItem() needs a running server
     }
 
+    /** A title id in two files: the later file silently wins (the 4세대 shop's 재벌 once hid the achievement's). */
+    @Test
+    void titleIdsAreUnique() throws Exception {
+        Map<String, String> seen = new java.util.HashMap<>();
+        List<String> bad = new ArrayList<>();
+        try (Stream<Path> s = Files.list(PACK.resolve("titles"))) {
+            for (Path f : s.filter(x -> x.toString().endsWith(".yml")).sorted().toList()) {
+                for (String k : YamlConfiguration.loadConfiguration(f.toFile()).getKeys(false)) {
+                    String before = seen.put(k, f.getFileName().toString());
+                    if (before != null) bad.add(k + ": " + before + " · " + f.getFileName());
+                }
+            }
+        }
+        assertTrue(bad.isEmpty(), "title ids in two files: " + bad);
+    }
+
     /** A key written twice in one menu (two buttons on one letter) silently loses the first: the 1강 tab once became the back button. */
     @Test
     void menusHaveNoDuplicateKeys() throws Exception {
@@ -361,7 +377,7 @@ class ContentTest {
         List<String> problems = new ArrayList<>();
         List<MenuSpec> menus = MenuSpec.loadAll(List.of(new ContentPack("economy", "economy", PACK)), problems);
         assertTrue(problems.isEmpty(), String.join("\n", problems));
-        assertEquals(32, menus.size());   // the hub is 7 menus: the first screen, 4 category pages and the 2 minigame pages
+        assertEquals(33, menus.size());   // the hub is 7 menus (the first screen, 4 category pages, 2 minigame pages); 장신구 3 (칸 · 공방 · 효과)
         for (MenuSpec m : menus) {
             // the button grid is mirror-symmetric, row by row (the machine's lanes are fixed by its code; their
             // empty cells hold arrows, so they read as full rows)

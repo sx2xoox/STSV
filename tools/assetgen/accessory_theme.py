@@ -9,6 +9,7 @@ hanok hub (tools/assetgen/hub_hanok.py), whose Sunflower writer it borrows.
 
     plaque:       the words on the lid's board (the title line itself stays empty)
     slot-labels:  a name under each list cell, in order
+    row-labels:   a name at the left end of each row, from the top (the effects screen: a row a slot kind)
     showcase:     true = the list's one cell is a gold setting on a pedestal (the workshop's accessory)
     every other button letter gets a brass setting (its icon is the button's own item, so it can change)
 """
@@ -198,6 +199,10 @@ def background(menu, art=None):
     for (r, c), text in zip(list_cells, menu.get("slot-labels") or []):
         x, y = ox + 7 + 18 * c, oy + 17 + 18 * r
         words.append(((x - 8, y + 19, x + 25, y + 27), text, 16, TEXT, TEXT_EDGE))
+
+    for r, text in enumerate(menu.get("row-labels") or []):
+        y = oy + 17 + 18 * r
+        words.append(((ox + 4, y + 4, ox + 23, y + 13), text, 13, TEXT, TEXT_EDGE))
 
     # the drawer: the player's inventory where the game puts it, a pearl line above it
     _pearl_line(im, ox + 6, ox + T.W - 7, ty1 + 4, 2)

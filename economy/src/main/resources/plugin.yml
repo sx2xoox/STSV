@@ -39,7 +39,7 @@ commands:
     aliases: [job]
     permission: stsv.economy.play
   장신구:
-    description: 장신구 칸·공방
+    description: 장신구 칸·공방·효과
     aliases: [accessory]
     permission: stsv.economy.play
   원격기계:

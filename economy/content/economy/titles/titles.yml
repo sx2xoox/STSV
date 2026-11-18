@@ -121,13 +121,13 @@ grandmaster_alchemist:
   name: "<gradient:#c58cff:#ffffff><b>[연금술사 명인]</b></gradient>"
   description: "직업: 연금술사 Lv50 승급"
   category: job
-# 4세대 칭호 상점 (과시 소비)
+# 4세대 칭호 상점 (과시 소비). 이름은 다른 칭호와 겹치지 않게 (상점 거상 · 업적 재벌이 이미 있음)
 big_merchant:
-  name: "<gradient:#ffe082:#ffb300>[거상]</gradient>"
+  name: "<gradient:#ffe082:#ffb300>[만석꾼]</gradient>"
   description: "상점에서 산 칭호 (4세대)"
   category: shop
-chaebol:
-  name: "<gradient:#fff3a0:#f5b301><b>[재벌]</b></gradient>"
+chaebol_heir:
+  name: "<gradient:#fff3a0:#f5b301><b>[재벌 2세]</b></gradient>"
   description: "상점에서 산 칭호 (4세대)"
   category: shop
 golden_spoon:

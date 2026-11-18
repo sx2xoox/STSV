@@ -607,7 +607,7 @@ buy:
       - { title: economy:landlord, price: 30000 }
       - { title: economy:magnate, price: 80000 }
       - { title: economy:big_merchant, price: 1000000 }    # 4세대
-      - { title: economy:chaebol, price: 5000000 }
+      - { title: economy:chaebol_heir, price: 5000000 }
       - { title: economy:golden_spoon, price: 20000000 }
 
 # 상인 행렬 (사건): 사건이 열려 있는 동안만 구매 카테고리에 나옴. 선착순, 사건마다 재고가 새로 채워짐

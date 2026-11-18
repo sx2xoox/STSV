@@ -18,7 +18,7 @@ accessories:
   list: L
   buttons:
     I:
-      action: ""
+      action: "accessory:effects"
       icon: stsv:gui/info
       material: BOOK
       name: "<white>지금 받는 효과 <gray>· 장신구 {count}/6"

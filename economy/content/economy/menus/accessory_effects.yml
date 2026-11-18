@@ -1,0 +1,30 @@
+# 장신구 효과 (/장신구 효과, /장신구 의 효과 버튼): 모든 효과를 칸 종류마다 한 줄씩 (줄 이름 row-labels). 아이콘에 대면 하는 일,
+# 등급별 범위(강화 전), S 최상위 +10, 지금 내 효과. 목록 칸 순서 = accessories.yml slots 의 칸 종류 순서 · 그 안은 effects 순서
+# (반지 7 · 목걸이 6 · 귀걸이 6 · 허리띠 5 · 팔찌 5). 모양: theme: jewel (accessory_theme.py)
+accessory_effects:
+  title: ""
+  plaque: "장신구 효과"
+  rows: 6
+  theme: jewel
+  frame: {left: 12, right: 12, top: 16, scale: 2}
+  background: economy:gui/accessory_effects
+  row-labels: ["반지", "목걸이", "귀걸이", "허리띠", "팔찌"]
+  layout:
+    - ".LLLLLLL."
+    - ".LLL.LLL."
+    - ".LLL.LLL."
+    - "..LLLLL.."
+    - "..LLLLL.."
+    - "...B.X..."
+  list: L
+  buttons:
+    B:
+      action: "accessory:back"
+      icon: economy:gui/back
+      material: ARROW
+      name: "<white>장신구 칸으로"
+    X:
+      action: close
+      icon: stsv:gui/exit
+      material: OAK_DOOR
+      name: "<red>닫기"

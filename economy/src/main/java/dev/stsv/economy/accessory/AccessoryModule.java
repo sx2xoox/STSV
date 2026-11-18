@@ -50,7 +50,7 @@ public final class AccessoryModule extends EcoModule {
     public static final NamespacedKey KEY = new NamespacedKey("economy", "acc");
     private static final NamespacedKey MINING = new NamespacedKey("economy", "acc_mining");
     private static final NamespacedKey MOVE = new NamespacedKey("economy", "acc_move");
-    private static final String MENU = "economy:accessories", WORKSHOP = "economy:accessory_workshop";
+    private static final String MENU = "economy:accessories", WORKSHOP = "economy:accessory_workshop", EFFECTS = "economy:accessory_effects";
 
     private AccessorySpec spec;
     private AccessoryStore store;
@@ -618,6 +618,7 @@ public final class AccessoryModule extends EcoModule {
             Player p = v.player();
             switch (action) {
                 case "accessory:workshop" -> Bukkit.getScheduler().runTask(eco, () -> openWorkshop(p));
+                case "accessory:effects" -> Bukkit.getScheduler().runTask(eco, () -> openEffects(p));
                 case "accessory:bag" -> Bukkit.getScheduler().runTask(eco, () -> bags.open(p, 0));
                 default -> { }
             }
@@ -653,6 +654,59 @@ public final class AccessoryModule extends EcoModule {
     // ------------------------------------------------------------------------------------------
     // The workshop: enhance, refine, reroll (an accessory in the inventory, not worn)
     // ------------------------------------------------------------------------------------------
+
+    // ------------------------------------------------------------------------------------------
+    // The effects screen (/장신구 효과): every effect, a row a slot kind, what it does and its numbers
+    // ------------------------------------------------------------------------------------------
+
+    public void openEffects(Player p) {
+        core.menus().open(p, EFFECTS, new EffectsMenu());
+    }
+
+    private final class EffectsMenu implements MenuHandler {
+
+        @Override
+        public List<ItemStack> list(MenuView v) {
+            UUID u = v.player().getUniqueId();
+            List<ItemStack> out = new ArrayList<>();
+            for (String slot : new java.util.LinkedHashSet<>(spec.slots())) {
+                for (AccessorySpec.Effect e : spec.effectsOf(slot)) out.add(effectCard(e, values.getOrDefault(u, Map.of()).get(e.id())));
+            }
+            return out;
+        }
+
+        @Override
+        public void onAction(MenuView v, String action, ClickType click) {
+            if (action.equals("accessory:back")) Bukkit.getScheduler().runTask(eco, () -> open(v.player()));
+        }
+    }
+
+    /** One effect as the effects screen shows it: its look, what it does, every grade's range (before enhancing), the top, mine. */
+    private ItemStack effectCard(AccessorySpec.Effect e, Double mine) {
+        ItemStack it = new ItemStack(Material.PAPER);
+        it.editMeta(m -> {
+            m.setItemModel(new NamespacedKey("economy", "acc/" + e.id()));
+            m.itemName(Text.item("<#f0e2b0>" + e.name() + " <dark_gray>· " + spec.slotNames().getOrDefault(e.slot(), e.slot())));
+            List<Component> lore = new ArrayList<>();
+            if (!e.desc().isEmpty()) lore.add(Text.item("<white>" + e.desc()));
+            lore.add(Component.empty());
+            for (AccessorySpec.Grade g : spec.grades().values()) {
+                double lo = spec.amount(e, g, 0, 0), hi = spec.amount(e, g, 1, 0);
+                String range = lo == hi ? AccessorySpec.text(e, lo) : AccessorySpec.text(e, lo) + " ~ " + AccessorySpec.text(e, hi);
+                lore.add(Text.item("<" + g.color() + ">" + g.name() + " <gray>" + range));
+            }
+            AccessorySpec.Grade top = spec.grades().get("treasure");
+            if (e.enhances() && top != null) {
+                lore.add(Text.item("<dark_gray>S 최상위 +" + spec.steps().size() + ": <gold>" + AccessorySpec.text(e, spec.amount(e, top, 1, spec.steps().size()))));
+            } else if (!e.enhances()) {
+                lore.add(Text.item("<dark_gray>강화해도 그대로"));
+            }
+            if (!e.sub()) lore.add(Text.item("<dark_gray>부가 옵션으로는 안 나옴"));
+            if (mine != null && mine != 0) lore.add(Text.item("<green>지금 내 효과 " + AccessorySpec.text(e, mine)));
+            m.lore(lore);
+        });
+        return it;
+    }
 
     public void openWorkshop(Player p) {
         core.menus().open(p, WORKSHOP, new Workshop());

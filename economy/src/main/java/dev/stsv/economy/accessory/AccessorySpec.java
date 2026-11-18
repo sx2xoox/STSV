@@ -30,10 +30,11 @@ public record AccessorySpec(Map<String, Grade> grades, Map<String, Effect> effec
 
     /**
      * An effect: format pct (x100 %), factor (x(1+v)), flat (a number with a unit). max = a treasure's top roll at +10; ranges =
-     * per-grade [lo, hi] given outright (bag rows, magnet blocks). cap: the amount never passes it.
+     * per-grade [lo, hi] given outright (bag rows, magnet blocks). cap: the amount never passes it. desc: one line for the effects
+     * screen (/장신구 효과).
      */
     public record Effect(String id, String name, String slot, double max, Map<String, double[]> ranges, String format, String sign,
-                         String unit, double cap, String activity, boolean sub, boolean enhances) {
+                         String unit, double cap, String activity, boolean sub, boolean enhances, String desc) {
 
         /** [lo, hi] of a grade, before enhancing. */
         public double[] range(Grade g) {
@@ -194,7 +195,7 @@ public record AccessorySpec(Map<String, Grade> grades, Map<String, Effect> effec
             if (ranges.isEmpty() && !e.contains("max")) problems.add("effects." + id + ": max 또는 ranges 필요");
             effects.put(id, new Effect(id, e.getString("name", id), slot, e.getDouble("max"), ranges, e.getString("format", "pct"),
                     e.getString("sign", ""), e.getString("unit", ""), e.getDouble("cap", 0), e.getString("activity", ""),
-                    e.getBoolean("sub", true), e.getBoolean("enhance", true)));
+                    e.getBoolean("sub", true), e.getBoolean("enhance", true), e.getString("desc", "")));
         }
         List<Step> steps = new ArrayList<>();
         for (Map<?, ?> m : c.getMapList("enhance.steps")) {
