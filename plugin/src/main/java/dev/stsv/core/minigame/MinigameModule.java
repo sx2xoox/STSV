@@ -263,6 +263,7 @@ public final class MinigameModule implements StsvModule, Listener, TabExecutor {
 
     @EventHandler(priority = EventPriority.LOWEST)
     public void onQuit(PlayerQuitEvent e) {
+        warned.remove(e.getPlayer().getUniqueId());
         circuit.quit(e.getPlayer());
     }
 
@@ -297,19 +298,44 @@ public final class MinigameModule implements StsvModule, Listener, TabExecutor {
         if (circuit.inGame(e.getPlayer())) circuit.leave(e.getPlayer());
     }
 
+    /** How far a teleport inside the track may go: the kart carries its driver's seat (and so the driver) every tick. */
+    static final double NEAR = 12;
+
+    /**
+     * Whether a teleport takes the player away from the race: to another world or farther than {@link #NEAR}. The
+     * kart moves its seat with the driver on it by teleporting, which teleports the driver a little each tick; those
+     * must pass, or the kart cannot move.
+     */
+    static boolean leaves(PlayerTeleportEvent e) {
+        if (e.getTo() == null) return false;
+        if (e.getTo().getWorld() != e.getFrom().getWorld()) return true;
+        return e.getTo().distanceSquared(e.getFrom()) > NEAR * NEAR;
+    }
+
+    private final java.util.Map<java.util.UUID, Long> warned = new java.util.HashMap<>();
+
+    /** The message at most once in two seconds, so a repeated attempt does not flood the chat. */
+    private void warn(Player p, String key) {
+        long now = System.currentTimeMillis();
+        Long last = warned.get(p.getUniqueId());
+        if (last != null && now - last < 2000) return;
+        warned.put(p.getUniqueId(), now);
+        p.sendMessage(Lang.msg(key));
+    }
+
     @EventHandler(priority = EventPriority.LOW, ignoreCancelled = true)
     public void onTeleport(PlayerTeleportEvent e) {
         Player p = e.getPlayer();
         if (circuit.ownTeleport(p)) return;
-        if (circuit.racing(p) && e.getCause() != PlayerTeleportEvent.TeleportCause.DISMOUNT) {
+        if (circuit.racing(p) && e.getCause() != PlayerTeleportEvent.TeleportCause.DISMOUNT && leaves(e)) {
             e.setCancelled(true);
-            p.sendMessage(Lang.msg("circuit.no-teleport"));
+            warn(p, "circuit.no-teleport");
             return;
         }
-        if (circuit.watching(p)) {
+        if (circuit.watching(p) && leaves(e)) {
             // the spectator menu's "teleport to player" and every other trip: only the race moves a watcher
             e.setCancelled(true);
-            p.sendMessage(Lang.msg("circuit.watch-no-teleport"));
+            warn(p, "circuit.watch-no-teleport");
             return;
         }
         if (e.getTo() != null && in(e.getTo().getWorld()) && !in(e.getFrom().getWorld()) && !p.hasPermission("stsv.admin")) {
