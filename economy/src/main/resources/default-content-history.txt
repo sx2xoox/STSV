@@ -266,6 +266,7 @@ f0b59799447e39bf6c768c657b4529d47054021b economy/assets/economy/textures/gui/hub
 f5cc22be7bc7ec2810c2075c3cb6c05eb288df65 economy/assets/economy/textures/gui/hub.png
 f92d727deccc54f29a139dba0f3684da504141a6 economy/assets/economy/textures/gui/hub.png
 626158e4c433f0d044c82cfb54ee7b9d1c8e620b economy/assets/economy/textures/gui/hub_circuit.png
+e5e3f83ab7b4141e4b10576e5b09c3c1f70bd14e economy/assets/economy/textures/gui/hub_circuit.png
 9935bdd9c324f838b14943abf84df6b824378a5f economy/assets/economy/textures/gui/hub_market.png
 b79e68a1390e91d4c1c4b0809d93e0c23ad86adc economy/assets/economy/textures/gui/hub_me.png
 4cce61d4e591d723997869addb06bf6024025bd3 economy/assets/economy/textures/gui/hub_minigame.png
@@ -619,6 +620,7 @@ dc7e382d51152ab33d26259f7410f06d89731060 economy/menus/hub.yml
 e4574aa6af6ac86a647ac630a84c859102aff4b6 economy/menus/hub.yml
 f6363cdf5ef1d819aed5c0532b88104865ebeef6 economy/menus/hub.yml
 264af958d1c1f8a82abadbc2e0dfd359115d27ec economy/menus/hub_minigame.yml
+c09bc55207fbf0409a6976c6492f73e422e34f2f economy/menus/hub_minigame.yml
 15e908dc63ccc9a0bc5bcb6ff3d532801a613161 economy/menus/jobs.yml
 2497ddc50627760b27272a944284cffaadf03ee5 economy/menus/jobs.yml
 43dce353353a8c871f6c71cd8067b42a76169b82 economy/menus/jobs.yml
