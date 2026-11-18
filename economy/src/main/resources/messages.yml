@@ -310,6 +310,9 @@ job:
 machine:
   # 레시피 창 (기계의 레시피 목록 버튼 = 보기만, 줄의 상태 칸 = 그 줄에 고정)
   recipes-lane: " <#b9a6d6>· {lane}번 줄"
+  recipes-tab-lore: "<gray>레시피 <white>{count}개"
+  recipes-tab-open: "<green>열림"
+  recipes-tab-none: "<dark_gray>이 기계엔 이 단계 레시피가 없음"
   recipes-pick: "<yellow>클릭: 이 줄에서 만들 것 고르기"
   recipes-view: "<gray>보기 전용 <dark_gray>· 줄 바꾸기: 기계의 상태 칸"
   wild-refused: "<red>기계는 건축월드에만 설치할 수 있습니다."

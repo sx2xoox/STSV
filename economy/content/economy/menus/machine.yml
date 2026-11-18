@@ -25,13 +25,13 @@ machine:
     O: { action: "", material: AIR, name: " " }
 
 # 기계 레시피 목록: 줄의 상태 칸을 누르면 열림. 클릭 = 그 줄에 고정, 맨 앞 '자동' = 넣은 재료로 알아서.
-# 한 화면 36칸: 넘치면 ◀ ▶ 로 넘김 (조리대는 자동 + 37개)
+# 위 탭 = 강화 단계(기본·1강·2강·3강): 그 단계에서 새로 열리는 레시피만 보임. 한 화면 36칸, 넘치면 ◀ ▶
 machine_recipes:
-  title: "<#f0e2b0>{machine} 레시피{lane_text}"
+  title: "<#f0e2b0>{machine} 레시피 <#b9a6d6>· {tab}{lane_text}"
   rows: 6
   background: economy:gui/machine_recipes
   layout:
-    - "....I...."
+    - "I.A.B.C.D"
     - "LLLLLLLLL"
     - "LLLLLLLLL"
     - "LLLLLLLLL"
@@ -45,6 +45,10 @@ machine_recipes:
       material: BOOK
       name: "<white>{machine} · {tier}"
       lore: ["{pick_hint}", "<gray>잠긴 레시피는 강화로 열림", "<dark_gray>시간: 이 기계·내 직업 기준"]
+    A: { action: "machine:tab:0", material: COPPER_INGOT, name: "<white>기본 레시피" }
+    B: { action: "machine:tab:1", material: IRON_INGOT, name: "<white>1강 레시피" }
+    C: { action: "machine:tab:2", material: GOLD_INGOT, name: "<white>2강 레시피" }
+    D: { action: "machine:tab:3", material: DIAMOND, name: "<white>3강 레시피" }
     B:
       action: "machine:back"
       icon: economy:gui/back

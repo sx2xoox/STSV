@@ -16,6 +16,7 @@ import dev.stsv.economy.shop.ShopCatalog;
 import dev.stsv.economy.util.Items;
 import dev.stsv.economy.util.Players;
 import net.kyori.adventure.text.Component;
+import dev.stsv.core.gui.menu.MenuSpec;
 import org.bukkit.Bukkit;
 import org.bukkit.Location;
 import org.bukkit.Material;
@@ -869,21 +870,69 @@ public final class MachineModule extends EcoModule {
         core.menus().open(p, "economy:machine_recipes", new RecipeMenu(m, lane));
     }
 
+    /**
+     * The recipe list, one upgrade tier per tab (기본·1강·2강·3강: the recipes that tier opens), so a machine with many
+     * recipes (the cook's 49) is not one long mixed list. The list positions map to recipe indexes ({@link #shown}):
+     * machines.yml's order stays as it is, since a lane keeps its recipe by index.
+     */
     private final class RecipeMenu implements MenuHandler {
         private final Machine m;
         private final int lane;
+        private final int tab;
+        /** The recipe index at each list position after the 자동 entry. */
+        private final List<Integer> shown = new ArrayList<>();
 
         RecipeMenu(Machine m, int lane) {
             this.m = m;
             this.lane = lane;
+            // open on the tier of the lane's recipe, else 기본
+            int pinned = lane >= 0 ? m.lanes[lane].recipe : -1;
+            tab = pinned >= 0 && pinned < m.spec.recipes().size() ? m.spec.recipes().get(pinned).tier() : 0;
+        }
+
+        RecipeMenu(Machine m, int lane, int tab) {
+            this.m = m;
+            this.lane = lane;
+            this.tab = tab;
+        }
+
+        private int count(int tier) {
+            int n = 0;
+            for (MachineSpec.Recipe r : m.spec.recipes()) if (r.tier() == tier) n++;
+            return n;
         }
 
         @Override
         public Map<String, String> placeholders(MenuView v) {
             // the recipe book (lane < 0) only shows; a lane's picker pins what that lane makes
             return Map.of("machine", m.spec.name(), "lane", lane < 0 ? "-" : String.valueOf(lane + 1), "tier", tierName(m.tier),
+                    "tab", tierName(tab),
                     "lane_text", lane < 0 ? "" : Lang.raw("machine.recipes-lane", "lane", lane + 1),
                     "pick_hint", Lang.raw(lane < 0 ? "machine.recipes-view" : "machine.recipes-pick"));
+        }
+
+        /** The open tab glows; each tab tells how many recipes it has and whether this machine has opened it. */
+        @Override
+        public ItemStack button(MenuView v, MenuSpec.Button b, ItemStack base) {
+            if (base == null || !b.action().startsWith("machine:tab:")) return base;
+            int t;
+            try {
+                t = Integer.parseInt(b.action().substring("machine:tab:".length()));
+            } catch (NumberFormatException e) {
+                return base;
+            }
+            int n = count(t);
+            List<Component> lore = new ArrayList<>();
+            if (n == 0) lore.add(Lang.item("machine.recipes-tab-none"));
+            else {
+                lore.add(Lang.item("machine.recipes-tab-lore", "count", n));
+                lore.add(t > m.tier ? Lang.item("machine.recipe-locked", "tier", tierName(t)) : Lang.item("machine.recipes-tab-open"));
+            }
+            base.editMeta(meta -> {
+                meta.lore(lore);
+                if (t == tab) meta.setEnchantmentGlintOverride(true);
+            });
+            return base;
         }
 
         @Override
@@ -898,7 +947,10 @@ public final class MachineModule extends EcoModule {
                 out.add(auto);
             }
             UUID u = v.player().getUniqueId();
+            shown.clear();
             for (MachineSpec.Recipe r : m.spec.recipes()) {
+                if (r.tier() != tab) continue;
+                shown.add(r.index());
                 ItemStack it = Items.create(r.output(), r.amount()).orElse(new ItemStack(Material.PAPER));
                 boolean locked = r.tier() > m.tier;
                 List<Component> lore = new ArrayList<>();
@@ -923,8 +975,9 @@ public final class MachineModule extends EcoModule {
         public void onListClick(MenuView v, int index, ClickType click) {
             Player p = v.player();
             if (lane < 0 || !machines.containsKey(m.id) || lane >= m.open()) return;
-            int ri = index - 1;
-            if (ri >= m.spec.recipes().size()) return;
+            int at = index - 1;
+            if (at >= shown.size()) return;
+            int ri = at < 0 ? -1 : shown.get(at);
             if (ri >= 0 && m.spec.recipes().get(ri).tier() > m.tier) {
                 HudModule.flash(p, Lang.mm("machine.recipe-locked", "tier", tierName(m.spec.recipes().get(ri).tier())));
                 return;
@@ -939,6 +992,22 @@ public final class MachineModule extends EcoModule {
         @Override
         public void onAction(MenuView v, String action, ClickType click) {
             if (action.equals("machine:back")) back(v.player());
+            else if (action.startsWith("machine:tab:")) {
+                int t;
+                try {
+                    t = Integer.parseInt(action.substring("machine:tab:".length()));
+                } catch (NumberFormatException e) {
+                    return;
+                }
+                if (t == tab) return;
+                Player p = v.player();
+                p.playSound(p.getLocation(), Sound.UI_BUTTON_CLICK, 0.4f, 1.4f);
+                // a new menu (not a redraw): the title names the tab
+                Bukkit.getScheduler().runTask(eco, () -> {
+                    if (machines.containsKey(m.id) && p.isOnline())
+                        core.menus().open(p, "economy:machine_recipes", new RecipeMenu(m, lane, t));
+                });
+            }
         }
 
         private void back(Player p) {
