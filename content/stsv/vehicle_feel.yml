@@ -242,6 +242,12 @@ vehicles:
     engine-start: { sound: stsv:vehicle.power_tiller.engine_start, volume: 0.7, ticks: 30 }
     engine-stop: { sound: stsv:vehicle.power_tiller.engine_stop, volume: 0.6 }
     idle-shake: 0.02
+  combine:
+    power: engine
+    lights: { head: combine_lamp_head, tail: combine_lamp_tail, brake: combine_lamp_brake }
+    engine-start: { sound: stsv:vehicle.combine.engine_start, volume: 0.75, ticks: 26 }
+    engine-stop: { sound: stsv:vehicle.combine.engine_stop, volume: 0.65 }
+    idle-shake: 0.016
   tractor_trailer:
     power: engine
     lights: { head: tractor_lamp_head, tail: tractor_lamp_tail, brake: tractor_lamp_brake }

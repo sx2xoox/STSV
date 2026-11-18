@@ -246,6 +246,8 @@ sell:
       economy:coral_brooch: { base: 208, q: 4 }   # 산호 브로치
       economy:silk_pearl_necklace: { base: 825, q: 2 }   # 명주 진주 목걸이
       economy:ambergris_norigae: { base: 702, q: 2 }   # 용연향 노리개
+      economy:najeon_jewel_box: { base: 5740, q: 1 }   # 자개 보석함 (4강)
+      economy:gilded_spoon_set: { base: 5320, q: 1 }   # 금박 은수저 세트 (4강)
       # 대장간 (대장장이)
       economy:iron_plate: { base: 77, q: 8 }   # 철판
       economy:iron_chain: { base: 57.75, q: 8 }   # 쇠사슬
@@ -269,6 +271,8 @@ sell:
       economy:crystal_lantern: { base: 325, q: 4 }   # 수정 랜턴
       economy:coral_inlay_box: { base: 449, q: 4 }   # 산호 자개함 (전복 껍데기 자개)
       economy:meteor_sword: { base: 1760, q: 1 }   # 운철검
+      economy:master_jangdo: { base: 3860, q: 1 }   # 명장 장도 (4강)
+      economy:bangjja_yugi: { base: 3700, q: 1 }   # 방짜 유기 세트 (4강)
   foodstuff:
     name: "식재료"
     icon: economy:doenjang
@@ -294,12 +298,16 @@ sell:
       economy:onion_juice: { base: 39, q: 16 }   # 양파즙 (원재료만)
       economy:mumallaengi: { base: 34, q: 16 }   # 무말랭이 (원재료만)
       economy:fish_feed: { base: 7, q: 32 }   # 생선 사료 (가두리 먹이)
+      economy:royal_jang_set: { base: 1910, q: 1 }   # 궁중 장 세트 (4강)
+      economy:ginseng_jeonggwa: { base: 1440, q: 1 }   # 인삼 정과 (4강)
       # 손질대 (어부): 아무 물고기나 등급별로 손질 (machines.yml fish_bench). 예전 손질감은 맨 아래 legacy
       economy:fish_meat: { base: 15, q: 16 }   # 생선살 (흔함)
       economy:fine_fish_meat: { base: 28, q: 16 }   # 고급 생선살 (보통)
       economy:prime_fish_meat: { base: 46, q: 16 }   # 특선 생선살 (희귀)
       economy:treasure_fish_meat: { base: 216, q: 4 }   # 진귀한 생선살 (전설)
       economy:polished_pearl: { base: 179, q: 4 }   # 연마 진주
+      economy:royal_eoran: { base: 2860, q: 1 }   # 진상 어란 (4강)
+      economy:gulbi_dureum: { base: 1380, q: 1 }   # 굴비 두름 (4강)
   dishes:
     name: "요리·술"
     icon: economy:bibimbap
@@ -354,6 +362,8 @@ sell:
       economy:eomuktang: { base: 72, q: 8 }   # 어묵탕 (생선살)
       economy:bossam: { base: 206, q: 4 }   # 보쌈 (특선 생선살)
       economy:dried_fish_stirfry: { base: 106, q: 8 }   # 건어물 볶음 (생선살)
+      economy:royal_surasang: { base: 4140, q: 1 }   # 궁중 수라상 (4강)
+      economy:gujeolpan: { base: 3210, q: 1 }   # 구절판 (4강)
       # 증류기 (연금술사)
       economy:makgeolli: { base: 49, q: 16 }   # 막걸리
       economy:soju: { base: 175, q: 4 }   # 소주
@@ -378,6 +388,8 @@ sell:
       economy:meteor_elixir: { base: 1089, q: 1 }   # 운철 단약 (꿀에 개어 빚은 환약)
       economy:ambergris_perfume: { base: 1307, q: 1 }   # 용연향 향수
       economy:crystal_vintage: { base: 960, q: 2 }   # 수정병 빈티지
+      economy:century_yakju: { base: 2990, q: 1 }   # 백년 약주 (4강, 숙성)
+      economy:gyeongokgo: { base: 2090, q: 1 }   # 경옥고 (4강)
 
   # 예전 물건 (2026-11 손질대를 등급별 손질로 바꾸기 전의 손질감): 이제 만들 수 없지만 가진 것은 그 값에 팔 수 있음.
   # legacy: 상점 판매 탭·도감·하역장 완제품 목록에는 안 나옴. 판매 화면에서 내 인벤토리의 그 물건을 누르거나 '가진 것 전부 팔기'로 팜

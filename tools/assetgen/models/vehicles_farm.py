@@ -18,6 +18,16 @@ behind it (plugin: dev.stsv.core.vehicle.TrainSpec / TrainPhysics / TrainView). 
                                       wheel_tiller   lugged tyre (the tiller's and its trailer's)
                                       power_tiller_trailer   steel trailer: plank floor, drop sides, the seat box
                                       power_tiller_cargo_1..4  fertilizer sacks, cabbages, a plastic tub, crates
+  소형 콤바인 + 짐칸 (4th generation) combine      a small rice combine on rubber crawler tracks: the header (pan,
+                                                     cutter bar, crop dividers, cross auger; the reel comes with the
+                                                     수확기 tool), the feeder, the thresher down the left, the
+                                                     operator's platform with a sun canopy and beacon at the front
+                                                     right, the grain tank behind it, the unloading auger folded on
+                                                     the right; red, a white stripe, a black skirt
+                                      combine_idler, combine_sprocket  the tracks' ends (they roll: the lugs travel)
+                                      combine_wagon  a grain trailer: high red steel sides, a ladder, a grain door
+                                      combine_wagon_cargo_1..4  threshed rice heaped from the front, rice sacks,
+                                                     a bulk bag (톤백); full: heaped over the rim under a rope net
   트랙터 + 트레일러 (5th generation)  tractor        a farm tractor: big lugged rear wheels (a rolling part), small
                                                      steered front wheels, hood, exhaust stack, roll bar with a sun
                                                      canopy, a fender seat
@@ -1638,13 +1648,13 @@ def combine():
             if 20 <= y < 21 and math.floor(zz) in (math.floor(z(-3)), math.floor(z(9))):
                 return ("steel", 3.8)                              # their latches
             if z(13) <= zz < z(21) and 18 <= y < 23.5:
-                return ("iron", 0.6) if math.floor(y * 2) % 2 == 0 else (CRED, 1.4)   # the fan's louvres
+                return ("iron", 0.6) if math.floor(y) % 2 == 0 else (CRED, 2.6)   # the fan's louvres
             if 27 <= y < 30 and z(-11) <= zz < z(-5):
                 return ("iron", 1.0)                              # a dark inspection window
         if c.face == "north":
             if -14 <= x < -5 and 22 <= y < 28:
                 return ("iron", 1.2 if math.floor(y) != 27 else 2.2)   # the hatch over the feeder
-        if c.face == "south" and -16 <= x < -13 and 17 <= y < 19:
+        if c.face == "south" and -13 <= x < -10 and 21 <= y < 23:
             return ("signal_red", 1.8)                            # a tail lamp
         return _livery(2.0)(c)
     m.box("thresher", (-17, 15, z(-14)), (-2, 31, z(24)), Paint(CRED, 2, noise=0, rim=0.6, decal=thresher))
@@ -1673,7 +1683,7 @@ def combine():
         if c.face == "north":
             return ("hazard", 1.6) if math.floor(x) % 4 < 2 else ("iron", 0.6)
         return ("iron", 1.8)
-    m.box("platform", (-1.5, 15, z(-25)), (17.5, 16, z(-4)), Paint("steel", 3, noise=0, rim=0.5, decal=floor))
+    m.box("platform", (-1.5, 15, z(-25)), (17.5, 16, z(-11)), Paint("steel", 3, noise=0, rim=0.5, decal=floor))
 
     def dash(c):
         x, y, zz = c.p
@@ -1696,7 +1706,7 @@ def combine():
         x, y, zz = c.p
         if c.face == "east":
             if z(-9) <= zz < z(-1) and 17 <= y < 20.5:
-                return ("iron", 0.6) if math.floor(y * 2) % 2 == 0 else (CRED, 1.4)   # louvres in the engine's side cover
+                return ("iron", 0.6) if math.floor(y) % 2 == 0 else (CRED, 2.6)   # louvres in the engine's side cover
             d = math.hypot(zz - z(2.5), y - 18.5)
             if d < 2.4:
                 return ("iron", 1.0) if (math.floor(zz * 2) + math.floor(y * 2)) % 2 == 0 else ("steel", 2.4)   # the dust screen
@@ -1759,7 +1769,7 @@ def combine():
     def work_lamp(c):
         x, y, zz = c.p
         if c.face == "north":
-            return ("lamp", 4) if (1.5 < x < 4 or 12.5 < x < 15) and 41.75 < y < 42.75 else ("blade", 3)
+            return ("lamp", 4) if (1.5 < x < 4 and 41.75 < y < 42.75) or (12.5 < x < 15 and 41.5 < y < 42.5) else ("blade", 3)
         return ("iron", 1.6)
     for x0 in (1, 12):
         m.box("work_lamp", (x0, 41.5, z(-25)), (x0 + 3.5, 43, z(-23)), Paint("iron", 2, noise=0, decal=work_lamp))
@@ -1770,12 +1780,14 @@ def combine():
         x, y, zz = c.p
         if c.face == "east":
             # the rice-ear emblem on a black badge (an original mark, no lettering)
-            u, v = zz - z(13), y - 28
-            if 0 <= u < 6 and 0 <= v < 6:
-                ear = abs(u - 3 + (v - 3) * 0.35) < 0.9 and v > 0.5 or (abs(u - 3) < 2.2 and math.floor(v) in (2, 4) and abs(u - 3 + (v - 3) * 0.35) < 2.4)
-                if ear:
-                    return ("straw", 4.0 if v > 3 else 3.2)
-                return ("iron", 0.6 if 0.5 < u < 5.5 and 0.5 < v < 5.5 else 1.2)
+            u, v = math.floor(zz - z(12)), math.floor(y - 27)
+            if 0 <= u < 7 and 0 <= v < 7:
+                # a ripe rice ear on a black badge: the stalk up the middle, its grains either side, the head nodding
+                EAR = ["...g...", "..gGg..", "..GgG..", "..gGg..", "...G...", "...G...", "..GG..."][::-1]
+                ch = EAR[v][u]
+                if ch != ".":
+                    return ("straw", 4.2 if ch == "G" else 3.2)
+                return ("iron", 0.6 if 0 < u < 6 and 0 < v < 6 else 1.4)
             if math.floor(zz) == math.floor(z(15.5)) and 17 <= y < 24:
                 return ("iron", 1.0)                              # a seam
         if c.face == "north" and 6 <= x < 12 and 27 <= y < 32:
@@ -1784,7 +1796,7 @@ def combine():
                 return ("iron", 1.4)
             return ("straw", 3.2 if (math.floor(x) + math.floor(y)) % 3 else 2.4) if y < 30 else ("glass", 1.4)
         if c.face == "south":
-            if 13 <= x < 16 and 17 <= y < 19:
+            if 10 <= x < 13 and 21 <= y < 23:
                 return ("signal_red", 1.8)                        # a tail lamp
             # the slow-vehicle triangle: an orange triangle in a red border
             u, v = x - 5, y - 24
@@ -1856,9 +1868,9 @@ def _track_end(name, sprocket):
         a = math.atan2(z, y) + math.pi
         if c.face not in ("east", "west"):
             k = (a / (2 * math.pi) * 24) % 1.0
-            return ("rubber", (2.8 if k < 0.15 else 2.2) if k < 0.5 else 0.2)   # lugs round the tread
+            return ("rubber", (2.4 if k < 0.15 else 1.9) if k < 0.55 else 0.9)   # lugs round the tread
         if rr > R - 1.3:
-            return ("rubber", 1.8 if (a / (2 * math.pi) * 24) % 1.0 < 0.5 else 0.8)   # the track's edge
+            return ("rubber", 1.5 if (a / (2 * math.pi) * 24) % 1.0 < 0.55 else 1.1)   # the track's edge
         if rr < 1.2:
             return ("steel", 3.6 if rr < 0.6 else 2.6)
         if sprocket:
@@ -2045,7 +2057,7 @@ def combine_wagon_cargo(stage):
         _rice_sack(m, -10, 14, -12, 7, 9)
         _rice_sack(m, -2, 14, -10, 7, 9, band="leaf")
         _rice_sack(m, -6, 14, 3, 7, 9, band="leaf")
-        _rope_net(m, -13, 13, -19.5, 19.5, 0, 14.5, rope=("leather", 1.8))
+        _rope_net(m, -13, 13, -20, 20, 0, 14.5, rope=("leather", 1.8))
     m.display = presets.furniture(gui_scale=0.4)
     return m
 

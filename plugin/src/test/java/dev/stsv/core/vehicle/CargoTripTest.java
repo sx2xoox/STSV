@@ -244,6 +244,7 @@ class CargoTripTest {
     void everyVehicleCarriesWhatTheOwnerSet() {
         Map<String, Double> want = new LinkedHashMap<>();
         want.put("hand_cart", 150.0);
+        want.put("combine", 900.0);   // 4세대 소형 콤바인
         want.put("cargo_bicycle", 20.0);
         want.put("delivery_scooter", 60.0);
         want.put("atv", 120.0);

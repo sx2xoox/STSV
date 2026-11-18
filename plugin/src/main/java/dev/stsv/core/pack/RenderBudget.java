@@ -25,6 +25,7 @@ public final class RenderBudget {
         MACHINE_1("직업 기계 1강", 460),
         MACHINE_2("직업 기계 2강", 640),
         MACHINE_3("직업 기계 3강", 720),
+        MACHINE_4("직업 기계 4강 (4세대)", 800),
         MACHINE_PART("기계 회전 부품", 160),
         COSMETIC("치장 (머리·등·꼬리…)", 300),
         PET("펫", 200),
@@ -69,7 +70,7 @@ public final class RenderBudget {
 
     /**
      * The kind of each model the items of a content pack show ("ns:name" -> kind): furniture by its cells (machines, with a
-     * behavior or parts, by the tier in their model name "x_0".."x_3", their parts as parts), cosmetics as pets or worn,
+     * behavior or parts, by the tier in their model name "x_0".."x_4", their parts as parts), cosmetics as pets or worn,
      * vehicles' bodies, their wheel and their other parts (light bar looks, load stages, spinning parts).
      *
      * @param items every item of the pack (id -> its section)
@@ -98,10 +99,10 @@ public final class RenderBudget {
                 for (String p : shown) out.put(local(namespace, p), Category.VEHICLE_PART);
                 trainCategories(namespace, v.getConfigurationSection("train"), out);
             } else if (f != null && (f.contains("behavior") || f.contains("parts")) && model.matches(".*_\\d+")) {
-                // a machine (a behavior or parts, and a tier look in its model name): its tier looks <base>_0 .. <base>_3, and the
+                // a machine (a behavior or parts, and a tier look in its model name): its tier looks <base>_0 .. <base>_4, and the
                 // same for each spinning part; furniture with a behavior but one look (the economy's 통발) is furniture below
                 String base = model.replaceFirst("_\\d+$", "");
-                Category[] tiers = {Category.MACHINE_0, Category.MACHINE_1, Category.MACHINE_2, Category.MACHINE_3};
+                Category[] tiers = {Category.MACHINE_0, Category.MACHINE_1, Category.MACHINE_2, Category.MACHINE_3, Category.MACHINE_4};
                 for (int t = 0; t < tiers.length; t++) out.put(namespace + ":" + base + "_" + t, tiers[t]);
                 for (Map<?, ?> part : f.getMapList("parts")) {
                     Object pm = part.get("model");

@@ -199,7 +199,8 @@ class ContentTest {
                 for (String part : m.parts()) if (!Files.exists(PACK.resolve("models/" + part + "_" + t + ".bbmodel"))) problems.add(m.id() + " part " + part + "_" + t);
             }
             // every good sells: the shop's base price is what machine XP is counted from
-            for (var r : m.recipes()) if (!shop.sell().containsKey(r.output())) problems.add(m.id() + " good not in the shop: " + r.output());
+            for (var r : m.recipes()) if (!shop.sell().containsKey(r.output()) && !materials().contains(r.output()))
+                problems.add(m.id() + " good not in the shop: " + r.output());
         }
         // stocks: six industries of seven companies, each industry a job, news for every industry
         dev.stsv.economy.stock.StockSpec stocks = dev.stsv.economy.stock.StockSpec.parse(yaml("stocks.yml"), problems);
@@ -239,10 +240,10 @@ class ContentTest {
         // 연마 진주 among them), 22 old 손질대 goods (예전 물건: the shop buys them, nothing makes them), 6 job machines + the press, the
         // 통발 and the 가두리, 3 crates of catch (원양 조업: fish.yml net), 32 crop items (15 seeds, 17 harvests), 92 fish
         assertEquals(6, jobs.jobs().size());
-        assertEquals(6 + 8 + 148 + 22 + 7 + 2 + 3 + 32 + 92, ours.size(),
-                "6 finds + 8 specials + 148 goods + 22 old goods + 7 machines + 2 fishing gear + 3 crates of catch + 32 crop items + 92 fish");
+        assertEquals(6 + 8 + 148 + 12 + 7 + 22 + 7 + 2 + 3 + 32 + 92, ours.size(),
+                "6 finds + 8 specials + 148 goods + 12 4세대 goods + 7 4세대 materials + 22 old goods + 7 machines + 2 fishing gear + 3 crates of catch + 32 crop items + 92 fish");
         assertEquals(7, machines.size());
-        assertEquals(148, machines.values().stream().flatMap(x -> x.recipes().stream()).map(MachineSpec.Recipe::output).distinct().count());
+        assertEquals(148 + 12 + 7, machines.values().stream().flatMap(x -> x.recipes().stream()).map(MachineSpec.Recipe::output).distinct().count());
         YamlConfiguration legacy = yaml("shop.yml");
         Set<String> oldGoods = new HashSet<>();
         for (String k : legacy.getConfigurationSection("sell.legacy.items").getKeys(false)) oldGoods.add(JobSpec.norm(k));
@@ -604,5 +605,11 @@ class ContentTest {
                 problems.add(item + " " + name + " (want " + colour + ")");
         }
         assertTrue(problems.isEmpty(), String.join("\n", problems));
+    }
+
+    /** 4세대 재료 (jobs.yml materials): made by 4강 machines, not bought by the shop or the dock (like the special materials). */
+    static java.util.Set<String> materials() {
+        var m = yaml("jobs.yml").getConfigurationSection("materials");
+        return m == null ? java.util.Set.of() : m.getKeys(false);
     }
 }

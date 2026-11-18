@@ -72,6 +72,7 @@ class PackPipelineTest {
     private static final Set<String> ROTATED = Set.of("test_sword", "test_sword_skin", "test_greatsword", "test_slash", "test_rod", "test_rod_cast",
             "angel_wings", "demon_wings", "butterfly_wings",   // wings swept back 22.5 degrees
             "gumiho",                                           // nine tails fanned out
+            "combine", "combine_reel", "combine_reel_arms", "combine_seeder",   // 소형 콤바인: the inclined feeder, crop dividers, reel bats, slanted arms
             "toy_sword_belt", "lucky_pouch", "champion_belt",   // waist: the sword hangs slanted, the pouch's knot, the belt's plate
             // 은하수 v2: the octagonal crown and rings, the swept-back cape, gems turned 45 degrees, the owl's wings
             "galaxy_star_crown", "galaxy_star_crown_awakened", "galaxy_cape", "galaxy_cape_awakened", "galaxy_moon_necklace",

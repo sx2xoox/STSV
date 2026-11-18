@@ -271,6 +271,16 @@ jobs:
 # 다른 직업 기계의 비싼 레시피에 씀. from = harvest (다 자란 작물 하나 수확, 바닐라·커스텀) · catch (낚시로 한 마리) · break (광석 블록
 # 하나, 섬세한 손길 제외). chance = [Lv1, Lv30] 그 직업일 때 한 번마다의 확률 (사이는 고르게), outsider = 다른 직업일 때.
 # value = 거래 참고가 (G): 이 재료를 쓰는 레시피의 기준가 계산과 도감·설명에 쓰임 (BalanceTest).
+# 4세대 재료: 상점·하역장이 사지 않음 (특별 재료처럼 거래 참고가만). 4강 기계에서 만들고 승급·장신구·4세대 고급품에 씀
+materials:
+  economy:gem_dust: { job: miner, value: 82 }
+  economy:hanji: { job: farmer, value: 54 }
+  economy:fish_glue: { job: fisher, value: 68 }
+  economy:tempering_stone: { job: blacksmith, value: 780 }
+  economy:gosa_tteok: { job: cook, value: 220 }
+  economy:mana_ink: { job: alchemist, value: 245 }
+  economy:guard_charm: { job: alchemist, value: 4560 }
+
 specials:
   economy:wild_ginseng: { job: farmer, from: harvest, chance: [0.000104, 0.003125], outsider: 0.000026, value: 160 }   # 산삼
   economy:golden_ear: { job: farmer, from: harvest, chance: [0.000238, 0.007143], outsider: 0.00006, value: 70 }   # 황금 이삭

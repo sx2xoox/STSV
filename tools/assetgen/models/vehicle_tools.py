@@ -19,6 +19,10 @@ them while it is on (Ctrl in the driver's seat switches). Original designs, no b
             tractor_header          수확기: a 3-wide header on the front: pan, cutter bar with guard teeth, pointed crop
                                     dividers, the cross auger, reel arms
             tractor_header_reel     the reel (bats with tines, turning while the engine runs)
+  콤바인    combine_reel_arms       수확기: the reel arms lowered over its own header, lift cylinders, cut rice on the pan
+            combine_reel            its reel (red spiders, white bats; turning while the engine runs)
+            combine_seeder          파종기: a 3-row drill trailed behind the grain trailer on a drawbar (hopper, hoses,
+                                    coulters, folded markers; the press roller is tractor_seeder_roller)
   통통배    boat_trawl              그물: a gallows (A-frame) on the stern with blocks, the warps down to two otter boards, a
                                     float line on the water and the green net trailing under it
             boat_net_drum           the net drum on the gallows (turns slowly while trawling)
@@ -39,7 +43,7 @@ from stsv_assets.bake import BModel, Paint, cyl, h3, bands
 from stsv_assets import presets
 from models.vehicles import lerp, CLEAR, _grain, _held_display
 from models.vehicles_road import rod, mesh, raw
-from models.vehicles_farm import _paint_metal, OXCART, RED, ORANGE
+from models.vehicles_farm import _paint_metal, OXCART, RED, ORANGE, CRED, COMBINE_AX, HEADER_F, REEL
 
 GROUND_Y = 0
 
@@ -469,14 +473,18 @@ def tractor_header():
 def tractor_header_reel():
     """The header's reel: six bats across it with spring tines hanging from them, on spiders at the ends and the middle
     (axle along x at (0, 0, 0), 15 px across)."""
-    m = BModel("tractor_header_reel", shift=(8, 8, 8), floor=None)
+    return _reel("tractor_header_reel", ORANGE, "cream")
+
+
+def _reel(name, spider_ramp, bat_ramp):
+    m = BModel(name, shift=(8, 8, 8), floor=None)
     half, r = 22.5, 6.5
     m.box("axle", (-half - 0.5, -0.75, -0.75), (half + 0.5, 0.75, 0.75), IRON)
-    spider = metal(ORANGE, 2.2)
+    spider = metal(spider_ramp, 2.2)
     for x in (-half, -0.5, half - 1):
         m.box("spoke", (x, -r, -0.5), (x + 1, r, 0.5), spider)
         m.box("spoke", (x, -0.5, -r), (x + 1, 0.5, r), spider)
-    bat = Paint("cream", 2, noise=0, rim=0.4, decal=lambda c: ("cream", 3.0 if c.face in ("up", "north") else 2.0))
+    bat = Paint(bat_ramp, 2, noise=0, rim=0.4, decal=lambda c: (bat_ramp, 3.0 if c.face in ("up", "north") else 2.0))
     tine = Paint("steel", 3, noise=0, light=False, decal=lambda c: raw("steel", 3) if math.floor(c.p[0]) % 3 == 0 else ("raw", CLEAR))
     for ang in (0, 90, 180, 270):
         a = math.radians(ang)
@@ -490,6 +498,110 @@ def tractor_header_reel():
         y, z = round(r * math.cos(a), 6), round(r * math.sin(a), 6)
         m.box("bat", (-half + 0.25, y - 0.75, z - 0.75), (half - 0.25, y + 0.75, z + 0.75), bat, rotation=("x", 45, (0, y, z)))
     m.display = presets.furniture(gui_scale=0.4)
+    return m
+
+
+# ================================================================================================
+# 소형 콤바인 · 수확기 (the reel lowered onto its own header) / 파종기 (a drill trailed behind its grain trailer)
+# ================================================================================================
+
+def _cz(v):
+    """A design z of the combine (models/vehicles_farm.py) -> its drawn z."""
+    return v + COMBINE_AX
+
+
+def combine_reel_arms():
+    """수확기 on the combine: the reel arms reaching forward over the header's end plates from its top beam, a lift
+    cylinder under each, and the cut rice stalks lying across the pan on their way to the auger (the reel itself:
+    combine_reel, turning while the engine runs)."""
+    m = BModel("combine_reel_arms", shift=(8, 8, 8), scale=2.0)
+    ry, rz = REEL[0], _cz(REEL[1])
+    arm = metal(CRED, 2.2)
+    for s in (1, -1):
+        xs = sorted((24.5 * s, 26 * s))
+        rod(m, "reel_arm", (13, _cz(-32.5)), (ry, rz - 1), 1.5, arm, x=xs)
+        m.box("reel_bearing", (xs[0] - 0.25, ry - 1.5, rz - 1.25), (xs[1] + 0.25, ry + 1.5, rz + 1.25), IRON)
+        rod(m, "reel_lift", (5, _cz(-33)), (ry - 2, _cz(-36.5)), 1, STEEL_BRIGHT, x=sorted((25 * s, 25.75 * s)))
+
+    def stalks(c):
+        # the cut crop lying on the pan: golden stalks pointing back, heads of grain at their ends, a green leaf or two
+        x, y, z = c.p
+        k = h3(math.floor(x), 3, math.floor(z), 91)
+        if c.face == "up":
+            if (z - _cz(HEADER_F)) % 5 > 3.5:
+                return ("corn", 2.8 if k > 0.5 else 2.2)          # the heads
+            return ("leaf", 2.2) if k < 0.08 else ("straw", 3.0 + (0.6 if math.floor(x) % 2 else 0))
+        return ("straw", 2.0)
+    m.box("crop", (-21.5, 2.5, _cz(HEADER_F + 2)), (21.5, 3.25, _cz(-38.5)), Paint("straw", 3, noise=0, rim=0.3, decal=stalks))
+    m.display = _held_display(m)
+    return m
+
+
+def combine_reel():
+    """The combine's reel: as the tractor header's, red spiders and white bats (the livery)."""
+    return _reel("combine_reel", CRED, "car_white")
+
+
+SEED_Z = 34                  # the combine seeder's coulters (drawn z behind the grain trailer's axle)
+
+
+def combine_seeder():
+    """파종기 behind the combine's grain trailer (drawn from the trailer's axle): a drawbar from the trailer's rear pin
+    back to a toolbar, a 3-row seed drill on it (the blue hopper with a window on the seed, seed hoses down to three
+    coulter discs), arms back to its press roller (combine: tractor_seeder_roller, rolling), row markers folded up."""
+    m = BModel("combine_seeder", shift=(8, 8, 8), scale=2.0)
+    half = 24
+    m.group("hitch")
+    m.box("drawbar", (-1.25, 7.25, 21.5), (1.25, 8.75, 30), metal("iron", 2.0, 0.8))
+    for s in (1, -1):
+        xa, xb = sorted((1.25 * s, 9 * s))
+        m.box("drawbar_brace", (xa, 7.25, 27.5), (xb, 8.75, 29), IRON)
+    m.box("jack", (-0.5, 0.5, 25), (0.5, 7.25, 26), STEEL_BRIGHT)         # the parking stand, folded down to the ground
+    m.box("jack_foot", (-1.25, 0, 24.25), (1.25, 0.5, 26.75), IRON)
+    m.group("frame")
+    m.box("toolbar", (-half, 7, 30), (half, 9, 32), metal("iron", 2.0, 0.8))
+    for s in (1, -1):
+        xa, xb = sorted(((half - 0.5) * s, (half + 1) * s))
+        m.box("roller_arm", (xa, 2.75, 31), (xb, 8.5, 41), IRON)
+    m.group("hopper")
+    BLUE = "truck_blue"
+
+    def hopper(c):
+        x, y, z = c.p
+        if c.face == "south" and 18 <= y < 21 and abs(x) < 20:
+            return ("petal_yellow", 2.8 if math.floor(y) == 19 else 2.2)    # a yellow band (no lettering)
+        if c.face == "north" and abs(x + 12) < 4 and 15 < y < 20:
+            if abs(x + 12) > 3.4 or y < 15.6 or y > 19.4:
+                return ("iron", 2.0)
+            return ("corn", 2.6 if (math.floor(x) + math.floor(y * 2)) % 3 else 1.6)   # the window on the seed
+        if y < 13:
+            return (BLUE, 1.2)
+        return _paint_metal(BLUE, 2.0, 0.8)(c)
+    m.box("hopper", (-half + 2, 12, 27), (half - 2, 21, 35), Paint(BLUE, 2, noise=0, rim=0.6, decal=hopper))
+    m.box("hopper_foot", (-half + 6, 9, 29), (half - 6, 12, 33), metal(BLUE, 1.6))
+
+    def lid(c):
+        x, y, z = c.p
+        if c.face == "up" and math.floor(z) == 31:
+            return ("iron", 1.2)
+        if c.face == "north" and abs(x) < 3:
+            return ("steel", 3.6)
+        return (BLUE, 2.8 if c.face == "up" else 2.0)
+    m.box("lid", (-half + 1.5, 21, 26.5), (half - 1.5, 22.5, 35.5), Paint(BLUE, 2, noise=0, rim=0.6, decal=lid))
+    m.group("rows")
+    disc = Paint("steel", 3, noise=0, rim=0.4, decal=lambda c: ("steel", 4.0 if math.hypot(c.p[1] - 4, c.p[2] - SEED_Z) < 1 else 3.2) if c.face in ("east", "west") else ("iron", 1.6))
+    hose = Paint("rubber", 1, noise=0, decal=lambda c: ("rubber", 1.6 if math.floor(c.p[1]) % 2 else 0.8))
+    for x in (-16, 0, 16):
+        cyl(m, "coulter", (4, SEED_Z), 8, x - 0.5, x + 0.5, disc, axis="x")
+        m.box("shank", (x - 1, 6, 32), (x + 1, 9, 34), IRON)
+        rod(m, "seed_hose", (9, 33), (4.5, 36), 1, hose, x=(x + 1, x + 2))
+        soil(m, x - 1.5, 0, 37, 3, 0.75, 3, 9 + int(x))
+    m.group("markers")
+    for s in (1, -1):
+        xa, xb = sorted(((half + 1) * s, (half + 2.5) * s))
+        m.box("marker_arm", (xa, 8, 31), (xb, 25, 32.5), metal("hazard", 2.0, 0.6))
+        cyl(m, "marker_disc", (25.5, 31.75), 5, min(xa, xb) - 0.25, max(xa, xb) + 0.25, disc, axis="x")
+    m.display = _held_display(m)
     return m
 
 
@@ -809,6 +921,9 @@ ALL = {
     "tractor_seeder_roller": tractor_seeder_roller,
     "tractor_header": tractor_header,
     "tractor_header_reel": tractor_header_reel,
+    "combine_reel_arms": combine_reel_arms,
+    "combine_reel": combine_reel,
+    "combine_seeder": combine_seeder,
     "boat_trawl": boat_trawl,
     "boat_net_drum": boat_net_drum,
     "coastal_trawl": coastal_trawl,

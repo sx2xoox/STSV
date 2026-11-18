@@ -1241,8 +1241,8 @@ class BalanceTest {
     static final double PARITY_BAND = 0.15, PARITY_BAND_WIDE = 0.35;
     /** R17: more hours pay more: 3h / 1h and 6h / 3h before the sales tax, and after it. */
     static final double[] HOURS_RATIO = {2.0, 1.5}, HOURS_AFTER_TAX = {1.8, 1.3};
-    /** R17: the Lv30 3h jobs' mean, G a day (balance2's money supply ~100k). */
-    static final Range MONEY_SUPPLY = new Range(85000, 115000);
+    /** R17: the Lv30 3h jobs' mean, G a day (balance2's money supply ~100k; 4세대: the Lv30 machine yield 20 -> 10% moved to the Lv35 승급, ~81k). */
+    static final Range MONEY_SUPPLY = new Range(75000, 115000);
 
     /**
      * R15: a special material is not bought by the shop (players trade it), has a reference value, its job finds it at least 3x (Lv1)
@@ -1497,6 +1497,7 @@ class BalanceTest {
         final List<Row> rows = new ArrayList<>();
         private final Map<String, Double> factors = new HashMap<>();
         private final Map<String, Valued> valuedCache = new HashMap<>();
+        final Map<String, Double> materials = new HashMap<>();
 
         World(Path root) {
             // older trees break today's parse checks (the old 'sell' job bonus): the rules report those, so the problems are not asserted
@@ -1514,7 +1515,11 @@ class BalanceTest {
             for (MachineSpec m : machines.values()) for (MachineSpec.Recipe r : m.recipes()) madeOn.putIfAbsent(r.output(), m.id());
             fish = FishSpec.parse(YamlConfiguration.loadConfiguration(root.resolve("fish.yml").toFile()), problems);
             for (FishSpec.Species s : fish.species().values()) species.put(JobSpec.norm(s.item()), s);
-            jobs = JobSpec.parse(YamlConfiguration.loadConfiguration(root.resolve("jobs.yml").toFile()), problems);
+            YamlConfiguration jobsYml = YamlConfiguration.loadConfiguration(root.resolve("jobs.yml").toFile());
+            jobs = JobSpec.parse(jobsYml, problems);
+            // 4세대 재료 (jobs.yml materials): the shop does not buy them; their reference value prices recipes in and out
+            ConfigurationSection mats = jobsYml.getConfigurationSection("materials");
+            if (mats != null) for (String k : mats.getKeys(false)) materials.put(JobSpec.norm(k), mats.getDouble(k + ".value"));
             requests = RequestSpec.parse(requestsYml, problems);
             YamlConfiguration cropsYml = YamlConfiguration.loadConfiguration(root.resolve("crops/crops.yml").toFile());
             for (String k : cropsYml.getKeys(false)) {
@@ -1547,6 +1552,7 @@ class BalanceTest {
             if (s != null) return new Num(s.doubleValue(), s instanceof Integer);
             // a special material (jobs.yml specials): the shop does not buy it, its reference value prices the recipes that take it
             JobSpec.Special sp = jobs.specials().get(item);
+            if (sp == null && materials.containsKey(item)) return new Num(materials.get(item), false);
             return new Num(sp == null ? 0.0 : sp.value(), false);
         }
 
@@ -1646,7 +1652,7 @@ class BalanceTest {
                 if (madeOn.containsKey(e.getKey())) made++;
             }
             String out = r.output();
-            double ov = r.amount() * sell.getOrDefault(out, 0.0);
+            double ov = r.amount() * sell.getOrDefault(out, materials.getOrDefault(out, 0.0));
             String main = null;   // the input with the most value (ties: by id)
             for (String k : ins.keySet()) {
                 double pk = part.get(k), pm = main == null ? 0 : part.get(main);

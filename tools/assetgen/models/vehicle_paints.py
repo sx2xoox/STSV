@@ -68,6 +68,7 @@ BODIES = {
     "box_truck": ("denim", _remap(R.ALL["box_truck"], "denim")),
     "power_tiller": ("vermilion", _remap(F.ALL["power_tiller"], "vermilion")),
     "tractor": ("fox", _remap(F.ALL["tractor"], "fox")),
+    "combine": ("vermilion", _remap(F.ALL["combine"], "vermilion")),
     # 서킷 karts (models/karts.py): only the race's colours (content/stsv/circuit/karts.yml colours)
     "kart_storm": ("tomato", _args(KARTS.storm)),
     "kart_bubble": ("sapphire", _args(KARTS.bubble)),

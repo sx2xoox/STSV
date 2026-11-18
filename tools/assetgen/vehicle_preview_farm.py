@@ -36,7 +36,7 @@ PREVIEWS = REPO / "docs" / "previews"
 BUILD = HERE / "build"
 RENDER = HERE / "render" / "render.mjs"
 ITEMS = REPO / "content/stsv/items/vehicles_farm.yml"
-ORDER = ["ox_cart", "power_tiller", "tractor_trailer"]
+ORDER = ["ox_cart", "power_tiller", "combine", "tractor_trailer"]
 MODELS = {**V.ALL, **F.ALL}
 
 
@@ -246,7 +246,7 @@ def main(out):
         center = [ox[0] + sum(xs) / len(xs) * 16, 10, ox[2] - sum(zs) / len(zs) * 16]
         span = max(max(xs) - min(xs), max(zs) - min(zs)) + 3
         v = {"az": -15, "el": 72, "k": 4.8, "radius": span * 8, "fov": fov, "far": 6000, "center": center}
-        w = W // 3
+        w = W // len(ORDER)
         cell(r, c * w, w, v, f"{ko[vid]} · 최대로 꺾임 ({cap}°, 위에서)", False)
     row_h.append(360)
     # row 4: the ox's walk, frame by frame (side view): the legs swing with the ground covered, the head bobs

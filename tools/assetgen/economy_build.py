@@ -101,7 +101,7 @@ def main():
     import economy_goods as GO
     GO.sheet(PREVIEWS / "goods.png")
     if render:
-        # job machines and the press: every machine in its four tier looks, from the front and from behind
+        # job machines and the press: every machine in its five tier looks, from the front and from behind
         machine_sheet(PREVIEWS / "machines_front.png", 35, 22)
         machine_sheet(PREVIEWS / "machines_back.png", 215, 24)
         # crops: every ripe crop as it stands in a field (2x2 blocks on farmland), to judge the 3D look
@@ -116,24 +116,25 @@ MACHINE_ROWS = [("gem_bench", "세공대 (광부) 2×1×2"), ("mill", "가공대
 
 
 def machine_sheet(path, az, el):
-    """Rows of machines, columns of tiers (기본 / 1강 / 2강 / 3강), the same camera for every tier of a machine."""
+    """Rows of machines, columns of tiers (기본 / 1강 / 2강 / 3강 / 4강), the same camera for every tier of a machine."""
     import economy_machines as MC
     from PIL import ImageDraw, ImageFont
     font = ImageFont.truetype("/usr/share/fonts/truetype/wqy/wqy-zenhei.ttc", 30)
     small = ImageFont.truetype("/usr/share/fonts/truetype/wqy/wqy-zenhei.ttc", 24)
     sc, head = 0.46, 56
     cw, ch = int(1000 * sc), int(900 * sc)
-    out = Image.new("RGBA", (cw * 4, len(MACHINE_ROWS) * (ch + head)), (27, 29, 34, 255))
+    n = len(MC.TIERS)
+    out = Image.new("RGBA", (cw * n, len(MACHINE_ROWS) * (ch + head)), (27, 29, 34, 255))
     d = ImageDraw.Draw(out)
     for row, (mid, title) in enumerate(MACHINE_ROWS):
         _fn, (w, h, dep), _floor, _parts = MC.MACHINES[mid]
-        top = MC.preview(mid, 3)["elements"]
+        top = MC.preview(mid, n - 1)["elements"]
         lo = [min(e["from"][i] for e in top) for i in range(3)]
         hi = [max(e["to"][i] for e in top) for i in range(3)]
         y = row * (ch + head)
-        d.rectangle((0, y, cw * 4, y + head - 6), fill=(40, 43, 52, 255))
+        d.rectangle((0, y, cw * n, y + head - 6), fill=(40, 43, 52, 255))
         d.text((16, y + 10), title, fill=(245, 245, 245), font=font)
-        for t in range(4):
+        for t in range(n):
             data = MC.preview(mid, t)
             data.update({"grid": True, "center": [(lo[i] + hi[i]) / 2 for i in range(3)],
                          "radius": (w * w + h * h + dep * dep) ** 0.5 * 8,

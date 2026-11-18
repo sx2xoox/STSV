@@ -370,6 +370,27 @@
       }
     ]
   },
+  "vehicle.combine.horn": {
+    "sounds": [
+      {
+        "name": "stsv:vehicle/combine_horn"
+      }
+    ]
+  },
+  "vehicle.combine.horn_end": {
+    "sounds": [
+      {
+        "name": "stsv:vehicle/combine_horn_end"
+      }
+    ]
+  },
+  "vehicle.combine.engine": {
+    "sounds": [
+      {
+        "name": "stsv:vehicle/combine_engine"
+      }
+    ]
+  },
   "vehicle.tractor_trailer.horn": {
     "sounds": [
       {
@@ -556,6 +577,20 @@
     "sounds": [
       {
         "name": "stsv:vehicle/luxury_suv_engine_stop"
+      }
+    ]
+  },
+  "vehicle.combine.engine_start": {
+    "sounds": [
+      {
+        "name": "stsv:vehicle/combine_engine_start"
+      }
+    ]
+  },
+  "vehicle.combine.engine_stop": {
+    "sounds": [
+      {
+        "name": "stsv:vehicle/combine_engine_stop"
       }
     ]
   },

@@ -11,6 +11,9 @@ server plays them the same way (README "탈것": the horn held, the engine in ov
                              pitch 1: the engine's idle at pitch 0.75 is 6 a second, flat out 11), each a dropping low
                              thud with an exhaust pop, over a little rumble. The thumps fall on the same beat in every
                              segment and the fades are linear, so two segments overlapping in step add up to one thump.
+  combine          horn      a mid two-tone horn, a little nasal (a work machine's, not a car's)
+                   engine    a mid-size diesel on 34 Hz with a lighter clatter, and over it the threshing drum's steady
+                             whir (a soft resonant hiss round 460 Hz and its octave) that tells a combine from a tractor
   tractor_trailer  horn      a low single-tone horn
                    engine    a big diesel: a deep hum on 30 Hz with a rattling clatter on top
 """
@@ -19,9 +22,10 @@ import numpy as np
 
 import sounds as S
 
-VEHICLES = ("ox_cart", "power_tiller", "tractor_trailer")
+VEHICLES = ("ox_cart", "power_tiller", "combine", "tractor_trailer")
 NAMES = [("ox_cart", "horn"), ("ox_cart", "horn_end"),
          ("power_tiller", "horn"), ("power_tiller", "horn_end"), ("power_tiller", "engine"),
+         ("combine", "horn"), ("combine", "horn_end"), ("combine", "engine"),
          ("tractor_trailer", "horn"), ("tractor_trailer", "horn_end"), ("tractor_trailer", "engine")]
 SR = S.SR
 
@@ -159,13 +163,25 @@ def tractor_engine(n, t):
     return S.combustion(n, t, rng, f0=30.0, count=18, rolloff=0.8, bandwidth=11.0, floor=0.55, warmth=1000, clatter=0.5)
 
 
+def combine_engine(n, t):
+    """The combine: a mid-size diesel (between the tiller's thump and the tractor's rumble) and the threshing drum's
+    whir over it: noise through narrow resonances (no pure tone, so overlapping segments never beat)."""
+    rng = np.random.default_rng(44)
+    hum = S.combustion(n, t, rng, f0=34.0, count=16, rolloff=0.85, bandwidth=10.0, floor=0.5, warmth=1100, clatter=0.35)
+    whir = S.resonant_noise(rng, n, [(460.0, 18.0, 1.0), (920.0, 30.0, 0.45), (230.0, 14.0, 0.3)], floor=0.05)
+    whir = whir / (np.sqrt(np.mean(whir ** 2)) + 1e-9) * np.sqrt(np.mean(hum ** 2)) * 0.35
+    return hum + whir
+
+
 HORNS = {
     # the tiller: a small electric horn, one buzzy mid-high tone
     "power_tiller": dict(tones=(587.0,), rolloff=1.1, drive=2.0, formant=(2600.0, 800.0, 1.2), top=6000, seed=51),
+    # the combine: a mid two-tone, nasal
+    "combine": dict(tones=(392.0, 466.0), rolloff=1.05, drive=2.2, formant=(1900.0, 700.0, 1.4), top=5000, seed=53),
     # the tractor: a low single tone, heavy bell
     "tractor_trailer": dict(tones=(311.0,), rolloff=0.95, drive=2.6, formant=(1500.0, 600.0, 1.6), top=4500, seed=52),
 }
-ENGINE_LEVEL = {"power_tiller": 0.85, "tractor_trailer": 0.85}
+ENGINE_LEVEL = {"power_tiller": 0.85, "combine": 0.85, "tractor_trailer": 0.85}
 
 
 def clips():
@@ -176,6 +192,9 @@ def clips():
         ("power_tiller", "horn"): (S.horn_hold(HORNS["power_tiller"]), 1),
         ("power_tiller", "horn_end"): (S.horn_tail(HORNS["power_tiller"]), 1),
         ("power_tiller", "engine"): (S.normalize(tiller_engine(), ENGINE_LEVEL["power_tiller"]), 0),
+        ("combine", "horn"): (S.horn_hold(HORNS["combine"]), 1),
+        ("combine", "horn_end"): (S.horn_tail(HORNS["combine"]), 1),
+        ("combine", "engine"): (S.normalize(S.engine_segment(combine_engine), ENGINE_LEVEL["combine"]), 0),
         ("tractor_trailer", "horn"): (S.horn_hold(HORNS["tractor_trailer"]), 1),
         ("tractor_trailer", "horn_end"): (S.horn_tail(HORNS["tractor_trailer"]), 1),
         ("tractor_trailer", "engine"): (S.normalize(S.engine_segment(tractor_engine), ENGINE_LEVEL["tractor_trailer"]), 0),

@@ -57,12 +57,13 @@ class VehicleToolsTest {
     @Test
     void theShippedToolsReadAndFitTheirVehicles() {
         Map<String, VehicleToolSpec> t = shipped();
-        assertEquals(List.of("ox_cart", "power_tiller", "tractor_trailer", "raft", "rowboat", "fishing_boat", "coastal_boat", "trawler", "light_truck", "box_truck"),
+        assertEquals(List.of("ox_cart", "power_tiller", "tractor_trailer", "combine", "raft", "rowboat", "fishing_boat", "coastal_boat", "trawler", "light_truck", "box_truck"),
                 List.copyOf(t.keySet()));
-        Map<String, String> files = Map.of("ox_cart", "vehicles_farm.yml", "power_tiller", "vehicles_farm.yml", "tractor_trailer", "vehicles_farm.yml",
-                "raft", "vehicles_misc.yml", "rowboat", "vehicles_misc.yml",
+        Map<String, String> files = new java.util.HashMap<>(Map.of("ox_cart", "vehicles_farm.yml", "power_tiller", "vehicles_farm.yml",
+                "tractor_trailer", "vehicles_farm.yml", "raft", "vehicles_misc.yml", "rowboat", "vehicles_misc.yml",
                 "fishing_boat", "vehicles_misc.yml", "coastal_boat", "vehicles_misc.yml", "trawler", "vehicles_misc.yml",
-                "light_truck", "vehicles.yml", "box_truck", "vehicles_road.yml");
+                "light_truck", "vehicles.yml", "box_truck", "vehicles_road.yml"));
+        files.put("combine", "vehicles_farm.yml");   // 4세대 소형 콤바인
         for (var e : t.entrySet()) {
             VehicleSpec v = vehicle(files.get(e.getKey()), e.getKey());
             assertEquals(List.of(), e.getValue().problems(v), e.getKey());

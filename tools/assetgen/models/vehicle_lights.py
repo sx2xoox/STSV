@@ -86,6 +86,9 @@ LAMPS = {
     # tractor: two round lamps standing on the hood's front corners, tail lamps on the fenders' backs
     "tractor": dict(scale=2.0, head=lens(4.25, 6.75, 21.5, 24, -23.5, True), tail=lens(12, 14.5, 20, 22, 24.5),
                     body=("vehicles_farm", "tractor")),
+    # combine: two work lamps under the canopy's front edge, tail lamps on the backs of the thresher and the grain tank
+    "combine": dict(scale=2.0, head=lens(1.5, 4, 41.75, 42.75, -19, False, False) + lens(12.5, 15, 41.5, 42.5, -19, False, False),
+                    tail=lens(10, 13, 21, 23, 30), body=("vehicles_farm", "combine")),
 }
 
 # colours (palette ramps, ART_STYLE: lamps glow)

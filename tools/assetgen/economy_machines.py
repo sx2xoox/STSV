@@ -2019,3 +2019,157 @@ def preview(mid, tier):
                 e["rotation"][2] = [e["rotation"][2][i] + pos[i] - 8 for i in range(3)]
             data["elements"].append(e)
     return data
+
+
+# ================================================================================================
+# 4강 (Lv35 승급): each machine shows its trade's masterwork, the 4세대 goods and materials it makes, on top of 3강
+# ================================================================================================
+
+LACQUER = Mat("soot", "plain", 1)
+RED_LACQUER = Mat("crimson", "plain", 2)
+NACRE = Mat("pearl", "plain", 3, glow=True, bevel=None)
+CELADON = Mat("celadon", "metal", 2, noise=0.04)
+HANJI = Mat("paper", "plain", 3, bevel=None)
+TEMPER = Mat("blacksteel", "speckle", 2)
+CYAN = Mat("glow_cyan", "plain", 2, glow=True, bevel=None)
+
+
+def _gem_bench4(m):
+    """보석 명장의 공방: a gold crest with gems along the pegboard top, mother-of-pearl inlays on the drawers, an open 자개 보석함."""
+    m.group("tier4")
+    m.box("crest_bar", (16.5, 30, 15), (31.5, 31, 16), GOLD)
+    for x, g in ((18, SAPPHIRE), (23.25, RUBY), (28.5, SAPPHIRE)):
+        m.box("crest_point", (x, 31, 15.1), (x + 1.5, 32, 15.9), GOLD)
+        m.box("crest_gem", (x + 0.25, 30.1, 14.75), (x + 1.25, 30.9, 15), g(glow=True), faces={"south": None})
+    for (y0, y1) in ((1, 6.5), (7, 12)):
+        for x in (17, 19.5):
+            m.box("nacre", (x, y0 + 1.5, 0.3), (x + 1.5, y1 - 1.5, 0.5), NACRE, faces={"south": None})
+    # the open jewel box behind the tweezers: black lacquer, nacre flowers, its lid standing against the pegboard
+    m.box("jewel_box", (19.5, 16, 11.75), (25, 18.5, 14.5), LACQUER, faces={"up": RED_LACQUER(bevel=None)})
+    m.box("jewel_box_lid", (19.5, 18.5, 14.25), (25, 22.5, 14.75), LACQUER)
+    for x in (20.5, 22, 23.5):
+        m.box("lid_nacre", (x, 19.5, 14.1), (x + 0.75, 21.5, 14.25), NACRE, faces={"south": None})
+    m.box("box_nacre", (20.5, 16.75, 11.6), (24, 17.75, 11.75), NACRE, faces={"south": None})
+    for x, g in ((20.25, Mat("pearl", "plain", 3)), (21.75, RUBY), (23.25, SAPPHIRE)):
+        m.box("box_jewel", (x, 18.5, 12.5), (x + 1, 19.25, 13.5), g(glow=True))
+
+
+def _gem_bench_wheel4(m):
+    """A gold hub and four sapphire studs on the wheel's face."""
+    cyl(m, "hub", "z", (8, 8), 3, 5, 5.5, GOLD, cap=GOLD(bevel=None))
+    for a in range(4):
+        x, y = 8 + 4.5 * math.cos(a * math.pi / 2 + math.pi / 4), 8 + 4.5 * math.sin(a * math.pi / 2 + math.pi / 4)
+        m.box("stud", (x - 0.5, y - 0.5, 6.25), (x + 0.5, y + 0.5, 6.5), SAPPHIRE(glow=True), faces={"south": None})
+
+
+def _mill4(m):
+    """궁중 방앗간: 한지 drying on a frame at the back, a crock sealed with 한지 and red cord on the basket, gold bands on the posts."""
+    m.group("tier4")
+    frame(m, "hanji_frame", 8.5, 23.5, 1.5, 15, 30.5, 31.5, 1, SPRUCE_GRAIN)
+    m.box("hanji", (9.5, 2.5, 30.75), (22.5, 14, 31.25), HANJI)
+    m.box("hanji_line", (16, 2.5, 30.6), (16.25, 14, 30.75), Mat("paper", "plain", 2, bevel=None), faces={"south": None})
+    for x in (1, 28):
+        m.box("gold_band", (x - 0.25, 20, 13.75), (x + 3.25, 20.75, 18.25), GOLD)
+    C = (4.5, 4.5)
+    cyl(m, "royal_crock", "y", C, 5, 4, 8, ONGGI, cap=ONGGI)
+    cyl(m, "royal_crock", "y", C, 4, 8, 9, ONGGI, cap=HANJI)
+    cyl(m, "crock_seal", "y", C, 4.5, 9, 9.75, HANJI, cap=HANJI)
+    ring(m, "crock_cord", C, 4.75, 4, 8.5, 9, Mat("crimson", "plain", 2, bevel=None))
+
+
+def _mill_stone4(m):
+    m.box("handle_gold", (12, 18, 7), (14, 18.75, 9), GOLD)
+
+
+def _fish_bench4(m):
+    """진상 어물전: a red-lacquer signboard with a gold frame on the rail, a string of golden 굴비 on the left pole, a gold edge."""
+    m.group("tier4")
+    m.box("sign_frame", (11, 27.5, 13), (21, 31, 13.25), GOLD)
+    m.box("sign", (11.5, 28, 12.75), (20.5, 30.5, 13), RED_LACQUER, faces={"south": None})
+    for x in (13, 15.5, 18):
+        m.box("sign_letter", (x, 28.75, 12.6), (x + 1.25, 29.75, 12.75), Mat("lamp", "plain", 3, glow=True, bevel=None), faces={"south": None})
+    rope = Mat("straw", "weave", 2, bevel=None)
+    # hung on the outer side of the left pole (the 3강 lantern hangs in front of it)
+    m.box("gulbi_rope", (-0.75, 17, 14), (-0.25, 29.5, 14.5), rope)
+    for y in (18, 21.5, 25):
+        m.box("gulbi", (-1.75, y, 13.6), (0.25, y + 3, 14.9), Mat("gold", "plain", 2))
+        m.box("gulbi_tie", (-1.9, y + 2, 13.45), (0.4, y + 2.5, 15.05), rope)
+    m.box("edge", (0.5, 14.5, -0.25), (31.5, 15, 0), GOLD, faces={"south": None})
+
+
+def _forge4(m):
+    """명장 대장간: a glowing 단련석 on the coal bin, a stack of bronze 유기 on the bellows, gold bands and cyan studs on the hood."""
+    m.group("tier4")
+    # the 단련석 laid on the hearth's front rim, its crystal vein glowing; a 명장 signboard on the hood
+    m.box("temper_stone", (16, 13, 12.25), (20.5, 14.5, 14.25), TEMPER)
+    m.box("temper_vein", (16.5, 14.5, 13), (20, 14.75, 13.5), CYAN, faces={"down": None})
+    m.box("temper_crystal", (17.75, 14.5, 12.75), (18.75, 15.5, 13.75), Mat("crystal", "plain", 3, glow=True))
+    m.box("sign_frame", (16, 28.25, 13.5), (29, 31.75, 14), GOLD)
+    m.box("sign", (16.5, 28.75, 13.25), (28.5, 31.25, 13.5), RED_LACQUER, faces={"south": None})
+    for x in (18.5, 21.75, 25):
+        m.box("sign_letter", (x, 29.5, 13.1), (x + 1.5, 30.5, 13.25), Mat("lamp", "plain", 3, glow=True, bevel=None), faces={"south": None})
+    for (d, y0, y1) in ((5, 10, 11.5), (4, 11.5, 12.75), (3, 12.75, 13.75)):
+        cyl(m, "yugi", "y", (9.5, 23.5), d, y0, y1, GOLD, cap=Mat("gold", "metal", 3))
+    m.box("yugi_knob", (9, 13.75, 23), (10, 14.5, 24), GOLD)
+    for x in (13, 29):
+        m.box("gold_band", (x - 0.25, 18, 11.75), (x + 2.25, 19, 14.75), GOLD)
+    for x in (14, 16.5, 26.5, 29):
+        m.box("stud", (x, 26.25, 11.25), (x + 1, 27.25, 11.5), CYAN, faces={"south": None})
+
+
+def _kitchen4(m):
+    """수라간: a red-and-blue 청사초롱 over the counter, a 구절판 on the wall shelf, gold studs on the lacquer door."""
+    m.group("tier4")
+    m.box("chorong_cord", (7.75, 28, 5.75), (8.25, 32, 6.25), IRON)
+    m.box("chorong_top", (6.5, 27, 4.5), (9.5, 28, 7.5), Mat("sapphire", "plain", 2))
+    m.box("chorong", (6.25, 22.5, 4.25), (9.75, 27, 7.75), Mat("crimson", "plain", 3, glow=True, bevel=None))
+    m.box("chorong_band", (6, 24.25, 4), (10, 24.75, 8), Mat("sapphire", "plain", 2))
+    m.box("chorong_foot", (6.5, 21.5, 4.5), (9.5, 22.5, 7.5), Mat("sapphire", "plain", 2))
+    m.box("chorong_tassel", (7.75, 19.5, 5.75), (8.25, 21.5, 6.25), Mat("crimson", "plain", 2))
+    cyl(m, "gujeolpan", "y", (-0.75, 13.5), 4, 24, 25, LACQUER, cap=LACQUER(bevel=None))
+    for (x, z, mat) in ((-1.65, 12.6, "tomato"), (0.15, 12.6, "leaf"), (-1.65, 14.4, "petal_yellow"), (0.15, 14.4, "doenjang"),
+                        (-0.75, 13.5, "rice")):
+        m.box("gujeolpan_fill", (x - 0.4, 25, z - 0.4), (x + 0.4, 25.25, z + 0.4), Mat(mat, "plain", 2, bevel=None))
+    for (x, y) in ((2, 2), (13, 2), (2, 10.5), (13, 10.5)):
+        m.box("door_stud", (x, y, 0.3), (x + 1, y + 1, 0.5), GOLD, faces={"south": None})
+
+
+def _still4(m):
+    """백년 술도가: a celadon 약주 jar sealed with red cloth, a glowing mana-ink pot on the table, a talisman on the firebox."""
+    m.group("tier4")
+    C = (17.5, 5)
+    cyl(m, "celadon_jar", "y", C, 4, 0, 1, CELADON, cap=CELADON)
+    cyl(m, "celadon_jar", "y", C, 6, 1, 6, CELADON, cap=CELADON)
+    cyl(m, "celadon_jar", "y", C, 3, 6, 7.5, CELADON, cap=CELADON)
+    cyl(m, "jar_cloth", "y", C, 3.5, 7.5, 8.5, Mat("crimson", "weave", 2, bevel=None), cap=Mat("crimson", "weave", 3, bevel=None))
+    # a 술도가 banner hung from the lyne arm: red cloth, a gold mark
+    m.box("banner_pole", (16.5, 38.5, 20.5), (21.5, 39, 21.5), Mat("bamboo", "plain", 2))
+    m.box("banner", (17, 29, 20.75), (21, 38.5, 21.25), Mat("crimson", "weave", 2, bevel=None))
+    m.box("banner_mark", (18.25, 32.5, 20.6), (19.75, 35.5, 20.75), Mat("lamp", "plain", 3, glow=True, bevel=None), faces={"south": None})
+    m.box("ink_pot", (2, 10, 6), (4.5, 12, 8.5), GLASS)
+    m.box("ink", (2.25, 10, 6.25), (4.25, 11.5, 8.25), Mat("magic", "plain", 2, glow=True, bevel=None), faces={"down": None})
+    m.box("ink_brush", (3, 11.5, 7), (3.5, 15.5, 7.5), Mat("bamboo", "plain", 2), rotation=("z", -22.5, (3.25, 11.5, 7.25)))
+    m.box("talisman", (1.75, 2.5, 16), (2, 8.5, 19), Mat("petal_yellow", "plain", 3, bevel=None), faces={"east": None})
+    m.box("talisman_ink", (1.6, 3.5, 17.25), (1.75, 7.5, 17.75), Mat("crimson", "plain", 2, glow=True, bevel=None), faces={"east": None})
+    for (z0, z1) in ((16.5, 17.25), (17.75, 18.5)):
+        m.box("talisman_ink", (1.6, 6, z0), (1.75, 6.5, z1), Mat("crimson", "plain", 2, glow=True, bevel=None), faces={"east": None})
+
+
+def _press4(m):
+    """황금 기름집: gold over the nut and the post bands, a celadon oil jar behind the tub."""
+    m.group("tier4")
+    m.box("gold_nut", (5.25, 25.75, 5.25), (10.75, 26.75, 10.75), GOLD)
+    for x in (1, 13):
+        for y in (11, 22):
+            m.box("gold_band", (x - 0.5, y + 0.25, 6), (x + 2.5, y + 0.75, 10), GOLD)
+    for x in (18.5, 21.5):
+        cyl(m, "front_jar", "y", (x, 1.5), 2.5, 0, 3.5, CELADON, cap=CELADON)
+        cyl(m, "front_jar_neck", "y", (x, 1.5), 1.5, 3.5, 4.5, CELADON, cap=Mat("crimson", "weave", 2, bevel=None))
+    C = (22, 14.6)
+    cyl(m, "oil_jar", "y", C, 2.5, 0, 4.5, CELADON, cap=CELADON)
+    cyl(m, "oil_jar_neck", "y", C, 1.5, 4.5, 5.5, CELADON, cap=Mat("crimson", "weave", 2, bevel=None))
+
+
+def _press_screw4(m):
+    m.box("bar_gold", (1.75, 4.5, 7), (3.25, 6.5, 9), GOLD)
+    m.box("bar_gold", (12.75, 4.5, 7), (14.25, 6.5, 9), GOLD)

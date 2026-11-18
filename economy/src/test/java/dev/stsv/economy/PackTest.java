@@ -26,7 +26,7 @@ class PackTest {
     private static final Path PACK = ContentTest.PACK;
     private static final Path CORE = Path.of("../content/stsv").toAbsolutePath().normalize();
     /** job machines, the press and their parts: model_tier (crops are the other models) */
-    static final String MACHINE = "(gem_bench(_wheel)?|mill(_stone)?|fish_bench|forge|kitchen|still|press(_screw)?)_[0-3]";
+    static final String MACHINE = "(gem_bench(_wheel)?|mill(_stone)?|fish_bench|forge|kitchen|still|press(_screw)?)_[0-4]";
     // crop stages are crossed planes with cut-out textures
 
     @Test
@@ -35,8 +35,8 @@ class PackTest {
         try (var s = Files.list(PACK.resolve("models"))) {
             models = s.filter(p -> p.toString().endsWith(".bbmodel")).sorted().toList();
         }
-        assertEquals(7 * 4 + 3 * 4 + 77 + 9 + 1 + 1 + 5 + 2, models.size(),
-                "7 machines in 4 tiers, 3 spinning parts in 4 tiers, 77 growth stages of 17 crops, 9 하역장 props (6 container colours), the 국도 sign, "
+        assertEquals(7 * 5 + 3 * 5 + 77 + 9 + 1 + 1 + 5 + 2, models.size(),
+                "7 machines in 5 tiers (4세대: 4강), 3 spinning parts in 5 tiers, 77 growth stages of 17 crops, 9 하역장 props (6 container colours), the 국도 sign, "
                         + "its guide sign and its 5 arrows, the 통발 and the 가두리");
         for (Path p : models) {
             String name = p.getFileName().toString().replace(".bbmodel", "");

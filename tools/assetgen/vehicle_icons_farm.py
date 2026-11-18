@@ -2,7 +2,8 @@
 Inventory icons (16x16) of the articulated farm vehicles (content/stsv/items/vehicles_farm.yml): textures/<id>_icon.png
 in the core pack, like vehicle_icons.py. Each is seen from its left side, the pulling unit in front (to the left): the
 ox with its yoke before the loaded cart and its big spoked wheel; the tiller's cream hopper, flywheel and handlebars
-before the red trailer; the orange tractor with its big rear wheel, canopy and stack before a wagon of hay.
+before the red trailer; the red combine on its crawler track (header, canopy, grain tank) before its grain trailer; the
+orange tractor with its big rear wheel, canopy and stack before a wagon of hay.
 """
 
 from vehicle_icons import _draw
@@ -95,4 +96,32 @@ def tractor_trailer():
     colours = {"c": ("cream", 3), "p": ("iron", 2), "e": ("soot", 2), "O": ("fox", 3), "o": ("fox", 1),
                "F": ("fox", 2), "G": ("cream", 2), "d": ("iron", 2), "k": ("rubber", 1), "C": ("cream", 2), "r": ("steel", 4),
                "S": ("straw", 4), "s": ("straw", 3), "w": ("wood_dark", 2)}
+    return _draw(rows, colours).render()
+
+
+@icon("combine")
+def combine():
+    # the red combine to the left: the header low in front (a yellow divider point, the dark cutter), the feeder rising
+    # to the thresher, the white canopy on its posts with the amber beacon, the grain tank with its white stripe and
+    # the stack; the black crawler track with its red idler and road rollers; behind it the grain trailer heaped with
+    # rice and its red-rimmed wheel
+    rows = ["................",
+            "....AWWWWW......",
+            ".....p...p.e....",
+            ".....p...pRe....",
+            ".....p.RRRRRR...",
+            ".....pRRRRRRR...",
+            "....rRRRRRRRR.gg",
+            "...rrRwwwwwwwRGG",
+            "yHHHrRRRRRRRRRRR",
+            "yhhhrkkkkkkkkR.r",
+            "....kOkokokoOk..",
+            "....kkkkkkkkkk.k",
+            ".............kOk",
+            "..............k.",
+            "................",
+            "................"]
+    colours = {"A": ("glow_amber", 1), "W": ("car_white", 3), "p": ("iron", 2), "e": ("soot", 2), "R": ("vermilion", 3),
+               "r": ("vermilion", 2), "w": ("car_white", 4), "y": ("hazard", 1), "H": ("vermilion", 3), "h": ("iron", 1),
+               "k": ("rubber", 1), "O": ("vermilion", 3), "o": ("steel", 3), "g": ("straw", 4), "G": ("straw", 3)}
     return _draw(rows, colours).render()

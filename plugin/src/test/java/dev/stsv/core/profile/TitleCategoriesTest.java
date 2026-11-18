@@ -65,7 +65,7 @@ class TitleCategoriesTest {
             }
         }
         assertEquals(Set.copyOf(TitleCategories.ORDER), per.keySet(), "every tab has titles: " + per);
-        assertEquals(11, per.get("job"));
+        assertEquals(17, per.get("job"), "4세대: + 직업 명인 6");
     }
 
     /** The menu: a tab button per tab, the banner one not drawn on the background. */

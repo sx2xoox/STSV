@@ -103,6 +103,7 @@ vehicles:
   # 일반 탈것: 도색 (엔진 달린 것은 언더글로우도)
   cargo_bicycle:    { paints: all }
   power_tiller:     { paints: all }
+  combine:          { paints: all }
   tractor_trailer:  { paints: all }
   golf_cart:        { paints: all, underglows: all }
   delivery_scooter: { paints: all, underglows: all }
