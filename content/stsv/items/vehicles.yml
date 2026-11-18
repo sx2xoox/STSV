@@ -224,6 +224,55 @@ hyper_car:
             vanilla: block.note_block.didgeridoo, pitch: 1.8, times: 1 }
     engine: { sound: stsv:vehicle.hyper_car.engine, volume: 0.55, idle-volume: 0.2, idle-pitch: 0.5, top-pitch: 2.0, segment-ticks: 10 }
 
+# 쇼케이스 · 팬텀 GT: 파이프라인이 낼 수 있는 최고 디테일로 그린 한 대 (1블록 32픽셀, 전용 색, 면 수 상한 없음:
+# tools/assetgen/models/vehicles_showcase.py). 롱노즈 2인승 GT 쿠페, 시저 도어. 관리자 지급 전용
+phantom_gt:
+  material: paper
+  name: "<gradient:#ff5a5f:#c8102e><b>팬텀 GT</b></gradient>"
+  lore:
+    - "<gold>쇼케이스 한정</gold> <gray>· 2인승 GT 쿠페"
+    - "<white>14블록/초 <gray>· 짐칸 없음"
+    - "<dark_gray>W·S·A·D 운전 · 웅크리기: 내리기"
+    - "<dark_gray>스페이스: 경적 · Ctrl+A·D: 드리프트"
+    - "<yellow>우클릭: 세우기 · 타기"
+    - "<yellow>웅크리고 우클릭: 회수"
+  model: phantom_gt
+  icon: phantom_gt_icon
+  max-stack: 1
+  vehicle:
+    body-scale: 2
+    speed: 14
+    over-cap: true
+    drift: { angle: 32, min-speed: 6, build: 100, recover: 160, turn: 1.5, drag: 1.4 }
+    reverse-speed: 4
+    acceleration: 7.5
+    brake: 16
+    coast: 2.4
+    turn-rate: 80
+    turn-speed: 4
+    step-height: 1.0
+    size: [4.9, 2.1, 1.35]
+    click-height: 0.9
+    wheel: wheel_phantom
+    wheel-radius: 0.39
+    wheels:
+      - { at: [-0.94, 0.39, 1.5], steer: true }
+      - { at: [0.94, 0.39, 1.5], steer: true }
+      - { at: [-0.94, 0.39, -1.47] }
+      - { at: [0.94, 0.39, -1.47] }
+    seats:
+      - { at: [-0.34, 0.0, -0.05] }
+      - { at: [0.34, 0.0, -0.05] }
+    movers:
+      - { model: phantom_gt_door_l, hinge: [-0.95, 0.75, 0.84], axis: [1, 0, 0], turn: -62, when: door, seats: [0], ticks: 9 }
+      - { model: phantom_gt_door_r, hinge: [0.95, 0.75, 0.84], axis: [1, 0, 0], turn: -62, when: door, seats: [1], ticks: 9 }
+    plates:
+      - { at: [0, 0.42, 2.44], width: 0.5, height: 0.11 }
+      - { at: [0, 0.2, -2.44], back: true, width: 0.5, height: 0.11 }
+    horn: { sound: stsv:vehicle.hyper_car.horn, release: stsv:vehicle.hyper_car.horn_end, volume: 1.5,
+            vanilla: block.note_block.didgeridoo, pitch: 1.6, times: 1 }
+    engine: { sound: stsv:vehicle.hyper_car.engine, volume: 0.55, idle-volume: 0.2, idle-pitch: 0.5, top-pitch: 1.9, segment-ticks: 10 }
+
 # 후원 · 그랜드 세단: 길고 반듯한 4인승 대형 세단. 빠르지 않고(서버 상한 그대로) 조용하고 부드러움
 grand_sedan:
   material: paper

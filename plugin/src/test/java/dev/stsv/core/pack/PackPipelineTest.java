@@ -43,6 +43,7 @@ class PackPipelineTest {
             "star_ring", "shoulder_dragon", "jetpack",          // cosmetics A: the stars, the dragon's ember, the rocket flames
             "sleepy_duckling_awakened",                         // 아기 오리: the moon and stars of the mobile
             "segway", "rodeo_bull", "rodeo_bull_bull",          // 특별 탈것: the segway's LED face, the big red button, the bull's red eyes
+            "phantom_gt",                                       // 쇼케이스 팬텀 GT: its LED headlights, the tail light bar, the dash screens
             "devil_tail", "gold_medal", "crystal_pendant",      // cosmetics B: the heart tip, the medal's star, the crystal
             // donation sets: every piece glows at night (the dragon wings' membrane only at its tips: not listed)
             // 청룡 v2: pearls, flames, eyes, spines, whiskers, glowing cloud, lightning and the footprints' rims

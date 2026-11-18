@@ -371,6 +371,8 @@ contents/mypack/
 | 바퀴 | `wheel_hyper` 검은 10스포크에 밝게 깎은 림 | `wheel_grand` 지름 16px(1블록), 광택 12스포크 | `wheel_suv` 지름 26px 초대형 타이어 속 어두운 8스포크(밝은 림) |
 | 색 인자 | `hyper_car(colour, accent, roof)`: `roof=False` 면 캐노피 없는 스피드스터 | `grand_sedan(colour, upper, leather)` | `luxury_suv(colour, leather)`. 차체는 땅에 선 것처럼 그리고 `Kit(lift=16, scale=2.5)` 로 통째로 올림(`body-scale: 2.5`) |
 
+**쇼케이스 · 팬텀 GT (`phantom_gt`, 관리자 지급)**: 파이프라인이 낼 수 있는 최고 디테일로 그린 한 대. 롱노즈 2인승 GT 쿠페, 시저 도어, 캔디 레드 · 유광 블랙 지붕 · 짙은 틴팅 유리 · LED 헤드라이트 · 차 폭 전체 테일램프 바 · 20스포크 휠과 빨간 캘리퍼. 다른 차와 다른 점: **1블록 32픽셀**(차체는 두 배 크기로 그려 `BModel scale 4` · `body-scale 2`, 바퀴는 두 배로 그려 `scale 2`), 곡면을 1픽셀 칸으로 깎아 같은 재질끼리 합침(`bake.voxels`), 전용 색(`gt_*` 램프), 도장 면은 게임 면 음영을 끄고 구운 빛만(계단 줄무늬 없음), 면 수 상한 없음(`RenderBudget.EXCEPTIONS`). 속도는 하이퍼카와 같은 14 (파는 것은 모양). 생성기 `tools/assetgen/models/vehicles_showcase.py`.
+
 **움직이는 부품과 이름 번호판** (`vehicles.yml` 의 `movers:` · `plates:`, 플러그인 `VehicleDress`): 후원 차량은 몸체 말고도 따로 움직이는 부품을 입습니다. 부품은 몸체와 **같은 자리에 그린 별도 모델**이라 닫혀 있을 때는 몸체에 딱 붙어 있고, 플러그인이 몸체의 자세(기울기·서스펜션)를 그대로 따라가면서 경첩(`hinge`·`axis`) 둘레로 `turn` 도 돌리거나 `slide` 만큼 밀어 냅니다. 움직임은 천천히 시작해 천천히 멈춥니다.
 
 | 부품 | 언제 | 어떻게 |

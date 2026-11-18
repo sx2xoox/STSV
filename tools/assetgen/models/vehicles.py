@@ -2665,3 +2665,8 @@ ALL = {
 from models import vehicles_premium as _premium     # noqa: E402
 
 ALL.update(_premium.ALL)
+
+# the showcase car 팬텀 GT (models/vehicles_showcase.py: drawn at 32 px a block, its own colours, no face budget)
+from models import vehicles_showcase as _showcase     # noqa: E402
+
+ALL.update(_showcase.ALL)

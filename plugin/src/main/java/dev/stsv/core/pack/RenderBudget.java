@@ -55,7 +55,12 @@ public final class RenderBudget {
     public static final Map<String, Object[]> EXCEPTIONS = Map.of(
             // 특별 탈것 로데오 황소: the bull is the vehicle's real body (shown as its moving part; the stand under it, the
             // "body", is a plain mat): a vehicle body's budget, not a part's
-            "stsv:rodeo_bull_bull", new Object[]{Category.VEHICLE.faces, "로데오 황소의 황소 (움직이는 부품이지만 실제 몸체: 탈것 몸체 예산)"});
+            "stsv:rodeo_bull_bull", new Object[]{Category.VEHICLE.faces, "로데오 황소의 황소 (움직이는 부품이지만 실제 몸체: 탈것 몸체 예산)"},
+            // 쇼케이스 팬텀 GT: 서버에 한 대뿐인 최고 디테일 차 (1블록 32픽셀, 곡면을 1픽셀 칸으로 깎음: 예산 없이)
+            "stsv:phantom_gt", new Object[]{40000, "쇼케이스 팬텀 GT 몸체 (예산 없음)"},
+            "stsv:phantom_gt_door_l", new Object[]{4000, "쇼케이스 팬텀 GT 문 (예산 없음)"},
+            "stsv:phantom_gt_door_r", new Object[]{4000, "쇼케이스 팬텀 GT 문 (예산 없음)"},
+            "stsv:wheel_phantom", new Object[]{2000, "쇼케이스 팬텀 GT 바퀴 (예산 없음)"});
 
     private RenderBudget() {}
 

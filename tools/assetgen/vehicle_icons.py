@@ -140,6 +140,33 @@ def hyper_car():
     return _draw(rows, colours).render()
 
 
+@icon("phantom_gt")
+def phantom_gt():
+    # 팬텀 GT: long and low, the hood running far forward to a thin nose with a white LED blade, the fender swelling
+    # over the front wheel, a dark tinted glasshouse set back, a fastback to the ducktail with its red light bar, big
+    # dark wheels with bright lips and red callipers
+    rows = ["................",
+            "................",
+            "................",
+            "................",
+            "................",
+            "......kkkkk.....",
+            ".....kgGggqkk...",
+            "..wwwWWWWWWWWWw.",
+            "yWWWWWWWWWWWWWWt",
+            "VVVVVVVVVVVVVVVt",
+            "NVkkkVVVVVVkkkVN",
+            ".kkhHhkcccckhHhk",
+            "..khrhk....khrhk",
+            "...kkk......kkk.",
+            "................",
+            "................"]
+    colours = {"w": ("tomato", 4), "W": ("tomato", 3), "V": ("tomato", 2), "N": ("tomato", 1), "g": ("tint", 2),
+               "G": ("glass", 4), "q": ("tint", 1), "k": ("rubber", 1), "c": ("rubber", 2), "y": ("lamp", 5),
+               "t": ("signal_red", 4), "h": ("blacksteel", 2), "H": ("blade", 3), "r": ("signal_red", 3)}
+    return _draw(rows, colours).render()
+
+
 @icon("grand_sedan")
 def grand_sedan():
     # long and low: the tall radiator at the nose, a long hood, a laid-back screen and a fastback, a chrome line
