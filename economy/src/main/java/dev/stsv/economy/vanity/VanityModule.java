@@ -222,13 +222,10 @@ public final class VanityModule extends EcoModule {
             d.addScoreboardTag(tag);
             d.setPersistent(false);
             d.setItemStack(head);
-            // the player head's item definition turns its model half round the x axis (its transformation), which the
-            // contexts that show a head on a slot or in a frame make up for and an item display's own context does not:
-            // it hung upside down under its spot, its face turned away. The same half turn about the x axis undoes it
-            // (upright, face to the viewer; a half turn about the line of sight instead set it upright with its face
-            // away: the back of the head was seen). Upright the head (half a block, x 2.5) is drawn 0.5 .. 1 block over
-            // its spot: it is moved down 2.65 so it stands 1.4 .. 2.65 over the ground, over the plate
-            d.setTransformation(new Transformation(new Vector3f(0, -2.65f, 0), new AxisAngle4f((float) Math.PI, 1, 0, 0),
+            // an item display shows a player head upright but turned away (the back of the head to the viewer that the
+            // vertical billboard faces): half a turn about the vertical axis shows the face, at the same height as before
+            // (high enough that the plate under it is never covered)
+            d.setTransformation(new Transformation(new Vector3f(), new AxisAngle4f((float) Math.PI, 0, 1, 0),
                     new Vector3f(2.5f, 2.5f, 2.5f), new AxisAngle4f()));
             d.setBillboard(Display.Billboard.VERTICAL);
         });
