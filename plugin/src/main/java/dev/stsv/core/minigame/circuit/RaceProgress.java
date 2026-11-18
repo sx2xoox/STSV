@@ -33,6 +33,8 @@ public final class RaceProgress {
     private final List<Double> lapTimes = new ArrayList<>();
     private int backwards;
     private double backwardsRun;
+    private int gatePassed = -1;
+    private double passTime = Double.NaN;
 
     /**
      * @param samples the centre line's samples
@@ -85,6 +87,8 @@ public final class RaceProgress {
     }
 
     private Event pass(double when) {
+        gatePassed = next;
+        passTime = when;
         if (next != 0) {
             next = (next + 1) % gates.length;
             return Event.GATE;
@@ -153,6 +157,16 @@ public final class RaceProgress {
         double best = Double.NaN;
         for (double t : lapTimes) if (Double.isNaN(best) || t < best) best = t;
         return best;
+    }
+
+    /** The gate passed last (its number: 0 = the line), -1 before any. */
+    public int passedGate() {
+        return gatePassed;
+    }
+
+    /** When the last gate was passed (seconds since the start, finer than a tick), NaN before any. */
+    public double passedAt() {
+        return passTime;
     }
 
     /** When the current lap began (seconds since the start), or NaN before lap 1. */

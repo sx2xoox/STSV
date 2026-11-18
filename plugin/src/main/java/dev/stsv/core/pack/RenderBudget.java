@@ -60,6 +60,9 @@ public final class RenderBudget {
 
     /** The budget of a model: its exception, or its kind's. */
     public static int budget(String model, Category kind) {
+        // a 서킷 ghost is its kart seen through: nothing behind its faces can be left out, so half as many again (only
+        // the one racer who races against it draws it)
+        if (model.matches(".+_ghost(_gold)?")) return budget(model.replaceFirst("_ghost(_gold)?$", ""), kind) * 3 / 2;
         Object[] e = EXCEPTIONS.get(model);
         return e != null ? (Integer) e[0] : kind.faces;
     }
@@ -204,6 +207,8 @@ public final class RenderBudget {
         int colon = model.indexOf(':');
         String stock = model.substring(0, colon + 1) + dev.stsv.core.vehicle.VehicleTuning.stock(model.substring(colon + 1));
         if (model.substring(colon + 1).startsWith("underglow_")) return Category.VEHICLE_PART;
+        // a 서킷 ghost (tools/assetgen/models/kart_ghosts.py: kart_x_ghost, kart_x_ghost_gold, kart_wheel_ghost) is its kart's
+        if (model.matches(".+_ghost(_gold)?")) return of(model.replaceFirst("_ghost(_gold)?$", ""), categories);
         return categories.getOrDefault(stock, Category.OTHER);
     }
 

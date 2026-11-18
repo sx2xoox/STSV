@@ -21,9 +21,14 @@ import org.bukkit.Sound;
 import org.bukkit.SoundCategory;
 import org.bukkit.World;
 import org.bukkit.WeatherType;
+import org.bukkit.FluidCollisionMode;
+import org.bukkit.entity.Entity;
 import org.bukkit.entity.Firework;
+import org.bukkit.entity.ItemDisplay;
 import org.bukkit.entity.Player;
 import org.bukkit.inventory.meta.FireworkMeta;
+import org.bukkit.util.RayTraceResult;
+import org.bukkit.util.Vector;
 
 import java.util.ArrayList;
 import java.util.Comparator;
@@ -31,8 +36,10 @@ import java.util.HashSet;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.Objects;
 import java.util.Set;
 import java.util.UUID;
+import java.util.concurrent.CompletableFuture;
 
 /**
  * One race on one track: its waiting room (대기실: who joined, their karts and colours, the countdown), then the race
@@ -48,6 +55,16 @@ import java.util.UUID;
  * line ({@link TrackPath#locate}), passes that to its {@link RaceProgress} (gates, laps, the finish), fills and fires
  * its {@link BoostGauge}, launches it off jump pads, speeds it on boost pads, puts it back at its last gate when it fell
  * off or left the track, pushes karts that touch apart (the heavier pushes harder) and draws the boss bar.
+ *
+ * <h2>고스트</h2> Every racer's kart is sampled ({@link GhostRecorder}) and each lap becomes a {@link Ghost}: kept as their
+ * best when it is ({@link GhostStore}). A racer who chose one races against a ghost (theirs or the track record's,
+ * {@link GhostView}: only they and their watchers see it); it starts with each of their laps, and at every gate they
+ * are told how far ahead or behind it they are.
+ *
+ * <h2>관전</h2> Watchers ({@link Watcher}): players in spectator mode in the race's world, their state written onto them
+ * first ({@link ReturnPoint}) exactly as a racer's, taken back home by {@link #unwatch} (leaving, the race's end, a quit,
+ * the server stopping). Their camera follows a racer: a display entity behind the kart (추격), the racer's own eyes
+ * (1인칭), or free over the track (자유); A·D change the racer, space the view, sneaking twice leaves ({@link WatchRules}).
  */
 final class Race {
 
@@ -76,6 +93,19 @@ final class Race {
         int wrongTold;
         int lastLap;
         BossBar bar;
+        // 고스트: recording this racer, and the ghost they race against
+        Ghost.Choice ghostChoice = Ghost.Choice.NONE;
+        GhostRecorder recorder;
+        double[] splits;
+        Ghost ghost;
+        String ghostHolder, ghostKart;
+        boolean ghostRecord;
+        CompletableFuture<Ghost> ghostLoad;
+        String loadHolder, loadKart;
+        boolean loadRecord;
+        GhostView ghostView;
+        Component gap;
+        int gapUntil;
 
         Racer(Player p, KartSpec kart, String colour) {
             this.id = p.getUniqueId();
@@ -106,6 +136,7 @@ final class Race {
     private final Set<Chunk> held = new HashSet<>();
     final BossBar lobbyBar;
     private final List<String> results = new ArrayList<>();
+    final Map<UUID, Watcher> watchers = new LinkedHashMap<>();
 
     Race(Circuit game, TrackSpec track, TrackLayout layout, World world, int lobbySeconds) {
         this.game = game;
@@ -208,6 +239,7 @@ final class Race {
             }
             default -> { }
         }
+        if (state != State.LOBBY && state != State.CLOSED && !watchers.isEmpty()) watchTick();
     }
 
     // ------------------------------------------------------------------------------------------
@@ -272,7 +304,10 @@ final class Race {
             Racer r = racerByName(n);
             if (r != null) out(r, "circuit.left-error");
         }
-        for (Racer r : racers.values()) r.bar = BossBar.bossBar(Component.empty(), 0f, BossBar.Color.YELLOW, BossBar.Overlay.PROGRESS);
+        for (Racer r : racers.values()) {
+            r.bar = BossBar.bossBar(Component.empty(), 0f, BossBar.Color.YELLOW, BossBar.Overlay.PROGRESS);
+            setUpGhost(r);
+        }
     }
 
     private Racer racerByName(String n) {
@@ -292,6 +327,10 @@ final class Race {
                 game.vehicles().freezeTemporary(r.vehicle, true);
                 p.showBossBar(r.bar);
             } else if (++r.spawnTries > 40) out(r, "circuit.left-error");
+        }
+        for (Racer r : active()) {
+            Player p = r.player();
+            if (p != null && r.vehicle != 0) ghostTick(r, p);
         }
         if (active().isEmpty()) {
             close(false);
@@ -316,10 +355,18 @@ final class Race {
                 p.showTitle(CircuitHud.title(pic, Lang.mm("circuit.countdown-sub"), 0, 18, 2));
                 p.playSound(p, Sound.BLOCK_NOTE_BLOCK_PLING, SoundCategory.MASTER, 1f, 0.8f);
             }
+            for (Player w : watcherPlayers()) {
+                w.showTitle(CircuitHud.title(pic, Component.empty(), 0, 18, 2));
+                w.playSound(w, Sound.BLOCK_NOTE_BLOCK_PLING, SoundCategory.MASTER, 0.6f, 0.8f);
+            }
         }
         if (t == COUNTDOWN) {
             state = State.RUNNING;
             raceTicks = 0;
+            for (Player w : watcherPlayers()) {
+                w.showTitle(CircuitHud.title(CircuitHud.GO, Component.empty(), 0, 16, 6));
+                w.playSound(w, Sound.BLOCK_NOTE_BLOCK_PLING, SoundCategory.MASTER, 0.6f, 1.6f);
+            }
             for (Racer r : active()) {
                 Player p = r.player();
                 if (p == null) continue;
@@ -385,8 +432,11 @@ final class Race {
             VehicleSpec spec = vm.temporarySpec(r.vehicle);
             double lx = st.x - ox, ly = st.y - TrackLayout.BASE_Y, lz = st.z;
             TrackPath.Spot spot = path.locate(lx, ly, lz, r.progress.at(), 90);
+            // the ghost's samples: this tick's place, before the gates it may have crossed are counted
+            if (r.recorder != null && !r.progress.finished()) r.recorder.sample(raceTicks, lx, ly, lz, st.yaw, r.gauge.boosting());
             RaceProgress.Event ev = r.progress.move(spot.index(), seconds(), 0.05);
             if (ev != RaceProgress.Event.NONE) passed(r, p, ev);
+            ghostTick(r, p);
             if (r.progress.finished()) {
                 vm.boostTemporary(r.vehicle, 1);
                 drawBar(r, p);
@@ -482,8 +532,12 @@ final class Race {
 
     private void passed(Racer r, Player p, RaceProgress.Event ev) {
         switch (ev) {
-            case GATE -> p.playSound(p, Sound.BLOCK_NOTE_BLOCK_CHIME, SoundCategory.MASTER, 0.35f, 1.9f);
+            case GATE -> {
+                p.playSound(p, Sound.BLOCK_NOTE_BLOCK_CHIME, SoundCategory.MASTER, 0.35f, 1.9f);
+                gateForGhost(r, p);
+            }
             case LAP -> {
+                lapForGhost(r, p);
                 List<Double> laps = r.progress.lapTimes();
                 double last = laps.getLast();
                 boolean finalLap = r.progress.lap() == r.progress.laps();
@@ -493,7 +547,10 @@ final class Race {
                 long ms = Math.round(last * 1000), rec = game.store().best(track.id(), true);
                 if (rec == 0 || ms < rec) HudModule.flash(p, Lang.mm("circuit.lap-fast", "time", RaceProgress.format(last)), 2500);
             }
-            case FINISH -> finish(r, p);
+            case FINISH -> {
+                lapForGhost(r, p);
+                finish(r, p);
+            }
             default -> { }
         }
     }
@@ -510,6 +567,12 @@ final class Race {
         for (Racer o : racers.values()) {
             Player op = o.player();
             if (op != null) op.sendMessage(Lang.msg("circuit.finished", "place", r.place, "player", Names.mini(p), "time", RaceProgress.format(time)));
+        }
+        for (Watcher w : watchers.values()) {
+            Player wp = Bukkit.getPlayer(w.id);
+            if (wp == null) continue;
+            wp.sendMessage(Lang.msg("circuit.finished", "place", r.place, "player", Names.mini(p), "time", RaceProgress.format(time)));
+            if (r.id.equals(w.target)) wp.showTitle(CircuitHud.title(CircuitHud.FINISH, Lang.mm("circuit.finish-sub", "time", RaceProgress.format(time)), 0, 30, 6));
         }
         if (r.place == 1) {
             fireworkAt(p.getLocation(), Color.fromRGB(0xffd36b));
@@ -616,16 +679,28 @@ final class Race {
 
     private void drawBar(Racer r, Player p) {
         if (r.bar == null) return;
+        int place = standings().indexOf(r) + 1;
+        r.bar.name(hud(r));
+        r.bar.progress(along(r));
+        r.bar.color(r.gauge.boosting() ? BossBar.Color.RED : place == 1 ? BossBar.Color.YELLOW : BossBar.Color.BLUE);
+    }
+
+    /** A racer's boss bar line: laps, place, clock, boosts, the gauge, and the last gap to their ghost (a few seconds). */
+    private Component hud(Racer r) {
         List<Racer> order = standings();
         int place = order.indexOf(r) + 1;
         RaceProgress pr = r.progress;
         double clock = pr.finished() ? pr.finishTime() : state == State.STARTING ? 0 : seconds();
-        r.bar.name(CircuitHud.bar(Math.max(1, pr.lap()), pr.laps(), place, order.size(), RaceProgress.formatShort(clock), r.gauge.stored(),
-                r.gauge.gauge(), r.gauge.boosting()));
-        // the bar fills along the lap
+        Component gap = r.gap != null && raceTicks < r.gapUntil ? r.gap : null;
+        return CircuitHud.bar(Math.max(1, pr.lap()), pr.laps(), place, order.size(), RaceProgress.formatShort(clock), r.gauge.stored(),
+                r.gauge.gauge(), r.gauge.boosting(), gap);
+    }
+
+    /** How far along the lap the racer is (the bar fills along it). */
+    private float along(Racer r) {
+        RaceProgress pr = r.progress;
         double along = pr.lap() == 0 ? 0 : (path.ahead(layout.gates()[0], pr.at()) / (double) path.size());
-        r.bar.progress((float) Math.clamp(along, 0, 1));
-        r.bar.color(r.gauge.boosting() ? BossBar.Color.RED : place == 1 ? BossBar.Color.YELLOW : BossBar.Color.BLUE);
+        return (float) Math.clamp(along, 0, 1);
     }
 
     // ------------------------------------------------------------------------------------------
@@ -638,6 +713,7 @@ final class Race {
         state = State.DONE;
         finishLeft = 120;
         for (Racer r : active()) game.vehicles().freezeTemporary(r.vehicle, true);
+        for (Racer r : racers.values()) dropGhostView(r);
         List<Racer> order = standings();
         List<Component> lines = new ArrayList<>();
         lines.add(Lang.mm("circuit.results-head", "track", track.name(), "laps", track.laps()));
@@ -675,6 +751,7 @@ final class Race {
             if (p == null) continue;
             for (Component c : lines) p.sendMessage(c);
         }
+        for (Player w : watcherPlayers()) for (Component c : lines) w.sendMessage(c);
         for (Component c : records) Bukkit.broadcast(c);
         if (finishers > 0 && order.size() > 1) {
             Racer w = order.getFirst();
@@ -710,6 +787,20 @@ final class Race {
     void out(Racer r, String why) {
         if (r.left) return;
         r.left = true;
+        dropGhostView(r);
+        r.ghostLoad = null;
+        // whoever watched them through their eyes lets go first (they go home, to another world)
+        Player rp = r.player();
+        for (Watcher w : watchers.values()) {
+            Player wp = Bukkit.getPlayer(w.id);
+            if (wp == null || rp == null || !rp.equals(wp.getSpectatorTarget())) continue;
+            game.teleporting(wp, true);
+            try {
+                wp.setSpectatorTarget(null);
+            } finally {
+                game.teleporting(wp, false);
+            }
+        }
         game.vehicles().removeTemporary(r.vehicle);
         r.vehicle = 0;
         Player p = r.player();
@@ -730,7 +821,9 @@ final class Race {
             if (p != null) p.hideBossBar(lobbyBar);
             if (r.racing) out(r, normal || was == State.LOBBY ? null : "circuit.stopped");
             else if (p != null && !normal) p.sendMessage(Lang.msg("circuit.stopped"));
+            dropGhostView(r);
         }
+        for (Watcher w : List.copyOf(watchers.values())) unwatch(w, normal ? "circuit.watch-ended" : "circuit.stopped", true);
         for (Chunk c : held) c.removePluginChunkTicket(game.plugin());
         held.clear();
         game.closed(this);
@@ -738,5 +831,488 @@ final class Race {
 
     Racer racer(UUID u) {
         return racers.get(u);
+    }
+
+    // ------------------------------------------------------------------------------------------
+    // 고스트
+    // ------------------------------------------------------------------------------------------
+
+    /** At the start: the racer is recorded (when ghosts are on) and the ghost they chose is asked for. */
+    private void setUpGhost(Racer r) {
+        if (!game.ghostsOn()) return;
+        r.recorder = new GhostRecorder(game.ghostStep());
+        r.splits = freshSplits();
+        if (r.ghostChoice == Ghost.Choice.NONE) return;
+        Player p = r.player();
+        GhostStore.Meta m = r.ghostChoice == Ghost.Choice.MINE ? game.ghosts().mine(track.id(), r.id) : game.ghosts().fastest(track.id());
+        if (m == null) {
+            if (p != null) p.sendMessage(Lang.msg(r.ghostChoice == Ghost.Choice.MINE ? "circuit.ghost-none-mine" : "circuit.ghost-none-record"));
+            return;
+        }
+        r.loadHolder = m.name();
+        r.loadKart = m.kart();
+        r.loadRecord = r.ghostChoice == Ghost.Choice.RECORD;
+        r.ghostLoad = game.ghosts().load(m.track(), m.player());
+        if (p != null) p.sendMessage(Lang.msg(r.loadRecord ? "circuit.ghost-vs-record" : "circuit.ghost-vs-mine", "player", m.name(),
+                "time", RaceProgress.format(m.lapMs() / 1000.0)));
+    }
+
+    private double[] freshSplits() {
+        double[] d = new double[Math.max(0, layout.gates().length - 1)];
+        java.util.Arrays.fill(d, Double.NaN);
+        return d;
+    }
+
+    /** Every tick: the ghost asked for arrives, and the ghost drives (from the line at each of the racer's laps). */
+    private void ghostTick(Racer r, Player p) {
+        if (r.ghostLoad != null && r.ghostLoad.isDone()) {
+            Ghost g;
+            try {
+                g = r.ghostLoad.getNow(null);
+            } catch (RuntimeException e) {
+                g = null;
+            }
+            r.ghostLoad = null;
+            if (g == null) p.sendMessage(Lang.msg("circuit.ghost-missing"));
+            else if (r.ghost == null || g.lapMs() < r.ghost.lapMs()) useGhost(r, g, r.loadHolder, r.loadKart, r.loadRecord);
+        }
+        if (r.ghost == null) return;
+        RaceProgress pr = r.progress;
+        if (pr == null || pr.finished() || state == State.DONE) {
+            dropGhostView(r);
+            return;
+        }
+        // waiting on the line until the racer's lap begins; then as many seconds into its lap as they are into theirs
+        double t = state == State.STARTING || pr.lap() == 0 || Double.isNaN(pr.lapStart()) ? 0 : seconds() - pr.lapStart();
+        Ghost.Pose pose = r.ghost.at(t);
+        if (r.ghostView != null && !r.ghostView.valid()) dropGhostView(r);
+        if (r.ghostView == null) {
+            int cx = (int) Math.floor(pose.x() + ox) >> 4, cz = (int) Math.floor(pose.z()) >> 4;
+            if (!world.isChunkLoaded(cx, cz)) return;
+            r.ghostView = game.ghostView(r, world, pose, ox);
+            if (r.ghostView == null) return;
+            r.ghostView.viewers(ghostViewers(r, p));
+        } else if (tick % 10 == 0) r.ghostView.viewers(ghostViewers(r, p));
+        r.ghostView.move(pose, ox);
+    }
+
+    /** Who sees a racer's ghost: the racer and whoever watches them. */
+    private List<Player> ghostViewers(Racer r, Player p) {
+        List<Player> out = new ArrayList<>();
+        out.add(p);
+        for (Watcher w : watchers.values()) {
+            if (!r.id.equals(w.target)) continue;
+            Player wp = Bukkit.getPlayer(w.id);
+            if (wp != null) out.add(wp);
+        }
+        return out;
+    }
+
+    private void useGhost(Racer r, Ghost g, String holder, String kart, boolean record) {
+        r.ghost = g;
+        r.ghostHolder = holder;
+        r.ghostKart = kart;
+        r.ghostRecord = record;
+        dropGhostView(r);      // drawn again (its kart, colour and name may differ)
+    }
+
+    void dropGhostView(Racer r) {
+        if (r.ghostView != null) r.ghostView.remove();
+        r.ghostView = null;
+    }
+
+    /** A gate past the line: its time this lap, and the gap to the ghost there. The line itself (lap 1 begins): recording starts. */
+    private void gateForGhost(Racer r, Player p) {
+        RaceProgress pr = r.progress;
+        int k = pr.passedGate();
+        if (k == 0) {
+            if (r.recorder != null) r.recorder.lapStarted(pr.lapStart());
+            r.splits = freshSplits();
+            return;
+        }
+        if (r.splits == null || k < 1 || k > r.splits.length) return;
+        double at = pr.passedAt() - pr.lapStart();
+        r.splits[k - 1] = at;
+        if (r.ghost != null) showGap(r, p, Ghost.gap(at, r.ghost.gate(k)), false);
+    }
+
+    /** A lap done: the gap to the ghost's lap, the lap kept as a ghost (the player's best is stored), a better ghost raced from now. */
+    private void lapForGhost(Racer r, Player p) {
+        RaceProgress pr = r.progress;
+        List<Double> laps = pr.lapTimes();
+        if (laps.isEmpty()) return;
+        double lapTime = laps.getLast(), end = pr.passedAt(), start = end - lapTime;
+        if (r.ghost != null) showGap(r, p, Ghost.gap(lapTime, r.ghost.lap()), true);
+        if (r.recorder == null) return;
+        double[] splits = r.splits == null ? freshSplits() : r.splits;
+        r.splits = freshSplits();
+        Ghost g;
+        try {
+            g = r.recorder.lap(start, end, splits);
+        } catch (IllegalArgumentException e) {
+            g = null;
+        }
+        if (g == null) return;
+        boolean kept = game.ghosts().offer(track.id(), r.id, r.name, r.kart.id(), r.colour, g, System.currentTimeMillis(), game.maxGhosts());
+        boolean faster = r.ghost == null || g.lapMs() < r.ghost.lapMs();
+        if (pr.finished()) return;
+        if (r.ghostChoice == Ghost.Choice.MINE && faster) {
+            useGhost(r, g, r.name, r.kart.id(), false);
+            HudModule.flash(p, Lang.mm("circuit.ghost-new-mine", "time", RaceProgress.format(g.lap())), 2500);
+        } else if (r.ghostChoice == Ghost.Choice.RECORD && faster && kept) {
+            GhostStore.Meta best = game.ghosts().fastest(track.id());
+            if (best != null && best.player().equals(r.id)) {
+                useGhost(r, g, r.name, r.kart.id(), true);
+                HudModule.flash(p, Lang.mm("circuit.ghost-new-record", "time", RaceProgress.format(g.lap())), 2500);
+            }
+        }
+    }
+
+    /** "+0.42" in red (behind the ghost) or "-1.10" in green (ahead): flashed, and on the boss bar for a few seconds. */
+    private void showGap(Racer r, Player p, double gap, boolean lap) {
+        if (Double.isNaN(gap)) return;
+        String key = gap <= 0 ? (lap ? "circuit.ghost-lap-ahead" : "circuit.ghost-gap-ahead") : (lap ? "circuit.ghost-lap-behind" : "circuit.ghost-gap-behind");
+        r.gap = Lang.mm(gap <= 0 ? "circuit.ghost-bar-ahead" : "circuit.ghost-bar-behind", "gap", Ghost.gapText(gap));
+        r.gapUntil = raceTicks + 80;
+        HudModule.flash(p, Lang.mm(key, "gap", Ghost.gapText(gap)), lap ? 2600 : 1600);
+        p.playSound(p, Sound.BLOCK_NOTE_BLOCK_BIT, SoundCategory.MASTER, 0.35f, gap <= 0 ? 1.7f : 0.9f);
+    }
+
+    // ------------------------------------------------------------------------------------------
+    // 관전
+    // ------------------------------------------------------------------------------------------
+
+    /** One watcher: whom the camera follows and how, the camera entity behind the kart, their keys of the last tick. */
+    final class Watcher {
+        final UUID id;
+        UUID target;
+        WatchRules.View view = WatchRules.View.CHASE;
+        ItemDisplay camera;
+        float camYaw = Float.NaN;
+        int age, attachAt = 2, lastPlace, sneakAt = -1;
+        boolean left, right, jump, sneak;
+        BossBar bar, board;
+
+        Watcher(UUID id) {
+            this.id = id;
+        }
+    }
+
+    /** The stage of the race as far as watching goes. */
+    WatchRules.Stage watchStage() {
+        return switch (state) {
+            case LOBBY -> WatchRules.Stage.LOBBY;
+            case STARTING, RUNNING, FINISHING -> WatchRules.Stage.RUNNING;
+            case DONE -> WatchRules.Stage.ENDING;
+            case CLOSED -> WatchRules.Stage.CLOSED;
+        };
+    }
+
+    /** The racers in the race's order now (who the camera cycles through). */
+    List<UUID> order() {
+        List<UUID> out = new ArrayList<>();
+        for (Racer r : standings()) if (r.racing && !r.left) out.add(r.id);
+        return out;
+    }
+
+    List<Player> watcherPlayers() {
+        List<Player> out = new ArrayList<>();
+        for (Watcher w : watchers.values()) {
+            Player p = Bukkit.getPlayer(w.id);
+            if (p != null) out.add(p);
+        }
+        return out;
+    }
+
+    /**
+     * A player starts watching (fresh: from outside: their state is written onto them first and they become a
+     * spectator; else they come from another race, already watching). target: the racer to follow first, or null.
+     * Returns false when it could not be done (they are back as they were).
+     */
+    boolean watch(Player p, UUID target, boolean fresh) {
+        if (fresh) {
+            p.closeInventory();
+            if (p.isInsideVehicle()) p.leaveVehicle();
+            ReturnPoint.save(p);
+            p.getInventory().clear();
+            p.setFireTicks(0);
+            p.setFallDistance(0);
+            p.setGameMode(GameMode.SPECTATOR);
+            if (p.getGameMode() != GameMode.SPECTATOR) {
+                game.putBack(p);
+                p.sendMessage(Lang.msg("circuit.watch-error"));
+                return false;
+            }
+        }
+        p.setPlayerTime(track.theme().time(), false);
+        p.setPlayerWeather(WeatherType.CLEAR);
+        Watcher w = new Watcher(p.getUniqueId());
+        List<UUID> order = order();
+        w.target = target != null && order.contains(target) ? target : WatchRules.next(order, null, 1);
+        Location at = chaseSpot(w, w.target == null ? null : racers.get(w.target));
+        if (at == null) {
+            TrackLayout.Slot g = layout.grid().getFirst();
+            at = new Location(world, g.x() + ox, TrackLayout.BASE_Y + g.y() + 6, g.z(), g.yaw(), 20);
+        }
+        boolean ok;
+        game.teleporting(p, true);
+        try {
+            if (p.getSpectatorTarget() != null) p.setSpectatorTarget(null);
+            ok = p.teleport(at);
+        } finally {
+            game.teleporting(p, false);
+        }
+        if (!ok) {
+            if (fresh) game.putBack(p);
+            p.sendMessage(Lang.msg("circuit.watch-error"));
+            return false;
+        }
+        newCamera(w, p, at);
+        w.bar = BossBar.bossBar(Component.empty(), 0f, BossBar.Color.WHITE, BossBar.Overlay.PROGRESS);
+        w.board = BossBar.bossBar(Component.empty(), 1f, BossBar.Color.PURPLE, BossBar.Overlay.PROGRESS);
+        p.showBossBar(w.bar);
+        p.showBossBar(w.board);
+        watchers.put(p.getUniqueId(), w);
+        p.sendMessage(Lang.msg("circuit.watch-start", "track", track.name()));
+        p.sendMessage(Lang.msg("circuit.watch-keys"));
+        HudModule.flash(p, Lang.mm("circuit.watch-hint-chase"), 5000);
+        drawWatch(w, w.target == null ? null : racers.get(w.target));
+        return true;
+    }
+
+    /** A watcher stops watching: off the camera, the camera gone, and (home) back where they were with everything. */
+    void unwatch(Watcher w, String why, boolean home) {
+        if (watchers.remove(w.id) == null) return;
+        Player p = Bukkit.getPlayer(w.id);
+        if (p != null) {
+            if (w.bar != null) p.hideBossBar(w.bar);
+            if (w.board != null) p.hideBossBar(w.board);
+            if (p.getGameMode() == GameMode.SPECTATOR && p.getSpectatorTarget() != null) {
+                game.teleporting(p, true);
+                try {
+                    p.setSpectatorTarget(null);
+                } finally {
+                    game.teleporting(p, false);
+                }
+            }
+            for (Racer r : racers.values()) {
+                Player rp = r.player();
+                if (r.ghostView != null && rp != null) r.ghostView.viewers(List.of(rp));
+            }
+        }
+        if (w.camera != null) w.camera.remove();
+        if (p != null && home) {
+            game.putBack(p);
+            if (why != null) p.sendMessage(Lang.msg(why));
+        }
+    }
+
+    Watcher watcher(UUID u) {
+        return watchers.get(u);
+    }
+
+    /** A watcher clicked a racer in the free view (Paper's start-spectating): follow them through their eyes. */
+    boolean watchClicked(Watcher w, Entity e) {
+        if (!(e instanceof Player rp)) return false;
+        Racer r = racers.get(rp.getUniqueId());
+        if (r == null || !r.racing || r.left) return false;
+        w.target = r.id;
+        w.view = WatchRules.View.ONBOARD;
+        return true;
+    }
+
+    private void watchTick() {
+        List<UUID> order = order();
+        for (Watcher w : List.copyOf(watchers.values())) {
+            Player p = Bukkit.getPlayer(w.id);
+            if (p == null) {
+                // gone without a quit (should not happen): their way back takes them home when they log in
+                unwatch(w, null, false);
+                continue;
+            }
+            if (p.getGameMode() != GameMode.SPECTATOR || !p.getWorld().equals(world) || p.isDead()) {
+                unwatch(w, "circuit.watch-lost", true);
+                continue;
+            }
+            w.age++;
+            UUID kept = WatchRules.keep(order, w.target, w.lastPlace);
+            if (!Objects.equals(kept, w.target)) {
+                w.target = kept;
+                w.camYaw = Float.NaN;
+                Racer nr = kept == null ? null : racers.get(kept);
+                if (nr != null) HudModule.flash(p, Lang.mm("circuit.watch-target", "player", nr.name), 1500);
+            }
+            int idx = w.target == null ? -1 : order.indexOf(w.target);
+            if (idx >= 0) w.lastPlace = idx;
+            var in = p.getCurrentInput();
+            boolean left = in.isLeft(), right = in.isRight(), jump = in.isJump(), sneak = in.isSneak();
+            if (w.view.follows()) {
+                if (left && !w.left) cycle(w, p, order, -1);
+                if (right && !w.right) cycle(w, p, order, 1);
+                if (sneak && !w.sneak) {
+                    if (WatchRules.leaves(w.sneakAt, w.age)) {
+                        unwatch(w, "circuit.watch-left", true);
+                        continue;
+                    }
+                    w.sneakAt = w.age;
+                    HudModule.flash(p, Lang.mm("circuit.watch-leave-confirm"), 3000);
+                }
+            }
+            if (jump && !w.jump) {
+                w.view = w.view.next();
+                HudModule.flash(p, Lang.mm(switch (w.view) {
+                    case CHASE -> "circuit.watch-hint-chase";
+                    case ONBOARD -> "circuit.watch-hint-onboard";
+                    case FREE -> "circuit.watch-hint-free";
+                }), 3500);
+                p.playSound(p, Sound.UI_BUTTON_CLICK, SoundCategory.MASTER, 0.4f, 1.4f);
+            }
+            w.left = left;
+            w.right = right;
+            w.jump = jump;
+            w.sneak = sneak;
+            Racer r = w.target == null ? null : racers.get(w.target);
+            camera(w, p, r);
+            if (w.age % 2 == 0) drawWatch(w, r);
+        }
+    }
+
+    private void cycle(Watcher w, Player p, List<UUID> order, int dir) {
+        UUID next = WatchRules.next(order, w.target, dir);
+        if (next == null || next.equals(w.target)) return;
+        w.target = next;
+        w.camYaw = Float.NaN;
+        Racer r = racers.get(next);
+        if (r != null) HudModule.flash(p, Lang.mm("circuit.watch-target", "player", r.name), 1500);
+        p.playSound(p, Sound.UI_BUTTON_CLICK, SoundCategory.MASTER, 0.4f, 1.8f);
+    }
+
+    /** Where the chase camera hangs behind a racer's kart now (walls pull it in), or null when there is no kart. */
+    private Location chaseSpot(Watcher w, Racer r) {
+        if (r == null) return null;
+        VehiclePhysics.State st = r.vehicle == 0 ? null : game.vehicles().temporaryState(r.vehicle);
+        double kx, ky, kz;
+        float yaw;
+        if (st != null) {
+            kx = st.x;
+            ky = st.y;
+            kz = st.z;
+            yaw = st.yaw;
+        } else {
+            Player rp = r.player();
+            if (rp == null || !rp.getWorld().equals(world)) return null;
+            Location l = rp.getLocation();
+            kx = l.getX();
+            ky = l.getY();
+            kz = l.getZ();
+            yaw = l.getYaw();
+        }
+        w.camYaw = Float.isNaN(w.camYaw) ? yaw : WatchRules.approach(w.camYaw, yaw, 0.2);
+        double[] c = WatchRules.chase(kx, ky, kz, w.camYaw, WatchRules.CHASE_BACK, WatchRules.CHASE_UP);
+        Location eye = new Location(world, kx, ky + 1.2, kz);
+        Vector to = new Vector(c[0] - kx, c[1] - eye.getY(), c[2] - kz);
+        double len = to.length();
+        if (len > 1e-3) {
+            Vector dir = to.clone().multiply(1 / len);
+            RayTraceResult hit = world.rayTraceBlocks(eye, dir, len + 0.4, FluidCollisionMode.NEVER, true);
+            if (hit != null) {
+                Vector at = hit.getHitPosition().subtract(dir.clone().multiply(0.45));
+                c = new double[]{at.getX(), at.getY(), at.getZ()};
+            }
+        }
+        return new Location(world, c[0], c[1], c[2], w.camYaw, (float) WatchRules.CHASE_PITCH);
+    }
+
+    /** The chase camera: an empty display entity only this watcher knows of (spectating it puts them behind the kart). */
+    private void newCamera(Watcher w, Player p, Location at) {
+        if (w.camera != null) w.camera.remove();
+        w.camera = world.spawn(at, ItemDisplay.class, d -> {
+            d.setPersistent(false);
+            d.setVisibleByDefault(false);
+            d.setTeleportDuration(Math.max(2, game.smoothing()));
+            d.getPersistentDataContainer().set(GhostView.TAG, org.bukkit.persistence.PersistentDataType.BYTE, (byte) 2);
+        });
+        p.showEntity(game.plugin(), w.camera);
+        w.attachAt = w.age + 2;      // the client must know it before it can look through it
+    }
+
+    private void camera(Watcher w, Player p, Racer r) {
+        Location spot = chaseSpot(w, r);
+        if (w.camera == null || !w.camera.isValid()) newCamera(w, p, spot != null ? spot : p.getLocation());
+        if (spot != null && w.camera != null && w.camera.isValid()) w.camera.teleport(spot);
+        switch (w.view) {
+            case CHASE -> follow(w, p, w.camera);
+            case ONBOARD -> follow(w, p, r == null ? null : r.player());
+            case FREE -> {
+                follow(w, p, null);
+                if (w.age % 10 == 0) {
+                    Location l = p.getLocation();
+                    double[] in = WatchRules.inside(l.getX(), l.getY(), l.getZ(), layout.minX() + ox, layout.maxX() + ox, TrackLayout.BASE_Y - 8,
+                            TrackLayout.BASE_Y + layout.maxY() + 40, layout.minZ(), layout.maxZ(), 24);
+                    if (in != null) {
+                        game.teleporting(p, true);
+                        try {
+                            p.teleport(new Location(world, in[0], in[1], in[2], l.getYaw(), l.getPitch()));
+                        } finally {
+                            game.teleporting(p, false);
+                        }
+                        HudModule.flash(p, Lang.mm("circuit.watch-bounds"), 1500);
+                    }
+                }
+            }
+        }
+    }
+
+    /**
+     * The watcher's camera on this entity (null: their own, flying free). A far one is reached first (a teleport, then
+     * the camera a few ticks later, once the client knows the entity).
+     */
+    private void follow(Watcher w, Player p, Entity e) {
+        Entity cur = p.getSpectatorTarget();
+        // never anything outside the race's world (a racer on their way home)
+        if (e != null && (!e.isValid() || !e.getWorld().equals(world))) e = null;
+        if (e == null && w.view != WatchRules.View.FREE) return;     // nothing to follow this tick: stay where it is
+        if (e == null ? cur == null : e.equals(cur)) return;
+        game.teleporting(p, true);
+        try {
+            if (e == null) {
+                p.setSpectatorTarget(null);
+                return;
+            }
+            if (w.age < w.attachAt) return;
+            if (!p.getWorld().equals(world)) return;
+            if (p.getLocation().distanceSquared(e.getLocation()) > 24 * 24) {
+                if (cur != null) p.setSpectatorTarget(null);
+                p.teleport(e.getLocation().clone().add(0, 1.5, 0));
+                w.attachAt = w.age + 3;
+                return;
+            }
+            p.setSpectatorTarget(e);
+        } finally {
+            game.teleporting(p, false);
+        }
+    }
+
+    /** A watcher's two bars: the followed racer's line (as their own), and the order of the race. */
+    private void drawWatch(Watcher w, Racer r) {
+        if (r == null || r.progress == null) {
+            w.bar.name(Lang.mm("circuit.watch-bar-none"));
+            w.bar.progress(0);
+        } else {
+            w.bar.name(Lang.mm("circuit.watch-bar", "player", r.name, "view", Lang.raw("circuit.watch-view." + w.view.id)).append(hud(r)));
+            w.bar.progress(along(r));
+        }
+        StringBuilder line = new StringBuilder();
+        int k = 0;
+        for (Racer o : standings()) {
+            if (o.left) continue;
+            k++;
+            if (k > 8) break;
+            if (!line.isEmpty()) line.append(Lang.raw("circuit.watch-board-sep"));
+            boolean fin = o.progress != null && o.progress.finished();
+            line.append(Lang.raw(o.id.equals(w.target) ? "circuit.watch-board-me" : fin ? "circuit.watch-board-done" : "circuit.watch-board-one",
+                    "place", k, "player", o.name));
+        }
+        w.board.name(line.isEmpty() ? Component.empty() : dev.stsv.core.util.Text.mm(line.toString()));
     }
 }

@@ -74,7 +74,8 @@ import java.util.Set;
  * to fix things); nothing drops or is picked up; nobody gets hungry or hurt; no mob spawns; blocks never change by
  * themselves (no physics, flowing, melting, spreading, burning or decay: the game rules and the events both). Nobody
  * gets in except by a game (or an admin): a /tpa to a racer is refused. A racer cannot be teleported away, run commands
- * other than the game's own, swap hands, or move their items.
+ * other than the game's own, swap hands, or move their items. A watcher (관전: a spectator of a running race) cannot be
+ * teleported away either, nor use other commands, nor make their camera follow anything but the race's racers.
  *
  * <h2>The way back</h2> {@link ReturnPoint}: written onto the player before a game changes anything; whoever logs in or
  * respawns with it is put back, so a crash can never strand anyone or lose an inventory.
@@ -226,8 +227,10 @@ public final class MinigameModule implements StsvModule, Listener, TabExecutor {
             case "" -> {
                 var race = circuit.raceOf(p);
                 if (race != null) circuit.join(p, null);
+                else if (circuit.watching(p)) circuit.openWatchMenu(p);
                 else openHub(p, "stsv:hub_circuit");
             }
+            case "관전", "구경", "watch", "spectate" -> circuit.watch(p, args.length > 1 ? String.join(" ", java.util.Arrays.copyOfRange(args, 1, args.length)) : null);
             case "참가", "join" -> circuit.join(p, args.length > 1 ? String.join(" ", java.util.Arrays.copyOfRange(args, 1, args.length)) : null);
             case "나가기", "leave" -> circuit.leave(p);
             case "기록", "순위", "records" -> circuit.showRecords(p, args.length > 1 ? String.join(" ", java.util.Arrays.copyOfRange(args, 1, args.length)) : null);
@@ -240,13 +243,14 @@ public final class MinigameModule implements StsvModule, Listener, TabExecutor {
     @Override
     public List<String> onTabComplete(CommandSender sender, Command command, String alias, String[] args) {
         if (command.getName().equals("미니게임") || circuit == null) return List.of();
-        if (args.length == 1) return List.of("참가", "나가기", "기록", "트랙");
+        if (args.length == 1) return List.of("참가", "관전", "나가기", "기록", "트랙");
         if (args.length == 2 && (args[0].equals("참가") || args[0].equals("기록"))) return circuit.trackIds();
+        if (args.length == 2 && args[0].equals("관전")) return circuit.watchTargets();
         return List.of();
     }
 
     private void openHub(Player p, String page) {
-        if (circuit.racing(p)) {
+        if (circuit.inGame(p)) {
             p.sendMessage(Lang.msg("circuit.already"));
             return;
         }
@@ -283,14 +287,14 @@ public final class MinigameModule implements StsvModule, Listener, TabExecutor {
         Player p = e.getPlayer();
         if (!ReturnPoint.has(p)) return;
         Bukkit.getScheduler().runTaskLater(plugin, () -> {
-            if (p.isOnline() && !p.isDead() && !circuit.racing(p)) circuit.putBack(p);
+            if (p.isOnline() && !p.isDead() && !circuit.inGame(p)) circuit.putBack(p);
         }, 2L);
     }
 
     @EventHandler(priority = EventPriority.MONITOR)
     public void onDeath(PlayerDeathEvent e) {
         // (nobody is hurt in the minigame world: only /kill and the like)
-        if (circuit.racing(e.getPlayer())) circuit.leave(e.getPlayer());
+        if (circuit.inGame(e.getPlayer())) circuit.leave(e.getPlayer());
     }
 
     @EventHandler(priority = EventPriority.LOW, ignoreCancelled = true)
@@ -302,6 +306,12 @@ public final class MinigameModule implements StsvModule, Listener, TabExecutor {
             p.sendMessage(Lang.msg("circuit.no-teleport"));
             return;
         }
+        if (circuit.watching(p)) {
+            // the spectator menu's "teleport to player" and every other trip: only the race moves a watcher
+            e.setCancelled(true);
+            p.sendMessage(Lang.msg("circuit.watch-no-teleport"));
+            return;
+        }
         if (e.getTo() != null && in(e.getTo().getWorld()) && !in(e.getFrom().getWorld()) && !p.hasPermission("stsv.admin")) {
             e.setCancelled(true);
             p.sendMessage(Lang.msg("minigame.no-entry"));
@@ -311,12 +321,31 @@ public final class MinigameModule implements StsvModule, Listener, TabExecutor {
     @EventHandler(priority = EventPriority.LOW, ignoreCancelled = true)
     public void onCommand(PlayerCommandPreprocessEvent e) {
         Player p = e.getPlayer();
-        if (!circuit.racing(p) || p.hasPermission("stsv.admin")) return;
+        if (!circuit.inGame(p) || p.hasPermission("stsv.admin")) return;
         String word = e.getMessage().substring(1).split(" ", 2)[0].toLowerCase(Locale.ROOT);
         if (!RACER_COMMANDS.contains(word)) {
             e.setCancelled(true);
             p.sendMessage(Lang.msg("circuit.no-command"));
         }
+    }
+
+    // ------------------------------------------------------------------------------------------
+    // Watchers' cameras
+    // ------------------------------------------------------------------------------------------
+
+    /** A watcher's camera leaves what it follows only when the race moves it (sneaking twice is read as leaving). */
+    @EventHandler(priority = EventPriority.LOW)
+    public void onStopSpectating(com.destroystokyo.paper.event.player.PlayerStopSpectatingEntityEvent e) {
+        Player p = e.getPlayer();
+        if (circuit.watching(p) && !circuit.ownTeleport(p)) e.setCancelled(true);
+    }
+
+    /** A watcher's click on an entity: only a racer of their race (followed through their eyes), never anything else. */
+    @EventHandler(priority = EventPriority.LOW)
+    public void onStartSpectating(com.destroystokyo.paper.event.player.PlayerStartSpectatingEntityEvent e) {
+        Player p = e.getPlayer();
+        if (!circuit.watching(p) || circuit.ownTeleport(p)) return;
+        if (!circuit.watchClick(p, e.getNewSpectatorTarget())) e.setCancelled(true);
     }
 
     // ------------------------------------------------------------------------------------------
