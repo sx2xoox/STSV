@@ -1,0 +1,322 @@
+<title>4세대 실서버 테스트</title>
+<meta name="claude:viewport-fit-sides" content="cover">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Gowun+Batang:wght@700&family=IBM+Plex+Sans+KR:wght@400;500;600&family=JetBrains+Mono:wght@500&display=swap">
+<style id="css">
+/* layout: one reading column; sticky progress bar on top, sections as quiet groups, each item a row with its state chip */
+:root {
+  --bg: #f4f6f4;
+  --surface: #ffffff;
+  --ink: #1c2321;
+  --muted: #5d6b67;
+  --line: #d9e0dd;
+  --accent: #2f7563;
+  --accent-soft: #e2efea;
+  --ok: #2f7d4a;
+  --bad: #b23b2a;
+  --bad-soft: #f8e6e2;
+  --code-bg: #e9eeec;
+  --f-display: "Gowun Batang", "Nanum Myeongjo", serif;
+  --f-body: "IBM Plex Sans KR", "Apple SD Gothic Neo", "Malgun Gothic", system-ui, sans-serif;
+  --f-mono: "JetBrains Mono", ui-monospace, Menlo, Consolas, monospace;
+}
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme="light"]) {
+    --bg: #111614; --surface: #19201d; --ink: #e4ebe8; --muted: #93a39e; --line: #2b3632;
+    --accent: #6cc2a8; --accent-soft: #1f3a32; --ok: #6fcf8f; --bad: #f08a76; --bad-soft: #3a211c; --code-bg: #232d29;
+    color-scheme: dark;
+  }
+}
+:root[data-theme="dark"] {
+  --bg: #111614; --surface: #19201d; --ink: #e4ebe8; --muted: #93a39e; --line: #2b3632;
+  --accent: #6cc2a8; --accent-soft: #1f3a32; --ok: #6fcf8f; --bad: #f08a76; --bad-soft: #3a211c; --code-bg: #232d29;
+  color-scheme: dark;
+}
+body { background: var(--bg); color: var(--ink); font: 15px/1.6 var(--f-body); }
+body::before { content: ""; position: fixed; inset: 0 0 auto; height: env(safe-area-inset-top, 0px); z-index: 10; background: var(--bg); }
+.wrap { max-width: 760px; margin: 0 auto; padding-left: max(16px, env(safe-area-inset-left, 0px)); padding-right: max(16px, env(safe-area-inset-right, 0px)); padding-block: 28px 64px; }
+header h1 { font: 700 1.9rem/1.25 var(--f-display); margin: 0; text-wrap: balance; }
+header p { color: var(--muted); margin: 6px 0 0; }
+.bar { position: sticky; top: env(safe-area-inset-top, 0px); z-index: 5; background: var(--bg); padding-block: 12px; margin-top: 16px; border-bottom: 1px solid var(--line); display: grid; gap: 8px; }
+.bar-row { display: flex; flex-wrap: wrap; align-items: center; gap: 10px 16px; }
+.count { font-variant-numeric: tabular-nums; font-weight: 600; }
+.count .bad { color: var(--bad); }
+.meter { height: 6px; border-radius: 3px; background: var(--line); overflow: hidden; display: flex; }
+.meter i { display: block; height: 100%; }
+.meter .m-ok { background: var(--ok); }
+.meter .m-bad { background: var(--bad); }
+.status { margin-left: auto; color: var(--muted); font-size: 0.85rem; }
+.toggle { display: inline-flex; align-items: center; gap: 6px; font-size: 0.9rem; color: var(--muted); cursor: pointer; }
+section { margin-top: 30px; }
+section h2 { display: flex; align-items: baseline; gap: 10px; font: 700 1.2rem/1.3 var(--f-display); margin: 0 0 4px; }
+section h2 .n { font: 500 0.8rem var(--f-mono); color: var(--muted); }
+section h2 .sc { margin-left: auto; font: 500 0.8rem var(--f-mono); color: var(--muted); font-variant-numeric: tabular-nums; }
+section .lead { color: var(--muted); font-size: 0.9rem; margin: 0 0 8px; }
+ul { list-style: none; margin: 0; padding: 0; display: grid; gap: 6px; }
+li.item { background: var(--surface); border: 1px solid var(--line); border-radius: 8px; padding: 10px 12px; display: grid; grid-template-columns: auto 1fr auto; gap: 4px 12px; align-items: start; }
+li.item.ok { border-color: color-mix(in srgb, var(--ok) 35%, var(--line)); }
+li.item.ok .txt { color: var(--muted); }
+li.item.bad { border-color: var(--bad); background: var(--bad-soft); }
+li.item.important .txt::before { content: "중요 "; font-size: 0.75rem; font-weight: 600; color: var(--accent); background: var(--accent-soft); padding: 1px 6px; border-radius: 4px; margin-right: 6px; vertical-align: 1px; }
+.cb { width: 20px; height: 20px; margin: 2px 0 0; accent-color: var(--ok); cursor: pointer; }
+.txt { min-width: 0; }
+.txt code, .lead code { font: 500 0.82em var(--f-mono); background: var(--code-bg); padding: 1px 5px; border-radius: 4px; word-break: break-all; }
+.flag { border: 1px solid var(--line); background: transparent; color: var(--muted); font: 500 0.8rem var(--f-body); padding: 3px 9px; border-radius: 999px; cursor: pointer; white-space: nowrap; }
+.flag:hover { border-color: var(--bad); color: var(--bad); }
+li.bad .flag { background: var(--bad); border-color: var(--bad); color: var(--surface); }
+.note { grid-column: 2 / 4; width: 100%; box-sizing: border-box; font: 0.9rem var(--f-body); color: var(--ink); background: var(--surface); border: 1px solid var(--line); border-radius: 6px; padding: 6px 8px; }
+.note:focus, .flag:focus-visible, .cb:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
+.hide-done li.item.ok { display: none; }
+.empty-sec { display: none; color: var(--muted); font-size: 0.85rem; padding: 4px 2px; }
+.hide-done section.all-ok .empty-sec { display: block; }
+.ro .flag, .ro .note { pointer-events: none; }
+.foot { margin-top: 36px; color: var(--muted); font-size: 0.85rem; }
+@media (max-width: 480px) {
+  li.item { grid-template-columns: auto 1fr; }
+  .flag { grid-column: 2; justify-self: start; }
+  .note { grid-column: 1 / 3; }
+}
+@media (prefers-reduced-motion: no-preference) { .meter i { transition: width .25s ease; } }
+</style>
+<div id="app"></div>
+<script id="state" type="application/json">{"checked":{},"bad":{},"notes":{}}</script>
+<script id="appjs">
+(function () {
+  var SECTIONS = [
+    { id: "s0", t: "준비", lead: "테스트용 명령어: `/관리자 직업 레벨 <플레이어> <1~50>` · `/관리자 직업 승급 <플레이어> <0~4>` · `/관리자 장신구 <플레이어> <효과> <등급> [굴림 0~1]` (등급: common · fine · masterwork · treasure)", items: [
+      ["s0a", "지금 서버 DB와 월드 백업", 1],
+      ["s0b", "가능하면 복사본 서버에 코어 0.103.0 / 경제 3.82.2 를 먼저 올려서 확인"]
+    ]},
+    { id: "s1", t: "기존 데이터 옮기기", lead: "제일 중요. 한 번 옮겨지면 되돌리기 어려움.", items: [
+      ["s1a", "서버를 켤 때 콘솔에 에러 없음", 1],
+      ["s1b", "원래 Lv30이던 사람: Lv30을 넘은 경험치가 레벨 경험치로 넘어가 Lv31~34 정도가 됨 (Lv35 직전까지만)", 1],
+      ["s1c", "원래 Lv30 미만인 사람: 레벨과 경험치가 그대로", 1],
+      ["s1d", "숙련 수치가 따로 표시됨"],
+      ["s1e", "다른 직업으로 바꿨다가 돌아와도 직업별 경험치 · 승급이 유지됨"]
+    ]},
+    { id: "s2", t: "직업 승급 · Lv50", items: [
+      ["s2a", "승급하기 전에는 Lv35 직전에서 막히고, 그 뒤 경험치는 숙련으로만 쌓임", 1],
+      ["s2b", "`/직업 승급` 에 비용과 재료가 제대로 뜸 (22만 / 60만 / 90만 / 180만)"],
+      ["s2c", "돈이나 재료가 모자라면 승급이 안 되고, 충분하면 정확히 그만큼만 빠짐", 1],
+      ["s2d", "승급하면 다음 구간까지 레벨이 열림 (35 → 40 → 45 → 50)"],
+      ["s2e", "Lv30: 기계 생산량 +10% / Lv35: +10% 돌려받음"],
+      ["s2f", "Lv40: 제작 시간 단축 / Lv45: 재료 아끼기 / Lv50: 생산량 추가"],
+      ["s2g", "Lv50 명인 칭호를 받음"]
+    ]},
+    { id: "s3", t: "4강 기계", items: [
+      ["s3a", "승급을 해야 4강 업그레이드가 됨"],
+      ["s3b", "4강 기계에 레시피 줄 5개, 회수 · 닫기 버튼이 맨 윗줄"],
+      ["s3c", "레시피 창에 4강 탭이 생기고, 4세대 재료 레시피가 돌아감"],
+      ["s3d", "4강 기계 모양이 바뀜"],
+      ["s3e", "이미 레시피를 걸어 둔 기존 기계가 업데이트 뒤에도 그대로", 1]
+    ]},
+    { id: "s4", t: "4세대 상점 · 탈것", items: [
+      ["s4a", "밴, 1톤 트럭, 소형 콤바인을 사고 탈 수 있음"],
+      ["s4b", "콤바인: 지나가면 작물이 수확되고, 모델이 제대로 보임"],
+      ["s4c", "뗏목, 나룻배, 통통배, 연안 어선을 사서 낚시할 수 있음"],
+      ["s4d", "4세대 고급품 12종을 팔 수 있음"],
+      ["s4e", "4세대 칭호 3종(거상, 재벌, 금수저)을 살 수 있음"],
+      ["s4f", "하역장 보상이 60%로 줄었음"]
+    ]},
+    { id: "s5", t: "장신구 기본", items: [
+      ["s5a", "장신구 상자(10만)를 사서 열면 등급과 수치가 무작위로 나옴"],
+      ["s5b", "아이콘이 효과별로 다르고, 등급별로 이름 색이 다름"],
+      ["s5c", "`/장신구` 에서 6칸 장착 · 해제, 효과가 바로 붙고 떨어짐"],
+      ["s5d", "다시 접속해도 장착한 장신구와 효과가 유지됨", 1],
+      ["s5e", "장신구 조각 30개로 상자를 만들 수 있음"],
+      ["s5f", "사냥 · 채광 등에서 드롭되고, 국보급이 나오면 전체 공지"]
+    ]},
+    { id: "s6", t: "강화 · 제련 · 옵션 변경", lead: "`/장신구 공방`", items: [
+      ["s6a", "강화할 때 돈과 단련석이 정확히 빠지고, 성공률이 단계마다 낮아짐"],
+      ["s6b", "+6강부터 실패하면 단계가 떨어지고, 축복 부적을 쓰면 안 떨어짐", 1],
+      ["s6c", "장신구 레벨에 따른 강화 상한 (Lv1: 3, Lv10: 6, Lv20: 10)"],
+      ["s6d", "장신구를 쓰면 경험치가 쌓이고, 레벨이 오르면 부가 옵션 칸이 열림"],
+      ["s6e", "제련 횟수 제한이 걸림"],
+      ["s6f", "옵션 변경은 할수록 비용이 오름"]
+    ]},
+    { id: "s7", t: "효과 (직접 체감)", items: [
+      ["s7a", "채광 속도와 이동 속도가 실제로 빨라짐"],
+      ["s7b", "광맥 폭발 · 벌목 회오리 · 땅울림 · 수확 바람: 주변 블록이 같이 캐지고, 땅 보호 구역에서는 막힘", 1],
+      ["s7c", "광맥 투시: 광석 테두리가 나에게만 보이고, 액션바에 방향이 뜨고, 렉 없음"],
+      ["s7d", "입질 단축 · 그물 · 용궁 보물이 낚시에 반영되고, 용궁 상자를 열 수 있음"],
+      ["s7e", "기계 가속 · 명장의 손 · 아끼기 · 집중이 기계 시간이나 결과물에 반영됨"],
+      ["s7f", "하역 · 의뢰 보너스가 보상에 반영됨"],
+      ["s7g", "탈것 속도: 내 탈것만 빨라지고, 서킷 카트와 임시 탈것은 영향 없음"],
+      ["s7h", "짐칸: 리어카나 트럭 적재량이 늘어남"],
+      ["s7i", "장인의 배움: 직업 경험치가 늘어남"]
+    ]},
+    { id: "s8", t: "가방 · 자석 · 원격 기계", lead: "복사 버그 위주로.", items: [
+      ["s8a", "`/가방`: 넣고 뺀 아이템이 다시 접속해도 남아 있고, 페이지가 넘어감"],
+      ["s8b", "가방 안에 장신구가 안 들어감 (클릭, 쉬프트 클릭, 숫자키, 드래그 전부)", 1],
+      ["s8c", "가방 장신구를 다른 사람에게 넘기면 내용물도 같이 넘어감"],
+      ["s8d", "자석: 주변 아이템이 끌려오고, 인벤토리가 꽉 차면 가방으로 들어감"],
+      ["s8e", "가방을 연 채로 자석으로 줍거나 서버를 꺼도 아이템이 복사 · 삭제되지 않음", 1],
+      ["s8f", "`/원격기계`: 범위 안의 기계에서 결과물을 회수하고, 범위 밖이면 막힘"]
+    ]},
+    { id: "s9", t: "거래 · 기타", items: [
+      ["s9a", "장신구를 거래소나 경매에 올리면 수수료 10%"],
+      ["s9b", "같은 장신구가 복사됐을 때 감지됨 (일련번호)"],
+      ["s9c", "장신구 · 가방 · 원격기계가 통합 메뉴에 들어 있음"],
+      ["s9d", "도감 전체 업적 목표가 313으로 바뀜"]
+    ]},
+    { id: "s10", t: "서킷 (지난 수정 확인)", items: [
+      ["s10a", "레이스 중 보스바 글자가 안 깨짐"],
+      ["s10b", "레이스 중 카트가 잘 움직이고, 채팅이 도배되지 않음"]
+    ]}
+  ];
+
+  var state;
+  try { state = JSON.parse(document.getElementById("state").textContent); } catch (e) { state = {}; }
+  state.checked = state.checked || {}; state.bad = state.bad || {}; state.notes = state.notes || {};
+
+  var app = document.getElementById("app");
+  var dirty = false, timer = null, readOnly = false, saving = false, api = null;
+  var hideDone = false;
+  try { hideDone = localStorage.getItem("hideDone") === "1"; } catch (e) {}
+
+  function esc(s) { return String(s).replace(/[&<>"]/g, function (c) { return { "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;" }[c]; }); }
+  function fmt(s) { return esc(s).replace(/`([^`]+)`/g, "<code>$1</code>"); }
+
+  function allItems() { var a = []; SECTIONS.forEach(function (s) { s.items.forEach(function (it) { a.push(it[0]); }); }); return a; }
+
+  function render() {
+    var h = '<div class="wrap' + (hideDone ? " hide-done" : "") + (readOnly ? " ro" : "") + '">';
+    h += "<header><h1>4세대 실서버 테스트</h1><p>코어 0.103.0 · 경제 3.82.2. 확인한 항목은 체크, 이상하면 ‘문제’를 누르고 한 줄 적어두세요. 체크는 자동 저장돼요.</p></header>";
+    h += '<div class="bar"><div class="bar-row"><span class="count" id="count"></span>';
+    h += '<label class="toggle"><input type="checkbox" id="hide-done"' + (hideDone ? " checked" : "") + '> 끝난 항목 숨기기</label>';
+    h += '<span class="status" id="status" aria-live="polite"></span></div>';
+    h += '<div class="meter" aria-hidden="true"><i class="m-ok" id="m-ok"></i><i class="m-bad" id="m-bad"></i></div></div>';
+    SECTIONS.forEach(function (s, si) {
+      h += '<section id="' + s.id + '"><h2><span class="n">' + si + "</span>" + esc(s.t) + '<span class="sc" id="sc-' + s.id + '"></span></h2>';
+      if (s.lead) h += '<p class="lead">' + fmt(s.lead) + "</p>";
+      h += "<ul>";
+      s.items.forEach(function (it) {
+        var id = it[0], ok = !!state.checked[id], bad = !!state.bad[id];
+        h += '<li class="item' + (ok ? " ok" : "") + (bad ? " bad" : "") + (it[2] ? " important" : "") + '" data-key="' + id + '">';
+        h += '<input type="checkbox" class="cb" id="cb-' + id + '" data-id="' + id + '"' + (ok ? " checked" : "") + (readOnly ? " disabled" : "") + ">";
+        h += '<label class="txt" for="cb-' + id + '">' + fmt(it[1]) + "</label>";
+        h += '<button type="button" class="flag" data-flag="' + id + '" aria-pressed="' + bad + '">문제</button>';
+        if (bad) h += '<input type="text" class="note" id="note-' + id + '" data-note="' + id + '" placeholder="무슨 문제인지 한 줄" value="' + esc(state.notes[id] || "") + '"' + (readOnly ? " readonly" : "") + ">";
+        h += "</li>";
+      });
+      h += '</ul><p class="empty-sec">이 묶음은 다 끝났어요.</p></section>';
+    });
+    h += '<p class="foot">이 페이지를 볼 수 있는 사람은 같은 체크 상태를 봐요. 편집 권한이 있는 사람이 체크하면 모두에게 저장돼요.</p></div>';
+    app.innerHTML = h;
+    counts();
+  }
+
+  function counts() {
+    var ids = allItems(), ok = 0, bad = 0;
+    ids.forEach(function (id) { if (state.bad[id]) bad++; else if (state.checked[id]) ok++; });
+    document.getElementById("count").innerHTML = (ok + bad) + " / " + ids.length + " 확인" + (bad ? ' · <span class="bad">문제 ' + bad + "</span>" : "");
+    document.getElementById("m-ok").style.width = (ok / ids.length * 100) + "%";
+    document.getElementById("m-bad").style.width = (bad / ids.length * 100) + "%";
+    SECTIONS.forEach(function (s) {
+      var d = 0; s.items.forEach(function (it) { if (state.checked[it[0]] || state.bad[it[0]]) d++; });
+      document.getElementById("sc-" + s.id).textContent = d + "/" + s.items.length;
+      var allOk = s.items.every(function (it) { return state.checked[it[0]] && !state.bad[it[0]]; });
+      document.getElementById(s.id).classList.toggle("all-ok", allOk);
+    });
+  }
+
+  function setStatus(t) { var el = document.getElementById("status"); if (el) el.textContent = t; }
+
+  function schedule() {
+    if (readOnly) return;
+    dirty = true;
+    setStatus("저장 대기…");
+    clearTimeout(timer);
+    timer = setTimeout(save, 2500);
+  }
+
+  function doc() {
+    var reset = "";
+    var hs = document.head.querySelector("style");
+    if (hs) reset = hs.textContent;
+    var json = JSON.stringify(state).replace(/</g, "\\u003c");
+    var top = '<title>4세대 실서버 테스트</title>\n<meta name="claude:viewport-fit-sides" content="cover">\n'
+      + '<link rel="preconnect" href="https://fonts.googleapis.com">\n'
+      + '<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Gowun+Batang:wght@700&family=IBM+Plex+Sans+KR:wght@400;500;600&family=JetBrains+Mono:wght@500&display=swap">\n';
+    return '<!doctype html><html><head><meta charset=utf8><meta name=viewport content="width=device-width,initial-scale=1,viewport-fit=cover"><style>' + reset + "</style></head><body>"
+      + top
+      + '<style id="css">' + document.getElementById("css").textContent + "</style>\n"
+      + '<div id="app"></div>\n'
+      + '<script id="state" type="application/json">' + json + "<\/script>\n"
+      + '<script id="appjs">' + document.getElementById("appjs").textContent + "<\/script>\n"
+      + "</body></html>";
+  }
+
+  function save() {
+    if (!dirty || saving) return;
+    if (!api) { setStatus("이 화면에서는 저장할 수 없어요"); return; }
+    var active = document.activeElement;
+    if (active && active.classList && active.classList.contains("note")) { timer = setTimeout(save, 1500); return; }
+    saving = true;
+    setStatus("저장 중…");
+    api.publish(doc()).then(function () {
+      dirty = false; saving = false; setStatus("저장됨");
+    }, function (e) {
+      saving = false;
+      var c = e && e.code;
+      if (c === "conflict") { setStatus("다른 곳에서 먼저 저장해서 새로 불러와요"); return; }
+      if (c === "not_writer" || c === "not_granted" || c === "not_declared" || c === "consent_required" || c === "capability_disabled" || c === "capability_removed") {
+        readOnly = true; render(); setStatus("읽기 전용 (체크가 저장되지 않아요)"); return;
+      }
+      if (c === "rate_limited") { setStatus("잠시 뒤 다시 저장해요"); timer = setTimeout(save, 8000); return; }
+      setStatus("저장 실패, 다시 시도해요"); timer = setTimeout(save, 3000 + Math.random() * 2000);
+    });
+  }
+
+  app.addEventListener("change", function (e) {
+    var t = e.target;
+    if (t.id === "hide-done") {
+      hideDone = t.checked;
+      try { localStorage.setItem("hideDone", hideDone ? "1" : "0"); } catch (x) {}
+      app.querySelector(".wrap").classList.toggle("hide-done", hideDone);
+      return;
+    }
+    if (readOnly) return;
+    if (t.dataset.id) {
+      var id = t.dataset.id;
+      if (t.checked) state.checked[id] = true; else delete state.checked[id];
+      t.closest("li").classList.toggle("ok", t.checked);
+      counts(); schedule();
+    } else if (t.dataset.note) {
+      var v = t.value.trim();
+      if (v) state.notes[t.dataset.note] = v; else delete state.notes[t.dataset.note];
+      schedule();
+    }
+  });
+  app.addEventListener("input", function (e) {
+    if (e.target.dataset && e.target.dataset.note) { dirty = true; clearTimeout(timer); timer = setTimeout(function () { e.target.blur(); }, 4000); }
+  });
+  app.addEventListener("click", function (e) {
+    var b = e.target.closest("[data-flag]");
+    if (!b || readOnly) return;
+    var id = b.dataset.flag;
+    if (state.bad[id]) { delete state.bad[id]; delete state.notes[id]; } else { state.bad[id] = true; }
+    var y = window.scrollY;
+    render(); window.scrollTo(0, y);
+    if (state.bad[id]) { var n = document.getElementById("note-" + id); if (n) n.focus(); }
+    schedule();
+  });
+
+  render();
+  setStatus("");
+  var tries = 0;
+  (function connect() {
+    if (window.claude && window.claude.use) {
+      window.claude.use("artifact").then(function (a) {
+        api = a;
+        if (!a) setStatus("이 화면에서는 체크가 저장되지 않아요");
+        if (a && dirty) schedule();
+      }, function () { setStatus("이 화면에서는 체크가 저장되지 않아요"); });
+    } else if (tries++ < 50) {
+      setTimeout(connect, 200);
+    } else {
+      setStatus("이 화면에서는 체크가 저장되지 않아요");
+    }
+  })();
+})();
+</script>
