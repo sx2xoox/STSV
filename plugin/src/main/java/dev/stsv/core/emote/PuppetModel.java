@@ -73,27 +73,29 @@ public final class PuppetModel {
 
     /**
      * A side of a box: the text's right (u) and up (v) on it, seen from outside (its outward normal is u x v), and
-     * its shade. Text displays get no directional light, so the shade is fixed, by where the face looks at rest.
+     * its shade at rest facing south: the light the game's entity shader gives a face looking that way
+     * ({@link PuppetLight#diffuse}: top 1, front and back 0.74, the sides 0.5, bottom 0.4). Text gets no directional
+     * light, so the puppet bakes it into the colours, by where each face looks in the world ({@code Puppet}).
      */
     public enum Side {
-        FRONT(1, 0, 0, 0, 1, 0, 0.86),
-        BACK(-1, 0, 0, 0, 1, 0, 0.80),
-        LEFT(0, 0, -1, 0, 1, 0, 0.70),
-        RIGHT(0, 0, 1, 0, 1, 0, 0.70),
-        TOP(1, 0, 0, 0, 0, -1, 1.00),
-        BOTTOM(1, 0, 0, 0, 0, 1, 0.55);
+        FRONT(1, 0, 0, 0, 1, 0),
+        BACK(-1, 0, 0, 0, 1, 0),
+        LEFT(0, 0, -1, 0, 1, 0),
+        RIGHT(0, 0, 1, 0, 1, 0),
+        TOP(1, 0, 0, 0, 0, -1),
+        BOTTOM(1, 0, 0, 0, 0, 1);
 
         private final double ux, uy, uz, vx, vy, vz;
         public final double shade;
 
-        Side(double ux, double uy, double uz, double vx, double vy, double vz, double shade) {
+        Side(double ux, double uy, double uz, double vx, double vy, double vz) {
             this.ux = ux;
             this.uy = uy;
             this.uz = uz;
             this.vx = vx;
             this.vy = vy;
             this.vz = vz;
-            this.shade = shade;
+            this.shade = PuppetLight.diffuse(new Vector3d(ux, uy, uz).cross(vx, vy, vz), false);
         }
 
         public Vector3d u() {
@@ -354,6 +356,41 @@ public final class PuppetModel {
         Quaterniond q = new Quaterniond().setFromNormalized(r).normalize();
         if (q.w < 0) q.set(-q.x, -q.y, -q.z, -q.w);
         return new Placement(centre.sub(r.transform(middle)), q, scale);
+    }
+
+    /**
+     * Where a face looks in the world (a unit vector: +x east, +y up, +z south), for its shade
+     * ({@link PuppetLight#diffuse}).
+     *
+     * @param facing the turn about +y the face gets: the transformation's ({@link #place}) plus the entity's yaw
+     *               (a yaw of a degrees turns by -toRadians(a))
+     */
+    public static Vector3d worldNormal(Face face, Matrix4d joint, double facing) {
+        Vector3d n = joint.get3x3(new Matrix3d()).transform(face.normal());
+        return new Matrix3d().rotateY(facing).transform(n).normalize();
+    }
+
+    /**
+     * The transformation of an item display (third person, right or left hand) that shows what the hand holds the way
+     * the player model does. The client's chain (26.3, ItemInHandLayer.submitArmWithItem, PlayerModel.translateToHand):
+     * the arm's pivot (slim arms half a pixel in), the arm's turn, then a turn of -90 degrees about x and 180 about y
+     * and a move of (+-1, 2, -10) model pixels (the hand's end of the arm, at its front): in the puppet's pixels the
+     * point (-+6, 12, 2) of the arm at rest (slim: -+5.5). An item display turns what it draws by 180 degrees about y
+     * itself (DisplayRenderer.ItemDisplayRenderer), so its own turn is the arm's then 90 degrees about x; the model's
+     * scale (0.9375) is the display's.
+     *
+     * @param right the right arm (else the left)
+     */
+    public static Placement hand(Matrix4d arm, boolean right, boolean slim, double facing, double lift) {
+        Matrix3d turn = new Matrix3d().rotateY(facing);
+        double x = 6 - (slim ? 0.5 : 0);
+        Vector3d at = arm.transformPosition(new Vector3d(right ? -x : x, 12, 2));
+        Vector3d translation = turn.transform(at).mul(EmoteRig.PX).sub(0, lift, 0);
+        Matrix3d r = new Matrix3d(turn).mul(arm.get3x3(new Matrix3d())).mul(new Matrix3d().rotationX(Math.PI / 2));
+        Quaterniond q = new Quaterniond().setFromNormalized(r).normalize();
+        if (q.w < 0) q.set(-q.x, -q.y, -q.z, -q.w);
+        double s = EmoteRig.PX * 16;
+        return new Placement(translation, q, new Vector3d(s, s, s));
     }
 
     /**

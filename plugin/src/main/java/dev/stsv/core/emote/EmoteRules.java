@@ -62,6 +62,50 @@ public final class EmoteRules {
         return Math.abs(d) >= step;
     }
 
+    /** How far a player's head turns from their body before the body follows (LivingEntity.getMaxHeadRotationRelativeToBody). */
+    public static final float HEAD_TURN = 50f;
+
+    /**
+     * Where a player's body faces after a tick, the game's way (26.3 LivingEntity.tick and tickHeadTurn): walking,
+     * it eases (three tenths a tick) towards the way it walks (walking backwards: the way it faces); standing, it
+     * stays; and it is never more than {@link #HEAD_TURN} degrees from where the head looks. The puppet that stands in
+     * for a player turns with this, its head with the rest of the look ({@link #look}).
+     *
+     * @param body   the body's yaw a tick ago (degrees)
+     * @param head   where the player looks now (their yaw)
+     * @param dx     how far they moved east in that tick (blocks)
+     * @param dz     how far they moved south
+     */
+    public static float bodyYaw(float body, float head, double dx, double dz) {
+        float to = body;
+        if (dx * dx + dz * dz > 0.0025000002f) {
+            to = (float) Math.toDegrees(Math.atan2(dz, dx)) - 90f;
+            float k = Math.abs(wrap(head) - to);
+            if (95f < k && k < 265f) to -= 180f;
+        }
+        float b = body + wrap(to - body) * 0.3f;
+        float off = wrap(head - b);
+        if (Math.abs(off) > HEAD_TURN) b += off - Math.signum(off) * HEAD_TURN;
+        return wrap(b);
+    }
+
+    /**
+     * The turn of the puppet's head for a look, added to what the emote does with it: {pitch, yaw} in the rig's
+     * degrees (pitch + looks down, as the player's own pitch; the rig's yaw + turns left, the game's yaw + turns right).
+     */
+    public static double[] look(float body, float head, float pitch) {
+        float off = Math.clamp(wrap(head - body), -HEAD_TURN, HEAD_TURN);
+        return new double[]{Math.clamp(pitch, -90f, 90f), -off};
+    }
+
+    /** Degrees into -180 .. 180. */
+    public static float wrap(float degrees) {
+        float d = degrees % 360f;
+        if (d >= 180f) d -= 360f;
+        if (d < -180f) d += 360f;
+        return d;
+    }
+
     /** What the player is doing when they ask for an emote. */
     public record Situation(boolean dead, boolean inVehicle, boolean spectator, boolean inWardrobe, boolean moving, boolean inLiquid,
                             boolean burning, boolean onGround, float fallDistance, boolean invisible, long sinceHurtMillis) {}

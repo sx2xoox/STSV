@@ -106,6 +106,13 @@ public final class EmoteRig {
             return new Pose(next);
         }
 
+        /** This pose with the head turned further by a look ({@link EmoteRules#look}: pitch, yaw in degrees). */
+        public Pose looking(double[] look) {
+            if (look == null || (look[0] == 0 && look[1] == 0)) return this;
+            double[] h = get(Channel.HEAD);
+            return with(Channel.HEAD, h[0] + look[0], h[1] + look[1], h[2]);
+        }
+
         /** Channel by channel from this pose (u = 0) to the other (u = 1). */
         public Pose mix(Pose to, double u) {
             Map<Channel, double[]> next = new EnumMap<>(Channel.class);

@@ -123,6 +123,8 @@ class EmoteRigTest {
                 double dot = q.get(0).getAsDouble() * at.rotation().x + q.get(1).getAsDouble() * at.rotation().y
                         + q.get(2).getAsDouble() * at.rotation().z + q.get(3).getAsDouble() * at.rotation().w;
                 assertEquals(1, Math.abs(dot), 1e-6, face + " rotation");
+                assertEquals(want.get("shade").getAsDouble(),
+                        PuppetLight.diffuse(PuppetModel.worldNormal(f, joints[f.joint().ordinal()], facing), false), 1e-5, face + " shade");
             }
         }
         assertEquals(emotes.keySet(), covered, "every shipped emote is in the fixture: python3 -I tools/assetgen/emotes.py --fixture");

@@ -34,6 +34,13 @@ times larger about its centre so the faces overlap by a hair instead of leaving 
 The rig (same numbers in the plugin's EmoteRig, checked by the fixture): units are skin pixels, origin on the ground
 between the feet, +x the puppet's left, +y up, +z forward. A joint turns about its pivot by Rz(roll) Ry(yaw) Rx(pitch)
 (degrees). With `legs: planted` the legs are solved (two bones of 6 px) so each sole centre stays on its spot.
+
+The light (the plugin's PuppetLight; the previews draw the shade and the shadow too): text is lit by the light map
+at the display's origin block but gets no directional light (text.vsh), where a player's model gets the entity
+shader's (entity.vsh: top 1, sides 0.5 .. 0.75 by their compass direction, bottom 0.4). So every face's colours are
+multiplied by that light for where it looks in the world (diffuse), averaged over the emote's round. The game draws
+no shadow under an invisible entity, and the hidden player is invisible: the puppet casts the player's round shadow
+(radius half a block) from a display at its feet.
 """
 
 import json
@@ -350,15 +357,31 @@ BOXES = [
 ]
 INFLATE = {"head": 0.5}      # the second layer stands this far off its box (hat), the others:
 INFLATE_OTHER = 0.25
-# face: its axes in the box (u = text right, v = text up, both seen from outside; normal = u x v) and its shade
-# (text displays have no directional light: the shade is fixed, by where the face looks in the rest pose)
+
+# The light of a side (the plugin's PuppetLight): the game draws a player's model with the entity shader, which
+# shades every face by where it looks in the world (entity.vsh minecraft_mix_light, light.glsl; the two fixed lights
+# of com.mojang.blaze3d.platform.Lighting): min(1, (max(0, L0.n) + max(0, L1.n)) * 0.6 + 0.4). Text has no normals
+# (text.vsh: colour times the light map), so the puppet bakes this into its colours, averaged over the emote's round
+# (SHADING_POSES poses: a face's text is sent once, its shade cannot follow every swing).
+LIGHT_0 = np.array([0.2, 1.0, -0.7]) / math.sqrt(1.53)
+LIGHT_1 = np.array([-0.2, 1.0, 0.7]) / math.sqrt(1.53)
+SHADING_POSES = 8
+
+
+def diffuse(n):
+    """the entity shader's light on a face whose outward unit normal (world: +x east, +y up, +z south) is n"""
+    return min(1.0, (max(0.0, float(LIGHT_0 @ n)) + max(0.0, float(LIGHT_1 @ n))) * 0.6 + 0.4)
+
+
+# face: its axes in the box (u = text right, v = text up, both seen from outside; normal = u x v); its shade at rest
+# facing south (top 1, front and back 0.74, sides 0.5, bottom 0.4)
 FACES = {
-    "front": ((1, 0, 0), (0, 1, 0), 0.86),
-    "back": ((-1, 0, 0), (0, 1, 0), 0.80),
-    "left": ((0, 0, -1), (0, 1, 0), 0.70),
-    "right": ((0, 0, 1), (0, 1, 0), 0.70),
-    "top": ((1, 0, 0), (0, 0, -1), 1.00),
-    "bottom": ((1, 0, 0), (0, 0, 1), 0.55),
+    "front": ((1, 0, 0), (0, 1, 0)),
+    "back": ((-1, 0, 0), (0, 1, 0)),
+    "left": ((0, 0, -1), (0, 1, 0)),
+    "right": ((0, 0, 1), (0, 1, 0)),
+    "top": ((1, 0, 0), (0, 0, -1)),
+    "bottom": ((1, 0, 0), (0, 0, 1)),
 }
 FACE_NAMES = list(FACES)
 
@@ -449,7 +472,8 @@ def box_faces(skin_px, box, layer, slim):
         grid = grids[name]
         if all(c is None for row in grid for c in row):
             continue
-        u, v, shade = np.array(FACES[name][0], float), np.array(FACES[name][1], float), FACES[name][2]
+        u, v = np.array(FACES[name][0], float), np.array(FACES[name][1], float)
+        shade = diffuse(np.cross(u, v))
         n = np.cross(u, v)
         rows, cols = len(grid), len(grid[0])
         centre = mid + n * abs(float(n @ size)) / 2
@@ -592,6 +616,11 @@ def render(faces, joints, around, up, size, scale, facing=0.0, ground=True):
     depth = np.full((h * ss, w * ss), -1e9)
     if ground:
         colour[int(oy):int(oy) + ss, :] = (150, 156, 168)       # the ground under the puppet's feet
+        # the player's round shadow (radius half a block) on the ground at the feet, as the game draws it (Puppet.shadow)
+        rx, ry = 0.5 * k, max(float(ss), 0.5 * k * math.sin(e))
+        yy, xx = np.ogrid[0:h * ss, 0:w * ss]
+        under = ((xx - ox) / rx) ** 2 + ((yy - oy - ss / 2) / ry) ** 2 <= 1
+        colour[under] = (colour[under] * 0.6).astype(np.uint8)
     for f in faces:
         t, r, s = display(f, joints[JOINT_NAMES.index(f["joint"])], facing)
         if float((r @ np.array([0.0, 0.0, 1.0])) @ to_cam) <= 1e-6:
@@ -641,9 +670,30 @@ def prop_face(prop):
                 v=np.array([0.0, 1.0, 0.0]), cols=len(grid[0]), rows=len(grid), cw=prop["size"], ch=prop["size"], grid=grid, shade=1.0)
 
 
+def world_normal(face, joint_matrix, facing=0.0):
+    """where a face looks in the world (the plugin's PuppetModel.worldNormal)"""
+    n = rot_y(facing) @ joint_matrix[:3, :3] @ np.cross(face["u"], face["v"])
+    return n / np.linalg.norm(n)
+
+
+def round_shade(face, joint_sets, facing=0.0):
+    """a face's shade over an emote's round (the plugin's Puppet.shadeOf with Puppet.shading); props are not shaded"""
+    if face["name"] == "prop":
+        return 1.0
+    i = JOINT_NAMES.index(face["joint"])
+    return sum(diffuse(world_normal(face, js[i], facing)) for js in joint_sets) / len(joint_sets)
+
+
+def shading_poses(emote):
+    """the poses an emote's faces are shaded by (EmoteSpec.shadingPoses)"""
+    return [pose_at(emote, emote["length"] * k / SHADING_POSES) for k in range(SHADING_POSES)]
+
+
 def preview(emote, out: Path, views=None, ticks=None, cell=(176, 236), scale=112):
     """A contact sheet of the loop: one column per tick the plugin sends (every `step`), one row per view"""
     faces = puppet_faces(sample_skin()) + [prop_face(p) for p in emote.get("props", [])]
+    joint_sets = [matrices(p, emote["planted"]) for p in shading_poses(emote)]
+    faces = [dict(f, shade=round_shade(f, joint_sets)) for f in faces]
     views = views or [("3/4 back", emote["camera"][0], emote["camera"][1]), ("side", 90, 4)]
     ticks = ticks if ticks is not None else list(range(0, emote["length"], emote["step"]))
     font, pad, head = label_font(13), 6, 22
@@ -669,7 +719,8 @@ def preview(emote, out: Path, views=None, ticks=None, cell=(176, 236), scale=112
 
 def fixture(emotes):
     """For every emote at a few ticks (also between two sent poses), a puppet turned and lifted: every joint's
-    matrix and, for a plain skin, every face's display transformation."""
+    matrix and, for a plain skin, every face's display transformation and its shade in that pose (the entity shader's
+    light on where it looks in the world)."""
     skin = Image.new("RGBA", (64, 64), (120, 130, 140, 255))
     faces = puppet_faces(skin)
     cases = []
@@ -683,7 +734,8 @@ def fixture(emotes):
                 shown.append(dict(joint=f["joint"], layer=f["layer"], face=f["name"], cols=f["cols"], rows=f["rows"],
                                   translation=[round(float(x), 6) for x in t],
                                   rotation=[round(float(x), 6) for x in quaternion(r)],
-                                  scale=[round(float(x), 6) for x in s]))
+                                  scale=[round(float(x), 6) for x in s],
+                                  shade=round(diffuse(world_normal(f, joints[JOINT_NAMES.index(f["joint"])], facing)), 6)))
             cases.append(dict(emote=eid, tick=tick, yaw=37.0, lift=lift,
                               joints={n: [round(float(x), 5) for x in m[:3].reshape(-1)] for n, m in zip(JOINT_NAMES, joints)},
                               faces=shown))

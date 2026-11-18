@@ -103,10 +103,13 @@ final class StandingRiders {
             return;
         }
         s.puppet().turn((float) (v.st.yaw + m.shownSettings().yawOffset() - spin));
-        if (Math.floorMod(ticks + v.id, POSE_EVERY) == 0) {
+        boolean posing = Math.floorMod(ticks + v.id, POSE_EVERY) == 0;
+        if (posing) {
             EmoteRig.Pose pose = RiderPose.pose(v.spec.fun().stand().kind(), motion);
-            s.puppet().pose(pose, POSE_EVERY);
+            s.puppet().pose(pose, POSE_EVERY, rider);   // the head follows the rider's look
         }
+        // the shadow with the deck; the light at the rider's eye and what they hold
+        s.puppet().tick(rider, posing);
         if (Math.floorMod(ticks + v.id, 10) == 0) s.puppet().show(Bukkit.getOnlinePlayers());
         if (Math.floorMod(ticks + v.id, REFRESH) == 0) hide(rider);
     }

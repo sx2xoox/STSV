@@ -96,7 +96,19 @@ class PuppetTextTest {
             assertTrue(s.shade <= PuppetModel.Side.TOP.shade && s.shade >= PuppetModel.Side.BOTTOM.shade, s.name());
         }
         assertTrue(PuppetModel.Side.FRONT.shade > PuppetModel.Side.LEFT.shade && PuppetModel.Side.LEFT.shade == PuppetModel.Side.RIGHT.shade);
-        assertTrue(PuppetModel.Side.BOTTOM.shade >= 0.5, "dark, not black");
+        // the game's own numbers for a model facing south (entity shader, Lighting.DIFFUSE_LIGHT_0/1)
+        assertEquals(0.4, PuppetModel.Side.BOTTOM.shade, 1e-9, "the ambient light only");
+        assertEquals(0.7396, PuppetModel.Side.FRONT.shade, 1e-4);
+        assertEquals(PuppetModel.Side.FRONT.shade, PuppetModel.Side.BACK.shade, 1e-12);
+        assertEquals(0.4970, PuppetModel.Side.LEFT.shade, 1e-4);
+    }
+
+    @Test
+    void theFaceIsSentInTheShadeAsked() {
+        PuppetModel.Face f = PuppetModel.faces(EmoteRigTest.plain(false)).getFirst();
+        for (PuppetText.Run run : PuppetText.runs(f, 0.5)) {
+            if (run.colour() != PuppetModel.NONE) assertEquals(PuppetText.colour(0x78828C, 0.5), run.colour());
+        }
     }
 
     // ------------------------------------------------------------------------------------------
