@@ -1,4 +1,4 @@
-# 농사 탈것: 끄는 쪽(소, 경운기, 트랙터) + 그 뒤에 매달린 짐칸(트레일러). 관리자만 지급: /관리자 아이템목록 의 '탈것' 탭, /관리자 지급.
+# 농사 탈것: 끄는 쪽(소, 경운기, 콤바인, 트랙터) + 그 뒤에 매달린 짐칸(트레일러). 관리자만 지급: /관리자 아이템목록 의 '탈것' 탭, /관리자 지급.
 # 상점·뽑기·레시피에는 없음. 세우기·타기·회수·짐칸·/탈것 권한은 vehicles.yml 의 탈것과 같음 (README "탈것").
 # 웅크리고 짐칸(트레일러)을 우클릭하면 그 짐칸이 열리고, 웅크리고 끄는 쪽(소·경운기·트랙터)을 우클릭하면 통째로 회수 (짐칸이 모두 비어 있어야 함).
 #
@@ -152,6 +152,70 @@ power_tiller:
             stages: [power_tiller_cargo_1, power_tiller_cargo_2, power_tiller_cargo_3, power_tiller_cargo_4]
       parts:
         - { model: power_tiller_flywheel, at: [0.4219, 0.9375, 0.53125], axis: x, spin: engine, idle: 18, top: 40 }
+
+# ------------------------------------------------------------------------------------------------
+# 4세대 · 소형 콤바인 + 짐칸: 고무 궤도(크롤러)로 가는 작은 벼 콤바인이 곡물 운반차 하나를 끔 (짐칸 540칸).
+#   험한 땅(흙, 밭, 잔디, 진흙)에서 느려지지 않음. 궤도 끝의 앞 아이들러와 뒤 구동 스프로킷이 굴러가는 만큼 돎
+# ------------------------------------------------------------------------------------------------
+combine:
+  material: paper
+  name: "<#e8452c>소형 콤바인"
+  lore:
+    - "<gold>4세대</gold> <gray>· 곡물 운반차를 끄는 궤도 콤바인 (2인)"
+    - "<white>5.5블록/초 · 짐칸 540칸 <gray>· 흙·진흙도 그대로"
+    - "<gold>작업기</gold> <gray>멈춰서 Ctrl: 수확기 → 파종기"
+    - "<dark_gray>W·S·A·D 운전 · 스페이스: 경적 · 웅크리기: 내리기"
+    - "<yellow>우클릭: 세우기 · 타기"
+    - "<yellow>웅크리고 우클릭: 짐칸(운반차) · 회수(콤바인)"
+  model: combine
+  icon: combine_icon
+  max-stack: 1
+  vehicle:
+    payload: 900          # 적재 무게: 트레일러 짐칸 모두 합쳐서 (README '적재 무게')
+    body-scale: 2
+    speed: 5.5
+    reverse-speed: 2.2
+    acceleration: 1.8
+    brake: 7
+    coast: 2.5
+    turn-rate: 60
+    turn-speed: 1.5
+    step-height: 1.0
+    size: [4.4, 2.4, 2.7]
+    all-terrain: true
+    click-height: 1.6
+    wheel-radius: 0.375
+    wheels: []
+    seats:
+      - { at: [0.671875, 1.4375, -0.21875] }
+      - { at: [0.09375, 1.40625, -0.25] }
+    horn: { sound: stsv:vehicle.combine.horn, release: stsv:vehicle.combine.horn_end, volume: 1.5,
+            vanilla: block.note_block.didgeridoo, pitch: 1.1, times: 2, gap: 3 }
+    engine: { sound: stsv:vehicle.combine.engine, volume: 0.45, idle-volume: 0.28, idle-pitch: 0.65, top-pitch: 1.3, segment-ticks: 10 }
+    train:
+      jackknife: 45
+      slow-from: 0.6
+      ground: { farmland: 1.0, path: 1.0, dirt: 1.0, grass: 1.0 }
+      trailers:
+        - model: combine_wagon
+          hitch: [0, 0.4375, -2.125]
+          tongue: 2.0
+          size: [2.75, 1.75, 1.75]
+          click-height: 1.4
+          wheel: wheel_tiller
+          wheel-radius: 0.40625
+          wheels:
+            - { at: [-0.75, 0.40625, 0] }
+            - { at: [0.75, 0.40625, 0] }
+          cargo:
+            slots: 540
+            at: [0, 0.9375, 0]
+            stages: [combine_wagon_cargo_1, combine_wagon_cargo_2, combine_wagon_cargo_3, combine_wagon_cargo_4]
+      parts:
+        - { model: combine_idler, at: [-0.8125, 0.375, 0.75], axis: x, spin: roll, radius: 0.375 }
+        - { model: combine_idler, at: [0.8125, 0.375, 0.75], axis: x, spin: roll, radius: 0.375 }
+        - { model: combine_sprocket, at: [-0.8125, 0.375, -1.375], axis: x, spin: roll, radius: 0.375 }
+        - { model: combine_sprocket, at: [0.8125, 0.375, -1.375], axis: x, spin: roll, radius: 0.375 }
 
 # ------------------------------------------------------------------------------------------------
 # 5세대 · 트랙터 + 트레일러: 트랙터가 트레일러 두 대를 줄줄이 끔 (짐칸 360칸 × 2 = 720칸, 쪽을 넘기면 둘째 트레일러).

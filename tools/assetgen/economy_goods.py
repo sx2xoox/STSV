@@ -1969,6 +1969,10 @@ ICONS.update(_GS.ICONS)
 import goods_fishing as _GF   # noqa: E402
 
 ICONS.update(_GF.ICONS)
+# 4세대 (4강): the 4세대 materials and goods (goods_tier4.py)
+import goods_tier4 as _G4   # noqa: E402
+
+ICONS.update(_G4.ICONS)
 
 
 # ================================================================================================
@@ -2019,6 +2023,8 @@ GROUPS = [
     ("특별 재료·도매 생선 레시피", {k: v for k, v in _GS.NAMES.items() if k not in ("wild_ginseng", "golden_ear", "silk_cocoon", "red_coral",
                                                                          "ambergris", "abalone", "meteoric_iron", "rough_crystal")}),
     ("통발·가두리 · 어부 손질감 · 그 요리", dict(_GF.NAMES)),
+    ("4세대 재료 (4강 · 상점 안 삼)", {k: _G4.NAMES[k] for k in _G4.MATERIALS}),
+    ("4세대 고급품 (4강)", {k: v for k, v in _G4.NAMES.items() if k not in _G4.MATERIALS}),
 ]
 NAMES = {k: v for _, g in GROUPS for k, v in g.items()}
 

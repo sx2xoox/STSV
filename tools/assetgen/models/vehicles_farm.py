@@ -1452,6 +1452,605 @@ def tractor_wagon_cargo(stage):
 
 
 # ================================================================================================
+# 소형 콤바인 (small rice combine, 4th generation) and its grain trailer
+# ================================================================================================
+
+CRED = "vermilion"      # the livery: red body, a white stripe along it, a black skirt, yellow-and-black at the ends
+COMBINE_AX = 6          # drawn = design z + COMBINE_AX: the footprint (header tips to the hitch) centred on (0, 0, 0)
+TRACK_X = (9.5, 16.5)   # each crawler track from its inner to its outer edge (x, either side)
+TRACK_D = 12            # the loop's ends: the idler in front, the drive sprocket behind (separate: they roll)
+IDLER_Z, SPROCKET_Z = -18, 16   # design z of the idler's and the sprocket's axles (y = TRACK_D / 2)
+HEADER_F = -44          # design z of the cutter bar
+REEL = (13.5, -39)      # design (y, z) of the reel's axle (the reel itself: vehicle_tools.py, it comes with the 수확기)
+
+
+def _livery(base=2.0, skirt=(15, 17), stripe=(24.5, 26.5)):
+    """The combine's red sheet metal with its livery on the long sides: a black skirt along the foot, a white stripe
+    with a black pinstripe over it at mid height, lit top edges, dust low down, a scuff here and there."""
+    plain = _paint_metal(CRED, base)
+
+    def decal(c):
+        x, y, z = c.p
+        if c.face in ("east", "west", "north", "south"):
+            if skirt and skirt[0] <= y < skirt[1]:
+                return ("iron", 1.6 if math.floor(y) == math.floor(skirt[1] - 0.5) else 1.2)
+            if stripe and stripe[0] <= y < stripe[1]:
+                return ("car_white", 3.0 if y >= stripe[1] - 0.6 else 2.4)
+            if stripe and stripe[0] - 0.5 <= y < stripe[0]:
+                return ("iron", 0.8)
+        return plain(c)
+    return decal
+
+
+def combine():
+    """The small rice combine (소형 콤바인), facing north, on two rubber crawler tracks: the header in front (a pan,
+    the cutter bar with its guards, yellow-and-black crop dividers, the cross auger, tall end plates; its reel comes
+    with the 수확기 tool), the feeder housing rising from it to the thresher; the thresher a tall red box down the left
+    (panel doors with latches, louvred fan vents, the straw spreader behind, the exhaust and muffler on top); the
+    operator's platform at the front right: a dash with gauges and a small steering wheel, a lever console, the
+    driver's seat on the engine box (louvred side cover and a round dust screen) and a jump seat beside it, a sun
+    canopy on four posts with work lamps and an amber beacon; the grain tank behind the seat (a window on the grain
+    for the driver, a rice-ear emblem and the slow-vehicle triangle), the unloading auger folded down the right
+    side on its rest, a boarding ladder, tail lamps and the drawbar behind. The tracks' idlers and drive sprockets
+    are separate models (they roll)."""
+    m = BModel("combine", shift=(8, 8, 8), scale=2.0)
+    A = COMBINE_AX
+
+    def z(v):
+        return v + A
+
+    red = Paint(CRED, 2, noise=0, rim=0.6, decal=_paint_metal(CRED, 2.0))
+    dark = Paint("iron", 2, noise=0, rim=0.5, decal=_paint_metal("iron", 2.4, 0.8))
+    steel = Paint("steel", 3, noise=0, rim=0.4, decal=lambda c: ("steel", 3.8 if c.face in ("up", "north") else 2.6))
+    r = TRACK_D / 2
+    zi, zs = z(IDLER_Z), z(SPROCKET_Z)
+
+    m.group("tracks")
+
+    def belt(c):
+        # the rubber track: lugs across it (lit, a dark gap between), the edge a row of lug ends, caked mud now and then
+        x, y, zz = c.p
+        mud = h3(math.floor(x), math.floor(y * 2), math.floor(zz), 81)
+        if c.face in ("up", "down"):
+            k = math.floor(zz) % 3
+            base = (2.6 if k == 0 else 2.0 if k == 1 else 0.4) if c.face == "up" else 0.8
+            if mud < 0.12:
+                return ("soil", 1.4 + mud * 4)
+            return ("rubber", base)
+        if c.face in ("east", "west"):
+            return ("rubber", 1.8 if math.floor(zz) % 3 == 0 else 1.0) if mud > 0.1 else ("soil", 1.2)
+        return ("rubber", 1.2)
+        # (the ends' round wrap is the idler and the sprocket: they roll with the ground)
+    bp = Paint("rubber", 1, noise=0, rim=0.3, ao=0.3, decal=belt)
+
+    def frame(c):
+        # the track frame inside the loop: four road rollers along the bottom, a support roller on top, the frame's
+        # bolts, mud on its lower half
+        x, y, zz = c.p
+        if c.face not in ("east", "west"):
+            return ("iron", 1.4)
+        for k in range(4):
+            cz = zi + 6.5 + k * (zs - zi - 13) / 3
+            d = math.hypot(zz - cz, y - 3.5)
+            if d < 2.6:
+                if d < 0.8:
+                    return ("steel", 3.6)
+                return ("steel", 2.6 if y > 3.5 else 1.8) if d > 1.9 else ("iron", 1.2)
+        if math.hypot(zz - (zi + zs) / 2, y - 8.6) < 1.5:
+            return ("steel", 2.8 if y > 8.6 else 2.0)
+        if math.floor(y) == 7 and math.floor(zz) % 6 == 0:
+            return ("steel", 3.2)                                  # bolts along the frame
+        if y < 4.5 and h3(math.floor(zz), math.floor(y), 3, 82) < 0.15:
+            return ("soil", 1.3)
+        return ("iron", 1.6 if y > 6 else 1.2)
+    fp = Paint("iron", 2, noise=0, rim=0.2, ao=0.4, decal=frame)
+    for s in (1, -1):
+        xa, xb = sorted((TRACK_X[0] * s, TRACK_X[1] * s))
+        m.box("track_top", (xa + 0.1, r * 2 - 1.4, zi), (xb - 0.1, r * 2 - 0.1, zs), bp)
+        m.box("track_bottom", (xa + 0.1, 0.1, zi), (xb - 0.1, 1.4, zs), bp)
+        m.box("track_frame", (xa + 0.75, 1.4, zi), (xb - 0.75, r * 2 - 1.4, zs), fp)
+    m.box("undercarriage", (-9.5, 3, z(-20)), (9.5, 12, z(18)), dark)
+
+    m.group("deck")
+
+    def deck(c):
+        x, y, zz = c.p
+        if c.face in ("east", "west") and math.floor(zz) % 8 == 0:
+            return ("steel", 3.0)                                  # the frame's bolts
+        if c.face == "south" and abs(x) < 9.5:
+            return ("hazard", 1.6) if math.floor(x + y) % 4 < 2 else ("iron", 0.6)
+        return _paint_metal("iron", 2.2, 0.8)(c)
+    m.box("deck", (-17, 12, z(-24)), (17, 15, z(24)), Paint("iron", 2, noise=0, rim=0.5, decal=deck))
+
+    m.group("header")
+    F = HEADER_F
+
+    def pan(c):
+        x, y, zz = c.p
+        if c.face == "up":
+            return ("steel", 3.0 + (0.5 if math.floor(x) % 6 == 0 else 0) - (0.6 if h3(math.floor(x), 1, math.floor(zz), 83) < 0.05 else 0))
+        return _paint_metal(CRED, 1.8, 0.8)(c)
+    m.box("pan", (-23.5, 1, z(F + 1)), (23.5, 2.5, z(-33)), Paint("steel", 3, noise=0, rim=0.5, decal=pan))
+
+    def back(c):
+        x, y, zz = c.p
+        if c.face == "north" and 3 < y < 10.5 and -14 < x < -2:
+            return ("rubber", 0.4 if -13 < x < -3 and y < 10 else 1.0)      # the feeder's mouth
+        if c.face == "north" and 10.5 <= y < 11.5:
+            return ("car_white", 2.8)
+        return _paint_metal(CRED, 2.0, 0.8)(c)
+    m.box("back_wall", (-23.5, 2.5, z(-34)), (23.5, 12, z(-32.5)), Paint(CRED, 2, noise=0, rim=0.6, decal=back))
+    m.box("top_beam", (-23.5, 12, z(-35)), (23.5, 13.5, z(-32)), red)
+
+    def bar(c):
+        x, y, zz = c.p
+        if c.face in ("north", "up") and math.floor(x) % 3 == 0:
+            return ("steel", 4.4)                                  # the guards' points
+        return ("iron", 2.4 if c.face == "up" else 1.4)
+    m.box("cutter_bar", (-23.5, 0.9, z(F)), (23.5, 2.6, z(F + 1.4)), Paint("iron", 2, noise=0, rim=0.5, decal=bar))
+
+    def end_plate(c):
+        x, y, zz = c.p
+        if c.face in ("east", "west") and zz < z(F + 7) and y < 9:
+            return ("hazard", 1.6) if math.floor(zz + y) % 4 < 2 else ("iron", 0.6)   # warning stripes on the corners
+        return _paint_metal(CRED, 2.2, 0.8)(c)
+    ep = Paint(CRED, 2, noise=0, rim=0.6, decal=end_plate)
+
+    def tip(c):
+        x, y, zz = c.p
+        if zz < z(F - 2.5):
+            return ("iron", 1.2 if c.face != "up" else 2.0)        # the worn black point
+        return ("hazard", 1.8 if c.face == "up" else 1.3)
+    tp = Paint("hazard", 1, noise=0, rim=0.5, decal=tip)
+    for s in (1, -1):
+        xa, xb = sorted((23.5 * s, 24.5 * s))
+        m.box("end_plate", (xa, 0.8, z(F + 0.1)), (xb, 12, z(-32.2)), ep)
+        m.box("divider", (xa, 1, z(F - 4)), (xb, 4, z(F)), tp, rotation=("x", -22.5, (0, 1, z(F))))
+    for x0 in (-12, 0, 12):
+        m.box("divider", (x0 - 1, 1, z(F - 4)), (x0 + 1, 3.5, z(F)), tp, rotation=("x", -22.5, (0, 1, z(F))))
+        m.box("divider_snout", (x0 - 1, 2.5, z(F)), (x0 + 1, 4, z(F + 5)), tp)
+
+    def auger(c):
+        x, y, zz = c.p
+        if c.face in ("east", "west"):
+            return ("iron", 2.0)
+        return ("steel", 3.8) if (x + math.atan2(zz - z(-37), y - 5) * 3) % 6 < 1.5 else ("iron", 2.2)   # the flights
+    cyl(m, "auger", (5, z(-37)), 5, -22.5, 22.5, Paint("iron", 2, noise=0, rim=0.2, decal=auger), axis="x")
+
+    def feeder(c):
+        x, y, zz = c.p
+        if c.face in ("east", "west") and math.floor(zz) % 7 == 0:
+            return ("iron", 1.2)                                  # the chain cover's seams
+        if c.face == "up" and abs(x + 8) < 0.5:
+            return (CRED, 1.4)
+        return _paint_metal(CRED, 2.0, 0.7)(c)
+    m.box("feeder", (-14, 4.5, z(-34)), (-2, 12.5, z(-12)), Paint(CRED, 2, noise=0, rim=0.6, decal=feeder),
+          rotation=("x", -22.5, (-8, 8.5, z(-34))))
+    m.box("lift_cylinder", (-9, 2.5, z(-30)), (-7, 4, z(-14)), steel, rotation=("x", -22.5, (-8, 3.25, z(-30))))
+
+    m.group("thresher")
+
+    def thresher(c):
+        x, y, zz = c.p
+        if c.face == "west":
+            if math.floor(zz) in (math.floor(z(-1)), math.floor(z(11))) and 17 <= y < 24:
+                return ("iron", 1.0)                              # the panel doors' seams
+            if 20 <= y < 21 and math.floor(zz) in (math.floor(z(-3)), math.floor(z(9))):
+                return ("steel", 3.8)                              # their latches
+            if z(13) <= zz < z(21) and 18 <= y < 23.5:
+                return ("iron", 0.6) if math.floor(y * 2) % 2 == 0 else (CRED, 1.4)   # the fan's louvres
+            if 27 <= y < 30 and z(-11) <= zz < z(-5):
+                return ("iron", 1.0)                              # a dark inspection window
+        if c.face == "north":
+            if -14 <= x < -5 and 22 <= y < 28:
+                return ("iron", 1.2 if math.floor(y) != 27 else 2.2)   # the hatch over the feeder
+        if c.face == "south" and -16 <= x < -13 and 17 <= y < 19:
+            return ("signal_red", 1.8)                            # a tail lamp
+        return _livery(2.0)(c)
+    m.box("thresher", (-17, 15, z(-14)), (-2, 31, z(24)), Paint(CRED, 2, noise=0, rim=0.6, decal=thresher))
+    m.box("thresher_top", (-16, 31, z(-12)), (-3, 32.5, z(22)), Paint(CRED, 2, noise=0, rim=0.6, decal=_paint_metal(CRED, 2.4)))
+
+    # the straw spreader behind the thresher: a dark hood with chopped straw spilling out under it
+    def spreader(c):
+        x, y, zz = c.p
+        if c.face in ("down", "south") and y < 15.5:
+            return ("straw", 2.6 if h3(math.floor(x), math.floor(zz * 2), 1, 84) > 0.4 else 1.4)
+        return ("iron", 2.4 if c.face == "up" else 1.4)
+    m.box("spreader", (-12, 13, z(24)), (-3, 20, z(28)), Paint("iron", 2, noise=0, rim=0.5, decal=spreader))
+
+    # the muffler on the thresher's roof and the exhaust stack with its rain cap
+    m.box("muffler", (-16, 32.5, z(13)), (-12, 35, z(20)), Paint("soot", 2, noise=0, rim=0.5,
+                                                                 decal=lambda c: ("soot", 1.6 if math.floor(c.p[2]) % 3 == 0 else 2.4)))
+    m.box("stack", (-15, 35, z(17)), (-13.5, 41, z(18.5)), Paint("iron", 2, noise=0, decal=lambda c: ("soot", 0.8 if c.p[1] > 40 else 2.2)))
+    m.box("rain_cap", (-15.25, 41, z(16.75)), (-13.25, 41.5, z(18.75)), steel)
+
+    m.group("cab")
+
+    def floor(c):
+        x, y, zz = c.p
+        if c.face == "up":
+            return ("steel", 3.6) if (math.floor(x) + math.floor(zz)) % 3 == 0 else ("steel", 2.4)   # checker plate
+        if c.face == "north":
+            return ("hazard", 1.6) if math.floor(x) % 4 < 2 else ("iron", 0.6)
+        return ("iron", 1.8)
+    m.box("platform", (-1.5, 15, z(-25)), (17.5, 16, z(-4)), Paint("steel", 3, noise=0, rim=0.5, decal=floor))
+
+    def dash(c):
+        x, y, zz = c.p
+        if c.face == "south" and 20 < y < 23.5 and 5 < x < 14:
+            if math.floor(x) in (6, 9, 12) and math.floor(y) == 21:
+                return ("glow_amber", 2.2)                        # three gauges
+            if math.floor(x) == 10 and math.floor(y) == 22:
+                return ("signal_red", 2.0)                        # a warning light
+            return ("iron", 0.8)
+        if c.face == "north" and 17 < y < 22:
+            return ("car_white", 2.4) if 19 <= y < 20 else _livery(2.0, None, None)(c)
+        return _paint_metal(CRED, 2.0, 0.7)(c)
+    m.box("dash", (3, 16, z(-22)), (15, 24, z(-18)), Paint(CRED, 2, noise=0, rim=0.6, decal=dash))
+    m.box("column", (8.5, 24, z(-19.5)), (9.5, 28, z(-18.5)), Paint("iron", 2, noise=0))
+    m.box("steering_wheel", (6, 28, z(-22.5)), (12, 28.5, z(-16.5)), Paint("rubber", 2, noise=0, rim=0.2,
+                                                                           decal=lambda c: ("rubber", 2.6 if c.face == "up" else 1.2)),
+          rotation=("x", 22.5, (9, 28.25, z(-19.5))))
+
+    def engine(c):
+        x, y, zz = c.p
+        if c.face == "east":
+            if z(-9) <= zz < z(-1) and 17 <= y < 20.5:
+                return ("iron", 0.6) if math.floor(y * 2) % 2 == 0 else (CRED, 1.4)   # louvres in the engine's side cover
+            d = math.hypot(zz - z(2.5), y - 18.5)
+            if d < 2.4:
+                return ("iron", 1.0) if (math.floor(zz * 2) + math.floor(y * 2)) % 2 == 0 else ("steel", 2.4)   # the dust screen
+            if d < 3:
+                return ("steel", 3.2)
+        return _livery(2.0, (16, 17), None)(c)
+    m.box("engine_box", (3, 15, z(-11)), (17.5, 21, z(6)), Paint(CRED, 2, noise=0, rim=0.6, decal=engine))
+
+    def seat(c):
+        x, y, zz = c.p
+        if c.face == "up" and math.floor(zz) % 3 == 0:
+            return ("rubber", 1.4)                                # stitched rolls
+        return ("rubber", 2.6 if c.face in ("up", "north") else 1.6)
+    sp = Paint("rubber", 2, noise=0, rim=0.5, decal=seat)
+    m.box("seat", (7, 21, z(-6)), (14.5, 23, z(1)), sp)
+    m.box("seat_back", (7, 23, z(1)), (14.5, 30, z(2.5)), sp)
+    # the jump seat for a second person to the driver's left, on a box against the thresher
+    m.box("jump_seat_box", (-1.5, 15, z(-7)), (3, 21, z(2)), red)
+    m.box("jump_seat", (-1.5, 21, z(-5)), (4.5, 22.5, z(1)), sp)
+    m.box("jump_back", (-1.5, 22.5, z(1)), (4.5, 26, z(2)), sp)
+
+    # the lever console on the driver's right: the header lift, the threshing clutch, the throttle
+    m.box("console", (14.5, 21, z(-13)), (17.5, 24.5, z(-2)), Paint(CRED, 2, noise=0, rim=0.6, decal=_paint_metal(CRED, 2.2)))
+    for k, (zz, knob) in enumerate(((-11, "signal_red"), (-8, "rubber"), (-5, "petal_yellow"))):
+        m.box("lever", (15.75, 24.5, z(zz)), (16.25, 28 - k * 0.5, z(zz) + 0.5), Paint("steel", 3, noise=0))
+        m.box("knob", (15.5, 28 - k * 0.5, z(zz) - 0.25), (16.5, 29 - k * 0.5, z(zz) + 0.75), Paint(knob, 2, noise=0))
+
+    m.group("canopy")
+    tube = Paint("iron", 2, noise=0, rim=0.4, decal=lambda c: ("iron", 3.0 if c.face == "up" else 2.2))
+    for x0, x1 in ((-2.5, -1.5), (17, 18)):
+        m.box("post", (x0, 16, z(-23)), (x1, 43, z(-22)), tube)
+        m.box("post", (x0, 21, z(5)), (x1, 43, z(6)), tube)
+
+    def roof(c):
+        x, y, zz = c.p
+        if c.face == "up":
+            fx, fz = math.floor(x + 3.5), math.floor(zz - z(-24.5))
+            if fx in (0, 21) or fz in (0, 31):
+                return (CRED, 2.6)
+            if fz % 8 == 4:
+                return ("car_white", 2.0)                        # the roof's ribs
+            return ("car_white", 3.0 + (0.3 if fz < 4 else 0))
+        if c.face == "down":
+            return ("iron", 1.4)
+        return (CRED, 2.8 if y > 44 else 1.8)
+    rp = Paint("car_white", 2, noise=0, rim=0.5, decal=roof)
+    m.box("roof", (-3.5, 43, z(-24.5)), (19, 44.5, z(7.5)), rp)
+    m.box("roof_top", (-2.5, 44.5, z(-23.5)), (18, 45, z(6.5)), rp)
+
+    # an amber beacon on the roof, two work lamps under its front edge
+    def beacon(c):
+        x, y, zz = c.p
+        if y < 45.75:
+            return ("iron", 1.6)
+        if c.face == "up":
+            return ("glow_amber", 1.8)
+        return ("glow_amber", 1.9 if math.floor(zz + x) % 3 == 0 else 1.1)
+    m.box("beacon", (-1.5, 45, z(2.5)), (1.5, 47.5, z(5.5)), Paint("glow_amber", 2, noise=0, rim=0.3, decal=beacon))
+
+    def work_lamp(c):
+        x, y, zz = c.p
+        if c.face == "north":
+            return ("lamp", 4) if (1.5 < x < 4 or 12.5 < x < 15) and 41.75 < y < 42.75 else ("blade", 3)
+        return ("iron", 1.6)
+    for x0 in (1, 12):
+        m.box("work_lamp", (x0, 41.5, z(-25)), (x0 + 3.5, 43, z(-23)), Paint("iron", 2, noise=0, decal=work_lamp))
+
+    m.group("grain tank")
+
+    def tank(c):
+        x, y, zz = c.p
+        if c.face == "east":
+            # the rice-ear emblem on a black badge (an original mark, no lettering)
+            u, v = zz - z(13), y - 28
+            if 0 <= u < 6 and 0 <= v < 6:
+                ear = abs(u - 3 + (v - 3) * 0.35) < 0.9 and v > 0.5 or (abs(u - 3) < 2.2 and math.floor(v) in (2, 4) and abs(u - 3 + (v - 3) * 0.35) < 2.4)
+                if ear:
+                    return ("straw", 4.0 if v > 3 else 3.2)
+                return ("iron", 0.6 if 0.5 < u < 5.5 and 0.5 < v < 5.5 else 1.2)
+            if math.floor(zz) == math.floor(z(15.5)) and 17 <= y < 24:
+                return ("iron", 1.0)                              # a seam
+        if c.face == "north" and 6 <= x < 12 and 27 <= y < 32:
+            # the window the driver sees the grain through: golden rice below its level, the empty tank above
+            if x < 6.5 or x >= 11.5 or y < 27.5 or y >= 31.5:
+                return ("iron", 1.4)
+            return ("straw", 3.2 if (math.floor(x) + math.floor(y)) % 3 else 2.4) if y < 30 else ("glass", 1.4)
+        if c.face == "south":
+            if 13 <= x < 16 and 17 <= y < 19:
+                return ("signal_red", 1.8)                        # a tail lamp
+            # the slow-vehicle triangle: an orange triangle in a red border
+            u, v = x - 5, y - 24
+            if 0 <= v < 6 and abs(u - 3) <= (6 - v) / 2:
+                return ("fox", 3.2) if abs(u - 3) <= (6 - v) / 2 - 1 and 0.75 < v < 4.5 else ("signal_red", 1.6)
+        return _livery(2.0)(c)
+    m.box("tank", (1, 15, z(7)), (17.5, 35, z(24)), Paint(CRED, 2, noise=0, rim=0.6, decal=tank))
+
+    def lid(c):
+        x, y, zz = c.p
+        if c.face == "up" and math.floor(zz) == math.floor(z(15)):
+            return ("iron", 1.4)                                  # the lid's hinge
+        return (CRED, 2.8 if c.face == "up" else 2.0)
+    m.box("tank_lid", (2, 35, z(8)), (16.5, 36, z(23)), Paint(CRED, 2, noise=0, rim=0.6, decal=lid))
+
+    # the unloading auger folded down along the right side: up from the tank's back corner, the swivel, forward
+    # along the tank and the canopy to its rest, the spout hanging down at its end
+    def auger_tube(c):
+        x, y, zz = c.p
+        if c.face in ("north", "south") and c.hi[2] - c.lo[2] > 10:
+            return (CRED, 1.6)
+        if c.hi[2] - c.lo[2] > 10 and math.floor(zz) % 9 == 0:
+            return ("iron", 1.4)                                  # the tube's flanges
+        return (CRED, 2.8 if c.face in ("up", "east") else 1.8)
+    ap = Paint(CRED, 2, noise=0, rim=0.5, decal=auger_tube)
+    m.box("auger_up", (14.5, 15, z(24.5)), (17.5, 35, z(27.5)), ap)
+    m.box("auger_swivel", (14, 35, z(24)), (18.5, 38.5, z(28)), dark)
+    m.box("auger_tube", (17.5, 34.5, z(-12)), (20.5, 37.5, z(27)), ap)
+    m.box("auger_spout", (17.5, 30, z(-14)), (20.5, 34.5, z(-10.5)), Paint("rubber", 1, noise=0, rim=0.3,
+                                                                             decal=lambda c: ("rubber", 2.0 if c.face != "down" else 0.6)))
+    m.box("auger_rest", (18, 15, z(-4)), (19.5, 34.5, z(-2.5)), tube)
+
+    m.group("ladder")
+
+    def ladder(c):
+        x, y, zz = c.p
+        if c.face in ("east", "west"):
+            if zz < z(-21.25) or zz >= z(-16.75):
+                return ("iron", 2.4)                              # the rails
+            if (y - 3) % 4 < 1:
+                return ("steel", 3.2)                             # a rung
+            return ("raw", CLEAR)
+        return ("iron", 2.0)
+    m.box("ladder", (17.75, 3, z(-22)), (18.25, 15, z(-16)), Paint("iron", 2, noise=0, light=False, decal=ladder))
+
+    m.group("hitch")
+    m.box("drawbar", (-1.5, 6, z(18)), (1.5, 8, z(30)), dark)
+    m.box("hitch_pin", (-0.5, 5.5, z(27.5)), (0.5, 9.5, z(28.5)), Paint("steel", 4, noise=0))
+    m.display = _held_display(m)
+    return m
+
+
+COMBINE_HITCH = (7, 28 + COMBINE_AX)   # drawn (y, z) of the drawbar's pin: vehicles_farm.yml train.trailers[0].hitch
+
+
+def _track_end(name, sprocket):
+    """One end of a crawler track (axle along x at the model's (8, 8, 8)): the rubber track wrapped round a drive
+    sprocket (sprocket: its teeth and dark spokes) or a front idler (a spoked red wheel). It rolls with the ground, so
+    the lugs round its edge travel with the track."""
+    m = BModel(name, shift=(8, 8, 8), floor=None)
+    d = TRACK_D
+    R = d / 2
+    w = TRACK_X[1] - TRACK_X[0]
+
+    def side(c):
+        x, y, z = c.p
+        rr = math.hypot(y, z)
+        lit = y - 0.5 * z
+        a = math.atan2(z, y) + math.pi
+        if c.face not in ("east", "west"):
+            k = (a / (2 * math.pi) * 24) % 1.0
+            return ("rubber", (2.8 if k < 0.15 else 2.2) if k < 0.5 else 0.2)   # lugs round the tread
+        if rr > R - 1.3:
+            return ("rubber", 1.8 if (a / (2 * math.pi) * 24) % 1.0 < 0.5 else 0.8)   # the track's edge
+        if rr < 1.2:
+            return ("steel", 3.6 if rr < 0.6 else 2.6)
+        if sprocket:
+            if rr > R - 2.4:
+                t = (a / (2 * math.pi) * 10) % 1.0
+                return ("steel", 3.0 if lit > 0 else 2.2) if t < 0.5 else ("iron", 0.6)   # the sprocket's teeth
+            ph = (a / (2 * math.pi) * 5) % 1.0
+            return ("iron", 2.2 if lit > 0 else 1.6) if ph < 0.35 else ("iron", 0.4)    # spokes, dark openings
+        if rr > R - 2.2:
+            return ("steel", 2.6 if lit > 0 else 1.8)            # the idler's steel rim
+        ph = (a / (2 * math.pi) * 4) % 1.0
+        if ph > 0.6 and rr > 2:
+            return ("iron", 0.4)                                  # holes in the disc
+        return (CRED, 2.2 if lit > 0 else 1.6)
+    cyl(m, "end", (0, 0), d, -w / 2, w / 2, Paint("rubber", 1, noise=0, rim=0.2, ao=0.2, decal=side), axis="x")
+    m.display = presets.furniture(gui_scale=0.6)
+    return m
+
+
+def combine_sprocket():
+    return _track_end("combine_sprocket", True)
+
+
+def combine_idler():
+    return _track_end("combine_idler", False)
+
+
+def combine_wagon():
+    """The combine's grain trailer (곡물 운반차), axle at (0, 0, 0): a deep steel bed with high red sides (pressed ribs,
+    the white stripe and black skirt of the combine's livery), a taller headboard with a ladder on its left, a
+    tailgate with a sliding grain door, tail lamps, reflectors and a plate; a checker-plate floor on a dark frame,
+    a tipping ram under its front, its two wheels under the bed (separate), the drawbar forward to the combine's
+    pin and a hitch behind (the 파종기 hangs there)."""
+    m = BModel("combine_wagon", shift=(8, 8, 8), scale=2.0)
+    HX, HZ, Y0, Y1, TOP = 13, 20, 13.5, 15, 27
+
+    m.group("bed")
+
+    def floor(c):
+        x, y, z = c.p
+        if c.face == "up":
+            return ("steel", 2.8) if (math.floor(x) + math.floor(z)) % 3 == 0 else ("steel", 2.0)
+        return ("iron", 1.8)
+    m.box("floor", (-HX, Y0, -HZ), (HX, Y1, HZ), Paint("steel", 3, noise=0, rim=0.4, decal=floor))
+    dark = Paint("iron", 2, noise=0, rim=0.5, decal=_paint_metal("iron", 2.4, 0.8))
+    for s in (1, -1):
+        xa, xb = sorted((5 * s, 7 * s))
+        m.box("frame", (xa, 11.5, -HZ), (xb, Y0, HZ), dark)
+    for zc in (-15, 15):
+        m.box("cross", (-HX, 12, zc - 1), (HX, Y0, zc + 1), dark)
+
+    def side(c):
+        x, y, z = c.p
+        along = z if c.face in ("east", "west") else x
+        if c.face == "up":
+            return (CRED, 3.0) if h3(math.floor(along), 0, 7, 85) > 0.12 else ("iron", 1.6)   # the top rail, chipped
+        if c.face in ("east", "west", "north", "south") and c.face != ("west" if x > 0 else "east"):
+            if y >= TOP - 1:
+                return (CRED, 2.8)                                # the rolled top rail
+            if abs(along) % 8 < 1 and y < TOP - 1:
+                return (CRED, 2.6 if c.face in ("north", "west") else 1.6)   # a pressed rib
+            if Y0 <= y < Y0 + 1.5:
+                return ("iron", 1.2)
+            if 21 <= y < 23:
+                return ("car_white", 3.0 if y >= 22.4 else 2.4)
+            if 20.5 <= y < 21:
+                return ("iron", 0.8)
+            dirt = -0.4 if y < Y0 + 3 and h3(math.floor(along), math.floor(y), 2, 86) < 0.4 else 0
+            return (CRED, 2.0 + dirt)
+        return (CRED, 1.4)                                         # the inside, in its own shadow
+    sp = Paint(CRED, 2, noise=0, rim=0.6, decal=side)
+    for s in (1, -1):
+        xa, xb = sorted((HX * s, (HX + 1) * s))
+        m.box("side", (xa, Y0, -HZ), (xb, TOP, HZ), sp)
+
+    def head(c):
+        x, y, z = c.p
+        if c.face == "north" and -11 <= x < -8:
+            if x < -10.5 or x >= -8.5:
+                return ("steel", 3.0)                             # the ladder's rails
+            return ("steel", 3.4) if (y - Y0) % 3.5 < 0.75 else (CRED, 1.6)
+        if c.face == "north" and 8 <= x < 11 and 23 <= y < 26:
+            return ("hazard", 1.6) if math.floor(x + y) % 2 else ("iron", 0.6)
+        return side(c)
+    m.box("headboard", (-HX - 1, Y0, -HZ - 1), (HX + 1, TOP + 2, -HZ), Paint(CRED, 2, noise=0, rim=0.6, decal=head))
+
+    def gate(c):
+        x, y, z = c.p
+        if c.face == "south":
+            if -3 <= x < 3 and 15.5 <= y < 19.5:
+                if math.floor(y) == 19 or x < -2.5 or x >= 2.5:
+                    return ("iron", 1.6)
+                return ("steel", 3.6 if math.floor(y) == 17 and abs(x) < 1 else 2.6)   # the grain door, its handle
+            if 9 <= abs(x) < 12 and 16 <= y < 18:
+                return ("signal_red", 1.8)                        # tail lamps
+            if 9 <= abs(x) < 12 and 18.5 <= y < 19.5:
+                return ("fox", 3.0)                               # amber reflectors over them
+            if -3 <= x < 3 and 23.5 <= y < 26:
+                col, row = math.floor(x + 3), math.floor(25.99 - y)
+                return ("car_white", 1.2) if row in (0, 2) or col in (0, 5) else (("iron", 1.0) if col % 2 == 0 else ("car_white", 3))
+        return side(c)
+    m.box("tailgate", (-HX, Y0, HZ), (HX, TOP, HZ + 1), Paint(CRED, 2, noise=0, rim=0.6, decal=gate))
+
+    m.group("running gear")
+    for s in (1, -1):
+        xa, xb = sorted((5 * s, 7 * s))
+        m.box("axle_hanger", (xa, 7, -1.5), (xb, 11.5, 1.5), dark)
+    m.box("axle", (-10.5, 5.75, -0.75), (10.5, 7.25, 0.75), dark)
+    m.box("tipping_ram", (-1.25, 7, -HZ + 1), (1.25, 13.5, -HZ + 3.5), Paint("steel", 3, noise=0, rim=0.4,
+                                                                               decal=lambda c: ("steel", 4.0 if c.p[1] > 10 else 2.4)))
+
+    m.group("drawbar")
+    T = -33.25                                                     # the eye: tongue 2 blocks ahead of the axle
+    m.box("drawbar", (-1.25, 6.5, T + 2.5), (1.25, 8.5, -HZ - 1), dark)
+    for s in (1, -1):
+        xa, xb = sorted((1.25 * s, 6 * s))
+        m.box("drawbar_brace", (xa, 8, -HZ - 4), (xb, 11.5, -HZ - 1), dark)
+    m.box("eye", (-1, 6.5, T), (1, 8.5, T + 2.5), Paint("steel", 3, noise=0, decal=lambda c: ("iron", 0.6) if c.face == "up" and abs(c.p[0]) < 0.6 and abs(c.p[2] - (T + 1.2)) < 0.6 else ("steel", 3)))
+    m.box("rear_hitch", (-1.5, 7, HZ + 1), (1.5, 9, HZ + 4), dark)
+    m.box("hitch_bracket", (-1.25, 7.5, HZ - 3), (1.25, Y0, HZ + 1.5), dark)
+    m.box("rear_pin", (-0.5, 6.5, HZ + 2.5), (0.5, 10, HZ + 3.5), Paint("steel", 4, noise=0))
+    m.display = _held_display(m)
+    return m
+
+
+def _grain_heap(m, x0, x1, z0, z1, y, h, steps=3, ramp="straw"):
+    """Threshed rice (벼) heaped in the bed: stepped layers, each a pixel in from the one under it, golden grains with
+    darker husks and a few pale ones, lit on top."""
+    def decal(c):
+        k = h3(*c.i, 87)
+        base = 3.0 if c.face == "up" else 2.2
+        return (ramp, base + (0.8 if k > 0.85 else -0.9 if k < 0.2 else 0))
+    p = Paint(ramp, 3, noise=0, rim=0.3, ao=0.5, decal=decal)
+    dy = h / steps
+    for i in range(steps):
+        inset = i * 1.5
+        m.box("grain", (x0 + inset, y + i * dy, z0 + inset), (x1 - inset, y + (i + 1) * dy, z1 - inset), p)
+
+
+def _rice_sack(m, x, y, z, w=6, d=9, h=3.5, band="fabric_red"):
+    """A woven white rice sack (쌀 포대, no brand) lying flat: a printed band across it, a stitched end."""
+    _fert_bag(m, x, y, z, w, d, h, band=band)
+
+
+def _ton_bag(m, x, y, z, s=9, h=8):
+    """A bulk bag (톤백): a big white woven cube, its four lifting loops on top, a filled bulge, a label pocket."""
+    def decal(c):
+        px, py, pz = c.p
+        if c.face in ("north", "south", "east", "west") and (abs(px - x) < 0.6 or abs(px - (x + s)) < 0.6 or abs(pz - z) < 0.6 or abs(pz - (z + s)) < 0.6):
+            return ("rice", 1.2)                                  # the sewn corners
+        if c.face == "east" and abs(pz - (z + s / 2)) < 1.5 and abs(py - (y + h / 2)) < 1.5:
+            return ("paper", 2.4)                                 # the label pocket
+        return ("rice", 2.2 + (0.4 if (math.floor(px) + math.floor(py) + math.floor(pz)) % 2 else 0) + (0.4 if c.face == "up" else 0))
+    p = Paint("rice", 2, noise=0, rim=0.5, decal=decal)
+    m.box("ton_bag", (x, y, z), (x + s, y + h - 1, z + s), p)
+    m.box("ton_bag", (x + 0.75, y + h - 1, z + 0.75), (x + s - 0.75, y + h, z + s - 0.75), p)
+    loop = Paint("truck_blue", 2, noise=0, decal=lambda c: ("truck_blue", 2.6 if c.face == "up" else 1.8))
+    for lx, lz in ((x + 0.5, z + 0.5), (x + s - 1.5, z + 0.5), (x + 0.5, z + s - 1.5), (x + s - 1.5, z + s - 1.5)):
+        m.box("loop", (lx, y + h, lz), (lx + 1, y + h + 1.5, lz + 1), loop)
+
+
+def combine_wagon_cargo(stage):
+    """The grain trailer's bed (26 x 40 px, floor middle at the model's (8, 8, 8)): threshed rice heaped from the front,
+    rice sacks and a bulk bag; full: the grain heaped over the rim, sacks on top and a rope net."""
+    m = BModel(f"combine_wagon_cargo_{stage}", shift=(8, 8, 8))
+    if stage == 1:
+        _grain_heap(m, -12.5, 12.5, -19.5, -4, 0, 3, 2)
+        _rice_sack(m, -12, 0, 6)
+        _rice_sack(m, -5.5, 0, 6, band="leaf")
+    if stage == 2:
+        _grain_heap(m, -12.5, 12.5, -19.5, 4, 0, 6, 3)
+        _rice_sack(m, -12, 0, 8)
+        _rice_sack(m, -5.5, 0, 8, band="leaf")
+        _rice_sack(m, -12, 3.5, 8, band="leaf")
+        _ton_bag(m, 2.5, 0, 9.5)
+    if stage == 3:
+        _grain_heap(m, -12.5, 12.5, -19.5, 6, 0, 9, 3)
+        for k, (yy, band) in enumerate(((0, "fabric_red"), (3.5, "leaf"), (7, "fabric_red"))):
+            _rice_sack(m, -12, yy, 9.5, band=band)
+            _rice_sack(m, -5.5, yy, 9.5, band="leaf" if band == "fabric_red" else "fabric_red")
+        _ton_bag(m, 2.5, 0, 9.5, h=9)
+    if stage >= 4:
+        _grain_heap(m, -12.5, 12.5, -19.5, 19.5, 0, 14, 4)
+        _rice_sack(m, -10, 14, -12, 7, 9)
+        _rice_sack(m, -2, 14, -10, 7, 9, band="leaf")
+        _rice_sack(m, -6, 14, 3, 7, 9, band="leaf")
+        _rope_net(m, -13, 13, -19.5, 19.5, 0, 14.5, rope=("leather", 1.8))
+    m.display = presets.furniture(gui_scale=0.4)
+    return m
+
+
+# ================================================================================================
 
 ALL = {
     "ox_cart": ox_body,
@@ -1471,4 +2070,9 @@ ALL = {
     "wheel_tractor_rear": wheel_tractor_rear,
     "tractor_wagon": tractor_wagon,
     **{f"tractor_wagon_cargo_{k}": (lambda k=k: tractor_wagon_cargo(k)) for k in range(1, 5)},
+    "combine": combine,
+    "combine_sprocket": combine_sprocket,
+    "combine_idler": combine_idler,
+    "combine_wagon": combine_wagon,
+    **{f"combine_wagon_cargo_{k}": (lambda k=k: combine_wagon_cargo(k)) for k in range(1, 5)},
 }

@@ -7,6 +7,10 @@ Job machines (economy server): six multi-block workstations, each in four looks 
                    with a tiled roof, a fish market stall with floats, a smithy with a crest and a weapon
                    rack, a big kitchen with a lattice window and dried chillies, a copper column still
     tier 3  3강    glowing parts (gems, liquids, lanterns, runes)
+    tier 4  4강    the trade's masterwork on show (Lv35 승급): the machine's own 4세대 goods and materials set out on it
+                   (a mother-of-pearl jewel box and a gem crest, 한지 drying on a frame and a sealed royal crock, a court
+                   signboard and a string of 굴비, a glowing 단련석 and bronze 유기, a 청사초롱 and a 구절판, a celadon 약주
+                   jar, a mana-ink pot and a talisman). Grown in each machine's own character, no steel plating.
 
 Every tier keeps everything of the tier before it, so an upgrade always reads as "more".
 
@@ -31,7 +35,7 @@ from stsv_assets.model import Model
 from stsv_assets.palette import ramp, size
 
 S = 16
-TIERS = ("기본", "1강", "2강", "3강")
+TIERS = ("기본", "1강", "2강", "3강", "4강")
 
 
 # ================================================================================================
@@ -1319,6 +1323,8 @@ def gem_bench(tier):
         m.box("crystal", (26.5, 16, 12), (28, 19.5, 13.5), Mat("crystal", "plain", 3, glow=True),
               rotation=("z", 22.5, (27.25, 16, 12.75)))
         m.box("crystal", (30, 16, 10), (31.5, 18.5, 11.5), Mat("crystal", "plain", 3, glow=True))
+    if tier >= 4:
+        _gem_bench4(m)
     return display(m, (2, 2, 1), 0)
 
 
@@ -1331,6 +1337,8 @@ def gem_bench_wheel(tier):
         cyl(m, "collar", "z", (8, 8), 4, 6, 6.5, BRASS, cap=BRASS(bevel=None), faces={"south": None})
     if tier >= 3:
         cyl(m, "glow_ring", "z", (8, 8), 4, 5.5, 6, "crystal", cap="crystal", glow=True, faces={"south": None})
+    if tier >= 4:
+        _gem_bench_wheel4(m)
     m.display = presets.furniture(gui_scale=0.5)
     return m
 
@@ -1423,6 +1431,8 @@ def mill(tier):
               faces={"down": None})
         m.box("gold_grain", (10.5, 29, 10.5), (21.5, 29.25, 21.5), Mat("lamp", "speckle", 2, glow=True, bevel=None),
               faces={"down": None})
+    if tier >= 4:
+        _mill4(m)
     return display(m, (2, 2, 2), 0)
 
 
@@ -1438,6 +1448,8 @@ def mill_stone(tier):
         m.box("handle_band", (11.75, 13, 6.75), (14.25, 15, 9.25), Mat("crimson", "weave", 2, bevel=None))
     if tier >= 3:
         ring(m, "glow_ring", (8, 8), 8, 6, 10.5, 10.75, Mat("glow_amber", "plain", 2, glow=True, bevel=None))
+    if tier >= 4:
+        _mill_stone4(m)
     m.display = presets.furniture(gui_scale=0.5)
     return m
 
@@ -1548,6 +1560,8 @@ def fish_bench(tier):
         m.box("tank_fish", (9, 16, 11.6), (11.5, 16.75, 11.75), Mat("lamp", "plain", 2), faces={"south": None})
         m.box("shell", (13.5, 15, 12), (16.5, 15.75, 15), "mc_shell", faces={"up": "mc_shell"})
         m.box("pearl", (14.5, 15.75, 13), (15.5, 16.75, 14), Mat("pearl", "plain", 2, glow=True))
+    if tier >= 4:
+        _fish_bench4(m)
     return display(m, (2, 2, 1), 0)
 
 
@@ -1660,6 +1674,8 @@ def forge(tier):
         m.box("embers_top", (20, 47.5, 19.5), (25.5, 47.75, 25.5), "mc_embers", glow=True, faces={"down": None})
         for (x0, z0, x1, z1) in ((19.5, 19, 26, 19.5), (19.5, 25.5, 26, 26), (19.5, 19.5, 20, 25.5), (25.5, 19.5, 26, 25.5)):
             m.box("chimney_rim", (x0, 47.5, z0), (x1, 48, z1), chim, faces={"down": None})
+    if tier >= 4:
+        _forge4(m)
     return display(m, (2, 3, 2), -16)
 
 
@@ -1767,6 +1783,8 @@ def kitchen(tier):
         ring(m, "gold_brim", (24, 7.5), 14, 12.5, 17, 17.25, GOLD, skip=lambda x, z: 27 < x < 31 and 11 < z < 15)  # chimney
         m.box("spice", (10.5, 24, 12.5), (12.5, 27, 14.5), Mat("glow_amber", "plain", 2, glow=True))
         m.box("spice", (13, 24, 12.5), (15, 26, 14.5), Mat("glow_cyan", "plain", 2, glow=True))
+    if tier >= 4:
+        _kitchen4(m)
     return display(m, (3, 2, 1), 0)
 
 
@@ -1847,6 +1865,8 @@ def still(tier):
         # 3강 명주: amber-lit windows on the column, a glowing bottle, gold rings and trim
         m.group("glow")
         m.box("trim", (2, 9.25, 12.5), (18, 10, 13), "mc_glow_trim", glow=True)
+    if tier >= 4:
+        _still4(m)
     return display(m, (2, 3, 2), -16)
 
 
@@ -1933,6 +1953,8 @@ def press(tier):
               full_uv=["north", "south", "east", "west"], faces={"up": None, "down": None})
         m.box("lantern_cap", (27, 19, 13.25), (31, 20, 16), IRON)
         m.box("lantern_handle", (28.75, 20, 14.25), (29.25, 21.5, 15), IRON)
+    if tier >= 4:
+        _press4(m)
     return display(m, (2, 2, 1), 0)
 
 
@@ -1948,6 +1970,8 @@ def press_screw(tier):
     m.box("bar_end", (13, 4.75, 7.25), (14, 6.25, 8.75), BRASS if tier >= 2 else IRON)
     if tier >= 3:
         cyl(m, "glow_ring", "y", (8, 8), 5, 0.75, 1.5, Mat("glow_amber", "plain", 2, glow=True, bevel=None))
+    if tier >= 4:
+        _press_screw4(m)
     m.display = presets.furniture(gui_scale=0.5)
     return m
 
@@ -1962,12 +1986,13 @@ MACHINES = {
     "still": (still, (2, 3, 2), -16, []),
     "press": (press, (2, 2, 1), 0, [(press_screw, (8, 20, 8), "y", 30)]),
 }
+NTIERS = len(TIERS)
 
 
 def models():
     out = {}
     for mid, (fn, _size, _floor, parts) in MACHINES.items():
-        for t in range(4):
+        for t in range(NTIERS):
             out[f"{mid}_{t}"] = (lambda f=fn, k=t: f(k))
             for (pf, _pos, _axis, _rpm) in parts:
                 out[pf(t).name] = (lambda f=pf, k=t: f(k))
