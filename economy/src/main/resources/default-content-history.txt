@@ -1,3 +1,4 @@
+1ab75b18de4605a262db26661607f03c60bb102a economy/accessories.yml
 4d2182bff7ff4f998c20ed2248aa4a221770c9b9 economy/accessories.yml
 ca19c449934980258756b1af97628d041a6f4085 economy/accessories.yml
 13113650b31b402afb0e321084d9d1e85f19988f economy/achievements/codex.yml
@@ -319,6 +320,7 @@ ffb11b9297b57106d3b752e82237be6d38971da4 economy/assets/economy/textures/font/st
 8d6c8d2251a810d66583ccf2515ca8bb852bdfe5 economy/assets/economy/textures/font/stockgraph_up_wick.png
 f7030b2535d7406e450d35ff5f538e66ee84b677 economy/assets/economy/textures/gui/accessories.png
 f8336a62c8d101228bac4849eaa53c9d3c181813 economy/assets/economy/textures/gui/accessories.png
+1cb10be536a67106f32ac683ec36fe8d6b2f6df7 economy/assets/economy/textures/gui/accessory_effects.png
 30b794db991c261478923932ce55d84be6adb1a5 economy/assets/economy/textures/gui/accessory_workshop.png
 80658b121df305fc29718678f289390ab90d8bfe economy/assets/economy/textures/gui/accessory_workshop.png
 39d6bb26aa475ac168e306bacdcf21132f804eed economy/assets/economy/textures/gui/auction.png
@@ -754,6 +756,8 @@ d5eac3c5c75db22c688273009a5e88df76c7ed2c economy/machines.yml
 fdc8a4b2ad4252723bb0e5142446630cbbe2f489 economy/machines.yml
 25be86144eb6bbcd7918dd93a8e6feff31d0c426 economy/menus/accessories.yml
 cee30f47258ab4c04baefe42f9ce60808f5e7f23 economy/menus/accessories.yml
+e8d66900558493934c0401abe6ce2a83a74cf65e economy/menus/accessories.yml
+dd83eb585f31c0b8e28de61fe303f12b40e9896a economy/menus/accessory_effects.yml
 65b666538f9278789dd3a542d2f71f24ce4211e9 economy/menus/accessory_workshop.yml
 ac180d49fcceaee8d4dddb6544a30c0cf1c09c8b economy/menus/accessory_workshop.yml
 1e27f6cf4904fa2bfa8715298d12c840f02ec1ff economy/menus/auction.yml
@@ -1323,6 +1327,7 @@ a5bd3c20e81c31a73630f9f6cfb83370d14d4a24 economy/shop.yml
 ada43bed52b1621230f3b439992393754b084f5b economy/shop.yml
 b135e1e69245d2b67e44ae3b3a72120cebd694b3 economy/shop.yml
 b47cf6e66e026a0ad4b5229098defbe82fe34ac3 economy/shop.yml
+b9948e0eef472146125d8e3855f86c0670646605 economy/shop.yml
 be285c945fbe7806754a3a89744f60c295fa6000 economy/shop.yml
 c4efac61a94ab6a88310fe2dcd09e7555a45e739 economy/shop.yml
 ce705e26bab7d4704e536cbb73ac3544170de999 economy/shop.yml
@@ -2134,6 +2139,7 @@ e67ffe09d175cd10d6befc921f9948954ef6eb93 economy/titles/codex.yml
 3df01425fcde4642abd6517097b977dbd0abad9c economy/titles/titles.yml
 6d3e770c18cdf04882e7e2bed4258b5c85fedc98 economy/titles/titles.yml
 87f03b9f2f8c65dbab31c5d106af474f8963fe8f economy/titles/titles.yml
+96bf9ad9e17f0922f897984d17852cb21f04b8ef economy/titles/titles.yml
 a69bc0fe8e621a94a815db7e8cef41145f90a469 economy/titles/titles.yml
 a880ba52868b21f940f2fe984f4936e658f7f588 economy/titles/titles.yml
 e675b67bbedfa04e8036708f621c46b7e3008c84 economy/titles/titles.yml
