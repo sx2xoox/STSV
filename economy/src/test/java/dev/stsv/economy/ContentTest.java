@@ -79,6 +79,24 @@ class ContentTest {
         return m != null && !m.isLegacy() && m != Material.AIR;   // isItem() needs a running server
     }
 
+    /** A key written twice in one menu (two buttons on one letter) silently loses the first: the 1강 tab once became the back button. */
+    @Test
+    void menusHaveNoDuplicateKeys() throws Exception {
+        org.yaml.snakeyaml.LoaderOptions o = new org.yaml.snakeyaml.LoaderOptions();
+        o.setAllowDuplicateKeys(false);
+        List<String> bad = new ArrayList<>();
+        try (Stream<Path> s = Files.walk(PACK)) {
+            for (Path f : s.filter(x -> x.toString().endsWith(".yml")).toList()) {
+                try {
+                    new org.yaml.snakeyaml.Yaml(o).load(Files.readString(f));
+                } catch (org.yaml.snakeyaml.constructor.DuplicateKeyException e) {
+                    bad.add(PACK.relativize(f) + ": " + e.getProblem());
+                }
+            }
+        }
+        assertTrue(bad.isEmpty(), "duplicate keys: " + bad);
+    }
+
     @Test
     void everyDataFileParsesAndNamesRealItems() {
         Set<String> ours = ourItems();

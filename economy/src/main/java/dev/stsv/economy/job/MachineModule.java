@@ -893,7 +893,7 @@ public final class MachineModule extends EcoModule {
     }
 
     /**
-     * The recipe list, one upgrade tier per tab (기본·1강·2강·3강: the recipes that tier opens), so a machine with many
+     * The recipe list, one upgrade tier per tab (기본·1강·2강·3강·4강: the recipes that tier opens), so a machine with many
      * recipes (the cook's 49) is not one long mixed list. The list positions map to recipe indexes ({@link #shown}):
      * machines.yml's order stays as it is, since a lane keeps its recipe by index.
      */
