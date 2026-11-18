@@ -1,3 +1,4 @@
+4d2182bff7ff4f998c20ed2248aa4a221770c9b9 economy/accessories.yml
 ca19c449934980258756b1af97628d041a6f4085 economy/accessories.yml
 13113650b31b402afb0e321084d9d1e85f19988f economy/achievements/codex.yml
 3cd95af77cfead82524d94c09841a03ab1271294 economy/achievements/codex.yml
@@ -671,6 +672,7 @@ bceb0c402f2a9d2ea61ee6013e06d537fb3cccd1 economy/events.yml
 8b403b54e42edeede9b0e1d1f39641838e906573 economy/fish.yml
 95fcf8de969f5dff0446d2e00781aaf1f13cee84 economy/fish.yml
 dd298cd4fd4f7181000e8729f0041befeb6d2c0e economy/fish.yml
+0aba8804c1f1a81b0853579406b4fd48c423b5f0 economy/items/accessories.yml
 c63aa429cadf52933c600ce31276d4e1584555a3 economy/items/accessories.yml
 f221d33254a171433fd9bafe846302829c000560 economy/items/accessories.yml
 0839d977c3cfee7569c183679d3b1e5af7c04523 economy/items/crops.yml
