@@ -703,6 +703,7 @@ ed327f6a9709803072b357f8ee23b6ad8d16ad3e economy/items/jobs.yml
 0279948cc1c88687f6b598ec86a7506f1c708240 economy/jobs.yml
 065604c00f9e842967b4e3c8e0a9e2e8474b9b97 economy/jobs.yml
 101df92b6759e94c9670d8f6723988e26c38c82a economy/jobs.yml
+21d0538cdc9c6ee58be14a3b9e52583f44f2a8ae economy/jobs.yml
 21eedd6dd9c830f2ebfe6fbf1db077e857adf513 economy/jobs.yml
 22ef34afa2a3c5bb98a61b69578e0bd29ff20e63 economy/jobs.yml
 291573d037488af0be2e54639b77fd99dca6f032 economy/jobs.yml
@@ -737,6 +738,7 @@ e3a08e1c5f36a134948fc1e88398d37140f49b56 economy/land.yml
 4d1599771bf65b8d546d6d8b18d1156caed538a6 economy/machines.yml
 5798bf4c1a7206d1284c55b767b18f7ab05d3588 economy/machines.yml
 6bcae5dc8a0f8008cfc8f425714f1fd856b6e6bc economy/machines.yml
+7bc009a213c6fa815b11c4f4fd4ada1455131da1 economy/machines.yml
 80f0cd63a03094d3fa378a38cf5b10da050d3330 economy/machines.yml
 84ad65c8193c6a54ffebb39bb56d272f8121ff2b economy/machines.yml
 8c8b4e6e40620b33f33e857418f3d4e2c4bac53c economy/machines.yml
