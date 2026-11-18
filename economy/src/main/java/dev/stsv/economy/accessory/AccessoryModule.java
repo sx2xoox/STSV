@@ -192,9 +192,17 @@ public final class AccessoryModule extends EcoModule {
     /** The trade fee on accessories (거래소 · 경매): 10%, the rest of the market's own. */
     public static final double TRADE_FEE = 0.10;
 
-    /** An accessory's item id (economy:acc_<slot>_<grade>), not the box or the fragment. */
+    /** An accessory's item id (economy:accessory, or the old economy:acc_<slot>_<grade>), not the box or the fragment. */
     public static boolean isAccessoryKey(String key) {
-        return key != null && key.matches("economy:acc_(ring|necklace|earring|belt|bracelet)_[a-z]+");
+        return key != null && (key.equals(Accessory.ITEM) || key.matches("economy:acc_(ring|necklace|earring|belt|bracelet)_[a-z]+"));
+    }
+
+    /** An accessory on the old per-slot item (economy:acc_<slot>_<grade>) made again on economy:accessory, data kept; else as it is. */
+    ItemStack migrate(ItemStack it) {
+        Accessory a = read(it);
+        if (a == null || Accessory.ITEM.equals(Items.key(it))) return it;
+        ItemStack fresh = create(a);
+        return fresh;
     }
 
     /** A new accessory (an effect, or any at random) at a grade, rolled. */
@@ -209,7 +217,7 @@ public final class AccessoryModule extends EcoModule {
 
     public ItemStack create(Accessory a) {
         AccessorySpec.Effect e = spec.effects().get(a.effect);
-        ItemStack it = Items.create(Accessory.itemId(e.slot(), a.grade), 1).orElse(new ItemStack(Material.PAPER));
+        ItemStack it = Items.create(Accessory.ITEM, 1).orElse(new ItemStack(Material.PAPER));
         return write(it, a);
     }
 
@@ -280,16 +288,35 @@ public final class AccessoryModule extends EcoModule {
     @EventHandler
     public void onJoin(PlayerJoinEvent e) {
         refresh(e.getPlayer());
-        // accessories made before the per-effect looks get theirs (their data stays as it is)
+        // accessories made before the per-effect looks get theirs, and those on the old per-slot items move to
+        // economy:accessory (their data stays as it is)
         var inv = e.getPlayer().getInventory();
         for (int i = 0; i < inv.getSize(); i++) {
             Accessory a = read(inv.getItem(i));
-            if (a != null) inv.setItem(i, write(inv.getItem(i), a));
+            if (a != null) inv.setItem(i, write(migrate(inv.getItem(i)), a));
         }
+        migrateAll(e.getPlayer().getEnderChest());
         ItemStack[] worn = store.worn(e.getPlayer().getUniqueId());
         for (int i = 0; i < worn.length; i++) {
             Accessory a = read(worn[i]);
-            if (a != null) worn[i] = write(worn[i], a);
+            if (a != null) {
+                worn[i] = write(migrate(worn[i]), a);
+                store.touched(e.getPlayer().getUniqueId());
+            }
+        }
+    }
+
+    /** A chest (or any block's inventory) opened: its accessories on the old per-slot items move to economy:accessory. */
+    @EventHandler(ignoreCancelled = true)
+    public void onOpen(org.bukkit.event.inventory.InventoryOpenEvent e) {
+        if (e.getInventory().getHolder() instanceof org.bukkit.block.Container
+                || e.getInventory().getHolder() instanceof org.bukkit.block.DoubleChest) migrateAll(e.getInventory());
+    }
+
+    private void migrateAll(org.bukkit.inventory.Inventory inv) {
+        for (int i = 0; i < inv.getSize(); i++) {
+            ItemStack it = inv.getItem(i);
+            if (it != null && read(it) != null && !Accessory.ITEM.equals(Items.key(it))) inv.setItem(i, migrate(it));
         }
     }
 
@@ -503,11 +530,12 @@ public final class AccessoryModule extends EcoModule {
                     out.add(shown);
                 } else {
                     String slot = spec.slots().get(i);
-                    ItemStack empty = Items.create("economy:acc_" + slot + "_common", 1).orElse(new ItemStack(Material.GRAY_STAINED_GLASS_PANE));
+                    // an empty slot shows nothing: the background's cushion and its name say what goes there
+                    ItemStack empty = new ItemStack(Material.PAPER);
                     empty.editMeta(m -> {
+                        m.setItemModel(new NamespacedKey("stsv", "gui/blank"));
                         m.itemName(Text.item("<dark_gray>" + spec.slotNames().getOrDefault(slot, slot) + " 칸 (비어 있음)"));
                         m.lore(Lang.items("accessory.slot-empty-lore"));
-                        m.getPersistentDataContainer().remove(KEY);
                     });
                     out.add(empty);
                 }
@@ -628,6 +656,26 @@ public final class AccessoryModule extends EcoModule {
         private int subPick;
         private String armed;
         private long armedAt;
+        // the last outcome, shown on the button that was clicked (its tooltip sits under the cursor; a title or the
+        // action bar would be hidden behind the screen) for RESULT_MS
+        private String resultAction;
+        private Component resultName;
+        private List<Component> resultLore = List.of();
+        private boolean resultGood;
+        private long resultAt;
+        private static final long RESULT_MS = 4000;
+
+        private void result(MenuView v, String action, Component name, List<Component> lore, boolean good) {
+            resultAction = action;
+            resultName = name;
+            resultLore = lore;
+            resultGood = good;
+            long at = resultAt = now();
+            // put the button back afterwards (unless a newer outcome replaced this one, or the screen was closed)
+            Bukkit.getScheduler().runTaskLater(eco, () -> {
+                if (resultAt == at && v.player().isOnline() && v.player().getOpenInventory().getTopInventory().getHolder() == v) v.refresh();
+            }, RESULT_MS / 50 + 1);
+        }
 
         private Accessory current(Player p) {
             if (slot < 0) return null;
@@ -666,6 +714,14 @@ public final class AccessoryModule extends EcoModule {
         @Override
         public ItemStack button(MenuView v, MenuSpec.Button b, ItemStack base) {
             if (base == null) return null;
+            if (b.action().equals(resultAction) && now() - resultAt < RESULT_MS) {
+                base.editMeta(meta -> {
+                    meta.itemName(resultName);
+                    meta.lore(resultLore);
+                    meta.setEnchantmentGlintOverride(resultGood);
+                });
+                return base;
+            }
             Player p = v.player();
             Accessory a = current(p);
             AccessorySpec.Grade g = a == null ? null : spec.grades().get(a.grade);
@@ -740,7 +796,8 @@ public final class AccessoryModule extends EcoModule {
             }
             Accessory a = current(p);
             if (a == null) {
-                HudModule.flash(p, Lang.mm("accessory.pick-first-flash"));
+                result(v, action, Lang.mm("accessory.pick-first-flash"), List.of(), false);
+                v.refresh();
                 return;
             }
             if (action.equals("accessory:reroll") && click.isRightClick()) {
@@ -759,16 +816,19 @@ public final class AccessoryModule extends EcoModule {
             }
             armed = null;
             String no = switch (action) {
-                case "accessory:enhance" -> enhance(p, a);
-                case "accessory:refine" -> refine(p, a);
-                case "accessory:reroll" -> reroll(p, a, subPick);
+                case "accessory:enhance" -> enhance(v, p, a);
+                case "accessory:refine" -> refine(v, p, a);
+                case "accessory:reroll" -> reroll(v, p, a, subPick);
                 default -> null;
             };
-            if (no != null) HudModule.flash(p, Lang.mm(no));
+            if (no != null) {
+                p.playSound(p.getLocation(), Sound.ENTITY_VILLAGER_NO, 0.5f, 1.2f);
+                result(v, action, Lang.mm(no), List.of(), false);
+            }
             v.refresh();
         }
 
-        private String enhance(Player p, Accessory a) {
+        private String enhance(MenuView v, Player p, Accessory a) {
             AccessorySpec.Grade g = spec.grades().get(a.grade);
             AccessorySpec.Effect e = spec.effects().get(a.effect);
             if (!e.enhances()) return "accessory.no-enhance";
@@ -785,7 +845,7 @@ public final class AccessoryModule extends EcoModule {
             if (r.nextDouble() < spec.steps().get(to - 1).chance()) {
                 a.enhance = to;
                 p.playSound(p.getLocation(), Sound.BLOCK_ANVIL_USE, 0.7f, 1.4f);
-                p.showTitle(net.kyori.adventure.title.Title.title(Lang.mm("accessory.enhance-ok-title", "to", to), Component.empty()));
+                result(v, "accessory:enhance", Lang.mm("accessory.enhance-ok-title", "to", to), List.of(), true);
                 if (to >= spec.steps().size()) Bukkit.broadcast(Lang.msg("accessory.announce-max", "player", Names.mini(p),
                         "item", Items.mm(write(p.getInventory().getItem(slot), a).getItemMeta().itemName())));
             } else {
@@ -801,13 +861,13 @@ public final class AccessoryModule extends EcoModule {
                     }
                 }
                 p.playSound(p.getLocation(), Sound.BLOCK_ANVIL_LAND, 0.6f, 0.8f);
-                p.showTitle(net.kyori.adventure.title.Title.title(Lang.mm("accessory.enhance-fail-title"), Lang.mm(result)));
+                result(v, "accessory:enhance", Lang.mm("accessory.enhance-fail-title"), List.of(Lang.mm(result)), false);
             }
             p.getInventory().setItem(slot, write(p.getInventory().getItem(slot), a));
             return null;
         }
 
-        private String refine(Player p, Accessory a) {
+        private String refine(MenuView v, Player p, Accessory a) {
             AccessorySpec.Grade g = spec.grades().get(a.grade);
             if (a.refines >= spec.refines()) return "accessory.refine-none";
             for (Map.Entry<String, Integer> in : g.refineItems().entrySet()) {
@@ -825,12 +885,14 @@ public final class AccessoryModule extends EcoModule {
             ItemStack it = write(p.getInventory().getItem(slot), a);
             p.getInventory().setItem(slot, it);
             p.playSound(p.getLocation(), Sound.BLOCK_GRINDSTONE_USE, 0.7f, 1.2f);
-            HudModule.flash(p, Lang.mm(twice ? "accessory.refined-twice" : "accessory.refined"));
+            AccessorySpec.Effect e = spec.effects().get(a.effect);
+            result(v, "accessory:refine", Lang.mm(twice ? "accessory.refined-twice" : "accessory.refined"),
+                    List.of(Lang.mm("accessory.refined-value", "value", AccessorySpec.text(e, spec.amount(e, g, a.roll, a.enhance)))), true);
             announce(p, a, it);
             return null;
         }
 
-        private String reroll(Player p, Accessory a, int pick) {
+        private String reroll(MenuView v, Player p, Accessory a, int pick) {
             AccessorySpec.Grade g = spec.grades().get(a.grade);
             int open = Math.min(spec.subsOpen(g, spec.levelFor(a.xp)), a.subs.size());
             if (open == 0) return "accessory.reroll-none";
@@ -843,6 +905,9 @@ public final class AccessoryModule extends EcoModule {
             activity(p.getUniqueId(), "refine", 1);
             p.getInventory().setItem(slot, write(p.getInventory().getItem(slot), a));
             p.playSound(p.getLocation(), Sound.ITEM_BOOK_PAGE_TURN, 0.8f, 1.2f);
+            AccessorySpec.Effect se = spec.effects().get(a.subs.get(i).effect());
+            result(v, "accessory:reroll", Lang.mm("accessory.rerolled"), se == null ? List.of()
+                    : List.of(Lang.mm("accessory.rerolled-line", "effect", se.name(), "value", AccessorySpec.text(se, spec.subAmount(se, a.subs.get(i).roll())))), true);
             return null;
         }
     }

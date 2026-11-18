@@ -1,6 +1,6 @@
 {
   "model": {
     "type": "minecraft:model",
-    "model": "economy:item/gui/acc_slot_empty"
+    "model": "economy:item/gui/acc_charm"
   }
 }

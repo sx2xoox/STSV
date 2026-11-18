@@ -65,10 +65,8 @@ public final class Accessory {
         }
     }
 
-    /** The item id of this accessory's look: economy:acc_<slot>_<grade>. */
-    public static String itemId(String slot, String grade) {
-        return "economy:acc_" + slot + "_" + grade;
-    }
+    /** The one item every accessory is made from (its look is economy:acc/<effect>, its name and lore are drawn from its data). */
+    public static final String ITEM = "economy:accessory";
 
     /** Is its roll the top of its range (완벽)? */
     public boolean perfect() {

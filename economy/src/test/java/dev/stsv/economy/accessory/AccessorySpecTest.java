@@ -109,7 +109,8 @@ class AccessorySpecTest {
         assertEquals("+300%", AccessorySpec.text(spec().effects().get("mining_speed"), 3.0));
         assertEquals("×2", AccessorySpec.text(spec().effects().get("appraiser"), 1.0));
         assertEquals("어디서나", AccessorySpec.text(spec().effects().get("remote_machine"), -1));
-        assertTrue(AccessoryModule.isAccessoryKey("economy:acc_ring_treasure"));
+        assertTrue(AccessoryModule.isAccessoryKey("economy:accessory"));
+        assertTrue(AccessoryModule.isAccessoryKey("economy:acc_ring_treasure"));   // old listings
         assertFalse(AccessoryModule.isAccessoryKey("economy:acc_box"));
     }
 }

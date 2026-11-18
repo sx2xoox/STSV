@@ -1,21 +1,26 @@
-# 장신구 공방 (/장신구 공방): 내 인벤토리의 장신구를 클릭해 올려놓고 강화 · 제련 · 옵션 변경 (두 번 클릭해 확정). 끼고 있는 장신구는 먼저 빼야 함
+# 장신구 공방 (/장신구 공방): 내 인벤토리의 장신구를 클릭해 받침대에 올려놓고 강화 · 제련 · 옵션 변경 (두 번 클릭해 확정). 끼고 있는 장신구는 먼저 빼야 함
+# 결과(성공 · 실패 · 하락 등)는 누른 버튼 자리에 몇 초 동안 뜸. 모양: theme: jewel (accessory_theme.py), showcase = 금 받침대
 accessory_workshop:
-  title: "<#f0e2b0>장신구 공방 <#b9a6d6>· {state}"
+  title: ""
+  plaque: "장신구 공방"
   rows: 5
+  theme: jewel
+  frame: {left: 12, right: 12, top: 16, scale: 2}
   background: economy:gui/accessory_workshop
+  showcase: true
   layout:
-    - "....I...."
+    - "........."
     - "....L...."
     - "........."
     - ".E.R.O.C."
-    - "B.......X"
+    - "B...I...X"
   list: L
   buttons:
     I:
       action: ""
       icon: stsv:gui/info
       material: BOOK
-      name: "<white>장신구 공방"
+      name: "<white>장신구 공방 <gray>· {state}"
       lore: ["<gray>내 인벤토리의 장신구를 클릭해 올려놓기", "<gray>끼고 있는 것은 /장신구 에서 먼저 빼기", "<dark_gray>버튼은 두 번 클릭해 확정"]
     E:
       action: "accessory:enhance"
@@ -34,7 +39,7 @@ accessory_workshop:
       name: "<light_purple>옵션 변경 (부가 옵션 하나)"
     C:
       action: "accessory:charm"
-      icon: economy:guard_charm
+      icon: economy:gui/acc_charm
       material: TOTEM_OF_UNDYING
       name: "<white>보호 부적 쓰기: {charm}"
     B:

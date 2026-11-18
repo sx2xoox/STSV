@@ -1,23 +1,30 @@
 # /장신구: 칸 6개 (반지 · 반지 · 목걸이 · 귀걸이 · 허리띠 · 팔찌). 칸 클릭 = 빼기, 내 인벤토리의 장신구 클릭 = 끼우기 (같은 종류 칸이 차 있으면 바꿔 끼움)
+# 모양 (theme: jewel, tools/assetgen/accessory_theme.py): 열린 자개 보석함. 뚜껑의 현판에 이름(plaque), 벨벳 방석 칸마다 칸 이름
+#   (slot-labels, 목록 칸 순서 = accessories.yml slots), 버튼은 둥근 금 테두리 자리에 아이템 아이콘.
 accessories:
-  title: "<#f0e2b0>장신구 <#b9a6d6>· {count}/6"
-  rows: 4
+  title: ""
+  plaque: "장신구"
+  rows: 5
+  theme: jewel
+  frame: {left: 12, right: 12, top: 16, scale: 2}
   background: economy:gui/accessories
+  slot-labels: ["반지", "반지", "목걸이", "귀걸이", "허리띠", "팔찌"]
   layout:
-    - "....I...."
-    - ".LLL.LLL."
+    - "..L.L.L.."
     - "........."
-    - "W...X...G"
+    - "..L.L.L.."
+    - "........."
+    - ".W.I.G.X."
   list: L
   buttons:
     I:
       action: ""
       icon: stsv:gui/info
       material: BOOK
-      name: "<white>지금 받는 효과"
+      name: "<white>지금 받는 효과 <gray>· 장신구 {count}/6"
     W:
       action: "accessory:workshop"
-      icon: economy:gui/acc_enhance
+      icon: economy:gui/acc_workshop
       material: ANVIL
       name: "<yellow>장신구 공방"
       lore: ["<gray>강화 · 제련 · 옵션 변경"]

@@ -1,6 +1,6 @@
 {
   "parent": "minecraft:item/generated",
   "textures": {
-    "layer0": "economy:item/gui/acc_slot_empty"
+    "layer0": "economy:item/gui/acc_charm"
   }
 }

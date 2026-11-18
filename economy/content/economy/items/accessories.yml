@@ -1,125 +1,13 @@
-# 장신구 (/장신구): 칸 종류 5 × 등급 4 의 모습. 효과·수치·강화·레벨은 아이템 안의 데이터 (economy:acc), 이름과 설명은 플러그인이 다시 그림.
+# 장신구 (/장신구): 모든 장신구의 바탕 아이템 하나. 효과·등급·수치·강화·레벨은 아이템 안의 데이터 (economy:acc), 이름 · 설명 · 모습(economy:acc/<효과>)은
+# 플러그인이 다시 그림. 예전 acc_<칸>_<등급> 20개는 없앰 (가지고 있던 장신구는 접속할 때 · 가방을 열 때 이 아이템으로 바뀜)
+
+accessory:
+  material: paper
+  name: "<white>장신구"
+  max-stack: 1
+  texture: accessory
+
 # 상점·하역장이 사지 않음 (거래소·경매·직거래는 됨). 아이콘: tools/assetgen/accessory_art.py
-
-acc_ring_common:
-  material: paper
-  name: "<#e8e8e8>[보통] 반지"
-  max-stack: 1
-  texture: acc_ring_common
-
-acc_ring_fine:
-  material: paper
-  name: "<#5ab0ff>[진품] 반지"
-  max-stack: 1
-  texture: acc_ring_fine
-
-acc_ring_masterwork:
-  material: paper
-  name: "<#c58cff>[명품] 반지"
-  max-stack: 1
-  texture: acc_ring_masterwork
-
-acc_ring_treasure:
-  material: paper
-  name: "<#ffd36b>[국보] 반지"
-  max-stack: 1
-  texture: acc_ring_treasure
-
-acc_necklace_common:
-  material: paper
-  name: "<#e8e8e8>[보통] 목걸이"
-  max-stack: 1
-  texture: acc_necklace_common
-
-acc_necklace_fine:
-  material: paper
-  name: "<#5ab0ff>[진품] 목걸이"
-  max-stack: 1
-  texture: acc_necklace_fine
-
-acc_necklace_masterwork:
-  material: paper
-  name: "<#c58cff>[명품] 목걸이"
-  max-stack: 1
-  texture: acc_necklace_masterwork
-
-acc_necklace_treasure:
-  material: paper
-  name: "<#ffd36b>[국보] 목걸이"
-  max-stack: 1
-  texture: acc_necklace_treasure
-
-acc_earring_common:
-  material: paper
-  name: "<#e8e8e8>[보통] 귀걸이"
-  max-stack: 1
-  texture: acc_earring_common
-
-acc_earring_fine:
-  material: paper
-  name: "<#5ab0ff>[진품] 귀걸이"
-  max-stack: 1
-  texture: acc_earring_fine
-
-acc_earring_masterwork:
-  material: paper
-  name: "<#c58cff>[명품] 귀걸이"
-  max-stack: 1
-  texture: acc_earring_masterwork
-
-acc_earring_treasure:
-  material: paper
-  name: "<#ffd36b>[국보] 귀걸이"
-  max-stack: 1
-  texture: acc_earring_treasure
-
-acc_belt_common:
-  material: paper
-  name: "<#e8e8e8>[보통] 허리띠"
-  max-stack: 1
-  texture: acc_belt_common
-
-acc_belt_fine:
-  material: paper
-  name: "<#5ab0ff>[진품] 허리띠"
-  max-stack: 1
-  texture: acc_belt_fine
-
-acc_belt_masterwork:
-  material: paper
-  name: "<#c58cff>[명품] 허리띠"
-  max-stack: 1
-  texture: acc_belt_masterwork
-
-acc_belt_treasure:
-  material: paper
-  name: "<#ffd36b>[국보] 허리띠"
-  max-stack: 1
-  texture: acc_belt_treasure
-
-acc_bracelet_common:
-  material: paper
-  name: "<#e8e8e8>[보통] 팔찌"
-  max-stack: 1
-  texture: acc_bracelet_common
-
-acc_bracelet_fine:
-  material: paper
-  name: "<#5ab0ff>[진품] 팔찌"
-  max-stack: 1
-  texture: acc_bracelet_fine
-
-acc_bracelet_masterwork:
-  material: paper
-  name: "<#c58cff>[명품] 팔찌"
-  max-stack: 1
-  texture: acc_bracelet_masterwork
-
-acc_bracelet_treasure:
-  material: paper
-  name: "<#ffd36b>[국보] 팔찌"
-  max-stack: 1
-  texture: acc_bracelet_treasure
 
 # 장신구 상자 (상점 100,000): 우클릭으로 열기. 조각 30개를 들고 우클릭하면 상자 하나
 acc_box:

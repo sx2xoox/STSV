@@ -1973,7 +1973,7 @@ ICONS.update(_GF.ICONS)
 import goods_tier4 as _G4   # noqa: E402
 
 ICONS.update(_G4.ICONS)
-# 장신구: the plain slot pieces (acc_<slot>_<grade>), the box, the fragment and the sea-palace chest (accessory_art.py;
+# 장신구: the one base item (accessory), the box, the fragment and the sea-palace chest (accessory_art.py;
 # the per-effect icons economy:acc/<effect> are written by economy_build.py through accessory_art.write_acc)
 import accessory_art as _ACC   # noqa: E402
 

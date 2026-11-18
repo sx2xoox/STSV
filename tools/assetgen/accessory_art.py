@@ -51,7 +51,7 @@ class Style:
         self.m, self.g, self.a, self.s = m, g, a, s
 
 
-ICONS = {}            # acc_<slot>_<grade>, acc_box, acc_fragment, dragon_chest -> textures/<name>.png
+ICONS = {}            # accessory, acc_box, acc_fragment, dragon_chest -> textures/<name>.png
 ACC = {}              # <effect> -> economy:item/acc/<effect>
 
 
@@ -830,9 +830,9 @@ def effects():
 
 for _eff in DESIGNS:
     ACC[_eff] = (lambda e=_eff: finish(DESIGNS[e](LOOK[e])))
-for _slot in SLOTS:
-    for _grade in GRADES:
-        ICONS[f"acc_{_slot}_{_grade}"] = (lambda s=_slot: finish(PLAIN[s](PLAIN_LOOK)))
+# economy:accessory, the one item every accessory is made from (the plugin gives each its effect's look, so this
+# picture only shows for an item without one): the 광맥의 손 ring
+ICONS["accessory"] = lambda: Image.open(PIXELLAB / "_base16.png").convert("RGBA")   # (16 x 16: an item texture)
 
 
 # ================================================================================================
@@ -1039,14 +1039,28 @@ def _layers(*layers):
 
 def gui_icons():
     return {"acc_enhance": _draw(ENHANCE), "acc_refine": _draw(REFINE), "acc_reroll": _layers(REROLL_SCROLL, REROLL_ARROW),
-            "acc_slot_empty": _draw(SLOT_EMPTY), "acc_bag": _draw(BAG)}
+            "acc_bag": _draw(BAG)}
 
 
-GUI = {name: (lambda n=name: gui_icons()[n]) for name in ("acc_enhance", "acc_refine", "acc_reroll", "acc_slot_empty", "acc_bag")}
-GUI_NAMES = {"acc_enhance": "강화", "acc_refine": "제련", "acc_reroll": "옵션 변경", "acc_slot_empty": "빈 칸", "acc_bag": "장신구 주머니"}
+# the 장신구 screens' button icons: PixelLab pictures (32 x 32, picked by eye: accessory_pixellab/ui), the hand-drawn
+# ones above stay as the fallback
+_UI_ART = {"acc_workshop": "workshop", "acc_bag": "bag", "acc_enhance": "enhance", "acc_refine": "refine", "acc_reroll": "reroll",
+           "acc_charm": "charm"}
 
 
-NAMES = {f"acc_{s}_{g}": f"{GRADE_NAMES[g]} {SLOT_NAMES[s]}" for s in SLOTS for g in GRADES}
+def _ui(name):
+    f = Path(__file__).resolve().parent / "accessory_pixellab" / "ui" / f"{_UI_ART[name]}.png"
+    if f.is_file():
+        return Image.open(f).convert("RGBA")
+    return gui_icons()[name]
+
+
+GUI = {name: (lambda n=name: _ui(n)) for name in _UI_ART}
+GUI_NAMES = {"acc_workshop": "장신구 공방", "acc_enhance": "강화", "acc_refine": "제련", "acc_reroll": "옵션 변경", "acc_bag": "가방",
+             "acc_charm": "보호 부적"}
+
+
+NAMES = {"accessory": "장신구"}
 NAMES.update({"acc_box": "장신구 상자", "acc_fragment": "장신구 조각", "dragon_chest": "용궁 상자"})
 
 
@@ -1139,12 +1153,8 @@ def sheet(path, scale=6):
         for j, e in enumerate(es):
             tile(left + j * cw, y, ACC[e](), eff[e][0], e)
         y += ch + 10
-    d.text((14, y + cell // 2 - 12), "칸 기본", fill=(255, 226, 150, 255), font=head)
-    for j, s in enumerate(SLOTS):
-        tile(left + j * cw, y, ICONS[f"acc_{s}_common"](), SLOT_NAMES[s], f"acc_{s}_*")
-    y += ch + 10
     d.text((14, y + cell // 2 - 12), "기타", fill=(255, 226, 150, 255), font=head)
-    items = [(ICONS[n](), NAMES[n], (139, 139, 139, 255)) for n in ("acc_box", "acc_fragment", "dragon_chest")]
+    items = [(ICONS[n](), NAMES[n], (139, 139, 139, 255)) for n in ("accessory", "acc_box", "acc_fragment", "dragon_chest")]
     items += [(GUI[n](), GUI_NAMES[n], (58, 60, 68, 255)) for n in GUI]
     for j, (ic, name, bg) in enumerate(items):
         tile(left + j * cw, y, ic, name, bg=bg)

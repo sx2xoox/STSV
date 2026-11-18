@@ -222,6 +222,9 @@ def background(menu, art=None):
     if menu.get("theme") == "hanok":
         import hub_hanok
         return hub_hanok.background(menu, art)
+    if menu.get("theme") == "jewel":
+        import accessory_theme      # the 장신구 screens' 자개 보석함 (tools/assetgen/accessory_theme.py)
+        return accessory_theme.background(menu, art)
     if menu.get("theme") == "circuit":
         import circuit_art          # the 서킷's waiting room (tools/assetgen/circuit_art.py)
         return circuit_art.lobby_background(menu, art)
