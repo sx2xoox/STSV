@@ -62,8 +62,8 @@ import java.util.function.BiPredicate;
  */
 public final class MachineModule extends EcoModule {
 
-    static final int SIZE = 54, LANES = 4;
-    static final int BOOK = 0, INFO = 4, UPGRADE = 8, COLLECT = 48, CLOSE = 50;
+    static final int SIZE = 54, LANES = 5;
+    static final int BOOK = 0, INFO = 4, UPGRADE = 8, COLLECT = 2, CLOSE = 6;   // lanes take rows 1..5 (4강: 5 lanes)
     public static final NamespacedKey TIER = new NamespacedKey("economy", "machine_tier");
     /** On a picked-up machine: upgraded at today's prices or already refunded (Behavior.onPlace pays an unmarked one once). */
     public static final NamespacedKey REFUNDED = new NamespacedKey("economy", "machine_refunded");
@@ -133,7 +133,7 @@ public final class MachineModule extends EcoModule {
             MachineSpec spec = specs.get((String) r[1]);
             if (spec == null) continue;
             Machine m = new Machine(UUID.fromString((String) r[0]), spec);
-            m.tier = Math.clamp((Integer) r[2], 0, 3);
+            m.tier = Math.clamp((Integer) r[2], 0, 4);
             m.owner = r[3] == null ? null : UUID.fromString((String) r[3]);
             if (r[4] != null) {
                 ItemStack[] items = ItemStack.deserializeItemsFromBytes((byte[]) r[4]);
@@ -405,6 +405,7 @@ public final class MachineModule extends EcoModule {
         t *= Math.max(0.1, 1 - eco.jobs().bonus(op, job, "speed"));
         t *= eco.jobs().bonus(op, job, "fast");
         if (r.aging()) t *= eco.jobs().bonus(op, job, "aging");
+        t *= eco.jobs().milestone(op, job, "time");   // 승급 Lv40
         return Math.max(1, t);
     }
 
@@ -551,9 +552,11 @@ public final class MachineModule extends EcoModule {
         List<String> bonuses = new ArrayList<>();
         // 재료 절약: every input unit stays with the chance (machine-bonus only: the blacksmith's growing save is for tools and armour)
         double save = Math.clamp(eco.jobs().bonus(op, job, "save"), 0, 0.9);
+        double resave = Math.clamp(eco.jobs().milestone(op, job, "resave"), 0, 0.9);   // 승급 Lv45: a second chance for what the first missed
         int kept = 0;
         for (Map.Entry<String, Integer> in : r.inputs().entrySet()) {
             int keep = MachineSpec.binomial(in.getValue(), save, rnd);
+            keep += MachineSpec.binomial(in.getValue() - keep, resave, rnd);
             kept += keep;
             take(m, lane, in.getKey(), in.getValue() - keep);
         }

@@ -15,11 +15,82 @@ import java.util.Set;
  * worth, the effects that grow with the level and the ones that unlock at a level. Pure data (unit-tested).
  */
 public record JobSpec(int maxLevel, double a, double b, ChangeCost changeCost, int changeDays, Map<String, Job> jobs,
-                      Map<String, Special> specials) {
+                      Map<String, Special> specials, Promotion promotion) {
 
     /** jobs.yml without a specials section (older content, tests). */
     public JobSpec(int maxLevel, double a, double b, ChangeCost changeCost, int changeDays, Map<String, Job> jobs) {
-        this(maxLevel, a, b, changeCost, changeDays, jobs, Map.of());
+        this(maxLevel, a, b, changeCost, changeDays, jobs, Map.of(), Promotion.NONE);
+    }
+
+    public JobSpec(int maxLevel, double a, double b, ChangeCost changeCost, int changeDays, Map<String, Job> jobs,
+                   Map<String, Special> specials) {
+        this(maxLevel, a, b, changeCost, changeDays, jobs, specials, Promotion.NONE);
+    }
+
+    /**
+     * 승급 (jobs.yml promotion): levels past max-level (the effect level: every [Lv1, Lv30] range stays as it is) up to cap, on
+     * the curve XP(30) + curve x (n - 30)². At each gate the level stops one short until the player pays for it; the XP earned
+     * meanwhile goes to 숙련 only. Milestones are what a passed gate gives: for every job (yield and resave add up, time
+     * multiplies) and per job (a value that replaces the default from that level on).
+     */
+    public record Promotion(int cap, double curve, List<Gate> gates, Map<Integer, Map<String, Double>> all,
+                            Map<String, Map<Integer, Map<String, Double>>> perJob, Map<String, String> item, Map<String, String> special) {
+        public static final Promotion NONE = new Promotion(0, 0, List.of(), Map.of(), Map.of(), Map.of(), Map.of());
+    }
+
+    /** A gate: the level it opens, gold, the job's 4세대 material and its special material (jobs.yml promotion-item / -special). */
+    public record Gate(int level, long cost, int items, int specials) {}
+
+    /** The last level: promotion.cap, else max-level. */
+    public int cap() {
+        return Math.max(maxLevel, promotion.cap());
+    }
+
+    /** The next gate for a player who passed {@code promoted} of them, or null when all are passed. */
+    public Gate gate(int promoted) {
+        return promoted >= 0 && promoted < promotion.gates().size() ? promotion.gates().get(promoted) : null;
+    }
+
+    /** The most level XP a player who passed {@code promoted} gates may hold: just under the next gate, else the cap. */
+    public double ceiling(int promoted) {
+        Gate g = gate(promoted);
+        return g == null ? xpFor(cap()) : xpFor(g.level()) - 0.01;
+    }
+
+    /** Gates passed by someone at this level (for the admin level command). */
+    public int gatesBelow(int level) {
+        int n = 0;
+        for (Gate g : promotion.gates()) if (g.level() <= level) n++;
+        return n;
+    }
+
+    /** Sum of an additive milestone (yield, resave) for a job at a level: the all-jobs table plus the job's own. */
+    public double milestoneSum(String job, int level, String key) {
+        double v = 0;
+        for (Map.Entry<Integer, Map<String, Double>> e : promotion.all().entrySet()) if (level >= e.getKey()) v += e.getValue().getOrDefault(key, 0.0);
+        return v;
+    }
+
+    /** Product of a factor milestone (time) for a job at a level (1 = none). */
+    public double milestoneFactor(String job, int level, String key) {
+        double v = 1;
+        for (Map.Entry<Integer, Map<String, Double>> e : promotion.all().entrySet()) if (level >= e.getKey()) v *= e.getValue().getOrDefault(key, 1.0);
+        return v;
+    }
+
+    /** A job's own milestone value at a level (the highest level reached that sets it), or {@code fallback}. */
+    public double milestone(String job, int level, String key, double fallback) {
+        Map<Integer, Map<String, Double>> m = promotion.perJob().get(job);
+        if (m == null) return fallback;
+        double v = fallback;
+        int at = -1;
+        for (Map.Entry<Integer, Map<String, Double>> e : m.entrySet()) {
+            if (level >= e.getKey() && e.getKey() > at && e.getValue().containsKey(key)) {
+                v = e.getValue().get(key);
+                at = e.getKey();
+            }
+        }
+        return v;
     }
 
     /**
@@ -157,22 +228,20 @@ public record JobSpec(int maxLevel, double a, double b, ChangeCost changeCost, i
      */
     public static final List<String> RANGES = List.of("extra", "save", "bite", "trap-speed", "trap-uncommon", "trap-rare", "boat-rare");
 
-    /** Cumulative XP a level needs: a(n-1)² + b(n-1) (Lv1 = 0). */
+    /** Cumulative XP a level needs: a(n-1)² + b(n-1) (Lv1 = 0) up to max-level, then XP(max) + curve x (n - max)². */
     public double xpFor(int level) {
-        int n = Math.max(1, Math.min(level, maxLevel)) - 1;
-        return a * n * n + b * n;
+        int lv = Math.max(1, Math.min(level, cap()));
+        int n = Math.min(lv, maxLevel) - 1;
+        double base = a * n * n + b * n;
+        int over = lv - maxLevel;
+        return over > 0 ? base + promotion.curve() * over * over : base;
     }
 
-    /** The level for an amount of XP (1 .. maxLevel). */
+    /** The level for an amount of level XP (1 .. cap). The XP itself never passes an unpaid gate (JobModule keeps it under). */
     public int levelFor(double xp) {
         int lv = 1;
-        while (lv < maxLevel && xp >= xpFor(lv + 1)) lv++;
+        while (lv < cap() && xp >= xpFor(lv + 1)) lv++;
         return lv;
-    }
-
-    /** XP past the last level: the 숙련 that ranks people of the same job. */
-    public double mastery(double xp) {
-        return Math.max(0, xp - xpFor(maxLevel));
     }
 
     /** The job whose machine this is, or null. */
@@ -284,7 +353,60 @@ public record JobSpec(int maxLevel, double a, double b, ChangeCost changeCost, i
         if (jobs.isEmpty()) problems.add("jobs: 직업이 없음");
         ConfigurationSection curve = c.getConfigurationSection("xp-curve");
         double a = curve == null ? 40 : curve.getDouble("a", 40), b = curve == null ? 60 : curve.getDouble("b", 60);
-        return new JobSpec(max, a, b, changeCost(c, problems), c.getInt("change-days", 7), jobs, specials);
+        return new JobSpec(max, a, b, changeCost(c, problems), c.getInt("change-days", 7), jobs, specials, promotion(c, max, jobs, problems));
+    }
+
+    private static Map<Integer, Map<String, Double>> levels(ConfigurationSection s, String where, List<String> problems) {
+        Map<Integer, Map<String, Double>> out = new java.util.TreeMap<>();
+        if (s == null) return out;
+        for (String k : s.getKeys(false)) {
+            ConfigurationSection e = s.getConfigurationSection(k);
+            int lv;
+            try {
+                lv = Integer.parseInt(k.trim());
+            } catch (NumberFormatException ex) {
+                problems.add(where + "." + k + ": 레벨(정수) 필요");
+                continue;
+            }
+            if (e == null) continue;
+            Map<String, Double> m = new LinkedHashMap<>();
+            for (String key : e.getKeys(false)) m.put(key, e.getDouble(key));
+            out.put(lv, m);
+        }
+        return out;
+    }
+
+    static Promotion promotion(ConfigurationSection c, int max, Map<String, Job> jobs, List<String> problems) {
+        ConfigurationSection p = c.getConfigurationSection("promotion");
+        if (p == null) return Promotion.NONE;
+        int cap = Math.max(max, p.getInt("cap", max));
+        List<Gate> gates = new ArrayList<>();
+        ConfigurationSection gs = p.getConfigurationSection("gates");
+        if (gs != null) {
+            for (String k : gs.getKeys(false)) {
+                ConfigurationSection g = gs.getConfigurationSection(k);
+                try {
+                    int lv = Integer.parseInt(k.trim());
+                    if (g == null || lv <= max || lv > cap) throw new NumberFormatException();
+                    gates.add(new Gate(lv, g.getLong("cost"), g.getInt("items"), g.getInt("specials")));
+                } catch (NumberFormatException e) {
+                    problems.add("promotion.gates." + k + ": max-level 보다 크고 cap 이하인 레벨 필요");
+                }
+            }
+        }
+        gates.sort(java.util.Comparator.comparingInt(Gate::level));
+        Map<String, Map<Integer, Map<String, Double>>> perJob = new LinkedHashMap<>();
+        Map<String, String> item = new LinkedHashMap<>(), special = new LinkedHashMap<>();
+        ConfigurationSection js = c.getConfigurationSection("jobs");
+        for (String id : jobs.keySet()) {
+            ConfigurationSection j = js.getConfigurationSection(id);
+            perJob.put(id, levels(j.getConfigurationSection("milestones"), id + ".milestones", problems));
+            if (j.isString("promotion-item")) item.put(id, norm(j.getString("promotion-item")));
+            else if (!gates.isEmpty()) problems.add(id + ".promotion-item: 승급 재료 필요");
+            if (j.isString("promotion-special")) special.put(id, norm(j.getString("promotion-special")));
+        }
+        return new Promotion(cap, p.getDouble("curve", 20000), List.copyOf(gates), levels(p.getConfigurationSection("milestones"), "promotion.milestones", problems),
+                perJob, item, special);
     }
 
     /** change-cost: one number (the same for every level) or { level: gold, ... } points. */

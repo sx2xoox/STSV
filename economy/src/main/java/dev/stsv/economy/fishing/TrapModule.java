@@ -179,6 +179,21 @@ public final class TrapModule extends EcoModule {
     // Catch-up (on a click or a pick-up)
     // ------------------------------------------------------------------------------------------
 
+    /** 어부 Lv40 승급 (jobs.yml fisher milestones trap-hold): a trap stores, a pen holds this many times more for its owner. */
+    private double hold(UUID owner) {
+        return eco.jobs().jobMilestone(owner, "fisher", "trap-hold", 1);
+    }
+
+    private int storage(UUID owner) {
+        return (int) Math.round(spec.trap().storage() * hold(owner));
+    }
+
+    private TrapSpec.Pen pen(UUID owner) {
+        TrapSpec.Pen p = spec.pen();
+        int cap = (int) Math.round(p.capacity() * hold(owner));
+        return cap == p.capacity() ? p : new TrapSpec.Pen(p.minutes(), cap, p.feed(), p.growth(), p.keep(), p.seed(), p.perChunk());
+    }
+
     private double effect(UUID owner, String key) {
         return eco.jobs().effect(owner, "fisher", key);
     }
@@ -186,7 +201,7 @@ public final class TrapModule extends EcoModule {
     /** What a trap caught since it was last looked into, added to its storage. */
     private void catchUp(TrapStore.Trap t, long now) {
         long cycle = TrapSpec.cycleMs(spec.trap().minutes(), effect(t.owner, "trap-speed"));
-        TrapSpec.Step step = TrapSpec.accumulate(t.last, now, cycle, t.storedCount(), spec.trap().storage());
+        TrapSpec.Step step = TrapSpec.accumulate(t.last, now, cycle, t.storedCount(), storage(t.owner));
         t.last = step.last();
         if (step.catches() <= 0) return;
         TrapSpec.Odds odds = spec.odds(effect(t.owner, "trap-uncommon"), effect(t.owner, "trap-rare"));
@@ -218,7 +233,7 @@ public final class TrapModule extends EcoModule {
     /** A pen's growth since it was last looked into. */
     private void growUp(TrapStore.Trap t, long now) {
         long cycle = TrapSpec.cycleMs(spec.pen().minutes(), effect(t.owner, "trap-speed"));
-        TrapSpec.Growth g = TrapSpec.grow(t.count, t.feed, t.last, now, cycle, spec.pen());
+        TrapSpec.Growth g = TrapSpec.grow(t.count, t.feed, t.last, now, cycle, pen(t.owner));
         t.count = g.count();
         t.feed = g.feed();
         t.last = g.last();
@@ -246,14 +261,14 @@ public final class TrapModule extends EcoModule {
         xp.forEach((item, n) -> eco.jobs().rewardAction(p, "trap", item, n));
         long cycle = TrapSpec.cycleMs(spec.trap().minutes(), effect(t.owner, "trap-speed"));
         int stored = t.storedCount();
-        long next = TrapSpec.untilNext(t.last, now, cycle, stored, spec.trap().storage());
+        long next = TrapSpec.untilNext(t.last, now, cycle, stored, storage(t.owner));
         if (took > 0) {
             p.playSound(p.getLocation(), Sound.ENTITY_FISHING_BOBBER_RETRIEVE, 0.8f, 1.1f);
-            p.sendMessage(Lang.msg("fishing.trap-took", "count", took, "left", stored, "storage", spec.trap().storage(), "next", minutes(next)));
+            p.sendMessage(Lang.msg("fishing.trap-took", "count", took, "left", stored, "storage", storage(t.owner), "next", minutes(next)));
         } else if (stored > 0) {
             p.sendMessage(Lang.msg("mail.no-room"));
         } else {
-            p.sendMessage(Lang.msg("fishing.trap-empty", "storage", spec.trap().storage(), "next", minutes(next),
+            p.sendMessage(Lang.msg("fishing.trap-empty", "storage", storage(t.owner), "next", minutes(next),
                     "every", minutes(cycle)));
         }
     }
@@ -276,7 +291,7 @@ public final class TrapModule extends EcoModule {
     private void openPen(Player p, TrapStore.Trap t) {
         long now = now();
         growUp(t, now);
-        TrapSpec.Pen pen = spec.pen();
+        TrapSpec.Pen pen = pen(t.owner);
         ItemStack hand = p.getInventory().getItemInMainHand();
         FishSpec.Species kind = penSpecies(hand);
         if (FEED.equals(Items.key(hand))) {
@@ -333,7 +348,7 @@ public final class TrapModule extends EcoModule {
     }
 
     private void status(Player p, TrapStore.Trap t) {
-        TrapSpec.Pen pen = spec.pen();
+        TrapSpec.Pen pen = pen(t.owner);
         long cycle = TrapSpec.cycleMs(pen.minutes(), effect(t.owner, "trap-speed"));
         if (t.count <= 0) p.sendMessage(Lang.msg("fishing.pen-empty", "seed", pen.seed()));
         else p.sendMessage(Lang.msg("fishing.pen-status", "fish", speciesName(t.species), "count", t.count, "max", pen.capacity(),
@@ -376,7 +391,7 @@ public final class TrapModule extends EcoModule {
             if (kind == TrapStore.Kind.TRAP) {
                 long cycle = TrapSpec.cycleMs(spec.trap().minutes(), effect(player.getUniqueId(), "trap-speed"));
                 player.sendMessage(Lang.msg("fishing.trap-placed", "water", habitatName(t.habitat), "every", minutes(cycle),
-                        "storage", spec.trap().storage()));
+                        "storage", storage(t.owner)));
             } else {
                 player.sendMessage(Lang.msg("fishing.pen-placed", "seed", spec.pen().seed()));
             }

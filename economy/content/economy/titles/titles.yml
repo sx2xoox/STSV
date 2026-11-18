@@ -96,3 +96,41 @@ master_angler:
   name: "<gradient:#7fd8ff:#ffd36a><b>[강태공]</b></gradient>"
   description: "도감: 물고기를 모두 잡음"
   category: codex
+# 직업 Lv50 승급 (4세대): /직업 승급 으로 Lv50 이 되면 받음
+grandmaster_miner:
+  name: "<gradient:#9fb4c8:#ffffff><b>[광부 명인]</b></gradient>"
+  description: "직업: 광부 Lv50 승급"
+  category: job
+grandmaster_farmer:
+  name: "<gradient:#9be37a:#ffffff><b>[농부 명인]</b></gradient>"
+  description: "직업: 농부 Lv50 승급"
+  category: job
+grandmaster_fisher:
+  name: "<gradient:#7fd8ff:#ffffff><b>[어부 명인]</b></gradient>"
+  description: "직업: 어부 Lv50 승급"
+  category: job
+grandmaster_blacksmith:
+  name: "<gradient:#ff8a65:#ffffff><b>[대장장이 명인]</b></gradient>"
+  description: "직업: 대장장이 Lv50 승급"
+  category: job
+grandmaster_cook:
+  name: "<gradient:#ffcf6b:#ffffff><b>[요리사 명인]</b></gradient>"
+  description: "직업: 요리사 Lv50 승급"
+  category: job
+grandmaster_alchemist:
+  name: "<gradient:#c58cff:#ffffff><b>[연금술사 명인]</b></gradient>"
+  description: "직업: 연금술사 Lv50 승급"
+  category: job
+# 4세대 칭호 상점 (과시 소비)
+big_merchant:
+  name: "<gradient:#ffe082:#ffb300>[거상]</gradient>"
+  description: "상점에서 산 칭호 (4세대)"
+  category: shop
+chaebol:
+  name: "<gradient:#fff3a0:#f5b301><b>[재벌]</b></gradient>"
+  description: "상점에서 산 칭호 (4세대)"
+  category: shop
+golden_spoon:
+  name: "<gradient:#fffbe0:#ffd54f:#ff8f00><b>[금수저]</b></gradient>"
+  description: "상점에서 산 칭호 (4세대)"
+  category: shop

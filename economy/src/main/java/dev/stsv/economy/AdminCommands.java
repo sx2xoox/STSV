@@ -299,7 +299,19 @@ final class AdminCommands {
             return List.of();
         });
 
-        add("직업", "<플레이어> <직업> | 경험치 <플레이어> <값> | 레벨 <플레이어> <1~30>", "직업 지정(비용·대기 없음) / 지금 직업의 경험치·레벨 설정 (테스트)", (s, args) -> {
+        add("직업", "<플레이어> <직업> | 경험치 <플레이어> <값> | 레벨 <플레이어> <1~50> | 승급 <플레이어> <0~4>",
+                "직업 지정(비용·대기 없음) / 지금 직업의 경험치·레벨·승급 단계 설정 (테스트)", (s, args) -> {
+            if (args.length >= 3 && args[0].equals("승급")) {
+                Players.find(args[1], found -> {
+                    if (found.isEmpty()) s.sendMessage(Text.msg("<red>없는 플레이어"));
+                    else {
+                        eco.jobs().setPromoted(found.get(), Integer.parseInt(args[2]));
+                        s.sendMessage(Text.msg("<green>" + args[1] + " 승급 " + eco.jobs().promoted(found.get(), eco.jobs().job(found.get()))
+                                + "단계 (Lv " + eco.jobs().level(found.get()) + ")"));
+                    }
+                });
+                return;
+            }
             if (args.length >= 3 && args[0].equals("레벨")) {
                 Players.find(args[1], found -> {
                     if (found.isEmpty()) s.sendMessage(Text.msg("<red>없는 플레이어"));
@@ -321,7 +333,7 @@ final class AdminCommands {
                 return;
             }
             if (args.length < 2) {
-                s.sendMessage(Text.msg("<red>/관리자 직업 <플레이어> <직업> | 경험치 <플레이어> <값> | 레벨 <플레이어> <1~30>"));
+                s.sendMessage(Text.msg("<red>/관리자 직업 <플레이어> <직업> | 경험치 <플레이어> <값> | 레벨 <플레이어> <1~50> | 승급 <플레이어> <0~4>"));
                 return;
             }
             String id = Commands.jobId(eco, args[1]);
@@ -338,7 +350,7 @@ final class AdminCommands {
             });
         }, (s, args) -> {
             if (args.length == 1) {
-                List<String> out = new ArrayList<>(List.of("경험치", "레벨"));
+                List<String> out = new ArrayList<>(List.of("경험치", "레벨", "승급"));
                 out.addAll(Players.complete(s, ""));
                 return out;
             }

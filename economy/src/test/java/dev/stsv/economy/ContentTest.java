@@ -138,10 +138,11 @@ class ContentTest {
         assertEquals(0, (int) cells.get(0));
         for (int i = 30; i < 36; i++) assertEquals(-1, (int) cells.get(i), "the rest of the first page is empty");
         assertEquals(30, (int) cells.get(36), "the retro set from the second page's first cell");
-        // vehicles: generations 1-3 are sold (the rest are admin-only), one at a time
+        // vehicles: generations 1-4 and the boats 1-4 are sold (5세대 admin-only), one at a time
         ShopCatalog.BuyCategory vehicles = shop.buyCategories().stream().filter(c -> c.id().equals("vehicles")).findFirst().orElseThrow();
         assertTrue(vehicles.single(), "one vehicle a purchase");
-        assertEquals(List.of("stsv:jige", "stsv:hand_cart", "stsv:cargo_bicycle", "stsv:ox_cart", "stsv:delivery_scooter", "stsv:power_tiller"),
+        assertEquals(List.of("stsv:jige", "stsv:hand_cart", "stsv:cargo_bicycle", "stsv:ox_cart", "stsv:delivery_scooter", "stsv:power_tiller",
+                        "stsv:cargo_van", "stsv:light_truck", "stsv:combine", "stsv:raft", "stsv:rowboat", "stsv:fishing_boat", "stsv:coastal_boat"),
                 vehicles.goods().stream().map(ShopCatalog.Good::id).toList());
         assertTrue(pieces.contains(furniture.icon()), "a piece is the icon");
         for (String id : pieces) if (shop.sell().containsKey(id)) problems.add("furniture is not sold to the shop: " + id);

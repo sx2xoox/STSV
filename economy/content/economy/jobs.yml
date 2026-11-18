@@ -2,7 +2,8 @@
 # 바꾸기는 언제든 (기다릴 필요 없음). 값은 바꿀 직업의 내 레벨에 따라 change-cost (처음 고르는 건 무료). 효과는 지금 직업의 것만 받음.
 #
 # 레벨 1~30. 레벨 n 이 되는 누적 경험치 = a(n-1)² + b(n-1)  → Lv2 100, Lv10 3,780, Lv20 15,580, Lv30 35,380
-# Lv30 이후 경험치는 계속 쌓여 직업 순위(숙련)가 됩니다.
+# Lv31~50 (승급, 아래 promotion): Lv30 + curve × (n-30)²  → Lv35 535,380, Lv40 2,035,380, Lv45 4,535,380, Lv50 8,035,380
+# max-level 은 효과 표 [Lv1, Lv30] 의 끝 레벨 (Lv30 뒤로는 효과 표가 그대로이고, 승급 효과가 더해짐)
 max-level: 30
 xp-curve: { a: 40, b: 60 }
 # 직업 변경 비용: 바꿀 "새 직업"의 내 레벨 -> 골드. 점 사이는 고르게 (Lv5 = 1,444G, Lv15 = 2,500G, Lv25 = 4,000G)
@@ -12,7 +13,28 @@ change-cost:
   10: 2000
   20: 3000
   30: 5000
+  40: 30000
+  50: 100000
 change-days: 0                 # 바꾼 뒤 다시 바꾸기까지 기다리는 날 수 (0 = 바로)
+
+# 승급 (4세대): Lv35·40·45·50 은 경험치가 차도 그 바로 앞(34·39·44·49)에서 멈추고, 돈 + 그 직업 4세대 재료(promotion-item)
+# (+ Lv45 는 특별 재료 promotion-special)를 내야 열림 (/직업 승급, 또는 /직업 창에서 내 직업 두 번 클릭).
+# 멈춰 있는 동안 얻는 경험치는 레벨 경험치로 저장되지 않고 숙련(직업 순위)으로만 쌓임. Lv50 승급 뒤 경험치도 숙련.
+promotion:
+  cap: 50
+  curve: 20000
+  gates:
+    35: { cost: 220000, items: 20 }
+    40: { cost: 600000, items: 50 }
+    45: { cost: 900000, items: 100, specials: 10 }
+    50: { cost: 1800000, items: 200 }
+  # 모든 직업: 승급한 레벨부터 그 직업 기계에 더해짐. yield = 결과 +1 확률 더하기, time = 기계 시간 배수, resave = 재료를 한 번 더 아낄 확률
+  milestones:
+    35: { yield: 0.10 }        # Lv30 의 결과 +1 (yield) 을 20% → 10% 로 내린 몫을 돌려받음
+    40: { time: 0.90 }
+    45: { resave: 0.15 }
+    50: { yield: 0.05 }
+# 직업마다 따로: 각 직업의 milestones (그 레벨부터 기본값을 이 값으로 바꿈)
 
 # 효과 표의 [Lv1 값, Lv30 값] 은 그 사이를 레벨에 따라 고르게 올라감.
 # 직업 기계에서 받는 효과(machine-bonus)는 그 기계를 지금 직업이 같은 사람이 돌릴 때만. 결과·재료 효과는 한 개마다 따로 굴려서
@@ -37,7 +59,12 @@ jobs:
       - "# 세공대"
       - "@10 결과 +1 확률 15%"
       - "@20 재료 아낌 15%"
-      - "@30 결과 +1 확률 15 → 35%"
+      - "@30 결과 +1 확률 15 → 25%"
+      - "# 승급 (/직업 승급)"
+      - "@35 결과 +1 확률 +10% · 4강 기계"
+      - "@40 기계 시간 −10% · 운철·수정 원석 ×1.2"
+      - "@45 재료 한 번 더 아낌 15%"
+      - "@50 결과 +1 확률 +5% · 칭호 [광부 명인]"
     extra: [0.05, 0.80]          # 광석 드롭 +1 확률
     finds:
       chance: [0.03, 0.12]       # 원석 발견 확률
@@ -51,10 +78,13 @@ jobs:
         deepslate_lapis_ore: [economy:rough_sapphire]
         diamond_ore: [economy:rough_sapphire]
         deepslate_diamond_ore: [economy:rough_sapphire]
+    promotion-item: economy:gem_dust       # 승급 재료 (4세대, 4강 기계에서)
+    promotion-special: economy:meteoric_iron
+    milestones: { 40: { special-boost: 1.2 } }
     machine-bonus:
       extra: { level: 10, chance: 0.15 }
       save: { level: 20, chance: 0.15 }
-      yield: { level: 30, chance: 0.20 }
+      yield: { level: 30, chance: 0.10 }   # 4세대: 0.20 → 0.10 (Lv35 승급에서 +0.10 돌려받음)
     xp:
       break: { coal_ore: 1, deepslate_coal_ore: 1, copper_ore: 1, deepslate_copper_ore: 1, iron_ore: 2, deepslate_iron_ore: 2,
                gold_ore: 3, deepslate_gold_ore: 3, redstone_ore: 2, deepslate_redstone_ore: 2, lapis_ore: 3, deepslate_lapis_ore: 3,
@@ -77,15 +107,23 @@ jobs:
       - "@20 3×3 한 번에 수확"
       - "# 가공대"
       - "@20 결과 +1 확률 15%"
-      - "@30 결과 +1 확률 15 → 35%"
+      - "@30 결과 +1 확률 15 → 25%"
+      - "# 승급 (/직업 승급)"
+      - "@35 결과 +1 확률 +10% · 4강 기계"
+      - "@40 기계 시간 −10% · 성장 가속 6.5% · 반경 8칸"
+      - "@45 재료 한 번 더 아낌 15%"
+      - "@50 결과 +1 확률 +5% · 칭호 [농부 명인]"
     harvest-bonus: [1, 3]       # 바닐라 작물: 수확 한 번에 더 나오는 개수 [Lv1, Lv30] (소수는 확률)
     harvest-pct: [0.2, 0.8]       # 커스텀 작물: 주 수확물 한 개마다 하나 더 나올 확률 [Lv1, Lv30]
     growth: { level: 10, chance: 0.05, radius: 6 }   # 10초마다 주변 작물이 한 단계 자랄 확률
     row-harvest: 10                 # 이 레벨부터 한 줄(1×3: 바라보는 방향의 양옆)을 한 번에 수확
     area-harvest: 20                # 이 레벨부터 3×3 을 한 번에 수확
+    promotion-item: economy:hanji       # 승급 재료 (4세대, 4강 기계에서)
+    promotion-special: economy:golden_ear
+    milestones: { 40: { growth: 0.065, growth-radius: 8 } }
     machine-bonus:
       extra: { level: 20, chance: 0.15 }
-      yield: { level: 30, chance: 0.20 }
+      yield: { level: 30, chance: 0.10 }   # 4세대: 0.20 → 0.10 (Lv35 승급에서 +0.10 돌려받음)
     xp:
       harvest: { wheat: 0.5, carrots: 0.5, potatoes: 0.5, beetroots: 0.5, nether_wart: 0.5, cocoa: 0.5, melon: 0.5, pumpkin: 1,
                  economy:tomato: 2, economy:chili: 2, economy:strawberry: 2, economy:onion: 3, economy:garlic: 3, economy:cabbage: 3,
@@ -111,7 +149,12 @@ jobs:
       - "# 손질대"
       - "@10 결과 +1 확률 15%"
       - "@20 재료 아낌 15%"
-      - "@30 결과 +1 확률 15 → 35%"
+      - "@30 결과 +1 확률 15 → 25%"
+      - "# 승급 (/직업 승급)"
+      - "@35 결과 +1 확률 +10% · 4강 기계"
+      - "@40 기계 시간 −10% · 통발 12마리 · 가두리 48마리"
+      - "@45 재료 한 번 더 아낌 15%"
+      - "@50 결과 +1 확률 +5% · 칭호 [어부 명인]"
     bite: [0.32, 0.50]           # 입질 대기 시간(바닐라 5~30초, 미끼 한 단계마다 5초 덜)이 줄어드는 비율. 2026-11 낚시 링을 없애며 10 -> 32%
     #                              (Lv1): 링이 걸리던 시간(한 마리 4~7초)만큼 입질이 빨라져 한 시간에 낚는 수가 링 때와 거의 같음 (tools/parity)
     trap-speed: [0.25, 0.50]     # 통발·가두리가 한 번 도는 시간이 줄어드는 비율 (fish.yml trap · pen 의 minutes)
@@ -122,10 +165,13 @@ jobs:
       chance: [0.05, 0.355]  # 2026-11 6~36% -> 5~35.5%: 링에서 놓치던 희귀·전설(Lv1 약 7%·20%, Lv15 2%·8%)이 이제 다 낚임
       outsider: 0.01
       double: { level: 20, items: [economy:pearl, economy:bluefin_tuna, economy:sturgeon] }
+    promotion-item: economy:fish_glue       # 승급 재료 (4세대, 4강 기계에서)
+    promotion-special: economy:red_coral
+    milestones: { 40: { trap-hold: 1.5 } }
     machine-bonus:
       extra: { level: 10, chance: 0.15 }
       save: { level: 20, chance: 0.15 }
-      yield: { level: 30, chance: 0.20 }
+      yield: { level: 30, chance: 0.10 }   # 4세대: 0.20 → 0.10 (Lv35 승급에서 +0.10 돌려받음)
     xp:
       catch: 3
       find: 10
@@ -143,13 +189,21 @@ jobs:
       - "@10 결과 +1 확률 15%"
       - "@20 시간 절반"
       - "@20 재료 아낌 15%"
-      - "@30 결과 +1 확률 15 → 35%"
+      - "@30 결과 +1 확률 15 → 25%"
+      - "# 승급 (/직업 승급)"
+      - "@35 결과 +1 확률 +10% · 4강 기계"
+      - "@40 기계 시간 −10% · 대장간 시간 40%"
+      - "@45 재료 한 번 더 아낌 15%"
+      - "@50 결과 +1 확률 +5% · 칭호 [대장장이 명인]"
     save: [0.05, 0.30]            # 도구·갑옷 제작 때만 (대장간은 아래 machine-bonus 의 save)
+    promotion-item: economy:tempering_stone       # 승급 재료 (4세대, 4강 기계에서)
+    promotion-special: economy:meteoric_iron
+    milestones: { 40: { fast: 0.4 } }
     machine-bonus:
       extra: { level: 10, chance: 0.15 }
       fast: { level: 20, factor: 0.5 }
       save: { level: 20, chance: 0.15 }
-      yield: { level: 30, chance: 0.20 }
+      yield: { level: 30, chance: 0.10 }   # 4세대: 0.20 → 0.10 (Lv35 승급에서 +0.10 돌려받음)
     xp:
       craft: { iron_pickaxe: 4, iron_axe: 4, iron_shovel: 2, iron_hoe: 2, iron_sword: 4, iron_helmet: 5, iron_chestplate: 8,
                iron_leggings: 7, iron_boots: 4, diamond_pickaxe: 10, diamond_axe: 10, diamond_shovel: 5, diamond_hoe: 5,
@@ -167,12 +221,20 @@ jobs:
       - "조리 시간 −{1~30}%"
       - "@10 2인분 확률 15%"
       - "@20 재료 아낌 15%"
-      - "@30 요리 +1 확률 20%"
+      - "@30 요리 +1 확률 10%"
+      - "# 승급 (/직업 승급)"
+      - "@35 결과 +1 확률 +10% · 4강 기계"
+      - "@40 기계 시간 −10% · 2인분 25%"
+      - "@45 재료 한 번 더 아낌 15%"
+      - "@50 결과 +1 확률 +5% · 칭호 [요리사 명인]"
+    promotion-item: economy:gosa_tteok       # 승급 재료 (4세대, 4강 기계에서)
+    promotion-special: economy:abalone
+    milestones: { 40: { double: 0.25 } }
     machine-bonus:
       speed: 0.01
       double: { level: 10, chance: 0.15 }
       save: { level: 20, chance: 0.15 }
-      yield: { level: 30, chance: 0.20 }
+      yield: { level: 30, chance: 0.10 }   # 4세대: 0.20 → 0.10 (Lv35 승급에서 +0.10 돌려받음)
     xp:
       smelt: { cooked_beef: 1, cooked_porkchop: 1, cooked_chicken: 1, cooked_mutton: 1, cooked_rabbit: 1, cooked_cod: 1,
                cooked_salmon: 1, baked_potato: 0.5, dried_kelp: 0.2 }
@@ -188,12 +250,20 @@ jobs:
       - "증류 시간 −{1~30}%"
       - "@10 결과 +1 확률 15%"
       - "@20 숙성 시간 −30%"
-      - "@30 결과 +1 확률 15 → 35%"
+      - "@30 결과 +1 확률 15 → 25%"
+      - "# 승급 (/직업 승급)"
+      - "@35 결과 +1 확률 +10% · 4강 기계"
+      - "@40 기계 시간 −10% · 숙성 시간 −40%"
+      - "@45 재료 한 번 더 아낌 15%"
+      - "@50 결과 +1 확률 +5% · 칭호 [연금술사 명인]"
+    promotion-item: economy:mana_ink       # 승급 재료 (4세대, 4강 기계에서)
+    promotion-special: economy:silk_cocoon
+    milestones: { 40: { aging: 0.6 } }
     machine-bonus:
       speed: 0.01
       extra: { level: 10, chance: 0.15 }
       aging: { level: 20, factor: 0.7 }
-      yield: { level: 30, chance: 0.20 }
+      yield: { level: 30, chance: 0.10 }   # 4세대: 0.20 → 0.10 (Lv35 승급에서 +0.10 돌려받음)
     xp:
       brew: 4
 

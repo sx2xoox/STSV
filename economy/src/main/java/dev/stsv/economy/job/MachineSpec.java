@@ -210,7 +210,7 @@ public record MachineSpec(String id, String name, String item, String job, Strin
                 }
                 if (ins.size() > 3) problems.add(id + " 레시피 " + (i + 1) + ": 재료는 3종류까지");
                 recipes.add(new Recipe(i++, ins, JobSpec.norm(String.valueOf(outId)), num(r.get("amount"), 1),
-                        r.get("seconds") instanceof Number n ? n.doubleValue() : 10, Math.clamp(num(r.get("tier"), 0), 0, 3),
+                        r.get("seconds") instanceof Number n ? n.doubleValue() : 10, Math.clamp(num(r.get("tier"), 0), 0, 4),
                         Boolean.TRUE.equals(r.get("aging"))));
             }
             Effect effect = null;

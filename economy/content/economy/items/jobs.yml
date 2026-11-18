@@ -1,6 +1,6 @@
 # 직업 발견품, 직업 기계 생산품, 직업 기계, 공용 기계(압착기)와 그 생산품. 설명은 꼭 필요한 것만 (만드는 법은 기계의 레시피 목록에, 만든 사람은 제작 표시에).
 # 생산품은 누구나 직업 기계로 만들 수 있음 (그 직업이면 경험치·직업 효과). 레시피는 machines.yml.
-# 아이콘: tools/assetgen/economy_goods.py, 기계 모델: tools/assetgen/economy_machines.py
+# 아이콘: tools/assetgen/economy_goods.py (4세대: goods_tier4.py), 기계 모델: tools/assetgen/economy_machines.py
 
 # ── 발견품 (광부: 광석에서, 어부: 낚시로) ──────────────────────────
 rough_ruby:
@@ -1242,3 +1242,113 @@ fish_pen:
     cells: [[0, 0, 0], [1, 0, 0], [0, 0, 1], [1, 0, 1]]
     solid: false
     behavior: economy:fish_pen
+
+# ── 4세대 재료 (4강 기계에서만, Lv35 승급 뒤. 상점·하역장은 사지 않음: 승급 · 장신구 · 4세대 고급품에 쓰고 직업끼리 거래) ─────────
+gem_dust:
+  material: paper
+  name: "<#9fb4c8>보석 가루"
+  lore: ["<gold>4세대 재료</gold> <gray>· 광부 세공대 4강", "<gray>거래 참고가 <white>82G</white> <dark_gray>· 상점 안 삼", "<gray>쓰임: 광부 승급 · 장신구 제련 · 자개 보석함 · 금박 은수저 세트"]
+  texture: gem_dust
+
+hanji:
+  material: paper
+  name: "<#8bc34a>한지"
+  lore: ["<gold>4세대 재료</gold> <gray>· 농부 가공대 4강", "<gray>거래 참고가 <white>54G</white> <dark_gray>· 상점 안 삼", "<gray>쓰임: 농부 승급 · 궁중 장 세트 · 인삼 정과 · 어부 진상 어란"]
+  texture: hanji
+
+fish_glue:
+  material: paper
+  name: "<#4fc3f7>부레풀"
+  lore: ["<gold>4세대 재료</gold> <gray>· 어부 손질대 4강", "<gray>거래 참고가 <white>68G</white> <dark_gray>· 상점 안 삼", "<gray>쓰임: 어부 승급 · 연금술사 마력 잉크"]
+  texture: fish_glue
+
+tempering_stone:
+  material: paper
+  name: "<#ff8a65>단련석"
+  lore: ["<gold>4세대 재료</gold> <gray>· 대장장이 대장간 4강", "<gray>거래 참고가 <white>780G</white> <dark_gray>· 상점 안 삼", "<gray>쓰임: 대장장이 승급 · 장신구 강화·제련 · 명장 장도 · 방짜 유기 · 연금술사 보호 부적"]
+  texture: tempering_stone
+
+gosa_tteok:
+  material: paper
+  name: "<#ffb74d>고사떡"
+  lore: ["<gold>4세대 재료</gold> <gray>· 요리사 조리대 4강", "<gray>거래 참고가 <white>220G</white> <dark_gray>· 상점 안 삼", "<gray>쓰임: 요리사 승급 · 궁중 수라상 · 구절판"]
+  texture: gosa_tteok
+
+mana_ink:
+  material: paper
+  name: "<#ba68c8>마력 잉크"
+  lore: ["<gold>4세대 재료</gold> <gray>· 연금술사 증류기 4강 (숙성)", "<gray>거래 참고가 <white>245G</white> <dark_gray>· 상점 안 삼", "<gray>쓰임: 연금술사 승급 · 보호 부적"]
+  texture: mana_ink
+
+guard_charm:
+  material: paper
+  name: "<#ba68c8>보호 부적"
+  lore: ["<gold>4세대 재료</gold> <gray>· 연금술사 증류기 4강", "<gray>거래 참고가 <white>4,560G</white> <dark_gray>· 상점 안 삼", "<gray>쓰임: 장신구 강화가 떨어질 때 한 번 막음"]
+  texture: guard_charm
+
+# ── 4세대 고급품 (4강 기계에서만, Lv35 승급 뒤. 상점·하역장에 팔 수 있음) ─────────────────────────
+najeon_jewel_box:
+  material: paper
+  name: "<#9fb4c8>자개 보석함"
+  texture: najeon_jewel_box
+
+gilded_spoon_set:
+  material: paper
+  name: "<#9fb4c8>금박 은수저 세트"
+  texture: gilded_spoon_set
+
+royal_jang_set:
+  material: paper
+  name: "<#8bc34a>궁중 장 세트"
+  texture: royal_jang_set
+
+ginseng_jeonggwa:
+  material: paper
+  name: "<#8bc34a>인삼 정과"
+  texture: ginseng_jeonggwa
+
+royal_eoran:
+  material: paper
+  name: "<#4fc3f7>진상 어란"
+  texture: royal_eoran
+
+gulbi_dureum:
+  material: paper
+  name: "<#4fc3f7>굴비 두름"
+  texture: gulbi_dureum
+
+master_jangdo:
+  material: paper
+  name: "<#ff8a65>명장 장도"
+  texture: master_jangdo
+
+bangjja_yugi:
+  material: paper
+  name: "<#ff8a65>방짜 유기 세트"
+  texture: bangjja_yugi
+
+royal_surasang:
+  material: paper
+  name: "<#ffb74d>궁중 수라상"
+  texture: royal_surasang
+  food:
+    nutrition: 16
+    saturation: 19.2
+
+gujeolpan:
+  material: paper
+  name: "<#ffb74d>구절판"
+  texture: gujeolpan
+  food:
+    nutrition: 12
+    saturation: 14.4
+
+century_yakju:
+  material: paper
+  name: "<#ba68c8>백년 약주"
+  texture: century_yakju
+
+gyeongokgo:
+  material: paper
+  name: "<#ba68c8>경옥고"
+  texture: gyeongokgo

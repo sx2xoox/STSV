@@ -178,6 +178,13 @@ final class Commands {
             }
             switch (a[0]) {
                 case "순위" -> eco.jobs().rankingLines(a.length > 1 ? jobId(eco, a[1]) : null).forEach(p::sendMessage);
+                case "승급" -> {
+                    var g = eco.jobs().promotable(p.getUniqueId());
+                    String job = eco.jobs().job(p.getUniqueId());
+                    String no = eco.jobs().promote(p);
+                    if (no != null) p.sendMessage(Lang.msg(no, "cost", g == null ? "-" : dev.stsv.core.economy.EconomyModule.format(g.cost()),
+                            "items", g == null || job == null ? "-" : eco.jobs().gateText(job, g)));
+                }
                 case "정보" -> {
                     var r = eco.jobs().store().get(p.getUniqueId());
                     if (r == null) {
@@ -188,9 +195,10 @@ final class Commands {
                     var j = spec.jobs().get(r.job);
                     int lv = eco.jobs().level(p.getUniqueId());
                     double xp = r.xp(r.job);
-                    p.sendMessage(Lang.msg("job.info", "color", j.color(), "job", j.name(), "level", lv, "cap", spec.maxLevel(),
-                            "xp", String.format("%,.0f", xp), "next", lv >= spec.maxLevel() ? Lang.raw("job.max") : String.format("%,.0f", spec.xpFor(lv + 1)),
-                            "mastery", String.format("%,.0f", spec.mastery(xp))));
+                    p.sendMessage(Lang.msg("job.info", "color", j.color(), "job", j.name(), "level", lv, "cap", spec.cap(),
+                            "xp", String.format("%,.0f", xp), "next", lv >= spec.cap() ? Lang.raw("job.max")
+                                    : eco.jobs().gated(p.getUniqueId(), r.job) ? Lang.raw("job.gate") : String.format("%,.0f", spec.xpFor(lv + 1)),
+                            "mastery", String.format("%,.0f", r.mastery(r.job))));
                     p.sendMessage(Lang.msg("job.info-all", "levels", eco.jobs().levelsText(p.getUniqueId())));
                 }
                 default -> {
@@ -202,7 +210,7 @@ final class Commands {
             }
         }), (s, a) -> {
             if (a.length != 1 && !(a.length == 2 && a[0].equals("순위"))) return List.of();
-            List<String> out = new java.util.ArrayList<>(a.length == 1 ? List.of("정보", "순위") : List.of());
+            List<String> out = new java.util.ArrayList<>(a.length == 1 ? List.of("정보", "순위", "승급") : List.of());
             for (var j : eco.jobs().spec().jobs().values()) out.add(j.name());
             return out;
         }));

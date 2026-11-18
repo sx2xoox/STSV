@@ -256,6 +256,42 @@ class RulesTest {
 
     // ------------------------------------------------------------------------------------------ jobs
 
+    /** 4세대 승급: Lv31~50 on the 20,000 curve, gates at 35/40/45/50, the level XP held just under an unpaid gate, milestones. */
+    @Test
+    void promotionGatesHoldTheLevelAndMilestonesAdd() {
+        JobSpec spec = JobSpec.parse(ContentTest.yaml("jobs.yml"), new ArrayList<>());
+        assertEquals(35380 + 20000, spec.xpFor(31), 1e-9);
+        assertEquals(535380, spec.xpFor(35), 1e-9);
+        assertEquals(2035380, spec.xpFor(40), 1e-9);
+        assertEquals(8035380, spec.xpFor(50), 1e-9);
+        assertEquals(List.of(35, 40, 45, 50), spec.promotion().gates().stream().map(JobSpec.Gate::level).toList());
+        assertEquals(220000, spec.gate(0).cost());
+        assertEquals(10, spec.gate(2).specials(), "Lv45 asks for the special material too");
+        // the patch-time move stops just under the first gate, at Lv34
+        assertEquals(34, spec.levelFor(535379));
+        assertTrue(spec.ceiling(0) < spec.xpFor(35) && spec.levelFor(spec.ceiling(0)) == 34, "no gate passed: held at Lv34");
+        assertEquals(39, spec.levelFor(spec.ceiling(1)), "one gate passed: held at Lv39");
+        assertEquals(spec.xpFor(50), spec.ceiling(4), 1e-9, "all passed: the last level");
+        assertEquals(2, spec.gatesBelow(40));
+        // milestones: yield +10% at 35 (what Lv30 lost: 20 -> 10%) and +5% at 50; time x0.9 at 40; resave 15% at 45
+        assertEquals(0, spec.milestoneSum("miner", 34, "yield"), 1e-9);
+        assertEquals(0.10, spec.milestoneSum("miner", 35, "yield"), 1e-9);
+        assertEquals(0.15, spec.milestoneSum("miner", 50, "yield"), 1e-9);
+        assertEquals(0.9, spec.milestoneFactor("cook", 40, "time"), 1e-9);
+        assertEquals(1, spec.milestoneFactor("cook", 39, "time"), 1e-9);
+        assertEquals(0.15, spec.milestoneSum("cook", 45, "resave"), 1e-9);
+        assertEquals(0.10, spec.jobs().get("miner").bonus("yield", 30), 1e-9, "Lv30 yield 20 -> 10%");
+        // per job at Lv40
+        assertEquals(0.4, spec.milestone("blacksmith", 40, "fast", 0.5), 1e-9);
+        assertEquals(0.5, spec.milestone("blacksmith", 39, "fast", 0.5), 1e-9);
+        assertEquals(1.2, spec.milestone("miner", 40, "special-boost", 1), 1e-9);
+        assertEquals(8, spec.milestone("farmer", 45, "growth-radius", 6), 1e-9);
+        assertEquals(1.5, spec.milestone("fisher", 40, "trap-hold", 1), 1e-9);
+        for (String job : spec.ids()) assertNotNull(spec.promotion().item().get(job), job + " promotion-item");
+        // the [Lv1, Lv30] effects stay as they were past Lv30
+        assertEquals(0.80, spec.jobs().get("miner").range("extra", 50, spec.maxLevel()), 1e-9);
+    }
+
     @Test
     void levelsFollowTheCurveAndEffectsGrowWithThem() {
         JobSpec spec = JobSpec.parse(ContentTest.yaml("jobs.yml"), new ArrayList<>());
@@ -271,9 +307,8 @@ class RulesTest {
         assertEquals(2, spec.levelFor(100));
         assertEquals(9, spec.levelFor(3779));
         assertEquals(10, spec.levelFor(3780));
-        assertEquals(30, spec.levelFor(1e9), "capped at the last level");
-        assertEquals(620, spec.mastery(36000), 1e-9, "XP past Lv30 is 숙련");
-        assertEquals(0, spec.mastery(100), 1e-9);
+        assertEquals(50, spec.levelFor(1e9), "capped at the last level (4세대: Lv50)");
+        assertEquals(50, spec.cap());
 
         JobSpec.Job miner = spec.jobs().get("miner");
         assertEquals(10, miner.xp("break", "minecraft:diamond_ore"), 1e-9);
@@ -288,7 +323,7 @@ class RulesTest {
         // machine bonuses switch on at their level
         assertEquals(0, miner.bonus("extra", 9), 1e-9);
         assertEquals(0.15, miner.bonus("extra", 10), 1e-9);
-        assertEquals(0.20, miner.bonus("yield", 30), 1e-9);
+        assertEquals(0.10, miner.bonus("yield", 30), 1e-9, "4세대: Lv30 yield 20 -> 10% (Lv35 승급에서 돌려받음)");
         assertEquals(0, miner.bonus("yield", 29), 1e-9);
         JobSpec.Job cook = spec.jobs().get("cook");
         assertEquals(0.12, cook.bonus("speed", 12), 1e-9, "speed is per level");
@@ -407,10 +442,12 @@ class RulesTest {
         assertEquals(2500, c.at(15));
         assertEquals(4000, c.at(25));
         assertEquals(1000, c.at(0), "flat before the first point");
-        assertEquals(5000, c.at(40), "flat after the last point");
+        assertEquals(30000, c.at(40), "4세대: Lv40 30,000");
+        assertEquals(100000, c.at(50), "Lv50 100,000");
+        assertEquals(100000, c.at(60), "flat after the last point");
         for (int lv = 1; lv < 30; lv++) assertTrue(c.at(lv + 1) >= c.at(lv), "never cheaper for a higher level: Lv" + lv);
         assertEquals(1000, c.min());
-        assertEquals(5000, c.max());
+        assertEquals(100000, c.max());
         assertEquals(0, spec.changeDays(), "any time: no waiting days");
 
         // an old file with one number: the same at every level; a bad point is a problem, not a crash
@@ -539,7 +576,11 @@ class RulesTest {
         MachineSpec still = m.get("still");
         assertTrue(still.recipes().stream().filter(r -> r.output().equals("economy:vintage_wine")).findFirst().orElseThrow().aging());
         MachineSpec.Settings s = MachineSpec.Settings.parse(ContentTest.yaml("machines.yml"));
-        assertEquals(3, s.maxTier());
+        assertEquals(4, s.maxTier(), "4세대: 4강");
+        assertEquals(220000, s.cost(4));
+        assertEquals(35, s.level(4), "Lv35 승급");
+        assertEquals(5, s.lanes(4));
+        assertEquals(0.70, s.speed(4), 1e-9);
         assertEquals(5000, s.cost(1));
         assertEquals(50000, s.cost(3));
         assertEquals(30, s.level(3));
@@ -549,7 +590,8 @@ class RulesTest {
         // the press has its own upgrade costs, the rest of the table is the global one
         MachineSpec.Settings press = s.forMachine(m.get("press"));
         assertEquals(1000, press.cost(1)); assertEquals(4000, press.cost(2)); assertEquals(10000, press.cost(3));
-        assertEquals(3, press.maxTier(), "the global levels are kept: the press still goes to 3강");
+        assertEquals(4, press.maxTier(), "the global levels are kept: the press goes to 4강 too");
+        assertEquals(44000, press.cost(4), "the press 4강: 20% of a job machine (BalanceTest R2b)");
         assertEquals(4, press.lanes(3)); assertEquals(0.30, press.speed(2), 1e-9); assertEquals(30, press.level(3));
         assertSame(s, s.forMachine(m.get("gem_bench")), "a job machine without its own lanes keeps the global table");
         // the processing jobs' machines start with two lanes (machines.yml lanes), the rest of the table is the global one

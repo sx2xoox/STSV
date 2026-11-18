@@ -96,7 +96,7 @@ public final class JobModule extends EcoModule {
             JobSpec.Job j = spec.jobs().get(job);
             int lv = level(p.getUniqueId());
             return Lang.mm("job.hud", "color", j == null ? "white" : j.color(), "job", j == null ? job : j.name(), "level", lv,
-                    "pct", lv >= spec.maxLevel() ? "MAX" : progress(p.getUniqueId(), lv) + "%");
+                    "pct", lv >= spec.cap() ? "MAX" : gated(p.getUniqueId(), job) ? Lang.raw("job.hud-gate") : progress(p.getUniqueId(), lv) + "%");
         });
         eco.onReset(store::reset);
     }
@@ -172,7 +172,88 @@ public final class JobModule extends EcoModule {
         JobSpec.Job j = job == null ? null : spec.jobs().get(job);
         boolean factor = key.equals("fast") || key.equals("aging");
         if (j == null || player == null || !job.equals(job(player))) return factor ? 1 : 0;
-        return j.bonus(key, level(player));
+        int lv = level(player);
+        // the [Lv1, Lv30] part stops at Lv30 ("speed" is per level); a job's own milestone may replace a value (대장장이 Lv40 fast 0.4)
+        double v = j.bonus(key, Math.min(lv, spec.maxLevel()));
+        if (lv > spec.maxLevel() && (factor ? v < 1 : v > 0)) v = spec.milestone(job, lv, key, v);
+        // 승급 milestones for every job: yield adds (Lv35 +10%, Lv50 +5%)
+        if (key.equals("yield")) v += spec.milestoneSum(job, lv, "yield");
+        return v;
+    }
+
+    /**
+     * 승급 effects on a job's machines for a player who has that job now: "time" (a factor on the work time, Lv40 0.9) and
+     * "resave" (a second chance to save an input, Lv45 0.15). 1 / 0 for anyone else.
+     */
+    public double milestone(UUID player, String job, String key) {
+        boolean factor = key.equals("time");
+        if (job == null || player == null || !job.equals(job(player))) return factor ? 1 : 0;
+        int lv = level(player);
+        return factor ? spec.milestoneFactor(job, lv, key) : spec.milestoneSum(job, lv, key);
+    }
+
+    /** A job's own milestone value for a player who has that job now (광부 Lv40 special-boost 1.2, 어부 trap-hold 1.5), else fallback. */
+    public double jobMilestone(UUID player, String job, String key, double fallback) {
+        if (job == null || player == null || !job.equals(job(player))) return fallback;
+        return spec.milestone(job, level(player), key, fallback);
+    }
+
+    // ------------------------------------------------------------------------------------------
+    // 승급 (promotion gates)
+    // ------------------------------------------------------------------------------------------
+
+    /** Gates passed in a job. */
+    public int promoted(UUID player, String job) {
+        return store.promoted(player, job);
+    }
+
+    /** Held at a gate: the level XP is full up to the next unpaid gate. */
+    public boolean gated(UUID player, String job) {
+        if (job == null) return false;
+        JobSpec.Gate g = spec.gate(promoted(player, job));
+        return g != null && store.xp(player, job) >= spec.ceiling(promoted(player, job)) - 1e-6;
+    }
+
+    /** The gate this player can pay for now in their job, or null. */
+    public JobSpec.Gate promotable(UUID player) {
+        String job = job(player);
+        return gated(player, job) ? spec.gate(promoted(player, job)) : null;
+    }
+
+    /** What a gate asks of this job: its 4세대 material and (some gates) its special material. */
+    public String gateItem(String job) {
+        return spec.promotion().item().get(job);
+    }
+
+    public String gateSpecial(String job) {
+        return spec.promotion().special().get(job);
+    }
+
+    /** Pays a gate (money and materials from the inventory) and opens its level. Null on success, else the refusal's message key. */
+    public String promote(Player p) {
+        UUID u = p.getUniqueId();
+        String job = job(u);
+        if (job == null) return "job.promote-no-job";
+        JobSpec.Gate g = spec.gate(promoted(u, job));
+        if (g == null) return "job.promote-max";
+        if (!gated(u, job)) return "job.promote-not-yet";
+        String item = gateItem(job), special = gateSpecial(job);
+        java.util.function.Predicate<ItemStack> isItem = it -> item != null && item.equals(Items.key(it));
+        java.util.function.Predicate<ItemStack> isSpecial = it -> special != null && special.equals(Items.key(it));
+        if (g.items() > 0 && Items.count(p.getInventory(), isItem) < g.items()) return "job.promote-items";
+        if (g.specials() > 0 && Items.count(p.getInventory(), isSpecial) < g.specials()) return "job.promote-items";
+        if (!core.economy().withdraw(u, g.cost(), "job_promotion")) return "job.promote-money";
+        if (g.items() > 0) Items.remove(p.getInventory(), isItem, g.items());
+        if (g.specials() > 0) Items.remove(p.getInventory(), isSpecial, g.specials());
+        JobStore.Row r = store.get(u);
+        int before = level(u);
+        store.setPromoted(r, job, promoted(u, job) + 1);
+        store.setXp(r, job, Math.max(store.xp(u, job), spec.xpFor(g.level())));
+        JobSpec.Job j = spec.jobs().get(job);
+        Bukkit.broadcast(Lang.msg("job.promoted-broadcast", "player", Names.mini(p), "color", j.color(), "job", j.name(), "level", g.level()));
+        if (g.level() >= spec.cap()) core.profiles().grantTitle(u, "economy:grandmaster_" + job);
+        leveled(u, job, before, level(u));
+        return null;
     }
 
     /** Adds XP to a job, only if it is the player's job now (counted in the job_xp stat for 미션). */
@@ -185,9 +266,19 @@ public final class JobModule extends EcoModule {
         if (xp <= 0 || job == null || !job.equals(job(player))) return;
         JobStore.Row r = store.get(player);
         int before = level(player);
-        store.addXp(r, job, xp);
+        boolean wasGated = gated(player, job);
+        // level XP stops just under the next unpaid gate (and at the last level); the rest is 숙련 only
+        double room = Math.max(0, spec.ceiling(r.promoted(job)) - r.xp(job));
+        double toLevel = Math.min(xp, room);
+        if (toLevel > 0) store.addXp(r, job, toLevel);
+        store.addMastery(r, job, xp - toLevel);
         if (counted) core.profiles().add(player, "job_xp", xp);
         leveled(player, job, before, level(player));
+        if (!wasGated && gated(player, job)) {
+            Player p = Bukkit.getPlayer(player);
+            JobSpec.Gate g = spec.gate(r.promoted(job));
+            if (p != null && g != null) p.sendMessage(Lang.msg("job.promote-ready", "level", g.level()));
+        }
     }
 
     /**
@@ -276,7 +367,8 @@ public final class JobModule extends EcoModule {
         double xp = store.xp(u, job);
         int lv = spec.levelFor(xp);
         return Map.of("level", String.valueOf(lv), "xp", String.format("%,.0f", xp),
-                "next", lv >= spec.maxLevel() ? Lang.raw("job.max") : String.format("%,.0f", spec.xpFor(lv + 1)));
+                "next", lv >= spec.cap() ? Lang.raw("job.max") : gated(u, job) ? Lang.raw("job.gate") : String.format("%,.0f", spec.xpFor(lv + 1)),
+                "mastery", String.format("%,.0f", store.mastery(u, job)));
     }
 
     private static final java.util.regex.Pattern RANGE = java.util.regex.Pattern.compile("\\{([0-9.]+)~([0-9.]+)}");
@@ -308,6 +400,15 @@ public final class JobModule extends EcoModule {
         return "<gray>· " + text;
     }
 
+    /** "보석 가루 20 · 운철 10" for a gate of a job. */
+    public String gateText(String job, JobSpec.Gate g) {
+        List<String> parts = new ArrayList<>();
+        String item = gateItem(job), special = gateSpecial(job);
+        if (g.items() > 0 && item != null) parts.add(Items.mmName(item) + " " + g.items());
+        if (g.specials() > 0 && special != null) parts.add(Items.mmName(special) + " " + g.specials());
+        return parts.isEmpty() ? "-" : String.join(" · ", parts);
+    }
+
     private final class JobsMenu implements MenuHandler {
         private final List<String> ids = new ArrayList<>(spec.jobs().keySet());
         private String armed;
@@ -320,7 +421,7 @@ public final class JobModule extends EcoModule {
             JobSpec.Job j = job == null ? null : spec.jobs().get(job);
             Map<String, String> out = new HashMap<>(job == null ? Map.of("level", "0", "xp", "0", "next", "-") : progress(u, job));
             out.put("job", j == null ? Lang.raw("job.none") : "<" + j.color() + ">" + j.name());
-            out.put("cap", String.valueOf(spec.maxLevel()));
+            out.put("cap", String.valueOf(spec.cap()));
             out.put("cost", EconomyModule.format(spec.changeCost().min()) + " ~ " + EconomyModule.format(spec.changeCost().max()));
             return out;
         }
@@ -339,13 +440,20 @@ public final class JobModule extends EcoModule {
                     meta.itemName(Text.item("<" + j.color() + "><b>" + j.name() + "</b> <gray>Lv" + pr.get("level")));
                     List<Component> lore = new ArrayList<>();
                     lore.add(Lang.item("job.lore-xp", "xp", pr.get("xp"), "next", pr.get("next")));
+                    if (store.mastery(u, id) > 0) lore.add(Lang.item("job.lore-mastery", "mastery", pr.get("mastery")));
                     for (String line : j.description()) {
                         if (line.startsWith("# ")) lore.add(Component.empty());
                         lore.add(Text.item(describe(line, j.color(), Integer.parseInt(pr.get("level")), spec.maxLevel())));
                     }
                     lore.add(Component.empty());
-                    lore.addAll(Lang.items(id.equals(mine) ? "job.lore-current" : isArmed ? "job.lore-confirm" : mine == null ? "job.lore-pick" : "job.lore-change",
-                            "cost", EconomyModule.format(changeCost(u, id))));
+                    JobSpec.Gate g = id.equals(mine) ? promotable(u) : null;
+                    if (g != null) {
+                        lore.addAll(Lang.items(isArmed ? "job.lore-promote-confirm" : "job.lore-promote", "level", g.level(),
+                                "cost", EconomyModule.format(g.cost()), "items", gateText(id, g)));
+                    } else {
+                        lore.addAll(Lang.items(id.equals(mine) ? "job.lore-current" : isArmed ? "job.lore-confirm" : mine == null ? "job.lore-pick" : "job.lore-change",
+                                "cost", EconomyModule.format(changeCost(u, id))));
+                    }
                     meta.lore(lore);
                     meta.setEnchantmentGlintOverride(id.equals(mine) || isArmed);
                     meta.addItemFlags(org.bukkit.inventory.ItemFlag.HIDE_ATTRIBUTES);
@@ -360,7 +468,8 @@ public final class JobModule extends EcoModule {
             if (index >= ids.size()) return;
             String id = ids.get(index);
             Player p = v.player();
-            if (id.equals(job(p.getUniqueId()))) return;
+            boolean promoting = id.equals(job(p.getUniqueId()));
+            if (promoting && promotable(p.getUniqueId()) == null) return;
             if (!id.equals(armed) || now() - armedAt > 5000) {
                 armed = id;
                 armedAt = now();
@@ -369,6 +478,13 @@ public final class JobModule extends EcoModule {
                 return;
             }
             armed = null;
+            if (promoting) {
+                JobSpec.Gate g = promotable(p.getUniqueId());
+                String no = promote(p);
+                if (no != null && g != null) HudModule.flash(p, Lang.mm(no, "cost", EconomyModule.format(g.cost()), "items", gateText(id, g)));
+                v.refresh();
+                return;
+            }
             String refused = choose(p, id);
             if (refused != null) {
                 HudModule.flash(p, Lang.mm(refused, "cost", EconomyModule.format(changeCost(p.getUniqueId(), id)), "left",
@@ -567,7 +683,8 @@ public final class JobModule extends EcoModule {
         String job = job(u);
         ThreadLocalRandom r = ThreadLocalRandom.current();
         for (JobSpec.Special s : spec.specials(from)) {
-            double chance = s.job().equals(job) ? s.chance().at(level(u), spec.maxLevel()) * boost(job) : s.outsider();
+            double chance = s.job().equals(job)
+                    ? s.chance().at(level(u), spec.maxLevel()) * boost(job) * jobMilestone(u, job, "special-boost", 1) : s.outsider();
             if (chance <= 0 || r.nextDouble() >= chance) continue;
             Items.create(s.item(), 1).ifPresent(g -> {
                 if (at == null) {
@@ -635,8 +752,8 @@ public final class JobModule extends EcoModule {
         for (Player p : Bukkit.getOnlinePlayers()) {
             UUID u = p.getUniqueId();
             if (!"farmer".equals(job(u)) || level(u) < farmer.growth().level()) continue;
-            double chance = farmer.growth().value() * boost("farmer");
-            int rad = farmer.growthRadius();
+            double chance = jobMilestone(u, "farmer", "growth", farmer.growth().value()) * boost("farmer");
+            int rad = (int) jobMilestone(u, "farmer", "growth-radius", farmer.growthRadius());
             Block c = p.getLocation().getBlock();
             for (int dx = -rad; dx <= rad; dx++) for (int dz = -rad; dz <= rad; dz++) for (int dy = -2; dy <= 1; dy++) {
                 Block b = c.getRelative(dx, dy, dz);
@@ -815,7 +932,7 @@ public final class JobModule extends EcoModule {
             JobSpec.Job rj = spec.jobs().get(r.job());
             out.add(Lang.mm("job.ranking-line", "rank", rank++, "player", Players.name(r.player()), "color", rj == null ? "white" : rj.color(),
                     "job", rj == null ? r.job() : rj.name(), "level", spec.levelFor(r.xp()),
-                    "mastery", String.format("%,.0f", spec.mastery(r.xp())), "xp", String.format("%,.0f", r.xp())));
+                    "mastery", String.format("%,.0f", r.mastery()), "xp", String.format("%,.0f", r.xp())));
         }
         return out;
     }
@@ -844,7 +961,18 @@ public final class JobModule extends EcoModule {
         JobStore.Row r = store.get(player);
         if (r == null) return;
         int before = level(player);
-        store.setXp(r, r.job, xp);
+        int lv = spec.levelFor(xp);
+        store.setPromoted(r, r.job, spec.gatesBelow(lv));
+        store.setXp(r, r.job, Math.min(xp, spec.ceiling(spec.gatesBelow(lv))));
         leveled(player, r.job, before, level(player));
+    }
+
+    /** Admin: set the gates passed in the player's current job (the level XP is kept under the next gate). */
+    public void setPromoted(UUID player, int gates) {
+        JobStore.Row r = store.get(player);
+        if (r == null) return;
+        int g = Math.clamp(gates, 0, spec.promotion().gates().size());
+        store.setPromoted(r, r.job, g);
+        if (r.xp(r.job) > spec.ceiling(g)) store.setXp(r, r.job, spec.ceiling(g));
     }
 }

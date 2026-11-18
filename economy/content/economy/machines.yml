@@ -5,7 +5,7 @@
 #
 # 레시피: in = { 재료: 개수 } (3종류까지, '#logs' 처럼 태그도 됨), out, amount, seconds (기본 속도의 시간),
 #   '#economy:fish_common' 처럼 아래 어종 묶음도 됨
-#   tier = 열리는 강화 단계 (0 기본 ~ 3), aging = 숙성 (연금술사 Lv20 숙성 절반 대상)
+#   tier = 열리는 강화 단계 (0 기본 ~ 4: 4강 레시피는 4세대 재료 · 4세대 고급품), aging = 숙성 (연금술사 Lv20 숙성 절반 대상)
 #   숙성은 10분 이상, 오래 걸리는 만큼 많이 나옴: 재료값을 빼고 1분에 원재료만 3~10G, 기계 생산품을 쓰면 12~25G
 #   (재료값의 배율: 기계 생산품 숙성 2.6~3.6배, 원재료만 숙성은 그 기계의 가장 낮은 것 이하, 없으면 3배 이하)
 #   "원재료만으로" 물건: 다른 기계의 생산품 없이 밭·광산·바다에서 난 것만으로 만드는 물건 (기계 하나로 되는 대신 효율은 낮음)
@@ -85,13 +85,13 @@ groups:
     items: [dirt, coarse_dirt, rooted_dirt]
 
 upgrade:
-  cost: [5000, 20000, 50000]   # 1강, 2강, 3강
+  cost: [5000, 20000, 50000, 220000]   # 1강, 2강, 3강, 4강 (4강은 그 직업 Lv35 승급 뒤)
   # 같은 종류의 직업 기계를 같은 단계로 또 강화하면: 그 사람이 전에 산 수 × repeat 만큼 더함 (예: 0.5 = 두 번째 대 1.5배, 세 번째 2배).
   # 0 = 끔 (지금은 꺼 둠: 몇 대든 같은 값). 압착기는 해당 없음
   repeat: 0
-  level: [10, 20, 30]          # 설치한 사람의 그 직업 레벨
-  lanes: [1, 2, 3, 4]          # 기본, 1강, 2강, 3강 (기계마다 'lanes:' 로 따로: 대장간·조리대·증류기는 0강부터 2줄)
-  speed: [0, 0.15, 0.30, 0.50]
+  level: [10, 20, 30, 35]      # 설치한 사람의 그 직업 레벨 (35 = Lv35 승급)
+  lanes: [1, 2, 3, 4, 5]       # 기본, 1강, 2강, 3강, 4강 (기계마다 'lanes:' 로 따로: 대장간·조리대·증류기는 0강부터 2줄)
+  speed: [0, 0.15, 0.30, 0.50, 0.70]
 xp-per-gold: 0.2               # 그 직업인 운영자: 생산품 기준가(상점) 5G 당 경험치 1
 
 gem_bench:
@@ -127,12 +127,16 @@ gem_bench:
     - { in: { economy:red_coral: 1, gold_ingot: 2 }, out: economy:coral_brooch, seconds: 360, tier: 1 }   # 산호 브로치 208G
     - { in: { economy:polished_pearl: 1, economy:silk_cocoon: 2, economy:sapphire: 1 }, out: economy:silk_pearl_necklace, seconds: 960, tier: 2 }   # 명주 진주 목걸이 825G
     - { in: { economy:ambergris: 1, economy:gold_ring: 1, economy:silk_cocoon: 1 }, out: economy:ambergris_norigae, seconds: 600, tier: 2 }   # 용연향 노리개 702G
+    # ── 4강 레시피 (4세대 재료 · 4세대 고급품: 4강에서만, Lv35 승급 뒤) ──
+    - { in: { economy:ruby: 2, economy:sapphire: 1 }, out: economy:gem_dust, amount: 4, seconds: 300, tier: 4 }   # 보석 가루 (4세대 재료: 루비·사파이어를 곱게 갈아) · 거래 참고가 82G
+    - { in: { economy:silk_pearl_necklace: 2, economy:gem_dust: 8, economy:abalone: 8 }, out: economy:najeon_jewel_box, seconds: 1500, tier: 4 }   # 자개 보석함 (전복 껍데기 자개에 보석 가루, 명주 진주 목걸이를 담아) 5740G
+    - { in: { economy:steel_ingot: 8, economy:gold_leaf: 32, economy:gem_dust: 8 }, out: economy:gilded_spoon_set, seconds: 1400, tier: 4 }   # 금박 은수저 세트 (대장장이의 강철을 두드려 금박·보석 가루로 상감) 5320G
 
 mill:
   name: "가공대"
   item: economy:mill
   job: farmer
-  lanes: [1, 2, 4, 4]   # 기본, 1강, 2강, 3강의 줄 수 (농부: 2강부터 4줄)
+  lanes: [1, 2, 4, 4, 5]   # 기본, 1강, 2강, 3강, 4강의 줄 수 (농부: 2강부터 4줄)
   model: mill
   parts: [mill_stone]
   effect: { particle: white_ash, at: [16, 15, 16], sound: block.grindstone.use, volume: 0.3, pitch: 0.6 }
@@ -161,6 +165,10 @@ mill:
     - { in: { economy:radish: 16 }, out: economy:mumallaengi, seconds: 1890 }   # 무말랭이 34G (썰어 말림)
     # ── 새 레시피: 줄에 고정한 레시피는 목록 순서(번호)로 저장되므로, 새 레시피는 항상 맨 뒤에 붙임 ──
     - { in: { economy:soybean: 8, economy:corn: 8 }, out: economy:fish_feed, amount: 6, seconds: 580 }   # 생선 사료 7G (가두리 먹이: 어부에게 팔기)
+    # ── 4강 레시피 (4세대 재료 · 4세대 고급품: 4강에서만, Lv35 승급 뒤) ──
+    - { in: { sugar_cane: 32, economy:rice: 4 }, out: economy:hanji, amount: 4, seconds: 110, tier: 4 }   # 한지 (4세대 재료: 사탕수수 섬유에 쌀풀) · 거래 참고가 54G
+    - { in: { economy:jang_set: 1, economy:hanji: 2 }, out: economy:royal_jang_set, seconds: 600, tier: 4 }   # 궁중 장 세트 (전통 장 세트를 한지로 봉해 진상) 1910G
+    - { in: { economy:wild_ginseng: 2, economy:jocheong: 2, economy:hanji: 2 }, out: economy:ginseng_jeonggwa, seconds: 700, tier: 4 }   # 인삼 정과 (산삼을 조청에 졸여 한지에 싸서) 1440G
 
 fish_bench:
   name: "손질대"
@@ -186,12 +194,16 @@ fish_bench:
     - { in: { "#economy:fish_legend_2": 1 }, out: economy:treasure_fish_meat, amount: 5, seconds: 780, tier: 2 }   # 진귀한 생선살 216G x 5 = 1080G
     - { in: { "#economy:fish_legend_3": 1 }, out: economy:treasure_fish_meat, amount: 6, seconds: 1080, tier: 2 }   # 진귀한 생선살 216G x 6 = 1296G
     - { in: { economy:pearl: 1 }, out: economy:polished_pearl, seconds: 180, tier: 2 }   # 연마 진주 179G
+    # ── 4강 레시피 (4세대 재료 · 4세대 고급품: 4강에서만, Lv35 승급 뒤) ──
+    - { in: { economy:fine_fish_meat: 4 }, out: economy:fish_glue, amount: 3, seconds: 240, tier: 4 }   # 부레풀 (4세대 재료: 고급 생선살의 부레를 고아) · 거래 참고가 68G
+    - { in: { economy:treasure_fish_meat: 2, economy:jang_set: 1, economy:hanji: 2 }, out: economy:royal_eoran, seconds: 1080, tier: 4 }   # 진상 어란 (진귀한 생선살의 알을 전통 장에 재워 한지에 싸 말림) 2860G
+    - { in: { economy:prime_fish_meat: 16, economy:paddy: 32 }, out: economy:gulbi_dureum, seconds: 720, tier: 4 }   # 굴비 두름 (특선 생선살을 엮어 볏짚으로 두름) 1380G
 
 forge:
   name: "대장간"
   item: economy:forge
   job: blacksmith
-  lanes: [2, 3, 3, 4]   # 기본, 1강, 2강, 3강의 줄 수 (가공 직업: 0강부터 2줄, 3강은 원래대로 4줄)
+  lanes: [2, 3, 3, 4, 5]   # 기본, 1강, 2강, 3강, 4강의 줄 수 (가공 직업: 0강부터 2줄, 3강은 원래대로 4줄)
   model: forge
   effect: { particle: flame, at: [22, 14, 21], sound: block.anvil.use, volume: 0.25, pitch: 1.0 }
   recipes:
@@ -220,12 +232,16 @@ forge:
     - { in: { economy:cut_crystal: 1, economy:iron_plate: 1 }, out: economy:crystal_lantern, seconds: 395, tier: 1 }   # 수정 랜턴 325G
     - { in: { economy:red_coral: 1, economy:abalone: 2, economy:iron_plate: 1 }, out: economy:coral_inlay_box, seconds: 360, tier: 2 }   # 산호 자개함 449G (전복 껍데기 자개)
     - { in: { economy:meteoric_iron: 3, economy:steel_ingot: 2, economy:silk_cocoon: 2 }, out: economy:meteor_sword, seconds: 720, tier: 3 }   # 운철검 1760G
+    # ── 4강 레시피 (4세대 재료 · 4세대 고급품: 4강에서만, Lv35 승급 뒤) ──
+    - { in: { economy:steel_ingot: 3, economy:cut_crystal: 1, economy:meteoric_iron: 1 }, out: economy:tempering_stone, amount: 2, seconds: 400, tier: 4 }   # 단련석 (4세대 재료: 강철에 운철·세공 수정을 녹여 붙인 숫돌) · 거래 참고가 780G
+    - { in: { economy:tempering_stone: 1, economy:steel_ingot: 4, economy:meteoric_iron: 2 }, out: economy:master_jangdo, seconds: 900, tier: 4 }   # 명장 장도 (단련석으로 벼린 운철 장도) 3860G
+    - { in: { economy:copper_pot: 12, economy:tempering_stone: 1 }, out: economy:bangjja_yugi, seconds: 900, tier: 4 }   # 방짜 유기 세트 (구리를 단련석 위에서 두드려) 3700G
 
 kitchen:
   name: "조리대"
   item: economy:kitchen
   job: cook
-  lanes: [2, 2, 3, 4]   # 기본, 1강, 2강, 3강의 줄 수 (가공 직업: 0강부터 2줄)
+  lanes: [2, 2, 3, 4, 5]   # 기본, 1강, 2강, 3강, 4강의 줄 수 (가공 직업: 0강부터 2줄)
   model: kitchen
   effect: { particle: cloud, at: [24, 21, 7.5], sound: block.campfire.crackle, volume: 0.6, pitch: 1.0 }
   # 생선 요리는 모두 손질대의 등급별 생선살을 씀 (흔함 생선살 · 보통 고급 · 희귀 특선 · 전설 진귀한, 2026-11): 날 물고기는 받지 않음
@@ -284,12 +300,16 @@ kitchen:
     - { in: { economy:fish_meat: 2, economy:radish: 16, economy:green_onion: 16 }, out: economy:eomuktang, amount: 2, seconds: 420 }   # 어묵탕 72G
     - { in: { economy:prime_fish_meat: 2, economy:kimchi: 1, porkchop: 4 }, out: economy:bossam, amount: 2, seconds: 360, tier: 2 }   # 보쌈 206G (김치에 수육, 회 곁들임)
     - { in: { economy:fish_meat: 4, economy:soy_sauce: 1, sugar: 2 }, out: economy:dried_fish_stirfry, amount: 2, seconds: 240, tier: 1 }   # 건어물 볶음 106G
+    # ── 4강 레시피 (4세대 재료 · 4세대 고급품: 4강에서만, Lv35 승급 뒤) ──
+    - { in: { economy:rice: 8, economy:soybean: 8, economy:brown_sugar: 2 }, out: economy:gosa_tteok, amount: 2, seconds: 300, tier: 4 }   # 고사떡 (4세대 재료: 쌀가루에 콩고물·흑설탕 시루떡) · 거래 참고가 220G
+    - { in: { economy:hanjeongsik: 1, economy:gosa_tteok: 1, economy:abalone: 2 }, out: economy:royal_surasang, seconds: 1500, tier: 4 }   # 궁중 수라상 (한정식에 전복·고사떡) 4140G
+    - { in: { economy:gosa_tteok: 4, economy:bossam: 2, economy:japchae: 4 }, out: economy:gujeolpan, seconds: 1200, tier: 4 }   # 구절판 (아홉 칸 찬합) 3210G
 
 still:
   name: "증류기"
   item: economy:still
   job: alchemist
-  lanes: [2, 3, 3, 4]   # 기본, 1강, 2강, 3강의 줄 수 (가공 직업: 0강부터 2줄, 3강은 원래대로 4줄)
+  lanes: [2, 3, 3, 4, 5]   # 기본, 1강, 2강, 3강, 4강의 줄 수 (가공 직업: 0강부터 2줄, 3강은 원래대로 4줄)
   model: still
   effect: { particle: bubble_pop, at: [10, 18, 12.5], sound: block.brewing_stand.brew, volume: 0.35, pitch: 0.8 }
   recipes:
@@ -319,6 +339,11 @@ still:
     - { in: { economy:soju: 1, economy:meteoric_iron: 1, honey_bottle: 2 }, out: economy:meteor_elixir, seconds: 2670, tier: 3, aging: true }   # 운철 단약 1089G (꿀에 개어 빚은 환약)
     - { in: { economy:soju: 1, economy:ambergris: 1, "#small_flowers": 4 }, out: economy:ambergris_perfume, seconds: 3210, tier: 3, aging: true }   # 용연향 향수 1307G
     - { in: { economy:wine: 5, economy:cut_crystal: 1 }, out: economy:crystal_vintage, amount: 2, seconds: 4945, tier: 3, aging: true }   # 수정병 빈티지 960G (참나무통 대신 수정병에 포도주를 더 넣어 숙성)
+    # ── 4강 레시피 (4세대 재료 · 4세대 고급품: 4강에서만, Lv35 승급 뒤) ──
+    - { in: { economy:lapis_beads: 2, economy:soju: 2, economy:fish_glue: 1 }, out: economy:mana_ink, amount: 6, seconds: 2400, tier: 4, aging: true }   # 마력 잉크 (4세대 재료: 청금석 구슬을 소주에 풀고 부레풀로 개어 숙성) · 거래 참고가 245G
+    - { in: { economy:tempering_stone: 2, economy:mana_ink: 2 }, out: economy:guard_charm, seconds: 900, tier: 4 }   # 보호 부적 (4세대 재료: 단련석에 마력 잉크로 새긴 부적) · 거래 참고가 4560G
+    - { in: { economy:cheongju: 3, economy:wild_ginseng: 1, honey_bottle: 4 }, out: economy:century_yakju, seconds: 4620, tier: 4, aging: true }   # 백년 약주 (청주에 산삼·꿀을 넣어 오래 숙성) 2990G
+    - { in: { economy:wild_ginseng: 2, economy:jocheong: 4, economy:soju: 1 }, out: economy:gyeongokgo, seconds: 900, tier: 4 }   # 경옥고 (산삼을 조청·소주에 고아 빚은 약) 2090G
 
 # 압착기 (공용 기계: 직업 없음). 남아도는 바닐라 물건(씨앗, 묘목, 잎, 썩은 살점, 돌, 흙...)을 눌러서 팔 수 있는 것으로.
 # 일부러 값이 낮음 (버리던 것을 조금이라도 돈으로). 누구나 같은 속도, 경험치·직업 효과 없음, 강화는 골드만 (직업 레벨 필요 없음)
@@ -327,7 +352,7 @@ press:
   item: economy:press
   model: press
   parts: [press_screw]
-  upgrade: { cost: [1000, 4000, 10000] }   # 강화비만 따로 (단계·줄·속도는 위 upgrade 그대로)
+  upgrade: { cost: [1000, 4000, 10000, 44000] }   # 강화비만 따로 (단계·줄·속도는 위 upgrade 그대로). 4강 44,000 = 직업 기계의 20% (BalanceTest R2b 상한)
   effect: { particle: poof, at: [8, 12, 8], sound: block.piston.contract, volume: 0.25, pitch: 0.7 }
   recipes:
     - { in: { "#economy:seeds": 32 }, out: economy:seed_oil, seconds: 20 }   # 씨앗 기름 8G (바닐라·커스텀 작물 씨앗 아무거나)

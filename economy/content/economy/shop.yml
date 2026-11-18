@@ -567,6 +567,15 @@ buy:
       # 3세대
       - { item: stsv:delivery_scooter, price: 400000 } # 배달 오토바이 (9.5칸/초, 54칸 · 무게 60)
       - { item: stsv:power_tiller, price: 500000 }   # 경운기 + 짐칸 (5칸/초, 360칸 · 무게 500)
+      # 4세대 (2026-11 4세대 패치)
+      - { item: stsv:cargo_van, price: 1700000 }     # 소형 화물 밴 (무게 600)
+      - { item: stsv:light_truck, price: 2000000 }   # 1톤 트럭 (무게 1,000)
+      - { item: stsv:combine, price: 2000000 }       # 소형 콤바인 + 짐칸 (무게 900, 수확기 · 파종기)
+      # 어선 1~4세대 (하역장에 팔 수 없어서 같은 세대 도로·농기계보다 조금 쌈)
+      - { item: stsv:raft, price: 20000 }            # 뗏목
+      - { item: stsv:rowboat, price: 100000 }        # 나룻배
+      - { item: stsv:fishing_boat, price: 300000 }   # 통통배
+      - { item: stsv:coastal_boat, price: 1000000 }  # 연안 어선
   # 치장: 직접 팔지 않고 치장 뽑기로 (코어의 /뽑기 화면이 열림). 가격·확률·나오는 치장은 contents/stsv/gacha.yml
   # (특정 치장 하나를 얻는 데 드는 돈의 기댓값을 예전 상점가에 맞춤). 이미 가진 치장은 교환권(거래소에서 사고팔 수 있음)으로 나옴.
   # 전설 치장(왕관, 천사의 고리, 천사·악마 날개, 한정 펫 3종)은 뽑기에도 없음: 주간 순위 1위 보상, 상인 행렬 사건 (아래 merchant.rare)
@@ -584,6 +593,9 @@ buy:
       - { title: economy:gourmet, price: 15000 }
       - { title: economy:landlord, price: 30000 }
       - { title: economy:magnate, price: 80000 }
+      - { title: economy:big_merchant, price: 1000000 }    # 4세대
+      - { title: economy:chaebol, price: 5000000 }
+      - { title: economy:golden_spoon, price: 20000000 }
 
 # 상인 행렬 (사건): 사건이 열려 있는 동안만 구매 카테고리에 나옴. 선착순, 사건마다 재고가 새로 채워짐
 merchant:

@@ -14,7 +14,7 @@ import static org.junit.jupiter.api.Assertions.assertNotNull;
 import static org.junit.jupiter.api.Assertions.assertNull;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
-/** content/stsv/items/vehicles_misc.yml: the fishing boats (1세대 to 5세대) read as driven boats and climb as a ladder, their sounds are in the pack, all of it admin-only. */
+/** content/stsv/items/vehicles_misc.yml: the fishing boats (1세대 to 5세대) read as driven boats and climb as a ladder, their sounds are in the pack, generations 1-4 in the shop since the 4세대 patch, the trawler admin-only. */
 class VehicleMiscContentTest {
 
     private static final Path CONTENT = Path.of(System.getProperty("stsv.content"));
@@ -164,7 +164,11 @@ class VehicleMiscContentTest {
                             || f.getFileName().toString().equals("vehicle_tools.yml")   // the feel, the tools: no shop
                             || f.getFileName().toString().equals("fish.yml")) continue;      // the economy's net: which sea a boat's net is made for
                     String text = Files.readString(f);
-                    for (String boat : BOATS) assertFalse(text.matches("(?s).*\\b" + boat + "\\b.*"), f + " mentions " + boat);
+                    boolean shop = f.getFileName().toString().equals("shop.yml");   // 4세대 패치: boats of generations 1-4 are sold there
+                    for (String boat : BOATS) {
+                        if (shop && !boat.equals("trawler")) continue;
+                        assertFalse(text.matches("(?s).*\\b" + boat + "\\b.*"), f + " mentions " + boat);
+                    }
                     if (!f.getFileName().toString().equals("shop.yml"))   // the 지게 (1세대) is sold there
                         assertFalse(text.matches("(?s).*\\bjige\\b.*"), f + " mentions jige");
                 }

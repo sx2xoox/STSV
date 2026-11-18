@@ -173,9 +173,9 @@ class VehicleRoadContentTest {
                 for (Path f : files.filter(p -> p.toString().endsWith(".yml")).toList()) {
                     if (f.getFileName().toString().startsWith("vehicle")) continue;   // vehicles*.yml, vehicle_feel.yml
                     String text = Files.readString(f);
-                    boolean shop = f.getFileName().toString().equals("shop.yml");   // generations 1-3 are sold there
+                    boolean shop = f.getFileName().toString().equals("shop.yml");   // generations 1-4 are sold there (4세대 패치)
                     for (String id : ROAD) {
-                        if (shop && java.util.Set.of("hand_cart", "jige", "cargo_bicycle", "ox_cart", "delivery_scooter", "power_tiller").contains(id)) continue;
+                        if (shop && java.util.Set.of("hand_cart", "jige", "cargo_bicycle", "ox_cart", "delivery_scooter", "power_tiller", "cargo_van", "light_truck", "combine").contains(id)) continue;
                         assertFalse(text.contains("stsv:" + id) || text.contains(" " + id + ":"), f + " mentions " + id);
                     }
                 }

@@ -225,7 +225,7 @@ class VehicleContentTest {
                 .getMessage().startsWith("vehicle.seats"), "nobody rides a pulled cart");
     }
 
-    /** Vehicles come from the admin browser; the economy shop's 탈것 category sells the hand cart only. No gacha, no recipe gives one. */
+    /** Vehicles come from the admin browser; the economy shop's 탈것 category sells the hand cart and (4세대) the 1-ton truck. No gacha, no recipe gives one. */
     @Test
     void onlyAdminsHandThemOut() throws Exception {
         YamlConfiguration items = YamlConfiguration.loadConfiguration(CONTENT.resolve("stsv/items/vehicles.yml").toFile());
@@ -244,7 +244,8 @@ class VehicleContentTest {
                             || f.getFileName().toString().equals("vehicles_fun.yml")) continue;   // the segway borrows the golf cart's sounds
                     String text0 = Files.readString(f);
                     if (f.getFileName().toString().equals("shop.yml")) {
-                        for (String id : ALL) if (!id.equals("hand_cart")) assertFalse(text0.contains(id), "only generations 1-3 are sold: " + id);
+                        for (String id : ALL) if (!id.equals("hand_cart") && !id.equals("light_truck"))
+                            assertFalse(text0.contains(id), "only generations 1-4 are sold: " + id);
                         continue;
                     }
                     String text = Files.readString(f);

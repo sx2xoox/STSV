@@ -282,6 +282,18 @@ job:
   hud-none: "<gray>직업\t<dark_gray>없음 · /직업"
   none: "없음"
   max: "최고 레벨"
+  gate: "승급 필요"
+  hud-gate: "승급!"
+  lore-mastery: "<gray>숙련 <white>{mastery}"
+  lore-promote: ["<gold>승급 가능: Lv{level}", "<gray>{cost} · {items}", "<yellow>두 번 클릭: 승급"]
+  lore-promote-confirm: ["<gold><b>한 번 더 클릭: Lv{level} 승급</b>", "<gray>{cost} · {items}"]
+  promote-ready: "<gold>승급할 수 있어요: Lv{level}</gold> <gray>· /직업 승급 (그 전까지 얻는 경험치는 숙련으로 쌓임)"
+  promote-no-job: "<red>직업이 없어요."
+  promote-max: "<gray>더 승급할 단계가 없어요."
+  promote-not-yet: "<red>아직 승급할 수 없어요. <gray>승급 레벨 바로 앞까지 경험치를 채워야 해요."
+  promote-items: "<red>재료가 모자라요: <white>{items}"
+  promote-money: "<red>돈이 모자라요: <white>{cost}"
+  promoted-broadcast: "<white>{player}</white><gray>님이 <{color}>{job}<gray> <gold>Lv{level} 승급</gold>!"
   no-job: "<red>직업이 없습니다. <white>/직업"
   no-such: "<red>없는 직업입니다."
   same: "<yellow>이미 그 직업입니다."
@@ -321,6 +333,7 @@ machine:
     "1": "1강"
     "2": "2강"
     "3": "3강"
+    "4": "4강"
   tag:
     logs: "원목"
     small_flowers: "꽃"
