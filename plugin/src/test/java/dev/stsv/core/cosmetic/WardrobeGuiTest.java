@@ -261,7 +261,7 @@ class WardrobeGuiTest {
         assertTrue(problems.isEmpty(), problems.toString());
         assertEquals(java.util.Set.of("stsv:wardrobe", "stsv:profile", "stsv:titles", "stsv:achievements", "stsv:achievement_list", "stsv:hub", "stsv:hub_money", "stsv:hub_style", "stsv:hub_rank", "stsv:gacha", "stsv:nick_colors", "stsv:tuning",
                         "stsv:donation", "stsv:donation_buy", "stsv:emote_wheel", "stsv:emote_pick",
-                        "stsv:hub_minigame", "stsv:hub_circuit", "stsv:circuit_lobby"),
+                        "stsv:hub_minigame", "stsv:hub_circuit", "stsv:circuit_lobby", "stsv:circuit_watch"),
                 menus.stream().map(MenuSpec::id).collect(java.util.stream.Collectors.toSet()));
         Integer panel = null;
         for (MenuSpec m : menus) {
@@ -275,8 +275,8 @@ class WardrobeGuiTest {
             BufferedImage im = ImageIO.read(ASSETS.resolve("textures/" + m.background().getKey() + ".png").toFile());
             // one look: the same panel colour beside the title on every menu (the hub has its own: theme: hub)
             int here = im.getRGB(100, 8);
-            // (the 서킷's waiting room has a race track's look of its own: theme circuit)
-            if (!m.id().matches("stsv:hub(_.*)?") && !m.id().equals("stsv:circuit_lobby")) {
+            // (the 서킷's waiting room and race list have a race track's look of their own: theme circuit)
+            if (!m.id().matches("stsv:hub(_.*)?") && !m.id().startsWith("stsv:circuit_")) {
                 if (panel == null) panel = here;
                 assertEquals(panel.intValue(), here, m.id() + " panel colour");
             }

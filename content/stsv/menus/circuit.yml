@@ -4,7 +4,8 @@
 #   출발선 칸. labels = 빈 줄에 쓰는 이름 (줄 번호: 이름), side-labels = 그 줄 버튼 양옆의 빈칸에 쓰는 이름.
 # 카트 · 색 칸의 아이템과 설명은 코드가 그림 (미니게임 모듈). 메뉴를 닫아도 대기실에 남음: /서킷 으로 다시 열기.
 # 자리표시자: {track} {subtitle} {laps} {seconds} {count} {max} {stars} {record_lap} {record_race} {my_lap} {my_race}
-#             {kart} {colour} {ready} {host}
+#             {kart} {colour} {ready} {host} {ghost}
+# G = 고스트 (없음 · 내 최고 랩 · 트랙 기록, 클릭으로 바꿈, 기억됨): 칸의 그림 · 설명은 코드가 그림 (반투명 고스트 카트)
 circuit_lobby:
   title: "<#ffd36b>{track} <#c8c2d8>· {laps}바퀴"
   rows: 6
@@ -20,7 +21,7 @@ circuit_lobby:
     - "abcdefghi"
     - "........."
     - "PPPPPPPPP"
-    - "L.R.I.S.X"
+    - "L.GR.IS.X"
   buttons:
     A: {action: "circuit:kart:0", material: MINECART, name: "<white>카트", lore: ["<gray>카트"]}
     B: {action: "circuit:kart:1", material: MINECART, name: "<white>카트", lore: ["<gray>카트"]}
@@ -55,6 +56,11 @@ circuit_lobby:
       name: "<#ffd36b>{track} <gold>{stars}"
       lore: ["<gray>{subtitle}", "<gray>{laps}바퀴 · 출발까지 <white>{seconds}초</white> · {count}/{max}명", "<gray>트랙 기록 <white>{record_race}</white> · 랩 <white>{record_lap}",
              "<gray>내 기록 <white>{my_race}</white> · 랩 <white>{my_lap}"]
+    G:
+      action: "circuit:ghost"
+      material: GHAST_TEAR
+      name: "<white>고스트 <gray>· {ghost}"
+      lore: ["<gray>기록한 한 바퀴와 함께 달리기", "", "<yellow>클릭: 바꾸기"]
     S:
       action: "circuit:start"
       icon: stsv:gui/flag
@@ -67,3 +73,52 @@ circuit_lobby:
       material: OAK_DOOR
       name: "<white>메뉴 닫기"
       lore: ["<gray>대기실에는 남음 · /서킷 으로 다시"]
+
+# 서킷 관전 (/서킷 관전, 통합 메뉴 → 미니게임 → 서킷 → 관전): 진행 중인 레이스 목록 (선두의 카트 · 순위 · 관전 인원). 클릭 = 관전.
+# 관전 중에는 A·D 레이서 바꾸기 · 스페이스 시점 (추격 → 1인칭 → 자유) · 웅크리기 두 번 나가기. README "미니게임 · 서킷"
+# 자리표시자: {count} 진행 중인 레이스 수 · {watching} 지금 관전 중인 레이스
+circuit_watch:
+  title: "<#ffd36b>서킷 관전 <#c8c2d8>· 진행 중인 레이스"
+  rows: 4
+  theme: circuit
+  frame: {left: 0, right: 0, top: 0, scale: 2}
+  background: stsv:gui/circuit_watch
+  labels: {0: "레이스"}
+  list: P
+  layout:
+    - "........."
+    - "PPPPPPPPP"
+    - "PPPPPPPPP"
+    - "<.L.I.X.>"
+  buttons:
+    "<":
+      action: "page:prev"
+      icon: stsv:gui/prev
+      material: ARROW
+      name: "<white>이전 쪽"
+      lore: ["<gray>{page} / {pages}"]
+    ">":
+      action: "page:next"
+      icon: stsv:gui/next
+      material: ARROW
+      name: "<white>다음 쪽"
+      lore: ["<gray>{page} / {pages}"]
+    L:
+      action: "circuit:watch-leave"
+      icon: stsv:gui/exit
+      material: BARRIER
+      name: "<white>관전 끝내기"
+      lore: ["<gray>{watching}", "<gray>들어오기 전 자리로 돌아감", "", "<yellow>클릭: 나가기"]
+    I:
+      action: ""
+      icon: stsv:gui/info
+      material: MAP
+      name: "<#ffd36b>관전 <gray>· 레이스 {count}개"
+      lore: ["<gray>A·D <white>레이서 바꾸기", "<gray>스페이스 <white>시점: 추격 → 1인칭 → 자유", "<gray>웅크리기 두 번 <white>나가기 <dark_gray>· /서킷 나가기",
+             "<dark_gray>관전 중에는 아무것도 건드리지 못하고", "<dark_gray>레이스가 끝나면 자리로 돌아가요"]
+    X:
+      action: "close"
+      icon: stsv:gui/cancel
+      material: OAK_DOOR
+      name: "<white>메뉴 닫기"
+      lore: ["<gray>관전은 계속됨"]

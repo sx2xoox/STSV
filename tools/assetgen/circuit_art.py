@@ -461,7 +461,8 @@ def lobby_background(menu, art=None):
                     d.point((px, py + dy), fill=(240, 240, 240, 255))
             else:
                 T.tile(im, x, y)
-                accent = {"circuit:ready": (90, 210, 110), "circuit:start": (255, 211, 80), "circuit:leave": (230, 70, 60)}.get(act)
+                accent = {"circuit:ready": (90, 210, 110), "circuit:start": (255, 211, 80), "circuit:leave": (230, 70, 60),
+                          "circuit:watch-leave": (230, 70, 60), "circuit:ghost": (159, 232, 255)}.get(act)
                 if accent:
                     d.line([(x + 3, y + 2), (x + 14, y + 2)], fill=accent + (255,))
     # the row labels, in the rows the layout leaves empty

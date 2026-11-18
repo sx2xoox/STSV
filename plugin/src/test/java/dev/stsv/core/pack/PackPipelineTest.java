@@ -163,7 +163,8 @@ class PackPipelineTest {
             return;
         }
         // a tuning shop variant (vehicle_paints.py: another paint, wheel design, lamp colour) is judged as its stock model
-        String stock = dev.stsv.core.vehicle.VehicleTuning.stock(name);
+        // (a 서킷 ghost, kart_ghosts.py: the kart or wheel drawn see-through, as its stock model)
+        String stock = dev.stsv.core.vehicle.VehicleTuning.stock(name.replaceFirst("_ghost(_gold)?$", ""));
         assertEquals(GLOWING.contains(stock) || stock.matches(".+_lamp_(head|tail|brake|reverse)") || stock.startsWith("underglow_"), glows,
                 "only light sources glow");   // + the vehicles' lamp parts (vehicle_lights.py) and the glow under a tuned car
         assertEquals(ROTATED.contains(stock), rotated, "rotated parts");

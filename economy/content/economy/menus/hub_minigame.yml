@@ -123,7 +123,7 @@ hub_circuit:
   layout:
     - "AACC.DDEE"
     - "AACC.DDEE"
-    - "........."
+    - "....O...."
     - "FFGG.VVWW"
     - "FFGG.VVWW"
     - "BYtnXvwhR"
@@ -182,6 +182,14 @@ hub_circuit:
       accent: "#d36bff"
       name: "<white>네온 시티 <gold>★★★★★"
       lore: ["<gray>{track_city_state}", "<gray>트랙 기록 <white>{track_city_best}", "<gray>내 기록 <white>{track_city_mine}", "", "<yellow>클릭: 이 트랙으로", "<yellow>우클릭: 순위"]
+    O:
+      action: "hub:run:서킷 관전"
+      icon: stsv:gui/blank
+      material: ENDER_EYE
+      socket: true
+      art: stsv:gui/self_view
+      name: "<white>관전 <gray>· 진행 중인 레이스 구경"
+      lore: ["<gray>{circuit_live}", "<gray>A·D 레이서 · 스페이스 시점 · 웅크리기 두 번 나가기", "", "<yellow>클릭: 레이스 목록"]
     V:
       action: "hub:run:서킷 기록|run:서킷 트랙"
       icon: stsv:gui/blank

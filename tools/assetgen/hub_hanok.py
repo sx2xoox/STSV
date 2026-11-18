@@ -11,7 +11,8 @@ The picture is drawn at 2 texels per screen pixel (menu `frame: {scale: 2}`): th
     frame:   left 30, right 30, top 20, scale 2   (the roof, pillars and lanterns reach beyond the 176 px panel)
     plaque:  the words on the board (the title line itself stays empty)
     buttons: `scene` + `label` = a tall picture card (4+ rows), `art` + `label` = a small card (an icon),
-             in the `dock` row: `art` = an icon in its socket, no art = the gold socket for the player's head
+             in the `dock` row: `art` = an icon in its socket, no art = the gold socket for the player's head;
+             `socket: true` (outside the dock) = one button in a dock-like socket, with its `art` (16 px) in it
 """
 
 from pathlib import Path
@@ -154,7 +155,7 @@ def background(menu, art):
     buttons = menu.get("buttons", {}) or {}
     dock = menu.get("dock")
     for ch, b in buttons.items():
-        if not isinstance(b, dict) or not (b.get("scene") or b.get("art")):
+        if not isinstance(b, dict) or not (b.get("scene") or b.get("art")) or b.get("socket"):
             continue
         c0, r0, cw, rh = _cells(menu, ch)
         if dock is not None and r0 == dock:
@@ -216,6 +217,23 @@ def background(menu, art):
                 _rect(im, cx, y, cx + 17, y + 17, GOLD)
                 _rect(im, cx, y, cx + 17, y, GOLD_L)
                 _rect(im, cx + 1, y + 1, cx + 16, y + 16, (226, 210, 176))
+
+    # single sockets outside the dock (`socket: true`): a dark frame, the pale 한지 panel, the icon
+    for ch, b in buttons.items():
+        if not isinstance(b, dict) or not b.get("socket"):
+            continue
+        c0, r0, cw, rh = _cells(menu, ch)
+        cx, y = ox + 7 + 18 * c0, oy + 17 + 18 * r0
+        _rect(im, cx - 1, y - 1, cx + 18, y + 18, INK)
+        _rect(im, cx, y, cx + 17, y + 17, GOLD)
+        _rect(im, cx + 1, y + 1, cx + 16, y + 16, WOOD)
+        _rect(im, cx + 2, y + 2, cx + 15, y + 15, (226, 210, 176))
+        _rect(im, cx + 2, y + 2, cx + 15, y + 2, (196, 176, 138))
+        _rect(im, cx + 2, y + 2, cx + 2, y + 15, (196, 176, 138))
+        _rect(im, cx + 3, y + 15, cx + 15, y + 15, (240, 228, 200))
+        if b.get("art") and art:
+            pic = art(b["art"])
+            im.alpha_composite(pic, (cx + 1 + (16 - pic.width) // 2, y + 1 + (16 - pic.height) // 2))
 
     # under the dock: a beam, then the player's inventory slots where the game puts them
     _dancheong(im, ox + 4, ox + T.W - 5, oy + 18 * rows + 21, 4)

@@ -52,6 +52,7 @@ def main():
     from models import vehicles_boats         # 고깃배 1·2·4·5세대 (the 통통배 is in vehicles_misc); preview sheet: boat_preview.py
     from models import vehicles_fun           # 특별 탈것 (vehicles_fun.yml); preview sheet: vehicle_preview_fun.py
     from models import karts                  # 서킷 karts (karts.yml); preview sheet and icons: kart_preview.py
+    from models import kart_ghosts            # 서킷 고스트: every kart and kart wheel see-through (GhostView)
     from models import vehicle_paints
     from models import vehicle_lights
     from models import vehicle_tools          # 작업기 (vehicle_tools.yml); preview sheet: vehicle_tools_preview.py
@@ -65,7 +66,7 @@ def main():
     import vehicle_icons_fun
     ALL = {**ITEMS, **cosmetic_models, **furniture.ALL, **furniture_retro.ALL, **vehicles.ALL, **vehicles_road.ALL, **vehicles_farm.ALL, **vehicles_misc.ALL,
            **vehicles_boats.ALL, **vehicles_fun.ALL,
-           **vehicle_lights.ALL, **vehicle_tools.ALL, **vehicle_paints.ALL, **toys.ALL, **karts.ALL}
+           **vehicle_lights.ALL, **vehicle_tools.ALL, **vehicle_paints.ALL, **toys.ALL, **karts.ALL, **kart_ghosts.ALL}
     import special
 
     def home(name):
@@ -73,7 +74,7 @@ def main():
             or name in vehicles_road.ALL or name in vehicles_farm.ALL or name in vehicles_misc.ALL or name in vehicles_boats.ALL \
             or name in vehicles_fun.ALL \
             or name in vehicle_lights.ALL or name in vehicle_tools.ALL or name in vehicle_paints.ALL or name in toys.ALL \
-            or name in karts.ALL else FIXTURE
+            or name in karts.ALL or name in kart_ghosts.ALL else FIXTURE
 
     for d in (CONTENT / "models", CONTENT / "textures", FIXTURE / "models", FIXTURE / "textures", BUILD, PREVIEWS):
         d.mkdir(parents=True, exist_ok=True)

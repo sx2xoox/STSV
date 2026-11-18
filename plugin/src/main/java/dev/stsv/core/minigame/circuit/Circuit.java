@@ -69,12 +69,16 @@ public final class Circuit {
     public static final String LOBBY_MENU = "stsv:circuit_lobby";
     public static final NamespacedKey ITEM = new NamespacedKey("stsv", "circuit_item");
     public static final NamespacedKey CHOICE = new NamespacedKey("stsv", "circuit_kart");
+    /** The ghost a player races against (Ghost.Choice id), kept on the player. */
+    public static final NamespacedKey GHOST_CHOICE = new NamespacedKey("stsv", "circuit_ghost");
+    public static final String WATCH_MENU = "stsv:circuit_watch";
     public static final NamespacedKey LABEL = new NamespacedKey("stsv", "circuit_label");
     public static final NamespacedKey SAFE_FIREWORK = new NamespacedKey("stsv", "circuit_firework");
 
     private final STSVPlugin plugin;
     private final MinigameModule module;
     private final CircuitStore store;
+    private final GhostStore ghosts;
     private final Map<String, TrackSpec> tracks = new LinkedHashMap<>();
     private final Map<String, TrackLayout> layouts = new HashMap<>();
     private final Map<String, String> hashes = new HashMap<>();
@@ -89,11 +93,17 @@ public final class Circuit {
 
     private int lobbySeconds, maxRacers, finishGrace, maxRaceMinutes, blocksPerTick;
     private boolean bumping, announce;
+    private boolean ghostsOn, ghostGlow, watchOn;
+    private int ghostStep, maxGhosts, maxWatchers, smoothing;
+    private float yawOffset;
+    /** every model the packs draw (models/*.bbmodel names): the ghost models are used only when they exist */
+    private Set<String> modelNames = Set.of();
 
     public Circuit(STSVPlugin plugin, MinigameModule module) {
         this.plugin = plugin;
         this.module = module;
         this.store = new CircuitStore(plugin.db());
+        this.ghosts = new GhostStore(plugin.db());
     }
 
     // ------------------------------------------------------------------------------------------
@@ -102,6 +112,7 @@ public final class Circuit {
 
     public void enable() {
         store.init();
+        ghosts.init();
         load();
     }
 
@@ -114,11 +125,27 @@ public final class Circuit {
         blocksPerTick = Math.clamp(c.getInt("minigames.build-blocks-per-tick"), 500, 50_000);
         bumping = c.getBoolean("minigames.circuit.kart-bump");
         announce = c.getBoolean("minigames.circuit.announce");
+        ghostsOn = c.getBoolean("minigames.circuit.ghost.enabled", true);
+        ghostStep = Math.clamp(c.getInt("minigames.circuit.ghost.record-every-ticks", 2), 1, 4);
+        maxGhosts = Math.clamp(c.getInt("minigames.circuit.ghost.max-stored-per-track", 100), 1, 10_000);
+        ghostGlow = c.getBoolean("minigames.circuit.ghost.glow", true);
+        watchOn = c.getBoolean("minigames.circuit.spectate.enabled", true);
+        maxWatchers = Math.clamp(c.getInt("minigames.circuit.spectate.max-per-race", 16), 0, 100);
+        smoothing = Math.clamp(c.getInt("vehicles.smoothing-ticks", 2), 1, 5);
+        yawOffset = (float) c.getDouble("furniture.display-yaw-offset");
+        Set<String> names = new HashSet<>();
         problems.clear();
         Map<String, TrackSpec> read = new LinkedHashMap<>();
         Map<String, String> sums = new HashMap<>();
         List<KartSpec> kartsRead = new ArrayList<>();
         for (ContentPack pack : plugin.content().packs()) {
+            if (Files.isDirectory(pack.models())) {
+                try (var s = Files.list(pack.models())) {
+                    s.map(f -> f.getFileName().toString()).filter(n -> n.endsWith(".bbmodel")).forEach(n -> names.add(n.substring(0, n.length() - 8)));
+                } catch (IOException e) {
+                    problems.add(pack.id() + "/models: " + e.getMessage());
+                }
+            }
             Path dir = pack.dir().resolve("circuit");
             Path kf = dir.resolve("karts.yml");
             if (Files.isRegularFile(kf)) {
@@ -164,6 +191,7 @@ public final class Circuit {
                 kartsRead.remove(k);
             }
         }
+        modelNames = names;
         problems.forEach(p -> plugin.getLogger().warning("[서킷] " + p));
         karts.clear();
         karts.addAll(kartsRead);
@@ -350,6 +378,22 @@ public final class Circuit {
         return null;
     }
 
+    /** The race a player watches, or null. */
+    public Race watchRace(Player p) {
+        for (Race r : races.values()) if (r.watchers.containsKey(p.getUniqueId())) return r;
+        return null;
+    }
+
+    /** Is the player watching a race (a spectator in the minigame world)? */
+    public boolean watching(Player p) {
+        return watchRace(p) != null;
+    }
+
+    /** Racing or watching: out in the minigame world for a game (commands, teleports and the like are held back). */
+    public boolean inGame(Player p) {
+        return racing(p) || watching(p);
+    }
+
     /** Is the player driving in a race now (out in the minigame world)? */
     public boolean racing(Player p) {
         Race r = raceOf(p);
@@ -374,6 +418,10 @@ public final class Circuit {
         if (mine != null) {
             if (mine.lobby()) openLobby(p, mine);
             else p.sendMessage(Lang.msg("circuit.already"));
+            return;
+        }
+        if (watching(p)) {
+            p.sendMessage(Lang.msg("circuit.watching-now"));
             return;
         }
         String why = cannotRace(p);
@@ -423,7 +471,8 @@ public final class Circuit {
         }
         String[] choice = choice(p);
         KartSpec kart = kart(choice[0]);
-        race.join(p, kart, choice[1] != null && kart.colours().contains(choice[1]) ? choice[1] : kart.own());
+        Race.Racer joined = race.join(p, kart, choice[1] != null && kart.colours().contains(choice[1]) ? choice[1] : kart.own());
+        joined.ghostChoice = ghostsOn ? ghostChoice(p) : Ghost.Choice.NONE;
         for (Race.Racer o : race.racers.values()) {
             Player op = o.player();
             if (op != null && !op.equals(p)) op.sendMessage(Lang.msg("circuit.joined-other", "player", Names.mini(p), "count", race.racers.size()));
@@ -435,6 +484,12 @@ public final class Circuit {
 
     /** /서킷 나가기: out of the waiting room, or out of the race (put back as they were). */
     public void leave(Player p) {
+        Race watched = watchRace(p);
+        if (watched != null) {
+            Race.Watcher w = watched.watcher(p.getUniqueId());
+            if (w != null) watched.unwatch(w, "circuit.watch-left", true);
+            return;
+        }
         Race r = raceOf(p);
         if (r == null) {
             p.sendMessage(Lang.msg("circuit.not-in"));
@@ -457,6 +512,11 @@ public final class Circuit {
 
     /** A player quits: out of their race; anyone mid-race is put back now (their file is saved with their things). */
     public void quit(Player p) {
+        Race watched = watchRace(p);
+        if (watched != null) {
+            Race.Watcher w = watched.watcher(p.getUniqueId());
+            if (w != null) watched.unwatch(w, null, true);
+        }
         Race r = raceOf(p);
         if (r == null) return;
         if (r.lobby()) {
@@ -644,6 +704,7 @@ public final class Circuit {
             m.put("colour", me == null ? "-" : colourName(me.colour));
             m.put("ready", Lang.raw(me != null && me.ready ? "circuit.ready-on" : "circuit.ready-off"));
             m.put("host", race.host == null ? "-" : Names.mini(race.host));
+            m.put("ghost", Lang.raw("circuit.ghost-choice." + (me == null ? Ghost.Choice.NONE : me.ghostChoice).id));
             return m;
         }
 
@@ -701,6 +762,7 @@ public final class Circuit {
                 });
                 return it;
             }
+            if (b.action().equals("circuit:ghost")) return ghostButton(v.player(), me, base);
             if (b.action().equals("circuit:start") && !(race.racers.size() == 1 || v.player().getUniqueId().equals(race.host))) {
                 base.editMeta(m -> m.lore(Text.itemLines(List.of(Lang.raw("circuit.start-host-only")))));
             }
@@ -748,6 +810,14 @@ public final class Circuit {
             } else if (action.equals("circuit:leave")) {
                 Bukkit.getScheduler().runTask(plugin, () -> leave(p));
                 return;
+            } else if (action.equals("circuit:ghost")) {
+                if (!ghostsOn) {
+                    HudModule.flash(p, Lang.mm("circuit.ghost-off"), 2000);
+                    return;
+                }
+                me.ghostChoice = click.isRightClick() ? me.ghostChoice.previous() : me.ghostChoice.next();
+                rememberGhost(p, me.ghostChoice);
+                p.playSound(p, Sound.BLOCK_AMETHYST_BLOCK_CHIME, SoundCategory.MASTER, 0.6f, me.ghostChoice == Ghost.Choice.NONE ? 0.8f : 1.4f);
             }
             refreshLobbyMenus(race);
         }
@@ -758,6 +828,44 @@ public final class Circuit {
         }
     }
 
+    /** The waiting room's ghost button: the ghost kart itself (see-through), its three choices with the one picked marked. */
+    private ItemStack ghostButton(Player p, Race.Racer me, ItemStack base) {
+        if (!ghostsOn || me == null) return base;
+        Race race = raceOf(p);
+        String track = race == null ? null : race.track.id();
+        Ghost.Choice c = me.ghostChoice;
+        CustomItem kartItem = kartItem(c == Ghost.Choice.NONE ? me.kart : kart(c == Ghost.Choice.MINE || track == null ? me.kart.id()
+                : java.util.Optional.ofNullable(ghosts.fastest(track)).map(GhostStore.Meta::kart).orElse(me.kart.id())));
+        NamespacedKey model = kartItem == null ? null : ghostBody(kartItem, c == Ghost.Choice.RECORD);
+        ItemStack it = base;
+        if (model != null) {
+            it = new ItemStack(Material.PAPER);
+            it.editMeta(m -> m.setItemModel(model));
+        }
+        GhostStore.Meta mine = track == null ? null : ghosts.mine(track, p.getUniqueId()), best = track == null ? null : ghosts.fastest(track);
+        it.editMeta(m -> {
+            m.itemName(Text.item(Lang.raw("circuit.ghost-button", "choice", Lang.raw("circuit.ghost-choice." + c.id))));
+            List<String> lore = new ArrayList<>();
+            lore.add(Lang.raw("circuit.ghost-button-what"));
+            lore.add("");
+            for (Ghost.Choice o : Ghost.Choice.values()) {
+                String detail = switch (o) {
+                    case NONE -> "";
+                    case MINE -> mine == null ? Lang.raw("circuit.ghost-detail-none") : Lang.raw("circuit.ghost-detail", "time", RaceProgress.format(mine.lapMs() / 1000.0));
+                    case RECORD -> best == null ? Lang.raw("circuit.ghost-detail-none")
+                            : Lang.raw("circuit.ghost-detail-record", "player", best.name(), "time", RaceProgress.format(best.lapMs() / 1000.0));
+                };
+                lore.add(Lang.raw(o == c ? "circuit.ghost-option-on" : "circuit.ghost-option", "choice", Lang.raw("circuit.ghost-choice." + o.id), "detail", detail));
+            }
+            lore.add("");
+            lore.add(Lang.raw("circuit.ghost-button-click"));
+            m.lore(Text.itemLines(lore));
+            m.setEnchantmentGlintOverride(c != Ghost.Choice.NONE);
+            m.setMaxStackSize(1);
+        });
+        return it;
+    }
+
     @SuppressWarnings("UnstableApiUsage")
     private static ItemStack swatch(int rgb) {
         ItemStack it = ItemStack.of(Material.PAPER);
@@ -766,6 +874,251 @@ public final class Circuit {
                 .addColor(Color.fromRGB(rgb)).addColor(Color.fromRGB(rgb)).build());
         it.setData(DataComponentTypes.MAX_STACK_SIZE, 1);
         return it;
+    }
+
+    // ------------------------------------------------------------------------------------------
+    // 고스트: the player's choice, the ghost's look
+    // ------------------------------------------------------------------------------------------
+
+    /** The player's ghost choice; never chosen: their own best lap (only they see it, and it makes a time trial). */
+    Ghost.Choice ghostChoice(Player p) {
+        return Ghost.Choice.of(p.getPersistentDataContainer().getOrDefault(GHOST_CHOICE, PersistentDataType.STRING, Ghost.Choice.MINE.id));
+    }
+
+    private void rememberGhost(Player p, Ghost.Choice c) {
+        p.getPersistentDataContainer().set(GHOST_CHOICE, PersistentDataType.STRING, c.id);
+    }
+
+    /** A kart's ghost model: kart_x_ghost (the track record's: kart_x_ghost_gold), or the kart's own when not drawn. */
+    private NamespacedKey ghostBody(CustomItem item, boolean record) {
+        if (item.model() != null && item.model().kind() == dev.stsv.core.content.ModelRef.Kind.BBMODEL) {
+            String base = item.model().value();
+            for (String name : record ? List.of(base + "_ghost_gold", base + "_ghost") : List.of(base + "_ghost"))
+                if (modelNames.contains(name)) return new NamespacedKey(item.key().getNamespace(), "model/" + name);
+            if (modelNames.contains(base)) return new NamespacedKey(item.key().getNamespace(), "model/" + base);
+        }
+        return null;
+    }
+
+    /** The wheel's ghost model (kart_wheel_ghost ...), else the wheel itself. */
+    private NamespacedKey ghostWheel(dev.stsv.core.vehicle.VehicleSpec spec) {
+        NamespacedKey w = spec.wheelModel();
+        if (w == null) return null;
+        String name = w.getKey().startsWith("model/") ? w.getKey().substring(6) : w.getKey();
+        return modelNames.contains(name + "_ghost") ? new NamespacedKey(w.getNamespace(), "model/" + name + "_ghost") : w;
+    }
+
+    /** The ghost of a racer drawn at pose (their ghost's kart and holder), or null when its kart is unknown. */
+    GhostView ghostView(Race.Racer r, World w, Ghost.Pose pose, int ox) {
+        KartSpec k = kart(r.ghostKart);
+        CustomItem item = kartItem(k);
+        if (item == null || item.vehicle() == null) return null;
+        NamespacedKey body = ghostBody(item, r.ghostRecord);
+        if (body == null) return null;
+        Color glow = !ghostGlow ? null : r.ghostRecord ? Color.fromRGB(0xffd36b) : Color.fromRGB(0x9fe8ff);
+        String label = Lang.raw(r.ghostRecord ? "circuit.ghost-label-record" : "circuit.ghost-label", "player", r.ghostHolder,
+                "time", RaceProgress.format(r.ghost.lap()));
+        return new GhostView(plugin, w, item.vehicle(), body, ghostWheel(item.vehicle()), glow, label, pose, ox, yawOffset, smoothing);
+    }
+
+    public GhostStore ghosts() {
+        return ghosts;
+    }
+
+    boolean ghostsOn() {
+        return ghostsOn;
+    }
+
+    int ghostStep() {
+        return ghostStep;
+    }
+
+    int maxGhosts() {
+        return maxGhosts;
+    }
+
+    int smoothing() {
+        return smoothing;
+    }
+
+    // ------------------------------------------------------------------------------------------
+    // 관전: /서킷 관전 [플레이어|트랙], the list of running races (menus/circuit.yml: circuit_watch)
+    // ------------------------------------------------------------------------------------------
+
+    /** The races one can watch now (started, not over), in the order they were opened. */
+    List<Race> watchable() {
+        List<Race> out = new ArrayList<>();
+        for (Race r : races.values()) if (r.watchStage() == WatchRules.Stage.RUNNING) out.add(r);
+        return out;
+    }
+
+    /** Why a player may not start watching this race (a message key), or null. */
+    private String cannotWatch(Player p, Race race) {
+        boolean busy = p.isDead() || p.getGameMode() == org.bukkit.GameMode.SPECTATOR
+                || (plugin.cosmetics() != null && plugin.cosmetics().inWardrobe(p)) || (plugin.emotes() != null && plugin.emotes().emoting(p));
+        return WatchRules.check(watchOn, race == null ? WatchRules.Stage.CLOSED : race.watchStage(), race == null ? 0 : race.watchers.size(),
+                maxWatchers, raceOf(p) != null, false, ReturnPoint.has(p), busy);
+    }
+
+    /**
+     * /서킷 관전 [플레이어|트랙]: no argument opens the list of running races; a racer's name watches their race (following
+     * them), a track's id or name watches the race on it. Someone already watching moves to the other race (or racer).
+     */
+    public void watch(Player p, String arg) {
+        if (!watchOn) {
+            p.sendMessage(Lang.msg("circuit.watch-off"));
+            return;
+        }
+        if (arg == null || arg.isBlank()) {
+            openWatchMenu(p);
+            return;
+        }
+        Race race = null;
+        UUID target = null;
+        Player named = Bukkit.getPlayerExact(arg);
+        if (named != null) {
+            for (Race r : races.values()) {
+                Race.Racer x = r.racer(named.getUniqueId());
+                if (x != null && x.racing && !x.left) {
+                    race = r;
+                    target = x.id;
+                }
+            }
+            if (race == null) {
+                p.sendMessage(Lang.msg("circuit.watch-not-racing", "player", named.getName()));
+                return;
+            }
+        } else {
+            TrackSpec t = tracks.containsKey(arg) ? tracks.get(arg) : byName(arg);
+            if (t == null) {
+                p.sendMessage(Lang.msg("circuit.watch-unknown", "what", arg));
+                return;
+            }
+            race = races.get(t.id());
+            if (race == null) {
+                p.sendMessage(Lang.msg("circuit.watch-none"));
+                return;
+            }
+        }
+        watch(p, race, target);
+    }
+
+    /** Watches this race (following target, or the leader). */
+    void watch(Player p, Race race, UUID target) {
+        Race now = watchRace(p);
+        if (now != null) {
+            Race.Watcher w = now.watcher(p.getUniqueId());
+            if (now == race) {
+                // the same race: only another racer to follow
+                if (w != null && target != null && race.order().contains(target)) {
+                    w.target = target;
+                    w.view = WatchRules.View.CHASE;
+                }
+                return;
+            }
+            if (race.watchStage() != WatchRules.Stage.RUNNING || race.watchers.size() >= maxWatchers) {
+                p.sendMessage(Lang.msg(race.watchStage() != WatchRules.Stage.RUNNING ? "circuit.watch-none" : "circuit.watch-full"));
+                return;
+            }
+            // to another race: the way back stays as it is (written when they first came)
+            if (w != null) now.unwatch(w, null, false);
+            if (!race.watch(p, target, false)) putBack(p);
+            return;
+        }
+        String why = cannotWatch(p, race);
+        if (why != null) {
+            p.sendMessage(Lang.msg(why));
+            return;
+        }
+        p.closeInventory();
+        race.watch(p, target, true);
+    }
+
+    public void openWatchMenu(Player p) {
+        if (watchable().isEmpty() && !watching(p)) {
+            p.sendMessage(Lang.msg("circuit.watch-none"));
+            return;
+        }
+        plugin.menus().open(p, WATCH_MENU, new WatchMenu());
+    }
+
+    /** A spectator clicked an entity (Paper's start-spectating): true when it may be what their camera follows. */
+    public boolean watchClick(Player p, Entity e) {
+        Race r = watchRace(p);
+        Race.Watcher w = r == null ? null : r.watcher(p.getUniqueId());
+        return w != null && r.watchClicked(w, e);
+    }
+
+    private final class WatchMenu implements MenuHandler {
+        private final List<Race> shown = new ArrayList<>();
+
+        @Override
+        public Map<String, String> placeholders(MenuView v) {
+            Map<String, String> m = new HashMap<>();
+            m.put("count", String.valueOf(watchable().size()));
+            Race now = watchRace(v.player());
+            m.put("watching", now == null ? Lang.raw("circuit.watch-menu-not") : Lang.raw("circuit.watch-menu-now", "track", now.track.name()));
+            return m;
+        }
+
+        @Override
+        public List<ItemStack> list(MenuView v) {
+            shown.clear();
+            List<ItemStack> out = new ArrayList<>();
+            Race mine = watchRace(v.player());
+            for (Race r : watchable()) {
+                shown.add(r);
+                List<Race.Racer> order = r.standings();
+                Race.Racer lead = order.isEmpty() ? null : order.getFirst();
+                CustomItem item = lead == null ? null : kartItem(lead.kart);
+                ItemStack it = item == null ? new ItemStack(Material.MINECART) : item.create(1);
+                it.editMeta(meta -> {
+                    meta.itemName(Text.item(Lang.raw("circuit.watch-race", "track", r.track.name(), "stars", "★".repeat(r.track.difficulty()))));
+                    List<String> lore = new ArrayList<>();
+                    int lap = 0;
+                    for (Race.Racer x : order) if (x.progress != null) lap = Math.max(lap, x.progress.lap());
+                    lore.add(Lang.raw(r.state == Race.State.STARTING ? "circuit.watch-race-starting" : "circuit.watch-race-lap", "lap", Math.max(1, lap),
+                            "laps", r.track.laps(), "count", r.active().size()));
+                    int k = 0;
+                    for (Race.Racer x : order) {
+                        if (x.left) continue;
+                        if (++k > 5) break;
+                        lore.add(Lang.raw("circuit.watch-race-racer", "place", k, "player", x.name, "kart", x.kart.name()));
+                    }
+                    lore.add(Lang.raw("circuit.watch-race-watchers", "count", r.watchers.size(), "max", maxWatchers));
+                    lore.add("");
+                    lore.add(Lang.raw(r == mine ? "circuit.watch-race-here" : "circuit.watch-race-click"));
+                    meta.lore(Text.itemLines(lore));
+                    meta.setEnchantmentGlintOverride(r == mine);
+                    meta.setMaxStackSize(1);
+                });
+                out.add(it);
+            }
+            return out;
+        }
+
+        @Override
+        public void onListClick(MenuView v, int index, ClickType click) {
+            if (index < 0 || index >= shown.size()) return;
+            Race r = shown.get(index);
+            Player p = v.player();
+            v.close();
+            Bukkit.getScheduler().runTask(plugin, () -> {
+                if (p.isOnline() && races.containsValue(r)) watch(p, r, null);
+            });
+        }
+
+        @Override
+        public void onAction(MenuView v, String action, ClickType click) {
+            if (action.equals("circuit:watch-leave")) {
+                Player p = v.player();
+                v.close();
+                Bukkit.getScheduler().runTask(plugin, () -> {
+                    if (watching(p)) leave(p);
+                    else p.sendMessage(Lang.msg("circuit.not-in"));
+                });
+            }
+        }
     }
 
     // ------------------------------------------------------------------------------------------
@@ -833,6 +1186,8 @@ public final class Circuit {
         }
         m.put("circuit_status", waiting + racing == 0 ? Lang.raw("circuit.hub-quiet")
                 : Lang.raw("circuit.hub-busy", "waiting", waiting, "racing", racing));
+        int live = watchable().size();
+        m.put("circuit_live", !watchOn ? Lang.raw("circuit.watch-off-short") : live == 0 ? Lang.raw("circuit.hub-live-none") : Lang.raw("circuit.hub-live", "count", live));
         for (TrackSpec t : tracks.values()) {
             long best = store.best(t.id(), false);
             m.put("track_" + t.id() + "_best", best == 0 ? "-" : RaceProgress.format(best / 1000.0));
@@ -858,6 +1213,7 @@ public final class Circuit {
                 for (Race r : races.values()) {
                     StringBuilder names = new StringBuilder();
                     for (Race.Racer x : r.racers.values()) names.append(x.name).append(x.left ? "(나감) " : " ");
+                    if (!r.watchers.isEmpty()) names.append("· 관전 ").append(r.watchers.size()).append("명");
                     s.sendMessage(Lang.mm("circuit.admin-race", "track", r.track.name(), "state", r.state.name(), "racers", names.toString().trim()));
                 }
                 if (!problems.isEmpty()) for (String p : problems) s.sendMessage(Text.mm("<red>" + net.kyori.adventure.text.minimessage.MiniMessage.miniMessage().escapeTags(p)));
@@ -921,6 +1277,8 @@ public final class Circuit {
                     return;
                 }
                 store.reset(track, who).thenAccept(n -> Bukkit.getScheduler().runTask(plugin, () -> s.sendMessage(Lang.msg("circuit.admin-reset", "count", n))));
+                // the ghosts of those records go with them (a ghost is a record's lap)
+                ghosts.reset(track, who).thenAccept(n -> Bukkit.getScheduler().runTask(plugin, () -> s.sendMessage(Lang.msg("circuit.admin-reset-ghosts", "count", n))));
             }
             case "이동" -> {
                 if (!(s instanceof Player p) || a.length < 2 || !tracks.containsKey(a[1]) || w == null) {
@@ -951,11 +1309,24 @@ public final class Circuit {
         return List.copyOf(tracks.keySet());
     }
 
+    /** /서킷 관전 completions: the tracks raced on now and their racers. */
+    public List<String> watchTargets() {
+        List<String> out = new ArrayList<>();
+        for (Race r : watchable()) {
+            out.add(r.track.id());
+            for (Race.Racer x : r.active()) out.add(x.name);
+        }
+        return out;
+    }
+
     public void report(CommandSender s) {
-        int racers = 0;
-        for (Race r : races.values()) racers += r.racers.size();
+        int racers = 0, watchers = 0;
+        for (Race r : races.values()) {
+            racers += r.racers.size();
+            watchers += r.watchers.size();
+        }
         s.sendMessage(Text.mm("<gray>서킷: 트랙 <white>" + tracks.size() + "</white> · 레이스 <white>" + races.size() + "</white> · 참가 <white>" + racers
-                + "</white> · 짓는 중 <white>" + building.keySet() + "</white>"));
+                + "</white> · 관전 <white>" + watchers + "</white> · 짓는 중 <white>" + building.keySet() + "</white>"));
     }
 
     // ------------------------------------------------------------------------------------------

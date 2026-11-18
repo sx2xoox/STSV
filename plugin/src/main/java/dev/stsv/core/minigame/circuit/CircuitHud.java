@@ -52,6 +52,11 @@ public final class CircuitHud {
 
     /** The boss bar line: laps, place, the clock, kept boosts and the gauge. */
     public static Component bar(int lap, int laps, int place, int racers, String clock, int stored, double gauge, boolean boosting) {
+        return bar(lap, laps, place, racers, clock, stored, gauge, boosting, null);
+    }
+
+    /** The boss bar line with something after the gauge (the gap to a ghost: "+0.42"), or null for nothing. */
+    public static Component bar(int lap, int laps, int place, int racers, String clock, int stored, double gauge, boolean boosting, Component tail) {
         Component sep = Component.text("   ");
         Component out = icon(FLAG).append(Component.text(" " + Math.max(1, Math.min(lap, laps)) + "/" + laps, NamedTextColor.WHITE)
                 .decoration(TextDecoration.BOLD, true));
@@ -65,6 +70,7 @@ public final class CircuitHud {
         StringBuilder seg = new StringBuilder();
         for (int k = 0; k < SEGMENTS; k++) seg.append(k < filled ? SEG : SEG_EMPTY);
         out = out.append(Component.text(seg.toString()).font(ICON_FONT).color(boosting ? TextColor.color(0xff9a3c) : NamedTextColor.WHITE));
+        if (tail != null) out = out.append(sep).append(tail);
         return out;
     }
 }
