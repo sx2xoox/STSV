@@ -382,6 +382,7 @@ ac5827b25c959a72dcb04f31cd168b7d5b7336c6 economy/assets/economy/textures/gui/mac
 24e2721b50c16c49437ea00a2f4b108715bb35fc economy/assets/economy/textures/gui/machine_recipes.png
 41112e09acfab002e5e94c392eb631c5e265f3f9 economy/assets/economy/textures/gui/machine_recipes.png
 54243f5141bca96f192295e70c2675b223f9a57b economy/assets/economy/textures/gui/machine_recipes.png
+74cc9a4a0060e3ee0858ed53caf458817f890533 economy/assets/economy/textures/gui/machine_recipes.png
 8006f1dd86fd6eb6ebeb11403f0cc0fd56444af0 economy/assets/economy/textures/gui/machine_recipes.png
 80490a6333455fb86f478ef9ef2d9769f0c1c5c3 economy/assets/economy/textures/gui/machine_recipes.png
 cfa9aa0d8f7b0949ca80e6e01159e7677601d047 economy/assets/economy/textures/gui/machine_recipes.png
@@ -782,6 +783,7 @@ ee0db3e0eb95c6e768a7c690649b4972b79d166d economy/menus/jobs.yml
 5c4fe75a1c9ec7bac9cdce6a5133b9773dea6fb8 economy/menus/machine.yml
 ba55775185beae75950deb356977db1d62724a94 economy/menus/machine.yml
 c0b9ed391008e85ae4bec5e5df4d2be408a40d44 economy/menus/machine.yml
+c895cd52dbaaa92ad5cadad3abca856192d7dd62 economy/menus/machine.yml
 1319f2411f7055d20ff9b213354b9d455725123b economy/menus/mail.yml
 178b2904f7446641da28f289bdd19af958eb94dc economy/menus/mail.yml
 5cded1b0a3800a4ce7b0ab525bbcae50aec81223 economy/menus/mail.yml
