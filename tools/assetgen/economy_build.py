@@ -77,6 +77,10 @@ def main():
         (folders["def"] / f"{name}.json").write_text(json.dumps(
             {"model": {"type": "minecraft:model", "model": f"{NS}:item/gui/{name}"}}, indent=2))
     print(f"gui     {len(menus)} backgrounds, {len(E.GUI)} button icons")
+    # 장신구: one icon per effect, economy:acc/<effect> (textures/models/items under assets/economy/.../acc, the item_model
+    # of each accessory). accessory_art owns those three acc folders: it clears and rewrites them like the gui ones above.
+    import accessory_art as ACC
+    print(f"acc     {ACC.write_acc(assets)} effect icons")
     import economy_logos as LG
     LG.sheet(PREVIEWS / "stock_logos.png", LG.all_logos(LG.companies(PACK)))
 

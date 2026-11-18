@@ -1,21 +1,17 @@
-"""장신구 (accessories, docs/plans/장신구_시스템_기획안.md): an icon for every effect in every grade, the five slot icons, the box,
-the fragment and the sea-palace chest, and the 장신구 menu button icons.
+"""장신구 (accessories, docs/plans/장신구_시스템_기획안.md): an icon for every effect, the five slot icons, the box, the
+fragment and the sea-palace chest, and the 장신구 menu button icons.
 
-    economy:acc/<effect>_<grade>   one design per effect (accessories.yml `effects:`), written under assets/economy
-                                   (textures/item/acc, models/item/acc, items/acc); the accessory item's item_model
-    acc_<slot>_<grade>             a plain piece of each slot (the empty-slot placeholders); economy_goods.ICONS takes
-    acc_box, acc_fragment,         these in, so economy_build.py writes them to economy/content/economy/textures/<name>.png
-    dragon_chest
+    economy:acc/<effect>           one design per effect (accessories.yml `effects:`), written under assets/economy
+                                   (textures/item/acc, models/item/acc, items/acc): the accessory item's item_model.
+                                   Grades are told apart by the item name's colour, so an effect has one icon.
+    acc_<slot>_<grade>             a plain piece of each slot (the empty-slot placeholders; the same for every grade);
+    acc_box, acc_fragment,         economy_goods.ICONS takes these in, so economy_build.py writes them to
+    dragon_chest                   economy/content/economy/textures/<name>.png
     economy:gui/<name>             the menu buttons (economy_icons.GUI takes these in)
 
-Items: 16x16 on the pixelart Canvas like economy_goods.py (light from the top left, the darkest step as the outline).
-Every effect has its own design that says what it does (a pickaxe on the 채굴 속도 ring, a fish hook on the 손맛 necklace,
-a winged buckle on the 이동 속도 belt ...); the slot is the kind of piece it is, and the grade is only the material:
-
-    보통 common      steel, a plain stone
-    진품 fine        bright silver, sapphire
-    명품 masterwork  gold, amethyst
-    국보 treasure    gold, jade and ruby, and the faint pale rim of light the legendary fish have
+Items: 16x16 on the pixelart Canvas like economy_goods.py (light from the top left, the darkest step as the outline;
+small motifs are hand-drawn masks shaded as a bevel). Every effect has its own design that says what it does, in the
+materials that suit it (LOOK); the slot is the kind of piece it is:
 
     ring       a band seen at an angle, the motif set on top of it like a stone
     necklace   a chain hanging in a V from the corners, the motif as the pendant
@@ -48,36 +44,14 @@ NS = "economy"
 
 
 class Style:
-    """The materials of a grade: metal, stone, second stone (the ruby of 국보), cloth (straps, purses, book covers)."""
+    """A design's materials: metal, stone, second stone, cloth (straps, purses, book covers)."""
 
-    def __init__(self, grade, m, g, a, s):
-        self.grade, self.m, self.g, self.a, self.s = grade, m, g, a, s
+    def __init__(self, m, g, a, s="leather"):
+        self.m, self.g, self.a, self.s = m, g, a, s
 
-
-STYLE = {
-    "common":     Style("common", "steel", "whetstone", "whetstone", "leather"),
-    "fine":       Style("fine", "fish_silver", "sapphire", "sapphire", "indigo"),
-    "masterwork": Style("masterwork", "gold", "crystal", "crystal", "wine"),
-    "treasure":   Style("treasure", "gold", "bottle_green", "ruby", "fabric_red"),
-}
-GLOW = "#fff0a0"      # 국보: the pale rim of light (economy_fish / fish_art glowing fish, alpha 110)
 
 ICONS = {}            # acc_<slot>_<grade>, acc_box, acc_fragment, dragon_chest -> textures/<name>.png
-ACC = {}              # <effect>_<grade> -> economy:item/acc/<effect>_<grade>
-
-
-def glow(im, hexcol=GLOW, alpha=110):
-    """A faint pale rim of light round the outline (the same rim the legendary fish have)."""
-    px = im.load()
-    out = Image.new("RGBA", im.size, (0, 0, 0, 0))
-    r, g, b = (int(hexcol[i:i + 2], 16) for i in (1, 3, 5))
-    for y in range(16):
-        for x in range(16):
-            if px[x, y][3] == 0 and any(0 <= x + dx < 16 and 0 <= y + dy < 16 and px[x + dx, y + dy][3] > 0
-                                        for dx, dy in ((1, 0), (-1, 0), (0, 1), (0, -1))):
-                out.putpixel((x, y), (r, g, b, alpha))
-    out.alpha_composite(im)
-    return out
+ACC = {}              # <effect> -> economy:item/acc/<effect>
 
 
 # ================================================================================================
@@ -124,19 +98,20 @@ def gem(c, cx, cy, rx, ry, mat, z, lo=2, hi=4):
     return c
 
 
-def gear(c, cx, cy, r, mat, z, teeth=8, depth=1.3, phase=0.0, hole=0.0):
-    """A cog: a disc with square teeth round it, lit from the top left."""
-    for k in range(teeth):
-        a = phase + 2 * math.pi * k / teeth
-        ux, uy = math.cos(a), math.sin(a)
-        vx, vy = -uy, ux
-        w = 0.75
-        pts = [(cx + ux * (r - 0.4) + vx * w, cy + uy * (r - 0.4) + vy * w), (cx + ux * (r + depth) + vx * w * 0.8, cy + uy * (r + depth) + vy * w * 0.8),
-               (cx + ux * (r + depth) - vx * w * 0.8, cy + uy * (r + depth) - vy * w * 0.8), (cx + ux * (r - 0.4) - vx * w, cy + uy * (r - 0.4) - vy * w)]
-        c.poly(pts, mat, z, normal=(ux * 0.7, uy * 0.7, 0.7), lo=1, hi=4)
-    c.ellipse(cx, cy, r, r, mat, z + 0.01, lo=2, hi=4, dome=0.6)
-    if hole:
-        c.hole(cx, cy, hole, hole)
+def shape(c, rows, mat, z, ox=0, oy=0, lo=2, mid=3, hi=4, sunken=False):
+    """A hand-drawn shape: 'X' pixels are shaded like a bevel (lit on the top and left edges, dark on the bottom and
+    right edges; reversed when `sunken`), a digit sets that pixel's step outright. '.' and ' ' are left alone."""
+    pts = {(ox + x, oy + y): ch for y, row in enumerate(rows) for x, ch in enumerate(row) if ch not in ". "}
+    for (x, y), ch in pts.items():
+        if ch.isdigit():
+            step = int(ch)
+        else:
+            lit = (x, y - 1) not in pts or (x - 1, y) not in pts
+            dark = (x, y + 1) not in pts or (x + 1, y) not in pts
+            if sunken:
+                lit, dark = dark, lit
+            step = hi if lit and not dark else lo if dark and not lit else mid
+        c.put(x, y, mat, step, z=z)
     return c
 
 
@@ -210,99 +185,133 @@ def bangle(c, P, cy=6.0):
 # ================================================================================================
 
 def mining_speed(P):
-    """채굴 속도: a little pickaxe set on the ring, its head cut from the stone, sparks flying off it."""
+    """채굴 속도: a little pickaxe set on a silver ring, its head cut from a diamond, sparks flying off it."""
     c = Canvas()
     ring_band(c, P)
-    c.rect(7.0, 3.4, 9.0, 8.6, "wood", 3, normal=(-0.6, 0, 1), lo=2, hi=4)
-    c.tube([(2.4, 6.4), (3.5, 3.6), (8, 2.0), (12.5, 3.6), (13.6, 6.4)], [0.5, 1.0, 1.25, 1.0, 0.5], P.g, 5, lo=1, hi=4)
-    c.rect(6.6, 1.6, 9.4, 4.2, P.m, 6, normal=(-0.2, -0.3, 1), lo=2, hi=4)
-    spark(c, [(14, 0), (13, 1), (15, 1), (1, 1)], "lamp", 4)
-    spark(c, [(14, 1), (0, 0)], "lamp", 5)
+    shape(c, ["",
+              ".....XXXXXX",
+              "...XX5XXXXXXX",
+              "..XXX......XXX",
+              "..XX........XX",
+              "..X..........X"], P.g, 5)
+    shape(c, ["", ".......45", ".......43", "......4432"], P.m, 6)
+    shape(c, ["", "", "", "", ".......43", ".......43", ".......32", ".......32", ".......32"], "wood", 5.5)
+    spark(c, [(14, 0), (15, 1), (0, 1), (1, 0)], "lamp", 4)
+    spark(c, [(14, 1), (1, 1)], "lamp", 5)
     return c
 
 
 def vein_burst(P):
-    """광맥 폭발: a lump of ore on the ring, split open by a glowing crack, light bursting out of it."""
+    """광맥 폭발: a lump of ore on a gold ring, split by a glowing crack, a burst of light behind it."""
     c = Canvas()
     ring_band(c, P)
-    collet(c, P, 4.6, 11.4, 6.0, 8.0)
-    c.poly([(4.0, 7.2), (3.2, 4.2), (5.4, 1.6), (9.6, 1.2), (12.6, 3.6), (12.0, 7.2)], "stone", 4, normal=(-0.3, -0.4, 1), lo=2, hi=4)
-    c.poly([(9.6, 1.2), (12.6, 3.6), (12.0, 7.2), (9.2, 7.2)], "stone", 4.1, normal=(0.7, -0.1, 0.7), lo=1, hi=3)
-    c.dots([(5, 4), (6, 5), (10, 3), (11, 5), (6, 2)], P.g, 3, z=5).dots([(5, 3), (10, 4)], P.g, 5, z=5)
-    c.dots([(8, 1), (8, 2), (7, 3), (8, 4), (8, 5), (7, 6)], "lamp", 5, z=6)          # the glowing crack
-    c.dots([(9, 2), (7, 4), (9, 5)], "lamp", 3, z=6)
-    spark(c, [(1, 1), (2, 2), (14, 1), (13, 2), (0, 5), (1, 5), (14, 6), (15, 6)], "lamp", 4)
-    spark(c, [(7, 0), (9, 0)], "lamp", 5)
+    shape(c, ["",
+              "......XXXX",
+              ".....XXXXXX",
+              "....XXXXXXXX",
+              "....XXXXXXXX",
+              "....XXXXXXXX",
+              ".....XXXXXX",
+              "......XXXX"], "stone", 4)
+    c.dots([(5, 4), (10, 5), (9, 2)], P.g, 3, z=5).dots([(6, 4), (10, 4)], P.g, 5, z=5).dots([(6, 5), (9, 6)], P.g, 2, z=5)
+    c.dots([(8, 1), (8, 2), (7, 3), (7, 4), (8, 5), (8, 6), (7, 7)], "lamp", 5, z=6)
+    spark(c, [(2, 1), (3, 2), (13, 1), (12, 2), (1, 4), (2, 4), (13, 4), (14, 4), (2, 7), (13, 7)], "glow_amber", 5)
+    spark(c, [(1, 0), (14, 0), (0, 4), (15, 4)], "glow_amber", 4)
     return c
 
 
 def harvest_wind(P):
-    """풍년 바람: a sheaf of golden wheat tied with a ribbon of the stone's colour, a gust of wind curling round it."""
+    """풍년 바람: a sheaf of golden wheat tied with a green ribbon, gusts of wind blowing past it."""
     c = Canvas()
     ring_band(c, P)
-    collet(c, P, 6.0, 10.0, 6.4, 8.0)
-    for x0, y0 in ((4.6, 2.4), (8.0, 1.0), (11.4, 2.4)):
-        c.line(round(x0), round(y0) + 2, 8 if x0 == 8 else round((x0 + 8) / 2), 7, "straw", 2, z=3)
-        c.ellipse(x0, y0 + 1.0, 1.0, 1.9, "corn", 4, lo=2, hi=4)
-        ear = c.last()
-        c.tone([(x, y) for x, y in ear if (y - round(y0)) % 2 == 1 and x >= x0], -1)
-    c.rect(6.4, 5.0, 9.6, 6.2, P.g, 5, normal=(0, -0.4, 1), lo=2, hi=4)
-    spark(c, [(1, 5), (1, 6), (2, 7), (3, 7), (2, 4), (3, 4)], "snow", 4)
-    spark(c, [(13, 1), (14, 1), (14, 2), (15, 3)], "snow", 4)
+    shape(c, ["",
+              "..4....45....4",
+              "..43...43...43",
+              "...42..42..42",
+              "...43..43..43",
+              "....2..32..2"], "corn", 5)
+    shape(c, ["", "", "", "", "", "", "", ".....2.22.2"], "straw", 4)
+    shape(c, ["", "", "", "", "", "", "......4432"], P.a, 6)
+    spark(c, [(0, 4), (1, 3), (2, 3), (13, 6), (14, 6), (15, 5)], "snow", 4)
     return c
 
 
 def master_hand(P):
-    """장인의 손: a signet ring, a smith's hammer standing out on its stone face."""
+    """장인의 손: a gold signet ring, a silver smith's hammer standing out on its sapphire face."""
     c = Canvas()
     ring_band(c, P)
-    c.ellipse(8, 4.6, 4.6, 3.6, P.m, 3, lo=1, hi=4)
-    c.ellipse(8, 4.4, 3.4, 2.5, P.g, 4, lo=1, hi=3, gloss=0)
-    c.rect(4.6, 2.0, 9.4, 4.2, P.m, 6, normal=(-0.3, -0.5, 1), lo=3, hi=4)            # the hammer's head
-    c.line(8, 4, 10, 6, "wood", 4, z=6)                                             # its handle
-    c.put(11, 7, "wood", 2, z=6)
+    shape(c, ["",
+              "...XXXXXXXXXX",
+              "..XXXXXXXXXXXX",
+              "..XXXXXXXXXXXX",
+              "..XXXXXXXXXXXX",
+              "..XXXXXXXXXXXX",
+              "..XXXXXXXXXXXX",
+              "..XXXXXXXXXXXX",
+              "...XXXXXXXXXX"], P.m, 3)
+    shape(c, ["", "",
+              "....XXXXXXXX",
+              "...XXXXXXXXXX",
+              "...XXXXXXXXXX",
+              "...XXXXXXXXXX",
+              "...XXXXXXXXXX",
+              "....XXXXXXXX"], P.g, 4, lo=1, mid=2, hi=3, sunken=True)
+    shape(c, ["", "", "", "....55554", "....33332"], "fish_silver", 5)
+    shape(c, ["", "", "", "", "", "......43", ".......43", "........43", ".........43"], "wood", 5)
     return c
 
 
 def rich_vein(P):
-    """풍부한 광맥: two crystals of ore grown side by side on the ring, one taller behind."""
+    """풍부한 광맥: two emerald crystals grown side by side on a silver ring, one taller behind."""
     c = Canvas()
     ring_band(c, P)
-    collet(c, P, 4.4, 11.6, 6.2, 8.0)
-    for (x0, x1, top, z) in ((3.4, 7.6, 2.8, 4), (6.8, 11.8, 0.4, 5)):
-        xm = (x0 + x1) / 2
-        c.poly([(x0, 7.2), (x0, top + 2.2), (xm, top), (x1, top + 2.2), (x1, 7.2)], P.g, z, normal=(-0.5, -0.3, 1), lo=2, hi=4)
-        c.poly([(xm, top), (x1, top + 2.2), (x1, 7.2), (xm, 7.2)], P.g, z + 0.05, normal=(0.7, 0, 0.7), lo=1, hi=3)
-        c.put(round(x0 + 0.6), round(top + 2.4), P.g, 5, z=z + 0.5)
-    c.dots([(3, 7), (12, 7), (2, 6)], "stone", 3, z=3)
+    shape(c, ["", "",
+              "....4",
+              "...442",
+              "...4321",
+              "...4321",
+              "...4321",
+              "...4321"], P.g, 4)
+    shape(c, ["",
+              ".........5",
+              "........542",
+              ".......45321",
+              ".......45321",
+              ".......44321",
+              ".......44321",
+              ".......44321"], P.g, 5)
+    shape(c, ["", "", "", "", "", "", "", "", "..XXXXXXXXXXX"], P.m, 6)
     return c
 
 
 def magnet(P):
-    """자석: a red horseshoe magnet set on the ring, its two poles of bright metal, the field curling round it."""
+    """자석: a red horseshoe magnet set on a silver ring, its two bright poles, the field curling round it."""
     c = Canvas()
     ring_band(c, P)
-    c.tube([(5.0, 1.8), (5.0, 4.4), (6.0, 6.2), (8, 7.0), (10.0, 6.2), (11.0, 4.4), (11.0, 1.8)], [1.3] * 7, "signal_red", 4, lo=1, hi=4)
-    for x0 in (3.6, 9.6):
-        c.rect(x0, 0.6, x0 + 2.8, 2.6, P.m, 5, normal=(-0.2, -0.5, 1), lo=2, hi=4)
-    gem(c, 8, 6.4, 1.0, 0.9, P.a, 6)
-    spark(c, [(1, 2), (1, 3), (1, 4), (2, 5), (14, 2), (14, 3), (14, 4), (13, 5)], "glow_cyan", 4)
-    spark(c, [(7, 0), (8, 0)], "glow_cyan", 5)
+    shape(c, ["", "", "",
+              "....XXX..XXX",
+              "....XXX..XXX",
+              "....XXXXXXXX",
+              ".....XXXXXX",
+              "......XXXX"], "signal_red", 4)
+    shape(c, ["", "....455..454", "....332..332"], P.m, 5)
+    shape(c, ["", "", "", "", "", "", ".......53"], P.a, 5)
+    spark(c, [(2, 1), (1, 2), (1, 3), (1, 4), (2, 5), (13, 1), (14, 2), (14, 3), (14, 4), (13, 5)], "glow_cyan", 4)
     return c
 
 
 def blessing(P):
-    """대장장이의 축복: a dark anvil set on the ring, a blessed star of light over it."""
+    """대장장이의 축복: a dark anvil set on a gold ring, a blessed star of light over it."""
     c = Canvas()
     ring_band(c, P)
     c.poly([(1.8, 4.4), (4.6, 3.4), (13.2, 3.4), (13.2, 5.6), (4.8, 5.6), (3.0, 5.0)], "blacksteel", 4, normal=(-0.2, -0.7, 0.7), lo=2, hi=4)
     c.rect(6.0, 5.6, 10.0, 7.0, "blacksteel", 3.9, normal=(-0.3, 0, 1), lo=1, hi=3)
     c.poly([(4.4, 8.6), (5.8, 6.8), (10.2, 6.8), (11.6, 8.6)], "blacksteel", 3.8, normal=(-0.2, -0.3, 1), lo=1, hi=3)
-    c.line(5, 4, 12, 4, P.m, 3, z=5)                                                 # the bright working face
-    c.put(5, 4, P.m, 5, z=5)
+    c.line(5, 4, 12, 4, "fish_silver", 4, z=5)                                       # the bright working face
+    c.put(5, 4, "fish_silver", 5, z=5)
     spark(c, [(8, 0), (7, 1), (9, 1), (8, 2)], P.a, 4)
     spark(c, [(8, 1)], "lamp", 5)
-    spark(c, [(3, 1), (13, 1)], "lamp", 4)
+    spark(c, [(3, 1), (13, 1), (2, 2), (12, 2)], "lamp", 4)
     return c
 
 
@@ -311,69 +320,96 @@ def blessing(P):
 # ================================================================================================
 
 def bite(P):
-    """손맛: a barbed fishing hook as the pendant, a bead of stone at its eye."""
+    """손맛: a barbed silver fishing hook as the pendant, a red float bead at its eye."""
     c = Canvas()
     chain(c, P)
-    bail(c, P)
-    c.tube([(8.0, 7.6), (8.0, 11.8), (7.4, 13.6), (5.8, 14.2), (4.4, 13.2), (4.0, 10.6)], [0.75] * 6, P.m, 3, lo=1, hi=4)
-    c.poly([(3.2, 9.2), (4.8, 10.6), (4.6, 12.0), (3.4, 11.0)], P.m, 3.5, normal=(-0.4, -0.4, 1), lo=2, hi=4)  # the point and barb
-    c.put(4, 10, P.m, 5, z=4)
-    gem(c, 8, 7.6, 1.3, 1.2, P.a, 4)
-    spark(c, [(11, 13), (12, 12), (12, 14)], "water", 4)
+    bail(c, P, 4.6)
+    shape(c, ["", "", "", "", "", "", "", "",
+              ".......XX",
+              "...5...XX",
+              "..445..XX",
+              "..XX...XX",
+              "..XX...XX",
+              "...XXXXXX",
+              "....XXXX"], P.m, 3)
+    shape(c, ["", "", "", "", "", "", "......5432", ".......32"], P.a, 4)
+    spark(c, [(12, 11), (11, 12), (12, 13), (13, 12)], "water", 4)
+    spark(c, [(12, 12)], "water", 5)
     return c
 
 
 def dragon_treasure(P):
-    """용궁 보물: a dragon's three-taloned claw clutching a big pearl."""
+    """용궁 보물: a dragon's gold three-taloned claw clutching a big pearl, a jade bead at the wrist."""
     c = Canvas()
     chain(c, P)
-    c.ellipse(8, 11.4, 3.0, 2.9, "pearl", 3, lo=2, hi=4)
-    c.put(7, 10, "pearl", 5, z=3.5)
-    c.rect(6.4, 5.0, 9.6, 7.6, P.m, 4, normal=(0, -0.4, 1), lo=2, hi=4)                # the wrist
-    for side in (-1, 1):
-        c.tube([(8 + side * 1.0, 7.2), (8 + side * 3.0, 8.4), (8 + side * 3.8, 10.6), (8 + side * 3.0, 13.0)],
-               [0.95, 0.9, 0.75, 0.45], P.m, 4.2, lo=1, hi=4)
-        c.put(8 + side * 3 - (1 if side > 0 else 0), 13, "snow", 3, z=5)
-    c.tube([(8, 7.2), (8, 9.0)], [0.8, 0.5], P.m, 4.3, lo=2, hi=4)
-    c.put(8, 9, "snow", 3, z=5)
-    gem(c, 8, 5.6, 0.9, 0.8, P.a, 5)
+    c.ellipse(7.9, 11.0, 3.0, 2.9, "pearl", 3, lo=2, hi=4)
+    c.put(6, 9, "pearl", 5, z=3.5)
+    shape(c, ["", "", "", "", "",
+              "......4554",
+              "......3443",
+              ".....434332",
+              "....43.32.32",
+              "...43......32",
+              "...42......31",
+              "...32......21",
+              "....3......2"], P.m, 5)
+    shape(c, ["", "", "", "", "", "", "", "", "", ".......44", "", "", "", ".....3....3"], "snow", 5.5)
+    shape(c, ["", "", "", "", "", ".......53"], P.a, 6)
     return c
 
 
 def full_net(P):
-    """만선: a fishing net bulging with a catch, a fish's tail sticking out of it, a float at its mouth."""
+    """만선: a fishing net bulging with its catch, a fish's tail sticking out at the top, a float at its mouth."""
     c = Canvas()
     chain(c, P)
-    bail(c, P)
-    c.poly([(10.6, 8.4), (13.6, 6.4), (13.2, 9.0), (14.0, 11.0), (11.0, 10.0)], "fish_blue", 2.5, normal=(-0.2, -0.4, 1), lo=2, hi=4)
-    c.ellipse(7.8, 11.2, 4.2, 3.4, "fish_silver", 3, lo=2, hi=4)
-    body = c.last()
-    for x, y in body:
+    shape(c, ["", "", "", "", "", "", "", "", ".............54", "............43", "............32", ".............21"], "fish_blue", 2.5)
+    bag = ["", "", "", "", "", "", "", "",
+           "....XXXXXXXX",
+           "...XXXXXXXXXX",
+           "...XXXXXXXXXX",
+           "...XXXXXXXXXX",
+           "....XXXXXXXX",
+           ".....XXXXXX",
+           "......XXXX"]
+    pts = [(x, y) for y, row in enumerate(bag) for x, ch in enumerate(row) if ch == "X"]
+    for x, y in pts:
         if (x + y) % 3 == 0 or (x - y) % 3 == 0:
-            c.px[(x, y)][0], c.px[(x, y)][1] = "burlap", 4 if y < 11 else 3
-    c.tube([(3.8, 8.2), (11.8, 8.2)], [0.7, 0.7], "burlap", 4, lo=2, hi=4)
-    gem(c, 8, 8.0, 1.2, 1.0, P.a, 5)
+            c.put(x, y, "burlap", 4 if y < 11 else 3, z=3.2)
+        elif ((x - 7.6) / 3.4) ** 2 + ((y - 10.8) / 1.7) ** 2 <= 1:
+            c.put(x, y, "fish_silver", 4 if y < 11 else 2, z=3.1)
+        else:
+            c.put(x, y, "burlap", 1, z=3)
+    shape(c, ["", "", "", "", "", "", "", "...XXXXXXXXXX"], "burlap", 4, lo=3, mid=4, hi=5)
+    shape(c, ["", "", "", "", "", "......5432", ".......32"], P.a, 5)
     return c
 
 
 def rare_find(P):
-    """귀한 발견: a wild ginseng root with its arms and legs, red berries and leaves on top."""
+    """귀한 발견: a wild ginseng root with arms and legs, red berries and leaves on its head."""
     c = Canvas()
-    chain(c, P)
-    c.tube([(8, 8.4), (8.2, 11.0), (7.6, 13.8)], [1.6, 1.5, 0.6], "garlic", 3, lo=1, hi=4)
-    c.tube([(8.6, 11.4), (10.2, 13.6), (10.8, 14.6)], [0.8, 0.5, 0.3], "garlic", 2.9, lo=1, hi=4)
-    c.tube([(7.0, 9.6), (5.0, 11.2), (4.2, 12.6)], [0.55, 0.45, 0.3], "garlic", 3.1, lo=1, hi=4)
-    c.tube([(9.2, 9.4), (11.0, 10.6), (12.2, 10.4)], [0.55, 0.45, 0.3], "garlic", 3.1, lo=1, hi=4)
-    c.tone([(8, 10), (7, 12)], -1)
-    c.poly([(7.4, 7.6), (3.4, 5.4), (4.4, 7.8)], "leaf", 4, normal=(-0.3, -0.5, 1), lo=2, hi=4)
-    c.poly([(8.6, 7.6), (12.6, 5.4), (11.6, 7.8)], "leaf", 4, normal=(0.2, -0.5, 1), lo=2, hi=4)
-    for x, y in ((7.4, 6.0), (8.6, 6.0), (8.0, 5.0)):
-        c.ellipse(x, y, 0.8, 0.8, "tomato", 5, lo=2, hi=5)
+    chain(c, P, 4)
+    shape(c, ["", "", "", "", "",
+              "..XX........XX",
+              ".XXXX......XXXX",
+              "..XXXX....XXXX",
+              "....XX....XX"], "leaf", 4)
+    shape(c, ["", "", "", "", ".......XX", "......XXXX", ".......XX"], "tomato", 5, lo=2, mid=3, hi=4)
+    c.put(7, 4, "tomato", 5, z=6)
+    shape(c, ["", "", "", "", "", "", "",
+              ".......XX",
+              "......XXXX",
+              ".....XXXXXX",
+              "....XXXXXXXX",
+              "....X.XXXX.X",
+              "......XXXX",
+              "......XXXX",
+              ".....XX..XX"], "whetstone", 3, lo=2, mid=3, hi=4)
+    c.dots([(7, 9), (8, 12), (7, 13)], "whetstone", 1, z=3.5)
     return c
 
 
 def appraiser(P):
-    """감정사의 눈: a jeweller's loupe, its lens of stone with an eye looking out of it."""
+    """감정사의 눈: a jeweller's loupe, its sapphire lens with an eye looking out of it."""
     c = Canvas()
     chain(c, P)
     bail(c, P)
@@ -385,17 +421,37 @@ def appraiser(P):
     return c
 
 
+GEAR = ["....54....",
+        ".54.43.43.",
+        ".44443332.",
+        "..443332..",
+        "5443..3332",
+        "4432..3221",
+        "..432221..",
+        ".43322211.",
+        ".32.21.21.",
+        "....21...."]
+
+
+def cog(c, mat, hub, ox, oy, z):
+    """The 10x10 cog, shaded by hand, a stone in its hub."""
+    shape(c, [""] * oy + ["." * ox + r for r in GEAR], mat, z)
+    shape(c, [""] * (oy + 4) + ["." * (ox + 4) + "54", "." * (ox + 4) + "32"], hub, z + 1)
+    return c
+
+
 def remote_machine(P):
-    """원격 기계: a key whose bow is a cog, waves of a signal coming off it."""
+    """원격 기계: a key whose bow is a cog, the signal it sends going out from its tip."""
     c = Canvas()
-    chain(c, P)
-    bail(c, P)
-    gear(c, 8, 9.4, 2.6, P.m, 3, teeth=6, depth=1.2, phase=math.pi / 6)
-    gem(c, 8, 9.4, 1.1, 1.1, P.a, 4)
-    c.rect(7.0, 12.0, 9.0, 15.0, P.m, 2.5, normal=(-0.5, 0, 1), lo=2, hi=4)
-    c.dots([(9, 13), (10, 13), (9, 14)], P.m, 2, z=2.4)
-    spark(c, [(13, 7), (14, 8), (14, 9), (13, 10)], "glow_cyan", 4)
-    spark(c, [(15, 7), (15, 8), (15, 9), (15, 10)], "glow_cyan", 3)
+    chain(c, P, 4)
+    cog(c, P.m, P.a, 1, 5, 3)
+    shape(c, ["", "", "", "", "", "", "", "", "",
+              "...........4444",
+              "...........3332",
+              ".............32",
+              ".............21"], P.m, 2.5)
+    spark(c, [(12, 6), (13, 7), (14, 4), (15, 5), (15, 6)], "glow_cyan", 4)
+    spark(c, [(11, 7)], "glow_cyan", 5)
     return c
 
 
@@ -404,7 +460,7 @@ def remote_machine(P):
 # ================================================================================================
 
 def focus(P):
-    """장인의 집중: an hourglass hanging from the hook, its sand of the stone's colour running through."""
+    """장인의 집중: an hourglass hanging from a gold hook, its amber sand running through."""
     c = Canvas()
     hook(c, P)
     c.poly([(5.6, 6.4), (10.4, 6.4), (8.7, 10.0), (7.3, 10.0)], "glass", 3, normal=(-0.4, -0.3, 1), lo=2, hi=4)
@@ -419,17 +475,17 @@ def focus(P):
 
 
 def machine_haste(P):
-    """기계 가속: a cog hanging from the hook, spinning so fast it leaves streaks behind it."""
+    """기계 가속: a brass cog hanging from the hook, spinning so fast it leaves streaks behind it."""
     c = Canvas()
-    hook(c, P)
-    gear(c, 9.2, 10.4, 2.9, P.m, 3, teeth=8, depth=1.3, phase=0.2)
-    gem(c, 9.2, 10.4, 1.2, 1.2, P.a, 4)
-    spark(c, [(1, 8), (2, 8), (3, 8), (0, 11), (1, 11), (2, 11), (1, 14), (2, 14), (3, 14)], "snow", 4)
+    hook(c, P, 7)
+    cog(c, P.m, P.a, 4, 5, 3)
+    spark(c, [(0, 7), (1, 7), (2, 7), (0, 10), (1, 10), (0, 13), (1, 13), (2, 13)], "snow", 4)
+    spark(c, [(1, 10)], "snow", 5)
     return c
 
 
 def timber(P):
-    """벌목 회오리: a little axe hanging from the hook, leaves whirling round it."""
+    """벌목 회오리: a little axe hanging from a silver hook, leaves whirling round it."""
     c = Canvas()
     hook(c, P)
     c.tube([(5.0, 14.4), (9.6, 6.2)], [0.75, 0.75], "wood", 2, lo=2, hi=4)
@@ -442,20 +498,29 @@ def timber(P):
 
 
 def quake(P):
-    """땅울림: a lump of earth hanging from the hook, cracked through with light, the ground shaking round it."""
+    """땅울림: a clod of earth with grass on top hanging from the hook, cracked through with light, the ground shaking."""
     c = Canvas()
     hook(c, P)
-    c.poly([(4.0, 7.6), (7.0, 5.6), (11.0, 6.0), (12.6, 8.8), (11.6, 13.0), (7.6, 14.4), (4.2, 12.6), (3.4, 9.6)], "soil", 3,
-           normal=(-0.3, -0.3, 1), lo=2, hi=4)
-    c.poly([(11.0, 6.0), (12.6, 8.8), (11.6, 13.0), (7.6, 14.4), (9.6, 10.4)], "soil", 3.1, normal=(0.6, 0.3, 0.7), lo=1, hi=2)
-    c.poly([(4.0, 7.6), (7.0, 5.6), (11.0, 6.0), (8.0, 7.6)], "leaf", 3.2, normal=(-0.2, -0.8, 0.6), lo=2, hi=4)  # grass on top
-    c.dots([(8, 8), (7, 9), (8, 10), (9, 11), (8, 12), (6, 10), (5, 11)], P.g, 5, z=4)       # the crack
-    spark(c, [(1, 8), (1, 9), (1, 10), (14, 8), (14, 9), (14, 10), (2, 13), (13, 4)], "soil", 4)
+    shape(c, ["", "", "", "", "", "",
+              ".....XXXXXX",
+              "....XXXXXXXX"], "leaf", 4)
+    shape(c, ["", "", "", "", "", "", "", "",
+              "...XXXXXXXXXX",
+              "...XXXXXXXXXX",
+              "...XXXXXXXXXX",
+              "....XXXXXXXX",
+              "....XXXXXXXX",
+              ".....XXXXXX",
+              ".......XX"], "soil", 3, lo=1, mid=2, hi=3)
+    c.dots([(8, 7), (8, 8), (7, 9), (7, 10), (8, 11), (9, 12), (6, 11), (5, 12)], P.g, 5, z=5)
+    c.dots([(9, 8), (8, 10)], P.g, 3, z=5)
+    spark(c, [(1, 8), (0, 9), (1, 10), (14, 8), (15, 9), (14, 10)], "snow", 4)
+    spark(c, [(2, 5), (13, 4), (1, 13), (14, 13)], "soil", 3)
     return c
 
 
 def vein_sight(P):
-    """광맥 투시: an eye of stone in a metal lid, rays of sight shining out of it."""
+    """광맥 투시: an emerald eye in gold lids hanging from the hook, rays of sight shining out of it."""
     c = Canvas()
     hook(c, P)
     c.rect(7.0, 5.0, 9.0, 7.6, P.m, 2.5, normal=(0, -0.4, 1), lo=2, hi=4)
@@ -463,22 +528,26 @@ def vein_sight(P):
     c.poly([(4.2, 10.4), (6.0, 8.8), (10.0, 8.8), (11.8, 10.4), (10.0, 12.0), (6.0, 12.0)], "snow", 4, normal=(-0.2, -0.3, 1), lo=2, hi=3)
     c.ellipse(8, 10.4, 1.9, 1.9, P.g, 5, lo=2, hi=4, gloss=0)
     c.put(8, 10, "soot", 0, z=6).put(7, 9, "snow", 5, z=6)
-    spark(c, [(3, 6), (2, 5), (13, 6), (14, 5), (3, 14), (13, 14), (0, 10), (15, 10)], P.g, 5)
+    spark(c, [(3, 6), (2, 5), (13, 6), (14, 5), (3, 14), (13, 14), (0, 10), (15, 10)], "glow_cyan", 4)
     return c
 
 
 def refine_hand(P):
-    """제련의 손: a cut stone hanging from the hook, a little hammer tapping it, a spark where it strikes."""
+    """제련의 손: a cut ruby hanging from the hook, a little hammer tapping it, a spark where it strikes."""
     c = Canvas()
-    hook(c, P)
-    c.rect(6.6, 5.2, 9.4, 7.2, P.m, 2.5, normal=(0, -0.4, 1), lo=2, hi=4)
-    c.poly([(4.8, 9.2), (6.4, 7.0), (9.6, 7.0), (11.2, 9.2), (8, 14.4)], P.g, 3, normal=(-0.3, -0.25, 1), lo=2, hi=4)
-    c.poly([(8, 9.2), (11.2, 9.2), (8, 14.4)], P.g, 3.1, normal=(0.7, 0.3, 0.6), lo=1, hi=2)
-    c.line(5, 9, 10, 9, P.g, 4, z=3.2)
-    c.put(6, 8, "snow", 5, z=4)
-    c.tube([(14.4, 14.4), (11.6, 11.4)], [0.6, 0.6], "wood", 4, lo=2, hi=4)
-    c.poly([(9.4, 11.2), (11.8, 9.0), (13.4, 10.6), (11.0, 12.8)], P.m, 5, normal=(-0.3, -0.4, 1), lo=2, hi=4)
-    spark(c, [(9, 13), (10, 14), (8, 15)], "lamp", 5)
+    hook(c, P, 6)
+    shape(c, ["", "", "", "", "", "......XXX", "......XXX"], P.m, 2.5)
+    shape(c, ["", "", "", "", "", "", "",
+              "....4544333",
+              "...444443322",
+              "...322222211",
+              "....4332221",
+              ".....43221",
+              "......421",
+              ".......1"], P.g, 3)
+    shape(c, ["", "", "", "", "", "", "..........5443", "..........3221"], "blacksteel", 5)
+    shape(c, ["", "", "", "", "", "", "", "", "...........43", "...........43", "...........32", "...........32"], "wood", 4.5)
+    spark(c, [(9, 5), (10, 5), (9, 4)], "lamp", 5)
     return c
 
 
@@ -487,7 +556,7 @@ def refine_hand(P):
 # ================================================================================================
 
 def move_speed(P):
-    """이동 속도: a winged buckle, white wings spreading over the strap."""
+    """이동 속도: a winged gold buckle, white wings spreading over an indigo strap."""
     c = Canvas()
     strap(c, P)
     for k in (-1, 1):
@@ -501,7 +570,7 @@ def move_speed(P):
 
 
 def vehicle_speed(P):
-    """탈것 가속: the buckle is a wheel, a black tyre on a bright rim, spokes and a stone hub."""
+    """탈것 가속: the buckle is a wheel, a black tyre on a bright rim, spokes and a ruby hub, speed lines behind."""
     c = Canvas()
     strap(c, P)
     c.ellipse(8, 8, 5.2, 5.2, "rubber", 3, lo=1, hi=4)
@@ -515,34 +584,53 @@ def vehicle_speed(P):
 
 
 def cargo(P):
-    """짐 더 싣기: the buckle is a wooden crate bound in metal, a stone lock in the middle."""
+    """짐 더 싣기: the buckle is a wooden crate with a brace across it, bound at the corners in iron."""
     c = Canvas()
     strap(c, P)
-    c.rect(3.6, 2.6, 12.4, 13.4, "wood", 3, normal=(-0.2, -0.2, 1), lo=2, hi=3)
-    box = c.last()
-    c.tone([(x, y) for x, y in box if y in (6, 10)], -1)
-    c.line(5, 4, 11, 12, "wood", 4, z=3.5)
-    c.line(5, 12, 11, 4, "wood", 2, z=3.4)
-    for (x0, y0) in ((3.6, 2.6), (10.4, 2.6), (3.6, 11.4), (10.4, 11.4)):
-        c.rect(x0, y0, x0 + 2.0, y0 + 2.0, P.m, 4, normal=(-0.3, -0.3, 1), lo=2, hi=4)
-    gem(c, 8, 8, 1.2, 1.2, P.g, 5)
+    for y in range(3, 13):
+        for x in range(3, 13):
+            edge = x in (3, 12) or y in (3, 12)
+            if edge:
+                c.put(x, y, "wood_dark", 4 if (x == 3 or y == 3) else 2, z=3)
+            elif x - 3 == 12 - y or x - 3 == 11 - y:
+                c.put(x, y, "wood_dark", 3, z=3)
+            else:
+                c.put(x, y, "wood", 2 if y in (6, 9) else 4 if y in (4, 7, 10) else 3, z=3)
+    for (x, y) in ((3, 3), (11, 3), (3, 11), (11, 11)):
+        shape(c, [""] * y + ["." * x + "54", "." * x + "32"], P.m, 4)
+    shape(c, [""] * 7 + ["......." + "54", "......." + "32"], P.g, 4)
     return c
 
 
 def bag(P):
-    """가방: a pouch hanging from the belt, its leather flap shut with a stone clasp."""
+    """가방: a canvas pouch hanging from the belt, its leather flap shut with a gold clasp and an emerald."""
     c = Canvas()
-    strap(c, P, 2.6, 6.4, holes=False)
-    c.poly([(3.6, 6.8), (12.4, 6.8), (12.8, 13.4), (11.6, 14.6), (4.4, 14.6), (3.2, 13.4)], "burlap", 3, normal=(-0.2, -0.1, 1), lo=1, hi=4)
-    c.rect(6.4, 2.0, 9.6, 7.0, "burlap", 2, normal=(-0.2, -0.3, 1), lo=2, hi=4)              # the belt loop
-    c.poly([(3.2, 6.4), (12.8, 6.4), (12.4, 10.0), (8, 11.6), (3.6, 10.0)], P.s, 4, normal=(-0.2, -0.5, 1), lo=2, hi=4)
-    gem(c, 8, 10.4, 1.1, 1.1, P.g, 5)
-    c.rect(7.2, 9.0, 8.8, 9.8, P.m, 5.5, normal=(0, -0.4, 1), lo=3, hi=4)
+    strap(c, P, 1.6, 5.4, holes=False)
+    shape(c, ["", "", "", "", "", "",
+              "...XXXXXXXXXX",
+              "...XXXXXXXXXX",
+              "...XXXXXXXXXX",
+              "...XXXXXXXXXX",
+              "...XXXXXXXXXX",
+              "...XXXXXXXXXX",
+              "...XXXXXXXXXX",
+              "....XXXXXXXX"], "burlap", 3, lo=2, mid=3, hi=4)
+    c.tone([(3, y) for y in range(6, 14)], 1)
+    shape(c, ["", "", "", "", "",
+              "...XXXXXXXXXX",
+              "...XXXXXXXXXX",
+              "...XXXXXXXXXX",
+              "....XXXXXXXX",
+              ".....XXXXXX",
+              "......XXXX"], "wine", 4)
+    shape(c, ["", "", "", "", "", "", "", "", "", ".......54", ".......32"], P.m, 5)
+    c.dots([(7, 10)], P.g, 4, z=5.5).dots([(8, 10)], P.g, 2, z=5.5)
+    shape(c, ["", "", "", "....5........5", "....3........3", "....2........2"], P.m, 3.5)
     return c
 
 
 def fortune_find(P):
-    """행운의 발견: the buckle is a round plate with a four-leaf clover on it."""
+    """행운의 발견: the buckle is a round gold plate with a four-leaf clover on it."""
     c = Canvas()
     strap(c, P)
     c.ellipse(8, 8, 5.0, 5.0, P.m, 3, lo=1, hi=4)
@@ -559,19 +647,17 @@ def fortune_find(P):
 # ================================================================================================
 
 def dock_bonus(P):
-    """하역 웃돈: two old brass coins (엽전) hanging from the bangle."""
+    """하역 웃돈: two old gold coins (엽전, square holes) hanging from a silver bangle."""
     c = Canvas()
     bangle(c, P)
-    for (x, y, r, z) in ((10.4, 10.4, 2.6, 2), (6.4, 11.4, 3.0, 3)):
-        c.ellipse(x, y, r, r, "brass", z, lo=2, hi=4)
-        face = c.last()
-        c.tone([(px, py) for px, py in face if abs(px + 0.5 - x) < 1 and abs(py + 0.5 - y) < 1], -3)
-    c.dots([(5, 10), (4, 11)], "brass", 5, z=4)
+    for ox, oy, z in ((8, 7, 3), (3, 9, 4)):
+        shape(c, [""] * oy + ["." * ox + r for r in (".XXXX.", "XXXXXX", "XX11XX", "XX11XX", "XXXXXX", ".XXXX.")], "gold", z)
+        c.put(ox + 1, oy + 1, "gold", 5, z=z)
     return c
 
 
 def abundance(P):
-    """풍작: a bangle strung from golden grains, a stone bead at the front, an ear of rice hanging from it."""
+    """풍작: a bangle strung from golden grains, an emerald bead at the front, an ear of rice hanging from it."""
     c = Canvas()
     n = 12
     beads = sorted(((8 + 5.6 * math.cos(2 * math.pi * k / n), 5.6 + 3.6 * math.sin(2 * math.pi * k / n), k) for k in range(n)),
@@ -590,7 +676,7 @@ def abundance(P):
 
 
 def thrift(P):
-    """알뜰한 손: a little 복주머니 purse tied at the neck with a cord of metal, hanging from the bangle."""
+    """알뜰한 손: a little red 복주머니 purse tied at the neck with a gold cord, hanging from a gold bangle."""
     c = Canvas()
     bangle(c, P)
     c.ellipse(8, 12.0, 3.6, 2.8, P.s, 3, lo=1, hi=4)
@@ -602,36 +688,39 @@ def thrift(P):
 
 
 def request_bonus(P):
-    """의뢰 웃돈: a rolled-up commission scroll tied with a ribbon and sealed with red wax."""
+    """의뢰 웃돈: a rolled-up commission scroll with gold ends, tied with a ribbon and sealed with red wax."""
     c = Canvas()
     bangle(c, P)
-    c.tube([(3.8, 11.4), (12.2, 11.4)], [1.9, 1.9], "paper", 3, lo=1, hi=4, flat=0.9)
-    for x0 in (2.4, 12.2):
-        c.rect(x0, 9.0, x0 + 1.4, 13.8, P.m, 4, normal=(-0.3, -0.2, 1), lo=2, hi=4)
-    c.rect(7.6, 9.4, 8.6, 13.4, P.s, 4.5, normal=(-0.2, 0, 1), lo=2, hi=4)
-    c.ellipse(8.6, 12.4, 1.6, 1.5, "crimson", 5, lo=2, hi=4)
-    c.dots([(8, 14), (9, 14)], "crimson", 2, z=5.5)
-    c.put(8, 11, "crimson", 5, z=6)
+    shape(c, [""] * 8 + [".........", "...XXXXXXXXXX", "...XXXXXXXXXX", "...XXXXXXXXXX", "...XXXXXXXXXX"], "paper", 3, lo=2, mid=3, hi=4)
+    c.tone([(x, 9) for x in range(3, 13)], 1)
+    c.tone([(x, 12) for x in range(3, 13)], -1)
+    shape(c, [""] * 8 + ["..X", "..X", "..X", "..X", "..X", "..X"], P.m, 4)
+    shape(c, [""] * 8 + [".............X", ".............X", ".............X", ".............X", ".............X", ".............X"], P.m, 4)
+    shape(c, [""] * 9 + ["......XX", "......XX", "......XX", "......XX"], P.s, 4.5)
+    shape(c, [""] * 11 + [".......XXX", "......XXXXX", ".......XXX"], "crimson", 5, lo=2, mid=3, hi=4)
+    c.put(8, 12, "crimson", 5, z=5.5)
     return c
 
 
 def craft_learning(P):
-    """장인의 배움: a small bound book of craft notes and a writing brush across it."""
+    """장인의 배움: a book of craft notes lying open, a writing brush across its pages."""
     c = Canvas()
     bangle(c, P)
-    c.poly([(3.2, 9.6), (10.4, 8.4), (12.6, 12.6), (5.2, 14.4)], "paper", 2, normal=(-0.2, -0.3, 1), lo=3, hi=4)
-    c.poly([(3.2, 9.0), (10.4, 7.8), (12.2, 11.8), (5.0, 13.6)], P.s, 3, normal=(-0.2, -0.5, 1), lo=2, hi=4)
-    cover = c.last()
-    c.tone([(x, y) for x, y in cover if x in (4, 5) and (x, y - 1) in cover], -1)
-    c.rect(6.8, 9.6, 9.2, 11.0, "paper", 3.5, normal=(-0.2, -0.5, 1), lo=3, hi=4)        # the title slip
-    c.tube([(14.2, 6.0), (9.2, 11.4)], [0.55, 0.55], "bamboo", 4, lo=2, hi=4)
-    c.tube([(9.2, 11.4), (7.6, 13.2)], [0.75, 0.3], "soot", 4.1, lo=1, hi=3)
-    c.put(9, 11, P.m, 4, z=4.2)
+    shape(c, [""] * 13 + ["..XXXXXXXXXXXX", "..XXXXXXXXXXXX"], P.s, 3)
+    shape(c, [""] * 8 + ["...XXX....XXX", "...XXXXXXXXXX", "...XXXXXXXXXX", "...XXXXXXXXXX", "...XXXXXXXXXX"],
+          "paper", 4, lo=3, mid=4, hi=4)
+    for y in (10, 12):
+        c.dots([(4, y), (5, y), (6, y), (9, y), (10, y), (11, y)], "paper", 1, z=4.2)
+    c.dots([(7, y) for y in range(9, 13)], "paper", 2, z=4.2)
+    c.dots([(8, y) for y in range(9, 13)], "paper", 3, z=4.2)
+    c.tube([(14.2, 6.4), (10.6, 10.0)], [0.55, 0.55], "bamboo", 5, lo=2, hi=4)
+    c.tube([(10.6, 10.0), (8.8, 12.0)], [0.8, 0.3], "soot", 5.1, lo=1, hi=3)
+    c.put(11, 9, P.m, 4, z=5.2)
     return c
 
 
 # ================================================================================================
-# The plain pieces (acc_<slot>_<grade>: the empty-slot placeholders)
+# The plain pieces (acc_<slot>_<grade>: the empty-slot placeholders, the same for every grade)
 # ================================================================================================
 
 def plain_ring(P):
@@ -639,8 +728,6 @@ def plain_ring(P):
     ring_band(c, P)
     collet(c, P)
     gem(c, 8, 4.2, 2.8, 2.4, P.g, 4)
-    if P.grade == "treasure":
-        c.dots([(5, 6), (10, 6)], P.a, 4, z=5)
     return c
 
 
@@ -652,7 +739,6 @@ def plain_necklace(P):
     c.poly([(8, 8.4), (11.0, 8.4), (10.4, 11.6), (8, 14.6)], P.g, 3.1, normal=(0.7, 0, 0.6), lo=1, hi=3)
     c.rect(6.0, 7.0, 10.0, 8.6, P.m, 4, normal=(0, -0.4, 1), lo=2, hi=4)
     c.put(6, 9, "snow", 5, z=5)
-    gem(c, 8, 5.8, 0.9, 0.8, P.a, 5)
     return c
 
 
@@ -677,10 +763,45 @@ def plain_belt(P):
 def plain_bracelet(P):
     c = Canvas()
     bangle(c, P)
-    c.rect(7.0, 9.0, 9.0, 10.4, P.m, 3, normal=(0, -0.4, 1), lo=2, hi=4)
-    gem(c, 8, 12.2, 2.4, 2.2, P.g, 4)
+    c.rect(7.0, 8.0, 9.0, 9.6, P.m, 3, normal=(0, -0.4, 1), lo=2, hi=4)
+    gem(c, 8, 11.6, 2.4, 2.2, P.g, 4)
     return c
 
+
+# each design's metal, stone, second stone and cloth
+S = Style
+LOOK = {
+    "mining_speed": S("fish_silver", "glow_cyan", "glow_cyan"),
+    "vein_burst": S("gold", "ruby", "ruby"),
+    "harvest_wind": S("fish_silver", "bottle_green", "bottle_green"),
+    "master_hand": S("gold", "sapphire", "sapphire"),
+    "rich_vein": S("fish_silver", "bottle_green", "bottle_green"),
+    "magnet": S("fish_silver", "sapphire", "sapphire"),
+    "blessing": S("gold", "sapphire", "glow_cyan"),
+    "bite": S("fish_silver", "sapphire", "signal_red"),
+    "dragon_treasure": S("gold", "pearl", "bottle_green"),
+    "full_net": S("fish_silver", "sapphire", "signal_red"),
+    "rare_find": S("gold", "ruby", "ruby"),
+    "appraiser": S("gold", "sapphire", "sapphire"),
+    "remote_machine": S("brass", "sapphire", "glow_cyan"),
+    "focus": S("gold", "topaz", "ruby"),
+    "machine_haste": S("brass", "sapphire", "ruby"),
+    "timber": S("fish_silver", "bottle_green", "bottle_green"),
+    "quake": S("gold", "topaz", "topaz"),
+    "vein_sight": S("gold", "bottle_green", "ruby"),
+    "refine_hand": S("fish_silver", "ruby", "sapphire"),
+    "move_speed": S("gold", "sapphire", "sapphire", "indigo"),
+    "vehicle_speed": S("fish_silver", "ruby", "ruby", "leather"),
+    "cargo": S("steel", "topaz", "topaz", "leather"),
+    "bag": S("gold", "bottle_green", "bottle_green", "leather"),
+    "fortune_find": S("gold", "topaz", "topaz", "fabric_red"),
+    "dock_bonus": S("fish_silver", "sapphire", "sapphire"),
+    "abundance": S("gold", "bottle_green", "bottle_green"),
+    "thrift": S("gold", "bottle_green", "bottle_green", "fabric_red"),
+    "request_bonus": S("gold", "ruby", "ruby", "indigo"),
+    "craft_learning": S("fish_silver", "sapphire", "sapphire", "wine"),
+}
+PLAIN_LOOK = S("fish_silver", "sapphire", "sapphire", "leather")
 
 PLAIN = {"ring": plain_ring, "necklace": plain_necklace, "earring": plain_earring, "belt": plain_belt, "bracelet": plain_bracelet}
 DESIGNS = {fn.__name__: fn for fn in (
@@ -691,11 +812,9 @@ DESIGNS = {fn.__name__: fn for fn in (
     dock_bonus, abundance, thrift, request_bonus, craft_learning)}
 
 
-def finish(c, grade):
-    """Renders a canvas: the outline, the 국보 rim of light, then the loose sparks on top."""
+def finish(c):
+    """Renders a canvas: the outline, then the loose sparks on top."""
     im = c.render()
-    if grade == "treasure":
-        im = glow(im)
     for x, y, mat, step in getattr(c, "post", ()):
         if 0 <= x < 16 and 0 <= y < 16:
             im.putpixel((x, y), color(mat, step))
@@ -709,11 +828,10 @@ def effects():
 
 
 for _eff in DESIGNS:
-    for _grade in GRADES:
-        ACC[f"{_eff}_{_grade}"] = (lambda e=_eff, g=_grade: finish(DESIGNS[e](STYLE[g]), g))
+    ACC[_eff] = (lambda e=_eff: finish(DESIGNS[e](LOOK[e])))
 for _slot in SLOTS:
     for _grade in GRADES:
-        ICONS[f"acc_{_slot}_{_grade}"] = (lambda s=_slot, g=_grade: finish(PLAIN[s](STYLE[g]), g))
+        ICONS[f"acc_{_slot}_{_grade}"] = (lambda s=_slot: finish(PLAIN[s](PLAIN_LOOK)))
 
 
 # ================================================================================================
@@ -980,77 +1098,50 @@ def _font(size):
         return ImageFont.load_default()
 
 
-GRADE_COLOURS = {"common": (232, 232, 232), "fine": (90, 176, 255), "masterwork": (197, 140, 255), "treasure": (255, 211, 107)}
-
-
 def sheet(path, scale=6):
-    """The effects in rows (grouped by slot) x the grades in columns, each on an inventory-grey tile with a 2x copy
+    """The 29 effect icons, one row per slot with the Korean names, each on an inventory-grey tile with a 1x and 2x copy
     beside it; then the plain slot pieces, the box, fragment and chest, and the menu buttons. Dark background."""
     from PIL import ImageDraw
-    font, head, small = _font(17), _font(20), _font(13)
+    font, head, small = _font(16), _font(20), _font(12)
     eff = effects()
-    cell = 16 * scale
-    cw, ch = cell + 50, cell + 12
-    left = 190
-    rows = [("slot", s) for s in SLOTS for _ in (0,)]
     order = [(s, [e for e, (_n, sl) in eff.items() if sl == s]) for s in SLOTS]
-    height = 70 + sum(34 + len(es) * ch for _s, es in order) + 3 * (34 + ch) + 40
-    im = Image.new("RGBA", (left + 4 * cw + 20, height), (30, 32, 38, 255))
+    cell = 16 * scale
+    cw, ch = cell + 58, cell + 48
+    left = 110
+    per = 8
+    im = Image.new("RGBA", (left + per * cw + 10, 60 + (len(order) + 2) * (ch + 10) + 40), (30, 32, 38, 255))
     d = ImageDraw.Draw(im)
 
-    def tile(x, y, ic, bg=(139, 139, 139, 255)):
+    def tile(x, y, ic, name=None, sub=None, bg=(139, 139, 139, 255)):
         d.rectangle([x, y, x + cell - 1, y + cell - 1], fill=bg)
         im.alpha_composite(ic.resize((cell, cell), Image.NEAREST), (x, y))
-        d.rectangle([x + cell + 4, y + cell - 32, x + cell + 35, y + cell - 1], fill=bg)
-        im.alpha_composite(ic.resize((32, 32), Image.NEAREST), (x + cell + 4, y + cell - 32))
+        d.rectangle([x + cell + 4, y + cell - 52, x + cell + 39, y + cell - 1], fill=bg)
+        im.alpha_composite(ic.resize((32, 32), Image.NEAREST), (x + cell + 6, y + cell - 34))
+        im.alpha_composite(ic, (x + cell + 6, y + cell - 51))
+        if name:
+            d.text((x, y + cell + 4), name, fill=(240, 240, 240, 255), font=font)
+        if sub:
+            d.text((x, y + cell + 24), sub, fill=(150, 155, 170, 255), font=small)
 
-    d.text((14, 14), "장신구 · 효과별 아이콘", fill=(255, 226, 150, 255), font=head)
-    for j, g in enumerate(GRADES):
-        d.text((left + j * cw, 44), GRADE_NAMES[g], fill=GRADE_COLOURS[g] + (255,), font=head)
-    y = 70
+    d.text((14, 14), "장신구 · 효과별 아이콘 (economy:acc/<효과>)", fill=(255, 226, 150, 255), font=head)
+    y = 56
     for s, es in order:
-        d.text((14, y + 6), f"{SLOT_NAMES[s]} ({len(es)})", fill=(255, 226, 150, 255), font=head)
-        y += 34
-        for e in es:
-            d.text((14, y + cell // 2 - 18), eff[e][0], fill=(240, 240, 240, 255), font=font)
-            d.text((14, y + cell // 2 + 4), e, fill=(150, 155, 170, 255), font=small)
-            for j, g in enumerate(GRADES):
-                tile(left + j * cw, y, ACC[f"{e}_{g}"]())
-            y += ch
-    d.text((14, y + 6), "칸 기본 (빈 칸 자리)", fill=(255, 226, 150, 255), font=head)
-    y += 34
-    for k, s in enumerate(SLOTS):
-        for j, g in enumerate(GRADES):
-            pass
-    im2_rows = []
+        d.text((14, y + cell // 2 - 12), f"{SLOT_NAMES[s]}", fill=(255, 226, 150, 255), font=head)
+        d.text((14, y + cell // 2 + 14), f"{len(es)}종", fill=(150, 155, 170, 255), font=small)
+        for j, e in enumerate(es):
+            tile(left + j * cw, y, ACC[e](), eff[e][0], e)
+        y += ch + 10
+    d.text((14, y + cell // 2 - 12), "칸 기본", fill=(255, 226, 150, 255), font=head)
     for j, s in enumerate(SLOTS):
-        tile(14 + j * (cw - 22), y, ICONS[f"acc_{s}_treasure"]() if False else ICONS[f"acc_{s}_fine"]())
-    y += ch
-    d.text((14, y + 6), "상자 · 조각 · 메뉴 버튼", fill=(255, 226, 150, 255), font=head)
-    y += 34
-    for j, n in enumerate(("acc_box", "acc_fragment", "dragon_chest")):
-        tile(14 + j * (cw - 22), y, ICONS[n]())
-    for j, n in enumerate(GUI):
-        tile(14 + (3 + j) * (cw - 22), y, GUI[n](), bg=(58, 60, 68, 255))
-    y += ch
-    im.crop((0, 0, max(im.width, 14 + 8 * (cw - 22)), y + 10)).save(path)
-
-
-def slot_sheet(path, scale=6):
-    """The plain slot pieces, slots in rows x grades in columns (a second, smaller sheet)."""
-    from PIL import ImageDraw
-    cell = 16 * scale
-    im = Image.new("RGBA", (120 + 4 * (cell + 12), 40 + 5 * (cell + 12)), (30, 32, 38, 255))
-    d = ImageDraw.Draw(im)
-    for j, g in enumerate(GRADES):
-        d.text((120 + j * (cell + 12), 10), GRADE_NAMES[g], fill=GRADE_COLOURS[g] + (255,), font=_font(18))
-    for i, s in enumerate(SLOTS):
-        d.text((14, 40 + i * (cell + 12) + cell // 2 - 10), SLOT_NAMES[s], fill=(240, 240, 240, 255), font=_font(18))
-        for j, g in enumerate(GRADES):
-            x, y = 120 + j * (cell + 12), 40 + i * (cell + 12)
-            d.rectangle([x, y, x + cell - 1, y + cell - 1], fill=(139, 139, 139, 255))
-            im.alpha_composite(ICONS[f"acc_{s}_{g}"]().resize((cell, cell), Image.NEAREST), (x, y))
-    im.save(path)
+        tile(left + j * cw, y, ICONS[f"acc_{s}_common"](), SLOT_NAMES[s], f"acc_{s}_*")
+    y += ch + 10
+    d.text((14, y + cell // 2 - 12), "기타", fill=(255, 226, 150, 255), font=head)
+    items = [(ICONS[n](), NAMES[n], (139, 139, 139, 255)) for n in ("acc_box", "acc_fragment", "dragon_chest")]
+    items += [(GUI[n](), GUI_NAMES[n], (58, 60, 68, 255)) for n in GUI]
+    for j, (ic, name, bg) in enumerate(items):
+        tile(left + j * cw, y, ic, name, bg=bg)
+    y += ch + 10
+    im.crop((0, 0, im.width, y)).save(path)
 
 
 if __name__ == "__main__":
@@ -1058,5 +1149,3 @@ if __name__ == "__main__":
     print(f"accessory art: {len(ACC)} effect icons, {len(ICONS)} item icons, {len(GUI)} menu buttons")
     if len(sys.argv) > 1:
         sheet(sys.argv[1])
-    if len(sys.argv) > 2:
-        slot_sheet(sys.argv[2])
