@@ -30,7 +30,7 @@ public final class PuppetText {
     private PuppetText() {}
 
     /**
-     * The colour a skin pixel is sent in: shaded for its face (text displays get no directional light), and never a
+     * The colour a skin pixel is sent in: shaded for its face (text gets no directional light: {@link PuppetLight}), and never a
      * title banner's marker colour. The pack's text shader (pack/title_banners/shader) takes a glyph whose text
      * colour is one of its markers (red 250 .. 253 with green and blue near 255: BannerText.reserved) for a part of
      * a banner and hides, moves or recolours it: such a pixel goes out with red 254.
@@ -47,13 +47,18 @@ public final class PuppetText {
 
     /** The face in pieces of one colour each, in reading order. */
     public static List<Run> runs(PuppetModel.Face face) {
+        return runs(face, face.shade());
+    }
+
+    /** The face in pieces of one colour each, in reading order, shaded by this much ({@link PuppetLight#diffuse}). */
+    public static List<Run> runs(PuppetModel.Face face, double shade) {
         List<Run> out = new ArrayList<>();
         StringBuilder text = new StringBuilder();
         int current = PuppetModel.NONE;
         int[][] grid = face.grid();
         for (int row = 0; row < grid.length; row++) {
             for (int c : grid[row]) {
-                int colour = c == PuppetModel.NONE ? PuppetModel.NONE : colour(c, face.shade());
+                int colour = c == PuppetModel.NONE ? PuppetModel.NONE : colour(c, shade);
                 if (colour != current && !text.isEmpty()) {
                     out.add(new Run(current, text.toString()));
                     text.setLength(0);
@@ -69,8 +74,13 @@ public final class PuppetText {
 
     /** The face as a text display's text. */
     public static Component component(PuppetModel.Face face) {
+        return component(face, face.shade());
+    }
+
+    /** The face as a text display's text, shaded by this much. */
+    public static Component component(PuppetModel.Face face, double shade) {
         TextComponent.Builder b = Component.text().font(FONT);
-        for (Run run : runs(face)) {
+        for (Run run : runs(face, shade)) {
             b.append(run.colour() == PuppetModel.NONE ? Component.text(run.text()) : Component.text(run.text(), TextColor.color(run.colour())));
         }
         return b.build();

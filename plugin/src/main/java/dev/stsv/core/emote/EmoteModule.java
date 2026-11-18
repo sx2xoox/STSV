@@ -122,7 +122,15 @@ public final class EmoteModule implements StsvModule, Listener, TabExecutor {
         boolean body;
         /** body: the clients carry the puppet on the player (else it is moved to them every tick) */
         boolean carried;
+        /** body: where the puppet's body faces (the game's body turn: EmoteRules.bodyYaw), where the player was a tick ago */
+        float bodyYaw;
+        Location last;
+        /** body: the head's turn for the player's look (EmoteRules.look), and the one last sent */
+        double[] look, lookSent;
     }
+
+    /** The head follows the look once it is this many degrees off the one sent (body: a look is a few packets). */
+    private static final double LOOK_STEP = 2;
 
     /** What others must not see on a player whose puppet stands in for them, and what they must not see themselves. */
     private static final EquipmentSlot[] GEAR = {EquipmentSlot.HAND, EquipmentSlot.OFF_HAND, EquipmentSlot.HEAD, EquipmentSlot.CHEST,
@@ -385,7 +393,8 @@ public final class EmoteModule implements StsvModule, Listener, TabExecutor {
             playing.spec = spec;
             playing.tick = 0;
             playing.puppet.props(spec.props(), spec.poseAt(0), spec.planted());
-            playing.puppet.pose(spec.poseAt(0), spec.planted(), 4);
+            playing.puppet.shading(spec.shadingPoses(), spec.planted());
+            playing.puppet.pose(spec.poseAt(0).looking(playing.lookSent), spec.planted(), 4);
             return;
         }
         if (loading.contains(p.getUniqueId())) return;
@@ -468,6 +477,8 @@ public final class EmoteModule implements StsvModule, Listener, TabExecutor {
         Set<UUID> never = new HashSet<>();
         for (Player v : Bukkit.getOnlinePlayers()) if (v != p && !v.canSee(p)) never.add(v.getUniqueId());
         s.puppet = new Puppet(plugin, keyEntity, feet, bodyYaw, skin, spec.poseAt(0), spec.planted(), spec.props(), never);
+        // lit as the player standing there: its displays stand at the eye (Puppet.LIFT), so the clients' own light is the eye's
+        dress(p, s);
         s.camera = cam.getWorld().spawn(cam, ItemDisplay.class, d -> {
             d.setVisibleByDefault(false);
             d.setPersistent(false);
@@ -520,9 +531,16 @@ public final class EmoteModule implements StsvModule, Listener, TabExecutor {
         s.body = true;
         s.spec = spec;
         s.origin = p.getLocation().clone();
+        s.last = s.origin.clone();
+        s.bodyYaw = EmoteRules.wrap(p.getBodyYaw());
+        s.look = s.lookSent = EmoteRules.look(s.bodyYaw, s.origin.getYaw(), s.origin.getPitch());
         Set<UUID> never = new HashSet<>();
         for (Player v : Bukkit.getOnlinePlayers()) if (v != p && !v.canSee(p)) never.add(v.getUniqueId());
-        s.puppet = Puppet.riding(plugin, keyEntity, s.origin, p.getHeight(), skin, spec.poseAt(0), spec.planted(), spec.props(), never);
+        Location body = s.origin.clone();
+        body.setYaw(s.bodyYaw);
+        s.puppet = Puppet.riding(plugin, keyEntity, body, p.getHeight(), skin, spec.poseAt(0).looking(s.look), spec.planted(), spec.props(), never);
+        dress(p, s);
+        s.puppet.light(p.getEyeLocation());
         sessions.put(p.getUniqueId(), s);
         long limit = EmoteRules.maxTicks(plugin.getConfig().getInt("emotes.max-seconds"));
         // ambient, no particles, no icon: that is how the end knows the effect as its own
@@ -541,6 +559,18 @@ public final class EmoteModule implements StsvModule, Listener, TabExecutor {
         hideGear(p);
         s.attached = true;
         dev.stsv.core.hud.HudModule.flash(p, Lang.mm("emote.hint-body", "emote", spec.name()));
+    }
+
+    /** A new puppet's shade for its emote's round and what its hands hold. */
+    private static void dress(Player p, Session s) {
+        s.puppet.shading(s.spec.shadingPoses(), s.spec.planted());
+        hold(p, s);
+    }
+
+    /** The puppet holds what the player holds (the player's own hands are sent as empty to others: hideGear). */
+    private static void hold(Player p, Session s) {
+        s.puppet.hold(p.getInventory().getItemInMainHand(), p.getInventory().getItemInOffHand(),
+                p.getMainHand() == org.bukkit.inventory.MainHand.LEFT);
     }
 
     /** The emote's own invisibility (not a potion the player drank meanwhile, which has particles and an icon). */
@@ -579,9 +609,25 @@ public final class EmoteModule implements StsvModule, Listener, TabExecutor {
             finish(p, end, null);
             return false;
         }
-        Location top = p.getLocation();
-        s.puppet.turn(top.getYaw());
-        s.puppet.follow(top.add(0, p.getHeight(), 0), s.carried);
+        Location at = p.getLocation();
+        // the body turns the game's way (with the walk, or once the head is too far off), the head with the look
+        double dx = s.last != null && s.last.getWorld() == at.getWorld() ? at.getX() - s.last.getX() : 0;
+        double dz = s.last != null && s.last.getWorld() == at.getWorld() ? at.getZ() - s.last.getZ() : 0;
+        s.last = at.clone();
+        s.bodyYaw = EmoteRules.bodyYaw(s.bodyYaw, at.getYaw(), dx, dz);
+        s.look = EmoteRules.look(s.bodyYaw, at.getYaw(), at.getPitch());
+        s.puppet.turn(s.bodyYaw);
+        s.puppet.follow(at.clone().add(0, p.getHeight(), 0), s.carried);
+        s.puppet.shadow(at);
+        if (s.age % 2 == 0) {
+            s.puppet.light(p.getEyeLocation());
+            hold(p, s);
+            if (Math.abs(s.look[0] - s.lookSent[0]) >= LOOK_STEP || Math.abs(s.look[1] - s.lookSent[1]) >= LOOK_STEP) {
+                s.lookSent = s.look;
+                // on a step of the emote its pose goes out with the look anyway (tick)
+                if (s.age % s.spec.step() != 0) s.puppet.pose(s.spec.poseAt(s.tick).looking(s.lookSent), s.spec.planted(), 2);
+            }
+        }
         // every tick at first: the worn models' own tick sends the real helmet once more when it sees the player hidden
         if (s.age <= 2 * GEAR_TICKS || s.age % GEAR_TICKS == 0) hideGear(p);
         return true;
@@ -648,7 +694,7 @@ public final class EmoteModule implements StsvModule, Listener, TabExecutor {
                     continue;
                 }
                 s.tick += s.spec.step();
-                s.puppet.pose(s.spec.poseAt(s.tick), s.spec.planted(), s.spec.step());
+                s.puppet.pose(s.spec.poseAt(s.tick).looking(s.lookSent), s.spec.planted(), s.spec.step());
             }
             if (s.age % 20 == 0) s.puppet.showTo(Bukkit.getOnlinePlayers(), view);
         }

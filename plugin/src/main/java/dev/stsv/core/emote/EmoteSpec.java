@@ -214,6 +214,19 @@ public record EmoteSpec(String id, String name, int length, int step, boolean lo
         return a.pose().mix(b.pose(), t1 > t0 ? b.ease().at((t - t0) / (t1 - t0)) : 1);
     }
 
+    /** How many poses of a round the puppet's faces are shaded by ({@link #shadingPoses}). */
+    public static final int SHADING_POSES = 8;
+
+    /**
+     * Poses spread over one round, for the faces' shade: a face's text is sent once and its shade cannot follow every
+     * swing (a new shade is a new text), so it is the shade averaged over the round (Puppet.shading).
+     */
+    public java.util.List<Pose> shadingPoses() {
+        java.util.List<Pose> out = new java.util.ArrayList<>();
+        for (int k = 0; k < SHADING_POSES; k++) out.add(poseAt(length * (double) k / SHADING_POSES));
+        return out;
+    }
+
     /** Whether a played-once emote is over at this tick (a loop never is). */
     public boolean finished(long tick) {
         return !loop && tick >= length;
