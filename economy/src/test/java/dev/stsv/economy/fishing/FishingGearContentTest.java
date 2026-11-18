@@ -68,7 +68,8 @@ class FishingGearContentTest {
         Map<String, String> rarity = groupRarity();
         MachineSpec bench = ms.get("fish_bench");
         for (MachineSpec.Recipe r : bench.recipes()) {
-            if (r.tier() >= 4) continue;   // 4강 (4세대): 부레풀 · 진상 어란 · 굴비 두름 take 생선살 and 4세대 재료, not a fish group
+            // 4세대: 부레풀 (3강, 어부 승급 재료) · 진상 어란 · 굴비 두름 (4강) take 생선살 and 4세대 재료, not a fish group
+            if (r.tier() >= 4 || r.output().equals("economy:fish_glue")) continue;
             if (r.output().equals("economy:polished_pearl")) {
                 assertEquals(Map.of("economy:pearl", 1), r.inputs(), "연마 진주 stays as it was");
                 continue;
@@ -141,7 +142,8 @@ class FishingGearContentTest {
         assertEquals(1, feed.size());
         assertEquals(Set.of("economy:soybean", "economy:corn"), feed.getFirst().inputs().keySet());
         // the last recipe below 4강: the 4세대 recipes are appended after it (pinned lanes keep their numbers)
-        assertEquals("economy:fish_feed", ms.get("mill").recipes().stream().filter(r -> r.tier() < 4).toList().getLast().output());
+        // (after it come the 4세대 recipes: 한지, the farmer's promotion item, at 3강, then the 4강 goods)
+        assertEquals("economy:fish_feed", ms.get("mill").recipes().stream().filter(r -> r.tier() < 4 && !r.output().equals("economy:hanji")).toList().getLast().output());
     }
 
     @Test

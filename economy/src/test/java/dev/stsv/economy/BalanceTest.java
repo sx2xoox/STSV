@@ -727,6 +727,9 @@ class BalanceTest {
 
     /** The press is the deliberately cheap fallback: a press recipe is never judged against a job machine's. */
     static boolean comparable(Row a, Row b) {
+        // a 4세대 재료 (jobs.yml materials: the promotion item of its job, 3강 so a Lv30 player can make it) is not sold to the
+        // shop, only to players who need it, so its reference value is no income a sales recipe could lose to (or beat)
+        if (w != null && (w.materials.containsKey(a.out) || w.materials.containsKey(b.out))) return false;
         return !(a.m.equals("press") && !b.m.equals("press"));
     }
 
