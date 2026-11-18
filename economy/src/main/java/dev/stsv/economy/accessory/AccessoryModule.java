@@ -248,8 +248,8 @@ public final class AccessoryModule extends EcoModule {
             m.lore(lore);
             m.setEnchantmentGlintOverride(a.enhance >= spec.steps().size() || a.perfect() && g.index() >= 2 ? true : null);
             m.setMaxStackSize(1);
-            // the look is the effect's own (the same design in every grade, its metal by the grade): economy:acc/<effect>_<grade>
-            m.setItemModel(new NamespacedKey("economy", "acc/" + a.effect + "_" + a.grade));
+            // the look is the effect's own, the same in every grade (the grade is the name's colour): economy:acc/<effect>
+            m.setItemModel(new NamespacedKey("economy", "acc/" + a.effect));
         });
         return it;
     }
