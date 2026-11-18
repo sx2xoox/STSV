@@ -155,6 +155,7 @@ class MenuActionsTest {
             Map.entry("day", "1234"), Map.entry("category", "보석·금속"), Map.entry("sort", "등락률순"),
             Map.entry("a", "Abcdefg…"), Map.entry("b", "Abcdefg…"), Map.entry("id", "9999"),
             // the stock window: the chart glyphs take no room, then the company, price and change
+            Map.entry("state", "+10"),
             Map.entry("graph", ""), Map.entry("name", "한빛제약"), Map.entry("price", "12,345 G"), Map.entry("change", "▲ 12.3%"));
 
     @Test

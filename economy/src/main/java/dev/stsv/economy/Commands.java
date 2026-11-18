@@ -215,6 +215,12 @@ final class Commands {
             return out;
         }));
         eco.command("도감", new Simple(player((p, a) -> eco.codex().open(p)), (s, a) -> List.of()));
+        eco.command("장신구", new Simple(player((p, a) -> {
+            if (a.length > 0 && a[0].equals("공방")) eco.accessories().openWorkshop(p);
+            else eco.accessories().open(p);
+        }), (s, a) -> a.length == 1 ? List.of("공방") : List.of()));
+        eco.command("가방", new Simple(player((p, a) -> eco.accessories().openBag(p)), (s, a) -> List.of()));
+        eco.command("원격기계", new Simple(player((p, a) -> eco.accessories().remote(p)), (s, a) -> List.of()));
         eco.command("주식", new Simple(player((p, a) -> {
             var st = eco.stocks();
             if (a.length == 0) {

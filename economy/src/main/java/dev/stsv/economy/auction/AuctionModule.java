@@ -248,7 +248,7 @@ public final class AuctionModule extends EcoModule {
         long fee = 0;
         if (a.seller != null) {
             core.economy().transfer(a.bidder, a.seller, a.bid, "auction_sale");
-            fee = eco.feesWaived() ? 0 : TradeRules.fee(a.bid, rules.auctionFee());
+            fee = eco.feesWaived() ? 0 : TradeRules.fee(a.bid, accessory(a.item) ? dev.stsv.economy.accessory.AccessoryModule.TRADE_FEE : rules.auctionFee());
             if (fee > 0 && !core.economy().withdraw(a.seller, fee, "auction_fee")) eco.getLogger().warning("경매 수수료를 걷지 못함 #" + a.id);
             if (a.deposit > 0) core.economy().move(null, a.seller, a.deposit, EconomyStore.Kind.ESCROW, "auction_deposit_back", "#" + a.id);
         } else {
@@ -413,7 +413,8 @@ public final class AuctionModule extends EcoModule {
         protected Map<String, String> values(MenuView v) {
             Player p = v.player();
             ItemStack it = item(p);
-            long fee = eco.feesWaived() ? 0 : TradeRules.fee(price, rules.auctionFee());
+            long fee = eco.feesWaived() ? 0 : TradeRules.fee(price, dev.stsv.economy.accessory.AccessoryModule.isAccessory(it)
+                    ? dev.stsv.economy.accessory.AccessoryModule.TRADE_FEE : rules.auctionFee());
             Map<String, String> m = new HashMap<>();
             m.put("item", it == null ? Lang.raw("price.no-item") : Items.mmName(it) + " ×" + it.getAmount());
             m.put("min", EconomyModule.format(rules.minStart()));
@@ -592,6 +593,15 @@ public final class AuctionModule extends EcoModule {
         @Override
         protected void back(Player p) {
             AuctionModule.this.open(p);
+        }
+    }
+
+    /** An auction's item is an accessory (its fee: 장신구 10%). */
+    private static boolean accessory(byte[] item) {
+        try {
+            return item != null && dev.stsv.economy.accessory.AccessoryModule.isAccessory(ItemStack.deserializeBytes(item));
+        } catch (RuntimeException e) {
+            return false;
         }
     }
 }

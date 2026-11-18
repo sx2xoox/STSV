@@ -293,6 +293,8 @@ public final class MachineModule extends EcoModule {
         int making = -1;          // recipe index being made (to notice a change)
         boolean blocked;          // the output slot is full
         boolean mixed;            // ... with something that does not stack with the product (another item, another maker's)
+        boolean focused;          // 장신구 장인의 집중: the next batch takes half the time (not saved)
+        boolean thrifted;         // 장신구 알뜰한 손 saved on the last batch: not twice in a row
 
         /** Now making recipe idx (-1: nothing); returns true if the progress was dropped because that is another recipe. */
         boolean make(int idx) {
@@ -406,6 +408,7 @@ public final class MachineModule extends EcoModule {
         t *= eco.jobs().bonus(op, job, "fast");
         if (r.aging()) t *= eco.jobs().bonus(op, job, "aging");
         t *= eco.jobs().milestone(op, job, "time");   // 승급 Lv40
+        if (eco.accessories() != null) t *= Math.max(0.2, 1 - eco.accessories().value(op, "machine_haste"));   // 장신구 기계 가속
         return Math.max(1, t);
     }
 
@@ -514,9 +517,16 @@ public final class MachineModule extends EcoModule {
                 any = true;
                 l.progress += 1;
                 m.dirty = true;
-                if (l.progress >= seconds(m, r, op)) {
+                if (l.progress >= seconds(m, r, op) * (l.focused ? 0.5 : 1)) {
                     l.progress = 0;
+                    l.focused = false;
                     complete(m, k, r, op);
+                    if (op != null && eco.accessories() != null) {
+                        eco.accessories().activity(op, "machine", 1);
+                        if (eco.accessories().roll(op, "focus")) l.focused = true;   // 장인의 집중
+                        Player opp = Bukkit.getPlayer(op);
+                        if (opp != null) eco.accessories().drop(opp, "machine");
+                    }
                 }
             }
             m.working = any;
@@ -553,13 +563,20 @@ public final class MachineModule extends EcoModule {
         // 재료 절약: every input unit stays with the chance (machine-bonus only: the blacksmith's growing save is for tools and armour)
         double save = Math.clamp(eco.jobs().bonus(op, job, "save"), 0, 0.9);
         double resave = Math.clamp(eco.jobs().milestone(op, job, "resave"), 0, 0.9);   // 승급 Lv45: a second chance for what the first missed
-        int kept = 0;
+        int kept = 0, thrift = 0;
         for (Map.Entry<String, Integer> in : r.inputs().entrySet()) {
             int keep = MachineSpec.binomial(in.getValue(), save, rnd);
             keep += MachineSpec.binomial(in.getValue() - keep, resave, rnd);
+            // 장신구 알뜰한 손: one more chance for what is left (not on two batches of a lane in a row)
+            if (!m.lanes[lane].thrifted && eco.accessories() != null) {
+                int t = MachineSpec.binomial(in.getValue() - keep, Math.min(1, eco.accessories().value(op, "thrift")), rnd);
+                keep += t;
+                thrift += t;
+            }
             kept += keep;
             take(m, lane, in.getKey(), in.getValue() - keep);
         }
+        m.lanes[lane].thrifted = thrift > 0;
         if (kept > 0) bonuses.add(Lang.raw("machine.bonus-save", "count", kept));
         int amount = r.amount();
         if (rnd.nextDouble() < eco.jobs().bonus(op, job, "double")) {
@@ -569,6 +586,8 @@ public final class MachineModule extends EcoModule {
         // 결과 +: every output unit gets its +1 with the chance; Lv30 'yield' adds to the chance (one roll a unit)
         double more = Math.min(1, eco.jobs().bonus(op, job, "extra") + eco.jobs().bonus(op, job, "yield"));
         int extra = MachineSpec.binomial(amount, more, rnd);
+        // 장신구 장인의 손: every unit rolls +1 once more (apart from the job's chance)
+        if (eco.accessories() != null) extra += MachineSpec.binomial(amount, Math.min(1, eco.accessories().value(op, "master_hand")), rnd);
         if (extra > 0) {
             amount += extra;
             bonuses.add(Lang.raw("machine.bonus-extra", "count", extra));
@@ -1336,5 +1355,32 @@ public final class MachineModule extends EcoModule {
             if (lane >= 0) m.lanes[lane].operator = e.getWhoClicked().getUniqueId();
         }
         m.dirty = true;
+    }
+
+    /**
+     * 장신구 원격 기계: the outputs of this player's own loaded machines in this world within range (blocks, < 0 = anywhere) into
+     * the inventory, else into the bag (into), else they stay. Returns the stacks taken.
+     */
+    public int collectRemote(Player p, double range, java.util.function.Function<ItemStack, ItemStack> into) {
+        int n = 0;
+        for (Machine m : machines.values()) {
+            if (!p.getUniqueId().equals(m.owner)) continue;
+            Furniture f = furniture(m);
+            if (f == null || f.location().getWorld() != p.getWorld()) continue;
+            if (range >= 0 && f.location().distanceSquared(p.getLocation()) > range * range) continue;
+            for (int k = 0; k < LANES; k++) {
+                ItemStack out = m.inv.getItem(output(k));
+                if (out == null || out.isEmpty()) continue;
+                ItemStack left = Items.give(p, out.clone()).stream().findFirst().orElse(null);
+                if (left != null) left = into.apply(left);
+                m.inv.setItem(output(k), left);
+                if (left == null || left.getAmount() != out.getAmount()) {
+                    n++;
+                    m.dirty = true;
+                }
+            }
+            if (!m.inv.getViewers().isEmpty()) draw(m);
+        }
+        return n;
     }
 }

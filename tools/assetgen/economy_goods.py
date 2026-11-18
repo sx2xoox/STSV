@@ -1973,6 +1973,10 @@ ICONS.update(_GF.ICONS)
 import goods_tier4 as _G4   # noqa: E402
 
 ICONS.update(_G4.ICONS)
+# 장신구: the accessories of the five slots in four grades, the box, the fragment and the sea-palace chest (accessory_art.py)
+import accessory_art as _ACC   # noqa: E402
+
+ICONS.update(_ACC.ICONS)
 
 
 # ================================================================================================
@@ -2025,6 +2029,7 @@ GROUPS = [
     ("통발·가두리 · 어부 손질감 · 그 요리", dict(_GF.NAMES)),
     ("4세대 재료 (4강 · 상점 안 삼)", {k: _G4.NAMES[k] for k in _G4.MATERIALS}),
     ("4세대 고급품 (4강)", {k: v for k, v in _G4.NAMES.items() if k not in _G4.MATERIALS}),
+    ("장신구 (반지 · 목걸이 · 귀걸이 · 허리띠 · 팔찌 × 보통 · 진품 · 명품 · 국보)", dict(_ACC.NAMES)),
 ]
 NAMES = {k: v for _, g in GROUPS for k, v in g.items()}
 

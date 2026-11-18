@@ -240,8 +240,8 @@ class ContentTest {
         // 연마 진주 among them), 22 old 손질대 goods (예전 물건: the shop buys them, nothing makes them), 6 job machines + the press, the
         // 통발 and the 가두리, 3 crates of catch (원양 조업: fish.yml net), 32 crop items (15 seeds, 17 harvests), 92 fish
         assertEquals(6, jobs.jobs().size());
-        assertEquals(6 + 8 + 148 + 12 + 7 + 22 + 7 + 2 + 3 + 32 + 92, ours.size(),
-                "6 finds + 8 specials + 148 goods + 12 4세대 goods + 7 4세대 materials + 22 old goods + 7 machines + 2 fishing gear + 3 crates of catch + 32 crop items + 92 fish");
+        assertEquals(6 + 8 + 148 + 12 + 7 + 22 + 7 + 2 + 3 + 32 + 92 + 23, ours.size(),
+                "6 finds + 8 specials + 148 goods + 12 4세대 goods + 7 4세대 materials + 22 old goods + 7 machines + 2 fishing gear + 3 crates of catch + 32 crop items + 92 fish + 23 장신구 (20 looks, box, fragment, 용궁 상자)");
         assertEquals(7, machines.size());
         assertEquals(148 + 12 + 7, machines.values().stream().flatMap(x -> x.recipes().stream()).map(MachineSpec.Recipe::output).distinct().count());
         YamlConfiguration legacy = yaml("shop.yml");
@@ -305,6 +305,8 @@ class ContentTest {
             makeable.add(z.item());
         }
         for (var g : shop.goods()) for (var z : net.zones()) if (g.id().equals(z.item())) problems.add("the shop must not trade a crate of catch: " + g.id());
+        // 장신구 (items/accessories.yml): the box (the shop sells it) gives them, the 용궁 상자 the fragments; the chest comes from fishing
+        for (String id : ours) if (id.startsWith("economy:acc_") || id.equals("economy:dragon_chest")) makeable.add(id);
         for (String id : ours) if (!makeable.contains(id) && !oldGoods.contains(id)) problems.add("nobody can make " + id);
         for (String id : oldGoods) if (makeable.contains(id)) problems.add("an old good is made again: " + id + " (move it out of sell.legacy)");
         assertTrue(problems.isEmpty(), String.join("\n", problems));
@@ -341,7 +343,7 @@ class ContentTest {
         List<String> problems = new ArrayList<>();
         List<MenuSpec> menus = MenuSpec.loadAll(List.of(new ContentPack("economy", "economy", PACK)), problems);
         assertTrue(problems.isEmpty(), String.join("\n", problems));
-        assertEquals(30, menus.size());   // the hub is 7 menus: the first screen, 4 category pages and the 2 minigame pages
+        assertEquals(32, menus.size());   // the hub is 7 menus: the first screen, 4 category pages and the 2 minigame pages
         for (MenuSpec m : menus) {
             // the button grid is mirror-symmetric, row by row (the machine's lanes are fixed by its code; their
             // empty cells hold arrows, so they read as full rows)

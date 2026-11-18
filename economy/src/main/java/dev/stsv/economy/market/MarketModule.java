@@ -115,7 +115,14 @@ public final class MarketModule extends EcoModule {
 
     /** The 거래소 fee on a sale at this price (0 during 수수료 면제). */
     public long fee(long price) {
-        return eco.feesWaived() ? 0 : TradeRules.fee(price, rules.marketFee());
+        return fee(price, null);
+    }
+
+    /** The fee for an item (by its id): accessories pay the accessory fee (장신구 10%). */
+    public long fee(long price, String itemKey) {
+        if (eco.feesWaived()) return 0;
+        return TradeRules.fee(price, dev.stsv.economy.accessory.AccessoryModule.isAccessoryKey(itemKey)
+                ? dev.stsv.economy.accessory.AccessoryModule.TRADE_FEE : rules.marketFee());
     }
 
     /** What the shop pays for this many of an item at its base price (0: the shop does not buy it). For the 시세 button and credit. */
@@ -144,7 +151,7 @@ public final class MarketModule extends EcoModule {
                 HudModule.flash(p, Lang.mm("market.not-enough", "price", EconomyModule.format(l.price())));
                 return;
             }
-            long fee = fee(l.price());
+            long fee = fee(l.price(), l.itemKey());
             if (fee > 0 && !core.economy().withdraw(l.seller(), fee, "market_fee")) {
                 eco.getLogger().warning("거래소 수수료를 걷지 못함: 판매자 " + l.seller() + " 글 " + l.id());
             }
@@ -383,7 +390,7 @@ public final class MarketModule extends EcoModule {
         protected Map<String, String> values(MenuView v) {
             Player p = v.player();
             ItemStack it = item(p);
-            long fee = fee(price);
+            long fee = fee(price, it == null ? null : Items.key(it));
             Map<String, String> m = new java.util.HashMap<>();
             m.put("item", it == null ? Lang.raw("price.no-item") : Items.mmName(it) + " ×" + it.getAmount());
             m.put("unit", it == null ? "-" : EconomyModule.format(Math.round((double) price / it.getAmount())));

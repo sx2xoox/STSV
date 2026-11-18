@@ -1,0 +1,34 @@
+# /장신구: 칸 6개 (반지 · 반지 · 목걸이 · 귀걸이 · 허리띠 · 팔찌). 칸 클릭 = 빼기, 내 인벤토리의 장신구 클릭 = 끼우기 (같은 종류 칸이 차 있으면 바꿔 끼움)
+accessories:
+  title: "<#f0e2b0>장신구 <#b9a6d6>· {count}/6"
+  rows: 4
+  background: economy:gui/accessories
+  layout:
+    - "....I...."
+    - ".LLL.LLL."
+    - "........."
+    - "W...X...G"
+  list: L
+  buttons:
+    I:
+      action: ""
+      icon: stsv:gui/info
+      material: BOOK
+      name: "<white>지금 받는 효과"
+    W:
+      action: "accessory:workshop"
+      icon: economy:gui/acc_enhance
+      material: ANVIL
+      name: "<yellow>장신구 공방"
+      lore: ["<gray>강화 · 제련 · 옵션 변경"]
+    G:
+      action: "accessory:bag"
+      icon: economy:gui/acc_bag
+      material: BUNDLE
+      name: "<yellow>가방"
+      lore: ["<gray>허리띠 \"가방\" 장신구를 끼면 열림 · /가방"]
+    X:
+      action: close
+      icon: stsv:gui/exit
+      material: OAK_DOOR
+      name: "<red>닫기"

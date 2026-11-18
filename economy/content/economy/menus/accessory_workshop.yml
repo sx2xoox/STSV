@@ -1,0 +1,49 @@
+# 장신구 공방 (/장신구 공방): 내 인벤토리의 장신구를 클릭해 올려놓고 강화 · 제련 · 옵션 변경 (두 번 클릭해 확정). 끼고 있는 장신구는 먼저 빼야 함
+accessory_workshop:
+  title: "<#f0e2b0>장신구 공방 <#b9a6d6>· {state}"
+  rows: 5
+  background: economy:gui/accessory_workshop
+  layout:
+    - "....I...."
+    - "....L...."
+    - "........."
+    - ".E.R.O.C."
+    - "B.......X"
+  list: L
+  buttons:
+    I:
+      action: ""
+      icon: stsv:gui/info
+      material: BOOK
+      name: "<white>장신구 공방"
+      lore: ["<gray>내 인벤토리의 장신구를 클릭해 올려놓기", "<gray>끼고 있는 것은 /장신구 에서 먼저 빼기", "<dark_gray>버튼은 두 번 클릭해 확정"]
+    E:
+      action: "accessory:enhance"
+      icon: economy:gui/acc_enhance
+      material: ANVIL
+      name: "<gold>강화"
+    R:
+      action: "accessory:refine"
+      icon: economy:gui/acc_refine
+      material: GRINDSTONE
+      name: "<aqua>제련 (주 효과 다시 굴리기)"
+    O:
+      action: "accessory:reroll"
+      icon: economy:gui/acc_reroll
+      material: WRITABLE_BOOK
+      name: "<light_purple>옵션 변경 (부가 옵션 하나)"
+    C:
+      action: "accessory:charm"
+      icon: economy:guard_charm
+      material: TOTEM_OF_UNDYING
+      name: "<white>보호 부적 쓰기: {charm}"
+    B:
+      action: "accessory:back"
+      icon: economy:gui/back
+      material: ARROW
+      name: "<white>장신구 칸으로"
+    X:
+      action: close
+      icon: stsv:gui/exit
+      material: OAK_DOOR
+      name: "<red>닫기"

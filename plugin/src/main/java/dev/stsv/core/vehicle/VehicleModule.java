@@ -377,7 +377,7 @@ public final class VehicleModule implements StsvModule, Listener {
     double loadShare(LiveVehicle v) {
         if (v.cargo == null || v.spec.cargo() == null) return 0;
         if (cargoWeight == null) return Math.min(1, (double) v.cargoUsed() / Math.max(1, v.spec.cargo().slots()));
-        return VehicleFeel.share(v.weights.total(v.cargo, this::weightOf, weightEpoch), v.spec.cargo().payload());
+        return VehicleFeel.share(v.weights.total(v.cargo, this::weightOf, weightEpoch), payload(v));
     }
 
     /** What a stack weighs (0 without a weight hook). */
@@ -498,7 +498,7 @@ public final class VehicleModule implements StsvModule, Listener {
         ItemStack[] copy = new ItemStack[v.cargo == null ? 0 : v.cargo.length];
         for (int i = 0; i < copy.length; i++) copy[i] = v.cargo[i] == null || v.cargo[i].isEmpty() ? null : v.cargo[i].clone();
         return new Hauled(v.id, v.item.key().asString(), Text.plain(label(v.item)), v.owner, v.ownerName, v.world, List.copyOf(points),
-                trip(v).snapshot(), copy, v.spec.cargo().payload(), v.weights.total(v.cargo, this::weightOf, weightEpoch), v.cargoVersion,
+                trip(v).snapshot(), copy, payload(v), v.weights.total(v.cargo, this::weightOf, weightEpoch), v.cargoVersion,
                 v.st.speed != 0 || v.puller != null);
     }
 
@@ -620,17 +620,39 @@ public final class VehicleModule implements StsvModule, Listener {
     /** The bed's view: how full (slots) and, with weights, how heavy. */
     private ItemStack infoButton(LiveVehicle v) {
         String lore = cargoWeight == null ? null : Lang.raw("vehicle.cargo-weight", "weight", CargoWeights.format(weightNow(v)),
-                "payload", CargoWeights.format(v.spec.cargo().payload()));
+                "payload", CargoWeights.format(payload(v)));
         return button(Material.CHEST, Lang.raw("vehicle.cargo-info", "used", v.cargoUsed(), "slots", v.spec.cargo().slots()), lore);
     }
 
     /** Refuses what would carry the vehicle past its payload (a flash and a low note). */
     private void tooHeavy(LiveVehicle v, Player p, double now, double adding) {
-        refuse(p, Lang.mm("vehicle.cargo-too-heavy", "weight", CargoWeights.format(now), "payload", CargoWeights.format(v.spec.cargo().payload()),
-                "adding", CargoWeights.format(adding), "left", CargoWeights.format(Math.max(0, v.spec.cargo().payload() - now))));
+        refuse(p, Lang.mm("vehicle.cargo-too-heavy", "weight", CargoWeights.format(now), "payload", CargoWeights.format(payload(v)),
+                "adding", CargoWeights.format(adding), "left", CargoWeights.format(Math.max(0, payload(v) - now))));
     }
 
     /** 국도: the top-speed factor of the block under the vehicle (1 without a hook). */
+    /**
+     * A plugin's bonus for a player (the economy's 장신구: "speed" for the vehicle they drive, "payload" for the vehicles they own),
+     * 0 for none. Fractions: 0.25 = +25%.
+     */
+    private java.util.function.BiFunction<java.util.UUID, String, Double> bonuses = (u, k) -> 0.0;
+
+    public void bonuses(java.util.function.BiFunction<java.util.UUID, String, Double> f) {
+        bonuses = f == null ? (u, k) -> 0.0 : f;
+    }
+
+    private double driverBonus(Player driver, String key) {
+        if (driver == null) return 0;
+        Double b = bonuses.apply(driver.getUniqueId(), key);
+        return b == null ? 0 : Math.max(0, b);
+    }
+
+    /** A vehicle's payload: its own, plus its owner's bonus (장신구 짐 더 싣기). */
+    public double payload(LiveVehicle v) {
+        Double b = v.owner == null ? null : bonuses.apply(v.owner, "payload");
+        return v.spec.cargo().payload() * (1 + (b == null ? 0 : Math.max(0, b)));
+    }
+
     private double roadBonus(LiveVehicle v) {
         java.util.function.ToDoubleFunction<Block> b = surfaceBonus;
         if (b == null) return 1;
@@ -1565,13 +1587,15 @@ public final class VehicleModule implements StsvModule, Listener {
             } else if (v.train != null) {
                 // (a tool on: its working speed at most, VehicleTools#speedCap)
                 TrainPhysics.step(v.st, v.train.units, in, v.spec, terrain, new WorldGround(v.world), Math.min(settings.maxSpeed(), VehicleTools.speedCap(v)),
-                        roadBonus(v), feltLoad[0], feltLoad[1]);
+                        roadBonus(v) * (1 + driverBonus(driver, "speed")), feltLoad[0], feltLoad[1]);
             } else {
                 // (the sports car goes over the server's top speed: VehicleSpec#cap)
                 double cap = v.spec.cap(settings.maxSpeed());
                 // (특별 탈것 that hover, float or slide go their own way: FunView#step)
                 // (a temporary vehicle: a race's boost instead of the road's bonus, see spawnTemporary)
-                double bonus = v.temporary ? v.boost : roadBonus(v), bonusCap = v.temporary ? cap * Math.max(1, v.boost) : cap;
+                // (the driver's own bonus: the economy's 장신구 탈것 가속, never in a race)
+                double own = v.temporary ? 0 : driverBonus(driver, "speed");
+                double bonus = v.temporary ? v.boost : roadBonus(v) * (1 + own), bonusCap = v.temporary ? cap * Math.max(1, v.boost) : cap * (1 + own);
                 if (!funView.step(v, in, terrain, Math.min(cap, VehicleTools.speedCap(v)), bonus, feltLoad[0], feltLoad[1]))
                     VehiclePhysics.step(v.st, in, v.spec, terrain, Math.min(cap, VehicleTools.speedCap(v)), 1f, bonus,
                             bonusCap, feltLoad[0], feltLoad[1]);
@@ -2884,10 +2908,10 @@ public final class VehicleModule implements StsvModule, Listener {
         if (m.in() == null || m.inAmount() <= 0) return true;
         double now = weightNow(v), unit = weightOf(m.in().asOne()), out = weightOf(m.out());
         double adding = unit * m.inAmount();
-        if (CargoWeights.fits(now - out, adding, v.spec.cargo().payload())) return true;
+        if (CargoWeights.fits(now - out, adding, payload(v))) return true;
         e.setCancelled(true);
         if (e.getAction() == InventoryAction.MOVE_TO_OTHER_INVENTORY && e.getClickedInventory() != null) {
-            int n = CargoWeights.fitting(now, unit, m.inAmount(), v.spec.cargo().payload());
+            int n = CargoWeights.fitting(now, unit, m.inAmount(), payload(v));
             if (n > 0) {
                 ItemStack part = m.in().clone();
                 part.setAmount(n);
@@ -2919,7 +2943,7 @@ public final class VehicleModule implements StsvModule, Listener {
         if (cargoWeight != null && e.getWhoClicked() instanceof Player p) {
             int added = CargoGuard.dragged(e, top);
             double now = weightNow(v), adding = added * weightOf(e.getOldCursor().asOne());
-            if (!CargoWeights.fits(now, adding, v.spec.cargo().payload())) {
+            if (!CargoWeights.fits(now, adding, payload(v))) {
                 e.setCancelled(true);
                 tooHeavy(v, p, now, adding);
                 return;

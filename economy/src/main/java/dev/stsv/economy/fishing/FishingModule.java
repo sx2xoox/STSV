@@ -198,12 +198,13 @@ public final class FishingModule extends EcoModule implements WeeklyListener {
         if (e.getState() == PlayerFishEvent.State.FISHING) {
             // the wait for a bite is vanilla's (Lure as vanilla); a fisher's is shorter by the job's "bite" cut
             double cut = eco.jobs().effect(u, "fisher", "bite");
-            if (cut <= 0) return;
+            double bite = eco.accessories() == null ? 0 : Math.clamp(eco.accessories().value(u, "bite"), 0, 0.9);   // 장신구 손맛 (after the job's)
+            if (cut <= 0 && bite <= 0) return;
             ItemStack rod = p.getInventory().getItem(e.getHand() == null ? org.bukkit.inventory.EquipmentSlot.HAND : e.getHand());
             int lure = rod == null ? 0 : rod.getEnchantmentLevel(org.bukkit.enchantments.Enchantment.LURE);
-            int[] wait = FishSpec.waitTicks(lure, cut);
+            int[] wait = FishSpec.waitTicks(lure, Math.max(0, cut));
             e.getHook().setApplyLure(false);   // Lure is in the range already
-            e.getHook().setWaitTime(wait[0], wait[1]);
+            e.getHook().setWaitTime(Math.max(1, (int) Math.round(wait[0] * (1 - bite))), Math.max(1, (int) Math.round(wait[1] * (1 - bite))));
             return;
         }
         // reeled in while the float was under (vanilla's catch): ours to fill
@@ -239,6 +240,19 @@ public final class FishingModule extends EcoModule implements WeeklyListener {
         e.getHook().remove();
         EquipmentSlot hand = e.getHand() == EquipmentSlot.OFF_HAND ? EquipmentSlot.OFF_HAND : EquipmentSlot.HAND;
         land(p, s, hand);
+        var acc = eco.accessories();
+        if (acc != null) {
+            acc.activity(u, "fish", 1);
+            acc.drop(p, "fish");
+            // 장신구 만선: a common or uncommon fish comes up twice
+            if (spec.rarities().get(s.rarity()).index() <= 1 && !s.id().equals("pearl") && acc.roll(u, "full_net")) land(p, s, hand);
+            // 장신구 용궁 보물: a 용궁 상자 with the catch
+            if (acc.roll(u, "dragon_treasure")) Items.create(acc.spec().chestItem(), 1).ifPresent(c -> {
+                for (ItemStack left : p.getInventory().addItem(c).values()) p.getWorld().dropItemNaturally(p.getLocation(), left);
+                dev.stsv.core.hud.HudModule.flash(p, Lang.mm("accessory.chest-caught"));
+                p.playSound(p.getLocation(), org.bukkit.Sound.BLOCK_CONDUIT_ACTIVATE, 0.6f, 1.6f);
+            });
+        }
     }
 
     /** A pearl comes up as a rare bite of the sea or of a river. */

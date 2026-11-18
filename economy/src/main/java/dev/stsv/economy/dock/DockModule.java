@@ -659,6 +659,11 @@ public final class DockModule extends EcoModule {
         // what was taken is what was sealed (the version matched): pay the owner what it was worth at inspection
         UUID owner = h.owner();
         long paid = trip.total();
+        // 장신구 하역 웃돈: the seller's (usually the owner, who drove it here) on top
+        if (eco.accessories() != null) {
+            paid = Math.round(paid * (1 + eco.accessories().value(p.getUniqueId(), "dock_bonus")));
+            eco.accessories().activity(p.getUniqueId(), "dock", paid);
+        }
         CargoTrip done = trip.end(CargoTrip.Status.DONE, now());
         sealed.remove(h.id());
         trips.end(done);

@@ -359,6 +359,34 @@ final class AdminCommands {
             return List.of();
         });
 
+        add("장신구", "<플레이어> <효과> <등급> [굴림 0~1]", "장신구 지급 (테스트). 효과: accessories.yml effects 의 id, 등급: common · fine · masterwork · treasure", (s, args) -> {
+            if (args.length < 3) {
+                s.sendMessage(Text.msg("<red>/관리자 장신구 <플레이어> <효과> <등급> [굴림 0~1]"));
+                return;
+            }
+            org.bukkit.entity.Player t = org.bukkit.Bukkit.getPlayerExact(args[0]);
+            if (t == null) {
+                s.sendMessage(Text.msg("<red>접속 중이 아닌 플레이어: " + args[0]));
+                return;
+            }
+            Double roll = null;
+            if (args.length > 3) {
+                try {
+                    roll = Double.parseDouble(args[3]);
+                } catch (NumberFormatException e) {
+                    s.sendMessage(Text.msg("<red>굴림은 0~1 숫자"));
+                    return;
+                }
+            }
+            var it = eco.accessories().adminGive(t, args[1], args[2], roll);
+            s.sendMessage(Text.msg(it == null ? "<red>없는 효과 또는 등급" : "<green>" + t.getName() + " 에게 장신구를 줬습니다"));
+        }, (s, args) -> {
+            if (args.length == 1) return Players.complete(s, args[0]);
+            if (args.length == 2) return List.copyOf(eco.accessories().spec().effects().keySet());
+            if (args.length == 3) return List.copyOf(eco.accessories().spec().grades().keySet());
+            return List.of();
+        });
+
         add("땅", "서버 [반지름] | 서버해제 [반지름] | 해제 [반지름] | 정보", "운영자 땅(스폰 마을): 둘레 청크를 서버 땅으로 / 둘레의 서버 땅만 해제 (플레이어 땅은 그대로) / 둘레 청크를 누구 땅이든 해제 / 서 있는 땅 정보. 반지름은 청크 수 (0 = 지금 청크)", (s, args) -> {
             if (!(s instanceof Player p) || args.length < 1) {
                 s.sendMessage(Text.msg("<red>/관리자 땅 서버 [반지름] | 서버해제 [반지름] | 해제 [반지름] | 정보"));

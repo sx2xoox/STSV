@@ -33,7 +33,8 @@ class HubMenuTest {
     }
 
     /** Player commands used once per account: no hub button. */
-    private static final Set<String> ONCE = Set.of("기본템");
+    // 기본템: once an account. 장신구 · 가방 · 원격기계: opened by the accessory itself (right-click) for now; the hub card comes with its 한옥 picture
+    private static final Set<String> ONCE = Set.of("기본템", "장신구", "가방", "원격기계");
 
     private static Set<String> commands(YamlConfiguration pluginYml, boolean aliases) {
         Set<String> out = new HashSet<>();

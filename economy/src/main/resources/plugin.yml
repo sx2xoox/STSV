@@ -38,6 +38,18 @@ commands:
     description: 직업 선택·정보·순위
     aliases: [job]
     permission: stsv.economy.play
+  장신구:
+    description: 장신구 칸·공방
+    aliases: [accessory]
+    permission: stsv.economy.play
+  원격기계:
+    description: 장신구 원격 기계 - 멀리서 내 기계 결과 받기
+    aliases: [remotemachine]
+    permission: stsv.economy.play
+  가방:
+    description: 장신구 가방
+    aliases: [bag]
+    permission: stsv.economy.play
   도감:
     description: 도감 (상점에 파는 물건 전부, 1개씩 바쳐 등록)
     aliases: [codex, fishdex]

@@ -58,6 +58,10 @@ _ECONOMY_UI = ("back", "bag", "cart", "chart", "chest", "coins", "crown", "hamme
                "price_tag", "search", "pick", "type", "confirm", "confirm_off", "cancel", "bid_min", "bid_5", "bid_10",
                "step_1", "step_10", "step_100", "step_1k", "step_10k")
 GUI = {name: (lambda n=name: _UI.icons()[n]) for name in _ECONOMY_UI}
+# the 장신구 screens' buttons (acc_enhance, acc_refine, acc_reroll, acc_slot_empty, acc_bag: accessory_art.py)
+import accessory_art as _ACC   # noqa: E402
+
+GUI.update(_ACC.GUI)
 
 # company logos for /주식 (economy:gui/logo_<company>, economy_logos.py)
 import economy_logos as _LOGOS   # noqa: E402

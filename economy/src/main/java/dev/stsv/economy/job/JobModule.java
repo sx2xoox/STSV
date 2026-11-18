@@ -264,6 +264,10 @@ public final class JobModule extends EcoModule {
     /** counted: false for XP that is itself a mission reward, so it does not count towards another mission. */
     public void addXp(UUID player, String job, double xp, boolean counted) {
         if (xp <= 0 || job == null || !job.equals(job(player))) return;
+        if (counted && eco.accessories() != null) {
+            eco.accessories().activity(player, "jobxp", xp);
+            xp *= 1 + eco.accessories().value(player, "craft_learning");   // 장신구 장인의 배움
+        }
         JobStore.Row r = store.get(player);
         int before = level(player);
         boolean wasGated = gated(player, job);
@@ -601,6 +605,7 @@ public final class JobModule extends EcoModule {
         if (!wasPlaced) {
             if (ore(m)) reward(p, "break", key, 1);
             else if (crop || m == Material.MELON || m == Material.PUMPKIN) reward(p, "harvest", key, 1);
+            accessories(p, b, m, crop);
         }
         if (crop && Tag.CROPS.isTagged(m)) spread(p, b);
         natural.put(b.getLocation(), !wasPlaced);
@@ -648,7 +653,8 @@ public final class JobModule extends EcoModule {
             if (!silk && r.nextDouble() < effect(u, "miner", "extra")) {
                 Item first = e.getItems().getFirst();
                 ItemStack it = first.getItemStack();
-                it.setAmount(it.getAmount() + 1);
+                // 장신구 풍부한 광맥: the +1 rolls once more
+                it.setAmount(it.getAmount() + 1 + (eco.accessories().roll(u, "rich_vein") ? 1 : 0));
                 first.setItemStack(it);
                 p.spawnParticle(Particle.HAPPY_VILLAGER, e.getBlock().getLocation().add(0.5, 0.5, 0.5), 6, 0.3, 0.3, 0.3);
             }
@@ -667,6 +673,7 @@ public final class JobModule extends EcoModule {
         if (mature(s) || m == Material.MELON || m == Material.PUMPKIN) {
             Material crop = produce(m);
             int bonus = farmerBonus(u);
+            if (bonus > 0) bonus += MachineSpec.binomial(bonus, Math.min(1, eco.accessories().value(u, "abundance")), r);   // 장신구 풍작
             if (crop != null && bonus > 0) {
                 e.getBlock().getWorld().dropItemNaturally(e.getBlock().getLocation().add(0.5, 0.3, 0.5), new ItemStack(crop, bonus));
             }
@@ -685,6 +692,7 @@ public final class JobModule extends EcoModule {
         for (JobSpec.Special s : spec.specials(from)) {
             double chance = s.job().equals(job)
                     ? s.chance().at(level(u), spec.maxLevel()) * boost(job) * jobMilestone(u, job, "special-boost", 1) : s.outsider();
+            chance *= 1 + eco.accessories().value(u, "rare_find");   // 장신구 귀한 발견
             if (chance <= 0 || r.nextDouble() >= chance) continue;
             Items.create(s.item(), 1).ifPresent(g -> {
                 if (at == null) {
@@ -716,6 +724,25 @@ public final class JobModule extends EcoModule {
      */
     private void spread(Player p, Block center) {
         UUID u = p.getUniqueId();
+        // 장신구 풍년 바람: the ripe crops of the 5x5 around come along (anyone, any job)
+        if (!spreading.contains(u) && (core.crops() == null || !core.crops().collecting()) && eco.accessories().roll(u, "harvest_wind")) {
+            Bukkit.getScheduler().runTask(eco, () -> {
+                if (!p.isOnline() || !spreading.add(u)) return;
+                try {
+                    for (int dx = -2; dx <= 2; dx++) for (int dz = -2; dz <= 2; dz++) {
+                        if (dx == 0 && dz == 0) continue;
+                        Block nb = center.getRelative(dx, 0, dz);
+                        if (eco.land() != null && !eco.land().allowed(p, nb.getLocation())) continue;
+                        core.crops().harvestAt(p, nb);
+                    }
+                    center.getWorld().spawnParticle(Particle.CHERRY_LEAVES, center.getLocation().add(0.5, 0.8, 0.5), 40, 2, 0.4, 2, 0);
+                    p.playSound(center.getLocation(), Sound.ENTITY_BREEZE_WIND_BURST, 0.6f, 1.2f);
+                } finally {
+                    spreading.remove(u);
+                }
+            });
+            return;
+        }
         JobSpec.Job farmer = spec.jobs().get("farmer");
         if (farmer == null || !"farmer".equals(job(u))) return;
         int span = farmer.harvestSpan(level(u));
@@ -737,6 +764,108 @@ public final class JobModule extends EcoModule {
                 }
             } finally {
                 spreading.remove(u);
+            }
+        });
+    }
+
+    /** Blocks broken by an accessory's chain (광맥 폭발 · 벌목 회오리 · 땅울림): their own breaks do not start another chain. */
+    private final Set<UUID> chaining = ConcurrentHashMap.newKeySet();
+
+    private static boolean diggable(Material m) {
+        return switch (m) {
+            case DIRT, COARSE_DIRT, ROOTED_DIRT, GRASS_BLOCK, PODZOL, MYCELIUM, SAND, RED_SAND, GRAVEL, CLAY, MUD, SOUL_SAND, SOUL_SOIL,
+                 SNOW_BLOCK -> true;
+            default -> false;
+        };
+    }
+
+    private static boolean stone(Material m) {
+        return switch (m) {
+            case STONE, DEEPSLATE, COBBLED_DEEPSLATE, TUFF, ANDESITE, DIORITE, GRANITE, CALCITE, NETHERRACK, BLACKSTONE, BASALT, END_STONE -> true;
+            default -> false;
+        };
+    }
+
+    /**
+     * 장신구 on a natural block broken by hand: accessory XP and drop chances (mine · harvest · wood · dig), and the chains:
+     * 광맥 폭발 (the connected ore of the same kind, up to 32), 벌목 회오리 (a natural tree, up to 128 logs), 땅울림 (the 3x3 across
+     * the face looked at). The chained blocks are broken as the player (protection, tools, job rewards see normal breaks).
+     */
+    private void accessories(Player p, Block b, Material m, boolean crop) {
+        UUID u = p.getUniqueId();
+        var acc = eco.accessories();
+        if (acc == null) return;
+        boolean chained = chaining.contains(u);
+        if (ore(m) || stone(m)) {
+            acc.activity(u, "mine", 1);
+            if (ore(m)) acc.drop(p, "mine");
+            if (ore(m) && !chained && acc.roll(u, "vein_burst")) chain(p, collect(b, x -> x.getType() == m, 32, false), true);
+        } else if (crop) {
+            acc.activity(u, "harvest", 1);
+            acc.drop(p, "harvest");
+        } else if (Tag.LOGS.isTagged(m)) {
+            acc.activity(u, "wood", 1);
+            if (!chained && acc.roll(u, "timber")) {
+                List<Block> tree = collect(b, x -> Tag.LOGS.isTagged(x.getType()), 128, true);
+                boolean leafy = false;
+                for (Block t : tree) for (org.bukkit.block.BlockFace f : List.of(org.bukkit.block.BlockFace.UP, org.bukkit.block.BlockFace.NORTH,
+                        org.bukkit.block.BlockFace.SOUTH, org.bukkit.block.BlockFace.EAST, org.bukkit.block.BlockFace.WEST)) {
+                    if (Tag.LEAVES.isTagged(t.getRelative(f).getType())) leafy = true;
+                }
+                if (leafy) chain(p, tree, false);
+            }
+        } else if (diggable(m)) {
+            acc.activity(u, "dig", 1);
+            if (!chained && acc.roll(u, "quake")) {
+                List<Block> plane = new ArrayList<>();
+                float pitch = p.getLocation().getPitch();
+                boolean flat = Math.abs(pitch) > 45;
+                boolean alongX = Math.abs(p.getLocation().getDirection().getX()) < Math.abs(p.getLocation().getDirection().getZ());
+                for (int i = -1; i <= 1; i++) for (int j = -1; j <= 1; j++) {
+                    if (i == 0 && j == 0) continue;
+                    Block nb = flat ? b.getRelative(i, 0, j) : alongX ? b.getRelative(i, j, 0) : b.getRelative(0, j, i);
+                    if (diggable(nb.getType()) && !placed(nb)) plane.add(nb);
+                }
+                chain(p, plane, false);
+            }
+        }
+    }
+
+    /** Natural blocks connected to a start (26 neighbours), matching, up to max (the start itself not included). */
+    private List<Block> collect(Block start, java.util.function.Predicate<Block> match, int max, boolean diagonal) {
+        List<Block> out = new ArrayList<>();
+        java.util.ArrayDeque<Block> q = new java.util.ArrayDeque<>(List.of(start));
+        Set<Block> seen = new java.util.HashSet<>(List.of(start));
+        while (!q.isEmpty() && out.size() < max) {
+            Block c = q.poll();
+            for (int dx = -1; dx <= 1; dx++) for (int dy = -1; dy <= 1; dy++) for (int dz = -1; dz <= 1; dz++) {
+                if (dx == 0 && dy == 0 && dz == 0) continue;
+                if (!diagonal && Math.abs(dx) + Math.abs(dy) + Math.abs(dz) > 1) continue;
+                Block n = c.getRelative(dx, dy, dz);
+                if (!seen.add(n) || !match.test(n) || placed(n)) continue;
+                out.add(n);
+                q.add(n);
+                if (out.size() >= max) break;
+            }
+        }
+        return out;
+    }
+
+    /** Breaks the blocks as the player, next tick (each a normal break: land, tool wear, drops). */
+    private void chain(Player p, List<Block> blocks, boolean burst) {
+        if (blocks.isEmpty()) return;
+        UUID u = p.getUniqueId();
+        Bukkit.getScheduler().runTask(eco, () -> {
+            if (!p.isOnline() || !chaining.add(u)) return;
+            try {
+                for (Block nb : blocks) {
+                    if (nb.isEmpty() || eco.land() != null && !eco.land().allowed(p, nb.getLocation())) continue;
+                    if (burst) nb.getWorld().spawnParticle(Particle.EXPLOSION, nb.getLocation().add(0.5, 0.5, 0.5), 1);
+                    p.breakBlock(nb);
+                }
+                p.playSound(p.getLocation(), burst ? Sound.ENTITY_GENERIC_EXPLODE : Sound.BLOCK_WOOD_BREAK, burst ? 0.5f : 0.8f, burst ? 1.4f : 0.8f);
+            } finally {
+                chaining.remove(u);
             }
         });
     }
@@ -807,9 +936,16 @@ public final class JobModule extends EcoModule {
                 for (ItemStack it : e.drops()) {
                     if (pct > 0 && e.crop().produce().equals(Items.key(it))) {
                         int n = it.getAmount(), whole = (int) Math.floor(pct);
-                        it.setAmount(n + n * whole + MachineSpec.binomial(n, pct - whole, ThreadLocalRandom.current()));
+                        int extra = n * whole + MachineSpec.binomial(n, pct - whole, ThreadLocalRandom.current());
+                        // 장신구 풍작: every +1 rolls once more
+                        extra += MachineSpec.binomial(extra, Math.min(1, eco.accessories().value(u, "abundance")), ThreadLocalRandom.current());
+                        it.setAmount(n + extra);
                         break;
                     }
+                }
+                if (!core.crops().collecting()) {
+                    eco.accessories().activity(u, "harvest", 1);
+                    eco.accessories().drop(p, "harvest");
                 }
                 spread(p, e.location().getBlock());
             }

@@ -660,7 +660,7 @@ final class VehicleTools {
                 }
                 case HARVEST -> {
                     double used = module.loadWeight(v);
-                    if (!ToolRules.roomToHarvest(v.cargo, used, v.spec.cargo().payload())) {
+                    if (!ToolRules.roomToHarvest(v.cargo, used, module.payload(v))) {
                         notice(driver, s, "vehicle-tool.full", t);
                         s.recentSet.remove(key);   // tried again once there is room
                         s.recent.remove(key);
@@ -735,7 +735,7 @@ final class VehicleTools {
     private boolean into(LiveVehicle v, ItemStack it, Location spill) {
         if (it == null || it.isEmpty()) return false;
         if (v.cargo == null) v.cargo = new ItemStack[v.spec.cargo().slots()];
-        int n = ToolRules.insert(v.cargo, it, module.weightOf(it.asOne()), module.loadWeight(v), v.spec.cargo().payload(), STACKS);
+        int n = ToolRules.insert(v.cargo, it, module.weightOf(it.asOne()), module.loadWeight(v), module.payload(v), STACKS);
         if (n < it.getAmount()) {
             ItemStack rest = it.clone();
             rest.setAmount(it.getAmount() - n);
@@ -804,7 +804,7 @@ final class VehicleTools {
         if (fish == null || fish.isEmpty()) return;
         String name = net.kyori.adventure.text.serializer.plain.PlainTextComponentSerializer.plainText().serialize(fish.effectiveName());
         if (v.cargo == null) v.cargo = new ItemStack[v.spec.cargo().slots()];
-        int in = ToolRules.insert(v.cargo, fish, module.weightOf(fish.asOne()), module.loadWeight(v), v.spec.cargo().payload(), STACKS);
+        int in = ToolRules.insert(v.cargo, fish, module.weightOf(fish.asOne()), module.loadWeight(v), module.payload(v), STACKS);
         Location at = new Location(v.world, stern[0], wy + 1, stern[2]);
         if (in <= 0) {
             notice(driver, s, "vehicle-tool.net-full", t);   // let go again: nothing falls into the sea

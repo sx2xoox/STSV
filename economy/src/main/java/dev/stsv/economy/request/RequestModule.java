@@ -110,11 +110,14 @@ public final class RequestModule extends EcoModule implements DailyListener {
         if (have < r.amount()) return "request.missing";
         Items.remove(p.getInventory(), it -> Items.plain(it, r.item()), r.amount());
         store.complete(u, index);
-        core.economy().deposit(u, r.reward(), "request");
+        // 장신구 의뢰 웃돈
+        long reward = eco.accessories() == null ? r.reward() : Math.round(r.reward() * (1 + eco.accessories().value(u, "request_bonus")));
+        core.economy().deposit(u, reward, "request");
         core.profiles().add(u, "requests_done", 1);
         eco.stocks().recordSale(u, r.item(), r.reward());
+        if (eco.accessories() != null) eco.accessories().activity(u, "request", 1);
         if (r.job() != null && r.xp() > 0) eco.jobs().addXp(u, r.job(), r.xp());
-        p.sendMessage(Lang.msg("request.done", "item", eco.shop().itemName(r.item()), "count", r.amount(), "reward", EconomyModule.format(r.reward()),
+        p.sendMessage(Lang.msg("request.done", "item", eco.shop().itemName(r.item()), "count", r.amount(), "reward", EconomyModule.format(reward),
                 "left", spec.perPlayer() - store.done(u).size()));
         p.playSound(p.getLocation(), Sound.ENTITY_PLAYER_LEVELUP, 0.6f, 1.5f);
         return null;
