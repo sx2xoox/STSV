@@ -27,6 +27,7 @@ means something), drawn with a local copy of its colours (the shared letters are
 import json
 import math
 import sys
+import shutil
 from pathlib import Path
 
 import yaml
@@ -1056,6 +1057,9 @@ NAMES.update({"acc_box": "장신구 상자", "acc_fragment": "장신구 조각",
 ACC_DIRS = ("textures/item/acc", "models/item/acc", "items/acc")
 
 
+PIXELLAB = Path(__file__).resolve().parent / "accessory_pixellab"
+
+
 def write_acc(assets):
     """economy:acc/<effect>_<grade>: the texture, its model and its item definition (the accessory's item_model).
     The three acc folders are this module's alone, so anything in them that is no longer made is removed."""
@@ -1067,7 +1071,11 @@ def write_acc(assets):
                 old.unlink()
     tex, model, item = folders
     for name, fn in ACC.items():
-        fn().save(tex / f"{name}.png")
+        drawn = PIXELLAB / f"{name}.png"   # the picked PixelLab icon wins over the hand-drawn one
+        if drawn.is_file():
+            shutil.copyfile(drawn, tex / f"{name}.png")
+        else:
+            fn().save(tex / f"{name}.png")
         (model / f"{name}.json").write_text(json.dumps(
             {"parent": "minecraft:item/generated", "textures": {"layer0": f"{NS}:item/acc/{name}"}}, indent=2))
         (item / f"{name}.json").write_text(json.dumps(
