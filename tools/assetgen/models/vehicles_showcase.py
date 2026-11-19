@@ -57,7 +57,7 @@ ARCH = WRAD + 1.4              # the arch's radius round the wheel
 TRACK = 26                     # wheel's inner face (x): the wheel stands from TRACK out to ~34
 GROUND = 3                     # the body's lowest cells
 D0, D1 = -27, 9                # the door, between its two seams (z)
-CAB0, CAB1 = -34, 58           # the glasshouse: from the screen's foot to the rear glass's foot
+CAB0, CAB1 = -24, 58           # the glasshouse: from the screen's foot to the rear glass's foot
 
 
 def smooth(t):
@@ -123,27 +123,37 @@ def half_width(z, y):
 ROOF = 42.5
 
 
+T = math.tan(math.radians(22.5))   # the slopes the tilted panes follow: a model element turns only in 22.5° steps
+FB0 = 16                           # where the fastback starts falling from the roof
+TILT_X, TILT_Z = -1, 1             # which way a positive turn goes about x and about z (checked on the preview)
+
+
 def roof(z):
-    """The glasshouse's top: the raked screen, a short roof, a long fastback down to the deck. High enough for a
-    sitting player (head 1.275 block over the seat)."""
+    """The glasshouse's top: the raked screen, a short roof, then a fastback falling at exactly 22.5° to the deck (a
+    tilted pane lies on it). High enough for a sitting player (head 1.275 block over the seat)."""
     if z < -4:
-        t = (z - CAB0) / 30
-        return deck(z) + (ROOF - deck(z)) * (1 - (1 - smooth(t)) ** 1.6)
-    if z < 14:
+        return max(ROOF - (-4 - z), deck(z) + 0.3)      # the screen: straight at 45° (one tilted pane)
+    if z < FB0:
         return ROOF + 0.4 * bump(z, 5, 10)
-    t = (z - 14) / (CAB1 - 14)
-    return ROOF + (deck(z) + 0.5 - ROOF) * smooth(t) ** 0.85
+    return max(ROOF - (z - FB0) * T, deck(z) + 0.3)
+
+
+def fastback_end():
+    z = FB0
+    while ROOF - (z - FB0) * T > deck(z) + 0.3:
+        z += 0.25
+    return z
 
 
 def glass_w(z, y):
-    """The glasshouse's half width at height y (it leans in: tumblehome), its top rounded over."""
+    """The glasshouse's half width at height y: its sides lean in at exactly 22.5° (a tilted pane lies on each),
+    its top rounded over."""
     base = plan(z) - 5.5
     r = roof(z)
     d = deck(z)
     if r <= d:
         return -1
-    t = (y - d) / (r - d)
-    w = base + (18 - base) * t
+    w = base - (y - d) * T
     if r - y < 2.5:
         w -= (2.5 - (r - y)) * 2.2
     return w
@@ -415,6 +425,7 @@ def gt_kit(name="phantom_gt"):
     for target, cells in ((m, body), (kit["door_l"], doors[-1]), (kit["door_r"], doors[1])):
         _flat_voxels(target, cells)
     _glass(m, kit)
+    _tilted(m, kit)
     _cabin(m)
     _tail_details(m)
     _mirrors(kit)
@@ -445,20 +456,15 @@ def _flat_voxels(m, cells):
 def _glass(m, kit):
     """The windows as thin see-through planes: the screen (stepped up its rake), the side glass in the doors, the rear
     glass down the fastback."""
-    # the screen: a staircase of 1 px risers following the rake, each a thin pane (it reads as one sheet)
-    zs = [z for z in range(CAB0, -6)]
-    for z in zs:
-        y0, y1 = deck(z + 0.5), roof(z + 0.5) - 1.6
-        if y1 - y0 < 1:
-            continue
-        w = glass_w(z + 0.5, (y0 + y1) / 2) - 1.6
-        if w <= 2 or w > 30:
-            continue
-        ya = roof(z + 0.5) - 1.8
-        yb = roof(z + 1.5) - 1.8 if z + 1 < -6 else ya + 1
-        if yb <= ya:
-            continue
-        m.box("screen", (-w, ya, z + 0.75), (w, yb, z + 1.25), PANE)
+    # the screen: one clear pane at 45° from the cowl to the roof's front edge (its streaks painted by position)
+    zs = -4 - (ROOF - deck(-14))                         # about where the 45° line meets the cowl
+    while ROOF - (-4 - zs) > deck(zs) + 0.3:
+        zs -= 0.25
+    length = (-4 - zs) / math.cos(math.radians(45))
+    half = glass_w(-10, (ROOF + deck(-10)) / 2) - 2.2
+    y0 = deck(zs) + 0.3
+    m.box("screen", (-half, y0, zs), (half, y0 + 0.5, zs + length), PANE,
+          rotation=("x", -45 * TILT_X, (0, y0, zs)))
     # side glass: a pane in each door (it rises with the door) and a quarter glass behind it
     for side, part in ((-1, "door_l"), (1, "door_r")):
         for z0, z1, target in ((D0 + 4, D1 - 1, kit[part]), (D1 + 1, 42, m)):
@@ -470,6 +476,40 @@ def _glass(m, kit):
                 x = glass_w(zc, (yb + yt) / 2) - 0.8
                 xa = min(side * x, side * (x - 0.5)), max(side * x, side * (x - 0.5))
                 target.box("side_glass", (xa[0], yb, z), (xa[1], yt, z + 1), PANE)
+
+
+
+
+def _tilted(m, kit):
+    """Panes turned 22.5° laid over the stepped glasshouse, so it reads as smooth sheets: the fastback's rear glass
+    (one pane down its middle) and the side glass (a pane per 2 px strip, leaning in; the door's strips ride with the
+    door)."""
+    tint = PAINTS["tint"]
+    # the fastback: one pane from the roof's end down to the deck, its middle (the buttresses either side stay stepped)
+    z0, z1 = FB0, fastback_end()
+    length = (z1 - z0) / math.cos(math.radians(22.5))
+    y0 = ROOF + 0.15
+    m.box("rear_glass", (-13, y0, z0), (13, y0 + 0.6, z0 + length), tint,
+          rotation=("x", -22.5 * TILT_X, (0, y0, z0)))
+    for sx in (-1, 1):
+        lo, hi = sorted((sx * 13, sx * 18))
+        m.box("buttress", (lo, y0 - 0.05, z0), (hi, y0 + 0.55, z0 + length), PAINTS["roof"],
+              rotation=("x", -22.5 * TILT_X, (0, y0 - 0.05, z0)))
+    # the side glass: leaning in, a strip at a time (its top follows the roof)
+    for side, part in ((-1, "door_l"), (1, "door_r")):
+        for z in range(-22, 44, 2):
+            if D1 - 1 <= z <= D1:
+                continue                                    # the B pillar
+            yb = deck(z + 1) + 1.4
+            yt = min(roof(z), roof(z + 2)) - 2.4
+            if yt - yb < 1.5:
+                continue
+            wb = glass_w(z + 1, yb) + 0.35
+            h = (yt - yb) / math.cos(math.radians(22.5))
+            target = kit[part] if D0 <= z < D1 else m
+            lo, hi = sorted((side * wb, side * (wb + 0.6)))
+            target.box("side_pane", (lo, yb, z), (hi, yb + h, z + 2), tint,
+                       rotation=("z", side * 22.5 * TILT_Z, (side * wb, yb, z)))
 
 
 def _cabin(m):

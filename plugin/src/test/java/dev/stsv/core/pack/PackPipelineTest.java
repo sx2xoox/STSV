@@ -74,6 +74,7 @@ class PackPipelineTest {
             "angel_wings", "demon_wings", "butterfly_wings",   // wings swept back 22.5 degrees
             "gumiho",                                           // nine tails fanned out
             "combine", "combine_reel", "combine_reel_arms", "combine_seeder",   // 소형 콤바인: the inclined feeder, crop dividers, reel bats, slanted arms
+            "phantom_gt", "phantom_gt_door_l", "phantom_gt_door_r",   // 쇼케이스 팬텀 GT: the screen at 45°, the rear glass and side glass at 22.5°
             "toy_sword_belt", "lucky_pouch", "champion_belt",   // waist: the sword hangs slanted, the pouch's knot, the belt's plate
             // 은하수 v2: the octagonal crown and rings, the swept-back cape, gems turned 45 degrees, the owl's wings
             "galaxy_star_crown", "galaxy_star_crown_awakened", "galaxy_cape", "galaxy_cape_awakened", "galaxy_moon_necklace",
