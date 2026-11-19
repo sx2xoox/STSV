@@ -133,7 +133,7 @@ types:
   resident:
     name: 동네 주민
     color: "#9fd36b"
-    weight: 50
+    weight: 40
     skins: ["economy:entity/bus/resident_1", "economy:entity/bus/resident_2 slim", "economy:entity/bus/resident_3"]
   student:
     name: 학생

@@ -74,9 +74,9 @@ class BusTest {
         assertEquals(1.0, s.hourFactor(13));
         assertTrue(s.rush(7));
         assertEquals(18, s.types().size());
-        // the first six make up 100 (the 2차 kinds come on top, by place and time)
+        // the first six make up 90 (주민 40: fewer plain neighbours; the 2차 kinds come on top, by place and time)
         double w = s.types().values().stream().limit(6).mapToDouble(BusSpec.Type::weight).sum();
-        assertEquals(100, w, 1e-9);
+        assertEquals(90, w, 1e-9);
         assertTrue(s.vehicles().contains("stsv:village_bus"));
     }
 
