@@ -172,10 +172,11 @@ class VehicleRoadContentTest {
             try (Stream<Path> files = Files.walk(root)) {
                 for (Path f : files.filter(p -> p.toString().endsWith(".yml")).toList()) {
                     if (f.getFileName().toString().startsWith("vehicle")) continue;   // vehicles*.yml, vehicle_feel.yml
+                    if (f.getFileName().toString().equals("bus.yml")) continue;   // the economy's 마을버스: which vehicle is a bus
                     String text = Files.readString(f);
                     boolean shop = f.getFileName().toString().equals("shop.yml");   // generations 1-4 are sold there (4세대 패치)
                     for (String id : ROAD) {
-                        if (shop && java.util.Set.of("hand_cart", "jige", "cargo_bicycle", "ox_cart", "delivery_scooter", "power_tiller", "cargo_van", "light_truck", "combine").contains(id)) continue;
+                        if (shop && java.util.Set.of("hand_cart", "jige", "cargo_bicycle", "ox_cart", "delivery_scooter", "power_tiller", "cargo_van", "light_truck", "combine", "village_bus").contains(id)) continue;
                         assertFalse(text.contains("stsv:" + id) || text.contains(" " + id + ":"), f + " mentions " + id);
                     }
                 }
@@ -255,7 +256,7 @@ class VehicleRoadContentTest {
         // its horn and engine are the box truck's (in the pack)
         assertEquals(truck.horn().sound(), bus.horn().sound());
         assertEquals(truck.engine().sound(), bus.engine().sound());
-        // admin-only for now: no price, shop, gacha or recipe
+        // sold in the economy's shop (150만), never priced in its own item: no price, shop, gacha or recipe here
         for (String key : List.of("price", "shop", "buy", "sell", "recipe", "gacha")) assertFalse(y.contains("village_bus." + key), key);
     }
 }
