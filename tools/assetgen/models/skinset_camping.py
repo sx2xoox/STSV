@@ -30,9 +30,9 @@ _ramp("camp_orange", 46, 0.135, 0.68, 0.24, 4, False)     # safety orange
 _ramp("camp_alu", 250, 0.010, 0.78, 0.26, 4, False)       # brushed aluminium
 _ramp("camp_black", 265, 0.012, 0.34, 0.18, 4, False)     # black rubber
 
-OLIVE = Mat("camp_olive", "plain", 2, bevel=(0, -1), noise=0.03)
+OLIVE = Mat("camp_olive", "plain", 2, bevel=(0, -1), noise=0)
 OLIVE_DARK = Mat("camp_olive", "plain", 1, bevel=(0, -1), noise=0.03)
-ORANGE = Mat("camp_orange", "plain", 2, bevel=(0, -1), noise=0.03)
+ORANGE = Mat("camp_orange", "plain", 2, bevel=(0, -1), noise=0)
 ALU = Mat("camp_alu", "grain", 2, bevel=(1, -1), noise=0.03)          # brushed: faint streaks along the face
 ALU_EDGE = Mat("camp_alu", "plain", 3, bevel=(0, -1), noise=0)        # a ground edge: the lightest step
 BLACK = Mat("camp_black", "plain", 1, bevel=(0, -1), noise=0.04)
@@ -76,12 +76,13 @@ def camping_sword():
     m.box("guard", (5, 6.25, 6.75), (11, 7.5, 9.25), ORANGE)
     m.group("blade")
     m.box("blade", (5.5, 7.5, 7.5), (10.25, 14, 8.5), OLIVE)
-    m.box("blade", (5, 14, 7.5), (10.75, 21.5, 8.5), OLIVE)
+    m.box("blade", (5, 14, 7.5), (10.75, 21, 8.5), OLIVE)
     m.box("edge", (10.25, 8.25, 7.625), (11.25, 14, 8.375), ALU_EDGE)
     m.box("edge", (10.75, 14, 7.625), (11.75, 22.5, 8.375), ALU_EDGE)
-    # the clipped point: the spine (-x) drops away, the edge sweeps up to it
-    m.box("tip", (6.75, 21.5, 7.5), (10.75, 23.75, 8.5), OLIVE)
-    m.box("tip", (9.25, 22.5, 7.625), (11.25, 25.25, 8.375), ALU_EDGE)
+    # the clipped point: the spine (-x) steps away, the edge sweeps up to it
+    m.box("tip", (6.5, 21, 7.5), (10.75, 23, 8.5), OLIVE)
+    m.box("tip", (8.5, 23, 7.5), (10.5, 24.5, 8.5), OLIVE)
+    m.box("tip", (10, 22.5, 7.625), (11.25, 26, 8.375), ALU_EDGE)
     return _held(m, "sword")
 
 
@@ -115,7 +116,6 @@ def camping_shovel():
     m.box("blade", (5.25, 23, 7.5), (10.75, 25, 8.5), OLIVE)
     m.box("blade", (6.5, 25, 7.5), (9.5, 26.5, 8.5), OLIVE)
     m.box("point", (7.25, 26.5, 7.625), (8.75, 27.75, 8.375), ALU_EDGE)
-    m.box("spine", (7.25, 16.5, 8.5), (8.75, 24.5, 8.875), OLIVE_DARK)
     m.box("edge", (3.5, 17, 7.625), (4, 23, 8.375), ALU_EDGE)
     m.box("edge", (12, 17, 7.625), (12.5, 23, 8.375), ALU_EDGE)
     return _held(m, "shovel")

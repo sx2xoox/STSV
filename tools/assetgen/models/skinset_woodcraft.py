@@ -21,15 +21,15 @@ from models.toys import C, _held, round_y
 # Materials
 # ================================================================================================
 
-OAK = Mat("wood", "grain", 2, bevel=(1, -1), noise=0.04)            # light oak: blades and heads, grain along them
-OAK_LIGHT = Mat("wood", "grain", 3, bevel=(0, -1), noise=0.03)      # the carved edges (a chisel's bright facet)
-OAK_PLAIN = Mat("wood", "plain", 2, bevel=(1, -1), noise=0.03)
+OAK = Mat("hinoki", "grain", 2, bevel=(1, -1), noise=0.03)            # light oak: blades and heads, grain along them
+OAK_LIGHT = Mat("hinoki", "plain", 3, bevel=(0, -1), noise=0.02)      # the carved edges (a chisel's bright facet)
+OAK_PLAIN = Mat("wood", "plain", 3, bevel=(1, -1), noise=0.03)
 WALNUT = Mat("wood_dark", "grain", 1, bevel=(1, -1), noise=0.04)    # collars, heads' cores, the acorn caps
 WALNUT_DARK = Mat("wood_dark", "plain", 0, bevel=(1, -1), noise=0.03)   # the pommel
 HANDLE = Mat("wood", "grain", 1, bevel=(1, -1), noise=0.04)         # the grip and shafts: a shade darker than the heads
 BAMBOO = Mat("straw", "grain", 2, bevel=(1, -1), noise=0.03)        # the rod: dried bamboo
 TWINE = Mat("burlap", "weave", 2, bevel=(0, -1), noise=0)           # jute bindings
-LEAF = Mat("leaf", "plain", 3, bevel=(0, -1), noise=0)              # a painted carved leaf
+LEAF = Mat("sprout", "plain", 2, bevel=(1, -1), noise=0)              # a painted carved leaf
 LINE = Mat("burlap", "plain", 3, bevel=None, noise=0)
 EYE = Mat("wood_dark", "plain", 0, bevel=None, noise=0)
 
@@ -53,8 +53,10 @@ def shaft(m, top, lo=6.5):
 
 
 def leaf(m, cx, cy, z0, z1, r=1.5):
-    """A carved leaf: a diamond (a square turned 45 degrees about z) through the part, proud of both faces."""
-    m.box("leaf", (cx - r, cy - r, z0), (cx + r, cy + r, z1), LEAF, rotation=("z", 45, (cx, cy, C)))
+    """A carved leaf through the part, proud of both faces: a long body and a pointed tip along y (the views turn the
+    model 45 degrees, so it shows as a slanted leaf)."""
+    m.box("leaf", (cx - r * 0.67, cy - r, z0), (cx + r * 0.67, cy + r, z1), LEAF)
+    m.box("leaf_tip", (cx - r * 0.33, cy + r, z0 + 0.125), (cx + r * 0.33, cy + r * 1.5, z1 - 0.125), LEAF)
 
 
 def acorn(m, cx, cy, z0, z1):
@@ -75,12 +77,12 @@ def woodcraft_sword():
     m.box("guard", (3.5, 6.5, 6.75), (12.5, 8.5, 9.25), WALNUT)
     acorn(m, 2.75, 7.75, 6.75, 9.25)
     acorn(m, 13.25, 7.75, 6.75, 9.25)
-    leaf(m, C, 7.5, 6.25, 9.75, 1.5)
+    leaf(m, C, 7.25, 6.25, 9.75, 1.25)
     m.group("blade")
     m.box("blade", (5.75, 8.5, 7), (10.25, 23, 9), OAK)
     m.box("blade_edge", (4.75, 9.5, 7.375), (5.75, 22.25, 8.625), OAK_LIGHT)
     m.box("blade_edge", (10.25, 9.5, 7.375), (11.25, 22.25, 8.625), OAK_LIGHT)
-    m.box("blade_ridge", (7.375, 10, 6.75), (8.625, 22, 9.25), WALNUT)
+    m.box("blade_ridge", (7.5, 10, 6.875), (8.5, 22, 9.125), HANDLE)
     m.box("blade_tip", (6.5, 23, 7.25), (9.5, 24.75, 8.75), OAK_LIGHT)
     m.box("blade_tip", (7.25, 24.75, 7.5), (8.75, 26, 8.5), OAK_LIGHT)
     return _held(m, "sword")
@@ -92,17 +94,17 @@ def woodcraft_pickaxe():
     handle(m)
     shaft(m, 16)
     m.group("head")
-    m.box("head", (5.25, 15.5, 6.5), (10.75, 21, 9.5), WALNUT)
+    m.box("head", (5.5, 15.5, 6.5), (10.5, 21, 9.5), WALNUT)
     m.box("twine", (6.5, 14.25, 6.5), (9.5, 15.5, 9.5), TWINE)
-    leaf(m, C, 18.25, 6.25, 9.75, 1.25)
+    leaf(m, C, 17.75, 6.25, 9.75, 1.25)
     for side in (1, -1):
         # the arm: one box drooping 22.5, its tip a box drooping 45 further out
         if side > 0:
-            m.box("arm", (10.25, 16.75, 6.875), (15.5, 19.75, 9.125), OAK, rotation=("z", -22.5, (10.75, 18.25, C)))
-            m.box("arm_tip", (14.5, 13.5, 7.25), (16.5, 17, 8.75), OAK_LIGHT, rotation=("z", -45, (15.25, 16.25, C)))
+            m.box("arm", (10, 16.875, 6.875), (17, 19.625, 9.125), OAK, rotation=("z", -22.5, (10.5, 18.25, C)))
+            m.box("arm_tip", (15.5, 12.5, 7.25), (17.5, 16.75, 8.75), OAK_LIGHT, rotation=("z", -45, (16.5, 15.75, C)))
         else:
-            m.box("arm", (0.5, 16.75, 6.875), (5.75, 19.75, 9.125), OAK, rotation=("z", 22.5, (5.25, 18.25, C)))
-            m.box("arm_tip", (-0.5, 13.5, 7.25), (1.5, 17, 8.75), OAK_LIGHT, rotation=("z", 45, (0.75, 16.25, C)))
+            m.box("arm", (-1, 16.875, 6.875), (6, 19.625, 9.125), OAK, rotation=("z", 22.5, (5.5, 18.25, C)))
+            m.box("arm_tip", (-1.5, 12.5, 7.25), (0.5, 16.75, 8.75), OAK_LIGHT, rotation=("z", 45, (-0.5, 15.75, C)))
     return _held(m, "pickaxe")
 
 
@@ -114,11 +116,11 @@ def woodcraft_shovel():
     m.group("blade")
     m.box("socket", (6.25, 15.5, 6.5), (9.75, 17.25, 9.5), WALNUT)
     m.box("twine", (6.5, 14.25, 6.5), (9.5, 15.5, 9.5), TWINE)
-    m.box("blade", (3.75, 17.25, 7), (12.25, 24, 9), OAK)
-    m.box("blade", (4.5, 24, 7.125), (11.5, 26, 8.875), OAK)
+    m.box("blade", (4, 17.25, 7.125), (12, 24, 8.875), OAK)
+    m.box("blade", (4.75, 24, 7.25), (11.25, 26, 8.75), OAK)
     m.box("point", (5.75, 26, 7.25), (10.25, 27.5, 8.75), OAK_LIGHT)
     m.box("point", (7, 27.5, 7.375), (9, 28.5, 8.625), OAK_LIGHT)
-    leaf(m, C, 21, 6.75, 9.25, 1.5)
+    leaf(m, C, 20.5, 6.75, 9.25, 1.5)
     return _held(m, "shovel")
 
 
@@ -131,10 +133,10 @@ def woodcraft_axe():
     m.box("cap", (6.5, 21.5, 6.5), (9.5, 22.5, 9.5), WALNUT)
     m.box("head", (5.5, 14.5, 6.5), (10.5, 20.5, 9.5), WALNUT)
     m.box("twine", (6.5, 13.25, 6.5), (9.5, 14.5, 9.5), TWINE)
-    m.box("bit", (2, 13.5, 7), (5.5, 21.5, 9), OAK)
-    m.box("bit_edge", (0.5, 12.5, 7.25), (2, 22.5, 8.75), OAK_LIGHT)
+    m.box("bit", (1.5, 13, 7), (5.5, 22, 9), OAK)
+    m.box("bit_edge", (-0.25, 12, 7.25), (1.5, 23, 8.75), OAK_LIGHT)
     m.box("poll", (10.5, 15.5, 6.875), (12, 19.5, 9.125), OAK)
-    leaf(m, 3.75, 17.5, 6.75, 9.25, 1.25)
+    leaf(m, 3.5, 17, 6.75, 9.25, 1.25)
     return _held(m, "axe")
 
 
@@ -148,7 +150,7 @@ def woodcraft_hoe():
     m.box("twine", (6.5, 18.75, 6.5), (9.5, 20, 9.5), TWINE)
     m.box("plate", (0.25, 15, 5.25), (2.5, 22.75, 10.75), OAK)
     m.box("plate_edge", (0.5, 14, 5.5), (2.25, 15, 10.5), OAK_LIGHT)
-    m.box("leaf", (-0.25, 17.25, 6.75), (0.25, 20.25, 9.25), LEAF, rotation=("x", 45, (0, 18.75, C)))
+    leaf(m, 5, 21.25, 6.5, 9.5, 1.0)
     return _held(m, "hoe")
 
 
