@@ -154,9 +154,17 @@ final class LiveVehicle {
         return null;
     }
 
+    /** Whoever sits in a seat (a player, or a guest another plugin seated: a bus's passenger), or null. */
+    Entity occupant(int seat) {
+        Seat s = seat < seats.length ? seats[seat] : null;
+        if (s == null || !s.chair().isValid()) return null;
+        List<Entity> on = s.chair().getPassengers();
+        return on.isEmpty() ? null : on.getFirst();
+    }
+
     boolean[] taken() {
         boolean[] t = new boolean[seats.length];
-        for (int i = 0; i < seats.length; i++) t[i] = rider(i) != null;
+        for (int i = 0; i < seats.length; i++) t[i] = occupant(i) != null;
         return t;
     }
 

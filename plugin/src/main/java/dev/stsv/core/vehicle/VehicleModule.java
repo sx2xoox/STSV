@@ -1712,8 +1712,8 @@ public final class VehicleModule implements StsvModule, Listener {
         for (int i = 0; i < v.seats.length; i++) {
             LiveVehicle.Seat seat = v.seats[i];
             if (seat == null) continue;
-            if (!seat.valid()) {
-                leave(v, i);   // something took the seat apart: its rider steps out, what is left goes
+            if (!seat.valid() || seat.chair().getPassengers().isEmpty()) {
+                leave(v, i);   // something took the seat apart (or its guest got off): its rider steps out, what is left goes
                 continue;
             }
             Location to = seatLocation(v, i);
@@ -1940,6 +1940,15 @@ public final class VehicleModule implements StsvModule, Listener {
             refuse(p, Lang.mm("vehicle.full"));
             return;
         }
+        if (!mount(v, seat, p)) return;
+        funView.boarded(v, seat, p);
+        dress.door(v, seat, ticks);
+        hideBoxes(v, p, true);
+        afterBoard(v, seat, p, mayDrive, taken);
+    }
+
+    /** Builds a seat's carrier and chair and sits this entity on it; false (nothing left behind) when it could not sit. */
+    private boolean mount(LiveVehicle v, int seat, Entity who) {
         Location at = seatLocation(v, seat);
         ItemDisplay carrier = v.world.spawn(at, ItemDisplay.class, d -> {
             d.setPersistent(false);
@@ -1962,20 +1971,21 @@ public final class VehicleModule implements StsvModule, Listener {
             a.getPersistentDataContainer().set(PART, PersistentDataType.LONG, v.id);
             a.getPersistentDataContainer().set(SEAT, PersistentDataType.INTEGER, seat);
         });
-        p.setRotation(at.getYaw(), p.getPitch());
-        if (!carrier.addPassenger(chair) || !chair.addPassenger(p)) {
+        who.setRotation(at.getYaw(), who.getLocation().getPitch());
+        if (!carrier.addPassenger(chair) || !chair.addPassenger(who)) {
             ejecting.add(chair.getUniqueId());
             chair.eject();
             ejecting.remove(chair.getUniqueId());
             chair.remove();
             carrier.remove();
-            return;
+            return false;
         }
         v.seats[seat] = new LiveVehicle.Seat(carrier, chair);
         v.seatSince[seat] = ticks;
-        funView.boarded(v, seat, p);
-        dress.door(v, seat, ticks);
-        hideBoxes(v, p, true);
+        return true;
+    }
+
+    private void afterBoard(LiveVehicle v, int seat, Player p, boolean mayDrive, boolean[] taken) {
         if (seat == 0) {
             // the engine starts (its start sound; the hum begins as it ends), unless it is running already
             int wait = feel.driverIn(v, settings.engine() && v.spec.engine() != null);
@@ -3486,6 +3496,69 @@ public final class VehicleModule implements StsvModule, Listener {
     // ------------------------------------------------------------------------------------------
 
     private long nextTemporary = -1;
+
+    // ------------------------------------------------------------------------------------------
+    // Guests: entities another plugin seats (a bus's passengers: mannequins)
+    // ------------------------------------------------------------------------------------------
+
+    /** A vehicle with a player at its wheel, as another plugin sees it (a copy: read it again each tick). */
+    public record Driven(long id, String itemKey, World world, double x, double y, double z, float yaw, double speed, boolean bumped,
+                         int seats) {
+        public Location location() {
+            return new Location(world, x, y, z, yaw, 0);
+        }
+    }
+
+    /** The vehicle this player drives (sits at the wheel of), or null. */
+    public Driven drivenBy(Player p) {
+        if (p == null || !(p.getVehicle() instanceof ArmorStand chair)) return null;
+        Long id = partOf(chair);
+        LiveVehicle v = id == null ? null : live.get(id);
+        if (v == null || !p.equals(v.rider(0))) return null;
+        return new Driven(v.id, v.item.key().asString(), v.world, v.st.x, v.st.y, v.st.z, v.st.yaw, v.st.speed, v.st.bumped, v.seats.length);
+    }
+
+    /** The free seats behind the wheel of this vehicle (none taken by a player or a guest), front first. */
+    public List<Integer> freeSeats(long id) {
+        LiveVehicle v = live.get(id);
+        List<Integer> free = new ArrayList<>();
+        if (v == null) return free;
+        boolean[] taken = v.taken();
+        for (int i = 1; i < taken.length; i++) if (!taken[i]) free.add(i);
+        return free;
+    }
+
+    /** Seats a guest (not a player) in this seat behind the wheel; false when it is taken or the vehicle is gone. */
+    public boolean seatGuest(long id, int seat, Entity guest) {
+        LiveVehicle v = live.get(id);
+        if (v == null || guest == null || guest instanceof Player || !guest.isValid() || seat < 1 || seat >= v.seats.length
+                || v.occupant(seat) != null) return false;
+        if (v.seats[seat] != null) leave(v, seat);   // an empty chair left over
+        if (guest.isInsideVehicle()) guest.leaveVehicle();
+        guest.teleport(seatLocation(v, seat));
+        if (!mount(v, seat, guest)) return false;
+        dress.door(v, seat, ticks);
+        return true;
+    }
+
+    /** The seat this guest sits in on this vehicle, or -1. */
+    public int seatOfGuest(long id, Entity guest) {
+        LiveVehicle v = live.get(id);
+        if (v == null || guest == null) return -1;
+        for (int i = 1; i < v.seats.length; i++) if (guest.equals(v.occupant(i))) return i;
+        return -1;
+    }
+
+    /** Takes a guest off its seat and stands it beside the vehicle where a rider of that seat steps out; false when it was not on it. */
+    public boolean unseatGuest(long id, Entity guest) {
+        LiveVehicle v = live.get(id);
+        int seat = seatOfGuest(id, guest);
+        if (v == null || seat < 0) return false;
+        Location exit = exit(v, seat);
+        leave(v, seat);
+        if (guest.isValid()) guest.teleport(exit);
+        return true;
+    }
 
     /**
      * A vehicle of this item standing at (x, y, z) facing yaw, in a paint of the tuning shop (null: its own colour), with
