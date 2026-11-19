@@ -244,7 +244,7 @@ public final class BusModule extends EcoModule {
             if (c == null) continue;
             int id = Integer.parseInt(k);
             stops.put(id, new BusStop(id, c.getString("name", "정류장 " + id), c.getString("world", "world"), c.getDouble("x"), c.getDouble("z"),
-                    c.getInt("half"), c.getDouble("hx"), c.getDouble("hz", 1), c.getInt("side", 1), c.getInt("size", spec.stops().waitingMax()),
+                    c.getInt("half"), c.getDouble("hx"), c.getDouble("hz", 1), c.getInt("side", 1), Math.max(c.getInt("size", spec.stops().waitingMax()), spec.stops().waitingMax()),
                     c.getBoolean("auto"), c.getBoolean("bay", true), c.getString("dock", "")));
             waiting.put(id, c.getDouble("waiting", 0));
             if (c.isList("tags")) stopTags.put(id, new java.util.TreeSet<>(c.getStringList("tags")));

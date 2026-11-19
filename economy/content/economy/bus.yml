@@ -8,8 +8,8 @@ vehicles: [stsv:mini_bus, stsv:village_bus, stsv:limousine_bus]
 buses: {}
 
 fare:
-  base: 100            # 운임 = base + 도로 거리(블록) × per-block, 손님 종류 · 기분 배수
-  per-block: 0.4
+  base: 80             # 운임 = base + 도로 거리(블록) × per-block, 손님 종류 · 기분 배수
+  per-block: 0.3
   # 정해진 시간 = 도로 거리 ÷ on-time-speed + on-time-grace 초. 그 안에 내려 주면 팁 (운임 × tip)
   on-time-speed: 6
   on-time-grace: 30
@@ -20,11 +20,10 @@ fare:
     - {at: 70, factor: 1.0}
     - {at: 40, factor: 0.8}
     - {at: 0, factor: 0.5}
-  # 하루 받는 운임 곡선 (사람마다, 05시 초기화): 오늘 받은 운임이 upto 까지는 rate
+  # 하루 받는 운임 곡선 (사람마다, 05시 초기화): 오늘 받은 운임이 upto 까지는 rate (-1 = 끝까지).
+  # 지금은 상한 없음 (언제나 100%). 다시 걸려면 예: [{upto: 100000, rate: 1.0}, {upto: -1, rate: 0.5}]
   daily:
-    - {upto: 100000, rate: 1.0}
-    - {upto: 200000, rate: 0.5}
-    - {upto: -1, rate: 0.2}
+    - {upto: -1, rate: 1.0}
   # 같은 두 정류장 사이를 repeat-window 분 안에 repeat-free 번 넘게 오가면 그 구간 손님 가중치 × repeat-factor
   repeat-window: 30
   repeat-free: 2
@@ -43,8 +42,8 @@ mood:
   cooldown: 20         # 같은 감점은 이 틱 안에 한 번만
 
 stops:
-  waiting-max: 4       # 정류장마다 기다리는 손님 최대 (관리자 정류장은 설치할 때 크기)
-  refill-minutes: 3    # 손님 한 명이 새로 차오르는 데 걸리는 분 (시간대 배수로 나눔)
+  waiting-max: 6       # 정류장마다 기다리는 손님 최대 (자동 정류장은 이 값, 관리자 정류장은 설치할 때 크기와 이 값 중 큰 쪽)
+  refill-minutes: 2    # 손님 한 명이 새로 차오르는 데 걸리는 분 (시간대 배수로 나눔)
   # 시간대 배수 (한국 시각, from 시 ~ to 시 전)
   hours:
     - {from: 7, to: 9, factor: 2.0}

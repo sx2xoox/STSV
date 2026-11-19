@@ -23,10 +23,10 @@ class BusTest {
     void fareFollowsThePlan() {
         BusSpec s = spec();
         BusSpec.Type resident = s.types().get("resident");
-        assertEquals(220, s.fare(300, resident), 1e-9);
-        assertEquals(420, s.fare(800, resident), 1e-9);
-        assertEquals(2900, s.fare(7000, resident), 1e-9);
-        assertEquals(420 * 3, s.fare(800, s.types().get("vip")), 1e-9);
+        assertEquals(170, s.fare(300, resident), 1e-9);
+        assertEquals(320, s.fare(800, resident), 1e-9);
+        assertEquals(2180, s.fare(7000, resident), 1e-9);
+        assertEquals(320 * 3, s.fare(800, s.types().get("vip")), 1e-9);
         assertEquals(1.2, s.moodFactor(95));
         assertEquals(1.0, s.moodFactor(70));
         assertEquals(0.8, s.moodFactor(50));
@@ -35,12 +35,24 @@ class BusTest {
     }
 
     @Test
-    void dailyCurveBands() {
+    void noDailyCap() {
         BusSpec s = spec();
+        // every fare paid in full however much was earned today
+        assertEquals(1000, s.daily(0, 1000), 1e-9);
+        assertEquals(1000, s.daily(150_000, 1000), 1e-9);
+        assertEquals(1000, s.daily(5_000_000, 1000), 1e-9);
+    }
+
+    @Test
+    void aDailyCurveStillWorksWhenSet() {
+        List<String> problems = new ArrayList<>();
+        YamlConfiguration y = YamlConfiguration.loadConfiguration(new File("content/economy/bus.yml"));
+        y.set("fare.daily", List.of(java.util.Map.of("upto", 100000, "rate", 1.0), java.util.Map.of("upto", 200000, "rate", 0.5),
+                java.util.Map.of("upto", -1, "rate", 0.2)));
+        BusSpec s = BusSpec.parse(y, problems);
         assertEquals(1000, s.daily(0, 1000), 1e-9);
         assertEquals(500, s.daily(100_000, 1000), 1e-9);
         assertEquals(200, s.daily(250_000, 1000), 1e-9);
-        // across the 10만 line: 500 at full, the rest at half
         assertEquals(500 + 250, s.daily(99_500, 1000), 1e-9);
     }
 
