@@ -9,8 +9,6 @@ Looks: tarred dark wood, worn brass, weathered iron, a cutlass of pale steel; a 
 brass anchor hanging from the rod's tip. No bobber (the anchor is the rod's look; the float stays vanilla).
 """
 
-import math
-
 from economy_machines import MModel, Mat
 from models.toys import C, GRIP_Y, SIZES, _arm, _held, corners, round_y  # noqa: F401
 
@@ -21,11 +19,11 @@ TAR_DARK = Mat("wood_dark", "grain", 0, bevel=(0, -1), noise=0.06)
 ROPE = Mat("straw", "weave", 2, bevel=(0, -1), noise=0.05)           # rope wraps
 BRASS = Mat("brass", "metal", 2, bevel=(0, -1), noise=0)
 BRASS_DARK = Mat("brass", "metal", 1, bevel=(0, -1), noise=0)
-IRON = Mat("iron", "speckle", 3, bevel=(0, -1), noise=0.10)          # weathered iron heads
-IRON_DARK = Mat("iron", "speckle", 2, bevel=(0, -1), noise=0.10)
-EDGE = Mat("steel", "metal", 4, bevel=(0, -1), noise=0)              # a ground edge on the iron
-STEEL = Mat("blade", "metal", 2, bevel=(0, -1), noise=0)             # the cutlass
-STEEL_BACK = Mat("blade", "plain", 1, bevel=(0, -1), noise=0)
+IRON = Mat("steel", "speckle", 3, bevel=(0, -1), noise=0.06)          # weathered iron heads
+IRON_DARK = Mat("steel", "speckle", 2, bevel=(0, -1), noise=0.06)
+EDGE = Mat("blade", "metal", 3, bevel=(0, -1), noise=0)              # a ground edge on the iron
+STEEL = Mat("blade", "plain", 2, bevel=None, noise=0)             # the cutlass
+STEEL_BACK = Mat("blade", "plain", 1, bevel=None, noise=0)
 BONE = Mat("cream", "plain", 3, bevel=(0, -1), noise=0.04)
 SOCKET = Mat("rubber", "plain", 0, bevel=None, noise=0)              # the skull's eyes
 LINE = Mat("feather", "plain", 1, bevel=None, noise=0)
@@ -70,10 +68,9 @@ def pirate_sword():
         m.box("blade", (x0, y0, 7.25), (x1, y1, 8.75), STEEL)
     m.box("spine", (9.25, 8, 7), (10, 18, 9), STEEL_BACK)
     m.group("charm")
-    m.box("skull", (6.75, -6, 7), (9.25, -3.75, 9.25), BONE)
-    m.box("jaw", (7.25, -6.75, 7.25), (8.75, -6, 9), BONE)
-    m.box("eyes", (7.25, -5, 9.25), (8.75, -4.25, 9.4), SOCKET)
-    m.box("cord", (7.75, -3.75, 7.75), (8.25, -2.75, 8.25), ROPE)
+    m.box("skull", (6.75, -5, 6.75), (9.25, -2.75, 9.25), BONE)
+    m.box("jaw", (7.25, -5.75, 7), (8.75, -5, 9), BONE)
+    m.box("eyes", (7.25, -4, 9.25), (8.75, -3.25, 9.4), SOCKET)
     return _held(m, "sword")
 
 
@@ -88,8 +85,8 @@ def pirate_pickaxe():
     m.box("wedge", (7.25, 19.75, 7.25), (8.75, 20.5, 8.75), TAR_DARK)
     for side in (1, -1):
         p = (C + side * 2.5, 17.5)
-        p = _arm(m, "arm", side, p, 4.5, 1.5, 7, 9, 15, IRON)
-        p = _arm(m, "arm", side, p, 3.75, 1.125, 7.25, 8.75, 40, IRON)
+        p = _arm(m, "arm", side, p, 4.5, 1.5, 7, 9, 22.5, IRON)
+        p = _arm(m, "arm", side, p, 3.75, 1.125, 7.25, 8.75, 45, IRON)
         px, py = p
         if side > 0:
             frm, to = (px + 0.5, py - 0.75, 7.5), (px + 2, py + 0.75, 8.5)

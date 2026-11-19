@@ -13,7 +13,7 @@ Same frame as the toys: built upright about x = z = 8, the hand on y = GRIP_Y, t
 from economy_machines import MModel, Mat, cyl
 from stsv_assets.palette import MATERIALS, PALETTE, build_ramp
 
-from models.toys import C, _held, round_y  # noqa: F401
+from models.toys import C, _arm, _held
 
 
 # ================================================================================================
@@ -28,7 +28,7 @@ def _ramp(name, *spec):
 _ramp("camp_olive", 118, 0.052, 0.52, 0.26, 4, False)     # olive drab powder coat
 _ramp("camp_orange", 46, 0.135, 0.68, 0.24, 4, False)     # safety orange
 _ramp("camp_alu", 250, 0.010, 0.78, 0.26, 4, False)       # brushed aluminium
-_ramp("camp_black", 265, 0.010, 0.30, 0.16, 4, False)     # black rubber
+_ramp("camp_black", 265, 0.012, 0.34, 0.18, 4, False)     # black rubber
 
 OLIVE = Mat("camp_olive", "plain", 2, bevel=(0, -1), noise=0.03)
 OLIVE_DARK = Mat("camp_olive", "plain", 1, bevel=(0, -1), noise=0.03)
@@ -75,14 +75,13 @@ def camping_sword():
     m.group("guard")
     m.box("guard", (5, 6.25, 6.75), (11, 7.5, 9.25), ORANGE)
     m.group("blade")
-    m.box("blade", (6.25, 7.5, 7.25), (10.25, 14, 8.75), OLIVE)
-    m.box("blade", (6, 14, 7.25), (10.75, 22, 8.75), OLIVE)
-    m.box("edge", (10.25, 8.25, 7.5), (11.25, 14, 8.5), ALU_EDGE)
-    m.box("edge", (10.75, 14, 7.5), (11.75, 22.5, 8.5), ALU_EDGE)
+    m.box("blade", (5.5, 7.5, 7.5), (10.25, 14, 8.5), OLIVE)
+    m.box("blade", (5, 14, 7.5), (10.75, 21.5, 8.5), OLIVE)
+    m.box("edge", (10.25, 8.25, 7.625), (11.25, 14, 8.375), ALU_EDGE)
+    m.box("edge", (10.75, 14, 7.625), (11.75, 22.5, 8.375), ALU_EDGE)
     # the clipped point: the spine (-x) drops away, the edge sweeps up to it
-    m.box("tip", (8, 22, 7.25), (10.75, 24.25, 8.75), OLIVE)
-    m.box("tip", (9.5, 22.5, 7.5), (11.25, 25.5, 8.5), ALU_EDGE)
-    m.box("spine_mark", (6.5, 9, 7.1), (7.25, 20, 8.9), OLIVE_DARK)
+    m.box("tip", (6.75, 21.5, 7.5), (10.75, 23.75, 8.5), OLIVE)
+    m.box("tip", (9.25, 22.5, 7.625), (11.25, 25.25, 8.375), ALU_EDGE)
     return _held(m, "sword")
 
 
@@ -94,9 +93,10 @@ def camping_pickaxe():
     shaft(m, 18)
     m.group("head")
     m.box("head", (6.25, 17, 6.5), (9.75, 21, 9.5), ORANGE)
-    m.box("pick", (9.75, 17.75, 7), (14.25, 20.25, 9), OLIVE, rotation=("z", -22.5, (9.75, 19, C)))
-    m.box("pick", (13, 13.75, 7.25), (14.75, 18, 8.75), OLIVE, rotation=("z", 22.5, (14, 17, C)))
-    m.box("pick_tip", (13.25, 11.75, 7.5), (14.5, 13.75, 8.5), ALU_EDGE, rotation=("z", 22.5, (14, 17, C)))
+    p = _arm(m, "pick", 1, (9.75, 19), 4.5, 1.25, 7, 9, 22.5, OLIVE)
+    p = _arm(m, "pick", 1, p, 3.0, 1.0, 7.25, 8.75, 45, OLIVE)
+    px, py = p
+    m.box("pick_tip", (px + 0.5, py - 0.75, 7.5), (px + 2, py + 0.75, 8.5), ALU_EDGE, rotation=("z", -45, (px, py, C)))
     m.box("adze", (3, 18.5, 7.25), (6.25, 20.25, 8.75), OLIVE)
     m.box("adze_edge", (1.75, 17.75, 6.5), (3, 20.5, 9.5), ALU_EDGE)
     return _held(m, "pickaxe")
@@ -111,11 +111,13 @@ def camping_shovel():
     m.box("hinge", (6.25, 11, 6.75), (9.75, 13, 9.25), ORANGE)
     m.group("blade")
     m.box("socket", (6.75, 15, 6.75), (9.25, 16.5, 9.25), OLIVE_DARK)
-    m.box("blade", (3.75, 16.5, 7.25), (12.25, 24, 8.75), OLIVE)
-    m.box("blade", (5, 24, 7.25), (11, 26, 8.75), OLIVE)
-    m.box("point", (6.75, 26, 7.5), (9.25, 27.5, 8.5), ALU_EDGE)
-    m.box("edge", (3.25, 17, 7.5), (3.75, 24, 8.5), ALU_EDGE)
-    m.box("edge", (12.25, 17, 7.5), (12.75, 24, 8.5), ALU_EDGE)
+    m.box("blade", (4, 16.5, 7.5), (12, 23, 8.5), OLIVE)
+    m.box("blade", (5.25, 23, 7.5), (10.75, 25, 8.5), OLIVE)
+    m.box("blade", (6.5, 25, 7.5), (9.5, 26.5, 8.5), OLIVE)
+    m.box("point", (7.25, 26.5, 7.625), (8.75, 27.75, 8.375), ALU_EDGE)
+    m.box("spine", (7.25, 16.5, 8.5), (8.75, 24.5, 8.875), OLIVE_DARK)
+    m.box("edge", (3.5, 17, 7.625), (4, 23, 8.375), ALU_EDGE)
+    m.box("edge", (12, 17, 7.625), (12.5, 23, 8.375), ALU_EDGE)
     return _held(m, "shovel")
 
 
