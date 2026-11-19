@@ -171,4 +171,63 @@ class BusTest {
         assertTrue(odd.slab());
         assertEquals(65.5, odd.top(), 1e-9);
     }
+
+    static BusLine line(BusRoutes r, BusRoutes.Line l, int number, int[] stopNodes) {
+        double[] xs = new double[l.path().length], zs = new double[l.path().length];
+        boolean[] jn = new boolean[l.path().length];
+        java.util.Map<Integer, Integer> at = new java.util.HashMap<>();
+        for (int k = 0; k < l.path().length; k++) {
+            double[] xz = r.xz(l.path()[k]);
+            xs[k] = xz[0];
+            zs[k] = xz[1];
+            jn[k] = r.junction(l.path()[k]);
+            at.put(l.path()[k], k);
+        }
+        BusLine bl = new BusLine(number, l.dock(), xs, zs, jn);
+        for (int i = 0; i < stopNodes.length; i++) {
+            Integer k = at.get(stopNodes[i]);
+            if (k != null) bl.addStop(i, k);
+        }
+        return bl;
+    }
+
+    @Test
+    void linesRunFromTheTerminalToEachDockThroughTheTrunk() {
+        RoadNetwork.Road trunk = straight("동항", 0.5, 0.5, 1, 0, 3000);
+        RoadNetwork.Road branch = straight("북항", 1500.5, -2.5, 0, -1, 1000);
+        BusRoutes r = new BusRoutes(List.of(trunk, branch));
+        List<BusRoutes.Line> ls = r.lines();
+        assertEquals(2, ls.size());
+        assertEquals(3000, ls.get(0).path().length);
+        assertTrue(Math.abs(ls.get(1).path().length - 2501) <= 3, "" + ls.get(1).path().length);
+        // stops: 0 A (trunk 100), 1 B (trunk 1000), 2 C (trunk 2900), 3 D (branch, 900 up it)
+        int[] nodes = {r.attach(100, 8), r.attach(1000, 8), r.attach(2900, 8), r.attach(1504, -900)};
+        BusLine east = line(r, ls.get(0), 1, nodes), north = line(r, ls.get(1), 2, nodes);
+        assertEquals(List.of(0, 1, 2), east.stops());
+        assertEquals(List.of(0, 1, 3), north.stops());
+        assertEquals("1번 동항선", east.name());
+        // passengers only go ahead: from B towards the dock C, towards the terminal A; never back the way the bus came
+        assertEquals(List.of(2), east.ahead(east.at(1), 1));
+        assertEquals(List.of(0), east.ahead(east.at(1), -1));
+        assertEquals(List.of(1, 3), north.ahead(north.at(0), 1));
+        assertNull(east.next(east.at(2), 1));   // the end of the line
+        // which way a bus runs it, by where it faces (east = yaw -90: towards the dock)
+        assertEquals(1, east.dir(east.at(1), 1, 0));
+        assertEquals(-1, east.dir(east.at(1), -1, 0));
+        // the way goes straight on ahead
+        int i = east.nearest(500, 0.5, null);
+        assertEquals("↑", east.arrow(i, 1, 500, 0.5, -90f));
+        assertEquals("↓", east.arrow(i, -1, 500, 0.5, -90f));
+        // the junction: 북항선 turns left (north) off the trunk, 동항선 goes straight on
+        BusLine.Turn tn = north.nextJunction(north.nearest(1400, 0.5, null), 1, 150);
+        assertNotNull(tn);
+        assertEquals(-1, tn.turn());
+        assertEquals(100, tn.distance(), 3);
+        BusLine.Turn te = east.nextJunction(east.nearest(1400, 0.5, null), 1, 150);
+        assertNotNull(te);
+        assertEquals(0, te.turn());
+        assertNull(east.nextJunction(east.nearest(400, 0.5, null), 1, 150));
+        // distances along the way
+        assertEquals(900, east.between(east.at(0), east.at(1)), 2);
+    }
 }

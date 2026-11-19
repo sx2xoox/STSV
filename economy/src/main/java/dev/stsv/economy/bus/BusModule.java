@@ -74,7 +74,19 @@ public final class BusModule extends EcoModule {
     private final Map<UUID, Deque<long[]>> pairs = new HashMap<>();
     private long ticks, lastRefill = System.currentTimeMillis();
 
-    record Net(BusRoutes routes, Map<Integer, Integer> index, double[][] dist) {
+    record Net(BusRoutes routes, Map<Integer, Integer> index, double[][] dist, List<BusLine> lines) {
+        /** The lines a stop is on. */
+        List<BusLine> linesOf(int stop) {
+            List<BusLine> out = new ArrayList<>();
+            for (BusLine l : lines) if (l.has(stop)) out.add(l);
+            return out;
+        }
+
+        BusLine line(int number) {
+            for (BusLine l : lines) if (l.number == number) return l;
+            return null;
+        }
+
         double road(int from, int to) {
             Integer a = index.get(from), b = index.get(to);
             return a == null || b == null ? Double.POSITIVE_INFINITY : dist[a][b];
@@ -92,12 +104,10 @@ public final class BusModule extends EcoModule {
     static final class Waiter {
         final Mannequin m;
         final BusSpec.Type type;
-        final int dest;
 
-        Waiter(Mannequin m, BusSpec.Type type, int dest) {
+        Waiter(Mannequin m, BusSpec.Type type) {
             this.m = m;
             this.type = type;
-            this.dest = dest;
         }
     }
 
@@ -134,6 +144,9 @@ public final class BusModule extends EcoModule {
         long joltAt = -1000, bumpAt = -1000, turnAt = -1000, pullInAt = -1000;
         Integer atStop;
         int busy, seats;
+        /** the line it runs (its number, 0 = none yet) and which way (+1 towards the dock, -1 towards the terminal) */
+        int line, dir = 1;
+        long noLineAt = -1000;
         final java.util.Set<Integer> rang = new java.util.HashSet<>();
     }
 
@@ -262,7 +275,31 @@ public final class BusModule extends EcoModule {
                     nodes[i] = routes.attach(here.get(i).x(), here.get(i).z());
                     index.put(here.get(i).id(), i);
                 }
-                out.put(w, new Net(routes, index, routes.matrix(nodes)));
+                // the lines: every road's way from the terminal to its dock, with the stops on it
+                List<BusLine> lines = new ArrayList<>();
+                int number = 1;
+                for (BusRoutes.Line l : routes.lines()) {
+                    double[] lx = new double[l.path().length], lz = new double[l.path().length];
+                    boolean[] jn = new boolean[l.path().length];
+                    Map<Integer, Integer> at = new HashMap<>();
+                    for (int k = 0; k < l.path().length; k++) {
+                        double[] xz = routes.xz(l.path()[k]);
+                        lx[k] = xz[0];
+                        lz[k] = xz[1];
+                        jn[k] = routes.junction(l.path()[k]);
+                        at.put(l.path()[k], k);
+                    }
+                    BusLine bl = new BusLine(number, l.dock(), lx, lz, jn);
+                    for (int i = 0; i < here.size(); i++) {
+                        Integer k = nodes[i] < 0 ? null : at.get(nodes[i]);
+                        if (k != null) bl.addStop(here.get(i).id(), k);
+                    }
+                    if (bl.stops().size() >= 2) {
+                        lines.add(bl);
+                        number++;
+                    }
+                }
+                out.put(w, new Net(routes, index, routes.matrix(nodes), lines));
             });
             Bukkit.getScheduler().runTask(eco, () -> {
                 nets.clear();
@@ -399,7 +436,7 @@ public final class BusModule extends EcoModule {
         stops.put(s.id(), n);
         saveStops();
         World w = Bukkit.getWorld(s.world());
-        if (w != null) builder.sign(w, n, (int) Math.floor(waiting.getOrDefault(s.id(), 0.0)), spec.stops());
+        if (w != null) builder.sign(w, n, (int) Math.floor(waiting.getOrDefault(s.id(), 0.0)), lineNumbers(n), spec.stops());
         return "<green>이름 바꿈: " + name + " → " + to;
     }
 
@@ -470,10 +507,11 @@ public final class BusModule extends EcoModule {
         if (me != null) all.sort(Comparator.comparingDouble(s -> s.world().equals(me.getWorld().getName()) ? Math.hypot(s.x() - me.getX(), s.z() - me.getZ()) : 1e12));
         for (BusStop s : all) {
             Net n = nets.get(s.world());
-            boolean cut = n == null || !n.connected(s.id());
+            String nos = lineNumbers(s);
+            boolean cut = nos.isEmpty();
             String km = me != null && s.world().equals(me.getWorld().getName()) ? km(Math.hypot(s.x() - me.getX(), s.z() - me.getZ())) : s.world();
             out.add(Lang.raw("bus.stops-row", "name", s.name(), "km", km, "waiting", (int) Math.floor(waiting.getOrDefault(s.id(), 0.0)),
-                    "cut", cut ? Lang.raw("bus.stops-cut") : ""));
+                    "cut", cut ? Lang.raw("bus.stops-cut") : Lang.raw("bus.stops-lines", "lines", nos)));
         }
         return out;
     }
@@ -585,6 +623,7 @@ public final class BusModule extends EcoModule {
             run.rang.remove(here.id());
             d.world().playSound(d.location(), Sound.BLOCK_NOTE_BLOCK_BIT, 1f, 1.6f);   // 삑 (교통카드)
             if (ticks - run.joltAt > 60 && !run.riders.isEmpty()) for (Rider r : run.riders) r.mood = Math.min(100, r.mood + spec.mood().smoothStop());
+            pickLine(p, run, d, here);
             return;
         }
         if (run.busy > 0) {
@@ -614,23 +653,105 @@ public final class BusModule extends EcoModule {
         if (sh == null || sh.waiters.isEmpty()) return;
         List<Integer> free = vm.freeSeats(d.id());
         if (free.isEmpty()) return;
-        Waiter w = sh.waiters.removeFirst();
+        Net n = nets.get(here.world());
+        BusLine line = n == null ? null : n.line(run.line);
+        if (line == null || !line.has(here.id())) return;
+        Waiter w = sh.waiters.getFirst();
+        Integer dest = pickDest(line, here, w.type, p.getUniqueId(), run.dir);
+        if (dest == null) {
+            if (ticks - run.noLineAt > 200) {
+                run.noLineAt = ticks;
+                HudModule.flash(p, Lang.mm("bus.end-of-line", "line", line.name()), 3000);
+            }
+            return;
+        }
+        sh.waiters.removeFirst();
         if (!w.m.isValid() || !vm.seatGuest(d.id(), free.getFirst(), w.m)) {
             if (w.m.isValid()) eco.getLogger().warning("[버스] 손님을 " + free.getFirst() + "번 자리에 앉히지 못함 (" + here.name() + ")");
             w.m.remove();
             return;
         }
         waiting.merge(here.id(), -1.0, Double::sum);
-        Net n = nets.get(here.world());
-        double road = n == null ? 0 : n.road(here.id(), w.dest);
-        Rider r = new Rider(w.m, w.type, here.id(), w.dest, Double.isFinite(road) ? road : 0, spec.mood().start());
+        double road = line.between(line.at(here.id()), line.at(dest));
+        Rider r = new Rider(w.m, w.type, here.id(), dest, road, spec.mood().start());
         run.riders.add(r);
-        BusStop dest = stops.get(w.dest);
-        String destName = dest == null ? "?" : dest.name();
+        BusStop to = stops.get(dest);
+        String destName = to == null ? "?" : to.name();
         HudModule.flash(p, Lang.mm("bus.boarded", "type", typeTag(w.type), "dest", destName, "km", km(r.road)), 2000);
         if (w.type.announce()) Bukkit.broadcast(Lang.msg("bus.vip", "player", p.getName(), "dest", destName));
         run.busy = (int) (cfg.boardTicks() * w.type.slow());
-        remember(p.getUniqueId(), here.id(), w.dest);
+        remember(p.getUniqueId(), here.id(), dest);
+    }
+
+    /** The driver's chosen line (/버스 노선), or 0. */
+    private final Map<UUID, Integer> chosenLine = new HashMap<>();
+
+    /**
+     * At a stop: the line the bus runs (the one chosen with /버스 노선 if this stop is on it, else the one it ran if the stop
+     * is on it, else the stop's first) and which way, by where the bus faces.
+     */
+    private void pickLine(Player p, Run run, VehicleModule.Driven d, BusStop here) {
+        Net n = nets.get(here.world());
+        if (n == null) return;
+        List<BusLine> ls = n.linesOf(here.id());
+        if (ls.isEmpty()) return;
+        BusLine chosen = n.line(chosenLine.getOrDefault(p.getUniqueId(), 0)), cur = n.line(run.line);
+        BusLine pick = chosen != null && chosen.has(here.id()) ? chosen : cur != null && cur.has(here.id()) ? cur : ls.getFirst();
+        boolean changed = pick.number != run.line;
+        run.line = pick.number;
+        double r = Math.toRadians(d.yaw());
+        int dir = pick.dir(pick.at(here.id()), -Math.sin(r), Math.cos(r));
+        changed |= dir != run.dir;
+        run.dir = dir;
+        if (changed) {
+            Integer last = run.dir > 0 ? pick.stops().getLast() : pick.stops().getFirst();
+            BusStop end = stops.get(last);
+            p.sendMessage(Lang.msg("bus.line-set", "line", pick.name(), "end", end == null ? "?" : end.name()));
+            if (ls.size() > 1 && chosen == null) p.sendMessage(Lang.msg("bus.line-many", "n", ls.size()));
+        }
+    }
+
+    /** /버스 노선 [번호]: the lines of this world, or choose one. */
+    public void lines(Player p, String arg) {
+        Net n = nets.get(p.getWorld().getName());
+        if (n == null || n.lines().isEmpty()) {
+            p.sendMessage(Lang.msg("bus.lines-none"));
+            return;
+        }
+        if (arg != null) {
+            int num;
+            try {
+                num = Integer.parseInt(arg.replace("번", ""));
+            } catch (NumberFormatException e) {
+                num = -1;
+            }
+            BusLine l = n.line(num);
+            if (l == null) {
+                p.sendMessage(Lang.msg("bus.lines-unknown", "n", arg));
+                return;
+            }
+            chosenLine.put(p.getUniqueId(), num);
+            p.sendMessage(Lang.msg("bus.lines-chosen", "line", l.name()));
+            return;
+        }
+        p.sendMessage(Lang.mm("bus.lines-head", "n", n.lines().size()));
+        for (BusLine l : n.lines()) {
+            List<String> names = new ArrayList<>();
+            for (int id : l.stops()) {
+                BusStop s = stops.get(id);
+                if (s != null) names.add(s.name());
+            }
+            p.sendMessage(Lang.mm("bus.lines-row", "line", l.name(), "stops", String.join(" <dark_gray>-</dark_gray> ", names)));
+        }
+    }
+
+    /** The line numbers a stop is on ("1 · 3"), or "". */
+    String lineNumbers(BusStop s) {
+        Net n = nets.get(s.world());
+        if (n == null) return "";
+        List<String> out = new ArrayList<>();
+        for (BusLine l : n.linesOf(s.id())) out.add(l.number + "번");
+        return String.join(" · ", out);
     }
 
     private void pay(Player p, Rider r, BusStop at) {
@@ -684,7 +805,7 @@ public final class BusModule extends EcoModule {
         double rate = spec.hourFactor(hour) / Math.max(0.1, spec.stops().refillMinutes());
         for (BusStop s : stops.values()) {
             Net n = nets.get(s.world());
-            if (n == null || !n.connected(s.id())) continue;
+            if (n == null || n.linesOf(s.id()).isEmpty()) continue;
             waiting.merge(s.id(), minutes * rate, (a, b) -> Math.min(s.size(), a + b));
         }
         // a bus near a stop: its passengers stand in the shelter
@@ -714,10 +835,12 @@ public final class BusModule extends EcoModule {
                 hide(s.id());
             }
             int signN = (int) Math.floor(waiting.getOrDefault(s.id(), 0.0));
+            String nos = lineNumbers(s);
+            int key = signN * 31 + nos.hashCode();
             Integer had = signShown.get(s.id());
-            if ((had == null || had != signN) && w.isChunkLoaded((int) Math.floor(s.x()) >> 4, (int) Math.floor(s.z()) >> 4)) {
-                builder.sign(w, s, signN, spec.stops());
-                signShown.put(s.id(), signN);
+            if ((had == null || had != key) && w.isChunkLoaded((int) Math.floor(s.x()) >> 4, (int) Math.floor(s.z()) >> 4)) {
+                builder.sign(w, s, signN, nos, spec.stops());
+                signShown.put(s.id(), key);
             }
         }
         // riders: the time left on their tag, a late office worker sulks
@@ -737,30 +860,40 @@ public final class BusModule extends EcoModule {
 
     /** The driver's line: the next stop (the nearest any passenger gets off at), how far, how many get off; else the nearest stop. */
     private void hud(Player p, Run r) {
-        BusStop next = null;
-        double best = Double.MAX_VALUE;
-        for (Rider x : r.riders) {
-            BusStop s = stops.get(x.dest);
-            if (s == null || !s.world().equals(p.getWorld().getName())) continue;
-            double d = Math.hypot(s.x() - p.getX(), s.z() - p.getZ());
-            if (d < best) {
-                best = d;
-                next = s;
-            }
-        }
-        if (next != null) {
-            int off = 0;
-            for (Rider x : r.riders) if (x.dest == next.id()) off++;
-            if (best < 150 && r.rang.add(next.id())) {
-                p.playSound(p.getLocation(), Sound.BLOCK_NOTE_BLOCK_CHIME, 1f, 1.2f);   // 띵동
-                Bukkit.getScheduler().runTaskLater(eco, () -> p.playSound(p.getLocation(), Sound.BLOCK_NOTE_BLOCK_CHIME, 1f, 0.95f), 4L);
-                HudModule.flash(p, Lang.mm("bus.bell", "stop", next.name(), "n", off), 3000);
+        Net n = nets.get(p.getWorld().getName());
+        BusLine line = n == null ? null : n.line(r.line);
+        if (line != null) {
+            double[] off = new double[1];
+            int idx = line.nearest(p.getX(), p.getZ(), off);
+            if (off[0] > 40) {
+                HudModule.flash(p, Lang.mm("bus.hud-off", "line", line.name()), 1500);
                 return;
             }
-            HudModule.flash(p, Lang.mm("bus.hud", "stop", next.name(), "km", km(best), "off", off, "riders", r.riders.size(),
+            Integer nextId = line.next(idx, r.dir);
+            BusStop next = nextId == null ? null : stops.get(nextId);
+            String arrow = line.arrow(idx, r.dir, p.getX(), p.getZ(), p.getLocation().getYaw());
+            BusLine.Turn turn = line.nextJunction(idx, r.dir, 150);
+            String junction = turn == null ? "" : Lang.raw("bus.hud-junction", "m", Math.round(turn.distance()),
+                    "turn", Lang.raw(turn.turn() < 0 ? "bus.turn-left" : turn.turn() > 0 ? "bus.turn-right" : "bus.turn-straight"));
+            if (next == null) {
+                HudModule.flash(p, Lang.mm("bus.hud-end", "line", line.name(), "arrow", arrow, "riders", r.riders.size(), "seats", r.seats), 1500);
+                return;
+            }
+            double dist = line.between(idx, line.at(next.id()));
+            int offN = 0;
+            for (Rider x : r.riders) if (x.dest == next.id()) offN++;
+            if (offN > 0 && dist < 150 && r.rang.add(next.id())) {
+                p.playSound(p.getLocation(), Sound.BLOCK_NOTE_BLOCK_CHIME, 1f, 1.2f);   // 띵동
+                Bukkit.getScheduler().runTaskLater(eco, () -> p.playSound(p.getLocation(), Sound.BLOCK_NOTE_BLOCK_CHIME, 1f, 0.95f), 4L);
+                HudModule.flash(p, Lang.mm("bus.bell", "stop", next.name(), "n", offN), 3000);
+                return;
+            }
+            HudModule.flash(p, Lang.mm("bus.hud-line", "line", line.name(), "arrow", arrow, "stop", next.name(), "km", km(dist),
+                    "off", offN > 0 ? Lang.raw("bus.hud-off-n", "n", offN) : "", "junction", junction, "riders", r.riders.size(),
                     "seats", r.seats), 1500);
             return;
         }
+        double best = Double.MAX_VALUE;
         BusStop near = null;
         for (BusStop s : stops.values()) {
             if (!s.world().equals(p.getWorld().getName())) continue;
@@ -780,12 +913,11 @@ public final class BusModule extends EcoModule {
         if (net == null) return null;
         int hour = ZonedDateTime.now(KST).getHour();
         BusSpec.Type type = pickType(spec.rush(hour));
-        Integer dest = pickDest(net, s, type, driver);
-        if (type == null || dest == null) return null;
+        if (type == null || net.linesOf(s.id()).isEmpty()) return null;
         double[] spot = s.waitingSpot(i, Math.max(n, s.size()), spec.stops().bayWidth());
         Location at = new Location(w, spot[0], s.y() + 1, spot[1], s.facingRoad(), 0);
         if (!w.isChunkLoaded(at.getBlockX() >> 4, at.getBlockZ() >> 4)) return null;
-        BusStop to = stops.get(dest);
+        String lineNos = lineNumbers(s);
         Mannequin m = w.spawn(at, Mannequin.class, x -> {
             x.setPersistent(false);
             x.setInvulnerable(true);
@@ -797,8 +929,7 @@ public final class BusModule extends EcoModule {
             x.getPersistentDataContainer().set(GUEST, PersistentDataType.BYTE, (byte) 1);
             x.customName(dev.stsv.core.util.Text.mm(typeTag(type)));
             x.setCustomNameVisible(true);
-            x.setDescription(dev.stsv.core.util.Text.mm("<gray>→ <white>" + (to == null ? "?" : to.name()) + "</white> · "
-                    + km(net.road(s.id(), dest))));
+            x.setDescription(Lang.mm("bus.waiter-tag", "lines", lineNos));
             if (!type.skins().isEmpty()) {
                 String skin = type.skins().get(ThreadLocalRandom.current().nextInt(type.skins().size()));
                 boolean slim = skin.endsWith(" slim");
@@ -815,7 +946,7 @@ public final class BusModule extends EcoModule {
                 if (sc != null) sc.setBaseValue(type.scale());
             }
         });
-        return new Waiter(m, type, dest);
+        return new Waiter(m, type);
     }
 
     private BusSpec.Type pickType(boolean rush) {
@@ -829,21 +960,26 @@ public final class BusModule extends EcoModule {
         return spec.types().values().stream().findFirst().orElse(null);
     }
 
-    /** Where a passenger goes: another stop of the network, near ones more often (far ones only for some kinds), less of a pair driven over and over. */
-    Integer pickDest(Net net, BusStop from, BusSpec.Type type, UUID driver) {
+    /**
+     * Where a passenger boarding at `from` goes: a stop ahead on the line the bus runs, the way it runs (never back the way
+     * it came), near ones more often (far ones only for some kinds), less of a pair driven over and over. Null: none
+     * ahead (the end of the line).
+     */
+    Integer pickDest(BusLine line, BusStop from, BusSpec.Type type, UUID driver, int dir) {
+        int at = line.at(from.id());
         List<Integer> ids = new ArrayList<>();
         List<Double> ws = new ArrayList<>();
-        for (BusStop s : stops.values()) {
-            if (s.id() == from.id() || !s.world().equals(from.world())) continue;
-            double d = net.road(from.id(), s.id());
-            if (!Double.isFinite(d)) continue;
-            if (type != null && type.far() > 0 && d < type.far()) continue;
-            double w = type != null && type.far() > 0 ? 1 : 1 / (1 + d / 800);
-            if (recent(driver, from.id(), s.id()) >= spec.fare().repeatFree()) w *= spec.fare().repeatFactor();
-            ids.add(s.id());
+        boolean far = type != null && type.far() > 0;
+        for (int id : line.ahead(at, dir)) {
+            if (!stops.containsKey(id)) continue;
+            double d = line.between(at, line.at(id));
+            if (far && d < type.far()) continue;
+            double w = far ? 1 : 1 / (1 + d / 800);
+            if (recent(driver, from.id(), id) >= spec.fare().repeatFree()) w *= spec.fare().repeatFactor();
+            ids.add(id);
             ws.add(w);
         }
-        if (ids.isEmpty() && type != null && type.far() > 0) return pickDest(net, from, null, driver);
+        if (ids.isEmpty() && far) return pickDest(line, from, null, driver, dir);
         if (ids.isEmpty()) return null;
         double total = ws.stream().mapToDouble(Double::doubleValue).sum(), roll = ThreadLocalRandom.current().nextDouble() * total;
         for (int i = 0; i < ids.size(); i++) {
@@ -874,7 +1010,10 @@ public final class BusModule extends EcoModule {
         String[] was = eco.kv().get("bus.day." + p.getUniqueId(), "").split(":");
         long earned = was.length == 2 && was[0].equals(today) ? Math.round(Double.parseDouble(was[1])) : 0;
         int n = r == null ? 0 : r.riders.size();
-        p.sendMessage(Lang.mm("bus.list-head", "n", n, "seats", d.seats() - 1, "today", String.format("%,d", earned)));
+        Net net = nets.get(p.getWorld().getName());
+        BusLine line = net == null || r == null ? null : net.line(r.line);
+        p.sendMessage(Lang.mm("bus.list-head", "n", n, "seats", d.seats() - 1, "today", String.format("%,d", earned),
+                "line", line == null ? Lang.raw("bus.no-line") : line.name()));
         if (n == 0) {
             p.sendMessage(Lang.mm("bus.list-empty"));
             return;

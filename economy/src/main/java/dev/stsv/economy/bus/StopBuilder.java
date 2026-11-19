@@ -233,7 +233,7 @@ final class StopBuilder {
         }
         Files.write(file, lines);
         for (Map.Entry<Block, BlockData> e : plan.entrySet()) e.getKey().setBlockData(e.getValue(), false);
-        sign(w, s, 0, cfg);
+        sign(w, s, 0, "", cfg);
     }
 
     /** Puts back what the stop changed and takes its sign away; false when there was no record. */
@@ -262,10 +262,10 @@ final class StopBuilder {
     }
 
     /** The sign (made if it is not there, cfg given): the stop's name and how many wait. */
-    void sign(World w, BusStop s, int waiting, BusSpec.Stops cfg) {
+    void sign(World w, BusStop s, int waiting, String lines, BusSpec.Stops cfg) {
         TextDisplay t = findSign(w, s);
         net.kyori.adventure.text.Component text = dev.stsv.core.util.Text.mm("<#3fb34f>🚏 <white><bold>" + net.kyori.adventure.text.minimessage.MiniMessage.miniMessage().escapeTags(s.name())
-                + "</bold>\n<gray>기다리는 손님 <white>" + waiting + "<gray>명");
+                + "</bold>" + (lines.isEmpty() ? "" : "\n<#ffd166>" + lines) + "\n<gray>기다리는 손님 <white>" + waiting + "<gray>명");
         if (t != null) {
             if (!text.equals(t.text())) t.text(text);
             return;

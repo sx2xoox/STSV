@@ -197,6 +197,59 @@ public final class BusRoutes {
     }
 
     // ------------------------------------------------------------------------------------------
+    // 노선: one a road, from the terminal (through the roads it branches off) to its dock
+    // ------------------------------------------------------------------------------------------
+
+    /** A line's way: its road's dock and the nodes from the terminal to the dock, in order. */
+    public record Line(int road, String dock, int[] path) {}
+
+    /**
+     * Every road's line: the way from where the network starts to the road's end (its dock). A branch's way is its parent
+     * road's from the start up to where the branch leaves it, then the branch.
+     */
+    public List<Line> lines() {
+        List<Line> out = new ArrayList<>();
+        for (int r = 0; r < roads.size(); r++) {
+            if (base[r + 1] == base[r]) continue;
+            List<int[]> segs = new ArrayList<>();   // road, from, to (inclusive)
+            java.util.Set<Integer> seen = new java.util.HashSet<>();
+            int road = r, to = base[r + 1] - 1;
+            while (road >= 0 && seen.add(road)) {
+                segs.addFirst(new int[]{road, base[road], to});
+                int parent = -1, at = -1;
+                List<Integer> l = links.get(base[road]);
+                if (l != null) for (int q : l) {
+                    int pr = roadOf[q];
+                    if (pr != road && q != base[pr] && !seen.contains(pr)) {   // joins another road along it (not at both starts)
+                        parent = pr;
+                        at = q;
+                        break;
+                    }
+                }
+                road = parent;
+                to = at;
+            }
+            int n = 0;
+            for (int[] g : segs) n += g[2] - g[1] + 1;
+            int[] path = new int[n];
+            int i = 0;
+            for (int[] g : segs) for (int k = g[1]; k <= g[2]; k++) path[i++] = k;
+            out.add(new Line(r, roads.get(r).dock(), path));
+        }
+        return out;
+    }
+
+    /** Where a node is: x, z. */
+    public double[] xz(int node) {
+        return new double[]{xs[node], zs[node]};
+    }
+
+    /** Whether roads meet at this node (a branch leaves, a crossing). */
+    public boolean junction(int node) {
+        return links.containsKey(node);
+    }
+
+    // ------------------------------------------------------------------------------------------
     // Where stops go by themselves
     // ------------------------------------------------------------------------------------------
 

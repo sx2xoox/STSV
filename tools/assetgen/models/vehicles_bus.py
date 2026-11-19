@@ -137,13 +137,16 @@ def rounded(a, a0, a1, y, y0, y1, r=2.2):
     return "in"
 
 
-def glass_px(state, a, y, y1, frame, streak_mod=19):
+def glass_px(state, a, y, y1, frame, streak_mod=19, inside=False):
     """A pane's look: the frame colour outside, a dark rim, a tinted strip along the top, a reflection now and then,
-    the rest clear (the riders show)."""
+    the rest clear (the riders show). Seen from inside (the face towards the cabin: what a driver in first person looks
+    through) it is all clear: no reflections, no tint."""
     if state == "out":
         return raw(*frame)
     if state == "seal":
         return raw("leaf_dark", 1)
+    if inside:
+        return ("raw", CLEAR)
     fy, fa = math.floor(y), math.floor(a)
     if fy >= y1 - 3:
         return raw("tint", 2.6 if fy == y1 - 3 else 2)
@@ -509,9 +512,8 @@ def bus_kit():
         state = rounded(x, -W, W, y, SCREEN, TOP, r=3.2)
         if state == "in" and math.floor(y) == SCREEN + 1 and (2 <= abs(x) < 9):
             return raw("rubber", 0.6)                          # the wipers resting
-        if state == "in" and abs(x) < 0.5:
-            return raw("leaf_dark", 1)                         # the screen's middle post
-        return glass_px(state, x, y, TOP, (G, 2.6), 23)
+        # one piece of glass (no middle post), clear from the driver's seat
+        return glass_px(state, x, y, TOP, (G, 2.6), 23, inside=c.face == "south")
     m.box("windscreen", (-W, SCREEN, WF - 1), (W, TOP, WF - 0.5), Paint("glass", 2, noise=0, light=False, decal=screen))
 
     def windows(c):
@@ -534,7 +536,7 @@ def bus_kit():
                         return raw("sakura", 1.6 if math.floor(z) % 2 else 1.0)
                     if fy >= TOP - 4:
                         return raw("sakura", 1.4 if math.floor(z) % 2 else 0.8)   # the valance along the top
-                return glass_px(state, z, y, TOP - 1, (G, 2.7))
+                return glass_px(state, z, y, TOP - 1, (G, 2.7), inside=c.face != face)
         return raw(G, 2.7)
     wp = Paint("glass", 2, noise=0, light=False, decal=windows)
     m.box("side_window", (-H, BELT, WF), (-H + 0.5, TOP, WB), wp)
@@ -545,7 +547,7 @@ def bus_kit():
         x, y, z = c.p
         if c.nu <= 1 or c.nv <= 1:
             return raw(G, 2.6)
-        return glass_px(rounded(x, -W + 2, W - 2, y, 27, TOP - 1, r=3.2), x, y, TOP - 1, (G, 2.6), 13)
+        return glass_px(rounded(x, -W + 2, W - 2, y, 27, TOP - 1, r=3.2), x, y, TOP - 1, (G, 2.6), 13, inside=c.face == "north")
     m.box("back_window", (-W, 26, BK - 0.5), (W, TOP, BK), Paint("glass", 2, noise=0, light=False, decal=back_window))
 
     # small round mirrors on short stalks out of the front corners
