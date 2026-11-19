@@ -21,8 +21,11 @@ public final class RoadClearance {
     public static final double MARGIN = 1.0;
     /** The clear height a vehicle needs over the highest ground under it. */
     public static final double HEADROOM = HEIGHT + MARGIN;
-    /** The longest vehicle (the box truck: size[0]). */
-    public static final double LENGTH = 6.5;
+    /**
+     * The longest vehicle (the 리무진 관광버스: size[0]). Raised from the box truck's 6.5: roads built before reach 8
+     * points, 0.5 short of its ends, which on the steepest grade (1 in 3) is under 0.2 blocks, inside the step's margin.
+     */
+    public static final double LENGTH = 8.5;
     /**
      * Points either way whose surface a ceiling over a point clears: the whole length (the vehicle's high end may be
      * anywhere along it) and two more (its squares' corners on a diagonal, a column's nearest point).
