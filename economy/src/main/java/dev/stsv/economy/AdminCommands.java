@@ -409,8 +409,8 @@ final class AdminCommands {
             }
         }, (s, args) -> args.length == 1 ? List.of("서버", "서버해제", "해제", "정보") : List.of());
 
-        add("정류장", "설치 <이름> [손님 최대] | 삭제 <이름> | 이름 <이름> <새 이름> | 목록 | 자동 | 손님 <이름> <수>",
-                "마을버스 정류장: 서 있는 곳에서 가장 가까운 국도 점에 버스 베이·대기소·표지판을 지음 (서 있는 쪽) / 지은 블록을 되돌리며 삭제 / 이름 바꾸기 / 목록 / 이 월드의 국도를 따라 자동으로 (터미널 출구 뒤, 하역장 앞, 그 사이 2천 칸마다) / 기다리는 손님 수 (테스트)",
+        add("정류장", "설치 <이름> [손님 최대] | 삭제 <이름> | 다시짓기 <이름|전체> | 이름 <이름> <새 이름> | 목록 | 자동 | 손님 <이름> <수>",
+                "마을버스 정류장: 서 있는 곳에서 가장 가까운 국도 점에 버스 베이·대기소·표지판을 지음 (서 있는 쪽) / 지은 블록을 되돌리며 삭제 / 되돌린 뒤 지금 방식으로 다시 짓기 (산에 파묻힌 정류장, 대기소 모양이 바뀐 뒤) / 이름 바꾸기 / 목록 / 이 월드의 국도를 따라 자동으로 (터미널 출구 뒤, 하역장 앞, 그 사이 2천 칸마다) / 기다리는 손님 수 (테스트)",
                 (s, args) -> {
                     var bus = eco.bus();
                     String sub = args.length > 0 ? args[0] : "";
@@ -425,6 +425,14 @@ final class AdminCommands {
                             s.sendMessage(Text.msg(bus.install(p.getLocation(), name, Math.clamp(size, 1, 8))));
                         }
                         case "삭제" -> s.sendMessage(Text.msg(name == null ? "<red>/관리자 정류장 삭제 <이름>" : bus.remove(name)));
+                        case "다시짓기" -> {
+                            if (name == null) {
+                                s.sendMessage(Text.msg("<red>/관리자 정류장 다시짓기 <이름|전체>"));
+                                return;
+                            }
+                            var names = name.equals("전체") ? bus.stops().stream().map(dev.stsv.economy.bus.BusStop::name).toList() : List.of(name);
+                            for (String n : names) s.sendMessage(Text.msg(bus.rebuild(n)));
+                        }
                         case "이름" -> s.sendMessage(Text.msg(args.length < 3 ? "<red>/관리자 정류장 이름 <이름> <새 이름>" : bus.rename(name, args[2])));
                         case "자동" -> {
                             if (!(s instanceof org.bukkit.entity.Player p)) {
@@ -439,11 +447,11 @@ final class AdminCommands {
                             s.sendMessage(Text.msg("<green>정류장 " + lines.size() + "곳"));
                             lines.forEach(l -> s.sendMessage(Text.mm(l)));
                         }
-                        default -> s.sendMessage(Text.msg("<red>/관리자 정류장 설치|삭제|이름|목록|자동|손님"));
+                        default -> s.sendMessage(Text.msg("<red>/관리자 정류장 설치|삭제|다시짓기|이름|목록|자동|손님"));
                     }
                 }, (s, args) -> {
-                    if (args.length == 1) return List.of("설치", "삭제", "이름", "목록", "자동", "손님");
-                    if (args.length == 2 && List.of("삭제", "이름", "손님").contains(args[0]))
+                    if (args.length == 1) return List.of("설치", "삭제", "다시짓기", "이름", "목록", "자동", "손님");
+                    if (args.length == 2 && List.of("삭제", "다시짓기", "이름", "손님").contains(args[0]))
                         return eco.bus().stops().stream().map(dev.stsv.economy.bus.BusStop::name).filter(n -> n.startsWith(args[1])).toList();
                     return List.of();
                 });

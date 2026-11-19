@@ -297,7 +297,15 @@ public final class BusModule extends EcoModule {
     /** Builds a stop: its bay on its side, else on the other, else a simple stop (shelter only, or nothing where even that is protected). */
     private String place(World w, BusStop s) {
         BusSpec.Stops cfg = spec.stops();
-        BusStop[] tries = {s, flip(s), simple(s), simple(flip(s))};
+        // the side with less hill to dig first (a stop is not buried in a mountainside); a simple stop after
+        BusStop a = s, b = flip(s);
+        Map<Block, BlockData> pa = StopBuilder.plan(w, a, cfg, eco.roads().surfaceBlock()), pb = StopBuilder.plan(w, b, cfg, eco.roads().surfaceBlock());
+        if (StopBuilder.digCost(pb) + 40 < StopBuilder.digCost(pa)) {
+            BusStop t = a;
+            a = b;
+            b = t;
+        }
+        BusStop[] tries = {a, b, simple(a), simple(b)};
         for (BusStop t : tries) {
             Map<Block, BlockData> plan = StopBuilder.plan(w, t, cfg, eco.roads().surfaceBlock());
             int[] bad = StopBuilder.blocked(plan, (x, z) -> eco.roads().guardAt(w.getName(), x, z) != null);
@@ -350,6 +358,23 @@ public final class BusModule extends EcoModule {
         saveStops();
         rebuildNets();
         return "<green>정류장 <white>" + name + "</white> 삭제" + (undone ? " (블록 되돌림)" : "");
+    }
+
+    /** Takes a stop's blocks back and builds it again as it is built now (same name and number). */
+    public String rebuild(String name) {
+        BusStop s = stop(name);
+        if (s == null) return "<red>없는 정류장: " + name;
+        World w = Bukkit.getWorld(s.world());
+        if (w == null) return "<red>월드가 없어요: " + s.world();
+        hide(s.id());
+        try {
+            builder.undo(w, s);
+        } catch (IOException e) {
+            return "<red>되돌리기 기록을 읽지 못했어요: " + e.getMessage();
+        }
+        stops.remove(s.id());
+        BusStop again = new BusStop(s.id(), s.name(), s.world(), s.x(), s.z(), s.half(), s.hx(), s.hz(), s.side(), s.size(), s.auto(), true, s.dock());
+        return place(w, again).replace("설치", "다시 지음");
     }
 
     public String rename(String name, String to) {
@@ -556,6 +581,7 @@ public final class BusModule extends EcoModule {
         if (free.isEmpty()) return;
         Waiter w = sh.waiters.removeFirst();
         if (!w.m.isValid() || !vm.seatGuest(d.id(), free.getFirst(), w.m)) {
+            if (w.m.isValid()) eco.getLogger().warning("[버스] 손님을 " + free.getFirst() + "번 자리에 앉히지 못함 (" + here.name() + ")");
             w.m.remove();
             return;
         }

@@ -176,7 +176,7 @@ class ContentTest {
         ShopCatalog.BuyCategory vehicles = shop.buyCategories().stream().filter(c -> c.id().equals("vehicles")).findFirst().orElseThrow();
         assertTrue(vehicles.single(), "one vehicle a purchase");
         assertEquals(List.of("stsv:jige", "stsv:hand_cart", "stsv:cargo_bicycle", "stsv:ox_cart", "stsv:delivery_scooter", "stsv:power_tiller",
-                        "stsv:cargo_van", "stsv:light_truck", "stsv:combine", "stsv:raft", "stsv:rowboat", "stsv:fishing_boat", "stsv:coastal_boat"),
+                        "stsv:cargo_van", "stsv:light_truck", "stsv:combine", "stsv:village_bus", "stsv:raft", "stsv:rowboat", "stsv:fishing_boat", "stsv:coastal_boat"),
                 vehicles.goods().stream().map(ShopCatalog.Good::id).toList());
         assertTrue(pieces.contains(furniture.icon()), "a piece is the icon");
         for (String id : pieces) if (shop.sell().containsKey(id)) problems.add("furniture is not sold to the shop: " + id);

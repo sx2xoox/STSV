@@ -100,7 +100,7 @@ public record BusStop(int id, String name, String world, double x, double z, int
     /** Where waiting passenger i of n stands in the shelter: x, z. */
     public double[] waitingSpot(int i, int n, int width) {
         double along = n <= 1 ? 0 : -1.5 + 3.0 * i / (n - 1);
-        return at(along, shelterOut(width) + 1.0);
+        return at(along, shelterOut(width) + 0.5);
     }
 
     /** The yaw a passenger in the shelter faces (the road). */

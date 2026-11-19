@@ -52,41 +52,106 @@ final class StopBuilder {
             Material m = c.edge() ? edge : surface;
             BlockData top = s.slab() ? slabOf(m) : m.createBlockData();
             out.put(w.getBlockAt(c.x(), y, c.z()), top);
-            for (int up = 1; up <= 4; up++) out.put(w.getBlockAt(c.x(), y + up, c.z()), Material.AIR.createBlockData());
+            for (int up = 1; up <= DIG; up++) {   // the bay cut out of a hillside, high enough for the bus
+                Block b = w.getBlockAt(c.x(), y + up, c.z());
+                if (up <= 4 || !b.getType().isAir()) out.put(b, Material.AIR.createBlockData());
+            }
             for (int down = 1; down <= 3; down++) {
                 Block b = w.getBlockAt(c.x(), y - down, c.z());
                 if (!b.getType().isSolid()) out.put(b, Material.STONE.createBlockData());
             }
         }
-        // the shelter: 5 along, 3 out, behind the bay; its floor level with the bay's top
+        // the shelter, a country bus stop: 5 along, 3 out, behind the bay. Walls of whitewashed cement (white terracotta) on a
+        // cobblestone footing at the back and the sides, a little window in the back, log posts at the open front, a lean-to
+        // roof of old tin (weathered copper, waxed: it rusts no further) sloping to the road, a wooden bench, a lantern under
+        // the roof; a hay bale with a flower pot beside it, and the sign on a wooden pole by it
         int fy = y + 1;
         double out0 = s.shelterOut(cfg.bayWidth());
         BlockFace toRoad = face(-(-s.hz() * s.side()), -(s.hx() * s.side()));
-        for (int a = -2; a <= 2; a++) {
-            for (int o = 0; o <= 2; o++) {
+        BlockFace away = toRoad.getOppositeFace();
+        for (int a = -3; a <= 3; a++) {
+            for (int o = -1; o <= 2; o++) {
                 double[] p = s.at(a, out0 + o + 0.5);
                 int bx = (int) Math.floor(p[0]), bz = (int) Math.floor(p[1]);
-                out.put(w.getBlockAt(bx, fy - 1, bz), Material.POLISHED_ANDESITE.createBlockData());
-                for (int down = 2; down <= 4; down++) {
-                    Block b = w.getBlockAt(bx, fy - down, bz);
-                    if (!b.getType().isSolid()) out.put(b, Material.STONE.createBlockData());
+                boolean inside = Math.abs(a) <= 2 && o >= 0;
+                boolean hay = a == 3 && o == 1, pole = a == -3 && o == 0;
+                if (inside || hay || pole) {
+                    if (inside) out.put(w.getBlockAt(bx, fy - 1, bz), Material.SMOOTH_STONE.createBlockData());
+                    for (int down = inside ? 2 : 1; down <= 4; down++) {
+                        Block b = w.getBlockAt(bx, fy - down, bz);
+                        if (!b.getType().isSolid()) out.put(b, Material.STONE.createBlockData());
+                    }
                 }
-                boolean post = Math.abs(a) == 2 && (o == 0 || o == 2);
-                boolean back = o == 2 && !post;
-                for (int up = 0; up <= 2; up++) {
-                    Material m = post ? Material.DARK_OAK_FENCE : back ? Material.GLASS_PANE : Material.AIR;
+                if (hay) {
+                    out.put(w.getBlockAt(bx, fy, bz), Material.HAY_BLOCK.createBlockData());
+                    out.put(w.getBlockAt(bx, fy + 1, bz), Material.POTTED_POPPY.createBlockData());
+                    continue;
+                }
+                if (pole) {
+                    for (int up = 0; up <= 2; up++) out.put(w.getBlockAt(bx, fy + up, bz), Material.SPRUCE_FENCE.createBlockData());
+                    continue;
+                }
+                if (Math.abs(a) > 2) continue;
+                if (o == -1) {   // the eave over the front, lowest
+                    out.put(w.getBlockAt(bx, fy + 3, bz), stairs(TIN_STAIRS, away));
+                    continue;
+                }
+                boolean side = Math.abs(a) == 2, back = o == 2;
+                for (int up = 0; up <= 3; up++) {
+                    Material m;
+                    if (side && o == 0) m = up <= 2 ? Material.SPRUCE_LOG : TIN;                  // the front posts
+                    else if (side || back) {
+                        if (o == 0 && up == 3) m = TIN;
+                        else m = up == 0 ? Material.COBBLESTONE : back && a == 0 && up == 2 ? Material.GLASS_PANE : Material.WHITE_TERRACOTTA;
+                    } else if (o == 0 && up == 3) m = TIN;                                       // under the roof's front step
+                    else m = Material.AIR;
                     out.put(w.getBlockAt(bx, fy + up, bz), m.createBlockData());
                 }
-                BlockData roof = slabOf(Material.DARK_OAK_SLAB);
-                out.put(w.getBlockAt(bx, fy + 3, bz), roof);
-                if (o == 1 && Math.abs(a) <= 1) {
-                    BlockData bench = Material.SPRUCE_STAIRS.createBlockData();
-                    if (bench instanceof Directional d) d.setFacing(toRoad.getOppositeFace());
-                    out.put(w.getBlockAt(bx, fy, bz), bench);
+                // the roof: one step up behind the eave, flat over the back
+                out.put(w.getBlockAt(bx, fy + 4, bz), o == 0 ? stairs(TIN_STAIRS, away) : TIN.createBlockData());
+                if (o == 1 && !side) {
+                    if (a == 0) {
+                        BlockData lamp = Material.LANTERN.createBlockData();
+                        if (lamp instanceof org.bukkit.block.data.type.Lantern l) l.setHanging(true);
+                        out.put(w.getBlockAt(bx, fy + 3, bz), lamp);
+                    }
+                    out.put(w.getBlockAt(bx, fy, bz), stairs(Material.SPRUCE_STAIRS, away));   // the bench, its back to the wall
+                }
+            }
+        }
+        // dug out of a hillside: nothing over the shelter, round it a block, up to DIG high (a notch in the slope, like the road's cuts)
+        for (int a = -4; a <= 4; a++) {
+            for (int o = -1; o <= 3; o++) {
+                double[] p = s.at(a, out0 + o + 0.5);
+                int bx = (int) Math.floor(p[0]), bz = (int) Math.floor(p[1]);
+                for (int up = 0; up <= DIG + 1; up++) {
+                    Block b = w.getBlockAt(bx, fy + up, bz);
+                    if (!b.getType().isAir() && !out.containsKey(b)) out.put(b, Material.AIR.createBlockData());
                 }
             }
         }
         return out;
+    }
+
+    /** How high above the road a stop clears the ground (a stop on a hillside). */
+    static final int DIG = 9;
+
+    /** How many blocks of ground the plan digs away (the side of the road with less hill is the better one). */
+    static int digCost(Map<Block, BlockData> plan) {
+        int n = 0;
+        for (Map.Entry<Block, BlockData> e : plan.entrySet()) {
+            if (e.getValue().getMaterial().isAir() && !e.getKey().getType().isAir()) n++;
+        }
+        return n;
+    }
+
+    /** Old tin: weathered copper, waxed so it rusts no further. */
+    static final Material TIN = Material.WAXED_WEATHERED_CUT_COPPER, TIN_STAIRS = Material.WAXED_WEATHERED_CUT_COPPER_STAIRS;
+
+    private static BlockData stairs(Material m, BlockFace facing) {
+        BlockData d = m.createBlockData();
+        if (d instanceof Directional dir) dir.setFacing(facing);
+        return d;
     }
 
     private static BlockData slabOf(Material m) {
@@ -158,10 +223,10 @@ final class StopBuilder {
         return true;
     }
 
-    /** Where the sign floats: over the shelter's road side, facing the road. */
+    /** Where the sign floats: on top of its wooden pole beside the shelter, facing the road. */
     static Location signAt(World w, BusStop s, BusSpec.Stops cfg) {
-        double[] p = s.at(0, s.shelterOut(cfg.bayWidth()) + 0.2);
-        return new Location(w, p[0], s.y() + 4.6, p[1], s.facingRoad(), 0);
+        double[] p = s.at(-3, s.shelterOut(cfg.bayWidth()) + 0.5);
+        return new Location(w, Math.floor(p[0]) + 0.5, s.y() + 4.1, Math.floor(p[1]) + 0.5, s.facingRoad(), 0);
     }
 
     /** The sign (made if it is not there, cfg given): the stop's name and how many wait. */

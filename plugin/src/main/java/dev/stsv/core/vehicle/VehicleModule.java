@@ -2159,6 +2159,7 @@ public final class VehicleModule implements StsvModule, Listener {
     public void onMount(EntityMountEvent e) {
         // only players get in (a vehicle's own chair sits on its carrier)
         if (isVehiclePart(e.getMount()) && !(e.getEntity() instanceof Player) && !isVehiclePart(e.getEntity())
+                && !seatingGuest.contains(e.getEntity().getUniqueId())   // (a guest another plugin seats: seatGuest)
                 && !dev.stsv.core.emote.RiderPuppet.isPuppet(e.getEntity())) e.setCancelled(true);   // (a standing rider's puppet may)
     }
 
@@ -3518,6 +3519,9 @@ public final class VehicleModule implements StsvModule, Listener {
         return new Driven(v.id, v.item.key().asString(), v.world, v.st.x, v.st.y, v.st.z, v.st.yaw, v.st.speed, v.st.bumped, v.seats.length);
     }
 
+    /** Guests being seated right now (onMount lets them onto a chair: otherwise only players get in). */
+    private final Set<UUID> seatingGuest = new HashSet<>();
+
     /** The free seats behind the wheel of this vehicle (none taken by a player or a guest), front first. */
     public List<Integer> freeSeats(long id) {
         LiveVehicle v = live.get(id);
@@ -3536,7 +3540,14 @@ public final class VehicleModule implements StsvModule, Listener {
         if (v.seats[seat] != null) leave(v, seat);   // an empty chair left over
         if (guest.isInsideVehicle()) guest.leaveVehicle();
         guest.teleport(seatLocation(v, seat));
-        if (!mount(v, seat, guest)) return false;
+        seatingGuest.add(guest.getUniqueId());
+        boolean sat;
+        try {
+            sat = mount(v, seat, guest);
+        } finally {
+            seatingGuest.remove(guest.getUniqueId());
+        }
+        if (!sat) return false;
         dress.door(v, seat, ticks);
         return true;
     }
