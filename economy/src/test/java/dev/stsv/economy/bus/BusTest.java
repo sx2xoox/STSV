@@ -23,10 +23,10 @@ class BusTest {
     void fareFollowsThePlan() {
         BusSpec s = spec();
         BusSpec.Type resident = s.types().get("resident");
-        assertEquals(170, s.fare(300, resident), 1e-9);
-        assertEquals(320, s.fare(800, resident), 1e-9);
-        assertEquals(2180, s.fare(7000, resident), 1e-9);
-        assertEquals(320 * 3, s.fare(800, s.types().get("vip")), 1e-9);
+        assertEquals(220, s.fare(300, resident), 1e-9);
+        assertEquals(420, s.fare(800, resident), 1e-9);
+        assertEquals(2900, s.fare(7000, resident), 1e-9);
+        assertEquals(420 * 3, s.fare(800, s.types().get("vip")), 1e-9);
         assertEquals(1.2, s.moodFactor(95));
         assertEquals(1.0, s.moodFactor(70));
         assertEquals(0.8, s.moodFactor(50));
