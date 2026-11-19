@@ -50,8 +50,8 @@ WOODS = {
     "twine":  [(110, 86, 52), (150, 124, 82), (190, 162, 114), (214, 190, 144), (232, 214, 174)],
     "leaf":   [(56, 88, 26), (84, 122, 38), (120, 158, 56), (154, 188, 80), (186, 212, 112)],
 }
-BURN = (70, 38, 18)
-BURN_SOFT = (124, 76, 40)
+BURN = (96, 54, 26)
+BURN_SOFT = (150, 96, 52)
 
 # the face's two texture axes, as model axes (0 x, 1 y, 2 z)
 FACE_AXES = {"north": (0, 1), "south": (0, 1), "east": (2, 1), "west": (2, 1), "up": (0, 2), "down": (0, 2)}
@@ -155,7 +155,7 @@ def _vine(px, pw, ph, along_u, seed):
             px[x, y] = c + (255,)
 
     mid = (A - 1) / 2
-    amp = max(0.6, A / 6)
+    amp = max(0.6, A / 9)
     side = 1
     prev = None
     for l in range(2, L - 2):
@@ -167,9 +167,10 @@ def _vine(px, pw, ph, along_u, seed):
         prev = a
         if l % 4 == 0:
             # a leaf: two texels out to the side, a soft scorch round it
+            put(l, a + side, BURN_SOFT)
             put(l - 1, a + side, BURN)
-            put(l - 2, a + 2 * side, BURN)
-            put(l - 1, a + 2 * side, BURN_SOFT)
+            put(l - 1, a + 2 * side, BURN)
+            put(l - 2, a + 2 * side, BURN_SOFT)
             put(l - 2, a + side, BURN_SOFT)
             side = -side
 

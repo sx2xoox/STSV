@@ -32,7 +32,7 @@ from stsv_assets.bake import BModel, Paint, cyl
 from stsv_assets import presets
 from models.vehicles import CLEAR, lerp, lamp, plate, glass, raw, upholstery, _held_display
 from models.vehicles_premium import Kit
-from models.vehicles_road import rod, tube, _chords
+from models.vehicles_road import rod, tube
 
 BX = -6.5            # the bike's centre line
 SX = 7.0             # the sidecar tub's centre line
@@ -40,6 +40,17 @@ WR = 6.0             # wheel radius (hub height)
 ZF, ZR = -13.0, 13.0     # the bike's front and rear axles
 SWX, SWZ = 14.25, 5.0    # the sidecar wheel (x, z)
 SADDLE = 15.75       # the saddle's top (seat 0 sits 2.2 px over it, like the delivery scooter)
+
+
+def _arc(m, name, centre, r, angles, toward, x, paint, depth=0.75):
+    """A fender: an arc of straight pieces round centre (y, z) at radius r, from angle to angle (degrees from the
+    top, towards `toward` = -1 the front, +1 the back), x = (x0, x1) across, each piece overlapping the next a little
+    (models/vehicles_road._chords, off the centre line)."""
+    pts = [(centre[0] + r * math.cos(math.radians(d)), centre[1] + toward * r * math.sin(math.radians(d))) for d in angles]
+    for a, b in zip(pts, pts[1:]):
+        dy, dz = b[0] - a[0], b[1] - a[1]
+        n = math.hypot(dy, dz)
+        rod(m, name, (a[0] - dy / n * 0.5, a[1] - dz / n * 0.5), b, x[1] - x[0], paint, x=x, depth=depth)
 
 
 # ================================================================================================
@@ -159,7 +170,7 @@ def sidecar_kit(colour="wine", stripe="cream", leather="leather", name="sidecar_
     m.box("yoke", (BX - 3, 19.25, -8.5), (BX + 3, 20.25, -6.25), Paint(FRAME, 3, noise=0, rim=0.6))
 
     # the deep valanced front fender, the stripe over its crown; its stays to the sliders
-    _chords(m, "front_fender", (WR, ZF), WR + 1.25, (-55, -20, 20, 55, 80), -1, 3.5, PAINT)
+    _arc(m, "front_fender", (WR, ZF), WR + 1.25, (-55, -20, 20, 55, 80), -1, (BX - 1.75, BX + 1.75), PAINT)
     for s in (1, -1):
         xa, xb = sorted((BX + s * 1.75, BX + s * 2.25))
         m.box("fender_stay", (xa, WR + 2, ZF - 4.5), (xb, WR + 2.5, ZF + 1), CHROME_T)
@@ -325,7 +336,7 @@ def sidecar_kit(colour="wine", stripe="cream", leather="leather", name="sidecar_
         m.box("saddle_spring", (xa, 13.75, 3.0), (xb, SADDLE - 1.5, 4.5), Paint("blade", 3, noise=0, decal=spring))
 
     m.group("rear")
-    _chords(m, "rear_fender", (WR, ZR), WR + 1.25, (-50, -15, 20, 55, 90, 110), 1, 3.5, PAINT)
+    _arc(m, "rear_fender", (WR, ZR), WR + 1.25, (-50, -15, 20, 55, 90, 110), 1, (BX - 1.75, BX + 1.75), PAINT)
 
     def tail(c):
         if c.face == "south":
@@ -371,7 +382,7 @@ def sidecar_kit(colour="wine", stripe="cream", leather="leather", name="sidecar_
             return (C, 3.0)
         if c.face == "down":
             return (C, 0.4)
-        if c.face in ("east", "west"):
+        if c.face in ("east", "west") and c.lo[2] >= -12.6:
             fy = math.floor(y)
             if fy == 11:
                 return (S, 3.0)                                       # the cream spear along each side
@@ -449,8 +460,8 @@ def sidecar_kit(colour="wine", stripe="cream", leather="leather", name="sidecar_
         if c.face == "up":
             return (S, 3.2) if abs(c.p[0] - SWX) < 0.6 else (C, 2.9)
         return col(c.p[1])
-    _chords(m, "sidecar_fender", (WR, SWZ), WR + 1.25, (-60, -25, 10, 45, 75), 1, 3.0,
-            Paint(C, 2, noise=0, grad=0, rim=0.6, decal=guard))
+    _arc(m, "sidecar_fender", (WR, SWZ), WR + 1.25, (-60, -25, 10, 45, 75), 1, (SWX - 1.5, SWX + 1.5),
+         Paint(C, 2, noise=0, grad=0, rim=0.6, decal=guard))
     m.box("fender_stay", (SX + 5.5, 11.0, SWZ - 2.0), (SWX - 1.25, 11.75, SWZ - 1.0), CHROME_T)
     m.box("fender_stay", (SX + 5.5, 11.0, SWZ + 2.5), (SWX - 1.25, 11.75, SWZ + 3.5), CHROME_T)
     m.box("axle_stub", (SX + 5.5, WR - 0.5, SWZ - 0.5), (SWX - 1.25, WR + 0.5, SWZ + 0.5), FRAME_T)
