@@ -359,33 +359,33 @@ def _rod(name, cast):
     m.group("rod")
     round_y(m, "rod", 6.875, 9.125, 6.875, 9.125, 6.5, 14, SILVER, 0.5)
     m.box("rod", (7.125, 14, 7.125), (8.875, 23, 8.875), SILVER_LIGHT)
-    m.box("rod", (7.375, 23, 7.375), (8.625, 30, 8.625), SILVER_LIGHT)
+    m.box("rod", (7.375, 23, 7.375), (8.625, 28.75, 8.625), SILVER_LIGHT)
     # star guides: a gold four-point star round the rod at each joint
     for y, s in ((14, 1.9), (23, 1.6)):
         m.box("star_ring", (C - s, y - 0.35, 7.5), (C + s, y + 0.35, 8.5), GOLD)
         m.box("star_ring", (7.5, y - 0.35, C - s), (8.5, y + 0.35, C + s), GOLD)
         m.box("star_ring", (C - 0.6, y - 0.6, C - 0.6), (C + 0.6, y + 0.6, C + 0.6), STAR)
-    for y in (18.5, 27):
+    for y in (18.5, 26):
         m.box("guide", (8.875, y - 0.75, 7.75), (10, y + 0.75, 8.25), GOLD)
         m.box("guide", (9.25, y - 0.25, 7.5), (10.5, y + 0.25, 8.5), STAR)
-    # the crescent moon at the tip, horns up, open towards +x
+    # the crescent moon at the tip, horns up
     m.group("tip")
-    m.box("moon", (6.75, 29.75, 7.25), (9.25, 31, 8.75), MOON)
-    m.box("moon", (6, 30.5, 7.375), (7, 32.25, 8.625), MOON)
-    m.box("moon", (9, 30.5, 7.375), (10, 32.25, 8.625), MOON)
-    m.box("moon", (5.75, 32.25, 7.5), (6.75, 33.25, 8.5), MOON_DARK)
-    m.box("moon", (9.25, 32.25, 7.5), (10.25, 33.25, 8.5), MOON_DARK)
-    m.box("tip_star", (7.5, 31, 7.5), (8.5, 32, 8.5), STAR)
+    m.box("moon", (6.75, 28.5, 7.25), (9.25, 29.75, 8.75), MOON)
+    m.box("moon", (6, 29.25, 7.375), (7, 31, 8.625), MOON)
+    m.box("moon", (9, 29.25, 7.375), (10, 31, 8.625), MOON)
+    m.box("moon", (5.75, 31, 7.5), (6.75, 32, 8.5), MOON_DARK)
+    m.box("moon", (9.25, 31, 7.5), (10.25, 32, 8.5), MOON_DARK)
+    m.box("tip_star", (7.5, 29.75, 7.5), (8.5, 30.75, 8.5), STAR)
     if not cast:
         m.group("line")
-        top = (8.5, 31, C)
+        top = (8.5, 29.5, C)
         rot = ("z", 45, top)
-        m.box("line", (8.25, 20, 7.75), (8.75, 31, 8.25), LINE, rotation=rot)
+        m.box("line", (8.25, 18.5, 7.75), (8.75, 29.5, 8.25), LINE, rotation=rot)
         # the float: a tiny ringed planet
-        m.box("float", (6.75, 16.5, 6.75), (10.25, 19.75, 9.25), PLANET, rotation=rot)
-        m.box("float", (7.25, 16, 7.25), (9.75, 20.25, 8.75), PLANET, rotation=rot)
-        m.box("float_ring", (5.25, 17.75, 6.25), (11.75, 18.5, 9.75), RING, rotation=rot)
-        m.box("float_top", (8, 20.25, 7.75), (9, 21, 8.25), STAR, rotation=rot)
+        m.box("float", (6.75, 15, 6.75), (10.25, 18.25, 9.25), PLANET, rotation=rot)
+        m.box("float", (7.25, 14.5, 7.25), (9.75, 18.75, 8.75), PLANET, rotation=rot)
+        m.box("float_ring", (5.25, 16.25, 6.25), (11.75, 17, 9.75), RING, rotation=rot)
+        m.box("float_top", (8, 18.75, 7.75), (9, 19.5, 8.25), STAR, rotation=rot)
     return _held(m, "rod")
 
 

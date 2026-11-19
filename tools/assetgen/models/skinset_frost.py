@@ -73,7 +73,9 @@ def _ice(w, h, face, rnd, lift=0, streaks=True):
         row = []
         for x in range(w):
             d = min(x, y, w - 1 - x, h - 1 - y)
-            if d == 0:
+            if d == 0 and min(w, h) <= 2:      # a thin face is all rim: keep its colour, not just its light
+                i = 4 if (x == 0 or y == 0) else 2
+            elif d == 0:
                 i = 5 if (x == 0 or y == 0) else 3
             elif d == 1:
                 i = 4
@@ -297,7 +299,7 @@ def frost_shovel():
     m.box("point", (6.5, 27, 7.2), (9.5, 28.25, 8.8), ICE_LIGHT)
     m.box("point", (7.25, 28.25, 7.4), (8.75, 29, 8.6), WHITE)
     m.box("spine", (7.25, 17, 6.6), (8.75, 25, 7), ICE_DEEP)
-    emblem(m, 5.75, 19.25, 6.75, 9.5)
+    emblem(m, 5.75, 18.25, 6.75, 9.5)
     m.group("shards")
     shard(m, "shard", 2.5, 17.5, 3.75, 20, 7.25, 8.75, 22.5, ICE_LIGHT)
     shard(m, "shard", 12.25, 17.5, 13.5, 20, 7.25, 8.75, -22.5, ICE_LIGHT)
@@ -336,7 +338,7 @@ def frost_hoe():
     handle(m)
     shaft(m, 20.5)
     m.group("head")
-    m.box("bar", (2.5, 19.75, 6.75), (9.75, 22.25, 9.25), FROST)
+    m.box("bar", (2.5, 19.75, 6.75), (9.75, 22.25, 9.25), ICE)
     round_y(m, "bar_cap", 6.5, 9.5, 6.5, 9.5, 22.25, 23, FROST, 0.75)
     m.box("bar_point", (7.25, 23, 7.25), (8.75, 24.25, 8.75), ICE_LIGHT)
     m.box("plate", (0.25, 14.75, 5), (2.5, 22.75, 11), ICE)
