@@ -185,6 +185,12 @@ public final class BusRoutes {
         return roads.get(roadOf[node]).dock();
     }
 
+    /** The node this many points further along the same road, or -1 (off its ends). */
+    public int shift(int node, int points) {
+        int r = roadOf[node], k = node + points;
+        return k < base[r] || k >= base[r + 1] ? -1 : k;
+    }
+
     /** The node of a road's point. */
     public int node(int road, int point) {
         return base[road] + point;

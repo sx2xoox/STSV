@@ -173,6 +173,38 @@ final class StopBuilder {
         return null;
     }
 
+    /**
+     * Why a stop cannot stand here, or null: on a bridge or over water (most of the ground where the bay and the shelter go
+     * has nothing solid within 4 under the road's surface: water is not ground), or in a tunnel (a ceiling over the road).
+     */
+    static String siteProblem(World w, BusStop s, BusSpec.Stops cfg) {
+        int y = s.y(), bad = 0, all = 0;
+        double far = s.shelterOut(cfg.bayWidth()) + 3;
+        for (double a = -cfg.bayLength() / 2.0; a <= cfg.bayLength() / 2.0; a += 2) {
+            for (double o = BusStop.ROAD_HALF + 0.5; o <= far; o += 1.5) {
+                double[] p = s.at(a, o);
+                int bx = (int) Math.floor(p[0]), bz = (int) Math.floor(p[1]);
+                boolean ground = false;
+                for (int down = 0; down <= 4 && !ground; down++) ground = w.getBlockAt(bx, y - down, bz).getType().isSolid();
+                all++;
+                if (!ground) bad++;
+            }
+        }
+        if (bad * 4 > all) return "다리 위나 물가 · 낭떠러지";
+        int roofed = 0;
+        for (double a = -8; a <= 8; a += 4) {
+            double[] p = s.at(a, 0);
+            int bx = (int) Math.floor(p[0]), bz = (int) Math.floor(p[1]);
+            for (int up = 5; up <= 8; up++) {
+                if (w.getBlockAt(bx, y + up, bz).getType().isSolid()) {
+                    roofed++;
+                    break;
+                }
+            }
+        }
+        return roofed >= 3 ? "굴 안" : null;
+    }
+
     /** Whether the bay would hang over nothing (a bridge, a cliff): more than 3 of its columns with nothing solid 4 under. */
     static boolean overVoid(World w, BusStop s, BusSpec.Stops cfg) {
         int bad = 0;

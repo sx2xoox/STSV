@@ -87,7 +87,8 @@ public record BusStop(int id, String name, String world, double x, double z, int
     /** Whether a point (x, z) is where a bus stands to stop here: within reach along the stop, on the bay (or the shoulder). */
     public boolean standing(double px, double pz, double reach, int width) {
         double[] l = local(px, pz);
-        double lo = bay ? ROAD_HALF - 1.5 : 2.5, hi = bay ? ROAD_HALF + width + 0.5 : ROAD_HALF + 1;
+        // a simple stop (no bay): anywhere on its half of the road by it
+        double lo = bay ? ROAD_HALF - 1.5 : 0.3, hi = bay ? ROAD_HALF + width + 0.5 : ROAD_HALF + 1;
         return Math.abs(l[0]) <= reach && l[1] >= lo && l[1] <= hi;
     }
 

@@ -305,7 +305,14 @@ public final class BusModule extends EcoModule {
             a = b;
             b = t;
         }
-        BusStop[] tries = {a, b, simple(a), simple(b)};
+        // never on a bridge, over water or a drop, nor in a tunnel (bridges carry railings, a shelter would hang over the water)
+        String whyA = StopBuilder.siteProblem(w, a, cfg), whyB = StopBuilder.siteProblem(w, b, cfg);
+        if (whyA != null && whyB != null) return "<red>정류장 <white>" + s.name() + "</white>: 여기는 " + whyA + "라서 지을 수 없어요";
+        List<BusStop> tries = new ArrayList<>();
+        if (whyA == null) tries.add(a);
+        if (whyB == null) tries.add(b);
+        if (whyA == null) tries.add(simple(a));
+        if (whyB == null) tries.add(simple(b));
         for (BusStop t : tries) {
             Map<Block, BlockData> plan = StopBuilder.plan(w, t, cfg, eco.roads().surfaceBlock());
             int[] bad = StopBuilder.blocked(plan, (x, z) -> eco.roads().guardAt(w.getName(), x, z) != null);
@@ -374,7 +381,14 @@ public final class BusModule extends EcoModule {
         }
         stops.remove(s.id());
         BusStop again = new BusStop(s.id(), s.name(), s.world(), s.x(), s.z(), s.half(), s.hx(), s.hz(), s.side(), s.size(), s.auto(), true, s.dock());
-        return place(w, again).replace("설치", "다시 지음");
+        String r = place(w, again).replace("설치", "다시 지음");
+        if (r.startsWith("<red>")) {
+            waiting.remove(s.id());
+            saveStops();
+            rebuildNets();
+            r += " (블록을 되돌리고 정류장을 지웠어요)";
+        }
+        return r;
     }
 
     public String rename(String name, String to) {
@@ -405,20 +419,41 @@ public final class BusModule extends EcoModule {
                 case END -> sp.dock() + " 앞";
                 case MIDDLE -> sp.dock() + "선 " + counts.merge(sp.dock(), 1, Integer::sum);
             };
-            double[] p = routes.place(sp.node());
             Bukkit.getScheduler().runTaskLater(eco, () -> {
                 String n = name;
                 for (int i = 2; stop(n) != null; i++) n = name + " " + i;
-                BusStop s = new BusStop(nextId, n, w.getName(), p[0], p[1], (int) p[2], p[3], p[4], 1, spec.stops().waitingMax(), true, true, sp.dock());
-                w.getChunkAtAsync((int) Math.floor(p[0]) >> 4, (int) Math.floor(p[1]) >> 4).thenRun(() -> {
-                    String r = place(w, s);
-                    eco.getLogger().info("[버스] 자동 정류장: " + net.kyori.adventure.text.serializer.plain.PlainTextComponentSerializer.plainText()
-                            .serialize(dev.stsv.core.util.Text.mm(r)));
-                });
+                autoOne(w, routes, sp, n, 0);
             }, delay);
             delay += 10;
         }
         return "<green>정류장 " + spots.size() + "곳을 차례로 지어요 (콘솔에 하나씩 기록)";
+    }
+
+    /** Steps along the road from an automatic spot (0, +20, -20, +40 ... ±200 points) until a place a stop may stand. */
+    private static final int[] SHIFTS = {0, 20, -20, 40, -40, 60, -60, 80, -80, 100, -100, 130, -130, 160, -160, 200, -200};
+
+    private void autoOne(World w, BusRoutes routes, BusRoutes.Spot sp, String name, int i) {
+        String log = "[버스] 자동 정류장: ";
+        if (i >= SHIFTS.length) {
+            eco.getLogger().info(log + name + ": 근처 200칸이 다리 · 물가 · 굴이라 건너뜀");
+            return;
+        }
+        int node = routes.shift(sp.node(), SHIFTS[i]);
+        if (node < 0) {
+            autoOne(w, routes, sp, name, i + 1);
+            return;
+        }
+        double[] p = routes.place(node);
+        w.getChunkAtAsync((int) Math.floor(p[0]) >> 4, (int) Math.floor(p[1]) >> 4).thenRun(() -> {
+            BusStop s = new BusStop(nextId, name, w.getName(), p[0], p[1], (int) p[2], p[3], p[4], 1, spec.stops().waitingMax(), true, true, sp.dock());
+            if (StopBuilder.siteProblem(w, s, spec.stops()) != null && StopBuilder.siteProblem(w, flip(s), spec.stops()) != null) {
+                autoOne(w, routes, sp, name, i + 1);
+                return;
+            }
+            String r = place(w, s);
+            eco.getLogger().info(log + net.kyori.adventure.text.serializer.plain.PlainTextComponentSerializer.plainText()
+                    .serialize(dev.stsv.core.util.Text.mm(r)));
+        });
     }
 
     /** Puts passengers at a stop (an admin's test). */
