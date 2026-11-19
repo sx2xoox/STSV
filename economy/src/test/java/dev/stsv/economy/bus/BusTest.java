@@ -83,12 +83,11 @@ class BusTest {
         assertFalse(s.marketDay(11));
         assertNotNull(s.lines(s.types().get("resident"), "jolt"));
         assertEquals(s.types().get("grandma").talk().get("jolt"), s.lines(s.types().get("grandma"), "jolt"));
-        // the buses' rules
-        assertEquals(1000, s.bus("stsv:intercity_bus").minRoad(), 1e-9);
-        assertTrue(s.bus("stsv:school_bus").takes(s.types().get("student")));
-        assertFalse(s.bus("stsv:school_bus").takes(s.types().get("grandma")));
+        // the buses differ by how many they carry: every bus takes every kind
         assertTrue(s.bus("stsv:village_bus").takes(s.types().get("grandma")));
-        assertTrue(s.vehicles().containsAll(List.of("stsv:village_bus", "stsv:intercity_bus", "stsv:school_bus", "stsv:tour_bus")));
+        assertTrue(s.bus("stsv:limousine_bus").takes(s.types().get("student")));
+        assertEquals(0, s.bus("stsv:mini_bus").minRoad(), 1e-9);
+        assertEquals(java.util.Set.of("stsv:mini_bus", "stsv:village_bus", "stsv:limousine_bus"), s.vehicles());
         // grandma's gifts are real items of the economy
         for (BusSpec.Gift g : s.types().get("grandma").gifts()) assertTrue(g.item().startsWith("economy:"), g.item());
     }
