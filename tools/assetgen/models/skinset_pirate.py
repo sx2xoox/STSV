@@ -403,12 +403,12 @@ def pirate_hoe():
     m.box("anchor_fluke", (11, -5.75, 7.5), (11.75, -4.75, 8.5), BRASS, rotation=rot)
     shaft(m, 20)
     m.group("head")
-    m.box("bar", (2.75, 19.75, 7), (9.75, 22, 9), IRON)
-    m.box("strap", (6.75, 19.25, 6.75), (9.25, 22.5, 9.25), BRASS_DARK)
-    rivet(m, 8, 20.875, 9.25)
-    m.box("cap", (7, 22.5, 7), (9, 23.25, 9), BRASS)
-    m.box("blade", (0.75, 19.25, 6), (2.75, 22.5, 10), IRON_DARK)
-    m.box("edge", (0.25, 19.25, 6.25), (0.75, 22.5, 9.75), EDGE)
+    m.box("bar", (2.75, 19.5, 6.875), (9.75, 22.25, 9.125), IRON)
+    m.box("strap", (6.625, 19, 6.625), (9.375, 22.75, 9.375), BRASS_DARK)
+    rivet(m, 8, 20.875, 9.375)
+    m.box("cap", (7, 22.75, 7), (9, 23.5, 9), BRASS)
+    m.box("blade", (0.75, 18.75, 5.75), (2.75, 23, 10.25), IRON_DARK)
+    m.box("edge", (0, 18.75, 6), (0.75, 23, 10), EDGE)
     return _held(m, "hoe")
 
 

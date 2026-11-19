@@ -275,17 +275,17 @@ def magma_hoe():
     shaft(m, 19.5)
     m.group("head")
     round_y(m, "socket", 6.25, 9.75, 6.25, 9.75, 19, 23.25, IRON, 0.75)
-    m.box("socket_gem", (6.75, 20.25, 6), (9.25, 22, 10), LAVA)
+    m.box("socket_ring", (6, 21.25, 6), (10, 21.75, 10), EMBER_RED)
     m.box("horn", (7.25, 23.25, 7.25), (8.75, 24.5, 8.75), ROCK_PLAIN)
     m.box("horn_tip", (7.625, 24.5, 7.625), (8.375, 25.25, 8.375), EMBER)
-    # the head: a straight bar, flat top and bottom, as wide across (z) as a hoe's blade
-    m.box("head", (1, 19.5, 6.25), (6.25, 22.75, 9.75), ROCK)
-    m.box("head_top", (1.25, 22.75, 6.75), (6.25, 23.25, 9.25), ROCK_PLAIN)
-    m.box("vein", (1.5, 20.75, 6.1), (5.75, 21.5, 9.9), LAVA_DEEP)
-    m.box("rim", (1, 19.25, 6.5), (6.25, 19.5, 9.5), EMBER_RED)
-    m.box("edge", (0.25, 19.5, 6.5), (1, 22.75, 9.5), LAVA)
-    drip(m, 2.25, 19.25)
-    drip(m, 4.75, 19.25, big=False)
+    # the head: a long straight bar, flat top and bottom, as wide across (z) as a hoe's blade
+    m.box("head", (-1, 19.75, 6.25), (6.25, 22.75, 9.75), ROCK)
+    m.box("head_top", (-0.75, 22.75, 6.75), (6.25, 23.25, 9.25), ROCK_PLAIN)
+    fissure(m, ((3.25, 6.25, 20.75, 21.5), (0, 3.25, 21.25, 22)), 6.1, 9.9)
+    m.box("rim", (-1, 19.5, 6.5), (6.25, 19.75, 9.5), EMBER_RED)
+    m.box("edge", (-1.75, 19.75, 6.5), (-1, 22.75, 9.5), LAVA)
+    drip(m, 0.5, 19.5)
+    drip(m, 3.5, 19.5, big=False)
     return _held(m, "hoe")
 
 

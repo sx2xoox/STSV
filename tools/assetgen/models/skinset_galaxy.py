@@ -356,11 +356,12 @@ def galaxy_hoe():
     handle(m)
     shaft(m, 19)
     m.group("head")
-    m.box("head", (0.75, 19.5, 6.75), (6.5, 23, 9.25), SPACE_PLATE)
-    m.box("head_edge", (0.75, 18.75, 7.25), (6, 19.5, 8.75), EDGE)
-    m.box("head_cap", (0, 19.25, 6.5), (0.75, 23.25, 9.5), SILVER)
-    m.box("head_band", (3.25, 19.25, 6.5), (4, 23.25, 9.5), SILVER)
-    planet(m, 8.75, 21.25, 8, 6, 2.25)
+    m.box("head", (-3, 19.75, 6.75), (6.5, 23, 9.25), SPACE_PLATE)
+    m.box("head_edge", (-3, 19, 7.25), (5.5, 19.75, 8.75), EDGE)
+    m.box("head_cap", (-3.75, 19.5, 6.5), (-3, 23.25, 9.5), SILVER)
+    m.box("head_band", (1.25, 19.5, 6.5), (2, 23.25, 9.5), SILVER)
+    stud(m, -1, 21.4, 6.5, 9.5, 0.9)
+    planet(m, 8.5, 21.5, 8, 5, 1.75)
     return _held(m, "hoe")
 
 

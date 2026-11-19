@@ -502,22 +502,22 @@ def toy_axe():
 
 
 def toy_hoe():
-    """장난감 괭이: a glossy blue bar across the top of the shaft and a wide plate hanging from its end (towards -x), seamed
-    foam on its edge, a gold hinge where they meet, a gold cap with a jewel on the shaft, the shining sticker outside.
-    The plate lies across the handle (z), the way a real hoe's does: a thin strip from the front, a plate in the hand."""
+    """장난감 괭이: like a vanilla hoe, an L: a straight glossy blue bar sticking out to one side (-x) from the top of the
+    shaft, ending flat (no hook, no drop): a wider blue blade block at its end, behind a gold band, its flat end faced
+    with seamed foam; a gold cap with a jewel on the shaft's top, a gold end cap on the other side, the shining
+    holographic sticker on the bar's front and back."""
     m = MModel("toy_hoe")
     premium_handle(m)
     premium_shaft(m, 20.5)
     m.group("head")
-    m.box("bar", (2.5, 19.75, 6.75), (9.75, 22.25, 9.25), P_BLUE)
-    round_y(m, "bar_cap", 6.5, 9.5, 6.5, 9.5, 22.25, 23, GOLD_TRIM, 0.75)
-    m.box("bar_gem", (7.25, 23, 7.25), (8.75, 23.75, 8.75), GEM_RED)
-    m.box("bar_end", (9.75, 20, 7), (10.25, 22, 9), GOLD_TRIM)
-    m.box("plate", (0.25, 14.75, 5), (2.5, 22.75, 11), P_BLUE)
-    m.box("hinge", (2.5, 19.5, 6.5), (3.25, 22.5, 9.5), GOLD_TRIM)
-    m.box("plate_trim", (0, 22.75, 4.75), (2.75, 23.25, 11.25), GOLD_TRIM)
-    m.box("plate_edge", (0.5, 13.75, 5.25), (2.25, 14.75, 10.75), P_FOAM_EDGE)
-    holo_sticker_side(m, "west", (0, 16.5, 5.75), (0.25, 21, 10.25))
+    m.box("bar", (1.75, 18.25, 6.5), (9.75, 23.25, 9.5), P_BLUE)
+    round_y(m, "bar_cap", 6.5, 9.5, 6.5, 9.5, 23.25, 24, GOLD_TRIM, 0.75)
+    m.box("bar_gem", (7.25, 24, 7.25), (8.75, 24.75, 8.75), GEM_RED)
+    m.box("bar_end", (9.75, 18.75, 7), (10.25, 22.75, 9), GOLD_TRIM)
+    m.box("band", (1.25, 18, 6.25), (1.75, 23.5, 9.75), GOLD_TRIM)
+    m.box("blade", (0, 18.25, 5.5), (1.25, 23.25, 10.5), P_BLUE)
+    m.box("blade_edge", (-0.75, 18.5, 5.75), (0, 23, 10.25), P_FOAM_EDGE)
+    holo_sticker(m, 3, 18.5, 6.25, 9.75)
     return _held(m, "hoe")
 
 

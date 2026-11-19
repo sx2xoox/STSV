@@ -273,8 +273,8 @@ def camping_hoe():
     m.group("head")
     m.box("neck", (5.25, 19.75, 6.875), (9.5, 22.5, 9.125), OLIVE)
     m.box("bolt", (7.375, 20.5, 9.125), (8.625, 21.75, 9.5), BOLT)
-    m.box("blade", (1.25, 19.25, 6.5), (5.25, 23, 9.5), ORANGE)
-    m.box("blade_end", (0.25, 19.25, 6.75), (1.25, 23, 9.25), BRIGHT)
+    m.box("blade", (-1, 19.5, 6.5), (5.25, 22.75, 9.5), ORANGE)
+    m.box("blade_end", (-2, 19.5, 6.75), (-1, 22.75, 9.25), BRIGHT)
     m.box("shaft_cap", (6.75, 22.5, 6.75), (9.25, 23.25, 9.25), OLIVE_DARK)
     return _held(m, "hoe")
 
