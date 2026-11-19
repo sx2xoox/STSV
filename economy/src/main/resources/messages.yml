@@ -1196,6 +1196,7 @@ bus:
   lines-chosen: "<green>{line}</green><gray>을(를) 달려요. 그 노선 정류장에 서면 바뀌어요"
   lines-head: "<#3fb34f>🚌 노선 {n}개</#3fb34f> <gray>(/버스 노선 <번호> 로 고르기)"
   lines-row: " <white>{line}</white><gray>: {stops}"
+  overlay-talk: "<{color}>{type}</{color}> <white>“{said}”</white>"
   overlay-row: "<{color}>{type}</{color}> <gray>→</gray> <white>{dest}</white> <gray>{left}"
   arrive: "<#3fb34f>🔔</#3fb34f> <gray>이번 정류장은 <white>{stop}</white>입니다"
   announce-next: "<#3fb34f>🔔</#3fb34f> <gray>다음 정류장은 <white>{stop}</white>입니다"

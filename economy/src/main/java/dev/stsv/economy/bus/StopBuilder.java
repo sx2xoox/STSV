@@ -56,9 +56,33 @@ final class StopBuilder {
                 Block b = w.getBlockAt(c.x(), y + up, c.z());
                 if (up <= 4 || !b.getType().isAir()) out.put(b, Material.AIR.createBlockData());
             }
-            for (int down = 1; down <= 3; down++) {
+            for (int down = 1; down <= 6; down++) {   // filled down to the ground (never left hanging)
                 Block b = w.getBlockAt(c.x(), y - down, c.z());
-                if (!b.getType().isSolid()) out.put(b, Material.STONE.createBlockData());
+                if (b.getType().isSolid()) break;
+                out.put(b, Material.STONE.createBlockData());
+            }
+        }
+        // the shoulder between the kerb and the bay: paved like the lanes and cleared (reflector posts, guardrails, a light's
+        // post), so nothing stands between the lane and the bay; a light whose post goes loses its arm and lantern too
+        java.util.Set<Long> bayAt = new java.util.HashSet<>();
+        for (BusStop.Column c : s.bayColumns(cfg.bayLength(), cfg.bayWidth())) bayAt.add(((long) c.x() << 32) ^ (c.z() & 0xffffffffL));
+        for (BusStop.Column c : s.shoulderColumns(cfg.bayLength())) {
+            if (bayAt.contains(((long) c.x() << 32) ^ (c.z() & 0xffffffffL))) continue;
+            BlockData top = s.slab() ? slabOf(surface) : surface.createBlockData();
+            out.putIfAbsent(w.getBlockAt(c.x(), y, c.z()), top);
+            for (int up = 1; up <= DIG; up++) {
+                Block b = w.getBlockAt(c.x(), y + up, c.z());
+                if (!b.getType().isAir()) out.putIfAbsent(b, Material.AIR.createBlockData());
+            }
+        }
+        for (double a = -cfg.bayLength() / 2.0; a <= cfg.bayLength() / 2.0; a += 0.5) {
+            for (double o = 1.5; o <= BusStop.KERB; o += 0.5) {   // over the edge lane: a light's arm and lantern
+                double[] p = s.at(a, o);
+                int bx = (int) Math.floor(p[0]), bz = (int) Math.floor(p[1]);
+                for (int up = 3; up <= 7; up++) {
+                    Block b = w.getBlockAt(bx, y + up, bz);
+                    if (isLight(b.getType())) out.putIfAbsent(b, Material.AIR.createBlockData());
+                }
             }
         }
         // the shelter, a country bus stop: 5 along, 3 out, behind the bay. Walls of whitewashed cement (white terracotta) on a
@@ -77,9 +101,10 @@ final class StopBuilder {
                 boolean hay = a == 3 && o == 1, pole = a == -3 && o == 0;
                 if (inside || hay || pole) {
                     if (inside) out.put(w.getBlockAt(bx, fy - 1, bz), Material.SMOOTH_STONE.createBlockData());
-                    for (int down = inside ? 2 : 1; down <= 4; down++) {
+                    for (int down = inside ? 2 : 1; down <= 7; down++) {   // down to the ground, never left hanging
                         Block b = w.getBlockAt(bx, fy - down, bz);
-                        if (!b.getType().isSolid()) out.put(b, Material.STONE.createBlockData());
+                        if (b.getType().isSolid()) break;
+                        out.put(b, Material.STONE.createBlockData());
                     }
                 }
                 if (hay) {
@@ -143,6 +168,13 @@ final class StopBuilder {
             if (e.getValue().getMaterial().isAir() && !e.getKey().getType().isAir()) n++;
         }
         return n;
+    }
+
+    /** A street light's parts (its post, arm and lantern: RoadSection). */
+    static boolean isLight(Material m) {
+        String n = m.name();
+        return n.contains("LANTERN") || n.endsWith("_WALL") || n.endsWith("_FENCE") || n.contains("CHAIN") || n.endsWith("_SLAB")
+                || n.endsWith("_STAIRS") || n.equals("END_ROD") || n.contains("LIGHT") || n.equals("POLISHED_BASALT");
     }
 
     /** Old tin: weathered copper, waxed so it rusts no further. */

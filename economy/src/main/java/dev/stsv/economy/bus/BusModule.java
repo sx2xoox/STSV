@@ -139,6 +139,9 @@ public final class BusModule extends EcoModule {
         double mood;
         String face;
         boolean transfer, dozing, dozeChecked, sleepThrough, lateSaid;
+        /** what they said last and until when it shows on the driver's overlay (millis) */
+        String said;
+        long saidUntil;
         /** a stop a wandering passenger gets off at instead (or -1) */
         int wanderAt = -1;
 
@@ -448,7 +451,12 @@ public final class BusModule extends EcoModule {
             return "<red>되돌리기 기록을 읽지 못했어요: " + e.getMessage();
         }
         stops.remove(s.id());
-        BusStop again = new BusStop(s.id(), s.name(), s.world(), s.x(), s.z(), s.half(), s.hx(), s.hz(), s.side(), s.size(), s.auto(), true, s.dock());
+        // its place and way worked out again from the road (stops from before took the way over 2 points: a pixel's step)
+        BusRoutes routes = routesNow(s.world());
+        int node = routes.attach(s.x(), s.z());
+        double[] p = node < 0 ? new double[]{s.x(), s.z(), s.half(), s.hx(), s.hz()} : routes.place(node);
+        int side = p[3] * s.hx() + p[4] * s.hz() >= 0 ? s.side() : -s.side();   // the same side of the road as before
+        BusStop again = new BusStop(s.id(), s.name(), s.world(), p[0], p[1], (int) p[2], p[3], p[4], side, s.size(), s.auto(), true, s.dock());
         String r = place(w, again).replace("설치", "다시 지음");
         if (r.startsWith("<red>")) {
             waiting.remove(s.id());
@@ -514,7 +522,7 @@ public final class BusModule extends EcoModule {
         double[] p = routes.place(node);
         w.getChunkAtAsync((int) Math.floor(p[0]) >> 4, (int) Math.floor(p[1]) >> 4).thenRun(() -> {
             BusStop s = new BusStop(nextId, name, w.getName(), p[0], p[1], (int) p[2], p[3], p[4], 1, spec.stops().waitingMax(), true, true, sp.dock());
-            if (StopBuilder.siteProblem(w, s, spec.stops()) != null && StopBuilder.siteProblem(w, flip(s), spec.stops()) != null) {
+            if (!goodSite(w, s)) {
                 autoOne(w, routes, sp, name, i + 1);
                 return;
             }
@@ -522,6 +530,51 @@ public final class BusModule extends EcoModule {
             eco.getLogger().info(log + net.kyori.adventure.text.serializer.plain.PlainTextComponentSerializer.plainText()
                     .serialize(dev.stsv.core.util.Text.mm(r)));
         });
+    }
+
+    /** Most ground a stop may dig away (a deep cut into a hillside is moved along the road instead). */
+    static final int MAX_DIG = 260;
+
+    /**
+     * Whether a stop may go here by itself: on one side at least, not on a bridge, by water or a drop, nor in a tunnel,
+     * and without a deep cut into a hill.
+     */
+    private boolean goodSite(World w, BusStop s) {
+        for (BusStop t : new BusStop[]{s, flip(s)}) {
+            if (StopBuilder.siteProblem(w, t, spec.stops()) != null) continue;
+            if (StopBuilder.digCost(StopBuilder.plan(w, t, spec.stops(), eco.roads().surfaceBlock())) <= MAX_DIG) return true;
+        }
+        return false;
+    }
+
+    /** Moves a stop to the road point nearest this spot (on the side the spot is): its blocks back, then built there. */
+    public String move(String name, Location at) {
+        BusStop s = stop(name);
+        if (s == null) return "<red>없는 정류장: " + name;
+        if (!s.world().equals(at.getWorld().getName())) return "<red>정류장과 같은 월드에서 쓰세요";
+        BusRoutes routes = routesNow(at.getWorld().getName());
+        int node = routes.attach(at.getX(), at.getZ());
+        if (node < 0) return "<red>국도에서 " + (int) BusRoutes.ATTACH + "칸 안에 서서 쓰세요";
+        hide(s.id());
+        try {
+            builder.undo(at.getWorld(), s);
+        } catch (IOException e) {
+            return "<red>되돌리기 기록을 읽지 못했어요: " + e.getMessage();
+        }
+        stops.remove(s.id());
+        stopTags.remove(s.id());
+        double[] p = routes.place(node);
+        double nx = -p[4], nz = p[3];
+        int side = (at.getX() - p[0]) * nx + (at.getZ() - p[1]) * nz >= 0 ? 1 : -1;
+        BusStop moved = new BusStop(s.id(), s.name(), s.world(), p[0], p[1], (int) p[2], p[3], p[4], side, s.size(), s.auto(), true, routes.dock(node));
+        String r = place(at.getWorld(), moved);
+        if (r.startsWith("<red>")) {
+            waiting.remove(s.id());
+            saveStops();
+            rebuildNets();
+            return r + " (원래 자리도 되돌렸어요: 다른 곳에서 다시 옮기세요)";
+        }
+        return r.replace("설치", "옮김");
     }
 
     /** Puts passengers at a stop (an admin's test). */
@@ -1158,7 +1211,16 @@ public final class BusModule extends EcoModule {
         List<String> lines = spec.lines(type, situation);
         if (lines == null) return;
         if (run != null) run.talkAt = ticks;
-        say(m, lines.get(ThreadLocalRandom.current().nextInt(lines.size())));
+        String line = lines.get(ThreadLocalRandom.current().nextInt(lines.size()));
+        say(m, line);
+        if (run != null) {   // the driver's overlay shows it beside their face for as long as the bubble
+            for (Rider r : run.riders) {
+                if (r.m.equals(m)) {
+                    r.said = line;
+                    r.saidUntil = System.currentTimeMillis() + 3000;
+                }
+            }
+        }
     }
 
     private void say(Mannequin m, String text) {
@@ -1247,6 +1309,11 @@ public final class BusModule extends EcoModule {
             BusStop s = stops.get(x.dest);
             double left = spec.onTime(x.road) - (now - x.boarded) / 1000.0;
             String mood = x.mood >= 90 ? "mood_great" : x.mood >= 70 ? "mood_good" : x.mood >= 40 ? "mood_meh" : "mood_bad";
+            if (x.said != null && now < x.saidUntil) {
+                out.add(new dev.stsv.core.hud.HudLayout.OverlayRow(x.face, mood, Lang.mm("bus.overlay-talk", "color", x.type.color(),
+                        "type", x.type.name(), "said", net.kyori.adventure.text.minimessage.MiniMessage.miniMessage().escapeTags(x.said))));
+                continue;
+            }
             out.add(new dev.stsv.core.hud.HudLayout.OverlayRow(x.face, mood, Lang.mm("bus.overlay-row", "color", x.type.color(),
                     "type", x.type.name(), "dest", x.dest == -1 ? Lang.raw("bus.next-stop") : s == null ? "?" : s.name(),
                     "left", clock(left) + (x.dozing ? Lang.raw("bus.dozing") : ""))));

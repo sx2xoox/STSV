@@ -158,6 +158,40 @@ class BusTest {
     }
 
     @Test
+    void autoSpotsKeepOffBends() {
+        BusSpec s = spec();
+        // a road east 1500, then a sharp bend north for 1500: no stop on the bend
+        List<double[]> pts = new ArrayList<>();
+        for (int i = 0; i < 1500; i++) pts.add(new double[]{i + 0.5, 0.5});
+        for (int i = 1; i <= 1500; i++) pts.add(new double[]{1499.5, 0.5 - i});
+        BusRoutes r = new BusRoutes(List.of(new RoadNetwork.Road("x", pts, new int[pts.size()])));
+        List<BusRoutes.Spot> spots = r.autoSpots(s.stops().auto(), s.stops().bayLength(), List.of());
+        assertFalse(spots.isEmpty());
+        for (BusRoutes.Spot sp : spots) {
+            double[] p = r.place(sp.node());
+            assertTrue(Math.hypot(p[0] - 1499.5, p[1] - 0.5) > s.stops().bayLength() / 2.0 + 4, "on the bend: " + p[0] + "," + p[1]);
+        }
+        // a stop's way is the road's, not a step's: straight east on a straight road
+        double[] p = r.place(r.node(0, 700));
+        assertEquals(1, p[3], 1e-6);
+        assertEquals(0, p[4], 1e-6);
+    }
+
+    @Test
+    void theShoulderAlongTheBayIsCleared() {
+        BusSpec s = spec();
+        BusStop stop = new BusStop(1, "시장 앞", "world", 100.5, 50.5, 128, 1, 0, 1, 4, false, true, "동항");
+        List<BusStop.Column> sh = stop.shoulderColumns(s.stops().bayLength());
+        assertFalse(sh.isEmpty());
+        // between the kerb (3.5) and the bay (5.5) on the stop's side, along the bay
+        for (BusStop.Column c : sh) {
+            assertTrue(c.z() >= 54 && c.z() <= 55, "" + c);
+            assertTrue(c.x() >= 88 && c.x() <= 113, "" + c);
+        }
+        assertTrue(new BusStop(2, "x", "world", 0, 0, 0, 1, 0, 1, 4, false, false, "").shoulderColumns(24).isEmpty());
+    }
+
+    @Test
     void bayShape() {
         BusSpec s = spec();
         // a road running east, the stop on its right (south, +z)

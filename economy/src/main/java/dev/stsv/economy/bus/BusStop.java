@@ -79,6 +79,26 @@ public record BusStop(int id, String name, String world, double x, double z, int
         return new ArrayList<>(out.values());
     }
 
+    /** How far from the road's middle the kerb ends (the shoulder starts: a verge, reflector posts, guardrails, light posts). */
+    public static final double KERB = 3.5;
+
+    /**
+     * The shoulder's columns along the bay (between the kerb and the bay): paved level with the road so a bus pulls in
+     * smoothly, and cleared of what stands on a shoulder (a reflector post, a guardrail, a light post). None for a simple stop.
+     */
+    public List<Column> shoulderColumns(int length) {
+        Map<Long, Column> out = new LinkedHashMap<>();
+        if (!bay) return List.of();
+        for (double a = -length / 2.0 + 0.25; a < length / 2.0; a += 0.5) {
+            for (double o = KERB + 0.25; o < ROAD_HALF; o += 0.5) {
+                double[] p = at(a, o);
+                int bx = (int) Math.floor(p[0]), bz = (int) Math.floor(p[1]);
+                out.putIfAbsent(((long) bx << 32) ^ (bz & 0xffffffffL), new Column(bx, bz, false));
+            }
+        }
+        return new ArrayList<>(out.values());
+    }
+
     /** How far out the shelter's road side is (behind the bay, or the shoulder for a simple stop). */
     public double shelterOut(int width) {
         return ROAD_HALF + (bay ? width : 0) + 1;

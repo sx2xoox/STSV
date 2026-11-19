@@ -175,7 +175,8 @@ public final class BusRoutes {
     /** A node's place: x, z, its road's surface (half blocks), and which way the road runs there (unit x, z, terminal to dock). */
     public double[] place(int node) {
         int r = roadOf[node];
-        int a = Math.max(base[r], node - 2), b = Math.min(base[r + 1] - 1, node + 2);
+        // the way over 8 points either side: a stop's bay is set straight along the road, not along a pixel's step
+        int a = Math.max(base[r], node - 8), b = Math.min(base[r + 1] - 1, node + 8);
         double hx = xs[b] - xs[a], hz = zs[b] - zs[a], len = Math.max(1e-6, Math.hypot(hx, hz));
         return new double[]{xs[node], zs[node], half[node], hx / len, hz / len};
     }
@@ -314,6 +315,20 @@ public final class BusRoutes {
             lo = Math.min(lo, half[i]);
             hi = Math.max(hi, half[i]);
         }
-        return hi - lo <= 2;   // level along the bay (a block at most)
+        if (hi - lo > 2) return false;   // level along the bay (a block at most)
+        return straight(k, bay / 2 + 4) < STRAIGHT;   // and straight: a bay on a bend leaves the road
+    }
+
+    /** How far the road turns across a bay (degrees). */
+    static final double STRAIGHT = 12;
+
+    /** The angle (degrees) between the road's way over the `reach` points before node k and over those after it. */
+    double straight(int k, int reach) {
+        int r = roadOf[k];
+        int a = Math.max(base[r], k - reach), b = Math.min(base[r + 1] - 1, k + reach);
+        double ax = xs[k] - xs[a], az = zs[k] - zs[a], bx = xs[b] - xs[k], bz = zs[b] - zs[k];
+        double la = Math.hypot(ax, az), lb = Math.hypot(bx, bz);
+        if (la < 1e-6 || lb < 1e-6) return 0;
+        return Math.toDegrees(Math.acos(Math.max(-1, Math.min(1, (ax * bx + az * bz) / (la * lb)))));
     }
 }
