@@ -8,7 +8,7 @@ STSV 공통 플러그인 위에서 도는 첫 번째 콘텐츠: 시즌 없이 **
 
 ## 설치
 
-1. `plugins/` 에 `stsv-core-0.109.1.jar` 와 `stsv-economy-3.91.0.jar` 를 함께 넣습니다 (경제 플러그인은 코어가 필요).
+1. `plugins/` 에 `stsv-core-0.110.0.jar` 와 `stsv-economy-3.92.0.jar` 를 함께 넣습니다 (경제 플러그인은 코어가 필요).
 2. 서버를 켜면 경제 콘텐츠 팩이 `plugins/STSV/contents/economy/` 에 설치되고, 아이템·기계 모델·메뉴 배경이 리소스팩에 들어갑니다.
 3. 돈과 모든 기록은 코어의 저장소(`plugins/STSV/data/stsv.db` 또는 MySQL)에 있습니다. 월드와 별개입니다.
 4. 예전 4주 시즌판(1.x)을 쓰던 서버라면 한 번 `/관리자 초기화 경제서버 확인` 으로 날짜를 1일차부터 다시 시작하는 것을 권합니다.
@@ -671,6 +671,7 @@ STSV 공통 플러그인 위에서 도는 첫 번째 콘텐츠: 시즌 없이 **
 - **손님 목록 (화면 왼쪽 위)**: 운전 중 탄 손님마다 얼굴(스킨에서 뽑은 그림) · 기분(😊🙂😐😠 네 단계) · 종류 · 가는 곳 · 남은 시간을 배경 없이 띄움 (손님이 말하면 3초 동안 그 줄에 흰 말풍선으로 대사, 꼬리가 손님 쪽) (곧 내릴 손님부터, 최대 8명, 리소스팩 HUD). 자리는 사이드바 반대편 화면 끝.
 - **정류장 특성**: 지을 때 주변을 보고 자동으로 붙음 (예전 정류장은 그 자리가 불러와질 때): 산 · 바다 · 들판 · 숲 · 마을(근처 플레이어 땅) · 항구(하역장 300칸 안). 표지판에 특성 이름, 특성마다 손님 비율이 다름 (산 = 등산객, 바다 = 낚시꾼 · 관광객, 들판 = 농부).
 - **손님 12종**: 1차 6종에 농부(보따리 수하물 +100 G, 장날 3배) · 등산객(산 · 숲, 5~17시) · 낚시꾼(바다 · 항구, 3~20시) · 군인(주말 8배, 가는 쪽 끝 정류장까지, 팁 2배) · 커플(둘이 같이 타고 같이 내림, 11~23시) · 술 취한 아저씨(21~4시, 급회전 감점 2배, 20% 확률로 엉뚱한 정류장에서 내림, 잘 졺).
+- **손님 18종**: 택배기사(8~21시, 수하물 +150 G, 늦으면 기분 크게 깎임, 마을) · 유치원생(9~16시, 둘이 같이, 작음, 운임 50%, 급정거 1.5배, 잘 졺) · 캠핑족(주말 4배, 1km 넘는 곳만, 수하물 +120 G, 숲 · 바다 · 산) · 해녀(5~17시, 바다 8배, 기분 감점 덜함, 팁 1.5배) · 야구팬(12~23시, 주말 3배, 팁 1.5배) · 간호사(6~10시 밤샘 퇴근, 잘 졸아 지나칠 수 있음).
 - **장날 · 소풍날**: 5일마다 들판 · 마을 정류장에 장이 섬 (할머니 · 농부 3배, 전체 공지). 매일 9~12시에 정류장 한 곳에 학생 10명이 단체로 기다림 (공지).
 - **말풍선**: 손님이 상황마다 한마디 (머리 위 3초): 탈 때, 급정거 · 부딪힘 · 급회전, 부드러운 정차, 늦음, 경치(바다 · 산 · 숲 정류장 근처, 관광객은 "찰칵"), 하차 벨, 지나침, 고마움. 대사는 bus.yml `talk` (종류별, 없으면 기본).
 - **졸음 · 지나침**: 탄 지 90초가 지나면 종류별 확률로 졺 (머리 까딱 · Zz, 손님 목록에 Zz). 하차 벨 때 조는 손님은 40% 확률로 못 깨고, 내릴 곳을 15칸 넘게 지나치면 "앗! 내려야 되는데!" 기분 −10, 다음 정류장에서 내림 (운임은 실제로 탄 거리만큼). 급정거 · 부딪힘에는 깸. 깨어 있는 손님도 지나치면 "기사님! 여기서 내려요!".
@@ -690,5 +691,5 @@ python3 tools/assetgen/economy_build.py --render   # 아이콘, 기계 모델, �
 python3 tools/assetgen/economy_bus_skins.py --sheet 미리보기.png   # 마을버스 승객 스킨 36장 (--types farmer,hiker 처럼 미리보기에 실을 종류만 고를 수 있음)
 ```
 
-마을버스 승객 스킨(64×64 플레이어 스킨, 안·겉 두 겹)은 `economy/content/economy/assets/economy/textures/entity/bus/<종류>_<1~3>.png` 에 있고, 키 `economy:entity/bus/<종류>_<n>` 로 마네킹 프로필의 스킨 패치(`skinPatch(...).body(키)`, 팔이 가는 것은 `.model(SLIM)`)에 씁니다. 종류는 resident(동네 주민) · student(학생) · grandma(할머니) · office(회사원) · tourist(관광객) · vip · farmer(농부) · hiker(등산객) · fisher(낚시꾼) · soldier(휴가 나온 군인) · couple(커플) · drunk(술 취한 아저씨), 가는 팔은 resident_2 · student_2 · grandma_1~3 · office_2 · tourist_2 · vip_3 · farmer_2 · hiker_2 · fisher_3 · couple_2 · couple_3 (생성기의 `Skin(slim=True)`), 나머지는 보통 팔입니다. 코어의 HUD 얼굴 시트(`plugin/src/main/resources/pack/hud/faces.png`, `sheets.json` 의 `faces`)는 이 폴더의 스킨마다 얼굴 한 칸이라, 스킨을 더하면 `tools/assetgen/hud.py` 의 `faces_sheet()` 로 그 시트만 다시 씁니다(`write()` 전체는 글자 시트까지 바꿉니다).
+마을버스 승객 스킨(64×64 플레이어 스킨, 안·겉 두 겹)은 `economy/content/economy/assets/economy/textures/entity/bus/<종류>_<1~3>.png` 에 있고, 키 `economy:entity/bus/<종류>_<n>` 로 마네킹 프로필의 스킨 패치(`skinPatch(...).body(키)`, 팔이 가는 것은 `.model(SLIM)`)에 씁니다. 종류는 resident(동네 주민) · student(학생) · grandma(할머니) · office(회사원) · tourist(관광객) · vip · farmer(농부) · hiker(등산객) · fisher(낚시꾼) · soldier(휴가 나온 군인) · couple(커플) · drunk(술 취한 아저씨) · courier(택배기사) · kinder(유치원생) · camper(캠핑족) · haenyeo(해녀) · fan(야구팬) · nurse(간호사), 가는 팔은 resident_2 · student_2 · grandma_1~3 · office_2 · tourist_2 · vip_3 · farmer_2 · hiker_2 · fisher_3 · couple_2 · couple_3 · courier_2 · kinder_2 · camper_2 · haenyeo_1~3 · fan_2 · nurse_1 · nurse_3 (생성기의 `Skin(slim=True)`), 나머지는 보통 팔입니다. 코어의 HUD 얼굴 시트(`plugin/src/main/resources/pack/hud/faces.png`, `sheets.json` 의 `faces`)는 이 폴더의 스킨마다 얼굴 한 칸이라, 스킨을 더하면 `tools/assetgen/hud.py` 의 `faces_sheet()` 로 그 시트만 다시 씁니다(`write()` 전체는 글자 시트까지 바꿉니다).
 
