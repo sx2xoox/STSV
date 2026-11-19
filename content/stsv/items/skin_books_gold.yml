@@ -130,7 +130,7 @@ candy_shovel_skin:
   name: "<#ffa8c5>스킨북: 사탕 삽"
   lore:
     - "<gold>사탕 (adds 시리즈</gold> <dark_gray>· <gray>삽 스킨"
-    - "<gray>딸기 크림 웨하스 삽"
+    - "<gray>체리 올린 웨하스 삽"
     - "<gray>겉모습만 바뀜 · 떼기: /스킨 해제"
     - "<yellow>우클릭: 삽에 입히기"
   texture: skin_book
@@ -160,7 +160,7 @@ candy_hoe_skin:
   name: "<#ffa8c5>스킨북: 사탕 괭이"
   lore:
     - "<gold>사탕 (adds 시리즈</gold> <dark_gray>· <gray>괭이 스킨"
-    - "<gray>민트 젤리곰이 매달린 괭이"
+    - "<gray>젤리곰이 앉은 사탕 괭이"
     - "<gray>겉모습만 바뀜 · 떼기: /스킨 해제"
     - "<yellow>우클릭: 괭이에 입히기"
   texture: skin_book
@@ -192,7 +192,7 @@ pirate_sword_skin:
   name: "<#d4a24c>스킨북: 해적 커틀러스"
   lore:
     - "<gold>해적 시리즈</gold> <dark_gray>· <gray>검 스킨"
-    - "<gray>놋쇠 손잡이의 휜 해적 검"
+    - "<gray>이 빠진 날의 놋쇠 손잡이 검"
     - "<gray>겉모습만 바뀜 · 떼기: /스킨 해제"
     - "<yellow>우클릭: 검에 입히기"
   texture: skin_book
@@ -252,7 +252,7 @@ pirate_hoe_skin:
   name: "<#d4a24c>스킨북: 해적 괭이"
   lore:
     - "<gold>해적 시리즈</gold> <dark_gray>· <gray>괭이 스킨"
-    - "<gray>닻 갈고리 모양의 괭이"
+    - "<gray>닻 장식을 매단 녹슨 괭이"
     - "<gray>겉모습만 바뀜 · 떼기: /스킨 해제"
     - "<yellow>우클릭: 괭이에 입히기"
   texture: skin_book
@@ -436,7 +436,7 @@ camping_hoe_skin:
   name: "<#f07a2a>스킨북: 캠핑 괭이"
   lore:
     - "<gold>캠핑 시리즈</gold> <dark_gray>· <gray>괭이 스킨"
-    - "<gray>작은 야전 곡괭이형 괭이"
+    - "<gray>곧게 뻗은 주황 날의 괭이"
     - "<gray>겉모습만 바뀜 · 떼기: /스킨 해제"
     - "<yellow>우클릭: 괭이에 입히기"
   texture: skin_book

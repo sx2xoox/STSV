@@ -20,6 +20,8 @@ HERE = Path(__file__).parent
 REPO = HERE.parent.parent
 CONTENT = REPO / "content" / "stsv"
 # 도구 스킨 세트 모듈 (models/skinset_<id>.py): 후원 (효과 있음) · 골드
+# 후원 탈것 (models/vehicles_donation_<id>.py, 아이콘 vehicle_icons_donation_<id>.py: vehicle_icons.ICONS 에 등록)
+DONATION_VEHICLES = ("classic_roadster", "retro_camper", "sidecar_bike", "muscle_car", "concept_ev")
 SKINSETS = ("dragon", "galaxy", "najeon", "frost", "magma", "woodcraft", "candy", "pirate", "kitchen", "camping")
 # the TEST set (every kind of item and recipe once) is a test fixture, never shipped
 FIXTURE = REPO / "plugin" / "src" / "test" / "fixtures" / "stsv"
@@ -63,9 +65,12 @@ def main():
     import importlib
     # 도구 스킨 세트 (models/skinset_<id>.py, the toy series' frame): 후원 5 + 골드 5; preview: toys_preview.py --module skinset_<id>
     skinsets = [importlib.import_module(f"models.skinset_{n}") for n in SKINSETS]
+    donation_cars = [importlib.import_module(f"models.vehicles_donation_{n}") for n in DONATION_VEHICLES]
     import furniture_icons
     import furniture_icons_retro
     import vehicle_icons
+    for n in DONATION_VEHICLES:
+        importlib.import_module(f"vehicle_icons_donation_{n}")   # registers into vehicle_icons.ICONS
     import vehicle_icons_road
     import vehicle_icons_farm
     import vehicle_icons_misc
@@ -73,7 +78,7 @@ def main():
     ALL = {**ITEMS, **cosmetic_models, **furniture.ALL, **furniture_retro.ALL, **vehicles.ALL, **vehicles_road.ALL, **vehicles_farm.ALL, **vehicles_misc.ALL,
            **vehicles_boats.ALL, **vehicles_fun.ALL,
            **vehicle_lights.ALL, **vehicle_tools.ALL, **vehicle_paints.ALL, **toys.ALL, **karts.ALL, **kart_ghosts.ALL,
-           **{k: v for m in skinsets for k, v in m.ALL.items()}}
+           **{k: v for m in skinsets for k, v in m.ALL.items()}, **{k: v for m in donation_cars for k, v in m.ALL.items()}}
     import special
 
     def home(name):
@@ -81,7 +86,7 @@ def main():
             or name in vehicles_road.ALL or name in vehicles_farm.ALL or name in vehicles_misc.ALL or name in vehicles_boats.ALL \
             or name in vehicles_fun.ALL \
             or name in vehicle_lights.ALL or name in vehicle_tools.ALL or name in vehicle_paints.ALL or name in toys.ALL \
-            or name in karts.ALL or name in kart_ghosts.ALL or any(name in m.ALL for m in skinsets) else FIXTURE
+            or name in karts.ALL or name in kart_ghosts.ALL or any(name in m.ALL for m in skinsets) or any(name in m.ALL for m in donation_cars) else FIXTURE
 
     for d in (CONTENT / "models", CONTENT / "textures", FIXTURE / "models", FIXTURE / "textures", BUILD, PREVIEWS):
         d.mkdir(parents=True, exist_ok=True)

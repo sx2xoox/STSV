@@ -40,7 +40,7 @@ categories:
   cars:
     name: "후원 차량"
     icon: "stsv:gui/don_car"
-    products: [hyper_car, grand_sedan, luxury_suv]
+    products: [hyper_car, grand_sedan, luxury_suv, classic_roadster, muscle_car, concept_ev, retro_camper, sidecar_bike]
   banners:
     name: "칭호 배너"
     icon: "stsv:gui/flag"
@@ -90,6 +90,42 @@ products:
       - "<gray>4인승 몬스터 오프로더"
       - "<white>9블록/초 <gray>· 험한 땅도 그대로"
     item: stsv:luxury_suv
+  # ---- 후원 탈것 5종 (2026-11) ----
+  classic_roadster:
+    name: "클래식 로드스터"
+    price: 120          # 12,000원
+    description:
+      - "<gray>2인승 클래식 오픈카 · 문 2짝"
+      - "<white>11블록/초 <gray>· 화이트월 타이어 · 짐칸 없음"
+    item: stsv:classic_roadster
+  retro_camper:
+    name: "레트로 캠핑밴"
+    price: 100          # 10,000원
+    description:
+      - "<gray>6인승 캠핑밴 · 팝업 텐트 지붕 · 미닫이 문"
+      - "<white>8블록/초 <gray>· 느긋하게 · 짐칸 없음"
+    item: stsv:retro_camper
+  sidecar_bike:
+    name: "사이드카 오토바이"
+    price: 100          # 10,000원
+    description:
+      - "<gray>2인승 · 세 바퀴 · 총알형 사이드카"
+      - "<white>10블록/초 <gray>· 짐칸 없음"
+    item: stsv:sidecar_bike
+  muscle_car:
+    name: "머슬카"
+    price: 120          # 12,000원
+    description:
+      - "<gray>2인승 머슬 쿠페 · 에어 스쿠프 · 레이싱 줄무늬"
+      - "<white>12블록/초 <gray>· 큰 드리프트 · 짐칸 없음"
+    item: stsv:muscle_car
+  concept_ev:
+    name: "콘셉트 EV"
+    price: 120          # 12,000원
+    description:
+      - "<gray>4인승 전기 콘셉트카 · 걸윙 도어 · 통유리 캐노피"
+      - "<white>11블록/초 <gray>· 조용함 · 짐칸 없음"
+    item: stsv:concept_ev
 
   # 칭호 배너: 칭호와 닉네임을 움직이는 판에 담아 채팅 · 탭 목록 · 머리 위에 보여 줌. 상점 칸에 내 이름으로 미리보기가 나옴
   banner_fire:
@@ -511,7 +547,7 @@ products:
   dragon_hoe:
     name: "스킨북: 청룡 괭이"
     price: 25           # 2,500원
-    description: ["<gray>용의 턱을 닮은 비취 괭이", "<dark_gray>도구 하나에 입힘 · 겉모습 + 효과"]
+    description: ["<gray>여의주 박힌 곧은 비취 괭이", "<dark_gray>도구 하나에 입힘 · 겉모습 + 효과"]
     item: stsv:dragon_hoe_skin
     icon: "stsv:dragon_hoe"
   dragon_fishing_rod:
@@ -556,7 +592,7 @@ products:
   galaxy_hoe:
     name: "스킨북: 은하수 괭이"
     price: 25           # 2,500원
-    description: ["<gray>고리 행성을 품은 괭이", "<dark_gray>도구 하나에 입힘 · 겉모습 + 효과"]
+    description: ["<gray>곧은 별빛 수정 날의 괭이", "<dark_gray>도구 하나에 입힘 · 겉모습 + 효과"]
     item: stsv:galaxy_hoe_skin
     icon: "stsv:galaxy_hoe"
   galaxy_fishing_rod:
@@ -601,7 +637,7 @@ products:
   najeon_hoe:
     name: "스킨북: 자개 괭이"
     price: 25           # 2,500원
-    description: ["<gray>옥판을 단 자개 괭이", "<dark_gray>도구 하나에 입힘 · 겉모습 + 효과"]
+    description: ["<gray>옥날을 단 자개 괭이", "<dark_gray>도구 하나에 입힘 · 겉모습 + 효과"]
     item: stsv:najeon_hoe_skin
     icon: "stsv:najeon_hoe"
   najeon_fishing_rod:

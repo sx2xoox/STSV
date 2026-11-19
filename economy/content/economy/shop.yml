@@ -593,6 +593,7 @@ buy:
       - { item: stsv:rowboat, price: 100000 }        # 나룻배
       - { item: stsv:fishing_boat, price: 300000 }   # 통통배
       - { item: stsv:coastal_boat, price: 1000000 }  # 연안 어선
+
   # 도구 스킨 (골드): 스킨북은 도구 겉모습만 바꿈 (효과 없음, 후원 스킨북은 /후원). 세트 30만 G, 한 권 7만 5천 G (6권 45만 G)
   tool_skins:
     name: "도구 스킨"

@@ -174,7 +174,7 @@ dragon_hoe_skin:
   name: "<#3fd0c0>스킨북: 청룡 괭이"
   lore:
     - "<gold>후원 · 청룡 시리즈</gold> <dark_gray>· <gray>괭이 스킨"
-    - "<gray>용의 턱을 닮은 비취 괭이"
+    - "<gray>여의주 박힌 곧은 비취 괭이"
     - "<light_purple>✦ 들고 있으면 빛나고, 쓸 때 효과"
     - "<gray>겉모습만 바뀜 · 떼기: /스킨 해제"
     - "<yellow>우클릭: 괭이에 입히기"
@@ -279,7 +279,7 @@ galaxy_hoe_skin:
   name: "<#9b8cff>스킨북: 은하수 괭이"
   lore:
     - "<gold>후원 · 은하수 시리즈</gold> <dark_gray>· <gray>괭이 스킨"
-    - "<gray>고리 행성을 품은 괭이"
+    - "<gray>곧은 별빛 수정 날의 괭이"
     - "<light_purple>✦ 들고 있으면 빛나고, 쓸 때 효과"
     - "<gray>겉모습만 바뀜 · 떼기: /스킨 해제"
     - "<yellow>우클릭: 괭이에 입히기"
@@ -384,7 +384,7 @@ najeon_hoe_skin:
   name: "<#f0c4e4>스킨북: 자개 괭이"
   lore:
     - "<gold>후원 · 자개 시리즈</gold> <dark_gray>· <gray>괭이 스킨"
-    - "<gray>옥판을 단 자개 괭이"
+    - "<gray>옥날을 단 자개 괭이"
     - "<light_purple>✦ 들고 있으면 빛나고, 쓸 때 효과"
     - "<gray>겉모습만 바뀜 · 떼기: /스킨 해제"
     - "<yellow>우클릭: 괭이에 입히기"

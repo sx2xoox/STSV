@@ -510,3 +510,251 @@ hand_cart:
       behind: 1.2
       at: [0, 0.875, 0]
       stages: [hand_cart_cargo_1, hand_cart_cargo_2, hand_cart_cargo_3, hand_cart_cargo_4]
+
+# ==== 후원 탈것 5종 (2026-11): 모델 tools/assetgen/models/vehicles_donation_<id>.py, 아이콘 vehicle_icons_donation_<id>.py ====
+
+# 후원 · 클래식 로드스터: 1950년대풍 2인승 오픈카 (지붕 없음, 크롬 테 낮은 앞유리, 접힌 소프트톱). 빠르지 않고 부드럽게 달림 (드리프트 없음)
+classic_roadster:
+  material: paper
+  name: "<#e8455a>클래식 로드스터"
+  lore:
+    - "<gold>후원 한정</gold> <gray>· 2인승 클래식 오픈카"
+    - "<white>11블록/초 <gray>· 부드러운 크루저 · 짐칸 없음"
+    - "<dark_gray>W·S·A·D 운전 · 웅크리기: 내리기"
+    - "<dark_gray>스페이스: 경적"
+    - "<yellow>우클릭: 세우기 · 타기"
+    - "<yellow>웅크리고 우클릭: 회수"
+  model: classic_roadster
+  icon: classic_roadster_icon
+  max-stack: 1
+  vehicle:
+    body-scale: 2
+    speed: 11
+    over-cap: true
+    reverse-speed: 3
+    acceleration: 3.8
+    brake: 10
+    coast: 1.8
+    turn-rate: 64
+    turn-speed: 3
+    step-height: 1.0
+    size: [4.5, 1.9, 1.2]
+    click-height: 0.9
+    wheel: wheel_classic
+    wheel-radius: 0.375
+    wheels:
+      - { at: [-0.75, 0.375, 1.3125], steer: true }
+      - { at: [0.75, 0.375, 1.3125], steer: true }
+      - { at: [-0.75, 0.375, -1.3125] }
+      - { at: [0.75, 0.375, -1.3125] }
+    seats:
+      - { at: [-0.34, 0.3, -0.0625] }
+      - { at: [0.34, 0.3, -0.0625] }
+    movers:
+      # 문 둘: 앞 모서리가 경첩이라 바깥으로 열림
+      - { model: classic_roadster_door_l, hinge: [-0.90625, 0.5, 0.6875], axis: [0, 1, 0], turn: -65, when: door, seats: [0], ticks: 10 }
+      - { model: classic_roadster_door_r, hinge: [0.90625, 0.5, 0.6875], axis: [0, 1, 0], turn: 65, when: door, seats: [1], ticks: 10 }
+    plates:
+      - { at: [0, 0.28, 2.32], width: 0.5, height: 0.1 }
+      - { at: [0, 0.47, -2.19], back: true, width: 0.45, height: 0.1 }
+    horn: { sound: stsv:vehicle.grand_sedan.horn, release: stsv:vehicle.grand_sedan.horn_end, volume: 1.4,
+            vanilla: block.note_block.didgeridoo, pitch: 1.2, times: 2, gap: 3 }
+    engine: { sound: stsv:vehicle.grand_sedan.engine, volume: 0.4, idle-volume: 0.16, idle-pitch: 0.6, top-pitch: 1.5, segment-ticks: 10 }
+
+# 후원 · 레트로 캠핑밴: 민트·크림 투톤에 물결 줄무늬, 접힌 팝업 텐트 지붕 위 서핑보드, 오른쪽 미닫이 문. 6인승(앞 2 + 벤치 두 줄).
+# 느리고 부드러움 (드리프트 없음). 모델: tools/assetgen/models/vehicles_donation_retro_camper.py
+retro_camper:
+  material: paper
+  name: "<#8fd1b0>레트로 캠핑밴"
+  lore:
+    - "<gold>후원 한정</gold> <gray>· 6인승 레트로 캠핑밴"
+    - "<white>8블록/초 <gray>· 느긋함 · 짐칸 없음"
+    - "<dark_gray>W·S·A·D 운전 · 웅크리기: 내리기"
+    - "<dark_gray>스페이스: 경적"
+    - "<yellow>우클릭: 세우기 · 타기"
+    - "<yellow>웅크리고 우클릭: 회수"
+  model: retro_camper
+  icon: retro_camper_icon
+  max-stack: 1
+  vehicle:
+    body-scale: 2
+    speed: 8
+    reverse-speed: 3
+    acceleration: 2.6
+    brake: 9
+    coast: 1.8
+    turn-rate: 56
+    turn-speed: 3
+    step-height: 1.0
+    size: [4.7, 2.1, 2.8]
+    click-height: 1.3
+    wheel: wheel_retro_camper
+    wheel-radius: 0.375
+    wheels:
+      - { at: [-0.84375, 0.375, 1.5625], steer: true }
+      - { at: [0.84375, 0.375, 1.5625], steer: true }
+      - { at: [-0.84375, 0.375, -1.4375] }
+      - { at: [0.84375, 0.375, -1.4375] }
+    # 운전석(왼쪽 앞)·조수석, 그 뒤로 벤치 두 줄에 두 자리씩
+    seats:
+      - { at: [-0.46875, 1.04, 1.125] }
+      - { at: [0.46875, 1.04, 1.125] }
+      - { at: [-0.4375, 1.04, 0] }
+      - { at: [0.4375, 1.04, 0] }
+      - { at: [-0.4375, 1.04, -1.0625] }
+      - { at: [0.4375, 1.04, -1.0625] }
+    movers:
+      # 앞문 둘: 앞 모서리를 축으로 바깥으로 열림
+      - { model: retro_camper_door_l, hinge: [-1.0, 1.25, 2.03125], axis: [0, 1, 0], turn: -70, when: door, seats: [0], ticks: 10 }
+      - { model: retro_camper_door_r, hinge: [1.0, 1.25, 2.03125], axis: [0, 1, 0], turn: 70, when: door, seats: [1], ticks: 10 }
+      # 오른쪽 미닫이 문: 1픽셀 바깥으로 나오며 뒤로 밀려 열림 (뒷자리 넷)
+      - { model: retro_camper_slide_door, slide: [0.0625, 0, -0.75], when: door, seats: [2, 3, 4, 5], ticks: 12 }
+    plates:
+      - { at: [0, 0.406, 2.3438], width: 0.5, height: 0.15 }
+      - { at: [0, 0.406, -2.3438], back: true, width: 0.5, height: 0.15 }
+    horn: { sound: stsv:vehicle.cargo_van.horn, release: stsv:vehicle.cargo_van.horn_end, volume: 1.3,
+            vanilla: block.note_block.didgeridoo, pitch: 1.3, times: 2, gap: 3 }
+    engine: { sound: stsv:vehicle.cargo_van.engine, volume: 0.4, idle-volume: 0.2, idle-pitch: 0.6, top-pitch: 1.3, segment-ticks: 10 }
+
+# 후원 · 사이드카 오토바이: 클래식 투어링 오토바이 오른쪽에 총알 모양 사이드카. 세 바퀴(사이드카 바퀴 포함), 2인승 (운전자는 오토바이에 걸터앉고, 동승자는 사이드카에)
+sidecar_bike:
+  material: paper
+  name: "<#b0464f>사이드카 오토바이"
+  lore:
+    - "<gold>후원 한정</gold> <gray>· 2인승 사이드카 오토바이"
+    - "<white>10블록/초 <gray>· 짐칸 없음"
+    - "<dark_gray>W·S·A·D 운전 · 웅크리기: 내리기"
+    - "<dark_gray>스페이스: 경적 · Ctrl+A·D: 살짝 드리프트"
+    - "<yellow>우클릭: 세우기 · 타기"
+    - "<yellow>웅크리고 우클릭: 회수"
+  model: sidecar_bike
+  icon: sidecar_bike_icon
+  max-stack: 1
+  vehicle:
+    body-scale: 2
+    speed: 10
+    drift: { angle: 14, min-speed: 5, build: 70, recover: 140, turn: 1.2, drag: 1.2 }
+    reverse-speed: 2.5
+    acceleration: 3.6
+    brake: 10
+    coast: 1.8
+    turn-rate: 75
+    turn-speed: 3
+    step-height: 1.0
+    size: [2.5, 1.9, 1.5]
+    click-height: 1.0
+    wheel: wheel_sidecar
+    wheel-radius: 0.375
+    wheels:
+      - { at: [-0.40625, 0.375, 0.8125], steer: true }
+      - { at: [-0.40625, 0.375, -0.8125] }
+      - { at: [0.890625, 0.375, -0.3125] }       # 사이드카 바퀴
+    seats:
+      - { at: [-0.40625, 1.12, -0.1875] }        # 운전자: 안장에 걸터앉음 (배달 오토바이와 같은 높이)
+      - { at: [0.4375, 0.76, -0.21875] }         # 동승자: 사이드카 안
+    plates:
+      - { at: [-0.40625, 0.578, -1.2656], back: true, width: 0.26, height: 0.12 }
+    horn: { sound: stsv:vehicle.delivery_scooter.horn, release: stsv:vehicle.delivery_scooter.horn_end, volume: 1.5,
+            vanilla: block.note_block.didgeridoo, pitch: 1.3, times: 2, gap: 3 }
+    engine: { sound: stsv:vehicle.atv.engine, volume: 0.45, idle-volume: 0.2, idle-pitch: 0.5, top-pitch: 1.3, segment-ticks: 10 }
+
+# 후원 · 머슬카: 긴 보닛에 에어 스쿠프, 패스트백 꽁무니의 2인승 쿠페 (원래 디자인, 실제 차종 없음). 레이싱 줄무늬, 크롬 범퍼.
+# 하이퍼카보다 느리지만(12블록/초) 드리프트가 더 헐거움 (더 크게 돌아가고 더 오래 미끄러짐)
+muscle_car:
+  material: paper
+  name: "<#f07a1e>머슬카"
+  lore:
+    - "<gold>후원 한정</gold> <gray>· 2인승 머슬 쿠페"
+    - "<white>12블록/초 <gray>· 짐칸 없음"
+    - "<dark_gray>W·S·A·D 운전 · 웅크리기: 내리기"
+    - "<dark_gray>스페이스: 경적 · Ctrl+A·D: 드리프트"
+    - "<yellow>우클릭: 세우기 · 타기"
+    - "<yellow>웅크리고 우클릭: 회수"
+  model: muscle_car
+  icon: muscle_car_icon
+  max-stack: 1
+  vehicle:
+    body-scale: 2
+    speed: 12
+    over-cap: true
+    drift: { angle: 38, min-speed: 5, build: 110, recover: 120, turn: 1.7, drag: 1.3 }
+    reverse-speed: 4
+    acceleration: 6.5
+    brake: 14
+    coast: 2.3
+    turn-rate: 76
+    turn-speed: 4
+    step-height: 1.0
+    size: [4.8, 2.1, 1.55]
+    click-height: 1.0
+    wheel: wheel_muscle
+    wheel-radius: 0.40625
+    wheels:
+      - { at: [-0.78125, 0.40625, 1.4375], steer: true }
+      - { at: [0.78125, 0.40625, 1.4375], steer: true }
+      - { at: [-0.84375, 0.40625, -1.4375] }     # 뒷바퀴는 1픽셀 더 바깥 (넓은 뒤 트레드, 부푼 뒤 펜더)
+      - { at: [0.84375, 0.40625, -1.4375] }
+    seats:
+      - { at: [-0.42, 0.26, -0.1875] }
+      - { at: [0.42, 0.26, -0.1875] }
+    movers:
+      # 문 둘: 앞 모서리가 경첩, 바깥으로 열림
+      - { model: muscle_car_door_l, hinge: [-0.96875, 0.6, 0.875], axis: [0, 1, 0], turn: -65, when: door, seats: [0], ticks: 10 }
+      - { model: muscle_car_door_r, hinge: [0.96875, 0.6, 0.875], axis: [0, 1, 0], turn: 65, when: door, seats: [1], ticks: 10 }
+    plates:
+      - { at: [0, 0.328, 2.486], width: 0.45, height: 0.11 }
+      - { at: [0, 0.53, -2.38], back: true, width: 0.45, height: 0.12 }
+    horn: { sound: stsv:vehicle.sports_car.horn, release: stsv:vehicle.sports_car.horn_end, volume: 1.5,
+            vanilla: block.note_block.didgeridoo, pitch: 1.0, times: 1 }
+    engine: { sound: stsv:vehicle.sports_car.engine, volume: 0.6, idle-volume: 0.26, idle-pitch: 0.45, top-pitch: 1.7, segment-ticks: 10 }
+
+# 후원 · 콘셉트 EV: 매끈한 조약돌 모양의 4인승 전기 콘셉트카. 앞뒤 끝까지 이어진 빛 띠, 통유리 캐노피, 위로 열리는 걸윙 도어
+concept_ev:
+  material: paper
+  name: "<gradient:#e8fbff:#3fd8f0>콘셉트 EV</gradient>"
+  lore:
+    - "<gold>후원 한정</gold> <gray>· 4인승 전기 콘셉트카 · 걸윙 도어"
+    - "<white>11블록/초 <gray>· 조용함 · 짐칸 없음"
+    - "<dark_gray>W·S·A·D 운전 · 웅크리기: 내리기"
+    - "<dark_gray>스페이스: 경적 · Ctrl+A·D: 드리프트"
+    - "<yellow>우클릭: 세우기 · 타기"
+    - "<yellow>웅크리고 우클릭: 회수"
+  model: concept_ev
+  icon: concept_ev_icon
+  max-stack: 1
+  vehicle:
+    body-scale: 2
+    speed: 11
+    over-cap: true
+    drift: { angle: 20, min-speed: 6, build: 80, recover: 170, turn: 1.3, drag: 1.7 }
+    reverse-speed: 4
+    acceleration: 6.0
+    brake: 13
+    coast: 1.8
+    turn-rate: 72
+    turn-speed: 3.5
+    step-height: 1.0
+    size: [4.9, 2.0, 1.75]
+    click-height: 1.0
+    wheel: wheel_concept
+    wheel-radius: 0.4375
+    wheels:
+      - { at: [-0.84375, 0.4375, 1.5625], steer: true }
+      - { at: [0.84375, 0.4375, 1.5625], steer: true }
+      - { at: [-0.84375, 0.4375, -1.5625] }
+      - { at: [0.84375, 0.4375, -1.5625] }
+    seats:
+      - { at: [-0.34, 0.3, 0.4375] }
+      - { at: [0.34, 0.3, 0.4375] }
+      - { at: [-0.34, 0.3, -0.625] }
+      - { at: [0.34, 0.3, -0.625] }
+    movers:
+      # 걸윙 도어: 지붕 가장자리를 축으로 위로 열림 (한쪽 문 하나로 앞뒤 좌석이 함께 타고 내림)
+      - { model: concept_ev_door_l, hinge: [-0.8125, 1.656, 0], axis: [0, 0, 1], turn: 75, when: door, seats: [0, 2], ticks: 12 }
+      - { model: concept_ev_door_r, hinge: [0.8125, 1.656, 0], axis: [0, 0, 1], turn: -75, when: door, seats: [1, 3], ticks: 12 }
+    plates:
+      - { at: [0, 0.25, 2.4375], width: 0.5, height: 0.1 }
+      - { at: [0, 0.5, -2.4375], back: true, width: 0.6, height: 0.11 }
+    horn: { sound: stsv:vehicle.grand_sedan.horn, release: stsv:vehicle.grand_sedan.horn_end, volume: 1.4,
+            vanilla: block.note_block.bit, pitch: 1.4, times: 1 }
+    engine: { sound: stsv:vehicle.golf_cart.engine, volume: 0.4, idle-volume: 0.08, idle-pitch: 0.7, top-pitch: 1.9, segment-ticks: 10 }
