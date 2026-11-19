@@ -654,14 +654,16 @@ public final class HudLayout {
      * The panel with the server mark and its rows at a placement (fitted to its rows, see {@link #fit}), or null
      * when there is nothing to show. With edit, corner brackets mark it as being moved. Zero net advance.
      */
-    public Component panel(List<Row> entries, Placement place, boolean edit) {
+    /** How wide the panel of these rows is at a placement's size (0 when it shows nothing). */
+    public int panelWidth(List<Row> entries, Placement place) {
         Size size = place.size() == null ? Size.NORMAL : place.size();
-        Column col = columns.get(size);
         List<Line> lines = lay(entries, size);
-        if (lines.isEmpty()) return null;
-        Placement at = fit(new Placement(size, place.right(), place.top()), lines.size());
-        int k = size.scale, slot0 = (at.top() - col.top0()) / size.row();
-        HudFont pic = col.pictures(), measure = col.rows().getFirst();
+        return lines.isEmpty() ? 0 : width(lines, size);
+    }
+
+    private int width(List<Line> lines, Size size) {
+        int k = size.scale;
+        HudFont measure = columns.get(size).rows().getFirst();
         int widest = 0, valueGap = size.px(VALUE_GAP);
         for (Line l : lines) {
             int w = HudText.width(measure, l.text());
@@ -671,7 +673,19 @@ public final class HudLayout {
         int markWidth = sheets.sheet("panel_mark").advanceAt(sheets.sheet("panel_mark").index("mark"), k) - 1;
         int pad = size.px(PAD), textX = size.px(TEXT_X);
         int width = Math.max(Math.max(size.px(MIN_WIDTH), size.px(MARK_X) + markWidth + pad), Math.min(maxWidth(size), textX + widest + pad));
-        width = (width + k - 1) / k * k;   // whole art pixels: every strip and divider is a whole number of pieces
+        return (width + k - 1) / k * k;   // whole art pixels: every strip and divider is a whole number of pieces
+    }
+
+    public Component panel(List<Row> entries, Placement place, boolean edit) {
+        Size size = place.size() == null ? Size.NORMAL : place.size();
+        Column col = columns.get(size);
+        List<Line> lines = lay(entries, size);
+        if (lines.isEmpty()) return null;
+        Placement at = fit(new Placement(size, place.right(), place.top()), lines.size());
+        int k = size.scale, slot0 = (at.top() - col.top0()) / size.row();
+        HudFont pic = col.pictures();
+        int width = width(lines, size);
+        int pad = size.px(PAD), textX = size.px(TEXT_X);
         int right = at.right(), x = right - width, top = at.top();
         String st = size.style.suffix;
 
@@ -730,6 +744,31 @@ public final class HudLayout {
     static final int BUBBLE_DY = -2;
     /** At most this many overlay rows (a bus's passengers), from the top slot of the normal size's column. */
     static final int OVERLAY_ROWS = 8;
+
+    /** How wide the overlay of these rows is (its widest row, a speech bubble included). */
+    public int overlayWidth(List<OverlayRow> rows) {
+        HudFont f = columns.get(Size.NORMAL).rows().getFirst();
+        int widest = 0;
+        for (OverlayRow r : rows) {
+            int w = OVERLAY_TEXT_X + HudText.width(f, HudText.onPanel(HudText.supported(f, HudText.cells(r.text()))));
+            if (r.bubble() != null) w += BUBBLE_GAP + BUBBLE_LEFT + HudText.width(f, HudText.supported(f, HudText.cells(r.bubble()))) + 2 + 3;
+            widest = Math.max(widest, w);
+        }
+        return widest;
+    }
+
+    /**
+     * Where the overlay's left edge goes, opposite the player's sidebar (whose place they set against an edge of their
+     * screen; the server never learns the screen's width): a sidebar on the right (its right edge {@code right} px right of
+     * the middle) puts the overlay's left edge as far left; a sidebar on the left (its left edge right - width) tells
+     * where the left of the screen is, and so the right: the overlay ends there, {@code inset} px in.
+     */
+    public static int overlayLeft(int sidebarRight, int sidebarWidth, int overlayWidth, int inset) {
+        boolean onRight = sidebarRight - sidebarWidth / 2.0 >= 0;
+        if (onRight) return -sidebarRight + inset;
+        int half = sidebarWidth - sidebarRight;   // the screen's half width: the sidebar's left edge is at -half
+        return half - inset - overlayWidth;
+    }
 
     /**
      * The overlay: no background, no frame, only the pictures and the shadowed letters, one row a slot from the top of

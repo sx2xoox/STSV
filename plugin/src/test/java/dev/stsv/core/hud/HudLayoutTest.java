@@ -584,4 +584,16 @@ class HudLayoutTest {
             assertEquals(dx, sum);
         }
     }
+
+    @Test
+    void theOverlayGoesOppositeTheSidebar() {
+        // a sidebar against the right edge of a 427-wide GUI (right 213): the overlay starts 2 in from the left edge
+        assertEquals(-211, HudLayout.overlayLeft(213, 132, 180, 2));
+        // a sidebar against the left edge of a 480-wide GUI (its left edge at -240, 132 wide: right -108): the overlay
+        // ends 2 in from the right edge (240), whatever its width
+        assertEquals(240 - 2 - 180, HudLayout.overlayLeft(-108, 132, 180, 2));
+        assertEquals(240 - 2 - 260, HudLayout.overlayLeft(-108, 132, 260, 2));
+        int left = HudLayout.overlayLeft(-108, 132, 260, 2);
+        assertTrue(left + 260 <= 240, "inside the screen");
+    }
 }

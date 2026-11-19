@@ -103,7 +103,10 @@ class HudPreviewTest {
                         Component.text("1번 동항선 ↗ 다음 시장 앞 · 1.2km"), 23, 0),
                 full(1920, 1080, 0, "1080p 자동 GUI · /사이드바 위치 로 오른쪽 끝에 붙임 → 손님 목록은 왼쪽 끝", atRight(1920, 1080, 4, HudLayout.Size.NORMAL, 54), normal,
                         Component.text("1번 동항선 ↗ 다음 시장 앞 · 1.2km"), 23, 0),
-                full(2560, 1440, 0, "1440p 자동 GUI · 기본 자리", null, normal, Component.text("1번 동항선 ↗ 다음 시장 앞 · 1.2km"), 23, 0)));
+                full(2560, 1440, 0, "1440p 자동 GUI · 기본 자리", null, normal, Component.text("1번 동항선 ↗ 다음 시장 앞 · 1.2km"), 23, 0),
+                full(1920, 1080, 0, "1080p 자동 GUI · 사이드바를 왼쪽 끝에 → 손님 목록은 오른쪽 끝 (말풍선까지 화면 안)",
+                        atLeft(layout, client, rows, 1920, 1080, 4, HudLayout.Size.NORMAL, 54), normal,
+                        Component.text("1번 동항선 ↗ 다음 시장 앞 · 1.2km"), 23, 0)));
 
         JsonObject root = new JsonObject();
         JsonObject out = new JsonObject();
@@ -138,7 +141,9 @@ class HudPreviewTest {
                             new HudLayout.OverlayRow("office_3", "mood_meh", Lang.mm("bus.overlay-row", "color", "#c9d2dc", "type", "회사원", "dest", "동항 앞", "left", "<red>지각</red>")),
                             new HudLayout.OverlayRow("tourist_1", "mood_bad", Lang.mm("bus.overlay-row", "color", "#ffd166", "type", "관광객", "dest", "동항 앞", "left", "4:12")),
                             new HudLayout.OverlayRow("vip_2", "mood_great", Lang.mm("bus.overlay-row", "color", "#ffcf40", "type", "VIP", "dest", "동항 앞", "left", "5:30")));
-                    for (HudClient.Draw d : client.lay(layout.overlay(bus, -(s.place() == null ? layout.defaults() : s.place()).right() + 2)).draws()) draws.add(draw(d, "top", 3 + d.y()));
+                    HudLayout.Placement at = s.place() == null ? layout.defaults() : s.place();
+                    int left = HudLayout.overlayLeft(at.right(), layout.panelWidth(rows, at), layout.overlayWidth(bus), 2);
+                    for (HudClient.Draw d : client.lay(layout.overlay(bus, left)).draws()) draws.add(draw(d, "top", 3 + d.y()));
                 }
                 for (HudClient.Draw d : client.lay(layout.actionBar(s.health(), s.message())).draws()) draws.add(draw(d, "bottom", d.y() - 72));
                 entry.add("draws", draws);

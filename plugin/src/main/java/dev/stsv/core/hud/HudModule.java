@@ -552,9 +552,12 @@ public final class HudModule implements StsvModule, Listener, CommandExecutor, T
         for (var e : overlays.entrySet()) {
             try {
                 List<HudLayout.OverlayRow> rows = e.getValue().apply(p);
-                // mirrored from the player's sidebar: its right edge sits against the right of their screen, so the
-                // same distance to the left is against the left of it (whatever the window and the GUI scale)
-                if (rows != null && !rows.isEmpty()) return layout.overlay(rows, -placement(p).right() + overlayInset);
+                if (rows == null || rows.isEmpty()) continue;
+                // opposite the player's sidebar, which they set against an edge of their screen (HudLayout.overlayLeft)
+                HudLayout.Placement at = placement(p);
+                int sidebarWidth = layout.panelWidth(panelRows(entries(p)), at);
+                if (sidebarWidth <= 0) sidebarWidth = layout.settings().sidebarMaxWidth();
+                return layout.overlay(rows, HudLayout.overlayLeft(at.right(), sidebarWidth, layout.overlayWidth(rows), overlayInset));
             } catch (RuntimeException ex) {
                 plugin.getLogger().warning("오버레이 '" + e.getKey() + "' 오류: " + ex.getMessage());
             }
