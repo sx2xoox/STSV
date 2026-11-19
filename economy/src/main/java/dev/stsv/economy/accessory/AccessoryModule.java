@@ -640,6 +640,71 @@ public final class AccessoryModule extends EcoModule {
         }
     }
 
+    // ------------------------------------------------------------------------------------------
+    // /순위 장신구: everyone's worn accessories, scored (AccessorySpec.score), highest first
+    // ------------------------------------------------------------------------------------------
+
+    public record Scored(UUID player, double score, List<Accessory> worn) {}
+
+    /** Everyone who wears at least one accessory, by score (offline players too: what they wore when they left). */
+    public List<Scored> ranking() {
+        List<Scored> out = new ArrayList<>();
+        for (Map.Entry<UUID, ItemStack[]> e : store.allWorn().entrySet()) {
+            List<Accessory> worn = new ArrayList<>();
+            double score = 0;
+            for (ItemStack it : e.getValue()) {
+                Accessory a = read(it);
+                if (a == null) continue;
+                worn.add(a);
+                score += spec.score(a.grade, a.roll, a.enhance);
+            }
+            if (!worn.isEmpty()) out.add(new Scored(e.getKey(), score, worn));
+        }
+        out.sort(java.util.Comparator.comparingDouble(Scored::score).reversed());
+        return out;
+    }
+
+    /** The chat lines of /순위 장신구: the top 10 (each name shows what they wear on hover) and where I stand. */
+    public List<Component> rankingLines(UUID me) {
+        List<Scored> all = ranking();
+        List<Component> out = new ArrayList<>();
+        out.add(Lang.msg("rank.acc-header", "count", all.size()));
+        if (all.isEmpty()) {
+            out.add(Lang.mm("rank.acc-none"));
+            return out;
+        }
+        for (int i = 0; i < all.size(); i++) {
+            Scored s = all.get(i);
+            boolean mine = s.player().equals(me);
+            if (i >= 10 && !mine) continue;
+            String key = i >= 10 ? "rank.acc-mine" : mine ? "rank.acc-line-me" : "rank.acc-line";
+            Accessory best = s.worn().stream().max(java.util.Comparator.comparingDouble(a -> spec.score(a.grade, a.roll, a.enhance))).orElseThrow();
+            out.add(Lang.mm(key, "rank", i + 1, "player", dev.stsv.economy.util.Players.name(s.player()),
+                    "score", AccessorySpec.num(s.score(), 1), "best", shortName(best), "count", s.worn().size())
+                    .hoverEvent(net.kyori.adventure.text.event.HoverEvent.showText(wornList(s))));
+            if (i >= 10) break;
+        }
+        return out;
+    }
+
+    /** "<color>[S] 가방 허리띠 +7" */
+    private String shortName(Accessory a) {
+        AccessorySpec.Effect e = spec.effects().get(a.effect);
+        AccessorySpec.Grade g = spec.grades().get(a.grade);
+        if (e == null || g == null) return "?";
+        return "<" + g.color() + ">[" + g.name() + "] " + e.name() + " " + spec.slotNames().getOrDefault(e.slot(), e.slot())
+                + (a.enhance > 0 ? " +" + a.enhance : "") + (a.perfect() ? " <gold>완벽" : "");
+    }
+
+    private Component wornList(Scored s) {
+        Component c = Lang.mm("rank.acc-hover-header", "player", dev.stsv.economy.util.Players.name(s.player()));
+        for (Accessory a : s.worn()) {
+            c = c.append(Component.newline()).append(Text.item(shortName(a) + " <dark_gray>· "
+                    + AccessorySpec.num(spec.score(a.grade, a.roll, a.enhance), 1) + "점"));
+        }
+        return c;
+    }
+
     /** Who wears an accessory with this serial (a copy check), or null. */
     UUID wornSerial(UUID serial) {
         for (Map.Entry<UUID, ItemStack[]> e : store.allWorn().entrySet()) {

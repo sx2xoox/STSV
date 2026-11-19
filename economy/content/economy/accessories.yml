@@ -112,3 +112,7 @@ effects:
 # 칸 (장신구 창에 놓이는 순서)
 slots: [ring, ring, necklace, earring, belt, bracelet]
 slot-names: { ring: "반지", necklace: "목걸이", earring: "귀걸이", belt: "허리띠", bracelet: "팔찌" }
+
+# 장신구 순위 (/순위 장신구): 끼고 있는 장신구 점수의 합. 하나의 점수 = 등급 점수 × 강화 배수 × (0.5 + 0.5 × 범위 안 위치)
+#   (위치 0 = 범위 맨 아래, 1 = 맨 위·완벽). 빼 둔 장신구는 세지 않음
+ranking: { common: 1, fine: 3, masterwork: 10, treasure: 40 }

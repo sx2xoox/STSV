@@ -307,8 +307,11 @@ final class Commands {
         }));
         eco.command("의뢰", new Simple(player((p, a) -> eco.requests().open(p)), null));
         eco.command("미션", new Simple(player((p, a) -> eco.missions().open(p)), null));
-        eco.command("순위", new Simple((s, a) -> eco.rank().lines(s instanceof org.bukkit.entity.Player p ? p.getUniqueId() : null,
-                a.length > 0 && a[0].equals("자산")).forEach(s::sendMessage), (s, a) -> a.length == 1 ? List.of("자산") : List.of()));
+        eco.command("순위", new Simple((s, a) -> {
+            java.util.UUID me = s instanceof org.bukkit.entity.Player p ? p.getUniqueId() : null;
+            if (a.length > 0 && a[0].equals("장신구")) eco.accessories().rankingLines(me).forEach(s::sendMessage);
+            else eco.rank().lines(me, a.length > 0 && a[0].equals("자산")).forEach(s::sendMessage);
+        }, (s, a) -> a.length == 1 ? List.of("자산", "장신구") : List.of()));
         eco.command("기념비", new Simple(player((p, a) -> {
             if (a.length == 0) {
                 int rights = eco.vanity().monumentRights(p.getUniqueId());

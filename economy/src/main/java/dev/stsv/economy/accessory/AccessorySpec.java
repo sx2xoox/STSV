@@ -19,7 +19,7 @@ public record AccessorySpec(Map<String, Grade> grades, Map<String, Effect> effec
                             String charm, NavigableMap<Integer, Integer> levelCaps, int maxLevel, double curve,
                             Map<String, Double> activities, String boxItem, String fragmentItem, int fragments,
                             Map<String, Double> drops, String chestItem, List<Loot> loot, int refines, double rerollStep,
-                            double subSize, List<String> slots, Map<String, String> slotNames) {
+                            double subSize, List<String> slots, Map<String, String> slotNames, Map<String, Double> rankWeights) {
 
     /** The last enhance's multiplier (1 + every step's add): a treasure's top roll at +10 reaches the effect's max. */
     public static final double FULL = 1.6;
@@ -50,6 +50,11 @@ public record AccessorySpec(Map<String, Grade> grades, Map<String, Effect> effec
     public record Loot(double weight, String item, int min, int max, String fish, boolean accessory) {}
 
     // ---- arithmetic
+
+    /** An accessory's ranking score (/순위 장신구): its grade's weight x its enhance multiplier x (0.5 + 0.5 x its roll). */
+    public double score(String grade, double roll, int enhance) {
+        return rankWeights.getOrDefault(grade, 0.0) * multiplier(enhance) * (0.5 + 0.5 * Math.clamp(roll, 0, 1));
+    }
 
     /** The enhance multiplier at a level (0 = 1): 1 + the adds of the steps up to it. */
     public double multiplier(int enhance) {
@@ -220,11 +225,14 @@ public record AccessorySpec(Map<String, Grade> grades, Map<String, Effect> effec
         Map<String, String> slotNames = new LinkedHashMap<>();
         ConfigurationSection sn = c.getConfigurationSection("slot-names");
         if (sn != null) for (String k : sn.getKeys(false)) slotNames.put(k, sn.getString(k));
+        Map<String, Double> rankWeights = new LinkedHashMap<>();
+        ConfigurationSection rw = c.getConfigurationSection("ranking");
+        if (rw != null) for (String k : rw.getKeys(false)) rankWeights.put(k, rw.getDouble(k));
         return new AccessorySpec(grades, effects, steps, c.getInt("enhance.drop-from", 6), c.getString("enhance.item", "economy:tempering_stone"),
                 c.getString("enhance.charm", "economy:guard_charm"), caps, c.getInt("levels.max", 30), c.getDouble("levels.curve", 100),
                 activities, c.getString("box.item", "economy:acc_box"), c.getString("box.fragment", "economy:acc_fragment"),
                 c.getInt("box.fragments", 30), drops, c.getString("dragon-chest.item", "economy:dragon_chest"), loot, c.getInt("refines", 3),
-                c.getDouble("reroll-step", 0.2), c.getDouble("sub-size", 0.2), slots, slotNames);
+                c.getDouble("reroll-step", 0.2), c.getDouble("sub-size", 0.2), slots, slotNames, rankWeights);
     }
 
     private static double d(Object o) {

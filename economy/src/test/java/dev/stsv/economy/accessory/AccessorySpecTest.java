@@ -113,4 +113,15 @@ class AccessorySpecTest {
         assertTrue(AccessoryModule.isAccessoryKey("economy:acc_ring_treasure"));   // old listings
         assertFalse(AccessoryModule.isAccessoryKey("economy:acc_box"));
     }
+
+    /** /순위 장신구: the grade's weight, times the enhance multiplier, times 0.5 .. 1 by the roll. */
+    @Test
+    void theRankingScoreGrowsWithGradeEnhanceAndRoll() {
+        AccessorySpec s = spec();
+        assertEquals(40 * 0.5, s.score("treasure", 0, 0), 1e-9, "an S at the bottom of its range, +0");
+        assertEquals(40, s.score("treasure", 1, 0), 1e-9, "a perfect S, +0");
+        assertEquals(40 * s.multiplier(10), s.score("treasure", 1, 10), 1e-9, "a perfect S at +10");
+        assertTrue(s.score("common", 1, 10) < s.score("masterwork", 0, 0), "a C at its best stays under a plain A");
+        assertTrue(s.score("fine", 0.5, 3) > s.score("fine", 0.5, 2), "enhancing raises it");
+    }
 }
