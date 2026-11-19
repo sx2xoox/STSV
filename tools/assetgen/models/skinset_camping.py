@@ -93,7 +93,7 @@ class GMat(HMat):
         rnd = random.Random(seed ^ zlib.crc32(f"{self.kind}{self.ramp}{self.base}".encode()))
         self._streak = [rnd.uniform(-0.35, 0.35) for _ in range(HS)]
         g = [[self._texel(x, y, pw, ph, face, rnd) for x in range(pw)] for y in range(ph)]
-        if self.kind == "coat" and pw >= 4 and ph >= 4 and self.opt.get("chips", True):
+        if self.kind == "coat" and pw >= 4 and ph >= 4 and self.opt.get("chips", 0.05):
             # scuffs: short light diagonal strokes inside the face
             for _ in range(max(1, pw * ph // 90)):
                 x, y = rnd.randrange(1, pw - 1), rnd.randrange(1, ph - 1)
@@ -106,11 +106,11 @@ class GMat(HMat):
             chips = []
             for x in range(pw):
                 for y in (0, ph - 1):
-                    if rnd.random() < 0.05:
+                    if rnd.random() < self.opt.get("chips", 0.05):
                         chips.append((x, y))
             for y in range(1, ph - 1):
                 for x in (0, pw - 1):
-                    if rnd.random() < 0.05:
+                    if rnd.random() < self.opt.get("chips", 0.05):
                         chips.append((x, y))
             for x, y in chips:
                 cells = [(x, y)] + ([(x + rnd.choice((-1, 1)), y)] if rnd.random() < 0.5 else [])
@@ -133,12 +133,12 @@ class GMat(HMat):
 
 OLIVE = GMat("camp_olive", "coat", 2.0)
 OLIVE_DARK = GMat("camp_olive", "coat", 1.3)
-ORANGE = GMat("camp_orange", "coat", 2.0)
-GATE = GMat("camp_orange", "gate", 2.0)
+ORANGE = GMat("camp_orange", "coat", 2.0, chips=0.025)
+GATE = GMat("camp_orange", "gate", 2.0, chips=0)
 ALU = GMat("camp_alu", "brushed", 2.2)
 BRIGHT = GMat("camp_alu", "edge", 3.0)            # ground bevels, the carabiner's body
 BOLT = GMat("camp_alu", "edge", 2.6, contrast=1.3)
-BLACK = GMat("camp_black", "coat", 1.6, chips=False)
+BLACK = GMat("camp_black", "coat", 1.6, chips=0)
 RUBBER = GMat("camp_black", "rubber", 1.8)
 CORD = GMat("camp_orange", "cord", 2.0)
 HAZARD = GMat("camp_orange", "hazard", 2.2)
@@ -199,8 +199,7 @@ def camping_sword():
     m.box("edge", (10.75, 14, 7.625), (11.75, 22.5, 8.375), BRIGHT)
     # the clipped point: the spine (-x) steps away, the edge sweeps up to it
     m.box("tip", (6.5, 21, 7.5), (10.75, 23, 8.5), OLIVE)
-    m.box("tip", (8.5, 23, 7.5), (10.5, 24.5, 8.5), OLIVE)
-    m.box("tip", (10, 22.5, 7.625), (11.25, 26, 8.375), BRIGHT)
+    m.box("tip", (9, 22.5, 7.625), (11.25, 25.5, 8.375), BRIGHT)
     m.group("saw")
     for y in (15.25, 17, 18.75):
         tooth(m, "saw", 5, y, BRIGHT, 1.1)
@@ -299,7 +298,6 @@ def _rod(name, cast):
     m.box("ferrule", (6.875, 22.5, 6.875), (9.125, 23.5, 9.125), ORANGE)
     m.box("rod_tip", (7.25, 30.25, 7.25), (8.75, 31.75, 8.75), ORANGE)
     m.box("guide", (8.875, 18.5, 7.5), (10, 19.5, 8.5), BRIGHT)
-    m.box("guide", (8.625, 26.5, 7.5), (9.75, 27.5, 8.5), BRIGHT)
     if not cast:
         # the line hangs from the tip (45 degrees in this frame = straight down on the sprite), a small orange lure on it
         m.group("line")

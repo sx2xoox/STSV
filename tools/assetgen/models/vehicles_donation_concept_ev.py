@@ -81,9 +81,9 @@ def wheel_concept(ring="glow_cyan", disc="pearl", name="wheel_concept"):
         if rr > 5.2:
             return ("rubber", 2)                          # the disc's dark edge against the tyre
         if rr > 4.2:
-            return (ring, 3.6)                            # the coloured ring
+            return (ring, 1.8)                            # the coloured ring
         if rr < 1.3:
-            return (ring, 3.6) if rr < 0.6 else ("tint", 0.6)    # the hub cap, a dot of colour in it
+            return (ring, 2.0) if rr < 0.6 else ("tint", 0.6)    # the hub cap, a dot of colour in it
         a = math.atan2(z, y)
         # six shallow vanes, swept: a lighter and a darker band each (the disc dished, lit from the upper front)
         t = ((a + rr * 0.35) * 6 / (2 * math.pi)) % 1.0
@@ -130,11 +130,11 @@ def concept_kit(colour="pearl", lower="rubber", accent="glow_cyan", trim="porcel
     def side(y, z, x=0):
         fy = math.floor(y)
         if abs(x) > W - 0.1 and z > -L and fy >= SILL and math.floor(z) in (DZ[0], DZ[1] - 1):
-            return (C, 0.6)                               # the doors' seams
+            return ("tint", 1.0)                         # the doors' seams
         if (z < -31 and 7 <= fy <= 9) or (z > 31 and 11 <= fy <= 13):
             return (B, 0.4 if fy in (7, 11) else 0.9)     # the black visor band the light bars sit in
         if fy == LINE:
-            return (A, 3.0)                               # the accent line, all round
+            return (A, 1.6)                               # the accent line, all round
         if y < LINE:
             return low(y)
         return col(y)
@@ -191,6 +191,21 @@ def concept_kit(colour="pearl", lower="rubber", accent="glow_cyan", trim="porcel
         m.box("fender", (xa, ARCH, WR - SLOT), (xb, SH, WR + SLOT), paint)
         m.box("sill", (xa, 2, DZ[0]), (xb, SILL, DZ[1]), paint)
         door[s].box("door", (xa, SILL, DZ[0]), (xb, SH, DZ[1]), paint)
+
+    # the arches: steps in their upper corners round the square wells off (none at the front well's front edge:
+    # the hood's plane comes down there)
+    def arch(c):
+        return (B, 0) if c.face in ("down", "north", "south") else side(c.p[1], c.p[2], c.p[0])
+    ap = PAINT(decal=arch)
+    for s in (1, -1):
+        xa, xb = sorted(((XI + 0.5) * s, W * s))
+        for wz in (WF, WR):
+            for k in (-1, 1):
+                edge = wz + k * SLOT
+                steps = ((2, 12.5, ARCH), (1, 11, 12.5)) if (wz, k) != (WF, -1) else ((1.5, 10.5, 12.3),)
+                for deep, lo, hi in steps:
+                    z0, z1 = sorted((edge, edge - k * deep))
+                    m.box("arch", (xa, lo, z0), (xb, hi, z1), ap)
 
     # the hood: one plane from the nose's top over the front wheels to the screen's foot (22.5 degrees)
     run = ZS + L
@@ -267,7 +282,7 @@ def concept_kit(colour="pearl", lower="rubber", accent="glow_cyan", trim="porcel
         ax = abs(x)
         if c.face == "up":
             if ax >= CAB - 1:
-                return (C, 3.4) if ax < CAB - 0.5 else (A, 3.0)
+                return (C, 3.4) if ax < CAB - 0.5 else (A, 1.6)
             return ("glass", 2.6) if c.v - math.floor(x) in (4,) else ("tint", 1.1 if ax < 6 else 0.8)
         if c.face == "down":
             return ("tint", 0.4)
@@ -280,7 +295,7 @@ def concept_kit(colour="pearl", lower="rubber", accent="glow_cyan", trim="porcel
         ax = abs(x)
         if c.face == "up":
             if ax >= CAB - 1 or z >= ZR - 0.5:
-                return (C, 3.4) if ax < CAB - 0.5 else (A, 3.0)   # the frame; an accent line along each edge
+                return (C, 3.4) if ax < CAB - 0.5 else (A, 1.6)   # the frame; an accent line along each edge
             d = math.floor(z) - math.floor(x)
             if d in (2,):
                 return ("glass", 2.6)                     # the reflection on the glass
@@ -337,27 +352,27 @@ def concept_kit(colour="pearl", lower="rubber", accent="glow_cyan", trim="porcel
             if fy == 11 and -8.5 <= x < 8.5:
                 # one wide floating display: a lit strip with readouts
                 fx = math.floor(x)
-                return (A, 3.6) if fx in (-7, -6, 2, 5) else ("tint", 1.6)
+                return (A, 2.0) if fx in (-7, -6, 2, 5) else ("tint", 1.6)
             if fy == 10:
-                return (A, 2.4)                           # a light strip under it
+                return (A, 1.2)                           # a light strip under it
             return (trim, 2.0)
         if c.face == "up":
             return ("rubber", 1.2)
         return (trim, 1.8)
     m.box("dash", (-XI, 9, -25), (XI, 12.5, -21), Paint(trim, 2, noise=0, decal=dash))
     m.box("display", (-8.5, 12.5, -22.5), (8.5, 14, -22), Paint("tint", 1, noise=0,
-          decal=lambda c: (A, 3.8) if c.face == "south" and c.v == 1 and c.u % 3 else ("tint", 0.8)))
+          decal=lambda c: (A, 2.2) if c.face == "south" and c.v == 1 and c.u % 3 else ("tint", 0.8)))
     m.box("column", (-6, 10.5, -21), (-5, 11.5, -19.5), PLASTIC)
-    m.box("yoke", (-8, 10, -19.5), (-3, 13.5, -19), Paint("rubber", 1, noise=0, light=False, decal=_steering((A, 3.4))))
+    m.box("yoke", (-8, 10, -19.5), (-3, 13.5, -19), Paint("rubber", 1, noise=0, light=False, decal=_steering((A, 2.0))))
 
     def console(c):
         if c.face == "up":
             z = math.floor(c.p[2])
-            return (A, 3.4) if z in (-16, -10) and abs(c.p[0]) < 1 else ("rubber", 1.6)
+            return (A, 2.0) if z in (-16, -10) and abs(c.p[0]) < 1 else ("rubber", 1.6)
         return (trim, 1.6)
     m.box("console", (-1.5, FLOOR, -21), (1.5, 7.5, -4), Paint(trim, 2, noise=0, decal=console))
 
-    seat = dict(bolster=(trim, 2.6), insert=(trim, 1.6), stitch=(A, 3.0))
+    seat = dict(bolster=(trim, 2.6), insert=(trim, 1.6), stitch=(A, 1.6))
     for z_back in (-5.5, 11.5):
         for s in (1, -1):
             lo, hi = (min(1.75 * s, 9.25 * s), FLOOR, z_back), (max(1.75 * s, 9.25 * s), 15, z_back + 2)
@@ -377,7 +392,7 @@ def concept_kit(colour="pearl", lower="rubber", accent="glow_cyan", trim="porcel
         if z < front + 1.2 or y > ROOF - 0.6 or z >= ZR - 1:
             return raw(C, 3 if y > ROOF - 0.6 else 2)        # the slim frame (the pillars are glass)
         if y < SH + 0.6:
-            return raw(A, 3)                                # the accent along the glass's foot
+            return raw(A, 2)                                # the accent along the glass's foot
         if z < front + 2 or y > ROOF - 1.4 or z >= ZR - 2 or y < SH + 1.4:
             return raw("tint", 1)
         d = math.floor(z) - math.floor(y)
@@ -391,13 +406,13 @@ def concept_kit(colour="pearl", lower="rubber", accent="glow_cyan", trim="porcel
         # the door's inner skin (seen when it is up): a pale panel with a light strip
         xa, xb = sorted(((XI - 0.5) * s, XI * s))
         door[s].box("door_card", (xa, SILL + 1, DZ[0] + 1), (xb, SH, DZ[1] - 1),
-                    Paint(trim, 2, noise=0, decal=lambda c: (A, 3.2) if math.floor(c.p[1]) == 12 else (trim, 2.2)))
+                    Paint(trim, 2, noise=0, decal=lambda c: (A, 1.8) if math.floor(c.p[1]) == 12 else (trim, 2.2)))
         # a slim camera pod on a stalk ahead of the door glass
         xa, xb = sorted((15 * s, 15.75 * s))
         door[s].box("camera_stalk", (xa, SH, -16.5), (xb, SH + 1.5, -15.5), Paint(B, 1, noise=0, rim=0.3))
         xa, xb = sorted((15 * s, 17.5 * s))
         door[s].box("camera", (xa, SH + 1.5, -17), (xb, SH + 2.75, -15),
-                    Paint(B, 1, noise=0, rim=0.3, decal=lambda c: (A, 3.4) if c.face == "north" and c.u == c.nu // 2 else (B, 1.2)))
+                    Paint(B, 1, noise=0, rim=0.3, decal=lambda c: (A, 2.0) if c.face == "north" and c.u == c.nu // 2 else (B, 1.2)))
 
     m.display = _held_display(m)
     return kit

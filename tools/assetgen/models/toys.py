@@ -300,35 +300,44 @@ T.SURFACES["toy_sticker_holo"] = _sticker_holo
 T.SURFACES["toy_sticker_star"] = _sticker_star
 
 
-def holo_sticker(m, x0, y0, z0, z1):
-    """The premium sticker on the front and the back (sticker()'s place and size), and its star again on a glowing
-    plate an eighth of a unit proud of it: the foil stays lit by the world, the star shines."""
-    m.box("sticker", (x0, y0, z0), (x0 + STICKER, y0 + STICKER, z1), P_WHITE,
-          faces={"north": "toy_sticker_holo", "south": "toy_sticker_holo"}, uv={"north": STICKER_UV, "south": STICKER_UV})
-    m.box("sticker_star", (x0, y0, z0 - 0.125), (x0 + STICKER, y0 + STICKER, z1 + 0.125), "toy_sticker_star", glow=True,
-          faces={"east": None, "west": None, "up": None, "down": None}, uv={"north": STICKER_UV, "south": STICKER_UV})
-
-
-def holo_sticker_side(m, face, frm, to):
-    """The premium sticker on one face only (face: "west", "south", ...), its glowing star plate an eighth proud."""
-    m.box("sticker", frm, to, P_WHITE, faces={face: "toy_sticker_holo"}, uv={face: STICKER_UV})
+def _star_plate(m, face, frm, to):
+    """The glowing star over a sticker face: a plate an eighth of a unit thick laid on it, drawn only outwards (its sides
+    show a clear corner of the texture, its back lies on the sticker)."""
     axis, sign = {"north": (2, -1), "south": (2, 1), "west": (0, -1), "east": (0, 1)}[face]
     f2, t2 = list(frm), list(to)
     if sign > 0:
-        f2[axis] = t2[axis] = to[axis] + 0.125
+        f2[axis], t2[axis] = to[axis], to[axis] + 0.125
     else:
-        f2[axis] = t2[axis] = frm[axis] - 0.125
-    m.box("sticker_star", f2, t2, "toy_sticker_star", glow=True, faces={k: None for k in FACES6 if k != face},
-          uv={face: STICKER_UV})
+        f2[axis], t2[axis] = frm[axis] - 0.125, frm[axis]
+    back = {"north": "south", "south": "north", "west": "east", "east": "west"}[face]
+    clear = [12, 12, 13, 13]
+    m.box("sticker_star", f2, t2, "toy_sticker_star", glow=True, faces={back: None},
+          uv={k: (STICKER_UV if k == face else clear) for k in FACES6 if k != back})
+
+
+def holo_sticker(m, x0, y0, z0, z1):
+    """The premium sticker on the front and the back (sticker()'s place and size), and its star again on a glowing
+    plate laid on each face: the foil stays lit by the world, the star shines."""
+    frm, to = (x0, y0, z0), (x0 + STICKER, y0 + STICKER, z1)
+    m.box("sticker", frm, to, P_WHITE, faces={"north": "toy_sticker_holo", "south": "toy_sticker_holo"},
+          uv={"north": STICKER_UV, "south": STICKER_UV})
+    _star_plate(m, "north", frm, to)
+    _star_plate(m, "south", frm, to)
+
+
+def holo_sticker_side(m, face, frm, to):
+    """The premium sticker on one face only (face: "west", "south", ...), its glowing star plate on it."""
+    m.box("sticker", frm, to, P_WHITE, faces={face: "toy_sticker_holo"}, uv={face: STICKER_UV})
+    _star_plate(m, face, frm, to)
 
 
 FACES6 = ("north", "east", "south", "west", "up", "down")
 
 
-def jewel(m, name, x, y, z0, z1, mat=GEM, size=1.5):
+def jewel(m, name, x, y, z0, z1, mat=GEM, size=1.5, rim=0.375):
     """A gem in a gold setting through a part, showing on the front and the back (z0, z1: the part's faces)."""
     h = size / 2
-    m.box(f"{name}_setting", (x - h - 0.375, y - h - 0.375, z0 - 0.125), (x + h + 0.375, y + h + 0.375, z1 + 0.125), GOLD_TRIM)
+    m.box(f"{name}_setting", (x - h - rim, y - h - rim, z0 - 0.125), (x + h + rim, y + h + rim, z1 + 0.125), GOLD_TRIM)
     m.box(name, (x - h, y - h, z0 - 0.375), (x + h, y + h, z1 + 0.375), mat)
 
 
@@ -337,7 +346,7 @@ def charm(m, x, y):
     m.group("charm")
     m.box("charm_ring", (x, y - 0.5, 7.625), (x + 0.75, y + 0.25, 8.375), GOLD_TRIM)
     m.box("charm_star", (x + 0.5, y - 2.75, 7.6), (x + 1.25, y - 0.5, 8.4), STAR_GLOW)
-    m.box("charm_star", (x, y - 2.0, 7.6), (x + 1.75, y - 1.25, 8.4), STAR_GLOW)
+    m.box("charm_star", (x, y - 2.0, 7.75), (x + 1.75, y - 1.25, 8.25), STAR_GLOW)
 
 
 def premium_handle(m, pommel=True):
@@ -348,7 +357,7 @@ def premium_handle(m, pommel=True):
     if pommel:
         m.box("pommel_nub", (7, -4, 7), (9, -3.25, 9), GOLD_TRIM)
         round_y(m, "pommel", 6.25, 9.75, 6.25, 9.75, -3.25, -1.5, P_RED, 0.75)
-        jewel(m, "pommel_gem", C, -2.375, 6.25, 9.75, size=1.25)
+        jewel(m, "pommel_gem", C, -2.375, 6.25, 9.75, size=1.0, rim=0.25)
         round_y(m, "pommel_ring", 6.5, 9.5, 6.5, 9.5, -1.5, -1, GOLD_TRIM, 0.5)
     round_y(m, "grip", 6.75, 9.25, 6.75, 9.25, -1, 5.25, GRIP_BLUE, 0.5)
     for y in (0, 1.75, 3.5):
@@ -523,7 +532,7 @@ def _rod(name, cast):
     cyl(m, "reel_rim", "z", (12.75, 8.5), 6, 6.25, 6.5, GOLD_TRIM, cap=GOLD_TRIM)
     cyl(m, "reel_rim", "z", (12.75, 8.5), 6, 9.5, 9.75, GOLD_TRIM, cap=GOLD_TRIM)
     m.box("reel_hub", (11.5, 7.25, 6), (14, 9.75, 10), GOLD_TRIM)
-    m.box("reel_gem", (12.25, 8, 5.75), (13.25, 9, 10.25), GEM)
+    m.box("reel_gem", (12.375, 7.75, 5.75), (13.125, 8.75, 10.125), GEM)
     m.box("crank", (12.25, 8, 10), (13.25, 11.25, 10.75), CHROME)
     m.box("crank_knob", (12, 10.5, 10.75), (13.5, 12, 12), P_BLUE)
     m.group("rod")
