@@ -2,6 +2,9 @@
 Preview sheet of the toy series (models/toys.py): docs/previews/toy_tools.png
 
     python3 tools/assetgen/toys_preview.py [out.png]        (needs: cd render && npm install)
+    python3 tools/assetgen/toys_preview.py out.png --module skinset_x   another tool skin set (models/skinset_x.py: its ROWS,
+                                                                        TITLE and ALL; a bobber row is a name ending in
+                                                                        "_bobber", rod rows hold "fishing_rod")
 
 A row a piece, and a first row with a plain 16 x 16 sprite (a grey sword, drawn here: not a game file) held the vanilla
 way, to compare sizes with. Columns:
@@ -119,12 +122,12 @@ def line_first(o, aspect):
 BOBBER_SCALE = 0.9     # the item display's scale the float is meant for: 0.34 blocks across, 0.62 high
 
 
-def on_water(m, o):
+def on_water(m, o, waterline=None):
     """The float as an item display holds it on the hook: its waterline on the surface (y = 0), the half-block square the
     game draws its own bobber in round it and, beside it, that square with a bobber the size of the game's."""
     s, az = BOBBER_SCALE, 200
     els = placed(elements(m), {"rotation": [0, 0, 0], "translation": [0, 0, 0], "scale": [s, s, s]},
-                 (o[0], o[1] + s * (8 - toys.BOBBER_WATERLINE), o[2]))
+                 (o[0], o[1] + s * (8 - (toys.BOBBER_WATERLINE if waterline is None else waterline)), o[2]))
     water = _box((o[0] - 20, o[1] - 7, o[2] - 12), (o[0] + 30, o[1], o[2] + 12), "pv_water")
     water["opacity"] = 0.5
     els.append(water)
@@ -206,10 +209,13 @@ def in_slot(m, o):
     return els
 
 
-def main(out):
-    models = [sprite()] + [toys.ALL[n]() for n, _ in ROWS]
+def main(out, module=None):
+    mod = module or toys
+    rows = getattr(mod, "ROWS", ROWS)
+    title = getattr(mod, "TITLE", "장난감 시리즈 (도구 스킨) · 파티 폭죽 발사기")
+    models = [sprite()] + [mod.ALL[n]() for n, _ in rows]
     rod_sprite = sprite(rod=True)
-    labels = ["바닐라 크기 (16 x 16 스프라이트, 비교용)"] + [f"{t}  ·  stsv:{n}" for n, t in ROWS]
+    labels = ["바닐라 크기 (16 x 16 스프라이트, 비교용)"] + [f"{t}  ·  stsv:{n}" for n, t in rows]
     textures = dict(EXTRA)
     for m in models[1:]:
         textures.update(m.to_preview()["textures"])
@@ -232,14 +238,14 @@ def main(out):
                       "center": [o2[0], o2[1] + (min(ys) + max(ys)) / 2 - 8, o2[2]], "radius": (max(ys) - min(ys)) / 2 + 2.5, "k": 5.7, "fov": 20, "far": 2000})
         o3 = (r * GAP, 0.0, 2 * GAP)
         o4 = (r * GAP, 0.0, 3 * GAP)
-        if m.name == "toy_bobber":
+        if m.name.endswith("_bobber"):
             # on the water, as the item display on the hook shows it
-            scene, view = on_water(m, o3)
+            scene, view = on_water(m, o3, getattr(mod, "BOBBER_WATERLINE", None))
             els += scene
             views.append({"x": W_SLOT + W_Q, "y": y0, "w": W_HAND, "h": H, **view})
             continue
         # in the hand
-        rod = m.name.startswith("toy_fishing_rod")
+        rod = "fishing_rod" in m.name
         els += player(o3) + in_hand(m, o3) + (line_third(o3) if rod else [])
         if r:
             # the same player with the plain sprite, to the left of this one in the picture (the camera looks from az 58)
@@ -252,7 +258,8 @@ def main(out):
         views.append({"x": W_SLOT + W_Q + W_HAND + 10, "y": y0 + 4, "w": 430, "h": 242, "az": 180, "el": 0, "center": [o4[0], 0, o4[2] - 16],
                       "radius": 16, "k": 1, "fov": 70, "near": 0.8, "far": 600})
     BUILD.mkdir(exist_ok=True)
-    src, png = BUILD / "toy_tools.preview.json", BUILD / "toy_tools.png"
+    tag = mod.__name__.rsplit(".", 1)[-1]
+    src, png = BUILD / f"{tag}_tools.preview.json", BUILD / f"{tag}_tools.png"
     src.write_text(json.dumps({"textures": textures, "elements": els, "grid": False, "views": views, "size": [width, height]}))
     subprocess.run(["node", str(RENDER), str(src), str(png)], check=True, stdout=subprocess.DEVNULL)
     sheet = Image.open(png).convert("RGB")
@@ -260,7 +267,7 @@ def main(out):
     font = ImageFont.truetype("/usr/share/fonts/truetype/wqy/wqy-zenhei.ttc", 28)
     small = ImageFont.truetype("/usr/share/fonts/truetype/wqy/wqy-zenhei.ttc", 18)
     d.rectangle((0, 0, width, TOP - 1), fill=(27, 29, 34))
-    d.text((18, 10), "장난감 시리즈 (도구 스킨) · 파티 폭죽 발사기", fill=(245, 245, 245), font=font)
+    d.text((18, 10), title, fill=(245, 245, 245), font=font)
     for x, text in ((20, "인벤토리 칸"), (W_SLOT + 20, "모델"), (W_SLOT + W_Q + 20, "3인칭 (왼쪽 바닐라 크기 · 오른쪽 장난감)"),
                     (W_SLOT + W_Q + W_HAND + 20, "1인칭 (시야 70도)")):
         d.text((x, 60), text, fill=(185, 190, 200), font=small)
@@ -268,13 +275,13 @@ def main(out):
         y0 = TOP + r * H
         d.line((0, y0, width, y0), fill=(52, 56, 66))
         d.text((W_SLOT + 12, y0 + 8), label, fill=(225, 228, 235), font=small)
-        if models[r].name == "toy_bobber":
+        if models[r].name.endswith("_bobber"):
             x = W_SLOT + W_Q + W_HAND + 20
             for k, text in enumerate(("물 위: 파란 띠가 수면 (scale 0.9)", "옅은 네모 = 원래 찌가 그려지는 0.5블록 칸",
                                       "오른쪽 = 원래 찌 크기 (어림)")):
                 d.text((x, y0 + 70 + k * 30), text, fill=(185, 190, 200), font=small)
             continue
-        if models[r].name.startswith("toy_fishing_rod"):
+        if "fishing_rod" in models[r].name:
             d.text((W_SLOT + W_Q + W_HAND + 20, y0 + 10), "분홍 점 = 낚싯줄이 시작되는 자리", fill=(255, 130, 215), font=small)
         d.rectangle((W_SLOT + W_Q + W_HAND + 9, y0 + 3, W_SLOT + W_Q + W_HAND + 440, y0 + 246), outline=(70, 74, 86))
     sheet.save(out, optimize=True)
@@ -282,4 +289,10 @@ def main(out):
 
 
 if __name__ == "__main__":
-    main(Path(sys.argv[1]) if len(sys.argv) > 1 else REPO / "docs" / "previews" / "toy_tools.png")
+    import argparse
+    import importlib
+    ap = argparse.ArgumentParser()
+    ap.add_argument("out", nargs="?", default=str(REPO / "docs" / "previews" / "toy_tools.png"))
+    ap.add_argument("--module", help="models/<module>.py instead of the toy series")
+    a = ap.parse_args()
+    main(Path(a.out), importlib.import_module(f"models.{a.module}") if a.module else None)
