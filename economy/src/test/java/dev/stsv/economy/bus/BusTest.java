@@ -96,7 +96,7 @@ class BusTest {
         List<BusRoutes.Spot> spots = r.autoSpots(s.stops().auto(), s.stops().bayLength(), List.of());
         assertEquals(BusRoutes.Kind.START, spots.getFirst().kind());
         assertEquals(BusRoutes.Kind.END, spots.getLast().kind());
-        assertTrue(spots.size() >= 4 && spots.size() <= 6, "" + spots.size());
+        assertTrue(spots.size() >= 9 && spots.size() <= 12, "" + spots.size());
         double end = r.place(spots.getLast().node())[0];
         assertTrue(end >= 6999 - 60 && end <= 6999 - 40, "" + end);
         // an existing stop nearby keeps the start spot away
