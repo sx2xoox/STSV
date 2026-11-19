@@ -27,7 +27,8 @@ import random
 from PIL import Image
 
 from economy_machines import MModel, Mat, cyl
-from models.toys import C, _held
+from models.toys import C
+from models.toys import _held as _toy_held
 from stsv_assets import textures as T
 from stsv_assets.palette import ramp
 
@@ -103,10 +104,10 @@ def _brushed_px(px, W, H, seed, edge=True):
 
 
 def _knife_blade():
-    """The knife's main blade (5 x 11.25 units, x = 0 the edge side): brushed, the spine polished, a maker's stamp."""
-    im = _canvas()
+    """The knife's main blade (4.5 x 11.25 units, x = 0 the edge side): brushed, the spine polished, a maker's stamp."""
+    im = _canvas(S2)
     px = im.load()
-    W, H = 10, 23
+    W, H = 9, 23
     _brushed_px(px, W, H, 11, edge=False)
     for y in range(H):
         px[W - 1, y] = S3                         # the polished spine
@@ -114,17 +115,17 @@ def _knife_blade():
     for x in range(W):
         px[x, H - 1] = S1
     # maker's stamp near the bolster: a small rounded diamond and a bar
-    for (x, y) in ((6, 17), (5, 18), (7, 18), (6, 19)):
+    for (x, y) in ((5, 17), (4, 18), (6, 18), (5, 19)):
         px[x, y] = S0
-    px[6, 18] = S2
-    for x in (4, 5, 6, 7, 8):
+    px[5, 18] = S2
+    for x in (3, 4, 5, 6, 7):
         px[x, 21] = S1
     return im
 
 
 def _cleaver():
     """The cleaver's blade (8 x 12 units, x = 0 the edge): polished bevel, brushed middle, hammered spine zone, the hole."""
-    im = _canvas()
+    im = _canvas(S2)
     px = im.load()
     W, H = 16, 24
     _brushed_px(px, W, H, 23, edge=False)
@@ -162,7 +163,7 @@ def _cleaver():
 def _turner():
     """The turner's plate (6 x 8 units): brushed, three slots with depth (a dark shadow under their top and left, the far
     wall lit), a polished working edge along the bottom."""
-    im = _canvas()
+    im = _canvas(S2)
     px = im.load()
     W, H = 12, 16
     _brushed_px(px, W, H, 31)
@@ -263,7 +264,7 @@ def _waffle():
 
 def _engraved():
     """The chopstick's grip end (2 x 8.5 units): engraved diamonds between two bands."""
-    im = _canvas()
+    im = _canvas(S2)
     px = im.load()
     for y in range(17):
         for x in range(4):
@@ -285,7 +286,7 @@ def _fish_side():
     """The soy bottle fish's silhouette and see-through fins on a thin plane (only what sticks out past the body shows)."""
     im = _canvas()
     px = im.load()
-    soy, soy_d, clear, clear_d = ramp("doenjang", 1), ramp("doenjang", 0), ramp("glass", 2), ramp("glass", 0)
+    soy, soy_d, clear, clear_d = ramp("doenjang", 2), ramp("doenjang", 1), ramp("glass", 2), ramp("glass", 0)
     # tail: a fork at x 0..3, narrowing to the peduncle at x 4..6
     tail = {0: (0, 1, 7, 8), 1: (0, 1, 2, 6, 7, 8), 2: (1, 2, 3, 5, 6, 7), 3: (2, 3, 4, 5, 6), 4: (3, 4, 5), 5: (3, 4, 5), 6: (3, 4, 5)}
     for x, ys in tail.items():
@@ -303,9 +304,9 @@ def _fish_side():
 
 def _fish_body():
     """The fish's body (5 x 2.5 units: 10 x 5 texels, head at +x): clear plastic over soy sauce, an eye, a gill, scales."""
-    im = _canvas()
+    im = _canvas(ramp("doenjang", 2))
     px = im.load()
-    soy, soy_l, soy_d, clear = ramp("doenjang", 1), ramp("doenjang", 2), ramp("doenjang", 0), ramp("glass", 3)
+    soy, soy_l, soy_d, clear = ramp("doenjang", 2), ramp("doenjang", 3), ramp("doenjang", 1), ramp("glass", 3)
     for y in range(5):
         for x in range(10):
             c = soy
@@ -374,6 +375,17 @@ def _plane(m, name, frm, to, pic, uv):
     m.box(name, frm, to, LINE, faces={**none, "south": pic, "north": pic}, uv={"south": uv, "north": [uv[2], uv[1], uv[0], uv[3]]})
 
 
+def _held(m, kind):
+    """toys._held, after turning the 32 x 32 pictures' uv (written here in model units, 0..16 the whole picture) into the
+    texels the model writer expects for a texture of that size."""
+    for e in m.elements:
+        for f, uv in list(e["uv"].items()):
+            w, h = T.size_of(e["faces"][f])
+            if (w, h) != (16, 16):
+                e["uv"][f] = [round(uv[0] * w / 16, 4), round(uv[1] * h / 16, 4), round(uv[2] * w / 16, 4), round(uv[3] * h / 16, 4)]
+    return _toy_held(m, kind)
+
+
 # ================================================================================================
 # Shared parts
 # ================================================================================================
@@ -430,13 +442,13 @@ def kitchen_sword():
     wood_handle(m)
     m.group("blade")
     m.box("bolster", (6.5, 6.5, 6.75), (10.25, 7.75, 9.25), STEEL_DARK)
-    _pic(m, "blade", (5, 7.75, 7.5), (10, 19, 8.5), STEEL, "kitchen_knife", 5, 11.25)
+    _pic(m, "blade", (5.5, 7.75, 7.5), (10, 19, 8.5), STEEL, "kitchen_knife", 4.5, 11.25)
     # the fill above: each row reaches the edge line at its top, its notch under the edge strip
     for y0, y1 in ((19, 21), (21, 23), (23, 24), (24, 24.9)):
         m.box("blade", (round(_knife_edge_x(y1), 3), y0, 7.5), (10, y1, 8.5), STEEL)
     # the polished edge: straight, then the two angled strips (pivots on the edge line), a touch thicker than the blade
     z0, z1 = 7.45, 8.55
-    m.box("edge", (5, 8.25, z0), (6, 19, z1), POLISH)
+    m.box("edge", (5, 8.25, z0), (6, 19.1, z1), POLISH)
     la = 4 / math.cos(math.radians(22.5))
     m.box("edge", (_KA[0], _KA[1], z0), (_KA[0] + 1, _KA[1] + la, z1), POLISH, rotation=("z", -22.5, (_KA[0], _KA[1], C)))
     lb = (9.29 - _KB[0]) * math.sqrt(2)
@@ -485,8 +497,7 @@ def kitchen_shovel():
     # -z (north) is the ladle's round back, +z (south: the inventory's and the player's side) its stew
     cyl(m, "bowl", "z", (C, 21), 10, 6.75, 9.25, STEEL, cap="kitchen_steel_disc", cap2="kitchen_stew")
     cyl(m, "dome", "z", (C, 21), 7, 5.75, 6.75, STEEL_DARK, cap="kitchen_steel_disc", cap2="kitchen_steel_disc")
-    none = {k: None for k in ("east", "west", "up", "down", "north")}
-    m.box("lip", (3, 16, 9.25), (13, 26, 9.5), LINE, faces={**none, "south": "kitchen_lip"}, uv={"south": [0, 0, 16, 16]})
+    _plane(m, "lip", (3, 16, 9.25), (13, 26, 9.35), "kitchen_lip", [0, 0, 16, 16])
     return _held(m, "shovel")
 
 
@@ -510,7 +521,7 @@ def kitchen_hoe():
     plastic_handle(m, RED, RED_DARK)
     stem(m, 21.5)
     m.group("head")
-    m.box("neck", (3, 20, 7.25), (8.75, 21.5, 8.75), STEEL)
+    m.box("neck", (3, 20, 7.25), (7.25, 21.5, 8.75), STEEL)
     _pic(m, "plate", (0, 12.5, 7.625), (6, 20.5, 8.375), STEEL, "kitchen_turner", 6, 8)
     m.box("plate_edge", (0.25, 12, 7.75), (5.75, 12.5, 8.25), POLISH)
     m.box("rivet", (3.75, 20.25, 7.125), (4.75, 21.25, 8.875), POLISH)
@@ -540,17 +551,17 @@ def _rod(name, cast):
         m.group("line")
         top = (8.5, 31, C)
         rot = ("z", 45, top)
-        m.box("line", (8.125, 20.75, 7.625), (8.875, 31, 8.375), LINE, rotation=rot)
-        m.box("fish", (5.5, 17.75, 7.25), (10.5, 20.25, 8.75), CAP_RED,
+        m.box("line", (8.125, 21.5, 7.625), (8.875, 31, 8.375), LINE, rotation=rot)
+        m.box("fish", (4.25, 17.5, 7.125), (10.5, 20.625, 8.875), CAP_RED,
               faces={"south": "kitchen_fish_body", "north": "kitchen_fish_body",
-                     "up": Mat("glass", "plain", 3, bevel=None, noise=0), "down": Mat("doenjang", "plain", 0, bevel=None, noise=0),
-                     "west": Mat("doenjang", "plain", 1, bevel=None, noise=0), "east": Mat("doenjang", "plain", 1, bevel=None, noise=0)},
+                     "up": Mat("glass", "plain", 3, bevel=None, noise=0), "down": Mat("doenjang", "plain", 1, bevel=None, noise=0),
+                     "west": Mat("doenjang", "plain", 2, bevel=None, noise=0), "east": Mat("doenjang", "plain", 2, bevel=None, noise=0)},
               uv={"south": [0, 0, 5, 2.5], "north": [5, 0, 0, 2.5]}, rotation=rot)
         none = {k: None for k in ("east", "west", "up", "down")}
-        m.box("fish_fins", (2.5, 16.75, 8), (10.5, 21.25, 8), LINE,
+        m.box("fish_fins", (0.5, 16.25, 8), (10.5, 21.875, 8), LINE,
               faces={**none, "south": "kitchen_fish_side", "north": "kitchen_fish_side"},
               uv={"south": [0, 0, 8, 4.5], "north": [8, 0, 0, 4.5]}, rotation=rot)
-        m.box("fish_cap", (10.5, 18.25, 7.5), (11.75, 19.75, 8.5), CAP_RED, rotation=rot)
+        m.box("fish_cap", (10.5, 18.25, 7.375), (12, 19.875, 8.625), CAP_RED, rotation=rot)
     return _held(m, "rod")
 
 

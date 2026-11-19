@@ -15,22 +15,21 @@ def concept_ev():
             "................",
             "................",
             "................",
-            "......ppppp.....",
-            "....pgGggggqpp..",
-            "...pgGggggggqqp.",
-            "..pwwwwwwwwwwwwp",
-            ".yWWWWWWWWWWWWWt",
+            "......wwwww.....",
+            "....wgGgggggw...",
+            "...wgGggggggqw..",
+            "..wgGgggggggqqw.",
+            ".WWWWWWWWWWWWWWw",
             "yVVVVVVVVVVVVVVt",
-            "cccckkcccccckkcc",
-            ".bkdrdkbbbbkdrdb",
-            "..krhrk....krhrk",
+            "ccckkkcccccckkkc",
+            "bbkdddkbbbbkdddk",
+            "..kdrdk....kdrdk",
             "...kkk......kkk.",
             "................",
             "................"]
-    colours = {"p": ("pearl", 3), "w": ("pearl", 4), "W": ("pearl", 2), "V": ("pearl", 1), "g": ("tint", 1),
-               "G": ("glass", 4), "q": ("tint", 2), "y": ("lamp", 5), "t": ("signal_red", 4),
-               "c": ("glow_cyan", 3), "b": ("rubber", 1), "k": ("rubber", 0), "d": ("pearl", 2),
-               "r": ("glow_cyan", 2), "h": ("tint", 1)}
+    colours = {"w": ("pearl", 4), "W": ("pearl", 3), "V": ("pearl", 2), "g": ("tint", 1), "G": ("glass", 3), "q": ("tint", 2),
+               "y": ("lamp", 5), "t": ("signal_red", 3), "c": ("glow_cyan", 1), "b": ("rubber", 1),
+               "k": ("rubber", 0), "d": ("pearl", 3), "r": ("glow_cyan", 1)}
     return _draw(rows, colours).render()
 
 

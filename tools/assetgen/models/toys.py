@@ -210,7 +210,7 @@ class Gloss(Mat):
                         grid[y][x] = b + 1
             if short >= 3:
                 grid[1][1] = b + 2
-            if short >= 4:                       # the second reflection: a thin diagonal across the face
+            if short >= 6:                       # the second reflection: a thin diagonal across the face
                 c = round(short * 0.45) + 2
                 for y in range(1, h - 1):
                     x = c - y
@@ -248,13 +248,13 @@ GOLD_TRIM = Gloss("gold", 1, bevel=(1, -1))         # gold plating: collars, rin
 CHROME = Gloss("steel", 4, bevel=(1, -1))           # chrome bands
 P_FOAM = Gloss("porcelain", 2, kind="seam", bevel=(0, -1))
 P_FOAM_EDGE = Gloss("porcelain", 2, kind="seam", bevel=(1, -1))
-CRYSTAL = Gloss("ice", 1)                           # the sword's clear ridge
+CRYSTAL = Gloss("ice", 1, glow=True)                # the sword's light-up crystal ridge
 GEM = Gloss("spectral", 2, bevel=(1, -1), glow=True)        # the pommel's jewel: glows (light_emission, unshaded)
 GEM_RED = Gloss("ruby", 2, bevel=(1, -1), glow=True)
-STAR_GLOW = Mat("glow_amber", "plain", 2, bevel=None, noise=0, glow=True)   # the charm's star
+STAR_GLOW = Mat("glow_amber", "plain", 1, bevel=None, noise=0, glow=True)   # the charm's star
 
 
-HOLO = ((255, 222, 238), (216, 246, 255), (234, 222, 255), (222, 255, 232), (255, 248, 214))
+HOLO = ((255, 226, 240), (222, 244, 255), (238, 228, 255), (226, 255, 238))
 
 
 def _star_pixels():
@@ -262,36 +262,36 @@ def _star_pixels():
 
 
 def _sticker_holo():
-    """The premium sticker: holographic foil in pale rainbow bands with glitter, the star in gold, ringed in red,
-    a gold line along the bottom and right (the plate's edge)."""
+    """The premium sticker: holographic foil in pale rainbow bands with a fleck of glitter, framed in gold (lit top and
+    left), the series' red star on it (the star plate over it glows)."""
     im = Image.new("RGBA", (16, 16), HOLO[0] + (255,))
     px = im.load()
     star = _star_pixels()
-    ring = {(x + dx, y + dy) for x, y in star for dx in (-1, 0, 1) for dy in (-1, 0, 1)} - star
     for y in range(9):
         for x in range(9):
-            c = HOLO[((x + 2 * y) // 3) % len(HOLO)] + (255,)
-            if (x * 7 + y * 3) % 11 == 0:
+            c = HOLO[((x + y) // 2) % len(HOLO)] + (255,)
+            if (x, y) in ((2, 6), (6, 2)):
                 c = (255, 255, 255, 255)
+            if x == 0 or y == 0:
+                c = ramp("gold", 2)
             if x == 8 or y == 8:
                 c = ramp("gold", 1)
-            if (x, y) in ring:
-                c = ramp("tomato", 2)
             if (x, y) in star:
-                c = ramp("glow_amber", 2)
+                c = ramp("tomato", 2)
             px[x, y] = c
     return im
 
 
 def _sticker_star():
-    """The star alone, everything else clear: a plate over the sticker that glows, with two glints beside it."""
+    """The star alone, everything else clear: a plate over the sticker that glows (a lit top left on the star), with
+    two white glints beside it."""
     im = Image.new("RGBA", (16, 16), (0, 0, 0, 0))
     px = im.load()
     for x, y in _star_pixels():
-        px[x, y] = ramp("glow_amber", 1)
-    for x, y in ((4, 2), (4, 3), (3, 3), (5, 3), (4, 4)):
-        px[x, y] = ramp("glow_amber", 2)
-    for x, y in ((1, 1), (7, 1)):
+        px[x, y] = ramp("tomato", 2)
+    for x, y in ((4, 1), (4, 2), (2, 3), (3, 3), (4, 3)):
+        px[x, y] = ramp("tomato", 3)
+    for x, y in ((1, 1), (7, 6)):
         px[x, y] = (255, 255, 255, 255)
     return im
 
@@ -381,7 +381,7 @@ def premium_shaft(m, top, mat=P_YELLOW):
 # ================================================================================================
 
 def toy_sword():
-    """장난감 검: a sculpted foam blade with stitched seams and a clear crystal ridge, a round tip; a glossy yellow guard
+    """장난감 검: a sculpted foam blade with stitched seams and a light-up crystal ridge, a round tip; a glossy yellow guard
     with gold-capped red ball ends and a gold lip, the holographic sticker with its shining star on the guard."""
     m = MModel("toy_sword")
     premium_handle(m)
@@ -525,12 +525,10 @@ def _rod(name, cast):
     m = MModel(name)
     premium_handle(m)
     m.group("reel")
-    # a big round glossy reel beside the rod's foot (+x): a red drum with gold rims, a gold hub with a jewel, a chrome
+    # a big round glossy reel beside the rod's foot (+x): a red drum, a gold hub with a jewel through it, a chrome
     # crank with a blue knob on the side that shows (+z)
     m.box("reel_foot", (9, 7.5, 7.25), (10, 9.5, 8.75), GOLD_TRIM)
-    cyl(m, "reel", "z", (12.75, 8.5), 6, 6.5, 9.5, P_RED, cap=P_RED)
-    cyl(m, "reel_rim", "z", (12.75, 8.5), 6, 6.25, 6.5, GOLD_TRIM, cap=GOLD_TRIM)
-    cyl(m, "reel_rim", "z", (12.75, 8.5), 6, 9.5, 9.75, GOLD_TRIM, cap=GOLD_TRIM)
+    cyl(m, "reel", "z", (12.75, 8.5), 6, 6.25, 9.75, P_RED, cap=P_RED)
     m.box("reel_hub", (11.5, 7.25, 6), (14, 9.75, 10), GOLD_TRIM)
     m.box("reel_gem", (12.375, 7.75, 5.75), (13.125, 8.75, 10.125), GEM)
     m.box("crank", (12.25, 8, 10), (13.25, 11.25, 10.75), CHROME)
@@ -546,7 +544,6 @@ def _rod(name, cast):
     m.box("rod_ring", (6.625, 22.5, 6.625), (9.375, 23.5, 9.375), GOLD_TRIM)
     m.box("guide", (9.125, 17.75, 7.25), (10.5, 19, 8.75), CHROME)
     m.box("guide", (8.875, 26.25, 7.25), (10.25, 27.5, 8.75), CHROME)
-    holo_sticker_side(m, "south", (6.75, 9.25, 9.375), (6.75 + 2.5, 9.25 + 2.5, 9.5))
     if not cast:
         m.group("line")
         top = (8.5, 31, C)
@@ -565,8 +562,8 @@ def _rod(name, cast):
 
 
 def toy_fishing_rod():
-    """장난감 낚싯대: a short fat glossy yellow rod with gold rings and chrome guides, a big red reel with gold rims and a
-    jewelled hub, a thick line and a magnet-fishing float with a gold belt."""
+    """장난감 낚싯대: a short fat glossy yellow rod with gold rings and chrome guides, a big red reel with a jewelled gold
+    hub, a thick line and a magnet-fishing float with a gold belt."""
     return _rod("toy_fishing_rod", False)
 
 

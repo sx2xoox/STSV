@@ -16,7 +16,7 @@ twinkle in turn (8 frames) and which can carry a constellation, drawn on its fro
     pickaxe  crystal arms drooping in two bends, each ending in a four-point gold star
     shovel   a crystal spade with a silver rim and a constellation, a star at its neck
     axe      a crescent-moon head of crystal with a silver edge, a silver poll with a star
-    hoe      a ringed planet at the head's heart, a silver bar to a crystal plate
+    hoe      an L like the vanilla hoe: a straight crystal head out to one side, ending flat; a ringed planet at the joint
     rod      a slim silver rod with star guides, a small silver reel, a crescent moon at the tip; the float a tiny planet
 """
 
@@ -147,13 +147,13 @@ CONST_INK = shade("feather", 3)         # a constellation's star: pure white, ne
 # constellations (u, v on the face, v down)
 CONST_BLADE = [(0.35, 0.12), (0.62, 0.26), (0.42, 0.44), (0.66, 0.6), (0.4, 0.82), None, (0.42, 0.44), (0.3, 0.58)]
 CONST_SPADE = [(0.3, 0.2), (0.62, 0.32), (0.5, 0.58), (0.72, 0.78), None, (0.5, 0.58), (0.28, 0.72)]
-CONST_PLATE = [(0.25, 0.2), (0.6, 0.35), (0.4, 0.62), (0.72, 0.82)]
+CONST_PLATE = [(0.1, 0.65), (0.35, 0.3), (0.62, 0.6), (0.9, 0.35)]
 
 SPACE = SpaceCrystal(1.0)
 SPACE_PLAIN = SpaceCrystal(1.0, density=0.8)
 SPACE_BLADE = SpaceCrystal(1.0, const=CONST_BLADE)
 SPACE_SPADE = SpaceCrystal(1.0, const=CONST_SPADE)
-SPACE_PLATE = SpaceCrystal(1.0, const=CONST_PLATE, const_faces=("west",))
+SPACE_PLATE = SpaceCrystal(1.0, const=CONST_PLATE)
 
 # ================================================================================================
 # The other materials
@@ -349,17 +349,18 @@ def galaxy_axe():
 
 
 def galaxy_hoe():
-    """은하수 괭이: a ringed planet at the top of the shaft, a silver bar out to -x and a space-crystal plate hanging from
-    its end (across the handle, like a real hoe's), lilac along its edge, a constellation on its outer face."""
+    """은하수 괭이: the vanilla hoe's silhouette, an L: a straight space-crystal head sticking out to -x from the top of
+    the shaft and ending flat (no droop, no hook), a constellation along it, lilac along its lower (working) edge, a
+    silver end cap; a ringed planet sits on the joint."""
     m = MModel("galaxy_hoe")
     handle(m)
-    shaft(m, 18)
+    shaft(m, 19)
     m.group("head")
-    m.box("bar", (2.25, 19.75, 7), (5.5, 21.75, 9), SILVER)
-    planet(m, 8.25, 21, 8, 6, 2.25)
-    m.box("plate", (0.25, 14.75, 5), (2.5, 22.75, 11), SPACE_PLATE)
-    m.box("plate_edge", (0.5, 13.75, 5.25), (2.25, 14.75, 10.75), EDGE)
-    m.box("plate_cap", (0, 22.75, 5.5), (2.75, 23.5, 10.5), SILVER)
+    m.box("head", (0.75, 19.5, 6.75), (6.5, 23, 9.25), SPACE_PLATE)
+    m.box("head_edge", (0.75, 18.75, 7.25), (6, 19.5, 8.75), EDGE)
+    m.box("head_cap", (0, 19.25, 6.5), (0.75, 23.25, 9.5), SILVER)
+    m.box("head_band", (3.25, 19.25, 6.5), (4, 23.25, 9.5), SILVER)
+    planet(m, 8.75, 21.25, 8, 6, 2.25)
     return _held(m, "hoe")
 
 

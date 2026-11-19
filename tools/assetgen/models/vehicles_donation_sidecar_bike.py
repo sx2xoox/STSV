@@ -167,7 +167,7 @@ def sidecar_kit(colour="wine", stripe="cream", leather="leather", name="sidecar_
         xa, xb = sorted((BX + s * 1.25, BX + s * 2.5))
         rod(m, "fork_slider", (WR, ZF), (WR + 7.5, ZF + 3.0), 1.25, CHROME_T, x=(xa, xb))
         rod(m, "fork_shroud", (WR + 7.0, ZF + 2.9), (WR + 13.5, ZF + 5.6), 1.5, PAINT, x=(xa, xb))
-    m.box("yoke", (BX - 3, 19.25, -8.5), (BX + 3, 20.25, -6.25), Paint(FRAME, 3, noise=0, rim=0.6))
+    m.box("yoke", (BX - 3, 19.5, -8.5), (BX + 3, 20.5, -6.25), Paint(FRAME, 3, noise=0, rim=0.6))
 
     # the deep valanced front fender, the stripe over its crown; its stays to the sliders
     _arc(m, "front_fender", (WR, ZF), WR + 1.25, (-55, -20, 20, 55, 80), -1, (BX - 1.75, BX + 1.75), PAINT)
@@ -204,7 +204,7 @@ def sidecar_kit(colour="wine", stripe="cream", leather="leather", name="sidecar_
     m.box("speedo", (BX - 1, HY + 3, -10.5), (BX + 1, HY + 3.75, -8.5), Paint("blade", 3, noise=0, decal=speedo))
 
     # wide flat handlebars on a riser: chrome, black grips, a lever ahead of each grip, one round mirror on the left
-    m.box("riser", (BX - 0.75, 20.25, -8.0), (BX + 0.75, 21.75, -6.75), CHROME_T)
+    m.box("riser", (BX - 0.75, 20.5, -8.0), (BX + 0.75, 21.75, -6.75), CHROME_T)
     m.box("handlebar", (BX - 6.5, 21.25, -7.75), (BX + 6.5, 22.0, -7.0), CHROME_T)
     grip = Paint("rubber", 1, noise=0, decal=lambda c: ("rubber", 2.4 if c.face == "up" else 1.2 if math.floor(c.p[0] * 2) % 2 else 0.6))
     for s in (1, -1):
@@ -263,7 +263,7 @@ def sidecar_kit(colour="wine", stripe="cream", leather="leather", name="sidecar_
         xa, xb = sorted((BX + s * 1.75, BX + s * 2.75))
         m.box("seat_rail", (xa, 12.75, 2.5), (xb, 13.75, 16.0), FRAME_T)
         m.box("chain_stay", (xa, WR - 0.5, 5.0), (xb, WR + 0.5, ZR + 1), FRAME_T)
-        m.box("seat_post", (xa, WR, 4.5), (xb, 13.0, 5.75), FRAME_T)
+        m.box("seat_post", (xa + 0.25, WR + 0.5, 4.5), (xb - 0.25, 12.75, 5.75), FRAME_T)
 
         def shock(c):
             return ("blade", 3.6) if math.floor(c.p[1] * 1.5) % 2 else ("blade", 1.8)   # a chrome spring
@@ -311,7 +311,7 @@ def sidecar_kit(colour="wine", stripe="cream", leather="leather", name="sidecar_
         xa, xb = sorted((BX + s * 3.0, BX + s * 6.25))
         m.box("footpeg", (xa, 6.0, -3.0), (xb, 6.75, -1.25),
               Paint("rubber", 1, noise=0, decal=lambda c: ("rubber", 2.4 if c.face == "up" and c.u % 2 else 1.2)))
-    m.box("chain_guard", (BX + 2.0, 5.25, 5.0), (BX + 2.5, 7.5, 13.5), PAINT)
+    m.box("chain_guard", (BX + 2.75, 6.25, 5.0), (BX + 3.25, 8.25, 12.25), PAINT)
 
     m.group("saddle")
     # the sprung solo saddle: a leather pan (wide at the back, a narrow nose on a pivot), two chrome coil springs

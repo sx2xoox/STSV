@@ -144,6 +144,8 @@ def concept_kit(colour="pearl", lower="rubber", accent="glow_cyan", trim="porcel
         x, y, z = p
         fy, fz, ax = math.floor(y), math.floor(z), abs(x)
         if c.face == "down":
+            if ax > XI - 0.1 and DZ[0] <= z < DZ[1] and abs(y - SILL) < 0.1:
+                return (trim, 1.4)                            # the door's lower edge (seen when it is up)
             return (B, 0)
         if well(p) and c.face != "up":
             return (B, 0)
