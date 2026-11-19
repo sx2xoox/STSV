@@ -79,8 +79,6 @@ class GMat(HMat):
             v += 0.55 if t == 0 else -0.55 if t == 3 else 0.1
             if y % 2 == 1 and t == 3:
                 v -= 0.25
-            if (x * 5 + y * 3) % 13 == 0:
-                return ("camp_black", 1.4)
         elif k == "hazard":
             if ((x + y) // 3) % 2:
                 return ("camp_black", 1.0 + (v - self.base) * 0.6)
@@ -95,7 +93,7 @@ class GMat(HMat):
         rnd = random.Random(seed ^ zlib.crc32(f"{self.kind}{self.ramp}{self.base}".encode()))
         self._streak = [rnd.uniform(-0.35, 0.35) for _ in range(HS)]
         g = [[self._texel(x, y, pw, ph, face, rnd) for x in range(pw)] for y in range(ph)]
-        if self.kind == "coat" and pw >= 3 and ph >= 3:
+        if self.kind == "coat" and pw >= 4 and ph >= 4 and self.opt.get("chips", True):
             # scuffs: short light diagonal strokes inside the face
             for _ in range(max(1, pw * ph // 90)):
                 x, y = rnd.randrange(1, pw - 1), rnd.randrange(1, ph - 1)
@@ -108,11 +106,11 @@ class GMat(HMat):
             chips = []
             for x in range(pw):
                 for y in (0, ph - 1):
-                    if rnd.random() < 0.09:
+                    if rnd.random() < 0.035:
                         chips.append((x, y))
             for y in range(1, ph - 1):
                 for x in (0, pw - 1):
-                    if rnd.random() < 0.09:
+                    if rnd.random() < 0.035:
                         chips.append((x, y))
             for x, y in chips:
                 cells = [(x, y)] + ([(x + rnd.choice((-1, 1)), y)] if rnd.random() < 0.5 else [])
@@ -123,7 +121,7 @@ class GMat(HMat):
                                 g[ny][nx] = (self.ramp, g[ny][nx][1] - 0.45)
                 for cx, cy in cells:
                     if 0 <= cx < pw and 0 <= cy < ph:
-                        g[cy][cx] = ("camp_alu", 2.9 if (cx + cy) % 2 else 2.4)
+                        g[cy][cx] = ("camp_alu", 2.3 if (cx + cy) % 2 else 1.9)
         im = hd_canvas()
         px = im.load()
         for y in range(HS):
@@ -140,7 +138,7 @@ GATE = GMat("camp_orange", "gate", 2.0)
 ALU = GMat("camp_alu", "brushed", 2.2)
 BRIGHT = GMat("camp_alu", "edge", 3.0)            # ground bevels, the carabiner's body
 BOLT = GMat("camp_alu", "edge", 2.6, contrast=1.3)
-BLACK = GMat("camp_black", "coat", 1.6)
+BLACK = GMat("camp_black", "coat", 1.6, chips=False)
 RUBBER = GMat("camp_black", "rubber", 1.8)
 CORD = GMat("camp_orange", "cord", 2.0)
 HAZARD = GMat("camp_orange", "hazard", 2.2)

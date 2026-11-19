@@ -75,8 +75,8 @@ def _paint(kind, wood, pw, ph, along_u, seed, burn=False, ring=None):
         L, A = (pw, ph) if along_u else (ph, pw)          # along the grain, across it
         cols = []
         for a in range(A):
-            cols.append(rnd.choice((0, 0, 0, 0, 1, -1)))
-        lines = [a for a in range(A) if rnd.random() < 0.28]
+            cols.append(rnd.choice((0, 0, 0, 0, 0, 1)))
+        lines = [a for a in range(1, A - 1, 3) if rnd.random() < 0.7]
         phase = rnd.random() * 6
         facets = 3 if A >= 7 else 2 if A >= 4 else 1
         for l in range(L):
@@ -87,7 +87,7 @@ def _paint(kind, wood, pw, ph, along_u, seed, burn=False, ring=None):
                     v += 1 if f == 0 else (-1 if f == facets - 1 else 0)
                 for g in lines:
                     if a == g + round(math.sin(l * 0.45 + phase + g) * 0.7):
-                        v = min(v, 1) - (1 if rnd.random() < 0.3 else 0)
+                        v = min(v, 1)
                 if A >= 5 and a == max(1, A // 4) and 0.1 * L < l < 0.75 * L:
                     v = 4                                     # the polish
                 x, y = (l, a) if along_u else (a, l)
@@ -98,7 +98,7 @@ def _paint(kind, wood, pw, ph, along_u, seed, burn=False, ring=None):
             for dl in (-1, 0, 1):
                 for da in (-1, 0, 1):
                     x, y = (kl + dl, ka + da) if along_u else (ka + da, kl + dl)
-                    lv[y][x] = 0 if dl == da == 0 else 1
+                    lv[y][x] = 1 if dl == da == 0 else min(lv[y][x], 2)
     elif kind == "end":
         cu, cv = ring
         for y in range(ph):
@@ -157,9 +157,14 @@ def _vine(px, pw, ph, along_u, seed):
     mid = (A - 1) / 2
     amp = max(0.6, A / 6)
     side = 1
+    prev = None
     for l in range(2, L - 2):
-        a = round(mid + math.sin(l * 0.55 + phase) * amp)
+        a = round(mid + math.sin(l * 0.4 + phase) * amp)
+        if prev is not None:            # an unbroken line: fill the step from the last texel
+            for aa in range(min(a, prev) + 1, max(a, prev)):
+                put(l, aa, BURN)
         put(l, a, BURN)
+        prev = a
         if l % 4 == 0:
             # a leaf: two texels out to the side, a soft scorch round it
             put(l - 1, a + side, BURN)

@@ -71,7 +71,7 @@ def _hash(*v):
 # ================================================================================================
 
 class Candy(Mat):
-    """style: gloss | sugar | stripe | gummy | wrapper | ribbon | stick. opt: second (the stripes' other ramp),
+    """style: gloss | sugar | stripe | ring | gummy | wrapper | ribbon | stick. opt: second (the stripes' other ramp),
     sprinkles (density 0..1), steep (stripe slope), face (the bear's face on north / south)."""
 
     def __init__(self, ramp_name, style="gloss", base=2, **opt):
@@ -119,6 +119,12 @@ class Candy(Mat):
                         return col(sr, si + (1 if h % 2 else 0))
                     return col("candy_white", 2)
             return c
+        if k == "ring":
+            # a thin stick's spiral: thick colour bands, a thin white one, climbing one texel every two across
+            s = (y + x // 2) % 6
+            if s < 4:
+                return col(r, b + d + (1 if s == 0 else 0) - (1 if s == 3 else 0))
+            return col("candy_white", 2 + min(0, d))
         if k == "stripe":
             steep = o.get("steep", 1)
             s = (x + steep * y) % 8
@@ -193,10 +199,10 @@ PINK_PAPER = Candy("candy_pink", "wrapper")
 PINK_LABEL = Candy("candy_pink", "wrapper", label=True)
 PINK_PLEAT = Candy("candy_pink", "pleat", 3)
 PINK_STRIPE = Candy("candy_pink", "stripe")
-PINK_RING = Candy("candy_pink", "stripe", steep=2)
+PINK_RING = Candy("candy_pink", "ring")
 MINT = Candy("candy_mint")
 MINT_SUGAR = Candy("candy_mint", "sugar", sprinkles=0.12)
-MINT_RING = Candy("candy_mint", "stripe", steep=2)
+MINT_RING = Candy("candy_mint", "ring")
 GUMMY = Candy("candy_mint", "gummy")
 GUMMY_FACE = Candy("candy_mint", "gummy", face=True)
 LEMON = Candy("candy_lemon")
@@ -333,7 +339,7 @@ T.SURFACES["candy_choc_in_h"] = _choc_inside(False)
 
 def handle(m, ball, ribbon):
     """A glossy candy ball for a pommel, a chocolate-dipped grip with sprinkles, a satin ribbon round the collar
-    tied in a bow on +z (y -3.5 .. 6.75): ten boxes."""
+    tied in a bow on +z (y -3.5 .. 7): eight boxes."""
     m.group("handle")
     round_y(m, "pommel", 6.25, 9.75, 6.25, 9.75, -3.5, -1.25, ball, 0.75)
     m.box("grip", (6.75, -1.25, 6.75), (9.25, 5.25, 9.25), CHOC_GRIP)
@@ -343,8 +349,6 @@ def handle(m, ball, ribbon):
     m.box("bow_loop", (4.75, 4.75, 9.25), (7.25, 7, 10), rib)
     m.box("bow_loop", (8.75, 4.75, 9.25), (11.25, 7, 10), rib)
     m.box("bow_knot", (7.25, 5.25, 9.25), (8.75, 6.5, 10.5), rib(base=0))
-    m.box("bow_tail", (6.5, 3.25, 9.25), (7.5, 5, 9.75), rib)
-    m.box("bow_tail", (8.5, 3.25, 9.25), (9.5, 5, 9.75), rib)
 
 
 def stick(m, top):
