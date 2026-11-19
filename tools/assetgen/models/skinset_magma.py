@@ -235,6 +235,8 @@ def magma_shovel():
         m.box("rim", (lo, 25.5, 7.5), (hi, 27, 8.5), EMBER_RED)
         lo, hi = sorted((C + side * 3.75, C + side * 4.25))
         m.box("rim", (lo, 23.5, 7.5), (hi, 25.5, 8.5), EMBER_RED)
+        lo, hi = sorted((C + side * 4.5, C + side * 5))
+        m.box("rim", (lo, 18.75, 7.5), (hi, 23.25, 8.5), EMBER_RED)
     fissure(m, ((7.5, 8.5, 18, 20.5), (7, 8, 20.5, 23), (7.5, 8.5, 23, 25.5), (7.75, 8.5, 25.5, 27)), 6.85, 9.15)
     return _held(m, "shovel")
 

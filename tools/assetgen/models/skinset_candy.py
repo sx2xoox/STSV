@@ -11,7 +11,7 @@ stripes, a chocolate grip with a candy ball for a pommel on every piece.
     pickaxe  two wrapped hard candies (pink and lemon) drooping off a mint ball, their wrapper fans the tips
     shovel   a big cream-filled wafer scoop, its end dipped in strawberry icing
     axe      a chocolate bar with a bite out of its edge, half in a pink wrapper with a lemon foil rim
-    hoe      a mint gummy bear standing at the end of a lemon candy-stick bar
+    hoe      a mint gummy bear standing at the end of a pink candy-stick bar
     rod      a mint-striped candy stick, a lemon lollipop for a reel, a pink-and-lemon gummy worm on the line
 
 The stripe, swirl, wafer and chocolate pictures are tileable 16 x 16 surfaces on the auto UVs (one texel a model
