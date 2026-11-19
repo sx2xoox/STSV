@@ -225,15 +225,16 @@ box_truck:
       behind: 1.55
       at: [0, 0, 0]
 
-# 마을버스: 기사 1 + 승객 8 (두 줄 좌석과 뒤 벤치). 짐칸 없음. 오른쪽에 앞문(기사 옆, 바깥으로 열림)·뒷문(뒤로 밀림).
-# 7칸이 넘게 길어서 모델을 4배 작게 그려 body-scale 4 로 보여 줌 (models/vehicles_bus.py). 바퀴는 탑차와 같음
+# 마을버스: 기사 1 + 승객 8 (두 줄 좌석과 뒤 벤치). 짐칸 없음. 오른쪽에 앞문(기사 옆, 바깥으로 열림)·뒷문(앞으로 밀림).
+# 짧고 통통한 옛 시골 마을버스 (동그란 눈 전조등 · 볼 · 웃는 입, 지붕 짐칸에 보따리). 6칸이 넘게 길어서 모델을 4배 작게 그려 body-scale 4 로
+# 보여 줌 (models/vehicles_bus.py). 바퀴는 버스 전용 (wheel_bus, 한 칸 지름)
 village_bus:
   material: paper
   name: "<#3fb34f>마을버스"
   lore:
-    - "<gray>버스 · 9인승 마을버스 (7×2.4×3칸)"
+    - "<gray>버스 · 9인승 마을버스 (6×2.4×3칸)"
     - "<white>9블록/초 <gray>· 짐칸 없음"
-    - "<gray>크고 느리게 돎 · 앞문 · 뒷문"
+    - "<gray>느리게 돎 · 앞문 · 뒷문"
     - "<dark_gray>W·S·A·D 운전 · 스페이스: 경적 · 웅크리기: 내리기"
     - "<yellow>우클릭: 세우기 · 타기"
     - "<yellow>웅크리고 우클릭: 회수"
@@ -250,34 +251,34 @@ village_bus:
     turn-rate: 38
     turn-speed: 3.5
     step-height: 1.0
-    size: [7.0, 2.4, 3.0]       # 지붕 위 에어컨만 0.1 더 올라옴
+    size: [6.0, 2.4, 3.0]
     click-height: 1.6
-    wheel: wheel_truck
-    wheel-radius: 0.4375
+    wheel: wheel_bus
+    wheel-radius: 0.5
     wheels:
-      - { at: [-1.0, 0.4375, 2.0], steer: true }
-      - { at: [1.0, 0.4375, 2.0], steer: true }
-      - { at: [-1.0, 0.4375, -1.875] }
-      - { at: [1.0, 0.4375, -1.875] }
+      - { at: [-0.96875, 0.5, 1.5], steer: true }
+      - { at: [0.96875, 0.5, 1.5], steer: true }
+      - { at: [-0.96875, 0.5, -1.625] }
+      - { at: [0.96875, 0.5, -1.625] }
     # 기사(왼쪽 앞), 그 뒤로 왼쪽 줄 · 오른쪽 줄 (뒷문 앞까지), 왼쪽 뒤 둘, 맨 뒤 벤치 둘
     seats:
-      - { at: [-0.53125, 1.0625, 2.625] }
-      - { at: [-0.53125, 1.0625, 1.5] }
-      - { at: [0.53125, 1.0625, 1.5] }
-      - { at: [-0.53125, 1.0625, 0.5] }
-      - { at: [0.53125, 1.0625, 0.5] }
-      - { at: [-0.53125, 1.0625, -0.5] }
-      - { at: [-0.53125, 1.0625, -1.5] }
-      - { at: [-0.53125, 1.0625, -2.625] }
-      - { at: [0.53125, 1.0625, -2.625] }
+      - { at: [-0.484375, 1.0625, 2.25] }
+      - { at: [-0.484375, 1.0625, 1.3125] }
+      - { at: [0.484375, 1.0625, 1.3125] }
+      - { at: [-0.484375, 1.0625, 0.4375] }
+      - { at: [0.484375, 1.0625, 0.4375] }
+      - { at: [-0.484375, 1.0625, -0.4375] }
+      - { at: [-0.484375, 1.0625, -1.3125] }
+      - { at: [-0.484375, 1.0625, -2.25] }
+      - { at: [0.484375, 1.0625, -2.25] }
     movers:
       # 앞문: 앞 모서리를 축으로 바깥으로 열림 (기사가 타고 내릴 때)
-      - { model: village_bus_door_front, hinge: [1.1875, 1.375, 3.4375], axis: [0, 1, 0], turn: 80, when: door, seats: [0], ticks: 10 }
-      # 뒷문: 1픽셀 바깥으로 나오며 앞으로 밀려 열림 (바퀴 쪽으로 가지 않게) (손님이 타고 내릴 때)
-      - { model: village_bus_door_rear, slide: [0.0625, 0, 0.8125], when: door, seats: [1, 2, 3, 4, 5, 6, 7, 8], ticks: 12 }
+      - { model: village_bus_door_front, hinge: [1.1875, 1.375, 2.8125], axis: [0, 1, 0], turn: 80, when: door, seats: [0], ticks: 10 }
+      # 뒷문: 1픽셀 바깥으로 나오며 앞으로 밀려 열림 (바퀴 쪽으로 가지 않게)
+      - { model: village_bus_door_rear, slide: [0.0625, 0, 0.75], when: door, seats: [1, 2, 3, 4, 5, 6, 7, 8], ticks: 12 }
     plates:
-      - { at: [0, 0.344, 3.594], width: 0.5, height: 0.12 }
-      - { at: [0, 0.594, -3.5], back: true, width: 0.5, height: 0.12 }
+      - { at: [0, 0.344, 3.094], width: 0.5, height: 0.12 }
+      - { at: [0, 0.594, -3.0], back: true, width: 0.5, height: 0.12 }
     horn: { sound: stsv:vehicle.box_truck.horn, release: stsv:vehicle.box_truck.horn_end, volume: 1.5,
-            vanilla: block.note_block.didgeridoo, pitch: 0.8, times: 1 }
+            vanilla: block.note_block.didgeridoo, pitch: 1.1, times: 2, gap: 3 }
     engine: { sound: stsv:vehicle.box_truck.engine, volume: 0.45, idle-volume: 0.22, idle-pitch: 0.55, top-pitch: 1.3, segment-ticks: 10 }

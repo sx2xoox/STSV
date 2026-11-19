@@ -207,7 +207,7 @@ class VehicleRoadContentTest {
 
     /**
      * 마을버스: a driver and eight passengers, no bed, two doors on the kerb side (the front one for the driver, the
-     * middle one for the passengers), the longest and slowest-turning road vehicle, under the server's cap.
+     * middle one for the passengers), a short chubby bus that turns slowest of the road vehicles, under the server's cap.
      */
     @Test
     void theVillageBusCarriesPeopleNotGoods() throws Exception {
@@ -220,15 +220,15 @@ class VehicleRoadContentTest {
         assertNull(bus.extras().drift(), "a bus does not drift");
         assertFalse(bus.pulled());
         assertEquals(1.0, bus.stepHeight(), 1e-9);
-        assertEquals(7.0, bus.length(), 0.01);
+        assertEquals(6.0, bus.length(), 0.01);
         assertEquals(2.4, bus.width(), 0.01);
         assertEquals(3.0, bus.height(), 0.01);
         assertTrue(bus.clickHeight() <= bus.height());
         for (VehicleSpec v : road().values()) {
             assertTrue(bus.turnRate() < v.turnRate(), "turns slower than any other road vehicle");
-            assertTrue(bus.length() > v.length(), "the longest");
         }
         assertTrue(bus.acceleration() <= truck.acceleration(), "gets going no quicker than the box truck");
+        assertTrue(bus.length() > road().get("cargo_van").length() && bus.width() > truck.width(), "bigger than the van, wider than the truck");
         // four wheels, the front two steer
         assertEquals(4, bus.wheels().size());
         assertEquals(2, bus.wheels().stream().filter(VehicleSpec.Wheel::steer).count());

@@ -186,30 +186,40 @@ def box_truck():
 
 @icon("village_bus")
 def village_bus():
-    # the green village bus from its left side, front to the left: a white roof, the lit route board over the
-    # windscreen, a black band of windows (light panes between black pillars), the yellow-green stripe, the white
-    # route badge, a white skirt line, two wheels
+    # the country village bus from the front, so its face shows: a cloth bundle and a sack on the roof rack, the
+    # ivory roof, the hand-painted route board (red "02"), the windscreen, the ivory band with its red pinstripe, two
+    # big round headlamp eyes with dark pupils looking in, rosy cheeks and a little smile, the chrome bumper, the tyres
     c = Canvas()
-    G = "slime"
-    box(c, 0, 3, 15, 12, G, 2, 2)              # the body
-    box(c, 1, 2, 14, 2, "car_white", 5, 3)     # the roof
-    box(c, 0, 3, 15, 3, "car_white", 4, 3)     # the white roof line
-    box(c, 0, 4, 15, 4, G, 3, 3)               # the band over the windows
-    box(c, 0, 4, 2, 4, "rubber", 1, 5)         # the route board, lit
-    c.put(1, 4, "glow_amber", 3, 6)
-    c.put(2, 4, "glow_amber", 2, 6)
-    box(c, 0, 5, 15, 7, "rubber", 1, 3)        # the windows' black band
-    box(c, 0, 5, 0, 9, "glass", 3, 4)          # the tall windscreen
-    c.put(0, 5, "glass", 5, 5)
-    for x in (2, 5, 8, 11):
-        box(c, x, 5, x + 1, 7, "glass", 2, 4)  # side panes between the pillars
-        c.put(x, 5, "glass", 4, 5)
-    c.put(14, 6, "glass", 2, 4)
-    box(c, 1, 8, 15, 8, "sprout", 4, 4)        # the stripe
-    box(c, 0, 12, 15, 12, "car_white", 3, 4)   # the white skirt line
-    box(c, 6, 9, 7, 10, "car_white", 5, 4)     # the route badge
-    c.put(0, 11, "lamp", 5, 5)                 # headlamp
-    box(c, 15, 9, 15, 11, "signal_red", 3, 5)  # tail lamp
-    wheel(c, 3, 13, 2)
-    wheel(c, 12, 13, 2)
+    G = "bottle_green"
+    box(c, 4, 0, 7, 1, "indigo", 2, 6)          # the bundle (white flowers on it)
+    c.put(5, 0, "cream", 3, 7)
+    c.put(7, 1, "cream", 3, 7)
+    box(c, 9, 1, 11, 1, "burlap", 2, 6)         # the sack
+    box(c, 2, 2, 13, 2, "cream", 3, 3)          # the roof
+    box(c, 1, 3, 14, 12, G, 3, 2)               # the body
+    box(c, 4, 3, 11, 3, "cream", 3, 5)          # the route board
+    for x in (5, 6, 7):
+        c.put(x, 3, "fabric_red", 2, 6)         # "02", painted
+    c.put(9, 3, "leaf_dark", 1, 6)
+    c.put(10, 3, "leaf_dark", 1, 6)
+    box(c, 2, 4, 13, 6, "tint", 2, 4)           # the windscreen
+    box(c, 3, 5, 12, 6, "glass", 1, 5)
+    c.put(3, 5, "glass", 4, 6)
+    c.put(4, 5, "glass", 3, 6)
+    box(c, 1, 7, 14, 7, "cream", 3, 4)          # the ivory band
+    box(c, 1, 8, 14, 8, "fabric_red", 2, 4)     # the pinstripe
+    for x0, pupil in ((2, 4), (10, 11)):        # the eyes: round lamps, a dark pupil looking in, a chrome rim below
+        box(c, x0 + 1, 9, x0 + 2, 9, "lamp", 5, 6)
+        box(c, x0, 10, x0 + 3, 10, "lamp", 5, 6)
+        box(c, x0 + 1, 11, x0 + 2, 11, "blade", 3, 6)
+        c.put(pupil, 10, "tint", 0, 6)
+    c.put(1, 11, "pink", 2, 6)                  # cheeks
+    c.put(14, 11, "pink", 2, 6)
+    c.put(6, 11, "leaf_dark", 0, 6)             # the smile
+    c.put(9, 11, "leaf_dark", 0, 6)
+    c.put(7, 12, "leaf_dark", 0, 6)
+    c.put(8, 12, "leaf_dark", 0, 6)
+    box(c, 1, 13, 14, 13, "blade", 4, 6)        # the bumper
+    box(c, 1, 14, 3, 15, "rubber", 1, 3)        # the tyres
+    box(c, 12, 14, 14, 15, "rubber", 1, 3)
     return c.render()

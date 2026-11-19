@@ -81,10 +81,10 @@ LAMPS = {
     # box_truck: headlamps in the bumper, tail lamps on the underrun bar (the reverse lamps beside the plate)
     "box_truck": dict(scale=2.5, head=lens(10.5, 15, 7.5, 10.5, -53.5), tail=lens(9, 13, 8, 10.5, 52),
                       reverse=lens(5.5, 8, 8, 10.5, 52), body=("vehicles_road", "box_truck")),
-    # vehicles_bus.py village_bus: two square lamps each side over the bumper, tall tail lamps on the back's corners
-    # (the reverse lamp at their foot)
-    "village_bus": dict(scale=4.0, head=lens(12, 15, 10, 12, -56.5), tail=lens(15, 18.5, 12, 17, 56.5),
-                        reverse=lens(15, 18.5, 9.5, 11.5, 56.5), body=("vehicles_road", "village_bus")),
+    # vehicles_bus.py village_bus: the two big round headlamps it has for eyes, round tail lamps on the tail (the
+    # reverse lamp under each)
+    "village_bus": dict(scale=4.0, head=lens(5.5, 12.5, 9, 16, -48.5, True), tail=lens(12, 16, 10, 14, 48.5, True),
+                        reverse=lens(12.5, 15.5, 7.5, 9.5, 48.5), body=("vehicles_road", "village_bus")),
     # vehicles_farm.py power_tiller: one round lamp on the hopper's front corner (the trailer's lamps are not drawn here)
     "power_tiller": dict(scale=2.0, head=lens(-4.9, -2.1, 26.1, 28.9, -16, True, False), body=("vehicles_farm", "power_tiller")),
     # tractor: two round lamps standing on the hood's front corners, tail lamps on the fenders' backs
