@@ -493,6 +493,79 @@ def server_mark():
 # Writing
 # ------------------------------------------------------------------------------------------------
 
+# ------------------------------------------------------------------------------------------------
+# 마을버스 passengers (economy README "마을버스", the driver's overlay): their faces, cut from the skins of the
+# economy's pack (the front of the head with its hat layer, a dark outline round it), and four moods
+# ------------------------------------------------------------------------------------------------
+
+BUS_SKINS = REPO / "economy/content/economy/assets/economy/textures/entity/bus"
+FACE_CELL = (10, 10)
+OUTLINE_DARK = (24, 22, 30, 255)
+
+
+def _outline(im):
+    """A 1 px dark outline round every opaque pixel (the face reads on any sky or road behind it)."""
+    out = Image.new("RGBA", im.size, (0, 0, 0, 0))
+    w, h = im.size
+    for y in range(h):
+        for x in range(w):
+            if im.getpixel((x, y))[3]:
+                continue
+            if any(0 <= x + dx < w and 0 <= y + dy < h and im.getpixel((x + dx, y + dy))[3]
+                   for dx, dy in ((1, 0), (-1, 0), (0, 1), (0, -1))):
+                out.putpixel((x, y), OUTLINE_DARK)
+    out.alpha_composite(im)
+    return out
+
+
+def bus_face(skin_png):
+    """A passenger's face: the head's front (8 x 8) with the hat layer over it, in a 10 x 10 cell with an outline."""
+    skin = Image.open(skin_png).convert("RGBA")
+    face = skin.crop((8, 8, 16, 16))
+    face.alpha_composite(skin.crop((40, 8, 48, 16)))
+    cell = Image.new("RGBA", FACE_CELL, (0, 0, 0, 0))
+    cell.alpha_composite(face, (1, 1))
+    return _outline(cell)
+
+
+MOODS = {
+    # 8 x 8 round faces: o outline, y face, w shine, e eyes, m mouth, c cheeks
+    "great": ("ffd25a", "e8506a", [
+        "..oooo..", ".oyyyyo.", "oyeyyeyo", "oyyyyyyo", "ocmyymco", "oymmmmyo", ".oyyyyo.", "..oooo.."]),
+    "good": ("a6e07a", "3a6a2a", [
+        "..oooo..", ".oyyyyo.", "oyeyyeyo", "oyyyyyyo", "oymyymyo", "oyymmyyo", ".oyyyyo.", "..oooo.."]),
+    "meh": ("e6d27a", "6a5a2a", [
+        "..oooo..", ".oyyyyo.", "oyeyyeyo", "oyyyyyyo", "oyyyyyyo", "oymmmmyo", ".oyyyyo.", "..oooo.."]),
+    "bad": ("ff8a70", "6a1a1a", [
+        "..oooo..", ".oyyyyo.", "oeyyyyeo", "oyeyyeyo", "oyyyyyyo", "oymmmmyo", ".omyymo.", "..oooo.."]),
+}
+
+
+def mood_icon(name):
+    face, mark, rows = MOODS[name]
+    cols = {"o": OUTLINE_DARK, "y": tuple(int(face[i:i + 2], 16) for i in (0, 2, 4)) + (255,),
+            "e": (40, 30, 40, 255), "m": tuple(int(mark[i:i + 2], 16) for i in (0, 2, 4)) + (255,),
+            "c": (255, 150, 170, 255)}
+    cell = Image.new("RGBA", FACE_CELL, (0, 0, 0, 0))
+    for y, r in enumerate(rows):
+        for x, ch in enumerate(r):
+            if ch in cols:
+                cell.putpixel((x + 1, y + 1), cols[ch])
+    return cell
+
+
+def faces_sheet():
+    """The overlay's pictures: every passenger skin's face (named by its file) and the four moods (mood_...)."""
+    names, cells = [], []
+    for f in sorted(BUS_SKINS.glob("*.png")):
+        names.append(f.stem)
+        cells.append(bus_face(f))
+    for m in MOODS:
+        names.append("mood_" + m)
+        cells.append(mood_icon(m))
+    return names, cells
+
+
 def _sheet(cells, cell, cols):
     rows = (len(cells) + cols - 1) // cols
     im = Image.new("RGBA", (cols * cell[0], rows * cell[1]), (0, 0, 0, 0))
@@ -542,6 +615,8 @@ def sheets():
     out["panel_div"] = ((STRIP_CELL, 1), len(names), 1, names, cells)
     names, cells = edit_sheet()
     out["panel_edit"] = (EDIT_CELL, len(names), EDIT_CELL[1], names, cells)
+    names, cells = faces_sheet()
+    out["faces"] = (FACE_CELL, 8, FACE_CELL[1], names, cells)
     return out
 
 

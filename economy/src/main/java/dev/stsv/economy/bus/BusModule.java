@@ -104,10 +104,13 @@ public final class BusModule extends EcoModule {
     static final class Waiter {
         final Mannequin m;
         final BusSpec.Type type;
+        /** the skin's file name (its face in the HUD's faces sheet), or null */
+        final String face;
 
-        Waiter(Mannequin m, BusSpec.Type type) {
+        Waiter(Mannequin m, BusSpec.Type type, String face) {
             this.m = m;
             this.type = type;
+            this.face = face;
         }
     }
 
@@ -124,6 +127,7 @@ public final class BusModule extends EcoModule {
         final long boarded = System.currentTimeMillis();
         final double road;
         double mood;
+        String face;
 
         Rider(Mannequin m, BusSpec.Type type, int from, int dest, double road, double mood) {
             this.m = m;
@@ -166,6 +170,7 @@ public final class BusModule extends EcoModule {
         readStops();
         every(1L, this::tick);
         every(20L, this::second);
+        core.hud().overlay("eco-bus", this::overlayRows);
         Bukkit.getScheduler().runTaskLater(eco, this::rebuildNets, 40L);   // after the roads have loaded
     }
 
@@ -177,6 +182,7 @@ public final class BusModule extends EcoModule {
 
     @Override
     protected void stop() {
+        if (core != null && core.hud() != null) core.hud().removeOverlay("eco-bus");
         for (Run r : runs.values()) for (Rider x : r.riders) x.m.remove();
         runs.clear();
         for (Shown s : shown.values()) for (Waiter w : s.waiters) w.m.remove();
@@ -674,6 +680,7 @@ public final class BusModule extends EcoModule {
         waiting.merge(here.id(), -1.0, Double::sum);
         double road = line.between(line.at(here.id()), line.at(dest));
         Rider r = new Rider(w.m, w.type, here.id(), dest, road, spec.mood().start());
+        r.face = w.face;
         run.riders.add(r);
         BusStop to = stops.get(dest);
         String destName = to == null ? "?" : to.name();
@@ -908,6 +915,31 @@ public final class BusModule extends EcoModule {
                 (int) Math.floor(waiting.getOrDefault(near.id(), 0.0))), 1500);
     }
 
+    /**
+     * The driver's overlay (top left, no panel): every passenger's face, mood and where they go, the next to get off
+     * first. Empty when they drive no bus or carry nobody.
+     */
+    private List<dev.stsv.core.hud.HudLayout.OverlayRow> overlayRows(Player p) {
+        VehicleModule vm = core.vehicles();
+        VehicleModule.Driven d = vm == null ? null : vm.drivenBy(p);
+        Run r = d == null ? null : runs.get(d.id());
+        if (r == null || r.riders.isEmpty()) return List.of();
+        Net n = nets.get(p.getWorld().getName());
+        BusLine line = n == null ? null : n.line(r.line);
+        List<Rider> order = new ArrayList<>(r.riders);
+        if (line != null) order.sort(Comparator.comparingInt(x -> r.dir * line.at(x.dest)));
+        long now = System.currentTimeMillis();
+        List<dev.stsv.core.hud.HudLayout.OverlayRow> out = new ArrayList<>();
+        for (Rider x : order) {
+            BusStop s = stops.get(x.dest);
+            double left = spec.onTime(x.road) - (now - x.boarded) / 1000.0;
+            String mood = x.mood >= 90 ? "mood_great" : x.mood >= 70 ? "mood_good" : x.mood >= 40 ? "mood_meh" : "mood_bad";
+            out.add(new dev.stsv.core.hud.HudLayout.OverlayRow(x.face, mood, Lang.mm("bus.overlay-row", "color", x.type.color(),
+                    "type", x.type.name(), "dest", s == null ? "?" : s.name(), "left", clock(left))));
+        }
+        return out;
+    }
+
     private Waiter spawnWaiter(World w, BusStop s, int i, int n, UUID driver) {
         Net net = nets.get(s.world());
         if (net == null) return null;
@@ -918,6 +950,7 @@ public final class BusModule extends EcoModule {
         Location at = new Location(w, spot[0], s.y() + 1, spot[1], s.facingRoad(), 0);
         if (!w.isChunkLoaded(at.getBlockX() >> 4, at.getBlockZ() >> 4)) return null;
         String lineNos = lineNumbers(s);
+        String skin = type.skins().isEmpty() ? null : type.skins().get(ThreadLocalRandom.current().nextInt(type.skins().size()));
         Mannequin m = w.spawn(at, Mannequin.class, x -> {
             x.setPersistent(false);
             x.setInvulnerable(true);
@@ -930,8 +963,7 @@ public final class BusModule extends EcoModule {
             x.customName(dev.stsv.core.util.Text.mm(typeTag(type)));
             x.setCustomNameVisible(true);
             x.setDescription(Lang.mm("bus.waiter-tag", "lines", lineNos));
-            if (!type.skins().isEmpty()) {
-                String skin = type.skins().get(ThreadLocalRandom.current().nextInt(type.skins().size()));
+            if (skin != null) {
                 boolean slim = skin.endsWith(" slim");
                 String key = slim ? skin.substring(0, skin.length() - 5).trim() : skin.trim();
                 try {
@@ -946,7 +978,12 @@ public final class BusModule extends EcoModule {
                 if (sc != null) sc.setBaseValue(type.scale());
             }
         });
-        return new Waiter(m, type);
+        String face = null;
+        if (skin != null) {
+            String key = skin.endsWith(" slim") ? skin.substring(0, skin.length() - 5).trim() : skin.trim();
+            face = key.substring(key.lastIndexOf('/') + 1);
+        }
+        return new Waiter(m, type, face);
     }
 
     private BusSpec.Type pickType(boolean rush) {
@@ -1073,7 +1110,7 @@ public final class BusModule extends EcoModule {
     }
 
     static String clock(double secs) {
-        if (secs < 0) return "<red>늦음</red>";
+        if (secs < 0) return "<red>지각</red>";
         int s = (int) secs;
         return s / 60 + ":" + String.format("%02d", s % 60);
     }

@@ -182,6 +182,7 @@ public final class HudModule implements StsvModule, Listener, CommandExecutor, T
             plugin.getLogger().warning("hud.sidebar.boss-bar-color 를 알 수 없음, white 사용");
             panelColour = BossBar.Color.WHITE;
         }
+        overlayInset = cfg.getInt("hud.overlay.inset", 2);
         icons.clear();
         ConfigurationSection ic = cfg.getConfigurationSection("hud.sidebar.icons");
         if (ic != null) for (String k : ic.getKeys(false)) icons.put(k, ic.getString(k, ""));
@@ -534,6 +535,33 @@ public final class HudModule implements StsvModule, Listener, CommandExecutor, T
     // Sidebar
     // ------------------------------------------------------------------------------------------
 
+    /** Overlays (pack mode): lists drawn without a panel on the left of the screen, asked every refresh, null or empty to hide. */
+    private final Map<String, Function<Player, List<HudLayout.OverlayRow>>> overlays = new LinkedHashMap<>();
+    private int overlayInset = 2;
+
+    /** Adds (or replaces) an overlay: rows of face, mood and text on the top left (a bus driver's passengers). */
+    public void overlay(String id, Function<Player, List<HudLayout.OverlayRow>> render) {
+        overlays.put(id, render);
+    }
+
+    public void removeOverlay(String id) {
+        overlays.remove(id);
+    }
+
+    private Component overlayFor(Player p) {
+        for (var e : overlays.entrySet()) {
+            try {
+                List<HudLayout.OverlayRow> rows = e.getValue().apply(p);
+                // mirrored from the player's sidebar: its right edge sits against the right of their screen, so the
+                // same distance to the left is against the left of it (whatever the window and the GUI scale)
+                if (rows != null && !rows.isEmpty()) return layout.overlay(rows, -placement(p).right() + overlayInset);
+            } catch (RuntimeException ex) {
+                plugin.getLogger().warning("오버레이 '" + e.getKey() + "' 오류: " + ex.getMessage());
+            }
+        }
+        return null;
+    }
+
     /** Adds (or replaces) a sidebar row. Lower order = higher up. Answer Component.empty() for a gap. */
     public void sidebar(String id, int order, Function<Player, Component> render) {
         rows.put(id, new Line(id, order, render));
@@ -615,6 +643,8 @@ public final class HudModule implements StsvModule, Listener, CommandExecutor, T
             clearSidebar(p);
             List<HudLayout.Row> out = want ? panelRows(entries(p)) : List.of();
             Component panel = out.isEmpty() ? null : layout.panel(out, placement(p), false);
+            Component over = overlayFor(p);   // in the same boss bar title: both have zero net advance
+            if (over != null) panel = panel == null ? over : Component.text().append(panel).append(over).build();
             if (panel == null) hidePanel(p);
             else showPanel(p, panel);
             return;

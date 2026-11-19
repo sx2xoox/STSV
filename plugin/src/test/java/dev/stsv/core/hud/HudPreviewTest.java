@@ -97,6 +97,13 @@ class HudPreviewTest {
                 state("안내 문구와 함께", normal, codex, 23, false)));
 
         pages.put("hud_anim", anim());
+        // the 마을버스 driver's overlay: top left, no panel (faces, moods, where each goes), beside the sidebar
+        pages.put("hud_bus", List.of(
+                full(1920, 1080, 0, "1080p 자동 GUI · 사이드바 기본 자리 (끝에서 뜸) → 손님 목록도 같은 만큼 뜸", null, normal,
+                        Component.text("1번 동항선 ↗ 다음 시장 앞 · 1.2km"), 23, 0),
+                full(1920, 1080, 0, "1080p 자동 GUI · /사이드바 위치 로 오른쪽 끝에 붙임 → 손님 목록은 왼쪽 끝", atRight(1920, 1080, 4, HudLayout.Size.NORMAL, 54), normal,
+                        Component.text("1번 동항선 ↗ 다음 시장 앞 · 1.2km"), 23, 0),
+                full(2560, 1440, 0, "1440p 자동 GUI · 기본 자리", null, normal, Component.text("1번 동항선 ↗ 다음 시장 앞 · 1.2km"), 23, 0)));
 
         JsonObject root = new JsonObject();
         JsonObject out = new JsonObject();
@@ -122,6 +129,15 @@ class HudPreviewTest {
                 if (s.panel()) {
                     HudLayout.Placement at = s.place() == null ? layout.defaults() : s.place();
                     for (HudClient.Draw d : client.lay(layout.panel(rows, at, s.edit())).draws()) draws.add(draw(d, "top", 3 + d.y()));
+                }
+                if (page.getKey().equals("hud_bus")) {
+                    List<HudLayout.OverlayRow> bus = List.of(
+                            new HudLayout.OverlayRow("grandma_2", "mood_great", Lang.mm("bus.overlay-row", "color", "#e0a8ff", "type", "할머니", "dest", "시장 앞", "left", "1:05")),
+                            new HudLayout.OverlayRow("student_1", "mood_good", Lang.mm("bus.overlay-row", "color", "#7cc4ff", "type", "학생", "dest", "동항선 2", "left", "2:40")),
+                            new HudLayout.OverlayRow("office_3", "mood_meh", Lang.mm("bus.overlay-row", "color", "#c9d2dc", "type", "회사원", "dest", "동항 앞", "left", "<red>지각</red>")),
+                            new HudLayout.OverlayRow("tourist_1", "mood_bad", Lang.mm("bus.overlay-row", "color", "#ffd166", "type", "관광객", "dest", "동항 앞", "left", "4:12")),
+                            new HudLayout.OverlayRow("vip_2", "mood_great", Lang.mm("bus.overlay-row", "color", "#ffcf40", "type", "VIP", "dest", "동항 앞", "left", "5:30")));
+                    for (HudClient.Draw d : client.lay(layout.overlay(bus, -(s.place() == null ? layout.defaults() : s.place()).right() + 2)).draws()) draws.add(draw(d, "top", 3 + d.y()));
                 }
                 for (HudClient.Draw d : client.lay(layout.actionBar(s.health(), s.message())).draws()) draws.add(draw(d, "bottom", d.y() - 72));
                 entry.add("draws", draws);
