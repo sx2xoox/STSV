@@ -52,10 +52,45 @@ class BusTest {
         assertEquals(0.5, s.hourFactor(3));
         assertEquals(1.0, s.hourFactor(13));
         assertTrue(s.rush(7));
-        assertEquals(6, s.types().size());
-        double w = s.types().values().stream().mapToDouble(BusSpec.Type::weight).sum();
+        assertEquals(12, s.types().size());
+        // the first six make up 100 (the 2차 kinds come on top, by place and time)
+        double w = s.types().values().stream().limit(6).mapToDouble(BusSpec.Type::weight).sum();
         assertEquals(100, w, 1e-9);
         assertTrue(s.vehicles().contains("stsv:village_bus"));
+    }
+
+    @Test
+    void kindsByPlaceTimeAndDay() {
+        BusSpec s = spec();
+        BusSpec.Type hiker = s.types().get("hiker"), fisher = s.types().get("fisher"), drunk = s.types().get("drunk"),
+                soldier = s.types().get("soldier"), farmer = s.types().get("farmer");
+        // a mountain stop has far more hikers than a seaside one; a seaside one more fishers
+        assertTrue(hiker.weightAt(java.util.Set.of("mountain"), 10, false, false, false) > 10 * hiker.weightAt(java.util.Set.of("sea"), 10, false, false, false));
+        assertTrue(fisher.weightAt(java.util.Set.of("sea"), 10, false, false, false) > 10 * fisher.weightAt(java.util.Set.of("mountain"), 10, false, false, false));
+        // hours: no hikers at night, the drunk only at night (a window over midnight)
+        assertEquals(0, hiker.weightAt(java.util.Set.of(), 23, false, false, false));
+        assertEquals(0, drunk.weightAt(java.util.Set.of(), 15, false, false, false));
+        assertTrue(drunk.weightAt(java.util.Set.of(), 23, false, false, false) > 0);
+        assertTrue(drunk.weightAt(java.util.Set.of(), 2, false, false, false) > 0);
+        // soldiers come at weekends, farmers on market day
+        assertEquals(8, soldier.weightAt(java.util.Set.of(), 12, true, false, false) / soldier.weightAt(java.util.Set.of(), 12, false, false, false), 1e-9);
+        assertEquals(3, farmer.weightAt(java.util.Set.of(), 12, false, true, false) / farmer.weightAt(java.util.Set.of(), 12, false, false, false), 1e-9);
+        assertTrue(s.types().get("couple").pair());
+        assertTrue(soldier.toEnd());
+        assertEquals(100, farmer.luggage(), 1e-9);
+        // market day every 5 days; talk falls back to the default lines
+        assertTrue(s.marketDay(10));
+        assertFalse(s.marketDay(11));
+        assertNotNull(s.lines(s.types().get("resident"), "jolt"));
+        assertEquals(s.types().get("grandma").talk().get("jolt"), s.lines(s.types().get("grandma"), "jolt"));
+        // the buses' rules
+        assertEquals(1000, s.bus("stsv:intercity_bus").minRoad(), 1e-9);
+        assertTrue(s.bus("stsv:school_bus").takes(s.types().get("student")));
+        assertFalse(s.bus("stsv:school_bus").takes(s.types().get("grandma")));
+        assertTrue(s.bus("stsv:village_bus").takes(s.types().get("grandma")));
+        assertTrue(s.vehicles().containsAll(List.of("stsv:village_bus", "stsv:intercity_bus", "stsv:school_bus", "stsv:tour_bus")));
+        // grandma's gifts are real items of the economy
+        for (BusSpec.Gift g : s.types().get("grandma").gifts()) assertTrue(g.item().startsWith("economy:"), g.item());
     }
 
     static RoadNetwork.Road straight(String dock, double x0, double z0, double dx, double dz, int n) {

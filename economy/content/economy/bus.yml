@@ -2,7 +2,12 @@
 # 국도 위 정류장에서 주민 손님(마네킹)을 태워 다른 정류장에 내려 주면 운임을 받음.
 
 # 버스로 치는 탈것 (코어 아이템 키)
-vehicles: [stsv:village_bus]
+vehicles: [stsv:village_bus, stsv:intercity_bus, stsv:school_bus, stsv:tour_bus]
+# 버스 종류별 규칙 (없는 버스는 모든 손님): min-road 이 도로 거리(블록) 넘는 손님만, only 이 손님 종류만, fare 운임 배수
+buses:
+  stsv:intercity_bus: {min-road: 1000, fare: 1.3}
+  stsv:school_bus: {only: [student], fare: 1.3}
+  stsv:tour_bus: {only: [tourist, vip, couple], fare: 1.2}
 
 fare:
   base: 100            # 운임 = base + 도로 거리(블록) × per-block, 손님 종류 · 기분 배수
@@ -62,8 +67,51 @@ stops:
     width: 3           # 갓길 바깥으로 더 포장하는 폭
     stop-reach: 7      # 베이 가운데에서 이만큼 안에 서야 문이 열림
 
+# 정류장 특성: 지을 때 주변을 보고 자동으로 붙음 (표지판에 이름). 손님 종류마다 특성별 비율 (types.*.tags)
+#   mountain 산 (산 바이옴 · 높은 곳), sea 바다 (물이 많거나 바다 · 강 · 해변), field 들판 (평원 · 사바나),
+#   forest 숲, village 마을 (근처 플레이어 땅), port 항구 (하역장 300칸 안)
+tags:
+  mountain: 산
+  sea: 바다
+  field: 들판
+  forest: 숲
+  village: 마을
+  port: 항구
+
+# 5일장: every 일마다, 이 특성 정류장에 장이 섬 (types.*.market 배수, 보따리 손님)
+market:
+  every: 5
+  tags: [field, village]
+# 소풍날: 하루에 정류장 한 곳에 학생 단체가 기다림 (한국 시각 from ~ to 시)
+picnic:
+  from: 9
+  to: 12
+  students: 10
+# 환승: 노선 2개 넘게 지나는 정류장에서 내린 손님이 이 확률로 다른 노선 버스를 기다림 (탈 때 "환승입니다", 운임 +transfer-bonus)
+transfer: 0.25
+transfer-bonus: 0.2
+# 졸음: 탄 지 after 초가 지나면 types.*.doze 확률로 졺 (머리 까딱 · Zzz). 조는 손님은 내릴 곳에서 miss 확률로 깨지 못하고 지나침
+doze:
+  after: 90
+  miss: 0.4
+# 지나친 정류장: 내릴 곳을 passed 칸 넘게 지나치면 "여기서 내려요!" 기분 missed-mood, 다음 정류장에서 내림
+passed: 15
+missed-mood: -10
+# 비 오는 날 팁 배수 더하기, 눈 오는 날 급정거 감점 배수
+rain-tip: 0.2
+snow-jolt: 0.5
+# 말풍선: 버스마다 이 틱에 한 번까지 (기사 32칸 안에서만 보임)
+talk-cooldown: 60
+# 선물: types.*.gifts 가 있는 손님이 기분 gift-mood 넘게 내리면 gift-chance 확률로 하나를 줌
+gift-chance: 0.35
+gift-mood: 90
+
 # 손님 종류: weight 비율, fare 운임 배수, mood 감점 배수, slow 타고 내리는 시간 배수,
 # far 먼 곳만 감(블록), tip-mood 이 기분 아래면 팁 없음, rush 출퇴근 시간 가중치 배수, late 늦으면 기분 감점(분당)
+# tags: 정류장 특성별 비율 배수 (여러 특성이면 가장 큰 것), hours: [from, to] 이 시간(한국 시각)에만 나옴,
+# weekend: 주말 비율 배수, market: 장날 비율 배수, luggage: 보따리 수하물 운임 (G), pair: 둘이 같이 타고 내림,
+# wander: 엉뚱한 정류장에서 내릴 확률, turn: 급회전 감점 배수, to-end: 가는 쪽 끝 정류장으로만, doze: 졸 확률 (기본 0.15)
+# gifts: 선물 (아이템 키, 개수), talk: 말풍선 대사 (없는 상황은 default 대사)
 # skins: 리소스팩 스킨 키 (economy 팩 assets/economy/textures/<키 경로>.png), slim 이면 팔 3픽셀 모델
 types:
   resident:
@@ -79,6 +127,14 @@ types:
     mood: 0.5
     rush: 2.0
     scale: 0.9
+    doze: 0.2
+    tags: {village: 1.5}
+    talk:
+      board: ["안녕하세요!", "학교 가요~"]
+      jolt: ["으악!", "기사님 살살요~"]
+      late: ["선생님한테 혼나겠다…", "지각이다 지각!"]
+      smooth: ["오 부드럽다"]
+      view: ["우와~"]
     skins: ["economy:entity/bus/student_1", "economy:entity/bus/student_2 slim", "economy:entity/bus/student_3"]
   grandma:
     name: 할머니
@@ -87,6 +143,15 @@ types:
     slow: 2.0
     jolt: 2.0
     tip: 2.0
+    market: 3
+    tags: {field: 1.5, village: 1.5}
+    gifts: [{item: economy:sikhye, amount: 1}, {item: economy:injeolmi, amount: 2}, {item: economy:corn_bread, amount: 2}]
+    talk:
+      board: ["아이고 고마워요 기사양반", "장에 가요~"]
+      jolt: ["아이고 기사양반 천천히 가요", "아이고 허리야…"]
+      bump: ["에구머니나!"]
+      smooth: ["기사양반 운전 참 잘하네", "아이 편하다"]
+      thanks: ["고마워요~ 이거 먹어요", "수고해요 기사양반"]
     skins: ["economy:entity/bus/grandma_1 slim", "economy:entity/bus/grandma_2 slim", "economy:entity/bus/grandma_3 slim"]
   office:
     name: 회사원
@@ -94,6 +159,12 @@ types:
     weight: 15
     fare: 1.2
     late: 5
+    doze: 0.3
+    talk:
+      board: ["출근 출근…"]
+      jolt: ["커피 쏟았잖아요!", "아 진짜…"]
+      late: ["지각이다 지각…", "팀장님 전화 온다…"]
+      smooth: ["오늘은 좀 괜찮네"]
     skins: ["economy:entity/bus/office_1", "economy:entity/bus/office_2 slim", "economy:entity/bus/office_3"]
   tourist:
     name: 관광객
@@ -101,6 +172,11 @@ types:
     weight: 4
     fare: 1.5
     far: 1500
+    tags: {sea: 3, mountain: 2, port: 2}
+    talk:
+      board: ["여기 맛집 어디예요?", "버스 귀엽다~"]
+      view: ["와 경치 좋다~ 찰칵!", "사진 찍어야지~ 찰칵!"]
+      jolt: ["앗 사진 흔들렸다"]
     skins: ["economy:entity/bus/tourist_1", "economy:entity/bus/tourist_2 slim", "economy:entity/bus/tourist_3"]
   vip:
     name: VIP
@@ -110,4 +186,97 @@ types:
     far: 2500
     tip-mood: 70
     announce: true
+    talk:
+      board: ["흠… 시골 버스라."]
+      jolt: ["이게 무슨 운전인가?"]
+      smooth: ["음, 나쁘지 않군"]
     skins: ["economy:entity/bus/vip_1", "economy:entity/bus/vip_2", "economy:entity/bus/vip_3 slim"]
+  farmer:
+    name: 농부
+    color: "#c9a26b"
+    weight: 6
+    market: 3
+    luggage: 100
+    tags: {field: 4, village: 1.5, mountain: 0.5, sea: 0.3}
+    skins: ["economy:entity/bus/farmer_1", "economy:entity/bus/farmer_2", "economy:entity/bus/farmer_3"]
+    talk:
+      board: ["보따리 좀 실을게요", "올해 농사가 잘 됐어~"]
+      jolt: ["어허, 채소 상해요!"]
+      smooth: ["좋다 좋아"]
+  hiker:
+    name: 등산객
+    color: "#ff8a5c"
+    weight: 3
+    mood: 0.6
+    far: 800
+    tags: {mountain: 6, forest: 3, sea: 0.3, village: 0.5}
+    hours: [5, 17]
+    skins: ["economy:entity/bus/hiker_1", "economy:entity/bus/hiker_2", "economy:entity/bus/hiker_3"]
+    talk:
+      board: ["정상 찍고 왔어요!", "야호~"]
+      view: ["저 산 멋지다~"]
+      jolt: ["다리 풀렸는데 살살요~"]
+  fisher:
+    name: 낚시꾼
+    color: "#6fc3c9"
+    weight: 3
+    tags: {sea: 6, port: 4, field: 0.3, mountain: 0.3}
+    hours: [3, 20]
+    skins: ["economy:entity/bus/fisher_1", "economy:entity/bus/fisher_2", "economy:entity/bus/fisher_3"]
+    talk:
+      board: ["오늘 대어 낚았어요!", "물때 맞춰 가야 돼요"]
+      jolt: ["아이스박스 엎어져요!"]
+      view: ["물 좋네~"]
+  soldier:
+    name: 군인
+    color: "#8fae6b"
+    weight: 0.6
+    weekend: 8
+    to-end: true
+    tip: 2.0
+    skins: ["economy:entity/bus/soldier_1", "economy:entity/bus/soldier_2", "economy:entity/bus/soldier_3"]
+    talk:
+      board: ["충성! 휴가 나왔습니다!", "엄마 보러 갑니다!"]
+      jolt: ["괜찮습니다!"]
+      thanks: ["감사합니다 기사님! 충성!"]
+  couple:
+    name: 커플
+    color: "#ff9ec8"
+    weight: 3
+    pair: true
+    hours: [11, 23]
+    skins: ["economy:entity/bus/couple_1", "economy:entity/bus/couple_2 slim", "economy:entity/bus/couple_3 slim"]
+    talk:
+      board: ["자기야 여기 앉자~", "우리 어디 갈까?"]
+      view: ["노을 예쁘다~"]
+      jolt: ["깜짝이야!"]
+  drunk:
+    name: 술 취한 아저씨
+    color: "#e07a6b"
+    weight: 2
+    hours: [21, 4]
+    wander: 0.2
+    turn: 2.0
+    doze: 0.8
+    skins: ["economy:entity/bus/drunk_1", "economy:entity/bus/drunk_2", "economy:entity/bus/drunk_3"]
+    talk:
+      board: ["기사 양반~ 집에 가자~", "딸꾹!"]
+      jolt: ["어어어~ 세상이 돈다~"]
+      turn: ["우웩… 아냐 괜찮아"]
+      smooth: ["♪ 내 나이가 어때서~"]
+      missed: ["어? 여기가 어디여?"]
+
+# 상황별 기본 대사 (종류에 없을 때)
+talk:
+  board: ["안녕하세요~", "수고하세요~"]
+  jolt: ["어이쿠!", "깜짝이야!"]
+  bump: ["쾅! 뭐야 뭐야", "아야!"]
+  turn: ["어어어~"]
+  smooth: ["편하다~"]
+  late: ["아 늦겠다…"]
+  view: ["경치 좋네~"]
+  missed: ["기사님! 여기서 내려요!", "어? 지나쳤어요!"]
+  doze-missed: ["앗! 내려야 되는데!", "흐억… 어디야 여기?"]
+  bell: ["내릴게요~"]
+  thanks: ["고맙습니다~", "수고하세요~"]
+  transfer: ["환승할게요~"]
