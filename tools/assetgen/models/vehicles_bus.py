@@ -90,8 +90,38 @@ def worn(p, step):
     return step + 0.35 if r < 0.06 else step - 0.25 if r > 0.96 else step
 
 
+# the wheel well's round arch: the wall over a wheel steps down towards its ends along a circle round the axle (the wheel
+# clears every step), instead of one square cut
+ARCH_STEPS = ((0, 3, ARCH), (3, 6, 17), (6, 8.5, 15), (8.5, SLOT, 12))
+
+
+def arch(a):
+    """The wall spans (z0, z1, bottom) over the wheel at axle z = a."""
+    out = []
+    for d0, d1, y in reversed(ARCH_STEPS):
+        out.append((a - d1, a - d0, y))
+    for d0, d1, y in ARCH_STEPS[1:]:
+        out.append((a + d0, a + d1, y))
+    out[len(ARCH_STEPS) - 1] = (a - ARCH_STEPS[0][1], a + ARCH_STEPS[0][1], ARCH)
+    return out
+
+
+def arch_bottom(z):
+    """How low the wall comes at z over a wheel (its arch), or None away from the wheels."""
+    for a in (FA, RA):
+        d = abs(z - a)
+        for d0, d1, y in ARCH_STEPS:
+            if d0 <= d < d1 or (d1 == SLOT and abs(d - SLOT) < 1e-6):
+                return y
+    return None
+
+
 def well(p):
-    return abs(p[0]) > IN - 0.1 and p[1] < ARCH + 0.1 and any(abs(p[2] - a) <= SLOT + 0.1 for a in (FA, RA))
+    """Under the arch: the dark wheel well (its steps follow the round arch)."""
+    if abs(p[0]) <= IN - 0.1:
+        return False
+    b = arch_bottom(p[2])
+    return b is not None and p[1] < b
 
 
 def rounded(a, a0, a1, y, y0, y1, r=2.2):
@@ -213,8 +243,8 @@ def bus_kit():
         if c.face in ("north", "south"):
             return green(y, 1.4, 2.2)                         # the edges at the doors and wells
         # a soft darker rim round the arches
-        if (fy == ARCH and any(abs(z - a) <= SLOT + 0.6 for a in (FA, RA))) or \
-                (fy < ARCH and any(abs(abs(z - a) - SLOT - 0.5) < 0.6 for a in (FA, RA))):
+        b = arch_bottom(z)
+        if (b is not None and fy == b) or (b is None and any(abs(abs(z - a) - SLOT - 0.5) < 0.6 for a in (FA, RA)) and fy < ARCH):
             return (G, 0.8)
         # the route badge: a round white sign with "02" in green, in the middle of each side (on the right in front
         # of the middle door)
@@ -342,11 +372,10 @@ def bus_kit():
     for s in (1, -1):
         xa, xb = sorted((IN * s, H * s))
         if s < 0:
-            spans = [(WF, FA - SLOT, BOTTOM), (FA - SLOT, FA + SLOT, ARCH), (FA + SLOT, RA - SLOT, BOTTOM),
-                     (RA - SLOT, RA + SLOT, ARCH), (RA + SLOT, WB, BOTTOM)]
+            spans = [(WF, FA - SLOT, BOTTOM), *arch(FA), (FA + SLOT, RA - SLOT, BOTTOM), *arch(RA), (RA + SLOT, WB, BOTTOM)]
         else:
-            spans = [(FA - SLOT, FA + SLOT, ARCH), (FA + SLOT, DOOR_R[0], BOTTOM),
-                     (DOOR_R[1], RA - SLOT, BOTTOM), (RA - SLOT, RA + SLOT, ARCH), (RA + SLOT, WB, BOTTOM)]
+            spans = [*arch(FA), (FA + SLOT, DOOR_R[0], BOTTOM),
+                     (DOOR_R[1], RA - SLOT, BOTTOM), *arch(RA), (RA + SLOT, WB, BOTTOM)]
         for z0, z1, y0 in spans:
             m.box("wall", (xa, y0, z0), (xb, BELT, z1), wall)
         # the round corners: a pillar each side of the nose and of the tail, stepped in from the walls
