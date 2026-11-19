@@ -1272,7 +1272,12 @@ public final class BusModule extends EcoModule {
         Location at = new Location(w, spot[0], s.y() + 1, spot[1], s.facingRoad(), 0);
         if (!w.isChunkLoaded(at.getBlockX() >> 4, at.getBlockZ() >> 4)) return null;
         String lineNos = lineNumbers(s);
-        String skin = type.skins().isEmpty() ? null : type.skins().get(ThreadLocalRandom.current().nextInt(type.skins().size()));
+        String skin;
+        if (type.skins().isEmpty()) skin = null;
+        else if (type.pair() && type.skins().size() > 1) {
+            // a couple in matching clothes: the first the first look, the other half one of the rest
+            skin = only == null ? type.skins().getFirst() : type.skins().get(1 + ThreadLocalRandom.current().nextInt(type.skins().size() - 1));
+        } else skin = type.skins().get(ThreadLocalRandom.current().nextInt(type.skins().size()));
         Mannequin m = w.spawn(at, Mannequin.class, x -> {
             x.setPersistent(false);
             x.setInvulnerable(true);

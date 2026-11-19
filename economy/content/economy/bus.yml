@@ -196,7 +196,7 @@ types:
     market: 3
     luggage: 100
     tags: {field: 4, village: 1.5, mountain: 0.5, sea: 0.3}
-    skins: ["economy:entity/bus/farmer_1", "economy:entity/bus/farmer_2", "economy:entity/bus/farmer_3"]
+    skins: ["economy:entity/bus/farmer_1", "economy:entity/bus/farmer_2 slim", "economy:entity/bus/farmer_3"]
     talk:
       board: ["보따리 좀 실을게요", "올해 농사가 잘 됐어~"]
       jolt: ["어허, 채소 상해요!"]
@@ -209,7 +209,7 @@ types:
     far: 800
     tags: {mountain: 6, forest: 3, sea: 0.3, village: 0.5}
     hours: [5, 17]
-    skins: ["economy:entity/bus/hiker_1", "economy:entity/bus/hiker_2", "economy:entity/bus/hiker_3"]
+    skins: ["economy:entity/bus/hiker_1", "economy:entity/bus/hiker_2 slim", "economy:entity/bus/hiker_3"]
     talk:
       board: ["정상 찍고 왔어요!", "야호~"]
       view: ["저 산 멋지다~"]
@@ -220,7 +220,7 @@ types:
     weight: 3
     tags: {sea: 6, port: 4, field: 0.3, mountain: 0.3}
     hours: [3, 20]
-    skins: ["economy:entity/bus/fisher_1", "economy:entity/bus/fisher_2", "economy:entity/bus/fisher_3"]
+    skins: ["economy:entity/bus/fisher_1", "economy:entity/bus/fisher_2", "economy:entity/bus/fisher_3 slim"]
     talk:
       board: ["오늘 대어 낚았어요!", "물때 맞춰 가야 돼요"]
       jolt: ["아이스박스 엎어져요!"]
