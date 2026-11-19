@@ -59,16 +59,16 @@ def wheel_classic():
     m = BModel("wheel_classic", shift=(8, 8, 8), floor=None)
     d, width = WHEEL_D, 4
     r = d / 2
-    cap_d = 7
+    cap_d = 5.5
 
     def tire(c):
         y, z = c.p[1], c.p[2]
         rr = math.hypot(y, z)
         if c.face in ("east", "west"):
-            if rr > r - 0.8:
-                return ("rubber", 0)
-            if rr > r - 2.7:
-                return ("cream", 3.6 if (y > 0 and z < 0) else 3.0)      # the white wall
+            if rr > r - 1.3:
+                return ("rubber", 0.6)
+            if rr > r - 2.6:
+                return ("cream", 3.4 if (y > 0 and z < 0) else 2.8)      # the white wall
             return ("rubber", 1)
         a = math.atan2(z, y)
         k = math.floor((a + math.pi) / (2 * math.pi) * d * 2.4)
@@ -82,7 +82,7 @@ def wheel_classic():
             return ("blade", 2)
         if rr > cap_d / 2 - 0.8:
             return ("blade", 4.4)                                       # the bright rim of the cap
-        if rr > 2.0:
+        if rr > 1.0:
             return ("blade", 3.4 if (y > 0 and z < 0.5) else 2.4)       # the dished cap, lit on its upper front
         return ("blade", 4.0)
     p = Paint("blade", 3, noise=0, rim=0.2, ao=0.3, decal=hub)
@@ -98,7 +98,7 @@ def wheel_classic():
         xa, xb = sorted(((w2 + 0.5) * s, (w2 + 1.25) * s))
         m.box("spinner_boss", (xa, -1, -1), (xb, 1, 1), sp)
         xa, xb = sorted(((w2 + 0.5) * s, (w2 + 1.0) * s))
-        m.box("spinner_bar", (xa, -0.5, -2.75), (xb, 0.5, 2.75), sp)
+        m.box("spinner_bar", (xa, -0.5, -2.25), (xb, 0.5, 2.25), sp)
     m.display = presets.furniture(gui_scale=0.6)
     return m
 
@@ -107,22 +107,22 @@ def wheel_classic():
 # The body
 # ================================================================================================
 
-def classic_roadster(colour="ruby", upper="cream", leather="crimson", soft="rubber", name=NAME):
-    return roadster_kit(colour, upper, leather, soft, name).body
+def classic_roadster(colour="ruby", cove="cream", leather="crimson", soft="rubber", name=NAME):
+    return roadster_kit(colour, cove, leather, soft, name).body
 
 
-def roadster_kit(colour="ruby", upper="cream", leather="crimson", soft="rubber", name=NAME):
+def roadster_kit(colour="ruby", cove="cream", leather="crimson", soft="rubber", name=NAME):
     kit = Kit(name, ("door_l", "door_r"))
     m = kit.body
     door = {-1: kit["door_l"], 1: kit["door_r"]}
-    C, U = colour, upper
+    C, U = colour, cove
     PAINT = Paint(C, 2, noise=0, grad=0)
 
     def low(y):
-        return (C, lerp(y, 3, SPEAR, 0.7, 2.3))
+        return (U, lerp(y, 3, SPEAR, 1.2, 2.6))                        # the cove under the spear
 
     def high(y):
-        return (U, lerp(y, SPEAR + 1, 14.5, 1.6, 2.8))
+        return (C, lerp(y, SPEAR + 1, 14.5, 0.9, 1.8))
 
     def well(p):
         x, y, z = p
@@ -133,9 +133,9 @@ def roadster_kit(colour="ruby", upper="cream", leather="crimson", soft="rubber",
         x, y, z = c.p
         fy, fz = math.floor(y), math.floor(z)
         if fy < SILL + 1 and c.face in ("east", "west"):
-            return (C, 0.4)                                             # the rocker's shadow
+            return (U, 0.6)                                             # the rocker's shadow
         if fz in (DZ[0], DZ[1] - 1) and SILL < fy < BELT:
-            return (C, 0.2) if y < SPEAR else (U, 0.6)                  # the doors' seams
+            return (U, 0.4) if y < SPEAR else (C, 0.2)                  # the doors' seams
         if fy == SPEAR:
             # the spear: from the front wheel's arch back to the rear one, tapering to a point at its back
             if WF + SLOT + 0.5 <= z < WR - SLOT - 1.5:
@@ -146,7 +146,7 @@ def roadster_kit(colour="ruby", upper="cream", leather="crimson", soft="rubber",
         if fy == 11 and DZ[1] - 3 <= z < DZ[1] - 1:
             return ("blade", 4.6)                                       # the door handle (a push button)
         if fy == BELT - 1 and DZ[0] <= z < DZ[1] + 10:
-            return (U, 3.2)                                             # light along the door top
+            return (C, 2.2)                                             # light along the door top
         return low(y) if y < SPEAR else high(y)
 
     def body(c):
@@ -159,14 +159,14 @@ def roadster_kit(colour="ruby", upper="cream", leather="crimson", soft="rubber",
             return ("rubber", 0)
         if c.face == "up":
             if y < SPEAR:
-                return (C, 2.6)
+                return (U, 2.6)
             if ax < XI and DZ[0] <= z < 5.5 and y < 5:
                 return (leather, 0.8 if fz % 3 else 0.4)               # the carpet
             if ax < 0.5 and z < -12:
                 return ("blade", 4.6)                                   # the hood's chrome spine
             if ax < XI and z > 5.5 and fz == 30 and ax < 6:
-                return (U, 1.0)                                         # the boot lid's seam
-            return (U, 3.4 if ax >= 11 and ax < 13 else 2.8)            # light along the wings' crowns
+                return (C, 0.8)                                         # the boot lid's seam
+            return (C, 2.6 if ax >= 11 and ax < 13 else 2.0)            # light along the wings' crowns
         if c.face in ("east", "west"):
             if ax < XI + 0.6 and DZ[0] <= z < 5.5:
                 return (leather, 1.6 if fy > FLOOR else 0.6)            # the cabin's side (a door stands open)
@@ -177,7 +177,7 @@ def roadster_kit(colour="ruby", upper="cream", leather="crimson", soft="rubber",
             return low(y)
         if c.face == "south":
             if z > L - 0.1 and ax < 4 and 6 <= fy <= 9:
-                return (C, 0.5)                                         # the plate's recess
+                return (U, 0.5)                                         # the plate's recess
             if y >= SPEAR:
                 return high(y)
             return low(y)
@@ -220,7 +220,16 @@ def roadster_kit(colour="ruby", upper="cream", leather="crimson", soft="rubber",
         m.box("wing_crown", (xa, ARCH, WR - SLOT), (xb, 14, WR + SLOT), paint)
         m.box("wing_rear", (xa, SILL, WR + SLOT), (xb, 13.5, 33), paint)
         m.box("wing_end", (xa, SILL + 1, 33), (xb, 12, L), paint)
+        # the chrome spear, standing a quarter pixel proud: on the wing's tail, the door (a part) and the quarter
+        xa, xb = X(WS, WS + 0.25)
+        sp = CHROME(decal=lambda c: ("blade", 4.8 if c.face in ("east", "west", "up") else 3.0))
+        m.box("spear", (xa, SPEAR, WF + SLOT + 0.5), (xb, SPEAR + 0.75, DZ[0]), sp)
+        door[s].box("spear", (xa, SPEAR, DZ[0]), (xb, SPEAR + 0.75, DZ[1]), sp)
+        m.box("spear", (xa, SPEAR, DZ[1]), (xb, SPEAR + 0.75, WR - SLOT - 1.5), sp)
         # the wings stand half a pixel proud of the sides: a pontoon over each wheel
+        xa, xb = X(XI + 1, W - 1)
+        m.box("wing_bead", (xa, 14.5, -30.5), (xb, 15, WF + SLOT), paint)
+        m.box("wing_bead", (xa, 14, WR - SLOT), (xb, 14.5, WR + SLOT + 2), paint)
         xa, xb = X(WS, W)
         m.box("wing_flare", (xa, 9.5, -33), (xb, 14, WF + SLOT + 1.5), paint)
         m.box("wing_flare", (xa, 9.5, WR - SLOT - 1.5), (xb, 13.5, 33), paint)
@@ -334,9 +343,9 @@ def roadster_kit(colour="ruby", upper="cream", leather="crimson", soft="rubber",
         if u in (0, c.nu - 1) or v in (0, c.nv - 1):
             if (u in (0, c.nu - 1)) and (v in (0, c.nv - 1)):
                 return ("raw", CLEAR)                                   # its corners: round
-            return raw("cream", 3.6 if v == 0 else 2.6)
+            return raw("cream", 3 if v == 0 else 2)
         if v == c.nv // 2 - 1 and 2 <= u < c.nu - 2:
-            return raw("blade", 4.4) if u in (c.nu // 2 - 1, c.nu // 2) else raw("blade", 3)
+            return raw("blade", 4) if u in (c.nu // 2 - 1, c.nu // 2) else raw("blade", 3)
         if u in (c.nu // 2 - 1, c.nu // 2) and v > c.nv // 2 - 1:
             return raw("blade", 3)
         return ("raw", CLEAR)
@@ -353,7 +362,7 @@ def roadster_kit(colour="ruby", upper="cream", leather="crimson", soft="rubber",
     # the door cards (parts): leather, a chrome strip along the top
     def card(c):
         if c.face == "up":
-            return (U, 2.6)
+            return (C, 2.6)
         fy = math.floor(c.p[1])
         if fy == BELT - 1:
             return ("blade", 4.0)

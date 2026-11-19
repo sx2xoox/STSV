@@ -576,7 +576,30 @@ public final class ContentModule implements StsvModule, org.bukkit.event.Listene
             if (Math.abs(lift) > 2) throw new IllegalArgumentException("skin.bobber.lift 는 -2 ~ 2 (블록)");
             bobber = new CustomItem.Bobber(key, (float) scale, (float) lift);
         }
-        return new CustomItem.Skin(model, List.copyOf(applies), asset, s.getBoolean("return-on-remove", true), bobber);
+        CustomItem.SkinFx fx = null;
+        if (s.isConfigurationSection("fx")) {
+            ConfigurationSection f = s.getConfigurationSection("fx");
+            List<org.bukkit.Color> colors = new java.util.ArrayList<>();
+            for (String c : f.getStringList("colors")) {
+                String h = c.startsWith("#") ? c.substring(1) : c;
+                if (!h.matches("[0-9a-fA-F]{6}")) throw new IllegalArgumentException("skin.fx.colors: #rrggbb 가 아님: " + c);
+                colors.add(org.bukkit.Color.fromRGB(Integer.parseInt(h, 16)));
+            }
+            org.bukkit.Particle held = particle(f.getString("held")), use = particle(f.getString("use"));
+            if (held == null && use == null) throw new IllegalArgumentException("skin.fx 에 held 나 use 파티클이 없음");
+            fx = new CustomItem.SkinFx(held, List.copyOf(colors), use, f.getString("sound"), (float) f.getDouble("pitch", 1.0));
+        }
+        return new CustomItem.Skin(model, List.copyOf(applies), asset, s.getBoolean("return-on-remove", true), bobber, fx);
+    }
+
+    /** A particle by its name (dust, end_rod ...), or null for none. */
+    private static org.bukkit.Particle particle(String name) {
+        if (name == null || name.isBlank()) return null;
+        try {
+            return org.bukkit.Particle.valueOf(name.trim().toUpperCase(java.util.Locale.ROOT));
+        } catch (IllegalArgumentException e) {
+            throw new IllegalArgumentException("skin.fx: 없는 파티클 " + name);
+        }
     }
 
     private FurnitureSpec parseFurniture(ConfigurationSection f) {

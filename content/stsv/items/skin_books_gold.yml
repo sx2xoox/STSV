@@ -1,0 +1,462 @@
+# 골드 스킨북: 경제 상점 (economy shop.yml 의 '도구 스킨' 분류) 에서 골드로 삼. 쓰는 법은 skin_books.yml 과 같음.
+# 후원 스킨과 달리 효과(fx)는 없음. 모델: tools/assetgen/models/skinset_<id>.py
+
+# ---- 목각 시리즈 ----
+
+woodcraft_sword_skin:
+  material: paper
+  name: "<#d9a86c>스킨북: 목각 검"
+  lore:
+    - "<gold>목각 시리즈</gold> <dark_gray>· <gray>검 스킨"
+    - "<gray>도토리 손잡이의 나무 검"
+    - "<gray>겉모습만 바뀜 · 떼기: /스킨 해제"
+    - "<yellow>우클릭: 검에 입히기"
+  texture: skin_book
+  max-stack: 16
+  skin:
+    model: "stsv:woodcraft_sword"
+    applies-to: ["#minecraft:swords"]
+    return-on-remove: true
+
+woodcraft_pickaxe_skin:
+  material: paper
+  name: "<#d9a86c>스킨북: 목각 곡괭이"
+  lore:
+    - "<gold>목각 시리즈</gold> <dark_gray>· <gray>곡괭이 스킨"
+    - "<gray>끈으로 묶은 나무 곡괭이"
+    - "<gray>겉모습만 바뀜 · 떼기: /스킨 해제"
+    - "<yellow>우클릭: 곡괭이에 입히기"
+  texture: skin_book
+  max-stack: 16
+  skin:
+    model: "stsv:woodcraft_pickaxe"
+    applies-to: ["#minecraft:pickaxes"]
+    return-on-remove: true
+
+woodcraft_shovel_skin:
+  material: paper
+  name: "<#d9a86c>스킨북: 목각 삽"
+  lore:
+    - "<gold>목각 시리즈</gold> <dark_gray>· <gray>삽 스킨"
+    - "<gray>나뭇잎을 새긴 나무 삽"
+    - "<gray>겉모습만 바뀜 · 떼기: /스킨 해제"
+    - "<yellow>우클릭: 삽에 입히기"
+  texture: skin_book
+  max-stack: 16
+  skin:
+    model: "stsv:woodcraft_shovel"
+    applies-to: ["#minecraft:shovels"]
+    return-on-remove: true
+
+woodcraft_axe_skin:
+  material: paper
+  name: "<#d9a86c>스킨북: 목각 도끼"
+  lore:
+    - "<gold>목각 시리즈</gold> <dark_gray>· <gray>도끼 스킨"
+    - "<gray>호두나무 머리의 목각 도끼"
+    - "<gray>겉모습만 바뀜 · 떼기: /스킨 해제"
+    - "<yellow>우클릭: 도끼에 입히기"
+  texture: skin_book
+  max-stack: 16
+  skin:
+    model: "stsv:woodcraft_axe"
+    applies-to: ["#minecraft:axes"]
+    return-on-remove: true
+
+woodcraft_hoe_skin:
+  material: paper
+  name: "<#d9a86c>스킨북: 목각 괭이"
+  lore:
+    - "<gold>목각 시리즈</gold> <dark_gray>· <gray>괭이 스킨"
+    - "<gray>손으로 깎은 나무 괭이"
+    - "<gray>겉모습만 바뀜 · 떼기: /스킨 해제"
+    - "<yellow>우클릭: 괭이에 입히기"
+  texture: skin_book
+  max-stack: 16
+  skin:
+    model: "stsv:woodcraft_hoe"
+    applies-to: ["#minecraft:hoes"]
+    return-on-remove: true
+
+woodcraft_fishing_rod_skin:
+  material: paper
+  name: "<#d9a86c>스킨북: 목각 낚싯대"
+  lore:
+    - "<gold>목각 시리즈</gold> <dark_gray>· <gray>낚싯대 스킨"
+    - "<gray>물고기를 새긴 대나무 낚싯대"
+    - "<gray>겉모습만 바뀜 · 떼기: /스킨 해제"
+    - "<yellow>우클릭: 낚싯대에 입히기"
+  texture: skin_book
+  max-stack: 16
+  skin:
+    model: "stsv:woodcraft_fishing_rod"
+    applies-to: ["minecraft:fishing_rod"]
+    return-on-remove: true
+
+# ---- 사탕 (adds 시리즈 ----
+
+candy_sword_skin:
+  material: paper
+  name: "<#ffa8c5>스킨북: 사탕 검"
+  lore:
+    - "<gold>사탕 (adds 시리즈</gold> <dark_gray>· <gray>검 스킨"
+    - "<gray>줄무늬 사탕 칼날의 검"
+    - "<gray>겉모습만 바뀜 · 떼기: /스킨 해제"
+    - "<yellow>우클릭: 검에 입히기"
+  texture: skin_book
+  max-stack: 16
+  skin:
+    model: "stsv:candy_sword"
+    applies-to: ["#minecraft:swords"]
+    return-on-remove: true
+
+candy_pickaxe_skin:
+  material: paper
+  name: "<#ffa8c5>스킨북: 사탕 곡괭이"
+  lore:
+    - "<gold>사탕 (adds 시리즈</gold> <dark_gray>· <gray>곡괭이 스킨"
+    - "<gray>포장 사탕 두 알 곡괭이"
+    - "<gray>겉모습만 바뀜 · 떼기: /스킨 해제"
+    - "<yellow>우클릭: 곡괭이에 입히기"
+  texture: skin_book
+  max-stack: 16
+  skin:
+    model: "stsv:candy_pickaxe"
+    applies-to: ["#minecraft:pickaxes"]
+    return-on-remove: true
+
+candy_shovel_skin:
+  material: paper
+  name: "<#ffa8c5>스킨북: 사탕 삽"
+  lore:
+    - "<gold>사탕 (adds 시리즈</gold> <dark_gray>· <gray>삽 스킨"
+    - "<gray>딸기 크림 웨하스 삽"
+    - "<gray>겉모습만 바뀜 · 떼기: /스킨 해제"
+    - "<yellow>우클릭: 삽에 입히기"
+  texture: skin_book
+  max-stack: 16
+  skin:
+    model: "stsv:candy_shovel"
+    applies-to: ["#minecraft:shovels"]
+    return-on-remove: true
+
+candy_axe_skin:
+  material: paper
+  name: "<#ffa8c5>스킨북: 사탕 도끼"
+  lore:
+    - "<gold>사탕 (adds 시리즈</gold> <dark_gray>· <gray>도끼 스킨"
+    - "<gray>한 입 베어 문 초콜릿 도끼"
+    - "<gray>겉모습만 바뀜 · 떼기: /스킨 해제"
+    - "<yellow>우클릭: 도끼에 입히기"
+  texture: skin_book
+  max-stack: 16
+  skin:
+    model: "stsv:candy_axe"
+    applies-to: ["#minecraft:axes"]
+    return-on-remove: true
+
+candy_hoe_skin:
+  material: paper
+  name: "<#ffa8c5>스킨북: 사탕 괭이"
+  lore:
+    - "<gold>사탕 (adds 시리즈</gold> <dark_gray>· <gray>괭이 스킨"
+    - "<gray>민트 젤리곰이 매달린 괭이"
+    - "<gray>겉모습만 바뀜 · 떼기: /스킨 해제"
+    - "<yellow>우클릭: 괭이에 입히기"
+  texture: skin_book
+  max-stack: 16
+  skin:
+    model: "stsv:candy_hoe"
+    applies-to: ["#minecraft:hoes"]
+    return-on-remove: true
+
+candy_fishing_rod_skin:
+  material: paper
+  name: "<#ffa8c5>스킨북: 사탕 낚싯대"
+  lore:
+    - "<gold>사탕 (adds 시리즈</gold> <dark_gray>· <gray>낚싯대 스킨"
+    - "<gray>젤리 지렁이를 단 사탕 낚싯대"
+    - "<gray>겉모습만 바뀜 · 떼기: /스킨 해제"
+    - "<yellow>우클릭: 낚싯대에 입히기"
+  texture: skin_book
+  max-stack: 16
+  skin:
+    model: "stsv:candy_fishing_rod"
+    applies-to: ["minecraft:fishing_rod"]
+    return-on-remove: true
+
+# ---- 해적 시리즈 ----
+
+pirate_sword_skin:
+  material: paper
+  name: "<#d4a24c>스킨북: 해적 커틀러스"
+  lore:
+    - "<gold>해적 시리즈</gold> <dark_gray>· <gray>검 스킨"
+    - "<gray>놋쇠 손잡이의 휜 해적 검"
+    - "<gray>겉모습만 바뀜 · 떼기: /스킨 해제"
+    - "<yellow>우클릭: 검에 입히기"
+  texture: skin_book
+  max-stack: 16
+  skin:
+    model: "stsv:pirate_sword"
+    applies-to: ["#minecraft:swords"]
+    return-on-remove: true
+
+pirate_pickaxe_skin:
+  material: paper
+  name: "<#d4a24c>스킨북: 해적 곡괭이"
+  lore:
+    - "<gold>해적 시리즈</gold> <dark_gray>· <gray>곡괭이 스킨"
+    - "<gray>녹슨 쇠머리의 낡은 곡괭이"
+    - "<gray>겉모습만 바뀜 · 떼기: /스킨 해제"
+    - "<yellow>우클릭: 곡괭이에 입히기"
+  texture: skin_book
+  max-stack: 16
+  skin:
+    model: "stsv:pirate_pickaxe"
+    applies-to: ["#minecraft:pickaxes"]
+    return-on-remove: true
+
+pirate_shovel_skin:
+  material: paper
+  name: "<#d4a24c>스킨북: 해적 삽"
+  lore:
+    - "<gold>해적 시리즈</gold> <dark_gray>· <gray>삽 스킨"
+    - "<gray>놋쇠 리벳을 박은 뱃삽"
+    - "<gray>겉모습만 바뀜 · 떼기: /스킨 해제"
+    - "<yellow>우클릭: 삽에 입히기"
+  texture: skin_book
+  max-stack: 16
+  skin:
+    model: "stsv:pirate_shovel"
+    applies-to: ["#minecraft:shovels"]
+    return-on-remove: true
+
+pirate_axe_skin:
+  material: paper
+  name: "<#d4a24c>스킨북: 해적 도끼"
+  lore:
+    - "<gold>해적 시리즈</gold> <dark_gray>· <gray>도끼 스킨"
+    - "<gray>등에 쇠뿔이 달린 승선 도끼"
+    - "<gray>겉모습만 바뀜 · 떼기: /스킨 해제"
+    - "<yellow>우클릭: 도끼에 입히기"
+  texture: skin_book
+  max-stack: 16
+  skin:
+    model: "stsv:pirate_axe"
+    applies-to: ["#minecraft:axes"]
+    return-on-remove: true
+
+pirate_hoe_skin:
+  material: paper
+  name: "<#d4a24c>스킨북: 해적 괭이"
+  lore:
+    - "<gold>해적 시리즈</gold> <dark_gray>· <gray>괭이 스킨"
+    - "<gray>닻 갈고리 모양의 괭이"
+    - "<gray>겉모습만 바뀜 · 떼기: /스킨 해제"
+    - "<yellow>우클릭: 괭이에 입히기"
+  texture: skin_book
+  max-stack: 16
+  skin:
+    model: "stsv:pirate_hoe"
+    applies-to: ["#minecraft:hoes"]
+    return-on-remove: true
+
+pirate_fishing_rod_skin:
+  material: paper
+  name: "<#d4a24c>스킨북: 해적 낚싯대"
+  lore:
+    - "<gold>해적 시리즈</gold> <dark_gray>· <gray>낚싯대 스킨"
+    - "<gray>작은 닻을 매단 타르 낚싯대"
+    - "<gray>겉모습만 바뀜 · 떼기: /스킨 해제"
+    - "<yellow>우클릭: 낚싯대에 입히기"
+  texture: skin_book
+  max-stack: 16
+  skin:
+    model: "stsv:pirate_fishing_rod"
+    applies-to: ["minecraft:fishing_rod"]
+    return-on-remove: true
+
+# ---- 주방 시리즈 ----
+
+kitchen_sword_skin:
+  material: paper
+  name: "<#7fd1b9>스킨북: 식칼 검"
+  lore:
+    - "<gold>주방 시리즈</gold> <dark_gray>· <gray>검 스킨"
+    - "<gray>주방 식칼 모양의 검"
+    - "<gray>겉모습만 바뀜 · 떼기: /스킨 해제"
+    - "<yellow>우클릭: 검에 입히기"
+  texture: skin_book
+  max-stack: 16
+  skin:
+    model: "stsv:kitchen_sword"
+    applies-to: ["#minecraft:swords"]
+    return-on-remove: true
+
+kitchen_pickaxe_skin:
+  material: paper
+  name: "<#7fd1b9>스킨북: 고기 망치 곡괭이"
+  lore:
+    - "<gold>주방 시리즈</gold> <dark_gray>· <gray>곡괭이 스킨"
+    - "<gray>고기 망치 두 개를 단 곡괭이"
+    - "<gray>겉모습만 바뀜 · 떼기: /스킨 해제"
+    - "<yellow>우클릭: 곡괭이에 입히기"
+  texture: skin_book
+  max-stack: 16
+  skin:
+    model: "stsv:kitchen_pickaxe"
+    applies-to: ["#minecraft:pickaxes"]
+    return-on-remove: true
+
+kitchen_shovel_skin:
+  material: paper
+  name: "<#7fd1b9>스킨북: 국자 삽"
+  lore:
+    - "<gold>주방 시리즈</gold> <dark_gray>· <gray>삽 스킨"
+    - "<gray>찌개 가득 담긴 국자 삽"
+    - "<gray>겉모습만 바뀜 · 떼기: /스킨 해제"
+    - "<yellow>우클릭: 삽에 입히기"
+  texture: skin_book
+  max-stack: 16
+  skin:
+    model: "stsv:kitchen_shovel"
+    applies-to: ["#minecraft:shovels"]
+    return-on-remove: true
+
+kitchen_axe_skin:
+  material: paper
+  name: "<#7fd1b9>스킨북: 중식도 도끼"
+  lore:
+    - "<gold>주방 시리즈</gold> <dark_gray>· <gray>도끼 스킨"
+    - "<gray>네모난 중식도 도끼"
+    - "<gray>겉모습만 바뀜 · 떼기: /스킨 해제"
+    - "<yellow>우클릭: 도끼에 입히기"
+  texture: skin_book
+  max-stack: 16
+  skin:
+    model: "stsv:kitchen_axe"
+    applies-to: ["#minecraft:axes"]
+    return-on-remove: true
+
+kitchen_hoe_skin:
+  material: paper
+  name: "<#7fd1b9>스킨북: 뒤집개 괭이"
+  lore:
+    - "<gold>주방 시리즈</gold> <dark_gray>· <gray>괭이 스킨"
+    - "<gray>구멍 뚫린 뒤집개 괭이"
+    - "<gray>겉모습만 바뀜 · 떼기: /스킨 해제"
+    - "<yellow>우클릭: 괭이에 입히기"
+  texture: skin_book
+  max-stack: 16
+  skin:
+    model: "stsv:kitchen_hoe"
+    applies-to: ["#minecraft:hoes"]
+    return-on-remove: true
+
+kitchen_fishing_rod_skin:
+  material: paper
+  name: "<#7fd1b9>스킨북: 젓가락 낚싯대"
+  lore:
+    - "<gold>주방 시리즈</gold> <dark_gray>· <gray>낚싯대 스킨"
+    - "<gray>물고기 간장병 젓가락 낚싯대"
+    - "<gray>겉모습만 바뀜 · 떼기: /스킨 해제"
+    - "<yellow>우클릭: 낚싯대에 입히기"
+  texture: skin_book
+  max-stack: 16
+  skin:
+    model: "stsv:kitchen_fishing_rod"
+    applies-to: ["minecraft:fishing_rod"]
+    return-on-remove: true
+
+# ---- 캠핑 시리즈 ----
+
+camping_sword_skin:
+  material: paper
+  name: "<#f07a2a>스킨북: 캠핑 마체테"
+  lore:
+    - "<gold>캠핑 시리즈</gold> <dark_gray>· <gray>검 스킨"
+    - "<gray>올리브 코팅 날의 넓은 마체테"
+    - "<gray>겉모습만 바뀜 · 떼기: /스킨 해제"
+    - "<yellow>우클릭: 검에 입히기"
+  texture: skin_book
+  max-stack: 16
+  skin:
+    model: "stsv:camping_sword"
+    applies-to: ["#minecraft:swords"]
+    return-on-remove: true
+
+camping_pickaxe_skin:
+  material: paper
+  name: "<#f07a2a>스킨북: 캠핑 곡괭이"
+  lore:
+    - "<gold>캠핑 시리즈</gold> <dark_gray>· <gray>곡괭이 스킨"
+    - "<gray>주황 헤드의 캠핑용 피켈"
+    - "<gray>겉모습만 바뀜 · 떼기: /스킨 해제"
+    - "<yellow>우클릭: 곡괭이에 입히기"
+  texture: skin_book
+  max-stack: 16
+  skin:
+    model: "stsv:camping_pickaxe"
+    applies-to: ["#minecraft:pickaxes"]
+    return-on-remove: true
+
+camping_shovel_skin:
+  material: paper
+  name: "<#f07a2a>스킨북: 캠핑 삽"
+  lore:
+    - "<gold>캠핑 시리즈</gold> <dark_gray>· <gray>삽 스킨"
+    - "<gray>접이식 올리브 야전삽"
+    - "<gray>겉모습만 바뀜 · 떼기: /스킨 해제"
+    - "<yellow>우클릭: 삽에 입히기"
+  texture: skin_book
+  max-stack: 16
+  skin:
+    model: "stsv:camping_shovel"
+    applies-to: ["#minecraft:shovels"]
+    return-on-remove: true
+
+camping_axe_skin:
+  material: paper
+  name: "<#f07a2a>스킨북: 캠핑 손도끼"
+  lore:
+    - "<gold>캠핑 시리즈</gold> <dark_gray>· <gray>도끼 스킨"
+    - "<gray>주황 코팅 헤드의 손도끼"
+    - "<gray>겉모습만 바뀜 · 떼기: /스킨 해제"
+    - "<yellow>우클릭: 도끼에 입히기"
+  texture: skin_book
+  max-stack: 16
+  skin:
+    model: "stsv:camping_axe"
+    applies-to: ["#minecraft:axes"]
+    return-on-remove: true
+
+camping_hoe_skin:
+  material: paper
+  name: "<#f07a2a>스킨북: 캠핑 괭이"
+  lore:
+    - "<gold>캠핑 시리즈</gold> <dark_gray>· <gray>괭이 스킨"
+    - "<gray>작은 야전 곡괭이형 괭이"
+    - "<gray>겉모습만 바뀜 · 떼기: /스킨 해제"
+    - "<yellow>우클릭: 괭이에 입히기"
+  texture: skin_book
+  max-stack: 16
+  skin:
+    model: "stsv:camping_hoe"
+    applies-to: ["#minecraft:hoes"]
+    return-on-remove: true
+
+camping_fishing_rod_skin:
+  material: paper
+  name: "<#f07a2a>스킨북: 캠핑 낚싯대"
+  lore:
+    - "<gold>캠핑 시리즈</gold> <dark_gray>· <gray>낚싯대 스킨"
+    - "<gray>릴 달린 검정 신축 낚싯대"
+    - "<gray>겉모습만 바뀜 · 떼기: /스킨 해제"
+    - "<yellow>우클릭: 낚싯대에 입히기"
+  texture: skin_book
+  max-stack: 16
+  skin:
+    model: "stsv:camping_fishing_rod"
+    applies-to: ["minecraft:fishing_rod"]
+    return-on-remove: true

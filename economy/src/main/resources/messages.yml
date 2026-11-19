@@ -75,6 +75,11 @@ shop:
   not-enough: "<red>돈이 부족합니다. <gray>(필요 {price})"
   bought: "<green>구매</green> <white>{item} ×{count}</white> <gray>-</gray> {amount}"
   buy-lore: ["", "<gray>가격: </gray>{price} <dark_gray>({count}개)", "<yellow>클릭: 사기 <dark_gray>· 쉬프트: 8번"]
+  buy-lore-bundle: ["", "<gray>세트 가격: </gray>{price} <dark_gray>({count}개 한 번에)", "<yellow>클릭: 세트 사기"]
+  bundle-name: "<gold>{name}</gold>"
+  bundle-line: "<gray>· </gray>{item}"
+  no-room-bundle: "<red>빈칸이 {count}칸 필요합니다."
+  bought-bundle: "<green>구매</green> <white>{name}</white> <gray>({count}개)</gray> {amount}"
   # 한 번에 1개씩만 사는 카테고리 (shop.yml single: true, 가구)
   buy-lore-single: ["", "<gray>가격: </gray>{price} <dark_gray>({count}개)", "<yellow>클릭: 사기 <dark_gray>· 한 번에 1개씩"]
   # 상점 카테고리 (구매 · 판매 화면)

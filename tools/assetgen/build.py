@@ -6,6 +6,7 @@ Builds every STSV asset into the default content pack (content/stsv) and renders
 """
 
 import importlib
+import json
 import subprocess
 import sys
 from pathlib import Path
@@ -18,6 +19,8 @@ from stsv_assets.palette import PALETTE
 HERE = Path(__file__).parent
 REPO = HERE.parent.parent
 CONTENT = REPO / "content" / "stsv"
+# 도구 스킨 세트 모듈 (models/skinset_<id>.py): 후원 (효과 있음) · 골드
+SKINSETS = ("dragon", "galaxy", "najeon", "frost", "magma", "woodcraft", "candy", "pirate", "kitchen", "camping")
 # the TEST set (every kind of item and recipe once) is a test fixture, never shipped
 FIXTURE = REPO / "plugin" / "src" / "test" / "fixtures" / "stsv"
 SHIPPED_MODELS = ("tomato_mask", "eggplant_mask", "mushroom_mask")
@@ -57,6 +60,9 @@ def main():
     from models import vehicle_lights
     from models import vehicle_tools          # 작업기 (vehicle_tools.yml); preview sheet: vehicle_tools_preview.py
     from models import toys                   # 장난감 시리즈 (held tools' looks, the party firework); preview sheet: toys_preview.py
+    import importlib
+    # 도구 스킨 세트 (models/skinset_<id>.py, the toy series' frame): 후원 5 + 골드 5; preview: toys_preview.py --module skinset_<id>
+    skinsets = [importlib.import_module(f"models.skinset_{n}") for n in SKINSETS]
     import furniture_icons
     import furniture_icons_retro
     import vehicle_icons
@@ -66,7 +72,8 @@ def main():
     import vehicle_icons_fun
     ALL = {**ITEMS, **cosmetic_models, **furniture.ALL, **furniture_retro.ALL, **vehicles.ALL, **vehicles_road.ALL, **vehicles_farm.ALL, **vehicles_misc.ALL,
            **vehicles_boats.ALL, **vehicles_fun.ALL,
-           **vehicle_lights.ALL, **vehicle_tools.ALL, **vehicle_paints.ALL, **toys.ALL, **karts.ALL, **kart_ghosts.ALL}
+           **vehicle_lights.ALL, **vehicle_tools.ALL, **vehicle_paints.ALL, **toys.ALL, **karts.ALL, **kart_ghosts.ALL,
+           **{k: v for m in skinsets for k, v in m.ALL.items()}}
     import special
 
     def home(name):
@@ -74,7 +81,7 @@ def main():
             or name in vehicles_road.ALL or name in vehicles_farm.ALL or name in vehicles_misc.ALL or name in vehicles_boats.ALL \
             or name in vehicles_fun.ALL \
             or name in vehicle_lights.ALL or name in vehicle_tools.ALL or name in vehicle_paints.ALL or name in toys.ALL \
-            or name in karts.ALL or name in kart_ghosts.ALL else FIXTURE
+            or name in karts.ALL or name in kart_ghosts.ALL or any(name in m.ALL for m in skinsets) else FIXTURE
 
     for d in (CONTENT / "models", CONTENT / "textures", FIXTURE / "models", FIXTURE / "textures", BUILD, PREVIEWS):
         d.mkdir(parents=True, exist_ok=True)
@@ -104,6 +111,11 @@ def main():
         print(f"WARNING {warning}")
     # the toy series' item definitions (an item_model of stsv:toy_sword ...; the rod's picks its cast look)
     print(f"items   {', '.join(toys.write_item_definitions(CONTENT))} (assets/stsv/items)")
+    for m in skinsets:
+        d = CONTENT / "assets" / "stsv" / "items"
+        for name, definition in m.item_definitions().items():
+            (d / f"{name}.json").write_text(json.dumps(definition, indent=2) + "\n")
+        print(f"items   {', '.join(sorted(m.item_definitions()))} (assets/stsv/items)")
 
     for name, fn in T.ICONS.items():
         fn().save(CONTENT / "textures" / f"{name}.png")

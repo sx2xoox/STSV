@@ -52,7 +52,8 @@ categories:
   tool_skins:
     name: "스킨북"
     icon: "stsv:toy_pickaxe"
-    products: [toy_set, toy_sword, toy_pickaxe, toy_shovel, toy_axe, toy_hoe, toy_fishing_rod]
+    products: [dragon_set, dragon_sword, dragon_pickaxe, dragon_shovel, dragon_axe, dragon_hoe, dragon_fishing_rod, galaxy_set, galaxy_sword, galaxy_pickaxe, galaxy_shovel, galaxy_axe, galaxy_hoe, galaxy_fishing_rod, najeon_set, najeon_sword, najeon_pickaxe, najeon_shovel, najeon_axe, najeon_hoe, najeon_fishing_rod, frost_set, frost_sword, frost_pickaxe, frost_shovel, frost_axe, frost_hoe, frost_fishing_rod, magma_set, magma_sword, magma_pickaxe, magma_shovel, magma_axe, magma_hoe, magma_fishing_rod,
+               toy_set, toy_sword, toy_pickaxe, toy_shovel, toy_axe, toy_hoe, toy_fishing_rod]
   sets:
     name: "후원 치장 세트"
     icon: "stsv:gui/tab_back"
@@ -472,3 +473,230 @@ products:
     description: ["<gray>처치 · 고무오리가 물보라 속에 퐁", "<dark_gray>아기 오리 세트"]
     commands: ["관리자 치장 지급 {player} stsv:duck_squeak"]
     icon: "stsv:duck_squeak"
+
+  # ---- 후원 도구 스킨 세트 (자동 생성): 세트 100★, 한 권 25★ (6권 150★). 들고 있으면 빛나고 쓸 때 효과 ----
+  dragon_set:
+    name: "청룡 시리즈 스킨북 6권"
+    price: 100          # 10,000원 (따로 사면 150★)
+    description:
+      - "<gray>검·곡괭이·삽·도끼·괭이·낚싯대"
+      - "<light_purple>들고 있으면 빛나고, 쓸 때 효과"
+      - "<dark_gray>빈칸 6개 필요"
+    items: ["stsv:dragon_sword_skin", "stsv:dragon_pickaxe_skin", "stsv:dragon_shovel_skin", "stsv:dragon_axe_skin", "stsv:dragon_hoe_skin", "stsv:dragon_fishing_rod_skin"]
+    icon: "stsv:dragon_sword"
+  dragon_sword:
+    name: "스킨북: 청룡 검"
+    price: 25           # 2,500원
+    description: ["<gray>용수염 가드의 비취 청룡검", "<dark_gray>도구 하나에 입힘 · 겉모습 + 효과"]
+    item: stsv:dragon_sword_skin
+    icon: "stsv:dragon_sword"
+  dragon_pickaxe:
+    name: "스킨북: 청룡 곡괭이"
+    price: 25           # 2,500원
+    description: ["<gray>두 용발톱의 비취 곡괭이", "<dark_gray>도구 하나에 입힘 · 겉모습 + 효과"]
+    item: stsv:dragon_pickaxe_skin
+    icon: "stsv:dragon_pickaxe"
+  dragon_shovel:
+    name: "스킨북: 청룡 삽"
+    price: 25           # 2,500원
+    description: ["<gray>여의주 박힌 비늘 모양 삽", "<dark_gray>도구 하나에 입힘 · 겉모습 + 효과"]
+    item: stsv:dragon_shovel_skin
+    icon: "stsv:dragon_shovel"
+  dragon_axe:
+    name: "스킨북: 청룡 도끼"
+    price: 25           # 2,500원
+    description: ["<gray>용 지느러미 날의 도끼", "<dark_gray>도구 하나에 입힘 · 겉모습 + 효과"]
+    item: stsv:dragon_axe_skin
+    icon: "stsv:dragon_axe"
+  dragon_hoe:
+    name: "스킨북: 청룡 괭이"
+    price: 25           # 2,500원
+    description: ["<gray>용의 턱을 닮은 비취 괭이", "<dark_gray>도구 하나에 입힘 · 겉모습 + 효과"]
+    item: stsv:dragon_hoe_skin
+    icon: "stsv:dragon_hoe"
+  dragon_fishing_rod:
+    name: "스킨북: 청룡 낚싯대"
+    price: 25           # 2,500원
+    description: ["<gray>용머리 끝의 비취 낚싯대", "<dark_gray>도구 하나에 입힘 · 겉모습 + 효과"]
+    item: stsv:dragon_fishing_rod_skin
+    icon: "stsv:dragon_fishing_rod"
+  galaxy_set:
+    name: "은하수 시리즈 스킨북 6권"
+    price: 100          # 10,000원 (따로 사면 150★)
+    description:
+      - "<gray>검·곡괭이·삽·도끼·괭이·낚싯대"
+      - "<light_purple>들고 있으면 빛나고, 쓸 때 효과"
+      - "<dark_gray>빈칸 6개 필요"
+    items: ["stsv:galaxy_sword_skin", "stsv:galaxy_pickaxe_skin", "stsv:galaxy_shovel_skin", "stsv:galaxy_axe_skin", "stsv:galaxy_hoe_skin", "stsv:galaxy_fishing_rod_skin"]
+    icon: "stsv:galaxy_sword"
+  galaxy_sword:
+    name: "스킨북: 은하수 검"
+    price: 25           # 2,500원
+    description: ["<gray>초승달 가드의 별빛 수정 검", "<dark_gray>도구 하나에 입힘 · 겉모습 + 효과"]
+    item: stsv:galaxy_sword_skin
+    icon: "stsv:galaxy_sword"
+  galaxy_pickaxe:
+    name: "스킨북: 은하수 곡괭이"
+    price: 25           # 2,500원
+    description: ["<gray>별 끝이 빛나는 수정 곡괭이", "<dark_gray>도구 하나에 입힘 · 겉모습 + 효과"]
+    item: stsv:galaxy_pickaxe_skin
+    icon: "stsv:galaxy_pickaxe"
+  galaxy_shovel:
+    name: "스킨북: 은하수 삽"
+    price: 25           # 2,500원
+    description: ["<gray>별자리가 새겨진 수정 삽", "<dark_gray>도구 하나에 입힘 · 겉모습 + 효과"]
+    item: stsv:galaxy_shovel_skin
+    icon: "stsv:galaxy_shovel"
+  galaxy_axe:
+    name: "스킨북: 은하수 도끼"
+    price: 25           # 2,500원
+    description: ["<gray>초승달 모양의 수정 도끼", "<dark_gray>도구 하나에 입힘 · 겉모습 + 효과"]
+    item: stsv:galaxy_axe_skin
+    icon: "stsv:galaxy_axe"
+  galaxy_hoe:
+    name: "스킨북: 은하수 괭이"
+    price: 25           # 2,500원
+    description: ["<gray>고리 행성을 품은 괭이", "<dark_gray>도구 하나에 입힘 · 겉모습 + 효과"]
+    item: stsv:galaxy_hoe_skin
+    icon: "stsv:galaxy_hoe"
+  galaxy_fishing_rod:
+    name: "스킨북: 은하수 낚싯대"
+    price: 25           # 2,500원
+    description: ["<gray>별 고리와 초승달 낚싯대", "<dark_gray>도구 하나에 입힘 · 겉모습 + 효과"]
+    item: stsv:galaxy_fishing_rod_skin
+    icon: "stsv:galaxy_fishing_rod"
+  najeon_set:
+    name: "자개 시리즈 스킨북 6권"
+    price: 100          # 10,000원 (따로 사면 150★)
+    description:
+      - "<gray>검·곡괭이·삽·도끼·괭이·낚싯대"
+      - "<light_purple>들고 있으면 빛나고, 쓸 때 효과"
+      - "<dark_gray>빈칸 6개 필요"
+    items: ["stsv:najeon_sword_skin", "stsv:najeon_pickaxe_skin", "stsv:najeon_shovel_skin", "stsv:najeon_axe_skin", "stsv:najeon_hoe_skin", "stsv:najeon_fishing_rod_skin"]
+    icon: "stsv:najeon_sword"
+  najeon_sword:
+    name: "스킨북: 자개 검"
+    price: 25           # 2,500원
+    description: ["<gray>옥빛 결의 자개 장식 검", "<dark_gray>도구 하나에 입힘 · 겉모습 + 효과"]
+    item: stsv:najeon_sword_skin
+    icon: "stsv:najeon_sword"
+  najeon_pickaxe:
+    name: "스킨북: 자개 곡괭이"
+    price: 25           # 2,500원
+    description: ["<gray>매화 자개를 박은 곡괭이", "<dark_gray>도구 하나에 입힘 · 겉모습 + 효과"]
+    item: stsv:najeon_pickaxe_skin
+    icon: "stsv:najeon_pickaxe"
+  najeon_shovel:
+    name: "스킨북: 자개 삽"
+    price: 25           # 2,500원
+    description: ["<gray>주칠에 매화 자개를 박은 삽", "<dark_gray>도구 하나에 입힘 · 겉모습 + 효과"]
+    item: stsv:najeon_shovel_skin
+    icon: "stsv:najeon_shovel"
+  najeon_axe:
+    name: "스킨북: 자개 도끼"
+    price: 25           # 2,500원
+    description: ["<gray>매화 가지 자개를 새긴 도끼", "<dark_gray>도구 하나에 입힘 · 겉모습 + 효과"]
+    item: stsv:najeon_axe_skin
+    icon: "stsv:najeon_axe"
+  najeon_hoe:
+    name: "스킨북: 자개 괭이"
+    price: 25           # 2,500원
+    description: ["<gray>옥판을 단 자개 괭이", "<dark_gray>도구 하나에 입힘 · 겉모습 + 효과"]
+    item: stsv:najeon_hoe_skin
+    icon: "stsv:najeon_hoe"
+  najeon_fishing_rod:
+    name: "스킨북: 자개 낚싯대"
+    price: 25           # 2,500원
+    description: ["<gray>자개 박 찌가 뜨는 낚싯대", "<dark_gray>도구 하나에 입힘 · 겉모습 + 효과"]
+    item: stsv:najeon_fishing_rod_skin
+    icon: "stsv:najeon_fishing_rod"
+  frost_set:
+    name: "서리 수정 시리즈 스킨북 6권"
+    price: 100          # 10,000원 (따로 사면 150★)
+    description:
+      - "<gray>검·곡괭이·삽·도끼·괭이·낚싯대"
+      - "<light_purple>들고 있으면 빛나고, 쓸 때 효과"
+      - "<dark_gray>빈칸 6개 필요"
+    items: ["stsv:frost_sword_skin", "stsv:frost_pickaxe_skin", "stsv:frost_shovel_skin", "stsv:frost_axe_skin", "stsv:frost_hoe_skin", "stsv:frost_fishing_rod_skin"]
+    icon: "stsv:frost_sword"
+  frost_sword:
+    name: "스킨북: 서리 수정 검"
+    price: 25           # 2,500원
+    description: ["<gray>수정 결정이 돋은 얼음 검", "<dark_gray>도구 하나에 입힘 · 겉모습 + 효과"]
+    item: stsv:frost_sword_skin
+    icon: "stsv:frost_sword"
+  frost_pickaxe:
+    name: "스킨북: 서리 수정 곡괭이"
+    price: 25           # 2,500원
+    description: ["<gray>휘어진 얼음 날의 곡괭이", "<dark_gray>도구 하나에 입힘 · 겉모습 + 효과"]
+    item: stsv:frost_pickaxe_skin
+    icon: "stsv:frost_pickaxe"
+  frost_shovel:
+    name: "스킨북: 서리 수정 삽"
+    price: 25           # 2,500원
+    description: ["<gray>고드름 달린 얼음 삽", "<dark_gray>도구 하나에 입힘 · 겉모습 + 효과"]
+    item: stsv:frost_shovel_skin
+    icon: "stsv:frost_shovel"
+  frost_axe:
+    name: "스킨북: 서리 수정 도끼"
+    price: 25           # 2,500원
+    description: ["<gray>넓은 수정 날의 얼음 도끼", "<dark_gray>도구 하나에 입힘 · 겉모습 + 효과"]
+    item: stsv:frost_axe_skin
+    icon: "stsv:frost_axe"
+  frost_hoe:
+    name: "스킨북: 서리 수정 괭이"
+    price: 25           # 2,500원
+    description: ["<gray>서리 맺힌 얼음 날 괭이", "<dark_gray>도구 하나에 입힘 · 겉모습 + 효과"]
+    item: stsv:frost_hoe_skin
+    icon: "stsv:frost_hoe"
+  frost_fishing_rod:
+    name: "스킨북: 서리 수정 낚싯대"
+    price: 25           # 2,500원
+    description: ["<gray>수정 끝의 가는 얼음 낚싯대", "<dark_gray>도구 하나에 입힘 · 겉모습 + 효과"]
+    item: stsv:frost_fishing_rod_skin
+    icon: "stsv:frost_fishing_rod"
+  magma_set:
+    name: "용암 시리즈 스킨북 6권"
+    price: 100          # 10,000원 (따로 사면 150★)
+    description:
+      - "<gray>검·곡괭이·삽·도끼·괭이·낚싯대"
+      - "<light_purple>들고 있으면 빛나고, 쓸 때 효과"
+      - "<dark_gray>빈칸 6개 필요"
+    items: ["stsv:magma_sword_skin", "stsv:magma_pickaxe_skin", "stsv:magma_shovel_skin", "stsv:magma_axe_skin", "stsv:magma_hoe_skin", "stsv:magma_fishing_rod_skin"]
+    icon: "stsv:magma_sword"
+  magma_sword:
+    name: "스킨북: 용암 검"
+    price: 25           # 2,500원
+    description: ["<gray>용암이 갈라져 흐르는 흑요석 검", "<dark_gray>도구 하나에 입힘 · 겉모습 + 효과"]
+    item: stsv:magma_sword_skin
+    icon: "stsv:magma_sword"
+  magma_pickaxe:
+    name: "스킨북: 용암 곡괭이"
+    price: 25           # 2,500원
+    description: ["<gray>불씨 끝을 단 흑요석 곡괭이", "<dark_gray>도구 하나에 입힘 · 겉모습 + 효과"]
+    item: stsv:magma_pickaxe_skin
+    icon: "stsv:magma_pickaxe"
+  magma_shovel:
+    name: "스킨북: 용암 삽"
+    price: 25           # 2,500원
+    description: ["<gray>용암 균열이 빛나는 흑요석 삽", "<dark_gray>도구 하나에 입힘 · 겉모습 + 효과"]
+    item: stsv:magma_shovel_skin
+    icon: "stsv:magma_shovel"
+  magma_axe:
+    name: "스킨북: 용암 도끼"
+    price: 25           # 2,500원
+    description: ["<gray>녹은 날이 이글거리는 도끼", "<dark_gray>도구 하나에 입힘 · 겉모습 + 효과"]
+    item: stsv:magma_axe_skin
+    icon: "stsv:magma_axe"
+  magma_hoe:
+    name: "스킨북: 용암 괭이"
+    price: 25           # 2,500원
+    description: ["<gray>용암 날을 두른 흑요석 괭이", "<dark_gray>도구 하나에 입힘 · 겉모습 + 효과"]
+    item: stsv:magma_hoe_skin
+    icon: "stsv:magma_hoe"
+  magma_fishing_rod:
+    name: "스킨북: 용암 낚싯대"
+    price: 25           # 2,500원
+    description: ["<gray>불씨 끝의 검은 용암 낚싯대", "<dark_gray>도구 하나에 입힘 · 겉모습 + 효과"]
+    item: stsv:magma_fishing_rod_skin
+    icon: "stsv:magma_fishing_rod"

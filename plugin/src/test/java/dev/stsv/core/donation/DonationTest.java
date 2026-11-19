@@ -310,8 +310,27 @@ class DonationTest {
         Set<String> alone = new java.util.HashSet<>();
         for (DonationShop.Product p : shop.products().values()) if (p.items().size() == 1 && books.contains(p.item().substring(5))) alone.add(p.item().substring(5));
         assertEquals(books.getKeys(false), alone);
-        assertEquals(books.getKeys(false), Set.copyOf(shop.products().get("toy_set").items().stream().map(i -> i.substring(5)).toList()));
-        assertTrue(shop.products().get("toy_set").price() < 6 * shop.products().get("toy_sword").price(), "the set is cheaper than its books");
+        // every series sold as a set of its six books: 100 stars, cheaper than the books alone (150)
+        for (String series : List.of("toy", "dragon", "galaxy", "najeon", "frost", "magma")) {
+            Set<String> own = new java.util.HashSet<>();
+            for (String id : books.getKeys(false)) if (id.startsWith(series + "_")) own.add(id);
+            assertEquals(6, own.size(), series);
+            DonationShop.Product set = shop.products().get(series + "_set");
+            assertEquals(own, Set.copyOf(set.items().stream().map(i -> i.substring(5)).toList()), series);
+            assertEquals(100, set.price(), series + ": a set is 100 stars");
+            int alone = 0;
+            for (DonationShop.Product p : shop.products().values()) if (p.items().size() == 1 && own.contains(p.item().substring(5))) alone += p.price();
+            assertEquals(150, alone, series + ": its books alone come to 150 stars");
+            // a donation skin shines and does something: every book has effects
+            for (String id : own) assertTrue(books.isConfigurationSection(id + ".skin.fx") || books.isConfigurationSection(id + ".skin") && books.contains(id + ".skin.fx"), id + ": no fx");
+        }
+        // the gold books (economy shop) have no effects: that is what the donation ones have over them
+        YamlConfiguration gold = YamlConfiguration.loadConfiguration(PACK.resolve("items/skin_books_gold.yml").toFile());
+        assertEquals(30, gold.getKeys(false).size());
+        for (String id : gold.getKeys(false)) {
+            assertFalse(gold.contains(id + ".skin.fx"), id);
+            assertTrue(java.nio.file.Files.isRegularFile(PACK.resolve("assets/stsv/items/" + gold.getString(id + ".skin.model").substring(5) + ".json")), id);
+        }
         for (String id : books.getKeys(false)) {
             assertEquals("skin_book", books.getString(id + ".texture"), id + ": every skin book has the one look");
             assertTrue(books.getString(id + ".name").contains("스킨북: "), id);

@@ -53,7 +53,10 @@ public final class SkinModule implements StsvModule, Listener {
     private final java.util.Map<java.util.UUID, org.bukkit.entity.ItemDisplay> floats = new java.util.HashMap<>();
     /** floats a hook would not take as a rider: moved to it every tick instead */
     private final java.util.Map<java.util.UUID, org.bukkit.entity.FishHook> followed = new java.util.HashMap<>();
-    private org.bukkit.scheduler.BukkitTask floatTicker;
+    private org.bukkit.scheduler.BukkitTask floatTicker, fxTicker;
+    /** player -> the tick of their last burst sound (fast mining does not ring every block) */
+    private final java.util.Map<java.util.UUID, Long> lastBurst = new java.util.HashMap<>();
+    private long fxTicks;
 
     @Override
     public String id() {
@@ -74,12 +77,15 @@ public final class SkinModule implements StsvModule, Listener {
         }
         Bukkit.getPluginManager().registerEvents(this, plugin);
         floatTicker = Bukkit.getScheduler().runTaskTimer(plugin, this::tickFloats, 1L, 1L);
+        fxTicker = Bukkit.getScheduler().runTaskTimer(plugin, this::tickHeld, 20L, 6L);
     }
 
     @Override
     public void disable() {
         if (floatTicker != null) floatTicker.cancel();
         floatTicker = null;
+        if (fxTicker != null) fxTicker.cancel();
+        fxTicker = null;
         floats.values().forEach(org.bukkit.entity.Entity::remove);
         floats.clear();
         followed.clear();
@@ -147,6 +153,83 @@ public final class SkinModule implements StsvModule, Listener {
     }
 
     // ------------------------------------------------------------------------------------------
+    // A donation skin's effects (CustomItem.SkinFx)
+    // ------------------------------------------------------------------------------------------
+
+    /** The effects of the skin on this item, or null. */
+    public CustomItem.SkinFx fxOf(ItemStack item) {
+        return skinOf(item).flatMap(id -> plugin.content().item(id)).map(CustomItem::skin).map(CustomItem.Skin::fx).orElse(null);
+    }
+
+    /** Every 6 ticks: a held donation tool sheds a particle or two at the hand. */
+    private void tickHeld() {
+        fxTicks += 6;
+        for (Player p : Bukkit.getOnlinePlayers()) {
+            if (p.getGameMode() == org.bukkit.GameMode.SPECTATOR || p.isInvisible()) continue;
+            CustomItem.SkinFx fx = fxOf(p.getInventory().getItemInMainHand());
+            if (fx == null || fx.held() == null) continue;
+            org.bukkit.Location eye = p.getEyeLocation();
+            org.bukkit.util.Vector dir = eye.getDirection().setY(0);
+            if (dir.lengthSquared() < 1e-4) dir = new org.bukkit.util.Vector(0, 0, 1);
+            dir.normalize();
+            org.bukkit.util.Vector right = new org.bukkit.util.Vector(-dir.getZ(), 0, dir.getX());
+            org.bukkit.Location hand = eye.clone().add(right.multiply(0.38)).add(dir.multiply(0.35)).add(0, -0.55, 0);
+            spawn(fx.held(), fx, hand, 1, 0.12, (int) (fxTicks / 6));
+        }
+    }
+
+    /** A burst of the skin's use particle (and its sound) at a spot. */
+    private void burst(Player p, CustomItem.SkinFx fx, org.bukkit.Location at) {
+        org.bukkit.Particle particle = fx.use() != null ? fx.use() : fx.held();
+        for (int i = 0; i < 3; i++) spawn(particle, fx, at, 3, 0.3, i);
+        if (fx.sound() == null) return;
+        long now = Bukkit.getCurrentTick();
+        Long last = lastBurst.get(p.getUniqueId());
+        if (last != null && now - last < 4) return;
+        lastBurst.put(p.getUniqueId(), now);
+        at.getWorld().playSound(at, fx.sound(), org.bukkit.SoundCategory.PLAYERS, 0.35f, fx.pitch());
+    }
+
+    private void spawn(org.bukkit.Particle particle, CustomItem.SkinFx fx, org.bukkit.Location at, int count, double spread, int k) {
+        Class<?> data = particle.getDataType();
+        org.bukkit.Color c = fx.colors().isEmpty() ? org.bukkit.Color.WHITE : fx.colors().get(Math.floorMod(k, fx.colors().size()));
+        if (data == org.bukkit.Particle.DustOptions.class) {
+            at.getWorld().spawnParticle(particle, at, count, spread, spread, spread, 0, new org.bukkit.Particle.DustOptions(c, 0.8f));
+        } else if (data == org.bukkit.Color.class) {
+            at.getWorld().spawnParticle(particle, at, count, spread, spread, spread, 0, c);
+        } else if (data == Void.class) {
+            at.getWorld().spawnParticle(particle, at, count, spread, spread, spread, 0.01);
+        }
+    }
+
+    @EventHandler(priority = org.bukkit.event.EventPriority.MONITOR, ignoreCancelled = true)
+    public void onFxBreak(org.bukkit.event.block.BlockBreakEvent e) {
+        CustomItem.SkinFx fx = fxOf(e.getPlayer().getInventory().getItemInMainHand());
+        if (fx != null) burst(e.getPlayer(), fx, e.getBlock().getLocation().add(0.5, 0.5, 0.5));
+    }
+
+    @EventHandler(priority = org.bukkit.event.EventPriority.MONITOR, ignoreCancelled = true)
+    public void onFxHit(org.bukkit.event.entity.EntityDamageByEntityEvent e) {
+        if (!(e.getDamager() instanceof Player p)) return;
+        CustomItem.SkinFx fx = fxOf(p.getInventory().getItemInMainHand());
+        if (fx != null) burst(p, fx, e.getEntity().getLocation().add(0, e.getEntity().getHeight() / 2, 0));
+    }
+
+    @EventHandler(priority = org.bukkit.event.EventPriority.MONITOR, ignoreCancelled = true)
+    public void onFxCatch(org.bukkit.event.player.PlayerFishEvent e) {
+        if (e.getState() != org.bukkit.event.player.PlayerFishEvent.State.CAUGHT_FISH) return;
+        ItemStack rod = e.getPlayer().getInventory().getItemInMainHand();
+        if (rod.getType() != Material.FISHING_ROD) rod = e.getPlayer().getInventory().getItemInOffHand();
+        CustomItem.SkinFx fx = fxOf(rod);
+        if (fx != null) burst(e.getPlayer(), fx, e.getHook().getLocation());
+    }
+
+    @EventHandler
+    public void onFxQuit(org.bukkit.event.player.PlayerQuitEvent e) {
+        lastBurst.remove(e.getPlayer().getUniqueId());
+    }
+
+    // ------------------------------------------------------------------------------------------
     // Rules
     // ------------------------------------------------------------------------------------------
 
@@ -192,7 +275,8 @@ public final class SkinModule implements StsvModule, Listener {
             meta.setEquippable(eq);
         }
         List<Component> lore = meta.hasLore() ? new ArrayList<>(meta.lore()) : new ArrayList<>();
-        lore.add(Text.item("<dark_purple>✦ 스킨: </dark_purple>" + (book.name() == null ? book.key().getKey() : book.name())));
+        String skinName = book.name() == null ? book.key().getKey() : book.name();
+        lore.add(Text.item(skin.fx() != null ? "<gold>★ 후원 스킨: </gold>" + skinName : "<dark_purple>✦ 스킨: </dark_purple>" + skinName));
         meta.lore(lore);
         pdc.set(keyLore, PersistentDataType.BYTE, (byte) 1);
         item.setItemMeta(meta);

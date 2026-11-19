@@ -32,7 +32,7 @@ WHEEL_D = 13
 
 def wheel_muscle():
     """The muscle car's wheel: 13 px across, 6 px wide, a fat black tyre round a bright five-slot mag rim."""
-    return _wheel("wheel_muscle", WHEEL_D, 6, cap="blade", cap_d=9, spokes=5, lip="blade")
+    return _wheel("wheel_muscle", WHEEL_D, 6, cap="blade", cap_d=8, spokes=5, lip="blade")
 
 
 def muscle_car(colour="fox", stripe="rubber", trim="rubber", name="muscle_car"):
@@ -59,11 +59,11 @@ def muscle_kit(colour="fox", stripe="rubber", trim="rubber", name="muscle_car"):
     L, W, WH = 38, 15.5, 16.75          # half length, half width, the haunches' half width
     XI = 9.5                            # the wells' inner wall
     WF, WR, SLOT = -23, 23, 8           # the axles, the wells' half length
-    SILL, FLOOR, ARCH, BELT, ROOF = 2.5, 4.5, 14, 15.5, 23
+    SILL, FLOOR, ARCH, BELT, ROOF = 2, 4.5, 14, 15.5, 24.75
     D0, D1 = -14, 6                     # the doors: between their seams
     CAB = 13                            # the glasshouse's half width
-    ZS = -13                            # the screen's foot (laid back 45 degrees)
-    ZR = 8                              # the roof's back edge: the fastback falls from here at 22.5 degrees
+    ZS = -11                            # the screen's foot (laid back 45 degrees)
+    ZR = 7                              # the roof's back edge: the fastback falls from here at 22.5 degrees
     FB = 1 / math.tan(math.radians(22.5))
     ZB = ZR + (ROOF + 1 - BELT) * FB    # where the fastback meets the boot
     s_step = 1.5 if S == "rubber" else 3.0
@@ -183,7 +183,7 @@ def muscle_kit(colour="fox", stripe="rubber", trim="rubber", name="muscle_car"):
             xa, xb = sorted((XI * s, outer * s))
             for side in (-1, 1):
                 edge = wz + side * SLOT
-                for deep, lo, hi in ((2.5, 12.5, ARCH), (1.25, 11, 12.5), (0.5, 9.5, 11)):
+                for deep, lo, hi in ((2.5, 12.5, ARCH), (1, 10.5, 12.5)):
                     z0, z1 = sorted((edge, edge - side * deep))
                     m.box("arch", (xa, lo, z0), (xb, hi, z1),
                           paint(decal=lambda c: (C, 0.4) if c.face in ("down", "north", "south") else col(c.p[1])))
@@ -204,7 +204,7 @@ def muscle_kit(colour="fox", stripe="rubber", trim="rubber", name="muscle_car"):
         if c.face == "up":
             return top(x, c.p[2], 3.4)
         return (C, 2.0)
-    m.box("scoop", (-3.5, BELT + 0.75, -30), (3.5, BELT + 2.25, -22), PAINT(decal=scoop))
+    m.box("scoop", (-3.5, BELT + 0.75, -31), (3.5, BELT + 2.75, -21), PAINT(decal=scoop))
     m.box("cowl", (-12, BELT, ZS - 1), (12, BELT + 0.5, ZS), inner(decal=lambda c: ("rubber", 1.4) if c.face == "up" else ("rubber", 1)))
 
     # chrome bumpers wrapping the corners
@@ -214,9 +214,9 @@ def muscle_kit(colour="fox", stripe="rubber", trim="rubber", name="muscle_car"):
     m.box("bumper", (-W + 0.5, 4, L), (W - 0.5, 6.5, L + 1.5), bump)
     for s in (1, -1):
         xa, xb = sorted(((W - 0.5) * s, (W + 0.5) * s))
-        m.box("bumper_end", (xa, 4, -L - 1.5), (xb, 6.5, -L + 3), bump)
+        m.box("bumper_end", (xa, 4, -L - 1.5), (xb, 6.5, -L + 1.5), bump)
         xa, xb = sorted(((W - 0.5) * s, (WH + 0.25) * s))
-        m.box("bumper_end", (xa, 4, L - 3), (xb, 6.5, L + 1.5), bump)
+        m.box("bumper_end", (xa, 4, L - 1.5), (xb, 6.5, L + 1.5), bump)
         # the front bumper's guards; the plate's dark backing sits between them
         xa, xb = sorted((4.5 * s, 5.5 * s))
         m.box("bumper_guard", (xa, 3.5, -L - 2), (xb, 7, -L - 1.5), CHROME(decal=lambda c: ("blade", 3.8 if c.face in ("up", "north") else 2.6)))
@@ -248,11 +248,14 @@ def muscle_kit(colour="fox", stripe="rubber", trim="rubber", name="muscle_car"):
             if c.face != "north":
                 return ("blade", 3)
             r = math.hypot(abs(c.p[0]) - cx, c.p[1] - 10)
-            return ("lamp", 4.8) if r < 0.8 else ("lamp", 3.8) if r < 1.4 else ("blade", 4.2)
+            if r >= 1.9:
+                return ("rubber", 0)                                    # the corners: the black grille behind
+            return ("lamp", 4.8) if r < 0.8 else ("lamp", 3.8) if r < 1.3 else ("blade", 4.2)
         return decal
     for s in (1, -1):
         for cx in (7.25, 11.25):
-            cyl(m, "headlight", (cx * s, 10), 4, -L - 0.5, -L, Paint("lamp", 3, decal=round_lamp(cx), **lamp()), axis="z")
+            xa, xb = sorted(((cx - 1.75) * s, (cx + 1.75) * s))
+            m.box("headlight", (xa, 8.25, -L - 0.5), (xb, 11.75, -L), Paint("lamp", 3, decal=round_lamp(cx), **lamp()))
 
     def tail_lamp(c):
         # wide red lamps in a chrome bezel, a bright bar across each, a chrome divider in its middle
@@ -281,8 +284,28 @@ def muscle_kit(colour="fox", stripe="rubber", trim="rubber", name="muscle_car"):
     m.box("windscreen", (-CAB + 0.5, BELT, ZS), (CAB - 0.5, BELT + h, ZS + 0.5),
           glass(frame=("blade", 3), sun=1, wipers=False, streak=0.25), rotation=("x", 45, (0, BELT, ZS)))
     fl = (ROOF + 1 - BELT) / math.sin(math.radians(22.5))
-    m.box("rear_window", (-CAB + 0.5, ROOF + 0.5, ZR), (CAB - 0.5, ROOF + 1, ZR + fl),
-          glass(frame=("blade", 3), sun=0, streak=0.35), rotation=("x", 22.5, (0, ROOF + 1, ZR)))
+    # the fastback: dark glass for its upper part, then painted down to the boot (the stripes run over it)
+    GL = round(fl * 0.6)
+
+    def back_glass(c):
+        u, v, nu, nv = c.u, c.v, c.nu, c.nv
+        if c.face != "up":
+            return raw("rubber", 1)
+        if v == 0:
+            return raw("rubber", 1)                                     # tucked under the roof's edge
+        if u in (0, nu - 1) or v == nv - 1:
+            return raw("blade", 3)
+        if (u + v) % 9 in (0, 1) and 0 < v < nv - 1:
+            return raw("glass", 3 if (u + v) % 9 == 0 else 2)          # reflections across the glass
+        return raw("tint", 1 if v < 2 else 0)
+    m.box("rear_window", (-CAB + 0.5, ROOF + 0.5, ZR), (CAB - 0.5, ROOF + 1, ZR + GL),
+          Paint("glass", 2, noise=0, light=False, decal=back_glass), rotation=("x", 22.5, (0, ROOF + 1, ZR)))
+
+    def fastback(c):
+        if c.face == "up":
+            return top(c.p[0], c.p[2], 3.0)
+        return (C, 2.2)
+    m.box("fastback", (-CAB, ROOF, ZR + GL), (CAB, ROOF + 1, ZR + fl), PAINT(decal=fastback), rotation=("x", 22.5, (0, ROOF + 1, ZR)))
 
     def side_window(c):
         x, y, z = c.p
@@ -340,21 +363,21 @@ def muscle_kit(colour="fox", stripe="rubber", trim="rubber", name="muscle_car"):
         if c.face == "up":
             return ("rubber", 1.4)
         return ("rubber", 1)
-    m.box("dash", (-12.5, 12, -12), (12.5, BELT + 1, -9.5), DARK(decal=dash))
-    m.box("column", (-7, 14, -9.5), (-6, 15.5, -8.5), PLASTIC)
-    m.box("wheel", (-9, 15, -8.5), (-4, 19, -8), Paint("rubber", 1, noise=0, light=False, decal=_steering(("blade", 4))))
-    m.box("tunnel", (-1.75, FLOOR, -9.5), (1.75, 7, 6), Paint(T, 1, noise=0, decal=lambda c: ("blade", 3.6) if c.face == "up" and -4 <= c.p[2] < -2 and abs(c.p[0]) < 0.75 else (T, 1.4)))
-    m.box("shifter", (-0.5, 7, -3.75), (0.5, 9.5, -2.75), Paint("blade", 3, noise=0, rim=0.3))
+    m.box("dash", (-12.5, 12, -10), (12.5, BELT + 1, -7.5), DARK(decal=dash))
+    m.box("column", (-7, 14, -7.5), (-6, 15.5, -6.75), PLASTIC)
+    m.box("wheel", (-9, 15, -6.75), (-4, 19, -6.25), Paint("rubber", 1, noise=0, light=False, decal=_steering(("blade", 4))))
+    m.box("tunnel", (-1.75, FLOOR, -7.5), (1.75, 7, 5), Paint(T, 1, noise=0, decal=lambda c: ("blade", 3.6) if c.face == "up" and -3 <= c.p[2] < -1 and abs(c.p[0]) < 0.75 else (T, 1.4)))
+    m.box("shifter", (-0.5, 7, -2.5), (0.5, 9.5, -1.5), Paint("blade", 3, noise=0, rim=0.3))
 
     seat = dict(bolster=(T, 2), insert=(T, 1.2), stitch=(C, 2.6))
     for s in (1, -1):
-        lo, hi = (min(2.5 * s, 11 * s), FLOOR, 6), (max(2.5 * s, 11 * s), 17, 8)
+        lo, hi = (min(2.5 * s, 11 * s), FLOOR, 5), (max(2.5 * s, 11 * s), 17.5, 7)
         m.box("seat_back", lo, hi, Paint(T, 2, noise=0, decal=upholstery(lo=lo, hi=hi, **seat)))
-        m.box("cushion", (lo[0], FLOOR, -1.5), (hi[0], 6.5, 6), Paint(T, 2, noise=0, decal=upholstery(lo=lo, hi=hi, **seat)))
+        m.box("cushion", (lo[0], FLOOR, -2.5), (hi[0], 6.5, 5), Paint(T, 2, noise=0, decal=upholstery(lo=lo, hi=hi, **seat)))
         xa, xb = sorted((4.5 * s, 9 * s))
-        m.box("headrest", (xa, 17, 6.5), (xb, 19.5, 8), Paint(T, 2, noise=0))
+        m.box("headrest", (xa, 17.5, 5.5), (xb, 20, 7), Paint(T, 2, noise=0))
     # behind the seats, under the fastback: a carpeted shelf
-    m.box("rear_shelf", (-12.5, FLOOR, 8), (12.5, 12, ZB), Paint("rubber", 1, noise=0, decal=lambda c: ("rubber", 1 if math.floor(c.p[2]) % 3 else 0.4) if c.face == "up" else (T, 1)))
+    m.box("rear_shelf", (-12.5, FLOOR, 7), (12.5, 12, ZB), Paint("rubber", 1, noise=0, decal=lambda c: ("rubber", 1 if math.floor(c.p[2]) % 3 else 0.4) if c.face == "up" else (T, 1)))
     m.display = _held_display(m)
     return kit
 

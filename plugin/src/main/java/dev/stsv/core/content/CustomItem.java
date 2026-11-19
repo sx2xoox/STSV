@@ -95,11 +95,26 @@ public record CustomItem(
      * @param asset     optional equipment asset for armor skins
      * @param bobber    a fishing rod's skin: the float shown on its hook while it is cast, or null
      */
-    public record Skin(NamespacedKey model, List<String> appliesTo, NamespacedKey asset, boolean returnOnRemove, Bobber bobber) {
+    public record Skin(NamespacedKey model, List<String> appliesTo, NamespacedKey asset, boolean returnOnRemove, Bobber bobber, SkinFx fx) {
         public Skin(NamespacedKey model, List<String> appliesTo, NamespacedKey asset, boolean returnOnRemove) {
-            this(model, appliesTo, asset, returnOnRemove, null);
+            this(model, appliesTo, asset, returnOnRemove, null, null);
+        }
+
+        public Skin(NamespacedKey model, List<String> appliesTo, NamespacedKey asset, boolean returnOnRemove, Bobber bobber) {
+            this(model, appliesTo, asset, returnOnRemove, bobber, null);
         }
     }
+
+    /**
+     * A donation skin's effects (gold skins have none): a few particles at the hand while the tool is held, a burst of
+     * particles and a sound when it breaks a block, hits something or lands a fish.
+     *
+     * @param held   the particle at the hand (null: none)
+     * @param colors the colours of a coloured particle (dust), picked in turn
+     * @param use    the burst's particle (null: the held one)
+     * @param sound  the burst's sound key (null: none), at this pitch
+     */
+    public record SkinFx(org.bukkit.Particle held, List<org.bukkit.Color> colors, org.bukkit.Particle use, String sound, float pitch) {}
 
     /**
      * A skinned rod's float: an item model shown on the fishing hook (a display riding it: the game's own float cannot

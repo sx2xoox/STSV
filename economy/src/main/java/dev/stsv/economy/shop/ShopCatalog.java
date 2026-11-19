@@ -91,7 +91,16 @@ public record ShopCatalog(
     public record Category(String id, String name, String icon, List<String> items) {}
 
     /** Something the shop sells: a vanilla or custom item (kind "item", amount per purchase), a cosmetic or a title. */
-    public record Good(String kind, String id, int amount, long price) {
+    public record Good(String kind, String id, int amount, long price, List<String> bundle, String label) {
+        public Good(String kind, String id, int amount, long price) {
+            this(kind, id, amount, price, List.of(), null);
+        }
+
+        /** A set: every item of bundle (one each) for one price; shown as its first item named label. */
+        public boolean isBundle() {
+            return !bundle.isEmpty();
+        }
+
         public boolean vanity() {
             return kind.equals("cosmetic") || kind.equals("title");
         }
@@ -312,9 +321,18 @@ public record ShopCatalog(
         return new SellEntry(id, e.getDouble("base"), e.getDouble("q"), e.contains("cap") ? e.getInt("cap") : null, e.getString("job"), floor);
     }
 
-    /** { item: id, amount: n, price: p } or { cosmetic: id, price: p } or { title: id, price: p } */
+    /** { item: id, amount: n, price: p } or { cosmetic: id, price: p } or { title: id, price: p } or { bundle: [id, ...], name: "세트", price: p } */
     private static Good good(Map<?, ?> m, String where, List<String> problems) {
         Object price = m.get("price");
+        if (m.get("bundle") instanceof List<?> list) {
+            List<String> ids = new ArrayList<>();
+            for (Object o : list) ids.add(norm(String.valueOf(o)));
+            if (ids.isEmpty() || !(price instanceof Number bp) || bp.longValue() <= 0) {
+                problems.add(where + ": bundle 은 아이템 목록과 price 필요 (" + m + ")");
+                return null;
+            }
+            return new Good("item", ids.getFirst(), 1, bp.longValue(), List.copyOf(ids), m.get("name") == null ? null : String.valueOf(m.get("name")));
+        }
         String kind = m.containsKey("cosmetic") ? "cosmetic" : m.containsKey("title") ? "title" : "item";
         Object id = m.get(kind);
         if (id == null || !(price instanceof Number p) || p.longValue() <= 0) {

@@ -119,6 +119,7 @@ public final class ShopModule extends EcoModule implements DailyListener {
         for (String id : catalog.sell().keySet()) if (Items.create(id, 1).isEmpty()) problems.add("sell: 없는 아이템 " + id);
         for (ShopCatalog.Good g : catalog.goods()) {
             if (g.kind().equals("item") && Items.create(g.id(), 1).isEmpty()) problems.add("buy: 없는 아이템 " + g.id());
+            for (String b : g.bundle()) if (Items.create(b, 1).isEmpty()) problems.add("buy: 묶음에 없는 아이템 " + b);
         }
         for (ShopCatalog.LimitedEntry l : catalog.merchant().goods()) if (Items.create(l.id(), 1).isEmpty()) problems.add("merchant: 없는 아이템 " + l.id());
         for (ShopCatalog.LimitedEntry l : catalog.merchant().rare()) if (Items.create(l.id(), 1).isEmpty()) problems.add("merchant.rare: 없는 아이템 " + l.id());
@@ -337,6 +338,32 @@ public final class ShopModule extends EcoModule implements DailyListener {
         }
         for (ItemStack left : p.getInventory().addItem(item.get()).values()) p.getWorld().dropItem(p.getLocation(), left);
         HudModule.flash(p, Lang.mm("shop.bought", "item", Items.mmName(item.get()), "count", amount, "amount", EconomyModule.format(price)));
+        p.playSound(p.getLocation(), Sound.ENTITY_ITEM_PICKUP, 0.6f, 1.1f);
+        return true;
+    }
+
+    /** A set (shop.yml bundle): one of each of its items for one price; all or nothing. */
+    private boolean buyBundle(Player p, ShopCatalog.Good g) {
+        List<ItemStack> items = new ArrayList<>();
+        for (String id : g.bundle()) {
+            Optional<ItemStack> it = Items.create(id, 1);
+            if (it.isEmpty()) return false;
+            if (!Items.furniture(it.get())) Items.markBought(it.get());
+            items.add(it.get());
+        }
+        int free = 0;
+        for (ItemStack s : p.getInventory().getStorageContents()) if (s == null || s.isEmpty()) free++;
+        if (free < items.size()) {
+            HudModule.flash(p, Lang.mm("shop.no-room-bundle", "count", items.size()));
+            return false;
+        }
+        if (!core.economy().withdraw(p.getUniqueId(), g.price(), "shop_buy")) {
+            HudModule.flash(p, Lang.mm("shop.not-enough", "price", EconomyModule.format(g.price())));
+            return false;
+        }
+        for (ItemStack it : items) for (ItemStack left : p.getInventory().addItem(it).values()) p.getWorld().dropItem(p.getLocation(), left);
+        HudModule.flash(p, Lang.mm("shop.bought-bundle", "name", g.label() == null ? Items.mmName(items.getFirst()) : g.label(),
+                "count", items.size(), "amount", EconomyModule.format(g.price())));
         p.playSound(p.getLocation(), Sound.ENTITY_ITEM_PICKUP, 0.6f, 1.1f);
         return true;
     }
@@ -822,6 +849,14 @@ public final class ShopModule extends EcoModule implements DailyListener {
                 ShopCatalog.Good g = category.goods().get(cell);
                 if (g.vanity()) {
                     out.add(eco.vanity().display(v.player(), g, (g.kind() + g.id()).equals(armed) && now() - armedAt < 5000));
+                } else if (g.isBundle()) {
+                    out.add(Items.create(g.id(), 1).map(it -> {
+                        if (g.label() != null) it.editMeta(m -> m.itemName(Lang.mm("shop.bundle-name", "name", g.label())));
+                        List<Component> lore = new ArrayList<>();
+                        for (String b : g.bundle()) Items.create(b, 1).ifPresent(x -> lore.add(Lang.mm("shop.bundle-line", "item", Items.mmName(x))));
+                        lore.addAll(Lang.items("shop.buy-lore-bundle", "price", EconomyModule.format(g.price()), "count", g.bundle().size()));
+                        return withLore(it, lore);
+                    }).orElse(null));
                 } else {
                     out.add(Items.create(g.id(), g.amount()).map(it -> withLore(it,
                             Lang.items(category.single() ? "shop.buy-lore-single" : "shop.buy-lore", "price", EconomyModule.format(g.price()), "count", g.amount()))).orElse(null));
@@ -847,6 +882,8 @@ public final class ShopModule extends EcoModule implements DailyListener {
                     String refused = eco.vanity().buy(p, g);
                     if (refused != null) HudModule.flash(p, Lang.mm(refused, "price", EconomyModule.format(g.price())));
                 }
+            } else if (g.isBundle()) {
+                buyBundle(p, g);
             } else {
                 int times = click.isShiftClick() && !category.single() ? 8 : 1;
                 for (int i = 0; i < times; i++) if (!buy(p, g.id(), g.amount(), g.price(), "shop_buy")) break;

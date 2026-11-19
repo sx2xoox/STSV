@@ -14,18 +14,18 @@ def muscle_car():
             "................",
             "................",
             "................",
-            "........bbbb....",
-            ".......gGggqbb..",
-            "...ss.gGgggqqwbb",
-            "bbbbbbbbbbbbbbbb",
+            ".......obbo.....",
+            "......gGgqqoo...",
+            "..wbw.GgggqqoooW",
+            "wwwwwwwwwwwwwwww",
             "yWWWWWWWWWWWWWWt",
-            "mVVVVVVVVVVVVVVm",
+            "VVVVVVVVlVVVVVVV",
             "mVkkkVVVVVVkkkVm",
             ".NkhHhNNNNNkhHhN",
-            "..khhk.....khhk.",
-            "...kk.......kk..",
+            "..khhhk...khhhk.",
+            "...kkk.....kkk..",
             "................"]
-    colours = {"w": ("fox", 3), "W": ("fox", 3), "V": ("fox", 2), "N": ("fox", 0), "b": ("rubber", 1),
-               "s": ("rubber", 2), "g": ("tint", 2), "G": ("glass", 4), "q": ("tint", 1), "y": ("lamp", 5),
-               "t": ("signal_red", 4), "m": ("blade", 4), **TIRES}
+    colours = {"o": ("fox", 3), "w": ("fox", 4), "W": ("fox", 3), "V": ("fox", 2), "N": ("fox", 0), "b": ("rubber", 1),
+               "s": ("fox", 4), "g": ("tint", 2), "G": ("glass", 4), "q": ("tint", 1), "y": ("lamp", 5),
+               "t": ("signal_red", 4), "m": ("blade", 4), "l": ("blade", 4), **TIRES}
     return _draw(rows, colours).render()

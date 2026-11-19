@@ -18,67 +18,72 @@ toy_sword_skin:
   material: paper
   name: "<#c58cff>스킨북: 장난감 검"
   lore:
-    - "<gold>장난감 시리즈</gold> <dark_gray>· <gray>검 스킨"
+    - "<gold>후원 · 장난감 시리즈</gold> <dark_gray>· <gray>검 스킨"
     - "<gray>스펀지 칼날의 큼직한 검"
     - "<gray>겉모습만 바뀜 · 떼기: /스킨 해제"
     - "<yellow>우클릭: 검에 입히기"
   texture: skin_book
   max-stack: 16
-  skin: { model: "stsv:toy_sword", applies-to: ["#minecraft:swords"], return-on-remove: true }
+  skin: { model: "stsv:toy_sword", applies-to: ["#minecraft:swords"], return-on-remove: true,
+          fx: { held: dust, colors: ["#ff4b3e", "#ffd23c", "#3c8cff"], use: note, sound: "block.note_block.pling", pitch: 1.6 } }
 
 toy_pickaxe_skin:
   material: paper
   name: "<#c58cff>스킨북: 장난감 곡괭이"
   lore:
-    - "<gold>장난감 시리즈</gold> <dark_gray>· <gray>곡괭이 스킨"
+    - "<gold>후원 · 장난감 시리즈</gold> <dark_gray>· <gray>곡괭이 스킨"
     - "<gray>빨간 플라스틱 곡괭이"
     - "<gray>겉모습만 바뀜 · 떼기: /스킨 해제"
     - "<yellow>우클릭: 곡괭이에 입히기"
   texture: skin_book
   max-stack: 16
-  skin: { model: "stsv:toy_pickaxe", applies-to: ["#minecraft:pickaxes"], return-on-remove: true }
+  skin: { model: "stsv:toy_pickaxe", applies-to: ["#minecraft:pickaxes"], return-on-remove: true,
+          fx: { held: dust, colors: ["#ff4b3e", "#ffd23c", "#3c8cff"], use: note, sound: "block.note_block.pling", pitch: 1.6 } }
 
 toy_shovel_skin:
   material: paper
   name: "<#c58cff>스킨북: 장난감 삽"
   lore:
-    - "<gold>장난감 시리즈</gold> <dark_gray>· <gray>삽 스킨"
+    - "<gold>후원 · 장난감 시리즈</gold> <dark_gray>· <gray>삽 스킨"
     - "<gray>D자 손잡이 모래놀이 삽"
     - "<gray>겉모습만 바뀜 · 떼기: /스킨 해제"
     - "<yellow>우클릭: 삽에 입히기"
   texture: skin_book
   max-stack: 16
-  skin: { model: "stsv:toy_shovel", applies-to: ["#minecraft:shovels"], return-on-remove: true }
+  skin: { model: "stsv:toy_shovel", applies-to: ["#minecraft:shovels"], return-on-remove: true,
+          fx: { held: dust, colors: ["#ff4b3e", "#ffd23c", "#3c8cff"], use: note, sound: "block.note_block.pling", pitch: 1.6 } }
 
 toy_axe_skin:
   material: paper
   name: "<#c58cff>스킨북: 장난감 도끼"
   lore:
-    - "<gold>장난감 시리즈</gold> <dark_gray>· <gray>도끼 스킨"
+    - "<gold>후원 · 장난감 시리즈</gold> <dark_gray>· <gray>도끼 스킨"
     - "<gray>스펀지 날을 댄 주황 도끼"
     - "<gray>겉모습만 바뀜 · 떼기: /스킨 해제"
     - "<yellow>우클릭: 도끼에 입히기"
   texture: skin_book
   max-stack: 16
-  skin: { model: "stsv:toy_axe", applies-to: ["#minecraft:axes"], return-on-remove: true }
+  skin: { model: "stsv:toy_axe", applies-to: ["#minecraft:axes"], return-on-remove: true,
+          fx: { held: dust, colors: ["#ff4b3e", "#ffd23c", "#3c8cff"], use: note, sound: "block.note_block.pling", pitch: 1.6 } }
 
 toy_hoe_skin:
   material: paper
   name: "<#c58cff>스킨북: 장난감 괭이"
   lore:
-    - "<gold>장난감 시리즈</gold> <dark_gray>· <gray>괭이 스킨"
+    - "<gold>후원 · 장난감 시리즈</gold> <dark_gray>· <gray>괭이 스킨"
     - "<gray>파란 날의 장난감 괭이"
     - "<gray>겉모습만 바뀜 · 떼기: /스킨 해제"
     - "<yellow>우클릭: 괭이에 입히기"
   texture: skin_book
   max-stack: 16
-  skin: { model: "stsv:toy_hoe", applies-to: ["#minecraft:hoes"], return-on-remove: true }
+  skin: { model: "stsv:toy_hoe", applies-to: ["#minecraft:hoes"], return-on-remove: true,
+          fx: { held: dust, colors: ["#ff4b3e", "#ffd23c", "#3c8cff"], use: note, sound: "block.note_block.pling", pitch: 1.6 } }
 
 toy_fishing_rod_skin:
   material: paper
   name: "<#c58cff>스킨북: 장난감 낚싯대"
   lore:
-    - "<gold>장난감 시리즈</gold> <dark_gray>· <gray>낚싯대 스킨"
+    - "<gold>후원 · 장난감 시리즈</gold> <dark_gray>· <gray>낚싯대 스킨"
     - "<gray>장난감 찌가 뜨는 낚싯대"
     - "<gray>겉모습만 바뀜 · 떼기: /스킨 해제"
     - "<yellow>우클릭: 낚싯대에 입히기"
@@ -89,3 +94,532 @@ toy_fishing_rod_skin:
     applies-to: ["minecraft:fishing_rod"]
     return-on-remove: true
     bobber: { model: "stsv:toy_bobber", scale: 0.9, lift: -0.081 }
+    fx: { held: dust, colors: ["#ff4b3e", "#ffd23c", "#3c8cff"], use: note, sound: "block.note_block.pling", pitch: 1.6 }
+
+# ---- 후원 세트 (자동 생성: 각 세트 모델은 tools/assetgen/models/skinset_<id>.py) ----
+# 후원 스킨은 fx: 들고 있으면 손에서 빛 (held), 블록을 캐거나 때리거나 물고기를 낚으면 터지는 효과 (use) · 소리 · 도구에 '★ 후원 스킨' 줄
+
+# 청룡 시리즈
+
+dragon_sword_skin:
+  material: paper
+  name: "<#3fd0c0>스킨북: 청룡 검"
+  lore:
+    - "<gold>후원 · 청룡 시리즈</gold> <dark_gray>· <gray>검 스킨"
+    - "<gray>용수염 가드의 비취 청룡검"
+    - "<light_purple>✦ 들고 있으면 빛나고, 쓸 때 효과"
+    - "<gray>겉모습만 바뀜 · 떼기: /스킨 해제"
+    - "<yellow>우클릭: 검에 입히기"
+  texture: skin_book
+  max-stack: 16
+  skin:
+    model: "stsv:dragon_sword"
+    applies-to: ["#minecraft:swords"]
+    return-on-remove: true
+    fx: { held: dust, colors: ["#3fd0c0", "#f0c448"], use: glow, sound: "block.amethyst_block.chime", pitch: 0.9 }
+
+dragon_pickaxe_skin:
+  material: paper
+  name: "<#3fd0c0>스킨북: 청룡 곡괭이"
+  lore:
+    - "<gold>후원 · 청룡 시리즈</gold> <dark_gray>· <gray>곡괭이 스킨"
+    - "<gray>두 용발톱의 비취 곡괭이"
+    - "<light_purple>✦ 들고 있으면 빛나고, 쓸 때 효과"
+    - "<gray>겉모습만 바뀜 · 떼기: /스킨 해제"
+    - "<yellow>우클릭: 곡괭이에 입히기"
+  texture: skin_book
+  max-stack: 16
+  skin:
+    model: "stsv:dragon_pickaxe"
+    applies-to: ["#minecraft:pickaxes"]
+    return-on-remove: true
+    fx: { held: dust, colors: ["#3fd0c0", "#f0c448"], use: glow, sound: "block.amethyst_block.chime", pitch: 0.9 }
+
+dragon_shovel_skin:
+  material: paper
+  name: "<#3fd0c0>스킨북: 청룡 삽"
+  lore:
+    - "<gold>후원 · 청룡 시리즈</gold> <dark_gray>· <gray>삽 스킨"
+    - "<gray>여의주 박힌 비늘 모양 삽"
+    - "<light_purple>✦ 들고 있으면 빛나고, 쓸 때 효과"
+    - "<gray>겉모습만 바뀜 · 떼기: /스킨 해제"
+    - "<yellow>우클릭: 삽에 입히기"
+  texture: skin_book
+  max-stack: 16
+  skin:
+    model: "stsv:dragon_shovel"
+    applies-to: ["#minecraft:shovels"]
+    return-on-remove: true
+    fx: { held: dust, colors: ["#3fd0c0", "#f0c448"], use: glow, sound: "block.amethyst_block.chime", pitch: 0.9 }
+
+dragon_axe_skin:
+  material: paper
+  name: "<#3fd0c0>스킨북: 청룡 도끼"
+  lore:
+    - "<gold>후원 · 청룡 시리즈</gold> <dark_gray>· <gray>도끼 스킨"
+    - "<gray>용 지느러미 날의 도끼"
+    - "<light_purple>✦ 들고 있으면 빛나고, 쓸 때 효과"
+    - "<gray>겉모습만 바뀜 · 떼기: /스킨 해제"
+    - "<yellow>우클릭: 도끼에 입히기"
+  texture: skin_book
+  max-stack: 16
+  skin:
+    model: "stsv:dragon_axe"
+    applies-to: ["#minecraft:axes"]
+    return-on-remove: true
+    fx: { held: dust, colors: ["#3fd0c0", "#f0c448"], use: glow, sound: "block.amethyst_block.chime", pitch: 0.9 }
+
+dragon_hoe_skin:
+  material: paper
+  name: "<#3fd0c0>스킨북: 청룡 괭이"
+  lore:
+    - "<gold>후원 · 청룡 시리즈</gold> <dark_gray>· <gray>괭이 스킨"
+    - "<gray>용의 턱을 닮은 비취 괭이"
+    - "<light_purple>✦ 들고 있으면 빛나고, 쓸 때 효과"
+    - "<gray>겉모습만 바뀜 · 떼기: /스킨 해제"
+    - "<yellow>우클릭: 괭이에 입히기"
+  texture: skin_book
+  max-stack: 16
+  skin:
+    model: "stsv:dragon_hoe"
+    applies-to: ["#minecraft:hoes"]
+    return-on-remove: true
+    fx: { held: dust, colors: ["#3fd0c0", "#f0c448"], use: glow, sound: "block.amethyst_block.chime", pitch: 0.9 }
+
+dragon_fishing_rod_skin:
+  material: paper
+  name: "<#3fd0c0>스킨북: 청룡 낚싯대"
+  lore:
+    - "<gold>후원 · 청룡 시리즈</gold> <dark_gray>· <gray>낚싯대 스킨"
+    - "<gray>용머리 끝의 비취 낚싯대"
+    - "<light_purple>✦ 들고 있으면 빛나고, 쓸 때 효과"
+    - "<gray>겉모습만 바뀜 · 떼기: /스킨 해제"
+    - "<yellow>우클릭: 낚싯대에 입히기"
+  texture: skin_book
+  max-stack: 16
+  skin:
+    model: "stsv:dragon_fishing_rod"
+    applies-to: ["minecraft:fishing_rod"]
+    return-on-remove: true
+    bobber: { model: "stsv:dragon_bobber", scale: 0.9, lift: 0.0 }
+    fx: { held: dust, colors: ["#3fd0c0", "#f0c448"], use: glow, sound: "block.amethyst_block.chime", pitch: 0.9 }
+
+# 은하수 시리즈
+
+galaxy_sword_skin:
+  material: paper
+  name: "<#9b8cff>스킨북: 은하수 검"
+  lore:
+    - "<gold>후원 · 은하수 시리즈</gold> <dark_gray>· <gray>검 스킨"
+    - "<gray>초승달 가드의 별빛 수정 검"
+    - "<light_purple>✦ 들고 있으면 빛나고, 쓸 때 효과"
+    - "<gray>겉모습만 바뀜 · 떼기: /스킨 해제"
+    - "<yellow>우클릭: 검에 입히기"
+  texture: skin_book
+  max-stack: 16
+  skin:
+    model: "stsv:galaxy_sword"
+    applies-to: ["#minecraft:swords"]
+    return-on-remove: true
+    fx: { held: dust, colors: ["#9b8cff", "#ffffff", "#7fe0ff"], use: end_rod, sound: "entity.experience_orb.pickup", pitch: 1.9 }
+
+galaxy_pickaxe_skin:
+  material: paper
+  name: "<#9b8cff>스킨북: 은하수 곡괭이"
+  lore:
+    - "<gold>후원 · 은하수 시리즈</gold> <dark_gray>· <gray>곡괭이 스킨"
+    - "<gray>별 끝이 빛나는 수정 곡괭이"
+    - "<light_purple>✦ 들고 있으면 빛나고, 쓸 때 효과"
+    - "<gray>겉모습만 바뀜 · 떼기: /스킨 해제"
+    - "<yellow>우클릭: 곡괭이에 입히기"
+  texture: skin_book
+  max-stack: 16
+  skin:
+    model: "stsv:galaxy_pickaxe"
+    applies-to: ["#minecraft:pickaxes"]
+    return-on-remove: true
+    fx: { held: dust, colors: ["#9b8cff", "#ffffff", "#7fe0ff"], use: end_rod, sound: "entity.experience_orb.pickup", pitch: 1.9 }
+
+galaxy_shovel_skin:
+  material: paper
+  name: "<#9b8cff>스킨북: 은하수 삽"
+  lore:
+    - "<gold>후원 · 은하수 시리즈</gold> <dark_gray>· <gray>삽 스킨"
+    - "<gray>별자리가 새겨진 수정 삽"
+    - "<light_purple>✦ 들고 있으면 빛나고, 쓸 때 효과"
+    - "<gray>겉모습만 바뀜 · 떼기: /스킨 해제"
+    - "<yellow>우클릭: 삽에 입히기"
+  texture: skin_book
+  max-stack: 16
+  skin:
+    model: "stsv:galaxy_shovel"
+    applies-to: ["#minecraft:shovels"]
+    return-on-remove: true
+    fx: { held: dust, colors: ["#9b8cff", "#ffffff", "#7fe0ff"], use: end_rod, sound: "entity.experience_orb.pickup", pitch: 1.9 }
+
+galaxy_axe_skin:
+  material: paper
+  name: "<#9b8cff>스킨북: 은하수 도끼"
+  lore:
+    - "<gold>후원 · 은하수 시리즈</gold> <dark_gray>· <gray>도끼 스킨"
+    - "<gray>초승달 모양의 수정 도끼"
+    - "<light_purple>✦ 들고 있으면 빛나고, 쓸 때 효과"
+    - "<gray>겉모습만 바뀜 · 떼기: /스킨 해제"
+    - "<yellow>우클릭: 도끼에 입히기"
+  texture: skin_book
+  max-stack: 16
+  skin:
+    model: "stsv:galaxy_axe"
+    applies-to: ["#minecraft:axes"]
+    return-on-remove: true
+    fx: { held: dust, colors: ["#9b8cff", "#ffffff", "#7fe0ff"], use: end_rod, sound: "entity.experience_orb.pickup", pitch: 1.9 }
+
+galaxy_hoe_skin:
+  material: paper
+  name: "<#9b8cff>스킨북: 은하수 괭이"
+  lore:
+    - "<gold>후원 · 은하수 시리즈</gold> <dark_gray>· <gray>괭이 스킨"
+    - "<gray>고리 행성을 품은 괭이"
+    - "<light_purple>✦ 들고 있으면 빛나고, 쓸 때 효과"
+    - "<gray>겉모습만 바뀜 · 떼기: /스킨 해제"
+    - "<yellow>우클릭: 괭이에 입히기"
+  texture: skin_book
+  max-stack: 16
+  skin:
+    model: "stsv:galaxy_hoe"
+    applies-to: ["#minecraft:hoes"]
+    return-on-remove: true
+    fx: { held: dust, colors: ["#9b8cff", "#ffffff", "#7fe0ff"], use: end_rod, sound: "entity.experience_orb.pickup", pitch: 1.9 }
+
+galaxy_fishing_rod_skin:
+  material: paper
+  name: "<#9b8cff>스킨북: 은하수 낚싯대"
+  lore:
+    - "<gold>후원 · 은하수 시리즈</gold> <dark_gray>· <gray>낚싯대 스킨"
+    - "<gray>별 고리와 초승달 낚싯대"
+    - "<light_purple>✦ 들고 있으면 빛나고, 쓸 때 효과"
+    - "<gray>겉모습만 바뀜 · 떼기: /스킨 해제"
+    - "<yellow>우클릭: 낚싯대에 입히기"
+  texture: skin_book
+  max-stack: 16
+  skin:
+    model: "stsv:galaxy_fishing_rod"
+    applies-to: ["minecraft:fishing_rod"]
+    return-on-remove: true
+    bobber: { model: "stsv:galaxy_bobber", scale: 0.9, lift: -0.05 }
+    fx: { held: dust, colors: ["#9b8cff", "#ffffff", "#7fe0ff"], use: end_rod, sound: "entity.experience_orb.pickup", pitch: 1.9 }
+
+# 자개 시리즈
+
+najeon_sword_skin:
+  material: paper
+  name: "<#f0c4e4>스킨북: 자개 검"
+  lore:
+    - "<gold>후원 · 자개 시리즈</gold> <dark_gray>· <gray>검 스킨"
+    - "<gray>옥빛 결의 자개 장식 검"
+    - "<light_purple>✦ 들고 있으면 빛나고, 쓸 때 효과"
+    - "<gray>겉모습만 바뀜 · 떼기: /스킨 해제"
+    - "<yellow>우클릭: 검에 입히기"
+  texture: skin_book
+  max-stack: 16
+  skin:
+    model: "stsv:najeon_sword"
+    applies-to: ["#minecraft:swords"]
+    return-on-remove: true
+    fx: { held: dust, colors: ["#f0c4e4", "#bff0e0", "#fff3d6"], use: cherry_leaves, sound: "block.note_block.chime", pitch: 1.3 }
+
+najeon_pickaxe_skin:
+  material: paper
+  name: "<#f0c4e4>스킨북: 자개 곡괭이"
+  lore:
+    - "<gold>후원 · 자개 시리즈</gold> <dark_gray>· <gray>곡괭이 스킨"
+    - "<gray>매화 자개를 박은 곡괭이"
+    - "<light_purple>✦ 들고 있으면 빛나고, 쓸 때 효과"
+    - "<gray>겉모습만 바뀜 · 떼기: /스킨 해제"
+    - "<yellow>우클릭: 곡괭이에 입히기"
+  texture: skin_book
+  max-stack: 16
+  skin:
+    model: "stsv:najeon_pickaxe"
+    applies-to: ["#minecraft:pickaxes"]
+    return-on-remove: true
+    fx: { held: dust, colors: ["#f0c4e4", "#bff0e0", "#fff3d6"], use: cherry_leaves, sound: "block.note_block.chime", pitch: 1.3 }
+
+najeon_shovel_skin:
+  material: paper
+  name: "<#f0c4e4>스킨북: 자개 삽"
+  lore:
+    - "<gold>후원 · 자개 시리즈</gold> <dark_gray>· <gray>삽 스킨"
+    - "<gray>주칠에 매화 자개를 박은 삽"
+    - "<light_purple>✦ 들고 있으면 빛나고, 쓸 때 효과"
+    - "<gray>겉모습만 바뀜 · 떼기: /스킨 해제"
+    - "<yellow>우클릭: 삽에 입히기"
+  texture: skin_book
+  max-stack: 16
+  skin:
+    model: "stsv:najeon_shovel"
+    applies-to: ["#minecraft:shovels"]
+    return-on-remove: true
+    fx: { held: dust, colors: ["#f0c4e4", "#bff0e0", "#fff3d6"], use: cherry_leaves, sound: "block.note_block.chime", pitch: 1.3 }
+
+najeon_axe_skin:
+  material: paper
+  name: "<#f0c4e4>스킨북: 자개 도끼"
+  lore:
+    - "<gold>후원 · 자개 시리즈</gold> <dark_gray>· <gray>도끼 스킨"
+    - "<gray>매화 가지 자개를 새긴 도끼"
+    - "<light_purple>✦ 들고 있으면 빛나고, 쓸 때 효과"
+    - "<gray>겉모습만 바뀜 · 떼기: /스킨 해제"
+    - "<yellow>우클릭: 도끼에 입히기"
+  texture: skin_book
+  max-stack: 16
+  skin:
+    model: "stsv:najeon_axe"
+    applies-to: ["#minecraft:axes"]
+    return-on-remove: true
+    fx: { held: dust, colors: ["#f0c4e4", "#bff0e0", "#fff3d6"], use: cherry_leaves, sound: "block.note_block.chime", pitch: 1.3 }
+
+najeon_hoe_skin:
+  material: paper
+  name: "<#f0c4e4>스킨북: 자개 괭이"
+  lore:
+    - "<gold>후원 · 자개 시리즈</gold> <dark_gray>· <gray>괭이 스킨"
+    - "<gray>옥판을 단 자개 괭이"
+    - "<light_purple>✦ 들고 있으면 빛나고, 쓸 때 효과"
+    - "<gray>겉모습만 바뀜 · 떼기: /스킨 해제"
+    - "<yellow>우클릭: 괭이에 입히기"
+  texture: skin_book
+  max-stack: 16
+  skin:
+    model: "stsv:najeon_hoe"
+    applies-to: ["#minecraft:hoes"]
+    return-on-remove: true
+    fx: { held: dust, colors: ["#f0c4e4", "#bff0e0", "#fff3d6"], use: cherry_leaves, sound: "block.note_block.chime", pitch: 1.3 }
+
+najeon_fishing_rod_skin:
+  material: paper
+  name: "<#f0c4e4>스킨북: 자개 낚싯대"
+  lore:
+    - "<gold>후원 · 자개 시리즈</gold> <dark_gray>· <gray>낚싯대 스킨"
+    - "<gray>자개 박 찌가 뜨는 낚싯대"
+    - "<light_purple>✦ 들고 있으면 빛나고, 쓸 때 효과"
+    - "<gray>겉모습만 바뀜 · 떼기: /스킨 해제"
+    - "<yellow>우클릭: 낚싯대에 입히기"
+  texture: skin_book
+  max-stack: 16
+  skin:
+    model: "stsv:najeon_fishing_rod"
+    applies-to: ["minecraft:fishing_rod"]
+    return-on-remove: true
+    bobber: { model: "stsv:najeon_bobber", scale: 0.9, lift: -0.025 }
+    fx: { held: dust, colors: ["#f0c4e4", "#bff0e0", "#fff3d6"], use: cherry_leaves, sound: "block.note_block.chime", pitch: 1.3 }
+
+# 서리 수정 시리즈
+
+frost_sword_skin:
+  material: paper
+  name: "<#7fd8ff>스킨북: 서리 수정 검"
+  lore:
+    - "<gold>후원 · 서리 수정 시리즈</gold> <dark_gray>· <gray>검 스킨"
+    - "<gray>수정 결정이 돋은 얼음 검"
+    - "<light_purple>✦ 들고 있으면 빛나고, 쓸 때 효과"
+    - "<gray>겉모습만 바뀜 · 떼기: /스킨 해제"
+    - "<yellow>우클릭: 검에 입히기"
+  texture: skin_book
+  max-stack: 16
+  skin:
+    model: "stsv:frost_sword"
+    applies-to: ["#minecraft:swords"]
+    return-on-remove: true
+    fx: { held: snowflake, colors: [], use: snowflake, sound: "block.amethyst_block.break", pitch: 1.6 }
+
+frost_pickaxe_skin:
+  material: paper
+  name: "<#7fd8ff>스킨북: 서리 수정 곡괭이"
+  lore:
+    - "<gold>후원 · 서리 수정 시리즈</gold> <dark_gray>· <gray>곡괭이 스킨"
+    - "<gray>휘어진 얼음 날의 곡괭이"
+    - "<light_purple>✦ 들고 있으면 빛나고, 쓸 때 효과"
+    - "<gray>겉모습만 바뀜 · 떼기: /스킨 해제"
+    - "<yellow>우클릭: 곡괭이에 입히기"
+  texture: skin_book
+  max-stack: 16
+  skin:
+    model: "stsv:frost_pickaxe"
+    applies-to: ["#minecraft:pickaxes"]
+    return-on-remove: true
+    fx: { held: snowflake, colors: [], use: snowflake, sound: "block.amethyst_block.break", pitch: 1.6 }
+
+frost_shovel_skin:
+  material: paper
+  name: "<#7fd8ff>스킨북: 서리 수정 삽"
+  lore:
+    - "<gold>후원 · 서리 수정 시리즈</gold> <dark_gray>· <gray>삽 스킨"
+    - "<gray>고드름 달린 얼음 삽"
+    - "<light_purple>✦ 들고 있으면 빛나고, 쓸 때 효과"
+    - "<gray>겉모습만 바뀜 · 떼기: /스킨 해제"
+    - "<yellow>우클릭: 삽에 입히기"
+  texture: skin_book
+  max-stack: 16
+  skin:
+    model: "stsv:frost_shovel"
+    applies-to: ["#minecraft:shovels"]
+    return-on-remove: true
+    fx: { held: snowflake, colors: [], use: snowflake, sound: "block.amethyst_block.break", pitch: 1.6 }
+
+frost_axe_skin:
+  material: paper
+  name: "<#7fd8ff>스킨북: 서리 수정 도끼"
+  lore:
+    - "<gold>후원 · 서리 수정 시리즈</gold> <dark_gray>· <gray>도끼 스킨"
+    - "<gray>넓은 수정 날의 얼음 도끼"
+    - "<light_purple>✦ 들고 있으면 빛나고, 쓸 때 효과"
+    - "<gray>겉모습만 바뀜 · 떼기: /스킨 해제"
+    - "<yellow>우클릭: 도끼에 입히기"
+  texture: skin_book
+  max-stack: 16
+  skin:
+    model: "stsv:frost_axe"
+    applies-to: ["#minecraft:axes"]
+    return-on-remove: true
+    fx: { held: snowflake, colors: [], use: snowflake, sound: "block.amethyst_block.break", pitch: 1.6 }
+
+frost_hoe_skin:
+  material: paper
+  name: "<#7fd8ff>스킨북: 서리 수정 괭이"
+  lore:
+    - "<gold>후원 · 서리 수정 시리즈</gold> <dark_gray>· <gray>괭이 스킨"
+    - "<gray>서리 맺힌 얼음 날 괭이"
+    - "<light_purple>✦ 들고 있으면 빛나고, 쓸 때 효과"
+    - "<gray>겉모습만 바뀜 · 떼기: /스킨 해제"
+    - "<yellow>우클릭: 괭이에 입히기"
+  texture: skin_book
+  max-stack: 16
+  skin:
+    model: "stsv:frost_hoe"
+    applies-to: ["#minecraft:hoes"]
+    return-on-remove: true
+    fx: { held: snowflake, colors: [], use: snowflake, sound: "block.amethyst_block.break", pitch: 1.6 }
+
+frost_fishing_rod_skin:
+  material: paper
+  name: "<#7fd8ff>스킨북: 서리 수정 낚싯대"
+  lore:
+    - "<gold>후원 · 서리 수정 시리즈</gold> <dark_gray>· <gray>낚싯대 스킨"
+    - "<gray>수정 끝의 가는 얼음 낚싯대"
+    - "<light_purple>✦ 들고 있으면 빛나고, 쓸 때 효과"
+    - "<gray>겉모습만 바뀜 · 떼기: /스킨 해제"
+    - "<yellow>우클릭: 낚싯대에 입히기"
+  texture: skin_book
+  max-stack: 16
+  skin:
+    model: "stsv:frost_fishing_rod"
+    applies-to: ["minecraft:fishing_rod"]
+    return-on-remove: true
+    bobber: { model: "stsv:frost_bobber", scale: 0.9, lift: -0.081 }
+    fx: { held: snowflake, colors: [], use: snowflake, sound: "block.amethyst_block.break", pitch: 1.6 }
+
+# 용암 시리즈
+
+magma_sword_skin:
+  material: paper
+  name: "<#ff7a1f>스킨북: 용암 검"
+  lore:
+    - "<gold>후원 · 용암 시리즈</gold> <dark_gray>· <gray>검 스킨"
+    - "<gray>용암이 갈라져 흐르는 흑요석 검"
+    - "<light_purple>✦ 들고 있으면 빛나고, 쓸 때 효과"
+    - "<gray>겉모습만 바뀜 · 떼기: /스킨 해제"
+    - "<yellow>우클릭: 검에 입히기"
+  texture: skin_book
+  max-stack: 16
+  skin:
+    model: "stsv:magma_sword"
+    applies-to: ["#minecraft:swords"]
+    return-on-remove: true
+    fx: { held: small_flame, colors: [], use: flame, sound: "item.firecharge.use", pitch: 1.4 }
+
+magma_pickaxe_skin:
+  material: paper
+  name: "<#ff7a1f>스킨북: 용암 곡괭이"
+  lore:
+    - "<gold>후원 · 용암 시리즈</gold> <dark_gray>· <gray>곡괭이 스킨"
+    - "<gray>불씨 끝을 단 흑요석 곡괭이"
+    - "<light_purple>✦ 들고 있으면 빛나고, 쓸 때 효과"
+    - "<gray>겉모습만 바뀜 · 떼기: /스킨 해제"
+    - "<yellow>우클릭: 곡괭이에 입히기"
+  texture: skin_book
+  max-stack: 16
+  skin:
+    model: "stsv:magma_pickaxe"
+    applies-to: ["#minecraft:pickaxes"]
+    return-on-remove: true
+    fx: { held: small_flame, colors: [], use: flame, sound: "item.firecharge.use", pitch: 1.4 }
+
+magma_shovel_skin:
+  material: paper
+  name: "<#ff7a1f>스킨북: 용암 삽"
+  lore:
+    - "<gold>후원 · 용암 시리즈</gold> <dark_gray>· <gray>삽 스킨"
+    - "<gray>용암 균열이 빛나는 흑요석 삽"
+    - "<light_purple>✦ 들고 있으면 빛나고, 쓸 때 효과"
+    - "<gray>겉모습만 바뀜 · 떼기: /스킨 해제"
+    - "<yellow>우클릭: 삽에 입히기"
+  texture: skin_book
+  max-stack: 16
+  skin:
+    model: "stsv:magma_shovel"
+    applies-to: ["#minecraft:shovels"]
+    return-on-remove: true
+    fx: { held: small_flame, colors: [], use: flame, sound: "item.firecharge.use", pitch: 1.4 }
+
+magma_axe_skin:
+  material: paper
+  name: "<#ff7a1f>스킨북: 용암 도끼"
+  lore:
+    - "<gold>후원 · 용암 시리즈</gold> <dark_gray>· <gray>도끼 스킨"
+    - "<gray>녹은 날이 이글거리는 도끼"
+    - "<light_purple>✦ 들고 있으면 빛나고, 쓸 때 효과"
+    - "<gray>겉모습만 바뀜 · 떼기: /스킨 해제"
+    - "<yellow>우클릭: 도끼에 입히기"
+  texture: skin_book
+  max-stack: 16
+  skin:
+    model: "stsv:magma_axe"
+    applies-to: ["#minecraft:axes"]
+    return-on-remove: true
+    fx: { held: small_flame, colors: [], use: flame, sound: "item.firecharge.use", pitch: 1.4 }
+
+magma_hoe_skin:
+  material: paper
+  name: "<#ff7a1f>스킨북: 용암 괭이"
+  lore:
+    - "<gold>후원 · 용암 시리즈</gold> <dark_gray>· <gray>괭이 스킨"
+    - "<gray>용암 날을 두른 흑요석 괭이"
+    - "<light_purple>✦ 들고 있으면 빛나고, 쓸 때 효과"
+    - "<gray>겉모습만 바뀜 · 떼기: /스킨 해제"
+    - "<yellow>우클릭: 괭이에 입히기"
+  texture: skin_book
+  max-stack: 16
+  skin:
+    model: "stsv:magma_hoe"
+    applies-to: ["#minecraft:hoes"]
+    return-on-remove: true
+    fx: { held: small_flame, colors: [], use: flame, sound: "item.firecharge.use", pitch: 1.4 }
+
+magma_fishing_rod_skin:
+  material: paper
+  name: "<#ff7a1f>스킨북: 용암 낚싯대"
+  lore:
+    - "<gold>후원 · 용암 시리즈</gold> <dark_gray>· <gray>낚싯대 스킨"
+    - "<gray>불씨 끝의 검은 용암 낚싯대"
+    - "<light_purple>✦ 들고 있으면 빛나고, 쓸 때 효과"
+    - "<gray>겉모습만 바뀜 · 떼기: /스킨 해제"
+    - "<yellow>우클릭: 낚싯대에 입히기"
+  texture: skin_book
+  max-stack: 16
+  skin:
+    model: "stsv:magma_fishing_rod"
+    applies-to: ["minecraft:fishing_rod"]
+    return-on-remove: true
+    bobber: { model: "stsv:magma_bobber", scale: 0.9, lift: -0.025 }
+    fx: { held: small_flame, colors: [], use: flame, sound: "item.firecharge.use", pitch: 1.4 }
