@@ -748,7 +748,7 @@ vehicle:
   returned-world: "<yellow>월드가 초기화되어 탈것 #{id}이(가) 아이템으로 돌아왔어요. <dark_gray>(짐은 그대로)"
   owed-waiting: "<yellow>돌려받을 탈것이 있어요. <dark_gray>(빈칸 만든 뒤 다시 접속)"
   item-number: "<dark_gray>탈것 번호 #{id}"
-  report: "<gray>탈것 <white>{live}</white>대 보이는 중 · 청크가 안 불러와진 곳에 <white>{parked}</white>대"
+  report: "<gray>탈것 <white>{live}</white>대 보이는 중 · 청크가 안 불러와진 곳에 <white>{parked}</white>대 · 좌석 이동 {seats} · 탄 사람 빠른 보간 {glide}"
   admin-usage: "<red>/관리자 탈것 목록 [플레이어] <gray>| <red>숨김 [플레이어] <gray>(사라진 것으로 보이는 탈것) | <red>회수 <번호> <gray>(주인에게 아이템으로, 숨긴 것도) | <red>삭제 <번호> <gray>(한 대를 아예 지우기) | <red>제거 [반경 1~64] <gray>(주변 탈것 지우기, 짐칸의 물건은 바닥에) | <red>정리 <gray>(어디에도 없는 탈것·지게 아이템을 목록에서 숨기기)"
   admin-list: "<gray>탈것 {count}대"
   admin-line: " <dark_gray>#{id}</dark_gray> {name} <gray>주인 <white>{owner}</white> · {where}"

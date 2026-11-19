@@ -90,6 +90,8 @@ final class Race {
         int padUntil, respawnAfter;
         boolean jumped, spaceHeld;
         int forwardSince = -1;
+        /** the start boost is judged this many ticks after GO (their ping: a W pressed at their GO reaches the server late) */
+        int boostLate;
         int wrongTold;
         int lastLap;
         BossBar bar;
@@ -374,15 +376,31 @@ final class Race {
                 p.showTitle(CircuitHud.title(CircuitHud.GO, Component.empty(), 0, 16, 6));
                 p.playSound(p, Sound.BLOCK_NOTE_BLOCK_PLING, SoundCategory.MASTER, 1f, 1.6f);
                 p.playSound(p, Sound.ENTITY_FIREWORK_ROCKET_LAUNCH, SoundCategory.MASTER, 0.7f, 1.2f);
-                // the start boost: W pressed in the last half second (not held all along)
-                if (r.forwardSince >= COUNTDOWN - 12 && r.forwardSince <= COUNTDOWN) {
-                    r.gauge.free(1.25, 28);
-                    kick(r, 1.15);
-                    HudModule.flash(p, Lang.mm("circuit.start-boost"), 1500);
-                    p.playSound(p, Sound.ENTITY_BLAZE_SHOOT, SoundCategory.MASTER, 0.6f, 1.4f);
-                }
+                // the start boost: W pressed in the last half second (not held all along), as the player saw it:
+                // they see GO half their ping late and their W reaches the server half their ping late, so with a
+                // high ping it is judged a few ticks after GO (startBoost)
+                r.boostLate = startBoostDelay(p.getPing());
+                if (r.boostLate == 0) startBoost(r, p);
             }
         }
+    }
+
+    /** How many ticks after GO a racer with this ping is judged for the start boost (their round trip, at most 4). */
+    static int startBoostDelay(int pingMs) {
+        return Math.clamp(Math.round(Math.max(0, pingMs) / 50f), 0, 4);
+    }
+
+    /** Whether W first pressed at countdown tick `since` earns the start boost for a racer judged `late` ticks after GO. */
+    static boolean startBoostTimed(int since, int late) {
+        return since >= COUNTDOWN - 12 + late && since <= COUNTDOWN + late;
+    }
+
+    private void startBoost(Racer r, Player p) {
+        if (!startBoostTimed(r.forwardSince, r.boostLate)) return;
+        r.gauge.free(1.25, 28);
+        kick(r, 1.15);
+        HudModule.flash(p, Lang.mm("circuit.start-boost"), 1500);
+        p.playSound(p, Sound.ENTITY_BLAZE_SHOOT, SoundCategory.MASTER, 0.6f, 1.4f);
     }
 
     private long spawnKart(Racer r, Player p, double x, double y, double z, float yaw) {
@@ -419,6 +437,13 @@ final class Race {
             if (p == null) {
                 out(r, null);
                 continue;
+            }
+            if (r.boostLate > 0 && raceTicks <= r.boostLate) {
+                // a high ping's start boost: their W keeps being followed for a few ticks after GO
+                boolean fwd = p.getCurrentInput().isForward();
+                if (fwd && r.forwardSince < 0) r.forwardSince = COUNTDOWN + raceTicks;
+                if (!fwd) r.forwardSince = -1;
+                if (raceTicks == r.boostLate && vm.temporaryAlive(r.vehicle)) startBoost(r, p);
             }
             if (!vm.temporaryAlive(r.vehicle)) {
                 respawn(r, p);

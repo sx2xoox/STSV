@@ -193,6 +193,10 @@ public final class VehicleModule implements StsvModule, Listener {
     private final Map<Long, VehicleTrip> trips = new HashMap<>();
     /** 작업기: ploughs, rotaries, seed drills, harvesters, the net, the tarp, the roller door (VehicleTools) */
     private VehicleTools tools;
+    /** less felt lag: seats without the teleport chain, a quicker glide for the riders (docs/plans/핑_완화_조사.md) */
+    private VehicleNet net;
+    /** player -> the vehicle whose parts they see with the riders' glide */
+    private final Map<UUID, Long> glideOf = new HashMap<>();
     private BukkitTask task;
     private long ticks;
     private boolean spawnSoon;
@@ -235,6 +239,7 @@ public final class VehicleModule implements StsvModule, Listener {
         trips.putAll(tripStore.all());
         for (VehicleStore.Grant g : store.grants()) grants.computeIfAbsent(g.owner(), k -> new LinkedHashMap<>()).put(g.player(), g.playerName());
         tools = new VehicleTools(this, plugin);
+        net = new VehicleNet(plugin.getLogger());
         tuner.enable(plugin);
         tuner.load();
         // a plugin reload while someone pulled: nobody pulls now
@@ -250,7 +255,9 @@ public final class VehicleModule implements StsvModule, Listener {
                 (s, a) -> a.length == 1 ? List.of("목록", "숨김", "회수", "삭제", "제거", "정리")
                         : a.length == 2 && a[0].equals("제거") ? List.of("8", "16", "32")
                         : a.length == 2 && (a[0].equals("목록") || a[0].equals("숨김")) ? dev.stsv.core.nickname.Names.complete(s, a[1]) : List.of());
-        plugin.admin().report("STSV 탈것", (s, a) -> s.sendMessage(Lang.mm("vehicle.report", "live", live.size(), "parked", parked.size())));
+        plugin.admin().report("STSV 탈것", (s, a) -> s.sendMessage(Lang.mm("vehicle.report", "live", live.size(), "parked", parked.size(),
+                "seats", net.directSeats() ? "직접 " + net.directMoves.get() + " / 텔레포트 " + net.teleportMoves.get() : "텔레포트 (직접 이동 꺼짐)",
+                "glide", net.riderGlide() ? "켬 (" + net.rewritten.get() + ")" : "꺼짐")));
         org.bukkit.command.PluginCommand command = plugin.getCommand("탈것");
         if (command != null) {
             VehicleCommand c = new VehicleCommand(this);
@@ -301,6 +308,8 @@ public final class VehicleModule implements StsvModule, Listener {
             despawn(v, true);
         }
         if (task != null) task.cancel();
+        if (net != null) net.forgetAll();
+        glideOf.clear();
         feel.marks.clear();
         if (ledger != null) ledger.stop();
         tuner.disable();
@@ -1528,6 +1537,7 @@ public final class VehicleModule implements StsvModule, Listener {
             spawnSoon = false;
             spawnLoaded();
         }
+        if (ticks % 10 == 0) riderGlides();
         for (LiveVehicle v : List.copyOf(live.values())) {
             try {
                 tick(v);
@@ -1755,8 +1765,60 @@ public final class VehicleModule implements StsvModule, Listener {
      * gets the flag.
      */
     @SuppressWarnings({"removal", "deprecation"})
-    private static void carry(Entity seat, Location to) {
+    private void carry(Entity seat, Location to) {
+        // set directly (no teleport of the riders every tick: VehicleNet), a teleport when that cannot be done
+        if (net != null && net.place(seat, to)) return;
+        if (net != null) net.teleportMoves.incrementAndGet();
         if (!seat.teleport(to)) seat.teleport(to, TeleportFlag.EntityState.RETAIN_PASSENGERS);
+    }
+
+    /**
+     * Every half second: whoever rides a vehicle sees its parts glide over vehicles.rider-smoothing-ticks (their own
+     * reaction a tick quicker), everyone else over smoothing-ticks. When that changes for someone, the parts' glide
+     * lengths are sent again (to everyone: unchanged for them) so it applies at once.
+     */
+    private void riderGlides() {
+        if (net == null || !net.riderGlide()) return;
+        int normal = settings.smoothing();
+        int rider = Math.clamp(plugin.getConfig().getInt("vehicles.rider-smoothing-ticks"), 0, 5);
+        boolean on = rider > 0 && rider < normal;
+        for (Player p : Bukkit.getOnlinePlayers()) {
+            Long id = on ? partOf(p.getVehicle()) : null;
+            LiveVehicle v = id == null ? null : live.get(id);
+            if (v == null && !glideOf.containsKey(p.getUniqueId())) continue;
+            Set<Integer> parts = v == null ? Set.of() : partIds(v);
+            if (!net.riderParts(p, parts, normal, rider)) continue;
+            Long was = v == null ? glideOf.remove(p.getUniqueId()) : glideOf.put(p.getUniqueId(), v.id);
+            if (was != null && (v == null || was != v.id)) resendGlide(live.get(was));
+            if (v != null) resendGlide(v);
+        }
+    }
+
+    /** The entity ids of a vehicle's displays (its body, wheels, seats ... a train's units). */
+    private Set<Integer> partIds(LiveVehicle v) {
+        Set<Integer> out = new HashSet<>();
+        double r = v.train != null ? 48 : 16;
+        for (Entity e : v.world.getNearbyEntities(new Location(v.world, v.st.x, v.st.y, v.st.z), r, r, r)) {
+            Long id = e instanceof org.bukkit.entity.Display ? partOf(e) : null;
+            if (id != null && id == v.id) out.add(e.getEntityId());
+        }
+        return out;
+    }
+
+    /** Has the server send the glide lengths of a vehicle's displays again (set off and back: they go out once). */
+    private void resendGlide(LiveVehicle v) {
+        if (v == null) return;
+        double r = v.train != null ? 48 : 16;
+        for (Entity e : v.world.getNearbyEntities(new Location(v.world, v.st.x, v.st.y, v.st.z), r, r, r)) {
+            if (!(e instanceof org.bukkit.entity.Display d)) continue;
+            Long id = partOf(e);
+            if (id == null || id != v.id) continue;
+            int t = d.getTeleportDuration(), n = d.getInterpolationDuration();
+            d.setTeleportDuration(t >= 59 ? t - 1 : t + 1);
+            d.setTeleportDuration(t);
+            d.setInterpolationDuration(n + 1);
+            d.setInterpolationDuration(n);
+        }
     }
 
     private Location seatLocation(LiveVehicle v, int i) {
@@ -2493,6 +2555,8 @@ public final class VehicleModule implements StsvModule, Listener {
     @EventHandler
     public void onQuit(PlayerQuitEvent e) {
         Player p = e.getPlayer();
+        if (net != null) net.forget(p);
+        glideOf.remove(p.getUniqueId());
         releasePlayer(p, null);
         tuner.quit(p);
         lastClick.remove(p.getUniqueId());
