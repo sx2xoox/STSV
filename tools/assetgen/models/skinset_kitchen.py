@@ -5,7 +5,7 @@
     kitchen_pickaxe      고기 망치: a meat tenderiser whose two waffle-faced heads droop like a pickaxe's arms
     kitchen_shovel       국자: a ladle full of red stew (a slice of green onion floating in it)
     kitchen_axe          중식도: a square Chinese cleaver with its hanging hole
-    kitchen_hoe          뒤집개: a slotted turner hanging from a bent neck, the way the toy hoe's plate hangs
+    kitchen_hoe          뒤집개: a slotted turner hanging face on from a bent neck (the hoe's L)
     kitchen_fishing_rod  젓가락 낚싯대: one long flat steel chopstick, a pot-lid reel, and a fish-shaped soy sauce bottle
                          on the line instead of a float (+ kitchen_fishing_rod_cast without it). No bobber model.
 
@@ -148,11 +148,11 @@ def kitchen_sword():
     wood_handle(m)
     m.group("blade")
     m.box("bolster", (6.5, 6.5, 6.75), (10, 7.75, 9.25), STEEL_DARK)
-    rows = ((7.75, 19.5, 4.0), (19.5, 22, 4.75), (22, 24, 5.75), (24, 25.5, 7.0), (25.5, 26.75, 8.5))
+    rows = ((7.75, 19.5, 4.75), (19.5, 22, 5.5), (22, 24, 6.5), (24, 25.5, 7.5), (25.5, 26.75, 8.75))
     for y0, y1, x0 in rows:
         m.box("blade", (x0, y0, 7.5), (10, y1, 8.5), STEEL)
-    m.box("edge", (3.25, 8.25, 7.625), (4.0, 19.5, 8.375), STEEL_LIGHT)
-    m.box("edge", (4.0, 19.5, 7.625), (4.75, 21.5, 8.375), STEEL_LIGHT)
+    m.box("edge", (4.0, 8.25, 7.625), (4.75, 19.5, 8.375), STEEL_LIGHT)
+    m.box("edge", (4.75, 19.5, 7.625), (5.5, 21.5, 8.375), STEEL_LIGHT)
     return _held(m, "sword")
 
 
@@ -209,16 +209,16 @@ def kitchen_axe():
 
 
 def kitchen_hoe():
-    """뒤집개: a slotted turner. A steel neck bends off the top of a red-handled stem (towards -x) and the plate hangs
-    from it across the handle (z), the slots on both its faces."""
+    """뒤집개: a slotted turner. A steel neck bends off the top of a red-handled stem (towards -x) and the flat plate
+    hangs from it face on (the slots show in the inventory and in the hand), like the toy hoe's L."""
     m = MModel("kitchen_hoe")
     plastic_handle(m, RED, RED_DARK)
     stem(m, 21.5)
     m.group("head")
-    m.box("neck", (2, 20, 7.25), (8.75, 21.5, 8.75), STEEL)
-    m.box("plate", (0.75, 13, 5), (2, 21.5, 11), STEEL,
-          faces={"west": "kitchen_slots", "east": "kitchen_slots"}, uv={"west": [0, 0, 12, 16], "east": [0, 0, 12, 16]})
-    m.box("plate_edge", (1, 12.25, 5.25), (1.75, 13, 10.75), STEEL_LIGHT)
+    m.box("neck", (3, 20, 7.25), (8.75, 21.5, 8.75), STEEL)
+    m.box("plate", (0, 12.5, 7.625), (6, 20.5, 8.375), STEEL,
+          faces={"north": "kitchen_slots", "south": "kitchen_slots"}, uv={"north": [0, 0, 12, 16], "south": [0, 0, 12, 16]})
+    m.box("plate_edge", (0.25, 12, 7.75), (5.75, 12.5, 8.25), STEEL_LIGHT)
     return _held(m, "hoe")
 
 
