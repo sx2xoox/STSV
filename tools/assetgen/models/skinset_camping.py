@@ -68,8 +68,8 @@ class GMat(HMat):
             v += self._streak[y if pw >= ph else x]
             u = (x + 0.5) / pw
             v += 0.5 * math.exp(-((u - 0.3) / 0.18) ** 2) if ph >= pw else 0
-            if k == "edge" and (x == 0 or y == 0):
-                v += 0.8
+            if k == "edge" and pw >= 2 and side:
+                v += -0.9 if x == 0 else 0.6 if x == pw - 1 else 0.2      # the grind line, then the hot edge
         elif k == "rubber" and side:
             r = y % 3
             v += -0.9 if r == 2 else 0.35 if r == 0 else 0
@@ -106,11 +106,11 @@ class GMat(HMat):
             chips = []
             for x in range(pw):
                 for y in (0, ph - 1):
-                    if rnd.random() < 0.035:
+                    if rnd.random() < 0.05:
                         chips.append((x, y))
             for y in range(1, ph - 1):
                 for x in (0, pw - 1):
-                    if rnd.random() < 0.035:
+                    if rnd.random() < 0.05:
                         chips.append((x, y))
             for x, y in chips:
                 cells = [(x, y)] + ([(x + rnd.choice((-1, 1)), y)] if rnd.random() < 0.5 else [])
@@ -155,8 +155,8 @@ def handle(m):
     x-y plane, so the inventory sees it open)."""
     m.group("handle")
     m.box("grip", (6.75, -1.25, 6.75), (9.25, 5.25, 9.25), RUBBER)
-    for y in (-0.5, 3.75):
-        m.box("cord", (6.5, y, 6.5), (9.5, y + 1, 9.5), CORD)
+    for y in (-0.75, 3.5):
+        m.box("cord", (6.5, y, 6.5), (9.5, y + 1.5, 9.5), CORD)
     m.box("cap", (6.5, -2.25, 6.5), (9.5, -1.25, 9.5), ALU)
     m.box("collar", (6.5, 5.25, 6.5), (9.5, 6.25, 9.5), ALU)
     m.group("carabiner")

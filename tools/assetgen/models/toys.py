@@ -26,6 +26,7 @@ a red pommel and a yellow collar on every piece, a yellow shaft, a white sticker
 One texel a model unit everywhere (the stickers too), so nothing is finer or coarser than the rest.
 """
 
+import copy
 import json
 import math
 from pathlib import Path
@@ -175,26 +176,222 @@ def shaft(m, top, mat=GRIP_YELLOW):
 
 
 # ================================================================================================
+# The premium finish (the toy series is a donation set: it has to read as more than the gold sets)
+# ================================================================================================
+
+class Gloss(Mat):
+    """Mat with two finishes of its own, painted per face like every Mat:
+    "gloss": lacquered plastic or plated metal: the corner glint, a hot white dot in it, a thin second reflection
+             running across the face, a lit rim along the top edge (a darker line along the bottom and right).
+    "seam":  sculpted foam: a soft speckle and a stitched seam a texel in from each long edge (only on faces wide
+             enough to hold two)."""
+
+    def __init__(self, ramp_name, base, kind="gloss", bevel=(0, -1), noise=0, glow=False, **opt):
+        super().__init__(ramp_name, kind, base, bevel, noise, glow, None, **opt)
+
+    def __call__(self, **changes):
+        m = copy.copy(self)
+        m.opt = dict(self.opt)
+        for k, v in changes.items():
+            if hasattr(m, k) and k != "opt":
+                setattr(m, k, v)
+            else:
+                m.opt[k] = v
+        return m
+
+    def _index(self, w, h, rnd):
+        b, S = self.base, 16
+        grid = [[b] * S for _ in range(S)]
+        if self.kind == "gloss":
+            short = min(w, h)
+            for y in range(S):
+                for x in range(S):
+                    if x + y < max(1, short * 0.45):
+                        grid[y][x] = b + 1
+            if short >= 3:
+                grid[1][1] = b + 2
+            if short >= 4:                       # the second reflection: a thin diagonal across the face
+                c = round(short * 0.45) + 2
+                for y in range(1, h - 1):
+                    x = c - y
+                    if 1 <= x < w - 1:
+                        grid[y][x] = b + 1
+            if h >= 3:                           # the lit rim
+                for x in range(1, max(2, (w * 2) // 3)):
+                    grid[0][x] = max(grid[0][x], b + 1)
+            return grid
+        if self.kind == "seam":
+            for y in range(S):
+                for x in range(S):
+                    r = rnd.random()
+                    grid[y][x] = b - 1 if r < 0.05 else b
+            if w >= 5 and h >= 5:
+                if h >= w:
+                    for y in range(1, h - 1, 2):
+                        grid[y][1] = grid[y][w - 2] = b - 1
+                else:
+                    for x in range(1, w - 1, 2):
+                        grid[1][x] = grid[h - 2][x] = b - 1
+            return grid
+        return super()._index(w, h, rnd)
+
+
+P_RED = Gloss("tomato", 2)
+P_RED_DARK = Gloss("tomato", 1)
+P_YELLOW = Gloss("corn", 2)
+P_BLUE = Gloss("sapphire", 2)
+P_GREEN = Gloss("slime", 1)
+P_GREEN_LIGHT = Gloss("slime", 2)
+P_ORANGE = Gloss("fox", 2)
+P_WHITE = Gloss("feather", 2)
+GOLD_TRIM = Gloss("gold", 1, bevel=(1, -1))         # gold plating: collars, rings, settings, caps
+CHROME = Gloss("steel", 4, bevel=(1, -1))           # chrome bands
+P_FOAM = Gloss("porcelain", 2, kind="seam", bevel=(0, -1))
+P_FOAM_EDGE = Gloss("porcelain", 2, kind="seam", bevel=(1, -1))
+CRYSTAL = Gloss("ice", 1)                           # the sword's clear ridge
+GEM = Gloss("spectral", 2, bevel=(1, -1), glow=True)        # the pommel's jewel: glows (light_emission, unshaded)
+GEM_RED = Gloss("ruby", 2, bevel=(1, -1), glow=True)
+STAR_GLOW = Mat("glow_amber", "plain", 2, bevel=None, noise=0, glow=True)   # the charm's star
+
+
+HOLO = ((255, 222, 238), (216, 246, 255), (234, 222, 255), (222, 255, 232), (255, 248, 214))
+
+
+def _star_pixels():
+    return {(x, y) for y, row in enumerate(STAR) for x, ch in enumerate(row) if ch == "#"}
+
+
+def _sticker_holo():
+    """The premium sticker: holographic foil in pale rainbow bands with glitter, the star in gold, ringed in red,
+    a gold line along the bottom and right (the plate's edge)."""
+    im = Image.new("RGBA", (16, 16), HOLO[0] + (255,))
+    px = im.load()
+    star = _star_pixels()
+    ring = {(x + dx, y + dy) for x, y in star for dx in (-1, 0, 1) for dy in (-1, 0, 1)} - star
+    for y in range(9):
+        for x in range(9):
+            c = HOLO[((x + 2 * y) // 3) % len(HOLO)] + (255,)
+            if (x * 7 + y * 3) % 11 == 0:
+                c = (255, 255, 255, 255)
+            if x == 8 or y == 8:
+                c = ramp("gold", 1)
+            if (x, y) in ring:
+                c = ramp("tomato", 2)
+            if (x, y) in star:
+                c = ramp("glow_amber", 2)
+            px[x, y] = c
+    return im
+
+
+def _sticker_star():
+    """The star alone, everything else clear: a plate over the sticker that glows, with two glints beside it."""
+    im = Image.new("RGBA", (16, 16), (0, 0, 0, 0))
+    px = im.load()
+    for x, y in _star_pixels():
+        px[x, y] = ramp("glow_amber", 1)
+    for x, y in ((4, 2), (4, 3), (3, 3), (5, 3), (4, 4)):
+        px[x, y] = ramp("glow_amber", 2)
+    for x, y in ((1, 1), (7, 1)):
+        px[x, y] = (255, 255, 255, 255)
+    return im
+
+
+T.SURFACES["toy_sticker_holo"] = _sticker_holo
+T.SURFACES["toy_sticker_star"] = _sticker_star
+
+
+def holo_sticker(m, x0, y0, z0, z1):
+    """The premium sticker on the front and the back (sticker()'s place and size), and its star again on a glowing
+    plate an eighth of a unit proud of it: the foil stays lit by the world, the star shines."""
+    m.box("sticker", (x0, y0, z0), (x0 + STICKER, y0 + STICKER, z1), P_WHITE,
+          faces={"north": "toy_sticker_holo", "south": "toy_sticker_holo"}, uv={"north": STICKER_UV, "south": STICKER_UV})
+    m.box("sticker_star", (x0, y0, z0 - 0.125), (x0 + STICKER, y0 + STICKER, z1 + 0.125), "toy_sticker_star", glow=True,
+          faces={"east": None, "west": None, "up": None, "down": None}, uv={"north": STICKER_UV, "south": STICKER_UV})
+
+
+def holo_sticker_side(m, face, frm, to):
+    """The premium sticker on one face only (face: "west", "south", ...), its glowing star plate an eighth proud."""
+    m.box("sticker", frm, to, P_WHITE, faces={face: "toy_sticker_holo"}, uv={face: STICKER_UV})
+    axis, sign = {"north": (2, -1), "south": (2, 1), "west": (0, -1), "east": (0, 1)}[face]
+    f2, t2 = list(frm), list(to)
+    if sign > 0:
+        f2[axis] = t2[axis] = to[axis] + 0.125
+    else:
+        f2[axis] = t2[axis] = frm[axis] - 0.125
+    m.box("sticker_star", f2, t2, "toy_sticker_star", glow=True, faces={k: None for k in FACES6 if k != face},
+          uv={face: STICKER_UV})
+
+
+FACES6 = ("north", "east", "south", "west", "up", "down")
+
+
+def jewel(m, name, x, y, z0, z1, mat=GEM, size=1.5):
+    """A gem in a gold setting through a part, showing on the front and the back (z0, z1: the part's faces)."""
+    h = size / 2
+    m.box(f"{name}_setting", (x - h - 0.375, y - h - 0.375, z0 - 0.125), (x + h + 0.375, y + h + 0.375, z1 + 0.125), GOLD_TRIM)
+    m.box(name, (x - h, y - h, z0 - 0.375), (x + h, y + h, z1 + 0.375), mat)
+
+
+def charm(m, x, y):
+    """The keychain: a gold jump ring at (x, y) on the side of the handle, a little glowing star hanging under it."""
+    m.group("charm")
+    m.box("charm_ring", (x, y - 0.5, 7.625), (x + 0.75, y + 0.25, 8.375), GOLD_TRIM)
+    m.box("charm_star", (x + 0.5, y - 2.75, 7.6), (x + 1.25, y - 0.5, 8.4), STAR_GLOW)
+    m.box("charm_star", (x, y - 2.0, 7.6), (x + 1.75, y - 1.25, 8.4), STAR_GLOW)
+
+
+def premium_handle(m, pommel=True):
+    """handle() dressed for the donation set: the same red pommel, blue ribbed grip and collar (y -4 .. 6.5), now a
+    jewelled pommel with a gold cap and a gold ring, a chrome band under a gold-plated collar set with a gem, and a
+    star charm on a jump ring at the pommel's side. pommel=False: the piece ends its handle its own way."""
+    m.group("handle")
+    if pommel:
+        m.box("pommel_nub", (7, -4, 7), (9, -3.25, 9), GOLD_TRIM)
+        round_y(m, "pommel", 6.25, 9.75, 6.25, 9.75, -3.25, -1.5, P_RED, 0.75)
+        jewel(m, "pommel_gem", C, -2.375, 6.25, 9.75, size=1.25)
+        round_y(m, "pommel_ring", 6.5, 9.5, 6.5, 9.5, -1.5, -1, GOLD_TRIM, 0.5)
+    round_y(m, "grip", 6.75, 9.25, 6.75, 9.25, -1, 5.25, GRIP_BLUE, 0.5)
+    for y in (0, 1.75, 3.5):
+        m.box("grip_rib", (6.5, y, 6.5), (9.5, y + 0.5, 9.5), BLUE_LIGHT)
+    m.box("grip_band", (6.5, 4.75, 6.5), (9.5, 5.25, 9.5), CHROME)
+    round_y(m, "collar", 6, 10, 6, 10, 5.25, 6.5, GOLD_TRIM, 1)
+    m.box("collar_gem", (7.5, 5.5, 5.75), (8.5, 6.25, 10.25), GEM_RED)
+    if pommel:
+        charm(m, 9.75, -2)
+
+
+def premium_shaft(m, top, mat=P_YELLOW):
+    """The shaft above the collar, up to y = top, glossy, with a chrome band a little under the head."""
+    m.group("shaft")
+    round_y(m, "shaft", 6.875, 9.125, 6.875, 9.125, 6.5, top, mat, 0.5)
+    m.box("shaft_band", (6.625, top - 1.75, 6.625), (9.375, top - 1.25, 9.375), CHROME)
+
+
+# ================================================================================================
 # The tools
 # ================================================================================================
 
 def toy_sword():
-    """장난감 검: a foam blade with a round tip, a yellow guard with red ball ends, the sticker on the guard."""
+    """장난감 검: a sculpted foam blade with stitched seams and a clear crystal ridge, a round tip; a glossy yellow guard
+    with gold-capped red ball ends and a gold lip, the holographic sticker with its shining star on the guard."""
     m = MModel("toy_sword")
-    handle(m)
+    premium_handle(m)
     m.group("guard")
-    m.box("guard", (2.5, 6.5, 6.75), (13.5, 8.75, 9.25), YELLOW)
-    m.box("guard_ball", (1.25, 6.25, 6.5), (2.75, 9, 9.5), RED)
-    m.box("guard_ball", (13.25, 6.25, 6.5), (14.75, 9, 9.5), RED)
-    sticker(m, 5.75, 6.25, 6.25, 9.75)
+    m.box("guard", (2.5, 6.5, 6.75), (13.5, 8.75, 9.25), P_YELLOW)
+    m.box("guard_lip", (4.5, 8.75, 6.875), (11.5, 9.25, 9.125), GOLD_TRIM)
+    for x0, x1, c0, c1 in ((1.25, 2.75, 0.75, 1.25), (13.25, 14.75, 14.75, 15.25)):
+        m.box("guard_ball", (x0, 6.25, 6.5), (x1, 9, 9.5), P_RED)
+        m.box("guard_cap", (c0, 6.75, 7), (c1, 8.5, 9), GOLD_TRIM)
+    holo_sticker(m, 5.75, 6.25, 6.25, 9.75)
     m.group("blade")
-    m.box("blade", (5.25, 8.75, 7), (10.75, 23.5, 9), FOAM)
-    m.box("blade_edge", (4.5, 9.5, 7.5), (5.25, 22.75, 8.5), FOAM)
-    m.box("blade_edge", (10.75, 9.5, 7.5), (11.5, 22.75, 8.5), FOAM)
-    m.box("blade_ridge", (7.25, 11.5, 6.75), (8.75, 22, 9.25), ICE)
-    m.box("blade_tip", (6.25, 23.5, 7), (9.75, 25, 9), FOAM)
-    m.box("blade_tip", (7, 25, 7.25), (9, 26.25, 8.75), FOAM)
-    m.box("blade_tip", (7.5, 26.25, 7.5), (8.5, 27, 8.5), FOAM)
+    m.box("blade", (5.25, 9.25, 7), (10.75, 23.5, 9), P_FOAM)
+    m.box("blade_edge", (4.5, 9.75, 7.5), (5.25, 22.75, 8.5), P_FOAM_EDGE)
+    m.box("blade_edge", (10.75, 9.75, 7.5), (11.5, 22.75, 8.5), P_FOAM_EDGE)
+    m.box("blade_ridge", (7.25, 11.5, 6.75), (8.75, 21.5, 9.25), CRYSTAL)
+    m.box("blade_gem", (7.375, 21.5, 6.625), (8.625, 22.75, 9.375), GEM)
+    m.box("blade_tip", (6.25, 23.5, 7), (9.75, 25, 9), P_FOAM)
+    m.box("blade_tip", (7, 25, 7.25), (9, 26.25, 8.75), P_FOAM)
+    m.box("blade_tip", (7.5, 26.25, 7.5), (8.5, 27, 8.5), P_FOAM)
     return _held(m, "sword")
 
 
@@ -212,130 +409,155 @@ def _arm(m, name, side, pivot, length, half_h, z0, z1, angle, mat, back=0.5):
 
 
 def toy_pickaxe():
-    """장난감 곡괭이: a red head whose arms droop in two bends (22.5 and 45 degrees), foam tips, the sticker in the middle."""
+    """장난감 곡괭이: a glossy red head whose arms droop in two bends (22.5 and 45 degrees), gold bands where the arms
+    leave it and a gold cap on its crown with a jewel, seamed foam tips, the holographic sticker in the middle."""
     m = MModel("toy_pickaxe")
-    handle(m)
-    shaft(m, 16)
+    premium_handle(m)
+    premium_shaft(m, 16)
     m.group("head")
-    m.box("head", (4.5, 15.25, 6.5), (11.5, 20.75, 9.5), RED)
-    m.box("head_cap", (5.5, 20.75, 6.75), (10.5, 21.5, 9.25), RED)
-    sticker(m, 5.75, 15.75, 6.25, 9.75)
+    m.box("head", (4.5, 15.25, 6.5), (11.5, 20.75, 9.5), P_RED)
+    m.box("head_cap", (5.5, 20.75, 6.75), (10.5, 21.5, 9.25), GOLD_TRIM)
+    m.box("head_crown", (7.25, 21.5, 7.25), (8.75, 22.25, 8.75), GEM_RED)
+    for x0, x1 in ((4.25, 4.75), (11.25, 11.75)):
+        m.box("head_band", (x0, 15, 6.25), (x1, 21, 9.75), GOLD_TRIM)
+    holo_sticker(m, 5.75, 15.75, 6.25, 9.75)
     for side in (1, -1):
         p = (C + side * 3.5, 18.25)
-        p = _arm(m, "arm_a", side, p, 4.5, 1.875, 6.75, 9.25, 22.5, RED)
-        p = _arm(m, "arm_b", side, p, 4.0, 1.5, 7, 9, 45, RED)
-        # the tip goes on along the last bend
+        p = _arm(m, "arm_a", side, p, 4.5, 1.875, 6.75, 9.25, 22.5, P_RED)
+        p = _arm(m, "arm_b", side, p, 4.0, 1.5, 7, 9, 45, P_RED)
         a = math.radians(45)
         px, py = p
         if side > 0:
             frm, to = (px + 0.5, py - 1, 7.25), (px + 2.25, py + 1, 8.75)
+            ring = (px, py - 1.25, 7), (px + 0.5, py + 1.25, 9)
         else:
             frm, to = (px - 2.25, py - 1, 7.25), (px - 0.5, py + 1, 8.75)
-        m.box("arm_tip", frm, to, FOAM, rotation=("z", -45 * side, (px, py, C)))
+            ring = (px - 0.5, py - 1.25, 7), (px, py + 1.25, 9)
+        m.box("arm_ring", *ring, GOLD_TRIM, rotation=("z", -45 * side, (px, py, C)))
+        m.box("arm_tip", frm, to, P_FOAM_EDGE, rotation=("z", -45 * side, (px, py, C)))
     return _held(m, "pickaxe")
 
 
 def toy_shovel():
-    """장난감 삽: a green spade: wide shoulders above a neck, narrowing to a round point; thin, its face dished (a light rim
-    stands proud of it all round, a spine runs down its back); and a red D at the handle's end instead of the pommel."""
+    """장난감 삽: a glossy green spade: wide shoulders above a neck, narrowing to a round point; thin, its face dished (a
+    gold-lit rim stands proud of it all round, a spine runs down its back), the holographic sticker on its face; a gold
+    socket band; and a red D with a jewel and the star charm at the handle's end instead of the pommel."""
     m = MModel("toy_shovel")
-    handle(m, pommel=False)
-    # the D: the grip stands on its top bar, the hand stays on the grip
-    m.box("d_top", (4.75, -2.5, 7), (11.25, -1.25, 9), GRIP_RED)
-    m.box("d_side", (4.75, -6.25, 7), (6, -2.5, 9), GRIP_RED)
-    m.box("d_side", (10, -6.25, 7), (11.25, -2.5, 9), GRIP_RED)
-    m.box("d_bar", (4.75, -7.5, 6.75), (11.25, -6.25, 9.25), GRIP_RED_DARK)
-    shaft(m, 15.5)
+    premium_handle(m, pommel=False)
+    m.box("d_top", (4.75, -2.5, 7), (11.25, -1, 9), P_RED)
+    m.box("d_side", (4.75, -6.25, 7), (6, -2.5, 9), P_RED)
+    m.box("d_side", (10, -6.25, 7), (11.25, -2.5, 9), P_RED)
+    m.box("d_bar", (4.75, -7.5, 6.75), (11.25, -6.25, 9.25), P_RED_DARK)
+    for x0 in (4.5, 10.75):
+        m.box("d_cap", (x0, -7.75, 6.625), (x0 + 0.75, -6, 9.375), GOLD_TRIM)
+    jewel(m, "d_gem", C, -6.875, 6.75, 9.25, size=1)
+    charm(m, 11.25, -2.75)
+    premium_shaft(m, 15.5)
     m.group("blade")
-    round_y(m, "socket", 6.25, 9.75, 6.25, 9.75, 15.5, 17, GREEN_LIGHT, 0.75)
-    # rows from the shoulders to the point: (y0, y1, half width, z0, z1)
+    round_y(m, "socket", 6.25, 9.75, 6.25, 9.75, 15.5, 17, GOLD_TRIM, 0.75)
     rows = ((17, 18, 3.75, 7, 9), (18, 23.5, 4.5, 7, 9), (23.5, 25.5, 3.75, 7, 9), (25.5, 27, 2.75, 7.2, 8.8))
-    # the face is one flat green (no line a row: the rows are one sheet), the big row keeps the plastic's glint
     flat = Mat("slime", "plain", 1, bevel=None, noise=0)
-    light = Mat("slime", "plain", 2, bevel=None, noise=0)      # the rim, the point, the spine: one even light green
+    light = Gloss("slime", 2, bevel=None)
+    rim = Gloss("slime", 3, bevel=None)
     for y0, y1, hw, z0, z1 in rows:
-        m.box("blade", (C - hw, y0, z0), (C + hw, y1, z1), Mat("slime", "metal", 1, bevel=None, noise=0) if hw == 4.5 else flat)
-        # the rim: a light edge a little proud of the dished face (+z: the side the inventory and the player's own eyes
-        # see), down both sides
-        m.box("rim", (C - hw, y0, z1), (C - hw + 1, y1, z1 + 0.4), light)
+        m.box("blade", (C - hw, y0, z0), (C + hw, y1, z1), Gloss("slime", 1, bevel=None) if hw == 4.5 else flat)
+        m.box("rim", (C - hw, y0, z1), (C - hw + 1, y1, z1 + 0.4), rim)
         m.box("rim", (C + hw - 1, y0, z1), (C + hw, y1, z1 + 0.4), light)
     m.box("point", (6.5, 27, 7.2), (9.5, 28.25, 8.8), light)
-    m.box("point", (7.25, 28.25, 7.4), (8.75, 29, 8.6), light)
+    m.box("point", (7.25, 28.25, 7.4), (8.75, 29, 8.6), rim)
     m.box("spine", (7.25, 17, 6.6), (8.75, 25, 7), light)
+    holo_sticker_side(m, "south", (C - STICKER / 2, 18.75, 9), (C + STICKER / 2, 18.75 + STICKER, 9.25))
     return _held(m, "shovel")
 
 
 def toy_axe():
-    """장난감 도끼: an orange head that widens to a foam edge (towards -x, like the sprite's blade), a poll behind."""
+    """장난감 도끼: a glossy orange head that widens to a seamed foam edge (towards -x, like the sprite's blade), a gold
+    band between head and bit, a chrome-capped poll behind, a gold cap with a jewel on the shaft's top, the sticker."""
     m = MModel("toy_axe")
-    handle(m)
-    shaft(m, 21.5)
+    premium_handle(m)
+    premium_shaft(m, 21.5)
     m.group("head")
-    round_y(m, "shaft_cap", 6.5, 9.5, 6.5, 9.5, 21.5, 22.5, RED, 0.75)
-    m.box("head", (4.5, 14, 6.5), (10, 20.5, 9.5), ORANGE)
-    m.box("blade", (2, 13, 6.875), (4.5, 21.5, 9.125), ORANGE)
-    m.box("blade", (0, 12, 7.25), (2, 22.5, 8.75), ORANGE)
-    m.box("blade_edge", (-1.25, 12.5, 7.5), (0, 22, 8.5), FOAM)
-    m.box("blade_edge", (-0.75, 11.5, 7.5), (0, 12.5, 8.5), FOAM)
-    m.box("blade_edge", (-0.75, 22, 7.5), (0, 23, 8.5), FOAM)
-    m.box("poll", (10, 15, 6.75), (11.75, 19.5, 9.25), ORANGE)
-    sticker(m, 5, 15, 6.25, 9.75)
+    round_y(m, "shaft_cap", 6.5, 9.5, 6.5, 9.5, 21.5, 22.5, GOLD_TRIM, 0.75)
+    m.box("shaft_gem", (7.25, 22.5, 7.25), (8.75, 23.25, 8.75), GEM_RED)
+    m.box("head", (4.5, 14, 6.5), (10, 20.5, 9.5), P_ORANGE)
+    m.box("head_band", (4.25, 13.75, 6.375), (4.75, 20.75, 9.625), GOLD_TRIM)
+    m.box("blade", (2, 13, 6.875), (4.25, 21.5, 9.125), P_ORANGE)
+    m.box("blade", (0, 12, 7.25), (2, 22.5, 8.75), P_ORANGE)
+    m.box("blade_edge", (-1.25, 12.5, 7.5), (0, 22, 8.5), P_FOAM_EDGE)
+    m.box("blade_edge", (-0.75, 11.5, 7.5), (0, 12.5, 8.5), P_FOAM_EDGE)
+    m.box("blade_edge", (-0.75, 22, 7.5), (0, 23, 8.5), P_FOAM_EDGE)
+    m.box("poll", (10, 15, 6.75), (11.5, 19.5, 9.25), P_ORANGE)
+    m.box("poll_cap", (11.5, 14.75, 6.5), (12.25, 19.75, 9.5), CHROME)
+    holo_sticker(m, 5, 15, 6.25, 9.75)
     return _held(m, "axe")
 
 
 def toy_hoe():
-    """장난감 괭이: a blue bar across the top of the shaft and a wide plate hanging from its end (towards -x), foam on its edge.
+    """장난감 괭이: a glossy blue bar across the top of the shaft and a wide plate hanging from its end (towards -x), seamed
+    foam on its edge, a gold hinge where they meet, a gold cap with a jewel on the shaft, the shining sticker outside.
     The plate lies across the handle (z), the way a real hoe's does: a thin strip from the front, a plate in the hand."""
     m = MModel("toy_hoe")
-    handle(m)
-    shaft(m, 20.5)
+    premium_handle(m)
+    premium_shaft(m, 20.5)
     m.group("head")
-    m.box("bar", (2.5, 19.75, 6.75), (9.75, 22.25, 9.25), BLUE)
-    round_y(m, "bar_cap", 6.5, 9.5, 6.5, 9.5, 22.25, 23, RED, 0.75)
-    m.box("plate", (0.25, 14.75, 5), (2.5, 22.75, 11), BLUE)
-    m.box("plate_edge", (0.5, 13.75, 5.25), (2.25, 14.75, 10.75), FOAM)
-    # the sticker on the plate's outer face (it looks away from the handle)
-    m.box("sticker", (0, 16.5, 5.75), (0.25, 21, 10.25), WHITE, faces={"west": "toy_sticker"}, uv={"west": STICKER_UV})
+    m.box("bar", (2.5, 19.75, 6.75), (9.75, 22.25, 9.25), P_BLUE)
+    round_y(m, "bar_cap", 6.5, 9.5, 6.5, 9.5, 22.25, 23, GOLD_TRIM, 0.75)
+    m.box("bar_gem", (7.25, 23, 7.25), (8.75, 23.75, 8.75), GEM_RED)
+    m.box("bar_end", (9.75, 20, 7), (10.25, 22, 9), GOLD_TRIM)
+    m.box("plate", (0.25, 14.75, 5), (2.5, 22.75, 11), P_BLUE)
+    m.box("hinge", (2.5, 19.5, 6.5), (3.25, 22.5, 9.5), GOLD_TRIM)
+    m.box("plate_trim", (0, 22.75, 4.75), (2.75, 23.25, 11.25), GOLD_TRIM)
+    m.box("plate_edge", (0.5, 13.75, 5.25), (2.25, 14.75, 10.75), P_FOAM_EDGE)
+    holo_sticker_side(m, "west", (0, 16.5, 5.75), (0.25, 21, 10.25))
     return _held(m, "hoe")
 
 
 def _rod(name, cast):
     m = MModel(name)
-    handle(m)
+    premium_handle(m)
     m.group("reel")
-    # a big round toy reel beside the rod's foot (towards +x, where the line hangs): a red drum, a yellow hub through it,
-    # a white crank with a blue knob on the side that shows (+z: the inventory's side, and away from the body in the hand)
-    m.box("reel_foot", (9, 7.5, 7.25), (10, 9.5, 8.75), YELLOW_DARK)
-    cyl(m, "reel", "z", (12.75, 8.5), 6, 6.25, 9.75, RED, cap=RED)
-    m.box("reel_hub", (11.5, 7.25, 6), (14, 9.75, 10), YELLOW)
-    m.box("crank", (12.25, 8, 10), (13.25, 11.25, 10.75), WHITE)
-    m.box("crank_knob", (12, 10.5, 10.75), (13.5, 12, 12), BLUE)
+    # a big round glossy reel beside the rod's foot (+x): a red drum with gold rims, a gold hub with a jewel, a chrome
+    # crank with a blue knob on the side that shows (+z)
+    m.box("reel_foot", (9, 7.5, 7.25), (10, 9.5, 8.75), GOLD_TRIM)
+    cyl(m, "reel", "z", (12.75, 8.5), 6, 6.5, 9.5, P_RED, cap=P_RED)
+    cyl(m, "reel_rim", "z", (12.75, 8.5), 6, 6.25, 6.5, GOLD_TRIM, cap=GOLD_TRIM)
+    cyl(m, "reel_rim", "z", (12.75, 8.5), 6, 9.5, 9.75, GOLD_TRIM, cap=GOLD_TRIM)
+    m.box("reel_hub", (11.5, 7.25, 6), (14, 9.75, 10), GOLD_TRIM)
+    m.box("reel_gem", (12.25, 8, 5.75), (13.25, 9, 10.25), GEM)
+    m.box("crank", (12.25, 8, 10), (13.25, 11.25, 10.75), CHROME)
+    m.box("crank_knob", (12, 10.5, 10.75), (13.5, 12, 12), P_BLUE)
     m.group("rod")
-    round_y(m, "rod", 6.625, 9.375, 6.625, 9.375, 6.5, 14, YELLOW, 0.75)
-    m.box("rod", (6.875, 14, 6.875), (9.125, 23, 9.125), YELLOW)
-    m.box("rod", (7.125, 23, 7.125), (8.875, 30.25, 8.875), YELLOW)
-    m.box("rod_tip", (6.75, 30.25, 6.75), (9.25, 31.75, 9.25), RED)
-    m.box("rod_ring", (6.375, 13.5, 6.375), (9.625, 14.5, 9.625), BLUE)
-    m.box("rod_ring", (6.625, 22.5, 6.625), (9.375, 23.5, 9.375), BLUE)
-    m.box("guide", (9.125, 17.75, 7.25), (10.5, 19, 8.75), BLUE_LIGHT)
-    m.box("guide", (8.875, 26.25, 7.25), (10.25, 27.5, 8.75), BLUE_LIGHT)
+    round_y(m, "rod", 6.625, 9.375, 6.625, 9.375, 6.5, 14, P_YELLOW, 0.75)
+    m.box("rod", (6.875, 14, 6.875), (9.125, 23, 9.125), P_YELLOW)
+    m.box("rod", (7.125, 23, 7.125), (8.875, 30.25, 8.875), P_YELLOW)
+    m.box("rod_ferrule", (6.875, 29.75, 6.875), (9.125, 30.25, 9.125), GOLD_TRIM)
+    m.box("rod_tip", (6.75, 30.25, 6.75), (9.25, 31.75, 9.25), P_RED)
+    m.box("rod_tip_gem", (7.5, 31.75, 7.5), (8.5, 32, 8.5), GEM_RED)
+    m.box("rod_ring", (6.375, 13.5, 6.375), (9.625, 14.5, 9.625), GOLD_TRIM)
+    m.box("rod_ring", (6.625, 22.5, 6.625), (9.375, 23.5, 9.375), GOLD_TRIM)
+    m.box("guide", (9.125, 17.75, 7.25), (10.5, 19, 8.75), CHROME)
+    m.box("guide", (8.875, 26.25, 7.25), (10.25, 27.5, 8.75), CHROME)
+    holo_sticker_side(m, "south", (6.75, 9.25, 9.375), (6.75 + 2.5, 9.25 + 2.5, 9.5))
     if not cast:
-        # the line hangs from the tip: straight down on the sprite's diagonal = 45 degrees in this frame
         m.group("line")
         top = (8.5, 31, C)
         rot = ("z", 45, top)
         m.box("line", (8.125, 19.5, 7.625), (8.875, 31, 8.375), LINE, rotation=rot)
-        # a magnet-fishing float: a red and white ball, a yellow ring, a horseshoe magnet's two feet
-        m.box("float_ring", (7.5, 18.75, 7), (9.5, 19.5, 9), YELLOW, rotation=rot)
-        m.box("float_top", (6.5, 16.75, 6), (10.5, 18.75, 10), RED, rotation=rot)
-        m.box("float_bottom", (6.5, 14.75, 6), (10.5, 16.75, 10), WHITE, rotation=rot)
-        m.box("magnet", (6.75, 13.5, 7), (8.125, 14.75, 9), BLUE, rotation=rot)
-        m.box("magnet", (8.875, 13.5, 7), (10.25, 14.75, 9), RED_DARK, rotation=rot)
+        # a magnet-fishing float: a glossy red and white ball with a gold equator, a gold ring, a horseshoe magnet
+        m.box("float_ring", (7.5, 18.75, 7), (9.5, 19.5, 9), GOLD_TRIM, rotation=rot)
+        m.box("float_top", (6.5, 16.75, 6), (10.5, 18.75, 10), P_RED, rotation=rot)
+        m.box("float_belt", (6.25, 16.5, 5.75), (10.75, 17, 10.25), GOLD_TRIM, rotation=rot)
+        m.box("float_bottom", (6.5, 14.75, 6), (10.5, 16.5, 10), P_WHITE, rotation=rot)
+        m.box("magnet", (6.75, 13.5, 7), (8.125, 14.75, 9), P_BLUE, rotation=rot)
+        m.box("magnet", (8.875, 13.5, 7), (10.25, 14.75, 9), P_RED_DARK, rotation=rot)
+        m.box("magnet_tip", (6.75, 13.25, 7.25), (8.125, 13.5, 8.75), CHROME, rotation=rot)
+        m.box("magnet_tip", (8.875, 13.25, 7.25), (10.25, 13.5, 8.75), CHROME, rotation=rot)
     return _held(m, "rod")
 
 
 def toy_fishing_rod():
-    """장난감 낚싯대: a short fat yellow rod, a big red reel with a crank, a thick line and a magnet-fishing float."""
+    """장난감 낚싯대: a short fat glossy yellow rod with gold rings and chrome guides, a big red reel with gold rims and a
+    jewelled hub, a thick line and a magnet-fishing float with a gold belt."""
     return _rod("toy_fishing_rod", False)
 
 
@@ -350,24 +572,25 @@ BOBBER_WATERLINE = 5.0        # the float's blue band: where the water's surface
 
 
 def toy_bobber():
-    """장난감 찌: the float of the toy rod, for an item display that rides the fishing hook. A fat ball, white below its
-    blue waterline band and red above, a yellow weight under it and a stem with an eye on top, the sticker on four sides:
-    the same from every side. Stands on y = 0 about the axis x = 8, z = 8; the water's surface is at BOBBER_WATERLINE."""
+    """장난감 찌: the float of the toy rod, for an item display that rides the fishing hook. A fat glossy ball, white below
+    its blue waterline band and red above, gold rims on the band, a gold weight under it and a chrome stem with a glowing
+    jewel eye on top, the shining holographic sticker on four sides: the same from every side. Stands on y = 0 about the
+    axis x = 8, z = 8; the water's surface is at BOBBER_WATERLINE."""
     m = MModel("toy_bobber")
     m.group("float")
-    cyl(m, "weight", "y", (C, C), 2, 0, 1, GRIP_YELLOW, cap=GRIP_YELLOW)
-    cyl(m, "belly", "y", (C, C), 4, 1, 2, WHITE, cap=WHITE)
-    cyl(m, "belly", "y", (C, C), 6, 2, 4.5, WHITE, cap=WHITE)
-    cyl(m, "band", "y", (C, C), 6, 4.5, 5.5, GRIP_BLUE, cap=GRIP_BLUE)
-    cyl(m, "top", "y", (C, C), 6, 5.5, 8, GRIP_RED, cap=GRIP_RED)
-    cyl(m, "top", "y", (C, C), 4, 8, 9, GRIP_RED, cap=GRIP_RED)
-    m.box("stem", (7, 9, 7), (9, 10, 9), GRIP_YELLOW)
-    m.box("eye", (7.25, 10, 7.625), (8.75, 11, 8.375), BLUE_LIGHT)
+    cyl(m, "weight", "y", (C, C), 2, 0, 1, GOLD_TRIM, cap=GOLD_TRIM)
+    cyl(m, "belly", "y", (C, C), 4, 1, 2, P_WHITE, cap=P_WHITE)
+    cyl(m, "belly", "y", (C, C), 6, 2, 4.5, P_WHITE, cap=P_WHITE)
+    cyl(m, "band", "y", (C, C), 6, 4.5, 5.5, P_BLUE, cap=P_BLUE)
+    cyl(m, "top", "y", (C, C), 6, 5.5, 8, P_RED, cap=P_RED)
+    cyl(m, "top", "y", (C, C), 4, 8, 9, P_RED, cap=P_RED)
+    m.box("crown", (6.75, 9, 6.75), (9.25, 9.25, 9.25), GOLD_TRIM)
+    m.box("stem", (7, 9.25, 7), (9, 10, 9), CHROME)
+    m.box("eye", (7.25, 10, 7.25), (8.75, 11.25, 8.75), GEM)
     m.group("stickers")
     for face, frm, to in (("south", (6.75, 5.5, 11), (9.25, 8, 11.25)), ("north", (6.75, 5.5, 4.75), (9.25, 8, 5)),
                           ("east", (11, 5.5, 6.75), (11.25, 8, 9.25)), ("west", (4.75, 5.5, 6.75), (5, 8, 9.25))):
-        m.box("sticker", frm, to, WHITE, faces={face: "toy_sticker"}, uv={face: STICKER_UV})
-    # an item display shows it as built ("fixed" is the identity); the inventory never holds one, but it has a picture
+        holo_sticker_side(m, face, frm, to)
     m.display = presets.furniture(gui_scale=1.3, gui_translation=(0, 3.25, 0))
     m.kind = "bobber"
     return m
