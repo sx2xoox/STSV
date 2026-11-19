@@ -349,7 +349,7 @@ def handle(m, ball, ribbon):
     m.group("bow")
     m.box("bow_loop", (4.75, 4.75, 9.25), (7.25, 7, 10), rib)
     m.box("bow_loop", (8.75, 4.75, 9.25), (11.25, 7, 10), rib)
-    m.box("bow_knot", (7.25, 5.25, 9.25), (8.75, 6.5, 10.5), rib(base=0))
+    m.box("bow_knot", (7.25, 5.2, 9.25), (8.75, 6.55, 10.5), rib(base=0))
 
 
 def stick(m, top):
@@ -442,7 +442,7 @@ def candy_axe():
         f = dict(inside)
         u = {"up": [0, 0, x1 - x0, 6], "west": [0, 0, 6, min(16, top - 13)]}
         m.box("bar", (x0, 13, 6.75), (x1, top, 9.25), CHOC, faces=f, uv=u)
-    m.box("bar_bottom", (0.5, 12.5, 7), (7.5, 13, 9), CHOC)
+    m.box("bar_bottom", (0.5, 12.55, 7), (7.5, 13, 9), CHOC)
     m.group("wrapper")
     m.box("foil", (6.5, 12.5, 6.5), (7.25, 23.5, 9.5), FOIL)
     m.box("wrapper", (7.25, 12.25, 6.25), (11.5, 23.5, 9.75), PINK_LABEL)
@@ -457,7 +457,7 @@ def candy_hoe():
     out (+z), its feet over the bar's front."""
     m = MModel("candy_hoe")
     handle(m, LEMON, "pink")
-    stick(m, 22.5)
+    stick(m, 22.25)
     m.group("head")
     m.box("bar", (1, 19.5, 6.875), (9.25, 22.5, 9.125), PINK_RING)
     m.box("bar_end", (0, 19.25, 6.625), (1, 22.75, 9.375), LEMON)

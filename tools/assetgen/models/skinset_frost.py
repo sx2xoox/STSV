@@ -56,9 +56,9 @@ class FrostPaint(Mat):
         rows = self.fn(pw, ph, face, random.Random(seed), **self.popt)
         im = Image.new("RGBA", (S, S), (0, 0, 0, 0))
         px = im.load()
-        for y in range(ph):
-            for x in range(pw):
-                px[x, y] = rows[y][x]
+        for y in range(S):          # opaque everywhere: outside the face's own region, the nearest edge colour
+            for x in range(S):
+                px[x, y] = rows[min(y, ph - 1)][min(x, pw - 1)]
         key = "fz_" + format(zlib.crc32(im.tobytes()), "08x")
         if key not in T.SURFACES:
             T.SURFACES[key] = (lambda img=im: img.copy())

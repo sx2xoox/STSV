@@ -99,6 +99,27 @@ LAMPS = {
     # combine: two work lamps under the canopy's front edge, tail lamps on the backs of the thresher and the grain tank
     "combine": dict(scale=2.0, head=lens(1.5, 4, 41.75, 42.75, -19, False, False) + lens(12.5, 15, 41.5, 42.5, -19, False, False),
                     tail=lens(10, 13, 21, 23, 30), body=("vehicles_farm", "combine")),
+    # the donation cars (models/vehicles_donation_<id>.py: each its own module, body=(module, model) as above)
+    # classic_roadster: a round lamp in a chrome bezel in each wing's face, small round red lamps on the wings' ends
+    "classic_roadster": dict(scale=2.0, head=lens(9.75, 14.25, 7.25, 11.75, -35.75, True),
+                             tail=lens(10.5, 13.5, 8, 11, 35.6, True),
+                             body=("vehicles_donation_classic_roadster", "classic_roadster")),
+    # retro_camper: two big round lamps in chrome rings on the flat face, the red lower half of the stacked tail lamps
+    "retro_camper": dict(scale=2.0, head=lens(8.75, 13.25, 11.25, 15.75, -36.75, True), tail=lens(11.5, 14, 11, 13, 36.5),
+                         body=("vehicles_donation_retro_camper", "retro_camper")),
+    # muscle_car: two round lamps a side in the black grille, wide red lamps in chrome across the tail
+    "muscle_car": dict(scale=2.0, head=lens(5.5, 13, 8.25, 11.75, -38.5, True),   # both round lamps a side as one lens (two side by side made the beams overlap)
+                       tail=lens(4, 14, 10.25, 12.75, 38.5), body=("vehicles_donation_muscle_car", "muscle_car")),
+    # sidecar_bike: the bike's one round headlamp, the small tail lamp on its rear fender (the tub's own little red lamp
+    # sits behind the spare wheel: not drawn)
+    "sidecar_bike": dict(scale=2.0, head=lens(-8.95, -4.05, 14.8, 19.7, -11.25, True, False),
+                         tail=lens(-7.75, -5.25, 11.5, 12.75, 20.5, False, False),
+                         body=("vehicles_donation_sidecar_bike", "sidecar_bike")),
+    # concept_ev: a light bar the whole width of the nose (white) and of the tail (red), its ends stepped back a little
+    # on the corners
+    "concept_ev": dict(scale=2.0, head=lens(-12.5, 12.5, 7.75, 9.75, -39.25, False, False),   # the centre bar only (the corner pieces' beams overlapped it)
+                       tail=lens(-12.5, 12.5, 11.75, 13.75, 39.25, False, False),
+                       body=("vehicles_donation_concept_ev", "concept_ev")),
 }
 
 # colours (palette ramps, ART_STYLE: lamps glow)

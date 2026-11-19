@@ -183,6 +183,53 @@ vehicles:
     engine-stop: { sound: stsv:vehicle.luxury_suv.engine_stop, volume: 0.55 }
     idle-shake: 0.02
     bounce: 1.6
+  # 후원 탈것 (vehicles.yml): 시동 소리는 엔진 소리가 같은 탈것의 것을 그대로 씀
+  classic_roadster:         # 클래식 로드스터: 대형 세단처럼 조용히 걸리고, 부드럽게 출렁임
+    power: engine
+    lights: { head: classic_roadster_lamp_head, tail: classic_roadster_lamp_tail, brake: classic_roadster_lamp_brake }
+    engine-start: { sound: stsv:vehicle.grand_sedan.engine_start, volume: 0.45, ticks: 18 }
+    engine-stop: { sound: stsv:vehicle.grand_sedan.engine_stop, volume: 0.35 }
+    idle-shake: 0.004
+    bounce: 1.15
+  retro_camper:             # 레트로 캠핑밴: 소형 화물 밴의 시동, 높은 차체가 푹신하게 출렁임
+    power: engine
+    lights: { head: retro_camper_lamp_head, tail: retro_camper_lamp_tail, brake: retro_camper_lamp_brake }
+    engine-start: { sound: stsv:vehicle.cargo_van.engine_start, volume: 0.5, ticks: 20 }
+    engine-stop: { sound: stsv:vehicle.cargo_van.engine_stop, volume: 0.4 }
+    idle-shake: 0.014
+    bounce: 1.5
+  sidecar_bike:             # 사이드카 오토바이: ATV 의 시동 (엔진 소리가 같음), 배달 스쿠터처럼 (세 바퀴라 기울지 않음)
+    power: engine
+    lights: { head: sidecar_bike_lamp_head, tail: sidecar_bike_lamp_tail, brake: sidecar_bike_lamp_brake }
+    engine-start: { sound: stsv:vehicle.atv.engine_start, volume: 0.6, ticks: 18 }
+    engine-stop: { sound: stsv:vehicle.atv.engine_stop, volume: 0.5 }
+    idle-shake: 0.01
+    bounce: 0.7
+  muscle_car:               # 머슬카: 튜너카처럼 거칠게 걸리며 부릉부릉, 서 있어도 크게 떪
+    power: engine
+    lights: { head: muscle_car_lamp_head, tail: muscle_car_lamp_tail, brake: muscle_car_lamp_brake }
+    engine-start: { sound: stsv:vehicle.tuner_car.engine_start, volume: 0.8, ticks: 24 }
+    engine-stop: { sound: stsv:vehicle.tuner_car.engine_stop, volume: 0.6 }
+    idle-shake: 0.02
+    bounce: 0.6
+    sport:
+      fov: 0.25
+      exhaust: [[-0.625, 0.19, -2.45], [0.625, 0.19, -2.45]]
+      backfire: { sound: stsv:vehicle.sports_car.backfire, volume: 1.0, min-speed: 7 }
+      launch-smoke: true
+      skid: { sound: stsv:vehicle.sports_car.skid, volume: 0.75 }
+      mark: rubber
+  concept_ev:               # 콘셉트 EV: 골프카트처럼 딸깍 하고 모터가 도는 소리뿐, 떨림 없이 매끄럽게
+    power: engine
+    lights: { head: concept_ev_lamp_head, tail: concept_ev_lamp_tail, brake: concept_ev_lamp_brake }
+    engine-start: { sound: stsv:vehicle.golf_cart.engine_start, volume: 0.3, ticks: 8 }
+    engine-stop: { sound: stsv:vehicle.golf_cart.engine_stop, volume: 0.25 }
+    idle-shake: 0
+    bounce: 0.8
+    sport:
+      fov: 0.2
+      skid: { sound: stsv:vehicle.sports_car.skid, volume: 0.6 }
+      mark: neon_cyan
   light_truck:
     power: engine
     lights: { head: light_truck_lamp_head, tail: light_truck_lamp_tail, brake: light_truck_lamp_brake, reverse: light_truck_lamp_reverse }

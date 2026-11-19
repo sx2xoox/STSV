@@ -311,7 +311,7 @@ def pirate_sword():
     handle(m, tail=False)
     m.group("guard")
     m.box("shell", (5, 6.5, 6), (11, 8, 10), BRASS)                       # the basket's dish
-    m.box("knuckle_bow", (4.25, -1.75, 7.25), (5.5, 8, 8.75), BRASS_DARK)  # down to the cap, on the edge's side
+    m.box("knuckle_bow", (4.25, -1.75, 7.25), (5.5, 7.75, 8.75), BRASS_DARK)  # down to the cap, on the edge's side
     m.box("knuckle_foot", (5.5, -2.5, 7.25), (6.5, -1.25, 8.75), BRASS_DARK)
     m.box("quillon", (11, 7.5, 7.25), (12.25, 9.5, 8.75), BRASS_DARK)     # curls up on the back's side
     rivet(m, 8, 7.25, 10)
@@ -320,7 +320,7 @@ def pirate_sword():
     for y0, y1, x0, x1 in ((8, 13, 5.75, 10), (13, 18, 6.25, 10.5), (18, 21.5, 7, 11), (21.5, 24, 8.25, 11.25),
                            (24, 25.5, 9.5, 11.25)):
         m.box("blade", (x0, y0, 7.25), (x1, y1, 8.75), STEEL)
-    m.box("spine", (9.25, 8, 7), (10, 18, 9), STEEL_BACK)
+    m.box("spine", (9.25, 8, 7), (10.125, 18, 9), STEEL_BACK)
     m.group("charm")
     sk = {"south": "pirate_skull_face", "north": "pirate_skull_face"}
     m.box("skull", (6.25, -5.25, 6.75), (9.75, -2.75, 9.25), BONE, faces=sk, uv={"south": SKULL_UV, "north": SKULL_UV})
