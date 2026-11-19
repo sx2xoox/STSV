@@ -234,11 +234,11 @@ def frost_sword():
     handle(m)
     m.group("guard")
     m.box("guard", (2.5, 6.75, 7), (13.5, 8.25, 9), FROST)
-    m.box("guard_hub", (5.25, 5.75, 6.5), (10.75, 10.75, 9.5), FROST)
-    emblem(m, 5.75, 6, 6.25, 9.75)
+    m.box("guard_hub", (5.25, 6.5, 6.5), (10.75, 11.25, 9.5), FROST)
+    emblem(m, 5.75, 6.625, 6.25, 9.75)
     for x in (2.25, 13.75):     # ice diamonds at the ends: boxes turned 45 degrees about their middle
         m.box("guard_gem", (x - 1, 6.5, 7.25), (x + 1, 8.5, 8.75), ICE, rotation=("z", 45, (x, 7.5, C)))
-    for x, ln in ((3.25, 2.5), (4.5, 1.5), (11, 1.5), (12, 2.5)):
+    for x, ln in ((2.75, 2.5), (3.75, 1.5), (11.5, 1.5), (12.5, 2.5)):
         icicle(m, x, 6.75, ln)
     m.group("blade")
     m.box("blade", (5.5, 10.75, 7), (10.5, 22.5, 9), ICE)

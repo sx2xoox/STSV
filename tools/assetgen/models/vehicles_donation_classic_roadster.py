@@ -240,7 +240,7 @@ def roadster_kit(colour="ruby", cove="cream", leather="crimson", soft="rubber", 
                 edge = wz + e * SLOT
                 for deep, lo, hi in ((2, 11.5, ARCH), (1, 10, 11.5)):
                     if wz == WR and e == 1 or wz == WF and e == -1:
-                        x0, x1 = X(XI, W)
+                        x0, x1 = X(XI, W - 0.03)
                     else:
                         x0, x1 = X(XI, WS)
                     z0, z1 = sorted((edge, edge - e * deep))
@@ -303,7 +303,7 @@ def roadster_kit(colour="ruby", cove="cream", leather="crimson", soft="rubber", 
     SY = BELT + 1                       # its foot
     SH = 6                              # its height
     rake = ("x", 22.5, (0, SY, DZ[0] - 1))
-    m.box("screen_base", (-10, BELT + 0.5, DZ[0] - 1.75), (10, SY, DZ[0] - 0.5), CHROME)
+    m.box("screen_base", (-10, BELT + 0.5, DZ[0] - 1.75), (10, SY + 0.05, DZ[0] - 0.5), CHROME)
     m.box("windscreen", (-9.5, SY, DZ[0] - 1.25), (9.5, SY + SH, DZ[0] - 0.75),
           glass(frame=("blade", 4), sun=0, streak=0.3), rotation=rake)
     m.box("screen_top", (-9.5, SY + SH, DZ[0] - 1.5), (9.5, SY + SH + 0.5, DZ[0] - 0.5), CHROME, rotation=rake)
@@ -368,8 +368,8 @@ def roadster_kit(colour="ruby", cove="cream", leather="crimson", soft="rubber", 
             return ("blade", 4.0)
         return (leather, 1.8 if fy % 2 else 1.4)
     for s in (1, -1):
-        xa, xb = sorted((XI * s, (XI + 0.5) * s))
-        door[s].box("door_card", (xa, FLOOR, DZ[0] + 1.5), (xb, BELT, DZ[1]), Paint(leather, 2, noise=0, decal=card))
+        xa, xb = sorted(((XI - 0.02) * s, (XI + 0.5) * s))
+        door[s].box("door_card", (xa, FLOOR, DZ[0] + 1.5), (xb, BELT - 0.03, DZ[1] - 0.03), Paint(leather, 2, noise=0, decal=card))
 
     # the folded soft top lying on the deck behind the seat: a canvas roll under a boot, its bows' ends in chrome
     def roll(c):

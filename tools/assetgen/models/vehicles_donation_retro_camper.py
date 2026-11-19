@@ -375,8 +375,8 @@ def camper_kit(lower="celadon", upper="cream", stripe="fox", canvas="fox", curta
     for zb in (-14, 16):
         m.box("rack_bar", (-11, BAR, zb), (11, BAR + 1, zb + 1.5), Paint("rubber", 1, noise=0, rim=0.3))
         for s in (1, -1):
-            xa, xb = sorted((10 * s, 11.5 * s))
-            m.box("rack_foot", (xa, TOP0 + 2.5, zb - 0.5), (xb, BAR + 1, zb + 2), PLASTIC)
+            xa, xb = sorted((10 * s, 11.75 * s))
+            m.box("rack_foot", (xa, TOP0 + 2.5, zb - 0.5), (xb, BAR + 0.75, zb + 2), PLASTIC)
     if board:
         BY = BAR + 1
 
@@ -466,7 +466,7 @@ def camper_kit(lower="celadon", upper="cream", stripe="fox", canvas="fox", curta
                 return ("blade", 4)                              # handles
             return ("wood", 1.4) if math.floor(x) in (-15, -8, -1) or math.floor(y) == FLOOR else ("wood", 2.4)
         return ("wood", 2)
-    m.box("cupboard", (-15, FLOOR, 23), (-1, 24, 35.5), Paint("wood", 2, noise=0, decal=cupboard))
+    m.box("cupboard", (-14.75, FLOOR, 23), (-1, 24, 35.5), Paint("wood", 2, noise=0, decal=cupboard))
     m.box("cool_box", (4, FLOOR, 25), (14, 21.5, 34), Paint(LO, 2, noise=0, rim=0.4,
           decal=lambda c: ("cream", 3.4) if c.p[1] > 20 or c.face == "up" else (LO, 2.6)))
     m.box("cool_box_handle", (6, 21.5, 29), (12, 22, 30), PLASTIC)

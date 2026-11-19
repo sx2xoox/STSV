@@ -183,7 +183,7 @@ def stud(m, x, y, z0, z1, s=1.0, mat=STAR):
     """A small four-point star through the part (shows front and back): a cross of two bars."""
     h = s / 2
     m.box("stud", (x - h, y - s, z0), (x + h, y + s, z1), mat)
-    m.box("stud", (x - s, y - h, z0), (x + s, y + h, z1), mat)
+    m.box("stud", (x - s, y - h, z0 + 0.05), (x + s, y + h, z1 - 0.05), mat)
 
 
 def handle(m):
@@ -191,7 +191,7 @@ def handle(m):
     with three silver wraps, a silver collar with a gold stud front and back."""
     m.group("handle")
     m.box("pommel_star", (7.5, -4.75, 7.5), (8.5, -3.25, 8.5), STAR)
-    m.box("pommel_star", (6.75, -4.25, 7.5), (9.25, -3.75, 8.5), STAR)
+    m.box("pommel_star", (6.75, -4.25, 7.55), (9.25, -3.75, 8.45), STAR)
     round_y(m, "pommel", 6.25, 9.75, 6.25, 9.75, -3.25, -1.25, SILVER, 0.75)
     round_y(m, "grip", 6.75, 9.25, 6.75, 9.25, -1.25, 5.25, VELVET, 0.5)
     for y in (-0.25, 1.75, 3.75):
@@ -260,8 +260,8 @@ def galaxy_sword():
     m.box("blade_tip", (6.25, 23.5, 7.25), (9.75, 25, 8.75), SPACE_PLAIN)
     m.box("blade_tip", (7, 25, 7.5), (9, 26.25, 8.5), EDGE)
     m.box("blade_tip", (7.5, 26.25, 7.625), (8.5, 27.25, 8.375), EDGE)
-    m.box("blade_edge", (5.25, 22.75, 7.5), (6.25, 23.75, 8.5), EDGE)
-    m.box("blade_edge", (9.75, 22.75, 7.5), (10.75, 23.75, 8.5), EDGE)
+    m.box("blade_edge", (5.2, 22.75, 7.5), (6.25, 23.75, 8.5), EDGE)
+    m.box("blade_edge", (9.75, 22.75, 7.5), (10.8, 23.75, 8.5), EDGE)
     return _held(m, "sword")
 
 
@@ -299,7 +299,7 @@ def galaxy_shovel():
     shaft(m, 15.5)
     m.group("blade")
     round_y(m, "socket", 6.25, 9.75, 6.25, 9.75, 15.5, 17, SILVER, 0.75)
-    stud(m, 8, 16.25, 6, 10, 1.0)
+    stud(m, 8, 16.25, 6, 10, 1.1)
     rows = ((17, 18, 3.5, 7.1, 8.9, SPACE_PLAIN), (18, 24, 4.5, 7, 9, SPACE_SPADE), (24, 25.5, 3.75, 7.1, 8.9, SPACE_PLAIN),
             (25.5, 27, 2.75, 7.2, 8.8, SPACE_PLAIN))
     for y0, y1, hw, z0, z1, mat in rows:
@@ -356,7 +356,7 @@ def galaxy_hoe():
     handle(m)
     shaft(m, 19)
     m.group("head")
-    m.box("head", (-3, 19.75, 6.75), (6.5, 23, 9.25), SPACE_PLATE)
+    m.box("head", (-3, 19.75, 6.75), (6.5, 22.95, 9.25), SPACE_PLATE)
     m.box("head_edge", (-3, 19, 7.25), (5.5, 19.75, 8.75), EDGE)
     m.box("head_cap", (-3.75, 19.5, 6.5), (-3, 23.25, 9.5), SILVER)
     m.box("head_band", (1.25, 19.5, 6.5), (2, 23.25, 9.5), SILVER)
@@ -374,7 +374,7 @@ def _rod(name, cast):
     round_z(m, "reel", 10, 14, 6.5, 10.5, 6.75, 9.25, SILVER, 1)
     m.box("reel_hub", (11.25, 7.75, 6.25), (12.75, 9.25, 9.75), VELVET)
     m.box("crank", (11.5, 8, 9.75), (12.5, 11.25, 10.25), SILVER_LIGHT)
-    stud(m, 12, 11.5, 10, 10.75, 1.0)
+    stud(m, 12, 11.5, 10, 10.75, 1.1)
     m.group("rod")
     round_y(m, "rod", 6.875, 9.125, 6.875, 9.125, 6.5, 14, SILVER, 0.5)
     m.box("rod", (7.125, 14, 7.125), (8.875, 23, 8.875), SILVER_LIGHT)
@@ -390,7 +390,7 @@ def _rod(name, cast):
     # the crescent moon at the tip: a C open towards +x (where the line hangs), a star in its hollow
     m.group("tip")
     m.box("moon", (5.75, 28.75, 7.25), (7, 31, 8.75), MOON)
-    m.box("moon", (6.5, 27.75, 7.375), (8.75, 28.75, 8.625), MOON)
+    m.box("moon", (6.5, 27.75, 7.35), (8.75, 28.75, 8.65), MOON)
     m.box("moon", (6.5, 31, 7.375), (8.75, 32, 8.625), MOON)
     m.box("moon", (8.75, 27.75, 7.5), (9.75, 28.5, 8.5), MOON_DARK)
     m.box("moon", (8.75, 31.25, 7.5), (9.75, 32, 8.5), MOON_DARK)

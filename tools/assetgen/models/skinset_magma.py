@@ -118,7 +118,7 @@ def handle(m):
     m.box("pommel_spike", (7.25, -4, 7.25), (8.75, -3.25, 8.75), IRON_DARK)
     m.box("pommel_core", (7.5, -4.75, 7.5), (8.5, -4, 8.5), LAVA)
     round_y(m, "pommel", 6.25, 9.75, 6.25, 9.75, -3.25, -1.25, ROCK, 0.75)
-    m.box("pommel_glow", (7, -2.75, 6), (9, -1.75, 10), EMBER)
+    m.box("pommel_glow", (6.2, -2.75, 6.2), (9.8, -1.75, 9.8), EMBER)
     round_y(m, "grip", 6.75, 9.25, 6.75, 9.25, -1.25, 5.25, LEATHER, 0.5)
     for y in (0.25, 3.0):
         round_y(m, "grip_band", 6.5, 9.5, 6.5, 9.5, y, y + 0.75, IRON_BAND, 0.5)
@@ -130,9 +130,9 @@ def shaft(m, top):
     """The iron haft above the collar, up to y = top, with a glowing crack ring a third of the way up."""
     m.group("shaft")
     round_y(m, "shaft", 6.875, 9.125, 6.875, 9.125, 6.5, top, IRON_DARK, 0.5)
-    mid = 6.5 + (top - 6.5) * 0.45
+    mid = 6.5 + (top - 6.5) * 0.42
     m.box("shaft_ring", (6.625, mid, 6.625), (9.375, mid + 0.75, 9.375), ROCK_PLAIN)
-    m.box("shaft_ring_glow", (6.5, mid + 0.75, 6.5), (9.5, mid + 1.0, 9.5), EMBER)
+    m.box("shaft_ring_glow", (6.45, mid + 0.75, 6.45), (9.55, mid + 1.0, 9.55), EMBER)
 
 
 def drip(m, x, y, z=C, big=True):
@@ -182,7 +182,7 @@ def magma_sword():
     m.box("blade_tip", (7.25, 26, 7.375), (8.75, 27, 8.625), ROCK_PLAIN)
     m.box("blade_tip", (7.625, 27, 7.625), (8.375, 27.75, 8.375), EMBER)
     fissure(m, ((7.5, 8.5, 9.25, 12.5), (7, 8, 12.5, 15.5), (7.75, 8.75, 15.5, 19), (7.25, 8.25, 19, 22), (7.75, 8.5, 22, 24.5)), 6.85, 9.15)
-    m.box("fissure_hot", (7.625, 9.25, 6.8), (8.375, 11, 9.2), LAVA)
+    m.box("fissure_hot", (7.625, 9.3, 6.8), (8.375, 11, 9.2), LAVA)
     return _held(m, "sword")
 
 
@@ -237,7 +237,7 @@ def magma_shovel():
         m.box("rim", (lo, 23.5, 7.5), (hi, 25.5, 8.5), EMBER_RED)
         lo, hi = sorted((C + side * 4.5, C + side * 5))
         m.box("rim", (lo, 18.75, 7.5), (hi, 23.25, 8.5), EMBER_RED)
-    fissure(m, ((7.5, 8.5, 18, 20.5), (7, 8, 20.5, 23), (7.5, 8.5, 23, 25.5), (7.75, 8.5, 25.5, 27)), 6.85, 9.15)
+    fissure(m, ((7.5, 8.5, 18, 20.5), (7, 8, 20.5, 23), (7.5, 8.5, 23, 25.5), (7.75, 8.5, 25.5, 26.95)), 6.85, 9.15)
     return _held(m, "shovel")
 
 
@@ -281,7 +281,7 @@ def magma_hoe():
     # the head: a long straight bar, flat top and bottom, as wide across (z) as a hoe's blade
     m.box("head", (-1, 19.75, 6.25), (6.25, 22.75, 9.75), ROCK)
     m.box("head_top", (-0.75, 22.75, 6.75), (6.25, 23.25, 9.25), ROCK_PLAIN)
-    fissure(m, ((3.25, 6.25, 20.75, 21.5), (0, 3.25, 21.25, 22)), 6.1, 9.9)
+    fissure(m, ((3.25, 6.2, 20.75, 21.5), (0, 3.25, 21.25, 22)), 6.1, 9.9)
     m.box("rim", (-1, 19.5, 6.5), (6.25, 19.75, 9.5), EMBER_RED)
     m.box("edge", (-1.75, 19.75, 6.5), (-1, 22.75, 9.5), LAVA)
     drip(m, 0.5, 19.5)

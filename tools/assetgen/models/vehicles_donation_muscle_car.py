@@ -177,7 +177,7 @@ def muscle_kit(colour="fox", stripe="rubber", trim="rubber", name="muscle_car"):
         xa, xb = sorted((W * s, WH * s))
         m.box("haunch", (xa, 4, D1 + 4), (xb, BELT, WR - SLOT), paint)
         m.box("haunch", (xa, ARCH, WR - SLOT), (xb, BELT, WR + SLOT), paint)
-        m.box("haunch", (xa, 4, WR + SLOT), (xb, BELT, L - 1), paint)
+        m.box("haunch", (xa, 4.25, WR + SLOT), (xb, BELT, L - 1), paint)
         # the arches: three steps in each upper corner round the square openings
         for wz, outer in ((WF, W), (WR, WH)):
             xa, xb = sorted((XI * s, outer * s))
@@ -340,8 +340,8 @@ def muscle_kit(colour="fox", stripe="rubber", trim="rubber", name="muscle_car"):
             return (C, 2.4)                                             # a painted strip across the card
         return (T, 1.6 if fy % 3 else 1.0)
     for s in (1, -1):
-        xa, xb = sorted((XI * s, (XI + 0.5) * s))
-        door[s].box("door_card", (xa, FLOOR, D0 + 1), (xb, BELT, D1 - 0.5), Paint(T, 1, noise=0, decal=card))
+        xa, xb = sorted(((XI - 0.5) * s, XI * s))
+        door[s].box("door_card", (xa, FLOOR, D0 + 1), (xb, BELT - 0.25, D1 - 0.5), Paint(T, 1, noise=0, decal=card))
         xa, xb = sorted((14.5 * s, 15.25 * s))
         door[s].box("mirror_arm", (xa, BELT, -12), (xb, BELT + 1, -11), CHROME)
         xa, xb = sorted((15 * s, 17.25 * s))
