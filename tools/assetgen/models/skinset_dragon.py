@@ -309,20 +309,20 @@ def dragon_hoe():
     handle(m)
     shaft(m, 20.5)
     m.group("head")
-    m.box("snout", (2.75, 19.75, 6.75), (9.75, 22.25, 9.25), JADE_SCALE)
+    m.box("snout", (2.75, 19.5, 6.75), (9.75, 22.5, 9.25), JADE_SCALE)
     m.box("eye", (5.75, 20.75, 6.6), (6.75, 21.5, 9.4), EYE)
     m.box("brow", (5.5, 21.5, 6.6), (7.25, 22, 9.4), GOLD_LIGHT)
     m.box("horn", (6.5, 21.75, 7.4), (11.5, 23, 8.6), GOLD, rotation=("z", 22.5, (7, 22.4, C)))
     m.box("horn_tip", (11.5, 22, 7.6), (13, 22.75, 8.4), JADE_EDGE, rotation=("z", 22.5, (7, 22.4, C)))
     for x in (3.25, 4.75):
         m.box("fang", (x, 19, 7.4), (x + 0.75, 19.75, 8.6), IVORY_M)
-    m.box("jaw_band", (0, 21.25, 4.75), (2.75, 23, 11.25), GOLD_CLOUD)
-    m.box("jaw", (0.25, 14.75, 5), (2.5, 21.25, 11), JADE_DEEP)
-    m.box("jaw_edge", (0.5, 13.75, 5.25), (2.25, 14.75, 10.75), IVORY_M)
+    m.box("jaw_band", (-0.25, 21.25, 4.75), (3, 23, 11.25), GOLD_CLOUD)
+    m.box("jaw", (0, 14.75, 5), (2.75, 21.25, 11), JADE_DEEP)
+    m.box("jaw_edge", (0.25, 13.75, 5.25), (2.5, 14.75, 10.75), IVORY_M)
     for z in (5.5, 7.5, 9.5):
         m.box("jaw_fang", (0.75, 12.75, z), (2, 13.75, z + 1), IVORY_M)
-    m.box("pearl", (-0.4, 17, 7), (0.25, 19.5, 9), PEARL)
-    m.box("pearl", (-0.4, 17.5, 6.5), (0.25, 19, 9.5), PEARL)
+    m.box("pearl", (-0.65, 17, 7), (0, 19.5, 9), PEARL)
+    m.box("pearl", (-0.65, 17.5, 6.5), (0, 19, 9.5), PEARL)
     return _held(m, "hoe")
 
 

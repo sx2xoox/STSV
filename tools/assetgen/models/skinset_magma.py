@@ -64,7 +64,7 @@ class LavaRock(Mat):
                 grid[y][x] = max(0, min(len(OBSIDIAN) - 1, g))
         hot = {}
         if self.cracks and min(pw, ph) >= 4 and max(pw, ph) >= 6:
-            vertical = ph >= pw
+            vertical = ph >= pw or face not in ("up", "down")      # on the sides a crack runs down the height
             L, A = (ph, pw) if vertical else (pw, ph)
             n = 1
             for k in range(n):
@@ -200,8 +200,12 @@ def magma_pickaxe():
     m.box("horn_tip", (7.5, 22.5, 7.5), (8.5, 23.5, 8.5), EMBER)
     for side in (1, -1):
         p = (C + side * 3.25, 18.25)
+        p0 = p
         p = _arm(m, "arm_a", side, p, 4.5, 1.875, 6.75, 9.25, 22.5, ROCK)
+        _arm(m, "arm_vein", side, p0, 4.5, 0.375, 6.6, 9.4, 22.5, LAVA_DEEP, back=0)
+        p1 = p
         p = _arm(m, "arm_b", side, p, 4.0, 1.5, 7, 9, 45, ROCK)
+        _arm(m, "arm_vein", side, p1, 3.5, 0.375, 6.85, 9.15, 45, LAVA_DEEP, back=0)
         px, py = p
         if side > 0:
             frm, to = (px + 0.5, py - 1, 7.25), (px + 2.25, py + 1, 8.75)

@@ -69,14 +69,15 @@ STICK = _soft("candy_white", 2)
 # Surfaces
 # ================================================================================================
 
-def _stripes(name):
-    """Diagonal candy stripes: 5 texels of colour, 3 of white, a period of 8 (tiles across 16)."""
+def _stripes(name, steep=1):
+    """Diagonal candy stripes: 4 texels of colour, a darker one, 3 of white, a period of 8 (tiles across 16).
+    steep=2: rings that climb half as fast (thin sticks, where 45 degree stripes read as a checkerboard)."""
     def make():
         im = Image.new("RGBA", (16, 16))
         px = im.load()
         for y in range(16):
             for x in range(16):
-                k = (x + y) % 8
+                k = (x + steep * y) % 8
                 px[x, y] = ramp(name, 2) if k < 4 else ramp(name, 1) if k == 4 else ramp("candy_white", 2)
         return im
     return make
@@ -135,8 +136,26 @@ def _choc_bar():
 
 
 T.SURFACES["candy_stripe_pink"] = _stripes("candy_pink")
-T.SURFACES["candy_stripe_mint"] = _stripes("candy_mint")
 T.SURFACES["candy_stripe_lemon"] = _stripes("candy_lemon")
+T.SURFACES["candy_ring_mint"] = _stripes("candy_mint", 2)
+T.SURFACES["candy_ring_pink"] = _stripes("candy_pink", 2)
+
+
+def _bear_face():
+    """The gummy bear's face in the top left 5 x 4 texels: two eyes, a nose; mint around it."""
+    im = Image.new("RGBA", (16, 16), ramp("candy_mint", 2))
+    px = im.load()
+    for x, y in ((1, 1), (3, 1)):
+        px[x, y] = ramp("candy_choc", 0)
+    px[2, 2] = ramp("candy_pink", 1)
+    for x in range(5):
+        px[x, 3] = ramp("candy_mint", 1)
+    for y in range(4):
+        px[4, y] = ramp("candy_mint", 1)
+    return im
+
+
+T.SURFACES["candy_bear_face"] = _bear_face
 T.SURFACES["candy_swirl_mint"] = _swirl("candy_mint")
 T.SURFACES["candy_swirl_lemon"] = _swirl("candy_lemon")
 T.SURFACES["candy_waffle"] = _waffle
@@ -190,19 +209,19 @@ def _candy(m, side, body, fan):
         x0, x1 = (px + a, px + b) if side > 0 else (px - b, px - a)
         m.box(name, (x0, y0, z0), (x1, y1, z1), mat, rotation=rot)
 
-    box("candy", 0, 5, 16.25, 19.75, 6.75, 9.25, body)
-    box("twist", 5, 6, 17.25, 18.75, 7.25, 8.75, fan)
-    box("fan", 6, 7.5, 15.5, 20.5, 7.5, 8.5, fan)
+    box("candy", 0, 4.75, 16.25, 19.75, 6.75, 9.25, body)
+    box("twist", 4.75, 5.75, 17.25, 18.75, 7.25, 8.75, fan)
+    box("fan", 5.75, 7.25, 15, 21, 7.5, 8.5, fan)
 
 
 def candy_pickaxe():
-    """사탕 곡괭이: a pink and a lemon wrapped candy drooping off a mint ball, the wrappers' fans for tips."""
+    """사탕 곡괭이: a pink and a lemon striped wrapped candy drooping off a mint ball, the wrappers' fans for tips."""
     m = MModel("candy_pickaxe")
     handle(m, LEMON, PINK)
     stick(m, 17)
     m.group("head")
-    _candy(m, 1, LEMON, LEMON_SOFT(base=3))
-    _candy(m, -1, PINK, PINK_LIGHT)
+    _candy(m, 1, "candy_stripe_lemon", LEMON_SOFT)
+    _candy(m, -1, "candy_stripe_pink", PINK_LIGHT)
     round_y(m, "ball", 5.75, 10.25, 6.5, 9.5, 15.75, 20.25, MINT, 1)
     return _held(m, "pickaxe")
 
@@ -239,16 +258,17 @@ def candy_axe():
 
 
 def candy_hoe():
-    """사탕 괭이: a lemon candy-stick bar across the top, a mint gummy bear standing at its end for the blade (towards -x)."""
+    """사탕 괭이: a pink candy-stick bar across the top, a mint gummy bear standing at its end for the blade (towards -x)."""
     m = MModel("candy_hoe")
     handle(m, LEMON, PINK)
     stick(m, 22.75)
     m.group("head")
-    m.box("bar", (3, 20, 7.125), (9.25, 22, 8.875), "candy_stripe_lemon")
+    m.box("bar", (3.5, 20, 7.125), (9.25, 22, 8.875), "candy_ring_pink")
     m.group("bear")
-    m.box("head", (-0.5, 19, 6.75), (3.5, 22.5, 9.25), MINT)
-    m.box("ear", (-0.5, 22.5, 7.25), (0.75, 23.5, 8.75), MINT)
-    m.box("ear", (2.25, 22.5, 7.25), (3.5, 23.5, 8.75), MINT)
+    face = {"north": "candy_bear_face", "south": "candy_bear_face"}
+    m.box("head", (-1, 19, 6.75), (4, 23, 9.25), MINT, faces=face, uv={"north": [0, 0, 5, 4], "south": [0, 0, 5, 4]})
+    m.box("ear", (-1, 23, 7.25), (0.5, 24, 8.75), MINT)
+    m.box("ear", (2.5, 23, 7.25), (4, 24, 8.75), MINT)
     m.box("body", (-0.75, 14.5, 6.5), (3.75, 19, 9.5), MINT)
     m.box("feet", (-0.75, 13.25, 7), (1, 14.5, 9), MINT_SOFT)
     m.box("feet", (2, 13.25, 7), (3.75, 14.5, 9), MINT_SOFT)
@@ -263,9 +283,9 @@ def _rod(name, cast):
     m.box("reel_foot", (9, 7.75, 7.5), (10.25, 9.25, 8.5), STICK)
     cyl(m, "reel", "z", (12.25, 8.5), 5, 6.75, 9.25, LEMON_SOFT, cap="candy_swirl_lemon")
     m.group("rod")
-    m.box("rod", (6.75, 6.5, 6.75), (9.25, 14, 9.25), "candy_stripe_mint")
-    m.box("rod", (7, 14, 7), (9, 23, 9), "candy_stripe_mint")
-    m.box("rod", (7.25, 23, 7.25), (8.75, 30.25, 8.75), "candy_stripe_mint")
+    m.box("rod", (6.75, 6.5, 6.75), (9.25, 14, 9.25), "candy_ring_mint")
+    m.box("rod", (7, 14, 7), (9, 23, 9), "candy_ring_mint")
+    m.box("rod", (7.25, 23, 7.25), (8.75, 30.25, 8.75), "candy_ring_mint")
     m.box("rod_tip", (6.75, 30.25, 6.75), (9.25, 31.75, 9.25), PINK)
     if not cast:
         # the line hangs from the tip (45 degrees in this frame = straight down on the sprite's diagonal), a two-colour
