@@ -64,6 +64,7 @@ class PackPipelineTest {
             "police_lightbar_a", "police_lightbar_b",           // the light bar's lit halves
             "cargo_bicycle", "cargo_van",                       // road vehicles: the bicycle's lamps, the van's head and tail lights
             "village_bus",                                      // 마을버스: the headlamp eyes and the tail lamps
+            "mini_bus", "limousine_bus",                        // 소형 버스, 리무진 관광버스: round headlamps, tail lamps, the amber board
             "boat_trawl", "coastal_trawl",                      // 작업기: the work lamp on the trawl gallows
             "raft", "rowboat", "coastal_boat", "trawler",       // 고깃배: paper lanterns, squid lamps, running and mast lights, floodlights
             // retro furniture: the TV and arcade screens, the arcade marquee, the briquette and kerosene fires, the dalgona brazier,

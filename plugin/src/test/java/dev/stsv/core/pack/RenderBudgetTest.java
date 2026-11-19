@@ -74,7 +74,8 @@ class RenderBudgetTest {
         for (String m : List.of("stsv:police_lightbar_off", "stsv:police_lightbar_a", "stsv:police_lightbar_b", "stsv:truck_cargo_1",
                 "stsv:truck_cargo_4", "stsv:hand_cart_cargo_1", "stsv:hand_cart_cargo_4")) assertEquals(RenderBudget.Category.VEHICLE_PART, kinds.get(m));
         // the road vehicles of the ladder (vehicles_road.yml): bodies, wheels, the bicycle's crank and the open loads
-        for (String body : List.of("stsv:cargo_bicycle", "stsv:delivery_scooter", "stsv:atv", "stsv:cargo_van", "stsv:box_truck", "stsv:village_bus")) {
+        for (String body : List.of("stsv:cargo_bicycle", "stsv:delivery_scooter", "stsv:atv", "stsv:cargo_van", "stsv:box_truck", "stsv:village_bus",
+                "stsv:mini_bus", "stsv:limousine_bus")) {
             assertEquals(RenderBudget.Category.VEHICLE, kinds.get(body), body);
         }
         for (String w : List.of("stsv:wheel_bicycle", "stsv:wheel_scooter", "stsv:wheel_atv", "stsv:wheel_van", "stsv:wheel_truck", "stsv:wheel_bus")) {

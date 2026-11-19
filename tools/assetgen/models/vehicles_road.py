@@ -1563,3 +1563,8 @@ ALL = {
 from models import vehicles_bus as _bus     # noqa: E402
 
 ALL.update(_bus.ALL)
+
+# 소형 버스, 리무진 관광버스 (models/vehicles_buses.py: the village bus's helpers, so after it)
+from models import vehicles_buses as _buses     # noqa: E402
+
+ALL.update(_buses.ALL)

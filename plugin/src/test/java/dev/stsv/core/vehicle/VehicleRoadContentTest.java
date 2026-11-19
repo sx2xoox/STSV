@@ -27,6 +27,8 @@ class VehicleRoadContentTest {
     private static final Path CONTENT = Path.of(System.getProperty("stsv.content"));
     private static final Path PACK = CONTENT.resolve("stsv");
     private static final List<String> ROAD = List.of("cargo_bicycle", "delivery_scooter", "atv", "cargo_van", "box_truck");
+    /** The buses, small to big (sold in the economy's shop, not handed out by admins only). */
+    private static final List<String> BUSES = List.of("mini_bus", "village_bus", "limousine_bus");
 
     private static YamlConfiguration items(String file) {
         return YamlConfiguration.loadConfiguration(PACK.resolve("items/" + file).toFile());
@@ -163,7 +165,7 @@ class VehicleRoadContentTest {
     @Test
     void onlyAdminsHandThemOut() throws Exception {
         YamlConfiguration y = items("vehicles_road.yml");
-        for (String id : ROAD) {
+        for (String id : Stream.concat(ROAD.stream(), BUSES.stream()).toList()) {
             for (String key : List.of("price", "shop", "buy", "sell", "recipe", "gacha")) assertFalse(y.contains(id + "." + key), id + "." + key);
         }
         List<Path> roots = List.of(PACK, CONTENT.getParent().resolve("economy/content/economy"));
@@ -175,8 +177,9 @@ class VehicleRoadContentTest {
                     if (f.getFileName().toString().equals("bus.yml")) continue;   // the economy's 마을버스: which vehicle is a bus
                     String text = Files.readString(f);
                     boolean shop = f.getFileName().toString().equals("shop.yml");   // generations 1-4 are sold there (4세대 패치)
-                    for (String id : ROAD) {
-                        if (shop && java.util.Set.of("hand_cart", "jige", "cargo_bicycle", "ox_cart", "delivery_scooter", "power_tiller", "cargo_van", "light_truck", "combine", "village_bus").contains(id)) continue;
+                    for (String id : Stream.concat(ROAD.stream(), BUSES.stream()).toList()) {
+                        if (shop && java.util.Set.of("hand_cart", "jige", "cargo_bicycle", "ox_cart", "delivery_scooter", "power_tiller", "cargo_van", "light_truck", "combine", "village_bus",
+                                "mini_bus", "limousine_bus").contains(id)) continue;
                         assertFalse(text.contains("stsv:" + id) || text.contains(" " + id + ":"), f + " mentions " + id);
                     }
                 }
@@ -258,5 +261,144 @@ class VehicleRoadContentTest {
         assertEquals(truck.engine().sound(), bus.engine().sound());
         // sold in the economy's shop (150만), never priced in its own item: no price, shop, gacha or recipe here
         for (String key : List.of("price", "shop", "buy", "sell", "recipe", "gacha")) assertFalse(y.contains("village_bus." + key), key);
+    }
+
+    /** What every bus shares: people not goods, a driver at the front on the left, heads under the roof, its doors. */
+    private static void aBus(VehicleSpec bus, String id, int seats, double ceiling) {
+        assertEquals(seats, bus.seats().size(), id + ": the driver and the passengers");
+        assertNull(bus.cargo(), id + ": no bed");
+        assertNull(bus.extras().drift(), id + ": a bus does not drift");
+        assertFalse(bus.extras().overCap(), id);
+        assertFalse(bus.pulled(), id);
+        assertEquals(1.0, bus.stepHeight(), 1e-9, id);
+        assertTrue(bus.clickHeight() <= bus.height(), id);
+        assertTrue(bus.reverseSpeed() < bus.speed(), id);
+        assertTrue(bus.speed() <= 10, id + ": under the server's cap");
+        assertEquals(4, bus.wheels().size(), id);
+        assertEquals(2, bus.wheels().stream().filter(VehicleSpec.Wheel::steer).count(), id);
+        assertTrue(bus.wheels().stream().filter(VehicleSpec.Wheel::steer).allMatch(w -> w.at().forward() > 0), id + ": the front wheels steer");
+        VehicleSpec.Vec driver = bus.seats().getFirst();
+        assertTrue(driver.right() < 0, id + ": the driver sits on the left");
+        for (VehicleSpec.Vec seat : bus.seats()) {
+            assertTrue(Math.abs(seat.right()) < bus.width() / 2 && Math.abs(seat.forward()) < bus.length() / 2, id + ": seat over it");
+            assertTrue(seat.up() + 1.275 < bus.height() - 0.25, id + ": a seated head clears the roof");
+            assertTrue(seat.up() + 1.275 + 0.0625 <= ceiling, id + ": a seated head stays under the ceiling");
+            if (seat != driver) assertTrue(seat.forward() < driver.forward(), id + ": passengers sit behind the driver");
+        }
+        // no two riders in one place
+        for (int i = 0; i < bus.seats().size(); i++) {
+            for (int j = i + 1; j < bus.seats().size(); j++) {
+                VehicleSpec.Vec a = bus.seats().get(i), b = bus.seats().get(j);
+                assertTrue(Math.abs(a.right() - b.right()) >= 0.5 || Math.abs(a.forward() - b.forward()) >= 0.75, id + ": seats " + i + " and " + j);
+            }
+        }
+        // the doors open when someone gets in or out, every seat has one, every door's model is in the pack
+        java.util.Set<Integer> served = new java.util.TreeSet<>();
+        for (VehicleSpec.Mover mv : bus.extras().dress().movers()) {
+            assertEquals(VehicleSpec.Channel.DOOR, mv.turn() != 0 ? mv.when() : mv.slideWhen(), mv.model().toString());
+            assertTrue(Files.exists(PACK.resolve("models/" + mv.model().getKey().substring("model/".length()) + ".bbmodel")), mv.model().toString());
+            served.addAll(mv.seats());
+        }
+        java.util.Set<Integer> all = new java.util.TreeSet<>();
+        for (int i = 0; i < seats; i++) all.add(i);
+        assertEquals(all, served, id + ": a door for every seat");
+        assertTrue(bus.extras().dress().movers().getFirst().seats().contains(0), id + ": the first door is the driver's");
+        // plates front and back, its body and icon in the pack
+        List<VehicleSpec.Plate> plates = bus.extras().dress().plates();
+        assertEquals(2, plates.size(), id + ": plates front and back");
+        assertTrue(!plates.get(0).back() && plates.get(1).back(), id);
+        assertTrue(plates.get(0).at().forward() > 0 && plates.get(1).at().forward() < 0, id);
+        assertTrue(Files.exists(PACK.resolve("models/" + id + ".bbmodel")), id);
+        assertTrue(Files.exists(PACK.resolve("textures/" + id + "_icon.png")), id + " has its icon");
+    }
+
+    /** A bus's horn and engine: clips that are in the pack (it borrows another vehicle's). */
+    private static void itsSoundsAreInThePack(VehicleSpec bus, String id) throws Exception {
+        Path assets = PACK.resolve("assets/stsv");
+        com.google.gson.JsonObject sounds = com.google.gson.JsonParser.parseString(Files.readString(assets.resolve("sounds.json"))).getAsJsonObject();
+        assertNotNull(bus.horn(), id);
+        assertNotNull(bus.engine(), id);
+        for (String key : List.of(bus.horn().sound(), bus.horn().release(), bus.engine().sound())) {
+            assertTrue(sounds.has(key.substring("stsv:".length())), id + ": sounds.json has " + key);
+        }
+        assertTrue(bus.engine().volume() <= 0.5 && bus.engine().idleVolume() < bus.engine().volume() && bus.engine().idlePitch() < bus.engine().topPitch(), id);
+        assertEquals(10, bus.engine().segmentTicks(), id);
+    }
+
+    /**
+     * 소형 버스: a driver and four passengers, the smallest bus, quicker and nimbler than the village bus (turns faster
+     * than it, slower than the cargo van), the driver's own door on the left, a sliding door for the passengers.
+     */
+    @Test
+    void theMiniBusIsSmallAndNimble() throws Exception {
+        YamlConfiguration y = items("vehicles_road.yml");
+        VehicleSpec bus = spec(y, "mini_bus"), village = spec(y, "village_bus"), van = spec(y, "cargo_van");
+        aBus(bus, "mini_bus", 5, 38 / 16.0);
+        assertEquals(10, bus.speed(), 1e-9);
+        assertEquals(4.75, bus.length(), 0.01);
+        assertEquals(2.4, bus.width(), 0.01);
+        assertEquals(2.8, bus.height(), 0.01);
+        assertTrue(bus.length() < village.length(), "smaller than the village bus");
+        assertTrue(bus.speed() > village.speed() && bus.acceleration() > village.acceleration(), "quicker than the village bus");
+        assertTrue(village.turnRate() < bus.turnRate() && bus.turnRate() < van.turnRate(), "turns faster than the village bus, slower than the van");
+        List<VehicleSpec.Mover> movers = bus.extras().dress().movers();
+        assertEquals(2, movers.size());
+        assertEquals(List.of(0), movers.get(0).seats(), "the driver's door");
+        assertEquals(List.of(1, 2, 3, 4), movers.get(1).seats(), "the sliding door: the passengers");
+        assertTrue(movers.get(0).hinge().right() < 0 && movers.get(0).turn() < 0, "the driver's door on the left swings out");
+        assertTrue(movers.get(1).slide().right() > 0 && movers.get(1).slide().forward() < 0, "the sliding door: out and back along the right side");
+        itsSoundsAreInThePack(bus, "mini_bus");
+        assertEquals(van.horn().sound(), bus.horn().sound(), "the van's horn");
+        assertEquals(van.engine().sound(), bus.engine().sound(), "the van's engine");
+        for (String key : List.of("price", "shop", "buy", "sell", "recipe", "gacha")) assertFalse(y.contains("mini_bus." + key), key);
+    }
+
+    /**
+     * 리무진 관광버스: a driver and sixteen passengers, the biggest bus: long, high, heavy and slow to turn, one front door
+     * on the right for everybody.
+     */
+    @Test
+    void theLimousineBusCarriesSixteen() throws Exception {
+        YamlConfiguration y = items("vehicles_road.yml");
+        VehicleSpec bus = spec(y, "limousine_bus"), village = spec(y, "village_bus"), truck = spec(y, "box_truck");
+        aBus(bus, "limousine_bus", 17, 50 / 16.0);
+        assertEquals(10, bus.speed(), 1e-9);
+        assertEquals(8.5, bus.length(), 0.01);
+        assertEquals(2.4, bus.width(), 0.01);
+        assertEquals(3.6, bus.height(), 0.01);
+        assertTrue(bus.length() > village.length() && bus.height() > village.height(), "longer and higher than the village bus");
+        assertTrue(bus.turnRate() < village.turnRate(), "turns slower than the village bus");
+        for (VehicleSpec v : road().values()) assertTrue(bus.turnRate() < v.turnRate(), "turns slower than any other road vehicle");
+        assertTrue(bus.acceleration() <= village.acceleration(), "heavy: gets going no quicker than the village bus");
+        // eight rows, a seat each side behind the driver
+        assertEquals(8, bus.seats().stream().skip(1).filter(s -> s.right() < 0).count());
+        assertEquals(8, bus.seats().stream().skip(1).filter(s -> s.right() > 0).count());
+        List<VehicleSpec.Mover> movers = bus.extras().dress().movers();
+        assertEquals(1, movers.size(), "one front door");
+        assertTrue(movers.getFirst().hinge().right() > 0 && movers.getFirst().hinge().forward() > bus.seats().getFirst().forward(),
+                "on the right, in front of the driver");
+        itsSoundsAreInThePack(bus, "limousine_bus");
+        assertEquals(truck.horn().sound(), bus.horn().sound(), "the box truck's horn");
+        assertEquals(truck.engine().sound(), bus.engine().sound(), "the box truck's engine");
+        for (String key : List.of("price", "shop", "buy", "sell", "recipe", "gacha")) assertFalse(y.contains("limousine_bus." + key), key);
+    }
+
+    /** The buses in a row (소형 버스, 마을버스, 리무진 관광버스): more seats, longer, slower to turn. */
+    @Test
+    void theBusesGrowInARow() {
+        YamlConfiguration y = items("vehicles_road.yml");
+        VehicleSpec prev = null;
+        for (String id : BUSES) {
+            VehicleSpec s = spec(y, id);
+            List<String> lore = y.getStringList(id + ".lore");
+            assertTrue(lore.stream().anyMatch(l -> l.contains("버스 · " + s.seats().size() + "인승")), id + ": its seats in the lore");
+            assertTrue(lore.stream().anyMatch(l -> l.contains("W·S") && l.contains("스페이스")), id + ": the keys");
+            if (prev != null) {
+                assertTrue(s.seats().size() > prev.seats().size(), id + " carries more");
+                assertTrue(s.length() > prev.length(), id + " is longer");
+                assertTrue(s.turnRate() < prev.turnRate(), id + " turns slower");
+            }
+            prev = s;
+        }
     }
 }

@@ -241,6 +241,22 @@ vehicles:
     engine-stop: { sound: stsv:vehicle.box_truck.engine_stop, volume: 0.65 }
     idle-shake: 0.01
     bounce: 0.8
+  mini_bus:                 # 소형 버스: 소형 화물 밴의 시동 소리를 그대로 씀
+    power: engine
+    lights: { head: mini_bus_lamp_head, tail: mini_bus_lamp_tail, brake: mini_bus_lamp_brake, reverse: mini_bus_lamp_reverse }
+    reverse-beep: true
+    engine-start: { sound: stsv:vehicle.cargo_van.engine_start, volume: 0.65, ticks: 22 }
+    engine-stop: { sound: stsv:vehicle.cargo_van.engine_stop, volume: 0.55 }
+    idle-shake: 0.009
+    bounce: 0.75
+  limousine_bus:            # 리무진 관광버스: 탑차의 시동 소리를 그대로 씀
+    power: engine
+    lights: { head: limousine_bus_lamp_head, tail: limousine_bus_lamp_tail, brake: limousine_bus_lamp_brake, reverse: limousine_bus_lamp_reverse }
+    reverse-beep: true
+    engine-start: { sound: stsv:vehicle.box_truck.engine_start, volume: 0.8, ticks: 30 }
+    engine-stop: { sound: stsv:vehicle.box_truck.engine_stop, volume: 0.7 }
+    idle-shake: 0.008
+    bounce: 0.7
   ox_cart:
     power: animal
     bounce: 0.8

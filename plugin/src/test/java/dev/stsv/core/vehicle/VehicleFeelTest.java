@@ -295,7 +295,7 @@ class VehicleFeelTest {
         List<String> items = vehicleItems();
         for (String key : f.vehicles().keySet()) assertTrue(items.contains(key.substring("stsv:".length())), key + " is a vehicle item");
         for (String id : List.of("police_car", "light_truck", "golf_cart", "hand_cart", "cargo_bicycle", "delivery_scooter", "atv",
-                "cargo_van", "box_truck", "village_bus", "ox_cart", "power_tiller", "tractor_trailer", "jige"))
+                "cargo_van", "box_truck", "village_bus", "mini_bus", "limousine_bus", "ox_cart", "power_tiller", "tractor_trailer", "jige"))
             assertNotNull(f.vehicles().get("stsv:" + id), id + " has its feel");
         Map<String, VehicleFeel.Spec> v = f.vehicles();
         // who pushes: people, an ox, engines
@@ -306,14 +306,14 @@ class VehicleFeelTest {
         assertEquals(VehicleFeel.Power.ANIMAL, v.get("stsv:ox_cart").power());
         // the motor vehicles have lamps and an engine start / stop; trucks beep backing up
         for (String id : List.of("delivery_scooter", "atv", "power_tiller", "tractor_trailer", "cargo_van", "light_truck", "box_truck",
-                "village_bus", "police_car", "golf_cart")) {
+                "village_bus", "mini_bus", "limousine_bus", "police_car", "golf_cart")) {
             VehicleFeel.Spec s = v.get("stsv:" + id);
             assertEquals(VehicleFeel.Power.ENGINE, s.power(), id);
             assertTrue(s.lamps().front(), id + " has headlamps");
             assertTrue(s.ignition(), id + " starts and stops");
             assertTrue(s.effort().none(), id + " costs no food");
         }
-        for (String id : List.of("light_truck", "cargo_van", "box_truck", "village_bus")) {
+        for (String id : List.of("light_truck", "cargo_van", "box_truck", "village_bus", "mini_bus", "limousine_bus")) {
             assertTrue(v.get("stsv:" + id).reverseBeep(), id + " beeps");
             assertNotNull(v.get("stsv:" + id).lamps().reverse(), id + " has reverse lamps");
         }

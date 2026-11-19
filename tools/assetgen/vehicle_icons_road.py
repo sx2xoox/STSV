@@ -223,3 +223,74 @@ def village_bus():
     box(c, 1, 14, 3, 15, "rubber", 1, 3)        # the tyres
     box(c, 12, 14, 14, 15, "rubber", 1, 3)
     return c.render()
+
+
+@icon("mini_bus")
+def mini_bus():
+    # the little orange and cream van-bus from the front, so its face shows: a crate of apples on the roof rack, the
+    # cream roof, the orange band, the wide windscreen, the short snub nose with two round eyes (dark pupils looking
+    # up), rosy cheeks and a little smile, the chrome bumper, the tyres
+    c = Canvas()
+    O = "topaz"
+    box(c, 5, 0, 10, 1, "wood", 2, 6)           # the crate
+    for x in (6, 8):
+        c.put(x, 0, "tomato", 3, 7)             # apples
+    c.put(9, 0, "tomato", 2, 7)
+    box(c, 2, 2, 13, 2, "cream", 3, 3)          # the roof
+    box(c, 1, 3, 14, 3, O, 3, 3)                # the band over the windscreen
+    box(c, 1, 4, 14, 8, O, 2, 2)                # the cab
+    box(c, 2, 4, 13, 7, "tint", 2, 4)           # the windscreen
+    box(c, 3, 5, 12, 7, "glass", 1, 5)
+    c.put(3, 5, "glass", 4, 6)
+    c.put(4, 6, "glass", 3, 6)
+    box(c, 1, 8, 14, 8, "cream", 3, 4)          # the bonnet's top
+    box(c, 1, 9, 14, 12, O, 3, 3)               # the snub nose
+    box(c, 1, 12, 14, 12, "wood_dark", 2, 4)    # the thin brown line
+    for x0, pupil in ((2, 4), (10, 11)):        # the eyes: round lamps, a dark pupil looking up and in
+        box(c, x0, 9, x0 + 3, 10, "lamp", 5, 6)
+        box(c, x0 + 1, 11, x0 + 2, 11, "blade", 3, 6)
+        c.put(pupil, 9, "tint", 0, 7)
+    c.put(1, 11, "pink", 2, 6)                  # cheeks
+    c.put(14, 11, "pink", 2, 6)
+    c.put(7, 11, "wood_dark", 0, 6)             # the smile
+    c.put(8, 11, "wood_dark", 0, 6)
+    c.put(6, 10, "wood_dark", 0, 6)
+    c.put(9, 10, "wood_dark", 0, 6)
+    box(c, 1, 13, 14, 13, "blade", 4, 6)        # the bumper
+    box(c, 1, 14, 3, 15, "rubber", 1, 3)        # the tyres
+    box(c, 12, 14, 14, 15, "rubber", 1, 3)
+    return c.render()
+
+
+@icon("limousine_bus")
+def limousine_bus():
+    # the long travel-agency coach from its left side, the front to the left: the air conditioner on the white roof,
+    # the dark strip of big windows, a purple line under it, the purple swoosh rising towards the back over a teal
+    # line, a "rabbit ear" mirror hanging in front, two wheels
+    c = Canvas()
+    box(c, 6, 2, 9, 2, "steel", 2, 4)           # the air conditioner
+    box(c, 1, 3, 15, 3, "pearl", 3, 3)          # the roof
+    box(c, 1, 4, 15, 11, "pearl", 2, 2)         # the body
+    box(c, 1, 4, 15, 7, "rubber", 1, 3)         # the window strip
+    for x0 in (2, 6, 10, 13):                   # the panes (tinted, a rider's head showing)
+        box(c, x0, 5, min(x0 + 2, 14), 6, "glass", 1, 4)
+    c.put(7, 5, "glass", 3, 5)
+    c.put(11, 6, "glass", 3, 5)
+    c.put(1, 5, "glass", 3, 5)                  # the windscreen's edge
+    c.put(1, 6, "glass", 2, 5)
+    box(c, 1, 8, 15, 8, "grape", 3, 4)          # the purple line under the windows
+    for x in range(1, 16):                      # the swoosh rising towards the back
+        y = 12 - (x - 1) * 3 // 14
+        c.put(x, y, "grape", 3, 5)
+        if y + 1 <= 12:
+            c.put(x, y + 1, "water", 3, 5)
+    box(c, 1, 12, 15, 12, "pearl", 1, 3)        # the skirt
+    c.put(0, 3, "rubber", 2, 6)                 # the mirror's arm and glass
+    box(c, 0, 4, 0, 6, "blade", 3, 6)
+    c.put(1, 10, "lamp", 5, 6)                  # a headlamp
+    c.put(15, 10, "signal_red", 2, 6)           # a tail lamp
+    for x0 in (3, 11):                          # the wheels: fat tyres, cream rims, a chrome cap
+        box(c, x0, 12, x0 + 2, 14, "rubber", 1, 6)
+        c.put(x0 + 1, 13, "blade", 4, 7)
+        c.put(x0 + 1, 12, "cream", 3, 7)
+    return c.render()
