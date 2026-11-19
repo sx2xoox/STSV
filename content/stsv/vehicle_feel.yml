@@ -233,6 +233,14 @@ vehicles:
     engine-stop: { sound: stsv:vehicle.box_truck.engine_stop, volume: 0.65 }
     idle-shake: 0.012
     bounce: 0.8
+  village_bus:              # 마을버스: 탑차의 시동 소리를 그대로 씀
+    power: engine
+    lights: { head: village_bus_lamp_head, tail: village_bus_lamp_tail, brake: village_bus_lamp_brake, reverse: village_bus_lamp_reverse }
+    reverse-beep: true
+    engine-start: { sound: stsv:vehicle.box_truck.engine_start, volume: 0.75, ticks: 28 }
+    engine-stop: { sound: stsv:vehicle.box_truck.engine_stop, volume: 0.65 }
+    idle-shake: 0.01
+    bounce: 0.8
   ox_cart:
     power: animal
     bounce: 0.8

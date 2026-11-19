@@ -203,4 +203,59 @@ class VehicleRoadContentTest {
         }
         assertNull(old.getConfigurationSection("cargo_bicycle"), "the road vehicles live in their own file");
     }
+
+    /**
+     * 마을버스: a driver and eight passengers, no bed, two doors on the kerb side (the front one for the driver, the
+     * middle one for the passengers), the longest and slowest-turning road vehicle, under the server's cap.
+     */
+    @Test
+    void theVillageBusCarriesPeopleNotGoods() throws Exception {
+        YamlConfiguration y = items("vehicles_road.yml");
+        VehicleSpec bus = spec(y, "village_bus"), truck = spec(y, "box_truck");
+        assertEquals(9, bus.seats().size(), "the driver and eight passengers");
+        assertNull(bus.cargo(), "no bed: it carries people");
+        assertEquals(9, bus.speed(), 1e-9);
+        assertFalse(bus.extras().overCap());
+        assertNull(bus.extras().drift(), "a bus does not drift");
+        assertFalse(bus.pulled());
+        assertEquals(1.0, bus.stepHeight(), 1e-9);
+        assertEquals(7.0, bus.length(), 0.01);
+        assertEquals(2.4, bus.width(), 0.01);
+        assertEquals(3.0, bus.height(), 0.01);
+        assertTrue(bus.clickHeight() <= bus.height());
+        for (VehicleSpec v : road().values()) {
+            assertTrue(bus.turnRate() < v.turnRate(), "turns slower than any other road vehicle");
+            assertTrue(bus.length() > v.length(), "the longest");
+        }
+        assertTrue(bus.acceleration() <= truck.acceleration(), "gets going no quicker than the box truck");
+        // four wheels, the front two steer
+        assertEquals(4, bus.wheels().size());
+        assertEquals(2, bus.wheels().stream().filter(VehicleSpec.Wheel::steer).count());
+        assertTrue(bus.wheels().stream().filter(VehicleSpec.Wheel::steer).allMatch(w -> w.at().forward() > 0));
+        // the driver at the front on the left, every passenger behind; every seat over the bus and under its roof
+        VehicleSpec.Vec driver = bus.seats().getFirst();
+        assertTrue(driver.right() < 0, "the driver sits on the left");
+        for (VehicleSpec.Vec seat : bus.seats()) {
+            assertTrue(Math.abs(seat.right()) < bus.width() / 2 && Math.abs(seat.forward()) < bus.length() / 2, "seat over it");
+            assertTrue(seat.up() + 1.275 < bus.height() - 0.25, "a seated head clears the roof");
+            if (seat != driver) assertTrue(seat.forward() < driver.forward(), "passengers sit behind the driver");
+        }
+        // the doors: both on the right; the front one opens for the driver, the middle one for every passenger
+        List<VehicleSpec.Mover> movers = bus.extras().dress().movers();
+        assertEquals(2, movers.size());
+        for (VehicleSpec.Mover mv : movers) {
+            assertEquals(VehicleSpec.Channel.DOOR, mv.turn() != 0 ? mv.when() : mv.slideWhen(), mv.model().toString());
+            assertTrue(Files.exists(PACK.resolve("models/" + mv.model().getKey().substring("model/".length()) + ".bbmodel")));
+        }
+        assertEquals(List.of(0), movers.get(0).seats(), "the front door: the driver");
+        assertEquals(List.of(1, 2, 3, 4, 5, 6, 7, 8), movers.get(1).seats(), "the middle door: the passengers");
+        assertTrue(movers.get(0).hinge().right() > 0 && movers.get(0).hinge().forward() > driver.forward(), "beside the driver, on the right");
+        assertTrue(movers.get(1).slide().forward() != 0, "the middle door slides along the side");
+        assertEquals(2, bus.extras().dress().plates().size(), "plates front and back");
+        // its horn and engine are the box truck's (in the pack)
+        assertEquals(truck.horn().sound(), bus.horn().sound());
+        assertEquals(truck.engine().sound(), bus.engine().sound());
+        // admin-only for now: no price, shop, gacha or recipe
+        for (String key : List.of("price", "shop", "buy", "sell", "recipe", "gacha")) assertFalse(y.contains("village_bus." + key), key);
+    }
 }

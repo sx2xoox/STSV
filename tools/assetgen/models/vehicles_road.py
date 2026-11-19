@@ -1557,3 +1557,9 @@ ALL = {
     "wheel_truck": wheel_truck,
     **{f"atv_cargo_{k}": (lambda k=k: atv_cargo(k)) for k in range(1, 5)},
 }
+
+# 마을버스 (models/vehicles_bus.py: it takes its helpers from this module's imports and vehicles_premium, so it is
+# imported last)
+from models import vehicles_bus as _bus     # noqa: E402
+
+ALL.update(_bus.ALL)

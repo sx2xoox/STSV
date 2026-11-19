@@ -182,3 +182,34 @@ def box_truck():
     wheel(c, 3, 13, 2)
     wheel(c, 12, 13, 2)
     return c.render()
+
+
+@icon("village_bus")
+def village_bus():
+    # the green village bus from its left side, front to the left: a white roof, the lit route board over the
+    # windscreen, a black band of windows (light panes between black pillars), the yellow-green stripe, the white
+    # route badge, a white skirt line, two wheels
+    c = Canvas()
+    G = "slime"
+    box(c, 0, 3, 15, 12, G, 2, 2)              # the body
+    box(c, 1, 2, 14, 2, "car_white", 5, 3)     # the roof
+    box(c, 0, 3, 15, 3, "car_white", 4, 3)     # the white roof line
+    box(c, 0, 4, 15, 4, G, 3, 3)               # the band over the windows
+    box(c, 0, 4, 2, 4, "rubber", 1, 5)         # the route board, lit
+    c.put(1, 4, "glow_amber", 3, 6)
+    c.put(2, 4, "glow_amber", 2, 6)
+    box(c, 0, 5, 15, 7, "rubber", 1, 3)        # the windows' black band
+    box(c, 0, 5, 0, 9, "glass", 3, 4)          # the tall windscreen
+    c.put(0, 5, "glass", 5, 5)
+    for x in (2, 5, 8, 11):
+        box(c, x, 5, x + 1, 7, "glass", 2, 4)  # side panes between the pillars
+        c.put(x, 5, "glass", 4, 5)
+    c.put(14, 6, "glass", 2, 4)
+    box(c, 1, 8, 15, 8, "sprout", 4, 4)        # the stripe
+    box(c, 0, 12, 15, 12, "car_white", 3, 4)   # the white skirt line
+    box(c, 6, 9, 7, 10, "car_white", 5, 4)     # the route badge
+    c.put(0, 11, "lamp", 5, 5)                 # headlamp
+    box(c, 15, 9, 15, 11, "signal_red", 3, 5)  # tail lamp
+    wheel(c, 3, 13, 2)
+    wheel(c, 12, 13, 2)
+    return c.render()

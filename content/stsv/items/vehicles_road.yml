@@ -1,11 +1,11 @@
 # 탈것 세대 사다리 · 도로 탈것 (관리자만: /관리자 아이템목록 의 '탈것' 탭, /관리자 지급). 상점·뽑기·레시피에는 없음.
-# 1세대 리어카 → 2세대 짐자전거 → 3세대 배달 오토바이 → 4세대 1톤 트럭 · 소형 화물 밴 → 5세대 탑차 · 특수: 사륜 오토바이
+# 1세대 리어카 → 2세대 짐자전거 → 3세대 배달 오토바이 → 4세대 1톤 트럭 · 소형 화물 밴 → 5세대 탑차 · 특수: 사륜 오토바이 · 마을버스 (승객 운송, 세대 없음)
 # 설정은 vehicles.yml 맨 위 설명과 같음 (속도·크기·좌석·바퀴·경적·엔진·짐칸). 여기에만 있는 것:
 #   lean          두 바퀴 탈것이 방향을 틀 때 안쪽으로 기우는 각도 (도, 다 꺾고 turn-speed 이상일 때). 몸체·바퀴·짐·페달이 함께 기욺
 #   spinners      바퀴와 함께 도는 부품 (model, at 위치 = 축, ratio 바퀴 한 바퀴에 몇 바퀴: 짐자전거 페달 0.5)
 #   all-terrain   true = 모래·자갈·눈·진흙·영혼 모래에서 느려지지 않음 (다른 탈것은 모래·자갈·눈·진흙 75%, 영혼 모래 50%)
 #   cargo.slots   9 의 배수 (한 쪽 45칸, 마지막 쪽은 일부만: 27 = 작은 상자 한 칸, 54 = 45 + 9). stages 가 없으면 닫힌 짐칸 (짐이 안 보임)
-# 모델 tools/assetgen/models/vehicles_road.py, 아이콘 vehicle_icons_road.py, 소리 sounds.py (ROAD), 미리보기 vehicle_preview_road.py
+# 모델 tools/assetgen/models/vehicles_road.py (마을버스는 vehicles_bus.py), 아이콘 vehicle_icons_road.py, 소리 sounds.py (ROAD), 미리보기 vehicle_preview_road.py
 
 cargo_bicycle:
   material: paper
@@ -224,3 +224,60 @@ box_truck:
       payload: 2500          # 적재 무게 (economy weights.yml 의 무게로, README '적재 무게')
       behind: 1.55
       at: [0, 0, 0]
+
+# 마을버스: 기사 1 + 승객 8 (두 줄 좌석과 뒤 벤치). 짐칸 없음. 오른쪽에 앞문(기사 옆, 바깥으로 열림)·뒷문(뒤로 밀림).
+# 7칸이 넘게 길어서 모델을 4배 작게 그려 body-scale 4 로 보여 줌 (models/vehicles_bus.py). 바퀴는 탑차와 같음
+village_bus:
+  material: paper
+  name: "<#3fb34f>마을버스"
+  lore:
+    - "<gray>버스 · 9인승 마을버스 (7×2.4×3칸)"
+    - "<white>9블록/초 <gray>· 짐칸 없음"
+    - "<gray>크고 느리게 돎 · 앞문 · 뒷문"
+    - "<dark_gray>W·S·A·D 운전 · 스페이스: 경적 · 웅크리기: 내리기"
+    - "<yellow>우클릭: 세우기 · 타기"
+    - "<yellow>웅크리고 우클릭: 회수"
+  model: village_bus
+  icon: village_bus_icon
+  max-stack: 1
+  vehicle:
+    body-scale: 4
+    speed: 9
+    reverse-speed: 2.5
+    acceleration: 1.6
+    brake: 7
+    coast: 1.8
+    turn-rate: 38
+    turn-speed: 3.5
+    step-height: 1.0
+    size: [7.0, 2.4, 3.0]       # 지붕 위 에어컨만 0.1 더 올라옴
+    click-height: 1.6
+    wheel: wheel_truck
+    wheel-radius: 0.4375
+    wheels:
+      - { at: [-1.0, 0.4375, 2.0], steer: true }
+      - { at: [1.0, 0.4375, 2.0], steer: true }
+      - { at: [-1.0, 0.4375, -1.875] }
+      - { at: [1.0, 0.4375, -1.875] }
+    # 기사(왼쪽 앞), 그 뒤로 왼쪽 줄 · 오른쪽 줄 (뒷문 앞까지), 왼쪽 뒤 둘, 맨 뒤 벤치 둘
+    seats:
+      - { at: [-0.53125, 1.0625, 2.625] }
+      - { at: [-0.53125, 1.0625, 1.5] }
+      - { at: [0.53125, 1.0625, 1.5] }
+      - { at: [-0.53125, 1.0625, 0.5] }
+      - { at: [0.53125, 1.0625, 0.5] }
+      - { at: [-0.53125, 1.0625, -0.5] }
+      - { at: [-0.53125, 1.0625, -1.5] }
+      - { at: [-0.53125, 1.0625, -2.625] }
+      - { at: [0.53125, 1.0625, -2.625] }
+    movers:
+      # 앞문: 앞 모서리를 축으로 바깥으로 열림 (기사가 타고 내릴 때)
+      - { model: village_bus_door_front, hinge: [1.1875, 1.375, 3.4375], axis: [0, 1, 0], turn: 80, when: door, seats: [0], ticks: 10 }
+      # 뒷문: 1픽셀 바깥으로 나오며 앞으로 밀려 열림 (바퀴 쪽으로 가지 않게) (손님이 타고 내릴 때)
+      - { model: village_bus_door_rear, slide: [0.0625, 0, 0.8125], when: door, seats: [1, 2, 3, 4, 5, 6, 7, 8], ticks: 12 }
+    plates:
+      - { at: [0, 0.344, 3.594], width: 0.5, height: 0.12 }
+      - { at: [0, 0.594, -3.5], back: true, width: 0.5, height: 0.12 }
+    horn: { sound: stsv:vehicle.box_truck.horn, release: stsv:vehicle.box_truck.horn_end, volume: 1.5,
+            vanilla: block.note_block.didgeridoo, pitch: 0.8, times: 1 }
+    engine: { sound: stsv:vehicle.box_truck.engine, volume: 0.45, idle-volume: 0.22, idle-pitch: 0.55, top-pitch: 1.3, segment-ticks: 10 }
