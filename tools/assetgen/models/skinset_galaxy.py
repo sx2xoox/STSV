@@ -25,7 +25,7 @@ import random
 import zlib
 
 import economy_models  # noqa: F401  (registers the shared surfaces)
-from economy_machines import MModel
+from economy_machines import MModel, bands
 from models.toys import _held, _arm, round_y, round_z, C, GRIP_Y  # noqa: F401
 from premium_art import HMat, hd_canvas, shade, HS, D, FACE_LIGHT
 from stsv_assets import presets
@@ -169,7 +169,7 @@ MOON_DARK = HMat("gold", "smooth", 2.2)
 GOLD = HMat("gold", "metal", 2.2)
 STAR = HMat("glow_amber", "gem", 2.4, glow=True)     # gold star studs: lit like little lamps
 STAR_WHITE = HMat("ice", "gem", 2.9, glow=True)
-PLANET = HMat("aurora", "gem", 2.0)
+PLANET = HMat("aurora", "smooth", 1.9)
 PLANET_BAND = HMat("magic", "smooth", 1.6)
 RING = HMat("gold", "metal", 2.7)
 LINE = HMat("blade", "smooth", 2.8, ao=False)
@@ -204,20 +204,34 @@ def shaft(m, top):
     round_y(m, "shaft", 6.875, 9.125, 6.875, 9.125, 6.5, top, SILVER_DARK, 0.5)
 
 
+def slab(m, name, x0, x1, z0, z1, y0, y1, cut, mat, rotation=None):
+    """A flat octagon (a round_y with its corners cut) that can be tilted: three boxes."""
+    m.box(name, (x0, y0, z0 + cut), (x1, y1, z1 - cut), mat, rotation=rotation)
+    m.box(name, (x0 + cut, y0, z0), (x1 - cut, y1, z0 + cut), mat, rotation=rotation)
+    m.box(name, (x0 + cut, y0, z1 - cut), (x1 - cut, y1, z1), mat, rotation=rotation)
+
+
+def disc(m, name, axis, c, d, lo, hi, mat):
+    """A round disc of diameter d (stepped, like economy_machines.cyl) along y or z between lo and hi; c its centre on
+    the two other axes ((x, z) for y, (x, y) for z). The HD materials need it: cyl repaints its side as a plain Mat."""
+    for (a, b, hw) in bands(d):
+        if axis == "y":
+            m.box(name, (c[0] - hw, lo, c[1] + a), (c[0] + hw, hi, c[1] + b), mat)
+        else:
+            m.box(name, (c[0] - hw, c[1] + a, lo), (c[0] + hw, c[1] + b, hi), mat)
+
+
 def planet(m, cx, cy, cz, d, ring_w, tilt=22.5):
-    """A ringed planet: a ball with a band round its middle and a flat gold ring round it, tilted about z."""
+    """A ringed planet: a round ball (discs along z, smaller to the front and back) with a violet band round its middle,
+    and a flat gold ring through it, tilted about z (Saturn seen a little from above)."""
     m.group("planet")
     r = d / 2
-    round_z(m, "planet", cx - r, cx + r, cy - r, cy + r, cz - r + 0.75, cz + r - 0.75, PLANET, r * 0.42)
-    round_z(m, "planet", cx - r + 0.75, cx + r - 0.75, cy - r + 0.75, cy + r - 0.75, cz - r, cz + r, PLANET, r * 0.3)
-    m.box("planet_band", (cx - r - 0.01, cy - 0.5, cz - r + 0.74), (cx + r + 0.01, cy + 0.25, cz + r - 0.74), PLANET_BAND)
-    rot = ("z", tilt, (cx, cy, cz))
+    disc(m, "planet", "z", (cx, cy), d, cz - r + 1, cz + r - 1, PLANET)
+    disc(m, "planet", "z", (cx, cy), d - 2, cz - r, cz - r + 1, PLANET)
+    disc(m, "planet", "z", (cx, cy), d - 2, cz + r - 1, cz + r, PLANET)
+    m.box("planet_band", (cx - r - 0.01, cy - 0.75, cz - r + 1.5), (cx + r + 0.01, cy + 0.25, cz + r - 1.5), PLANET_BAND)
     hw = r + ring_w
-    t = 0.25
-    m.box("ring", (cx - hw, cy - t, cz - hw * 0.6), (cx - r + 0.25, cy + t, cz + hw * 0.6), RING, rotation=rot)
-    m.box("ring", (cx + r - 0.25, cy - t, cz - hw * 0.6), (cx + hw, cy + t, cz + hw * 0.6), RING, rotation=rot)
-    m.box("ring", (cx - r + 0.25, cy - t, cz - hw * 0.6), (cx + r - 0.25, cy + t, cz - r + 0.75), RING, rotation=rot)
-    m.box("ring", (cx - r + 0.25, cy - t, cz + r - 0.75), (cx + r - 0.25, cy + t, cz + hw * 0.6), RING, rotation=rot)
+    slab(m, "ring", cx - hw, cx + hw, cz - hw * 0.7, cz + hw * 0.7, cy - 0.25, cy + 0.25, hw * 0.35, RING, rotation=("z", tilt, (cx, cy, cz)))
 
 
 # ================================================================================================
@@ -269,65 +283,68 @@ def galaxy_pickaxe():
         px, py = p
         # a silver band at the bend, then the star: a cross along the last bend (an X on the sprite)
         a = math.radians(45)
-        cx, cy = px + side * 1.5 * math.cos(a), py - 1.5 * math.sin(a)
+        cx, cy = px + side * 2 * math.cos(a), py - 2 * math.sin(a)
         rot = ("z", -45 * side, (cx, cy, C))
-        m.box("arm_star", (cx - 1.75, cy - 0.45, 7.25), (cx + 1.75, cy + 0.45, 8.75), GOLD, rotation=rot)
-        m.box("arm_star", (cx - 0.45, cy - 1.75, 7.25), (cx + 0.45, cy + 1.75, 8.75), GOLD, rotation=rot)
-        m.box("arm_star", (cx - 0.9, cy - 0.9, 7), (cx + 0.9, cy + 0.9, 9), STAR, rotation=rot)
+        m.box("arm_star", (cx - 2.5, cy - 0.5, 7.25), (cx + 2.5, cy + 0.5, 8.75), GOLD, rotation=rot)
+        m.box("arm_star", (cx - 0.5, cy - 2.5, 7.25), (cx + 0.5, cy + 2.5, 8.75), GOLD, rotation=rot)
+        m.box("arm_star", (cx - 1.1, cy - 1.1, 7), (cx + 1.1, cy + 1.1, 9), STAR, rotation=rot)
     return _held(m, "pickaxe")
 
 
 def galaxy_shovel():
-    """은하수 삽: a space-crystal spade with a constellation, a silver rim proud of its face and a silver point, a silver
-    socket with a gold star at the neck."""
+    """은하수 삽: a space-crystal spade (wide shoulders narrowing to a point) with a constellation on its face, a silver
+    rim a little proud of the face down both sides, a lilac point with a white star, a silver socket with a gold star."""
     m = MModel("galaxy_shovel")
     handle(m)
     shaft(m, 15.5)
     m.group("blade")
     round_y(m, "socket", 6.25, 9.75, 6.25, 9.75, 15.5, 17, SILVER, 0.75)
     stud(m, 8, 16.25, 6, 10, 1.0)
-    m.box("blade", (3.5, 17, 7), (12.5, 25.5, 9), SPACE_SPADE)
-    m.box("blade", (4.25, 25.5, 7.2), (11.75, 27, 8.8), SPACE_PLAIN)
-    for side in (1, -1):
-        def bx(x0, x1, y0, y1, z0, z1, mat):
-            a, b = (x0, x1) if side > 0 else (16 - x1, 16 - x0)
-            m.box("rim", (a, y0, z0), (b, y1, z1), mat)
-        bx(12.5, 13.25, 17.5, 25, 7.25, 8.75, SILVER_LIGHT)
-        bx(11.75, 12.5, 25.5, 26.25, 7.25, 8.75, SILVER_LIGHT)
-    m.box("point", (5.75, 27, 7.3), (10.25, 28.25, 8.7), EDGE)
+    rows = ((17, 18, 3.5, 7.1, 8.9, SPACE_PLAIN), (18, 24, 4.5, 7, 9, SPACE_SPADE), (24, 25.5, 3.75, 7.1, 8.9, SPACE_PLAIN),
+            (25.5, 27, 2.75, 7.2, 8.8, SPACE_PLAIN))
+    for y0, y1, hw, z0, z1, mat in rows:
+        m.box("blade", (C - hw, y0, z0), (C + hw, y1, z1), mat)
+        for zz0, zz1 in ((z1, z1 + 0.4), (z0 - 0.4, z0)):
+            m.box("rim", (C - hw, y0, zz0), (C - hw + 0.75, y1, zz1), SILVER_LIGHT)
+            m.box("rim", (C + hw - 0.75, y0, zz0), (C + hw, y1, zz1), SILVER_LIGHT)
+    m.box("point", (6, 27, 7.3), (10, 28.25, 8.7), EDGE)
     m.box("point", (6.75, 28.25, 7.45), (9.25, 29.25, 8.55), EDGE)
-    m.box("point", (7.5, 29.25, 7.6), (8.5, 30, 8.4), STAR_WHITE)
-    m.box("spine", (7.25, 17, 6.6), (8.75, 25, 7), SILVER)
-    m.box("spine", (7.25, 17, 9), (8.75, 25, 9.4), SILVER)
+    m.box("point", (7.5, 29.25, 7.6), (8.5, 30.25, 8.4), STAR_WHITE)
     return _held(m, "shovel")
 
 
 def galaxy_axe():
-    """은하수 도끼: a crescent-moon head of space crystal (its round back is the edge, in silver-lilac; its horns reach
-    back towards the handle), joined by a silver bar; a silver poll with a gold star behind."""
+    """은하수 도끼: a big crescent-moon head of space crystal: its round back is the edge (lilac), its horns reach back
+    round the shaft; a silver bar joins it to a silver socket, a silver poll with a gold star behind."""
     m = MModel("galaxy_axe")
     handle(m)
     shaft(m, 21.5)
     m.group("head")
     round_y(m, "shaft_cap", 6.5, 9.5, 6.5, 9.5, 21.5, 22.5, SILVER, 0.75)
     m.box("socket", (6.5, 15.25, 6.5), (9.5, 20.25, 9.5), SILVER)
-    m.box("bar", (3.5, 16.25, 7.25), (6.5, 19.25, 8.75), SILVER_DARK)
+    m.box("bar", (3.25, 16.25, 7.25), (6.5, 19.25, 8.75), SILVER_DARK)
     m.box("poll", (9.5, 16, 6.75), (11.25, 19.5, 9.25), SILVER)
     stud(m, 10.4, 17.75, 6.5, 9.5, 0.9)
-    m.box("edge", (-0.75, 14, 7.5), (0.75, 21.5, 8.5), EDGE)
-    m.box("moon", (0.75, 12.5, 7), (2.5, 23, 9), SPACE_PLAIN)
-    m.box("moon", (2.5, 11.25, 7), (4, 15, 9), SPACE)
-    m.box("moon", (2.5, 20.5, 7), (4, 24.25, 9), SPACE)
-    m.box("moon", (2.5, 15, 7), (3.5, 20.5, 9), SPACE)
-    m.box("moon", (4, 10.5, 7.25), (5.5, 12.75, 8.75), SPACE)
-    m.box("moon", (4, 22.75, 7.25), (5.5, 25, 8.75), SPACE)
-    m.box("horn", (5.5, 10.25, 7.5), (6.5, 11.5, 8.5), EDGE)
-    m.box("horn", (5.5, 24, 7.5), (6.5, 25.25, 8.5), EDGE)
-    m.box("edge", (0, 12.75, 7.5), (0.75, 14, 8.5), EDGE)
-    m.box("edge", (0, 21.5, 7.5), (0.75, 22.75, 8.5), EDGE)
-    m.box("edge", (0.75, 11.75, 7.5), (2.5, 12.5, 8.5), EDGE)
-    m.box("edge", (0.75, 23, 7.5), (2.5, 23.75, 8.5), EDGE)
-    stud(m, 1.6, 17.75, 6.75, 9.25, 0.9, STAR_WHITE)
+    # the crescent: columns from its edge (-x) back towards the handle, symmetric about y = 17.75
+    mid = 17.75
+
+    def pair(x0, x1, lo, hi, z0, z1, mat, name="moon"):
+        """a column from mid - hi to mid - lo and its mirror (lo = 0: one column through the middle)"""
+        if lo == 0:
+            m.box(name, (x0, mid - hi, z0), (x1, mid + hi, z1), mat)
+        else:
+            m.box(name, (x0, mid - hi, z0), (x1, mid - lo, z1), mat)
+            m.box(name, (x0, mid + lo, z0), (x1, mid + hi, z1), mat)
+    pair(-1, 0.5, 0, 4.25, 7.5, 8.5, EDGE, "edge")
+    pair(-0.25, 0.5, 4.25, 5.75, 7.5, 8.5, EDGE, "edge")
+    pair(0.5, 2.25, 0, 6.25, 7, 9, SPACE_PLAIN)
+    pair(0.5, 2.25, 6.25, 7, 7.5, 8.5, EDGE, "edge")
+    pair(2.25, 3.25, 0, 3.75, 7, 9, SPACE)
+    pair(2.25, 3.75, 3.75, 7.75, 7, 9, SPACE)
+    pair(2.25, 3.75, 7.75, 8.5, 7.5, 8.5, EDGE, "edge")
+    pair(3.75, 5.25, 6, 8.5, 7.25, 8.75, SPACE)
+    pair(5.25, 6.25, 7, 8.75, 7.5, 8.5, EDGE, "horn")
+    stud(m, 1.4, mid, 6.75, 9.25, 1.0, STAR_WHITE)
     return _held(m, "axe")
 
 
@@ -336,10 +353,10 @@ def galaxy_hoe():
     its end (across the handle, like a real hoe's), lilac along its edge, a constellation on its outer face."""
     m = MModel("galaxy_hoe")
     handle(m)
-    shaft(m, 18.5)
+    shaft(m, 18)
     m.group("head")
-    m.box("bar", (2.25, 19.5, 7), (6, 21.5, 9), SILVER)
-    planet(m, 8.25, 20.75, 8, 5, 2.25)
+    m.box("bar", (2.25, 19.75, 7), (5.5, 21.75, 9), SILVER)
+    planet(m, 8.25, 21, 8, 6, 2.25)
     m.box("plate", (0.25, 14.75, 5), (2.5, 22.75, 11), SPACE_PLATE)
     m.box("plate_edge", (0.5, 13.75, 5.25), (2.25, 14.75, 10.75), EDGE)
     m.box("plate_cap", (0, 22.75, 5.5), (2.75, 23.5, 10.5), SILVER)
@@ -359,7 +376,7 @@ def _rod(name, cast):
     m.group("rod")
     round_y(m, "rod", 6.875, 9.125, 6.875, 9.125, 6.5, 14, SILVER, 0.5)
     m.box("rod", (7.125, 14, 7.125), (8.875, 23, 8.875), SILVER_LIGHT)
-    m.box("rod", (7.375, 23, 7.375), (8.625, 28.75, 8.625), SILVER_LIGHT)
+    m.box("rod", (7.375, 23, 7.375), (8.625, 28, 8.625), SILVER_LIGHT)
     # star guides: a gold four-point star round the rod at each joint
     for y, s in ((14, 1.9), (23, 1.6)):
         m.box("star_ring", (C - s, y - 0.35, 7.5), (C + s, y + 0.35, 8.5), GOLD)
@@ -368,17 +385,17 @@ def _rod(name, cast):
     for y in (18.5, 26):
         m.box("guide", (8.875, y - 0.75, 7.75), (10, y + 0.75, 8.25), GOLD)
         m.box("guide", (9.25, y - 0.25, 7.5), (10.5, y + 0.25, 8.5), STAR)
-    # the crescent moon at the tip, horns up
+    # the crescent moon at the tip: a C open towards +x (where the line hangs), a star in its hollow
     m.group("tip")
-    m.box("moon", (6.75, 28.5, 7.25), (9.25, 29.75, 8.75), MOON)
-    m.box("moon", (6, 29.25, 7.375), (7, 31, 8.625), MOON)
-    m.box("moon", (9, 29.25, 7.375), (10, 31, 8.625), MOON)
-    m.box("moon", (5.75, 31, 7.5), (6.75, 32, 8.5), MOON_DARK)
-    m.box("moon", (9.25, 31, 7.5), (10.25, 32, 8.5), MOON_DARK)
-    m.box("tip_star", (7.5, 29.75, 7.5), (8.5, 30.75, 8.5), STAR)
+    m.box("moon", (5.75, 28.75, 7.25), (7, 31, 8.75), MOON)
+    m.box("moon", (6.5, 27.75, 7.375), (8.75, 28.75, 8.625), MOON)
+    m.box("moon", (6.5, 31, 7.375), (8.75, 32, 8.625), MOON)
+    m.box("moon", (8.75, 27.75, 7.5), (9.75, 28.5, 8.5), MOON_DARK)
+    m.box("moon", (8.75, 31.25, 7.5), (9.75, 32, 8.5), MOON_DARK)
+    m.box("tip_star", (8.25, 29.5, 7.6), (9.25, 30.25, 8.4), STAR)
     if not cast:
         m.group("line")
-        top = (8.5, 29.5, C)
+        top = (8.75, 29.75, C)
         rot = ("z", 45, top)
         m.box("line", (8.25, 18.5, 7.75), (8.75, 29.5, 8.25), LINE, rotation=rot)
         # the float: a tiny ringed planet
@@ -411,20 +428,17 @@ def galaxy_bobber():
     m = MModel("galaxy_bobber")
     m.group("float")
     m.box("weight", (7, 0, 7), (9, 1, 9), SILVER_DARK)
-    round_y(m, "planet", 5, 11, 5, 11, 1, 2, PLANET, 1.5)
-    round_y(m, "planet", 4.5, 11.5, 4.5, 11.5, 2, 4, PLANET, 1.75)
-    round_y(m, "planet_band", 4.4, 11.6, 4.4, 11.6, 4, 5, PLANET_BAND, 1.75)
-    round_y(m, "planet", 4.5, 11.5, 4.5, 11.5, 5, 7, PLANET, 1.75)
-    round_y(m, "planet", 5, 11, 5, 11, 7, 8, PLANET, 1.5)
-    round_y(m, "planet", 6, 10, 6, 10, 8, 8.5, PLANET, 1)
+    disc(m, "planet", "y", (C, C), 4, 1, 2, PLANET)
+    disc(m, "planet", "y", (C, C), 6, 2, 3, PLANET)
+    disc(m, "planet", "y", (C, C), 7, 3, 4, PLANET)
+    disc(m, "planet_band", "y", (C, C), 7.2, 4, 5, PLANET_BAND)
+    disc(m, "planet", "y", (C, C), 7, 5, 6, PLANET)
+    disc(m, "planet", "y", (C, C), 6, 6, 7.25, PLANET)
+    disc(m, "planet", "y", (C, C), 4, 7.25, 8.25, PLANET)
     m.group("ring")
-    w = 2.0
-    m.box("ring", (4.5 - w, 4.25, 4.5 - w), (4.5, 4.75, 11.5 + w), RING)
-    m.box("ring", (11.5, 4.25, 4.5 - w), (11.5 + w, 4.75, 11.5 + w), RING)
-    m.box("ring", (4.5, 4.25, 4.5 - w), (11.5, 4.75, 4.5), RING)
-    m.box("ring", (4.5, 4.25, 11.5), (11.5, 4.75, 11.5 + w), RING)
+    disc(m, "ring", "y", (C, C), 12, 4.25, 4.75, RING)
     m.group("star")
-    m.box("stem", (7.5, 8.5, 7.5), (8.5, 9.25, 8.5), SILVER)
+    m.box("stem", (7.5, 8.25, 7.5), (8.5, 9.25, 8.5), SILVER)
     m.box("star", (7.5, 9.25, 7.5), (8.5, 11.75, 8.5), STAR)
     m.box("star", (6.75, 10, 7.5), (9.25, 11, 8.5), STAR)
     m.box("star", (7.5, 10, 6.75), (8.5, 11, 9.25), STAR)
