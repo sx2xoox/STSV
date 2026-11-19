@@ -1,0 +1,113 @@
+# 마을버스 (README "마을버스", docs/plans/마을버스_승객운송_기획안.md)
+# 국도 위 정류장에서 주민 손님(마네킹)을 태워 다른 정류장에 내려 주면 운임을 받음.
+
+# 버스로 치는 탈것 (코어 아이템 키)
+vehicles: [stsv:village_bus]
+
+fare:
+  base: 100            # 운임 = base + 도로 거리(블록) × per-block, 손님 종류 · 기분 배수
+  per-block: 0.4
+  # 정해진 시간 = 도로 거리 ÷ on-time-speed + on-time-grace 초. 그 안에 내려 주면 팁 (운임 × tip)
+  on-time-speed: 6
+  on-time-grace: 30
+  tip: 0.15
+  # 기분 배수: 기분이 이 값 이상이면 이 배수 (위에서부터)
+  mood:
+    - {at: 90, factor: 1.2}
+    - {at: 70, factor: 1.0}
+    - {at: 40, factor: 0.8}
+    - {at: 0, factor: 0.5}
+  # 하루 받는 운임 곡선 (사람마다, 05시 초기화): 오늘 받은 운임이 upto 까지는 rate
+  daily:
+    - {upto: 100000, rate: 1.0}
+    - {upto: 200000, rate: 0.5}
+    - {upto: -1, rate: 0.2}
+  # 같은 두 정류장 사이를 repeat-window 분 안에 repeat-free 번 넘게 오가면 그 구간 손님 가중치 × repeat-factor
+  repeat-window: 30
+  repeat-free: 2
+  repeat-factor: 0.5
+
+mood:
+  start: 80
+  jolt: -5             # 급정거: jolt-from 블록/초 넘게 달리다 jolt-window 틱 안에 멈춤 (멀리서 천천히 세우면 괜찮음)
+  jolt-from: 6
+  jolt-window: 30
+  bump: -10            # 부딪힘
+  turn: -3             # 급회전 (turn-speed 블록/초 넘게 달리며 한 틱에 turn-degrees 도 넘게 꺾음)
+  turn-speed: 6
+  turn-degrees: 3
+  smooth-stop: 2       # 정류장에 부드럽게 섬
+  cooldown: 20         # 같은 감점은 이 틱 안에 한 번만
+
+stops:
+  waiting-max: 4       # 정류장마다 기다리는 손님 최대 (관리자 정류장은 설치할 때 크기)
+  refill-minutes: 3    # 손님 한 명이 새로 차오르는 데 걸리는 분 (시간대 배수로 나눔)
+  # 시간대 배수 (한국 시각, from 시 ~ to 시 전)
+  hours:
+    - {from: 7, to: 9, factor: 2.0}
+    - {from: 17, to: 19, factor: 2.0}
+    - {from: 1, to: 6, factor: 0.5}
+  show-range: 64       # 버스가 이만큼 안에 오면 손님이 정류장에 나타남
+  hide-after: 30       # 버스가 떠나고 이 초가 지나면 손님 정리
+  board-ticks: 10      # 한 명 타고 내리는 데 걸리는 틱 (할머니는 slow 배)
+  # 자동 정류장 (/관리자 정류장 자동): 국도 길 점을 따라
+  auto:
+    start-skip: 20     # 출발 터미널 출구 직진 구간
+    end-before: [40, 60]   # 하역장 입구 앞 이 사이 칸
+    every: 2000        # 그 사이 이만큼마다
+    apart: 150         # 다른 정류장과 이만큼은 떨어짐
+    junction-clear: 150   # 갈림길 앞뒤 금지 구간
+  bay:
+    length: 24         # 버스 베이 길이 (비탈 6 · 서는 곳 12 · 비탈 6)
+    width: 3           # 갓길 바깥으로 더 포장하는 폭
+    stop-reach: 7      # 베이 가운데에서 이만큼 안에 서야 문이 열림
+
+# 손님 종류: weight 비율, fare 운임 배수, mood 감점 배수, slow 타고 내리는 시간 배수,
+# far 먼 곳만 감(블록), tip-mood 이 기분 아래면 팁 없음, rush 출퇴근 시간 가중치 배수, late 늦으면 기분 감점(분당)
+# skins: 리소스팩 스킨 키 (economy 팩 assets/economy/textures/<키 경로>.png), slim 이면 팔 3픽셀 모델
+types:
+  resident:
+    name: 동네 주민
+    color: "#9fd36b"
+    weight: 50
+    skins: ["economy:entity/bus/resident_1", "economy:entity/bus/resident_2 slim", "economy:entity/bus/resident_3"]
+  student:
+    name: 학생
+    color: "#7cc4ff"
+    weight: 20
+    fare: 0.8
+    mood: 0.5
+    rush: 2.0
+    scale: 0.9
+    skins: ["economy:entity/bus/student_1", "economy:entity/bus/student_2 slim", "economy:entity/bus/student_3"]
+  grandma:
+    name: 할머니
+    color: "#e0a8ff"
+    weight: 10
+    slow: 2.0
+    jolt: 2.0
+    tip: 2.0
+    skins: ["economy:entity/bus/grandma_1 slim", "economy:entity/bus/grandma_2 slim", "economy:entity/bus/grandma_3 slim"]
+  office:
+    name: 회사원
+    color: "#c9d2dc"
+    weight: 15
+    fare: 1.2
+    late: 5
+    skins: ["economy:entity/bus/office_1", "economy:entity/bus/office_2 slim", "economy:entity/bus/office_3"]
+  tourist:
+    name: 관광객
+    color: "#ffd166"
+    weight: 4
+    fare: 1.5
+    far: 1500
+    skins: ["economy:entity/bus/tourist_1", "economy:entity/bus/tourist_2 slim", "economy:entity/bus/tourist_3"]
+  vip:
+    name: VIP
+    color: "#ffcf40"
+    weight: 1
+    fare: 3.0
+    far: 2500
+    tip-mood: 70
+    announce: true
+    skins: ["economy:entity/bus/vip_1", "economy:entity/bus/vip_2", "economy:entity/bus/vip_3 slim"]

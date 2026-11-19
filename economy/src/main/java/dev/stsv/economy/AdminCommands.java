@@ -25,6 +25,14 @@ final class AdminCommands {
 
     private AdminCommands() {}
 
+    private static int parseInt(String s, int def) {
+        try {
+            return Integer.parseInt(s);
+        } catch (NumberFormatException e) {
+            return def;
+        }
+    }
+
     private static void add(String name, String usage, String help, AdminRegistry.Handler h, AdminRegistry.Completer c) {
         STSVPlugin.get().admin().add(EcoPlugin.ADMIN_OWNER, name, usage, help, h, c);
     }
@@ -401,6 +409,44 @@ final class AdminCommands {
             }
         }, (s, args) -> args.length == 1 ? List.of("서버", "서버해제", "해제", "정보") : List.of());
 
+        add("정류장", "설치 <이름> [손님 최대] | 삭제 <이름> | 이름 <이름> <새 이름> | 목록 | 자동 | 손님 <이름> <수>",
+                "마을버스 정류장: 서 있는 곳에서 가장 가까운 국도 점에 버스 베이·대기소·표지판을 지음 (서 있는 쪽) / 지은 블록을 되돌리며 삭제 / 이름 바꾸기 / 목록 / 이 월드의 국도를 따라 자동으로 (터미널 출구 뒤, 하역장 앞, 그 사이 2천 칸마다) / 기다리는 손님 수 (테스트)",
+                (s, args) -> {
+                    var bus = eco.bus();
+                    String sub = args.length > 0 ? args[0] : "";
+                    String name = args.length > 1 ? args[1] : null;
+                    switch (sub) {
+                        case "설치" -> {
+                            if (!(s instanceof org.bukkit.entity.Player p) || name == null) {
+                                s.sendMessage(Text.msg("<red>게임 안에서: /관리자 정류장 설치 <이름> [손님 최대]"));
+                                return;
+                            }
+                            int size = args.length > 2 ? parseInt(args[2], bus.spec().stops().waitingMax()) : bus.spec().stops().waitingMax();
+                            s.sendMessage(Text.msg(bus.install(p.getLocation(), name, Math.clamp(size, 1, 8))));
+                        }
+                        case "삭제" -> s.sendMessage(Text.msg(name == null ? "<red>/관리자 정류장 삭제 <이름>" : bus.remove(name)));
+                        case "이름" -> s.sendMessage(Text.msg(args.length < 3 ? "<red>/관리자 정류장 이름 <이름> <새 이름>" : bus.rename(name, args[2])));
+                        case "자동" -> {
+                            if (!(s instanceof org.bukkit.entity.Player p)) {
+                                s.sendMessage(Text.msg("<red>게임 안에서 그 월드에 서서 쓰세요"));
+                                return;
+                            }
+                            s.sendMessage(Text.msg(bus.autoPlace(p.getWorld())));
+                        }
+                        case "손님" -> s.sendMessage(Text.msg(args.length < 3 ? "<red>/관리자 정류장 손님 <이름> <수>" : bus.addWaiting(name, parseInt(args[2], 0))));
+                        case "목록" -> {
+                            var lines = bus.listLines(s instanceof org.bukkit.entity.Player p ? p.getLocation() : null);
+                            s.sendMessage(Text.msg("<green>정류장 " + lines.size() + "곳"));
+                            lines.forEach(l -> s.sendMessage(Text.mm(l)));
+                        }
+                        default -> s.sendMessage(Text.msg("<red>/관리자 정류장 설치|삭제|이름|목록|자동|손님"));
+                    }
+                }, (s, args) -> {
+                    if (args.length == 1) return List.of("설치", "삭제", "이름", "목록", "자동", "손님");
+                    if (args.length == 2 && List.of("삭제", "이름", "손님").contains(args[0]))
+                        return eco.bus().stops().stream().map(dev.stsv.economy.bus.BusStop::name).filter(n -> n.startsWith(args[1])).toList();
+                    return List.of();
+                });
         add("수요고시", "", "이번 주 수요 고시를 지금 새로 뽑기", (s, args) -> {
             var picked = eco.shop().announceNotice(System.currentTimeMillis());
             s.sendMessage(Text.msg("<green>수요 고시: " + picked));

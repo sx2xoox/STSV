@@ -654,5 +654,8 @@ STSV 공통 플러그인 위에서 도는 첫 번째 콘텐츠: 시즌 없이 **
 ```bash
 cd economy && ./gradlew build        # ../plugin (코어)을 함께 빌드해서 컴파일
 python3 tools/assetgen/economy_build.py --render   # 아이콘, 기계 모델, 메뉴 배경 (저장소 루트에서)
+python3 tools/assetgen/economy_bus_skins.py --sheet 미리보기.png   # 마을버스 승객 스킨 18장
 ```
+
+마을버스 승객 스킨(64×64 플레이어 스킨, 안·겉 두 겹)은 `economy/content/economy/assets/economy/textures/entity/bus/<종류>_<1~3>.png` 에 있고, 키 `economy:entity/bus/<종류>_<n>` 로 마네킹 프로필의 스킨 패치(`skinPatch(...).body(키)`, 팔이 가는 것은 `.model(SLIM)`)에 씁니다. 종류는 resident(동네 주민) · student(학생) · grandma(할머니) · office(회사원) · tourist(관광객) · vip, 가는 팔은 resident_2 · student_2 · grandma_1~3 · office_2 · tourist_2 · vip_3 (생성기의 `Skin(slim=True)`).
 

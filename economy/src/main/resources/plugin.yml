@@ -42,6 +42,10 @@ commands:
     description: 장신구 칸·공방·효과
     aliases: [accessory]
     permission: stsv.economy.play
+  버스:
+    description: 마을버스 손님 목록 · 정류장
+    aliases: [bus]
+    permission: stsv.economy.play
   원격기계:
     description: 장신구 원격 기계 - 멀리서 내 기계 결과 받기
     aliases: [remotemachine]

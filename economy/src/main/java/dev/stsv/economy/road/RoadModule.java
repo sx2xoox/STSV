@@ -518,6 +518,22 @@ public final class RoadModule extends EcoModule {
         if (!avoid.isEmpty()) eco.getLogger().info("[국도] 피할 구역(roads.avoid) " + avoid.size() + "곳");
     }
 
+    /** The 국도 built in this world (finished or as far as built), for the 마을버스's stops and fares ({@code bus/BusRoutes}). */
+    public List<RoadNetwork.Road> builtRoads(String world) {
+        List<RoadNetwork.Road> r = saved().built(null).get(world);
+        return r == null ? List.of() : r;
+    }
+
+    /** Why nothing may be built at this block column (a player's land, the server's, a roads.avoid box), or null. */
+    public RoadGuard.Why guardAt(String world, int x, int z) {
+        return guardBase == null ? null : guardBase.column(world, x, z);
+    }
+
+    /** The block the 국도's lanes are paved with. */
+    public org.bukkit.Material surfaceBlock() {
+        return settings.style().surface();
+    }
+
     /** Is this block column in a roads.avoid box (a protected build without land: no vehicle is placed there either)? */
     public boolean protectedBox(String world, int x, int z) {
         for (RoadGuard.Box b : guardBase.avoid()) if (b.contains(world, x, z)) return true;
