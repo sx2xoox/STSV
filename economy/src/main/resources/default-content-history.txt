@@ -1,5 +1,6 @@
 1ab75b18de4605a262db26661607f03c60bb102a economy/accessories.yml
 4d2182bff7ff4f998c20ed2248aa4a221770c9b9 economy/accessories.yml
+62bc825dc965512ea7a451829c74e75f10dec04c economy/accessories.yml
 ca19c449934980258756b1af97628d041a6f4085 economy/accessories.yml
 13113650b31b402afb0e321084d9d1e85f19988f economy/achievements/codex.yml
 3cd95af77cfead82524d94c09841a03ab1271294 economy/achievements/codex.yml
