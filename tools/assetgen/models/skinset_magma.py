@@ -27,6 +27,10 @@ from models.toys import C, GRIP_Y, SIZES, _arm, _held, round_y  # noqa: F401  (G
 S = 16
 
 
+# volcanic glass: near black with a violet sheen (darker and less blue than the palette's "obsidian" metal)
+OBSIDIAN = [(16, 11, 24, 255), (27, 18, 38, 255), (41, 27, 57, 255), (61, 41, 82, 255), (88, 62, 112, 255)]
+
+
 class LavaRock(Mat):
     """Obsidian painted per face at the face's size: a dark violet speckle with a 1 px bevel, split by one or two
     jagged crack lines of bright lava (orange with yellow-hot pixels) along the face's longer side."""
@@ -52,7 +56,7 @@ class LavaRock(Mat):
                         g = b + 1
                     if (y == ph - 1 and ph > 1) or (x == pw - 1 and pw > 1):
                         g = b - 1
-                grid[y][x] = max(0, min(3, g))
+                grid[y][x] = max(0, min(len(OBSIDIAN) - 1, g))
         hot = {}
         if self.cracks and min(pw, ph) >= 3 and max(pw, ph) >= 5:
             vertical = ph >= pw
@@ -76,7 +80,7 @@ class LavaRock(Mat):
         px = im.load()
         for y in range(S):
             for x in range(S):
-                px[x, y] = ramp("fire", hot[(x, y)]) if (x, y) in hot else ramp("obsidian", grid[y][x])
+                px[x, y] = ramp("fire", hot[(x, y)]) if (x, y) in hot else OBSIDIAN[grid[y][x]]
         key = "lava_" + format(zlib.crc32(im.tobytes()), "08x")
         if key not in T.SURFACES:
             T.SURFACES[key] = (lambda img=im: img.copy())
@@ -86,10 +90,10 @@ class LavaRock(Mat):
 ROCK = LavaRock(1)                                   # the cracked obsidian of the blades and heads
 ROCK_PLAIN = LavaRock(1, cracks=False)               # small rock parts (tips, horns)
 ROCK_LIGHT = LavaRock(2, cracks=False)
-LAVA = Mat("fire", "plain", 4, bevel=(1, -1), noise=0, glow=True)        # the molten core: yellow-orange
-LAVA_DEEP = Mat("fire", "plain", 3, bevel=(1, -1), noise=0, glow=True)   # orange
-EMBER = Mat("fire", "plain", 2, bevel=(0, -1), noise=0, glow=True)       # hot edges: ember orange-red
-EMBER_RED = Mat("fire", "plain", 1, bevel=None, noise=0, glow=True)      # the cooling red rim
+LAVA = Mat("fire", "plain", 4, bevel=(1, -1), noise=0, glow=True)        # the molten core: yellow-hot
+LAVA_DEEP = Mat("fire", "plain", 3, bevel=(1, -1), noise=0, glow=True)   # flowing lava: orange
+EMBER = Mat("signal_red", "plain", 1, bevel=None, noise=0, glow=True)    # hot edges: ember orange-red
+EMBER_RED = Mat("signal_red", "plain", 0, bevel=None, noise=0, glow=True)   # the cooling red rim
 IRON = Mat("iron", "metal", 2, bevel=(1, -1), noise=0)
 IRON_DARK = Mat("iron", "metal", 1, bevel=(1, -1), noise=0)
 IRON_BAND = Mat("blacksteel", "metal", 3, bevel=(1, -1), noise=0)
@@ -137,9 +141,15 @@ def drip(m, x, y, z=C, big=True):
 # The tools
 # ================================================================================================
 
+def fissure(m, segs, z0, z1, mat=None):
+    """A zigzag lava crack: segments (x0, x1, y0, y1), each a little off the last, glowing through the rock."""
+    for x0, x1, y0, y1 in segs:
+        m.box("fissure", (x0, y0, z0), (x1, y1, z1), mat or LAVA_DEEP)
+
+
 def magma_sword():
-    """용암 검: a cracked obsidian blade with a molten fissure down its middle and ember edges, an iron guard whose ends
-    curl up into horns, a molten gem in the guard and a drip hanging under it."""
+    """용암 검: a tapering, stepped obsidian blade split by a zigzag lava crack, its edges glowing ember red; an iron guard
+    whose ends rise into obsidian horns, a molten gem in the guard and drips hanging under it."""
     m = MModel("magma_sword")
     handle(m)
     m.group("guard")
@@ -157,15 +167,17 @@ def magma_sword():
     drip(m, 5, 6.5)
     drip(m, 11.25, 6.5, big=False)
     m.group("blade")
-    m.box("blade", (5.25, 9.25, 7), (10.75, 23.5, 9), ROCK)
-    # ember edges, notched like knapped glass
-    for x0, x1 in ((4.5, 5.25), (10.75, 11.5)):
-        m.box("edge", (x0, 9.75, 7.5), (x1, 15, 8.5), EMBER)
-        m.box("edge", (x0, 15.75, 7.5), (x1, 22.75, 8.5), EMBER)
-    m.box("fissure", (7.375, 10.25, 6.8), (8.625, 22, 9.2), LAVA)
-    m.box("blade_tip", (6.25, 23.5, 7), (9.75, 25, 9), ROCK_PLAIN)
-    m.box("blade_tip", (7, 25, 7.25), (9, 26.25, 8.75), ROCK_PLAIN)
-    m.box("blade_tip", (7.5, 26.25, 7.5), (8.5, 27, 8.5), EMBER)
+    # stepped rows, narrowing to the point: (y0, y1, half width)
+    rows = ((9.25, 14, 3.0), (14, 18.5, 2.75), (18.5, 22, 2.5), (22, 24.5, 2.0))
+    for y0, y1, hw in rows:
+        m.box("blade", (C - hw, y0, 7), (C + hw, y1, 9), ROCK)
+        m.box("edge", (C - hw - 0.5, y0 + 0.25, 7.5), (C - hw, y1 - 0.25, 8.5), EMBER_RED)
+        m.box("edge", (C + hw, y0 + 0.25, 7.5), (C + hw + 0.5, y1 - 0.25, 8.5), EMBER_RED)
+    m.box("blade_tip", (6.75, 24.5, 7.125), (9.25, 26, 8.875), ROCK)
+    m.box("blade_tip", (7.25, 26, 7.375), (8.75, 27, 8.625), ROCK_PLAIN)
+    m.box("blade_tip", (7.625, 27, 7.625), (8.375, 27.75, 8.375), EMBER)
+    fissure(m, ((7.5, 8.5, 9.25, 12.5), (7, 8, 12.5, 15.5), (7.75, 8.75, 15.5, 19), (7.25, 8.25, 19, 22), (7.75, 8.5, 22, 24.5)), 6.85, 9.15)
+    m.box("fissure_hot", (7.625, 9.25, 6.8), (8.375, 11, 9.2), LAVA)
     return _held(m, "sword")
 
 
@@ -207,11 +219,15 @@ def magma_shovel():
     rows = ((17.5, 18.5, 3.75), (18.5, 23.5, 4.5), (23.5, 25.5, 3.75), (25.5, 27, 2.75))
     for y0, y1, hw in rows:
         m.box("blade", (C - hw, y0, 7), (C + hw, y1, 9), ROCK)
-    m.box("edge", (C - 4.5 - 0.5, 18.5, 7.5), (C - 4.5, 23.5, 8.5), EMBER)
-    m.box("edge", (C + 4.5, 18.5, 7.5), (C + 4.5 + 0.5, 23.5, 8.5), EMBER)
-    m.box("point", (6.5, 27, 7.25), (9.5, 28.25, 8.75), EMBER)
-    m.box("point", (7.25, 28.25, 7.5), (8.75, 29, 8.5), LAVA)
-    m.box("seam", (7.5, 18.5, 6.8), (8.5, 25.5, 9.2), LAVA)
+    m.box("point", (6.5, 27, 7.25), (9.5, 28.25, 8.75), ROCK_PLAIN)
+    m.box("point", (7.25, 28.25, 7.5), (8.75, 29, 8.5), EMBER)
+    for side in (1, -1):        # the cutting rim round the point glows
+        lo, hi = sorted((C + side * 2.75, C + side * 3.25))
+        m.box("rim", (lo, 25.5, 7.5), (hi, 27, 8.5), EMBER_RED)
+        lo, hi = sorted((C + side * 3.75, C + side * 4.25))
+        m.box("rim", (lo, 23.5, 7.5), (hi, 25.5, 8.5), EMBER_RED)
+    fissure(m, ((7.5, 8.5, 18, 20.5), (6.75, 7.75, 20.5, 23), (7.5, 8.5, 23, 25.5), (8, 8.75, 25.5, 27)), 6.85, 9.15)
+    m.box("crack", (8.5, 21.25, 6.85), (10.5, 22, 9.15), LAVA_DEEP)
     return _held(m, "shovel")
 
 

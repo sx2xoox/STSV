@@ -34,7 +34,7 @@ def _hex(h):
 
 ICE_RAMP = [_hex(h) for h in ("#173a80", "#2259ad", "#367fd2", "#5eaee9", "#90d5f6", "#c6effc", "#ffffff")]
 FROST_RAMP = [_hex(h) for h in ("#6c83a2", "#8fa6c0", "#b6c9da", "#d8e5ef", "#f2f8fc", "#ffffff")]
-LEATHER_RAMP = [_hex(h) for h in ("#7d92aa", "#9cb2c7", "#bccfde", "#d9e7f1")]
+LEATHER_RAMP = [_hex(h) for h in ("#93a9c1", "#b3c8da", "#d2e2ee", "#eef6fb")]
 FUR_RAMP = [_hex(h) for h in ("#b7c5d3", "#d2dde8", "#eaf2f8", "#ffffff")]
 
 SIDE_SHADE = {"north": 0, "south": 0, "up": 1, "down": -1, "east": -1, "west": 0}
@@ -160,18 +160,17 @@ FLAKE = ("....#....",
 
 
 def _emblem():
-    im = Image.new("RGBA", (16, 16), ICE_RAMP[1])
+    """A deep blue snowflake on a pale ice plate, a darker line along its bottom and right."""
+    im = Image.new("RGBA", (16, 16), ICE_RAMP[5])
     px = im.load()
     for y, row in enumerate(FLAKE):
         for x, ch in enumerate(row):
-            if ch == "#":
-                px[x, y] = ICE_RAMP[6] if (x == 4 or y == 4) else ICE_RAMP[5]
-            elif x == 8 or y == 8:
-                px[x, y] = ICE_RAMP[0]
-            elif x == 0 or y == 0:
+            if x == 8 or y == 8:
                 px[x, y] = ICE_RAMP[3]
+            elif ch == "#":
+                px[x, y] = ICE_RAMP[0] if (x == 4 and y == 4) else ICE_RAMP[1] if (x == 4 or y == 4) else ICE_RAMP[2]
             else:
-                px[x, y] = ICE_RAMP[1]
+                px[x, y] = ICE_RAMP[6] if (x == 0 or y == 0) else ICE_RAMP[5]
     return im
 
 
@@ -206,8 +205,7 @@ def handle(m):
     round_y(m, "pommel", 6.75, 9.25, 6.75, 9.25, -4, -2.5, ICE, 0.5)
     round_y(m, "pommel_cap", 6.25, 9.75, 6.25, 9.75, -2.5, -1.25, FROST, 0.75)
     round_y(m, "grip", 6.75, 9.25, 6.75, 9.25, -1.25, 4.5, LEATHER, 0.5)
-    for y in (0.75, 2.75):
-        m.box("grip_band", (6.5, y, 6.5), (9.5, y + 0.5, 9.5), FROST_DIM)
+    m.box("grip_band", (6.5, 1.5, 6.5), (9.5, 2, 9.5), FROST)
     round_y(m, "cuff", 6.25, 9.75, 6.25, 9.75, 4.5, 5.5, FUR, 0.75)
     round_y(m, "collar", 6.25, 9.75, 6.25, 9.75, 5.5, 6.5, FROST, 0.75)
     # the snowflake's points: out along x and z, an ice bead at each end
@@ -219,7 +217,7 @@ def handle(m):
     m.box("collar_bead", (11.25, 5.5, 7.25), (12, 6.5, 8.75), ICE_LIGHT)
 
 
-def shaft(m, top, mat=FROST_DIM):
+def shaft(m, top, mat=FROST):
     m.group("shaft")
     round_y(m, "shaft", 6.875, 9.125, 6.875, 9.125, 6.5, top, mat, 0.5)
 
