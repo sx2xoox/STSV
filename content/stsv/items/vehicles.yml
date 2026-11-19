@@ -706,7 +706,7 @@ muscle_car:
       - { at: [0, 0.53, -2.38], back: true, width: 0.45, height: 0.12 }
     horn: { sound: stsv:vehicle.sports_car.horn, release: stsv:vehicle.sports_car.horn_end, volume: 1.5,
             vanilla: block.note_block.didgeridoo, pitch: 1.0, times: 1 }
-    engine: { sound: stsv:vehicle.sports_car.engine, volume: 0.6, idle-volume: 0.26, idle-pitch: 0.45, top-pitch: 1.7, segment-ticks: 10 }
+    engine: { sound: stsv:vehicle.sports_car.engine, volume: 0.6, idle-volume: 0.26, idle-pitch: 0.5, top-pitch: 1.7, segment-ticks: 10 }
 
 # 후원 · 콘셉트 EV: 매끈한 조약돌 모양의 4인승 전기 콘셉트카. 앞뒤 끝까지 이어진 빛 띠, 통유리 캐노피, 위로 열리는 걸윙 도어
 concept_ev:
