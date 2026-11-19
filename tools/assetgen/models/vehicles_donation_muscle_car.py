@@ -293,7 +293,7 @@ def muscle_kit(colour="fox", stripe="rubber", trim="rubber", name="muscle_car"):
         if c.nu <= 1 or c.nv <= 1:
             return raw(C, 2)
         if z > back - 2.5 or z >= 17:
-            return raw(C, 2.4 if y < ROOF - 1 else 3)                   # the sail: painted, falling with the fastback
+            return raw(C, 2 if y < ROOF - 1 else 3)                   # the sail: painted, falling with the fastback
         if z < front + 1 or y > ROOF - 1 or y < BELT + 0.6 or z >= 16:
             return raw("blade", 4)                                      # bright frames round the glass
         if D1 - 1 <= z < D1 + 0.5:
@@ -305,7 +305,6 @@ def muscle_kit(colour="fox", stripe="rubber", trim="rubber", name="muscle_car"):
     wp = Paint("glass", 2, noise=0, light=False, decal=side_window)
     for s in (1, -1):
         xa, xb = sorted((CAB * s, (CAB - 0.5) * s))
-        m.box("side_window", (xa, BELT, ZS), (xb, ROOF, D0), wp)
         door[s].box("side_window", (xa, BELT, D0), (xb, ROOF, D1), wp)
         m.box("side_window", (xa, BELT, D1), (xb, ROOF, ZB), wp)
 
