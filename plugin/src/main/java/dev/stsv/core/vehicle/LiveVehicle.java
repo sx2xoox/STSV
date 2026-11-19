@@ -130,6 +130,9 @@ final class LiveVehicle {
      * nothing (a race's countdown); boost: its top speed this many times as high (a race's boost, 1 = none).
      */
     boolean temporary;
+    /** a temporary vehicle its driver may get out of (a rented bus; a race's kart keeps them in) */
+    /** a temporary vehicle rented out (VehicleModule#letOutOfTemporary): its riders get out as from any, its renter gets back in */
+    boolean rental;
     boolean frozen;
     double boost = 1;
     long savedAt;

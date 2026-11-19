@@ -35,6 +35,15 @@ class BusTest {
     }
 
     @Test
+    void rentalKeepsTheShare() {
+        BusSpec.Rental r = spec().rental();
+        assertEquals("stsv:mini_bus", r.vehicle());
+        assertEquals(400, r.keep(1000));
+        assertEquals(60, r.returnAfter());
+        assertEquals(20, r.range());
+    }
+
+    @Test
     void noDailyCap() {
         BusSpec s = spec();
         // every fare paid in full however much was earned today

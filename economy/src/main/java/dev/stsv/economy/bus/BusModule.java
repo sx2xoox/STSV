@@ -168,9 +168,14 @@ public final class BusModule extends EcoModule {
         int line, dir = 1;
         long noLineAt = -1000, talkAt = -1000;
         String itemKey = "";
+        /** a bus rented from the server (/버스 렌트): the driver keeps only the rental's share of each fare */
+        boolean rented;
         Integer leftStop;
         final java.util.Set<Integer> rang = new java.util.HashSet<>();
     }
+
+    /** 버스 렌트: renter -> their rented bus (a temporary vehicle of the core) and since when they are out of it (0: in it) */
+    private final Map<UUID, long[]> rentals = new HashMap<>();
 
     /** stop id -> its traits (mountain, sea ...: worked out from around it, saved with the stops) */
     private final Map<Integer, java.util.Set<String>> stopTags = new HashMap<>();
@@ -209,6 +214,9 @@ public final class BusModule extends EcoModule {
         if (core != null && core.hud() != null) core.hud().removeOverlay("eco-bus");
         for (Run r : runs.values()) for (Rider x : r.riders) x.m.remove();
         runs.clear();
+        VehicleModule vm = core == null ? null : core.vehicles();
+        if (vm != null) for (long[] r : rentals.values()) vm.removeTemporary(r[0]);
+        rentals.clear();
         for (Shown s : shown.values()) for (Waiter w : s.waiters) w.m.remove();
         shown.clear();
     }
@@ -644,6 +652,7 @@ public final class BusModule extends EcoModule {
             run.seen = ticks;
             run.seats = d.seats() - 1;
             run.itemKey = d.itemKey();
+            run.rented = rentedId(d.id());
             feel(p, run, d);
             if (ticks % 5 == 0) atStops(p, run, d, vm);
         }
@@ -977,12 +986,19 @@ public final class BusModule extends EcoModule {
         double earned = was.length == 2 && was[0].equals(today) ? Double.parseDouble(was[1]) : 0;
         double total = base + tip;
         long paid = Math.round(spec.daily(earned, total));
+        long fee = 0;
+        if (run.rented) {   // 렌트 버스: the server takes its fee
+            long kept = spec.rental().keep(paid);
+            fee = paid - kept;
+            paid = kept;
+        }
         eco.kv().set(dayKey, today + ":" + (earned + paid));
         eco.kv().set("bus.riders." + p.getUniqueId(), eco.kv().getLong("bus.riders." + p.getUniqueId(), 0) + 1);
         if (paid > 0) core.economy().deposit(p.getUniqueId(), paid, "bus");
-        int rate = total <= 0 ? 100 : (int) Math.round(100.0 * paid / Math.round(total));
+        int rate = total <= 0 ? 100 : (int) Math.round(100.0 * (paid + fee) / Math.round(total));
         String tipText = tip > 0 ? Lang.raw("bus.fare-tip", "tip", Math.round(tip)) : onTime ? "" : Lang.raw("bus.fare-late");
         if (r.type.luggage() > 0) tipText += Lang.raw("bus.fare-luggage", "g", Math.round(r.type.luggage()));
+        if (fee > 0) tipText += Lang.raw("bus.fare-rental", "fee", String.format("%,d", fee));
         String curve = rate < 100 ? Lang.raw("bus.fare-curve", "rate", rate) : "";
         p.sendMessage(Lang.mm("bus.fare", "fare", String.format("%,d", paid), "type", typeTag(r.type), "mood", (int) Math.round(r.mood),
                 "tip", tipText, "curve", curve));
@@ -1018,11 +1034,120 @@ public final class BusModule extends EcoModule {
     }
 
     // ------------------------------------------------------------------------------------------
+    // 버스 렌트: the server's small bus lent at a stop, a fee off every fare, no time limit
+    // ------------------------------------------------------------------------------------------
+
+    private boolean rentedId(long id) {
+        for (long[] r : rentals.values()) if (r[0] == id) return true;
+        return false;
+    }
+
+    /** /버스 렌트: a server bus in the bay of the nearest stop (within the rental's range), the player at its wheel. */
+    public void rent(Player p) {
+        BusSpec.Rental rn = spec.rental();
+        VehicleModule vm = core.vehicles();
+        var item = rn.vehicle().isEmpty() || vm == null ? java.util.Optional.<dev.stsv.core.content.CustomItem>empty() : core.content().item(rn.vehicle());
+        if (item.isEmpty()) {
+            p.sendMessage(Lang.msg("bus.rent-off"));
+            return;
+        }
+        long[] had = rentals.get(p.getUniqueId());
+        if (had != null && vm.temporaryAlive(had[0])) {
+            p.sendMessage(Lang.msg(vm.drivesTemporary(had[0], p) ? "bus.rent-driving" : "bus.rent-have"));
+            return;
+        }
+        rentals.remove(p.getUniqueId());
+        if (p.isInsideVehicle()) {
+            p.sendMessage(Lang.msg("bus.rent-get-out"));
+            return;
+        }
+        BusStop near = null;
+        double best = rn.range();
+        for (BusStop s : stops.values()) {
+            if (!s.world().equals(p.getWorld().getName())) continue;
+            double dist = Math.hypot(p.getX() - s.x(), p.getZ() - s.z());
+            if (dist <= best) {
+                best = dist;
+                near = s;
+            }
+        }
+        if (near == null) {
+            p.sendMessage(Lang.msg("bus.rent-far", "range", rn.range()));
+            return;
+        }
+        // in the bay (a simple stop: its lane), facing the way traffic goes on its side (right-hand traffic)
+        double out = near.bay() ? BusStop.ROAD_HALF + spec.stops().bayWidth() / 2.0 : 2.5;
+        double[] at = near.at(0, out);
+        float yaw = (float) Math.toDegrees(Math.atan2(-near.hx() * near.side(), near.hz() * near.side()));
+        long id = vm.spawnTemporary(item.get(), p.getWorld(), at[0], near.top(), at[1], yaw, null, p);
+        if (id == 0) {
+            p.sendMessage(Lang.msg("bus.rent-failed"));
+            return;
+        }
+        vm.letOutOfTemporary(id);
+        rentals.put(p.getUniqueId(), new long[]{id, 0});
+        p.sendMessage(Lang.mm("bus.rent-ok", "stop", near.name(), "share", (int) Math.round(rn.share() * 100),
+                "fee", (int) Math.round((1 - rn.share()) * 100), "after", rn.returnAfter()));
+        p.playSound(p.getLocation(), Sound.BLOCK_NOTE_BLOCK_BIT, 1f, 1.6f);
+    }
+
+    /** /버스 반납: the rented bus goes back (not with passengers aboard: they get off first). */
+    public void giveBack(Player p) {
+        long[] r = rentals.get(p.getUniqueId());
+        VehicleModule vm = core.vehicles();
+        if (r == null || vm == null || !vm.temporaryAlive(r[0])) {
+            rentals.remove(p.getUniqueId());
+            p.sendMessage(Lang.msg("bus.rent-none"));
+            return;
+        }
+        Run run = runs.get(r[0]);
+        if (run != null && !run.riders.isEmpty()) {
+            p.sendMessage(Lang.msg("bus.rent-riders", "n", run.riders.size()));
+            return;
+        }
+        vm.removeTemporary(r[0]);
+        rentals.remove(p.getUniqueId());
+        p.sendMessage(Lang.msg("bus.rent-back"));
+    }
+
+    /** Every second: a rented bus whose renter left the game or has been out of it too long goes back. */
+    private void rentals() {
+        VehicleModule vm = core.vehicles();
+        if (vm == null || rentals.isEmpty()) return;
+        long now = System.currentTimeMillis();
+        for (Iterator<Map.Entry<UUID, long[]>> it = rentals.entrySet().iterator(); it.hasNext(); ) {
+            Map.Entry<UUID, long[]> e = it.next();
+            long[] r = e.getValue();
+            Player p = Bukkit.getPlayer(e.getKey());
+            if (!vm.temporaryAlive(r[0])) {   // its chunk unloaded, it fell out of the world ...
+                vm.removeTemporary(r[0]);
+                it.remove();
+                if (p != null) p.sendMessage(Lang.msg("bus.rent-back"));
+                continue;
+            }
+            if (p != null && vm.drivesTemporary(r[0], p)) {
+                r[1] = 0;
+                continue;
+            }
+            if (r[1] == 0) {
+                r[1] = now;
+                if (p != null) p.sendMessage(Lang.msg("bus.rent-left", "after", spec.rental().returnAfter()));
+            }
+            if (p == null || now - r[1] >= spec.rental().returnAfter() * 1000L) {
+                vm.removeTemporary(r[0]);
+                it.remove();
+                if (p != null) p.sendMessage(Lang.msg("bus.rent-back"));
+            }
+        }
+    }
+
+    // ------------------------------------------------------------------------------------------
     // Every second: waiting passengers, who is shown, the driver's screen
     // ------------------------------------------------------------------------------------------
 
     private void second() {
         long now = System.currentTimeMillis();
+        rentals();
         double minutes = (now - lastRefill) / 60000.0;
         lastRefill = now;
         int hour = ZonedDateTime.now(KST).getHour();

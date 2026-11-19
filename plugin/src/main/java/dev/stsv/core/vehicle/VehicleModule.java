@@ -1594,8 +1594,10 @@ public final class VehicleModule implements StsvModule, Listener {
                 // (특별 탈것 that hover, float or slide go their own way: FunView#step)
                 // (a temporary vehicle: a race's boost instead of the road's bonus, see spawnTemporary)
                 // (the driver's own bonus: the economy's 장신구 탈것 가속, never in a race)
+                // (a rented bus drives like an owned one: the road's bonus, no own bonus)
+                boolean race = v.temporary && !v.rental;
                 double own = v.temporary ? 0 : driverBonus(driver, "speed");
-                double bonus = v.temporary ? v.boost : roadBonus(v) * (1 + own), bonusCap = v.temporary ? cap * Math.max(1, v.boost) : cap * (1 + own);
+                double bonus = race ? v.boost : roadBonus(v) * (1 + own), bonusCap = race ? cap * Math.max(1, v.boost) : cap * (1 + own);
                 if (!funView.step(v, in, terrain, Math.min(cap, VehicleTools.speedCap(v)), bonus, feltLoad[0], feltLoad[1]))
                     VehiclePhysics.step(v.st, in, v.spec, terrain, Math.min(cap, VehicleTools.speedCap(v)), 1f, bonus,
                             bonusCap, feltLoad[0], feltLoad[1]);
@@ -1891,6 +1893,10 @@ public final class VehicleModule implements StsvModule, Listener {
         if (e.getHand() != EquipmentSlot.HAND) return;
         LiveVehicle v = live.get(id);
         Player p = e.getPlayer();
+        if (v != null && v.rental && !p.isSneaking() && !p.isInsideVehicle() && p.getUniqueId().equals(v.owner) && click(p)) {
+            seatTemporary(id, p);   // a rented bus: its renter gets back in at the wheel
+            return;
+        }
         if (v == null || v.temporary || busy.contains(id) || p.isInsideVehicle() || !click(p)) return;
         if (v.spec.pulled()) {
             cartClick(v, p, e.getRightClicked());
@@ -2050,7 +2056,7 @@ public final class VehicleModule implements StsvModule, Listener {
         Integer index = chair.getPersistentDataContainer().get(SEAT, PersistentDataType.INTEGER);
         if (id == null || index == null || ejecting.contains(chair.getUniqueId())) return;
         LiveVehicle v = live.get(id);
-        if (v != null && v.temporary && !e.getEntity().isDead() && e.isCancellable()) {
+        if (v != null && v.temporary && !v.rental && !e.getEntity().isDead() && e.isCancellable()) {
             e.setCancelled(true);   // a race's kart: its driver stays in (they leave by the race's own way out)
             return;
         }
@@ -3634,6 +3640,18 @@ public final class VehicleModule implements StsvModule, Listener {
     public Player temporaryDriver(long id) {
         LiveVehicle v = live.get(id);
         return v == null || !v.temporary ? null : v.rider(0);
+    }
+
+    /** Lets the riders of a temporary vehicle get out as from any (a rented bus): a race's kart keeps its driver in. */
+    public void letOutOfTemporary(long id) {
+        LiveVehicle v = live.get(id);
+        if (v != null && v.temporary) v.rental = true;
+    }
+
+    /** Whether this player sits at the wheel of this temporary vehicle. */
+    public boolean drivesTemporary(long id, Player p) {
+        LiveVehicle v = live.get(id);
+        return v != null && v.temporary && p != null && p.equals(v.rider(0));
     }
 
     /** frozen: the driver's keys do nothing (it stands still). */

@@ -6,6 +6,13 @@
 vehicles: [stsv:mini_bus, stsv:village_bus, stsv:limousine_bus]
 # 버스 종류별 규칙 (없는 버스는 모든 손님): min-road 이 도로 거리(블록) 넘는 손님만, only 이 손님 종류만, fare 운임 배수
 buses: {}
+# 버스 렌트 (/버스 렌트): 정류장 근처에서 서버의 소형 버스를 빌림 · 운임의 share 만 기사 몫 (나머지는 수수료)
+# 시간 제한 없음 · /버스 반납 또는 내린 뒤 return-after 초가 지나면 반납
+rental:
+  vehicle: stsv:mini_bus
+  share: 0.4
+  return-after: 60
+  range: 20
 
 fare:
   base: 80             # 운임 = base + 도로 거리(블록) × per-block, 손님 종류 · 기분 배수

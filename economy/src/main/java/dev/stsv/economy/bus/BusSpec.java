@@ -9,7 +9,18 @@ import java.util.Map;
 import java.util.Set;
 
 /** bus.yml: fares, moods, stops and passenger types of the 마을버스 (README "마을버스"). Pure (unit-tested). */
-public record BusSpec(Set<String> vehicles, Fare fare, Mood mood, Stops stops, Map<String, Type> types, Extra extra) {
+public record BusSpec(Set<String> vehicles, Fare fare, Mood mood, Stops stops, Map<String, Type> types, Extra extra, Rental rental) {
+
+    /**
+     * 버스 렌트 (for beginners): the server's bus of this kind lent at a stop within `range` blocks; the driver keeps `share`
+     * of every fare (no time limit); it goes back `returnAfter` seconds after its driver got out (or by /버스 반납).
+     */
+    public record Rental(String vehicle, double share, int returnAfter, int range) {
+        /** What the driver keeps of a fare (paid in whole G). */
+        public long keep(long fare) {
+            return Math.round(fare * share);
+        }
+    }
 
     /** One kind of bus's rules: passengers only from this road distance on, only these kinds (empty: all), a fare factor. */
     public record Bus(double minRoad, Set<String> only, double fare) {
@@ -129,7 +140,12 @@ public record BusSpec(Set<String> vehicles, Fare fare, Mood mood, Stops stops, M
             if (!tagNames.containsKey(k)) problems.add("types." + t.id() + ".tags: 없는 특성 " + k);
         }
         for (Bus bus : buses.values()) for (String k : bus.only()) if (!types.containsKey(k)) problems.add("buses: 없는 손님 종류 " + k);
-        return new BusSpec(Set.copyOf(c.getStringList("vehicles")), fare, mood, stops, types, extra);
+        ConfigurationSection rn = section(c, "rental");
+        Rental rental = new Rental(rn.getString("vehicle", ""), Math.clamp(rn.getDouble("share", 0.4), 0, 1),
+                Math.max(5, rn.getInt("return-after", 60)), Math.max(4, rn.getInt("range", 20)));
+        Set<String> vehicles = Set.copyOf(c.getStringList("vehicles"));
+        if (!rental.vehicle().isEmpty() && !vehicles.contains(rental.vehicle())) problems.add("rental.vehicle 이 vehicles 에 없음: " + rental.vehicle());
+        return new BusSpec(vehicles, fare, mood, stops, types, extra, rental);
     }
 
     private static Map<String, List<String>> talk(ConfigurationSection t) {
