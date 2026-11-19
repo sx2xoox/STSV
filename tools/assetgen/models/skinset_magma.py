@@ -267,20 +267,25 @@ def magma_axe():
 
 
 def magma_hoe():
-    """용암 괭이: an iron bar across the haft's top, an obsidian plate hanging from its end with a glowing lava edge and
-    a vein on its outer face, a horn on the bar's other end."""
+    """용암 괭이: the vanilla hoe's L: a straight cracked obsidian head standing out to one side (-x) from an iron socket on
+    the haft's top, ending flat in a glowing lava edge; a lava vein along it, an ember rim under it, drips hanging from
+    it, a horn on the socket. Nothing droops or hooks: the head is one straight bar."""
     m = MModel("magma_hoe")
     handle(m)
-    shaft(m, 20.5)
+    shaft(m, 19.5)
     m.group("head")
-    m.box("bar", (2.5, 19.75, 6.75), (10.25, 22.25, 9.25), IRON)
-    m.box("bar_hot", (2.75, 22.25, 7), (10, 22.75, 9), EMBER_RED)
-    m.box("horn", (10.25, 20.25, 7.125), (11.5, 21.75, 8.875), ROCK_PLAIN)
-    m.box("horn_tip", (11.5, 20.5, 7.5), (12.5, 21.25, 8.5), EMBER)
-    m.box("plate", (0.25, 14.75, 5), (2.5, 22.75, 11), ROCK)
-    m.box("plate_edge", (0.5, 13.75, 5.25), (2.25, 14.75, 10.75), LAVA)
-    m.box("vein", (0, 16, 7.5), (0.25, 21.5, 8.5), LAVA_DEEP, faces={"east": None})
-    m.box("bar_gem", (6.75, 20.25, 6.5), (9.25, 21.75, 9.5), LAVA)
+    round_y(m, "socket", 6.25, 9.75, 6.25, 9.75, 19, 23.25, IRON, 0.75)
+    m.box("socket_gem", (6.75, 20.25, 6), (9.25, 22, 10), LAVA)
+    m.box("horn", (7.25, 23.25, 7.25), (8.75, 24.5, 8.75), ROCK_PLAIN)
+    m.box("horn_tip", (7.625, 24.5, 7.625), (8.375, 25.25, 8.375), EMBER)
+    # the head: a straight bar, flat top and bottom, as wide across (z) as a hoe's blade
+    m.box("head", (1, 19.5, 6.25), (6.25, 22.75, 9.75), ROCK)
+    m.box("head_top", (1.25, 22.75, 6.75), (6.25, 23.25, 9.25), ROCK_PLAIN)
+    m.box("vein", (1.5, 20.75, 6.1), (5.75, 21.5, 9.9), LAVA_DEEP)
+    m.box("rim", (1, 19.25, 6.5), (6.25, 19.5, 9.5), EMBER_RED)
+    m.box("edge", (0.25, 19.5, 6.5), (1, 22.75, 9.5), LAVA)
+    drip(m, 2.25, 19.25)
+    drip(m, 4.75, 19.25, big=False)
     return _held(m, "hoe")
 
 

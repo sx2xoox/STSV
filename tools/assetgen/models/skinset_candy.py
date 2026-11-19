@@ -16,7 +16,8 @@ player's own eyes see).
              strawberry icing with drips, a cherry on top
     axe      a glossy chocolate bar with a bite out of its edge (the bite shows the caramel layer inside), half in a
              crinkled pink wrapper with a printed label and a crimped end, a lemon foil rim
-    hoe      a translucent-looking mint gummy bear (face, arms, feet) at the end of a pink candy-stick bar
+    hoe      a straight pink candy-stick head out to one side, ending flat in a lemon candy end, a translucent-looking
+             mint gummy bear sitting on it
     rod      a mint-striped candy stick with candy ring guides, a lemon lollipop for a reel, a sugared pink-and-lemon
              gummy worm on the line
 
@@ -451,22 +452,22 @@ def candy_axe():
 
 
 def candy_hoe():
-    """사탕 괭이: a pink candy-stick bar across the top, a translucent-looking mint gummy bear at its end for the blade
-    (towards -x): a face, ears, arms, feet."""
+    """사탕 괭이: like a vanilla hoe, a straight head out to one side (-x) at the top of the handle, ending flat: a pink
+    candy-stick bar with a lemon candy end, and a translucent-looking mint gummy bear sitting on it near the end, facing
+    out (+z), its feet over the bar's front."""
     m = MModel("candy_hoe")
     handle(m, LEMON, "pink")
-    stick(m, 22.75)
+    stick(m, 22.5)
     m.group("head")
-    m.box("bar", (3.5, 20, 7.125), (9.25, 22, 8.875), PINK_RING)
+    m.box("bar", (1, 19.5, 6.875), (9.25, 22.5, 9.125), PINK_RING)
+    m.box("bar_end", (0, 19.25, 6.625), (1, 22.75, 9.375), LEMON)
     m.group("bear")
-    m.box("head", (-1, 19, 6.75), (4, 23, 9.25), GUMMY, faces={"north": GUMMY_FACE, "south": GUMMY_FACE})
-    m.box("ear", (-1, 23, 7.25), (0.5, 24, 8.75), GUMMY)
-    m.box("ear", (2.5, 23, 7.25), (4, 24, 8.75), GUMMY)
-    m.box("body", (-0.75, 14.5, 6.5), (3.75, 19, 9.5), GUMMY)
-    m.box("arm", (-1.75, 16.25, 7.25), (-0.75, 18.5, 8.75), GUMMY)
-    m.box("arm", (3.75, 16.25, 7.25), (4.75, 18.5, 8.75), GUMMY)
-    m.box("feet", (-0.75, 13.25, 7), (1, 14.5, 9), GUMMY)
-    m.box("feet", (2, 13.25, 7), (3.75, 14.5, 9), GUMMY)
+    m.box("body", (1.5, 22.5, 7), (5, 25.25, 9), GUMMY)
+    m.box("head", (1.25, 25.25, 6.875), (5.25, 28.5, 9.125), GUMMY, faces={"north": GUMMY_FACE, "south": GUMMY_FACE})
+    m.box("ear", (1.25, 28.5, 7.375), (2.5, 29.5, 8.625), GUMMY)
+    m.box("ear", (4, 28.5, 7.375), (5.25, 29.5, 8.625), GUMMY)
+    m.box("feet", (1.75, 21.5, 9), (3, 23, 10), GUMMY)
+    m.box("feet", (3.5, 21.5, 9), (4.75, 23, 10), GUMMY)
     return _held(m, "hoe")
 
 

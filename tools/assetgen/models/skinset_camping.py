@@ -265,17 +265,17 @@ def camping_axe():
 
 
 def camping_hoe():
-    """캠핑 괭이: a small trenching hoe: an olive bar across the top of the shaft (bolted, a brace under it), an orange
-    blade hanging from its end (across the handle, like a real hoe's), a ground bright edge at its foot."""
+    """캠핑 괭이: the vanilla hoe's L: a straight head sticking out to -x at the top of the brushed shaft (a warning band
+    under it), ending flat: an olive neck bolted over the shaft, an orange blade, a ground bright flat end."""
     m = MModel("camping_hoe")
     handle(m)
-    shaft(m, 20.5, stripe=12)
+    shaft(m, 22.5, stripe=12)
     m.group("head")
-    m.box("bar", (2.5, 19.75, 6.875), (9.5, 22, 9.125), OLIVE)
-    m.box("bolt", (7.375, 20.25, 9.125), (8.625, 21.5, 9.5), BOLT)
-    m.box("brace", (4.5, 17.5, 7.375), (8, 18.5, 8.625), OLIVE_DARK, rotation=("z", -45, (8, 18, C)))
-    m.box("plate", (0.75, 15.75, 5.5), (2.5, 22.5, 10.5), ORANGE)
-    m.box("plate_edge", (1, 14.5, 5.75), (2.25, 15.75, 10.25), BRIGHT)
+    m.box("neck", (5.25, 19.75, 6.875), (9.5, 22.5, 9.125), OLIVE)
+    m.box("bolt", (7.375, 20.5, 9.125), (8.625, 21.75, 9.5), BOLT)
+    m.box("blade", (1.25, 19.25, 6.5), (5.25, 23, 9.5), ORANGE)
+    m.box("blade_end", (0.25, 19.25, 6.75), (1.25, 23, 9.25), BRIGHT)
+    m.box("shaft_cap", (6.75, 22.5, 6.75), (9.25, 23.25, 9.25), OLIVE_DARK)
     return _held(m, "hoe")
 
 

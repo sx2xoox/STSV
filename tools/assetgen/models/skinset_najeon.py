@@ -342,17 +342,17 @@ def najeon_axe():
 
 
 def najeon_hoe():
-    """자개 괭이: a lacquer bar with a nacre strip, a pale jade plate hanging from its end on a gold socket, a gold edge."""
+    """자개 괭이: a straight head out to one side at the top of the shaft (an L, like the vanilla hoe): a lacquer bar with
+    a nacre strip, a gold band, then a pale jade blade in line with it, ending flat in a gold edge. Nothing droops."""
     m = MModel("najeon_hoe")
     handle(m)
     shaft(m, 19.75, bands=(10.5, 15))
     m.group("head")
-    inlaid(m, "bar", (2.75, 19.75, 6.75), (9.75, 22.25, 9.25), BLACK, "nj_strip_black")
+    inlaid(m, "bar", (4, 19.75, 6.75), (9.75, 22.25, 9.25), BLACK, "nj_strip_black")
     round_y(m, "bar_cap", 6.5, 9.5, 6.5, 9.5, 22.25, 23, GOLD, 0.75)
-    m.box("bar_end", (2, 19.5, 6.5), (2.75, 22.5, 9.5), GOLD)
-    m.box("plate", (0.25, 14.75, 5), (2, 19.5, 11), JADE)
-    m.box("plate_top", (0, 19.5, 5.25), (2, 22.75, 10.75), JADE)
-    m.box("plate_edge", (0.5, 13.75, 5.25), (1.75, 14.75, 10.75), GOLD_DARK)
+    m.box("bar_band", (3.25, 19.5, 6.5), (4, 22.5, 9.5), GOLD)
+    m.box("blade", (0, 19.5, 6), (3.25, 22.5, 10), JADE)
+    m.box("blade_edge", (-0.75, 19.75, 6.25), (0, 22.25, 9.75), GOLD_DARK)
     return _held(m, "hoe")
 
 

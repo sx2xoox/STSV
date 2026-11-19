@@ -333,22 +333,22 @@ def frost_axe():
 
 
 def frost_hoe():
-    """서리 수정 괭이: a frost bar across the shaft's top and a broad ice plate hanging from its end, icicles under the bar."""
+    """서리 수정 괭이: the vanilla hoe's L: a straight ice blade sticking out to one side (-x) at the shaft's top, ending in
+    a flat pale edge, on a frost socket with the emblem; small shards on top, icicles hanging under it."""
     m = MModel("frost_hoe")
     handle(m)
-    shaft(m, 20.5)
+    shaft(m, 18.5)
     m.group("head")
-    m.box("bar", (2.5, 19.75, 6.75), (9.75, 22.25, 9.25), ICE)
-    round_y(m, "bar_cap", 6.5, 9.5, 6.5, 9.5, 22.25, 23, FROST, 0.75)
-    m.box("bar_point", (7.25, 23, 7.25), (8.75, 24.25, 8.75), ICE_LIGHT)
-    m.box("plate", (0.25, 14.75, 5), (2.5, 22.75, 11), ICE)
-    m.box("plate_edge", (0.5, 13.5, 5.25), (2.25, 14.75, 10.75), ICE_LIGHT)
-    m.box("plate_core", (0, 16, 6.5), (0.25, 21.5, 9.5), ICE_DEEP)
-    shard(m, "shard", 0.5, 22.75, 1.75, 24.75, 5.5, 7, 22.5, ICE_LIGHT)
-    shard(m, "shard", 0.75, 22.75, 2, 24, 9, 10.5, -22.5, ICE_LIGHT)
-    m.box("emblem", (2.5, 19.5, 5.75), (2.75, 24, 10.25), FROST, faces={"east": "frost_emblem"}, uv={"east": STICKER_UV})
-    m.box("emblem_back", (-0.25, 16.5, 5.75), (0, 21, 10.25), FROST, faces={"west": "frost_emblem"}, uv={"west": STICKER_UV})
-    for x, ln in ((4, 2), (5.5, 1.25)):
+    m.box("socket", (6.25, 18.5, 6.25), (10.5, 23.5, 9.75), FROST)
+    emblem(m, 6.125, 18.75, 6, 10)
+    round_y(m, "socket_cap", 6.75, 10, 6.75, 9.25, 23.5, 24.25, FROST, 0.5)
+    m.box("blade", (-1.5, 19.75, 6.875), (6.25, 22.75, 9.125), ICE)
+    m.box("blade_core", (-0.75, 20.75, 6.625), (6.25, 21.75, 9.375), ICE_DEEP)
+    m.box("blade_edge", (-2.75, 19.75, 7.125), (-1.5, 22.75, 8.875), ICE_LIGHT)
+    m.box("blade_edge", (-3.25, 20, 7.375), (-2.75, 22.5, 8.625), WHITE)
+    shard(m, "shard", -0.75, 22.75, 0.5, 24.5, 7.25, 8.75, 22.5, ICE_LIGHT)
+    shard(m, "shard", 2.5, 22.75, 3.5, 24, 7.375, 8.625, -22.5, ICE_LIGHT)
+    for x, ln in ((-1.75, 1.75), (0.75, 1.25), (3, 2), (5, 1.25)):
         icicle(m, x, 19.75, ln)
     return _held(m, "hoe")
 

@@ -7,7 +7,8 @@
     kitchen_shovel       국자: a ladle with a raised rim lip, full of red stew (tofu, green onion, chilli, courgette)
     kitchen_axe          중식도: a square cleaver: polished edge bevel, brushed middle, hammered dimples along the spine,
                          a drilled hanging hole (lit far wall) and a round maker's stamp, on a riveted wooden handle
-    kitchen_hoe          뒤집개: a slotted turner hanging face on from a bent neck (the hoe's L), its slots shaded deep
+    kitchen_hoe          뒤집개: a slotted turner plate sticking straight out sideways from the top (a vanilla hoe's L),
+                         ending flat, its slots shaded deep
     kitchen_fishing_rod  젓가락 낚싯대: a long stainless chopstick with an engraved grip, a pot-lid reel, and a big
                          fish-shaped soy sauce bottle on the line instead of a float (+ kitchen_fishing_rod_cast without
                          it). No bobber model.
@@ -161,25 +162,23 @@ def _cleaver():
 
 
 def _turner():
-    """The turner's plate (6 x 8 units): brushed, three slots with depth (a dark shadow under their top and left, the far
-    wall lit), a polished working edge along the bottom."""
+    """The turner's plate, lying out sideways (7 x 5 units, x = 0 its flat far end): brushed, three long slots along it
+    with depth (a dark inside, its top a shadow, the lit far wall under it), the far end's edge polished."""
     im = _canvas(S2)
     px = im.load()
-    W, H = 12, 16
+    W, H = 14, 10
     _brushed_px(px, W, H, 31)
-    for x0 in (2, 5, 8):
-        for y in range(3, 13):
-            px[x0, y] = ramp("iron", 0)
-            px[x0 + 1, y] = ramp("iron", 1)
-        for x in (x0, x0 + 1):
-            px[x, 2] = S1                         # the chamfer above
-            px[x, 13] = S3                        # the lit far wall below
-        px[x0 + 1, 12] = ramp("steel", 3)
-    for x in range(W):
-        px[x, H - 2] = S3                         # the thin polished front edge
-        px[x, H - 1] = S1
+    for y0 in (1, 4, 7):
+        for x in range(3, 12):
+            px[x, y0] = ramp("iron", 0) if x == 3 else ramp("iron", 1)
+            px[x, y0 + 1] = S3                    # the lit far wall under the slot
+        px[11, y0] = ramp("steel", 3)
     for y in range(H):
-        px[0, y] = S3
+        px[0, y] = S3                             # the polished flat end
+        px[1, y] = S1
+    for x in range(W):
+        px[x, 0] = S3
+        px[x, H - 1] = S1
     return im
 
 
@@ -515,16 +514,18 @@ def kitchen_axe():
 
 
 def kitchen_hoe():
-    """뒤집개: a slotted turner. A brushed neck bends off the top of a red-handled stem (towards -x) and the plate hangs
-    from it face on, a rivet where they meet."""
+    """뒤집개: a slotted turner as a vanilla hoe's head: the flat plate sticks straight out sideways (towards -x) from the
+    top of a red-handled brushed stem, an L, and ends flat (a polished edge); a riveted steel tab joins it to the stem."""
     m = MModel("kitchen_hoe")
     plastic_handle(m, RED, RED_DARK)
-    stem(m, 21.5)
+    stem(m, 22)
     m.group("head")
-    m.box("neck", (3, 20, 7.25), (7.25, 21.5, 8.75), STEEL)
-    _pic(m, "plate", (0, 12.5, 7.625), (6, 20.5, 8.375), STEEL, "kitchen_turner", 6, 8)
-    m.box("plate_edge", (0.25, 12, 7.75), (5.75, 12.5, 8.25), POLISH)
-    m.box("rivet", (3.75, 20.25, 7.125), (4.75, 21.25, 8.875), POLISH)
+    _pic(m, "plate", (0.25, 17, 7.625), (7.25, 22, 8.375), STEEL, "kitchen_turner", 7, 5)
+    m.box("plate_end", (-0.25, 17.25, 7.75), (0.25, 21.75, 8.25), POLISH)
+    m.box("tab", (6.5, 17.5, 7.375), (9.5, 21.5, 8.625), STEEL_DARK)
+    m.box("rivet", (7.5, 19, 7.125), (8.5, 20, 8.875), POLISH)
+    round_cap = (7, 22, 7)
+    m.box("stem_cap", round_cap, (9, 22.75, 9), RED)
     return _held(m, "hoe")
 
 

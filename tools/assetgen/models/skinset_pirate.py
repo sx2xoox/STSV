@@ -387,20 +387,28 @@ def pirate_axe():
 
 
 def pirate_hoe():
-    """해적 괭이: an anchor's fluke on a tarred shaft: an iron arm out to -x, a spade-shaped fluke hanging from it (across
-    the handle, like the toy hoe's plate), a small hook curling up behind, a brass cap, a rivet through the arm."""
+    """해적 괭이: the vanilla hoe's L: a straight iron bar out to -x from the top of the tarred shaft, ending flat in a
+    short blade a little deeper than the bar (across the handle) with a ground edge; a brass strap and rivet where the
+    bar meets the shaft, a brass cap. The anchor is a charm: a little brass anchor tied to the rope tail."""
     m = MModel("pirate_hoe")
-    handle(m)
+    handle(m, tail=False)
+    m.group("charm")
+    rot = ("z", 22.5, (10, -0.25, C))
+    m.box("knot", (9.375, -0.25, 7.25), (10.5, 1.5, 8.75), ROPE)
+    m.box("rope_tail", (9.625, -2.75, 7.625), (10.375, -0.25, 8.375), ROPE, rotation=rot)
+    m.box("anchor_stock", (9, -3.25, 7.5), (11, -2.75, 8.5), BRASS_DARK, rotation=rot)
+    m.box("anchor_shank", (9.5, -5.75, 7.5), (10.5, -3.25, 8.5), BRASS, rotation=rot)
+    m.box("anchor_arms", (8.25, -6.5, 7.5), (11.75, -5.75, 8.5), BRASS, rotation=rot)
+    m.box("anchor_fluke", (8.25, -5.75, 7.5), (9, -4.75, 8.5), BRASS, rotation=rot)
+    m.box("anchor_fluke", (11, -5.75, 7.5), (11.75, -4.75, 8.5), BRASS, rotation=rot)
     shaft(m, 20)
     m.group("head")
-    m.box("arm", (2.25, 19.5, 7), (10, 21.75, 9), IRON)
-    rivet(m, 8, 20.625, 9)
-    m.box("cap", (6.75, 21.75, 6.75), (9.25, 23, 9.25), BRASS)
-    m.box("fluke", (0.5, 15.5, 5.25), (2.75, 22.25, 10.75), IRON_DARK)
-    m.box("fluke", (0.75, 13.75, 6.25), (2.5, 15.5, 9.75), IRON_DARK)
-    m.box("fluke_tip", (1, 12.5, 7.25), (2.25, 13.75, 8.75), EDGE)
-    m.box("hook", (10, 19.5, 7.25), (11.5, 22.75, 8.75), IRON)
-    m.box("hook_tip", (10.25, 22.75, 7.5), (11.25, 24, 8.5), EDGE)
+    m.box("bar", (2.75, 19.75, 7), (9.75, 22, 9), IRON)
+    m.box("strap", (6.75, 19.25, 6.75), (9.25, 22.5, 9.25), BRASS_DARK)
+    rivet(m, 8, 20.875, 9.25)
+    m.box("cap", (7, 22.5, 7), (9, 23.25, 9), BRASS)
+    m.box("blade", (0.75, 19.25, 6), (2.75, 22.5, 10), IRON_DARK)
+    m.box("edge", (0.25, 19.25, 6.25), (0.75, 22.5, 9.75), EDGE)
     return _held(m, "hoe")
 
 

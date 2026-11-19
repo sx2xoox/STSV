@@ -361,7 +361,7 @@ def concept_kit(colour="pearl", lower="rubber", accent="glow_cyan", trim="porcel
         if c.face == "up":
             return ("rubber", 1.2)
         return (trim, 1.8)
-    m.box("dash", (-XI, 9, -25), (XI, 12.5, -21), Paint(trim, 2, noise=0, decal=dash))
+    m.box("dash", (-XI + 0.25, 9, -25), (XI - 0.25, 12.5, -21), Paint(trim, 2, noise=0, decal=dash))
     m.box("display", (-8.5, 12.5, -22.5), (8.5, 14, -22), Paint("tint", 1, noise=0,
           decal=lambda c: (A, 2.2) if c.face == "south" and c.v == 1 and c.u % 3 else ("tint", 0.8)))
     m.box("column", (-6, 10.5, -21), (-5, 11.5, -19.5), PLASTIC)

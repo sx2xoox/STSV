@@ -327,18 +327,19 @@ def woodcraft_axe():
 
 
 def woodcraft_hoe():
-    """목각 괭이: a walnut bar on the shaft's top, an oak plate with a burnt vine hanging from its end, twine at the joint,
-    a peg through the bar, a leaf on the bar."""
+    """목각 괭이: the vanilla hoe's L: a straight oak bar sticking out to one side (-x) from a pegged walnut socket on the
+    shaft's top, a burnt vine along it, a bright flat-cut end (no droop, no hook), twine under the socket, a leaf on the
+    bar."""
     m = MModel("woodcraft_hoe")
     handle(m)
-    shaft(m, 20)
+    shaft(m, 19)
     m.group("head")
-    wbox(m, "bar", (2.5, 20, 6.75), (10, 22.5, 9.25), "walnut", along=0)
-    wbox(m, "twine", (6.5, 18.75, 6.5), (9.5, 20, 9.5), "twine", kind="twine")
-    wbox(m, "plate", (0.25, 15, 5.25), (2.5, 22.75, 10.75), "oak", burn=("east", "west"))
-    wbox(m, "plate_edge", (0.5, 14, 5.5), (2.25, 15, 10.5), "oak")
-    peg(m, C, 21.25, 6.5, 9.5, 0.5)
-    leaf(m, 4.75, 21.25, 6.5, 9.5, 1.0)
+    wbox(m, "twine", (6.5, 17.75, 6.5), (9.5, 19, 9.5), "twine", kind="twine")
+    wbox(m, "socket", (6.25, 19, 6.5), (9.75, 23.5, 9.5), "walnut", ring_c=(C, C))
+    wbox(m, "bar", (0.75, 19.5, 6.875), (6.25, 23, 9.125), "oak", along=0, burn=FRONT)
+    wbox(m, "bar_end", (-0.25, 19.75, 7), (0.75, 22.75, 9), "oak", along=0)
+    peg(m, C, 21.25, 6.25, 9.75, 0.5)
+    leaf(m, 2.75, 20.75, 6.625, 9.375, 0.9)
     return _held(m, "hoe")
 
 

@@ -303,26 +303,23 @@ def dragon_axe():
 
 
 def dragon_hoe():
-    """청룡 괭이: a dragon's head on the shaft: a jade snout with a glowing eye and a gold horn swept back, its jaw the
-    hoe's plate hanging from the snout's end, ivory fangs along its edge, a pearl in its outer face."""
+    """청룡 괭이: the vanilla hoe's silhouette (a straight head at the top of the handle, out to one side, ending flat):
+    a gold socket with cloud scrolls and two short jade horns standing up on it, a straight jade head under azure
+    scales towards -x with a pale jade cutting edge along its foot, a gold whisker inlaid along its top, a pearl set in
+    both faces and a flat gold end plate."""
     m = MModel("dragon_hoe")
     handle(m)
-    shaft(m, 20.5)
+    shaft(m, 20)
     m.group("head")
-    m.box("snout", (2.75, 19.5, 6.75), (9.75, 22.5, 9.25), JADE_SCALE)
-    m.box("eye", (5.75, 20.75, 6.6), (6.75, 21.5, 9.4), EYE)
-    m.box("brow", (5.5, 21.5, 6.6), (7.25, 22, 9.4), GOLD_LIGHT)
-    m.box("horn", (6.5, 21.75, 7.4), (11.5, 23, 8.6), GOLD, rotation=("z", 22.5, (7, 22.4, C)))
-    m.box("horn_tip", (11.5, 22, 7.6), (13, 22.75, 8.4), JADE_EDGE, rotation=("z", 22.5, (7, 22.4, C)))
-    for x in (3.25, 4.75):
-        m.box("fang", (x, 19, 7.4), (x + 0.75, 19.75, 8.6), IVORY_M)
-    m.box("jaw_band", (-0.25, 21.25, 4.75), (3, 23, 11.25), GOLD_CLOUD)
-    m.box("jaw", (0, 14.75, 5), (2.75, 21.25, 11), JADE_DEEP)
-    m.box("jaw_edge", (0.25, 13.75, 5.25), (2.5, 14.75, 10.75), IVORY_M)
-    for z in (5.5, 7.5, 9.5):
-        m.box("jaw_fang", (0.75, 12.75, z), (2, 13.75, z + 1), IVORY_M)
-    m.box("pearl", (-0.65, 17, 7), (0, 19.5, 9), PEARL)
-    m.box("pearl", (-0.65, 17.5, 6.5), (0, 19, 9.5), PEARL)
+    m.box("socket", (6.25, 19.25, 6.5), (9.75, 23, 9.5), GOLD_CLOUD)
+    m.box("socket_eye", (8.25, 21.25, 6.35), (9.25, 22, 9.65), EYE)
+    m.box("horn", (6.75, 23, 7.5), (7.75, 24.25, 8.5), JADE_EDGE)
+    m.box("horn", (8.25, 23, 7.5), (9.25, 24.25, 8.5), JADE_EDGE)
+    m.box("head", (1, 19.75, 6.75), (6.25, 22.5, 9.25), JADE_SCALE)
+    m.box("head_edge", (1, 19, 7), (6.25, 19.75, 9), JADE_EDGE)
+    m.box("whisker", (1, 22.5, 7.5), (6.25, 22.875, 8.5), GOLD_LIGHT)
+    pearl(m, 3.75, 21.125, 8, 0.875, cz=(6.75, 9.25), d=0.35)
+    m.box("end_plate", (0.25, 19, 6.5), (1, 23, 9.5), GOLD_CLOUD)
     return _held(m, "hoe")
 
 
