@@ -684,8 +684,8 @@ STSV 공통 플러그인 위에서 도는 첫 번째 콘텐츠: 시즌 없이 **
 ```bash
 cd economy && ./gradlew build        # ../plugin (코어)을 함께 빌드해서 컴파일
 python3 tools/assetgen/economy_build.py --render   # 아이콘, 기계 모델, 메뉴 배경 (저장소 루트에서)
-python3 tools/assetgen/economy_bus_skins.py --sheet 미리보기.png   # 마을버스 승객 스킨 18장
+python3 tools/assetgen/economy_bus_skins.py --sheet 미리보기.png   # 마을버스 승객 스킨 36장 (--types farmer,hiker 처럼 미리보기에 실을 종류만 고를 수 있음)
 ```
 
-마을버스 승객 스킨(64×64 플레이어 스킨, 안·겉 두 겹)은 `economy/content/economy/assets/economy/textures/entity/bus/<종류>_<1~3>.png` 에 있고, 키 `economy:entity/bus/<종류>_<n>` 로 마네킹 프로필의 스킨 패치(`skinPatch(...).body(키)`, 팔이 가는 것은 `.model(SLIM)`)에 씁니다. 종류는 resident(동네 주민) · student(학생) · grandma(할머니) · office(회사원) · tourist(관광객) · vip, 가는 팔은 resident_2 · student_2 · grandma_1~3 · office_2 · tourist_2 · vip_3 (생성기의 `Skin(slim=True)`).
+마을버스 승객 스킨(64×64 플레이어 스킨, 안·겉 두 겹)은 `economy/content/economy/assets/economy/textures/entity/bus/<종류>_<1~3>.png` 에 있고, 키 `economy:entity/bus/<종류>_<n>` 로 마네킹 프로필의 스킨 패치(`skinPatch(...).body(키)`, 팔이 가는 것은 `.model(SLIM)`)에 씁니다. 종류는 resident(동네 주민) · student(학생) · grandma(할머니) · office(회사원) · tourist(관광객) · vip · farmer(농부) · hiker(등산객) · fisher(낚시꾼) · soldier(휴가 나온 군인) · couple(커플) · drunk(술 취한 아저씨), 가는 팔은 resident_2 · student_2 · grandma_1~3 · office_2 · tourist_2 · vip_3 · farmer_2 · hiker_2 · fisher_3 · couple_2 · couple_3 (생성기의 `Skin(slim=True)`), 나머지는 보통 팔입니다. 코어의 HUD 얼굴 시트(`plugin/src/main/resources/pack/hud/faces.png`, `sheets.json` 의 `faces`)는 이 폴더의 스킨마다 얼굴 한 칸이라, 스킨을 더하면 `tools/assetgen/hud.py` 의 `faces_sheet()` 로 그 시트만 다시 씁니다(`write()` 전체는 글자 시트까지 바꿉니다).
 
