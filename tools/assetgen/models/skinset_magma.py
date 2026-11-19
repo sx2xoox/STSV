@@ -39,12 +39,17 @@ class LavaRock(Mat):
         super().__init__("obsidian", "plain", base, bevel=(1, -1), noise=0)
         self.cracks = cracks
 
+    def __call__(self, **changes):
+        m = LavaRock(self.base, self.cracks)
+        m.bevel = changes.get("bevel", self.bevel)
+        return m
+
     def face(self, w, h, face, seed):
         pw, ph = max(1, round(w + 0.49)), max(1, round(h + 0.49))
         tile = pw > S or ph > S
         if tile:
             pw = ph = S
-        rnd = random.Random(zlib.crc32(f"lava|{self.base}|{self.cracks}|{pw}x{ph}|{face}|{seed}".encode()))
+        rnd = random.Random(zlib.crc32(f"lava|{self.base}|{self.cracks}|{bool(self.bevel)}|{pw}x{ph}|{face}|{seed}".encode()))
         b = self.base
         grid = [[b] * S for _ in range(S)]
         for y in range(ph):
@@ -52,16 +57,16 @@ class LavaRock(Mat):
                 r = rnd.random()
                 g = b - 1 if r < 0.16 else b + 1 if r < 0.24 else b
                 if not tile:
-                    if (y == 0 and ph > 1) or (x == 0 and pw > 1):
+                    if self.bevel and ((y == 0 and ph > 1) or (x == 0 and pw > 1)):
                         g = b + 1
-                    if (y == ph - 1 and ph > 1) or (x == pw - 1 and pw > 1):
+                    if self.bevel and ((y == ph - 1 and ph > 1) or (x == pw - 1 and pw > 1)):
                         g = b - 1
                 grid[y][x] = max(0, min(len(OBSIDIAN) - 1, g))
         hot = {}
-        if self.cracks and min(pw, ph) >= 3 and max(pw, ph) >= 5:
+        if self.cracks and min(pw, ph) >= 4 and max(pw, ph) >= 6:
             vertical = ph >= pw
             L, A = (ph, pw) if vertical else (pw, ph)
-            n = 1 if A < 7 else 2
+            n = 1
             for k in range(n):
                 a = rnd.randrange(1, A - 1) if n == 1 else (rnd.randrange(1, max(2, A // 2)) if k == 0 else rnd.randrange(A // 2, A - 1))
                 start = rnd.randrange(0, max(1, L // 4))
@@ -70,12 +75,12 @@ class LavaRock(Mat):
                     if t > start and rnd.random() < 0.45:
                         a = max(1, min(A - 2, a + rnd.choice((-1, 1))))
                     p = (a, t) if vertical else (t, a)
-                    hot[p] = 4 if rnd.random() < 0.3 else 3
+                    hot[p] = 3 if rnd.random() < 0.25 else 2
                     # a short branch now and then
                     if rnd.random() < 0.12:
                         bx = max(1, min(A - 2, a + rnd.choice((-1, 1))))
                         q = (bx, t) if vertical else (t, bx)
-                        hot.setdefault(q, 2)
+                        hot.setdefault(q, 1)
         im = Image.new("RGBA", (S, S), (0, 0, 0, 0))
         px = im.load()
         for y in range(S):
@@ -226,8 +231,7 @@ def magma_shovel():
         m.box("rim", (lo, 25.5, 7.5), (hi, 27, 8.5), EMBER_RED)
         lo, hi = sorted((C + side * 3.75, C + side * 4.25))
         m.box("rim", (lo, 23.5, 7.5), (hi, 25.5, 8.5), EMBER_RED)
-    fissure(m, ((7.5, 8.5, 18, 20.5), (6.75, 7.75, 20.5, 23), (7.5, 8.5, 23, 25.5), (8, 8.75, 25.5, 27)), 6.85, 9.15)
-    m.box("crack", (8.5, 21.25, 6.85), (10.5, 22, 9.15), LAVA_DEEP)
+    fissure(m, ((7.5, 8.5, 18, 20.5), (7, 8, 20.5, 23), (7.5, 8.5, 23, 25.5), (7.75, 8.5, 25.5, 27)), 6.85, 9.15)
     return _held(m, "shovel")
 
 

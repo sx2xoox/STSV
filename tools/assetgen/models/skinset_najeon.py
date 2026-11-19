@@ -77,8 +77,8 @@ def _sheen(x, y, lift=0.0):
     """Mother-of-pearl at texel (x, y): a pastel hue that drifts pink -> cream -> mint -> sky -> lilac along a wavy diagonal."""
     t = ((x * 0.55 + y * 0.8) / 16 + 0.12 * math.sin(x * 0.9 + y * 0.4)) % 1.0
     hue = 350 + 310 * t
-    L = 0.86 + 0.035 * math.sin(x * 1.7 + y * 2.3) + lift
-    c = 0.060 if lift <= 0 else 0.025
+    L = 0.80 + 0.04 * math.sin(x * 1.7 + y * 2.3) + lift
+    c = 0.095 if lift <= 0 else 0.045
     return (*oklch_to_rgb(min(0.97, L), c, hue % 360), 255)
 
 
@@ -89,7 +89,7 @@ def _nacre():
     for y in range(16):
         for x in range(16):
             k = (x * 7 + y * 13) % 17
-            px[x, y] = _sheen(x, y, 0.09 if k == 0 else -0.07 if k == 9 else 0.0)
+            px[x, y] = _sheen(x, y, 0.12 if k == 0 else -0.06 if k == 9 else 0.0)
     return im
 
 
@@ -146,7 +146,7 @@ def _inlay(rows, bg):
                 if ch == "n":
                     px[X, Y] = _sheen(X, Y)
                 elif ch == "w":
-                    px[X, Y] = _sheen(X, Y, 0.09)
+                    px[X, Y] = _sheen(X, Y, 0.12)
                 elif ch == "g":
                     px[X, Y] = ramp("nj_gold", 3)
                 elif ch == "b":
@@ -233,30 +233,22 @@ def _pommel(m):
 
 
 def handle(m):
-    """A gold pommel with its tassel, a black lacquer grip with three nacre bands, a gold collar (y -8 .. 6.5)."""
+    """A gold pommel with its tassel, a black lacquer grip with two nacre bands, a gold collar (y -8 .. 6.5)."""
     m.group("handle")
     _pommel(m)
     m.group("handle")
-    ys = (-1.25, -0.25, 0.25, 2.0, 2.5, 4.25, 4.75, 5.25)
-    for i in range(len(ys) - 1):
-        y0, y1 = ys[i], ys[i + 1]
-        if i % 2:
-            round_y(m, "grip_band", 6.625, 9.375, 6.625, 9.375, y0, y1, NACRE, 0.5)
-        else:
-            round_y(m, "grip", 6.75, 9.25, 6.75, 9.25, y0, y1, BLACK_FLAT, 0.5)
+    round_y(m, "grip", 6.75, 9.25, 6.75, 9.25, -1.25, 5.25, BLACK_FLAT, 0.5)
+    for y in (0.5, 3.0):
+        m.box("grip_band", (6.5, y, 6.5), (9.5, y + 0.75, 9.5), NACRE)
     round_y(m, "collar", 6.25, 9.75, 6.25, 9.75, 5.25, 6.5, GOLD, 0.75)
 
 
 def shaft(m, top, bands=()):
-    """Black lacquer above the collar up to y = top, nacre bands (0.5 high) at the given heights."""
+    """Black lacquer above the collar up to y = top, nacre bands (0.75 high) round it at the given heights."""
     m.group("shaft")
-    y = 6.5
-    for b in sorted(bands) + [top]:
-        if b > y:
-            round_y(m, "shaft", 6.875, 9.125, 6.875, 9.125, y, b, BLACK, 0.5)
-        if b < top:
-            round_y(m, "shaft_band", 6.75, 9.25, 6.75, 9.25, b, b + 0.5, NACRE, 0.5)
-            y = b + 0.5
+    round_y(m, "shaft", 6.875, 9.125, 6.875, 9.125, 6.5, top, BLACK, 0.5)
+    for b in bands:
+        m.box("shaft_band", (6.625, b, 6.625), (9.375, b + 0.75, 9.375), NACRE)
 
 
 # ================================================================================================
@@ -272,9 +264,9 @@ def najeon_sword():
     inlaid(m, "guard", (3.25, 6.5, 6.75), (12.75, 8.5, 9.25), BLACK, "nj_strip_black")
     for x0, x1 in ((1.75, 3.25), (12.75, 14.25)):
         m.box("guard_end", (x0, 6.25, 6.5), (x1, 8.75, 9.5), GOLD)
-    inlaid(m, "guard_plate", (5.75, 5.75, 6.25), (10.25, 10.25, 9.75), BLACK, "nj_plum_black")
+    inlaid(m, "guard_plate", (5.75, 5.75, 6), (10.25, 10.25, 10), BLACK, "nj_plum_black")
     for x0, x1 in ((5.5, 5.75), (10.25, 10.5)):
-        m.box("guard_plate_rim", (x0, 5.75, 6.25), (x1, 10.25, 9.75), GOLD_DARK)
+        m.box("guard_plate_rim", (x0, 5.75, 6), (x1, 10.25, 10), GOLD_DARK)
     m.group("blade")
     m.box("habaki", (6, 10.25, 7), (10, 11.25, 9), GOLD)
     m.box("blade", (5.5, 11.25, 7.25), (10.5, 23.5, 8.75), STEEL)
@@ -324,9 +316,8 @@ def najeon_shovel():
             inlaid(m, "blade", (C - hw, y0, 7), (C + hw, y1, 9), SHU, "nj_plum_red")
         else:
             m.box("blade", (C - hw, y0, 7), (C + hw, y1, 9), SHU_FLAT)
-        for z0, z1 in ((9, 9.3), (6.7, 7)):
-            m.box("rim", (C - hw, y0, z0), (C - hw + 0.75, y1, z1), GOLD_DARK)
-            m.box("rim", (C + hw - 0.75, y0, z0), (C + hw, y1, z1), GOLD_DARK)
+        m.box("rim", (C - hw, y0, 9), (C - hw + 0.75, y1, 9.3), GOLD_DARK)
+        m.box("rim", (C + hw - 0.75, y0, 9), (C + hw, y1, 9.3), GOLD_DARK)
     m.box("point", (6.25, 26.75, 7.2), (9.75, 28, 8.8), STEEL)
     m.box("point", (7.25, 28, 7.4), (8.75, 28.75, 8.6), STEEL_EDGE)
     return _held(m, "shovel")
@@ -384,16 +375,12 @@ def _rod(name, cast):
     m.box("crank", (12.25, 8.5, 9.75), (13.25, 11.25, 10.5), GOLD)
     m.box("crank_knob", (12, 10.5, 10.5), (13.5, 12, 11.75), JADE)
     m.group("rod")
-    # black lacquered bamboo: three lengths, a node (nacre or gold) at each joint
-    segs = ((6.5, 10, 2.75, BLACK), (10, 10.5, 3.0, NACRE), (10.5, 14, 2.75, BLACK), (14, 14.75, 2.75, GOLD),
-            (14.75, 18.25, 2.25, BLACK), (18.25, 18.75, 2.5, NACRE), (18.75, 23, 2.25, BLACK), (23, 23.75, 2.25, GOLD),
-            (23.75, 26.75, 1.75, BLACK), (26.75, 27.25, 2.0, NACRE), (27.25, 30.25, 1.75, BLACK))
-    for y0, y1, w, mat in segs:
-        h = w / 2
-        if w >= 2.5:
-            round_y(m, "rod", C - h, C + h, C - h, C + h, y0, y1, mat, 0.5)
-        else:
-            m.box("rod", (C - h, y0, C - h), (C + h, y1, C + h), mat)
+    # black lacquered bamboo: three lengths, a ring (nacre or gold) at each node
+    round_y(m, "rod", 6.625, 9.375, 6.625, 9.375, 6.5, 14, BLACK, 0.75)
+    m.box("rod", (6.875, 14, 6.875), (9.125, 23, 9.125), BLACK)
+    m.box("rod", (7.125, 23, 7.125), (8.875, 30.25, 8.875), BLACK)
+    for y, w, mat in ((10, 3.25, NACRE), (13.5, 3.25, GOLD), (18.25, 2.75, NACRE), (22.5, 2.75, GOLD), (26.75, 2.25, NACRE)):
+        m.box("node", (C - w / 2, y, C - w / 2), (C + w / 2, y + (0.75 if mat is NACRE else 1), C + w / 2), mat)
     m.box("rod_tip", (7, 30.25, 7), (9, 31.5, 9), GOLD)
     m.box("rod_tip", (7.375, 31.5, 7.375), (8.625, 32, 8.625), GOLD_DARK)
     m.box("guide", (9.125, 16, 7.375), (10.5, 17.25, 8.625), GOLD_DARK)

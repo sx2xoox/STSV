@@ -100,12 +100,10 @@ def _scales(r, b, line, line_i):
     def p(x, y, w, h, f):
         row = y // 3
         cx, cy = (x + (2 if row % 2 else 0)) % 4, y % 3
-        if (cy == 2 and cx in (1, 2)) or (cy == 1 and cx in (0, 3) and False):
+        if (cy == 2 and cx in (1, 2)) or (cy == 1 and cx == 0):
             return line, line_i
-        if cy == 1 and cx == 0:
-            return line, line_i
-        if cy == 0 and cx == 1:
-            return r, b + 2
+        if cy == 0 and cx in (1, 2):
+            return r, b + 1
         return r, b + (1 if _gloss(x, y, w, h) else 0)
     return p
 
@@ -138,12 +136,12 @@ def _pearl(x, y, w, h, f):
     return PEARLS, 3 if r < 0.18 else 2 if r < 0.34 else 1 if r < 0.5 else 0
 
 
-JADE_SCALE = DMat(_scales(JADE, 2, AZURE, 1))
-JADE_DEEP = DMat(_scales(JADE, 1, AZURE, 0))
+JADE_SCALE = DMat(_scales(JADE, 2, AZURE, 3))
+JADE_DEEP = DMat(_scales(JADE, 1, AZURE, 2))
 JADE_POLISH = DMat(_plain(JADE, 3))
 JADE_EDGE = DMat(_plain(JADE, 4), bevel=(1, -1))
 JADE_DARK = DMat(_plain(JADE, 1))
-AZURE_SCALE = DMat(_scales(AZURE, 2, AZURE, 0))
+AZURE_SCALE = DMat(_scales(AZURE, 2, AZURE, 1))
 AZURE_PLAIN = DMat(_plain(AZURE, 1))
 GOLD = DMat(_plain(GOLDS, 2))
 GOLD_LIGHT = DMat(_plain(GOLDS, 3))
@@ -249,11 +247,12 @@ def dragon_pickaxe():
         else:
             frm, to = (px - 2.75, py - 1, 7.25), (px - 0.25, py + 1, 8.75)
         m.box("claw", frm, to, IVORY_M, rotation=("z", -45 * side, (px, py, C)))
-        # the claw's point, thinner, and a talon on the arm's back
-        a = math.radians(45)
-        tx, ty = px + side * 2.75 * math.cos(a), py - 2.75 * math.sin(a)
-        frm, to = ((tx - 0.25, ty - 0.5, 7.6), (tx + 1.0, ty + 0.5, 8.4)) if side > 0 else ((tx - 1.0, ty - 0.5, 7.6), (tx + 0.25, ty + 0.5, 8.4))
-        m.box("claw_point", frm, to, IVORY_M, rotation=("z", -45 * side, (tx, ty, C)))
+        # the claw's point, thinner, along the same bend
+        if side > 0:
+            frm, to = (px + 2.75, py - 0.5, 7.6), (px + 4, py + 0.5, 8.4)
+        else:
+            frm, to = (px - 4, py - 0.5, 7.6), (px - 2.75, py + 0.5, 8.4)
+        m.box("claw_point", frm, to, IVORY_M, rotation=("z", -45 * side, (px, py, C)))
     return _held(m, "pickaxe")
 
 
@@ -311,11 +310,10 @@ def dragon_hoe():
     shaft(m, 20.5)
     m.group("head")
     m.box("snout", (2.75, 19.75, 6.75), (9.75, 22.25, 9.25), JADE_SCALE)
-    round_y(m, "crown", 6.5, 9.5, 6.5, 9.5, 22.25, 23, GOLD_CLOUD, 0.75)
     m.box("eye", (5.75, 20.75, 6.6), (6.75, 21.5, 9.4), EYE)
     m.box("brow", (5.5, 21.5, 6.6), (7.25, 22, 9.4), GOLD_LIGHT)
-    m.box("horn", (8.5, 22.5, 7.4), (12.5, 23.5, 8.6), GOLD, rotation=("z", 22.5, (8.5, 23, C)))
-    m.box("horn_tip", (12.25, 23.75, 7.6), (13.75, 24.5, 8.4), JADE_EDGE, rotation=("z", 45, (12.25, 24.1, C)))
+    m.box("horn", (6.5, 21.75, 7.4), (11.5, 23, 8.6), GOLD, rotation=("z", 22.5, (7, 22.4, C)))
+    m.box("horn_tip", (11.5, 22, 7.6), (13, 22.75, 8.4), JADE_EDGE, rotation=("z", 22.5, (7, 22.4, C)))
     for x in (3.25, 4.75):
         m.box("fang", (x, 19, 7.4), (x + 0.75, 19.75, 8.6), IVORY_M)
     m.box("jaw_band", (0, 21.25, 4.75), (2.75, 23, 11.25), GOLD_CLOUD)
