@@ -315,11 +315,12 @@ def dragon_hoe():
     m.box("socket_eye", (8.25, 21.25, 6.35), (9.25, 22, 9.65), EYE)
     m.box("horn", (6.75, 23, 7.5), (7.75, 24.25, 8.5), JADE_EDGE)
     m.box("horn", (8.25, 23, 7.5), (9.25, 24.25, 8.5), JADE_EDGE)
-    m.box("head", (1, 19.75, 6.75), (6.25, 22.5, 9.25), JADE_SCALE)
-    m.box("head_edge", (1, 19, 7), (6.25, 19.75, 9), JADE_EDGE)
-    m.box("whisker", (1, 22.5, 7.5), (6.25, 22.875, 8.5), GOLD_LIGHT)
-    pearl(m, 3.75, 21.125, 8, 0.875, cz=(6.75, 9.25), d=0.35)
-    m.box("end_plate", (0.25, 19, 6.5), (1, 23, 9.5), GOLD_CLOUD)
+    m.box("head", (-1.5, 20, 7), (6.25, 22.5, 9), JADE_SCALE)
+    m.box("head_edge", (-1.5, 19.5, 7.25), (6.25, 20, 8.75), JADE_EDGE)
+    m.box("whisker", (-1.5, 22.5, 7.5), (6.25, 22.875, 8.5), GOLD_LIGHT)
+    m.box("band", (0.5, 19.75, 6.85), (1.25, 22.75, 9.15), GOLD)
+    pearl(m, 3.5, 21.25, 8, 0.875, cz=(7, 9), d=0.35)
+    m.box("end_plate", (-2.25, 19.5, 6.75), (-1.5, 23, 9.25), GOLD_CLOUD)
     return _held(m, "hoe")
 
 

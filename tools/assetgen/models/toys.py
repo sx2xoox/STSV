@@ -502,22 +502,22 @@ def toy_axe():
 
 
 def toy_hoe():
-    """장난감 괭이: like a vanilla hoe, an L: a straight glossy blue bar sticking out to one side (-x) from the top of the
-    shaft, ending flat (no hook, no drop): a wider blue blade block at its end, behind a gold band, its flat end faced
-    with seamed foam; a gold cap with a jewel on the shaft's top, a gold end cap on the other side, the shining
-    holographic sticker on the bar's front and back."""
+    """장난감 괭이: like a vanilla hoe, an L: one straight glossy blue bar sticking out to one side (-x) from the top of
+    the shaft and ending flat (no hook, no drop): a little wider blade block at its end behind a gold band, its flat end
+    faced with seamed foam; a jewel in a gold setting on the bar, a gold cap with a red gem on the shaft's top and a gold
+    end cap on the other side. (The bar is too slim for the sticker: the hoe wears the jewel instead.)"""
     m = MModel("toy_hoe")
     premium_handle(m)
     premium_shaft(m, 20.5)
     m.group("head")
-    m.box("bar", (1.75, 18.25, 6.5), (9.75, 23.25, 9.5), P_BLUE)
-    round_y(m, "bar_cap", 6.5, 9.5, 6.5, 9.5, 23.25, 24, GOLD_TRIM, 0.75)
-    m.box("bar_gem", (7.25, 24, 7.25), (8.75, 24.75, 8.75), GEM_RED)
-    m.box("bar_end", (9.75, 18.75, 7), (10.25, 22.75, 9), GOLD_TRIM)
-    m.box("band", (1.25, 18, 6.25), (1.75, 23.5, 9.75), GOLD_TRIM)
-    m.box("blade", (0, 18.25, 5.5), (1.25, 23.25, 10.5), P_BLUE)
-    m.box("blade_edge", (-0.75, 18.5, 5.75), (0, 23, 10.25), P_FOAM_EDGE)
-    holo_sticker(m, 3, 18.5, 6.25, 9.75)
+    m.box("bar", (1.25, 19.75, 6.75), (9.75, 22.5, 9.25), P_BLUE)
+    round_y(m, "bar_cap", 6.5, 9.5, 6.5, 9.5, 22.5, 23.25, GOLD_TRIM, 0.75)
+    m.box("bar_gem", (7.25, 23.25, 7.25), (8.75, 24, 8.75), GEM_RED)
+    m.box("bar_end", (9.75, 20.125, 7.125), (10.25, 22.125, 8.875), GOLD_TRIM)
+    jewel(m, "bar_jewel", 4.25, 21.125, 6.75, 9.25, size=1.25, rim=0.25)
+    m.box("band", (0.75, 19.5, 6.5), (1.25, 22.75, 9.5), GOLD_TRIM)
+    m.box("blade", (-1.25, 19.75, 6), (0.75, 22.5, 10), P_BLUE)
+    m.box("blade_edge", (-2, 20, 6.25), (-1.25, 22.25, 9.75), P_FOAM_EDGE)
     return _held(m, "hoe")
 
 

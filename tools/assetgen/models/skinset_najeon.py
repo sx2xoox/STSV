@@ -348,11 +348,11 @@ def najeon_hoe():
     handle(m)
     shaft(m, 19.75, bands=(10.5, 15))
     m.group("head")
-    inlaid(m, "bar", (4, 19.75, 6.75), (9.75, 22.25, 9.25), BLACK, "nj_strip_black")
+    inlaid(m, "bar", (3, 19.75, 6.75), (9.75, 22.25, 9.25), BLACK, "nj_strip_black")
     round_y(m, "bar_cap", 6.5, 9.5, 6.5, 9.5, 22.25, 23, GOLD, 0.75)
-    m.box("bar_band", (3.25, 19.5, 6.5), (4, 22.5, 9.5), GOLD)
-    m.box("blade", (0, 19.5, 6), (3.25, 22.5, 10), JADE)
-    m.box("blade_edge", (-0.75, 19.75, 6.25), (0, 22.25, 9.75), GOLD_DARK)
+    m.box("bar_band", (2.25, 19.5, 6.5), (3, 22.5, 9.5), GOLD)
+    m.box("blade", (-1.25, 19.25, 6), (2.25, 22.75, 10), JADE)
+    m.box("blade_edge", (-2, 19.5, 6.25), (-1.25, 22.5, 9.75), GOLD_DARK)
     return _held(m, "hoe")
 
 
