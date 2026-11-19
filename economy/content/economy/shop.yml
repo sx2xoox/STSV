@@ -585,7 +585,9 @@ buy:
       - { item: stsv:light_truck, price: 2000000 }   # 1톤 트럭 (무게 1,000)
       - { item: stsv:combine, price: 2000000 }       # 소형 콤바인 + 짐칸 (무게 900, 수확기 · 파종기)
       # 마을버스 (짐칸 없음: 정류장 손님 운송, README "마을버스")
-      - { item: stsv:village_bus, price: 1500000 }   # 마을버스 (9칸/초, 9인승)
+      - { item: stsv:mini_bus, price: 700000 }       # 소형 버스 (10칸/초, 5인승: 손님 4)
+      - { item: stsv:village_bus, price: 1500000 }   # 마을버스 (9칸/초, 9인승: 손님 8)
+      - { item: stsv:limousine_bus, price: 3000000 } # 리무진 관광버스 (10칸/초, 17인승: 손님 16)
       # 어선 1~4세대 (하역장에 팔 수 없어서 같은 세대 도로·농기계보다 조금 쌈)
       - { item: stsv:raft, price: 20000 }            # 뗏목
       - { item: stsv:rowboat, price: 100000 }        # 나룻배
