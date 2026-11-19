@@ -10,19 +10,20 @@ colours, round lamp "eyes", charming, never dirty.
                  side. The driver has his own door on the left over the front wheel (it swings out);
                  the passengers a sliding door on the right (it slides back along the side, like a van's). Inside:
                  the driver and four seats (two pairs), a box of cabbages and a basket in the back.
-  limousine_bus  리무진 관광버스 (여행사 관광버스): a long, high, comfortable travel-agency coach. White with a purple
-                 swoosh rising towards the back over a teal line, a dark strip of big tinted windows (the riders
-                 still show), four round headlamps over a chrome grille, "rabbit ear" mirrors hanging in front of the
-                 windscreen, an amber destination board, an air conditioner on the roof, luggage hatches between the
-                 wheels. Inside: the driver and sixteen plush purple high-back seats with white lace head covers,
-                 parcel racks, short pleated curtains, a carpet runner. One front door (it swings out), steps up
-                 into the high floor.
+  limousine_bus  리무진 관광버스 (여행사 관광버스): the premium one, long, low and fast-looking, under the 국도's
+                 3-block tunnels: glossy black with a sharp red sweep rising along each side under a thin silver line,
+                 red trim lines, a dark strip of big deeply tinted windows between thin chrome lines (the riders
+                 still show), slim sharp headlamps with red brows, a wide chrome grille and bumper, chrome "rabbit
+                 ear" mirrors hanging in front of the windscreen, slim red tail bars up the back corners, an amber
+                 destination board, luggage bays along the skirt, chrome wheels (wheel_coach). Inside: the driver
+                 and sixteen dark leather high-back seats with red stitching and white lace head covers, a red carpet
+                 runner, chrome parcel racks. One front door (it swings out).
 
 The same rules as models/vehicles_bus.py: drawn at real size (16 px a block, the ground centre at (0, 0, 0), front =
 north (-z), +x = the bus's right side, the driver on the left), shrunk by BUS_SCALE (body-scale 4: every half pixel
 stays exact), the doors drawn in the body's space (a Kit). The windows' inside faces are all clear (glass_px inside):
-a driver in first person sees straight through the windscreen, which is one piece (no middle post). The wheels are
-the village bus's (wheel_bus).
+a driver in first person sees straight through the windscreen, which is one piece (no middle post). The mini bus
+rolls on the village bus's wheels (wheel_bus), the limousine on its own chrome ones (wheel_coach).
 
 Imported at the end of models/vehicles_road.py, after vehicles_bus (its ALL carries these): import that module.
 """
@@ -533,67 +534,113 @@ def mini_kit():
 
 
 # ================================================================================================
-# 리무진 관광버스 8.5 x 2.4 x 3.6 blocks (drawn px)
+# 리무진 관광버스 8.5 x 2.4 x 3.0 blocks (drawn px)
 # ================================================================================================
 
 class Limo:
     F, BK = -68, 68
     H, IN, W = 19, 18, 17
     WF, WB = -65, 65
-    BOTTOM, FLOOR, BELT, TOP, BAND, ROOF = 4, 20, 30, 50, 53, 55
-    SCREEN = 21
+    # under the 국도's 3-block tunnels and overpasses (economy RoadClearance.HEIGHT): a low floor, a long low roof
+    BOTTOM, FLOOR, BELT, TOP, BAND, ROOF = 4, 12, 22, 41, 44, 46
+    SCREEN = 16
     FA, RA = -42, 44
     DOOR = (-65, -52)                            # the front door (right side)
-    SEAT_Y = 27
+    SEAT_Y = 18
+    SEAT_X = 7.75
     ROWS = (-38, -24, -10, 4, 18, 32, 46, 60)
-    SEATS = [(-8, -54)] + [(sx * 8, z) for z in (-38, -24, -10, 4, 18, 32, 46, 60) for sx in (-1, 1)]
-    HATCHES = ((-30, -12), (-10, 9), (11, 32))
-    EYES = ((7.5, 12), (12.5, 12.5))              # the four round headlamps (x each side, y)
-    EYE_R = 2.25
-    WHEELS = Wheels((-42, 44), steps=((0, 3, 17), (3, 6, 16), (6, 8.5, 14), (8.5, 10, 11)))
+    SEATS = [(-7.75, -54)] + [(sx * 7.75, z) for z in (-38, -24, -10, 4, 18, 32, 46, 60) for sx in (-1, 1)]
+    HATCHES = ((-30, -12), (-10, 9), (11, 32))   # the luggage bays' doors along the skirt
+    WHEELS = Wheels((-42, 44))
     PANES = {"west": [(-64, -48), (-46, -24), (-22, 0), (2, 24), (26, 47), (49, 64)],
              "east": [(-50, -30), (-28, -6), (-4, 18), (20, 42), (44, 64)]}
-    PURPLE, TEAL = "grape", "water"
+    BLACK, RED = "rubber", "toadstool"
 
 
-def swoosh(z, y):
-    """The livery: a purple swoosh rising towards the back over a thin teal line (None: the white)."""
+def black(c, y, lo=1.3, hi=2.1):
+    """Glossy black: dark low down, lighter up the side, a soft reflection line along the waist, a few glints."""
+    fy = math.floor(y)
+    if fy == 15:
+        return (Limo.BLACK, 3.2)                                   # the gloss line
+    if fy == 14 or fy == 16:
+        return (Limo.BLACK, 2.6)
+    r = h3(math.floor(c.p[0] * 2), fy, math.floor(c.p[2]), 47)
+    return (Limo.BLACK, lerp(y, Limo.BOTTOM, Limo.TOP, lo, hi) + (0.5 if r < 0.03 else 0))
+
+
+def sweep(z, y):
+    """The livery: a sharp red sweep, a point near the nose widening and rising to the window line at the back, a thin
+    silver line riding over it (None: the black)."""
     t = (z - Limo.F) / (Limo.BK - Limo.F)
-    yc = 8 + 15 * t ** 1.5
-    d = y - yc
-    if 2.6 <= d < 4.2:
-        return ("petal_purple", 1.4)                              # a lavender edge over it
-    if -2.6 <= d < 2.6:
-        return (Limo.PURPLE, lerp(d, -2.6, 2.6, 2.2, 3.6))
-    if -5.0 <= d < -3.4:
-        return (Limo.TEAL, 2.6)
-    # a little sun rising ahead of the swoosh
-    r = math.hypot(z + 22, y - 19.5)
-    if r < 3.1:
-        return ("topaz", 2.6 if r < 1.6 else 2.1)
+    if t < 0.06:
+        return None
+    lo = 6 + 10 * t ** 1.3
+    hi = lo + 1 + 3.5 * min(1.0, (t - 0.06) / 0.5)
+    if lo <= y < hi:
+        return (Limo.RED, 2.8 if y > hi - 1 else 2.2)
+    if hi + 1 <= y < hi + 2 and hi + 2 < Limo.BELT - 1:
+        return ("blade", 2.6)                                      # one pixel of silver all the way along
     return None
+
+
+def chrome_glass(state, a, y, y1, frame, streak=19, inside=False):
+    """A pane in a black seal, deeply tinted along its top half (seen from inside: all clear)."""
+    if state == "seal" and not inside:
+        return raw("rubber", 0.8)
+    if state == "in" and not inside and math.floor(y) >= y1 - 8:
+        return raw("tint", 1.0 if math.floor(y) >= y1 - 4 else 1.6)
+    return glass_px(state, a, y, y1, frame, streak, inside=inside)
+
+
+def wheel_coach():
+    """The limousine's wheel: wheel_bus's size, a fat black tyre, a polished chrome rim and hub cap with ten nuts."""
+    from stsv_assets.bake import BModel
+    from stsv_assets import presets
+    from stsv_assets.bake import cyl
+    m = BModel("wheel_coach", shift=(8, 8, 8), floor=None)
+
+    def tyre(c):
+        x, y, z = c.p
+        r = math.hypot(y, z)
+        lit = y - 0.5 * z
+        if c.face in ("east", "west"):
+            if r > 6.3:
+                return ("rubber", 1.4 if lit > 3 else 1.0 if lit > -3 else 0.6)
+            if r > 5.2:
+                return ("blade", 3.6 if lit > 0 else 2.6)
+            if r < 1.2:
+                return ("toadstool", 2.4)                                          # a red centre cap
+            a = math.atan2(z, y)
+            if 2.6 < r < 3.8 and (a * 10 / (2 * math.pi)) % 1.0 < 0.3:
+                return ("steel", 1.4)
+            return ("blade", 3.2 if lit > 0 else 2.2)
+        k = math.floor((math.atan2(z, y) + math.pi) / (2 * math.pi) * 32)
+        if abs(x) < 0.5:
+            return ("rubber", 0.4)
+        return ("rubber", 2.0 if (k + (x > 0)) % 2 else 1.3)
+    cyl(m, "tyre", (0, 0), 16, -3, 3, Paint("rubber", 1, noise=0, rim=0.2, ao=0.2, decal=tyre), axis="x")
+    m.display = presets.furniture(gui_scale=0.5)
+    return m
 
 
 def limousine_kit():
     C = Limo
     F, BK, H, IN, W, WF, WB = C.F, C.BK, C.H, C.IN, C.W, C.WF, C.WB
     BOTTOM, FLOOR, BELT, TOP, BAND, ROOF, SCREEN = C.BOTTOM, C.FLOOR, C.BELT, C.TOP, C.BAND, C.ROOF, C.SCREEN
-    P, WH = C.PURPLE, C.WHEELS
+    B, R, WH = C.BLACK, C.RED, C.WHEELS
     kit = Kit("limousine_bus", ("door",), scale=BUS_SCALE)
     m = kit.body
-    PAINT = Paint("pearl", 2, noise=0, grad=0, rim=0.3)
+    PAINT = Paint(B, 2, noise=0, grad=0, rim=0.3)
 
     def outside(c, x, y, z):
-        """Every outer face: a grey skirt, the white with its swoosh, a purple line under the windows."""
+        """Every outer face: a dark skirt, the glossy black with the red sweep, a red trim line under the windows."""
         fy = math.floor(y)
         if fy < BOTTOM + 1:
-            return ("pearl", 0.49)
+            return (B, 0.6)
         if fy == BELT - 1:
-            return (P, 2.0)
-        got = swoosh(z, y)
-        if got:
-            return (got[0], worn(c.p, got[1]))
-        return ("pearl", worn(c.p, lerp(y, BOTTOM, TOP, 1.9, 2.4)))
+            return (R, 2.0)                                      # the red trim line under the windows
+        got = sweep(z, y)
+        return got or black(c, y)
 
     def side(c):
         x, y, z = c.p
@@ -603,32 +650,31 @@ def limousine_kit():
         if c.face == "down":
             return ("rubber", 0)
         if c.face == "up":
-            return ("rubber", 1.4)
+            return ("blade", 2.6)                                # a chrome sill under the window strip
         inside = (c.face == "east" and x < 0) or (c.face == "west" and x > 0)
         if inside:
             if fy < FLOOR + 1:
-                return (P, 1)
-            return ("cream", 2.2 if fy > FLOOR + 2 else 1.6)
+                return ("crimson", 1)
+            return ("rubber", 2.2 if fy > FLOOR + 2 else 1.6)
         if c.face in ("north", "south"):
-            return ("pearl", 1.31)
+            return (B, 1.4)
         if WH.rim(z, y):
-            return ("pearl", 0.66)
-        # the luggage hatches: a dark seam round each, a chrome handle (the livery runs over them)
+            return ("blade", 2.2)                                # a thin chrome line round the arches
+        # the luggage bays along the skirt: a fine seam round each door, a chrome handle (the sweep runs over them)
+        if sweep(z, y) and fy > BOTTOM:
+            return sweep(z, y)
         for z0, z1 in C.HATCHES:
-            if z0 <= z <= z1 and 5 <= fy <= 17:
-                if fz in (z0, z1 - 1) or fy in (5, 17):
-                    return ("pearl", 0.66)
+            if z0 <= z <= z1 and 5 <= fy <= 12:
+                if fz in (z0, z1 - 1) or fy in (5, 12):
+                    return (B, 0.4)
                 if fy == 7 and abs(z - (z0 + z1) / 2) < 2:
                     return ("blade", 3.6)
-        if WB - 9 <= z <= WB - 2 and 8 <= fy <= 16:
-            return ("rubber", 1.0) if fy % 2 else ("pearl", 1.64)   # the engine's louvres behind the rear wheels
-        if fz in (WF + 1, WF + 2) and fy == 12:
+        if WB - 9 <= z <= WB - 2 and 7 <= fy <= 15:
+            return (B, 0.4) if fy % 2 else ("blade", 2.2)        # the engine's louvres behind the rear wheels
+        if fz in (WF + 1, WF + 2) and fy == 10:
             return ("fox", 3.6)
-        if fz in (WB - 12, WB - 11) and fy == 12:
-            return ("signal_red", 1.6)
-        near = min(abs(z - a) for a in WH.axles) - WH.slot
-        if fy < 14 and 0 < near < 4 and h3(fz, fy, 7, 81) < 0.16 - near * 0.04 - max(0, fy - 6) * 0.025:
-            return ("clay", 3.0 if h3(fz, fy, 2, 9) < 0.5 else 2.6)   # a little road dust behind the wheels
+        if fz in (WB - 12, WB - 11) and fy == 10:
+            return (R, 2.0)
         return outside(c, x, y, z)
     wall = PAINT(decal=side)
 
@@ -637,167 +683,173 @@ def limousine_kit():
         if c.face == "down":
             return ("rubber", 0)
         if c.face == "up":
-            return ("pearl", 2.13)
+            return (B, 2.4)
         if y >= BELT:
-            return ("rubber", 1.4)                               # the dark window strip wraps round
+            return (B, 1.2)                                      # the dark window strip wraps round
         return outside(c, x, y, z)
 
     def nose(c):
-        """Under the windscreen: a chrome grille between the lamps, a purple line, a little round badge."""
+        """Under the windscreen: a wide chrome grille, a little chrome chevron, a red line across."""
         x, y, z = c.p
         fy, ax = math.floor(y), abs(x)
         if c.face == "north":
-            if ax < 5 and 9 <= fy <= 13:
-                if ax > 4 or fy in (9, 13):
-                    return ("blade", 3.6)
-                return ("rubber", 0.6) if fy % 2 else ("blade", 2.4)
-            if math.hypot(x, y - 16) < 1.6:
-                return ("pearl", 3.12) if math.hypot(x, y - 16) < 0.8 else (P, 2.6)
-            if fy == 18:
-                return (P, 2.4)
-            if fy == 17 and ax > 3:
-                return (C.TEAL, 2.6)
-            if 14 <= ax <= 16 and 8 <= fy <= 9:
-                return ("fox", 3.4)
-            if math.hypot(ax - 15, y - 15) < 1.3:
-                return ("pink", 2.4)                             # rosy cheeks
-            return ("pearl", worn(c.p, 2.13))
+            if ax < 6 and 6 <= fy <= 9:
+                return ("blade", 3.6) if fy in (6, 8) else (B, 0.6)   # the grille's slats
+            if fy == 10 and ax < 1.5 - (0 if ax < 0.5 else 0):
+                return ("blade", 4)
+            if fy == 11 and 0.5 <= ax < 2.5:
+                return ("blade", 3.6)                             # a chevron
+            if fy == SCREEN - 2:
+                return (R, 2.4)                                   # the red line under the windscreen
+            return black(c, y, 1.4, 2.0)
         if c.face == "up":
             return ("rubber", 1.2)
         if c.face in ("east", "west"):
             return outside(c, x, y, z)
-        return ("pearl", 1.64)
+        return (B, 2)
 
     def tail(c):
         x, y, z = c.p
         fy, ax = math.floor(y), abs(x)
         if c.face == "south":
-            if 8 <= fy <= 10 and ax < 4.5:
-                return plate(math.floor(x + 4.5), 10 - fy, 9, 3)
-            if ax < 8 and 13 <= fy <= 25:
-                if ax > 7 or fy in (13, 25):
-                    return ("pearl", 1.15)
-                return ("rubber", 1.0) if fy % 2 else ("pearl", 1.97)   # the engine's grille
-            if fy == 28:
-                return (P, 2.4)
-            return ("pearl", worn(c.p, 2.13))
+            if 7 <= fy <= 9 and ax < 4.5:
+                return plate(math.floor(x + 4.5), 9 - fy, 9, 3)
+            if ax < 8 and 12 <= fy <= 21:
+                if ax > 7 or fy in (12, 21):
+                    return ("blade", 2.6)
+                return (B, 0.4) if fy % 2 else (B, 1.8)            # the engine's grille in a chrome frame
+            if fy == 23:
+                return (R, 2.4)
+            return black(c, y, 1.4, 2.0)
         if c.face == "up":
-            return ("pearl", 2.13)
+            return (B, 2.2)
         if c.face in ("east", "west"):
             return outside(c, x, y, z)
-        return ("pearl", 1.64)
+        return (B, 2)
 
     def band(c):
         x, y, z = c.p
         fy = math.floor(y)
         if c.face == "down":
-            return ("cream", 2.6)
+            return ("rubber", 2.4)                               # the ceiling: dark
         if c.face == "up":
-            return ("pearl", 2.46)
+            return (B, 2.4)
         if fy == TOP:
-            return (C.TEAL, 2.4)
-        return ("pearl", 2.3)
+            return ("blade", 2.6)                                # a thin chrome line over the windows
+        return black(c, y, 2.0, 2.4)
 
     def roof(c):
         x, y, z = c.p
         if c.face == "up":
             if abs(x) < 5 and 40 <= z < 48:
                 if abs(x) > 4 or math.floor(z) in (40, 47):
-                    return ("pearl", 1.48)
-                return ("pearl", 2.13)
-            return ("pearl", 2.46)
-        return ("pearl", 2.13)
+                    return (B, 1.2)
+                return (B, 2.2)
+            return (B, 2.6 if abs(x) < 3 else 2.2)               # a soft highlight along the top
+        return (B, 2.2)
 
     def floor(c):
         x, y, z = c.p
         if c.face == "up":
-            if abs(x) < 3:
-                return (P, 2.2 if math.floor(z) % 4 else 1.8)   # the carpet runner
-            return ("rubber", 2.2 if math.floor(z) % 2 else 1.8)
+            if abs(x) < 2.5:
+                return ("crimson", 2.0 if math.floor(z) % 4 else 1.6)   # the red carpet runner
+            return ("rubber", 2.0 if math.floor(z) % 2 else 1.6)
         return ("rubber", 0.8)
 
     m.group("body")
     fp = Paint("rubber", 1, noise=0, decal=floor)
     D0, D1 = C.DOOR
-    # the high floor over the luggage bays; at the front door two steps up from the kerb
-    m.box("floor", (-HUB, BOTTOM, WF), (4, FLOOR, WB), fp)
-    m.box("floor", (4, BOTTOM, D1), (HUB, FLOOR, WB), fp)
-    m.box("step", (4, BOTTOM, WF), (HUB, 14, D1), fp)
+    m.box("floor", (-HUB, BOTTOM, WF), (HUB, FLOOR, WB), fp)
     for s in (1, -1):
         xa, xb = sorted((HUB * s, IN * s))
         for a0, a1 in ((WF, C.FA - 10), (C.FA + 10, C.RA - 10), (C.RA + 10, WB)):
-            top = 8 if (s > 0 and a0 == WF) else FLOOR
-            m.box("floor_side", (xa, BOTTOM, a0), (xb, top, a1), fp)
+            if s > 0 and a0 == WF:
+                m.box("floor_side", (xa, BOTTOM, a0), (xb, 8, a1), fp)      # the step at the front door
+            else:
+                m.box("floor_side", (xa, BOTTOM, a0), (xb, FLOOR, a1), fp)
         for a in WH.axles:
-            m.box("housing", (xa, WH.steps[0][2], a - 10), (xb, FLOOR, a + 10), Paint("rubber", 1, noise=0))
+            m.box("housing", (xa, 18, a - 10), (xb, 21, a + 10), Paint("rubber", 1, noise=0))
+            xl, xr = sorted(((HUB - 0.5) * s, HUB * s))
+            m.box("well", (xl, FLOOR, a - 10), (xr, 18, a + 10), Paint("rubber", 0, noise=0))
 
     for s in (1, -1):
-        xa, xb = sorted((IN * s, H * s))
         gaps = [(D0, D1, BOTTOM, BELT)] if s > 0 else []
         walls(m, s, WF, WB, WH, gaps, BOTTOM, WH.steps[0][2], BELT, IN, H, wall)
         xa, xb = sorted((W * s, H * s))
         m.box("corner", (xa, BOTTOM, WF - 1), (xb, TOP, WF), PAINT(decal=corner))
         m.box("corner", (xa, BOTTOM, WB), (xb, TOP, WB + 1), PAINT(decal=corner))
     m.box("nose", (-W, BOTTOM, F), (W, SCREEN, WF), PAINT(decal=nose))
-    m.box("tail", (-W, BOTTOM, WB), (W, 32, BK), PAINT(decal=tail))
+    m.box("tail", (-W, BOTTOM, WB), (W, 25, BK), PAINT(decal=tail))
     m.box("band", (-H, TOP, WF - 1), (H, BAND, WB + 1), PAINT(decal=band))
     m.box("band", (-W, TOP, WB + 1), (W, BAND, BK - 0.5), PAINT(decal=band))
     m.box("roof", (-H + 1, BAND, WF + 0.5), (H - 1, BAND + 1, BK - 2), PAINT(decal=roof))
     m.box("roof", (-H + 3.5, BAND + 1, WF + 3), (H - 3.5, ROOF, BK - 5), PAINT(decal=roof))
 
-    # the air conditioner on the roof: a low grey pod, two round fan grilles
+    # a low, sleek air conditioner on the roof, two fan grilles
     def aircon(c):
         x, y, z = c.p
         if c.face == "up":
             for fz in (-6, 10):
                 d = math.hypot(x, z - fz)
                 if d < 4.5:
-                    return ("steel", 1.2) if d > 3.6 or math.floor(d * 2) % 2 else ("steel", 2)
-            return ("steel", 3.2)
-        return ("steel", 2.4 if math.floor(y) == ROOF + 1 else 2)
-    m.box("aircon", (-7, ROOF, -12), (7, ROOF + 2, 16), Paint("steel", 3, noise=0, rim=0.4, decal=aircon))
+                    return ("steel", 0.8) if d > 3.6 or math.floor(d * 2) % 2 else ("steel", 1.4)
+            return ("steel", 1.8)
+        return ("steel", 1.2)
+    m.box("aircon", (-7, ROOF, -12), (7, ROOF + 1.5, 16), Paint("steel", 2, noise=0, rim=0.4, decal=aircon))
 
     def bumper(c):
         x, y = c.p[0], c.p[1]
         fy = math.floor(y)
-        if c.face == "north" and 4 <= fy <= 6 and abs(x) < 4.5:
-            got = plate(math.floor(x + 4.5), 6 - fy, 9, 3)
+        if c.face == "north" and 3 <= fy <= 5 and abs(x) < 4.5:
+            got = plate(math.floor(x + 4.5), 5 - fy, 9, 3)
             if got:
                 return got
         if c.face == "up":
             return ("blade", 4)
-        return ("blade", 2 if fy == 3 else 3.4 if fy >= 5 else 2.8)
+        return ("blade", 2 if fy == 2 else 3.4 if fy >= 4 else 2.8)
     bp = Paint("blade", 3, noise=0, rim=0.6, decal=bumper)
-    m.box("bumper", (-W + 0.5, 3, F - 1.5), (W - 0.5, 7, F), bp)
-    m.box("bumper", (-W + 0.5, 3, BK), (W - 0.5, 7, BK + 1.5), bp)
+    m.box("bumper", (-W + 0.5, 2, F - 1.5), (W - 0.5, 6, F), bp)
+    m.box("bumper", (-W + 0.5, 2, BK), (W - 0.5, 6, BK + 1.5), bp)
 
     m.group("lights")
     for s in (1, -1):
-        # each lamp in its own little pod (the outer one a touch higher and further out: their glows stay apart)
-        for (cx, cy), out in zip(C.EYES, (0.5, 0.75)):
-            xa, xb = sorted(((cx - 2.5) * s, (cx + 2.5) * s))
-            m.box("headlamp", (xa, cy - 2.5, F - out), (xb, cy + 2.5, F),
-                  Paint("lamp", 3, decal=round_lamps([(cx * s, cy)], C.EYE_R, body=lambda c: ("pearl", 1.48)), **lamp()))
+        def headlamp(c, s=s):
+            # a slim, sharp lamp: a chrome rim, a bright strip, its inner end cut on the slant, a red line over it
+            x, y, z = c.p
+            if c.face != "north":
+                return (B, 1)
+            ax, fy = abs(x), math.floor(y)
+            if fy == 12:
+                return (R, 2.2)                                   # the red brow over the lamp
+            slant = 6 + (y - 9.5)                                 # the inner end leans back
+            if ax < slant:
+                return (B, 1.2)
+            if fy == 9 or ax > 14.5:
+                return ("blade", 3.4)
+            return ("lamp", 4 if fy == 11 else 3.6)
+        xa, xb = sorted((6 * s, 15.5 * s))
+        m.box("headlamp", (xa, 9, F - 0.5), (xb, 13, F), Paint("lamp", 3, decal=headlamp, **lamp()))
 
         def taillight(c, s=s):
+            # a slim red bar up each back corner, the reverse lamp at its foot
             x, y, z = c.p
             if c.face != "south":
-                return ("signal_red", 0)
-            r = math.hypot(x - 13 * s, y - 14.5)
-            if r <= 2.9:
-                return ("blade", 3.4) if r > 2.2 else ("toadstool", 3.6 if r < 1 else 3.0 if y > 14.5 else 2.6)
-            if math.hypot(x - 13 * s, y - 9.5) <= 1.6:
-                return ("lamp", 3.8)                             # the reverse lamp
-            return ("pearl", 1.2)
-        xa, xb = sorted((10 * s, 16 * s))
-        m.box("taillight", (xa, 7.5, BK), (xb, 17.5, BK + 0.5), Paint("signal_red", 1, decal=taillight, **lamp()))
+                return (R, 0)
+            ax, fy = abs(x), math.floor(y)
+            if ax < 13:
+                return (B, 1.0)
+            if fy < 10:
+                return ("lamp", 3.8)
+            return (R, 2.8 if 14 < ax < 15.5 else 2.2)
+        xa, xb = sorted((12.5 * s, 16.5 * s))
+        m.box("taillight", (xa, 8, BK), (xb, 21, BK + 0.5), Paint(R, 1, decal=taillight, **lamp()))
 
     # the destination board over the windscreen: amber LED marks (no words) on black
     def led_board(c):
         if c.face != "north":
             return ("rubber", 1)
         if c.u == 0 or c.v == 0 or c.u == c.nu - 1 or c.v == c.nv - 1:
-            return ("rubber", 1.6)
+            return ("rubber", 1.2)
         col, row = c.u - 1, c.v - 1
         k, u = divmod(col, 4)
         if u < 3 and h3(k, row, u, 41) < (0.62 if k % 3 else 0.3):
@@ -810,33 +862,25 @@ def limousine_kit():
     def screen(c):
         x, y, z = c.p
         if c.nu <= 1 or c.nv <= 1:
-            return raw("pearl", 2.13)
+            return raw(B, 1.6)
         state = rounded(x, -W, W, y, SCREEN, TOP, r=3.2)
         if state == "in" and math.floor(y) == SCREEN + 1 and (1.5 <= abs(x) < 10):
             return raw("rubber", 0.6)                             # the wipers resting
-        return glass_px(state, x, y, TOP, ("pearl", 2.13), 23, inside=c.face == "south")
+        return glass_px(state, x, y, TOP, (B, 1.6), 23, inside=c.face == "south")
     m.box("windscreen", (-W, SCREEN, WF - 1), (W, TOP, WF - 0.5), Paint("glass", 2, noise=0, light=False, decal=screen))
 
     def windows(c):
-        """The dark window strip: big tinted panes, short pleated curtains bunched at the pillars."""
+        """The dark window strip: big deeply tinted panes between black pillars (the riders still show); a thin chrome
+        line runs along under and over the whole strip (the sill, the band's lowest row)."""
         x, y, z = c.p
         if c.nu <= 1 or c.nv <= 1:
-            return raw("rubber", 1.4)
+            return raw(B, 1.2)
         face = "west" if x < 0 else "east"
-        for k, (z0, z1) in enumerate(C.PANES[face]):
+        for z0, z1 in C.PANES[face]:
             if z0 - 0.5 <= z <= z1 + 0.5:
                 state = rounded(z, z0, z1, y, BELT + 1, TOP - 1, r=1.6)
-                fy = math.floor(y)
-                if state == "in" and not (face == "west" and k == 0):
-                    edge = min(z - z0, z1 - z)
-                    if edge < 2.2 and fy > BELT + 3:
-                        return raw("petal_purple", 1.0 if math.floor(z) % 2 else 0.5)   # curtains tied back
-                    if fy >= TOP - 3:
-                        return raw("petal_purple", 0.8 if math.floor(z) % 2 else 0.3)   # the valance
-                if state == "in" and c.face == face and fy >= TOP - 6:
-                    return raw("tint", 2.2)                       # a deeper tint along the top
-                return glass_px(state, z, y, TOP - 1, ("rubber", 1.4), inside=c.face != face)
-        return raw("rubber", 1.4)
+                return chrome_glass(state, z, y, TOP - 1, (B, 1.2), inside=c.face != face)
+        return raw(B, 1.2)
     wp = Paint("glass", 2, noise=0, light=False, decal=windows)
     m.box("side_window", (-H, BELT, WF), (-H + 0.5, TOP, WB), wp)
     m.box("side_window", (H - 0.5, BELT, D1), (H, TOP, WB), wp)
@@ -844,19 +888,19 @@ def limousine_kit():
     def back_window(c):
         x, y, z = c.p
         if c.nu <= 1 or c.nv <= 1:
-            return raw("pearl", 2.13)
-        return glass_px(rounded(x, -W + 2, W - 2, y, 34, TOP - 1, r=2.6), x, y, TOP - 1, ("pearl", 2.13), 13,
-                        inside=c.face == "north")
-    m.box("back_window", (-W, 32, BK - 0.5), (W, TOP, BK), Paint("glass", 2, noise=0, light=False, decal=back_window))
+            return raw(B, 1.6)
+        return chrome_glass(rounded(x, -W + 2, W - 2, y, 26, TOP - 1, r=2.6), x, y, TOP - 1, (B, 1.6), 13,
+                            inside=c.face == "north")
+    m.box("back_window", (-W, 25, BK - 0.5), (W, TOP, BK), Paint("glass", 2, noise=0, light=False, decal=back_window))
 
-    # "rabbit ear" mirrors: arms from the roof's front corners, bending forward and down in front of the windscreen
-    arm = Paint("rubber", 2, noise=0, rim=0.4, decal=lambda c: ("rubber", 2.4 if c.face == "up" else 1.4))
+    # chrome "rabbit ear" mirrors: arms from the roof's front corners, bending forward and down in front of the windscreen
+    arm = Paint("blade", 2, noise=0, rim=0.4, decal=lambda c: ("blade", 3.6 if c.face == "up" else 2.6))
     for s in (1, -1):
         xa, xb = sorted(((H - 1) * s, (H + 0.5) * s))
         m.box("mirror_arm", (xa, BAND - 2, F - 5), (xb, BAND - 1, WF), arm)
-        m.box("mirror_arm", (xa, 36, F - 5), (xb, BAND - 2, F - 4), arm)
+        m.box("mirror_arm", (xa, 30, F - 5), (xb, BAND - 2, F - 4), arm)
         xa, xb = sorted(((H - 2) * s, (H + 1.5) * s))
-        m.box("mirror", (xa, 29, F - 6.5), (xb, 36, F - 5), Paint("blade", 2, noise=0, decal=mirror_face))
+        m.box("mirror", (xa, 23, F - 6.5), (xb, 30, F - 5), Paint("blade", 2, noise=0, decal=mirror_face))
 
     m.group("inside")
 
@@ -868,32 +912,32 @@ def limousine_kit():
             return ("rubber", 1.6)
         return None
     m.box("dash", (-W, SCREEN, WF), (W, SCREEN + 4, WF + 4), DARK(decal=dash))
-    m.box("column", (-8.5, FLOOR, WF + 4), (-7.5, SCREEN + 6, WF + 5), Paint("rubber", 2, noise=0))
-    m.box("wheel", (-12, SCREEN + 6, WF + 2), (-4, SCREEN + 6.5, WF + 9), Paint("rubber", 1, noise=0, light=False, decal=steering))
+    m.box("column", (-8.25, FLOOR, WF + 4), (-7.25, SCREEN + 6, WF + 5), Paint("rubber", 2, noise=0))
+    m.box("wheel", (-11.75, SCREEN + 6, WF + 2), (-3.75, SCREEN + 6.5, WF + 9), Paint("rubber", 1, noise=0, light=False, decal=steering))
 
-    driver = dict(bolster=("rubber", 2), insert=("rubber", 3), stitch=("steel", 2))
-    seat = dict(bolster=("aubergine", 2), insert=(P, 2.6), stitch=(P, 3.6))
-    chair(m, *C.SEATS[0], FLOOR, C.SEAT_Y, C.SEAT_Y + 13, driver)
+    driver = dict(bolster=("rubber", 2), insert=("rubber", 3), stitch=(R, 2))
+    seat = dict(bolster=("rubber", 1.6), insert=("rubber", 2.6), stitch=(R, 2.4))      # dark leather, red stitching
+    chair(m, *C.SEATS[0], FLOOR, C.SEAT_Y, C.SEAT_Y + 13, driver, w=4.5)
     for x, z in C.SEATS[1:]:
-        chair(m, x, z, FLOOR, C.SEAT_Y, C.SEAT_Y + 15, seat, w=5, head=5)
+        chair(m, x, z, FLOOR, C.SEAT_Y, C.SEAT_Y + 15, seat, w=4.5, head=5)
 
-    # parcel racks along both sides over the seats, a grab rail by the door
-    rack = Paint("steel", 2, noise=0, rim=0.4, decal=lambda c: ("steel", 3 if c.face == "up" else 2))
+    # parcel racks along both sides over the seats, a chrome grab rail by the door
+    rack = Paint("blade", 2, noise=0, rim=0.4, decal=lambda c: ("blade", 3 if c.face == "up" else 2))
     for s in (1, -1):
-        xa, xb = sorted(((IN - 5) * s, IN * s))
-        m.box("rack", (xa, TOP - 4, -48), (xb, TOP - 3, 62), rack)
-    m.box("pole", (5, 14, D1 + 0.5), (6, TOP - 2, D1 + 1.5), Paint("hazard", 2, noise=0, rim=0.3))
+        xa, xb = sorted(((IN - 4) * s, IN * s))
+        m.box("rack", (xa, TOP - 2, -48), (xb, TOP - 1, 62), rack)
+    m.box("pole", (5, 8, D1 + 0.5), (6, TOP - 2, D1 + 1.5), Paint("blade", 2, noise=0, rim=0.3))
 
-    # --- the door (part): white below with the livery across it, a tall pane, a chrome handle --------
+    # --- the door (part): black below with the sweep's start and the red line, a tall tinted pane, a chrome handle --
     def door(c):
         x, y, z = c.p
         fy = math.floor(y)
         if c.nu <= 1 or c.nv <= 1:
-            return raw("rubber", 1.4)
-        state = rounded(z, D0 + 1, D1 - 1, y, 21, TOP - 1, r=2.0)
+            return raw(B, 1.2)
+        state = rounded(z, D0 + 1, D1 - 1, y, 14, TOP - 1, r=2.0)
         if state != "out":
-            return glass_px(state, z, y, TOP - 1, ("rubber", 1.4), 17)
-        if fy == 16 and D1 - 4 < z < D1 - 1.5:
+            return chrome_glass(state, z, y, TOP - 1, (B, 1.2), 17)
+        if fy == 10 and D1 - 4 < z < D1 - 1.5:
             return raw("blade", 3.6)
         got = outside(c, x, y, z)
         return raw(got[0], got[1])
@@ -917,7 +961,7 @@ def _part(name, part):
     return lambda: KITS[name]().all()[f"{name}_{part}"]
 
 
-ALL = {}
+ALL = {"wheel_coach": wheel_coach}
 for _n in KITS:
     ALL[_n] = _body(_n)
     for _p in PARTS[_n]:

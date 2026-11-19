@@ -78,7 +78,8 @@ class RenderBudgetTest {
                 "stsv:mini_bus", "stsv:limousine_bus")) {
             assertEquals(RenderBudget.Category.VEHICLE, kinds.get(body), body);
         }
-        for (String w : List.of("stsv:wheel_bicycle", "stsv:wheel_scooter", "stsv:wheel_atv", "stsv:wheel_van", "stsv:wheel_truck", "stsv:wheel_bus")) {
+        for (String w : List.of("stsv:wheel_bicycle", "stsv:wheel_scooter", "stsv:wheel_atv", "stsv:wheel_van", "stsv:wheel_truck", "stsv:wheel_bus",
+                "stsv:wheel_coach")) {
             assertEquals(RenderBudget.Category.VEHICLE_WHEEL, kinds.get(w), w);
         }
         for (String m : List.of("stsv:bicycle_crank", "stsv:cargo_bicycle_cargo_1", "stsv:cargo_bicycle_cargo_4", "stsv:atv_cargo_1",

@@ -88,10 +88,9 @@ LAMPS = {
     # vehicles_buses.py mini_bus: the round eyes on its snub nose, round tail lamps (the reverse lamp under each)
     "mini_bus": dict(scale=4.0, head=lens(6.5, 12.5, 9, 15, -38, True), tail=lens(11.5, 15.5, 13, 17, 38.5, True),
                      reverse=lens(12, 15, 9, 12, 38.5, True), body=("vehicles_road", "mini_bus")),
-    # limousine_bus: four round headlamps beside the grille, round chrome-ringed tail lamps (the reverse lamp under each)
-    "limousine_bus": dict(scale=4.0, head=lens(5.25, 9.75, 9.75, 14.25, -68.5, True) + lens(10.25, 14.75, 10.25, 14.75, -68.75, True),
-                          tail=lens(10.8, 15.2, 12.3, 16.7, 68.5, True), reverse=lens(11.4, 14.6, 7.9, 11.1, 68.5, True),
-                          body=("vehicles_road", "limousine_bus")),
+    # limousine_bus: a slim sharp headlamp each side, a slim red bar up each back corner (the reverse lamp at its foot)
+    "limousine_bus": dict(scale=4.0, head=lens(7.5, 14.5, 10, 12, -68.5), tail=lens(13, 16.5, 10, 21, 68.5),
+                          reverse=lens(13, 16.5, 8, 10, 68.5), body=("vehicles_road", "limousine_bus")),
     # vehicles_farm.py power_tiller: one round lamp on the hopper's front corner (the trailer's lamps are not drawn here)
     "power_tiller": dict(scale=2.0, head=lens(-4.9, -2.1, 26.1, 28.9, -16, True, False), body=("vehicles_farm", "power_tiller")),
     # tractor: two round lamps standing on the hood's front corners, tail lamps on the fenders' backs

@@ -264,33 +264,36 @@ def mini_bus():
 
 @icon("limousine_bus")
 def limousine_bus():
-    # the long travel-agency coach from its left side, the front to the left: the air conditioner on the white roof,
-    # the dark strip of big windows, a purple line under it, the purple swoosh rising towards the back over a teal
-    # line, a "rabbit ear" mirror hanging in front, two wheels
+    # the long, low black coach from its left side, the front to the left: a low air conditioner on the roof, a thin
+    # chrome line over the dark tinted window strip, a red trim line under it, the sharp red sweep rising towards the
+    # back with a silver line over it, a chrome "rabbit ear" mirror, a slim headlamp, a red tail bar, chrome wheels
     c = Canvas()
-    box(c, 6, 2, 9, 2, "steel", 2, 4)           # the air conditioner
-    box(c, 1, 3, 15, 3, "pearl", 3, 3)          # the roof
-    box(c, 1, 4, 15, 11, "pearl", 2, 2)         # the body
-    box(c, 1, 4, 15, 7, "rubber", 1, 3)         # the window strip
-    for x0 in (2, 6, 10, 13):                   # the panes (tinted, a rider's head showing)
-        box(c, x0, 5, min(x0 + 2, 14), 6, "glass", 1, 4)
-    c.put(7, 5, "glass", 3, 5)
-    c.put(11, 6, "glass", 3, 5)
-    c.put(1, 5, "glass", 3, 5)                  # the windscreen's edge
-    c.put(1, 6, "glass", 2, 5)
-    box(c, 1, 8, 15, 8, "grape", 3, 4)          # the purple line under the windows
-    for x in range(1, 16):                      # the swoosh rising towards the back
-        y = 12 - (x - 1) * 3 // 14
-        c.put(x, y, "grape", 3, 5)
-        if y + 1 <= 12:
-            c.put(x, y + 1, "water", 3, 5)
-    box(c, 1, 12, 15, 12, "pearl", 1, 3)        # the skirt
-    c.put(0, 3, "rubber", 2, 6)                 # the mirror's arm and glass
-    box(c, 0, 4, 0, 6, "blade", 3, 6)
-    c.put(1, 10, "lamp", 5, 6)                  # a headlamp
-    c.put(15, 10, "signal_red", 2, 6)           # a tail lamp
-    for x0 in (3, 11):                          # the wheels: fat tyres, cream rims, a chrome cap
+    B = "rubber"
+    box(c, 6, 2, 10, 2, "steel", 1, 4)          # the air conditioner
+    box(c, 1, 3, 15, 12, B, 2, 2)               # the glossy black body
+    box(c, 1, 3, 15, 3, B, 3, 3)                # the roof's highlight
+    box(c, 1, 4, 15, 4, "blade", 3, 4)          # the chrome line over the windows
+    for x0 in (2, 6, 10, 13):                   # the tinted panes between black pillars, a rider's head showing
+        box(c, x0, 5, min(x0 + 2, 15), 7, "tint", 2, 4)
+    c.put(7, 6, "glass", 2, 5)
+    c.put(11, 6, "glass", 2, 5)
+    c.put(1, 5, "glass", 2, 5)                  # the windscreen's edge
+    c.put(1, 6, "glass", 1, 5)
+    box(c, 1, 8, 15, 8, "toadstool", 2, 4)      # the red trim line
+    for x in range(2, 16):                      # the red sweep rising towards the back, a silver line over it
+        y = 11 - (x - 2) * 2 // 13
+        c.put(x, y, "toadstool", 3, 5)
+        if x > 6:
+            c.put(x, y + 1, "toadstool", 2, 5)
+        c.put(x, y - 1, "blade", 3, 5)
+    c.put(0, 3, "blade", 3, 6)                  # the mirror's arm and glass
+    box(c, 0, 4, 0, 6, "blade", 4, 6)
+    box(c, 1, 10, 2, 10, "lamp", 5, 6)          # the slim headlamp
+    box(c, 15, 8, 15, 10, "toadstool", 3, 6)    # the red tail bar
+    for x0 in (3, 11):                          # the wheels: black tyres, chrome rims, a red cap
         box(c, x0, 12, x0 + 2, 14, "rubber", 1, 6)
-        c.put(x0 + 1, 13, "blade", 4, 7)
-        c.put(x0 + 1, 12, "cream", 3, 7)
+        c.put(x0 + 1, 13, "toadstool", 3, 7)
+        c.put(x0 + 1, 12, "blade", 4, 7)
+        c.put(x0, 13, "blade", 3, 7)
+        c.put(x0 + 2, 13, "blade", 3, 7)
     return c.render()

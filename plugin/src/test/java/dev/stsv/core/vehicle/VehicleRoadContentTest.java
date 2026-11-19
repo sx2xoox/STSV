@@ -354,19 +354,21 @@ class VehicleRoadContentTest {
     }
 
     /**
-     * 리무진 관광버스: a driver and sixteen passengers, the biggest bus: long, high, heavy and slow to turn, one front door
-     * on the right for everybody.
+     * 리무진 관광버스: a driver and sixteen passengers, the biggest bus: long, heavy and slow to turn, one front door on the
+     * right for everybody, and no taller than the 국도's tunnels and overpasses let through (economy RoadClearance: 3 blocks).
      */
     @Test
     void theLimousineBusCarriesSixteen() throws Exception {
         YamlConfiguration y = items("vehicles_road.yml");
         VehicleSpec bus = spec(y, "limousine_bus"), village = spec(y, "village_bus"), truck = spec(y, "box_truck");
-        aBus(bus, "limousine_bus", 17, 50 / 16.0);
+        aBus(bus, "limousine_bus", 17, 41 / 16.0);
         assertEquals(10, bus.speed(), 1e-9);
         assertEquals(8.5, bus.length(), 0.01);
         assertEquals(2.4, bus.width(), 0.01);
-        assertEquals(3.6, bus.height(), 0.01);
-        assertTrue(bus.length() > village.length() && bus.height() > village.height(), "longer and higher than the village bus");
+        assertEquals(3.0, bus.height(), 0.01);
+        assertTrue(bus.height() <= 3.0, "fits under the 국도's tunnels and overpasses");
+        assertTrue(bus.length() > village.length(), "longer than the village bus");
+        assertEquals("stsv:wheel_coach", bus.wheelModel().toString().replace("model/", ""), "its own chrome wheels");
         assertTrue(bus.turnRate() < village.turnRate(), "turns slower than the village bus");
         for (VehicleSpec v : road().values()) assertTrue(bus.turnRate() < v.turnRate(), "turns slower than any other road vehicle");
         assertTrue(bus.acceleration() <= village.acceleration(), "heavy: gets going no quicker than the village bus");
