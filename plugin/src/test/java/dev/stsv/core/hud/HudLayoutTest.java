@@ -510,12 +510,13 @@ class HudLayoutTest {
         // the earlier HUD loaded about 28 MB (ten Unifont sheets of 2.4 MB), the one with a single panel size and
         // place 7.2 MB; three sizes and a range of heights (30 rows of letters) now, on letter sheets cut to the
         // server's own syllables
-        assertTrue(bytes < 10L * 1024 * 1024, "client memory " + bytes);
+        // (+ the overlay's faces and speech bubble in its 8 rows' fonts, about 0.2 MB: 10.5)
+        assertTrue(bytes < 10L * 1024 * 1024 + 512 * 1024, "client memory " + bytes);
         // and with as many syllables as the panel ever keeps
         HudSheets bundled = sheets;
         List<Integer> most = bundled.sheet("hangul").names().stream().map(n -> n.codePointAt(0)).limit(HudModule.MAX_PANEL_LETTERS).toList();
         HudLayout full = new HudLayout(HudLayout.panelSheets(bundled, most), HudLayout.Settings.defaults());
-        assertTrue(HudPack.clientMemory(full) < 11L * 1024 * 1024, "client memory with every letter the panel keeps " + HudPack.clientMemory(full));
+        assertTrue(HudPack.clientMemory(full) < 11L * 1024 * 1024 + 512 * 1024, "client memory with every letter the panel keeps " + HudPack.clientMemory(full));
     }
 
     @Test

@@ -132,7 +132,8 @@ class HudPreviewTest {
                 }
                 if (page.getKey().equals("hud_bus")) {
                     List<HudLayout.OverlayRow> bus = List.of(
-                            new HudLayout.OverlayRow("grandma_2", "mood_great", Lang.mm("bus.overlay-row", "color", "#e0a8ff", "type", "할머니", "dest", "시장 앞", "left", "1:05")),
+                            new HudLayout.OverlayRow("grandma_2", "mood_great", Lang.mm("bus.overlay-talk", "color", "#e0a8ff", "type", "할머니"),
+                                    Lang.mm("bus.overlay-said", "said", "아이고 기사양반 천천히 가요")),
                             new HudLayout.OverlayRow("student_1", "mood_good", Lang.mm("bus.overlay-row", "color", "#7cc4ff", "type", "학생", "dest", "동항선 2", "left", "2:40")),
                             new HudLayout.OverlayRow("office_3", "mood_meh", Lang.mm("bus.overlay-row", "color", "#c9d2dc", "type", "회사원", "dest", "동항 앞", "left", "<red>지각</red>")),
                             new HudLayout.OverlayRow("tourist_1", "mood_bad", Lang.mm("bus.overlay-row", "color", "#ffd166", "type", "관광객", "dest", "동항 앞", "left", "4:12")),

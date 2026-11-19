@@ -554,6 +554,51 @@ def mood_icon(name):
     return cell
 
 
+BUBBLE_H = 13
+BUBBLE_INK, BUBBLE_FILL = (40, 36, 48, 255), (255, 255, 255, 240)
+BUBBLE_PIECES = (16, 8, 4, 2, 1)
+
+
+def bubble_sheet():
+    """The overlay's speech bubble (a passenger's words beside their face): a left cap with a little tail towards the
+    face, fill pieces of 16 .. 1 px, a right cap. White inside a dark rim, the corners rounded."""
+    names, cells = [], []
+    left = Image.new("RGBA", (6, BUBBLE_H), (0, 0, 0, 0))
+    for y in range(1, BUBBLE_H - 1):
+        left.putpixel((2, y), BUBBLE_INK)
+        for x in range(3, 6):
+            left.putpixel((x, y), BUBBLE_FILL)
+    for x in range(3, 6):
+        left.putpixel((x, 0), BUBBLE_INK)
+        left.putpixel((x, BUBBLE_H - 1), BUBBLE_INK)
+    # the tail: a notch out to the left, the rim opened behind it
+    left.putpixel((1, 5), BUBBLE_INK)
+    left.putpixel((0, 6), BUBBLE_INK)
+    left.putpixel((1, 7), BUBBLE_INK)
+    left.putpixel((1, 6), BUBBLE_FILL)
+    left.putpixel((2, 6), BUBBLE_FILL)
+    names.append("l")
+    cells.append(left)
+    right = Image.new("RGBA", (3, BUBBLE_H), (0, 0, 0, 0))
+    for y in range(1, BUBBLE_H - 1):
+        right.putpixel((0, y), BUBBLE_FILL)
+        right.putpixel((1, y), BUBBLE_INK)
+    right.putpixel((0, 0), BUBBLE_INK)
+    right.putpixel((0, BUBBLE_H - 1), BUBBLE_INK)
+    names.append("r")
+    cells.append(right)
+    for n in BUBBLE_PIECES:
+        piece = Image.new("RGBA", (16, BUBBLE_H), (0, 0, 0, 0))
+        for x in range(n):
+            piece.putpixel((x, 0), BUBBLE_INK)
+            piece.putpixel((x, BUBBLE_H - 1), BUBBLE_INK)
+            for y in range(1, BUBBLE_H - 1):
+                piece.putpixel((x, y), BUBBLE_FILL)
+        names.append(str(n))
+        cells.append(piece)
+    return names, cells
+
+
 def faces_sheet():
     """The overlay's pictures: every passenger skin's face (named by its file) and the four moods (mood_...)."""
     names, cells = [], []
@@ -617,6 +662,8 @@ def sheets():
     out["panel_edit"] = (EDIT_CELL, len(names), EDIT_CELL[1], names, cells)
     names, cells = faces_sheet()
     out["faces"] = (FACE_CELL, 8, FACE_CELL[1], names, cells)
+    names, cells = bubble_sheet()
+    out["bubble"] = ((16, BUBBLE_H), len(names), BUBBLE_H, names, cells)
     return out
 
 

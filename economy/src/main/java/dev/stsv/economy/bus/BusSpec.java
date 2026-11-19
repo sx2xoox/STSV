@@ -29,7 +29,7 @@ public record BusSpec(Set<String> vehicles, Fare fare, Mood mood, Stops stops, M
     public record Extra(Map<String, String> tags, int marketEvery, Set<String> marketTags, int picnicFrom, int picnicTo, int picnicStudents,
                         double transfer, double transferBonus, int dozeAfter, double dozeMiss, int passed, double missedMood,
                         double rainTip, double snowJolt, int talkCooldown, double giftChance, double giftMood,
-                        Map<String, List<String>> talk, Map<String, Bus> buses) {}
+                        Map<String, List<String>> talk, Map<String, Bus> buses, Map<String, List<String>> names) {}
 
     public record Step(double at, double factor) {}
 
@@ -124,7 +124,7 @@ public record BusSpec(Set<String> vehicles, Fare fare, Mood mood, Stops stops, M
                 pc.getInt("to", 12), pc.getInt("students", 10), c.getDouble("transfer", 0.25), c.getDouble("transfer-bonus", 0.2),
                 dz.getInt("after", 90), dz.getDouble("miss", 0.4), c.getInt("passed", 15), c.getDouble("missed-mood", -10),
                 c.getDouble("rain-tip", 0.2), c.getDouble("snow-jolt", 0.5), c.getInt("talk-cooldown", 60), c.getDouble("gift-chance", 0.35),
-                c.getDouble("gift-mood", 90), talk(c.getConfigurationSection("talk")), buses);
+                c.getDouble("gift-mood", 90), talk(c.getConfigurationSection("talk")), buses, talk(c.getConfigurationSection("names")));
         for (Type t : types.values()) for (String k : t.tags().keySet()) {
             if (!tagNames.containsKey(k)) problems.add("types." + t.id() + ".tags: 없는 특성 " + k);
         }
@@ -144,6 +144,20 @@ public record BusSpec(Set<String> vehicles, Fare fare, Mood mood, Stops stops, M
         if (own != null && !own.isEmpty()) return own;
         List<String> d = extra.talk().get(situation);
         return d == null || d.isEmpty() ? null : d;
+    }
+
+    /**
+     * A cute name for a stop of these traits not in `used`: from its traits' names, else the general ones; when every one
+     * is taken, a general one with a number. `roll` picks among them (0..1).
+     */
+    public String stopName(java.util.Set<String> tags, java.util.Set<String> used, double roll) {
+        List<String> pool = new ArrayList<>();
+        for (String t : tags) for (String n : extra.names().getOrDefault(t, List.of())) if (!used.contains(n)) pool.add(n);
+        if (pool.isEmpty()) for (String n : extra.names().getOrDefault("any", List.of())) if (!used.contains(n)) pool.add(n);
+        if (!pool.isEmpty()) return pool.get(Math.min(pool.size() - 1, (int) (roll * pool.size())));
+        List<String> any = extra.names().getOrDefault("any", List.of("정류장"));
+        String base = any.get(Math.min(any.size() - 1, (int) (roll * any.size())));
+        for (int i = 2; ; i++) if (!used.contains(base + " " + i)) return base + " " + i;
     }
 
     /** A bus's rules (any bus not listed takes everyone). */

@@ -158,6 +158,25 @@ class BusTest {
     }
 
     @Test
+    void cuteStopNamesByTheirTraits() {
+        BusSpec s = spec();
+        String sea = s.stopName(java.util.Set.of("sea"), java.util.Set.of(), 0.0);
+        assertTrue(s.extra().names().get("sea").contains(sea), sea);
+        // never one already used: with every sea name taken, a general one
+        java.util.Set<String> used = new java.util.HashSet<>(s.extra().names().get("sea"));
+        String next = s.stopName(java.util.Set.of("sea"), used, 0.5);
+        assertTrue(s.extra().names().get("any").contains(next), next);
+        // no traits: a general one; all taken: a general one with a number
+        assertTrue(s.extra().names().get("any").contains(s.stopName(java.util.Set.of(), java.util.Set.of(), 0.99)));
+        used.addAll(s.extra().names().get("any"));
+        String numbered = s.stopName(java.util.Set.of(), used, 0.0);
+        assertTrue(numbered.matches(".* \\d+"), numbered);
+        assertFalse(used.contains(numbered));
+        // every trait has names
+        for (String t : s.extra().tags().keySet()) assertFalse(s.extra().names().getOrDefault(t, List.of()).isEmpty(), t);
+    }
+
+    @Test
     void autoSpotsKeepOffBends() {
         BusSpec s = spec();
         // a road east 1500, then a sharp bend north for 1500: no stop on the bend

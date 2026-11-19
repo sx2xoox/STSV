@@ -54,10 +54,15 @@ final class Ink {
 
     /** Text in a HUD text font (characters it cannot draw must have been replaced, see HudText.supported). */
     Ink text(HudFont font, List<HudText.Cell> cells) {
+        return text(font, cells, true);
+    }
+
+    /** Text with the game's shadow, or without (dark letters on a light picture: a speech bubble). */
+    Ink text(HudFont font, List<HudText.Cell> cells, boolean shadow) {
         for (HudText.Cell c : cells) {
             TextColor color = c.style().color() == null ? WHITE : c.style().color();
-            Style s = c.style().font(font.key()).shadowColor(ShadowColor.shadowColor(
-                    0xFF000000 | ((color.red() / 4) << 16) | ((color.green() / 4) << 8) | (color.blue() / 4)));
+            Style s = c.style().font(font.key()).shadowColor(shadow ? ShadowColor.shadowColor(
+                    0xFF000000 | ((color.red() / 4) << 16) | ((color.green() / 4) << 8) | (color.blue() / 4)) : ShadowColor.none());
             append(new String(Character.toChars(c.cp())), s);
             pen += HudText.advance(font, c.cp());
         }

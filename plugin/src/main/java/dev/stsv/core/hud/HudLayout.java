@@ -289,6 +289,7 @@ public final class HudLayout {
             pictures.add(sheets.sheet("panel_row" + st), boss(row), k);
             pictures.add(sheets.sheet("icons"), boss(row), k);
             if (size == Size.NORMAL && j < OVERLAY_ROWS && sheets.has("faces")) pictures.add(sheets.sheet("faces"), boss(row + FACE_DY), 1);   // the overlay's
+            if (size == Size.NORMAL && j < OVERLAY_ROWS && sheets.has("bubble")) pictures.add(sheets.sheet("bubble"), boss(row + BUBBLE_DY), 1);
             if (j > 0) pictures.add(sheets.sheet("panel_div"), boss(row + size.style.divider * k), k);
             int foot = row + pitch;
             pictures.add(sheets.sheet("panel_foot" + st), boss(foot), k);
@@ -713,12 +714,20 @@ public final class HudLayout {
     // ------------------------------------------------------------------------------------------
 
     /** One overlay row: a picture of the faces sheet (or null), a mood picture of it (or null) and its text. */
-    public record OverlayRow(String face, String mood, Component text) {}
+    public record OverlayRow(String face, String mood, Component text, Component bubble) {
+        public OverlayRow(String face, String mood, Component text) {
+            this(face, mood, text, null);
+        }
+    }
 
     /** How far below a row's top its face sits (the face is 10 px, a row 13). */
     static final int FACE_DY = 1;
     /** The overlay's columns: face, mood, text (px from its left edge). */
     static final int OVERLAY_MOOD_X = 12, OVERLAY_TEXT_X = 25;
+    /** The bubble: the gap before it, the width of its left cap (the tail and the rim). */
+    static final int BUBBLE_GAP = 2, BUBBLE_LEFT = 6;
+    /** The bubble's top over the row's (its 13 px round the 9 px letters and their shadow row, a pixel clear above and below). */
+    static final int BUBBLE_DY = -2;
     /** At most this many overlay rows (a bus's passengers), from the top slot of the normal size's column. */
     static final int OVERLAY_ROWS = 8;
 
@@ -744,7 +753,25 @@ public final class HudLayout {
                 ink.to(pic, left + OVERLAY_MOOD_X).glyph(pic, pic.glyph("faces", r.mood(), boss(row + FACE_DY), 1));
             }
             HudFont f = col.rows().get(i);
-            ink.to(f, left + OVERLAY_TEXT_X).text(f, HudText.onPanel(HudText.supported(f, HudText.cells(r.text()))));
+            List<HudText.Cell> text = HudText.onPanel(HudText.supported(f, HudText.cells(r.text())));
+            ink.to(f, left + OVERLAY_TEXT_X).text(f, text);
+            if (r.bubble() != null && sheets.has("bubble")) {
+                // a speech bubble after the text: a white balloon (its tail towards the face), the words dark inside it
+                List<HudText.Cell> words = HudText.onPanel(HudText.supported(f, HudText.cells(r.bubble())));
+                int x = left + OVERLAY_TEXT_X + HudText.width(f, text) + BUBBLE_GAP, w = HudText.width(f, words) + 2;
+                int asc = boss(row + BUBBLE_DY);
+                ink.to(pic, x).glyph(pic, pic.glyph("bubble", "l", asc, 1));
+                int px = x + BUBBLE_LEFT, left2 = w;
+                for (int seg : new int[]{16, 8, 4, 2, 1}) {
+                    while (left2 >= seg) {
+                        ink.to(pic, px).glyph(pic, pic.glyph("bubble", String.valueOf(seg), asc, 1));
+                        px += seg;
+                        left2 -= seg;
+                    }
+                }
+                ink.to(pic, px).glyph(pic, pic.glyph("bubble", "r", asc, 1));
+                ink.to(f, x + BUBBLE_LEFT + 1).text(f, words, false);
+            }
         }
         ink.to(pic, 0);
         return ink.build();

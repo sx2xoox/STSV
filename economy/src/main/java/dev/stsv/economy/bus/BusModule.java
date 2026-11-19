@@ -526,10 +526,38 @@ public final class BusModule extends EcoModule {
                 autoOne(w, routes, sp, name, i + 1);
                 return;
             }
+            // a cute name from what is around it (the stop before a dock's gate keeps "<dock> 앞")
+            if (sp.kind() != BusRoutes.Kind.END) s = s.named(cuteName(detectTags(w, s)));
             String r = place(w, s);
             eco.getLogger().info(log + net.kyori.adventure.text.serializer.plain.PlainTextComponentSerializer.plainText()
                     .serialize(dev.stsv.core.util.Text.mm(r)));
         });
+    }
+
+    /** A cute name for a stop of these traits, not yet used by another stop. */
+    String cuteName(java.util.Set<String> tags) {
+        java.util.Set<String> used = new java.util.HashSet<>();
+        for (BusStop s : stops.values()) used.add(s.name());
+        return spec.stopName(tags, used, ThreadLocalRandom.current().nextDouble());
+    }
+
+    /**
+     * Gives the automatic stops cute names (/관리자 정류장 이름짓기): every auto stop but the ones before a dock's gate
+     * ("<dock> 앞"), by its traits. Returns how many were renamed.
+     */
+    public int cuteNames() {
+        int n = 0;
+        for (BusStop s : new ArrayList<>(stops.values())) {
+            if (!s.auto() || s.name().equals(s.dock() + " 앞")) continue;
+            BusStop named = s.named(cuteName(tagsOf(s)));
+            stops.put(s.id(), named);
+            World w = Bukkit.getWorld(s.world());
+            if (w != null) builder.sign(w, named, (int) Math.floor(waiting.getOrDefault(s.id(), 0.0)), lineNumbers(named), spec.stops());
+            signShown.remove(s.id());
+            n++;
+        }
+        saveStops();
+        return n;
     }
 
     /** Most ground a stop may dig away (a deep cut into a hillside is moved along the road instead). */
@@ -1311,7 +1339,8 @@ public final class BusModule extends EcoModule {
             String mood = x.mood >= 90 ? "mood_great" : x.mood >= 70 ? "mood_good" : x.mood >= 40 ? "mood_meh" : "mood_bad";
             if (x.said != null && now < x.saidUntil) {
                 out.add(new dev.stsv.core.hud.HudLayout.OverlayRow(x.face, mood, Lang.mm("bus.overlay-talk", "color", x.type.color(),
-                        "type", x.type.name(), "said", net.kyori.adventure.text.minimessage.MiniMessage.miniMessage().escapeTags(x.said))));
+                        "type", x.type.name()), Lang.mm("bus.overlay-said",
+                        "said", net.kyori.adventure.text.minimessage.MiniMessage.miniMessage().escapeTags(x.said))));
                 continue;
             }
             out.add(new dev.stsv.core.hud.HudLayout.OverlayRow(x.face, mood, Lang.mm("bus.overlay-row", "color", x.type.color(),
