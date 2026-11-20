@@ -72,9 +72,11 @@ class PackPipelineTest {
             "crt_tv", "arcade_machine", "yeontan_stove", "kerosene_stove", "dalgona_stand", "rice_cooker", "pyeongsang", "public_phone",
             "street_lamp",
             "kart_storm", "kart_bubble", "kart_drifter", "kart_buffalo",    // 서킷 karts: head and tail lamps, the antenna ball, neon
-            "classic_roadster", "retro_camper", "sidecar_bike", "muscle_car", "concept_ev",   // 후원 차 5종: dash lamps, the camper's porch lamp, LED bars
+            "retro_camper", "sidecar_bike", "muscle_car", "concept_ev",   // 후원 차 5종: dash lamps, the camper's porch lamp, LED bars
             // 후원 도구 스킨: every piece shines (jade eyes and pearls, stars, embers; the 장난감 series' lamps) — the gold ones never
-            "toy_sword", "toy_pickaxe", "toy_shovel", "toy_axe", "toy_hoe", "toy_fishing_rod", "toy_fishing_rod_cast", "toy_bobber", "dragon_sword", "dragon_pickaxe", "dragon_shovel", "dragon_axe", "dragon_hoe", "dragon_fishing_rod", "dragon_fishing_rod_cast", "dragon_bobber", "galaxy_sword", "galaxy_pickaxe", "galaxy_shovel", "galaxy_axe", "galaxy_hoe", "galaxy_fishing_rod", "galaxy_fishing_rod_cast", "galaxy_bobber", "magma_sword", "magma_pickaxe", "magma_shovel", "magma_axe", "magma_hoe", "magma_fishing_rod", "magma_fishing_rod_cast", "magma_bobber");
+            "toy_sword", "toy_pickaxe", "toy_shovel", "toy_axe", "toy_hoe", "toy_fishing_rod", "toy_fishing_rod_cast", "toy_bobber", "dragon_sword", "dragon_pickaxe", "dragon_shovel", "dragon_axe", "dragon_hoe", "dragon_fishing_rod", "dragon_fishing_rod_cast", "dragon_bobber", "galaxy_sword", "galaxy_pickaxe", "galaxy_shovel", "galaxy_axe", "galaxy_hoe", "galaxy_fishing_rod", "galaxy_fishing_rod_cast", "galaxy_bobber", "magma_sword", "magma_pickaxe", "magma_shovel", "magma_axe", "magma_hoe", "magma_fishing_rod", "magma_fishing_rod_cast", "magma_bobber",
+            // 후원 차 6종 (16px) · 도구 스킨 세트 다시 그림 (2026-11)
+            "frost_fishing_rod", "frost_fishing_rod_cast", "frost_sword", "najeon_axe", "najeon_bobber", "najeon_fishing_rod", "najeon_fishing_rod_cast", "najeon_hoe", "najeon_pickaxe", "najeon_shovel", "najeon_sword", "sushi_carnival");
     private static final Set<String> ROTATED = Set.of("test_sword", "test_sword_skin", "test_greatsword", "test_slash", "test_rod", "test_rod_cast",
             "angel_wings", "demon_wings", "butterfly_wings",   // wings swept back 22.5 degrees
             "gumiho",                                           // nine tails fanned out
@@ -124,9 +126,11 @@ class PackPipelineTest {
             "kickboard", "skateboard", "banana_boat", "segway", "sled", "balloon_chair_balloons", "rodeo_bull_bull", "toy_duck", "rodeo_bull",
             "classic_roadster", "concept_ev", "muscle_car", "sidecar_bike",   // 후원 차: raked windscreens, the bike's fork
             "dragon_axe", "dragon_fishing_rod", "dragon_fishing_rod_cast", "dragon_pickaxe", "dragon_sword",
-            "galaxy_axe", "galaxy_fishing_rod", "galaxy_pickaxe", "magma_fishing_rod",
+            "galaxy_fishing_rod", "galaxy_pickaxe", "magma_fishing_rod",
             // 도구 스킨 세트: slanted blades, crossed straps, the rods' tilted reels and guides (22.5 or 45 degrees)
-            "camping_fishing_rod", "camping_pickaxe", "camping_shovel", "camping_sword", "candy_fishing_rod", "candy_pickaxe", "candy_shovel", "frost_fishing_rod", "frost_fishing_rod_cast", "frost_pickaxe", "frost_sword", "kitchen_fishing_rod", "kitchen_pickaxe", "kitchen_sword", "najeon_fishing_rod", "najeon_pickaxe", "pirate_axe", "pirate_fishing_rod", "pirate_hoe", "pirate_pickaxe", "pirate_shovel", "woodcraft_axe", "woodcraft_fishing_rod", "woodcraft_fishing_rod_cast", "woodcraft_hoe", "woodcraft_pickaxe", "woodcraft_shovel", "woodcraft_sword");
+            "camping_fishing_rod", "camping_pickaxe", "camping_shovel", "candy_fishing_rod", "candy_pickaxe", "candy_shovel", "frost_fishing_rod", "frost_fishing_rod_cast", "frost_pickaxe", "frost_sword", "kitchen_fishing_rod", "kitchen_pickaxe", "kitchen_sword", "najeon_fishing_rod", "najeon_pickaxe", "pirate_axe", "pirate_fishing_rod", "pirate_hoe", "pirate_pickaxe", "pirate_shovel", "woodcraft_axe", "woodcraft_fishing_rod", "woodcraft_fishing_rod_cast", "woodcraft_hoe", "woodcraft_pickaxe", "woodcraft_shovel", "woodcraft_sword",
+            // 후원 차 6종 (16px) · 도구 스킨 세트 다시 그림 (2026-11)
+            "classic_roadster_door_l", "classic_roadster_door_r", "concept_ev_door_l", "concept_ev_door_r", "dragon_shovel", "frost_axe", "frost_hoe", "frost_shovel", "galaxy_shovel", "galaxy_sword", "magma_pickaxe", "muscle_car_door_l", "muscle_car_door_r", "retro_camper", "sidecar_bike_screen", "sushi_carnival_door_l", "sushi_carnival_door_r", "sushi_carnival_slide_l", "sushi_carnival_slide_r", "wheel_sidecar", "najeon_sword", "sushi_carnival");
 
     @org.junit.jupiter.params.ParameterizedTest
     @org.junit.jupiter.params.provider.MethodSource("models")
