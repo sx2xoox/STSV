@@ -343,28 +343,31 @@ public final class AccessoryModule extends EcoModule {
     }
 
     private void recompute(UUID player) {
-        Map<String, Double> best = new HashMap<>(), subs = new HashMap<>();
+        // 같은 효과는 가장 센 장신구 하나만: 장신구마다 그 효과의 몫 (주 효과 + 그 장신구의 부가 옵션) 을 내고, 효과마다 가장 큰 몫만 씀
+        // (반지 두 개에 채굴 속도가 있으면 높은 쪽만; 주 효과 · 부가 옵션 어느 쪽이든)
+        Map<String, Double> best = new HashMap<>(), main = new HashMap<>();
         for (ItemStack it : store.worn(player)) {
             Accessory a = read(it);
             if (a == null) continue;
             AccessorySpec.Effect e = spec.effects().get(a.effect);
             AccessorySpec.Grade g = spec.grades().get(a.grade);
             if (e == null || g == null) continue;
+            Map<String, Double> mine = new HashMap<>();
             double v = spec.amount(e, g, a.roll, a.enhance);
-            best.merge(a.effect, v, (x, y) -> Math.abs(y) > Math.abs(x) || x < 0 ? y : x);
+            mine.put(a.effect, v);
+            if (v < 0) main.put(a.effect, v);   // 원격 기계 anywhere (음수) stays anywhere
             int open = spec.subsOpen(g, spec.levelFor(a.xp));
             for (int i = 0; i < Math.min(open, a.subs.size()); i++) {
                 AccessorySpec.Effect se = spec.effects().get(a.subs.get(i).effect());
-                if (se != null) subs.merge(se.id(), spec.subAmount(se, a.subs.get(i).roll()), Double::sum);
+                if (se != null && mine.getOrDefault(se.id(), 0.0) >= 0) mine.merge(se.id(), spec.subAmount(se, a.subs.get(i).roll()), Double::sum);
             }
+            mine.forEach((k, x) -> best.merge(k, x, Math::max));
         }
-        Map<String, Double> out = new HashMap<>(best);
-        for (Map.Entry<String, Double> s : subs.entrySet()) {
-            AccessorySpec.Effect e = spec.effects().get(s.getKey());
-            double v = out.getOrDefault(s.getKey(), 0.0);
-            if (v < 0) continue;   // 원격 기계 anywhere stays anywhere
-            v += s.getValue();
-            out.put(s.getKey(), e.cap() > 0 ? Math.min(v, e.cap()) : v);
+        Map<String, Double> out = new HashMap<>();
+        for (Map.Entry<String, Double> en : best.entrySet()) {
+            AccessorySpec.Effect e = spec.effects().get(en.getKey());
+            double v = main.containsKey(en.getKey()) ? main.get(en.getKey()) : en.getValue();
+            out.put(en.getKey(), v >= 0 && e.cap() > 0 ? Math.min(v, e.cap()) : v);
         }
         values.put(player, out);
         Player p = Bukkit.getPlayer(player);
