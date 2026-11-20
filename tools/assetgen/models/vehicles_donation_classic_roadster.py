@@ -317,6 +317,8 @@ def _make_paints(C, LO, L, S):
             return tone(body(y), 0.06)                                  # the door seams
         if -13.25 <= z < -9.75 and 7 <= y < 10.5:
             return tone("rd_dark", 0.2)                                 # the vents' slots (chrome strakes over them)
+        if -13.75 <= z < -9.25 and 6.5 <= y < 11:
+            return tone("rd_chrome", 0.9 if y > 10.5 else 0.6)          # their chrome frame
         a = arch_y(z, 0)
         if a > 0 and y < a + 0.75:
             return tone(body(y), 0.22)                                  # the arch's lip
@@ -412,6 +414,11 @@ def _walnut(c, L):
     if math.floor(y) == 12:
         return tone("rd_wood", 0.82)
     g = math.sin(y * 2.1 + math.sin(x * 0.45) * 1.6)
+    for gx, gy in ((-1, 11), (1, 11), (-1, 9), (1, 9)):
+        if gx - 1 <= x < gx + 1 and gy <= y < gy + 2:
+            # four small chrome-ringed dials in the middle (2 x 2 texels: a bright ring corner, the ivory face)
+            return tone("rd_chrome", 0.95) if math.floor(y) == gy + 1 and math.floor(x) == gx - 1 else \
+                tone("rd_ivory", 0.85) if math.floor(x) == gx and math.floor(y) == gy + 1 else tone("rd_chrome", 0.6)
     if 3.5 <= x < 9 and 9 <= y < 11.5:
         if math.floor(x) in (3, 8) or math.floor(y) in (9, 11):
             return tone("rd_wood", 0.18)                                # the glove box's outline
@@ -630,7 +637,6 @@ def _front(m, ctx):
         a, b = (9, 14) if s > 0 else (-14, -9)
         m.box("bumper_f_end", (a, 3, z0), (b, 5.5, NOSE), CHROME, rotation=("y", -22.5 * s, o))
         m.box("overrider", (s * 5.25 - 0.75, 2.5, z0 - 0.75), (s * 5.25 + 0.75, 7.25, z0 + 1.25), CHROME)
-        m.box("overrider_tip", (s * 5.25 - 0.5, 7.25, z0 - 0.5), (s * 5.25 + 0.5, 7.75, z0 + 1), CHROME_SMALL)
     # the hood's chrome centre strip
     m.box("hood_strip", (-0.3, HOOD, NOSE + 2), (0.3, HOOD + 0.3, SCUTTLE - 1.5), CHROME_SMALL)
 
@@ -662,7 +668,6 @@ def _rear(m, ctx):
         a, b = (9, 14) if s > 0 else (-14, -9)
         m.box("bumper_r_end", (a, 3, TAIL), (b, 5.25, z1), CHROME, rotation=("y", 22.5 * s, o))
         m.box("overrider", (s * 4.75 - 0.75, 2.5, TAIL + 0.75), (s * 4.75 + 0.75, 6.75, z1 + 0.75), CHROME)
-        m.box("overrider_tip", (s * 4.75 - 0.5, 6.75, TAIL + 1), (s * 4.75 + 0.5, 7.25, z1 + 0.5), CHROME_SMALL)
 
     # twin exhausts under the right of the tail
     for x in (6.9, 8.6):
@@ -682,8 +687,6 @@ def _sides(m, kit, ctx):
         # the vents: chrome strakes over the dark slots, a chrome frame
         for y in (7.5, 8.75, 10.0):
             m.box("vent_strake", _lo(s, W, W + 0.25, y - 0.5, -13.25), _hi(s, W, W + 0.25, y, -9.75), CHROME_SMALL)
-        m.box("vent_frame", _lo(s, W, W + 0.2, 6.5, -13.75), _hi(s, W, W + 0.2, 11, -13.25), CHROME_SMALL)
-        m.box("vent_frame", _lo(s, W, W + 0.2, 6.5, -9.75), _hi(s, W, W + 0.2, 11, -9.25), CHROME_SMALL)
         # the flank strip, from the vents back to the rear arch
         ys = (STRIP - 0.25, STRIP + 0.25)
         m.box("strip", _lo(s, W, W + 0.3, ys[0], -9.25), _hi(s, W, W + 0.3, ys[1], D0), CHROME_SMALL)
@@ -784,13 +787,10 @@ def _cabin(m, ctx):
         if big and abs(dx * 0.6 + dy * 0.8) < 0.4 and dx < 0.2 and rr < r - 0.6:
             return tone("rd_dark", 0.0)                                # the needle
         return tone("rd_ivory", 0.9 if rr < r * 0.55 else 0.7)
-    for cx, cy, d in ((-7.25, 10.5, 3.0), (-3.75, 10.5, 3.0), (-1.0, 11.25, 1.5), (1.0, 11.25, 1.5), (-1.0, 9.5, 1.5), (1.0, 9.5, 1.5)):
-        big = d > 2
-        p = Paint("rd_chrome", 5, noise=0, light=False, decal=lambda c, cx=cx, cy=cy, d=d, big=big: gauge(c, cx, cy, d / 2, big))
-        if big:
-            cyl(m, "gauge", (cx, cy), d, DASH, DASH + 0.25, p, axis="z")
-        else:
-            m.box("gauge", (cx - d / 2, cy - d / 2, DASH), (cx + d / 2, cy + d / 2, DASH + 0.2), p)
+    # (the four small ones are painted on the walnut: _walnut)
+    for cx, cy, d in ((-7.25, 10.5, 3.0), (-3.75, 10.5, 3.0)):
+        p = Paint("rd_chrome", 5, noise=0, light=False, decal=lambda c, cx=cx, cy=cy, d=d: gauge(c, cx, cy, d / 2, True))
+        cyl(m, "gauge", (cx, cy), d, DASH, DASH + 0.25, p, axis="z")
 
     # the steering wheel: a wooden octagonal rim (four straight pieces, four at 45 degrees), chrome spokes, a boss
     cx, cy, cz = -SEAT_X, 10.75, -2.25

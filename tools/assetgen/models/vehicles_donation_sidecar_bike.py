@@ -308,7 +308,7 @@ def flat(ramp, base=None):
     return Paint(ramp, base if base is not None else 2, noise=0, grad=0, rim=0, ao=0)
 
 
-def chrome_decal(lit=0.97, side=0.74, low=0.30, mid=None):
+def chrome_decal(lit=0.87, side=0.66, low=0.36, mid=None):
     """Chrome: bright on top, a sky band over a dark horizon down its sides (on parts tall enough), dark below."""
     def d(c):
         if c.face == "up":
@@ -320,9 +320,9 @@ def chrome_decal(lit=0.97, side=0.74, low=0.30, mid=None):
         if hi - lo >= 1.5:
             f = (y - lo) / (hi - lo)
             if f > 0.6:
-                return tone("sc_chrome", side + 0.12)
+                return tone("sc_chrome", side + 0.1)
             if f > 0.42:
-                return tone("sc_chrome", 0.16)        # the dark horizon
+                return tone("sc_chrome", 0.2)         # the dark horizon
             return tone("sc_chrome", low)
         return tone("sc_chrome", side if c.face in ("north", "west") else side - 0.16)
     return d
@@ -373,7 +373,7 @@ def wheel_sidecar(whitewall=False, name="wheel_sidecar"):
 def _spoked_wheel(m, axis, c, a0, whitewall, drop=()):
     """A spoked wheel round c, its axle along axis x (c = (y, z), the wheel's middle at x = a0) or z (c = (x, y), at
     z = a0)."""
-    R, RI, HW = WRAD, 3.9, 1.25
+    R, RI, HW = WRAD, 4.25, 1.25
 
     def radius(p):
         if axis == "x":
@@ -387,12 +387,12 @@ def _spoked_wheel(m, axis, c, a0, whitewall, drop=()):
         if cc.face in side_faces:
             if r > R - 0.55:
                 return tone("sc_rubber", 0.10)
-            if r > 4.85:
+            if r > 4.9:
                 if whitewall and r < R - 0.55:
                     return tone("sc_white", 0.75 if dy > 0 else 0.55)
                 return tone("sc_rubber", 0.42 if r < 5.15 else 0.28)      # the wall, a moulded ring at the bead
             # the chrome rim inside the bead: lit along its top
-            return tone("sc_chrome", 0.95 if dy > 1.5 else 0.62 if dy > -1.5 else 0.30)
+            return tone("sc_chrome", 0.87 if dy > 1.5 else 0.62 if dy > -1.5 else 0.30)
         if r < RI + 0.6:
             return tone("sc_chrome", 0.35)                                 # the rim's well, seen through the spokes
         # the crown: blocks across it, staggered between the halves, a groove round the middle
@@ -409,16 +409,17 @@ def _spoked_wheel(m, axis, c, a0, whitewall, drop=()):
         r, dy, _ = radius(cc.p)
         if cc.face not in side_faces:
             return CLEAR
-        if r > RI + 0.2:
+        if r > RI + 0.2 or r < 1.4:
             return CLEAR
-        if r < 1.2:
-            return tone("sc_alloy", 0.8)
         if axis == "x":
             u, v = cc.p[1] - c[0], cc.p[2] - c[1]
         else:
             u, v = cc.p[0] - c[0], cc.p[1] - c[1]
-        if abs(u - v) < 0.3 or abs(u + v) < 0.3 or abs(u - 0.5) < 0.3 or abs(v - 0.5) < 0.3:
-            return tone("sc_chrome", 0.88 if dy > 0 else 0.62)
+        # sixteen tangent spokes from the hub's two flanges, crossing on their way to the rim
+        for k in range(8):
+            a = math.radians(k * 45 + 22.5)
+            if abs(u * math.cos(a) + v * math.sin(a) - 1.0) < 0.42:
+                return tone("sc_chrome", 0.72 if dy > 0 else 0.5)
         return CLEAR
     if axis == "x":
         m.box("spokes", (a0 - 0.25, c[0] - RI, c[1] - RI), (a0 + 0.25, c[0] + RI, c[1] + RI), flat("sc_chrome", 4)(decal=spokes))
@@ -429,7 +430,7 @@ def _spoked_wheel(m, axis, c, a0, whitewall, drop=()):
     def hub(cc):
         r, dy, along = radius(cc.p)
         if cc.face in side_faces:
-            return tone("sc_chrome", 0.95 if dy > 0 else 0.6) if r < 0.9 else tone("sc_alloy", 0.55)
+            return tone("sc_chrome", 0.87 if dy > 0 else 0.6) if r < 0.9 else tone("sc_alloy", 0.55)
         return tone("sc_alloy", 0.78 if math.floor(along * 2) % 2 == 0 else 0.32)
     cyl(m, "hub", c, 3, a0 - 1.0, a0 + 1.0, flat("sc_alloy", 3)(decal=hub), axis=axis)
 
@@ -538,7 +539,7 @@ def _front(m, ctx):
             y = getattr(c, "local", c.p)[1]
             if c.face in ("up", "down"):
                 return tone("sc_chrome", 0.6)
-            return tone("sc_chrome", 0.95 if math.floor(y * 1.5) % 2 == 0 else 0.25)
+            return tone("sc_chrome", 0.87 if math.floor(y * 1.5) % 2 == 0 else 0.25)
         sp = flat("sc_chrome", 4)(decal=coil)
         rod(m, "fork_spring", fork(8.0, 0.95), fork(12.0, 0.95), 1.1, sp, x=_x(BX, s * 2.5, s * 3.6), depth=1.1)
         rod(m, "rocker", fork(0.0, -1.6), fork(0.0, 1.4), 1.0, blk, x=_x(BX, s * 2.3, s * 3.8), depth=1.0)
@@ -557,11 +558,11 @@ def _front(m, ctx):
     def bucket(c):
         x, y, z = c.p
         if c.face == "north":
-            return tone("sc_chrome", 0.98 if y > hy else 0.7)              # the bezel's face
+            return tone("sc_chrome", 0.87 if y > hy else 0.7)              # the bezel's face
         if c.face == "south":
             return tone("sc_chrome", 0.35)
         if c.face == "up":
-            return tone("sc_chrome", 0.97)
+            return tone("sc_chrome", 0.87)
         if c.face == "down":
             return tone("sc_chrome", 0.2)
         if y > hy + 0.8:
@@ -595,7 +596,7 @@ def _front(m, ctx):
             x, z = c.p[0] - BX, c.p[2] - (hz + 0.5)
             if abs(x) < 0.6 and abs(z) < 0.6:
                 return ("raw", (236, 226, 196, 255)) if not (x < 0 and z < 0) else ("raw", (200, 60, 50, 255))
-            return tone("sc_chrome", 0.95)
+            return tone("sc_chrome", 0.87)
         return tone("sc_chrome", 0.7 if c.face in ("north", "west") else 0.4)
     m.box("speedo", (BX - 1.0, hy + 2.25, hz - 0.5), (BX + 1.0, hy + 3.0, hz + 1.5), flat("sc_chrome", 4)(decal=speedo))
     # the horn under the lamp: a chrome trumpet facing forward
@@ -610,7 +611,7 @@ def _front(m, ctx):
     cy, cz = fork(12.75, -0.25)
     m.box("riser", (BX - 0.5, cy - 0.6, cz - 0.5), (BX + 0.5, cy + 0.6, cz + 0.5), CHROME)
     by = cy + 0.6
-    bar = flat("sc_chrome", 4)(decal=lambda c: tone("sc_chrome", 0.97 if c.face == "up" else 0.66 if c.face in ("north", "west") else 0.36))
+    bar = flat("sc_chrome", 4)(decal=lambda c: tone("sc_chrome", 0.87 if c.face == "up" else 0.66 if c.face in ("north", "west") else 0.36))
     m.box("bar", (BX - 2.5, by, cz - 0.3), (BX + 2.5, by + 0.6, cz + 0.3), bar)
     for s in (-1, 1):
         x0 = BX + s * 2.5
@@ -639,7 +640,7 @@ def _front(m, ctx):
             if c.u in (0, c.nu - 1) and c.v in (0, c.nv - 1):
                 return tone("sc_chrome", 0.5)
             return tone("sc_glass", 0.9 if c.p[0] < mx else 0.5)
-        return tone("sc_chrome", 0.95 if c.face in ("up", "north", "west") else 0.5)
+        return tone("sc_chrome", 0.87 if c.face in ("up", "north", "west") else 0.5)
     m.box("mirror", (mx - 1.0, by + 2.6, mz - 0.25), (mx + 1.0, by + 4.6, mz + 0.25), flat("sc_chrome", 4)(decal=mirror))
 
 
@@ -661,7 +662,7 @@ def _tank_saddle(m, ctx):
             return tone(C, 0.1)
         if c.face == "up" or y > TY1 - 0.05:
             if ax < 0.6:
-                return tone("sc_chrome", 0.95)
+                return tone("sc_chrome", 0.87)
             return tone(C, 0.86 if 1.0 < ax < 1.8 else 0.7)
         if c.face == "north":
             return tone(C, 0.62)
@@ -739,7 +740,7 @@ def _tank_saddle(m, ctx):
     def spring(c):
         if c.face in ("up", "down"):
             return tone("sc_chrome", 0.6)
-        return tone("sc_chrome", 0.95 if math.floor(c.p[1] * 2) % 2 == 0 else 0.25)
+        return tone("sc_chrome", 0.87 if math.floor(c.p[1] * 2) % 2 == 0 else 0.25)
     for s in (-1, 1):
         cx = BX + s * 1.6
         m.box("saddle_spring", (cx - 0.55, 12.95, 4.75), (cx + 0.55, yb, 5.85), flat("sc_chrome", 4)(decal=spring))
@@ -765,7 +766,7 @@ def _frame(m, ctx):
     for s in (-1, 1):
         cx = BX + s * 1.75
         m.box("plunger_cover", (cx - 0.55, WY - 2.4, ZR - 0.55), (cx + 0.55, WY + 3.6, ZR + 0.55), flat("sc_chrome", 4)(
-            decal=lambda c: tone("sc_chrome", 0.95 if c.face == "up" else 0.75 if c.p[1] > WY + 2.6 or c.p[1] < WY - 1.4 else 0.35)))
+            decal=lambda c: tone("sc_chrome", 0.87 if c.face == "up" else 0.75 if c.p[1] > WY + 2.6 or c.p[1] < WY - 1.4 else 0.35)))
 
 
 V_BASE = {"front": (7.0, -2.6), "rear": (7.0, 0.6)}       # each cylinder's foot (y, z)
@@ -785,7 +786,7 @@ def _engine(m, ctx):
         if c.face == "east":
             r = math.hypot(y - 5.5, z + 1.75)
             if r < 1.6:
-                return tone("sc_chrome", 0.95 if y > 5.5 else 0.6) if r > 0.5 else tone("sc_chrome", 0.3)   # timing cover
+                return tone("sc_chrome", 0.87 if y > 5.5 else 0.6) if r > 0.5 else tone("sc_chrome", 0.3)   # timing cover
             if abs(r - 1.9) < 0.3:
                 return tone("sc_alloy", 0.3)
         if math.floor(y) == 3:
@@ -802,7 +803,7 @@ def _engine(m, ctx):
     def prim(c):
         if c.face == "west":
             y = c.p[1]
-            return tone("sc_chrome", 0.97 if y > 6.6 else 0.12 if y > 5.6 else 0.45)
+            return tone("sc_chrome", 0.87 if y > 6.6 else 0.12 if y > 5.6 else 0.45)
         return chrome_decal()(c)
     pp = flat("sc_chrome", 4)
     m.box("primary", (BX - 2.85, 3.6, -1.0), (BX - 2.1, 7.6, 4.5), pp(decal=prim))
@@ -846,13 +847,13 @@ def _engine(m, ctx):
                 return tone("sc_chrome", 0.35)                            # its centre nut
             if 1.0 < r < 1.35:
                 return tone("sc_chrome", 0.55)                            # a pressed ring
-            return tone("sc_chrome", 0.98 if c.p[1] > 9.8 else 0.72)
+            return tone("sc_chrome", 0.87 if c.p[1] > 9.8 else 0.72)
         return chrome_decal()(c)
     cyl(m, "air_cleaner", (9.8, -0.9), 4, BX + 2.2, BX + 3.1, flat("sc_chrome", 4)(decal=cleaner), axis="x")
 
     # the exhausts: from each head down the left side, two pipes to stacked fishtail mufflers
     ex = BX - 3.4
-    pipe = flat("sc_chrome", 4)(decal=lambda c: tone("sc_chrome", 0.97 if c.face == "up" else 0.7 if c.face in ("north", "west") else 0.32))
+    pipe = flat("sc_chrome", 4)(decal=lambda c: tone("sc_chrome", 0.87 if c.face == "up" else 0.7 if c.face in ("north", "west") else 0.32))
     lows = {"front": 2.9, "rear": 5.3}
     # front: forward and down out of the front head at 45 degrees, down in front of the crankcase, out to the left
     fl = lows["front"]
@@ -941,7 +942,7 @@ def _rear(m, ctx):
             return tone(L, 0.12)
         if abs(z - 12.3) < 0.45 or abs(z - 14.7) < 0.45:
             if c.face == "west" and 9.3 <= y < 10.2:
-                return tone("sc_chrome", 0.95)                           # the buckles
+                return tone("sc_chrome", 0.87)                           # the buckles
             return tone(L, 0.16)                                         # the straps
         if c.face == "up":
             return tone(L, 0.75)
@@ -971,7 +972,7 @@ def _sidecar(m, kit, ctx):
         if c.face == "down":
             return tone(C, 0.1)
         if abs(y - SPEAR) < 0.45 and c.face in ("east", "west"):
-            return tone("sc_chrome", 0.97 if y > SPEAR else 0.55)
+            return tone("sc_chrome", 0.87 if y > SPEAR else 0.55)
         if y > SPEAR:
             if c.face == "up" or y > TT - 0.1:
                 return tone(T, 0.8 if 1.5 < ax < 3.0 else 0.66)
@@ -1008,9 +1009,9 @@ def _sidecar(m, kit, ctx):
     hh = (TT - TB) / 2
     def cone(c):
         if c.face == "north":
-            return tone("sc_chrome", 0.98 if c.p[1] > yc else 0.62)
+            return tone("sc_chrome", 0.87 if c.p[1] > yc else 0.62)
         if c.face == "up":
-            return tone("sc_chrome", 0.97)
+            return tone("sc_chrome", 0.87)
         if c.face == "down":
             return tone("sc_chrome", 0.2)
         y = c.p[1]
@@ -1027,7 +1028,7 @@ def _sidecar(m, kit, ctx):
         lo, hi = _x(SX, s * TW, s * (TW + 0.25))
         m.box("spear", (lo, SPEAR - 0.35, TUB_Z0), (hi, SPEAR + 0.35, TUB_Z1 + 1.0), CHROME)
     # the chrome roll round the cockpit
-    roll = flat("sc_chrome", 4)(decal=lambda c: tone("sc_chrome", 0.98 if c.face == "up" else 0.62 if c.face in ("north", "west") else 0.35))
+    roll = flat("sc_chrome", 4)(decal=lambda c: tone("sc_chrome", 0.87 if c.face == "up" else 0.62 if c.face in ("north", "west") else 0.35))
     for s in (-1, 1):
         lo, hi = _x(SX, s * (inner - 0.3), s * (inner + 0.3))
         m.box("roll", (lo, TT - 0.3, WELL_Z0 - 0.3), (hi, TT + 0.25, WELL_Z1 + 0.3), roll)
@@ -1063,16 +1064,18 @@ def _sidecar(m, kit, ctx):
     SW, H = 4.5, 4.4
 
     def pane(c):
-        x, y = c.p[0] - SX, c.p[1] - SCREEN_Y
-        k = math.floor(x * 0.5 + y * 1.0) % 9
-        if k in (0, 1):
-            return ("raw", (214, 230, 246, 150 if k == 0 else 110))      # a broad reflection across the glass
-        if y < 1.2:
-            return ("raw", (150, 176, 196, 90))                          # a tint along its foot
-        return ("raw", (190, 210, 230, 40))
+        if c.face not in ("north", "south"):
+            return CLEAR
+        u, v = c.u, c.nv - 1 - c.v
+        d = u - v - 2
+        if d == 0 or d == 2:
+            return ("raw", (206, 222, 238, 255) if d == 0 else (168, 186, 206, 255))    # a reflection streak
+        if v == 0:
+            return ("raw", (120, 140, 160, 255))                                         # a tint along its foot
+        return CLEAR
     s.box("screen_glass", (SX - SW + 0.3, SCREEN_Y + 0.4, SCREEN_Z - 0.1), (SX + SW - 0.3, SCREEN_Y + H - 0.3, SCREEN_Z + 0.1),
           Paint("sc_glass", 1, noise=0, light=False, decal=pane), rotation=rot)
-    frame = flat("sc_chrome", 4)(decal=lambda c: tone("sc_chrome", 0.98 if c.face == "up" else 0.75 if c.face in ("north", "west") else 0.4))
+    frame = flat("sc_chrome", 4)(decal=lambda c: tone("sc_chrome", 0.87 if c.face == "up" else 0.75 if c.face in ("north", "west") else 0.4))
     s.box("screen_frame", (SX - SW, SCREEN_Y + H - 0.3, SCREEN_Z - 0.25), (SX + SW, SCREEN_Y + H + 0.2, SCREEN_Z + 0.25), frame, rotation=rot)
     s.box("screen_frame", (SX - SW + 0.3, SCREEN_Y, SCREEN_Z - 0.25), (SX + SW - 0.3, SCREEN_Y + 0.4, SCREEN_Z + 0.25), frame, rotation=rot)
     for sx in (-1, 1):
@@ -1099,7 +1102,7 @@ def _sidecar(m, kit, ctx):
         if c.face in ("north", "south", "east", "west") and math.floor(y * 2) == math.floor((ry + 2.3) * 2):
             return tone(L, 0.2)                                          # the lid's seam
         if c.face == "up" and abs(x - SX) < 0.5 and abs(z - 11.0) < 0.5:
-            return tone("sc_chrome", 0.95)                               # the clasp
+            return tone("sc_chrome", 0.87)                               # the clasp
         if c.face == "up":
             return tone(L, 0.72)
         return tone(L, 0.5 if c.face in ("north", "west") else 0.36)
@@ -1119,7 +1122,7 @@ def _sidecar(m, kit, ctx):
     lyy, lzz = SIDE_LAMP
     housing = flat("sc_chrome", 4)
     m.box("side_lamp", (SWX - 0.8, lyy - 0.8, lzz), (SWX + 0.8, lyy + 0.8, lzz + 1.8),
-          housing(decal=lambda c: tone("sc_chrome", 0.95) if c.face in ("up", "north") else chrome_decal()(c)))
+          housing(decal=lambda c: tone("sc_chrome", 0.87) if c.face in ("up", "north") else chrome_decal()(c)))
     m.box("side_lamp_stem", (SWX - 0.25, 12.6, lzz + 0.6), (SWX + 0.25, lyy - 0.8, lzz + 1.2), CHROME)
     ly, lz = GUARD_LAMP
     m.box("guard_lamp", (SWX - 0.75, ly - 0.75, lz - 1.7), (SWX + 0.75, ly + 0.75, lz), CHROME)
