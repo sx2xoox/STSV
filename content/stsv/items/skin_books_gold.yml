@@ -376,7 +376,7 @@ camping_sword_skin:
   name: "<#f07a2a>스킨북: 캠핑 마체테"
   lore:
     - "<gold>캠핑 시리즈</gold> <dark_gray>· <gray>검 스킨"
-    - "<gray>올리브 코팅 날의 넓은 마체테"
+    - "<gray>검정 코팅 날의 긴 마체테"
     - "<gray>겉모습만 바뀜 · 떼기: /스킨 해제"
     - "<yellow>우클릭: 검에 입히기"
   texture: skin_book
@@ -388,10 +388,10 @@ camping_sword_skin:
 
 camping_pickaxe_skin:
   material: paper
-  name: "<#f07a2a>스킨북: 캠핑 곡괭이"
+  name: "<#f07a2a>스킨북: 접이식 곡괭이"
   lore:
     - "<gold>캠핑 시리즈</gold> <dark_gray>· <gray>곡괭이 스킨"
-    - "<gray>주황 헤드의 캠핑용 피켈"
+    - "<gray>강철 날의 접이식 곡괭이"
     - "<gray>겉모습만 바뀜 · 떼기: /스킨 해제"
     - "<yellow>우클릭: 곡괭이에 입히기"
   texture: skin_book
@@ -403,10 +403,10 @@ camping_pickaxe_skin:
 
 camping_shovel_skin:
   material: paper
-  name: "<#f07a2a>스킨북: 캠핑 삽"
+  name: "<#f07a2a>스킨북: 접이식 야전삽"
   lore:
     - "<gold>캠핑 시리즈</gold> <dark_gray>· <gray>삽 스킨"
-    - "<gray>접이식 올리브 야전삽"
+    - "<gray>톱날 달린 접이식 야전삽"
     - "<gray>겉모습만 바뀜 · 떼기: /스킨 해제"
     - "<yellow>우클릭: 삽에 입히기"
   texture: skin_book
@@ -421,7 +421,7 @@ camping_axe_skin:
   name: "<#f07a2a>스킨북: 캠핑 손도끼"
   lore:
     - "<gold>캠핑 시리즈</gold> <dark_gray>· <gray>도끼 스킨"
-    - "<gray>주황 코팅 헤드의 손도끼"
+    - "<gray>가죽 덮개 씌운 손도끼"
     - "<gray>겉모습만 바뀜 · 떼기: /스킨 해제"
     - "<yellow>우클릭: 도끼에 입히기"
   texture: skin_book
@@ -436,7 +436,7 @@ camping_hoe_skin:
   name: "<#f07a2a>스킨북: 캠핑 괭이"
   lore:
     - "<gold>캠핑 시리즈</gold> <dark_gray>· <gray>괭이 스킨"
-    - "<gray>곧게 뻗은 주황 날의 괭이"
+    - "<gray>구리 망치 달린 팩 괭이"
     - "<gray>겉모습만 바뀜 · 떼기: /스킨 해제"
     - "<yellow>우클릭: 괭이에 입히기"
   texture: skin_book
@@ -451,7 +451,7 @@ camping_fishing_rod_skin:
   name: "<#f07a2a>스킨북: 캠핑 낚싯대"
   lore:
     - "<gold>캠핑 시리즈</gold> <dark_gray>· <gray>낚싯대 스킨"
-    - "<gray>릴 달린 검정 신축 낚싯대"
+    - "<gray>랜턴 장식 신축 낚싯대"
     - "<gray>겉모습만 바뀜 · 떼기: /스킨 해제"
     - "<yellow>우클릭: 낚싯대에 입히기"
   texture: skin_book

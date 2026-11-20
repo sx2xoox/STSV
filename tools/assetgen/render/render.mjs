@@ -104,7 +104,7 @@ for (const v of views) {
 window.__done = true;
 </script></body></html>`;
 
-const tmp = join(here, '.render.html');
+const tmp = join(here, `.render-${process.pid}.html`);   // one per run: renders running side by side must not share it
 writeFileSync(tmp, html);
 const browser = await chromium.launch({ args: ['--use-gl=angle', '--use-angle=swiftshader', '--allow-file-access-from-files'] });
 try {

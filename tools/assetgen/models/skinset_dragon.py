@@ -166,9 +166,7 @@ def _big_scales(r, b, line, line_i):
             return line, line_i
         if cy == 0 and cx in (1, 2):
             return r, b + 2
-        if cy == 0 or (cy == 1 and cx in (1, 2)):
-            return r, b + 1
-        return r, b
+        return r, b + 1 if (cy == 1 and cx in (1, 2)) else b
     return p
 
 
@@ -178,16 +176,18 @@ def _honed(x, y, w, h, f):
 
 
 def _blade(x, y, w, h, f):
-    """The glaive's polished jade: long diagonal sheen streaks and a darker band near the back."""
-    if (x + y) % 9 == 0:
+    """Polished jade: a calm face with a sparse diagonal sheen streak."""
+    if (x + y) % 11 == 0:
         return JADE, 4
-    return JADE, 3 if (x + y) % 9 in (1, 8) else 2
+    return JADE, 3 if (x + 2 * y) % 13 in (0, 1) else 2
 
 
-JADE_BIG = DMat(_big_scales(JADE, 2, AZURE, 2))
+JADE_BIG = DMat(_big_scales(JADE, 2, JADE, 1))
+JADE_SOFT = DMat(_scales(JADE, 3, JADE, 1))
 EDGE_GLOW = DMat(_honed, bevel=None, glow=True)
 BLADE = DMat(_blade, bevel=None)
 IVORY_TIP = DMat(_plain(IVORY, 3))
+CLAW_TIP = DMat(_plain(IVORY, 0))
 GOLD_PLAIN = GOLD(bevel=None)
 GOLD_BRIGHT = GOLD_LIGHT(bevel=None)
 
@@ -399,12 +399,12 @@ def dragon_pickaxe():
         p = (kx + side * 1.4, 18.9)
         p = seg(m, "talon", p, 3.5, 1.3, 7.05, 8.95, -22.5, IVORY_M)
         p = seg(m, "talon", (p[0] - side * 0.35, p[1] + 0.15), 3.0, 1.0, 7.2, 8.8, -45, IVORY_M)
-        seg(m, "talon_point", (p[0] - side * 0.3, p[1] + 0.25), 2.25, 0.55, 7.4, 8.6, -45, IVORY_TIP)
+        seg(m, "talon_point", (p[0] - side * 0.3, p[1] + 0.25), 2.25, 0.55, 7.4, 8.6, -45, CLAW_TIP)
     m.box("finger_up", (7, 21.5, 7), (9, 22.75, 9), JADE_SCALE)
     m.box("knuckle_up", (6.75, 22.75, 6.75), (9.25, 23.5, 9.25), GOLD_LIGHT)
     m.box("talon_up", (7.15, 23.5, 7.15), (8.85, 25, 8.85), IVORY_M)
     p = _seg(m, "talon_up", (7.6, 24.6), 2.5, 0.75, 7.3, 8.7, 22.5, IVORY_M)
-    _seg(m, "talon_point", (p[0] - 0.3, p[1] - 0.1), 1.5, 0.45, 7.45, 8.55, -22.5, IVORY_TIP)
+    _seg(m, "talon_point", (p[0] - 0.3, p[1] - 0.1), 1.5, 0.45, 7.45, 8.55, -22.5, CLAW_TIP)
     cull(m)
     return _held(m, "pickaxe")
 
@@ -418,20 +418,27 @@ def dragon_shovel():
     shaft(m, 15.5)
     m.group("blade")
     round_y(m, "socket", 6.25, 9.75, 6.25, 9.75, 15.5, 17.25, GOLD_CLOUD, 0.75)
-    rim = ((17, 17.75, 3.75), (17.75, 18.75, 5), (18.75, 25, 5.5), (25, 26.5, 5), (26.5, 27.75, 4.25), (27.75, 28.75, 3.25))
+    rim = ((16.75, 17.5, 3.75), (17.5, 26.0, 4.25), (26.0, 27.5, 3.75), (27.5, 28.75, 3.0), (28.75, 29.75, 2.25))
     for y0, y1, hw in rim:
-        m.box("rim", (C - hw, y0, 7.3), (C + hw, y1, 8.7), GOLD)
-    for y0, y1, hw in ((28.75, 29.75, 2.25), (29.75, 30.5, 1.25)):
-        m.box("point", (C - hw, y0, 7.3), (C + hw, y1, 8.7), EDGE_GLOW)
-    face = ((17.75, 18.75, 3.75), (18.75, 25.25, 4.5), (25.25, 26.75, 3.75), (26.75, 27.75, 3.0), (27.75, 28.5, 2.0))
+        m.box("rim", (C - hw, y0, 7.45), (C + hw, y1, 8.55), GOLD)
+    for y0, y1, hw in ((29.75, 30.75, 1.25), (30.75, 31.5, 0.5)):
+        m.box("point", (C - hw, y0, 7.45), (C + hw, y1, 8.55), EDGE_GLOW)
+    face = ((17.5, 26.25, 3.5), (26.25, 27.75, 2.75), (27.75, 29.0, 2.0), (29.0, 29.75, 1.0))
     for y0, y1, hw in face:
-        m.box("face", (C - hw, y0, 6.95), (C + hw, y1, 9.05), JADE_BIG)
-    m.box("spine", (7.4, 20.25, 6.7), (8.6, 27.5, 9.3), GOLD_LIGHT)
-    m.box("spine_tip", (7.6, 27.5, 6.8), (8.4, 28.75, 9.2), GOLD_LIGHT)
-    pearl(m, 8, 19.0, 8, 1.0, cz=(6.95, 9.05), d=0.4)
+        m.box("face", (C - hw, y0, 7.25), (C + hw, y1, 8.75), JADE_POLISH)
+    m.box("spine", (7.4, 20.0, 7.0), (8.6, 28.25, 9.0), GOLD_LIGHT)
+    m.box("spine_tip", (7.6, 28.25, 7.1), (8.4, 29.5, 8.9), GOLD_LIGHT)
+    # carved veins branching up and out from the spine, like the ridges of a scale
+    for y in (20.5, 23.25):
+        _seg(m, "vein", (8.4, y), 3.25, 0.3, 7.15, 8.85, 45, GOLD)
+        _seg_l(m, "vein", (7.6, y), 3.25, 0.3, 7.15, 8.85, 45, GOLD)
+    _seg(m, "vein", (8.4, 26.0), 2.0, 0.3, 7.15, 8.85, 45, GOLD)
+    _seg_l(m, "vein", (7.6, 26.0), 2.0, 0.3, 7.15, 8.85, 45, GOLD)
+    pearl(m, 8, 18.75, 8, 1.0, cz=(7.25, 8.75), d=0.45)
     for side in (1, -1):
-        x0 = C + side * 2.25
-        m.box("shoulder_claw", (min(x0, x0 + side * 1.0), 16.25, 6.85), (max(x0, x0 + side * 1.0), 18.25, 9.15), GOLD_LIGHT)
+        x0 = C + side * 2.0
+        m.box("shoulder_claw", (min(x0, x0 + side * 1.25), 16.0, 6.75), (max(x0, x0 + side * 1.25), 17.75, 9.25), GOLD_LIGHT)
+        m.box("shoulder_claw", (min(C + side * 3.25, C + side * 4.0), 17.0, 6.8), (max(C + side * 3.25, C + side * 4.0), 18.5, 9.2), IVORY_TIP)
     cull(m)
     return _held(m, "shovel")
 
@@ -463,14 +470,14 @@ def dragon_axe():
     for y0, y1, x1 in ((18, 22, 12), (18.75, 21.25, 13)):
         m.box("mane", (11 if x1 == 12 else 12, y0, 7.35 if x1 == 12 else 7.55), (x1, y1, 8.65 if x1 == 12 else 8.45), JADE_EDGE)
     m.group("blade")
-    # columns from the mouth out to the edge: (x0, x1, y0, y1)
-    for x0, x1, y0, y1, mat in ((0.75, 3.5, 17.25, 21.25, JADE_BIG), (-1, 0.75, 15.75, 22.75, JADE_BIG),
-                                (-2.5, -1, 14.25, 24.25, JADE_BIG), (-3.5, -2.5, 13.0, 25.5, BLADE)):
-        m.box("blade", (x0, y0, 7.3), (x1, y1, 8.7), mat)
-    m.box("blade_edge", (-4.25, 13.5, 7.45), (-3.5, 25.0, 8.55), EDGE_GLOW)
-    m.box("blade_horn", (-3.25, 11.75, 7.45), (-1.75, 13.0, 8.55), EDGE_GLOW)
-    m.box("blade_horn", (-3.25, 25.5, 7.45), (-1.75, 26.75, 8.55), EDGE_GLOW)
-    m.box("blade_rib", (-2.25, 18.75, 7.15), (2.75, 19.5, 8.85), GOLD_LIGHT)
+    # a broad crescent from the mouth out to the edge, columns (x0, x1, y0, y1)
+    for x0, x1, y0, y1 in ((1.5, 3.5, 17.25, 21.25), (0, 1.5, 16.25, 22.25), (-1.5, 0, 14.75, 23.75),
+                           (-2.75, -1.5, 13.25, 25.25), (-3.75, -2.75, 12.25, 26.25)):
+        m.box("blade", (x0, y0, 7.3), (x1, y1, 8.7), BLADE)
+    m.box("blade_inlay", (-1.25, 16.75, 7.15), (0.75, 21.75, 8.85), GOLD_CLOUD)
+    m.box("blade_edge", (-4.5, 12.75, 7.45), (-3.75, 25.75, 8.55), EDGE_GLOW)
+    m.box("blade_horn", (-3.75, 11.25, 7.4), (-2.25, 12.25, 8.6), BLADE)
+    m.box("blade_horn", (-3.75, 26.25, 7.4), (-2.25, 27.25, 8.6), BLADE)
     cull(m)
     return _held(m, "axe")
 
@@ -523,21 +530,21 @@ def _rod(name, cast):
     m.box("guide", (9.125, 16.5, 7.4), (10.5, 17.5, 8.6), GOLD)
     m.box("guide", (8.875, 21.75, 7.4), (10.25, 22.75, 8.6), GOLD)
     m.group("dragon_head")
-    m.box("neck", (6.75, 24.75, 6.75), (9.25, 25.75, 9.25), GOLD_CLOUD)
-    m.box("head", (6.25, 25.75, 6.5), (10.25, 29.25, 9.5), JADE_SCALE)
-    m.box("brow", (6.0, 28.5, 6.4), (9.0, 29.5, 9.6), GOLD_CLOUD)
-    m.box("eye", (7.75, 27.25, 6.3), (8.75, 28.25, 9.7), EYE)
-    m.box("snout", (10.25, 27.25, 6.9), (12.5, 29.0, 9.1), JADE_SCALE)
-    m.box("nose", (12.5, 28.0, 7.2), (13.0, 29.0, 8.8), GOLD_LIGHT)
-    m.box("jaw", (10.25, 25.75, 7.1), (12.0, 26.5, 8.9), JADE_DARK)
-    m.box("mouth_pearl", (11.0, 26.5, 7.25), (12.25, 27.25, 8.75), PEARL)
-    m.box("horn", (6.5, 29.5, 7.3), (7.5, 30.5, 8.7), GOLD_LIGHT)
-    m.box("horn", (5.5, 30.0, 7.45), (6.5, 31.25, 8.55), GOLD_LIGHT)
-    m.box("mane", (5.25, 26.0, 7.4), (6.25, 28.75, 8.6), JADE_EDGE)
-    m.box("mane", (4.5, 26.5, 7.6), (5.25, 28.0, 8.4), JADE_EDGE)
+    m.box("neck", (6.75, 24.75, 6.75), (9.25, 25.5, 9.25), GOLD_CLOUD)
+    m.box("head", (6.0, 25.5, 6.25), (10.5, 29.5, 9.75), JADE_SCALE)
+    m.box("brow", (5.75, 28.75, 6.1), (9.25, 29.75, 9.9), GOLD_CLOUD)
+    m.box("eye", (7.75, 27.25, 6.1), (9.0, 28.5, 9.9), EYE)
+    m.box("snout", (10.5, 27.25, 6.75), (13.0, 29.25, 9.25), JADE_SCALE)
+    m.box("nose", (13.0, 28.25, 7.1), (13.5, 29.25, 8.9), GOLD_LIGHT)
+    m.box("jaw", (10.5, 25.5, 7.0), (12.5, 26.5, 9.0), JADE_DARK)
+    m.box("mouth_pearl", (11.0, 26.5, 7.2), (12.5, 27.25, 8.8), PEARL)
+    m.box("horn", (6.5, 29.75, 7.3), (7.75, 30.75, 8.7), GOLD_LIGHT)
+    m.box("horn", (5.25, 30.25, 7.45), (6.5, 31.5, 8.55), GOLD_LIGHT)
+    m.box("mane", (5.0, 26.0, 7.4), (6.0, 29.0, 8.6), JADE_EDGE)
+    m.box("mane", (4.25, 26.5, 7.6), (5.0, 28.25, 8.4), JADE_EDGE)
     # the long whiskers: from the snout's sides, sweeping out forward and curling down, glowing at their ends
-    for z0, z1, ang, ln in ((6.5, 7.0, 22.5, 3.5), (9.0, 9.5, 0, 3.0)):
-        p = _seg(m, "whisker", (12.25, 28.25), ln, 0.3, z0, z1, ang, GOLD_LIGHT)
+    for z0, z1, ang, ln in ((6.25, 6.75, 22.5, 3.5), (9.25, 9.75, 0, 3.0)):
+        p = _seg(m, "whisker", (12.75, 28.5), ln, 0.3, z0, z1, ang, GOLD_LIGHT)
         p = _seg(m, "whisker", (p[0] - 0.2, p[1]), 2.75, 0.3, z0, z1, -22.5, GOLD_LIGHT)
         _seg(m, "whisker_tip", (p[0] - 0.2, p[1]), 2.0, 0.3, z0, z1, -45, EDGE_GLOW)
     if not cast:

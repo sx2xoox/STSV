@@ -402,6 +402,8 @@ def galaxy_sword():
     for x0, x1, y0, y1 in ring_rows(C, 11.5, 6, 5, 4.75, 4.5, icy=13.5, y0=6.5, y1=12.5):
         m.box("moon", (x0, y0, 6.75), (x1, y1, 9.25), MOON)
     stud(m, C, 8.4, 6.4, 9.6, 1.2)
+    for x in (2.75, 13.25):
+        m.box("horn_star", (x - 0.55, 12.45, 7.45), (x + 0.55, 13.55, 8.55), STAR_WHITE, rotation=("z", 45, (x, 13, C)))
     m.group("blade")
     m.box("blade", (5.75, 9, 7.25), (10.25, 33, 8.75), BEAM)
     m.box("blade_rim", (5.25, 10, 7.5), (5.75, 32.25, 8.5), BEAM_EDGE)
@@ -469,22 +471,22 @@ def galaxy_shovel():
     shaft(m, 15.5)
     m.group("blade")
     round_y(m, "socket", 6.25, 9.75, 6.25, 9.75, 15, 16.75, SILVER, 0.75)
-    rows = ((16.5, 23.5, 4.5), (23.5, 25.5, 3.75), (25.5, 27, 2.75))
+    rows = ((16.5, 24.5, 4.5), (24.5, 26.5, 3.75), (26.5, 28, 2.75))
     for y0, y1, hw in rows:
         m.box("blade", (C - hw, y0, 7.25), (C + hw, y1, 8.75), SPADE if hw == 4.5 else SPACE_PLAIN)
         for s in (-1, 1):
             e = C + s * hw
-            lo, hi = (e - 0.5, e) if s < 0 else (e, e + 0.5)
+            lo, hi = (e - 0.375, e) if s < 0 else (e, e + 0.375)
             m.box("rim", (lo, max(y0, 19.5), 7.05), (hi, y1, 8.95), SILVER_LIGHT)
-    m.box("point", (6.25, 27, 7.1), (9.75, 28.25, 8.9), SILVER_LIGHT)
-    m.box("point", (7.25, 28.25, 7.3), (8.75, 29.25, 8.7), RING_EDGE)
-    m.box("point_star", (7.6, 29.25, 7.6), (8.4, 30, 8.4), STAR_WHITE)
-    star(m, "star", C, 22.75, 6.9, 9.1, 1.9)
+    m.box("point", (6.25, 28, 7.1), (9.75, 29, 8.9), SILVER_LIGHT)
+    m.box("point", (7.25, 29, 7.3), (8.75, 29.75, 8.7), RING_EDGE)
+    m.box("point_star", (7.6, 29.75, 7.6), (8.4, 30.5, 8.4), STAR_WHITE)
+    star(m, "star", C, 23.25, 6.9, 9.1, 1.9)
     m.group("moon")
-    for x0, x1, y0, y1 in ring_rows(C, 20.25, 6.75, 5.25, 5.25, 4.0, icy=22.25, y0=15.25, y1=24.25, step=1.5):
+    for x0, x1, y0, y1 in ring_rows(C, 19.25, 6.0, 4.25, 4.25, 3.5, icy=21.0, y0=15.25, y1=23.25, step=1.0):
         m.box("moon", (x0, y0, 6.6), (x1, y1, 9.4), MOON)
-    for x in (1.9, 14.1):
-        m.box("horn_star", (x - 0.5, 24.25, 7.5), (x + 0.5, 25.25, 8.5), STAR_WHITE, rotation=("z", 45, (x, 24.75, C)))
+    for x in (2.6, 13.4):
+        m.box("horn_star", (x - 0.5, 23.25, 7.5), (x + 0.5, 24.25, 8.5), STAR_WHITE, rotation=("z", 45, (x, 23.75, C)))
     return _held(m, "shovel")
 
 
@@ -549,8 +551,8 @@ def _rod(name, cast):
     round_z(m, "reel", 10.25, 14.75, 6.25, 10.75, 6.9, 9.1, SILVER, 1.25)
     round_z(m, "reel_face", 11.0, 14.0, 7.0, 10.0, 6.65, 9.35, SPACE_PLAIN, 0.75)
     m.box("reel_hub", (12.0, 8.0, 6.4), (13.0, 9.0, 9.6), STAR)
-    m.box("crank", (12.25, 8.25, 9.6), (12.75, 11.75, 10.1), SILVER_LIGHT)
-    m.box("crank_knob", (12.0, 11.75, 9.5), (13.0, 12.75, 10.5), STAR_WHITE)
+    m.box("crank", (12.75, 8.25, 9.6), (15.25, 8.75, 10.1), SILVER_LIGHT)
+    m.box("crank_knob", (15.25, 7.9, 9.4), (16.25, 9.1, 10.6), STAR_WHITE)
     m.group("rod")
     round_y(m, "rod", 6.875, 9.125, 6.875, 9.125, 6.5, 14, SPACE_PLAIN, 0.5)
     m.box("rod", (7.125, 14, 7.125), (8.875, 22, 8.875), SPACE_PLAIN)

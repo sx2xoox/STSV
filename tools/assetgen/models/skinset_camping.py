@@ -49,9 +49,10 @@ _ramp("camp_olive", 118, 0.050, 0.47, 0.30, 5, False)     # olive drab powder co
 _ramp("camp_orange", 46, 0.150, 0.66, 0.34, 5, False)     # safety orange
 _ramp("camp_steel", 245, 0.014, 0.70, 0.52, 5, False)     # steel, bare and polished
 _ramp("camp_black", 265, 0.010, 0.27, 0.22, 5, False)     # black coat, rubber
+_ramp("camp_coat", 255, 0.016, 0.34, 0.28, 5, False)      # the machete's satin black coat
 _ramp("camp_wood", 62, 0.075, 0.58, 0.32, 5, False)       # ash handle
 _ramp("camp_leather", 48, 0.085, 0.42, 0.30, 5, False)    # tan-brown leather
-_ramp("camp_copper", 42, 0.120, 0.60, 0.36, 5, False)     # copper mallet face
+_ramp("camp_copper", 36, 0.105, 0.55, 0.38, 5, False)     # copper mallet face
 _ramp("camp_cork", 68, 0.085, 0.68, 0.26, 5, False)       # cork, warm orange-tan
 _ramp("camp_amber", 82, 0.140, 0.74, 0.34, 5, False)      # the lantern's glass
 
@@ -83,6 +84,17 @@ class GMat(HMat):
     def _texel(self, x, y, pw, ph, face, rnd):
         v = HMat._value(self, x, y, pw, ph, face, rnd)
         k, side = self.kind, face not in ("up", "down")
+        if self.opt.get("seamless") and side:
+            # a long part built of several boxes: no rims and no gradient a box, so the joints do not show
+            v -= (0.35 - 0.7 * (y + 0.5) / ph) * self.contrast
+            if y == 0 and ph > 2:
+                v -= 0.7
+            elif x == 0 and pw > 2:
+                v -= 0.35
+            if y == ph - 1 and ph > 2:
+                v += 0.45
+            elif x == pw - 1 and pw > 2:
+                v += 0.3
         long_y = ph > pw
         if k == "coat":
             if rnd.random() < 0.10:
@@ -160,7 +172,7 @@ class GMat(HMat):
         return im
 
 
-BLADE = GMat("camp_black", "coat", 1.7, chips=0.035)       # the machete's black coat
+BLADE = GMat("camp_coat", "coat", 2.0, chips=0.015, seamless=True)       # the machete's black coat
 BLACK = GMat("camp_black", "coat", 1.4, chips=0)
 BLACK_LIGHT = GMat("camp_black", "coat", 2.3, chips=0)
 RUBBER = GMat("camp_black", "rubber", 1.8)
@@ -173,7 +185,9 @@ CORD = GMat("camp_orange", "cord", 2.1)
 KNURL = GMat("camp_orange", "knurl", 2.1)
 STEEL = GMat("camp_steel", "polish", 2.3)
 STEEL_DARK = GMat("camp_steel", "brushed", 1.4)
-EDGE_W = GMat("camp_steel", "edge", 3.0, out="w")         # a ground edge cutting towards -x
+SPADE = GMat("camp_steel", "brushed", 1.9)
+EDGE_W = GMat("camp_steel", "edge", 3.0, out="w")
+MACHETE_EDGE = GMat("camp_steel", "edge", 3.0, out="w", seamless=True)         # a ground edge cutting towards -x
 EDGE_E = GMat("camp_steel", "edge", 3.0, out="e")
 BRIGHT = GMat("camp_steel", "edge", 3.1)
 BOLT = GMat("camp_steel", "polish", 2.9, contrast=1.3)
@@ -244,7 +258,7 @@ def camping_sword():
     m.box("pommel", (6.5, -2.0, 6.625), (9.75, -0.75, 9.375), BLACK)
     m.box("pommel_hook", (5.5, -2.5, 6.875), (6.5, -1.0, 9.125), BLACK)
     rivet(m, "grommet", 8.25, -1.375, 6.5, 9.5, BOLT, 0.375)
-    m.box("guard", (6.25, 5.75, 6.625), (9.875, 6.75, 9.375), BLACK)
+    m.box("guard", (6.25, 5.75, 6.625), (10.25, 6.75, 9.375), BLACK)
     m.box("guard_lip", (5.25, 5.5, 6.875), (6.25, 7.0, 9.125), BLACK_LIGHT)
     m.group("lanyard")
     m.box("loop", (7.5, -4.75, 7.625), (8.0, -2.0, 8.375), OLIVE_CORD)
@@ -253,21 +267,20 @@ def camping_sword():
 
     m.group("blade")
     # the edge's x along the blade: narrow at the guard, a belly towards the tip
-    segs = [(6.75, 10.5, 6.25), (10.5, 14.5, 5.75), (14.5, 19, 5.25), (19, 23.5, 4.75), (23.5, 27, 4.5)]
+    segs = [(6.75, 10.5, 6.0), (10.5, 14.5, 5.5), (14.5, 19, 5.0), (19, 23.5, 4.5), (23.5, 27, 4.25)]
     for y0, y1, xe in segs:
-        m.box("blade", (xe + 0.75, y0, 7.5), (9.5, y1, 8.5), BLADE)
-        m.box("edge", (xe, y0, 7.625), (xe + 1.0, y1, 8.375), EDGE_W)
+        m.box("blade", (xe + 0.75, y0, 7.5), (10.0, y1, 8.5), BLADE)
+        m.box("edge", (xe, y0, 7.625), (xe + 1.0, y1, 8.375), MACHETE_EDGE)
     # the tip: the spine drops towards the edge, the edge runs on and hooks forward
-    m.box("blade", (5.0, 27, 7.5), (9.0, 28.5, 8.5), BLADE)
-    m.box("blade", (5.0, 28.5, 7.5), (7.75, 29.75, 8.5), BLADE)
-    m.box("blade", (5.0, 29.75, 7.5), (6.5, 30.5, 8.5), BLADE)
-    m.box("edge", (4.25, 27, 7.625), (5.25, 30.5, 8.375), EDGE_W)
-    m.box("hook", (3.25, 30.0, 7.625), (5.5, 31.25, 8.375), BRIGHT)
-    m.box("hook", (3.0, 30.5, 7.69), (3.75, 31.75, 8.31), BRIGHT)
+    m.box("blade", (4.75, 27, 7.5), (9.5, 28.5, 8.5), BLADE)
+    m.box("blade", (4.75, 28.5, 7.5), (8.25, 29.75, 8.5), BLADE)
+    m.box("blade", (4.75, 29.75, 7.5), (6.75, 30.75, 8.5), BLADE)
+    m.box("edge", (4.0, 27, 7.625), (5.0, 30.25, 8.375), MACHETE_EDGE)
+    m.box("hook", (2.75, 30.25, 7.56), (5.5, 31.25, 8.44), BRIGHT)
+    m.box("hook", (2.25, 30.75, 7.69), (3.0, 32.0, 8.31), BRIGHT)
     # a steel ricasso plate by the guard, a ridge line along the spine side
-    m.box("ricasso", (7.0, 6.75, 7.375), (9.625, 8.25, 8.625), STEEL)
-    m.box("ridge", (8.5, 9.0, 7.44), (8.875, 26.0, 8.56), BLACK_LIGHT)
-    m.box("spine", (9.5, 8.25, 7.69), (9.75, 27.0, 8.31), STEEL_DARK)
+    m.box("ricasso", (6.75, 6.75, 7.375), (10.125, 8.25, 8.625), STEEL)
+    m.box("ridge", (8.875, 9.0, 7.44), (9.25, 26.25, 8.56), BLACK)
     return _held(m, "sword")
 
 
@@ -322,18 +335,17 @@ def camping_shovel():
     m.group("blade")
     m.box("socket", (6.75, 15.75, 7.125), (9.25, 18.5, 8.875), STEEL_DARK)
     rivet(m, "rivet", 8, 17.25, 6.875, 9.125, BOLT, 0.375)
-    m.box("blade", (4.0, 17.5, 7.625), (12.0, 23.5, 8.375), STEEL)
-    m.box("blade", (4.75, 23.5, 7.625), (11.25, 25.0, 8.375), STEEL)
-    m.box("blade", (5.75, 25.0, 7.625), (10.25, 26.25, 8.375), STEEL)
-    m.box("blade", (6.75, 26.25, 7.625), (9.25, 27.25, 8.375), STEEL)
-    m.box("point", (7.375, 27.25, 7.69), (8.625, 28.5, 8.31), BRIGHT)
-    m.box("rib", (7.5, 18.5, 7.5), (8.5, 25.5, 8.5), STEEL_DARK)
+    m.box("blade", (4.0, 17.5, 7.625), (12.0, 23.5, 8.375), SPADE)
+    # the point: a square turned 45 degrees on the blade's top, a ground rim behind it showing round its sides
+    d, e = 3.9 / math.sqrt(2) * 1.0, 4.5 / math.sqrt(2)
+    rot = ("z", 45, (8, 23.5, C))
+    m.box("blade_point", (8 - d, 23.5 - d, 7.625), (8 + d, 23.5 + d, 8.375), SPADE, rotation=rot)
+    m.box("point_edge", (8 - e, 23.5 - e, 7.69), (8 + e, 23.5 + e, 8.31), BRIGHT, rotation=rot)
+    m.box("rib", (7.5, 18.5, 7.5), (8.5, 25.25, 8.5), STEEL)
     m.box("edge", (12.0, 18.0, 7.69), (12.5, 23.5, 8.31), EDGE_E)
-    m.box("edge", (11.25, 23.25, 7.69), (11.75, 25.0, 8.31), EDGE_E)
-    m.box("shoulder", (4.0, 17.25, 7.5), (12.0, 17.75, 8.5), STEEL_DARK)
     m.group("saw")
     for y in (18.75, 20.25, 21.75, 23.25):
-        tooth(m, "saw", 4.0, y, BRIGHT, 1.1)
+        tooth(m, "saw", 4.0, y, BRIGHT, 0.9)
     return _held(m, "shovel")
 
 
@@ -362,7 +374,7 @@ def camping_axe():
     m.box("sheath", (0.75, 12.5, 6.625), (4.5, 18.0, 9.375), LEATHER)
     m.box("sheath_welt", (0.5, 12.75, 7.25), (0.75, 17.75, 8.75), LEATHER_DARK)
     m.box("strap", (4.5, 17.0, 6.375), (11.75, 18.0, 9.625), LEATHER_DARK)
-    rivet(m, "snap", 10.75, 17.5, 6.25, 9.75, BOLT, 0.5)
+    rivet(m, "snap", 10.75, 17.5, 6.25, 9.75, BOLT, 0.4)
     return _held(m, "axe")
 
 
@@ -388,11 +400,9 @@ def camping_hoe():
     return _held(m, "hoe")
 
 
-def _guide(m, y, s, top=False):
-    """A ring guide standing off the rod on +x (where the line runs): a foot, a stem, a square ring of side s."""
-    x0 = 9.0
-    m.box("guide_foot", (8.5, y - 0.25, 7.75), (x0 + 0.25, y + 0.5, 8.25), STEEL_DARK)
-    r0, r1 = x0 + 0.25, x0 + 0.25 + s
+def _guide(m, y, s, h):
+    """A ring guide on the rod's +x side (where the line runs), the rod's half width h: a square ring of side s."""
+    r0, r1 = C + h - 0.125, C + h - 0.125 + s
     t = 0.25
     m.box("guide", (r0, y - s / 2, 7.75), (r0 + t, y + s / 2, 8.25), BRIGHT)
     m.box("guide", (r1 - t, y - s / 2, 7.75), (r1, y + s / 2, 8.25), BRIGHT)
@@ -413,34 +423,34 @@ def _rod(name, cast):
     m.group("lantern")
     # a little lantern charm hanging from the butt: a ring, a black cap, amber glass in a black cage, a foot
     m.box("charm_ring", (7.75, -2.75, 7.75), (8.25, -1.75, 8.25), BRIGHT)
-    m.box("lantern_cap", (7.0, -3.5, 7.0), (9.0, -2.75, 9.0), BLACK)
-    m.box("lantern_glass", (7.25, -5.5, 7.25), (8.75, -3.5, 8.75), AMBER)
-    m.box("lantern_bar", (6.875, -5.5, 7.875), (7.25, -3.5, 8.125), BLACK)
-    m.box("lantern_bar", (8.75, -5.5, 7.875), (9.125, -3.5, 8.125), BLACK)
-    m.box("lantern_foot", (7.0, -6.0, 7.0), (9.0, -5.5, 9.0), BLACK)
+    m.box("lantern_cap", (6.75, -3.5, 6.75), (9.25, -2.75, 9.25), ORANGE_DARK)
+    m.box("lantern_glass", (7.0, -6.0, 7.0), (9.0, -3.5, 9.0), AMBER)
+    m.box("lantern_bar", (6.625, -6.0, 7.75), (7.0, -3.5, 8.25), BLACK)
+    m.box("lantern_bar", (9.0, -6.0, 7.75), (9.375, -3.5, 8.25), BLACK)
+    m.box("lantern_foot", (6.75, -6.75, 6.75), (9.25, -6.0, 9.25), ORANGE_DARK)
     m.group("reel")
     # a spinning reel under the rod (+x): a foot on the seat, a stem, a body with its spool along the rod, a crank
     m.box("reel_foot", (9.0, 7.0, 7.5), (9.5, 9.5, 8.5), BLACK)
     m.box("reel_stem", (9.5, 7.75, 7.625), (11.0, 8.75, 8.375), BLACK)
-    cyl(m, "reel_body", "y", (12.25, C), 3, 5.0, 8.25, BLACK_LIGHT, cap=BLACK)
-    cyl(m, "spool", "y", (12.25, C), 2.5, 8.25, 10.25, ORANGE, cap=ORANGE)
-    cyl(m, "spool_lip", "y", (12.25, C), 3, 10.25, 10.75, BRIGHT, cap=BRIGHT)
-    m.box("bail", (13.75, 9.5, 7.75), (14.25, 11.25, 8.25), BRIGHT)
-    m.box("crank_arm", (11.75, 6.0, 9.5), (12.75, 6.75, 11.25), STEEL)
-    m.box("crank_arm", (11.75, 6.75, 10.5), (12.75, 8.25, 11.25), STEEL)
-    m.box("crank_knob", (11.5, 8.25, 10.25), (13.0, 9.5, 11.75), ORANGE_DARK)
+    cyl(m, "reel_body", "y", (12.25, C), 4, 4.75, 8.25, BLACK_LIGHT, cap=BLACK)
+    cyl(m, "spool", "y", (12.25, C), 3, 8.25, 10.25, ORANGE, cap=ORANGE)
+    cyl(m, "spool_lip", "y", (12.25, C), 3.5, 10.25, 10.75, BRIGHT, cap=BRIGHT)
+    m.box("bail", (14.0, 8.0, 7.75), (14.5, 11.25, 8.25), BRIGHT)
+    m.box("crank_arm", (11.75, 6.0, 10.0), (12.75, 6.75, 11.5), STEEL)
+    m.box("crank_arm", (11.75, 6.75, 10.75), (12.75, 8.25, 11.5), STEEL)
+    m.box("crank_knob", (11.5, 8.25, 10.5), (13.0, 9.5, 12.0), ORANGE_DARK)
     m.group("rod")
     # telescopic: graphite sections a step thinner each, steel ferrules with an orange wrap at each joint
     secs = [(12.5, 18.5, 1.0), (18.5, 24.5, 0.75), (24.5, 30.25, 0.5)]
     for y0, y1, h in secs:
         m.box("rod", (C - h, y0, C - h), (C + h, y1, C + h), BLACK_LIGHT)
     for y, h in ((18.5, 1.0), (24.5, 0.75)):
-        m.box("ferrule", (C - h - 0.25, y - 0.75, C - h - 0.25), (C + h + 0.25, y, C + h + 0.25), STEEL)
-        m.box("wrap", (C - h - 0.125, y - 1.5, C - h - 0.125), (C + h + 0.125, y - 0.75, C + h + 0.125), ORANGE)
+        m.box("ferrule", (C - h - 0.25, y - 0.5, C - h - 0.25), (C + h + 0.25, y + 0.25, C + h + 0.25), STEEL)
+        m.box("wrap", (C - h - 0.125, y - 1.25, C - h - 0.125), (C + h + 0.125, y - 0.5, C + h + 0.125), ORANGE)
     m.box("rod_tip", (7.625, 30.25, 7.625), (8.375, 31.75, 8.375), ORANGE)
-    _guide(m, 15.5, 1.75)
-    _guide(m, 21.75, 1.25)
-    _guide(m, 27.5, 1.0)
+    _guide(m, 15.5, 1.75, 1.0)
+    _guide(m, 21.75, 1.5, 0.75)
+    _guide(m, 27.5, 1.25, 0.5)
     if not cast:
         # the line hangs from the tip (45 degrees in this frame = straight down on the sprite): a spoon lure on it
         m.group("line")

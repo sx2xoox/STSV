@@ -303,12 +303,13 @@ def frost_sword():
     m.box("guard_bar", (1.75, 7.5, 7), (14.25, 9.25, 9), FROST)
     for side in (-1, 1):
         x = C + side * 6.25
-        m.box("guard_wing", (x - 0.875, 8, 7.25), (x + 0.875, 13, 8.75), ICE,
+        m.box("guard_wing", (x - 1, 7.5, 7.125), (x + 1, 12.5, 8.875), ICE,
               rotation=("z", -22.5 * side, (x, 8.375, C)))
-        m.box("guard_wing_tip", (x - 0.5, 13, 7.5), (x + 0.5, 14.5, 8.5), ICE_PALE,
+        m.box("guard_wing", (x - 0.625, 12.5, 7.375), (x + 0.625, 14.25, 8.625), ICE_LIGHT,
               rotation=("z", -22.5 * side, (x, 8.375, C)))
-        icicle(m, x - 0.375 - side * 1.25, 7.5, 2.25)
-        icicle(m, x - 0.375 - side * 3.25, 7.5, 1.5)
+        m.box("guard_wing_tip", (x - 0.25, 14.25, 7.625), (x + 0.25, 15.25, 8.375), WHITE,
+              rotation=("z", -22.5 * side, (x, 8.375, C)))
+        icicle(m, C - 0.375 + side * 3.5, 7.5, 2.5)
     m.group("blade")
     round_y(m, "snow", 4.75, 11.25, 6.5, 9.5, 11.5, 12.75, FUR, 1)
     # (y0, y1, half width, material): deep at the root, pale towards the tip
@@ -320,11 +321,6 @@ def frost_sword():
     m.box("blade_point", (7.5, 40.5, 7.5), (8.5, 41.75, 8.5), WHITE)
     m.box("ridge", (7.625, 13, 6.75), (8.375, 27.5, 9.25), CORE)
     m.box("ridge", (7.625, 27.5, 6.75), (8.375, 39.5, 9.25), CORE)
-    m.group("shards")
-    m.box("side_icicle", (3.25, 12, 7.375), (4.75, 17, 8.625), ICE, rotation=("z", 22.5, (4, 12, C)))
-    m.box("side_icicle", (3.625, 17, 7.625), (4.375, 18.75, 8.375), ICE_PALE, rotation=("z", 22.5, (4, 12, C)))
-    m.box("side_icicle", (11.25, 12, 7.375), (12.75, 15.75, 8.625), ICE, rotation=("z", -22.5, (12, 12, C)))
-    m.box("side_icicle", (11.625, 15.75, 7.625), (12.375, 17.25, 8.375), ICE_PALE, rotation=("z", -22.5, (12, 12, C)))
     return _big(m, "sword")
 
 
@@ -365,22 +361,27 @@ def frost_shovel():
     shaft(m, 15)
     m.group("socket")
     round_y(m, "socket", 6.25, 9.75, 6.25, 9.75, 14.5, 16.5, FROST, 0.75)
-    m.box("crossbar", (4.25, 15.75, 7), (11.75, 16.75, 9), FROST)
+    m.box("crossbar", (4.25, 15.75, 7.125), (11.75, 16.75, 8.875), FROST)
     m.group("blade")
-    m.box("bed", (4.5, 16.75, 7.25), (11.5, 26.25, 8.75), ICE_DEEP)
-    m.box("tip", (5.25, 26.25, 7.375), (10.75, 27.75, 8.625), ICE)
-    m.box("tip", (6.25, 27.75, 7.5), (9.75, 29, 8.5), ICE_LIGHT)
-    m.box("tip", (7.25, 29, 7.625), (8.75, 30, 8.375), ICE_PALE)
-    emblem(m, 5.75, 17.25, 7, 9)
-    for y0 in (22.25, 24.25):
-        m.box("slat", (4.75, y0, 8.75), (11.25, y0 + 1.25, 9.25), ICE_LIGHT)
-        m.box("slat", (4.75, y0, 6.75), (11.25, y0 + 1.25, 7.25), ICE)
+    m.box("bed", (4.5, 16.75, 7.25), (11.5, 23, 8.75), ICE_DEEP)
+    emblem(m, 5.75, 17.5, 7, 9)
+    # the point: six steps in, paler towards the tip, a frost line down its middle
+    steps = ((3.25, ICE_DEEP), (2.75, ICE), (2.25, ICE), (1.75, ICE_LIGHT), (1.25, ICE_LIGHT), (0.75, ICE_PALE))
+    for i, (hw, mat) in enumerate(steps):
+        y0 = 23 + 1.25 * i
+        dz = 0.125 if i < 3 else 0.25
+        m.box("tip", (C - hw, y0, 7.25 + dz), (C + hw, y0 + 1.25, 8.75 - dz), mat)
+    m.box("tip_point", (7.625, 30.5, 7.75), (8.375, 31.25, 8.25), WHITE)
+    m.box("tip_ridge", (7.625, 23, 8.75), (8.375, 29.75, 9), ICE_PALE)
+    m.box("tip_ridge", (7.625, 23, 7), (8.375, 29.75, 7.25), ICE_PALE)
     m.group("runners")
-    for x0 in (3.5, 11.5):
-        m.box("runner", (x0, 16.25, 6.75), (x0 + 1, 26.5, 9.75), FROST)
-        m.box("runner_curl", (x0, 26.5, 8.25), (x0 + 1, 27.5, 10.5), FROST)
-        m.box("runner_curl", (x0, 27.5, 9.75), (x0 + 1, 28.25, 11.25), FROST_DIM)
-    m.box("cord", (4.5, 27.75, 10.25), (11.5, 28.25, 10.75), ICE_DARK)
+    for side, x0 in ((-1, 3.5), (1, 11.5)):
+        m.box("runner", (x0, 16.25, 7), (x0 + 1, 23, 9.5), FROST)
+        # the sled's front: each runner bends in along the point's edge, a silver knob at its end
+        m.box("runner_bend", (x0, 23, 7.125), (x0 + 1, 29.75, 9.375), FROST, rotation=("z", 22.5 * side, (x0 + 0.5, 23, C)))
+        m.box("runner_knob", (x0 - 0.25, 29.75, 7.25), (x0 + 1.25, 30.75, 9.25), FROST_DIM,
+              rotation=("z", 22.5 * side, (x0 + 0.5, 23, C)))
+    m.box("runner_brace", (4.5, 20, 9.5), (11.5, 20.75, 9.75), FROST_DIM)
     return _held(m, "shovel")
 
 
@@ -394,19 +395,21 @@ def frost_axe():
     m.group("socket")
     m.box("socket", (6.25, 13.5, 6.5), (9.75, 23, 9.5), FROST)
     round_y(m, "cap", 6.5, 9.5, 6.5, 9.5, 23, 24.25, FROST, 0.75)
+    m.box("socket_ring", (6, 13.25, 6.25), (10, 14, 9.75), FROST_DIM)
+    m.box("socket_ring", (6, 21.75, 6.25), (10, 22.5, 9.75), FROST_DIM)
     m.box("cap_point", (7.5, 24.25, 7.5), (8.5, 25, 8.5), ICE_PALE)
     m.group("blade")
     m.box("neck", (2.5, 15, 7), (6.25, 21.5, 9), ICE_DEEP)
-    m.box("cheek", (0, 13.5, 7.25), (2.5, 23, 8.75), ICE)
-    m.box("flare", (-2, 12, 7.5), (0, 24.5, 8.5), ICE_LIGHT)
-    m.box("edge", (-3, 12.5, 7.625), (-2, 24, 8.375), WHITE)
-    m.box("horn", (-2.75, 24.5, 7.625), (-0.75, 25.25, 8.375), ICE_PALE)
-    m.box("horn", (-2.75, 11.25, 7.625), (-0.75, 12, 8.375), ICE_PALE)
+    m.box("cheek", (0, 12.5, 7.25), (2.5, 23, 8.75), ICE_DEEP)
+    m.box("flare", (-2, 10.25, 7.5), (0, 24.25, 8.5), ICE)
+    m.box("edge", (-3, 10.75, 7.625), (-2, 24, 8.375), WHITE)
+    m.box("horn", (-2.75, 24.25, 7.625), (-0.75, 25, 8.375), ICE_PALE)
+    m.box("horn", (-2.75, 9.5, 7.625), (-0.75, 10.25, 8.375), ICE_PALE)
     emblem(m, 1.25, 16, 6.75, 9.25)
     m.box("snow", (2.5, 21.5, 7.125), (6.25, 22.25, 8.875), FUR)
     m.box("snow", (0, 23, 7.375), (2.5, 23.75, 8.625), FUR)
     icicle(m, 4.25, 15, 2.0)
-    icicle(m, 1.0, 13.5, 1.5)
+    icicle(m, 1.0, 12.5, 1.5)
     m.group("spike")
     m.box("spike", (9.75, 16.5, 7.25), (11.75, 20, 8.75), ICE)
     m.box("spike", (11.75, 17.25, 7.5), (13.25, 19.25, 8.5), ICE_LIGHT)
@@ -431,11 +434,11 @@ def frost_hoe():
     for x in (-2.5, -0.25, 2):
         m.box("lace", (x, 23, 9.25), (x + 1.25, 23.75, 9.5), WHITE)
         m.box("lace", (x, 23, 6.5), (x + 1.25, 23.75, 6.75), WHITE)
-    for x in (-1.25, 2.75):
+    for x in (-0.5, 2.75):
         m.box("post", (x, 20.75, 7.375), (x + 1.25, 22, 8.625), FROST)
-    m.box("runner", (-2, 20, 7.625), (5.25, 20.75, 8.375), FROST)
-    m.box("blade", (-4.5, 17.5, 7.375), (-2, 22, 8.625), ICE)
-    m.box("blade_edge", (-4.5, 16.75, 7.5), (-2, 17.5, 8.5), WHITE)
+    m.box("runner", (-1.5, 20, 7.625), (5.25, 20.75, 8.375), FROST)
+    m.box("blade", (-4.75, 17.25, 7.25), (-1.5, 22, 8.75), ICE)
+    m.box("blade_edge", (-4.75, 16.5, 7.375), (-1.5, 17.25, 8.625), WHITE)
     return _held(m, "hoe")
 
 
@@ -446,7 +449,7 @@ def _rod(name, cast):
     m = MModel(name)
     handle(m)
     m.group("reel")
-    m.box("reel_foot", (9.25, 7.5, 7.5), (10.25, 9.25, 8.5), FROST_DIM)
+    m.box("reel_foot", (9.25, 7.75, 7.5), (10.25, 9.25, 8.5), FROST_DIM)
     cyl(m, "reel", "z", (12, 8.5), 4, 6.75, 9.25, FROST, cap=FROST)
     m.box("reel_hub", (11.25, 7.75, 9.25), (12.75, 9.25, 9.75), ICE_LIGHT)
     m.box("crank", (11.75, 9, 9.75), (12.25, 11, 10.25), FROST)
@@ -459,7 +462,7 @@ def _rod(name, cast):
     round_y(m, "rod", 6.875, 9.125, 6.875, 9.125, 6.5, 12, ICE_DEEP, 0.5)
     m.box("rod", (7.25, 12, 7.25), (8.75, 19, 8.75), ICE)
     m.box("rod", (7.5, 19, 7.5), (8.5, 24.25, 8.5), ICE_LIGHT)
-    for y, r in ((11.25, 1.25), (18.5, 1.0), (23.5, 0.75)):
+    for y, r in ((11.5, 1.25), (18.625, 1.0), (23.375, 0.75)):
         m.box("rod_ring", (C - r, y, C - r), (C + r, y + 0.75, C + r), FROST)
     m.box("guide", (8.75, 15, 7.625), (9.75, 16, 8.375), FROST_DIM)
     m.box("guide", (8.5, 21.5, 7.625), (9.25, 22.25, 8.375), FROST_DIM)

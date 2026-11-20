@@ -94,7 +94,7 @@ class Rock(Mat):
         if pw > S or ph > S:
             return self.face(w, h, f, 0)
         ua, us, va, vs, na, ns = _UV[f]
-        im = Image.new("RGBA", (S, S), (0, 0, 0, 0))
+        im = Image.new("RGBA", (S, S), BASALT[self.base])
         px = im.load()
         for j in range(ph):
             for i in range(pw):
@@ -114,14 +114,12 @@ class Rock(Mat):
                         shade -= 1
                 col = BASALT[max(0, min(len(BASALT) - 1, shade))]
                 if self.hot:
-                    if gap < 0.32:
+                    if gap < 0.12:
                         col = CRACK_CORE
-                    elif gap < 0.75:
+                    elif gap < 0.42:
                         col = CRACK
-                    elif gap < 1.25:
+                    elif gap < 0.8:
                         col = CRUST
-                    elif gap < 1.6 and shade <= self.base:
-                        col = CRUST_DARK
                 elif gap < 0.45:
                     col = BASALT[0]
                 px[i, j] = col
@@ -178,8 +176,8 @@ def _long(m, kind):
 # Materials
 # ================================================================================================
 
-ROCK = Rock(1, hot=True, cell=4.0)                  # the cracked basalt of blades and heads
-ROCK_FINE = Rock(1, hot=True, cell=3.0, seed=7)     # smaller heads: finer cracks
+ROCK = Rock(1, hot=True, cell=7.0)                  # the cracked basalt of blades and heads
+ROCK_FINE = Rock(1, hot=True, cell=5.5, seed=7)     # smaller heads: finer cracks
 ROCK_COLD = Rock(2, hot=False, cell=3.0, seed=3)    # cooled crust: rims, horns, small parts
 ROCK_DARK = Rock(1, hot=False, cell=3.0, seed=5)
 LAVA = Mat("fire", "plain", 4, bevel=(1, -1), noise=0, glow=True)        # yellow-hot
@@ -207,8 +205,8 @@ def handle(m, low=-1.25, bands=(0.5,)):
     p = low - 2
     m.box("pommel_tip", (7.375, p - 1, 7.375), (8.625, p, 8.625), LAVA)
     round_y(m, "pommel", 6.25, 9.75, 6.25, 9.75, p, low, ROCK_COLD, 0.75)
-    m.box("pommel_ring", (6.0, p + 0.75, 7.0), (10.0, p + 1.25, 9.0), EMBER)
-    m.box("pommel_ring", (7.0, p + 0.75, 6.0), (9.0, p + 1.25, 10.0), EMBER)
+    m.box("pommel_ring", (6.0, p + 0.75, 7.125), (10.0, p + 1.25, 8.875), EMBER)
+    m.box("pommel_ring", (7.125, p + 0.75, 6.0), (8.875, p + 1.25, 10.0), EMBER)
     round_y(m, "grip", 6.75, 9.25, 6.75, 9.25, low, 5.25, LEATHER, 0.5)
     for y in bands:
         m.box("grip_band", (6.5, y, 6.5), (9.5, y + 0.75, 9.5), STEEL_LIGHT)
@@ -262,8 +260,8 @@ def magma_sword():
     m = MagmaModel("magma_sword", SWORD_K)
     handle(m, low=-4.25, bands=(-2.5, 0.75))
     m.group("guard")
-    m.box("guard", (3.75, 6.5, 6.5), (12.25, 9.5, 9.5), ROCK_FINE)
-    m.box("guard_gem", (6.75, 6.75, 6.25), (9.25, 9.25, 9.75), LAVA_DEEP)
+    m.box("guard", (3.75, 6.75, 6.5), (12.25, 9.5, 9.5), ROCK_FINE)
+    m.box("guard_gem", (6.75, 7.0, 6.25), (9.25, 9.25, 9.75), LAVA_DEEP)
     m.box("guard_gem", (7.375, 7.375, 6.0), (8.625, 8.625, 10.0), WHITE_HOT)
     for side in (1, -1):
         x0, x1 = _lr(side, 4.25, 6.5)
@@ -277,27 +275,27 @@ def magma_sword():
         drip(m, C + side * 5.25, 7.0, big=side > 0)
     m.group("blade")
     # stepped rows to the point: (y0, y1, half width, half depth)
-    rows = ((9.5, 16, 4.25, 1.25), (16, 22.5, 4.0, 1.25), (22.5, 28.5, 3.5, 1.0), (28.5, 33.5, 3.0, 1.0),
-            (33.5, 37, 2.25, 0.875), (37, 39.5, 1.5, 0.75))
+    rows = ((9.5, 17, 4.0, 1.25), (17, 25, 3.75, 1.25), (25, 32, 3.5, 1.125), (32, 35.5, 3.0, 1.0),
+            (35.5, 38, 2.25, 0.875), (38, 40, 1.5, 0.75))
     for y0, y1, hw, hz in rows:
         m.box("blade", (C - hw, y0, C - hz), (C + hw, y1, C + hz), ROCK)
         for side in (1, -1):        # the molten edge along both sides
             x0, x1 = _lr(side, hw, hw + 0.75)
             m.box("edge", (x0, y0 + 0.25 if y0 > 9.5 else y0, C - 0.5), (x1, y1, C + 0.5), LAVA_DEEP)
-    m.box("point", (C - 1.0, 39.5, C - 0.5), (C + 1.0, 40.75, C + 0.5), LAVA_DEEP)
-    m.box("point", (C - 0.5, 40.75, C - 0.375), (C + 0.5, 41.75, C + 0.375), LAVA)
-    # serrations: hooked teeth leaning up out of both edges, red-hot, a yellow tip
-    for k, y in enumerate((11, 15, 19, 23, 27, 31)):
+    m.box("point", (C - 1.0, 40, C - 0.5), (C + 1.0, 41.0, C + 0.5), LAVA_DEEP)
+    m.box("point", (C - 0.5, 41.0, C - 0.375), (C + 0.5, 41.75, C + 0.375), LAVA)
+    # serrations: hooked teeth leaning up out of both edges, a yellow-hot tip
+    for y in (12, 17.5, 23, 28.5):
         hw = next(r[2] for r in rows if r[0] <= y < r[1])
         for side in (1, -1):
-            yy = y + (1.75 if side < 0 else 0)
-            x0, x1 = _lr(side, hw + 0.75, hw + 1.75)
-            m.box("tooth", (x0, yy, C - 0.375), (x1, yy + 1.5, C + 0.375), LAVA_RED)
-            x0, x1 = _lr(side, hw + 1.75, hw + 2.25)
-            m.box("tooth_tip", (x0, yy + 0.75, C - 0.25), (x1, yy + 1.5, C + 0.25), LAVA)
+            yy = y + (2.5 if side < 0 else 0)
+            x0, x1 = _lr(side, hw + 0.75, hw + 1.5)
+            m.box("tooth", (x0, yy, C - 0.375), (x1, yy + 1.75, C + 0.375), LAVA_RED)
+            x0, x1 = _lr(side, hw + 1.5, hw + 2.0)
+            m.box("tooth_tip", (x0, yy + 1.0, C - 0.25), (x1, yy + 1.75, C + 0.25), LAVA)
     # the fissure: a white-hot zigzag up the middle, proud of both faces
     segs = ((7.5, 8.5, 9.5, 14, 1.375), (7.0, 8.0, 14, 18.5, 1.375), (7.75, 8.75, 18.5, 23, 1.375),
-            (7.25, 8.25, 23, 28, 1.125), (7.75, 8.75, 28, 32.5, 1.125), (7.375, 8.375, 32.5, 36.5, 1.0))
+            (7.25, 8.25, 23, 27.5, 1.375), (7.75, 8.75, 27.5, 31.75, 1.25), (7.375, 8.375, 31.75, 36.5, 1.125))
     for x0, x1, y0, y1, hz in segs:
         m.box("fissure", (x0, y0, C - hz), (x1, y1, C + hz), LAVA)
     m.box("fissure_glow", (7.625, 10, C - 1.5), (8.375, 13, C + 1.5), WHITE_HOT)
@@ -356,39 +354,37 @@ def magma_shovel():
     shaft(m, 15.5)
     m.group("blade")
     round_y(m, "socket", 6.25, 9.75, 6.25, 9.75, 15.25, 17.0, STEEL, 0.75)
-    m.box("socket_rim", (6.5, 16.75, 6.0), (9.5, 17.0, 10.0), STEEL_LIGHT)
-    rows = ((17, 18.25, 3.75), (18.25, 24, 4.75), (24, 26, 4.0), (26, 27.5, 3.0), (27.5, 28.75, 1.75))
+    m.box("socket_rim", (6.5, 16.375, 6.0), (9.5, 16.875, 10.0), STEEL_LIGHT)
+    rows = ((17, 18.25, 3.5), (18.25, 20, 4.25), (20, 25, 4.75), (25, 26.5, 4.25), (26.5, 28, 3.5), (28, 29.25, 2.5),
+            (29.25, 30.25, 1.5))
     for y0, y1, hw in rows:
         m.box("blade", (C - hw, y0, 7.0), (C + hw, y1, 9.0), ROCK)
-    # the rim standing proud of the front (+z) all round, the magma pool inside it
+    m.box("point", (C - 0.75, 30.25, 7.25), (C + 0.75, 31.25, 8.75), LAVA_DEEP)
+    m.box("point", (C - 0.375, 31.25, 7.5), (C + 0.375, 31.875, 8.5), LAVA)
+    # the rim standing proud of the front (+z) all round, the dish inside it, magma pooled in its lower half
     z0, z1 = 9.0, 9.75
-    m.box("rim", (C - 4.75, 18.25, z0), (C + 4.75, 19.25, z1), ROCK_COLD)       # the shoulders' rim
-    m.box("rim", (C - 3.75, 17.0, z0), (C + 3.75, 18.25, z1), ROCK_COLD)
-    for y0, y1, hw in rows[1:4]:
+    m.box("rim", (C - 3.5, 17.0, z0), (C + 3.5, 18.25, z1), ROCK_COLD)
+    m.box("rim", (C - 4.25, 18.25, z0), (C + 4.25, 19.25, z1), ROCK_COLD)
+    for y0, y1, hw in rows[1:6]:
         lo = max(y0, 19.25)
         for side in (1, -1):
             x0, x1 = _lr(side, hw - 1, hw)
             m.box("rim", (x0, lo, z0), (x1, y1, z1), ROCK_COLD)
-    m.box("rim", (C - 2.0, 26.75, z0), (C + 2.0, 27.5, z1), ROCK_COLD)
-    m.box("rim", (C - 1.75, 27.5, z0), (C + 1.75, 28.75, z1), ROCK_COLD)
-    m.box("pool", (C - 3.75, 19.25, 9.0), (C + 3.75, 24.0, 9.35), LAVA_DEEP)
-    m.box("pool", (C - 3.0, 24.0, 9.0), (C + 3.0, 26.0, 9.35), LAVA_DEEP)
-    m.box("pool", (C - 2.0, 26.0, 9.0), (C + 2.0, 26.75, 9.35), LAVA)
-    m.box("floe", (C - 2.75, 20.0, 9.35), (C - 0.75, 21.5, 9.6), ROCK_DARK)
-    m.box("floe", (C + 1.0, 23.0, 9.35), (C + 2.25, 24.0, 9.55), ROCK_DARK)
-    m.box("bubble", (C + 0.75, 20.75, 9.35), (C + 1.75, 21.75, 9.85), WHITE_HOT)
-    m.box("bubble", (C - 1.5, 24.5, 9.35), (C - 0.75, 25.25, 9.7), LAVA)
-    m.box("point", (C - 0.75, 28.75, 7.25), (C + 0.75, 29.75, 8.75), LAVA_DEEP)
-    m.box("point", (C - 0.375, 29.75, 7.5), (C + 0.375, 30.5, 8.5), LAVA)
+    m.box("rim", (C - 1.5, 28.25, z0), (C + 1.5, 30.25, z1), ROCK_COLD)
+    m.box("pool", (C - 3.25, 19.25, 9.0), (C + 3.25, 20.0, 9.4), LAVA_DEEP)
+    m.box("pool", (C - 3.75, 20.0, 9.0), (C + 3.75, 23.25, 9.4), LAVA_DEEP)
+    m.box("pool_top", (C - 3.75, 23.25, 9.0), (C + 3.75, 23.75, 9.3), LAVA)
+    m.box("bubble", (C + 1.0, 21.0, 9.4), (C + 1.75, 21.75, 9.75), WHITE_HOT)
+    m.box("splash", (C - 2.5, 23.75, 9.0), (C - 1.5, 24.75, 9.2), LAVA_RED)
     # spilling over the shoulders and dripping
     for side, big in ((1, True), (-1, False)):
-        x0, x1 = _lr(side, 4.0, 4.75)
-        m.box("spill", (x0, 18.25, 9.0), (x1, 19.5, 9.9), LAVA_DEEP)
-        x0, x1 = _lr(side, 4.125, 4.625)
-        m.box("spill", (x0, 16.75, 8.5), (x1, 18.25, 9.25), LAVA_DEEP)
+        x0, x1 = _lr(side, 3.75, 4.5)
+        m.box("spill", (x0, 18.0, 9.75), (x1, 19.75, 10.0), LAVA_DEEP)
+        x0, x1 = _lr(side, 4.25, 4.75)
+        m.box("spill", (x0, 16.5, 9.0), (x1, 18.25, 9.875), LAVA_DEEP)
         if big:
-            m.box("spill", (x0 - 0.125, 16.0, 8.375), (x1 + 0.125, 16.75, 9.375), LAVA)
-    m.box("spine", (C - 0.75, 17.0, 6.6), (C + 0.75, 26.0, 7.0), ROCK_COLD)
+            m.box("spill", (x0 - 0.125, 15.75, 9.0), (x1 + 0.125, 16.5, 10.0), LAVA)
+    m.box("spine", (C - 0.75, 17.0, 6.6), (C + 0.75, 27.5, 7.0), ROCK_COLD)
     return _held(m, "shovel")
 
 
@@ -405,19 +401,23 @@ def magma_axe():
     round_y(m, "cap", 6.5, 9.5, 6.5, 9.5, 21.0, 22.0, STEEL, 0.75)
     m.box("cap_gem", (7.375, 22.0, 7.375), (8.625, 22.75, 8.625), LAVA)
     m.group("wing")
-    m.box("wing_root", (2.25, 13.25, 6.75), (4.75, 21.75, 9.25), ROCK)
-    # feathers from the bottom: (y0, y1, x of the feather's end)
-    feathers = ((11.75, 13.75, -0.25), (13.75, 15.75, -1.25), (15.75, 17.75, -1.75), (17.75, 19.75, -1.75),
-                (19.75, 21.75, -1.25))
-    for k, (y0, y1, xe) in enumerate(feathers):
-        g0, g1 = y0 + 0.125, y1 - 0.125
-        m.box("feather", (0.75, g0, 7.0), (2.25, g1, 9.0), EMBER)
-        m.box("feather", (xe + 0.75, g0 + 0.125, 7.25), (0.75, g1 - 0.125, 8.75), LAVA_DEEP)
-        m.box("feather_edge", (xe, g0 + 0.375, 7.5), (xe + 0.75, g1 - 0.375, 8.5), LAVA)
-    # the wing tip: the top feather sweeping up and out
-    m.box("tip", (0.25, 21.75, 7.0), (4.0, 23.0, 9.0), EMBER)
-    m.box("tip", (-0.75, 23.0, 7.25), (2.0, 24.25, 8.75), LAVA_DEEP)
-    m.box("tip", (-1.25, 24.25, 7.5), (0.25, 25.25, 8.5), LAVA)
+    # the blade: columns out from the head (-x), each taller than the last (the edge flares like a wing), burning
+    # from basalt through red-hot and orange to a white-hot cutting edge; feather tips hang from the bottom
+    cols = ((2.75, 5.25, 13.5, 21.5, ROCK), (1.25, 2.75, 12.75, 22.75, EMBER), (-0.25, 1.25, 12.0, 24.0, LAVA_RED),
+            (-1.25, -0.25, 11.5, 25.0, LAVA_DEEP))
+    for k, (x0, x1, y0, y1, mat) in enumerate(cols):
+        dz = 0.25 * k
+        m.box("blade", (x0, y0, 6.75 + dz), (x1, y1, 9.25 - dz), mat)
+    m.box("edge", (-1.875, 12.0, 7.75), (-1.25, 24.5, 8.25), LAVA)
+    m.box("edge_tip", (-1.75, 25.0, 7.625), (-0.75, 26.0, 8.375), LAVA)
+    m.box("edge_tip", (-1.75, 10.75, 7.625), (-0.75, 11.5, 8.375), LAVA)
+    for x0, x1, y, mat in ((3.0, 4.25, 13.5, EMBER), (1.5, 2.5, 12.75, LAVA_RED), (0.0, 1.0, 12.0, LAVA_DEEP)):
+        m.box("feather_tip", (x0, y - 1.0, 7.375), (x1, y, 8.625), mat)
+    for x0, x1, y, mat in ((3.25, 4.5, 21.5, EMBER), (1.5, 2.5, 22.75, LAVA_RED)):
+        m.box("feather_crest", (x0, y, 7.375), (x1, y + 0.75, 8.625), mat)
+    # feather lines on both faces
+    for x0, x1, y0, y1 in ((2.75, 5.0, 15.25, 15.75), (2.75, 5.0, 18.0, 18.5), (1.25, 2.75, 16.5, 17.0), (1.25, 2.75, 19.75, 20.25)):
+        m.box("feather_line", (x0, y0, 6.5), (x1, y1, 9.5), LAVA_DEEP)
     m.group("firebird")
     m.box("bird", (10.75, 15.25, 6.75), (12.75, 19.75, 9.25), ROCK_COLD)
     m.box("beak", (12.75, 16.0, 7.25), (14.0, 17.5, 8.75), LAVA_DEEP)
@@ -447,7 +447,7 @@ def magma_hoe():
     m.box("blade_edge", (-2.0, 19.75, 6.25), (-1.25, 22.5, 9.75), LAVA_DEEP)
     m.box("blade_edge", (-2.375, 20.25, 6.75), (-2.0, 22.0, 9.25), LAVA)
     m.group("flames")
-    for x0, h in ((2.0, 1.75), (3.75, 2.5), (5.5, 1.5)):
+    for x0, h in ((1.75, 1.75), (3.375, 2.5), (5.0, 1.5)):
         m.box("flame", (x0, 22.5, 7.25), (x0 + 1.25, 22.5 + h * 0.6, 8.75), LAVA_DEEP)
         m.box("flame_tip", (x0 + 0.25, 22.5 + h * 0.6, 7.5), (x0 + 1.0, 22.5 + h, 8.5), LAVA)
     return _held(m, "hoe")
@@ -459,7 +459,7 @@ def _rod(name, cast):
     m.group("reel")
     # a basalt reel beside the rod's foot (+x): a red-hot ring round a molten hub, a steel crank with an ember knob
     m.box("reel_foot", (9.0, 7.5, 7.25), (10.0, 9.5, 8.75), STEEL)
-    cyl(m, "reel", "z", (12.75, 8.5), 6, 6.5, 9.5, ROCK_COLD, cap=ROCK_COLD)
+    cyl(m, "reel", "z", (12.75, 8.5), 6, 6.5, 9.5, ROCK_COLD)
     cyl(m, "reel_ring", "z", (12.75, 8.5), 4, 6.25, 9.75, EMBER, cap=EMBER)
     m.box("reel_hub", (12.0, 7.75, 6.0), (13.5, 9.25, 10.0), LAVA)
     m.box("crank", (12.25, 8.0, 10.0), (13.25, 11.25, 10.75), STEEL_LIGHT)
@@ -518,11 +518,11 @@ def magma_bobber():
     m = MagmaModel("magma_bobber")
     m.group("float")
     cyl(m, "keel", "y", (C, C), 2, 0, 1, EMBER, cap=EMBER)
-    cyl(m, "belly", "y", (C, C), 4, 1, 2, ROCK_COLD, cap=ROCK_COLD)
-    cyl(m, "belly", "y", (C, C), 6, 2, 3.5, ROCK_COLD, cap=ROCK_COLD)
+    cyl(m, "belly", "y", (C, C), 4, 1, 2, ROCK_COLD)
+    cyl(m, "belly", "y", (C, C), 6, 2, 3.5, ROCK_COLD)
     cyl(m, "band", "y", (C, C), 6, 3.5, 4.5, LAVA, cap=LAVA)
-    cyl(m, "top", "y", (C, C), 6, 4.5, 7, ROCK_FINE, cap=ROCK_FINE)
-    cyl(m, "top", "y", (C, C), 4, 7, 8.25, ROCK_FINE, cap=ROCK_FINE)
+    cyl(m, "top", "y", (C, C), 6, 4.5, 7, ROCK_COLD)
+    cyl(m, "top", "y", (C, C), 4, 7, 8.25, ROCK_COLD)
     m.box("crown", (7, 8.25, 7), (9, 9, 9), LAVA)
     m.box("eye", (7.25, 9, 7.625), (8.75, 10, 8.375), STEEL_LIGHT)
     m.display = presets.furniture(gui_scale=1.3, gui_translation=(0, 3.25, 0))
