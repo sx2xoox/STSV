@@ -1,5 +1,6 @@
 node_modules/
 .render.html
+.render-*.html
 __pycache__/
 .gradle/
 plugin/build/
