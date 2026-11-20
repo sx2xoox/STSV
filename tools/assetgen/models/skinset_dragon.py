@@ -244,6 +244,26 @@ GLAIVE = ((11, 13, 6.5, 10), (13, 15, 6.5, 10.75), (15, 17, 6.5, 11.5), (17, 19,
 K_SWORD = 0.74
 
 
+def _mirror_x(m):
+    """Mirror every box of a model across the handle's axis (x about C): the faces east and west swap, rotations about
+    y and z turn the other way."""
+    for e in m.elements:
+        f, t = e["from"], e["to"]
+        e["from"], e["to"] = [2 * C - t[0], f[1], f[2]], [2 * C - f[0], t[1], t[2]]
+        for d in ("faces", "uv"):
+            fs = e.get(d) or {}
+            if "east" in fs or "west" in fs:
+                east, west = fs.pop("east", None), fs.pop("west", None)
+                if west is not None:
+                    fs["east"] = west
+                if east is not None:
+                    fs["west"] = east
+        if e["rotation"]:
+            axis, angle, o = e["rotation"]
+            e["rotation"] = (axis, angle if axis == "x" else -angle, (2 * C - o[0], o[1], o[2]))
+    return m
+
+
 def dragon_sword():
     """청룡언월도: a long crescent glaive blade (1.6 x the toy sword's), jade under azure scales with a pale edge that swells
     out and a tip that sweeps back, a gold back with a notch; it comes out of a dragon head's open mouth (the guard):
@@ -280,6 +300,9 @@ def dragon_sword():
     _seg_l(m, "horn_tip", (p[0] + 0.3, p[1]), 2.0, 0.5, 7.4, 8.6, 45, JADE_EDGE)
     m.box("beard", (11.25, 6.5, 7.3), (12.75, 9.5, 8.7), JADE_EDGE)
     m.box("beard", (12.75, 7, 7.5), (13.75, 8.75, 8.5), JADE_EDGE)
+    # built with the edge towards +x; mirrored so the swelling edge faces the way a vanilla sword strikes (forward and
+    # down in the hand, away from the player) and the gold back with its spur faces up
+    _mirror_x(m)
     return _held_k(m, "sword")
 
 
