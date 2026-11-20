@@ -857,6 +857,10 @@ public final class BusModule extends EcoModule {
         }
         sh.waiters.remove(w);
         sh.dirty = true;   // the rest move up the line
+        if (w.partner == null && w.type.slow() >= SHUFFLE_SLOW && w.m.isValid()) {   // 할머니: shuffles to the door first
+            shuffle(p, run, d, vm, here, line, w, dest, sh, (int) (cfg.boardTicks() * w.type.slow()));
+            return;
+        }
         if (!board(p, run, d, vm, here, line, w, dest, free.getFirst())) return;
         if (w.partner != null && sh.waiters.remove(w.partner)) {
             List<Integer> left = vm.freeSeats(d.id());
@@ -865,6 +869,60 @@ public final class BusModule extends EcoModule {
         }
         run.busy = (int) (cfg.boardTicks() * w.type.slow());
         remember(p.getUniqueId(), here.id(), dest);
+    }
+
+    /** A passenger this slow (bus.yml types.*.slow) walks to the bus door step by step before taking a seat. */
+    static final double SHUFFLE_SLOW = 2.0;
+
+    /**
+     * A slow passenger (할머니) gets up, says so, and shuffles to the driver's door over {@code ticks}, the bus waiting
+     * (run.busy); then sits. If the bus has gone by then (the driver more than 12 blocks away, or no seat left), they go
+     * back to the front of the line.
+     */
+    private void shuffle(Player p, Run run, VehicleModule.Driven d, VehicleModule vm, BusStop here, BusLine line, Waiter w, int dest,
+                         Shown sh, int ticks) {
+        if (w.seat != null) {   // up off the bench
+            w.m.leaveVehicle();
+            w.seat.remove();
+            w.seat = null;
+        }
+        run.busy = ticks + 10;
+        talk(run, w.m, w.type, "slow", true);
+        int steps = Math.max(1, ticks / 2);
+        new org.bukkit.scheduler.BukkitRunnable() {
+            int i = 0;
+
+            @Override
+            public void run() {
+                if (!w.m.isValid()) {
+                    cancel();
+                    return;
+                }
+                i++;
+                org.bukkit.Location at = w.m.getLocation(), door = p.getLocation();
+                boolean near = p.isOnline() && door.getWorld() == at.getWorld() && door.distanceSquared(at) < 144;
+                if (i < steps && near) {   // a small step towards the door, facing it (a slow, bobbing walk)
+                    double dx = door.getX() - at.getX(), dz = door.getZ() - at.getZ(), len = Math.hypot(dx, dz);
+                    double step = len > 1.2 ? Math.min(len - 1.2, len / (steps - i + 1)) : 0;
+                    float yaw = (float) Math.toDegrees(Math.atan2(-dx, dz));
+                    org.bukkit.Location to = at.clone().add(len > 0 ? dx / len * step : 0, 0, len > 0 ? dz / len * step : 0);
+                    to.setYaw(yaw);
+                    to.setPitch(i % 8 < 4 ? 20 : 12);   // head bobbing down, watching her feet
+                    w.m.teleport(to);
+                    return;
+                }
+                cancel();
+                List<Integer> free = vm.freeSeats(d.id());
+                if (!near || free.isEmpty() || !board(p, run, d, vm, here, line, w, dest, free.getFirst())) {
+                    if (w.m.isValid()) {   // missed the bus: back to the front of the line
+                        sh.waiters.add(0, w);
+                        sh.dirty = true;
+                    }
+                    return;
+                }
+                remember(p.getUniqueId(), here.id(), dest);
+            }
+        }.runTaskTimer(eco, 2L, 2L);
     }
 
     /** One passenger gets on: seated, counted off the stop, told to the driver. False when they could not sit. */

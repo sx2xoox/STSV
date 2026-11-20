@@ -182,7 +182,7 @@ types:
     name: 할머니
     color: "#e0a8ff"
     weight: 10
-    slow: 2.0
+    slow: 8.0          # 타고 내리는 데 4초 (2 이상이면 버스 문까지 천천히 걸어와서 탐)
     jolt: 2.0
     tip: 2.0
     market: 3
@@ -190,6 +190,7 @@ types:
     gifts: [{item: economy:sikhye, amount: 1}, {item: economy:injeolmi, amount: 2}, {item: economy:corn_bread, amount: 2}]
     talk:
       board: ["아이고 고마워요 기사양반", "장에 가요~"]
+      slow: ["아이고 잠깐만, 천천히 타요~", "끙차… 다리가 영 말을 안 듣네", "기사양반 잠깐만 기다려요~"]
       jolt: ["아이고 기사양반 천천히 가요", "아이고 허리야…"]
       bump: ["에구머니나!"]
       smooth: ["기사양반 운전 참 잘하네", "아이 편하다"]
