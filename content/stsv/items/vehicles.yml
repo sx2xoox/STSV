@@ -751,16 +751,16 @@ concept_ev:
       - { at: [-0.84375, 0.4375, -1.5625] }
       - { at: [0.84375, 0.4375, -1.5625] }
     seats:
-      - { at: [-0.34, 0.15, 0.22] }
-      - { at: [0.34, 0.15, 0.22] }
-      - { at: [-0.34, 0.15, -0.7] }
-      - { at: [0.34, 0.15, -0.7] }
+      - { at: [-0.28, 0.18, 0.22] }
+      - { at: [0.28, 0.18, 0.22] }
+      - { at: [-0.28, 0.18, -0.7] }
+      - { at: [0.28, 0.18, -0.7] }
     movers:
       # 걸윙 도어: 지붕 가장자리를 축으로 위로 열림 (한쪽 문 하나로 앞뒤 좌석이 함께 타고 내림)
-      - { model: concept_ev_door_l, hinge: [-0.54, 1.4375, 0], axis: [0, 0, 1], turn: 75, when: door, seats: [0, 2], ticks: 12 }
-      - { model: concept_ev_door_r, hinge: [0.54, 1.4375, 0], axis: [0, 0, 1], turn: -75, when: door, seats: [1, 3], ticks: 12 }
+      - { model: concept_ev_door_l, hinge: [-0.71875, 1.484375, 0], axis: [0, 0, 1], turn: 75, when: door, seats: [0, 2], ticks: 12 }
+      - { model: concept_ev_door_r, hinge: [0.71875, 1.484375, 0], axis: [0, 0, 1], turn: -75, when: door, seats: [1, 3], ticks: 12 }
     plates:
-      - { at: [0, 0.25, 2.44], width: 0.5, height: 0.1 }
+      - { at: [0, 0.19, 2.44], width: 0.5, height: 0.1 }
       - { at: [0, 0.47, -2.44], back: true, width: 0.6, height: 0.11 }
     horn: { sound: stsv:vehicle.concept_ev.horn, release: stsv:vehicle.concept_ev.horn_end, volume: 1.4,
             vanilla: block.note_block.bit, pitch: 1.4, times: 1 }

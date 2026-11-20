@@ -115,10 +115,9 @@ LAMPS = {
                          + lens(27.8, 30.2, 26.3, 28.7, -3.2, True, False),
                          tail=lens(-17.0, -13.0, 20.2, 24.2, 41.6, True, False) + lens(27.9, 30.1, 22.5, 24.7, 23.6, True, False),
                          body=("vehicles_donation_sidecar_bike", "sidecar_bike")),
-    # concept_ev (drawn at 32 px a block like phantom_gt, so its lenses are in that space and scale is 4): one thin
-    # LED bar the whole width of the knife-edge nose (white) and one the whole width of the tail (red)
-    "concept_ev": dict(scale=4.0, reach=2.0, head=lens(-24, 24, 11, 12, -78, False, False),
-                       tail=lens(-26, 26, 24, 25, 78, False, False),
+    # the tail, each on its own 3D bar in front of a black visor / frame
+    "concept_ev": dict(scale=2.0, head=lens(-15, 15, 5, 6, -39.5, False, False),
+                       tail=lens(-15, 15, 11.5, 12.5, 39.5, False, False),
                        body=("vehicles_donation_concept_ev", "concept_ev")),
     # sushi_carnival: a slim LED headlamp on each upper corner of the nose (beside the big chrome grille); wide tail
     # lamps on the tailgate's corners, joined by a thin light bar across the middle
