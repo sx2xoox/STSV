@@ -25,7 +25,7 @@ toy_sword_skin:
   texture: skin_book
   max-stack: 16
   skin: { model: "stsv:toy_sword", applies-to: ["#minecraft:swords"], return-on-remove: true,
-          fx: { held: dust, colors: ["#ff4b3e", "#ffd23c", "#3c8cff"], use: note, sound: "block.note_block.pling", pitch: 1.6 } }
+          fx: { held: dust, colors: ["#ff4b3e", "#ffd23c", "#3c8cff"], use: note } }
 
 toy_pickaxe_skin:
   material: paper
@@ -38,7 +38,7 @@ toy_pickaxe_skin:
   texture: skin_book
   max-stack: 16
   skin: { model: "stsv:toy_pickaxe", applies-to: ["#minecraft:pickaxes"], return-on-remove: true,
-          fx: { held: dust, colors: ["#ff4b3e", "#ffd23c", "#3c8cff"], use: note, sound: "block.note_block.pling", pitch: 1.6 } }
+          fx: { held: dust, colors: ["#ff4b3e", "#ffd23c", "#3c8cff"], use: note } }
 
 toy_shovel_skin:
   material: paper
@@ -51,7 +51,7 @@ toy_shovel_skin:
   texture: skin_book
   max-stack: 16
   skin: { model: "stsv:toy_shovel", applies-to: ["#minecraft:shovels"], return-on-remove: true,
-          fx: { held: dust, colors: ["#ff4b3e", "#ffd23c", "#3c8cff"], use: note, sound: "block.note_block.pling", pitch: 1.6 } }
+          fx: { held: dust, colors: ["#ff4b3e", "#ffd23c", "#3c8cff"], use: note } }
 
 toy_axe_skin:
   material: paper
@@ -64,7 +64,7 @@ toy_axe_skin:
   texture: skin_book
   max-stack: 16
   skin: { model: "stsv:toy_axe", applies-to: ["#minecraft:axes"], return-on-remove: true,
-          fx: { held: dust, colors: ["#ff4b3e", "#ffd23c", "#3c8cff"], use: note, sound: "block.note_block.pling", pitch: 1.6 } }
+          fx: { held: dust, colors: ["#ff4b3e", "#ffd23c", "#3c8cff"], use: note } }
 
 toy_hoe_skin:
   material: paper
@@ -77,7 +77,7 @@ toy_hoe_skin:
   texture: skin_book
   max-stack: 16
   skin: { model: "stsv:toy_hoe", applies-to: ["#minecraft:hoes"], return-on-remove: true,
-          fx: { held: dust, colors: ["#ff4b3e", "#ffd23c", "#3c8cff"], use: note, sound: "block.note_block.pling", pitch: 1.6 } }
+          fx: { held: dust, colors: ["#ff4b3e", "#ffd23c", "#3c8cff"], use: note } }
 
 toy_fishing_rod_skin:
   material: paper
@@ -94,7 +94,7 @@ toy_fishing_rod_skin:
     applies-to: ["minecraft:fishing_rod"]
     return-on-remove: true
     bobber: { model: "stsv:toy_bobber", scale: 0.9, lift: -0.081 }
-    fx: { held: dust, colors: ["#ff4b3e", "#ffd23c", "#3c8cff"], use: note, sound: "block.note_block.pling", pitch: 1.6 }
+    fx: { held: dust, colors: ["#ff4b3e", "#ffd23c", "#3c8cff"], use: note }
 
 # ---- 후원 세트 (자동 생성: 각 세트 모델은 tools/assetgen/models/skinset_<id>.py) ----
 # 후원 스킨은 fx: 들고 있으면 손에서 빛 (held), 블록을 캐거나 때리거나 물고기를 낚으면 터지는 효과 (use) · 소리 · 도구에 '★ 후원 스킨' 줄
@@ -116,7 +116,7 @@ dragon_sword_skin:
     model: "stsv:dragon_sword"
     applies-to: ["#minecraft:swords"]
     return-on-remove: true
-    fx: { held: dust, colors: ["#3fd0c0", "#f0c448"], use: glow, sound: "block.amethyst_block.chime", pitch: 0.9 }
+    fx: { held: dust, colors: ["#3fd0c0", "#f0c448"], use: glow }
 
 dragon_pickaxe_skin:
   material: paper
@@ -133,7 +133,7 @@ dragon_pickaxe_skin:
     model: "stsv:dragon_pickaxe"
     applies-to: ["#minecraft:pickaxes"]
     return-on-remove: true
-    fx: { held: dust, colors: ["#3fd0c0", "#f0c448"], use: glow, sound: "block.amethyst_block.chime", pitch: 0.9 }
+    fx: { held: dust, colors: ["#3fd0c0", "#f0c448"], use: glow }
 
 dragon_shovel_skin:
   material: paper
@@ -150,7 +150,7 @@ dragon_shovel_skin:
     model: "stsv:dragon_shovel"
     applies-to: ["#minecraft:shovels"]
     return-on-remove: true
-    fx: { held: dust, colors: ["#3fd0c0", "#f0c448"], use: glow, sound: "block.amethyst_block.chime", pitch: 0.9 }
+    fx: { held: dust, colors: ["#3fd0c0", "#f0c448"], use: glow }
 
 dragon_axe_skin:
   material: paper
@@ -167,7 +167,7 @@ dragon_axe_skin:
     model: "stsv:dragon_axe"
     applies-to: ["#minecraft:axes"]
     return-on-remove: true
-    fx: { held: dust, colors: ["#3fd0c0", "#f0c448"], use: glow, sound: "block.amethyst_block.chime", pitch: 0.9 }
+    fx: { held: dust, colors: ["#3fd0c0", "#f0c448"], use: glow }
 
 dragon_hoe_skin:
   material: paper
@@ -184,7 +184,7 @@ dragon_hoe_skin:
     model: "stsv:dragon_hoe"
     applies-to: ["#minecraft:hoes"]
     return-on-remove: true
-    fx: { held: dust, colors: ["#3fd0c0", "#f0c448"], use: glow, sound: "block.amethyst_block.chime", pitch: 0.9 }
+    fx: { held: dust, colors: ["#3fd0c0", "#f0c448"], use: glow }
 
 dragon_fishing_rod_skin:
   material: paper
@@ -202,7 +202,7 @@ dragon_fishing_rod_skin:
     applies-to: ["minecraft:fishing_rod"]
     return-on-remove: true
     bobber: { model: "stsv:dragon_bobber", scale: 0.9, lift: 0.0 }
-    fx: { held: dust, colors: ["#3fd0c0", "#f0c448"], use: glow, sound: "block.amethyst_block.chime", pitch: 0.9 }
+    fx: { held: dust, colors: ["#3fd0c0", "#f0c448"], use: glow }
 
 # 은하수 시리즈
 
@@ -221,7 +221,7 @@ galaxy_sword_skin:
     model: "stsv:galaxy_sword"
     applies-to: ["#minecraft:swords"]
     return-on-remove: true
-    fx: { held: dust, colors: ["#9b8cff", "#ffffff", "#7fe0ff"], use: end_rod, sound: "entity.experience_orb.pickup", pitch: 1.9 }
+    fx: { held: dust, colors: ["#9b8cff", "#ffffff", "#7fe0ff"], use: end_rod }
 
 galaxy_pickaxe_skin:
   material: paper
@@ -238,7 +238,7 @@ galaxy_pickaxe_skin:
     model: "stsv:galaxy_pickaxe"
     applies-to: ["#minecraft:pickaxes"]
     return-on-remove: true
-    fx: { held: dust, colors: ["#9b8cff", "#ffffff", "#7fe0ff"], use: end_rod, sound: "entity.experience_orb.pickup", pitch: 1.9 }
+    fx: { held: dust, colors: ["#9b8cff", "#ffffff", "#7fe0ff"], use: end_rod }
 
 galaxy_shovel_skin:
   material: paper
@@ -255,7 +255,7 @@ galaxy_shovel_skin:
     model: "stsv:galaxy_shovel"
     applies-to: ["#minecraft:shovels"]
     return-on-remove: true
-    fx: { held: dust, colors: ["#9b8cff", "#ffffff", "#7fe0ff"], use: end_rod, sound: "entity.experience_orb.pickup", pitch: 1.9 }
+    fx: { held: dust, colors: ["#9b8cff", "#ffffff", "#7fe0ff"], use: end_rod }
 
 galaxy_axe_skin:
   material: paper
@@ -272,7 +272,7 @@ galaxy_axe_skin:
     model: "stsv:galaxy_axe"
     applies-to: ["#minecraft:axes"]
     return-on-remove: true
-    fx: { held: dust, colors: ["#9b8cff", "#ffffff", "#7fe0ff"], use: end_rod, sound: "entity.experience_orb.pickup", pitch: 1.9 }
+    fx: { held: dust, colors: ["#9b8cff", "#ffffff", "#7fe0ff"], use: end_rod }
 
 galaxy_hoe_skin:
   material: paper
@@ -289,7 +289,7 @@ galaxy_hoe_skin:
     model: "stsv:galaxy_hoe"
     applies-to: ["#minecraft:hoes"]
     return-on-remove: true
-    fx: { held: dust, colors: ["#9b8cff", "#ffffff", "#7fe0ff"], use: end_rod, sound: "entity.experience_orb.pickup", pitch: 1.9 }
+    fx: { held: dust, colors: ["#9b8cff", "#ffffff", "#7fe0ff"], use: end_rod }
 
 galaxy_fishing_rod_skin:
   material: paper
@@ -307,7 +307,7 @@ galaxy_fishing_rod_skin:
     applies-to: ["minecraft:fishing_rod"]
     return-on-remove: true
     bobber: { model: "stsv:galaxy_bobber", scale: 0.9, lift: -0.025 }
-    fx: { held: dust, colors: ["#9b8cff", "#ffffff", "#7fe0ff"], use: end_rod, sound: "entity.experience_orb.pickup", pitch: 1.9 }
+    fx: { held: dust, colors: ["#9b8cff", "#ffffff", "#7fe0ff"], use: end_rod }
 
 # 자개 시리즈
 
@@ -326,7 +326,7 @@ najeon_sword_skin:
     model: "stsv:najeon_sword"
     applies-to: ["#minecraft:swords"]
     return-on-remove: true
-    fx: { held: dust, colors: ["#f0c4e4", "#bff0e0", "#fff3d6"], use: cherry_leaves, sound: "block.note_block.chime", pitch: 1.3 }
+    fx: { held: dust, colors: ["#f0c4e4", "#bff0e0", "#fff3d6"], use: cherry_leaves }
 
 najeon_pickaxe_skin:
   material: paper
@@ -343,7 +343,7 @@ najeon_pickaxe_skin:
     model: "stsv:najeon_pickaxe"
     applies-to: ["#minecraft:pickaxes"]
     return-on-remove: true
-    fx: { held: dust, colors: ["#f0c4e4", "#bff0e0", "#fff3d6"], use: cherry_leaves, sound: "block.note_block.chime", pitch: 1.3 }
+    fx: { held: dust, colors: ["#f0c4e4", "#bff0e0", "#fff3d6"], use: cherry_leaves }
 
 najeon_shovel_skin:
   material: paper
@@ -360,7 +360,7 @@ najeon_shovel_skin:
     model: "stsv:najeon_shovel"
     applies-to: ["#minecraft:shovels"]
     return-on-remove: true
-    fx: { held: dust, colors: ["#f0c4e4", "#bff0e0", "#fff3d6"], use: cherry_leaves, sound: "block.note_block.chime", pitch: 1.3 }
+    fx: { held: dust, colors: ["#f0c4e4", "#bff0e0", "#fff3d6"], use: cherry_leaves }
 
 najeon_axe_skin:
   material: paper
@@ -377,7 +377,7 @@ najeon_axe_skin:
     model: "stsv:najeon_axe"
     applies-to: ["#minecraft:axes"]
     return-on-remove: true
-    fx: { held: dust, colors: ["#f0c4e4", "#bff0e0", "#fff3d6"], use: cherry_leaves, sound: "block.note_block.chime", pitch: 1.3 }
+    fx: { held: dust, colors: ["#f0c4e4", "#bff0e0", "#fff3d6"], use: cherry_leaves }
 
 najeon_hoe_skin:
   material: paper
@@ -394,7 +394,7 @@ najeon_hoe_skin:
     model: "stsv:najeon_hoe"
     applies-to: ["#minecraft:hoes"]
     return-on-remove: true
-    fx: { held: dust, colors: ["#f0c4e4", "#bff0e0", "#fff3d6"], use: cherry_leaves, sound: "block.note_block.chime", pitch: 1.3 }
+    fx: { held: dust, colors: ["#f0c4e4", "#bff0e0", "#fff3d6"], use: cherry_leaves }
 
 najeon_fishing_rod_skin:
   material: paper
@@ -412,7 +412,7 @@ najeon_fishing_rod_skin:
     applies-to: ["minecraft:fishing_rod"]
     return-on-remove: true
     bobber: { model: "stsv:najeon_bobber", scale: 0.9, lift: -0.025 }
-    fx: { held: dust, colors: ["#f0c4e4", "#bff0e0", "#fff3d6"], use: cherry_leaves, sound: "block.note_block.chime", pitch: 1.3 }
+    fx: { held: dust, colors: ["#f0c4e4", "#bff0e0", "#fff3d6"], use: cherry_leaves }
 
 # 서리 수정 시리즈
 
@@ -431,7 +431,7 @@ frost_sword_skin:
     model: "stsv:frost_sword"
     applies-to: ["#minecraft:swords"]
     return-on-remove: true
-    fx: { held: snowflake, colors: [], use: snowflake, sound: "block.amethyst_block.break", pitch: 1.6 }
+    fx: { held: snowflake, colors: [], use: snowflake }
 
 frost_pickaxe_skin:
   material: paper
@@ -448,7 +448,7 @@ frost_pickaxe_skin:
     model: "stsv:frost_pickaxe"
     applies-to: ["#minecraft:pickaxes"]
     return-on-remove: true
-    fx: { held: snowflake, colors: [], use: snowflake, sound: "block.amethyst_block.break", pitch: 1.6 }
+    fx: { held: snowflake, colors: [], use: snowflake }
 
 frost_shovel_skin:
   material: paper
@@ -465,7 +465,7 @@ frost_shovel_skin:
     model: "stsv:frost_shovel"
     applies-to: ["#minecraft:shovels"]
     return-on-remove: true
-    fx: { held: snowflake, colors: [], use: snowflake, sound: "block.amethyst_block.break", pitch: 1.6 }
+    fx: { held: snowflake, colors: [], use: snowflake }
 
 frost_axe_skin:
   material: paper
@@ -482,7 +482,7 @@ frost_axe_skin:
     model: "stsv:frost_axe"
     applies-to: ["#minecraft:axes"]
     return-on-remove: true
-    fx: { held: snowflake, colors: [], use: snowflake, sound: "block.amethyst_block.break", pitch: 1.6 }
+    fx: { held: snowflake, colors: [], use: snowflake }
 
 frost_hoe_skin:
   material: paper
@@ -499,7 +499,7 @@ frost_hoe_skin:
     model: "stsv:frost_hoe"
     applies-to: ["#minecraft:hoes"]
     return-on-remove: true
-    fx: { held: snowflake, colors: [], use: snowflake, sound: "block.amethyst_block.break", pitch: 1.6 }
+    fx: { held: snowflake, colors: [], use: snowflake }
 
 frost_fishing_rod_skin:
   material: paper
@@ -517,7 +517,7 @@ frost_fishing_rod_skin:
     applies-to: ["minecraft:fishing_rod"]
     return-on-remove: true
     bobber: { model: "stsv:frost_bobber", scale: 0.9, lift: -0.081 }
-    fx: { held: snowflake, colors: [], use: snowflake, sound: "block.amethyst_block.break", pitch: 1.6 }
+    fx: { held: snowflake, colors: [], use: snowflake }
 
 # 용암 시리즈
 
@@ -536,7 +536,7 @@ magma_sword_skin:
     model: "stsv:magma_sword"
     applies-to: ["#minecraft:swords"]
     return-on-remove: true
-    fx: { held: small_flame, colors: [], use: flame, sound: "item.firecharge.use", pitch: 1.4 }
+    fx: { held: small_flame, colors: [], use: flame }
 
 magma_pickaxe_skin:
   material: paper
@@ -553,7 +553,7 @@ magma_pickaxe_skin:
     model: "stsv:magma_pickaxe"
     applies-to: ["#minecraft:pickaxes"]
     return-on-remove: true
-    fx: { held: small_flame, colors: [], use: flame, sound: "item.firecharge.use", pitch: 1.4 }
+    fx: { held: small_flame, colors: [], use: flame }
 
 magma_shovel_skin:
   material: paper
@@ -570,7 +570,7 @@ magma_shovel_skin:
     model: "stsv:magma_shovel"
     applies-to: ["#minecraft:shovels"]
     return-on-remove: true
-    fx: { held: small_flame, colors: [], use: flame, sound: "item.firecharge.use", pitch: 1.4 }
+    fx: { held: small_flame, colors: [], use: flame }
 
 magma_axe_skin:
   material: paper
@@ -587,7 +587,7 @@ magma_axe_skin:
     model: "stsv:magma_axe"
     applies-to: ["#minecraft:axes"]
     return-on-remove: true
-    fx: { held: small_flame, colors: [], use: flame, sound: "item.firecharge.use", pitch: 1.4 }
+    fx: { held: small_flame, colors: [], use: flame }
 
 magma_hoe_skin:
   material: paper
@@ -604,7 +604,7 @@ magma_hoe_skin:
     model: "stsv:magma_hoe"
     applies-to: ["#minecraft:hoes"]
     return-on-remove: true
-    fx: { held: small_flame, colors: [], use: flame, sound: "item.firecharge.use", pitch: 1.4 }
+    fx: { held: small_flame, colors: [], use: flame }
 
 magma_fishing_rod_skin:
   material: paper
@@ -622,4 +622,4 @@ magma_fishing_rod_skin:
     applies-to: ["minecraft:fishing_rod"]
     return-on-remove: true
     bobber: { model: "stsv:magma_bobber", scale: 0.9, lift: -0.025 }
-    fx: { held: small_flame, colors: [], use: flame, sound: "item.firecharge.use", pitch: 1.4 }
+    fx: { held: small_flame, colors: [], use: flame }
