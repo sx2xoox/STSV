@@ -89,7 +89,13 @@ public final class RenderBudget {
         // a 서킷 ghost is its kart seen through: nothing behind its faces can be left out, so half as many again (only
         // the one racer who races against it draws it)
         if (model.matches(".+_ghost(_gold)?")) return budget(model.replaceFirst("_ghost(_gold)?$", ""), kind) * 3 / 2;
+        // a 루프 장식 (vehicle_roofs*.py): one model on the roof in place of the roof box, up to 500 faces
+        if (model.contains("_roof_r_")) return 500;
         Object[] e = EXCEPTIONS.get(model);
+        if (e == null && model.indexOf(':') > 0) {   // a tuning shop variant (another paint, wheel...): its stock model's exception
+            int colon = model.indexOf(':');
+            e = EXCEPTIONS.get(model.substring(0, colon + 1) + dev.stsv.core.vehicle.VehicleTuning.stock(model.substring(colon + 1)));
+        }
         return e != null ? (Integer) e[0] : kind.faces;
     }
 

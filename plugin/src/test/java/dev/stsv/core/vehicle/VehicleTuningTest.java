@@ -183,7 +183,7 @@ class VehicleTuningTest {
                 VehicleFeel.Spec f = feel.spec("stsv:" + id, v.pulled() ? VehicleFeel.Power.MUSCLE : VehicleFeel.Power.ENGINE);
                 facts.put(id, new VehicleTuning.Facts(y.getString(id + ".model"), v.wheelModel() == null ? null : v.wheelModel().getKey().substring(6),
                         f.lamps().head() == null ? null : f.lamps().head().getKey().substring(6), f.sport() != null && f.sport().mark() != null,
-                        f.sport() != null, !v.extras().dress().plates().isEmpty()));
+                        f.sport() != null, !v.extras().dress().plates().isEmpty(), VehicleTuner.roofPart(v)));
             }
         }
         List<String> problems = new ArrayList<>();
@@ -228,7 +228,10 @@ class VehicleTuningTest {
         for (String id : List.of("sports_car", "tuner_car")) {
             assertEquals(List.of(Kind.PAINT, Kind.WHEEL, Kind.UNDERGLOW, Kind.HEADLAMP, Kind.SKID, Kind.SMOKE, Kind.FLAME, Kind.CRACKLE), c.kinds(id), id);
         }
-        assertEquals(List.of(Kind.values()), c.kinds("hyper_car"), "the hyper car: every kind there is");
+        assertEquals(java.util.Arrays.stream(Kind.values()).filter(k -> k != Kind.ROOF).toList(), c.kinds("hyper_car"),
+                "the hyper car: every kind there is (but 루프 장식: it has no roof part)");
+        assertTrue(c.kinds("sushi_carnival").contains(Kind.ROOF), "the 초밥 카니발's roof takes 루프 장식");
+        assertEquals(18, c.offered("sushi_carnival", Kind.ROOF).size(), "every roof option drawn for it");
         for (String id : List.of("grand_sedan", "luxury_suv")) {
             assertEquals(List.of(Kind.PAINT, Kind.WHEEL, Kind.UNDERGLOW, Kind.HEADLAMP, Kind.PLATE), c.kinds(id), id + ": no drift, no flames");
         }

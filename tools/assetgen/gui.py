@@ -25,7 +25,7 @@ CORE_ICONS = ("prev", "next", "prev_off", "next_off", "exit", "info", "take_off"
               "tab_all", "tab_head", "tab_above", "tab_shoulder", "tab_back", "tab_tail", "tab_pet", "tab_trail",
               "tab_kill", "tab_neck", "tab_waist", "tab_aura", "filter", "self_view",
               # the tuning shop (/튜닝): a tab a kind of tuning (and its dimmed twin), pay and undo switched off
-              *(f"tune_{k}{off}" for k in ("paint", "wheel", "underglow", "headlamp", "skid", "smoke", "flame", "crackle", "plate") for off in ("", "_off")),
+              *(f"tune_{k}{off}" for k in ("paint", "wheel", "roof", "underglow", "headlamp", "skid", "smoke", "flame", "crackle", "plate") for off in ("", "_off")),
               "coins_off", "clear_off",
               # the donation shop (/후원): the currency, history, claim, confirm, category tabs
               "star", "ledger", "gift", "confirm", "don_car", "don_toy", "flag", "pickaxe",
