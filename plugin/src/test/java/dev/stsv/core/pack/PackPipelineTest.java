@@ -79,7 +79,7 @@ class PackPipelineTest {
             "frost_fishing_rod", "frost_fishing_rod_cast", "frost_sword", "najeon_axe", "najeon_bobber", "najeon_fishing_rod", "najeon_fishing_rod_cast", "najeon_hoe", "najeon_pickaxe", "najeon_shovel", "najeon_sword", "sushi_carnival",
             // 초밥 카니발 루프 부품 · 루프 장식 (vehicle_roofs*.py)
             "sushi_carnival_roof_r_tree");
-    private static final Set<String> ROTATED = Set.of("test_sword", "test_sword_skin", "test_greatsword", "test_slash", "test_rod", "test_rod_cast",
+    private static final Set<String> ROTATED = Set.of("scarecrow", "test_sword", "test_sword_skin", "test_greatsword", "test_slash", "test_rod", "test_rod_cast",
             "angel_wings", "demon_wings", "butterfly_wings",   // wings swept back 22.5 degrees
             "gumiho",                                           // nine tails fanned out
             "combine", "combine_reel", "combine_reel_arms", "combine_seeder",   // 소형 콤바인: the inclined feeder, crop dividers, reel bats, slanted arms
