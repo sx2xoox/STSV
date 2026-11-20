@@ -109,11 +109,10 @@ LAMPS = {
     # whole width of the tail panel, split in the middle
     "muscle_car": dict(scale=2.0, head=lens(5, 9, 7.75, 11.75, -37.25, True) + lens(10, 14, 8, 12, -37.55, True),
                        tail=lens(1.25, 14, 10.5, 13, 38.5), body=("vehicles_donation_muscle_car", "muscle_car")),
-    # sidecar_bike: the bike's round headlamp and the little running lamp on the sidecar's mudguard; the round tail lamp
-    # on the bike's rear fender and the small red lamp on the back of the sidecar's mudguard
-    "sidecar_bike": dict(scale=4.0, reach=2.0, head=lens(-19.15, -10.85, 28.85, 37.15, -29.6, True, False)
-                         + lens(27.8, 30.2, 26.3, 28.7, -3.2, True, False),
-                         tail=lens(-17.0, -13.0, 20.2, 24.2, 41.6, True, False) + lens(27.9, 30.1, 22.5, 24.7, 23.6, True, False),
+    # sidecar's mudguard
+    "sidecar_bike": dict(scale=2.0, head=lens(-9.35, -5.65, 14.65, 18.35, -14.5, True, False)
+                         + lens(13.9, 15.1, 13.4, 14.6, 0.8, True, False),
+                         tail=lens(-8.45, -6.55, 10.05, 11.95, 20.7, True, False) + lens(13.95, 15.05, 10.65, 11.75, 12.1, True, False),
                          body=("vehicles_donation_sidecar_bike", "sidecar_bike")),
     # the tail, each on its own 3D bar in front of a black visor / frame
     "concept_ev": dict(scale=2.0, head=lens(-15, 15, 5, 6, -39.5, False, False),
