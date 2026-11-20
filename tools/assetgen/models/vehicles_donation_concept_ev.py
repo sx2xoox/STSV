@@ -64,12 +64,12 @@ NOSE, TAIL = -78, 78           # z of the nose and the tail
 WF, WR = -50, 50               # front / rear axle (z)
 WY, WRAD = 14, 14              # wheel centre height, wheel radius (a 0.875 block wheel)
 TRACK = 22                     # the wheel's inner face (x): it stands from 22 out to 32
-GROUND = 3                     # the body's lowest cells
+GROUND = 2                     # the body's lowest cells
 W = 32                         # the body's half width
 D0, D1 = -32, 32               # the doors, between their seams (z)
-CAB0 = -46                     # the screen's foot
+CAB0 = -48                     # the screen's foot (the hood ends here)
 KNEE = -36                     # where the screen bends from 45 to 22.5 degrees
-ROOF = 45.5                    # the roof's top
+ROOF = 47.5                    # the roof's top
 RW = 31.5                      # the upright rear window (z)
 BUT = 72                       # where the buttresses land on the tail
 SILL = 8                       # the door's lower edge
@@ -98,9 +98,9 @@ def belt(z):
     """The height of the hood / deck along the middle: the hood one straight plane up from the knife-edge nose, the
     belt almost level behind it, a lip at the tail."""
     if z < CAB0:
-        return 16 + (z - NOSE) * (10 / (CAB0 - NOSE))
+        return 26 - (CAB0 - z) * T              # exactly 22.5 degrees: a tilted plane lies on it
     if z < 74:
-        return 26 + 1.5 * clamp((z - CAB0) / 76)
+        return 26 + 1.5 * clamp((z - CAB0) / 78)
     return 29.5                                   # the ducktail lip
 
 
@@ -211,7 +211,7 @@ def _cells():
 def _cell(x, y, z, ax, t):
     lower = y <= t and ax <= half_width(z, y)
     # the knife-edge nose: the face under the light bar is upright, the chin under it slopes back
-    if lower and z < NOSE + 8 and y < 7.5 and z < NOSE + (7.5 - y) * 1.3 and not (y < 4.5 and z > NOSE + 1.5):
+    if lower and z < NOSE + 8 and y < 6.5 and z < NOSE + (6.5 - y) * 1.3 and not (y < 4.5 and z > NOSE + 1.5):
         lower = False
     # the diffuser: a recess under the tail with fins standing in it
     if lower and z > TAIL - 6 and y < 11 and ax < 21:
@@ -250,11 +250,11 @@ def _label_lower(x, y, z, ax, t):
     corner_r = z > 68 and (plan(z) - ax) < 2.5
     # the nose: one thin LED bar the whole width, wrapping round the cut corners, in a black frame
     if z < NOSE + 2 or corner_f:
-        if fy == 13:
+        if fy == 11:
             return "led"
-        if fy in (12, 14):
+        if fy in (10, 12):
             return "frame"
-        if y < 7.5:
+        if y < 6.5:
             return "mesh" if y >= 4.5 else "satin"
     # the tail: the red bar the whole width in its black frame, the diffuser under it
     if z > TAIL - 2 or corner_r:
@@ -496,6 +496,7 @@ def concept_kit(colour="ev_pearl", roof_="ev_glass", accent="ev_cyan", trim="ev_
     body, doors = _cells()
     for target, cells in ((m, body), (kit["door_l"], doors[-1]), (kit["door_r"], doors[1])):
         _flat_voxels(target, cells, paints)
+    _hood(m, paints)
     _screen(m)
     _side_glass(kit, paints)
     _cabin(m, accent, trim)
@@ -503,6 +504,15 @@ def concept_kit(colour="ev_pearl", roof_="ev_glass", accent="ev_cyan", trim="ev_
     m.display = _held_display(m)
     _KIT[key] = kit
     return kit
+
+
+def _hood(m, paints):
+    """The hood between the fender blades: one opaque plane at 22.5 degrees laid over its 1 px steps, so it reads as a
+    single sharp sheet from the knife-edge nose to the screen."""
+    y0 = belt(NOSE) + 0.65
+    length = (CAB0 - NOSE) / math.cos(math.radians(22.5))
+    m.box("hood", (-14, y0 - 0.5, NOSE), (14, y0, NOSE + length), paints["paint"],
+          rotation=("x", 22.5, (0, y0, NOSE)), shade=False)
 
 
 def _screen(m):

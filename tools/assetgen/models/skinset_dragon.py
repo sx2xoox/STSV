@@ -602,8 +602,8 @@ ALL = {f.__name__: f for f in (dragon_sword, dragon_pickaxe, dragon_shovel, drag
                                dragon_fishing_rod_cast, dragon_bobber)}
 
 ROWS = [
-    ("dragon_sword", "청룡 검"), ("dragon_pickaxe", "청룡 곡괭이"), ("dragon_shovel", "청룡 삽"), ("dragon_axe", "청룡 도끼"),
-    ("dragon_hoe", "청룡 괭이"), ("dragon_fishing_rod", "청룡 낚싯대"), ("dragon_fishing_rod_cast", "낚싯대 (던진 뒤)"),
+    ("dragon_sword", "청룡언월도"), ("dragon_pickaxe", "용 발톱"), ("dragon_shovel", "용 비늘 방패 삽"), ("dragon_axe", "용머리 도끼"),
+    ("dragon_hoe", "여의주 지팡이"), ("dragon_fishing_rod", "용 수염 낚싯대"), ("dragon_fishing_rod_cast", "낚싯대 (던진 뒤)"),
     ("dragon_bobber", "청룡 찌 (찌에 태우는 모델)"),
 ]
 
