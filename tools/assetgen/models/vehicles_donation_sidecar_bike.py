@@ -285,17 +285,17 @@ def octa(m, name, c, W, H, ch, lo, hi, paint, decal, axis="z", t=None, faces=Non
         m.box(name, (a - W, b - (H - ch), lo), (a - (W - ch), b + (H - ch), hi), p, faces=faces)
         m.box(name, (a + (W - ch), b - (H - ch), lo), (a + W, b + (H - ch), hi), p, faces=faces)
         for s in (-1, 1):
-            plank(m, name + "_edge", "z", (a + s * (W - ch), b + H), (a + s * W, b + H - ch), (lo, hi), t, paint, decal=decal, faces=faces, buried=True)
+            plank(m, name + "_edge", "z", (a + s * (W - ch), b + H), (a + s * W, b + H - ch), (lo + 0.01, hi - 0.01), t, paint, decal=decal, faces=faces, buried=True)
             if bottom:
-                plank(m, name + "_edge", "z", (a + s * (W - ch), b - H), (a + s * W, b - H + ch), (lo, hi), t, paint,
+                plank(m, name + "_edge", "z", (a + s * (W - ch), b - H), (a + s * W, b - H + ch), (lo + 0.01, hi - 0.01), t, paint,
                       decal=decal, below=False, faces=faces, buried=True)
     else:
         m.box(name, (lo, b - H, a - (W - ch)), (hi, b + H, a + (W - ch)), p, faces=faces)
         m.box(name, (lo, b - (H - ch), a - W), (hi, b + (H - ch), a - (W - ch)), p, faces=faces)
         m.box(name, (lo, b - (H - ch), a + (W - ch)), (hi, b + (H - ch), a + W), p, faces=faces)
         for s in (-1, 1):
-            plank(m, name + "_edge", "x", (a + s * (W - ch), b + H), (a + s * W, b + H - ch), (lo, hi), t, paint, decal=decal, faces=faces, buried=True)
-            plank(m, name + "_edge", "x", (a + s * (W - ch), b - H), (a + s * W, b - H + ch), (lo, hi), t, paint,
+            plank(m, name + "_edge", "x", (a + s * (W - ch), b + H), (a + s * W, b + H - ch), (lo + 0.01, hi - 0.01), t, paint, decal=decal, faces=faces, buried=True)
+            plank(m, name + "_edge", "x", (a + s * (W - ch), b - H), (a + s * W, b - H + ch), (lo + 0.01, hi - 0.01), t, paint,
                   decal=decal, below=False, faces=faces, buried=True)
 
 
@@ -570,11 +570,11 @@ def _front(m, ctx):
             return tone("sc_chrome", 0.87)
         if c.face == "down":
             return tone("sc_chrome", 0.2)
-        if y > hy + 0.8:
-            return tone("sc_chrome", 0.86)
-        if y > hy - 0.3:
-            return tone("sc_chrome", 0.14)                                # the dark horizon round its waist
-        return tone("sc_chrome", 0.42)
+        if y > hy + 0.4:
+            return tone("sc_chrome", 0.82)
+        if y > hy - 0.4:
+            return tone("sc_chrome", 0.3)                                 # the dark horizon round its waist
+        return tone("sc_chrome", 0.52)
     octa(m, "headlamp", (BX, hy), 2.25, 2.25, 0.75, HL_FACE, hz + 1.75, flat("sc_chrome", 4), bucket, t=0.6)
 
     def lens(c):
@@ -584,13 +584,9 @@ def _front(m, ctx):
             return ("raw", (120, 110, 80, 255)) if r < 1.75 else CLEAR
         if r > 1.85:
             return CLEAR
-        if (x + 0.6) ** 2 + (y - 0.7) ** 2 < 0.35:
-            return ("raw", (255, 255, 246, 255))                          # the glass's glint
         if r < 0.75:
-            return ("raw", (255, 236, 170, 255))                          # the bulb in the reflector
-        if r > 1.3:
-            return ("raw", (196, 188, 160, 255))                          # the reflector's rim behind the glass
-        return ("raw", (236, 222, 176, 255))
+            return ("raw", (255, 250, 228, 255) if x < 0 and y > 0 else (255, 238, 186, 255))   # the bulb, a glint
+        return ("raw", (232, 216, 166, 255))                              # the fluted glass round it
     m.group("lights")
     m.box("headlamp_lens", (BX - 2.0, hy - 2.0, HL_FACE - 0.25), (BX + 2.0, hy + 2.0, HL_FACE),
           Paint("sc_lamp", 2, noise=0, light=False, glow=True, decal=lens))
@@ -671,18 +667,13 @@ def _tank_saddle(m, ctx):
             return tone(C, 0.62)
         if c.face == "south":
             return tone(C, 0.4)
-        # the sides: a flash of the trim colour sweeping back from the nose, edged by a fine dark line
-        # a flash: a broad band from the nose, narrowing to a point at the knee pads
-        half = 1.25 - max(0.0, z + 5.5) * 0.36
-        if TZ0 + 0.5 <= z and abs(y - 14.75) < half:
-            return tone(T, 0.46 + 0.28 * smooth((y - 13.5) / 2.5))
-        if TZ0 + 0.5 <= z and abs(y - 14.75) < half + 0.5:
-            return tone(C, 0.2)                                          # its dark edge
-        # the knee pads: ribbed rubber in a chrome rim on the narrowing sides
-        if z > TK + 0.6 and 13.0 <= y < 16.0 and z < TZ1 - 0.6:
-            if y < 13.5 or y >= 15.5:
-                return tone("sc_chrome", 0.8)
-            return tone("sc_rubber", 0.4 if math.floor(z * 1.5) % 2 else 0.12)
+        # the sides: a flash of the trim colour from the nose, sweeping back to a point
+        half = 1.1 * (1 - (z - (TZ0 + 0.5)) / (TK + 1.5 - TZ0 - 0.5))
+        if TZ0 + 0.5 <= z and abs(y - 14.6) < half:
+            return tone(T, 0.5 + 0.24 * smooth((y - 13.5) / 2.2))
+        # the knee pads: ribbed rubber on the narrowing sides
+        if TK + 1.0 < z < TK + 3.75 and 13.5 <= y < 15.5:
+            return tone("sc_rubber", 0.42 if math.floor(z * 1.5) % 2 else 0.2)
         return tone(C, 0.3 + 0.36 * smooth((y - TY0) / (TY1 - TY0)))
     tp = flat(C, 4)
     # the front of the tank: a core, its crown, the 45-degree edges along the top, a 45-degree brow at the nose
@@ -690,7 +681,7 @@ def _tank_saddle(m, ctx):
     m.box("tank", (BX - (W1 - 1), TY1 - 1, TZ0 + 1), (BX + (W1 - 1), TY1, TK), tp(decal=tank))
     for s in (-1, 1):
         plank(m, "tank_edge", "z", (BX + s * (W1 - 1), TY1), (BX + s * W1, TY1 - 1), (TZ0 + 0.3, TK), 0.75, tp, decal=tank, buried=True)
-    plank(m, "tank_brow", "x", (TZ0, TY1 - 1), (TZ0 + 1, TY1), (BX - (W1 - 1), BX + (W1 - 1)), 0.75, tp, decal=tank)
+    plank(m, "tank_brow", "x", (TZ0, TY1 - 1), (TZ0 + 1, TY1), (BX - (W1 - 1) + 0.02, BX + (W1 - 1) - 0.02), 0.75, tp, decal=tank)
     # the tail: narrower, its sides drawing in at 22.5 degrees, a lid over the triangles between, a 45-degree end
     m.box("tank", (BX - W2, TY0 + 0.5, TK), (BX + W2, TY1, TZ1 - 1), tp(decal=tank))
     taper = (W1 - W2) / math.tan(math.radians(22.5))
@@ -700,15 +691,15 @@ def _tank_saddle(m, ctx):
         lo, hi = (BX + s * W1, BX + s * (W1 - 1.75)) if s > 0 else (BX + s * W1, BX + s * (W1 - 1.75))
         plank(m, "tank_lid", "y", (TK, BX + s * (W1 - 0.05)), (TK + taper, BX + s * (W2 - 0.05)), (TY1 - 1, TY1 - 0.25), 1.6,
               tp, decal=tank, below=s > 0, faces={"down": None, "west" if s > 0 else "east": None, "north": None})
-    plank(m, "tank_tail", "x", (TZ1 - 1, TY1), (TZ1, TY1 - 1), (BX - W2, BX + W2), 0.75, tp, decal=tank)
+    plank(m, "tank_tail", "x", (TZ1 - 1, TY1), (TZ1, TY1 - 1), (BX - W2 + 0.02, BX + W2 - 0.02), 0.75, tp, decal=tank)
     m.box("tank", (BX - W2, TY0 + 0.5, TZ1 - 1), (BX + W2, TY1 - 1, TZ1), tp(decal=tank))
     # the chrome strip down the crown, two filler caps
     m.box("tank_strip", (BX - 0.3, TY1, TZ0 + 1.2), (BX + 0.3, TY1 + 0.25, TZ1 - 1.2), CHROME)
     for s in (-1, 1):
         m.box("filler_cap", (BX + s * 1.6 - 0.5, TY1, TZ0 + 2.0), (BX + s * 1.6 + 0.5, TY1 + 0.45, TZ0 + 3.0), CHROME)
-    # the hand-shift lever up the tank's left side: a chrome rod in a gate, a black knob
-    rod(m, "shift_lever", (12.3, -0.6), (15.4, -2.4), 0.45, CHROME, x=(BX - W1 - 0.9, BX - W1 - 0.45))
-    m.box("shift_knob", (BX - W1 - 1.2, 15.2, -3.0), (BX - W1 - 0.15, 16.2, -2.0), solid("sc_black", 0.75, 0.45, 0.2))
+    # the hand-shift lever up the tank's left side, behind the knee pad: a chrome rod, a black knob
+    rod(m, "shift_lever", (11.6, 1.8), (15.2, 0.3), 0.4, CHROME, x=(BX - 2.25, BX - 1.85))
+    m.box("shift_knob", (BX - 2.45, 15.0, -0.2), (BX - 1.65, 15.8, 0.6), solid("sc_black", 0.75, 0.45, 0.2))
 
     m.group("saddle")
     # the sprung solo saddle: a narrow nose on a pivot, a wide pan behind (the sides drawing out at 45 degrees), the
@@ -737,7 +728,7 @@ def _tank_saddle(m, ctx):
               decal=leather, below=s > 0)
         lo, hi = _x(BX, s * 1.75, s * 2.6)
         m.box("saddle", (lo, yb, s1), (hi, yt - 0.85, s2), lp(decal=leather))
-    plank(m, "saddle_cantle", "x", (s2 - 0.9, yt), (s2, yt + 0.9 * math.tan(math.radians(45))), (BX - 1.75, BX + 1.75),
+    plank(m, "saddle_cantle", "x", (s2 - 0.9, yt), (s2, yt + 0.9 * math.tan(math.radians(45))), (BX - 1.73, BX + 1.73),
           0.6, lp, decal=leather, below=True)
     m.box("saddle_pivot", (BX - 0.5, 13.6, s0 + 0.2), (BX + 0.5, yb + 0.3, s0 + 1.2), CHROME)
 
@@ -799,20 +790,21 @@ def _engine(m, ctx):
     ap = flat("sc_alloy", 3)
     m.box("crankcase", (BX - 2.1, 4.0, -5.0), (BX + 2.1, 7.6, 2.5), ap(decal=case))
     m.box("crankcase", (BX - 2.1, 3.0, -4.0), (BX + 2.1, 4.0, 1.5), ap(decal=case))
-    plank(m, "crankcase_edge", "x", (-5.0, 4.0), (-4.0, 3.0), (BX - 2.1, BX + 2.1), 0.75, ap, decal=case, below=False)
-    plank(m, "crankcase_edge", "x", (1.5, 3.0), (2.5, 4.0), (BX - 2.1, BX + 2.1), 0.75, ap, decal=case, below=False)
+    edge = lambda c: tone("sc_alloy", 0.62 if c.face == "up" else 0.4)
+    plank(m, "crankcase_edge", "x", (-5.0, 4.0), (-4.0, 3.0), (BX - 2.05, BX + 2.05), 0.75, ap, decal=edge, below=False)
+    plank(m, "crankcase_edge", "x", (1.5, 3.0), (2.5, 4.0), (BX - 2.05, BX + 2.05), 0.75, ap, decal=edge, below=False)
     m.box("gearbox", (BX - 1.8, 3.6, 2.5), (BX + 1.8, 7.0, 6.0), ap(decal=case))
 
     # the chrome primary cover on the left: a long cover from the crank back to the gearbox, its ends bevelled
     def prim(c):
         if c.face == "west":
             y = c.p[1]
-            return tone("sc_chrome", 0.87 if y > 6.6 else 0.12 if y > 5.6 else 0.45)
+            return tone("sc_chrome", 0.84 if y > 6.6 else 0.3 if y > 6.0 else 0.56 if y > 4.4 else 0.42)
         return chrome_decal()(c)
     pp = flat("sc_chrome", 4)
     m.box("primary", (BX - 2.85, 3.6, -1.0), (BX - 2.1, 7.6, 4.5), pp(decal=prim))
-    plank(m, "primary_edge", "x", (-2.2, 6.4), (-1.0, 7.6), (BX - 2.85, BX - 2.1), 0.8, pp, decal=prim)
-    plank(m, "primary_edge", "x", (4.5, 7.6), (5.7, 6.4), (BX - 2.85, BX - 2.1), 0.8, pp, decal=prim)
+    plank(m, "primary_edge", "x", (-2.2, 6.4), (-1.0, 7.6), (BX - 2.83, BX - 2.12), 0.8, pp, decal=prim)
+    plank(m, "primary_edge", "x", (4.5, 7.6), (5.7, 6.4), (BX - 2.83, BX - 2.12), 0.8, pp, decal=prim)
     m.box("primary", (BX - 2.85, 3.6, -2.2), (BX - 2.1, 6.4, -1.0), pp(decal=prim))
     m.box("primary", (BX - 2.85, 3.6, 4.5), (BX - 2.1, 6.4, 5.7), pp(decal=prim))
 
@@ -940,10 +932,8 @@ def _rear(m, ctx):
         x, y, z = c.p
         if c.face == "down":
             return tone(L, 0.12)
-        if math.floor(z) in (12, 14):
-            if c.face == "west" and math.floor(y) == 9:
-                return tone("sc_chrome", 0.66)                           # the buckles
-            return tone(L, 0.22)                                         # the straps
+        if math.floor(z) in (12, 14) and c.face in ("west", "up"):
+            return tone(L, 0.24)                                         # the straps
         if c.face == "up":
             return tone(L, 0.75)
         if math.floor(y) == 9 and c.face == "west":
@@ -1054,24 +1044,12 @@ def _sidecar(m, kit, ctx):
         m.box("grab_post", (gx - 0.2, TT - 0.6, z - 0.2), (gx + 0.2, 15.8, z + 0.2), CHROME)
     m.box("grab_rail", (gx - 0.3, 15.8, -1.3), (gx + 0.3, 16.3, 4.8), CHROME)
 
-    # the windscreen (its own part: it folds forward on its foot while the passenger gets in or out): a tinted pane
-    # in a chrome frame, leaning back 22.5 degrees, on two black feet
+    # the windscreen (its own part: it folds forward on its foot while the passenger gets in or out): clear glass in a
+    # chrome frame (only the frame is drawn: the glass is clear), leaning back 22.5 degrees, on two black feet
     s = kit["screen"]
     rot = ("x", 22.5, (SX, SCREEN_Y, SCREEN_Z))
     SW, H = 4.5, 4.4
 
-    def pane(c):
-        if c.face not in ("north", "south"):
-            return CLEAR
-        u, v = c.u, c.nv - 1 - c.v
-        d = u - v - 2
-        if c.face == "north" and d == 0:
-            return ("raw", (206, 222, 238, 255))                                         # a reflection streak
-        if v == 0:
-            return ("raw", (120, 140, 160, 255))                                         # a tint along its foot
-        return CLEAR
-    s.box("screen_glass", (SX - SW + 0.3, SCREEN_Y + 0.4, SCREEN_Z - 0.1), (SX + SW - 0.3, SCREEN_Y + H - 0.3, SCREEN_Z + 0.1),
-          Paint("sc_glass", 1, noise=0, light=False, decal=pane), rotation=rot)
     frame = flat("sc_chrome", 4)(decal=lambda c: tone("sc_chrome", 0.87 if c.face == "up" else 0.75 if c.face in ("north", "west") else 0.4))
     s.box("screen_frame", (SX - SW, SCREEN_Y + H - 0.3, SCREEN_Z - 0.25), (SX + SW, SCREEN_Y + H + 0.2, SCREEN_Z + 0.25), frame, rotation=rot)
     s.box("screen_frame", (SX - SW + 0.3, SCREEN_Y, SCREEN_Z - 0.25), (SX + SW - 0.3, SCREEN_Y + 0.4, SCREEN_Z + 0.25), frame, rotation=rot)
