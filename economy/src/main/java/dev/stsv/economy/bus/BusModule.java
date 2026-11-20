@@ -117,6 +117,9 @@ public final class BusModule extends EcoModule {
         Location home;
         Entity seat;
         int seatAt = -1;
+        /** an event team's number (0: none) and a 특급 손님's kind (or null) */
+        int team;
+        String special;
 
         Waiter(Mannequin m, BusSpec.Type type, String face) {
             this.m = m;
@@ -125,8 +128,15 @@ public final class BusModule extends EcoModule {
         }
     }
 
-    /** Someone queued to wait at a stop: a transfer passenger (their line and stop) or one of a picnic's students. */
-    record Forced(String type, Integer line, Integer dest, boolean transfer) {}
+    /**
+     * Someone queued to wait at a stop: a transfer passenger (their line and stop), one of an event team (출근 대란, 야구 끝,
+     * 소풍날: its number) or a 특급 손님 (its kind).
+     */
+    record Forced(String type, Integer line, Integer dest, boolean transfer, int team, String special) {
+        Forced(String type, Integer line, Integer dest, boolean transfer) {
+            this(type, line, dest, transfer, 0, null);
+        }
+    }
 
     static final class Shown {
         final List<Waiter> waiters = new ArrayList<>();
@@ -161,6 +171,11 @@ public final class BusModule extends EcoModule {
         long saidUntil;
         /** a stop a wandering passenger gets off at instead (or -1) */
         int wanderAt = -1;
+        /** an event team's number (0: none); a 특급 손님's kind (or null) and the jolts and bumps it felt; mood losses × */
+        int team;
+        BusEvents.Kind special;
+        int hits;
+        double moodX = 1;
 
         Rider(Mannequin m, BusSpec.Type type, int from, int dest, double road, double mood) {
             this.m = m;
@@ -189,6 +204,13 @@ public final class BusModule extends EcoModule {
         boolean rented;
         Integer leftStop;
         final java.util.Set<Integer> rang = new java.util.HashSet<>();
+        /** the event team it carries (0: none; one at a time) and whether a 특급 손님 rides (one at a time) */
+        int team;
+        boolean special;
+        /** at the stop it stands at: someone got on or off, something was left behind; the first passenger was greeted */
+        boolean served, lostHere, greeted;
+        /** 노선 완주: the stops of its line it stopped at in order this run */
+        final BusEvents.CourseRun course = new BusEvents.CourseRun();
     }
 
     /** 버스 렌트: renter -> their rented bus (a temporary vehicle of the core) and since when they are out of it (0: in it) */
@@ -198,7 +220,49 @@ public final class BusModule extends EcoModule {
     private final Map<Integer, java.util.Set<String>> stopTags = new HashMap<>();
     /** stop id -> who is queued to wait there next (transfers, a picnic) */
     private final Map<Integer, Deque<Forced>> forced = new HashMap<>();
-    private int picnicDay = -1, marketSaidDay = -1;
+    private int marketSaidDay = -1;
+
+    /** An event team (단체 손님): up to events.team.size passengers of one crowd, going to one stop together. */
+    static final class Team {
+        final int id, no, size, stop;
+        final String event;
+        final BusEvents.Crowd crowd;
+        final String color;
+        /** the line it must ride (출근 대란: each team its own stop ahead), where it goes (null: chosen as its first boards) */
+        Integer line, dest;
+        /** when it must be there (millis, 0: no deadline); a won or lost ball game */
+        final long deadline, made = System.currentTimeMillis();
+        final boolean won, lost;
+        int boarded, off;
+        boolean broken, lateHit, allOnTime = true;
+
+        Team(int id, int no, int size, int stop, String event, BusEvents.Crowd crowd, String color, long deadline, boolean won, boolean lost) {
+            this.id = id;
+            this.no = no;
+            this.size = size;
+            this.stop = stop;
+            this.event = event;
+            this.crowd = crowd;
+            this.color = color;
+            this.deadline = deadline;
+            this.won = won;
+            this.lost = lost;
+        }
+    }
+
+    private final Map<Integer, Team> teams = new HashMap<>();
+    private int nextTeam = 1;
+    /** 안전 운행 연속: driver -> {stops served in a row, the last of them} (in memory) */
+    private final Map<UUID, int[]> streaks = new HashMap<>();
+    /** 외딴 정류장 구조: stop id -> when a bus last took someone there (in memory: from the server's start); the stop marked */
+    private final Map<Integer, Long> lastServed = new HashMap<>();
+    private Integer rescueStop;
+    /** 버스 대축제: on, warned it ends soon; driver -> {points}, when they last scored (in memory) */
+    private boolean festOn, festWarned;
+    private final Map<UUID, int[]> festPoints = new HashMap<>();
+    private final Map<UUID, Long> festAt = new HashMap<>();
+    /** 분실물: what a lost item carries (see BusEvents.LostTag) */
+    static final NamespacedKey LOST = new NamespacedKey("economy", "bus_lost");
 
     public BusModule(EcoPlugin eco) {
         super(eco);
@@ -686,6 +750,7 @@ public final class BusModule extends EcoModule {
             for (Rider x : r.riders) {
                 vm.unseatGuest(e.getKey(), x.m);
                 x.m.remove();
+                if (x.team != 0) teams.remove(x.team);   // the team went off to find another way
                 n++;
             }
             Player p = Bukkit.getPlayer(r.driver);
@@ -730,8 +795,9 @@ public final class BusModule extends EcoModule {
         // snow on the road: a sudden stop is half as bad (everyone knows it slides)
         if (jolt && p.getWorld().hasStorm() && p.getLocation().getBlock().getTemperature() < 0.15) by *= spec.extra().snowJolt();
         boolean turn = key.endsWith("turn");
+        if (!turn) broke(p, run);   // 안전 운행 연속: a jolt or a bump ends it; a 특급 손님 counts it
         for (Rider r : run.riders) {
-            double d = by * r.type.mood() * (jolt ? r.type.jolt() : 1) * (turn ? r.type.turnFactor() : 1);
+            double d = by * r.type.mood() * (jolt ? r.type.jolt() : 1) * (turn ? r.type.turnFactor() : 1) * r.moodX;
             r.mood = Math.clamp(r.mood + d, 0, 100);
             r.m.getWorld().spawnParticle(Particle.ANGRY_VILLAGER, r.m.getLocation().add(0, 2.1, 0), 1);
             if (r.dozing && !turn) {   // a jolt wakes a sleeper
@@ -785,6 +851,7 @@ public final class BusModule extends EcoModule {
             }
             pickLine(p, run, d, here);
             HudModule.flash(p, Lang.mm("bus.arrive", "stop", here.name()), 2000);
+            arrived(p, run, here);
             // a wandering passenger (술 취한 아저씨) may get off here instead
             for (Rider r : run.riders) {
                 if (r.dest != here.id() && r.type.wander() > 0 && ThreadLocalRandom.current().nextDouble() < r.type.wander()) {
@@ -808,15 +875,23 @@ public final class BusModule extends EcoModule {
             it.remove();
             vm.unseatGuest(d.id(), r.m);
             double road = r.dest == here.id() || line == null || !line.has(r.from) ? r.road : line.between(line.at(r.from), line.at(here.id()));
-            pay(p, run, r, here, road);
-            Mannequin m = r.m;
-            m.setDescription(Component.empty());
-            Bukkit.getScheduler().runTaskLater(eco, () -> {
-                if (m.isValid()) {
-                    m.getWorld().spawnParticle(Particle.POOF, m.getLocation().add(0, 1, 0), 6, 0.2, 0.4, 0.2, 0.01);
-                    m.remove();
-                }
-            }, 50L);
+            boolean atDest = r.dest == here.id() && r.wanderAt != here.id();
+            // a 특급 손님: its bonus, or (failed) its fare × fail-fare
+            long special = 0;
+            String why = null;
+            if (r.special != null) {
+                double secs = (System.currentTimeMillis() - r.boarded) / 1000.0, ot = spec.onTime(r.road);
+                special = atDest ? r.special.pay(secs, ot, r.mood, r.hits) : 0;
+                if (special <= 0) why = !atDest ? Lang.raw("bus.special-why-place") : r.mood < r.special.minMood()
+                        ? Lang.raw("bus.special-why-mood", "mood", (int) Math.round(r.mood)) : r.special.limit(ot) > 0 && secs > r.special.limit(ot)
+                        ? Lang.raw("bus.special-why-late") : Lang.raw("bus.special-why-hits", "n", r.hits);
+            }
+            boolean onTime = pay(p, run, r, here, road, r.special != null && special <= 0 ? r.special.failFare() : 1);
+            served(p, run, here, false);
+            if (r.special != null) specialOff(p, run, r, here, special, why);
+            if (r.team != 0) teamOff(p, run, r, here, atDest, onTime);
+            maybeLose(p, run, r, here);
+            walkOff(r.m, here, d.world().hasStorm());
             maybeTransfer(n, line, here, r);
             run.busy = (int) (cfg.boardTicks() * r.type.slow());
             return;
@@ -831,17 +906,43 @@ public final class BusModule extends EcoModule {
         Waiter w = null;
         Integer dest = null;
         String why = null;
-        for (Waiter x : sh.waiters) {
+        // the event team this bus carries boards first, all of it, one after another
+        List<Waiter> order = sh.waiters;
+        if (run.team != 0) {
+            order = new ArrayList<>(sh.waiters);
+            order.sort(Comparator.comparingInt(x -> x.team == run.team ? 0 : 1));
+        }
+        List<Integer> ahead = line.ahead(line.at(here.id()), run.dir);
+        for (Waiter x : order) {
             if (!bus.takes(x.type)) {
                 why = "bus.bus-only";
                 continue;
             }
-            if (x.forcedLine != null && x.forcedLine != line.number) continue;   // waiting for another line (a transfer)
+            if (x.forcedLine != null && x.forcedLine != line.number) continue;   // waiting for another line (a transfer, 출근 대란)
             if (x.partner != null && free.size() < 2) continue;
-            Integer to = x.forcedDest != null && line.ahead(line.at(here.id()), run.dir).contains(x.forcedDest) ? x.forcedDest
-                    : x.forcedDest != null ? null : pickDest(line, here, x.type, p.getUniqueId(), run.dir, bus);
+            if (x.special != null && run.special) continue;   // one 특급 손님 a bus
+            Team tm = x.team == 0 ? null : teams.get(x.team);
+            if (x.team != 0 && tm == null) x.team = 0;   // its team is over: an ordinary passenger now
+            Integer fixed = x.forcedDest != null ? x.forcedDest : tm != null ? tm.dest : null;
+            if (tm != null && run.team != tm.id) {
+                if (run.team != 0) continue;   // one event team a bus (its other seats take ordinary passengers)
+                int members = 0;
+                for (Waiter y : sh.waiters) if (y.team == tm.id) members++;
+                if (free.size() < members) {   // the team goes together or not at all
+                    if (why == null) why = "bus.team-room";
+                    continue;
+                }
+            }
+            Integer to;
+            if (fixed != null) to = ahead.contains(fixed) ? fixed : null;
+            else if (x.special != null) {
+                BusEvents.Kind k = spec.events().special().kinds().get(x.special);
+                double min = Math.max(bus.minRoad(), k == null ? 0 : k.minRoad());
+                to = pickDest(line, here, x.type, p.getUniqueId(), run.dir, new BusSpec.Bus(min, bus.only(), bus.fare()));
+                if (to == null) to = pickDest(line, here, x.type, p.getUniqueId(), run.dir, bus);
+            } else to = pickDest(line, here, x.type, p.getUniqueId(), run.dir, bus);
             if (to == null) {
-                if (why == null) why = bus.minRoad() > 0 ? "bus.bus-far" : "bus.end-of-line";
+                if (why == null) why = fixed != null ? "bus.team-other-way" : bus.minRoad() > 0 ? "bus.bus-far" : "bus.end-of-line";
                 continue;
             }
             w = x;
@@ -851,7 +952,7 @@ public final class BusModule extends EcoModule {
         if (w == null) {
             if (why != null && ticks - run.noLineAt > 200) {
                 run.noLineAt = ticks;
-                HudModule.flash(p, Lang.mm(why, "line", line.name(), "km", km(bus.minRoad())), 3000);
+                HudModule.flash(p, Lang.mm(why, "line", line.name(), "km", km(bus.minRoad()), "n", free.size()), 3000);
             }
             return;
         }
@@ -950,6 +1051,19 @@ public final class BusModule extends EcoModule {
         run.riders.add(r);
         BusStop to = stops.get(dest);
         String destName = to == null ? "?" : to.name();
+        if (run.riders.size() == 1 && !run.greeted) {   // the run's first passenger: the driver greets them
+            run.greeted = true;
+            p.playSound(p.getLocation(), Sound.BLOCK_NOTE_BLOCK_BELL, 0.8f, 1.2f);
+            Bukkit.getScheduler().runTaskLater(eco, () -> p.playSound(p.getLocation(), Sound.BLOCK_NOTE_BLOCK_BELL, 0.8f, 1.5f), 3L);
+            p.sendMessage(Lang.mm("bus.first-rider"));
+        }
+        served(p, run, here, true);
+        List<String> eventTalk = teamBoarded(p, run, w, r, destName);
+        if (w.special != null) eventTalk = specialBoarded(p, run, w, r, destName);
+        if (eventTalk != null) {
+            sayLine(run, r, eventTalk);
+            return true;
+        }
         if (w.transfer) {
             d.world().playSound(d.location(), Sound.BLOCK_NOTE_BLOCK_BIT, 1f, 2f);
             HudModule.flash(p, Lang.mm("bus.transfer", "type", typeTag(w.type), "dest", destName), 2000);
@@ -1060,13 +1174,14 @@ public final class BusModule extends EcoModule {
         return String.join(" · ", out);
     }
 
-    private void pay(Player p, Run run, Rider r, BusStop at, double road) {
+    /** A passenger's fare (× factor: a failed 특급 손님 may pay less) to the driver. Returns whether they came on time. */
+    private boolean pay(Player p, Run run, Rider r, BusStop at, double road, double factor) {
         BusSpec.Fare f = spec.fare();
         BusSpec.Extra x = spec.extra();
         BusSpec.Bus bus = spec.bus(run.itemKey);
         double secs = (System.currentTimeMillis() - r.boarded) / 1000.0;
         boolean onTime = secs <= spec.onTime(road);
-        double fare = spec.fare(road, r.type) * bus.fare() * (r.transfer ? 1 + x.transferBonus() : 1);
+        double fare = spec.fare(road, r.type) * bus.fare() * (r.transfer ? 1 + x.transferBonus() : 1) * Math.max(0, factor);
         double base = fare * spec.moodFactor(r.mood) + r.type.luggage();
         boolean rain = p.getWorld().hasStorm();
         double tip = onTime && r.mood >= r.type.tipMood() ? fare * f.tip() * r.type.tip() * (rain ? 1 + x.rainTip() : 1) : 0;
@@ -1106,6 +1221,7 @@ public final class BusModule extends EcoModule {
         } else if (r.mood >= 80 && ThreadLocalRandom.current().nextDouble() < 0.3) {
             talk(run, r.m, r.type, "thanks", false);
         }
+        return onTime;
     }
 
     private void remember(UUID driver, int from, int to) {
@@ -1241,13 +1357,17 @@ public final class BusModule extends EcoModule {
         double minutes = (now - lastRefill) / 60000.0;
         lastRefill = now;
         int hour = ZonedDateTime.now(KST).getHour();
-        double rate = spec.hourFactor(hour) / Math.max(0.1, spec.stops().refillMinutes());
+        festival();
+        double rate = spec.hourFactor(hour) / Math.max(0.1, spec.stops().refillMinutes()) * (festOn ? spec.events().festival().refill() : 1);
         for (BusStop s : stops.values()) {
             Net n = nets.get(s.world());
             if (n == null || n.linesOf(s.id()).isEmpty()) continue;
-            waiting.merge(s.id(), minutes * rate, (a, b) -> a >= s.size() ? a : Math.min(s.size(), a + b));
+            double before = waiting.getOrDefault(s.id(), 0.0);
+            double after = waiting.merge(s.id(), minutes * rate, (a, b) -> a >= s.size() ? a : Math.min(s.size(), a + b));
+            if (Math.floor(after) > Math.floor(before)) maybeSpecial(s);   // someone new came: now and then a 특급 손님
         }
         dayEvents();
+        teamsUpkeep(now);
         // who came when (the line's order, how long each has waited); now and then the one waiting longest gives up
         boolean giveUps = ticks % (spec.patience().every() * 20L) < 20;
         for (BusStop s : stops.values()) {
@@ -1255,6 +1375,7 @@ public final class BusModule extends EcoModule {
             q.sync((int) Math.floor(waiting.getOrDefault(s.id(), 0.0)), now);
             if (giveUps) giveUp(s, q, now);
         }
+        if (giveUps) rescueScan(now);
         boolean bisNow = ticks % (spec.board().refresh() * 20L) < 20, lampNow = ticks % 200 < 20;
         Map<Run, int[]> runAt = new HashMap<>();
         // a bus near a stop: its passengers stand in the shelter
@@ -1273,6 +1394,7 @@ public final class BusModule extends EcoModule {
             Shown sh = shown.computeIfAbsent(s.id(), k -> new Shown());
             if (sh.waiters.removeIf(x -> {
                 if (x.m.isValid()) return false;
+                requeue(s.id(), x);   // (its chunk went away) still waiting, unseen
                 gone(x);
                 return true;
             })) sh.dirty = true;
@@ -1287,7 +1409,7 @@ public final class BusModule extends EcoModule {
                     x.since = q.at(sh.waiters.size(), now);
                     sh.waiters.add(x);
                     sh.dirty = true;
-                    if (x.type.pair() && sh.waiters.size() < want + 1) {   // a couple: the other half beside them
+                    if (x.type.pair() && x.team == 0 && x.special == null && sh.waiters.size() < want + 1) {   // a couple: the other half beside them
                         Waiter y = spawnWaiter(w, s, sh.waiters.size(), want + 1, nearDriver.getUniqueId(), x.type);
                         if (y != null) {
                             x.partner = y;
@@ -1317,6 +1439,7 @@ public final class BusModule extends EcoModule {
             String words = tagWords(s);
             if (!words.isEmpty()) nos = nos.isEmpty() ? "<gray>" + words : nos + " <gray>" + words;
             if (marketHere(s)) nos += " <#ff9e5c>장날";
+            nos += eventSign(s, now);
             boolean loaded = w.isChunkLoaded((int) Math.floor(s.x()) >> 4, (int) Math.floor(s.z()) >> 4);
             // 버스 도착 안내판: every line through it, the nearest bus coming its way and when (every few seconds, loaded stops only)
             if (loaded && (bisNow || !bisRows.containsKey(s.id()))) {
@@ -1349,7 +1472,7 @@ public final class BusModule extends EcoModule {
                 double left = spec.onTime(x.road) - (now - x.boarded) / 1000.0;
                 if (left < 0 && x.type.late() > 0) x.mood = Math.max(0, x.mood - x.type.late() / 60.0);
                 BusStop dest = stops.get(x.dest);
-                x.m.setDescription(Lang.mm("bus.rider-tag", "dest", dest == null ? "?" : dest.name(), "left", clock(left),
+                x.m.setDescription(Lang.mm("bus.rider-tag", "dest", dest == null ? "?" : dest.name(), "left", clock(timeLeft(x, now)),
                         "mood", (int) Math.round(x.mood)));
             }
             Player p = Bukkit.getPlayer(r.driver);
@@ -1435,7 +1558,8 @@ public final class BusModule extends EcoModule {
             String junction = turn == null ? "" : Lang.raw("bus.hud-junction", "m", Math.round(turn.distance()),
                     "turn", Lang.raw(turn.turn() < 0 ? "bus.turn-left" : turn.turn() > 0 ? "bus.turn-right" : "bus.turn-straight"));
             if (next == null) {
-                HudModule.flash(p, Lang.mm("bus.hud-end", "line", line.name(), "arrow", arrow, "riders", r.riders.size(), "seats", r.seats), 1500);
+                HudModule.flash(p, Lang.mm("bus.hud-end", "line", line.name(), "arrow", arrow, "riders", r.riders.size(), "seats", r.seats,
+                        "extra", hudExtra(p, r)), 1500);
                 return;
             }
             double dist = line.between(idx, line.at(next.id()));
@@ -1462,7 +1586,7 @@ public final class BusModule extends EcoModule {
             }
             HudModule.flash(p, Lang.mm("bus.hud-line", "line", line.name(), "arrow", arrow, "stop", next.name(), "km", km(dist),
                     "off", offN > 0 ? Lang.raw("bus.hud-off-n", "n", offN) : "", "junction", junction, "riders", r.riders.size(),
-                    "seats", r.seats), 1500);
+                    "seats", r.seats, "extra", hudExtra(p, r)), 1500);
             return;
         }
         double best = Double.MAX_VALUE;
@@ -1477,7 +1601,7 @@ public final class BusModule extends EcoModule {
         }
         if (near == null || best > 3000) HudModule.flash(p, Lang.mm("bus.hud-none"), 1500);
         else HudModule.flash(p, Lang.mm("bus.hud-empty", "stop", near.name(), "km", km(best), "waiting",
-                (int) Math.floor(waiting.getOrDefault(near.id(), 0.0))), 1500);
+                (int) Math.floor(waiting.getOrDefault(near.id(), 0.0)), "extra", hudExtra(p, r)), 1500);
     }
 
     // ------------------------------------------------------------------------------------------
@@ -1587,16 +1711,19 @@ public final class BusModule extends EcoModule {
         List<dev.stsv.core.hud.HudLayout.OverlayRow> out = new ArrayList<>();
         for (Rider x : order) {
             BusStop s = stops.get(x.dest);
-            double left = spec.onTime(x.road) - (now - x.boarded) / 1000.0;
+            double left = timeLeft(x, now);
+            Team tm = x.team == 0 ? null : teams.get(x.team);
+            String color = x.special != null ? "#ffcf40" : x.type.color();
+            String name = x.special != null ? x.special.name() : tm != null ? x.type.name() + " " + Lang.raw("bus.overlay-team", "no", tm.no) : x.type.name();
             String mood = x.mood >= 90 ? "mood_great" : x.mood >= 70 ? "mood_good" : x.mood >= 40 ? "mood_meh" : "mood_bad";
             if (x.said != null && now < x.saidUntil) {
-                out.add(new dev.stsv.core.hud.HudLayout.OverlayRow(x.face, mood, Lang.mm("bus.overlay-talk", "color", x.type.color(),
-                        "type", x.type.name()), Lang.mm("bus.overlay-said",
+                out.add(new dev.stsv.core.hud.HudLayout.OverlayRow(x.face, mood, Lang.mm("bus.overlay-talk", "color", color,
+                        "type", name), Lang.mm("bus.overlay-said",
                         "said", net.kyori.adventure.text.minimessage.MiniMessage.miniMessage().escapeTags(x.said))));
                 continue;
             }
-            out.add(new dev.stsv.core.hud.HudLayout.OverlayRow(x.face, mood, Lang.mm("bus.overlay-row", "color", x.type.color(),
-                    "type", x.type.name(), "dest", x.dest == -1 ? Lang.raw("bus.next-stop") : s == null ? "?" : s.name(),
+            out.add(new dev.stsv.core.hud.HudLayout.OverlayRow(x.face, mood, Lang.mm("bus.overlay-row", "color", color,
+                    "type", name, "dest", x.dest == -1 ? Lang.raw("bus.next-stop") : s == null ? "?" : s.name(),
                     "left", clock(left) + (x.dozing ? Lang.raw("bus.dozing") : ""))));
         }
         return out;
@@ -1616,6 +1743,10 @@ public final class BusModule extends EcoModule {
         BusSpec.Type type = only != null ? only : f != null ? spec.types().get(f.type()) : pickType(s);
         if (f != null) queue.pollFirst();
         if (type == null) return null;
+        Team team = f != null && f.team() != 0 ? teams.get(f.team()) : null;
+        BusEvents.Kind kind = f != null && f.special() != null ? spec.events().special().kinds().get(f.special()) : null;
+        boolean stale = f != null && f.team() != 0 && team == null;   // its team is over: an ordinary passenger
+        BusStop teamDest = team == null || team.dest == null ? null : stops.get(team.dest);
         double[] spot = s.waitingSpot(i, Math.max(n, s.size()), spec.stops().bayWidth());
         Location at = new Location(w, spot[0], s.y() + 1, spot[1], s.facingRoad(), 0);
         if (!w.isChunkLoaded(at.getBlockX() >> 4, at.getBlockZ() >> 4)) return null;
@@ -1635,9 +1766,11 @@ public final class BusModule extends EcoModule {
             x.setCollidable(false);
             x.setRemoveWhenFarAway(false);
             x.getPersistentDataContainer().set(GUEST, PersistentDataType.BYTE, (byte) 1);
-            x.customName(dev.stsv.core.util.Text.mm(typeTag(type)));
+            x.customName(dev.stsv.core.util.Text.mm(kind != null ? Lang.raw("bus.special-tag", "name", kind.name())
+                    : team != null ? typeTag(type) + " " + Lang.raw("bus.team-tag", "color", team.color, "no", team.no) : typeTag(type)));
             x.setCustomNameVisible(true);
-            x.setDescription(Lang.mm("bus.waiter-tag", "lines", lineNos));
+            x.setDescription(team != null ? Lang.mm("bus.waiter-team", "color", team.color, "no", team.no, "n", team.size,
+                    "dest", teamDest == null ? lineNos : teamDest.name()) : Lang.mm("bus.waiter-tag", "lines", lineNos));
             if (skin != null) {
                 boolean slim = skin.endsWith(" slim");
                 String key = slim ? skin.substring(0, skin.length() - 5).trim() : skin.trim();
@@ -1659,10 +1792,12 @@ public final class BusModule extends EcoModule {
             face = key.substring(key.lastIndexOf('/') + 1);
         }
         Waiter out = new Waiter(m, type, face);
-        if (f != null) {
+        if (f != null && !stale) {
             out.forcedLine = f.line();
             out.forcedDest = f.dest();
             out.transfer = f.transfer();
+            out.team = team == null ? 0 : team.id;
+            out.special = kind == null ? null : kind.id();
         }
         return out;
     }
@@ -1689,7 +1824,7 @@ public final class BusModule extends EcoModule {
         return spec.types().values().stream().findFirst().orElse(null);
     }
 
-    /** Once a day: market day is told; a picnic's students come to one stop in the morning. */
+    /** Once a day: market day is told; the event crowds come (출근 대란, 야구 끝, 소풍날). */
     private void dayEvents() {
         int day = eco.calendar().day();
         if (spec.marketDay(day) && marketSaidDay != day) {
@@ -1699,22 +1834,11 @@ public final class BusModule extends EcoModule {
             if (!names.isEmpty()) Bukkit.broadcast(Lang.msg("bus.market", "stops", String.join(", ", names.subList(0, Math.min(4, names.size())))
                     + (names.size() > 4 ? " 외 " + (names.size() - 4) + "곳" : "")));
         }
-        int hour = ZonedDateTime.now(KST).getHour();
-        BusSpec.Extra x = spec.extra();
-        if (picnicDay != day && hour >= x.picnicFrom() && hour < x.picnicTo()) {
-            List<BusStop> on = new ArrayList<>();
-            for (BusStop s : stops.values()) {
-                Net n = nets.get(s.world());
-                if (n != null && !n.linesOf(s.id()).isEmpty()) on.add(s);
-            }
-            if (on.isEmpty() || !spec.types().containsKey("student")) return;
-            picnicDay = day;
-            BusStop s = on.get(Math.floorMod(Integer.hashCode(day * 31 + 7), on.size()));
-            Deque<Forced> q = forced.computeIfAbsent(s.id(), k -> new ArrayDeque<>());
-            for (int i = 0; i < x.picnicStudents(); i++) q.addLast(new Forced("student", null, null, false));
-            waiting.merge(s.id(), (double) x.picnicStudents(), Double::sum);
-            Bukkit.broadcast(Lang.msg("bus.picnic", "stop", s.name(), "n", x.picnicStudents()));
-        }
+        // 출근 대란, 야구 끝, 소풍날: crowds in teams (bus.yml events)
+        ZonedDateTime now = ZonedDateTime.now(KST);
+        crowd("rush", spec.events().rush(), now);
+        crowd("ballgame", spec.events().ballgame(), now);
+        crowd("picnic", spec.events().picnic(), now);
     }
 
     /** Whether today is market day at this stop (5일장: a field or village stop). */
@@ -1923,7 +2047,7 @@ public final class BusModule extends EcoModule {
         if (sh != null && !sh.waiters.isEmpty()) {
             Waiter who = null;
             for (Waiter x : sh.waiters) {
-                if (x.forcedLine != null || x.partner != null) continue;
+                if (x.forcedLine != null || x.partner != null || x.team != 0 || x.special != null) continue;
                 if (who == null || x.since < who.since) who = x;
             }
             if (who == null) return;
@@ -2027,7 +2151,18 @@ public final class BusModule extends EcoModule {
 
     private void hide(int stop) {
         Shown sh = shown.remove(stop);
-        if (sh != null) for (Waiter w : sh.waiters) gone(w);
+        if (sh == null) return;
+        // those waiting for something of their own (a transfer, an event team, a 특급 손님) wait on unseen, at the front
+        for (int i = sh.waiters.size() - 1; i >= 0; i--) {
+            requeue(stop, sh.waiters.get(i));
+            gone(sh.waiters.get(i));
+        }
+    }
+
+    /** A waiting passenger with something of their own (a transfer, an event team, a 특급 손님) back in the stop's queue, at the front. */
+    private void requeue(int stop, Waiter w) {
+        if (w.forcedLine == null && w.forcedDest == null && w.team == 0 && w.special == null) return;
+        forced.computeIfAbsent(stop, k -> new ArrayDeque<>()).addFirst(new Forced(w.type.id(), w.forcedLine, w.forcedDest, w.transfer, w.team, w.special));
     }
 
     /** A waiting passenger taken away (and the bench seat they sat on). */
@@ -2065,7 +2200,7 @@ public final class BusModule extends EcoModule {
         int i = 1;
         for (Rider x : r.riders) {
             BusStop s = stops.get(x.dest);
-            double left = spec.onTime(x.road) - (now - x.boarded) / 1000.0;
+            double left = timeLeft(x, now);
             p.sendMessage(Lang.mm("bus.list-row", "i", i++, "type", typeTag(x.type), "dest", s == null ? "?" : s.name(),
                     "km", s == null ? "" : km(Math.hypot(s.x() - p.getX(), s.z() - p.getZ())), "left", clock(left), "mood", (int) Math.round(x.mood)));
         }

@@ -10,7 +10,7 @@ import java.util.Set;
 
 /** bus.yml: fares, moods, stops and passenger types of the 마을버스 (README "마을버스"). Pure (unit-tested). */
 public record BusSpec(Set<String> vehicles, Fare fare, Mood mood, Stops stops, Map<String, Type> types, Extra extra, Rental rental,
-                      Queue queue, Patience patience, Board board) {
+                      Queue queue, Patience patience, Board board, BusEvents events) {
 
     /**
      * How waiting passengers stand and pass the time: `gap` blocks apart in their line, they notice a bus within `notice`
@@ -189,7 +189,13 @@ public record BusSpec(Set<String> vehicles, Fare fare, Mood mood, Stops stops, M
         Patience patience = new Patience(pt.getDouble("grace", 3), pt.getDouble("full", 15), pt.getDouble("floor", 55),
                 pt.getDouble("give-up", 20), Math.clamp(pt.getDouble("give-up-chance", 0.25), 0, 1), Math.max(5, pt.getInt("every", 20)));
         Board board = new Board(Math.max(1, bd.getInt("refresh", 3)), Math.max(1, bd.getInt("lines", 4)), Math.max(1, bd.getInt("around", 2)));
-        return new BusSpec(vehicles, fare, mood, stops, types, extra, rental, queue, patience, board);
+        BusEvents events = BusEvents.parse(c, problems);
+        for (BusEvents.Crowd cr : List.of(events.rush(), events.ballgame(), events.picnic())) {
+            if (!types.containsKey(cr.type())) problems.add("events: 없는 손님 종류 " + cr.type());
+            if (!cr.alt().isEmpty() && !types.containsKey(cr.alt())) problems.add("events: 없는 손님 종류 " + cr.alt());
+        }
+        for (BusEvents.Kind k : events.special().kinds().values()) if (!types.containsKey(k.type())) problems.add("events.special: 없는 손님 종류 " + k.type());
+        return new BusSpec(vehicles, fare, mood, stops, types, extra, rental, queue, patience, board, events);
     }
 
     private static Map<String, List<String>> talk(ConfigurationSection t) {

@@ -134,3 +134,16 @@ golden_spoon:
   name: "<gradient:#fffbe0:#ffd54f:#ff8f00><b>[금수저]</b></gradient>"
   description: "상점에서 산 칭호 (4세대)"
   category: shop
+# ── 마을버스 대축제 (bus.yml events.festival: 운행 점수 1~3등)
+bus_festival_1:
+  name: "<gradient:#7cffb2:#3fb34f><b>[버스왕]</b></gradient>"
+  description: "버스 대축제 운행 점수 1위"
+  category: ranking
+bus_festival_2:
+  name: "<#7cc4ff>[베테랑 기사]"
+  description: "버스 대축제 운행 점수 2위"
+  category: ranking
+bus_festival_3:
+  name: "<#ffd166>[친절 기사]"
+  description: "버스 대축제 운행 점수 3위"
+  category: ranking
