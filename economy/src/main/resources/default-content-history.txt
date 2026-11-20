@@ -743,6 +743,7 @@ bceb0c402f2a9d2ea61ee6013e06d537fb3cccd1 economy/events.yml
 dd298cd4fd4f7181000e8729f0041befeb6d2c0e economy/fish.yml
 0aba8804c1f1a81b0853579406b4fd48c423b5f0 economy/items/accessories.yml
 c63aa429cadf52933c600ce31276d4e1584555a3 economy/items/accessories.yml
+ecee67b5906761452967446c940122b32b3244ca economy/items/accessories.yml
 f221d33254a171433fd9bafe846302829c000560 economy/items/accessories.yml
 0839d977c3cfee7569c183679d3b1e5af7c04523 economy/items/crops.yml
 19bd5fe99995da0b81875b2fda6898d1a1a3c3b8 economy/items/crops.yml
@@ -1389,6 +1390,7 @@ f3c85fd1b590e11695e565a57503fb208ab98154 economy/requests.yml
 6f93d626ea8b837dd2180289e4d70d2c24d17f07 economy/shop.yml
 737a3b3d5b475a84768ba6cb62506a7fe66b74f3 economy/shop.yml
 7697fdc399921ffcea5b2be43f6ef6a8caee2cac economy/shop.yml
+7e533ef59687185c41b39cc0bebd2ef8fc926826 economy/shop.yml
 83ea0e0a9a4e74d71dbf74fc9b4a7aaada752c24 economy/shop.yml
 8f130d0693ee5dafedc2209626f6af1fd083f43d economy/shop.yml
 97a44bb8e507a0fc1028ad8029f5f2484c916eb9 economy/shop.yml
@@ -1422,6 +1424,7 @@ f2d6bdda870b52bd26589f14062edfea304be813 economy/shop.yml
 f7298110749e63fc0a6f69e9b8404c4f73ad18bc economy/shop.yml
 fb7960b46853d6b6a83c4dea63567130b34ed488 economy/shop.yml
 fd684f520ec2ea64e736e9d82fa39b70f289880a economy/shop.yml
+98f20c68dd536bb93b009e9bc90c74cd370fbd41 economy/skin_box.yml
 95d1f40c64c5ef7ab218505bf106e1938dfcac2a economy/stocks.yml
 f67b979d934ac0d6e127aafb77be1d7b12f8d757 economy/stocks.yml
 f20cb148994469db56118b3468094f9857e671a8 economy/textures/abalone.png
@@ -2077,6 +2080,7 @@ b8faf5e7b6a4fd34ef11e49a664f3dee4659b813 economy/textures/sickle.png
 f423b874859de8107119686b6ec6d99633a3ab7b economy/textures/silk_pearl_necklace.png
 18c6f741bf3e184f35d5aa42f8c49d7193349705 economy/textures/skate.png
 b52c4796c141cd04ba041664bdea11b135c13c9b economy/textures/skate.png
+00f8fca4a2d3971a176c847ac7dad7354d179430 economy/textures/skin_box.png
 381fa5ffaa09f2ccdcb8e46b73fe6741788b9603 economy/textures/smelt.png
 ce24f6787bc85a49c0466db669a3553ec87d4cdb economy/textures/smelt.png
 76ff4b4cc0c937c241e102c058a2c3682fc51e59 economy/textures/smoked_salmon.png
