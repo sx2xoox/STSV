@@ -237,6 +237,13 @@ vehicles:
     engine-stop: { sound: stsv:vehicle.sushi_carnival.engine_stop, volume: 0.35 }
     idle-shake: 0.004
     bounce: 1.4
+  agent_sedan:              # 검은 세단 · 요원 K (비밀 임무 보상): 조용한 V6, 묵직하게 미끄러지듯 (떨림 거의 없음)
+    power: engine
+    lights: { head: agent_sedan_lamp_head, tail: agent_sedan_lamp_tail, brake: agent_sedan_lamp_brake }
+    engine-start: { sound: stsv:vehicle.agent_sedan.engine_start, volume: 0.4, ticks: 16 }
+    engine-stop: { sound: stsv:vehicle.agent_sedan.engine_stop, volume: 0.32 }
+    idle-shake: 0.003
+    bounce: 1.1
   light_truck:
     power: engine
     lights: { head: light_truck_lamp_head, tail: light_truck_lamp_tail, brake: light_truck_lamp_brake, reverse: light_truck_lamp_reverse }

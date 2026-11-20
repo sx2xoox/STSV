@@ -147,3 +147,8 @@ bus_festival_3:
   name: "<#ffd166>[친절 기사]"
   description: "버스 대축제 운행 점수 3위"
   category: ranking
+# ── 마을버스 유령 손님 (bus.yml types.ghost: 유령 승차권 조각 10개)
+night_driver:
+  name: "<gradient:#bfe6ff:#6a7bff><b>[심야 기사]</b></gradient>"
+  description: "새벽 2~4시 유령 손님을 열 번 태워 주었다"
+  category: event

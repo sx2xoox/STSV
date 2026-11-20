@@ -144,6 +144,8 @@ vehicles:
   grand_sedan: { paints: all, wheels: all, underglows: all, headlamps: all, plates: all }
   luxury_suv:  { paints: all, wheels: all, underglows: all, headlamps: all, plates: all }
   sushi_carnival: { paints: all, roofs: all, underglows: all, plates: all }
+  # 비밀 임무 보상 (검은 세단 · 요원 K): 검정이 정체성이라 도색은 없음. 파란 언더글로우를 달아 줄 수 있게 언더글로우 · 번호판만
+  agent_sedan: { underglows: all, plates: all }
   # 서킷 카트 (레이스 동안만 있는 탈것: 튜닝샵에는 오지 않음). 대기실에서 고르는 색 = 이 도색 (circuit/karts.yml colours)
   kart_storm:   { paints: [orange, yellow, green, blue, purple, pink, white, black] }
   kart_bubble:  { paints: [red, orange, yellow, green, purple, pink, white, black] }

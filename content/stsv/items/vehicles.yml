@@ -828,3 +828,62 @@ sushi_carnival:
     horn: { sound: stsv:vehicle.sushi_carnival.horn, release: stsv:vehicle.sushi_carnival.horn_end, volume: 1.4,
             vanilla: block.note_block.didgeridoo, pitch: 1.2, times: 2, gap: 3 }
     engine: { sound: stsv:vehicle.sushi_carnival.engine, volume: 0.36, idle-volume: 0.13, idle-pitch: 0.6, top-pitch: 1.45, segment-ticks: 10 }
+
+# 비밀 임무 보상 · 검은 세단 · 요원 K: 마을버스의 '수상한 선글라스 남자' 비밀 임무를 끝까지 해낸 사람만 받는 단 하나의 차.
+# 어느 상점에도 없고 뽑기·레시피에도 없음: 마을버스 모듈이 한 번 주고 받은 사람에게 귀속 (VehicleModule.bind). 탈것 아이템이라
+# 거래소·경매·직거래에 올릴 수 없음 (VehicleModule.noTrade). 무광 검정, 짙게 썬팅한 유리, 절제된 크롬 (그릴 · 창틀 선 · 손잡이),
+# 가는 흰 LED 눈, 꽁무니를 가로지르는 가는 빨간 줄, 트렁크 위 무전 안테나, 문턱 아래 파란 LED 줄 (밤에 빛남: 언더글로우 느낌.
+# 튜닝샵 언더글로우는 따로 달 수 있음). 5인승 (운전석 + 손님 넷: 소형 버스처럼 버스 손님을 태울 수 있음). 문 넷 (모두 앞 모서리 경첩).
+# 16px/블록 (BModel scale 2, body-scale 2): 경사·모서리는 22.5°/45° 기울인 판, 디테일은 텍스처. 모델: tools/assetgen/models/vehicles_agent_sedan.py
+agent_sedan:
+  material: paper
+  name: "<gradient:#dfe6f2:#5a86ff>검은 세단 · 요원 K</gradient>"
+  lore:
+    - "<gold>비밀 임무 보상</gold> <gray>· 5인승 검은 세단 · 하나뿐인 차"
+    - "<white>10블록/초 <gray>· 조용한 V6 · 짐칸 없음"
+    - "<dark_gray>문턱 아래 파란 불빛 · 경적은 무전기 소리"
+    - "<dark_gray>W·S·A·D 운전 · 웅크리기: 내리기"
+    - "<dark_gray>스페이스: 경적"
+    - "<yellow>우클릭: 세우기 · 타기"
+    - "<yellow>웅크리고 우클릭: 회수"
+  model: agent_sedan
+  icon: agent_sedan_icon
+  max-stack: 1
+  vehicle:
+    body-scale: 2
+    speed: 10
+    reverse-speed: 4
+    acceleration: 4.5
+    brake: 12
+    coast: 2.0
+    turn-rate: 66
+    turn-speed: 3.2
+    step-height: 1.0
+    size: [5.3, 2.0, 1.6]
+    click-height: 0.9
+    wheel: wheel_agent_sedan
+    wheel-radius: 0.4375
+    wheels:
+      - { at: [-0.828125, 0.4375, 1.625], steer: true }
+      - { at: [0.828125, 0.4375, 1.625], steer: true }
+      - { at: [-0.828125, 0.4375, -1.5625] }
+      - { at: [0.828125, 0.4375, -1.5625] }
+    # 운전석(왼쪽 앞)·조수석, 뒷좌석 셋 (왼쪽 · 가운데 · 오른쪽)
+    seats:
+      - { at: [-0.3, 0.26, 0.25] }
+      - { at: [0.3, 0.26, 0.25] }
+      - { at: [-0.38, 0.26, -0.65625] }
+      - { at: [0.0, 0.26, -0.65625] }
+      - { at: [0.38, 0.26, -0.65625] }
+    movers:
+      # 문 넷: 모두 앞 모서리가 경첩, 바깥으로 열림 (뒷문 왼쪽: 뒷좌석 왼쪽·가운데, 오른쪽: 뒷좌석 오른쪽)
+      - { model: agent_sedan_door_fl, hinge: [-1.0, 0.6, 1.09375], axis: [0, 1, 0], turn: -65, when: door, seats: [0], ticks: 10 }
+      - { model: agent_sedan_door_fr, hinge: [1.0, 0.6, 1.09375], axis: [0, 1, 0], turn: 65, when: door, seats: [1], ticks: 10 }
+      - { model: agent_sedan_door_rl, hinge: [-1.0, 0.6, 0.0625], axis: [0, 1, 0], turn: -65, when: door, seats: [2, 3], ticks: 10 }
+      - { model: agent_sedan_door_rr, hinge: [1.0, 0.6, 0.0625], axis: [0, 1, 0], turn: 65, when: door, seats: [4], ticks: 10 }
+    plates:
+      - { at: [0, 0.25, 2.69], width: 0.45, height: 0.1 }
+      - { at: [0, 0.578, -2.63], back: true, width: 0.5, height: 0.11 }
+    horn: { sound: stsv:vehicle.agent_sedan.horn, release: stsv:vehicle.agent_sedan.horn_end, volume: 1.2,
+            vanilla: block.note_block.bit, pitch: 0.7, times: 1 }
+    engine: { sound: stsv:vehicle.agent_sedan.engine, volume: 0.34, idle-volume: 0.12, idle-pitch: 0.6, top-pitch: 1.5, segment-ticks: 10 }

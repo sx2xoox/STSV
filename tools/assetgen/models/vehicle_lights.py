@@ -122,6 +122,11 @@ LAMPS = {
     "sushi_carnival": dict(scale=2.0, head=lens(10.5, 15.25, 12, 14.25, -41.4),
                            tail=lens(9, 15.25, 18.5, 21.5, 41.4) + lens(-9, 9, 19.5, 20.5, 41.2, False, False),
                            body=("vehicles_donation_sushi_carnival", "sushi_carnival")),
+    # vehicles_agent_sedan.py agent_sedan (비밀 임무 보상): slim LED eyes on the nose's upper corners; one thin red bar
+    # across the tail with a taller lamp on each corner
+    "agent_sedan": dict(scale=2.0, head=lens(9.5, 15.25, 11.5, 13.0, -42.4),
+                        tail=lens(11.5, 15.25, 12.5, 15.0, 42.4) + lens(-11.5, 11.5, 13.25, 14.25, 42.3, False, False),
+                        body=("vehicles_agent_sedan", "agent_sedan")),
 }
 
 # colours (palette ramps, ART_STYLE: lamps glow)

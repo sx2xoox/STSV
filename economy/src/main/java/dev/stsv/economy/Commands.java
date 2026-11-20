@@ -226,6 +226,7 @@ final class Commands {
             else if (a.length > 0 && a[0].equals("렌트")) eco.bus().rent(p);
             else if (a.length > 0 && a[0].equals("반납")) eco.bus().giveBack(p);
             else if (a.length > 0 && a[0].equals("이벤트")) eco.bus().showEvents(p);
+            else if (a.length > 0 && a[0].equals("요원정류장")) eco.bus().agentStop(p, a.length > 1 ? String.join(" ", java.util.Arrays.copyOfRange(a, 1, a.length)) : null);
             else eco.bus().showRiders(p);
         }), (s, a) -> a.length == 1 ? List.of("정류장", "노선", "렌트", "반납", "이벤트") : List.of()));
         eco.command("가방", new Simple(player((p, a) -> eco.accessories().openBag(p)), (s, a) -> List.of()));
