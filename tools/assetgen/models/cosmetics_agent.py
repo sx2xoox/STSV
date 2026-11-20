@@ -63,8 +63,8 @@ def agent_sunglasses():
     m.box("brow", (2.0, 8.6, 0.7), (14.0, 9.6, 1.45), FRAME)
     m.box("bridge", (7.2, 7.8, 0.85), (8.8, 8.6, 1.4), FRAME_DARK)
     for x0, x1 in ((1.0, 1.6), (14.4, 15.0)):
-        m.box("arm", (x0, 8.7, 1.2), (x1, 9.35, 9.6), FRAME_DARK)
-        m.box("arm_tip", (x0, 7.9, 9.0), (x1, 8.7, 9.6), FRAME_DARK)
+        m.box("arm", (x0 + 0.05, 8.7, 1.45), (x1 - 0.05, 9.35, 9.6), FRAME_DARK)
+        m.box("arm_tip", (x0 + 0.05, 7.9, 9.0), (x1 - 0.05, 8.7, 9.6), FRAME_DARK)
     for x0, x1 in ((1.0, 2.0), (14.0, 15.0)):
         m.box("hinge", (x0, 8.6, 0.7), (x1, 9.6, 1.45), FRAME)
     mirror(m, "stud", (1.15, 8.95, 0.6), (1.85, 9.35, 0.7), GOLD_LIGHT, faces={"south": None})
@@ -98,8 +98,8 @@ def agent_earpiece():
         z = 9.4 + 0.9 * t
         x = 11.6 - 0.6 * t + (0.15 if i % 2 else -0.15)
         m.box("coil", (x - 0.45, y - 0.4, z - 0.3), (x + 0.45, y, z + 0.3), COIL_LIGHT if i % 2 else COIL)
-    m.box("radio", (10.3, 2.6, 9.95), (12.1, 3.95, 10.6), FRAME)
-    m.box("radio_led", (10.6, 3.5, 10.6), (11.0, 3.75, 10.7), Mat("agent_lining", "plain", 3, bevel=None, noise=0),
+    m.box("radio", (10.3, 2.6, 9.95), (12.1, 3.95, 10.75), FRAME)
+    m.box("radio_led", (10.6, 3.5, 10.75), (11.0, 3.75, 10.85), Mat("agent_lining", "plain", 3, bevel=None, noise=0),
           faces={"north": None})
     m.group("mic")
     m.box("mic", (5.0, 6.4, 5.6), (5.9, 7.3, 6.1), FRAME)
@@ -128,7 +128,7 @@ def agent_coat():
     m.box("shoulders", (3.4, 11.4, 4.4), (12.6, 12.0, COAT_Z + 0.6), SUIT_LIGHT, faces={"down": SUIT_DARK})
     for side in (-1, 1):
         x0 = 3.0 if side < 0 else 12.4
-        m.box("shoulder_side", (x0, 9.6, 4.5), (x0 + 0.6, 12.0, COAT_Z + 0.5), SUIT, faces={"west" if side < 0 else "east": SUIT_LIGHT})
+        m.box("shoulder_side", (x0, 9.6, 4.5), (x0 + 0.6, 11.95, COAT_Z + 0.5), SUIT, faces={"west" if side < 0 else "east": SUIT_LIGHT})
     # the waist: a slim band, two gold buttons on it
     m.box("waist", (3.5, 1.6, COAT_Z - 0.05), (12.5, 2.4, COAT_Z + 0.6), SUIT_DARK)
     for x in (6.4, 8.8):
