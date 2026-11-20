@@ -8,6 +8,9 @@ common:
   none: "없음"
 
 wardrobe:
+  # 후원 상점 미리보기 (옷장 카메라로 바로): 제목 · 부제
+  try-on-title: "<gold>미리보기"
+  try-on-hint: "<gray>웅크리기: 옷장 메뉴 · 메뉴의 나가기로 돌아감"
   enter-first: "<red>먼저 /치장 을 입력하세요."
   dismount: "<red>탈것에서 내린 뒤 사용하세요."
   not-ground: "<red>땅에 서 있을 때 사용하세요."
@@ -401,6 +404,7 @@ menu:
 
 # 야간 투시 (/야간투시)
 donation:
+  no-preview: "<gray>이 상품은 미리볼 모습이 없습니다."
   disabled: "<red>지금은 후원 상점을 쓸 수 없습니다."
   balance: "<gray>보유 {currency}: <gold>{amount}"
   # 후원 상점 화면 (menus/donation.yml): 내역 탭의 이름, 상품 칸

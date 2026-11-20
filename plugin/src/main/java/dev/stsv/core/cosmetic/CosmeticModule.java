@@ -1008,6 +1008,8 @@ public final class CosmeticModule implements StsvModule, Listener {
         boolean switching;
         boolean toMenu;
         int page;
+        /** a shop preview (tryOn): the tools the mannequin holds in turn, a few seconds each */
+        List<ItemStack> hands = List.of();
     }
 
 
@@ -1016,6 +1018,24 @@ public final class CosmeticModule implements StsvModule, Listener {
     }
 
     public void enterWardrobe(Player p) {
+        enterWardrobe(p, List.of(), List.of());
+    }
+
+    /**
+     * A shop's 미리보기: the wardrobe opens straight on the camera with the mannequin wearing these cosmetics (owned or
+     * not: nothing is saved) and holding these tools in turn (a skin book's skinned tool), with their effects. Sneaking
+     * opens the wardrobe menu as usual (its exit button leaves). False when the wardrobe cannot open here and now.
+     */
+    public boolean tryOn(Player p, List<String> cosmetics, List<ItemStack> tools) {
+        if (inWardrobe(p)) return false;
+        enterWardrobe(p, cosmetics, tools);
+        return inWardrobe(p);
+    }
+
+    private static final int HAND_TICKS = 40;   // a preview's tool: two seconds each
+
+    private void enterWardrobe(Player p, List<String> tryOn, List<ItemStack> tools) {
+        boolean preview = !tryOn.isEmpty() || !tools.isEmpty();
         if (inWardrobe(p)) {
             Session s = sessions.get(p.getUniqueId());
             // menu clicks only count outside spectator mode: go through the camera -> menu switch
@@ -1057,6 +1077,10 @@ public final class CosmeticModule implements StsvModule, Listener {
         s.wasInvulnerable = p.isMarkedInvulnerable();
         s.gameMode = p.getGameMode();
         worn(p).forEach((slot, c) -> s.look.put(slot, c.key().asString()));
+        for (String id : tryOn) plugin.content().item(id).filter(c -> c.cosmetic() != null)
+                .ifPresent(c -> s.look.put(c.cosmetic().slot(), c.key().asString()));
+        if (!tryOn.isEmpty()) s.previewing = tryOn.getLast();
+        s.hands = List.copyOf(tools);
         attachments.remove(p);
         pets.remove(p);
         Location o = s.origin;
@@ -1076,7 +1100,7 @@ public final class CosmeticModule implements StsvModule, Listener {
             m.getPersistentDataContainer().set(keyWardrobeEntity, PersistentDataType.BYTE, (byte) 1);
             var eq = m.getEquipment();
             eq.setArmorContents(p.getInventory().getArmorContents());
-            eq.setItemInMainHand(p.getInventory().getItemInMainHand());
+            eq.setItemInMainHand(s.hands.isEmpty() ? p.getInventory().getItemInMainHand() : s.hands.getFirst());
         });
         // the camera: at eye height of the viewing spot, looking at the mannequin
         Location cam = spot.clone().add(0, 1.62, 0);
@@ -1113,6 +1137,16 @@ public final class CosmeticModule implements StsvModule, Listener {
             previewEffect(p, s, CosmeticSlot.TRAIL, 6, s.mannequin.getLocation());
             previewEffect(p, s, CosmeticSlot.KILL, 50, s.mannequin.getLocation().add(0, 1.0, 0));
             previewEffect(p, s, CosmeticSlot.AURA, AURA_EVERY, s.mannequin.getLocation());
+            // a shop preview's tools: one after another, sparkling as they do in a hand
+            if (!s.hands.isEmpty()) {
+                ItemStack tool = s.hands.get((int) (s.previewTicks / HAND_TICKS) % s.hands.size());
+                if (s.hands.size() > 1 && s.previewTicks % HAND_TICKS == 0) s.mannequin.getEquipment().setItemInMainHand(tool);
+                if (s.previewTicks % 6 == 0 && plugin.skins() != null) {
+                    double yaw = Math.toRadians(s.mannequin.getBodyYaw());
+                    Location hand = s.mannequin.getLocation().add(-Math.cos(yaw) * 0.38, 0.75, -Math.sin(yaw) * 0.38);
+                    plugin.skins().previewHeld(p, tool, hand, (int) (s.previewTicks / 6));
+                }
+            }
         }, 20L, 1L);
         p.playSound(spot, Sound.BLOCK_WOODEN_DOOR_OPEN, 0.8f, 1.2f);
         // attach the camera first, then open the menu: while the client's camera is another entity it
@@ -1122,7 +1156,10 @@ public final class CosmeticModule implements StsvModule, Listener {
         Bukkit.getScheduler().runTaskLater(plugin, () -> {
             if (!inWardrobe(p)) return;
             p.setSpectatorTarget(s.camera);
-            Bukkit.getScheduler().runTaskLater(plugin, () -> toMenu(p), 1L);
+            if (preview) p.showTitle(net.kyori.adventure.title.Title.title(Lang.item("wardrobe.try-on-title"), Lang.item("wardrobe.try-on-hint"),
+                    net.kyori.adventure.title.Title.Times.times(java.time.Duration.ofMillis(150), java.time.Duration.ofSeconds(3),
+                            java.time.Duration.ofMillis(400))));
+            else Bukkit.getScheduler().runTaskLater(plugin, () -> toMenu(p), 1L);
         }, 2L);
     }
 

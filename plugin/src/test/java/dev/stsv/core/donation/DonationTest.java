@@ -298,6 +298,10 @@ class DonationTest {
         long tabs = menu.getConfigurationSection("donation.buttons").getKeys(false).stream()
                 .filter(k -> menu.getString("donation.buttons." + k + ".action", "").matches("donation:tab:\\d+")).count();
         assertEquals(7, tabs);
+        // the buy screen: 구매 확정 · 미리보기 (the wardrobe's mannequin) · 돌아가기
+        Set<String> buy = new java.util.HashSet<>();
+        for (String k : menu.getConfigurationSection("donation_buy.buttons").getKeys(false)) buy.add(menu.getString("donation_buy.buttons." + k + ".action", ""));
+        assertTrue(buy.containsAll(Set.of("donation:confirm", "donation:preview", "donation:back")), buy.toString());
         assertTrue(shop.categories().size() <= tabs, "more categories than the menu has tabs");
         for (DonationShop.Category c : shop.categories().values()) {
             if (c.icon() != null && c.icon().startsWith("stsv:")) {

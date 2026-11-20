@@ -397,6 +397,16 @@ public final class DonationModule implements StsvModule, Listener, TabExecutor {
         }
     }
 
+    /** The skinned tools a product's skin books would show (one a book: a set shows its six in turn). */
+    private List<ItemStack> previewTools(Product product) {
+        List<ItemStack> out = new ArrayList<>();
+        if (plugin.skins() == null) return out;
+        List<String> ids = new ArrayList<>(product.items());
+        if (product.item() != null && !ids.contains(product.item())) ids.add(product.item());
+        for (String id : ids) plugin.content().item(id).flatMap(plugin.skins()::previewTool).ifPresent(out::add);
+        return out;
+    }
+
     /** One product, once more, with the one button that buys it: nothing is bought by a single click in the shop. */
     private final class BuyScreen implements MenuHandler {
         private final Product product;
@@ -428,6 +438,18 @@ public final class DonationModule implements StsvModule, Listener, TabExecutor {
             if (action.equals("donation:back")) {
                 Bukkit.getScheduler().runTask(plugin, () -> {
                     if (p.isOnline()) openShop(p, tab);
+                });
+            } else if (action.equals("donation:preview")) {
+                List<String> looks = DonationShop.cosmeticsGiven(product);
+                List<ItemStack> tools = previewTools(product);
+                if (looks.isEmpty() && tools.isEmpty() || plugin.cosmetics() == null) {
+                    p.sendMessage(Lang.msg("donation.no-preview"));
+                    return;
+                }
+                view.close();
+                // the wardrobe's camera: it says itself why it cannot open (in the air, hurt, riding...)
+                Bukkit.getScheduler().runTask(plugin, () -> {
+                    if (p.isOnline()) plugin.cosmetics().tryOn(p, looks, tools);
                 });
             } else if (action.equals("donation:confirm") && !done) {
                 done = true;                    // one purchase a screen, however fast the clicks come

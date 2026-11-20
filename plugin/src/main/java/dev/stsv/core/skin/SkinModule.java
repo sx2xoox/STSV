@@ -191,15 +191,45 @@ public final class SkinModule implements StsvModule, Listener {
     }
 
     private void spawn(org.bukkit.Particle particle, CustomItem.SkinFx fx, org.bukkit.Location at, int count, double spread, int k) {
+        spawn(null, particle, fx, at, count, spread, k);
+    }
+
+    /** {@code viewer}: only that player sees it (a preview); null: everyone around. */
+    private void spawn(Player viewer, org.bukkit.Particle particle, CustomItem.SkinFx fx, org.bukkit.Location at, int count, double spread, int k) {
         Class<?> data = particle.getDataType();
         org.bukkit.Color c = fx.colors().isEmpty() ? org.bukkit.Color.WHITE : fx.colors().get(Math.floorMod(k, fx.colors().size()));
-        if (data == org.bukkit.Particle.DustOptions.class) {
-            at.getWorld().spawnParticle(particle, at, count, spread, spread, spread, 0, new org.bukkit.Particle.DustOptions(c, 0.8f));
-        } else if (data == org.bukkit.Color.class) {
-            at.getWorld().spawnParticle(particle, at, count, spread, spread, spread, 0, c);
-        } else if (data == Void.class) {
-            at.getWorld().spawnParticle(particle, at, count, spread, spread, spread, 0.01);
+        Object extra = data == org.bukkit.Particle.DustOptions.class ? new org.bukkit.Particle.DustOptions(c, 0.8f)
+                : data == org.bukkit.Color.class ? c : null;
+        if (extra == null && data != Void.class) return;
+        double speed = data == Void.class ? 0.01 : 0;
+        if (viewer != null) viewer.spawnParticle(particle, at, count, spread, spread, spread, speed, extra);
+        else at.getWorld().spawnParticle(particle, at, count, spread, spread, spread, speed, extra);
+    }
+
+    /** A preview's held-tool sparkle, for one player only (the wardrobe mannequin holding a donation skin). */
+    public void previewHeld(Player viewer, ItemStack tool, org.bukkit.Location at, int k) {
+        CustomItem.SkinFx fx = fxOf(tool);
+        if (fx == null || fx.held() == null) return;
+        spawn(viewer, fx.held(), fx, at, 2, 0.15, k);
+        if (k % 8 == 0 && fx.use() != null) spawn(viewer, fx.use(), fx, at, 3, 0.3, k);
+    }
+
+    /** A tool wearing a skin book's skin, to show (never handed out): a diamond tool of the kind the book fits. */
+    public Optional<ItemStack> previewTool(CustomItem book) {
+        if (book == null || book.skin() == null) return Optional.empty();
+        for (String rule : book.skin().appliesTo()) {
+            Material m = null;
+            if (rule.startsWith("#")) {
+                NamespacedKey tagKey = NamespacedKey.fromString(rule.substring(1));
+                Tag<Material> tag = tagKey == null ? null : Bukkit.getTag(Tag.REGISTRY_ITEMS, tagKey, Material.class);
+                if (tag != null) for (Material t : tag.getValues()) if (m == null || t.name().startsWith("DIAMOND_")) m = t;
+            } else if (rule.startsWith("minecraft:") || !rule.contains(":")) m = Material.matchMaterial(rule);
+            if (m == null || !m.isItem()) continue;
+            ItemStack it = new ItemStack(m);
+            apply(it, book);
+            return Optional.of(it);
         }
+        return Optional.empty();
     }
 
     @EventHandler(priority = org.bukkit.event.EventPriority.MONITOR, ignoreCancelled = true)

@@ -78,9 +78,15 @@ donation_buy:
   layout:
     - "....O...."
     - "........."
-    - "..Y...C.."
+    - "..Y.V.C.."
   buttons:
     O: { action: "", material: PAPER, name: "<white>{name}" }
+    V:
+      action: "donation:preview"
+      icon: stsv:gui/self_view
+      material: ARMOR_STAND
+      name: "<aqua>미리보기"
+      lore: ["<gray>치장 · 도구 스킨을 마네킹에 입혀 봄", "<dark_gray>땅 위에서 · 저장 안 됨"]
     Y:
       action: "donation:confirm"
       icon: stsv:gui/confirm
