@@ -21,7 +21,7 @@ REPO = HERE.parent.parent
 CONTENT = REPO / "content" / "stsv"
 # 도구 스킨 세트 모듈 (models/skinset_<id>.py): 후원 (효과 있음) · 골드
 # 후원 탈것 (models/vehicles_donation_<id>.py, 아이콘 vehicle_icons_donation_<id>.py: vehicle_icons.ICONS 에 등록)
-DONATION_VEHICLES = ("classic_roadster", "retro_camper", "sidecar_bike", "muscle_car", "concept_ev")
+DONATION_VEHICLES = ("classic_roadster", "retro_camper", "sidecar_bike", "muscle_car", "concept_ev", "sushi_carnival")
 SKINSETS = ("dragon", "galaxy", "najeon", "frost", "magma", "woodcraft", "candy", "pirate", "kitchen", "camping")
 # the TEST set (every kind of item and recipe once) is a test fixture, never shipped
 FIXTURE = REPO / "plugin" / "src" / "test" / "fixtures" / "stsv"

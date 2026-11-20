@@ -1,47 +1,52 @@
 """
 후원 · 레트로 캠핑밴 (retro_camper): a short, round 1960s-style camper van. An original design (no real make, no badge).
 
+Drawn like every other car on the server (models/vehicles.py, vehicles_premium.py, and the donation muscle car
+models/vehicles_donation_muscle_car.py, whose "angled panels" style this follows): 16 px a block, the body drawn at
+its real size and shrunk by 2 (BModel scale 2), shown at vehicle.body-scale 2; the wheel a model of its own at 1.
+The van is a handful of big clean boxes; every curve is a flat panel turned 22.5 or 45 degrees about one axis
+(panel()): the roof rolls over into the sides, the nose and the back in two panels (67.5 and 22.5 degrees: a round
+edge of radius 6), the four corners in plan are 45-degree chamfers, the face steps back over a 45-degree ledge under
+the screen, the arches have 45-degree corners. The detail is painted on the big faces (world-space decals, so a
+turned panel carries on the paint of the boxes round it): the two-tone line and its bright rib, soft gradients, the
+cream V on the face, shut lines, louvres, the brow's vent, the seals round the glass, the curtains. Only what should
+stand out is real 3D: the round lamps in their chrome rings, the bumpers and overriders, mirrors, handles, the slide
+door's rail, the tent roof, rack and luggage, the surfboard, the awning, the spare wheel and the ladder, the wheels.
+
 What makes it read as a camper van and not a bus:
-  * short and round: 4 blocks long (the bumpers 4.25), its whole shell sculpted from 1 px cells (bake.voxels) at
-    32 px a block, like the showcase 팬텀 GT (models/vehicles_showcase.py): the roof rolls over into the sides, the
-    rear rounds over into the roof, the corners of the face are round in plan, a stubby nose (the face bulges out
-    over the bumper, the split screen leans back above it under a little brow).
-  * the face: a big V of cream over the lower colour (a raised rib along it and round the whole van at the belt), a
-    split two-piece windscreen (two panes leaning back at 22.5°, a body-coloured bar between them), two big round
-    headlamps in chrome rings set into the nose (a lit core in a ribbed reflector), small round amber indicators
-    under them, a slim chrome bumper with overriders, a vent slot in the brow.
-  * camping: a pop-up tent roof (a cream lid raised on orange-and-cream striped canvas, a little mesh window each
-    side), a roof rack over the cab with a suitcase and a rolled sleeping bag, a surfboard strapped on the lid, a
-    fold-out awning over the sliding door (striped canvas with a scalloped valance on two poles: out while it is
-    parked, folded away while the engine runs: two movers), gingham curtains tied back in the side windows and the
-    rear window, a ladder up the back, the spare wheel on the back, round tail lamps in chrome rings.
+  * short and round: 4 blocks long (the bumpers 4.25), every edge rolled, a stubby nose under a split screen.
+  * the face: a big V of cream over the lower colour, a split two-piece windscreen (a body-coloured bar between the
+    panes), two big round headlamps in chrome rings, small round amber indicators under them, a slim chrome bumper
+    with overriders, a vent slot in the brow.
+  * camping: a pop-up tent roof (a cream lid on orange-and-cream striped canvas, a mesh window each side), a roof
+    rack over the cab with a suitcase and a rolled sleeping bag, a surfboard strapped on the lid, a fold-out awning
+    over the sliding door (striped canvas with a scalloped valance on two poles: out while it is parked, folded away
+    while the engine runs: two movers), gingham curtains tied back in the side windows and the rear window, a ladder
+    up the back, the spare white-wall wheel on the back, round tail lamps in chrome rings.
   * inside (seen through the glass): two front seats over the front wheels, a dash with a big round speedo and a
     radio, a thin big steering wheel, two plaid benches, a kitchenette across the back (a cupboard with a sink and a
-    two-ring stove, a cool box), a lantern hanging from the roof (it glows).
-  * chrome dish hub caps on cream rims, white-wall tyres (wheel_retro_camper, its own model).
+    two-ring stove, a kettle, a cool box), a lantern hanging from the roof (it glows).
+  * white-wall tyres, cream rims, chrome hub caps (wheel_retro_camper, its own model).
 
-Drawn coordinates, like the showcase car: 32 px a block, the van's ground centre at (0, 0, 0), front = north (-z),
-+x = the van's RIGHT side, the driver on the left (-x). Every model is shrunk by 4 (BModel scale 4) and shown at
-vehicle.body-scale 2; the wheel is drawn at 32 px a block too, shrunk by 2, shown at 1.
+Drawn coordinates: 16 px a block, the van's ground centre at (0, 0, 0), front = north (-z), +x = the van's RIGHT
+side, the driver on the left (-x).
 
-Tuning in mind: every colour is an argument (lower, upper, canvas, curtain, seat, board, rim): any palette ramp;
-the decals ask for a share of the ramp (0..1), so a 4-step ramp works as well as these 7-step ones.
+Tuning in mind: every colour is an argument (lower, upper, canvas, curtain, seat, board, rim): any palette ramp; the
+decals ask for a share of the ramp (0..1), so a 4-step ramp works as well as these 7-step ones.
 
-Parts (vehicles.yml movers): door_l, door_r (the cab doors, hinged at their front edge, swinging out),
-slide_door (the right side's sliding door: out 2 px, back 30 px), awning (the awning's canvas: turns down about its
-roller to hang folded inside the right side while the engine runs), awning_poles (its two poles: slide into the
-side while the engine runs).
+Parts (vehicles.yml movers): door_l, door_r (the cab doors, hinged at their front edge, swinging out), slide_door
+(the right side's sliding door: out 1 px, back 15 px), awning (the awning's canvas: turns down about its roller to
+hang folded inside the right side while the engine runs), awning_poles (its two poles: slide into the side).
 
-Seats (vehicles.yml): all at y 1.07 block (34.2 px): the cushions' top at 30, a seated head reaches 75, under the
-roof's inside (76.5 at the seats).
+Seats (vehicles.yml): all at y 1.07 block (17.1 px): the cushions' top at 15; a seated head stays under the roof's
+inside (38.5).
 """
 
 import math
+from types import SimpleNamespace
 
-import numpy as np
-
-from stsv_assets.bake import BModel, Paint, cyl, voxels
-from stsv_assets.palette import MATERIALS, PALETTE, build_ramp, size as ramp_size
+from stsv_assets.bake import BModel, Paint, cyl
+from stsv_assets.palette import MATERIALS, PALETTE, REMAP, build_ramp
 from stsv_assets import presets
 
 NAME = "retro_camper"
@@ -68,294 +73,191 @@ _ramp("rc_plaid", 40, 0.120, 0.50, 0.34, 5, True)      # the seats
 _ramp("rc_leather", 45, 0.060, 0.36, 0.22, 4, False)   # the suitcase
 
 
+def _n(ramp):
+    spec = MATERIALS.get(REMAP.get(ramp, ramp))
+    return spec[4] if spec else len(PALETTE[REMAP.get(ramp, ramp)])
+
+
 def S(ramp, f):
     """A share f (0 dark .. 1 light) of a ramp as a step."""
-    return (ramp, max(0.0, min(1.0, f)) * (ramp_size(ramp) - 1))
+    return (ramp, max(0.0, min(1.0, f)) * (_n(ramp) - 1))
+
+
+def smooth(t):
+    t = max(0.0, min(1.0, t))
+    return t * t * (3 - 2 * t)
 
 
 # ================================================================================================
-# Shape (drawn px, 32 a block)
+# Shape (drawn px, 16 a block)
 # ================================================================================================
 
-W = 32                      # half width
-NOSE, TAIL = -64, 64
-ROOF = 79                   # the roof's top
-BOTTOM, FLOOR = 6, 16       # the body's lowest cells, the floor inside
-BELT = 44                   # the belt line: lower colour under, cream over (the raised rib's layer is BELT - 1)
-WF, WR = -38, 38            # axles
-WY, WRAD = 12, 12           # wheel centre height, radius (0.75 block across)
-WX = 25                     # the wheels' centre across
-ARCH = 15.5                 # arch radius round the axle
-RC_F, RC_R = 12, 10         # plan radius of the front / rear corners
-TUMBLE = 17                 # radius the sides roll over into the roof
-GL0, GL1 = 47, 64           # side windows: bottom, top
-CD = (-52, -26)             # the cab doors (both sides), between their seams
-SD = (-22, 8)               # the sliding door (right)
-SIDE_WINDOWS = [(-18, 5), (9, 32), (36, 52)]   # behind the B pillar (the first is in the sliding door, right)
-SEAT_Y = 30.25              # the cushions' top
+W = 16                      # half width (the side walls are 1 px thick: x 15..16)
+NOSE, TAIL = -32, 32        # the face (under the screen) and the back
+FACE2 = -31                 # the face over the ledge (the screen's wall)
+GROUND, FLOOR = 3, 8        # the body's bottom, the floor inside
+BELT = 22                   # the two-tone line (the rib's bright row)
+EDGE = 34                   # where the sides, the face and the back roll over into the roof
+R = 6                       # the roll's radius
+ROOF = EDGE + R             # 40: the roof's top
+K = R * (1 - math.cos(math.radians(45)))   # the roll's knot: in from the wall ...
+KH = R * math.sin(math.radians(45))        # ... and up from EDGE
+CH = 3.5                    # the corners' 45-degree chamfer (in plan)
+WF, WR = -19, 19            # axles
+WY, WRAD = 6, 6             # wheel centre height, radius (0.75 block across)
+WX0, WX1 = 10.5, 14.5       # the wheels' faces (x)
+ARCH, ARCH_TOP, CHAMF = 7.5, 13.5, 3.0     # the arch: half length, top, its 45-degree corners
+TRACK = 10                  # the floor core's half width (inside the wheels)
+GL0, GL1 = 23.5, 32         # side windows: bottom, top
+CD = (-26, -13)             # the cab doors (both sides), between their seams
+CAB_WIN = (-23, -14.5)      # the cab door's window
+SD = (-11, 4)               # the sliding door (right)
+SIDE_WINDOWS = [(-9, 2), (6, 16), (18, 26)]   # behind the B pillar (the first is in the sliding door, right)
+SCREEN = (0.75, 11.5, 24.5, 31.5)             # the windscreen's openings: |x| from, to; y from, to
+REAR_WIN = (8.5, 24.5, 30.5)                  # the rear window: |x| <, y from, to
+SEAT_Y = 15.1               # the cushions' top
+T = math.tan(math.radians(22.5))
 
 
-def _sqrt(v):
-    return np.sqrt(np.maximum(v, 0.0))
-
-
-def hw(y):
-    """The body's half width at height y (numpy): tucked in at the sill, rolled over into the roof."""
-    y = np.asarray(y, dtype=float)
-    w = np.full(y.shape, float(W))
-    w = np.where(y < 10, W - 1.5, w)
-    w = np.where(y < 8, W - 3.5, w)
-    top = W - TUMBLE + _sqrt(TUMBLE ** 2 - (y - 62) ** 2)
-    w = np.where(y > 62, top, w)
-    return np.where(y > ROOF, -1.0, w)
-
-
-def zf(y):
-    """The face's z on the middle line at height y: tucked under, full at the nose, leaning a little, the screen at
-    22.5°, the brow, rounding over into the roof."""
-    y = np.asarray(y, dtype=float)
-    t = math.tan(math.radians(22.5))
-    z = np.full(y.shape, float(NOSE))
-    z = np.where(y < 10, NOSE + 1.5, z)
-    z = np.where(y < 8, NOSE + 3.5, z)
-    z = np.where((y >= 30) & (y < 46), NOSE + (y - 30) * 0.12, z)
-    z = np.where((y >= 46) & (y < 64), NOSE + 16 * 0.12 + (y - 46) * t, z)
-    z = np.where((y >= 64) & (y < 67), -56.5, z)
-    z = np.where(y >= 67, -44.5 - _sqrt(144 - (y - 67) ** 2), z)
-    return z
-
-
-def zb(y):
-    y = np.asarray(y, dtype=float)
-    z = np.full(y.shape, float(TAIL))
-    z = np.where(y < 10, TAIL - 1.5, z)
-    z = np.where(y < 8, TAIL - 3.5, z)
-    z = np.where(y > 58, 43 + _sqrt(441 - (y - 58) ** 2), z)
-    return z
-
-
-def zfront(ax, y):
-    w = hw(y)
-    d = np.maximum(0.0, ax - (w - RC_F))
-    return zf(y) + RC_F - _sqrt(RC_F ** 2 - d ** 2) + np.where(d > RC_F, 99, 0)
-
-
-def zback(ax, y):
-    w = hw(y)
-    d = np.maximum(0.0, ax - (w - RC_R))
-    return zb(y) - (RC_R - _sqrt(RC_R ** 2 - d ** 2)) - np.where(d > RC_R, 99, 0)
-
-
-def inside(x, y, z):
-    ax = np.abs(x)
-    return (y >= BOTTOM) & (y <= ROOF) & (ax <= hw(y)) & (z >= zfront(ax, y)) & (z <= zback(ax, y))
-
-
-def field(x, y, z):
-    """A rough signed distance to the shell (its gradient is the surface's normal)."""
-    ax = np.abs(x)
-    w = hw(y)
-    f1 = np.where(w < 0, 50, ax - w)
-    f2 = zfront(ax, y) - z
-    f3 = z - zback(ax, y)
-    f4 = BOTTOM - y
-    k = 1.6                       # a soft max: its gradient turns smoothly round the corners (no stripes on the steps)
-    fs = np.stack([f1, f2, f3, f4])
-    mx = fs.max(axis=0)
-    return mx + k * np.log(np.exp((fs - mx) / k).sum(axis=0))
-
-
-def in_arch(x, y, z):
-    return (np.abs(x) > 17) & ((np.hypot(z - WF, y - WY) < ARCH) | (np.hypot(z - WR, y - WY) < ARCH))
-
-
-def near_arch(x, y, z):
-    return (np.hypot(z - WF, y - WY) < ARCH + 1.2) | (np.hypot(z - WR, y - WY) < ARCH + 1.2)
-
-
-def round_rect(z, y, z0, z1, y0, y1, r=3.0):
-    """Inside a rectangle with round corners (in a side's z/y plane)."""
-    if not (z0 <= z <= z1 and y0 <= y <= y1):
-        return False
-    cz = min(max(z, z0 + r), z1 - r)
-    cy = min(max(y, y0 + r), y1 - r)
-    return math.hypot(z - cz, y - cy) <= r
-
-
-def windows(side):
-    """(z0, z1) of the side windows of a side (-1 left, 1 right), the cab door's first (its front edge slants with the
-    screen: cut where the side is flat)."""
-    return [("cab",) + CD] + [("rear", a, b) for a, b in SIDE_WINDOWS]
-
-
-def cab_front(y):
-    """Where the cab door's window may start at height y (the side is flat from there)."""
-    return float(zf(np.array([y]))[0]) + RC_F + 2.5
-
-
-def side_hole(z, y, side=1):
-    """In a side window's opening (z, y of a cell centre)."""
-    for (kind, z0, z1) in windows(side):
-        if kind == "cab":
-            z0 = max(CD[0] + 3, cab_front(y))
-            z1 = CD[1] - 3
-        if round_rect(z, y, z0, z1, GL0, GL1):
-            return True
-    return False
-
-
-SCREEN = (2, 23, 47, 63)          # the windscreen's openings: |x| from, to; y from, to
-REAR_WIN = (17, 49, 61)           # the rear window: |x| <, y from, to
-
-
-def screen_hole(x, y, m=0.0):
-    """In one of the windscreen's two openings (m: grown by m all round)."""
-    a0, a1, y0, y1 = SCREEN
-    a0, a1, y0, y1 = a0 - m, a1 + m, y0 - m, y1 + m
-    ax = abs(x)
-    r = 3 + m
-    return a0 <= ax <= a1 and y0 <= y <= y1 and math.hypot(max(0, ax - (a1 - r)), max(0, y - (y1 - r), (y0 + r) - y)) <= r
-
-
-def rear_hole(x, y):
-    a, y0, y1 = REAR_WIN
-    return round_rect(x, y, -a, a, y0, y1, 4)
-
-
-# ================================================================================================
-# The cells
-# ================================================================================================
-
-X0, Y0, Z0 = -40, 0, -72
-NX, NY, NZ = 80, 84, 144
-
-
-def _grid():
-    xs = np.arange(NX) + X0 + 0.5
-    ys = np.arange(NY) + Y0 + 0.5
-    zs = np.arange(NZ) + Z0 + 0.5
-    X, Y, Z = np.meshgrid(xs, ys, zs, indexing="ij")
-    # the roof's roll and the arches are cut in 2 px layers (half the boxes: the face budget), the rest in 1 px
-    Y2 = np.floor(Y / 2) * 2 + 1
-    Yr = np.where(Y > 58, Y2, Y)
-    hull = inside(X, Yr, Z) & ~in_arch(X, Y2, Z)
-    inner = hull.copy()
-    for _ in range(2):
-        e = inner.copy()
-        for ax in range(3):
-            for s in (1, -1):
-                e &= np.roll(inner, s, axis=ax)
-        inner = e
-    # the roof's roll: its inside in 2 px layers too (each pair of layers the same)
-    for j in range(60 - Y0, NY - 1, 2):
-        both = inner[:, j] & inner[:, j + 1]
-        inner[:, j], inner[:, j + 1] = both, both
-    air = inner & (Y >= FLOOR)
-    # over the wheels: square tubs inside (under the seats), not round ones (fewer boxes)
+def arch_at(z):
     for wz in (WF, WR):
-        air &= ~((np.abs(X) > 15) & (np.abs(Z - wz) < ARCH + 2) & (Y < 29))
-    return X, Y, Z, hull, inner, air
+        if abs(z - wz) < ARCH + 0.01:
+            return wz
+    return None
 
 
-_G = {}
-
-
-def grid():
-    if not _G:
-        X, Y, Z, hull, inner, air = _grid()
-        _G.update(X=X, Y=Y, Z=Z, hull=hull, inner=inner, air=air)
-    return _G
-
-
-def is_air(p):
-    """Is the point in the cabin's air (inside the shell, over the floor)?"""
-    g = grid()
-    i, j, k = math.floor(p[0]) - X0, math.floor(p[1]) - Y0, math.floor(p[2]) - Z0
-    if not (0 <= i < NX and 0 <= j < NY and 0 <= k < NZ):
+def in_arch(z, y):
+    """Inside an arch's opening (seen from the side)."""
+    wz = arch_at(z)
+    if wz is None or y >= ARCH_TOP:
         return False
-    return bool(g["air"][i, j, k])
+    d = abs(z - wz)
+    return y < ARCH_TOP - CHAMF + (ARCH - d) if d > ARCH - CHAMF else True
 
 
 def rib_y(x, z):
     """The two-tone line at (x, z): the V on the face, the belt everywhere else."""
-    if z < -48:
-        return min(BELT, 26 + 0.72 * abs(x))
+    if z < NOSE + 1.2:
+        return min(BELT, 12.5 + abs(x))
     return BELT
 
 
-def _cells():
-    """body, doors {cab_l, cab_r, slide}: (x, y, z) -> label."""
-    g = grid()
-    X, Y, Z, hull, inner, air = g["X"], g["Y"], g["Z"], g["hull"], g["inner"], g["air"]
-    body = {}
-    parts = {"door_l": {}, "door_r": {}, "slide_door": {}}
-    shell = hull & ~air
-    idx = np.argwhere(shell)
-    for (i, j, k) in idx:
-        x, y, z = i + X0, j + Y0, k + Z0
-        xc, yc, zc = x + 0.5, y + 0.5, z + 0.5
-        ax = abs(xc)
-        side = 1 if xc > 0 else -1
-        core = bool(inner[i, j, k])
-        is_side = ax > 27.5 and -56 < zc < 58
-        # openings
-        if not core:
-            if is_side and side_hole(zc, yc, side):
-                continue
-            if zc < -46 and screen_hole(xc, yc) and ax < 26:
-                continue
-            if zc > 56 and rear_hole(xc, yc):
-                continue
-        label = "paint"             # one label: the shell and the core merge into few boxes (the decal paints all)
-        # doors: the outer shell between their seams
-        if is_side and 9 <= y < 66 and not core:
-            if CD[0] <= z < CD[1]:
-                parts["door_l" if side < 0 else "door_r"][(x, y, z)] = label
-                continue
-            if side > 0 and SD[0] <= z < SD[1]:
-                parts["slide_door"][(x, y, z)] = label
-                continue
-        body[(x, y, z)] = label
-    # the raised rib: one layer of cells just outside the shell along the two-tone line
-    for x in range(-W - 1, W + 1):
-        for z in range(NOSE - 2, TAIL + 2):
-            xc, zc = x + 0.5, z + 0.5
-            y = math.floor(rib_y(xc, zc)) - 1 if zc >= -48 else math.floor(rib_y(xc, zc))
-            i, j, k = x - X0, y - Y0, z - Z0
-            if hull[i, j, k]:
-                continue
-            if not (hull[min(i + 1, NX - 1), j, k] or hull[i - 1, j, k] or hull[i, j, min(k + 1, NZ - 1)] or hull[i, j, k - 1]):
-                continue
-            if in_arch(np.array(xc), np.array(y + 0.5), np.array(zc)):
-                continue
-            if zc < -48 and abs(xc) < 25.5:
-                continue                  # the V on the face is painted (a 1 px rib stair-stepping down it looked jagged)
-            side = 1 if xc > 0 else -1
-            if abs(xc) > 27.5 and CD[0] <= z < CD[1]:
-                parts["door_l" if side < 0 else "door_r"][(x, y, z)] = "rib"
-            elif side > 0 and abs(xc) > 27.5 and SD[0] <= z < SD[1]:
-                parts["slide_door"][(x, y, z)] = "rib"
-            else:
-                body[(x, y, z)] = "rib"
-    return body, parts
+def round_rect(a, b, a0, a1, b0, b1, r=1.5):
+    if not (a0 <= a <= a1 and b0 <= b <= b1):
+        return False
+    ca = min(max(a, a0 + r), a1 - r)
+    cb = min(max(b, b0 + r), b1 - r)
+    return math.hypot(a - ca, b - cb) <= r
+
+
+# ================================================================================================
+# Angled panels
+# ================================================================================================
+
+def _rot(p, axis, deg, o):
+    """A point turned like Minecraft turns an element."""
+    a = math.radians(deg)
+    c, s = math.cos(a), math.sin(a)
+    x, y, z = p[0] - o[0], p[1] - o[1], p[2] - o[2]
+    if axis == "x":
+        y, z = y * c - z * s, y * s + z * c
+    elif axis == "y":
+        x, z = x * c + z * s, -x * s + z * c
+    else:
+        x, y = x * c - y * s, x * s + y * c
+    return (x + o[0], y + o[1], z + o[2])
+
+
+def world(decal, rot):
+    """A decal for a turned box: it sees the texel where it ends up, so it paints on like the boxes round it."""
+    axis, ang, o = rot
+
+    def d(c):
+        q = SimpleNamespace(p=_rot(c.p, axis, ang, o), face=c.face, u=c.u, v=c.v, nu=c.nu, nv=c.nv, lo=c.lo, hi=c.hi,
+                            i=c.i, n=c.n, frame=c.frame)
+        return decal(q)
+    return d
+
+
+def _to3(axis, a, b, s):
+    if axis == "x":
+        return (s, b, a)
+    if axis == "z":
+        return (a, b, s)
+    return (b, s, a)
+
+
+def _from3(axis, p):
+    if axis == "x":
+        return (p[2], p[1])
+    if axis == "z":
+        return (p[0], p[1])
+    return (p[2], p[0])
+
+
+def panel(m, name, axis, p0, p1, span, t, paint, inside, decal=None, **kw):
+    """A flat panel t thick whose outer face runs along p0 -> p1 in the plane across `axis` (axis "x": points are
+    (z, y), "z": (x, y), "y": (z, x)), spanning `span` along the axis; its thickness on the side of `inside`. Any
+    slope that is a multiple of 22.5 degrees (steeper than 45: the box is laid along the other way). decal(c, outer)
+    is a world-space decal told whether the face is the panel's outer one."""
+    (a0, b0), (a1, b1) = p0, p1
+    da, db = a1 - a0, b1 - b0
+    along_a = abs(da) >= abs(db) - 1e-6
+    if (along_a and da < 0) or (not along_a and db < 0):
+        (a0, b0), (a1, b1) = (a1, b1), (a0, b0)
+        da, db = -da, -db
+    length = math.hypot(da, db)
+    phi = math.degrees(math.atan2(db, da))
+    if along_a:
+        ang = -phi if axis == "x" else phi
+    else:
+        ang = (90 - phi) if axis == "x" else (phi - 90)
+    snap = round(ang / 22.5) * 22.5
+    assert abs(snap - ang) < 0.05 and abs(snap) <= 45, f"{name}: {ang} degrees"
+    o3 = _to3(axis, a0, b0, 0)
+    best = None
+    for sgn in (-1, 1):
+        if along_a:
+            la, lb = (a0, a0 + length), tuple(sorted((b0, b0 + sgn * t)))
+        else:
+            la, lb = tuple(sorted((a0, a0 + sgn * t))), (b0, b0 + length)
+        mid = _rot(_to3(axis, (la[0] + la[1]) / 2, (lb[0] + lb[1]) / 2, 0), axis, snap, o3)
+        ma, mb = _from3(axis, mid)
+        dist = math.hypot(ma - inside[0], mb - inside[1])
+        if best is None or dist < best[0]:
+            best = (dist, la, lb, sgn)
+    _, la, lb, sgn = best
+    frm = _to3(axis, la[0], lb[0], span[0])
+    to = _to3(axis, la[1], lb[1], span[1])
+    # the outer face: away from the thickness
+    if along_a:
+        outer = {"x": ("up", "down"), "z": ("up", "down"), "y": ("east", "west")}[axis][0 if sgn < 0 else 1]
+    else:
+        outer = {"x": ("south", "north"), "z": ("east", "west"), "y": ("south", "north")}[axis][0 if sgn < 0 else 1]
+    rot = (axis, snap, o3)
+    if decal is not None:
+        paint = paint(decal=world(lambda c: decal(c, c.face == outer), rot))
+    m.box(name, frm, to, paint, rotation=rot, **kw)
+    return rot
+
+
+def _x(side, a, b):
+    return tuple(sorted((side * a, side * b)))
+
+
+def _lo(s, a, b, y, z):
+    return (min(s * a, s * b), y, z)
+
+
+def _hi(s, a, b, y, z):
+    return (max(s * a, s * b), y, z)
 
 
 # ================================================================================================
 # Paints
 # ================================================================================================
 
-LIGHT = np.array((0.42, 0.78, -0.46))
-LIGHT = LIGHT / np.linalg.norm(LIGHT)
-
-
-def normal_at(p):
-    x, y, z = p
-    e = 1.4
-    a = np.array([[x + e, y, z], [x - e, y, z], [x, y + e, z], [x, y - e, z], [x, y, z + e], [x, y, z - e]])
-    f = field(a[:, 0], a[:, 1], a[:, 2])
-    n = np.array((f[0] - f[1], f[2] - f[3], f[4] - f[5]))
-    ln = np.linalg.norm(n)
-    return n / ln if ln > 1e-6 else np.array((0.0, 1.0, 0.0))
+CLEAR = ("raw", (0, 0, 0, 0))
 
 
 class Look:
@@ -366,177 +268,189 @@ class Look:
             lower, upper, canvas, curtain, seat, board, rim
 
 
-def _seal(x, y, z, face):
-    """Is the exterior texel right round a window (the rubber seal)?"""
-    if face in ("east", "west"):
-        side = 1 if x > 0 else -1
-        for (kind, z0, z1) in windows(side):
-            if kind == "cab":
-                z0 = max(CD[0] + 3, cab_front(y))
-                z1 = CD[1] - 3
-            if round_rect(z, y, z0 - 1.1, z1 + 1.1, GL0 - 1.1, GL1 + 1.1, 4.1) and not round_rect(z, y, z0, z1, GL0, GL1):
-                return True
-    return False
-
-
-def body_decal(look):
+def _skins(look):
     LO, UP = look.lo, look.up
 
-    def decal(c):
-        x, y, z = c.p
-        f = c.face
-        nf = c.n
-        probe = (x + nf[0] * 0.5, y + nf[1] * 0.5, z + nf[2] * 0.5)
-        if f == "down":
-            return S("rc_tyre", 0.1)
-        if is_air(probe):
-            return interior(c)
+    def skin(x, y, z, facing):
+        """The outside's colour at (x, y, z) on a surface facing side / front / back / top / corner."""
         ax = abs(x)
-        # the wheel arches: dark inside, a darker lip round them on the side
-        ra = min(math.hypot(z - WF, y - WY), math.hypot(z - WR, y - WY))
-        if ra < ARCH + 0.35 and ax < W - 0.6:
-            return S("rc_tyre", 0.12)
-        n = normal_at((x, y, z))
-        lit = float(n @ LIGHT)
-        # the lower colour under the line, cream over it
-        line = rib_y(x, z)
+        fy, fz = math.floor(y), math.floor(z)
+        if facing == "top":
+            if 4 <= ax < 6:
+                return S(UP, 0.95)                                      # a light streak along the roof
+            return S(UP, 0.82)
+        if facing == "roll":
+            return S(UP, 0.9)
+        line = rib_y(x, z) if facing == "front" else BELT
         upper = y >= line
-        # details on the outside
-        if f in ("east", "west"):
-            side = 1 if x > 0 else -1
-            if _seal(z, y, z, f) if False else _seal(x, y, z, f):
-                return S("rc_tyre", 0.25)
-            seams = [CD[0], CD[1]] + ([SD[0], SD[1]] if side > 0 else [])
-            if any(abs(z - s) < 0.55 for s in seams) and 9 <= y < 66 and ax > 29:
-                return S(UP if upper else LO, 0.05)                 # door shut lines
-            if side > 0 and SD[1] + 1 < z < 54 and 45.2 < y < 46.2 and ax > 29:
-                return S("rc_chrome", 0.35)                         # the sliding door's rail
-            # louvres on the rear quarters
-            if 45 <= z < 58 and 29 <= y < 39 and ax > 29:
-                k = (math.floor(y) - 29) % 3
-                if k == 0:
-                    return S(LO, 0.05)
-                if k == 1:
-                    return S(LO, 0.85)
-            if side < 0 and 22 <= z < 26 and 33 <= y < 37 and ax > 29:
-                return S("rc_chrome", 0.8 if (y > 35 and z < 24) else 0.5)   # the fuel flap
-        if f == "north" and z < -46 and screen_hole(x, y, 1.2) and not screen_hole(x, y):
-            return S("rc_tyre", 0.25)                               # the windscreen's rubber seal
-        if f == "north" and z < -55:
-            # the vent slot in the brow
-            if 64 <= y < 67 and ax < 14:
-                return S("rc_tyre", 0.05) if math.floor(x) % 2 else S(UP, 0.4)
-        if f == "south" and z > 60:
-            # the engine lid's shut line
-            if (abs(ax - 18) < 0.5 and 15 < y < 45) or (abs(y - 45) < 0.5 and ax < 18):
-                return S(LO, 0.05)
-        ramp = UP if upper else LO
-        base = 0.48 + 0.42 * lit
-        if upper and y < line + 1.0 and z < -48 and ax < 26:
-            base += 0.25                                            # the V's bright edge
-        if not upper:
-            base -= 0.06 * max(0.0, (16 - y) / 10)
-            # a soft reflection band low along the sides
-            if f in ("east", "west") and 24 < y < 27:
-                base += 0.12
-        if f == "up" or (n[1] > 0.55):
-            # a light streak along the roof
-            if 8 < ax < 11:
-                base += 0.12
-        return S(ramp, base)
+        if facing in ("side", "corner"):
+            if y < GROUND + 1:
+                return S(LO, 0.15)
+            if fy == BELT:
+                return S(UP, 1.0)                                       # the rib catching the light
+            if fy == BELT - 1:
+                return S(LO, 0.22)                                      # its shadow
+            if facing == "side":
+                seams = [CD[0], CD[1] - 1] + ([SD[0], SD[1] - 1] if x > 0 else [])
+                if fz in seams and ARCH_TOP <= y < EDGE:
+                    return S(UP if upper else LO, 0.05)                 # the doors' shut lines
+                wz = arch_at(z)
+                if wz is not None and not in_arch(z, y) and (in_arch(z, y - 1) or in_arch(z - 1, y) or in_arch(z + 1, y)):
+                    return S(LO, 0.2)                                   # the arch's lip
+                if 22 <= z < 29 and 14 <= y < 20:
+                    return S(LO, 0.08) if fy % 2 == 0 else S(LO, 0.8)  # louvres on the rear quarters
+                if x < 0 and 11 <= z < 13 and 16 <= y < 18:
+                    return S("rc_chrome", 0.85 if fy == 17 else 0.55)  # the fuel flap
+            if not upper:
+                base = 0.34 + 0.26 * smooth((y - 3) / 18)
+                if fy in (12,):
+                    base += 0.12                                        # a soft reflection low along the sides
+                return S(LO, base)
+            return S(UP, 0.62 + 0.24 * smooth((y - 23) / 10))
+        if facing == "front":
+            if y < GROUND + 1:
+                return S(LO, 0.2)
+            if 32 <= y < 33.5 and ax < 7:
+                return S(UP, 0.42) if math.floor(x) % 2 else S(UP, 0.62)        # the brow's vent
+            if upper:
+                return S(UP, 0.72 + 0.2 * smooth((y - 14) / 18))
+            return S(LO, 0.42 + 0.26 * smooth((y - 3) / 16))
+        # the back
+        if y < GROUND + 1:
+            return S(LO, 0.15)
+        if fy == BELT:
+            return S(UP, 1.0)
+        if fy == BELT - 1:
+            return S(LO, 0.22)
+        if 7.5 <= y < 12 and 5 <= ax < 9:
+            return S(LO, 0.08) if fy % 2 == 0 else S(LO, 0.75)        # the engine's louvres
+        if upper:
+            return S(UP, 0.6 + 0.2 * smooth((y - 23) / 10))
+        return S(LO, 0.3 + 0.24 * smooth((y - 3) / 18))
 
-    def interior(c):
-        x, y, z = c.p
-        f = c.face
-        if f == "up" and y <= FLOOR + 0.5:
-            # the floor: wooden boards across
-            return S("rc_wood", 0.45 if math.floor(x) % 6 else 0.2)
-        if f == "up":
-            return S("rc_tyre", 0.5)                                 # tubs, sills: a rubber mat
-        if f == "down":
-            return S("rc_cream", 0.9)                                # the headliner
-        if y < 22:
+    def interior(x, y, z, face):
+        if face == "up" and y <= FLOOR + 0.5:
+            return S("rc_wood", 0.45 if math.floor(x) % 3 else 0.2)    # wooden boards
+        if face == "up":
+            return S("rc_tyre", 0.5)
+        if face == "down":
+            return S("rc_cream", 0.9)                                   # the headliner
+        if y < 11:
             return S("rc_wood", 0.3)
-        # wood-panelled walls up to the windows, cream above
-        if y < GL0 - 1:
-            return S("rc_wood", 0.6 if math.floor(y) % 5 else 0.4)
+        if y < GL0 - 0.5:
+            return S("rc_wood", 0.6 if math.floor(y) % 3 else 0.42)    # wood-panelled walls up to the windows
         return S("rc_cream", 0.8)
-    return decal
 
-
-def rib_decal(look):
-    def decal(c):
+    def body_decal(c):
         x, y, z = c.p
-        if c.face == "down":
-            return S(look.lo, 0.2)
+        ax = abs(x)
+        f = c.face
+        if f == "down":
+            return interior(x, y, z, f) if y > 30 else S("rc_tyre", 0.1)
+        # the wheel wells: dark
+        wz = arch_at(z)
+        if wz is not None and y < ARCH_TOP + 0.01:
+            if (f in ("east", "west") and ax < W - 0.6) or f in ("north", "south") or (f == "up" and ax > TRACK - 0.01 and y < ARCH_TOP):
+                return S("rc_tyre", 0.08)
+        if f == "up":
+            if y <= FLOOR + 0.01 and ax < W - 0.9:
+                return interior(x, y, z, f)
+            if ax > W - 1.01 and GL0 - 0.6 < y < GL0 + 0.1:
+                return S("rc_tyre", 0.3)                                # the window's sill seal
+            if ax < W - 0.9 and abs(z) < TAIL - 0.9 and y < EDGE - 0.1:
+                return interior(x, y, z, f)
+            if y > ROOF - 1.1:
+                return skin(x, y, z, "top")
+            return S(look.up, 0.7)
+        if f in ("east", "west"):
+            inner = (f == "east" and x < 0) or (f == "west" and x > 0)
+            if ax < W - 1.1 and z < FACE2 + 1.2 and GL0 < y < GL1 + 0.1:
+                return S("rc_tyre", 0.3)                                # the screen's reveal
+            if ax < W - 1.1 and z > TAIL - 1.2 and REAR_WIN[1] - 0.1 < y < REAR_WIN[2] + 0.1:
+                return S("rc_tyre", 0.3)                                # the rear window's reveal
+            if inner:
+                return interior(x, y, z, f)
+            if ax < W - 0.5:
+                return S(look.up if y >= BELT else look.lo, 0.4)
+            return skin(x, y, z, "side")
+        # north / south
+        if ax > W - 1.05 and abs(z) < TAIL - 3:
+            return S("rc_tyre", 0.3) if GL0 - 0.1 < y < GL1 + 0.1 else S(look.up if y >= BELT else look.lo, 0.3)
+        if f == "north":
+            if z > 0:
+                return interior(x, y, z, f)
+            return skin(x, y, z, "front")
+        if z < 0:
+            return interior(x, y, z, f)
+        return skin(x, y, z, "back")
+
+    def panel_decal(facing):
+        def d(c, outer):
+            x, y, z = c.p
+            if outer:
+                return skin(x, y, z, facing)
+            if c.face in ("down", "west", "east", "north", "south") and facing in ("roll", "top"):
+                return S("rc_cream", 0.9)
+            return S(look.up if y >= BELT else look.lo, 0.35)
+        return d
+
+    return dict(skin=skin, body_decal=body_decal, interior=interior, panel_decal=panel_decal)
+
+
+def _chrome(lo=0.35, hi=0.95):
+    """A chrome part: bright on top, a sky band over a dark ground reflection down its sides."""
+    def decal(c):
         if c.face == "up":
-            return S(look.up, 1.0)
-        return S(look.up, 0.82)
-    return decal
+            return S("rc_chrome", hi)
+        if c.face == "down":
+            return S("rc_chrome", lo * 0.6)
+        h = c.hi[1] - c.lo[1]
+        if h >= 1.5:
+            return S("rc_chrome", hi * 0.85 if c.p[1] > (c.lo[1] + c.hi[1]) / 2 else lo)
+        return S("rc_chrome", (lo + hi) / 2 + 0.1)
+    return Paint("rc_chrome", 4, noise=0, grad=0, rim=0.4, ao=0.2, decal=decal)
 
 
-def make_paints(look):
-    flat = dict(noise=0, light=False)
-    return {
-        "paint": Paint(look.up, 3, decal=body_decal(look), **flat),
-        "core": Paint(look.lo, 2, noise=0, light=False, decal=lambda c: S("rc_tyre", 0.1) if c.face == "down" else body_decal(look)(c)),
-        "well": Paint("rc_tyre", 1, noise=0, light=False, decal=lambda c: S("rc_tyre", 0.5) if (c.face == "up" and is_air((c.p[0], c.p[1] + 0.5, c.p[2]))) else S("rc_tyre", 0.08)),
-        "rib": Paint(look.up, 5, decal=rib_decal(look), **flat),
-    }
-
-
-def _flat_voxels(m, cells, paints):
-    """bake.voxels with the game's face shading off (the decal paints the light from the true surface's normal, so
-    the 1 px steps of a curve read as one smooth panel)."""
-    box = m.box
-
-    def flat_box(name, frm, to, paint, **kw):
-        kw["shade"] = False
-        return box(name, frm, to, paint, **kw)
-    m.box = flat_box
-    try:
-        voxels(m, "shell", cells, lambda label: paints[label])
-    finally:
-        del m.box
+def _flat(ramp, f, **kw):
+    return Paint(ramp, 2, noise=0, grad=0, rim=0.3, ao=0.3, decal=lambda c: S(ramp, f), **kw)
 
 
 # ================================================================================================
 # Glass
 # ================================================================================================
 
-CLEAR = ("raw", (0, 0, 0, 0))
-
-
-def _streak(a, b, k=31):
+def _streak(a, b, k=23):
     d = math.floor(a * 0.9 - b * 1.2) % k
     if d in (0, 1):
-        return ("raw", (236, 244, 255, 255))
-    if d == 4:
-        return ("raw", (190, 210, 228, 255))
+        return ("raw", (226, 238, 252, 150))
     return None
 
 
-def side_glass(look, curtains):
-    """A side window's pane: gingham curtains tied back each side and a gathered valance along the top, the rest
-    clear with a reflection streak."""
+def side_glass(look, curtains, win):
+    """A side window's pane: rounded corners in the body colour, a black seal, gingham curtains tied back each side
+    and a gathered valance along the top, the rest clear with a reflection streak."""
+    z0, z1 = win
+
     def decal(c):
         x, y, z = c.p
         if c.face not in ("east", "west"):
             return S("rc_tyre", 0.3)
+        if not round_rect(z, y, z0, z1, GL0, GL1, 1.6):
+            return ("raw", _rgb(S(look.up, 0.8)))
+        if not round_rect(z, y, z0 + 0.5, z1 - 0.5, GL0 + 0.5, GL1 - 0.5, 1.2):
+            return ("raw", (34, 36, 42, 255))                           # the seal
         if curtains:
-            for (z0, z1) in SIDE_WINDOWS:
-                if z0 <= z <= z1:
-                    u = min(z - z0, z1 - z)
-                    tie = GL0 + 6
-                    if y > GL1 - 3:
-                        g = (math.floor(z) // 2 + math.floor(y)) % 2
-                        return S(look.curtain, 0.75 if g else 0.35)    # the valance
-                    reach = 2.2 + min(2.4, abs(y - tie) * 0.25)
-                    if u < reach:
-                        if abs(y - tie) < 0.7:
-                            return S("rc_cream", 1.0)                    # the tie
-                        g = (math.floor(z) // 2 + math.floor(y) // 2) % 2
-                        return S(look.curtain, 0.8 if g else 0.4) if u > 0.8 else S(look.curtain, 0.2)
+            u = min(z - z0, z1 - z)
+            tie = GL0 + 3
+            if y > GL1 - 2:
+                g = (math.floor(z) + math.floor(y)) % 2
+                return ("raw", _rgb(S(look.curtain, 0.8 if g else 0.4)))      # the valance
+            reach = 1.6 + min(1.4, abs(y - tie) * 0.3)
+            if u < reach:
+                if abs(y - tie) < 0.5:
+                    return ("raw", _rgb(S("rc_cream", 1.0)))                    # the tie
+                g = (math.floor(z) + math.floor(y)) % 2
+                return ("raw", _rgb(S(look.curtain, 0.85 if g else 0.35)))
         s = _streak(z, y)
         return s or CLEAR
     return Paint("glass", 2, noise=0, light=False, decal=decal)
@@ -548,34 +462,42 @@ def screen_glass():
         if c.face not in ("north", "south"):
             return S("rc_tyre", 0.3)
         ax = abs(x)
-        # the wipers resting along the bottom (an arm and a blade)
-        if c.v >= c.nv - 2 and 5 <= ax < 18:
-            return ("raw", (24, 24, 28, 255))
-        s = _streak(x, y * 0.6, 27)
+        if math.floor(y) == math.floor(SCREEN[2]) and 3 <= ax < 10:
+            return ("raw", (24, 24, 28, 255))                           # the wipers resting along the bottom
+        s = _streak(x, y * 0.6, 17)
         return s or CLEAR
     return Paint("glass", 2, noise=0, light=False, decal=decal)
 
 
 def rear_glass(look):
+    a, y0, y1 = REAR_WIN
+
     def decal(c):
         x, y, z = c.p
         if c.face not in ("north", "south"):
             return S("rc_tyre", 0.3)
         ax = abs(x)
-        a, y0, y1 = REAR_WIN
-        if y > y1 - 3:
-            g = (math.floor(x) // 2 + math.floor(y)) % 2
-            return S(look.curtain, 0.75 if g else 0.35)
+        if not round_rect(x, y, -a, a, y0, y1, 1.6):
+            return ("raw", _rgb(S(look.up, 0.7)))
+        if y > y1 - 1.5:
+            g = (math.floor(x) + math.floor(y)) % 2
+            return ("raw", _rgb(S(look.curtain, 0.8 if g else 0.4)))
         u = a - ax
-        reach = 2.4 + min(2.4, abs(y - 54) * 0.3)
+        reach = 1.6 + min(1.4, abs(y - 27) * 0.3)
         if u < reach:
-            if abs(y - 54) < 0.7:
-                return S("rc_cream", 1.0)
-            g = (math.floor(x) // 2 + math.floor(y) // 2) % 2
-            return S(look.curtain, 0.8 if g else 0.4)
+            if abs(y - 27) < 0.5:
+                return ("raw", _rgb(S("rc_cream", 1.0)))
+            g = (math.floor(x) + math.floor(y)) % 2
+            return ("raw", _rgb(S(look.curtain, 0.85 if g else 0.35)))
         s = _streak(x, y)
         return s or CLEAR
     return Paint("glass", 2, noise=0, light=False, decal=decal)
+
+
+def _rgb(rs):
+    from stsv_assets.palette import ladder
+    ramp, step = rs
+    return ladder(ramp, math.floor(step + 0.5))
 
 
 # ================================================================================================
@@ -584,10 +506,10 @@ def rear_glass(look):
 
 class Kit:
     def __init__(self, name, parts):
-        self.body = BModel(name, shift=(8, 8, 8), scale=4.0)
+        self.body = BModel(name, shift=(8, 8, 8), scale=2.0)
         self.parts = {}
         for part in parts:
-            m = BModel(f"{name}_{part}", shift=(8, 8, 8), scale=4.0)
+            m = BModel(f"{name}_{part}", shift=(8, 8, 8), scale=2.0)
             m.display = presets.furniture(gui_scale=0.4)
             m.group(part)
             self.parts[part] = m
@@ -608,65 +530,196 @@ def camper_kit(lower="rc_turq", upper="rc_cream", canvas="rc_canvas", curtain="r
     """lower / upper: the two-tone paint (under / over the V and the belt); canvas: the tent's and the awning's stripes
     (with cream); curtain: the gingham curtains; seat: the plaid benches; board: the surfboard (None: no board);
     rim: the wheels' rims (on the wheel model: wheel_retro_camper)."""
-    key = (lower, upper, canvas, curtain, seat, board, rim, name)
+    key = (lower, upper, canvas, curtain, seat, board, rim, name, tuple(sorted(REMAP.items())))
     if key in _KIT:
         return _KIT[key]
     look = Look(lower, upper, canvas, curtain, seat, board, rim)
     kit = Kit(name, PARTS)
     m = kit.body
     m.group("body")
-    paints = make_paints(look)
-    body, doors = _cells()
-    _flat_voxels(m, body, paints)
-    for part, cells in doors.items():
-        _flat_voxels(kit[part], cells, paints)
-    _windows(m, kit, look)
-    _face(m, look)
-    _tail(m, look)
-    _roof(m, look)
-    _awning(m, kit, look)
-    _door_bits(kit, look)
-    _cabin(m, look)
-    m.display = presets.furniture(gui_scale=0.4)
+    P = _skins(look)
+    P["body"] = Paint(look.up, 3, noise=0, grad=0, rim=0, ao=0, decal=P["body_decal"])
+    P["angled"] = Paint(look.up, 3, noise=0, grad=0, rim=0, ao=0)
+    ctx = dict(look=look, P=P)
+    _shell(m, kit, ctx)
+    _windows(m, kit, ctx)
+    _face(m, ctx)
+    _tail(m, ctx)
+    _roof(m, ctx)
+    _awning(m, kit, ctx)
+    _door_bits(kit, ctx)
+    _cabin(m, ctx)
+    m.display = _held_display()
     _KIT[key] = kit
     return kit
 
 
-def _windows(m, kit, look):
-    t = math.tan(math.radians(22.5))
-    # the windscreen: a pane each side of the middle bar, leaning back at 22.5° (1 px behind the face)
-    y0 = 46.0
-    z0 = float(zf(np.array([y0]))[0]) + 1.6
-    h = (GL1 + 0.5 - y0) / math.cos(math.radians(22.5))
+def _held_display():
+    """Hand / ground / gui transforms that show the (already halved) body small, like a toy."""
+    d = presets.furniture(gui_scale=0.36)
+    for k in ("thirdperson_righthand", "firstperson_righthand", "firstperson_lefthand", "ground"):
+        d[k] = dict(d[k])
+        d[k]["scale"] = [round(v / 2.5, 3) for v in d[k]["scale"]]
+    return d
+
+
+def _shell(m, kit, ctx):
+    """The walls (cut round the windows, the doors their own parts), the face and the back, the floor and the wheel
+    housings, the flat roof; the angled panels: the corners, the ledge, the roof's roll on all four sides."""
+    P = ctx["P"]
+    body, ang = P["body"], P["angled"]
+    pd = P["panel_decal"]
+    box = m.box
+    Z0, Z1 = -(TAIL - CH), TAIL - CH          # the side walls between the corners' chamfers
+    # --- the floor and the cores between the wheels, the wheel housings
+    box("floor", (-TRACK, GROUND, NOSE + 1), (TRACK, FLOOR, TAIL - 1), body)
+    for s in (-1, 1):
+        box("floor_side", _lo(s, TRACK, W - 1, GROUND, WF + ARCH + 1), _hi(s, TRACK, W - 1, FLOOR, WR - ARCH - 1), body)
+        for wz in (WF, WR):
+            # the wheel well: a roof over the wheel, an inner wall, its two ends (dark: nothing of the cabin shows)
+            box("housing", _lo(s, TRACK, W - 1.1, 12.25, wz - ARCH + 0.25), _hi(s, TRACK, W - 1.1, ARCH_TOP, wz + ARCH - 0.25), body)
+            box("well_wall", _lo(s, TRACK - 0.5, TRACK, FLOOR, wz - ARCH + 0.25), _hi(s, TRACK - 0.5, TRACK, 12.25, wz + ARCH - 0.25), body)
+            for e in (-1, 1):
+                za, zb = sorted((wz + e * ARCH, wz + e * (ARCH + 1)))
+                box("well_end", _lo(s, TRACK, W - 1.1, GROUND, za), _hi(s, TRACK, W - 1.1, 13.25, zb), body)
+    # --- the side walls
+    for s in (-1, 1):
+        door = kit["door_l" if s < 0 else "door_r"]
+        x0, x1 = W - 1, W
+
+        def wall(target, z0, z1, y0, y1, name="wall"):
+            target.box(name, _lo(s, x0, x1, y0, z0), _hi(s, x0, x1, y1, z1), body)
+        # in front of the cab door (over the front arch's nose)
+        wall(m, Z0, WF - ARCH, GROUND, EDGE)
+        wall(m, WF - ARCH, CD[0], ARCH_TOP, EDGE)
+        # the cab door: under its window, the posts, over it
+        wall(door, CD[0], CD[1], ARCH_TOP, GL0, "door")
+        wall(door, CD[0], CAB_WIN[0], GL0, GL1, "door_post")
+        wall(door, CAB_WIN[1], CD[1], GL0, GL1, "door_post")
+        wall(door, CD[0], CD[1], GL1, EDGE, "door_top")
+        # behind it: the lower wall between the arches, over the rear arch, behind it
+        wall(m, CD[1], WF + ARCH, ARCH_TOP, GL0)
+        if s < 0:
+            wall(m, WF + ARCH, WR - ARCH, GROUND, GL0)
+        else:
+            wall(m, WF + ARCH, SD[0], GROUND, GL0)
+            wall(m, SD[1], WR - ARCH, GROUND, GL0)
+            sd = kit["slide_door"]
+            wall(sd, SD[0], SD[1], GROUND + 0.5, GL0, "slide")
+        wall(m, WR - ARCH, WR + ARCH, ARCH_TOP, GL0)
+        wall(m, WR + ARCH, Z1, GROUND, GL0)
+        # the window band: the pillars between the windows, over them
+        posts = [(CD[1], SIDE_WINDOWS[0][0])]
+        for (a, b), (c, _) in zip(SIDE_WINDOWS, SIDE_WINDOWS[1:] + [(Z1, None)]):
+            posts.append((b, c))
+        for (a, b) in posts:
+            if s > 0 and SD[0] <= a and b <= SD[1] + 0.01:
+                wall(kit["slide_door"], a, b, GL0, GL1, "slide_post")
+            elif s > 0 and a < SD[0] < b:
+                wall(m, a, SD[0], GL0, GL1)
+                wall(kit["slide_door"], SD[0], b, GL0, GL1, "slide_post")
+            elif s > 0 and a < SD[1] < b:
+                wall(kit["slide_door"], a, SD[1], GL0, GL1, "slide_post")
+                wall(m, SD[1], b, GL0, GL1)
+            else:
+                wall(m, a, b, GL0, GL1)
+        if s > 0:
+            wall(m, CD[1], SD[0], GL1, EDGE)
+            wall(kit["slide_door"], SD[0], SD[1], GL1, EDGE, "slide_top")
+            wall(m, SD[1], Z1, GL1, EDGE)
+        else:
+            wall(m, CD[1], Z1, GL1, EDGE)
+        # the arches' 45-degree corners: the corner filled in steps, a slim panel along the edge over them
+        lip = Paint(ctx["look"].lo, 3, noise=0, grad=0, rim=0, ao=0)
+        for wz in (WF, WR):
+            for e in (-1, 1):
+                z0 = wz + e * ARCH
+                z1 = wz + e * (ARCH - CHAMF)
+                for k in range(int(CHAMF) - 1):
+                    za, zb = sorted((z0 - e * k, z0 - e * (k + 1)))
+                    box("arch_step", _lo(s, W - 1, W - 0.05, ARCH_TOP - CHAMF + k + 1, za),
+                        _hi(s, W - 1, W - 0.05, ARCH_TOP, zb), body)
+                panel(m, "arch_corner", "x", (z0, ARCH_TOP - CHAMF), (z1, ARCH_TOP), _x(s, TRACK, W + 0.02), 0.75, lip,
+                      (wz, ARCH_TOP + 3), decal=lambda c, outer: S("rc_tyre", 0.08) if outer else S(ctx["look"].lo, 0.2))
+    # --- the face: the nose under the ledge, the screen's wall over it (the screen's openings cut out)
+    FX = W - CH                                       # the nose's half width (12.5)
+    FX2 = FX + (FACE2 - NOSE)                         # the screen wall's half width (13.5: on the corner's chamfer)
+    box("nose", (-FX, GROUND, NOSE), (FX, BELT + 1, NOSE + 1), body)
+    a0, a1, y0, y1 = SCREEN
+    box("screen_sill", (-FX2, BELT + 1, FACE2), (FX2, y0, FACE2 + 1), body)
+    box("screen_bar", (-a0, y0, FACE2), (a0, y1, FACE2 + 1), body)
+    for s in (-1, 1):
+        box("screen_post", _lo(s, a1, FX2, y0, FACE2), _hi(s, a1, FX2, y1, FACE2 + 1), body)
+    box("brow", (-FX2, y1, FACE2), (FX2, EDGE, FACE2 + 1), body)
+    # the ledge under the screen: 45 degrees
+    panel(m, "ledge", "x", (NOSE, BELT + 1), (FACE2, BELT + 2), (-FX, FX), 0.75, ang, (0, 0),
+          decal=lambda c, outer: P["skin"](c.p[0], c.p[1], c.p[2], "front") if outer else S(ctx["look"].up, 0.5))
+    # the V's trim: a slim cream strip along each arm of the V, a hair proud of the nose (crisp, over the paint's steps)
+    vt = Paint(ctx["look"].up, 3, noise=0, grad=0, rim=0, ao=0)
+    for s in (-1, 1):
+        panel(m, "v_trim", "z", (0, 11.9), (s * 10.1, 22), (NOSE - 0.25, NOSE), 1.2, vt, (0, 30),
+              decal=lambda c, outer: S(ctx["look"].up, 1.0 if c.face == "north" else 0.7))
+    # --- the back (the rear window cut out)
+    ra, ry0, ry1 = REAR_WIN
+    box("back", (-FX, GROUND, TAIL - 1), (FX, ry0, TAIL), body)
+    for s in (-1, 1):
+        box("back_post", _lo(s, ra, FX, ry0, TAIL - 1), _hi(s, ra, FX, ry1, TAIL), body)
+    box("back_top", (-FX, ry1, TAIL - 1), (FX, EDGE, TAIL), body)
+    # --- the corners in plan: 45-degree chamfers (the front ones in two: under and over the ledge)
+    cd = pd("corner")
+    for s in (-1, 1):
+        panel(m, "corner", "y", (Z0, s * W), (NOSE, s * FX), (GROUND, BELT + 1), 0.75, ang, (0, 0), decal=cd)
+        panel(m, "corner", "y", (Z0, s * W), (FACE2, s * FX2), (BELT + 1, EDGE), 0.75, ang, (0, 0), decal=cd)
+        panel(m, "corner", "y", (Z1, s * W), (TAIL, s * FX), (GROUND, EDGE), 0.75, ang, (0, 0), decal=cd)
+    # --- the roof: a flat top, rolled over into the sides, the face and the back in two panels each
+    RZ0, RZ1, RX = FACE2 + R, TAIL - R, W - R
+    roof = Paint(ctx["look"].up, 3, noise=0, grad=0, rim=0, ao=0,
+                 decal=lambda c: P["skin"](c.p[0], c.p[1], c.p[2], "top") if c.face == "up" else P["interior"](c.p[0], c.p[1], c.p[2], "down"))
+    box("roof", (-RX, ROOF - 1, RZ0), (RX, ROOF, RZ1), roof)
+    # the roll's panels (and the caps under their mitres) are lit by their paint alone (no face shading): their
+    # ends, where they meet round the corners, take the same light as their faces and the corner reads as one
+    def rd_(f):
+        return lambda c, outer: S(ctx["look"].up, f)
+    rdl, rdh = rd_(0.66), rd_(0.8)
+    zmid_lo = FACE2 + (KH / 2) * T              # the mitres: each panel ends where the other roll is at its mid height
+    zmid_hi = FACE2 + K + (R - KH) / 2 / T
+    xmid_lo = W - (KH / 2) * T
+    xmid_hi = W - K - (R - KH) / 2 / T
+    bmid_lo = TAIL - (KH / 2) * T
+    bmid_hi = TAIL - K - (R - KH) / 2 / T
+    for s in (-1, 1):
+        panel(m, "roll", "z", (s * W, EDGE), (s * (W - K), EDGE + KH), (zmid_lo, bmid_lo), 0.75, ang, (0, EDGE - 4), decal=rdl, shade=False)
+        panel(m, "roll", "z", (s * (W - K), EDGE + KH), (s * RX, ROOF), (zmid_hi, bmid_hi), 0.75, ang, (0, EDGE - 4), decal=rdh, shade=False)
+    panel(m, "roll", "x", (FACE2, EDGE), (FACE2 + K, EDGE + KH), (-xmid_lo, xmid_lo), 0.75, ang, (0, EDGE - 4), decal=rdl, shade=False)
+    panel(m, "roll", "x", (FACE2 + K, EDGE + KH), (RZ0, ROOF), (-xmid_hi, xmid_hi), 0.75, ang, (0, EDGE - 4), decal=rdh, shade=False)
+    panel(m, "roll", "x", (TAIL, EDGE), (TAIL - K, EDGE + KH), (-xmid_lo, xmid_lo), 0.75, ang, (0, EDGE - 4), decal=rdl, shade=False)
+    panel(m, "roll", "x", (TAIL - K, EDGE + KH), (RZ1, ROOF), (-xmid_hi, xmid_hi), 0.75, ang, (0, EDGE - 4), decal=rdh, shade=False)
+    # the corners' caps: under the mitres, so no gap shows
+    cap = Paint(ctx["look"].up, 3, noise=0, grad=0, rim=0, ao=0, decal=lambda c: S(ctx["look"].up, 0.72))
+    for s in (-1, 1):
+        for zc, e in ((FACE2, 1), (TAIL, -1)):
+            # (inside the round corner: its far corner 3 px out each way, 5.2 from the roll's centre)
+            za, zb = sorted((zc + e * (R - 3), zc + e * (R + 0.5)))
+            box("roll_cap", _lo(s, W - R - 0.5, W - R + 3, EDGE - 1, za), _hi(s, W - R - 0.5, W - R + 3, EDGE + 3, zb), cap, shade=False)
+
+
+def _windows(m, kit, ctx):
+    look = ctx["look"]
+    # the windscreen: a pane in each opening, set a hair behind the face
+    a0, a1, y0, y1 = SCREEN
     sg = screen_glass()
     for s in (1, -1):
-        lo, hi = sorted((s * (SCREEN[0] - 0.5), s * (SCREEN[1] + 0.5)))
-        m.box("windscreen", (lo, y0, z0), (hi, y0 + h, z0 + 0.5), sg, rotation=("x", 22.5, (0, y0, z0)))
-    # the side glass: a pane in each window, 1 px in from the skin (the doors' panes ride with the doors)
+        lo, hi = _x(s, a0, a1)
+        m.box("windscreen", (lo, y0, FACE2 + 0.5), (hi, y1, FACE2 + 0.75), sg)
+    # the side glass: a pane in each window (the doors' panes ride with the doors)
     for s, door in ((-1, "door_l"), (1, "door_r")):
-        lo, hi = sorted((s * 30.75, s * 31.25))
-        z0 = cab_front(GL1) - 1
-        kit[door].box("window", (lo, GL0 - 0.5, -48.5), (hi, GL1 + 0.5, CD[1] - 2.5), side_glass(look, False))
+        lo, hi = _x(s, W - 0.5, W - 0.25)       # (outside the folded awning: it hangs at x 15.1..15.5)
+        kit[door].box("window", (lo, GL0, CAB_WIN[0]), (hi, GL1, CAB_WIN[1]), side_glass(look, False, CAB_WIN))
         for (a, b) in SIDE_WINDOWS:
             target = kit["slide_door"] if (s > 0 and SD[0] <= a < SD[1]) else m
-            target.box("window", (lo, GL0 - 0.5, a - 0.5), (hi, GL1 + 0.5, b + 0.5), side_glass(look, True))
-    a, y0_, y1_ = REAR_WIN
-    m.box("rear_window", (-a - 0.5, y0_ - 0.5, 62.75), (a + 0.5, y1_ + 0.5, 63.25), rear_glass(look))
-
-
-def _chrome(lo=0.35, hi=0.95):
-    def decal(c):
-        if c.face == "up":
-            return S("rc_chrome", hi)
-        if c.face == "down":
-            return S("rc_chrome", lo * 0.6)
-        y = c.p[1]
-        frac = (y - c.lo[1]) / max(0.5, c.hi[1] - c.lo[1])
-        return S("rc_chrome", lo + (hi - lo) * (0.35 + 0.65 * frac) if frac > 0.5 else lo + (hi - lo) * 0.2)
-    return Paint("rc_chrome", 4, noise=0, light=False, decal=decal)
-
-
-CHROME = None
+            target.box("window", (lo, GL0, a), (hi, GL1, b), side_glass(look, True, (a, b)))
+    a, ry0, ry1 = REAR_WIN
+    m.box("rear_window", (-a, ry0, TAIL - 0.75), (a, ry1, TAIL - 0.5), rear_glass(look))
 
 
 def _round_lamp(cx, cy, core, mid, edge, ring_r, front):
@@ -675,31 +728,40 @@ def _round_lamp(cx, cy, core, mid, edge, ring_r, front):
         if c.face != front:
             return S("rc_chrome", 0.5)
         r = math.hypot(abs(c.p[0]) - cx, c.p[1] - cy)
-        if r < ring_r * 0.32:
+        if r < ring_r * 0.45:
             return core
         if r < ring_r:
-            k = math.floor(r * 2) % 2
-            return mid if k else edge
-        return S("rc_chrome", 0.95 if c.p[1] > cy else 0.55)
+            return mid if math.floor(c.p[0]) % 2 == 0 else edge
+        return S("rc_chrome", 0.95 if c.p[1] > cy else 0.6)
     return decal
 
 
-def _face(m, look):
-    chrome = _chrome()
-    # headlamps: a chrome ring (12 across) set into the nose, the lens (9 across) standing out of it
+HEAD = (10, 15.5)            # the headlamps' centre (|x|, y)
+TAIL_LAMP = (11, 15)         # the tail lamps'
+
+
+def _face(m, ctx):
+    look = ctx["look"]
+    hx, hy = HEAD
     for s in (1, -1):
-        cx = 21 * s
-        cyl(m, "lamp_ring", (cx, 33), 13, NOSE - 1.5, NOSE + 2.75, Paint("rc_chrome", 4, noise=0, light=False,
-            decal=_round_lamp(21, 33, S("rc_chrome", 1), S("rc_chrome", 0.9), S("rc_chrome", 0.6), 0, "north")), axis="z")
-        cyl(m, "headlamp", (cx, 33), 9, NOSE - 2, NOSE - 1.5, Paint("lamp", 3, noise=0, light=False, glow=True,
-            decal=_round_lamp(21, 33, ("lamp", 3.6), ("lamp", 2.6), ("lamp", 1.6), 4.6, "north")), axis="z")
-        # the indicator under it: a small round amber lens in a chrome cup
-        cyl(m, "indicator", (21 * s, 22.5), 5, NOSE - 1.25, NOSE + 1.75, Paint("fox", 3, noise=0, light=False, glow=True,
-            decal=lambda c: ("fox", 4 if c.p[1] > 22.5 else 3) if c.face == "north" else S("rc_chrome", 0.6)), axis="z")
-    # the bumper: a slim chrome blade wrapping round the corners, two overriders, brackets under it
+        cx = hx * s
+
+        def ring(c, cx=cx):
+            if c.face != "north":
+                return S("rc_chrome", 0.55)
+            dy = c.p[1] - hy
+            return S("rc_chrome", 1.0 if dy > 0.5 else 0.8 if dy > -1 else 0.5)
+        cyl(m, "lamp_ring", (cx, hy), 6, NOSE - 1, NOSE + 0.5, Paint("rc_chrome", 4, noise=0, grad=0, rim=0.3, ao=0, decal=ring), axis="z")
+        m.group("lights")
+        cyl(m, "headlamp", (cx, hy), 4, NOSE - 1.5, NOSE - 1, Paint("lamp", 3, noise=0, light=False, glow=True,
+            decal=_round_lamp(hx, hy, ("raw", (255, 252, 230, 255)), ("raw", (236, 232, 206, 255)), ("raw", (208, 206, 190, 255)), 2.1, "north")), axis="z")
+        # the indicator under it: a small round amber lens
+        m.box("indicator", (cx - 1, 9.5, NOSE - 0.75), (cx + 1, 11.5, NOSE), Paint("fox", 3, noise=0, light=False, glow=True,
+              decal=lambda c: ("raw", (255, 196, 80, 255)) if c.face == "north" and c.p[1] > 10.5 else ("raw", (236, 150, 40, 255))))
+        m.group("body")
     _bumper(m, front=True)
     # the front plate's place (the plugin writes the owner's name on it): a pale plate in a thin frame
-    m.box("plate", (-9, 15.5, NOSE - 1), (9, 22.5, NOSE + 1), Paint("rc_cream", 6, noise=0, light=False, decal=_plate(True)))
+    m.box("plate", (-4.5, 7.5, NOSE - 0.5), (4.5, 11, NOSE), Paint("rc_cream", 6, noise=0, light=False, decal=_plate(True)))
 
 
 def _plate(front):
@@ -716,79 +778,75 @@ def _plate(front):
 
 def _bumper(m, front):
     zs = -1 if front else 1
-    z_out = NOSE - 4 if front else TAIL + 4
-    z_in = NOSE - 0.5 if front else TAIL + 0.5
+    z_out = NOSE - 2 if front else TAIL + 2
+    z_in = NOSE if front else TAIL
     lo, hi = sorted((z_out, z_in))
     blade = _chrome(0.35, 1.0)
-    m.box("bumper", (-30, 9.5, lo), (30, 14.5, hi), blade)
-    # the ends wrapping back round the corners
+    m.box("bumper", (-W + 1, 4.5, lo), (W - 1, 7, hi), blade)
     for s in (1, -1):
-        xa, xb = sorted((30 * s, 32.5 * s))
-        za, zb_ = sorted((z_out + zs * -1.5, z_in - zs * 6))
-        m.box("bumper_end", (xa, 9.5, za), (xb, 14.5, zb_), blade)
-        # an overrider: a little upright guard with a rubber tip
-        xa, xb = sorted((11 * s, 13.5 * s))
-        za, zb_ = sorted((z_out + zs * 1.5, z_out))
-        m.box("overrider", (xa, 7.5, za), (xb, 18.5, zb_), _chrome(0.4, 1.0))
-        # brackets back to the body under it
-        xa, xb = sorted((17 * s, 19 * s))
-        m.box("bracket", (xa, 10.25, *sorted((z_in, z_in - zs * 6))[:1]), (xb, 12.25, sorted((z_in, z_in - zs * 6))[1]),
-              Paint("rc_tyre", 1, noise=0, light=False, decal=lambda c: S("rc_tyre", 0.3)))
+        # the ends wrapping back round the corners
+        za, zb_ = sorted((z_out - zs * 0.5, z_in - zs * (CH - 0.75)))
+        m.box("bumper_end", _lo(s, W - 0.75, W + 0.5, 4.5, za), _hi(s, W - 0.75, W + 0.5, 7, zb_), blade)
+        # an overrider: a little upright guard
+        za, zb_ = sorted((z_out + zs * 0.75, z_out))
+        m.box("overrider", _lo(s, 5.5, 6.75, 3.5, za), _hi(s, 5.5, 6.75, 9.25, zb_), _chrome(0.4, 1.0))
 
 
-def _tail(m, look):
-    # round tail lamps in chrome rings on the back's corners
+def _tail(m, ctx):
+    look = ctx["look"]
+    tx, ty = TAIL_LAMP
     for s in (1, -1):
-        cyl(m, "tail_ring", (25 * s, 30), 9, TAIL - 3.75, TAIL + 1, Paint("rc_chrome", 4, noise=0, light=False,
-            decal=_round_lamp(25, 30, S("rc_chrome", 1), S("rc_chrome", 0.9), S("rc_chrome", 0.6), 0, "south")), axis="z")
-        cyl(m, "tail_lamp", (25 * s, 30), 7, TAIL + 1, TAIL + 1.5, Paint("signal_red", 1, noise=0, light=False, glow=True,
-            decal=_round_lamp(25, 30, ("raw", (255, 96, 90, 255)), ("raw", (214, 38, 40, 255)), ("raw", (160, 22, 28, 255)), 3.6, "south")), axis="z")
+        cx = tx * s
+
+        def ring(c):
+            if c.face != "south":
+                return S("rc_chrome", 0.55)
+            return S("rc_chrome", 1.0 if c.p[1] > ty + 0.5 else 0.6)
+        cyl(m, "tail_ring", (cx, ty), 4, TAIL - 0.5, TAIL + 1, Paint("rc_chrome", 4, noise=0, grad=0, rim=0.3, ao=0, decal=ring), axis="z")
+        m.group("lights")
+        cyl(m, "tail_lamp", (cx, ty), 3, TAIL + 1, TAIL + 1.25, Paint("signal_red", 1, noise=0, light=False, glow=True,
+            decal=_round_lamp(tx, ty, ("raw", (255, 110, 100, 255)), ("raw", (214, 38, 40, 255)), ("raw", (170, 24, 30, 255)), 1.6, "south")), axis="z")
+        m.group("body")
     _bumper(m, front=False)
-    m.box("plate", (-9, 15.5, TAIL - 1), (9, 22.5, TAIL + 1), Paint("rc_cream", 6, noise=0, light=False, decal=_plate(False)))
-    # the spare wheel on the back: a white-wall tyre, a cream rim, a chrome dish in the middle, on a bracket
-    cyl(m, "spare_mount", (0, 38), 6, TAIL - 1.75, TAIL + 1.5, Paint("rc_tyre", 1, noise=0, light=False, decal=lambda c: S("rc_tyre", 0.3)), axis="z")
+    m.box("plate", (-4.5, 7.5, TAIL), (4.5, 11, TAIL + 0.5), Paint("rc_cream", 6, noise=0, light=False, decal=_plate(False)))
+    # the spare wheel on the back: a white-wall tyre, a cream rim, a chrome cap, on a bracket
+    SY, SZ = 21, TAIL + 0.5
+    m.box("spare_mount", (-1, SY - 1, TAIL), (1, SY + 1, SZ), _flat("rc_tyre", 0.3))
 
     def tyre_face(c):
         x, y = c.p[0], c.p[1]
-        r = math.hypot(x, y - 38)
+        r = math.hypot(x, y - SY)
         if c.face != "south":
-            a = math.atan2(y - 38, x)
-            return S("rc_tyre", 0.45 if math.floor((a + math.pi) * 9) % 3 else 0.15)
-        if r > 11.2:
+            a = math.atan2(y - SY, x)
+            return S("rc_tyre", 0.45 if math.floor((a + math.pi) * 6) % 3 else 0.15)
+        if r > 5.3:
             return S("rc_tyre", 0.2)
-        if r > 8.6:
-            return S("rc_cream", 1.0 if r < 10 else 0.85)            # the white wall
-        return S("rc_tyre", 0.35)
-    cyl(m, "spare", (0, 38), 24, TAIL + 1.5, TAIL + 7, Paint("rc_tyre", 1, noise=0, light=False, decal=tyre_face), axis="z")
-
-    def rimf(c):
-        x, y = c.p[0], c.p[1]
-        r = math.hypot(x, y - 38)
-        if c.face != "south":
-            return S(look.rim, 0.5)
-        if r < 4.4:
-            return S("rc_chrome", 1.0 if (x < 0 and y > 38) else 0.65 if r > 3.4 else 0.85)
-        return S(look.rim, 0.85 if (x < 0 and y > 38) else 0.65)
-    cyl(m, "spare_rim", (0, 38), 16, TAIL + 7, TAIL + 7.5, Paint(look.rim, 4, noise=0, light=False, decal=rimf), axis="z")
-    cyl(m, "spare_cap", (0, 38), 8, TAIL + 7.5, TAIL + 8.5, Paint("rc_chrome", 4, noise=0, light=False,
-        decal=lambda c: S("rc_chrome", 1.0 if (c.p[0] < 0 and c.p[1] > 38) else 0.7) if c.face == "south" else S("rc_chrome", 0.5)), axis="z")
-    # the ladder up the back (right of the spare): two rails, rungs, brackets to the body, a hoop over the roof edge
+        if r > 3.9:
+            return S("rc_cream", 1.0 if (y > SY) else 0.85)            # the white wall
+        if r > 3.4:
+            return S("rc_tyre", 0.3)
+        return S(look.rim, 0.85 if (x < 0 and y > SY) else 0.65)
+    cyl(m, "spare", (0, SY), 12, SZ, SZ + 2.75, Paint("rc_tyre", 1, noise=0, grad=0, rim=0.2, ao=0, decal=tyre_face), axis="z")
+    cyl(m, "spare_cap", (0, SY), 4, SZ + 2.75, SZ + 3.25, Paint("rc_chrome", 4, noise=0, grad=0, rim=0, ao=0,
+        decal=lambda c: S("rc_chrome", 1.0 if (c.p[0] < 0.5 and c.p[1] > SY - 0.5) else 0.7) if c.face == "south" else S("rc_chrome", 0.5)), axis="z")
+    # the ladder up the back (right of the spare): two rails, rungs, a hoop over the roof's edge
     rail = _chrome(0.45, 0.95)
-    zl0, zl1 = TAIL + 3, TAIL + 4
-    for x0 in (13, 19):
-        m.box("ladder_rail", (x0, 16, zl0), (x0 + 1, 74, zl1), rail)
-        for yb in (20, 70):
-            m.box("ladder_bracket", (x0, yb, TAIL - 1), (x0 + 1, yb + 1, zl0), rail)
-        m.box("ladder_top", (x0 + 0.125, 74.25, 54.25), (x0 + 0.875, 74.75, zl1), rail)
-    for y in range(22, 73, 6):
-        m.box("ladder_rung", (14, y, zl0 + 0.25), (19, y + 1, zl1 - 0.25), rail)
+    zl0, zl1 = TAIL + 1, TAIL + 1.5
+    rx = ((6.25, 6.75), (8.75, 9.25))
+    for x0, x1 in rx:
+        m.box("ladder_rail", (x0, 8, zl0), (x1, 37, zl1), rail)
+        m.box("ladder_foot", (x0, 8, TAIL), (x1, 8.5, zl0), rail)
+        m.box("ladder_top", (x0, 37, TAIL - 2.5), (x1, 37.5, zl1), rail)
+    for y in range(10, 37, 3):
+        m.box("ladder_rung", (6.75, y, zl0 + 0.1), (8.75, y + 0.5, zl1 - 0.1), rail)
 
 
-def _roof(m, look):
+def _roof(m, ctx):
+    look = ctx["look"]
     UP, CAN = look.up, look.canvas
     # the pop-up tent: striped canvas walls standing on the roof, a cream lid on them
-    T0, T1 = 77, 87                 # canvas from (sunk into the roof) .. to
-    LZ0, LZ1 = -36, 46
+    T0, T1 = ROOF - 0.5, ROOF + 4
+    LZ0, LZ1 = -18, 23
 
     def canvas(c):
         x, y, z = c.p
@@ -797,305 +855,293 @@ def _roof(m, look):
             return S(CAN, 0.4)
         along = z if f in ("east", "west") else x
         # a little mesh window in the middle of each long side
-        if f in ("east", "west") and -6 <= z < 14 and 80 <= y < 85:
-            if z < -5 or z >= 13 or y < 81 or y >= 84:
+        if f in ("east", "west") and -3 <= z < 7 and T0 + 1.5 <= y < T1 - 1:
+            if z < -2 or z >= 6 or y < T0 + 2 or y >= T1 - 1.5:
                 return S("rc_tyre", 0.6)
-            return S("rc_tyre", 0.05) if (math.floor(z) + math.floor(y)) % 2 else S("rc_tyre", 0.3)
-        stripe = math.floor(along / 4) % 2
+            return S("rc_tyre", 0.05) if (math.floor(z) + math.floor(y)) % 2 else S("rc_tyre", 0.35)
+        stripe = math.floor(along / 2) % 2
         shade = 0.55 + 0.25 * (y - T0) / (T1 - T0)
-        if y > T1 - 1.2:
-            shade -= 0.25                                     # under the lid's lip
-        return S(CAN, shade + 0.2) if stripe else S("rc_cream", shade + 0.25)
-    m.box("tent", (-20, T0, LZ0 + 2), (20, T1, LZ1 - 2), Paint(CAN, 3, noise=0, light=False, decal=canvas))
+        if y > T1 - 1:
+            shade -= 0.3                                      # under the lid's lip
+        return S(CAN, shade + 0.15) if stripe else S("rc_cream", shade + 0.25)
+    m.box("tent", (-9.75, T0, LZ0 + 1), (9.75, T1, LZ1 - 1), Paint(CAN, 3, noise=0, grad=0, rim=0, ao=0, decal=canvas))
 
     def lid(c):
         x, y, z = c.p
         if c.face == "up":
-            if 6 < abs(x) < 9:
-                return S(UP, 1.0)
-            return S(UP, 0.86)
+            return S(UP, 1.0) if 3 < abs(x) < 4.5 else S(UP, 0.86)
         if c.face == "down":
             return S(UP, 0.35)
-        return S(UP, 0.72 if c.face in ("north", "west") else 0.6)
-    LP = Paint(UP, 4, noise=0, light=False, decal=lid)
-    m.box("lid", (-23, T1, LZ0), (23, T1 + 2, LZ1), LP)
-    m.box("lid_top", (-21, T1 + 2, LZ0 + 2), (21, T1 + 3, LZ1 - 2), LP)
+        return S(UP, 0.72)
+    LP = Paint(UP, 4, noise=0, grad=0, rim=0.4, ao=0.2, decal=lid)
+    m.box("lid", (-11.5, T1, LZ0), (11.5, T1 + 1, LZ1), LP)
+    panel_d = lambda c, outer: S(UP, 0.92) if outer else S(UP, 0.4)
+    for s in (-1, 1):
+        panel(m, "lid_edge", "z", (s * 11.5, T1 + 1), (s * 10.5, T1 + 2), (LZ0 + 1, LZ1 - 1), 0.6,
+              Paint(UP, 4, noise=0, grad=0, rim=0, ao=0), (0, T1), decal=panel_d)
+    m.box("lid_top", (-10.5, T1 + 1, LZ0 + 1), (10.5, T1 + 2, LZ1 - 1), LP)
     # two bars across the lid, a surfboard strapped along it
-    BAR = T1 + 3
-    for zb_ in (-22, 30):
-        m.box("rack_bar", (-18, BAR, zb_), (18, BAR + 1, zb_ + 2), Paint("rc_tyre", 1, noise=0, light=False,
+    BAR = T1 + 2
+    for zb_ in (-11, 15):
+        m.box("rack_bar", (-9, BAR, zb_), (9, BAR + 0.5, zb_ + 1), Paint("rc_tyre", 1, noise=0, grad=0, rim=0.3,
               decal=lambda c: S("rc_tyre", 0.5 if c.face == "up" else 0.25)))
     if look.board:
-        BY = BAR + 1
+        BY = BAR + 0.5
         B = look.board
 
         def surf(c):
             x, y, z = c.p
             if c.face == "up":
-                if any(zb_ - 0.5 <= z < zb_ + 2.5 for zb_ in (-22, 30)):
+                if any(zb_ - 0.25 <= z < zb_ + 1.25 for zb_ in (-11, 15)):
                     return S("rc_tyre", 0.3)                      # the straps
-                if abs(x) < 0.6:
+                if abs(x) < 0.5:
                     return S("signal_red", 0.7)                   # the stringer stripe
-                if 2.5 < abs(x) < 3.4 and -25 < z < 36:
-                    return S("signal_red", 0.5)
+                if 1.5 < abs(x) < 2 and -12 < z < 17:
+                    return S("signal_red", 0.4)
                 return S(B, 0.95 if x < 0 else 0.8)
             if c.face == "down":
                 return S(B, 0.3)
             return S("rc_cream", 0.95)                            # the rail
-        bp = Paint(B, 2, noise=0, light=False, decal=surf)
-        for (hw_, z0, z1) in ((1.5, -41, -39), (3, -39, -36), (4.5, -36, -31), (5.5, -31, -24), (6, -24, 30),
-                             (5.5, 30, 36), (4.5, 36, 40), (3, 40, 42)):
-            m.box("surfboard", (-hw_, BY, z0), (hw_, BY + 1.5, z1), bp)
-        m.box("fin", (-0.5, BY - 2, 36), (0.5, BY, 40), Paint(B, 1, noise=0, light=False, decal=lambda c: S(B, 0.4)))
+        bp = Paint(B, 2, noise=0, grad=0, rim=0.3, ao=0, decal=surf)
+        m.box("surfboard", (-3, BY, -14), (3, BY + 0.75, 16), bp)
+        bd = lambda c, outer: surf(SimpleNamespace(p=c.p, face="up" if outer else "down"))
+        # the nose and the tail: tapered in plan by 45-degree panels, a little rocker at the nose
+        for s in (-1, 1):
+            panel(m, "surfboard_nose", "y", (-14, s * 3), (-17, 0), (BY, BY + 0.75), 0.6, bp, (-14, 0),
+                  decal=lambda c, outer: S("rc_cream", 0.95) if outer else S(B, 0.4))
+            panel(m, "surfboard_tail", "y", (16, s * 3), (18, s * 1), (BY, BY + 0.75), 0.6, bp, (16, 0),
+                  decal=lambda c, outer: S("rc_cream", 0.95) if outer else S(B, 0.4))
+        m.box("surfboard_nose", (-1.5, BY, -16.5), (1.5, BY + 0.75, -14), bp)
+        m.box("surfboard_tail", (-1.5, BY, 16), (1.5, BY + 0.75, 18), bp)
+        m.box("fin", (-0.25, BY - 1, 15.25), (0.25, BY, 17.5), _flat(B, 0.4))
     # the roof rack over the cab: a chrome rail frame on four feet, a suitcase and a rolled sleeping bag on it
     rail = _chrome(0.45, 0.95)
-    RY = 81
+    RY = ROOF + 0.5
+    RZ0, RZ1 = -28, -19.5
     for s in (1, -1):
-        xa, xb = sorted((18 * s, 19 * s))
-        m.box("rack_rail", (xa, RY, -56), (xb, RY + 1, -38), rail)
-        for zf_ in (-55, -40):
-            ytop = float(_roof_y(18.5 * s, zf_ + 0.5))
-            m.box("rack_foot", (xa + 0.125 * s, ytop - 1.3, zf_ + 0.125), (xb + 0.125 * s, RY, zf_ + 0.875), rail)
-    for zr in (-56, -39):
-        m.box("rack_rail", (-18, RY, zr), (18, RY + 1, zr + 1), rail)
-    for zr in (-50, -45):
-        m.box("rack_slat", (-18, RY, zr), (18, RY + 0.5, zr + 1), rail)
+        m.box("rack_rail", _lo(s, 9, 9.5, RY, RZ0), _hi(s, 9, 9.5, RY + 0.5, RZ1), rail)
+        m.box("rack_foot", _lo(s, 9, 9.5, ROOF - 0.5, -21), _hi(s, 9, 9.5, RY, -20.5), rail)
+        m.box("rack_foot", _lo(s, 9, 9.5, EDGE + 3, RZ0), _hi(s, 9, 9.5, RY, RZ0 + 0.5), rail)
+    for zr in (RZ0, RZ1 - 0.5):
+        m.box("rack_rail", (-9, RY, zr), (9, RY + 0.5, zr + 0.5), rail)
+    m.box("rack_slat", (-9, RY, -24.25), (9, RY + 0.25, -23.75), rail)
 
     def case(c):
         x, y, z = c.p
+        strap = 3.75 < x < 4.5 or -4.5 < x < -3.75
         if c.face == "up":
-            if abs(z + 47) < 0.6 or abs(x - 2) < 0.6 and False:
-                return S("rc_leather", 0.3)
-            if 7.5 < x < 9 or -9 < x < -7.5:
-                return S("rc_leather", 0.15)                       # straps
-            return S("rc_leather", 0.85)
-        if 7.5 < x < 9 or -9 < x < -7.5:
+            return S("rc_leather", 0.15) if strap else S("rc_leather", 0.85)
+        if strap:
             return S("rc_leather", 0.15)
-        if abs(y - (RY + 4)) < 0.5:
-            return S("rc_chrome", 0.7)                             # the case's seam with its clasps
+        if math.floor(y * 2) == math.floor((RY + 2.25) * 2):
+            return S("rc_chrome", 0.7)                             # the case's seam
         return S("rc_leather", 0.55 if c.face in ("north", "west") else 0.4)
-    m.box("suitcase", (-16, RY + 0.5, -54), (2, RY + 7, -42), Paint("rc_leather", 2, noise=0, light=False, decal=case))
-    m.box("suitcase_handle", (-9, RY + 7, -49), (-5, RY + 8, -47), Paint("rc_leather", 1, noise=0, light=False, decal=lambda c: S("rc_leather", 0.2)))
+    m.box("suitcase", (-8, RY + 0.5, -27.5), (1, RY + 4, -21.5), Paint("rc_leather", 2, noise=0, grad=0, rim=0.4, ao=0.2, decal=case))
+    m.box("suitcase_handle", (-4.5, RY + 4, -25), (-2.5, RY + 4.5, -24), _flat("rc_leather", 0.2))
 
     def roll(c):
         x, y, z = c.p
         if c.face in ("east", "west"):
-            r = math.hypot(y - (RY + 4), z + 47)
-            return S(look.curtain, 0.25) if math.floor(r * 1.2) % 2 else S(look.canvas, 0.75)   # the spiral
-        if 9.5 < x < 10.5 or 14.5 < x < 15.5:
+            r = math.hypot(y - (RY + 2.25), z + 24)
+            return S(look.curtain, 0.25) if math.floor(r * 1.6) % 2 else S(look.canvas, 0.75)   # the spiral
+        if 4.25 < x < 5 or 7.25 < x < 8:
             return S("rc_tyre", 0.3)                               # its ties
-        return S(look.canvas, 0.6 + 0.2 * (y - RY) / 8)
-    cyl(m, "bedroll", (RY + 4.5, -47), 7, 4, 17, Paint(look.canvas, 2, noise=0, light=False, decal=roll), axis="x")
+        return S(look.canvas, 0.55 + 0.25 * (y - RY) / 4)
+    cyl(m, "bedroll", (RY + 2.25, -24), 4, 2.5, 8.75, Paint(look.canvas, 2, noise=0, grad=0, rim=0.3, ao=0, decal=roll), axis="x")
 
 
-def _roof_y(x, z):
-    """The roof's top at (x, z) (scanning down the hull)."""
-    y = ROOF + 0.0
-    while y > 40 and not bool(inside(np.array(x), np.array(y), np.array(z))):
-        y -= 0.25
-    return y
-
-
-def _awning(m, kit, look):
+def _awning(m, kit, ctx):
+    look = ctx["look"]
     CAN = look.canvas
-    # the roller case along the right roof edge (on the body), from just behind the cab door to the window behind
-    def roller(c):
-        if c.face == "up":
-            return S("rc_chrome", 0.85)
-        if c.face == "down":
-            return S("rc_chrome", 0.3)
-        return S("rc_chrome", 0.6)
-    m.box("awning_case", (31.5, 67, -27), (34.5, 70, 11), Paint("rc_chrome", 3, noise=0, light=False, decal=roller))
-    # the canvas: level over the sliding door, a scalloped valance hanging from its edge
+    HX, HY = 15.5, 34.5                       # the roller (vehicles.yml: the awning's hinge)
+    Z0, Z1 = -12.5, 4
+    # the roller case along the right roof edge (on the body)
+    m.box("awning_case", (15.75, 33.5, -13.5), (17.25, 35.25, 5), _chrome(0.35, 0.9))
     a = kit["awning"]
 
     def cloth(c):
         x, y, z = c.p
-        stripe = math.floor((z + 25) / 4) % 2
-        top = c.face == "up"
-        f = 0.75 if top else 0.4
+        stripe = math.floor((z - Z0) / 2) % 2
+        f = 0.8 if c.face == "up" else 0.45
         return S(CAN, f) if stripe else S("rc_cream", f + 0.15)
-    a.box("canvas", (34.5, 69, -25), (70, 69.75, 8), Paint(CAN, 3, noise=0, light=False, decal=cloth))
+    a.box("canvas", (17.25, HY, Z0), (35, HY + 0.375, Z1), Paint(CAN, 3, noise=0, grad=0, rim=0, ao=0, decal=cloth))
 
     def valance(c):
         x, y, z = c.p
-        u = (z + 25) % 4
-        depth = 2.2 + 2.2 * math.sin(math.pi * u / 4)
-        if y < 69 - depth:
+        u = (z - Z0) % 2
+        depth = 1.1 + 1.1 * math.sin(math.pi * u / 2)
+        if y < HY - depth:
             return CLEAR
-        stripe = math.floor((z + 25) / 4) % 2
-        return S(CAN, 0.55) if stripe else S("rc_cream", 0.75)
-    a.box("valance", (69.5, 64, -25), (70, 69, 8), Paint(CAN, 3, noise=0, light=False, decal=valance))
+        stripe = math.floor((z - Z0) / 2) % 2
+        return ("raw", _rgb(S(CAN, 0.55) if stripe else S("rc_cream", 0.8)))
+    a.box("valance", (34.75, HY - 2.5, Z0), (35, HY, Z1), Paint(CAN, 3, noise=0, light=False, decal=valance))
     # its two poles (another part: they slide into the side)
     p = kit["awning_poles"]
-    for zp in (-24.5, 6.5):
-        p.box("pole", (68.25, 0.5, zp), (69, 68.75, zp + 0.75), _chrome(0.45, 0.9))
-        p.box("pole_foot", (67.5, 0, zp - 0.75), (69.75, 0.5, zp + 1.5), Paint("rc_tyre", 1, noise=0, light=False, decal=lambda c: S("rc_tyre", 0.3)))
+    for zp in (Z0 + 0.25, Z1 - 0.75):
+        p.box("pole", (34.125, 0.25, zp), (34.5, HY, zp + 0.375), _chrome(0.45, 0.9))
+        p.box("pole_foot", (33.75, 0, zp - 0.375), (34.875, 0.25, zp + 0.75), _flat("rc_tyre", 0.3))
 
 
-def _door_bits(kit, look):
+def _door_bits(kit, ctx):
     rail = _chrome(0.45, 1.0)
     for s, part in ((-1, "door_l"), (1, "door_r")):
         d = kit[part]
-        # the mirror: a thin arm from the door's front top out and back, a round head facing back
-        xa, xb = sorted((32 * s, 38 * s))
-        d.box("mirror_arm", (xa, 58, -49), (xb, 59, -48), rail)
-        xa, xb = sorted((37.5 * s, 38.5 * s))
-        d.box("mirror_stem", (xa, 58, -48), (xb, 61, -47), rail)
+        # the mirror: a thin arm from the door's front top out, a round head facing back
+        d.box("mirror_arm", _lo(s, W, W + 3, 29, -24.5), _hi(s, W, W + 3, 29.5, -24), rail)
+        d.box("mirror_stem", _lo(s, W + 2.5, W + 3, 29.5, -24.5), _hi(s, W + 2.5, W + 3, 30.5, -24), rail)
 
         def mirror(c, s=s):
             if c.face == "south":
-                r = math.hypot(c.p[0] - 38 * s, c.p[1] - 63)
-                return ("raw", (200, 222, 236, 255)) if r < 1.6 else S("rc_chrome", 0.8)
+                r = math.hypot(c.p[0] - (W + 2.75) * s, c.p[1] - 31.5)
+                return ("raw", (200, 222, 236, 255)) if r < 0.8 else S("rc_chrome", 0.8)
             return S("rc_chrome", 0.6)
-        cyl(d, "mirror", (38 * s, 63), 5, -48, -46.5, Paint("rc_chrome", 4, noise=0, light=False, decal=mirror), axis="z")
-        # the handle: a chrome pull with a push button
-        xa, xb = sorted((32 * s, 33 * s))
-        d.box("handle", (xa, 41, -33), (xb, 42, -29), rail)
-    xa, xb = 32, 33
-    kit["slide_door"].box("handle", (xa, 41, 2), (xb, 42, 6), rail)
+        d.box("mirror", _lo(s, W + 1.75, W + 3.75, 30.5, -24.5), _hi(s, W + 1.75, W + 3.75, 32.5, -23.75),
+              Paint("rc_chrome", 4, noise=0, grad=0, rim=0.3, ao=0, decal=mirror))
+        # the handle: a chrome pull
+        d.box("handle", _lo(s, W, W + 0.5, 20.5, -16.5), _hi(s, W, W + 0.5, 21, -14.5), rail)
+    sd = kit["slide_door"]
+    sd.box("handle", (W, 20.5, -9.5), (W + 0.5, 21, -7.5), rail)
 
 
-def _cabin(m, look):
+def _cabin(m, ctx):
+    look = ctx["look"]
     SEAT, WOOD = look.seat, "rc_wood"
+    # the sliding door's rail along the side behind it
+    m.box("slide_rail", (W, 22.75, SD[1] + 0.5), (W + 0.25, 23.25, 27), _chrome(0.35, 0.8))
 
     def plaid(c):
         x, y, z = c.p
-        a = x if c.face != "east" and c.face != "west" else z
+        a = x if c.face not in ("east", "west") else z
         b = z if c.face in ("up", "down") else y
-        k = (math.floor(a / 2) % 2) + (math.floor(b / 2) % 2)
+        k = (math.floor(a) % 2) + (math.floor(b) % 2)
         if c.face == "down":
             return S(SEAT, 0.1)
         return S(SEAT, (0.25, 0.55, 0.9)[k] + (0.08 if c.face == "up" else 0))
-    pl = Paint(SEAT, 2, noise=0, light=False, decal=plaid)
-    base = Paint("rc_tyre", 1, noise=0, light=False, decal=lambda c: S("rc_tyre", 0.35))
-    # the front: a seat box over the wheels, two seats, a dash with a big speedo and a radio, the steering wheel
-    m.box("seat_box", (-27.75, FLOOR, -46), (27.75, 25, -27), Paint(look.lo, 2, noise=0, light=False,
+    pl = Paint(SEAT, 2, noise=0, grad=0, rim=0.3, ao=0.3, decal=plaid)
+    base = _flat("rc_tyre", 0.35)
+    # the front: a seat box between the wheels, two seats over them, the dash, the steering wheel
+    m.box("seat_box", (-TRACK + 0.75, FLOOR, -24), (TRACK - 0.75, 12.5, -14), Paint(look.lo, 2, noise=0, grad=0, rim=0.3, ao=0.3,
           decal=lambda c: S(look.lo, 0.5 if c.face != "up" else 0.7)))
     for s in (1, -1):
-        xa, xb = sorted((5 * s, 27 * s))
-        m.box("front_cushion", (xa, 25, -44), (xb, SEAT_Y, -30), pl)
-        m.box("front_back", (xa, 25, -30), (xb, 58, -27), pl)
+        m.box("front_cushion", _lo(s, 2.5, 13.5, 12.5, -22), _hi(s, 2.5, 13.5, SEAT_Y, -15), pl)
+        m.box("front_back", _lo(s, 2.5, 13.5, 12.5, -15), _hi(s, 2.5, 13.5, 29, -13.5), pl)
 
     def dash(c):
         x, y, z = c.p
         if c.face == "south":
-            r = math.hypot(x + 16, y - 45)
-            if r < 4:
-                if r < 0.8:
+            r = math.hypot(x + 8, y - 22.5)
+            if r < 2.2:
+                if r < 0.5:
                     return S("rc_tyre", 0.1)
-                if abs(math.atan2(y - 45, x + 16) - 2.2) < 0.25 and r < 3.4:
+                if abs(math.atan2(y - 22.5, x + 8) - 2.2) < 0.4 and r < 1.8:
                     return ("raw", (230, 70, 50, 255))             # the needle
-                return S("rc_cream", 1.0) if r < 3.3 else S("rc_chrome", 0.9)
-            if 2 <= x < 10 and 43 <= y < 46:
-                return S("rc_chrome", 0.9) if math.floor(x) % 2 else S("rc_tyre", 0.2)   # the radio
-            return S(look.lo, 0.5 if y > 47 else 0.35)
+                return S("rc_cream", 1.0) if r < 1.6 else S("rc_chrome", 0.9)
+            if 1 <= x < 5 and 21.5 <= y < 23:
+                return S("rc_chrome", 0.9) if math.floor(x * 2) % 2 else S("rc_tyre", 0.2)   # the radio
+            return S(look.lo, 0.5 if y > 23.5 else 0.35)
         if c.face == "up":
             return S("rc_tyre", 0.3)                               # the padded top
         return S(look.lo, 0.35)
-    m.box("dash", (-28.75, 40, -57.75), (28.75, 49.5, -53), Paint(look.up, 3, noise=0, light=False, decal=dash))
-    # the steering wheel: a big thin ring round a two-spoke hub, on a column
-    cx, cy, cz = -16, 51, -46
-    rim = Paint("rc_tyre", 1, noise=0, light=False, decal=lambda c: S("rc_cream", 0.7) if c.face != "down" else S("rc_cream", 0.4))
-    for k in range(16):
-        ang = k * math.pi / 8
-        y, x = cy + math.cos(ang) * 6.5, cx + math.sin(ang) * 6.5
-        m.box("wheel", (x - 1, y - 1, cz), (x + 1, y + 1, cz + 1), rim)
-    m.box("wheel_spoke", (cx - 5.5, cy - 0.5, cz + 0.25), (cx + 5.5, cy + 0.5, cz + 0.75), rim)
-    m.box("column", (cx - 1, cy - 4, -53), (cx + 1, cy - 2, cz), base)
-    m.box("gear", (-1, 25, -47), (1, 37, -45), base)
-    m.box("gear_knob", (-1.5, 37, -47.5), (1.5, 39, -44.5), Paint("rc_cream", 4, noise=0, light=False, decal=lambda c: S("rc_cream", 0.9)))
+    m.box("dash", (-(W - 1), 20, FACE2 + 1), (W - 1, 24.75, -27.5), Paint(look.up, 3, noise=0, grad=0, rim=0.3, ao=0.3, decal=dash))
+    # the steering wheel: a big thin ring (four bars) round a two-spoke hub, on a column
+    cx, cy, cz = -8, 25.5, -23.5
+    rim = Paint("rc_cream", 3, noise=0, grad=0, rim=0.4, decal=lambda c: S("rc_cream", 0.8 if c.p[1] > cy else 0.55))
+    for x0, y0, x1, y1 in ((-3, 2.5, 3, 3), (-3, -3, 3, -2.5), (-3, -2.5, -2.5, 2.5), (2.5, -2.5, 3, 2.5)):
+        m.box("wheel", (cx + x0, cy + y0, cz), (cx + x1, cy + y1, cz + 0.5), rim)
+    m.box("wheel_spoke", (cx - 2.5, cy - 0.25, cz + 0.1), (cx + 2.5, cy + 0.25, cz + 0.4), rim)
+    m.box("column", (cx - 0.5, cy - 2, -27.5), (cx + 0.5, cy - 1, cz), base)
+    m.box("gear", (-0.5, 12.5, -23.5), (0.5, 18.5, -22.5), base)
+    m.box("gear_knob", (-0.75, 18.5, -23.75), (0.75, 19.5, -22.25), _flat("rc_cream", 0.9))
     # two benches
-    for (z0, z1) in ((-7, 6), (23, 36)):
-        m.box("bench_base", (-29, FLOOR, z0 + 1), (29, 25, z1), base)
-        m.box("bench_cushion", (-29, 25, z0), (29, SEAT_Y, z1), pl)
-        m.box("bench_back", (-29, 25, z1), (29, 56, z1 + 3), pl)
+    for (z0, z1) in ((-3.5, 3), (11.5, 18)):
+        m.box("bench_base", (-TRACK + 0.75, FLOOR, z0 + 0.5), (TRACK - 0.75, 12.5, z1), base)
+        m.box("bench_cushion", (-(W - 1), 12.5, z0), (W - 1, SEAT_Y, z1), pl)
+        m.box("bench_back", (-(W - 1), 12.5, z1), (W - 1, 28, z1 + 1.5), pl)
     # the kitchenette across the back: a cupboard with a sink and a two-ring stove (left), a cool box (right)
-    KZ0, KZ1, KTOP = 41, 61, 47
+    KZ0, KZ1, KTOP = 20.5, 29.5, 23.5
 
     def cupboard(c):
         x, y, z = c.p
         if c.face == "up":
-            if -26 <= x < -18 and 45 <= z < 54:
-                r = math.hypot(x + 22, z - 49.5)
-                return S("rc_chrome", 0.5 if r < 1 else 0.85 if (math.floor(x) + math.floor(z)) % 3 else 0.7)   # the sink
-            if -14 <= x < -2 and 44 <= z < 56:
-                for (bx, bz) in ((-11, 50), (-5, 50)):
+            if -13 <= x < -9 and 22.5 <= z < 27:
+                return S("rc_chrome", 0.5 if math.hypot(x + 11, z - 24.75) < 0.6 else 0.85)   # the sink
+            if -7 <= x < -1 and 22 <= z < 28:
+                for (bx, bz) in ((-5.5, 25), (-2.5, 25)):
                     r = math.hypot(x - bx, z - bz)
-                    if r < 2.8:
-                        return S("rc_tyre", 0.05) if r > 2 or r < 0.8 else S("rc_tyre", 0.3)   # the rings
+                    if r < 1.4:
+                        return S("rc_tyre", 0.05) if r > 1 or r < 0.4 else S("rc_tyre", 0.3)   # the rings
                 return S("rc_tyre", 0.45)
             return S("rc_cream", 0.95)
         if c.face == "north":
-            if y > KTOP - 1.5:
+            if y > KTOP - 0.75:
                 return S("rc_cream", 0.8)
-            if abs(x + 15.5) < 0.5 or y < FLOOR + 1.5:
+            if math.floor(x) == -8 or y < FLOOR + 0.75:
                 return S(WOOD, 0.2)
-            if (abs(x + 19) < 1.5 or abs(x + 12) < 1.5) and abs(y - 41) < 0.6:
+            if (abs(x + 10) < 0.75 or abs(x + 6) < 0.75) and math.floor(y) == 20:
                 return S("rc_chrome", 0.9)                         # handles
-            return S(WOOD, 0.7 if math.floor(x) % 4 else 0.55)
+            return S(WOOD, 0.7 if math.floor(x) % 2 else 0.55)
         return S(WOOD, 0.5)
-    m.box("cupboard", (-29, FLOOR, KZ0), (-2, KTOP, KZ1), Paint(WOOD, 3, noise=0, light=False, decal=cupboard))
-    m.box("cool_box", (4, FLOOR, 44), (26, 36, 60), Paint(look.lo, 3, noise=0, light=False,
-          decal=lambda c: S("rc_cream", 0.95) if (c.p[1] > 33 or c.face == "up") else S(look.lo, 0.75 if c.face == "north" else 0.55)))
-    m.box("cool_box_handle", (10, 36, 50), (20, 37, 52), _chrome(0.4, 0.9))
-    # a kettle on the stove
-    cyl(m, "kettle", (-11, 50), 4, KTOP, KTOP + 3, Paint("rc_chrome", 4, noise=0, light=False,
-        decal=lambda c: S("signal_red", 0.6) if c.face != "up" else S("signal_red", 0.8)))
+    # (over the rear wheel well: narrower under the housing's top)
+    cp = Paint(WOOD, 3, noise=0, grad=0, rim=0.3, ao=0.3, decal=cupboard)
+    m.box("cupboard", (-TRACK + 0.75, FLOOR, KZ0), (-1, 13.5, KZ1), cp)
+    m.box("cupboard", (-14.5, 13.5, KZ0), (-1, KTOP, KZ1), cp)
+    cb = Paint(look.lo, 3, noise=0, grad=0, rim=0.3, ao=0.3,
+               decal=lambda c: S("rc_cream", 0.95) if (c.p[1] > 16.5 or c.face == "up") else S(look.lo, 0.75 if c.face == "north" else 0.55))
+    m.box("cool_box", (2, FLOOR, 22), (TRACK - 0.75, 13.5, 29.5), cb)
+    m.box("cool_box", (2, 13.5, 22), (13, 18, 29.5), cb)
+    m.box("cool_box_handle", (5, 18, 25.5), (10, 18.5, 26.5), _chrome(0.4, 0.9))
+    m.box("kettle", (-6.5, KTOP, 24), (-4.5, KTOP + 1.5, 26), Paint("signal_red", 1, noise=0, grad=0, rim=0.4,
+          decal=lambda c: S("signal_red", 0.8 if c.face == "up" else 0.5)))
     # the lantern hanging from the roof between the benches: a chain, a cap, a glowing glass, a base
-    lx, lz = 0, 15
-    m.box("lantern_chain", (lx - 0.5, 69, lz - 0.5), (lx + 0.5, 76.5, lz + 0.5), base)
-    m.box("lantern_cap", (lx - 2, 67, lz - 2), (lx + 2, 69, lz + 2), Paint("rc_tyre", 1, noise=0, light=False,
-          decal=lambda c: S("rc_tyre", 0.5)))
-    m.box("lantern_glass", (lx - 1.5, 62, lz - 1.5), (lx + 1.5, 67, lz + 1.5), Paint("lamp", 3, noise=0, light=False, glow=True,
-          decal=lambda c: ("lamp", 4 if 63.5 < c.p[1] < 65.5 else 3)))
-    m.box("lantern_base", (lx - 2, 61, lz - 2), (lx + 2, 62, lz + 2), Paint("rc_tyre", 1, noise=0, light=False,
-          decal=lambda c: S("rc_tyre", 0.4)))
+    lx, lz = 0, 7.5
+    m.box("lantern_chain", (lx - 0.25, 34.5, lz - 0.25), (lx + 0.25, ROOF - 1, lz + 0.25), base)
+    m.box("lantern_cap", (lx - 1, 33.5, lz - 1), (lx + 1, 34.5, lz + 1), _flat("rc_tyre", 0.5))
+    m.group("lights")
+    m.box("lantern_glass", (lx - 0.75, 31, lz - 0.75), (lx + 0.75, 33.5, lz + 0.75), Paint("lamp", 3, noise=0, light=False, glow=True,
+          decal=lambda c: ("lamp", 4 if 31.75 < c.p[1] < 32.75 else 3)))
+    m.group("body")
+    m.box("lantern_base", (lx - 1, 30.5, lz - 1), (lx + 1, 31, lz + 1), _flat("rc_tyre", 0.4))
 
 
 # ================================================================================================
-# The wheel: drawn at 32 px a block (24 across = 0.75 block), shrunk by 2
+# The wheel: 12 px (0.75 block) across, 4 px wide
 # ================================================================================================
 
 def wheel_retro_camper(rim="rc_cream"):
     """A fat white-wall tyre, a cream steel rim, a chrome dish hub cap (a bright ring, a dome in the middle)."""
-    m = BModel("wheel_retro_camper", shift=(8, 8, 8), floor=None, scale=2.0)
-    d, width = 24, 8
+    m = BModel("wheel_retro_camper", shift=(8, 8, 8), floor=None)
+    d, width = 12, 4
     r = d / 2
 
     def tire(c):
         y, z = c.p[1], c.p[2]
         rr = math.hypot(y, z)
+        lit = y > 0 and z < 0.5
         if c.face in ("east", "west"):
-            if rr > r - 1.2:
-                return S("rc_tyre", 0.1)
-            if rr > r - 4.4:
-                return S("rc_cream", 1.0 if rr < r - 2 else 0.85)   # the white wall
-            return S("rc_tyre", 0.3)
+            if rr > r - 0.7:
+                return S("rc_tyre", 0.12)
+            if rr > r - 2.2:
+                return S("rc_cream", 1.0 if lit else 0.85)          # the white wall
+            if rr > r - 2.6:
+                return S("rc_tyre", 0.25)
+            return S(rim, 0.9 if lit else 0.68)                      # the painted rim
         a = math.atan2(z, y)
         k = math.floor((a + math.pi) / (2 * math.pi) * d * 2.0)
-        return S("rc_tyre", 0.0 if k % 3 == 0 else 0.35 if k % 3 == 1 else 0.2)
-    cyl(m, "tire", (0, 0), d, -width / 2, width / 2, Paint("rc_tyre", 1, noise=0, light=False, decal=tire), axis="x")
+        return S("rc_tyre", 0.12 if k % 2 == 0 else 0.24)
+    cyl(m, "tire", (0, 0), d, -width / 2, width / 2, Paint("rc_tyre", 1, noise=0, grad=0, rim=0.2, ao=0, decal=tire), axis="x")
 
     def hub(c):
         y, z = c.p[1], c.p[2]
         rr = math.hypot(y, z)
         if c.face not in ("east", "west"):
-            return S("rc_chrome", 0.5)
-        lit = y > 0 and z < 0.5
-        if rr < 1.4:
+            return S("rc_chrome", 0.55)
+        if rr < 0.8:
             return S("rc_chrome", 1.0)
-        if rr < 4.6:
-            return S("rc_chrome", 0.95 if lit else 0.7)
-        if rr < 5.6:
-            return S("rc_chrome", 0.4)                             # the dish's edge
-        return S(rim, 0.9 if lit else 0.7)                         # the painted rim
-    p = Paint("rc_chrome", 4, noise=0, light=False, decal=hub)
+        return S("rc_chrome", 0.95 if (y > 0 and z < 0.5) else 0.7)
+    p = Paint("rc_chrome", 4, noise=0, grad=0, rim=0.2, ao=0, decal=hub)
     w2 = width / 2
-    cyl(m, "hub", (0, 0), 15, w2 - 0.5, w2 + 0.5, p, axis="x")
-    cyl(m, "hub", (0, 0), 15, -w2 - 0.5, -w2 + 0.5, p, axis="x")
-    cyl(m, "cap", (0, 0), 9, w2 + 0.5, w2 + 1.5, p, axis="x")
-    cyl(m, "cap", (0, 0), 9, -w2 - 1.5, -w2 - 0.5, p, axis="x")
+    cyl(m, "cap", (0, 0), 4, w2, w2 + 0.75, p, axis="x")
+    cyl(m, "cap", (0, 0), 4, -w2 - 0.75, -w2, p, axis="x")
     m.display = presets.furniture(gui_scale=0.6)
     return m
 

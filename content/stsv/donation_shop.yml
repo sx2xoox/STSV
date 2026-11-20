@@ -40,7 +40,7 @@ categories:
   cars:
     name: "후원 차량"
     icon: "stsv:gui/don_car"
-    products: [hyper_car, grand_sedan, luxury_suv, classic_roadster, muscle_car, concept_ev, retro_camper, sidecar_bike]
+    products: [hyper_car, grand_sedan, luxury_suv, classic_roadster, muscle_car, concept_ev, retro_camper, sidecar_bike, sushi_carnival]
   banners:
     name: "칭호 배너"
     icon: "stsv:gui/flag"
@@ -110,6 +110,13 @@ products:
       - "<gray>6인승 캠핑밴 · 팝업 텐트 지붕 · 미닫이 문"
       - "<white>8블록/초 <gray>· 느긋하게 · 짐칸 없음"
     item: stsv:retro_camper
+  sushi_carnival:
+    name: "초밥 카니발"
+    price: 100          # 10,000원
+    description:
+      - "<gray>7인승 미니밴 · 연어 초밥 루프박스 · 미닫이 문"
+      - "<white>9블록/초 <gray>· 온 가족 탑승 · 짐칸 없음"
+    item: stsv:sushi_carnival
   sidecar_bike:
     name: "사이드카 오토바이"
     price: 100          # 10,000원

@@ -109,15 +109,9 @@ LAMPS = {
     # the round tail lamps in chrome rings on the back's corners
     "retro_camper": dict(scale=4.0, reach=2.0, head=lens(16.5, 25.5, 28.5, 37.5, -66, True), tail=lens(21.5, 28.5, 26.5, 33.5, 65.5, True),
                          body=("vehicles_donation_retro_camper", "retro_camper")),
-# The new LAMPS entry for models/vehicle_lights.py (replaces the old "muscle_car" one). The body is now drawn at 32 px a
-# block (BModel scale 4, like the buses' scale=4.0 entries), so the lenses are in its drawn px and scale is 4.0.
-    # muscle_car: four round lamps deep in the full-width grille, two a side, each its own lens (the inner pair 0.25 px
-    # lower and the outer pair 0.3 px prouder, so their glows and beams never share a plane); one red tail lamp band the
     # whole width of the tail panel, split in the middle
-    "muscle_car": dict(scale=4.0, reach=2.0, head=lens(11.5, 19.5, 15.75, 23.75, -75.5, True) + lens(20.5, 28.5, 16, 24, -75.8, True),
-                       tail=lens(2.5, 28.5, 21, 26, 77), body=("vehicles_donation_muscle_car", "muscle_car")),
-# The new LAMPS entry for models/vehicle_lights.py (replaces the old "sidecar_bike" one). The body is now drawn at 32 px a
-# block (BModel scale 4, like the bus bodies' scale=4.0 entries), so the lenses are in its drawn px and scale is 4.0.
+    "muscle_car": dict(scale=2.0, head=lens(5, 9, 7.75, 11.75, -37.25, True) + lens(10, 14, 8, 12, -37.55, True),
+                       tail=lens(1.25, 14, 10.5, 13, 38.5), body=("vehicles_donation_muscle_car", "muscle_car")),
     # sidecar_bike: the bike's round headlamp and the little running lamp on the sidecar's mudguard; the round tail lamp
     # on the bike's rear fender and the small red lamp on the back of the sidecar's mudguard
     "sidecar_bike": dict(scale=4.0, reach=2.0, head=lens(-19.15, -10.85, 28.85, 37.15, -29.6, True, False)
@@ -129,6 +123,11 @@ LAMPS = {
     "concept_ev": dict(scale=4.0, reach=2.0, head=lens(-24, 24, 11, 12, -78, False, False),
                        tail=lens(-26, 26, 24, 25, 78, False, False),
                        body=("vehicles_donation_concept_ev", "concept_ev")),
+    # sushi_carnival: a slim LED headlamp on each upper corner of the nose (beside the big chrome grille); wide tail
+    # lamps on the tailgate's corners, joined by a thin light bar across the middle
+    "sushi_carnival": dict(scale=2.0, head=lens(10.5, 15.25, 12, 14.25, -41.4),
+                           tail=lens(9, 15.25, 18.5, 21.5, 41.4) + lens(-9, 9, 19.5, 20.5, 41.2, False, False),
+                           body=("vehicles_donation_sushi_carnival", "sushi_carnival")),
 }
 
 # colours (palette ramps, ART_STYLE: lamps glow)

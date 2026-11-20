@@ -706,10 +706,10 @@ muscle_car:
       - { at: [0.34, 0.15, -0.125] }
     movers:
       # 문 둘: 앞 모서리가 경첩, 바깥으로 열림
-      - { model: muscle_car_door_l, hinge: [-0.96875, 0.6, 0.9375], axis: [0, 1, 0], turn: -65, when: door, seats: [0], ticks: 10 }
-      - { model: muscle_car_door_r, hinge: [0.96875, 0.6, 0.9375], axis: [0, 1, 0], turn: 65, when: door, seats: [1], ticks: 10 }
+      - { model: muscle_car_door_l, hinge: [-1.0, 0.6, 0.9375], axis: [0, 1, 0], turn: -65, when: door, seats: [0], ticks: 10 }
+      - { model: muscle_car_door_r, hinge: [1.0, 0.6, 0.9375], axis: [0, 1, 0], turn: 65, when: door, seats: [1], ticks: 10 }
     plates:
-      - { at: [0, 0.23, 2.43], width: 0.45, height: 0.11 }
+      - { at: [0, 0.22, 2.43], width: 0.45, height: 0.11 }
       - { at: [0, 0.516, -2.385], back: true, width: 0.45, height: 0.11 }
     horn: { sound: stsv:vehicle.muscle_car.horn, release: stsv:vehicle.muscle_car.horn_end, volume: 1.5,
             vanilla: block.note_block.didgeridoo, pitch: 1.0, times: 1 }
@@ -765,3 +765,64 @@ concept_ev:
     horn: { sound: stsv:vehicle.concept_ev.horn, release: stsv:vehicle.concept_ev.horn_end, volume: 1.4,
             vanilla: block.note_block.bit, pitch: 1.4, times: 1 }
     engine: { sound: stsv:vehicle.concept_ev.engine, volume: 0.4, idle-volume: 0.08, idle-pitch: 0.7, top-pitch: 1.9, segment-ticks: 10 }
+
+# 후원 · 초밥 카니발: 크고 길쭉한 7인승 가족 미니밴 (원래 디자인, 로고·배지·글자 없음) 지붕에 거대한 연어 초밥 루프박스.
+# 크롬 테 큰 그릴, 가는 LED 헤드램프, 검은 필러의 긴 짙은 유리, 양쪽 미닫이 문(타면 뒤로 밀려 열림), 앞문은 경첩,
+# 루프레일 위에 밥알 결이 보이는 하얀 밥 + 흰 지방 줄무늬 연어 + 가운데 김 띠. 7인승 (앞 2 + 캡틴 시트 2 + 뒤 벤치 3).
+# 16px/블록 (BModel scale 2, body-scale 2): 경사·모서리는 22.5°/45° 기울인 판, 디테일은 텍스처.
+# 패밀리카답게 느긋함 (9블록/초, 드리프트 없음). 모델: tools/assetgen/models/vehicles_donation_sushi_carnival.py
+sushi_carnival:
+  material: paper
+  name: "<gradient:#ff8a4c:#fff4e6:#2f4a3a>초밥 카니발"
+  lore:
+    - "<gold>후원 한정</gold> <gray>· 7인승 가족 미니밴 + 연어 초밥 루프박스"
+    - "<white>9블록/초 <gray>· 느긋함 · 짐칸 없음"
+    - "<dark_gray>양쪽 미닫이 문 · 지붕엔 거대한 연어 초밥"
+    - "<dark_gray>W·S·A·D 운전 · 웅크리기: 내리기"
+    - "<dark_gray>스페이스: 경적"
+    - "<yellow>우클릭: 세우기 · 타기"
+    - "<yellow>웅크리고 우클릭: 회수"
+  model: sushi_carnival
+  icon: sushi_carnival_icon
+  max-stack: 1
+  vehicle:
+    body-scale: 2
+    speed: 9
+    reverse-speed: 3.5
+    acceleration: 3.0
+    brake: 10
+    coast: 1.8
+    turn-rate: 58
+    turn-speed: 3
+    step-height: 1.0
+    size: [5.15, 2.0, 2.5]
+    click-height: 1.4
+    wheel: wheel_sushi_carnival
+    wheel-radius: 0.4375
+    wheels:
+      - { at: [-0.78125, 0.4375, 1.6875], steer: true }
+      - { at: [0.78125, 0.4375, 1.6875], steer: true }
+      - { at: [-0.78125, 0.4375, -1.5] }
+      - { at: [0.78125, 0.4375, -1.5] }
+    # 운전석(왼쪽 앞)·조수석, 가운데 줄 캡틴 시트 둘, 맨 뒤 벤치 셋
+    seats:
+      - { at: [-0.4375, 0.43, 0.90625] }
+      - { at: [0.4375, 0.43, 0.90625] }
+      - { at: [-0.4375, 0.43, 0.125] }
+      - { at: [0.4375, 0.43, 0.125] }
+      - { at: [-0.43, 0.43, -0.8125] }
+      - { at: [0.0, 0.43, -0.8125] }
+      - { at: [0.43, 0.43, -0.8125] }
+    movers:
+      # 앞문 둘: 앞 모서리가 경첩, 바깥으로 열림
+      - { model: sushi_carnival_door_l, hinge: [-1.0, 0.6, 1.875], axis: [0, 1, 0], turn: -65, when: door, seats: [0], ticks: 10 }
+      - { model: sushi_carnival_door_r, hinge: [1.0, 0.6, 1.875], axis: [0, 1, 0], turn: 65, when: door, seats: [1], ticks: 10 }
+      # 미닫이 문 둘: 2px 바깥으로 나오며 뒤로 밀려 열림 (왼쪽: 가운데 왼쪽 + 벤치 왼쪽·가운데, 오른쪽: 가운데 오른쪽 + 벤치 오른쪽)
+      - { model: sushi_carnival_slide_l, slide: [-0.125, 0, -1.25], when: door, seats: [2, 4, 5], ticks: 14 }
+      - { model: sushi_carnival_slide_r, slide: [0.125, 0, -1.25], when: door, seats: [3, 6], ticks: 14 }
+    plates:
+      - { at: [0, 0.225, 2.64], width: 0.45, height: 0.1 }
+      - { at: [0, 0.797, -2.57], back: true, width: 0.5, height: 0.11 }
+    horn: { sound: stsv:vehicle.sushi_carnival.horn, release: stsv:vehicle.sushi_carnival.horn_end, volume: 1.4,
+            vanilla: block.note_block.didgeridoo, pitch: 1.2, times: 2, gap: 3 }
+    engine: { sound: stsv:vehicle.sushi_carnival.engine, volume: 0.36, idle-volume: 0.13, idle-pitch: 0.6, top-pitch: 1.45, segment-ticks: 10 }

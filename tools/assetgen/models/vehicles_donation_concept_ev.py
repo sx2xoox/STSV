@@ -2,35 +2,49 @@
 The donation car 콘셉트 EV (content item `concept_ev`): a four-seat electric concept car. An original design: no
 real make, no badge, no grille.
 
-Drawn like the showcase car (models/vehicles_showcase.py, phantom_gt: read its doc first): 32 px a block. The body is
-a field of 1 px cells (bake.voxels) from sharp, straight profiles, drawn at twice its real size and shrunk by 4
-(Kit scale 4), shown at vehicle.body-scale 2; the wheel drawn at twice its size and shrunk by 2, shown at 1. The parts
-that move (the two gull-wing doors) are models of their own, drawn in the body's space where they lie at rest.
-Drawn coordinates (32 px a block): the ground centre at (0, 0, 0), front = north (-z), +x = the car's RIGHT; the
-driver sits on the left (-x).
+Drawn like every other car on the server (models/vehicles.py, vehicles_premium.py: read their docs first) and like
+the donation 머슬카 (vehicles_donation_muscle_car.py, the "angled panels" style): 16 px a block, the body drawn at its
+real size and shrunk by 2 (Kit scale 2), shown at vehicle.body-scale 2; the wheel a model of its own at 1. The body is
+a few big clean boxes; every slope is a flat panel turned 22.5 or 45 degrees about one axis (plank()) laid
+over a fill of boxes under it (profile(): their tops hide inside the panel), so a slope reads as one sharp plane, never
+as a 1 px staircase. The detail is painted on the big faces (world-space decals, so a turned panel carries on the
+paint of the boxes round it): the light across each plane, the creases' bright lines, shut lines, the louvres, the
+glass's reflections. Only what should stand out is real 3D: the LED bar and its visor, the tail bar and its frame, the
+splitter, the diffuser's fins, the glowing sill line, flush handles, camera pods, the wheels.
 
-The shape: a very low, wide wedge of flat planes and sharp creases. A knife-edge nose carrying one thin LED bar the
-whole width (wrapping round its chamfered corners), a straight hood rising between two blade fenders that stand up
-over the front wheels, a long canopy of black glass (screen, roof and side glass, all one dark sheet over the pearl
-body: the two-tone), ending in a short upright rear window, and behind it two floating C-pillars: flying buttresses
-from the roof's corners down to the tail, with open air between them and the deck (the light shows through). Flat
-broad shoulders over angular (cut-cornered) wheel arches; a satin black blade set into the lower side, a glowing
-line under it; the tail cut off square with a thin red bar the whole width and a satin black diffuser with real fins.
-Flush door handles, camera "mirrors" on thin stalks, big aero wheels (turbine covers with a lit ring, low tyres).
-Inside: floating seats on one pedestal each, one wide screen across the dash, a yoke.
+Drawn coordinates: 16 px a block, the car's ground centre at (0, 0, 0), front = north (-z), +x = the car's RIGHT;
+the driver sits on the left (-x).
+
+The shape: a very low, wide wedge of flat planes and sharp creases.
+  * nose: a knife edge carrying one thin white LED bar the whole width (it wraps round the bevelled corners) in a
+    black visor, a mesh intake and a splitter under it. The hood one straight plane at 22.5 degrees from the nose to
+    the screen, sunk between two blade fenders that rise (22.5 degrees) over the front wheels and end in a 45 degree
+    cut at the door.
+  * canopy: black glass the whole way (two-tone over the pearl): the screen (45 then 22.5 degrees) between black A
+    pillars, a flat roof with 45 degree edges, upright side glass standing on broad flat shoulders, an upright rear
+    window. Behind it two floating C-pillars
+    (flying buttresses at 22.5 degrees from the roof's corners down to the tail) with open air under them.
+  * side: a flat shoulder with a 45 degree crease along it, a satin black blade set in along the door's foot with a
+    glowing accent line under it, angular arches (flat tops, 45 degree corners), flush handles, camera pods on thin
+    stalks, a charge flap on the left rear quarter.
+  * back: haunches rising (22.5 degrees) over the rear wheels, a louvred black deck between the buttresses, a lip,
+    the tail cut off square with one red bar the whole width in a black frame, a satin diffuser with real fins.
+  * inside: four floating seats (each a slim shell on one pedestal), one wide screen across a slim dash, a yoke, a
+    floating console.
 
 Paint arguments (one more call = one more colour; 8-step ramps like the ones registered here read best):
-colour (the body), roof (the black glass canopy), accent (the glowing line, the wheels' rings, the cabin's light
+colour (the body), roof_ (the black glass canopy), accent (the glowing line, the wheels' rings, the cabin's light
 strips), trim (the seats).
 
 Its parts: door_l and door_r, gull-wing doors: each the side between the wheels (above the sill) with its whole side
-glass, hinged along the roof's edge (vehicles.yml: axis forward, they swing up and out).
+glass and camera pod, hinged along the roof's edge (vehicles.yml: axis forward, they swing up and out).
 """
 
 import math
+from types import SimpleNamespace
 
-from stsv_assets.bake import BModel, Paint, cyl, voxels
-from stsv_assets.palette import MATERIALS, PALETTE, build_ramp
+from stsv_assets.bake import BModel, Paint, cyl
+from stsv_assets.palette import MATERIALS, PALETTE, REMAP, build_ramp, ladder
 from stsv_assets import presets
 from models.vehicles import _held_display
 from models.vehicles_premium import Kit
@@ -56,251 +70,201 @@ ev_ramp("ev_trim", 70, 0.012, 0.84, 0.26, 5, False)      # white cabin leather
 ev_ramp("ev_steel", 240, 0.012, 0.66, 0.46, 7, False)    # brushed metal
 ev_ramp("ev_screen", 200, 0.100, 0.66, 0.36, 4, True)    # the dash screen
 
+
+def _n(ramp):
+    """Steps in a ramp (followed through palette.remapped, so a tuning paint keeps its lights)."""
+    spec = MATERIALS.get(REMAP.get(ramp, ramp))
+    return spec[4] if spec else 5
+
+
+def tone(ramp, t):
+    """(ramp, step) at lightness t: 0 the ramp's darkest, 1 its lightest (whatever its length)."""
+    return (ramp, max(0.0, t) * (_n(ramp) - 1))
+
+
+def raw(ramp, t, a=255):
+    """The colour of tone(ramp, t) as a raw pixel (for see-through planes)."""
+    r, s = tone(ramp, t)
+    c = ladder(r, math.floor(s + 0.5))
+    return ("raw", (c[0], c[1], c[2], a))
+
+
+def smooth(t):
+    t = max(0.0, min(1.0, t))
+    return t * t * (3 - 2 * t)
+
+
+CLEAR = ("raw", (0, 0, 0, 0))
+
 # ================================================================================================
-# Shape (drawn px, 32 a block)
+# Shape (drawn px, 16 a block)
 # ================================================================================================
 
-NOSE, TAIL = -78, 78           # z of the nose and the tail
-WF, WR = -50, 50               # front / rear axle (z)
-WY, WRAD = 14, 14              # wheel centre height, wheel radius (a 0.875 block wheel)
-TRACK = 22                     # the wheel's inner face (x): it stands from 22 out to 32
-GROUND = 1                     # the body's lowest cells
-W = 32                         # the body's half width
-D0, D1 = -32, 32               # the doors, between their seams (z)
-CAB0 = -48                     # the screen's foot (the hood ends here)
-KNEE = -36                     # where the screen bends from 45 to 22.5 degrees
-ROOF = 47.5                    # the roof's top
-RW = 31.5                      # the upright rear window (z)
-BUT = 72                       # where the buttresses land on the tail
-SILL = 8                       # the door's lower edge
 T = math.tan(math.radians(22.5))
+NOSE, TAIL = -39, 39           # z of the nose's face and the tail's
+W = 16                         # the body's half width
+GROUND, FLOOR = 2, 2.5         # the body's bottom, the cabin floor's top
+WF, WR = -25, 25               # front / rear axle (z)
+WY, WRAD = 7, 7                # wheel centre height, its radius (a 0.875 block wheel)
+TRACK = 11                     # the wheels' inner faces (x): they stand from 11 out to 16
+ARCH, ARCH_TOP, CHAMF = 8.5, 14.5, 5   # the arch: half length, its flat top, its 45 degree corners
+D0, D1 = -16.5, 16.5           # the doors, between their seams (z): from arch to arch
+SIDE, BELT = 12.5, 13.5        # the flank's top (the shoulder's crease runs from here up to BELT), the belt
+HOOD_X = 9.5                   # the hood's half width (between the blade fenders)
+CAB0 = -24                     # the screen's foot (the hood ends here, at BELT)
+HOOD_NOSE = BELT - (CAB0 - NOSE) * T          # the hood's front edge (the knife edge)
+FPEAK, FZ0, FZ1 = 16.5, -26, -19.5            # the blade fenders' top, from FZ0 to FZ1 (then a 45 degree cut)
+FNOSE = FPEAK - (FZ0 - NOSE) * T              # the blades' front edge
+HX = 10.5                      # the rear haunches' inner edge (the deck lies between them)
+HPEAK = 16                     # the haunches' top
+DECK = 14                      # the louvred deck between the buttresses
+GB = 12                        # the canopy's half width (its side glass stands upright on the shoulders)
+KNEE = -18                     # where the screen bends from 45 to 22.5 degrees
+ROOF = 24.25                   # the roof's top
+ZR0 = KNEE + (ROOF - (BELT + KNEE - CAB0)) / T  # where the screen meets the roof
+RW = 15.75                     # the upright rear window (z)
+EDGE_Y = ROOF - 1              # where the side glass meets the roof's 45 degree edge
+SILL_X = 14.5                  # the sills' outer face (the glowing line on it)
+BUT_X = (9.25, 11)           # the floating C-pillars (|x|)
+BUT_Y = 15                     # where they land on the tail's lip
+BUT_Z = RW + (ROOF - BUT_Y) / T
+LED_Y = (5, 6)                 # the LED bar (y), its visor 4..7
+TAIL_Y = (11.5, 12.5)          # the tail bar (y), its frame 10.5..13.5
+DIFF_Z, DIFF_Y, DIFF_X = TAIL - 2.5, 5.5, 10.5  # the diffuser's recess
+SEAT_X = 4.48                  # the seats' middles (|x|: vehicles.yml seats at 0.28)
 
 
-def clamp(t):
-    return max(0.0, min(1.0, t))
-
-
-def tent(z, c, w):
-    """1 at c, falling straight to 0 at c +- w (creases, not swells)."""
-    return clamp(1 - abs(z - c) / w)
-
-
-def plan(z):
-    """The body's half width at z: straight sides, the nose's and tail's corners cut off at an angle."""
-    if z < -68:
-        return W - (-68 - z) * 0.8
-    if z > 70:
-        return W - (z - 70) * 0.75
-    return W
-
-
-def belt(z):
-    """The height of the hood / deck along the middle: the hood one straight plane up from the knife-edge nose, the
-    belt almost level behind it, a lip at the tail."""
-    if z < CAB0:
-        return 26 - (CAB0 - z) * T              # exactly 22.5 degrees: a tilted plane lies on it
-    if z < 74:
-        return 26 + 1.5 * clamp((z - CAB0) / 78)
-    return 29.5                                   # the ducktail lip
-
-
-def fender(z, ax):
-    """How far the fenders stand above the belt: blades over the front wheels, haunches over the rear ones (only
-    outside the buttresses), each a straight ramp across (a crease where it starts)."""
-    f = 7.0 * tent(z, WF, 30) * clamp((ax - 14) / 5)
-    r = 5.0 * tent(z, WR, 28) * clamp((ax - 24) / 3)
-    return f + r
-
-
-def top(z, ax):
-    h = belt(z) + fender(z, ax)
-    e = plan(z) - ax                              # the shoulder: a 45 degree chamfer along its edge
-    if e < 2:
-        h -= 2 - e
-    return h
-
-
-def crease(z):
-    """The sharp line over the satin blade set into the lower side: rising towards the rear (the wedge)."""
-    return 13 + (z - D0) * 0.07
-
-
-def half_width(z, y):
-    w = plan(z)
-    if -34 < z < 34 and SILL - 1 <= y < crease(z):
-        w -= 1.5                                  # the satin blade, set in under the crease
-    if y < SILL - 1:
-        w -= 2 + (SILL - 1 - y) * 0.6             # the sill tucked in
-    return w
-
-
-def roof(z):
-    """The canopy's top: the screen at 45 then 22.5 degrees, a long level roof, the upright rear window."""
+def screen_y(z):
+    """The screen's surface (y) at z (45 degrees to the knee, then 22.5 to the roof)."""
     if z < KNEE:
-        return belt(CAB0) + (z - CAB0)
-    return min(ROOF, belt(CAB0) + (KNEE - CAB0) + (z - KNEE) * T)
+        return BELT + (z - CAB0)
+    return min(ROOF, BELT + (KNEE - CAB0) + (z - KNEE) * T)
 
 
-def glass_w(z, y):
-    """The canopy's half width at y: its sides lean in at 22.5 degrees, its top edge cut off."""
-    r = roof(z)
-    w = 27.5 - (y - belt(z)) * T
-    if r - y < 2:
-        w -= (2 - (r - y)) * 1.5
-    return w
-
-
-def buttress(z):
-    """The floating C-pillar's top (y) at z, or None: straight from the roof's rear corner down to the tail."""
-    if RW - 1 <= z < BUT:
-        return ROOF - (z - (RW - 1)) * T
+def open_top(z):
+    """The top of a wheel arch's opening at z (flat, its corners cut at 45 degrees), or None away from the arches."""
+    for wz in (WF, WR):
+        d = abs(z - wz)
+        if d < ARCH - 1e-9:
+            return ARCH_TOP if d <= ARCH - CHAMF else ARCH_TOP - (d - (ARCH - CHAMF))
     return None
-
-
-def but_x(y):
-    """The buttress' outer face (x) at y: it leans in like the canopy's sides."""
-    return 28 - (y - 27) * T
 
 
 def in_arch(z, y, ax):
-    """Inside the cut round a wheel: an angular arch (a flat top, its corners cut at 45 degrees)."""
-    if ax < TRACK - 1.5:
-        return False
-    for wz in (WF, WR):
-        dz, dy = abs(z - wz), y - WY
-        if dz < 17 and dy < 16.5 and dz + max(dy, 0) < 26:
-            return True
-    return False
-
-
-def near_arch(z, y, grow):
-    for wz in (WF, WR):
-        dz, dy = abs(z - wz), y - WY
-        if dz < 17 + grow and dy < 16.5 + grow and dz + max(dy, 0) < 26 + grow:
-            return True
-    return False
+    t = open_top(z)
+    return t is not None and y < t and ax > TRACK - 1.6
 
 
 # ================================================================================================
-# The cells
+# Angled panels (as the muscle car's)
 # ================================================================================================
 
-def _cells():
-    body, doors = {}, {-1: {}, 1: {}}
-    for z in range(NOSE, TAIL):
-        zc = z + 0.5
-        wmax = plan(zc)
-        for x in range(-int(math.ceil(wmax)), int(math.ceil(wmax))):
-            xc = x + 0.5
-            ax = abs(xc)
-            t = top(zc, ax)
-            hmax = max(t, roof(zc) if CAB0 <= zc <= RW else 0, buttress(zc) or 0)
-            for y in range(GROUND, int(math.ceil(hmax)) + 1):
-                yc = y + 0.5
-                lab = _cell(xc, yc, zc, ax, t)
-                if lab is None:
-                    continue
-                side = -1 if xc < 0 else 1
-                if _is_door(xc, yc, zc, ax, lab):
-                    doors[side][(x, y, z)] = lab
-                else:
-                    body[(x, y, z)] = lab
-    return body, doors
+def _rot(p, axis, deg, o):
+    """A point turned like Minecraft turns an element (the preview's minirender does the same)."""
+    a = math.radians(deg)
+    c, s = math.cos(a), math.sin(a)
+    x, y, z = p[0] - o[0], p[1] - o[1], p[2] - o[2]
+    if axis == "x":
+        y, z = y * c - z * s, y * s + z * c
+    elif axis == "y":
+        x, z = x * c + z * s, -x * s + z * c
+    else:
+        x, y = x * c - y * s, x * s + y * c
+    return (x + o[0], y + o[1], z + o[2])
 
 
-def _cell(x, y, z, ax, t):
-    lower = y <= t and ax <= half_width(z, y)
-    # the knife-edge nose: the face under the light bar is upright, the chin under it slopes back
-    if lower and z < NOSE + 8 and y < 6.5 and z < NOSE + (6.5 - y) * 1.3 and not (y < 4.5 and z > NOSE + 1.5):
-        lower = False
-    # the diffuser: a recess under the tail with fins standing in it
-    if lower and z > TAIL - 6 and y < 11 and ax < 21:
-        if math.floor(ax) % 5 != 2:
-            lower = False
-    if lower and in_arch(z, y, ax):
-        return None
-    if lower:
-        return _label_lower(x, y, z, ax, t)
-    # the canopy (black glass)
-    if CAB0 <= z <= RW and y > belt(z) - 0.5 and y <= roof(z) and ax <= glass_w(z, y):
-        return _label_canopy(x, y, z, ax)
-    # the floating C-pillars
-    b = buttress(z)
-    if b is not None and b - 3.5 < y <= b + 0.5 and but_x(y) - 3.5 < ax <= but_x(y):
-        return "paint"
-    return None
+def world(decal, rot):
+    """A decal for a turned box: it sees the texel where it ends up, so it paints on like the boxes round it."""
+    axis, ang, o = rot
+
+    def d(c):
+        q = SimpleNamespace(p=_rot(c.p, axis, ang, o), face=c.face, u=c.u, v=c.v, nu=c.nu, nv=c.nv, lo=c.lo, hi=c.hi,
+                            i=c.i, n=c.n, frame=c.frame)
+        return decal(q)
+    return d
 
 
-def _label_lower(x, y, z, ax, t):
-    w = half_width(z, y)
-    skin = (w - ax) < 3 or (t - y) < 3 or y < GROUND + 2 or z < NOSE + 4 or z > TAIL - 4
-    # the cabin: a tub hollowed out under the canopy
-    wall = 3 if (D0 <= z < D1 and y >= SILL) else 3.5      # behind a door the door is the whole wall
-    if -38 < z < RW - 1 and ax < w - wall and y > 6.5:
-        return None
-    # the wheel wells: dark round the arch cuts
-    if TRACK - 4 < ax < TRACK - 1.5 and near_arch(z, y, 1.2) and y < t - 2:
-        return "well"
-    if not skin:
-        return "core"
-    fy = math.floor(y)
-    corner_f = z < -66 and (plan(z) - ax) < 2.5
-    corner_r = z > 68 and (plan(z) - ax) < 2.5
-    # the nose: one thin LED bar the whole width, wrapping round the cut corners, in a black frame
-    if z < NOSE + 2 or corner_f:
-        if fy == 11:
-            return "led"
-        if fy in (9, 10, 12, 13):
-            return "frame"                        # the black visor the bar sits in
-        if y < 6.5:
-            return "mesh" if y >= 4.5 else "satin"
-    # the tail: the red bar the whole width in its black frame, the diffuser under it
-    if z > TAIL - 2 or corner_r:
-        if fy == 24:
-            return "tail"
-        if fy in (22, 23, 25, 26):
-            return "frame"
-    if y < 11 and z > TAIL - 7:
-        return "satin"
-    # the sill: satin black; the glowing line along the side's foot; the satin blade set in under the crease
-    if (w - ax) < 3:
-        if y < SILL - 1:
-            return "satin"
-        if -34 < z < 34:
-            if fy == SILL - 1:
-                return "accent"
-            if y < crease(z):
-                return "satin"
-    # the rear deck between the buttresses: a black louvred cover
-    if RW + 1 < z < BUT - 1 and ax < 17.5 and (t - y) < 3:
-        return "louvre"
-    return "paint"
+def plank(m, name, axis, p0, p1, span, t, paint, decal=None, below=True):
+    """A flat panel whose face runs along p0 -> p1 in the plane across `axis` (axis "x": points are (z, y), "z": (x, y),
+    "y": (z, x)), t thick on one side (below=True: towards -y, or -x for axis "y"), spanning `span` along the axis.
+    The slope must be a multiple of 22.5 degrees (at most 45). decal: a world-space decal. Returns the rotation."""
+    (a0, b0), (a1, b1) = sorted((p0, p1))
+    da, db = a1 - a0, b1 - b0
+    length = math.hypot(da, db)
+    phi = math.degrees(math.atan2(db, da))
+    ang = -phi if axis == "x" else phi
+    snap = round(ang / 22.5) * 22.5
+    assert abs(snap - ang) < 0.05 and abs(snap) <= 45, f"{name}: {ang} degrees"
+    lo, hi = (b0 - t, b0) if below else (b0, b0 + t)
+    if axis == "x":
+        frm, to, o = (span[0], lo, a0), (span[1], hi, a0 + length), (0, b0, a0)
+    elif axis == "z":
+        frm, to, o = (a0, lo, span[0]), (a0 + length, hi, span[1]), (a0, b0, 0)
+    else:
+        frm, to, o = (lo, span[0], a0), (hi, span[1], a0 + length), (b0, 0, a0)
+    rot = (axis, snap, o)
+    if decal is not None:
+        paint = paint(decal=world(decal, rot))
+    m.box(name, frm, to, paint, rotation=rot)
+    return rot
 
 
-def _label_canopy(x, y, z, ax):
-    w = glass_w(z, y)
-    r = roof(z)
-    if (w - ax) > 1.6 and (r - y) > 1.6:
-        return None                                   # the cabin's air
-    if z < -13 and (r - y) < 1.7 and ax < w - 2.2:
-        return None                                   # the screen: open, its glass is a tilted pane
-    if (w - ax) < 1.6 and belt(z) + 1.2 < y < r - 2.2 and -42 < z < RW - 1.5:
-        return "tint"                                 # the side glass
-    if z > RW - 1.2 and ax < w - 2 and belt(z) + 1 < y < r - 1.6:
-        return "tint"                                 # the rear window
-    return "roof"
+def _x(side, a, b):
+    """The x span between |x| a and b on one side."""
+    return tuple(sorted((side * a, side * b)))
 
 
-def _is_door(x, y, z, ax, lab):
-    if not (D0 <= z < D1):
-        return False
-    if lab in ("accent",):
-        return False
-    if y >= SILL and ax > half_width(z, y) - 3 and y <= top(z, ax):
-        return True
-    if CAB0 <= z <= RW and y > belt(z) and (glass_w(z, y) - ax) < 2.5 and y < roof(z) - 1.5:
-        return True
-    return False
+def _line(pts, z):
+    for (za, ya), (zb, yb) in zip(pts, pts[1:]):
+        if za - 1e-9 <= z <= zb + 1e-9:
+            return ya + (yb - ya) * (z - za) / (zb - za)
+    raise ValueError(z)
+
+
+def profile(m, name, xs, pts, paint, decal, ybot=GROUND, arches=False, t=0.75):
+    """A solid whose top follows the polyline pts [(z, y), ...] (each leg level or at 22.5 / 45 degrees) over the x
+    span xs, from ybot up (arches: cut by the wheel arches' openings, their 45 degree corners lined by a panel).
+    Level legs are plain boxes; a sloped leg is a panel t thick (plank) over boxes stepped so their tops stay inside
+    it (1 px rise at 45 degrees, 0.75 px at 22.5): one clean plane outside."""
+    z0, z1 = pts[0][0], pts[-1][0]
+    cuts = {z for z, _ in pts}
+    for (za, ya), (zb, yb) in zip(pts, pts[1:]):
+        slope = abs(yb - ya) / (zb - za)
+        if slope > 1e-6:
+            step = 1.0 if slope > 0.7 else 0.75 / T
+            k = 1
+            while za + k * step < zb - 0.2:
+                cuts.add(za + k * step)
+                k += 1
+    if arches:
+        for wz in (WF, WR):
+            for e in (-1, 1):
+                for k in range(int(CHAMF) + 1):
+                    cuts.add(wz + e * (ARCH - k))
+    zs = sorted(z for z in cuts if z0 - 1e-9 <= z <= z1 + 1e-9)
+    cells = []
+    for a, b in zip(zs, zs[1:]):
+        if b - a < 1e-6:
+            continue
+        top = min(_line(pts, a), _line(pts, b))
+        sloped = abs(_line(pts, a) - _line(pts, b)) > 1e-6
+        bot = ybot
+        if arches:
+            oa, ob = open_top(a + 1e-6), open_top(b - 1e-6)
+            if oa is not None or ob is not None:
+                bot = max(bot, oa or 0, ob or 0)
+        if cells and cells[-1][3] == bot and abs(cells[-1][2] - top) < 1e-6 and cells[-1][4] == sloped:
+            cells[-1][1] = b
+            continue
+        cells.append([a, b, top, bot, sloped])
+    for a, b, top, bot, sloped in cells:
+        if top - bot < 0.05:
+            continue
+        x0, x1 = (xs[0] + 0.05, xs[1] - 0.05) if sloped else xs
+        m.box(name, (x0, bot, a), (x1, top, b), paint)
+    for (za, ya), (zb, yb) in zip(pts, pts[1:]):
+        if abs(yb - ya) > 1e-6:
+            plank(m, name + "_top", "x", (za, ya), (zb, yb), xs, t, paint, decal=decal)
 
 
 # ================================================================================================
@@ -308,172 +272,170 @@ def _is_door(x, y, z, ax, lab):
 # ================================================================================================
 
 def _make_paints(C, R, A, TR):
-    def body(c):
-        """The pearl: lit from above, a crisp highlight along each crease, seams, the flush handles, the charge
-        flap. The 1 px risers of a stepped top take the top's colour (no stripes)."""
+    def top_colour(x, y, z, ax):
+        """Hood, fenders, haunches, deck: pearl lit from above, creases and shut lines, the louvred deck."""
+        if RW + 0.5 < z < TAIL - 1.5 and ax < HX and y < DECK + 0.2:
+            # the deck between the buttresses: black louvres, a light line down the middle
+            if ax < 0.5:
+                return tone(A, 0.5)
+            return tone("ev_satin", 0.0) if math.floor(z) % 2 == 0 else tone("ev_satin", 0.75)
+        if z < CAB0 and ax < HOOD_X:
+            if abs(z - (NOSE + 6)) < 0.5:
+                return tone(C, 0.45)                              # the frunk's shut line
+            if math.floor(ax) == 8 and z > NOSE + 6:
+                return tone(C, 0.45)
+            if 3 <= ax < 5:
+                return tone(C, 0.9)                               # a reflection band down the hood
+            return tone(C, 0.76)
+        if HOOD_X <= ax < HOOD_X + 1 and z < D0:
+            return tone(C, 1.0)                                   # the blade's inner crease
+        if HX <= ax < HX + 1 and z > D1:
+            return tone(C, 1.0)                                   # the haunch's inner crease
+        if (abs(z - D0) < 0.5 or abs(z - D1) < 0.5) and ax > GB:
+            return tone(C, 0.4)                                   # door seams over the shoulder
+        return tone(C, 0.82)
+
+    def side_colour(x, y, z, ax):
+        """The flanks: soft gradient, the crease's light, seams, the LED / tail wrap, the charge flap."""
+        fz, fy = math.floor(z), math.floor(y)
+        if z < NOSE + 2 and ax > W - 1.5:
+            if LED_Y[0] <= y < LED_Y[1]:
+                return ("raw", (236, 248, 255, 255))              # the LED bar wraps round the corner
+            if 4 <= y < 7:
+                return tone("ev_satin", 0.3)
+        if z > TAIL - 2 and ax > W - 1.5:
+            if TAIL_Y[0] <= y < TAIL_Y[1]:
+                return ("raw", (255, 50, 62, 255))
+            if 10.5 <= y < 13.5:
+                return tone("ev_satin", 0.3)
+        if y < 3.5:
+            return tone("ev_satin", 0.4)
+        if D0 <= z < D1 + 0.01 and (fz == math.floor(D0) or fz == math.floor(D1 - 0.5)) and y > 4:
+            return tone(C, 0.15)                                  # the door seams
+        t = open_top(z)
+        if t is not None and y < t + 0.75:
+            return tone(C, 0.3)                                   # the arch's lip
+        if fy == math.floor(SIDE - 0.5):
+            return tone(C, 0.86)                                  # light under the crease
+        if x < 0 and 34 <= z < 36.5 and 9 <= y < 11.5:
+            if z < 34.5 or z >= 36 or y < 9.5 or y >= 11:
+                return tone(C, 0.3)                               # the charge flap's outline
+            return tone(C, 0.6)
+        return tone(C, 0.42 + 0.34 * smooth((y - 3) / 10))
+
+    def body_decal(c):
         x, y, z = c.p
         ax = abs(x)
         f = c.face
-        inward = (f == "east" and x < 0) or (f == "west" and x > 0)
-        if inward and ax < 29.5:
-            return (TR, 2.4)                          # inside the door / tub (seen when a door is up)
-        if f in ("north", "south", "east", "west") and top(z, ax) - y < 1.2 and y > 15:
-            f = "up"
         if f == "down":
-            return ("ev_satin", 0)
+            return tone("ev_satin", 0.1)
+        inner = (f == "east" and x < 0) or (f == "west" and x > 0)
+        if f in ("east", "west", "north", "south") and in_arch(z, y, ax):
+            return tone("ev_satin", 0.05)                         # the wheel wells
+        if f in ("east", "west") and open_top(z) is not None and y < ARCH_TOP + 0.05 and ax < W - 0.6:
+            return tone("ev_satin", 0.05)
         if f == "up":
-            w = plan(z)
-            if w - ax < 2.2:
-                return (C, 7)                         # the shoulder's chamfer catches the light
-            if 13.5 < ax < 14.6 or 18.8 < ax < 19.6:
-                return (C, 7)                         # the fender blades' creases
-            if (abs(z - D0) < 0.5 or abs(z - D1) < 0.5) and ax > 24:
-                return (C, 2.5)                       # door seams over the shoulder
-            if abs(z - (NOSE + 10)) < 0.5 and ax < 13.5:
-                return (C, 3.0)                       # the frunk's shut line
-            if 13.5 < ax < 14.5 and z < CAB0 - 2 and z > NOSE + 10:
-                return (C, 3.0)
-            if 5 < ax < 8 and z < CAB0:
-                return (C, 6.3)                       # a reflection band down the hood
-            return (C, 5.5)
+            if -24 < z < RW and ax < GB and y < FLOOR + 0.6:
+                return tone("ev_satin", 0.35 if math.floor(z) % 4 else 0.15)   # the cabin's mat
+            return top_colour(x, y, z, ax)
         if f in ("east", "west"):
-            if (abs(z - D0) < 0.6 or abs(z - D1) < 0.6) and y > SILL:
-                return (C, 1.0)                       # door seams
-            fy = math.floor(y)
-            # the flush handles: a slim dark slot with a lit lip over it
-            for hz in (-10, 18):
-                if hz <= z < hz + 6 and -34 < z < 34:
-                    if fy == 21:
-                        return ("ev_satin", 1)
-                    if fy == 22:
-                        return (C, 7)
-            # the charge flap on the left rear quarter
-            if x < 0 and 60 <= z < 65 and 20 <= y < 24:
-                if z < 60.6 or z >= 64.4 or y < 20.6 or y >= 23.4:
-                    return (C, 1.2)
-                return (C, 4.5)
-            cz = crease(z) if -34 < z < 34 else 13
-            if -34 < z < 34 and fy == math.floor(cz):
-                return (C, 6.5)                       # the crease's lit edge over the blade
-            return (C, 2.4 + 2.8 * clamp((y - 10) / 18))
+            if inner:
+                if CAB0 - 0.1 < z < RW + 0.8 and ax < GB + 0.1 and y < BELT + 0.1:
+                    # the door cards and the tub's sides: white leather, an accent line
+                    if math.floor(y) == 9:
+                        return tone(A, 0.6)
+                    return tone(TR, 0.55)
+                return tone(C, 0.5 + 0.2 * smooth((y - DECK) / 3))     # the blades' / haunches' inner walls
+            return side_colour(x, y, z, ax)
         if f == "north":
-            return (C, 4.0 + 1.6 * clamp((y - 8) / 12))
+            if z < NOSE + 1:
+                if y < 4:
+                    # the intake under the visor: a fine black mesh
+                    return tone("ev_satin", 0.7) if (math.floor(x) + math.floor(y)) % 2 else tone("ev_satin", 0.0)
+                return tone(C, 0.62 + 0.2 * smooth((y - 7) / 4))
+            if ax < GB and CAB0 < z < RW:
+                return tone(TR, 0.4)
+            return tone(C, 0.6)
         if f == "south":
-            fy = math.floor(y)
-            if 9 <= fy <= 20 and abs(x) < 10.5 and (abs(x) > 9.5 or fy in (9, 20)):
-                return (C, 1.6)                       # the plate's recess outline
-            return (C, 3.0 + 2.0 * clamp((y - 10) / 16))
+            if z > TAIL - 0.5:
+                if 6.5 <= y < 8.5 and ax < 5.25 and (ax >= 4.75 or y < 7 or y >= 8):
+                    return tone(C, 0.3)                           # the plate's recess
+                if y < DIFF_Y + 0.5 and ax < DIFF_X + 0.5:
+                    return tone("ev_satin", 0.2)
+                return tone(C, 0.5 + 0.22 * smooth((y - 6) / 9))
+            if z > DIFF_Z - 0.5 and y < DIFF_Y:
+                return tone("ev_satin", 0.05)                     # the diffuser's back wall
+            if ax < GB and CAB0 < z < RW + 1:
+                return tone(TR, 0.4)                              # the cabin's walls
+            return tone(C, 0.5)
         return None
 
-    def canopy(c):
-        """Black glass: a long diagonal reflection on the roof, a soft gradient up the sides."""
-        x, y, z = c.p
-        if c.face == "up":
-            k = (z + abs(x) * 0.7) % 26
-            if abs(x) > glass_w(z, y) - 1.6 - 0.5:
-                return (R, 4.4)                       # the roof's edge catches the light
-            return (R, 4.6 if k < 2 else 3.5 if k < 3.2 else 2.4)
-        if c.face == "down":
-            return (R, 0)
-        return (R, 1.6 + 1.8 * clamp((y - 28) / 16))
+    def crease_decal(c):
+        """The shoulder's 45 degree chamfer: the crease's bright line, the door seams across it."""
+        if c.face != "up":
+            return body_decal(c)
+        z = c.p[2]
+        if abs(z - D0) < 0.5 or abs(z - D1) < 0.5:
+            return tone(C, 0.35)
+        return tone(C, 1.0)
 
-    def tint(c):
-        """Dark side glass: blue-black, two pale streaks running back and down."""
+    def canopy(c):
+        """The roof's black glass: a long diagonal reflection, its edges catching the light."""
         x, y, z = c.p
-        k = math.floor(z * 0.8 - y * 1.3) % 34
-        if c.face in ("up", "down"):
-            return (R, 2)
-        if k in (0, 1):
-            return ("ev_steel", 3)
-        if k == 4:
-            return ("ev_steel", 1)
-        return (R, 0.6 + 1.2 * clamp((y - 28) / 15))
+        if c.face == "down":
+            return tone(TR, 0.6)                                  # the headliner
+        if c.face == "up":
+            ax = abs(x)
+            if 2.5 <= ax < 4:
+                return tone(R, 0.62)                              # a sky line down each side of the roof
+            if 4 <= ax < 4.5:
+                return tone(R, 0.5)
+            return tone(R, 0.36 + 0.06 * smooth((z - ZR0) / 20))
+        return tone(R, 0.5)
+
+    def roof_edge(c):
+        if c.face == "up":
+            return tone(R, 0.85)
+        if c.face == "down":
+            return tone(TR, 0.6)
+        return tone(R, 0.5)
 
     def satin(c):
         if c.face == "up":
-            return ("ev_satin", 2)
+            return tone("ev_satin", 0.65)
         if c.face == "down":
-            return ("ev_satin", 0)
-        return ("ev_satin", 1.3)
+            return tone("ev_satin", 0.0)
+        return tone("ev_satin", 0.4)
 
-    def mesh(c):
-        x, y, z = c.p
-        a = x if c.face in ("north", "south", "up", "down") else z
-        return ("ev_satin", 0) if (math.floor(a) + math.floor(y)) % 2 else ("ev_satin", 2.2)
-
-    def louvre(c):
-        x, y, z = c.p
-        if c.face != "up":
-            return ("ev_satin", 1)
-        if abs(x) < 1:
-            return (A, 2)                             # a light line down the middle
-        return ("ev_satin", 0) if math.floor(z) % 3 == 0 else ("ev_satin", 2.4)
-
-    def led(c):
-        # the LED bar: a hot white strip broken into fine segments, a cooler reflector between them
-        x, y, z = c.p
-        k = math.floor(x if c.face in ("north", "south") else z)
-        return ("raw", (240, 250, 255, 255)) if k % 4 else ("raw", (176, 214, 236, 255))
-
-    def tail(c):
-        x, y, z = c.p
-        k = math.floor(x if c.face in ("north", "south") else z)
-        return ("raw", (255, 44, 56, 255)) if k % 4 else ("raw", (196, 18, 34, 255))
-
-    def frame(c):
+    def blade(c):
+        """The satin blade set in along the door's foot: a fine bright lip along its top edge."""
         if c.face == "up":
-            return ("ev_steel", 4)                    # a bright lip over the light
-        return ("ev_satin", 0.6)
+            return tone("ev_satin", 0.7)
+        if c.face in ("east", "west") and c.p[1] > 6.5:
+            return tone("ev_satin", 0.75)
+        return satin(c)
 
-    def accent(c):
-        return ("raw", (90, 236, 255, 255)) if c.face in ("east", "west", "north", "south") else (A, 2)
+    def buttress(c):
+        f = c.face
+        if f == "up":
+            return tone(C, 0.95)
+        if f == "down":
+            return tone(C, 0.35)
+        if f in ("east", "west"):
+            inner = (f == "east" and c.p[0] < 0) or (f == "west" and c.p[0] > 0)
+            return tone(C, 0.5 if inner else 0.72)
+        return tone(C, 0.6)
 
-    return {
-        "core": Paint(C, 3, noise=0, light=False),
-        "paint": Paint(C, 5, noise=0, grad=0, rim=0, ao=0, decal=body),
-        "roof": Paint(R, 3, noise=0, grad=0, rim=0, ao=0, decal=canopy),
-        "tint": Paint(R, 1, noise=0, grad=0, rim=0, ao=0, decal=tint),
-        "well": Paint("ev_satin", 0, noise=0, grad=0, rim=0, ao=0.4),
-        "satin": Paint("ev_satin", 1, noise=0, grad=0, rim=0.3, ao=0.3, decal=satin),
-        "mesh": Paint("ev_satin", 1, noise=0, grad=0, rim=0, decal=mesh),
-        "louvre": Paint("ev_satin", 1, noise=0, grad=0, rim=0, decal=louvre),
-        "frame": Paint("ev_satin", 1, noise=0, grad=0, rim=0, decal=frame),
-        "led": Paint("ev_led", 2, noise=0, light=False, glow=True, decal=led),
-        "tail": Paint("ev_tail", 2, noise=0, light=False, glow=True, decal=tail),
-        "accent": Paint(A, 3, noise=0, light=False, glow=True, decal=accent),
-    }
-
-
-FLAT = ("paint", "roof", "tint", "core")      # stepped surfaces: their light is painted, the face shading is off
-
-
-def _flat_voxels(m, cells, paints):
-    box = m.box
-    flat = [paints[k] for k in FLAT]
-
-    def flat_box(name, frm, to, paint, **kw):
-        if any(paint is p for p in flat):
-            kw["shade"] = False
-        return box(name, frm, to, paint, **kw)
-    m.box = flat_box
-    try:
-        voxels(m, "shell", cells, lambda label: paints[label])
-    finally:
-        del m.box
-
-
-def _pane_decal(c):
-    """A see-through pane: two reflection streaks across it, a thin dark seal round it, the rest clear."""
-    x, y, z = c.p
-    if c.u in (0, c.nu - 1) or c.v in (0, c.nv - 1):
-        return ("raw", (24, 28, 36, 255))
-    d = math.floor(x * 0.9 + y * 1.4 - z * 0.3) % 40
-    if d in (0, 1, 5):
-        return ("raw", (230, 240, 255, 255)) if d != 5 else ("raw", (170, 190, 220, 255))
-    return ("raw", (0, 0, 0, 0))
-
-
-PANE = Paint("ev_glass", 1, noise=0, light=False, decal=_pane_decal)
+    flat = dict(noise=0, grad=0, rim=0, ao=0)
+    return dict(
+        body=Paint(C, 4, **flat, decal=body_decal),
+        angled=Paint(C, 4, **flat),
+        body_decal=body_decal, crease_decal=crease_decal, buttress=buttress,
+        roof=Paint(R, 2, **flat, decal=canopy), roof_edge=roof_edge,
+        satin=Paint("ev_satin", 1, noise=0, grad=0, rim=0.3, ao=0.3, decal=satin),
+        blade=Paint("ev_satin", 1, noise=0, grad=0, rim=0, ao=0, decal=blade),
+        glass=Paint(R, 1, noise=0, light=False),
+    )
 
 
 # ================================================================================================
@@ -484,124 +446,290 @@ _KIT = {}
 
 
 def concept_kit(colour="ev_pearl", roof_="ev_glass", accent="ev_cyan", trim="ev_trim", name="concept_ev"):
-    key = (colour, roof_, accent, trim, name)
+    key = (colour, roof_, accent, trim, name, tuple(sorted(REMAP.items())))
     if key in _KIT:
         return _KIT[key]
-    kit = Kit(name, ("door_l", "door_r"), scale=4.0)
+    kit = Kit(name, ("door_l", "door_r"), scale=2.0)
     m = kit.body
     m.group("body")
-    paints = _make_paints(colour, roof_, accent, trim)
-    body, doors = _cells()
-    for target, cells in ((m, body), (kit["door_l"], doors[-1]), (kit["door_r"], doors[1])):
-        _flat_voxels(target, cells, paints)
-    _hood(m, paints)
-    _screen(m)
-    _side_glass(kit, paints)
-    _cabin(m, accent, trim)
-    _cameras(kit, paints, accent)
+    P = _make_paints(colour, roof_, accent, trim)
+    ctx = dict(C=colour, R=roof_, A=accent, TR=trim, P=P)
+    _shell(m, kit, ctx)
+    _nose(m, ctx)
+    _tail(m, ctx)
+    _canopy(m, kit, ctx)
+    _cabin(m, ctx)
+    _door_parts(kit, ctx)
     m.display = _held_display(m)
     _KIT[key] = kit
     return kit
 
 
-def _hood(m, paints):
-    """The hood between the fender blades: one opaque plane at 22.5 degrees laid over its 1 px steps, so it reads as a
-    single sharp sheet from the knife-edge nose to the screen."""
-    y0 = belt(NOSE) + 0.65
-    length = (CAB0 - NOSE) / math.cos(math.radians(22.5))
-    m.box("hood", (-14, y0 - 0.5, NOSE), (14, y0, NOSE + length), paints["paint"],
-          rotation=("x", 22.5, (0, y0, NOSE)), shade=False)
+def _shell(m, kit, ctx):
+    """The body's mass: the hood between the blade fenders, the blades, the cabin's floor and sills, the doors with
+    their satin blade and shoulder crease, the haunches, the deck and the tail; the arches cut into them."""
+    P = ctx["P"]
+    body, ang, bd = P["body"], P["angled"], P["body_decal"]
+    box = m.box
+    # --- the front: the hood (one plane at 22.5 degrees from the knife edge to the screen's foot) over the core
+    profile(m, "hood", (-HOOD_X, HOOD_X), [(NOSE, HOOD_NOSE), (CAB0, BELT)], body, bd)
+    # the blade fenders: rising at 22.5 degrees from the nose to their crest over the wheel, a 45 degree cut at the
+    # door; the corner of the nose bevelled (a 1 px strip at 45 degrees)
+    fen = [(NOSE, FNOSE), (FZ0, FPEAK), (FZ1, FPEAK), (D0, BELT)]
+    fen_c = [(NOSE + 1, FNOSE + T)] + fen[1:]
+    for s in (-1, 1):
+        profile(m, "blade", _x(s, HOOD_X, W - 1), fen, body, bd, arches=True)
+        profile(m, "blade", _x(s, W - 1, W), fen_c, body, bd, arches=True)
+        plank(m, "nose_bevel", "y", (NOSE, s * (W - 1)), (NOSE + 1, s * W), (GROUND, FNOSE + 0.2), 0.6, ang,
+              decal=_corner_decal(bd), below=s > 0)
+        # the wheel well's inner wall behind the hood (the cabin's footwell is behind it)
+        box("well", _lo(s, HOOD_X - 0.5, TRACK - 0.5, FLOOR, CAB0), _hi(s, HOOD_X - 0.5, TRACK - 0.5, ARCH_TOP - 0.25, D0 - 0.05), body)
+    # --- the middle: the cabin's floor, the sills (satin, a glowing line along them)
+    box("floor", (-(TRACK), GROUND, CAB0), (TRACK, FLOOR, RW), body)
+    for s in (-1, 1):
+        box("sill", _lo(s, TRACK, SILL_X, 0.75, D0), _hi(s, TRACK, SILL_X, 4, D1), P["satin"])
+        m.group("lights")
+        box("accent", _lo(s, SILL_X, SILL_X + 0.25, 3.25, D0 + 0.5), _hi(s, SILL_X, SILL_X + 0.25, 3.75, D1 - 0.5),
+            Paint(ctx["A"], 3, noise=0, light=False, glow=True,
+                  decal=lambda c: ("raw", (96, 238, 255, 255)) if c.face in ("east", "west") else tone(ctx["A"], 0.8)))
+        m.group("body")
+    # --- the doors: the panel, the satin blade set in along its foot, the shoulder and its 45 degree crease
+    for s in (-1, 1):
+        d = kit["door_l" if s < 0 else "door_r"]
+        d.box("door", _lo(s, GB, W, 7, D0), _hi(s, GB, W, SIDE, D1), body)
+        d.box("door_blade", _lo(s, GB, W - 0.75, 4, D0), _hi(s, GB, W - 0.75, 7, D1), P["blade"])
+        d.box("shoulder", _lo(s, GB, W - 1, SIDE, D0), _hi(s, GB, W - 1, BELT, D1), body)
+        plank(d, "crease", "z", (s * (W - 1), BELT), (s * W, SIDE), (D0, D1), 0.75, ang, decal=P["crease_decal"])
+    # --- the rear: the bulkhead behind the cabin, the core under the deck, the haunches (rising at 22.5 degrees
+    # over the rear wheels), the lip the buttresses land on, the tail's bevelled corners
+    box("bulkhead", (-GB, 4, RW), (GB, DECK, D1), body)
+    box("core_r", (-HX, GROUND, D1), (HX, DECK, DIFF_Z), body)
+    box("core_r", (-HX, DIFF_Y, DIFF_Z), (HX, DECK, TAIL), body)
+    box("lip", (-HX, DECK, TAIL - 1.5), (HX, BUT_Y, TAIL), body)
+    hz = D1 + (HPEAK - BELT) / T
+    hpts = [(D1, BELT), (hz, HPEAK), (TAIL, HPEAK)]
+    hpts_c = [(D1, BELT), (hz, HPEAK), (TAIL - 1, HPEAK)]
+    for s in (-1, 1):
+        profile(m, "haunch", _x(s, HX, W - 1), hpts, body, bd, arches=True)
+        profile(m, "haunch", _x(s, W - 1, W), hpts_c, body, bd, arches=True)
+        plank(m, "tail_bevel", "y", (TAIL - 1, s * W), (TAIL, s * (W - 1)), (GROUND, HPEAK), 0.6, ang,
+              decal=_corner_decal(bd), below=s > 0)
+    # --- the arches' 45 degree corners: a slim panel along each, painted as the arch's lip
+    lip = Paint(ctx["C"], 4, noise=0, grad=0, rim=0, ao=0,
+                decal=lambda c: tone("ev_satin", 0.05) if c.face == "down" else tone(ctx["C"], 0.32))
+    for s in (-1, 1):
+        for wz, xin in ((WF, HOOD_X), (WR, HX)):
+            for e in (-1, 1):
+                z0 = wz + e * ARCH
+                z1 = wz + e * (ARCH - CHAMF)
+                plank(m, "arch_corner", "x", (z0, ARCH_TOP - CHAMF), (z1, ARCH_TOP), _x(s, xin, W + 0.02), 0.75, lip,
+                      below=False)
 
 
-def _screen(m):
-    """The windscreen: two clear panes over the open stepped frame, one at 45 degrees from the cowl to the knee and
-    one at 22.5 degrees from the knee to the roof."""
-    y0 = belt(CAB0) + 0.3
-    z0 = CAB0 - 0.3
-    half = glass_w(-40, 30) - 2.0
-    l1 = (KNEE - CAB0) / math.cos(math.radians(45)) + 0.2
-    m.box("screen", (-half, y0, z0), (half, y0 + 0.5, z0 + l1), PANE, rotation=("x", 45, (0, y0, z0)))
-    y1, z1 = roof(KNEE) + 0.3, KNEE
-    half = glass_w(-25, 40) - 2.0
-    l2 = (-13 - KNEE) / math.cos(math.radians(22.5))
-    m.box("screen", (-half, y1, z1), (half, y1 + 0.5, z1 + l2), PANE, rotation=("x", 22.5, (0, y1, z1)))
+def _corner_decal(bd):
+    """The bevelled corners: their faces see the flank's paint (the light bars wrap round them)."""
+    def d(c):
+        x, y, z = c.p
+        if c.face in ("east", "west", "north", "south"):
+            q = SimpleNamespace(**{**c.__dict__, "face": "east" if x > 0 else "west"})
+            return bd(q)
+        return bd(c)
+    return d
 
 
-def _side_glass(kit, paints):
-    """The side glass as smooth sheets: a pane leaning in at 22.5 degrees per 4 px strip (its top follows the
-    screen's line, so the strips are short at the front), the door's strips ride with the door."""
-    tint = paints["tint"]
-    for side, part in ((-1, "door_l"), (1, "door_r")):
-        for z in range(-40, int(RW) - 2, 4):
-            z1 = min(z + 4, RW - 2)
-            yb = belt(z + 2) + 1.4
-            yt = min(roof(z), roof(z1)) - 2.4
-            if yt - yb < 1.5:
-                continue
-            wb = glass_w(z + 2, yb) + 0.3
-            h = (yt - yb) / math.cos(math.radians(22.5))
-            target = kit[part] if D0 <= z < D1 else kit.body
-            lo, hi = sorted((side * wb, side * (wb + 0.5)))
-            target.box("side_pane", (lo, yb, z), (hi, yb + h, z1), tint,
-                       rotation=("z", side * 22.5, (side * wb, yb, z)))
+def _lo(s, a, b, y, z):
+    return (min(s * a, s * b), y, z)
 
 
-def _cabin(m, A, TR):
+def _hi(s, a, b, y, z):
+    return (max(s * a, s * b), y, z)
+
+
+def _nose(m, ctx):
+    """The LED bar the whole width in its black visor, the splitter under the mesh intake."""
+    def visor(c):
+        if c.face == "up":
+            return tone("ev_steel", 0.8)                          # a bright lip over the light
+        if c.face == "down":
+            return tone("ev_satin", 0.0)
+        return tone("ev_satin", 0.25)
+    m.box("visor", (-(W - 1), 4, NOSE - 0.25), (W - 1, 7, NOSE), Paint("ev_satin", 1, noise=0, grad=0, rim=0, ao=0, decal=visor))
+    m.group("lights")
+
+    def led(c):
+        # the LED bar: a hot white strip broken into fine segments
+        if c.face != "north":
+            return ("raw", (200, 228, 244, 255))
+        return ("raw", (246, 252, 255, 255)) if math.floor(c.p[0]) % 6 else ("raw", (214, 236, 250, 255))
+    m.box("led_bar", (-(W - 1), LED_Y[0], NOSE - 0.5), (W - 1, LED_Y[1], NOSE - 0.25),
+          Paint("ev_led", 2, noise=0, light=False, glow=True, decal=led))
+    m.group("body")
+    m.box("splitter", (-(W - 1.5), GROUND - 0.5, NOSE - 1), (W - 1.5, GROUND, NOSE + 1), ctx["P"]["satin"])
+
+
+def _tail(m, ctx):
+    """The red bar the whole width in its black frame, the diffuser's fins."""
+    def frame(c):
+        if c.face == "up":
+            return tone("ev_steel", 0.7)
+        if c.face == "down":
+            return tone("ev_satin", 0.0)
+        return tone("ev_satin", 0.25)
+    m.box("tail_frame", (-(W - 1), 10.5, TAIL), (W - 1, 13.5, TAIL + 0.25), Paint("ev_satin", 1, noise=0, grad=0, rim=0, ao=0, decal=frame))
+    m.group("lights")
+
+    def bar(c):
+        if c.face != "south":
+            return ("raw", (200, 30, 44, 255))
+        return ("raw", (255, 52, 64, 255)) if math.floor(c.p[0]) % 6 else ("raw", (226, 32, 48, 255))
+    m.box("tail_bar", (-(W - 1), TAIL_Y[0], TAIL + 0.25), (W - 1, TAIL_Y[1], TAIL + 0.5),
+          Paint("ev_tail", 2, noise=0, light=False, glow=True, decal=bar))
+    m.group("body")
+    # the diffuser's fins standing in its recess
+    fin = Paint("ev_satin", 1, noise=0, grad=0, rim=0.4, ao=0.2,
+                decal=lambda c: tone("ev_satin", 0.8) if c.face in ("up", "south") else tone("ev_satin", 0.35))
+    for fx in (-9, -6, -3, 0, 3, 6, 9):
+        m.box("fin", (fx - 0.25, GROUND, DIFF_Z), (fx + 0.25, DIFF_Y, TAIL + 0.5), fin)
+
+
+def _canopy(m, kit, ctx):
+    """The black glass canopy: the screen (45 then 22.5 degrees, clear between black A pillars), the flat roof with
+    1 px 45 degree edges, the upright side glass (the door's rides with the door), the upright rear window, the
+    floating C-pillars. The glasshouse stands upright on the flat shoulders (a narrower canopy on a broad body)."""
+    P = ctx["P"]
+    R = ctx["R"]
+    glass = P["glass"]
+    yk = screen_y(KNEE)
+
+    def edge(y):
+        return GB if y < EDGE_Y else GB - (y - EDGE_Y)
+
+    def pane(c):
+        x, y, z = c.p
+        ax = abs(x)
+        if ax > edge(y):
+            return CLEAR                                          # beyond the roof's edge
+        if ax > GB - 1.25 or y > ROOF - 1.2 or y < BELT + 0.6:
+            return raw(R, 0.3)                                    # the black pillars and header round it
+        if 20 <= y < 20.75:
+            return ("raw", (178, 198, 228, 255))                  # the sky's reflection: one fine line across
+        return CLEAR
+    plank(m, "screen", "x", (CAB0, BELT), (KNEE, yk), (-GB, GB), 0.5, glass, decal=pane)
+    plank(m, "screen", "x", (KNEE, yk), (ZR0, ROOF), (-GB, GB), 0.5, glass, decal=pane)
+    # the A pillars: black strips along the screen's edges, a hair over the pane
+    pil = Paint(R, 2, noise=0, grad=0, rim=0, ao=0, decal=lambda c: tone(R, 0.5 if c.face == "up" else 0.25))
+    for s in (-1, 1):
+        plank(m, "a_pillar", "x", (CAB0, BELT + 0.05), (KNEE, yk + 0.05), _x(s, GB - 1.25, GB), 0.6, pil)
+        plank(m, "a_pillar", "x", (KNEE, yk + 0.05), (ZR0, ROOF + 0.05), _x(s, GB - 1.25, GB), 0.6, pil)
+    m.box("roof", (-(GB - 1), EDGE_Y, ZR0), (GB - 1, ROOF, RW), P["roof"])
+    for s in (-1, 1):
+        plank(m, "roof_edge", "z", (s * GB, EDGE_Y), (s * (GB - 1), ROOF), (ZR0, RW), 0.75, P["angled"],
+              decal=P["roof_edge"])
+
+    def side(c):
+        x, y, z = c.p
+        inner = (c.face == "east" and x < 0) or (c.face == "west" and x > 0)
+        if z < ZR0 and y > screen_y(z) - 0.55:
+            return CLEAR                                          # in front of the screen's line (the pillar covers it)
+        if y > EDGE_Y - 0.6 or (z < ZR0 and y > screen_y(z) - 1.4):
+            return raw(R, 0.3)                                    # its edges: the black pillars
+        if y < BELT + 0.6:
+            return raw(R, 0.05)                                   # the seal along the belt
+        if inner:
+            return raw(R, 0.15)
+        if 18 <= y < 19:
+            return raw("ev_steel", 0.42)                          # the horizon's reflection: a clean band along it
+        if 19 <= y < 19.6:
+            return raw("ev_steel", 0.22)
+        if y >= 19.6:
+            return raw(R, 0.42)                                   # the sky over it
+        return raw(R, 0.08 + 0.18 * smooth((y - BELT) / 4.5))
+    gl = glass(decal=side)
+    for s in (-1, 1):
+        d = kit["door_l" if s < 0 else "door_r"]
+        lo, hi = _x(s, GB - 0.5, GB)
+        m.box("side_glass", (lo, BELT + 0.1, CAB0), (hi, EDGE_Y, D0), gl)
+        d.box("side_glass", (lo, BELT, D0), (hi, EDGE_Y, RW), gl)
+
+    def rear(c):
+        x, y, z = c.p
+        ax = abs(x)
+        if ax > GB - 1.25 or y > EDGE_Y - 0.75 or y < DECK + 0.75:
+            return raw(R, 0.3)
+        if 18.5 <= y < 19.5:
+            return raw("ev_steel", 0.32)
+        return raw(R, 0.1 + 0.25 * smooth((y - DECK) / 8))
+    m.box("rear_glass", (-GB, DECK, RW - 0.5), (GB, EDGE_Y, RW), glass(decal=rear))
+    # the floating C-pillars: from the roof's back corners down to the lip, open air under them
+    for s in (-1, 1):
+        plank(m, "buttress", "x", (RW, ROOF), (BUT_Z, BUT_Y), _x(s, *BUT_X), 1.5, P["angled"], decal=P["buttress"])
+
+
+def _cabin(m, ctx):
     """What shows through the glass: four floating seats (each a slim shell on one pedestal), one wide screen across
-    the dash, a yoke, a floating console."""
+    a slim dash, a yoke, a floating console."""
+    A, TR = ctx["A"], ctx["TR"]
+
     def seat_decal(c):
         x, y, z = c.p
-        if c.face in ("north", "south", "up") and abs((abs(x) % 22) - 11) > 3.4 and abs((abs(x) % 22) - 11) < 4.1:
-            return (A, 2)                             # a light seam down each side of the insert
-        return None
-    leather = Paint(TR, 2, noise=0, grad=0, rim=0.5, decal=seat_decal)
+        lx = abs(abs(x) - SEAT_X)
+        if c.face in ("north", "south", "up") and 1.25 <= lx < 1.75:
+            return tone(A, 0.5)                                   # a light seam down each side of the insert
+        return tone(TR, 0.75 if c.face == "up" else 0.55)
+    leather = Paint(TR, 2, noise=0, grad=0, rim=0.5, ao=0.3, decal=seat_decal)
     base = Paint("ev_satin", 2, noise=0, rim=0.4)
-    for sz in (-7.0, 22.4):
-        for sx in (-11, 11):
-            m.box("pedestal", (sx - 2, 6, sz - 2), (sx + 2, 9, sz + 1), base)
-            m.box("cushion", (sx - 5, 9, sz - 7), (sx + 5, 11.5, sz + 3), leather)
-            m.box("back", (sx - 5, 9, sz + 3), (sx + 5, 30, sz + 5.5), leather)
-            m.box("headrest", (sx - 3.5, 30, sz + 3.5), (sx + 3.5, 34, sz + 5.5), leather)
-    # the dash: a slim blade the width of the cabin, one wide screen floating over it
-    m.box("dash", (-23, 22, -40), (23, 24, -32), Paint(TR, 1, noise=0, rim=0.4,
-          decal=lambda c: (A, 2) if c.face == "south" else None))
-    screen = Paint("ev_screen", 1, noise=0, light=False, glow=True,
-                   decal=lambda c: ("ev_screen", 3 if (math.floor(c.p[0]) % 9 in (1, 2) and math.floor(c.p[1]) == 26) else
-                                    0 if math.floor(c.p[0]) % 15 == 7 else 2) if c.face == "south" else ("ev_satin", 1))
-    m.box("display", (-21, 24.5, -35), (21, 28.5, -34), screen)
-    m.box("display_stem", (-1, 24, -35.5), (1, 24.5, -34.5), Paint("ev_satin", 2, noise=0))
-    # the yoke (driver on the left): two grips and a bar under a small hub, on a column from the dash
-    ycx, ycy, ycz = -11, 21, -28
+    for sz in (-3.5, 11.2):
+        for sx in (-SEAT_X, SEAT_X):
+            m.box("pedestal", (sx - 1, FLOOR, sz - 1), (sx + 1, 3.5, sz + 0.5), base)
+            m.box("cushion", (sx - 2.5, 3.5, sz - 3.5), (sx + 2.5, 4.5, sz + 1.5), leather)
+            m.box("back", (sx - 2.5, 3.5, sz + 1.5), (sx + 2.5, 15, sz + 2.75), leather)
+            m.box("headrest", (sx - 1.75, 15, sz + 1.75), (sx + 1.75, 17, sz + 2.75), leather)
+    # the dash: a slim blade between the blades' backs, one wide screen floating over it
+    m.box("dash", (-HOOD_X, 11, -21), (HOOD_X, 12, -16.5), Paint(TR, 1, noise=0, rim=0.4,
+          decal=lambda c: tone(A, 0.5) if c.face == "south" else tone(TR, 0.5)))
+
+    def scr(c):
+        if c.face != "south":
+            return tone("ev_satin", 0.3)
+        x, y = c.p[0], c.p[1]
+        if math.floor(y) == 13 and math.floor(x) % 5 in (1, 2):
+            return tone("ev_screen", 1.0)
+        if math.floor(x) % 8 == 3:
+            return tone("ev_screen", 0.1)
+        return tone("ev_screen", 0.65)
+    m.box("display", (-9, 12.25, -18), (9, 14.25, -17.5), Paint("ev_screen", 1, noise=0, light=False, glow=True, decal=scr))
+    # the yoke (driver on the left): a bar and two grips round a small hub, on a column from the dash
+    ycx, ycy, ycz = -SEAT_X, 10.5, -14
     grip = Paint("ev_satin", 1, noise=0, rim=0.6)
-    m.box("column", (ycx - 0.75, ycy - 0.5, ycz - 4), (ycx + 0.75, ycy + 1, ycz), grip)
-    m.box("yoke_hub", (ycx - 2, ycy - 1.5, ycz), (ycx + 2, ycy + 1.5, ycz + 1), Paint("ev_steel", 4, noise=0,
-          decal=lambda c: (A, 3) if c.face == "south" and abs(c.p[0] - ycx) < 1 else None))
-    m.box("yoke_bar", (ycx - 5.5, ycy - 2.5, ycz), (ycx + 5.5, ycy - 1.5, ycz + 1), grip)
-    for gx in (-6, 5):
-        m.box("yoke_grip", (ycx + gx, ycy - 3, ycz - 0.25), (ycx + gx + 1, ycy + 3, ycz + 1.25), grip)
+    m.box("column", (ycx - 0.5, ycy - 0.5, -16.5), (ycx + 0.5, ycy + 0.5, ycz), grip)
+    m.box("yoke_hub", (ycx - 1, ycy - 0.75, ycz), (ycx + 1, ycy + 0.75, ycz + 0.5),
+          Paint("ev_steel", 4, noise=0, decal=lambda c: tone(A, 0.8) if c.face == "south" else tone("ev_steel", 0.6)))
+    m.box("yoke_bar", (ycx - 2.75, ycy - 1.25, ycz), (ycx + 2.75, ycy - 0.75, ycz + 0.5), grip)
+    for gx in (-3, 2.5):
+        m.box("yoke_grip", (ycx + gx, ycy - 1.5, ycz - 0.1), (ycx + gx + 0.5, ycy + 1.5, ycz + 0.6), grip)
     # the console: a floating spine between the front seats, a light line along its top
-    m.box("console", (-2, 11, -30), (2, 13, 4), Paint(TR, 1, noise=0, rim=0.4,
-          decal=lambda c: (A, 2) if c.face == "up" and abs(c.p[0]) < 0.5 else None))
-    m.box("console_leg", (-1, 6, -2), (1, 11, 1), base)
-    # the floor: a dark mat over the tub's floor
-    m.box("floor", (-22, 7, -37), (22, 7.5, 29), Paint("ev_satin", 1, noise=0, rim=0,
-          decal=lambda c: ("ev_satin", 2 if math.floor(c.p[2]) % 4 == 0 else 1) if c.face == "up" else None))
+    m.box("console", (-1, 5, -15), (1, 6, 2), Paint(TR, 1, noise=0, rim=0.4,
+          decal=lambda c: tone(A, 0.6) if c.face == "up" and abs(c.p[0]) < 0.5 else tone(TR, 0.5)))
+    m.box("console_leg", (-0.5, FLOOR, -1), (0.5, 5, 0.5), base)
 
 
-def _cameras(kit, paints, A):
-    """The "mirrors": a slim camera pod on a thin stalk from the base of each door's glass."""
-    pod = Paint("ev_satin", 2, noise=0, rim=0.5,
-                decal=lambda c: (A, 3) if c.face == "south" and c.u == 1 and c.v == 1 else
-                ("ev_satin", 3) if c.face == "up" else None)
-    for side, part in ((-1, "door_l"), (1, "door_r")):
+def _door_parts(kit, ctx):
+    """On each door: two flush handles (a slim satin bar with a lit lip over it), a camera pod on a thin stalk."""
+    A = ctx["A"]
+    P = ctx["P"]
+    handle = Paint("ev_satin", 1, noise=0, grad=0, rim=0, ao=0,
+                   decal=lambda c: tone(ctx["C"], 1.0) if c.face == "up" else tone("ev_satin", 0.2))
+    pod = Paint("ev_satin", 2, noise=0, grad=0, rim=0.5, ao=0,
+                decal=lambda c: tone(A, 0.85) if c.face == "south" and c.u in (1, 2) and c.v in (1, 2) else
+                tone("ev_satin", 0.85) if c.face == "up" else tone("ev_satin", 0.45))
+    for s, part in ((-1, "door_l"), (1, "door_r")):
         d = kit[part]
-        z = D0 + 3
-        y = belt(z) + 1.0
-        x = glass_w(z, y) - 0.5
-        lo, hi = sorted((side * x, side * (W + 2)))
-        d.box("camera_stalk", (lo, y, z + 1.5), (hi, y + 1, z + 2.5), paints["satin"])
-        lo, hi = sorted((side * (W + 1), side * (W + 4)))
-        d.box("camera", (lo, y - 0.5, z), (hi, y + 2.5, z + 4), pod)
+        for hz in (-6.5, 8):
+            d.box("handle", _lo(s, W, W + 0.15, 10.25, hz), _hi(s, W, W + 0.15, 10.75, hz + 3), handle)
+        z = D0 + 1.5
+        d.box("camera_stalk", _lo(s, GB - 0.25, W + 1, BELT + 0.25, z + 0.75), _hi(s, GB - 0.25, W + 1, BELT + 0.75, z + 1.25),
+              P["satin"])
+        d.box("camera", _lo(s, W + 0.75, W + 2.25, BELT - 0.25, z), _hi(s, W + 0.75, W + 2.25, BELT + 1, z + 2), pod)
 
 
 def concept_ev(colour="ev_pearl", roof_="ev_glass", accent="ev_cyan", trim="ev_trim", name="concept_ev"):
@@ -613,46 +741,47 @@ def _part(name):
 
 
 # ================================================================================================
-# The wheel: drawn at twice its size (28 px = 0.875 block across), shrunk by 2
+# The wheel: 14 px (0.875 block) across, 5 px wide
 # ================================================================================================
 
 def wheel_concept(ring="ev_cyan", cover="ev_pearl", name="wheel_concept"):
-    """콘셉트 EV's wheel: a big closed aero wheel on a low tyre. A turbine cover: a dished pale disc with twelve thin
-    swept vanes round a dark centre, a lit ring near its rim, a dark hub with a dot of colour."""
-    m = BModel(name, shift=(8, 8, 8), floor=None, scale=2.0)
-    d, width = 28, 10
+    """콘셉트 EV's wheel: a big closed aero wheel on a low tyre. A turbine cover: a pale disc with six swept vanes
+    round a dark hub, a lit ring near its rim, a bright lip round it."""
+    m = BModel(name, shift=(8, 8, 8), floor=None)
+    d, width = 14, 5
     r = d / 2
 
     def tire(c):
         y, z = c.p[1], c.p[2]
         rr = math.hypot(y, z)
         if c.face in ("east", "west"):
-            if rr > r - 1:
-                return ("ev_satin", 0)
-            if rr > r - 2.6:
-                return ("ev_satin", 1.6)                  # the low sidewall, a lit bead
-            if rr > r - 3.6:
-                return ("ev_steel", 5)                    # the rim's bright lip
-            if rr > r - 4.6:
-                return (ring, 3)                          # the lit ring
-            if rr > r - 5.4:
-                return ("ev_satin", 0)
-            if rr < 2.2:
-                return (ring, 3) if rr < 0.9 else ("ev_satin", 0)
-            if rr < 3.6:
-                return ("ev_steel", 2)
-            a = math.atan2(z, y)
-            t = ((a + rr * 0.16) * 12 / (2 * math.pi)) % 1.0     # twelve vanes swept round
-            lit = 0.6 if (y > 0 and z < 1) else 0
-            if t < 0.18:
-                return (cover, 7 if lit else 6)               # a vane's lit edge
-            if t < 0.5:
-                return (cover, 4.6 + lit)
-            return (cover, 3.2 + lit - (0.6 if rr < 6 else 0))
+            return tone("ev_satin", 0.0 if rr > r - 0.9 else 0.45)   # the low sidewall, a lit bead
         a = math.atan2(z, y)
         k = math.floor((a + math.pi) / (2 * math.pi) * d * 2.2)
-        return ("ev_satin", 0 if k % 4 == 0 else 1)
+        return tone("ev_satin", 0.0 if k % 3 == 0 else 0.3)
     cyl(m, "tire", (0, 0), d, -width / 2, width / 2, Paint("ev_satin", 1, noise=0, rim=0.2, decal=tire), axis="x")
+
+    def face(c):
+        y, z = c.p[1], c.p[2]
+        rr = math.hypot(y, z)
+        if c.face not in ("east", "west"):
+            return tone("ev_steel", 0.5)
+        if rr > 4.3:
+            return tone("ev_steel", 0.95 if y > 0 else 0.65)          # the rim's bright lip
+        if rr > 3.4:
+            return tone(ring, 0.75)                                   # the lit ring
+        if rr < 1.1:
+            return tone(ring, 0.75) if rr < 0.6 else tone("ev_satin", 0.0)
+        if rr < 1.6:
+            return tone("ev_satin", 0.1)
+        a = math.atan2(z, y)
+        t = ((a + rr * 0.18) * 6 / (2 * math.pi)) % 1.0             # six vanes swept round
+        lit = 0.1 if y > 0 else 0
+        return tone(cover, 0.88 + lit) if t < 0.5 else tone(cover, 0.6 + lit)
+    p = Paint("ev_steel", 3, noise=0, rim=0.2, ao=0.3, decal=face)
+    w2 = width / 2
+    cyl(m, "cover", (0, 0), 10, w2, w2 + 0.25, p, axis="x", faces={"west": None})
+    cyl(m, "cover", (0, 0), 10, -w2 - 0.25, -w2, p, axis="x", faces={"east": None})
     m.display = presets.furniture(gui_scale=0.6)
     return m
 

@@ -1,52 +1,53 @@
 """
-The donation vehicle 사이드카 오토바이 (sidecar_bike): a 1940s touring / military style motorcycle with a torpedo
+The donation vehicle 사이드카 오토바이 (sidecar_bike): a 1940s touring / military style V-twin motorcycle with a torpedo
 sidecar on its RIGHT side. An original design: no real make, no badge, no signature shape copied.
 
-Drawn like the showcase car (models/vehicles_showcase.py, read its doc first): 32 px a block. The body and its moving
-part are drawn at twice their real size and shrunk by 4 (BModel scale 4), shown at vehicle.body-scale 2; the wheel is
-drawn at twice its size and shrunk by 2, shown at 1. So a texel is 1/32 block everywhere on it.
+Drawn like every other vehicle on the server (models/vehicles.py, vehicles_premium.py, and the donation muscle car
+models/vehicles_donation_muscle_car.py, whose "angled panels" approach this follows): 16 px a block, the body drawn at
+its real size and shrunk by 2 (BModel scale 2), shown at vehicle.body-scale 2; the wheel a model of its own at 1.
+No pixel-staircase curves: every round or sloped thing is a few clean boxes and flat panels turned 22.5 or 45
+degrees about one axis (plank(), arc(), octa()): the fenders are rings of panels round the wheels (a crown and two
+valances each), the headlamp, the air cleaner and the tail lamps are octagons, the tub is an octagonal prism whose
+nose and tail step down in art-deco rings to a polished chrome cone, the fork, frame tubes, headers and bars are
+straight bars at 22.5 / 45 degrees. A motorcycle is small, so its thin parts are half-pixel boxes and the detail is
+painted (world-space decals, so a turned panel carries on the paint of the boxes round it): the enamel's soft
+gradients and highlights, the chrome's sky band over a dark horizon, the cylinders' fins, the springs' coils, the
+tank's flash and knee pads, the saddle's stitching, the tub's tufted seat, the lamps' insides, the spoked wheels.
 
-How it is lit: every face is painted with its own light (the game's face shading is off on all of it, like the
-showcase car's paint): round parts (the tank, the fenders, the tub, the headlamp, the saddle, the tyres) are sculpted
-from 1 px cells of a smooth shape (bake.voxels) and each texel is lit by the shape's normal there, not by the face it
-lies on, so a stepped surface reads as one smooth panel. Gloss paint takes a soft key light and a specular streak;
-chrome takes a reflected sky / dark horizon / ground (the hard dark band that makes chrome read as chrome).
-
-Drawn coordinates (like every vehicle): the vehicle's ground centre at (0, 0, 0), front = north (-z), +x = its RIGHT
-side. The bike runs along x = BX (left of the middle), the sidecar's tub along x = SX (right of it): the pair is
-centred so the item file's collision box (centred on the vehicle) covers both.
+Drawn coordinates: 16 px a block, the rig's ground centre at (0, 0, 0), front = north (-z), +x = its RIGHT side.
+The bike runs along x = BX (left of the middle), the sidecar's tub along x = SX (right of it): the pair is centred
+so the item file's collision box (centred on the vehicle) covers both.
 
 The bike: a springer fork (rigid rear legs, sprung front legs on a rocker at the axle, two chrome coil springs under
-the upper crown), a deep valanced front fender that rides with it, a round headlamp in a chrome bucket with a chrome
-bezel, a reflector and a bulb behind its glass, a small speedometer on top of it, a chrome horn under it; wide
-pulled-back handlebars with ribbed black grips, levers and one round mirror; a teardrop tank (two-tone: the paint with
-a flash of the trim colour each side, a chrome strip down its crown, two chrome filler caps, rubber knee pads in a
-chrome strip, a hand-shift lever on its left); a 45-degree air-cooled V-twin with finned barrels and finned heads, a
-chrome primary cover on the left, a round timing cover and a carburettor with a round chrome air cleaner on the right;
-two chrome exhaust pipes down the left side to stacked fishtail mufflers; a sprung leather solo saddle on two chrome
-coil springs; rubber footboards; a black double-cradle frame with plunger rear suspension; a valanced rear fender with
-a round tail lamp and a blank licence-plate holder; a leather saddlebag on the left.
+the upper crown), a deep valanced front fender with the trim colour down its crown, a round chrome headlamp with a
+speedometer on top and a horn under it, wide pulled-back handlebars with ribbed grips, levers and one round mirror;
+a teardrop two-tone tank (the paint with a flash of the trim colour each side, a chrome strip down its crown, two
+filler caps, ribbed rubber knee pads, a hand-shift lever on its left); a V-twin with finned barrels and heads and
+chrome rocker covers, a chrome primary cover on the left, a timing cover, a carburettor with a round chrome air
+cleaner on the right; two chrome pipes down the left side to stacked fishtail mufflers; a sprung leather solo saddle
+on two chrome coil springs; rubber footboards; a black cradle frame with plunger rear suspension; a valanced rear
+fender with a round tail lamp and the plate holder; a leather saddlebag on the left, an oil tank on the right.
 
-The sidecar: a torpedo tub (the paint below a chrome spear moulding, the trim colour above, a polished chrome nose
-cone, a chrome roll round the cockpit), a padded and tufted leather seat and back rest, a grab rail, a luggage rack on
-the tail deck with a strapped leather case, a spare wheel standing on the tail, a red lamp on the tail, its own wheel
-under a valanced mudguard with a small running lamp on it, and the chassis that carries it: two black rails under the
-tub, two lower struts and two upper struts to the bike's frame, the wheel's axle tube.
+The sidecar: a torpedo tub (the paint below a chrome spear moulding, the trim colour above, a chrome roll round the
+cockpit, a chrome nose cone), a tufted leather seat and back rest, a grab rail, a luggage rack on the tail deck with
+a strapped leather case, a spare wheel standing on the tail, its own wheel under a valanced mudguard with a running
+lamp on top and a red lamp on its back, and the chassis that carries it: two rails under the tub, cross members to
+the bike's frame, two upper struts, the wheel's axle tube.
 
 Its moving part (vehicles.yml movers): screen, the sidecar's little windscreen in its chrome frame, which folds
-forward on its hinge while the passenger gets in or out.
+forward on its foot while the passenger gets in or out (hinge at drawn (SX, SCREEN_Y, SCREEN_Z)).
 
-Riders: the driver astride the saddle (seat 0: a sitting player's thighs lie on the saddle's top), the passenger low
-in the tub (seat 1). Paint is an argument: colour (the tank, the fenders, the tub below the spear), trim (the tank's
-flash, the fender stripes, the tub above the spear), leather (the saddle, the seat, the bags), whitewall (tyres with a
-white wall) - so a tuning colour is one more call (sidecar_bike(colour="sc_olive", trim="sc_olive") is the olive drab
-army rig).
+Riders: the driver astride the saddle (seat 0), the passenger low in the tub (seat 1). Paint is an argument: colour
+(the tank, the fenders, the tub below the spear), trim (the tank's flash, the fender stripes, the tub above the
+spear), leather (the saddle, the seat, the bags), whitewall (tyres with a white wall), so a tuning colour is one more
+call (sidecar_bike(colour="sc_olive", trim="sc_olive") is the olive drab army rig).
 """
 
 import math
+from types import SimpleNamespace
 
-from stsv_assets.bake import BModel, Paint, cyl, voxels, bands
-from stsv_assets.palette import MATERIALS, PALETTE, build_ramp, size as ramp_size
+from stsv_assets.bake import BModel, Paint, cyl
+from stsv_assets.palette import MATERIALS, PALETTE, REMAP, build_ramp
 from stsv_assets import presets
 from models.vehicles_road import rod
 
@@ -65,7 +66,7 @@ _ramp("sc_cream", 88, 0.040, 0.84, 0.26, 7, False)      # old ivory cream
 _ramp("sc_olive", 118, 0.055, 0.44, 0.40, 8, False)     # olive drab
 _ramp("sc_chrome", 245, 0.012, 0.60, 0.86, 9, False)    # chrome: near black to near white
 _ramp("sc_black", 255, 0.010, 0.24, 0.26, 6, False)     # black enamel (frame)
-_ramp("sc_alloy", 85, 0.010, 0.62, 0.40, 7, False)      # cast aluminium (crankcase, barrels' fins)
+_ramp("sc_alloy", 85, 0.010, 0.62, 0.40, 7, False)      # cast aluminium (crankcase, heads)
 _ramp("sc_iron", 250, 0.008, 0.36, 0.30, 6, False)      # cast iron barrels, dark metal
 _ramp("sc_rubber", 260, 0.010, 0.31, 0.28, 6, False)
 _ramp("sc_leather", 52, 0.075, 0.40, 0.36, 7, False)    # tan saddle leather
@@ -75,270 +76,15 @@ _ramp("sc_white", 90, 0.012, 0.90, 0.12, 4, False)      # plate, dial, whitewall
 _ramp("sc_glass", 215, 0.030, 0.82, 0.20, 3, False)
 
 
-# ================================================================================================
-# Light
-# ================================================================================================
-
-def _n(v):
-    ln = math.sqrt(sum(a * a for a in v)) or 1.0
-    return tuple(a / ln for a in v)
+def _n(ramp):
+    """Steps in a ramp (followed through palette.remapped, so a tuning paint keeps its lights)."""
+    spec = MATERIALS.get(REMAP.get(ramp, ramp))
+    return spec[4] if spec else 5
 
 
-def _dot(a, b):
-    return a[0] * b[0] + a[1] * b[1] + a[2] * b[2]
-
-
-LIGHT = _n((-0.45, 0.80, -0.40))       # key light: high, from the front left
-VIEW = _n((-0.55, 0.42, -0.72))        # the usual eye: front left, a little above
-HALF = _n(tuple(a + b for a, b in zip(LIGHT, VIEW)))
-FACE_N = {"up": (0, 1, 0), "down": (0, -1, 0), "north": (0, 0, -1), "south": (0, 0, 1), "east": (1, 0, 0),
-          "west": (-1, 0, 0)}
-
-
-def _light(kind, n):
-    """0 (darkest step) .. 1 (lightest) and a little over for highlights."""
-    d = max(0.0, _dot(n, LIGHT))
-    up = 0.5 + 0.5 * n[1]
-    if kind == "gloss":
-        return 0.10 + 0.48 * d + 0.26 * up + 0.55 * max(0.0, _dot(n, HALF)) ** 26
-    if kind == "satin":
-        return 0.12 + 0.50 * d + 0.28 * up + 0.18 * max(0.0, _dot(n, HALF)) ** 10
-    if kind == "matte":
-        return 0.12 + 0.52 * d + 0.30 * up
-    if kind == "chrome":
-        k = _dot(n, VIEW)
-        ry = 2 * k * n[1] - VIEW[1]                    # the reflected ray's height: sky, horizon or ground
-        if ry > 0.50:
-            t = 0.97
-        elif ry > 0.22:
-            t = 0.74
-        elif ry > 0.02:
-            t = 0.46
-        elif ry > -0.14:
-            t = 0.08                                   # the dark horizon band
-        elif ry > -0.45:
-            t = 0.40
-        else:
-            t = 0.28
-        return t + 0.45 * max(0.0, _dot(n, HALF)) ** 60
-    raise KeyError(kind)
-
-
-def _tone(ramp, kind, n, lo=None, hi=None):
-    s = ramp_size(ramp)
-    lo = 0 if lo is None else lo
-    hi = s - 1 if hi is None else hi
-    return (ramp, lo + _light(kind, n) * (hi - lo))
-
-
-def _grad(f, p, h=0.6):
-    x, y, z = p
-    g = (f(x + h, y, z) - f(x - h, y, z), f(x, y + h, z) - f(x, y - h, z), f(x, y, z + h) - f(x, y, z - h))
-    if abs(g[0]) + abs(g[1]) + abs(g[2]) < 1e-9:
-        return None
-    return _n(g)
-
-
-class Mats:
-    """material key -> (ramp, kind, lo, hi): what a texel is made of; a paint picks a key per texel."""
-
-    def __init__(self, **kw):
-        self.m = kw
-
-    def paint(self, sel, normal=None, glow=False):
-        """sel: a key, or c -> key | (ramp, step) | ("raw", rgba) | ("lit", ramp, kind). normal: c -> unit vector."""
-        m = self.m
-
-        def decal(c):
-            k = sel(c) if callable(sel) else sel
-            if k is None:
-                k = "paint"
-            if isinstance(k, tuple):
-                if k[0] != "lit":
-                    return k
-                n = (normal(c) if normal else None) or bar_normal(c)
-                return _tone(k[1], k[2], n)
-            ramp, kind, lo, hi = m[k]
-            n = (normal(c) if normal else None) or bar_normal(c)
-            return _tone(ramp, kind, n, lo, hi)
-        return Paint("sc_chrome", 4, noise=0, light=False, glow=glow, decal=decal)
-
-
-AX = {"east": 0, "west": 0, "up": 1, "down": 1, "north": 2, "south": 2}
-
-
-def bar_normal(c):
-    """A box's face normal, rounded across a thin box (a bar or a tube drawn as a box reads round: lit along one edge,
-    dark along the other)."""
-    fn = FACE_N[c.face]
-    fa = AX[c.face]
-    ext = [c.hi[i] - c.lo[i] for i in range(3)]
-    others = [i for i in range(3) if i != fa]
-    ca = min(others, key=lambda i: ext[i])
-    if ext[ca] > 3.5 or ext[ca] <= 0:
-        return fn
-    t = 2 * (c.p[ca] - c.lo[ca]) / ext[ca] - 1
-    t = max(-1.0, min(1.0, t))
-    e = [0.0, 0.0, 0.0]
-    e[ca] = 0.85 * t
-    k = math.sqrt(max(0.0, 1 - 0.72 * t * t))
-    return _n(tuple(fn[i] * k + e[i] for i in range(3)))
-
-
-def field_normal(f):
-    return lambda c: _grad(f, c.p)
-
-
-def radial(axis, c0, c1):
-    """Normals of a round part along an axis through (c0, c1) (axis x: (y, z); y: (x, z); z: (x, y)): the face
-    normal on its ends."""
-    ends = {"x": ("east", "west"), "y": ("up", "down"), "z": ("north", "south")}[axis]
-
-    def n(c):
-        if c.face in ends:
-            return None
-        x, y, z = c.p
-        if axis == "x":
-            return _n((0, y - c0, z - c1))
-        if axis == "y":
-            return _n((x - c0, 0, z - c1))
-        return _n((x - c0, y - c1, 0))
-    return n
-
-
-class Flat(BModel):
-    """A BModel whose faces all skip the game's face shading: their light is painted (see the module doc)."""
-
-    def box(self, name, frm, to, paint, faces=None, rotation=None, glow=False, shade=True, **kw):
-        return super().box(name, frm, to, paint, faces=faces, rotation=rotation, glow=glow, shade=False, **kw)
-
-
-def sculpt(m, name, f, lo, hi, paint, label=None, zstep=None):
-    """Cells (1 px) whose middles lie inside f (< 0) within the box lo..hi, merged into boxes. label(p) -> a key (cells
-    of one key merge together; None leaves the cell out); paint: a Paint, or key -> Paint. zstep(z) -> 1 or 2: the
-    cells' length along z there (2 where the shape changes slowly along z: fewer boxes)."""
-    cells = {}
-    pf = paint if callable(paint) and not isinstance(paint, Paint) else (lambda k: paint)
-    z = math.floor(lo[2])
-    zs = []
-    while z < math.ceil(hi[2]):
-        st = zstep(z) if zstep else 1
-        zs.append((z, st))
-        z += st
-    long_cells = {}
-    for z, st in zs:
-        for x in range(math.floor(lo[0]), math.ceil(hi[0])):
-            for y in range(math.floor(lo[1]), math.ceil(hi[1])):
-                p = (x + 0.5, y + 0.5, z + st / 2)
-                if f(*p) < 0:
-                    k = label(p) if label else "s"
-                    if k is not None:
-                        if st == 1:
-                            cells[(x, y, z)] = k
-                        else:
-                            long_cells[(x, y, z)] = (k, st)
-    voxels(m, name, cells, pf)
-    # the long cells: merged along x and y only, then each box drawn st long
-    for st in sorted({v[1] for v in long_cells.values()}):
-        layer = {}
-        for (x, y, z), (k, s2) in long_cells.items():
-            if s2 == st:
-                layer[(x, y, z)] = k
-        for label_ in sorted(set(layer.values()), key=str):
-            todo = {p for p, v in layer.items() if v == label_}
-            for p in sorted(todo, key=lambda q: (q[2], q[1], q[0])):
-                if p not in todo:
-                    continue
-                x, y, z = p
-                x1 = x + 1
-                while (x1, y, z) in todo:
-                    x1 += 1
-                y1 = y + 1
-                while all((i, y1, z) in todo for i in range(x, x1)):
-                    y1 += 1
-                for i in range(x, x1):
-                    for j in range(y, y1):
-                        todo.discard((i, j, z))
-                m.box(name, (x, y, z), (x1, y1, z + st), pf(label_))
-    return cells
-
-
-def tube(m, name, axis, c, d, lo, hi, paint):
-    """A round bar of diameter d along an axis (cyl: axis x: c = (y, z), axis z: c = (x, y), y: c = (x, z))."""
-    cyl(m, name, c, d, lo, hi, paint, axis=axis)
-
-
-def ring(m, name, axis, c, rin, rout, lo, hi, paint):
-    """A flat ring of 1 px cells (rin <= r < rout round c) from lo to hi along an axis (x: c = (y, z); z: c = (x, y)),
-    merged into few boxes."""
-    n = int(math.ceil(rout)) + 1
-    cells = {(i, j) for i in range(-n, n) for j in range(-n, n) if rin <= math.hypot(i + 0.5, j + 0.5) < rout}
-    while cells:
-        i, j = min(cells, key=lambda q: (q[1], q[0]))
-        i1 = i
-        while (i1 + 1, j) in cells:
-            i1 += 1
-        j1 = j
-        while all((k, j1 + 1) in cells for k in range(i, i1 + 1)):
-            j1 += 1
-        for a in range(i, i1 + 1):
-            for b in range(j, j1 + 1):
-                cells.discard((a, b))
-        if axis == "x":
-            m.box(name, (lo, c[0] + i, c[1] + j), (hi, c[0] + i1 + 1, c[1] + j1 + 1), paint)
-        else:
-            m.box(name, (c[0] + i, c[1] + j, lo), (c[0] + i1 + 1, c[1] + j1 + 1, hi), paint)
-
-
-def poly_ring(m, name, axis, c, rin, rout, lo, hi, paint, n=16, inner=True, outer=True):
-    """A round ring as n straight segments turned about the axis (a model element turns in 22.5 degree steps, so
-    n = 16 or 8), from lo to hi along it (axis x: c = (y, z); axis z: c = (x, y)). paint(theta, outward) -> Paint for
-    the segment whose middle points at theta (degrees; x axis: from +y towards +z; z axis: from +x towards +y),
-    outward: its outward unit normal in drawn space. inner / outer False leave that face out (where it lies against
-    another ring). The ends between segments are buried in their neighbours and left out."""
-    L = 2 * rout * math.tan(math.pi / n) + 0.06
-    for k in range(n):
-        th = k * 360.0 / n
-        base = round(th / 90.0) % 4 * 90
-        phi = th - base
-        if phi > 180:
-            phi -= 360
-        a, b = c
-        t = math.radians(th)
-        if axis == "x":
-            out = (0.0, math.cos(t), math.sin(t))
-            # drawn at `base` (0: +y, 90: +z, 180: -y, 270: -z), then turned by phi
-            if base in (0, 180):
-                sg = 1 if base == 0 else -1
-                y0, y1 = sorted((a + sg * rin, a + sg * rout))
-                frm, to = (lo, y0, b - L / 2), (hi, y1, b + L / 2)
-                fo, fi, ends = ("up", "down") if sg > 0 else ("down", "up"), None, ("north", "south")
-            else:
-                sg = 1 if base == 90 else -1
-                z0, z1 = sorted((b + sg * rin, b + sg * rout))
-                frm, to = (lo, a - L / 2, z0), (hi, a + L / 2, z1)
-                fo, fi, ends = ("south", "north") if sg > 0 else ("north", "south"), None, ("up", "down")
-            rot = ("x", phi, (lo, a, b)) if phi else None
-        else:
-            out = (math.cos(t), math.sin(t), 0.0)
-            if base in (0, 180):
-                sg = 1 if base == 0 else -1
-                x0, x1 = sorted((a + sg * rin, a + sg * rout))
-                frm, to = (x0, b - L / 2, lo), (x1, b + L / 2, hi)
-                fo, fi, ends = ("east", "west") if sg > 0 else ("west", "east"), None, ("up", "down")
-            else:
-                sg = 1 if base == 90 else -1
-                y0, y1 = sorted((b + sg * rin, b + sg * rout))
-                frm, to = (a - L / 2, y0, lo), (a + L / 2, y1, hi)
-                fo, fi, ends = ("up", "down") if sg > 0 else ("down", "up"), None, ("east", "west")
-            rot = ("z", phi, (a, b, lo)) if phi else None
-        p = paint(th, out)
-        faces = {ends[0]: None, ends[1]: None} if rot else {}     # (the checker wants an upright box closed)
-        if not outer:
-            faces[fo[0]] = None
-        if not inner:
-            faces[fo[1]] = None
-        m.box(name, frm, to, p, faces=faces, rotation=rot)
+def tone(ramp, t):
+    """(ramp, step) at lightness t: 0 the ramp's darkest, 1 its lightest (whatever its length)."""
+    return (ramp, max(0.0, min(1.0, t)) * (_n(ramp) - 1))
 
 
 def smooth(t):
@@ -346,30 +92,38 @@ def smooth(t):
     return t * t * (3 - 2 * t)
 
 
-def seg_dist(p, a, b):
-    """Distance from 2D point p to the segment a-b."""
-    ax, ay = a
-    bx, by = b
-    dx, dy = bx - ax, by - ay
-    L = dx * dx + dy * dy
-    t = 0 if L == 0 else max(0.0, min(1.0, ((p[0] - ax) * dx + (p[1] - ay) * dy) / L))
-    return math.hypot(p[0] - ax - t * dx, p[1] - ay - t * dy)
+CLEAR = ("raw", (0, 0, 0, 0))
 
 
 # ================================================================================================
-# Layout (drawn px, 32 a block)
+# Layout (drawn px, 16 a block)
 # ================================================================================================
 
-BX, SX = -15, 12              # the bike's centre line, the tub's centre line
-WY, WRAD = 12, 12.2           # wheel centre height, tyre radius (wheel-radius 0.375 block)
-ZF, ZR = -26, 26              # the bike's axles
-SWX, SWZ = 29, 10             # the sidecar wheel (x, z)
-SADDLE = 31.6                 # the saddle's top: seat 0 at 1.12 block (a sitting player's thighs 4.2 px under it)
+BX, SX = -7.5, 6.0            # the bike's centre line, the tub's centre line
+WY, WRAD = 6.0, 6.0           # wheel centre height, tyre radius (wheel-radius 0.375 block)
+ZF, ZR = -13.0, 13.0          # the bike's axles
+SWX, SWZ = 14.5, 5.0          # the sidecar wheel (x, z)
 RAKE = 22.5                   # the fork's rake (a model element turns in 22.5 degree steps)
 FD = (math.cos(math.radians(RAKE)), math.sin(math.radians(RAKE)))     # up the fork: (dy, dz)
 FF = (math.sin(math.radians(RAKE)), -math.cos(math.radians(RAKE)))    # across the fork, forward: (dy, dz)
-HL = (33.0, -25.0)            # headlamp centre (y, z)
-SCREEN_Z, SCREEN_Y = -8.0, 28.5   # the sidecar windscreen's hinge (its foot)
+HL = (16.5, -12.25)           # headlamp centre (y, z)
+HL_FACE = -14.25              # the headlamp's lens face (z)
+SADDLE = 15.6                 # the saddle's top
+SCREEN_Z, SCREEN_Y = -4.0, 14.25   # the sidecar windscreen's hinge (its foot): vehicles.yml movers hinge
+TAIL_LAMP = (11.0, 20.5)      # the bike's tail lamp: middle (y), its lens face (z)
+PLATE = (7.1, 21.6)           # the plate's middle (y) and its face (z): vehicles.yml plates
+SIDE_LAMP = (14.0, 1.0)       # the running lamp on the sidecar's mudguard: middle (y), lens face (z)
+GUARD_LAMP = (11.2, 11.9)     # the red lamp on the back of the sidecar's mudguard: middle (y), lens face (z)
+
+# the tub: an octagonal prism (half width TW, bottom TB, top TT, chamfer TC), nose and tail rings
+TW, TB, TT, TC = 6.5, 4.5, 14.0, 1.75
+TUB_Z0, TUB_Z1 = -8.0, 6.5    # the full section between these
+WELL_Z0, WELL_Z1 = -3.5, 6.5  # the cockpit
+WELL_FLOOR = 6.25
+SPEAR = 10.25                 # the chrome spear's middle (y): the paint below, the trim colour above
+SPARE = (10.0, 16.75)         # the spare wheel's middle (y) and its z
+NOSE = (-11.0, -13.5, -14.5)  # the tub's nose: the maroon ring's front, the chrome cone's, the tip's
+TAIL_Z = 13.0                 # the tub's tail
 
 
 def fork(t, off=0.0):
@@ -377,202 +131,307 @@ def fork(t, off=0.0):
     return (WY + t * FD[0] + off * FF[0], ZF + t * FD[1] + off * FF[1])
 
 
-def _ring_normal(c, out, ax, r, a, rc, hr, ha):
-    """The normal of a round-sectioned ring (a torus of radial half size hr, axial ha round radius rc) at radius r,
-    axial position a; out: the outward radial direction there, ax: the axis."""
-    if c.face in ("north", "south", "east", "west", "up", "down"):
-        pass
-    gr, ga = (r - rc) / (hr * hr), a / (ha * ha)
-    n = tuple(gr * out[i] + ga * ax[i] for i in range(3))
-    if abs(gr) + abs(ga) < 1e-6:
-        return FACE_N[c.face]
-    return _n(n)
-
-
-def _tyre_texel(c, out, ax, rc, tr, tw, whitewall, o=(0.0, 0.0, 0.0)):
-    """A tyre's texel: a block tread on its crown, a moulded ring and (whitewall) a white band on its walls. o: its
-    hub."""
-    x, y, z = (c.p[i] - o[i] for i in range(3))
-    a = x if ax[0] else z
-    r = math.hypot(*( (y, z) if ax[0] else (x, y) ))
-    n = _ring_normal(c, out, ax, r, a, rc, tr * 1.05, tw * 1.05)
-    on_crown = abs(_dot(n, ax)) < 0.6 and r > rc + 0.5
-    if on_crown:
-        u = (y + z) if ax[0] else (x + y)
-        k = math.floor(u * 0.9)
-        groove = abs(a) < 0.4 or (abs(a) > 0.6 and (k + (1 if a > 0 else 0)) % 3 == 0)
-        return ("sc_rubber", 0.3) if groove else _tone("sc_rubber", "matte", n, 0.6, 5)
-    if whitewall and rc - 1.1 < r < rc + 0.5:
-        return _tone("sc_white", "satin", n)
-    if abs(r - (rc + 1.0)) < 0.35:
-        return ("sc_rubber", 0.8)
-    return _tone("sc_rubber", "satin", n, 0.4, 5)
+def _x(c, a, b):
+    """The x span from c + a to c + b (either order)."""
+    return tuple(sorted((c + a, c + b)))
 
 
 # ================================================================================================
-# The wheel: drawn at twice its size (24.4 px = 0.76 block across), shrunk by 2
+# Angled panels (the muscle car's plank, and rings / octagons of them)
+# ================================================================================================
+
+def _rot(p, axis, deg, o):
+    """A point turned like Minecraft turns an element (the preview's minirender does the same)."""
+    a = math.radians(deg)
+    c, s = math.cos(a), math.sin(a)
+    x, y, z = p[0] - o[0], p[1] - o[1], p[2] - o[2]
+    if axis == "x":
+        y, z = y * c - z * s, y * s + z * c
+    elif axis == "y":
+        x, z = x * c + z * s, -x * s + z * c
+    else:
+        x, y = x * c - y * s, x * s + y * c
+    return (x + o[0], y + o[1], z + o[2])
+
+
+def world(decal, rot):
+    """A decal for a turned box: it sees the texel where it ends up, so it paints on like the boxes round it."""
+    if rot is None:
+        return decal
+    axis, ang, o = rot
+
+    def d(c):
+        q = SimpleNamespace(p=_rot(c.p, axis, ang, o), face=c.face, u=c.u, v=c.v, nu=c.nu, nv=c.nv, lo=c.lo, hi=c.hi,
+                            i=c.i, n=c.n, frame=c.frame, local=c.p)
+        return decal(q)
+    return d
+
+
+def plank(m, name, axis, p0, p1, span, t, paint, decal=None, below=True, faces=None, buried=False):
+    """A flat panel whose face runs along p0 -> p1 in the plane across `axis` (axis "x": points are (z, y), "z": (x, y),
+    "y": (z, x)), t thick on one side (below=True: towards -y, or -x for axis "y"), spanning `span` along the axis.
+    The slope must be a multiple of 22.5 degrees. decal: a world-space decal. buried: its inner face and the two
+    long edges lie inside the boxes it bevels (an octagon's chamfer): left out. Returns the rotation."""
+    (a0, b0), (a1, b1) = sorted((p0, p1))
+    da, db = a1 - a0, b1 - b0
+    length = math.hypot(da, db)
+    phi = math.degrees(math.atan2(db, da))
+    ang = -phi if axis == "x" else phi
+    snap = round(ang / 22.5) * 22.5
+    assert abs(snap - ang) < 0.05 and abs(snap) <= 45, f"{name}: {ang} degrees"
+    lo, hi = (b0 - t, b0) if below else (b0, b0 + t)
+    if axis == "x":
+        frm, to, o = (span[0], lo, a0), (span[1], hi, a0 + length), (0, b0, a0)
+    elif axis == "z":
+        frm, to, o = (a0, lo, span[0]), (a0 + length, hi, span[1]), (a0, b0, 0)
+    else:
+        frm, to, o = (lo, span[0], a0), (hi, span[1], a0 + length), (b0, 0, a0)
+    rot = (axis, snap, o) if snap else None
+    if decal is not None:
+        paint = paint(decal=world(decal, rot))
+    if buried and rot is not None:
+        faces = dict(faces or {})
+        if axis == "z":
+            gone = ("down" if below else "up", "west", "east")
+        elif axis == "x":
+            gone = ("down" if below else "up", "north", "south")
+        else:
+            gone = ("west" if below else "east", "north", "south")
+        for f in gone:
+            faces[f] = None
+    m.box(name, frm, to, paint, rotation=rot, faces=faces)
+    return rot
+
+
+def arc(m, name, c, angles, r0, r1, lo, hi, paint, decal, ends=(True, True), axis="x", inner=True, drop=(), upright=False):
+    """A ring of flat segments round c (axis x: c = (y, z), the angles in degrees from +y towards +z; axis z: c = (x, y),
+    from +x towards +y), each segment centred on its angle (multiples of 22.5), radially r0..r1, lo..hi along the
+    axis. Each segment is just long enough to meet its neighbours at r1. decal: world space. ends: keep the first /
+    last segment's open end. inner: draw the inner face. drop: faces nobody sees ("outer", "lo", "hi": the outer
+    face, the faces at lo and hi along the axis), left out of the turned segments (and of the upright ones too with
+    upright=True: only where an upright box covers them)."""
+    step = 22.5
+    L = 2 * r1 * math.tan(math.radians(step / 2)) + 0.04
+    n = len(angles)
+    for k, th in enumerate(angles):
+        th = th % 360
+        base = (round(th / 90.0) % 4) * 90
+        phi = th - base
+        if phi > 180:
+            phi -= 360
+        if phi < -180:
+            phi += 360
+        a, b = c
+        if axis == "x":
+            if base in (0, 180):
+                sg = 1 if base == 0 else -1
+                y0, y1 = sorted((a + sg * r0, a + sg * r1))
+                frm, to = (lo, y0, b - L / 2), (hi, y1, b + L / 2)
+                endf, rad = ("north", "south"), ("up", "down") if sg > 0 else ("down", "up")
+                lead = "north" if sg > 0 else "south"     # the face towards smaller angles
+            else:
+                sg = 1 if base == 90 else -1
+                z0, z1 = sorted((b + sg * r0, b + sg * r1))
+                frm, to = (lo, a - L / 2, z0), (hi, a + L / 2, z1)
+                endf, rad = ("up", "down"), ("south", "north") if sg > 0 else ("north", "south")
+                lead = "up" if sg > 0 else "down"
+            rot = ("x", phi, (lo, a, b)) if phi else None
+        else:
+            if base in (0, 180):
+                sg = 1 if base == 0 else -1
+                x0, x1 = sorted((a + sg * r0, a + sg * r1))
+                frm, to = (x0, b - L / 2, lo), (x1, b + L / 2, hi)
+                endf, rad = ("up", "down"), ("east", "west") if sg > 0 else ("west", "east")
+                lead = "down" if sg > 0 else "up"
+            else:
+                sg = 1 if base == 90 else -1
+                y0, y1 = sorted((b + sg * r0, b + sg * r1))
+                frm, to = (a - L / 2, y0, lo), (a + L / 2, y1, hi)
+                endf, rad = ("east", "west"), ("up", "down") if sg > 0 else ("down", "up")
+                lead = "east" if sg > 0 else "west"
+            rot = ("z", phi, (a, b, lo)) if phi else None
+        trail = endf[1] if lead == endf[0] else endf[0]
+        faces = {}
+        if k > 0 or not ends[0]:
+            faces[lead] = None
+        if k < n - 1 or not ends[1]:
+            faces[trail] = None
+        if not inner:
+            faces[rad[1]] = None
+        lohi = ("west", "east") if axis == "x" else ("north", "south")
+        for role in drop:
+            faces[{"outer": rad[0], "lo": lohi[0], "hi": lohi[1]}[role]] = None
+        if rot is None:
+            # an upright segment stays closed (the checker wants a removed face covered by an upright box)
+            faces = {f: None for f in faces if upright and f in [{"outer": rad[0], "lo": lohi[0], "hi": lohi[1]}[r] for r in drop]}
+        m.box(name, frm, to, paint(decal=world(decal, rot)), faces=faces or None, rotation=rot)
+
+
+def octa(m, name, c, W, H, ch, lo, hi, paint, decal, axis="z", t=None, faces=None, caps=(True, True), bottom=True):
+    """An octagonal prism along axis z (c = (x, y)) or x (c = (z, y)): half width W, half height H, its four long edges
+    chamfered ch at 45 degrees, from lo to hi along the axis: a core, two side boxes, four chamfer panels. caps:
+    False leaves that end out (where it lies against a bigger section)."""
+    t = t if t is not None else ch * 0.72 + 0.05
+    p = paint(decal=decal)
+    a, b = c
+    ends = ("north", "south") if axis == "z" else ("west", "east")
+    faces = dict(faces or {})
+    for k in (0, 1):
+        if not caps[k]:
+            faces[ends[k]] = None
+    faces = faces or None
+    if axis == "z":
+        m.box(name, (a - (W - ch), b - H, lo), (a + (W - ch), b + H, hi), p, faces=faces)
+        m.box(name, (a - W, b - (H - ch), lo), (a - (W - ch), b + (H - ch), hi), p, faces=faces)
+        m.box(name, (a + (W - ch), b - (H - ch), lo), (a + W, b + (H - ch), hi), p, faces=faces)
+        for s in (-1, 1):
+            plank(m, name + "_edge", "z", (a + s * (W - ch), b + H), (a + s * W, b + H - ch), (lo, hi), t, paint, decal=decal, faces=faces, buried=True)
+            if bottom:
+                plank(m, name + "_edge", "z", (a + s * (W - ch), b - H), (a + s * W, b - H + ch), (lo, hi), t, paint,
+                      decal=decal, below=False, faces=faces, buried=True)
+    else:
+        m.box(name, (lo, b - H, a - (W - ch)), (hi, b + H, a + (W - ch)), p, faces=faces)
+        m.box(name, (lo, b - (H - ch), a - W), (hi, b + (H - ch), a - (W - ch)), p, faces=faces)
+        m.box(name, (lo, b - (H - ch), a + (W - ch)), (hi, b + (H - ch), a + W), p, faces=faces)
+        for s in (-1, 1):
+            plank(m, name + "_edge", "x", (a + s * (W - ch), b + H), (a + s * W, b + H - ch), (lo, hi), t, paint, decal=decal, faces=faces, buried=True)
+            plank(m, name + "_edge", "x", (a + s * (W - ch), b - H), (a + s * W, b - H + ch), (lo, hi), t, paint,
+                  decal=decal, below=False, faces=faces, buried=True)
+
+
+# ================================================================================================
+# Paints
+# ================================================================================================
+
+def flat(ramp, base=None):
+    """A Paint shaded only by its decal (and the game's face light)."""
+    return Paint(ramp, base if base is not None else 2, noise=0, grad=0, rim=0, ao=0)
+
+
+def chrome_decal(lit=0.97, side=0.74, low=0.30, mid=None):
+    """Chrome: bright on top, a sky band over a dark horizon down its sides (on parts tall enough), dark below."""
+    def d(c):
+        if c.face == "up":
+            return tone("sc_chrome", lit)
+        if c.face == "down":
+            return tone("sc_chrome", 0.18)
+        lo, hi = c.lo[1], c.hi[1]
+        y = getattr(c, "local", c.p)[1]
+        if hi - lo >= 1.5:
+            f = (y - lo) / (hi - lo)
+            if f > 0.6:
+                return tone("sc_chrome", side + 0.12)
+            if f > 0.42:
+                return tone("sc_chrome", 0.16)        # the dark horizon
+            return tone("sc_chrome", low)
+        return tone("sc_chrome", side if c.face in ("north", "west") else side - 0.16)
+    return d
+
+
+def chrome_paint(**kw):
+    return flat("sc_chrome", 4)(decal=chrome_decal(**kw))
+
+
+def solid(ramp, up=0.7, side=0.45, down=0.15, front=None):
+    def d(c):
+        if c.face == "up":
+            return tone(ramp, up)
+        if c.face == "down":
+            return tone(ramp, down)
+        if front is not None and c.face in ("north", "west"):
+            return tone(ramp, front)
+        return tone(ramp, side)
+    return flat(ramp)(decal=d)
+
+
+def enamel(C, y0, y1, up=0.72, hi_t=0.58, lo_t=0.30):
+    """Gloss paint over a part from y0 to y1: a soft gradient down its sides, a light top."""
+    def d(c):
+        if c.face == "up":
+            return tone(C, up)
+        if c.face == "down":
+            return tone(C, 0.12)
+        f = smooth((c.p[1] - y0) / max(0.5, y1 - y0))
+        return tone(C, lo_t + (hi_t - lo_t) * f)
+    return d
+
+
+# ================================================================================================
+# The wheel: 12 px (0.75 block) across, 2.5 px wide
 # ================================================================================================
 
 def wheel_sidecar(whitewall=False, name="wheel_sidecar"):
-    """The rig's wheel (all three): a fat round-shouldered tyre with a block tread, a chrome drop-centre rim, forty
-    crossed wire spokes laced to the flanges of a big finned drum-brake hub with a brake plate each side."""
-    m = Flat(name, shift=(8, 8, 8), floor=None, scale=2.0)
-    mats = Mats()
-    RC, TR, TW = 10.25, 1.95, 2.2         # tyre section: centre radius, radial and lateral half sizes
-
-    def tyre_paint(th, out):
-        return Paint("sc_rubber", 1, noise=0, light=False, decal=lambda c: _tyre_texel(c, out, (1, 0, 0), RC, TR, TW, whitewall))
-    poly_ring(m, "tyre", "x", (0, 0), 8.6, RC + TR, -TW, TW, tyre_paint)
-
-    def rim_paint(th, out):
-        def decal(c):
-            r = math.hypot(c.p[1], c.p[2])
-            n = _ring_normal(c, out, (1, 0, 0), r, c.p[0], 7.8, 1.0, 1.6)
-            return _tone("sc_chrome", "chrome", n)
-        return Paint("sc_chrome", 4, noise=0, light=False, decal=decal)
-    poly_ring(m, "rim", "x", (0, 0), 7.0, 8.6, -1.3, 1.3, rim_paint, outer=False)
-
-    # the spokes: two see-through planes (the left and right flange's spokes), each spoke 1 px, crossed
-    def spokes(side):
-        lines = []
-        for i in range(9):
-            a = (i + (0.5 if side > 0 else 0)) * 2 * math.pi / 9
-            tw = 0.75 * side
-            h = (3.0 * math.cos(a), 3.0 * math.sin(a))
-            r = (7.1 * math.cos(a + tw), 7.1 * math.sin(a + tw))
-            lines.append((h, r))
-
-        def decal(c):
-            y, z = c.p[1], c.p[2]
-            rr = math.hypot(y, z)
-            if rr > 7.1 or rr < 2.6:
-                return ("raw", (0, 0, 0, 0))
-            for h, r in lines:
-                if seg_dist((y, z), h, r) < 0.45:
-                    lit = (y - 0.4 * z) / 7
-                    return ("sc_chrome", 4.4 + 1.6 * lit)
-            return ("raw", (0, 0, 0, 0))
-        return Paint("sc_chrome", 4, noise=0, light=False, decal=decal)
-    for side in (-1, 1):
-        x = side * 0.9
-        m.box("spokes", (x - 0.25, -7.2, -7.2), (x + 0.25, 7.2, 7.2), spokes(side))
-
-    # the hub: a finned alloy drum, a brake plate each side, the axle nut
-    def hub(c):
-        x = c.p[0]
-        if c.face in ("east", "west"):
-            rr = math.hypot(c.p[1], c.p[2])
-            if rr < 0.9:
-                return ("lit", "sc_chrome", "chrome")
-            return "plate" if rr > 1.6 else "hubdark"
-        return "fin" if math.floor(x * 2) % 2 == 0 else "hubdark"
-    hm = Mats(plate=("sc_alloy", "satin", 0.5, 6), fin=("sc_alloy", "satin", 1, 6.5), hubdark=("sc_alloy", "matte", 0, 3))
-    cyl(m, "hub", (0, 0), 6, -2.4, 2.4, hm.paint(hub, normal=radial("x", 0, 0)), axis="x")
-    cyl(m, "hub", (0, 0), 7, -3.0, -2.4, hm.paint(hub, normal=radial("x", 0, 0)), axis="x")
-    cyl(m, "hub", (0, 0), 7, 2.4, 3.0, hm.paint(hub, normal=radial("x", 0, 0)), axis="x")
+    """The rig's wheel (all three, the spare too): a fat round-shouldered tyre (a ring of sixteen panels, a block
+    tread on its crown), a chrome rim painted inside the bead, sixteen wire spokes on a see-through disc, a finned
+    alloy drum-brake hub with a chrome cap."""
+    m = BModel(name, shift=(8, 8, 8), floor=None)
+    _spoked_wheel(m, "x", (0.0, 0.0), 0.0, whitewall)
     m.display = presets.furniture(gui_scale=0.6)
     return m
 
 
-# ================================================================================================
-# Shapes
-# ================================================================================================
+def _spoked_wheel(m, axis, c, a0, whitewall, drop=()):
+    """A spoked wheel round c, its axle along axis x (c = (y, z), the wheel's middle at x = a0) or z (c = (x, y), at
+    z = a0)."""
+    R, RI, HW = WRAD, 3.9, 1.25
 
-# --- the tank: a teardrop over the top tube -----------------------------------------------------
-TZ0, TZ1 = -15.5, 3.0
+    def radius(p):
+        if axis == "x":
+            return math.hypot(p[1] - c[0], p[2] - c[1]), p[1] - c[0], p[0] - a0
+        return math.hypot(p[0] - c[0], p[1] - c[1]), p[1] - c[1], p[2] - a0
 
+    side_faces = ("east", "west") if axis == "x" else ("north", "south")
 
-def tank_dims(z, grow=0.0):
-    u = (z - TZ0) / (TZ1 - TZ0)
-    if u < 0 or u > 1:
-        return None
-    hw = 6.9 - 3.2 * u ** 1.2
-    yt = 34.4 - 3.4 * u ** 1.6
-    yb = 24.2 + 1.4 * u
-    s = 1.0
-    if u < 0.16:
-        s = math.sqrt(max(0.0, 1 - ((0.16 - u) / 0.16) ** 2))
-    if u > 0.80:
-        s = math.sqrt(max(0.0, 1 - ((u - 0.80) / 0.20) ** 2))
-    return hw * s + grow, (yt + yb) / 2, (yt - yb) / 2 * (0.55 + 0.45 * s) + grow
+    def tyre(cc):
+        r, dy, along = radius(cc.p)
+        if cc.face in side_faces:
+            if r > R - 0.55:
+                return tone("sc_rubber", 0.10)
+            if r > 4.85:
+                if whitewall and r < R - 0.55:
+                    return tone("sc_white", 0.75 if dy > 0 else 0.55)
+                return tone("sc_rubber", 0.42 if r < 5.15 else 0.28)      # the wall, a moulded ring at the bead
+            # the chrome rim inside the bead: lit along its top
+            return tone("sc_chrome", 0.95 if dy > 1.5 else 0.62 if dy > -1.5 else 0.30)
+        if r < RI + 0.6:
+            return tone("sc_chrome", 0.35)                                 # the rim's well, seen through the spokes
+        # the crown: blocks across it, staggered between the halves, a groove round the middle
+        u = cc.u
+        if abs(along) < 0.35:
+            return tone("sc_rubber", 0.0)
+        return tone("sc_rubber", 0.06 if (u + (along > 0)) % 2 == 0 else 0.30)
+    angles = [k * 22.5 for k in range(16)]
+    lo, hi = a0 - HW, a0 + HW
+    arc(m, "tyre", c, angles, RI, R, lo, hi, flat("sc_rubber", 1), tyre, axis=axis, ends=(False, False), drop=drop)
 
+    # the spokes: a see-through disc, sixteen spokes one texel wide, crossed in pairs
+    def spokes(cc):
+        r, dy, _ = radius(cc.p)
+        if cc.face not in side_faces:
+            return CLEAR
+        if r > RI + 0.2:
+            return CLEAR
+        if r < 1.2:
+            return tone("sc_alloy", 0.8)
+        if axis == "x":
+            u, v = cc.p[1] - c[0], cc.p[2] - c[1]
+        else:
+            u, v = cc.p[0] - c[0], cc.p[1] - c[1]
+        if abs(u - v) < 0.3 or abs(u + v) < 0.3 or abs(u - 0.5) < 0.3 or abs(v - 0.5) < 0.3:
+            return tone("sc_chrome", 0.88 if dy > 0 else 0.62)
+        return CLEAR
+    if axis == "x":
+        m.box("spokes", (a0 - 0.25, c[0] - RI, c[1] - RI), (a0 + 0.25, c[0] + RI, c[1] + RI), flat("sc_chrome", 4)(decal=spokes))
+    else:
+        m.box("spokes", (c[0] - RI, c[1] - RI, a0 - 0.25), (c[0] + RI, c[1] + RI, a0 + 0.25), flat("sc_chrome", 4)(decal=spokes))
 
-def tank_f(x, y, z, grow=0.0):
-    d = tank_dims(z, grow)
-    if d is None or d[0] <= 0.2:
-        return 1.0
-    hw, yc, hh = d
-    return (abs(x - BX) / hw) ** 2.2 + (abs(y - yc) / hh) ** 2.4 - 1
-
-
-# --- the fenders: a valanced shell round a wheel --------------------------------------------------
-
-def fender_f(cy, cz, cx, half, r_in, depth, a0, a1):
-    """A fender round the wheel at (cy, cz), centred on x = cx: its crown r_in .. r_in + 1.4, its valances down to
-    r_in - depth either side; from angle a0 to a1 (degrees from the top, + towards the back)."""
-    r_out = r_in + 1.0
-
-    def f(x, y, z):
-        a = math.degrees(math.atan2(z - cz, y - cy))
-        if a < a0 or a > a1:
-            return 1.0
-        rr = math.hypot(y - cy, z - cz)
-        ax = abs(x - cx)
-        rc, hr = (r_out + r_in - depth) / 2, (r_out - (r_in - depth)) / 2
-        outer = (ax / half) ** 4 + ((rr - rc) / hr) ** 4 - 1
-        inner = 1 - ((ax / (half - 0.9)) ** 4 + ((rr - (rc - 1.0)) / hr) ** 4)
-        return max(outer, inner)
-    return f
-
-
-# --- the sidecar's tub ----------------------------------------------------------------------------
-TUB_Z0, TUB_Z1 = -31.0, 31.0
-WELL_Z0, WELL_Z1 = -6.0, 15.0
-WELL_FLOOR = 12.0
-
-
-def tub_dims(z):
-    """(half width, centre height, half height) of the tub's section at z."""
-    if z < TUB_Z0 or z > TUB_Z1:
-        return None
-    hw, yt, yb = 14.0, 28.5, 8.0
-    if z > 8:
-        t = smooth((z - 8) / 23)
-        hw, yt, yb = 14 - 6.0 * t, 28.5 - 6.0 * t, 8 + 4.0 * t
-    yc, hh = (yt + yb) / 2, (yt - yb) / 2
-    s = 1.0
-    if z < -12:
-        s = (max(0.0, 1 - ((z + 12) / 19.0) ** 2)) ** 0.5
-    if z > 27:
-        s = math.sqrt(max(0.0, 1 - ((z - 27) / 4.0) ** 2))
-    return hw * s, yc, hh * s
-
-
-def tub_f(x, y, z):
-    d = tub_dims(z)
-    if d is None or d[0] < 0.3:
-        return 1.0
-    hw, yc, hh = d
-    return (abs(x - SX) / hw) ** 2.6 + (abs(y - yc) / hh) ** 2.6 - 1
-
-
-def tub_top(z, x=SX):
-    d = tub_dims(z)
-    if d is None:
-        return 0
-    hw, yc, hh = d
-    t = min(1.0, abs(x - SX) / max(hw, 0.1))
-    return yc + hh * (1 - t ** 2.6) ** (1 / 2.6)
-
-
-def in_well(x, z, pad=0.0):
-    """Inside the cockpit's opening (seen from above), its front corners rounded."""
-    if not (WELL_Z0 - pad <= z <= WELL_Z1 + pad):
-        return False
-    hw = tub_dims(z)[0] - 1.7 + pad
-    if z < WELL_Z0 + 4:
-        hw -= 4 - math.sqrt(max(0.0, 16 - (WELL_Z0 + 4 - z) ** 2))
-    return abs(x - SX) < hw
+    # the hub: a finned alloy drum, a chrome cap each end
+    def hub(cc):
+        r, dy, along = radius(cc.p)
+        if cc.face in side_faces:
+            return tone("sc_chrome", 0.95 if dy > 0 else 0.6) if r < 0.9 else tone("sc_alloy", 0.55)
+        return tone("sc_alloy", 0.78 if math.floor(along * 2) % 2 == 0 else 0.32)
+    cyl(m, "hub", c, 3, a0 - 1.0, a0 + 1.0, flat("sc_alloy", 3)(decal=hub), axis=axis)
 
 
 # ================================================================================================
@@ -581,10 +440,10 @@ def in_well(x, z, pad=0.0):
 
 class Kit:
     def __init__(self, name, parts):
-        self.body = Flat(name, shift=(8, 8, 8), scale=4.0)
+        self.body = BModel(name, shift=(8, 8, 8), scale=2.0)
         self.parts = {}
         for part in parts:
-            m = Flat(f"{name}_{part}", shift=(8, 8, 8), scale=4.0)
+            m = BModel(f"{name}_{part}", shift=(8, 8, 8), scale=2.0)
             m.display = presets.furniture(gui_scale=0.4)
             m.group(part)
             self.parts[part] = m
@@ -604,693 +463,690 @@ def sidecar_bike(colour="sc_maroon", trim="sc_cream", leather="sc_leather", whit
 
 
 def sidecar_kit(colour="sc_maroon", trim="sc_cream", leather="sc_leather", whitewall=False, name="sidecar_bike"):
-    key = (colour, trim, leather, whitewall, name)
+    key = (colour, trim, leather, whitewall, name, tuple(sorted(REMAP.items())))
     if key in _KITS:
         return _KITS[key]
     kit = Kit(name, ("screen",))
     m = kit.body
-    C, T, L = colour, trim, leather
-    M = Mats(paint=(C, "gloss", None, None), trim=(T, "gloss", None, None), chrome=("sc_chrome", "chrome", None, None),
-             black=("sc_black", "satin", None, None), alloy=("sc_alloy", "satin", None, None),
-             iron=("sc_iron", "matte", None, None), rubber=("sc_rubber", "matte", None, None),
-             leather=(L, "satin", None, None), dark=(L, "matte", 0, 2.4), pin=("sc_chrome", "satin", 1, 3))
-    chrome = M.paint("chrome")
-    black = M.paint("black")
-    rubber = M.paint("rubber")
-
-    def chrome_r(axis, c0, c1):
-        return M.paint("chrome", normal=radial(axis, c0, c1))
-
-    _bike(m, M, chrome, black, rubber, chrome_r)
-    _engine(m, M, chrome, black, rubber, chrome_r)
-    _rear(m, M, chrome, black, rubber, chrome_r)
-    _sidecar(m, kit, M, chrome, black, rubber, chrome_r, whitewall)
+    ctx = SimpleNamespace(C=colour, T=trim, L=leather, WW=whitewall)
+    _front(m, ctx)
+    _tank_saddle(m, ctx)
+    _frame(m, ctx)
+    _engine(m, ctx)
+    _rear(m, ctx)
+    _sidecar(m, kit, ctx)
     m.display = presets.furniture(gui_scale=0.4)
     _KITS[key] = kit
     return kit
 
 
-# ------------------------------------------------------------------------------------------------
-# The front of the bike: fork, fender, headlamp, bars; the tank, the frame, the saddle
-# ------------------------------------------------------------------------------------------------
+BLACK = solid("sc_black", 0.62, 0.38, 0.1, 0.5)
+RUBBER = solid("sc_rubber", 0.4, 0.22, 0.05)
+ALLOY = solid("sc_alloy", 0.8, 0.5, 0.2, 0.62)
+CHROME = chrome_paint()
 
-def _bike(m, M, chrome, black, rubber, chrome_r):
-    m.group("front")
-    # the springer fork: rigid rear legs from the lower crown down to the rocker, sprung front legs on the rocker's
-    # front end up to two coil springs under the upper crown
-    for s in (-1, 1):
-        xa, xb = sorted((BX + s * 5.4, BX + s * 6.6))
-        rod(m, "fork_leg", fork(2.5, -2.2), fork(22.5, -2.2), 1.2, M.paint(("lit", "sc_black", "gloss")), x=(xa, xb), depth=1.4)
-        rod(m, "fork_spring_leg", fork(1.5, 1.8), fork(16.5, 1.8), 1.2, M.paint(("lit", "sc_black", "gloss")), x=(xa, xb), depth=1.2)
 
-        def spring(c):
-            t = c.p[1] * 1.1 - c.p[2] * 0.45
-            return "chrome" if math.floor(t) % 2 == 0 else ("sc_chrome", 1.2)
-        xa2, xb2 = sorted((BX + s * 5.0, BX + s * 7.2))
-        rod(m, "fork_spring", fork(16.5, 1.8), fork(24.0, 1.8), 2.2, M.paint(spring), x=(xa2, xb2), depth=2.2)
-        # the rocker at the axle: a short link from the rear leg's foot past the axle to the front leg
-        xa3, xb3 = sorted((BX + s * 4.6, BX + s * 7.4))
-        rod(m, "rocker", fork(0.0, -3.0), fork(0.0, 2.6), 2.0, black, x=(xa3, xb3), depth=2.0)
-        m.box("axle_nut", (min(BX + s * 7.4, BX + s * 8.2), WY - 0.8, ZF - 0.8),
-              (max(BX + s * 7.4, BX + s * 8.2), WY + 0.8, ZF + 0.8), chrome)
-    # the crowns: the lower one carries the rear legs, the upper one the springs and the bars
-    rod(m, "crown", fork(22.0, -3.6), fork(22.0, 2.4), 1.6, black, x=(BX - 7.2, BX + 7.2), depth=1.6)
-    rod(m, "crown", fork(24.4, -3.0), fork(24.4, 2.9), 1.2, M.paint("chrome"), x=(BX - 7.4, BX + 7.4), depth=1.2)
+def _fender(m, name, ctx, cz, cx, half, angles, tip=None, sides=(-1, 1)):
+    """A valanced fender round the wheel at (WY, cz), centred on x = cx: a crown of panels (the trim colour down its
+    middle) and a valance each side reaching down past the tyre's shoulder."""
+    C, T = ctx.C, ctx.T
+    r1, r2 = WRAD + 0.75, WRAD + 1.45
 
-    # the front fender: deep valances, the trim colour along its crown with a fine pinstripe each side, a chrome tip
-    ff = fender_f(WY, ZF, BX, 4.0, 13.2, 1.8, -108, 34)
-
-    def fender(c):
+    def crown(c):
         x, y, z = c.p
-        ax = abs(x - BX)
-        rr = math.hypot(y - WY, z - ZF)
-        if rr > 13.7:
-            if ax < 1.1:
-                return "trim"
-            if 1.5 < ax < 2.0:
-                return "pin"
-        a = math.degrees(math.atan2(z - ZF, y - WY))
-        if a < -100:
-            return "chrome"
-        return "paint"
-    sculpt(m, "front_fender", ff, (BX - 5, 0, ZF - 17), (BX + 5, WY + 16, ZF + 12), M.paint(fender, normal=field_normal(ff)))
-    # its stays to the fork's front legs
-    for s in (-1, 1):
-        xa, xb = sorted((BX + s * 4.5, BX + s * 5.3))
-        m.box("fender_stay", (xa, WY + 3, ZF - 8), (xb, WY + 3.8, ZF + 1), chrome)
+        ax = abs(x - cx)
+        if c.face in ("east", "west"):
+            return tone(C, 0.30 + 0.22 * smooth((y - 2) / 12))
+        a = math.degrees(math.atan2(z - cz, y - WY))
+        if tip is not None and (a < tip[0] or a > tip[1]):
+            return tone("sc_chrome", 0.92 if c.face == "up" else 0.6)
+        if c.face in ("down", "north", "south") and math.hypot(y - WY, z - cz) < r1 + 0.2:
+            return tone(C, 0.12)                                         # its underside
+        if ax < 0.7:
+            return tone(T, 0.72)                                          # the stripe down its crown
+        if ax < 1.0:
+            return tone(C, 0.3)
+        return tone(C, 0.72 if ax < half - 0.5 else 0.5)
+    arc(m, name, (WY, cz), angles, r1, r2, cx - half, cx + half, flat(C, 4), crown)
 
-    # the headlamp: a chrome bucket on two brackets from the fork, its bezel ring standing proud of the glass
+    def valance(c):
+        x, y, z = c.p
+        r = math.hypot(y - WY, z - cz)
+        outside = (c.face == "east" and x > cx) or (c.face == "west" and x < cx)
+        if not outside:
+            return tone(C, 0.1)
+        if r < WRAD - 0.1:
+            return tone(C, 0.22)                                          # its rolled lower edge
+        return tone(C, 0.34 + 0.24 * smooth((y - 2) / 12))
+    for s in sides:
+        lo, hi = _x(cx, s * (half - 0.5), s * half)
+        arc(m, name + "_valance", (WY, cz), angles, WRAD - 0.6, r1, lo, hi, flat(C, 4), valance,
+            drop=("outer",), upright=True, inner=False)
+
+
+def _front(m, ctx):
+    """The springer fork, the front fender, the headlamp with its speedo and horn, the handlebars."""
+    C, T = ctx.C, ctx.T
+    m.group("front")
+    blk = BLACK
+    for s in (-1, 1):
+        rod(m, "fork_leg", fork(1.0, -1.1), fork(11.5, -1.1), 0.6, blk, x=_x(BX, s * 2.75, s * 3.35), depth=0.7)
+        rod(m, "fork_spring_leg", fork(0.5, 0.95), fork(8.0, 0.95), 0.6, blk, x=_x(BX, s * 2.75, s * 3.35), depth=0.6)
+
+        def coil(c):
+            # the coil: bright and dark turns up the spring (its box stands upright before it is turned)
+            y = getattr(c, "local", c.p)[1]
+            if c.face in ("up", "down"):
+                return tone("sc_chrome", 0.6)
+            return tone("sc_chrome", 0.95 if math.floor(y * 1.5) % 2 == 0 else 0.25)
+        sp = flat("sc_chrome", 4)(decal=coil)
+        rod(m, "fork_spring", fork(8.0, 0.95), fork(12.0, 0.95), 1.1, sp, x=_x(BX, s * 2.5, s * 3.6), depth=1.1)
+        rod(m, "rocker", fork(0.0, -1.6), fork(0.0, 1.4), 1.0, blk, x=_x(BX, s * 2.3, s * 3.8), depth=1.0)
+    rod(m, "crown", fork(10.75, -1.9), fork(10.75, 1.3), 0.8, blk, x=(BX - 3.7, BX + 3.7), depth=0.8)
+    rod(m, "crown", fork(12.2, -1.6), fork(12.2, 1.6), 0.6, CHROME, x=(BX - 3.8, BX + 3.8), depth=0.6)
+
+    # the front fender: deep valances, the trim colour down its crown, a chrome tip low at the front
+    _fender(m, "front_fender", ctx, ZF, BX, 2.25, [-112.5, -90, -67.5, -45, -22.5, 0, 22.5])
+    for s in (-1, 1):
+        lo, hi = _x(BX, s * 2.25, s * 2.75)
+        m.box("fender_stay", (lo, WY + 1.5, ZF - 4.25), (hi, WY + 1.9, ZF + 0.6), CHROME)
+
+    # the headlamp: an octagonal chrome bucket, its lens a round glass in a bright bezel, the speedometer on top
     hy, hz = HL
 
-    def bucket_f(x, y, z):
-        if z < hz - 4.3 or z > hz + 4.5:
-            return 1.0
-        u = (z - (hz - 4.3)) / 8.8
-        r = 5.1 - 1.6 * u ** 1.6
-        return math.hypot(x - BX, y - hy) - r
-    sculpt(m, "headlamp", bucket_f, (BX - 6, hy - 6, hz - 5), (BX + 6, hy + 6, hz + 5),
-           M.paint("chrome", normal=field_normal(bucket_f)))
-
-    def bezel_f(x, y, z):
-        if not (hz - 5.3 <= z <= hz - 4.3):
-            return 1.0
-        return abs(math.hypot(x - BX, y - hy) - 4.85) - 0.75
-    sculpt(m, "bezel", bezel_f, (BX - 6, hy - 6, hz - 6), (BX + 6, hy + 6, hz - 4), M.paint("chrome", normal=field_normal(
-        lambda x, y, z: -((math.hypot(x - BX, y - hy) - 4.85) ** 2) - (z - (hz - 6)) * 0.6)))
+    def bucket(c):
+        x, y, z = c.p
+        if c.face == "north":
+            return tone("sc_chrome", 0.98 if y > hy else 0.7)              # the bezel's face
+        if c.face == "south":
+            return tone("sc_chrome", 0.35)
+        if c.face == "up":
+            return tone("sc_chrome", 0.97)
+        if c.face == "down":
+            return tone("sc_chrome", 0.2)
+        if y > hy + 0.8:
+            return tone("sc_chrome", 0.86)
+        if y > hy - 0.3:
+            return tone("sc_chrome", 0.14)                                # the dark horizon round its waist
+        return tone("sc_chrome", 0.42)
+    octa(m, "headlamp", (BX, hy), 2.25, 2.25, 0.75, HL_FACE, hz + 1.75, flat("sc_chrome", 4), bucket, t=0.6)
 
     def lens(c):
         x, y = c.p[0] - BX, c.p[1] - hy
         r = math.hypot(x, y)
-        if r > 4.15:
-            return ("raw", (0, 0, 0, 0))
-        if (x + 1.6) ** 2 + (y - 1.7) ** 2 < 0.8:
-            return ("sc_white", 3.6)                   # the glass's glint
-        if r < 1.0:
-            return ("sc_lamp", 3.4)                    # the bulb's glow in the reflector
-        if abs(r - 3.3) < 0.4:
-            return ("sc_lamp", 1.0)                    # a fluted ring in the glass
-        return ("sc_lamp", 2.8 - r * 0.35 + (0.4 if y > 0 else 0))
-    m.box("headlamp_lens", (BX - 4.25, hy - 4.25, hz - 4.6), (BX + 4.25, hy + 4.25, hz - 4.3),
-          Paint("sc_lamp", 2, noise=0, light=False, decal=lens))
-    for s in (-1, 1):
-        xa, xb = sorted((BX + s * 4.4, BX + s * 6.6))
-        m.box("lamp_bracket", (xa, hy - 0.8, hz + 0.5), (xb, hy + 0.8, fork(22, 0)[1] - 2.5), black)
-    # the speedometer in a chrome cup on top of the bucket: a cream dial, a needle, a lit rim
-    def speedo(c):
-        x, z = c.p[0] - BX, c.p[2] - (hz + 1.2)
-        if c.face == "up":
-            r = math.hypot(x, z)
-            if r > 1.75:
-                return "chrome"
-            if abs(x * 0.8 + z * 0.6) < 0.35 and x < 0.4:
-                return ("sc_red", 2.5)
-            return ("sc_white", 2.4 if r < 1.2 else 1.2)
-        return "chrome"
-    cyl(m, "speedo", (BX, hz + 1.2), 4.4, hy + 4.2, hy + 6.0, M.paint(speedo, normal=radial("y", BX, hz + 1.2)))
-    # a chrome horn under the lamp, a trumpet facing forward
-    tube(m, "horn", "z", (BX + 2.6, hy - 6.6), 2.6, hz - 2.6, hz + 2.4, chrome_r("z", BX + 2.6, hy - 6.6))
-    tube(m, "horn", "z", (BX + 2.6, hy - 6.6), 3.6, hz - 3.4, hz - 2.6, chrome_r("z", BX + 2.6, hy - 6.6))
+        if c.face != "north":
+            return ("raw", (120, 110, 80, 255)) if r < 1.75 else CLEAR
+        if r > 1.85:
+            return CLEAR
+        if (x + 0.6) ** 2 + (y - 0.7) ** 2 < 0.35:
+            return ("raw", (255, 255, 246, 255))                          # the glass's glint
+        if r < 0.75:
+            return ("raw", (255, 236, 170, 255))                          # the bulb in the reflector
+        if r > 1.3:
+            return ("raw", (196, 188, 160, 255))                          # the reflector's rim behind the glass
+        return ("raw", (236, 222, 176, 255))
+    m.group("lights")
+    m.box("headlamp_lens", (BX - 2.0, hy - 2.0, HL_FACE - 0.25), (BX + 2.0, hy + 2.0, HL_FACE),
+          Paint("sc_lamp", 2, noise=0, light=False, glow=True, decal=lens))
+    m.group("front")
 
-    # the handlebars: a riser on the upper crown, a wide bar pulled back to the grips, levers, a mirror
-    cy, cz = fork(25.5, -0.5)
-    m.box("riser", (BX - 1.0, cy - 1.5, cz - 1.0), (BX + 1.0, cy + 1.0, cz + 1.0), chrome)
-    by = cy + 1.0
-    m.box("bar", (BX - 6.0, by, cz - 0.6), (BX + 6.0, by + 1.2, cz + 0.6), chrome_r("x", by + 0.6, cz))
+    def speedo(c):
+        if c.face == "up":
+            x, z = c.p[0] - BX, c.p[2] - (hz + 0.5)
+            if abs(x) < 0.6 and abs(z) < 0.6:
+                return ("raw", (236, 226, 196, 255)) if not (x < 0 and z < 0) else ("raw", (200, 60, 50, 255))
+            return tone("sc_chrome", 0.95)
+        return tone("sc_chrome", 0.7 if c.face in ("north", "west") else 0.4)
+    m.box("speedo", (BX - 1.0, hy + 2.25, hz - 0.5), (BX + 1.0, hy + 3.0, hz + 1.5), flat("sc_chrome", 4)(decal=speedo))
+    # the horn under the lamp: a chrome trumpet facing forward
+    m.box("horn", (BX + 0.3, hy - 3.45, hz - 1.6), (BX + 1.7, hy - 2.25, hz + 0.5), flat("sc_chrome", 4)(
+        decal=lambda c: (tone("sc_chrome", 0.08) if 0 < c.u < c.nu - 1 and 0 < c.v < c.nv - 1 else tone("sc_chrome", 0.9))
+        if c.face == "north" else chrome_decal()(c)))
     for s in (-1, 1):
-        # out and back at 22.5 degrees, then the grip along x
-        x0 = BX + s * 6.0
-        lo, hi = sorted((x0, x0 + s * 5.0))
-        m.box("bar", (lo, by, cz - 0.6), (hi, by + 1.2, cz + 0.6), chrome,
-              rotation=("y", -s * 22.5, (x0, by, cz)))
-        gx = x0 + s * 5.0 * math.cos(math.radians(22.5)) - s * 0.2
-        gz = cz + 5.0 * math.sin(math.radians(22.5))
-        lo, hi = sorted((gx, gx + s * 3.0))
-        m.box("bar", (lo, by, gz - 0.6), (hi, by + 1.2, gz + 0.6), chrome)
+        lo, hi = _x(BX, s * 2.25, s * 2.85)
+        m.box("lamp_bracket", (lo, hy - 0.4, hz - 0.5), (hi, hy + 0.4, fork(11.0, -0.5)[1] - 0.3), BLACK)
+
+    # the handlebars: a riser on the upper crown, a bar across, out and back at 22.5 degrees to the grips
+    cy, cz = fork(12.75, -0.25)
+    m.box("riser", (BX - 0.5, cy - 0.6, cz - 0.5), (BX + 0.5, cy + 0.6, cz + 0.5), CHROME)
+    by = cy + 0.6
+    bar = flat("sc_chrome", 4)(decal=lambda c: tone("sc_chrome", 0.97 if c.face == "up" else 0.66 if c.face in ("north", "west") else 0.36))
+    m.box("bar", (BX - 2.5, by, cz - 0.3), (BX + 2.5, by + 0.6, cz + 0.3), bar)
+    for s in (-1, 1):
+        x0 = BX + s * 2.5
+        lo, hi = sorted((x0, x0 + s * 2.5))
+        m.box("bar", (lo, by, cz - 0.3), (hi, by + 0.6, cz + 0.3), bar, rotation=("y", -s * 22.5, (x0, by, cz)))
+        gx = x0 + s * 2.5 * math.cos(math.radians(22.5)) - s * 0.1
+        gz = cz + 2.5 * math.sin(math.radians(22.5))
+        lo, hi = sorted((gx, gx + s * 1.3))
+        m.box("bar", (lo, by, gz - 0.3), (hi, by + 0.6, gz + 0.3), bar)
 
         def grip(c):
-            return "rubber" if math.floor(c.p[0] * 2) % 2 else ("sc_rubber", 0.4)
-        lo, hi = sorted((gx + s * 3.0, gx + s * 7.6))
-        m.box("grip", (lo, by - 0.3, gz - 0.9), (hi, by + 1.5, gz + 0.9), M.paint(grip, normal=radial("x", by + 0.6, gz)))
-        lo, hi = sorted((gx + s * 2.2, gx + s * 3.0))
-        m.box("grip_end", (lo, by - 0.5, gz - 1.1), (hi, by + 1.7, gz + 1.1), chrome)
-        # the lever: a perch at the bar, the blade reaching forward of the grip
-        lo, hi = sorted((gx + s * 0.6, gx + s * 1.8))
-        m.box("lever_perch", (lo, by - 0.4, gz - 2.0), (hi, by + 1.0, gz - 0.6), chrome)
-        lo, hi = sorted((gx + s * 1.6, gx + s * 7.0))
-        m.box("lever", (lo, by + 0.1, gz - 2.6), (hi, by + 0.7, gz - 1.9), chrome)
+            if c.face in ("east", "west"):
+                return tone("sc_rubber", 0.3)
+            return tone("sc_rubber", 0.45 if math.floor(c.p[0] * 2) % 2 else 0.12)
+        lo, hi = sorted((gx + s * 1.3, gx + s * 3.6))
+        m.box("grip", (lo, by - 0.15, gz - 0.45), (hi, by + 0.75, gz + 0.45), flat("sc_rubber", 1)(decal=grip))
+        # the lever: a chrome blade ahead of the grip
+        lo, hi = sorted((gx + s * 0.6, gx + s * 3.4))
+        m.box("lever", (lo, by + 0.1, gz - 1.1), (hi, by + 0.4, gz - 0.45), CHROME)
     # one round mirror on a stalk from the left perch
-    mx, mz = BX - 6.0 - 5.0 * math.cos(math.radians(22.5)) - 1.0, cz + 5.0 * math.sin(math.radians(22.5)) - 1.2
-    m.box("mirror_stalk", (mx - 0.4, by + 1.2, mz - 0.4), (mx + 0.4, by + 5.0, mz + 0.4), chrome)
+    mx, mz = BX - 2.5 - 2.5 * math.cos(math.radians(22.5)) - 0.7, cz + 2.5 * math.sin(math.radians(22.5)) - 0.6
+    m.box("mirror_stalk", (mx - 0.2, by + 0.6, mz - 0.2), (mx + 0.2, by + 2.6, mz + 0.2), CHROME)
 
     def mirror(c):
         if c.face == "south":
-            r = math.hypot(c.p[0] - mx, c.p[1] - (by + 6.6))
-            if r < 1.5:
-                return ("sc_glass", 2.6 if c.p[0] < mx else 1.6)
-        return "chrome"
-    cyl(m, "mirror", (mx, by + 6.6), 4.0, mz - 0.8, mz + 0.4, M.paint(mirror, normal=radial("z", mx, by + 6.6)), axis="z")
+            if c.u in (0, c.nu - 1) and c.v in (0, c.nv - 1):
+                return tone("sc_chrome", 0.5)
+            return tone("sc_glass", 0.9 if c.p[0] < mx else 0.5)
+        return tone("sc_chrome", 0.95 if c.face in ("up", "north", "west") else 0.5)
+    m.box("mirror", (mx - 1.0, by + 2.6, mz - 0.25), (mx + 1.0, by + 4.6, mz + 0.25), flat("sc_chrome", 4)(decal=mirror))
 
+
+TZ0, TZ1 = -7.75, 1.5         # the tank's nose and tail (z)
+TY0, TY1 = 12.25, 17.25       # its belly and crown (y)
+TK = -3.0                     # where its sides start to narrow (z)
+
+
+def _tank_saddle(m, ctx):
+    """The teardrop tank (two-tone, chrome crown strip, filler caps, knee pads, shift lever) and the sprung saddle."""
+    C, T, L = ctx.C, ctx.T, ctx.L
     m.group("tank")
+    W1, W2 = 3.25, 1.25                     # half width ahead of TK, at the tail
 
     def tank(c):
         x, y, z = c.p
         ax = abs(x - BX)
-        d = tank_dims(z)
-        if d is None:
-            return "paint"
-        hw, yc, hh = d
-        n = _grad(tank_f, c.p) or (0, 1, 0)
-        if n[1] > 0.6 and ax < 0.8:
-            return "chrome"                                     # the strip down the crown
-        # the flash: a sweep of the trim colour on each side, a pinstripe round it
-        u = (z - TZ0) / (TZ1 - TZ0)
-        top = yc + hh * 0.55 - u * 1.2
-        bot = yc - hh * 0.35 + u * 1.6
-        if ax > hw * 0.55 and u < 0.62:
-            if bot < y < top and u > 0.06:
-                return "trim"
-            if bot - 0.7 < y < top + 0.7 and u > 0.03:
-                return "pin"
-        return "paint"
-    sculpt(m, "tank", tank_f, (BX - 7, 23, TZ0 - 1), (BX + 7, 35, TZ1 + 1), M.paint(tank, normal=field_normal(tank_f)))
-
-    # rubber knee pads standing 1 px proud of the tank's rear sides, a chrome strip round each
-    def pad_f(x, y, z):
-        d = tank_dims(z)
-        if d is None:
-            return 1.0
-        u = (z - TZ0) / (TZ1 - TZ0)
-        if not (0.60 < u < 0.92) or abs(x - BX) < d[0] * 0.6:
-            return 1.0
-        if abs(y - (d[1] - 0.3)) > 2.2:
-            return 1.0
-        return tank_f(x, y, z, 1.0)
-
-    def pad(c):
-        x, y, z = c.p
-        d = tank_dims(z)
-        u = (z - TZ0) / (TZ1 - TZ0)
-        if d is None or u < 0.625 or u > 0.9 or abs(y - (d[1] - 0.3)) > 1.7:
-            return "chrome"
-        return "rubber" if math.floor(z * 1.5) % 2 else ("sc_rubber", 0.5)
-    sculpt(m, "knee_pad", pad_f, (BX - 8, 24, -5), (BX + 8, 33, TZ1), M.paint(pad, normal=field_normal(lambda x, y, z: tank_f(x, y, z, 1.0))),
-           label=lambda p: None if tank_f(*p) < 0 else "s")
-    # two chrome filler caps
+        if c.face == "down":
+            return tone(C, 0.1)
+        if c.face == "up" or y > TY1 - 0.05:
+            if ax < 0.6:
+                return tone("sc_chrome", 0.95)
+            return tone(C, 0.86 if 1.0 < ax < 1.8 else 0.7)
+        if c.face == "north":
+            return tone(C, 0.62)
+        if c.face == "south":
+            return tone(C, 0.4)
+        # the sides: a flash of the trim colour sweeping back from the nose, edged by a fine dark line
+        sweep = -0.5 - (y - 13.4) * 1.2
+        if 13.4 <= y < 16.0 and TZ0 + 0.6 <= z < sweep:
+            if y >= 15.5 or z >= sweep - 0.75:
+                return tone(C, 0.22)
+            return tone(T, 0.42 + 0.3 * smooth((y - 13.4) / 2.2))
+        # the knee pads: ribbed rubber in a chrome rim on the narrowing sides
+        if z > TK + 0.6 and 13.0 <= y < 16.0 and z < TZ1 - 0.6:
+            if y < 13.5 or y >= 15.5:
+                return tone("sc_chrome", 0.8)
+            return tone("sc_rubber", 0.4 if math.floor(z * 1.5) % 2 else 0.12)
+        return tone(C, 0.3 + 0.36 * smooth((y - TY0) / (TY1 - TY0)))
+    tp = flat(C, 4)
+    # the front of the tank: a core, its crown, the 45-degree edges along the top, a 45-degree brow at the nose
+    m.box("tank", (BX - W1, TY0, TZ0), (BX + W1, TY1 - 1, TK), tp(decal=tank))
+    m.box("tank", (BX - (W1 - 1), TY1 - 1, TZ0 + 1), (BX + (W1 - 1), TY1, TK), tp(decal=tank))
     for s in (-1, 1):
-        cx = BX + s * 2.3
-        zc = TZ0 + 4.5
-        ytop = tank_dims(zc)[1] + tank_dims(zc)[2] - 0.7
-        cyl(m, "filler_cap", (cx, zc), 2.6, ytop, ytop + 1.1, chrome_r("y", cx, zc))
-    # the hand-shift lever up the tank's left side, a black knob on it
-    rod(m, "shift_lever", (25.0, -1.6), (29.6, -5.4), 0.9, chrome, x=(BX - 7.8, BX - 6.9))
-    m.box("shift_knob", (BX - 8.5, 29.2, -6.8), (BX - 6.2, 31.4, -4.6), M.paint(("lit", "sc_black", "gloss")))
-    m.box("shift_gate", (BX - 7.6, 24.0, -4.0), (BX - 5.8, 25.6, 1.0), chrome)
-
-    m.group("frame")
-    fb = M.paint("black")
-    # the steering neck behind the fork, the top tube under the tank, the twin down tubes, the cradle, the seat post
-    ny0, nz0 = fork(18.5, -5.6)
-    rod(m, "neck", (ny0, nz0), fork(25.5, -5.6), 3.0, fb, x=(BX - 1.5, BX + 1.5), depth=3.0)
-    m.box("top_tube", (BX - 1.0, 26.6, nz0 - 0.5), (BX + 1.0, 28.6, 12.5), fb)
+        plank(m, "tank_edge", "z", (BX + s * (W1 - 1), TY1), (BX + s * W1, TY1 - 1), (TZ0 + 0.3, TK), 0.75, tp, decal=tank, buried=True)
+    plank(m, "tank_brow", "x", (TZ0, TY1 - 1), (TZ0 + 1, TY1), (BX - (W1 - 1), BX + (W1 - 1)), 0.75, tp, decal=tank)
+    # the tail: narrower, its sides drawing in at 22.5 degrees, a lid over the triangles between, a 45-degree end
+    m.box("tank", (BX - W2, TY0 + 0.5, TK), (BX + W2, TY1, TZ1 - 1), tp(decal=tank))
+    taper = (W1 - W2) / math.tan(math.radians(22.5))
     for s in (-1, 1):
-        xa, xb = sorted((BX + s * 2.6, BX + s * 4.4))
-        rod(m, "down_tube", (ny0 + 1.0, nz0 - 1.0), (5.0, -6.0), 1.8, fb, x=(xa, xb))
-        m.box("cradle", (xa, 3.2, -7.0), (xb, 5.0, 12.0), fb)
-        m.box("chain_stay", (xa, WY - 5.0, 12.0), (xb, WY - 3.2, ZR - 1.5), fb)
-        # the seat stays: from under the saddle to the plunger's top
-        rod(m, "seat_stay", (27.6, 11.5), (WY + 7.5, ZR - 1.2), 1.8, fb, x=(xa, xb))
-    m.box("seat_post", (BX - 1.0, 4.0, 10.6), (BX + 1.0, 27.0, 12.6), fb)
-    m.box("cross_tube", (BX - 4.4, 25.0, 10.0), (BX + 4.4, 26.6, 11.6), fb)
+        plank(m, "tank_side", "y", (TK, BX + s * W1), (TK + taper, BX + s * W2), (TY0 + 0.25, TY1 - 1), 0.75, tp,
+              decal=tank, below=s > 0)
+        lo, hi = (BX + s * W1, BX + s * (W1 - 1.75)) if s > 0 else (BX + s * W1, BX + s * (W1 - 1.75))
+        plank(m, "tank_lid", "y", (TK, BX + s * (W1 - 0.05)), (TK + taper, BX + s * (W2 - 0.05)), (TY1 - 1, TY1 - 0.25), 1.6,
+              tp, decal=tank, below=s > 0)
+    plank(m, "tank_tail", "x", (TZ1 - 1, TY1), (TZ1, TY1 - 1), (BX - W2, BX + W2), 0.75, tp, decal=tank)
+    m.box("tank", (BX - W2, TY0 + 0.5, TZ1 - 1), (BX + W2, TY1 - 1, TZ1), tp(decal=tank))
+    # the chrome strip down the crown, two filler caps
+    m.box("tank_strip", (BX - 0.3, TY1, TZ0 + 1.2), (BX + 0.3, TY1 + 0.25, TZ1 - 1.2), CHROME)
+    for s in (-1, 1):
+        m.box("filler_cap", (BX + s * 1.6 - 0.5, TY1, TZ0 + 2.0), (BX + s * 1.6 + 0.5, TY1 + 0.45, TZ0 + 3.0), CHROME)
+    # the hand-shift lever up the tank's left side: a chrome rod in a gate, a black knob
+    rod(m, "shift_lever", (12.3, -0.6), (15.4, -2.4), 0.45, CHROME, x=(BX - W1 - 0.9, BX - W1 - 0.45))
+    m.box("shift_knob", (BX - W1 - 1.2, 15.2, -3.0), (BX - W1 - 0.15, 16.2, -2.0), solid("sc_black", 0.75, 0.45, 0.2))
 
     m.group("saddle")
-    # the sprung solo saddle: a leather pan wide at the back, a narrow nose on a pivot, a rolled edge, two chrome
-    # coil springs under its back
+    # the sprung solo saddle: a narrow nose on a pivot, a wide pan behind (the sides drawing out at 45 degrees), the
+    # top's long edges bevelled, a raised cantle, a dark rolled edge, two chrome coil springs under its back
+    s0, s1, s2 = 0.25, 2.25, 6.5            # its nose, where the pan is full width, its back (z)
+    yb, yt = SADDLE - 1.4, SADDLE
 
-    def saddle_f(x, y, z):
-        if not (0.0 <= z <= 13.0):
-            return 1.0
-        u = z / 13.0
-        hw = 2.0 + 3.4 * smooth(u * 1.6) - 0.6 * smooth((u - 0.8) / 0.2)
-        top = SADDLE - 0.5 * (1 - u) + 1.0 * smooth((u - 0.75) / 0.25)      # the cantle rises at the back
-        if u < 0.12:
-            top -= (0.12 - u) * 9
-        bot = SADDLE - 3.2 + 0.6 * smooth(u * 2)
-        yc, hh = (top + bot) / 2, (top - bot) / 2
-        ax = abs(x - BX)
-        return (ax / hw) ** 2.6 + (abs(y - yc) / hh) ** 2.2 - 1
-
-    def saddle(c):
+    def leather(c):
         x, y, z = c.p
-        n = _grad(saddle_f, c.p) or (0, 1, 0)
-        if n[1] < 0.35 and y > SADDLE - 1.6:
-            return "dark"                                    # the rolled, stitched edge
-        if n[1] < -0.2:
-            return ("lit", "sc_black", "matte")              # the pan under it
-        if c.face == "up" and abs(x - BX) < 1.6 and 3 < z < 11 and math.floor(z) % 3 == 0:
-            return ("lit", M.m["leather"][0], "matte")
-        return "leather"
-    sculpt(m, "saddle", saddle_f, (BX - 9, SADDLE - 4, -1), (BX + 9, SADDLE + 2, 15),
-           M.paint(saddle, normal=field_normal(saddle_f)), label=lambda p: None if tank_f(*p) < 0 else "s")
-    m.box("saddle_pivot", (BX - 1.2, 27.4, -0.4), (BX + 1.2, SADDLE - 2.6, 1.6), chrome)
-    for s in (-1, 1):
-        def spring(c):
-            return "chrome" if math.floor(c.p[1] * 1.4) % 2 == 0 else ("sc_chrome", 1.0)
-        cx = BX + s * 3.6
-        cyl(m, "saddle_spring", (cx, 10.8), 2.6, 25.4, SADDLE - 2.6, M.paint(spring, normal=radial("y", cx, 10.8)))
-    m.box("spring_bar", (BX - 5.2, 24.6, 9.6), (BX + 5.2, 25.4, 12.0), black)
-
-
-
-# ------------------------------------------------------------------------------------------------
-# The engine: a 45 degree V-twin, the exhausts, the footboards
-# ------------------------------------------------------------------------------------------------
-
-V_BASE = {"front": (14.0, -5.6), "rear": (14.0, 0.8)}        # each cylinder's foot (y, z)
-
-
-def _engine(m, M, chrome, black, rubber, chrome_r):
-    m.group("engine")
-    # the crankcase: a rounded alloy case, the gearbox behind it
-    def case_f(x, y, z):
         ax = abs(x - BX)
-        return (ax / 4.4) ** 4 + abs((y - 10.5) / 5.6) ** 2.4 + abs((z + 2.0) / 8.0) ** 2.4 - 1
+        if c.face == "down":
+            return tone("sc_black", 0.2)
+        if c.face == "up" or y > yt - 0.1:
+            if ax < 0.4 and s1 < z < s2 - 1:
+                return tone(L, 0.45)                                       # the stitched seam down its middle
+            return tone(L, 0.82 if z > s2 - 1.2 else 0.68)
+        if y < yb + 0.5:
+            return tone(L, 0.18)                                           # the rolled edge, stitched
+        return tone(L, 0.44)
+    lp = flat(L, 3)
+    m.box("saddle", (BX - 1.0, yb + 0.3, s0), (BX + 1.0, yt, s1), lp(decal=leather))
+    m.box("saddle", (BX - 1.75, yb, s1), (BX + 1.75, yt, s2), lp(decal=leather))
+    for s in (-1, 1):
+        plank(m, "saddle_edge", "z", (BX + s * 1.75, yt), (BX + s * 2.6, yt - 0.85), (s1, s2), 0.6, lp, decal=leather, buried=True)
+        plank(m, "saddle_flare", "y", (s1 - 0.75, BX + s * 1.0), (s1, BX + s * 1.75), (yb + 0.3, yt), 0.6, lp,
+              decal=leather, below=s > 0)
+        lo, hi = _x(BX, s * 1.75, s * 2.6)
+        m.box("saddle", (lo, yb, s1), (hi, yt - 0.85, s2), lp(decal=leather))
+    plank(m, "saddle_cantle", "x", (s2 - 0.9, yt), (s2, yt + 0.9 * math.tan(math.radians(45))), (BX - 1.75, BX + 1.75),
+          0.6, lp, decal=leather, below=True)
+    m.box("saddle_pivot", (BX - 0.5, 13.6, s0 + 0.2), (BX + 0.5, yb + 0.3, s0 + 1.2), CHROME)
+
+    def spring(c):
+        if c.face in ("up", "down"):
+            return tone("sc_chrome", 0.6)
+        return tone("sc_chrome", 0.95 if math.floor(c.p[1] * 2) % 2 == 0 else 0.25)
+    for s in (-1, 1):
+        cx = BX + s * 1.6
+        m.box("saddle_spring", (cx - 0.55, 12.95, 4.75), (cx + 0.55, yb, 5.85), flat("sc_chrome", 4)(decal=spring))
+    m.box("spring_bar", (BX - 2.2, 12.5, 4.6), (BX + 2.2, 12.95, 6.0), BLACK)
+
+
+def _frame(m, ctx):
+    """The black cradle frame: the steering neck, the top tube, twin down tubes, the cradle, the seat post, the stays,
+    the plungers' covers at the rear axle."""
+    m.group("frame")
+    fb = BLACK
+    ny0, nz0 = fork(9.0, -2.6)
+    rod(m, "neck", (ny0, nz0), fork(12.75, -2.6), 1.4, fb, x=(BX - 0.7, BX + 0.7), depth=1.4)
+    m.box("top_tube", (BX - 0.45, 12.0, nz0 + 0.2), (BX + 0.45, 13.0, 6.25), fb)
+    for s in (-1, 1):
+        lo, hi = _x(BX, s * 1.25, s * 2.1)
+        rod(m, "down_tube", (ny0 + 0.5, nz0 - 0.2), (2.4, -3.6), 0.85, fb, x=(lo, hi))
+        m.box("cradle", (lo, 1.6, -4.0), (hi, 2.45, 6.0), fb)
+        m.box("chain_stay", (lo, WY - 2.45, 6.0), (hi, WY - 1.6, ZR - 0.6), fb)
+        rod(m, "seat_stay", (13.0, 5.8), (WY + 3.6, ZR - 0.6), 0.85, fb, x=(lo, hi))
+    m.box("seat_post", (BX - 0.45, 2.0, 5.3), (BX + 0.45, 12.0, 6.25), fb)
+    # plunger suspension: a chrome cover over each spring at the rear axle
+    for s in (-1, 1):
+        cx = BX + s * 1.75
+        m.box("plunger_cover", (cx - 0.55, WY - 2.4, ZR - 0.55), (cx + 0.55, WY + 3.6, ZR + 0.55), flat("sc_chrome", 4)(
+            decal=lambda c: tone("sc_chrome", 0.95 if c.face == "up" else 0.75 if c.p[1] > WY + 2.6 or c.p[1] < WY - 1.4 else 0.35)))
+
+
+V_BASE = {"front": (7.0, -2.6), "rear": (7.0, 0.6)}       # each cylinder's foot (y, z)
+
+
+def _engine(m, ctx):
+    """The V-twin: crankcase and gearbox, the primary and timing covers, two finned cylinders leaning 22.5 degrees
+    fore and aft, the carburettor and air cleaner, the exhausts, the footboards, the kick starter."""
+    m.group("engine")
 
     def case(c):
         x, y, z = c.p
-        if c.face == "east" or (_grad(case_f, c.p) or (0, 0, 0))[0] > 0.8:
-            r = math.hypot(y - 11.0, z + 3.5)
-            if r < 3.4:
-                return "chrome" if r > 0.7 else ("sc_chrome", 3)          # the round timing cover
-        if math.floor(z) % 5 == 0 and y < 8:
-            return ("lit", "sc_alloy", "matte")                            # ribs under the case
-        return "alloy"
-    sculpt(m, "crankcase", case_f, (BX - 5, 4, -11), (BX + 5, 17, 7), M.paint(case, normal=field_normal(case_f)))
+        if c.face == "up":
+            return tone("sc_alloy", 0.82)
+        if c.face == "down":
+            return tone("sc_alloy", 0.2)
+        if c.face == "east":
+            r = math.hypot(y - 5.5, z + 1.75)
+            if r < 1.6:
+                return tone("sc_chrome", 0.95 if y > 5.5 else 0.6) if r > 0.5 else tone("sc_chrome", 0.3)   # timing cover
+            if abs(r - 1.9) < 0.3:
+                return tone("sc_alloy", 0.3)
+        if math.floor(y) == 3:
+            return tone("sc_alloy", 0.32)                               # the joint round the case
+        return tone("sc_alloy", 0.62 if y > 5 else 0.5)
+    ap = flat("sc_alloy", 3)
+    m.box("crankcase", (BX - 2.1, 4.0, -5.0), (BX + 2.1, 7.6, 2.5), ap(decal=case))
+    m.box("crankcase", (BX - 2.1, 3.0, -4.0), (BX + 2.1, 4.0, 1.5), ap(decal=case))
+    plank(m, "crankcase_edge", "x", (-5.0, 4.0), (-4.0, 3.0), (BX - 2.1, BX + 2.1), 0.75, ap, decal=case, below=False)
+    plank(m, "crankcase_edge", "x", (1.5, 3.0), (2.5, 4.0), (BX - 2.1, BX + 2.1), 0.75, ap, decal=case, below=False)
+    m.box("gearbox", (BX - 1.8, 3.6, 2.5), (BX + 1.8, 7.0, 6.0), ap(decal=case))
 
-    def gear_f(x, y, z):
-        return (abs(x - BX) / 3.8) ** 4 + abs((y - 11.0) / 4.6) ** 3 + abs((z - 9.0) / 4.0) ** 3 - 1
-    sculpt(m, "gearbox", gear_f, (BX - 4, 6, 4), (BX + 4, 16, 14), M.paint("alloy", normal=field_normal(gear_f)),
-           label=lambda p: None if case_f(*p) < 0 else "s")
+    # the chrome primary cover on the left: a long cover from the crank back to the gearbox, its ends bevelled
+    def prim(c):
+        if c.face == "west":
+            y = c.p[1]
+            return tone("sc_chrome", 0.97 if y > 6.6 else 0.12 if y > 5.6 else 0.45)
+        return chrome_decal()(c)
+    pp = flat("sc_chrome", 4)
+    m.box("primary", (BX - 2.85, 3.6, -1.0), (BX - 2.1, 7.6, 4.5), pp(decal=prim))
+    plank(m, "primary_edge", "x", (-2.2, 6.4), (-1.0, 7.6), (BX - 2.85, BX - 2.1), 0.8, pp, decal=prim)
+    plank(m, "primary_edge", "x", (4.5, 7.6), (5.7, 6.4), (BX - 2.85, BX - 2.1), 0.8, pp, decal=prim)
+    m.box("primary", (BX - 2.85, 3.6, -2.2), (BX - 2.1, 6.4, -1.0), pp(decal=prim))
+    m.box("primary", (BX - 2.85, 3.6, 4.5), (BX - 2.1, 6.4, 5.7), pp(decal=prim))
 
-    # the primary cover on the left: a long chrome teardrop from the crank to the gearbox
-    def prim_f(x, y, z):
-        zc = max(-1.0, min(10.0, z))
-        t = (zc + 1.0) / 11.0
-        r = 4.0 - 1.2 * t
-        d = math.hypot(z - zc, y - (10.5 + 0.5 * t))
-        return (d / r) ** 2 + ((x - (BX - 5.3)) / 1.3) ** 4 - 1
-    sculpt(m, "primary", prim_f, (BX - 7, 5, -5), (BX - 4, 16, 13), M.paint("chrome", normal=field_normal(prim_f)))
-
-    # the cylinders: a finned iron barrel and a finned alloy head each, leaning 22.5 degrees fore and aft
-    for cyl_name, sgn in (("front", -1), ("rear", 1)):
-        y0, z0 = V_BASE[cyl_name]
-        ang = 22.5 * sgn                            # + moves +y towards +z: the rear one leans back
-        rot = ("x", ang, (BX, y0, z0))
-        bar = M.paint("iron", normal=radial("y", BX, z0))
-        # the barrel's core and its fins (iron), then the head's bigger fins (alloy)
-        for (a, b, hw) in bands(5.0):
-            m.box("barrel", (BX - hw, y0, z0 + a), (BX + hw, y0 + 9.0, z0 + b), bar, rotation=rot)
-        for k in range(4):
-            fy = y0 + 0.8 + k * 1.5
-            fp = M.paint(("lit", "sc_iron", "satin"), normal=radial("y", BX, z0))
-            for (a, b, hw) in bands(8.6):
-                m.box("fin", (BX - hw, fy, z0 + a), (BX + hw, fy + 0.8, z0 + b), fp, rotation=rot)
+    # the cylinders: an iron barrel ringed by fins, a finned alloy head, a chrome rocker cover; leaning 22.5 degrees
+    def fins(ramp, hi_t, lo_t):
+        def d(c):
+            if c.face == "up":
+                return tone(ramp, hi_t)
+            if c.face == "down":
+                return tone(ramp, 0.12)
+            return tone(ramp, lo_t if c.face in ("south", "east") else (hi_t + lo_t) / 2)
+        return flat(ramp, 2)(decal=d)
+    iron_fin, alloy_fin = fins("sc_iron", 0.9, 0.45), fins("sc_alloy", 0.95, 0.5)
+    core = solid("sc_iron", 0.3, 0.18, 0.05)
+    for cname, sgn in (("front", -1), ("rear", 1)):
+        y0, z0 = V_BASE[cname]
+        rot = ("x", 22.5 * sgn, (BX, y0, z0))
+        m.box("barrel", (BX - 1.0, y0, z0 - 1.0), (BX + 1.0, y0 + 4.7, z0 + 1.0), core, rotation=rot)
         for k in range(3):
-            fy = y0 + 6.2 + k * 1.3
-            fp = M.paint(("lit", "sc_alloy", "satin"), normal=radial("y", BX, z0))
-            for (a, b, hw) in bands(9.6):
-                m.box("head_fin", (BX - hw, fy, z0 + a), (BX + hw, fy + 0.8, z0 + b), fp, rotation=rot)
-        # the rocker cover: a chrome cap on top, a spark plug with its lead on the outside
-        for (a, b, hw) in bands(6.0):
-            m.box("rocker_cover", (BX - hw, y0 + 9.6, z0 + a), (BX + hw, y0 + 10.8, z0 + b),
-                  chrome_r("y", BX, z0), rotation=rot)
-        m.box("plug", (BX - 5.4, y0 + 7.4, z0 - 0.6), (BX - 3.4, y0 + 8.4, z0 + 0.6),
-              M.paint(("lit", "sc_white", "satin")), rotation=rot)
-        m.box("plug_lead", (BX - 6.2, y0 + 2.0, z0 - 0.4), (BX - 5.4, y0 + 8.2, z0 + 0.4),
-              M.paint(("lit", "sc_black", "gloss")), rotation=rot)
+            fy = y0 + 0.9 + k * 0.85
+            m.box("fin", (BX - 1.75, fy, z0 - 1.75), (BX + 1.75, fy + 0.45, z0 + 1.75), iron_fin, rotation=rot)
+        for k in range(2):
+            fy = y0 + 3.4 + k * 0.8
+            m.box("head_fin", (BX - 2.0, fy, z0 - 2.0), (BX + 2.0, fy + 0.45, z0 + 2.0), alloy_fin, rotation=rot)
+        m.box("rocker_cover", (BX - 1.4, y0 + 4.7, z0 - 1.4), (BX + 1.4, y0 + 5.3, z0 + 1.4),
+              chrome_paint(), rotation=rot)
+        m.box("plug", (BX - 2.6, y0 + 3.6, z0 - 0.3), (BX - 1.0, y0 + 4.1, z0 + 0.3), solid("sc_white", 0.9, 0.7, 0.4), rotation=rot)
 
     # the carburettor in the vee on the right, its round chrome air cleaner
-    m.box("carb", (BX + 1.5, 17.0, -3.4), (BX + 4.6, 20.4, -0.6), M.paint("alloy"))
+    m.box("carb", (BX + 0.6, 9.0, -1.6), (BX + 2.2, 10.6, -0.2), ALLOY)
+
     def cleaner(c):
         if c.face == "east":
-            r = math.hypot(c.p[1] - 18.8, c.p[2] + 2.0)
-            if r < 1.2:
-                return ("sc_chrome", 2.0)                 # its centre bolt
-            if 2.4 < r < 2.9:
-                return ("sc_chrome", 3.0)                 # a pressed ring
-        return "chrome"
-    cyl(m, "air_cleaner", (18.8, -2.0), 7.6, BX + 4.6, BX + 6.6, M.paint(cleaner, normal=radial("x", 18.8, -2.0)), axis="x")
+            r = math.hypot(c.p[1] - 9.8, c.p[2] + 0.9)
+            if r < 0.6:
+                return tone("sc_chrome", 0.35)                            # its centre nut
+            if 1.0 < r < 1.35:
+                return tone("sc_chrome", 0.55)                            # a pressed ring
+            return tone("sc_chrome", 0.98 if c.p[1] > 9.8 else 0.72)
+        return chrome_decal()(c)
+    cyl(m, "air_cleaner", (9.8, -0.9), 4, BX + 2.2, BX + 3.1, flat("sc_chrome", 4)(decal=cleaner), axis="x")
 
-    # the exhausts: from each cylinder's port down the left side, two pipes to stacked fishtail mufflers
-    ex = BX - 6.6
-    fishes = []
-    for i, (port, low) in enumerate(((V_BASE["front"], 6.2), (V_BASE["rear"], 10.4))):
-        y0, z0 = port
-        if i == 0:
-            # front port: forward out of the head, then down in front of the crankcase
-            py, pz = y0 + 7.0, z0 - 4.6
-            rod(m, "header", (py, pz), (py - 2.0, pz - 3.2), 2.2, chrome, x=(BX - 3.6, BX - 1.4))
-            rod(m, "header", (py - 1.4, pz - 3.4), (low + 1.0, pz - 6.4), 2.2, chrome, x=(BX - 3.6, BX - 1.4))
-            m.box("header", (ex - 0.9, low - 0.95, pz - 7.3), (BX - 1.4, low + 0.95, pz - 5.2), chrome_r("x", low, pz - 6.3))
-            z_start = pz - 7.4
-        else:
-            # rear port: back out of the head, out to the left and down beside the gearbox
-            py, pz = y0 + 7.0, z0 + 3.6
-            m.box("header", (ex - 1.1, py - 1.1, pz - 1.1), (BX - 1.6, py + 1.1, pz + 1.1), chrome_r("x", py, pz))
-            rod(m, "header", (py, pz), (low, pz + 6.0), 2.2, chrome, x=(ex - 1.1, ex + 1.1))
-            z_start = pz + 4.0
-        tube(m, "pipe", "z", (ex, low), 2.2, z_start, 17.0, chrome_r("z", ex, low))
-        # the muffler: a long round can, then the fishtail flaring out and a dark slot at its end
-        tube(m, "muffler", "z", (ex, low), 3.6, 17.0, 31.0, chrome_r("z", ex, low))
-        tube(m, "muffler", "z", (ex, low), 2.8, 16.0, 17.0, chrome_r("z", ex, low))
-
-        def fish_f(x, y, z, low=low):
-            if not (30.5 <= z <= 37.5):
-                return 1.0
-            u = (z - 30.5) / 7.0
-            hh = 1.8 + 1.4 * u ** 1.3
-            hw = 1.8 - 0.6 * u
-            return ((x - ex) / hw) ** 2 + ((y - low) / hh) ** 2 - 1
+    # the exhausts: from each head down the left side, two pipes to stacked fishtail mufflers
+    ex = BX - 3.4
+    pipe = flat("sc_chrome", 4)(decal=lambda c: tone("sc_chrome", 0.97 if c.face == "up" else 0.7 if c.face in ("north", "west") else 0.32))
+    lows = {"front": 2.9, "rear": 5.3}
+    # front: forward and down out of the front head at 45 degrees, down in front of the crankcase, out to the left
+    fl = lows["front"]
+    rod(m, "header", (10.4, -5.0), (8.2, -7.2), 0.9, pipe, x=(BX - 1.0, BX - 0.1))
+    m.box("header", (BX - 1.0, fl - 0.45, -7.65), (BX - 0.1, 8.5, -6.75), pipe)
+    m.box("header", (ex - 0.45, fl - 0.45, -7.65), (BX - 1.0, fl + 0.45, -6.75), pipe)
+    # rear: back out of the rear head, out to the left, down at 45 degrees beside the gearbox
+    ry, rz = 10.6, 3.0
+    m.box("header", (ex - 0.45, ry - 0.45, rz - 0.45), (BX - 0.8, ry + 0.45, rz + 0.45), pipe)
+    rod(m, "header", (ry, rz), (lows["rear"], rz + (ry - lows["rear"])), 0.9, pipe, x=(ex - 0.45, ex + 0.45))
+    starts = {"front": -6.75, "rear": rz + (ry - lows["rear"]) - 0.4}
+    for kname, low in lows.items():
+        if starts[kname] < 8.5:
+            m.box("pipe", (ex - 0.45, low - 0.45, starts[kname]), (ex + 0.45, low + 0.45, 8.5), pipe)
+        # the muffler: a long can, then the fishtail flaring out at 22.5 degrees, a dark slot in its end
+        mp = flat("sc_chrome", 4)(decal=chrome_decal())
+        m.box("muffler", (ex - 0.85, low - 0.85, 8.5), (ex + 0.85, low + 0.85, 15.0), mp)
 
         def fish(c, low=low):
-            if c.face == "south" and abs(c.p[1] - low) < 1.6 and abs(c.p[0] - ex) < 0.8:
-                return ("sc_rubber", 0)
-            return "chrome"
-        sculpt(m, "fishtail", fish_f, (ex - 3, low - 4, 30), (ex + 3, low + 4, 38), M.paint(fish, normal=field_normal(fish_f)),
-               label=lambda p, prev=list(fishes): None if any(f(*p) < 0 for f in prev) else "s")
-        fishes.append(fish_f)
-    m.box("muffler_clamp", (ex - 1.0, 6.2, 24.0), (ex + 1.0, 10.4, 25.2), black)
-    m.box("muffler_hanger", (ex + 1.0, 8.0, 24.0), (BX - 4.6, 9.2, 25.2), black)
+            if c.face == "south":
+                if abs(c.p[1] - low) < 0.6 and abs(c.p[0] - ex) < 0.4:
+                    return tone("sc_rubber", 0.0)
+                return tone("sc_chrome", 0.6)
+            return chrome_decal()(c)
+        m.box("fishtail", (ex - 0.65, low - 1.1, 15.0), (ex + 0.65, low + 1.1, 17.75), flat("sc_chrome", 4)(decal=fish))
+    m.box("muffler_hanger", (ex + 0.95, 4.0, 12.0), (BX - 2.1, 4.5, 12.6), BLACK)
 
-    # the footboards: rubber mats on a chrome rim
-    for s, (x0, x1) in ((-1, (BX - 13.0, BX - 6.4)), (1, (BX + 5.4, BX + 10.6))):
-        m.box("footboard", (x0, 7.6, -12.0), (x1, 8.2, -2.0), chrome)
+    # the footboards: rubber mats on chrome rims
+    for s, (x0, x1) in ((-1, (BX - 6.4, BX - 3.2)), (1, (BX + 2.7, BX + 5.3))):
+        m.box("footboard", (x0, 3.6, -6.0), (x1, 3.9, -1.0), CHROME)
 
         def mat(c):
-            return ("sc_rubber", 1.4) if math.floor(c.p[2] * 1.3) % 2 else ("sc_rubber", 0.5)
-        m.box("footboard_mat", (x0 + 0.5, 8.2, -11.5), (x1 - 0.5, 8.8, -2.5), M.paint(lambda c: mat(c) if c.face == "up" else "rubber"))
-        lo, hi = sorted((BX + s * 4.4, x1 if s < 0 else x0))
-        m.box("footboard_arm", (lo, 6.0, -7.6), (hi, 7.6, -6.4), black)
+            if c.face == "up":
+                return tone("sc_rubber", 0.4 if math.floor(c.p[2] * 1.5) % 2 else 0.1)
+            return tone("sc_rubber", 0.25)
+        m.box("footboard_mat", (x0 + 0.25, 3.9, -5.75), (x1 - 0.25, 4.2, -1.25), flat("sc_rubber", 1)(decal=mat))
+        lo, hi = sorted((BX + s * 2.1, x1 if s < 0 else x0))
+        m.box("footboard_arm", (lo, 2.9, -3.8), (hi, 3.6, -3.2), BLACK)
     # the kick starter on the right of the gearbox
-    rod(m, "kick", (14.5, 10.0), (11.0, 3.0), 1.0, chrome, x=(BX + 4.0, BX + 5.0))
-    m.box("kick_pedal", (BX + 5.0, 10.4, 2.0), (BX + 7.4, 11.4, 4.0), rubber)
+    rod(m, "kick", (7.0, 5.0), (5.0, 2.0), 0.5, CHROME, x=(BX + 1.8, BX + 2.3))
+    m.box("kick_pedal", (BX + 2.3, 5.1, 1.0), (BX + 3.6, 5.6, 2.0), RUBBER)
 
 
-# ------------------------------------------------------------------------------------------------
-# The back of the bike: plungers, fender, tail lamp, plate, saddlebag, chain guard, oil tank
-# ------------------------------------------------------------------------------------------------
-
-TAIL_LAMP = (22.2, 39.5)          # (y, z) of the tail lamp's middle; its lens' face at z TAIL_LENS_Z
-TAIL_LENS_Z = 41.6
-PLATE = (14.2, 43.2)              # the plate's middle (y) and its face (z)
-
-
-def _rear(m, M, chrome, black, rubber, chrome_r):
+def _rear(m, ctx):
+    """The rear fender, its tail lamp and the plate holder, the chain guard, the oil tank, the saddlebag."""
+    C, T, L = ctx.C, ctx.T, ctx.L
     m.group("rear")
-    # plunger suspension: a chrome cover over each spring at the axle
-    for s in (-1, 1):
-        cx = BX + s * 3.5
-        cyl(m, "plunger", (cx, ZR), 2.2, WY - 5.0, WY + 7.5, chrome_r("y", cx, ZR))
-        cyl(m, "plunger_cover", (cx, ZR), 2.8, WY + 1.5, WY + 6.5, chrome_r("y", cx, ZR))
-    # the rear fender
-    rf = fender_f(WY, ZR, BX, 4.4, 13.2, 2.0, -34, 108)
+    _fender(m, "rear_fender", ctx, ZR, BX, 2.25, [-22.5, 0, 22.5, 45, 67.5, 90, 112.5])
 
-    def fender(c):
-        x, y, z = c.p
-        ax = abs(x - BX)
-        rr = math.hypot(y - WY, z - ZR)
-        if rr > 13.7:
-            if ax < 1.1:
-                return "trim"
-            if 1.5 < ax < 2.0:
-                return "pin"
-        return "paint"
-    sculpt(m, "rear_fender", rf, (BX - 6, 0, ZR - 13), (BX + 6, WY + 17, ZR + 18), M.paint(fender, normal=field_normal(rf)))
-
-    # the tail lamp: a round chrome housing on the fender's back, a red lens behind a chrome ring
+    # the tail lamp: a round chrome housing on the fender's back, a red lens in a chrome ring
     ty, tz = TAIL_LAMP
-    cyl(m, "tail_lamp", (BX, ty), 4.6, tz - 2.2, TAIL_LENS_Z - 0.6, chrome_r("z", BX, ty), axis="z")
+    housing = flat("sc_chrome", 4)
+    m.box("tail_lamp", (BX - 1.1, ty - 1.1, tz - 1.6), (BX + 1.1, ty + 1.1, tz),
+          housing(decal=lambda c: tone("sc_chrome", 0.85) if c.face == "south" else chrome_decal()(c)))
 
     def tail_lens(c):
         r = math.hypot(c.p[0] - BX, c.p[1] - ty)
-        if r > 1.9:
-            return ("raw", (0, 0, 0, 0))
-        return ("sc_red", 3.4 if r < 0.8 else 2.2)
-    m.box("tail_lens", (BX - 2.0, ty - 2.0, TAIL_LENS_Z - 0.4), (BX + 2.0, ty + 2.0, TAIL_LENS_Z),
-          Paint("sc_red", 2, noise=0, light=False, decal=tail_lens))
-    m.box("tail_stem", (BX - 0.8, ty - 4.0, tz - 1.6), (BX + 0.8, ty - 2.2, tz + 0.2), chrome)
-    # the plate holder: a chrome frame on a bracket below the lamp, the plate blank
+        if r > 0.95:
+            return CLEAR
+        return ("raw", (255, 90, 80, 255)) if r < 0.45 else ("raw", (190, 24, 30, 255))
+    m.group("lights")
+    m.box("tail_lens", (BX - 1.0, ty - 1.0, tz), (BX + 1.0, ty + 1.0, tz + 0.2), Paint("sc_red", 2, noise=0, light=False, glow=True, decal=tail_lens))
+    m.group("rear")
+    # the plate holder under the lamp: a chrome frame, the blank plate (vehicles.yml plates draws the number on it)
     py, pz = PLATE
 
     def plate(c):
         if c.face == "south":
-            if abs(c.p[0] - BX) > 5.4 or abs(c.p[1] - py) > 2.8:
-                return "chrome"
-            return ("sc_white", 2.4 if c.p[1] > py - 2 else 1.8)
-        return "chrome"
-    m.box("plate", (BX - 6.2, py - 3.6, pz - 0.6), (BX + 6.2, py + 3.6, pz), M.paint(plate))
-    m.box("plate_bracket", (BX - 1.0, py - 1.0, 38.0), (BX + 1.0, py + 1.0, pz - 0.6), black)
+            if abs(c.p[0] - BX) > 2.6 or abs(c.p[1] - py) > 1.3:
+                return tone("sc_chrome", 0.8)
+            return tone("sc_white", 0.85)
+        return tone("sc_chrome", 0.6)
+    m.box("plate", (BX - 3.0, py - 1.7, pz - 0.3), (BX + 3.0, py + 1.7, pz), flat("sc_chrome", 4)(decal=plate))
+    m.box("plate_bracket", (BX - 0.4, py + 1.7, pz - 2.0), (BX + 0.4, py + 2.5, pz - 0.3), BLACK)
+    m.box("tail_bracket", (BX - 0.35, ty - 1.9, tz - 1.2), (BX + 0.35, ty - 1.1, tz - 0.4), CHROME)
 
     # the chain guard on the right, the oil tank under the saddle on the right
-    m.box("chain_guard", (BX + 2.2, WY - 1.2, 10.0), (BX + 3.2, WY + 2.6, ZR - 2.0), M.paint("paint"))
-    tube(m, "oil_tank", "z", (BX + 5.0, 20.5), 5.2, 2.0, 10.0, M.paint("paint", normal=radial("z", BX + 5.0, 20.5)))
-    cyl(m, "oil_cap", (BX + 5.0, 6.0), 1.8, 23.0, 23.8, chrome)
+    m.box("chain_guard", (BX + 1.1, WY - 0.7, 5.5), (BX + 1.6, WY + 1.3, ZR - 1.2), flat(C, 4)(decal=enamel(C, WY - 0.7, WY + 1.3)))
+    m.box("oil_tank", (BX + 1.6, 8.8, 2.5), (BX + 3.6, 11.6, 5.5), flat(C, 4)(decal=enamel(C, 8.8, 11.6)))
+    m.box("oil_cap", (BX + 2.2, 11.6, 3.5), (BX + 3.0, 12.0, 4.3), CHROME)
 
-    # the leather saddlebag on the left: a box with a rounded flap, two buckled straps
-    def bag_f(x, y, z):
-        if not (BX - 12.2 <= x <= BX - 6.2):
-            return 1.0
-        return ((z - 26.5) / 5.6) ** 4 + ((y - 17.6) / 4.8) ** 4 - 1
-
+    # the leather saddlebag on the left: a box, its flap's edge, two buckled straps, its bottom bevelled
     def bag(c):
         x, y, z = c.p
-        if abs(z - 24.2) < 0.6 or abs(z - 28.8) < 0.6:
-            if c.face == "west" and abs(y - 19.0) < 0.7:
-                return ("lit", "sc_chrome", "chrome")     # the buckles
-            return "dark"                                 # the straps
-        if c.face == "west" and abs(y - 19.6) < 0.5:
-            return "dark"                                 # the flap's edge
-        return "leather"
-    sculpt(m, "saddlebag", bag_f, (BX - 13, 10, 21), (BX - 6, 22, 35), M.paint(bag, normal=field_normal(bag_f)))
-    m.box("bag_rail", (BX - 6.4, 20.6, 21.4), (BX - 5.0, 21.8, 32.6), black)
+        if c.face == "down":
+            return tone(L, 0.12)
+        if abs(z - 12.3) < 0.45 or abs(z - 14.7) < 0.45:
+            if c.face == "west" and 9.3 <= y < 10.2:
+                return tone("sc_chrome", 0.95)                           # the buckles
+            return tone(L, 0.16)                                         # the straps
+        if c.face == "up":
+            return tone(L, 0.75)
+        if math.floor(y) == 9 and c.face == "west":
+            return tone(L, 0.25)                                         # the flap's edge
+        if y > 9.5:
+            return tone(L, 0.6)
+        return tone(L, 0.42)
+    bp = flat(L, 3)
+    bx0, bx1 = BX - 6.1, BX - 3.3
+    m.box("saddlebag", (bx0, 7.2, 10.8), (bx1, 11.0, 16.2), bp(decal=bag))
+    plank(m, "saddlebag_edge", "z", (bx0, 7.2), (bx0 + 0.8, 6.4), (11.2, 15.8), 0.6, bp, decal=bag, below=False)
+    m.box("saddlebag", (bx0 + 0.8, 6.4, 10.8), (bx1, 7.2, 16.2), bp(decal=bag))
+    m.box("bag_rail", (bx1, 10.4, 10.6), (BX - 2.25, 10.9, 16.0), BLACK)
 
 
-# ------------------------------------------------------------------------------------------------
-# The sidecar
-# ------------------------------------------------------------------------------------------------
-
-SCREEN_HW = 9.0
-SPARE = (21.0, 34.8)              # the spare wheel's middle (y) and its z
-SIDE_LAMP = (27.5, -2.8)          # the running lamp on the sidecar's mudguard (y, z of its middle)
-TUB_LAMP = (23.0, 23.6)           # the sidecar's red tail lamp on the back of its mudguard (y, z of the lens' face)
-
-
-def _tub_label(p):
-    x, y, z = p
-    if in_well(x, z) and y > WELL_FLOOR:
-        return None
-    return "s"
-
-
-def _sidecar(m, kit, M, chrome, black, rubber, chrome_r, whitewall):
+def _sidecar(m, kit, ctx):
+    C, T, L = ctx.C, ctx.T, ctx.L
     m.group("sidecar")
+    yc = (TB + TT) / 2
 
     def tub(c):
+        """The tub's paint: the trim colour above the spear, the paint below, the chrome spear between; a soft light
+        down its sides, its deck lit."""
         x, y, z = c.p
-        d = tub_dims(z)
-        if d is None:
-            return "paint"
-        hw, yc, hh = d
-        n = _grad(tub_f, c.p) or FACE_N[c.face]
-        # inside the cockpit: its leather lining and floor
-        if in_well(x, z, 0.35) and y > WELL_FLOOR - 0.3 and n[1] < 0.9:
-            return "dark"
-        if in_well(x, z, 0.35) and y <= WELL_FLOOR + 0.3:
-            return "dark"
-        top = tub_top(z, x)
-        # the chrome roll round the cockpit's edge
-        if in_well(x, z, 1.7) and y > top - 1.6:
-            return "chrome"
-        if z < -23.5:
-            return "chrome"                                # the polished nose cone
-        if -23.5 <= z < -22.8:
-            return ("lit", "sc_black", "satin")           # its seam
-        ys = yc + 2.2
-        if abs(y - ys) < 0.55 and abs(n[1]) < 0.75:
-            return "chrome"                                # the spear moulding
-        if y > ys:
-            return "trim"
-        return "paint"
-    sculpt(m, "tub", tub_f, (SX - 15, 7, TUB_Z0), (SX + 15, 30, TUB_Z1), M.paint(tub, normal=field_normal(tub_f)), label=_tub_label,
-           zstep=lambda z: 2 if (z < -14 or z > 15) else 1)
+        ax = abs(x - SX)
+        if c.face == "down":
+            return tone(C, 0.1)
+        if abs(y - SPEAR) < 0.45 and c.face in ("east", "west"):
+            return tone("sc_chrome", 0.97 if y > SPEAR else 0.55)
+        if y > SPEAR:
+            if c.face == "up" or y > TT - 0.1:
+                return tone(T, 0.8 if 1.5 < ax < 3.0 else 0.66)
+            return tone(T, 0.42 + 0.3 * smooth((y - SPEAR) / (TT - SPEAR)))
+        return tone(C, 0.26 + 0.3 * smooth((y - TB) / (SPEAR - TB)))
+    tp = flat(C, 4)
+    # the full section ahead of the cockpit and beside it (the cockpit cut out of its middle), then behind it
+    octa(m, "tub", (SX, yc), TW, (TT - TB) / 2, TC, TUB_Z0, WELL_Z0, tp, tub, bottom=False)
+    for s in (-1, 1):
+        plank(m, "tub_keel", "z", (SX + s * (TW - TC), TB), (SX + s * TW, TB + TC), (TUB_Z0, TUB_Z1 + 1.0), TC * 0.72 + 0.05, tp,
+              decal=tub, below=False, buried=True)
+    # beside the cockpit: the floor, thin side walls under the top chamfers (the inside lined in dark leather)
+    inner = TW - TC
 
-    # the seat: a tufted cushion and a tall tufted back rest, piped edges
+    def wall(c):
+        x, y, z = c.p
+        outside = (c.face == "east" and x > SX) or (c.face == "west" and x < SX)
+        if c.face in ("east", "west") and not outside and y > WELL_FLOOR - 0.1:
+            return tone(L, 0.2)                                          # the cockpit's leather lining
+        if c.face == "down" and y > WELL_FLOOR:
+            return tone(L, 0.12)
+        return tub(c)
+    wp = tp(decal=wall)
+    m.box("tub", (SX - inner, TB, WELL_Z0), (SX + inner, WELL_FLOOR, WELL_Z1), wp)
+    for s in (-1, 1):
+        lo, hi = _x(SX, s * inner, s * TW)
+        if WELL_FLOOR > TB + TC:
+            m.box("tub", (lo, TB + TC, WELL_Z0), (hi, WELL_FLOOR, WELL_Z1), wp)
+        lo, hi = _x(SX, s * (TW - 0.6), s * TW)
+        m.box("tub_wall", (lo, WELL_FLOOR, WELL_Z0), (hi, TT - TC, WELL_Z1), wp)
+        plank(m, "tub_edge", "z", (SX + s * inner, TT), (SX + s * TW, TT - TC), (WELL_Z0, WELL_Z1), 0.75, tp, decal=wall)
+    octa(m, "tub", (SX, yc), TW, (TT - TB) / 2, TC, WELL_Z1, TUB_Z1 + 1.0, tp, tub, bottom=False)
+    # the nose and the tail step down in rings (art-deco streamlining): the nose to a polished chrome cone
+    hh = (TT - TB) / 2
+    def cone(c):
+        if c.face == "north":
+            return tone("sc_chrome", 0.98 if c.p[1] > yc else 0.62)
+        if c.face == "up":
+            return tone("sc_chrome", 0.97)
+        if c.face == "down":
+            return tone("sc_chrome", 0.2)
+        y = c.p[1]
+        return tone("sc_chrome", 0.86 if y > yc + 0.4 else 0.12 if y > yc - 0.6 else 0.42)
+    octa(m, "tub_nose", (SX, yc), TW * 0.78, hh * 0.78, 1.6, NOSE[0], TUB_Z0, tp, tub, caps=(True, False))
+    octa(m, "tub_nose", (SX, yc - 0.2), TW * 0.5, hh * 0.5, 1.0, NOSE[1], NOSE[0], flat("sc_chrome", 4), cone, t=0.75,
+         caps=(True, False))
+    m.box("tub_nose", (SX - 1.2, yc - 1.1, NOSE[2]), (SX + 1.2, yc + 0.7, NOSE[1]), flat("sc_chrome", 4)(decal=cone))
+    k = 0.72
+    octa(m, "tub_tail", (SX, yc - 0.6 * (1 - k)), TW * k, hh * k, 1.4, TUB_Z1 + 1.0, TAIL_Z, tp, tub, caps=(False, True))
+
+    # the chrome spear moulding: a bright strip along each flank, a hair proud
+    for s in (-1, 1):
+        lo, hi = _x(SX, s * TW, s * (TW + 0.25))
+        m.box("spear", (lo, SPEAR - 0.35, TUB_Z0), (hi, SPEAR + 0.35, TUB_Z1 + 1.0), CHROME)
+    # the chrome roll round the cockpit
+    roll = flat("sc_chrome", 4)(decal=lambda c: tone("sc_chrome", 0.98 if c.face == "up" else 0.62 if c.face in ("north", "west") else 0.35))
+    for s in (-1, 1):
+        lo, hi = _x(SX, s * (inner - 0.3), s * (inner + 0.3))
+        m.box("roll", (lo, TT - 0.3, WELL_Z0 - 0.3), (hi, TT + 0.25, WELL_Z1 + 0.3), roll)
+    m.box("roll", (SX - (inner - 0.3), TT - 0.3, WELL_Z0 - 0.3), (SX + (inner - 0.3), TT + 0.25, WELL_Z0 + 0.3), roll)
+    m.box("roll", (SX - (inner - 0.3), TT - 0.3, WELL_Z1 - 0.3), (SX + (inner - 0.3), TT + 0.25, WELL_Z1 + 0.3), roll)
+
+    # the seat: a tufted cushion and a tall tufted back rest, a rolled top
     def tuft(c):
         x, y, z = c.p
-        u = (x - SX) % 4.0
-        v = (y if c.face in ("north", "south") else z) % 4.0
-        if abs(u - 2) < 0.5 and abs(v - 2) < 0.5:
-            return "dark"                                  # a button
-        if u < 0.5:
-            return ("lit", M.m["leather"][0], "matte")
-        return "leather"
-    m.box("seat_cushion", (SX - 10.5, WELL_FLOOR, 1.0), (SX + 10.5, 15.4, 14.0), M.paint(tuft))
-    m.box("seat_back", (SX - 10.5, 15.4, 11.4), (SX + 10.5, 29.6, 14.6), M.paint(tuft))
-    m.box("seat_back_roll", (SX - 10.0, 29.6, 11.8), (SX + 10.0, 30.6, 14.4), M.paint("dark"))
-    # a floor mat under the passenger's feet
-    m.box("floor_mat", (SX - 9.5, WELL_FLOOR, -5.0), (SX + 9.5, WELL_FLOOR + 0.5, 1.0), rubber)
+        u = (x - SX + 0.5) % 2.0
+        v = ((y if c.face in ("north", "south") else z) + 0.5) % 2.0
+        if c.face in ("north", "south", "up") and u < 1 and v < 1:
+            return tone(L, 0.28)                                         # a button's dimple
+        return tone(L, 0.66 if c.face == "up" else 0.5 if c.face == "north" else 0.38)
+    sp = flat(L, 3)(decal=tuft)
+    sw = TW - 0.6
+    m.box("seat_cushion", (SX - sw, WELL_FLOOR, 0.5), (SX + sw, 7.7, 5.0), sp)
+    m.box("seat_back", (SX - sw, WELL_FLOOR, 5.0), (SX + sw, 14.8, 6.5), sp)
+    m.box("seat_roll", (SX - (sw - 0.6), 14.8, 5.1), (SX + (sw - 0.6), 15.3, 6.4), solid(L, 0.5, 0.25, 0.1))
+    m.box("floor_mat", (SX - sw, WELL_FLOOR, WELL_Z0), (SX + sw, WELL_FLOOR + 0.25, 0.5),
+          flat("sc_rubber", 1)(decal=lambda c: tone("sc_rubber", 0.35 if math.floor(c.p[2]) % 2 else 0.15)))
 
     # the grab rail along the cockpit's outer edge
-    gx = SX + 11.6
-    for z in (-2.0, 9.0):
-        m.box("grab_post", (gx - 0.5, tub_top(z, gx) - 0.6, z - 0.5), (gx + 0.5, 31.2, z + 0.5), chrome)
-    m.box("grab_rail", (gx - 0.6, 31.2, -2.6), (gx + 0.6, 32.2, 9.6), chrome_r("z", gx, 31.7))
+    gx = SX + inner + 0.6
+    for z in (-1.0, 4.5):
+        m.box("grab_post", (gx - 0.2, TT - 0.6, z - 0.2), (gx + 0.2, 15.8, z + 0.2), CHROME)
+    m.box("grab_rail", (gx - 0.3, 15.8, -1.3), (gx + 0.3, 16.3, 4.8), CHROME)
 
-    # the windscreen (its own part: it folds forward on its foot while the passenger gets in or out): a pane in a
-    # chrome frame, leaning back 22.5 degrees, two brackets
+    # the windscreen (its own part: it folds forward on its foot while the passenger gets in or out): a tinted pane
+    # in a chrome frame, leaning back 22.5 degrees, on two black feet
     s = kit["screen"]
     rot = ("x", 22.5, (SX, SCREEN_Y, SCREEN_Z))
-    H = 8.6
+    SW, H = 4.5, 4.4
 
     def pane(c):
         x, y = c.p[0] - SX, c.p[1] - SCREEN_Y
-        if abs(x) > SCREEN_HW - 0.7 or y > H - 0.7:
-            return ("lit", "sc_chrome", "chrome")
-        k = math.floor(x * 0.55 + y * 1.1) % 15
-        if k in (0, 1, 2):
-            return ("sc_glass", 2.4 if k == 1 else 1.6)       # a broad reflection across the glass
-        if k == 6:
-            return ("sc_glass", 1.0)                          # a thin one
+        k = math.floor(x * 0.5 + y * 1.0) % 9
+        if k in (0, 1):
+            return ("raw", (214, 230, 246, 150 if k == 0 else 110))      # a broad reflection across the glass
         if y < 1.2:
-            return ("sc_glass", 0.6)                          # a tint along its foot
-        return ("raw", (0, 0, 0, 0))
-    s.box("screen_glass", (SX - SCREEN_HW, SCREEN_Y + 0.6, SCREEN_Z - 0.2), (SX + SCREEN_HW, SCREEN_Y + H, SCREEN_Z + 0.2),
-          M.paint(pane), rotation=rot)
-    frame = M.paint(lambda c: ("sc_chrome", 7.0 if c.face == "up" else 5.6 if c.face in ("north", "west") else 4.0))
-    s.box("screen_frame", (SX - SCREEN_HW - 0.4, SCREEN_Y + H - 0.2, SCREEN_Z - 0.4), (SX + SCREEN_HW + 0.4, SCREEN_Y + H + 0.5, SCREEN_Z + 0.4),
-          frame, rotation=rot)
+            return ("raw", (150, 176, 196, 90))                          # a tint along its foot
+        return ("raw", (190, 210, 230, 40))
+    s.box("screen_glass", (SX - SW + 0.3, SCREEN_Y + 0.4, SCREEN_Z - 0.1), (SX + SW - 0.3, SCREEN_Y + H - 0.3, SCREEN_Z + 0.1),
+          Paint("sc_glass", 1, noise=0, light=False, decal=pane), rotation=rot)
+    frame = flat("sc_chrome", 4)(decal=lambda c: tone("sc_chrome", 0.98 if c.face == "up" else 0.75 if c.face in ("north", "west") else 0.4))
+    s.box("screen_frame", (SX - SW, SCREEN_Y + H - 0.3, SCREEN_Z - 0.25), (SX + SW, SCREEN_Y + H + 0.2, SCREEN_Z + 0.25), frame, rotation=rot)
+    s.box("screen_frame", (SX - SW + 0.3, SCREEN_Y, SCREEN_Z - 0.25), (SX + SW - 0.3, SCREEN_Y + 0.4, SCREEN_Z + 0.25), frame, rotation=rot)
     for sx in (-1, 1):
-        lo, hi = sorted((SX + sx * (SCREEN_HW - 0.2), SX + sx * (SCREEN_HW + 0.6)))
-        s.box("screen_frame", (lo, SCREEN_Y + 0.2, SCREEN_Z - 0.4), (hi, SCREEN_Y + H - 0.2, SCREEN_Z + 0.4), frame, rotation=rot)
-        lo, hi = sorted((SX + sx * (SCREEN_HW - 1.6), SX + sx * (SCREEN_HW - 0.2)))
-        s.box("screen_foot", (lo, SCREEN_Y - 0.6, SCREEN_Z - 1.4), (hi, SCREEN_Y + 1.6, SCREEN_Z + 1.4), black)
-    s.box("screen_frame", (SX - SCREEN_HW, SCREEN_Y - 0.1, SCREEN_Z - 0.4), (SX + SCREEN_HW, SCREEN_Y + 0.6, SCREEN_Z + 0.4), frame, rotation=rot)
+        lo, hi = _x(SX, sx * (SW - 0.3), sx * SW)
+        s.box("screen_frame", (lo, SCREEN_Y, SCREEN_Z - 0.25), (hi, SCREEN_Y + H - 0.3, SCREEN_Z + 0.25), frame, rotation=rot)
+        lo, hi = _x(SX, sx * (SW - 1.1), sx * (SW - 0.3))
+        s.box("screen_foot", (lo, SCREEN_Y - 0.25, SCREEN_Z - 0.6), (hi, SCREEN_Y + 0.6, SCREEN_Z + 0.6), BLACK)
 
-    # the luggage rack on the tail deck: two chrome rails on legs, cross bars, a leather case strapped on it
-    ry = 28.6
+    # the luggage rack on the tail deck: two chrome rails on legs, cross bars, a strapped leather case on it
+    ry = 14.0
     for sx in (-1, 1):
-        x = SX + sx * 6.0
-        m.box("rack_rail", (x - 0.5, ry, 16.0), (x + 0.5, ry + 1.0, 30.0), chrome_r("z", x, ry + 0.5))
-        for z in (17.0, 28.6):
-            m.box("rack_leg", (x - 0.4, tub_top(z, x) - 0.8, z - 0.4), (x + 0.4, ry, z + 0.4), chrome)
-    for z in (16.3, 20.4, 24.6, 28.7):
-        m.box("rack_bar", (SX - 6.3, ry + 0.1, z), (SX + 6.3, ry + 0.9, z + 0.9), chrome_r("x", ry + 0.5, z + 0.45))
+        x = SX + sx * 3.0
+        m.box("rack_rail", (x - 0.25, ry, 7.5), (x + 0.25, ry + 0.5, 13.5), CHROME)
+        for z in (8.0, 12.75):
+            m.box("rack_leg", (x - 0.2, 12.2, z - 0.2), (x + 0.2, ry, z + 0.2), CHROME)
+    for z in (8.5, 10.75, 13.0):
+        m.box("rack_bar", (SX - 3.1, ry + 0.05, z - 0.2), (SX + 3.1, ry + 0.45, z + 0.2), CHROME)
 
     def case(c):
         x, y, z = c.p
-        if abs(x - (SX - 3.0)) < 0.6 or abs(x - (SX + 3.0)) < 0.6:
-            if c.face == "up" or c.face == "south":
-                return "dark"                               # the straps
-        if c.face in ("north", "south") and abs(y - 33.0) < 0.4:
-            return "dark"                                   # the lid's seam
-        if c.face == "up" and abs(x - SX) < 1.0 and abs(z - 23.0) < 0.6:
-            return ("lit", "sc_chrome", "chrome")            # the handle's clasp
-        return "leather"
-    m.box("case", (SX - 6.5, ry + 1.0, 18.6), (SX + 6.5, ry + 5.6, 27.4), M.paint(case))
-    m.box("case_handle", (SX - 1.6, ry + 5.6, 22.6), (SX + 1.6, ry + 6.4, 23.4), M.paint("dark"))
-    for cx in (SX - 6.5, SX + 5.7):
-        for cz in (18.4, 26.8):
-            m.box("case_corner", (cx - 0.2, ry + 4.8, cz), (cx + 1.0, ry + 5.8, cz + 0.8), M.paint(("lit", "sc_chrome", "chrome")))
+        if abs(x - (SX - 1.5)) < 0.3 or abs(x - (SX + 1.5)) < 0.3:
+            if c.face in ("up", "south", "north"):
+                return tone(L, 0.15)                                     # the straps
+        if c.face in ("north", "south", "east", "west") and math.floor(y * 2) == math.floor((ry + 2.3) * 2):
+            return tone(L, 0.2)                                          # the lid's seam
+        if c.face == "up" and abs(x - SX) < 0.5 and abs(z - 11.0) < 0.5:
+            return tone("sc_chrome", 0.95)                               # the clasp
+        if c.face == "up":
+            return tone(L, 0.72)
+        return tone(L, 0.5 if c.face in ("north", "west") else 0.36)
+    m.box("case", (SX - 3.1, ry + 0.45, 8.6), (SX + 3.1, ry + 3.0, 13.4), flat(L, 3)(decal=case))
+    m.box("case_handle", (SX - 0.8, ry + 3.0, 10.8), (SX + 0.8, ry + 3.4, 11.2), solid(L, 0.3, 0.15, 0.1))
 
-    # the spare wheel standing on the tail, facing back: the same tyre, a rim, spokes, a hub, on a bracket
+    # the spare wheel standing on the tail, facing back, on a bracket
     sy, sz = SPARE
+    _spoked_wheel(m, "z", (SX, sy), sz, ctx.WW, drop=("lo",))
+    m.box("spare_cap", (SX - 0.7, sy - 0.7, sz + 1.0), (SX + 0.7, sy + 0.7, sz + 1.4), CHROME)
+    m.box("spare_bracket", (SX - 0.45, sy - 0.45, TAIL_Z), (SX + 0.45, sy + 0.45, sz - 1.0), BLACK)
 
-    def spare_paint(th, out):
-        return Paint("sc_rubber", 1, noise=0, light=False, decal=lambda c: _tyre_texel(c, out, (0, 0, 1), 10.4, 1.8, 2.2, whitewall, (SX, sy, sz)))
-    poly_ring(m, "spare_tyre", "z", (SX, sy), 8.6, 12.2, sz - 2.2, sz + 2.2, spare_paint)
-
-    def srim_paint(th, out):
-        def decal(c):
-            r = math.hypot(c.p[0] - SX, c.p[1] - sy)
-            return _tone("sc_chrome", "chrome", _ring_normal(c, out, (0, 0, 1), r, c.p[2] - sz, 7.8, 1.0, 1.6))
-        return Paint("sc_chrome", 4, noise=0, light=False, decal=decal)
-    poly_ring(m, "spare_rim", "z", (SX, sy), 7.0, 8.6, sz - 1.3, sz + 1.3, srim_paint, outer=False)
-
-    def sspokes(c):
-        x, y = c.p[0] - SX, c.p[1] - sy
-        rr = math.hypot(x, y)
-        if rr > 7.1 or rr < 2.6:
-            return ("raw", (0, 0, 0, 0))
-        for i in range(18):
-            b = i * 2 * math.pi / 18
-            tw = 0.75 if i % 2 else -0.75
-            if seg_dist((x, y), (3.0 * math.cos(b), 3.0 * math.sin(b)), (7.1 * math.cos(b + tw), 7.1 * math.sin(b + tw))) < 0.5:
-                return ("sc_chrome", 4.4 + 1.6 * (y - 0.4 * x) / 7)
-        return ("raw", (0, 0, 0, 0))
-    m.box("spare_spokes", (SX - 7.2, sy - 7.2, sz - 0.25), (SX + 7.2, sy + 7.2, sz + 0.25),
-          Paint("sc_chrome", 4, noise=0, light=False, decal=sspokes))
-    cyl(m, "spare_hub", (SX, sy), 6.0, sz - 2.2, sz + 2.2, M.paint("alloy", normal=radial("z", SX, sy)), axis="z")
-    cyl(m, "spare_cap", (SX, sy), 3.0, sz + 2.2, sz + 2.8, chrome_r("z", SX, sy), axis="z")
-    m.box("spare_bracket", (SX - 0.9, sy - 0.9, 27.0), (SX + 0.9, sy + 0.9, sz - 2.2), black)
-    m.box("spare_bracket", (SX - 0.9, 12.1, 30.1), (SX + 0.9, sy - 1.9, 31.7), black)
-
-    # the sidecar wheel's mudguard, its stays, a running lamp on top
-    gf = fender_f(WY, SWZ, SWX, 3.4, 13.2, 1.6, -70, 82)
-
-    def guard(c):
-        x, y, z = c.p
-        if math.hypot(y - WY, z - SWZ) > 13.7 and abs(x - SWX) < 0.9:
-            return "trim"
-        return "paint"
-    sculpt(m, "sidecar_fender", gf, (SWX - 4, 0, SWZ - 16), (SWX + 4, WY + 16, SWZ + 16), M.paint(guard, normal=field_normal(gf)))
-    for z in (SWZ - 6.0, SWZ + 6.0):
-        m.box("fender_stay", (tub_dims(z)[0] + SX - 1.5, 20.1, z - 0.45), (SWX - 3.1, 20.9, z + 0.45), chrome)
-    # its red tail lamp on the mudguard's back
-    ly, lz = TUB_LAMP
-    m.box("guard_lamp", (SWX - 1.5, ly - 1.5, lz - 3.2), (SWX + 1.5, ly + 1.5, lz - 0.4), chrome)
-    m.box("guard_lamp_lens", (SWX - 1.1, ly - 1.1, lz - 0.4), (SWX + 1.1, ly + 1.1, lz),
-          Paint("sc_red", 2, noise=0, light=False, decal=lambda c: ("sc_red", 3.0 if c.face == "south" else 1.6)))
+    # the sidecar wheel's mudguard, its stays to the tub, a running lamp on top, a red lamp on its back
+    _fender(m, "sidecar_fender", ctx, SWZ, SWX, 1.6, [-67.5, -45, -22.5, 0, 22.5, 45, 67.5], sides=(1,))
+    for z in (SWZ - 3.0, SWZ + 3.0):
+        m.box("fender_stay", (SX + TW - 0.2, 10.6, z - 0.25), (SWX - 1.6, 11.0, z + 0.25), CHROME)
     lyy, lzz = SIDE_LAMP
-    tube(m, "side_lamp", "z", (SWX, lyy), 3.2, lzz, lzz + 4.0, chrome_r("z", SWX, lyy))
-    m.box("side_lamp_lens", (SWX - 1.2, lyy - 1.2, lzz - 0.4), (SWX + 1.2, lyy + 1.2, lzz),
-          Paint("sc_lamp", 2, noise=0, light=False, decal=lambda c: ("sc_lamp", 3.0 if c.face == "north" else 2.0)))
-    m.box("side_lamp_stem", (SWX - 0.5, 25.4, lzz + 1.5), (SWX + 0.5, lyy - 1.4, lzz + 2.5), chrome)
+    housing = flat("sc_chrome", 4)
+    m.box("side_lamp", (SWX - 0.8, lyy - 0.8, lzz), (SWX + 0.8, lyy + 0.8, lzz + 1.8),
+          housing(decal=lambda c: tone("sc_chrome", 0.95) if c.face in ("up", "north") else chrome_decal()(c)))
+    m.box("side_lamp_stem", (SWX - 0.25, 12.6, lzz + 0.6), (SWX + 0.25, lyy - 0.8, lzz + 1.2), CHROME)
+    ly, lz = GUARD_LAMP
+    m.box("guard_lamp", (SWX - 0.75, ly - 0.75, lz - 1.7), (SWX + 0.75, ly + 0.75, lz), CHROME)
+    m.group("lights")
 
-    # the chassis: two rails under the tub, the axle tube to its wheel, struts to the bike's frame
-    fb = M.paint("black")
-    for x in (SX - 6.0, SX + 6.0):
-        m.box("chassis_rail", (x - 0.9, 5.0, -20.0), (x + 0.9, 6.8, 22.0), fb)
-    m.box("chassis_cross", (BX + 4.4, 5.2, -16.0), (SX + 6.7, 6.6, -14.2), fb)
-    m.box("chassis_cross", (BX + 4.4, 5.2, 16.0), (SX + 6.7, 6.6, 17.8), fb)
-    m.box("axle_tube", (SX + 6.9, WY - 0.9, SWZ - 0.9), (SWX - 2.4, WY + 0.9, SWZ + 0.9), fb)
-    m.box("axle_brace", (SX + 6.0, 6.0, SWZ - 0.8), (SX + 8.0, WY, SWZ + 0.8), fb)
-    for z in (-12.0, 8.0):
-        m.box("tub_mount", (SX - 6.6, 6.8, z - 0.8), (SX - 5.4, 9.6, z + 0.8), fb)
-        m.box("tub_mount", (SX + 5.4, 6.8, z - 0.8), (SX + 6.6, 9.6, z + 0.8), fb)
-    # the upper struts: from the bike's down tube and seat post to the tub's inner side
-    for z, x0 in ((-11.0, BX + 3.0), (12.0, BX + 1.0)):
-        xi = SX - tub_dims(z)[0] * 0.92
-        m.box("strut", (x0, 18.2, z - 0.9), (xi + 1.0, 20.0, z + 0.9), fb)
-        m.box("strut_clamp", (xi - 0.6, 17.6, z - 1.3), (xi + 1.2, 20.6, z + 1.3), chrome)
+    def amber(c):
+        r = math.hypot(c.p[0] - SWX, c.p[1] - lyy)
+        return ("raw", (255, 246, 214, 255)) if r < 0.4 else ("raw", (240, 220, 160, 255))
+    m.box("side_lamp_lens", (SWX - 0.6, lyy - 0.6, lzz - 0.2), (SWX + 0.6, lyy + 0.6, lzz),
+          Paint("sc_lamp", 2, noise=0, light=False, glow=True, decal=amber))
+    m.box("guard_lamp_lens", (SWX - 0.55, ly - 0.55, lz), (SWX + 0.55, ly + 0.55, lz + 0.2),
+          Paint("sc_red", 2, noise=0, light=False, glow=True, decal=lambda c: ("raw", (220, 40, 44, 255))))
+    m.group("sidecar")
+
+    # the chassis: two rails under the tub, cross members to the bike's frame, the axle tube, the upper struts
+    fb = BLACK
+    for x in (SX - 3.0, SX + 3.0):
+        m.box("chassis_rail", (x - 0.45, 1.9, -10.0), (x + 0.45, 2.8, 11.0), fb)
+    for z in (-3.5, 5.0):
+        m.box("chassis_cross", (BX + 2.1, 1.95, z - 0.45), (SX + 3.2, 2.75, z + 0.45), fb)
+    m.box("axle_tube", (SX + 3.45, WY - 0.45, SWZ - 0.45), (SWX - 1.25, WY + 0.45, SWZ + 0.45), fb)
+    m.box("axle_brace", (SX + 2.55, 2.8, SWZ - 0.45), (SX + 3.45, WY - 0.45, SWZ + 0.45), fb)
+    for z in (-7.0, 9.0):
+        for x in (SX - 3.0, SX + 3.0):
+            m.box("tub_mount", (x - 0.35, 2.8, z - 0.4), (x + 0.35, TB + 0.5, z + 0.4), fb)
+    for z, x0 in ((-5.9, BX + 1.7), (6.0, BX + 0.45)):
+        m.box("strut", (x0, 9.2, z - 0.4), (SX - TW, 9.9, z + 0.4), fb)
 
 
 def _part(name):

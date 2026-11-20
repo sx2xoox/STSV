@@ -219,7 +219,7 @@ vehicles:
       launch-smoke: true
       skid: { sound: stsv:vehicle.sports_car.skid, volume: 0.75 }
       mark: rubber
-  concept_ev:               # 콘셉트 EV: 골프카트처럼 딸깍 하고 모터가 도는 소리뿐, 떨림 없이 매끄럽게
+  concept_ev:               # 콘셉트 EV: 조용하고 부드러운 전기음 "웅~", 떨림 없이 매끄럽게
     power: engine
     lights: { head: concept_ev_lamp_head, tail: concept_ev_lamp_tail, brake: concept_ev_lamp_brake }
     engine-start: { sound: stsv:vehicle.concept_ev.engine_start, volume: 0.35, ticks: 20 }
@@ -230,6 +230,13 @@ vehicles:
       fov: 0.2
       skid: { sound: stsv:vehicle.sports_car.skid, volume: 0.6 }
       mark: neon_cyan
+  sushi_carnival:           # 초밥 카니발: 조용한 V6 패밀리 미니밴, 부드럽게 걸리고 푹신하게 출렁임
+    power: engine
+    lights: { head: sushi_carnival_lamp_head, tail: sushi_carnival_lamp_tail, brake: sushi_carnival_lamp_brake }
+    engine-start: { sound: stsv:vehicle.sushi_carnival.engine_start, volume: 0.45, ticks: 16 }
+    engine-stop: { sound: stsv:vehicle.sushi_carnival.engine_stop, volume: 0.35 }
+    idle-shake: 0.004
+    bounce: 1.4
   light_truck:
     power: engine
     lights: { head: light_truck_lamp_head, tail: light_truck_lamp_tail, brake: light_truck_lamp_brake, reverse: light_truck_lamp_reverse }
