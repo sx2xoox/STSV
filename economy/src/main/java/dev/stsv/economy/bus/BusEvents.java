@@ -186,11 +186,14 @@ public record BusEvents(Team team, Crowd rush, Crowd ballgame, Crowd picnic, Spe
      * number of stops when the bus just stopped at the last of a line it ran whole from the first, else 0.
      */
     public static final class CourseRun {
-        int line, dir, next = -1, last = -1;
+        int line, dir, next = -1, last = -1, lastLine, lastDir;
 
         public int arrive(int line, int dir, List<Integer> ordered, int stop) {
-            if (stop == last) return 0;   // the same stop again (pulled out and in): nothing changes
+            // the same stop again the same way (pulled out and in): nothing changes; turned round there: a new way
+            if (stop == last && line == lastLine && dir == lastDir) return 0;
             last = stop;
+            lastLine = line;
+            lastDir = dir;
             if (ordered.isEmpty()) {
                 next = -1;
                 return 0;

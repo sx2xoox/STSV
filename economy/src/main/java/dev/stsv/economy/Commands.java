@@ -225,8 +225,9 @@ final class Commands {
             else if (a.length > 0 && a[0].equals("노선")) eco.bus().lines(p, a.length > 1 ? a[1] : null);
             else if (a.length > 0 && a[0].equals("렌트")) eco.bus().rent(p);
             else if (a.length > 0 && a[0].equals("반납")) eco.bus().giveBack(p);
+            else if (a.length > 0 && a[0].equals("이벤트")) eco.bus().showEvents(p);
             else eco.bus().showRiders(p);
-        }), (s, a) -> a.length == 1 ? List.of("정류장", "노선", "렌트", "반납") : List.of()));
+        }), (s, a) -> a.length == 1 ? List.of("정류장", "노선", "렌트", "반납", "이벤트") : List.of()));
         eco.command("가방", new Simple(player((p, a) -> eco.accessories().openBag(p)), (s, a) -> List.of()));
         eco.command("원격기계", new Simple(player((p, a) -> eco.accessories().remote(p)), (s, a) -> List.of()));
         eco.command("주식", new Simple(player((p, a) -> {

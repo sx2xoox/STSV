@@ -209,6 +209,8 @@ public final class BusModule extends EcoModule {
         boolean special;
         /** at the stop it stands at: someone got on or off, something was left behind; the first passenger was greeted */
         boolean served, lostHere, greeted;
+        /** the last stop it scored a festival point at (the same stop twice in a row counts once) */
+        int pointStop = -1;
         /** 노선 완주: the stops of its line it stopped at in order this run */
         final BusEvents.CourseRun course = new BusEvents.CourseRun();
     }
@@ -251,6 +253,8 @@ public final class BusModule extends EcoModule {
     }
 
     private final Map<Integer, Team> teams = new HashMap<>();
+    /** stop id -> when a 특급 손님 came to wait there */
+    private final Map<Integer, Long> specialSince = new HashMap<>();
     private int nextTeam = 1;
     /** 안전 운행 연속: driver -> {stops served in a row, the last of them} (in memory) */
     private final Map<UUID, int[]> streaks = new HashMap<>();
@@ -875,7 +879,7 @@ public final class BusModule extends EcoModule {
             it.remove();
             vm.unseatGuest(d.id(), r.m);
             double road = r.dest == here.id() || line == null || !line.has(r.from) ? r.road : line.between(line.at(r.from), line.at(here.id()));
-            boolean atDest = r.dest == here.id() && r.wanderAt != here.id();
+            boolean atDest = r.dest == here.id();
             // a 특급 손님: its bonus, or (failed) its fare × fail-fare
             long special = 0;
             String why = null;
@@ -922,7 +926,10 @@ public final class BusModule extends EcoModule {
             if (x.partner != null && free.size() < 2) continue;
             if (x.special != null && run.special) continue;   // one 특급 손님 a bus
             Team tm = x.team == 0 ? null : teams.get(x.team);
-            if (x.team != 0 && tm == null) x.team = 0;   // its team is over: an ordinary passenger now
+            if (x.team != 0 && tm == null) {   // its team is over: an ordinary passenger now
+                x.team = 0;
+                if (!x.transfer) x.forcedLine = x.forcedDest = null;
+            }
             Integer fixed = x.forcedDest != null ? x.forcedDest : tm != null ? tm.dest : null;
             if (tm != null && run.team != tm.id) {
                 if (run.team != 0) continue;   // one event team a bus (its other seats take ordinary passengers)
@@ -942,7 +949,7 @@ public final class BusModule extends EcoModule {
                 if (to == null) to = pickDest(line, here, x.type, p.getUniqueId(), run.dir, bus);
             } else to = pickDest(line, here, x.type, p.getUniqueId(), run.dir, bus);
             if (to == null) {
-                if (why == null) why = fixed != null ? "bus.team-other-way" : bus.minRoad() > 0 ? "bus.bus-far" : "bus.end-of-line";
+                if (why == null) why = fixed != null && tm != null ? "bus.team-other-way" : bus.minRoad() > 0 ? "bus.bus-far" : "bus.end-of-line";
                 continue;
             }
             w = x;
@@ -1522,6 +1529,16 @@ public final class BusModule extends EcoModule {
                 }
             }
         }
+        // an event team aboard cheers now and then (야구팬's chants, 소풍 songs); a 특급 손님 frets
+        if (ticks - run.talkAt > x.talkCooldown() * 2 && ThreadLocalRandom.current().nextDouble() < 0.06) {
+            for (Rider r : run.riders) {
+                Team t = r.team == 0 ? null : teams.get(r.team);
+                List<String> lines = t != null ? t.crowd.talk().get(t.lost ? "lose" : "cheer") : r.special != null ? r.special.talk() : null;
+                if (lines == null || lines.isEmpty()) continue;
+                sayLine(run, r, lines);
+                return;
+            }
+        }
         // a view: by a sea, mountain or forest stop, someone who likes it says so
         if (ticks - run.talkAt > x.talkCooldown() * 3 && ThreadLocalRandom.current().nextDouble() < 0.08) {
             for (BusStop s : stops.values()) {
@@ -1602,6 +1619,667 @@ public final class BusModule extends EcoModule {
         if (near == null || best > 3000) HudModule.flash(p, Lang.mm("bus.hud-none"), 1500);
         else HudModule.flash(p, Lang.mm("bus.hud-empty", "stop", near.name(), "km", km(best), "waiting",
                 (int) Math.floor(waiting.getOrDefault(near.id(), 0.0)), "extra", hudExtra(p, r)), 1500);
+    }
+
+    // ------------------------------------------------------------------------------------------
+    // 이벤트 (bus.yml events): every reward per team, per run, per stop or per skill (never per head), rentals keep their share
+    // ------------------------------------------------------------------------------------------
+
+    private final long startedAt = System.currentTimeMillis();
+
+    /**
+     * An event reward to the driver: a rented bus keeps only rental.share of it (like its fares). Counted in today's bus
+     * earnings (/버스). Returns {paid, fee}.
+     */
+    private long[] bonus(Player p, Run run, long amount, String reason) {
+        if (amount <= 0) return new long[]{0, 0};
+        long paid = amount, fee = 0;
+        if (run != null && run.rented) {
+            paid = spec.rental().keep(amount);
+            fee = amount - paid;
+        }
+        if (paid > 0) core.economy().deposit(p.getUniqueId(), paid, reason);
+        String dayKey = "bus.day." + p.getUniqueId();
+        String today = eco.calendar().days().date(System.currentTimeMillis()).toString();
+        String[] was = eco.kv().get(dayKey, "").split(":");
+        double earned = was.length == 2 && was[0].equals(today) ? Double.parseDouble(was[1]) : 0;
+        eco.kv().set(dayKey, today + ":" + (earned + paid));
+        return new long[]{paid, fee};
+    }
+
+    private static String g(long amount) {
+        return String.format("%,d", amount);
+    }
+
+    private static String feeText(long fee) {
+        return fee > 0 ? Lang.raw("bus.bonus-fee", "fee", g(fee)) : "";
+    }
+
+    /** Seconds a rider has left: their on-time (a 특급 손님's limit, an event team's deadline when sooner). */
+    private double timeLeft(Rider x, long now) {
+        double ot = spec.onTime(x.road), lim = x.special != null && x.special.limit(ot) > 0 ? x.special.limit(ot) : ot;
+        double left = lim - (now - x.boarded) / 1000.0;
+        Team t = x.team == 0 ? null : teams.get(x.team);
+        if (t != null && t.deadline > 0) left = Math.min(left, (t.deadline - now) / 1000.0);
+        return left;
+    }
+
+    /** A rider says one of these lines (a bubble, and beside their face on the driver's overlay). */
+    private void sayLine(Run run, Rider r, List<String> lines) {
+        if (lines == null || lines.isEmpty() || !r.m.isValid()) return;
+        String line = lines.get(ThreadLocalRandom.current().nextInt(lines.size()));
+        say(r.m, line);
+        r.said = line;
+        r.saidUntil = System.currentTimeMillis() + 3000;
+        if (run != null) run.talkAt = ticks;
+    }
+
+    /** A festival point for the driver (버스 대축제: stop, team, special, rescue, course; never fares or heads). */
+    private void festPoint(Player p, String what) {
+        if (!festOn) return;
+        int n = spec.events().festival().point(what);
+        if (n <= 0) return;
+        festPoints.computeIfAbsent(p.getUniqueId(), k -> new int[1])[0] += n;
+        festAt.put(p.getUniqueId(), System.currentTimeMillis());
+    }
+
+    /**
+     * Someone got on or off at a stop (boarded: got on). Once a stop visit: a festival point and 안전 운행 연속 (the same stop
+     * twice in a row counts once); someone getting on also marks the stop served (외딴 정류장 구조 pays when it was marked).
+     */
+    private void served(Player p, Run run, BusStop here, boolean boarded) {
+        long now = System.currentTimeMillis();
+        if (boarded) {
+            Long since = lastServed.put(here.id(), now);
+            if (rescueStop != null && rescueStop == here.id()) {
+                rescueStop = null;
+                double min = (now - (since == null ? startedAt : since)) / 60000.0;
+                long[] paid = bonus(p, run, Math.max(spec.events().rescue().base(), spec.events().rescue().bonus(min)), "bus_event");
+                p.sendMessage(Lang.mm("bus.rescue-done", "g", g(paid[0]), "min", (int) min, "fee", feeText(paid[1])));
+                p.playSound(p.getLocation(), Sound.UI_TOAST_CHALLENGE_COMPLETE, 0.6f, 1.4f);
+                Bukkit.broadcast(Lang.msg("bus.rescue-all", "player", p.getName(), "stop", here.name()));
+                festPoint(p, "rescue");
+            }
+        }
+        if (run.served) return;
+        run.served = true;
+        if (run.pointStop != here.id()) festPoint(p, "stop");
+        run.pointStop = here.id();
+        BusEvents.Streak st = spec.events().streak();
+        if (!st.enabled()) return;
+        int[] k = streaks.computeIfAbsent(p.getUniqueId(), u -> new int[]{0, -1});
+        if (k[1] == here.id()) return;
+        k[1] = here.id();
+        k[0]++;
+        long bonus = st.bonus(k[0]);
+        if (bonus <= 0) return;
+        long[] paid = bonus(p, run, bonus, "bus_event");
+        p.sendMessage(Lang.mm("bus.streak-bonus", "n", k[0], "g", g(paid[0]), "fee", feeText(paid[1])));
+        p.playSound(p.getLocation(), Sound.ENTITY_PLAYER_LEVELUP, 0.5f, 1.6f);
+    }
+
+    /** A jolt or a bump: 안전 운행 연속 ends, a 특급 손님 counts it (응급 환자: every one costs). */
+    private void broke(Player p, Run run) {
+        for (Rider r : run.riders) {
+            if (r.special == null) continue;
+            r.hits++;
+            if (r.special.hit() > 0) p.sendMessage(Lang.mm("bus.special-hit", "name", r.special.name(), "hit", g(r.special.hit())));
+        }
+        int[] k = streaks.get(p.getUniqueId());
+        if (k != null && k[0] > 0) {
+            if (spec.events().streak().enabled()) p.sendMessage(Lang.mm("bus.streak-reset", "n", k[0]));
+            k[0] = 0;
+        }
+    }
+
+    /** The bus just stopped in a stop's bay: 노선 완주 counts it, lost items for this stop go back. */
+    private void arrived(Player p, Run run, BusStop here) {
+        run.served = false;
+        run.lostHere = false;
+        Net n = nets.get(here.world());
+        BusLine line = n == null ? null : n.line(run.line);
+        BusEvents.Course co = spec.events().course();
+        if (line != null && line.has(here.id())) {
+            List<Integer> ordered = new ArrayList<>(line.stops());
+            ordered.removeIf(id -> !stops.containsKey(id));
+            if (run.dir < 0) java.util.Collections.reverse(ordered);
+            int done = run.course.arrive(line.number, run.dir, ordered, here.id());
+            long bonus = co.enabled() ? co.bonus(done) : 0;
+            if (bonus > 0) {
+                String key = "bus.course." + p.getUniqueId();
+                long count = eco.kv().getLong(key, 0) + 1;
+                eco.kv().set(key, String.valueOf(count));
+                long[] paid = bonus(p, run, bonus, "bus_event");
+                p.sendMessage(Lang.mm("bus.course-done", "line", line.name(), "n", done, "g", g(paid[0]), "count", count, "fee", feeText(paid[1])));
+                p.playSound(p.getLocation(), Sound.UI_TOAST_CHALLENGE_COMPLETE, 0.7f, 1.2f);
+                Bukkit.broadcast(Lang.msg("bus.course-all", "player", p.getName(), "line", line.name(), "n", done));
+                festPoint(p, "course");
+            }
+        }
+        returnLost(p, run, here);
+    }
+
+    // ---- 단체 손님 (teams of four): 출근 대란, 야구 끝, 소풍날
+
+    /** A crowd event's turn (once a second): it comes at its minutes of the day (the same after a restart; kv keeps how many came). */
+    private void crowd(String key, BusEvents.Crowd c, ZonedDateTime now) {
+        if (!c.enabled()) return;
+        int times = c.timesOn(now.getDayOfWeek());
+        if (times <= 0) return;
+        int m = now.getHour() * 60 + now.getMinute();
+        if (m < c.from() * 60 || m >= c.to() * 60) return;
+        String date = now.toLocalDate().toString(), kvKey = "bus.event." + key;
+        String[] was = eco.kv().get(kvKey, "").split(":");
+        int done = was.length == 2 && was[0].equals(date) ? Integer.parseInt(was[1]) : 0;
+        int[] at = BusEvents.minutes(now.toLocalDate().toEpochDay(), key.hashCode(), c.from(), c.to(), times);
+        if (done >= at.length || m < at[done]) return;
+        if (startCrowd(key, c, now)) eco.kv().set(kvKey, date + ":" + (done + 1));
+    }
+
+    /** A crowd comes to one stop (of the crowd's traits if any), in teams; told to everyone. False when there is no stop yet. */
+    private boolean startCrowd(String key, BusEvents.Crowd c, ZonedDateTime now) {
+        List<BusStop> on = new ArrayList<>(), tagged = new ArrayList<>();
+        for (BusStop s : stops.values()) {
+            Net n = nets.get(s.world());
+            if (n == null || n.linesOf(s.id()).isEmpty()) continue;
+            boolean busy = false;
+            for (Team t : teams.values()) if (t.stop == s.id() && t.boarded < t.size) busy = true;
+            if (busy) continue;   // another crowd waits there
+            on.add(s);
+            for (String t : c.tags()) {
+                if (tagsOf(s).contains(t)) {
+                    tagged.add(s);
+                    break;
+                }
+            }
+        }
+        if (on.isEmpty()) return false;
+        ThreadLocalRandom rnd = ThreadLocalRandom.current();
+        List<BusStop> pool = tagged.isEmpty() ? on : tagged;
+        BusStop s = pool.get(rnd.nextInt(pool.size()));
+        String type = !c.alt().isEmpty() && spec.types().containsKey(c.alt()) && rnd.nextDouble() < c.altChance() ? c.alt() : c.type();
+        BusSpec.Type kind = spec.types().get(type);
+        if (kind == null) return false;
+        int n = c.min() + rnd.nextInt(c.max() - c.min() + 1);
+        BusEvents.Team cfg = spec.events().team();
+        int[] sizes = BusEvents.split(n, cfg.size());
+        boolean won = c.winChance() > 0 && rnd.nextDouble() < c.winChance(), lost = c.winChance() > 0 && !won;
+        long deadline = c.deadline() >= 0 ? now.toLocalDate().atTime(c.deadline(), 0).atZone(KST).toInstant().toEpochMilli() : 0;
+        // with a deadline (출근 대란): each team its own stop ahead on a line through the stop (the way with the most)
+        BusLine line = null;
+        List<Integer> dests = new ArrayList<>();
+        if (deadline > 0) {
+            Net net = nets.get(s.world());
+            for (BusLine l : net.linesOf(s.id())) {
+                for (int dir : new int[]{1, -1}) {
+                    List<Integer> a = new ArrayList<>(l.ahead(l.at(s.id()), dir));
+                    a.removeIf(id -> !stops.containsKey(id));
+                    if (a.size() > dests.size()) {
+                        dests = a;
+                        line = l;
+                    }
+                }
+            }
+            java.util.Collections.shuffle(dests);
+        }
+        Deque<Forced> q = forced.computeIfAbsent(s.id(), k -> new ArrayDeque<>());
+        for (int i = 0; i < sizes.length; i++) {
+            Team t = new Team(nextTeam++, i + 1, sizes[i], s.id(), key, c, cfg.color(i + 1), deadline, won, lost);
+            if (line != null && !dests.isEmpty()) {
+                t.line = line.number;
+                t.dest = dests.get(i % dests.size());
+            }
+            teams.put(t.id, t);
+            for (int k = 0; k < sizes[i]; k++) q.addLast(new Forced(type, t.line, t.dest, false, t.id, null));
+        }
+        waiting.merge(s.id(), (double) n, Double::sum);
+        switch (key) {
+            case "rush" -> Bukkit.broadcast(Lang.msg("bus.event-rush", "stop", s.name(), "n", n, "teams", sizes.length, "deadline", c.deadline(),
+                    "line", line == null ? "" : line.name()));
+            case "ballgame" -> Bukkit.broadcast(Lang.msg(won ? "bus.event-ball-win" : "bus.event-ball-lose", "stop", s.name(), "n", n,
+                    "teams", sizes.length, "x", String.format("%.1f", c.winBonus())));
+            default -> Bukkit.broadcast(Lang.msg("bus.picnic", "stop", s.name(), "n", n, "teams", sizes.length, "who", kind.name()));
+        }
+        return true;
+    }
+
+    private static String eventName(String key) {
+        return switch (key) {
+            case "rush" -> Lang.raw("bus.event-name-rush");
+            case "ballgame" -> Lang.raw("bus.event-name-ballgame");
+            default -> Lang.raw("bus.event-name-picnic");
+        };
+    }
+
+    /** A team member got on: the bus now carries that team (one at a time); the first says the crowd's line. Null: no line. */
+    private List<String> teamBoarded(Player p, Run run, Waiter w, Rider r, String destName) {
+        Team t = w.team == 0 ? null : teams.get(w.team);
+        if (t == null) return null;
+        r.team = t.id;
+        t.boarded++;
+        if (t.won) r.mood = Math.min(100, r.mood + t.crowd.winMood());
+        if (t.lost) r.moodX = Math.max(0, t.crowd.loseMood());
+        if (run.team == t.id) return null;
+        run.team = t.id;
+        if (t.dest == null) t.dest = r.dest;
+        long preview = t.crowd.teamBonus(spec.events().team(), false, true, t.won);
+        p.sendMessage(Lang.mm("bus.team-board", "color", t.color, "no", t.no, "n", t.size, "dest", destName, "g", g(preview),
+                "deadline", t.deadline > 0 ? Lang.raw("bus.team-deadline", "h", t.crowd.deadline()) : ""));
+        p.playSound(p.getLocation(), Sound.BLOCK_NOTE_BLOCK_PLING, 0.8f, 1.4f);
+        List<String> l = t.crowd.talk().get(t.won ? "win" : t.lost ? "lose" : "board");
+        return l == null || l.isEmpty() ? null : l;
+    }
+
+    /** A team member got off: once the whole team is off, its bonus (whole, at its stop, before its deadline). */
+    private void teamOff(Player p, Run run, Rider r, BusStop here, boolean atDest, boolean onTime) {
+        Team t = teams.get(r.team);
+        if (t == null) return;
+        t.off++;
+        if (!atDest || (t.dest != null && t.dest != here.id())) t.broken = true;
+        t.allOnTime &= onTime;
+        boolean more = false;
+        for (Rider x : run.riders) if (x.team == t.id) more = true;
+        if (!more && run.team == t.id) run.team = 0;
+        if (t.off < t.size) return;   // some still to come (on this bus, or still waiting)
+        teams.remove(t.id);
+        if (t.broken) {
+            p.sendMessage(Lang.mm("bus.team-broken", "color", t.color, "no", t.no));
+            return;
+        }
+        boolean late = t.deadline > 0 && System.currentTimeMillis() > t.deadline;
+        long bonus = t.crowd.teamBonus(spec.events().team(), late, t.allOnTime, t.won);
+        if (bonus <= 0) {
+            p.sendMessage(Lang.mm("bus.team-late", "color", t.color, "no", t.no));
+            return;
+        }
+        long[] paid = bonus(p, run, bonus, "bus_event");
+        p.sendMessage(Lang.mm("bus.team-done", "color", t.color, "no", t.no, "g", g(paid[0]),
+                "ontime", t.allOnTime ? Lang.raw("bus.team-ontime") : "", "won", t.won ? Lang.raw("bus.team-won") : "", "fee", feeText(paid[1])));
+        p.playSound(p.getLocation(), Sound.UI_TOAST_CHALLENGE_COMPLETE, 0.7f, 1.5f);
+        Bukkit.broadcast(Lang.msg("bus.team-all", "player", p.getName(), "event", eventName(t.event), "no", t.no, "stop", here.name()));
+        festPoint(p, "team");
+    }
+
+    /**
+     * Once a second: at an event's deadline the riders of its late teams sulk (late-mood) and their driver is told; a crowd
+     * nobody came for ends after a while (an hour past its deadline, else two hours): its people wait on as ordinary ones.
+     */
+    private void teamsUpkeep(long now) {
+        if (teams.isEmpty()) return;
+        for (Iterator<Team> it = teams.values().iterator(); it.hasNext(); ) {
+            Team t = it.next();
+            if (t.deadline > 0 && now > t.deadline && !t.lateHit) {
+                t.lateHit = true;
+                for (Run r : runs.values()) {
+                    boolean has = false;
+                    for (Rider x : r.riders) {
+                        if (x.team != t.id) continue;
+                        x.mood = Math.clamp(x.mood + t.crowd.lateMood(), 0, 100);
+                        has = true;
+                    }
+                    Player p = has ? Bukkit.getPlayer(r.driver) : null;
+                    if (p != null) p.sendMessage(Lang.mm("bus.team-late", "color", t.color, "no", t.no));
+                }
+            }
+            long end = t.deadline > 0 ? t.deadline + 3_600_000L : t.made + 7_200_000L;
+            if ((t.boarded == 0 && now > end) || now > t.made + 4 * 3_600_000L) it.remove();
+        }
+    }
+
+    // ---- 특급 손님
+
+    /** Someone new came to this stop: with events.special's chance (more in the festival) it is a 특급 손님 (gold name). */
+    private void maybeSpecial(BusStop s) {
+        BusEvents.Special sp = spec.events().special();
+        if (!sp.enabled() || sp.kinds().isEmpty()) return;
+        double chance = sp.chance() * (festOn ? spec.events().festival().chance() : 1);
+        if (ThreadLocalRandom.current().nextDouble() >= chance || hasSpecial(s.id())) return;
+        // one nobody came for in half an hour (unseen at a stop no bus passes) is an ordinary passenger again
+        long now = System.currentTimeMillis();
+        specialSince.entrySet().removeIf(e -> {
+            if (now - e.getValue() < 30 * 60_000L) return false;
+            Deque<Forced> q = forced.get(e.getKey());
+            if (q != null) q.removeIf(f -> f.special() != null);
+            return true;
+        });
+        int out = 0;
+        for (Deque<Forced> q : forced.values()) for (Forced f : q) if (f.special() != null) out++;
+        for (Shown sh : shown.values()) for (Waiter w : sh.waiters) if (w.special != null) out++;
+        for (Run r : runs.values()) if (r.special) out++;
+        if (out >= sp.max()) return;
+        BusEvents.Kind k = sp.pick(ThreadLocalRandom.current().nextDouble());
+        if (k == null || !spec.types().containsKey(k.type())) return;
+        // the newcomer just counted is this one
+        forced.computeIfAbsent(s.id(), x -> new ArrayDeque<>()).addLast(new Forced(k.type(), null, null, false, 0, k.id()));
+        specialSince.put(s.id(), now);
+    }
+
+    private boolean hasSpecial(int stop) {
+        Deque<Forced> q = forced.get(stop);
+        if (q != null) for (Forced f : q) if (f.special() != null) return true;
+        Shown sh = shown.get(stop);
+        if (sh != null) for (Waiter w : sh.waiters) if (w.special != null) return true;
+        return false;
+    }
+
+    /** A 특급 손님 got on: its rules told to the driver. Returns its line. */
+    private List<String> specialBoarded(Player p, Run run, Waiter w, Rider r, String destName) {
+        BusEvents.Kind k = spec.events().special().kinds().get(w.special);
+        if (k == null) return null;
+        r.special = k;
+        run.special = true;
+        double ot = spec.onTime(r.road);
+        String rule = (k.limit(ot) > 0 ? Lang.raw("bus.special-rule-time", "left", clock(k.limit(ot))) : "")
+                + (k.minMood() > 0 ? Lang.raw("bus.special-rule-mood", "mood", (int) k.minMood()) : "")
+                + (k.hit() > 0 ? Lang.raw("bus.special-rule-hit", "hit", g(k.hit())) : "");
+        p.sendMessage(Lang.mm("bus.special-board", "name", k.name(), "dest", destName, "g", g(k.bonus()), "rule", rule));
+        p.playSound(p.getLocation(), Sound.ENTITY_PLAYER_LEVELUP, 0.6f, 1.8f);
+        return k.talk().isEmpty() ? null : k.talk();
+    }
+
+    /** A 특급 손님 got off: its bonus (told to everyone), or why not. */
+    private void specialOff(Player p, Run run, Rider r, BusStop here, long bonus, String why) {
+        run.special = false;
+        for (Rider x : run.riders) if (x.special != null) run.special = true;
+        if (bonus <= 0) {
+            p.sendMessage(Lang.mm("bus.special-fail", "name", r.special.name(), "why", why == null ? "" : why));
+            return;
+        }
+        long[] paid = bonus(p, run, bonus, "bus_event");
+        p.sendMessage(Lang.mm("bus.special-done", "name", r.special.name(), "g", g(paid[0]), "fee", feeText(paid[1])));
+        p.playSound(p.getLocation(), Sound.UI_TOAST_CHALLENGE_COMPLETE, 0.8f, 1.3f);
+        if (r.m.isValid()) r.m.getWorld().spawnParticle(Particle.HAPPY_VILLAGER, r.m.getLocation().add(0, 1.5, 0), 12, 0.4, 0.5, 0.4);
+        Bukkit.broadcast(Lang.msg("bus.special-all", "player", p.getName(), "name", r.special.name(), "stop", here.name(), "g", g(paid[0])));
+        festPoint(p, "special");
+    }
+
+    // ---- 외딴 정류장 구조
+
+    /**
+     * Every patience.every seconds: the stop (with someone waiting) no bus has taken anyone from for longest, past
+     * rescue.after minutes, is marked (its sign, told to everyone) till a bus takes someone there.
+     */
+    private void rescueScan(long now) {
+        BusEvents.Rescue rc = spec.events().rescue();
+        if (!rc.enabled()) {
+            rescueStop = null;
+            return;
+        }
+        if (rescueStop != null && stops.containsKey(rescueStop) && waiting.getOrDefault(rescueStop, 0.0) >= 1) return;
+        rescueStop = null;
+        BusStop best = null;
+        double most = 0;
+        for (BusStop s : stops.values()) {
+            Net n = nets.get(s.world());
+            if (n == null || n.linesOf(s.id()).isEmpty() || waiting.getOrDefault(s.id(), 0.0) < 1) continue;
+            double min = (now - lastServed.getOrDefault(s.id(), startedAt)) / 60000.0;
+            if (min > most) {
+                most = min;
+                best = s;
+            }
+        }
+        if (best == null || most < rc.after()) return;
+        rescueStop = best.id();
+        Bukkit.broadcast(Lang.msg("bus.rescue-call", "stop", best.name(), "min", (int) most, "g", g(rc.bonus(most))));
+    }
+
+    /** What a stop's sign adds for the events: 기다리다 지친 손님 (구조), a crowd in teams, a 특급 손님. */
+    private String eventSign(BusStop s, long now) {
+        StringBuilder b = new StringBuilder();
+        if (rescueStop != null && rescueStop == s.id()) {
+            double min = (now - lastServed.getOrDefault(s.id(), startedAt)) / 60000.0;
+            b.append("\n").append(Lang.raw("bus.rescue-sign", "g", g(spec.events().rescue().bonus(min))));
+        }
+        int n = 0;
+        for (Team t : teams.values()) if (t.stop == s.id() && t.boarded < t.size) n++;
+        if (n > 0) b.append("\n").append(Lang.raw("bus.team-sign", "n", n));
+        if (hasSpecial(s.id())) b.append("\n").append(Lang.raw("bus.special-sign"));
+        return b.toString();
+    }
+
+    // ---- 분실물
+
+    /** A lost item's tag, or null (not one). */
+    static BusEvents.LostTag lostTag(org.bukkit.inventory.ItemStack it) {
+        if (it == null || it.isEmpty() || !it.hasItemMeta()) return null;
+        return BusEvents.LostTag.decode(it.getItemMeta().getPersistentDataContainer().get(LOST, PersistentDataType.STRING));
+    }
+
+    /**
+     * Someone got off: with events.lost's chance (one a stop visit, events.lost.max-held a driver at once) they left
+     * something behind: it is the driver's to take back to the stop they got on at. Marked like the admin shop's goods
+     * (the shop does not buy it, no request or machine takes it), one a stack, and only its finder is thanked for it.
+     */
+    private void maybeLose(Player p, Run run, Rider r, BusStop here) {
+        BusEvents.Lost lo = spec.events().lost();
+        if (!lo.enabled() || run.lostHere || r.from == here.id() || ThreadLocalRandom.current().nextDouble() >= lo.chance()) return;
+        BusStop home = stops.get(r.from);
+        if (home == null) return;
+        long now = System.currentTimeMillis();
+        int held = 0;
+        for (org.bukkit.inventory.ItemStack it : p.getInventory().getStorageContents()) {
+            BusEvents.LostTag t = lostTag(it);
+            if (t != null && !t.expired(now) && t.finder().equals(p.getUniqueId())) held++;
+        }
+        if (held >= lo.maxHeld()) return;
+        run.lostHere = true;
+        BusEvents.Thing th = lo.things().get(ThreadLocalRandom.current().nextInt(lo.things().size()));
+        org.bukkit.Material mat = org.bukkit.Material.matchMaterial(th.material());
+        if (mat == null || !mat.isItem() || mat.isAir()) mat = org.bukkit.Material.PAPER;
+        long expires = now + lo.expire() * 60_000L;
+        BusEvents.LostTag tag = new BusEvents.LostTag(home.id(), expires, p.getUniqueId(), th.name(), UUID.randomUUID());
+        org.bukkit.inventory.ItemStack item = new org.bukkit.inventory.ItemStack(mat);
+        String until = java.time.Instant.ofEpochMilli(expires).atZone(KST).toLocalTime().withSecond(0).withNano(0).toString();
+        item.editMeta(m -> {
+            m.itemName(Lang.mm("bus.lost-name", "thing", th.name()));
+            m.lore(List.of(Lang.mm("bus.lost-lore-1", "stop", home.name(), "type", r.type.name()),
+                    Lang.mm("bus.lost-lore-2", "stop", home.name(), "time", until), Lang.mm("bus.lost-lore-3")).stream()
+                    .map(c -> c.decoration(net.kyori.adventure.text.format.TextDecoration.ITALIC, false)).toList());
+            m.setMaxStackSize(1);
+            m.getPersistentDataContainer().set(LOST, PersistentDataType.STRING, tag.encode());
+        });
+        dev.stsv.economy.util.Items.markBought(item);
+        for (org.bukkit.inventory.ItemStack left : p.getInventory().addItem(item).values()) p.getWorld().dropItem(p.getLocation(), left);
+        p.sendMessage(Lang.mm("bus.lost-got", "type", typeTag(r.type), "thing", th.name(), "stop", home.name(), "min", lo.expire()));
+        p.playSound(p.getLocation(), Sound.ENTITY_ITEM_PICKUP, 0.8f, 0.9f);
+    }
+
+    /** At a stop: the driver's lost items for it go back to their owners (a reward and thanks); ones past their time are thrown out. */
+    private void returnLost(Player p, Run run, BusStop here) {
+        BusEvents.Lost lo = spec.events().lost();
+        long now = System.currentTimeMillis();
+        var inv = p.getInventory();
+        org.bukkit.inventory.ItemStack[] items = inv.getStorageContents();
+        int expired = 0;
+        for (int i = 0; i < items.length; i++) {
+            BusEvents.LostTag t = lostTag(items[i]);
+            if (t == null) continue;
+            if (t.expired(now)) {   // nobody's any more: to the lost and found
+                inv.setItem(i, null);
+                expired++;
+                continue;
+            }
+            if (t.stop() != here.id()) continue;
+            if (!t.finder().equals(p.getUniqueId())) {
+                p.sendMessage(Lang.mm("bus.lost-other"));
+                continue;
+            }
+            inv.setItem(i, null);
+            long[] paid = bonus(p, run, lo.reward(), "bus_event");
+            p.sendMessage(Lang.mm("bus.lost-back", "thing", t.what(), "g", g(paid[0]), "fee", feeText(paid[1])));
+            p.playSound(p.getLocation(), Sound.ENTITY_PLAYER_LEVELUP, 0.5f, 2f);
+            Shown sh = shown.get(here.id());
+            Waiter who = sh == null || sh.waiters.isEmpty() ? null : sh.waiters.get(ThreadLocalRandom.current().nextInt(sh.waiters.size()));
+            if (who != null && who.m.isValid() && !lo.thanks().isEmpty()) {
+                say(who.m, lo.thanks().get(ThreadLocalRandom.current().nextInt(lo.thanks().size())));
+                who.m.swingMainHand();
+                who.m.getWorld().spawnParticle(Particle.HEART, who.m.getLocation().add(0, 2.1, 0), 2, 0.3, 0.2, 0.3);
+            }
+        }
+        if (expired > 0) p.sendMessage(Lang.mm("bus.lost-expired", "n", expired));
+    }
+
+    // ---- 내린 손님: a few steps off towards the shelter, a wave, gone (in the rain: hurrying, head down)
+
+    private void walkOff(Mannequin m, BusStop here, boolean rain) {
+        m.setDescription(Component.empty());
+        if (!m.isValid()) return;
+        Location from = m.getLocation();
+        double[] l = here.local(from.getX(), from.getZ());
+        double[] to = here.at(l[0] + ThreadLocalRandom.current().nextDouble(-2.5, 2.5), here.shelterOut(spec.stops().bayWidth()) + 2.5);
+        double step = rain ? 0.34 : 0.17;
+        World w = m.getWorld();
+        new org.bukkit.scheduler.BukkitRunnable() {
+            int i = 0;
+
+            @Override
+            public void run() {
+                if (!m.isValid()) {
+                    cancel();
+                    return;
+                }
+                i++;
+                Location at = m.getLocation();
+                double dx = to[0] - at.getX(), dz = to[1] - at.getZ(), len = Math.hypot(dx, dz);
+                if (len > 0.4 && i < 40) {
+                    double st = Math.min(step, len);
+                    Location n = at.clone().add(dx / len * st, 0, dz / len * st);
+                    Double y = standY(w, n.getX(), n.getZ(), here.y());
+                    if (y != null) n.setY(y);
+                    n.setYaw((float) Math.toDegrees(Math.atan2(-dx, dz)));
+                    n.setPitch(rain ? 25 : (i % 6 < 3 ? 4 : 0));
+                    m.teleport(n);
+                    return;
+                }
+                cancel();
+                if (!rain) {   // turns to the bus and waves
+                    m.setRotation(yawTo(at, from.getX(), from.getZ()), 0);
+                    m.swingMainHand();
+                    Bukkit.getScheduler().runTaskLater(eco, () -> {
+                        if (m.isValid()) m.swingMainHand();
+                    }, 6L);
+                }
+                Bukkit.getScheduler().runTaskLater(eco, () -> {
+                    if (m.isValid()) {
+                        m.getWorld().spawnParticle(Particle.POOF, m.getLocation().add(0, 1, 0), 6, 0.2, 0.4, 0.2, 0.01);
+                        m.remove();
+                    }
+                }, rain ? 4L : 16L);
+            }
+        }.runTaskTimer(eco, 6L, 2L);
+    }
+
+    // ---- 버스 대축제
+
+    /** Once a second: the festival starts (told), is about to end (told, with who leads), ends (the top drivers paid). */
+    private void festival() {
+        BusEvents.Festival f = spec.events().festival();
+        ZonedDateTime now = ZonedDateTime.now(KST);
+        boolean on = f.on(now);
+        if (on && !festOn) {
+            festOn = true;
+            festWarned = false;
+            festPoints.clear();
+            festAt.clear();
+            String today = now.toLocalDate().toString();
+            if (!today.equals(eco.kv().get("bus.festival", ""))) {   // not told again after a restart
+                eco.kv().set("bus.festival", today);
+                Bukkit.broadcast(Lang.msg("bus.fest-start", "to", f.to(), "x", String.format("%.0f", f.refill())));
+            }
+        } else if (on && !festWarned && f.minutesLeft(now) <= f.warn()) {
+            festWarned = true;
+            List<BusEvents.Score> top = BusEvents.ranking(festPoints, festAt, 1);
+            Bukkit.broadcast(Lang.msg("bus.fest-warn", "min", f.minutesLeft(now),
+                    "top", top.isEmpty() ? Lang.raw("bus.fest-nobody") : name(top.getFirst().player()) + " (" + top.getFirst().points() + "점)"));
+        } else if (!on && festOn) {
+            festOn = false;
+            List<BusEvents.Score> top = BusEvents.ranking(festPoints, festAt, f.prizes().size());
+            Bukkit.broadcast(Lang.msg("bus.fest-end"));
+            if (top.isEmpty()) Bukkit.broadcast(Lang.mm("bus.fest-none"));
+            for (int i = 0; i < top.size(); i++) {
+                BusEvents.Score sc = top.get(i);
+                long prize = f.prizes().get(i);
+                if (prize > 0) core.economy().deposit(sc.player(), prize, "bus_festival");
+                if (i < f.titles().size() && core.profiles() != null) core.profiles().grantTitle(sc.player(), f.titles().get(i));
+                Bukkit.broadcast(Lang.mm("bus.fest-rank", "i", i + 1, "player", name(sc.player()), "points", sc.points(), "g", g(prize)));
+            }
+            festPoints.clear();
+            festAt.clear();
+        }
+    }
+
+    private static String name(UUID u) {
+        Player p = Bukkit.getPlayer(u);
+        if (p != null) return p.getName();
+        String n = Bukkit.getOfflinePlayer(u).getName();
+        return n == null ? "?" : n;
+    }
+
+    /** The events part of the driver's action bar: the safe streak, the team aboard, a 특급 손님's time, festival points. */
+    private String hudExtra(Player p, Run r) {
+        StringBuilder b = new StringBuilder();
+        BusEvents ev = spec.events();
+        long now = System.currentTimeMillis();
+        int[] k = streaks.get(p.getUniqueId());
+        if (ev.streak().enabled() && k != null && k[0] > 0) b.append(Lang.raw("bus.hud-streak", "n", k[0], "next", ev.streak().every() - k[0] % ev.streak().every()));
+        if (r != null && r.team != 0) {
+            Team t = teams.get(r.team);
+            if (t != null) {
+                BusStop d = t.dest == null ? null : stops.get(t.dest);
+                b.append(Lang.raw("bus.hud-team", "color", t.color, "no", t.no, "dest", d == null ? "?" : d.name(),
+                        "left", t.deadline > 0 ? " " + clock((t.deadline - now) / 1000.0) : ""));
+            }
+        }
+        if (r != null) {
+            for (Rider x : r.riders) {
+                if (x.special == null) continue;
+                b.append(Lang.raw("bus.hud-special", "name", x.special.name(), "left", clock(timeLeft(x, now))));
+                break;
+            }
+        }
+        if (festOn) {
+            int[] fp = festPoints.get(p.getUniqueId());
+            b.append(Lang.raw("bus.hud-fest", "points", fp == null ? 0 : fp[0]));
+        }
+        return b.toString();
+    }
+
+    /** /버스 이벤트: today's events, the festival, the stop to rescue, the player's streak, completed lines and lost items. */
+    public void showEvents(Player p) {
+        BusEvents ev = spec.events();
+        ZonedDateTime now = ZonedDateTime.now(KST);
+        String date = now.toLocalDate().toString();
+        p.sendMessage(Lang.mm("bus.events-head"));
+        String[] crowds = {"rush", "ballgame", "picnic"};
+        BusEvents.Crowd[] cs = {ev.rush(), ev.ballgame(), ev.picnic()};
+        for (int i = 0; i < cs.length; i++) {
+            BusEvents.Crowd c = cs[i];
+            int times = c.enabled() ? c.timesOn(now.getDayOfWeek()) : 0;
+            String[] was = eco.kv().get("bus.event." + crowds[i], "").split(":");
+            int done = was.length == 2 && was[0].equals(date) ? Integer.parseInt(was[1]) : 0;
+            String when = times <= 0 ? Lang.raw("bus.events-not-today")
+                    : Lang.raw("bus.events-when", "from", c.from(), "to", c.to(), "times", times, "done", Math.min(done, times));
+            p.sendMessage(Lang.mm("bus.events-row", "name", eventName(crowds[i]), "when", when));
+        }
+        BusEvents.Festival f = ev.festival();
+        if (f.enabled()) {
+            String day = Lang.raw("weekday." + java.time.DayOfWeek.of(f.day()));
+            int[] mine = festPoints.get(p.getUniqueId());
+            p.sendMessage(Lang.mm("bus.events-fest", "day", day, "from", f.from(), "to", f.to(),
+                    "now", festOn ? Lang.raw("bus.events-fest-on", "points", mine == null ? 0 : mine[0]) : ""));
+        }
+        if (rescueStop != null && stops.containsKey(rescueStop)) {
+            BusStop s = stops.get(rescueStop);
+            double min = (System.currentTimeMillis() - lastServed.getOrDefault(s.id(), startedAt)) / 60000.0;
+            p.sendMessage(Lang.mm("bus.events-rescue", "stop", s.name(), "min", (int) min, "g", g(ev.rescue().bonus(min))));
+        }
+        int[] k = streaks.get(p.getUniqueId());
+        int lost = 0;
+        for (org.bukkit.inventory.ItemStack it : p.getInventory().getStorageContents()) {
+            BusEvents.LostTag t = lostTag(it);
+            if (t != null && !t.expired(System.currentTimeMillis())) lost++;
+        }
+        p.sendMessage(Lang.mm("bus.events-me", "streak", k == null ? 0 : k[0], "course", eco.kv().getLong("bus.course." + p.getUniqueId(), 0), "lost", lost));
     }
 
     // ------------------------------------------------------------------------------------------

@@ -43,7 +43,7 @@ commands:
     aliases: [accessory]
     permission: stsv.economy.play
   버스:
-    description: 마을버스 손님 목록 · 정류장
+    description: 마을버스 손님 목록 · 정류장 · 이벤트
     aliases: [bus]
     permission: stsv.economy.play
   원격기계:
