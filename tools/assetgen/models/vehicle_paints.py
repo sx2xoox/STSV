@@ -25,6 +25,7 @@ from models import vehicles_road as R
 from models import vehicles_farm as F
 from models import vehicles_premium as P
 from models import karts as KARTS
+from models import vehicles_donation_sushi_carnival as SC
 
 # paint id -> the ramp it is drawn in (ids, names and prices: content/stsv/vehicle_tuning.yml)
 PAINTS = {"white": "car_white", "pearl": "pearl", "silver": "steel", "black": "iron", "red": "tomato", "wine": "wine",
@@ -61,6 +62,7 @@ BODIES = {
     "hyper_car": ("sapphire", _args(P.hyper_kit)),
     "grand_sedan": ("pearl", _args(P.grand_kit)),
     "luxury_suv": ("leaf_dark", _args(P.suv_kit)),
+    "sushi_carnival": ("sc_pearl", _args(SC.carnival_kit)),
     "cargo_bicycle": ("blacksteel", _remap(R.ALL["cargo_bicycle"], "blacksteel")),
     "delivery_scooter": ("vermilion", _remap(R.ALL["delivery_scooter"], "vermilion")),
     "atv": ("fox", _remap(R.ALL["atv"], "fox")),
@@ -123,7 +125,7 @@ def _all():
         for paint in paints_of(body):
             # the names are known without drawing: the body, and a kit's parts as the stock kit names them
             base = f"{body}_p_{paint}"
-            names = [base] + [base + n[len(body):] for n in V.ALL if n.startswith(body + "_") and n[len(body) + 1:] in PARTS.get(body, ())]
+            names = [base] + [base + n[len(body):] for n in {**V.ALL, **SC.ALL} if n.startswith(body + "_") and n[len(body) + 1:] in PARTS.get(body, ())]
             for n in names:
                 out[n] = _one(body, paint, n)
     for stock in WHEEL_SIZES:
@@ -140,7 +142,8 @@ def _all():
 # the moving parts of the bodies that have them (vehicles.yml movers), as their kits name them
 # (the sedan's mascot is bright metal in every paint: the stock one is shown)
 PARTS = {"hyper_car": ("door_l", "door_r", "wing"), "grand_sedan": ("door_fl", "door_fr", "door_rl", "door_rr"),
-         "luxury_suv": ("door_fl", "door_fr", "door_rl", "door_rr")}
+         "luxury_suv": ("door_fl", "door_fr", "door_rl", "door_rr"),
+         "sushi_carnival": SC.PARTS}
 
 # ------------------------------------------------------------------------------------------------
 # Lights: the headlamps in another colour, and a glow on the ground under the car
