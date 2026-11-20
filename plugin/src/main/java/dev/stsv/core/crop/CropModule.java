@@ -198,6 +198,7 @@ public final class CropModule implements StsvModule, Listener {
     @Override
     public void disable() {
         running = false;
+        if (scarecrows != null) scarecrows.shutdown();
         tasks.forEach(BukkitTask::cancel);
         tasks.clear();
         flush();

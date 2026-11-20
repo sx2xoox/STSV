@@ -489,6 +489,7 @@ buy:
       - { item: glass_bottle, amount: 8, price: 16 }
       - { item: cobblestone, amount: 64, price: 30 }
       - { item: economy:acc_box, price: 100000 }   # 장신구 상자 (우클릭으로 열기, /장신구)
+      - { item: stsv:scarecrow, price: 10000 }     # 허수아비: 세운 청크의 작물이 아무도 없어도 자람 (코어 furniture_farm.yml)
   # 꾸미기 가구 (코어의 content/stsv/items/furniture_japanese.yml, 일본풍 30종): 상점에서 사기만 함 (판매 줄 없음, 되팔 수 없음).
   # 산 가구는 상점 표시가 붙지 않음: 기계·납품에 쓰이지 않고, 설치했다 회수한 것과 그대로 겹쳐짐
   furniture:

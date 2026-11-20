@@ -37,15 +37,14 @@ import java.util.logging.Level;
 /**
  * 허수아비 (stsv:scarecrow, a 후원 상점 item): crops in its chunk grow with nobody near, as if a player stood there.
  * Nothing is kept loaded: custom crops (CropModule) grow in the plugin's own state while their chunk is unloaded; vanilla
- * crops (real blocks) catch up when the chunk loads again, for the time it was away (at most {@link #CATCH_UP_TICKS}).
+ * crops (real blocks) catch up when the chunk loads again, for all the time it was away (no limit; the time away is
+ * clock time, kept across restarts).
  * One a chunk. Where it may stand (its owner's land) is the content plugin's rule ({@link #rule}); the economy plugin
  * puts it there. Kept in data/scarecrows.yml (furniture lives in loaded chunks only, so the list is its own).
  */
 public final class Scarecrows implements Listener {
 
     public static final String ITEM = "stsv:scarecrow";
-    /** the longest a vanilla field catches up for: 12 hours */
-    static final long CATCH_UP_TICKS = 12L * 60 * 60 * 20;
     /** blocks above and below the scarecrow searched for vanilla crops to catch up */
     private static final int REACH_Y = 6;
 
@@ -58,7 +57,8 @@ public final class Scarecrows implements Listener {
     private final STSVPlugin plugin;
     private final File file;
     private final Map<String, Scarecrow> byChunk = new HashMap<>();
-    private final Map<String, Long> unloadedAt = new HashMap<>();
+    /** chunk key -> when it went away (epoch millis); saved, so a restart does not lose it */
+    private final Map<String, Long> awaySince = new HashMap<>();
     private volatile Predicate<Scarecrow> rule = s -> true;
 
     Scarecrows(STSVPlugin plugin) {
@@ -98,6 +98,12 @@ public final class Scarecrows implements Listener {
                 plugin.getLogger().warning("[허수아비] 읽지 못한 줄: " + line);
             }
         }
+        for (String line : y.getStringList("away")) {
+            int i = line.lastIndexOf(';');
+            try {
+                if (i > 0) awaySince.put(line.substring(0, i), Long.parseLong(line.substring(i + 1)));
+            } catch (NumberFormatException ignored) { }
+        }
     }
 
     private void save() {
@@ -105,6 +111,9 @@ public final class Scarecrows implements Listener {
         List<String> lines = new ArrayList<>();
         for (Scarecrow s : byChunk.values()) lines.add(String.join(";", s.world(), "" + s.x(), "" + s.y(), "" + s.z(), s.owner().toString()));
         y.set("scarecrows", lines);
+        List<String> away = new ArrayList<>();
+        awaySince.forEach((k, t) -> { if (byChunk.containsKey(k)) away.add(k + ";" + t); });
+        y.set("away", away);
         try {
             file.getParentFile().mkdirs();
             y.save(file);
@@ -142,23 +151,39 @@ public final class Scarecrows implements Listener {
     public void onBreak(FurnitureBreakEvent e) {
         if (!isScarecrow(e.getFurniture())) return;
         Location l = e.getFurniture().location();
-        if (byChunk.remove(key(l.getWorld().getName(), l.getBlockX() >> 4, l.getBlockZ() >> 4)) != null) save();
+        String k = key(l.getWorld().getName(), l.getBlockX() >> 4, l.getBlockZ() >> 4);
+        awaySince.remove(k);
+        if (byChunk.remove(k) != null) save();
     }
 
     @EventHandler
     public void onUnload(ChunkUnloadEvent e) {
         String k = key(e.getWorld().getName(), e.getChunk().getX(), e.getChunk().getZ());
-        if (byChunk.containsKey(k)) unloadedAt.put(k, (long) Bukkit.getCurrentTick());
+        if (!byChunk.containsKey(k)) return;
+        awaySince.put(k, System.currentTimeMillis());
+        save();
+    }
+
+    /** Server stop: every scarecrow chunk still open goes away now, so the next start catches up for the downtime. */
+    void shutdown() {
+        long now = System.currentTimeMillis();
+        for (Map.Entry<String, Scarecrow> en : byChunk.entrySet()) {
+            Scarecrow s = en.getValue();
+            World w = Bukkit.getWorld(s.world());
+            if (w != null && w.isChunkLoaded(s.cx(), s.cz())) awaySince.putIfAbsent(en.getKey(), now);
+        }
+        save();
     }
 
     /** Vanilla crops near the scarecrow catch up for the time the chunk was away (after the load, a tick later). */
     @EventHandler
     public void onLoad(ChunkLoadEvent e) {
         String k = key(e.getWorld().getName(), e.getChunk().getX(), e.getChunk().getZ());
-        Long since = unloadedAt.remove(k);
+        Long since = awaySince.remove(k);
+        if (since != null) save();
         Scarecrow s = since == null ? null : at(e.getWorld().getName(), e.getChunk().getX(), e.getChunk().getZ());
         if (s == null) return;
-        long ticks = Math.min(CATCH_UP_TICKS, Bukkit.getCurrentTick() - since);
+        long ticks = (System.currentTimeMillis() - since) / 50;   // clock time, as game ticks
         if (ticks <= 0) return;
         Chunk c = e.getChunk();
         Bukkit.getScheduler().runTask(plugin, () -> {
