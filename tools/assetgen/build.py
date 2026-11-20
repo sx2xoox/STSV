@@ -66,6 +66,8 @@ def main():
     # 도구 스킨 세트 (models/skinset_<id>.py, the toy series' frame): 후원 5 + 골드 5; preview: toys_preview.py --module skinset_<id>
     skinsets = [importlib.import_module(f"models.skinset_{n}") for n in SKINSETS]
     donation_cars = [importlib.import_module(f"models.vehicles_donation_{n}") for n in DONATION_VEHICLES]
+    # 루프 장식 (튜닝샵 roofs: <루프 부품>_r_<id>, 그 차 몸체 좌표에 그림): 평범한 것 · 이상한 것
+    donation_cars += [importlib.import_module("models.vehicle_roofs"), importlib.import_module("models.vehicle_roofs_fun")]
     import furniture_icons
     import furniture_icons_retro
     import vehicle_icons

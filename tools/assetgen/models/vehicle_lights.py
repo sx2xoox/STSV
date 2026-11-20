@@ -118,7 +118,6 @@ LAMPS = {
     "concept_ev": dict(scale=2.0, head=lens(-15, 15, 5, 6, -39.5, False, False),
                        tail=lens(-15, 15, 11.5, 12.5, 39.5, False, False),
                        body=("vehicles_donation_concept_ev", "concept_ev")),
-    # sushi_carnival: a slim LED headlamp on each upper corner of the nose (beside the big chrome grille); wide tail
     # lamps on the tailgate's corners, joined by a thin light bar across the middle
     "sushi_carnival": dict(scale=2.0, head=lens(10.5, 15.25, 12, 14.25, -41.4),
                            tail=lens(9, 15.25, 18.5, 21.5, 41.4) + lens(-9, 9, 19.5, 20.5, 41.2, False, False),
