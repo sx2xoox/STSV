@@ -611,8 +611,8 @@ def _canopy(m, kit, ctx):
             return CLEAR                                          # beyond the roof's edge
         if ax > GB - 1.25 or y > ROOF - 1.2 or y < BELT + 0.6:
             return raw(R, 0.3)                                    # the black pillars and header round it
-        if 20 <= y < 20.75:
-            return ("raw", (178, 198, 228, 255))                  # the sky's reflection: one fine line across
+        if 20 <= y < 20.75 and -8 < x < 3:
+            return ("raw", (170, 190, 222, 255))                  # the sky's reflection: one fine line
         return CLEAR
     plank(m, "screen", "x", (CAB0, BELT), (KNEE, yk), (-GB, GB), 0.5, glass, decal=pane)
     plank(m, "screen", "x", (KNEE, yk), (ZR0, ROOF), (-GB, GB), 0.5, glass, decal=pane)

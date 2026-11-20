@@ -99,11 +99,9 @@ LAMPS = {
     # combine: two work lamps under the canopy's front edge, tail lamps on the backs of the thresher and the grain tank
     "combine": dict(scale=2.0, head=lens(1.5, 4, 41.75, 42.75, -19, False, False) + lens(12.5, 15, 41.5, 42.5, -19, False, False),
                     tail=lens(10, 13, 21, 23, 30), body=("vehicles_farm", "combine")),
-    # the donation cars (models/vehicles_donation_<id>.py: each its own module, body=(module, model) as above)
-    # classic_roadster (drawn at 32 px a block: scale 4): a round headlamp in a chrome bezel in each front fender's tip
-    # (its lens 1 px back in the bezel), round tail lamps on the rear fenders' ends
-    "classic_roadster": dict(scale=4.0, reach=2.0, head=lens(19.9, 27.1, 15.4, 22.6, -69, True),
-                             tail=lens(20.9, 26.1, 14.4, 19.6, 68, True),
+    # face), round tail lamps in chrome bezels on the rear fenders' ends
+    "classic_roadster": dict(scale=2.0, head=lens(10.1, 13.9, 7.1, 10.9, -35.6, True),
+                             tail=lens(10.6, 13.4, 5.85, 8.65, 34.5, True),
                              body=("vehicles_donation_classic_roadster", "classic_roadster")),
     # retro_camper (drawn at 32 px a block, shrunk by 4): the big round headlamps in chrome rings set into the nose,
     # the round tail lamps in chrome rings on the back's corners

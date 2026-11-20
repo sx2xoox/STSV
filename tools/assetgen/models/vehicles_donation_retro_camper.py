@@ -898,7 +898,7 @@ def _roof(m, ctx):
                     return S("signal_red", 0.7)                   # the stringer stripe
                 if 1.5 < abs(x) < 2 and -12 < z < 17:
                     return S("signal_red", 0.4)
-                return S(B, 0.95 if x < 0 else 0.8)
+                return S(B, 0.78 if x < 0 else 0.66)
             if c.face == "down":
                 return S(B, 0.3)
             return S("rc_cream", 0.95)                            # the rail

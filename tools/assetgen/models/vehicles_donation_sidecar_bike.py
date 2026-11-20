@@ -370,7 +370,7 @@ def wheel_sidecar(whitewall=False, name="wheel_sidecar"):
     return m
 
 
-def _spoked_wheel(m, axis, c, a0, whitewall, drop=()):
+def _spoked_wheel(m, axis, c, a0, whitewall, drop=(), bars=8):
     """A spoked wheel round c, its axle along axis x (c = (y, z), the wheel's middle at x = a0) or z (c = (x, y), at
     z = a0)."""
     R, RI, HW = WRAD, 4.25, 1.25
@@ -404,27 +404,32 @@ def _spoked_wheel(m, axis, c, a0, whitewall, drop=()):
     lo, hi = a0 - HW, a0 + HW
     arc(m, "tyre", c, angles, RI, R, lo, hi, flat("sc_rubber", 1), tyre, axis=axis, ends=(False, False), drop=drop)
 
-    # the spokes: a see-through disc, sixteen spokes one texel wide, crossed in pairs
-    def spokes(cc):
-        r, dy, _ = radius(cc.p)
-        if cc.face not in side_faces:
-            return CLEAR
-        if r > RI + 0.2 or r < 1.4:
-            return CLEAR
+    # the spokes: eight thin chrome bars through the hub (sixteen spokes), every 22.5 degrees, laced to the hub's two
+    # flanges in turn (a quarter pixel thin, so they read as fine wire at any angle, not as stepped pixels)
+    sp = flat("sc_chrome", 4)(decal=lambda cc: tone("sc_chrome", 0.8 if cc.face in ("up", "north", "west") else 0.5))
+    w, reach = 0.125, RI + 0.15
+    for k in range(bars):
+        th = k * 180.0 / bars
+        along_y = th <= 45 or th >= 135          # drawn along the first axis (y, or x for axis z) and turned
+        ang = th if th <= 45 else th - 180 if th >= 135 else th - 90
+        off = a0 + (0.35 if k % 2 else -0.35)
         if axis == "x":
-            u, v = cc.p[1] - c[0], cc.p[2] - c[1]
+            if along_y:
+                frm, to = (off - w, c[0] - reach, c[1] - w), (off + w, c[0] + reach, c[1] + w)
+                ends = ("up", "down")
+            else:
+                frm, to = (off - w, c[0] - w, c[1] - reach), (off + w, c[0] + w, c[1] + reach)
+                ends = ("north", "south")
+            rot = ("x", ang, (off, c[0], c[1])) if ang else None
         else:
-            u, v = cc.p[0] - c[0], cc.p[1] - c[1]
-        # sixteen tangent spokes from the hub's two flanges, crossing on their way to the rim
-        for k in range(8):
-            a = math.radians(k * 45 + 22.5)
-            if abs(u * math.cos(a) + v * math.sin(a) - 1.0) < 0.42:
-                return tone("sc_chrome", 0.72 if dy > 0 else 0.5)
-        return CLEAR
-    if axis == "x":
-        m.box("spokes", (a0 - 0.25, c[0] - RI, c[1] - RI), (a0 + 0.25, c[0] + RI, c[1] + RI), flat("sc_chrome", 4)(decal=spokes))
-    else:
-        m.box("spokes", (c[0] - RI, c[1] - RI, a0 - 0.25), (c[0] + RI, c[1] + RI, a0 + 0.25), flat("sc_chrome", 4)(decal=spokes))
+            if along_y:
+                frm, to = (c[0] - reach, c[1] - w, off - w), (c[0] + reach, c[1] + w, off + w)
+                ends = ("west", "east")
+            else:
+                frm, to = (c[0] - w, c[1] - reach, off - w), (c[0] + w, c[1] + reach, off + w)
+                ends = ("up", "down")
+            rot = ("z", ang, (c[0], c[1], off)) if ang else None
+        m.box("spoke", frm, to, sp, faces={f: None for f in ends}, rotation=rot)
 
     # the hub: a finned alloy drum, a chrome cap each end
     def hub(cc):
@@ -633,15 +638,13 @@ def _front(m, ctx):
         m.box("lever", (lo, by + 0.1, gz - 1.1), (hi, by + 0.4, gz - 0.45), CHROME)
     # one round mirror on a stalk from the left perch
     mx, mz = BX - 2.5 - 2.5 * math.cos(math.radians(22.5)) - 0.7, cz + 2.5 * math.sin(math.radians(22.5)) - 0.6
-    m.box("mirror_stalk", (mx - 0.2, by + 0.6, mz - 0.2), (mx + 0.2, by + 2.6, mz + 0.2), CHROME)
+    m.box("mirror_stalk", (mx - 0.2, by + 0.6, mz - 0.2), (mx + 0.2, by + 2.2, mz + 0.2), CHROME)
 
     def mirror(c):
         if c.face == "south":
-            if c.u in (0, c.nu - 1) and c.v in (0, c.nv - 1):
-                return tone("sc_chrome", 0.5)
-            return tone("sc_glass", 0.9 if c.p[0] < mx else 0.5)
-        return tone("sc_chrome", 0.87 if c.face in ("up", "north", "west") else 0.5)
-    m.box("mirror", (mx - 1.0, by + 2.6, mz - 0.25), (mx + 1.0, by + 4.6, mz + 0.25), flat("sc_chrome", 4)(decal=mirror))
+            return tone("sc_glass", 0.7 if c.p[1] > by + 2.9 else 0.3)
+        return tone("sc_chrome", 0.8 if c.face in ("up", "north", "west") else 0.45)
+    m.box("mirror", (mx - 0.75, by + 2.2, mz - 0.25), (mx + 0.75, by + 3.7, mz + 0.25), flat("sc_chrome", 4)(decal=mirror))
 
 
 TZ0, TZ1 = -7.75, 1.5         # the tank's nose and tail (z)
@@ -669,11 +672,12 @@ def _tank_saddle(m, ctx):
         if c.face == "south":
             return tone(C, 0.4)
         # the sides: a flash of the trim colour sweeping back from the nose, edged by a fine dark line
-        sweep = -0.5 - (y - 13.4) * 1.2
-        if 13.4 <= y < 16.0 and TZ0 + 0.6 <= z < sweep:
-            if y >= 15.5 or z >= sweep - 0.75:
-                return tone(C, 0.22)
-            return tone(T, 0.42 + 0.3 * smooth((y - 13.4) / 2.2))
+        # a flash: a broad band from the nose, narrowing to a point at the knee pads
+        half = 1.25 - max(0.0, z + 5.5) * 0.36
+        if TZ0 + 0.5 <= z and abs(y - 14.75) < half:
+            return tone(T, 0.46 + 0.28 * smooth((y - 13.5) / 2.5))
+        if TZ0 + 0.5 <= z and abs(y - 14.75) < half + 0.5:
+            return tone(C, 0.2)                                          # its dark edge
         # the knee pads: ribbed rubber in a chrome rim on the narrowing sides
         if z > TK + 0.6 and 13.0 <= y < 16.0 and z < TZ1 - 0.6:
             if y < 13.5 or y >= 15.5:
@@ -695,7 +699,7 @@ def _tank_saddle(m, ctx):
               decal=tank, below=s > 0)
         lo, hi = (BX + s * W1, BX + s * (W1 - 1.75)) if s > 0 else (BX + s * W1, BX + s * (W1 - 1.75))
         plank(m, "tank_lid", "y", (TK, BX + s * (W1 - 0.05)), (TK + taper, BX + s * (W2 - 0.05)), (TY1 - 1, TY1 - 0.25), 1.6,
-              tp, decal=tank, below=s > 0)
+              tp, decal=tank, below=s > 0, faces={"down": None, "west" if s > 0 else "east": None, "north": None})
     plank(m, "tank_tail", "x", (TZ1 - 1, TY1), (TZ1, TY1 - 1), (BX - W2, BX + W2), 0.75, tp, decal=tank)
     m.box("tank", (BX - W2, TY0 + 0.5, TZ1 - 1), (BX + W2, TY1 - 1, TZ1), tp(decal=tank))
     # the chrome strip down the crown, two filler caps
@@ -892,9 +896,6 @@ def _engine(m, ctx):
         m.box("footboard_mat", (x0 + 0.25, 3.9, -5.75), (x1 - 0.25, 4.2, -1.25), flat("sc_rubber", 1)(decal=mat))
         lo, hi = sorted((BX + s * 2.1, x1 if s < 0 else x0))
         m.box("footboard_arm", (lo, 2.9, -3.8), (hi, 3.6, -3.2), BLACK)
-    # the kick starter on the right of the gearbox
-    rod(m, "kick", (7.0, 5.0), (5.0, 2.0), 0.5, CHROME, x=(BX + 1.8, BX + 2.3))
-    m.box("kick_pedal", (BX + 2.3, 5.1, 1.0), (BX + 3.6, 5.6, 2.0), RUBBER)
 
 
 def _rear(m, ctx):
@@ -933,21 +934,20 @@ def _rear(m, ctx):
     # the chain guard on the right, the oil tank under the saddle on the right
     m.box("chain_guard", (BX + 1.1, WY - 0.7, 5.5), (BX + 1.6, WY + 1.3, ZR - 1.2), flat(C, 4)(decal=enamel(C, WY - 0.7, WY + 1.3)))
     m.box("oil_tank", (BX + 1.6, 8.8, 2.5), (BX + 3.6, 11.6, 5.5), flat(C, 4)(decal=enamel(C, 8.8, 11.6)))
-    m.box("oil_cap", (BX + 2.2, 11.6, 3.5), (BX + 3.0, 12.0, 4.3), CHROME)
 
     # the leather saddlebag on the left: a box, its flap's edge, two buckled straps, its bottom bevelled
     def bag(c):
         x, y, z = c.p
         if c.face == "down":
             return tone(L, 0.12)
-        if abs(z - 12.3) < 0.45 or abs(z - 14.7) < 0.45:
-            if c.face == "west" and 9.3 <= y < 10.2:
-                return tone("sc_chrome", 0.87)                           # the buckles
-            return tone(L, 0.16)                                         # the straps
+        if math.floor(z) in (12, 14):
+            if c.face == "west" and math.floor(y) == 9:
+                return tone("sc_chrome", 0.66)                           # the buckles
+            return tone(L, 0.22)                                         # the straps
         if c.face == "up":
             return tone(L, 0.75)
         if math.floor(y) == 9 and c.face == "west":
-            return tone(L, 0.25)                                         # the flap's edge
+            return tone(L, 0.3)                                          # the flap's edge
         if y > 9.5:
             return tone(L, 0.6)
         return tone(L, 0.42)
@@ -1014,8 +1014,7 @@ def _sidecar(m, kit, ctx):
             return tone("sc_chrome", 0.87)
         if c.face == "down":
             return tone("sc_chrome", 0.2)
-        y = c.p[1]
-        return tone("sc_chrome", 0.86 if y > yc + 0.4 else 0.12 if y > yc - 0.6 else 0.42)
+        return tone("sc_chrome", 0.74 if c.p[1] > yc - 0.2 else 0.46)
     octa(m, "tub_nose", (SX, yc), TW * 0.78, hh * 0.78, 1.6, NOSE[0], TUB_Z0, tp, tub, caps=(True, False))
     octa(m, "tub_nose", (SX, yc - 0.2), TW * 0.5, hh * 0.5, 1.0, NOSE[1], NOSE[0], flat("sc_chrome", 4), cone, t=0.75,
          caps=(True, False))
@@ -1033,7 +1032,6 @@ def _sidecar(m, kit, ctx):
         lo, hi = _x(SX, s * (inner - 0.3), s * (inner + 0.3))
         m.box("roll", (lo, TT - 0.3, WELL_Z0 - 0.3), (hi, TT + 0.25, WELL_Z1 + 0.3), roll)
     m.box("roll", (SX - (inner - 0.3), TT - 0.3, WELL_Z0 - 0.3), (SX + (inner - 0.3), TT + 0.25, WELL_Z0 + 0.3), roll)
-    m.box("roll", (SX - (inner - 0.3), TT - 0.3, WELL_Z1 - 0.3), (SX + (inner - 0.3), TT + 0.25, WELL_Z1 + 0.3), roll)
 
     # the seat: a tufted cushion and a tall tufted back rest, a rolled top
     def tuft(c):
@@ -1047,7 +1045,6 @@ def _sidecar(m, kit, ctx):
     sw = TW - 0.6
     m.box("seat_cushion", (SX - sw, WELL_FLOOR, 0.5), (SX + sw, 7.7, 5.0), sp)
     m.box("seat_back", (SX - sw, WELL_FLOOR, 5.0), (SX + sw, 14.8, 6.5), sp)
-    m.box("seat_roll", (SX - (sw - 0.6), 14.8, 5.1), (SX + (sw - 0.6), 15.3, 6.4), solid(L, 0.5, 0.25, 0.1))
     m.box("floor_mat", (SX - sw, WELL_FLOOR, WELL_Z0), (SX + sw, WELL_FLOOR + 0.25, 0.5),
           flat("sc_rubber", 1)(decal=lambda c: tone("sc_rubber", 0.35 if math.floor(c.p[2]) % 2 else 0.15)))
 
@@ -1068,8 +1065,8 @@ def _sidecar(m, kit, ctx):
             return CLEAR
         u, v = c.u, c.nv - 1 - c.v
         d = u - v - 2
-        if d == 0 or d == 2:
-            return ("raw", (206, 222, 238, 255) if d == 0 else (168, 186, 206, 255))    # a reflection streak
+        if c.face == "north" and d == 0:
+            return ("raw", (206, 222, 238, 255))                                         # a reflection streak
         if v == 0:
             return ("raw", (120, 140, 160, 255))                                         # a tint along its foot
         return CLEAR
@@ -1107,12 +1104,10 @@ def _sidecar(m, kit, ctx):
             return tone(L, 0.72)
         return tone(L, 0.5 if c.face in ("north", "west") else 0.36)
     m.box("case", (SX - 3.1, ry + 0.45, 8.6), (SX + 3.1, ry + 3.0, 13.4), flat(L, 3)(decal=case))
-    m.box("case_handle", (SX - 0.8, ry + 3.0, 10.8), (SX + 0.8, ry + 3.4, 11.2), solid(L, 0.3, 0.15, 0.1))
 
     # the spare wheel standing on the tail, facing back, on a bracket
     sy, sz = SPARE
-    _spoked_wheel(m, "z", (SX, sy), sz, ctx.WW, drop=("lo",))
-    m.box("spare_cap", (SX - 0.7, sy - 0.7, sz + 1.0), (SX + 0.7, sy + 0.7, sz + 1.4), CHROME)
+    _spoked_wheel(m, "z", (SX, sy), sz, ctx.WW, drop=("lo",), bars=4)
     m.box("spare_bracket", (SX - 0.45, sy - 0.45, TAIL_Z), (SX + 0.45, sy + 0.45, sz - 1.0), BLACK)
 
     # the sidecar wheel's mudguard, its stays to the tub, a running lamp on top, a red lamp on its back
