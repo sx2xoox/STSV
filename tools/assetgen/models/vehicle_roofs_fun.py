@@ -670,9 +670,25 @@ def mattress():
 # 크리스마스 트리
 # ================================================================================================
 
-TCY = Y0 + 7.5
-TIERS = [(7.5, 18, 35), (6.25, 6, 21), (5, -5, 9), (3.5, -13, -2)]     # half size, z0, z1 (back to front)
+# The tree is drawn level in its own frame (its axis along z at TCY, tip at the front) and the whole of it is then
+# tilted 22.5 degrees about x round its front tier's bottom front edge (PIVOT): the tip rests on the front bar, the
+# trunk end rides up on a raised rear bar (a riser on two posts). Minecraft turns an element about one axis only, so
+# the tilted tiers are no octagons with bevel panels but two crossed boxes each (a stepped round).
+TCY = Y0 + 6
+TIERS = [(6, 15, 29), (5, 4, 17), (4, -6, 6), (3, -14, -4)]          # half size, z0, z1 (back to front), level frame
 BULBS = ("rf_bulb_r", "rf_bulb_y", "rf_bulb_b", "rf_bulb_g")
+TILT = -22.5                                                          # raises the back
+PIVOT = (0, TCY - 3, -14)                                             # the front tier's bottom front edge
+SHIFT_Z = 2                                                           # the tree moved back along the van after the tilt
+
+
+def _tilted(p):
+    """Level-frame point -> where it ends up on the van."""
+    a = math.radians(TILT)
+    c, s = math.cos(a), math.sin(a)
+    y, z = p[1] - PIVOT[1], p[2] - PIVOT[2]
+    y, z = y * c - z * s, y * s + z * c
+    return (p[0], y + PIVOT[1] + (Y0 - PIVOT[1]), z + PIVOT[2] + SHIFT_Z)
 
 
 def _pine_decal(c):
@@ -692,46 +708,70 @@ def _pine_decal(c):
 
 def tree():
     m = _model("sushi_carnival_roof_r_tree")
-    _bars(m, (-6, 12, 28))
-    pp = Paint("rf_pine", 3, noise=0, grad=0, rim=0.3, ao=0.4, decal=_pine_decal)
+    dy, dz = Y0 - PIVOT[1], SHIFT_Z
+    rot = ("x", TILT, (0, PIVOT[1] + dy, PIVOT[2] + dz))
+
+    def box(name, frm, to, paint):
+        """A level-frame box, moved onto the van and tilted with the rest."""
+        m.box(name, (frm[0], frm[1] + dy, frm[2] + dz), (to[0], to[1] + dy, to[2] + dz), paint, rotation=rot)
+
+    pp = Paint("rf_pine", 3, noise=0, grad=0, rim=0.3, ao=0.4,
+               decal=lambda c: _pine_decal(type("C", (), {"p": (c.p[0], c.p[1] - dy, c.p[2] - dz), "face": c.face})))
+    straps = (-11, 20)                                                # level-frame z of the two straps
     n = 0
     for h, z0, z1 in TIERS:
-        c = round(h * 0.4 * 2) / 2
+        c = 1.5 if h > 4 else 1
         y0, y1 = TCY - h, TCY + h
-        m.box("pine", (-h, y0 + c, z0), (h, y1 - c, z1), pp)
-        m.box("pine", (-(h - c), y0, z0 - 0.25), (h - c, y1, z1 + 0.25), pp)
-        for s in (-1, 1):
-            plank(m, "pine_edge", "z", (s * (h - c), y1), (s * h, y1 - c), (z0, z1), c * 0.72, pp, decal=_pine_decal)
-            plank(m, "pine_edge", "z", (s * h, y0 + c), (s * (h - c), y0), (z0, z1), c * 0.72, pp, decal=_pine_decal,
-                  below=False)
+        box("pine", (-h, y0 + c, z0), (h, y1 - c, z1), pp)
+        box("pine", (-(h - c), y0, z0 - 0.25), (h - c, y1, z1 + 0.25), pp)
         # bulbs along the spiral, on the top and the sides
         z = z0 + 1.5
         while z < z1 - 1:
-            if any(zb - 1 < z < zb + 2.5 for zb in (12, 28)):
+            if any(zb - 1.2 < z < zb + 2.7 for zb in straps):
                 z += 2.25
                 continue
             th = 2 * math.pi * (z / 9)
             sx, cy_ = math.sin(th), math.cos(th)
-            col = Paint(BULBS[n % 4], 1, noise=0, grad=0, light=False, glow=True,
-                        decal=lambda c, r=BULBS[n % 4]: tone(r, 1.0 if c.face == "up" else 0.7))
+            r = BULBS[n % 4]
+            col = Paint(r, 1, noise=0, grad=0, light=False, glow=True,
+                        decal=lambda c, r=r: tone(r, 1.0 if c.face == "up" else 0.7))
             if cy_ > 0.55:
                 bx = max(-(h - c - 0.75), min(h - c - 0.75, h * sx))
-                m.box("bulb", (bx - 0.6, y1 - 0.25, z - 0.6), (bx + 0.6, y1 + 0.75, z + 0.6), col)
+                box("bulb", (bx - 0.6, y1 - 0.25, z - 0.6), (bx + 0.6, y1 + 0.75, z + 0.6), col)
                 n += 1
             elif abs(sx) > 0.7 and cy_ > -0.5:
                 by = max(y0 + c + 0.75, min(y1 - c - 0.75, TCY + h * cy_))
-                s = 1 if sx > 0 else -1
-                lo, hi = sorted((s * (h - 0.25), s * (h + 0.9)))
-                m.box("bulb", (lo, by - 0.6, z - 0.6), (hi, by + 0.6, z + 0.6), col)
+                lo, hi = sorted((math.copysign(h - 0.25, sx), math.copysign(h + 0.9, sx)))
+                box("bulb", (lo, by - 0.6, z - 0.6), (hi, by + 0.6, z + 0.6), col)
                 n += 1
             z += 2.25
-    m.box("pine_tip", (-1.5, TCY - 1.5, -16.5), (1.5, TCY + 1.5, -13), pp)
+    box("pine_tip", (-1.5, TCY - 1.5, -16.5), (1.5, TCY + 1.5, -14), pp)
     trunk = Paint("rf_wood", 1, kind="grain", axis="z", noise=0.1,
-                  decal=lambda c: tone("rf_wood", 0.8 if (math.hypot(c.p[0], c.p[1] - TCY) % 1) < 0.5 else 0.5) if c.face == "south" else None)
-    m.box("trunk", (-1.5, TCY - 1.5, 35), (1.5, TCY + 1.5, 41.5), trunk)
-    for zb, (h, _, _) in ((12, TIERS[1]), (28, TIERS[0])):
-        c = round(h * 0.4 * 2) / 2
-        _tie(m, zb, [(0, TCY + h), (h - c, TCY + h), (h, TCY + h - c), (h, Y0)])
+                  decal=lambda c: tone("rf_wood", 0.8 if (math.hypot(c.p[0], c.p[1] - TCY - dy) % 1) < 0.5 else 0.5) if c.face == "south" else None)
+    box("trunk", (-1.5, TCY - 1.5, 29), (1.5, TCY + 1.5, 34), trunk)
+    # the straps: a band round the tree (tilted with it), each over a bar or the riser
+    for zb, (h, _, _) in ((straps[0], TIERS[3]), (straps[1], TIERS[0])):
+        c = 1.5 if h > 4 else 1
+        t, w = 0.35, 1.5
+        box("strap", (-(h - c), TCY + h, zb), (h - c, TCY + h + t, zb + w), STRAP)
+        box("strap", (-(h - c), TCY - h - t, zb), (h - c, TCY - h, zb + w), STRAP)
+        for sgn in (-1, 1):
+            a, b = sorted((sgn * h, sgn * (h + t)))
+            box("strap", (a, TCY - h + c, zb), (b, TCY + h - c, zb + w), STRAP)
+        box("buckle", (h + t, TCY - 1, zb - 0.25), (h + t + 0.4, TCY + 1, zb + w + 0.25), BUCKLE)
+    # the rack: the front bar under the tip end, the middle bar, the raised rear bar on two posts under the trunk end
+    fz = _tilted((0, TCY - 3, -12))[2]
+    _bars(m, (round(fz * 2) / 2 - 0.75, 10))
+    rz = 26
+    _bars(m, (rz,))
+    # where the tilted tree's bottom (the back tier's underside, strap included) crosses the riser
+    zl = PIVOT[2] + (rz + 0.75 - SHIFT_Z - PIVOT[2]) / math.cos(math.radians(22.5))
+    under = _tilted((0, TCY - 6 - 0.35, zl))[1]
+    top = round((under - 0.5) * 4) / 4
+    for sgn in (-1, 1):
+        a, b = sorted((sgn * 7, sgn * 8.5))
+        m.box("riser_post", (a, BAR_Y, rz + 0.25), (b, top - 1, rz + 1.25), BLACK)
+    m.box("riser_bar", (-9, top - 1, rz), (9, top, rz + 1.5), BLACK)
     return m
 
 
