@@ -707,10 +707,10 @@ def tree():
     _bars(m, TREE_BARS)
     pp = Paint("rf_pine", 3, noise=0, grad=0, rim=0.3, ao=0.4, decal=_pine_decal)
     n = 0
-    for h, z0, z1 in TIERS:
+    for i, (h, z0, z1) in enumerate(TIERS):
         c = round(h * 0.4 * 2) / 2
         cy = Y0 + h
-        y0, y1 = Y0, Y0 + 2 * h
+        y0, y1 = Y0 + 0.02 * i, Y0 + 2 * h          # (overlapping tiers' undersides a hair apart: no flicker)
         m.box("pine", (-h, y0 + c, z0), (h, y1 - c, z1), pp)
         m.box("pine", (-(h - c), y0, z0 - 0.25), (h - c, y1, z1 + 0.25), pp)
         for s in (-1, 1):
