@@ -458,16 +458,16 @@ def wheel_sidecar(whitewall=False, name="wheel_sidecar"):
 # ================================================================================================
 
 # --- the tank: a teardrop over the top tube -----------------------------------------------------
-TZ0, TZ1 = -14.5, 2.0
+TZ0, TZ1 = -15.5, 3.0
 
 
 def tank_dims(z, grow=0.0):
     u = (z - TZ0) / (TZ1 - TZ0)
     if u < 0 or u > 1:
         return None
-    hw = 6.4 - 2.6 * u
-    yt = 33.4 - 4.6 * u ** 0.9
-    yb = 24.6 + 1.2 * u
+    hw = 6.9 - 3.2 * u ** 1.2
+    yt = 34.4 - 3.4 * u ** 1.6
+    yb = 24.2 + 1.4 * u
     s = 1.0
     if u < 0.16:
         s = math.sqrt(max(0.0, 1 - ((0.16 - u) / 0.16) ** 2))
@@ -481,7 +481,7 @@ def tank_f(x, y, z, grow=0.0):
     if d is None or d[0] <= 0.2:
         return 1.0
     hw, yc, hh = d
-    return (abs(x - BX) / hw) ** 2.4 + (abs(y - yc) / hh) ** 2.2 - 1
+    return (abs(x - BX) / hw) ** 2.2 + (abs(y - yc) / hh) ** 2.4 - 1
 
 
 # --- the fenders: a valanced shell round a wheel --------------------------------------------------
@@ -618,15 +618,15 @@ def _bike(m, M, chrome, black, rubber, chrome_r):
     # the springer fork: rigid rear legs from the lower crown down to the rocker, sprung front legs on the rocker's
     # front end up to two coil springs under the upper crown
     for s in (-1, 1):
-        xa, xb = sorted((BX + s * 5.3, BX + s * 6.9))
-        rod(m, "fork_leg", fork(2.5, -2.4), fork(22.5, -2.4), 1.6, black, x=(xa, xb), depth=2.0)
-        rod(m, "fork_spring_leg", fork(1.5, 1.6), fork(16.5, 1.6), 1.6, black, x=(xa, xb), depth=1.4)
+        xa, xb = sorted((BX + s * 5.4, BX + s * 6.6))
+        rod(m, "fork_leg", fork(2.5, -2.2), fork(22.5, -2.2), 1.2, M.paint(("lit", "sc_black", "gloss")), x=(xa, xb), depth=1.4)
+        rod(m, "fork_spring_leg", fork(1.5, 1.8), fork(16.5, 1.8), 1.2, M.paint(("lit", "sc_black", "gloss")), x=(xa, xb), depth=1.2)
 
         def spring(c):
             t = c.p[1] * 1.1 - c.p[2] * 0.45
             return "chrome" if math.floor(t) % 2 == 0 else ("sc_chrome", 1.2)
         xa2, xb2 = sorted((BX + s * 5.0, BX + s * 7.2))
-        rod(m, "fork_spring", fork(16.5, 1.6), fork(24.0, 1.6), 2.2, M.paint(spring), x=(xa2, xb2), depth=2.2)
+        rod(m, "fork_spring", fork(16.5, 1.8), fork(24.0, 1.8), 2.2, M.paint(spring), x=(xa2, xb2), depth=2.2)
         # the rocker at the axle: a short link from the rear leg's foot past the axle to the front leg
         xa3, xb3 = sorted((BX + s * 4.6, BX + s * 7.4))
         rod(m, "rocker", fork(0.0, -3.0), fork(0.0, 2.6), 2.0, black, x=(xa3, xb3), depth=2.0)
@@ -682,14 +682,13 @@ def _bike(m, M, chrome, black, rubber, chrome_r):
         r = math.hypot(x, y)
         if r > 4.15:
             return ("raw", (0, 0, 0, 0))
-        if (x + 1.4) ** 2 + (y - 1.6) ** 2 < 1.3:
-            return ("sc_white", 3.4)                   # the glass's glint
-        if r < 0.9:
-            return ("sc_lamp", 3.6)                    # the bulb
-        if r < 1.6:
-            return ("sc_chrome", 2.0)                  # its dark socket
-        ring = math.floor(r * 1.6) % 2
-        return ("sc_lamp", (1.6 if ring else 2.4) + (y > 0) * 0.6)     # the reflector's rings, seen through fluting
+        if (x + 1.6) ** 2 + (y - 1.7) ** 2 < 0.8:
+            return ("sc_white", 3.6)                   # the glass's glint
+        if r < 1.0:
+            return ("sc_lamp", 3.4)                    # the bulb's glow in the reflector
+        if abs(r - 3.3) < 0.4:
+            return ("sc_lamp", 1.0)                    # a fluted ring in the glass
+        return ("sc_lamp", 2.8 - r * 0.35 + (0.4 if y > 0 else 0))
     m.box("headlamp_lens", (BX - 4.25, hy - 4.25, hz - 4.6), (BX + 4.25, hy + 4.25, hz - 4.3),
           Paint("sc_lamp", 2, noise=0, light=False, decal=lens))
     for s in (-1, 1):
@@ -802,7 +801,7 @@ def _bike(m, M, chrome, black, rubber, chrome_r):
         ytop = tank_dims(zc)[1] + tank_dims(zc)[2] - 0.7
         cyl(m, "filler_cap", (cx, zc), 2.6, ytop, ytop + 1.1, chrome_r("y", cx, zc))
     # the hand-shift lever up the tank's left side, a black knob on it
-    rod(m, "shift_lever", (19.0, -2.0), (31.5, -6.5), 0.9, chrome, x=(BX - 7.8, BX - 6.9))
+    rod(m, "shift_lever", (25.0, -1.6), (31.2, -6.6), 0.9, chrome, x=(BX - 7.8, BX - 6.9))
     m.box("shift_knob", (BX - 8.5, 31.0, -8.3), (BX - 6.2, 33.4, -6.0), M.paint(("lit", "sc_black", "gloss")))
     m.box("shift_gate", (BX - 7.6, 24.0, -4.0), (BX - 5.8, 25.6, 1.0), chrome)
 
