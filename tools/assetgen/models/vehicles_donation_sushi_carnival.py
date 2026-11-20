@@ -407,6 +407,7 @@ def carnival_kit(colour="sc_pearl", trim="sc_leather", box="sc_box", name="sushi
     _door_parts(kit, ctx)
     _roof_rack(m, ctx)
     _roof_box(m, ctx)
+    _side_details(m, ctx)
     m.display = _held_display()
     _KIT[key] = kit
     return kit
@@ -563,14 +564,54 @@ def _front(m, ctx):
     def valance(c):
         x, y, z = c.p
         ax = abs(x)
-        if c.face == "north" and 3.5 <= y < 4.5 and 4.5 <= ax < 8.5:
-            return tone("sc_black", 0.0) if math.floor(x) % 2 else tone("sc_black", 0.4)
-        if c.face == "north" and 3.5 <= y < 4.5 and 10 <= ax < 13:
-            return ("raw", (230, 236, 244, 255))                         # fog lamp slots
+        if c.face == "north" and 3 <= y < 4 and 4.5 <= ax < 8.5:
+            return tone("sc_black", 0.0) if math.floor(x) % 2 else tone("sc_black", 0.45)   # the intake's mesh
+        if c.face == "north" and 4 <= y < 4.5 and math.floor(ax) in (5, 14):
+            return tone("sc_chrome", 0.45)                               # parking sensors
         return tone("sc_black", 0.32 if c.face != "up" else 0.5)
     m.box("valance", (-(W - 0.5), GROUND - 0.5, NOSE - 1), (W - 0.5, GRILLE_Y0 - 1, NOSE + 1),
           Paint("sc_black", 1, noise=0, grad=0, rim=0.3, decal=valance))
-    m.box("skid", (-8, GROUND - 0.5, NOSE - 1.25), (8, GROUND + 0.5, NOSE - 1), _chrome(0.9, 0.7, 0.5))
+    # the silver skid-plate lip under it
+    m.box("skid", (-8.5, GROUND - 0.75, NOSE - 1.5), (8.5, GROUND, NOSE - 0.5), _chrome(0.9, 0.72, 0.5))
+    _front_details(m, ctx)
+
+
+def _front_details(m, ctx):
+    """The grille's 3D chrome bars, the L-shaped running lights, the fog lamps, washer jets, wipers."""
+    fr = _chrome(0.98, 0.82, 0.55)
+
+    def bar(c):
+        if c.face == "north" and abs(c.p[0]) < 0.5 and c.hi[1] - c.lo[1] > 0.6:
+            return ("raw", (16, 16, 20, 255))                            # the parking camera's eye
+        return fr.decal(c)
+    m.box("grille_bar", (-GRILLE_X, 9, NOSE - 0.2), (GRILLE_X, 10, NOSE + 0.5), Paint("sc_chrome", 5, noise=0, rim=0.4, ao=0.2, decal=bar))
+    for y in (7, 11.25):
+        m.box("grille_slat", (-GRILLE_X, y, NOSE + 0.2), (GRILLE_X, y + 0.5, NOSE + 0.6), fr)
+    for x in (-5, 0, 5):
+        m.box("grille_rib", (x - 0.25, GRILLE_Y0, NOSE + 0.45), (x + 0.25, GRILLE_Y1, NOSE + 0.7), _chrome(0.7, 0.5, 0.35))
+    m.group("lights")
+    drl = Paint("sc_led", 2, noise=0, light=False, glow=True, decal=lambda c: ("raw", (214, 242, 255, 255)) if c.face == "north" else ("raw", (60, 70, 84, 255)))
+    for s in (-1, 1):
+        # the L: down the lamp's outer end
+        m.box("drl", _lo(s, LAMP[1] - 0.75, LAMP[1], 9, NOSE - 0.3), _hi(s, LAMP[1] - 0.75, LAMP[1], LAMP[2], NOSE), drl)
+
+        def fog(c):
+            if c.face != "north":
+                return tone("sc_chrome", 0.6)
+            dx, dy = abs(c.p[0]) - 11.5, c.p[1] - 3.75
+            if abs(dx) < 1.25 and abs(dy) < 0.5:
+                return ("raw", (240, 244, 236, 255))
+            return tone("sc_chrome", 0.85 if dy > 0 else 0.55)
+        m.box("fog_lamp", _lo(s, 9.75, 13.25, 2.75, NOSE - 1.6), _hi(s, 9.75, 13.25, 4.5, NOSE - 1),
+              Paint("sc_chrome", 5, noise=0, light=False, decal=fog))
+    m.group("body")
+    for s in (-1, 1):
+        m.box("washer_jet", _lo(s, 4.5, 5.5, BELT, -34), _hi(s, 4.5, 5.5, BELT + 0.35, -33.25), BLACK)
+    wip = Paint("sc_black", 0, noise=0, rim=0.4)
+    for x0, x1 in ((-12.5, -1.5), (1.5, 11.5)):
+        m.box("wiper", (x0, BELT, ZS0 - 0.9), (x1, BELT + 0.4, ZS0 - 0.4), wip)
+    for x in (-1.5, 11.5):
+        m.box("wiper_arm", (x - 0.75, BELT, ZS0 - 1.6), (x + 0.75, BELT + 0.5, ZS0 - 0.9), wip)
 
 
 def _rear(m, ctx):
@@ -616,7 +657,9 @@ def _rear(m, ctx):
     def bumper(c):
         x, y, z = c.p
         if c.face == "south" and 4.5 <= y < 5.5 and 11.5 <= abs(x) < 14:
-            return ("raw", (150, 20, 26, 255))
+            return ("raw", (150, 20, 26, 255))                           # reflectors
+        if c.face == "south" and 4.5 <= y < 5 and math.floor(abs(x)) in (3, 8):
+            return tone("sc_chrome", 0.45)                               # parking sensors
         if c.face == "up":
             return tone("sc_black", 0.5)
         return tone("sc_black", 0.28)
@@ -629,6 +672,18 @@ def _rear(m, ctx):
     m.box("spoiler", (-(W - 2.5), ROOF - 0.75, RZ1 - 1), (W - 2.5, ROOF + 0.5, TAIL + 1.25), sp)
     m.box("stop_lamp", (-3, ROOF - 0.75, TAIL + 1.25), (3, ROOF - 0.25, TAIL + 1.3),
           Paint("sc_tail", 1, noise=0, light=False, decal=lambda c: ("raw", (190, 24, 34, 255))))
+    # the chrome garnish over the plate, the silver skid plate, two slim exhaust tips under the bumper
+    m.box("garnish", (-8, 15, TAIL), (8, 15.75, TAIL + 0.3), _chrome(0.98, 0.82, 0.55))
+    m.box("skid_r", (-8, GROUND - 0.75, TAIL + 0.5), (8, GROUND, TAIL + 1.4), _chrome(0.9, 0.72, 0.5))
+
+    def tip(c):
+        if c.face == "south":
+            r = abs(c.p[1] - 2.5)
+            return ("raw", (16, 16, 20, 255)) if r < 0.3 and abs(abs(c.p[0]) - 10.75) < 0.9 else tone("sc_chrome", 0.9)
+        return tone("sc_chrome", 0.7)
+    for s in (-1, 1):
+        m.box("exhaust", _lo(s, 9.5, 12, 1.75, TAIL - 1), _hi(s, 9.5, 12, 3.25, TAIL + 1.2),
+              Paint("sc_chrome", 5, noise=0, rim=0.3, decal=tip))
 
 
 def _glasshouse(m, kit, ctx):
@@ -774,13 +829,50 @@ def _door_parts(kit, ctx):
             if c.face in ("east", "west") and c.p[1] < BELT + 1.5:
                 return ("raw", (255, 190, 80, 255))                     # the repeater along its foot
             return tone(C, 0.8)
-        d.box("mirror_foot", _lo(s, W - 1, W + 0.5, BELT, z), _hi(s, W - 1, W + 0.5, BELT + 1, z + 2.5), BLACK)
+        d.box("mirror_foot", _lo(s, W - 1, W + 0.5, BELT + 0.4, z), _hi(s, W - 1, W + 0.5, BELT + 1.2, z + 2.5), BLACK)
         d.box("mirror", _lo(s, W + 0.25, W + 3, BELT + 0.75, z), _hi(s, W + 0.25, W + 3, BELT + 3.5, z + 2),
               Paint(C, 4, noise=0, grad=0, rim=0.3, ao=0, decal=mirror))
-        d.box("handle", _lo(s, W, W + 0.3, 14, D1 - 5), _hi(s, W, W + 0.3, 14.75, D1 - 2), CHROME)
+        d.box("handle_cup", _lo(s, W, W + 0.1, 13.75, D1 - 5.5), _hi(s, W, W + 0.1, 15, D1 - 1.5), BLACK)
+        d.box("handle", _lo(s, W + 0.1, W + 0.4, 14, D1 - 5), _hi(s, W + 0.1, W + 0.4, 14.75, D1 - 2), CHROME)
         d.box("arm_rest", _lo(s, CAB - 1, CAB, 10, D0 + 6), _hi(s, CAB - 1, CAB, 11, D1 - 2), Paint(TR, 2, noise=0, rim=0.4))
         sl = kit["slide_l" if s < 0 else "slide_r"]
-        sl.box("handle", _lo(s, W, W + 0.3, 14, S0 + 2), _hi(s, W, W + 0.3, 14.75, S0 + 6), CHROME)
+        sl.box("handle_cup", _lo(s, W, W + 0.1, 13.75, S0 + 1.5), _hi(s, W, W + 0.1, 15, S0 + 6.5), BLACK)
+        sl.box("handle", _lo(s, W + 0.1, W + 0.4, 14, S0 + 2), _hi(s, W + 0.1, W + 0.4, 14.75, S0 + 6), CHROME)
+        # the chrome window-line trim along the belt (front door, sliding door; the body has the rest)
+        trim = _chrome(0.98, 0.85, 0.6)
+        d.box("belt_trim", _lo(s, CAB + 0.5, CAB + 0.8, BELT, D0), _hi(s, CAB + 0.5, CAB + 0.8, BELT + 0.4, D1), trim)
+        sl.box("belt_trim", _lo(s, CAB + 0.5, CAB + 0.8, BELT, S0), _hi(s, CAB + 0.5, CAB + 0.8, BELT + 0.4, S1), trim)
+
+
+def _side_details(m, ctx):
+    """The body's chrome belt trim and the Carnival-like chrome sweep along the quarter window's top and down the D
+    pillar, the black rocker cladding with a chrome strip, the fuel flap on the right rear quarter."""
+    trim = _chrome(0.98, 0.85, 0.6)
+    for s in (-1, 1):
+        lo, hi = CAB + 0.5, CAB + 0.8
+        m.box("belt_trim", _lo(s, lo, hi, BELT, ZS0 + 0.5), _hi(s, lo, hi, BELT + 0.4, D0), trim)
+        m.box("belt_trim", _lo(s, lo, hi, BELT, S1), _hi(s, lo, hi, BELT + 0.4, RZ1 - 3.5), trim)
+        m.box("dlo_trim", _lo(s, lo, hi, GLASS_TOP - 0.5, S1 + 1), _hi(s, lo, hi, GLASS_TOP - 0.1, RZ1 - 2.75), trim)
+        m.box("pillar_fin", _lo(s, lo, hi, BELT, RZ1 - 3.5), _hi(s, lo, hi, GLASS_TOP - 0.5, RZ1 - 2.75), trim)
+
+        def rocker(c):
+            if c.face == "up":
+                return tone("sc_chrome", 0.85)
+            if c.face in ("east", "west") and c.p[1] > GROUND + 1.6:
+                return tone("sc_chrome", 0.7)
+            return tone("sc_black", 0.2)
+        m.box("rocker", _lo(s, W, W + 0.5, GROUND, WF + ARCH + 0.75), _hi(s, W, W + 0.5, GROUND + 2, WR - ARCH - 0.75),
+              Paint("sc_black", 1, noise=0, rim=0.3, decal=rocker))
+    C = ctx["C"]
+
+    def flap(c):
+        if c.face != "east":
+            return tone(C, 0.6)
+        u, v = c.p[2] - 34, c.p[1] - 11
+        if u < 0.5 or u > 2.5 or v < 0.5 or v > 2.5:
+            return tone(C, 0.35)                                         # its shut line
+        return tone(C, 0.82)
+    m.box("fuel_flap", (W, 11, 34), (W + 0.1, 14, 37), Paint(C, 4, noise=0, rim=0, decal=flap))
 
 
 def _roof_rack(m, ctx):
@@ -788,9 +880,13 @@ def _roof_rack(m, ctx):
     rail = _chrome(0.95, 0.75, 0.5)
     for s in (-1, 1):
         x0, x1 = 11.5, 12.75
-        m.box("rail", _lo(s, x0, x1, ROOF + 0.75, ZS1 + 4), _hi(s, x0, x1, RAIL_Y, RZ1 - 3), rail)
-        for z0 in (ZS1 + 3, RZ1 - 5):
-            m.box("rail_foot", _lo(s, x0, x1, ROOF, z0), _hi(s, x0, x1, ROOF + 0.75, z0 + 2), BLACK)
+        m.box("rail", _lo(s, x0, x1, ROOF + 0.75, ZS1 + 5), _hi(s, x0, x1, RAIL_Y, RZ1 - 4), rail)
+        m.box("rail_post", _lo(s, x0 + 0.25, x1 - 0.25, ROOF, 9), _hi(s, x0 + 0.25, x1 - 0.25, ROOF + 0.75, 10), BLACK)
+        # the black end caps, their ends bevelled at 45 degrees
+        for z0, z1 in ((ZS1 + 3, ZS1 + 5), (RZ1 - 4, RZ1 - 2)):
+            m.box("rail_cap", _lo(s, x0 - 0.1, x1 + 0.1, ROOF, z0), _hi(s, x0 - 0.1, x1 + 0.1, RAIL_Y + 0.1, z1), BLACK)
+        plank(m, "rail_cap_nose", "x", (ZS1 + 1.5, ROOF), (ZS1 + 3, RAIL_Y), _x(s, x0, x1), 0.6, BLACK, below=False)
+        plank(m, "rail_cap_tail", "x", (RZ1 - 2, RAIL_Y), (RZ1 - 0.5, ROOF), _x(s, x0, x1), 0.6, BLACK, below=False)
     for zb in (-9, 19):
         m.box("cross_bar", (-13, RAIL_Y, zb), (13, BAR_Y, zb + 1.5), BLACK)
         for s in (-1, 1):
@@ -886,6 +982,10 @@ def _roof_box(m, ctx):
     for s in (-1, 1):
         m.box("box_lock", _lo(s, BX, BX + 0.25, SHUT - 1.25, 14.25), _hi(s, BX, BX + 0.25, SHUT - 0.25, 15.25),
               Paint("sc_chrome", 5, noise=0, rim=0.3, decal=lock))
+    # the lid's lip along each side, just over the shut line
+    for s in (-1, 1):
+        m.box("box_lip", _lo(s, BX, BX + 0.25, SHUT, zc0), _hi(s, BX, BX + 0.25, SHUT + 0.5, zc1),
+              Paint(B, 3, noise=0, rim=0.3, decal=lambda c: tone(B, 0.85 if c.face == "up" else 0.55)))
     # the feet: a block under the box on each bar, a clamp hooked round the bar's underside
     foot = Paint("sc_black", 1, noise=0, grad=0, rim=0.3, ao=0.3)
     for zb in (-9, 19):
@@ -941,8 +1041,10 @@ def wheel_sushi_carnival():
         a = math.atan2(z, y)
         t = (a * 10 / (2 * math.pi)) % 1.0
         dpx = abs(t - 0.5) * 2 * math.pi * rr / 10
-        if dpx < 0.62:
-            return tone("sc_rim", 0.9 if y > 0.5 else 0.68)              # the spokes
+        if dpx < 0.75:
+            if dpx < 0.4 and rr > 2.4:
+                return tone("sc_rim", 1.0 if y > 0.5 else 0.82)          # the spokes' machined faces
+            return tone("sc_black", 0.45)                                # their dark painted flanks
         if rr > 2.8 and y > 1.4 and abs(z) < 1.4:
             return tone("sc_black", 0.35)                                # the calliper, dark
         return tone("sc_black", 0.0)
@@ -950,6 +1052,10 @@ def wheel_sushi_carnival():
     w2 = width / 2
     cyl(m, "hub", (0, 0), rim_d, w2, w2 + 0.25, p, axis="x")
     cyl(m, "hub", (0, 0), rim_d, -w2 - 0.25, -w2, p, axis="x")
+    # the centre caps, standing proud
+    cap = Paint("sc_chrome", 5, noise=0, rim=0.4, decal=lambda c: tone("sc_black", 0.3) if c.face in ("east", "west") and abs(c.p[1]) < 0.4 and abs(c.p[2]) < 0.4 else tone("sc_chrome", 0.85))
+    m.box("cap", (w2 + 0.25, -0.9, -0.9), (w2 + 0.6, 0.9, 0.9), cap)
+    m.box("cap", (-w2 - 0.6, -0.9, -0.9), (-w2 - 0.25, 0.9, 0.9), cap)
     m.display = presets.furniture(gui_scale=0.6)
     return m
 
